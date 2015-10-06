@@ -124,73 +124,71 @@ type ipamData struct {
 }
 
 type driverTable map[string]*driverData
+
+//type networkTable map[string]*network
+//type endpointTable map[string]*endpoint
 type ipamTable map[string]*ipamData
-type networkTable map[string]*network
-type endpointTable map[string]*endpoint
 type sandboxTable map[string]*sandbox
 
 type controller struct {
-	id                      string
-	networks                networkTable
-	drivers                 driverTable
-	ipamDrivers             ipamTable
-	sandboxes               sandboxTable
-	cfg                     *config.Config
-	globalStore, localStore datastore.DataStore
-	discovery               hostdiscovery.HostDiscovery
-	extKeyListener          net.Listener
+	id string
+	//networks       networkTable
+	drivers        driverTable
+	ipamDrivers    ipamTable
+	sandboxes      sandboxTable
+	cfg            *config.Config
+	stores         []datastore.DataStore
+	discovery      hostdiscovery.HostDiscovery
+	extKeyListener net.Listener
+	watchCh        chan *endpoint
+	unWatchCh      chan *endpoint
+	svcDb          map[string]svcMap
 	sync.Mutex
 }
 
 // New creates a new instance of network controller.
 func New(cfgOptions ...config.Option) (NetworkController, error) {
 	var cfg *config.Config
+	cfg = &config.Config{
+		Daemon: config.DaemonCfg{
+			DriverCfg: make(map[string]interface{}),
+		},
+		Scopes: make(map[string]*datastore.ScopeCfg),
+	}
+
 	if len(cfgOptions) > 0 {
-		cfg = &config.Config{
-			Daemon: config.DaemonCfg{
-				DriverCfg: make(map[string]interface{}),
-			},
-		}
 		cfg.ProcessOptions(cfgOptions...)
 	}
+	cfg.LoadDefaultScopes(cfg.Daemon.DataDir)
+
 	c := &controller{
 		id:          stringid.GenerateRandomID(),
 		cfg:         cfg,
-		networks:    networkTable{},
 		sandboxes:   sandboxTable{},
 		drivers:     driverTable{},
-		ipamDrivers: ipamTable{}}
-	if err := initDrivers(c); err != nil {
+		ipamDrivers: ipamTable{},
+		svcDb:       make(map[string]svcMap),
+	}
+
+	if err := c.initStores(); err != nil {
 		return nil, err
 	}
 
-	if cfg != nil {
-		if err := c.initGlobalStore(); err != nil {
-			// Failing to initalize datastore is a bad situation to be in.
-			// But it cannot fail creating the Controller
-			log.Debugf("Failed to Initialize Datastore due to %v. Operating in non-clustered mode", err)
-		}
-		if err := c.initLocalStore(); err != nil {
-			log.Debugf("Failed to Initialize LocalDatastore due to %v.", err)
-		}
-	}
-
-	if err := initIpams(c, c.localStore, c.globalStore); err != nil {
-		return nil, err
-	}
-
-	if cfg != nil {
-		if err := c.restoreFromGlobalStore(); err != nil {
-			log.Debugf("Failed to restore from global Datastore due to %v", err)
-		}
+	if cfg != nil && cfg.Cluster.Watcher != nil {
 		if err := c.initDiscovery(cfg.Cluster.Watcher); err != nil {
 			// Failing to initalize discovery is a bad situation to be in.
 			// But it cannot fail creating the Controller
 			log.Debugf("Failed to Initialize Discovery : %v", err)
 		}
-		if err := c.restoreFromLocalStore(); err != nil {
-			log.Debugf("Failed to restore from local Datastore due to %v", err)
-		}
+	}
+
+	if err := initDrivers(c); err != nil {
+		return nil, err
+	}
+
+	if err := initIpams(c, c.getStore(datastore.LocalScope),
+		c.getStore(datastore.GlobalScope)); err != nil {
+		return nil, err
 	}
 
 	if err := c.startExternalKeyListener(); err != nil {
@@ -325,15 +323,6 @@ func (c *controller) NewNetwork(networkType, name string, options ...NetworkOpti
 	if !config.IsValidName(name) {
 		return nil, ErrInvalidName(name)
 	}
-	// Check if a network already exists with the specified network name
-	c.Lock()
-	for _, n := range c.networks {
-		if n.name == name {
-			c.Unlock()
-			return nil, NetworkNameError(name)
-		}
-	}
-	c.Unlock()
 
 	// Construct the network object
 	network := &network{
@@ -342,13 +331,15 @@ func (c *controller) NewNetwork(networkType, name string, options ...NetworkOpti
 		ipamType:    ipamapi.DefaultIPAM,
 		id:          stringid.GenerateRandomID(),
 		ctrlr:       c,
-		endpoints:   endpointTable{},
 		persist:     true,
+		drvOnce:     &sync.Once{},
 	}
 
 	network.processOptions(options...)
 
-	if _, err := c.loadNetworkDriver(network); err != nil {
+	// Make sure we have a driver available for this network type
+	// before we allocate anything.
+	if _, err := network.driver(); err != nil {
 		return nil, err
 	}
 
@@ -364,7 +355,16 @@ func (c *controller) NewNetwork(networkType, name string, options ...NetworkOpti
 		}
 	}()
 
-	if err = c.addNetwork(network); err != nil {
+	// addNetwork can be called for local scope network lazily when
+	// an endpoint is created after a restart and the network was
+	// created in previous life. Make sure you wrap around the driver
+	// notification of network creation in once call so that the driver
+	// invoked only once in case both the network and endpoint creation
+	// happens in the same lifetime.
+	network.drvOnce.Do(func() {
+		err = c.addNetwork(network)
+	})
+	if err != nil {
 		return nil, err
 	}
 
@@ -380,35 +380,28 @@ func (c *controller) NewNetwork(networkType, name string, options ...NetworkOpti
 }
 
 func (c *controller) addNetwork(n *network) error {
-	if _, err := c.loadNetworkDriver(n); err != nil {
+	d, err := n.driver()
+	if err != nil {
 		return err
 	}
-	n.Lock()
-	d := n.driver
-	n.Unlock()
 
 	// Create the network
 	if err := d.CreateNetwork(n.id, n.generic, n.getIPv4Data(), n.getIPv6Data()); err != nil {
 		return err
 	}
-	if n.isGlobalScoped() {
-		if err := n.watchEndpoints(); err != nil {
-			return err
-		}
-	}
-	c.Lock()
-	c.networks[n.id] = n
-	c.Unlock()
 
 	return nil
 }
 
 func (c *controller) Networks() []Network {
-	c.Lock()
-	defer c.Unlock()
+	var list []Network
 
-	list := make([]Network, 0, len(c.networks))
-	for _, n := range c.networks {
+	networks, err := c.getNetworksFromStore()
+	if err != nil {
+		log.Error(err)
+	}
+
+	for _, n := range networks {
 		list = append(list, n)
 	}
 
@@ -450,12 +443,13 @@ func (c *controller) NetworkByID(id string) (Network, error) {
 	if id == "" {
 		return nil, ErrInvalidID(id)
 	}
-	c.Lock()
-	defer c.Unlock()
-	if n, ok := c.networks[id]; ok {
-		return n, nil
+
+	n, err := c.getNetworkFromStore(id)
+	if err != nil {
+		return nil, ErrNoSuchNetwork(id)
 	}
-	return nil, ErrNoSuchNetwork(id)
+
+	return n, nil
 }
 
 // NewSandbox creates a new sandbox for the passed container id
@@ -620,30 +614,7 @@ func (c *controller) getIpamDriver(name string) (ipamapi.Ipam, error) {
 }
 
 func (c *controller) Stop() {
-	if c.localStore != nil {
-		c.localStore.KVStore().Close()
-	}
+	c.closeStores()
 	c.stopExternalKeyListener()
 	osl.GC()
-}
-
-func (c *controller) loadNetworkDriver(n *network) (driverapi.Driver, error) {
-	// Check if a driver for the specified network type is available
-	c.Lock()
-	dd, ok := c.drivers[n.networkType]
-	c.Unlock()
-	if !ok {
-		var err error
-		dd, err = c.loadDriver(n.networkType)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	n.Lock()
-	n.svcRecords = svcMap{}
-	n.driver = dd.driver
-	n.dataScope = dd.capability.DataScope
-	n.Unlock()
-	return dd.driver, nil
 }

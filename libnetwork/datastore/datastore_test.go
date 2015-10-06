@@ -5,7 +5,6 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/docker/libnetwork/config"
 	"github.com/docker/libnetwork/options"
 	_ "github.com/docker/libnetwork/testutils"
 	"github.com/stretchr/testify/assert"
@@ -15,7 +14,7 @@ var dummyKey = "dummy"
 
 // NewCustomDataStore can be used by other Tests in order to use custom datastore
 func NewTestDataStore() DataStore {
-	return &datastore{store: NewMockStore()}
+	return &datastore{scope: LocalScope, store: NewMockStore()}
 }
 
 func TestKey(t *testing.T) {
@@ -38,11 +37,11 @@ func TestParseKey(t *testing.T) {
 }
 
 func TestInvalidDataStore(t *testing.T) {
-	config := &config.DatastoreCfg{}
+	config := &ScopeCfg{}
 	config.Embedded = false
 	config.Client.Provider = "invalid"
 	config.Client.Address = "localhost:8500"
-	_, err := NewDataStore(config)
+	_, err := NewDataStore(GlobalScope, config)
 	if err == nil {
 		t.Fatal("Invalid Datastore connection configuration must result in a failure")
 	}
@@ -167,7 +166,7 @@ func (n *dummyObject) Skip() bool {
 	return n.SkipSave
 }
 
-func (n *dummyObject) DataScope() DataScope {
+func (n *dummyObject) DataScope() string {
 	return LocalScope
 }
 

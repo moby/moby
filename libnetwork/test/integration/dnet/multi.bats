@@ -1,6 +1,18 @@
+# -*- mode: sh -*-
 #!/usr/bin/env bats
 
 load helpers
+
+function is_network_exist() {
+    line=$(dnet_cmd $(inst_id2port $1) network ls | grep ${2})
+    name=$(echo ${line} | cut -d" " -f2)
+    driver=$(echo ${line} | cut -d" " -f3)
+    if [ "$name" == "$2"  -a  "$driver" == "$3" ]; then
+	echo "true"
+    else
+	echo "false"
+    fi
+}
 
 @test "Test multinode network create" {
     echo $(docker ps)
@@ -13,19 +25,17 @@ load helpers
 
 	for j in `seq 1 3`;
 	do
-	    line=$(dnet_cmd $(inst_id2port $j) network ls | grep ${oname})
-	    echo ${output}
-	    [ "$status" -eq 0 ]
-	    echo ${line}
-	    name=$(echo ${line} | cut -d" " -f2)
-	    driver=$(echo ${line} | cut -d" " -f3)
-	    echo ${name} ${driver}
-	    [ "$name" = "$oname" ]
-	    [ "$driver" = "test" ]
+	    result=$(is_network_exist $j ${oname} test)
+	    [ "$result" = "true" ]
 	done
 
-	# Always try to remove the network from the first node
-	dnet_cmd $(inst_id2port 1) network rm ${oname}
+	# Always try to remove the network from the second node
+	dnet_cmd $(inst_id2port 2) network rm ${oname}
+	echo "delete ${oname}"
+	nresult=$(is_network_exist 1 ${oname} test)
+	echo ${nresult}
+	dnet_cmd $(inst_id2port 1) network ls
+	[ "$nresult" = "false" ]
     done
 }
 
@@ -97,6 +107,7 @@ load helpers
 	dnet_cmd $(inst_id2port $i) network create -d test ${oname}
 	dnet_cmd $(inst_id2port $i) service publish ${osvc}.${oname}
 	dnet_cmd $(inst_id2port $i) container create container_${i}
+	dnet_cmd $(inst_id2port $i) network ls
 	dnet_cmd $(inst_id2port $i) service attach container_${i} ${osvc}.${oname}
 
 	for j in `seq 1 3`;

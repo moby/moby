@@ -3,6 +3,7 @@ package libnetwork
 import (
 	"strings"
 
+	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/ipamapi"
 	builtinIpam "github.com/docker/libnetwork/ipams/builtin"
@@ -32,9 +33,9 @@ func makeDriverConfig(c *controller, ntype string) map[string]interface{} {
 
 	config := make(map[string]interface{})
 
-	if c.validateGlobalStoreConfig() {
-		config[netlabel.KVProvider] = c.cfg.GlobalStore.Client.Provider
-		config[netlabel.KVProviderURL] = c.cfg.GlobalStore.Client.Address
+	if dcfg, ok := c.cfg.Scopes[datastore.GlobalScope]; ok && dcfg.IsValid() {
+		config[netlabel.KVProvider] = dcfg.Client.Provider
+		config[netlabel.KVProviderURL] = dcfg.Client.Address
 	}
 
 	for _, label := range c.cfg.Daemon.Labels {

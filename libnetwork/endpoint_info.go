@@ -2,6 +2,7 @@ package libnetwork
 
 import (
 	"encoding/json"
+	"fmt"
 	"net"
 
 	"github.com/docker/libnetwork/driverapi"
@@ -115,6 +116,21 @@ func (epi *endpointInterface) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+func (epi *endpointInterface) CopyTo(dstEpi *endpointInterface) error {
+	dstEpi.mac = types.GetMacCopy(epi.mac)
+	dstEpi.addr = types.GetIPNetCopy(epi.addr)
+	dstEpi.addrv6 = types.GetIPNetCopy(epi.addrv6)
+	dstEpi.srcName = epi.srcName
+	dstEpi.dstPrefix = epi.dstPrefix
+	dstEpi.poolID = epi.poolID
+
+	for _, route := range epi.routes {
+		dstEpi.routes = append(dstEpi.routes, types.GetIPNetCopy(route))
+	}
+
+	return nil
+}
+
 type endpointJoinInfo struct {
 	gw           net.IP
 	gw6          net.IP
@@ -122,21 +138,38 @@ type endpointJoinInfo struct {
 }
 
 func (ep *endpoint) Info() EndpointInfo {
-	return ep
+	n, err := ep.getNetworkFromStore()
+	if err != nil {
+		return nil
+	}
+
+	ep, err = n.getEndpointFromStore(ep.ID())
+	if err != nil {
+		return nil
+	}
+
+	sb, ok := ep.getSandbox()
+	if !ok {
+		// endpoint hasn't joined any sandbox.
+		// Just return the endpoint
+		return ep
+	}
+
+	return sb.getEndpoint(ep.ID())
 }
 
 func (ep *endpoint) DriverInfo() (map[string]interface{}, error) {
-	ep.Lock()
-	network := ep.network
-	epid := ep.id
-	ep.Unlock()
+	n, err := ep.getNetworkFromStore()
+	if err != nil {
+		return nil, fmt.Errorf("could not find network in store for driver info: %v", err)
+	}
 
-	network.Lock()
-	driver := network.driver
-	nid := network.id
-	network.Unlock()
+	driver, err := n.driver()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get driver info: %v", err)
+	}
 
-	return driver.EndpointOperInfo(nid, epid)
+	return driver.EndpointOperInfo(n.ID(), ep.ID())
 }
 
 func (ep *endpoint) Iface() InterfaceInfo {

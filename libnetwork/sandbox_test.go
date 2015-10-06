@@ -115,21 +115,21 @@ func TestSandboxAddMultiPrio(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if ctrlr.sandboxes[sid].endpoints[0] != ep3 {
+	if ctrlr.sandboxes[sid].endpoints[0].ID() != ep3.ID() {
 		t.Fatal("Expected ep3 to be at the top of the heap. But did not find ep3 at the top of the heap")
 	}
 
 	if err := ep3.Leave(sbx); err != nil {
 		t.Fatal(err)
 	}
-	if ctrlr.sandboxes[sid].endpoints[0] != ep2 {
+	if ctrlr.sandboxes[sid].endpoints[0].ID() != ep2.ID() {
 		t.Fatal("Expected ep2 to be at the top of the heap after removing ep3. But did not find ep2 at the top of the heap")
 	}
 
 	if err := ep2.Leave(sbx); err != nil {
 		t.Fatal(err)
 	}
-	if ctrlr.sandboxes[sid].endpoints[0] != ep1 {
+	if ctrlr.sandboxes[sid].endpoints[0].ID() != ep1.ID() {
 		t.Fatal("Expected ep1 to be at the top of the heap after removing ep2. But did not find ep1 at the top of the heap")
 	}
 
@@ -138,7 +138,7 @@ func TestSandboxAddMultiPrio(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if ctrlr.sandboxes[sid].endpoints[0] != ep3 {
+	if ctrlr.sandboxes[sid].endpoints[0].ID() != ep3.ID() {
 		t.Fatal("Expected ep3 to be at the top of the heap after adding ep3 back. But did not find ep3 at the top of the heap")
 	}
 
@@ -185,7 +185,7 @@ func TestSandboxAddSamePrio(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if ctrlr.sandboxes[sid].endpoints[0] != ep1 {
+	if ctrlr.sandboxes[sid].endpoints[0].ID() != ep1.ID() {
 		t.Fatal("Expected ep1 to be at the top of the heap. But did not find ep1 at the top of the heap")
 	}
 
@@ -193,7 +193,7 @@ func TestSandboxAddSamePrio(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if ctrlr.sandboxes[sid].endpoints[0] != ep2 {
+	if ctrlr.sandboxes[sid].endpoints[0].ID() != ep2.ID() {
 		t.Fatal("Expected ep2 to be at the top of the heap after removing ep3. But did not find ep2 at the top of the heap")
 	}
 

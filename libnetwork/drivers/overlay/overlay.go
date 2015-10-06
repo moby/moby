@@ -6,7 +6,6 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/libkv/store"
-	"github.com/docker/libnetwork/config"
 	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/idm"
@@ -84,8 +83,8 @@ func (d *driver) configure() error {
 		provURL, urlOk := d.config[netlabel.KVProviderURL]
 
 		if provOk && urlOk {
-			cfg := &config.DatastoreCfg{
-				Client: config.DatastoreClientCfg{
+			cfg := &datastore.ScopeCfg{
+				Client: datastore.ScopeClientCfg{
 					Provider: provider.(string),
 					Address:  provURL.(string),
 				},
@@ -94,7 +93,7 @@ func (d *driver) configure() error {
 			if confOk {
 				cfg.Client.Config = provConfig.(*store.Config)
 			}
-			d.store, err = datastore.NewDataStore(cfg)
+			d.store, err = datastore.NewDataStore(datastore.GlobalScope, cfg)
 			if err != nil {
 				err = fmt.Errorf("failed to initialize data store: %v", err)
 				return

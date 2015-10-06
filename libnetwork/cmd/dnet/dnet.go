@@ -22,10 +22,12 @@ import (
 	"github.com/docker/docker/pkg/reexec"
 
 	"github.com/Sirupsen/logrus"
+	psignal "github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/term"
 	"github.com/docker/libnetwork"
 	"github.com/docker/libnetwork/api"
 	"github.com/docker/libnetwork/config"
+	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/options"
@@ -76,6 +78,7 @@ func processConfig(cfg *config.Config) []config.Option {
 	if cfg == nil {
 		return options
 	}
+
 	dn := "bridge"
 	if strings.TrimSpace(cfg.Daemon.DefaultNetwork) != "" {
 		dn = cfg.Daemon.DefaultNetwork
@@ -91,12 +94,12 @@ func processConfig(cfg *config.Config) []config.Option {
 	if cfg.Daemon.Labels != nil {
 		options = append(options, config.OptionLabels(cfg.Daemon.Labels))
 	}
-	if strings.TrimSpace(cfg.GlobalStore.Client.Provider) != "" {
-		options = append(options, config.OptionKVProvider(cfg.GlobalStore.Client.Provider))
+
+	if dcfg, ok := cfg.Scopes[datastore.GlobalScope]; ok && dcfg.IsValid() {
+		options = append(options, config.OptionKVProvider(dcfg.Client.Provider))
+		options = append(options, config.OptionKVProviderURL(dcfg.Client.Address))
 	}
-	if strings.TrimSpace(cfg.GlobalStore.Client.Address) != "" {
-		options = append(options, config.OptionKVProviderURL(cfg.GlobalStore.Client.Address))
-	}
+
 	dOptions, err := startDiscovery(&cfg.Cluster)
 	if err != nil {
 		logrus.Infof("Skipping discovery : %s", err.Error())
@@ -182,8 +185,9 @@ func createDefaultNetwork(c libnetwork.NetworkController) {
 			genericOption[netlabel.GenericData] = map[string]interface{}{
 				"BridgeName": nw,
 			}
-			networkOption := libnetwork.NetworkOptionGeneric(genericOption)
-			createOptions = append(createOptions, networkOption)
+			createOptions = append(createOptions,
+				libnetwork.NetworkOptionGeneric(genericOption),
+				libnetwork.NetworkOptionPersist(false))
 		}
 		_, err := c.NewNetwork(d, nw, createOptions...)
 		if err != nil {
@@ -214,6 +218,7 @@ func (d *dnetConnection) dnetDaemon(cfgFile string) error {
 		fmt.Println("Error starting dnetDaemon :", err)
 		return err
 	}
+
 	createDefaultNetwork(controller)
 	httpHandler := api.NewHTTPHandler(controller)
 	r := mux.NewRouter().StrictSlash(false)
@@ -231,8 +236,19 @@ func (d *dnetConnection) dnetDaemon(cfgFile string) error {
 	post.Methods("GET", "PUT", "POST", "DELETE").HandlerFunc(httpHandler)
 
 	handleSignals(controller)
+	setupDumpStackTrap()
 
 	return http.ListenAndServe(d.addr, r)
+}
+
+func setupDumpStackTrap() {
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, syscall.SIGUSR1)
+	go func() {
+		for range c {
+			psignal.DumpStacks()
+		}
+	}()
 }
 
 func handleSignals(controller libnetwork.NetworkController) {

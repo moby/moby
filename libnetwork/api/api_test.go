@@ -14,6 +14,7 @@ import (
 
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/libnetwork"
+	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/options"
 	"github.com/docker/libnetwork/testutils"
@@ -88,11 +89,13 @@ func i2sbL(i interface{}) []*sandboxResource {
 }
 
 func createTestNetwork(t *testing.T, network string) (libnetwork.NetworkController, libnetwork.Network) {
+	// Cleanup local datastore file
+	os.Remove(datastore.DefaultScopes("")[datastore.LocalScope].Client.Address)
+
 	c, err := libnetwork.New()
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer c.Stop()
 
 	netOption := options.Generic{
 		netlabel.GenericData: options.Generic{
@@ -175,6 +178,9 @@ func TestJson(t *testing.T) {
 func TestCreateDeleteNetwork(t *testing.T) {
 	defer testutils.SetupTestOSContext(t)()
 
+	// Cleanup local datastore file
+	os.Remove(datastore.DefaultScopes("")[datastore.LocalScope].Client.Address)
+
 	c, err := libnetwork.New()
 	if err != nil {
 		t.Fatal(err)
@@ -248,6 +254,9 @@ func TestCreateDeleteNetwork(t *testing.T) {
 
 func TestGetNetworksAndEndpoints(t *testing.T) {
 	defer testutils.SetupTestOSContext(t)()
+
+	// Cleanup local datastore file
+	os.Remove(datastore.DefaultScopes("")[datastore.LocalScope].Client.Address)
 
 	c, err := libnetwork.New()
 	if err != nil {
@@ -518,6 +527,9 @@ func TestGetNetworksAndEndpoints(t *testing.T) {
 func TestProcGetServices(t *testing.T) {
 	defer testutils.SetupTestOSContext(t)()
 
+	// Cleanup local datastore file
+	os.Remove(datastore.DefaultScopes("")[datastore.LocalScope].Client.Address)
+
 	c, err := libnetwork.New()
 	if err != nil {
 		t.Fatal(err)
@@ -686,6 +698,7 @@ func TestProcGetService(t *testing.T) {
 	defer testutils.SetupTestOSContext(t)()
 
 	c, nw := createTestNetwork(t, "network")
+	defer c.Stop()
 	ep1, err := nw.CreateEndpoint("db")
 	if err != nil {
 		t.Fatal(err)
@@ -738,6 +751,8 @@ func TestProcPublishUnpublishService(t *testing.T) {
 	defer testutils.SetupTestOSContext(t)()
 
 	c, _ := createTestNetwork(t, "network")
+	defer c.Stop()
+
 	vars := make(map[string]string)
 
 	vbad, err := json.Marshal("bad service create data")
@@ -870,6 +885,7 @@ func TestAttachDetachBackend(t *testing.T) {
 	defer testutils.SetupTestOSContext(t)()
 
 	c, nw := createTestNetwork(t, "network")
+	defer c.Stop()
 	ep1, err := nw.CreateEndpoint("db")
 	if err != nil {
 		t.Fatal(err)
@@ -994,6 +1010,9 @@ func TestAttachDetachBackend(t *testing.T) {
 }
 
 func TestDetectGetNetworksInvalidQueryComposition(t *testing.T) {
+	// Cleanup local datastore file
+	os.Remove(datastore.DefaultScopes("")[datastore.LocalScope].Client.Address)
+
 	c, err := libnetwork.New()
 	if err != nil {
 		t.Fatal(err)
@@ -1011,6 +1030,7 @@ func TestDetectGetEndpointsInvalidQueryComposition(t *testing.T) {
 	defer testutils.SetupTestOSContext(t)()
 
 	c, _ := createTestNetwork(t, "network")
+	defer c.Stop()
 
 	vars := map[string]string{urlNwName: "network", urlEpName: "x", urlEpPID: "y"}
 	_, errRsp := procGetEndpoints(c, vars, nil)
@@ -1023,6 +1043,7 @@ func TestDetectGetServicesInvalidQueryComposition(t *testing.T) {
 	defer testutils.SetupTestOSContext(t)()
 
 	c, _ := createTestNetwork(t, "network")
+	defer c.Stop()
 
 	vars := map[string]string{urlNwName: "network", urlEpName: "x", urlEpPID: "y"}
 	_, errRsp := procGetServices(c, vars, nil)
@@ -1040,6 +1061,8 @@ func TestFindNetworkUtil(t *testing.T) {
 	defer testutils.SetupTestOSContext(t)()
 
 	c, nw := createTestNetwork(t, "network")
+	defer c.Stop()
+
 	nid := nw.ID()
 
 	_, errRsp := findNetwork(c, "", byName)
@@ -1101,6 +1124,9 @@ func TestFindNetworkUtil(t *testing.T) {
 
 func TestCreateDeleteEndpoints(t *testing.T) {
 	defer testutils.SetupTestOSContext(t)()
+
+	// Cleanup local datastore file
+	os.Remove(datastore.DefaultScopes("")[datastore.LocalScope].Client.Address)
 
 	c, err := libnetwork.New()
 	if err != nil {
@@ -1224,6 +1250,9 @@ func TestCreateDeleteEndpoints(t *testing.T) {
 
 func TestJoinLeave(t *testing.T) {
 	defer testutils.SetupTestOSContext(t)()
+
+	// Cleanup local datastore file
+	os.Remove(datastore.DefaultScopes("")[datastore.LocalScope].Client.Address)
 
 	c, err := libnetwork.New()
 	if err != nil {
@@ -1382,6 +1411,8 @@ func TestFindEndpointUtilPanic(t *testing.T) {
 	defer testutils.SetupTestOSContext(t)()
 	defer checkPanic(t)
 	c, nw := createTestNetwork(t, "network")
+	defer c.Stop()
+
 	nid := nw.ID()
 	findEndpoint(c, nid, "", byID, -1)
 }
@@ -1390,6 +1421,8 @@ func TestFindServiceUtilPanic(t *testing.T) {
 	defer testutils.SetupTestOSContext(t)()
 	defer checkPanic(t)
 	c, _ := createTestNetwork(t, "network")
+	defer c.Stop()
+
 	findService(c, "random_service", -1)
 }
 
@@ -1397,6 +1430,8 @@ func TestFindEndpointUtil(t *testing.T) {
 	defer testutils.SetupTestOSContext(t)()
 
 	c, nw := createTestNetwork(t, "network")
+	defer c.Stop()
+
 	nid := nw.ID()
 
 	ep, err := nw.CreateEndpoint("secondEp", nil)
@@ -1443,7 +1478,8 @@ func TestFindEndpointUtil(t *testing.T) {
 		t.Fatalf("Unexepected failure: %v", errRsp)
 	}
 
-	if ep0 != ep1 || ep0 != ep2 || ep0 != ep3 || ep0 != ep4 || ep0 != ep5 {
+	if ep0.ID() != ep1.ID() || ep0.ID() != ep2.ID() ||
+		ep0.ID() != ep3.ID() || ep0.ID() != ep4.ID() || ep0.ID() != ep5.ID() {
 		t.Fatalf("Diffenrent queries returned different endpoints")
 	}
 
@@ -1665,6 +1701,9 @@ func TestwriteJSON(t *testing.T) {
 func TestHttpHandlerUninit(t *testing.T) {
 	defer testutils.SetupTestOSContext(t)()
 
+	// Cleanup local datastore file
+	os.Remove(datastore.DefaultScopes("")[datastore.LocalScope].Client.Address)
+
 	c, err := libnetwork.New()
 	if err != nil {
 		t.Fatal(err)
@@ -1732,6 +1771,9 @@ func TestHttpHandlerBadBody(t *testing.T) {
 
 	rsp := newWriter()
 
+	// Cleanup local datastore file
+	os.Remove(datastore.DefaultScopes("")[datastore.LocalScope].Client.Address)
+
 	c, err := libnetwork.New()
 	if err != nil {
 		t.Fatal(err)
@@ -1764,6 +1806,9 @@ func TestEndToEnd(t *testing.T) {
 	defer testutils.SetupTestOSContext(t)()
 
 	rsp := newWriter()
+
+	// Cleanup local datastore file
+	os.Remove(datastore.DefaultScopes("")[datastore.LocalScope].Client.Address)
 
 	c, err := libnetwork.New()
 	if err != nil {
@@ -2212,6 +2257,9 @@ func TestEndToEndErrorMessage(t *testing.T) {
 	defer testutils.SetupTestOSContext(t)()
 
 	rsp := newWriter()
+
+	// Cleanup local datastore file
+	os.Remove(datastore.DefaultScopes("")[datastore.LocalScope].Client.Address)
 
 	c, err := libnetwork.New()
 	if err != nil {

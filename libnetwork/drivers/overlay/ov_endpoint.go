@@ -43,12 +43,16 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 		return err
 	}
 
+	// Since we perform lazy configuration make sure we try
+	// configuring the driver when we enter CreateEndpoint since
+	// CreateNetwork may not be called in every node.
+	if err := d.configure(); err != nil {
+		return err
+	}
+
 	n := d.network(nid)
 	if n == nil {
-		n, err = d.createNetworkfromStore(nid)
-		if err != nil {
-			return fmt.Errorf("network id %q not found", nid)
-		}
+		return fmt.Errorf("network id %q not found", nid)
 	}
 
 	ep := &endpoint{

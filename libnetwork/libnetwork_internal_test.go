@@ -6,7 +6,6 @@ import (
 	"net"
 	"testing"
 
-	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/types"
@@ -30,11 +29,6 @@ func TestDriverRegistration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Test failed with an error %v", err)
 	}
-}
-
-func SetTestDataStore(c NetworkController, custom datastore.DataStore) {
-	con := c.(*controller)
-	con.globalStore = custom
 }
 
 func TestNetworkMarshalling(t *testing.T) {

@@ -11,7 +11,6 @@ import (
 
 	"github.com/docker/libkv/store"
 	"github.com/docker/libnetwork/bitseq"
-	"github.com/docker/libnetwork/config"
 	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/ipamapi"
 	"github.com/docker/libnetwork/netutils"
@@ -32,9 +31,9 @@ func randomLocalStore() (datastore.DataStore, error) {
 	if err := tmp.Close(); err != nil {
 		return nil, fmt.Errorf("Error closing temp file: %v", err)
 	}
-	return datastore.NewDataStore(&config.DatastoreCfg{
+	return datastore.NewDataStore(datastore.LocalScope, &datastore.ScopeCfg{
 		Embedded: true,
-		Client: config.DatastoreClientCfg{
+		Client: datastore.ScopeClientCfg{
 			Provider: "boltdb",
 			Address:  defaultPrefix + tmp.Name(),
 			Config: &store.Config{
@@ -191,7 +190,11 @@ func TestSubnetsMarshal(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cfg := a.localSubnets
+	cfg, err := a.getAddrSpace(localAddressSpace)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	ba := cfg.Value()
 	if err := cfg.SetValue(ba); err != nil {
 		t.Fatal(err)
@@ -221,7 +224,7 @@ func TestAddSubnets(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	a.addrSpace2Configs["abc"] = a.addrSpace2Configs[localAddressSpace]
+	a.addrSpaces["abc"] = a.addrSpaces[localAddressSpace]
 
 	pid0, _, _, err := a.RequestPool(localAddressSpace, "10.0.0.0/8", "", nil, false)
 	if err != nil {
@@ -290,7 +293,13 @@ func TestAddReleasePoolID(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	subnets := a.localSubnets.subnets
+
+	aSpace, err := a.getAddrSpace(localAddressSpace)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	subnets := aSpace.subnets
 	pid0, _, _, err := a.RequestPool(localAddressSpace, "10.0.0.0/8", "", nil, false)
 	if err != nil {
 		t.Fatalf("Unexpected failure in adding pool")
@@ -298,6 +307,14 @@ func TestAddReleasePoolID(t *testing.T) {
 	if err := k0.FromString(pid0); err != nil {
 		t.Fatal(err)
 	}
+
+	aSpace, err = a.getAddrSpace(localAddressSpace)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	subnets = aSpace.subnets
+
 	if subnets[k0].RefCount != 1 {
 		t.Fatalf("Unexpected ref count for %s: %d", k0, subnets[k0].RefCount)
 	}
@@ -309,6 +326,13 @@ func TestAddReleasePoolID(t *testing.T) {
 	if err := k1.FromString(pid1); err != nil {
 		t.Fatal(err)
 	}
+
+	aSpace, err = a.getAddrSpace(localAddressSpace)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	subnets = aSpace.subnets
 	if subnets[k1].RefCount != 1 {
 		t.Fatalf("Unexpected ref count for %s: %d", k1, subnets[k1].RefCount)
 	}
@@ -323,6 +347,13 @@ func TestAddReleasePoolID(t *testing.T) {
 	if err := k2.FromString(pid2); err != nil {
 		t.Fatal(err)
 	}
+
+	aSpace, err = a.getAddrSpace(localAddressSpace)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	subnets = aSpace.subnets
 	if subnets[k2].RefCount != 2 {
 		t.Fatalf("Unexpected ref count for %s: %d", k2, subnets[k2].RefCount)
 	}
@@ -334,12 +365,26 @@ func TestAddReleasePoolID(t *testing.T) {
 	if err := a.ReleasePool(pid1); err != nil {
 		t.Fatal(err)
 	}
+
+	aSpace, err = a.getAddrSpace(localAddressSpace)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	subnets = aSpace.subnets
 	if subnets[k0].RefCount != 2 {
 		t.Fatalf("Unexpected ref count for %s: %d", k0, subnets[k0].RefCount)
 	}
 	if err := a.ReleasePool(pid0); err != nil {
 		t.Fatal(err)
 	}
+
+	aSpace, err = a.getAddrSpace(localAddressSpace)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	subnets = aSpace.subnets
 	if subnets[k0].RefCount != 1 {
 		t.Fatalf("Unexpected ref count for %s: %d", k0, subnets[k0].RefCount)
 	}
@@ -351,6 +396,13 @@ func TestAddReleasePoolID(t *testing.T) {
 	if pid00 != pid0 {
 		t.Fatalf("main pool should still exist")
 	}
+
+	aSpace, err = a.getAddrSpace(localAddressSpace)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	subnets = aSpace.subnets
 	if subnets[k0].RefCount != 2 {
 		t.Fatalf("Unexpected ref count for %s: %d", k0, subnets[k0].RefCount)
 	}
@@ -358,6 +410,13 @@ func TestAddReleasePoolID(t *testing.T) {
 	if err := a.ReleasePool(pid2); err != nil {
 		t.Fatal(err)
 	}
+
+	aSpace, err = a.getAddrSpace(localAddressSpace)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	subnets = aSpace.subnets
 	if subnets[k0].RefCount != 1 {
 		t.Fatalf("Unexpected ref count for %s: %d", k0, subnets[k0].RefCount)
 	}
@@ -365,6 +424,13 @@ func TestAddReleasePoolID(t *testing.T) {
 	if err := a.ReleasePool(pid00); err != nil {
 		t.Fatal(err)
 	}
+
+	aSpace, err = a.getAddrSpace(localAddressSpace)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	subnets = aSpace.subnets
 	if bp, ok := subnets[k0]; ok {
 		t.Fatalf("Base pool %s is still present: %v", k0, bp)
 	}
@@ -373,6 +439,13 @@ func TestAddReleasePoolID(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unexpected failure in adding pool")
 	}
+
+	aSpace, err = a.getAddrSpace(localAddressSpace)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	subnets = aSpace.subnets
 	if subnets[k0].RefCount != 1 {
 		t.Fatalf("Unexpected ref count for %s: %d", k0, subnets[k0].RefCount)
 	}
@@ -415,18 +488,6 @@ func TestPredefinedPool(t *testing.T) {
 		t.Fatal(err)
 	}
 	if nw != a.predefined[localAddressSpace][i] {
-		t.Fatalf("Unexpected default network returned: %s", nw)
-	}
-
-	i, available, err = getFirstAvailablePool(a, globalAddressSpace, 2)
-	if err != nil {
-		t.Skip(err)
-	}
-	nw, err = a.getPredefinedPool(globalAddressSpace, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if nw != available {
 		t.Fatalf("Unexpected default network returned: %s", nw)
 	}
 }
@@ -475,7 +536,13 @@ func TestRemoveSubnet(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	a.addrSpace2Configs["splane"] = a.addrSpace2Configs[localAddressSpace]
+	a.addrSpaces["splane"] = &addrSpace{
+		id:      dsConfigKey + "/" + "splane",
+		ds:      a.addrSpaces[localAddressSpace].ds,
+		alloc:   a.addrSpaces[localAddressSpace].alloc,
+		scope:   a.addrSpaces[localAddressSpace].scope,
+		subnets: map[SubnetKey]*PoolData{},
+	}
 
 	input := []struct {
 		addrSpace string
@@ -512,7 +579,13 @@ func TestGetSameAddress(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	a.addrSpace2Configs["giallo"] = a.addrSpace2Configs[localAddressSpace]
+	a.addrSpaces["giallo"] = &addrSpace{
+		id:      dsConfigKey + "/" + "giallo",
+		ds:      a.addrSpaces[localAddressSpace].ds,
+		alloc:   a.addrSpaces[localAddressSpace].alloc,
+		scope:   a.addrSpaces[localAddressSpace].scope,
+		subnets: map[SubnetKey]*PoolData{},
+	}
 
 	pid, _, _, err := a.RequestPool("giallo", "192.168.100.0/24", "", nil, false)
 	if err != nil {
@@ -536,7 +609,13 @@ func TestRequestReleaseAddressFromSubPool(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	a.addrSpace2Configs["rosso"] = a.addrSpace2Configs[localAddressSpace]
+	a.addrSpaces["rosso"] = &addrSpace{
+		id:      dsConfigKey + "/" + "rosso",
+		ds:      a.addrSpaces[localAddressSpace].ds,
+		alloc:   a.addrSpaces[localAddressSpace].alloc,
+		scope:   a.addrSpaces[localAddressSpace].scope,
+		subnets: map[SubnetKey]*PoolData{},
+	}
 
 	poolID, _, _, err := a.RequestPool("rosso", "172.28.0.0/16", "172.28.30.0/24", nil, false)
 	if err != nil {
@@ -615,17 +694,23 @@ func TestGetAddress(t *testing.T) {
 
 func TestRequestSyntaxCheck(t *testing.T) {
 	var (
-		pool      = "192.168.0.0/16"
-		subPool   = "192.168.0.0/24"
-		addrSpace = "green"
-		err       error
+		pool    = "192.168.0.0/16"
+		subPool = "192.168.0.0/24"
+		as      = "green"
+		err     error
 	)
 
 	a, err := getAllocator()
 	if err != nil {
 		t.Fatal(err)
 	}
-	a.addrSpace2Configs[addrSpace] = a.addrSpace2Configs[localAddressSpace]
+	a.addrSpaces[as] = &addrSpace{
+		id:      dsConfigKey + "/" + as,
+		ds:      a.addrSpaces[localAddressSpace].ds,
+		alloc:   a.addrSpaces[localAddressSpace].alloc,
+		scope:   a.addrSpaces[localAddressSpace].scope,
+		subnets: map[SubnetKey]*PoolData{},
+	}
 
 	_, _, _, err = a.RequestPool("", pool, "", nil, false)
 	if err == nil {
@@ -637,12 +722,12 @@ func TestRequestSyntaxCheck(t *testing.T) {
 		t.Fatalf("Failed to detect wrong request: empty address space")
 	}
 
-	_, _, _, err = a.RequestPool(addrSpace, "", subPool, nil, false)
+	_, _, _, err = a.RequestPool(as, "", subPool, nil, false)
 	if err == nil {
 		t.Fatalf("Failed to detect wrong request: subPool specified and no pool")
 	}
 
-	pid, _, _, err := a.RequestPool(addrSpace, pool, subPool, nil, false)
+	pid, _, _, err := a.RequestPool(as, pool, subPool, nil, false)
 	if err != nil {
 		t.Fatalf("Unexpected failure: %v", err)
 	}
@@ -764,6 +849,7 @@ func TestRelease(t *testing.T) {
 	for i, inp := range toRelease {
 		ip0 := net.ParseIP(inp.address)
 		a.ReleaseAddress(pid, ip0)
+		bm = a.addresses[SubnetKey{localAddressSpace, subnet, ""}]
 		if bm.Unselected() != 1 {
 			t.Fatalf("Failed to update free address count after release. Expected %d, Found: %d", i+1, bm.Unselected())
 		}

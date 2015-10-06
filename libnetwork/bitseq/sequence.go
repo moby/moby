@@ -57,9 +57,6 @@ func NewHandle(app string, ds datastore.DataStore, id string, numElements uint32
 		return h, nil
 	}
 
-	// Register for status changes
-	h.watchForChanges()
-
 	// Get the initial status from the ds if present.
 	if err := h.store.GetObject(datastore.Key(h.Key()...), h); err != nil && err != datastore.ErrKeyNotFound {
 		return nil, err
@@ -252,6 +249,12 @@ func (h *Handle) set(ordinal, start, end uint32, any bool, release bool) (uint32
 	)
 
 	for {
+		if h.store != nil {
+			if err := h.store.GetObject(datastore.Key(h.Key()...), h); err != nil && err != datastore.ErrKeyNotFound {
+				return ret, err
+			}
+		}
+
 		h.Lock()
 		// Get position if available
 		if release {

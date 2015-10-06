@@ -2,6 +2,7 @@ package libnetwork
 
 import (
 	"encoding/json"
+	"fmt"
 	"net"
 	"sync"
 
@@ -127,7 +128,6 @@ type network struct {
 	networkType  string
 	id           string
 	ipamType     string
-	driver       driverapi.Driver
 	addrSpace    string
 	ipamV4Config []*IpamConf
 	ipamV6Config []*IpamConf
@@ -135,14 +135,14 @@ type network struct {
 	ipamV6Info   []*IpamInfo
 	enableIPv6   bool
 	endpointCnt  uint64
-	endpoints    endpointTable
 	generic      options.Generic
 	dbIndex      uint64
 	svcRecords   svcMap
 	dbExists     bool
 	persist      bool
 	stopWatchCh  chan struct{}
-	dataScope    datastore.DataScope
+	scope        string
+	drvOnce      *sync.Once
 	sync.Mutex
 }
 
@@ -164,11 +164,7 @@ func (n *network) Type() string {
 	n.Lock()
 	defer n.Unlock()
 
-	if n.driver == nil {
-		return ""
-	}
-
-	return n.driver.Type()
+	return n.networkType
 }
 
 func (n *network) Key() []string {
@@ -220,10 +216,72 @@ func (n *network) Skip() bool {
 	return !n.persist
 }
 
-func (n *network) DataScope() datastore.DataScope {
+func (n *network) New() datastore.KVObject {
 	n.Lock()
 	defer n.Unlock()
-	return n.dataScope
+
+	return &network{
+		ctrlr:   n.ctrlr,
+		drvOnce: &sync.Once{},
+	}
+}
+
+// CopyTo deep copies to the destination IpamInfo
+func (i *IpamInfo) CopyTo(dstI *IpamInfo) error {
+	dstI.PoolID = i.PoolID
+	if i.Meta != nil {
+		dstI.Meta = make(map[string]string)
+		for k, v := range i.Meta {
+			dstI.Meta[k] = v
+		}
+	}
+
+	dstI.AddressSpace = i.AddressSpace
+	dstI.Pool = types.GetIPNetCopy(i.Pool)
+	dstI.Gateway = types.GetIPNetCopy(i.Gateway)
+
+	if i.AuxAddresses != nil {
+		dstI.AuxAddresses = make(map[string]*net.IPNet)
+		for k, v := range i.AuxAddresses {
+			dstI.AuxAddresses[k] = types.GetIPNetCopy(v)
+		}
+	}
+
+	return nil
+}
+
+func (n *network) CopyTo(o datastore.KVObject) error {
+	n.Lock()
+	defer n.Unlock()
+
+	dstN := o.(*network)
+	dstN.name = n.name
+	dstN.id = n.id
+	dstN.networkType = n.networkType
+	dstN.ipamType = n.ipamType
+	dstN.endpointCnt = n.endpointCnt
+	dstN.enableIPv6 = n.enableIPv6
+	dstN.persist = n.persist
+	dstN.dbIndex = n.dbIndex
+	dstN.dbExists = n.dbExists
+	dstN.drvOnce = n.drvOnce
+
+	for _, v4info := range n.ipamV4Info {
+		dstV4Info := &IpamInfo{}
+		v4info.CopyTo(dstV4Info)
+		dstN.ipamV4Info = append(dstN.ipamV4Info, dstV4Info)
+	}
+
+	dstN.generic = options.Generic{}
+	for k, v := range n.generic {
+		dstN.generic[k] = v
+	}
+
+	return nil
+}
+
+func (n *network) DataScope() string {
+	return n.driverScope()
 }
 
 func (n *network) EndpointCnt() uint64 {
@@ -232,16 +290,20 @@ func (n *network) EndpointCnt() uint64 {
 	return n.endpointCnt
 }
 
-func (n *network) IncEndpointCnt() {
+func (n *network) IncEndpointCnt() error {
 	n.Lock()
 	n.endpointCnt++
 	n.Unlock()
+
+	return n.getController().updateToStore(n)
 }
 
-func (n *network) DecEndpointCnt() {
+func (n *network) DecEndpointCnt() error {
 	n.Lock()
 	n.endpointCnt--
 	n.Unlock()
+
+	return n.getController().updateToStore(n)
 }
 
 // TODO : Can be made much more generic with the help of reflection (but has some golang limitations)
@@ -372,17 +434,55 @@ func (n *network) processOptions(options ...NetworkOption) {
 	}
 }
 
-func (n *network) Delete() error {
-	var err error
+func (n *network) driverScope() string {
+	c := n.getController()
 
-	ctrlr := n.getController()
-
-	ctrlr.Lock()
-	_, ok := ctrlr.networks[n.id]
-	ctrlr.Unlock()
+	c.Lock()
+	// Check if a driver for the specified network type is available
+	dd, ok := c.drivers[n.networkType]
+	c.Unlock()
 
 	if !ok {
-		return &UnknownNetworkError{name: n.name, id: n.id}
+		var err error
+		dd, err = c.loadDriver(n.networkType)
+		if err != nil {
+			// If driver could not be resolved simply return an empty string
+			return ""
+		}
+	}
+
+	return dd.capability.DataScope
+}
+
+func (n *network) driver() (driverapi.Driver, error) {
+	c := n.getController()
+
+	c.Lock()
+	// Check if a driver for the specified network type is available
+	dd, ok := c.drivers[n.networkType]
+	c.Unlock()
+
+	if !ok {
+		var err error
+		dd, err = c.loadDriver(n.networkType)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return dd.driver, nil
+}
+
+func (n *network) Delete() error {
+	n.Lock()
+	c := n.ctrlr
+	name := n.name
+	id := n.id
+	n.Unlock()
+
+	n, err := c.getNetworkFromStore(id)
+	if err != nil {
+		return &UnknownNetworkError{name: name, id: id}
 	}
 
 	numEps := n.EndpointCnt()
@@ -390,9 +490,22 @@ func (n *network) Delete() error {
 		return &ActiveEndpointsError{name: n.name, id: n.id}
 	}
 
-	// deleteNetworkFromStore performs an atomic delete operation and the network.endpointCnt field will help
-	// prevent any possible race between endpoint join and network delete
-	if err = ctrlr.deleteFromStore(n); err != nil {
+	if err = n.deleteNetwork(); err != nil {
+		return err
+	}
+	defer func() {
+		if err != nil {
+			if e := c.addNetwork(n); e != nil {
+				log.Warnf("failed to rollback deleteNetwork for network %s: %v",
+					n.Name(), err)
+			}
+		}
+	}()
+
+	// deleteFromStore performs an atomic delete operation and the
+	// network.endpointCnt field will help prevent any possible
+	// race between endpoint join and network delete
+	if err = n.getController().deleteFromStore(n); err != nil {
 		if err == datastore.ErrKeyModified {
 			return types.InternalErrorf("operation in progress. delete failed for network %s. Please try again.")
 		}
@@ -402,15 +515,11 @@ func (n *network) Delete() error {
 	defer func() {
 		if err != nil {
 			n.dbExists = false
-			if e := ctrlr.updateToStore(n); e != nil {
+			if e := n.getController().updateToStore(n); e != nil {
 				log.Warnf("failed to recreate network in store %s : %v", n.name, e)
 			}
 		}
 	}()
-
-	if err = n.deleteNetwork(); err != nil {
-		return err
-	}
 
 	n.ipamRelease()
 
@@ -418,49 +527,56 @@ func (n *network) Delete() error {
 }
 
 func (n *network) deleteNetwork() error {
-	n.Lock()
-	id := n.id
-	d := n.driver
-	n.ctrlr.Lock()
-	delete(n.ctrlr.networks, id)
-	n.ctrlr.Unlock()
-	n.Unlock()
+	d, err := n.driver()
+	if err != nil {
+		return fmt.Errorf("failed deleting network: %v", err)
+	}
 
-	if err := d.DeleteNetwork(n.id); err != nil {
+	// If it is bridge network type make sure we call the driver about the network
+	// because the network may have been created in some past life of libnetwork.
+	if n.Type() == "bridge" {
+		n.drvOnce.Do(func() {
+			err = n.getController().addNetwork(n)
+		})
+		if err != nil {
+			return err
+		}
+	}
+
+	if err := d.DeleteNetwork(n.ID()); err != nil {
 		// Forbidden Errors should be honored
 		if _, ok := err.(types.ForbiddenError); ok {
-			n.ctrlr.Lock()
-			n.ctrlr.networks[n.id] = n
-			n.ctrlr.Unlock()
 			return err
 		}
 		log.Warnf("driver error deleting network %s : %v", n.name, err)
 	}
-	n.stopWatch()
+
 	return nil
 }
 
 func (n *network) addEndpoint(ep *endpoint) error {
-	var err error
-	n.Lock()
-	n.endpoints[ep.id] = ep
-	d := n.driver
-	n.Unlock()
+	d, err := n.driver()
+	if err != nil {
+		return fmt.Errorf("failed to add endpoint: %v", err)
+	}
 
-	defer func() {
+	// If it is bridge network type make sure we call the driver about the network
+	// because the network may have been created in some past life of libnetwork.
+	if n.Type() == "bridge" {
+		n.drvOnce.Do(func() {
+			err = n.getController().addNetwork(n)
+		})
 		if err != nil {
-			n.Lock()
-			delete(n.endpoints, ep.id)
-			n.Unlock()
+			return err
 		}
-	}()
+	}
 
 	err = d.CreateEndpoint(n.id, ep.id, ep.Interface(), ep.generic)
 	if err != nil {
-		return types.InternalErrorf("failed to create endpoint %s on network %s: %v", ep.Name(), n.Name(), err)
+		return types.InternalErrorf("failed to create endpoint %s on network %s: %v",
+			ep.Name(), n.Name(), err)
 	}
 
-	n.updateSvcRecord(ep, true)
 	return nil
 }
 
@@ -476,7 +592,16 @@ func (n *network) CreateEndpoint(name string, options ...EndpointOption) (Endpoi
 
 	ep := &endpoint{name: name, generic: make(map[string]interface{}), iface: &endpointInterface{}}
 	ep.id = stringid.GenerateRandomID()
+
+	// Initialize ep.network with a possibly stale copy of n. We need this to get network from
+	// store. But once we get it from store we will have the most uptodate copy possible.
 	ep.network = n
+	ep.network, err = ep.getNetworkFromStore()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get network during CreateEndpoint: %v", err)
+	}
+	n = ep.network
+
 	ep.processOptions(options...)
 
 	if err = ep.assignAddress(); err != nil {
@@ -488,46 +613,46 @@ func (n *network) CreateEndpoint(name string, options ...EndpointOption) (Endpoi
 		}
 	}()
 
-	ctrlr := n.getController()
-
-	n.IncEndpointCnt()
-	if err = ctrlr.updateToStore(n); err != nil {
-		return nil, err
-	}
-	defer func() {
-		if err != nil {
-			n.DecEndpointCnt()
-			if err = ctrlr.updateToStore(n); err != nil {
-				log.Warnf("endpoint count cleanup failed when updating network for %s : %v", name, err)
-			}
-		}
-	}()
 	if err = n.addEndpoint(ep); err != nil {
 		return nil, err
 	}
 	defer func() {
 		if err != nil {
-			if e := ep.Delete(); ep != nil {
+			if e := ep.deleteEndpoint(); e != nil {
 				log.Warnf("cleaning up endpoint failed %s : %v", name, e)
 			}
 		}
 	}()
 
-	if !ep.isLocalScoped() {
-		if err = ctrlr.updateToStore(ep); err != nil {
-			return nil, err
+	if err = n.getController().updateToStore(ep); err != nil {
+		return nil, err
+	}
+	defer func() {
+		if err != nil {
+			if e := n.getController().deleteFromStore(ep); e != nil {
+				log.Warnf("error rolling back endpoint %s from store: %v", name, e)
+			}
 		}
+	}()
+
+	// Increment endpoint count to indicate completion of endpoint addition
+	if err = n.IncEndpointCnt(); err != nil {
+		return nil, err
 	}
 
 	return ep, nil
 }
 
 func (n *network) Endpoints() []Endpoint {
-	n.Lock()
-	defer n.Unlock()
-	list := make([]Endpoint, 0, len(n.endpoints))
-	for _, e := range n.endpoints {
-		list = append(list, e)
+	var list []Endpoint
+
+	endpoints, err := n.getEndpointsFromStore()
+	if err != nil {
+		log.Error(err)
+	}
+
+	for _, ep := range endpoints {
+		list = append(list, ep)
 	}
 
 	return list
@@ -568,28 +693,32 @@ func (n *network) EndpointByID(id string) (Endpoint, error) {
 	if id == "" {
 		return nil, ErrInvalidID(id)
 	}
-	n.Lock()
-	defer n.Unlock()
-	if e, ok := n.endpoints[id]; ok {
-		return e, nil
+
+	ep, err := n.getEndpointFromStore(id)
+	if err != nil {
+		return nil, ErrNoSuchEndpoint(id)
 	}
-	return nil, ErrNoSuchEndpoint(id)
+
+	return ep, nil
 }
 
-func (n *network) isGlobalScoped() bool {
-	return n.DataScope() == datastore.GlobalScope
-}
+func (n *network) updateSvcRecord(ep *endpoint, localEps []*endpoint, isAdd bool) {
+	c := n.getController()
+	sr, ok := c.svcDb[n.ID()]
+	if !ok {
+		c.svcDb[n.ID()] = svcMap{}
+		sr = c.svcDb[n.ID()]
+	}
 
-func (n *network) updateSvcRecord(ep *endpoint, isAdd bool) {
 	n.Lock()
 	var recs []etchosts.Record
 	if iface := ep.Iface(); iface.Address() != nil {
 		if isAdd {
-			n.svcRecords[ep.Name()] = iface.Address().IP
-			n.svcRecords[ep.Name()+"."+n.name] = iface.Address().IP
+			sr[ep.Name()] = iface.Address().IP
+			sr[ep.Name()+"."+n.name] = iface.Address().IP
 		} else {
-			delete(n.svcRecords, ep.Name())
-			delete(n.svcRecords, ep.Name()+"."+n.name)
+			delete(sr, ep.Name())
+			delete(sr, ep.Name()+"."+n.name)
 		}
 
 		recs = append(recs, etchosts.Record{
@@ -610,12 +739,11 @@ func (n *network) updateSvcRecord(ep *endpoint, isAdd bool) {
 	}
 
 	var sbList []*sandbox
-	n.WalkEndpoints(func(e Endpoint) bool {
-		if sb, hasSandbox := e.(*endpoint).getSandbox(); hasSandbox {
+	for _, ep := range localEps {
+		if sb, hasSandbox := ep.getSandbox(); hasSandbox {
 			sbList = append(sbList, sb)
 		}
-		return false
-	})
+	}
 
 	for _, sb := range sbList {
 		if isAdd {
@@ -631,7 +759,9 @@ func (n *network) getSvcRecords() []etchosts.Record {
 	defer n.Unlock()
 
 	var recs []etchosts.Record
-	for h, ip := range n.svcRecords {
+	sr, _ := n.ctrlr.svcDb[n.id]
+
+	for h, ip := range sr {
 		recs = append(recs, etchosts.Record{
 			Hosts: h,
 			IP:    ip.String(),
@@ -799,7 +929,7 @@ func (n *network) deriveAddressSpace() (string, error) {
 	if !ok {
 		return "", types.NotFoundErrorf("could not find ipam driver %s to get default address space", n.ipamType)
 	}
-	if n.isGlobalScoped() {
+	if n.DataScope() == datastore.GlobalScope {
 		return ipd.defaultGlobalAddressSpace, nil
 	}
 	return ipd.defaultLocalAddressSpace, nil

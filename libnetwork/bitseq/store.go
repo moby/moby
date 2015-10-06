@@ -70,46 +70,47 @@ func (h *Handle) Exists() bool {
 	return h.dbExists
 }
 
+// New method returns a handle based on the receiver handle
+func (h *Handle) New() datastore.KVObject {
+	h.Lock()
+	defer h.Unlock()
+
+	return &Handle{
+		app:   h.app,
+		id:    h.id,
+		store: h.store,
+	}
+}
+
+// CopyTo deep copies the handle into the passed destination object
+func (h *Handle) CopyTo(o datastore.KVObject) error {
+	h.Lock()
+	defer h.Unlock()
+
+	dstH := o.(*Handle)
+	dstH.bits = h.bits
+	dstH.unselected = h.unselected
+	dstH.head = h.head.getCopy()
+	dstH.app = h.app
+	dstH.id = h.id
+	dstH.dbIndex = h.dbIndex
+	dstH.dbExists = h.dbExists
+	dstH.store = h.store
+
+	return nil
+}
+
 // Skip provides a way for a KV Object to avoid persisting it in the KV Store
 func (h *Handle) Skip() bool {
 	return false
 }
 
 // DataScope method returns the storage scope of the datastore
-func (h *Handle) DataScope() datastore.DataScope {
-	return datastore.GlobalScope
-}
-
-func (h *Handle) watchForChanges() error {
+func (h *Handle) DataScope() string {
 	h.Lock()
-	store := h.store
-	h.Unlock()
+	defer h.Unlock()
 
-	if store == nil {
-		return nil
-	}
-
-	kvpChan, err := store.KVStore().Watch(datastore.Key(h.Key()...), nil)
-	if err != nil {
-		return err
-	}
-	go func() {
-		for {
-			select {
-			case kvPair := <-kvpChan:
-				// Only process remote update
-				if kvPair != nil && (kvPair.LastIndex != h.Index()) {
-					err := h.fromDsValue(kvPair.Value)
-					if err != nil {
-						log.Warnf("Failed to reconstruct bitseq handle from ds watch: %s", err.Error())
-					} else {
-						h.SetIndex(kvPair.LastIndex)
-					}
-				}
-			}
-		}
-	}()
-	return nil
+	return h.store.Scope()
 }
 
 func (h *Handle) fromDsValue(value []byte) error {

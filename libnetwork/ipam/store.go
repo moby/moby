@@ -2,30 +2,30 @@ package ipam
 
 import (
 	"encoding/json"
+	"fmt"
 
 	log "github.com/Sirupsen/logrus"
-	"github.com/docker/libkv/store"
 	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/types"
 )
 
 // Key provides the Key to be used in KV Store
-func (cfg *PoolsConfig) Key() []string {
-	cfg.Lock()
-	defer cfg.Unlock()
-	return []string{cfg.id}
+func (aSpace *addrSpace) Key() []string {
+	aSpace.Lock()
+	defer aSpace.Unlock()
+	return []string{aSpace.id}
 }
 
 // KeyPrefix returns the immediate parent key that can be used for tree walk
-func (cfg *PoolsConfig) KeyPrefix() []string {
-	cfg.Lock()
-	defer cfg.Unlock()
+func (aSpace *addrSpace) KeyPrefix() []string {
+	aSpace.Lock()
+	defer aSpace.Unlock()
 	return []string{dsConfigKey}
 }
 
 // Value marshals the data to be stored in the KV store
-func (cfg *PoolsConfig) Value() []byte {
-	b, err := json.Marshal(cfg)
+func (aSpace *addrSpace) Value() []byte {
+	b, err := json.Marshal(aSpace)
 	if err != nil {
 		log.Warnf("Failed to marshal ipam configured pools: %v", err)
 		return nil
@@ -34,97 +34,94 @@ func (cfg *PoolsConfig) Value() []byte {
 }
 
 // SetValue unmarshalls the data from the KV store.
-func (cfg *PoolsConfig) SetValue(value []byte) error {
-	rc := &PoolsConfig{subnets: make(map[SubnetKey]*PoolData)}
+func (aSpace *addrSpace) SetValue(value []byte) error {
+	rc := &addrSpace{subnets: make(map[SubnetKey]*PoolData)}
 	if err := json.Unmarshal(value, rc); err != nil {
 		return err
 	}
-	cfg.subnets = rc.subnets
+	aSpace.subnets = rc.subnets
 	return nil
 }
 
 // Index returns the latest DB Index as seen by this object
-func (cfg *PoolsConfig) Index() uint64 {
-	cfg.Lock()
-	defer cfg.Unlock()
-	return cfg.dbIndex
+func (aSpace *addrSpace) Index() uint64 {
+	aSpace.Lock()
+	defer aSpace.Unlock()
+	return aSpace.dbIndex
 }
 
 // SetIndex method allows the datastore to store the latest DB Index into this object
-func (cfg *PoolsConfig) SetIndex(index uint64) {
-	cfg.Lock()
-	cfg.dbIndex = index
-	cfg.dbExists = true
-	cfg.Unlock()
+func (aSpace *addrSpace) SetIndex(index uint64) {
+	aSpace.Lock()
+	aSpace.dbIndex = index
+	aSpace.dbExists = true
+	aSpace.Unlock()
 }
 
 // Exists method is true if this object has been stored in the DB.
-func (cfg *PoolsConfig) Exists() bool {
-	cfg.Lock()
-	defer cfg.Unlock()
-	return cfg.dbExists
+func (aSpace *addrSpace) Exists() bool {
+	aSpace.Lock()
+	defer aSpace.Unlock()
+	return aSpace.dbExists
 }
 
 // Skip provides a way for a KV Object to avoid persisting it in the KV Store
-func (cfg *PoolsConfig) Skip() bool {
+func (aSpace *addrSpace) Skip() bool {
 	return false
 }
 
-func (cfg *PoolsConfig) watchForChanges() error {
-	if cfg.ds == nil {
-		return nil
-	}
-	kvpChan, err := cfg.ds.KVStore().Watch(datastore.Key(cfg.Key()...), nil)
-	if err != nil {
-		return err
-	}
-	go func() {
-		for {
-			select {
-			case kvPair := <-kvpChan:
-				if kvPair != nil {
-					cfg.readFromKey(kvPair)
-				}
-			}
-		}
-	}()
-	return nil
+func (a *Allocator) getStore(as string) datastore.DataStore {
+	a.Lock()
+	defer a.Unlock()
+
+	return a.addrSpaces[as].ds
 }
 
-func (cfg *PoolsConfig) writeToStore() error {
-	if cfg.ds == nil {
-		return nil
+func (a *Allocator) getAddressSpaceFromStore(as string) (*addrSpace, error) {
+	store := a.getStore(as)
+	if store == nil {
+		return nil, fmt.Errorf("store for address space %s not found", as)
 	}
-	err := cfg.ds.PutObjectAtomic(cfg)
+
+	pc := &addrSpace{id: dsConfigKey + "/" + as, ds: store, alloc: a}
+	if err := store.GetObject(datastore.Key(pc.Key()...), pc); err != nil {
+		if err == datastore.ErrKeyNotFound {
+			return nil, nil
+		}
+
+		return nil, fmt.Errorf("could not get pools config from store: %v", err)
+	}
+
+	return pc, nil
+}
+
+func (a *Allocator) writeToStore(aSpace *addrSpace) error {
+	store := aSpace.store()
+	if store == nil {
+		return fmt.Errorf("invalid store while trying to write %s address space", aSpace.DataScope())
+	}
+
+	err := store.PutObjectAtomic(aSpace)
 	if err == datastore.ErrKeyModified {
 		return types.RetryErrorf("failed to perform atomic write (%v). retry might fix the error", err)
 	}
+
 	return err
 }
 
-func (cfg *PoolsConfig) readFromStore() error {
-	if cfg.ds == nil {
-		return nil
+func (a *Allocator) deleteFromStore(aSpace *addrSpace) error {
+	store := aSpace.store()
+	if store == nil {
+		return fmt.Errorf("invalid store while trying to delete %s address space", aSpace.DataScope())
 	}
-	return cfg.ds.GetObject(datastore.Key(cfg.Key()...), cfg)
-}
 
-func (cfg *PoolsConfig) readFromKey(kvPair *store.KVPair) {
-	if cfg.dbIndex < kvPair.LastIndex {
-		cfg.SetValue(kvPair.Value)
-		cfg.dbIndex = kvPair.LastIndex
-		cfg.dbExists = true
-	}
-}
-
-func (cfg *PoolsConfig) deleteFromStore() error {
-	if cfg.ds == nil {
-		return nil
-	}
-	return cfg.ds.DeleteObjectAtomic(cfg)
+	return store.DeleteObjectAtomic(aSpace)
 }
 
 // DataScope method returns the storage scope of the datastore
-func (cfg *PoolsConfig) DataScope() datastore.DataScope {
-	return cfg.scope
+func (aSpace *addrSpace) DataScope() string {
+	aSpace.Lock()
+	defer aSpace.Unlock()
+
+	return aSpace.scope
 }
