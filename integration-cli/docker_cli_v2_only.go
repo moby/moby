@@ -2,10 +2,11 @@ package main
 
 import (
 	"fmt"
-	"github.com/go-check/check"
 	"io/ioutil"
 	"net/http"
 	"os"
+
+	"github.com/go-check/check"
 )
 
 func makefile(contents string) (string, func(), error) {
@@ -50,7 +51,7 @@ func (s *DockerRegistrySuite) TestV2Only(c *check.C) {
 
 	repoName := fmt.Sprintf("%s/busybox", reg.hostport)
 
-	err = s.d.Start("--insecure-registry", reg.hostport, "--no-legacy-registry=true")
+	err = s.d.Start("--insecure-registry", reg.hostport, "--disable-legacy-registry=true")
 	if err != nil {
 		c.Fatalf("Error starting daemon: %s", err.Error())
 	}
@@ -105,7 +106,7 @@ func (s *DockerRegistrySuite) TestV1(c *check.C) {
 		v1Repo++
 	})
 
-	err = s.d.Start("--insecure-registry", reg.hostport, "--no-legacy-registry=false")
+	err = s.d.Start("--insecure-registry", reg.hostport, "--disable-legacy-registry=false")
 	if err != nil {
 		c.Fatalf("Error starting daemon: %s", err.Error())
 	}

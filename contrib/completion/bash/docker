@@ -462,6 +462,7 @@ _docker_create() {
 _docker_daemon() {
 	local boolean_options="
 		$global_boolean_options
+		--disable-legacy-registry
 		--help
 		--icc=false
 		--ip-forward=false
