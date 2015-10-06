@@ -375,6 +375,18 @@ func (devices *DeviceSet) lookupDeviceWithLock(hash string) (*devInfo, error) {
 	return info, err
 }
 
+// This function relies on that device hash map has been loaded in advance.
+// Should be called with devices.Lock() held.
+func (devices *DeviceSet) constructDeviceIDMap() {
+	logrus.Debugf("[deviceset] constructDeviceIDMap()")
+	defer logrus.Debugf("[deviceset] constructDeviceIDMap() END")
+
+	for _, info := range devices.Devices {
+		devices.markDeviceIDUsed(info.DeviceID)
+		logrus.Debugf("Added deviceId=%d to DeviceIdMap", info.DeviceID)
+	}
+}
+
 func (devices *DeviceSet) deviceFileWalkFunction(path string, finfo os.FileInfo) error {
 
 	// Skip some of the meta files which are not device files.
@@ -405,19 +417,16 @@ func (devices *DeviceSet) deviceFileWalkFunction(path string, finfo os.FileInfo)
 		hash = ""
 	}
 
-	dinfo := devices.loadMetadata(hash)
-	if dinfo == nil {
-		return fmt.Errorf("Error loading device metadata file %s", hash)
+	if _, err := devices.lookupDevice(hash); err != nil {
+		return fmt.Errorf("Error looking up device %s:%v", hash, err)
 	}
 
-	devices.markDeviceIDUsed(dinfo.DeviceID)
-	logrus.Debugf("Added deviceID=%d to DeviceIDMap", dinfo.DeviceID)
 	return nil
 }
 
-func (devices *DeviceSet) constructDeviceIDMap() error {
-	logrus.Debugf("[deviceset] constructDeviceIDMap()")
-	defer logrus.Debugf("[deviceset] constructDeviceIDMap() END")
+func (devices *DeviceSet) loadDeviceFilesOnStart() error {
+	logrus.Debugf("[deviceset] loadDeviceFilesOnStart()")
+	defer logrus.Debugf("[deviceset] loadDeviceFilesOnStart() END")
 
 	var scan = func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -568,9 +577,11 @@ func (devices *DeviceSet) initMetaData() error {
 
 	devices.TransactionID = transactionID
 
-	if err := devices.constructDeviceIDMap(); err != nil {
-		return err
+	if err := devices.loadDeviceFilesOnStart(); err != nil {
+		return fmt.Errorf("devmapper: Failed to load device files:%v", err)
 	}
+
+	devices.constructDeviceIDMap()
 
 	if err := devices.processPendingTransaction(); err != nil {
 		return err
