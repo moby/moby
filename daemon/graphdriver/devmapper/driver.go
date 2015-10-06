@@ -143,7 +143,7 @@ func (d *Driver) Remove(id string) error {
 	}
 
 	// This assumes the device has been properly Get/Put:ed and thus is unmounted
-	if err := d.DeviceSet.DeleteDevice(id); err != nil {
+	if err := d.DeviceSet.DeleteDevice(id, false); err != nil {
 		return err
 	}
 

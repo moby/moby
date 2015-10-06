@@ -750,7 +750,11 @@ func DeleteDevice(poolName string, deviceID int) error {
 		return fmt.Errorf("Can't set message %s", err)
 	}
 
+	dmSawBusy = false
 	if err := task.run(); err != nil {
+		if dmSawBusy {
+			return ErrBusy
+		}
 		return fmt.Errorf("Error running DeleteDevice %s", err)
 	}
 	return nil
