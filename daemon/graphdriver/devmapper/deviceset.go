@@ -825,31 +825,48 @@ func (devices *DeviceSet) checkThinPool() error {
 	return nil
 }
 
-func (devices *DeviceSet) setupBaseImage() error {
-	oldInfo, _ := devices.lookupDeviceWithLock("")
-	if oldInfo != nil && oldInfo.Initialized {
-		// If BaseDeviceUUID is nil (upgrade case), save it and
-		// return success.
-		if devices.BaseDeviceUUID == "" {
-			if err := devices.saveBaseDeviceUUID(oldInfo); err != nil {
-				return fmt.Errorf("Could not query and save base device UUID:%v", err)
-			}
-			return nil
-		}
-
-		if err := devices.verifyBaseDeviceUUID(oldInfo); err != nil {
-			return fmt.Errorf("Base Device UUID verification failed. Possibly using a different thin pool than last invocation:%v", err)
+// Base image is initialized properly. Either save UUID for first time (for
+// upgrade case or verify UUID.
+func (devices *DeviceSet) setupVerifyBaseImageUUID(baseInfo *devInfo) error {
+	// If BaseDeviceUUID is nil (upgrade case), save it and return success.
+	if devices.BaseDeviceUUID == "" {
+		if err := devices.saveBaseDeviceUUID(baseInfo); err != nil {
+			return fmt.Errorf("Could not query and save base device UUID:%v", err)
 		}
 		return nil
 	}
 
-	if oldInfo != nil && !oldInfo.Initialized {
+	if err := devices.verifyBaseDeviceUUID(baseInfo); err != nil {
+		return fmt.Errorf("Base Device UUID verification failed. Possibly using a different thin pool than last invocation:%v", err)
+	}
+
+	return nil
+}
+
+func (devices *DeviceSet) setupBaseImage() error {
+	oldInfo, _ := devices.lookupDeviceWithLock("")
+
+	// base image already exists. If it is initialized properly, do UUID
+	// verification and return. Otherwise remove image and set it up
+	// fresh.
+
+	if oldInfo != nil {
+		if oldInfo.Initialized {
+			if err := devices.setupVerifyBaseImageUUID(oldInfo); err != nil {
+				return err
+			}
+
+			return nil
+		}
+
 		logrus.Debugf("Removing uninitialized base image")
 		if err := devices.DeleteDevice(""); err != nil {
 			return err
 		}
 	}
 
+	// If we are setting up base image for the first time, make sure
+	// thin pool is empty.
 	if devices.thinPoolDevice != "" && oldInfo == nil {
 		if err := devices.checkThinPool(); err != nil {
 			return err
