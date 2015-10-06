@@ -80,7 +80,7 @@ guide](/articles/dockerfile_best-practices/#build-cache) for more information):
     Step 2 : MAINTAINER SvenDowideit@home.org.au
      ---> Using cache
      ---> 51182097be13
-    Step 3 : CMD env | grep _TCP= | sed 's/.*_PORT_\([0-9]*\)_TCP=tcp:\/\/\(.*\):\(.*\)/socat TCP4-LISTEN:\1,fork,reuseaddr TCP4:\2:\3 \&/'  | sh && top
+    Step 3 : CMD env | grep _TCP= | sed 's/.*_PORT_\([0-9]*\)_TCP=tcp:\/\/\(.*\):\(.*\)/socat -t 100000000 TCP4-LISTEN:\1,fork,reuseaddr TCP4:\2:\3 \&/'  | sh && top
      ---> Using cache
      ---> 1a5ffc17324d
     Successfully built 1a5ffc17324d
