@@ -21,10 +21,10 @@ const (
 )
 
 var (
-	// ErrNotSupported is thrown when the backend k/v store is not supported by libkv
-	ErrNotSupported = errors.New("Backend storage not supported yet, please choose one of")
-	// ErrNotImplemented is thrown when a method is not implemented by the current backend
-	ErrNotImplemented = errors.New("Call not implemented in current backend")
+	// ErrBackendNotSupported is thrown when the backend k/v store is not supported by libkv
+	ErrBackendNotSupported = errors.New("Backend storage not supported yet, please choose one of")
+	// ErrCallNotSupported is thrown when a method is not implemented/supported by the current backend
+	ErrCallNotSupported = errors.New("The current call is not supported with this backend")
 	// ErrNotReachable is thrown when the API cannot be reached for issuing common store operations
 	ErrNotReachable = errors.New("Api not reachable")
 	// ErrCannotLock is thrown when there is an error acquiring a lock on a key
