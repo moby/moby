@@ -163,6 +163,8 @@ func (b *builder) Run(context io.Reader) (string, error) {
 		return "", err
 	}
 
+	b.Daemon.EventsService.Log("build", "", "")
+
 	defer func() {
 		if err := os.RemoveAll(b.contextPath); err != nil {
 			logrus.Debugf("[BUILDER] failed to remove temporary context: %s", err)

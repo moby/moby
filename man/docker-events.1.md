@@ -20,9 +20,13 @@ Docker containers will report the following events:
 
     create, destroy, die, export, kill, pause, restart, start, stop, unpause
 
-and Docker images will report:
+Docker images will report:
 
     untag, delete
+
+Docker builds report:
+
+    build
 
 # OPTIONS
 **--help**
