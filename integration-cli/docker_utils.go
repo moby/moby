@@ -609,16 +609,16 @@ func imageExists(image string) error {
 	return err
 }
 
-func pullImageIfNotExist(image string) (err error) {
+func pullImageIfNotExist(image string) error {
 	if err := imageExists(image); err != nil {
 		pullCmd := exec.Command(dockerBinary, "pull", image)
 		_, exitCode, err := runCommandWithOutput(pullCmd)
 
 		if err != nil || exitCode != 0 {
-			err = fmt.Errorf("image %q wasn't found locally and it couldn't be pulled: %s", image, err)
+			return fmt.Errorf("image %q wasn't found locally and it couldn't be pulled: %s", image, err)
 		}
 	}
-	return
+	return nil
 }
 
 func dockerCmdWithError(args ...string) (string, int, error) {
