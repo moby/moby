@@ -200,6 +200,24 @@ func (i *uint64Value) Get() interface{} { return uint64(*i) }
 
 func (i *uint64Value) String() string { return fmt.Sprintf("%v", *i) }
 
+// -- uint16 Value
+type uint16Value uint16
+
+func newUint16Value(val uint16, p *uint16) *uint16Value {
+	*p = val
+	return (*uint16Value)(p)
+}
+
+func (i *uint16Value) Set(s string) error {
+	v, err := strconv.ParseUint(s, 0, 16)
+	*i = uint16Value(v)
+	return err
+}
+
+func (i *uint16Value) Get() interface{} { return uint16(*i) }
+
+func (i *uint16Value) String() string { return fmt.Sprintf("%v", *i) }
+
 // -- string Value
 type stringValue string
 
@@ -755,6 +773,32 @@ func (fs *FlagSet) Uint64(names []string, value uint64, usage string) *uint64 {
 // The return value is the address of a uint64 variable that stores the value of the flag.
 func Uint64(names []string, value uint64, usage string) *uint64 {
 	return CommandLine.Uint64(names, value, usage)
+}
+
+// Uint16Var defines a uint16 flag with specified name, default value, and usage string.
+// The argument p points to a uint16 variable in which to store the value of the flag.
+func (fs *FlagSet) Uint16Var(p *uint16, names []string, value uint16, usage string) {
+	fs.Var(newUint16Value(value, p), names, usage)
+}
+
+// Uint16Var defines a uint16 flag with specified name, default value, and usage string.
+// The argument p points to a uint16 variable in which to store the value of the flag.
+func Uint16Var(p *uint16, names []string, value uint16, usage string) {
+	CommandLine.Var(newUint16Value(value, p), names, usage)
+}
+
+// Uint16 defines a uint16 flag with specified name, default value, and usage string.
+// The return value is the address of a uint16 variable that stores the value of the flag.
+func (fs *FlagSet) Uint16(names []string, value uint16, usage string) *uint16 {
+	p := new(uint16)
+	fs.Uint16Var(p, names, value, usage)
+	return p
+}
+
+// Uint16 defines a uint16 flag with specified name, default value, and usage string.
+// The return value is the address of a uint16 variable that stores the value of the flag.
+func Uint16(names []string, value uint16, usage string) *uint16 {
+	return CommandLine.Uint16(names, value, usage)
 }
 
 // StringVar defines a string flag with specified name, default value, and usage string.
