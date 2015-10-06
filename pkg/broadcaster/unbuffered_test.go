@@ -1,4 +1,4 @@
-package broadcastwriter
+package broadcaster
 
 import (
 	"bytes"
@@ -28,14 +28,14 @@ func (dw *dummyWriter) Close() error {
 	return nil
 }
 
-func TestBroadcastWriter(t *testing.T) {
-	writer := New()
+func TestUnbuffered(t *testing.T) {
+	writer := new(Unbuffered)
 
 	// Test 1: Both bufferA and bufferB should contain "foo"
 	bufferA := &dummyWriter{}
-	writer.AddWriter(bufferA)
+	writer.Add(bufferA)
 	bufferB := &dummyWriter{}
-	writer.AddWriter(bufferB)
+	writer.Add(bufferB)
 	writer.Write([]byte("foo"))
 
 	if bufferA.String() != "foo" {
@@ -49,7 +49,7 @@ func TestBroadcastWriter(t *testing.T) {
 	// Test2: bufferA and bufferB should contain "foobar",
 	// while bufferC should only contain "bar"
 	bufferC := &dummyWriter{}
-	writer.AddWriter(bufferC)
+	writer.Add(bufferC)
 	writer.Write([]byte("bar"))
 
 	if bufferA.String() != "foobar" {
@@ -87,7 +87,7 @@ func TestBroadcastWriter(t *testing.T) {
 	bufferB.failOnWrite = true
 	bufferC.failOnWrite = true
 	bufferD := &dummyWriter{}
-	writer.AddWriter(bufferD)
+	writer.Add(bufferD)
 	writer.Write([]byte("yo"))
 	writer.Write([]byte("ink"))
 	if strings.Contains(bufferB.String(), "yoink") {
@@ -114,24 +114,24 @@ func (d devNullCloser) Write(buf []byte) (int, error) {
 }
 
 // This test checks for races. It is only useful when run with the race detector.
-func TestRaceBroadcastWriter(t *testing.T) {
-	writer := New()
+func TestRaceUnbuffered(t *testing.T) {
+	writer := new(Unbuffered)
 	c := make(chan bool)
 	go func() {
-		writer.AddWriter(devNullCloser(0))
+		writer.Add(devNullCloser(0))
 		c <- true
 	}()
 	writer.Write([]byte("hello"))
 	<-c
 }
 
-func BenchmarkBroadcastWriter(b *testing.B) {
-	writer := New()
+func BenchmarkUnbuffered(b *testing.B) {
+	writer := new(Unbuffered)
 	setUpWriter := func() {
 		for i := 0; i < 100; i++ {
-			writer.AddWriter(devNullCloser(0))
-			writer.AddWriter(devNullCloser(0))
-			writer.AddWriter(devNullCloser(0))
+			writer.Add(devNullCloser(0))
+			writer.Add(devNullCloser(0))
+			writer.Add(devNullCloser(0))
 		}
 	}
 	testLine := "Line that thinks that it is log line from docker"
