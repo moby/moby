@@ -1,7 +1,6 @@
 package netlabel
 
 import (
-	"fmt"
 	"strings"
 )
 
@@ -30,6 +29,9 @@ const (
 
 	//EnableIPv6 constant represents enabling IPV6 at network level
 	EnableIPv6 = Prefix + ".enable_ipv6"
+
+	// DriverMTU constant represents the MTU size for the network driver
+	DriverMTU = DriverPrefix + ".mtu"
 
 	// OverlayBindInterface constant represents overlay driver bind interface
 	OverlayBindInterface = DriverPrefix + ".overlay.bind_interface"
@@ -77,35 +79,51 @@ func MakeKVProviderConfig(scope string) string {
 }
 
 // Key extracts the key portion of the label
-func Key(label string) string {
-	kv := strings.SplitN(label, "=", 2)
-
-	return kv[0]
+func Key(label string) (key string) {
+	if kv := strings.SplitN(label, "=", 2); len(kv) > 0 {
+		key = kv[0]
+	}
+	return
 }
 
 // Value extracts the value portion of the label
-func Value(label string) string {
-	kv := strings.SplitN(label, "=", 2)
-
-	return kv[1]
+func Value(label string) (value string) {
+	if kv := strings.SplitN(label, "=", 2); len(kv) > 1 {
+		value = kv[1]
+	}
+	return
 }
 
 // KeyValue decomposes the label in the (key,value) pair
-func KeyValue(label string) (string, string, error) {
-	kv := strings.SplitN(label, "=", 2)
-	if len(kv) != 2 {
-		return "", "", fmt.Errorf("invalid label: %s", label)
+func KeyValue(label string) (key string, value string) {
+	if kv := strings.SplitN(label, "=", 2); len(kv) > 0 {
+		key = kv[0]
+		if len(kv) > 1 {
+			value = kv[1]
+		}
 	}
-	return kv[0], kv[1], nil
+	return
 }
 
-// ToMap converts a list of labels in amap of (key,value) pairs
+// ToMap converts a list of labels in a map of (key,value) pairs
 func ToMap(labels []string) map[string]string {
 	m := make(map[string]string, len(labels))
 	for _, l := range labels {
-		if k, v, err := KeyValue(l); err == nil {
-			m[k] = v
-		}
+		k, v := KeyValue(l)
+		m[k] = v
 	}
 	return m
+}
+
+// FromMap converts a map of (key,value) pairs in a lsit of labels
+func FromMap(m map[string]string) []string {
+	l := make([]string, 0, len(m))
+	for k, v := range m {
+		s := k
+		if v != "" {
+			s = s + "=" + v
+		}
+		l = append(l, s)
+	}
+	return l
 }

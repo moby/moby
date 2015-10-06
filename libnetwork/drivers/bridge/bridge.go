@@ -178,7 +178,7 @@ func (c *networkConfiguration) Conflicts(o *networkConfiguration) error {
 
 	// Also empty, becasue only one network with empty name is allowed
 	if c.BridgeName == o.BridgeName {
-		return fmt.Errorf("networks have same name")
+		return fmt.Errorf("networks have same bridge name")
 	}
 
 	// They must be in different subnets
@@ -196,77 +196,44 @@ func (c *networkConfiguration) Conflicts(o *networkConfiguration) error {
 	return nil
 }
 
-// fromMap retrieve the configuration data from the map form.
-func (c *networkConfiguration) fromMap(data map[string]interface{}) error {
+func (c *networkConfiguration) fromLabels(labels map[string]string) error {
 	var err error
-
-	if i, ok := data["BridgeName"]; ok && i != nil {
-		if c.BridgeName, ok = i.(string); !ok {
-			return types.BadRequestErrorf("invalid type for BridgeName value")
-		}
-	}
-
-	if i, ok := data["Mtu"]; ok && i != nil {
-		if s, ok := i.(string); ok {
-			if c.Mtu, err = strconv.Atoi(s); err != nil {
-				return types.BadRequestErrorf("failed to parse Mtu value: %s", err.Error())
+	for label, value := range labels {
+		switch label {
+		case BridgeName:
+			c.BridgeName = value
+		case netlabel.DriverMTU:
+			if c.Mtu, err = strconv.Atoi(value); err != nil {
+				return parseErr(label, value, err.Error())
 			}
-		} else {
-			return types.BadRequestErrorf("invalid type for Mtu value")
-		}
-	}
-
-	if i, ok := data["EnableIPv6"]; ok && i != nil {
-		if s, ok := i.(string); ok {
-			if c.EnableIPv6, err = strconv.ParseBool(s); err != nil {
-				return types.BadRequestErrorf("failed to parse EnableIPv6 value: %s", err.Error())
+		case netlabel.EnableIPv6:
+			if c.EnableIPv6, err = strconv.ParseBool(value); err != nil {
+				return parseErr(label, value, err.Error())
 			}
-		} else {
-			return types.BadRequestErrorf("invalid type for EnableIPv6 value")
-		}
-	}
-
-	if i, ok := data["EnableIPMasquerade"]; ok && i != nil {
-		if s, ok := i.(string); ok {
-			if c.EnableIPMasquerade, err = strconv.ParseBool(s); err != nil {
-				return types.BadRequestErrorf("failed to parse EnableIPMasquerade value: %s", err.Error())
+		case EnableIPMasquerade:
+			if c.EnableIPMasquerade, err = strconv.ParseBool(value); err != nil {
+				return parseErr(label, value, err.Error())
 			}
-		} else {
-			return types.BadRequestErrorf("invalid type for EnableIPMasquerade value")
-		}
-	}
-
-	if i, ok := data["EnableICC"]; ok && i != nil {
-		if s, ok := i.(string); ok {
-			if c.EnableICC, err = strconv.ParseBool(s); err != nil {
-				return types.BadRequestErrorf("failed to parse EnableICC value: %s", err.Error())
+		case EnableICC:
+			if c.EnableICC, err = strconv.ParseBool(value); err != nil {
+				return parseErr(label, value, err.Error())
 			}
-		} else {
-			return types.BadRequestErrorf("invalid type for EnableICC value")
-		}
-	}
-
-	if i, ok := data["DefaultBridge"]; ok && i != nil {
-		if s, ok := i.(string); ok {
-			if c.DefaultBridge, err = strconv.ParseBool(s); err != nil {
-				return types.BadRequestErrorf("failed to parse DefaultBridge value: %s", err.Error())
+		case DefaultBridge:
+			if c.DefaultBridge, err = strconv.ParseBool(value); err != nil {
+				return parseErr(label, value, err.Error())
 			}
-		} else {
-			return types.BadRequestErrorf("invalid type for DefaultBridge value")
-		}
-	}
-
-	if i, ok := data["DefaultBindingIP"]; ok && i != nil {
-		if s, ok := i.(string); ok {
-			if c.DefaultBindingIP = net.ParseIP(s); c.DefaultBindingIP == nil {
-				return types.BadRequestErrorf("failed to parse DefaultBindingIP value")
+		case DefaultBindingIP:
+			if c.DefaultBindingIP = net.ParseIP(value); c.DefaultBindingIP == nil {
+				return parseErr(label, value, "nil ip")
 			}
-		} else {
-			return types.BadRequestErrorf("invalid type for DefaultBindingIP value")
 		}
 	}
 
 	return nil
+}
+
+func parseErr(label, value, errString string) error {
+	return types.BadRequestErrorf("failed to parse %s value: %v (%s)", label, value, errString)
 }
 
 func (n *bridgeNetwork) getDriverChains() (*iptables.ChainInfo, *iptables.ChainInfo, error) {
@@ -442,12 +409,12 @@ func parseNetworkGenericOptions(data interface{}) (*networkConfiguration, error)
 	switch opt := data.(type) {
 	case *networkConfiguration:
 		config = opt
-	case map[string]interface{}:
+	case map[string]string:
 		config = &networkConfiguration{
 			EnableICC:          true,
 			EnableIPMasquerade: true,
 		}
-		err = config.fromMap(opt)
+		err = config.fromLabels(opt)
 	case options.Generic:
 		var opaqueConfig interface{}
 		if opaqueConfig, err = options.GenerateFromModel(opt, config); err == nil {
@@ -491,8 +458,10 @@ func (c *networkConfiguration) processIPAM(id string, ipamV4Data, ipamV6Data []d
 }
 
 func parseNetworkOptions(id string, option options.Generic) (*networkConfiguration, error) {
-	var err error
-	config := &networkConfiguration{}
+	var (
+		err    error
+		config = &networkConfiguration{}
+	)
 
 	// Parse generic label first, config will be re-assigned
 	if genData, ok := option[netlabel.GenericData]; ok && genData != nil {
@@ -502,8 +471,8 @@ func parseNetworkOptions(id string, option options.Generic) (*networkConfigurati
 	}
 
 	// Process well-known labels next
-	if _, ok := option[netlabel.EnableIPv6]; ok {
-		config.EnableIPv6 = option[netlabel.EnableIPv6].(bool)
+	if val, ok := option[netlabel.EnableIPv6]; ok {
+		config.EnableIPv6 = val.(bool)
 	}
 
 	// Finally validate the configuration
