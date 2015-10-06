@@ -110,6 +110,7 @@ type DeviceSet struct {
 	deferredRemove        bool   // use deferred removal
 	deferredDelete        bool   // use deferred deletion
 	BaseDeviceUUID        string //save UUID of base device
+	nrDeletedDevices      uint   //number of deleted devices
 }
 
 // DiskUsage contains information about disk usage and is used when reporting Status of a device.
@@ -149,7 +150,8 @@ type Status struct {
 	// deactivated. Thin device is still in thin pool and can be activated
 	// again. But "deletion" means that thin device will be deleted from
 	// thin pool and it can't be activated again.
-	DeferredDeleteEnabled bool
+	DeferredDeleteEnabled      bool
+	DeferredDeletedDeviceCount uint
 }
 
 // Structure used to export image/container metadata in docker inspect.
@@ -581,6 +583,11 @@ func (devices *DeviceSet) migrateOldMetaData() error {
 // loaded in the hash table. Should be called with devices.Lock() held.
 // Will drop the lock for device deletion and return with lock acquired.
 func (devices *DeviceSet) cleanupDeletedDevices() error {
+	// If there are no deleted devices, there is nothing to do.
+	if devices.nrDeletedDevices == 0 {
+		return nil
+	}
+
 	var deletedDevices []*devInfo
 
 	for _, info := range devices.Devices {
@@ -606,6 +613,15 @@ func (devices *DeviceSet) cleanupDeletedDevices() error {
 	return nil
 }
 
+func (devices *DeviceSet) countDeletedDevices() {
+	for _, info := range devices.Devices {
+		if !info.Deleted {
+			continue
+		}
+		devices.nrDeletedDevices++
+	}
+}
+
 func (devices *DeviceSet) initMetaData() error {
 	devices.Lock()
 	defer devices.Unlock()
@@ -626,6 +642,7 @@ func (devices *DeviceSet) initMetaData() error {
 	}
 
 	devices.constructDeviceIDMap()
+	devices.countDeletedDevices()
 
 	if err := devices.processPendingTransaction(); err != nil {
 		return err
@@ -1601,6 +1618,8 @@ func (devices *DeviceSet) markForDeferredDeletion(info *devInfo) error {
 		info.Deleted = false
 		return err
 	}
+
+	devices.nrDeletedDevices++
 	return nil
 }
 
@@ -1627,6 +1646,12 @@ func (devices *DeviceSet) deleteTransaction(info *devInfo, syncDelete bool) erro
 	if err == nil {
 		if err := devices.unregisterDevice(info.DeviceID, info.Hash); err != nil {
 			return err
+		}
+		// If device was already in deferred delete state that means
+		// deletion was being tried again later. Reduce the deleted
+		// device count.
+		if info.Deleted {
+			devices.nrDeletedDevices--
 		}
 	} else {
 		if err := devices.markForDeferredDeletion(info); err != nil {
@@ -2110,6 +2135,7 @@ func (devices *DeviceSet) Status() *Status {
 	status.UdevSyncSupported = devicemapper.UdevSyncSupported()
 	status.DeferredRemoveEnabled = devices.deferredRemove
 	status.DeferredDeleteEnabled = devices.deferredDelete
+	status.DeferredDeletedDeviceCount = devices.nrDeletedDevices
 
 	totalSizeInSectors, _, dataUsed, dataTotal, metadataUsed, metadataTotal, err := devices.poolStatus()
 	if err == nil {
