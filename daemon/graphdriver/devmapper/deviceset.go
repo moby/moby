@@ -111,6 +111,7 @@ type DeviceSet struct {
 	deferredDelete        bool   // use deferred deletion
 	BaseDeviceUUID        string //save UUID of base device
 	nrDeletedDevices      uint   //number of deleted devices
+	deletionWorkerTicker  *time.Ticker
 }
 
 // DiskUsage contains information about disk usage and is used when reporting Status of a device.
@@ -580,9 +581,10 @@ func (devices *DeviceSet) migrateOldMetaData() error {
 }
 
 // Cleanup deleted devices. It assumes that all the devices have been
-// loaded in the hash table. Should be called with devices.Lock() held.
-// Will drop the lock for device deletion and return with lock acquired.
+// loaded in the hash table.
 func (devices *DeviceSet) cleanupDeletedDevices() error {
+	devices.Lock()
+
 	// If there are no deleted devices, there is nothing to do.
 	if devices.nrDeletedDevices == 0 {
 		return nil
@@ -601,7 +603,6 @@ func (devices *DeviceSet) cleanupDeletedDevices() error {
 	// Delete the deleted devices. DeleteDevice() first takes the info lock
 	// and then devices.Lock(). So drop it to avoid deadlock.
 	devices.Unlock()
-	defer devices.Lock()
 
 	for _, info := range deletedDevices {
 		// This will again try deferred deletion.
@@ -619,6 +620,18 @@ func (devices *DeviceSet) countDeletedDevices() {
 			continue
 		}
 		devices.nrDeletedDevices++
+	}
+}
+
+func (devices *DeviceSet) startDeviceDeletionWorker() {
+	// Deferred deletion is not enabled. Don't do anything.
+	if !devices.deferredDelete {
+		return
+	}
+
+	logrus.Debugf("devmapper: Worker to cleanup deleted devices started")
+	for range devices.deletionWorkerTicker.C {
+		devices.cleanupDeletedDevices()
 	}
 }
 
@@ -648,10 +661,8 @@ func (devices *DeviceSet) initMetaData() error {
 		return err
 	}
 
-	if err := devices.cleanupDeletedDevices(); err != nil {
-		return err
-	}
-
+	// Start a goroutine to cleanup Deleted Devices
+	go devices.startDeviceDeletionWorker()
 	return nil
 }
 
@@ -1861,6 +1872,13 @@ func (devices *DeviceSet) Shutdown() error {
 
 	var devs []*devInfo
 
+	// Stop deletion worker. This should start delivering new events to
+	// ticker channel. That means no new instance of cleanupDeletedDevice()
+	// will run after this call. If one instance is already running at
+	// the time of the call, it must be holding devices.Lock() and
+	// we will block on this lock till cleanup function exits.
+	devices.deletionWorkerTicker.Stop()
+
 	devices.Lock()
 	// Save DeviceSet Metadata first. Docker kills all threads if they
 	// don't finish in certain time. It is possible that Shutdown()
@@ -2200,6 +2218,7 @@ func NewDeviceSet(root string, doInit bool, options []string) (*DeviceSet, error
 		doBlkDiscard:          true,
 		thinpBlockSize:        defaultThinpBlockSize,
 		deviceIDMap:           make([]byte, deviceIDMapSz),
+		deletionWorkerTicker:  time.NewTicker(time.Second * 30),
 	}
 
 	foundBlkDiscard := false
