@@ -809,6 +809,22 @@ func (devices *DeviceSet) createBaseImage() error {
 	return nil
 }
 
+func (devices *DeviceSet) checkThinPool() error {
+	_, transactionID, dataUsed, _, _, _, err := devices.poolStatus()
+	if err != nil {
+		return err
+	}
+	if dataUsed != 0 {
+		return fmt.Errorf("Unable to take ownership of thin-pool (%s) that already has used data blocks",
+			devices.thinPoolDevice)
+	}
+	if transactionID != 0 {
+		return fmt.Errorf("Unable to take ownership of thin-pool (%s) with non-zero transaction ID",
+			devices.thinPoolDevice)
+	}
+	return nil
+}
+
 func (devices *DeviceSet) setupBaseImage() error {
 	oldInfo, _ := devices.lookupDeviceWithLock("")
 	if oldInfo != nil && oldInfo.Initialized {
@@ -835,17 +851,8 @@ func (devices *DeviceSet) setupBaseImage() error {
 	}
 
 	if devices.thinPoolDevice != "" && oldInfo == nil {
-		_, transactionID, dataUsed, _, _, _, err := devices.poolStatus()
-		if err != nil {
+		if err := devices.checkThinPool(); err != nil {
 			return err
-		}
-		if dataUsed != 0 {
-			return fmt.Errorf("Unable to take ownership of thin-pool (%s) that already has used data blocks",
-				devices.thinPoolDevice)
-		}
-		if transactionID != 0 {
-			return fmt.Errorf("Unable to take ownership of thin-pool (%s) with non-zero transaction ID",
-				devices.thinPoolDevice)
 		}
 	}
 
