@@ -1,4 +1,4 @@
-package progressreader
+package broadcaster
 
 import (
 	"errors"
@@ -6,10 +6,10 @@ import (
 	"sync"
 )
 
-// Broadcaster keeps track of one or more observers watching the progress
+// Buffered keeps track of one or more observers watching the progress
 // of an operation. For example, if multiple clients are trying to pull an
-// image, they share a Broadcaster for the download operation.
-type Broadcaster struct {
+// image, they share a Buffered struct for the download operation.
+type Buffered struct {
 	sync.Mutex
 	// c is a channel that observers block on, waiting for the operation
 	// to finish.
@@ -29,9 +29,9 @@ type Broadcaster struct {
 	result error
 }
 
-// NewBroadcaster returns a Broadcaster structure
-func NewBroadcaster() *Broadcaster {
-	b := &Broadcaster{
+// NewBuffered returns an initialized Buffered structure.
+func NewBuffered() *Buffered {
+	b := &Buffered{
 		c: make(chan struct{}),
 	}
 	b.cond = sync.NewCond(b)
@@ -39,7 +39,7 @@ func NewBroadcaster() *Broadcaster {
 }
 
 // closed returns true if and only if the broadcaster has been closed
-func (broadcaster *Broadcaster) closed() bool {
+func (broadcaster *Buffered) closed() bool {
 	select {
 	case <-broadcaster.c:
 		return true
@@ -51,7 +51,7 @@ func (broadcaster *Broadcaster) closed() bool {
 // receiveWrites runs as a goroutine so that writes don't block the Write
 // function. It writes the new data in broadcaster.history each time there's
 // activity on the broadcaster.cond condition variable.
-func (broadcaster *Broadcaster) receiveWrites(observer io.Writer) {
+func (broadcaster *Buffered) receiveWrites(observer io.Writer) {
 	n := 0
 
 	broadcaster.Lock()
@@ -98,13 +98,13 @@ func (broadcaster *Broadcaster) receiveWrites(observer io.Writer) {
 
 // Write adds data to the history buffer, and also writes it to all current
 // observers.
-func (broadcaster *Broadcaster) Write(p []byte) (n int, err error) {
+func (broadcaster *Buffered) Write(p []byte) (n int, err error) {
 	broadcaster.Lock()
 	defer broadcaster.Unlock()
 
 	// Is the broadcaster closed? If so, the write should fail.
 	if broadcaster.closed() {
-		return 0, errors.New("attempted write to closed progressreader Broadcaster")
+		return 0, errors.New("attempted write to a closed broadcaster.Buffered")
 	}
 
 	// Add message in p to the history slice
@@ -117,15 +117,15 @@ func (broadcaster *Broadcaster) Write(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
-// Add adds an observer to the Broadcaster. The new observer receives the
+// Add adds an observer to the broadcaster. The new observer receives the
 // data from the history buffer, and also all subsequent data.
-func (broadcaster *Broadcaster) Add(w io.Writer) error {
+func (broadcaster *Buffered) Add(w io.Writer) error {
 	// The lock is acquired here so that Add can't race with Close
 	broadcaster.Lock()
 	defer broadcaster.Unlock()
 
 	if broadcaster.closed() {
-		return errors.New("attempted to add observer to closed progressreader Broadcaster")
+		return errors.New("attempted to add observer to a closed broadcaster.Buffered")
 	}
 
 	broadcaster.wg.Add(1)
@@ -136,7 +136,7 @@ func (broadcaster *Broadcaster) Add(w io.Writer) error {
 
 // CloseWithError signals to all observers that the operation has finished. Its
 // argument is a result that should be returned to waiters blocking on Wait.
-func (broadcaster *Broadcaster) CloseWithError(result error) {
+func (broadcaster *Buffered) CloseWithError(result error) {
 	broadcaster.Lock()
 	if broadcaster.closed() {
 		broadcaster.Unlock()
@@ -153,14 +153,14 @@ func (broadcaster *Broadcaster) CloseWithError(result error) {
 
 // Close signals to all observers that the operation has finished. It causes
 // all calls to Wait to return nil.
-func (broadcaster *Broadcaster) Close() {
+func (broadcaster *Buffered) Close() {
 	broadcaster.CloseWithError(nil)
 }
 
 // Wait blocks until the operation is marked as completed by the Close method,
 // and all writer goroutines have completed. It returns the argument that was
 // passed to Close.
-func (broadcaster *Broadcaster) Wait() error {
+func (broadcaster *Buffered) Wait() error {
 	<-broadcaster.c
 	broadcaster.wg.Wait()
 	return broadcaster.result

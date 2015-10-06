@@ -32,7 +32,7 @@ import (
 	"github.com/docker/docker/graph"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/broadcastwriter"
+	"github.com/docker/docker/pkg/broadcaster"
 	"github.com/docker/docker/pkg/discovery"
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/graphdb"
@@ -194,8 +194,8 @@ func (daemon *Daemon) Register(container *Container) error {
 	container.daemon = daemon
 
 	// Attach to stdout and stderr
-	container.stderr = broadcastwriter.New()
-	container.stdout = broadcastwriter.New()
+	container.stderr = new(broadcaster.Unbuffered)
+	container.stdout = new(broadcaster.Unbuffered)
 	// Attach to stdin
 	if container.Config.OpenStdin {
 		container.stdin, container.stdinPipe = io.Pipe()
