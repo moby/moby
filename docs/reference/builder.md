@@ -78,18 +78,20 @@ the `Using cache` message in the console output.
 (For more information, see the [Build cache section](../articles/dockerfile_best-practices.md#build-cache)) in the
 `Dockerfile` best practices guide:
 
-    $ docker build -t SvenDowideit/ambassador .
-    Uploading context 10.24 kB
-    Uploading context
-    Step 1 : FROM docker-ut
-     ---> cbba202fe96b
-    Step 2 : MAINTAINER SvenDowideit@home.org.au
+    $ docker build -t svendowideit/ambassador .
+    Sending build context to Docker daemon 15.36 kB
+    Step 0 : FROM alpine:3.2
+     ---> 31f630c65071
+    Step 1 : MAINTAINER SvenDowideit@home.org.au
      ---> Using cache
-     ---> 51182097be13
-    Step 3 : CMD env | grep _TCP= | sed 's/.*_PORT_\([0-9]*\)_TCP=tcp:\/\/\(.*\):\(.*\)/socat TCP4-LISTEN:\1,fork,reuseaddr TCP4:\2:\3 \&/'  | sh && top
+     ---> 2a1c91448f5f
+    Step 2 : RUN apk update &&      apk add socat &&        rm -r /var/cache/
      ---> Using cache
-     ---> 1a5ffc17324d
-    Successfully built 1a5ffc17324d
+     ---> 21ed6e7fbb73
+    Step 3 : CMD env | grep _TCP= | sed 's/.*_PORT_\([0-9]*\)_TCP=tcp:\/\/\(.*\):\(.*\)/socat -t 100000000 TCP4-LISTEN:\1,fork,reuseaddr TCP4:\2:\3 \& wait/' | sh
+     ---> Using cache
+     ---> 7ea8aef582cc
+    Successfully built 7ea8aef582cc
 
 When you're done with your build, you're ready to look into [*Pushing a
 repository to its registry*](../userguide/dockerrepos.md#contributing-to-docker-hub).
