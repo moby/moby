@@ -28,7 +28,7 @@ type Sandbox interface {
 	// Labels returns the sandbox's labels
 	Labels() map[string]interface{}
 	// Statistics retrieves the interfaces' statistics for the sandbox
-	Statistics() (map[string]*osl.InterfaceStatistics, error)
+	Statistics() (map[string]*types.InterfaceStatistics, error)
 	// Refresh leaves all the endpoints, resets and re-apply the options,
 	// re-joins all the endpoints without destroying the osl sandbox
 	Refresh(options ...SandboxOption) error
@@ -126,8 +126,8 @@ func (sb *sandbox) Labels() map[string]interface{} {
 	return sb.config.generic
 }
 
-func (sb *sandbox) Statistics() (map[string]*osl.InterfaceStatistics, error) {
-	m := make(map[string]*osl.InterfaceStatistics)
+func (sb *sandbox) Statistics() (map[string]*types.InterfaceStatistics, error) {
+	m := make(map[string]*types.InterfaceStatistics)
 
 	if sb.osSbox == nil {
 		return m, nil

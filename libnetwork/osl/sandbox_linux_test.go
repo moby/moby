@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/docker/libnetwork/netutils"
+	"github.com/docker/libnetwork/types"
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
 )
@@ -162,7 +163,7 @@ func TestScanStatistics(t *testing.T) {
 			"    lo:  783782    1853    0    0    0     0          0         0   783782    1853    0    0    0     0       0          0\n" +
 			"lxcbr0:       0       0    0    0    0     0          0         0     9006      61    0    0    0     0       0          0\n"
 
-	i := &InterfaceStatistics{}
+	i := &types.InterfaceStatistics{}
 
 	if err := scanInterfaceStats(data, "wlan0", i); err != nil {
 		t.Fatal(err)
