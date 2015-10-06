@@ -122,7 +122,7 @@ func TestCreateFullOptionsLabels(t *testing.T) {
 	netOption := make(map[string]interface{})
 	netOption[netlabel.GenericData] = labels
 
-	err := d.CreateNetwork("dummy", netOption, nil, nil)
+	err := d.CreateNetwork("dummy", netOption, getIPv4Data(t), nil)
 	if err != nil {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}

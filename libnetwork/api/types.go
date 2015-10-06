@@ -26,7 +26,6 @@ type sandboxResource struct {
 	ID          string `json:"id"`
 	Key         string `json:"key"`
 	ContainerID string `json:"container_id"`
-	// will add more fields once labels change is in
 }
 
 /***********
@@ -35,9 +34,9 @@ type sandboxResource struct {
 
 // networkCreate is the expected body of the "create network" http request message
 type networkCreate struct {
-	Name        string                 `json:"name"`
-	NetworkType string                 `json:"network_type"`
-	Options     map[string]interface{} `json:"options"`
+	Name        string   `json:"name"`
+	NetworkType string   `json:"network_type"`
+	Labels      []string `json:"labels"`
 }
 
 // endpointCreate represents the body of the "create endpoint" http request message

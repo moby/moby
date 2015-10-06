@@ -15,6 +15,7 @@ import (
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/libnetwork"
 	"github.com/docker/libnetwork/datastore"
+	"github.com/docker/libnetwork/drivers/bridge"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/options"
 	"github.com/docker/libnetwork/testutils"
@@ -25,12 +26,6 @@ const (
 	bridgeNetType = "bridge"
 	bridgeName    = "docker0"
 )
-
-func getEmptyGenericOption() map[string]interface{} {
-	genericOption := make(map[string]interface{})
-	genericOption[netlabel.GenericData] = options.Generic{}
-	return genericOption
-}
 
 func i2s(i interface{}) string {
 	s, ok := i.(string)
@@ -109,6 +104,22 @@ func createTestNetwork(t *testing.T, network string) (libnetwork.NetworkControll
 	}
 
 	return c, nw
+}
+
+func getExposedPorts() []types.TransportPort {
+	return []types.TransportPort{
+		types.TransportPort{Proto: types.TCP, Port: uint16(5000)},
+		types.TransportPort{Proto: types.UDP, Port: uint16(400)},
+		types.TransportPort{Proto: types.TCP, Port: uint16(600)},
+	}
+}
+
+func getPortMapping() []types.PortBinding {
+	return []types.PortBinding{
+		types.PortBinding{Proto: types.TCP, Port: uint16(230), HostPort: uint16(23000)},
+		types.PortBinding{Proto: types.UDP, Port: uint16(200), HostPort: uint16(22000)},
+		types.PortBinding{Proto: types.TCP, Port: uint16(120), HostPort: uint16(12000)},
+	}
 }
 
 func TestMain(m *testing.M) {
@@ -214,15 +225,11 @@ func TestCreateDeleteNetwork(t *testing.T) {
 		t.Fatalf("Expected StatusBadRequest status code, got: %v", errRsp)
 	}
 
-	ops := options.Generic{
-		netlabel.EnableIPv6: true,
-		netlabel.GenericData: map[string]string{
-			"BridgeName":  "abc",
-			"FixedCIDRv6": "fe80::1/64",
-			"AddressIP":   "172.28.30.254/24",
-		},
+	ops := []string{
+		bridge.BridgeName + "=abc",
+		netlabel.EnableIPv6 + "=true",
 	}
-	nc := networkCreate{Name: "network_1", NetworkType: bridgeNetType, Options: ops}
+	nc := networkCreate{Name: "network_1", NetworkType: bridgeNetType, Labels: ops}
 	goodBody, err := json.Marshal(nc)
 	if err != nil {
 		t.Fatal(err)
@@ -250,6 +257,29 @@ func TestCreateDeleteNetwork(t *testing.T) {
 	if errRsp != &successResponse {
 		t.Fatalf("Unexepected failure: %v", errRsp)
 	}
+
+	// Create with labels
+	labels := []string{
+		netlabel.EnableIPv6 + "=true",
+		bridge.BridgeName + "=abc",
+	}
+	nc = networkCreate{Name: "network_2", NetworkType: bridgeNetType, Labels: labels}
+	goodBody, err = json.Marshal(nc)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, errRsp = procCreateNetwork(c, vars, goodBody)
+	if errRsp != &createdResponse {
+		t.Fatalf("Unexepected failure: %v", errRsp)
+	}
+
+	vars[urlNwName] = "network_2"
+	_, errRsp = procDeleteNetwork(c, vars, nil)
+	if errRsp != &successResponse {
+		t.Fatalf("Unexepected failure: %v", errRsp)
+	}
+
 }
 
 func TestGetNetworksAndEndpoints(t *testing.T) {
@@ -264,13 +294,10 @@ func TestGetNetworksAndEndpoints(t *testing.T) {
 	}
 	defer c.Stop()
 
-	ops := options.Generic{
-		netlabel.GenericData: map[string]string{
-			"BridgeName": "api_test_nw",
-		},
+	ops := []string{
+		bridge.BridgeName + "=api_test_nw",
 	}
-
-	nc := networkCreate{Name: "sh", NetworkType: bridgeNetType, Options: ops}
+	nc := networkCreate{Name: "sh", NetworkType: bridgeNetType, Labels: ops}
 	body, err := json.Marshal(nc)
 	if err != nil {
 		t.Fatal(err)
@@ -287,17 +314,9 @@ func TestGetNetworksAndEndpoints(t *testing.T) {
 	}
 
 	ec1 := endpointCreate{
-		Name: "ep1",
-		ExposedPorts: []types.TransportPort{
-			types.TransportPort{Proto: types.TCP, Port: uint16(5000)},
-			types.TransportPort{Proto: types.UDP, Port: uint16(400)},
-			types.TransportPort{Proto: types.TCP, Port: uint16(600)},
-		},
-		PortMapping: []types.PortBinding{
-			types.PortBinding{Proto: types.TCP, Port: uint16(230), HostPort: uint16(23000)},
-			types.PortBinding{Proto: types.UDP, Port: uint16(200), HostPort: uint16(22000)},
-			types.PortBinding{Proto: types.TCP, Port: uint16(120), HostPort: uint16(12000)},
-		},
+		Name:         "ep1",
+		ExposedPorts: getExposedPorts(),
+		PortMapping:  getPortMapping(),
 	}
 	b1, err := json.Marshal(ec1)
 	if err != nil {
@@ -439,10 +458,10 @@ func TestGetNetworksAndEndpoints(t *testing.T) {
 	nr1 := i2n(inr1)
 
 	delete(vars, urlNwName)
-	vars[urlNwID] = "cacca"
+	vars[urlNwID] = "acacac"
 	_, errRsp = procGetNetwork(c, vars, nil)
 	if errRsp == &successResponse {
-		t.Fatalf("Unexepected failure: %v", errRsp)
+		t.Fatalf("Expected failure. Got: %v", errRsp)
 	}
 	vars[urlNwID] = nid
 	inr2, errRsp := procGetNetwork(c, vars, nil)
@@ -825,18 +844,10 @@ func TestProcPublishUnpublishService(t *testing.T) {
 	}
 
 	sp := servicePublish{
-		Name:    "web",
-		Network: "network",
-		ExposedPorts: []types.TransportPort{
-			types.TransportPort{Proto: types.TCP, Port: uint16(6000)},
-			types.TransportPort{Proto: types.UDP, Port: uint16(500)},
-			types.TransportPort{Proto: types.TCP, Port: uint16(700)},
-		},
-		PortMapping: []types.PortBinding{
-			types.PortBinding{Proto: types.TCP, Port: uint16(1230), HostPort: uint16(37000)},
-			types.PortBinding{Proto: types.UDP, Port: uint16(1200), HostPort: uint16(36000)},
-			types.PortBinding{Proto: types.TCP, Port: uint16(1120), HostPort: uint16(35000)},
-		},
+		Name:         "web",
+		Network:      "network",
+		ExposedPorts: getExposedPorts(),
+		PortMapping:  getPortMapping(),
 	}
 	b, err = json.Marshal(sp)
 	if err != nil {
@@ -1330,6 +1341,7 @@ func TestJoinLeave(t *testing.T) {
 		t.Fatalf("Expected failure, got: %v", errRsp)
 	}
 
+	// bad labels
 	vars[urlEpName] = "endpoint"
 	key, errRsp := procJoinEndpoint(c, vars, jlb)
 	if errRsp != &successResponse {
@@ -1818,21 +1830,14 @@ func TestEndToEnd(t *testing.T) {
 
 	handleRequest := NewHTTPHandler(c)
 
-	ops := options.Generic{
-		netlabel.EnableIPv6: true,
-		netlabel.GenericData: map[string]string{
-			"BridgeName":          "cdef",
-			"FixedCIDRv6":         "fe80:2000::1/64",
-			"EnableIPv6":          "true",
-			"Mtu":                 "1460",
-			"EnableIPTables":      "true",
-			"AddressIP":           "172.28.30.254/16",
-			"EnableUserlandProxy": "true",
-		},
+	ops := []string{
+		bridge.BridgeName + "=cdef",
+		netlabel.EnableIPv6 + "=true",
+		netlabel.DriverMTU + "=1460",
 	}
 
 	// Create network
-	nc := networkCreate{Name: "network-fiftyfive", NetworkType: bridgeNetType, Options: ops}
+	nc := networkCreate{Name: "network-fiftyfive", NetworkType: bridgeNetType, Labels: ops}
 	body, err := json.Marshal(nc)
 	if err != nil {
 		t.Fatal(err)

@@ -184,7 +184,7 @@ func createDefaultNetwork(c libnetwork.NetworkController) {
 	if nw != "" && d != "" {
 		// Bridge driver is special due to legacy reasons
 		if d == "bridge" {
-			genericOption[netlabel.GenericData] = map[string]interface{}{
+			genericOption[netlabel.GenericData] = map[string]string{
 				"BridgeName":    "docker0",
 				"DefaultBridge": "true",
 			}
