@@ -107,7 +107,7 @@ to the world (via the `-p 6379:6379` port mapping):
     $ sudo ./contrib/mkimage-unittest.sh
     $ docker run -t -i --link redis:redis --name redis_ambassador -p 6379:6379 docker-ut sh
 
-    $ socat TCP4-LISTEN:6379,fork,reuseaddr TCP4:172.17.0.136:6379
+    $ socat -t 100000000 TCP4-LISTEN:6379,fork,reuseaddr TCP4:172.17.0.136:6379
 
 Now ping the Redis server via the ambassador:
 
@@ -116,7 +116,7 @@ Now go to a different server:
     $ sudo ./contrib/mkimage-unittest.sh
     $ docker run -t -i --expose 6379 --name redis_ambassador docker-ut sh
 
-    $ socat TCP4-LISTEN:6379,fork,reuseaddr TCP4:192.168.1.52:6379
+    $ socat -t 100000000 TCP4-LISTEN:6379,fork,reuseaddr TCP4:192.168.1.52:6379
 
 And get the `redis-cli` image so we can talk over the ambassador bridge.
 
@@ -154,4 +154,4 @@ case `192.168.1.52:6379`.
     MAINTAINER      SvenDowideit@home.org.au
 
 
-    CMD     env | grep _TCP= | sed 's/.*_PORT_\([0-9]*\)_TCP=tcp:\/\/\(.*\):\(.*\)/socat TCP4-LISTEN:\1,fork,reuseaddr TCP4:\2:\3 \&/'  | sh && top
+    CMD     env | grep _TCP= | sed 's/.*_PORT_\([0-9]*\)_TCP=tcp:\/\/\(.*\):\(.*\)/socat -t 100000000 TCP4-LISTEN:\1,fork,reuseaddr TCP4:\2:\3 \&/'  | sh && top
