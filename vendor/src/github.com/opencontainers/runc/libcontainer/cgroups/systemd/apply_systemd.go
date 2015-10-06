@@ -34,17 +34,18 @@ type subsystem interface {
 }
 
 var subsystems = map[string]subsystem{
-	"devices":    &fs.DevicesGroup{},
-	"memory":     &fs.MemoryGroup{},
-	"cpu":        &fs.CpuGroup{},
-	"cpuset":     &fs.CpusetGroup{},
-	"cpuacct":    &fs.CpuacctGroup{},
-	"blkio":      &fs.BlkioGroup{},
-	"hugetlb":    &fs.HugetlbGroup{},
-	"perf_event": &fs.PerfEventGroup{},
-	"freezer":    &fs.FreezerGroup{},
-	"net_prio":   &fs.NetPrioGroup{},
-	"net_cls":    &fs.NetClsGroup{},
+	"devices":      &fs.DevicesGroup{},
+	"memory":       &fs.MemoryGroup{},
+	"cpu":          &fs.CpuGroup{},
+	"cpuset":       &fs.CpusetGroup{},
+	"cpuacct":      &fs.CpuacctGroup{},
+	"blkio":        &fs.BlkioGroup{},
+	"hugetlb":      &fs.HugetlbGroup{},
+	"perf_event":   &fs.PerfEventGroup{},
+	"freezer":      &fs.FreezerGroup{},
+	"net_prio":     &fs.NetPrioGroup{},
+	"net_cls":      &fs.NetClsGroup{},
+	"name=systemd": &fs.NameGroup{},
 }
 
 const (
@@ -176,7 +177,6 @@ func (m *Manager) Apply(pid int) error {
 		properties = append(properties,
 			newProp("MemoryLimit", uint64(c.Memory)))
 	}
-	// TODO: MemoryReservation and MemorySwap not available in systemd
 
 	if c.CpuShares != 0 {
 		properties = append(properties,
@@ -212,6 +212,7 @@ func (m *Manager) Apply(pid int) error {
 		return err
 	}
 
+	// TODO: MemoryReservation and MemorySwap not available in systemd
 	if err := joinMemory(c, pid); err != nil {
 		return err
 	}
@@ -234,6 +235,10 @@ func (m *Manager) Apply(pid int) error {
 	}
 
 	if err := joinHugetlb(c, pid); err != nil {
+		return err
+	}
+
+	if err := joinPerfEvent(c, pid); err != nil {
 		return err
 	}
 	// FIXME: Systemd does have `BlockIODeviceWeight` property, but we got problem
@@ -505,6 +510,12 @@ func joinMemory(c *configs.Cgroup, pid int) error {
 			return err
 		}
 	}
+	if c.MemoryReservation > 0 {
+		err = writeFile(path, "memory.soft_limit_in_bytes", strconv.FormatInt(c.MemoryReservation, 10))
+		if err != nil {
+			return err
+		}
+	}
 	if c.OomKillDisable {
 		if err := writeFile(path, "memory.oom_control", "1"); err != nil {
 			return err
@@ -547,28 +558,37 @@ func joinBlkio(c *configs.Cgroup, pid int) error {
 	if err != nil {
 		return err
 	}
-	if c.BlkioWeightDevice != "" {
-		if err := writeFile(path, "blkio.weight_device", c.BlkioWeightDevice); err != nil {
+	// systemd doesn't directly support this in the dbus properties
+	if c.BlkioLeafWeight != 0 {
+		if err := writeFile(path, "blkio.leaf_weight", strconv.FormatUint(uint64(c.BlkioLeafWeight), 10)); err != nil {
 			return err
 		}
 	}
-	if c.BlkioThrottleReadBpsDevice != "" {
-		if err := writeFile(path, "blkio.throttle.read_bps_device", c.BlkioThrottleReadBpsDevice); err != nil {
+	for _, wd := range c.BlkioWeightDevice {
+		if err := writeFile(path, "blkio.weight_device", wd.WeightString()); err != nil {
+			return err
+		}
+		if err := writeFile(path, "blkio.leaf_weight_device", wd.LeafWeightString()); err != nil {
 			return err
 		}
 	}
-	if c.BlkioThrottleWriteBpsDevice != "" {
-		if err := writeFile(path, "blkio.throttle.write_bps_device", c.BlkioThrottleWriteBpsDevice); err != nil {
+	for _, td := range c.BlkioThrottleReadBpsDevice {
+		if err := writeFile(path, "blkio.throttle.read_bps_device", td.String()); err != nil {
 			return err
 		}
 	}
-	if c.BlkioThrottleReadIOpsDevice != "" {
-		if err := writeFile(path, "blkio.throttle.read_iops_device", c.BlkioThrottleReadIOpsDevice); err != nil {
+	for _, td := range c.BlkioThrottleWriteBpsDevice {
+		if err := writeFile(path, "blkio.throttle.write_bps_device", td.String()); err != nil {
 			return err
 		}
 	}
-	if c.BlkioThrottleWriteIOpsDevice != "" {
-		if err := writeFile(path, "blkio.throttle.write_iops_device", c.BlkioThrottleWriteIOpsDevice); err != nil {
+	for _, td := range c.BlkioThrottleReadIOPSDevice {
+		if err := writeFile(path, "blkio.throttle.read_iops_device", td.String()); err != nil {
+			return err
+		}
+	}
+	for _, td := range c.BlkioThrottleWriteIOPSDevice {
+		if err := writeFile(path, "blkio.throttle.write_iops_device", td.String()); err != nil {
 			return err
 		}
 	}
@@ -584,4 +604,14 @@ func joinHugetlb(c *configs.Cgroup, pid int) error {
 
 	hugetlb := subsystems["hugetlb"]
 	return hugetlb.Set(path, c)
+}
+
+func joinPerfEvent(c *configs.Cgroup, pid int) error {
+	path, err := join(c, "perf_event", pid)
+	if err != nil && !cgroups.IsNotFound(err) {
+		return err
+	}
+
+	perfEvent := subsystems["perf_event"]
+	return perfEvent.Set(path, c)
 }

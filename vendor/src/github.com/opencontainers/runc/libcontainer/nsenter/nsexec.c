@@ -23,7 +23,7 @@ struct clone_arg {
 	 * Reserve some space for clone() to locate arguments
 	 * and retcode in this place
 	 */
-	char stack[4096] __attribute__ ((aligned(8)));
+	char stack[4096] __attribute__ ((aligned(16)));
 	char stack_ptr[0];
 	jmp_buf *env;
 };
