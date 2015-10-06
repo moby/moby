@@ -5,7 +5,7 @@ import (
 )
 
 // IPLocalhost is a regex patter for localhost IP address range.
-const IPLocalhost = `((127\.([0-9]{1,3}.){2}[0-9]{1,3})|(::1))`
+const IPLocalhost = `((127\.([0-9]{1,3}\.){2}[0-9]{1,3})|(::1))`
 
 var localhostIPRegexp = regexp.MustCompile(IPLocalhost)
 
