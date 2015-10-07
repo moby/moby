@@ -302,6 +302,28 @@ device.
 
 Example use: `docker daemon --storage-opt dm.use_deferred_removal=true`
 
+#### dm.use_deferred_deletion
+
+Enables use of deferred device deletion for thin pool devices. By default,
+thin pool device deletion is synchronous. Before a container is deleted, the
+Docker daemon removes any associated devices. If the storage driver can not
+remove a device, the container deletion fails and daemon returns.
+
+`Error deleting container: Error response from daemon: Cannot destroy container`
+
+To avoid this failure, enable both deferred device deletion and deferred
+device removal on the daemon.
+
+`docker daemon --storage-opt dm.use_deferred_deletion=true --storage-opt dm.use_deferred_removal=true`
+
+With these two options enabled, if a device is busy when the driver is
+deleting a container, the driver marks the device as deleted. Later, when the
+device isn't in use, the driver deletes it.
+
+In general it should be safe to enable this option by default. It will help
+when unintentional leaking of mount point happens across multiple mount
+namespaces.
+
 #### dm.loopdatasize
 
 **Note**: This option configures devicemapper loopback, which should not be used in production.

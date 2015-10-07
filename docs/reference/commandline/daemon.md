@@ -368,6 +368,46 @@ options for `zfs` start with `zfs`.
     > Otherwise, set this flag for migrating existing Docker daemons to
     > a daemon with a supported environment.
 
+ *  `dm.use_deferred_removal`
+
+    Enables use of deferred device removal if `libdm` and the kernel driver
+    support the mechanism.
+
+    Deferred device removal means that if device is busy when devices are
+    being removed/deactivated, then a deferred removal is scheduled on
+    device. And devices automatically go away when last user of the device
+    exits.
+
+    For example, when a container exits, its associated thin device is removed.
+    If that device has leaked into some other mount namespace and can't be
+    removed, the container exit still succeeds and this option causes the
+    system to schedule the device for deferred removal. It does not wait in a
+    loop trying to remove a busy device.
+
+    Example use: `docker daemon --storage-opt dm.use_deferred_removal=true`
+
+ *  `dm.use_deferred_deletion`
+
+    Enables use of deferred device deletion for thin pool devices. By default,
+    thin pool device deletion is synchronous. Before a container is deleted,
+    the Docker daemon removes any associated devices. If the storage driver
+    can not remove a device, the container deletion fails and daemon returns.
+
+    `Error deleting container: Error response from daemon: Cannot destroy container`
+
+    To avoid this failure, enable both deferred device deletion and deferred
+    device removal on the daemon.
+
+    `docker daemon --storage-opt dm.use_deferred_deletion=true --storage-opt dm.use_deferred_removal=true`
+
+    With these two options enabled, if a device is busy when the driver is
+    deleting a container, the driver marks the device as deleted. Later, when
+    the device isn't in use, the driver deletes it.
+
+    In general it should be safe to enable this option by default. It will help
+    when unintentional leaking of mount point happens across multiple mount
+    namespaces.
+
 Currently supported options of `zfs`:
 
  * `zfs.fsname`
