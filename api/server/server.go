@@ -19,6 +19,10 @@ import (
 	"golang.org/x/net/context"
 )
 
+// versionMatcher defines a variable matcher to be parsed by the router
+// when a request is about to be served.
+const versionMatcher = "/v{version:[0-9.]+}"
+
 // Config provides the configuration for the API server
 type Config struct {
 	Logging     bool
@@ -177,10 +181,13 @@ func (s *Server) CreateMux() *mux.Router {
 	}
 
 	logrus.Debugf("Registering routers")
-	for _, router := range s.routers {
-		for _, r := range router.Routes() {
+	for _, apiRouter := range s.routers {
+		for _, r := range apiRouter.Routes() {
 			f := s.makeHTTPHandler(r.Handler())
-			r.Register(m, f)
+
+			logrus.Debugf("Registering %s, %s", r.Method(), r.Path())
+			m.Path(versionMatcher + r.Path()).Methods(r.Method()).Handler(f)
+			m.Path(r.Path()).Methods(r.Method()).Handler(f)
 		}
 	}
 

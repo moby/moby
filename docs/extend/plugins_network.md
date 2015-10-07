@@ -1,4 +1,4 @@
-# Experimental: Docker network driver plugins
+# Docker network driver plugins
 
 Docker supports network driver plugins via 
 [LibNetwork](https://github.com/docker/libnetwork). Network driver plugins are 
@@ -21,7 +21,9 @@ commands. For example,
 Some network driver plugins are listed in [plugins.md](/docs/extend/plugins.md)
 
 The network thus created is owned by the plugin, so subsequent commands
-referring to that network will also be run through the plugin.
+referring to that network will also be run through the plugin such as,
+
+    docker run --net=mynet busybox top
 
 ## Network driver plugin protocol
 
@@ -36,10 +38,3 @@ Google Groups, or the IRC channel #docker-network.
 
  - [#14083](https://github.com/docker/docker/issues/14083) Feedback on
    experimental networking features
-
-Other pertinent issues:
-
- - [#13977](https://github.com/docker/docker/issues/13977) UI for using networks
- - [#14023](https://github.com/docker/docker/pull/14023) --default-network option
- - [#14051](https://github.com/docker/docker/pull/14051) --publish-service option
- - [#13441](https://github.com/docker/docker/pull/13441) (Deprecated) Networks API & UI

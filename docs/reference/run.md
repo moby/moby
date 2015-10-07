@@ -245,11 +245,12 @@ of the containers.
 ## Network settings
 
     --dns=[]         : Set custom dns servers for the container
-    --net="bridge"   : Set the Network mode for the container
+    --net="bridge"   : Connects a container to a network
                         'bridge': creates a new network stack for the container on the docker bridge
                         'none': no networking for this container
                         'container:<name|id>': reuses another container network stack
                         'host': use the host network stack inside the container
+                        'NETWORK': connects the container to user-created network using `docker network create` command
     --add-host=""    : Add a line to /etc/hosts (host:IP)
     --mac-address="" : Sets the container's Ethernet device's MAC address
 
@@ -269,12 +270,12 @@ By default, the MAC address is generated using the IP address allocated to the
 container. You can set the container's MAC address explicitly by providing a
 MAC address via the `--mac-address` parameter (format:`12:34:56:78:9a:bc`).
 
-Supported networking modes are:
+Supported networks :
 
 <table>
   <thead>
     <tr>
-      <th class="no-wrap">Mode</th>
+      <th class="no-wrap">Network</th>
       <th>Description</th>
     </tr>
   </thead>
@@ -304,19 +305,25 @@ Supported networking modes are:
         its *name* or *id*.
       </td>
     </tr>
+    <tr>
+      <td class="no-wrap"><strong>NETWORK</strong></td>
+      <td>
+        Connects the container to a user created network (using `docker network create` command)
+      </td>
+    </tr>
   </tbody>
 </table>
 
-#### Mode: none
+#### Network: none
 
-With the networking mode set to `none` a container will not have a
+With the network is `none` a container will not have
 access to any external routes.  The container will still have a
 `loopback` interface enabled in the container but it does not have any
 routes to external traffic.
 
-#### Mode: bridge
+#### Network: bridge
 
-With the networking mode set to `bridge` a container will use docker's
+With the network set to `bridge` a container will use docker's
 default networking setup.  A bridge is setup on the host, commonly named
 `docker0`, and a pair of `veth` interfaces will be created for the
 container.  One side of the `veth` pair will remain on the host attached
@@ -325,9 +332,9 @@ container's namespaces in addition to the `loopback` interface.  An IP
 address will be allocated for containers on the bridge's network and
 traffic will be routed though this bridge to the container.
 
-#### Mode: host
+#### Network: host
 
-With the networking mode set to `host` a container will share the host's
+With the network set to `host` a container will share the host's
 network stack and all interfaces from the host will be available to the
 container.  The container's hostname will match the hostname on the host
 system.  Note that `--add-host` `--hostname`  `--dns` `--dns-search`
@@ -343,9 +350,9 @@ or a High Performance Web Server.
 > **Note**: `--net="host"` gives the container full access to local system
 > services such as D-bus and is therefore considered insecure.
 
-#### Mode: container
+#### Network: container
 
-With the networking mode set to `container` a container will share the
+With the network set to `container` a container will share the
 network stack of another container.  The other container's name must be
 provided in the format of `--net container:<name|id>`. Note that `--add-host`
 `--hostname` `--dns` `--dns-search` `--dns-opt` and `--mac-address` are
@@ -359,6 +366,21 @@ running the `redis-cli` command and connecting to the Redis server over the
     $ docker run -d --name redis example/redis --bind 127.0.0.1
     $ # use the redis container's network stack to access localhost
     $ docker run --rm -it --net container:redis example/redis-cli -h 127.0.0.1
+
+#### Network: User-Created NETWORK
+
+In addition to all the above special networks, user can create a network using
+their favorite network driver or external plugin. The driver used to create the
+network takes care of all the network plumbing requirements for the container
+connected to that network.
+
+Example creating a network using the inbuilt overlay network driver and running 
+a container in the created network
+
+```
+$ docker network create -d overlay multi-host-network
+$ docker run --net=multi-host-network -itd --name=container3 busybox
+```
 
 ### Managing /etc/hosts
 

@@ -7,6 +7,7 @@ import (
 
 	"github.com/docker/docker/daemon/execdriver"
 	derr "github.com/docker/docker/errors"
+	"github.com/docker/libnetwork"
 )
 
 // DefaultPathEnv is deliberately empty on Windows as the default path will be set by
@@ -35,6 +36,16 @@ func (container *Container) createDaemonEnvironment(linkedEnv []string) []string
 }
 
 func (container *Container) initializeNetworking() error {
+	return nil
+}
+
+// ConnectToNetwork connects a container to the network
+func (container *Container) ConnectToNetwork(idOrName string) error {
+	return nil
+}
+
+// DisconnectFromNetwork disconnects a container from, the network
+func (container *Container) DisconnectFromNetwork(n libnetwork.Network) error {
 	return nil
 }
 

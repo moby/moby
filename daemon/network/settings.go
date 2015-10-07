@@ -24,7 +24,7 @@ type Settings struct {
 	LinkLocalIPv6Address   string
 	LinkLocalIPv6PrefixLen int
 	MacAddress             string
-	NetworkID              string
+	Networks               []string
 	Ports                  nat.PortMap
 	SandboxKey             string
 	SecondaryIPAddresses   []Address

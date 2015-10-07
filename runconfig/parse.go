@@ -17,6 +17,12 @@ import (
 var (
 	// ErrConflictContainerNetworkAndLinks conflict between --net=container and links
 	ErrConflictContainerNetworkAndLinks = fmt.Errorf("Conflicting options: --net=container can't be used with links. This would result in undefined behavior")
+	// ErrConflictUserDefinedNetworkAndLinks conflict between --net=<NETWORK> and links
+	ErrConflictUserDefinedNetworkAndLinks = fmt.Errorf("Conflicting options: --net=<NETWORK> can't be used with links. This would result in undefined behavior")
+	// ErrConflictSharedNetwork conflict between private and other networks
+	ErrConflictSharedNetwork = fmt.Errorf("Container sharing network namespace with another container or host cannot be connected to any other network")
+	// ErrConflictNoNetwork conflict between private and other networks
+	ErrConflictNoNetwork = fmt.Errorf("Container cannot be connected to multiple networks with one of the networks in --none mode")
 	// ErrConflictNetworkAndDNS conflict between --dns and the network mode
 	ErrConflictNetworkAndDNS = fmt.Errorf("Conflicting options: --dns and the network mode (--net)")
 	// ErrConflictNetworkHostname conflict between the hostname and the network mode
@@ -88,7 +94,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		flCpusetMems        = cmd.String([]string{"-cpuset-mems"}, "", "MEMs in which to allow execution (0-3, 0,1)")
 		flBlkioWeight       = cmd.Uint16([]string{"-blkio-weight"}, 0, "Block IO (relative weight), between 10 and 1000")
 		flSwappiness        = cmd.Int64([]string{"-memory-swappiness"}, -1, "Tuning container memory swappiness (0 to 100)")
-		flNetMode           = cmd.String([]string{"-net"}, "default", "Set the Network mode for the container")
+		flNetMode           = cmd.String([]string{"-net"}, "default", "Set the Network for the container")
 		flMacAddress        = cmd.String([]string{"-mac-address"}, "", "Container MAC address (e.g. 92:d0:c6:0a:29:33)")
 		flIpcMode           = cmd.String([]string{"-ipc"}, "", "IPC namespace to use")
 		flRestartPolicy     = cmd.String([]string{"-restart"}, "no", "Restart policy to apply when a container exits")
@@ -121,8 +127,6 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 	cmd.Var(&flSecurityOpt, []string{"-security-opt"}, "Security Options")
 	cmd.Var(flUlimits, []string{"-ulimit"}, "Ulimit options")
 	cmd.Var(&flLoggingOpts, []string{"-log-opt"}, "Log driver options")
-
-	expFlags := attachExperimentalFlags(cmd)
 
 	cmd.Require(flag.Min, 1)
 
@@ -378,8 +382,6 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		CgroupParent:      *flCgroupParent,
 		VolumeDriver:      *flVolumeDriver,
 	}
-
-	applyExperimentalFlags(expFlags, config, hostConfig)
 
 	// When allocating stdin in attached mode, close stdin at client disconnect
 	if config.OpenStdin && config.AttachStdin {

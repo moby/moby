@@ -42,7 +42,7 @@ Go to [Using Docker Hub](/docker-hub).
 Docker offers a *container-based* virtualization platform to power your
 applications. To learn how to Dockerize applications and run them:
 
-Go to [Dockerizing Applications](/userguide/dockerizing).
+Go to [Dockerizing Applications](/docs/userguide/dockerizing.md).
 
 ## Working with containers
 
@@ -52,7 +52,7 @@ Once you get a grip on running your applications in Docker containers
 we're going to show you how to manage those containers. To find out
 about how to inspect, monitor and manage containers:
 
-Go to [Working With Containers](/userguide/usingdocker).
+Go to [Working With Containers](/docs/userguide/usingdocker.md).
 
 ## Working with Docker images
 
@@ -61,7 +61,7 @@ Go to [Working With Containers](/userguide/usingdocker).
 Once you've learnt how to use Docker it's time to take the next step and
 learn how to build your own application images with Docker.
 
-Go to [Working with Docker Images](/userguide/dockerimages).
+Go to [Working with Docker Images](/docs/userguide/dockerimages.md).
 
 ## Linking containers together
 
@@ -69,14 +69,24 @@ Until now we've seen how to build individual applications inside Docker
 containers. Now learn how to build whole application stacks with Docker
 by linking together multiple Docker containers.
 
-Go to [Linking Containers Together](/userguide/dockerlinks).
+Go to [Linking Containers Together](/docs/userguide/dockerlinks.md).
+
+## Docker container networking
+
+Links provides a very easy and convenient way to connect the containers.
+But, it is very opinionated and doesnt provide a lot of flexibility or
+choice to the end-users. Now, lets learn about a flexible way to connect 
+containers together within a host or across multiple hosts in a cluster
+using various networking technologies, with the help of extensible plugins.
+
+Go to [Docker Networking](/docs/userguide/dockernetworks.md).
 
 ## Managing data in containers
 
 Now we know how to link Docker containers together the next step is
 learning how to manage data, volumes and mounts inside our containers.
 
-Go to [Managing Data in Containers](/userguide/dockervolumes).
+Go to [Managing Data in Containers](/docs/userguide/dockervolumes.md).
 
 ## Working with Docker Hub
 
@@ -84,7 +94,7 @@ Now we've learned a bit more about how to use Docker we're going to see
 how to combine Docker with the services available on Docker Hub including
 Trusted Builds and private repositories.
 
-Go to [Working with Docker Hub](/userguide/dockerrepos).
+Go to [Working with Docker Hub](/docs/userguide/dockerrepos.md).
 
 ## Docker Compose
 
