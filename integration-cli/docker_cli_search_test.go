@@ -3,6 +3,7 @@ package main
 import (
 	"strings"
 
+	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/go-check/check"
 )
 
@@ -10,90 +11,45 @@ import (
 func (s *DockerSuite) TestSearchOnCentralRegistry(c *check.C) {
 	testRequires(c, Network, DaemonIsLinux)
 
-	out, exitCode := dockerCmd(c, "search", "busybox")
-	if exitCode != 0 {
-		c.Fatalf("failed to search on the central registry: %s", out)
-	}
-
-	if !strings.Contains(out, "Busybox base image.") {
-		c.Fatal("couldn't find any repository named (or containing) 'Busybox base image.'")
-	}
+	out, _ := dockerCmd(c, "search", "busybox")
+	c.Assert(out, checker.Contains, "Busybox base image.", check.Commentf("couldn't find any repository named (or containing) 'Busybox base image.'"))
 }
 
 func (s *DockerSuite) TestSearchStarsOptionWithWrongParameter(c *check.C) {
-	out, exitCode, err := dockerCmdWithError("search", "--stars=a", "busybox")
-	if err == nil || exitCode == 0 {
-		c.Fatalf("Should not get right information: %s, %v", out, err)
-	}
+	out, _, err := dockerCmdWithError("search", "--stars=a", "busybox")
+	c.Assert(err, check.NotNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "invalid value", check.Commentf("couldn't find the invalid value warning"))
 
-	if !strings.Contains(out, "invalid value") {
-		c.Fatal("couldn't find the invalid value warning")
-	}
-
-	out, exitCode, err = dockerCmdWithError("search", "-s=-1", "busybox")
-	if err == nil || exitCode == 0 {
-		c.Fatalf("Should not get right information: %s, %v", out, err)
-	}
-
-	if !strings.Contains(out, "invalid value") {
-		c.Fatal("couldn't find the invalid value warning")
-	}
+	out, _, err = dockerCmdWithError("search", "-s=-1", "busybox")
+	c.Assert(err, check.NotNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "invalid value", check.Commentf("couldn't find the invalid value warning"))
 }
 
 func (s *DockerSuite) TestSearchCmdOptions(c *check.C) {
 	testRequires(c, Network)
 
-	out, exitCode := dockerCmd(c, "search", "--help")
-	if exitCode != 0 {
-		c.Fatalf("failed to get search help information: %s", out)
-	}
+	out, _ := dockerCmd(c, "search", "--help")
+	c.Assert(out, checker.Contains, "Usage:\tdocker search [OPTIONS] TERM")
 
-	if !strings.Contains(out, "Usage:\tdocker search [OPTIONS] TERM") {
-		c.Fatalf("failed to show docker search usage: %s", out)
-	}
-
-	outSearchCmd, exitCode := dockerCmd(c, "search", "busybox")
-	if exitCode != 0 {
-		c.Fatalf("failed to search on the central registry: %s", outSearchCmd)
-	}
-
+	outSearchCmd, _ := dockerCmd(c, "search", "busybox")
 	outSearchCmdNotrunc, _ := dockerCmd(c, "search", "--no-trunc=true", "busybox")
+	c.Assert(len(outSearchCmd) > len(outSearchCmdNotrunc), check.Equals, false, check.Commentf("The no-trunc option can't take effect."))
 
-	if len(outSearchCmd) > len(outSearchCmdNotrunc) {
-		c.Fatalf("The no-trunc option can't take effect.")
-	}
-
-	outSearchCmdautomated, exitCode := dockerCmd(c, "search", "--automated=true", "busybox") //The busybox is a busybox base image, not an AUTOMATED image.
-	if exitCode != 0 {
-		c.Fatalf("failed to search with automated=true on the central registry: %s", outSearchCmdautomated)
-	}
-
+	outSearchCmdautomated, _ := dockerCmd(c, "search", "--automated=true", "busybox") //The busybox is a busybox base image, not an AUTOMATED image.
 	outSearchCmdautomatedSlice := strings.Split(outSearchCmdautomated, "\n")
 	for i := range outSearchCmdautomatedSlice {
-		if strings.HasPrefix(outSearchCmdautomatedSlice[i], "busybox ") {
-			c.Fatalf("The busybox is not an AUTOMATED image: %s", out)
-		}
+		c.Assert(strings.HasPrefix(outSearchCmdautomatedSlice[i], "busybox "), check.Equals, false, check.Commentf("The busybox is not an AUTOMATED image: %s", out))
 	}
 
-	outSearchCmdStars, exitCode := dockerCmd(c, "search", "-s=2", "busybox")
-	if exitCode != 0 {
-		c.Fatalf("failed to search with stars=2 on the central registry: %s", outSearchCmdStars)
-	}
+	outSearchCmdStars, _ := dockerCmd(c, "search", "-s=2", "busybox")
+	c.Assert(strings.Count(outSearchCmdStars, "[OK]") > strings.Count(outSearchCmd, "[OK]"), check.Equals, false, check.Commentf("The quantity of images with stars should be less than that of all images: %s", outSearchCmdStars))
 
-	if strings.Count(outSearchCmdStars, "[OK]") > strings.Count(outSearchCmd, "[OK]") {
-		c.Fatalf("The quantity of images with stars should be less than that of all images: %s", outSearchCmdStars)
-	}
-
-	out, exitCode = dockerCmd(c, "search", "--stars=2", "--automated=true", "--no-trunc=true", "busybox")
-	if exitCode != 0 {
-		c.Fatalf("failed to search with stars&automated&no-trunc options on the central registry: %s", out)
-	}
+	dockerCmd(c, "search", "--stars=2", "--automated=true", "--no-trunc=true", "busybox")
 }
 
 // search for repos which start with "ubuntu-" on the central registry
 func (s *DockerSuite) TestSearchOnCentralRegistryWithDash(c *check.C) {
 	testRequires(c, Network, DaemonIsLinux)
 
-	out, exitCode := dockerCmd(c, "search", "ubuntu-")
-	c.Assert(exitCode, check.Equals, 0, check.Commentf("failed to search on the central registry: %s", out))
+	dockerCmd(c, "search", "ubuntu-")
 }
