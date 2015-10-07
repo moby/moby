@@ -12,6 +12,7 @@ import (
 	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/etchosts"
+	"github.com/docker/libnetwork/ipamapi"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/options"
 	"github.com/docker/libnetwork/types"
@@ -359,16 +360,24 @@ func (n *network) UnmarshalJSON(b []byte) (err error) {
 	}
 	n.name = netMap["name"].(string)
 	n.id = netMap["id"].(string)
-	n.ipamType = netMap["ipamType"].(string)
-	n.addrSpace = netMap["addrSpace"].(string)
 	n.networkType = netMap["networkType"].(string)
 	n.endpointCnt = uint64(netMap["endpointCnt"].(float64))
 	n.enableIPv6 = netMap["enableIPv6"].(bool)
+
 	if v, ok := netMap["generic"]; ok {
 		n.generic = v.(map[string]interface{})
 	}
 	if v, ok := netMap["persist"]; ok {
 		n.persist = v.(bool)
+	}
+	if v, ok := netMap["ipamType"]; ok {
+		n.ipamType = v.(string)
+	} else {
+		n.ipamType = ipamapi.DefaultIPAM
+	}
+
+	if v, ok := netMap["addrSpace"]; ok {
+		n.addrSpace = v.(string)
 	}
 	if v, ok := netMap["ipamV4Config"]; ok {
 		if err := json.Unmarshal([]byte(v.(string)), &n.ipamV4Config); err != nil {
