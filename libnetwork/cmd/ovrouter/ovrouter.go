@@ -105,10 +105,10 @@ func main() {
 		opt[netlabel.OverlayNeighborIP] = os.Args[2]
 	}
 	if len(os.Args) > 3 {
-		opt[netlabel.KVProvider] = os.Args[3]
+		opt[netlabel.GlobalKVProvider] = os.Args[3]
 	}
 	if len(os.Args) > 4 {
-		opt[netlabel.KVProviderURL] = os.Args[4]
+		opt[netlabel.GlobalKVProviderURL] = os.Args[4]
 	}
 
 	r := &router{}

@@ -79,8 +79,8 @@ func (d *driver) configure() error {
 	}
 
 	d.once.Do(func() {
-		provider, provOk := d.config[netlabel.KVProvider]
-		provURL, urlOk := d.config[netlabel.KVProviderURL]
+		provider, provOk := d.config[netlabel.GlobalKVProvider]
+		provURL, urlOk := d.config[netlabel.GlobalKVProviderURL]
 
 		if provOk && urlOk {
 			cfg := &datastore.ScopeCfg{
@@ -89,7 +89,7 @@ func (d *driver) configure() error {
 					Address:  provURL.(string),
 				},
 			}
-			provConfig, confOk := d.config[netlabel.KVProviderConfig]
+			provConfig, confOk := d.config[netlabel.GlobalKVProviderConfig]
 			if confOk {
 				cfg.Client.Config = provConfig.(*store.Config)
 			}
