@@ -432,6 +432,7 @@ __docker_subcommand() {
                 "($help)*--dns-search=-[DNS search domains to use]:DNS search: " \
                 "($help)*--dns-opt=-[DNS options to use]:DNS option: " \
                 "($help)*--default-ulimit=-[Set default ulimit settings for containers]:ulimit: " \
+                "($help)--disable-legacy-registry[Do not contact legacy registries]" \
                 "($help -e --exec-driver)"{-e,--exec-driver=-}"[Exec driver to use]:driver:(native lxc windows)" \
                 "($help)*--exec-opt=-[Set exec driver options]:exec driver options: " \
                 "($help)--exec-root=-[Root of the Docker execdriver]:path:_directories" \
@@ -452,7 +453,6 @@ __docker_subcommand() {
                 "($help)--log-driver=-[Default driver for container logs]:Logging driver:(json-file syslog journald gelf fluentd awslogs none)" \
                 "($help)*--log-opt=-[Log driver specific options]:log driver options: " \
                 "($help)--mtu=-[Set the containers network MTU]:mtu:(0 576 1420 1500 9000)" \
-                "($help)--no-legacy-registry[Do not contact legacy registries]" \
                 "($help -p --pidfile)"{-p,--pidfile=-}"[Path to use for daemon PID file]:PID file:_files" \
                 "($help)*--registry-mirror=-[Preferred Docker registry mirror]:registry mirror: " \
                 "($help -s --storage-driver)"{-s,--storage-driver=-}"[Storage driver to use]:driver:(aufs devicemapper btrfs zfs overlay)" \

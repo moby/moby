@@ -20,12 +20,12 @@
 # You can tailor completion for the "events", "history", "inspect", "run",
 # "rmi" and "save" commands by settings the following environment
 # variables:
-#   
+#
 # DOCKER_COMPLETION_SHOW_IMAGE_IDS
 #   "none" - Show names only (default)
 #   "non-intermediate" - Show names and ids, but omit intermediate image IDs
 #   "all" - Show names and ids, including intermediate image IDs
-# 
+#
 # DOCKER_COMPLETION_SHOW_TAGS
 #   "yes" - include tags in completion options (default)
 #   "no"  - don't include tags in completion options
@@ -520,13 +520,13 @@ _docker_create() {
 _docker_daemon() {
 	local boolean_options="
 		$global_boolean_options
+		--disable-legacy-registry
 		--help
 		--icc=false
 		--ip-forward=false
 		--ip-masq=false
 		--iptables=false
 		--ipv6
-		--no-legacy-registry
 		--selinux-enabled
 		--userland-proxy=false
 	"
