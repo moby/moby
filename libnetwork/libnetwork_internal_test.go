@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/docker/libnetwork/driverapi"
+	"github.com/docker/libnetwork/ipamapi"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/types"
 )
@@ -290,4 +291,40 @@ func compareAddresses(a, b map[string]*net.IPNet) bool {
 		}
 	}
 	return true
+}
+
+func TestAuxAddresses(t *testing.T) {
+	c, err := New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Stop()
+
+	n := &network{ipamType: ipamapi.DefaultIPAM, ctrlr: c.(*controller)}
+
+	input := []struct {
+		masterPool   string
+		subPool      string
+		auxAddresses map[string]string
+		good         bool
+	}{
+		{"192.168.0.0/16", "", map[string]string{"goodOne": "192.168.2.2"}, true},
+		{"192.168.0.0/16", "", map[string]string{"badOne": "192.169.2.3"}, false},
+		{"192.168.0.0/16", "192.168.1.0/24", map[string]string{"goodOne": "192.168.1.2"}, true},
+		{"192.168.0.0/16", "192.168.1.0/24", map[string]string{"stillGood": "192.168.2.4"}, true},
+		{"192.168.0.0/16", "192.168.1.0/24", map[string]string{"badOne": "192.169.2.4"}, false},
+	}
+
+	for _, i := range input {
+
+		n.ipamV4Config = []*IpamConf{&IpamConf{PreferredPool: i.masterPool, SubPool: i.subPool, AuxAddresses: i.auxAddresses}}
+
+		_, err := n.ipamAllocate()
+
+		if i.good != (err == nil) {
+			t.Fatalf("Unexpected result for %v: %v", i, err)
+		}
+
+		n.ipamRelease()
+	}
 }
