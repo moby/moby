@@ -186,66 +186,90 @@ that set `abc` to `bye`.
 
 ### .dockerignore file
 
-If a file named `.dockerignore` exists in the root of `PATH`, then Docker
-interprets it as a newline-separated list of exclusion patterns. Docker excludes
-files or directories relative to `PATH` that match these exclusion patterns. If
-there are any `.dockerignore` files in `PATH` subdirectories, Docker treats
-them as normal files. 
+Before the docker CLI sends the context to the docker daemon, it looks
+for a file named `.dockerignore` in the root directory of the context.
+If this file exists, the CLI modifies the context to exclude files and
+directories that match patterns in it.  This helps to avoid
+unnecessarily sending large or sensitive files and directories to the
+daemon and potentially adding them to images using `ADD` or `COPY`.
 
-Filepaths in `.dockerignore` are absolute with the current directory as the
-root. Wildcards are allowed but the search is not recursive. Globbing (file name
-expansion) is done using Go's
-[filepath.Match](http://golang.org/pkg/path/filepath#Match) rules.
+The CLI interprets the `.dockerignore` file as a newline-separated
+list of patterns similar to the file globs of Unix shells.  For the
+purposes of matching, the root of the context is considered to be both
+the working and the root directory.  For example, the patterns
+`/foo/bar` and `foo/bar` both exclude a file or directory named `bar`
+in the `foo` subdirectory of `PATH` or in the root of the git
+repository located at `URL`.  Neither excludes anything else.
 
-You can specify exceptions to exclusion rules. To do this, simply prefix a
-pattern with an `!` (exclamation mark) in the same way you would in a
-`.gitignore` file. Currently there is no support for regular expressions.
-Formats like `[^temp*]` are ignored. 
-
-The following is an example `.dockerignore` file:
+Here is an example `.dockerignore` file:
 
 ```
     */temp*
     */*/temp*
     temp?
-    *.md
-    !LICENSE.md
 ```
 
 This file causes the following build behavior:
 
 | Rule           | Behavior                                                                                                                                                                     |
 |----------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `*/temp*`      | Exclude all files with names starting with`temp` in any subdirectory below the root directory. For example, a file named`/somedir/temporary.txt` is ignored.                 |
-| `*/*/temp*`    | Exclude files starting with name `temp` from any subdirectory that is two levels below the root directory. For example, the file `/somedir/subdir/temporary.txt` is ignored. |
-| `temp?`        | Exclude the files that match the pattern in the root directory. For example, the files `tempa`, `tempb` in the root directory are ignored.                                   |
-| `*.md `        | Exclude all markdown files in the root directory.                                                                                                                            |
-| `!LICENSE.md`  | Exception to the Markdown files exclusion. `LICENSE.md`is included  in the build.                                                                       |
+| `*/temp*`      | Exclude files and directories whose names start with `temp` in any immediate subdirectory of the root.  For example, the plain file `/somedir/temporary.txt` is excluded, as is the directory `/somedir/temp`.                 |
+| `*/*/temp*`    | Exclude files and directories starting with `temp` from any subdirectory that is two levels below the root. For example, `/somedir/subdir/temporary.txt` is excluded. |
+| `temp?`        | Exclude files and directories in the root directory whose names are a one-character extension of `temp`.  For example, `/tempa` and `/tempb` are excluded.
 
-The placement of  `!` exception rules influences the matching algorithm; the
-last line of the `.dockerignore` that matches a particular file determines
-whether it is included or excluded. In the above example, the `LICENSE.md` file
-matches both the  `*.md` and `!LICENSE.md` rule. If you reverse the lines in the
-example:
+
+Matching is done using Go's
+[filepath.Match](http://golang.org/pkg/path/filepath#Match) rules.  A
+preprocessing step removes leading and trailing whitespace and
+eliminates `.` and `..` elements using Go's
+[filepath.Clean](http://golang.org/pkg/path/filepath/#Clean).  Lines
+that are blank after preprocessing are ignored.
+
+Lines starting with `!` (exclamation mark) can be used to make exceptions
+to exclusions.  The following is an example `.dockerignore` file that
+uses this mechanism:
 
 ```
-    */temp*
-    */*/temp*
-    temp?
-    !LICENSE.md
     *.md
+    !README.md
 ```
 
-The build would exclude `LICENSE.md` because the last `*.md` rule adds all
-Markdown files in the root directory back onto the ignore list. The
-`!LICENSE.md` rule has no effect because the subsequent `*.md` rule overrides
-it.
+All markdown files *except* `README.md` are excluded from the context.
 
-You can even use the  `.dockerignore` file to ignore the `Dockerfile` and
-`.dockerignore` files. This is useful if you are copying files from the root of
-the build context into your new container but do not want to include the
-`Dockerfile` or `.dockerignore` files (e.g. `ADD . /someDir/`).
+The placement of `!` exception rules influences the behavior: the last
+line of the `.dockerignore` that matches a particular file determines
+whether it is included or excluded.  Consider the following example:
 
+```
+    *.md
+    !README*.md
+    README-secret.md
+```
+
+No markdown files are included in the context except README files other than
+`README-secret.md`.
+
+Now consider this example:
+
+```
+    *.md
+    README-secret.md
+    !README*.md
+```
+
+All of the README files are included.  The middle line has no effect because
+`!README*.md` matches `README-secret.md` and comes last.
+
+You can even use the `.dockerignore` file to exclude the `Dockerfile`
+and `.dockerignore` files.  These files are still sent to the daemon
+because it needs them to do its job.  But the `ADD` and `COPY` commands
+do not copy them to the the image.
+
+Finally, you may want to specify which files to include in the
+context, rather than which to exclude. To achieve this, specify `*` as
+the first pattern, followed by one or more `!` exception patterns.
+
+**Note**: For historical reasons, the pattern `.` is ignored.
 
 ## FROM
 
