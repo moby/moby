@@ -7,10 +7,10 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"strings"
 
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/pkg/truncindex"
 	"golang.org/x/net/context"
 )
 
@@ -35,7 +35,7 @@ func (s *router) postContainersCopy(ctx context.Context, w http.ResponseWriter, 
 
 	data, err := s.daemon.ContainerCopy(vars["name"], cfg.Resource)
 	if err != nil {
-		if strings.Contains(strings.ToLower(err.Error()), "no such id") {
+		if err == truncindex.ErrNoSuchID {
 			w.WriteHeader(http.StatusNotFound)
 			return nil
 		}

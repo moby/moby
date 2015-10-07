@@ -1,11 +1,10 @@
-// Package truncindex package provides a general 'index tree', used by Docker
+// Package truncindex provides a general 'index tree', used by Docker
 // in order to be able to reference containers by only a few unambiguous
 // characters of their id.
 package truncindex
 
 import (
 	"errors"
-	"fmt"
 	"strings"
 	"sync"
 
@@ -13,7 +12,7 @@ import (
 )
 
 var (
-	// ErrEmptyPrefix is an error returned if the prefix was empty.
+	// ErrEmptyPrefix is returned if the prefix was empty.
 	ErrEmptyPrefix = errors.New("Prefix can't be empty")
 
 	// ErrAmbiguousPrefix is returned if the prefix was ambiguous
@@ -22,6 +21,16 @@ var (
 
 	// ErrIllegalChar is returned when a space is in the ID
 	ErrIllegalChar = errors.New("illegal character: ' '")
+
+	// ErrNoSuchID is returned if the TruncIndex doesn't contain the given id
+	ErrNoSuchID = errors.New("no such id")
+
+	// ErrIDAlreadyExists is returned if the id is already in the TruncIndex
+	ErrIDAlreadyExists = errors.New("id already exists")
+
+	// ErrInsertionFailed is returned if something went wrong inserting the given
+	// id in the TruncIndex
+	ErrInsertionFailed = errors.New("failed to insert id")
 )
 
 // TruncIndex allows the retrieval of string identifiers by any of their unique prefixes.
@@ -32,7 +41,7 @@ type TruncIndex struct {
 	ids  map[string]struct{}
 }
 
-// NewTruncIndex creates a new TruncIndex and initializes with a list of IDs.
+// NewTruncIndex creates a new TruncIndex and initializes it with a list of IDs.
 func NewTruncIndex(ids []string) (idx *TruncIndex) {
 	idx = &TruncIndex{
 		ids: make(map[string]struct{}),
@@ -55,11 +64,11 @@ func (idx *TruncIndex) addID(id string) error {
 		return ErrEmptyPrefix
 	}
 	if _, exists := idx.ids[id]; exists {
-		return fmt.Errorf("id already exists: '%s'", id)
+		return ErrIDAlreadyExists
 	}
 	idx.ids[id] = struct{}{}
 	if inserted := idx.trie.Insert(patricia.Prefix(id), struct{}{}); !inserted {
-		return fmt.Errorf("failed to insert id: %s", id)
+		return ErrInsertionFailed
 	}
 	return nil
 }
@@ -80,11 +89,11 @@ func (idx *TruncIndex) Delete(id string) error {
 	idx.Lock()
 	defer idx.Unlock()
 	if _, exists := idx.ids[id]; !exists || id == "" {
-		return fmt.Errorf("no such id: '%s'", id)
+		return ErrNoSuchID
 	}
 	delete(idx.ids, id)
 	if deleted := idx.trie.Delete(patricia.Prefix(id)); !deleted {
-		return fmt.Errorf("no such id: '%s'", id)
+		return ErrNoSuchID
 	}
 	return nil
 }
@@ -116,7 +125,7 @@ func (idx *TruncIndex) Get(s string) (string, error) {
 	if id != "" {
 		return id, nil
 	}
-	return "", fmt.Errorf("no such id: %s", s)
+	return "", ErrNoSuchID
 }
 
 // Iterate iterates over all stored IDs, and passes each of them to the given handler.
