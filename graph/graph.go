@@ -157,7 +157,7 @@ func (graph *Graph) restore() error {
 func (graph *Graph) IsNotExist(err error, id string) bool {
 	// FIXME: Implement error subclass instead of looking at the error text
 	// Note: This is the way golang implements os.IsNotExists on Plan9
-	return err != nil && (strings.Contains(strings.ToLower(err.Error()), "does not exist") || strings.Contains(strings.ToLower(err.Error()), "no such")) && strings.Contains(err.Error(), id)
+	return err != nil && (err == truncindex.ErrNoSuchID || strings.Contains(strings.ToLower(err.Error()), "does not exist") || strings.Contains(strings.ToLower(err.Error()), "no such"))
 }
 
 // Exists returns true if an image is registered at the given id.
@@ -173,7 +173,7 @@ func (graph *Graph) Exists(id string) bool {
 func (graph *Graph) Get(name string) (*image.Image, error) {
 	id, err := graph.idIndex.Get(name)
 	if err != nil {
-		return nil, fmt.Errorf("could not find image: %v", err)
+		return nil, fmt.Errorf("could not find image: %s: %s", err, name)
 	}
 	img, err := graph.loadImage(id)
 	if err != nil {

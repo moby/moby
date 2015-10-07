@@ -141,13 +141,12 @@ func (daemon *Daemon) Get(prefixOrName string) (*Container, error) {
 		return containerByName, nil
 	}
 
-	containerID, indexError := daemon.idIndex.Get(prefixOrName)
-	if indexError != nil {
-		// When truncindex defines an error type, use that instead
-		if strings.Contains(indexError.Error(), "no such id") {
+	containerID, err := daemon.idIndex.Get(prefixOrName)
+	if err != nil {
+		if err == truncindex.ErrNoSuchID {
 			return nil, derr.ErrorCodeNoSuchContainer.WithArgs(prefixOrName)
 		}
-		return nil, indexError
+		return nil, err
 	}
 	return daemon.containers.Get(containerID), nil
 }
