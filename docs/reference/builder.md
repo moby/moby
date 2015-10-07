@@ -1166,6 +1166,9 @@ or a signal name in the format SIGNAME, for instance SIGKILL.
 
 ## Dockerfile examples
 
+Below you can see some examples of Dockerfile syntax. If you're interested in
+something more realistic, take a look at the list of [Dockerization examples](/examples/).
+
 ```
 # Nginx
 #
