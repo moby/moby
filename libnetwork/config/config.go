@@ -6,6 +6,7 @@ import (
 	"github.com/BurntSushi/toml"
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/discovery"
+	"github.com/docker/docker/pkg/tlsconfig"
 	"github.com/docker/libkv/store"
 	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/netlabel"
@@ -117,6 +118,40 @@ func OptionKVProviderURL(url string) Option {
 			c.Scopes[datastore.GlobalScope] = &datastore.ScopeCfg{}
 		}
 		c.Scopes[datastore.GlobalScope].Client.Address = strings.TrimSpace(url)
+	}
+}
+
+// OptionKVOpts function returns an option setter for kvstore options
+func OptionKVOpts(opts map[string]string) Option {
+	return func(c *Config) {
+		if opts["kv.cacertfile"] != "" && opts["kv.certfile"] != "" && opts["kv.keyfile"] != "" {
+			log.Info("Option Initializing KV with TLS")
+			tlsConfig, err := tlsconfig.Client(tlsconfig.Options{
+				CAFile:   opts["kv.cacertfile"],
+				CertFile: opts["kv.certfile"],
+				KeyFile:  opts["kv.keyfile"],
+			})
+			if err != nil {
+				log.Errorf("Unable to set up TLS: %s", err)
+				return
+			}
+			if _, ok := c.Scopes[datastore.GlobalScope]; !ok {
+				c.Scopes[datastore.GlobalScope] = &datastore.ScopeCfg{}
+			}
+			if c.Scopes[datastore.GlobalScope].Client.Config == nil {
+				c.Scopes[datastore.GlobalScope].Client.Config = &store.Config{TLS: tlsConfig}
+			} else {
+				c.Scopes[datastore.GlobalScope].Client.Config.TLS = tlsConfig
+			}
+			// Workaround libkv/etcd bug for https
+			c.Scopes[datastore.GlobalScope].Client.Config.ClientTLS = &store.ClientTLSConfig{
+				CACertFile: opts["kv.cacertfile"],
+				CertFile:   opts["kv.certfile"],
+				KeyFile:    opts["kv.keyfile"],
+			}
+		} else {
+			log.Info("Option Initializing KV without TLS")
+		}
 	}
 }
 
