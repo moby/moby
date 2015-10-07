@@ -412,9 +412,14 @@ func (a *Allocator) ReleaseAddress(poolID string, address net.IP) error {
 		return ipamapi.ErrBadPool
 	}
 
-	if address == nil || !p.Pool.Contains(address) {
+	if address == nil {
 		aSpace.Unlock()
 		return ipamapi.ErrInvalidRequest
+	}
+
+	if !p.Pool.Contains(address) {
+		aSpace.Unlock()
+		return ipamapi.ErrIPOutOfRange
 	}
 
 	c := p
