@@ -43,9 +43,17 @@ func TestBoltdbBackend(t *testing.T) {
 
 func testLocalBackend(t *testing.T, provider, url string, storeConfig *store.Config) {
 	cfgOptions := []config.Option{}
-	cfgOptions = append(cfgOptions, config.OptionLocalKVProvider(provider))
-	cfgOptions = append(cfgOptions, config.OptionLocalKVProviderURL(url))
-	cfgOptions = append(cfgOptions, config.OptionLocalKVProviderConfig(storeConfig))
+	if provider != "" {
+		cfgOptions = append(cfgOptions, config.OptionLocalKVProvider(provider))
+	}
+
+	if url != "" {
+		cfgOptions = append(cfgOptions, config.OptionLocalKVProviderURL(url))
+	}
+
+	if storeConfig != nil {
+		cfgOptions = append(cfgOptions, config.OptionLocalKVProviderConfig(storeConfig))
+	}
 
 	driverOptions := options.Generic{}
 	genericOption := make(map[string]interface{})
@@ -71,7 +79,7 @@ func testLocalBackend(t *testing.T, provider, url string, storeConfig *store.Con
 	if exists, err := store.Exists(datastore.Key([]string{datastore.EndpointKeyPrefix, string(nw.ID()), string(ep.ID())}...)); exists || err != nil {
 		t.Fatalf("Endpoint key shouldn't have been created.")
 	}
-	store.Close()
+	ctrl.(*controller).getStore(datastore.LocalScope).Close()
 
 	// test restore of local store
 	ctrl, err = New(cfgOptions...)
@@ -138,7 +146,10 @@ func TestLocalStoreLockTimeout(t *testing.T) {
 	}
 	defer ctrl1.Stop()
 	// Use the same boltdb file without closing the previous controller
-	_, err = New(cfgOptions...)
+	// with a slightly altered configuration
+	sCfg := &store.Config{Bucket: "testBackend", ConnectionTimeout: 1 * time.Second}
+	_, err = New(append(cfgOptions[:len(cfgOptions)-1],
+		config.OptionLocalKVProviderConfig(sCfg))...)
 	if err == nil {
 		t.Fatalf("Expected to fail but succeeded")
 	}
