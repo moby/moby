@@ -3,8 +3,9 @@
 package runconfig
 
 import (
-	"fmt"
 	"strings"
+
+	derr "github.com/docker/docker/errors"
 )
 
 // ValidateNetMode ensures that the various combinations of requested
@@ -19,42 +20,42 @@ func ValidateNetMode(c *Config, hc *HostConfig) error {
 	case "default", "bridge", "none", "host":
 	case "container":
 		if len(parts) < 2 || parts[1] == "" {
-			return fmt.Errorf("--net: invalid net mode: invalid container format container:<name|id>")
+			return derr.ErrorCodeInvalidNetworkFormat
 		}
 	default:
-		return fmt.Errorf("invalid --net: %s", hc.NetworkMode)
+		return derr.ErrorCodeInvalidNetworkOption.WithArgs(hc.NetworkMode)
 	}
 
 	if (hc.NetworkMode.IsHost() || hc.NetworkMode.IsContainer()) && c.Hostname != "" {
-		return ErrConflictNetworkHostname
+		return derr.ErrorCodeConflictNetworkHostname
 	}
 
 	if hc.NetworkMode.IsHost() && len(hc.Links) > 0 {
-		return ErrConflictHostNetworkAndLinks
+		return derr.ErrorCodeConflictHostNetworkAndLinks
 	}
 
 	if hc.NetworkMode.IsContainer() && len(hc.Links) > 0 {
-		return ErrConflictContainerNetworkAndLinks
+		return derr.ErrorCodeConflictContainerNetworkAndLinks
 	}
 
 	if (hc.NetworkMode.IsHost() || hc.NetworkMode.IsContainer()) && len(hc.DNS) > 0 {
-		return ErrConflictNetworkAndDNS
+		return derr.ErrorCodeConflictNetworkAndDNS
 	}
 
 	if (hc.NetworkMode.IsContainer() || hc.NetworkMode.IsHost()) && len(hc.ExtraHosts) > 0 {
-		return ErrConflictNetworkHosts
+		return derr.ErrorCodeConflictNetworkHosts
 	}
 
 	if (hc.NetworkMode.IsContainer() || hc.NetworkMode.IsHost()) && c.MacAddress != "" {
-		return ErrConflictContainerNetworkAndMac
+		return derr.ErrorCodeConflictContainerNetworkAndMac
 	}
 
 	if hc.NetworkMode.IsContainer() && (len(hc.PortBindings) > 0 || hc.PublishAllPorts == true) {
-		return ErrConflictNetworkPublishPorts
+		return derr.ErrorCodeConflictNetworkPublishPorts
 	}
 
 	if hc.NetworkMode.IsContainer() && len(c.ExposedPorts) > 0 {
-		return ErrConflictNetworkExposePorts
+		return derr.ErrorCodeConflictNetworkExposePorts
 	}
 	return nil
 }

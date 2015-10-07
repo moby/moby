@@ -1,8 +1,9 @@
 package runconfig
 
 import (
-	"fmt"
 	"strings"
+
+	derr "github.com/docker/docker/errors"
 )
 
 // ValidateNetMode ensures that the various combinations of requested
@@ -16,7 +17,7 @@ func ValidateNetMode(c *Config, hc *HostConfig) error {
 	switch mode := parts[0]; mode {
 	case "default", "none":
 	default:
-		return fmt.Errorf("invalid --net: %s", hc.NetworkMode)
+		return derr.ErrorCodeInvalidNetworkOption.WithArgs(hc.NetworkMode)
 	}
 	return nil
 }

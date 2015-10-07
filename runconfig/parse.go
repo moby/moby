@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 
+	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/opts"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/nat"
@@ -12,25 +13,6 @@ import (
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/stringutils"
 	"github.com/docker/docker/pkg/units"
-)
-
-var (
-	// ErrConflictContainerNetworkAndLinks conflict between --net=container and links
-	ErrConflictContainerNetworkAndLinks = fmt.Errorf("Conflicting options: --net=container can't be used with links. This would result in undefined behavior")
-	// ErrConflictNetworkAndDNS conflict between --dns and the network mode
-	ErrConflictNetworkAndDNS = fmt.Errorf("Conflicting options: --dns and the network mode (--net)")
-	// ErrConflictNetworkHostname conflict between the hostname and the network mode
-	ErrConflictNetworkHostname = fmt.Errorf("Conflicting options: -h and the network mode (--net)")
-	// ErrConflictHostNetworkAndLinks conflict between --net=host and links
-	ErrConflictHostNetworkAndLinks = fmt.Errorf("Conflicting options: --net=host can't be used with links. This would result in undefined behavior")
-	// ErrConflictContainerNetworkAndMac conflict between the mac address and the network mode
-	ErrConflictContainerNetworkAndMac = fmt.Errorf("Conflicting options: --mac-address and the network mode (--net)")
-	// ErrConflictNetworkHosts conflict between add-host and the network mode
-	ErrConflictNetworkHosts = fmt.Errorf("Conflicting options: --add-host and the network mode (--net)")
-	// ErrConflictNetworkPublishPorts conflict between the pulbish options and the network mode
-	ErrConflictNetworkPublishPorts = fmt.Errorf("Conflicting options: -p, -P, --publish-all, --publish and the network mode (--net)")
-	// ErrConflictNetworkExposePorts conflict between the expose option and the network mode
-	ErrConflictNetworkExposePorts = fmt.Errorf("Conflicting options: --expose and the network mode (--expose)")
 )
 
 // Parse parses the specified args for the specified command and generates a Config,
@@ -139,7 +121,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 	// Validate the input mac address
 	if *flMacAddress != "" {
 		if _, err := opts.ValidateMACAddress(*flMacAddress); err != nil {
-			return nil, nil, cmd, fmt.Errorf("%s is not a valid mac address", *flMacAddress)
+			return nil, nil, cmd, derr.ErrorCodeInvalidMacAddress.WithArgs(*flMacAddress)
 		}
 	}
 	if *flStdin {
@@ -191,7 +173,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 
 	swappiness := *flSwappiness
 	if swappiness != -1 && (swappiness < 0 || swappiness > 100) {
-		return nil, nil, cmd, fmt.Errorf("Invalid value: %d. Valid memory swappiness range is 0-100", swappiness)
+		return nil, nil, cmd, derr.ErrorCodeInvalidMemorySwappiness.WithArgs(swappiness)
 	}
 
 	var binds []string
@@ -199,14 +181,14 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 	for bind := range flVolumes.GetMap() {
 		if arr := strings.Split(bind, ":"); len(arr) > 1 {
 			if arr[1] == "/" {
-				return nil, nil, cmd, fmt.Errorf("Invalid bind mount: destination can't be '/'")
+				return nil, nil, cmd, derr.ErrorCodeInvalidBindMount
 			}
 			// after creating the bind mount we want to delete it from the flVolumes values because
 			// we do not want bind mounts being committed to image configs
 			binds = append(binds, bind)
 			flVolumes.Delete(bind)
 		} else if bind == "/" {
-			return nil, nil, cmd, fmt.Errorf("Invalid volume: path can't be '/'")
+			return nil, nil, cmd, derr.ErrorCodeInvalidVolume
 		}
 	}
 
@@ -247,7 +229,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 	// Merge in exposed ports to the map of published ports
 	for _, e := range flExpose.GetAll() {
 		if strings.Contains(e, ":") {
-			return nil, nil, cmd, fmt.Errorf("Invalid port format for --expose: %s", e)
+			return nil, nil, cmd, derr.ErrorCodeInvalidPortFormat.WithArgs(e)
 		}
 		//support two formats for expose, original format <portnum>/[<proto>] or <startport-endport>/[<proto>]
 		proto, port := nat.SplitProtoPort(e)
@@ -255,7 +237,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		//if expose a port, the start and end port are the same
 		start, end, err := parsers.ParsePortRange(port)
 		if err != nil {
-			return nil, nil, cmd, fmt.Errorf("Invalid range format for --expose: %s, error: %s", e, err)
+			return nil, nil, cmd, derr.ErrorCodeInvalidPortRange.WithArgs(e, err)
 		}
 		for i := start; i <= end; i++ {
 			p, err := nat.NewPort(proto, strconv.FormatUint(i, 10))
@@ -292,17 +274,17 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 
 	ipcMode := IpcMode(*flIpcMode)
 	if !ipcMode.Valid() {
-		return nil, nil, cmd, fmt.Errorf("--ipc: invalid IPC mode")
+		return nil, nil, cmd, derr.ErrorCodeInvalidIPCMode
 	}
 
 	pidMode := PidMode(*flPidMode)
 	if !pidMode.Valid() {
-		return nil, nil, cmd, fmt.Errorf("--pid: invalid PID mode")
+		return nil, nil, cmd, derr.ErrorCodeInvalidPIDMode
 	}
 
 	utsMode := UTSMode(*flUTSMode)
 	if !utsMode.Valid() {
-		return nil, nil, cmd, fmt.Errorf("--uts: invalid UTS mode")
+		return nil, nil, cmd, derr.ErrorCodeInvalidUTSMode
 	}
 
 	restartPolicy, err := ParseRestartPolicy(*flRestartPolicy)
@@ -422,7 +404,7 @@ func ConvertKVStringsToMap(values []string) map[string]string {
 func parseLoggingOpts(loggingDriver string, loggingOpts []string) (map[string]string, error) {
 	loggingOptsMap := ConvertKVStringsToMap(loggingOpts)
 	if loggingDriver == "none" && len(loggingOpts) > 0 {
-		return map[string]string{}, fmt.Errorf("Invalid logging opts for driver %s", loggingDriver)
+		return map[string]string{}, derr.ErrorCodeInvalidLogDriverOpts.WithArgs(loggingDriver)
 	}
 	return loggingOptsMap, nil
 }
@@ -444,13 +426,13 @@ func ParseRestartPolicy(policy string) (RestartPolicy, error) {
 	switch name {
 	case "always", "unless-stopped":
 		if len(parts) > 1 {
-			return p, fmt.Errorf("maximum restart count not valid with restart policy of \"%s\"", name)
+			return p, derr.ErrorCodeInvalidRestartCount.WithArgs(name)
 		}
 	case "no":
 		// do nothing
 	case "on-failure":
 		if len(parts) > 2 {
-			return p, fmt.Errorf("restart count format is not valid, usage: 'on-failure:N' or 'on-failure'")
+			return p, derr.ErrorCodeInvalidRestartFormat
 		}
 		if len(parts) == 2 {
 			count, err := strconv.Atoi(parts[1])
@@ -461,7 +443,7 @@ func ParseRestartPolicy(policy string) (RestartPolicy, error) {
 			p.MaximumRetryCount = count
 		}
 	default:
-		return p, fmt.Errorf("invalid restart policy %s", name)
+		return p, derr.ErrorCodeInvalidRestartPolicy.WithArgs(name)
 	}
 
 	return p, nil
@@ -499,7 +481,7 @@ func ParseDevice(device string) (DeviceMapping, error) {
 	case 1:
 		src = arr[0]
 	default:
-		return DeviceMapping{}, fmt.Errorf("Invalid device specification: %s", device)
+		return DeviceMapping{}, derr.ErrorCodeInvalidDeviceSpecs.WithArgs(device)
 	}
 
 	if dst == "" {

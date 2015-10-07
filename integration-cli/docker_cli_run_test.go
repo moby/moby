@@ -18,7 +18,9 @@ import (
 	"sync"
 	"time"
 
+	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/nat"
+	"github.com/docker/docker/utils"
 	"github.com/docker/libnetwork/resolvconf"
 	"github.com/go-check/check"
 )
@@ -3289,7 +3291,7 @@ func (s *DockerSuite) TestRunContainerNetModeWithDnsMacHosts(c *check.C) {
 	}
 
 	out, _, err = dockerCmdWithError("run", "--dns", "1.2.3.4", "--net=container:parent", "busybox")
-	if err == nil || !strings.Contains(out, "Conflicting options: --dns and the network mode") {
+	if err == nil || !strings.Contains(out, utils.GetErrorMessage(derr.ErrorCodeConflictNetworkAndDNS)) {
 		c.Fatalf("run --net=container with --dns should error out")
 	}
 
@@ -3310,17 +3312,17 @@ func (s *DockerSuite) TestRunContainerNetModeWithExposePort(c *check.C) {
 	dockerCmd(c, "run", "-d", "--name", "parent", "busybox", "top")
 
 	out, _, err := dockerCmdWithError("run", "-p", "5000:5000", "--net=container:parent", "busybox")
-	if err == nil || !strings.Contains(out, "Conflicting options: -p, -P, --publish-all, --publish and the network mode (--net)") {
+	if err == nil || !strings.Contains(out, utils.GetErrorMessage(derr.ErrorCodeConflictNetworkPublishPorts)) {
 		c.Fatalf("run --net=container with -p should error out")
 	}
 
 	out, _, err = dockerCmdWithError("run", "-P", "--net=container:parent", "busybox")
-	if err == nil || !strings.Contains(out, "Conflicting options: -p, -P, --publish-all, --publish and the network mode (--net)") {
+	if err == nil || !strings.Contains(out, utils.GetErrorMessage(derr.ErrorCodeConflictNetworkPublishPorts)) {
 		c.Fatalf("run --net=container with -P should error out")
 	}
 
 	out, _, err = dockerCmdWithError("run", "--expose", "5000", "--net=container:parent", "busybox")
-	if err == nil || !strings.Contains(out, "Conflicting options: --expose and the network mode (--expose)") {
+	if err == nil || !strings.Contains(out, utils.GetErrorMessage(derr.ErrorCodeConflictNetworkExposePorts)) {
 		c.Fatalf("run --net=container with --expose should error out")
 	}
 }

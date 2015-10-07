@@ -9,6 +9,7 @@ import (
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/nat"
 	"github.com/docker/docker/pkg/parsers"
+	"github.com/docker/docker/utils"
 )
 
 func parseRun(args []string) (*Config, *HostConfig, *flag.FlagSet, error) {
@@ -208,7 +209,7 @@ func TestParseLxcConfOpt(t *testing.T) {
 func TestParseWithMacAddress(t *testing.T) {
 	invalidMacAddress := "--mac-address=invalidMacAddress"
 	validMacAddress := "--mac-address=92:d0:c6:0a:29:33"
-	if _, _, _, err := parseRun([]string{invalidMacAddress, "img", "cmd"}); err != nil && err.Error() != "invalidMacAddress is not a valid mac address" {
+	if _, _, _, err := parseRun([]string{invalidMacAddress, "img", "cmd"}); err != nil && utils.GetErrorMessage(err) != "invalidMacAddress is not a valid mac address" {
 		t.Fatalf("Expected an error with %v mac-address, got %v", invalidMacAddress, err)
 	}
 	if config, _ := mustParse(t, validMacAddress); config.MacAddress != "92:d0:c6:0a:29:33" {
@@ -276,7 +277,7 @@ func TestParseWithExpose(t *testing.T) {
 		"8080-8082/tcp": {"8080/tcp", "8081/tcp", "8082/tcp"},
 	}
 	for expose, expectedError := range invalids {
-		if _, _, _, err := parseRun([]string{fmt.Sprintf("--expose=%v", expose), "img", "cmd"}); err == nil || err.Error() != expectedError {
+		if _, _, _, err := parseRun([]string{fmt.Sprintf("--expose=%v", expose), "img", "cmd"}); err == nil || utils.GetErrorMessage(err) != expectedError {
 			t.Fatalf("Expected error '%v' with '--expose=%v', got '%v'", expectedError, expose, err)
 		}
 	}
@@ -350,7 +351,7 @@ func TestParseDevice(t *testing.T) {
 
 func TestParseModes(t *testing.T) {
 	// ipc ko
-	if _, _, _, err := parseRun([]string{"--ipc=container:", "img", "cmd"}); err == nil || err.Error() != "--ipc: invalid IPC mode" {
+	if _, _, _, err := parseRun([]string{"--ipc=container:", "img", "cmd"}); err == nil || utils.GetErrorMessage(err) != "--ipc: invalid IPC mode" {
 		t.Fatalf("Expected an error with message '--ipc: invalid IPC mode', got %v", err)
 	}
 	// ipc ok
@@ -362,7 +363,7 @@ func TestParseModes(t *testing.T) {
 		t.Fatalf("Expected a valid IpcMode, got %v", hostconfig.IpcMode)
 	}
 	// pid ko
-	if _, _, _, err := parseRun([]string{"--pid=container:", "img", "cmd"}); err == nil || err.Error() != "--pid: invalid PID mode" {
+	if _, _, _, err := parseRun([]string{"--pid=container:", "img", "cmd"}); err == nil || utils.GetErrorMessage(err) != "--pid: invalid PID mode" {
 		t.Fatalf("Expected an error with message '--pid: invalid PID mode', got %v", err)
 	}
 	// pid ok
@@ -374,7 +375,7 @@ func TestParseModes(t *testing.T) {
 		t.Fatalf("Expected a valid PidMode, got %v", hostconfig.PidMode)
 	}
 	// uts ko
-	if _, _, _, err := parseRun([]string{"--uts=container:", "img", "cmd"}); err == nil || err.Error() != "--uts: invalid UTS mode" {
+	if _, _, _, err := parseRun([]string{"--uts=container:", "img", "cmd"}); err == nil || utils.GetErrorMessage(err) != "--uts: invalid UTS mode" {
 		t.Fatalf("Expected an error with message '--uts: invalid UTS mode', got %v", err)
 	}
 	// uts ok
@@ -407,7 +408,7 @@ func TestParseRestartPolicy(t *testing.T) {
 		},
 	}
 	for restart, expectedError := range invalids {
-		if _, _, _, err := parseRun([]string{fmt.Sprintf("--restart=%s", restart), "img", "cmd"}); err == nil || err.Error() != expectedError {
+		if _, _, _, err := parseRun([]string{fmt.Sprintf("--restart=%s", restart), "img", "cmd"}); err == nil || utils.GetErrorMessage(err) != expectedError {
 			t.Fatalf("Expected an error with message '%v' for %v, got %v", expectedError, restart, err)
 		}
 	}
@@ -424,7 +425,7 @@ func TestParseRestartPolicy(t *testing.T) {
 
 func TestParseLoggingOpts(t *testing.T) {
 	// logging opts ko
-	if _, _, _, err := parseRun([]string{"--log-driver=none", "--log-opt=anything", "img", "cmd"}); err == nil || err.Error() != "Invalid logging opts for driver none" {
+	if _, _, _, err := parseRun([]string{"--log-driver=none", "--log-opt=anything", "img", "cmd"}); err == nil || utils.GetErrorMessage(err) != "Invalid logging opts for driver none" {
 		t.Fatalf("Expected an error with message 'Invalid logging opts for driver none', got %v", err)
 	}
 	// logging opts ok
