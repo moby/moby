@@ -76,7 +76,7 @@ func (s *DockerSuite) TestHelpTextVerify(c *check.C) {
 			}
 		}
 
-		// Make sure each cmd's help text fits within 80 chars and that
+		// Make sure each cmd's help text fits within 90 chars and that
 		// on non-windows system we use ~ when possible (to shorten things).
 		// Pull the list of commands from the "Commands:" section of docker help
 		helpCmd = exec.Command(dockerBinary, "help")
