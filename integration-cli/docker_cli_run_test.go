@@ -2772,8 +2772,6 @@ func (s *DockerSuite) TestMountIntoSys(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunUnshareProc(c *check.C) {
-	c.Skip("unstable test: is apparmor in a container reliable?")
-
 	// Not applicable on Windows as uses Unix specific functionality
 	testRequires(c, Apparmor, NativeExecDriver, DaemonIsLinux)
 
