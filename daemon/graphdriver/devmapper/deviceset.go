@@ -897,6 +897,33 @@ func (devices *DeviceSet) createBaseImage() error {
 	return nil
 }
 
+// Returns if thin pool device exists or not. If device exists, also makes
+// sure it is a thin pool device and not some other type of device.
+func (devices *DeviceSet) thinPoolExists(thinPoolDevice string) (bool, error) {
+	logrus.Debugf("devmapper: Checking for existence of the pool %s", thinPoolDevice)
+
+	info, err := devicemapper.GetInfo(thinPoolDevice)
+	if err != nil {
+		return false, fmt.Errorf("devmapper: GetInfo() on device %s failed: %v", thinPoolDevice, err)
+	}
+
+	// Device does not exist.
+	if info.Exists == 0 {
+		return false, nil
+	}
+
+	_, _, deviceType, _, err := devicemapper.GetStatus(thinPoolDevice)
+	if err != nil {
+		return false, fmt.Errorf("devmapper: GetStatus() on device %s failed: %v", thinPoolDevice, err)
+	}
+
+	if deviceType != "thin-pool" {
+		return false, fmt.Errorf("devmapper: Device %s is not a thin pool", thinPoolDevice)
+	}
+
+	return true, nil
+}
+
 func (devices *DeviceSet) checkThinPool() error {
 	_, transactionID, dataUsed, _, _, _, err := devices.poolStatus()
 	if err != nil {
@@ -1441,10 +1468,8 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 	logrus.Debugf("Generated prefix: %s", devices.devicePrefix)
 
 	// Check for the existence of the thin-pool device
-	logrus.Debugf("Checking for existence of the pool '%s'", devices.getPoolName())
-	info, err := devicemapper.GetInfo(devices.getPoolName())
-	if info == nil {
-		logrus.Debugf("Error device devicemapper.GetInfo: %s", err)
+	poolExists, err := devices.thinPoolExists(devices.getPoolName())
+	if err != nil {
 		return err
 	}
 
@@ -1459,7 +1484,7 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 	createdLoopback := false
 
 	// If the pool doesn't exist, create it
-	if info.Exists == 0 && devices.thinPoolDevice == "" {
+	if !poolExists && devices.thinPoolDevice == "" {
 		logrus.Debugf("Pool doesn't exist. Creating it.")
 
 		var (
@@ -1542,7 +1567,7 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 	// we probably created pool earlier and could not remove it as some
 	// containers were still using it. Detect some of the properties of
 	// pool, like is it using loop devices.
-	if info.Exists != 0 && devices.thinPoolDevice == "" {
+	if poolExists && devices.thinPoolDevice == "" {
 		if err := devices.loadThinPoolLoopBackInfo(); err != nil {
 			logrus.Debugf("Failed to load thin pool loopback device information:%v", err)
 			return err
