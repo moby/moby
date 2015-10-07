@@ -1,4 +1,4 @@
-package builder
+package dockerfile
 
 // This file contains the dispatchers for each command. Note that
 // `nullDispatch` is not actually a command, but support for commands we parse
@@ -19,6 +19,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	derr "github.com/docker/docker/errors"
+	"github.com/docker/docker/image"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/nat"
 	"github.com/docker/docker/pkg/signal"
@@ -34,7 +35,7 @@ const (
 )
 
 // dispatch with no layer / parsing. This is effectively not a command.
-func nullDispatch(b *builder, args []string, attributes map[string]bool, original string) error {
+func nullDispatch(b *Builder, args []string, attributes map[string]bool, original string) error {
 	return nil
 }
 
@@ -43,7 +44,7 @@ func nullDispatch(b *builder, args []string, attributes map[string]bool, origina
 // Sets the environment variable foo to bar, also makes interpolation
 // in the dockerfile available from the next statement on via ${foo}.
 //
-func env(b *builder, args []string, attributes map[string]bool, original string) error {
+func env(b *Builder, args []string, attributes map[string]bool, original string) error {
 	if len(args) == 0 {
 		return derr.ErrorCodeAtLeastOneArg.WithArgs("ENV")
 	}
@@ -53,7 +54,7 @@ func env(b *builder, args []string, attributes map[string]bool, original string)
 		return derr.ErrorCodeTooManyArgs.WithArgs("ENV")
 	}
 
-	if err := b.BuilderFlags.Parse(); err != nil {
+	if err := b.flags.Parse(); err != nil {
 		return err
 	}
 
@@ -62,10 +63,10 @@ func env(b *builder, args []string, attributes map[string]bool, original string)
 	// context of a builder command. Will remove once we actually add
 	// a builder command to something!
 	/*
-		flBool1 := b.BuilderFlags.AddBool("bool1", false)
-		flStr1 := b.BuilderFlags.AddString("str1", "HI")
+		flBool1 := b.flags.AddBool("bool1", false)
+		flStr1 := b.flags.AddString("str1", "HI")
 
-		if err := b.BuilderFlags.Parse(); err != nil {
+		if err := b.flags.Parse(); err != nil {
 			return err
 		}
 
@@ -82,44 +83,44 @@ func env(b *builder, args []string, attributes map[string]bool, original string)
 		commitStr += " " + newVar
 
 		gotOne := false
-		for i, envVar := range b.Config.Env {
+		for i, envVar := range b.runConfig.Env {
 			envParts := strings.SplitN(envVar, "=", 2)
 			if envParts[0] == args[j] {
-				b.Config.Env[i] = newVar
+				b.runConfig.Env[i] = newVar
 				gotOne = true
 				break
 			}
 		}
 		if !gotOne {
-			b.Config.Env = append(b.Config.Env, newVar)
+			b.runConfig.Env = append(b.runConfig.Env, newVar)
 		}
 		j++
 	}
 
-	return b.commit("", b.Config.Cmd, commitStr)
+	return b.commit("", b.runConfig.Cmd, commitStr)
 }
 
 // MAINTAINER some text <maybe@an.email.address>
 //
 // Sets the maintainer metadata.
-func maintainer(b *builder, args []string, attributes map[string]bool, original string) error {
+func maintainer(b *Builder, args []string, attributes map[string]bool, original string) error {
 	if len(args) != 1 {
 		return derr.ErrorCodeExactlyOneArg.WithArgs("MAINTAINER")
 	}
 
-	if err := b.BuilderFlags.Parse(); err != nil {
+	if err := b.flags.Parse(); err != nil {
 		return err
 	}
 
 	b.maintainer = args[0]
-	return b.commit("", b.Config.Cmd, fmt.Sprintf("MAINTAINER %s", b.maintainer))
+	return b.commit("", b.runConfig.Cmd, fmt.Sprintf("MAINTAINER %s", b.maintainer))
 }
 
 // LABEL some json data describing the image
 //
 // Sets the Label variable foo to bar,
 //
-func label(b *builder, args []string, attributes map[string]bool, original string) error {
+func label(b *Builder, args []string, attributes map[string]bool, original string) error {
 	if len(args) == 0 {
 		return derr.ErrorCodeAtLeastOneArg.WithArgs("LABEL")
 	}
@@ -128,14 +129,14 @@ func label(b *builder, args []string, attributes map[string]bool, original strin
 		return derr.ErrorCodeTooManyArgs.WithArgs("LABEL")
 	}
 
-	if err := b.BuilderFlags.Parse(); err != nil {
+	if err := b.flags.Parse(); err != nil {
 		return err
 	}
 
 	commitStr := "LABEL"
 
-	if b.Config.Labels == nil {
-		b.Config.Labels = map[string]string{}
+	if b.runConfig.Labels == nil {
+		b.runConfig.Labels = map[string]string{}
 	}
 
 	for j := 0; j < len(args); j++ {
@@ -144,10 +145,10 @@ func label(b *builder, args []string, attributes map[string]bool, original strin
 		newVar := args[j] + "=" + args[j+1] + ""
 		commitStr += " " + newVar
 
-		b.Config.Labels[args[j]] = args[j+1]
+		b.runConfig.Labels[args[j]] = args[j+1]
 		j++
 	}
-	return b.commit("", b.Config.Cmd, commitStr)
+	return b.commit("", b.runConfig.Cmd, commitStr)
 }
 
 // ADD foo /path
@@ -155,12 +156,12 @@ func label(b *builder, args []string, attributes map[string]bool, original strin
 // Add the file 'foo' to '/path'. Tarball and Remote URL (git, http) handling
 // exist here. If you do not wish to have this automatic handling, use COPY.
 //
-func add(b *builder, args []string, attributes map[string]bool, original string) error {
+func add(b *Builder, args []string, attributes map[string]bool, original string) error {
 	if len(args) < 2 {
 		return derr.ErrorCodeAtLeastTwoArgs.WithArgs("ADD")
 	}
 
-	if err := b.BuilderFlags.Parse(); err != nil {
+	if err := b.flags.Parse(); err != nil {
 		return err
 	}
 
@@ -171,12 +172,12 @@ func add(b *builder, args []string, attributes map[string]bool, original string)
 //
 // Same as 'ADD' but without the tar and remote url handling.
 //
-func dispatchCopy(b *builder, args []string, attributes map[string]bool, original string) error {
+func dispatchCopy(b *Builder, args []string, attributes map[string]bool, original string) error {
 	if len(args) < 2 {
 		return derr.ErrorCodeAtLeastTwoArgs.WithArgs("COPY")
 	}
 
-	if err := b.BuilderFlags.Parse(); err != nil {
+	if err := b.flags.Parse(); err != nil {
 		return err
 	}
 
@@ -187,12 +188,12 @@ func dispatchCopy(b *builder, args []string, attributes map[string]bool, origina
 //
 // This sets the image the dockerfile will build on top of.
 //
-func from(b *builder, args []string, attributes map[string]bool, original string) error {
+func from(b *Builder, args []string, attributes map[string]bool, original string) error {
 	if len(args) != 1 {
 		return derr.ErrorCodeExactlyOneArg.WithArgs("FROM")
 	}
 
-	if err := b.BuilderFlags.Parse(); err != nil {
+	if err := b.flags.Parse(); err != nil {
 		return err
 	}
 
@@ -208,25 +209,21 @@ func from(b *builder, args []string, attributes map[string]bool, original string
 		return nil
 	}
 
-	image, err := b.Daemon.Repositories().LookupImage(name)
-	if b.Pull {
-		image, err = b.pullImage(name)
+	var (
+		image *image.Image
+		err   error
+	)
+	// TODO: don't use `name`, instead resolve it to a digest
+	if !b.Pull {
+		image, err = b.docker.LookupImage(name)
+		// TODO: shouldn't we error out if error is different from "not found" ?
+	}
+	if image == nil {
+		image, err = b.docker.Pull(name)
 		if err != nil {
 			return err
 		}
 	}
-	if err != nil {
-		if b.Daemon.Graph().IsNotExist(err, name) {
-			image, err = b.pullImage(name)
-		}
-
-		// note that the top level err will still be !nil here if IsNotExist is
-		// not the error. This approach just simplifies the logic a bit.
-		if err != nil {
-			return err
-		}
-	}
-
 	return b.processImageFrom(image)
 }
 
@@ -239,12 +236,12 @@ func from(b *builder, args []string, attributes map[string]bool, original string
 // special cases. search for 'OnBuild' in internals.go for additional special
 // cases.
 //
-func onbuild(b *builder, args []string, attributes map[string]bool, original string) error {
+func onbuild(b *Builder, args []string, attributes map[string]bool, original string) error {
 	if len(args) == 0 {
 		return derr.ErrorCodeAtLeastOneArg.WithArgs("ONBUILD")
 	}
 
-	if err := b.BuilderFlags.Parse(); err != nil {
+	if err := b.flags.Parse(); err != nil {
 		return err
 	}
 
@@ -258,20 +255,20 @@ func onbuild(b *builder, args []string, attributes map[string]bool, original str
 
 	original = regexp.MustCompile(`(?i)^\s*ONBUILD\s*`).ReplaceAllString(original, "")
 
-	b.Config.OnBuild = append(b.Config.OnBuild, original)
-	return b.commit("", b.Config.Cmd, fmt.Sprintf("ONBUILD %s", original))
+	b.runConfig.OnBuild = append(b.runConfig.OnBuild, original)
+	return b.commit("", b.runConfig.Cmd, fmt.Sprintf("ONBUILD %s", original))
 }
 
 // WORKDIR /tmp
 //
 // Set the working directory for future RUN/CMD/etc statements.
 //
-func workdir(b *builder, args []string, attributes map[string]bool, original string) error {
+func workdir(b *Builder, args []string, attributes map[string]bool, original string) error {
 	if len(args) != 1 {
 		return derr.ErrorCodeExactlyOneArg.WithArgs("WORKDIR")
 	}
 
-	if err := b.BuilderFlags.Parse(); err != nil {
+	if err := b.flags.Parse(); err != nil {
 		return err
 	}
 
@@ -280,13 +277,13 @@ func workdir(b *builder, args []string, attributes map[string]bool, original str
 	workdir := filepath.FromSlash(args[0])
 
 	if !system.IsAbs(workdir) {
-		current := filepath.FromSlash(b.Config.WorkingDir)
+		current := filepath.FromSlash(b.runConfig.WorkingDir)
 		workdir = filepath.Join(string(os.PathSeparator), current, workdir)
 	}
 
-	b.Config.WorkingDir = workdir
+	b.runConfig.WorkingDir = workdir
 
-	return b.commit("", b.Config.Cmd, fmt.Sprintf("WORKDIR %v", workdir))
+	return b.commit("", b.runConfig.Cmd, fmt.Sprintf("WORKDIR %v", workdir))
 }
 
 // RUN some command yo
@@ -299,12 +296,12 @@ func workdir(b *builder, args []string, attributes map[string]bool, original str
 // RUN echo hi          # cmd /S /C echo hi   (Windows)
 // RUN [ "echo", "hi" ] # echo hi
 //
-func run(b *builder, args []string, attributes map[string]bool, original string) error {
+func run(b *Builder, args []string, attributes map[string]bool, original string) error {
 	if b.image == "" && !b.noBaseImage {
 		return derr.ErrorCodeMissingFrom
 	}
 
-	if err := b.BuilderFlags.Parse(); err != nil {
+	if err := b.flags.Parse(); err != nil {
 		return err
 	}
 
@@ -328,13 +325,13 @@ func run(b *builder, args []string, attributes map[string]bool, original string)
 	}
 
 	// stash the cmd
-	cmd := b.Config.Cmd
-	runconfig.Merge(b.Config, config)
+	cmd := b.runConfig.Cmd
+	runconfig.Merge(b.runConfig, config)
 	// stash the config environment
-	env := b.Config.Env
+	env := b.runConfig.Env
 
-	defer func(cmd *stringutils.StrSlice) { b.Config.Cmd = cmd }(cmd)
-	defer func(env []string) { b.Config.Env = env }(env)
+	defer func(cmd *stringutils.StrSlice) { b.runConfig.Cmd = cmd }(cmd)
+	defer func(env []string) { b.runConfig.Env = env }(env)
 
 	// derive the net build-time environment for this run. We let config
 	// environment override the build time environment.
@@ -350,8 +347,8 @@ func run(b *builder, args []string, attributes map[string]bool, original string)
 	// of RUN, without leaking it to the final image. It also aids cache
 	// lookup for same image built with same build time environment.
 	cmdBuildEnv := []string{}
-	configEnv := runconfig.ConvertKVStringsToMap(b.Config.Env)
-	for key, val := range b.buildArgs {
+	configEnv := runconfig.ConvertKVStringsToMap(b.runConfig.Env)
+	for key, val := range b.BuildArgs {
 		if !b.isBuildArgAllowed(key) {
 			// skip build-args that are not in allowed list, meaning they have
 			// not been defined by an "ARG" Dockerfile command yet.
@@ -379,7 +376,7 @@ func run(b *builder, args []string, attributes map[string]bool, original string)
 		saveCmd = stringutils.NewStrSlice(append(tmpEnv, saveCmd.Slice()...)...)
 	}
 
-	b.Config.Cmd = saveCmd
+	b.runConfig.Cmd = saveCmd
 	hit, err := b.probeCache()
 	if err != nil {
 		return err
@@ -389,11 +386,11 @@ func run(b *builder, args []string, attributes map[string]bool, original string)
 	}
 
 	// set Cmd manually, this is special case only for Dockerfiles
-	b.Config.Cmd = config.Cmd
+	b.runConfig.Cmd = config.Cmd
 	// set build-time environment for 'run'.
-	b.Config.Env = append(b.Config.Env, cmdBuildEnv...)
+	b.runConfig.Env = append(b.runConfig.Env, cmdBuildEnv...)
 
-	logrus.Debugf("[BUILDER] Command to be executed: %v", b.Config.Cmd)
+	logrus.Debugf("[BUILDER] Command to be executed: %v", b.runConfig.Cmd)
 
 	c, err := b.create()
 	if err != nil {
@@ -413,8 +410,8 @@ func run(b *builder, args []string, attributes map[string]bool, original string)
 	// revert to original config environment and set the command string to
 	// have the build-time env vars in it (if any) so that future cache look-ups
 	// properly match it.
-	b.Config.Env = env
-	b.Config.Cmd = saveCmd
+	b.runConfig.Env = env
+	b.runConfig.Cmd = saveCmd
 	if err := b.commit(c.ID, cmd, "run"); err != nil {
 		return err
 	}
@@ -427,8 +424,8 @@ func run(b *builder, args []string, attributes map[string]bool, original string)
 // Set the default command to run in the container (which may be empty).
 // Argument handling is the same as RUN.
 //
-func cmd(b *builder, args []string, attributes map[string]bool, original string) error {
-	if err := b.BuilderFlags.Parse(); err != nil {
+func cmd(b *Builder, args []string, attributes map[string]bool, original string) error {
+	if err := b.flags.Parse(); err != nil {
 		return err
 	}
 
@@ -442,9 +439,9 @@ func cmd(b *builder, args []string, attributes map[string]bool, original string)
 		}
 	}
 
-	b.Config.Cmd = stringutils.NewStrSlice(cmdSlice...)
+	b.runConfig.Cmd = stringutils.NewStrSlice(cmdSlice...)
 
-	if err := b.commit("", b.Config.Cmd, fmt.Sprintf("CMD %q", cmdSlice)); err != nil {
+	if err := b.commit("", b.runConfig.Cmd, fmt.Sprintf("CMD %q", cmdSlice)); err != nil {
 		return err
 	}
 
@@ -460,11 +457,11 @@ func cmd(b *builder, args []string, attributes map[string]bool, original string)
 // Set the entrypoint (which defaults to sh -c on linux, or cmd /S /C on Windows) to
 // /usr/sbin/nginx. Will accept the CMD as the arguments to /usr/sbin/nginx.
 //
-// Handles command processing similar to CMD and RUN, only b.Config.Entrypoint
+// Handles command processing similar to CMD and RUN, only b.runConfig.Entrypoint
 // is initialized at NewBuilder time instead of through argument parsing.
 //
-func entrypoint(b *builder, args []string, attributes map[string]bool, original string) error {
-	if err := b.BuilderFlags.Parse(); err != nil {
+func entrypoint(b *Builder, args []string, attributes map[string]bool, original string) error {
+	if err := b.flags.Parse(); err != nil {
 		return err
 	}
 
@@ -473,26 +470,26 @@ func entrypoint(b *builder, args []string, attributes map[string]bool, original 
 	switch {
 	case attributes["json"]:
 		// ENTRYPOINT ["echo", "hi"]
-		b.Config.Entrypoint = stringutils.NewStrSlice(parsed...)
+		b.runConfig.Entrypoint = stringutils.NewStrSlice(parsed...)
 	case len(parsed) == 0:
 		// ENTRYPOINT []
-		b.Config.Entrypoint = nil
+		b.runConfig.Entrypoint = nil
 	default:
 		// ENTRYPOINT echo hi
 		if runtime.GOOS != "windows" {
-			b.Config.Entrypoint = stringutils.NewStrSlice("/bin/sh", "-c", parsed[0])
+			b.runConfig.Entrypoint = stringutils.NewStrSlice("/bin/sh", "-c", parsed[0])
 		} else {
-			b.Config.Entrypoint = stringutils.NewStrSlice("cmd", "/S", "/C", parsed[0])
+			b.runConfig.Entrypoint = stringutils.NewStrSlice("cmd", "/S /C", parsed[0])
 		}
 	}
 
 	// when setting the entrypoint if a CMD was not explicitly set then
 	// set the command to nil
 	if !b.cmdSet {
-		b.Config.Cmd = nil
+		b.runConfig.Cmd = nil
 	}
 
-	if err := b.commit("", b.Config.Cmd, fmt.Sprintf("ENTRYPOINT %q", b.Config.Entrypoint)); err != nil {
+	if err := b.commit("", b.runConfig.Cmd, fmt.Sprintf("ENTRYPOINT %q", b.runConfig.Entrypoint)); err != nil {
 		return err
 	}
 
@@ -502,21 +499,21 @@ func entrypoint(b *builder, args []string, attributes map[string]bool, original 
 // EXPOSE 6667/tcp 7000/tcp
 //
 // Expose ports for links and port mappings. This all ends up in
-// b.Config.ExposedPorts for runconfig.
+// b.runConfig.ExposedPorts for runconfig.
 //
-func expose(b *builder, args []string, attributes map[string]bool, original string) error {
+func expose(b *Builder, args []string, attributes map[string]bool, original string) error {
 	portsTab := args
 
 	if len(args) == 0 {
 		return derr.ErrorCodeAtLeastOneArg.WithArgs("EXPOSE")
 	}
 
-	if err := b.BuilderFlags.Parse(); err != nil {
+	if err := b.flags.Parse(); err != nil {
 		return err
 	}
 
-	if b.Config.ExposedPorts == nil {
-		b.Config.ExposedPorts = make(nat.PortSet)
+	if b.runConfig.ExposedPorts == nil {
+		b.runConfig.ExposedPorts = make(nat.PortSet)
 	}
 
 	ports, _, err := nat.ParsePortSpecs(portsTab)
@@ -530,14 +527,14 @@ func expose(b *builder, args []string, attributes map[string]bool, original stri
 	portList := make([]string, len(ports))
 	var i int
 	for port := range ports {
-		if _, exists := b.Config.ExposedPorts[port]; !exists {
-			b.Config.ExposedPorts[port] = struct{}{}
+		if _, exists := b.runConfig.ExposedPorts[port]; !exists {
+			b.runConfig.ExposedPorts[port] = struct{}{}
 		}
 		portList[i] = string(port)
 		i++
 	}
 	sort.Strings(portList)
-	return b.commit("", b.Config.Cmd, fmt.Sprintf("EXPOSE %s", strings.Join(portList, " ")))
+	return b.commit("", b.runConfig.Cmd, fmt.Sprintf("EXPOSE %s", strings.Join(portList, " ")))
 }
 
 // USER foo
@@ -545,43 +542,43 @@ func expose(b *builder, args []string, attributes map[string]bool, original stri
 // Set the user to 'foo' for future commands and when running the
 // ENTRYPOINT/CMD at container run time.
 //
-func user(b *builder, args []string, attributes map[string]bool, original string) error {
+func user(b *Builder, args []string, attributes map[string]bool, original string) error {
 	if len(args) != 1 {
 		return derr.ErrorCodeExactlyOneArg.WithArgs("USER")
 	}
 
-	if err := b.BuilderFlags.Parse(); err != nil {
+	if err := b.flags.Parse(); err != nil {
 		return err
 	}
 
-	b.Config.User = args[0]
-	return b.commit("", b.Config.Cmd, fmt.Sprintf("USER %v", args))
+	b.runConfig.User = args[0]
+	return b.commit("", b.runConfig.Cmd, fmt.Sprintf("USER %v", args))
 }
 
 // VOLUME /foo
 //
 // Expose the volume /foo for use. Will also accept the JSON array form.
 //
-func volume(b *builder, args []string, attributes map[string]bool, original string) error {
+func volume(b *Builder, args []string, attributes map[string]bool, original string) error {
 	if len(args) == 0 {
 		return derr.ErrorCodeAtLeastOneArg.WithArgs("VOLUME")
 	}
 
-	if err := b.BuilderFlags.Parse(); err != nil {
+	if err := b.flags.Parse(); err != nil {
 		return err
 	}
 
-	if b.Config.Volumes == nil {
-		b.Config.Volumes = map[string]struct{}{}
+	if b.runConfig.Volumes == nil {
+		b.runConfig.Volumes = map[string]struct{}{}
 	}
 	for _, v := range args {
 		v = strings.TrimSpace(v)
 		if v == "" {
 			return derr.ErrorCodeVolumeEmpty
 		}
-		b.Config.Volumes[v] = struct{}{}
+		b.runConfig.Volumes[v] = struct{}{}
 	}
-	if err := b.commit("", b.Config.Cmd, fmt.Sprintf("VOLUME %v", args)); err != nil {
+	if err := b.commit("", b.runConfig.Cmd, fmt.Sprintf("VOLUME %v", args)); err != nil {
 		return err
 	}
 	return nil
@@ -590,7 +587,7 @@ func volume(b *builder, args []string, attributes map[string]bool, original stri
 // STOPSIGNAL signal
 //
 // Set the signal that will be used to kill the container.
-func stopSignal(b *builder, args []string, attributes map[string]bool, original string) error {
+func stopSignal(b *Builder, args []string, attributes map[string]bool, original string) error {
 	if len(args) != 1 {
 		return fmt.Errorf("STOPSIGNAL requires exactly one argument")
 	}
@@ -601,8 +598,8 @@ func stopSignal(b *builder, args []string, attributes map[string]bool, original 
 		return err
 	}
 
-	b.Config.StopSignal = sig
-	return b.commit("", b.Config.Cmd, fmt.Sprintf("STOPSIGNAL %v", args))
+	b.runConfig.StopSignal = sig
+	return b.commit("", b.runConfig.Cmd, fmt.Sprintf("STOPSIGNAL %v", args))
 }
 
 // ARG name[=value]
@@ -610,7 +607,7 @@ func stopSignal(b *builder, args []string, attributes map[string]bool, original 
 // Adds the variable foo to the trusted list of variables that can be passed
 // to builder using the --build-arg flag for expansion/subsitution or passing to 'run'.
 // Dockerfile author may optionally set a default value of this variable.
-func arg(b *builder, args []string, attributes map[string]bool, original string) error {
+func arg(b *Builder, args []string, attributes map[string]bool, original string) error {
 	if len(args) != 1 {
 		return fmt.Errorf("ARG requires exactly one argument definition")
 	}
@@ -642,9 +639,9 @@ func arg(b *builder, args []string, attributes map[string]bool, original string)
 	// If there is a default value associated with this arg then add it to the
 	// b.buildArgs if one is not already passed to the builder. The args passed
 	// to builder override the defaut value of 'arg'.
-	if _, ok := b.buildArgs[name]; !ok && hasDefault {
-		b.buildArgs[name] = value
+	if _, ok := b.BuildArgs[name]; !ok && hasDefault {
+		b.BuildArgs[name] = value
 	}
 
-	return b.commit("", b.Config.Cmd, fmt.Sprintf("ARG %s", arg))
+	return b.commit("", b.runConfig.Cmd, fmt.Sprintf("ARG %s", arg))
 }

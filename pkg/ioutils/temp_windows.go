@@ -1,6 +1,6 @@
 // +build windows
 
-package builder
+package ioutils
 
 import (
 	"io/ioutil"
@@ -8,15 +8,11 @@ import (
 	"github.com/docker/docker/pkg/longpath"
 )
 
-func getTempDir(dir, prefix string) (string, error) {
+// TempDir is the equivalent of ioutil.TempDir, except that the result is in Windows longpath format.
+func TempDir(dir, prefix string) (string, error) {
 	tempDir, err := ioutil.TempDir(dir, prefix)
 	if err != nil {
 		return "", err
 	}
 	return longpath.AddPrefix(tempDir), nil
-}
-
-func fixPermissions(source, destination string, uid, gid int, destExisted bool) error {
-	// chown is not supported on Windows
-	return nil
 }
