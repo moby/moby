@@ -236,7 +236,7 @@ func (b *Builder) download(srcURL string) (fi builder.FileInfo, err error) {
 	if err != nil {
 		return
 	}
-	path := u.Path
+	path := filepath.FromSlash(u.Path) // Ensure in platform semantics
 	if strings.HasSuffix(path, string(os.PathSeparator)) {
 		path = path[:len(path)-1]
 	}
