@@ -3232,8 +3232,6 @@ func (s *DockerSuite) TestAppArmorTraceSelf(c *check.C) {
 }
 
 func (s *DockerSuite) TestAppArmorDeniesChmodProc(c *check.C) {
-	c.Skip("Test is failing, and what it tests is unclear")
-
 	// Not applicable on Windows as uses Unix specific functionality
 	testRequires(c, SameHostDaemon, Apparmor, DaemonIsLinux)
 	_, exitCode, _ := dockerCmdWithError("run", "busybox", "chmod", "744", "/proc/cpuinfo")
