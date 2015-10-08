@@ -72,17 +72,21 @@ func (p *v2Puller) pullV2Repository(tag string) (err error) {
 
 	}
 
-	broadcaster, found := p.poolAdd("pull", taggedName)
+	broadcaster, found := p.acquirePull(taggedName, p.repoInfo.CanonicalName,
+		func() {
+			p.config.OutStream.Write(p.sf.FormatStatus("", "Repository %s is presently being pushed. Waiting.", p.repoInfo.CanonicalName))
+		})
 	broadcaster.Add(p.config.OutStream)
 	if found {
-		// Another pull of the same repository is already taking place; just wait for it to finish
+		// Another push or pull of the same repository is already taking place; just wait
+		// for it to finish
 		return broadcaster.Wait()
 	}
 
 	// This must use a closure so it captures the value of err when the
 	// function returns, not when the 'defer' is evaluated.
 	defer func() {
-		p.poolRemoveWithError("pull", taggedName, err)
+		p.releasePullWithError(taggedName, p.repoInfo.CanonicalName, err)
 	}()
 
 	var layersDownloaded bool
@@ -201,7 +205,7 @@ func (p *v2Puller) pullV2Tag(out io.Writer, tag, taggedName string) (verified bo
 		p.graph.Release(p.sessionID, layerIDs...)
 
 		for _, d := range downloads {
-			p.poolRemoveWithError("pull", d.poolKey, err)
+			p.releasePullWithError(d.poolKey, p.repoInfo.CanonicalName, err)
 			if d.tmpFile != nil {
 				d.tmpFile.Close()
 				if err := os.RemoveAll(d.tmpFile.Name()); err != nil {
@@ -246,7 +250,10 @@ func (p *v2Puller) pullV2Tag(out io.Writer, tag, taggedName string) (verified bo
 
 		downloads = append(downloads, d)
 
-		broadcaster, found := p.poolAdd("pull", d.poolKey)
+		broadcaster, found := p.acquirePull(d.poolKey, p.repoInfo.CanonicalName,
+			func() {
+				out.Write(p.sf.FormatStatus(stringid.TruncateID(img.ID), "Waiting for push to complete before pulling"))
+			})
 		broadcaster.Add(out)
 		d.broadcaster = broadcaster
 		if found {

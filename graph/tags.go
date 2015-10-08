@@ -35,10 +35,11 @@ type TagStore struct {
 	Repositories map[string]Repository
 	trustKey     libtrust.PrivateKey
 	sync.Mutex
-	// FIXME: move push/pull-related fields
-	// to a helper type
-	pullingPool     map[string]*progressreader.Broadcaster
-	pushingPool     map[string]*progressreader.Broadcaster
+	pullsByKey      map[string]*progressreader.Broadcaster
+	pushesByKey     map[string]*progressreader.Broadcaster
+	pullCountByRepo map[string]int
+	pushCountByRepo map[string]int
+	pushPullCond    *sync.Cond
 	registryService *registry.Service
 	eventsService   *events.Events
 	trustService    *trust.Store
@@ -94,12 +95,16 @@ func NewTagStore(path string, cfg *TagStoreConfig) (*TagStore, error) {
 		graph:           cfg.Graph,
 		trustKey:        cfg.Key,
 		Repositories:    make(map[string]Repository),
-		pullingPool:     make(map[string]*progressreader.Broadcaster),
-		pushingPool:     make(map[string]*progressreader.Broadcaster),
+		pullsByKey:      make(map[string]*progressreader.Broadcaster),
+		pushesByKey:     make(map[string]*progressreader.Broadcaster),
+		pullCountByRepo: make(map[string]int),
+		pushCountByRepo: make(map[string]int),
 		registryService: cfg.Registry,
 		eventsService:   cfg.Events,
 		trustService:    cfg.Trust,
 	}
+	store.pushPullCond = sync.NewCond(store)
+
 	// Load the json file if it exists, otherwise create it.
 	if err := store.reload(); os.IsNotExist(err) {
 		if err := store.save(); err != nil {
@@ -434,54 +439,117 @@ func validateDigest(dgst string) error {
 	return nil
 }
 
-// poolAdd checks if a push or pull is already running, and returns
-// (broadcaster, true) if a running operation is found. Otherwise, it creates a
-// new one and returns (broadcaster, false).
-func (store *TagStore) poolAdd(kind, key string) (*progressreader.Broadcaster, bool) {
+// acquirePull checks if a pull is already running, and returns the broadcaster
+// associated with the existing pull and found = true if a running pull is
+// found. Otherwise, it creates a new one and returns the broadcaster and
+// found = false.
+//
+// If a push in the same repository is running, acquirePull waits for the push
+// to finish before finding or creating the broadcaster for the pull. waitFunc
+// is called to provide the caller the opportunity to print a message explaining
+// the delay.
+//
+// releasePull should only be called in cases where acquirePull returned
+// found = true.
+func (store *TagStore) acquirePull(key, repo string, waitFunc func()) (broadcaster *progressreader.Broadcaster, found bool) {
 	store.Lock()
 	defer store.Unlock()
 
-	if p, exists := store.pullingPool[key]; exists {
+	waitFuncCalled := false
+	for {
+		if store.pushCountByRepo[repo] > 0 {
+			if waitFunc != nil && !waitFuncCalled {
+				store.Unlock()
+				waitFunc()
+				waitFuncCalled = true
+				store.Lock()
+			} else {
+				store.pushPullCond.Wait()
+			}
+		} else {
+			break
+		}
+	}
+
+	if p, exists := store.pullsByKey[key]; exists {
 		return p, true
 	}
-	if p, exists := store.pushingPool[key]; exists {
-		return p, true
-	}
 
-	broadcaster := progressreader.NewBroadcaster()
-
-	switch kind {
-	case "pull":
-		store.pullingPool[key] = broadcaster
-	case "push":
-		store.pushingPool[key] = broadcaster
-	default:
-		panic("Unknown pool type")
-	}
-
+	broadcaster = progressreader.NewBroadcaster()
+	store.pullsByKey[key] = broadcaster
+	store.pullCountByRepo[repo]++
 	return broadcaster, false
 }
 
-func (store *TagStore) poolRemoveWithError(kind, key string, broadcasterResult error) error {
+// acquirePush checks if a push is already running, and returns the broadcaster
+// associated with the existing push and found = true if a running push is
+// found. Otherwise, it creates a new one and returns the broadcaster and
+// found = false.
+//
+// If a pull in the same repository is running, acquirePull waits for the pull
+// to finish before finding or creating the broadcaster for the push. waitFunc
+// is // called to provide the caller the opportunity to print a message
+// explaining the delay.
+//
+// releasePush should only be called in cases where acquirePush returned
+// found = true.
+func (store *TagStore) acquirePush(key, repo string, waitFunc func()) (broadcaster *progressreader.Broadcaster, found bool) {
 	store.Lock()
 	defer store.Unlock()
-	switch kind {
-	case "pull":
-		if broadcaster, exists := store.pullingPool[key]; exists {
-			broadcaster.CloseWithError(broadcasterResult)
-			delete(store.pullingPool, key)
+
+	waitFuncCalled := false
+
+	for {
+		if store.pullCountByRepo[repo] > 0 {
+			if waitFunc != nil && !waitFuncCalled {
+				store.Unlock()
+				waitFunc()
+				waitFuncCalled = true
+				store.Lock()
+			} else {
+				store.pushPullCond.Wait()
+			}
+		} else {
+			break
 		}
-	case "push":
-		if broadcaster, exists := store.pushingPool[key]; exists {
-			broadcaster.CloseWithError(broadcasterResult)
-			delete(store.pushingPool, key)
-		}
-	default:
-		return fmt.Errorf("Unknown pool type")
 	}
-	return nil
+
+	if p, exists := store.pushesByKey[key]; exists {
+		return p, true
+	}
+
+	broadcaster = progressreader.NewBroadcaster()
+	store.pushesByKey[key] = broadcaster
+	store.pushCountByRepo[repo]++
+	return broadcaster, false
 }
 
-func (store *TagStore) poolRemove(kind, key string) error {
-	return store.poolRemoveWithError(kind, key, nil)
+func (store *TagStore) releasePullWithError(key, repo string, broadcasterResult error) {
+	store.Lock()
+	defer store.Unlock()
+	if broadcaster, exists := store.pullsByKey[key]; exists {
+		broadcaster.CloseWithError(broadcasterResult)
+		delete(store.pullsByKey, key)
+		store.pullCountByRepo[repo]--
+		store.pushPullCond.Broadcast()
+	}
+}
+
+func (store *TagStore) releasePull(key, repo string) {
+	store.releasePullWithError(key, repo, nil)
+}
+
+func (store *TagStore) releasePushWithError(key, repo string, broadcasterResult error) {
+	store.Lock()
+	defer store.Unlock()
+	if broadcaster, exists := store.pushesByKey[key]; exists {
+		broadcaster.CloseWithError(broadcasterResult)
+		delete(store.pushesByKey, key)
+		store.pushCountByRepo[repo]--
+		store.pushPullCond.Broadcast()
+	}
+}
+
+func (store *TagStore) releasePush(key, repo string) {
+	store.releasePushWithError(key, repo, nil)
 }
