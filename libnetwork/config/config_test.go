@@ -52,7 +52,4 @@ func TestValidName(t *testing.T) {
 	if IsValidName("   ") {
 		t.Fatal("Name validation succeeds for a case when it is expected to fail")
 	}
-	if IsValidName("name.with.dots") {
-		t.Fatal("Name validation succeeds for a case when it is expected to fail")
-	}
 }
