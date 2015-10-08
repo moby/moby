@@ -42,17 +42,9 @@ func TestBoltdbBackend(t *testing.T) {
 
 func testLocalBackend(t *testing.T, provider, url string, storeConfig *store.Config) {
 	cfgOptions := []config.Option{}
-	if provider != "" {
-		cfgOptions = append(cfgOptions, config.OptionLocalKVProvider(provider))
-	}
-
-	if url != "" {
-		cfgOptions = append(cfgOptions, config.OptionLocalKVProviderURL(url))
-	}
-
-	if storeConfig != nil {
-		cfgOptions = append(cfgOptions, config.OptionLocalKVProviderConfig(storeConfig))
-	}
+	cfgOptions = append(cfgOptions, config.OptionLocalKVProvider(provider))
+	cfgOptions = append(cfgOptions, config.OptionLocalKVProviderURL(url))
+	cfgOptions = append(cfgOptions, config.OptionLocalKVProviderConfig(storeConfig))
 
 	driverOptions := options.Generic{}
 	genericOption := make(map[string]interface{})
@@ -78,7 +70,7 @@ func testLocalBackend(t *testing.T, provider, url string, storeConfig *store.Con
 	if exists, err := store.Exists(datastore.Key([]string{datastore.EndpointKeyPrefix, string(nw.ID()), string(ep.ID())}...)); !exists || err != nil {
 		t.Fatalf("Endpoint key should have been created.")
 	}
-	ctrl.(*controller).getStore(datastore.LocalScope).Close()
+	store.Close()
 
 	// test restore of local store
 	ctrl, err = New(cfgOptions...)
