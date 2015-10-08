@@ -34,6 +34,11 @@ func (cli *DockerCli) CmdVolume(args ...string) error {
 
 	description += "\nRun 'docker volume COMMAND --help' for more information on a command"
 	cmd := Cli.Subcmd("volume", []string{"[COMMAND]"}, description, true)
+
+	cmd.Bool([]string{"q", "-quiet"}, false, "Only display volume names")
+	flFilter := opts.NewListOpts(nil)
+	cmd.Var(&flFilter, []string{"f", "-filter"}, "Provide filter values (i.e. 'dangling=true')")
+
 	cmd.Require(flag.Exact, 0)
 	cmd.ParseFlags(args, true)
 

@@ -133,6 +133,9 @@ func (s *DockerSuite) TestVolumeCliNoArgs(c *check.C) {
 	// no args should produce the `volume ls` output
 	c.Assert(strings.Contains(out, "DRIVER"), check.Equals, true)
 
+	out, _ = dockerCmd(c, "volume", "-q")
+	c.Assert(strings.Contains(out, "DRIVER"), check.Equals, false)
+
 	// invalid arg should error and show the command usage on stderr
 	_, stderr, _, err := runCommandWithStdoutStderr(exec.Command(dockerBinary, "volume", "somearg"))
 	c.Assert(err, check.NotNil)
