@@ -21,7 +21,7 @@ or `systemd` to manage the `docker` daemon's start and stop.
 
 ### Running the docker daemon directly
 
-The `docker` daemon can be run directly using the `-d` option. By default it listens on
+The `docker` daemon can be run directly using the `docker daemon` command. By default it listens on
 the Unix socket `unix:///var/run/docker.sock`
 
     $ docker daemon
