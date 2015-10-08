@@ -2504,17 +2504,20 @@ Status Codes
     {
       "name": "bridge",
       "id": "f995e41e471c833266786a64df584fbe4dc654ac99f63a4ee7495842aa093fc4",
-      "driver": "bridge"
+      "driver": "bridge",
+      "containers": {}
     },
     {
       "name": "none",
       "id": "21e34df9b29c74ae45ba312f8e9f83c02433c9a877cfebebcf57be78f69b77c8",
-      "driver": "null"
+      "driver": "null",
+      "containers": {}
     },
     {
       "name": "host",
       "id": "3f43a0873f00310a71cd6a71e2e60c113cf17d1812be2ec22fd519fbac68ec91",
-      "driver": "host"
+      "driver": "host",
+      "containers": {}
     }
   ]
 ```
@@ -2552,17 +2555,20 @@ Status Codes:
       "931d29e96e63022a3691f55ca18b28600239acf53878451975f77054b05ba559": {
         "endpoint": "aa79321e2899e6d72fcd46e6a4ad7f81ab9a19c3b06e384ef4ce51fea35827f9",
         "mac_address": "02:42:ac:11:00:04",
-        "ipv4_address": "172.17.0.4/16"
+        "ipv4_address": "172.17.0.4/16",
+        "ipv6_address": ""
       },
       "961249b4ae6c764b11eed923e8463c102689111fffd933627b2e7e359c7d0f7c": {
         "endpoint": "4f62c5aea6b9a70512210be7db976bd4ec2cdba47125e4fe514d18c81b1624b1",
         "mac_address": "02:42:ac:11:00:02",
-        "ipv4_address": "172.17.0.2/16"
+        "ipv4_address": "172.17.0.2/16",
+        "ipv6_address": ""
       },
       "9f6e0fec4449f42a173ed85be96dc2253b6719edd850d8169bc31bdc45db675c": {
         "endpoint": "352b512a5bccdfc77d16c2c04d04408e718f879a16f9ce3913a4733139e4f98d",
         "mac_address": "02:42:ac:11:00:03",
-        "ipv4_address": "172.17.0.3/16"
+        "ipv4_address": "172.17.0.3/16",
+        "ipv6_address": ""
       }
     }
   }
