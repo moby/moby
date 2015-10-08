@@ -82,3 +82,10 @@ func (s *DockerSuite) TestLogsApiFollowEmptyOutput(c *check.C) {
 		c.Fatalf("HTTP response was not immediate (elapsed %.1fs)", elapsed)
 	}
 }
+
+func (s *DockerSuite) TestLogsAPIContainerNotFound(c *check.C) {
+	name := "nonExistentContainer"
+	resp, _, err := sockRequestRaw("GET", fmt.Sprintf("/containers/%s/logs?follow=1&stdout=1&stderr=1&tail=all", name), bytes.NewBuffer(nil), "")
+	c.Assert(err, check.IsNil)
+	c.Assert(resp.StatusCode, check.Equals, http.StatusNotFound)
+}
