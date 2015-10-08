@@ -13,7 +13,6 @@ func (s *DockerSuite) TestLoginWithoutTTY(c *check.C) {
 
 	// Send to stdin so the process does not get the TTY
 	cmd.Stdin = bytes.NewBufferString("buffer test string \n")
-
 	// run the command and block until it's done
 	err := cmd.Run()
 	c.Assert(err, checker.NotNil, check.Commentf("Expected non nil err when loginning in & TTY not available"))
