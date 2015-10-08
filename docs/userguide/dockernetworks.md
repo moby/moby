@@ -40,7 +40,8 @@ $ sudo docker network inspect bridge
 {
     "name": "bridge",
     "id": "7fca4eb8c647e57e9d46c32714271e0c3f8bf8d17d346629e2820547b2d90039",
-    "driver": "bridge"
+    "driver": "bridge",
+    "containers": {}
 }
 ```
 
@@ -64,12 +65,14 @@ $ sudo docker network inspect bridge
         "bda12f8922785d1f160be70736f26c1e331ab8aaf8ed8d56728508f2e2fd4727": {
             "endpoint": "e0ac95934f803d7e36384a2029b8d1eeb56cb88727aa2e8b7edfeebaa6dfd758",
             "mac_address": "02:42:ac:11:00:03",
-            "ipv4_address": "172.17.0.3/16"
+            "ipv4_address": "172.17.0.3/16",
+            "ipv6_address": ""
         },
         "f2870c98fd504370fb86e59f32cd0753b1ac9b69b7d80566ffc7192a82b3ed27": {
             "endpoint": "31de280881d2a774345bbfb1594159ade4ae4024ebfb1320cb74a30225f6a8ae",
             "mac_address": "02:42:ac:11:00:02",
-            "ipv4_address": "172.17.0.2/16"
+            "ipv4_address": "172.17.0.2/16",
+            "ipv6_address": ""
         }
     }
 }
@@ -187,7 +190,8 @@ $ docker network inspect isolated_nw
 {
     "name": "isolated_nw",
     "id": "8b05faa32aeb43215f67678084a9c51afbdffe64cd91e3f5bb8267475f8bf1a7",
-    "driver": "bridge"
+    "driver": "bridge",
+    "containers": {}
 }
 
 $ docker network ls
@@ -215,7 +219,8 @@ $ docker network inspect isolated_nw
         "777344ef4943d34827a3504a802bf15db69327d7abe4af28a05084ca7406f843": {
             "endpoint": "c7f22f8da07fb8ecc687d08377cfcdb80b4dd8624c2a8208b1a4268985e38683",
             "mac_address": "02:42:ac:14:00:01",
-            "ipv4_address": "172.20.0.1/16"
+            "ipv4_address": "172.20.0.1/16",
+            "ipv6_address": ""
         }
     }
 }
@@ -238,12 +243,14 @@ $ docker network inspect isolated_nw
         "777344ef4943d34827a3504a802bf15db69327d7abe4af28a05084ca7406f843": {
             "endpoint": "c7f22f8da07fb8ecc687d08377cfcdb80b4dd8624c2a8208b1a4268985e38683",
             "mac_address": "02:42:ac:14:00:01",
-            "ipv4_address": "172.20.0.1/16"
+            "ipv4_address": "172.20.0.1/16",
+            "ipv6_address": ""
         },
         "bda12f8922785d1f160be70736f26c1e331ab8aaf8ed8d56728508f2e2fd4727": {
             "endpoint": "2ac11345af68b0750341beeda47cc4cce93bb818d8eb25e61638df7a4997cb1b",
             "mac_address": "02:42:ac:14:00:02",
-            "ipv4_address": "172.20.0.2/16"
+            "ipv4_address": "172.20.0.2/16",
+            "ipv6_address": ""
         }
     }
 }
@@ -413,7 +420,8 @@ root@Ubuntu-vm ~$ docker network inspect isolated_nw
         "777344ef4943d34827a3504a802bf15db69327d7abe4af28a05084ca7406f843": {
             "endpoint": "c7f22f8da07fb8ecc687d08377cfcdb80b4dd8624c2a8208b1a4268985e38683",
             "mac_address": "02:42:ac:14:00:01",
-            "ipv4_address": "172.20.0.1/16"
+            "ipv4_address": "172.20.0.1/16",
+            "ipv6_address": ""
         }
     }
 }
@@ -473,7 +481,8 @@ $ docker network inspect isolated_nw
 {
     "name": "isolated_nw",
     "id": "8b05faa32aeb43215f67678084a9c51afbdffe64cd91e3f5bb8267475f8bf1a7",
-    "driver": "bridge"
+    "driver": "bridge",
+    "containers": {}
 }
 
 $ docker network rm isolated_nw
