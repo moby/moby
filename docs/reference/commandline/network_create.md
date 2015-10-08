@@ -29,4 +29,3 @@ the container will be connected to the network that is created and managed by th
 Multiple containers can be connected to the same network and the containers in the same network will start to communicate with each other. If the driver/plugin supports multi-host connectivity, then the containers connected to the same multi-host network will be able to communicate seamlessly.
 
 *Note*: UX needs enhancement to accept network options to be passed to the drivers
-

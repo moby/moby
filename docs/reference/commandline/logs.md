@@ -5,7 +5,6 @@ description = "The logs command description and usage"
 keywords = ["logs, retrieve, docker"]
 [menu.main]
 parent = "smn_cli"
-weight=1
 +++
 <![end-metadata]-->
 

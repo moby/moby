@@ -5,7 +5,6 @@ description = "The events command description and usage"
 keywords = ["events, container, report"]
 [menu.main]
 parent = "smn_cli"
-weight=1
 +++
 <![end-metadata]-->
 
@@ -36,7 +35,7 @@ returns only new and/or live events.
 ## Filtering
 
 The filtering flag (`-f` or `--filter`) format is of "key=value". If you would
-like to use multiple filters, pass multiple flags (e.g., 
+like to use multiple filters, pass multiple flags (e.g.,
 `--filter "foo=bar" --filter "bif=baz"`)
 
 Using the same filter multiple times will be handled as a *OR*; for example

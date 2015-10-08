@@ -5,7 +5,6 @@ description = "The logout command description and usage"
 keywords = ["logout, docker, registry"]
 [menu.main]
 parent = "smn_cli"
-weight=1
 +++
 <![end-metadata]-->
 
@@ -21,6 +20,3 @@ weight=1
 For example:
 
     $ docker logout localhost:8080
-
-
-

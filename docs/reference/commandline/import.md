@@ -5,7 +5,6 @@ description = "The import command description and usage"
 keywords = ["import, file, system, container"]
 [menu.main]
 parent = "smn_cli"
-weight=1
 +++
 <![end-metadata]-->
 
@@ -48,7 +47,7 @@ Import to docker via pipe and `STDIN`.
 
     $ cat exampleimage.tgz | docker import - exampleimagelocal:new
 
-Import with a commit message 
+Import with a commit message
 
     $ cat exampleimage.tgz | docker import --message "New image imported from tarball" - exampleimagelocal:new
 
@@ -68,4 +67,3 @@ Note the `sudo` in this example – you must preserve
 the ownership of the files (especially root ownership) during the
 archiving with tar. If you are not root (or the sudo command) when you
 tar, then the ownerships might not get preserved.
-

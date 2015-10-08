@@ -5,7 +5,6 @@ description = "The ps command description and usage"
 keywords = ["container, running, list"]
 [menu.main]
 parent = "smn_cli"
-weight=1
 +++
 <![end-metadata]-->
 

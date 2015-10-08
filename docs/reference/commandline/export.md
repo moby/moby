@@ -5,7 +5,6 @@ description = "The export command description and usage"
 keywords = ["export, file, system, container"]
 [menu.main]
 parent = "smn_cli"
-weight=1
 +++
 <![end-metadata]-->
 

@@ -1,14 +1,15 @@
 <!--[metadata]>
 +++
-title = "Using the command line"
+title = "Use the Docker command line"
 description = "Docker's CLI command description and usage"
 keywords = ["Docker, Docker documentation, CLI,  command line"]
 [menu.main]
 parent = "smn_cli"
+weight = -2
 +++
 <![end-metadata]-->
 
-# Using the command line
+# Use the Docker command line
 
 To list available commands, either run `docker` with no parameters
 or execute `docker help`:

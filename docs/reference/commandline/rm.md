@@ -5,7 +5,6 @@ description = "The rm command description and usage"
 keywords = ["remove, Docker, container"]
 [menu.main]
 parent = "smn_cli"
-weight=1
 +++
 <![end-metadata]-->
 
@@ -42,8 +41,7 @@ The main process inside the container referenced under the link `/redis` will re
 
     $ docker rm $(docker ps -a -q)
 
-This command will delete all stopped containers. The command 
-`docker ps -a -q` will return all existing container IDs and pass them to 
+This command will delete all stopped containers. The command
+`docker ps -a -q` will return all existing container IDs and pass them to
 the `rm` command which will delete them. Any running containers will not be
 deleted.
-
