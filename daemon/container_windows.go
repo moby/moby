@@ -140,6 +140,7 @@ func populateCommand(c *Container, env []string) error {
 		FirstStart:     !c.HasBeenStartedBefore,
 		LayerFolder:    layerFolder,
 		LayerPaths:     layerPaths,
+		Hostname:       c.Config.Hostname,
 	}
 
 	return nil
