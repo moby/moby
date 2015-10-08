@@ -41,11 +41,11 @@ func parse(rawurl string) (string, string) {
 
 // New returns a new Discovery given a URL, heartbeat and ttl settings.
 // Returns an error if the URL scheme is not supported.
-func New(rawurl string, heartbeat time.Duration, ttl time.Duration) (Backend, error) {
+func New(rawurl string, heartbeat time.Duration, ttl time.Duration, clusterOpts map[string]string) (Backend, error) {
 	scheme, uri := parse(rawurl)
 	if backend, exists := backends[scheme]; exists {
 		log.WithFields(log.Fields{"name": scheme, "uri": uri}).Debug("Initializing discovery service")
-		err := backend.Initialize(uri, heartbeat, ttl)
+		err := backend.Initialize(uri, heartbeat, ttl, clusterOpts)
 		return backend, err
 	}
 

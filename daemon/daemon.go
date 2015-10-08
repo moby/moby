@@ -757,7 +757,7 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 	// DiscoveryWatcher version.
 	if config.ClusterStore != "" && config.ClusterAdvertise != "" {
 		var err error
-		if d.discoveryWatcher, err = initDiscovery(config.ClusterStore, config.ClusterAdvertise); err != nil {
+		if d.discoveryWatcher, err = initDiscovery(config.ClusterStore, config.ClusterAdvertise, config.ClusterOpts); err != nil {
 			return nil, fmt.Errorf("discovery initialization failed (%v)", err)
 		}
 	}
