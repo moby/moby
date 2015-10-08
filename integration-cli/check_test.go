@@ -1,12 +1,22 @@
 package main
 
 import (
+	"fmt"
 	"testing"
 
+	"github.com/docker/docker/pkg/reexec"
 	"github.com/go-check/check"
 )
 
 func Test(t *testing.T) {
+	reexec.Init() // This is required for external graphdriver tests
+
+	if !isLocalDaemon {
+		fmt.Println("INFO: Testing against a remote daemon")
+	} else {
+		fmt.Println("INFO: Testing against a local daemon")
+	}
+
 	check.TestingT(t)
 }
 
