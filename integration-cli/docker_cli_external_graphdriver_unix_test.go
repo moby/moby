@@ -97,7 +97,7 @@ func (s *DockerExternalGraphdriverSuite) SetUpSuite(c *check.C) {
 	if err != nil {
 		c.Fatalf("error initializing graph driver: %v", err)
 	}
-	driver := graphdriver.NaiveDiffDriver(vfsProto)
+	driver := graphdriver.NewNaiveDiffDriver(vfsProto)
 
 	mux.HandleFunc("/Plugin.Activate", func(w http.ResponseWriter, r *http.Request) {
 		s.ec.activations++
