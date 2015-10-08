@@ -45,6 +45,18 @@ func (err initErr) Error() string {
 	return err.Error()
 }
 
+func (cli *Cli) tryToResolveAlias(arg string) (alias Alias, aliasResolved bool) {
+	for _, c := range cli.handlers {
+		if c == nil {
+			continue
+		}
+		if resolver, ok := c.(AliasResolver); ok {
+			return resolver.ResolveAlias(arg)
+		}
+	}
+	return nil, false
+}
+
 func (cli *Cli) command(args ...string) (func(...string) error, error) {
 	for _, c := range cli.handlers {
 		if c == nil {
@@ -83,6 +95,18 @@ func (cli *Cli) Run(args ...string) error {
 		}
 	}
 	if len(args) > 0 {
+		// first of all, check the command is an alias
+		if alias, aliasResolved := cli.tryToResolveAlias(args[0]); aliasResolved {
+			switch typedAlias := alias.(type) {
+			case *ComplexAlias:
+				// execute and terminate
+				return typedAlias.CmdExecutor(append(typedAlias.GetCmd(), args[1:]...))
+			case *SimpleAlias:
+				// expand the command and continue
+				args = append(typedAlias.GetCmd(), args[1:]...)
+			}
+		}
+
 		command, err := cli.command(args[0])
 		switch err := err.(type) {
 		case nil:

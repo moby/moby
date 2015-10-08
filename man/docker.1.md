@@ -64,6 +64,10 @@ unix://[/path/to/socket] to use.
   Print version information and quit. Default is false.
 
 # COMMANDS
+**alias**
+  Manage the aliases
+  See **docker-alias(1)** for full documentation on the **alias** command.
+
 **attach**
   Attach to a running container
   See **docker-attach(1)** for full documentation on the **attach** command.

@@ -21,6 +21,7 @@ func (a byName) Less(i, j int) bool { return a[i].name < a[j].name }
 // TODO(tiborvass): do not show 'daemon' on client-only binaries
 // and deduplicate description in dockerCommands and cli subcommands
 var dockerCommands = []command{
+	{"alias", "Manages the aliases"},
 	{"attach", "Attach to a running container"},
 	{"build", "Build an image from a Dockerfile"},
 	{"commit", "Create a new image from a container's changes"},

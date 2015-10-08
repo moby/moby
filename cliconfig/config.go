@@ -60,6 +60,7 @@ type ConfigFile struct {
 	HTTPHeaders map[string]string     `json:"HttpHeaders,omitempty"`
 	PsFormat    string                `json:"psFormat,omitempty"`
 	filename    string                // Note: not serialized - for internal use only
+	Aliases     map[string][]string   `json:"aliases"`
 }
 
 // NewConfigFile initilizes an empty configuration file for the given filename 'fn'
