@@ -86,7 +86,7 @@ If instead we wanted to run an Ubuntu 12.04 image we'd use:
 If you don't specify a variant, for example you just use `ubuntu`, then Docker
 will default to using the `ubuntu:latest` image.
 
-> **Tip:** 
+> **Tip:**
 > We recommend you always use a specific tagged image, for example
 > `ubuntu:12.04`. That way you always know exactly what variant of an image is
 > being used.
@@ -191,7 +191,7 @@ we'd like to update.
     $ docker run -t -i training/sinatra /bin/bash
     root@0b2616b0e5a8:/#
 
-> **Note:** 
+> **Note:**
 > Take note of the container ID that has been created, `0b2616b0e5a8`, as we'll
 > need it in a moment.
 
@@ -285,14 +285,14 @@ a command inside the image, for example installing a package. Here we're
 updating our APT cache, installing Ruby and RubyGems and then installing the
 Sinatra gem.
 
-> **Note:** 
+> **Note:**
 > There are [a lot more instructions available to us in a Dockerfile](/reference/builder).
 
 Now let's take our `Dockerfile` and use the `docker build` command to build an image.
 
     $ docker build -t ouruser/sinatra:v2 .
     Sending build context to Docker daemon 2.048 kB
-    Sending build context to Docker daemon 
+    Sending build context to Docker daemon
     Step 1 : FROM ubuntu:14.04
      ---> e54ca5efa2e9
     Step 2 : MAINTAINER Kate Smith <ksmith@example.com>
@@ -477,9 +477,9 @@ instructions have executed we're left with the `97feabe5d2ed` image
 (also helpfully tagged as `ouruser/sinatra:v2`) and all intermediate
 containers will get removed to clean things up.
 
-> **Note:** 
+> **Note:**
 > An image can't have more than 127 layers regardless of the storage driver.
-> This limitation is set globally to encourage optimization of the overall 
+> This limitation is set globally to encourage optimization of the overall
 > size of images.
 
 We can then create a container from our new image.
@@ -487,7 +487,7 @@ We can then create a container from our new image.
     $ docker run -t -i ouruser/sinatra:v2 /bin/bash
     root@8196968dac35:/#
 
-> **Note:** 
+> **Note:**
 > This is just a brief introduction to creating images. We've
 > skipped a whole bunch of other instructions that you can use. We'll see more of
 > those instructions in later sections of the Guide or you can refer to the
@@ -496,9 +496,6 @@ We can then create a container from our new image.
 > To help you write a clear, readable, maintainable `Dockerfile`, we've also
 > written a [`Dockerfile` Best Practices guide](/articles/dockerfile_best-practices).
 
-### More
-
-To learn more, check out the [Dockerfile tutorial](/userguide/level1).
 
 ## Setting tags on an image
 
@@ -574,9 +571,4 @@ Until now we've seen how to build individual applications inside Docker
 containers. Now learn how to build whole application stacks with Docker
 by linking together multiple Docker containers.
 
-Test your Dockerfile knowledge with the
-[Dockerfile tutorial](/userguide/level1).
-
 Go to [Linking Containers Together](/userguide/dockerlinks).
-
-
