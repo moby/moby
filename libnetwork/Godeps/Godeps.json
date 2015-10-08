@@ -81,8 +81,8 @@
 		},
 		{
 			"ImportPath": "github.com/docker/docker/pkg/parsers",
-                        "Comment": "v1.4.1-4106-g637023a",
-                        "Rev": "637023a5f8d8347a0e271c09d5c9bc84fbc97693"
+			"Comment": "v1.4.1-4106-g637023a",
+			"Rev": "637023a5f8d8347a0e271c09d5c9bc84fbc97693"
 		},
 		{
 			"ImportPath": "github.com/docker/docker/pkg/plugins",
@@ -146,7 +146,7 @@
 		},
 		{
 			"ImportPath": "github.com/docker/libkv",
-			"Rev": "ea7ff6ae76485ab93ac36799d3e13b1905787ffe"
+			"Rev": "9d9710dcf6419a58455d0a80e0a8a21ca5f21a94"
 		},
 		{
 			"ImportPath": "github.com/godbus/dbus",

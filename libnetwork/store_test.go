@@ -5,7 +5,6 @@ import (
 	"io/ioutil"
 	"os"
 	"testing"
-	"time"
 
 	"github.com/docker/libkv/store"
 	"github.com/docker/libnetwork/config"
@@ -36,7 +35,7 @@ func TestBoltdbBackend(t *testing.T) {
 	defer os.Remove(datastore.DefaultScopes("")[datastore.LocalScope].Client.Address)
 	testLocalBackend(t, "", "", nil)
 	defer os.Remove("/tmp/boltdb.db")
-	config := &store.Config{Bucket: "testBackend", ConnectionTimeout: 3 * time.Second}
+	config := &store.Config{Bucket: "testBackend"}
 	testLocalBackend(t, "boltdb", "/tmp/boltdb.db", config)
 
 }
@@ -130,12 +129,12 @@ func OptionBoltdbWithRandomDBFile() ([]config.Option, error) {
 	cfgOptions := []config.Option{}
 	cfgOptions = append(cfgOptions, config.OptionLocalKVProvider("boltdb"))
 	cfgOptions = append(cfgOptions, config.OptionLocalKVProviderURL(tmp.Name()))
-	sCfg := &store.Config{Bucket: "testBackend", ConnectionTimeout: 3 * time.Second}
+	sCfg := &store.Config{Bucket: "testBackend"}
 	cfgOptions = append(cfgOptions, config.OptionLocalKVProviderConfig(sCfg))
 	return cfgOptions, nil
 }
 
-func TestLocalStoreLockTimeout(t *testing.T) {
+func TestMultipleControllersWithSameStore(t *testing.T) {
 	cfgOptions, err := OptionBoltdbWithRandomDBFile()
 	if err != nil {
 		t.Fatalf("Error getting random boltdb configs %v", err)
@@ -146,11 +145,8 @@ func TestLocalStoreLockTimeout(t *testing.T) {
 	}
 	defer ctrl1.Stop()
 	// Use the same boltdb file without closing the previous controller
-	// with a slightly altered configuration
-	sCfg := &store.Config{Bucket: "testBackend", ConnectionTimeout: 1 * time.Second}
-	_, err = New(append(cfgOptions[:len(cfgOptions)-1],
-		config.OptionLocalKVProviderConfig(sCfg))...)
-	if err == nil {
-		t.Fatalf("Expected to fail but succeeded")
+	_, err = New(cfgOptions...)
+	if err != nil {
+		t.Fatalf("Local store must support concurrent controllers")
 	}
 }
