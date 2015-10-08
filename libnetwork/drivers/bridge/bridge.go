@@ -35,6 +35,13 @@ const (
 	maxAllocatePortAttempts = 10
 )
 
+const (
+	// DefaultGatewayV4AuxKey represents the default-gateway configured by the user
+	DefaultGatewayV4AuxKey = "DefaultGatewayIPv4"
+	// DefaultGatewayV6AuxKey represents the ipv6 default-gateway configured by the user
+	DefaultGatewayV6AuxKey = "DefaultGatewayIPv6"
+)
+
 var (
 	ipAllocator *ipallocator.IPAllocator
 )
@@ -49,17 +56,17 @@ type configuration struct {
 // networkConfiguration for network specific configuration
 type networkConfiguration struct {
 	BridgeName         string
-	AddressIPv4        *net.IPNet
-	FixedCIDR          *net.IPNet
-	FixedCIDRv6        *net.IPNet
 	EnableIPv6         bool
 	EnableIPMasquerade bool
 	EnableICC          bool
 	Mtu                int
-	DefaultGatewayIPv4 net.IP
-	DefaultGatewayIPv6 net.IP
 	DefaultBindingIP   net.IP
 	DefaultBridge      bool
+	// Internal fields set after ipam data parsing
+	AddressIPv4        *net.IPNet
+	AddressIPv6        *net.IPNet
+	DefaultGatewayIPv4 net.IP
+	DefaultGatewayIPv6 net.IP
 }
 
 // endpointConfiguration represents the user specified configuration for the sandbox endpoint
@@ -148,19 +155,6 @@ func (c *networkConfiguration) Validate() error {
 
 	// If bridge v4 subnet is specified
 	if c.AddressIPv4 != nil {
-		// If Container restricted subnet is specified, it must be a subset of bridge subnet
-		if c.FixedCIDR != nil {
-			// Check Network address
-			if !c.AddressIPv4.Contains(c.FixedCIDR.IP) {
-				return &ErrInvalidContainerSubnet{}
-			}
-			// Check it is effectively a subset
-			brNetLen, _ := c.AddressIPv4.Mask.Size()
-			cnNetLen, _ := c.FixedCIDR.Mask.Size()
-			if brNetLen > cnNetLen {
-				return &ErrInvalidContainerSubnet{}
-			}
-		}
 		// If default gw is specified, it must be part of bridge subnet
 		if c.DefaultGatewayIPv4 != nil {
 			if !c.AddressIPv4.Contains(c.DefaultGatewayIPv4) {
@@ -169,34 +163,39 @@ func (c *networkConfiguration) Validate() error {
 		}
 	}
 
-	// If default v6 gw is specified, FixedCIDRv6 must be specified and gw must belong to FixedCIDRv6 subnet
+	// If default v6 gw is specified, AddressIPv6 must be specified and gw must belong to AddressIPv6 subnet
 	if c.EnableIPv6 && c.DefaultGatewayIPv6 != nil {
-		if c.FixedCIDRv6 == nil || !c.FixedCIDRv6.Contains(c.DefaultGatewayIPv6) {
+		if c.AddressIPv6 == nil || !c.AddressIPv6.Contains(c.DefaultGatewayIPv6) {
 			return &ErrInvalidGateway{}
 		}
 	}
-
 	return nil
 }
 
 // Conflicts check if two NetworkConfiguration objects overlap
-func (c *networkConfiguration) Conflicts(o *networkConfiguration) bool {
+func (c *networkConfiguration) Conflicts(o *networkConfiguration) error {
 	if o == nil {
-		return false
+		return fmt.Errorf("same configuration")
 	}
 
 	// Also empty, becasue only one network with empty name is allowed
 	if c.BridgeName == o.BridgeName {
-		return true
+		return fmt.Errorf("networks have same name")
 	}
 
 	// They must be in different subnets
 	if (c.AddressIPv4 != nil && o.AddressIPv4 != nil) &&
 		(c.AddressIPv4.Contains(o.AddressIPv4.IP) || o.AddressIPv4.Contains(c.AddressIPv4.IP)) {
-		return true
+		return fmt.Errorf("networks have overlapping IPv4")
 	}
 
-	return false
+	// They must be in different v6 subnets
+	if (c.AddressIPv6 != nil && o.AddressIPv6 != nil) &&
+		(c.AddressIPv6.Contains(o.AddressIPv6.IP) || o.AddressIPv6.Contains(c.AddressIPv6.IP)) {
+		return fmt.Errorf("networks have overlapping IPv6")
+	}
+
+	return nil
 }
 
 // fromMap retrieve the configuration data from the map form.
@@ -259,65 +258,6 @@ func (c *networkConfiguration) fromMap(data map[string]interface{}) error {
 		}
 	}
 
-	if i, ok := data["AddressIPv4"]; ok && i != nil {
-		if s, ok := i.(string); ok {
-			if ip, nw, e := net.ParseCIDR(s); e == nil {
-				nw.IP = ip
-				c.AddressIPv4 = nw
-			} else {
-				return types.BadRequestErrorf("failed to parse AddressIPv4 value")
-			}
-		} else {
-			return types.BadRequestErrorf("invalid type for AddressIPv4 value")
-		}
-	}
-
-	if i, ok := data["FixedCIDR"]; ok && i != nil {
-		if s, ok := i.(string); ok {
-			if ip, nw, e := net.ParseCIDR(s); e == nil {
-				nw.IP = ip
-				c.FixedCIDR = nw
-			} else {
-				return types.BadRequestErrorf("failed to parse FixedCIDR value")
-			}
-		} else {
-			return types.BadRequestErrorf("invalid type for FixedCIDR value")
-		}
-	}
-
-	if i, ok := data["FixedCIDRv6"]; ok && i != nil {
-		if s, ok := i.(string); ok {
-			if ip, nw, e := net.ParseCIDR(s); e == nil {
-				nw.IP = ip
-				c.FixedCIDRv6 = nw
-			} else {
-				return types.BadRequestErrorf("failed to parse FixedCIDRv6 value")
-			}
-		} else {
-			return types.BadRequestErrorf("invalid type for FixedCIDRv6 value")
-		}
-	}
-
-	if i, ok := data["DefaultGatewayIPv4"]; ok && i != nil {
-		if s, ok := i.(string); ok {
-			if c.DefaultGatewayIPv4 = net.ParseIP(s); c.DefaultGatewayIPv4 == nil {
-				return types.BadRequestErrorf("failed to parse DefaultGatewayIPv4 value")
-			}
-		} else {
-			return types.BadRequestErrorf("invalid type for DefaultGatewayIPv4 value")
-		}
-	}
-
-	if i, ok := data["DefaultGatewayIPv6"]; ok && i != nil {
-		if s, ok := i.(string); ok {
-			if c.DefaultGatewayIPv6 = net.ParseIP(s); c.DefaultGatewayIPv6 == nil {
-				return types.BadRequestErrorf("failed to parse DefaultGatewayIPv6 value")
-			}
-		} else {
-			return types.BadRequestErrorf("invalid type for DefaultGatewayIPv6 value")
-		}
-	}
-
 	if i, ok := data["DefaultBindingIP"]; ok && i != nil {
 		if s, ok := i.(string); ok {
 			if c.DefaultBindingIP = net.ParseIP(s); c.DefaultBindingIP == nil {
@@ -327,6 +267,7 @@ func (c *networkConfiguration) fromMap(data map[string]interface{}) error {
 			return types.BadRequestErrorf("invalid type for DefaultBindingIP value")
 		}
 	}
+
 	return nil
 }
 
@@ -516,6 +457,36 @@ func parseNetworkGenericOptions(data interface{}) (*networkConfiguration, error)
 	return config, err
 }
 
+func (c *networkConfiguration) processIPAM(id string, ipamV4Data, ipamV6Data []driverapi.IPAMData) error {
+	if len(ipamV4Data) > 1 || len(ipamV6Data) > 1 {
+		return types.ForbiddenErrorf("bridge driver doesnt support multiple subnets")
+	}
+
+	if len(ipamV4Data) == 0 {
+		return types.BadRequestErrorf("bridge network %s requires ipv4 configuration", id)
+	}
+
+	if ipamV4Data[0].Gateway != nil {
+		c.AddressIPv4 = types.GetIPNetCopy(ipamV4Data[0].Gateway)
+	}
+
+	if gw, ok := ipamV4Data[0].AuxAddresses[DefaultGatewayV4AuxKey]; ok {
+		c.DefaultGatewayIPv4 = gw.IP
+	}
+
+	if len(ipamV6Data) > 0 {
+		if ipamV6Data[0].Gateway != nil {
+			c.AddressIPv6 = types.GetIPNetCopy(ipamV6Data[0].Gateway)
+		}
+
+		if gw, ok := ipamV6Data[0].AuxAddresses[DefaultGatewayV6AuxKey]; ok {
+			c.DefaultGatewayIPv6 = gw.IP
+		}
+	}
+
+	return nil
+}
+
 func parseNetworkOptions(id string, option options.Generic) (*networkConfiguration, error) {
 	var err error
 	config := &networkConfiguration{}
@@ -545,10 +516,9 @@ func parseNetworkOptions(id string, option options.Generic) (*networkConfigurati
 
 // Returns the non link-local IPv6 subnet for the containers attached to this bridge if found, nil otherwise
 func getV6Network(config *networkConfiguration, i *bridgeInterface) *net.IPNet {
-	if config.FixedCIDRv6 != nil {
-		return config.FixedCIDRv6
+	if config.AddressIPv6 != nil {
+		return config.AddressIPv6
 	}
-
 	if i.bridgeIPv6 != nil && i.bridgeIPv6.IP != nil && !i.bridgeIPv6.IP.IsLinkLocalUnicast() {
 		return i.bridgeIPv6
 	}
@@ -587,13 +557,20 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}, ipV4Dat
 	if err != nil {
 		return err
 	}
+
+	err = config.processIPAM(id, ipV4Data, ipV6Data)
+	if err != nil {
+		return err
+	}
+
 	networkList := d.getNetworks()
 	for _, nw := range networkList {
 		nw.Lock()
 		nwConfig := nw.config
 		nw.Unlock()
-		if nwConfig.Conflicts(config) {
-			return types.ForbiddenErrorf("conflicts with network %s (%s)", nw.id, nw.config.BridgeName)
+		if err := nwConfig.Conflicts(config); err != nil {
+			return types.ForbiddenErrorf("cannot create network %s (%s): conflicts with network %s (%s): %s",
+				nwConfig.BridgeName, id, nw.id, nw.config.BridgeName, err.Error())
 		}
 	}
 
@@ -654,10 +631,7 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}, ipV4Dat
 	// Even if a bridge exists try to setup IPv4.
 	bridgeSetup.queueStep(setupBridgeIPv4)
 
-	enableIPv6Forwarding := false
-	if d.config.EnableIPForwarding && config.FixedCIDRv6 != nil {
-		enableIPv6Forwarding = true
-	}
+	enableIPv6Forwarding := d.config.EnableIPForwarding && config.AddressIPv6 != nil
 
 	// Conditionally queue setup steps depending on configuration values.
 	for _, step := range []struct {
@@ -673,14 +647,6 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}, ipV4Dat
 		// We ensure that the bridge has the expectedIPv4 and IPv6 addresses in
 		// the case of a previously existing device.
 		{bridgeAlreadyExists, setupVerifyAndReconcile},
-
-		// Setup the bridge to allocate containers IPv4 addresses in the
-		// specified subnet.
-		{config.FixedCIDR != nil, setupFixedCIDRv4},
-
-		// Setup the bridge to allocate containers global IPv6 addresses in the
-		// specified subnet.
-		{config.FixedCIDRv6 != nil, setupFixedCIDRv6},
 
 		// Enable IPv6 Forwarding
 		{enableIPv6Forwarding, setupIPv6Forwarding},
@@ -712,8 +678,6 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}, ipV4Dat
 		}
 	}
 
-	// Block bridge IP from being allocated.
-	bridgeSetup.queueStep(allocateBridgeIP)
 	// Apply the prepared list of steps, and abort at the first error.
 	bridgeSetup.queueStep(setupDeviceUp)
 	if err = bridgeSetup.apply(); err != nil {
@@ -790,21 +754,7 @@ func (d *driver) DeleteNetwork(nid string) error {
 	}
 
 	// Programming
-	err = netlink.LinkDel(n.bridge.Link)
-
-	// Release ip addresses (ignore errors)
-	if config.FixedCIDR == nil || config.FixedCIDR.Contains(config.DefaultGatewayIPv4) {
-		if e := ipAllocator.ReleaseIP(n.bridge.bridgeIPv4, n.bridge.gatewayIPv4); e != nil {
-			logrus.Warnf("Failed to release default gateway address %s: %v", n.bridge.gatewayIPv4.String(), e)
-		}
-	}
-	if config.FixedCIDR == nil || config.FixedCIDR.Contains(n.bridge.bridgeIPv4.IP) {
-		if e := ipAllocator.ReleaseIP(n.bridge.bridgeIPv4, n.bridge.bridgeIPv4.IP); e != nil {
-			logrus.Warnf("Failed to release bridge IP %s: %v", n.bridge.bridgeIPv4.IP.String(), e)
-		}
-	}
-
-	return err
+	return netlink.LinkDel(n.bridge.Link)
 }
 
 func addToBridge(ifaceName, bridgeName string) error {
@@ -862,11 +812,6 @@ func setHairpinMode(link netlink.Link, enable bool) error {
 }
 
 func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo, epOptions map[string]interface{}) error {
-	var (
-		ipv6Addr *net.IPNet
-		err      error
-	)
-
 	defer osl.InitOSContext()()
 
 	if ifInfo == nil {
@@ -996,12 +941,11 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 		}
 	}
 
-	// v4 address for the sandbox side pipe interface
-	ip4, err := ipAllocator.RequestIP(n.bridge.bridgeIPv4, nil)
-	if err != nil {
-		return err
-	}
-	ipv4Addr := &net.IPNet{IP: ip4, Mask: n.bridge.bridgeIPv4.Mask}
+	// Create the sandbox side pipe interface
+	endpoint.srcName = containerIfName
+	endpoint.macAddress = ifInfo.MacAddress()
+	endpoint.addr = ifInfo.Address()
+	endpoint.addrv6 = ifInfo.AddressIPv6()
 
 	// Down the interface before configuring mac address.
 	if err = netlink.LinkSetDown(sbox); err != nil {
@@ -1009,72 +953,44 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 	}
 
 	// Set the sbox's MAC. If specified, use the one configured by user, otherwise generate one based on IP.
-	mac := electMacAddress(epConfig, ip4)
-	err = netlink.LinkSetHardwareAddr(sbox, mac)
+	if endpoint.macAddress == nil {
+		endpoint.macAddress = electMacAddress(epConfig, endpoint.addr.IP)
+		if err := ifInfo.SetMacAddress(endpoint.macAddress); err != nil {
+			return err
+		}
+	}
+	err = netlink.LinkSetHardwareAddr(sbox, endpoint.macAddress)
 	if err != nil {
 		return fmt.Errorf("could not set mac address for container interface %s: %v", containerIfName, err)
 	}
-	endpoint.macAddress = mac
 
 	// Up the host interface after finishing all netlink configuration
 	if err = netlink.LinkSetUp(host); err != nil {
 		return fmt.Errorf("could not set link up for host interface %s: %v", hostIfName, err)
 	}
 
-	// v6 address for the sandbox side pipe interface
-	ipv6Addr = &net.IPNet{}
-	if config.EnableIPv6 {
+	if endpoint.addrv6 == nil && config.EnableIPv6 {
 		var ip6 net.IP
-
 		network := n.bridge.bridgeIPv6
-		if config.FixedCIDRv6 != nil {
-			network = config.FixedCIDRv6
-		}
-
 		ones, _ := network.Mask.Size()
 		if ones <= 80 {
 			ip6 = make(net.IP, len(network.IP))
 			copy(ip6, network.IP)
-			for i, h := range mac {
+			for i, h := range endpoint.macAddress {
 				ip6[i+10] = h
 			}
 		}
 
-		ip6, err := ipAllocator.RequestIP(network, ip6)
-		if err != nil {
+		endpoint.addrv6 = &net.IPNet{IP: ip6, Mask: network.Mask}
+		if err := ifInfo.SetIPAddress(endpoint.addrv6); err != nil {
 			return err
 		}
-
-		ipv6Addr = &net.IPNet{IP: ip6, Mask: network.Mask}
-	}
-
-	// Create the sandbox side pipe interface
-	endpoint.srcName = containerIfName
-	endpoint.addr = ipv4Addr
-
-	if config.EnableIPv6 {
-		endpoint.addrv6 = ipv6Addr
 	}
 
 	// Program any required port mapping and store them in the endpoint
 	endpoint.portMapping, err = n.allocatePorts(epConfig, endpoint, config.DefaultBindingIP, d.config.EnableUserlandProxy)
 	if err != nil {
 		return err
-	}
-
-	err = ifInfo.SetMacAddress(endpoint.macAddress)
-	if err != nil {
-		return err
-	}
-	err = ifInfo.SetIPAddress(ipv4Addr)
-	if err != nil {
-		return err
-	}
-	if config.EnableIPv6 {
-		err = ifInfo.SetIPAddress(ipv6Addr)
-		if err != nil {
-			return err
-		}
 	}
 
 	return nil
@@ -1138,22 +1054,6 @@ func (d *driver) DeleteEndpoint(nid, eid string) error {
 	err = ipAllocator.ReleaseIP(n.bridge.bridgeIPv4, ep.addr.IP)
 	if err != nil {
 		return err
-	}
-
-	n.Lock()
-	config := n.config
-	n.Unlock()
-
-	// Release the v6 address allocated to this endpoint's sandbox interface
-	if config.EnableIPv6 {
-		network := n.bridge.bridgeIPv6
-		if config.FixedCIDRv6 != nil {
-			network = config.FixedCIDRv6
-		}
-		err := ipAllocator.ReleaseIP(network, ep.addrv6.IP)
-		if err != nil {
-			return err
-		}
 	}
 
 	// Try removal of link. Discard error: link pair might have

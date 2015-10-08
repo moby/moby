@@ -622,10 +622,14 @@ func (ep *endpoint) assignAddress() error {
 		ipam ipamapi.Ipam
 		err  error
 	)
+
 	n := ep.getNetwork()
-	if n.Type() == "host" || n.Type() == "null" || n.Type() == "bridge" {
+	if n.Type() == "host" || n.Type() == "null" {
 		return nil
 	}
+
+	log.Debugf("Assigning addresses for endpoint %s's interface on network %s", ep.Name(), n.Name())
+
 	ipam, err = n.getController().getIpamDriver(n.ipamType)
 	if err != nil {
 		return err
@@ -680,9 +684,12 @@ func (ep *endpoint) assignAddressVersion(ipVer int, ipam ipamapi.Ipam) error {
 
 func (ep *endpoint) releaseAddress() {
 	n := ep.getNetwork()
-	if n.Type() == "host" || n.Type() == "null" || n.Type() == "bridge" {
+	if n.Type() == "host" || n.Type() == "null" {
 		return
 	}
+
+	log.Debugf("Releasing addresses for endpoint %s's interface on network %s", ep.Name(), n.Name())
+
 	ipam, err := n.getController().getIpamDriver(n.ipamType)
 	if err != nil {
 		log.Warnf("Failed to retrieve ipam driver to release interface address on delete of endpoint %s (%s): %v", ep.Name(), ep.ID(), err)

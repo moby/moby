@@ -44,12 +44,13 @@ func TestPortMappingConfig(t *testing.T) {
 	netOptions := make(map[string]interface{})
 	netOptions[netlabel.GenericData] = netConfig
 
-	err := d.CreateNetwork("dummy", netOptions, nil, nil)
+	ipdList := getIPv4Data(t)
+	err := d.CreateNetwork("dummy", netOptions, ipdList, nil)
 	if err != nil {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
 
-	te := &testEndpoint{iface: &testInterface{}}
+	te := newTestEndpoint(ipdList[0].Pool, 11)
 	err = d.CreateEndpoint("dummy", "ep1", te.Interface(), epOptions)
 	if err != nil {
 		t.Fatalf("Failed to create the endpoint: %s", err.Error())

@@ -29,8 +29,10 @@ import (
 	"github.com/docker/libnetwork/config"
 	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/driverapi"
+	"github.com/docker/libnetwork/ipamutils"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/options"
+	"github.com/docker/libnetwork/types"
 	"github.com/gorilla/mux"
 )
 
@@ -187,7 +189,12 @@ func createDefaultNetwork(c libnetwork.NetworkController) {
 			}
 			createOptions = append(createOptions,
 				libnetwork.NetworkOptionGeneric(genericOption),
-				libnetwork.NetworkOptionPersist(false))
+				ipamOption(nw))
+		}
+
+		if _, err := c.NetworkByName(nw); err == nil {
+			logrus.Debugf("Default network %s already present", nw)
+			return
 		}
 		_, err := c.NewNetwork(d, nw, createOptions...)
 		if err != nil {
@@ -404,4 +411,16 @@ func encodeData(data interface{}) (*bytes.Buffer, error) {
 		}
 	}
 	return params, nil
+}
+
+func ipamOption(bridgeName string) libnetwork.NetworkOption {
+	if nw, _, err := ipamutils.ElectInterfaceAddresses(bridgeName); err == nil {
+		ipamV4Conf := &libnetwork.IpamConf{PreferredPool: nw.String()}
+		hip, _ := types.GetHostPartIP(nw.IP, nw.Mask)
+		if hip.IsGlobalUnicast() {
+			ipamV4Conf.Gateway = nw.IP.String()
+		}
+		return libnetwork.NetworkOptionIpam("default", "", []*libnetwork.IpamConf{ipamV4Conf}, nil)
+	}
+	return nil
 }

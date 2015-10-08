@@ -55,7 +55,7 @@ func TestSetupGatewayIPv6(t *testing.T) {
 
 	config := &networkConfiguration{
 		BridgeName:         DefaultBridgeName,
-		FixedCIDRv6:        nw,
+		AddressIPv6:        nw,
 		DefaultGatewayIPv6: gw}
 
 	br := &bridgeInterface{}

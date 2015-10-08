@@ -804,7 +804,7 @@ func (n *network) getController() *controller {
 
 func (n *network) ipamAllocate() error {
 	// For now also exclude bridge from using new ipam
-	if n.Type() == "host" || n.Type() == "null" || n.Type() == "bridge" {
+	if n.Type() == "host" || n.Type() == "null" {
 		return nil
 	}
 
@@ -860,7 +860,7 @@ func (n *network) ipamAllocateVersion(ipVer int, ipam ipamapi.Ipam) error {
 
 	*infoList = make([]*IpamInfo, len(*cfgList))
 
-	log.Debugf("allocating IPv%d pools for network %s (%s)", ipVer, n.Name(), n.ID())
+	log.Debugf("Allocating IPv%d pools for network %s (%s)", ipVer, n.Name(), n.ID())
 
 	for i, cfg := range *cfgList {
 		if err = cfg.Validate(); err != nil {
@@ -921,8 +921,8 @@ func (n *network) ipamAllocateVersion(ipVer int, ipam ipamapi.Ipam) error {
 }
 
 func (n *network) ipamRelease() {
-	// For now also exclude bridge from using new ipam
-	if n.Type() == "host" || n.Type() == "null" || n.Type() == "bridge" {
+	// For now exclude host and null
+	if n.Type() == "host" || n.Type() == "null" {
 		return
 	}
 	ipam, err := n.getController().getIpamDriver(n.ipamType)

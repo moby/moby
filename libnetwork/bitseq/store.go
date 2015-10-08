@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/types"
 )
@@ -25,27 +24,16 @@ func (h *Handle) KeyPrefix() []string {
 
 // Value marshals the data to be stored in the KV store
 func (h *Handle) Value() []byte {
-	b, err := h.ToByteArray()
+	b, err := json.Marshal(h)
 	if err != nil {
-		log.Warnf("Failed to serialize Handle: %v", err)
-		b = []byte{}
+		return nil
 	}
-	jv, err := json.Marshal(b)
-	if err != nil {
-		log.Warnf("Failed to json encode bitseq handler byte array: %v", err)
-		return []byte{}
-	}
-	return jv
+	return b
 }
 
 // SetValue unmarshals the data from the KV store
 func (h *Handle) SetValue(value []byte) error {
-	var b []byte
-	if err := json.Unmarshal(value, &b); err != nil {
-		return err
-	}
-
-	return h.FromByteArray(b)
+	return json.Unmarshal(value, h)
 }
 
 // Index returns the latest DB Index as seen by this object
@@ -77,7 +65,6 @@ func (h *Handle) New() datastore.KVObject {
 
 	return &Handle{
 		app:   h.app,
-		id:    h.id,
 		store: h.store,
 	}
 }
