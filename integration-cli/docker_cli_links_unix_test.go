@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 
+	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/go-check/check"
 )
 
@@ -20,8 +21,6 @@ func (s *DockerSuite) TestLinksEtcHostsContentMatch(c *check.C) {
 		c.Skip("/etc/hosts does not exist, skip this test")
 	}
 
-	if out != string(hosts) {
-		c.Errorf("container: %s\n\nhost:%s", out, hosts)
-	}
+	c.Assert(out, checker.Equals, string(hosts), check.Commentf("container: %s\n\nhost:%s", out, hosts))
 
 }
