@@ -5,7 +5,6 @@ description = "The login command description and usage"
 keywords = ["registry, login, image"]
 [menu.main]
 parent = "smn_cli"
-weight=1
 +++
 <![end-metadata]-->
 
@@ -26,5 +25,3 @@ adding the server name.
 
     example:
     $ docker login localhost:8080
-
-

@@ -5,7 +5,7 @@ description = "The daemon command description and usage"
 keywords = ["container, daemon, runtime"]
 [menu.main]
 parent = "smn_cli"
-weight=1
+weight = -1
 +++
 <![end-metadata]-->
 
@@ -551,5 +551,3 @@ set like this:
     # or
     export DOCKER_TMPDIR=/mnt/disk2/tmp
     /usr/local/bin/docker daemon -D -g /var/lib/docker -H unix:// > /var/lib/docker-machine/docker.log 2>&1
-
-

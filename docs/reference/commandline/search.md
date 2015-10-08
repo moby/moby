@@ -5,7 +5,6 @@ description = "The search command description and usage"
 keywords = ["search, hub, images"]
 [menu.main]
 parent = "smn_cli"
-weight=1
 +++
 <![end-metadata]-->
 
@@ -27,4 +26,3 @@ more details on finding shared images from the command line.
 
 > **Note:**
 > Search queries will only return up to 25 results
-

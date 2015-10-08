@@ -5,7 +5,6 @@ description = "The run command description and usage"
 keywords = ["run, command, container"]
 [menu.main]
 parent = "smn_cli"
-weight=1
 +++
 <![end-metadata]-->
 
@@ -101,7 +100,7 @@ and linking containers.
     $ docker ps -a | grep test
     d6c0fe130dba        debian:7            "/bin/bash"         26 seconds ago      Exited (13) 17 seconds ago                         test
 
-This example runs a container named `test` using the `debian:latest` 
+This example runs a container named `test` using the `debian:latest`
 image. The `-it` instructs Docker to allocate a pseudo-TTY connected to
 the container's stdin; creating an interactive `bash` shell in the container.
 In the example, the `bash` shell is quit by entering
@@ -533,8 +532,8 @@ containers with `daemon` user:
     docker run -d -u daemon --ulimit nproc=3 busybox top
     docker run -d -u daemon --ulimit nproc=3 busybox top
 
-The 4th container fails and reports "[8] System error: resource temporarily unavailable" error. 
-This fails because the caller set `nproc=3` resulting in the first three containers using up 
+The 4th container fails and reports "[8] System error: resource temporarily unavailable" error.
+This fails because the caller set `nproc=3` resulting in the first three containers using up
 the three processes quota set for the `daemon` user.
 
 ### Stopping a container with a specific signal

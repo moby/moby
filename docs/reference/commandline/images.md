@@ -5,7 +5,6 @@ description = "The images command description and usage"
 keywords = ["list, docker, images"]
 [menu.main]
 parent = "smn_cli"
-weight=1
 +++
 <![end-metadata]-->
 
@@ -178,4 +177,3 @@ In this example, with the `0.1` value, it returns an empty set because no matche
 
     $ docker images --filter "label=com.example.version=0.1"
     REPOSITORY          TAG                 IMAGE ID            CREATED              VIRTUAL SIZE
-

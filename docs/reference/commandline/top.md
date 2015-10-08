@@ -5,7 +5,6 @@ description = "The top command description and usage"
 keywords = ["container, running, processes"]
 [menu.main]
 parent = "smn_cli"
-weight=1
 +++
 <![end-metadata]-->
 
