@@ -343,15 +343,13 @@ func (c *controller) NewNetwork(networkType, name string, options ...NetworkOpti
 		return nil, err
 	}
 
-	cnfs, err := network.ipamAllocate()
+	err := network.ipamAllocate()
 	if err != nil {
 		return nil, err
 	}
 	defer func() {
 		if err != nil {
-			for _, cn := range cnfs {
-				cn()
-			}
+			network.ipamRelease()
 		}
 	}()
 
@@ -386,7 +384,7 @@ func (c *controller) addNetwork(n *network) error {
 	}
 
 	// Create the network
-	if err := d.CreateNetwork(n.id, n.generic, n.getIPv4Data(), n.getIPv6Data()); err != nil {
+	if err := d.CreateNetwork(n.id, n.generic, n.getIPData(4), n.getIPData(6)); err != nil {
 		return err
 	}
 

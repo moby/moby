@@ -48,7 +48,8 @@ type endpointInterface struct {
 	srcName   string
 	dstPrefix string
 	routes    []*net.IPNet
-	poolID    string
+	v4PoolID  string
+	v6PoolID  string
 }
 
 func (epi *endpointInterface) MarshalJSON() ([]byte, error) {
@@ -69,7 +70,8 @@ func (epi *endpointInterface) MarshalJSON() ([]byte, error) {
 		routes = append(routes, route.String())
 	}
 	epMap["routes"] = routes
-	epMap["poolID"] = epi.poolID
+	epMap["v4PoolID"] = epi.v4PoolID
+	epMap["v6PoolID"] = epi.v6PoolID
 	return json.Marshal(epMap)
 }
 
@@ -111,7 +113,8 @@ func (epi *endpointInterface) UnmarshalJSON(b []byte) error {
 			epi.routes = append(epi.routes, ipr)
 		}
 	}
-	epi.poolID = epMap["poolID"].(string)
+	epi.v4PoolID = epMap["v4PoolID"].(string)
+	epi.v6PoolID = epMap["v6PoolID"].(string)
 
 	return nil
 }
@@ -122,7 +125,8 @@ func (epi *endpointInterface) CopyTo(dstEpi *endpointInterface) error {
 	dstEpi.addrv6 = types.GetIPNetCopy(epi.addrv6)
 	dstEpi.srcName = epi.srcName
 	dstEpi.dstPrefix = epi.dstPrefix
-	dstEpi.poolID = epi.poolID
+	dstEpi.v4PoolID = epi.v4PoolID
+	dstEpi.v6PoolID = epi.v6PoolID
 
 	for _, route := range epi.routes {
 		dstEpi.routes = append(dstEpi.routes, types.GetIPNetCopy(route))

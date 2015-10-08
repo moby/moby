@@ -197,7 +197,8 @@ func TestEndpointMarshalling(t *testing.T) {
 			addrv6:    nw6,
 			srcName:   "veth12ab1314",
 			dstPrefix: "eth",
-			poolID:    "poolpool",
+			v4PoolID:  "poolpool",
+			v6PoolID:  "poolv6",
 		},
 	}
 
@@ -224,7 +225,7 @@ func compareEndpointInterface(a, b *endpointInterface) bool {
 	if a == nil || b == nil {
 		return false
 	}
-	return a.srcName == b.srcName && a.dstPrefix == b.dstPrefix && a.poolID == b.poolID &&
+	return a.srcName == b.srcName && a.dstPrefix == b.dstPrefix && a.v4PoolID == b.v4PoolID && a.v6PoolID == b.v6PoolID &&
 		types.CompareIPNet(a.addr, b.addr) && types.CompareIPNet(a.addrv6, b.addrv6)
 }
 
@@ -319,7 +320,7 @@ func TestAuxAddresses(t *testing.T) {
 
 		n.ipamV4Config = []*IpamConf{&IpamConf{PreferredPool: i.masterPool, SubPool: i.subPool, AuxAddresses: i.auxAddresses}}
 
-		_, err := n.ipamAllocate()
+		err = n.ipamAllocate()
 
 		if i.good != (err == nil) {
 			t.Fatalf("Unexpected result for %v: %v", i, err)
