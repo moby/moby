@@ -415,3 +415,21 @@ func (s *DockerSuite) TestRunInvalidCpusetMemsFlagValue(c *check.C) {
 	expected := fmt.Sprintf("Error response from daemon: Requested memory nodes are not available - requested %s, available: %s.\n", strconv.Itoa(invalid), sysInfo.Mems)
 	c.Assert(out, check.Equals, expected, check.Commentf("Expected output to contain %q, got %q", expected, out))
 }
+
+func (s *DockerSuite) TestRunInvalidCPUShares(c *check.C) {
+	testRequires(c, cpuShare)
+	out, _, err := dockerCmdWithError("run", "--cpu-shares", "1", "busybox", "echo", "test")
+	c.Assert(err, check.NotNil, check.Commentf(out))
+	expected := "The minimum allowed cpu-shares is 2"
+	c.Assert(out, checker.Contains, expected)
+
+	out, _, err = dockerCmdWithError("run", "--cpu-shares", "-1", "busybox", "echo", "test")
+	c.Assert(err, check.NotNil, check.Commentf(out))
+	expected = "shares: invalid argument"
+	c.Assert(out, checker.Contains, expected)
+
+	out, _, err = dockerCmdWithError("run", "--cpu-shares", "99999999", "busybox", "echo", "test")
+	c.Assert(err, check.NotNil, check.Commentf(out))
+	expected = "The maximum allowed cpu-shares is"
+	c.Assert(out, checker.Contains, expected)
+}
