@@ -32,7 +32,7 @@ func ConvertStringToOperator(in string) (configs.Operator, error) {
 }
 
 // ConvertStringToAction converts a string into a Seccomp rule match action.
-// Actions use the named they are assigned in Libseccomp's header, though some
+// Actions use the names they are assigned in Libseccomp's header, though some
 // (notable, SCMP_ACT_TRACE) are not available in this implementation and will
 // return errors.
 // Attempting to convert a string that is not a valid action results in an
