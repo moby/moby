@@ -2248,7 +2248,7 @@ func (s *DockerSuite) TestBuildContextCleanup(c *check.C) {
 	testRequires(c, SameHostDaemon)
 
 	name := "testbuildcontextcleanup"
-	entries, err := ioutil.ReadDir("/var/lib/docker/tmp")
+	entries, err := ioutil.ReadDir(filepath.Join(dockerBasePath, "tmp"))
 	if err != nil {
 		c.Fatalf("failed to list contents of tmp dir: %s", err)
 	}
@@ -2259,7 +2259,7 @@ func (s *DockerSuite) TestBuildContextCleanup(c *check.C) {
 	if err != nil {
 		c.Fatal(err)
 	}
-	entriesFinal, err := ioutil.ReadDir("/var/lib/docker/tmp")
+	entriesFinal, err := ioutil.ReadDir(filepath.Join(dockerBasePath, "tmp"))
 	if err != nil {
 		c.Fatalf("failed to list contents of tmp dir: %s", err)
 	}
@@ -2274,7 +2274,7 @@ func (s *DockerSuite) TestBuildContextCleanupFailedBuild(c *check.C) {
 	testRequires(c, SameHostDaemon)
 
 	name := "testbuildcontextcleanup"
-	entries, err := ioutil.ReadDir("/var/lib/docker/tmp")
+	entries, err := ioutil.ReadDir(filepath.Join(dockerBasePath, "tmp"))
 	if err != nil {
 		c.Fatalf("failed to list contents of tmp dir: %s", err)
 	}
@@ -2285,7 +2285,7 @@ func (s *DockerSuite) TestBuildContextCleanupFailedBuild(c *check.C) {
 	if err == nil {
 		c.Fatalf("expected build to fail, but it didn't")
 	}
-	entriesFinal, err := ioutil.ReadDir("/var/lib/docker/tmp")
+	entriesFinal, err := ioutil.ReadDir(filepath.Join(dockerBasePath, "tmp"))
 	if err != nil {
 		c.Fatalf("failed to list contents of tmp dir: %s", err)
 	}

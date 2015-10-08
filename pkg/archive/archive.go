@@ -19,6 +19,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/fileutils"
+	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/pools"
 	"github.com/docker/docker/pkg/promise"
 	"github.com/docker/docker/pkg/system"
@@ -41,6 +42,8 @@ type (
 		ExcludePatterns  []string
 		Compression      Compression
 		NoLchown         bool
+		UIDMaps          []idtools.IDMap
+		GIDMaps          []idtools.IDMap
 		ChownOpts        *TarChownOptions
 		IncludeSourceDir bool
 		// When unpacking, specifies whether overwriting a directory with a
@@ -52,9 +55,13 @@ type (
 	}
 
 	// Archiver allows the reuse of most utility functions of this package
-	// with a pluggable Untar function.
+	// with a pluggable Untar function. Also, to facilitate the passing of
+	// specific id mappings for untar, an archiver can be created with maps
+	// which will then be passed to Untar operations
 	Archiver struct {
-		Untar func(io.Reader, string, *TarOptions) error
+		Untar   func(io.Reader, string, *TarOptions) error
+		UIDMaps []idtools.IDMap
+		GIDMaps []idtools.IDMap
 	}
 
 	// breakoutError is used to differentiate errors related to breaking out
@@ -66,7 +73,7 @@ type (
 var (
 	// ErrNotImplemented is the error message of function not implemented.
 	ErrNotImplemented = errors.New("Function not implemented")
-	defaultArchiver   = &Archiver{Untar}
+	defaultArchiver   = &Archiver{Untar: Untar, UIDMaps: nil, GIDMaps: nil}
 )
 
 const (
@@ -194,6 +201,8 @@ type tarAppender struct {
 
 	// for hardlink mapping
 	SeenFiles map[uint64]string
+	UIDMaps   []idtools.IDMap
+	GIDMaps   []idtools.IDMap
 }
 
 // canonicalTarName provides a platform-independent and consistent posix-style
@@ -259,6 +268,25 @@ func (ta *tarAppender) addTarFile(path, name string) error {
 	if capability != nil {
 		hdr.Xattrs = make(map[string]string)
 		hdr.Xattrs["security.capability"] = string(capability)
+	}
+
+	//handle re-mapping container ID mappings back to host ID mappings before
+	//writing tar headers/files
+	if ta.UIDMaps != nil || ta.GIDMaps != nil {
+		uid, gid, err := getFileUIDGID(fi.Sys())
+		if err != nil {
+			return err
+		}
+		xUID, err := idtools.ToContainer(uid, ta.UIDMaps)
+		if err != nil {
+			return err
+		}
+		xGID, err := idtools.ToContainer(gid, ta.GIDMaps)
+		if err != nil {
+			return err
+		}
+		hdr.Uid = xUID
+		hdr.Gid = xGID
 	}
 
 	if err := ta.TarWriter.WriteHeader(hdr); err != nil {
@@ -427,6 +455,8 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 			TarWriter: tar.NewWriter(compressWriter),
 			Buffer:    pools.BufioWriter32KPool.Get(nil),
 			SeenFiles: make(map[uint64]string),
+			UIDMaps:   options.UIDMaps,
+			GIDMaps:   options.GIDMaps,
 		}
 
 		defer func() {
@@ -554,6 +584,10 @@ func Unpack(decompressedArchive io.Reader, dest string, options *TarOptions) err
 	defer pools.BufioReader32KPool.Put(trBuf)
 
 	var dirs []*tar.Header
+	remappedRootUID, remappedRootGID, err := idtools.GetRootUIDGID(options.UIDMaps, options.GIDMaps)
+	if err != nil {
+		return err
+	}
 
 	// Iterate through the files in the archive.
 loop:
@@ -631,6 +665,28 @@ loop:
 		}
 		trBuf.Reset(tr)
 
+		// if the options contain a uid & gid maps, convert header uid/gid
+		// entries using the maps such that lchown sets the proper mapped
+		// uid/gid after writing the file. We only perform this mapping if
+		// the file isn't already owned by the remapped root UID or GID, as
+		// that specific uid/gid has no mapping from container -> host, and
+		// those files already have the proper ownership for inside the
+		// container.
+		if hdr.Uid != remappedRootUID {
+			xUID, err := idtools.ToHost(hdr.Uid, options.UIDMaps)
+			if err != nil {
+				return err
+			}
+			hdr.Uid = xUID
+		}
+		if hdr.Gid != remappedRootGID {
+			xGID, err := idtools.ToHost(hdr.Gid, options.GIDMaps)
+			if err != nil {
+				return err
+			}
+			hdr.Gid = xGID
+		}
+
 		if err := createTarFile(path, dest, hdr, trBuf, !options.NoLchown, options.ChownOpts); err != nil {
 			return err
 		}
@@ -703,7 +759,15 @@ func (archiver *Archiver) TarUntar(src, dst string) error {
 		return err
 	}
 	defer archive.Close()
-	return archiver.Untar(archive, dst, nil)
+
+	var options *TarOptions
+	if archiver.UIDMaps != nil || archiver.GIDMaps != nil {
+		options = &TarOptions{
+			UIDMaps: archiver.UIDMaps,
+			GIDMaps: archiver.GIDMaps,
+		}
+	}
+	return archiver.Untar(archive, dst, options)
 }
 
 // TarUntar is a convenience function which calls Tar and Untar, with the output of one piped into the other.
@@ -719,7 +783,14 @@ func (archiver *Archiver) UntarPath(src, dst string) error {
 		return err
 	}
 	defer archive.Close()
-	if err := archiver.Untar(archive, dst, nil); err != nil {
+	var options *TarOptions
+	if archiver.UIDMaps != nil || archiver.GIDMaps != nil {
+		options = &TarOptions{
+			UIDMaps: archiver.UIDMaps,
+			GIDMaps: archiver.GIDMaps,
+		}
+	}
+	if err := archiver.Untar(archive, dst, options); err != nil {
 		return err
 	}
 	return nil
@@ -801,6 +872,28 @@ func (archiver *Archiver) CopyFileWithTar(src, dst string) (err error) {
 		hdr.Name = filepath.Base(dst)
 		hdr.Mode = int64(chmodTarEntry(os.FileMode(hdr.Mode)))
 
+		remappedRootUID, remappedRootGID, err := idtools.GetRootUIDGID(archiver.UIDMaps, archiver.GIDMaps)
+		if err != nil {
+			return err
+		}
+
+		// only perform mapping if the file being copied isn't already owned by the
+		// uid or gid of the remapped root in the container
+		if remappedRootUID != hdr.Uid {
+			xUID, err := idtools.ToHost(hdr.Uid, archiver.UIDMaps)
+			if err != nil {
+				return err
+			}
+			hdr.Uid = xUID
+		}
+		if remappedRootGID != hdr.Gid {
+			xGID, err := idtools.ToHost(hdr.Gid, archiver.GIDMaps)
+			if err != nil {
+				return err
+			}
+			hdr.Gid = xGID
+		}
+
 		tw := tar.NewWriter(w)
 		defer tw.Close()
 		if err := tw.WriteHeader(hdr); err != nil {
@@ -816,6 +909,7 @@ func (archiver *Archiver) CopyFileWithTar(src, dst string) (err error) {
 			err = er
 		}
 	}()
+
 	return archiver.Untar(r, filepath.Dir(dst), nil)
 }
 

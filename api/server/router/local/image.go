@@ -18,6 +18,8 @@ import (
 	"github.com/docker/docker/daemon/daemonbuilder"
 	"github.com/docker/docker/graph"
 	"github.com/docker/docker/graph/tags"
+	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/progressreader"
@@ -393,7 +395,13 @@ func (s *router) postBuild(ctx context.Context, w http.ResponseWriter, r *http.R
 		}
 	}()
 
-	docker := daemonbuilder.Docker{s.daemon, output, authConfigs}
+	uidMaps, gidMaps := s.daemon.GetUIDGIDMaps()
+	defaultArchiver := &archive.Archiver{
+		Untar:   chrootarchive.Untar,
+		UIDMaps: uidMaps,
+		GIDMaps: gidMaps,
+	}
+	docker := daemonbuilder.Docker{s.daemon, output, authConfigs, defaultArchiver}
 
 	b, err := dockerfile.NewBuilder(buildConfig, docker, builder.DockerIgnoreContext{context}, nil)
 	if err != nil {

@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/volume"
 )
 
@@ -28,10 +29,10 @@ var ErrNotFound = errors.New("volume not found")
 // New instantiates a new Root instance with the provided scope. Scope
 // is the base path that the Root instance uses to store its
 // volumes. The base path is created here if it does not exist.
-func New(scope string) (*Root, error) {
+func New(scope string, rootUID, rootGID int) (*Root, error) {
 	rootDirectory := filepath.Join(scope, volumesPathName)
 
-	if err := os.MkdirAll(rootDirectory, 0700); err != nil {
+	if err := idtools.MkdirAllAs(rootDirectory, 0700, rootUID, rootGID); err != nil {
 		return nil, err
 	}
 
@@ -39,6 +40,8 @@ func New(scope string) (*Root, error) {
 		scope:   scope,
 		path:    rootDirectory,
 		volumes: make(map[string]*localVolume),
+		rootUID: rootUID,
+		rootGID: rootGID,
 	}
 
 	dirs, err := ioutil.ReadDir(rootDirectory)
@@ -66,6 +69,8 @@ type Root struct {
 	scope   string
 	path    string
 	volumes map[string]*localVolume
+	rootUID int
+	rootGID int
 }
 
 // List lists all the volumes
@@ -100,7 +105,7 @@ func (r *Root) Create(name string, _ map[string]string) (volume.Volume, error) {
 	}
 
 	path := r.DataPath(name)
-	if err := os.MkdirAll(path, 0755); err != nil {
+	if err := idtools.MkdirAllAs(path, 0755, r.rootUID, r.rootGID); err != nil {
 		if os.IsExist(err) {
 			return nil, fmt.Errorf("volume already exists under %s", filepath.Dir(path))
 		}

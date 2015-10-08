@@ -83,7 +83,7 @@ func (s *DockerExternalGraphdriverSuite) SetUpSuite(c *check.C) {
 		w.Header().Set("Content-Type", "appplication/vnd.docker.plugins.v1+json")
 		switch t := data.(type) {
 		case error:
-			fmt.Fprintln(w, fmt.Sprintf(`{"Err": %s}`, t.Error()))
+			fmt.Fprintln(w, fmt.Sprintf(`{"Err": %q}`, t.Error()))
 		case string:
 			fmt.Fprintln(w, t)
 		default:
@@ -91,13 +91,21 @@ func (s *DockerExternalGraphdriverSuite) SetUpSuite(c *check.C) {
 		}
 	}
 
+	decReq := func(b io.ReadCloser, out interface{}, w http.ResponseWriter) error {
+		defer b.Close()
+		if err := json.NewDecoder(b).Decode(&out); err != nil {
+			http.Error(w, fmt.Sprintf("error decoding json: %s", err.Error()), 500)
+		}
+		return nil
+	}
+
 	base, err := ioutil.TempDir("", "external-graph-test")
 	c.Assert(err, check.IsNil)
-	vfsProto, err := vfs.Init(base, []string{})
+	vfsProto, err := vfs.Init(base, []string{}, nil, nil)
 	if err != nil {
 		c.Fatalf("error initializing graph driver: %v", err)
 	}
-	driver := graphdriver.NewNaiveDiffDriver(vfsProto)
+	driver := graphdriver.NewNaiveDiffDriver(vfsProto, nil, nil)
 
 	mux.HandleFunc("/Plugin.Activate", func(w http.ResponseWriter, r *http.Request) {
 		s.ec.activations++
@@ -113,8 +121,7 @@ func (s *DockerExternalGraphdriverSuite) SetUpSuite(c *check.C) {
 		s.ec.creations++
 
 		var req graphDriverRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, err.Error(), 500)
+		if err := decReq(r.Body, &req, w); err != nil {
 			return
 		}
 		if err := driver.Create(req.ID, req.Parent); err != nil {
@@ -128,8 +135,7 @@ func (s *DockerExternalGraphdriverSuite) SetUpSuite(c *check.C) {
 		s.ec.removals++
 
 		var req graphDriverRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, err.Error(), 500)
+		if err := decReq(r.Body, &req, w); err != nil {
 			return
 		}
 
@@ -144,8 +150,8 @@ func (s *DockerExternalGraphdriverSuite) SetUpSuite(c *check.C) {
 		s.ec.gets++
 
 		var req graphDriverRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, err.Error(), 500)
+		if err := decReq(r.Body, &req, w); err != nil {
+			return
 		}
 
 		dir, err := driver.Get(req.ID, req.MountLabel)
@@ -160,8 +166,7 @@ func (s *DockerExternalGraphdriverSuite) SetUpSuite(c *check.C) {
 		s.ec.puts++
 
 		var req graphDriverRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, err.Error(), 500)
+		if err := decReq(r.Body, &req, w); err != nil {
 			return
 		}
 
@@ -176,8 +181,7 @@ func (s *DockerExternalGraphdriverSuite) SetUpSuite(c *check.C) {
 		s.ec.exists++
 
 		var req graphDriverRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, err.Error(), 500)
+		if err := decReq(r.Body, &req, w); err != nil {
 			return
 		}
 		respond(w, &graphDriverResponse{Exists: driver.Exists(req.ID)})
@@ -185,7 +189,7 @@ func (s *DockerExternalGraphdriverSuite) SetUpSuite(c *check.C) {
 
 	mux.HandleFunc("/GraphDriver.Status", func(w http.ResponseWriter, r *http.Request) {
 		s.ec.stats++
-		respond(w, `{"Status":{}}`)
+		respond(w, &graphDriverResponse{Status: driver.Status()})
 	})
 
 	mux.HandleFunc("/GraphDriver.Cleanup", func(w http.ResponseWriter, r *http.Request) {
@@ -202,8 +206,7 @@ func (s *DockerExternalGraphdriverSuite) SetUpSuite(c *check.C) {
 		s.ec.metadata++
 
 		var req graphDriverRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, err.Error(), 500)
+		if err := decReq(r.Body, &req, w); err != nil {
 			return
 		}
 
@@ -219,8 +222,7 @@ func (s *DockerExternalGraphdriverSuite) SetUpSuite(c *check.C) {
 		s.ec.diff++
 
 		var req graphDriverRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, err.Error(), 500)
+		if err := decReq(r.Body, &req, w); err != nil {
 			return
 		}
 
@@ -235,8 +237,7 @@ func (s *DockerExternalGraphdriverSuite) SetUpSuite(c *check.C) {
 	mux.HandleFunc("/GraphDriver.Changes", func(w http.ResponseWriter, r *http.Request) {
 		s.ec.changes++
 		var req graphDriverRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, err.Error(), 500)
+		if err := decReq(r.Body, &req, w); err != nil {
 			return
 		}
 
@@ -250,10 +251,17 @@ func (s *DockerExternalGraphdriverSuite) SetUpSuite(c *check.C) {
 
 	mux.HandleFunc("/GraphDriver.ApplyDiff", func(w http.ResponseWriter, r *http.Request) {
 		s.ec.applydiff++
+		var diff archive.Reader = r.Body
+		defer r.Body.Close()
+
 		id := r.URL.Query().Get("id")
 		parent := r.URL.Query().Get("parent")
 
-		size, err := driver.ApplyDiff(id, parent, r.Body)
+		if id == "" {
+			http.Error(w, fmt.Sprintf("missing id"), 409)
+		}
+
+		size, err := driver.ApplyDiff(id, parent, diff)
 		if err != nil {
 			respond(w, err)
 			return
@@ -265,8 +273,7 @@ func (s *DockerExternalGraphdriverSuite) SetUpSuite(c *check.C) {
 		s.ec.diffsize++
 
 		var req graphDriverRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, err.Error(), 500)
+		if err := decReq(r.Body, &req, w); err != nil {
 			return
 		}
 
@@ -296,7 +303,10 @@ func (s *DockerExternalGraphdriverSuite) TearDownSuite(c *check.C) {
 }
 
 func (s *DockerExternalGraphdriverSuite) TestExternalGraphDriver(c *check.C) {
-	c.Assert(s.d.StartWithBusybox("-s", "test-external-graph-driver"), check.IsNil)
+	if err := s.d.StartWithBusybox("-s", "test-external-graph-driver"); err != nil {
+		b, _ := ioutil.ReadFile(s.d.LogfileName())
+		c.Assert(err, check.IsNil, check.Commentf("\n%s", string(b)))
+	}
 
 	out, err := s.d.Cmd("run", "-d", "--name=graphtest", "busybox", "sh", "-c", "echo hello > /hello")
 	c.Assert(err, check.IsNil, check.Commentf(out))
@@ -326,7 +336,7 @@ func (s *DockerExternalGraphdriverSuite) TestExternalGraphDriver(c *check.C) {
 	c.Assert(s.ec.removals >= 1, check.Equals, true)
 	c.Assert(s.ec.gets >= 1, check.Equals, true)
 	c.Assert(s.ec.puts >= 1, check.Equals, true)
-	c.Assert(s.ec.stats, check.Equals, 1)
+	c.Assert(s.ec.stats, check.Equals, 3)
 	c.Assert(s.ec.cleanups, check.Equals, 2)
 	c.Assert(s.ec.exists >= 1, check.Equals, true)
 	c.Assert(s.ec.applydiff >= 1, check.Equals, true)

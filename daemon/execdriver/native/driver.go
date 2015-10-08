@@ -443,22 +443,35 @@ func (t *TtyConsole) Close() error {
 }
 
 func setupPipes(container *configs.Config, processConfig *execdriver.ProcessConfig, p *libcontainer.Process, pipes *execdriver.Pipes) error {
-	var term execdriver.Terminal
-	var err error
+
+	rootuid, err := container.HostUID()
+	if err != nil {
+		return err
+	}
 
 	if processConfig.Tty {
-		rootuid, err := container.HostUID()
-		if err != nil {
-			return err
-		}
 		cons, err := p.NewConsole(rootuid)
 		if err != nil {
 			return err
 		}
-		term, err = NewTtyConsole(cons, pipes)
-	} else {
+		term, err := NewTtyConsole(cons, pipes)
+		if err != nil {
+			return err
+		}
+		processConfig.Terminal = term
+		return nil
+	}
+	// not a tty--set up stdio pipes
+	term := &execdriver.StdConsole{}
+	processConfig.Terminal = term
+
+	// if we are not in a user namespace, there is no reason to go through
+	// the hassle of setting up os-level pipes with proper (remapped) ownership
+	// so we will do the prior shortcut for non-userns containers
+	if rootuid == 0 {
 		p.Stdout = pipes.Stdout
 		p.Stderr = pipes.Stderr
+
 		r, w, err := os.Pipe()
 		if err != nil {
 			return err
@@ -470,12 +483,57 @@ func setupPipes(container *configs.Config, processConfig *execdriver.ProcessConf
 			}()
 			p.Stdin = r
 		}
-		term = &execdriver.StdConsole{}
+		return nil
 	}
+
+	// if we have user namespaces enabled (rootuid != 0), we will set
+	// up os pipes for stderr, stdout, stdin so we can chown them to
+	// the proper ownership to allow for proper access to the underlying
+	// fds
+	var fds []int
+
+	//setup stdout
+	r, w, err := os.Pipe()
 	if err != nil {
 		return err
 	}
-	processConfig.Terminal = term
+	fds = append(fds, int(r.Fd()), int(w.Fd()))
+	if pipes.Stdout != nil {
+		go io.Copy(pipes.Stdout, r)
+	}
+	term.Closers = append(term.Closers, r)
+	p.Stdout = w
+
+	//setup stderr
+	r, w, err = os.Pipe()
+	if err != nil {
+		return err
+	}
+	fds = append(fds, int(r.Fd()), int(w.Fd()))
+	if pipes.Stderr != nil {
+		go io.Copy(pipes.Stderr, r)
+	}
+	term.Closers = append(term.Closers, r)
+	p.Stderr = w
+
+	//setup stdin
+	r, w, err = os.Pipe()
+	if err != nil {
+		return err
+	}
+	fds = append(fds, int(r.Fd()), int(w.Fd()))
+	if pipes.Stdin != nil {
+		go func() {
+			io.Copy(w, pipes.Stdin)
+			w.Close()
+		}()
+		p.Stdin = r
+	}
+	for _, fd := range fds {
+		if err := syscall.Fchown(fd, rootuid, rootuid); err != nil {
+			return fmt.Errorf("Failed to chown pipes fd: %v", err)
+		}
+	}
 	return nil
 }
 

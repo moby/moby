@@ -21,6 +21,7 @@ import (
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/chrootarchive"
+	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/random"
 	"github.com/microsoft/hcsshim"
@@ -50,7 +51,7 @@ type Driver struct {
 }
 
 // InitFilter returns a new Windows storage filter driver.
-func InitFilter(home string, options []string) (graphdriver.Driver, error) {
+func InitFilter(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (graphdriver.Driver, error) {
 	logrus.Debugf("WindowsGraphDriver InitFilter at %s", home)
 	d := &Driver{
 		info: hcsshim.DriverInfo{
@@ -63,7 +64,7 @@ func InitFilter(home string, options []string) (graphdriver.Driver, error) {
 }
 
 // InitDiff returns a new Windows differencing disk driver.
-func InitDiff(home string, options []string) (graphdriver.Driver, error) {
+func InitDiff(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (graphdriver.Driver, error) {
 	logrus.Debugf("WindowsGraphDriver InitDiff at %s", home)
 	d := &Driver{
 		info: hcsshim.DriverInfo{
@@ -328,7 +329,7 @@ func (d *Driver) ApplyDiff(id, parent string, diff archive.Reader) (size int64, 
 		logrus.Debugf("WindowsGraphDriver ApplyDiff: Start untar layer")
 		destination := d.dir(id)
 		destination = filepath.Dir(destination)
-		if size, err = chrootarchive.ApplyUncompressedLayer(destination, diff); err != nil {
+		if size, err = chrootarchive.ApplyUncompressedLayer(destination, diff, nil); err != nil {
 			return
 		}
 		logrus.Debugf("WindowsGraphDriver ApplyDiff: Untar time: %vs", time.Now().UTC().Sub(start).Seconds())

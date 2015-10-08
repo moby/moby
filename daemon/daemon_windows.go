@@ -25,7 +25,7 @@ func parseSecurityOpt(container *Container, config *runconfig.HostConfig) error 
 	return nil
 }
 
-func setupInitLayer(initLayer string) error {
+func setupInitLayer(initLayer string, rootUID, rootGID int) error {
 	return nil
 }
 
@@ -89,7 +89,7 @@ func migrateIfDownlevel(driver graphdriver.Driver, root string) error {
 	return nil
 }
 
-func configureSysInit(config *Config) (string, error) {
+func configureSysInit(config *Config, rootUID, rootGID int) (string, error) {
 	// TODO Windows.
 	return os.Getenv("TEMP"), nil
 }

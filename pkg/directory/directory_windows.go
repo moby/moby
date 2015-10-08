@@ -5,7 +5,6 @@ package directory
 import (
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/docker/docker/pkg/longpath"
 )

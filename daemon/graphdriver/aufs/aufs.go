@@ -34,12 +34,15 @@ import (
 	"syscall"
 
 	"github.com/Sirupsen/logrus"
+
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/directory"
+	"github.com/docker/docker/pkg/idtools"
 	mountpk "github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/stringid"
+
 	"github.com/opencontainers/runc/libcontainer/label"
 )
 
@@ -71,13 +74,15 @@ type data struct {
 // active maps mount id to the count
 type Driver struct {
 	root       string
+	uidMaps    []idtools.IDMap
+	gidMaps    []idtools.IDMap
 	sync.Mutex // Protects concurrent modification to active
 	active     map[string]*data
 }
 
 // Init returns a new AUFS driver.
 // An error is returned if AUFS is not supported.
-func Init(root string, options []string) (graphdriver.Driver, error) {
+func Init(root string, options []string, uidMaps, gidMaps []idtools.IDMap) (graphdriver.Driver, error) {
 
 	// Try to load the aufs kernel module
 	if err := supportsAufs(); err != nil {
@@ -105,12 +110,23 @@ func Init(root string, options []string) (graphdriver.Driver, error) {
 	}
 
 	a := &Driver{
-		root:   root,
-		active: make(map[string]*data),
+		root:    root,
+		active:  make(map[string]*data),
+		uidMaps: uidMaps,
+		gidMaps: gidMaps,
 	}
 
-	// Create the root aufs driver dir
-	if err := os.MkdirAll(root, 0755); err != nil {
+	rootUID, rootGID, err := idtools.GetRootUIDGID(uidMaps, gidMaps)
+	if err != nil {
+		return nil, err
+	}
+	// Create the root aufs driver dir and return
+	// if it already exists
+	// If not populate the dir structure
+	if err := idtools.MkdirAllAs(root, 0755, rootUID, rootGID); err != nil {
+		if os.IsExist(err) {
+			return a, nil
+		}
 		return nil, err
 	}
 
@@ -120,7 +136,7 @@ func Init(root string, options []string) (graphdriver.Driver, error) {
 
 	// Populate the dir structure
 	for _, p := range paths {
-		if err := os.MkdirAll(path.Join(root, p), 0755); err != nil {
+		if err := idtools.MkdirAllAs(path.Join(root, p), 0755, rootUID, rootGID); err != nil {
 			return nil, err
 		}
 	}
@@ -221,8 +237,12 @@ func (a *Driver) createDirsFor(id string) error {
 		"diff",
 	}
 
+	rootUID, rootGID, err := idtools.GetRootUIDGID(a.uidMaps, a.gidMaps)
+	if err != nil {
+		return err
+	}
 	for _, p := range paths {
-		if err := os.MkdirAll(path.Join(a.rootPath(), p, id), 0755); err != nil {
+		if err := idtools.MkdirAllAs(path.Join(a.rootPath(), p, id), 0755, rootUID, rootGID); err != nil {
 			return err
 		}
 	}
@@ -334,11 +354,16 @@ func (a *Driver) Diff(id, parent string) (archive.Archive, error) {
 	return archive.TarWithOptions(path.Join(a.rootPath(), "diff", id), &archive.TarOptions{
 		Compression:     archive.Uncompressed,
 		ExcludePatterns: []string{archive.WhiteoutMetaPrefix + "*", "!" + archive.WhiteoutOpaqueDir},
+		UIDMaps:         a.uidMaps,
+		GIDMaps:         a.gidMaps,
 	})
 }
 
 func (a *Driver) applyDiff(id string, diff archive.Reader) error {
-	return chrootarchive.UntarUncompressed(diff, path.Join(a.rootPath(), "diff", id), nil)
+	return chrootarchive.UntarUncompressed(diff, path.Join(a.rootPath(), "diff", id), &archive.TarOptions{
+		UIDMaps: a.uidMaps,
+		GIDMaps: a.gidMaps,
+	})
 }
 
 // DiffSize calculates the changes between the specified id

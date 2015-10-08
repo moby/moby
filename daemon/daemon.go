@@ -37,6 +37,7 @@ import (
 	"github.com/docker/docker/pkg/discovery"
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/graphdb"
+	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/namesgenerator"
 	"github.com/docker/docker/pkg/nat"
@@ -121,6 +122,8 @@ type Daemon struct {
 	discoveryWatcher discovery.Watcher
 	root             string
 	shutdown         bool
+	uidMaps          []idtools.IDMap
+	gidMaps          []idtools.IDMap
 }
 
 // Get looks for a container using the provided information, which could be
@@ -632,6 +635,15 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 	// on Windows to dump Go routine stacks
 	setupDumpStackTrap()
 
+	uidMaps, gidMaps, err := setupRemappedRoot(config)
+	if err != nil {
+		return nil, err
+	}
+	rootUID, rootGID, err := idtools.GetRootUIDGID(uidMaps, gidMaps)
+	if err != nil {
+		return nil, err
+	}
+
 	// get the canonical path to the Docker root directory
 	var realRoot string
 	if _, err := os.Stat(config.Root); err != nil && os.IsNotExist(err) {
@@ -642,14 +654,13 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 			return nil, fmt.Errorf("Unable to get the full path to root (%s): %s", config.Root, err)
 		}
 	}
-	config.Root = realRoot
-	// Create the root directory if it doesn't exists
-	if err := system.MkdirAll(config.Root, 0700); err != nil {
+
+	if err = setupDaemonRoot(config, realRoot, rootUID, rootGID); err != nil {
 		return nil, err
 	}
 
 	// set up the tmpDir to use a canonical path
-	tmp, err := tempDir(config.Root)
+	tmp, err := tempDir(config.Root, rootUID, rootGID)
 	if err != nil {
 		return nil, fmt.Errorf("Unable to get the TempDir under %s: %s", config.Root, err)
 	}
@@ -663,7 +674,7 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 	graphdriver.DefaultDriver = config.GraphDriver
 
 	// Load storage driver
-	driver, err := graphdriver.New(config.Root, config.GraphOptions)
+	driver, err := graphdriver.New(config.Root, config.GraphOptions, uidMaps, gidMaps)
 	if err != nil {
 		return nil, fmt.Errorf("error initializing graphdriver: %v", err)
 	}
@@ -696,7 +707,7 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 
 	daemonRepo := filepath.Join(config.Root, "containers")
 
-	if err := system.MkdirAll(daemonRepo, 0700); err != nil {
+	if err := idtools.MkdirAllAs(daemonRepo, 0700, rootUID, rootGID); err != nil && !os.IsExist(err) {
 		return nil, err
 	}
 
@@ -706,13 +717,13 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 	}
 
 	logrus.Debug("Creating images graph")
-	g, err := graph.NewGraph(filepath.Join(config.Root, "graph"), d.driver)
+	g, err := graph.NewGraph(filepath.Join(config.Root, "graph"), d.driver, uidMaps, gidMaps)
 	if err != nil {
 		return nil, err
 	}
 
 	// Configure the volumes driver
-	volStore, err := configureVolumes(config)
+	volStore, err := configureVolumes(config, rootUID, rootGID)
 	if err != nil {
 		return nil, err
 	}
@@ -777,7 +788,7 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 
 	var sysInitPath string
 	if config.ExecDriver == "lxc" {
-		initPath, err := configureSysInit(config)
+		initPath, err := configureSysInit(config, rootUID, rootGID)
 		if err != nil {
 			return nil, err
 		}
@@ -812,6 +823,8 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 	d.EventsService = eventsService
 	d.volumes = volStore
 	d.root = config.Root
+	d.uidMaps = uidMaps
+	d.gidMaps = gidMaps
 
 	if err := d.cleanupMounts(); err != nil {
 		return nil, err
@@ -974,7 +987,11 @@ func (daemon *Daemon) diff(container *Container) (archive.Archive, error) {
 func (daemon *Daemon) createRootfs(container *Container) error {
 	// Step 1: create the container directory.
 	// This doubles as a barrier to avoid race conditions.
-	if err := os.Mkdir(container.root, 0700); err != nil {
+	rootUID, rootGID, err := idtools.GetRootUIDGID(daemon.uidMaps, daemon.gidMaps)
+	if err != nil {
+		return err
+	}
+	if err := idtools.MkdirAs(container.root, 0700, rootUID, rootGID); err != nil {
 		return err
 	}
 	initID := fmt.Sprintf("%s-init", container.ID)
@@ -986,7 +1003,7 @@ func (daemon *Daemon) createRootfs(container *Container) error {
 		return err
 	}
 
-	if err := setupInitLayer(initPath); err != nil {
+	if err := setupInitLayer(initPath, rootUID, rootGID); err != nil {
 		daemon.driver.Put(initID)
 		return err
 	}
@@ -1105,6 +1122,21 @@ func (daemon *Daemon) containerGraph() *graphdb.Database {
 	return daemon.containerGraphDB
 }
 
+// GetUIDGIDMaps returns the current daemon's user namespace settings
+// for the full uid and gid maps which will be applied to containers
+// started in this instance.
+func (daemon *Daemon) GetUIDGIDMaps() ([]idtools.IDMap, []idtools.IDMap) {
+	return daemon.uidMaps, daemon.gidMaps
+}
+
+// GetRemappedUIDGID returns the current daemon's uid and gid values
+// if user namespaces are in use for this daemon instance.  If not
+// this function will return "real" root values of 0, 0.
+func (daemon *Daemon) GetRemappedUIDGID() (int, int) {
+	uid, gid, _ := idtools.GetRootUIDGID(daemon.uidMaps, daemon.gidMaps)
+	return uid, gid
+}
+
 // ImageGetCached returns the earliest created image that is a child
 // of the image with imgID, that had the same config when it was
 // created. nil is returned if a child cannot be found. An error is
@@ -1139,12 +1171,12 @@ func (daemon *Daemon) ImageGetCached(imgID string, config *runconfig.Config) (*i
 }
 
 // tempDir returns the default directory to use for temporary files.
-func tempDir(rootDir string) (string, error) {
+func tempDir(rootDir string, rootUID, rootGID int) (string, error) {
 	var tmpDir string
 	if tmpDir = os.Getenv("DOCKER_TMPDIR"); tmpDir == "" {
 		tmpDir = filepath.Join(rootDir, "tmp")
 	}
-	return tmpDir, system.MkdirAll(tmpDir, 0700)
+	return tmpDir, idtools.MkdirAllAs(tmpDir, 0700, rootUID, rootGID)
 }
 
 func (daemon *Daemon) setHostConfig(container *Container, hostConfig *runconfig.HostConfig) error {
@@ -1228,8 +1260,8 @@ func (daemon *Daemon) verifyContainerSettings(hostConfig *runconfig.HostConfig, 
 	return verifyPlatformContainerSettings(daemon, hostConfig, config)
 }
 
-func configureVolumes(config *Config) (*store.VolumeStore, error) {
-	volumesDriver, err := local.New(config.Root)
+func configureVolumes(config *Config, rootUID, rootGID int) (*store.VolumeStore, error) {
+	volumesDriver, err := local.New(config.Root, rootUID, rootGID)
 	if err != nil {
 		return nil, err
 	}

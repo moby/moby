@@ -15,6 +15,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/graphdriver"
+	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/parsers"
 	zfs "github.com/mistifyio/go-zfs"
@@ -41,7 +42,7 @@ func (*Logger) Log(cmd []string) {
 // Init returns a new ZFS driver.
 // It takes base mount path and a array of options which are represented as key value pairs.
 // Each option is in the for key=value. 'zfs.fsname' is expected to be a valid key in the options.
-func Init(base string, opt []string) (graphdriver.Driver, error) {
+func Init(base string, opt []string, uidMaps, gidMaps []idtools.IDMap) (graphdriver.Driver, error) {
 	var err error
 
 	if _, err := exec.LookPath("zfs"); err != nil {
@@ -102,8 +103,10 @@ func Init(base string, opt []string) (graphdriver.Driver, error) {
 		dataset:          rootDataset,
 		options:          options,
 		filesystemsCache: filesystemsCache,
+		uidMaps:          uidMaps,
+		gidMaps:          gidMaps,
 	}
-	return graphdriver.NewNaiveDiffDriver(d), nil
+	return graphdriver.NewNaiveDiffDriver(d, uidMaps, gidMaps), nil
 }
 
 func parseOptions(opt []string) (zfsOptions, error) {
@@ -156,6 +159,8 @@ type Driver struct {
 	options          zfsOptions
 	sync.Mutex       // protects filesystem cache against concurrent access
 	filesystemsCache map[string]bool
+	uidMaps          []idtools.IDMap
+	gidMaps          []idtools.IDMap
 }
 
 func (d *Driver) String() string {
@@ -294,12 +299,16 @@ func (d *Driver) Get(id, mountLabel string) (string, error) {
 	options := label.FormatMountLabel("", mountLabel)
 	logrus.Debugf(`[zfs] mount("%s", "%s", "%s")`, filesystem, mountpoint, options)
 
+	rootUID, rootGID, err := idtools.GetRootUIDGID(d.uidMaps, d.gidMaps)
+	if err != nil {
+		return "", err
+	}
 	// Create the target directories if they don't exist
-	if err := os.MkdirAll(mountpoint, 0755); err != nil {
+	if err := idtools.MkdirAllAs(mountpoint, 0755, rootUID, rootGID); err != nil {
 		return "", err
 	}
 
-	err := mount.Mount(filesystem, mountpoint, "zfs", options)
+	err = mount.Mount(filesystem, mountpoint, "zfs", options)
 	if err != nil {
 		return "", fmt.Errorf("error creating zfs mount of %s to %s: %v", filesystem, mountpoint, err)
 	}

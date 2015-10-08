@@ -68,7 +68,11 @@ func (c *Client) Call(serviceMethod string, args interface{}, ret interface{}) e
 		return err
 	}
 	defer body.Close()
-	return json.NewDecoder(body).Decode(&ret)
+	if err := json.NewDecoder(body).Decode(&ret); err != nil {
+		logrus.Errorf("%s: error reading plugin resp: %v", serviceMethod, err)
+		return err
+	}
+	return nil
 }
 
 // Stream calls the specified method with the specified arguments for the plugin and returns the response body
@@ -86,7 +90,11 @@ func (c *Client) SendFile(serviceMethod string, data io.Reader, ret interface{})
 	if err != nil {
 		return err
 	}
-	return json.NewDecoder(body).Decode(&ret)
+	if err := json.NewDecoder(body).Decode(&ret); err != nil {
+		logrus.Errorf("%s: error reading plugin resp: %v", serviceMethod, err)
+		return err
+	}
+	return nil
 }
 
 func (c *Client) callWithRetry(serviceMethod string, data io.Reader, retry bool) (io.ReadCloser, error) {

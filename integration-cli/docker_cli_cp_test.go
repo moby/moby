@@ -559,7 +559,7 @@ func (s *DockerSuite) TestCpSpecialFiles(c *check.C) {
 	// Copy actual /etc/resolv.conf
 	dockerCmd(c, "cp", cleanedContainerID+":/etc/resolv.conf", outDir)
 
-	expected, err := ioutil.ReadFile("/var/lib/docker/containers/" + cleanedContainerID + "/resolv.conf")
+	expected, err := readContainerFile(cleanedContainerID, "resolv.conf")
 	actual, err := ioutil.ReadFile(outDir + "/resolv.conf")
 
 	if !bytes.Equal(actual, expected) {
@@ -569,7 +569,7 @@ func (s *DockerSuite) TestCpSpecialFiles(c *check.C) {
 	// Copy actual /etc/hosts
 	dockerCmd(c, "cp", cleanedContainerID+":/etc/hosts", outDir)
 
-	expected, err = ioutil.ReadFile("/var/lib/docker/containers/" + cleanedContainerID + "/hosts")
+	expected, err = readContainerFile(cleanedContainerID, "hosts")
 	actual, err = ioutil.ReadFile(outDir + "/hosts")
 
 	if !bytes.Equal(actual, expected) {
@@ -579,7 +579,7 @@ func (s *DockerSuite) TestCpSpecialFiles(c *check.C) {
 	// Copy actual /etc/resolv.conf
 	dockerCmd(c, "cp", cleanedContainerID+":/etc/hostname", outDir)
 
-	expected, err = ioutil.ReadFile("/var/lib/docker/containers/" + cleanedContainerID + "/hostname")
+	expected, err = readContainerFile(cleanedContainerID, "hostname")
 	actual, err = ioutil.ReadFile(outDir + "/hostname")
 
 	if !bytes.Equal(actual, expected) {

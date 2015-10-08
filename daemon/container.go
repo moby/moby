@@ -553,7 +553,12 @@ func (container *Container) export() (archive.Archive, error) {
 		return nil, err
 	}
 
-	archive, err := archive.Tar(container.basefs, archive.Uncompressed)
+	uidMaps, gidMaps := container.daemon.GetUIDGIDMaps()
+	archive, err := archive.TarWithOptions(container.basefs, &archive.TarOptions{
+		Compression: archive.Uncompressed,
+		UIDMaps:     uidMaps,
+		GIDMaps:     gidMaps,
+	})
 	if err != nil {
 		container.Unmount()
 		return nil, err

@@ -74,7 +74,7 @@ func newDriver(t *testing.T, name string) *Driver {
 		t.Fatal(err)
 	}
 
-	d, err := graphdriver.GetDriver(name, root, nil)
+	d, err := graphdriver.GetDriver(name, root, nil, nil, nil)
 	if err != nil {
 		t.Logf("graphdriver: %v\n", err)
 		if err == graphdriver.ErrNotSupported || err == graphdriver.ErrPrerequisites || err == graphdriver.ErrIncompatibleFS {

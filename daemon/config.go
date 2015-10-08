@@ -30,6 +30,7 @@ type CommonConfig struct {
 	LogConfig      runconfig.LogConfig
 	Mtu            int
 	Pidfile        string
+	RemappedRoot   string
 	Root           string
 	TrustKeyPath   string
 	DefaultNetwork string
