@@ -18,7 +18,7 @@ import (
 //
 // Usage: docker commit [OPTIONS] CONTAINER [REPOSITORY[:TAG]]
 func (cli *DockerCli) CmdCommit(args ...string) error {
-	cmd := Cli.Subcmd("commit", []string{"CONTAINER [REPOSITORY[:TAG]]"}, "Create a new image from a container's changes", true)
+	cmd := Cli.Subcmd("commit", []string{"CONTAINER [REPOSITORY[:TAG]]"}, Cli.DockerCommands["commit"].Description, true)
 	flPause := cmd.Bool([]string{"p", "-pause"}, true, "Pause container during commit")
 	flComment := cmd.String([]string{"m", "-message"}, "", "Commit message")
 	flAuthor := cmd.String([]string{"a", "#author", "-author"}, "", "Author (e.g., \"John Hannibal Smith <hannibal@a-team.com>\")")
