@@ -82,9 +82,7 @@ type Graph struct {
 	imageMutex       imageMutex // protect images in driver.
 	retained         *retainedLayers
 	tarSplitDisabled bool
-
-	parentRefs      map[string]int
-	parentRefsMutex sync.Mutex
+	parentRefs       map[string]int
 }
 
 // file names for ./graph/<ID>/
@@ -288,11 +286,9 @@ func (graph *Graph) Register(img *image.Image, layerData io.Reader) (err error) 
 	}
 	graph.idIndex.Add(img.ID)
 
-	graph.parentRefsMutex.Lock()
-	if img.Parent != "" {
-		graph.parentRefs[img.Parent]++
-	}
-	graph.parentRefsMutex.Unlock()
+	graph.imageMutex.Lock(img.Parent)
+	graph.parentRefs[img.Parent]++
+	graph.imageMutex.Unlock(img.Parent)
 
 	return nil
 }
@@ -375,14 +371,12 @@ func (graph *Graph) Delete(name string) error {
 	// Remove rootfs data from the driver
 	graph.driver.Remove(id)
 
-	graph.parentRefsMutex.Lock()
-	if img.Parent != "" {
-		graph.parentRefs[img.Parent]--
-		if graph.parentRefs[img.Parent] == 0 {
-			delete(graph.parentRefs, img.Parent)
-		}
+	graph.imageMutex.Lock(img.Parent)
+	graph.parentRefs[img.Parent]--
+	if graph.parentRefs[img.Parent] == 0 {
+		delete(graph.parentRefs, img.Parent)
 	}
-	graph.parentRefsMutex.Unlock()
+	graph.imageMutex.Unlock(img.Parent)
 
 	// Remove the trashed image directory
 	return os.RemoveAll(tmp)
@@ -432,11 +426,11 @@ func (graph *Graph) ByParent() map[string][]*image.Image {
 }
 
 // HasChildren returns whether the given image has any child images.
-func (graph *Graph) HasChildren(img *image.Image) bool {
-	graph.parentRefsMutex.Lock()
-	refCount := graph.parentRefs[img.ID]
-	graph.parentRefsMutex.Unlock()
-	return refCount > 0
+func (graph *Graph) HasChildren(imgID string) bool {
+	graph.imageMutex.Lock(imgID)
+	count := graph.parentRefs[imgID]
+	graph.imageMutex.Unlock(imgID)
+	return count > 0
 }
 
 // Retain keeps the images and layers that are in the pulling chain so that
@@ -457,11 +451,9 @@ func (graph *Graph) Heads() map[string]*image.Image {
 	graph.walkAll(func(image *image.Image) {
 		// If it's not in the byParent lookup table, then
 		// it's not a parent -> so it's a head!
-		graph.parentRefsMutex.Lock()
-		if _, exists := graph.parentRefs[image.ID]; !exists {
+		if !graph.HasChildren(image.ID) {
 			heads[image.ID] = image
 		}
-		graph.parentRefsMutex.Unlock()
 	})
 	return heads
 }
