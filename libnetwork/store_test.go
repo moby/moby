@@ -76,8 +76,8 @@ func testLocalBackend(t *testing.T, provider, url string, storeConfig *store.Con
 	if exists, err := store.Exists(datastore.Key(datastore.NetworkKeyPrefix, string(nw.ID()))); !exists || err != nil {
 		t.Fatalf("Network key should have been created.")
 	}
-	if exists, err := store.Exists(datastore.Key([]string{datastore.EndpointKeyPrefix, string(nw.ID()), string(ep.ID())}...)); exists || err != nil {
-		t.Fatalf("Endpoint key shouldn't have been created.")
+	if exists, err := store.Exists(datastore.Key([]string{datastore.EndpointKeyPrefix, string(nw.ID()), string(ep.ID())}...)); !exists || err != nil {
+		t.Fatalf("Endpoint key should have been created.")
 	}
 	ctrl.(*controller).getStore(datastore.LocalScope).Close()
 

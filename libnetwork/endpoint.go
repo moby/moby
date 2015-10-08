@@ -221,7 +221,7 @@ func (ep *endpoint) Exists() bool {
 }
 
 func (ep *endpoint) Skip() bool {
-	return ep.getNetwork().Skip() || ep.DataScope() == datastore.LocalScope
+	return ep.getNetwork().Skip()
 }
 
 func (ep *endpoint) processOptions(options ...EndpointOption) {
