@@ -15,7 +15,6 @@ import (
 	"regexp"
 	"sort"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -79,17 +78,19 @@ func (cli *DockerCli) certificateDirectory(server string) (string, error) {
 	return filepath.Join(cliconfig.ConfigDir(), "tls", u.Host), nil
 }
 
-func trustServer(index *registry.IndexInfo) string {
+func trustServer(index *registry.IndexInfo) (string, error) {
 	if s := os.Getenv("DOCKER_CONTENT_TRUST_SERVER"); s != "" {
-		if !strings.HasPrefix(s, "https://") {
-			return "https://" + s
+		urlObj, err := url.Parse(s)
+		if err != nil || urlObj.Scheme != "https" {
+			return "", fmt.Errorf("valid https URL required for trust server, got %s", s)
 		}
-		return s
+
+		return s, nil
 	}
 	if index.Official {
-		return registry.NotaryServer
+		return registry.NotaryServer, nil
 	}
-	return "https://" + index.Name
+	return "https://" + index.Name, nil
 }
 
 type simpleCredentialStore struct {
@@ -101,9 +102,9 @@ func (scs simpleCredentialStore) Basic(u *url.URL) (string, string) {
 }
 
 func (cli *DockerCli) getNotaryRepository(repoInfo *registry.RepositoryInfo, authConfig cliconfig.AuthConfig) (*client.NotaryRepository, error) {
-	server := trustServer(repoInfo.Index)
-	if !strings.HasPrefix(server, "https://") {
-		return nil, errors.New("unsupported scheme: https required for trust server")
+	server, err := trustServer(repoInfo.Index)
+	if err != nil {
+		return nil, err
 	}
 
 	var cfg = tlsconfig.ClientDefault

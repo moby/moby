@@ -22,6 +22,9 @@ type testNotary struct {
 	dir string
 }
 
+const notaryHost = "localhost:4443"
+const notaryURL = "https://" + notaryHost
+
 func newTestNotary(c *check.C) (*testNotary, error) {
 	template := `{
 	"server": {
@@ -48,7 +51,7 @@ func newTestNotary(c *check.C) (*testNotary, error) {
 	if err != nil {
 		return nil, err
 	}
-	if _, err := fmt.Fprintf(config, template, "localhost:4443"); err != nil {
+	if _, err := fmt.Fprintf(config, template, notaryHost); err != nil {
 		os.RemoveAll(tmp)
 		return nil, err
 	}
@@ -82,10 +85,6 @@ func newTestNotary(c *check.C) (*testNotary, error) {
 	return testNotary, nil
 }
 
-func (t *testNotary) address() string {
-	return "localhost:4443"
-}
-
 func (t *testNotary) Ping() error {
 	tlsConfig := tlsconfig.ClientDefault
 	tlsConfig.InsecureSkipVerify = true
@@ -100,7 +99,7 @@ func (t *testNotary) Ping() error {
 			TLSClientConfig:     &tlsConfig,
 		},
 	}
-	resp, err := client.Get(fmt.Sprintf("https://%s/v2/", t.address()))
+	resp, err := client.Get(fmt.Sprintf("%s/v2/", notaryURL))
 	if err != nil {
 		return err
 	}
@@ -117,7 +116,7 @@ func (t *testNotary) Close() {
 
 func (s *DockerTrustSuite) trustedCmd(cmd *exec.Cmd) {
 	pwd := "12345678"
-	trustCmdEnv(cmd, s.not.address(), pwd, pwd)
+	trustCmdEnv(cmd, notaryURL, pwd, pwd)
 }
 
 func (s *DockerTrustSuite) trustedCmdWithServer(cmd *exec.Cmd, server string) {
@@ -126,7 +125,7 @@ func (s *DockerTrustSuite) trustedCmdWithServer(cmd *exec.Cmd, server string) {
 }
 
 func (s *DockerTrustSuite) trustedCmdWithPassphrases(cmd *exec.Cmd, offlinePwd, taggingPwd string) {
-	trustCmdEnv(cmd, s.not.address(), offlinePwd, taggingPwd)
+	trustCmdEnv(cmd, notaryURL, offlinePwd, taggingPwd)
 }
 
 func trustCmdEnv(cmd *exec.Cmd, server, offlinePwd, taggingPwd string) {
