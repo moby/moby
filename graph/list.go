@@ -108,17 +108,19 @@ func (s *TagStore) Images(filterArgs, filter string, all bool) ([]*types.Image, 
 			} else {
 				// get the boolean list for if only the untagged images are requested
 				delete(allImages, id)
-				if !imageFilters.MatchKVList("label", image.ContainerConfig.Labels) {
-					continue
+
+				if len(imageFilters["label"]) > 0 {
+					if image.Config == nil {
+						// Very old image that do not have image.Config (or even labels)
+						continue
+					}
+					// We are now sure image.Config is not nil
+					if !imageFilters.MatchKVList("label", image.Config.Labels) {
+						continue
+					}
 				}
 				if filtTagged {
-					newImage := new(types.Image)
-					newImage.ParentID = image.Parent
-					newImage.ID = image.ID
-					newImage.Created = image.Created.Unix()
-					newImage.Size = image.Size
-					newImage.VirtualSize = s.graph.GetParentsSize(image) + image.Size
-					newImage.Labels = image.ContainerConfig.Labels
+					newImage := newImage(image, s.graph.GetParentsSize(image))
 
 					if utils.DigestReference(ref) {
 						newImage.RepoTags = []string{}
@@ -144,18 +146,19 @@ func (s *TagStore) Images(filterArgs, filter string, all bool) ([]*types.Image, 
 	// Display images which aren't part of a repository/tag
 	if filter == "" || filtLabel {
 		for _, image := range allImages {
-			if !imageFilters.MatchKVList("label", image.ContainerConfig.Labels) {
-				continue
+			if len(imageFilters["label"]) > 0 {
+				if image.Config == nil {
+					// Very old image that do not have image.Config (or even labels)
+					continue
+				}
+				// We are now sure image.Config is not nil
+				if !imageFilters.MatchKVList("label", image.Config.Labels) {
+					continue
+				}
 			}
-			newImage := new(types.Image)
-			newImage.ParentID = image.Parent
+			newImage := newImage(image, s.graph.GetParentsSize(image))
 			newImage.RepoTags = []string{"<none>:<none>"}
 			newImage.RepoDigests = []string{"<none>@<none>"}
-			newImage.ID = image.ID
-			newImage.Created = image.Created.Unix()
-			newImage.Size = image.Size
-			newImage.VirtualSize = s.graph.GetParentsSize(image) + image.Size
-			newImage.Labels = image.ContainerConfig.Labels
 
 			images = append(images, newImage)
 		}
@@ -164,4 +167,17 @@ func (s *TagStore) Images(filterArgs, filter string, all bool) ([]*types.Image, 
 	sort.Sort(sort.Reverse(byCreated(images)))
 
 	return images, nil
+}
+
+func newImage(image *image.Image, parentSize int64) *types.Image {
+	newImage := new(types.Image)
+	newImage.ParentID = image.Parent
+	newImage.ID = image.ID
+	newImage.Created = image.Created.Unix()
+	newImage.Size = image.Size
+	newImage.VirtualSize = parentSize + image.Size
+	if image.Config != nil {
+		newImage.Labels = image.Config.Labels
+	}
+	return newImage
 }

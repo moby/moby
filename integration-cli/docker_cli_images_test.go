@@ -104,35 +104,40 @@ func (s *DockerSuite) TestImagesFilterLabel(c *check.C) {
 	image1ID, err := buildImage(imageName1,
 		`FROM scratch
 		 LABEL match me`, true)
-	if err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(err, check.IsNil)
 
 	image2ID, err := buildImage(imageName2,
 		`FROM scratch
 		 LABEL match="me too"`, true)
-	if err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(err, check.IsNil)
 
 	image3ID, err := buildImage(imageName3,
 		`FROM scratch
 		 LABEL nomatch me`, true)
-	if err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(err, check.IsNil)
 
 	out, _ := dockerCmd(c, "images", "--no-trunc", "-q", "-f", "label=match")
 	out = strings.TrimSpace(out)
-	if (!strings.Contains(out, image1ID) && !strings.Contains(out, image2ID)) || strings.Contains(out, image3ID) {
-		c.Fatalf("Expected ids %s,%s got %s", image1ID, image2ID, out)
-	}
+	c.Assert(out, check.Matches, fmt.Sprintf("[\\s\\w]*%s[\\s\\w]*", image1ID))
+	c.Assert(out, check.Matches, fmt.Sprintf("[\\s\\w]*%s[\\s\\w]*", image2ID))
+	c.Assert(out, check.Not(check.Matches), fmt.Sprintf("[\\s\\w]*%s[\\s\\w]*", image3ID))
 
 	out, _ = dockerCmd(c, "images", "--no-trunc", "-q", "-f", "label=match=me too")
 	out = strings.TrimSpace(out)
-	if out != image2ID {
-		c.Fatalf("Expected %s got %s", image2ID, out)
-	}
+	c.Assert(out, check.Equals, image2ID)
+}
+
+// Regression : #15659
+func (s *DockerSuite) TestImagesFilterLabelWithCommit(c *check.C) {
+	// Create a container
+	dockerCmd(c, "run", "--name", "bar", "busybox", "/bin/sh")
+	// Commit with labels "using changes"
+	out, _ := dockerCmd(c, "commit", "-c", "LABEL foo.version=1.0.0-1", "-c", "LABEL foo.name=bar", "-c", "LABEL foo.author=starlord", "bar", "bar:1.0.0-1")
+	imageID := strings.TrimSpace(out)
+
+	out, _ = dockerCmd(c, "images", "--no-trunc", "-q", "-f", "label=foo.version=1.0.0-1")
+	out = strings.TrimSpace(out)
+	c.Assert(out, check.Equals, imageID)
 }
 
 func (s *DockerSuite) TestImagesFilterSpaceTrimCase(c *check.C) {
