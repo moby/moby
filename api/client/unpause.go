@@ -11,7 +11,7 @@ import (
 //
 // Usage: docker unpause CONTAINER [CONTAINER...]
 func (cli *DockerCli) CmdUnpause(args ...string) error {
-	cmd := Cli.Subcmd("unpause", []string{"CONTAINER [CONTAINER...]"}, "Unpause all processes within a container", true)
+	cmd := Cli.Subcmd("unpause", []string{"CONTAINER [CONTAINER...]"}, Cli.DockerCommands["unpause"].Description, true)
 	cmd.Require(flag.Min, 1)
 
 	cmd.ParseFlags(args, true)

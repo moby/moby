@@ -14,7 +14,7 @@ import (
 //
 // Usage: docker load [OPTIONS]
 func (cli *DockerCli) CmdLoad(args ...string) error {
-	cmd := Cli.Subcmd("load", nil, "Load an image from a tar archive or STDIN", true)
+	cmd := Cli.Subcmd("load", nil, Cli.DockerCommands["load"].Description, true)
 	infile := cmd.String([]string{"i", "-input"}, "", "Read from a tar archive file, instead of STDIN")
 	cmd.Require(flag.Exact, 0)
 

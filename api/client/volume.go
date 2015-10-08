@@ -20,7 +20,7 @@ import (
 //
 // Usage: docker volume <COMMAND> <OPTS>
 func (cli *DockerCli) CmdVolume(args ...string) error {
-	description := "Manage Docker volumes\n\nCommands:\n"
+	description := Cli.DockerCommands["volume"].Description + "\n\nCommands:\n"
 	commands := [][]string{
 		{"create", "Create a volume"},
 		{"inspect", "Return low-level information on a volume"},

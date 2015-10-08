@@ -43,7 +43,7 @@ type versionData struct {
 //
 // Usage: docker version
 func (cli *DockerCli) CmdVersion(args ...string) (err error) {
-	cmd := Cli.Subcmd("version", nil, "Show the Docker version information.", true)
+	cmd := Cli.Subcmd("version", nil, Cli.DockerCommands["version"].Description, true)
 	tmplStr := cmd.String([]string{"f", "#format", "-format"}, "", "Format the output using the given go template")
 	cmd.Require(flag.Exact, 0)
 

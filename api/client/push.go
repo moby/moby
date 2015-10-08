@@ -14,7 +14,7 @@ import (
 //
 // Usage: docker push NAME[:TAG]
 func (cli *DockerCli) CmdPush(args ...string) error {
-	cmd := Cli.Subcmd("push", []string{"NAME[:TAG]"}, "Push an image or a repository to a registry", true)
+	cmd := Cli.Subcmd("push", []string{"NAME[:TAG]"}, Cli.DockerCommands["push"].Description, true)
 	addTrustedFlags(cmd, false)
 	cmd.Require(flag.Exact, 1)
 
