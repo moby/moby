@@ -64,6 +64,8 @@ type sandbox struct {
 	endpoints     epHeap
 	epPriority    map[string]int
 	joinLeaveDone chan struct{}
+	dbIndex       uint64
+	dbExists      bool
 	sync.Mutex
 }
 
@@ -153,13 +155,22 @@ func (sb *sandbox) Delete() error {
 		if ep.endpointInGWNetwork() {
 			continue
 		}
+
 		if err := ep.Leave(sb); err != nil {
 			log.Warnf("Failed detaching sandbox %s from endpoint %s: %v\n", sb.ID(), ep.ID(), err)
+		}
+
+		if err := ep.Delete(); err != nil {
+			log.Warnf("Failed deleting endpoint %s: %v\n", ep.ID(), err)
 		}
 	}
 
 	if sb.osSbox != nil {
 		sb.osSbox.Destroy()
+	}
+
+	if err := sb.storeDelete(); err != nil {
+		log.Warnf("Failed to delete sandbox %s from store: %v", sb.ID(), err)
 	}
 
 	c.Lock()
@@ -369,7 +380,7 @@ func (sb *sandbox) populateNetworkResources(ep *endpoint) error {
 			}
 		}
 	}
-	return nil
+	return sb.storeUpdate()
 }
 
 func (sb *sandbox) clearNetworkResources(origEp *endpoint) error {
@@ -442,7 +453,7 @@ func (sb *sandbox) clearNetworkResources(origEp *endpoint) error {
 		sb.updateGateway(gwepAfter)
 	}
 
-	return nil
+	return sb.storeUpdate()
 }
 
 const (

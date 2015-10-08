@@ -1479,21 +1479,11 @@ func TestLeaveAll(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer func() {
-		if err := ep1.Delete(); err != nil {
-			t.Fatal(err)
-		}
-	}()
 
 	ep2, err := n.CreateEndpoint("ep2")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer func() {
-		if err := ep2.Delete(); err != nil {
-			t.Fatal(err)
-		}
-	}()
 
 	cnt, err := controller.NewSandbox("leaveall")
 	if err != nil {
@@ -1607,21 +1597,11 @@ func TestEndpointUpdateParent(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer func() {
-		if err := ep1.Delete(); err != nil {
-			t.Fatal(err)
-		}
-	}()
 
 	ep2, err := n.CreateEndpoint("ep2")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer func() {
-		if err := ep2.Delete(); err != nil {
-			t.Fatal(err)
-		}
-	}()
 
 	sbx1, err := controller.NewSandbox(containerID,
 		libnetwork.OptionHostname("test"),
@@ -1657,12 +1637,6 @@ func TestEndpointUpdateParent(t *testing.T) {
 	}
 
 	err = ep2.Join(sbx2)
-	runtime.LockOSThread()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = ep2.Leave(sbx2)
 	runtime.LockOSThread()
 	if err != nil {
 		t.Fatal(err)
@@ -1714,11 +1688,6 @@ func TestEnableIPv6(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer func() {
-		if err := ep1.Delete(); err != nil {
-			t.Fatal(err)
-		}
-	}()
 
 	if err := ioutil.WriteFile("/etc/resolv.conf", tmpResolvConf, 0644); err != nil {
 		t.Fatal(err)
@@ -1741,13 +1710,6 @@ func TestEnableIPv6(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer func() {
-		err = ep1.Leave(sb)
-		runtime.LockOSThread()
-		if err != nil {
-			t.Fatal(err)
-		}
-	}()
 
 	content, err := ioutil.ReadFile(resolvConfPath)
 	if err != nil {
@@ -1884,11 +1846,6 @@ func TestResolvConf(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer func() {
-		if err := ep.Delete(); err != nil {
-			t.Fatal(err)
-		}
-	}()
 
 	if err := ioutil.WriteFile("/etc/resolv.conf", tmpResolvConf1, 0644); err != nil {
 		t.Fatal(err)
@@ -2204,24 +2161,9 @@ func parallelLeave(t *testing.T, rc libnetwork.Sandbox, ep libnetwork.Endpoint, 
 	debugf("L%d.", thrNumber)
 	var err error
 
-	cid := fmt.Sprintf("%drace", thrNumber)
 	sb := sboxes[thrNumber-1]
 
-	if thrNumber == first {
-		err = ep.Leave(sb)
-	} else {
-		err = sb.Delete()
-		// re add sandbox
-		defer func() {
-			if err == nil {
-				var e error
-				if sboxes[thrNumber-1], e = controller.NewSandbox(cid); e != nil {
-					t.Fatalf("Failed to recreate sandbox %s: %v", cid, e)
-				}
-			}
-		}()
-	}
-
+	err = ep.Leave(sb)
 	runtime.LockOSThread()
 	if err != nil {
 		if _, ok := err.(types.ForbiddenError); !ok {
@@ -2324,11 +2266,10 @@ func runParallelTests(t *testing.T, thrNumber int) {
 
 	debugf("\n")
 
-	err = ep.Delete()
+	err = sb.Delete()
 	if err != nil {
 		t.Fatal(err)
 	}
-
 	if thrNumber == first {
 		for thrdone := range done {
 			select {
@@ -2337,17 +2278,12 @@ func runParallelTests(t *testing.T, thrNumber int) {
 		}
 
 		testns.Close()
-		err = sb.Delete()
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		ep.Delete()
-		if err != nil {
-			t.Fatal(err)
-		}
-
 		if err := net2.Delete(); err != nil {
+			t.Fatal(err)
+		}
+	} else {
+		err = ep.Delete()
+		if err != nil {
 			t.Fatal(err)
 		}
 	}

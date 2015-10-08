@@ -191,6 +191,8 @@ func New(cfgOptions ...config.Option) (NetworkController, error) {
 		return nil, err
 	}
 
+	c.sandboxCleanup()
+
 	if err := c.startExternalKeyListener(); err != nil {
 		return nil, err
 	}
@@ -500,6 +502,18 @@ func (c *controller) NewSandbox(containerID string, options ...SandboxOption) (S
 	c.Lock()
 	c.sandboxes[sb.id] = sb
 	c.Unlock()
+	defer func() {
+		if err != nil {
+			c.Lock()
+			delete(c.sandboxes, sb.id)
+			c.Unlock()
+		}
+	}()
+
+	err = sb.storeUpdate()
+	if err != nil {
+		return nil, fmt.Errorf("updating the store state of sandbox failed: %v", err)
+	}
 
 	return sb, nil
 }
