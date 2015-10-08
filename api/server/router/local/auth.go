@@ -17,7 +17,7 @@ func (s *router) postAuth(ctx context.Context, w http.ResponseWriter, r *http.Re
 	if err != nil {
 		return err
 	}
-	status, err := s.daemon.RegistryService.Auth(config)
+	status, err := s.daemon.AuthenticateToRegistry(config)
 	if err != nil {
 		return err
 	}

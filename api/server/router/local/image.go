@@ -504,7 +504,7 @@ func (s *router) getImagesSearch(ctx context.Context, w http.ResponseWriter, r *
 			headers[k] = v
 		}
 	}
-	query, err := s.daemon.RegistryService.Search(r.Form.Get("term"), config, headers)
+	query, err := s.daemon.SearchRegistryForImages(r.Form.Get("term"), config, headers)
 	if err != nil {
 		return err
 	}
