@@ -32,6 +32,7 @@ func (cli *DockerCli) forwardAllSignals(cid string) chan os.Signal {
 			}
 			if sig == "" {
 				fmt.Fprintf(cli.err, "Unsupported signal: %v. Discarding.\n", s)
+				continue
 			}
 			if _, _, err := readBody(cli.call("POST", fmt.Sprintf("/containers/%s/kill?signal=%s", cid, sig), nil, nil)); err != nil {
 				logrus.Debugf("Error sending signal: %s", err)
