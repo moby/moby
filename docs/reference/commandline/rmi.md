@@ -5,7 +5,6 @@ description = "The rmi command description and usage"
 keywords = ["remove, image, Docker"]
 [menu.main]
 parent = "smn_cli"
-weight=1
 +++
 <![end-metadata]-->
 
@@ -73,4 +72,3 @@ To remove an image using its digest:
     Deleted: 4986bf8c15363d1c5d15512d5266f8777bfba4974ac56e3270e7760f6f0a8125
     Deleted: ea13149945cb6b1e746bf28032f02e9b5a793523481a0a18645fc77ad53c4ea2
     Deleted: df7546f9f060a2268024c8a230d8639878585defcc1bc6f79d2728a13957871b
-

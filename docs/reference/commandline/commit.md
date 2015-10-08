@@ -5,7 +5,6 @@ description = "The commit command description and usage"
 keywords = ["commit, file, changes"]
 [menu.main]
 parent = "smn_cli"
-weight=1
 +++
 <![end-metadata]-->
 
@@ -62,4 +61,3 @@ created.  Supported `Dockerfile` instructions:
     f5283438590d
     $ docker inspect -f "{{ .Config.Env }}" f5283438590d
     [HOME=/ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin DEBUG=true]
-

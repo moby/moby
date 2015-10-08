@@ -5,7 +5,6 @@ description = "The tag command description and usage"
 keywords = ["tag, name, image"]
 [menu.main]
 parent = "smn_cli"
-weight=1
 +++
 <![end-metadata]-->
 

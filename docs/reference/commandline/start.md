@@ -5,7 +5,6 @@ description = "The start command description and usage"
 keywords = ["Start, container, stopped"]
 [menu.main]
 parent = "smn_cli"
-weight=1
 +++
 <![end-metadata]-->
 
@@ -18,4 +17,3 @@ weight=1
       -a, --attach=false         Attach STDOUT/STDERR and forward signals
       --help=false               Print usage
       -i, --interactive=false    Attach container's STDIN
-

@@ -5,7 +5,6 @@ description = "The wait command description and usage"
 keywords = ["container, stop, wait"]
 [menu.main]
 parent = "smn_cli"
-weight=1
 +++
 <![end-metadata]-->
 

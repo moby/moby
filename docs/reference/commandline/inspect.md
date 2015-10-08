@@ -5,7 +5,6 @@ description = "The inspect command description and usage"
 keywords = ["inspect, container, json"]
 [menu.main]
 parent = "smn_cli"
-weight=1
 +++
 <![end-metadata]-->
 
@@ -73,4 +72,3 @@ section contains complex JSON object, so to grab it as JSON, you use
 `json` to convert the configuration object into JSON.
 
     $ docker inspect --format='{{json .config}}' $INSTANCE_ID
-

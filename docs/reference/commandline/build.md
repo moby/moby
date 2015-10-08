@@ -5,7 +5,6 @@ description = "The build command description and usage"
 keywords = ["build, docker, image"]
 [menu.main]
 parent = "smn_cli"
-weight=1
 +++
 <![end-metadata]-->
 
@@ -251,9 +250,9 @@ the command line.
 
 When `docker build` is run with the `--cgroup-parent` option the containers
 used in the build will be run with the [corresponding `docker run`
-flag](/reference/run/#specifying-custom-cgroups). 
+flag](/reference/run/#specifying-custom-cgroups).
 
-Using the `--ulimit` option with `docker build` will cause each build step's 
+Using the `--ulimit` option with `docker build` will cause each build step's
 container to be started using those [`--ulimit`
 flag values](/reference/run/#setting-ulimits-in-a-container).
 

@@ -39,4 +39,3 @@ These options are passed directly to the volume driver. Options for
 different volume drivers may do different things (or nothing at all).
 
 *Note*: The built-in `local` volume driver does not currently accept any options.
-
