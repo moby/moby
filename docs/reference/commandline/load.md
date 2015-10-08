@@ -5,7 +5,6 @@ description = "The load command description and usage"
 keywords = ["stdin, tarred, repository"]
 [menu.main]
 parent = "smn_cli"
-weight=1
 +++
 <![end-metadata]-->
 
@@ -35,4 +34,3 @@ Restores both images and tags.
     fedora              20                  58394af37342        7 weeks ago         385.5 MB
     fedora              heisenbug           58394af37342        7 weeks ago         385.5 MB
     fedora              latest              58394af37342        7 weeks ago         385.5 MB
-

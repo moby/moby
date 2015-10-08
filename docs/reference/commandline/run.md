@@ -5,7 +5,6 @@ description = "The run command description and usage"
 keywords = ["run, command, container"]
 [menu.main]
 parent = "smn_cli"
-weight=1
 +++
 <![end-metadata]-->
 
@@ -101,7 +100,7 @@ and linking containers.
     $ docker ps -a | grep test
     d6c0fe130dba        debian:7            "/bin/bash"         26 seconds ago      Exited (13) 17 seconds ago                         test
 
-This example runs a container named `test` using the `debian:latest` 
+This example runs a container named `test` using the `debian:latest`
 image. The `-it` instructs Docker to allocate a pseudo-TTY connected to
 the container's stdin; creating an interactive `bash` shell in the container.
 In the example, the `bash` shell is quit by entering
@@ -216,7 +215,8 @@ An example of a file passed with `--env-file`
     _TEST_BAR=FOO
     TEST_APP_42=magic
     helloWorld=true
-    # 123qwe=bar <- is not valid
+    123qwe=bar
+    org.spring.config=something
 
     # pass through this variable from the caller
     TEST_PASSTHROUGH
@@ -231,6 +231,8 @@ An example of a file passed with `--env-file`
     helloWorld=true
     TEST_PASSTHROUGH=howdy
     HOME=/root
+    123qwe=bar
+    org.spring.config=something
 
     $ docker run --env-file ./env.list busybox env
     PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
@@ -243,9 +245,8 @@ An example of a file passed with `--env-file`
     helloWorld=true
     TEST_PASSTHROUGH=
     HOME=/root
-
-> **Note**: Environment variables names must consist solely of letters, numbers,
-> and underscores - and cannot start with a number.
+    123qwe=bar
+    org.spring.config=something
 
 A label is a a `key=value` pair that applies metadata to a container. To label a container with two labels:
 
@@ -531,8 +532,8 @@ containers with `daemon` user:
     docker run -d -u daemon --ulimit nproc=3 busybox top
     docker run -d -u daemon --ulimit nproc=3 busybox top
 
-The 4th container fails and reports "[8] System error: resource temporarily unavailable" error. 
-This fails because the caller set `nproc=3` resulting in the first three containers using up 
+The 4th container fails and reports "[8] System error: resource temporarily unavailable" error.
+This fails because the caller set `nproc=3` resulting in the first three containers using up
 the three processes quota set for the `daemon` user.
 
 ### Stopping a container with a specific signal

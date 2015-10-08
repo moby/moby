@@ -5,7 +5,6 @@ description = "The port command description and usage"
 keywords = ["port, mapping, container"]
 [menu.main]
 parent = "smn_cli"
-weight=1
 +++
 <![end-metadata]-->
 

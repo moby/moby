@@ -12,7 +12,7 @@ import (
 //
 // Usage: docker rename OLD_NAME NEW_NAME
 func (cli *DockerCli) CmdRename(args ...string) error {
-	cmd := Cli.Subcmd("rename", []string{"OLD_NAME NEW_NAME"}, "Rename a container", true)
+	cmd := Cli.Subcmd("rename", []string{"OLD_NAME NEW_NAME"}, Cli.DockerCommands["rename"].Description, true)
 	cmd.Require(flag.Exact, 2)
 
 	cmd.ParseFlags(args, true)

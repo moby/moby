@@ -24,6 +24,9 @@ func (daemon *Daemon) cleanupMounts() error {
 }
 
 func (daemon *Daemon) cleanupMountsFromReader(reader io.Reader, unmount func(target string) error) error {
+	if daemon.repository == "" {
+		return nil
+	}
 	sc := bufio.NewScanner(reader)
 	var errors []string
 	for sc.Scan() {

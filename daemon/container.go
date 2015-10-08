@@ -22,7 +22,7 @@ import (
 	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/broadcastwriter"
+	"github.com/docker/docker/pkg/broadcaster"
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/mount"
@@ -41,8 +41,8 @@ var (
 )
 
 type streamConfig struct {
-	stdout    *broadcastwriter.BroadcastWriter
-	stderr    *broadcastwriter.BroadcastWriter
+	stdout    *broadcaster.Unbuffered
+	stderr    *broadcaster.Unbuffered
 	stdin     io.ReadCloser
 	stdinPipe io.WriteCloser
 }
@@ -318,13 +318,13 @@ func (streamConfig *streamConfig) StdinPipe() io.WriteCloser {
 
 func (streamConfig *streamConfig) StdoutPipe() io.ReadCloser {
 	reader, writer := io.Pipe()
-	streamConfig.stdout.AddWriter(writer)
+	streamConfig.stdout.Add(writer)
 	return ioutils.NewBufReader(reader)
 }
 
 func (streamConfig *streamConfig) StderrPipe() io.ReadCloser {
 	reader, writer := io.Pipe()
-	streamConfig.stderr.AddWriter(writer)
+	streamConfig.stderr.Add(writer)
 	return ioutils.NewBufReader(reader)
 }
 
@@ -790,7 +790,7 @@ func (container *Container) getExecIDs() []string {
 	return container.execCommands.List()
 }
 
-func (container *Container) exec(ExecConfig *ExecConfig) error {
+func (container *Container) exec(ec *ExecConfig) error {
 	container.Lock()
 	defer container.Unlock()
 
@@ -803,17 +803,17 @@ func (container *Container) exec(ExecConfig *ExecConfig) error {
 				c.Close()
 			}
 		}
-		close(ExecConfig.waitStart)
+		close(ec.waitStart)
 		return nil
 	}
 
 	// We use a callback here instead of a goroutine and an chan for
 	// synchronization purposes
-	cErr := promise.Go(func() error { return container.monitorExec(ExecConfig, callback) })
+	cErr := promise.Go(func() error { return container.monitorExec(ec, callback) })
 
 	// Exec should not return until the process is actually running
 	select {
-	case <-ExecConfig.waitStart:
+	case <-ec.waitStart:
 	case err := <-cErr:
 		return err
 	}

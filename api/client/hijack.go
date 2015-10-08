@@ -239,14 +239,13 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.Rea
 	case err := <-receiveStdout:
 		if err != nil {
 			logrus.Debugf("Error receiveStdout: %s", err)
-		}
-		if cli.isTerminalIn {
-			return nil
+			return err
 		}
 	case <-stdinDone:
 		if stdout != nil || stderr != nil {
 			if err := <-receiveStdout; err != nil {
 				logrus.Debugf("Error receiveStdout: %s", err)
+				return err
 			}
 		}
 	}

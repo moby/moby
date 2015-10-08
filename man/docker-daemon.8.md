@@ -13,6 +13,7 @@ docker-daemon - Enable daemon mode
 [**--default-gateway**[=*DEFAULT-GATEWAY*]]
 [**--default-gateway-v6**[=*DEFAULT-GATEWAY-V6*]]
 [**--default-ulimit**[=*[]*]]
+[**--disable-legacy-registry**[=*false*]]
 [**--dns**[=*[]*]]
 [**--dns-opt**[=*[]*]]
 [**--dns-search**[=*[]*]]
@@ -37,7 +38,6 @@ docker-daemon - Enable daemon mode
 [**--log-driver**[=*json-file*]]
 [**--log-opt**[=*map[]*]]
 [**--mtu**[=*0*]]
-[**--no-legacy-registry**[=*false*]]
 [**-p**|**--pidfile**[=*/var/run/docker.pid*]]
 [**--registry-mirror**[=*[]*]]
 [**-s**|**--storage-driver**[=*STORAGE-DRIVER*]]
@@ -86,6 +86,9 @@ format.
 **--default-ulimit**=[]
   Set default ulimits for containers.
 
+**--disable-legacy-registry**=*true*|*false*
+  Do not contact legacy registries
+
 **--dns**=""
   Force Docker to use specific DNS servers
 
@@ -133,7 +136,7 @@ unix://[/path/to/socket] to use.
 
   List of insecure registries can contain an element with CIDR notation to specify a whole subnet. Insecure registries accept HTTP and/or accept HTTPS with certificates from unknown CAs.
 
-  Enabling `--insecure-registry` is useful when running a local registry.  However, because its use creates security vulnerabilities it should ONLY be enabled for testing purposes.  For increased security, users should add their CA to their system's list of trusted CAs instead of using `--insecure-registry`. 
+  Enabling `--insecure-registry` is useful when running a local registry.  However, because its use creates security vulnerabilities it should ONLY be enabled for testing purposes.  For increased security, users should add their CA to their system's list of trusted CAs instead of using `--insecure-registry`.
 
 **--ip**=""
   Default IP address to use when binding container ports. Default is `0.0.0.0`.
@@ -167,9 +170,6 @@ unix://[/path/to/socket] to use.
 
 **--mtu**=VALUE
   Set the containers network mtu. Default is `0`.
-
-**--no-legacy-registry**=*true*|*false*
-  Do not contact legacy registries
 
 **-p**, **--pidfile**=""
   Path to use for daemon PID file. Default is `/var/run/docker.pid`
@@ -301,6 +301,28 @@ the device for deferred removal. It does not wait in a loop trying to remove a b
 device.
 
 Example use: `docker daemon --storage-opt dm.use_deferred_removal=true`
+
+#### dm.use_deferred_deletion
+
+Enables use of deferred device deletion for thin pool devices. By default,
+thin pool device deletion is synchronous. Before a container is deleted, the
+Docker daemon removes any associated devices. If the storage driver can not
+remove a device, the container deletion fails and daemon returns.
+
+`Error deleting container: Error response from daemon: Cannot destroy container`
+
+To avoid this failure, enable both deferred device deletion and deferred
+device removal on the daemon.
+
+`docker daemon --storage-opt dm.use_deferred_deletion=true --storage-opt dm.use_deferred_removal=true`
+
+With these two options enabled, if a device is busy when the driver is
+deleting a container, the driver marks the device as deleted. Later, when the
+device isn't in use, the driver deletes it.
+
+In general it should be safe to enable this option by default. It will help
+when unintentional leaking of mount point happens across multiple mount
+namespaces.
 
 #### dm.loopdatasize
 

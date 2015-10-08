@@ -279,7 +279,7 @@ func configureSysInit(config *Config) (string, error) {
 	localCopy := filepath.Join(config.Root, "init", fmt.Sprintf("dockerinit-%s", dockerversion.VERSION))
 	sysInitPath := utils.DockerInitPath(localCopy)
 	if sysInitPath == "" {
-		return "", fmt.Errorf("Could not locate dockerinit: This usually means docker was built incorrectly. See https://docs.docker.com/contributing/devenvironment for official build instructions.")
+		return "", fmt.Errorf("Could not locate dockerinit: This usually means docker was built incorrectly. See https://docs.docker.com/project/set-up-dev-env/ for official build instructions.")
 	}
 
 	if sysInitPath != localCopy {
@@ -302,7 +302,7 @@ func isBridgeNetworkDisabled(config *Config) bool {
 	return config.Bridge.Iface == disableNetworkBridge
 }
 
-func networkOptions(dconfig *Config) ([]nwconfig.Option, error) {
+func (daemon *Daemon) networkOptions(dconfig *Config) ([]nwconfig.Option, error) {
 	options := []nwconfig.Option{}
 	if dconfig == nil {
 		return options, nil
@@ -330,13 +330,21 @@ func networkOptions(dconfig *Config) ([]nwconfig.Option, error) {
 		options = append(options, nwconfig.OptionKVProviderURL(strings.Join(kv[1:], "://")))
 	}
 
+	if daemon.discoveryWatcher != nil {
+		options = append(options, nwconfig.OptionDiscoveryWatcher(daemon.discoveryWatcher))
+	}
+
+	if dconfig.ClusterAdvertise != "" {
+		options = append(options, nwconfig.OptionDiscoveryAddress(dconfig.ClusterAdvertise))
+	}
+
 	options = append(options, nwconfig.OptionLabels(dconfig.Labels))
 	options = append(options, driverOptions(dconfig)...)
 	return options, nil
 }
 
-func initNetworkController(config *Config) (libnetwork.NetworkController, error) {
-	netOptions, err := networkOptions(config)
+func (daemon *Daemon) initNetworkController(config *Config) (libnetwork.NetworkController, error) {
+	netOptions, err := daemon.networkOptions(config)
 	if err != nil {
 		return nil, err
 	}

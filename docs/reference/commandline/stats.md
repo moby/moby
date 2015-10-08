@@ -5,7 +5,6 @@ description = "The stats command description and usage"
 keywords = ["container, resource, statistics"]
 [menu.main]
 parent = "smn_cli"
-weight=1
 +++
 <![end-metadata]-->
 

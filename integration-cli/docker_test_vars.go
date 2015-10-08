@@ -81,11 +81,8 @@ func init() {
 	// Similarly, it will be perfectly valid to also run CLI tests from
 	// a Linux CLI (built with the daemon tag) against a Windows daemon.
 	if len(os.Getenv("DOCKER_REMOTE_DAEMON")) > 0 {
-		fmt.Println("INFO: Testing against a remote daemon")
 		isLocalDaemon = false
 	} else {
-		fmt.Println("INFO: Testing against a local daemon")
 		isLocalDaemon = true
 	}
-
 }

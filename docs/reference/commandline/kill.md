@@ -5,7 +5,6 @@ description = "The kill command description and usage"
 keywords = ["container, kill, signal"]
 [menu.main]
 parent = "smn_cli"
-weight=1
 +++
 <![end-metadata]-->
 

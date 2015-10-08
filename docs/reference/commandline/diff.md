@@ -5,7 +5,6 @@ description = "The diff command description and usage"
 keywords = ["list, changed, files, container"]
 [menu.main]
 parent = "smn_cli"
-weight=1
 +++
 <![end-metadata]-->
 

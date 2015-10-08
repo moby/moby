@@ -185,6 +185,29 @@ Most test targets require that you build these precursor targets first:
 
 ## Running individual or multiple named tests 
 
+### Unit tests 
+
+We use golang standard [testing](https://golang.org/pkg/testing/)
+package or [gocheck](https://labix.org/gocheck) for our unit tests. 
+
+You can use the `TESTDIRS` environment variable to run unit tests for
+a single package.
+
+    $ TESTDIRS='opts' make test-unit
+
+You can also use the `TESTFLAGS` environment variable to run a single test. The
+flag's value is passed as arguments to the `go test` command. For example, from
+your local host you can run the `TestBuild` test with this command:
+
+    $ TESTFLAGS='-test.run ^TestValidateIPAddress$' make test-unit
+
+On unit tests, it's better to use `TESTFLAGS` in combination with
+`TESTDIRS` to make it quicker to run a specific test.
+
+    $ TESTDIRS='opts' TESTFLAGS='-test.run ^TestValidateIPAddress$' make test-unit
+
+### Integration tests 
+
 We use [gocheck](https://labix.org/gocheck) for our integration-cli tests. 
 You can use the `TESTFLAGS` environment variable to run a single test. The
 flag's value is passed as arguments to the `go test` command. For example, from

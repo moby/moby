@@ -5,7 +5,6 @@ description = "The pause command description and usage"
 keywords = ["cgroups, container, suspend, SIGSTOP"]
 [menu.main]
 parent = "smn_cli"
-weight=1
 +++
 <![end-metadata]-->
 
@@ -26,4 +25,3 @@ and subsequently resumed.
 See the
 [cgroups freezer documentation](https://www.kernel.org/doc/Documentation/cgroups/freezer-subsystem.txt)
 for further details.
-

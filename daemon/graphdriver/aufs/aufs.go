@@ -60,6 +60,11 @@ func init() {
 	graphdriver.Register("aufs", Init)
 }
 
+type data struct {
+	referenceCount int
+	path           string
+}
+
 // Driver contains information about the filesystem mounted.
 // root of the filesystem
 // sync.Mutex to protect against concurrent modifications
@@ -67,7 +72,7 @@ func init() {
 type Driver struct {
 	root       string
 	sync.Mutex // Protects concurrent modification to active
-	active     map[string]int
+	active     map[string]*data
 }
 
 // Init returns a new AUFS driver.
@@ -101,7 +106,7 @@ func Init(root string, options []string) (graphdriver.Driver, error) {
 
 	a := &Driver{
 		root:   root,
-		active: make(map[string]int),
+		active: make(map[string]*data),
 	}
 
 	// Create the root aufs driver dir
@@ -206,6 +211,7 @@ func (a *Driver) Create(id, parent string) error {
 			}
 		}
 	}
+	a.active[id] = &data{}
 	return nil
 }
 
@@ -229,13 +235,15 @@ func (a *Driver) Remove(id string) error {
 	a.Lock()
 	defer a.Unlock()
 
-	if a.active[id] != 0 {
-		logrus.Errorf("Removing active id %s", id)
-	}
-
-	// Make sure the dir is umounted first
-	if err := a.unmount(id); err != nil {
-		return err
+	m := a.active[id]
+	if m != nil {
+		if m.referenceCount > 0 {
+			return nil
+		}
+		// Make sure the dir is umounted first
+		if err := a.unmount(m); err != nil {
+			return err
+		}
 	}
 	tmpDirs := []string{
 		"mnt",
@@ -246,7 +254,6 @@ func (a *Driver) Remove(id string) error {
 	// way (so that docker doesn't find it anymore) before doing removal of
 	// the whole tree.
 	for _, p := range tmpDirs {
-
 		realPath := path.Join(a.rootPath(), p, id)
 		tmpPath := path.Join(a.rootPath(), p, fmt.Sprintf("%s-removing", id))
 		if err := os.Rename(realPath, tmpPath); err != nil && !os.IsNotExist(err) {
@@ -254,7 +261,6 @@ func (a *Driver) Remove(id string) error {
 		}
 		defer os.RemoveAll(tmpPath)
 	}
-
 	// Remove the layers file for the id
 	if err := os.Remove(path.Join(a.rootPath(), "layers", id)); err != nil && !os.IsNotExist(err) {
 		return err
@@ -277,24 +283,25 @@ func (a *Driver) Get(id, mountLabel string) (string, error) {
 	a.Lock()
 	defer a.Unlock()
 
-	count := a.active[id]
+	m := a.active[id]
+	if m == nil {
+		m = &data{}
+		a.active[id] = m
+	}
 
 	// If a dir does not have a parent ( no layers )do not try to mount
 	// just return the diff path to the data
-	out := path.Join(a.rootPath(), "diff", id)
+	m.path = path.Join(a.rootPath(), "diff", id)
 	if len(ids) > 0 {
-		out = path.Join(a.rootPath(), "mnt", id)
-
-		if count == 0 {
-			if err := a.mount(id, mountLabel); err != nil {
+		m.path = path.Join(a.rootPath(), "mnt", id)
+		if m.referenceCount == 0 {
+			if err := a.mount(id, m, mountLabel); err != nil {
 				return "", err
 			}
 		}
 	}
-
-	a.active[id] = count + 1
-
-	return out, nil
+	m.referenceCount++
+	return m.path, nil
 }
 
 // Put unmounts and updates list of active mounts.
@@ -303,13 +310,17 @@ func (a *Driver) Put(id string) error {
 	a.Lock()
 	defer a.Unlock()
 
-	if count := a.active[id]; count > 1 {
-		a.active[id] = count - 1
+	m := a.active[id]
+	if m == nil {
+		return nil
+	}
+	if count := m.referenceCount; count > 1 {
+		m.referenceCount = count - 1
 	} else {
 		ids, _ := getParentIds(a.rootPath(), id)
 		// We only mounted if there are any parents
 		if ids != nil && len(ids) > 0 {
-			a.unmount(id)
+			a.unmount(m)
 		}
 		delete(a.active, id)
 	}
@@ -376,14 +387,14 @@ func (a *Driver) getParentLayerPaths(id string) ([]string, error) {
 	return layers, nil
 }
 
-func (a *Driver) mount(id, mountLabel string) error {
+func (a *Driver) mount(id string, m *data, mountLabel string) error {
 	// If the id is mounted or we get an error return
-	if mounted, err := a.mounted(id); err != nil || mounted {
+	if mounted, err := a.mounted(m); err != nil || mounted {
 		return err
 	}
 
 	var (
-		target = path.Join(a.rootPath(), "mnt", id)
+		target = m.path
 		rw     = path.Join(a.rootPath(), "diff", id)
 	)
 
@@ -398,32 +409,24 @@ func (a *Driver) mount(id, mountLabel string) error {
 	return nil
 }
 
-func (a *Driver) unmount(id string) error {
-	if mounted, err := a.mounted(id); err != nil || !mounted {
+func (a *Driver) unmount(m *data) error {
+	if mounted, err := a.mounted(m); err != nil || !mounted {
 		return err
 	}
-	target := path.Join(a.rootPath(), "mnt", id)
-	return Unmount(target)
+	return Unmount(m.path)
 }
 
-func (a *Driver) mounted(id string) (bool, error) {
-	target := path.Join(a.rootPath(), "mnt", id)
-	return mountpk.Mounted(target)
+func (a *Driver) mounted(m *data) (bool, error) {
+	return mountpk.Mounted(m.path)
 }
 
 // Cleanup aufs and unmount all mountpoints
 func (a *Driver) Cleanup() error {
-	ids, err := loadIds(path.Join(a.rootPath(), "layers"))
-	if err != nil {
-		return err
-	}
-
-	for _, id := range ids {
-		if err := a.unmount(id); err != nil {
+	for id, m := range a.active {
+		if err := a.unmount(m); err != nil {
 			logrus.Errorf("Unmounting %s: %s", stringid.TruncateID(id), err)
 		}
 	}
-
 	return mountpk.Unmount(a.root)
 }
 

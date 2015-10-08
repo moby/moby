@@ -2,13 +2,16 @@
 +++
 title = "Network configuration"
 description = "Docker networking"
-keywords = ["network, networking, bridge, docker,  documentation"]
+keywords = ["network, networking, bridge, overlay, cluster, multihost, docker, documentation"]
 [menu.main]
 parent= "smn_administrate"
 +++
 <![end-metadata]-->
 
 # Network configuration
+
+> **Note:**
+> This document is outdated and needs a major overhaul.
 
 ## Summary
 

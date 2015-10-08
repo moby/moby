@@ -247,6 +247,30 @@ func (d *driver) Type() string {
 	return d.networkType
 }
 
+// DiscoverNew is a notification for a new discovery event, such as a new node joining a cluster
+func (d *driver) DiscoverNew(dType driverapi.DiscoveryType, data interface{}) error {
+	if dType != driverapi.NodeDiscovery {
+		return fmt.Errorf("Unknown discovery type : %v", dType)
+	}
+	notif := &api.DiscoveryNotification{
+		DiscoveryType: dType,
+		DiscoveryData: data,
+	}
+	return d.call("DiscoverNew", notif, &api.DiscoveryResponse{})
+}
+
+// DiscoverDelete is a notification for a discovery delete event, such as a node leaving a cluster
+func (d *driver) DiscoverDelete(dType driverapi.DiscoveryType, data interface{}) error {
+	if dType != driverapi.NodeDiscovery {
+		return fmt.Errorf("Unknown discovery type : %v", dType)
+	}
+	notif := &api.DiscoveryNotification{
+		DiscoveryType: dType,
+		DiscoveryData: data,
+	}
+	return d.call("DiscoverDelete", notif, &api.DiscoveryResponse{})
+}
+
 func parseStaticRoutes(r api.JoinResponse) ([]*types.StaticRoute, error) {
 	var routes = make([]*types.StaticRoute, len(r.StaticRoutes))
 	for i, inRoute := range r.StaticRoutes {

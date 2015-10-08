@@ -63,24 +63,27 @@ func TestReadDockerIgnore(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	diName := filepath.Join(tmpDir, ".dockerignore")
-
-	di, err := ReadDockerIgnore(diName)
+	di, err := ReadDockerIgnore(nil)
 	if err != nil {
-		t.Fatalf("Expected not to have error, got %s", err)
+		t.Fatalf("Expected not to have error, got %v", err)
 	}
 
 	if diLen := len(di); diLen != 0 {
 		t.Fatalf("Expected to have zero dockerignore entry, got %d", diLen)
 	}
 
+	diName := filepath.Join(tmpDir, ".dockerignore")
 	content := fmt.Sprintf("test1\n/test2\n/a/file/here\n\nlastfile")
 	err = ioutil.WriteFile(diName, []byte(content), 0777)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	di, err = ReadDockerIgnore(diName)
+	diFd, err := os.Open(diName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	di, err = ReadDockerIgnore(diFd)
 	if err != nil {
 		t.Fatal(err)
 	}

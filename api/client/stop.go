@@ -15,7 +15,7 @@ import (
 //
 // Usage: docker stop [OPTIONS] CONTAINER [CONTAINER...]
 func (cli *DockerCli) CmdStop(args ...string) error {
-	cmd := Cli.Subcmd("stop", []string{"CONTAINER [CONTAINER...]"}, "Stop a container by sending SIGTERM and then SIGKILL after a\ngrace period", true)
+	cmd := Cli.Subcmd("stop", []string{"CONTAINER [CONTAINER...]"}, Cli.DockerCommands["stop"].Description+".\nSending SIGTERM and then SIGKILL after a grace period", true)
 	nSeconds := cmd.Int([]string{"t", "-time"}, 10, "Seconds to wait for stop before killing it")
 	cmd.Require(flag.Min, 1)
 

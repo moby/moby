@@ -1,15 +1,6 @@
 package router
 
-import (
-	"net/http"
-
-	"github.com/docker/docker/api/server/httputils"
-	"github.com/gorilla/mux"
-)
-
-// VersionMatcher defines a variable matcher to be parsed by the router
-// when a request is about to be served.
-const VersionMatcher = "/v{version:[0-9.]+}"
+import "github.com/docker/docker/api/server/httputils"
 
 // Router defines an interface to specify a group of routes to add the the docker server.
 type Router interface {
@@ -18,8 +9,10 @@ type Router interface {
 
 // Route defines an individual API route in the docker server.
 type Route interface {
-	// Register adds the handler route to the docker mux.
-	Register(*mux.Router, http.Handler)
 	// Handler returns the raw function to create the http handler.
 	Handler() httputils.APIFunc
+	// Method returns the http method that the route responds to.
+	Method() string
+	// Path returns the subpath where the route responds to.
+	Path() string
 }

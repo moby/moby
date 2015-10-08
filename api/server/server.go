@@ -2,7 +2,6 @@ package server
 
 import (
 	"crypto/tls"
-	"fmt"
 	"net"
 	"net/http"
 	"os"
@@ -20,6 +19,10 @@ import (
 	"golang.org/x/net/context"
 )
 
+// versionMatcher defines a variable matcher to be parsed by the router
+// when a request is about to be served.
+const versionMatcher = "/v{version:[0-9.]+}"
+
 // Config provides the configuration for the API server
 type Config struct {
 	Logging     bool
@@ -28,22 +31,39 @@ type Config struct {
 	Version     string
 	SocketGroup string
 	TLSConfig   *tls.Config
+	Addrs       []Addr
 }
 
 // Server contains instance details for the server
 type Server struct {
 	cfg     *Config
 	start   chan struct{}
-	servers []serverCloser
+	servers []*HTTPServer
 	routers []router.Router
 }
 
+// Addr contains string representation of address and its protocol (tcp, unix...).
+type Addr struct {
+	Proto string
+	Addr  string
+}
+
 // New returns a new instance of the server based on the specified configuration.
-func New(cfg *Config) *Server {
-	return &Server{
+// It allocates resources which will be needed for ServeAPI(ports, unix-sockets).
+func New(cfg *Config) (*Server, error) {
+	s := &Server{
 		cfg:   cfg,
 		start: make(chan struct{}),
 	}
+	for _, addr := range cfg.Addrs {
+		srv, err := s.newServer(addr.Proto, addr.Addr)
+		if err != nil {
+			return nil, err
+		}
+		logrus.Debugf("Server created for HTTP on %s (%s)", addr.Proto, addr.Addr)
+		s.servers = append(s.servers, srv...)
+	}
+	return s, nil
 }
 
 // Close closes servers and thus stop receiving requests
@@ -55,39 +75,22 @@ func (s *Server) Close() {
 	}
 }
 
-type serverCloser interface {
-	Serve() error
-	Close() error
-}
-
-// ServeAPI loops through all of the protocols sent in to docker and spawns
-// off a go routine to setup a serving http.Server for each.
-func (s *Server) ServeAPI(protoAddrs []string) error {
-	var chErrors = make(chan error, len(protoAddrs))
-
-	for _, protoAddr := range protoAddrs {
-		protoAddrParts := strings.SplitN(protoAddr, "://", 2)
-		if len(protoAddrParts) != 2 {
-			return fmt.Errorf("bad format, expected PROTO://ADDR")
-		}
-		srv, err := s.newServer(protoAddrParts[0], protoAddrParts[1])
-		if err != nil {
-			return err
-		}
-		s.servers = append(s.servers, srv...)
-
-		for _, s := range srv {
-			logrus.Infof("Listening for HTTP on %s (%s)", protoAddrParts[0], protoAddrParts[1])
-			go func(s serverCloser) {
-				if err := s.Serve(); err != nil && strings.Contains(err.Error(), "use of closed network connection") {
-					err = nil
-				}
-				chErrors <- err
-			}(s)
-		}
+// ServeAPI loops through all initialized servers and spawns goroutine
+// with Serve() method for each.
+func (s *Server) ServeAPI() error {
+	var chErrors = make(chan error, len(s.servers))
+	for _, srv := range s.servers {
+		go func(srv *HTTPServer) {
+			var err error
+			logrus.Infof("API listen on %s", srv.l.Addr())
+			if err = srv.Serve(); err != nil && strings.Contains(err.Error(), "use of closed network connection") {
+				err = nil
+			}
+			chErrors <- err
+		}(srv)
 	}
 
-	for i := 0; i < len(protoAddrs); i++ {
+	for i := 0; i < len(s.servers); i++ {
 		err := <-chErrors
 		if err != nil {
 			return err
@@ -158,9 +161,13 @@ func (s *Server) makeHTTPHandler(handler httputils.APIFunc) http.HandlerFunc {
 }
 
 // InitRouters initializes a list of routers for the server.
+// Sets those routers as Handler for each server.
 func (s *Server) InitRouters(d *daemon.Daemon) {
 	s.addRouter(local.NewRouter(d))
 	s.addRouter(network.NewRouter(d))
+	for _, srv := range s.servers {
+		srv.srv.Handler = s.CreateMux()
+	}
 }
 
 // addRouter adds a new router to the server.
@@ -177,10 +184,13 @@ func (s *Server) CreateMux() *mux.Router {
 	}
 
 	logrus.Debugf("Registering routers")
-	for _, router := range s.routers {
-		for _, r := range router.Routes() {
+	for _, apiRouter := range s.routers {
+		for _, r := range apiRouter.Routes() {
 			f := s.makeHTTPHandler(r.Handler())
-			r.Register(m, f)
+
+			logrus.Debugf("Registering %s, %s", r.Method(), r.Path())
+			m.Path(versionMatcher + r.Path()).Methods(r.Method()).Handler(f)
+			m.Path(r.Path()).Methods(r.Method()).Handler(f)
 		}
 	}
 

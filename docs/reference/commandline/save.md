@@ -5,7 +5,6 @@ description = "The save command description and usage"
 keywords = ["tarred, repository, backup"]
 [menu.main]
 parent = "smn_cli"
-weight=1
 +++
 <![end-metadata]-->
 

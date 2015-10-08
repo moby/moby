@@ -24,7 +24,7 @@ func TestNetworkModeTest(t *testing.T) {
 	}
 	networkModeNames := map[NetworkMode]string{
 		"":                         "",
-		"something:weird":          "",
+		"something:weird":          "something:weird",
 		"bridge":                   "bridge",
 		DefaultDaemonNetworkMode(): "bridge",
 		"host":           "host",

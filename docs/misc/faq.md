@@ -97,8 +97,8 @@ with several powerful functionalities:
  applications. Your ideal PostgreSQL setup can be re-used for all your future
  projects. And so on.
 
- - *Sharing.* Docker has access to a public registry [on Docker Hub](https://registry.hub.docker.com/)
- where thousands of people have uploaded useful containers: anything from Redis,
+ - *Sharing.* Docker has access to a public registry [on Docker Hub](https://hub.docker.com/)
+ where thousands of people have uploaded useful images: anything from Redis,
  CouchDB, PostgreSQL to IRC bouncers to Rails app servers to Hadoop to base 
  images for various Linux distros. The
  [*registry*](/registry/) also

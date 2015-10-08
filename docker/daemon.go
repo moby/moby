@@ -71,6 +71,7 @@ func NewDaemonCli() *DaemonCli {
 	// TODO(tiborvass): remove InstallFlags?
 	daemonConfig := new(daemon.Config)
 	daemonConfig.LogConfig.Config = make(map[string]string)
+	daemonConfig.ClusterOpts = make(map[string]string)
 	daemonConfig.InstallFlags(daemonFlags, presentInHelp)
 	daemonConfig.InstallFlags(flag.CommandLine, absentFromHelp)
 	registryOptions := new(registry.Options)
@@ -223,6 +224,32 @@ func (cli *DaemonCli) CmdDaemon(args ...string) error {
 		}
 		serverConfig.TLSConfig = tlsConfig
 	}
+	for _, protoAddr := range commonFlags.Hosts {
+		protoAddrParts := strings.SplitN(protoAddr, "://", 2)
+		if len(protoAddrParts) != 2 {
+			logrus.Fatalf("bad format %s, expected PROTO://ADDR", protoAddr)
+		}
+		serverConfig.Addrs = append(serverConfig.Addrs, apiserver.Addr{Proto: protoAddrParts[0], Addr: protoAddrParts[1]})
+	}
+	api, err := apiserver.New(serverConfig)
+	if err != nil {
+		logrus.Fatal(err)
+	}
+
+	// The serve API routine never exits unless an error occurs
+	// We need to start it as a goroutine and wait on it so
+	// daemon doesn't exit
+	// All servers must be protected with some mechanism (systemd socket, listenbuffer)
+	// which prevents real handling of request until routes will be set.
+	serveAPIWait := make(chan error)
+	go func() {
+		if err := api.ServeAPI(); err != nil {
+			logrus.Errorf("ServeAPI error: %v", err)
+			serveAPIWait <- err
+			return
+		}
+		serveAPIWait <- nil
+	}()
 
 	if err := migrateKey(); err != nil {
 		logrus.Fatal(err)
@@ -249,21 +276,7 @@ func (cli *DaemonCli) CmdDaemon(args ...string) error {
 		"graphdriver": d.GraphDriver().String(),
 	}).Info("Docker daemon")
 
-	api := apiserver.New(serverConfig)
 	api.InitRouters(d)
-
-	// The serve API routine never exits unless an error occurs
-	// We need to start it as a goroutine and wait on it so
-	// daemon doesn't exit
-	serveAPIWait := make(chan error)
-	go func() {
-		if err := api.ServeAPI(commonFlags.Hosts); err != nil {
-			logrus.Errorf("ServeAPI error: %v", err)
-			serveAPIWait <- err
-			return
-		}
-		serveAPIWait <- nil
-	}()
 
 	signal.Trap(func() {
 		api.Close()

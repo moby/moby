@@ -432,6 +432,7 @@ __docker_subcommand() {
                 "($help)*--dns-search=-[DNS search domains to use]:DNS search: " \
                 "($help)*--dns-opt=-[DNS options to use]:DNS option: " \
                 "($help)*--default-ulimit=-[Set default ulimit settings for containers]:ulimit: " \
+                "($help)--disable-legacy-registry[Do not contact legacy registries]" \
                 "($help -e --exec-driver)"{-e,--exec-driver=-}"[Exec driver to use]:driver:(native lxc windows)" \
                 "($help)*--exec-opt=-[Set exec driver options]:exec driver options: " \
                 "($help)--exec-root=-[Root of the Docker execdriver]:path:_directories" \

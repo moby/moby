@@ -22,7 +22,7 @@ import (
 //
 // Usage: docker images [OPTIONS] [REPOSITORY]
 func (cli *DockerCli) CmdImages(args ...string) error {
-	cmd := Cli.Subcmd("images", []string{"[REPOSITORY[:TAG]]"}, "List images", true)
+	cmd := Cli.Subcmd("images", []string{"[REPOSITORY[:TAG]]"}, Cli.DockerCommands["images"].Description, true)
 	quiet := cmd.Bool([]string{"q", "-quiet"}, false, "Only show numeric IDs")
 	all := cmd.Bool([]string{"a", "-all"}, false, "Show all images (default hides intermediate images)")
 	noTrunc := cmd.Bool([]string{"#notrunc", "-no-trunc"}, false, "Don't truncate output")

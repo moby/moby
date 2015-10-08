@@ -15,7 +15,7 @@ import (
 //
 // docker logs [OPTIONS] CONTAINER
 func (cli *DockerCli) CmdLogs(args ...string) error {
-	cmd := Cli.Subcmd("logs", []string{"CONTAINER"}, "Fetch the logs of a container", true)
+	cmd := Cli.Subcmd("logs", []string{"CONTAINER"}, Cli.DockerCommands["logs"].Description, true)
 	follow := cmd.Bool([]string{"f", "-follow"}, false, "Follow log output")
 	since := cmd.String([]string{"-since"}, "", "Show logs since timestamp")
 	times := cmd.Bool([]string{"t", "-timestamps"}, false, "Show timestamps")
