@@ -55,6 +55,7 @@ type configuration struct {
 
 // networkConfiguration for network specific configuration
 type networkConfiguration struct {
+	ID                 string
 	BridgeName         string
 	EnableIPv6         bool
 	EnableIPMasquerade bool
@@ -67,6 +68,8 @@ type networkConfiguration struct {
 	AddressIPv6        *net.IPNet
 	DefaultGatewayIPv4 net.IP
 	DefaultGatewayIPv6 net.IP
+	dbIndex            uint64
+	dbExists           bool
 }
 
 // endpointConfiguration represents the user specified configuration for the sandbox endpoint
@@ -109,6 +112,7 @@ type driver struct {
 	natChain    *iptables.ChainInfo
 	filterChain *iptables.ChainInfo
 	networks    map[string]*bridgeNetwork
+	store       datastore.DataStore
 	sync.Mutex
 }
 
@@ -376,6 +380,11 @@ func (d *driver) configure(option map[string]interface{}) error {
 	var config *configuration
 	var err error
 
+	err = d.initStore(option)
+	if err != nil {
+		return err
+	}
+
 	d.Lock()
 	defer d.Unlock()
 
@@ -511,6 +520,8 @@ func parseNetworkOptions(id string, option options.Generic) (*networkConfigurati
 	if config.BridgeName == "" && config.DefaultBridge == false {
 		config.BridgeName = "br-" + id[:12]
 	}
+
+	config.ID = id
 	return config, nil
 }
 
@@ -540,10 +551,6 @@ func (d *driver) getNetworks() []*bridgeNetwork {
 
 // Create a new network using bridge plugin
 func (d *driver) CreateNetwork(id string, option map[string]interface{}, ipV4Data, ipV6Data []driverapi.IPAMData) error {
-	var err error
-
-	defer osl.InitOSContext()()
-
 	// Sanity checks
 	d.Lock()
 	if _, ok := d.networks[id]; ok {
@@ -563,6 +570,18 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}, ipV4Dat
 		return err
 	}
 
+	if err = d.createNetwork(config); err != nil {
+		return err
+	}
+
+	return d.storeUpdate(config)
+}
+
+func (d *driver) createNetwork(config *networkConfiguration) error {
+	var err error
+
+	defer osl.InitOSContext()()
+
 	networkList := d.getNetworks()
 	for _, nw := range networkList {
 		nw.Lock()
@@ -570,13 +589,13 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}, ipV4Dat
 		nw.Unlock()
 		if err := nwConfig.Conflicts(config); err != nil {
 			return types.ForbiddenErrorf("cannot create network %s (%s): conflicts with network %s (%s): %s",
-				nwConfig.BridgeName, id, nw.id, nw.config.BridgeName, err.Error())
+				nwConfig.BridgeName, config.ID, nw.id, nw.config.BridgeName, err.Error())
 		}
 	}
 
 	// Create and set network handler in driver
 	network := &bridgeNetwork{
-		id:         id,
+		id:         config.ID,
 		endpoints:  make(map[string]*bridgeEndpoint),
 		config:     config,
 		portMapper: portmapper.New(),
@@ -584,14 +603,14 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}, ipV4Dat
 	}
 
 	d.Lock()
-	d.networks[id] = network
+	d.networks[config.ID] = network
 	d.Unlock()
 
 	// On failure make sure to reset driver network handler to nil
 	defer func() {
 		if err != nil {
 			d.Lock()
-			delete(d.networks, id)
+			delete(d.networks, config.ID)
 			d.Unlock()
 		}
 	}()
@@ -604,7 +623,7 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}, ipV4Dat
 	// networks. This step is needed now because driver might have now set the bridge
 	// name on this config struct. And because we need to check for possible address
 	// conflicts, so we need to check against operationa lnetworks.
-	if err = config.conflictsWithNetworks(id, networkList); err != nil {
+	if err = config.conflictsWithNetworks(config.ID, networkList); err != nil {
 		return err
 	}
 
@@ -705,10 +724,6 @@ func (d *driver) DeleteNetwork(nid string) error {
 	config := n.config
 	n.Unlock()
 
-	if config.BridgeName == DefaultBridgeName {
-		return types.ForbiddenErrorf("default network of type \"%s\" cannot be deleted", networkType)
-	}
-
 	d.Lock()
 	delete(d.networks, nid)
 	d.Unlock()
@@ -753,8 +768,12 @@ func (d *driver) DeleteNetwork(nid string) error {
 		return err
 	}
 
-	// Programming
-	return netlink.LinkDel(n.bridge.Link)
+	// We only delete the bridge when it's not the default bridge. This is keep the backward compatible behavior.
+	if !config.DefaultBridge {
+		err = netlink.LinkDel(n.bridge.Link)
+	}
+
+	return d.storeDelete(config)
 }
 
 func addToBridge(ifaceName, bridgeName string) error {

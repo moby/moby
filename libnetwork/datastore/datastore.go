@@ -92,8 +92,7 @@ type KVConstructor interface {
 
 // ScopeCfg represents Datastore configuration.
 type ScopeCfg struct {
-	Embedded bool
-	Client   ScopeClientCfg
+	Client ScopeClientCfg
 }
 
 // ScopeClientCfg represents Datastore Client-only mode configuration
@@ -125,7 +124,6 @@ var (
 func makeDefaultScopes() map[string]*ScopeCfg {
 	def := make(map[string]*ScopeCfg)
 	def[LocalScope] = &ScopeCfg{
-		Embedded: true,
 		Client: ScopeClientCfg{
 			Provider: "boltdb",
 			Address:  defaultPrefix + "/boltdb.db",
