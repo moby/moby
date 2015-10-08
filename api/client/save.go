@@ -15,7 +15,7 @@ import (
 //
 // Usage: docker save [OPTIONS] IMAGE [IMAGE...]
 func (cli *DockerCli) CmdSave(args ...string) error {
-	cmd := Cli.Subcmd("save", []string{"IMAGE [IMAGE...]"}, "Save an image(s) to a tar archive (streamed to STDOUT by default)", true)
+	cmd := Cli.Subcmd("save", []string{"IMAGE [IMAGE...]"}, Cli.DockerCommands["save"].Description+" (streamed to STDOUT by default)", true)
 	outfile := cmd.String([]string{"o", "-output"}, "", "Write to a file, instead of STDOUT")
 	cmd.Require(flag.Min, 1)
 

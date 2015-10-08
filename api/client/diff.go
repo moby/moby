@@ -18,7 +18,7 @@ import (
 //
 // Usage: docker diff CONTAINER
 func (cli *DockerCli) CmdDiff(args ...string) error {
-	cmd := Cli.Subcmd("diff", []string{"CONTAINER"}, "Inspect changes on a container's filesystem", true)
+	cmd := Cli.Subcmd("diff", []string{"CONTAINER"}, Cli.DockerCommands["diff"].Description, true)
 	cmd.Require(flag.Exact, 1)
 
 	cmd.ParseFlags(args, true)

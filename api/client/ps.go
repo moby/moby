@@ -23,7 +23,7 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 		psFilterArgs = filters.Args{}
 		v            = url.Values{}
 
-		cmd      = Cli.Subcmd("ps", nil, "List containers", true)
+		cmd      = Cli.Subcmd("ps", nil, Cli.DockerCommands["ps"].Description, true)
 		quiet    = cmd.Bool([]string{"q", "-quiet"}, false, "Only display numeric IDs")
 		size     = cmd.Bool([]string{"s", "-size"}, false, "Display total file sizes")
 		all      = cmd.Bool([]string{"a", "-all"}, false, "Show all containers (default shows just running)")
