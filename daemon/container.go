@@ -790,7 +790,7 @@ func (container *Container) getExecIDs() []string {
 	return container.execCommands.List()
 }
 
-func (container *Container) exec(ExecConfig *ExecConfig) error {
+func (container *Container) exec(ec *ExecConfig) error {
 	container.Lock()
 	defer container.Unlock()
 
@@ -803,17 +803,17 @@ func (container *Container) exec(ExecConfig *ExecConfig) error {
 				c.Close()
 			}
 		}
-		close(ExecConfig.waitStart)
+		close(ec.waitStart)
 		return nil
 	}
 
 	// We use a callback here instead of a goroutine and an chan for
 	// synchronization purposes
-	cErr := promise.Go(func() error { return container.monitorExec(ExecConfig, callback) })
+	cErr := promise.Go(func() error { return container.monitorExec(ec, callback) })
 
 	// Exec should not return until the process is actually running
 	select {
-	case <-ExecConfig.waitStart:
+	case <-ec.waitStart:
 	case err := <-cErr:
 		return err
 	}
