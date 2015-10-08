@@ -43,12 +43,14 @@ func TestRegister(t *testing.T) {
 
 func TestEtcdStore(t *testing.T) {
 	kv := makeEtcdClient(t)
-	backup := makeEtcdClient(t)
+	lockKV := makeEtcdClient(t)
+	ttlKV := makeEtcdClient(t)
 
 	testutils.RunTestCommon(t, kv)
 	testutils.RunTestAtomic(t, kv)
 	testutils.RunTestWatch(t, kv)
 	testutils.RunTestLock(t, kv)
-	testutils.RunTestTTL(t, kv, backup)
+	testutils.RunTestLockTTL(t, kv, lockKV)
+	testutils.RunTestTTL(t, kv, ttlKV)
 	testutils.RunCleanup(t, kv)
 }

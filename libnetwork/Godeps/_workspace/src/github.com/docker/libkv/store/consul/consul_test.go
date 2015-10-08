@@ -44,13 +44,15 @@ func TestRegister(t *testing.T) {
 
 func TestConsulStore(t *testing.T) {
 	kv := makeConsulClient(t)
-	backup := makeConsulClient(t)
+	lockKV := makeConsulClient(t)
+	ttlKV := makeConsulClient(t)
 
 	testutils.RunTestCommon(t, kv)
 	testutils.RunTestAtomic(t, kv)
 	testutils.RunTestWatch(t, kv)
 	testutils.RunTestLock(t, kv)
-	testutils.RunTestTTL(t, kv, backup)
+	testutils.RunTestLockTTL(t, kv, lockKV)
+	testutils.RunTestTTL(t, kv, ttlKV)
 	testutils.RunCleanup(t, kv)
 }
 

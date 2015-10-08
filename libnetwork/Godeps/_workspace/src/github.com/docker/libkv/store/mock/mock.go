@@ -96,8 +96,8 @@ type Lock struct {
 }
 
 // Lock mock
-func (l *Lock) Lock() (<-chan struct{}, error) {
-	args := l.Mock.Called()
+func (l *Lock) Lock(stopCh chan struct{}) (<-chan struct{}, error) {
+	args := l.Mock.Called(stopCh)
 	return args.Get(0).(<-chan struct{}), args.Error(1)
 }
 
