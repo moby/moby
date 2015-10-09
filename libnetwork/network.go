@@ -495,7 +495,9 @@ func NetworkOptionPersist(persist bool) NetworkOption {
 // NetworkOptionIpam function returns an option setter for the ipam configuration for this network
 func NetworkOptionIpam(ipamDriver string, addrSpace string, ipV4 []*IpamConf, ipV6 []*IpamConf) NetworkOption {
 	return func(n *network) {
-		n.ipamType = ipamDriver
+		if ipamDriver != "" {
+			n.ipamType = ipamDriver
+		}
 		n.addrSpace = addrSpace
 		n.ipamV4Config = ipV4
 		n.ipamV6Config = ipV6
