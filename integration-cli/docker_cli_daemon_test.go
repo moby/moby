@@ -422,15 +422,14 @@ func (s *DockerSuite) TestDaemonStartWithDaemonCommand(c *check.C) {
 
 	var flags = []map[kind][]string{
 		{common: {"-l", "info"}, daemon: {"--selinux-enabled"}},
-		{common: {"-D"}, daemon: {"--selinux-enabled", "-r"}},
-		{common: {"-D"}, daemon: {"--restart"}},
+		{common: {"-D"}, daemon: {"--selinux-enabled"}},
 		{common: {"--debug"}, daemon: {"--log-driver=json-file", "--log-opt=max-size=1k"}},
 	}
 
 	var invalidGlobalFlags = [][]string{
 		//Invalid because you cannot pass daemon flags as global flags.
 		{"--selinux-enabled", "-l", "info"},
-		{"-D", "-r"},
+		{"-D"},
 		{"--config", "/tmp"},
 	}
 
