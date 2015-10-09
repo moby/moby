@@ -225,9 +225,9 @@ func TestCreateDeleteNetwork(t *testing.T) {
 		t.Fatalf("Expected StatusBadRequest status code, got: %v", errRsp)
 	}
 
-	ops := []string{
-		bridge.BridgeName + "=abc",
-		netlabel.EnableIPv6 + "=true",
+	ops := map[string]string{
+		bridge.BridgeName:   "abc",
+		netlabel.EnableIPv6: "true",
 	}
 	nc := networkCreate{Name: "network_1", NetworkType: bridgeNetType, Labels: ops}
 	goodBody, err := json.Marshal(nc)
@@ -259,9 +259,9 @@ func TestCreateDeleteNetwork(t *testing.T) {
 	}
 
 	// Create with labels
-	labels := []string{
-		netlabel.EnableIPv6 + "=true",
-		bridge.BridgeName + "=abc",
+	labels := map[string]string{
+		netlabel.EnableIPv6: "true",
+		bridge.BridgeName:   "abc",
 	}
 	nc = networkCreate{Name: "network_2", NetworkType: bridgeNetType, Labels: labels}
 	goodBody, err = json.Marshal(nc)
@@ -294,8 +294,8 @@ func TestGetNetworksAndEndpoints(t *testing.T) {
 	}
 	defer c.Stop()
 
-	ops := []string{
-		bridge.BridgeName + "=api_test_nw",
+	ops := map[string]string{
+		bridge.BridgeName: "api_test_nw",
 	}
 	nc := networkCreate{Name: "sh", NetworkType: bridgeNetType, Labels: ops}
 	body, err := json.Marshal(nc)
@@ -1830,10 +1830,10 @@ func TestEndToEnd(t *testing.T) {
 
 	handleRequest := NewHTTPHandler(c)
 
-	ops := []string{
-		bridge.BridgeName + "=cdef",
-		netlabel.EnableIPv6 + "=true",
-		netlabel.DriverMTU + "=1460",
+	ops := map[string]string{
+		bridge.BridgeName:   "cdef",
+		netlabel.EnableIPv6: "true",
+		netlabel.DriverMTU:  "1460",
 	}
 
 	// Create network

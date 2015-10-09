@@ -104,26 +104,3 @@ func KeyValue(label string) (key string, value string) {
 	}
 	return
 }
-
-// ToMap converts a list of labels in a map of (key,value) pairs
-func ToMap(labels []string) map[string]string {
-	m := make(map[string]string, len(labels))
-	for _, l := range labels {
-		k, v := KeyValue(l)
-		m[k] = v
-	}
-	return m
-}
-
-// FromMap converts a map of (key,value) pairs in a lsit of labels
-func FromMap(m map[string]string) []string {
-	l := make([]string, 0, len(m))
-	for k, v := range m {
-		s := k
-		if v != "" {
-			s = s + "=" + v
-		}
-		l = append(l, s)
-	}
-	return l
-}

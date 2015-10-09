@@ -57,7 +57,7 @@ type Network interface {
 
 // NetworkInfo returns operational information about the network
 type NetworkInfo interface {
-	Labels() []string
+	Labels() map[string]string
 	Scope() string
 }
 
@@ -472,16 +472,15 @@ func NetworkOptionIpam(ipamDriver string, addrSpace string, ipV4 []*IpamConf, ip
 }
 
 // NetworkOptionLabels function returns an option setter for any parameter described by a map
-func NetworkOptionLabels(labels []string) NetworkOption {
+func NetworkOptionLabels(labels map[string]string) NetworkOption {
 	return func(n *network) {
 		if n.generic == nil {
 			n.generic = make(map[string]interface{})
 		}
-		opts := netlabel.ToMap(labels)
 		// Store the options
-		n.generic[netlabel.GenericData] = opts
+		n.generic[netlabel.GenericData] = labels
 		// Decode and store the endpoint options of libnetwork interest
-		if val, ok := opts[netlabel.EnableIPv6]; ok {
+		if val, ok := labels[netlabel.EnableIPv6]; ok {
 			var err error
 			if n.enableIPv6, err = strconv.ParseBool(val); err != nil {
 				log.Warnf("Failed to parse %s' value: %s (%s)", netlabel.EnableIPv6, val, err.Error())
@@ -1047,15 +1046,15 @@ func (n *network) Info() NetworkInfo {
 	return n
 }
 
-func (n *network) Labels() []string {
+func (n *network) Labels() map[string]string {
 	n.Lock()
 	defer n.Unlock()
 	if n.generic != nil {
 		if m, ok := n.generic[netlabel.GenericData]; ok {
-			return netlabel.FromMap(m.(map[string]string))
+			return m.(map[string]string)
 		}
 	}
-	return []string{}
+	return map[string]string{}
 }
 
 func (n *network) Scope() string {
