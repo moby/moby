@@ -57,8 +57,7 @@ So what happened to our container after that? Well Docker containers
 only run as long as the command you specify is active. Here, as soon as
 `Hello world` was echoed, the container stopped.
 
-  <img src="/userguide/hello_world_images/helloworld.gif">
-
+![hello-world](/userguide/hello_world_images/helloworld.gif)
 
 ## An interactive container
 
@@ -102,8 +101,7 @@ use the `exit` command or enter Ctrl-D to finish.
 As with our previous container, once the Bash shell process has
 finished, the container is stopped.
 
-<img src="/userguide/hello_world_images/interactivecontainer.gif">
-
+![interactivecontainer](/userguide/hello_world_images/interactivecontainer.gif)
 
 ## A daemonized Hello world
 
@@ -198,7 +196,9 @@ Let's check it worked with the `docker ps` command.
     $ docker ps
     CONTAINER ID  IMAGE         COMMAND               CREATED        STATUS       PORTS NAMES
 
-<img src="/userguide/hello_world_images/daemonized.gif">
+
+![daemonized](/userguide/hello_world_images/daemonized.gif)
+
 
 Excellent. Our container has been stopped.
 
