@@ -430,9 +430,17 @@ standard input.
 ""--ulimit""=[]
     Ulimit options
 
-**-v**, **--volume**=[]
-   Bind mount a volume (e.g., from the host: -v /host:/container, from Docker: -v /container)
-
+**-v**, **--volume**=[] Create a bind mount 
+   (format: `[host-dir:]container-dir[:<suffix options>]`, where suffix options
+are comma delimited and selected from [rw|ro] and [z|Z].)
+   
+   (e.g., using -v /host-dir:/container-dir, bind mounts /host-dir in the
+host to /container-dir in the Docker container)
+   
+   If 'host-dir' is missing, then docker automatically creates the new volume
+on the host. **This auto-creation of the host path has been deprecated in
+Release: v1.9.**
+   
    The **-v** option can be used one or
 more times to add one or more mounts to a container. These mounts can then be
 used in other containers using the **--volumes-from** option.
@@ -466,8 +474,6 @@ An absolute path starts with a `/` (forward slash).
 For example, you can specify either `/foo` or `foo` for a `host-dir` value. 
 If you supply the `/foo` value, Docker creates a bind-mount. If you supply 
 the `foo` specification, Docker creates a named volume.
-
-**Note:** Multiple Volume options can be added separated by a , (comma).
 
 **--volumes-from**=[]
    Mount volumes from the specified container(s)
