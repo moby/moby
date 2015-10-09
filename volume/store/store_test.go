@@ -1,6 +1,7 @@
 package store
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/docker/docker/volume"
@@ -69,11 +70,11 @@ func TestRemove(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	s.Increment(v)
-	if err := s.Remove(v); err != ErrVolumeInUse {
+	s.Increment(v, "testvolume01")
+	if err := s.Remove(v); !strings.Contains(err.Error(), ErrVolumeInUse.Error()) {
 		t.Fatalf("Expected ErrVolumeInUse error, got %v", err)
 	}
-	s.Decrement(v)
+	s.Decrement(v, "testvolume02")
 	if err := s.Remove(v); err != nil {
 		t.Fatal(err)
 	}
@@ -85,7 +86,7 @@ func TestRemove(t *testing.T) {
 func TestIncrement(t *testing.T) {
 	s := New()
 	v := vt.NewFakeVolume("fake1")
-	s.Increment(v)
+	s.Increment(v, "testvolume01")
 	if l := s.List(); len(l) != 1 {
 		t.Fatalf("Expected 1 volume, got %v, %v", len(l), l)
 	}
@@ -93,7 +94,7 @@ func TestIncrement(t *testing.T) {
 		t.Fatalf("Expected 1 counter, got %v", c)
 	}
 
-	s.Increment(v)
+	s.Increment(v, "testvolume02")
 	if l := s.List(); len(l) != 1 {
 		t.Fatalf("Expected 1 volume, got %v, %v", len(l), l)
 	}
@@ -102,7 +103,7 @@ func TestIncrement(t *testing.T) {
 	}
 
 	v2 := vt.NewFakeVolume("fake2")
-	s.Increment(v2)
+	s.Increment(v2, "testvolume03")
 	if l := s.List(); len(l) != 2 {
 		t.Fatalf("Expected 2 volume, got %v, %v", len(l), l)
 	}
@@ -111,25 +112,25 @@ func TestIncrement(t *testing.T) {
 func TestDecrement(t *testing.T) {
 	s := New()
 	v := vt.NoopVolume{}
-	s.Decrement(v)
+	s.Decrement(v, "testvolume01")
 	if c := s.Count(v); c != 0 {
 		t.Fatalf("Expected 0 volumes, got %v", c)
 	}
 
-	s.Increment(v)
-	s.Increment(v)
-	s.Decrement(v)
+	s.Increment(v, "testvolume02")
+	s.Increment(v, "testvolume03")
+	s.Decrement(v, "testvolume02")
 	if c := s.Count(v); c != 1 {
 		t.Fatalf("Expected 1 volume, got %v", c)
 	}
 
-	s.Decrement(v)
+	s.Decrement(v, "testvolume03")
 	if c := s.Count(v); c != 0 {
 		t.Fatalf("Expected 0 volumes, got %v", c)
 	}
 
 	// Test counter cannot be negative.
-	s.Decrement(v)
+	s.Decrement(v, "testvolume01")
 	if c := s.Count(v); c != 0 {
 		t.Fatalf("Expected 0 volumes, got %v", c)
 	}
@@ -138,9 +139,9 @@ func TestDecrement(t *testing.T) {
 func TestFilterByDriver(t *testing.T) {
 	s := New()
 
-	s.Increment(vt.NewFakeVolume("fake1"))
-	s.Increment(vt.NewFakeVolume("fake2"))
-	s.Increment(vt.NoopVolume{})
+	s.Increment(vt.NewFakeVolume("fake1"), "testvolume01")
+	s.Increment(vt.NewFakeVolume("fake2"), "testvolume02")
+	s.Increment(vt.NoopVolume{}, "testvolume03")
 
 	if l := s.FilterByDriver("fake"); len(l) != 2 {
 		t.Fatalf("Expected 2 volumes, got %v, %v", len(l), l)

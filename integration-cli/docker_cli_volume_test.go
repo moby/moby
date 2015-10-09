@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/docker/docker/pkg/integration/checker"
+	"github.com/docker/docker/pkg/stringid"
 	"github.com/go-check/check"
 )
 
@@ -144,4 +145,17 @@ func (s *DockerSuite) TestVolumeCliNoArgs(c *check.C) {
 	c.Assert(err, check.NotNil, check.Commentf(stderr))
 	c.Assert(stderr, checker.Contains, usage)
 	c.Assert(stderr, checker.Contains, "flag provided but not defined: --no-such-flag")
+}
+
+func (s *DockerSuite) TestVolumeCliRmUsedVolumes(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	out, _ := dockerCmd(c, "run", "--name=test", "-d", "-v", "data:/data", "busybox", "top")
+	containerID := stringid.TruncateID(strings.TrimSpace(out))
+	out, _, err := dockerCmdWithError("volume", "rm", "data")
+	if err == nil || !strings.Contains(out, containerID) {
+		c.Fatalf("volume rm should fail with in used containers")
+	}
+	dockerCmd(c, "stop", "test")
+	dockerCmd(c, "rm", "test")
+	dockerCmd(c, "volume", "rm", "data")
 }
