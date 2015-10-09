@@ -59,7 +59,7 @@ function test_single_network_connectivity() {
 	test_single_network_connectivity bridge 3
 	if [ "$iter" -eq 1 ]; then
 	    docker restart dnet-1-bridge
-	    sleep 5
+	    wait_for_dnet $(inst_id2port 1) dnet-1-bridge
 	fi
     done
 }
@@ -84,7 +84,7 @@ function test_single_network_connectivity() {
 	test_single_network_connectivity singlehost 3
 	if [ "$iter" -eq 1 ]; then
 	    docker restart dnet-1-bridge
-	    sleep 5
+	    wait_for_dnet $(inst_id2port 1) dnet-1-bridge
 	fi
     done
 
@@ -102,7 +102,7 @@ function test_single_network_connectivity() {
 	if [ "$iter" -eq 1 ]; then
 	    test_single_network_connectivity singlehost 3 skip
 	    docker restart dnet-1-bridge
-	    sleep 5
+	    wait_for_dnet $(inst_id2port 1) dnet-1-bridge
 	else
 	    test_single_network_connectivity singlehost 3
 	fi
