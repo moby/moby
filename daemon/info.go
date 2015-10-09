@@ -61,7 +61,7 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 		initPath = daemon.systemInitPath()
 	}
 
-	sysInfo := sysinfo.New(false)
+	sysInfo := sysinfo.New(true)
 
 	v := &types.Info{
 		ID:                 daemon.ID,
