@@ -767,6 +767,9 @@ func TestValidRemoteName(t *testing.T) {
 		// Allow embedded hyphens.
 		"docker-rules/docker",
 
+		// Allow multiple hyphens as well.
+		"docker---rules/docker",
+
 		//Username doc and image name docker being tested.
 		"doc/docker",
 
@@ -800,8 +803,11 @@ func TestValidRemoteName(t *testing.T) {
 
 		"_docker/_docker",
 
-		// Disallow consecutive hyphens.
-		"dock--er/docker",
+		// Disallow consecutive underscores and periods.
+		"dock__er/docker",
+		"dock..er/docker",
+		"dock_.er/docker",
+		"dock-.er/docker",
 
 		// No repository.
 		"docker/",
