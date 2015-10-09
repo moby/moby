@@ -16,6 +16,6 @@ func (s *DockerSuite) TestLoginWithoutTTY(c *check.C) {
 
 	// run the command and block until it's done
 	err := cmd.Run()
-	c.Assert(err, checker.NotNil, check.Commentf("Expected non nil err when loginning in & TTY not available"))
+	c.Assert(err, checker.NotNil) //"Expected non nil err when loginning in & TTY not available"
 
 }
