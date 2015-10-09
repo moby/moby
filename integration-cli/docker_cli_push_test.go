@@ -148,7 +148,7 @@ func (s *DockerTrustSuite) TestTrustedPushWithFaillingServer(c *check.C) {
 	dockerCmd(c, "tag", "busybox", repoName)
 
 	pushCmd := exec.Command(dockerBinary, "push", repoName)
-	s.trustedCmdWithServer(pushCmd, "example/")
+	s.trustedCmdWithServer(pushCmd, "https://example.com:81/")
 	out, _, err := runCommandWithOutput(pushCmd)
 	if err == nil {
 		c.Fatalf("Missing error while running trusted push w/ no server")
@@ -165,7 +165,7 @@ func (s *DockerTrustSuite) TestTrustedPushWithoutServerAndUntrusted(c *check.C) 
 	dockerCmd(c, "tag", "busybox", repoName)
 
 	pushCmd := exec.Command(dockerBinary, "push", "--disable-content-trust", repoName)
-	s.trustedCmdWithServer(pushCmd, "example/")
+	s.trustedCmdWithServer(pushCmd, "https://example.com/")
 	out, _, err := runCommandWithOutput(pushCmd)
 	if err != nil {
 		c.Fatalf("trusted push with no server and --disable-content-trust failed: %s\n%s", err, out)
