@@ -3,9 +3,7 @@
 package native
 
 import (
-	"errors"
 	"fmt"
-	"net"
 	"strings"
 	"syscall"
 
@@ -13,7 +11,6 @@ import (
 	"github.com/opencontainers/runc/libcontainer/apparmor"
 	"github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/opencontainers/runc/libcontainer/devices"
-	"github.com/opencontainers/runc/libcontainer/utils"
 )
 
 // createContainer populates and configures the container type with the
@@ -101,22 +98,6 @@ func (d *Driver) createContainer(c *execdriver.Command, hooks execdriver.Hooks) 
 	d.setupLabels(container, c)
 	d.setupRlimits(container, c)
 	return container, nil
-}
-
-func generateIfaceName() (string, error) {
-	for i := 0; i < 10; i++ {
-		name, err := utils.GenerateRandomName("veth", 7)
-		if err != nil {
-			continue
-		}
-		if _, err := net.InterfaceByName(name); err != nil {
-			if strings.Contains(err.Error(), "no such") {
-				return name, nil
-			}
-			return "", err
-		}
-	}
-	return "", errors.New("Failed to find name for new interface")
 }
 
 func (d *Driver) createNetwork(container *configs.Config, c *execdriver.Command, hooks execdriver.Hooks) error {
