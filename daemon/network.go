@@ -2,11 +2,12 @@ package daemon
 
 import (
 	"errors"
+	"fmt"
+	"net"
 	"strings"
 
+	"github.com/docker/docker/daemon/network"
 	"github.com/docker/libnetwork"
-	"github.com/docker/libnetwork/netlabel"
-	"github.com/docker/libnetwork/options"
 )
 
 const (
@@ -79,14 +80,43 @@ func (daemon *Daemon) GetNetworksByID(partialID string) []libnetwork.Network {
 }
 
 // CreateNetwork creates a network with the given name, driver and other optional parameters
-func (daemon *Daemon) CreateNetwork(name, driver string, labels map[string]interface{}) (libnetwork.Network, error) {
+func (daemon *Daemon) CreateNetwork(name, driver string, ipam network.IPAM) (libnetwork.Network, error) {
 	c := daemon.netController
 	if driver == "" {
 		driver = c.Config().Daemon.DefaultDriver
 	}
-	option := libnetwork.NetworkOptionGeneric(options.Generic{
-		netlabel.GenericData: map[string]string{},
-	})
 
-	return c.NewNetwork(driver, name, option)
+	nwOptions := []libnetwork.NetworkOption{}
+
+	v4Conf, v6Conf, err := getIpamConfig(ipam.Config)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(ipam.Config) > 0 {
+		nwOptions = append(nwOptions, libnetwork.NetworkOptionIpam(ipam.Driver, "", v4Conf, v6Conf))
+	}
+	return c.NewNetwork(driver, name, nwOptions...)
+}
+
+func getIpamConfig(data []network.IPAMConfig) ([]*libnetwork.IpamConf, []*libnetwork.IpamConf, error) {
+	ipamV4Cfg := []*libnetwork.IpamConf{}
+	ipamV6Cfg := []*libnetwork.IpamConf{}
+	for _, d := range data {
+		iCfg := libnetwork.IpamConf{}
+		iCfg.PreferredPool = d.Subnet
+		iCfg.SubPool = d.IPRange
+		iCfg.Gateway = d.Gateway
+		iCfg.AuxAddresses = d.AuxAddress
+		ip, _, err := net.ParseCIDR(d.Subnet)
+		if err != nil {
+			return nil, nil, fmt.Errorf("Invalid subnet %s : %v", d.Subnet, err)
+		}
+		if ip.To4() != nil {
+			ipamV4Cfg = append(ipamV4Cfg, &iCfg)
+		} else {
+			ipamV6Cfg = append(ipamV6Cfg, &iCfg)
+		}
+	}
+	return ipamV4Cfg, ipamV6Cfg, nil
 }
