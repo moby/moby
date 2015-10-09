@@ -286,7 +286,7 @@ func (ep *endpoint) sbJoin(sbox Sandbox, options ...EndpointOption) error {
 	ep.Lock()
 	if ep.sandboxID != "" {
 		ep.Unlock()
-		return types.ForbiddenErrorf("a sandbox has already joined the endpoint")
+		return types.ForbiddenErrorf("another container is attached to the same network endpoint")
 	}
 	ep.Unlock()
 
