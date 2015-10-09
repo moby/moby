@@ -145,6 +145,7 @@ func (ncfg *networkConfiguration) UnmarshalJSON(b []byte) error {
 		}
 	}
 
+	ncfg.DefaultBridge = nMap["DefaultBridge"].(bool)
 	ncfg.DefaultBindingIP = net.ParseIP(nMap["DefaultBindingIP"].(string))
 	ncfg.DefaultGatewayIPv4 = net.ParseIP(nMap["DefaultGatewayIPv4"].(string))
 	ncfg.DefaultGatewayIPv6 = net.ParseIP(nMap["DefaultGatewayIPv6"].(string))
