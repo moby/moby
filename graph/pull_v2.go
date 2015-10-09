@@ -101,13 +101,14 @@ func (p *v2Puller) pullV2Repository(tag string) (err error) {
 
 // downloadInfo is used to pass information from download to extractor
 type downloadInfo struct {
-	img     *image.Image
-	tmpFile *os.File
-	digest  digest.Digest
-	layer   distribution.ReadSeekCloser
-	size    int64
-	err     chan error
-	out     io.Writer // Download progress is written here.
+	img                 *image.Image
+	tmpFile             *os.File
+	digest              digest.Digest
+	layer               distribution.ReadSeekCloser
+	size                int64
+	err                 chan error
+	out                 io.Writer // Download progress is written here.
+	extractionCompleted chan struct{}
 }
 
 type errVerification struct{}
@@ -123,13 +124,17 @@ func (p *v2Puller) download(di *downloadInfo) {
 	if found {
 		broadcaster.Add(out)
 		broadcaster.Wait()
-		out.Write(p.sf.FormatProgress(stringid.TruncateID(di.img.ID), "Download complete", nil))
 		di.err <- nil
 		return
 	}
 
 	broadcaster.Add(out)
-	defer p.poolRemove("pull", "img:"+di.img.ID)
+	go func() {
+		<-di.extractionCompleted
+		broadcaster.Write(p.sf.FormatProgress(stringid.TruncateID(di.img.ID), "Pull complete", nil))
+		p.poolRemove("pull", "img:"+di.img.ID)
+	}()
+
 	tmpFile, err := ioutil.TempFile("", "GetImageBlob")
 	if err != nil {
 		di.err <- err
@@ -268,8 +273,9 @@ func (p *v2Puller) pullV2Tag(out io.Writer, tag, taggedName string) (verified bo
 			// TODO: seems like this chan buffer solved hanging problem in go1.5,
 			// this can indicate some deeper problem that somehow we never take
 			// error from channel in loop below
-			err: make(chan error, 1),
-			out: pipeWriter,
+			err:                 make(chan error, 1),
+			out:                 pipeWriter,
+			extractionCompleted: make(chan struct{}),
 		}
 		downloads = append(downloads, d)
 
@@ -279,6 +285,8 @@ func (p *v2Puller) pullV2Tag(out io.Writer, tag, taggedName string) (verified bo
 	// run clean for all downloads to prevent leftovers
 	for _, d := range downloads {
 		defer func(d *downloadInfo) {
+			close(d.extractionCompleted)
+
 			if d.tmpFile != nil {
 				d.tmpFile.Close()
 				if err := os.RemoveAll(d.tmpFile.Name()); err != nil {
@@ -317,8 +325,7 @@ func (p *v2Puller) pullV2Tag(out io.Writer, tag, taggedName string) (verified bo
 			return false, err
 		}
 
-		// FIXME: Pool release here for parallel tag pull (ensures any downloads block until fully extracted)
-		out.Write(p.sf.FormatProgress(stringid.TruncateID(d.img.ID), "Pull complete", nil))
+		d.extractionCompleted <- struct{}{}
 		tagUpdated = true
 	}
 
