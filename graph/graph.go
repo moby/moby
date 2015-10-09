@@ -512,8 +512,7 @@ func (graph *Graph) Release(sessionID string, layerIDs ...string) {
 func (graph *Graph) Heads() map[string]*image.Image {
 	heads := make(map[string]*image.Image)
 	graph.walkAll(func(image *image.Image) {
-		// If it's not in the byParent lookup table, then
-		// it's not a parent -> so it's a head!
+		// if it has no children, then it's not a parent, so it's an head
 		if !graph.HasChildren(image.ID) {
 			heads[image.ID] = image
 		}

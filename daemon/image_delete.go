@@ -337,5 +337,5 @@ func (daemon *Daemon) checkImageDeleteSoftConflict(img *image.Image) *imageDelet
 // that there are no repository references to the given image and it has no
 // child images.
 func (daemon *Daemon) imageIsDangling(img *image.Image) bool {
-	return !(daemon.Repositories().HasReferences(img) || daemon.Graph().HasChildren(img.ID))
+	return !(daemon.repositories.HasReferences(img) || daemon.Graph().HasChildren(img.ID))
 }
