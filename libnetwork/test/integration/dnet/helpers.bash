@@ -44,6 +44,46 @@ function stop_consul() {
     fi
 }
 
+hrun() {
+    local e E T oldIFS
+    [[ ! "$-" =~ e ]] || e=1
+    [[ ! "$-" =~ E ]] || E=1
+    [[ ! "$-" =~ T ]] || T=1
+    set +e
+    set +E
+    set +T
+    output="$("$@" 2>&1)"
+    status="$?"
+    oldIFS=$IFS
+    IFS=$'\n' lines=($output)
+    [ -z "$e" ] || set -e
+    [ -z "$E" ] || set -E
+    [ -z "$T" ] || set -T
+    IFS=$oldIFS
+}
+
+function wait_for_dnet() {
+    local hport
+
+    hport=$1
+    echo "waiting on dnet to come up ..."
+    for i in `seq 1 10`;
+    do
+	hrun ./cmd/dnet/dnet -H tcp://127.0.0.1:${hport} network ls
+	echo ${output}
+	if [ "$status" -eq 0 ]; then
+	    return
+	fi
+
+	if [[ "${lines[1]}" =~ .*EOF.* ]]
+	then
+	    docker logs ${2}
+	fi
+	echo "still waiting after ${i} seconds"
+	sleep 1
+    done
+}
+
 function start_dnet() {
     local inst suffix name hport cport hopt neighip bridge_ip labels tomlfile
     inst=$1
@@ -110,7 +150,7 @@ EOF
 	   -v /usr/local/bin/runc:/usr/local/bin/runc \
 	   -w /go/src/github.com/docker/libnetwork \
 	   golang:1.4 ./cmd/dnet/dnet -d -D ${hopt} -c ${tomlfile}
-    sleep 3
+    wait_for_dnet $(inst_id2port ${inst}) ${name}
 }
 
 function skip_for_circleci() {
