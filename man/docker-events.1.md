@@ -18,11 +18,11 @@ information and real-time information.
 
 Docker containers will report the following events:
 
-    create, destroy, die, export, kill, pause, restart, start, stop, unpause
+    attach, commit, copy, create, destroy, die, exec_create, exec_start, export, kill, oom, pause, rename, resize, restart, start, stop, top, unpause
 
 and Docker images will report:
 
-    untag, delete
+    delete, import, pull, push, tag, untag
 
 # OPTIONS
 **--help**
