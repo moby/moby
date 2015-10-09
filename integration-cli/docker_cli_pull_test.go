@@ -32,8 +32,8 @@ func (s *DockerHubPullSuite) TestPullFromCentralRegistry(c *check.C) {
 	img := strings.TrimSpace(s.Cmd(c, "images"))
 	splitImg := strings.Split(img, "\n")
 	c.Assert(len(splitImg), checker.Equals, 2, check.Commentf("expected only two lines in the output of 'docker images', got %d", len(splitImg)))
-	re := regexp.MustCompile('^hello-world\s+latest')
-	c.Assert(re, checker.Match, []byte(splitImg[1]), check.Commentf("invalid output for 'docker images' (expected images and tag name)"))
+	re := regexp.MustCompile(`^hello-world\s+latest`)
+	c.Assert(re, checker.Matches, []byte(splitImg[1]), check.Commentf("invalid output for `docker images` (expected images and tag name)"))
 }
 
 // TestPullNonExistingImage pulls non-existing images from the central registry, with different
@@ -81,9 +81,9 @@ func (s *DockerHubPullSuite) TestPullFromCentralRegistryImplicitRefParts(c *chec
 	// We should have a single entry in images.
 	img := strings.TrimSpace(s.Cmd(c, "images"))
 	splitImg := strings.Split(img, "\n")
-	c.Assert(len(splitImg), checker.Equals, 2, check.Commentf("expected only two lines in the output of 'docker images', got %d", len(splitImg)))
-	re := regexp.MustCompile(('^hello-world\s+latest')
-	c.Assert(re, checker.Match, []byte(splitImg[1]), check.Commentf("invalid output for 'docker images' (expected images and tag name)"))
+	c.Assert(len(splitImg), checker.Equals, 2, check.Commentf("expected only two lines in the output of `docker images`, got %d", len(splitImg)))
+	re := regexp.MustCompile(`^hello-world\s+latest`)
+	c.Assert(re, checker.Match, []byte(splitImg[1]), check.Commentf("invalid output for `docker images` (expected images and tag name)"))
 }
 
 // TestPullScratchNotAllowed verifies that pulling 'scratch' is rejected.
