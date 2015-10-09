@@ -142,6 +142,40 @@ func (s *DockerTrustSuite) TestTrustedPush(c *check.C) {
 	}
 }
 
+func (s *DockerTrustSuite) TestTrustedPushWithEnvPasswords(c *check.C) {
+	repoName := fmt.Sprintf("%v/dockercli/trusted:latest", privateRegistryURL)
+	// tag the image and upload it to the private registry
+	dockerCmd(c, "tag", "busybox", repoName)
+
+	pushCmd := exec.Command(dockerBinary, "push", repoName)
+	s.trustedCmdWithPassphrases(pushCmd, "12345678", "12345678")
+	out, _, err := runCommandWithOutput(pushCmd)
+	if err != nil {
+		c.Fatalf("Error running trusted push: %s\n%s", err, out)
+	}
+	if !strings.Contains(string(out), "Signing and pushing trust metadata") {
+		c.Fatalf("Missing expected output on trusted push:\n%s", out)
+	}
+}
+
+// This test ensures backwards compatibility with old ENV variables. Should be
+// deprecated by 1.10
+func (s *DockerTrustSuite) TestTrustedPushWithDeprecatedEnvPasswords(c *check.C) {
+	repoName := fmt.Sprintf("%v/dockercli/trusteddeprecated:latest", privateRegistryURL)
+	// tag the image and upload it to the private registry
+	dockerCmd(c, "tag", "busybox", repoName)
+
+	pushCmd := exec.Command(dockerBinary, "push", repoName)
+	s.trustedCmdWithDeprecatedEnvPassphrases(pushCmd, "12345678", "12345678")
+	out, _, err := runCommandWithOutput(pushCmd)
+	if err != nil {
+		c.Fatalf("Error running trusted push: %s\n%s", err, out)
+	}
+	if !strings.Contains(string(out), "Signing and pushing trust metadata") {
+		c.Fatalf("Missing expected output on trusted push:\n%s", out)
+	}
+}
+
 func (s *DockerTrustSuite) TestTrustedPushWithFaillingServer(c *check.C) {
 	repoName := fmt.Sprintf("%v/dockercli/trusted:latest", privateRegistryURL)
 	// tag the image and upload it to the private registry
@@ -258,6 +292,38 @@ func (s *DockerTrustSuite) TestTrustedPushWithIncorrectPassphraseForNonRoot(c *c
 	// Push with wrong passphrases
 	pushCmd = exec.Command(dockerBinary, "push", repoName)
 	s.trustedCmdWithPassphrases(pushCmd, "12345678", "87654321")
+	out, _, err = runCommandWithOutput(pushCmd)
+	if err == nil {
+		c.Fatalf("Error missing from trusted push with short targets passphrase: \n%s", out)
+	}
+
+	if !strings.Contains(string(out), "password invalid, operation has failed") {
+		c.Fatalf("Missing expected output on trusted push with short targets/snapsnot passphrase:\n%s", out)
+	}
+}
+
+// This test ensures backwards compatibility with old ENV variables. Should be
+// deprecated by 1.10
+func (s *DockerTrustSuite) TestTrustedPushWithIncorrectDeprecatedPassphraseForNonRoot(c *check.C) {
+	repoName := fmt.Sprintf("%v/dockercliincorretdeprecatedpwd/trusted:latest", privateRegistryURL)
+	// tag the image and upload it to the private registry
+	dockerCmd(c, "tag", "busybox", repoName)
+
+	// Push with default passphrases
+	pushCmd := exec.Command(dockerBinary, "push", repoName)
+	s.trustedCmd(pushCmd)
+	out, _, err := runCommandWithOutput(pushCmd)
+	if err != nil {
+		c.Fatalf("trusted push failed: %s\n%s", err, out)
+	}
+
+	if !strings.Contains(string(out), "Signing and pushing trust metadata") {
+		c.Fatalf("Missing expected output on trusted push:\n%s", out)
+	}
+
+	// Push with wrong passphrases
+	pushCmd = exec.Command(dockerBinary, "push", repoName)
+	s.trustedCmdWithDeprecatedEnvPassphrases(pushCmd, "12345678", "87654321")
 	out, _, err = runCommandWithOutput(pushCmd)
 	if err == nil {
 		c.Fatalf("Error missing from trusted push with short targets passphrase: \n%s", out)

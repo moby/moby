@@ -124,11 +124,27 @@ func (s *DockerTrustSuite) trustedCmdWithServer(cmd *exec.Cmd, server string) {
 	trustCmdEnv(cmd, server, pwd, pwd)
 }
 
-func (s *DockerTrustSuite) trustedCmdWithPassphrases(cmd *exec.Cmd, offlinePwd, taggingPwd string) {
-	trustCmdEnv(cmd, notaryURL, offlinePwd, taggingPwd)
+func (s *DockerTrustSuite) trustedCmdWithPassphrases(cmd *exec.Cmd, rootPwd, repositoryPwd string) {
+	trustCmdEnv(cmd, s.not.address(), rootPwd, repositoryPwd)
 }
 
-func trustCmdEnv(cmd *exec.Cmd, server, offlinePwd, taggingPwd string) {
+func (s *DockerTrustSuite) trustedCmdWithDeprecatedEnvPassphrases(cmd *exec.Cmd, offlinePwd, taggingPwd string) {
+	trustCmdDeprecatedEnv(cmd, s.not.address(), offlinePwd, taggingPwd)
+}
+
+func trustCmdEnv(cmd *exec.Cmd, server, rootPwd, repositoryPwd string) {
+	env := []string{
+		"DOCKER_CONTENT_TRUST=1",
+		fmt.Sprintf("DOCKER_CONTENT_TRUST_SERVER=%s", server),
+		fmt.Sprintf("DOCKER_CONTENT_TRUST_ROOT_PASSPHRASE=%s", rootPwd),
+		fmt.Sprintf("DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE=%s", repositoryPwd),
+	}
+	cmd.Env = append(os.Environ(), env...)
+}
+
+// Helper method to test the old env variables OFFLINE and TAGGING that will
+// be deprecated by 1.10
+func trustCmdDeprecatedEnv(cmd *exec.Cmd, server, offlinePwd, taggingPwd string) {
 	env := []string{
 		"DOCKER_CONTENT_TRUST=1",
 		fmt.Sprintf("DOCKER_CONTENT_TRUST_SERVER=%s", server),
