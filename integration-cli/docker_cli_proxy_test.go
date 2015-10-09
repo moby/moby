@@ -38,7 +38,8 @@ func (s *DockerDaemonSuite) TestCliProxyProxyTCPSock(c *check.C) {
 		}
 	}
 
-	c.Assert(ip, checker.Equals, "")
+	c.Assert(ip, checker.Not(checker.Equals), "")
+
 	err = s.d.Start("-H", "tcp://"+ip+":2375")
 	c.Assert(err, checker.IsNil)
 	cmd := exec.Command(dockerBinary, "info")
