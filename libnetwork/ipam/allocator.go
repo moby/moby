@@ -239,7 +239,7 @@ func (a *Allocator) parsePoolRequest(addressSpace, pool, subPool string, v6 bool
 }
 
 func (a *Allocator) insertBitMask(key SubnetKey, pool *net.IPNet) error {
-	log.Debugf("Inserting bitmask (%s, %s)", key.String(), pool.String())
+	//log.Debugf("Inserting bitmask (%s, %s)", key.String(), pool.String())
 
 	store := a.getStore(key.AddressSpace)
 	if store == nil {

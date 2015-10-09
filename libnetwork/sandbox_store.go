@@ -168,7 +168,6 @@ func (c *controller) sandboxCleanup() {
 	for _, kvo := range kvol {
 		sbs := kvo.(*sbState)
 
-		logrus.Printf("sandboxcleanup sbs = %+v", sbs)
 		sb := &sandbox{
 			id:          sbs.ID,
 			controller:  sbs.c,
