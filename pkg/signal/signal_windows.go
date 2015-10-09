@@ -25,3 +25,10 @@ var SignalMap = map[string]syscall.Signal{
 	"KILL": syscall.SIGKILL,
 	"TERM": syscall.SIGTERM,
 }
+
+// FatalSignals lists the signals that are typically considered fatal
+// For instance, when a process gets these signals, it is expected that the process exits
+var FatalSignals = map[syscall.Signal]struct{}{
+	syscall.SIGKILL: {},
+	syscall.SIGTERM: {},
+}

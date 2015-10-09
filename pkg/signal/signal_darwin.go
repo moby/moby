@@ -39,3 +39,13 @@ var SignalMap = map[string]syscall.Signal{
 	"XCPU":   syscall.SIGXCPU,
 	"XFSZ":   syscall.SIGXFSZ,
 }
+
+// FatalSignals lists the signals that are typically considered fatal
+// For instance, when a process gets these signals, it is expected that the process exits
+var FatalSignals = map[syscall.Signal]struct{}{
+	syscall.SIGABRT: {},
+	syscall.SIGINT:  {},
+	syscall.SIGKILL: {},
+	syscall.SIGQUIT: {},
+	syscall.SIGTERM: {},
+}
