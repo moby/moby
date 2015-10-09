@@ -16,7 +16,6 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/driverapi"
-	"github.com/docker/libnetwork/ipallocator"
 	"github.com/docker/libnetwork/iptables"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/netutils"
@@ -40,10 +39,6 @@ const (
 	DefaultGatewayV4AuxKey = "DefaultGatewayIPv4"
 	// DefaultGatewayV6AuxKey represents the ipv6 default-gateway configured by the user
 	DefaultGatewayV6AuxKey = "DefaultGatewayIPv6"
-)
-
-var (
-	ipAllocator *ipallocator.IPAllocator
 )
 
 // configuration info for the "bridge" driver.
@@ -118,7 +113,6 @@ type driver struct {
 
 // New constructs a new bridge driver
 func newDriver() *driver {
-	ipAllocator = ipallocator.New()
 	return &driver{networks: map[string]*bridgeNetwork{}, config: &configuration{}}
 }
 
@@ -1068,12 +1062,6 @@ func (d *driver) DeleteEndpoint(nid, eid string) error {
 
 	// Remove port mappings. Do not stop endpoint delete on unmap failure
 	n.releasePorts(ep)
-
-	// Release the v4 address allocated to this endpoint's sandbox interface
-	err = ipAllocator.ReleaseIP(n.bridge.bridgeIPv4, ep.addr.IP)
-	if err != nil {
-		return err
-	}
 
 	// Try removal of link. Discard error: link pair might have
 	// already been deleted by sandbox delete. Make sure defer
