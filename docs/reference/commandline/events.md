@@ -21,11 +21,11 @@ parent = "smn_cli"
 
 Docker containers will report the following events:
 
-    create, destroy, die, export, kill, oom, pause, restart, start, stop, unpause
+    attach, commit, copy, create, destroy, die, exec_create, exec_start, export, kill, oom, pause, rename, resize, restart, start, stop, top, unpause
 
 and Docker images will report:
 
-    untag, delete
+    delete, import, pull, push, tag, untag
 
 The `--since` and `--until` parameters can be Unix timestamps, RFC3339
 dates or Go duration strings (e.g. `10m`, `1h30m`) computed relative to
