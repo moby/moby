@@ -15,10 +15,23 @@ const (
 	RepositoryNameTotalLengthMax = 255
 )
 
+// domainLabelRegexp represents the following RFC-2396 BNF construct:
+//   domainlabel   = alphanum | alphanum *( alphanum | "-" ) alphanum
+var domainLabelRegexp = regexp.MustCompile(`[a-z0-9](?:-*[a-z0-9])*`)
+
 // RepositoryNameComponentRegexp restricts registry path component names to
-// start with at least one letter or number, with following parts able to
-// be separated by one period, dash or underscore.
-var RepositoryNameComponentRegexp = regexp.MustCompile(`[a-z0-9]+(?:[._-][a-z0-9]+)*`)
+// the allow valid hostnames according to: https://www.ietf.org/rfc/rfc2396.txt
+// with the following differences:
+//  1) It DOES NOT allow for fully-qualified domain names, which include a
+//    trailing '.', e.g. "google.com."
+//  2) It DOES NOT restrict 'top-level' domain labels to start with just alpha
+//    characters.
+//  3) It DOES allow for underscores to appear in the same situations as dots.
+//
+// RFC-2396 uses the BNF construct:
+//   hostname      = *( domainlabel "." ) toplabel [ "." ]
+var RepositoryNameComponentRegexp = regexp.MustCompile(
+	domainLabelRegexp.String() + `(?:[._]` + domainLabelRegexp.String() + `)*`)
 
 // RepositoryNameComponentAnchoredRegexp is the version of
 // RepositoryNameComponentRegexp which must completely match the content
