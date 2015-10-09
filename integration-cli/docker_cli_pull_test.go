@@ -30,11 +30,10 @@ func (s *DockerHubPullSuite) TestPullFromCentralRegistry(c *check.C) {
 
 	// We should have a single entry in images.
 	img := strings.TrimSpace(s.Cmd(c, "images"))
-	if splitImg := strings.Split(img, "\n"); len(splitImg) != 2 {
-		c.Fatalf("expected only two lines in the output of `docker images`, got %d", len(splitImg))
-	} else if re := regexp.MustCompile(`^hello-world\s+latest`); !re.Match([]byte(splitImg[1])) {
-		c.Fatal("invalid output for `docker images` (expected image and tag name")
-	}
+	splitImg := strings.Split(img, "\n")
+	c.Assert(len(splitImg), checker.Equals, 2, check.Commentf("expected only two lines in the output of 'docker images', got %d", len(splitImg)))
+	re := regexp.MustCompile(`^hello-world\s+latest`)
+	c.Assert(re, checker.Matches, []byte(splitImg[1]), check.Commentf("invalid output for `docker images` (expected images and tag name)"))
 }
 
 // TestPullNonExistingImage pulls non-existing images from the central registry, with different
@@ -81,11 +80,10 @@ func (s *DockerHubPullSuite) TestPullFromCentralRegistryImplicitRefParts(c *chec
 
 	// We should have a single entry in images.
 	img := strings.TrimSpace(s.Cmd(c, "images"))
-	if splitImg := strings.Split(img, "\n"); len(splitImg) != 2 {
-		c.Fatalf("expected only two lines in the output of `docker images`, got %d", len(splitImg))
-	} else if re := regexp.MustCompile(`^hello-world\s+latest`); !re.Match([]byte(splitImg[1])) {
-		c.Fatal("invalid output for `docker images` (expected image and tag name")
-	}
+	splitImg := strings.Split(img, "\n")
+	c.Assert(len(splitImg), checker.Equals, 2, check.Commentf("expected only two lines in the output of `docker images`, got %d", len(splitImg)))
+	re := regexp.MustCompile(`^hello-world\s+latest`)
+	c.Assert(re, checker.Match, []byte(splitImg[1]), check.Commentf("invalid output for `docker images` (expected images and tag name)"))
 }
 
 // TestPullScratchNotAllowed verifies that pulling 'scratch' is rejected.
@@ -108,9 +106,8 @@ func (s *DockerHubPullSuite) TestPullAllTagsFromCentralRegistry(c *check.C) {
 
 	s.Cmd(c, "pull", "--all-tags=true", "busybox")
 	outImageAllTagCmd := s.Cmd(c, "images", "busybox")
-	if linesCount := strings.Count(outImageAllTagCmd, "\n"); linesCount <= 2 {
-		c.Fatalf("pulling all tags should provide more images, got %d", linesCount-1)
-	}
+	linesCount := strings.Count(outImageAllTagCmd, "\n")
+	c.Assert(linesCount <= 2, checker.Equals, false, check.Commentf("pulling all tags should provide more images, got %d", linesCount-1))
 
 	// Verify that the line for 'busybox:latest' is left unchanged.
 	var latestLine string
@@ -153,9 +150,7 @@ func (s *DockerHubPullSuite) TestPullClientDisconnect(c *check.C) {
 		if _, err := s.CmdWithError("inspect", repoName); err == nil {
 			break
 		}
-		if i >= maxAttempts {
-			c.Fatal("timeout reached: image was not pulled after client disconnected")
-		}
+		c.Assert(i >= maxAttempts, checker.Equals, false, check.Commentf("timeout reached: image was not pulled after client disconnected"))
 		time.Sleep(500 * time.Millisecond)
 	}
 }
