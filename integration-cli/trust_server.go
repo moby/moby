@@ -125,11 +125,11 @@ func (s *DockerTrustSuite) trustedCmdWithServer(cmd *exec.Cmd, server string) {
 }
 
 func (s *DockerTrustSuite) trustedCmdWithPassphrases(cmd *exec.Cmd, rootPwd, repositoryPwd string) {
-	trustCmdEnv(cmd, s.not.address(), rootPwd, repositoryPwd)
+	trustCmdEnv(cmd, notaryURL, rootPwd, repositoryPwd)
 }
 
 func (s *DockerTrustSuite) trustedCmdWithDeprecatedEnvPassphrases(cmd *exec.Cmd, offlinePwd, taggingPwd string) {
-	trustCmdDeprecatedEnv(cmd, s.not.address(), offlinePwd, taggingPwd)
+	trustCmdDeprecatedEnv(cmd, notaryURL, offlinePwd, taggingPwd)
 }
 
 func trustCmdEnv(cmd *exec.Cmd, server, rootPwd, repositoryPwd string) {

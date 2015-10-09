@@ -18,16 +18,16 @@ To allow tools to wrap docker and push trusted content, there are two
 environment variables that allow you to provide the passphrases without an
 expect script, or typing them in:
 
- - `DOCKER_CONTENT_TRUST_OFFLINE_PASSPHRASE`
- - `DOCKER_CONTENT_TRUST_TAGGING_PASSPHRASE`
+ - `DOCKER_CONTENT_TRUST_ROOT_PASSPHRASE`
+ - `DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE`
 
 Docker attempts to use the contents of these environment variables as passphrase
 for the keys. For example, an image publisher can export the repository `target`
 and `snapshot` passphrases:
 
 ```bash
-$  export DOCKER_CONTENT_TRUST_OFFLINE_PASSPHRASE="u7pEQcGoebUHm6LHe6"
-$  export DOCKER_CONTENT_TRUST_TAGGING_PASSPHRASE="l7pEQcTKJjUHm6Lpe4"
+$  export DOCKER_CONTENT_TRUST_ROOT_PASSPHRASE="u7pEQcGoebUHm6LHe6"
+$  export DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE="l7pEQcTKJjUHm6Lpe4"
 ```
 
 Then, when pushing a new tag the Docker client does not request these values but signs automatically:
@@ -43,7 +43,7 @@ Signing and pushing trust metadata
 
 ## Building with content trust
 
-You can also build with content trust. Before running the `docker build` command, you should set the environment variable `DOCKER_CONTENT_TRUST` either manually or in in a scripted fashion. Consider the simple Dockerfile below. 
+You can also build with content trust. Before running the `docker build` command, you should set the environment variable `DOCKER_CONTENT_TRUST` either manually or in in a scripted fashion. Consider the simple Dockerfile below.
 
 ```Dockerfile
 FROM docker/trusttest:latest
@@ -73,7 +73,7 @@ unable to process Dockerfile: No trust data for notrust
 
 ## Related information
 
-* [Content trust in Docker](/security/trust/content_trust) 
+* [Content trust in Docker](/security/trust/content_trust)
 * [Manage keys for content trust](/security/trust/trust_key_mng)
 * [Play in a content trust sandbox](/security/trust/trust_sandbox)
 

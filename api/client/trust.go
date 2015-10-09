@@ -197,13 +197,16 @@ func (cli *DockerCli) getPassphraseRetriever() passphrase.Retriever {
 	}
 
 	// Backwards compatibility with old env names. We should remove this in 1.10
+	if env["root"] == "" {
+		env["root"] = os.Getenv("DOCKER_CONTENT_TRUST_OFFLINE_PASSPHRASE")
+		fmt.Fprintf(cli.err, "[DEPRECATED] The environment variable DOCKER_CONTENT_TRUST_OFFLINE_PASSPHRASE has been deprecated and will be removed in v1.10. Please use DOCKER_CONTENT_TRUST_ROOT_PASSPHRASE\n")
+
+	}
 	if env["snapshot"] == "" || env["targets"] == "" {
 		env["snapshot"] = os.Getenv("DOCKER_CONTENT_TRUST_TAGGING_PASSPHRASE")
 		env["targets"] = os.Getenv("DOCKER_CONTENT_TRUST_TAGGING_PASSPHRASE")
+		fmt.Fprintf(cli.err, "[DEPRECATED] The environment variable DOCKER_CONTENT_TRUST_TAGGING_PASSPHRASE has been deprecated and will be removed in v1.10. Please use DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE\n")
 
-	}
-	if env["root"] == "" {
-		env["root"] = os.Getenv("DOCKER_CONTENT_TRUST_OFFLINE_PASSPHRASE")
 	}
 
 	return func(keyName string, alias string, createNew bool, numAttempts int) (string, bool, error) {

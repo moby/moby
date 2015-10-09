@@ -106,12 +106,12 @@ $ docker pull someimage@sha256:d149ab53f8718e987c3a3024bb8aa0e2caadf6c0328f1d9d8
 
 Trust for an image tag is managed through the use of signing keys. A key set is
 created when an operation using content trust is first invoked. Docker's content
-trust makes use of four different keys: 
+trust makes use of four different keys:
 
 | Key                 | Description                                                                                                                                                                                                                                                                                                                                                                         |
 |---------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| offline key         | Root of content trust for a image tag. When content trust is enabled, you create the offline key once. |
-| target and snapshot | These two keys are known together as the "tagging" key. When content trust is enabled, you create this key when you add a new image repository. If you have the offline key, you can export the tagging key and allow other publishers to sign the image tags.    |
+| root key         | Root of content trust for a image tag. When content trust is enabled, you create the root key once. |
+| target and snapshot | These two keys are known together as the "repository" key. When content trust is enabled, you create this key when you add a new image repository. If you have the root key, you can export the repository key and allow other publishers to sign the image tags.    |
 | timestamp           | This key applies to a repository. It allows Docker repositories to have freshness security guarantees without requiring periodic content refreshes on the client's side.                                                                                                              |
 
 With the exception of the timestamp, all the keys are generated and stored locally
@@ -123,16 +123,16 @@ The following image depicts the various signing keys and their relationships:
 
 ![Content trust components](../images/trust_components.png)
 
->**WARNING**: Loss of the offline key is **very difficult** to recover from.
+>**WARNING**: Loss of the root key is **very difficult** to recover from.
 >Correcting this loss requires intervention from [Docker
 >Support](https://support.docker.com) to reset the repository state. This loss
 >also requires **manual intervention** from every consumer that used a signed
 >tag from this repository prior to the loss.
 
-You should backup the offline key somewhere safe. Given that it is only required
+You should backup the root key somewhere safe. Given that it is only required
 to create new repositories, it is a good idea to store it offline. Make sure you
 read [Manage keys for content trust](/security/trust/trust_key_mng) information
-for details on securing, and backing up your keys. 
+for details on securing, and backing up your keys.
 
 ## Survey of typical content trust operations
 
@@ -185,27 +185,27 @@ The push refers to a repository [docker.io/docker/trusttest] (len: 1)
 902b87aaaec9: Image already exists
 latest: digest: sha256:d02adacee0ac7a5be140adb94fa1dae64f4e71a68696e7f8e7cbf9db8dd49418 size: 3220
 Signing and pushing trust metadata
-You are about to create a new offline signing key passphrase. This passphrase
+You are about to create a new root signing key passphrase. This passphrase
 will be used to protect the most sensitive key in your signing system. Please
 choose a long, complex passphrase and be careful to keep the password and the
 key file itself secure and backed up. It is highly recommended that you use a
 password manager to generate the passphrase and keep it safe. There will be no
 way to recover this key. You can find the key in your config directory.
-Enter passphrase for new offline key with id a1d96fb:
-Repeat passphrase for new offline key with id a1d96fb:
-Enter passphrase for new tagging key with id docker.io/docker/trusttest (3a932f1):
-Repeat passphrase for new tagging key with id docker.io/docker/trusttest (3a932f1):
+Enter passphrase for new root key with id a1d96fb:
+Repeat passphrase for new root key with id a1d96fb:
+Enter passphrase for new repository key with id docker.io/docker/trusttest (3a932f1):
+Repeat passphrase for new repository key with id docker.io/docker/trusttest (3a932f1):
 Finished initializing "docker.io/docker/trusttest"
 ```
 When you push your first tagged image with content trust enabled, the  `docker`
 client recognizes this is your first push and:
 
- - alerts you that it will create a new offline key
+ - alerts you that it will create a new root key
  - requests a passphrase for the key
- - generates an offline key in the `~/.docker/trust` directory
- - generates a tagging key for in the `~/.docker/trust` directory
+ - generates a root key in the `~/.docker/trust` directory
+ - generates a repository key for in the `~/.docker/trust` directory
 
-The passphrase you chose for both the offline key and your content key-pair
+The passphrase you chose for both the root key and your content key-pair
 should be randomly generated and stored in a *password manager*.
 
 > **NOTE**: If you omit the `latest` tag, content trust is skipped. This is true
@@ -223,8 +223,8 @@ No tag specified, skipping trust metadata push
 It is skipped because as the message states, you did not supply an image `TAG`
 value. In Docker content trust, signatures are associated with tags.
 
-Once you have an offline key on your system, subsequent images repositories
-you create can use that same offline key:
+Once you have a root key on your system, subsequent images repositories
+you create can use that same root key:
 
 ```bash
 $ docker push docker.io/docker/seaside:latest
@@ -233,13 +233,13 @@ a9539b34a6ab: Image successfully pushed
 b3dbab3810fc: Image successfully pushed
 latest: digest: sha256:d2ba1e603661a59940bfad7072eba698b79a8b20ccbb4e3bfb6f9e367ea43939 size: 3346
 Signing and pushing trust metadata
-Enter key passphrase for offline key with id a1d96fb:
-Enter passphrase for new tagging key with id docker.io/docker/seaside (bb045e3):
-Repeat passphrase for new tagging key with id docker.io/docker/seaside (bb045e3):
+Enter key passphrase for root key with id a1d96fb:
+Enter passphrase for new repository key with id docker.io/docker/seaside (bb045e3):
+Repeat passphrase for new repository key with id docker.io/docker/seaside (bb045e3):
 Finished initializing "docker.io/docker/seaside"
 ```
 
-The new image has its own tagging key and timestamp key. The `latest` tag is signed with both of
+The new image has its own repository key and timestamp key. The `latest` tag is signed with both of
 these.
 
 
