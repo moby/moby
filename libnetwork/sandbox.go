@@ -307,15 +307,21 @@ func (sb *sandbox) SetKey(basePath string) error {
 	}
 
 	sb.Lock()
-	if sb.osSbox != nil {
-		sb.Unlock()
-		return types.ForbiddenErrorf("failed to set sandbox key : already assigned")
-	}
+	osSbox := sb.osSbox
 	sb.Unlock()
-	osSbox, err := osl.GetSandboxForExternalKey(basePath, sb.Key())
+
+	if osSbox != nil {
+		// If we already have an OS sandbox, release the network resources from that
+		// and destroy the OS snab. We are moving into a new home further down. Note that none
+		// of the network resources gets destroyed during the move.
+		sb.releaseOSSbox()
+	}
+
+	osSbox, err = osl.GetSandboxForExternalKey(basePath, sb.Key())
 	if err != nil {
 		return err
 	}
+
 	sb.Lock()
 	sb.osSbox = osSbox
 	sb.Unlock()
@@ -333,6 +339,45 @@ func (sb *sandbox) SetKey(basePath string) error {
 		}
 	}
 	return nil
+}
+
+func releaseOSSboxResources(osSbox osl.Sandbox, ep *endpoint) {
+	for _, i := range osSbox.Info().Interfaces() {
+		// Only remove the interfaces owned by this endpoint from the sandbox.
+		if ep.hasInterface(i.SrcName()) {
+			if err := i.Remove(); err != nil {
+				log.Debugf("Remove interface failed: %v", err)
+			}
+		}
+	}
+
+	ep.Lock()
+	joinInfo := ep.joinInfo
+	ep.Unlock()
+
+	// Remove non-interface routes.
+	for _, r := range joinInfo.StaticRoutes {
+		if err := osSbox.RemoveStaticRoute(r); err != nil {
+			log.Debugf("Remove route failed: %v", err)
+		}
+	}
+}
+
+func (sb *sandbox) releaseOSSbox() {
+	sb.Lock()
+	osSbox := sb.osSbox
+	sb.osSbox = nil
+	sb.Unlock()
+
+	if osSbox == nil {
+		return
+	}
+
+	for _, ep := range sb.getConnectedEndpoints() {
+		releaseOSSboxResources(osSbox, ep)
+	}
+
+	osSbox.Destroy()
 }
 
 func (sb *sandbox) populateNetworkResources(ep *endpoint) error {
@@ -394,25 +439,7 @@ func (sb *sandbox) clearNetworkResources(origEp *endpoint) error {
 	osSbox := sb.osSbox
 	sb.Unlock()
 	if osSbox != nil {
-		for _, i := range osSbox.Info().Interfaces() {
-			// Only remove the interfaces owned by this endpoint from the sandbox.
-			if ep.hasInterface(i.SrcName()) {
-				if err := i.Remove(); err != nil {
-					log.Debugf("Remove interface failed: %v", err)
-				}
-			}
-		}
-
-		ep.Lock()
-		joinInfo := ep.joinInfo
-		ep.Unlock()
-
-		// Remove non-interface routes.
-		for _, r := range joinInfo.StaticRoutes {
-			if err := osSbox.RemoveStaticRoute(r); err != nil {
-				log.Debugf("Remove route failed: %v", err)
-			}
-		}
+		releaseOSSboxResources(osSbox, ep)
 	}
 
 	sb.Lock()
