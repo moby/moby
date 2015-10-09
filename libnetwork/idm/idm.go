@@ -10,13 +10,13 @@ import (
 
 // Idm manages the reservation/release of numerical ids from a contiguos set
 type Idm struct {
-	start  uint32
-	end    uint32
+	start  uint64
+	end    uint64
 	handle *bitseq.Handle
 }
 
 // New returns an instance of id manager for a set of [start-end] numerical ids
-func New(ds datastore.DataStore, id string, start, end uint32) (*Idm, error) {
+func New(ds datastore.DataStore, id string, start, end uint64) (*Idm, error) {
 	if id == "" {
 		return nil, fmt.Errorf("Invalid id")
 	}
@@ -33,7 +33,7 @@ func New(ds datastore.DataStore, id string, start, end uint32) (*Idm, error) {
 }
 
 // GetID returns the first available id in the set
-func (i *Idm) GetID() (uint32, error) {
+func (i *Idm) GetID() (uint64, error) {
 	if i.handle == nil {
 		return 0, fmt.Errorf("ID set is not initialized")
 	}
@@ -42,7 +42,7 @@ func (i *Idm) GetID() (uint32, error) {
 }
 
 // GetSpecificID tries to reserve the specified id
-func (i *Idm) GetSpecificID(id uint32) error {
+func (i *Idm) GetSpecificID(id uint64) error {
 	if i.handle == nil {
 		return fmt.Errorf("ID set is not initialized")
 	}
@@ -55,6 +55,6 @@ func (i *Idm) GetSpecificID(id uint32) error {
 }
 
 // Release releases the specified id
-func (i *Idm) Release(id uint32) {
+func (i *Idm) Release(id uint64) {
 	i.handle.Unset(id - i.start)
 }

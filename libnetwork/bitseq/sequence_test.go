@@ -9,9 +9,9 @@ import (
 func TestSequenceGetAvailableBit(t *testing.T) {
 	input := []struct {
 		head    *sequence
-		from    uint32
-		bytePos uint32
-		bitPos  uint32
+		from    uint64
+		bytePos uint64
+		bitPos  uint64
 	}{
 		{&sequence{block: 0x0, count: 0}, 0, invalidPos, invalidPos},
 		{&sequence{block: 0x0, count: 1}, 0, 0, 0},
@@ -120,8 +120,8 @@ func TestSequenceCopy(t *testing.T) {
 func TestGetFirstAvailable(t *testing.T) {
 	input := []struct {
 		mask    *sequence
-		bytePos uint32
-		bitPos  uint32
+		bytePos uint64
+		bitPos  uint64
 	}{
 		{&sequence{block: 0xffffffff, count: 2048}, invalidPos, invalidPos},
 		{&sequence{block: 0x0, count: 8}, 0, 0},
@@ -167,9 +167,9 @@ func TestGetFirstAvailable(t *testing.T) {
 func TestFindSequence(t *testing.T) {
 	input := []struct {
 		head           *sequence
-		bytePos        uint32
-		precBlocks     uint32
-		inBlockBytePos uint32
+		bytePos        uint64
+		precBlocks     uint64
+		inBlockBytePos uint64
 	}{
 		{&sequence{block: 0xffffffff, count: 0}, 0, 0, invalidPos},
 		{&sequence{block: 0xffffffff, count: 0}, 31, 0, invalidPos},
@@ -202,9 +202,9 @@ func TestFindSequence(t *testing.T) {
 func TestCheckIfAvailable(t *testing.T) {
 	input := []struct {
 		head    *sequence
-		ordinal uint32
-		bytePos uint32
-		bitPos  uint32
+		ordinal uint64
+		bytePos uint64
+		bitPos  uint64
 	}{
 		{&sequence{block: 0xffffffff, count: 0}, 0, invalidPos, invalidPos},
 		{&sequence{block: 0xffffffff, count: 0}, 31, invalidPos, invalidPos},
@@ -274,8 +274,8 @@ func TestMergeSequences(t *testing.T) {
 func TestPushReservation(t *testing.T) {
 	input := []struct {
 		mask    *sequence
-		bytePos uint32
-		bitPos  uint32
+		bytePos uint64
+		bitPos  uint64
 		newMask *sequence
 	}{
 		// Create first sequence and fill in 8 addresses starting from address 0
@@ -445,8 +445,8 @@ func TestSet(t *testing.T) {
 	}
 	hnd.head = getTestSequence()
 
-	firstAv := uint32(32*100 + 31)
-	last := uint32(1024*32 - 1)
+	firstAv := uint64(32*100 + 31)
+	last := uint64(1024*32 - 1)
 
 	if hnd.IsSet(100000) {
 		t.Fatal("IsSet() returned wrong result")
@@ -497,7 +497,7 @@ func TestSet(t *testing.T) {
 }
 
 func TestSetUnset(t *testing.T) {
-	numBits := uint32(64 * 1024)
+	numBits := uint64(64 * 1024)
 	hnd, err := NewHandle("", nil, "", numBits)
 	if err != nil {
 		t.Fatal(err)
@@ -508,7 +508,7 @@ func TestSetUnset(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	i := uint32(0)
+	i := uint64(0)
 	for hnd.Unselected() < numBits {
 		if err := hnd.Unset(i); err != nil {
 			t.Fatal(err)
@@ -518,14 +518,14 @@ func TestSetUnset(t *testing.T) {
 }
 
 func TestSetInRange(t *testing.T) {
-	numBits := uint32(1024 * blockLen)
+	numBits := uint64(1024 * blockLen)
 	hnd, err := NewHandle("", nil, "", numBits)
 	if err != nil {
 		t.Fatal(err)
 	}
 	hnd.head = getTestSequence()
 
-	firstAv := uint32(100*blockLen + blockLen - 1)
+	firstAv := uint64(100*blockLen + blockLen - 1)
 
 	if o, err := hnd.SetAnyInRange(4, 3); err == nil {
 		t.Fatalf("Expected failure. Got success with ordinal:%d", o)
@@ -539,7 +539,7 @@ func TestSetInRange(t *testing.T) {
 		t.Fatalf("Expected failure. Got success with ordinal:%d", o)
 	}
 
-	o, err := hnd.SetAnyInRange(100*blockLen, 101*blockLen)
+	o, err := hnd.SetAnyInRange(100*uint64(blockLen), 101*uint64(blockLen))
 	if err != nil {
 		t.Fatalf("Unexpected failure: (%d, %v)", o, err)
 	}
@@ -547,7 +547,7 @@ func TestSetInRange(t *testing.T) {
 		t.Fatalf("Unexpected ordinal: %d", o)
 	}
 
-	if o, err := hnd.SetAnyInRange(0, blockLen); err == nil {
+	if o, err := hnd.SetAnyInRange(0, uint64(blockLen)); err == nil {
 		t.Fatalf("Expected failure. Got success with ordinal:%d", o)
 	}
 
@@ -555,27 +555,27 @@ func TestSetInRange(t *testing.T) {
 		t.Fatalf("Expected failure. Got success with ordinal:%d", o)
 	}
 
-	if o, err := hnd.SetAnyInRange(111*blockLen, 161*blockLen); err == nil {
+	if o, err := hnd.SetAnyInRange(111*uint64(blockLen), 161*uint64(blockLen)); err == nil {
 		t.Fatalf("Expected failure. Got success with ordinal:%d", o)
 	}
 
-	o, err = hnd.SetAnyInRange(161*blockLen, 162*blockLen)
+	o, err = hnd.SetAnyInRange(161*uint64(blockLen), 162*uint64(blockLen))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if o != 161*blockLen+30 {
+	if o != 161*uint64(blockLen)+30 {
 		t.Fatalf("Unexpected ordinal: %d", o)
 	}
 
-	o, err = hnd.SetAnyInRange(161*blockLen, 162*blockLen)
+	o, err = hnd.SetAnyInRange(161*uint64(blockLen), 162*uint64(blockLen))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if o != 161*blockLen+31 {
+	if o != 161*uint64(blockLen)+31 {
 		t.Fatalf("Unexpected ordinal: %d", o)
 	}
 
-	o, err = hnd.SetAnyInRange(161*blockLen, 162*blockLen)
+	o, err = hnd.SetAnyInRange(161*uint64(blockLen), 162*uint64(blockLen))
 	if err == nil {
 		t.Fatalf("Expected failure. Got success with ordinal:%d", o)
 	}

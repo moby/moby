@@ -17,9 +17,8 @@ const (
 	localAddressSpace  = "LocalDefault"
 	globalAddressSpace = "GlobalDefault"
 	// The biggest configurable host subnets
-	minNetSize      = 8
-	minNetSizeV6    = 64
-	minNetSizeV6Eff = 96
+	minNetSize   = 8
+	minNetSizeV6 = 64
 	// datastore keyes for ipam objects
 	dsConfigKey = "ipam/" + ipamapi.DefaultIPAM + "/config"
 	dsDataKey   = "ipam/" + ipamapi.DefaultIPAM + "/data"
@@ -129,7 +128,7 @@ func (a *Allocator) GetDefaultAddressSpaces() (string, string, error) {
 // RequestPool returns an address pool along with its unique id.
 func (a *Allocator) RequestPool(addressSpace, pool, subPool string, options map[string]string, v6 bool) (string, *net.IPNet, map[string]string, error) {
 	log.Debugf("RequestPool(%s, %s, %s, %v, %t)", addressSpace, pool, subPool, options, v6)
-	k, nw, aw, ipr, err := a.parsePoolRequest(addressSpace, pool, subPool, v6)
+	k, nw, ipr, err := a.parsePoolRequest(addressSpace, pool, subPool, v6)
 	if err != nil {
 		return "", nil, nil, ipamapi.ErrInvalidPool
 	}
@@ -157,7 +156,7 @@ retry:
 		goto retry
 	}
 
-	return k.String(), aw, nil, insert()
+	return k.String(), nw, nil, insert()
 }
 
 // ReleasePool releases the address pool identified by the passed id
@@ -205,41 +204,38 @@ func (a *Allocator) getAddrSpace(as string) (*addrSpace, error) {
 	return aSpace, nil
 }
 
-func (a *Allocator) parsePoolRequest(addressSpace, pool, subPool string, v6 bool) (*SubnetKey, *net.IPNet, *net.IPNet, *AddressRange, error) {
+func (a *Allocator) parsePoolRequest(addressSpace, pool, subPool string, v6 bool) (*SubnetKey, *net.IPNet, *AddressRange, error) {
 	var (
-		nw, aw *net.IPNet
-		ipr    *AddressRange
-		err    error
+		nw  *net.IPNet
+		ipr *AddressRange
+		err error
 	)
 
 	if addressSpace == "" {
-		return nil, nil, nil, nil, ipamapi.ErrInvalidAddressSpace
+		return nil, nil, nil, ipamapi.ErrInvalidAddressSpace
 	}
 
 	if pool == "" && subPool != "" {
-		return nil, nil, nil, nil, ipamapi.ErrInvalidSubPool
+		return nil, nil, nil, ipamapi.ErrInvalidSubPool
 	}
 
 	if pool != "" {
 		if _, nw, err = net.ParseCIDR(pool); err != nil {
-			return nil, nil, nil, nil, ipamapi.ErrInvalidPool
+			return nil, nil, nil, ipamapi.ErrInvalidPool
 		}
 		if subPool != "" {
 			if ipr, err = getAddressRange(subPool); err != nil {
-				return nil, nil, nil, nil, err
+				return nil, nil, nil, err
 			}
 		}
 	} else {
 		if nw, err = a.getPredefinedPool(addressSpace, v6); err != nil {
-			return nil, nil, nil, nil, err
+			return nil, nil, nil, err
 		}
 
 	}
-	if aw, err = adjustAndCheckSubnetSize(nw); err != nil {
-		return nil, nil, nil, nil, err
-	}
 
-	return &SubnetKey{AddressSpace: addressSpace, Subnet: nw.String(), ChildSubnet: subPool}, nw, aw, ipr, nil
+	return &SubnetKey{AddressSpace: addressSpace, Subnet: nw.String(), ChildSubnet: subPool}, nw, ipr, nil
 }
 
 func (a *Allocator) insertBitMask(key SubnetKey, pool *net.IPNet) error {
@@ -252,10 +248,15 @@ func (a *Allocator) insertBitMask(key SubnetKey, pool *net.IPNet) error {
 
 	ipVer := getAddressVersion(pool.IP)
 	ones, bits := pool.Mask.Size()
-	numAddresses := uint32(1 << uint(bits-ones))
+	numAddresses := uint64(1 << uint(bits-ones))
 
 	if ipVer == v4 {
 		// Do not let broadcast address be reserved
+		numAddresses--
+	}
+
+	// Allow /64 subnet
+	if ipVer == v6 && numAddresses == 0 {
 		numAddresses--
 	}
 
@@ -265,10 +266,9 @@ func (a *Allocator) insertBitMask(key SubnetKey, pool *net.IPNet) error {
 		return err
 	}
 
-	if ipVer == v4 {
-		// Do not let network identifier address be reserved
-		h.Set(0)
-	}
+	// Do not let network identifier address be reserved
+	// Do the same for IPv6 so that bridge ip starts with XXXX...::1
+	h.Set(0)
 
 	a.Lock()
 	a.addresses[key] = h
@@ -438,6 +438,7 @@ func (a *Allocator) ReleaseAddress(poolID string, address net.IP) error {
 	if p.Range != nil {
 		mask = p.Range.Sub.Mask
 	}
+
 	h, err := types.GetHostPartIP(address, mask)
 	if err != nil {
 		return fmt.Errorf("failed to release address %s: %v", address.String(), err)
@@ -448,12 +449,13 @@ func (a *Allocator) ReleaseAddress(poolID string, address net.IP) error {
 		return fmt.Errorf("could not find bitmask in datastore for %s on address %v release from pool %s: %v",
 			k.String(), address, poolID, err)
 	}
-	return bm.Unset(ipToUint32(h))
+
+	return bm.Unset(ipToUint64(h))
 }
 
 func (a *Allocator) getAddress(nw *net.IPNet, bitmask *bitseq.Handle, prefAddress net.IP, ipr *AddressRange) (net.IP, error) {
 	var (
-		ordinal uint32
+		ordinal uint64
 		err     error
 		base    *net.IPNet
 	)
@@ -470,7 +472,7 @@ func (a *Allocator) getAddress(nw *net.IPNet, bitmask *bitseq.Handle, prefAddres
 		if e != nil {
 			return nil, fmt.Errorf("failed to allocate preferred address %s: %v", prefAddress.String(), e)
 		}
-		ordinal = ipToUint32(types.GetMinimalIP(hostPart))
+		ordinal = ipToUint64(types.GetMinimalIP(hostPart))
 		err = bitmask.Set(ordinal)
 	} else {
 		base.IP = ipr.Sub.IP

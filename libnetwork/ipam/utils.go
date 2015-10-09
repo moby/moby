@@ -33,32 +33,12 @@ func getAddressRange(pool string) (*AddressRange, error) {
 		return nil, fmt.Errorf("failed to compute range's highest ip address: %v", e)
 	}
 	nw.IP = ip
-	return &AddressRange{nw, ipToUint32(types.GetMinimalIP(lIP)), ipToUint32(types.GetMinimalIP(hIP))}, nil
-}
-
-// Check subnets size. In case configured subnet is v6 and host size is
-// greater than 32 bits, adjust subnet to /96.
-func adjustAndCheckSubnetSize(subnet *net.IPNet) (*net.IPNet, error) {
-	ones, bits := subnet.Mask.Size()
-	if v6 == getAddressVersion(subnet.IP) {
-		if ones < minNetSizeV6 {
-			return nil, ipamapi.ErrInvalidPool
-		}
-		if ones < minNetSizeV6Eff {
-			newMask := net.CIDRMask(minNetSizeV6Eff, bits)
-			return &net.IPNet{IP: subnet.IP, Mask: newMask}, nil
-		}
-	} else {
-		if ones < minNetSize {
-			return nil, ipamapi.ErrInvalidPool
-		}
-	}
-	return subnet, nil
+	return &AddressRange{nw, ipToUint64(types.GetMinimalIP(lIP)), ipToUint64(types.GetMinimalIP(hIP))}, nil
 }
 
 // It generates the ip address in the passed subnet specified by
 // the passed host address ordinal
-func generateAddress(ordinal uint32, network *net.IPNet) net.IP {
+func generateAddress(ordinal uint64, network *net.IPNet) net.IP {
 	var address [16]byte
 
 	// Get network portion of IP
@@ -83,7 +63,7 @@ func getAddressVersion(ip net.IP) ipVersion {
 
 // Adds the ordinal IP to the current array
 // 192.168.0.0 + 53 => 192.168.53
-func addIntToIP(array []byte, ordinal uint32) {
+func addIntToIP(array []byte, ordinal uint64) {
 	for i := len(array) - 1; i >= 0; i-- {
 		array[i] |= (byte)(ordinal & 0xff)
 		ordinal >>= 8
@@ -91,11 +71,11 @@ func addIntToIP(array []byte, ordinal uint32) {
 }
 
 // Convert an ordinal to the respective IP address
-func ipToUint32(ip []byte) uint32 {
-	value := uint32(0)
-	for i := 0; i < len(ip); i++ {
-		j := len(ip) - 1 - i
-		value += uint32(ip[i]) << uint(j*8)
+func ipToUint64(ip []byte) (value uint64) {
+	cip := types.GetMinimalIP(ip)
+	for i := 0; i < len(cip); i++ {
+		j := len(cip) - 1 - i
+		value += uint64(cip[i]) << uint(j*8)
 	}
 	return value
 }

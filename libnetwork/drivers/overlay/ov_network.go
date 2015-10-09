@@ -475,7 +475,7 @@ func (n *network) releaseVxlanID() error {
 	}
 
 	for _, s := range n.subnets {
-		n.driver.vxlanIdm.Release(n.vxlanID(s))
+		n.driver.vxlanIdm.Release(uint64(n.vxlanID(s)))
 		n.setVxlanID(s, 0)
 	}
 	return nil
@@ -502,9 +502,9 @@ func (n *network) obtainVxlanID(s *subnet) error {
 				return fmt.Errorf("failed to allocate vxlan id: %v", err)
 			}
 
-			n.setVxlanID(s, vxlanID)
+			n.setVxlanID(s, uint32(vxlanID))
 			if err := n.writeToStore(); err != nil {
-				n.driver.vxlanIdm.Release(n.vxlanID(s))
+				n.driver.vxlanIdm.Release(uint64(n.vxlanID(s)))
 				n.setVxlanID(s, 0)
 				if err == datastore.ErrKeyModified {
 					continue

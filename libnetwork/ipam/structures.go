@@ -43,7 +43,7 @@ type addrSpace struct {
 // identify a range in a a pool of addresses
 type AddressRange struct {
 	Sub        *net.IPNet
-	Start, End uint32
+	Start, End uint64
 }
 
 // String returns the string form of the AddressRange object
@@ -71,8 +71,8 @@ func (r *AddressRange) UnmarshalJSON(data []byte) error {
 	if r.Sub, err = types.ParseCIDR(m["Sub"].(string)); err != nil {
 		return err
 	}
-	r.Start = uint32(m["Start"].(float64))
-	r.End = uint32(m["End"].(float64))
+	r.Start = uint64(m["Start"].(float64))
+	r.End = uint64(m["End"].(float64))
 	return nil
 }
 

@@ -66,10 +66,10 @@ func getAllocator() (*Allocator, error) {
 }
 
 func TestInt2IP2IntConversion(t *testing.T) {
-	for i := uint32(0); i < 256*256*256; i++ {
+	for i := uint64(0); i < 256*256*256; i++ {
 		var array [4]byte // new array at each cycle
 		addIntToIP(array[:], i)
-		j := ipToUint32(array[:])
+		j := ipToUint64(array[:])
 		if j != i {
 			t.Fatalf("Failed to convert ordinal %d to IP % x and back to ordinal. Got %d", i, array, j)
 		}
@@ -502,31 +502,6 @@ func TestPredefinedPool(t *testing.T) {
 	}
 }
 
-func TestAdjustAndCheckSubnet(t *testing.T) {
-	_, sub6, _ := net.ParseCIDR("1003:1:2:300::/63")
-	_, err := adjustAndCheckSubnetSize(sub6)
-	if err == nil {
-		t.Fatalf("Failed detect too big v6 subnet")
-	}
-
-	_, sub, _ := net.ParseCIDR("192.0.0.0/7")
-	_, err = adjustAndCheckSubnetSize(sub)
-	if err == nil {
-		t.Fatalf("Failed detect too big v4 subnet")
-	}
-
-	subnet := "1004:1:2:6::/64"
-	_, sub6, _ = net.ParseCIDR(subnet)
-	subnetToSplit, err := adjustAndCheckSubnetSize(sub6)
-	if err != nil {
-		t.Fatalf("Unexpected error returned by adjustAndCheckSubnetSize()")
-	}
-	ones, _ := subnetToSplit.Mask.Size()
-	if ones < minNetSizeV6Eff {
-		t.Fatalf("Wrong effective network size for %s. Expected: %d. Got: %d", subnet, minNetSizeV6Eff, ones)
-	}
-}
-
 func TestRemoveSubnet(t *testing.T) {
 	a, err := getAllocator()
 	if err != nil {
@@ -757,7 +732,7 @@ func TestRequestSyntaxCheck(t *testing.T) {
 
 	err = a.ReleaseAddress(pid, ip)
 	if err != nil {
-		t.Fatalf("Unexpected failure: %v", err)
+		t.Fatalf("Unexpected failure: %v: %s, %s", err, pid, ip)
 	}
 }
 
@@ -873,7 +848,7 @@ func assertGetAddress(t *testing.T, subnet string) {
 	zeroes := bits - ones
 	numAddresses := 1 << uint(zeroes)
 
-	bm, err := bitseq.NewHandle("ipam_test", nil, "default/"+subnet, uint32(numAddresses))
+	bm, err := bitseq.NewHandle("ipam_test", nil, "default/"+subnet, uint64(numAddresses))
 	if err != nil {
 		t.Fatal(err)
 	}

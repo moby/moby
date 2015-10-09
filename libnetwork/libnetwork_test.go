@@ -276,7 +276,7 @@ func TestBridge(t *testing.T) {
 		},
 	}
 	ipamV4ConfList := []*libnetwork.IpamConf{&libnetwork.IpamConf{PreferredPool: "192.168.100.0/24", Gateway: "192.168.100.1"}}
-	ipamV6ConfList := []*libnetwork.IpamConf{&libnetwork.IpamConf{PreferredPool: "fe90::/98", Gateway: "fe90::22"}}
+	ipamV6ConfList := []*libnetwork.IpamConf{&libnetwork.IpamConf{PreferredPool: "fe90::/64", Gateway: "fe90::22"}}
 
 	network, err := createTestNetwork(bridgeNetType, "testnetwork", netOption, ipamV4ConfList, ipamV6ConfList)
 	if err != nil {
@@ -1641,7 +1641,7 @@ func TestEnableIPv6(t *testing.T) {
 			"BridgeName": "testnetwork",
 		},
 	}
-	ipamV6ConfList := []*libnetwork.IpamConf{&libnetwork.IpamConf{PreferredPool: "fe80::/98"}}
+	ipamV6ConfList := []*libnetwork.IpamConf{&libnetwork.IpamConf{PreferredPool: "fe80::/64"}}
 
 	n, err := createTestNetwork("bridge", "testnetwork", netOption, nil, ipamV6ConfList)
 	if err != nil {
