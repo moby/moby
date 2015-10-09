@@ -118,6 +118,15 @@ func GetDriver(name, home string, options []string) (Driver, error) {
 	return nil, ErrNotSupported
 }
 
+// getBuiltinDriver initalizes and returns the registered driver, but does not try to load from plugins
+func getBuiltinDriver(name, home string, options []string) (Driver, error) {
+	if initFunc, exists := drivers[name]; exists {
+		return initFunc(filepath.Join(home, name), options)
+	}
+	logrus.Errorf("Failed to built-in GetDriver graph %s %s", name, home)
+	return nil, ErrNotSupported
+}
+
 // New creates the driver and initializes it at the specified root.
 func New(root string, options []string) (driver Driver, err error) {
 	for _, name := range []string{os.Getenv("DOCKER_DRIVER"), DefaultDriver} {
@@ -138,7 +147,7 @@ func New(root string, options []string) (driver Driver, err error) {
 			// of the state found from prior drivers, check in order of our priority
 			// which we would prefer
 			if prior == name {
-				driver, err = GetDriver(name, root, options)
+				driver, err = getBuiltinDriver(name, root, options)
 				if err != nil {
 					// unlike below, we will return error here, because there is prior
 					// state, and now it is no longer supported/prereq/compatible, so
@@ -158,7 +167,7 @@ func New(root string, options []string) (driver Driver, err error) {
 
 	// Check for priority drivers first
 	for _, name := range priority {
-		driver, err = GetDriver(name, root, options)
+		driver, err = getBuiltinDriver(name, root, options)
 		if err != nil {
 			if err == ErrNotSupported || err == ErrPrerequisites || err == ErrIncompatibleFS {
 				continue
