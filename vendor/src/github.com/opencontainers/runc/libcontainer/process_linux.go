@@ -84,6 +84,7 @@ func (p *setnsProcess) start() (err error) {
 		return newSystemError(err)
 	}
 	if ierr != nil {
+		p.wait()
 		return newSystemError(ierr)
 	}
 
