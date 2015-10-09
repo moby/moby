@@ -557,17 +557,6 @@ func (n *network) deleteNetwork() error {
 		return fmt.Errorf("failed deleting network: %v", err)
 	}
 
-	// If it is bridge network type make sure we call the driver about the network
-	// because the network may have been created in some past life of libnetwork.
-	if n.Type() == "bridge" {
-		n.drvOnce.Do(func() {
-			err = n.getController().addNetwork(n)
-		})
-		if err != nil {
-			return err
-		}
-	}
-
 	if err := d.DeleteNetwork(n.ID()); err != nil {
 		// Forbidden Errors should be honored
 		if _, ok := err.(types.ForbiddenError); ok {
@@ -583,17 +572,6 @@ func (n *network) addEndpoint(ep *endpoint) error {
 	d, err := n.driver()
 	if err != nil {
 		return fmt.Errorf("failed to add endpoint: %v", err)
-	}
-
-	// If it is bridge network type make sure we call the driver about the network
-	// because the network may have been created in some past life of libnetwork.
-	if n.Type() == "bridge" {
-		n.drvOnce.Do(func() {
-			err = n.getController().addNetwork(n)
-		})
-		if err != nil {
-			return err
-		}
 	}
 
 	err = d.CreateEndpoint(n.id, ep.id, ep.Interface(), ep.generic)

@@ -185,17 +185,22 @@ func createDefaultNetwork(c libnetwork.NetworkController) {
 		// Bridge driver is special due to legacy reasons
 		if d == "bridge" {
 			genericOption[netlabel.GenericData] = map[string]interface{}{
-				"BridgeName": nw,
+				"BridgeName":    "docker0",
+				"DefaultBridge": "true",
 			}
 			createOptions = append(createOptions,
 				libnetwork.NetworkOptionGeneric(genericOption),
 				ipamOption(nw))
 		}
 
-		if _, err := c.NetworkByName(nw); err == nil {
-			logrus.Debugf("Default network %s already present", nw)
-			return
+		if n, err := c.NetworkByName(nw); err == nil {
+			logrus.Debugf("Default network %s already present. Deleting it", nw)
+			if err = n.Delete(); err != nil {
+				logrus.Debugf("Network could not be deleted: %v", err)
+				return
+			}
 		}
+
 		_, err := c.NewNetwork(d, nw, createOptions...)
 		if err != nil {
 			logrus.Errorf("Error creating default network : %s : %v", nw, err)

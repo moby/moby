@@ -38,7 +38,6 @@ func TestParseKey(t *testing.T) {
 
 func TestInvalidDataStore(t *testing.T) {
 	config := &ScopeCfg{}
-	config.Embedded = false
 	config.Client.Provider = "invalid"
 	config.Client.Address = "localhost:8500"
 	_, err := NewDataStore(GlobalScope, config)

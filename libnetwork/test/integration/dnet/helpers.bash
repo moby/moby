@@ -110,7 +110,7 @@ EOF
 	   -v /usr/local/bin/runc:/usr/local/bin/runc \
 	   -w /go/src/github.com/docker/libnetwork \
 	   golang:1.4 ./cmd/dnet/dnet -d -D ${hopt} -c ${tomlfile}
-    sleep 2
+    sleep 3
 }
 
 function skip_for_circleci() {

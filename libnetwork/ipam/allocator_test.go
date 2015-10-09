@@ -32,7 +32,6 @@ func randomLocalStore() (datastore.DataStore, error) {
 		return nil, fmt.Errorf("Error closing temp file: %v", err)
 	}
 	return datastore.NewDataStore(datastore.LocalScope, &datastore.ScopeCfg{
-		Embedded: true,
 		Client: datastore.ScopeClientCfg{
 			Provider: "boltdb",
 			Address:  defaultPrefix + tmp.Name(),
