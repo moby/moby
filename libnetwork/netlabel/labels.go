@@ -1,6 +1,8 @@
 package netlabel
 
-import "strings"
+import (
+	"strings"
+)
 
 const (
 	// Prefix constant marks the reserved label space for libnetwork
@@ -22,11 +24,14 @@ const (
 	// MacAddress constant represents Mac Address config of a Container
 	MacAddress = Prefix + ".endpoint.macaddress"
 
-	// ExposedPorts constant represents exposedports of a Container
+	// ExposedPorts constant represents the container's Exposed Ports
 	ExposedPorts = Prefix + ".endpoint.exposedports"
 
 	//EnableIPv6 constant represents enabling IPV6 at network level
 	EnableIPv6 = Prefix + ".enable_ipv6"
+
+	// DriverMTU constant represents the MTU size for the network driver
+	DriverMTU = DriverPrefix + ".mtu"
 
 	// OverlayBindInterface constant represents overlay driver bind interface
 	OverlayBindInterface = DriverPrefix + ".overlay.bind_interface"
@@ -74,15 +79,51 @@ func MakeKVProviderConfig(scope string) string {
 }
 
 // Key extracts the key portion of the label
-func Key(label string) string {
-	kv := strings.SplitN(label, "=", 2)
-
-	return kv[0]
+func Key(label string) (key string) {
+	if kv := strings.SplitN(label, "=", 2); len(kv) > 0 {
+		key = kv[0]
+	}
+	return
 }
 
 // Value extracts the value portion of the label
-func Value(label string) string {
-	kv := strings.SplitN(label, "=", 2)
+func Value(label string) (value string) {
+	if kv := strings.SplitN(label, "=", 2); len(kv) > 1 {
+		value = kv[1]
+	}
+	return
+}
 
-	return kv[1]
+// KeyValue decomposes the label in the (key,value) pair
+func KeyValue(label string) (key string, value string) {
+	if kv := strings.SplitN(label, "=", 2); len(kv) > 0 {
+		key = kv[0]
+		if len(kv) > 1 {
+			value = kv[1]
+		}
+	}
+	return
+}
+
+// ToMap converts a list of labels in a map of (key,value) pairs
+func ToMap(labels []string) map[string]string {
+	m := make(map[string]string, len(labels))
+	for _, l := range labels {
+		k, v := KeyValue(l)
+		m[k] = v
+	}
+	return m
+}
+
+// FromMap converts a map of (key,value) pairs in a lsit of labels
+func FromMap(m map[string]string) []string {
+	l := make([]string, 0, len(m))
+	for k, v := range m {
+		s := k
+		if v != "" {
+			s = s + "=" + v
+		}
+		l = append(l, s)
+	}
+	return l
 }

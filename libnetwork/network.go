@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"strconv"
 	"sync"
 
 	log "github.com/Sirupsen/logrus"
@@ -49,6 +50,15 @@ type Network interface {
 
 	// EndpointByID returns the Endpoint which has the passed id. If not found, the error ErrNoSuchEndpoint is returned.
 	EndpointByID(id string) (Endpoint, error)
+
+	// Return certain operational data belonging to this network
+	Info() NetworkInfo
+}
+
+// NetworkInfo returns operational information about the network
+type NetworkInfo interface {
+	Labels() []string
+	Scope() string
 }
 
 // EndpointWalker is a client provided function which will be used to walk the Endpoints.
@@ -150,7 +160,6 @@ type network struct {
 	dbExists     bool
 	persist      bool
 	stopWatchCh  chan struct{}
-	scope        string
 	drvOnce      *sync.Once
 	sync.Mutex
 }
@@ -382,6 +391,18 @@ func (n *network) UnmarshalJSON(b []byte) (err error) {
 
 	if v, ok := netMap["generic"]; ok {
 		n.generic = v.(map[string]interface{})
+		// Restore labels in their map[string]string form
+		if v, ok := n.generic[netlabel.GenericData]; ok {
+			var lmap map[string]string
+			ba, err := json.Marshal(v)
+			if err != nil {
+				return err
+			}
+			if err := json.Unmarshal(ba, &lmap); err != nil {
+				return err
+			}
+			n.generic[netlabel.GenericData] = lmap
+		}
 	}
 	if v, ok := netMap["persist"]; ok {
 		n.persist = v.(bool)
@@ -391,7 +412,6 @@ func (n *network) UnmarshalJSON(b []byte) (err error) {
 	} else {
 		n.ipamType = ipamapi.DefaultIPAM
 	}
-
 	if v, ok := netMap["addrSpace"]; ok {
 		n.addrSpace = v.(string)
 	}
@@ -448,6 +468,25 @@ func NetworkOptionIpam(ipamDriver string, addrSpace string, ipV4 []*IpamConf, ip
 		n.addrSpace = addrSpace
 		n.ipamV4Config = ipV4
 		n.ipamV6Config = ipV6
+	}
+}
+
+// NetworkOptionLabels function returns an option setter for any parameter described by a map
+func NetworkOptionLabels(labels []string) NetworkOption {
+	return func(n *network) {
+		if n.generic == nil {
+			n.generic = make(map[string]interface{})
+		}
+		opts := netlabel.ToMap(labels)
+		// Store the options
+		n.generic[netlabel.GenericData] = opts
+		// Decode and store the endpoint options of libnetwork interest
+		if val, ok := opts[netlabel.EnableIPv6]; ok {
+			var err error
+			if n.enableIPv6, err = strconv.ParseBool(val); err != nil {
+				log.Warnf("Failed to parse %s' value: %s (%s)", netlabel.EnableIPv6, val, err.Error())
+			}
+		}
 	}
 }
 
@@ -1002,4 +1041,23 @@ func (n *network) deriveAddressSpace() (string, error) {
 		return ipd.defaultGlobalAddressSpace, nil
 	}
 	return ipd.defaultLocalAddressSpace, nil
+}
+
+func (n *network) Info() NetworkInfo {
+	return n
+}
+
+func (n *network) Labels() []string {
+	n.Lock()
+	defer n.Unlock()
+	if n.generic != nil {
+		if m, ok := n.generic[netlabel.GenericData]; ok {
+			return netlabel.FromMap(m.(map[string]string))
+		}
+	}
+	return []string{}
+}
+
+func (n *network) Scope() string {
+	return n.driverScope()
 }

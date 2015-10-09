@@ -48,8 +48,8 @@ func (cli *NetworkCli) CmdNetworkCreate(chain string, args ...string) error {
 	}
 
 	// Construct network create request body
-	ops := make(map[string]interface{})
-	nc := networkCreate{Name: cmd.Arg(0), NetworkType: *flDriver, Options: ops}
+	var labels []string
+	nc := networkCreate{Name: cmd.Arg(0), NetworkType: *flDriver, Labels: labels}
 	obj, _, err := readBody(cli.call("POST", "/networks", nc, nil))
 	if err != nil {
 		return err

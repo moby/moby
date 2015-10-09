@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/docker/libnetwork"
-	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/types"
 	"github.com/gorilla/mux"
 )
@@ -52,9 +51,6 @@ const (
 	urlSbPID  = "sandbox-partial-id"
 	urlCnID   = "container-id"
 	urlCnPID  = "container-partial-id"
-
-	// BridgeNetworkDriver is the built-in default for Network Driver
-	BridgeNetworkDriver = "bridge"
 )
 
 // NewHTTPHandler creates and initialize the HTTP handler to serve the requests for libnetwork
@@ -222,16 +218,6 @@ func buildSandboxResource(sb libnetwork.Sandbox) *sandboxResource {
  Options Parsers
 *****************/
 
-func (nc *networkCreate) parseOptions() []libnetwork.NetworkOption {
-	var setFctList []libnetwork.NetworkOption
-
-	if nc.Options != nil {
-		setFctList = append(setFctList, libnetwork.NetworkOptionGeneric(nc.Options))
-	}
-
-	return setFctList
-}
-
 func (sc *sandboxCreate) parseOptions() []libnetwork.SandboxOption {
 	var setFctList []libnetwork.SandboxOption
 	if sc.HostName != "" {
@@ -278,21 +264,6 @@ func processCreateDefaults(c libnetwork.NetworkController, nc *networkCreate) {
 	if nc.NetworkType == "" {
 		nc.NetworkType = c.Config().Daemon.DefaultDriver
 	}
-	if nc.NetworkType == BridgeNetworkDriver {
-		if nc.Options == nil {
-			nc.Options = make(map[string]interface{})
-		}
-		genericData, ok := nc.Options[netlabel.GenericData]
-		if !ok {
-			genericData = make(map[string]interface{})
-		}
-		gData := genericData.(map[string]interface{})
-
-		if _, ok := gData["BridgeName"]; !ok {
-			gData["BridgeName"] = nc.Name
-		}
-		nc.Options[netlabel.GenericData] = genericData
-	}
 }
 
 /***************************
@@ -307,7 +278,7 @@ func procCreateNetwork(c libnetwork.NetworkController, vars map[string]string, b
 	}
 	processCreateDefaults(c, &create)
 
-	nw, err := c.NewNetwork(create.NetworkType, create.Name, create.parseOptions()...)
+	nw, err := c.NewNetwork(create.NetworkType, create.Name, libnetwork.NetworkOptionLabels(create.Labels))
 	if err != nil {
 		return "", convertNetworkError(err)
 	}

@@ -97,6 +97,58 @@ func TestCreateNoConfig(t *testing.T) {
 	}
 }
 
+func TestCreateFullOptionsLabels(t *testing.T) {
+	defer testutils.SetupTestOSContext(t)()
+	d := newDriver()
+
+	config := &configuration{
+		EnableIPForwarding: true,
+	}
+	genericOption := make(map[string]interface{})
+	genericOption[netlabel.GenericData] = config
+
+	if err := d.configure(genericOption); err != nil {
+		t.Fatalf("Failed to setup driver config: %v", err)
+	}
+
+	labels := map[string]string{
+		BridgeName:          "cu",
+		netlabel.EnableIPv6: "true",
+		EnableICC:           "true",
+		EnableIPMasquerade:  "true",
+		DefaultBindingIP:    "127.0.0.1",
+	}
+
+	netOption := make(map[string]interface{})
+	netOption[netlabel.GenericData] = labels
+
+	err := d.CreateNetwork("dummy", netOption, getIPv4Data(t), nil)
+	if err != nil {
+		t.Fatalf("Failed to create bridge: %v", err)
+	}
+
+	nw, ok := d.networks["dummy"]
+	if !ok {
+		t.Fatalf("Cannot find dummy network in bridge driver")
+	}
+
+	if nw.config.BridgeName != "cu" {
+		t.Fatalf("incongruent name in bridge network")
+	}
+
+	if !nw.config.EnableIPv6 {
+		t.Fatalf("incongruent EnableIPv6 in bridge network")
+	}
+
+	if !nw.config.EnableICC {
+		t.Fatalf("incongruent EnableICC in bridge network")
+	}
+
+	if !nw.config.EnableIPMasquerade {
+		t.Fatalf("incongruent EnableIPMasquerade in bridge network")
+	}
+}
+
 func TestCreate(t *testing.T) {
 	defer testutils.SetupTestOSContext(t)()
 	d := newDriver()
