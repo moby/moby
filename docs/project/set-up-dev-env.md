@@ -127,6 +127,8 @@ environment.
 
         Successfully built 676815d59283
 
+    > **Note:** Mac users may need to open/map port 4444 in VirtualBox to avoid a build error involving getting gpg keys from a key server.
+
 6. List your Docker images again.
 
         $ docker images
