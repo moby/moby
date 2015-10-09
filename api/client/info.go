@@ -83,6 +83,21 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 			if !info.SwapLimit {
 				fmt.Fprintf(cli.err, "WARNING: No swap limit support\n")
 			}
+			if !info.OomKillDisable {
+				fmt.Fprintf(cli.err, "WARNING: No oom kill disable support\n")
+			}
+			if !info.CPUCfsQuota {
+				fmt.Fprintf(cli.err, "WARNING: No cpu cfs quota support\n")
+			}
+			if !info.CPUCfsPeriod {
+				fmt.Fprintf(cli.err, "WARNING: No cpu cfs period support\n")
+			}
+			if !info.CPUShares {
+				fmt.Fprintf(cli.err, "WARNING: No cpu shares support\n")
+			}
+			if !info.CPUSet {
+				fmt.Fprintf(cli.err, "WARNING: No cpuset support\n")
+			}
 			if !info.IPv4Forwarding {
 				fmt.Fprintf(cli.err, "WARNING: IPv4 forwarding is disabled\n")
 			}
