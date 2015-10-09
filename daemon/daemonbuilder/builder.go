@@ -39,7 +39,7 @@ var _ builder.Docker = Docker{}
 
 // LookupImage looks up a Docker image referenced by `name`.
 func (d Docker) LookupImage(name string) (*image.Image, error) {
-	return d.Daemon.Repositories().LookupImage(name)
+	return d.Daemon.GetImage(name)
 }
 
 // Pull tells Docker to pull image referenced by `name`.
@@ -69,11 +69,11 @@ func (d Docker) Pull(name string) (*image.Image, error) {
 		OutStream:  ioutils.NopWriteCloser(d.OutOld),
 	}
 
-	if err := d.Daemon.Repositories().Pull(remote, tag, imagePullConfig); err != nil {
+	if err := d.Daemon.PullImage(remote, tag, imagePullConfig); err != nil {
 		return nil, err
 	}
 
-	return d.Daemon.Repositories().LookupImage(name)
+	return d.Daemon.GetImage(name)
 }
 
 // Container looks up a Docker container referenced by `id`.

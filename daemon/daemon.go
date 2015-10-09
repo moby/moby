@@ -1011,11 +1011,6 @@ func (daemon *Daemon) Graph() *graph.Graph {
 	return daemon.graph
 }
 
-// Repositories returns all repositories.
-func (daemon *Daemon) Repositories() *graph.TagStore {
-	return daemon.repositories
-}
-
 // TagImage creates a tag in the repository reponame, pointing to the image named
 // imageName. If force is true, an existing tag with the same name may be
 // overwritten.
@@ -1077,6 +1072,13 @@ func (daemon *Daemon) ListImages(filterArgs, filter string, all bool) ([]*types.
 // name by walking the image lineage.
 func (daemon *Daemon) ImageHistory(name string) ([]*types.ImageHistory, error) {
 	return daemon.repositories.History(name)
+}
+
+// GetImage returns pointer to an Image struct corresponding to the given
+// name. The name can include an optional tag; otherwise the default tag will
+// be used.
+func (daemon *Daemon) GetImage(name string) (*image.Image, error) {
+	return daemon.repositories.LookupImage(name)
 }
 
 func (daemon *Daemon) config() *Config {

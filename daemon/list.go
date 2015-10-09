@@ -163,7 +163,7 @@ func (daemon *Daemon) foldFilter(config *ContainersConfig) (*listContext, error)
 		// The idea is to walk the graph down the most "efficient" way.
 		for _, ancestor := range ancestors {
 			// First, get the imageId of the ancestor filter (yay)
-			image, err := daemon.Repositories().LookupImage(ancestor)
+			image, err := daemon.repositories.LookupImage(ancestor)
 			if err != nil {
 				logrus.Warnf("Error while looking up for image %v", ancestor)
 				continue
@@ -297,7 +297,7 @@ func (daemon *Daemon) transformContainer(container *Container, ctx *listContext)
 		newC.Names = []string{}
 	}
 
-	img, err := daemon.Repositories().LookupImage(container.Config.Image)
+	img, err := daemon.repositories.LookupImage(container.Config.Image)
 	if err != nil {
 		// If the image can no longer be found by its original reference,
 		// it makes sense to show the ID instead of a stale reference.
