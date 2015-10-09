@@ -278,7 +278,11 @@ func procCreateNetwork(c libnetwork.NetworkController, vars map[string]string, b
 	}
 	processCreateDefaults(c, &create)
 
-	nw, err := c.NewNetwork(create.NetworkType, create.Name, libnetwork.NetworkOptionLabels(create.Labels))
+	options := []libnetwork.NetworkOption{}
+	if len(create.Labels) > 0 {
+		options = append(options, libnetwork.NetworkOptionLabels(create.Labels))
+	}
+	nw, err := c.NewNetwork(create.NetworkType, create.Name, options...)
 	if err != nil {
 		return "", convertNetworkError(err)
 	}
