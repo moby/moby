@@ -123,8 +123,7 @@ use the `-G` flag to specify an alternative group.
 
 > **Warning**:
 > The `docker` group (or the group specified with the `-G` flag) is
-> `root`-equivalent; see [*Docker Daemon Attack Surface*](
-> /articles/security/#docker-daemon-attack-surface) details.
+> `root`-equivalent; see [*Docker Daemon Attack Surface*](../articles/security.md#docker-daemon-attack-surface) details.
 
 **Example:**
 
@@ -166,4 +165,4 @@ You must delete the user created configuration files manually.
 
 ## What next?
 
-Continue with the [User Guide](/userguide/).
+Continue with the [User Guide](../userguide/).

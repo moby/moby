@@ -99,7 +99,7 @@ makes the ownership of the Unix socket read/writable by the `docker` group.
 
 >**Warning**: The `docker` group is equivalent to the `root` user; For details
 >on how this impacts security in your system, see [*Docker Daemon Attack
->Surface*](/articles/security/#docker-daemon-attack-surface) for details.
+>Surface*](../articles/security.md#docker-daemon-attack-surface) for details.
 
 To create the `docker` group and add your user:
 
@@ -142,7 +142,7 @@ $ sudo systemctl enable docker.service
 
 If you need to add an HTTP Proxy, set a different directory or partition for the
 Docker runtime files, or make other customizations, read our systemd article to
-learn how to [customize your systemd Docker daemon options](/articles/systemd/).
+learn how to [customize your systemd Docker daemon options](../articles/systemd.md).
 
 ### Use the btrfs storage engine
 

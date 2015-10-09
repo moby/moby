@@ -57,7 +57,7 @@ These options :
 - Set `tls` to true with the server certificate and key specified using `--tlscert` and `--tlskey` respectively
 - Listen for connections on `tcp://192.168.59.3:2376`
 
-The command line reference has the [complete list of daemon flags](/reference/commandline/daemon)
+The command line reference has the [complete list of daemon flags](../reference/commandline/daemon.md)
 with explanations.
 
 ## Ubuntu
@@ -65,7 +65,7 @@ with explanations.
 As of `14.04`, Ubuntu uses Upstart as a process manager. By default, Upstart jobs
 are located in  `/etc/init` and the `docker` Upstart job can be found at `/etc/init/docker.conf`.
 
-After successfully [installing Docker for Ubuntu](/installation/ubuntulinux/),
+After successfully [installing Docker for Ubuntu](../installation/ubuntulinux.md),
 you can check the running status using Upstart in this way:
 
     $ sudo status docker
@@ -114,7 +114,7 @@ These options :
 - Set `tls` to true with the server certificate and key specified using `--tlscert` and `--tlskey` respectively
 - Listen for connections on `tcp://192.168.59.3:2376`
 
-The command line reference has the [complete list of daemon flags](/reference/commandline/daemon)
+The command line reference has the [complete list of daemon flags](../reference/commandline/daemon.md)
 with explanations.
 
 
@@ -150,8 +150,7 @@ can be located at `/var/log/upstart/docker.log`
 As of `7.x`, CentOS and RHEL use `systemd` as the process manager. As of `21`, Fedora uses
 `systemd` as its process manager.
 
-After successfully installing Docker for [CentOS](/installation/centos/)/[Red Hat Enterprise Linux]
-(/installation/rhel/)/[Fedora](/installation/fedora), you can check the running status in this way:
+After successfully installing Docker for [CentOS](../installation/centos.md)/[Red Hat Enterprise Linux](../installation/rhel.md)/[Fedora](../installation/fedora.md), you can check the running status in this way:
 
     $ sudo systemctl status docker
 
@@ -207,7 +206,7 @@ These options :
 - Set `tls` to true with the server certificate and key specified using `--tlscert` and `--tlskey` respectively
 - Listen for connections on `tcp://192.168.59.3:2376`
 
-The command line reference has the [complete list of daemon flags](/reference/commandline/daemon)
+The command line reference has the [complete list of daemon flags](../reference/commandline/daemon.md)
 with explanations.
 
 5. Save and close the file.

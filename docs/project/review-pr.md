@@ -27,7 +27,7 @@ First to review your pull request is Gordon. Gordon is fast. He checks your
 pull request (PR) for common problems like a missing signature. If Gordon finds a
 problem, he'll send an email through your GitHub user account:
 
-![Gordon](/project/images/gordon.jpeg)
+![Gordon](images/gordon.jpeg)
 
 Our build bot system starts building your changes while Gordon sends any emails. 
 
@@ -138,4 +138,4 @@ If you enjoyed contributing, let us know by completing another beginner
 issue or two. We really appreciate the help. 
 
 If you are very experienced and want to make a major change, go on to 
-[learn about advanced contributing](/project/advanced-contributing).
+[learn about advanced contributing](advanced-contributing.md).

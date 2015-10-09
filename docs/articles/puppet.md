@@ -12,7 +12,7 @@ parent = "smn_third_party"
 
 > *Note:* Please note this is a community contributed installation path. The
 > only `official` installation is using the
-> [*Ubuntu*](/installation/ubuntulinux) installation
+> [*Ubuntu*](../installation/ubuntulinux.md) installation
 > path. This version may sometimes be out of date.
 
 ## Requirements

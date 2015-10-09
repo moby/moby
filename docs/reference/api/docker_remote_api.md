@@ -56,7 +56,7 @@ wget --no-check-certificate --certificate=$DOCKER_CERT_PATH/cert.pem --private-k
 
 The following diagram depicts the container states accessible through the API.
 
-![States](../images/event_state.png)
+![States](images/event_state.png)
 
 Some container-related events are not affected by container state, so they are not included in this diagram. These events are:
 
@@ -74,7 +74,7 @@ This section lists each version from latest to oldest.  Each listing includes a 
 
 ### v1.21 API changes
 
-[Docker Remote API v1.21](/reference/api/docker_remote_api_v1.21/) documentation
+[Docker Remote API v1.21](docker_remote_api_v1.21.md) documentation
 
 * `GET /volumes` lists volumes from all volume drivers.
 * `POST /volumes` to create a volume.
@@ -95,7 +95,7 @@ list of DNS options to be used in the container.
 
 ### v1.20 API changes
 
-[Docker Remote API v1.20](/reference/api/docker_remote_api_v1.20/) documentation
+[Docker Remote API v1.20](docker_remote_api_v1.20/) documentation
 
 * `GET /containers/(id)/archive` get an archive of filesystem content from a container.
 * `PUT /containers/(id)/archive` upload an archive of content to be extracted to
@@ -107,7 +107,7 @@ list of additional groups that the container process will run as.
 
 ### v1.19 API changes
 
-[Docker Remote API v1.19](/reference/api/docker_remote_api_v1.19/) documentation
+[Docker Remote API v1.19](docker_remote_api_v1.19.md) documentation
 
 * When the daemon detects a version mismatch with the client, usually when
 the client is newer than the daemon, an HTTP 400 is now returned instead
@@ -121,7 +121,7 @@ end point now returns the new boolean fields `CpuCfsPeriod`, `CpuCfsQuota`, and
 
 ### v1.18 API changes
 
-[Docker Remote API v1.18](/reference/api/docker_remote_api_v1.18/) documentation
+[Docker Remote API v1.18](docker_remote_api_v1.18.md) documentation
 
 * `GET /version` now returns `Os`, `Arch` and `KernelVersion`.
 * `POST /containers/create` and `POST /containers/(id)/start`allow you to  set ulimit settings for use in the container.
@@ -134,7 +134,7 @@ end point now returns the new boolean fields `CpuCfsPeriod`, `CpuCfsQuota`, and
 
 ### v1.17 API changes
 
-[Docker Remote API v1.17](/reference/api/docker_remote_api_v1.17/) documentation
+[Docker Remote API v1.17](docker_remote_api_v1.17.md) documentation
 
 * The build supports `LABEL` command. Use this to add metadata to an image. For
 example you could add data describing the content of an image. `LABEL
@@ -156,7 +156,7 @@ read only.
 
 ### v1.16 API changes
 
-[Docker Remote API v1.16](/reference/api/docker_remote_api_v1.16/)
+[Docker Remote API v1.16](docker_remote_api_v1.16.md)
 
 * `GET /info` returns the number of CPUs available on the machine (`NCPU`),
 total memory available (`MemTotal`), a user-friendly name describing the running Docker daemon (`Name`), a unique ID identifying the daemon (`ID`), and
@@ -167,14 +167,14 @@ a list of daemon labels (`Labels`).
 
 ### v1.15 API changes
 
-[Docker Remote API v1.15](/reference/api/docker_remote_api_v1.15/) documentation
+[Docker Remote API v1.15](docker_remote_api_v1.15.md) documentation
 
 `POST /containers/create` you can set a container's `HostConfig` when creating a
 container. Previously this was only available when starting a container.
 
 ### v1.14 API changes
 
-[Docker Remote API v1.14](/reference/api/docker_remote_api_v1.14/) documentation
+[Docker Remote API v1.14](docker_remote_api_v1.14.md) documentation
 
 * `DELETE /containers/(id)` when using `force`, the container will be immediately killed with SIGKILL.
 * `POST /containers/(id)/start` the `hostConfig` option accepts the field `CapAdd`, which specifies a list of capabilities

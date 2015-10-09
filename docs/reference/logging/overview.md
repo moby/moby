@@ -84,14 +84,14 @@ the following named facilities:
 * `local7`
 
 By default, Docker uses the first 12 characters of the container ID to tag log messages.
-Refer to the [log tag option documentation](/reference/logging/log_tags/) for customizing
+Refer to the [log tag option documentation](log_tags.md) for customizing
 the log tag format.
 
 
 ## journald options
 
 The `journald` logging driver stores the container id in the journal's `CONTAINER_ID` field. For detailed information on
-working with this logging driver, see [the journald logging driver](/reference/logging/journald/)
+working with this logging driver, see [the journald logging driver](journald.md)
 reference documentation.
 
 ## gelf options
@@ -109,7 +109,7 @@ driver to a GELF remote server at `192.168.0.42` on port `12201`
     $ docker run --log-driver=gelf --log-opt gelf-address=udp://192.168.0.42:12201
 
 By default, Docker uses the first 12 characters of the container ID to tag log messages.
-Refer to the [log tag option documentation](/reference/logging/log_tags/) for customizing
+Refer to the [log tag option documentation](log_tags.md) for customizing
 the log tag format.
 
 
@@ -126,7 +126,7 @@ For example, to specify both additional options:
 
 If container cannot connect to the Fluentd daemon on the specified address,
 the container stops immediately. For detailed information on working with this
-logging driver, see [the fluentd logging driver](/reference/logging/fluentd/)
+logging driver, see [the fluentd logging driver](fluentd.md)
 
 ## Specify Amazon CloudWatch Logs options
 
@@ -137,5 +137,4 @@ The Amazon CloudWatch Logs logging driver supports the following options:
     --log-opt awslogs-stream=<log_stream_name>
 
 
-For detailed information on working with this logging driver, see [the awslogs logging driver](/reference/logging/awslogs/)
-reference documentation.
+For detailed information on working with this logging driver, see [the awslogs logging driver](awslogs.md) reference documentation.

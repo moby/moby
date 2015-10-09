@@ -18,11 +18,11 @@ instructions in succession.
 
 This page describes the commands you can use in a `Dockerfile`. When you are
 done reading this page, refer to the [`Dockerfile` Best
-Practices](/articles/dockerfile_best-practices) for a tip-oriented guide.
+Practices](../articles/dockerfile_best-practices.md) for a tip-oriented guide.
 
 ## Usage
 
-The [`docker build`](/reference/commandline/build/) command builds an image from
+The [`docker build`](commandline/build.md) command builds an image from
 a `Dockerfile` and a *context*. The build's context is the files at a specified
 location `PATH` or `URL`. The `PATH` is a directory on your local filesystem.
 The `URL` is a the location of a Git repository.
@@ -75,7 +75,7 @@ instructions.
 Whenever possible, Docker will re-use the intermediate images (cache),
 to accelerate the `docker build` process significantly. This is indicated by
 the `Using cache` message in the console output.
-(For more information, see the [Build cache section](/articles/dockerfile_best-practices/#build-cache)) in the
+(For more information, see the [Build cache section](../articles/dockerfile_best-practices.md#build-cache)) in the
 `Dockerfile` best practices guide:
 
     $ docker build -t SvenDowideit/ambassador .
@@ -92,7 +92,7 @@ the `Using cache` message in the console output.
     Successfully built 1a5ffc17324d
 
 When you're done with your build, you're ready to look into [*Pushing a
-repository to its registry*]( /userguide/dockerrepos/#contributing-to-docker-hub).
+repository to its registry*](../userguide/dockerrepos.md#contributing-to-docker-hub).
 
 ## Format
 
@@ -106,7 +106,7 @@ be UPPERCASE in order to distinguish them from arguments more easily.
 
 Docker runs the instructions in a `Dockerfile` in order. **The
 first instruction must be \`FROM\`** in order to specify the [*Base
-Image*](/reference/glossary/#base-image) from which you are building.
+Image*](glossary.md#base-image) from which you are building.
 
 Docker will treat lines that *begin* with `#` as a
 comment. A `#` marker anywhere else in the line will
@@ -283,11 +283,10 @@ Or
 
     FROM <image>@<digest>
 
-The `FROM` instruction sets the [*Base Image*](/reference/glossary/#base-image)
+The `FROM` instruction sets the [*Base Image*](glossary.md#base-image)
 for subsequent instructions. As such, a valid `Dockerfile` must have `FROM` as
 its first instruction. The image can be any valid image – it is especially easy
-to start by **pulling an image** from the [*Public Repositories*](
-/userguide/dockerrepos).
+to start by **pulling an image** from the [*Public Repositories*](../userguide/dockerrepos.md).
 
 - `FROM` must be the first non-comment instruction in the `Dockerfile`.
 
@@ -358,7 +357,7 @@ cache for `RUN` instructions can be invalidated by using the `--no-cache`
 flag, for example `docker build --no-cache`.
 
 See the [`Dockerfile` Best Practices
-guide](/articles/dockerfile_best-practices/#build-cache) for more information.
+guide](../articles/dockerfile_best-practices.md#build-cache) for more information.
 
 The cache for `RUN` instructions can be invalidated by `ADD` instructions. See
 [below](#add) for details.
@@ -488,14 +487,14 @@ To view an image's labels, use the `docker inspect` command.
 The `EXPOSE` instructions informs Docker that the container will listen on the
 specified network ports at runtime. Docker uses this information to interconnect
 containers using links (see the [Docker User
-Guide](/userguide/dockerlinks)) and to determine which ports to expose to the
-host when [using the -P flag](/reference/run/#expose-incoming-ports).
+Guide](../userguide/dockerlinks.md) and to determine which ports to expose to the
+host when [using the -P flag](run.md#expose-incoming-ports).
 
 > **Note**:
 > `EXPOSE` doesn't define which ports can be exposed to the host or make ports
 > accessible from the host by default. To expose ports to the host, at runtime,
-> [use the `-p` flag](/userguide/dockerlinks) or
-> [the -P flag](/reference/run/#expose-incoming-ports).
+> [use the `-p` flag](../userguide/dockerlinks.md) or
+> [the -P flag](run.md#expose-incoming-ports).
 
 ## ENV
 
@@ -595,7 +594,7 @@ of whether or not the file has changed and the cache should be updated.
 > following instructions from the Dockerfile if the contents of `<src>` have
 > changed. This includes invalidating the cache for `RUN` instructions.
 > See the [`Dockerfile` Best Practices
-guide](/articles/dockerfile_best-practices/#build-cache) for more information.
+guide](../articles/dockerfile_best-practices.md#build-cache) for more information.
 
 
 `ADD` obeys the following rules:
@@ -938,7 +937,7 @@ containers. The value can be a JSON array, `VOLUME ["/var/log/"]`, or a plain
 string with multiple arguments, such as `VOLUME /var/log` or `VOLUME /var/log
 /var/db`. For more information/examples and mounting instructions via the
 Docker client, refer to 
-[*Share Directories via Volumes*](/userguide/dockervolumes/#mount-a-host-directory-as-a-data-volume)
+[*Share Directories via Volumes*](../userguide/dockervolumes.md#mount-a-host-directory-as-a-data-volume)
 documentation.
 
 The `docker run` command initializes the newly created volume with any data 
@@ -1191,7 +1190,7 @@ or a signal name in the format SIGNAME, for instance SIGKILL.
 ## Dockerfile examples
 
 Below you can see some examples of Dockerfile syntax. If you're interested in
-something more realistic, take a look at the list of [Dockerization examples](/examples/).
+something more realistic, take a look at the list of [Dockerization examples](../examples/).
 
 ```
 # Nginx

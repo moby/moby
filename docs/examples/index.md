@@ -14,10 +14,10 @@ weight = 8
 
 This section contains the following:
 
-* [Dockerizing MongoDB](/examples/mongodb/)
-* [Dockerizing PostgreSQL](/examples/postgresql_service/)    
-* [Dockerizing a CouchDB service](/examples/couchdb_data_volumes/)         
-* [Dockerizing a Node.js web app](/examples/nodejs_web_app/)
-* [Dockerizing a Redis service](/examples/running_redis_service/)
-* [Dockerizing an apt-cacher-ng service](/examples/apt-cacher-ng/)
-* [Dockerizing applications: A 'Hello world'](/userguide/dockerizing)
+* [Dockerizing MongoDB](mongodb.md)
+* [Dockerizing PostgreSQL](postgresql_service.md)    
+* [Dockerizing a CouchDB service](couchdb_data_volumes.md)         
+* [Dockerizing a Node.js web app](nodejs_web_app.md)
+* [Dockerizing a Redis service](running_redis_service.md)
+* [Dockerizing an apt-cacher-ng service](apt-cacher-ng.md)
+* [Dockerizing applications: A 'Hello world'](../userguide/dockerizing.md)

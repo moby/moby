@@ -126,7 +126,7 @@ makes the ownership of the Unix socket read/writable by the `docker` group.
 
 >**Warning**: The `docker` group is equivalent to the `root` user; For details
 >on how this impacts security in your system, see [*Docker Daemon Attack
->Surface*](/articles/security/#docker-daemon-attack-surface) for details.
+>Surface*](../articles/security.md#docker-daemon-attack-surface) for details.
 
 To create the `docker` group and add your user:
 
@@ -152,7 +152,7 @@ To ensure Docker starts when you boot your system, do the following:
 
 If you need to add an HTTP Proxy, set a different directory or partition for the
 Docker runtime files, or make other customizations, read our Systemd article to
-learn how to [customize your Systemd Docker daemon options](/articles/systemd/).
+learn how to [customize your Systemd Docker daemon options](../articles/systemd.md).
 
 
 ## Uninstall

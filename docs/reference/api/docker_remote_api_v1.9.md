@@ -1045,7 +1045,7 @@ Build an image from Dockerfile using a POST body.
     The archive must include a file called `Dockerfile`
  at its root. It may include any number of other files,
     which will be accessible in the build context (See the [*ADD build
-    command*](/reference/builder/#add)).
+    command*](../../reference/builder.md#add)).
 
 Query Parameters:
 

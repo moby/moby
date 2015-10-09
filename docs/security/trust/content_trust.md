@@ -61,7 +61,7 @@ tag could be unsigned while the `3.1.6` tag could be signed. It is the
 responsibility of the image publisher to decide if an image tag is signed or
 not. In this representation, some image tags are signed, others are not:
 
-![Signed tags](../images/tag_signing.png)
+![Signed tags](images/tag_signing.png)
 
 Publishers can choose to sign a specific tag or not. As a result, the content of
 an unsigned tag and that of a signed tag with the same name may not match. For
@@ -77,7 +77,7 @@ with trusted images. Enabling content trust is like wearing a pair of
 rose-colored glasses. Consumers "see" only signed images tags and the less
 desirable, unsigned image tags are "invisible" to them.
 
-![Trust view](../images/trust_view.png)
+![Trust view](images/trust_view.png)
 
 To the consumer who does not enabled content trust, nothing about how they
 work with Docker images changes. Every image is visible regardless of whether it
@@ -121,7 +121,7 @@ service that isn't directly exposed to the internet and are encrypted at rest.
 
 The following image depicts the various signing keys and their relationships:
 
-![Content trust components](../images/trust_components.png)
+![Content trust components](images/trust_components.png)
 
 >**WARNING**: Loss of the root key is **very difficult** to recover from.
 >Correcting this loss requires intervention from [Docker
@@ -131,8 +131,8 @@ The following image depicts the various signing keys and their relationships:
 
 You should backup the root key somewhere safe. Given that it is only required
 to create new repositories, it is a good idea to store it offline. Make sure you
-read [Manage keys for content trust](/security/trust/trust_key_mng) information
-for details on securing, and backing up your keys.
+read [Manage keys for content trust](trust_key_mng.md) information
+for details on securing, and backing up your keys. 
 
 ## Survey of typical content trust operations
 
@@ -297,6 +297,6 @@ $  docker push --disable-content-trust docker/trusttest:untrusted
 
 ## Related information
 
-* [Manage keys for content trust](/security/trust/trust_key_mng)
-* [Automation with content trust](/security/trust/trust_automation)
-* [Play in a content trust sandbox](/security/trust/trust_sandbox)
+* [Manage keys for content trust](trust_key_mng.md)
+* [Automation with content trust](trust_automation.md)
+* [Play in a content trust sandbox](trust_sandbox.md)

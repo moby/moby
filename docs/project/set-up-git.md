@@ -35,7 +35,7 @@ target="_blank">docker/docker repository</a>.
 
 3. Click the "Fork" button in the upper right corner of the GitHub interface.
 
-    ![Branch Signature](/project/images/fork_docker.png)
+    ![Branch Signature](images/fork_docker.png)
 
     GitHub forks the repository to your GitHub account. The original
     `docker/docker` repository becomes a new fork `YOUR_ACCOUNT/docker` under
@@ -46,7 +46,7 @@ target="_blank">docker/docker repository</a>.
     GitHub allows you to use HTTPS or SSH protocols for clones. You can use the
     `git` command line or clients like Subversion to clone a repository. 
 
-    ![Copy clone URL](/project/images/copy_url.png)
+    ![Copy clone URL](images/copy_url.png)
 
     This guide assume you are using the HTTPS protocol and the `git` command
     line. If you are comfortable with SSH and some other tool, feel free to use
@@ -177,7 +177,7 @@ the branch to your fork on GitHub:
 	
 5. Edit the file and add your email and location.
 
-    ![Add your information](/project/images/contributor-edit.png)
+    ![Add your information](images/contributor-edit.png)
 
     You can use any text editor you are comfortable with.
 
@@ -239,10 +239,10 @@ the branch to your fork on GitHub:
 11. Make sure the `dry-run-test` branch exists, that it has your commit, and the
 commit is signed.
 
-    ![Branch Signature](/project/images/branch-sig.png)
+    ![Branch Signature](images/branch-sig.png)
 
 ## Where to go next
 
 Congratulations, you have finished configuring both your local host environment
 and Git for contributing. In the next section you'll [learn how to set up and
-work in a Docker development container](/project/set-up-dev-env/).
+work in a Docker development container](set-up-dev-env.md).

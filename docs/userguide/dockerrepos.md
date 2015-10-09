@@ -12,8 +12,8 @@ weight = 2
 # Get started with Docker Hub
 
 So far you've learned how to use the command line to run Docker on your local host.
-You've learned how to [pull down images](/userguide/usingdocker/) to build containers
-from existing images and you've learned how to [create your own images](/userguide/dockerimages).
+You've learned how to [pull down images](usingdocker.md) to build containers
+from existing images and you've learned how to [create your own images](dockerimages.md).
 
 Next, you're going to learn how to use the [Docker Hub](https://hub.docker.com) to
 simplify and enhance your Docker workflows.
@@ -62,7 +62,7 @@ There you can see two example results: `centos` and `tianon/centos`. The second
 result shows that it comes from the public repository of a user, named
 `tianon/`, while the first result, `centos`, doesn't explicitly list a
 repository which means that it comes from the trusted top-level namespace for
-[Official Repositories](/docker-hub/official_repos). The `/` character separates
+[Official Repositories](https://docs.docker.com/docker-hub/official_repos/). The `/` character separates
 a user's repository from the image name.
 
 Once you've found the image you want, you can download it with `docker pull <imagename>`:
@@ -94,13 +94,13 @@ see the [Docker Hub](https://hub.docker.com) registry.
 
 Anyone can pull public images from the [Docker Hub](https://hub.docker.com)
 registry, but if you would like to share your own images, then you must
-[register first](/docker-hub/accounts).
+[register first](https://docs.docker.com/docker-hub/accounts).
 
 ## Pushing a repository to Docker Hub
 
 In order to push a repository to its registry, you need to have named an image
 or committed your container to a named image as we saw
-[here](/userguide/dockerimages).
+[here](dockerimages.md).
 
 Now you can push this repository to the registry designated by its name or tag.
 

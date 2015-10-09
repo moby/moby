@@ -98,14 +98,14 @@ You create and manage PRs on GitHub:
 
     You should see the latest activity from your branch.
 
-    ![Latest commits](/project/images/latest_commits.png)
+    ![Latest commits](images/latest_commits.png)
 
 
 2. Click "Compare & pull request."
 
     The system displays the pull request dialog. 
 
-    ![PR dialog](/project/images/to_from_pr.png)
+    ![PR dialog](images/to_from_pr.png)
 
     The pull request compares your changes to the `master` branch on the
     `docker/docker` repository.
@@ -114,25 +114,25 @@ You create and manage PRs on GitHub:
 
     GitHub helps you out by searching for the issue as you type.
 
-    ![Fixes issue](/project/images/fixes_num.png)
+    ![Fixes issue](images/fixes_num.png)
 
 4. Scroll down and verify the PR contains the commits and changes you expect.
 
     For example, is the file count correct? Are the changes in the files what
     you expect?
 
-    ![Commits](/project/images/commits_expected.png)
+    ![Commits](images/commits_expected.png)
 
 5. Press "Create pull request".
 
     The system creates the request and opens it for you in the `docker/docker`
     repository.
 
-    ![Pull request made](/project/images/pull_request_made.png)
+    ![Pull request made](images/pull_request_made.png)
 
 
 ## Where to go next
 
 Congratulations, you've created your first pull request to Docker. The next
 step is for you learn how to [participate in your PR's
-review](/project/review-pr/).
+review](review-pr.md).

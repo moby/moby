@@ -37,7 +37,7 @@ parent = "smn_cli"
 Builds Docker images from a Dockerfile and a "context". A build's context is
 the files located in the specified `PATH` or `URL`. The build process can refer
 to any of the files in the context. For example, your build can use an
-[*ADD*](/reference/builder/#add) instruction to reference a file in the
+[*ADD*](../builder.md#add) instruction to reference a file in the
 context.
 
 The `URL` parameter can specify the location of a Git repository; the repository
@@ -93,7 +93,7 @@ In most cases, it's best to put each Dockerfile in an empty directory. Then,
 add to that directory only the files needed for building the Dockerfile. To
 increase the build's performance, you can exclude files and directories by
 adding a `.dockerignore` file to that directory as well. For information on
-creating one, see the [.dockerignore file](/reference/builder#dockerignore-file).
+creating one, see the [.dockerignore file](../builder.md#dockerignore-file).
 
 If the Docker client loses connection to the daemon, the build is canceled.
 This happens if you interrupt the Docker client with `ctrl-c` or if the Docker
@@ -124,7 +124,7 @@ There should be informational output of the reason for failure output to
 
 See also:
 
-[*Dockerfile Reference*](/reference/builder).
+[*Dockerfile Reference*](../builder.md).
 
 ## Examples
 
@@ -160,7 +160,7 @@ where to find the files for the "context" of the build on the Docker daemon.
 Remember that the daemon could be running on a remote machine and that no
 parsing of the Dockerfile happens at the client side (where you're running
 `docker build`). That means that *all* the files at `PATH` get sent, not just
-the ones listed to [*ADD*](/reference/builder/#add) in the Dockerfile.
+the ones listed to [*ADD*](../builder.md#add) in the Dockerfile.
 
 The transfer of context from the local machine to the Docker daemon is what the
 `docker` client means when you see the "Sending build context" message.
@@ -191,7 +191,7 @@ you must use `--rm=false`. This does not affect the build cache.
 This example shows the use of the `.dockerignore` file to exclude the `.git`
 directory from the context. Its effect can be seen in the changed size of the
 uploaded context. The builder reference contains detailed information on
-[creating a .dockerignore file](../../builder/#dockerignore-file)
+[creating a .dockerignore file](../builder.md#dockerignore-file)
 
     $ docker build -t vieux/apache:2.0 .
 
@@ -250,11 +250,11 @@ the command line.
 
 When `docker build` is run with the `--cgroup-parent` option the containers
 used in the build will be run with the [corresponding `docker run`
-flag](/reference/run/#specifying-custom-cgroups).
+flag](../run.md#specifying-custom-cgroups).
 
 Using the `--ulimit` option with `docker build` will cause each build step's
 container to be started using those [`--ulimit`
-flag values](/reference/run/#setting-ulimits-in-a-container).
+flag values](../run.md#setting-ulimits-in-a-container).
 
 You can use `ENV` instructions in a Dockerfile to define variable
 values. These values persist in the built image. However, often
@@ -273,4 +273,4 @@ Dockerfile. Also, these values don't persist in the intermediate or final images
 like `ENV` values do.
 
 For detailed information on using `ARG` and `ENV` instructions, see the
-[Dockerfile reference](/reference/builder).
+[Dockerfile reference](../builder.md).

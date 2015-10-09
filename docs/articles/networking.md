@@ -30,7 +30,7 @@ range from `02:42:ac:11:00:00` to `02:42:ac:11:ff:ff`.
 > and options for Docker. In most cases you won't need this information.
 > If you're looking to get started with a simpler explanation of Docker
 > networking and an introduction to the concept of container linking see
-> the [Docker User Guide](/userguide/dockerlinks/).
+> the [Docker User Guide](../userguide/dockerlinks.md).
 
 But `docker0` is no ordinary interface.  It is a virtual *Ethernet
 bridge* that automatically forwards packets between any other network
@@ -357,7 +357,7 @@ services.  If the Docker daemon is running with both `--icc=false` and
 `ACCEPT` rules so that the new container can connect to the ports
 exposed by the other container — the ports that it mentioned in the
 `EXPOSE` lines of its `Dockerfile`.  Docker has more documentation on
-this subject — see the [linking Docker containers](/userguide/dockerlinks)
+this subject — see the [linking Docker containers](../userguide/dockerlinks.md)
 page for further details.
 
 > **Note**:
@@ -425,7 +425,7 @@ machine that the Docker server creates when it starts:
 
 But if you want containers to accept incoming connections, you will need
 to provide special options when invoking `docker run`.  These options
-are covered in more detail in the [Docker User Guide](/userguide/dockerlinks)
+are covered in more detail in the [Docker User Guide](../userguide/dockerlinks.md)
 page.  There are two approaches.
 
 First, you can supply `-P` or `--publish-all=true|false` to `docker run` which
@@ -489,7 +489,7 @@ connect to a local container exposed port through the commonly used loopback
 address: this alternative is preferred for performance reasons.
 
 Again, this topic is covered without all of these low-level networking
-details in the [Docker User Guide](/userguide/dockerlinks/) document if you
+details in the [Docker User Guide](../userguide/dockerlinks.md) document if you
 would like to use that as your port redirection reference instead.
 
 ## IPv6
@@ -538,7 +538,7 @@ want to configure `eth0` via Router Advertisements you should set:
 
     $ sysctl net.ipv6.conf.eth0.accept_ra=2
 
-![](/article-img/ipv6_basic_host_config.svg)
+![](../article-img/ipv6_basic_host_config.svg)
 
 Every new container will get an IPv6 address from the defined subnet. Further
 a default route will be added on `eth0` in the container via the address
@@ -568,7 +568,7 @@ Often servers or virtual machines get a `/64` IPv6 subnet assigned (e.g.
 Docker a `/80` subnet while using a separate `/80` subnet for other
 applications on the host:
 
-![](/article-img/ipv6_slash64_subnet_config.svg)
+![](../article-img/ipv6_slash64_subnet_config.svg)
 
 In this setup the subnet `2001:db8:23:42::/80` with a range from `2001:db8:23:42:0:0:0:0`
 to `2001:db8:23:42:0:ffff:ffff:ffff` is attached to `eth0`, with the host listening
@@ -606,7 +606,7 @@ is connected to `eth0`. This means all devices (containers) with the addresses
 from the Docker subnet are expected to be found within the router subnet.
 Therefore the router thinks it can talk to these containers directly.
 
-![](/article-img/ipv6_ndp_proxying.svg)
+![](../article-img/ipv6_ndp_proxying.svg)
 
 As soon as the router wants to send an IPv6 packet to the first container it
 will transmit a neighbor solicitation request, asking, who has
@@ -645,7 +645,7 @@ Using routable IPv6 addresses allows you to realize communication between
 containers on different hosts. Let's have a look at a simple Docker IPv6 cluster
 example:
 
-![](/article-img/ipv6_switched_network_example.svg)
+![](../article-img/ipv6_switched_network_example.svg)
 
 The Docker hosts are in the `2001:db8:0::/64` subnet. Host1 is configured
 to provide addresses from the `2001:db8:1::/64` subnet to its containers. It
@@ -695,7 +695,7 @@ routing information about the Docker subnets. When you add or remove a host to
 this environment you just have to update the routing table in the router - not
 on every host.
 
-![](/article-img/ipv6_routed_network_example.svg)
+![](../article-img/ipv6_routed_network_example.svg)
 
 In this scenario containers of the same host can communicate directly with each
 other. The traffic between containers on different hosts will be routed via

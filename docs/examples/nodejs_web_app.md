@@ -10,12 +10,14 @@ parent = "smn_applied"
 
 # Dockerizing a Node.js web app
 
-> **Note**: **If you don't like sudo** then see [*Giving non-root
-> access*](/installation/binaries/#giving-non-root-access)
+> **Note**: 
+> - **If you don't like sudo** then see [*Giving non-root
+>   access*](../installation/binaries.md#giving-non-root-access)
 
-In this example, we are going to learn how to build a Docker image to run a
-simple Node.js "hello world" web application on CentOS. You can get the full source code at
-[https://github.com/enokd/docker-node-hello/](https://github.com/enokd/docker-node-hello/).
+The goal of this example is to show you how you can build your own
+Docker images from a parent image using a `Dockerfile`
+. We will do that by making a simple Node.js hello world web
+application running on CentOS. You can get the full source code at[https://github.com/enokd/docker-node-hello/](https://github.com/enokd/docker-node-hello/).
 
 ## Create Node.js app
 

@@ -10,8 +10,7 @@ parent = "smn_images"
 
 # Create a base image
 
-So you want to create your own [*Base Image*](
-/reference/glossary/#base-image)? Great!
+So you want to create your own [*Base Image*](../reference/glossary.md#base-image)? Great!
 
 The specific process will depend heavily on the Linux distribution you
 want to package. We have some examples below, and you are encouraged to
@@ -65,7 +64,7 @@ If you want to test it out, you can clone [the image repo](https://github.com/do
 
 There are lots more resources available to help you write your 'Dockerfile`.
 
-* There's a [complete guide to all the instructions](/reference/builder/) available for use in a `Dockerfile` in the reference section.
+* There's a [complete guide to all the instructions](../reference/builder.md) available for use in a `Dockerfile` in the reference section.
 * To help you write a clear, readable, maintainable `Dockerfile`, we've also
-written a [`Dockerfile` Best Practices guide](/articles/dockerfile_best-practices).
-* If your goal is to create a new Official Repository, be sure to read up on Docker's [Official Repositories](/docker-hub/official_repos/).
+written a [`Dockerfile` Best Practices guide](dockerfile_best-practices.md).
+* If your goal is to create a new Official Repository, be sure to read up on Docker's [Official Repositories](https://docs.docker.com/docker-hub/official_repos/).

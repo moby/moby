@@ -29,7 +29,7 @@ to preface each `docker` command with `sudo`. One way to avoid having to use
 add users that will be entering `docker` commands to the 'docker' group.
 
 For more information about installing Docker or `sudo` configuration, refer to
-the [installation](/installation) instructions for your operating system.
+the [installation](../installation) instructions for your operating system.
 
 
 ## Download a pre-built image
@@ -38,7 +38,7 @@ the [installation](/installation) instructions for your operating system.
     $ docker pull ubuntu
 
 This will find the `ubuntu` image by name on
-[*Docker Hub*](/userguide/dockerrepos/#searching-for-images)
+[*Docker Hub*](../userguide/dockerrepos.md#searching-for-images)
 and download it from [Docker Hub](https://hub.docker.com) to a local
 image cache.
 
@@ -190,6 +190,6 @@ you already have, use the `docker images` command.
 You now have an image state from which you can create new instances.
 
 Read more about [*Share Images via
-Repositories*](/userguide/dockerrepos) or
+Repositories*](../userguide/dockerrepos.md) or
 continue to the complete [*Command
-Line*](/reference/commandline/cli)
+Line*](../reference/commandline/cli.md)
