@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"os/exec"
 
+	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/go-check/check"
 )
 
@@ -14,8 +15,7 @@ func (s *DockerSuite) TestLoginWithoutTTY(c *check.C) {
 	cmd.Stdin = bytes.NewBufferString("buffer test string \n")
 
 	// run the command and block until it's done
-	if err := cmd.Run(); err == nil {
-		c.Fatal("Expected non nil err when loginning in & TTY not available")
-	}
+	err := cmd.Run()
+	c.Assert(err, checker.NotNil) //"Expected non nil err when loginning in & TTY not available"
 
 }
