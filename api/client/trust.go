@@ -185,16 +185,27 @@ func convertTarget(t client.Target) (target, error) {
 
 func (cli *DockerCli) getPassphraseRetriever() passphrase.Retriever {
 	aliasMap := map[string]string{
-		"root":     "offline",
-		"snapshot": "tagging",
-		"targets":  "tagging",
+		"root":     "root",
+		"snapshot": "repository",
+		"targets":  "repository",
 	}
 	baseRetriever := passphrase.PromptRetrieverWithInOut(cli.in, cli.out, aliasMap)
 	env := map[string]string{
-		"root":     os.Getenv("DOCKER_CONTENT_TRUST_OFFLINE_PASSPHRASE"),
-		"snapshot": os.Getenv("DOCKER_CONTENT_TRUST_TAGGING_PASSPHRASE"),
-		"targets":  os.Getenv("DOCKER_CONTENT_TRUST_TAGGING_PASSPHRASE"),
+		"root":     os.Getenv("DOCKER_CONTENT_TRUST_ROOT_PASSPHRASE"),
+		"snapshot": os.Getenv("DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE"),
+		"targets":  os.Getenv("DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE"),
 	}
+
+	// Backwards compatibility with old env names. We should remove this in 1.10
+	if env["snapshot"] == "" || env["targets"] == "" {
+		env["snapshot"] = os.Getenv("DOCKER_CONTENT_TRUST_TAGGING_PASSPHRASE")
+		env["targets"] = os.Getenv("DOCKER_CONTENT_TRUST_TAGGING_PASSPHRASE")
+
+	}
+	if env["root"] == "" {
+		env["root"] = os.Getenv("DOCKER_CONTENT_TRUST_OFFLINE_PASSPHRASE")
+	}
+
 	return func(keyName string, alias string, createNew bool, numAttempts int) (string, bool, error) {
 		if v := env[alias]; v != "" {
 			return v, numAttempts > 1, nil
