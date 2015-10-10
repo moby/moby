@@ -316,20 +316,42 @@ func (n *network) EndpointCnt() uint64 {
 	return n.endpointCnt
 }
 
-func (n *network) IncEndpointCnt() error {
+func (n *network) atomicIncDecEpCnt(inc bool) error {
+retry:
 	n.Lock()
-	n.endpointCnt++
+	if inc {
+		n.endpointCnt++
+	} else {
+		n.endpointCnt--
+	}
 	n.Unlock()
 
-	return n.getController().updateToStore(n)
+	store := n.getController().getStore(n.DataScope())
+	if store == nil {
+		return fmt.Errorf("store not found for scope %s", n.DataScope())
+	}
+
+	if err := n.getController().updateToStore(n); err != nil {
+		if err == datastore.ErrKeyModified {
+			if err := store.GetObject(datastore.Key(n.Key()...), n); err != nil {
+				return fmt.Errorf("could not update the kvobject to latest when trying to atomic add endpoint count: %v", err)
+			}
+
+			goto retry
+		}
+
+		return err
+	}
+
+	return nil
+}
+
+func (n *network) IncEndpointCnt() error {
+	return n.atomicIncDecEpCnt(true)
 }
 
 func (n *network) DecEndpointCnt() error {
-	n.Lock()
-	n.endpointCnt--
-	n.Unlock()
-
-	return n.getController().updateToStore(n)
+	return n.atomicIncDecEpCnt(false)
 }
 
 // TODO : Can be made much more generic with the help of reflection (but has some golang limitations)

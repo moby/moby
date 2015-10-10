@@ -155,6 +155,9 @@ func (c *controller) updateToStore(kvObject datastore.KVObject) error {
 	}
 
 	if err := cs.PutObjectAtomic(kvObject); err != nil {
+		if err == datastore.ErrKeyModified {
+			return err
+		}
 		return fmt.Errorf("failed to update store for object type %T: %v", kvObject, err)
 	}
 
