@@ -152,9 +152,9 @@ var (
 		func() bool {
 			root := os.Getenv("DOCKER_REMAP_ROOT")
 			if root != "" {
-				return true
+				return false
 			}
-			return false
+			return true
 		},
 		"Test cannot be run when remapping root",
 	}
