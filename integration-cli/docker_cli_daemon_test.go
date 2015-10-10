@@ -787,7 +787,7 @@ func (s *DockerDaemonSuite) TestDaemonBridgeFixedCidr(c *check.C) {
 		cName := "Container" + strconv.Itoa(i)
 		out, err := d.Cmd("run", "-d", "--name", cName, "busybox", "top")
 		if err != nil {
-			c.Assert(strings.Contains(out, "no available ip addresses"), check.Equals, true,
+			c.Assert(strings.Contains(out, "no available IPv4 addresses"), check.Equals, true,
 				check.Commentf("Could not run a Container : %s %s", err.Error(), out))
 		}
 	}

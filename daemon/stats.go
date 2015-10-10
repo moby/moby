@@ -8,7 +8,7 @@ import (
 	"github.com/docker/docker/api/types/versions/v1p20"
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/pkg/version"
-	"github.com/docker/libnetwork/osl"
+	lntypes "github.com/docker/libnetwork/types"
 	"github.com/opencontainers/runc/libcontainer"
 )
 
@@ -166,7 +166,7 @@ func (daemon *Daemon) getNetworkStats(c *Container) ([]*libcontainer.NetworkInte
 	return list, nil
 }
 
-func convertLnNetworkStats(name string, stats *osl.InterfaceStatistics) *libcontainer.NetworkInterface {
+func convertLnNetworkStats(name string, stats *lntypes.InterfaceStatistics) *libcontainer.NetworkInterface {
 	n := &libcontainer.NetworkInterface{Name: name}
 	n.RxBytes = stats.RxBytes
 	n.RxPackets = stats.RxPackets

@@ -6,6 +6,7 @@ import (
 
 	"github.com/docker/libnetwork"
 	"github.com/docker/libnetwork/netlabel"
+	"github.com/docker/libnetwork/options"
 )
 
 const (
@@ -78,29 +79,14 @@ func (daemon *Daemon) GetNetworksByID(partialID string) []libnetwork.Network {
 }
 
 // CreateNetwork creates a network with the given name, driver and other optional parameters
-func (daemon *Daemon) CreateNetwork(name, driver string, options map[string]interface{}) (libnetwork.Network, error) {
+func (daemon *Daemon) CreateNetwork(name, driver string, labels map[string]interface{}) (libnetwork.Network, error) {
 	c := daemon.netController
 	if driver == "" {
 		driver = c.Config().Daemon.DefaultDriver
 	}
+	option := libnetwork.NetworkOptionGeneric(options.Generic{
+		netlabel.GenericData: map[string]string{},
+	})
 
-	if options == nil {
-		options = make(map[string]interface{})
-	}
-	_, ok := options[netlabel.GenericData]
-	if !ok {
-		options[netlabel.GenericData] = make(map[string]interface{})
-	}
-
-	return c.NewNetwork(driver, name, parseOptions(options)...)
-}
-
-func parseOptions(options map[string]interface{}) []libnetwork.NetworkOption {
-	var setFctList []libnetwork.NetworkOption
-
-	if options != nil {
-		setFctList = append(setFctList, libnetwork.NetworkOptionGeneric(options))
-	}
-
-	return setFctList
+	return c.NewNetwork(driver, name, option)
 }
