@@ -426,8 +426,9 @@ __docker_subcommand() {
                 "($help -D --debug)"{-D,--debug}"[Enable debug mode]" \
                 "($help)--default-gateway[Container default gateway IPv4 address]:IPv4 address: " \
                 "($help)--default-gateway-v6[Container default gateway IPv6 address]:IPv6 address: " \
-                "($help)--cluster-store=-[URL of the distributed storage backend]:Cluster Store:->cluser-store" \
+                "($help)--cluster-store=-[URL of the distributed storage backend]:Cluster Store:->cluster-store" \
                 "($help)--cluster-advertise=-[Address of the daemon instance to advertise]:Instance to advertise (host\:port): " \
+                "($help)*--cluster-store-opt[Set cluster options]:Cluster options:->cluster-store-options" \
                 "($help)*--dns=-[DNS server to use]:DNS: " \
                 "($help)*--dns-search=-[DNS search domains to use]:DNS search: " \
                 "($help)*--dns-opt=-[DNS options to use]:DNS option: " \
@@ -466,12 +467,20 @@ __docker_subcommand() {
                 "($help)--userland-proxy[Use userland proxy for loopback traffic]" && ret=0
 
             case $state in
-                (cluser-store)
+                (cluster-store)
                     if compset -P '*://'; then
                         _message 'host:port' && ret=0
                     else
                         store=('consul' 'etcd' 'zk')
                         _describe -t cluster-store "Cluster Store" store -qS "://" && ret=0
+                    fi
+                    ;;
+                (cluster-store-options)
+                    if compset -P '*='; then
+                        _files && ret=0
+                    else
+                        opts=('kv.cacertfile' 'kv.certfile' 'kv.keyfile')
+                        _describe -t cluster-store-opts "Cluster Store Options" opts -qS "=" && ret=0
                     fi
                     ;;
             esac
