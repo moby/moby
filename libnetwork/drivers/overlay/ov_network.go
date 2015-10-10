@@ -29,6 +29,12 @@ type subnet struct {
 	gwIP      *net.IPNet
 }
 
+type subnetJSON struct {
+	SubnetIP string
+	GwIP     string
+	Vni      uint32
+}
+
 type network struct {
 	id        string
 	dbIndex   uint64
@@ -366,23 +372,22 @@ func (n *network) KeyPrefix() []string {
 }
 
 func (n *network) Value() []byte {
-	overlayNetmap := make(map[string]interface{})
+	netJSON := []*subnetJSON{}
 
-	s := n.subnets[0]
-	if s == nil {
-		logrus.Errorf("Network %s has no subnets", n.id)
-		return []byte{}
+	for _, s := range n.subnets {
+		sj := &subnetJSON{
+			SubnetIP: s.subnetIP.String(),
+			GwIP:     s.gwIP.String(),
+			Vni:      s.vni,
+		}
+		netJSON = append(netJSON, sj)
 	}
 
-	overlayNetmap["subnetIP"] = s.subnetIP.String()
-	overlayNetmap["gwIP"] = s.gwIP.String()
-	overlayNetmap["vni"] = s.vni
+	b, err := json.Marshal(netJSON)
 
-	b, err := json.Marshal(overlayNetmap)
 	if err != nil {
 		return []byte{}
 	}
-
 	return b
 }
 
@@ -404,36 +409,41 @@ func (n *network) Skip() bool {
 }
 
 func (n *network) SetValue(value []byte) error {
-	var (
-		overlayNetmap map[string]interface{}
-		err           error
-	)
+	var newNet bool
+	netJSON := []*subnetJSON{}
 
-	err = json.Unmarshal(value, &overlayNetmap)
+	err := json.Unmarshal(value, &netJSON)
 	if err != nil {
 		return err
 	}
 
-	subnetIPstr := overlayNetmap["subnetIP"].(string)
-	gwIPstr := overlayNetmap["gwIP"].(string)
-	vni := uint32(overlayNetmap["vni"].(float64))
-
-	subnetIP, _ := types.ParseCIDR(subnetIPstr)
-	gwIP, _ := types.ParseCIDR(gwIPstr)
-
-	s := &subnet{
-		subnetIP: subnetIP,
-		gwIP:     gwIP,
-		vni:      vni,
-		once:     &sync.Once{},
-	}
-	n.subnets = append(n.subnets, s)
-
-	sNet := n.getMatchingSubnet(subnetIP)
-	if sNet != nil {
-		sNet.vni = vni
+	if len(n.subnets) == 0 {
+		newNet = true
 	}
 
+	for _, sj := range netJSON {
+		subnetIPstr := sj.SubnetIP
+		gwIPstr := sj.GwIP
+		vni := sj.Vni
+
+		subnetIP, _ := types.ParseCIDR(subnetIPstr)
+		gwIP, _ := types.ParseCIDR(gwIPstr)
+
+		if newNet {
+			s := &subnet{
+				subnetIP: subnetIP,
+				gwIP:     gwIP,
+				vni:      vni,
+				once:     &sync.Once{},
+			}
+			n.subnets = append(n.subnets, s)
+		} else {
+			sNet := n.getMatchingSubnet(subnetIP)
+			if sNet != nil {
+				sNet.vni = vni
+			}
+		}
+	}
 	return nil
 }
 
