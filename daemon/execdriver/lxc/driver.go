@@ -21,6 +21,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/execdriver"
+	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/stringutils"
 	sysinfo "github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/pkg/term"
@@ -100,19 +101,19 @@ func setupNetNs(nsPath string) (*os.Process, error) {
 
 	f, err := os.OpenFile(nsPath, os.O_RDONLY, 0)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get network namespace %q: %v", nsPath, err)
+		return nil, derr.ErrorCodeGetNetNS.WithArgs(nsPath, err)
 	}
 	defer f.Close()
 
 	nsFD := f.Fd()
 	if err := netns.Set(netns.NsHandle(nsFD)); err != nil {
-		return nil, fmt.Errorf("failed to set network namespace %q: %v", nsPath, err)
+		return nil, derr.ErrorCodeSetNetNS.WithArgs(nsPath, err)
 	}
 	defer netns.Set(origns)
 
 	cmd := exec.Command("/bin/sh", "-c", "while true; do sleep 1; done")
 	if err := cmd.Start(); err != nil {
-		return nil, fmt.Errorf("failed to start netns process: %v", err)
+		return nil, derr.ErrorCodeStartNetNS.WithArgs(err)
 	}
 
 	return cmd.Process, nil
@@ -133,7 +134,7 @@ func (d *Driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, hooks execd
 	)
 
 	if c.Network == nil || (c.Network.NamespacePath == "" && c.Network.ContainerID == "") {
-		return execdriver.ExitStatus{ExitCode: -1}, fmt.Errorf("empty namespace path for non-container network")
+		return execdriver.ExitStatus{ExitCode: -1}, derr.ErrorCodeEmptyNetNSPath
 	}
 
 	container, err := d.createContainer(c)
@@ -355,7 +356,7 @@ func (d *Driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, hooks execd
 func notifyOnOOM(paths map[string]string) (<-chan struct{}, error) {
 	dir := paths["memory"]
 	if dir == "" {
-		return nil, fmt.Errorf("There is no path for %q in state", "memory")
+		return nil, derr.ErrorCodeNoPathToMemory.WithArgs("memory")
 	}
 	oomControl, err := os.Open(filepath.Join(dir, "memory.oom_control"))
 	if err != nil {
@@ -462,15 +463,15 @@ func createDeviceNode(rootfs string, node *configs.Device) error {
 	case 'b':
 		fileMode |= syscall.S_IFBLK
 	default:
-		return fmt.Errorf("%c is not a valid device type for device %s", node.Type, node.Path)
+		return derr.ErrorCodeInvalidDeviceType.WithArgs(node.Type, node.Path)
 	}
 
 	if err := syscall.Mknod(dest, uint32(fileMode), node.Mkdev()); err != nil && !os.IsExist(err) {
-		return fmt.Errorf("mknod %s %s", node.Path, err)
+		return derr.ErrorCodeDevMknodFailed.WithArgs(node.Path, err)
 	}
 
 	if err := syscall.Chown(dest, int(node.Uid), int(node.Gid)); err != nil {
-		return fmt.Errorf("chown %s to %d:%d", node.Path, node.Uid, node.Gid)
+		return derr.ErrorCodeDevChownFailed.WithArgs(node.Path, node.Uid, node.Gid)
 	}
 
 	return nil
@@ -540,7 +541,7 @@ func (d *Driver) Pause(c *execdriver.Command) error {
 	if err == nil {
 		output, errExec := exec.Command("lxc-freeze", "-n", c.ID).CombinedOutput()
 		if errExec != nil {
-			return fmt.Errorf("Err: %s Output: %s", errExec, output)
+			return derr.ErrorCodePauseLXCFailed.WithArgs(errExec, output)
 		}
 	}
 
@@ -554,7 +555,7 @@ func (d *Driver) Unpause(c *execdriver.Command) error {
 	if err == nil {
 		output, errExec := exec.Command("lxc-unfreeze", "-n", c.ID).CombinedOutput()
 		if errExec != nil {
-			return fmt.Errorf("Err: %s Output: %s", errExec, output)
+			return derr.ErrorCodeUnpauseLXCFailed.WithArgs(errExec, output)
 		}
 	}
 
@@ -599,7 +600,7 @@ func killLxc(id string, sig int) error {
 		output, err = exec.Command("lxc-stop", "-k", "-n", id).CombinedOutput()
 	}
 	if err != nil {
-		return fmt.Errorf("Err: %s Output: %s", err, output)
+		return derr.ErrorCodeKillLXCFailed.WithArgs(err, output)
 	}
 	return nil
 }
@@ -708,7 +709,7 @@ func (d *Driver) GetPidsForContainer(id string) ([]int, error) {
 		}
 		pid, err := strconv.Atoi(p)
 		if err != nil {
-			return pids, fmt.Errorf("Invalid pid '%s': %s", p, err)
+			return pids, derr.ErrorCodeInvalidPIDLXC.WithArgs(p, err)
 		}
 		pids = append(pids, pid)
 	}
@@ -880,7 +881,7 @@ func (d *Driver) Exec(c *execdriver.Command, processConfig *execdriver.ProcessCo
 // execdriver.Stats to get stats info by libcontainer APIs.
 func (d *Driver) Stats(id string) (*execdriver.ResourceStats, error) {
 	if _, ok := d.activeContainers[id]; !ok {
-		return nil, fmt.Errorf("%s is not a key in active containers", id)
+		return nil, derr.ErrorCodeInvalidIDLXCStats.WithArgs(id)
 	}
 	return execdriver.Stats(d.containerDir(id), d.activeContainers[id].container.Cgroups.Memory, d.machineMemory)
 }

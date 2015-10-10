@@ -2,10 +2,12 @@
 
 package windows
 
-import "fmt"
+import (
+	derr "github.com/docker/docker/errors"
+)
 
 // GetPidsForContainer implements the exec driver Driver interface.
 func (d *Driver) GetPidsForContainer(id string) ([]int, error) {
 	// TODO Windows: Implementation required.
-	return nil, fmt.Errorf("GetPidsForContainer: GetPidsForContainer() not implemented")
+	return nil, derr.ErrorCodeWinErrGetPid
 }

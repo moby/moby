@@ -4,10 +4,10 @@ package windows
 
 import (
 	"errors"
-	"fmt"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/execdriver"
+	derr "github.com/docker/docker/errors"
 	"github.com/microsoft/hcsshim"
 )
 
@@ -22,7 +22,7 @@ func (d *Driver) Exec(c *execdriver.Command, processConfig *execdriver.ProcessCo
 
 	active := d.activeContainers[c.ID]
 	if active == nil {
-		return -1, fmt.Errorf("Exec - No active container exists with ID %s", c.ID)
+		return -1, derr.ErrorCodeWinErrExecID.WithArgs(c.ID)
 	}
 
 	createProcessParms := hcsshim.CreateProcessParams{

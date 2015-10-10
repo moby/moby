@@ -15,6 +15,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/execdriver"
+	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/pools"
 	"github.com/docker/docker/pkg/reexec"
@@ -64,7 +65,7 @@ func NewDriver(root, initPath string, options []string) (*Driver, error) {
 			// (possibly through another run, manually, or via system startup)
 			for _, policy := range apparmorProfiles {
 				if err := hasAppArmorProfileLoaded(policy); err != nil {
-					return nil, fmt.Errorf("AppArmor enabled on system but the %s profile could not be loaded.", policy)
+					return nil, derr.ErrorCodeAppArmorLoadProfileFailed.WithArgs(policy)
 				}
 			}
 		}
@@ -99,10 +100,10 @@ func NewDriver(root, initPath string, options []string) (*Driver, error) {
 			case "cgroupfs":
 				cgm = libcontainer.Cgroupfs
 			default:
-				return nil, fmt.Errorf("Unknown native.cgroupdriver given %q. try cgroupfs or systemd", val)
+				return nil, derr.ErrorCodeUnknownCGroupDriver.WithArgs(val)
 			}
 		default:
-			return nil, fmt.Errorf("Unknown option %s\n", key)
+			return nil, derr.ErrorCodeInvalidDriverOption.WithArgs(key)
 		}
 	}
 
@@ -266,7 +267,7 @@ func (d *Driver) Kill(c *execdriver.Command, sig int) error {
 	active := d.activeContainers[c.ID]
 	d.Unlock()
 	if active == nil {
-		return fmt.Errorf("active container for %s does not exist", c.ID)
+		return derr.ErrorCodeNoContainerWithID2.WithArgs(c.ID)
 	}
 	state, err := active.State()
 	if err != nil {
@@ -282,7 +283,7 @@ func (d *Driver) Pause(c *execdriver.Command) error {
 	active := d.activeContainers[c.ID]
 	d.Unlock()
 	if active == nil {
-		return fmt.Errorf("active container for %s does not exist", c.ID)
+		return derr.ErrorCodeNoContainerWithID2.WithArgs(c.ID)
 	}
 	return active.Pause()
 }
@@ -294,7 +295,7 @@ func (d *Driver) Unpause(c *execdriver.Command) error {
 	active := d.activeContainers[c.ID]
 	d.Unlock()
 	if active == nil {
-		return fmt.Errorf("active container for %s does not exist", c.ID)
+		return derr.ErrorCodeNoContainerWithID2.WithArgs(c.ID)
 	}
 	return active.Resume()
 }
@@ -343,7 +344,7 @@ func (d *Driver) GetPidsForContainer(id string) ([]int, error) {
 	d.Unlock()
 
 	if active == nil {
-		return nil, fmt.Errorf("active container for %s does not exist", id)
+		return nil, derr.ErrorCodeNoContainerWithID2.WithArgs(id)
 	}
 	return active.Processes()
 }

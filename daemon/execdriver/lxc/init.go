@@ -5,7 +5,6 @@ package lxc
 import (
 	"encoding/json"
 	"flag"
-	"fmt"
 	"os"
 	"os/exec"
 	"runtime"
@@ -13,6 +12,7 @@ import (
 	"syscall"
 
 	"github.com/Sirupsen/logrus"
+	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/reexec"
 )
 
@@ -70,7 +70,7 @@ func setupNamespace(args *InitArgs) error {
 	}
 
 	if err := syscall.Exec(path, args.Args, os.Environ()); err != nil {
-		return fmt.Errorf("dockerinit unable to execute %s - %s", path, err)
+		return derr.ErrorCodeDockerInitFailed.WithArgs(path, err)
 	}
 
 	return nil
@@ -110,11 +110,11 @@ func setupEnv(args *InitArgs) error {
 	var env []string
 	dockerenv, err := os.Open(".dockerenv")
 	if err != nil {
-		return fmt.Errorf("Unable to load environment variables: %v", err)
+		return derr.ErrorCodeLoadEnvFailed.WithArgs(err)
 	}
 	defer dockerenv.Close()
 	if err := json.NewDecoder(dockerenv).Decode(&env); err != nil {
-		return fmt.Errorf("Unable to decode environment variables: %v", err)
+		return derr.ErrorCodeDecodeEnvFailed.WithArgs(err)
 	}
 	// Propagate the plugin-specific container env variable
 	env = append(env, "container="+os.Getenv("container"))
@@ -139,7 +139,7 @@ func setupWorkingDirectory(args *InitArgs) error {
 		return nil
 	}
 	if err := syscall.Chdir(args.WorkDir); err != nil {
-		return fmt.Errorf("Unable to change dir to %v: %v", args.WorkDir, err)
+		return derr.ErrorCodeCDWorkDirFailed.WithArgs(args.WorkDir, err)
 	}
 	return nil
 }

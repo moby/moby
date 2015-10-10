@@ -10,6 +10,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/autogen/dockerversion"
 	"github.com/docker/docker/daemon/execdriver"
+	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/parsers"
 )
 
@@ -70,7 +71,7 @@ func NewDriver(root, initPath string, options []string) (*Driver, error) {
 			}
 
 		default:
-			return nil, fmt.Errorf("Unrecognised exec driver option %s\n", key)
+			return nil, derr.ErrorCodeWinErrExecDriver.WithArgs(key)
 		}
 	}
 

@@ -8,6 +8,7 @@ import (
 	"syscall"
 
 	"github.com/docker/docker/daemon/execdriver"
+	derr "github.com/docker/docker/errors"
 	"github.com/opencontainers/runc/libcontainer/apparmor"
 	"github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/opencontainers/runc/libcontainer/devices"
@@ -110,7 +111,7 @@ func (d *Driver) createNetwork(container *configs.Config, c *execdriver.Command,
 		d.Unlock()
 
 		if active == nil {
-			return fmt.Errorf("%s is not a valid running container to join", c.Network.ContainerID)
+			return derr.ErrorCodeInvContainerWithID.WithArgs(c.Network.ContainerID)
 		}
 
 		state, err := active.State()
@@ -161,7 +162,7 @@ func (d *Driver) createIpc(container *configs.Config, c *execdriver.Command) err
 		d.Unlock()
 
 		if active == nil {
-			return fmt.Errorf("%s is not a valid running container to join", c.Ipc.ContainerID)
+			return derr.ErrorCodeInvContainerWithID.WithArgs(c.Ipc.ContainerID)
 		}
 
 		state, err := active.State()
