@@ -105,4 +105,9 @@ the path does not exist.
 
 Version 1.9 adds a flag (`--disable-legacy-registry=false`) which prevents the docker daemon from `pull`, `push`, and `login` operations against v1 registries.  Though disabled by default, this signals the intent to deprecate the v1 protocol.
 
+### Docker Content Trust ENV passphrase variables name change
 
+As of 1.9, Docker Content Trust Offline key will be renamed to Root key and the Tagging key will be renamed to Repository key. Due to this renaming, we're also changing the corresponding environment variables
+
+- DOCKER_CONTENT_TRUST_OFFLINE_PASSPHRASE will now be named DOCKER_CONTENT_TRUST_ROOT_PASSPHRASE
+- DOCKER_CONTENT_TRUST_TAGGING_PASSPHRASE will now be named DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE

@@ -11,12 +11,12 @@ parent= "smn_content_trust"
 # Manage keys for content trust
 
 Trust for an image tag is managed through the use of keys. Docker's content
-trust makes use four different keys: 
+trust makes use four different keys:
 
 | Key                 | Description                                                                                                                                                                                                                                                                                                                                                                         |
 |---------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| offline key         | Root of content trust for a image tag. When content trust is enabled, you create the offline key once. |
-| target and snapshot | These two keys are known together as the "tagging" key. When content trust is enabled, you create this key when you add a new image repository. If you have the offline key, you can export the tagging key and allow other publishers to sign the image tags.    |
+| root key         | Root of content trust for a image tag. When content trust is enabled, you create the root key once. |
+| target and snapshot | These two keys are known together as the "repository" key. When content trust is enabled, you create this key when you add a new image repository. If you have the root key, you can export the repository key and allow other publishers to sign the image tags.    |
 | timestamp           | This key applies to a repository. It allows Docker repositories to have freshness security guarantees without requiring periodic content refreshes on the client's side.                                                                                                              |
 
 With the exception of the timestamp, all the keys are generated and stored locally
@@ -26,11 +26,11 @@ service that isn't directly exposed to the internet and are encrypted at rest.
 
 ## Choosing a passphrase
 
-The passphrases you chose for both the offline key and your tagging key should
-be randomly generated and stored in a password manager.  Having the tagging key
+The passphrases you chose for both the root key and your repository key should
+be randomly generated and stored in a password manager.  Having the repository key
 allow users to sign image tags on a repository. Passphrases are used to encrypt
 your keys at rest and ensures that a lost laptop or an unintended backup doesn't
-put the private key material at risk. 
+put the private key material at risk.
 
 ## Back up your keys
 
@@ -39,7 +39,7 @@ on creation. Even so, you should still take care of the location where you back 
 Good practice is to create two encrypted USB keys.
 
 It is very important that you backup your keys to a safe, secure location. Loss
-of the tagging key is recoverable; loss of the offline key is not. 
+of the repository key is recoverable; loss of the root key is not.
 
 The Docker client stores the keys in the `~/.docker/trust/private` directory.
 Before backing them up, you should `tar` them into an archive:
@@ -53,7 +53,7 @@ $ umask 077; tar -zcvf private_keys_backup.tar.gz ~/.docker/trust/private; umask
 If a publisher loses keys it means losing the ability to sign trusted content for
 your repositories.  If you lose a key, contact [Docker
 Support](https://support.docker.com) (support@docker.com) to reset the repository
-state. 
+state.
 
 This loss also requires **manual intervention** from every consumer that pulled
 the tagged image prior to the loss. Image consumers would get an error for
@@ -64,10 +64,10 @@ could not validate the path to a trusted root: failed to validate data with curr
 ```
 
 To correct this, they need to download a new image tag with that is signed with
-the new key. 
+the new key.
 
 ## Related information
 
-* [Content trust in Docker](/security/trust/content_trust) 
+* [Content trust in Docker](/security/trust/content_trust)
 * [Automation with content trust](/security/trust/trust_automation)
 * [Play in a content trust sandbox](/security/trust/trust_sandbox)
