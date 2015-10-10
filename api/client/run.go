@@ -199,8 +199,13 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	}()
 
 	//start the container
-	if _, _, err = readBody(cli.call("POST", "/containers/"+createResponse.ID+"/start", nil, nil)); err != nil {
+	var obj []byte
+	if obj, _, err = readBody(cli.call("POST", "/containers/"+createResponse.ID+"/start", nil, nil)); err != nil {
 		return err
+	}
+
+	if obj != nil {
+		fmt.Fprint(cli.err, string(obj[:]))
 	}
 
 	if (config.AttachStdin || config.AttachStdout || config.AttachStderr) && config.Tty && cli.isTerminalOut {

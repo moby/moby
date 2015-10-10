@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/daemon"
+	"github.com/docker/docker/daemon/graphdriver/devmapper"
 	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/signal"
@@ -192,6 +193,11 @@ func (s *router) postContainersStart(ctx context.Context, w http.ResponseWriter,
 	if err := s.daemon.ContainerStart(vars["name"], hostConfig); err != nil {
 		return err
 	}
+
+	if devmapper.WarnOnLoopback && devmapper.LoopbackInUse {
+		fmt.Fprintln(w, "Usage of loopback devices is strongly discouraged for production use. Either use `--storage-opt dm.thinpooldev` or use `--storage-opt dm.no_warn_on_loop_devices=true` to suppress this warning.")
+	}
+
 	w.WriteHeader(http.StatusNoContent)
 	return nil
 }

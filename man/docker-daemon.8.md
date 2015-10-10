@@ -279,6 +279,18 @@ value requires additional steps to take effect:
 
 Example use: `docker daemon --storage-opt dm.basesize=20G`
 
+#### dm.no_warn_on_loop_devices
+A warning message is displayed if devicemapper graphdriver is using loopback devices.
+This flag can be used to suppress that warning. It is *strongly recommended* to not
+use loopback devices in production. You can switch to using lvm thin pool for
+devicemapper. Use option `--storage-opt dm.thinpooldev` to pass lvm thin
+pool to docker daemon. Read "man lvmthin" to figure out how to setup lvm thin pool.
+
+#### dm.loopmetadatasize
+Specifies the size to use when creating the loopback file for the "metadadata"
+device which is used for the thin pool. The default size is 2G. Note that the
+file is sparse, so it will not initially take up this much space.
+
 #### dm.fs
 
 Specifies the filesystem type to use for the base device. The
