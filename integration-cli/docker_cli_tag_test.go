@@ -3,6 +3,7 @@ package main
 import (
 	"strings"
 
+	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/docker/docker/pkg/stringutils"
 	"github.com/go-check/check"
 )
@@ -27,14 +28,11 @@ func (s *DockerSuite) TestTagUnprefixedRepoByID(c *check.C) {
 
 // ensure we don't allow the use of invalid repository names; these tag operations should fail
 func (s *DockerSuite) TestTagInvalidUnprefixedRepo(c *check.C) {
-
 	invalidRepos := []string{"fo$z$", "Foo@3cc", "Foo$3", "Foo*3", "Fo^3", "Foo!3", "F)xcz(", "fo%asd"}
 
 	for _, repo := range invalidRepos {
-		_, _, err := dockerCmdWithError("tag", "busybox", repo)
-		if err == nil {
-			c.Fatalf("tag busybox %v should have failed", repo)
-		}
+		out, _, err := dockerCmdWithError("tag", "busybox", repo)
+		c.Assert(err, checker.NotNil, check.Commentf("tag busybox %v should have failed : %v", repo, out))
 	}
 }
 
@@ -45,10 +43,8 @@ func (s *DockerSuite) TestTagInvalidPrefixedRepo(c *check.C) {
 	invalidTags := []string{"repo:fo$z$", "repo:Foo@3cc", "repo:Foo$3", "repo:Foo*3", "repo:Fo^3", "repo:Foo!3", "repo:%goodbye", "repo:#hashtagit", "repo:F)xcz(", "repo:-foo", "repo:..", longTag}
 
 	for _, repotag := range invalidTags {
-		_, _, err := dockerCmdWithError("tag", "busybox", repotag)
-		if err == nil {
-			c.Fatalf("tag busybox %v should have failed", repotag)
-		}
+		out, _, err := dockerCmdWithError("tag", "busybox", repotag)
+		c.Assert(err, checker.NotNil, check.Commentf("tag busybox %v should have failed : %v", repotag, out))
 	}
 }
 
@@ -80,9 +76,9 @@ func (s *DockerSuite) TestTagExistedNameWithoutForce(c *check.C) {
 
 	dockerCmd(c, "tag", "busybox:latest", "busybox:test")
 	out, _, err := dockerCmdWithError("tag", "busybox:latest", "busybox:test")
-	if err == nil || !strings.Contains(out, "Conflict: Tag busybox:test is already set to image") {
-		c.Fatal("tag busybox busybox:test should have failed,because busybox:test is existed")
-	}
+
+	c.Assert(err, checker.NotNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "Conflict: Tag busybox:test is already set to image", check.Commentf("tag busybox busybox:test should have failed,because busybox:test is existed"))
 }
 
 // tag an image with an existed tag name with -f option should work
@@ -101,21 +97,21 @@ func (s *DockerSuite) TestTagWithPrefixHyphen(c *check.C) {
 	if err := pullImageIfNotExist("busybox:latest"); err != nil {
 		c.Fatal("couldn't find the busybox:latest image locally and failed to pull it")
 	}
+
 	// test repository name begin with '-'
 	out, _, err := dockerCmdWithError("tag", "busybox:latest", "-busybox:test")
-	if err == nil || !strings.Contains(out, "repository name component must match") {
-		c.Fatal("tag a name begin with '-' should failed")
-	}
+	c.Assert(err, checker.NotNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "repository name component must match", check.Commentf("tag a name begin with '-' should failed"))
+
 	// test namespace name begin with '-'
 	out, _, err = dockerCmdWithError("tag", "busybox:latest", "-test/busybox:test")
-	if err == nil || !strings.Contains(out, "repository name component must match") {
-		c.Fatal("tag a name begin with '-' should failed")
-	}
+	c.Assert(err, checker.NotNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "repository name component must match", check.Commentf("tag a name begin with '-' should failed"))
+
 	// test index name begin with '-'
 	out, _, err = dockerCmdWithError("tag", "busybox:latest", "-index:5000/busybox:test")
-	if err == nil || !strings.Contains(out, "Invalid index name (-index:5000). Cannot begin or end with a hyphen") {
-		c.Fatal("tag a name begin with '-' should failed")
-	}
+	c.Assert(err, checker.NotNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "Invalid index name (-index:5000). Cannot begin or end with a hyphen", check.Commentf("tag a name begin with '-' should failed"))
 }
 
 // ensure tagging using official names works
