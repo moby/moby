@@ -15,10 +15,10 @@ import (
 	"github.com/docker/docker/daemon/graphdriver"
 	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/fileutils"
+	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/sysinfo"
-	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
 	"github.com/docker/libnetwork"
@@ -120,6 +120,11 @@ func (daemon *Daemon) adaptContainerSettings(hostConfig *runconfig.HostConfig, a
 func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *runconfig.HostConfig, config *runconfig.Config) ([]string, error) {
 	warnings := []string{}
 	sysInfo := sysinfo.New(true)
+
+	warnings, err := daemon.verifyExperimentalContainerSettings(hostConfig, config)
+	if err != nil {
+		return warnings, err
+	}
 
 	if hostConfig.LxcConf.Len() > 0 && !strings.Contains(daemon.ExecutionDriver().Name(), "lxc") {
 		return warnings, fmt.Errorf("Cannot use --lxc-conf with execdriver: %s", daemon.ExecutionDriver().Name())
@@ -275,7 +280,7 @@ func migrateIfDownlevel(driver graphdriver.Driver, root string) error {
 	return migrateIfAufs(driver, root)
 }
 
-func configureSysInit(config *Config) (string, error) {
+func configureSysInit(config *Config, rootUID, rootGID int) (string, error) {
 	localCopy := filepath.Join(config.Root, "init", fmt.Sprintf("dockerinit-%s", dockerversion.VERSION))
 	sysInitPath := utils.DockerInitPath(localCopy)
 	if sysInitPath == "" {
@@ -284,7 +289,7 @@ func configureSysInit(config *Config) (string, error) {
 
 	if sysInitPath != localCopy {
 		// When we find a suitable dockerinit binary (even if it's our local binary), we copy it into config.Root at localCopy for future use (so that the original can go away without that being a problem, for example during a package upgrade).
-		if err := os.Mkdir(filepath.Dir(localCopy), 0700); err != nil && !os.IsExist(err) {
+		if err := idtools.MkdirAs(filepath.Dir(localCopy), 0700, rootUID, rootGID); err != nil && !os.IsExist(err) {
 			return "", err
 		}
 		if _, err := fileutils.CopyFile(sysInitPath, localCopy); err != nil {
@@ -455,7 +460,7 @@ func initBridgeDriver(controller libnetwork.NetworkController, config *Config) e
 //
 // This extra layer is used by all containers as the top-most ro layer. It protects
 // the container from unwanted side-effects on the rw layer.
-func setupInitLayer(initLayer string) error {
+func setupInitLayer(initLayer string, rootUID, rootGID int) error {
 	for pth, typ := range map[string]string{
 		"/dev/pts":         "dir",
 		"/dev/shm":         "dir",
@@ -478,12 +483,12 @@ func setupInitLayer(initLayer string) error {
 
 		if _, err := os.Stat(filepath.Join(initLayer, pth)); err != nil {
 			if os.IsNotExist(err) {
-				if err := system.MkdirAll(filepath.Join(initLayer, filepath.Dir(pth)), 0755); err != nil {
+				if err := idtools.MkdirAllAs(filepath.Join(initLayer, filepath.Dir(pth)), 0755, rootUID, rootGID); err != nil {
 					return err
 				}
 				switch typ {
 				case "dir":
-					if err := system.MkdirAll(filepath.Join(initLayer, pth), 0755); err != nil {
+					if err := idtools.MkdirAllAs(filepath.Join(initLayer, pth), 0755, rootUID, rootGID); err != nil {
 						return err
 					}
 				case "file":
@@ -492,6 +497,7 @@ func setupInitLayer(initLayer string) error {
 						return err
 					}
 					f.Close()
+					f.Chown(rootUID, rootGID)
 				default:
 					if err := os.Symlink(typ, filepath.Join(initLayer, pth)); err != nil {
 						return err

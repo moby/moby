@@ -1075,7 +1075,7 @@ func (s *DockerDaemonSuite) TestDaemonLoggingDriverDefault(c *check.C) {
 	if out, err := s.d.Cmd("wait", id); err != nil {
 		c.Fatal(out, err)
 	}
-	logPath := filepath.Join(s.d.folder, "graph", "containers", id, id+"-json.log")
+	logPath := filepath.Join(s.d.root, "containers", id, id+"-json.log")
 
 	if _, err := os.Stat(logPath); err != nil {
 		c.Fatal(err)
@@ -1117,7 +1117,7 @@ func (s *DockerDaemonSuite) TestDaemonLoggingDriverDefaultOverride(c *check.C) {
 	if out, err := s.d.Cmd("wait", id); err != nil {
 		c.Fatal(out, err)
 	}
-	logPath := filepath.Join(s.d.folder, "graph", "containers", id, id+"-json.log")
+	logPath := filepath.Join(s.d.root, "containers", id, id+"-json.log")
 
 	if _, err := os.Stat(logPath); err == nil || !os.IsNotExist(err) {
 		c.Fatalf("%s shouldn't exits, error on Stat: %s", logPath, err)
@@ -1159,7 +1159,7 @@ func (s *DockerDaemonSuite) TestDaemonLoggingDriverNoneOverride(c *check.C) {
 	if out, err := s.d.Cmd("wait", id); err != nil {
 		c.Fatal(out, err)
 	}
-	logPath := filepath.Join(s.d.folder, "graph", "containers", id, id+"-json.log")
+	logPath := filepath.Join(s.d.root, "containers", id, id+"-json.log")
 
 	if _, err := os.Stat(logPath); err != nil {
 		c.Fatal(err)
@@ -1483,7 +1483,7 @@ func (s *DockerDaemonSuite) TestCleanupMountsAfterCrash(c *check.C) {
 }
 
 func (s *DockerDaemonSuite) TestRunContainerWithBridgeNone(c *check.C) {
-	testRequires(c, NativeExecDriver)
+	testRequires(c, NativeExecDriver, NotUserNamespace)
 	c.Assert(s.d.StartWithBusybox("-b", "none"), check.IsNil)
 
 	out, err := s.d.Cmd("run", "--rm", "busybox", "ip", "l")

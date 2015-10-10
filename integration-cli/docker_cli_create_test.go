@@ -276,7 +276,7 @@ func (s *DockerSuite) TestCreateRM(c *check.C) {
 
 func (s *DockerSuite) TestCreateModeIpcContainer(c *check.C) {
 	testRequires(c, DaemonIsLinux)
-	testRequires(c, SameHostDaemon)
+	testRequires(c, SameHostDaemon, NotUserNamespace)
 
 	out, _ := dockerCmd(c, "create", "busybox")
 	id := strings.TrimSpace(out)

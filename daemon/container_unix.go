@@ -20,6 +20,7 @@ import (
 	"github.com/docker/docker/daemon/network"
 	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/directory"
+	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/nat"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/system"
@@ -302,6 +303,14 @@ func populateCommand(c *Container, env []string) error {
 	processConfig.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
 	processConfig.Env = env
 
+	remappedRoot := &execdriver.User{}
+	rootUID, rootGID := c.daemon.GetRemappedUIDGID()
+	if rootUID != 0 {
+		remappedRoot.UID = rootUID
+		remappedRoot.GID = rootGID
+	}
+	uidMap, gidMap := c.daemon.GetUIDGIDMaps()
+
 	c.command = &execdriver.Command{
 		ID:                 c.ID,
 		Rootfs:             c.rootfsPath(),
@@ -310,6 +319,9 @@ func populateCommand(c *Container, env []string) error {
 		WorkingDir:         c.Config.WorkingDir,
 		Network:            en,
 		Ipc:                ipc,
+		UIDMapping:         uidMap,
+		GIDMapping:         gidMap,
+		RemappedRoot:       remappedRoot,
 		Pid:                pid,
 		UTS:                uts,
 		Resources:          resources,
@@ -1343,18 +1355,22 @@ func (container *Container) hasMountFor(path string) bool {
 }
 
 func (container *Container) setupIpcDirs() error {
+	rootUID, rootGID := container.daemon.GetRemappedUIDGID()
 	if !container.hasMountFor("/dev/shm") {
 		shmPath, err := container.shmPath()
 		if err != nil {
 			return err
 		}
 
-		if err := os.MkdirAll(shmPath, 0700); err != nil {
+		if err := idtools.MkdirAllAs(shmPath, 0700, rootUID, rootGID); err != nil {
 			return err
 		}
 
 		if err := syscall.Mount("shm", shmPath, "tmpfs", uintptr(syscall.MS_NOEXEC|syscall.MS_NOSUID|syscall.MS_NODEV), label.FormatMountLabel("mode=1777,size=65536k", container.getMountLabel())); err != nil {
 			return fmt.Errorf("mounting shm tmpfs: %s", err)
+		}
+		if err := os.Chown(shmPath, rootUID, rootGID); err != nil {
+			return err
 		}
 	}
 
@@ -1364,12 +1380,15 @@ func (container *Container) setupIpcDirs() error {
 			return err
 		}
 
-		if err := os.MkdirAll(mqueuePath, 0700); err != nil {
+		if err := idtools.MkdirAllAs(mqueuePath, 0700, rootUID, rootGID); err != nil {
 			return err
 		}
 
 		if err := syscall.Mount("mqueue", mqueuePath, "mqueue", uintptr(syscall.MS_NOEXEC|syscall.MS_NOSUID|syscall.MS_NODEV), ""); err != nil {
 			return fmt.Errorf("mounting mqueue mqueue : %s", err)
+		}
+		if err := os.Chown(mqueuePath, rootUID, rootGID); err != nil {
+			return err
 		}
 	}
 

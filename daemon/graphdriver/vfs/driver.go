@@ -9,7 +9,8 @@ import (
 
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/chrootarchive"
-	"github.com/docker/docker/pkg/system"
+	"github.com/docker/docker/pkg/idtools"
+
 	"github.com/opencontainers/runc/libcontainer/label"
 )
 
@@ -19,11 +20,20 @@ func init() {
 
 // Init returns a new VFS driver.
 // This sets the home directory for the driver and returns NaiveDiffDriver.
-func Init(home string, options []string) (graphdriver.Driver, error) {
+func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (graphdriver.Driver, error) {
 	d := &Driver{
-		home: home,
+		home:    home,
+		uidMaps: uidMaps,
+		gidMaps: gidMaps,
 	}
-	return graphdriver.NewNaiveDiffDriver(d), nil
+	rootUID, rootGID, err := idtools.GetRootUIDGID(uidMaps, gidMaps)
+	if err != nil {
+		return nil, err
+	}
+	if err := idtools.MkdirAllAs(home, 0700, rootUID, rootGID); err != nil {
+		return nil, err
+	}
+	return graphdriver.NewNaiveDiffDriver(d, uidMaps, gidMaps), nil
 }
 
 // Driver holds information about the driver, home directory of the driver.
@@ -31,7 +41,9 @@ func Init(home string, options []string) (graphdriver.Driver, error) {
 // In order to support layering, files are copied from the parent layer into the new layer. There is no copy-on-write support.
 // Driver must be wrapped in NaiveDiffDriver to be used as a graphdriver.Driver
 type Driver struct {
-	home string
+	home    string
+	uidMaps []idtools.IDMap
+	gidMaps []idtools.IDMap
 }
 
 func (d *Driver) String() string {
@@ -56,10 +68,14 @@ func (d *Driver) Cleanup() error {
 // Create prepares the filesystem for the VFS driver and copies the directory for the given id under the parent.
 func (d *Driver) Create(id, parent string) error {
 	dir := d.dir(id)
-	if err := system.MkdirAll(filepath.Dir(dir), 0700); err != nil {
+	rootUID, rootGID, err := idtools.GetRootUIDGID(d.uidMaps, d.gidMaps)
+	if err != nil {
 		return err
 	}
-	if err := os.Mkdir(dir, 0755); err != nil {
+	if err := idtools.MkdirAllAs(filepath.Dir(dir), 0700, rootUID, rootGID); err != nil {
+		return err
+	}
+	if err := idtools.MkdirAs(dir, 0755, rootUID, rootGID); err != nil {
 		return err
 	}
 	opts := []string{"level:s0"}

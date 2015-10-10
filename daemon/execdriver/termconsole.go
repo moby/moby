@@ -7,6 +7,8 @@ import (
 
 // StdConsole defines standard console operations for execdriver
 type StdConsole struct {
+	// Closers holds io.Closer references for closing at terminal close time
+	Closers []io.Closer
 }
 
 // NewStdConsole returns a new StdConsole struct
@@ -46,6 +48,8 @@ func (s *StdConsole) Resize(h, w int) error {
 
 // Close implements Close method of Terminal interface
 func (s *StdConsole) Close() error {
-	// nothing to close here
+	for _, c := range s.Closers {
+		c.Close()
+	}
 	return nil
 }

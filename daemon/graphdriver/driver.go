@@ -8,7 +8,9 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
+
 	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/idtools"
 )
 
 // FsMagic unsigned id of the filesystem in use.
@@ -34,7 +36,7 @@ var (
 )
 
 // InitFunc initializes the storage driver.
-type InitFunc func(root string, options []string) (Driver, error)
+type InitFunc func(root string, options []string, uidMaps, gidMaps []idtools.IDMap) (Driver, error)
 
 // ProtoDriver defines the basic capabilities of a driver.
 // This interface exists solely to be a minimum set of methods
@@ -46,7 +48,6 @@ type ProtoDriver interface {
 	// String returns a string representation of this driver.
 	String() string
 	// Create creates a new, empty, filesystem layer with the
-	// specified id and parent. Parent may be "".
 	Create(id, parent string) error
 	// Remove attempts to remove the filesystem layer with this id.
 	Remove(id string) error
@@ -107,9 +108,9 @@ func Register(name string, initFunc InitFunc) error {
 }
 
 // GetDriver initializes and returns the registered driver
-func GetDriver(name, home string, options []string) (Driver, error) {
+func GetDriver(name, home string, options []string, uidMaps, gidMaps []idtools.IDMap) (Driver, error) {
 	if initFunc, exists := drivers[name]; exists {
-		return initFunc(filepath.Join(home, name), options)
+		return initFunc(filepath.Join(home, name), options, uidMaps, gidMaps)
 	}
 	if pluginDriver, err := lookupPlugin(name, home, options); err == nil {
 		return pluginDriver, nil
@@ -119,20 +120,20 @@ func GetDriver(name, home string, options []string) (Driver, error) {
 }
 
 // getBuiltinDriver initalizes and returns the registered driver, but does not try to load from plugins
-func getBuiltinDriver(name, home string, options []string) (Driver, error) {
+func getBuiltinDriver(name, home string, options []string, uidMaps, gidMaps []idtools.IDMap) (Driver, error) {
 	if initFunc, exists := drivers[name]; exists {
-		return initFunc(filepath.Join(home, name), options)
+		return initFunc(filepath.Join(home, name), options, uidMaps, gidMaps)
 	}
 	logrus.Errorf("Failed to built-in GetDriver graph %s %s", name, home)
 	return nil, ErrNotSupported
 }
 
 // New creates the driver and initializes it at the specified root.
-func New(root string, options []string) (driver Driver, err error) {
+func New(root string, options []string, uidMaps, gidMaps []idtools.IDMap) (driver Driver, err error) {
 	for _, name := range []string{os.Getenv("DOCKER_DRIVER"), DefaultDriver} {
 		if name != "" {
 			logrus.Debugf("[graphdriver] trying provided driver %q", name) // so the logs show specified driver
-			return GetDriver(name, root, options)
+			return GetDriver(name, root, options, uidMaps, gidMaps)
 		}
 	}
 
@@ -147,7 +148,7 @@ func New(root string, options []string) (driver Driver, err error) {
 			// of the state found from prior drivers, check in order of our priority
 			// which we would prefer
 			if prior == name {
-				driver, err = getBuiltinDriver(name, root, options)
+				driver, err = getBuiltinDriver(name, root, options, uidMaps, gidMaps)
 				if err != nil {
 					// unlike below, we will return error here, because there is prior
 					// state, and now it is no longer supported/prereq/compatible, so
@@ -167,7 +168,7 @@ func New(root string, options []string) (driver Driver, err error) {
 
 	// Check for priority drivers first
 	for _, name := range priority {
-		driver, err = getBuiltinDriver(name, root, options)
+		driver, err = getBuiltinDriver(name, root, options, uidMaps, gidMaps)
 		if err != nil {
 			if err == ErrNotSupported || err == ErrPrerequisites || err == ErrIncompatibleFS {
 				continue
@@ -179,7 +180,7 @@ func New(root string, options []string) (driver Driver, err error) {
 
 	// Check all registered drivers if no priority driver is found
 	for _, initFunc := range drivers {
-		if driver, err = initFunc(root, options); err != nil {
+		if driver, err = initFunc(root, options, uidMaps, gidMaps); err != nil {
 			if err == ErrNotSupported || err == ErrPrerequisites || err == ErrIncompatibleFS {
 				continue
 			}

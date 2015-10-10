@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"time"
 
+	"github.com/docker/docker/pkg/idtools"
 	// TODO Windows: Factor out ulimit
 	"github.com/docker/docker/pkg/ulimit"
 	"github.com/opencontainers/runc/libcontainer"
@@ -173,6 +174,12 @@ type Mount struct {
 	Slave       bool   `json:"slave"`
 }
 
+// User contains the uid and gid representing a Unix user
+type User struct {
+	UID int `json:"root_uid"`
+	GID int `json:"root_gid"`
+}
+
 // ProcessConfig describes a process that will be run inside a container.
 type ProcessConfig struct {
 	exec.Cmd `json:"-"`
@@ -202,6 +209,9 @@ type Command struct {
 	Ipc                *Ipc              `json:"ipc"`
 	Pid                *Pid              `json:"pid"`
 	UTS                *UTS              `json:"uts"`
+	RemappedRoot       *User             `json:"remap_root"`
+	UIDMapping         []idtools.IDMap   `json:"uidmapping"`
+	GIDMapping         []idtools.IDMap   `json:"gidmapping"`
 	Resources          *Resources        `json:"resources"`
 	Mounts             []Mount           `json:"mounts"`
 	AllowedDevices     []*configs.Device `json:"allowed_devices"`

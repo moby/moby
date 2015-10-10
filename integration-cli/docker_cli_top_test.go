@@ -30,7 +30,7 @@ func (s *DockerSuite) TestTopNonPrivileged(c *check.C) {
 }
 
 func (s *DockerSuite) TestTopPrivileged(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	testRequires(c, DaemonIsLinux, NotUserNamespace)
 	out, _ := dockerCmd(c, "run", "--privileged", "-i", "-d", "busybox", "top")
 	cleanedContainerID := strings.TrimSpace(out)
 

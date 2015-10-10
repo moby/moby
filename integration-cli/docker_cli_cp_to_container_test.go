@@ -153,6 +153,8 @@ func (s *DockerSuite) TestCpToErrDstNotDir(c *check.C) {
 // Check that copying from a local path to a symlink in a container copies to
 // the symlink target and does not overwrite the container symlink itself.
 func (s *DockerSuite) TestCpToSymlinkDestination(c *check.C) {
+	//  stat /tmp/test-cp-to-symlink-destination-262430901/vol3 gets permission denied for the user
+	testRequires(c, NotUserNamespace)
 	testRequires(c, DaemonIsLinux)
 	testRequires(c, SameHostDaemon) // Requires local volume mount bind.
 
@@ -699,7 +701,8 @@ func (s *DockerSuite) TestCpToCaseJ(c *check.C) {
 // The `docker cp` command should also ensure that you cannot
 // write to a container rootfs that is marked as read-only.
 func (s *DockerSuite) TestCpToErrReadOnlyRootfs(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	// --read-only + userns has remount issues
+	testRequires(c, DaemonIsLinux, NotUserNamespace)
 	tmpDir := getTestDir(c, "test-cp-to-err-read-only-rootfs")
 	defer os.RemoveAll(tmpDir)
 
@@ -732,7 +735,8 @@ func (s *DockerSuite) TestCpToErrReadOnlyRootfs(c *check.C) {
 // The `docker cp` command should also ensure that you
 // cannot write to a volume that is mounted as read-only.
 func (s *DockerSuite) TestCpToErrReadOnlyVolume(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	// --read-only + userns has remount issues
+	testRequires(c, DaemonIsLinux, NotUserNamespace)
 	tmpDir := getTestDir(c, "test-cp-to-err-read-only-volume")
 	defer os.RemoveAll(tmpDir)
 

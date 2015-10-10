@@ -71,6 +71,9 @@ to build a Docker binary with the experimental features enabled:
 
 ## Current experimental features
 
+ * [External graphdriver plugins](plugins_graphdriver.md)
+ * [User namespaces](userns.md)
+
 ## How to comment on an experimental feature
 
 Each feature's documentation includes a list of proposal pull requests or PRs associated with the feature. If you want to comment on or suggest a change to a feature, please add it to the existing feature PR.  

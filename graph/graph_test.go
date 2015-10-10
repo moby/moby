@@ -281,11 +281,11 @@ func tempGraph(t *testing.T) (*Graph, graphdriver.Driver) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	driver, err := graphdriver.New(tmp, nil)
+	driver, err := graphdriver.New(tmp, nil, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	graph, err := NewGraph(tmp, driver)
+	graph, err := NewGraph(tmp, driver, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

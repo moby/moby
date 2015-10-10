@@ -2183,6 +2183,8 @@ func (s *DockerSuite) TestBuildWorkdirWithEnvVariables(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildRelativeCopy(c *check.C) {
+	// cat /test1/test2/foo gets permission denied for the user
+	testRequires(c, NotUserNamespace)
 	testRequires(c, DaemonIsLinux)
 	name := "testbuildrelativecopy"
 	dockerfile := `
@@ -2248,7 +2250,7 @@ func (s *DockerSuite) TestBuildContextCleanup(c *check.C) {
 	testRequires(c, SameHostDaemon)
 
 	name := "testbuildcontextcleanup"
-	entries, err := ioutil.ReadDir("/var/lib/docker/tmp")
+	entries, err := ioutil.ReadDir(filepath.Join(dockerBasePath, "tmp"))
 	if err != nil {
 		c.Fatalf("failed to list contents of tmp dir: %s", err)
 	}
@@ -2259,7 +2261,7 @@ func (s *DockerSuite) TestBuildContextCleanup(c *check.C) {
 	if err != nil {
 		c.Fatal(err)
 	}
-	entriesFinal, err := ioutil.ReadDir("/var/lib/docker/tmp")
+	entriesFinal, err := ioutil.ReadDir(filepath.Join(dockerBasePath, "tmp"))
 	if err != nil {
 		c.Fatalf("failed to list contents of tmp dir: %s", err)
 	}
@@ -2274,7 +2276,7 @@ func (s *DockerSuite) TestBuildContextCleanupFailedBuild(c *check.C) {
 	testRequires(c, SameHostDaemon)
 
 	name := "testbuildcontextcleanup"
-	entries, err := ioutil.ReadDir("/var/lib/docker/tmp")
+	entries, err := ioutil.ReadDir(filepath.Join(dockerBasePath, "tmp"))
 	if err != nil {
 		c.Fatalf("failed to list contents of tmp dir: %s", err)
 	}
@@ -2285,7 +2287,7 @@ func (s *DockerSuite) TestBuildContextCleanupFailedBuild(c *check.C) {
 	if err == nil {
 		c.Fatalf("expected build to fail, but it didn't")
 	}
-	entriesFinal, err := ioutil.ReadDir("/var/lib/docker/tmp")
+	entriesFinal, err := ioutil.ReadDir(filepath.Join(dockerBasePath, "tmp"))
 	if err != nil {
 		c.Fatalf("failed to list contents of tmp dir: %s", err)
 	}
@@ -2683,6 +2685,8 @@ func (s *DockerSuite) TestBuildConditionalCache(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildAddLocalFileWithCache(c *check.C) {
+	// local files are not owned by the correct user
+	testRequires(c, NotUserNamespace)
 	testRequires(c, DaemonIsLinux)
 	name := "testbuildaddlocalfilewithcache"
 	name2 := "testbuildaddlocalfilewithcache2"
@@ -2741,6 +2745,8 @@ func (s *DockerSuite) TestBuildAddMultipleLocalFileWithCache(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildAddLocalFileWithoutCache(c *check.C) {
+	// local files are not owned by the correct user
+	testRequires(c, NotUserNamespace)
 	testRequires(c, DaemonIsLinux)
 	name := "testbuildaddlocalfilewithoutcache"
 	name2 := "testbuildaddlocalfilewithoutcache2"
@@ -3862,6 +3868,8 @@ RUN [ "$(id -u):$(id -g)/$(id -un):$(id -gn)/$(id -G):$(id -Gn)" = '1042:1043/10
 }
 
 func (s *DockerSuite) TestBuildEnvUsage(c *check.C) {
+	// /docker/world/hello is not owned by the correct user
+	testRequires(c, NotUserNamespace)
 	testRequires(c, DaemonIsLinux)
 	name := "testbuildenvusage"
 	dockerfile := `FROM busybox
@@ -3898,6 +3906,8 @@ RUN    [ "$ghi" = "def" ]
 }
 
 func (s *DockerSuite) TestBuildEnvUsage2(c *check.C) {
+	// /docker/world/hello is not owned by the correct user
+	testRequires(c, NotUserNamespace)
 	testRequires(c, DaemonIsLinux)
 	name := "testbuildenvusage2"
 	dockerfile := `FROM busybox
@@ -4024,6 +4034,8 @@ RUN [ "$(cat /testfile)" = 'test!' ]`
 }
 
 func (s *DockerSuite) TestBuildAddTar(c *check.C) {
+	// /test/foo is not owned by the correct user
+	testRequires(c, NotUserNamespace)
 	testRequires(c, DaemonIsLinux)
 	name := "testbuildaddtar"
 
@@ -4080,7 +4092,8 @@ RUN cat /existing-directory-trailing-slash/test/foo | grep Hi`
 }
 
 func (s *DockerSuite) TestBuildAddTarXz(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	// /test/foo is not owned by the correct user
+	testRequires(c, NotUserNamespace)
 	testRequires(c, DaemonIsLinux)
 	name := "testbuildaddtarxz"
 
@@ -4839,6 +4852,8 @@ func (s *DockerSuite) TestBuildSymlinkBreakout(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildXZHost(c *check.C) {
+	// /usr/local/sbin/xz gets permission denied for the user
+	testRequires(c, NotUserNamespace)
 	testRequires(c, DaemonIsLinux)
 	name := "testbuildxzhost"
 
@@ -4867,6 +4882,8 @@ RUN [ ! -e /injected ]`,
 }
 
 func (s *DockerSuite) TestBuildVolumesRetainContents(c *check.C) {
+	// /foo/file gets permission denied for the user
+	testRequires(c, NotUserNamespace)
 	testRequires(c, DaemonIsLinux)
 	var (
 		name     = "testbuildvolumescontent"

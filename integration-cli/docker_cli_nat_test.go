@@ -98,7 +98,7 @@ func (s *DockerSuite) TestNetworkLocalhostTCPNat(c *check.C) {
 
 func (s *DockerSuite) TestNetworkLoopbackNat(c *check.C) {
 	testRequires(c, DaemonIsLinux)
-	testRequires(c, SameHostDaemon, NativeExecDriver)
+	testRequires(c, SameHostDaemon, NativeExecDriver, NotUserNamespace)
 	msg := "it works"
 	startServerContainer(c, msg, 8080)
 	endpoint := getExternalAddress(c)

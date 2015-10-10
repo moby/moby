@@ -16,7 +16,6 @@ import (
 	"github.com/docker/docker/graph"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/httputils"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/parsers"
@@ -32,6 +31,7 @@ type Docker struct {
 	Daemon      *daemon.Daemon
 	OutOld      io.Writer
 	AuthConfigs map[string]cliconfig.AuthConfig
+	Archiver    *archive.Archiver
 }
 
 // ensure Docker implements builder.Docker
@@ -121,6 +121,7 @@ func (d Docker) Release(sessionID string, activeImages []string) {
 func (d Docker) Copy(c *daemon.Container, destPath string, src builder.FileInfo, decompress bool) error {
 	srcPath := src.Path()
 	destExists := true
+	rootUID, rootGID := d.Daemon.GetRemappedUIDGID()
 
 	// Work in daemon-local OS specific file paths
 	destPath = filepath.FromSlash(destPath)
@@ -149,10 +150,10 @@ func (d Docker) Copy(c *daemon.Container, destPath string, src builder.FileInfo,
 
 	if src.IsDir() {
 		// copy as directory
-		if err := chrootarchive.CopyWithTar(srcPath, destPath); err != nil {
+		if err := d.Archiver.CopyWithTar(srcPath, destPath); err != nil {
 			return err
 		}
-		return fixPermissions(srcPath, destPath, 0, 0, destExists)
+		return fixPermissions(srcPath, destPath, rootUID, rootGID, destExists)
 	}
 	if decompress {
 		// Only try to untar if it is a file and that we've been told to decompress (when ADD-ing a remote file)
@@ -167,7 +168,7 @@ func (d Docker) Copy(c *daemon.Container, destPath string, src builder.FileInfo,
 		}
 
 		// try to successfully untar the orig
-		if err := chrootarchive.UntarPath(srcPath, tarDest); err == nil {
+		if err := d.Archiver.UntarPath(srcPath, tarDest); err == nil {
 			return nil
 		} else if err != io.EOF {
 			logrus.Debugf("Couldn't untar to %s: %v", tarDest, err)
@@ -182,11 +183,11 @@ func (d Docker) Copy(c *daemon.Container, destPath string, src builder.FileInfo,
 	if err := system.MkdirAll(filepath.Dir(destPath), 0755); err != nil {
 		return err
 	}
-	if err := chrootarchive.CopyFileWithTar(srcPath, destPath); err != nil {
+	if err := d.Archiver.CopyFileWithTar(srcPath, destPath); err != nil {
 		return err
 	}
 
-	return fixPermissions(srcPath, destPath, 0, 0, destExists)
+	return fixPermissions(srcPath, destPath, rootUID, rootGID, destExists)
 }
 
 // GetCachedImage returns a reference to a cached image whose parent equals `parent`

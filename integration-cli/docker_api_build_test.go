@@ -45,6 +45,7 @@ func (s *DockerSuite) TestBuildApiDockerfilePath(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildApiDockerFileRemote(c *check.C) {
+	testRequires(c, NotUserNamespace)
 	testRequires(c, DaemonIsLinux)
 	server, err := fakeStorage(map[string]string{
 		"testD": `FROM busybox

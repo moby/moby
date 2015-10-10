@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 	"os/exec"
 	"strings"
 	"time"
@@ -146,6 +147,16 @@ var (
 			return false
 		},
 		"Test requires native Golang compiler instead of GCCGO",
+	}
+	NotUserNamespace = testRequirement{
+		func() bool {
+			root := os.Getenv("DOCKER_REMAP_ROOT")
+			if root != "" {
+				return false
+			}
+			return true
+		},
+		"Test cannot be run when remapping root",
 	}
 )
 
