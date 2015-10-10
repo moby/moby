@@ -15,7 +15,7 @@ for f in "${files[@]}"; do
 		continue
 	fi
 
-	# we use "git show" here to validate that what's committed is formatted
+	# we use "git show" here to validate that what's committed doesn't contain golang built-in testing
 	if git show "$VALIDATE_HEAD:$f" | grep -q testing.T; then
 		badFiles+=( "$f" )
 	fi
