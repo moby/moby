@@ -238,7 +238,7 @@ func compareIpamConfList(listA, listB []*IpamConf) bool {
 		a = listA[i]
 		b = listB[i]
 		if a.PreferredPool != b.PreferredPool ||
-			a.SubPool != b.SubPool || a.IsV6 != b.IsV6 ||
+			a.SubPool != b.SubPool ||
 			!compareStringMaps(a.Options, b.Options) ||
 			a.Gateway != b.Gateway || !compareStringMaps(a.AuxAddresses, b.AuxAddresses) {
 			return false

@@ -76,8 +76,6 @@ type IpamConf struct {
 	SubPool string
 	// Input options for IPAM Driver (optional)
 	Options map[string]string
-	// IPv6 flag, Needed when no preferred pool is specified
-	IsV6 bool
 	// Preferred Network Gateway address (optional)
 	Gateway string
 	// Auxiliary addresses for network driver. Must be within the master pool.
@@ -867,7 +865,7 @@ func (n *network) ipamAllocateVersion(ipVer int, ipam ipamapi.Ipam) error {
 		return types.InternalErrorf("incorrect ip version passed to ipam allocate: %d", ipVer)
 	}
 
-	if *cfgList == nil {
+	if len(*cfgList) == 0 {
 		if ipVer == 6 {
 			return nil
 		}
@@ -885,7 +883,7 @@ func (n *network) ipamAllocateVersion(ipVer int, ipam ipamapi.Ipam) error {
 		d := &IpamInfo{}
 		(*infoList)[i] = d
 
-		d.PoolID, d.Pool, d.Meta, err = ipam.RequestPool(n.addrSpace, cfg.PreferredPool, cfg.SubPool, cfg.Options, cfg.IsV6)
+		d.PoolID, d.Pool, d.Meta, err = ipam.RequestPool(n.addrSpace, cfg.PreferredPool, cfg.SubPool, cfg.Options, ipVer == 6)
 		if err != nil {
 			return err
 		}
