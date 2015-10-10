@@ -193,7 +193,7 @@ func (ncfg *networkConfiguration) Exists() bool {
 }
 
 func (ncfg *networkConfiguration) Skip() bool {
-	return false
+	return ncfg.DefaultBridge
 }
 
 func (ncfg *networkConfiguration) New() datastore.KVObject {
