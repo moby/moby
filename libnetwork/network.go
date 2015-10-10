@@ -86,7 +86,7 @@ type IpamConf struct {
 // Validate checks whether the configuration is valid
 func (c *IpamConf) Validate() error {
 	if c.Gateway != "" && nil == net.ParseIP(c.Gateway) {
-		return types.BadRequestErrorf("invalid gateway address %s in IpamConf dtructure", c.Gateway)
+		return types.BadRequestErrorf("invalid gateway address %s in Ipam configuration", c.Gateway)
 	}
 	return nil
 }
@@ -496,6 +496,9 @@ func NetworkOptionLabels(labels map[string]string) NetworkOption {
 	return func(n *network) {
 		if n.generic == nil {
 			n.generic = make(map[string]interface{})
+		}
+		if labels == nil {
+			labels = make(map[string]string)
 		}
 		// Store the options
 		n.generic[netlabel.GenericData] = labels
