@@ -118,15 +118,13 @@ func (d *driver) DeleteNetwork(nid string) error {
 	return n.releaseVxlanID()
 }
 
-func (n *network) joinSandbox() error {
+func (n *network) incEndpointCount() {
 	n.Lock()
-	if n.joinCnt != 0 {
-		n.joinCnt++
-		n.Unlock()
-		return nil
-	}
-	n.Unlock()
+	defer n.Unlock()
+	n.joinCnt++
+}
 
+func (n *network) joinSandbox() error {
 	// If there is a race between two go routines here only one will win
 	// the other will wait.
 	n.once.Do(func() {
@@ -139,20 +137,10 @@ func (n *network) joinSandbox() error {
 }
 
 func (n *network) joinSubnetSandbox(s *subnet) error {
-
 	s.once.Do(func() {
 		s.initErr = n.initSubnetSandbox(s)
 	})
-	// Increment joinCnt in all the goroutines only when the one time initSandbox
-	// was a success.
-	n.Lock()
-	if s.initErr == nil {
-		n.joinCnt++
-	}
-	err := s.initErr
-	n.Unlock()
-
-	return err
+	return s.initErr
 }
 
 func (n *network) leaveSandbox() {

@@ -43,6 +43,10 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 		return fmt.Errorf("subnet sandbox join failed for %q: %v", s.subnetIP.String(), err)
 	}
 
+	// joinSubnetSandbox gets called when an endpoint comes up on a new subnet in the
+	// overlay network. Hence the Endpoint count should be updated outside joinSubnetSandbox
+	n.incEndpointCount()
+
 	sbox := n.sandbox()
 
 	name1, name2, err := createVethPair()
