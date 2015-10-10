@@ -481,13 +481,13 @@ func (b *Builder) probeCache() (bool, error) {
 		return false, err
 	}
 	if len(cache) == 0 {
-		logrus.Debugf("[BUILDER] Cache miss")
+		logrus.Debugf("[BUILDER] Cache miss: %s", b.runConfig.Cmd)
 		b.cacheBusted = true
 		return false, nil
 	}
 
 	fmt.Fprintf(b.Stdout, " ---> Using cache\n")
-	logrus.Debugf("[BUILDER] Use cached version")
+	logrus.Debugf("[BUILDER] Use cached version: %s", b.runConfig.Cmd)
 	b.image = string(cache)
 
 	// TODO: remove once Commit can take a tag parameter.
