@@ -55,8 +55,9 @@ type Network interface {
 	Info() NetworkInfo
 }
 
-// NetworkInfo returns operational information about the network
+// NetworkInfo returns some configuration and operational information about the network
 type NetworkInfo interface {
+	IpamConfig() (string, []*IpamConf, []*IpamConf)
 	Labels() map[string]string
 	Scope() string
 }
@@ -242,6 +243,26 @@ func (n *network) New() datastore.KVObject {
 	}
 }
 
+// CopyTo deep copies to the destination IpamConfig
+func (c *IpamConf) CopyTo(dstC *IpamConf) error {
+	dstC.PreferredPool = c.PreferredPool
+	dstC.SubPool = c.SubPool
+	dstC.Gateway = c.Gateway
+	if c.Options != nil {
+		dstC.Options = make(map[string]string, len(c.Options))
+		for k, v := range c.Options {
+			dstC.Options[k] = v
+		}
+	}
+	if c.AuxAddresses != nil {
+		dstC.AuxAddresses = make(map[string]string, len(c.AuxAddresses))
+		for k, v := range c.AuxAddresses {
+			dstC.AuxAddresses[k] = v
+		}
+	}
+	return nil
+}
+
 // CopyTo deep copies to the destination IpamInfo
 func (i *IpamInfo) CopyTo(dstI *IpamInfo) error {
 	dstI.PoolID = i.PoolID
@@ -282,18 +303,28 @@ func (n *network) CopyTo(o datastore.KVObject) error {
 	dstN.dbExists = n.dbExists
 	dstN.drvOnce = n.drvOnce
 
+	for _, v4conf := range n.ipamV4Config {
+		dstV4Conf := &IpamConf{}
+		v4conf.CopyTo(dstV4Conf)
+		dstN.ipamV4Config = append(dstN.ipamV4Config, dstV4Conf)
+	}
+
 	for _, v4info := range n.ipamV4Info {
 		dstV4Info := &IpamInfo{}
 		v4info.CopyTo(dstV4Info)
 		dstN.ipamV4Info = append(dstN.ipamV4Info, dstV4Info)
 	}
 
-	if n.ipamV6Info != nil {
-		for _, v6info := range n.ipamV6Info {
-			dstV6Info := &IpamInfo{}
-			v6info.CopyTo(dstV6Info)
-			dstN.ipamV6Info = append(dstN.ipamV6Info, dstV6Info)
-		}
+	for _, v6conf := range n.ipamV6Config {
+		dstV6Conf := &IpamConf{}
+		v6conf.CopyTo(dstV6Conf)
+		dstN.ipamV6Config = append(dstN.ipamV6Config, dstV6Conf)
+	}
+
+	for _, v6info := range n.ipamV6Info {
+		dstV6Info := &IpamInfo{}
+		v6info.CopyTo(dstV6Info)
+		dstN.ipamV6Info = append(dstN.ipamV6Info, dstV6Info)
 	}
 
 	dstN.generic = options.Generic{}
@@ -484,7 +515,9 @@ func NetworkOptionPersist(persist bool) NetworkOption {
 // NetworkOptionIpam function returns an option setter for the ipam configuration for this network
 func NetworkOptionIpam(ipamDriver string, addrSpace string, ipV4 []*IpamConf, ipV6 []*IpamConf) NetworkOption {
 	return func(n *network) {
-		n.ipamType = ipamDriver
+		if ipamDriver != "" {
+			n.ipamType = ipamDriver
+		}
 		n.addrSpace = addrSpace
 		n.ipamV4Config = ipV4
 		n.ipamV6Config = ipV6
@@ -1085,4 +1118,26 @@ func (n *network) Labels() map[string]string {
 
 func (n *network) Scope() string {
 	return n.driverScope()
+}
+
+func (n *network) IpamConfig() (string, []*IpamConf, []*IpamConf) {
+	n.Lock()
+	defer n.Unlock()
+
+	v4L := make([]*IpamConf, len(n.ipamV4Config))
+	v6L := make([]*IpamConf, len(n.ipamV6Config))
+
+	for i, c := range n.ipamV4Config {
+		cc := &IpamConf{}
+		c.CopyTo(cc)
+		v4L[i] = cc
+	}
+
+	for i, c := range n.ipamV6Config {
+		cc := &IpamConf{}
+		c.CopyTo(cc)
+		v6L[i] = cc
+	}
+
+	return n.ipamType, v4L, v6L
 }
