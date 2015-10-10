@@ -3,9 +3,9 @@
 package volumedrivers
 
 import (
-	"fmt"
 	"sync"
 
+	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/docker/volume"
 )
@@ -84,7 +84,7 @@ func Lookup(name string) (volume.Driver, error) {
 	}
 	pl, err := plugins.Get(name, "VolumeDriver")
 	if err != nil {
-		return nil, fmt.Errorf("Error looking up volume plugin %s: %v", name, err)
+		return nil, derr.ErrorCodeLookupVolumeDriver.WithArgs(name, err)
 	}
 
 	drivers.Lock()

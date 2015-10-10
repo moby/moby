@@ -27,7 +27,6 @@ import (
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
 	"github.com/docker/docker/volume"
-	"github.com/docker/docker/volume/store"
 	"github.com/docker/libnetwork"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/options"
@@ -1319,8 +1318,8 @@ func (container *Container) removeMountPoints(rm bool) error {
 			// not an error, but an implementation detail.
 			// This prevents docker from logging "ERROR: Volume in use"
 			// where there is another container using the volume.
-			if err != nil && err != store.ErrVolumeInUse {
-				rmErrors = append(rmErrors, err.Error())
+			if err != nil && err != derr.ErrorCodeVolumeInUse {
+				rmErrors = append(rmErrors, utils.GetErrorMessage(err))
 			}
 		}
 	}

@@ -5,12 +5,12 @@ package local
 
 import (
 	"errors"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sync"
 
+	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/volume"
 )
 
@@ -102,7 +102,7 @@ func (r *Root) Create(name string, _ map[string]string) (volume.Volume, error) {
 	path := r.DataPath(name)
 	if err := os.MkdirAll(path, 0755); err != nil {
 		if os.IsExist(err) {
-			return nil, fmt.Errorf("volume already exists under %s", filepath.Dir(path))
+			return nil, derr.ErrorCodeVolumeExists.WithArgs(filepath.Dir(path))
 		}
 		return nil, err
 	}
@@ -137,7 +137,7 @@ func (r *Root) Remove(v volume.Volume) error {
 	}
 
 	if !r.scopedPath(realPath) {
-		return fmt.Errorf("Unable to remove a directory of out the Docker root %s: %s", r.scope, realPath)
+		return derr.ErrorCodeRemovingDirectory.WithArgs(r.scope, realPath)
 	}
 
 	if err := removePath(realPath); err != nil {

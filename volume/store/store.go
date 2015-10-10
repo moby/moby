@@ -1,19 +1,12 @@
 package store
 
 import (
-	"errors"
 	"sync"
 
 	"github.com/Sirupsen/logrus"
+	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/volume"
 	"github.com/docker/docker/volume/drivers"
-)
-
-var (
-	// ErrVolumeInUse is a typed error returned when trying to remove a volume that is currently in use by a container
-	ErrVolumeInUse = errors.New("volume is in use")
-	// ErrNoSuchVolume is a typed error returned if the requested volume doesn't exist in the volume store
-	ErrNoSuchVolume = errors.New("no such volume")
 )
 
 // New initializes a VolumeStore to keep
@@ -77,7 +70,7 @@ func (s *VolumeStore) Get(name string) (volume.Volume, error) {
 	defer s.mu.Unlock()
 	vc, exists := s.vols[name]
 	if !exists {
-		return nil, ErrNoSuchVolume
+		return nil, derr.ErrorCodeNoSuchVolume
 	}
 	return vc.Volume, nil
 }
@@ -90,11 +83,11 @@ func (s *VolumeStore) Remove(v volume.Volume) error {
 	logrus.Debugf("Removing volume reference: driver %s, name %s", v.DriverName(), name)
 	vc, exists := s.vols[name]
 	if !exists {
-		return ErrNoSuchVolume
+		return derr.ErrorCodeNoSuchVolume
 	}
 
 	if vc.count > 0 {
-		return ErrVolumeInUse
+		return derr.ErrorCodeVolumeInUse
 	}
 
 	vd, err := volumedrivers.GetDriver(vc.DriverName())
