@@ -140,6 +140,8 @@ type Status struct {
 	Data DiskUsage
 	// Metadata is the disk used for meta data.
 	Metadata DiskUsage
+	// BaseDeviceSize is base size of container and image
+	BaseDeviceSize uint64
 	// SectorSize size of the vector.
 	SectorSize uint64
 	// UdevSyncSupported is true if sync is supported.
@@ -821,6 +823,14 @@ func getDeviceUUID(device string) (string, error) {
 	uuid = strings.TrimSpace(uuid)
 	logrus.Debugf("UUID for device: %s is:%s", device, uuid)
 	return uuid, nil
+}
+
+func (devices *DeviceSet) getBaseDeviceSize() uint64 {
+	info, _ := devices.lookupDevice("")
+	if info == nil {
+		return 0
+	}
+	return info.Size
 }
 
 func (devices *DeviceSet) verifyBaseDeviceUUID(baseInfo *devInfo) error {
@@ -2154,6 +2164,7 @@ func (devices *DeviceSet) Status() *Status {
 	status.DeferredRemoveEnabled = devices.deferredRemove
 	status.DeferredDeleteEnabled = devices.deferredDelete
 	status.DeferredDeletedDeviceCount = devices.nrDeletedDevices
+	status.BaseDeviceSize = devices.getBaseDeviceSize()
 
 	totalSizeInSectors, _, dataUsed, dataTotal, metadataUsed, metadataTotal, err := devices.poolStatus()
 	if err == nil {
