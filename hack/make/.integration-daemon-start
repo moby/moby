@@ -29,7 +29,7 @@ fi
 # example usage: DOCKER_STORAGE_OPTS="dm.basesize=20G,dm.loopdatasize=200G"
 extra_params=""
 if [ "$DOCKER_REMAP_ROOT" ]; then
-	extra_params="--root $DOCKER_REMAP_ROOT"
+	extra_params="--userns-remap $DOCKER_REMAP_ROOT"
 fi
 
 if [ -z "$DOCKER_TEST_HOST" ]; then

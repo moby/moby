@@ -108,7 +108,7 @@ func (d *Daemon) Start(arg ...string) error {
 	)
 
 	if root := os.Getenv("DOCKER_REMAP_ROOT"); root != "" {
-		args = append(args, []string{"--root", root}...)
+		args = append(args, []string{"--userns-remap", root}...)
 	}
 
 	// If we don't explicitly set the log-level or debug flag(-D) then
