@@ -138,6 +138,10 @@ __docker_containers_and_images() {
 	COMPREPLY+=( "${containers[@]}" )
 }
 
+__docker_networks() {
+	COMPREPLY=( $(compgen -W "$(__docker_q network ls | awk 'NR>1 {print $2}')" -- "$cur") )
+}
+
 __docker_volumes() {
 	COMPREPLY=( $(compgen -W "$(__docker_q volume ls -q)" -- "$cur") )
 }
@@ -994,6 +998,98 @@ _docker_logs() {
 	esac
 }
 
+_docker_network_connect() {
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--help" -- "$cur" ) )
+			;;
+		*)
+			local counter=$(__docker_pos_first_nonflag '--tail')
+			if [ $cword -eq $counter ]; then
+				__docker_networks
+			elif [ $cword -eq $(($counter + 1)) ]; then
+				__docker_containers_running
+			fi
+			;;
+	esac
+}
+
+_docker_network_create() {
+	case "$prev" in
+		--driver|-d)
+			# no need to suggest drivers that allow one instance only
+			# (host, null)
+			COMPREPLY=( $( compgen -W "bridge overlay" -- "$cur" ) )
+			return
+			;;
+	esac
+
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--driver -d --help" -- "$cur" ) )
+			;;
+	esac
+}
+
+_docker_network_disconnect() {
+	# TODO disconnect should only complete running containers connected
+	# to the specified network.
+	_docker_network_connect
+}
+
+_docker_network_inspect() {
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--help" -- "$cur" ) )
+			;;
+		*)
+			local counter=$(__docker_pos_first_nonflag)
+			if [ $cword -eq $counter ]; then
+				__docker_networks
+			fi
+			;;
+	esac
+}
+
+_docker_network_ls() {
+	case "$prev" in
+		-n)
+			return
+			;;
+	esac
+
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--help --latest -l -n --no-trunc --quiet -q" -- "$cur" ) )
+			;;
+	esac
+}
+
+_docker_network_rm() {
+	_docker_network_inspect
+}
+
+_docker_network() {
+	local subcommands="
+		connect
+		create
+		disconnect
+		inspect
+		ls
+		rm
+	"
+	__docker_subcommands "$subcommands" && return
+
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--help" -- "$cur" ) )
+			;;
+		*)
+			COMPREPLY=( $( compgen -W "$subcommands" -- "$cur" ) )
+			;;
+	esac
+}
+
 _docker_pause() {
 	case "$cur" in
 		-*)
@@ -1623,6 +1719,7 @@ _docker() {
 		login
 		logout
 		logs
+		network
 		pause
 		port
 		ps
