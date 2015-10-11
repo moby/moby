@@ -410,6 +410,11 @@ func TestApplyLayer(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	expectedSize := int64(55)
+	if size := ChangesSize(dst, changes); size != expectedSize {
+		t.Errorf("expected size of %d bytes, got %d", expectedSize, size)
+	}
+
 	layer, err := ExportChanges(dst, changes)
 	if err != nil {
 		t.Fatal(err)
@@ -431,6 +436,37 @@ func TestApplyLayer(t *testing.T) {
 
 	if len(changes2) != 0 {
 		t.Fatalf("Unexpected differences after reapplying mutation: %v", changes2)
+	}
+}
+
+func TestChangesSizeWithHardlinks(t *testing.T) {
+	srcDir, err := ioutil.TempDir("", "docker-test-srcDir")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(srcDir)
+
+	destDir, err := ioutil.TempDir("", "docker-test-destDir")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(destDir)
+
+	creationSize, err := prepareUntarSourceDirectory(100, destDir, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	changes, err := ChangesDirs(destDir, srcDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Logf("The changes were -- %#v", changes)
+
+	got := ChangesSize(destDir, changes)
+	if got != int64(creationSize) {
+		t.Errorf("expected %d bytes of changes, got %d", creationSize, got)
 	}
 }
 
