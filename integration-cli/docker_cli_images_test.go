@@ -215,6 +215,9 @@ func (s *DockerSuite) TestImagesEnsureOnlyHeadsImagesShown(c *check.C) {
 	head, out, err := buildImageWithOut("scratch-image", dockerfile, false)
 	c.Assert(err, check.IsNil)
 
+	// this is just the output of docker build
+	// we're interested in getting the image id of the MAINTAINER instruction
+	// and that's located at output, line 5, from 7 to end
 	split := strings.Split(out, "\n")
 	intermediate := strings.TrimSpace(split[5][7:])
 
