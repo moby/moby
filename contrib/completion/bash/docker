@@ -149,7 +149,7 @@ __docker_volumes() {
 __docker_pos_first_nonflag() {
 	local argument_flags=$1
 
-	local counter=$((command_pos + 1))
+	local counter=$((${subcommand_pos:-${command_pos}} + 1))
 	while [ $counter -le $cword ]; do
 		if [ -n "$argument_flags" ] && eval "case '${words[$counter]}' in $argument_flags) true ;; *) false ;; esac"; then
 			(( counter++ ))
@@ -210,6 +210,35 @@ __docker_to_alternatives() {
 __docker_to_extglob() {
 	local extglob=$( __docker_to_alternatives "$1" )
 	echo "@($extglob)"
+}
+
+# Subcommand processing.
+# Locates the first occurrence of any of the subcommands contained in the
+# first argument. In case of a match, calls the corresponding completion
+# function and returns 0.
+# If no match is found, 1 is returned. The calling function can then
+# continue processing its completion.
+#
+# TODO if the preceding command has options that accept arguments and an
+# argument is equal ot one of the subcommands, this is falsely detected as
+# a match.
+__docker_subcommands() {
+	local subcommands="$1"
+
+	local counter=$(($command_pos + 1))
+	while [ $counter -lt $cword ]; do
+		case "${words[$counter]}" in
+			$(__docker_to_extglob "$subcommands") )
+				subcommand_pos=$counter
+				local subcommand=${words[$counter]}
+				local completions_func=_docker_${command}_${subcommand}
+				declare -F $completions_func >/dev/null && $completions_func
+				return 0
+				;;
+		esac
+		(( counter++ ))
+	done
+	return 1
 }
 
 # suppress trailing whitespace
@@ -1540,33 +1569,20 @@ _docker_volume_rm() {
 }
 
 _docker_volume() {
-	local subcommands=(
+	local subcommands="
 		create
 		inspect
 		ls
 		rm
-	)
-
-	local counter=$(($command_pos + 1))
-	while [ $counter -lt $cword ]; do
-		case "${words[$counter]}" in
-			$(__docker_to_extglob "${subcommands[*]}") )
-				local subcommand=${words[$counter]}
-				local completions_func=_docker_volume_$subcommand
-				declare -F $completions_func >/dev/null && $completions_func
-				return
-				;;
-
-		esac
-		(( counter++ ))
-	done
+	"
+	__docker_subcommands "$subcommands" && return
 
 	case "$cur" in
 		-*)
 			COMPREPLY=( $( compgen -W "--help" -- "$cur" ) )
 			;;
 		*)
-			COMPREPLY=( $( compgen -W "${subcommands[*]}" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "$subcommands" -- "$cur" ) )
 			;;
 	esac
 }
@@ -1652,7 +1668,7 @@ _docker() {
 	local cur prev words cword
 	_get_comp_words_by_ref -n : cur prev words cword
 
-	local command='docker' command_pos=0
+	local command='docker' command_pos=0 subcommand_pos
 	local counter=1
 	while [ $counter -lt $cword ]; do
 		case "${words[$counter]}" in
