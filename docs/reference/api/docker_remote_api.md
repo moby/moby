@@ -27,6 +27,23 @@ The current version of the API is v1.21 which means calling `/info` is the same
 as calling `/v1.21/info`. To call an older version of the API use
 `/v1.20/info`.
 
+Use the table below to find the API version for a Docker version:
+
+Docker version  | API version                                     | Changes
+----------------|-------------------------------------------------|-----------------------------
+1.9.x           | [1.21](/reference/api/docker_remote_api_v1.21/) | [API changes](/reference/api/docker_remote_api/#v1-21-api-changes)
+1.8.x           | [1.20](/reference/api/docker_remote_api_v1.20/) | [API changes](/reference/api/docker_remote_api/#v1-20-api-changes)
+1.7.x           | [1.19](/reference/api/docker_remote_api_v1.19/) | [API changes](/reference/api/docker_remote_api/#v1-19-api-changes)
+1.6.x           | [1.18](/reference/api/docker_remote_api_v1.18/) | [API changes](/reference/api/docker_remote_api/#v1-18-api-changes)
+1.5.x           | [1.17](/reference/api/docker_remote_api_v1.17/) | [API changes](/reference/api/docker_remote_api/#v1-17-api-changes)
+1.4.x           | [1.16](/reference/api/docker_remote_api_v1.16/) | [API changes](/reference/api/docker_remote_api/#v1-16-api-changes)
+1.3.x           | [1.15](/reference/api/docker_remote_api_v1.15/) | [API changes](/reference/api/docker_remote_api/#v1-15-api-changes)
+1.2.x           | [1.14](/reference/api/docker_remote_api_v1.14/) | [API changes](/reference/api/docker_remote_api/#v1-14-api-changes)
+
+Refer to the [GitHub repository](
+https://github.com/docker/docker/tree/master/docs/reference/api) for
+older releases.
+
 ## Authentication
 
 Since API version 1.2, the auth configuration is now handled client side, so the
