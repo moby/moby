@@ -99,12 +99,16 @@ type Graph struct {
 	root             string
 	idIndex          *truncindex.TruncIndex
 	driver           graphdriver.Driver
+	imagesMutex      sync.Mutex
 	imageMutex       imageMutex // protect images in driver.
 	retained         *retainedLayers
 	tarSplitDisabled bool
 	uidMaps          []idtools.IDMap
 	gidMaps          []idtools.IDMap
-	parentRefs       map[string]int
+
+	// access to parentRefs must be protected with imageMutex locking the image id
+	// on the key of the map (e.g. imageMutex.Lock(img.ID), parentRefs[img.ID]...)
+	parentRefs map[string]int
 }
 
 // file names for ./graph/<ID>/
@@ -176,15 +180,8 @@ func (graph *Graph) restore() error {
 	for _, v := range dir {
 		id := v.Name()
 		if graph.driver.Exists(id) {
-			pth := filepath.Join(graph.root, id, "json")
-			jsonSource, err := os.Open(pth)
+			img, err := graph.loadImage(id)
 			if err != nil {
-				return err
-			}
-			defer jsonSource.Close()
-			decoder := json.NewDecoder(jsonSource)
-			var img *image.Image
-			if err := decoder.Decode(img); err != nil {
 				return err
 			}
 			graph.imageMutex.Lock(img.Parent)
@@ -278,6 +275,10 @@ func (graph *Graph) Register(im image.Descriptor, layerData io.Reader) (err erro
 		return err
 	}
 
+	// this is needed cause pull_v2 attemptIDReuse could deadlock
+	graph.imagesMutex.Lock()
+	defer graph.imagesMutex.Unlock()
+
 	// We need this entire operation to be atomic within the engine. Note that
 	// this doesn't mean Register is fully safe yet.
 	graph.imageMutex.Lock(imgID)
@@ -318,10 +319,10 @@ func (graph *Graph) register(im image.Descriptor, layerData io.Reader) (err erro
 	graph.driver.Remove(imgID)
 
 	tmp, err := graph.mktemp()
-	defer os.RemoveAll(tmp)
 	if err != nil {
-		return fmt.Errorf("mktemp failed: %s", err)
+		return err
 	}
+	defer os.RemoveAll(tmp)
 
 	parent := im.Parent()
 
@@ -343,11 +344,11 @@ func (graph *Graph) register(im image.Descriptor, layerData io.Reader) (err erro
 		return err
 	}
 
-	graph.idIndex.Add(img.ID)
+	graph.idIndex.Add(imgID)
 
-	graph.imageMutex.Lock(img.Parent)
-	graph.parentRefs[img.Parent]++
-	graph.imageMutex.Unlock(img.Parent)
+	graph.imageMutex.Lock(parent)
+	graph.parentRefs[parent]++
+	graph.imageMutex.Unlock(parent)
 
 	return nil
 }
@@ -371,6 +372,7 @@ func (graph *Graph) TempLayerArchive(id string, sf *streamformatter.StreamFormat
 	if err != nil {
 		return nil, err
 	}
+	defer os.RemoveAll(tmp)
 	a, err := graph.TarLayer(image)
 	if err != nil {
 		return nil, err
@@ -401,14 +403,6 @@ func (graph *Graph) mktemp() (string, error) {
 	return dir, nil
 }
 
-func (graph *Graph) newTempFile() (*os.File, error) {
-	tmp, err := graph.mktemp()
-	if err != nil {
-		return nil, err
-	}
-	return ioutil.TempFile(tmp, "")
-}
-
 // Delete atomically removes an image from the graph.
 func (graph *Graph) Delete(name string) error {
 	id, err := graph.idIndex.Get(name)
@@ -419,17 +413,16 @@ func (graph *Graph) Delete(name string) error {
 	if err != nil {
 		return err
 	}
-	tmp, err := graph.mktemp()
 	graph.idIndex.Delete(id)
-	if err == nil {
+	tmp, err := graph.mktemp()
+	if err != nil {
+		tmp = graph.imageRoot(id)
+	} else {
 		if err := os.Rename(graph.imageRoot(id), tmp); err != nil {
 			// On err make tmp point to old dir and cleanup unused tmp dir
 			os.RemoveAll(tmp)
 			tmp = graph.imageRoot(id)
 		}
-	} else {
-		// On err make tmp point to old dir for cleanup
-		tmp = graph.imageRoot(id)
 	}
 	// Remove rootfs data from the driver
 	graph.driver.Remove(id)
