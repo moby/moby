@@ -16,7 +16,7 @@ Docker can build images automatically by reading the instructions from a
 `Dockerfile`, a text file that contains all the commands, in order, needed to
 build a given image. `Dockerfile`s adhere to a specific format and use a
 specific set of instructions. You can learn the basics on the
-[Dockerfile Reference](https://docs.docker.com/reference/builder/) page. If
+[Dockerfile Reference](../reference/builder.md) page. If
 you’re new to writing `Dockerfile`s, you should start there.
 
 This document covers the best practices and methods recommended by Docker,
@@ -27,7 +27,7 @@ if you’re creating an Official Image, you *must* adhere to these practices).
 You can see many of these practices and recommendations in action in the [buildpack-deps `Dockerfile`](https://github.com/docker-library/buildpack-deps/blob/master/jessie/Dockerfile).
 
 > Note: for more detailed explanations of any of the Dockerfile commands
->mentioned here, visit the [Dockerfile Reference](https://docs.docker.com/reference/builder/) page.
+>mentioned here, visit the [Dockerfile Reference](../reference/builder.md) page.
 
 ## General guidelines and recommendations
 
@@ -45,7 +45,7 @@ add to that directory only the files needed for building the Dockerfile. To
 increase the build's performance, you can exclude files and directories by
 adding a `.dockerignore` file to that directory as well. This file supports
 exclusion patterns similar to `.gitignore` files. For information on creating one,
-see the [.dockerignore file](../../reference/builder/#dockerignore-file).
+see the [.dockerignore file](../reference/builder.md#dockerignore-file).
 
 ### Avoid installing unnecessary packages
 
@@ -59,7 +59,7 @@ in a database image.
 In almost all cases, you should only run a single process in a single
 container. Decoupling applications into multiple containers makes it much
 easier to scale horizontally and reuse containers. If that service depends on
-another service, make use of [container linking](https://docs.docker.com/userguide/dockerlinks/).
+another service, make use of [container linking](../userguide/dockerlinks.md).
 
 ### Minimize the number of layers
 
@@ -128,7 +128,7 @@ various instructions available for use in a `Dockerfile`.
 
 ### FROM
 
-[Dockerfile reference for the FROM instruction](https://docs.docker.com/reference/builder/#from)
+[Dockerfile reference for the FROM instruction](../reference/builder.md#from)
 
 Whenever possible, use current Official Repositories as the basis for your
 image. We recommend the [Debian image](https://registry.hub.docker.com/_/debian/)
@@ -137,7 +137,7 @@ since it’s very tightly controlled and kept extremely minimal (currently under
 
 ### RUN
 
-[Dockerfile reference for the RUN instruction](https://docs.docker.com/reference/builder/#run)
+[Dockerfile reference for the RUN instruction](../reference/builder.md#run)
 
 As always, to make your `Dockerfile` more readable, understandable, and
 maintainable, split long or complex `RUN` statements on multiple lines separated
@@ -233,7 +233,7 @@ keep the image size down. Since the `RUN` statement starts with
 
 ### CMD
 
-[Dockerfile reference for the CMD instruction](https://docs.docker.com/reference/builder/#cmd)
+[Dockerfile reference for the CMD instruction](../reference/builder.md#cmd)
 
 The `CMD` instruction should be used to run the software contained by your
 image, along with any arguments. `CMD` should almost always be used in the
@@ -247,13 +247,13 @@ perl, etc), for example, `CMD ["perl", "-de0"]`, `CMD ["python"]`, or
 `CMD [“php”, “-a”]`. Using this form means that when you execute something like
 `docker run -it python`, you’ll get dropped into a usable shell, ready to go.
 `CMD` should rarely be used in the manner of `CMD [“param”, “param”]` in
-conjunction with [`ENTRYPOINT`](https://docs.docker.com/reference/builder/#entrypoint), unless
+conjunction with [`ENTRYPOINT`](../reference/builder.md#entrypoint), unless
 you and your expected users are already quite familiar with how `ENTRYPOINT`
 works.
 
 ### EXPOSE
 
-[Dockerfile reference for the EXPOSE instruction](https://docs.docker.com/reference/builder/#expose)
+[Dockerfile reference for the EXPOSE instruction](../reference/builder.md#expose)
 
 The `EXPOSE` instruction indicates the ports on which a container will listen
 for connections. Consequently, you should use the common, traditional port for
@@ -268,7 +268,7 @@ the recipient container back to the source (ie, `MYSQL_PORT_3306_TCP`).
 
 ### ENV
 
-[Dockerfile reference for the ENV instruction](https://docs.docker.com/reference/builder/#env)
+[Dockerfile reference for the ENV instruction](../reference/builder.md#env)
 
 In order to make new software easier to run, you can use `ENV` to update the
 `PATH` environment variable for the software your container installs. For
@@ -293,8 +293,8 @@ auto-magically bump the version of the software in your container.
 
 ### ADD or COPY
 
-[Dockerfile reference for the ADD instruction](https://docs.docker.com/reference/builder/#add)<br/>
-[Dockerfile reference for the COPY instruction](https://docs.docker.com/reference/builder/#copy)
+[Dockerfile reference for the ADD instruction](../reference/builder.md#add)<br/>
+[Dockerfile reference for the COPY instruction](../reference/builder.md#copy)
 
 Although `ADD` and `COPY` are functionally similar, generally speaking, `COPY`
 is preferred. That’s because it’s more transparent than `ADD`. `COPY` only
@@ -339,7 +339,7 @@ auto-extraction capability, you should always use `COPY`.
 
 ### ENTRYPOINT
 
-[Dockerfile reference for the ENTRYPOINT instruction](https://docs.docker.com/reference/builder/#entrypoint)
+[Dockerfile reference for the ENTRYPOINT instruction](../reference/builder.md#entrypoint)
 
 The best use for `ENTRYPOINT` is to set the image's main command, allowing that
 image to be run as though it was that command (and then use `CMD` as the
@@ -389,7 +389,7 @@ exec "$@"
 > This script uses [the `exec` Bash command](http://wiki.bash-hackers.org/commands/builtin/exec)
 > so that the final running application becomes the container's PID 1. This allows
 > the application to receive any Unix signals sent to the container.
-> See the [`ENTRYPOINT`](https://docs.docker.com/reference/builder/#entrypoint)
+> See the [`ENTRYPOINT`](../reference/builder.md#entrypoint)
 > help for more details.
 
 
@@ -415,7 +415,7 @@ Lastly, it could also be used to start a totally different tool, such as Bash:
 
 ### VOLUME
 
-[Dockerfile reference for the VOLUME instruction](https://docs.docker.com/reference/builder/#volume)
+[Dockerfile reference for the VOLUME instruction](../reference/builder.md#volume)
 
 The `VOLUME` instruction should be used to expose any database storage area,
 configuration storage, or files/folders created by your docker container. You
@@ -424,7 +424,7 @@ parts of your image.
 
 ### USER
 
-[Dockerfile reference for the USER instruction](https://docs.docker.com/reference/builder/#user)
+[Dockerfile reference for the USER instruction](../reference/builder.md#user)
 
 If a service can run without privileges, use `USER` to change to a non-root
 user. Start by creating the user and group in the `Dockerfile` with something
@@ -445,7 +445,7 @@ and forth frequently.
 
 ### WORKDIR
 
-[Dockerfile reference for the WORKDIR instruction](https://docs.docker.com/reference/builder/#workdir)
+[Dockerfile reference for the WORKDIR instruction](../reference/builder.md#workdir)
 
 For clarity and reliability, you should always use absolute paths for your
 `WORKDIR`. Also, you should use `WORKDIR` instead of  proliferating
@@ -454,7 +454,7 @@ troubleshoot, and maintain.
 
 ### ONBUILD
 
-[Dockerfile reference for the ONBUILD instruction](https://docs.docker.com/reference/builder/#onbuild)
+[Dockerfile reference for the ONBUILD instruction](../reference/builder.md#onbuild)
 
 An `ONBUILD` command executes after the current `Dockerfile` build completes.
 `ONBUILD` executes in any child image derived `FROM` the current image.  Think
@@ -488,8 +488,8 @@ These Official Repositories have exemplary `Dockerfile`s:
 
 ## Additional resources:
 
-* [Dockerfile Reference](https://docs.docker.com/reference/builder/)
-* [More about Base Images](https://docs.docker.com/articles/baseimages/)
+* [Dockerfile Reference](../reference/builder.md)
+* [More about Base Images](baseimages.md)
 * [More about Automated Builds](https://docs.docker.com/docker-hub/builds/)
 * [Guidelines for Creating Official
 Repositories](https://docs.docker.com/docker-hub/official_repos/)

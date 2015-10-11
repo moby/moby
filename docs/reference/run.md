@@ -31,7 +31,7 @@ The basic `docker run` command takes this form:
 
     $ docker run [OPTIONS] IMAGE[:TAG|@DIGEST] [COMMAND] [ARG...]
 
-The `docker run` command must specify an [*IMAGE*](/reference/glossary/#image)
+The `docker run` command must specify an [*IMAGE*](glossary.md#image)
 to derive the container from. An image developer can define image
 defaults related to:
 
@@ -45,11 +45,11 @@ With the `docker run [OPTIONS]` an operator can add to or override the
 image defaults set by a developer. And, additionally, operators can
 override nearly all the defaults set by the Docker runtime itself. The
 operator's ability to override image and Docker runtime defaults is why
-[*run*](/reference/commandline/cli/run/) has more options than any
+[*run*](commandline/run.md) has more options than any
 other `docker` command.
 
 To learn how to interpret the types of `[OPTIONS]`, see [*Option
-types*](/reference/commandline/cli/#option-types).
+types*](commandline/cli.md#option-types).
 
 > **Note**: Depending on your Docker system configuration, you may be
 > required to preface the `docker run` command with `sudo`. To avoid
@@ -110,7 +110,7 @@ volumes. These are required because the container is no longer listening to the
 command line where `docker run` was run.
 
 To reattach to a detached container, use `docker`
-[*attach*](/reference/commandline/attach) command.
+[*attach*](commandline/attach.md) command.
 
 ### Foreground
 
@@ -159,7 +159,7 @@ The UUID identifiers come from the Docker daemon, and if you do not
 assign a name to the container with `--name` then the daemon will also
 generate a random string name too. The name can become a handy way to
 add meaning to a container since you can use this name when defining
-[*links*](/userguide/dockerlinks) (or any
+[*links*](../userguide/dockerlinks.md) (or any
 other place you need to identify a container). This works for both
 background and foreground Docker containers.
 
@@ -404,8 +404,8 @@ Using the `--restart` flag on Docker run you can specify a restart policy for
 how a container should or should not be restarted on exit.
 
 When a restart policy is active on a container, it will be shown as either `Up`
-or `Restarting` in [`docker ps`](/reference/commandline/ps). It can also be
-useful to use [`docker events`](/reference/commandline/events) to see the
+or `Restarting` in [`docker ps`](commandline/ps.md). It can also be
+useful to use [`docker events`](commandline/events.md) to see the
 restart policy in effect.
 
 Docker supports the following restart policies:
@@ -469,8 +469,7 @@ for at least 10 seconds), the delay is reset to its default value of 100 ms.
 You can specify the maximum amount of times Docker will try to restart the
 container when using the **on-failure** policy.  The default is that Docker
 will try forever to restart the container. The number of (attempted) restarts
-for a container can be obtained via [`docker inspect`](
-/reference/commandline/inspect). For example, to get the number of restarts
+for a container can be obtained via [`docker inspect`](commandline/inspect.md). For example, to get the number of restarts
 for container "my-container";
 
     $ docker inspect -f "{{ .RestartCount }}" my-container
@@ -1076,12 +1075,12 @@ container's logging driver. The following options are supported:
 
 The `docker logs` command is available only for the `json-file` and `journald`
 logging drivers.  For detailed information on working with logging drivers, see
-[Configure a logging driver](/reference/logging/overview/).
+[Configure a logging driver](logging/overview.md).
 
 
 ## Overriding Dockerfile image defaults
 
-When a developer builds an image from a [*Dockerfile*](/reference/builder)
+When a developer builds an image from a [*Dockerfile*](builder.md)
 or when she commits it, the developer can set a number of default parameters
 that take effect when the image starts up as a container.
 
@@ -1192,7 +1191,7 @@ then the client container can access the exposed port via a private
 networking interface. Docker will set some environment variables in the
 client container to help indicate which interface and port to use. For
 more information on linking, see [the guide on linking container
-together](/userguide/dockerlinks/)
+together](../userguide/dockerlinks.md)
 
 ### ENV (environment variables)
 
@@ -1230,7 +1229,7 @@ variables automatically:
 
 The container may also include environment variables defined
 as a result of the container being linked with another container. See
-the [*Container Links*](/userguide/dockerlinks/#connect-with-the-linking-system)
+the [*Container Links*](../userguide/dockerlinks.md#connect-with-the-linking-system)
 section for more details.
 
 Additionally, the operator can **set any environment variable** in the
@@ -1317,11 +1316,11 @@ container's `/etc/hosts` entry will be automatically updated.
     --volumes-from="": Mount all volumes from the given container(s)
 
 > **Note**:
-> The auto-creation of the host path has been [*deprecated*](/misc/deprecated/#auto-creating-missing-host-paths-for-bind-mounts).
+> The auto-creation of the host path has been [*deprecated*](../misc/deprecated.md#auto-creating-missing-host-paths-for-bind-mounts).
 
 The volumes commands are complex enough to have their own documentation
 in section [*Managing data in
-containers*](/userguide/dockervolumes). A developer can define
+containers*](../userguide/dockervolumes.md). A developer can define
 one or more `VOLUME`'s associated with an image, but only the operator
 can give access from one container to another (or from a container to a
 volume mounted on the host).

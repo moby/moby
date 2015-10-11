@@ -29,7 +29,7 @@ instances will bring several benefits, such as:
 > **Note:**
 >
 > If you do **_not_** like `sudo`, you might want to check out:
-> [*Giving non-root access*](/installation/binaries/#giving-non-root-access).
+> [*Giving non-root access*](../installation/binaries.md#giving-non-root-access).
 
 ## Creating a Dockerfile for MongoDB
 
@@ -172,6 +172,6 @@ the exposed port to two different ports on the host
     $ mongo --port 28001
     $ mongo --port 28002
 
- - [Linking containers](/userguide/dockerlinks)
- - [Cross-host linking containers](/articles/ambassador_pattern_linking/)
- - [Creating an Automated Build](/docker-io/builds/#automated-builds)
+ - [Linking containers](../userguide/dockerlinks.md)
+ - [Cross-host linking containers](../articles/ambassador_pattern_linking.md)
+ - [Creating an Automated Build](https://docs.docker.com/docker-hub/builds/)

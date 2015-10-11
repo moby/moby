@@ -13,8 +13,8 @@ weight=8
 
 # Logging Drivers
 
-* [Configuring logging drivers](overview)
-* [Configuring log tags](log_tags)
-* [Fluentd logging driver](fluentd)
-* [Journald logging driver](journald)
-* [Amazon CloudWatch Logs logging driver](awslogs)
+* [Configuring logging drivers](overview.md)
+* [Configuring log tags](log_tags.md)
+* [Fluentd logging driver](fluentd.md)
+* [Journald logging driver](journald.md)
+* [Amazon CloudWatch Logs logging driver](awslogs.md)

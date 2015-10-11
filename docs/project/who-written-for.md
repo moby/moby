@@ -40,7 +40,7 @@ Right now we don't have a lot written about this yet, so just email
 
 ## A turtle is involved
 
-![Gordon](/project/images/gordon.jpeg)
+![Gordon](images/gordon.jpeg)
 
 Enough said.
 
@@ -60,4 +60,4 @@ Please feel free to skim past information you find obvious or boring.
 
 ## How to get started
 
-Start by [getting the software you need to contribute](/project/software-required/).
+Start by [getting the software you need to contribute](software-required.md).

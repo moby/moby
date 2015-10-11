@@ -26,7 +26,7 @@ The following is a sample output from the `docker stats` command
     redis2              0.07%               2.746 MB / 64 MB      4.29%               1.266 KB / 648 B    12.4 MB / 0 B
 
 
-The [docker stats](/reference/commandline/stats/) reference page has
+The [docker stats](../reference/commandline/stats.md) reference page has
 more details about the `docker stats` command.
 
 ## Control groups
@@ -335,7 +335,7 @@ layer; you will also have to add traffic going through the userland
 proxy.
 
 Then, you will need to check those counters on a regular basis. If you
-happen to use `collectd`, there is a [nice plugin](https://collectd.org/wiki/index.php/Plugin:IPTables)
+happen to use `collectd`, there is a [nice plugin](https://collectd.org/wiki/index.php/Table_of_Plugins)
 to automate iptables counters collection.
 
 ### Interface-level counters

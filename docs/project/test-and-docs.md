@@ -229,7 +229,7 @@ run a Bash terminal on Windows.
 
 1.  If you don't have one open already, start a Git Bash terminal.
 
-	 ![Git Bash](/project/images/git_bash.png)
+	 ![Git Bash](images/git_bash.png)
 
 2. Change to the `docker` source directory.
 
@@ -314,7 +314,7 @@ can browse the docs.
 
 5. Once in the documentation, look for the red notice to verify you are seeing the correct build.
 
-    ![Beta documentation](/project/images/red_notice.png)
+    ![Beta documentation](images/red_notice.png)
 
 6. Navigate to your new or changed document.
 
@@ -328,4 +328,4 @@ can browse the docs.
 Congratulations, you have successfully completed the basics you need to
 understand the Docker test framework. In the next steps, you use what you have
 learned so far to [contribute to Docker by working on an
-issue](/project/make-a-contribution/).
+issue](make-a-contribution.md).

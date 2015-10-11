@@ -15,7 +15,7 @@ The sandbox allows you to configure and try trust operations locally without
 impacting your production images.
 
 Before working through this sandbox, you should have read through the [trust
-overview](/security/trust/content_trust).
+overview](content_trust.md).
 
 ### Prerequisites
 
@@ -25,8 +25,8 @@ have `sudo` privileges on your local machine or in the VM.
 
 This sandbox requires you to install two Docker tools: Docker Engine and Docker
 Compose. To install the Docker Engine, choose from the [list of supported
-platforms](/installation). To install Docker Compose, see the
-[detailed instructions here](/compose/install).
+platforms](../../installation). To install Docker Compose, see the
+[detailed instructions here](https://docs.docker.com/compose/install.md).
 
 Finally, you'll need to have `git` installed on your local system or VM.
 

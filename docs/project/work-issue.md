@@ -137,7 +137,7 @@ After you push a new branch, you should verify it on GitHub:
 
 3. Select your branch from the dropdown.
 
-	![Find branch](/project/images/locate_branch.png)
+	![Find branch](images/locate_branch.png)
 	
 4. Use the "Compare" button to compare the differences between your branch and master.
 
@@ -197,4 +197,4 @@ You should pull and rebase frequently as you work.
 ## Where to go next
 
 At this point, you should understand how to work on an issue. In the next
-section, you [learn how to make a pull request](/project/create-pr/).
+section, you [learn how to make a pull request](create-pr.md).

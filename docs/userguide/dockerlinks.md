@@ -11,7 +11,7 @@ weight = 4
 
 # Linking containers together
 
-In [the Using Docker section](/userguide/usingdocker), you saw how you can
+In [the Using Docker section](usingdocker.md), you saw how you can
 connect to a service running inside a Docker container via a network
 port. But a port connection is only one way you can interact with services and
 applications running inside Docker containers. In this section, we'll briefly revisit
@@ -20,7 +20,7 @@ container linking.
 
 ## Connect using network port mapping
 
-In [the Using Docker section](/userguide/usingdocker), you created a
+In [the Using Docker section](usingdocker.md), you created a
 container that ran a Python Flask application:
 
     $ docker run -d -P training/webapp python app.py
@@ -28,9 +28,9 @@ container that ran a Python Flask application:
 > **Note:** 
 > Containers have an internal network and an IP address
 > (as we saw when we used the `docker inspect` command to show the container's
-> IP address in the [Using Docker](/userguide/usingdocker/) section).
+> IP address in the [Using Docker](usingdocker.md) section).
 > Docker can have a variety of network configurations. You can see more
-> information on Docker networking [here](/articles/networking/).
+> information on Docker networking [here](../articles/networking.md).
 
 When that container was created, the `-P` flag was used to automatically map
 any network port inside it to a random high port within an *ephemeral port
@@ -349,5 +349,5 @@ allowing linked communication to continue.
 Now that you know how to link Docker containers together, the next step is
 learning how to take complete control over docker networking.
 
-Go to [Docker Networking](/userguide/dockernetworks.md).
+Go to [Docker Networking](dockernetworks.md).
 

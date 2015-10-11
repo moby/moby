@@ -81,13 +81,12 @@ specified image, and then `starts` it using the specified command. That is,
 previous changes intact using `docker start`. See `docker ps -a` to view a list
 of all containers.
 
-There is detailed information about `docker run` in the [Docker run reference](
-/reference/run/).
+There is detailed information about `docker run` in the [Docker run reference](run.md).
 
 The `docker run` command can be used in combination with `docker commit` to
-[*change the command that a container runs*](/reference/commandline/commit).
+[*change the command that a container runs*](commit.md).
 
-See the [Docker User Guide](/userguide/dockerlinks/) for more detailed
+See the [Docker User Guide](../../userguide/dockerlinks.md) for more detailed
 information about the `--expose`, `-p`, `-P` and `--link` parameters,
 and linking containers.
 
@@ -170,14 +169,14 @@ manipulate the host's Docker daemon.
     $ docker run -p 127.0.0.1:80:8080 ubuntu bash
 
 This binds port `8080` of the container to port `80` on `127.0.0.1` of
-the host machine. The [Docker User Guide](/userguide/dockerlinks/)
+the host machine. The [Docker User Guide](../../userguide/dockerlinks.md)
 explains in detail how to manipulate ports in Docker.
 
     $ docker run --expose 80 ubuntu bash
 
 This exposes port `80` of the container for use within a link without
 publishing the port to the host system's interfaces. The [Docker User
-Guide](/userguide/dockerlinks) explains in detail how to manipulate
+Guide](../../userguide/dockerlinks.md) explains in detail how to manipulate
 ports in Docker.
 
     $ docker run -e MYVAR1 --env MYVAR2=foo --env-file ./env.list ubuntu bash
@@ -279,7 +278,7 @@ format:
 You can load multiple label-files by supplying multiple  `--label-file` flags.
 
 For additional information on working with labels, see [*Labels - custom
-metadata in Docker*](/userguide/labels-custom-metadata/) in the Docker User
+metadata in Docker*](../../userguide/labels-custom-metadata.md) in the Docker User
 Guide.
 
     $ docker run --link /redis:redis --name console ubuntu bash
@@ -466,7 +465,7 @@ This will run the `redis` container with a restart policy of **always**
 so that if the container exits, Docker will restart it.
 
 More detailed information on restart policies can be found in the
-[Restart Policies (--restart)](/reference/run/#restart-policies-restart)
+[Restart Policies (--restart)](../run.md#restart-policies-restart)
 section of the Docker run reference page.
 
 ## Adding entries to a container hosts file

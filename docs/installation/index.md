@@ -11,31 +11,31 @@ keywords = ["Docker install "]
 Docker Engine is supported on Linux, Cloud, Windows, and OS X. Installation instructions are available for the following: 
 
 ## On Linux
-* [Arch Linux](archlinux)
-* [CentOS](centos)
-* [CRUX Linux](cruxlinux)
-* [Debian](debian)
-* [Fedora](fedora)
-* [FrugalWare](frugalware)
-* [Gentoo](gentoolinux)
-* [Oracle Linux](oracle)
-* [Red Hat Enterprise Linux](rhel)
-* [openSUSE and SUSE Linux Enterprise](SUSE)
-* [Ubuntu](ubuntulinux)
+* [Arch Linux](archlinux.md)
+* [CentOS](centos.md)
+* [CRUX Linux](cruxlinux.md)
+* [Debian](debian.md)
+* [Fedora](fedora.md)
+* [FrugalWare](frugalware.md)
+* [Gentoo](gentoolinux.md)
+* [Oracle Linux](oracle.md)
+* [Red Hat Enterprise Linux](rhel.md)
+* [openSUSE and SUSE Linux Enterprise](SUSE.md)
+* [Ubuntu](ubuntulinux.md)
 
-If your linux distribution is not listed above, don't give up yet. To try out Docker on a distribution that is not listed above, go here: [Installation from binaries](binaries).
+If your linux distribution is not listed above, don't give up yet. To try out Docker on a distribution that is not listed above, go here: [Installation from binaries](binaries.md).
 
 ## On Cloud
-* [Amazon EC2 Installation](amazon)
-* [Install on Joyent Public Cloud](joyent)
-* [Google Cloud Platform](google)
-* [IBM SoftLayer](softlayer)
-* [Microsoft Azure platform](azure)
-* [Rackspace Cloud](rackspace)
+* [Amazon EC2 Installation](amazon.md)
+* [Install on Joyent Public Cloud](joyent.md)
+* [Google Cloud Platform](google.md)
+* [IBM SoftLayer](softlayer.md)
+* [Microsoft Azure platform](azure.md)
+* [Rackspace Cloud](rackspace.md)
 
 ## On OSX and Windows
-* [Mac OS X](mac)
-* [Windows](windows)
+* [Mac OS X](mac.md)
+* [Windows](windows.md)
 
 ## The Docker Archives 
 Instructions for installing prior releases of Docker can be found in the following docker archives:

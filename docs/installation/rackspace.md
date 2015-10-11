@@ -12,7 +12,7 @@ parent = "smn_cloud"
 
 Installing Docker on Ubuntu provided by Rackspace is pretty
 straightforward, and you should mostly be able to follow the
-[*Ubuntu*](../ubuntulinux/#ubuntu-linux) installation guide.
+[*Ubuntu*](ubuntulinux.md#ubuntu-linux) installation guide.
 
 **However, there is one caveat:**
 
@@ -83,5 +83,5 @@ Verify the kernel was updated
 
     # nice! 3.8.
 
-Now you can finish with the [*Ubuntu*](../ubuntulinux/#ubuntu-linux)
+Now you can finish with the [*Ubuntu*](ubuntulinux.md#ubuntu-linux)
 instructions.

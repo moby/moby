@@ -12,8 +12,8 @@ weight=7
 # Coding style checklist
 
 This checklist summarizes the material you experienced working through [make a
-code contribution](/project/make-a-contribution) and [advanced
-contributing](/project/advanced-contributing). The checklist applies to both 
+code contribution](make-a-contribution.md) and [advanced
+contributing](advanced-contributing.md). The checklist applies to both 
 program code and documentation code.
 
 ## Change and commit code

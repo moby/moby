@@ -11,9 +11,9 @@ weight = 1
 
 # Get started with images
 
-In the [introduction](/introduction/understanding-docker/) we've discovered that Docker
+In the [introduction](../introduction/understanding-docker.md) we've discovered that Docker
 images are the basis of containers. In the
-[previous](/userguide/dockerizing/) [sections](/userguide/usingdocker/)
+[previous](dockerizing.md) [sections](usingdocker.md)
 we've used Docker images that already exist, for example the `ubuntu`
 image and the `training/webapp` image.
 
@@ -51,7 +51,7 @@ do this using the `docker images` command like so:
     ubuntu           10.04    3db9c44f4520  4 weeks ago  183 MB
     ubuntu           lucid    3db9c44f4520  4 weeks ago  183 MB
 
-We can see the images we've previously used in our [user guide](/userguide/).
+We can see the images we've previously used in our user guide.
 Each has been downloaded from [Docker Hub](https://hub.docker.com) when we
 launched a container using that image.
 
@@ -123,7 +123,7 @@ images for a variety of purposes. Many of these have been uploaded to
 [Docker Hub](https://hub.docker.com). We can search these images on the
 [Docker Hub](https://hub.docker.com) website.
 
-![indexsearch](/userguide/search.png)
+![indexsearch](search.png)
 
 We can also search for images on the command line using the `docker search`
 command. Let's say our team wants an image with Ruby and Sinatra installed on
@@ -146,9 +146,9 @@ We can see we've returned a lot of images that use the term `sinatra`. We've
 returned a list of image names, descriptions, Stars (which measure the social
 popularity of images - if a user likes an image then they can "star" it), and
 the Official and Automated build statuses.
-[Official Repositories](/docker-hub/official_repos) are a carefully curated set
+[Official Repositories](https://docs.docker.com/docker-hub/official_repos) are a carefully curated set
 of Docker repositories supported by Docker, Inc.  Automated repositories are
-[Automated Builds](/userguide/dockerrepos/#automated-builds) that allow you to
+[Automated Builds](dockerrepos.md#automated-builds) that allow you to
 validate the source and content of an image.
 
 We've reviewed the images available to use and we decided to use the
@@ -286,7 +286,7 @@ updating our APT cache, installing Ruby and RubyGems and then installing the
 Sinatra gem.
 
 > **Note:**
-> There are [a lot more instructions available to us in a Dockerfile](/reference/builder).
+> There are [a lot more instructions available to us in a Dockerfile](../reference/builder.md).
 
 Now let's take our `Dockerfile` and use the `docker build` command to build an image.
 
@@ -491,10 +491,10 @@ We can then create a container from our new image.
 > This is just a brief introduction to creating images. We've
 > skipped a whole bunch of other instructions that you can use. We'll see more of
 > those instructions in later sections of the Guide or you can refer to the
-> [`Dockerfile`](/reference/builder/) reference for a
+> [`Dockerfile`](../reference/builder.md) reference for a
 > detailed description and examples of every instruction.
 > To help you write a clear, readable, maintainable `Dockerfile`, we've also
-> written a [`Dockerfile` Best Practices guide](/articles/dockerfile_best-practices).
+> written a [`Dockerfile` Best Practices guide](../articles/dockerfile_best-practices.md).
 
 
 ## Setting tags on an image
@@ -551,8 +551,7 @@ private repository](https://registry.hub.docker.com/plans/).
 ## Remove an image from the host
 
 You can also remove images on your Docker host in a way [similar to
-containers](
-/userguide/usingdocker) using the `docker rmi` command.
+containers](usingdocker.md) using the `docker rmi` command.
 
 Let's delete the `training/sinatra` image as we don't need it anymore.
 
@@ -571,4 +570,4 @@ Until now we've seen how to build individual applications inside Docker
 containers. Now learn how to build whole application stacks with Docker
 by linking together multiple Docker containers.
 
-Go to [Linking Containers Together](/userguide/dockerlinks).
+Go to [Linking Containers Together](dockerlinks.md).

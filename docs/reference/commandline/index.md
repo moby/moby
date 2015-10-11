@@ -12,74 +12,74 @@ parent = "mn_reference"
 
 # The Docker commands
 
-This section contains reference information on using Docker's command line client. Each command has a reference page along with samples. If you are unfamiliar with the command line, you should start by reading about how to ["Use the Docker command line"](cli).  
+This section contains reference information on using Docker's command line client. Each command has a reference page along with samples. If you are unfamiliar with the command line, you should start by reading about how to ["Use the Docker command line"](cli.md).  
 
-You start the Docker daemon with the command line. How you start the daemon affects your Docker containers. For that reason you should also make sure to read the [`daemon`](daemon) reference page.
+You start the Docker daemon with the command line. How you start the daemon affects your Docker containers. For that reason you should also make sure to read the [`daemon`](daemon.md) reference page.
 
 ### Docker management commands
 
-* [daemon](daemon)
-* [info](info)
-* [inspect](inspect)
-* [version](version)
+* [daemon](daemon.md)
+* [info](info.md)
+* [inspect](inspect.md)
+* [version](version.md)
 
 ### Image commands
 
-* [build](build)
-* [commit](commit)
-* [export](export)
-* [history](history)
-* [images](images)
-* [import](import)
-* [load](load)
-* [rmi](rmi)
-* [save](save)
-* [tag](tag)
+* [build](build.md)
+* [commit](commit.md)
+* [export](export.md)
+* [history](history.md)
+* [images](images.md)
+* [import](import.md)
+* [load](load.md)
+* [rmi](rmi.md)
+* [save](save.md)
+* [tag](tag.md)
 
 ### Container commands
 
-* [attach](attach)
-* [cp](cp)
-* [create](create)
-* [diff](diff)
-* [events](events)
-* [exec](exec)
-* [kill](kill)
-* [logs](logs)
-* [pause](pause)
-* [port](port)
-* [ps](ps)
-* [rename](rename)
-* [restart](restart)
-* [rm](rm)
-* [run](run)
-* [start](start)
-* [stats](stats)
-* [stop](stop)
-* [top](top)
-* [unpause](unpause)
-* [wait](wait)
+* [attach](attach.md)
+* [cp](cp.md)
+* [create](create.md)
+* [diff](diff.md)
+* [events](events.md)
+* [exec](exec.md)
+* [kill](kill.md)
+* [logs](logs.md)
+* [pause](pause.md)
+* [port](port.md)
+* [ps](ps.md)
+* [rename](rename.md)
+* [restart](restart.md)
+* [rm](rm.md)
+* [run](run.md)
+* [start](start.md)
+* [stats](stats.md)
+* [stop](stop.md)
+* [top](top.md)
+* [unpause](unpause.md)
+* [wait](wait.md)
 
 ### Hub and registry commands
 
-* [login](login)
-* [logout](logout)
-* [pull](pull)
-* [push](push)
-* [search](search)
+* [login](login.md)
+* [logout](logout.md)
+* [pull](pull.md)
+* [push](push.md)
+* [search](search.md)
 
 ### Network and connectivity commands
 
-* [network_connect](network_connect)
-* [network_create](network_create)
-* [network_disconnect](network_disconnect)
-* [network_inspect](network_inspect)
-* [network_ls](network_ls)
-* [network_rm](network_rm)
+* [network_connect](network_connect.md)
+* [network_create](network_create.md)
+* [network_disconnect](network_disconnect.md)
+* [network_inspect](network_inspect.md)
+* [network_ls](network_ls.md)
+* [network_rm](network_rm.md)
 
 ### Shared data volume commands
 
-* [volume_create](volume_create)
-* [volume_inspect](volume_inspect)
-* [volume_ls](volume_ls)
-* [volume_rm](volume_rm)
+* [volume_create](volume_create.md)
+* [volume_inspect](volume_inspect.md)
+* [volume_ls](volume_ls.md)
+* [volume_rm](volume_rm.md)

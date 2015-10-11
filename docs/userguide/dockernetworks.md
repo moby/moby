@@ -12,9 +12,9 @@ weight = 3
 # Docker container networking
 
 So far we've been introduced to some [basic Docker
-concepts](/userguide/usingdocker/), seen how to work with [Docker
-images](/userguide/dockerimages/) as well as learned about basic [networking
-and links between containers](/userguide/dockerlinks/). In this section
+concepts](usingdocker.md), seen how to work with [Docker
+images](dockerimages.md) as well as learned about basic [networking
+and links between containers](dockerlinks.md). In this section
 we're going to discuss how you can take control over more advanced 
 container networking.
 
@@ -516,4 +516,4 @@ Example : `docker daemon --cluster-store=consul://localhost:8500`
 Now that you know how to link Docker containers together, the next step is
 learning how to manage data, volumes and mounts inside your containers.
 
-Go to [Managing Data in Containers](/userguide/dockervolumes.md).
+Go to [Managing Data in Containers](dockervolumes.md).

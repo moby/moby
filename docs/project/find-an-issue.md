@@ -101,7 +101,7 @@ To claim an issue:
 
     A list of the open issues appears. 
 
-    ![Open issues](/project/images/issue_list.png)
+    ![Open issues](images/issue_list.png)
 
 3. From the "Labels" drop-down, select <strong class="gh-label beginner">exp/beginner</strong>.
 
@@ -122,7 +122,7 @@ To claim an issue:
 7. Your issue # will be different depending on what you claimed. After a moment, Gordon the Docker 
 bot, changes the issue status to claimed. The following example shows issue #11038.
 
-    ![Easy issue](/project/images/easy_issue.png)
+    ![Easy issue](images/easy_issue.png)
 
 8. Make a note of the issue number; you will need it for later. 
 
@@ -234,4 +234,4 @@ To sync your repository:
 
 At this point, you know what you want to work on and you have a branch to do
 your work in.  Go onto the next section to learn [how to work on your
-changes](/project/work-issue/).
+changes](work-issue.md).

@@ -31,7 +31,7 @@ each `docker` command with `sudo`. To avoid having to use `sudo` with the
 `docker` and add users to it.
 
 For more information about installing Docker or `sudo` configuration, refer to
-the [installation](/installation) instructions for your operating system.
+the [installation](../../installation) instructions for your operating system.
 
 ## Environment variables
 
@@ -98,7 +98,7 @@ The property `psFormat` specifies the default format for `docker ps` output.
 When the `--format` flag is not provided with the `docker ps` command,
 Docker's client uses this property. If this property is not set, the client
 falls back to the default table format. For a list of supported formatting
-directives, see the [**Formatting** section in the `docker ps` documentation](../ps)
+directives, see the [**Formatting** section in the `docker ps` documentation](ps.md)
 
 Following is a sample `config.json` file:
 

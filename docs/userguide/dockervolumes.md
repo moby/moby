@@ -12,9 +12,9 @@ weight = 3
 # Managing data in containers
 
 So far we've been introduced to some [basic Docker
-concepts](/userguide/usingdocker/), seen how to work with [Docker
-images](/userguide/dockerimages/) as well as learned about [networking
-and links between containers](/userguide/dockerlinks/). In this section
+concepts](usingdocker.md), seen how to work with [Docker
+images](dockerimages.md) as well as learned about [networking
+and links between containers](dockerlinks.md). In this section
 we're going to discuss how you can manage data inside and between your
 Docker containers.
 
@@ -28,7 +28,7 @@ Docker.
 
 A *data volume* is a specially-designated directory within one or more
 containers that bypasses the [*Union File
-System*](/reference/glossary#union-file-system). Data volumes provide several 
+System*](../reference/glossary.md#union-file-system). Data volumes provide several 
 useful features for persistent or shared data:
 
 - Volumes are initialized when a container is created. If the container's
@@ -142,7 +142,7 @@ Mounting a host directory can be useful for testing. For example, you can mount
 source code inside a container. Then, change the source code and see its effect
 on the application in real time. The directory on the host must be specified as
 an absolute path and if the directory doesn't exist Docker will automatically
-create it for you.  This auto-creation of the host path has been [*deprecated*](/userguide/dockervolumes/#auto-creating-missing-host-paths-for-bind-mounts).
+create it for you.  This auto-creation of the host path has been [*deprecated*](#auto-creating-missing-host-paths-for-bind-mounts).
 
 Docker volumes default to mount in read-write mode, but you can also set it to
 be mounted read-only.
@@ -281,4 +281,4 @@ combine Docker with the services available on
 [Docker Hub](https://hub.docker.com) including Automated Builds and private
 repositories.
 
-Go to [Working with Docker Hub](/userguide/dockerrepos).
+Go to [Working with Docker Hub](dockerrepos.md).

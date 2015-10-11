@@ -13,5 +13,5 @@ weight = 7
 
 The original content was deprecated. For information about configuring
 certificates, see  [deploying a registry
-server](http://docs.docker.com/registry/deploying/). To reach an older version
+server](http://docs.docker.com/registry/deploying). To reach an older version
 of this content, refer to an older version of the documentation. 

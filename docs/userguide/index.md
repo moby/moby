@@ -10,7 +10,7 @@ parent = "mn_fun_docker"
 
 # Welcome to the Docker user guide
 
-In the [Introduction](/misc) you got a taste of what Docker is and how it
+In the [Introduction](../misc) you got a taste of what Docker is and how it
 works. In this guide we're going to take you through the fundamentals of
 using Docker and integrating it into your environment.
 
@@ -33,7 +33,7 @@ Docker Hub is the central hub for Docker. It hosts public Docker images
 and provides services to help you build and manage your Docker
 environment. To learn more:
 
-Go to [Using Docker Hub](/docker-hub).
+Go to [Using Docker Hub](https://docs.docker.com/docker-hub).
 
 ## Dockerizing applications: A "Hello world"
 
@@ -42,7 +42,7 @@ Go to [Using Docker Hub](/docker-hub).
 Docker offers a *container-based* virtualization platform to power your
 applications. To learn how to Dockerize applications and run them:
 
-Go to [Dockerizing Applications](/docs/userguide/dockerizing.md).
+Go to [Dockerizing Applications](dockerizing.md).
 
 ## Working with containers
 
@@ -52,7 +52,7 @@ Once you get a grip on running your applications in Docker containers
 we're going to show you how to manage those containers. To find out
 about how to inspect, monitor and manage containers:
 
-Go to [Working With Containers](/docs/userguide/usingdocker.md).
+Go to [Working With Containers](usingdocker.md).
 
 ## Working with Docker images
 
@@ -61,7 +61,7 @@ Go to [Working With Containers](/docs/userguide/usingdocker.md).
 Once you've learnt how to use Docker it's time to take the next step and
 learn how to build your own application images with Docker.
 
-Go to [Working with Docker Images](/docs/userguide/dockerimages.md).
+Go to [Working with Docker Images](dockerimages.md).
 
 ## Linking containers together
 
@@ -69,7 +69,7 @@ Until now we've seen how to build individual applications inside Docker
 containers. Now learn how to build whole application stacks with Docker
 by linking together multiple Docker containers.
 
-Go to [Linking Containers Together](/docs/userguide/dockerlinks.md).
+Go to [Linking Containers Together](dockerlinks.md).
 
 ## Docker container networking
 
@@ -79,14 +79,14 @@ choice to the end-users. Now, lets learn about a flexible way to connect
 containers together within a host or across multiple hosts in a cluster
 using various networking technologies, with the help of extensible plugins.
 
-Go to [Docker Networking](/docs/userguide/dockernetworks.md).
+Go to [Docker Networking](dockernetworks.md).
 
 ## Managing data in containers
 
 Now we know how to link Docker containers together the next step is
 learning how to manage data, volumes and mounts inside our containers.
 
-Go to [Managing Data in Containers](/docs/userguide/dockervolumes.md).
+Go to [Managing Data in Containers](dockervolumes.md).
 
 ## Working with Docker Hub
 
@@ -94,7 +94,7 @@ Now we've learned a bit more about how to use Docker we're going to see
 how to combine Docker with the services available on Docker Hub including
 Trusted Builds and private repositories.
 
-Go to [Working with Docker Hub](/docs/userguide/dockerrepos.md).
+Go to [Working with Docker Hub](dockerrepos.md).
 
 ## Docker Compose
 
@@ -102,7 +102,7 @@ Docker Compose allows you to define a application's components -- their containe
 configuration, links and volumes -- in a single file. Then a single command
 will set everything up and start your application running.
 
-Go to [Docker Compose user guide](/compose/).
+Go to [Docker Compose user guide](https://docs.docker.com/compose/).
 
 ## Docker Machine
 
@@ -111,7 +111,7 @@ can set up hosts for Docker Engines on your computer, on cloud providers,
 and/or in your data center, and then configure your Docker client to securely
 talk to them.
 
-Go to [Docker Machine user guide](/machine/).
+Go to [Docker Machine user guide](https://docs.docker.com/machine/).
 
 ## Docker Swarm
 
@@ -119,7 +119,7 @@ Docker Swarm pools several Docker Engines together and exposes them as a single
 virtual Docker Engine. It serves the standard Docker API, so any tool that already
 works with Docker can now transparently scale up to multiple hosts.
 
-Go to [Docker Swarm user guide](/swarm/).
+Go to [Docker Swarm user guide](https://docs.docker.com/swarm/).
 
 ## Getting help
 

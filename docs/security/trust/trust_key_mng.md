@@ -68,6 +68,6 @@ the new key.
 
 ## Related information
 
-* [Content trust in Docker](/security/trust/content_trust)
-* [Automation with content trust](/security/trust/trust_automation)
-* [Play in a content trust sandbox](/security/trust/trust_sandbox)
+* [Content trust in Docker](content_trust.md) 
+* [Automation with content trust](trust_automation.md)
+* [Play in a content trust sandbox](trust_sandbox.md)
