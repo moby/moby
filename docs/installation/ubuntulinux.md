@@ -265,9 +265,11 @@ Docker uses a bridge to manage container networking. By default, UFW drops all
 forwarding traffic. As a result, for Docker to run when UFW is
 enabled, you must set UFW's forwarding policy appropriately.
 
-Also, UFW's default set of rules denies all incoming traffic. If you want to be able
-to reach your containers from another host then you should also allow incoming
-connections on the Docker port (default `2375`).
+Also, UFW's default set of rules denies all incoming traffic. If you want to
+reach your containers from another host allow incoming connections on the Docker
+port. The Docker port defaults to `2376` if TLS is enabled or `2375` when it is
+not. If TLS is not enabled, communication is unencrypted. By default, Docker
+runs without TLS enabled.
 
 To configure UFW and allow incoming connections on the Docker port:
 

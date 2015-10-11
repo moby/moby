@@ -17,16 +17,23 @@ var (
 	domainRegexp = regexp.MustCompile(`^(:?(:?[a-zA-Z0-9]|(:?[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9]))(:?\.(:?[a-zA-Z0-9]|(:?[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])))*)\.?\s*$`)
 	// DefaultHTTPHost Default HTTP Host used if only port is provided to -H flag e.g. docker daemon -H tcp://:8080
 	DefaultHTTPHost = "127.0.0.1"
+
 	// DefaultHTTPPort Default HTTP Port used if only the protocol is provided to -H flag e.g. docker daemon -H tcp://
 	// TODO Windows. DefaultHTTPPort is only used on Windows if a -H parameter
 	// is not supplied. A better longer term solution would be to use a named
 	// pipe as the default on the Windows daemon.
+	// These are the IANA registered port numbers for use with Docker
+	// see http://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.xhtml?search=docker
 	DefaultHTTPPort = 2375 // Default HTTP Port
+	// DefaultTLSHTTPPort Default HTTP Port used when TLS enabled
+	DefaultTLSHTTPPort = 2376 // Default TLS encrypted HTTP Port
 	// DefaultUnixSocket Path for the unix socket.
 	// Docker daemon by default always listens on the default unix socket
 	DefaultUnixSocket = "/var/run/docker.sock"
 	// DefaultTCPHost constant defines the default host string used by docker on Windows
 	DefaultTCPHost = fmt.Sprintf("tcp://%s:%d", DefaultHTTPHost, DefaultHTTPPort)
+	// DefaultTLSHost constant defines the default host string used by docker for TLS sockets
+	DefaultTLSHost = fmt.Sprintf("tcp://%s:%d", DefaultHTTPHost, DefaultTLSHTTPPort)
 )
 
 // ListOpts holds a list of values and a validation function.
@@ -335,6 +342,17 @@ func ValidateLabel(val string) (string, error) {
 
 // ValidateHost validates that the specified string is a valid host and returns it.
 func ValidateHost(val string) (string, error) {
+	_, err := parsers.ParseDockerDaemonHost(DefaultTCPHost, DefaultUnixSocket, val)
+	if err != nil {
+		return val, err
+	}
+	// Note: unlike most flag validators, we don't return the mutated value here
+	//       we need to know what the user entered later (using ParseHost) to adjust for tls
+	return val, nil
+}
+
+// ParseHost and set defaults for a Daemon host string
+func ParseHost(defaultHTTPHost, val string) (string, error) {
 	host, err := parsers.ParseDockerDaemonHost(DefaultTCPHost, DefaultUnixSocket, val)
 	if err != nil {
 		return val, err
