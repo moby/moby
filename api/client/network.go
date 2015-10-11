@@ -134,7 +134,15 @@ func (cli *DockerCli) CmdNetworkLs(args ...string) error {
 		fmt.Fprintln(wr, "NETWORK ID\tNAME\tDRIVER")
 	}
 
-	for _, networkResource := range networkResources {
+	first := 0
+	if *last > 0 {
+		first = len(networkResources) - *last
+		if first < 0 {
+			first = 0
+		}
+	}
+
+	for _, networkResource := range networkResources[first:] {
 		ID := networkResource.ID
 		netName := networkResource.Name
 		if !*noTrunc {
