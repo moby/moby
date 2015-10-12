@@ -42,7 +42,7 @@ func ResizeConsoleInComputeSystem(id string, processid uint32, h, w int) error {
 		return err
 	}
 
-	logrus.Debugf(title+" - succeeded id=%s processid=%d (%d,%d)", id, processid, h, w)
+	logrus.Debugf(title+" succeeded id=%s processid=%d (%d,%d)", id, processid, h, w)
 	return nil
 
 }

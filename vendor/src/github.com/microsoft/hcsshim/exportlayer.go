@@ -83,6 +83,6 @@ func ExportLayer(info DriverInfo, layerId string, exportFolderPath string, paren
 		return err
 	}
 
-	logrus.Debugf(title+"- succeeded layerId=%s flavour=%d folder=%s", layerId, info.Flavour, exportFolderPath)
+	logrus.Debugf(title+"succeeded flavour=%d layerId=%s folder=%s", info.Flavour, layerId, exportFolderPath)
 	return nil
 }

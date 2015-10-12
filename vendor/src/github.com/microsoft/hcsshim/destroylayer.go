@@ -12,7 +12,7 @@ import (
 // id, including that layer's containing folder, if any.
 func DestroyLayer(info DriverInfo, id string) error {
 	title := "hcsshim::DestroyLayer "
-	logrus.Debugf(title+"Flavour %s ID %s", info.Flavour, id)
+	logrus.Debugf(title+"Flavour %d ID %s", info.Flavour, id)
 
 	// Load the DLL and get a handle to the procedure we need
 	dll, proc, err := loadAndFind(procDestroyLayer)
@@ -54,6 +54,6 @@ func DestroyLayer(info DriverInfo, id string) error {
 		return err
 	}
 
-	logrus.Debugf(title+" - succeeded id=%s flavour=%d", id, info.Flavour)
+	logrus.Debugf(title+"succeeded flavour=%d id=%s", info.Flavour, id)
 	return nil
 }

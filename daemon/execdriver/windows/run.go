@@ -220,22 +220,19 @@ func (d *Driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, hooks execd
 	}
 	defer func() {
 		// Stop the container
-
-		if terminateMode {
-			logrus.Debugf("Terminating container %s", c.ID)
-			if err := hcsshim.TerminateComputeSystem(c.ID); err != nil {
-				// IMPORTANT: Don't fail if fails to change state. It could already
-				// have been stopped through kill().
-				// Otherwise, the docker daemon will hang in job wait()
-				logrus.Warnf("Ignoring error from TerminateComputeSystem %s", err)
+		if forceKill {
+			logrus.Debugf("Forcibly terminating container %s", c.ID)
+			if errno, err := hcsshim.TerminateComputeSystem(c.ID, hcsshim.TimeoutInfinite, "exec-run-defer"); err != nil {
+				logrus.Warnf("Ignoring error from TerminateComputeSystem 0x%X %s", errno, err)
 			}
 		} else {
 			logrus.Debugf("Shutting down container %s", c.ID)
-			if err := hcsshim.ShutdownComputeSystem(c.ID); err != nil {
-				// IMPORTANT: Don't fail if fails to change state. It could already
-				// have been stopped through kill().
-				// Otherwise, the docker daemon will hang in job wait()
-				logrus.Warnf("Ignoring error from ShutdownComputeSystem %s", err)
+			if errno, err := hcsshim.ShutdownComputeSystem(c.ID, hcsshim.TimeoutInfinite, "exec-run-defer"); err != nil {
+				if errno != hcsshim.Win32SystemShutdownIsInProgress &&
+					errno != hcsshim.Win32SpecifiedPathInvalid &&
+					errno != hcsshim.Win32SystemCannotFindThePathSpecified {
+					logrus.Warnf("Ignoring error from ShutdownComputeSystem 0x%X %s", errno, err)
+				}
 			}
 		}
 	}()
@@ -303,11 +300,20 @@ func (d *Driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, hooks execd
 		hooks.Start(&c.ProcessConfig, int(pid), chOOM)
 	}
 
-	var exitCode int32
-	exitCode, err = hcsshim.WaitForProcessInComputeSystem(c.ID, pid)
+	var (
+		exitCode int32
+		errno    uint32
+	)
+	exitCode, errno, err = hcsshim.WaitForProcessInComputeSystem(c.ID, pid, hcsshim.TimeoutInfinite)
 	if err != nil {
-		logrus.Errorf("Failed to WaitForProcessInComputeSystem %s", err)
-		return execdriver.ExitStatus{ExitCode: -1}, err
+		if errno != hcsshim.Win32PipeHasBeenEnded {
+			logrus.Warnf("WaitForProcessInComputeSystem failed (container may have been killed): %s", err)
+		}
+		// Do NOT return err here as the container would have
+		// started, otherwise docker will deadlock. It's perfectly legitimate
+		// for WaitForProcessInComputeSystem to fail in situations such
+		// as the container being killed on another thread.
+		return execdriver.ExitStatus{ExitCode: hcsshim.WaitErrExecFailed}, nil
 	}
 
 	logrus.Debugf("Exiting Run() exitCode %d id=%s", exitCode, c.ID)

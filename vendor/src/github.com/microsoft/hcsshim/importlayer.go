@@ -82,6 +82,6 @@ func ImportLayer(info DriverInfo, layerId string, importFolderPath string, paren
 		return err
 	}
 
-	logrus.Debugf(title+"- succeeded layerId=%s flavour=%d folder=%s", layerId, info.Flavour, importFolderPath)
+	logrus.Debugf(title+"succeeded flavour=%d layerId=%s folder=%s", info.Flavour, layerId, importFolderPath)
 	return nil
 }
