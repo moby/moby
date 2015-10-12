@@ -5,6 +5,7 @@ package parsers
 
 import (
 	"fmt"
+	"net"
 	"net/url"
 	"path"
 	"runtime"
@@ -74,25 +75,32 @@ func ParseTCPAddr(tryAddr string, defaultAddr string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	hostParts := strings.Split(u.Host, ":")
-	if len(hostParts) != 2 {
+
+	host, port, err := net.SplitHostPort(u.Host)
+	if err != nil {
 		return "", fmt.Errorf("Invalid bind address format: %s", tryAddr)
-	}
-	defaults := strings.Split(defaultAddr, ":")
-	if len(defaults) != 3 {
-		return "", fmt.Errorf("Invalid defaults address format: %s", defaultAddr)
 	}
 
-	host := hostParts[0]
+	defaultAddr = strings.TrimPrefix(defaultAddr, "tcp://")
+	defaultHost, defaultPort, err := net.SplitHostPort(defaultAddr)
+	if err != nil {
+		return "", err
+	}
+
 	if host == "" {
-		host = strings.TrimPrefix(defaults[1], "//")
+		host = defaultHost
 	}
-	if hostParts[1] == "" {
-		hostParts[1] = defaults[2]
+	if port == "" {
+		port = defaultPort
 	}
-	p, err := strconv.Atoi(hostParts[1])
+	p, err := strconv.Atoi(port)
 	if err != nil && p == 0 {
 		return "", fmt.Errorf("Invalid bind address format: %s", tryAddr)
+	}
+
+	if net.ParseIP(host).To4() == nil && strings.Contains(host, ":") {
+		// This is either an ipv6 address
+		host = "[" + host + "]"
 	}
 	return fmt.Sprintf("tcp://%s:%d%s", host, p, u.Path), nil
 }

@@ -28,9 +28,13 @@ func TestParseDockerDaemonHost(t *testing.T) {
 		"fd":   "Invalid bind address format: fd",
 	}
 	valids := map[string]string{
-		"0.0.0.1:":                "tcp://0.0.0.1:2376",
-		"0.0.0.1:5555":            "tcp://0.0.0.1:5555",
-		"0.0.0.1:5555/path":       "tcp://0.0.0.1:5555/path",
+		"0.0.0.1:":                    "tcp://0.0.0.1:2376",
+		"0.0.0.1:5555":                "tcp://0.0.0.1:5555",
+		"0.0.0.1:5555/path":           "tcp://0.0.0.1:5555/path",
+		"[::1]:":                      "tcp://[::1]:2376",
+		"[::1]:5555/path":             "tcp://[::1]:5555/path",
+		"[0:0:0:0:0:0:0:1]:":          "tcp://[0:0:0:0:0:0:0:1]:2376",
+		"[0:0:0:0:0:0:0:1]:5555/path": "tcp://[0:0:0:0:0:0:0:1]:5555/path",
 		":6666":                   "tcp://127.0.0.1:6666",
 		":6666/path":              "tcp://127.0.0.1:6666/path",
 		"":                        defaultHOST,
@@ -44,6 +48,9 @@ func TestParseDockerDaemonHost(t *testing.T) {
 		"unix://":                 "unix:///var/run/docker.sock",
 		"fd://":                   "fd://",
 		"fd://something":          "fd://something",
+		"localhost:":              "tcp://localhost:2376",
+		"localhost:5555":          "tcp://localhost:5555",
+		"localhost:5555/path":     "tcp://localhost:5555/path",
 	}
 	for invalidAddr, expectedError := range invalids {
 		if addr, err := ParseDockerDaemonHost(defaultHTTPHost, defaultUnix, invalidAddr); err == nil || err.Error() != expectedError {
@@ -69,15 +76,24 @@ func TestParseTCP(t *testing.T) {
 		"udp://127.0.0.1:2375": "Invalid proto, expected tcp: udp://127.0.0.1:2375",
 	}
 	valids := map[string]string{
-		"":                  defaultHTTPHost,
-		"tcp://":            defaultHTTPHost,
-		"0.0.0.1:":          "tcp://0.0.0.1:2376",
-		"0.0.0.1:5555":      "tcp://0.0.0.1:5555",
-		"0.0.0.1:5555/path": "tcp://0.0.0.1:5555/path",
-		":6666":             "tcp://127.0.0.1:6666",
-		":6666/path":        "tcp://127.0.0.1:6666/path",
-		"tcp://:7777":       "tcp://127.0.0.1:7777",
-		"tcp://:7777/path":  "tcp://127.0.0.1:7777/path",
+		"":                            defaultHTTPHost,
+		"tcp://":                      defaultHTTPHost,
+		"0.0.0.1:":                    "tcp://0.0.0.1:2376",
+		"0.0.0.1:5555":                "tcp://0.0.0.1:5555",
+		"0.0.0.1:5555/path":           "tcp://0.0.0.1:5555/path",
+		":6666":                       "tcp://127.0.0.1:6666",
+		":6666/path":                  "tcp://127.0.0.1:6666/path",
+		"tcp://:7777":                 "tcp://127.0.0.1:7777",
+		"tcp://:7777/path":            "tcp://127.0.0.1:7777/path",
+		"[::1]:":                      "tcp://[::1]:2376",
+		"[::1]:5555":                  "tcp://[::1]:5555",
+		"[::1]:5555/path":             "tcp://[::1]:5555/path",
+		"[0:0:0:0:0:0:0:1]:":          "tcp://[0:0:0:0:0:0:0:1]:2376",
+		"[0:0:0:0:0:0:0:1]:5555":      "tcp://[0:0:0:0:0:0:0:1]:5555",
+		"[0:0:0:0:0:0:0:1]:5555/path": "tcp://[0:0:0:0:0:0:0:1]:5555/path",
+		"localhost:":                  "tcp://localhost:2376",
+		"localhost:5555":              "tcp://localhost:5555",
+		"localhost:5555/path":         "tcp://localhost:5555/path",
 	}
 	for invalidAddr, expectedError := range invalids {
 		if addr, err := ParseTCPAddr(invalidAddr, defaultHTTPHost); err == nil || err.Error() != expectedError {
