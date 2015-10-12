@@ -7,8 +7,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-
-	"github.com/docker/docker/pkg/system"
 )
 
 // IDMap contains a single entry for user namespace range remapping. An array
@@ -47,23 +45,6 @@ func MkdirAllAs(path string, mode os.FileMode, ownerUID, ownerGID int) error {
 // If the directory already exists, this function still changes ownership
 func MkdirAs(path string, mode os.FileMode, ownerUID, ownerGID int) error {
 	return mkdirAs(path, mode, ownerUID, ownerGID, false)
-}
-
-func mkdirAs(path string, mode os.FileMode, ownerUID, ownerGID int, mkAll bool) error {
-	if mkAll {
-		if err := system.MkdirAll(path, mode); err != nil && !os.IsExist(err) {
-			return err
-		}
-	} else {
-		if err := os.Mkdir(path, mode); err != nil && !os.IsExist(err) {
-			return err
-		}
-	}
-	// even if it existed, we will chown to change ownership as requested
-	if err := os.Chown(path, ownerUID, ownerGID); err != nil {
-		return err
-	}
-	return nil
 }
 
 // GetRootUIDGID retrieves the remapped root uid/gid pair from the set of maps.
