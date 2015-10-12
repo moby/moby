@@ -70,7 +70,7 @@ type svcMap map[string]net.IP
 
 // IpamConf contains all the ipam related configurations for a network
 type IpamConf struct {
-	// The master address pool for containers and network iterfaces
+	// The master address pool for containers and network interfaces
 	PreferredPool string
 	// A subset of the master pool. If specified,
 	// this becomes the container pool
