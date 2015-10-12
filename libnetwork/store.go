@@ -69,6 +69,13 @@ func (c *controller) getNetworkFromStore(nid string) (*network, error) {
 			continue
 		}
 
+		ec := &endpointCnt{n: n}
+		err = store.GetObject(datastore.Key(ec.Key()...), ec)
+		if err != nil {
+			return nil, fmt.Errorf("could not find endpoint count for network %s: %v", n.Name(), err)
+		}
+
+		n.epCnt = ec
 		return n, nil
 	}
 
@@ -94,6 +101,14 @@ func (c *controller) getNetworksFromStore() ([]*network, error) {
 		for _, kvo := range kvol {
 			n := kvo.(*network)
 			n.ctrlr = c
+
+			ec := &endpointCnt{n: n}
+			err = store.GetObject(datastore.Key(ec.Key()...), ec)
+			if err != nil {
+				return nil, fmt.Errorf("could not find endpoint count key %s for network %s while listing: %v", datastore.Key(ec.Key()...), n.Name(), err)
+			}
+
+			n.epCnt = ec
 			nl = append(nl, n)
 		}
 	}
@@ -211,15 +226,15 @@ func (c *controller) unWatchSvcRecord(ep *endpoint) {
 	c.unWatchCh <- ep
 }
 
-func (c *controller) networkWatchLoop(nw *netWatch, ep *endpoint, nCh <-chan datastore.KVObject) {
+func (c *controller) networkWatchLoop(nw *netWatch, ep *endpoint, ecCh <-chan datastore.KVObject) {
 	for {
 		select {
 		case <-nw.stopCh:
 			return
-		case o := <-nCh:
-			n := o.(*network)
+		case o := <-ecCh:
+			ec := o.(*endpointCnt)
 
-			epl, err := n.getEndpointsFromStore()
+			epl, err := ec.n.getEndpointsFromStore()
 			if err != nil {
 				break
 			}
@@ -300,7 +315,7 @@ func (c *controller) processEndpointCreate(nmap map[string]*netWatch, ep *endpoi
 		return
 	}
 
-	ch, err := store.Watch(ep.getNetwork(), nw.stopCh)
+	ch, err := store.Watch(ep.getNetwork().getEpCnt(), nw.stopCh)
 	if err != nil {
 		log.Warnf("Error creating watch for network: %v", err)
 		return

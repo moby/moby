@@ -152,7 +152,7 @@ type network struct {
 	ipamV4Info   []*IpamInfo
 	ipamV6Info   []*IpamInfo
 	enableIPv6   bool
-	endpointCnt  uint64
+	epCnt        *endpointCnt
 	generic      options.Generic
 	dbIndex      uint64
 	svcRecords   svcMap
@@ -296,7 +296,6 @@ func (n *network) CopyTo(o datastore.KVObject) error {
 	dstN.id = n.id
 	dstN.networkType = n.networkType
 	dstN.ipamType = n.ipamType
-	dstN.endpointCnt = n.endpointCnt
 	dstN.enableIPv6 = n.enableIPv6
 	dstN.persist = n.persist
 	dstN.dbIndex = n.dbIndex
@@ -339,48 +338,11 @@ func (n *network) DataScope() string {
 	return n.driverScope()
 }
 
-func (n *network) EndpointCnt() uint64 {
+func (n *network) getEpCnt() *endpointCnt {
 	n.Lock()
 	defer n.Unlock()
-	return n.endpointCnt
-}
 
-func (n *network) atomicIncDecEpCnt(inc bool) error {
-retry:
-	n.Lock()
-	if inc {
-		n.endpointCnt++
-	} else {
-		n.endpointCnt--
-	}
-	n.Unlock()
-
-	store := n.getController().getStore(n.DataScope())
-	if store == nil {
-		return fmt.Errorf("store not found for scope %s", n.DataScope())
-	}
-
-	if err := n.getController().updateToStore(n); err != nil {
-		if err == datastore.ErrKeyModified {
-			if err := store.GetObject(datastore.Key(n.Key()...), n); err != nil {
-				return fmt.Errorf("could not update the kvobject to latest when trying to atomic add endpoint count: %v", err)
-			}
-
-			goto retry
-		}
-
-		return err
-	}
-
-	return nil
-}
-
-func (n *network) IncEndpointCnt() error {
-	return n.atomicIncDecEpCnt(true)
-}
-
-func (n *network) DecEndpointCnt() error {
-	return n.atomicIncDecEpCnt(false)
+	return n.epCnt
 }
 
 // TODO : Can be made much more generic with the help of reflection (but has some golang limitations)
@@ -391,7 +353,6 @@ func (n *network) MarshalJSON() ([]byte, error) {
 	netMap["networkType"] = n.networkType
 	netMap["ipamType"] = n.ipamType
 	netMap["addrSpace"] = n.addrSpace
-	netMap["endpointCnt"] = n.endpointCnt
 	netMap["enableIPv6"] = n.enableIPv6
 	if n.generic != nil {
 		netMap["generic"] = n.generic
@@ -437,7 +398,6 @@ func (n *network) UnmarshalJSON(b []byte) (err error) {
 	n.name = netMap["name"].(string)
 	n.id = netMap["id"].(string)
 	n.networkType = netMap["networkType"].(string)
-	n.endpointCnt = uint64(netMap["endpointCnt"].(float64))
 	n.enableIPv6 = netMap["enableIPv6"].(bool)
 
 	if v, ok := netMap["generic"]; ok {
@@ -604,7 +564,7 @@ func (n *network) Delete() error {
 		return &UnknownNetworkError{name: name, id: id}
 	}
 
-	numEps := n.EndpointCnt()
+	numEps := n.getEpCnt().EndpointCnt()
 	if numEps != 0 {
 		return &ActiveEndpointsError{name: n.name, id: n.id}
 	}
@@ -622,23 +582,14 @@ func (n *network) Delete() error {
 	}()
 
 	// deleteFromStore performs an atomic delete operation and the
-	// network.endpointCnt field will help prevent any possible
+	// network.epCnt will help prevent any possible
 	// race between endpoint join and network delete
-	if err = n.getController().deleteFromStore(n); err != nil {
-		if err == datastore.ErrKeyModified {
-			return types.InternalErrorf("operation in progress. delete failed for network %s. Please try again.")
-		}
-		return err
+	if err = n.getController().deleteFromStore(n.getEpCnt()); err != nil {
+		return fmt.Errorf("error deleting network endpoint count from store: %v", err)
 	}
-
-	defer func() {
-		if err != nil {
-			n.dbExists = false
-			if e := n.getController().updateToStore(n); e != nil {
-				log.Warnf("failed to recreate network in store %s : %v", n.name, e)
-			}
-		}
-	}()
+	if err = n.getController().deleteFromStore(n); err != nil {
+		return fmt.Errorf("error deleting network from store: %v", err)
+	}
 
 	n.ipamRelease()
 
@@ -736,7 +687,7 @@ func (n *network) CreateEndpoint(name string, options ...EndpointOption) (Endpoi
 	}()
 
 	// Increment endpoint count to indicate completion of endpoint addition
-	if err = n.IncEndpointCnt(); err != nil {
+	if err = n.getEpCnt().IncEndpointCnt(); err != nil {
 		return nil, err
 	}
 

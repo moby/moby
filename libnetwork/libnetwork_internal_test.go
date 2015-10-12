@@ -39,7 +39,6 @@ func TestNetworkMarshalling(t *testing.T) {
 		ipamType:    "default",
 		addrSpace:   "viola",
 		networkType: "bridge",
-		endpointCnt: 27,
 		enableIPv6:  true,
 		persist:     true,
 		ipamV4Config: []*IpamConf{
@@ -142,7 +141,7 @@ func TestNetworkMarshalling(t *testing.T) {
 	}
 
 	if n.name != nn.name || n.id != nn.id || n.networkType != nn.networkType || n.ipamType != nn.ipamType ||
-		n.addrSpace != nn.addrSpace || n.endpointCnt != nn.endpointCnt || n.enableIPv6 != nn.enableIPv6 ||
+		n.addrSpace != nn.addrSpace || n.enableIPv6 != nn.enableIPv6 ||
 		n.persist != nn.persist || !compareIpamConfList(n.ipamV4Config, nn.ipamV4Config) ||
 		!compareIpamInfoList(n.ipamV4Info, nn.ipamV4Info) || !compareIpamConfList(n.ipamV6Config, nn.ipamV6Config) ||
 		!compareIpamInfoList(n.ipamV6Info, nn.ipamV6Info) {

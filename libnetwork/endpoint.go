@@ -484,12 +484,12 @@ func (ep *endpoint) Delete() error {
 	}
 	ep.Unlock()
 
-	if err = n.DecEndpointCnt(); err != nil {
+	if err = n.getEpCnt().DecEndpointCnt(); err != nil {
 		return err
 	}
 	defer func() {
 		if err != nil {
-			if e := n.IncEndpointCnt(); e != nil {
+			if e := n.getEpCnt().IncEndpointCnt(); e != nil {
 				log.Warnf("failed to update network %s : %v", n.name, e)
 			}
 		}
