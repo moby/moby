@@ -17,7 +17,47 @@ type Context struct {
 	ContainerImageID    string
 	ContainerImageName  string
 	ContainerCreated    time.Time
+	ContainerEnv        []string
+	ContainerLabels     map[string]string
 	LogPath             string
+}
+
+// ExtraAttributes returns the user-defined extra attributes (labels,
+// environment variables) in key-value format. This can be used by log drivers
+// that support metadata to add more context to a log.
+func (ctx *Context) ExtraAttributes(keyMod func(string) string) map[string]string {
+	extra := make(map[string]string)
+	labels, ok := ctx.Config["labels"]
+	if ok && len(labels) > 0 {
+		for _, l := range strings.Split(labels, ",") {
+			if v, ok := ctx.ContainerLabels[l]; ok {
+				if keyMod != nil {
+					l = keyMod(l)
+				}
+				extra[l] = v
+			}
+		}
+	}
+
+	env, ok := ctx.Config["env"]
+	if ok && len(env) > 0 {
+		envMapping := make(map[string]string)
+		for _, e := range ctx.ContainerEnv {
+			if kv := strings.SplitN(e, "=", 2); len(kv) == 2 {
+				envMapping[kv[0]] = kv[1]
+			}
+		}
+		for _, l := range strings.Split(env, ",") {
+			if v, ok := envMapping[l]; ok {
+				if keyMod != nil {
+					l = keyMod(l)
+				}
+				extra[l] = v
+			}
+		}
+	}
+
+	return extra
 }
 
 // Hostname returns the hostname from the underlying OS.
