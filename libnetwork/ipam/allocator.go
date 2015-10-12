@@ -130,7 +130,7 @@ func (a *Allocator) RequestPool(addressSpace, pool, subPool string, options map[
 	log.Debugf("RequestPool(%s, %s, %s, %v, %t)", addressSpace, pool, subPool, options, v6)
 	k, nw, ipr, err := a.parsePoolRequest(addressSpace, pool, subPool, v6)
 	if err != nil {
-		return "", nil, nil, ipamapi.ErrInvalidPool
+		return "", nil, nil, types.InternalErrorf("failed to parse pool request for address space %q pool %q subpool %q: %v", addressSpace, pool, subPool, err)
 	}
 
 retry:
@@ -199,7 +199,7 @@ func (a *Allocator) getAddrSpace(as string) (*addrSpace, error) {
 	defer a.Unlock()
 	aSpace, ok := a.addrSpaces[as]
 	if !ok {
-		return nil, types.BadRequestErrorf("cannot find locality of address space: %s", as)
+		return nil, types.BadRequestErrorf("cannot find address space %s (most likey the backing datastore is not configured)", as)
 	}
 	return aSpace, nil
 }

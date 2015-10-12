@@ -74,7 +74,11 @@ func (a *Allocator) getStore(as string) datastore.DataStore {
 	a.Lock()
 	defer a.Unlock()
 
-	return a.addrSpaces[as].ds
+	if aSpace, ok := a.addrSpaces[as]; ok {
+		return aSpace.ds
+	}
+
+	return nil
 }
 
 func (a *Allocator) getAddressSpaceFromStore(as string) (*addrSpace, error) {
