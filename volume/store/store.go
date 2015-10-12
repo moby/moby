@@ -2,9 +2,11 @@ package store
 
 import (
 	"errors"
+	"fmt"
 	"sync"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/volume"
 	"github.com/docker/docker/volume/drivers"
 )
@@ -33,13 +35,15 @@ type VolumeStore struct {
 // volumeCounter keeps track of references to a volume
 type volumeCounter struct {
 	volume.Volume
-	count uint
+	count     uint
+	reference map[string]bool
 }
 
 // AddAll adds a list of volumes to the store
 func (s *VolumeStore) AddAll(vols []volume.Volume) {
+	reference := make(map[string]bool)
 	for _, v := range vols {
-		s.vols[v.Name()] = &volumeCounter{v, 0}
+		s.vols[v.Name()] = &volumeCounter{v, 0, reference}
 	}
 }
 
@@ -65,7 +69,8 @@ func (s *VolumeStore) Create(name, driverName string, opts map[string]string) (v
 	}
 
 	s.mu.Lock()
-	s.vols[v.Name()] = &volumeCounter{v, 0}
+	reference := make(map[string]bool)
+	s.vols[v.Name()] = &volumeCounter{v, 0, reference}
 	s.mu.Unlock()
 
 	return v, nil
@@ -94,7 +99,11 @@ func (s *VolumeStore) Remove(v volume.Volume) error {
 	}
 
 	if vc.count > 0 {
-		return ErrVolumeInUse
+		references := []string{}
+		for reference := range vc.reference {
+			references = append(references, reference)
+		}
+		return fmt.Errorf(ErrVolumeInUse.Error()+", used by containers: %v", references)
 	}
 
 	vd, err := volumedrivers.GetDriver(vc.DriverName())
@@ -109,21 +118,23 @@ func (s *VolumeStore) Remove(v volume.Volume) error {
 }
 
 // Increment increments the usage count of the passed in volume by 1
-func (s *VolumeStore) Increment(v volume.Volume) {
+func (s *VolumeStore) Increment(v volume.Volume, refName string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	logrus.Debugf("Incrementing volume reference: driver %s, name %s", v.DriverName(), v.Name())
 
 	vc, exists := s.vols[v.Name()]
 	if !exists {
-		s.vols[v.Name()] = &volumeCounter{v, 1}
+		reference := make(map[string]bool)
+		s.vols[v.Name()] = &volumeCounter{v, 1, reference}
 		return
 	}
 	vc.count++
+	vc.reference[stringid.TruncateID(refName)] = true
 }
 
 // Decrement decrements the usage count of the passed in volume by 1
-func (s *VolumeStore) Decrement(v volume.Volume) {
+func (s *VolumeStore) Decrement(v volume.Volume, refName string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	logrus.Debugf("Decrementing volume reference: driver %s, name %s", v.DriverName(), v.Name())
@@ -136,6 +147,7 @@ func (s *VolumeStore) Decrement(v volume.Volume) {
 		return
 	}
 	vc.count--
+	delete(vc.reference, refName)
 }
 
 // Count returns the usage count of the passed in volume
