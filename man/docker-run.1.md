@@ -64,6 +64,7 @@ docker-run - Run a command in a new container
 [**--uts**[=*[]*]]
 [**--volumes-from**[=*[]*]]
 [**-w**|**--workdir**[=*WORKDIR*]]
+[**--root-mount-propagation**[=*[]*]]
 IMAGE [COMMAND] [ARG...]
 
 # DESCRIPTION
@@ -507,6 +508,11 @@ the `foo` specification, Docker creates a named volume.
 running binaries within a container is the root directory (/). The developer can
 set a different default with the Dockerfile WORKDIR instruction. The operator
 can override the working directory by using the **-w** option.
+
+**--root-mount-propagation**=[]
+   Specify mount propagation flag for / (root). Valid values are [r]private,
+   [r]slave, [r]shared. These can be helpful in implementing shared/slave
+   volumes inside containers.
 
 # EXAMPLES
 

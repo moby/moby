@@ -214,46 +214,47 @@ func NewLxcConfig(values []KeyValuePair) *LxcConfig {
 // Here, "non-portable" means "dependent of the host we are running on".
 // Portable information *should* appear in Config.
 type HostConfig struct {
-	Binds             []string              // List of volume bindings for this container
-	ContainerIDFile   string                // File (path) where the containerId is written
-	LxcConf           *LxcConfig            // Additional lxc configuration
-	Memory            int64                 // Memory limit (in bytes)
-	MemoryReservation int64                 // Memory soft limit (in bytes)
-	MemorySwap        int64                 // Total memory usage (memory + swap); set `-1` to disable swap
-	KernelMemory      int64                 // Kernel memory limit (in bytes)
-	CPUShares         int64                 `json:"CpuShares"` // CPU shares (relative weight vs. other containers)
-	CPUPeriod         int64                 `json:"CpuPeriod"` // CPU CFS (Completely Fair Scheduler) period
-	CpusetCpus        string                // CpusetCpus 0-2, 0,1
-	CpusetMems        string                // CpusetMems 0-2, 0,1
-	CPUQuota          int64                 `json:"CpuQuota"` // CPU CFS (Completely Fair Scheduler) quota
-	BlkioWeight       uint16                // Block IO weight (relative weight vs. other containers)
-	OomKillDisable    bool                  // Whether to disable OOM Killer or not
-	MemorySwappiness  *int64                // Tuning container memory swappiness behaviour
-	Privileged        bool                  // Is the container in privileged mode
-	PortBindings      nat.PortMap           // Port mapping between the exposed port (container) and the host
-	Links             []string              // List of links (in the name:alias form)
-	PublishAllPorts   bool                  // Should docker publish all exposed port for the container
-	DNS               []string              `json:"Dns"`        // List of DNS server to lookup
-	DNSOptions        []string              `json:"DnsOptions"` // List of DNSOption to look for
-	DNSSearch         []string              `json:"DnsSearch"`  // List of DNSSearch to look for
-	ExtraHosts        []string              // List of extra hosts
-	VolumesFrom       []string              // List of volumes to take from other container
-	Devices           []DeviceMapping       // List of devices to map inside the container
-	NetworkMode       NetworkMode           // Network namespace to use for the container
-	IpcMode           IpcMode               // IPC namespace to use for the container
-	PidMode           PidMode               // PID namespace to use for the container
-	UTSMode           UTSMode               // UTS namespace to use for the container
-	CapAdd            *stringutils.StrSlice // List of kernel capabilities to add to the container
-	CapDrop           *stringutils.StrSlice // List of kernel capabilities to remove from the container
-	GroupAdd          []string              // List of additional groups that the container process will run as
-	RestartPolicy     RestartPolicy         // Restart policy to be used for the container
-	SecurityOpt       []string              // List of string values to customize labels for MLS systems, such as SELinux.
-	ReadonlyRootfs    bool                  // Is the container root filesystem in read-only
-	Ulimits           []*ulimit.Ulimit      // List of ulimits to be set in the container
-	LogConfig         LogConfig             // Configuration of the logs for this container
-	CgroupParent      string                // Parent cgroup.
-	ConsoleSize       [2]int                // Initial console size on Windows
-	VolumeDriver      string                // Name of the volume driver used to mount volumes
+	Binds                []string              // List of volume bindings for this container
+	ContainerIDFile      string                // File (path) where the containerId is written
+	LxcConf              *LxcConfig            // Additional lxc configuration
+	Memory               int64                 // Memory limit (in bytes)
+	MemoryReservation    int64                 // Memory soft limit (in bytes)
+	MemorySwap           int64                 // Total memory usage (memory + swap); set `-1` to disable swap
+	KernelMemory         int64                 // Kernel memory limit (in bytes)
+	CPUShares            int64                 `json:"CpuShares"` // CPU shares (relative weight vs. other containers)
+	CPUPeriod            int64                 `json:"CpuPeriod"` // CPU CFS (Completely Fair Scheduler) period
+	CpusetCpus           string                // CpusetCpus 0-2, 0,1
+	CpusetMems           string                // CpusetMems 0-2, 0,1
+	CPUQuota             int64                 `json:"CpuQuota"` // CPU CFS (Completely Fair Scheduler) quota
+	BlkioWeight          uint16                // Block IO weight (relative weight vs. other containers)
+	OomKillDisable       bool                  // Whether to disable OOM Killer or not
+	MemorySwappiness     *int64                // Tuning container memory swappiness behaviour
+	Privileged           bool                  // Is the container in privileged mode
+	PortBindings         nat.PortMap           // Port mapping between the exposed port (container) and the host
+	Links                []string              // List of links (in the name:alias form)
+	PublishAllPorts      bool                  // Should docker publish all exposed port for the container
+	DNS                  []string              `json:"Dns"`        // List of DNS server to lookup
+	DNSOptions           []string              `json:"DnsOptions"` // List of DNSOption to look for
+	DNSSearch            []string              `json:"DnsSearch"`  // List of DNSSearch to look for
+	ExtraHosts           []string              // List of extra hosts
+	VolumesFrom          []string              // List of volumes to take from other container
+	Devices              []DeviceMapping       // List of devices to map inside the container
+	NetworkMode          NetworkMode           // Network namespace to use for the container
+	IpcMode              IpcMode               // IPC namespace to use for the container
+	PidMode              PidMode               // PID namespace to use for the container
+	UTSMode              UTSMode               // UTS namespace to use for the container
+	CapAdd               *stringutils.StrSlice // List of kernel capabilities to add to the container
+	CapDrop              *stringutils.StrSlice // List of kernel capabilities to remove from the container
+	GroupAdd             []string              // List of additional groups that the container process will run as
+	RestartPolicy        RestartPolicy         // Restart policy to be used for the container
+	SecurityOpt          []string              // List of string values to customize labels for MLS systems, such as SELinux.
+	ReadonlyRootfs       bool                  // Is the container root filesystem in read-only
+	Ulimits              []*ulimit.Ulimit      // List of ulimits to be set in the container
+	LogConfig            LogConfig             // Configuration of the logs for this container
+	CgroupParent         string                // Parent cgroup.
+	ConsoleSize          [2]int                // Initial console size on Windows
+	VolumeDriver         string                // Name of the volume driver used to mount volumes
+	RootMountPropagation string                // Root mount propagation. [r]private, [r]slave, [r]shared
 }
 
 // DecodeHostConfig creates a HostConfig based on the specified Reader.

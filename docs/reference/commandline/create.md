@@ -72,6 +72,7 @@ Creates a new container.
       -v, --volume=[]               Bind mount a volume
       --volumes-from=[]             Mount volumes from the specified container(s)
       -w, --workdir=""              Working directory inside the container
+      --root-mount-propagation=""   Root mount propagation mode
 
 The `docker create` command creates a writeable container layer over the
 specified image and prepares it for running the specified command.  The

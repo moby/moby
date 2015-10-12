@@ -103,6 +103,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		flCgroupParent      = cmd.String([]string{"-cgroup-parent"}, "", "Optional parent cgroup for the container")
 		flVolumeDriver      = cmd.String([]string{"-volume-driver"}, "", "Optional volume driver for the container")
 		flStopSignal        = cmd.String([]string{"-stop-signal"}, signal.DefaultStopSignal, fmt.Sprintf("Signal to stop a container, %v by default", signal.DefaultStopSignal))
+		flRootPropagation   = cmd.String([]string{"-root-mount-propagation"}, "", "Root Mount propagation mode")
 	)
 
 	cmd.Var(&flAttach, []string{"a", "-attach"}, "Attach to STDIN, STDOUT or STDERR")
@@ -319,6 +320,10 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		return nil, nil, cmd, err
 	}
 
+	if err := validateRootPropagation(*flRootPropagation); err != nil {
+		return nil, nil, cmd, err
+	}
+
 	config := &Config{
 		Hostname:        hostname,
 		Domainname:      domainname,
@@ -342,45 +347,46 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 	}
 
 	hostConfig := &HostConfig{
-		Binds:             binds,
-		ContainerIDFile:   *flContainerIDFile,
-		LxcConf:           lxcConf,
-		Memory:            flMemory,
-		MemoryReservation: MemoryReservation,
-		MemorySwap:        memorySwap,
-		KernelMemory:      KernelMemory,
-		CPUShares:         *flCPUShares,
-		CPUPeriod:         *flCPUPeriod,
-		CpusetCpus:        *flCpusetCpus,
-		CpusetMems:        *flCpusetMems,
-		CPUQuota:          *flCPUQuota,
-		BlkioWeight:       *flBlkioWeight,
-		OomKillDisable:    *flOomKillDisable,
-		MemorySwappiness:  flSwappiness,
-		Privileged:        *flPrivileged,
-		PortBindings:      portBindings,
-		Links:             flLinks.GetAll(),
-		PublishAllPorts:   *flPublishAll,
-		DNS:               flDNS.GetAll(),
-		DNSSearch:         flDNSSearch.GetAll(),
-		DNSOptions:        flDNSOptions.GetAll(),
-		ExtraHosts:        flExtraHosts.GetAll(),
-		VolumesFrom:       flVolumesFrom.GetAll(),
-		NetworkMode:       NetworkMode(*flNetMode),
-		IpcMode:           ipcMode,
-		PidMode:           pidMode,
-		UTSMode:           utsMode,
-		Devices:           deviceMappings,
-		CapAdd:            stringutils.NewStrSlice(flCapAdd.GetAll()...),
-		CapDrop:           stringutils.NewStrSlice(flCapDrop.GetAll()...),
-		GroupAdd:          flGroupAdd.GetAll(),
-		RestartPolicy:     restartPolicy,
-		SecurityOpt:       flSecurityOpt.GetAll(),
-		ReadonlyRootfs:    *flReadonlyRootfs,
-		Ulimits:           flUlimits.GetList(),
-		LogConfig:         LogConfig{Type: *flLoggingDriver, Config: loggingOpts},
-		CgroupParent:      *flCgroupParent,
-		VolumeDriver:      *flVolumeDriver,
+		Binds:                binds,
+		ContainerIDFile:      *flContainerIDFile,
+		LxcConf:              lxcConf,
+		Memory:               flMemory,
+		MemoryReservation:    MemoryReservation,
+		MemorySwap:           memorySwap,
+		KernelMemory:         KernelMemory,
+		CPUShares:            *flCPUShares,
+		CPUPeriod:            *flCPUPeriod,
+		CpusetCpus:           *flCpusetCpus,
+		CpusetMems:           *flCpusetMems,
+		CPUQuota:             *flCPUQuota,
+		BlkioWeight:          *flBlkioWeight,
+		OomKillDisable:       *flOomKillDisable,
+		MemorySwappiness:     flSwappiness,
+		Privileged:           *flPrivileged,
+		PortBindings:         portBindings,
+		Links:                flLinks.GetAll(),
+		PublishAllPorts:      *flPublishAll,
+		DNS:                  flDNS.GetAll(),
+		DNSSearch:            flDNSSearch.GetAll(),
+		DNSOptions:           flDNSOptions.GetAll(),
+		ExtraHosts:           flExtraHosts.GetAll(),
+		VolumesFrom:          flVolumesFrom.GetAll(),
+		NetworkMode:          NetworkMode(*flNetMode),
+		IpcMode:              ipcMode,
+		PidMode:              pidMode,
+		UTSMode:              utsMode,
+		Devices:              deviceMappings,
+		CapAdd:               stringutils.NewStrSlice(flCapAdd.GetAll()...),
+		CapDrop:              stringutils.NewStrSlice(flCapDrop.GetAll()...),
+		GroupAdd:             flGroupAdd.GetAll(),
+		RestartPolicy:        restartPolicy,
+		SecurityOpt:          flSecurityOpt.GetAll(),
+		ReadonlyRootfs:       *flReadonlyRootfs,
+		Ulimits:              flUlimits.GetList(),
+		LogConfig:            LogConfig{Type: *flLoggingDriver, Config: loggingOpts},
+		CgroupParent:         *flCgroupParent,
+		VolumeDriver:         *flVolumeDriver,
+		RootMountPropagation: *flRootPropagation,
 	}
 
 	// When allocating stdin in attached mode, close stdin at client disconnect

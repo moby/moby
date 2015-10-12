@@ -21,6 +21,7 @@ import (
 	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/directory"
 	"github.com/docker/docker/pkg/idtools"
+	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/nat"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/system"
@@ -312,6 +313,8 @@ func populateCommand(c *Container, env []string) error {
 	}
 	uidMap, gidMap := c.daemon.GetUIDGIDMaps()
 
+	rootPropagation, _ := mount.ParseOptions(c.hostConfig.RootMountPropagation)
+
 	c.command = &execdriver.Command{
 		ID:                 c.ID,
 		Rootfs:             c.rootfsPath(),
@@ -337,6 +340,7 @@ func populateCommand(c *Container, env []string) error {
 		LxcConfig:          lxcConfig,
 		AppArmorProfile:    c.AppArmorProfile,
 		CgroupParent:       c.hostConfig.CgroupParent,
+		RootPropagation:    rootPropagation,
 	}
 
 	return nil

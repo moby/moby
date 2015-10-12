@@ -154,6 +154,7 @@ complete -c docker -A -f -n '__fish_seen_subcommand_from create' -s v -l volume 
 complete -c docker -A -f -n '__fish_seen_subcommand_from create' -l volumes-from -d 'Mount volumes from the specified container(s)'
 complete -c docker -A -f -n '__fish_seen_subcommand_from create' -s w -l workdir -d 'Working directory inside the container'
 complete -c docker -A -f -n '__fish_seen_subcommand_from create' -a '(__fish_print_docker_images)' -d "Image"
+complete -c docker -A -f -n '__fish_seen_subcommand_from create' -l root-mount-propagation -d 'Root mount propagation mode'
 
 # diff
 complete -c docker -f -n '__fish_docker_no_subcommand' -a diff -d "Inspect changes on a container's filesystem"
@@ -346,6 +347,7 @@ complete -c docker -A -f -n '__fish_seen_subcommand_from run' -s v -l volume -d 
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l volumes-from -d 'Mount volumes from the specified container(s)'
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -s w -l workdir -d 'Working directory inside the container'
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -a '(__fish_print_docker_images)' -d "Image"
+complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l root-mount-propagation -d 'Root mount propagation mode'
 
 # save
 complete -c docker -f -n '__fish_docker_no_subcommand' -a save -d 'Save an image to a tar archive'
