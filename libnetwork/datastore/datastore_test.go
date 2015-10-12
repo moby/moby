@@ -20,13 +20,13 @@ func NewTestDataStore() DataStore {
 func TestKey(t *testing.T) {
 	eKey := []string{"hello", "world"}
 	sKey := Key(eKey...)
-	if sKey != "docker/libnetwork/hello/world/" {
+	if sKey != "docker/network/v1.0/hello/world/" {
 		t.Fatalf("unexpected key : %s", sKey)
 	}
 }
 
 func TestParseKey(t *testing.T) {
-	keySlice, err := ParseKey("/docker/libnetwork/hello/world/")
+	keySlice, err := ParseKey("/docker/network/v1.0/hello/world/")
 	if err != nil {
 		t.Fatal(err)
 	}
