@@ -55,6 +55,12 @@ profile {{.Name}} flags=(attach_disconnected,mediate_deleted) {
   deny /sys/fs/cg[^r]*/** wklx,
   deny /sys/firmware/efi/efivars/** rwklx,
   deny /sys/kernel/security/** rwklx,
+
+  # docker daemon confinement requires explict allow rule for signal
+  signal (receive) set=(kill,term) peer=/usr/bin/docker,
+
+  # suppress ptrace denails when using 'docker ps'
+  ptrace (trace,read) peer=docker-default,
 }
 `
 
