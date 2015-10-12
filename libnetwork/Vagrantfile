@@ -19,7 +19,7 @@ apt-get -y install wget curl
 apt-get -y install bridge-utils
 wget -qO- https://experimental.docker.com/ | sh
 gpasswd -a vagrant docker
-echo DOCKER_OPTS=\\"--default-network=overlay:multihost --kv-store=consul:192.168.33.10:8500 --label=com.docker.network.driver.overlay.bind_interface=eth1 --label=com.docker.network.driver.overlay.neighbor_ip=192.168.33.11\\" >> /etc/default/docker
+echo DOCKER_OPTS=\\"--cluster-store=consul://192.168.33.10:8500 --cluster-advertise=${1}:0\\" >> /etc/default/docker
 cp /vagrant/vagrant-systemd/docker.service /etc/systemd/system/
 systemctl daemon-reload
 systemctl restart docker.service
@@ -51,7 +51,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
         vb.customize ["modifyvm", :id, "--memory", "1024"]
       end
       net.vm.network :private_network, ip: "#{net_ip}"
-      net.vm.provision :shell, inline: $bootstrap
+      net.vm.provision :shell, inline: $bootstrap, :args => "#{net_ip}"
     end
   end
 
