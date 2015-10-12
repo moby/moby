@@ -234,7 +234,7 @@ func (s *DockerSuite) TestCreateLabelFromImage(c *check.C) {
 	}
 
 	name := "test_create_labels_from_image"
-	expected := map[string]string{"k2": "x", "k3": "v3"}
+	expected := map[string]string{"k2": "x", "k3": "v3", "k1": "v1"}
 	dockerCmd(c, "create", "--name", name, "-l", "k2=x", "--label", "k3=v3", imageName)
 
 	actual := make(map[string]string)
