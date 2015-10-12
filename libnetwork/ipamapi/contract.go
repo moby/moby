@@ -14,7 +14,7 @@ const (
 	// DefaultIPAM is the name of the built-in default ipam driver
 	DefaultIPAM = "default"
 	// PluginEndpointType represents the Endpoint Type used by Plugin system
-	PluginEndpointType = "IPAM"
+	PluginEndpointType = "IpamDriver"
 )
 
 // Callback provides a Callback interface for registering an IPAM instance into LibNetwork
@@ -57,7 +57,7 @@ type Ipam interface {
 	// GetDefaultAddressSpaces returns the default local and global address spaces for this ipam
 	GetDefaultAddressSpaces() (string, string, error)
 	// RequestPool returns an address pool along with its unique id. Address space is a mandatory field
-	// which denotes a set of non-overlapping pools. pool describes the pool of addrresses in CIDR notation.
+	// which denotes a set of non-overlapping pools. pool describes the pool of addresses in CIDR notation.
 	// subpool indicates a smaller range of addresses from the pool, for now it is specified in CIDR notation.
 	// Both pool and subpool are non mandatory fields. When they are not specified, Ipam driver may choose to
 	// return a self chosen pool for this request. In such case the v6 flag needs to be set appropriately so
