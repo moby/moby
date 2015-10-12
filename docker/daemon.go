@@ -210,7 +210,6 @@ func (cli *DaemonCli) CmdDaemon(args ...string) error {
 	}
 	serverConfig = setPlatformServerConfig(serverConfig, cli.Config)
 
-	defaultHost := opts.DefaultHost
 	if commonFlags.TLSOptions != nil {
 		if !commonFlags.TLSOptions.InsecureSkipVerify {
 			// server requires and verifies client's certificate
@@ -221,12 +220,11 @@ func (cli *DaemonCli) CmdDaemon(args ...string) error {
 			logrus.Fatal(err)
 		}
 		serverConfig.TLSConfig = tlsConfig
-		defaultHost = opts.DefaultTLSHost
 	}
 
 	for i := 0; i < len(commonFlags.Hosts); i++ {
 		var err error
-		if commonFlags.Hosts[i], err = opts.ParseHost(defaultHost, commonFlags.Hosts[i]); err != nil {
+		if commonFlags.Hosts[i], err = opts.ParseHost(commonFlags.Hosts[i]); err != nil {
 			logrus.Fatalf("error parsing -H %s : %v", commonFlags.Hosts[i], err)
 		}
 	}
