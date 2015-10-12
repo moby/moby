@@ -51,7 +51,11 @@ func (s *TagStore) Lookup(name string) (*types.ImageInspect, error) {
 
 	imageInspect.GraphDriver.Name = s.graph.driver.String()
 
-	graphDriverData, err := s.graph.driver.GetMetadata(image.ID)
+	cacheID, err := s.graph.GetCacheID(image.ID)
+	if err != nil {
+		return nil, err
+	}
+	graphDriverData, err := s.graph.driver.GetMetadata(cacheID)
 	if err != nil {
 		return nil, err
 	}

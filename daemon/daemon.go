@@ -477,12 +477,20 @@ func (daemon *Daemon) getEntrypointAndArgs(configEntrypoint *stringutils.StrSlic
 
 func (daemon *Daemon) newContainer(name string, config *runconfig.Config, imgID string) (*Container, error) {
 	var (
-		id  string
-		err error
+		id      string
+		cacheID string
+		err     error
 	)
 	id, name, err = daemon.generateIDAndName(name)
 	if err != nil {
 		return nil, err
+	}
+
+	if imgID != "" {
+		cacheID, err = daemon.graph.GetCacheID(imgID)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	daemon.generateHostname(id, config)
@@ -495,6 +503,7 @@ func (daemon *Daemon) newContainer(name string, config *runconfig.Config, imgID 
 	base.Config = config
 	base.hostConfig = &runconfig.HostConfig{}
 	base.ImageID = imgID
+	base.cacheID = cacheID
 	base.NetworkSettings = &network.Settings{}
 	base.Name = name
 	base.Driver = daemon.driver.String()
@@ -995,7 +1004,7 @@ func (daemon *Daemon) createRootfs(container *Container) error {
 		return err
 	}
 	initID := fmt.Sprintf("%s-init", container.ID)
-	if err := daemon.driver.Create(initID, container.ImageID); err != nil {
+	if err := daemon.driver.Create(initID, container.cacheID); err != nil {
 		return err
 	}
 	initPath, err := daemon.driver.Get(initID, "")

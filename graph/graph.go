@@ -91,6 +91,7 @@ const (
 	jsonFileName      = "json"
 	layersizeFileName = "layersize"
 	digestFileName    = "checksum"
+	cacheIDFileName   = "cache-id"
 	tarDataFileName   = "tar-data.json.gz"
 )
 
@@ -99,6 +100,10 @@ var (
 	// but the layer has no digest value or content to compute the
 	// the digest.
 	ErrDigestNotSet = errors.New("digest is not set for layer")
+
+	// ErrCacheNotSet is used when there is no cached identifier
+	// with the graph driver set for the layer.
+	ErrCacheNotSet = errors.New("cache id is not set for layer")
 )
 
 // NewGraph instantiates a new graph at the given root path in the filesystem.
@@ -151,7 +156,20 @@ func (graph *Graph) restore() error {
 	var ids = []string{}
 	for _, v := range dir {
 		id := v.Name()
-		if graph.driver.Exists(id) {
+
+		cacheID, err := graph.GetCacheID(id)
+		if err != nil {
+			if err == ErrCacheNotSet && graph.driver.Exists(cacheID) {
+				logrus.Debugf("Layer file not set, creating for %s", id)
+				cacheID = id
+				if err := graph.SetCacheID(id, cacheID); err != nil {
+					return err
+				}
+			} else {
+				return err
+			}
+		}
+		if graph.driver.Exists(cacheID) {
 			ids = append(ids, id)
 		}
 	}
@@ -193,7 +211,11 @@ func (graph *Graph) Get(name string) (*image.Image, error) {
 	}
 
 	if img.Size < 0 {
-		size, err := graph.driver.DiffSize(img.ID, img.Parent)
+		cacheID, parentID, err := graph.GetCacheIDs(img.ID, img.Parent)
+		if err != nil {
+			return nil, err
+		}
+		size, err := graph.driver.DiffSize(cacheID, parentID)
 		if err != nil {
 			return nil, fmt.Errorf("unable to calculate size of image id %q: %s", img.ID, err)
 		}
@@ -244,10 +266,13 @@ func (graph *Graph) Register(img *image.Image, layerData io.Reader) (err error) 
 	graph.imageMutex.Lock(img.ID)
 	defer graph.imageMutex.Unlock(img.ID)
 
+	cacheID, err := graph.getCacheID(img.ID)
 	// Skip register if image is already registered
-	if graph.Exists(img.ID) {
+	if err == nil && graph.Exists(cacheID) {
 		return nil
 	}
+
+	cacheID = stringid.GenerateRandomID()
 
 	// The returned `error` must be named in this function's signature so that
 	// `err` is not shadowed in this deferred cleanup.
@@ -255,7 +280,7 @@ func (graph *Graph) Register(img *image.Image, layerData io.Reader) (err error) 
 		// If any error occurs, remove the new dir from the driver.
 		// Don't check for errors since the dir might not have been created.
 		if err != nil {
-			graph.driver.Remove(img.ID)
+			graph.driver.Remove(cacheID)
 		}
 	}()
 
@@ -270,7 +295,7 @@ func (graph *Graph) Register(img *image.Image, layerData io.Reader) (err error) 
 	// (the graph is the source of truth).
 	// Ignore errors, since we don't know if the driver correctly returns ErrNotExist.
 	// (FIXME: make that mandatory for drivers).
-	graph.driver.Remove(img.ID)
+	graph.driver.Remove(cacheID)
 
 	tmp, err := graph.mktemp()
 	defer os.RemoveAll(tmp)
@@ -278,8 +303,12 @@ func (graph *Graph) Register(img *image.Image, layerData io.Reader) (err error) 
 		return fmt.Errorf("mktemp failed: %s", err)
 	}
 
+	if err := graph.saveCacheID(tmp, cacheID); err != nil {
+		return err
+	}
+
 	// Create root filesystem in the driver
-	if err := createRootFilesystemInDriver(graph, img); err != nil {
+	if err := createRootFilesystemInDriver(graph, img, tmp); err != nil {
 		return err
 	}
 
@@ -295,9 +324,13 @@ func (graph *Graph) Register(img *image.Image, layerData io.Reader) (err error) 
 	return nil
 }
 
-func createRootFilesystemInDriver(graph *Graph, img *image.Image) error {
-	if err := graph.driver.Create(img.ID, img.Parent); err != nil {
-		return fmt.Errorf("Driver %s failed to create image rootfs %s: %s", graph.driver, img.ID, err)
+func createRootFilesystemInDriver(graph *Graph, img *image.Image, root string) error {
+	cacheID, parentID, err := graph.getCacheIDs(root, img.Parent)
+	if err != nil {
+		return err
+	}
+	if err := graph.driver.Create(cacheID, parentID); err != nil {
+		return fmt.Errorf("Driver %s failed to create image rootfs %s: %s", graph.driver, cacheID, err)
 	}
 	return nil
 }
@@ -370,8 +403,12 @@ func (graph *Graph) Delete(name string) error {
 		// On err make tmp point to old dir for cleanup
 		tmp = graph.imageRoot(id)
 	}
+	cacheID, err := graph.getCacheID(tmp)
+	if err != nil {
+		return err
+	}
 	// Remove rootfs data from the driver
-	graph.driver.Remove(id)
+	graph.driver.Remove(cacheID)
 	// Remove the trashed image directory
 	return os.RemoveAll(tmp)
 }
@@ -452,8 +489,12 @@ func (graph *Graph) Heads() map[string]*image.Image {
 func (graph *Graph) TarLayer(img *image.Image) (arch io.ReadCloser, err error) {
 	rdr, err := graph.assembleTarLayer(img)
 	if err != nil {
+		cacheID, parentID, err := graph.GetCacheIDs(img.ID, img.Parent)
+		if err != nil {
+			return nil, err
+		}
 		logrus.Debugf("[graph] TarLayer with traditional differ: %s", img.ID)
-		return graph.driver.Diff(img.ID, img.Parent)
+		return graph.driver.Diff(cacheID, parentID)
 	}
 	return rdr, nil
 }
@@ -541,6 +582,68 @@ func (graph *Graph) GetDigest(id string) (digest.Digest, error) {
 	return digest.ParseDigest(string(cs))
 }
 
+// SetCacheID sets the layer id for the provided graph id
+func (graph *Graph) SetCacheID(id string, cacheID string) error {
+	graph.imageMutex.Lock(id)
+	defer graph.imageMutex.Unlock(id)
+
+	return graph.saveCacheID(graph.imageRoot(id), cacheID)
+}
+
+// saveCacheID sets the layer id for the provided graph id
+func (graph *Graph) saveCacheID(root, cacheID string) error {
+	if err := ioutil.WriteFile(filepath.Join(root, cacheIDFileName), []byte(cacheID), 0600); err != nil {
+		return fmt.Errorf("Error storing layer in %s/%s: %s", root, cacheIDFileName, err)
+	}
+	return nil
+}
+
+// GetCacheID gets the layer id for the provided graph id
+func (graph *Graph) GetCacheID(id string) (string, error) {
+	graph.imageMutex.Lock(id)
+	defer graph.imageMutex.Unlock(id)
+
+	return graph.getCacheID(graph.imageRoot(id))
+}
+
+// getCacheID gets the layer id for the provided graph id
+func (graph *Graph) getCacheID(root string) (string, error) {
+	li, err := ioutil.ReadFile(filepath.Join(root, cacheIDFileName))
+	if err != nil {
+		if os.IsNotExist(err) {
+			return "", ErrCacheNotSet
+		}
+		return "", err
+	}
+	return string(li), nil
+}
+
+// GetCacheIDs gets both the image and parent cache ids
+func (graph *Graph) GetCacheIDs(id, parent string) (string, string, error) {
+	graph.imageMutex.Lock(id)
+	defer graph.imageMutex.Unlock(id)
+
+	return graph.getCacheIDs(graph.imageRoot(id), parent)
+}
+
+// getCacheIDs gets both the image and parent cache ids
+// with the image passing in the root.
+func (graph *Graph) getCacheIDs(root, parent string) (string, string, error) {
+	cacheID, err := graph.getCacheID(root)
+	if err != nil {
+		return "", "", err
+	}
+	parentID := ""
+	if parent != "" {
+		parentID, err = graph.GetCacheID(parent)
+		if err != nil {
+			return "", "", err
+		}
+	}
+	return cacheID, parentID, nil
+
+}
+
 // RawJSON returns the JSON representation for an image as a byte array.
 func (graph *Graph) RawJSON(id string) ([]byte, error) {
 	root := graph.imageRoot(id)
@@ -614,7 +717,8 @@ func (graph *Graph) disassembleAndApplyTarLayer(img *image.Image, layerData io.R
 		ar = archive.Reader(rdr)
 	}
 
-	if img.Size, err = graph.driver.ApplyDiff(img.ID, img.Parent, ar); err != nil {
+	layerID, parentID, err := graph.getCacheIDs(root, img.Parent)
+	if img.Size, err = graph.driver.ApplyDiff(layerID, parentID, ar); err != nil {
 		return err
 	}
 
@@ -646,13 +750,19 @@ func (graph *Graph) assembleTarLayer(img *image.Image) (io.ReadCloser, error) {
 		}
 		defer mfz.Close()
 
-		// get our relative path to the container
-		fsLayer, err := graph.driver.Get(img.ID, "")
+		cacheID, err := graph.GetCacheID(img.ID)
 		if err != nil {
 			pW.CloseWithError(err)
 			return
 		}
-		defer graph.driver.Put(img.ID)
+
+		// get our relative path to the container
+		fsLayer, err := graph.driver.Get(cacheID, "")
+		if err != nil {
+			pW.CloseWithError(err)
+			return
+		}
+		defer graph.driver.Put(cacheID)
 
 		metaUnpacker := storage.NewJSONUnpacker(mfz)
 		fileGetter := storage.NewPathFileGetter(fsLayer)
