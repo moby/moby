@@ -458,12 +458,12 @@ func TestParseHost(t *testing.T) {
 	}
 
 	for value, errorMessage := range invalid {
-		if _, err := ParseHost(defaultHTTPHost, value); err == nil || err.Error() != errorMessage {
+		if _, err := ParseHost(value); err == nil || err.Error() != errorMessage {
 			t.Fatalf("Expected an error for %v with [%v], got [%v]", value, errorMessage, err)
 		}
 	}
 	for value, expected := range valid {
-		if actual, err := ParseHost(defaultHTTPHost, value); err != nil || actual != expected {
+		if actual, err := ParseHost(value); err != nil || actual != expected {
 			t.Fatalf("Expected for %v [%v], got [%v, %v]", value, expected, actual, err)
 		}
 	}

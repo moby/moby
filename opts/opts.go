@@ -352,7 +352,7 @@ func ValidateHost(val string) (string, error) {
 }
 
 // ParseHost and set defaults for a Daemon host string
-func ParseHost(defaultHTTPHost, val string) (string, error) {
+func ParseHost(val string) (string, error) {
 	host, err := parsers.ParseDockerDaemonHost(DefaultTCPHost, DefaultUnixSocket, val)
 	if err != nil {
 		return val, err
