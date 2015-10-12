@@ -28,7 +28,7 @@ func copyOwnership(source, destination string) error {
 		return err
 	}
 
-	if err := os.Chown(destination, int(stat.UID()), int(stat.Gid())); err != nil {
+	if err := os.Chown(destination, int(stat.UID()), int(stat.GID())); err != nil {
 		return err
 	}
 
