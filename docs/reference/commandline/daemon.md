@@ -536,7 +536,7 @@ please check the [run](run.md) reference.
 
 `--cluster-advertise` specifies the 'host:port' combination that this particular
 daemon instance should use when advertising itself to the cluster. The daemon
-should be reachable by remote hosts on this 'host:port' combination.
+is reached by remote hosts on this 'host:port' combination.
 
 The daemon uses [libkv](https://github.com/docker/libkv/) to advertise
 the node within the cluster.  Some Key/Value backends support mutual
@@ -545,12 +545,32 @@ using the `--cluster-store-opt` flag, specifying the paths to PEM encoded
 files. For example:
 
 ```bash
+docker daemon \
     --cluster-advertise 192.168.1.2:2376 \
     --cluster-store etcd://192.168.1.2:2379 \
     --cluster-store-opt kv.cacertfile=/path/to/ca.pem \
     --cluster-store-opt kv.certfile=/path/to/cert.pem \
     --cluster-store-opt kv.keyfile=/path/to/key.pem
 ```
+
+The currently supported cluster store options are:
+
+*  `kv.cacertfile`
+
+    Specifies the path to a local file with PEM encoded CA certificates to trust
+
+*  `kv.certfile`
+
+    Specifies the path to a local file with a PEM encoded certificate.  This
+    certificate is used as the client cert for communication with the
+    Key/Value store.
+
+*  `kv.keyfile`
+
+    Specifies the path to a local file with a PEM encoded private key.  This
+    private key is used as the client key for communication with the
+    Key/Value store.
+
 
 ## Miscellaneous options
 
