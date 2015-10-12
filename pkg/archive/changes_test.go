@@ -434,6 +434,35 @@ func TestApplyLayer(t *testing.T) {
 	}
 }
 
+func TestChangesSizeWithHardlinks(t *testing.T) {
+	srcDir, err := ioutil.TempDir("", "docker-test-srcDir")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(srcDir)
+
+	destDir, err := ioutil.TempDir("", "docker-test-destDir")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(destDir)
+
+	creationSize, err := prepareUntarSourceDirectory(100, destDir, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	changes, err := ChangesDirs(destDir, srcDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	got := ChangesSize(destDir, changes)
+	if got != int64(creationSize) {
+		t.Errorf("Expected %d bytes of changes, got %d", creationSize, got)
+	}
+}
+
 func TestChangesSizeWithNoChanges(t *testing.T) {
 	size := ChangesSize("/tmp", nil)
 	if size != 0 {
@@ -468,7 +497,7 @@ func TestChangesSize(t *testing.T) {
 	}
 	size := ChangesSize(parentPath, changes)
 	if size != 6 {
-		t.Fatalf("ChangesSizes with only delete changes should be 0, was %d", size)
+		t.Fatalf("Expected 6 bytes of changes, got %d", size)
 	}
 }
 

@@ -3,6 +3,7 @@
 package archive
 
 import (
+	"os"
 	"syscall"
 
 	"github.com/docker/docker/pkg/system"
@@ -24,4 +25,20 @@ func statDifferent(oldStat *system.StatT, newStat *system.StatT) bool {
 
 func (info *FileInfo) isDir() bool {
 	return info.parent == nil || info.stat.Mode()&syscall.S_IFDIR != 0
+}
+
+func GetInode(fi os.FileInfo) (inode uint64) {
+	s, _ := fi.Sys().(*syscall.Stat_t)
+	inode = uint64(s.Ino)
+	return
+}
+
+func IsHardlink(fi os.FileInfo) bool {
+	switch sys := fi.Sys().(type) {
+	case *syscall.Stat_t:
+		if fi.Mode().IsRegular() && sys.Nlink > 1 {
+			return true
+		}
+	}
+	return false
 }
