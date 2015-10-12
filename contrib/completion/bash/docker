@@ -20,12 +20,12 @@
 # You can tailor completion for the "events", "history", "inspect", "run",
 # "rmi" and "save" commands by settings the following environment
 # variables:
-#   
+#
 # DOCKER_COMPLETION_SHOW_IMAGE_IDS
 #   "none" - Show names only (default)
 #   "non-intermediate" - Show names and ids, but omit intermediate image IDs
 #   "all" - Show names and ids, including intermediate image IDs
-# 
+#
 # DOCKER_COMPLETION_SHOW_TAGS
 #   "yes" - include tags in completion options (default)
 #   "no"  - don't include tags in completion options
@@ -520,6 +520,7 @@ _docker_create() {
 _docker_daemon() {
 	local boolean_options="
 		$global_boolean_options
+		--disable-legacy-registry
 		--help
 		--icc=false
 		--ip-forward=false
@@ -536,6 +537,7 @@ _docker_daemon() {
 		--bridge -b
 		--cluster-advertise
 		--cluster-store
+		--cluster-store-opt
 		--default-gateway
 		--default-gateway-v6
 		--default-ulimit
@@ -564,6 +566,11 @@ _docker_daemon() {
 	case "$prev" in
 		--cluster-store)
 			COMPREPLY=( $( compgen -W "consul etcd zk" -S "://" -- "$cur" ) )
+			__docker_nospace
+			return
+			;;
+		--cluster-store-opt)
+			COMPREPLY=( $( compgen -W "kv.cacertfile kv.certfile kv.keyfile" -S = -- "$cur" ) )
 			__docker_nospace
 			return
 			;;
@@ -630,8 +637,8 @@ _docker_daemon() {
 
 	__docker_complete_log_driver_options && return
 
-	# completions for --storage-opt
 	case "${words[$cword-2]}$prev=" in
+		# completions for --storage-opt
 		*dm.blkdiscard=*)
 			COMPREPLY=( $( compgen -W "false true" -- "${cur#=}" ) )
 			return
@@ -645,6 +652,11 @@ _docker_daemon() {
 			return
 			;;
 		*dm.thinpooldev=*)
+			_filedir
+			return
+			;;
+		# completions for --cluster-store-opt
+		*kv.*file=*)
 			_filedir
 			return
 			;;

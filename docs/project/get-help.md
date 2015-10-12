@@ -81,7 +81,7 @@ register:
 
 1. In your browser open <a href="https://webchat.freenode.net" target="_blank">https://webchat.freenode.net</a>
 
-    ![Login to webchat screen](/project/images/irc_connect.png)
+    ![Login to webchat screen](images/irc_connect.png)
 
 2. Fill out the form.
 
@@ -106,14 +106,14 @@ register:
     the Webchat web page is a command line bar. Just above the command line bar
     a message is shown asking you to register.
 
-    ![Registration needed screen](/project/images/irc_after_login.png)
+    ![Registration needed screen](images/irc_after_login.png)
 
 4. Register your nickname by entering the following command in the
 command line bar:
 
         /msg NickServ REGISTER yourpassword youremail@example.com
 
-    ![Registering screen](/project/images/register_nic.png)
+    ![Registering screen](images/register_nic.png)
 
     This command line bar is also the entry field that you will use for entering 
     chat messages into IRC chat channels after you have registered and joined a
@@ -125,7 +125,7 @@ command line bar:
 
 5. Open your email client and look for the email.
 
-    ![Login screen](/project/images/register_email.png)
+    ![Login screen](images/register_email.png)
 
 6. Back in the browser, complete the registration according to the email
 by entering the following command into the webchat command line bar:
@@ -147,7 +147,7 @@ features. To use IRCCloud:
 
     The following web page is displayed in your browser:
 
-    ![IRCCloud Register screen](/project/images/irccloud-join.png)
+    ![IRCCloud Register screen](images/irccloud-join.png)
   
 2. If this is your first time using IRCCloud enter a valid email address in the
 form. People who have already registered with IRCCloud can select the "sign in
@@ -162,7 +162,7 @@ from IRCCloud and follow the instructions provided in the email.
 4. After following the instructions in your email you should have an IRCCloud
 Client web page in your browser:
 
-    ![IRCCloud](/project/images/irccloud-register-nick.png)
+    ![IRCCloud](images/irccloud-register-nick.png)
 
     The message shown above may appear indicating that you need to register your
     nickname. 
@@ -176,7 +176,7 @@ at the bottom of the IRCCloud Client:
 
 6. Check your email for an invite to freenode.net:
 
-    ![Login screen](/project/images/register_email.png)
+    ![Login screen](images/register_email.png)
 
 7. Back in the browser, complete the registration according to the email.
 
@@ -212,7 +212,7 @@ You can also join the `#docker-dev` group:
 
 To ask questions to the group just type messages in the command line bar:
 
-  ![Web Chat Screen](/project/images/irc_chat.png)
+  ![Web Chat Screen](images/irc_chat.png)
 
 ## Learning more about IRC
 

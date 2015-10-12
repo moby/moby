@@ -27,8 +27,9 @@ type applyLayerResponse struct {
 func applyLayer() {
 
 	var (
-		tmpDir = ""
-		err    error
+		tmpDir  = ""
+		err     error
+		options *archive.TarOptions
 	)
 	runtime.LockOSThread()
 	flag.Parse()
@@ -44,12 +45,16 @@ func applyLayer() {
 		fatal(err)
 	}
 
+	if err := json.Unmarshal([]byte(os.Getenv("OPT")), &options); err != nil {
+		fatal(err)
+	}
+
 	if tmpDir, err = ioutil.TempDir("/", "temp-docker-extract"); err != nil {
 		fatal(err)
 	}
 
 	os.Setenv("TMPDIR", tmpDir)
-	size, err := archive.UnpackLayer("/", os.Stdin)
+	size, err := archive.UnpackLayer("/", os.Stdin, options)
 	os.RemoveAll(tmpDir)
 	if err != nil {
 		fatal(err)
@@ -68,7 +73,7 @@ func applyLayer() {
 // applyLayerHandler parses a diff in the standard layer format from `layer`, and
 // applies it to the directory `dest`. Returns the size in bytes of the
 // contents of the layer.
-func applyLayerHandler(dest string, layer archive.Reader, decompress bool) (size int64, err error) {
+func applyLayerHandler(dest string, layer archive.Reader, options *archive.TarOptions, decompress bool) (size int64, err error) {
 	dest = filepath.Clean(dest)
 	if decompress {
 		decompressed, err := archive.DecompressStream(layer)
@@ -79,9 +84,21 @@ func applyLayerHandler(dest string, layer archive.Reader, decompress bool) (size
 
 		layer = decompressed
 	}
+	if options == nil {
+		options = &archive.TarOptions{}
+	}
+	if options.ExcludePatterns == nil {
+		options.ExcludePatterns = []string{}
+	}
+
+	data, err := json.Marshal(options)
+	if err != nil {
+		return 0, fmt.Errorf("ApplyLayer json encode: %v", err)
+	}
 
 	cmd := reexec.Command("docker-applyLayer", dest)
 	cmd.Stdin = layer
+	cmd.Env = append(cmd.Env, fmt.Sprintf("OPT=%s", data))
 
 	outBuf, errBuf := new(bytes.Buffer), new(bytes.Buffer)
 	cmd.Stdout, cmd.Stderr = outBuf, errBuf

@@ -509,7 +509,7 @@ func initDaemonForVolumesTest(tmp string) (*Daemon, error) {
 		volumes:    store.New(),
 	}
 
-	volumesDriver, err := local.New(tmp)
+	volumesDriver, err := local.New(tmp, 0, 0)
 	if err != nil {
 		return nil, err
 	}

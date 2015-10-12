@@ -3,6 +3,9 @@ package directory
 import (
 	"io/ioutil"
 	"os"
+	"path/filepath"
+	"reflect"
+	"sort"
 	"testing"
 )
 
@@ -133,5 +136,47 @@ func TestSizeFileAndNestedDirectoryNonempty(t *testing.T) {
 	var size int64
 	if size, _ = Size(dir); size != 12 {
 		t.Fatalf("directory with 6-byte file and nested directory with 6-byte file has size: %d", size)
+	}
+}
+
+// Test migration of directory to a subdir underneath itself
+func TestMoveToSubdir(t *testing.T) {
+	var outerDir, subDir string
+	var err error
+
+	if outerDir, err = ioutil.TempDir(os.TempDir(), "TestMoveToSubdir"); err != nil {
+		t.Fatalf("failed to create directory: %v", err)
+	}
+
+	if subDir, err = ioutil.TempDir(outerDir, "testSub"); err != nil {
+		t.Fatalf("failed to create subdirectory: %v", err)
+	}
+
+	// write 4 temp files in the outer dir to get moved
+	filesList := []string{"a", "b", "c", "d"}
+	for _, fName := range filesList {
+		if file, err := os.Create(filepath.Join(outerDir, fName)); err != nil {
+			t.Fatalf("couldn't create temp file %q: %v", fName, err)
+		} else {
+			file.WriteString(fName)
+			file.Close()
+		}
+	}
+
+	if err = MoveToSubdir(outerDir, filepath.Base(subDir)); err != nil {
+		t.Fatalf("Error during migration of content to subdirectory: %v", err)
+	}
+	// validate that the files were moved to the subdirectory
+	infos, err := ioutil.ReadDir(subDir)
+	if len(infos) != 4 {
+		t.Fatalf("Should be four files in the subdir after the migration: actual length: %d", len(infos))
+	}
+	var results []string
+	for _, info := range infos {
+		results = append(results, info.Name())
+	}
+	sort.Sort(sort.StringSlice(results))
+	if !reflect.DeepEqual(filesList, results) {
+		t.Fatalf("Results after migration do not equal list of files: expected: %v, got: %v", filesList, results)
 	}
 }

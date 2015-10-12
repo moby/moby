@@ -5,7 +5,6 @@ description = "The login command description and usage"
 keywords = ["registry, login, image"]
 [menu.main]
 parent = "smn_cli"
-weight=1
 +++
 <![end-metadata]-->
 
@@ -17,6 +16,7 @@ weight=1
 	specified "https://index.docker.io/v1/" is the default.
 
       -e, --email=""       Email
+      --help=false         Print usage
       -p, --password=""    Password
       -u, --username=""    Username
 
@@ -25,5 +25,3 @@ adding the server name.
 
     example:
     $ docker login localhost:8080
-
-

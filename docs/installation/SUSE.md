@@ -91,7 +91,7 @@ flag is set to `yes` like so:
 
 If you need to add an HTTP Proxy, set a different directory or partition for the
 Docker runtime files, or make other customizations, read the systemd article to
-learn how to [customize your systemd Docker daemon options](/articles/systemd/).
+learn how to [customize your systemd Docker daemon options](../articles/systemd.md).
 
 ## Uninstallation
 
@@ -113,4 +113,4 @@ You can find more details about Docker on openSUSE or SUSE Linux Enterprise in
 the [Docker quick start guide](https://www.suse.com/documentation/sles-12/dockerquick/data/dockerquick.
 html) on the SUSE website. The document targets SUSE Linux Enterprise, but its contents apply also to openSUSE.
 
-Continue to the [User Guide](/userguide/).
+Continue to the [User Guide](../userguide/).

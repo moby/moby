@@ -30,6 +30,7 @@ type CommonConfig struct {
 	LogConfig      runconfig.LogConfig
 	Mtu            int
 	Pidfile        string
+	RemappedRoot   string
 	Root           string
 	TrustKeyPath   string
 	DefaultNetwork string
@@ -38,6 +39,10 @@ type CommonConfig struct {
 	// multihost networking (to store networks and endpoints information) and by the node discovery
 	// mechanism.
 	ClusterStore string
+
+	// ClusterOpts is used to pass options to the discovery package for tuning libkv settings, such
+	// as TLS configuration settings.
+	ClusterOpts map[string]string
 
 	// ClusterAdvertise is the network endpoint that the Engine advertises for the purpose of node
 	// discovery. This should be a 'host:port' combination on which that daemon instance is
@@ -68,4 +73,5 @@ func (config *Config) InstallCommonFlags(cmd *flag.FlagSet, usageFn func(string)
 	cmd.Var(opts.NewMapOpts(config.LogConfig.Config, nil), []string{"-log-opt"}, usageFn("Set log driver options"))
 	cmd.StringVar(&config.ClusterAdvertise, []string{"-cluster-advertise"}, "", usageFn("Address of the daemon instance to advertise"))
 	cmd.StringVar(&config.ClusterStore, []string{"-cluster-store"}, "", usageFn("Set the cluster store"))
+	cmd.Var(opts.NewMapOpts(config.ClusterOpts, nil), []string{"-cluster-store-opt"}, usageFn("Set cluster store options"))
 }

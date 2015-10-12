@@ -5,7 +5,6 @@ description = "The logs command description and usage"
 keywords = ["logs, retrieve, docker"]
 [menu.main]
 parent = "smn_cli"
-weight=1
 +++
 <![end-metadata]-->
 
@@ -16,6 +15,7 @@ weight=1
     Fetch the logs of a container
 
       -f, --follow=false        Follow log output
+      --help=false              Print usage
       --since=""                Show logs since timestamp
       -t, --timestamps=false    Show timestamps
       --tail="all"              Number of lines to show from the end of the logs

@@ -21,10 +21,10 @@ import (
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/progressreader"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/pkg/truncindex"
 	"github.com/docker/docker/runconfig"
 	"github.com/vbatts/tar-split/tar/asm"
@@ -82,6 +82,8 @@ type Graph struct {
 	imageMutex       imageMutex // protect images in driver.
 	retained         *retainedLayers
 	tarSplitDisabled bool
+	uidMaps          []idtools.IDMap
+	gidMaps          []idtools.IDMap
 }
 
 // file names for ./graph/<ID>/
@@ -101,13 +103,18 @@ var (
 
 // NewGraph instantiates a new graph at the given root path in the filesystem.
 // `root` will be created if it doesn't exist.
-func NewGraph(root string, driver graphdriver.Driver) (*Graph, error) {
+func NewGraph(root string, driver graphdriver.Driver, uidMaps, gidMaps []idtools.IDMap) (*Graph, error) {
 	abspath, err := filepath.Abs(root)
 	if err != nil {
 		return nil, err
 	}
+
+	rootUID, rootGID, err := idtools.GetRootUIDGID(uidMaps, gidMaps)
+	if err != nil {
+		return nil, err
+	}
 	// Create the root directory if it doesn't exists
-	if err := system.MkdirAll(root, 0700); err != nil {
+	if err := idtools.MkdirAllAs(root, 0700, rootUID, rootGID); err != nil && !os.IsExist(err) {
 		return nil, err
 	}
 
@@ -116,6 +123,8 @@ func NewGraph(root string, driver graphdriver.Driver) (*Graph, error) {
 		idIndex:  truncindex.NewTruncIndex([]string{}),
 		driver:   driver,
 		retained: &retainedLayers{layerHolders: make(map[string]map[string]struct{})},
+		uidMaps:  uidMaps,
+		gidMaps:  gidMaps,
 	}
 
 	// Windows does not currently support tarsplit functionality.
@@ -325,7 +334,11 @@ func (graph *Graph) TempLayerArchive(id string, sf *streamformatter.StreamFormat
 // mktemp creates a temporary sub-directory inside the graph's filesystem.
 func (graph *Graph) mktemp() (string, error) {
 	dir := filepath.Join(graph.root, "_tmp", stringid.GenerateNonCryptoID())
-	if err := system.MkdirAll(dir, 0700); err != nil {
+	rootUID, rootGID, err := idtools.GetRootUIDGID(graph.uidMaps, graph.gidMaps)
+	if err != nil {
+		return "", err
+	}
+	if err := idtools.MkdirAllAs(dir, 0700, rootUID, rootGID); err != nil {
 		return "", err
 	}
 	return dir, nil

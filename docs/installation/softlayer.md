@@ -27,10 +27,10 @@ parent = "smn_cloud"
 7. Click the *Continue Your Order* button at the bottom right.
 8. Fill out VSI *hostname* and *domain*.
 9. Insert the required *User Metadata* and place the order.
-10. Then continue with the [*Ubuntu*](../ubuntulinux/#ubuntu-linux)
+10. Then continue with the [*Ubuntu*](ubuntulinux.md#ubuntu-linux)
    instructions.
 
 ## What next?
 
-Continue with the [User Guide](/userguide/).
+Continue with the [User Guide](../userguide/).
 

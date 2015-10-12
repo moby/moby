@@ -185,6 +185,29 @@ Most test targets require that you build these precursor targets first:
 
 ## Running individual or multiple named tests 
 
+### Unit tests 
+
+We use golang standard [testing](https://golang.org/pkg/testing/)
+package or [gocheck](https://labix.org/gocheck) for our unit tests. 
+
+You can use the `TESTDIRS` environment variable to run unit tests for
+a single package.
+
+    $ TESTDIRS='opts' make test-unit
+
+You can also use the `TESTFLAGS` environment variable to run a single test. The
+flag's value is passed as arguments to the `go test` command. For example, from
+your local host you can run the `TestBuild` test with this command:
+
+    $ TESTFLAGS='-test.run ^TestValidateIPAddress$' make test-unit
+
+On unit tests, it's better to use `TESTFLAGS` in combination with
+`TESTDIRS` to make it quicker to run a specific test.
+
+    $ TESTDIRS='opts' TESTFLAGS='-test.run ^TestValidateIPAddress$' make test-unit
+
+### Integration tests 
+
 We use [gocheck](https://labix.org/gocheck) for our integration-cli tests. 
 You can use the `TESTFLAGS` environment variable to run a single test. The
 flag's value is passed as arguments to the `go test` command. For example, from
@@ -206,7 +229,7 @@ run a Bash terminal on Windows.
 
 1.  If you don't have one open already, start a Git Bash terminal.
 
-	 ![Git Bash](/project/images/git_bash.png)
+	 ![Git Bash](images/git_bash.png)
 
 2. Change to the `docker` source directory.
 
@@ -291,7 +314,7 @@ can browse the docs.
 
 5. Once in the documentation, look for the red notice to verify you are seeing the correct build.
 
-    ![Beta documentation](/project/images/red_notice.png)
+    ![Beta documentation](images/red_notice.png)
 
 6. Navigate to your new or changed document.
 
@@ -305,4 +328,4 @@ can browse the docs.
 Congratulations, you have successfully completed the basics you need to
 understand the Docker test framework. In the next steps, you use what you have
 learned so far to [contribute to Docker by working on an
-issue](/project/make-a-contribution/).
+issue](make-a-contribution.md).

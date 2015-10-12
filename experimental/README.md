@@ -71,10 +71,8 @@ to build a Docker binary with the experimental features enabled:
 
 ## Current experimental features
 
-* [Network plugins](plugins_network.md)
-* [Networking and Services UI](networking.md)
-* [Native multi-host networking](network_overlay.md)
-* [Compose, Swarm and networking integration](compose_swarm_networking.md)
+ * [External graphdriver plugins](plugins_graphdriver.md)
+ * [User namespaces](userns.md)
 
 ## How to comment on an experimental feature
 

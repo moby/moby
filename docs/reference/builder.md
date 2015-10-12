@@ -18,11 +18,11 @@ instructions in succession.
 
 This page describes the commands you can use in a `Dockerfile`. When you are
 done reading this page, refer to the [`Dockerfile` Best
-Practices](/articles/dockerfile_best-practices) for a tip-oriented guide.
+Practices](../articles/dockerfile_best-practices.md) for a tip-oriented guide.
 
 ## Usage
 
-The [`docker build`](/reference/commandline/build/) command builds an image from
+The [`docker build`](commandline/build.md) command builds an image from
 a `Dockerfile` and a *context*. The build's context is the files at a specified
 location `PATH` or `URL`. The `PATH` is a directory on your local filesystem.
 The `URL` is a the location of a Git repository.
@@ -75,7 +75,7 @@ instructions.
 Whenever possible, Docker will re-use the intermediate images (cache),
 to accelerate the `docker build` process significantly. This is indicated by
 the `Using cache` message in the console output.
-(For more information, see the [Build cache section](/articles/dockerfile_best-practices/#build-cache)) in the
+(For more information, see the [Build cache section](../articles/dockerfile_best-practices.md#build-cache)) in the
 `Dockerfile` best practices guide:
 
     $ docker build -t SvenDowideit/ambassador .
@@ -92,7 +92,7 @@ the `Using cache` message in the console output.
     Successfully built 1a5ffc17324d
 
 When you're done with your build, you're ready to look into [*Pushing a
-repository to its registry*]( /userguide/dockerrepos/#contributing-to-docker-hub).
+repository to its registry*](../userguide/dockerrepos.md#contributing-to-docker-hub).
 
 ## Format
 
@@ -106,7 +106,7 @@ be UPPERCASE in order to distinguish them from arguments more easily.
 
 Docker runs the instructions in a `Dockerfile` in order. **The
 first instruction must be \`FROM\`** in order to specify the [*Base
-Image*](/reference/glossary/#base-image) from which you are building.
+Image*](glossary.md#base-image) from which you are building.
 
 Docker will treat lines that *begin* with `#` as a
 comment. A `#` marker anywhere else in the line will
@@ -186,66 +186,90 @@ that set `abc` to `bye`.
 
 ### .dockerignore file
 
-If a file named `.dockerignore` exists in the root of `PATH`, then Docker
-interprets it as a newline-separated list of exclusion patterns. Docker excludes
-files or directories relative to `PATH` that match these exclusion patterns. If
-there are any `.dockerignore` files in `PATH` subdirectories, Docker treats
-them as normal files. 
+Before the docker CLI sends the context to the docker daemon, it looks
+for a file named `.dockerignore` in the root directory of the context.
+If this file exists, the CLI modifies the context to exclude files and
+directories that match patterns in it.  This helps to avoid
+unnecessarily sending large or sensitive files and directories to the
+daemon and potentially adding them to images using `ADD` or `COPY`.
 
-Filepaths in `.dockerignore` are absolute with the current directory as the
-root. Wildcards are allowed but the search is not recursive. Globbing (file name
-expansion) is done using Go's
-[filepath.Match](http://golang.org/pkg/path/filepath#Match) rules.
+The CLI interprets the `.dockerignore` file as a newline-separated
+list of patterns similar to the file globs of Unix shells.  For the
+purposes of matching, the root of the context is considered to be both
+the working and the root directory.  For example, the patterns
+`/foo/bar` and `foo/bar` both exclude a file or directory named `bar`
+in the `foo` subdirectory of `PATH` or in the root of the git
+repository located at `URL`.  Neither excludes anything else.
 
-You can specify exceptions to exclusion rules. To do this, simply prefix a
-pattern with an `!` (exclamation mark) in the same way you would in a
-`.gitignore` file. Currently there is no support for regular expressions.
-Formats like `[^temp*]` are ignored. 
-
-The following is an example `.dockerignore` file:
+Here is an example `.dockerignore` file:
 
 ```
     */temp*
     */*/temp*
     temp?
-    *.md
-    !LICENSE.md
 ```
 
 This file causes the following build behavior:
 
 | Rule           | Behavior                                                                                                                                                                     |
 |----------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `*/temp*`      | Exclude all files with names starting with`temp` in any subdirectory below the root directory. For example, a file named`/somedir/temporary.txt` is ignored.                 |
-| `*/*/temp*`    | Exclude files starting with name `temp` from any subdirectory that is two levels below the root directory. For example, the file `/somedir/subdir/temporary.txt` is ignored. |
-| `temp?`        | Exclude the files that match the pattern in the root directory. For example, the files `tempa`, `tempb` in the root directory are ignored.                                   |
-| `*.md `        | Exclude all markdown files in the root directory.                                                                                                                            |
-| `!LICENSE.md`  | Exception to the Markdown files exclusion. `LICENSE.md`is included  in the build.                                                                       |
+| `*/temp*`      | Exclude files and directories whose names start with `temp` in any immediate subdirectory of the root.  For example, the plain file `/somedir/temporary.txt` is excluded, as is the directory `/somedir/temp`.                 |
+| `*/*/temp*`    | Exclude files and directories starting with `temp` from any subdirectory that is two levels below the root. For example, `/somedir/subdir/temporary.txt` is excluded. |
+| `temp?`        | Exclude files and directories in the root directory whose names are a one-character extension of `temp`.  For example, `/tempa` and `/tempb` are excluded.
 
-The placement of  `!` exception rules influences the matching algorithm; the
-last line of the `.dockerignore` that matches a particular file determines
-whether it is included or excluded. In the above example, the `LICENSE.md` file
-matches both the  `*.md` and `!LICENSE.md` rule. If you reverse the lines in the
-example:
+
+Matching is done using Go's
+[filepath.Match](http://golang.org/pkg/path/filepath#Match) rules.  A
+preprocessing step removes leading and trailing whitespace and
+eliminates `.` and `..` elements using Go's
+[filepath.Clean](http://golang.org/pkg/path/filepath/#Clean).  Lines
+that are blank after preprocessing are ignored.
+
+Lines starting with `!` (exclamation mark) can be used to make exceptions
+to exclusions.  The following is an example `.dockerignore` file that
+uses this mechanism:
 
 ```
-    */temp*
-    */*/temp*
-    temp?
-    !LICENSE.md
     *.md
+    !README.md
 ```
 
-The build would exclude `LICENSE.md` because the last `*.md` rule adds all
-Markdown files in the root directory back onto the ignore list. The
-`!LICENSE.md` rule has no effect because the subsequent `*.md` rule overrides
-it.
+All markdown files *except* `README.md` are excluded from the context.
 
-You can even use the  `.dockerignore` file to ignore the `Dockerfile` and
-`.dockerignore` files. This is useful if you are copying files from the root of
-the build context into your new container but do not want to include the
-`Dockerfile` or `.dockerignore` files (e.g. `ADD . /someDir/`).
+The placement of `!` exception rules influences the behavior: the last
+line of the `.dockerignore` that matches a particular file determines
+whether it is included or excluded.  Consider the following example:
 
+```
+    *.md
+    !README*.md
+    README-secret.md
+```
+
+No markdown files are included in the context except README files other than
+`README-secret.md`.
+
+Now consider this example:
+
+```
+    *.md
+    README-secret.md
+    !README*.md
+```
+
+All of the README files are included.  The middle line has no effect because
+`!README*.md` matches `README-secret.md` and comes last.
+
+You can even use the `.dockerignore` file to exclude the `Dockerfile`
+and `.dockerignore` files.  These files are still sent to the daemon
+because it needs them to do its job.  But the `ADD` and `COPY` commands
+do not copy them to the the image.
+
+Finally, you may want to specify which files to include in the
+context, rather than which to exclude. To achieve this, specify `*` as
+the first pattern, followed by one or more `!` exception patterns.
+
+**Note**: For historical reasons, the pattern `.` is ignored.
 
 ## FROM
 
@@ -259,11 +283,10 @@ Or
 
     FROM <image>@<digest>
 
-The `FROM` instruction sets the [*Base Image*](/reference/glossary/#base-image)
+The `FROM` instruction sets the [*Base Image*](glossary.md#base-image)
 for subsequent instructions. As such, a valid `Dockerfile` must have `FROM` as
 its first instruction. The image can be any valid image – it is especially easy
-to start by **pulling an image** from the [*Public Repositories*](
-/userguide/dockerrepos).
+to start by **pulling an image** from the [*Public Repositories*](../userguide/dockerrepos.md).
 
 - `FROM` must be the first non-comment instruction in the `Dockerfile`.
 
@@ -334,7 +357,7 @@ cache for `RUN` instructions can be invalidated by using the `--no-cache`
 flag, for example `docker build --no-cache`.
 
 See the [`Dockerfile` Best Practices
-guide](/articles/dockerfile_best-practices/#build-cache) for more information.
+guide](../articles/dockerfile_best-practices.md#build-cache) for more information.
 
 The cache for `RUN` instructions can be invalidated by `ADD` instructions. See
 [below](#add) for details.
@@ -464,14 +487,14 @@ To view an image's labels, use the `docker inspect` command.
 The `EXPOSE` instructions informs Docker that the container will listen on the
 specified network ports at runtime. Docker uses this information to interconnect
 containers using links (see the [Docker User
-Guide](/userguide/dockerlinks)) and to determine which ports to expose to the
-host when [using the -P flag](/reference/run/#expose-incoming-ports).
+Guide](../userguide/dockerlinks.md) and to determine which ports to expose to the
+host when [using the -P flag](run.md#expose-incoming-ports).
 
 > **Note**:
 > `EXPOSE` doesn't define which ports can be exposed to the host or make ports
 > accessible from the host by default. To expose ports to the host, at runtime,
-> [use the `-p` flag](/userguide/dockerlinks) or
-> [the -P flag](/reference/run/#expose-incoming-ports).
+> [use the `-p` flag](../userguide/dockerlinks.md) or
+> [the -P flag](run.md#expose-incoming-ports).
 
 ## ENV
 
@@ -571,7 +594,7 @@ of whether or not the file has changed and the cache should be updated.
 > following instructions from the Dockerfile if the contents of `<src>` have
 > changed. This includes invalidating the cache for `RUN` instructions.
 > See the [`Dockerfile` Best Practices
-guide](/articles/dockerfile_best-practices/#build-cache) for more information.
+guide](../articles/dockerfile_best-practices.md#build-cache) for more information.
 
 
 `ADD` obeys the following rules:
@@ -914,7 +937,7 @@ containers. The value can be a JSON array, `VOLUME ["/var/log/"]`, or a plain
 string with multiple arguments, such as `VOLUME /var/log` or `VOLUME /var/log
 /var/db`. For more information/examples and mounting instructions via the
 Docker client, refer to 
-[*Share Directories via Volumes*](/userguide/dockervolumes/#mount-a-host-directory-as-a-data-volume)
+[*Share Directories via Volumes*](../userguide/dockervolumes.md#mount-a-host-directory-as-a-data-volume)
 documentation.
 
 The `docker run` command initializes the newly created volume with any data 
@@ -1166,45 +1189,53 @@ or a signal name in the format SIGNAME, for instance SIGKILL.
 
 ## Dockerfile examples
 
-    # Nginx
-    #
-    # VERSION               0.0.1
+Below you can see some examples of Dockerfile syntax. If you're interested in
+something more realistic, take a look at the list of [Dockerization examples](../examples/).
 
-    FROM      ubuntu
-    MAINTAINER Victor Vieux <victor@docker.com>
+```
+# Nginx
+#
+# VERSION               0.0.1
 
-    LABEL Description="This image is used to start the foobar executable" Vendor="ACME Products" Version="1.0"
-    RUN apt-get update && apt-get install -y inotify-tools nginx apache2 openssh-server
+FROM      ubuntu
+MAINTAINER Victor Vieux <victor@docker.com>
 
-    # Firefox over VNC
-    #
-    # VERSION               0.3
+LABEL Description="This image is used to start the foobar executable" Vendor="ACME Products" Version="1.0"
+RUN apt-get update && apt-get install -y inotify-tools nginx apache2 openssh-server
+```
 
-    FROM ubuntu
+```
+# Firefox over VNC
+#
+# VERSION               0.3
 
-    # Install vnc, xvfb in order to create a 'fake' display and firefox
-    RUN apt-get update && apt-get install -y x11vnc xvfb firefox
-    RUN mkdir ~/.vnc
-    # Setup a password
-    RUN x11vnc -storepasswd 1234 ~/.vnc/passwd
-    # Autostart firefox (might not be the best way, but it does the trick)
-    RUN bash -c 'echo "firefox" >> /.bashrc'
+FROM ubuntu
 
-    EXPOSE 5900
-    CMD    ["x11vnc", "-forever", "-usepw", "-create"]
+# Install vnc, xvfb in order to create a 'fake' display and firefox
+RUN apt-get update && apt-get install -y x11vnc xvfb firefox
+RUN mkdir ~/.vnc
+# Setup a password
+RUN x11vnc -storepasswd 1234 ~/.vnc/passwd
+# Autostart firefox (might not be the best way, but it does the trick)
+RUN bash -c 'echo "firefox" >> /.bashrc'
 
-    # Multiple images example
-    #
-    # VERSION               0.1
+EXPOSE 5900
+CMD    ["x11vnc", "-forever", "-usepw", "-create"]
+```
 
-    FROM ubuntu
-    RUN echo foo > bar
-    # Will output something like ===> 907ad6c2736f
+```
+# Multiple images example
+#
+# VERSION               0.1
 
-    FROM ubuntu
-    RUN echo moo > oink
-    # Will output something like ===> 695d7793cbe4
+FROM ubuntu
+RUN echo foo > bar
+# Will output something like ===> 907ad6c2736f
 
-    # You᾿ll now have two images, 907ad6c2736f with /bar, and 695d7793cbe4 with
-    # /oink.
+FROM ubuntu
+RUN echo moo > oink
+# Will output something like ===> 695d7793cbe4
 
+# You᾿ll now have two images, 907ad6c2736f with /bar, and 695d7793cbe4 with
+# /oink.
+```

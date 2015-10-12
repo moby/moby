@@ -3,7 +3,7 @@ package graph
 import (
 	"testing"
 
-	"github.com/docker/docker/pkg/progressreader"
+	"github.com/docker/docker/pkg/broadcaster"
 	"github.com/docker/docker/pkg/reexec"
 )
 
@@ -13,8 +13,8 @@ func init() {
 
 func TestPools(t *testing.T) {
 	s := &TagStore{
-		pullingPool: make(map[string]*progressreader.Broadcaster),
-		pushingPool: make(map[string]*progressreader.Broadcaster),
+		pullingPool: make(map[string]*broadcaster.Buffered),
+		pushingPool: make(map[string]*broadcaster.Buffered),
 	}
 
 	if _, found := s.poolAdd("pull", "test1"); found {

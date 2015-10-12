@@ -23,7 +23,7 @@ func checkContains(expected string, out string, c *check.C) {
 }
 
 func (s *DockerSuite) TestNetHostname(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	testRequires(c, DaemonIsLinux, NotUserNamespace)
 
 	var (
 		out    string
@@ -77,11 +77,11 @@ func (s *DockerSuite) TestNetHostname(c *check.C) {
 	if out, _, err = runCommandWithOutput(runCmd); err == nil {
 		c.Fatalf(out, err)
 	}
-	checkContains("invalid --net: weird", out, c)
+	checkContains("network weird not found", out, c)
 }
 
 func (s *DockerSuite) TestConflictContainerNetworkAndLinks(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	testRequires(c, DaemonIsLinux, NotUserNamespace)
 	var (
 		out    string
 		err    error
@@ -102,7 +102,7 @@ func (s *DockerSuite) TestConflictContainerNetworkAndLinks(c *check.C) {
 }
 
 func (s *DockerSuite) TestConflictNetworkModeAndOptions(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	testRequires(c, DaemonIsLinux, NotUserNamespace)
 	var (
 		out    string
 		err    error

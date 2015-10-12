@@ -5,7 +5,6 @@ description = "The load command description and usage"
 keywords = ["stdin, tarred, repository"]
 [menu.main]
 parent = "smn_cli"
-weight=1
 +++
 <![end-metadata]-->
 
@@ -15,6 +14,7 @@ weight=1
 
     Load an image from a tar archive or STDIN
 
+      --help=false       Print usage
       -i, --input=""     Read from a tar archive file, instead of STDIN. The tarball may be compressed with gzip, bzip, or xz
 
 Loads a tarred repository from a file or the standard input stream.
@@ -34,4 +34,3 @@ Restores both images and tags.
     fedora              20                  58394af37342        7 weeks ago         385.5 MB
     fedora              heisenbug           58394af37342        7 weeks ago         385.5 MB
     fedora              latest              58394af37342        7 weeks ago         385.5 MB
-

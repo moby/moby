@@ -23,7 +23,7 @@ func Init() {
 }
 
 // Initialize is exported
-func (s *Discovery) Initialize(uris string, _ time.Duration, _ time.Duration) error {
+func (s *Discovery) Initialize(uris string, _ time.Duration, _ time.Duration, _ map[string]string) error {
 	for _, input := range strings.Split(uris, ",") {
 		for _, ip := range discovery.Generate(input) {
 			entry, err := discovery.NewEntry(ip)

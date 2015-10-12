@@ -63,3 +63,8 @@ func handleTarTypeBlockCharFifo(hdr *tar.Header, path string) error {
 func handleLChmod(hdr *tar.Header, path string, hdrInfo os.FileInfo) error {
 	return nil
 }
+
+func getFileUIDGID(stat interface{}) (int, int, error) {
+	// no notion of file ownership mapping yet on Windows
+	return 0, 0, nil
+}

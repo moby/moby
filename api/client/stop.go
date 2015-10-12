@@ -9,13 +9,13 @@ import (
 	flag "github.com/docker/docker/pkg/mflag"
 )
 
-// CmdStop stops one or more running containers.
+// CmdStop stops one or more containers.
 //
 // A running container is stopped by first sending SIGTERM and then SIGKILL if the container fails to stop within a grace period (the default is 10 seconds).
 //
 // Usage: docker stop [OPTIONS] CONTAINER [CONTAINER...]
 func (cli *DockerCli) CmdStop(args ...string) error {
-	cmd := Cli.Subcmd("stop", []string{"CONTAINER [CONTAINER...]"}, "Stop a running container by sending SIGTERM and then SIGKILL after a\ngrace period", true)
+	cmd := Cli.Subcmd("stop", []string{"CONTAINER [CONTAINER...]"}, Cli.DockerCommands["stop"].Description+".\nSending SIGTERM and then SIGKILL after a grace period", true)
 	nSeconds := cmd.Int([]string{"t", "-time"}, 10, "Seconds to wait for stop before killing it")
 	cmd.Require(flag.Min, 1)
 

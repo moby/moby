@@ -8,16 +8,15 @@ docker-ps - List containers
 **docker ps**
 [**-a**|**--all**[=*false*]]
 [**--before**[=*BEFORE*]]
-[**--help**]
 [**-f**|**--filter**[=*[]*]]
+[**--format**=*"TEMPLATE"*]
+[**--help**]
 [**-l**|**--latest**[=*false*]]
 [**-n**[=*-1*]]
 [**--no-trunc**[=*false*]]
 [**-q**|**--quiet**[=*false*]]
 [**-s**|**--size**[=*false*]]
 [**--since**[=*SINCE*]]
-[**--format**=*"TEMPLATE"*]
-
 
 # DESCRIPTION
 
@@ -31,9 +30,6 @@ the running containers.
 **--before**=""
    Show only containers created before Id or Name, including non-running containers.
 
-**--help**
-  Print usage statement
-
 **-f**, **--filter**=[]
    Provide filter values. Valid filters:
                           exited=<int> - containers with exit code of <int>
@@ -43,6 +39,23 @@ the running containers.
                           id=<ID> - container's ID
                           ancestor=(<image-name>[:tag]|<image-id>|<image@digest>) - filters containers that were
                           created from the given image or a descendant.
+
+**--format**=*"TEMPLATE"*
+   Pretty-print containers using a Go template.
+   Valid placeholders:
+      .ID - Container ID
+      .Image - Image ID
+      .Command - Quoted command
+      .CreatedAt - Time when the container was created.
+      .RunningFor - Elapsed time since the container was started.
+      .Ports - Exposed ports.
+      .Status - Container status.
+      .Size - Container disk size.
+      .Labels - All labels asigned to the container.
+      .Label - Value of a specific label for this container. For example `{{.Label "com.docker.swarm.cpu"}}`
+
+**--help**
+  Print usage statement
 
 **-l**, **--latest**=*true*|*false*
    Show only the latest created container, include non-running ones. The default is *false*.
@@ -61,20 +74,6 @@ the running containers.
 
 **--since**=""
    Show only containers created since Id or Name, include non-running ones.
-
-**--format**=*"TEMPLATE"*
-   Pretty-print containers using a Go template.
-   Valid placeholders:
-      .ID - Container ID
-      .Image - Image ID
-      .Command - Quoted command
-      .CreatedAt - Time when the container was created.
-      .RunningFor - Elapsed time since the container was started.
-      .Ports - Exposed ports.
-      .Status - Container status.
-      .Size - Container disk size.
-      .Labels - All labels asigned to the container.
-      .Label - Value of a specific label for this container. For example `{{.Label "com.docker.swarm.cpu"}}`
 
 # EXAMPLES
 # Display all containers, including non-running

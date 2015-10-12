@@ -22,7 +22,7 @@ If a question about syntactical, grammatical, or lexical practice comes up,
 refer to the AP guide first. If you don’t have a copy of (or online subscription
 to) the AP guide, you can almost always find an answer to a specific question by
 searching the web. If you can’t find an answer, please ask a
-[maintainer](https://github.com/docker/docker/blob/master/docs/MAINTAINERS) and
+[maintainer](https://github.com/docker/docker/blob/master/MAINTAINERS) and
 we will find the answer.
 
 That said, please don't get too hung up on using correct style. We'd rather have

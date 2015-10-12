@@ -86,6 +86,12 @@ will add the libraries here.
       <td>Active</td>
     </tr>
     <tr>
+      <td>HTML (Web Components)</td>
+      <td>docker-elements</td>
+      <td><a class="reference external" href="https://github.com/kapalhq/docker-elements">https://github.com/kapalhq/docker-elements</a></td>
+      <td>Active</td>
+    </tr>
+    <tr>
       <td>Java</td>
       <td>docker-java</td>
       <td><a class="reference external" href="https://github.com/docker-java/docker-java">https://github.com/docker-java/docker-java</a></td>

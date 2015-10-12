@@ -1,9 +1,12 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
+
+	"github.com/docker/docker/pkg/reexec"
 )
 
 var (
@@ -15,10 +18,6 @@ var (
 
 	// the private registry to use for tests
 	privateRegistryURL = "127.0.0.1:5000"
-
-	dockerBasePath       = "/var/lib/docker"
-	volumesConfigPath    = dockerBasePath + "/volumes"
-	containerStoragePath = dockerBasePath + "/containers"
 
 	runtimePath    = "/var/run/docker"
 	execDriverPath = runtimePath + "/execdriver/native"
@@ -38,6 +37,13 @@ var (
 	// daemonDefaultImage is the name of the default image to use when running
 	// tests. This is platform dependent.
 	daemonDefaultImage string
+
+	// For a local daemon on Linux, these values will be used for testing
+	// user namespace support as the standard graph path(s) will be
+	// appended with the root remapped uid.gid prefix
+	dockerBasePath       string
+	volumesConfigPath    string
+	containerStoragePath string
 )
 
 const (
@@ -50,6 +56,7 @@ const (
 )
 
 func init() {
+	reexec.Init()
 	if dockerBin := os.Getenv("DOCKER_BINARY"); dockerBin != "" {
 		dockerBinary = dockerBin
 	}
@@ -81,11 +88,25 @@ func init() {
 	// Similarly, it will be perfectly valid to also run CLI tests from
 	// a Linux CLI (built with the daemon tag) against a Windows daemon.
 	if len(os.Getenv("DOCKER_REMOTE_DAEMON")) > 0 {
-		fmt.Println("INFO: Testing against a remote daemon")
 		isLocalDaemon = false
 	} else {
-		fmt.Println("INFO: Testing against a local daemon")
 		isLocalDaemon = true
 	}
 
+	// This is only used for a tests with local daemon true (Linux-only today)
+	// default is "/var/lib/docker", but we'll try and ask the
+	// /info endpoint for the specific root dir
+	dockerBasePath = "/var/lib/docker"
+	type Info struct {
+		DockerRootDir string
+	}
+	var i Info
+	status, b, err := sockRequest("GET", "/info", nil)
+	if err == nil && status == 200 {
+		if err = json.Unmarshal(b, &i); err == nil {
+			dockerBasePath = i.DockerRootDir
+		}
+	}
+	volumesConfigPath = dockerBasePath + "/volumes"
+	containerStoragePath = dockerBasePath + "/containers"
 }

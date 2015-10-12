@@ -199,5 +199,5 @@ Excellent. Our container has been stopped.
 Now we've seen how simple it is to get started with Docker. Let's learn how to
 do some more advanced tasks.
 
-Go to [Working With Containers](/userguide/usingdocker).
+Go to [Working With Containers](usingdocker.md).
 

@@ -5,7 +5,6 @@ description = "The attach command description and usage"
 keywords = ["attach, running, container"]
 [menu.main]
 parent = "smn_cli"
-weight=1
 +++
 <![end-metadata]-->
 
@@ -15,6 +14,7 @@ weight=1
 
     Attach to a running container
 
+      --help=false        Print usage
       --no-stdin=false    Do not attach STDIN
       --sig-proxy=true    Proxy all received signals to the process
 
@@ -88,4 +88,3 @@ process is returned by the `docker attach` command to its caller too:
     13
     $ docker ps -a | grep test
     275c44472aeb        debian:7            "/bin/bash"         26 seconds ago      Exited (13) 17 seconds ago                         test
-

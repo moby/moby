@@ -29,7 +29,7 @@ to preface each `docker` command with `sudo`. One way to avoid having to use
 add users that will be entering `docker` commands to the 'docker' group.
 
 For more information about installing Docker or `sudo` configuration, refer to
-the [installation](/installation) instructions for your operating system.
+the [installation](../installation) instructions for your operating system.
 
 
 ## Download a pre-built image
@@ -38,7 +38,7 @@ the [installation](/installation) instructions for your operating system.
     $ docker pull ubuntu
 
 This will find the `ubuntu` image by name on
-[*Docker Hub*](/userguide/dockerrepos/#searching-for-images)
+[*Docker Hub*](../userguide/dockerrepos.md#searching-for-images)
 and download it from [Docker Hub](https://hub.docker.com) to a local
 image cache.
 
@@ -82,13 +82,17 @@ then it is trivial for someone to gain root access to the host where the
 daemon is running.
 
 Similarly, the Docker client can use `-H` to connect to a custom port.
+The Docker client will default to connecting to `unix:///var/run/docker.sock`
+on Linux, and `tcp://127.0.0.1:2376` on Windows.
 
 `-H` accepts host and port assignment in the following format:
 
-    tcp://[host][:port][path] or unix://path
+    tcp://[host]:[port][path] or unix://path
 
 For example:
 
+-   `tcp://` -> TCP connection to `127.0.0.1` on either port `2376` when TLS encryption
+    is on, or port `2375` when communication is in plain text.
 -   `tcp://host:2375` -> TCP connection on
     host:2375
 -   `tcp://host:2375/path` -> TCP connection on
@@ -101,7 +105,7 @@ when no `-H` was passed in.
 
 `-H` also accepts short form for TCP bindings:
 
-    host[:port] or :port
+    `host:` or `host:port` or `:port`
 
 Run Docker in daemon mode:
 
@@ -190,6 +194,6 @@ you already have, use the `docker images` command.
 You now have an image state from which you can create new instances.
 
 Read more about [*Share Images via
-Repositories*](/userguide/dockerrepos) or
+Repositories*](../userguide/dockerrepos.md) or
 continue to the complete [*Command
-Line*](/reference/commandline/cli)
+Line*](../reference/commandline/cli.md)

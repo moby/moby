@@ -5,13 +5,12 @@ description = "The stats command description and usage"
 keywords = ["container, resource, statistics"]
 [menu.main]
 parent = "smn_cli"
-weight=1
 +++
 <![end-metadata]-->
 
 # stats
 
-    Usage: docker stats CONTAINER [CONTAINER...]
+    Usage: docker stats [OPTIONS] CONTAINER [CONTAINER...]
 
     Display a live stream of one or more containers' resource usage statistics
 

@@ -5,7 +5,6 @@ description = "The save command description and usage"
 keywords = ["tarred, repository, backup"]
 [menu.main]
 parent = "smn_cli"
-weight=1
 +++
 <![end-metadata]-->
 
@@ -15,6 +14,7 @@ weight=1
 
     Save an image(s) to a tar archive (streamed to STDOUT by default)
 
+      --help=false       Print usage
       -o, --output=""    Write to a file, instead of STDOUT
 
 Produces a tarred repository to the standard output stream.

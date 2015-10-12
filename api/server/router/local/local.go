@@ -5,11 +5,9 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/server/httputils"
 	dkrouter "github.com/docker/docker/api/server/router"
 	"github.com/docker/docker/daemon"
-	"github.com/gorilla/mux"
 )
 
 // router is a docker router that talks with the local docker daemon.
@@ -31,11 +29,14 @@ func (l localRoute) Handler() httputils.APIFunc {
 	return l.handler
 }
 
-// Register adds the filtered handler to the mux.
-func (l localRoute) Register(m *mux.Router, handler http.Handler) {
-	logrus.Debugf("Registering %s, %s", l.method, l.path)
-	m.Path(dkrouter.VersionMatcher + l.path).Methods(l.method).Handler(handler)
-	m.Path(l.path).Methods(l.method).Handler(handler)
+// Method returns the http method that the route responds to.
+func (l localRoute) Method() string {
+	return l.method
+}
+
+// Path returns the subpath where the route responds to.
+func (l localRoute) Path() string {
+	return l.path
 }
 
 // NewRoute initialies a new local route for the reouter

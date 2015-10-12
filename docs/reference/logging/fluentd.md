@@ -69,7 +69,7 @@ By default, the logging driver connects to `localhost:24224`. Supply the
 ### tag
 
 By default, Docker uses the first 12 characters of the container ID to tag log messages.
-Refer to the [log tag option documentation](/reference/logging/log_tags/) for customizing
+Refer to the [log tag option documentation](log_tags.md) for customizing
 the log tag format.
 
 

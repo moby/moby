@@ -42,7 +42,7 @@ The built-in LXC execution driver is deprecated for an external implementation.
 The lxc-conf flag and API fields will also be removed.
 
 ### Old Command Line Options
-**Deprecated In Release: [v1.8.0](/release-notes/#docker-engine-1-8-0)**
+**Deprecated In Release: [v1.8.0](../release-notes.md#docker-engine-1-8-0)**
 
 **Target For Removal In Release: v1.10**
 
@@ -103,6 +103,14 @@ the path does not exist.
 
 ### Interacting with V1 registries
 
-Version 1.9 adds a flag (`--no-legacy-registry=false`) which prevents the docker daemon from `pull`, `push`, and `login` operations against v1 registries.  Though disabled by default, this signals the intent to deprecate the v1 protocol.
+Version 1.9 adds a flag (`--disable-legacy-registry=false`) which prevents the docker daemon from `pull`, `push`, and `login` operations against v1 registries.  Though disabled by default, this signals the intent to deprecate the v1 protocol.
 
+### Docker Content Trust ENV passphrase variables name change
+**Deprecated In Release: v1.9**
 
+**Target For Removal In Release: v1.10**
+
+As of 1.9, Docker Content Trust Offline key will be renamed to Root key and the Tagging key will be renamed to Repository key. Due to this renaming, we're also changing the corresponding environment variables
+
+- DOCKER_CONTENT_TRUST_OFFLINE_PASSPHRASE will now be named DOCKER_CONTENT_TRUST_ROOT_PASSPHRASE
+- DOCKER_CONTENT_TRUST_TAGGING_PASSPHRASE will now be named DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE

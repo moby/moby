@@ -10,7 +10,7 @@ parent="smn_containers"
 
 # Working with containers
 
-In the [last section of the Docker User Guide](/userguide/dockerizing)
+In the [last section of the Docker User Guide](dockerizing.md)
 we launched our first containers. We launched containers using the
 `docker run` command:
 
@@ -82,7 +82,7 @@ To see usage for a specific command, specify the command with the `--help` flag:
 
 > **Note:** 
 > For further details and examples of each command, see the
-> [command reference](/reference/commandline/cli/) in this guide.
+> [command reference](../reference/commandline/cli.md) in this guide.
 
 ## Running a web application in Docker
 
@@ -110,8 +110,8 @@ Lastly, we've specified a command for our container to run: `python app.py`. Thi
 
 > **Note:** 
 > You can see more detail on the `docker run` command in the [command
-> reference](/reference/commandline/run) and the [Docker Run
-> Reference](/reference/run/).
+> reference](../reference/commandline/run.md) and the [Docker Run
+> Reference](../reference/run.md).
 
 ## Viewing our web application container
 
@@ -130,7 +130,7 @@ command. This tells the `docker ps` command to return the details of the
 > containers. If you want to see stopped containers too use the `-a` flag.
 
 We can see the same details we saw [when we first Dockerized a
-container](/userguide/dockerizing) with one important addition in the `PORTS`
+container](dockerizing.md) with one important addition in the `PORTS`
 column.
 
     PORTS
@@ -141,7 +141,7 @@ ports exposed in our image to our host.
 
 > **Note:** 
 > We'll learn more about how to expose ports in Docker images when
-> [we learn how to build images](/userguide/dockerimages).
+> [we learn how to build images](dockerimages.md).
 
 In this case Docker has exposed port 5000 (the default Python Flask
 port) on port 49155.
@@ -166,7 +166,7 @@ Docker host.
 So let's now browse to port 49155 in a web browser to
 see the application.
 
-![Viewing the web application](/userguide/webapp1.png).
+![Viewing the web application](webapp1.png).
 
 Our Python application is live!
 
@@ -178,7 +178,7 @@ Our Python application is live!
 >     $ docker-machine ip my-docker-vm
 >     192.168.99.100
 > 
-> In this case you'd browse to http://192.168.99.100:49155 for the above example.
+> In this case you'd browse to `http://192.168.99.100:49155` for the above example.
 
 ## A network port shortcut
 
@@ -309,5 +309,5 @@ Until now we've only used images that we've downloaded from
 [Docker Hub](https://hub.docker.com). Next, let's get introduced to
 building and sharing our own images.
 
-Go to [Working with Docker Images](/userguide/dockerimages).
+Go to [Working with Docker Images](dockerimages.md).
 

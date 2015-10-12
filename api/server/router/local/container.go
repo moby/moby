@@ -116,9 +116,10 @@ func (s *router) getContainersLogs(ctx context.Context, w http.ResponseWriter, r
 		closeNotifier = notifier.CloseNotify()
 	}
 
-	c, err := s.daemon.Get(vars["name"])
-	if err != nil {
-		return err
+	containerName := vars["name"]
+
+	if !s.daemon.Exists(containerName) {
+		return derr.ErrorCodeNoSuchContainer.WithArgs(containerName)
 	}
 
 	outStream := ioutils.NewWriteFlusher(w)
@@ -138,7 +139,7 @@ func (s *router) getContainersLogs(ctx context.Context, w http.ResponseWriter, r
 		Stop:       closeNotifier,
 	}
 
-	if err := s.daemon.ContainerLogs(c, logsConfig); err != nil {
+	if err := s.daemon.ContainerLogs(containerName, logsConfig); err != nil {
 		// The client may be expecting all of the data we're sending to
 		// be multiplexed, so send it through OutStream, which will
 		// have been set up to handle that if needed.

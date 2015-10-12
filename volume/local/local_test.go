@@ -13,7 +13,7 @@ func TestRemove(t *testing.T) {
 	}
 	defer os.RemoveAll(rootDir)
 
-	r, err := New(rootDir)
+	r, err := New(rootDir, 0, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -55,7 +55,7 @@ func TestInitializeWithVolumes(t *testing.T) {
 	}
 	defer os.RemoveAll(rootDir)
 
-	r, err := New(rootDir)
+	r, err := New(rootDir, 0, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -65,7 +65,7 @@ func TestInitializeWithVolumes(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	r, err = New(rootDir)
+	r, err = New(rootDir, 0, 0)
 	if err != nil {
 		t.Fatal(err)
 	}

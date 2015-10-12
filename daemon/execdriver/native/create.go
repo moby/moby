@@ -3,17 +3,15 @@
 package native
 
 import (
-	"errors"
 	"fmt"
-	"net"
 	"strings"
 	"syscall"
 
 	"github.com/docker/docker/daemon/execdriver"
+
 	"github.com/opencontainers/runc/libcontainer/apparmor"
 	"github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/opencontainers/runc/libcontainer/devices"
-	"github.com/opencontainers/runc/libcontainer/utils"
 )
 
 // createContainer populates and configures the container type with the
@@ -30,6 +28,10 @@ func (d *Driver) createContainer(c *execdriver.Command, hooks execdriver.Hooks) 
 	}
 
 	if err := d.createUTS(container, c); err != nil {
+		return nil, err
+	}
+
+	if err := d.setupRemappedRoot(container, c); err != nil {
 		return nil, err
 	}
 
@@ -101,22 +103,6 @@ func (d *Driver) createContainer(c *execdriver.Command, hooks execdriver.Hooks) 
 	d.setupLabels(container, c)
 	d.setupRlimits(container, c)
 	return container, nil
-}
-
-func generateIfaceName() (string, error) {
-	for i := 0; i < 10; i++ {
-		name, err := utils.GenerateRandomName("veth", 7)
-		if err != nil {
-			continue
-		}
-		if _, err := net.InterfaceByName(name); err != nil {
-			if strings.Contains(err.Error(), "no such") {
-				return name, nil
-			}
-			return "", err
-		}
-	}
-	return "", errors.New("Failed to find name for new interface")
 }
 
 func (d *Driver) createNetwork(container *configs.Config, c *execdriver.Command, hooks execdriver.Hooks) error {
@@ -212,6 +198,40 @@ func (d *Driver) createUTS(container *configs.Config, c *execdriver.Command) err
 	return nil
 }
 
+func (d *Driver) setupRemappedRoot(container *configs.Config, c *execdriver.Command) error {
+	if c.RemappedRoot.UID == 0 {
+		container.Namespaces.Remove(configs.NEWUSER)
+		return nil
+	}
+
+	// convert the Docker daemon id map to the libcontainer variant of the same struct
+	// this keeps us from having to import libcontainer code across Docker client + daemon packages
+	cuidMaps := []configs.IDMap{}
+	cgidMaps := []configs.IDMap{}
+	for _, idMap := range c.UIDMapping {
+		cuidMaps = append(cuidMaps, configs.IDMap(idMap))
+	}
+	for _, idMap := range c.GIDMapping {
+		cgidMaps = append(cgidMaps, configs.IDMap(idMap))
+	}
+	container.UidMappings = cuidMaps
+	container.GidMappings = cgidMaps
+
+	for _, node := range container.Devices {
+		node.Uid = uint32(c.RemappedRoot.UID)
+		node.Gid = uint32(c.RemappedRoot.GID)
+	}
+	// TODO: until a kernel/mount solution exists for handling remount in a user namespace,
+	// we must clear the readonly flag for the cgroups mount (@mrunalp concurs)
+	for i := range container.Mounts {
+		if container.Mounts[i].Device == "cgroup" {
+			container.Mounts[i].Flags &= ^syscall.MS_RDONLY
+		}
+	}
+
+	return nil
+}
+
 func (d *Driver) setPrivileged(container *configs.Config) (err error) {
 	container.Capabilities = execdriver.GetAllCapabilities()
 	container.Cgroups.AllowAllDevices = true
@@ -274,6 +294,7 @@ func (d *Driver) setupMounts(container *configs.Config, c *execdriver.Command) e
 		if m.Slave {
 			flags |= syscall.MS_SLAVE
 		}
+
 		container.Mounts = append(container.Mounts, &configs.Mount{
 			Source:      m.Source,
 			Destination: m.Destination,

@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/pools"
 	"github.com/docker/docker/pkg/system"
 )
@@ -18,16 +19,23 @@ import (
 // UnpackLayer unpack `layer` to a `dest`. The stream `layer` can be
 // compressed or uncompressed.
 // Returns the size in bytes of the contents of the layer.
-func UnpackLayer(dest string, layer Reader) (size int64, err error) {
+func UnpackLayer(dest string, layer Reader, options *TarOptions) (size int64, err error) {
 	tr := tar.NewReader(layer)
 	trBuf := pools.BufioReader32KPool.Get(tr)
 	defer pools.BufioReader32KPool.Put(trBuf)
 
 	var dirs []*tar.Header
+	remappedRootUID, remappedRootGID, err := idtools.GetRootUIDGID(options.UIDMaps, options.GIDMaps)
+	if err != nil {
+		return 0, err
+	}
 
 	aufsTempdir := ""
 	aufsHardlinks := make(map[string]*tar.Header)
 
+	if options == nil {
+		options = &TarOptions{}
+	}
 	// Iterate through the files in the archive.
 	for {
 		hdr, err := tr.Next()
@@ -169,6 +177,27 @@ func UnpackLayer(dest string, layer Reader) (size int64, err error) {
 				srcData = tmpFile
 			}
 
+			// if the options contain a uid & gid maps, convert header uid/gid
+			// entries using the maps such that lchown sets the proper mapped
+			// uid/gid after writing the file. We only perform this mapping if
+			// the file isn't already owned by the remapped root UID or GID, as
+			// that specific uid/gid has no mapping from container -> host, and
+			// those files already have the proper ownership for inside the
+			// container.
+			if srcHdr.Uid != remappedRootUID {
+				xUID, err := idtools.ToHost(srcHdr.Uid, options.UIDMaps)
+				if err != nil {
+					return 0, err
+				}
+				srcHdr.Uid = xUID
+			}
+			if srcHdr.Gid != remappedRootGID {
+				xGID, err := idtools.ToHost(srcHdr.Gid, options.GIDMaps)
+				if err != nil {
+					return 0, err
+				}
+				srcHdr.Gid = xGID
+			}
 			if err := createTarFile(path, dest, srcHdr, srcData, true, nil); err != nil {
 				return 0, err
 			}
@@ -196,19 +225,19 @@ func UnpackLayer(dest string, layer Reader) (size int64, err error) {
 // compressed or uncompressed.
 // Returns the size in bytes of the contents of the layer.
 func ApplyLayer(dest string, layer Reader) (int64, error) {
-	return applyLayerHandler(dest, layer, true)
+	return applyLayerHandler(dest, layer, &TarOptions{}, true)
 }
 
 // ApplyUncompressedLayer parses a diff in the standard layer format from
 // `layer`, and applies it to the directory `dest`. The stream `layer`
 // can only be uncompressed.
 // Returns the size in bytes of the contents of the layer.
-func ApplyUncompressedLayer(dest string, layer Reader) (int64, error) {
-	return applyLayerHandler(dest, layer, false)
+func ApplyUncompressedLayer(dest string, layer Reader, options *TarOptions) (int64, error) {
+	return applyLayerHandler(dest, layer, options, false)
 }
 
 // do the bulk load of ApplyLayer, but allow for not calling DecompressStream
-func applyLayerHandler(dest string, layer Reader, decompress bool) (int64, error) {
+func applyLayerHandler(dest string, layer Reader, options *TarOptions, decompress bool) (int64, error) {
 	dest = filepath.Clean(dest)
 
 	// We need to be able to set any perms
@@ -224,5 +253,5 @@ func applyLayerHandler(dest string, layer Reader, decompress bool) (int64, error
 			return 0, err
 		}
 	}
-	return UnpackLayer(dest, layer)
+	return UnpackLayer(dest, layer, options)
 }

@@ -130,13 +130,18 @@ func (s *DockerSuite) TestVolumeCliRm(c *check.C) {
 
 func (s *DockerSuite) TestVolumeCliNoArgs(c *check.C) {
 	out, _ := dockerCmd(c, "volume")
-	// no args should produce the `volume ls` output
-	c.Assert(strings.Contains(out, "DRIVER"), check.Equals, true)
+	// no args should produce the cmd usage output
+	usage := "Usage:	docker volume [OPTIONS] [COMMAND]"
+	c.Assert(out, checker.Contains, usage)
 
 	// invalid arg should error and show the command usage on stderr
 	_, stderr, _, err := runCommandWithStdoutStderr(exec.Command(dockerBinary, "volume", "somearg"))
-	c.Assert(err, check.NotNil)
+	c.Assert(err, check.NotNil, check.Commentf(stderr))
+	c.Assert(stderr, checker.Contains, usage)
 
-	expected := "Usage:	docker volume [OPTIONS] [COMMAND]"
-	c.Assert(strings.Contains(stderr, expected), check.Equals, true)
+	// invalid flag should error and show the flag error and cmd usage
+	_, stderr, _, err = runCommandWithStdoutStderr(exec.Command(dockerBinary, "volume", "--no-such-flag"))
+	c.Assert(err, check.NotNil, check.Commentf(stderr))
+	c.Assert(stderr, checker.Contains, usage)
+	c.Assert(stderr, checker.Contains, "flag provided but not defined: --no-such-flag")
 }

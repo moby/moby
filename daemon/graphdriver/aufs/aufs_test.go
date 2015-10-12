@@ -26,7 +26,7 @@ func init() {
 }
 
 func testInit(dir string, t *testing.T) graphdriver.Driver {
-	d, err := Init(dir, nil)
+	d, err := Init(dir, nil, nil, nil)
 	if err != nil {
 		if err == graphdriver.ErrNotSupported {
 			t.Skip(err)
@@ -198,7 +198,7 @@ func TestMountedFalseResponse(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	response, err := d.mounted("1")
+	response, err := d.mounted(d.active["1"])
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -225,7 +225,7 @@ func TestMountedTrueReponse(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	response, err := d.mounted("2")
+	response, err := d.mounted(d.active["2"])
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -291,7 +291,7 @@ func TestRemoveMountedDir(t *testing.T) {
 		t.Fatal("mntPath should not be empty string")
 	}
 
-	mounted, err := d.mounted("2")
+	mounted, err := d.mounted(d.active["2"])
 	if err != nil {
 		t.Fatal(err)
 	}

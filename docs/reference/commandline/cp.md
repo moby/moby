@@ -5,18 +5,17 @@ description = "The cp command description and usage"
 keywords = ["copy, container, files, folders"]
 [menu.main]
 parent = "smn_cli"
-weight=1
 +++
 <![end-metadata]-->
 
 # cp
 
-Copy files/folders between a container and the local filesystem.
+    Usage: docker cp [OPTIONS] CONTAINER:PATH LOCALPATH|-
+           docker cp [OPTIONS] LOCALPATH|- CONTAINER:PATH
 
-    Usage:  docker cp [options] CONTAINER:PATH LOCALPATH|-
-            docker cp [options] LOCALPATH|- CONTAINER:PATH
+    Copy files/folders between a container and the local filesystem
 
-    --help  Print usage statement
+      --help=false        Print usage
 
 In the first synopsis form, the `docker cp` utility copies the contents of
 `PATH` from the filesystem of `CONTAINER` to the `LOCALPATH` (or stream as

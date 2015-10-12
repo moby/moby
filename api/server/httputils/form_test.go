@@ -68,3 +68,38 @@ func TestInt64ValueOrZero(t *testing.T) {
 		}
 	}
 }
+
+func TestInt64ValueOrDefault(t *testing.T) {
+	cases := map[string]int64{
+		"":   -1,
+		"-1": -1,
+		"42": 42,
+	}
+
+	for c, e := range cases {
+		v := url.Values{}
+		v.Set("test", c)
+		r, _ := http.NewRequest("POST", "", nil)
+		r.Form = v
+
+		a, err := Int64ValueOrDefault(r, "test", -1)
+		if a != e {
+			t.Fatalf("Value: %s, expected: %v, actual: %v", c, e, a)
+		}
+		if err != nil {
+			t.Fatalf("Error should be nil, but received: %s", err)
+		}
+	}
+}
+
+func TestInt64ValueOrDefaultWithError(t *testing.T) {
+	v := url.Values{}
+	v.Set("test", "invalid")
+	r, _ := http.NewRequest("POST", "", nil)
+	r.Form = v
+
+	_, err := Int64ValueOrDefault(r, "test", -1)
+	if err == nil {
+		t.Fatalf("Expected an error.")
+	}
+}

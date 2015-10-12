@@ -54,7 +54,7 @@ A design proposal solves a problem or adds a feature to the Docker software.
 The process for submitting design proposals requires two pull requests, one
 for the design and one for the implementation.
 
-![Simple process](/project/images/proposal.png)
+![Simple process](images/proposal.png)
 
 The important thing to notice is that both the design pull request and the
 implementation pull request go through a review. In other words, there is

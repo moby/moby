@@ -26,11 +26,18 @@ func (d *Driver) Exec(c *execdriver.Command, processConfig *execdriver.ProcessCo
 		return -1, fmt.Errorf("No active container exists with ID %s", c.ID)
 	}
 
+	user := processConfig.User
+	if c.RemappedRoot.UID != 0 && user == "" {
+		//if user namespaces are enabled, set user explicitly so uid/gid is set to 0
+		//otherwise we end up with the overflow id and no permissions (65534)
+		user = "0"
+	}
+
 	p := &libcontainer.Process{
 		Args: append([]string{processConfig.Entrypoint}, processConfig.Arguments...),
 		Env:  c.ProcessConfig.Env,
 		Cwd:  c.WorkingDir,
-		User: processConfig.User,
+		User: user,
 	}
 
 	if processConfig.Privileged {

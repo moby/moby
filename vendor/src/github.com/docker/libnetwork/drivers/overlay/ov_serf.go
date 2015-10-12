@@ -35,46 +35,12 @@ func (l *logWriter) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
-func getBindAddr(ifaceName string) (string, error) {
-	iface, err := net.InterfaceByName(ifaceName)
-	if err != nil {
-		return "", fmt.Errorf("failed to find interface %s: %v", ifaceName, err)
-	}
-
-	addrs, err := iface.Addrs()
-	if err != nil {
-		return "", fmt.Errorf("failed to get interface addresses: %v", err)
-	}
-
-	for _, a := range addrs {
-		addr, ok := a.(*net.IPNet)
-		if !ok {
-			continue
-		}
-		addrIP := addr.IP
-
-		if addrIP.IsLinkLocalUnicast() {
-			continue
-		}
-
-		return addrIP.String(), nil
-	}
-
-	return "", fmt.Errorf("failed to get bind address")
-}
-
 func (d *driver) serfInit() error {
 	var err error
 
 	config := serf.DefaultConfig()
 	config.Init()
-	if d.ifaceName != "" {
-		bindAddr, err := getBindAddr(d.ifaceName)
-		if err != nil {
-			return fmt.Errorf("getBindAddr error: %v", err)
-		}
-		config.MemberlistConfig.BindAddr = bindAddr
-	}
+	config.MemberlistConfig.BindAddr = d.bindAddress
 
 	d.eventCh = make(chan serf.Event, 4)
 	config.EventCh = d.eventCh
@@ -93,19 +59,23 @@ func (d *driver) serfInit() error {
 		}
 	}()
 
-	if d.neighIP != "" {
-		if _, err = s.Join([]string{d.neighIP}, false); err != nil {
-			return fmt.Errorf("Failed to join the cluster at neigh IP %s: %v",
-				d.neighIP, err)
-		}
-	}
-
 	d.serfInstance = s
 
 	d.notifyCh = make(chan ovNotify)
 	d.exitCh = make(chan chan struct{})
 
 	go d.startSerfLoop(d.eventCh, d.notifyCh, d.exitCh)
+	return nil
+}
+
+func (d *driver) serfJoin(neighIP string) error {
+	if neighIP == "" {
+		return fmt.Errorf("no neighbor to join")
+	}
+	if _, err := d.serfInstance.Join([]string{neighIP}, false); err != nil {
+		return fmt.Errorf("Failed to join the cluster at neigh IP %s: %v",
+			neighIP, err)
+	}
 	return nil
 }
 
@@ -245,4 +215,14 @@ func (d *driver) startSerfLoop(eventCh chan serf.Event, notifyCh chan ovNotify,
 			d.processEvent(u)
 		}
 	}
+}
+
+func (d *driver) isSerfAlive() bool {
+	d.Lock()
+	serfInstance := d.serfInstance
+	d.Unlock()
+	if serfInstance == nil || serfInstance.State() != serf.SerfAlive {
+		return false
+	}
+	return true
 }

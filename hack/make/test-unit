@@ -56,7 +56,7 @@ go_run_test_dir() {
 	TESTS_FAILED=()
 	while read dir; do
 		echo
-		echo '+ go test' $TESTFLAGS "${DOCKER_PKG}${dir#.}"
+		echo '+ go test' $TESTFLAGS "${DOCKER_PKG}/${dir#./}"
 		precompiled="$ABS_DEST/precompiled/$dir.test$(binary_extension)"
 		if ! ( cd "$dir" && test_env "$precompiled" $TESTFLAGS ); then
 			TESTS_FAILED+=("$dir")

@@ -42,7 +42,7 @@ is all that is needed.
 
 For the AUR package execute:
 
-    $ sudo yaourt -S docker-git
+    $ yaourt -S docker-git
 
 The instructions here assume **yaourt** is installed. See [Arch User
 Repository](https://wiki.archlinux.org/index.php/Arch_User_Repository#Installing_packages)
@@ -64,7 +64,7 @@ To start on system boot:
 
 If you need to add an HTTP Proxy, set a different directory or partition for the
 Docker runtime files, or make other customizations, read our systemd article to
-learn how to [customize your systemd Docker daemon options](/articles/systemd/).
+learn how to [customize your systemd Docker daemon options](../articles/systemd.md).
 
 ## Running Docker with a manually-defined network
 

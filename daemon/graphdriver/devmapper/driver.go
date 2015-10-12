@@ -10,8 +10,10 @@ import (
 	"strconv"
 
 	"github.com/Sirupsen/logrus"
+
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/devicemapper"
+	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/units"
 )
@@ -28,13 +30,15 @@ func init() {
 // Driver contains the device set mounted and the home directory
 type Driver struct {
 	*DeviceSet
-	home string
+	home    string
+	uidMaps []idtools.IDMap
+	gidMaps []idtools.IDMap
 }
 
 var backingFs = "<unknown>"
 
 // Init creates a driver with the given home and the set of options.
-func Init(home string, options []string) (graphdriver.Driver, error) {
+func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (graphdriver.Driver, error) {
 	fsMagic, err := graphdriver.GetFSMagic(home)
 	if err != nil {
 		return nil, err
@@ -43,7 +47,7 @@ func Init(home string, options []string) (graphdriver.Driver, error) {
 		backingFs = fsName
 	}
 
-	deviceSet, err := NewDeviceSet(home, true, options)
+	deviceSet, err := NewDeviceSet(home, true, options, uidMaps, gidMaps)
 	if err != nil {
 		return nil, err
 	}
@@ -55,9 +59,11 @@ func Init(home string, options []string) (graphdriver.Driver, error) {
 	d := &Driver{
 		DeviceSet: deviceSet,
 		home:      home,
+		uidMaps:   uidMaps,
+		gidMaps:   gidMaps,
 	}
 
-	return graphdriver.NewNaiveDiffDriver(d), nil
+	return graphdriver.NewNaiveDiffDriver(d, uidMaps, gidMaps), nil
 }
 
 func (d *Driver) String() string {
@@ -84,6 +90,8 @@ func (d *Driver) Status() [][2]string {
 		{"Metadata Space Available", fmt.Sprintf("%s", units.HumanSize(float64(s.Metadata.Available)))},
 		{"Udev Sync Supported", fmt.Sprintf("%v", s.UdevSyncSupported)},
 		{"Deferred Removal Enabled", fmt.Sprintf("%v", s.DeferredRemoveEnabled)},
+		{"Deferred Deletion Enabled", fmt.Sprintf("%v", s.DeferredDeleteEnabled)},
+		{"Deferred Deleted Device Count", fmt.Sprintf("%v", s.DeferredDeletedDeviceCount)},
 	}
 	if len(s.DataLoopback) > 0 {
 		status = append(status, [2]string{"Data loop file", s.DataLoopback})
@@ -142,7 +150,7 @@ func (d *Driver) Remove(id string) error {
 	}
 
 	// This assumes the device has been properly Get/Put:ed and thus is unmounted
-	if err := d.DeviceSet.DeleteDevice(id); err != nil {
+	if err := d.DeviceSet.DeleteDevice(id, false); err != nil {
 		return err
 	}
 
@@ -158,8 +166,15 @@ func (d *Driver) Remove(id string) error {
 func (d *Driver) Get(id, mountLabel string) (string, error) {
 	mp := path.Join(d.home, "mnt", id)
 
+	uid, gid, err := idtools.GetRootUIDGID(d.uidMaps, d.gidMaps)
+	if err != nil {
+		return "", err
+	}
 	// Create the target directories if they don't exist
-	if err := os.MkdirAll(mp, 0755); err != nil {
+	if err := idtools.MkdirAllAs(path.Join(d.home, "mnt"), 0755, uid, gid); err != nil && !os.IsExist(err) {
+		return "", err
+	}
+	if err := idtools.MkdirAs(mp, 0755, uid, gid); err != nil && !os.IsExist(err) {
 		return "", err
 	}
 
@@ -169,7 +184,7 @@ func (d *Driver) Get(id, mountLabel string) (string, error) {
 	}
 
 	rootFs := path.Join(mp, "rootfs")
-	if err := os.MkdirAll(rootFs, 0755); err != nil {
+	if err := idtools.MkdirAllAs(rootFs, 0755, uid, gid); err != nil && !os.IsExist(err) {
 		d.DeviceSet.UnmountDevice(id)
 		return "", err
 	}

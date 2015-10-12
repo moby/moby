@@ -12,9 +12,9 @@ weight = 3
 # Managing data in containers
 
 So far we've been introduced to some [basic Docker
-concepts](/userguide/usingdocker/), seen how to work with [Docker
-images](/userguide/dockerimages/) as well as learned about [networking
-and links between containers](/userguide/dockerlinks/). In this section
+concepts](usingdocker.md), seen how to work with [Docker
+images](dockerimages.md) as well as learned about [networking
+and links between containers](dockerlinks.md). In this section
 we're going to discuss how you can manage data inside and between your
 Docker containers.
 
@@ -28,7 +28,7 @@ Docker.
 
 A *data volume* is a specially-designated directory within one or more
 containers that bypasses the [*Union File
-System*](/reference/glossary#union-file-system). Data volumes provide several 
+System*](../reference/glossary.md#union-file-system). Data volumes provide several 
 useful features for persistent or shared data:
 
 - Volumes are initialized when a container is created. If the container's
@@ -142,7 +142,7 @@ Mounting a host directory can be useful for testing. For example, you can mount
 source code inside a container. Then, change the source code and see its effect
 on the application in real time. The directory on the host must be specified as
 an absolute path and if the directory doesn't exist Docker will automatically
-create it for you.
+create it for you.  This auto-creation of the host path has been [*deprecated*](#auto-creating-missing-host-paths-for-bind-mounts).
 
 Docker volumes default to mount in read-write mode, but you can also set it to
 be mounted read-only.
@@ -165,6 +165,20 @@ user with access to host and its mounted directory.
 >should be portable. A host directory wouldn't be available on all potential
 >hosts.
 
+### Volume labels
+
+Labeling systems like SELinux require that proper labels are placed on volume
+content mounted into a container. Without a label, the security system might
+prevent the processes running inside the container from using the content. By
+default, Docker does not change the labels set by the OS.
+
+To change a label in the container context, you can add either of two suffixes
+`:z` or `:Z` to the volume mount. These suffixes tell Docker to relabel file
+objects on the shared volumes. The `z` option tells Docker that two containers
+share the volume content. As a result, Docker labels the content with a shared
+content label. Shared volume labels allow all containers to read/write content.
+The `Z` option tells Docker to label the content with a private unshared label.
+Only the current container can use a private volume.
 
 ### Mount a host file as a data volume
 
@@ -267,4 +281,4 @@ combine Docker with the services available on
 [Docker Hub](https://hub.docker.com) including Automated Builds and private
 repositories.
 
-Go to [Working with Docker Hub](/userguide/dockerrepos).
+Go to [Working with Docker Hub](dockerrepos.md).

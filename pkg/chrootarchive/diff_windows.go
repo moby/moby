@@ -13,7 +13,7 @@ import (
 // applyLayerHandler parses a diff in the standard layer format from `layer`, and
 // applies it to the directory `dest`. Returns the size in bytes of the
 // contents of the layer.
-func applyLayerHandler(dest string, layer archive.Reader, decompress bool) (size int64, err error) {
+func applyLayerHandler(dest string, layer archive.Reader, options *archive.TarOptions, decompress bool) (size int64, err error) {
 	dest = filepath.Clean(dest)
 
 	// Ensure it is a Windows-style volume path
@@ -34,7 +34,7 @@ func applyLayerHandler(dest string, layer archive.Reader, decompress bool) (size
 		return 0, fmt.Errorf("ApplyLayer failed to create temp-docker-extract under %s. %s", dest, err)
 	}
 
-	s, err := archive.UnpackLayer(dest, layer)
+	s, err := archive.UnpackLayer(dest, layer, nil)
 	os.RemoveAll(tmpDir)
 	if err != nil {
 		return 0, fmt.Errorf("ApplyLayer %s failed UnpackLayer to %s", err, dest)

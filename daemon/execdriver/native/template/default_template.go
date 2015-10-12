@@ -34,6 +34,7 @@ func New() *configs.Config {
 			{Type: "NEWIPC"},
 			{Type: "NEWPID"},
 			{Type: "NEWNET"},
+			{Type: "NEWUSER"},
 		}),
 		Cgroups: &configs.Cgroup{
 			Parent:           "docker",

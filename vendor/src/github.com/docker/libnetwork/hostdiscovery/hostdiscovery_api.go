@@ -1,10 +1,6 @@
 package hostdiscovery
 
-import (
-	"net"
-
-	"github.com/docker/libnetwork/config"
-)
+import "net"
 
 // JoinCallback provides a callback event for new node joining the cluster
 type JoinCallback func(entries []net.IP)
@@ -14,10 +10,10 @@ type LeaveCallback func(entries []net.IP)
 
 // HostDiscovery primary interface
 type HostDiscovery interface {
-	// StartDiscovery initiates the discovery process and provides appropriate callbacks
-	StartDiscovery(*config.ClusterCfg, JoinCallback, LeaveCallback) error
+	//Watch Node join and leave cluster events
+	Watch(joinCallback JoinCallback, leaveCallback LeaveCallback) error
 	// StopDiscovery stops the discovery perocess
 	StopDiscovery() error
 	// Fetch returns a list of host IPs that are currently discovered
-	Fetch() ([]net.IP, error)
+	Fetch() []net.IP
 }

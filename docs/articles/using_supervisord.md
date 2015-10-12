@@ -12,7 +12,7 @@ parent = "smn_third_party"
 
 > **Note**:
 > - **If you don't like sudo** then see [*Giving non-root
->   access*](/installation/binaries/#giving-non-root-access)
+>   access*](../installation/binaries.md#giving-non-root-access)
 
 Traditionally a Docker container runs a single process when it is
 launched, for example an Apache daemon or a SSH server daemon. Often

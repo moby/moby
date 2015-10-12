@@ -15,8 +15,7 @@ weight = 0
 
  - The Remote API has replaced `rcli`.
  - The daemon listens on `unix:///var/run/docker.sock` but you can
-   [Bind Docker to another host/port or a Unix socket](
-   /articles/basics/#bind-docker-to-another-hostport-or-a-unix-socket).
+   [Bind Docker to another host/port or a Unix socket](../../articles/basics.md#bind-docker-to-another-hostport-or-a-unix-socket).
  - The API tends to be REST. However, for some complex commands, like `attach`
    or `pull`, the HTTP connection is hijacked to transport `stdout`,
    `stdin` and `stderr`.
@@ -233,7 +232,7 @@ Json Parameters:
 -   **CpuShares** - An integer value containing the container's CPU Shares
       (ie. the relative weight vs other containers).
 -   **CpuPeriod** - The length of a CPU period in microseconds.
--   **Cpuset** - Deprecated please don't use. Use `CpusetCpus` instead. 
+-   **Cpuset** - Deprecated please don't use. Use `CpusetCpus` instead.
 -   **CpusetCpus** - String value containing the `cgroups CpusetCpus` to use.
 -   **CpusetMems** - Memory nodes (MEMs) in which to allow execution (0-3, 0,1). Only effective on NUMA systems.
 -   **BlkioWeight** - Block IO weight (relative weight) accepts a weight value between 10 and 1000.
@@ -962,7 +961,7 @@ Status Codes:
 
     When using the TTY setting is enabled in
     [`POST /containers/create`
-    ](/reference/api/docker_remote_api_v1.9/#create-a-container "POST /containers/create"),
+    ](#create-a-container),
     the stream is the raw data from the process PTY and client's `stdin`.
     When the TTY is disabled, then the stream is multiplexed to separate
     `stdout` and `stderr`.
@@ -1356,14 +1355,14 @@ the path to the alternate build instructions file to use.
 
 The archive may include any number of other files,
 which are accessible in the build context (See the [*ADD build
-command*](/reference/builder/#dockerbuilder)).
+command*](../../reference/builder.md#dockerbuilder)).
 
 The build is canceled if the client drops the connection by quitting
 or being killed.
 
 Query Parameters:
 
--   **dockerfile** - Path within the build context to the Dockerfile. This is 
+-   **dockerfile** - Path within the build context to the Dockerfile. This is
         ignored if `remote` is specified and points to an individual filename.
 -   **t** – A repository name (and optionally a tag) to apply to
         the resulting image in case of success.
@@ -1383,7 +1382,7 @@ Query Parameters:
         these values at build-time. Docker uses the `buildargs` as the environment
         context for command(s) run via the Dockerfile's `RUN` instruction or for
         variable expansion in other Dockerfile instructions. This is not meant for
-        passing secret values. [Read more about the buildargs instruction](/reference/builder/#arg)
+        passing secret values. [Read more about the buildargs instruction](../../reference/builder.md#arg)
 
     Request Headers:
 
@@ -1997,6 +1996,8 @@ Query Parameters:
 -   **comment** – commit message
 -   **author** – author (e.g., "John Hannibal Smith
     <[hannibal@a-team.com](mailto:hannibal%40a-team.com)>")
+-   **pause** – 1/True/true or 0/False/false, whether to pause the container before committing
+-   **changes** – Dockerfile instructions to apply while committing
 
 Status Codes:
 
@@ -2038,9 +2039,10 @@ Query Parameters:
 -   **since** – Timestamp used for polling
 -   **until** – Timestamp used for polling
 -   **filters** – A json encoded value of the filters (a map[string][]string) to process on the event list. Available filters:
+  -   `container=<string>`; -- container to filter
   -   `event=<string>`; -- event to filter
   -   `image=<string>`; -- image to filter
-  -   `container=<string>`; -- container to filter
+  -   `label=<string>`; -- image and container label to filter
 
 Status Codes:
 
@@ -2481,6 +2483,224 @@ Status Codes
 -   **204** - no error
 -   **404** - no such volume or volume driver
 -   **409** - volume is in use and cannot be removed
+-   **500** - server error
+
+## 2.5 Networks
+
+### List networks
+
+`GET /networks`
+
+**Example request**:
+
+  GET /networks HTTP/1.1
+
+**Example response**:
+
+  HTTP/1.1 200 OK
+  Content-Type: application/json
+
+```
+  [
+    {
+      "name": "bridge",
+      "id": "f995e41e471c833266786a64df584fbe4dc654ac99f63a4ee7495842aa093fc4",
+      "driver": "bridge",
+      "containers": {}
+    },
+    {
+      "name": "none",
+      "id": "21e34df9b29c74ae45ba312f8e9f83c02433c9a877cfebebcf57be78f69b77c8",
+      "driver": "null",
+      "containers": {}
+    },
+    {
+      "name": "host",
+      "id": "3f43a0873f00310a71cd6a71e2e60c113cf17d1812be2ec22fd519fbac68ec91",
+      "driver": "host",
+      "containers": {}
+    }
+  ]
+```
+
+
+
+Query Parameters:
+
+- **filter** - JSON encoded value of the filters (a `map[string][]string`) to process on the volumes list. Available filters: `name=[network-names]` , `id=[network-ids]`
+
+Status Codes:
+
+-   **200** - no error
+-   **500** - server error
+
+### Inspect network
+
+`GET /networks/<network-id>`
+
+**Example request**:
+
+  GET /networks/f995e41e471c833266786a64df584fbe4dc654ac99f63a4ee7495842aa093fc4 HTTP/1.1
+
+**Example response**:
+
+  HTTP/1.1 200 OK
+  Content-Type: application/json
+
+```
+  {
+    "name": "bridge",
+    "id": "f995e41e471c833266786a64df584fbe4dc654ac99f63a4ee7495842aa093fc4",
+    "driver": "bridge",
+    "containers": {
+      "931d29e96e63022a3691f55ca18b28600239acf53878451975f77054b05ba559": {
+        "endpoint": "aa79321e2899e6d72fcd46e6a4ad7f81ab9a19c3b06e384ef4ce51fea35827f9",
+        "mac_address": "02:42:ac:11:00:04",
+        "ipv4_address": "172.17.0.4/16",
+        "ipv6_address": ""
+      },
+      "961249b4ae6c764b11eed923e8463c102689111fffd933627b2e7e359c7d0f7c": {
+        "endpoint": "4f62c5aea6b9a70512210be7db976bd4ec2cdba47125e4fe514d18c81b1624b1",
+        "mac_address": "02:42:ac:11:00:02",
+        "ipv4_address": "172.17.0.2/16",
+        "ipv6_address": ""
+      },
+      "9f6e0fec4449f42a173ed85be96dc2253b6719edd850d8169bc31bdc45db675c": {
+        "endpoint": "352b512a5bccdfc77d16c2c04d04408e718f879a16f9ce3913a4733139e4f98d",
+        "mac_address": "02:42:ac:11:00:03",
+        "ipv4_address": "172.17.0.3/16",
+        "ipv6_address": ""
+      }
+    }
+  }
+```
+
+Status Codes:
+
+-   **200** - no error
+-   **404** - network not found
+
+### Create a network
+
+`POST /networks/create`
+
+Create a network
+
+**Example request**:
+
+  POST /networks/create HTTP/1.1
+  Content-Type: application/json
+
+```
+  {
+    "name":"isolated_nw",
+    "driver":"bridge"
+  }
+```
+
+**Example response**:
+
+  HTTP/1.1 201 Created
+  Content-Type: application/json
+
+```
+  {
+    "id": "22be93d5babb089c5aab8dbc369042fad48ff791584ca2da2100db837a1c7c30",
+    "warning": ""
+  }
+```
+
+Status Codes:
+
+- **201** - no error
+- **404** - driver not found
+- **500** - server error
+
+JSON Parameters:
+
+- **name** - The new network's name. this is a mandatory field
+- **driver** - Name of the network driver to use. Defaults to `bridge` driver
+- **options** - Network specific options to be used by the drivers
+- **check_duplicate** - Requests daemon to check for networks with same name
+
+### Connect a container to a network
+
+`POST /networks/(id)/connect`
+
+Connects a container to a network
+
+**Example request**:
+
+  POST /networks/22be93d5babb089c5aab8dbc369042fad48ff791584ca2da2100db837a1c7c30/connect HTTP/1.1
+  Content-Type: application/json
+
+```
+  {
+    "container":"3613f73ba0e4"
+  }
+```
+
+**Example response**:
+
+  HTTP/1.1 200 OK
+
+Status Codes:
+
+- **201** - no error
+- **404** - network or container is not found
+
+JSON Parameters:
+
+- **container** - container-id/name to be connected to the network
+
+### Disconnect a container from a network
+
+`POST /networks/(id)/disconnect`
+
+Disconnects a container from a network
+
+**Example request**:
+
+  POST /networks/22be93d5babb089c5aab8dbc369042fad48ff791584ca2da2100db837a1c7c30/disconnect HTTP/1.1
+  Content-Type: application/json
+
+```
+  {
+    "container":"3613f73ba0e4"
+  }
+```
+
+**Example response**:
+
+  HTTP/1.1 200 OK
+
+Status Codes:
+
+- **201** - no error
+- **404** - network or container not found
+
+JSON Parameters:
+
+- **container** - container-id/name to be disconnected from a network
+
+### Remove a network
+
+`DELETE /networks/(id)`
+
+Instruct the driver to remove the network (`id`).
+
+**Example request**:
+
+  DELETE /networks/22be93d5babb089c5aab8dbc369042fad48ff791584ca2da2100db837a1c7c30 HTTP/1.1
+
+**Example response**:
+
+  HTTP/1.1 204 No Content
+
+Status Codes
+
+-   **204** - no error
+-   **404** - no such network
 -   **500** - server error
 
 # 3. Going further

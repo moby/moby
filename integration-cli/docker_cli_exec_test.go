@@ -265,6 +265,7 @@ func (s *DockerSuite) TestExecStopNotHanging(c *check.C) {
 }
 
 func (s *DockerSuite) TestExecCgroup(c *check.C) {
+	testRequires(c, NotUserNamespace)
 	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "run", "-d", "--name", "testing", "busybox", "top")
 
@@ -547,7 +548,7 @@ func (s *DockerSuite) TestExecWithUser(c *check.C) {
 }
 
 func (s *DockerSuite) TestExecWithPrivileged(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	testRequires(c, DaemonIsLinux, NotUserNamespace)
 	// Start main loop which attempts mknod repeatedly
 	dockerCmd(c, "run", "-d", "--name", "parent", "--cap-drop=ALL", "busybox", "sh", "-c", `while (true); do if [ -e /exec_priv ]; then cat /exec_priv && mknod /tmp/sda b 8 0 && echo "Success"; else echo "Privileged exec has not run yet"; fi; usleep 10000; done`)
 
@@ -605,7 +606,8 @@ func (s *DockerSuite) TestExecWithImageUser(c *check.C) {
 }
 
 func (s *DockerSuite) TestExecOnReadonlyContainer(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	// --read-only + userns has remount issues
+	testRequires(c, DaemonIsLinux, NotUserNamespace)
 	dockerCmd(c, "run", "-d", "--read-only", "--name", "parent", "busybox", "top")
 	if _, status := dockerCmd(c, "exec", "parent", "true"); status != 0 {
 		c.Fatalf("exec into a read-only container failed with exit status %d", status)

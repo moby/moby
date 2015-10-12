@@ -105,19 +105,16 @@ func NewDockerCli(in io.ReadCloser, out, err io.Writer, clientFlags *cli.ClientF
 
 		switch len(hosts) {
 		case 0:
-			defaultHost := os.Getenv("DOCKER_HOST")
-			if defaultHost == "" {
-				defaultHost = opts.DefaultHost
-			}
-			defaultHost, err := opts.ValidateHost(defaultHost)
-			if err != nil {
-				return err
-			}
-			hosts = []string{defaultHost}
+			hosts = []string{os.Getenv("DOCKER_HOST")}
 		case 1:
 			// only accept one host to talk to
 		default:
 			return errors.New("Please specify only one -H")
+		}
+
+		var e error
+		if hosts[0], e = opts.ParseHost(hosts[0]); e != nil {
+			return e
 		}
 
 		protoAddrParts := strings.SplitN(hosts[0], "://", 2)

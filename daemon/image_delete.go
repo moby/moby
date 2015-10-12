@@ -53,7 +53,7 @@ import (
 func (daemon *Daemon) ImageDelete(imageRef string, force, prune bool) ([]types.ImageDelete, error) {
 	records := []types.ImageDelete{}
 
-	img, err := daemon.Repositories().LookupImage(imageRef)
+	img, err := daemon.repositories.LookupImage(imageRef)
 	if err != nil {
 		return nil, err
 	}
@@ -90,7 +90,7 @@ func (daemon *Daemon) ImageDelete(imageRef string, force, prune bool) ([]types.I
 		// repository reference to the image then we will want to
 		// remove that reference.
 		// FIXME: Is this the behavior we want?
-		repoRefs := daemon.Repositories().ByID()[img.ID]
+		repoRefs := daemon.repositories.ByID()[img.ID]
 		if len(repoRefs) == 1 {
 			parsedRef, err := daemon.removeImageRef(repoRefs[0])
 			if err != nil {
@@ -116,7 +116,7 @@ func isImageIDPrefix(imageID, possiblePrefix string) bool {
 // imageHasMultipleRepositoryReferences returns whether there are multiple
 // repository references to the given imageID.
 func (daemon *Daemon) imageHasMultipleRepositoryReferences(imageID string) bool {
-	return len(daemon.Repositories().ByID()[imageID]) > 1
+	return len(daemon.repositories.ByID()[imageID]) > 1
 }
 
 // getContainerUsingImage returns a container that was created using the given
@@ -145,7 +145,7 @@ func (daemon *Daemon) removeImageRef(repositoryRef string) (string, error) {
 	// Ignore the boolean value returned, as far as we're concerned, this
 	// is an idempotent operation and it's okay if the reference didn't
 	// exist in the first place.
-	_, err := daemon.Repositories().Delete(repository, ref)
+	_, err := daemon.repositories.Delete(repository, ref)
 
 	return utils.ImageReference(repository, ref), err
 }
@@ -156,7 +156,7 @@ func (daemon *Daemon) removeImageRef(repositoryRef string) (string, error) {
 // daemon's event service. An "Untagged" types.ImageDelete is added to the
 // given list of records.
 func (daemon *Daemon) removeAllReferencesToImageID(imgID string, records *[]types.ImageDelete) error {
-	imageRefs := daemon.Repositories().ByID()[imgID]
+	imageRefs := daemon.repositories.ByID()[imgID]
 
 	for _, imageRef := range imageRefs {
 		parsedRef, err := daemon.removeImageRef(imageRef)
@@ -308,7 +308,7 @@ func (daemon *Daemon) checkImageDeleteHardConflict(img *image.Image) *imageDelet
 
 func (daemon *Daemon) checkImageDeleteSoftConflict(img *image.Image) *imageDeleteConflict {
 	// Check if any repository tags/digest reference this image.
-	if daemon.Repositories().HasReferences(img) {
+	if daemon.repositories.HasReferences(img) {
 		return &imageDeleteConflict{
 			imgID:   img.ID,
 			message: "image is referenced in one or more repositories",
@@ -337,5 +337,5 @@ func (daemon *Daemon) checkImageDeleteSoftConflict(img *image.Image) *imageDelet
 // that there are no repository references to the given image and it has no
 // child images.
 func (daemon *Daemon) imageIsDangling(img *image.Image) bool {
-	return !(daemon.Repositories().HasReferences(img) || daemon.Graph().HasChildren(img))
+	return !(daemon.repositories.HasReferences(img) || daemon.Graph().HasChildren(img))
 }

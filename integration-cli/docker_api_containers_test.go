@@ -1487,7 +1487,9 @@ func (s *DockerSuite) TestContainersApiCreateNoHostConfig118(c *check.C) {
 // extract an archive to a symlink in a writable volume which points to a
 // directory outside of the volume.
 func (s *DockerSuite) TestPutContainerArchiveErrSymlinkInVolumeToReadOnlyRootfs(c *check.C) {
-	testRequires(c, SameHostDaemon) // Requires local volume mount bind.
+	// Requires local volume mount bind.
+	// --read-only + userns has remount issues
+	testRequires(c, SameHostDaemon, NotUserNamespace)
 
 	testVol := getTestDir(c, "test-put-container-archive-err-symlink-in-volume-to-read-only-rootfs-")
 	defer os.RemoveAll(testVol)

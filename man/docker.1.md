@@ -36,10 +36,12 @@ To see the man page for a command run **man docker <command>**.
 **-D**, **--debug**=*true*|*false*
   Enable debug mode. Default is false.
 
-**-H**, **--host**=[unix:///var/run/docker.sock]: tcp://[host:port] to bind or
+**-H**, **--host**=[unix:///var/run/docker.sock]: tcp://[host]:[port][path] to bind or
 unix://[/path/to/socket] to use.
   The socket(s) to bind to in daemon mode specified using one or more
-  tcp://host:port, unix:///path/to/socket, fd://* or fd://socketfd.
+  tcp://host:port/path, unix:///path/to/socket, fd://* or fd://socketfd.
+  If the tcp port is not specified, then it will default to either `2375` when
+  `--tls` is off, or `2376` when `--tls` is on, or `--tlsverify` is specified.
 
 **-l**, **--log-level**="*debug*|*info*|*warn*|*error*|*fatal*""
   Set the logging level. Default is `info`.
@@ -190,7 +192,7 @@ inside it)
   See **docker-search(1)** for full documentation on the **search** command.
 
 **start**
-  Start a stopped container
+  Start a container
   See **docker-start(1)** for full documentation on the **start** command.
 
 **stats**
@@ -198,7 +200,7 @@ inside it)
   See **docker-stats(1)** for full documentation on the **stats** command.
 
 **stop**
-  Stop a running container
+  Stop a container
   See **docker-stop(1)** for full documentation on the **stop** command.
 
 **tag**

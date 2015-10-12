@@ -35,7 +35,7 @@ Your machine must be running Windows 7, 8/8.1 or newer to run Docker. Windows 10
 
 1. Right click the Windows Start Menu and choose **System**.
 
-    ![Which version](/installation/images/win_ver.png)
+    ![Which version](images/win_ver.png)
 
     If you are using an unsupported version of Windows, you should consider
     upgrading your operating system in order to try out Docker.
@@ -48,7 +48,7 @@ and virtualization support is enabled in BIOS and recognized by Windows.
 	  Choose **Start > Task Manager** and navigate to the **Performance** tab.
 	  Under **CPU** you should see the following:
 
-      ![Release page](/installation/images/virtualization.png)
+      ![Release page](images/virtualization.png)
 
     If virtualization is not enabled on your system, follow the manufacturer's instructions for enabling it.
 
@@ -76,13 +76,13 @@ containers run directly on your localhost. This means you can address ports on a
 Docker container using standard localhost addressing such as `localhost:8000` or
 `0.0.0.0:8376`.
 
-![Linux Architecture Diagram](/installation/images/linux_docker_host.svg)
+![Linux Architecture Diagram](images/linux_docker_host.svg)
 
 In an Windows installation, the `docker` daemon is running inside a Linux virtual
 machine. You use the Windows Docker client to talk to the Docker host VM. Your
 Docker containers run inside this host.
 
-![Windows Architecture Diagram](/installation/images/win_docker_host.svg)
+![Windows Architecture Diagram](images/win_docker_host.svg)
 
 In Windows, the Docker host address is the address of the Linux VM. When you
 start the VM with `docker-machine` it is assigned an IP address. When you start
@@ -103,7 +103,7 @@ installer.
 
     The installer launches the "Setup - Docker Toolbox" dialog.
 
-    ![Install Docker Toolbox](/installation/images/win-welcome.png)
+    ![Install Docker Toolbox](images/win-welcome.png)
 
 4. Press "Next" to install the toolbox.
 
@@ -122,14 +122,14 @@ installer.
 
      The system prompts you for your password.
 
-     ![Install](/installation/images/win-page-6.png)
+     ![Install](images/win-page-6.png)
 
 6. Press "Install"  to continue with the installation.
 
      When it completes, the installer provides you with some information you can
      use to complete some common tasks.
 
-     ![All finished](/installation/images/windows-finish.png)
+     ![All finished](images/windows-finish.png)
 
 7. Press "Finish" to exit.
 
@@ -362,6 +362,6 @@ delete that file yourself.
 
 ## Learn more
 
-You can continue with the [Docker User Guide](/userguide). If you are
+You can continue with the [Docker User Guide](../userguide). If you are
 interested in using the Kitematic GUI, see the [Kitematic user
-guide](/kitematic/userguide/).
+guide](https://docs.docker.com/kitematic/userguide/).

@@ -27,6 +27,7 @@ type Config struct {
 	CorsHeaders          string
 	EnableCors           bool
 	EnableSelinuxSupport bool
+	RemappedRoot         string
 	SocketGroup          string
 	Ulimits              map[string]*ulimit.Ulimit
 }

@@ -88,7 +88,7 @@ run on the same system, or you can connect a Docker client to a remote Docker
 daemon. The Docker client and daemon communicate via sockets or through a
 RESTful API.
 
-![Docker Architecture Diagram](/article-img/architecture.svg)
+![Docker Architecture Diagram](../article-img/architecture.svg)
 
 ### The Docker daemon
 As shown in the diagram above, the Docker daemon runs on a host machine. The
@@ -285,9 +285,9 @@ BSD Jails or Solaris Zones.
 
 ## Next steps
 ### Installing Docker
-Visit the [installation section](/installation/#installation).
+Visit the [installation section](../installation/#installation).
 
 ### The Docker user guide
-[Learn Docker in depth](/userguide/).
+[Learn Docker in depth](../userguide/).
 
 

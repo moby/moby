@@ -14,8 +14,8 @@ weight=4
 
 The following topics are available:
 
-* [Content trust in Docker](/security/trust/content_trust) 
-* [Manage keys for content trust](/security/trust/trust_key_mng)
-* [Automation with content trust](/security/trust/trust_automation)
-* [Play in a content trust sandbox](/security/trust/trust_sandbox)
+* [Content trust in Docker](content_trust.md) 
+* [Manage keys for content trust](trust_key_mng.md)
+* [Automation with content trust](trust_automation.md)
+* [Play in a content trust sandbox](trust_sandbox.md)
 

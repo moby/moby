@@ -25,7 +25,7 @@ func parseSecurityOpt(container *Container, config *runconfig.HostConfig) error 
 	return nil
 }
 
-func setupInitLayer(initLayer string) error {
+func setupInitLayer(initLayer string, rootUID, rootGID int) error {
 	return nil
 }
 
@@ -89,7 +89,7 @@ func migrateIfDownlevel(driver graphdriver.Driver, root string) error {
 	return nil
 }
 
-func configureSysInit(config *Config) (string, error) {
+func configureSysInit(config *Config, rootUID, rootGID int) (string, error) {
 	// TODO Windows.
 	return os.Getenv("TEMP"), nil
 }
@@ -98,7 +98,7 @@ func isBridgeNetworkDisabled(config *Config) bool {
 	return false
 }
 
-func initNetworkController(config *Config) (libnetwork.NetworkController, error) {
+func (daemon *Daemon) initNetworkController(config *Config) (libnetwork.NetworkController, error) {
 	// Set the name of the virtual switch if not specified by -b on daemon start
 	if config.Bridge.VirtualSwitchName == "" {
 		config.Bridge.VirtualSwitchName = defaultVirtualSwitch

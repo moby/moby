@@ -10,7 +10,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/execdriver"
 	derr "github.com/docker/docker/errors"
-	"github.com/docker/docker/pkg/broadcastwriter"
+	"github.com/docker/docker/pkg/broadcaster"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/pools"
 	"github.com/docker/docker/pkg/stringid"
@@ -233,8 +233,8 @@ func (d *Daemon) ContainerExecStart(name string, stdin io.ReadCloser, stdout io.
 		cStderr = stderr
 	}
 
-	ec.streamConfig.stderr = broadcastwriter.New()
-	ec.streamConfig.stdout = broadcastwriter.New()
+	ec.streamConfig.stderr = new(broadcaster.Unbuffered)
+	ec.streamConfig.stdout = new(broadcaster.Unbuffered)
 	// Attach to stdin
 	if ec.OpenStdin {
 		ec.streamConfig.stdin, ec.streamConfig.stdinPipe = io.Pipe()
@@ -251,10 +251,9 @@ func (d *Daemon) ContainerExecStart(name string, stdin io.ReadCloser, stdout io.
 	// the exitStatus) even after the cmd is done running.
 
 	go func() {
-		if err := container.exec(ec); err != nil {
-			execErr <- derr.ErrorCodeExecCantRun.WithArgs(ec.ID, container.ID, err)
-		}
+		execErr <- container.exec(ec)
 	}()
+
 	select {
 	case err := <-attachErr:
 		if err != nil {
@@ -262,6 +261,9 @@ func (d *Daemon) ContainerExecStart(name string, stdin io.ReadCloser, stdout io.
 		}
 		return nil
 	case err := <-execErr:
+		if aErr := <-attachErr; aErr != nil && err == nil {
+			return derr.ErrorCodeExecAttach.WithArgs(aErr)
+		}
 		if err == nil {
 			return nil
 		}
@@ -270,7 +272,7 @@ func (d *Daemon) ContainerExecStart(name string, stdin io.ReadCloser, stdout io.
 		if !container.IsRunning() {
 			return derr.ErrorCodeExecContainerStopped
 		}
-		return err
+		return derr.ErrorCodeExecCantRun.WithArgs(ec.ID, container.ID, err)
 	}
 }
 

@@ -410,12 +410,7 @@ func TestApplyLayer(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	expectedSize := int64(55)
-	if size := ChangesSize(dst, changes); size != expectedSize {
-		t.Errorf("expected size of %d bytes, got %d", expectedSize, size)
-	}
-
-	layer, err := ExportChanges(dst, changes)
+	layer, err := ExportChanges(dst, changes, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -462,11 +457,9 @@ func TestChangesSizeWithHardlinks(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	t.Logf("The changes were -- %#v", changes)
-
 	got := ChangesSize(destDir, changes)
 	if got != int64(creationSize) {
-		t.Errorf("expected %d bytes of changes, got %d", creationSize, got)
+		t.Errorf("Expected %d bytes of changes, got %d", creationSize, got)
 	}
 }
 
@@ -504,7 +497,7 @@ func TestChangesSize(t *testing.T) {
 	}
 	size := ChangesSize(parentPath, changes)
 	if size != 6 {
-		t.Fatalf("ChangesSizes with only delete changes should be 0, was %d", size)
+		t.Fatalf("Expected 6 bytes of changes, got %d", size)
 	}
 }
 

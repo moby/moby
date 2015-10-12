@@ -19,12 +19,12 @@ var _ = check.Suite(&DiscoverySuite{})
 
 func (s *DiscoverySuite) TestInitialize(c *check.C) {
 	d := &Discovery{}
-	d.Initialize("/path/to/file", 1000, 0)
+	d.Initialize("/path/to/file", 1000, 0, nil)
 	c.Assert(d.path, check.Equals, "/path/to/file")
 }
 
 func (s *DiscoverySuite) TestNew(c *check.C) {
-	d, err := discovery.New("file:///path/to/file", 0, 0)
+	d, err := discovery.New("file:///path/to/file", 0, 0, nil)
 	c.Assert(err, check.IsNil)
 	c.Assert(d.(*Discovery).path, check.Equals, "/path/to/file")
 }
@@ -81,7 +81,7 @@ func (s *DiscoverySuite) TestWatch(c *check.C) {
 
 	// Set up file discovery.
 	d := &Discovery{}
-	d.Initialize(tmp.Name(), 1000, 0)
+	d.Initialize(tmp.Name(), 1000, 0, nil)
 	stopCh := make(chan struct{})
 	ch, errCh := d.Watch(stopCh)
 

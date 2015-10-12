@@ -12,7 +12,7 @@ parent = "smn_applied"
 
 > **Note**: 
 > - **If you don't like sudo** then see [*Giving non-root
->   access*](/installation/binaries/#giving-non-root-access).
+>   access*](../installation/binaries.md#giving-non-root-access).
 > - **If you're using OS X or docker via TCP** then you shouldn't use
 >   sudo.
 

@@ -1,14 +1,15 @@
 <!--[metadata]>
 +++
-title = "Using the command line"
+title = "Use the Docker command line"
 description = "Docker's CLI command description and usage"
 keywords = ["Docker, Docker documentation, CLI,  command line"]
 [menu.main]
 parent = "smn_cli"
+weight = -2
 +++
 <![end-metadata]-->
 
-# Using the command line
+# Use the Docker command line
 
 To list available commands, either run `docker` with no parameters
 or execute `docker help`:
@@ -18,7 +19,7 @@ or execute `docker help`:
              docker daemon [ --help | ... ]
              docker [ --help | -v | --version ]
 
-        -H, --host=[]: The socket(s) to bind to in daemon mode, specified using one or more tcp://host:port, unix:///path/to/socket, fd://* or fd://socketfd.
+        -H, --host=[]: The socket(s) to talk to the Docker daemon in the format of tcp://host:port/path, unix:///path/to/socket, fd://* or fd://socketfd.
 
       A self-sufficient runtime for Linux containers.
 
@@ -30,7 +31,7 @@ each `docker` command with `sudo`. To avoid having to use `sudo` with the
 `docker` and add users to it.
 
 For more information about installing Docker or `sudo` configuration, refer to
-the [installation](/installation) instructions for your operating system.
+the [installation](../../installation) instructions for your operating system.
 
 ## Environment variables
 
@@ -97,7 +98,7 @@ The property `psFormat` specifies the default format for `docker ps` output.
 When the `--format` flag is not provided with the `docker ps` command,
 Docker's client uses this property. If this property is not set, the client
 falls back to the default table format. For a list of supported formatting
-directives, see the [**Formatting** section in the `docker ps` documentation](../ps)
+directives, see the [**Formatting** section in the `docker ps` documentation](ps.md)
 
 Following is a sample `config.json` file:
 
