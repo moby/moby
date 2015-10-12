@@ -256,7 +256,12 @@ func BuildFromConfig(config *runconfig.Config, changes []string) (*runconfig.Con
 
 // Commit will create a new image from a container's changes
 // TODO: remove daemon, make Commit a method on *Builder ?
-func Commit(container *daemon.Container, d *daemon.Daemon, c *CommitConfig) (string, error) {
+func Commit(containerName string, d *daemon.Daemon, c *CommitConfig) (string, error) {
+	container, err := d.Get(containerName)
+	if err != nil {
+		return "", err
+	}
+
 	// It is not possible to commit a running container on Windows
 	if runtime.GOOS == "windows" && container.IsRunning() {
 		return "", fmt.Errorf("Windows does not support commit of a running container")
