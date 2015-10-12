@@ -222,6 +222,9 @@ func (cli *DaemonCli) CmdDaemon(args ...string) error {
 		serverConfig.TLSConfig = tlsConfig
 	}
 
+	if len(commonFlags.Hosts) == 0 {
+		commonFlags.Hosts = make([]string, 1)
+	}
 	for i := 0; i < len(commonFlags.Hosts); i++ {
 		var err error
 		if commonFlags.Hosts[i], err = opts.ParseHost(commonFlags.Hosts[i]); err != nil {
