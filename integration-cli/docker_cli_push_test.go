@@ -97,6 +97,145 @@ func (s *DockerRegistrySuite) TestPushMultipleTags(c *check.C) {
 	}
 }
 
+// TestConcurrentPushWholeRepo pushes the same repo multiple times concurrently.
+func (s *DockerRegistrySuite) TestConcurrentPushWholeRepo(c *check.C) {
+	repoName := fmt.Sprintf("%v/dockercli/busybox", privateRegistryURL)
+	repoTag1 := fmt.Sprintf("%v/dockercli/busybox:t1", privateRegistryURL)
+	repoTag2 := fmt.Sprintf("%v/dockercli/busybox:t2", privateRegistryURL)
+
+	dockerCmd(c, "tag", "busybox", repoTag1)
+	dockerCmd(c, "tag", "busybox", repoTag2)
+
+	// Push tags concurrently
+	results := make(chan error)
+	numPushes := 3
+
+	for i := 0; i != numPushes; i++ {
+		go func() {
+			_, _, err := runCommandWithOutput(exec.Command(dockerBinary, "push", repoName))
+			results <- err
+		}()
+	}
+
+	// These checks are separate from the loop above because the check
+	// package is not goroutine-safe.
+	for i := 0; i != numPushes; i++ {
+		err := <-results
+		c.Assert(err, check.IsNil, check.Commentf("concurrent push failed with error: %v", err))
+	}
+
+	// Delete tags to get a fresh copy from the pull
+	dockerCmd(c, "rmi", repoTag1)
+	dockerCmd(c, "rmi", repoTag2)
+
+	// Ensure layer list is equivalent for repoTag1 and repoTag2
+	out1, _ := dockerCmd(c, "pull", repoTag1)
+	if strings.Contains(out1, "Tag t1 not found") {
+		c.Fatalf("Unable to pull pushed image: %s", out1)
+	}
+	imageAlreadyExists := ": Image already exists"
+	var out1Lines []string
+	for _, outputLine := range strings.Split(out1, "\n") {
+		if strings.Contains(outputLine, imageAlreadyExists) {
+			out1Lines = append(out1Lines, outputLine)
+		}
+	}
+
+	out2, _ := dockerCmd(c, "pull", repoTag2)
+	if strings.Contains(out2, "Tag t2 not found") {
+		c.Fatalf("Unable to pull pushed image: %s", out1)
+	}
+	var out2Lines []string
+	for _, outputLine := range strings.Split(out2, "\n") {
+		if strings.Contains(outputLine, imageAlreadyExists) {
+			out1Lines = append(out1Lines, outputLine)
+		}
+	}
+
+	if len(out1Lines) != len(out2Lines) {
+		c.Fatalf("Mismatched output length:\n%s\n%s", out1, out2)
+	}
+
+	for i := range out1Lines {
+		if out1Lines[i] != out2Lines[i] {
+			c.Fatalf("Mismatched output line:\n%s\n%s", out1Lines[i], out2Lines[i])
+		}
+	}
+}
+
+func (s *DockerRegistrySuite) TestConcurrentPushDifferentTags(c *check.C) {
+	repoTag1 := fmt.Sprintf("%v/dockercli/concurrentpush:t1", privateRegistryURL)
+	repoTag2 := fmt.Sprintf("%v/dockercli/concurrentpush:t2", privateRegistryURL)
+
+	_, err := buildImage(repoTag1,
+		`
+    FROM busybox
+    ENTRYPOINT ["/bin/echo"]
+    CMD echo tag1
+`,
+		true)
+
+	if err != nil {
+		c.Fatal(err)
+	}
+
+	_, err = buildImage(repoTag2,
+		`
+    FROM busybox
+    ENTRYPOINT ["/bin/echo"]
+    CMD echo tag2
+`,
+		true)
+
+	if err != nil {
+		c.Fatal(err)
+	}
+
+	// Push tags concurrently
+	results := make(chan error)
+	numPushes := 2
+
+	go func() {
+		_, _, err := runCommandWithOutput(exec.Command(dockerBinary, "push", repoTag1))
+		results <- err
+	}()
+
+	go func() {
+		_, _, err := runCommandWithOutput(exec.Command(dockerBinary, "push", repoTag2))
+		results <- err
+	}()
+
+	// These checks are separate from the loop above because the check
+	// package is not goroutine-safe.
+	for i := 0; i != numPushes; i++ {
+		err := <-results
+		c.Assert(err, check.IsNil, check.Commentf("concurrent push failed with error: %v", err))
+	}
+
+	// Delete tags to get a fresh copy from the pull
+	dockerCmd(c, "rmi", repoTag1)
+	dockerCmd(c, "rmi", repoTag2)
+
+	// Ensure correct behavior after repulling
+	out, _ := dockerCmd(c, "pull", repoTag1)
+	if strings.Contains(out, "Tag t1 not found") {
+		c.Fatalf("Unable to pull pushed image: %s", out)
+	}
+	out, _ = dockerCmd(c, "run", "--rm", repoTag1)
+	if strings.TrimSpace(out) != "/bin/sh -c echo tag1" {
+		c.Fatalf("CMD did not contain /bin/sh -c echo tag1: %s", out)
+	}
+
+	out, _ = dockerCmd(c, "pull", repoTag2)
+	if strings.Contains(out, "Tag t2 not found") {
+		c.Fatalf("Unable to pull pushed image: %s", out)
+	}
+	out, _ = dockerCmd(c, "run", "--rm", repoTag1)
+	if strings.TrimSpace(out) != "/bin/sh -c echo tag1" {
+		c.Fatalf("CMD did not contain /bin/sh -c echo tag1: %s", out)
+	}
+}
+
 func (s *DockerRegistrySuite) TestPushEmptyLayer(c *check.C) {
 	repoName := fmt.Sprintf("%v/dockercli/emptylayer", privateRegistryURL)
 	emptyTarball, err := ioutil.TempFile("", "empty_tarball")
