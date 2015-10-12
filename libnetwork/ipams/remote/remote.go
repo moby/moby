@@ -8,6 +8,7 @@ import (
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/libnetwork/ipamapi"
 	"github.com/docker/libnetwork/ipams/remote/api"
+	"github.com/docker/libnetwork/types"
 )
 
 type allocator struct {
@@ -64,7 +65,8 @@ func (a *allocator) RequestPool(addressSpace, pool, subPool string, options map[
 	if err := a.call("RequestPool", req, res); err != nil {
 		return "", nil, nil, err
 	}
-	return res.PoolID, res.Pool, res.Data, nil
+	retPool, err := types.ParseCIDR(res.Pool)
+	return res.PoolID, retPool, res.Data, err
 }
 
 // ReleasePool removes an address pool from the specified address space
@@ -76,17 +78,26 @@ func (a *allocator) ReleasePool(poolID string) error {
 
 // RequestAddress requests an address from the address pool
 func (a *allocator) RequestAddress(poolID string, address net.IP, options map[string]string) (*net.IPNet, map[string]string, error) {
-	req := &api.RequestAddressRequest{PoolID: poolID, Address: address, Options: options}
+	var prefAddress string
+	if address != nil {
+		prefAddress = address.String()
+	}
+	req := &api.RequestAddressRequest{PoolID: poolID, Address: prefAddress, Options: options}
 	res := &api.RequestAddressResponse{}
 	if err := a.call("RequestAddress", req, res); err != nil {
 		return nil, nil, err
 	}
-	return res.Address, res.Data, nil
+	retAddress, err := types.ParseCIDR(res.Address)
+	return retAddress, res.Data, err
 }
 
 // ReleaseAddress releases the address from the specified address pool
 func (a *allocator) ReleaseAddress(poolID string, address net.IP) error {
-	req := &api.ReleaseAddressRequest{PoolID: poolID, Address: address}
+	var relAddress string
+	if address != nil {
+		relAddress = address.String()
+	}
+	req := &api.ReleaseAddressRequest{PoolID: poolID, Address: relAddress}
 	res := &api.ReleaseAddressResponse{}
 	return a.call("ReleaseAddress", req, res)
 }
