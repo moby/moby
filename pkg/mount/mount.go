@@ -31,7 +31,7 @@ func Mounted(mountpoint string) (bool, error) {
 // specified like the mount or fstab unix commands: "opt1=val1,opt2=val2". See
 // flags.go for supported option flags.
 func Mount(device, target, mType, options string) error {
-	flag, _ := parseOptions(options)
+	flag, _ := ParseOptions(options)
 	if flag&REMOUNT != REMOUNT {
 		if mounted, err := Mounted(target); err != nil || mounted {
 			return err
@@ -45,7 +45,7 @@ func Mount(device, target, mType, options string) error {
 // specified like the mount or fstab unix commands: "opt1=val1,opt2=val2". See
 // flags.go for supported option flags.
 func ForceMount(device, target, mType, options string) error {
-	flag, data := parseOptions(options)
+	flag, data := ParseOptions(options)
 	if err := mount(device, target, mType, uintptr(flag), data); err != nil {
 		return err
 	}

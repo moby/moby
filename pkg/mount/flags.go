@@ -4,9 +4,9 @@ import (
 	"strings"
 )
 
-// Parse fstab type mount options into mount() flags
+// ParseOptions parses fstab type mount options into mount() flags
 // and device specific data
-func parseOptions(options string) (int, string) {
+func ParseOptions(options string) (int, string) {
 	var (
 		flag int
 		data []string
