@@ -91,7 +91,7 @@ fi
 if [ -d /sys/kernel/security ] && ! mountpoint -q /sys/kernel/security; then
 	mount -t securityfs none /sys/kernel/security || {
 		echo >&2 'Could not mount /sys/kernel/security.'
-		echo >&2 'AppArmor detection and -privileged mode might break.'
+		echo >&2 'AppArmor detection and --privileged mode might break.'
 	}
 fi
 
