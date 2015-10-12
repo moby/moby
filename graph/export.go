@@ -114,6 +114,8 @@ func (s *TagStore) ImageExport(imageExportConfig *ImageExportConfig) error {
 // FIXME: this should be a top-level function, not a class method
 func (s *TagStore) exportImage(name, tempdir string) error {
 	for n := name; n != ""; {
+		img, err := s.LookupImage(n)
+
 		// temporary directory
 		tmpImageDir := filepath.Join(tempdir, n)
 		if err := os.Mkdir(tmpImageDir, os.FileMode(0755)); err != nil {
@@ -130,15 +132,17 @@ func (s *TagStore) exportImage(name, tempdir string) error {
 			return err
 		}
 
+		imageInspectRaw, err := json.Marshal(img)
+		if err != nil {
+			return err
+		}
+
 		// serialize json
 		json, err := os.Create(filepath.Join(tmpImageDir, "json"))
 		if err != nil {
 			return err
 		}
-		imageInspectRaw, err := s.LookupRaw(n)
-		if err != nil {
-			return err
-		}
+
 		written, err := json.Write(imageInspectRaw)
 		if err != nil {
 			return err
@@ -156,11 +160,6 @@ func (s *TagStore) exportImage(name, tempdir string) error {
 			return err
 		}
 
-		// find parent
-		img, err := s.LookupImage(n)
-		if err != nil {
-			return err
-		}
 		n = img.Parent
 	}
 	return nil

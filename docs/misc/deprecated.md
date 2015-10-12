@@ -18,7 +18,7 @@ The following list of features are deprecated.
 **Target For Removal In Release: v1.10**
 
 The built-in LXC execution driver is deprecated for an external implementation.
-The lxc-conf flag and API fields will also be removed. 
+The lxc-conf flag and API fields will also be removed.
 
 ### Old Command Line Options
 **Deprecated In Release: [v1.8.0](/release-notes/#docker-engine-1-8-0)**
@@ -29,7 +29,7 @@ The flags `-d` and `--daemon` are deprecated in favor of the `daemon` subcommand
 
     docker daemon -H ...
 
-The following single-dash (`-opt`) variant of certain command line options 
+The following single-dash (`-opt`) variant of certain command line options
 are deprecated and replaced with double-dash options (`--opt`):
 
     docker attach -nostdin
@@ -68,3 +68,7 @@ The following double-dash options are deprecated and have no replacement:
     docker ps --since-id
     docker ps --before-id
     docker search --trusted
+
+### Interacting with V1 registries
+
+Version 1.8.3 adds a flag (`--disable-legacy-registry=false`) which prevents the docker daemon from `pull`, `push`, and `login` operations against v1 registries.  Though disabled by default, this signals the intent to deprecate the v1 protocol.

@@ -12,7 +12,6 @@ import (
 	"github.com/docker/docker/daemon/graphdriver"
 	_ "github.com/docker/docker/daemon/graphdriver/vfs" // import the vfs driver so it is used in the tests
 	"github.com/docker/docker/image"
-	"github.com/docker/docker/trust"
 	"github.com/docker/docker/utils"
 )
 
@@ -62,15 +61,9 @@ func mkTestTagStore(root string, t *testing.T) *TagStore {
 		t.Fatal(err)
 	}
 
-	trust, err := trust.NewTrustStore(root + "/trust")
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	tagCfg := &TagStoreConfig{
 		Graph:  graph,
 		Events: events.New(),
-		Trust:  trust,
 	}
 	store, err := NewTagStore(path.Join(root, "tags"), tagCfg)
 	if err != nil {
@@ -81,7 +74,7 @@ func mkTestTagStore(root string, t *testing.T) *TagStore {
 		t.Fatal(err)
 	}
 	img := &image.Image{ID: testOfficialImageID}
-	if err := graph.Register(img, officialArchive); err != nil {
+	if err := graph.Register(v1ImageDescriptor{img}, officialArchive); err != nil {
 		t.Fatal(err)
 	}
 	if err := store.Tag(testOfficialImageName, "", testOfficialImageID, false); err != nil {
@@ -92,7 +85,7 @@ func mkTestTagStore(root string, t *testing.T) *TagStore {
 		t.Fatal(err)
 	}
 	img = &image.Image{ID: testPrivateImageID}
-	if err := graph.Register(img, privateArchive); err != nil {
+	if err := graph.Register(v1ImageDescriptor{img}, privateArchive); err != nil {
 		t.Fatal(err)
 	}
 	if err := store.Tag(testPrivateImageName, "", testPrivateImageID, false); err != nil {
