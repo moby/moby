@@ -27,7 +27,7 @@ func TestFromStatT(t *testing.T) {
 	if stat.Uid != s.UID() {
 		t.Fatal("got invalid uid")
 	}
-	if stat.Gid != s.Gid() {
+	if stat.Gid != s.GID() {
 		t.Fatal("got invalid gid")
 	}
 	if stat.Rdev != s.Rdev() {
