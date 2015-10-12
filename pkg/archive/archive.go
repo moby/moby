@@ -249,14 +249,14 @@ func (ta *tarAppender) addTarFile(path, name string) error {
 	}
 	hdr.Name = name
 
-	nlink, inode, err := setHeaderForSpecialDevice(hdr, ta, name, fi.Sys())
+	inode, err := setHeaderForSpecialDevice(hdr, ta, name, fi.Sys())
 	if err != nil {
 		return err
 	}
 
-	// if it's a regular file and has more than 1 link,
+	// if it's not a directory and has more than 1 link,
 	// it's hardlinked, so set the type flag accordingly
-	if fi.Mode().IsRegular() && nlink > 1 {
+	if !fi.IsDir() && hasHardlinks(fi) {
 		// a link should have a name that it links too
 		// and that linked name should be first in the tar archive
 		if oldpath, ok := ta.SeenFiles[inode]; ok {
