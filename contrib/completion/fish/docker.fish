@@ -26,11 +26,11 @@ end
 function __fish_print_docker_containers --description 'Print a list of docker containers' -a select
     switch $select
         case running
-            docker ps -a --no-trunc | command awk 'NR>1' | command awk 'BEGIN {FS="  +"}; $5 ~ "^Up" {print $1 "\n" $(NF-1)}' | tr ',' '\n'
+            docker ps -a --no-trunc | command awk 'NR>1' | command awk 'BEGIN {FS="  +"}; $5 ~ "^Up" {print $1 "\n" $(NF)}' | tr ',' '\n'
         case stopped
-            docker ps -a --no-trunc | command awk 'NR>1' | command awk 'BEGIN {FS="  +"}; $5 ~ "^Exit" {print $1 "\n" $(NF-1)}' | tr ',' '\n'
+            docker ps -a --no-trunc | command awk 'NR>1' | command awk 'BEGIN {FS="  +"}; $5 ~ "^Exit" {print $1 "\n" $(NF)}' | tr ',' '\n'
         case all
-            docker ps -a --no-trunc | command awk 'NR>1' | command awk 'BEGIN {FS="  +"}; {print $1 "\n" $(NF-1)}' | tr ',' '\n'
+            docker ps -a --no-trunc | command awk 'NR>1' | command awk 'BEGIN {FS="  +"}; {print $1 "\n" $(NF)}' | tr ',' '\n'
     end
 end
 
