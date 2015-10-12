@@ -4,7 +4,9 @@ import (
 	"os/exec"
 	"strings"
 
+	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/integration/checker"
+	"github.com/docker/docker/volume"
 	"github.com/go-check/check"
 )
 
@@ -18,6 +20,18 @@ func (s *DockerSuite) TestVolumeCliCreate(c *check.C) {
 	out, _ := dockerCmd(c, "volume", "create", "--name=test")
 	name := strings.TrimSpace(out)
 	c.Assert(name, check.Equals, "test")
+}
+
+func (s *DockerSuite) TestVolumeCliCreateOptionConflict(c *check.C) {
+	dockerCmd(c, "volume", "create", "--name=test")
+	out, _, err := dockerCmdWithError("volume", "create", "--name", "test", "--driver", "nosuchdriver")
+	c.Assert(err, check.NotNil, check.Commentf("volume create exception name already in use with another driver"))
+	stderr := derr.ErrorVolumeNameTaken.WithArgs("test", volume.DefaultDriverName).Error()
+	c.Assert(strings.Contains(out, strings.TrimPrefix(stderr, "volume name taken: ")), check.Equals, true)
+
+	out, _ = dockerCmd(c, "volume", "inspect", "--format='{{ .Driver }}'", "test")
+	_, _, err = dockerCmdWithError("volume", "create", "--name", "test", "--driver", strings.TrimSpace(out))
+	c.Assert(err, check.IsNil)
 }
 
 func (s *DockerSuite) TestVolumeCliInspect(c *check.C) {

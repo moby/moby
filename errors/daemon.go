@@ -863,4 +863,13 @@ var (
 		Description:    "While verifying the container's 'HostConfig', cpuset memory nodes provided aren't available in the container's cgroup available set",
 		HTTPStatusCode: http.StatusInternalServerError,
 	})
+
+	// ErrorVolumeNameTaken is generated when an error occurred while
+	// trying to create a volume that has existed using different driver.
+	ErrorVolumeNameTaken = errcode.Register(errGroup, errcode.ErrorDescriptor{
+		Value:          "VOLUME_NAME_TAKEN",
+		Message:        "A volume name %s already exists with the %s driver. Choose a different volume name.",
+		Description:    "An attempt to create a volume using a driver but the volume already exists with a different driver",
+		HTTPStatusCode: http.StatusInternalServerError,
+	})
 )
