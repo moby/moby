@@ -49,6 +49,7 @@ type Daemon struct {
 	execDriver     string
 	wait           chan error
 	userlandProxy  bool
+	useDefaultHost bool
 }
 
 // NewDaemon returns a Daemon instance to be used for testing.
@@ -101,12 +102,13 @@ func (d *Daemon) Start(arg ...string) error {
 
 	args := append(d.GlobalFlags,
 		d.Command,
-		"--host", d.sock(),
 		"--graph", d.root,
 		"--pidfile", fmt.Sprintf("%s/docker.pid", d.folder),
 		fmt.Sprintf("--userland-proxy=%t", d.userlandProxy),
 	)
-
+	if !d.useDefaultHost {
+		args = append(args, []string{"--host", d.sock()}...)
+	}
 	if root := os.Getenv("DOCKER_REMAP_ROOT"); root != "" {
 		args = append(args, []string{"--userns-remap", root}...)
 	}
@@ -168,7 +170,15 @@ func (d *Daemon) Start(arg ...string) error {
 		case <-time.After(2 * time.Second):
 			return fmt.Errorf("[%s] timeout: daemon does not respond", d.id)
 		case <-tick:
-			c, err := net.Dial("unix", filepath.Join(d.folder, "docker.sock"))
+			var (
+				c   net.Conn
+				err error
+			)
+			if d.useDefaultHost {
+				c, err = net.Dial("unix", "/var/run/docker.sock")
+			} else {
+				c, err = net.Dial("unix", filepath.Join(d.folder, "docker.sock"))
+			}
 			if err != nil {
 				continue
 			}
@@ -291,7 +301,15 @@ func (d *Daemon) Restart(arg ...string) error {
 func (d *Daemon) queryRootDir() (string, error) {
 	// update daemon root by asking /info endpoint (to support user
 	// namespaced daemon with root remapped uid.gid directory)
-	conn, err := net.Dial("unix", filepath.Join(d.folder, "docker.sock"))
+	var (
+		conn net.Conn
+		err  error
+	)
+	if d.useDefaultHost {
+		conn, err = net.Dial("unix", "/var/run/docker.sock")
+	} else {
+		conn, err = net.Dial("unix", filepath.Join(d.folder, "docker.sock"))
+	}
 	if err != nil {
 		return "", err
 	}

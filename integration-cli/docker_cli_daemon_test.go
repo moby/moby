@@ -1715,3 +1715,11 @@ func (s *DockerDaemonSuite) TestDaemonCorruptedFluentdAddress(c *check.C) {
 		c.Fatalf("Expected %q message; but doesn't exist in log: %q, err: %v", expected, out, err)
 	}
 }
+
+func (s *DockerDaemonSuite) TestDaemonStartWithoutHost(c *check.C) {
+	s.d.useDefaultHost = true
+	defer func() {
+		s.d.useDefaultHost = false
+	}()
+	c.Assert(s.d.Start(), check.IsNil)
+}
