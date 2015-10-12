@@ -2,10 +2,6 @@
 // messages between libnetwork and the remote ipam plugin
 package api
 
-import (
-	"net"
-)
-
 // Response is the basic response structure used in all responses
 type Response struct {
 	Error string
@@ -41,7 +37,7 @@ type RequestPoolRequest struct {
 type RequestPoolResponse struct {
 	Response
 	PoolID string
-	Pool   *net.IPNet
+	Pool   string // CIDR format
 	Data   map[string]string
 }
 
@@ -58,21 +54,21 @@ type ReleasePoolResponse struct {
 // RequestAddressRequest represents the expected data in a ``request address`` request message
 type RequestAddressRequest struct {
 	PoolID  string
-	Address net.IP
+	Address string
 	Options map[string]string
 }
 
 // RequestAddressResponse represents the expected data in the response message to a ``request address`` request
 type RequestAddressResponse struct {
 	Response
-	Address *net.IPNet
+	Address string // in CIDR format
 	Data    map[string]string
 }
 
 // ReleaseAddressRequest represents the expected data in a ``release address`` request message
 type ReleaseAddressRequest struct {
 	PoolID  string
-	Address net.IP
+	Address string
 }
 
 // ReleaseAddressResponse represents the response message to a ``release address`` request
