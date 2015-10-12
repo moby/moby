@@ -324,7 +324,6 @@ made through a pull request.
 		[Org.Subsystems.Documentation]
 
 			people = [
-				"fredlf",
 				"james",
 				"moxiegirl",
 				"thaJeztah",
@@ -488,11 +487,6 @@ made through a pull request.
 	Name = "Phil Estes"
 	Email = "estesp@linux.vnet.ibm.com"
 	GitHub = "estesp"
-
-	[people.fredlf]
-	Name = "Fred Lifton"
-	Email = "fred.lifton@docker.com"
-	GitHub = "fredlf"
 
 	[people.icecrime]
 	Name = "Arnaud Porterie"
