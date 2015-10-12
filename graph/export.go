@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/distribution/digest"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/registry"
@@ -58,6 +59,11 @@ func (s *TagStore) ImageExport(names []string, outStream io.Writer) error {
 			if img != nil {
 				// This is a named image like 'busybox:latest'
 				repoName, repoTag := parsers.ParseRepositoryTag(name)
+
+				// Skip digests on save
+				if _, err := digest.ParseDigest(repoTag); err == nil {
+					repoTag = ""
+				}
 
 				// check this length, because a lookup of a truncated has will not have a tag
 				// and will not need to be added to this map
