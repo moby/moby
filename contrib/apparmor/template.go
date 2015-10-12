@@ -33,14 +33,19 @@ profile /usr/bin/docker (attach_disconnected, complain) {
   @{DOCKER_GRAPH_PATH}/linkgraph.db k,
   @{DOCKER_GRAPH_PATH}/network/files/boltdb.db k,
   @{DOCKER_GRAPH_PATH}/network/files/local-kv.db k,
+  @{DOCKER_GRAPH_PATH}/[0-9]*.[0-9]*/linkgraph.db k,
 
   # For non-root client use:
   /dev/urandom r,
+  /dev/null rw,
+  /dev/pts/[0-9]* rw,
   /run/docker.sock rw,
   /proc/** r,
+  /proc/[0-9]*/attr/exec w,
   /sys/kernel/mm/hugepages/ r,
   /etc/localtime r,
   /etc/ld.so.cache r,
+  /etc/passwd r,
 
 {{if ge .MajorVersion 2}}{{if ge .MinorVersion 9}}
   ptrace peer=@{profile_name},
