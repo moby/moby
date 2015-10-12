@@ -126,7 +126,7 @@ func makeDefaultScopes() map[string]*ScopeCfg {
 	def[LocalScope] = &ScopeCfg{
 		Client: ScopeClientCfg{
 			Provider: "boltdb",
-			Address:  defaultPrefix + "/boltdb.db",
+			Address:  defaultPrefix + "/local-kv.db",
 			Config: &store.Config{
 				Bucket: "libnetwork",
 			},
@@ -136,7 +136,7 @@ func makeDefaultScopes() map[string]*ScopeCfg {
 	return def
 }
 
-var rootChain = []string{"docker", "libnetwork"}
+var rootChain = []string{"docker", "network", "v1.0"}
 
 func init() {
 	consul.Register()
@@ -148,11 +148,11 @@ func init() {
 // DefaultScopes returns a map of default scopes and it's config for clients to use.
 func DefaultScopes(dataDir string) map[string]*ScopeCfg {
 	if dataDir != "" {
-		defaultScopes[LocalScope].Client.Address = dataDir + "/network/files/boltdb.db"
+		defaultScopes[LocalScope].Client.Address = dataDir + "/network/files/local-kv.db"
 		return defaultScopes
 	}
 
-	defaultScopes[LocalScope].Client.Address = defaultPrefix + "/boltdb.db"
+	defaultScopes[LocalScope].Client.Address = defaultPrefix + "/local-kv.db"
 	return defaultScopes
 }
 
