@@ -1231,43 +1231,55 @@ func (container *Container) networkMounts() []execdriver.Mount {
 	var mounts []execdriver.Mount
 	shared := container.hostConfig.NetworkMode.IsContainer()
 	if container.ResolvConfPath != "" {
-		label.Relabel(container.ResolvConfPath, container.MountLabel, shared)
-		writable := !container.hostConfig.ReadonlyRootfs
-		if m, exists := container.MountPoints["/etc/resolv.conf"]; exists {
-			writable = m.RW
+		if _, err := os.Stat(container.ResolvConfPath); err != nil {
+			logrus.Warnf("ResolvConfPath set to %q, but can't stat this filename (err = %v); skipping", container.ResolvConfPath, err)
+		} else {
+			label.Relabel(container.ResolvConfPath, container.MountLabel, shared)
+			writable := !container.hostConfig.ReadonlyRootfs
+			if m, exists := container.MountPoints["/etc/resolv.conf"]; exists {
+				writable = m.RW
+			}
+			mounts = append(mounts, execdriver.Mount{
+				Source:      container.ResolvConfPath,
+				Destination: "/etc/resolv.conf",
+				Writable:    writable,
+				Private:     true,
+			})
 		}
-		mounts = append(mounts, execdriver.Mount{
-			Source:      container.ResolvConfPath,
-			Destination: "/etc/resolv.conf",
-			Writable:    writable,
-			Private:     true,
-		})
 	}
 	if container.HostnamePath != "" {
-		label.Relabel(container.HostnamePath, container.MountLabel, shared)
-		writable := !container.hostConfig.ReadonlyRootfs
-		if m, exists := container.MountPoints["/etc/hostname"]; exists {
-			writable = m.RW
+		if _, err := os.Stat(container.HostnamePath); err != nil {
+			logrus.Warnf("HostnamePath set to %q, but can't stat this filename (err = %v); skipping", container.HostnamePath, err)
+		} else {
+			label.Relabel(container.HostnamePath, container.MountLabel, shared)
+			writable := !container.hostConfig.ReadonlyRootfs
+			if m, exists := container.MountPoints["/etc/hostname"]; exists {
+				writable = m.RW
+			}
+			mounts = append(mounts, execdriver.Mount{
+				Source:      container.HostnamePath,
+				Destination: "/etc/hostname",
+				Writable:    writable,
+				Private:     true,
+			})
 		}
-		mounts = append(mounts, execdriver.Mount{
-			Source:      container.HostnamePath,
-			Destination: "/etc/hostname",
-			Writable:    writable,
-			Private:     true,
-		})
 	}
 	if container.HostsPath != "" {
-		label.Relabel(container.HostsPath, container.MountLabel, shared)
-		writable := !container.hostConfig.ReadonlyRootfs
-		if m, exists := container.MountPoints["/etc/hosts"]; exists {
-			writable = m.RW
+		if _, err := os.Stat(container.HostsPath); err != nil {
+			logrus.Warnf("HostsPath set to %q, but can't stat this filename (err = %v); skipping", container.HostsPath, err)
+		} else {
+			label.Relabel(container.HostsPath, container.MountLabel, shared)
+			writable := !container.hostConfig.ReadonlyRootfs
+			if m, exists := container.MountPoints["/etc/hosts"]; exists {
+				writable = m.RW
+			}
+			mounts = append(mounts, execdriver.Mount{
+				Source:      container.HostsPath,
+				Destination: "/etc/hosts",
+				Writable:    writable,
+				Private:     true,
+			})
 		}
-		mounts = append(mounts, execdriver.Mount{
-			Source:      container.HostsPath,
-			Destination: "/etc/hosts",
-			Writable:    writable,
-			Private:     true,
-		})
 	}
 	return mounts
 }
