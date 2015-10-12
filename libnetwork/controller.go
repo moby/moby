@@ -355,24 +355,30 @@ func (c *controller) NewNetwork(networkType, name string, options ...NetworkOpti
 		}
 	}()
 
-	// addNetwork can be called for local scope network lazily when
-	// an endpoint is created after a restart and the network was
-	// created in previous life. Make sure you wrap around the driver
-	// notification of network creation in once call so that the driver
-	// invoked only once in case both the network and endpoint creation
-	// happens in the same lifetime.
-	network.drvOnce.Do(func() {
-		err = c.addNetwork(network)
-	})
-	if err != nil {
+	if err := c.addNetwork(network); err != nil {
 		return nil, err
 	}
+	defer func() {
+		if err != nil {
+			if e := network.deleteNetwork(); e != nil {
+				log.Warnf("couldn't roll back driver network on network %s creation failure: %v", network.name, err)
+			}
+		}
+	}()
 
 	if err = c.updateToStore(network); err != nil {
-		log.Warnf("couldnt create network %s: %v", network.name, err)
-		if e := network.Delete(); e != nil {
-			log.Warnf("couldnt cleanup network %s on network create failure (%v): %v", network.name, err, e)
+		return nil, err
+	}
+	defer func() {
+		if err != nil {
+			if e := c.deleteFromStore(network); e != nil {
+				log.Warnf("couldnt rollback from store, network %s on failure (%v): %v", network.name, err, e)
+			}
 		}
+	}()
+
+	network.epCnt = &endpointCnt{n: network}
+	if err = c.updateToStore(network.epCnt); err != nil {
 		return nil, err
 	}
 
