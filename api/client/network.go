@@ -104,9 +104,9 @@ func (cli *DockerCli) CmdNetworkDisconnect(args ...string) error {
 //
 // Usage: docker network ls [OPTIONS]
 func (cli *DockerCli) CmdNetworkLs(args ...string) error {
-	cmd := Cli.Subcmd("network ls", []string{""}, "Lists all the networks created by the user", false)
+	cmd := Cli.Subcmd("network ls", nil, "Lists all the networks created by the user", false)
 	quiet := cmd.Bool([]string{"q", "-quiet"}, false, "Only display numeric IDs")
-	noTrunc := cmd.Bool([]string{"", "-no-trunc"}, false, "Do not truncate the output")
+	noTrunc := cmd.Bool([]string{"-no-trunc"}, false, "Do not truncate the output")
 	nLatest := cmd.Bool([]string{"l", "-latest"}, false, "Show the latest network created")
 	last := cmd.Int([]string{"n"}, -1, "Show n last created networks")
 	err := cmd.ParseFlags(args, true)
@@ -134,7 +134,15 @@ func (cli *DockerCli) CmdNetworkLs(args ...string) error {
 		fmt.Fprintln(wr, "NETWORK ID\tNAME\tDRIVER")
 	}
 
-	for _, networkResource := range networkResources {
+	first := 0
+	if *last > 0 {
+		first = len(networkResources) - *last
+		if first < 0 {
+			first = 0
+		}
+	}
+
+	for _, networkResource := range networkResources[first:] {
 		ID := networkResource.ID
 		netName := networkResource.Name
 		if !*noTrunc {
