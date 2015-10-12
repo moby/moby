@@ -484,17 +484,15 @@ To view an image's labels, use the `docker inspect` command.
 
     EXPOSE <port> [<port>...]
 
-The `EXPOSE` instructions informs Docker that the container will listen on the
-specified network ports at runtime. Docker uses this information to interconnect
-containers using links (see the [Docker User
-Guide](../userguide/dockerlinks.md) and to determine which ports to expose to the
-host when [using the -P flag](run.md#expose-incoming-ports).
-
-> **Note**:
-> `EXPOSE` doesn't define which ports can be exposed to the host or make ports
-> accessible from the host by default. To expose ports to the host, at runtime,
-> [use the `-p` flag](../userguide/dockerlinks.md) or
-> [the -P flag](run.md#expose-incoming-ports).
+The `EXPOSE` instruction informs Docker that the container listens on the
+specified network ports at runtime. `EXPOSE` does not make the ports of the
+container accessible to the host. To do that, you must use either the `-p` flag
+to publish a range of ports or the `-P` flag to publish all of the exposed ports.
+You can expose one port number and publish it externally under another number.
+ 
+Docker uses exposed and published ports to interconnect containers using links
+(see [Linking containers together](../userguide/dockerlinks.md))
+and to set up port redirection on the host system when [using the -P flag](run.md#expose-incoming-ports).
 
 ## ENV
 

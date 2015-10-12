@@ -223,7 +223,10 @@ ENTRYPOINT.
    Read in a line delimited file of environment variables
 
 **--expose**=[]
-   Expose a port, or a range of ports (e.g. --expose=3300-3310), from the container without publishing it to your host
+   Expose a port, or a range of ports (e.g. --expose=3300-3310) informs Docker
+that the container listens on the specified network ports at runtime. Docker
+uses this information to interconnect containers using links and to set up port
+redirection on the host system.
 
 **--group-add**=[]
    Add additional groups to run as
