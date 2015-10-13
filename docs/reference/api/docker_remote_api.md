@@ -135,6 +135,8 @@ of a 404.
 `SwapLimit` are now returned as boolean instead of as an int. In addition, the
 end point now returns the new boolean fields `CpuCfsPeriod`, `CpuCfsQuota`, and
 `OomKillDisable`.
+* The `hostConfig` option now accepts the fields `CpuPeriod` and `CpuQuota`
+* `POST /build` accepts `cpuperiod` and `cpuquota` options
 
 ### v1.18 API changes
 
