@@ -25,6 +25,13 @@ func UnpackLayer(dest string, layer Reader, options *TarOptions) (size int64, er
 	defer pools.BufioReader32KPool.Put(trBuf)
 
 	var dirs []*tar.Header
+
+	if options == nil {
+		options = &TarOptions{}
+	}
+	if options.ExcludePatterns == nil {
+		options.ExcludePatterns = []string{}
+	}
 	remappedRootUID, remappedRootGID, err := idtools.GetRootUIDGID(options.UIDMaps, options.GIDMaps)
 	if err != nil {
 		return 0, err
