@@ -24,5 +24,5 @@ type ContainerConfig struct {
 	Memory       int64
 	MemorySwap   int64
 	CPUShares    int64  `json:"CpuShares"`
-	CPUSet       string `json:"CpuSet"`
+	CPUSet       string `json:"Cpuset"`
 }
