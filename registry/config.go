@@ -136,6 +136,32 @@ func NewServiceConfig(options *Options) *ServiceConfig {
 	return config
 }
 
+// AddInsecureRegistryConfig add insecure registry config
+func (config *ServiceConfig) AddInsecureRegistryConfig(insecureRegistries []string) error {
+	for _, r := range insecureRegistries {
+		// Check if CIDR was passed to --insecure-registry
+		_, ipnet, err := net.ParseCIDR(r)
+		if err == nil {
+			// Valid CIDR.
+			config.InsecureRegistryCIDRs = append(config.InsecureRegistryCIDRs, (*netIPNet)(ipnet))
+		} else {
+			hostport := strings.Split(r, ":")
+			if len(hostport) != 2 {
+				return fmt.Errorf("Invalid registry!")
+			}
+			// Assume `host:port` if not CIDR.
+			config.IndexConfigs[r] = &IndexInfo{
+				Name:     r,
+				Mirrors:  make([]string, 0),
+				Secure:   false,
+				Official: false,
+			}
+		}
+	}
+
+	return nil
+}
+
 // isSecureIndex returns false if the provided indexName is part of the list of insecure registries
 // Insecure registries accept HTTP and/or accept HTTPS with certificates from unknown CAs.
 //

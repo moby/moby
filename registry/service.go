@@ -160,3 +160,8 @@ func (s *Service) lookupEndpoints(repoName string) (endpoints []APIEndpoint, err
 
 	return endpoints, nil
 }
+
+// AddInsecureRegistryService add insecure regsitry
+func (s *Service) AddInsecureRegistryService(insecureRegistries []string) error {
+	return s.Config.AddInsecureRegistryConfig(insecureRegistries)
+}

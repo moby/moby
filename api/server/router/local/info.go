@@ -138,3 +138,17 @@ func (s *router) getEvents(ctx context.Context, w http.ResponseWriter, r *http.R
 		}
 	}
 }
+
+func (s *router) postAddInsecureRegistry(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if err := httputils.ParseForm(r); err != nil {
+		return err
+	}
+
+	insecureRegistries := r.Form["registry"]
+
+	if err := s.daemon.AddInsecureRegistry(insecureRegistries); err != nil {
+		return err
+	}
+
+	return nil
+}
