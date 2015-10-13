@@ -269,6 +269,8 @@ type ContainerJSONBase struct {
 	ExecIDs         []string
 	HostConfig      *runconfig.HostConfig
 	GraphDriver     GraphDriverData
+	SizeRw          *int64 `json:",omitempty"`
+	SizeRootFs      *int64 `json:",omitempty"`
 }
 
 // ContainerJSON is newly used struct along with MountPoint

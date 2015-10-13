@@ -467,6 +467,26 @@ Return low-level information on the container `id`
 		]
 	}
 
+**Example request, with size information**:
+
+    GET /containers/4fa6e0f0c678/json?size=1 HTTP/1.1
+
+**Example response, with size information**:
+
+    HTTP/1.1 200 OK
+    Content-Type: application/json
+
+    {
+    ....
+    "SizeRw": 0,
+    "SizeRootFs": 972,
+    ....
+    }
+
+Query Parameters:
+
+-   **size** – 1/True/true or 0/False/false, return container size information. Default is `false`.
+
 Status Codes:
 
 -   **200** – no error

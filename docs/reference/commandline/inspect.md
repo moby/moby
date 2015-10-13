@@ -18,6 +18,7 @@ parent = "smn_cli"
       --help=false            Print usage
       --type=container|image  Return JSON for specified type, permissible
                               values are "image" or "container"
+      -s, --size=false        Display total file sizes if the type is container
 
 By default, this will render all results in a JSON array. If a format is
 specified, the given template will be executed for each result.

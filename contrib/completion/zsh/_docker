@@ -650,6 +650,7 @@ __docker_subcommand() {
             _arguments \
                 $opts_help \
                 "($help -f --format=-)"{-f,--format=-}"[Format the output using the given go template]:template: " \
+                "($help -s --size)"{-s,--size}"[Display total file sizes if the type is container]" \
                 "($help)--type=-[Return JSON for specified type]:type:(image container)" \
                 "($help -)*: :->values" && ret=0
 

@@ -13,5 +13,5 @@ func addMountPoints(container *Container) []types.MountPoint {
 
 // ContainerInspectPre120 get containers for pre 1.20 APIs.
 func (daemon *Daemon) ContainerInspectPre120(name string) (*types.ContainerJSON, error) {
-	return daemon.ContainerInspect(name)
+	return daemon.ContainerInspect(name, false)
 }

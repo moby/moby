@@ -345,3 +345,43 @@ func (s *DockerSuite) TestInspectLogConfigNoType(c *check.C) {
 	c.Assert(logConfig.Type, check.Equals, "json-file")
 	c.Assert(logConfig.Config["max-file"], check.Equals, "42", check.Commentf("%v", logConfig))
 }
+
+func (s *DockerSuite) TestInspectNoSizeFlagContainer(c *check.C) {
+
+	//Both the container and image are named busybox. docker inspect will fetch container
+	//JSON SizeRw and SizeRootFs field. If there is no flag --size/-s, there are no size fields.
+
+	dockerCmd(c, "run", "--name=busybox", "-d", "busybox", "top")
+
+	formatStr := fmt.Sprintf("--format='{{.SizeRw}},{{.SizeRootFs}}'")
+	out, _ := dockerCmd(c, "inspect", "--type=container", formatStr, "busybox")
+	c.Assert(strings.TrimSpace(out), check.Equals, "<nil>,<nil>", check.Commentf("Exepcted not to display size info: %s", out))
+}
+
+func (s *DockerSuite) TestInspectSizeFlagContainer(c *check.C) {
+
+	//Both the container and image are named busybox. docker inspect will fetch container
+	//JSON SizeRw and SizeRootFs field. If there is a flag --size/-s, the fields are not <no value>.
+
+	dockerCmd(c, "run", "--name=busybox", "-d", "busybox", "top")
+
+	formatStr := fmt.Sprintf("--format='{{.SizeRw}},{{.SizeRootFs}}'")
+	out, _ := dockerCmd(c, "inspect", "-s", "--type=container", formatStr, "busybox")
+	sz := strings.Split(out, ",")
+
+	c.Assert(strings.TrimSpace(sz[0]), check.Not(check.Equals), "<nil>")
+	c.Assert(strings.TrimSpace(sz[1]), check.Not(check.Equals), "<nil>")
+}
+
+func (s *DockerSuite) TestInspectSizeFlagImage(c *check.C) {
+
+	//Both the container and image are named busybox. docker inspect will fetch image
+	//JSON SizeRw and SizeRootFs field. There are no these fields since they are only in containers.
+
+	dockerCmd(c, "run", "--name=busybox", "-d", "busybox", "top")
+
+	formatStr := fmt.Sprintf("--format='{{.SizeRw}},{{.SizeRootFs}}'")
+	out, _ := dockerCmd(c, "inspect", "-s", "--type=image", formatStr, "busybox")
+
+	c.Assert(strings.TrimSpace(out), check.Equals, "<no value>,<no value>", check.Commentf("Fields SizeRw and SizeRootFs are not exepcted to exist"))
+}

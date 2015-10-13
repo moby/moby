@@ -10,6 +10,7 @@ import (
 
 // getContainersByName inspects containers configuration and serializes it as json.
 func (s *router) getContainersByName(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	displaySize := httputils.BoolValue(r, "size")
 	if vars == nil {
 		return fmt.Errorf("Missing parameter")
 	}
@@ -25,7 +26,7 @@ func (s *router) getContainersByName(ctx context.Context, w http.ResponseWriter,
 	case version.Equal("1.20"):
 		json, err = s.daemon.ContainerInspect120(vars["name"])
 	default:
-		json, err = s.daemon.ContainerInspect(vars["name"])
+		json, err = s.daemon.ContainerInspect(vars["name"], displaySize)
 	}
 
 	if err != nil {
