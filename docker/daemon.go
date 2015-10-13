@@ -186,7 +186,7 @@ func (cli *DaemonCli) CmdDaemon(args ...string) error {
 
 	if len(cli.LogConfig.Config) > 0 {
 		if err := logger.ValidateLogOpts(cli.LogConfig.Type, cli.LogConfig.Config); err != nil {
-			logrus.Fatalf("Failed to set log opts: %v", err)
+			logrus.Fatalf("Failed to set log opts: %v", utils.GetErrorMessage(err))
 		}
 	}
 

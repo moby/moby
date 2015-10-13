@@ -5,12 +5,12 @@
 package journald
 
 import (
-	"fmt"
 	"sync"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/coreos/go-systemd/journal"
 	"github.com/docker/docker/daemon/logger"
+	derr "github.com/docker/docker/errors"
 )
 
 const name = "journald"
@@ -38,7 +38,7 @@ func init() {
 // the context.
 func New(ctx logger.Context) (logger.Logger, error) {
 	if !journal.Enabled() {
-		return nil, fmt.Errorf("journald is not enabled on this host")
+		return nil, derr.ErrorCodeLogJDNotEnabled
 	}
 	// Strip a leading slash so that people can search for
 	// CONTAINER_NAME=foo rather than CONTAINER_NAME=/foo.
@@ -59,7 +59,7 @@ func validateLogOpt(cfg map[string]string) error {
 	for key := range cfg {
 		switch key {
 		default:
-			return fmt.Errorf("unknown log opt '%s' for journald log driver", key)
+			return derr.ErrorCodeLogJDErrOpt.WithArgs(key)
 		}
 	}
 	return nil

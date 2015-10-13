@@ -98,12 +98,12 @@ package journald
 import "C"
 
 import (
-	"fmt"
 	"time"
 	"unsafe"
 
 	"github.com/coreos/go-systemd/journal"
 	"github.com/docker/docker/daemon/logger"
+	derr "github.com/docker/docker/errors"
 )
 
 func (s *journald) Close() error {
@@ -208,14 +208,14 @@ func (s *journald) readLogs(logWatcher *logger.LogWatcher, config logger.ReadCon
 	// Get a handle to the journal.
 	rc := C.sd_journal_open(&j, C.int(0))
 	if rc != 0 {
-		logWatcher.Err <- fmt.Errorf("error opening journal")
+		logWatcher.Err <- derr.ErrorCodeLogJDErrOpen
 		return
 	}
 	defer C.sd_journal_close(j)
 	// Remove limits on the size of data items that we'll retrieve.
 	rc = C.sd_journal_set_data_threshold(j, C.size_t(0))
 	if rc != 0 {
-		logWatcher.Err <- fmt.Errorf("error setting journal data threshold")
+		logWatcher.Err <- derr.ErrorCodeLogJDErrSetThreshold
 		return
 	}
 	// Add a match to have the library do the searching for us.
@@ -223,7 +223,7 @@ func (s *journald) readLogs(logWatcher *logger.LogWatcher, config logger.ReadCon
 	defer C.free(unsafe.Pointer(cmatch))
 	rc = C.sd_journal_add_match(j, unsafe.Pointer(cmatch), C.strlen(cmatch))
 	if rc != 0 {
-		logWatcher.Err <- fmt.Errorf("error setting journal match")
+		logWatcher.Err <- derr.ErrorCodeLogJDErrSetMatch
 		return
 	}
 	// If we have a cutoff time, convert it to Unix time once.
@@ -235,11 +235,11 @@ func (s *journald) readLogs(logWatcher *logger.LogWatcher, config logger.ReadCon
 		lines := config.Tail
 		// Start at the end of the journal.
 		if C.sd_journal_seek_tail(j) < 0 {
-			logWatcher.Err <- fmt.Errorf("error seeking to end of journal")
+			logWatcher.Err <- derr.ErrorCodeLogJDErrSeekEnd
 			return
 		}
 		if C.sd_journal_previous(j) < 0 {
-			logWatcher.Err <- fmt.Errorf("error backtracking to previous journal entry")
+			logWatcher.Err <- derr.ErrorCodeLogJDErrSeekPrev
 			return
 		}
 		// Walk backward.
@@ -267,16 +267,16 @@ func (s *journald) readLogs(logWatcher *logger.LogWatcher, config logger.ReadCon
 	} else {
 		// Start at the beginning of the journal.
 		if C.sd_journal_seek_head(j) < 0 {
-			logWatcher.Err <- fmt.Errorf("error seeking to start of journal")
+			logWatcher.Err <- derr.ErrorCodeLogJDErrSeekStart
 			return
 		}
 		// If we have a cutoff date, fast-forward to it.
 		if sinceUnixMicro != 0 && C.sd_journal_seek_realtime_usec(j, C.uint64_t(sinceUnixMicro)) != 0 {
-			logWatcher.Err <- fmt.Errorf("error seeking to start time in journal")
+			logWatcher.Err <- derr.ErrorCodeLogJDErrSeekStartTime
 			return
 		}
 		if C.sd_journal_next(j) < 0 {
-			logWatcher.Err <- fmt.Errorf("error skipping to next journal entry")
+			logWatcher.Err <- derr.ErrorCodeLogJDErrSeekNext
 			return
 		}
 	}
@@ -284,7 +284,7 @@ func (s *journald) readLogs(logWatcher *logger.LogWatcher, config logger.ReadCon
 	if config.Follow {
 		// Create a pipe that we can poll at the same time as the journald descriptor.
 		if C.pipe(&pipes[0]) == C.int(-1) {
-			logWatcher.Err <- fmt.Errorf("error opening journald close notification pipe")
+			logWatcher.Err <- derr.ErrorCodeLogJDErrOpenPipe
 		} else {
 			s.followJournal(logWatcher, config, j, pipes, cursor)
 		}

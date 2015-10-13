@@ -31,6 +31,7 @@ import (
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/symlink"
 	"github.com/docker/docker/runconfig"
+	"github.com/docker/docker/utils"
 	"github.com/docker/docker/volume"
 )
 
@@ -710,7 +711,7 @@ func (container *Container) getLogger() (logger.Logger, error) {
 	}
 	c, err := logger.GetLogDriver(cfg.Type)
 	if err != nil {
-		return nil, derr.ErrorCodeLoggingFactory.WithArgs(err)
+		return nil, derr.ErrorCodeLoggingFactory.WithArgs(utils.GetErrorMessage(err))
 	}
 	ctx := logger.Context{
 		Config:              cfg.Config,
@@ -741,7 +742,7 @@ func (container *Container) startLogging() error {
 
 	l, err := container.getLogger()
 	if err != nil {
-		return derr.ErrorCodeInitLogger.WithArgs(err)
+		return derr.ErrorCodeInitLogger.WithArgs(utils.GetErrorMessage(err))
 	}
 
 	copier := logger.NewCopier(container.ID, map[string]io.Reader{"stdout": container.StdoutPipe(), "stderr": container.StderrPipe()}, l)

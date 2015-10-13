@@ -5,7 +5,6 @@ package syslog
 
 import (
 	"errors"
-	"fmt"
 	"log/syslog"
 	"net"
 	"net/url"
@@ -17,6 +16,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/logger/loggerutils"
+	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/urlutil"
 )
 
@@ -112,7 +112,7 @@ func parseAddress(address string) (string, string, error) {
 		return "", "", nil
 	}
 	if !urlutil.IsTransportURL(address) {
-		return "", "", fmt.Errorf("syslog-address should be in form proto://address, got %v", address)
+		return "", "", derr.ErrorCodeLogSysInvAddress.WithArgs(address)
 	}
 	url, err := url.Parse(address)
 	if err != nil {
@@ -149,7 +149,7 @@ func ValidateLogOpt(cfg map[string]string) error {
 		case "syslog-tag":
 		case "tag":
 		default:
-			return fmt.Errorf("unknown log opt '%s' for syslog log driver", key)
+			return derr.ErrorCodeLogSysErrOpt.WithArgs(key)
 		}
 	}
 	if _, _, err := parseAddress(cfg["syslog-address"]); err != nil {

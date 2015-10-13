@@ -2,7 +2,6 @@
 package awslogs
 
 import (
-	"fmt"
 	"os"
 	"sort"
 	"strings"
@@ -14,6 +13,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/cloudwatchlogs"
 	"github.com/docker/docker/daemon/logger"
+	derr "github.com/docker/docker/errors"
 )
 
 const (
@@ -285,17 +285,14 @@ func ValidateLogOpt(cfg map[string]string) error {
 		case logStreamKey:
 		case regionKey:
 		default:
-			return fmt.Errorf("unknown log opt '%s' for %s log driver", key, name)
+			return derr.ErrorCodeLogAWSInvOption.WithArgs(key, name)
 		}
 	}
 	if cfg[logGroupKey] == "" {
-		return fmt.Errorf("must specify a value for log opt '%s'", logGroupKey)
+		return derr.ErrorCodeLogAWSNoOptionVal.WithArgs(logGroupKey)
 	}
 	if cfg[regionKey] == "" && os.Getenv(regionEnvKey) == "" {
-		return fmt.Errorf(
-			"must specify a value for environment variable '%s' or log opt '%s'",
-			regionEnvKey,
-			regionKey)
+		return derr.ErrorCodeLogAWSNoRgnKey.WithArgs(regionEnvKey, regionKey)
 	}
 	return nil
 }

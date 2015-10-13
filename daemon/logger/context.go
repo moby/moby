@@ -1,7 +1,7 @@
 package logger
 
 import (
-	"fmt"
+	derr "github.com/docker/docker/errors"
 	"os"
 	"strings"
 	"time"
@@ -24,7 +24,7 @@ type Context struct {
 func (ctx *Context) Hostname() (string, error) {
 	hostname, err := os.Hostname()
 	if err != nil {
-		return "", fmt.Errorf("logger: can not resolve hostname: %v", err)
+		return "", derr.ErrorCodeLogErrResolveHostname.WithArgs(err)
 	}
 	return hostname, nil
 }

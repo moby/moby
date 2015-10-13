@@ -17,6 +17,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/logger"
+	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/jsonlog"
 	"github.com/docker/docker/pkg/pubsub"
@@ -74,7 +75,7 @@ func New(ctx logger.Context) (logger.Logger, error) {
 			return nil, err
 		}
 		if maxFiles < 1 {
-			return nil, fmt.Errorf("max-file cannot be less than 1")
+			return nil, derr.ErrorCodeLogJSONErrFileSize
 		}
 	}
 	return &JSONFileLogger{
@@ -182,7 +183,7 @@ func ValidateLogOpt(cfg map[string]string) error {
 		case "max-file":
 		case "max-size":
 		default:
-			return fmt.Errorf("unknown log opt '%s' for json-file log driver", key)
+			return derr.ErrorCodeLogJSONErrOpt.WithArgs(key)
 		}
 	}
 	return nil
