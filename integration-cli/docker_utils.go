@@ -506,6 +506,42 @@ func deleteAllContainers() error {
 	return nil
 }
 
+func deleteAllNetworks() error {
+	networks, err := getAllNetworks()
+	if err != nil {
+		return err
+	}
+	var errors []string
+	for _, n := range networks {
+		if n.Name != "bridge" {
+			status, b, err := sockRequest("DELETE", "/networks/"+n.Name, nil)
+			if err != nil {
+				errors = append(errors, err.Error())
+				continue
+			}
+			if status != http.StatusNoContent {
+				errors = append(errors, fmt.Sprintf("error deleting network %s: %s", n.Name, string(b)))
+			}
+		}
+	}
+	if len(errors) > 0 {
+		return fmt.Errorf(strings.Join(errors, "\n"))
+	}
+	return nil
+}
+
+func getAllNetworks() ([]types.NetworkResource, error) {
+	var networks []types.NetworkResource
+	_, b, err := sockRequest("GET", "/networks", nil)
+	if err != nil {
+		return nil, err
+	}
+	if err := json.Unmarshal(b, &networks); err != nil {
+		return nil, err
+	}
+	return networks, nil
+}
+
 func deleteAllVolumes() error {
 	volumes, err := getAllVolumes()
 	if err != nil {

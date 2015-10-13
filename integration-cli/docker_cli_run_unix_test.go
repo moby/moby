@@ -420,7 +420,7 @@ func (s *DockerSuite) TestRunInvalidCpusetMemsFlagValue(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunInvalidCPUShares(c *check.C) {
-	testRequires(c, cpuShare)
+	testRequires(c, cpuShare, NativeExecDriver)
 	out, _, err := dockerCmdWithError("run", "--cpu-shares", "1", "busybox", "echo", "test")
 	c.Assert(err, check.NotNil, check.Commentf(out))
 	expected := "The minimum allowed cpu-shares is 2"
