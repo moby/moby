@@ -25,22 +25,7 @@ mkdir -p "$APTDIR/conf" "$APTDIR/db"
 arches=( amd64 i386 )
 components=( main testing experimental )
 
-# create/update distributions file
-if [ ! -f "$APTDIR/conf/distributions" ]; then
-	for suite in $(exec contrib/reprepro/suites.sh); do
-		cat <<-EOF
-		Origin: Docker
-		Suite: $suite
-		Codename: $suite
-		Architectures: ${arches[*]}
-		Components: ${components[*]}
-		Description: Docker APT Repository
-
-		EOF
-	done > "$APTDIR/conf/distributions"
-fi
-
-# create/update distributions file
+# create/update apt-ftparchive file
 if [ ! -f "$APTDIR/conf/apt-ftparchive.conf" ]; then
 	cat <<-EOF > "$APTDIR/conf/apt-ftparchive.conf"
 	Dir {
@@ -85,20 +70,15 @@ if [ ! -f "$APTDIR/conf/docker-engine-release.conf" ]; then
 	EOF
 fi
 
-# set the component and priority for the version being released
+# set the component for the version being released
 component="main"
-priority=700
-options="--keepunreferencedfiles"
 
 if [[ "$VERSION" == *-rc* ]]; then
 	component="testing"
-	priority=650
 fi
 
 if [ $DOCKER_EXPERIMENTAL ] || [[ "$VERSION" == *-dev ]] || [ -n "$(git status --porcelain)" ]; then
 	component="experimental"
-	priority=600
-	options=
 fi
 
 # release the debs
@@ -130,7 +110,7 @@ apt-ftparchive generate "$APTDIR/conf/apt-ftparchive.conf"
 
 for dir in contrib/builder/deb/*/; do
 	version="$(basename "$dir")"
-	codename="${version//debootstrap-}"	
+	codename="${version//debootstrap-}"
 
 	apt-ftparchive \
 		-o "APT::FTPArchive::Release::Codename=$codename" \
