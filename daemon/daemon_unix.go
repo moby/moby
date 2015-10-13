@@ -246,6 +246,9 @@ func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *runconfig.HostC
 		return warnings, fmt.Errorf("Your kernel does not support oom kill disable.")
 	}
 
+	if hostConfig.OomScoreAdj < -1000 || hostConfig.OomScoreAdj > 1000 {
+		return warnings, fmt.Errorf("Invalid value %d, range for oom score adj is [-1000, 1000].", hostConfig.OomScoreAdj)
+	}
 	if sysInfo.IPv4ForwardingDisabled {
 		warnings = append(warnings, "IPv4 forwarding is disabled. Networking will not work.")
 		logrus.Warnf("IPv4 forwarding is disabled. Networking will not work")

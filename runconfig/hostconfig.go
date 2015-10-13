@@ -211,6 +211,7 @@ type HostConfig struct {
 	GroupAdd        []string              // List of additional groups that the container process will run as
 	IpcMode         IpcMode               // IPC namespace to use for the container
 	Links           []string              // List of links (in the name:alias form)
+	OomScoreAdj     int                   // Container preference for OOM-killing
 	OomKillDisable  bool                  // Whether to disable OOM Killer or not
 	PidMode         PidMode               // PID namespace to use for the container
 	Privileged      bool                  // Is the container in privileged mode

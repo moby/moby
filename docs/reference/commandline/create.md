@@ -57,6 +57,7 @@ Creates a new container.
       --name=""                     Assign a name to the container
       --net="default"               Set the Network mode for the container
       --oom-kill-disable=false      Whether to disable OOM Killer for the container or not
+      --oom-score-adj=0             Tune the host's OOM preferences for containers (accepts -1000 to 1000)
       -P, --publish-all=false       Publish all exposed ports to random ports
       -p, --publish=[]              Publish a container's port(s) to the host
       --pid=""                      PID namespace to use

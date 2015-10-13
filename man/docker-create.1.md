@@ -46,6 +46,7 @@ docker-create - Create a new container
 [**--name**[=*NAME*]]
 [**--net**[=*"bridge"*]]
 [**--oom-kill-disable**[=*false*]]
+[**--oom-score-adj**[=*0*]]
 [**-P**|**--publish-all**[=*false*]]
 [**-p**|**--publish**[=*[]*]]
 [**--pid**[=*[]*]]
@@ -228,6 +229,9 @@ This value should always larger than **-m**, so you should always use this with 
 
 **--oom-kill-disable**=*true*|*false*
 	Whether to disable OOM Killer for the container or not.
+
+**--oom-score-adj**=""
+    Tune the host's OOM preferences for containers (accepts -1000 to 1000)
 
 **-P**, **--publish-all**=*true*|*false*
    Publish all exposed ports to random ports on the host interfaces. The default is *false*.

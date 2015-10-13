@@ -83,6 +83,8 @@ func (d *Driver) createContainer(c *execdriver.Command, hooks execdriver.Hooks) 
 		return nil, err
 	}
 
+	container.OomScoreAdj = c.OomScoreAdj
+
 	if container.Readonlyfs {
 		for i := range container.Mounts {
 			switch container.Mounts[i].Destination {
