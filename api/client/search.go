@@ -3,8 +3,9 @@ package client
 import (
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/url"
-	"sort"
+	"strconv"
 	"strings"
 	"text/tabwriter"
 
@@ -15,19 +16,13 @@ import (
 	"github.com/docker/docker/registry"
 )
 
-// ByStars sorts search results in ascending order by number of stars.
-type ByStars []registry.SearchResult
-
-func (r ByStars) Len() int           { return len(r) }
-func (r ByStars) Swap(i, j int)      { r[i], r[j] = r[j], r[i] }
-func (r ByStars) Less(i, j int) bool { return r[i].StarCount < r[j].StarCount }
-
 // CmdSearch searches the Docker Hub for images.
 //
 // Usage: docker search [OPTIONS] TERM
 func (cli *DockerCli) CmdSearch(args ...string) error {
 	cmd := Cli.Subcmd("search", []string{"TERM"}, Cli.DockerCommands["search"].Description, true)
 	noTrunc := cmd.Bool([]string{"#notrunc", "-no-trunc"}, false, "Don't truncate output")
+	noIndex := cmd.Bool([]string{"#noindex", "-no-index"}, false, "Don't prepend index to output")
 	trusted := cmd.Bool([]string{"#t", "#trusted", "#-trusted"}, false, "Only show trusted builds")
 	automated := cmd.Bool([]string{"-automated"}, false, "Only show automated builds")
 	stars := cmd.Uint([]string{"s", "#stars", "-stars"}, 0, "Only displays with at least x stars")
@@ -38,6 +33,9 @@ func (cli *DockerCli) CmdSearch(args ...string) error {
 	name := cmd.Arg(0)
 	v := url.Values{}
 	v.Set("term", name)
+	if *noIndex {
+		v.Set("noIndex", "1")
+	}
 
 	// Resolve the Repository name from fqn to hostname + name
 	taglessRemote, _ := parsers.ParseRepositoryTag(name)
@@ -54,34 +52,57 @@ func (cli *DockerCli) CmdSearch(args ...string) error {
 
 	defer rdr.Close()
 
-	results := ByStars{}
+	results := []registry.SearchResultExt{}
 	if err := json.NewDecoder(rdr).Decode(&results); err != nil {
 		return err
 	}
 
-	sort.Sort(sort.Reverse(results))
+	// Sorting is done by daemon.
+	//sort.Sort(sort.Reverse(results))
 
 	w := tabwriter.NewWriter(cli.out, 10, 1, 3, ' ', 0)
-	fmt.Fprintf(w, "NAME\tDESCRIPTION\tSTARS\tOFFICIAL\tAUTOMATED\n")
+	if *noIndex {
+		fmt.Fprintf(w, "NAME\tDESCRIPTION\tSTARS\tOFFICIAL\tAUTOMATED\n")
+	} else {
+		fmt.Fprintf(w, "INDEX\tNAME\tDESCRIPTION\tSTARS\tOFFICIAL\tAUTOMATED\n")
+	}
 	for _, res := range results {
 		if (*automated && !res.IsAutomated) || (int(*stars) > res.StarCount) || (*trusted && !res.IsTrusted) {
 			continue
 		}
+		row := []string{}
+		if !*noIndex {
+			indexName := res.IndexName
+			if !*noTrunc {
+				// Shorten index name to DOMAIN.TLD unless --no-trunc is given.
+				if host, _, err := net.SplitHostPort(indexName); err == nil {
+					indexName = host
+				}
+				// do not shorten ip address
+				if net.ParseIP(indexName) == nil {
+					// shorten index name just to the last 2 components (`DOMAIN.TLD`)
+					indexNameSubStrings := strings.Split(indexName, ".")
+					if len(indexNameSubStrings) > 2 {
+						indexName = strings.Join(indexNameSubStrings[len(indexNameSubStrings)-2:], ".")
+					}
+				}
+			}
+			row = append(row, indexName)
+		}
+
 		desc := strings.Replace(res.Description, "\n", " ", -1)
 		desc = strings.Replace(desc, "\r", " ", -1)
 		if !*noTrunc && len(desc) > 45 {
 			desc = stringutils.Truncate(desc, 42) + "..."
 		}
-		fmt.Fprintf(w, "%s\t%s\t%d\t", res.Name, desc, res.StarCount)
+		row = append(row, res.RegistryName+"/"+res.Name, desc, strconv.Itoa(res.StarCount), "", "")
 		if res.IsOfficial {
-			fmt.Fprint(w, "[OK]")
-
+			row[len(row)-2] = "[OK]"
 		}
-		fmt.Fprint(w, "\t")
 		if res.IsAutomated || res.IsTrusted {
-			fmt.Fprint(w, "[OK]")
+			row[len(row)-1] = "[OK]"
 		}
-		fmt.Fprint(w, "\n")
+		fmt.Fprintf(w, "%s\n", strings.Join(row, "\t"))
 	}
 	w.Flush()
 	return nil

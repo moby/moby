@@ -951,3 +951,154 @@ func (tr debugTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	tr.log(string(dump))
 	return resp, err
 }
+
+var sortSearchResultsCases = []SearchResultExt{
+	{"docker.io", "isv.company.ltd", 10, false, "misc/image", false, false, "Some custom image."},
+	{"docker.io", "isv.company.ltd", 10, false, "custom/image", false, true, "Some custom image."},
+	{"index.company.ltd", "registry.stage.company.ltd", 6, false, "centos", true, false, "Another CentOS"},
+	{"docker.io", "docker.io", 5, false, "custom/image", false, true, "Some custom image from docker registry."},
+	{"127.0.0.1:5000", "127.0.0.1:5000", 0, false, "custom/image", false, false, "Image from private repo."},
+	{"docker.io", "registry.company.ltd", 0, false, "centos", true, true, "Second hand CentOS"},
+	{"docker.io", "docker.io", 0, false, "user/app", false, false, "Some user app."},
+	{"docker.io", "docker.io", 5, false, "user/app1", false, true, "Some user app."},
+	{"docker.io", "docker.io", 2, false, "user/app2", false, false, "Some user app."},
+	{"127.0.0.1:5000", "isv.company.ltd", 11, false, "custom/image", false, true, "Image from private repo."},
+	{"docker.io", "docker.io", 3, false, "user/app3", false, false, "Some user app."},
+	{"index.company.ltd", "registry.company.ltd", 11, false, "centos", true, true, "CentOS."},
+	{"docker.io", "docker.io", 0, true, "fedora/apache", true, false, "Official apache"},
+	{"docker.io", "registry.stage.company.ltd", 11, false, "centos", true, true, "CentOS from another registry."},
+	{"docker.io", "isv.another.comp.ltd", 9, false, "custom/image", false, false, "Custom image."},
+	{"index.company.ltd", "isv.company.ltd", 10, false, "custom/image", false, true, "Some custom image."},
+	{"index.company.ltd", "isv.company.ltd", 11, false, "custom/image", false, false, "Some custom image."},
+	{"127.0.0.1:5000", "127.0.0.1:5000", 0, false, "centos", false, true, "CentOS from private repo."},
+	{"127.0.0.1:5000", "docker.io", 0, false, "user/app2", false, false, "User app from private registry."},
+}
+
+// `sortedEntriesMapping` maps new position in the list to original one after
+// the sort. `duplicates` is a list of duplicate entries that should be removed
+// after the call to `removeSearchDuplicates`. May be null if sorting with
+// index.
+func doTestSortSearchResults(t *testing.T, withIndex bool, sortedEntriesMapping map[int]int, duplicates []int) {
+	cases := make([]SearchResultExt, len(sortSearchResultsCases))
+	for i := range sortSearchResultsCases {
+		cases[i] = sortSearchResultsCases[i]
+	}
+	by(getSearchResultsCmpFunc(withIndex)).Sort(cases)
+
+	for i, entry := range sortSearchResultsCases {
+		if newPos, ok := sortedEntriesMapping[i]; !ok {
+			t.Fatalf("sortedEntriesMapping is incomplete (%d index is missing)", i)
+		} else if newPos > len(cases) {
+			t.Fatalf("expected position for entry %d is out of range (%d >= %d)", i, newPos, len(cases))
+		}
+		if cases[sortedEntriesMapping[i]] != entry {
+			j := 0
+			for ; j < len(cases); j++ {
+				if cases[j] == entry {
+					break
+				}
+			}
+			if j >= len(sortSearchResultsCases) {
+				t.Fatalf("sortedEntriesMapping is incomplete")
+			}
+			t.Errorf("Sort failed, item %v (orig. pos=%d) expected on position %d, not %d.", entry, i, sortedEntriesMapping[i], j)
+		}
+	}
+
+	if !withIndex {
+		cases := removeSearchDuplicates(cases)
+		if len(cases) != len(sortSearchResultsCases)-len(duplicates) {
+			t.Errorf("Expected %d items in output table after removing duplicates, not %d.",
+				len(sortSearchResultsCases)-len(duplicates), len(cases))
+		}
+
+		for i, entry := range sortSearchResultsCases {
+			isRedundant := false
+			for j := range duplicates {
+				if i == duplicates[j] {
+					isRedundant = true
+					break
+				}
+			}
+			found := false
+			j := 0
+			for ; j < len(cases); j++ {
+				if entry == cases[j] {
+					found = true
+					break
+				}
+			}
+			if found && isRedundant {
+				t.Errorf("Entry %v (orig. pos=%d, new pos=%d) is redundant and should have been removed.", entry, i, j)
+			} else if !found && !isRedundant {
+				t.Errorf("Entry %v (orig. pos=%d) should have stayed in cases results.", entry, i)
+			}
+		}
+	}
+}
+
+func TestSortSearchResultsWithIndex(t *testing.T) {
+	sortedEntriesMapping := map[int]int{
+		0:  6,
+		1:  5,
+		2:  18,
+		3:  8,
+		4:  2,
+		5:  14,
+		6:  13,
+		7:  9,
+		8:  11,
+		9:  0,
+		10: 10,
+		11: 16,
+		12: 12,
+		13: 4,
+		14: 7,
+		15: 17,
+		16: 15,
+		17: 1,
+		18: 3,
+	}
+
+	// Should have not effect.
+	RegistryList = append([]string{"index.company.ltd"}, RegistryList...)
+	defer func() {
+		RegistryList = []string{IndexName}
+	}()
+
+	doTestSortSearchResults(t, true, sortedEntriesMapping, nil)
+}
+
+func TestSortSearchResultsWithoutIndex(t *testing.T) {
+	sortedEntriesMapping := map[int]int{
+		0:  14,
+		1:  13, // duplicate with 9, 15, 16
+		2:  18, // duplicate with 13
+		3:  2,
+		4:  1,
+		5:  16, // duplicate with 11
+		6:  7,
+		7:  3,
+		8:  5,
+		9:  10, // duplicate with 1, 15, 16
+		10: 4,
+		11: 15, // duplicate with 5
+		12: 6,
+		13: 17, //duplicate with 2
+		14: 9,
+		15: 12, // duplicate with 1, 9, 16
+		16: 11, // duplicate with 1, 9, 15
+		17: 0,
+		18: 8,
+	}
+
+	duplicates := []int{1, 5, 9, 13, 15}
+
+	// Duplicates having index nearest the first item in this list should have higher preference.
+	RegistryList = append([]string{"index.company.ltd"}, RegistryList...)
+	defer func() {
+		RegistryList = []string{IndexName}
+	}()
+
+	doTestSortSearchResults(t, false, sortedEntriesMapping, duplicates)
+}
