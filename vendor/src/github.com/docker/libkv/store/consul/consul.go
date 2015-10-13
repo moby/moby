@@ -35,7 +35,8 @@ type Consul struct {
 }
 
 type consulLock struct {
-	lock *api.Lock
+	lock    *api.Lock
+	renewCh chan struct{}
 }
 
 // Register registers consul to libkv
@@ -87,7 +88,7 @@ func (s *Consul) setTLS(tls *tls.Config) {
 	s.config.Scheme = "https"
 }
 
-// SetTimeout sets the timout for connecting to Consul
+// SetTimeout sets the timeout for connecting to Consul
 func (s *Consul) setTimeout(time time.Duration) {
 	s.config.WaitTime = time
 }
@@ -360,32 +361,63 @@ func (s *Consul) WatchTree(directory string, stopCh <-chan struct{}) (<-chan []*
 // NewLock returns a handle to a lock struct which can
 // be used to provide mutual exclusion on a key
 func (s *Consul) NewLock(key string, options *store.LockOptions) (store.Locker, error) {
-	consulOpts := &api.LockOptions{
+	lockOpts := &api.LockOptions{
 		Key: s.normalize(key),
 	}
 
+	lock := &consulLock{}
+
 	if options != nil {
-		consulOpts.Value = options.Value
+		// Set optional TTL on Lock
+		if options.TTL != 0 {
+			entry := &api.SessionEntry{
+				Behavior:  api.SessionBehaviorRelease, // Release the lock when the session expires
+				TTL:       (options.TTL / 2).String(), // Consul multiplies the TTL by 2x
+				LockDelay: 1 * time.Millisecond,       // Virtually disable lock delay
+			}
+
+			// Create the key session
+			session, _, err := s.client.Session().Create(entry, nil)
+			if err != nil {
+				return nil, err
+			}
+
+			// Place the session on lock
+			lockOpts.Session = session
+
+			// Renew the session ttl lock periodically
+			go s.client.Session().RenewPeriodic(entry.TTL, session, nil, options.RenewLock)
+			lock.renewCh = options.RenewLock
+		}
+
+		// Set optional value on Lock
+		if options.Value != nil {
+			lockOpts.Value = options.Value
+		}
 	}
 
-	l, err := s.client.LockOpts(consulOpts)
+	l, err := s.client.LockOpts(lockOpts)
 	if err != nil {
 		return nil, err
 	}
 
-	return &consulLock{lock: l}, nil
+	lock.lock = l
+	return lock, nil
 }
 
 // Lock attempts to acquire the lock and blocks while
 // doing so. It returns a channel that is closed if our
 // lock is lost or if an error occurs
-func (l *consulLock) Lock() (<-chan struct{}, error) {
-	return l.lock.Lock(nil)
+func (l *consulLock) Lock(stopChan chan struct{}) (<-chan struct{}, error) {
+	return l.lock.Lock(stopChan)
 }
 
 // Unlock the "key". Calling unlock while
 // not holding the lock will throw an error
 func (l *consulLock) Unlock() error {
+	if l.renewCh != nil {
+		close(l.renewCh)
+	}
 	return l.lock.Unlock()
 }
 

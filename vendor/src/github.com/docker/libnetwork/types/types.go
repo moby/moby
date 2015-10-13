@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"fmt"
 	"net"
+	"strconv"
 	"strings"
 )
 
@@ -17,9 +18,44 @@ type TransportPort struct {
 	Port  uint16
 }
 
+// Equal checks if this instance of Transportport is equal to the passed one
+func (t *TransportPort) Equal(o *TransportPort) bool {
+	if t == o {
+		return true
+	}
+
+	if o == nil {
+		return false
+	}
+
+	if t.Proto != o.Proto || t.Port != o.Port {
+		return false
+	}
+
+	return true
+}
+
 // GetCopy returns a copy of this TransportPort structure instance
 func (t *TransportPort) GetCopy() TransportPort {
 	return TransportPort{Proto: t.Proto, Port: t.Port}
+}
+
+// String returns the TransportPort structure in string form
+func (t *TransportPort) String() string {
+	return fmt.Sprintf("%s/%d", t.Proto.String(), t.Port)
+}
+
+// FromString reads the TransportPort structure from string
+func (t *TransportPort) FromString(s string) error {
+	ps := strings.Split(s, "/")
+	if len(ps) == 2 {
+		t.Proto = ParseProtocol(ps[0])
+		if p, err := strconv.ParseUint(ps[1], 10, 16); err == nil {
+			t.Port = uint16(p)
+			return nil
+		}
+	}
+	return BadRequestErrorf("invalid format for transport port: %s", s)
 }
 
 // PortBinding represent a port binding between the container and the host
@@ -66,6 +102,62 @@ func (p *PortBinding) GetCopy() PortBinding {
 		HostPort:    p.HostPort,
 		HostPortEnd: p.HostPortEnd,
 	}
+}
+
+// String return the PortBinding structure in string form
+func (p *PortBinding) String() string {
+	ret := fmt.Sprintf("%s/", p.Proto)
+	if p.IP != nil {
+		ret = fmt.Sprintf("%s%s", ret, p.IP.String())
+	}
+	ret = fmt.Sprintf("%s:%d/", ret, p.Port)
+	if p.HostIP != nil {
+		ret = fmt.Sprintf("%s%s", ret, p.HostIP.String())
+	}
+	ret = fmt.Sprintf("%s:%d", ret, p.HostPort)
+	return ret
+}
+
+// FromString reads the TransportPort structure from string
+func (p *PortBinding) FromString(s string) error {
+	ps := strings.Split(s, "/")
+	if len(ps) != 3 {
+		return BadRequestErrorf("invalid format for port binding: %s", s)
+	}
+
+	p.Proto = ParseProtocol(ps[0])
+
+	var err error
+	if p.IP, p.Port, err = parseIPPort(ps[1]); err != nil {
+		return BadRequestErrorf("failed to parse Container IP/Port in port binding: %s", err.Error())
+	}
+
+	if p.HostIP, p.HostPort, err = parseIPPort(ps[2]); err != nil {
+		return BadRequestErrorf("failed to parse Host IP/Port in port binding: %s", err.Error())
+	}
+
+	return nil
+}
+
+func parseIPPort(s string) (net.IP, uint16, error) {
+	pp := strings.Split(s, ":")
+	if len(pp) != 2 {
+		return nil, 0, BadRequestErrorf("invalid format: %s", s)
+	}
+
+	var ip net.IP
+	if pp[0] != "" {
+		if ip = net.ParseIP(pp[0]); ip == nil {
+			return nil, 0, BadRequestErrorf("invalid ip: %s", pp[0])
+		}
+	}
+
+	port, err := strconv.ParseUint(pp[1], 10, 16)
+	if err != nil {
+		return nil, 0, BadRequestErrorf("invalid port: %s", pp[1])
+	}
+
+	return ip, uint16(port), nil
 }
 
 // Equal checks if this instance of PortBinding is equal to the passed one
@@ -154,6 +246,9 @@ func ParseProtocol(s string) Protocol {
 
 // GetMacCopy returns a copy of the passed MAC address
 func GetMacCopy(from net.HardwareAddr) net.HardwareAddr {
+	if from == nil {
+		return nil
+	}
 	to := make(net.HardwareAddr, len(from))
 	copy(to, from)
 	return to
@@ -161,6 +256,9 @@ func GetMacCopy(from net.HardwareAddr) net.HardwareAddr {
 
 // GetIPCopy returns a copy of the passed IP address
 func GetIPCopy(from net.IP) net.IP {
+	if from == nil {
+		return nil
+	}
 	to := make(net.IP, len(from))
 	copy(to, from)
 	return to
@@ -222,23 +320,32 @@ func GetMinimalIPNet(nw *net.IPNet) *net.IPNet {
 
 var v4inV6MaskPrefix = []byte{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff}
 
-// GetHostPartIP returns the host portion of the ip address identified by the mask.
-// IP address representation is not modified. If address and mask are not compatible
-// an error is returned.
-func GetHostPartIP(ip net.IP, mask net.IPMask) (net.IP, error) {
+// compareIPMask checks if the passed ip and mask are semantically compatible.
+// It returns the byte indexes for the address and mask so that caller can
+// do bitwise operations without modifying address representation.
+func compareIPMask(ip net.IP, mask net.IPMask) (is int, ms int, err error) {
 	// Find the effective starting of address and mask
-	is := 0
-	ms := 0
 	if len(ip) == net.IPv6len && ip.To4() != nil {
 		is = 12
 	}
 	if len(ip[is:]) == net.IPv4len && len(mask) == net.IPv6len && bytes.Equal(mask[:12], v4inV6MaskPrefix) {
 		ms = 12
 	}
-
 	// Check if address and mask are semantically compatible
 	if len(ip[is:]) != len(mask[ms:]) {
-		return nil, fmt.Errorf("cannot compute host portion ip address as ip and mask are not compatible: (%#v, %#v)", ip, mask)
+		err = fmt.Errorf("ip and mask are not compatible: (%#v, %#v)", ip, mask)
+	}
+	return
+}
+
+// GetHostPartIP returns the host portion of the ip address identified by the mask.
+// IP address representation is not modified. If address and mask are not compatible
+// an error is returned.
+func GetHostPartIP(ip net.IP, mask net.IPMask) (net.IP, error) {
+	// Find the effective starting of address and mask
+	is, ms, err := compareIPMask(ip, mask)
+	if err != nil {
+		return nil, fmt.Errorf("cannot compute host portion ip address because %s", err)
 	}
 
 	// Compute host portion
@@ -248,6 +355,34 @@ func GetHostPartIP(ip net.IP, mask net.IPMask) (net.IP, error) {
 	}
 
 	return out, nil
+}
+
+// GetBroadcastIP returns the broadcast ip address for the passed network (ip and mask).
+// IP address representation is not modified. If address and mask are not compatible
+// an error is returned.
+func GetBroadcastIP(ip net.IP, mask net.IPMask) (net.IP, error) {
+	// Find the effective starting of address and mask
+	is, ms, err := compareIPMask(ip, mask)
+	if err != nil {
+		return nil, fmt.Errorf("cannot compute broadcast ip address because %s", err)
+	}
+
+	// Compute broadcast address
+	out := GetIPCopy(ip)
+	for i := 0; i < len(mask[ms:]); i++ {
+		out[is+i] |= ^mask[ms+i]
+	}
+
+	return out, nil
+}
+
+// ParseCIDR returns the *net.IPNet represented by the passed CIDR notation
+func ParseCIDR(cidr string) (n *net.IPNet, e error) {
+	var i net.IP
+	if i, n, e = net.ParseCIDR(cidr); e == nil {
+		n.IP = i
+	}
+	return
 }
 
 const (
@@ -276,6 +411,23 @@ func (r *StaticRoute) GetCopy() *StaticRoute {
 		RouteType: r.RouteType,
 		NextHop:   nh,
 	}
+}
+
+// InterfaceStatistics represents the interface's statistics
+type InterfaceStatistics struct {
+	RxBytes   uint64
+	RxPackets uint64
+	RxErrors  uint64
+	RxDropped uint64
+	TxBytes   uint64
+	TxPackets uint64
+	TxErrors  uint64
+	TxDropped uint64
+}
+
+func (is *InterfaceStatistics) String() string {
+	return fmt.Sprintf("\nRxBytes: %d, RxPackets: %d, RxErrors: %d, RxDropped: %d, TxBytes: %d, TxPackets: %d, TxErrors: %d, TxDropped: %d",
+		is.RxBytes, is.RxPackets, is.RxErrors, is.RxDropped, is.TxBytes, is.TxPackets, is.TxErrors, is.TxDropped)
 }
 
 /******************************

@@ -68,9 +68,16 @@ func main() {
 
 You can find other usage examples for `libkv` under the `docker/swarm` or `docker/libnetwork` repositories.
 
+## Supported versions
+
+`libkv` supports:
+- Consul version >= `0.5.1` because it uses Sessions with `Delete` behavior for the use of `TTLs` (mimics zookeeper's Ephemeral node support), If you don't plan to use `TTLs`: you can use Consul version `0.4.0+`.
+- Etcd version >= `2.0` because it uses the `2.0.0` branch of the `coreos/go-etcd` client, this might change in the future as the support for `APIv3` comes along.
+- Zookeeper version >= `3.4.5`. Although this might work with previous version but this remains untested as of now.
+
 ## TLS
 
-The etcd backend supports etcd servers that require TLS Client Authentication.  Zookeeper and Consul support are planned.  This feature is somewhat experimental and the store.ClientTLSConfig struct may change to accommodate the additional backends.
+The etcd backend supports etcd servers that require TLS Client Authentication. Zookeeper and Consul support are planned. This feature is somewhat experimental and the store.ClientTLSConfig struct may change to accommodate the additional backends.
 
 ## Warning
 

@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/docker/libnetwork/netlabel"
-	"github.com/docker/libnetwork/options"
 	"github.com/docker/libnetwork/types"
 )
 
@@ -90,25 +89,6 @@ func (sb *sandbox) clearDefaultGW() error {
 		return fmt.Errorf("container %s: deleting endpoint on GW Network failed: %v", sb.containerID, err)
 	}
 	return nil
-}
-
-func (c *controller) createGWNetwork() (Network, error) {
-	netOption := options.Generic{
-		"BridgeName":         libnGWNetwork,
-		"EnableICC":          false,
-		"EnableIPMasquerade": true,
-	}
-
-	n, err := c.NewNetwork("bridge", libnGWNetwork,
-		NetworkOptionGeneric(options.Generic{
-			netlabel.GenericData: netOption,
-			netlabel.EnableIPv6:  false,
-		}))
-
-	if err != nil {
-		return nil, fmt.Errorf("error creating external connectivity network: %v", err)
-	}
-	return n, err
 }
 
 func (sb *sandbox) needDefaultGW() bool {

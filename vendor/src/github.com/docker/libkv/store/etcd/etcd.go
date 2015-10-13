@@ -2,6 +2,7 @@ package etcd
 
 import (
 	"crypto/tls"
+	"errors"
 	"net"
 	"net/http"
 	"strings"
@@ -12,6 +13,13 @@ import (
 	"github.com/docker/libkv/store"
 )
 
+var (
+	// ErrAbortTryLock is thrown when a user stops trying to seek the lock
+	// by sending a signal to the stop chan, this is used to verify if the
+	// operation succeeded
+	ErrAbortTryLock = errors.New("lock operation aborted")
+)
+
 // Etcd is the receiver type for the
 // Store interface
 type Etcd struct {
@@ -19,12 +27,13 @@ type Etcd struct {
 }
 
 type etcdLock struct {
-	client   *etcd.Client
-	stopLock chan struct{}
-	key      string
-	value    string
-	last     *etcd.Response
-	ttl      uint64
+	client    *etcd.Client
+	stopLock  chan struct{}
+	stopRenew chan struct{}
+	key       string
+	value     string
+	last      *etcd.Response
+	ttl       uint64
 }
 
 const (
@@ -395,6 +404,7 @@ func (s *Etcd) DeleteTree(directory string) error {
 func (s *Etcd) NewLock(key string, options *store.LockOptions) (lock store.Locker, err error) {
 	var value string
 	ttl := uint64(time.Duration(defaultLockTTL).Seconds())
+	renewCh := make(chan struct{})
 
 	// Apply options on Lock
 	if options != nil {
@@ -404,14 +414,18 @@ func (s *Etcd) NewLock(key string, options *store.LockOptions) (lock store.Locke
 		if options.TTL != 0 {
 			ttl = uint64(options.TTL.Seconds())
 		}
+		if options.RenewLock != nil {
+			renewCh = options.RenewLock
+		}
 	}
 
 	// Create lock object
 	lock = &etcdLock{
-		client: s.client,
-		key:    key,
-		value:  value,
-		ttl:    ttl,
+		client:    s.client,
+		stopRenew: renewCh,
+		key:       key,
+		value:     value,
+		ttl:       ttl,
 	}
 
 	return lock, nil
@@ -420,13 +434,13 @@ func (s *Etcd) NewLock(key string, options *store.LockOptions) (lock store.Locke
 // Lock attempts to acquire the lock and blocks while
 // doing so. It returns a channel that is closed if our
 // lock is lost or if an error occurs
-func (l *etcdLock) Lock() (<-chan struct{}, error) {
+func (l *etcdLock) Lock(stopChan chan struct{}) (<-chan struct{}, error) {
 
 	key := store.Normalize(l.key)
 
-	// Lock holder channels
+	// Lock holder channel
 	lockHeld := make(chan struct{})
-	stopLocking := make(chan struct{})
+	stopLocking := l.stopRenew
 
 	var lastIndex uint64
 
@@ -454,7 +468,18 @@ func (l *etcdLock) Lock() (<-chan struct{}, error) {
 			// Seeker section
 			chW := make(chan *etcd.Response)
 			chWStop := make(chan bool)
-			l.waitLock(key, chW, chWStop)
+			free := make(chan bool)
+
+			go l.waitLock(key, chW, chWStop, free)
+
+			// Wait for the key to be available or for
+			// a signal to stop trying to lock the key
+			select {
+			case _ = <-free:
+				break
+			case _ = <-stopChan:
+				return nil, ErrAbortTryLock
+			}
 
 			// Delete or Expire event occured
 			// Retry
@@ -467,10 +492,10 @@ func (l *etcdLock) Lock() (<-chan struct{}, error) {
 // Hold the lock as long as we can
 // Updates the key ttl periodically until we receive
 // an explicit stop signal from the Unlock method
-func (l *etcdLock) holdLock(key string, lockHeld chan struct{}, stopLocking chan struct{}) {
+func (l *etcdLock) holdLock(key string, lockHeld chan struct{}, stopLocking <-chan struct{}) {
 	defer close(lockHeld)
 
-	update := time.NewTicker(defaultUpdateTime)
+	update := time.NewTicker(time.Duration(l.ttl) * time.Second / 3)
 	defer update.Stop()
 
 	var err error
@@ -490,11 +515,12 @@ func (l *etcdLock) holdLock(key string, lockHeld chan struct{}, stopLocking chan
 }
 
 // WaitLock simply waits for the key to be available for creation
-func (l *etcdLock) waitLock(key string, eventCh chan *etcd.Response, stopWatchCh chan bool) {
+func (l *etcdLock) waitLock(key string, eventCh chan *etcd.Response, stopWatchCh chan bool, free chan<- bool) {
 	go l.client.Watch(key, 0, false, eventCh, stopWatchCh)
+
 	for event := range eventCh {
 		if event.Action == "delete" || event.Action == "expire" {
-			return
+			free <- true
 		}
 	}
 }

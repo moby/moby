@@ -30,6 +30,7 @@ import (
 	"github.com/docker/docker/volume"
 	"github.com/docker/docker/volume/store"
 	"github.com/docker/libnetwork"
+	"github.com/docker/libnetwork/drivers/bridge"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/options"
 	"github.com/docker/libnetwork/types"
@@ -651,11 +652,13 @@ func (container *Container) buildEndpointInfo(ep libnetwork.Endpoint, networkSet
 		return networkSettings, nil
 	}
 
-	ones, _ := iface.Address().Mask.Size()
-	networkSettings.IPAddress = iface.Address().IP.String()
-	networkSettings.IPPrefixLen = ones
+	if iface.Address() != nil {
+		ones, _ := iface.Address().Mask.Size()
+		networkSettings.IPAddress = iface.Address().IP.String()
+		networkSettings.IPPrefixLen = ones
+	}
 
-	if iface.AddressIPv6().IP.To16() != nil {
+	if iface.AddressIPv6() != nil && iface.AddressIPv6().IP.To16() != nil {
 		onesv6, _ := iface.AddressIPv6().Mask.Size()
 		networkSettings.GlobalIPv6Address = iface.AddressIPv6().IP.String()
 		networkSettings.GlobalIPv6PrefixLen = onesv6
@@ -861,9 +864,8 @@ func createNetwork(controller libnetwork.NetworkController, dnet string, driver 
 
 	// Bridge driver is special due to legacy reasons
 	if runconfig.NetworkMode(driver).IsBridge() {
-		genericOption[netlabel.GenericData] = map[string]interface{}{
-			"BridgeName":            dnet,
-			"AllowNonDefaultBridge": "true",
+		genericOption[netlabel.GenericData] = map[string]string{
+			bridge.BridgeName: dnet,
 		}
 		networkOption := libnetwork.NetworkOptionGeneric(genericOption)
 		createOptions = append(createOptions, networkOption)
@@ -1163,7 +1165,7 @@ func (container *Container) disconnectFromNetwork(n libnetwork.Network, updateSe
 	n.WalkEndpoints(s)
 
 	if ep == nil {
-		return fmt.Errorf("could not locate network endpoint for container %s", container.ID)
+		return fmt.Errorf("container %s is not connected to the network", container.ID)
 	}
 
 	if err := ep.Leave(sbox); err != nil {

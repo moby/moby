@@ -22,7 +22,7 @@ const (
 //Gets the IP version in use ( [ipv4], [ipv6] or [ipv4 and ipv6] )
 func getIPVersion(config *networkConfiguration) ipVersion {
 	ipVersion := ipv4
-	if config.FixedCIDRv6 != nil || config.EnableIPv6 {
+	if config.AddressIPv6 != nil || config.EnableIPv6 {
 		ipVersion |= ipv6
 	}
 	return ipVersion

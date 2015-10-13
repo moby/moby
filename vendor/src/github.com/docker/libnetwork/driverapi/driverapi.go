@@ -1,10 +1,6 @@
 package driverapi
 
-import (
-	"net"
-
-	"github.com/docker/libnetwork/datastore"
-)
+import "net"
 
 // NetworkPluginEndpointType represents the Endpoint Type used by Plugin system
 const NetworkPluginEndpointType = "NetworkDriver"
@@ -14,7 +10,7 @@ type Driver interface {
 	// CreateNetwork invokes the driver method to create a network passing
 	// the network id and network specific config. The config mechanism will
 	// eventually be replaced with labels which are yet to be introduced.
-	CreateNetwork(nid string, options map[string]interface{}) error
+	CreateNetwork(nid string, options map[string]interface{}, ipV4Data, ipV6Data []IPAMData) error
 
 	// DeleteNetwork invokes the driver method to delete network passing
 	// the network id.
@@ -25,7 +21,7 @@ type Driver interface {
 	// specific config. The endpoint information can be either consumed by
 	// the driver or populated by the driver. The config mechanism will
 	// eventually be replaced with labels which are yet to be introduced.
-	CreateEndpoint(nid, eid string, epInfo EndpointInfo, options map[string]interface{}) error
+	CreateEndpoint(nid, eid string, ifInfo InterfaceInfo, options map[string]interface{}) error
 
 	// DeleteEndpoint invokes the driver method to delete an endpoint
 	// passing the network id and endpoint id.
@@ -50,31 +46,26 @@ type Driver interface {
 	Type() string
 }
 
-// EndpointInfo provides a go interface to fetch or populate endpoint assigned network resources.
-type EndpointInfo interface {
-	// Interface returns the interface bound to the endpoint.
-	// If the value is not nil the driver is only expected to consume the interface.
-	// It is an error to try to add interface if the passed down value is non-nil
-	// If the value is nil the driver is expected to add an interface
-	Interface() InterfaceInfo
-
-	// AddInterface is used by the driver to add an interface for the endpoint.
-	// This method will return an error if the driver attempts to add interface
-	// if the Interface() method returned a non-nil value.
-	AddInterface(mac net.HardwareAddr, ipv4 net.IPNet, ipv6 net.IPNet) error
-}
-
 // InterfaceInfo provides a go interface for drivers to retrive
 // network information to interface resources.
 type InterfaceInfo interface {
+	// SetMacAddress allows the driver to set the mac address to the endpoint interface
+	// during the call to CreateEndpoint, if the mac address is not already set.
+	SetMacAddress(mac net.HardwareAddr) error
+
+	// SetIPAddress allows the driver to set the ip address to the endpoint interface
+	// during the call to CreateEndpoint, if the address is not already set.
+	// The API is to be used to assign both the IPv4 and IPv6 address types.
+	SetIPAddress(ip *net.IPNet) error
+
 	// MacAddress returns the MAC address.
 	MacAddress() net.HardwareAddr
 
 	// Address returns the IPv4 address.
-	Address() net.IPNet
+	Address() *net.IPNet
 
 	// AddressIPv6 returns the IPv6 address.
-	AddressIPv6() net.IPNet
+	AddressIPv6() *net.IPNet
 }
 
 // InterfaceNameInfo provides a go interface for the drivers to assign names
@@ -110,7 +101,7 @@ type DriverCallback interface {
 
 // Capability represents the high level capabilities of the drivers which libnetwork can make use of
 type Capability struct {
-	DataScope datastore.DataScope
+	DataScope string
 }
 
 // DiscoveryType represents the type of discovery element the DiscoverNew function is invoked on
@@ -125,4 +116,14 @@ const (
 type NodeDiscoveryData struct {
 	Address string
 	Self    bool
+}
+
+// IPAMData represents the per-network ip related
+// operational information libnetwork will send
+// to the network driver during CreateNetwork()
+type IPAMData struct {
+	AddressSpace string
+	Pool         *net.IPNet
+	Gateway      *net.IPNet
+	AuxAddresses map[string]*net.IPNet
 }

@@ -28,7 +28,7 @@ type Sandbox interface {
 	// Labels returns the sandbox's labels
 	Labels() map[string]interface{}
 	// Statistics retrieves the interfaces' statistics for the sandbox
-	Statistics() (map[string]*osl.InterfaceStatistics, error)
+	Statistics() (map[string]*types.InterfaceStatistics, error)
 	// Refresh leaves all the endpoints, resets and re-apply the options,
 	// re-joins all the endpoints without destroying the osl sandbox
 	Refresh(options ...SandboxOption) error
@@ -64,6 +64,8 @@ type sandbox struct {
 	endpoints     epHeap
 	epPriority    map[string]int
 	joinLeaveDone chan struct{}
+	dbIndex       uint64
+	dbExists      bool
 	sync.Mutex
 }
 
@@ -126,8 +128,8 @@ func (sb *sandbox) Labels() map[string]interface{} {
 	return sb.config.generic
 }
 
-func (sb *sandbox) Statistics() (map[string]*osl.InterfaceStatistics, error) {
-	m := make(map[string]*osl.InterfaceStatistics)
+func (sb *sandbox) Statistics() (map[string]*types.InterfaceStatistics, error) {
+	m := make(map[string]*types.InterfaceStatistics)
 
 	if sb.osSbox == nil {
 		return m, nil
@@ -153,13 +155,22 @@ func (sb *sandbox) Delete() error {
 		if ep.endpointInGWNetwork() {
 			continue
 		}
+
 		if err := ep.Leave(sb); err != nil {
 			log.Warnf("Failed detaching sandbox %s from endpoint %s: %v\n", sb.ID(), ep.ID(), err)
+		}
+
+		if err := ep.Delete(); err != nil {
+			log.Warnf("Failed deleting endpoint %s: %v\n", ep.ID(), err)
 		}
 	}
 
 	if sb.osSbox != nil {
 		sb.osSbox.Destroy()
+	}
+
+	if err := sb.storeDelete(); err != nil {
+		log.Warnf("Failed to delete sandbox %s from store: %v", sb.ID(), err)
 	}
 
 	c.Lock()
@@ -247,6 +258,19 @@ func (sb *sandbox) getConnectedEndpoints() []*endpoint {
 	return eps
 }
 
+func (sb *sandbox) getEndpoint(id string) *endpoint {
+	sb.Lock()
+	defer sb.Unlock()
+
+	for _, ep := range sb.endpoints {
+		if ep.id == id {
+			return ep
+		}
+	}
+
+	return nil
+}
+
 func (sb *sandbox) updateGateway(ep *endpoint) error {
 	sb.Lock()
 	osSbox := sb.osSbox
@@ -283,15 +307,21 @@ func (sb *sandbox) SetKey(basePath string) error {
 	}
 
 	sb.Lock()
-	if sb.osSbox != nil {
-		sb.Unlock()
-		return types.ForbiddenErrorf("failed to set sandbox key : already assigned")
-	}
+	osSbox := sb.osSbox
 	sb.Unlock()
-	osSbox, err := osl.GetSandboxForExternalKey(basePath, sb.Key())
+
+	if osSbox != nil {
+		// If we already have an OS sandbox, release the network resources from that
+		// and destroy the OS snab. We are moving into a new home further down. Note that none
+		// of the network resources gets destroyed during the move.
+		sb.releaseOSSbox()
+	}
+
+	osSbox, err = osl.GetSandboxForExternalKey(basePath, sb.Key())
 	if err != nil {
 		return err
 	}
+
 	sb.Lock()
 	sb.osSbox = osSbox
 	sb.Unlock()
@@ -311,6 +341,45 @@ func (sb *sandbox) SetKey(basePath string) error {
 	return nil
 }
 
+func releaseOSSboxResources(osSbox osl.Sandbox, ep *endpoint) {
+	for _, i := range osSbox.Info().Interfaces() {
+		// Only remove the interfaces owned by this endpoint from the sandbox.
+		if ep.hasInterface(i.SrcName()) {
+			if err := i.Remove(); err != nil {
+				log.Debugf("Remove interface failed: %v", err)
+			}
+		}
+	}
+
+	ep.Lock()
+	joinInfo := ep.joinInfo
+	ep.Unlock()
+
+	// Remove non-interface routes.
+	for _, r := range joinInfo.StaticRoutes {
+		if err := osSbox.RemoveStaticRoute(r); err != nil {
+			log.Debugf("Remove route failed: %v", err)
+		}
+	}
+}
+
+func (sb *sandbox) releaseOSSbox() {
+	sb.Lock()
+	osSbox := sb.osSbox
+	sb.osSbox = nil
+	sb.Unlock()
+
+	if osSbox == nil {
+		return
+	}
+
+	for _, ep := range sb.getConnectedEndpoints() {
+		releaseOSSboxResources(osSbox, ep)
+	}
+
+	osSbox.Destroy()
+}
+
 func (sb *sandbox) populateNetworkResources(ep *endpoint) error {
 	sb.Lock()
 	if sb.osSbox == nil {
@@ -324,12 +393,12 @@ func (sb *sandbox) populateNetworkResources(ep *endpoint) error {
 	i := ep.iface
 	ep.Unlock()
 
-	if i != nil {
+	if i.srcName != "" {
 		var ifaceOptions []osl.IfaceOption
 
-		ifaceOptions = append(ifaceOptions, sb.osSbox.InterfaceOptions().Address(&i.addr), sb.osSbox.InterfaceOptions().Routes(i.routes))
-		if i.addrv6.IP.To16() != nil {
-			ifaceOptions = append(ifaceOptions, sb.osSbox.InterfaceOptions().AddressIPv6(&i.addrv6))
+		ifaceOptions = append(ifaceOptions, sb.osSbox.InterfaceOptions().Address(i.addr), sb.osSbox.InterfaceOptions().Routes(i.routes))
+		if i.addrv6 != nil && i.addrv6.IP.To16() != nil {
+			ifaceOptions = append(ifaceOptions, sb.osSbox.InterfaceOptions().AddressIPv6(i.addrv6))
 		}
 
 		if err := sb.osSbox.AddInterface(i.srcName, i.dstPrefix, ifaceOptions...); err != nil {
@@ -356,33 +425,21 @@ func (sb *sandbox) populateNetworkResources(ep *endpoint) error {
 			}
 		}
 	}
-	return nil
+	return sb.storeUpdate()
 }
 
-func (sb *sandbox) clearNetworkResources(ep *endpoint) error {
+func (sb *sandbox) clearNetworkResources(origEp *endpoint) error {
+	ep := sb.getEndpoint(origEp.id)
+	if ep == nil {
+		return fmt.Errorf("could not find the sandbox endpoint data for endpoint %s",
+			ep.name)
+	}
+
 	sb.Lock()
 	osSbox := sb.osSbox
 	sb.Unlock()
 	if osSbox != nil {
-		for _, i := range osSbox.Info().Interfaces() {
-			// Only remove the interfaces owned by this endpoint from the sandbox.
-			if ep.hasInterface(i.SrcName()) {
-				if err := i.Remove(); err != nil {
-					log.Debugf("Remove interface failed: %v", err)
-				}
-			}
-		}
-
-		ep.Lock()
-		joinInfo := ep.joinInfo
-		ep.Unlock()
-
-		// Remove non-interface routes.
-		for _, r := range joinInfo.StaticRoutes {
-			if err := osSbox.RemoveStaticRoute(r); err != nil {
-				log.Debugf("Remove route failed: %v", err)
-			}
-		}
+		releaseOSSboxResources(osSbox, ep)
 	}
 
 	sb.Lock()
@@ -423,7 +480,7 @@ func (sb *sandbox) clearNetworkResources(ep *endpoint) error {
 		sb.updateGateway(gwepAfter)
 	}
 
-	return nil
+	return sb.storeUpdate()
 }
 
 const (
@@ -837,7 +894,7 @@ func (eh epHeap) Less(i, j int) bool {
 		cjp = 0
 	}
 	if cip == cjp {
-		return eh[i].getNetwork().Name() < eh[j].getNetwork().Name()
+		return eh[i].network.Name() < eh[j].network.Name()
 	}
 
 	return cip > cjp

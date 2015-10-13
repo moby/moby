@@ -315,9 +315,10 @@ type VolumeCreateRequest struct {
 type NetworkResource struct {
 	Name       string                      `json:"name"`
 	ID         string                      `json:"id"`
+	Scope      string                      `json:"scope"`
 	Driver     string                      `json:"driver"`
+	IPAM       network.IPAM                `json:"ipam"`
 	Containers map[string]EndpointResource `json:"containers"`
-	Options    map[string]interface{}      `json:"options,omitempty"`
 }
 
 //EndpointResource contains network resources allocated and usd for a container in a network
@@ -330,10 +331,10 @@ type EndpointResource struct {
 
 // NetworkCreate is the expected body of the "create network" http request message
 type NetworkCreate struct {
-	Name           string                 `json:"name"`
-	CheckDuplicate bool                   `json:"check_duplicate"`
-	Driver         string                 `json:"driver"`
-	Options        map[string]interface{} `json:"options"`
+	Name           string       `json:"name"`
+	CheckDuplicate bool         `json:"check_duplicate"`
+	Driver         string       `json:"driver"`
+	IPAM           network.IPAM `json:"ipam"`
 }
 
 // NetworkCreateResponse is the response message sent by the server for network create call
