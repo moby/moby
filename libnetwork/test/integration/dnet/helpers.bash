@@ -123,7 +123,27 @@ function start_dnet() {
 
     mkdir -p /tmp/dnet/${name}
     tomlfile="/tmp/dnet/${name}/libnetwork.toml"
-    cat > ${tomlfile} <<EOF
+    echo suffix $suffix
+    if [ "$suffix" = "zookeeper" ]; then
+        echo suffix equal zookeeper
+        cat > ${tomlfile} <<EOF
+title = "LibNetwork Configuration file for ${name}"
+
+[daemon]
+  debug = false
+  labels = [${labels}]
+[cluster]
+  discovery = "zk://${bridge_ip}:2182"
+  Heartbeat = 10
+[scopes]
+  [scopes.global]
+    [scopes.global.client]
+      provider = "zk"
+      address = "${bridge_ip}:2182"
+EOF
+    else
+    echo suffix equal consul
+        cat > ${tomlfile} <<EOF
 title = "LibNetwork Configuration file for ${name}"
 
 [daemon]
@@ -139,6 +159,7 @@ title = "LibNetwork Configuration file for ${name}"
       provider = "consul"
       address = "${bridge_ip}:8500"
 EOF
+    fi
     docker run \
 	   -d \
 	   --name=${name}  \
@@ -193,4 +214,60 @@ function runc() {
     dnet_exec ${dnet} "touch /var/run/netns/c && mount -o bind /var/run/docker/netns/${1} /var/run/netns/c"
     dnet_exec ${dnet} "ip netns exec c unshare -fmuip --mount-proc chroot \"/scratch/rootfs\" /bin/sh -c \"/bin/mount -t proc proc /proc && ${2}\""
     dnet_exec ${dnet} "umount /var/run/netns/c && rm /var/run/netns/c"
+}
+
+function start_zookeeper() {
+    stop_zookeeper
+    docker run -d \
+	   --name=zookeeper_server \
+	   -p 2182:2181 \
+	   -h zookeeper \
+	   dnephin/docker-zookeeper:3.4.6
+    sleep 2
+}
+
+function stop_zookeeper() {
+    echo "zookeeper started"
+    docker stop zookeeper_server || true
+    # You cannot destroy a container in Circle CI. So do not attempt destroy in circleci
+    if [ -z "$CIRCLECI" ]; then
+	docker rm -f zookeeper_server || true
+    fi
+}
+
+function test_overlay() {
+    dnet_suffix=$1
+    shift
+
+    echo $(docker ps)
+
+    start=1
+    end=3
+    # Setup overlay network and connect containers ot it
+    dnet_cmd $(inst_id2port 1) network create -d overlay multihost
+    for i in `seq ${start} ${end}`;
+    do
+	dnet_cmd $(inst_id2port $i) container create container_${i}
+	net_connect ${i} container_${i} multihost
+    done
+
+    # Now test connectivity between all the containers using service names
+    for i in `seq ${start} ${end}`;
+    do
+	for j in `seq ${start} ${end}`;
+	do
+	    if [ "$i" -eq "$j" ]; then
+		continue
+	    fi
+	    runc $(dnet_container_name $i $dnet_suffix) $(get_sbox_id ${i} container_${i}) \
+		 "ping -c 1 container_$j"
+	done
+    done
+
+    # Teardown the container connections and the network
+    for i in `seq ${start} ${end}`;
+    do
+	net_disconnect ${i} container_${i} multihost
+	dnet_cmd $(inst_id2port $i) container rm container_${i}
+    done
 }
