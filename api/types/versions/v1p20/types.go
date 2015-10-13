@@ -16,7 +16,8 @@ type ContainerJSON struct {
 // ContainerConfig is a backcompatibility struct used in ContainerJSON for the API 1.20
 type ContainerConfig struct {
 	*runconfig.Config
-	// backward compatibility, it lives now in HostConfig
+
+	// backward compatibility, they now live in HostConfig
 	VolumeDriver string
 }
 

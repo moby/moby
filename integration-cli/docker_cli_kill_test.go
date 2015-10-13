@@ -95,7 +95,7 @@ func (s *DockerSuite) TestKillWithInvalidSignal(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestKillofStoppedContainerAPIPre120(c *check.C) {
+func (s *DockerSuite) TestKillStoppedContainerAPIPre120(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "run", "--name", "docker-kill-test-api", "-d", "busybox", "top")
 	dockerCmd(c, "stop", "docker-kill-test-api")
