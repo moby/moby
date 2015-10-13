@@ -90,24 +90,48 @@ cmap[dnet-1-bridge]=dnet-1-bridge
 stop_dnet 1 bridge 1>>${INTEGRATION_ROOT}/test.log 2>&1
 unset cmap[dnet-1-bridge]
 
+## Test overlay network with consul
 ## Setup
-start_dnet 1 overlay 1>>${INTEGRATION_ROOT}/test.log 2>&1
-cmap[dnet-1-overlay]=dnet-1-overlay
-start_dnet 2 overlay 1>>${INTEGRATION_ROOT}/test.log 2>&1
-cmap[dnet-2-overlay]=dnet-2-overlay
-start_dnet 3 overlay 1>>${INTEGRATION_ROOT}/test.log 2>&1
-cmap[dnet-3-overlay]=dnet-3-overlay
+start_dnet 1 consul 1>>${INTEGRATION_ROOT}/test.log 2>&1
+cmap[dnet-1-consul]=dnet-1-consul
+start_dnet 2 consul 1>>${INTEGRATION_ROOT}/test.log 2>&1
+cmap[dnet-2-consul]=dnet-2-consul
+start_dnet 3 consul 1>>${INTEGRATION_ROOT}/test.log 2>&1
+cmap[dnet-3-consul]=dnet-3-consul
 
 ## Run the test cases
-./integration-tmp/bin/bats ./test/integration/dnet/overlay.bats
+./integration-tmp/bin/bats ./test/integration/dnet/overlay-consul.bats
 
 ## Teardown
-stop_dnet 1 overlay 1>>${INTEGRATION_ROOT}/test.log 2>&1
-unset cmap[dnet-1-overlay]
-stop_dnet 2 overlay 1>>${INTEGRATION_ROOT}/test.log 2>&1
-unset cmap[dnet-2-overlay]
-stop_dnet 3 overlay 1>>${INTEGRATION_ROOT}/test.log 2>&1
-unset cmap[dnet-3-overlay]
+stop_dnet 1 consul 1>>${INTEGRATION_ROOT}/test.log 2>&1
+unset cmap[dnet-1-consul]
+stop_dnet 2 consul 1>>${INTEGRATION_ROOT}/test.log 2>&1
+unset cmap[dnet-2-consul]
+stop_dnet 3 consul 1>>${INTEGRATION_ROOT}/test.log 2>&1
+unset cmap[dnet-3-consul]
+
+## Test overlay network with zookeeper
+start_zookeeper 1>>${INTEGRATION_ROOT}/test.log 2>&1
+cmap[zookeeper_server]=zookeeper_server
+
+start_dnet 1 zookeeper 1>>${INTEGRATION_ROOT}/test.log 2>&1
+cmap[dnet-1-zookeeper]=dnet-1-zookeeper
+start_dnet 2 zookeeper 1>>${INTEGRATION_ROOT}/test.log 2>&1
+cmap[dnet-2-zookeeper]=dnet-2-zookeeper
+start_dnet 3 zookeeper 1>>${INTEGRATION_ROOT}/test.log 2>&1
+cmap[dnet-3-zookeeper]=dnet-3-zookeeper
+
+./integration-tmp/bin/bats ./test/integration/dnet/overlay-zookeeper.bats
+
+stop_dnet 1 zookeeper 1>>${INTEGRATION_ROOT}/test.log 2>&1
+unset cmap[dnet-1-zookeeper]
+stop_dnet 2 zookeeper 1>>${INTEGRATION_ROOT}/test.log 2>&1
+unset cmap[dnet-2-zookeeper]
+stop_dnet 3 zookeeper 1>>${INTEGRATION_ROOT}/test.log 2>&1
+unset cmap[dnet-3-zookeeper]
+
+stop_zookeeper 1>>${INTEGRATION_ROOT}/test.log 2>&1
+unset cmap[zookeeper_server]
 
 # Suite teardowm
 stop_consul 1>>${INTEGRATION_ROOT}/test.log 2>&1
