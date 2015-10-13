@@ -385,15 +385,15 @@ func (ds *datastore) GetObject(key string, o KVObject) error {
 	return nil
 }
 
-func (ds *datastore) ensureKey(key string) error {
-	exists, err := ds.store.Exists(key)
+func (ds *datastore) ensureParent(parent string) error {
+	exists, err := ds.store.Exists(parent)
 	if err != nil {
 		return err
 	}
 	if exists {
 		return nil
 	}
-	return ds.store.Put(key, []byte{}, nil)
+	return ds.store.Put(parent, []byte{}, &store.WriteOptions{IsDir: true})
 }
 
 func (ds *datastore) List(key string, kvObject KVObject) ([]KVObject, error) {
@@ -411,7 +411,7 @@ func (ds *datastore) List(key string, kvObject KVObject) ([]KVObject, error) {
 	}
 
 	// Make sure the parent key exists
-	if err := ds.ensureKey(key); err != nil {
+	if err := ds.ensureParent(key); err != nil {
 		return nil, err
 	}
 

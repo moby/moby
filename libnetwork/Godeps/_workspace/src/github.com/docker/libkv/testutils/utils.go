@@ -22,6 +22,7 @@ func RunTestCommon(t *testing.T, kv store.Store) {
 func RunTestAtomic(t *testing.T, kv store.Store) {
 	testAtomicPut(t, kv)
 	testAtomicPutCreate(t, kv)
+	testAtomicPutWithSlashSuffixKey(t, kv)
 	testAtomicDelete(t, kv)
 }
 
@@ -51,7 +52,7 @@ func RunTestTTL(t *testing.T, kv store.Store, backup store.Store) {
 
 func testPutGetDeleteExists(t *testing.T, kv store.Store) {
 	// Get a not exist key should return ErrKeyNotFound
-	pair, err := kv.Get("/testPutGetDelete_not_exist_key")
+	pair, err := kv.Get("testPutGetDelete_not_exist_key")
 	assert.Equal(t, store.ErrKeyNotFound, err)
 
 	value := []byte("bar")
@@ -62,6 +63,7 @@ func testPutGetDeleteExists(t *testing.T, kv store.Store) {
 		"testPutGetDeleteExists/testbar/testfoobar",
 	} {
 		failMsg := fmt.Sprintf("Fail key %s", key)
+
 		// Put the key
 		err = kv.Put(key, value, nil)
 		assert.NoError(t, err, failMsg)
@@ -179,7 +181,7 @@ func testWatchTree(t *testing.T, kv store.Store) {
 
 	// Update loop
 	go func() {
-		timeout := time.After(250 * time.Millisecond)
+		timeout := time.After(500 * time.Millisecond)
 		for {
 			select {
 			case <-timeout:
@@ -191,15 +193,17 @@ func testWatchTree(t *testing.T, kv store.Store) {
 	}()
 
 	// Check for updates
+	eventCount := 1
 	for {
 		select {
 		case event := <-events:
 			assert.NotNil(t, event)
 			// We received the Delete event on a child node
 			// Exit test successfully
-			if len(event) == 2 {
+			if eventCount == 2 {
 				return
 			}
+			eventCount++
 		case <-time.After(4 * time.Second):
 			t.Fatal("Timeout reached")
 			return
@@ -235,7 +239,7 @@ func testAtomicPut(t *testing.T, kv store.Store) {
 	assert.True(t, success)
 
 	// This CAS should fail, key exists.
-	pair.LastIndex = 0
+	pair.LastIndex = 6744
 	success, _, err = kv.AtomicPut(key, []byte("WORLDWORLD"), pair, nil)
 	assert.Error(t, err)
 	assert.False(t, success)
@@ -271,6 +275,13 @@ func testAtomicPutCreate(t *testing.T, kv store.Store) {
 	assert.True(t, success)
 }
 
+func testAtomicPutWithSlashSuffixKey(t *testing.T, kv store.Store) {
+	k1 := "testAtomicPutWithSlashSuffixKey/key/"
+	success, _, err := kv.AtomicPut(k1, []byte{}, nil, nil)
+	assert.Nil(t, err)
+	assert.True(t, success)
+}
+
 func testAtomicDelete(t *testing.T, kv store.Store) {
 	key := "testAtomicDelete"
 	value := []byte("world")
@@ -291,7 +302,7 @@ func testAtomicDelete(t *testing.T, kv store.Store) {
 	tempIndex := pair.LastIndex
 
 	// AtomicDelete should fail
-	pair.LastIndex = 0
+	pair.LastIndex = 6744
 	success, err := kv.AtomicDelete(key, pair)
 	assert.Error(t, err)
 	assert.False(t, success)
@@ -585,6 +596,7 @@ func testDeleteTree(t *testing.T, kv store.Store) {
 // RunCleanup cleans up keys introduced by the tests
 func RunCleanup(t *testing.T, kv store.Store) {
 	for _, key := range []string{
+		"testAtomicPutWithSlashSuffixKey",
 		"testPutGetDeleteExists",
 		"testWatch",
 		"testWatchTree",

@@ -310,7 +310,7 @@ func (s *Zookeeper) AtomicPut(key string, value []byte, previous *store.KVPair, 
 			// Zookeeper will complain if the directory doesn't exist.
 			if err == zk.ErrNoNode {
 				// Create the directory
-				parts := store.SplitKey(key)
+				parts := store.SplitKey(strings.TrimSuffix(key, "/"))
 				parts = parts[:len(parts)-1]
 				if err = s.createFullPath(parts, false); err != nil {
 					// Failed to create the directory.

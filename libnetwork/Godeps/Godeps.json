@@ -1,6 +1,6 @@
 {
 	"ImportPath": "github.com/docker/libnetwork",
-	"GoVersion": "go1.4.1",
+	"GoVersion": "go1.4.2",
 	"Packages": [
 		"./..."
 	],
@@ -30,9 +30,19 @@
 			"Rev": "a65b733b303f0055f8d324d805f393cd3e7a7904"
 		},
 		{
-			"ImportPath": "github.com/coreos/go-etcd/etcd",
-			"Comment": "v2.0.0-7-g73a8ef7",
-			"Rev": "73a8ef737e8ea002281a28b4cb92a1de121ad4c6"
+			"ImportPath": "github.com/coreos/etcd/client",
+			"Comment": "v2.2.0",
+			"Rev": "e4561dd8cfb1163fb51afceca9c78aa89398e731"
+		},
+		{
+			"ImportPath": "github.com/coreos/etcd/pkg/pathutil",
+			"Comment": "v2.2.0",
+			"Rev": "e4561dd8cfb1163fb51afceca9c78aa89398e731"
+		},
+		{
+			"ImportPath": "github.com/coreos/etcd/pkg/types",
+			"Comment": "v2.2.0",
+			"Rev": "e4561dd8cfb1163fb51afceca9c78aa89398e731"
 		},
 		{
 			"ImportPath": "github.com/coreos/go-systemd/dbus",
@@ -146,7 +156,7 @@
 		},
 		{
 			"ImportPath": "github.com/docker/libkv",
-			"Rev": "4ca160cf21d4e097725d93a72d7b3937c537cdc2"
+			"Rev": "749af6c5b3fb755bec1738cc5e0d3a6f1574d730"
 		},
 		{
 			"ImportPath": "github.com/godbus/dbus",
@@ -201,12 +211,20 @@
 			"Rev": "e55e5833692b49e49a0073ad5baf7803f21bebf4"
 		},
 		{
+			"ImportPath": "github.com/ugorji/go/codec",
+			"Rev": "5abd4e96a45c386928ed2ca2a7ef63e2533e18ec"
+		},
+		{
 			"ImportPath": "github.com/vishvananda/netlink",
 			"Rev": "4b5dce31de6d42af5bb9811c6d265472199e0fec"
 		},
 		{
 			"ImportPath": "github.com/vishvananda/netns",
 			"Rev": "493029407eeb434d0c2d44e02ea072ff2488d322"
+		},
+		{
+			"ImportPath": "golang.org/x/net/context",
+			"Rev": "9dd48c277bcb2bb2cc3eb6a6368a486a567d3562"
 		}
 	]
 }
