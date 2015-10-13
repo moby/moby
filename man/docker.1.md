@@ -33,6 +33,9 @@ To see the man page for a command run **man docker <command>**.
 **--config**=""
   Specifies the location of the Docker client configuration files. The default is '~/.docker'.
 
+**--confirm-def-push**=*true*|*false*
+  Makes Docker ask for a confirmation before a push to public registry. Default is true.
+
 **-D**, **--debug**=*true*|*false*
   Enable debug mode. Default is false.
 

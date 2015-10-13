@@ -48,6 +48,7 @@ complete -c docker -f -n '__fish_docker_no_subcommand' -l api-cors-header -d "Se
 complete -c docker -f -n '__fish_docker_no_subcommand' -s b -l bridge -d 'Attach containers to a pre-existing network bridge'
 complete -c docker -f -n '__fish_docker_no_subcommand' -l bip -d "Use this CIDR notation address for the network bridge's IP, not compatible with -b"
 complete -c docker -f -n '__fish_docker_no_subcommand' -l block-registry -d "Don't contact given registry"
+complete -c docker -f -n '__fish_docker_no_subcommand' -l confirm-def-push -d 'Confirm a push to default registry'
 complete -c docker -f -n '__fish_docker_no_subcommand' -s D -l debug -d 'Enable debug mode'
 complete -c docker -f -n '__fish_docker_no_subcommand' -s d -l daemon -d 'Enable daemon mode'
 complete -c docker -f -n '__fish_docker_no_subcommand' -l dns -d 'Force Docker to use specific DNS servers'
@@ -274,6 +275,7 @@ complete -c docker -A -f -n '__fish_seen_subcommand_from pull' -a '(__fish_print
 
 # push
 complete -c docker -f -n '__fish_docker_no_subcommand' -a push -d 'Push an image or a repository to a Docker registry server'
+complete -c docker -A -f -n '__fish_seen_subcommand_from push' -s f -l force -d 'Push an image or a repository to the registry'
 complete -c docker -A -f -n '__fish_seen_subcommand_from push' -l help -d 'Print usage'
 complete -c docker -A -f -n '__fish_seen_subcommand_from push' -a '(__fish_print_docker_images)' -d "Image"
 complete -c docker -A -f -n '__fish_seen_subcommand_from push' -a '(__fish_print_docker_repositories)' -d "Repository"

@@ -6,6 +6,7 @@ docker-push - Push an image or a repository to a registry
 
 # SYNOPSIS
 **docker push**
+[**-f**|**--force**[=*false*]]
 [**--help**]
 NAME[:TAG] | [REGISTRY_HOST[:REGISTRY_PORT]/]NAME[:TAG]
 
@@ -15,7 +16,13 @@ This command pushes an image or a repository to a registry. If you do not
 specify a `REGISTRY_HOST`, the command uses Docker's public registry located at
 `registry-1.docker.io` by default. 
 
+If an image is about to be pushed to Docker registry without *force* flag
+supplied, Docker will ask for confirmation.
+
 # OPTIONS
+**-f**, **--force**=*true*|*false*
+  Force a push to public registry
+
 **--help**
   Print usage statement
 

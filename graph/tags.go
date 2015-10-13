@@ -12,6 +12,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/digest"
 	"github.com/docker/docker/daemon/events"
 	"github.com/docker/docker/graph/tags"
@@ -43,6 +44,7 @@ type TagStore struct {
 	pushingPool     map[string]*broadcaster.Buffered
 	registryService *registry.Service
 	eventsService   *events.Events
+	ConfirmDefPush  bool
 }
 
 // Repository maps tags to image IDs.
@@ -78,6 +80,8 @@ type TagStoreConfig struct {
 	Registry *registry.Service
 	// Events is the events service to use for logging.
 	Events *events.Events
+	// Whether to ask user to confirm a push to public Docker registry.
+	ConfirmDefPush bool
 }
 
 // NewTagStore creates a new TagStore at specified path, using the parameters
@@ -97,6 +101,7 @@ func NewTagStore(path string, cfg *TagStoreConfig) (*TagStore, error) {
 		pushingPool:     make(map[string]*broadcaster.Buffered),
 		registryService: cfg.Registry,
 		eventsService:   cfg.Events,
+		ConfirmDefPush:  cfg.ConfirmDefPush,
 	}
 	// Load the json file if it exists, otherwise create it.
 	if err := store.reload(); os.IsNotExist(err) {
@@ -105,6 +110,12 @@ func NewTagStore(path string, cfg *TagStoreConfig) (*TagStore, error) {
 		}
 	} else if err != nil {
 		return nil, err
+	}
+	if store.ConfirmDefPush != cfg.ConfirmDefPush {
+		store.ConfirmDefPush = cfg.ConfirmDefPush
+		if err := store.save(); err != nil {
+			logrus.Warnf("Failed to write TagStore configuration to %s: %v", abspath, err)
+		}
 	}
 	return store, nil
 }

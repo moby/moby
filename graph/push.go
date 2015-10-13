@@ -23,6 +23,8 @@ type ImagePushConfig struct {
 	// Tag is the specific variant of the image to be pushed.
 	// If no tag is provided, all tags will be pushed.
 	Tag string
+	// Whether to allow for push to public registry without confirmation.
+	Force bool
 	// OutStream is the output writer for showing the status of the push
 	// operation.
 	OutStream io.Writer
@@ -97,6 +99,12 @@ func (s *TagStore) Push(localName string, imagePushConfig *ImagePushConfig) erro
 			name = parts[len(parts)-1]
 		}
 		return fmt.Errorf("You cannot push a \"root\" repository. Please rename your repository to <user>/<repo> (ex: %s/%s)", username, name)
+	}
+
+	if repoInfo.Index.Official && s.ConfirmDefPush && !imagePushConfig.Force {
+		return fmt.Errorf("Error: Status 403 trying to push repository %s to official registry: needs to be forced", localName)
+	} else if repoInfo.Index.Official && !s.ConfirmDefPush && imagePushConfig.Force {
+		logrus.Infof("Push of %s to official registry has been forced", localName)
 	}
 
 	endpoints, err := s.registryService.LookupPushEndpoints(repoInfo.CanonicalName)
