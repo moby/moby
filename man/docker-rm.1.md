@@ -33,7 +33,7 @@ containers on a host use the **docker ps -a** command.
 
 # EXAMPLES
 
-##Removing a container using its ID##
+## Removing a container using its ID
 
 To remove a container using its ID, find either from a **docker ps -a**
 command, or use the ID returned from the **docker run** command, or retrieve
@@ -41,7 +41,7 @@ it from a file used to store it using the **docker run --cidfile**:
 
     docker rm abebf7571666
 
-##Removing a container using the container name##
+## Removing a container using the container name
 
 The name of the container can be found using the **docker ps -a**
 command. The use that name as follows:

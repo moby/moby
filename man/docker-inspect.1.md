@@ -30,8 +30,8 @@ each result.
 
 # EXAMPLES
 
-Getting information on an image where image name conflict with the container name,
-e,g both image and container are named rhel7.
+Get information about an image when image name conflicts with the container name,
+e.g. both image and container are named rhel7:
 
     $ docker inspect --type=image rhel7
     [
@@ -208,7 +208,7 @@ https://golang.org/pkg/text/template/.
 ## Getting information on an image
 
 Use an image's ID or name (e.g., repository/name[:tag]) to get information
-on it.
+about the image:
 
     $ docker inspect ded7cd95e059
     [{
@@ -289,3 +289,4 @@ April 2014, originally compiled by William Henry (whenry at redhat dot com)
 based on docker.com source material and internal work.
 June 2014, updated by Sven Dowideit <SvenDowideit@home.org.au>
 April 2015, updated by Qiang Huang <h.huangqiang@huawei.com>
+October 2015, updated by Sally O'Malley <somalley@redhat.com>
