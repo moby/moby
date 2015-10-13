@@ -36,6 +36,31 @@ You can set the logging driver for a specific container by using the
 
     docker run --log-driver=journald ...
 
+## Options
+
+Users can use the `--log-opt NAME=VALUE` flag to specify additional
+journald logging driver options.
+
+### labels and env
+
+The `labels` and `env` options takes a comma-separated list of keys. If there is collision between `label` and `env` keys, the value of the `env` takes precedence.
+
+To use attributes, specify them when you start the Docker daemon.
+
+```
+docker daemon --log-driver=journald --log-opt labels=foo --log-opt env=foo,fizz
+```
+
+Then, run a container and specify values for the `labels` or `env`.  For example, you might use this:
+
+```
+docker run --label foo=bar -e fizz=buzz -d -P training/webapp python app.py
+````
+
+This adds additional metadata in the journal with each message, one
+for each key that matches.
+
+
 ## Note regarding container names
 
 The value logged in the `CONTAINER_NAME` field is the container name
