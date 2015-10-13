@@ -59,6 +59,7 @@ import (
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/hostdiscovery"
 	"github.com/docker/libnetwork/ipamapi"
+	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/osl"
 	"github.com/docker/libnetwork/types"
 )
@@ -330,6 +331,7 @@ func (c *controller) NewNetwork(networkType, name string, options ...NetworkOpti
 	network := &network{
 		name:        name,
 		networkType: networkType,
+		generic:     map[string]interface{}{netlabel.GenericData: make(map[string]string)},
 		ipamType:    ipamapi.DefaultIPAM,
 		id:          stringid.GenerateRandomID(),
 		ctrlr:       c,
