@@ -128,3 +128,13 @@ clean() {
 
 	echo done
 }
+
+# Fix up hard-coded imports that refer to Godeps paths so they'll work with our vendoring
+fix_rewritten_imports () {
+       local pkg="$1"
+       local remove="${pkg}/Godeps/_workspace/src/"
+       local target="vendor/src/$pkg"
+
+       echo "$pkg: fixing rewritten imports"
+       find "$target" -name \*.go -exec sed -i -e "s|\"${remove}|\"|g" {} \;
+}
