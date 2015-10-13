@@ -43,23 +43,7 @@ journald logging driver options.
 
 ### labels and env
 
-The `labels` and `env` options takes a comma-separated list of keys. If there is collision between `label` and `env` keys, the value of the `env` takes precedence.
-
-To use attributes, specify them when you start the Docker daemon.
-
-```
-docker daemon --log-driver=journald --log-opt labels=foo --log-opt env=foo,fizz
-```
-
-Then, run a container and specify values for the `labels` or `env`.  For example, you might use this:
-
-```
-docker run --label foo=bar -e fizz=buzz -d -P training/webapp python app.py
-````
-
-This adds additional metadata in the journal with each message, one
-for each key that matches.
-
+The `labels` and `env` options each take a comma-separated list of keys. If there is collision between `label` and `env` keys, the value of the `env` takes precedence. Both options add additional metadata in the journal with each message.
 
 ## Note regarding container names
 
@@ -99,4 +83,3 @@ logs:
 
     for msg in reader:
       print '{CONTAINER_ID_FULL}: {MESSAGE}'.format(**msg)
-

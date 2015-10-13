@@ -27,24 +27,7 @@ container's logging driver. The following options are supported:
 
 The `docker logs`command is available only for the `json-file` logging driver.
 
-
-## json-file options
-
-The following logging options are supported for the `json-file` logging driver:
-
-    --log-opt max-size=[0-9+][k|m|g]
-    --log-opt max-file=[0-9+]
-    --log-opt labels=label1,label2
-    --log-opt env=env1,env2
-
-Logs that reach `max-size` are rolled over. You can set the size in kilobytes(k), megabytes(m), or gigabytes(g). eg `--log-opt max-size=50m`. If `max-size` is not set, then logs are not rolled over.
-
-
-`max-file` specifies the maximum number of files that a log is rolled over before being discarded. eg `--log-opt max-file=100`. If `max-size` is not set, then `max-file` is not honored.
-
-If `max-size` and `max-file` are set, `docker logs` only returns the log lines from the newest log file.
-
-The `labels` and `env` options add additional attributes for use with logging drivers that accept them. Each of these options takes a comma-separated list of keys. If there is collision between `label` and `env` keys, the value of the `env` takes precedence.
+The `labels` and `env` options add additional attributes for use with logging drivers that accept them. Each option takes a comma-separated list of keys. If there is collision between `label` and `env` keys, the value of the `env` takes precedence.
 
 To use attributes, specify them when you start the Docker daemon.
 
@@ -58,10 +41,26 @@ Then, run a container and specify values for the `labels` or `env`.  For example
 docker run --label foo=bar -e fizz=buzz -d -P training/webapp python app.py
 ````
 
-This adds additional fields depending on the driver, e.g. for
+This adds additional fields to the log depending on the driver, e.g. for
 `json-file` that looks like:
 
     "attrs":{"fizz":"buzz","foo":"bar"}
+
+
+## json-file options
+
+The following logging options are supported for the `json-file` logging driver:
+
+    --log-opt max-size=[0-9+][k|m|g]
+    --log-opt max-file=[0-9+]
+    --log-opt labels=label1,label2
+    --log-opt env=env1,env2
+
+Logs that reach `max-size` are rolled over. You can set the size in kilobytes(k), megabytes(m), or gigabytes(g). eg `--log-opt max-size=50m`. If `max-size` is not set, then logs are not rolled over.
+
+`max-file` specifies the maximum number of files that a log is rolled over before being discarded. eg `--log-opt max-file=100`. If `max-size` is not set, then `max-file` is not honored.
+
+If `max-size` and `max-file` are set, `docker logs` only returns the log lines from the newest log file.
 
 
 ## syslog options
