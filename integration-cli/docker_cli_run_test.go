@@ -851,9 +851,9 @@ func (s *DockerSuite) TestRunCapAddALLDropNetAdminCanDownInterface(c *check.C) {
 func (s *DockerSuite) TestRunGroupAdd(c *check.C) {
 	// Not applicable for Windows as there is no concept of --group-add
 	testRequires(c, DaemonIsLinux, NativeExecDriver)
-	out, _ := dockerCmd(c, "run", "--group-add=audio", "--group-add=dbus", "--group-add=777", "busybox", "sh", "-c", "id")
+	out, _ := dockerCmd(c, "run", "--group-add=audio", "--group-add=staff", "--group-add=777", "busybox", "sh", "-c", "id")
 
-	groupsList := "uid=0(root) gid=0(root) groups=10(wheel),29(audio),81(dbus),777"
+	groupsList := "uid=0(root) gid=0(root) groups=10(wheel),29(audio),50(staff),777"
 	if actual := strings.Trim(out, "\r\n"); actual != groupsList {
 		c.Fatalf("expected output %s received %s", groupsList, actual)
 	}
@@ -1168,13 +1168,13 @@ func (s *DockerSuite) TestRunDnsOptionsBasedOnHostResolvConf(c *check.C) {
 	}
 }
 
-// Test to see if a non-root user can resolve a DNS name and reach out to it. Also
+// Test to see if a non-root user can resolve a DNS name. Also
 // check if the container resolv.conf file has at least 0644 perm.
 func (s *DockerSuite) TestRunNonRootUserResolvName(c *check.C) {
 	// Not applicable on Windows as Windows does not support --user
 	testRequires(c, SameHostDaemon, Network, DaemonIsLinux)
 
-	dockerCmd(c, "run", "--name=testperm", "--user=default", "busybox", "ping", "-c", "1", "apt.dockerproject.org")
+	dockerCmd(c, "run", "--name=testperm", "--user=nobody", "busybox", "nslookup", "apt.dockerproject.org")
 
 	cID, err := getIDByName("testperm")
 	if err != nil {
