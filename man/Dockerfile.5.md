@@ -185,7 +185,7 @@ A Dockerfile is similar to a Makefile.
   -- `EXPOSE <port> [<port>...]`
   The **EXPOSE** instruction informs Docker that the container listens on the
   specified network ports at runtime. Docker uses this information to
-  interconnect containers using links, and to set up port redirection on the host
+  interconnect containers using links and to set up port redirection on the host
   system.
 
 **ENV**
