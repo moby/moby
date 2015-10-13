@@ -215,12 +215,6 @@ func populateCommand(c *Container, env []string) error {
 		ipc.ContainerID = ic.ID
 		c.ShmPath = ic.ShmPath
 		c.MqueuePath = ic.MqueuePath
-	} else {
-		ipc.HostIpc = c.hostConfig.IpcMode.IsHost()
-		if ipc.HostIpc {
-			c.ShmPath = "/dev/shm"
-			c.MqueuePath = "/dev/mqueue"
-		}
 	}
 
 	pid := &execdriver.Pid{}
@@ -1408,7 +1402,7 @@ func (container *Container) setupIpcDirs() error {
 }
 
 func (container *Container) unmountIpcMounts() error {
-	if container.hostConfig.IpcMode.IsContainer() || container.hostConfig.IpcMode.IsHost() {
+	if container.hostConfig.IpcMode.IsContainer() {
 		return nil
 	}
 
