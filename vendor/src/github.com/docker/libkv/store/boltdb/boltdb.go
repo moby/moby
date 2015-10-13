@@ -23,8 +23,6 @@ var (
 	ErrBoltBucketNotFound = errors.New("boltdb bucket doesn't exist")
 	// ErrBoltBucketOptionMissing is thrown when boltBcuket config option is missing
 	ErrBoltBucketOptionMissing = errors.New("boltBucket config option missing")
-	// ErrBoltAPIUnsupported is thrown when an APIs unsupported by BoltDB backend is called
-	ErrBoltAPIUnsupported = errors.New("API not supported by BoltDB backend")
 )
 
 const (
@@ -456,15 +454,15 @@ func (b *BoltDB) DeleteTree(keyPrefix string) error {
 
 // NewLock has to implemented at the library level since its not supported by BoltDB
 func (b *BoltDB) NewLock(key string, options *store.LockOptions) (store.Locker, error) {
-	return nil, ErrBoltAPIUnsupported
+	return nil, store.ErrCallNotSupported
 }
 
 // Watch has to implemented at the library level since its not supported by BoltDB
 func (b *BoltDB) Watch(key string, stopCh <-chan struct{}) (<-chan *store.KVPair, error) {
-	return nil, ErrBoltAPIUnsupported
+	return nil, store.ErrCallNotSupported
 }
 
 // WatchTree has to implemented at the library level since its not supported by BoltDB
 func (b *BoltDB) WatchTree(directory string, stopCh <-chan struct{}) (<-chan []*store.KVPair, error) {
-	return nil, ErrBoltAPIUnsupported
+	return nil, store.ErrCallNotSupported
 }
