@@ -797,7 +797,7 @@ func (s *DockerSuite) TestCopyAndRestart(c *check.C) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	dockerCmd(c, "cp", fmt.Sprintf("%s:/etc/issue", id), tmpDir)
+	dockerCmd(c, "cp", fmt.Sprintf("%s:/etc/group", id), tmpDir)
 
 	out, _ = dockerCmd(c, "start", "-a", id)
 
