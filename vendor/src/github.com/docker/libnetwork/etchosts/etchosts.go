@@ -24,7 +24,7 @@ func (r Record) WriteTo(w io.Writer) (int64, error) {
 // Default hosts config records slice
 var defaultContent = []Record{
 	{Hosts: "localhost localhost.localdomain", IP: "127.0.0.1"},
-	{Hosts: "localhost ip6-localhost ip6-loopback", IP: "::1"},
+	{Hosts: "localhost localhost.localdomain ip6-localhost ip6-loopback", IP: "::1"},
 	{Hosts: "ip6-localnet", IP: "fe00::0"},
 	{Hosts: "ip6-mcastprefix", IP: "ff00::0"},
 	{Hosts: "ip6-allnodes", IP: "ff02::1"},
