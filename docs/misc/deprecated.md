@@ -12,6 +12,14 @@ parent = "mn_use_docker"
 
 The following list of features are deprecated.
 
+### -r and --restart flag on daemon
+**Deprecated In Release: v1.9**
+
+**Target For Removal In Release: v1.10**
+
+The `-r` and `--restart` daemon flags are deprecated in favor of per-container
+restart policies.
+
 ### Command line short variant options
 **Deprecated In Release: v1.9**
 
