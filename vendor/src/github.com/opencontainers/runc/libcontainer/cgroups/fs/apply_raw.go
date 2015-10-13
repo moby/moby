@@ -213,7 +213,7 @@ func (m *Manager) GetPids() ([]int, error) {
 		return nil, err
 	}
 
-	return cgroups.ReadProcsFile(dir)
+	return cgroups.GetPids(dir)
 }
 
 func getCgroupData(c *configs.Cgroup, pid int) (*data, error) {

@@ -289,24 +289,56 @@ func addArgsFromEnv(evar string, args *[]string) {
 	fmt.Printf(">>> criu %v\n", *args)
 }
 
-func (c *linuxContainer) checkCriuVersion() error {
-	var x, y, z int
+// check Criu version greater than or equal to min_version
+func (c *linuxContainer) checkCriuVersion(min_version string) error {
+	var x, y, z, versionReq int
+
+	_, err := fmt.Sscanf(min_version, "%d.%d.%d\n", &x, &y, &z) // 1.5.2
+	if err != nil {
+		_, err = fmt.Sscanf(min_version, "Version: %d.%d\n", &x, &y) // 1.6
+	}
+	versionReq = x*10000 + y*100 + z
 
 	out, err := exec.Command(c.criuPath, "-V").Output()
 	if err != nil {
 		return fmt.Errorf("Unable to execute CRIU command: %s", c.criuPath)
 	}
 
-	n, err := fmt.Sscanf(string(out), "Version: %d.%d.%d\n", &x, &y, &z) // 1.5.2
-	if err != nil {
-		n, err = fmt.Sscanf(string(out), "Version: %d.%d\n", &x, &y) // 1.6
-	}
-	if n < 2 || err != nil {
-		return fmt.Errorf("Unable to parse the CRIU version: %s %d %s", out, n, err)
+	x = 0
+	y = 0
+	z = 0
+	if ep := strings.Index(string(out), "-"); ep >= 0 {
+		// criu Git version format
+		var version string
+		if sp := strings.Index(string(out), "GitID"); sp > 0 {
+			version = string(out)[sp:ep]
+		} else {
+			return fmt.Errorf("Unable to parse the CRIU version: %s", c.criuPath)
+		}
+
+		n, err := fmt.Sscanf(string(version), "GitID: v%d.%d.%d", &x, &y, &z) // 1.5.2
+		if err != nil {
+			n, err = fmt.Sscanf(string(version), "GitID: v%d.%d", &x, &y) // 1.6
+			y++
+		} else {
+			z++
+		}
+		if n < 2 || err != nil {
+			return fmt.Errorf("Unable to parse the CRIU version: %s %d %s", version, n, err)
+		}
+	} else {
+		// criu release version format
+		n, err := fmt.Sscanf(string(out), "Version: %d.%d.%d\n", &x, &y, &z) // 1.5.2
+		if err != nil {
+			n, err = fmt.Sscanf(string(out), "Version: %d.%d\n", &x, &y) // 1.6
+		}
+		if n < 2 || err != nil {
+			return fmt.Errorf("Unable to parse the CRIU version: %s %d %s", out, n, err)
+		}
 	}
 
-	if x*10000+y*100+z < 10502 {
-		return fmt.Errorf("CRIU version must be 1.5.2 or higher")
+	if x*10000+y*100+z < versionReq {
+		return fmt.Errorf("CRIU version must be %s or higher", min_version)
 	}
 
 	return nil
@@ -331,7 +363,7 @@ func (c *linuxContainer) Checkpoint(criuOpts *CriuOpts) error {
 	c.m.Lock()
 	defer c.m.Unlock()
 
-	if err := c.checkCriuVersion(); err != nil {
+	if err := c.checkCriuVersion("1.5.2"); err != nil {
 		return err
 	}
 
@@ -387,6 +419,14 @@ func (c *linuxContainer) Checkpoint(criuOpts *CriuOpts) error {
 			Address: proto.String(criuOpts.PageServer.Address),
 			Port:    proto.Int32(criuOpts.PageServer.Port),
 		}
+	}
+
+	// append optional manage cgroups mode
+	if criuOpts.ManageCgroupsMode != 0 {
+		if err := c.checkCriuVersion("1.7"); err != nil {
+			return err
+		}
+		rpcOpts.ManageCgroupsMode = proto.Uint32(uint32(criuOpts.ManageCgroupsMode))
 	}
 
 	t := criurpc.CriuReqType_DUMP
@@ -448,7 +488,7 @@ func (c *linuxContainer) Restore(process *Process, criuOpts *CriuOpts) error {
 	c.m.Lock()
 	defer c.m.Unlock()
 
-	if err := c.checkCriuVersion(); err != nil {
+	if err := c.checkCriuVersion("1.5.2"); err != nil {
 		return err
 	}
 
@@ -551,6 +591,14 @@ func (c *linuxContainer) Restore(process *Process, criuOpts *CriuOpts) error {
 		veth.IfOut = proto.String(i.HostInterfaceName)
 		veth.IfIn = proto.String(i.ContainerInterfaceName)
 		req.Opts.Veths = append(req.Opts.Veths, veth)
+	}
+
+	// append optional manage cgroups mode
+	if criuOpts.ManageCgroupsMode != 0 {
+		if err := c.checkCriuVersion("1.7"); err != nil {
+			return err
+		}
+		req.Opts.ManageCgroupsMode = proto.Uint32(uint32(criuOpts.ManageCgroupsMode))
 	}
 
 	var (
