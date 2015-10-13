@@ -2,15 +2,33 @@
 // source: criurpc.proto
 // DO NOT EDIT!
 
+/*
+Package criurpc is a generated protocol buffer package.
+
+It is generated from these files:
+	criurpc.proto
+
+It has these top-level messages:
+	CriuPageServerInfo
+	CriuVethPair
+	ExtMountMap
+	InheritFd
+	CgroupRoot
+	UnixSk
+	CriuOpts
+	CriuDumpResp
+	CriuRestoreResp
+	CriuNotify
+	CriuReq
+	CriuResp
+*/
 package criurpc
 
 import proto "github.com/golang/protobuf/proto"
-import json "encoding/json"
 import math "math"
 
-// Reference proto, json, and math imports to suppress error if they are not otherwise used.
+// Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
-var _ = &json.SyntaxError{}
 var _ = math.Inf
 
 type CriuReqType int32
@@ -57,9 +75,6 @@ func (x CriuReqType) Enum() *CriuReqType {
 }
 func (x CriuReqType) String() string {
 	return proto.EnumName(CriuReqType_name, int32(x))
-}
-func (x CriuReqType) MarshalJSON() ([]byte, error) {
-	return json.Marshal(x.String())
 }
 func (x *CriuReqType) UnmarshalJSON(data []byte) error {
 	value, err := proto.UnmarshalJSONEnum(CriuReqType_value, data, "CriuReqType")
@@ -206,35 +221,58 @@ func (m *CgroupRoot) GetPath() string {
 	return ""
 }
 
+type UnixSk struct {
+	Inode            *uint32 `protobuf:"varint,1,req,name=inode" json:"inode,omitempty"`
+	XXX_unrecognized []byte  `json:"-"`
+}
+
+func (m *UnixSk) Reset()         { *m = UnixSk{} }
+func (m *UnixSk) String() string { return proto.CompactTextString(m) }
+func (*UnixSk) ProtoMessage()    {}
+
+func (m *UnixSk) GetInode() uint32 {
+	if m != nil && m.Inode != nil {
+		return *m.Inode
+	}
+	return 0
+}
+
 type CriuOpts struct {
-	ImagesDirFd      *int32              `protobuf:"varint,1,req,name=images_dir_fd" json:"images_dir_fd,omitempty"`
-	Pid              *int32              `protobuf:"varint,2,opt,name=pid" json:"pid,omitempty"`
-	LeaveRunning     *bool               `protobuf:"varint,3,opt,name=leave_running" json:"leave_running,omitempty"`
-	ExtUnixSk        *bool               `protobuf:"varint,4,opt,name=ext_unix_sk" json:"ext_unix_sk,omitempty"`
-	TcpEstablished   *bool               `protobuf:"varint,5,opt,name=tcp_established" json:"tcp_established,omitempty"`
-	EvasiveDevices   *bool               `protobuf:"varint,6,opt,name=evasive_devices" json:"evasive_devices,omitempty"`
-	ShellJob         *bool               `protobuf:"varint,7,opt,name=shell_job" json:"shell_job,omitempty"`
-	FileLocks        *bool               `protobuf:"varint,8,opt,name=file_locks" json:"file_locks,omitempty"`
-	LogLevel         *int32              `protobuf:"varint,9,opt,name=log_level,def=2" json:"log_level,omitempty"`
-	LogFile          *string             `protobuf:"bytes,10,opt,name=log_file" json:"log_file,omitempty"`
-	Ps               *CriuPageServerInfo `protobuf:"bytes,11,opt,name=ps" json:"ps,omitempty"`
-	NotifyScripts    *bool               `protobuf:"varint,12,opt,name=notify_scripts" json:"notify_scripts,omitempty"`
-	Root             *string             `protobuf:"bytes,13,opt,name=root" json:"root,omitempty"`
-	ParentImg        *string             `protobuf:"bytes,14,opt,name=parent_img" json:"parent_img,omitempty"`
-	TrackMem         *bool               `protobuf:"varint,15,opt,name=track_mem" json:"track_mem,omitempty"`
-	AutoDedup        *bool               `protobuf:"varint,16,opt,name=auto_dedup" json:"auto_dedup,omitempty"`
-	WorkDirFd        *int32              `protobuf:"varint,17,opt,name=work_dir_fd" json:"work_dir_fd,omitempty"`
-	LinkRemap        *bool               `protobuf:"varint,18,opt,name=link_remap" json:"link_remap,omitempty"`
-	Veths            []*CriuVethPair     `protobuf:"bytes,19,rep,name=veths" json:"veths,omitempty"`
-	CpuCap           *uint32             `protobuf:"varint,20,opt,name=cpu_cap,def=4294967295" json:"cpu_cap,omitempty"`
-	ForceIrmap       *bool               `protobuf:"varint,21,opt,name=force_irmap" json:"force_irmap,omitempty"`
-	ExecCmd          []string            `protobuf:"bytes,22,rep,name=exec_cmd" json:"exec_cmd,omitempty"`
-	ExtMnt           []*ExtMountMap      `protobuf:"bytes,23,rep,name=ext_mnt" json:"ext_mnt,omitempty"`
-	ManageCgroups    *bool               `protobuf:"varint,24,opt,name=manage_cgroups" json:"manage_cgroups,omitempty"`
-	CgRoot           []*CgroupRoot       `protobuf:"bytes,25,rep,name=cg_root" json:"cg_root,omitempty"`
-	RstSibling       *bool               `protobuf:"varint,26,opt,name=rst_sibling" json:"rst_sibling,omitempty"`
-	InheritFd        []*InheritFd        `protobuf:"bytes,27,rep,name=inherit_fd" json:"inherit_fd,omitempty"`
-	XXX_unrecognized []byte              `json:"-"`
+	ImagesDirFd       *int32              `protobuf:"varint,1,req,name=images_dir_fd" json:"images_dir_fd,omitempty"`
+	Pid               *int32              `protobuf:"varint,2,opt,name=pid" json:"pid,omitempty"`
+	LeaveRunning      *bool               `protobuf:"varint,3,opt,name=leave_running" json:"leave_running,omitempty"`
+	ExtUnixSk         *bool               `protobuf:"varint,4,opt,name=ext_unix_sk" json:"ext_unix_sk,omitempty"`
+	TcpEstablished    *bool               `protobuf:"varint,5,opt,name=tcp_established" json:"tcp_established,omitempty"`
+	EvasiveDevices    *bool               `protobuf:"varint,6,opt,name=evasive_devices" json:"evasive_devices,omitempty"`
+	ShellJob          *bool               `protobuf:"varint,7,opt,name=shell_job" json:"shell_job,omitempty"`
+	FileLocks         *bool               `protobuf:"varint,8,opt,name=file_locks" json:"file_locks,omitempty"`
+	LogLevel          *int32              `protobuf:"varint,9,opt,name=log_level,def=2" json:"log_level,omitempty"`
+	LogFile           *string             `protobuf:"bytes,10,opt,name=log_file" json:"log_file,omitempty"`
+	Ps                *CriuPageServerInfo `protobuf:"bytes,11,opt,name=ps" json:"ps,omitempty"`
+	NotifyScripts     *bool               `protobuf:"varint,12,opt,name=notify_scripts" json:"notify_scripts,omitempty"`
+	Root              *string             `protobuf:"bytes,13,opt,name=root" json:"root,omitempty"`
+	ParentImg         *string             `protobuf:"bytes,14,opt,name=parent_img" json:"parent_img,omitempty"`
+	TrackMem          *bool               `protobuf:"varint,15,opt,name=track_mem" json:"track_mem,omitempty"`
+	AutoDedup         *bool               `protobuf:"varint,16,opt,name=auto_dedup" json:"auto_dedup,omitempty"`
+	WorkDirFd         *int32              `protobuf:"varint,17,opt,name=work_dir_fd" json:"work_dir_fd,omitempty"`
+	LinkRemap         *bool               `protobuf:"varint,18,opt,name=link_remap" json:"link_remap,omitempty"`
+	Veths             []*CriuVethPair     `protobuf:"bytes,19,rep,name=veths" json:"veths,omitempty"`
+	CpuCap            *uint32             `protobuf:"varint,20,opt,name=cpu_cap,def=4294967295" json:"cpu_cap,omitempty"`
+	ForceIrmap        *bool               `protobuf:"varint,21,opt,name=force_irmap" json:"force_irmap,omitempty"`
+	ExecCmd           []string            `protobuf:"bytes,22,rep,name=exec_cmd" json:"exec_cmd,omitempty"`
+	ExtMnt            []*ExtMountMap      `protobuf:"bytes,23,rep,name=ext_mnt" json:"ext_mnt,omitempty"`
+	ManageCgroups     *bool               `protobuf:"varint,24,opt,name=manage_cgroups" json:"manage_cgroups,omitempty"`
+	CgRoot            []*CgroupRoot       `protobuf:"bytes,25,rep,name=cg_root" json:"cg_root,omitempty"`
+	RstSibling        *bool               `protobuf:"varint,26,opt,name=rst_sibling" json:"rst_sibling,omitempty"`
+	InheritFd         []*InheritFd        `protobuf:"bytes,27,rep,name=inherit_fd" json:"inherit_fd,omitempty"`
+	AutoExtMnt        *bool               `protobuf:"varint,28,opt,name=auto_ext_mnt" json:"auto_ext_mnt,omitempty"`
+	ExtSharing        *bool               `protobuf:"varint,29,opt,name=ext_sharing" json:"ext_sharing,omitempty"`
+	ExtMasters        *bool               `protobuf:"varint,30,opt,name=ext_masters" json:"ext_masters,omitempty"`
+	SkipMnt           []string            `protobuf:"bytes,31,rep,name=skip_mnt" json:"skip_mnt,omitempty"`
+	EnableFs          []string            `protobuf:"bytes,32,rep,name=enable_fs" json:"enable_fs,omitempty"`
+	UnixSkIno         []*UnixSk           `protobuf:"bytes,33,rep,name=unix_sk_ino" json:"unix_sk_ino,omitempty"`
+	ManageCgroupsMode *uint32             `protobuf:"varint,34,opt,name=manage_cgroups_mode" json:"manage_cgroups_mode,omitempty"`
+	XXX_unrecognized  []byte              `json:"-"`
 }
 
 func (m *CriuOpts) Reset()         { *m = CriuOpts{} }
@@ -433,6 +471,55 @@ func (m *CriuOpts) GetInheritFd() []*InheritFd {
 	return nil
 }
 
+func (m *CriuOpts) GetAutoExtMnt() bool {
+	if m != nil && m.AutoExtMnt != nil {
+		return *m.AutoExtMnt
+	}
+	return false
+}
+
+func (m *CriuOpts) GetExtSharing() bool {
+	if m != nil && m.ExtSharing != nil {
+		return *m.ExtSharing
+	}
+	return false
+}
+
+func (m *CriuOpts) GetExtMasters() bool {
+	if m != nil && m.ExtMasters != nil {
+		return *m.ExtMasters
+	}
+	return false
+}
+
+func (m *CriuOpts) GetSkipMnt() []string {
+	if m != nil {
+		return m.SkipMnt
+	}
+	return nil
+}
+
+func (m *CriuOpts) GetEnableFs() []string {
+	if m != nil {
+		return m.EnableFs
+	}
+	return nil
+}
+
+func (m *CriuOpts) GetUnixSkIno() []*UnixSk {
+	if m != nil {
+		return m.UnixSkIno
+	}
+	return nil
+}
+
+func (m *CriuOpts) GetManageCgroupsMode() uint32 {
+	if m != nil && m.ManageCgroupsMode != nil {
+		return *m.ManageCgroupsMode
+	}
+	return 0
+}
+
 type CriuDumpResp struct {
 	Restored         *bool  `protobuf:"varint,1,opt,name=restored" json:"restored,omitempty"`
 	XXX_unrecognized []byte `json:"-"`
@@ -509,7 +596,7 @@ func (m *CriuReq) GetType() CriuReqType {
 	if m != nil && m.Type != nil {
 		return *m.Type
 	}
-	return 0
+	return CriuReqType_EMPTY
 }
 
 func (m *CriuReq) GetOpts() *CriuOpts {
@@ -552,7 +639,7 @@ func (m *CriuResp) GetType() CriuReqType {
 	if m != nil && m.Type != nil {
 		return *m.Type
 	}
-	return 0
+	return CriuReqType_EMPTY
 }
 
 func (m *CriuResp) GetSuccess() bool {

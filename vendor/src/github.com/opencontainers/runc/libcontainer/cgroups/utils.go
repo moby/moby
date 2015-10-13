@@ -193,7 +193,7 @@ func GetInitCgroupDir(subsystem string) (string, error) {
 	return getControllerPath(subsystem, cgroups)
 }
 
-func ReadProcsFile(dir string) ([]int, error) {
+func readProcsFile(dir string) ([]int, error) {
 	f, err := os.Open(filepath.Join(dir, "cgroup.procs"))
 	if err != nil {
 		return nil, err
@@ -321,4 +321,27 @@ func GetHugePageSize() ([]string, error) {
 	}
 
 	return pageSizes, nil
+}
+
+// GetPids returns all pids, that were added to cgroup at path and to all its
+// subcgroups.
+func GetPids(path string) ([]int, error) {
+	var pids []int
+	// collect pids from all sub-cgroups
+	err := filepath.Walk(path, func(p string, info os.FileInfo, iErr error) error {
+		dir, file := filepath.Split(p)
+		if file != "cgroup.procs" {
+			return nil
+		}
+		if iErr != nil {
+			return iErr
+		}
+		cPids, err := readProcsFile(dir)
+		if err != nil {
+			return err
+		}
+		pids = append(pids, cPids...)
+		return nil
+	})
+	return pids, err
 }

@@ -9,6 +9,15 @@ import (
 	"github.com/opencontainers/runc/libcontainer/selinux"
 )
 
+// Valid Label Options
+var validOptions = map[string]bool{
+	"disable": true,
+	"type":    true,
+	"user":    true,
+	"role":    true,
+	"level":   true,
+}
+
 var ErrIncompatibleLabel = fmt.Errorf("Bad SELinux option z and Z can not be used together")
 
 // InitLabels returns the process label and file labels to be used within
@@ -28,9 +37,13 @@ func InitLabels(options []string) (string, string, error) {
 				return "", "", nil
 			}
 			if i := strings.Index(opt, ":"); i == -1 {
-				return "", "", fmt.Errorf("Bad SELinux Option")
+				return "", "", fmt.Errorf("Bad label option %q, valid options 'disable' or \n'user, role, level, type' followed by ':' and a value", opt)
 			}
 			con := strings.SplitN(opt, ":", 2)
+			if !validOptions[con[0]] {
+				return "", "", fmt.Errorf("Bad label option %q, valid options 'disable, user, role, level, type'", con[0])
+
+			}
 			pcon[con[0]] = con[1]
 			if con[0] == "level" || con[0] == "user" {
 				mcon[con[0]] = con[1]
