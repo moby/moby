@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/go-check/check"
 )
@@ -133,6 +134,11 @@ func (s *DockerNetworkSuite) TestDockerNetworkCreateDelete(c *check.C) {
 
 	dockerCmd(c, "network", "rm", "test")
 	assertNwNotAvailable(c, "test")
+}
+
+func (s *DockerSuite) TestDockerNetworkDeleteNotExists(c *check.C) {
+	out, _, err := dockerCmdWithError("network", "rm", "test")
+	c.Assert(err, checker.NotNil, check.Commentf("%v", out))
 }
 
 func (s *DockerNetworkSuite) TestDockerNetworkConnectDisconnect(c *check.C) {

@@ -126,11 +126,7 @@ func (n *networkRouter) postNetworkConnect(ctx context.Context, w http.ResponseW
 		return err
 	}
 
-	container, err := n.daemon.Get(connect.Container)
-	if err != nil {
-		return fmt.Errorf("invalid container %s : %v", container, err)
-	}
-	return container.ConnectToNetwork(nw.Name())
+	return n.daemon.ConnectContainerToNetwork(connect.Container, nw.Name())
 }
 
 func (n *networkRouter) postNetworkDisconnect(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -152,11 +148,7 @@ func (n *networkRouter) postNetworkDisconnect(ctx context.Context, w http.Respon
 		return err
 	}
 
-	container, err := n.daemon.Get(disconnect.Container)
-	if err != nil {
-		return fmt.Errorf("invalid container %s : %v", container, err)
-	}
-	return container.DisconnectFromNetwork(nw)
+	return n.daemon.DisconnectContainerFromNetwork(disconnect.Container, nw)
 }
 
 func (n *networkRouter) deleteNetwork(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
