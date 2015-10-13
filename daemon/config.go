@@ -50,6 +50,12 @@ type CommonConfig struct {
 	ClusterAdvertise string
 }
 
+// DaemonAllowedModifedArgs is the args that can be modified during daemon running
+var DaemonAllowedModifedArgs = map[string]bool{
+	"insecure-registry": true,
+	"label":             true,
+}
+
 // InstallCommonFlags adds command-line options to the top-level flag parser for
 // the current process.
 // Subsequent calls to `flag.Parse` will populate config with values parsed
