@@ -21,20 +21,10 @@ import (
 const name = "gelf"
 
 type gelfLogger struct {
-	writer *gelf.Writer
-	ctx    logger.Context
-	fields gelfFields
-}
-
-type gelfFields struct {
-	hostname      string
-	containerID   string
-	containerName string
-	imageID       string
-	imageName     string
-	command       string
-	tag           string
-	created       time.Time
+	writer   *gelf.Writer
+	ctx      logger.Context
+	hostname string
+	extra    map[string]interface{}
 }
 
 func init() {
@@ -71,15 +61,24 @@ func New(ctx logger.Context) (logger.Logger, error) {
 		return nil, err
 	}
 
-	fields := gelfFields{
-		hostname:      hostname,
-		containerID:   ctx.ContainerID,
-		containerName: string(containerName),
-		imageID:       ctx.ContainerImageID,
-		imageName:     ctx.ContainerImageName,
-		command:       ctx.Command(),
-		tag:           tag,
-		created:       ctx.ContainerCreated,
+	extra := map[string]interface{}{
+		"_container_id":   ctx.ContainerID,
+		"_container_name": string(containerName),
+		"_image_id":       ctx.ContainerImageID,
+		"_image_name":     ctx.ContainerImageName,
+		"_command":        ctx.Command(),
+		"_tag":            tag,
+		"_created":        ctx.ContainerCreated,
+	}
+
+	extraAttrs := ctx.ExtraAttributes(func(key string) string {
+		if key[0] == '_' {
+			return key
+		}
+		return "_" + key
+	})
+	for k, v := range extraAttrs {
+		extra[k] = v
 	}
 
 	// create new gelfWriter
@@ -89,9 +88,10 @@ func New(ctx logger.Context) (logger.Logger, error) {
 	}
 
 	return &gelfLogger{
-		writer: gelfWriter,
-		ctx:    ctx,
-		fields: fields,
+		writer:   gelfWriter,
+		ctx:      ctx,
+		hostname: hostname,
+		extra:    extra,
 	}, nil
 }
 
@@ -106,19 +106,11 @@ func (s *gelfLogger) Log(msg *logger.Message) error {
 
 	m := gelf.Message{
 		Version:  "1.1",
-		Host:     s.fields.hostname,
+		Host:     s.hostname,
 		Short:    string(short),
 		TimeUnix: float64(msg.Timestamp.UnixNano()/int64(time.Millisecond)) / 1000.0,
 		Level:    level,
-		Extra: map[string]interface{}{
-			"_container_id":   s.fields.containerID,
-			"_container_name": s.fields.containerName,
-			"_image_id":       s.fields.imageID,
-			"_image_name":     s.fields.imageName,
-			"_command":        s.fields.command,
-			"_tag":            s.fields.tag,
-			"_created":        s.fields.created,
-		},
+		Extra:    s.extra,
 	}
 
 	if err := s.writer.WriteMessage(&m); err != nil {
@@ -143,6 +135,8 @@ func ValidateLogOpt(cfg map[string]string) error {
 		case "gelf-address":
 		case "gelf-tag":
 		case "tag":
+		case "labels":
+		case "env":
 		default:
 			return fmt.Errorf("unknown log opt '%s' for gelf log driver", key)
 		}

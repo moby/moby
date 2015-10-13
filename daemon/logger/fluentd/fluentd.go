@@ -20,6 +20,7 @@ type fluentd struct {
 	containerID   string
 	containerName string
 	writer        *fluent.Fluent
+	extra         map[string]string
 }
 
 const (
@@ -51,9 +52,8 @@ func New(ctx logger.Context) (logger.Logger, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	logrus.Debugf("logging driver fluentd configured for container:%s, host:%s, port:%d, tag:%s.", ctx.ContainerID, host, port, tag)
-
+	extra := ctx.ExtraAttributes(nil)
+	logrus.Debugf("logging driver fluentd configured for container:%s, host:%s, port:%d, tag:%s, extra:%v.", ctx.ContainerID, host, port, tag, extra)
 	// logger tries to recoonect 2**32 - 1 times
 	// failed (and panic) after 204 years [ 1.5 ** (2**32 - 1) - 1 seconds]
 	log, err := fluent.New(fluent.Config{FluentPort: port, FluentHost: host, RetryWait: 1000, MaxRetry: math.MaxInt32})
@@ -65,6 +65,7 @@ func New(ctx logger.Context) (logger.Logger, error) {
 		containerID:   ctx.ContainerID,
 		containerName: ctx.ContainerName,
 		writer:        log,
+		extra:         extra,
 	}, nil
 }
 
@@ -74,6 +75,9 @@ func (f *fluentd) Log(msg *logger.Message) error {
 		"container_name": f.containerName,
 		"source":         msg.Source,
 		"log":            string(msg.Line),
+	}
+	for k, v := range f.extra {
+		data[k] = v
 	}
 	// fluent-logger-golang buffers logs from failures and disconnections,
 	// and these are transferred again automatically.
@@ -95,6 +99,8 @@ func ValidateLogOpt(cfg map[string]string) error {
 		case "fluentd-address":
 		case "fluentd-tag":
 		case "tag":
+		case "labels":
+		case "env":
 		default:
 			return fmt.Errorf("unknown log opt '%s' for fluentd log driver", key)
 		}
