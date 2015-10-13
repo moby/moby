@@ -288,7 +288,7 @@ func (container *Container) Start() (err error) {
 		return err
 	}
 
-	if !container.hostConfig.IpcMode.IsContainer() && !container.hostConfig.IpcMode.IsHost() {
+	if !container.hostConfig.IpcMode.IsContainer() {
 		if err := container.setupIpcDirs(); err != nil {
 			return err
 		}
