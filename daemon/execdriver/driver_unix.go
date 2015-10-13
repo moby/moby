@@ -38,7 +38,7 @@ func InitContainer(c *Command) *configs.Config {
 	container.Devices = c.AutoCreatedDevices
 	container.Rootfs = c.Rootfs
 	container.Readonlyfs = c.ReadonlyRootfs
-	container.RootPropagation = mount.RPRIVATE
+	container.RootPropagation = mount.RSLAVE
 
 	// check to see if we are running in ramdisk to disable pivot root
 	container.NoPivotRoot = os.Getenv("DOCKER_RAMDISK") != ""
