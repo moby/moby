@@ -33,7 +33,6 @@ type Network interface {
 
 	// Create a new endpoint to this network symbolically identified by the
 	// specified unique name. The options parameter carry driver specific options.
-	// Labels support will be added in the near future.
 	CreateEndpoint(name string, options ...EndpointOption) (Endpoint, error)
 
 	// Delete the network.
@@ -58,7 +57,7 @@ type Network interface {
 // NetworkInfo returns some configuration and operational information about the network
 type NetworkInfo interface {
 	IpamConfig() (string, []*IpamConf, []*IpamConf)
-	Labels() map[string]string
+	DriverOptions() map[string]string
 	Scope() string
 }
 
@@ -402,7 +401,7 @@ func (n *network) UnmarshalJSON(b []byte) (err error) {
 
 	if v, ok := netMap["generic"]; ok {
 		n.generic = v.(map[string]interface{})
-		// Restore labels in their map[string]string form
+		// Restore opts in their map[string]string form
 		if v, ok := n.generic[netlabel.GenericData]; ok {
 			var lmap map[string]string
 			ba, err := json.Marshal(v)
@@ -484,19 +483,19 @@ func NetworkOptionIpam(ipamDriver string, addrSpace string, ipV4 []*IpamConf, ip
 	}
 }
 
-// NetworkOptionLabels function returns an option setter for any parameter described by a map
-func NetworkOptionLabels(labels map[string]string) NetworkOption {
+// NetworkOptionDriverOpts function returns an option setter for any parameter described by a map
+func NetworkOptionDriverOpts(opts map[string]string) NetworkOption {
 	return func(n *network) {
 		if n.generic == nil {
 			n.generic = make(map[string]interface{})
 		}
-		if labels == nil {
-			labels = make(map[string]string)
+		if opts == nil {
+			opts = make(map[string]string)
 		}
 		// Store the options
-		n.generic[netlabel.GenericData] = labels
+		n.generic[netlabel.GenericData] = opts
 		// Decode and store the endpoint options of libnetwork interest
-		if val, ok := labels[netlabel.EnableIPv6]; ok {
+		if val, ok := opts[netlabel.EnableIPv6]; ok {
 			var err error
 			if n.enableIPv6, err = strconv.ParseBool(val); err != nil {
 				log.Warnf("Failed to parse %s' value: %s (%s)", netlabel.EnableIPv6, val, err.Error())
@@ -1056,7 +1055,7 @@ func (n *network) Info() NetworkInfo {
 	return n
 }
 
-func (n *network) Labels() map[string]string {
+func (n *network) DriverOptions() map[string]string {
 	n.Lock()
 	defer n.Unlock()
 	if n.generic != nil {
