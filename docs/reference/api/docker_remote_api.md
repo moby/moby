@@ -23,14 +23,15 @@ client must have `root` access to interact with the daemon. If a group named
 `docker` exists on your system, `docker` applies ownership of the socket to the
 group.
 
-The current version of the API is v1.21 which means calling `/info` is the same
-as calling `/v1.21/info`. To call an older version of the API use
-`/v1.20/info`.
+The current version of the API is v1.22 which means calling `/info` is the same
+as calling `/v1.22/info`. To call an older version of the API use
+`/v1.21/info`.
 
 Use the table below to find the API version for a Docker version:
 
 Docker version  | API version                                     | Changes
 ----------------|-------------------------------------------------|-----------------------------
+1.10.x          | [1.22](/reference/api/docker_remote_api_v1.22/) | [API changes](/reference/api/docker_remote_api/#v1-22-api-changes)
 1.9.x           | [1.21](/reference/api/docker_remote_api_v1.21/) | [API changes](/reference/api/docker_remote_api/#v1-21-api-changes)
 1.8.x           | [1.20](/reference/api/docker_remote_api_v1.20/) | [API changes](/reference/api/docker_remote_api/#v1-20-api-changes)
 1.7.x           | [1.19](/reference/api/docker_remote_api_v1.19/) | [API changes](/reference/api/docker_remote_api/#v1-19-api-changes)
@@ -88,6 +89,11 @@ Running `docker rmi` emits an **untag** event when removing an image name.  The 
 ## Version history
 
 This section lists each version from latest to oldest.  Each listing includes a link to the full documentation set and the changes relevant in that release.
+
+### v1.22 API changes
+
+[Docker Remote API v1.22](docker_remote_api_v1.22.md) documentation
+
 
 ### v1.21 API changes
 
