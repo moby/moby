@@ -906,7 +906,7 @@ _docker_inspect() {
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--format -f --type --help" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--format -f --help --size -s --type" -- "$cur" ) )
 			;;
 		*)
 			case $(__docker_value_of_option --type) in
