@@ -232,6 +232,11 @@ eliminates `.` and `..` elements using Go's
 [filepath.Clean](http://golang.org/pkg/path/filepath/#Clean).  Lines
 that are blank after preprocessing are ignored.
 
+Beyond Go's filepath.Match rules, Docker also supports a special
+wildcard string `**` that matches any number of directories (including
+zero). For example, `**/*.go` will exclude all files that end with `.go`
+that are found in all directories, including the root of the build context.
+
 Lines starting with `!` (exclamation mark) can be used to make exceptions
 to exclusions.  The following is an example `.dockerignore` file that
 uses this mechanism:
