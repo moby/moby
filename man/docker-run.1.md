@@ -353,10 +353,14 @@ ports and the exposed ports, use `docker port`.
 
 **-p**, **--publish**=[]
    Publish a container's port, or range of ports, to the host.
-                               format: ip:hostPort:containerPort | ip::containerPort | hostPort:containerPort | containerPort
-                               Both hostPort and containerPort can be specified as a range of ports. 
-                               When specifying ranges for both, the number of container ports in the range must match the number of host ports in the range. (e.g., `-p 1234-1236:1234-1236/tcp`)
-                               (use 'docker port' to see the actual mapping)
+
+   Format: `ip:hostPort:containerPort | ip::containerPort | hostPort:containerPort | containerPort`
+Both hostPort and containerPort can be specified as a range of ports. 
+When specifying ranges for both, the number of container ports in the range must match the number of host ports in the range.
+(e.g., `docker run -p 1234-1236:1222-1224 --name thisWorks -t busybox` 
+but not `docker run -p 1230-1236:1230-1240 --name RangeContainerPortsBiggerThanRangeHostPorts -t busybox`)
+With ip: `docker run -p 127.0.0.1:$HOSTPORT:$CONTAINERPORT --name CONTAINER -t someimage`
+Use `docker port` to see the actual mapping: `docker port CONTAINER $CONTAINERPORT`
 
 **--pid**=host
    Set the PID mode for the container
