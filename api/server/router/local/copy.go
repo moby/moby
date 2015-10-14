@@ -16,10 +16,6 @@ import (
 
 // postContainersCopy is deprecated in favor of getContainersArchive.
 func (s *router) postContainersCopy(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if vars == nil {
-		return fmt.Errorf("Missing parameter")
-	}
-
 	if err := httputils.CheckForJSON(r); err != nil {
 		return err
 	}

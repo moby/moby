@@ -153,7 +153,12 @@ func (s *Server) makeHTTPHandler(handler httputils.APIFunc) http.HandlerFunc {
 		ctx := context.Background()
 		handlerFunc := s.handleWithGlobalMiddlewares(handler)
 
-		if err := handlerFunc(ctx, w, r, mux.Vars(r)); err != nil {
+		vars := mux.Vars(r)
+		if vars == nil {
+			vars = make(map[string]string)
+		}
+
+		if err := handlerFunc(ctx, w, r, vars); err != nil {
 			logrus.Errorf("Handler for %s %s returned error: %s", r.Method, r.URL.Path, utils.GetErrorMessage(err))
 			httputils.WriteError(w, err)
 		}
