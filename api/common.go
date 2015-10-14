@@ -18,7 +18,7 @@ import (
 // Common constants for daemon and client.
 const (
 	// Version of Current REST API
-	Version version.Version = "1.21"
+	Version version.Version = "1.22"
 
 	// MinVersion represents Minimun REST API version supported
 	MinVersion version.Version = "1.12"
