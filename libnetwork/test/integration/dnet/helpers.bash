@@ -84,8 +84,19 @@ function wait_for_dnet() {
     done
 }
 
+function parse_discovery_str() {
+    local d provider address
+    discovery=$1
+    provider=$(echo ${discovery} | cut -d":" -f1)
+    address=$(echo ${discovery} | cut -d":" -f2):$(echo ${discovery} | cut -d":" -f3)
+    address=${address:2}
+    echo "${discovery} ${provider} ${address}"
+}
+
 function start_dnet() {
-    local inst suffix name hport cport hopt neighip bridge_ip labels tomlfile
+    local inst suffix name hport cport hopt store bridge_ip labels tomlfile
+    local discovery provider address
+
     inst=$1
     shift
     suffix=$1
@@ -106,60 +117,40 @@ function start_dnet() {
 	    cport=$1
 	    hopt="-H tcp://0.0.0.0:${cport}"
 	else
-	    neighip=$1
+	    store=$1
 	fi
 	shift
     done
 
     bridge_ip=$(docker inspect --format '{{.NetworkSettings.Gateway}}' pr_consul)
 
-    if [ -z "$neighip" ]; then
-	labels="\"com.docker.network.driver.overlay.bind_interface=eth0\""
-    else
-	labels="\"com.docker.network.driver.overlay.bind_interface=eth0\", \"com.docker.network.driver.overlay.neighbor_ip=${neighip}\""
-    fi
-
-    echo "parsed values: " ${name} ${hport} ${cport} ${hopt} ${neighip} ${labels}
+    echo "start_dnet parsed values: " ${inst} ${suffix} ${name} ${hport} ${cport} ${hopt} ${store} ${labels}
 
     mkdir -p /tmp/dnet/${name}
     tomlfile="/tmp/dnet/${name}/libnetwork.toml"
-    echo suffix $suffix
-    if [ "$suffix" = "zookeeper" ]; then
-        echo suffix equal zookeeper
-        cat > ${tomlfile} <<EOF
-title = "LibNetwork Configuration file for ${name}"
 
-[daemon]
-  debug = false
-  labels = [${labels}]
-[cluster]
-  discovery = "zk://${bridge_ip}:2182"
-  Heartbeat = 10
-[scopes]
-  [scopes.global]
-    [scopes.global.client]
-      provider = "zk"
-      address = "${bridge_ip}:2182"
-EOF
+    if [ "$store" = "zookeeper" ]; then
+	read discovery provider address < <(parse_discovery_str zk://${bridge_ip}:2182)
     else
-    echo suffix equal consul
-        cat > ${tomlfile} <<EOF
+	read discovery provider address < <(parse_discovery_str consul://${bridge_ip}:8500)
+    fi
+
+    cat > ${tomlfile} <<EOF
 title = "LibNetwork Configuration file for ${name}"
 
 [daemon]
   debug = false
-  labels = [${labels}]
 [cluster]
-  discovery = "consul://${bridge_ip}:8500"
+  discovery = "${discovery}"
   Heartbeat = 10
 [scopes]
   [scopes.global]
-    embedded = false
     [scopes.global.client]
-      provider = "consul"
-      address = "${bridge_ip}:8500"
+      provider = "${provider}"
+      address = "${address}"
 EOF
-    fi
+    echo $tomlfile}
+    cat ${tomlfile}
     docker run \
 	   -d \
 	   --name=${name}  \
