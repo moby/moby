@@ -218,6 +218,12 @@ func populateCommand(c *Container, env []string) error {
 	} else {
 		ipc.HostIpc = c.hostConfig.IpcMode.IsHost()
 		if ipc.HostIpc {
+			if _, err := os.Stat("/dev/shm"); err != nil {
+				return fmt.Errorf("/dev/shm is not mounted, but must be for --host=ipc")
+			}
+			if _, err := os.Stat("/dev/mqueue"); err != nil {
+				return fmt.Errorf("/dev/mqueue is not mounted, but must be for --host=ipc")
+			}
 			c.ShmPath = "/dev/shm"
 			c.MqueuePath = "/dev/mqueue"
 		}
