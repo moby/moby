@@ -337,7 +337,7 @@ func (daemon *Daemon) restore() error {
 
 			// check the restart policy on the containers and restart any container with
 			// the restart policy of "always"
-			if daemon.configStore.AutoRestart && container.shouldRestart() {
+			if container.shouldRestart() {
 				logrus.Debugf("Starting container %s", container.ID)
 
 				if err := container.Start(); err != nil {
