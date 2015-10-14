@@ -45,11 +45,13 @@ for version in "${versions[@]}"; do
 
 	# this list is sorted alphabetically; please keep it that way
 	packages=(
+		apparmor # for apparmor_parser for testing the profile
 		bash-completion # for bash-completion debhelper integration
 		btrfs-tools # for "btrfs/ioctl.h" (and "version.h" if possible)
 		build-essential # "essential for building Debian packages"
 		curl ca-certificates # for downloading Go
 		debhelper # for easy ".deb" building
+		dh-apparmor # for apparmor debhelper
 		dh-systemd # for systemd debhelper integration
 		git # for "git commit" info in "docker -v"
 		libapparmor-dev # for "sys/apparmor.h"
