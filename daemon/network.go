@@ -67,6 +67,9 @@ func (daemon *Daemon) GetNetwork(idName string, by int) (libnetwork.Network, err
 // GetNetworksByID returns a list of networks whose ID partially matches zero or more networks
 func (daemon *Daemon) GetNetworksByID(partialID string) []libnetwork.Network {
 	c := daemon.netController
+	if c == nil {
+		return nil
+	}
 	list := []libnetwork.Network{}
 	l := func(nw libnetwork.Network) bool {
 		if strings.HasPrefix(nw.ID(), partialID) {
