@@ -74,7 +74,6 @@ type NetworkController interface {
 	Config() config.Config
 
 	// Create a new network. The options parameter carries network specific options.
-	// Labels support will be added in the near future.
 	NewNetwork(networkType, name string, options ...NetworkOption) (Network, error)
 
 	// Networks returns the list of Network(s) managed by this controller.

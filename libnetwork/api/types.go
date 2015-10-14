@@ -36,7 +36,7 @@ type sandboxResource struct {
 type networkCreate struct {
 	Name        string            `json:"name"`
 	NetworkType string            `json:"network_type"`
-	Labels      map[string]string `json:"labels"`
+	DriverOpts  map[string]string `json:"driver_opts"`
 }
 
 // endpointCreate represents the body of the "create endpoint" http request message

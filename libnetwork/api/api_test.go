@@ -229,7 +229,7 @@ func TestCreateDeleteNetwork(t *testing.T) {
 		bridge.BridgeName:   "abc",
 		netlabel.EnableIPv6: "true",
 	}
-	nc := networkCreate{Name: "network_1", NetworkType: bridgeNetType, Labels: ops}
+	nc := networkCreate{Name: "network_1", NetworkType: bridgeNetType, DriverOpts: ops}
 	goodBody, err := json.Marshal(nc)
 	if err != nil {
 		t.Fatal(err)
@@ -263,7 +263,7 @@ func TestCreateDeleteNetwork(t *testing.T) {
 		netlabel.EnableIPv6: "true",
 		bridge.BridgeName:   "abc",
 	}
-	nc = networkCreate{Name: "network_2", NetworkType: bridgeNetType, Labels: labels}
+	nc = networkCreate{Name: "network_2", NetworkType: bridgeNetType, DriverOpts: labels}
 	goodBody, err = json.Marshal(nc)
 	if err != nil {
 		t.Fatal(err)
@@ -297,7 +297,7 @@ func TestGetNetworksAndEndpoints(t *testing.T) {
 	ops := map[string]string{
 		bridge.BridgeName: "api_test_nw",
 	}
-	nc := networkCreate{Name: "sh", NetworkType: bridgeNetType, Labels: ops}
+	nc := networkCreate{Name: "sh", NetworkType: bridgeNetType, DriverOpts: ops}
 	body, err := json.Marshal(nc)
 	if err != nil {
 		t.Fatal(err)
@@ -1837,7 +1837,7 @@ func TestEndToEnd(t *testing.T) {
 	}
 
 	// Create network
-	nc := networkCreate{Name: "network-fiftyfive", NetworkType: bridgeNetType, Labels: ops}
+	nc := networkCreate{Name: "network-fiftyfive", NetworkType: bridgeNetType, DriverOpts: ops}
 	body, err := json.Marshal(nc)
 	if err != nil {
 		t.Fatal(err)

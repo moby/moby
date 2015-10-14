@@ -36,7 +36,7 @@ type SandboxResource struct {
 type networkCreate struct {
 	Name        string   `json:"name"`
 	NetworkType string   `json:"network_type"`
-	Labels      []string `json:"labels"`
+	DriverOpts  []string `json:"driver_opts"`
 }
 
 // serviceCreate represents the body of the "publish service" http request message
