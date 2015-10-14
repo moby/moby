@@ -1197,7 +1197,7 @@ func (s *DockerSuite) TestRunNonRootUserResolvName(c *check.C) {
 // uses the host's /etc/resolv.conf and does not have any dns options provided.
 func (s *DockerSuite) TestRunResolvconfUpdate(c *check.C) {
 	// Not applicable on Windows as testing unix specific functionality
-	testRequires(c, SameHostDaemon, DaemonIsLinux)
+	testRequires(c, SameHostDaemon, DaemonIsLinux, NativeExecDriver)
 
 	tmpResolvConf := []byte("search pommesfrites.fr\nnameserver 12.34.56.78\n")
 	tmpLocalhostResolvConf := []byte("nameserver 127.0.0.1")
@@ -3425,13 +3425,10 @@ func (s *DockerSuite) TestContainersInUserDefinedNetwork(c *check.C) {
 	dockerCmd(c, "run", "-d", "--net=testnetwork", "--name=first", "busybox", "top")
 	c.Assert(waitRun("first"), check.IsNil)
 	dockerCmd(c, "run", "-t", "--net=testnetwork", "--name=second", "busybox", "ping", "-c", "1", "first")
-	dockerCmd(c, "stop", "first")
-	dockerCmd(c, "stop", "second")
-	dockerCmd(c, "network", "rm", "testnetwork")
 }
 
 func (s *DockerSuite) TestContainersInMultipleNetworks(c *check.C) {
-	testRequires(c, DaemonIsLinux, NotUserNamespace)
+	testRequires(c, DaemonIsLinux, NotUserNamespace, NativeExecDriver)
 	// Create 2 networks using bridge driver
 	dockerCmd(c, "network", "create", "-d", "bridge", "testnetwork1")
 	dockerCmd(c, "network", "create", "-d", "bridge", "testnetwork2")
@@ -3447,14 +3444,10 @@ func (s *DockerSuite) TestContainersInMultipleNetworks(c *check.C) {
 	dockerCmd(c, "network", "connect", "testnetwork2", "second")
 	// Check connectivity between containers
 	dockerCmd(c, "exec", "second", "ping", "-c", "1", "first.testnetwork2")
-	dockerCmd(c, "stop", "first")
-	dockerCmd(c, "stop", "second")
-	dockerCmd(c, "network", "rm", "testnetwork1")
-	dockerCmd(c, "network", "rm", "testnetwork2")
 }
 
 func (s *DockerSuite) TestContainersNetworkIsolation(c *check.C) {
-	testRequires(c, DaemonIsLinux, NotUserNamespace)
+	testRequires(c, DaemonIsLinux, NotUserNamespace, NativeExecDriver)
 	// Create 2 networks using bridge driver
 	dockerCmd(c, "network", "create", "-d", "bridge", "testnetwork1")
 	dockerCmd(c, "network", "create", "-d", "bridge", "testnetwork2")
@@ -3478,11 +3471,6 @@ func (s *DockerSuite) TestContainersNetworkIsolation(c *check.C) {
 	// ping must fail again
 	_, _, err = dockerCmdWithError("exec", "first", "ping", "-c", "1", "second")
 	c.Assert(err, check.NotNil)
-
-	dockerCmd(c, "stop", "first")
-	dockerCmd(c, "stop", "second")
-	dockerCmd(c, "network", "rm", "testnetwork1")
-	dockerCmd(c, "network", "rm", "testnetwork2")
 }
 
 func (s *DockerSuite) TestNetworkRmWithActiveContainers(c *check.C) {
@@ -3501,17 +3489,14 @@ func (s *DockerSuite) TestNetworkRmWithActiveContainers(c *check.C) {
 	dockerCmd(c, "stop", "first")
 	_, _, err = dockerCmdWithError("network", "rm", "testnetwork1")
 	c.Assert(err, check.NotNil)
-
-	dockerCmd(c, "stop", "second")
-	// Network delete must succeed after all the connected containers are inactive
-	dockerCmd(c, "network", "rm", "testnetwork1")
 }
 
 func (s *DockerSuite) TestContainerRestartInMultipleNetworks(c *check.C) {
-	testRequires(c, DaemonIsLinux, NotUserNamespace)
+	testRequires(c, DaemonIsLinux, NotUserNamespace, NativeExecDriver)
 	// Create 2 networks using bridge driver
 	dockerCmd(c, "network", "create", "-d", "bridge", "testnetwork1")
 	dockerCmd(c, "network", "create", "-d", "bridge", "testnetwork2")
+
 	// Run and connect containers to testnetwork1
 	dockerCmd(c, "run", "-d", "--net=testnetwork1", "--name=first", "busybox", "top")
 	c.Assert(waitRun("first"), check.IsNil)
@@ -3536,11 +3521,6 @@ func (s *DockerSuite) TestContainerRestartInMultipleNetworks(c *check.C) {
 	dockerCmd(c, "start", "second")
 	dockerCmd(c, "exec", "first", "ping", "-c", "1", "second.testnetwork1")
 	dockerCmd(c, "exec", "second", "ping", "-c", "1", "first.testnetwork2")
-
-	dockerCmd(c, "stop", "first")
-	dockerCmd(c, "stop", "second")
-	dockerCmd(c, "network", "rm", "testnetwork1")
-	dockerCmd(c, "network", "rm", "testnetwork2")
 }
 
 func (s *DockerSuite) TestContainerWithConflictingHostNetworks(c *check.C) {
@@ -3555,8 +3535,6 @@ func (s *DockerSuite) TestContainerWithConflictingHostNetworks(c *check.C) {
 	// Connecting to the user defined network must fail
 	_, _, err := dockerCmdWithError("network", "connect", "testnetwork1", "first")
 	c.Assert(err, check.NotNil)
-	dockerCmd(c, "stop", "first")
-	dockerCmd(c, "network", "rm", "testnetwork1")
 }
 
 func (s *DockerSuite) TestContainerWithConflictingSharedNetwork(c *check.C) {
@@ -3574,10 +3552,6 @@ func (s *DockerSuite) TestContainerWithConflictingSharedNetwork(c *check.C) {
 	out, _, err := dockerCmdWithError("network", "connect", "testnetwork1", "second")
 	c.Assert(err, check.NotNil)
 	c.Assert(out, checker.Contains, runconfig.ErrConflictSharedNetwork.Error())
-
-	dockerCmd(c, "stop", "first")
-	dockerCmd(c, "stop", "second")
-	dockerCmd(c, "network", "rm", "testnetwork1")
 }
 
 func (s *DockerSuite) TestContainerWithConflictingNoneNetwork(c *check.C) {
@@ -3600,10 +3574,6 @@ func (s *DockerSuite) TestContainerWithConflictingNoneNetwork(c *check.C) {
 	// Connect second container to none network. it must fail as well
 	_, _, err = dockerCmdWithError("network", "connect", "none", "second")
 	c.Assert(err, check.NotNil)
-
-	dockerCmd(c, "stop", "first")
-	dockerCmd(c, "stop", "second")
-	dockerCmd(c, "network", "rm", "testnetwork1")
 }
 
 // #11957 - stdin with no tty does not exit if stdin is not closed even though container exited
