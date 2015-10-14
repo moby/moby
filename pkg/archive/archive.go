@@ -914,7 +914,11 @@ func (archiver *Archiver) CopyFileWithTar(src, dst string) (err error) {
 		}
 	}()
 
-	return archiver.Untar(r, filepath.Dir(dst), nil)
+	err = archiver.Untar(r, filepath.Dir(dst), nil)
+	if err != nil {
+		r.CloseWithError(err)
+	}
+	return err
 }
 
 // CopyFileWithTar emulates the behavior of the 'cp' command-line
