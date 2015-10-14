@@ -43,9 +43,7 @@ func (s *DockerNetworkSuite) TearDownTest(c *check.C) {
 func (s *DockerNetworkSuite) SetUpSuite(c *check.C) {
 	mux := http.NewServeMux()
 	s.server = httptest.NewServer(mux)
-	if s.server == nil {
-		c.Fatal("Failed to start a HTTP Server")
-	}
+	c.Assert(s.server, check.NotNil, check.Commentf("Failed to start a HTTP Server"))
 
 	mux.HandleFunc("/Plugin.Activate", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
@@ -67,14 +65,10 @@ func (s *DockerNetworkSuite) SetUpSuite(c *check.C) {
 		fmt.Fprintf(w, "null")
 	})
 
-	if err := os.MkdirAll("/etc/docker/plugins", 0755); err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(os.MkdirAll("/etc/docker/plugins", 0755), check.IsNil)
 
 	fileName := fmt.Sprintf("/etc/docker/plugins/%s.spec", dummyNetworkDriver)
-	if err := ioutil.WriteFile(fileName, []byte(s.server.URL), 0644); err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(ioutil.WriteFile(fileName, []byte(s.server.URL), 0644), check.IsNil)
 }
 
 func (s *DockerNetworkSuite) TearDownSuite(c *check.C) {
@@ -84,9 +78,7 @@ func (s *DockerNetworkSuite) TearDownSuite(c *check.C) {
 
 	s.server.Close()
 
-	if err := os.RemoveAll("/etc/docker/plugins"); err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(os.RemoveAll("/etc/docker/plugins"), check.IsNil)
 }
 
 func assertNwIsAvailable(c *check.C, name string) {

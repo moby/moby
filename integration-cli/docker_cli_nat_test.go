@@ -17,9 +17,7 @@ func startServerContainer(c *check.C, msg string, port int) string {
 		"busybox",
 		"sh", "-c", fmt.Sprintf("echo %q | nc -lp %d", msg, port),
 	}
-	if err := waitForContainer(name, cmd...); err != nil {
-		c.Fatalf("Failed to launch server container: %v", err)
-	}
+	c.Assert(waitForContainer(name, cmd...), check.IsNil)
 	return name
 }
 
@@ -30,14 +28,11 @@ func getExternalAddress(c *check.C) net.IP {
 	}
 
 	ifaceAddrs, err := iface.Addrs()
-	if err != nil || len(ifaceAddrs) == 0 {
-		c.Fatalf("Error retrieving addresses for eth0: %v (%d addresses)", err, len(ifaceAddrs))
-	}
+	c.Assert(err, check.IsNil)
+	c.Assert(len(ifaceAddrs), check.Not(check.Equals), 0)
 
 	ifaceIP, _, err := net.ParseCIDR(ifaceAddrs[0].String())
-	if err != nil {
-		c.Fatalf("Error retrieving the up for eth0: %s", err)
-	}
+	c.Assert(err, check.IsNil)
 
 	return ifaceIP
 }
@@ -60,18 +55,14 @@ func (s *DockerSuite) TestNetworkNat(c *check.C) {
 	startServerContainer(c, msg, 8080)
 	endpoint := getExternalAddress(c)
 	conn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", endpoint.String(), 8080))
-	if err != nil {
-		c.Fatalf("Failed to connect to container (%v)", err)
-	}
+	c.Assert(err, check.IsNil)
+
 	data, err := ioutil.ReadAll(conn)
 	conn.Close()
-	if err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(err, check.IsNil)
+
 	final := strings.TrimRight(string(data), "\n")
-	if final != msg {
-		c.Fatalf("Expected message %q but received %q", msg, final)
-	}
+	c.Assert(final, check.Equals, msg, check.Commentf("Expected message %q but received %q", msg, final))
 }
 
 func (s *DockerSuite) TestNetworkLocalhostTCPNat(c *check.C) {
@@ -82,18 +73,14 @@ func (s *DockerSuite) TestNetworkLocalhostTCPNat(c *check.C) {
 	)
 	startServerContainer(c, msg, 8081)
 	conn, err := net.Dial("tcp", "localhost:8081")
-	if err != nil {
-		c.Fatalf("Failed to connect to container (%v)", err)
-	}
+	c.Assert(err, check.IsNil)
+
 	data, err := ioutil.ReadAll(conn)
 	conn.Close()
-	if err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(err, check.IsNil)
+
 	final := strings.TrimRight(string(data), "\n")
-	if final != msg {
-		c.Fatalf("Expected message %q but received %q", msg, final)
-	}
+	c.Assert(final, check.Equals, msg, check.Commentf("Expected message %q but received %q", msg, final))
 }
 
 func (s *DockerSuite) TestNetworkLoopbackNat(c *check.C) {
@@ -105,7 +92,5 @@ func (s *DockerSuite) TestNetworkLoopbackNat(c *check.C) {
 	out, _ := dockerCmd(c, "run", "-t", "--net=container:server", "busybox",
 		"sh", "-c", fmt.Sprintf("stty raw && nc -w 5 %s 8080", endpoint.String()))
 	final := strings.TrimRight(string(out), "\n")
-	if final != msg {
-		c.Fatalf("Expected message %q but received %q", msg, final)
-	}
+	c.Assert(final, check.Equals, msg, check.Commentf("Expected message %q but received %q", msg, final))
 }
