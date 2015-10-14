@@ -156,10 +156,6 @@ func (s *router) postImagesCreate(ctx context.Context, w http.ResponseWriter, r 
 }
 
 func (s *router) postImagesPush(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if vars == nil {
-		return fmt.Errorf("Missing parameter")
-	}
-
 	metaHeaders := map[string][]string{}
 	for k, v := range r.Header {
 		if strings.HasPrefix(k, "X-Meta-") {
@@ -208,9 +204,6 @@ func (s *router) postImagesPush(ctx context.Context, w http.ResponseWriter, r *h
 }
 
 func (s *router) getImagesGet(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if vars == nil {
-		return fmt.Errorf("Missing parameter")
-	}
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
@@ -243,9 +236,6 @@ func (s *router) deleteImages(ctx context.Context, w http.ResponseWriter, r *htt
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
-	if vars == nil {
-		return fmt.Errorf("Missing parameter")
-	}
 
 	name := vars["name"]
 
@@ -265,10 +255,6 @@ func (s *router) deleteImages(ctx context.Context, w http.ResponseWriter, r *htt
 }
 
 func (s *router) getImagesByName(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if vars == nil {
-		return fmt.Errorf("Missing parameter")
-	}
-
 	imageInspect, err := s.daemon.LookupImage(vars["name"])
 	if err != nil {
 		return err
@@ -456,10 +442,6 @@ func (s *router) getImagesJSON(ctx context.Context, w http.ResponseWriter, r *ht
 }
 
 func (s *router) getImagesHistory(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if vars == nil {
-		return fmt.Errorf("Missing parameter")
-	}
-
 	name := vars["name"]
 	history, err := s.daemon.ImageHistory(name)
 	if err != nil {
@@ -473,10 +455,6 @@ func (s *router) postImagesTag(ctx context.Context, w http.ResponseWriter, r *ht
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
-	if vars == nil {
-		return fmt.Errorf("Missing parameter")
-	}
-
 	repo := r.Form.Get("repo")
 	tag := r.Form.Get("tag")
 	name := vars["name"]

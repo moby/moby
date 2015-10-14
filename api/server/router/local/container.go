@@ -56,9 +56,6 @@ func (s *router) getContainersStats(ctx context.Context, w http.ResponseWriter, 
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
-	if vars == nil {
-		return fmt.Errorf("Missing parameter")
-	}
 
 	stream := httputils.BoolValueOrDefault(r, "stream", true)
 	var out io.Writer
@@ -87,9 +84,6 @@ func (s *router) getContainersStats(ctx context.Context, w http.ResponseWriter, 
 func (s *router) getContainersLogs(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
-	}
-	if vars == nil {
-		return fmt.Errorf("Missing parameter")
 	}
 
 	// Args are validated before the stream starts because when it starts we're
@@ -150,18 +144,10 @@ func (s *router) getContainersLogs(ctx context.Context, w http.ResponseWriter, r
 }
 
 func (s *router) getContainersExport(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if vars == nil {
-		return fmt.Errorf("Missing parameter")
-	}
-
 	return s.daemon.ContainerExport(vars["name"], w)
 }
 
 func (s *router) postContainersStart(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if vars == nil {
-		return fmt.Errorf("Missing parameter")
-	}
-
 	// If contentLength is -1, we can assumed chunked encoding
 	// or more technically that the length is unknown
 	// https://golang.org/src/pkg/net/http/request.go#L139
@@ -193,9 +179,6 @@ func (s *router) postContainersStop(ctx context.Context, w http.ResponseWriter, 
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
-	if vars == nil {
-		return fmt.Errorf("Missing parameter")
-	}
 
 	seconds, _ := strconv.Atoi(r.Form.Get("t"))
 
@@ -208,9 +191,6 @@ func (s *router) postContainersStop(ctx context.Context, w http.ResponseWriter, 
 }
 
 func (s *router) postContainersKill(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if vars == nil {
-		return fmt.Errorf("Missing parameter")
-	}
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
@@ -247,9 +227,6 @@ func (s *router) postContainersRestart(ctx context.Context, w http.ResponseWrite
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
-	if vars == nil {
-		return fmt.Errorf("Missing parameter")
-	}
 
 	timeout, _ := strconv.Atoi(r.Form.Get("t"))
 
@@ -263,9 +240,6 @@ func (s *router) postContainersRestart(ctx context.Context, w http.ResponseWrite
 }
 
 func (s *router) postContainersPause(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if vars == nil {
-		return fmt.Errorf("Missing parameter")
-	}
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
@@ -280,9 +254,6 @@ func (s *router) postContainersPause(ctx context.Context, w http.ResponseWriter,
 }
 
 func (s *router) postContainersUnpause(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if vars == nil {
-		return fmt.Errorf("Missing parameter")
-	}
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
@@ -297,10 +268,6 @@ func (s *router) postContainersUnpause(ctx context.Context, w http.ResponseWrite
 }
 
 func (s *router) postContainersWait(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if vars == nil {
-		return fmt.Errorf("Missing parameter")
-	}
-
 	status, err := s.daemon.ContainerWait(vars["name"], -1*time.Second)
 	if err != nil {
 		return err
@@ -312,10 +279,6 @@ func (s *router) postContainersWait(ctx context.Context, w http.ResponseWriter, 
 }
 
 func (s *router) getContainersChanges(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if vars == nil {
-		return fmt.Errorf("Missing parameter")
-	}
-
 	changes, err := s.daemon.ContainerChanges(vars["name"])
 	if err != nil {
 		return err
@@ -325,10 +288,6 @@ func (s *router) getContainersChanges(ctx context.Context, w http.ResponseWriter
 }
 
 func (s *router) getContainersTop(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if vars == nil {
-		return fmt.Errorf("Missing parameter")
-	}
-
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
@@ -344,9 +303,6 @@ func (s *router) getContainersTop(ctx context.Context, w http.ResponseWriter, r 
 func (s *router) postContainerRename(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
-	}
-	if vars == nil {
-		return fmt.Errorf("Missing parameter")
 	}
 
 	name := vars["name"]
@@ -387,9 +343,6 @@ func (s *router) deleteContainers(ctx context.Context, w http.ResponseWriter, r 
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
-	if vars == nil {
-		return fmt.Errorf("Missing parameter")
-	}
 
 	name := vars["name"]
 	config := &daemon.ContainerRmConfig{
@@ -415,9 +368,6 @@ func (s *router) postContainersResize(ctx context.Context, w http.ResponseWriter
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
-	if vars == nil {
-		return fmt.Errorf("Missing parameter")
-	}
 
 	height, err := strconv.Atoi(r.Form.Get("h"))
 	if err != nil {
@@ -434,9 +384,6 @@ func (s *router) postContainersResize(ctx context.Context, w http.ResponseWriter
 func (s *router) postContainersAttach(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
-	}
-	if vars == nil {
-		return fmt.Errorf("Missing parameter")
 	}
 	containerName := vars["name"]
 
@@ -476,9 +423,6 @@ func (s *router) postContainersAttach(ctx context.Context, w http.ResponseWriter
 func (s *router) wsContainersAttach(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
-	}
-	if vars == nil {
-		return fmt.Errorf("Missing parameter")
 	}
 	containerName := vars["name"]
 

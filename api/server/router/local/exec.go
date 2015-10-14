@@ -16,10 +16,6 @@ import (
 )
 
 func (s *router) getExecByID(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if vars == nil {
-		return fmt.Errorf("Missing parameter 'id'")
-	}
-
 	eConfig, err := s.daemon.ContainerExecInspect(vars["id"])
 	if err != nil {
 		return err
@@ -118,10 +114,6 @@ func (s *router) postContainerExecResize(ctx context.Context, w http.ResponseWri
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
-	if vars == nil {
-		return fmt.Errorf("Missing parameter")
-	}
-
 	height, err := strconv.Atoi(r.Form.Get("h"))
 	if err != nil {
 		return err
