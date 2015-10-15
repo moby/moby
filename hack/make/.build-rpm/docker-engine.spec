@@ -170,7 +170,7 @@ install -p -m 644 contrib/syntax/nano/Dockerfile.nanorc $RPM_BUILD_ROOT/usr/shar
 /%{_libexecdir}/docker/dockerinit
 /%{_sysconfdir}/udev/rules.d/80-docker.rules
 %if 0%{?is_systemd}
-/%{_unitdir}/docker.service
+%config(noreplace) /%{_unitdir}/docker.service
 /%{_unitdir}/docker.socket
 %else
 %config(noreplace,missingok) /etc/sysconfig/docker
