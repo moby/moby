@@ -31,7 +31,7 @@ import (
 )
 
 var (
-	errConnectionFailed = errors.New("Cannot connect to the Docker daemon. Is the docker daemon running on this host?")
+	errConnectionFailed = errors.New("Cannot connect to the Docker daemon. Is the docker daemon running on this host and is the current user in the docker group?")
 )
 
 type serverResponse struct {
