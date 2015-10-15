@@ -9,7 +9,7 @@ source 'hack/.vendor-helpers.sh'
 clone git github.com/Azure/go-ansiterm 70b2c90b260171e829f1ebd7c17f600c11858dbe
 clone git github.com/Sirupsen/logrus v0.8.2 # logrus is a common dependency among multiple deps
 clone git github.com/docker/libtrust 9cbd2a1374f46905c68a4eb3694a130610adc62a
-clone git github.com/go-check/check 64131543e7896d5bcc6bd5a76287eb75ea96c673
+clone git github.com/go-check/check e7d4f027726830e276ddd417982ce244ceaa2170 https://github.com/calavera/check.git
 clone git github.com/gorilla/context 14f550f51a
 clone git github.com/gorilla/mux e444e69cbd
 clone git github.com/kr/pty 5cf931ef8f

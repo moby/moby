@@ -2,7 +2,7 @@
 set -e
 
 bundle_test_integration_cli() {
-	TESTFLAGS="$TESTFLAGS -check.v"
+	TESTFLAGS="$TESTFLAGS $INTEGRATIONFLAGS -check.v"
 	go_test_dir ./integration-cli
 }
 

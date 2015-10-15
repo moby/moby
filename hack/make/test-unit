@@ -13,6 +13,11 @@ TEXTRESET=$'\033[0m' # reset the foreground colour
 #
 #   TESTFLAGS='-test.run ^TestBuild$' ./hack/make.sh test-unit
 #
+# If $UNITFLAGS is set in the environment, it is passed as extra arguments to 'go test'.
+# You can use this to select certain tests to run, eg.
+#
+#   UNITFLAGS='-test.run ^TestBuild$' ./hack/make.sh test-unit
+#
 bundle_test_unit() {
 	{
 		date
@@ -24,6 +29,7 @@ bundle_test_unit() {
 		(
 			export LDFLAGS
 			export TESTFLAGS
+			export UNITFLAGS
 			export HAVE_GO_TEST_COVER
 
 			# some hack to export array variables
@@ -56,9 +62,9 @@ go_run_test_dir() {
 	TESTS_FAILED=()
 	while read dir; do
 		echo
-		echo '+ go test' $TESTFLAGS "${DOCKER_PKG}/${dir#./}"
+		echo '+ go test' $TESTFLAGS " " $UNITFLAGS "${DOCKER_PKG}/${dir#./}"
 		precompiled="$ABS_DEST/precompiled/$dir.test$(binary_extension)"
-		if ! ( cd "$dir" && test_env "$precompiled" $TESTFLAGS ); then
+		if ! ( cd "$dir" && test_env "$precompiled" $TESTFLAGS $UNITFLAGS ); then
 			TESTS_FAILED+=("$dir")
 			echo
 			echo "${RED}Tests failed: $dir${TEXTRESET}"
