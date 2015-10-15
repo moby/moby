@@ -9,6 +9,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
 	derr "github.com/docker/docker/errors"
+	"github.com/docker/docker/graph"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/graphdb"
 	"github.com/docker/docker/pkg/nat"
@@ -285,6 +286,24 @@ func includeContainerInList(container *Container, ctx *listContext) iterationAct
 	return includeContainer
 }
 
+func getImage(s *graph.TagStore, img, imgID string) (string, error) {
+	// both Image and ImageID is actually ids, nothing to guess
+	if strings.HasPrefix(imgID, img) {
+		return img, nil
+	}
+	id, err := s.GetID(img)
+	if err != nil {
+		if err == graph.ErrNameIsNotExist {
+			return imgID, nil
+		}
+		return "", err
+	}
+	if id != imgID {
+		return imgID, nil
+	}
+	return img, nil
+}
+
 // transformContainer generates the container type expected by the docker ps command.
 func (daemon *Daemon) transformContainer(container *Container, ctx *listContext) (*types.Container, error) {
 	newC := &types.Container{
@@ -297,16 +316,11 @@ func (daemon *Daemon) transformContainer(container *Container, ctx *listContext)
 		newC.Names = []string{}
 	}
 
-	img, err := daemon.repositories.LookupImage(container.Config.Image)
+	showImg, err := getImage(daemon.repositories, container.Config.Image, container.ImageID)
 	if err != nil {
-		// If the image can no longer be found by its original reference,
-		// it makes sense to show the ID instead of a stale reference.
-		newC.Image = container.ImageID
-	} else if container.ImageID == img.ID {
-		newC.Image = container.Config.Image
-	} else {
-		newC.Image = container.ImageID
+		return nil, err
 	}
+	newC.Image = showImg
 
 	if len(container.Args) > 0 {
 		args := []string{}
