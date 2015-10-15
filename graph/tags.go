@@ -24,6 +24,9 @@ import (
 	"github.com/docker/libtrust"
 )
 
+// ErrNameIsNotExist returned when there is no image with requested name.
+var ErrNameIsNotExist = errors.New("image with specified name does not exist")
+
 // TagStore manages repositories. It encompasses the Graph used for versioned
 // storage, as well as various services involved in pushing and pulling
 // repositories.
@@ -162,6 +165,26 @@ func (store *TagStore) LookupImage(name string) (*image.Image, error) {
 	}
 
 	return img, nil
+}
+
+// GetID returns ID for image name.
+func (store *TagStore) GetID(name string) (string, error) {
+	repoName, ref := parsers.ParseRepositoryTag(name)
+	if ref == "" {
+		ref = tags.DefaultTag
+	}
+	store.Lock()
+	defer store.Unlock()
+	repoName = registry.NormalizeLocalName(repoName)
+	repo, ok := store.Repositories[repoName]
+	if !ok {
+		return "", ErrNameIsNotExist
+	}
+	id, ok := repo[ref]
+	if !ok {
+		return "", ErrNameIsNotExist
+	}
+	return id, nil
 }
 
 // ByID returns a reverse-lookup table of all the names which refer to each
