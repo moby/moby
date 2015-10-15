@@ -27,13 +27,13 @@ func (s *DockerSuite) TestInspectImage(c *check.C) {
 
 func (s *DockerSuite) TestInspectInt64(c *check.C) {
 	testRequires(c, DaemonIsLinux)
-	out, _, err := dockerCmdWithError("run", "-d", "-m=300M", "busybox", "true")
-	if err != nil {
-		c.Fatalf("failed to run container: %v, output: %q", err, out)
+	stdout, stderr, status := dockerCmdWithStdoutStderr(c, "run", "-d", "-m=300M", "busybox", "true")
+	if status != 0 {
+		c.Fatalf("failed to run container: %d, output: %q  error: %q", status, stdout, stderr)
 	}
-	out = strings.TrimSpace(out)
+	stdout = strings.TrimSpace(stdout)
 
-	inspectOut, err := inspectField(out, "HostConfig.Memory")
+	inspectOut, err := inspectField(stdout, "HostConfig.Memory")
 	c.Assert(err, check.IsNil)
 
 	if inspectOut != "314572800" {
