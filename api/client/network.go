@@ -130,7 +130,7 @@ func (cli *DockerCli) CmdNetworkDisconnect(args ...string) error {
 //
 // Usage: docker network ls [OPTIONS]
 func (cli *DockerCli) CmdNetworkLs(args ...string) error {
-	cmd := Cli.Subcmd("network ls", nil, "Lists networks", true)
+	cmd := Cli.Subcmd("network ls", nil, "Lists networks", false)
 	quiet := cmd.Bool([]string{"q", "-quiet"}, false, "Only display numeric IDs")
 	noTrunc := cmd.Bool([]string{"-no-trunc"}, false, "Do not truncate the output")
 
