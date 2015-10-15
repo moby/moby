@@ -6,7 +6,7 @@ FROM ubuntu:precise
 
 RUN apt-get update && apt-get install -y bash-completion  build-essential curl ca-certificates debhelper  git libapparmor-dev  libsqlite3-dev --no-install-recommends && rm -rf /var/lib/apt/lists/*
 
-ENV GO_VERSION 1.4.2
+ENV GO_VERSION 1.4.3
 RUN curl -fSL "https://storage.googleapis.com/golang/go${GO_VERSION}.linux-amd64.tar.gz" | tar xzC /usr/local
 ENV PATH $PATH:/usr/local/go/bin
 
