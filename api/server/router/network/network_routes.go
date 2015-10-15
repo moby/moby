@@ -96,7 +96,7 @@ func (n *networkRouter) postNetworkCreate(ctx context.Context, w http.ResponseWr
 		warning = fmt.Sprintf("Network with name %s (id : %s) already exists", nw.Name(), nw.ID())
 	}
 
-	nw, err = n.daemon.CreateNetwork(create.Name, create.Driver, create.IPAM)
+	nw, err = n.daemon.CreateNetwork(create.Name, create.Driver, create.IPAM, create.Options)
 	if err != nil {
 		return err
 	}
@@ -174,6 +174,7 @@ func buildNetworkResource(nw libnetwork.Network) *types.NetworkResource {
 	r.ID = nw.ID()
 	r.Scope = nw.Info().Scope()
 	r.Driver = nw.Type()
+	r.Options = nw.Info().DriverOptions()
 	r.Containers = make(map[string]types.EndpointResource)
 	buildIpamResources(r, nw)
 

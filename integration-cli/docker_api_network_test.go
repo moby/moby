@@ -74,9 +74,10 @@ func (s *DockerSuite) TestApiNetworkInspect(c *check.C) {
 		Config: []network.IPAMConfig{{Subnet: "172.28.0.0/16", IPRange: "172.28.5.0/24", Gateway: "172.28.5.254"}},
 	}
 	config := types.NetworkCreate{
-		Name:   "br0",
-		Driver: "bridge",
-		IPAM:   ipam,
+		Name:    "br0",
+		Driver:  "bridge",
+		IPAM:    ipam,
+		Options: map[string]string{"foo": "bar", "opts": "dopts"},
 	}
 	id0 := createNetwork(c, config, true)
 	c.Assert(isNetworkAvailable(c, "br0"), checker.Equals, true)
@@ -86,6 +87,9 @@ func (s *DockerSuite) TestApiNetworkInspect(c *check.C) {
 	c.Assert(nr.IPAM.Config[0].Subnet, checker.Equals, "172.28.0.0/16")
 	c.Assert(nr.IPAM.Config[0].IPRange, checker.Equals, "172.28.5.0/24")
 	c.Assert(nr.IPAM.Config[0].Gateway, checker.Equals, "172.28.5.254")
+	c.Assert(nr.Options["foo"], checker.Equals, "bar")
+	c.Assert(nr.Options["opts"], checker.Equals, "dopts")
+
 	// delete the network and make sure it is deleted
 	deleteNetwork(c, id0, true)
 	c.Assert(isNetworkAvailable(c, "br0"), checker.Equals, false)

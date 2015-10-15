@@ -15,10 +15,14 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/docker/libnetwork/driverapi"
+	remoteapi "github.com/docker/libnetwork/drivers/remote/api"
+	"github.com/docker/libnetwork/netlabel"
 	"github.com/go-check/check"
 )
 
 const dummyNetworkDriver = "dummy-network-driver"
+
+var remoteDriverNetworkRequest remoteapi.CreateNetworkRequest
 
 func init() {
 	check.Suite(&DockerNetworkSuite{
@@ -57,6 +61,11 @@ func (s *DockerNetworkSuite) SetUpSuite(c *check.C) {
 	})
 
 	mux.HandleFunc(fmt.Sprintf("/%s.CreateNetwork", driverapi.NetworkPluginEndpointType), func(w http.ResponseWriter, r *http.Request) {
+		err := json.NewDecoder(r.Body).Decode(&remoteDriverNetworkRequest)
+		if err != nil {
+			http.Error(w, "Unable to decode JSON payload: "+err.Error(), http.StatusBadRequest)
+			return
+		}
 		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
 		fmt.Fprintf(w, "null")
 	})
@@ -255,4 +264,17 @@ func (s *DockerNetworkSuite) TestDockerNetworkIpamInvalidCombinations(c *check.C
 	_, _, err = dockerCmdWithError("network", "create", "--subnet=192.168.128.0/17", "test1")
 	c.Assert(err, check.NotNil)
 	dockerCmd(c, "network", "rm", "test0")
+}
+
+func (s *DockerNetworkSuite) TestDockerNetworkDriverOptions(c *check.C) {
+	dockerCmd(c, "network", "create", "-d", dummyNetworkDriver, "-o", "opt1=drv1", "-o", "opt2=drv2", "testopt")
+	assertNwIsAvailable(c, "testopt")
+	gopts := remoteDriverNetworkRequest.Options[netlabel.GenericData]
+	c.Assert(gopts, checker.NotNil)
+	opts, ok := gopts.(map[string]interface{})
+	c.Assert(ok, checker.Equals, true)
+	c.Assert(opts["opt1"], checker.Equals, "drv1")
+	c.Assert(opts["opt2"], checker.Equals, "drv2")
+	dockerCmd(c, "network", "rm", "testopt")
+
 }
