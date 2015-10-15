@@ -33,7 +33,7 @@ Here is a sample output:
     # docker info
     Containers: 14
     Images: 52
-    Engine Version: 1.9.0
+    Server Version: 1.9.0
     Storage Driver: aufs
      Root Dir: /var/lib/docker/aufs
      Dirs: 80
