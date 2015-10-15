@@ -14,8 +14,6 @@ parent = "smn_cli"
 
     Lists all the networks created by the user
       --help=false          Print usage
-      -l, --latest=false    Show the latest network created
-      -n=-1                 Show n last created networks
       --no-trunc=false      Do not truncate the output
       -q, --quiet=false     Only display numeric IDs
 
