@@ -268,8 +268,6 @@ __docker_network_subcommand() {
         (ls)
             _arguments \
                 $opts_help \
-                "($help -l --latest)"{-l,--latest}"[Show the latest network created]" \
-                "($help)-n=-[Show n last created networks]:Number of networks: " \
                 "($help)--no-trunc[Do not truncate the output]" \
                 "($help -q --quiet)"{-q,--quiet}"[Only display numeric IDs]" && ret=0
             ;;
