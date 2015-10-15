@@ -34,6 +34,7 @@ func (cli *DockerCli) CmdNetwork(args ...string) error {
 func (cli *DockerCli) CmdNetworkCreate(args ...string) error {
 	cmd := Cli.Subcmd("network create", []string{"NETWORK-NAME"}, "Creates a new network with a name specified by the user", false)
 	flDriver := cmd.String([]string{"d", "-driver"}, "bridge", "Driver to manage the Network")
+	flOpts := opts.NewMapOpts(nil, nil)
 
 	flIpamDriver := cmd.String([]string{"-ipam-driver"}, "default", "IP Address Management Driver")
 	flIpamSubnet := opts.NewListOpts(nil)
@@ -41,10 +42,11 @@ func (cli *DockerCli) CmdNetworkCreate(args ...string) error {
 	flIpamGateway := opts.NewListOpts(nil)
 	flIpamAux := opts.NewMapOpts(nil, nil)
 
-	cmd.Var(&flIpamSubnet, []string{"-subnet"}, "Subnet in CIDR format that represents a network segment")
+	cmd.Var(&flIpamSubnet, []string{"-subnet"}, "subnet in CIDR format that represents a network segment")
 	cmd.Var(&flIpamIPRange, []string{"-ip-range"}, "allocate container ip from a sub-range")
 	cmd.Var(&flIpamGateway, []string{"-gateway"}, "ipv4 or ipv6 Gateway for the master subnet")
-	cmd.Var(flIpamAux, []string{"-aux-address"}, "Auxiliary ipv4 or ipv6 addresses used by network driver")
+	cmd.Var(flIpamAux, []string{"-aux-address"}, "auxiliary ipv4 or ipv6 addresses used by Network driver")
+	cmd.Var(flOpts, []string{"o", "-opt"}, "set driver specific options")
 
 	cmd.Require(flag.Exact, 1)
 	err := cmd.ParseFlags(args, true)
@@ -62,6 +64,7 @@ func (cli *DockerCli) CmdNetworkCreate(args ...string) error {
 		Name:           cmd.Arg(0),
 		Driver:         *flDriver,
 		IPAM:           network.IPAM{Driver: *flIpamDriver, Config: ipamCfg},
+		Options:        flOpts.GetAll(),
 		CheckDuplicate: true,
 	}
 	obj, _, err := readBody(cli.call("POST", "/networks/create", nc, nil))

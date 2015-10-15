@@ -73,9 +73,10 @@ func (s *DockerSuite) TestApiNetworkInspect(c *check.C) {
 		Config: []network.IPAMConfig{{Subnet: "172.28.0.0/16", IPRange: "172.28.5.0/24", Gateway: "172.28.5.254"}},
 	}
 	config := types.NetworkCreate{
-		Name:   "br0",
-		Driver: "bridge",
-		IPAM:   ipam,
+		Name:    "br0",
+		Driver:  "bridge",
+		IPAM:    ipam,
+		Options: map[string]string{"foo": "bar", "opts": "dopts"},
 	}
 	id0 := createNetwork(c, config, true)
 	c.Assert(isNetworkAvailable(c, "br0"), check.Equals, true)
