@@ -1,3 +1,7 @@
+function get_docker_bridge_ip() {
+    echo $(docker run --rm -it busybox ip route show | grep default | cut -d" " -f3)
+}
+
 function inst_id2port() {
     echo $((41000+${1}-1))
 }
@@ -108,6 +112,7 @@ function start_dnet() {
     hport=$((41000+${inst}-1))
     cport=2385
     hopt=""
+    store=${suffix}
 
     while [ -n "$1" ]
     do
@@ -122,7 +127,7 @@ function start_dnet() {
 	shift
     done
 
-    bridge_ip=$(docker inspect --format '{{.NetworkSettings.Gateway}}' pr_consul)
+    bridge_ip=$(get_docker_bridge_ip)
 
     echo "start_dnet parsed values: " ${inst} ${suffix} ${name} ${hport} ${cport} ${hopt} ${store} ${labels}
 
@@ -131,6 +136,8 @@ function start_dnet() {
 
     if [ "$store" = "zookeeper" ]; then
 	read discovery provider address < <(parse_discovery_str zk://${bridge_ip}:2182)
+    elif [ "$store" = "etcd" ]; then
+	read discovery provider address < <(parse_discovery_str etcd://${bridge_ip}:42000)
     else
 	read discovery provider address < <(parse_discovery_str consul://${bridge_ip}:8500)
     fi
@@ -149,7 +156,6 @@ title = "LibNetwork Configuration file for ${name}"
       provider = "${provider}"
       address = "${address}"
 EOF
-    echo $tomlfile}
     cat ${tomlfile}
     docker run \
 	   -d \
@@ -207,6 +213,27 @@ function runc() {
     dnet_exec ${dnet} "umount /var/run/netns/c && rm /var/run/netns/c"
 }
 
+function start_etcd() {
+    local bridge_ip
+    stop_etcd
+
+    bridge_ip=$(get_docker_bridge_ip)
+    docker run -d \
+	   --net=host \
+	   --name=dn_etcd \
+	   mrjana/etcd --listen-client-urls http://0.0.0.0:42000 \
+	   --advertise-client-urls http://${bridge_ip}:42000
+    sleep 2
+}
+
+function stop_etcd() {
+    docker stop dn_etcd || true
+    # You cannot destroy a container in Circle CI. So do not attempt destroy in circleci
+    if [ -z "$CIRCLECI" ]; then
+	docker rm -f dn_etcd || true
+    fi
+}
+
 function start_zookeeper() {
     stop_zookeeper
     docker run -d \
@@ -261,4 +288,6 @@ function test_overlay() {
 	net_disconnect ${i} container_${i} multihost
 	dnet_cmd $(inst_id2port $i) container rm container_${i}
     done
+
+    dnet_cmd $(inst_id2port 2) network rm multihost
 }
