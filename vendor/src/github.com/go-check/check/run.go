@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"testing"
 	"time"
@@ -42,6 +43,9 @@ var (
 	newBenchMem    = flag.Bool("check.bmem", false, "Report memory benchmarks")
 	newListFlag    = flag.Bool("check.list", false, "List the names of all tests that will be run")
 	newWorkFlag    = flag.Bool("check.work", false, "Display and do not remove the test working directory")
+
+	reporterFlag = flag.String("check.r", "plain", "Name of reporter for outputting result: [plain|xunit|both]")
+	outputFlag   = flag.String("check.output", "", "Name of the file to print report into. If empty, stdout is used")
 )
 
 // TestingT runs all test suites registered with the Suite function,
@@ -61,6 +65,15 @@ func TestingT(testingT *testing.T) {
 		BenchmarkMem:  *newBenchMem,
 		KeepWorkDir:   *oldWorkFlag || *newWorkFlag,
 	}
+
+	var err error
+	conf.Output, err = getOutput(*outputFlag)
+	if err != nil {
+		testingT.Fatal(err.Error())
+	}
+
+	conf.Writer = getWriter(*reporterFlag, conf.Output, conf.Verbose, conf.Stream)
+
 	if *oldListFlag || *newListFlag {
 		w := bufio.NewWriter(os.Stdout)
 		for _, name := range ListAll(conf) {
@@ -70,7 +83,8 @@ func TestingT(testingT *testing.T) {
 		return
 	}
 	result := RunAll(conf)
-	println(result.String())
+	conf.Writer.PrintReport(result)
+
 	if !result.Passed() {
 		testingT.Fail()
 	}
@@ -172,4 +186,26 @@ func (r *Result) String() string {
 		value += "\nWORK=" + r.WorkDir
 	}
 	return value
+}
+
+func getOutput(filename string) (io.Writer, error) {
+	if filename == "" {
+		return os.Stdout, nil
+	}
+	return os.Create(filename)
+}
+
+// getWriter returns a report writer given the settings.
+// plain stdout writer is selected by default
+func getWriter(name string, writer io.Writer, verbose, stream bool) outputWriter {
+	switch name {
+	case "plain":
+		return newPlainWriter(writer, verbose, stream)
+	case "xunit":
+		return newXunitWriter(writer, stream)
+	case "both":
+		return newMultiplexerWriter(os.Stdout, writer, verbose, stream)
+	default:
+		return newPlainWriter(writer, verbose, stream)
+	}
 }

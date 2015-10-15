@@ -113,6 +113,11 @@ if [ "$DOCKER_EXECDRIVER" = 'lxc' ]; then
 	DOCKER_BUILDTAGS+=' test_no_exec'
 fi
 
+if [ "$CI_BUILD_REPORT" ]; then
+	UNITFLAGS+="-check.r=both -check.output=test-unit-report.xml"
+	INTEGRATIONFLAGS+="-check.r=both -check.output=test-integration-report.xml"
+fi
+
 # test whether "btrfs/version.h" exists and apply btrfs_noversion appropriately
 if \
 	command -v gcc &> /dev/null \
