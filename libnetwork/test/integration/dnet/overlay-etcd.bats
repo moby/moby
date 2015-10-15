@@ -3,7 +3,7 @@
 
 load helpers
 
-@test "Test overlay network with consul" {
+@test "Test overlay network with etcd" {
     skip_for_circleci
-    test_overlay consul
+    test_overlay etcd
 }
