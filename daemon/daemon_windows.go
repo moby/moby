@@ -3,13 +3,13 @@ package daemon
 import (
 	"fmt"
 	"os"
-	"syscall"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/graphdriver"
 	// register the windows graph driver
 	_ "github.com/docker/docker/daemon/graphdriver/windows"
 	"github.com/docker/docker/pkg/parsers"
+	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/libnetwork"
 )
@@ -62,21 +62,15 @@ func checkConfigOptions(config *Config) error {
 
 // checkSystem validates platform-specific requirements
 func checkSystem() error {
-	var dwVersion uint32
-
-	// TODO Windows. May need at some point to ensure have elevation and
-	// possibly LocalSystem.
-
 	// Validate the OS version. Note that docker.exe must be manifested for this
 	// call to return the correct version.
-	dwVersion, err := syscall.GetVersion()
+	osv, err := system.GetOSVersion()
 	if err != nil {
-		return fmt.Errorf("Failed to call GetVersion()")
+		return err
 	}
-	if int(dwVersion&0xFF) < 10 {
+	if osv.MajorVersion < 10 {
 		return fmt.Errorf("This version of Windows does not support the docker daemon")
 	}
-
 	return nil
 }
 
