@@ -18,7 +18,8 @@ import (
 var dummyMode bool
 
 // This allows the daemon to terminate containers rather than shutdown
-var terminateMode bool
+// This allows the daemon to force kill (HCS terminate) rather than shutdown
+var forceKill bool
 
 // Define name and version for windows
 var (
@@ -62,11 +63,11 @@ func NewDriver(root, initPath string, options []string) (*Driver, error) {
 				logrus.Warn("Using dummy mode in Windows exec driver. This is for development use only!")
 			}
 
-		case "terminate":
+		case "forcekill":
 			switch val {
 			case "1":
-				terminateMode = true
-				logrus.Warn("Using terminate mode in Windows exec driver. This is for testing purposes only.")
+				forceKill = true
+				logrus.Warn("Using force kill mode in Windows exec driver. This is for testing purposes only.")
 			}
 
 		default:

@@ -14,7 +14,7 @@ import (
 // folder path at which the layer is stored.
 func GetLayerMountPath(info DriverInfo, id string) (string, error) {
 	title := "hcsshim::GetLayerMountPath "
-	logrus.Debugf(title+"Flavour %s ID %s", info.Flavour, id)
+	logrus.Debugf(title+"Flavour %d ID %s", info.Flavour, id)
 
 	// Load the DLL and get a handle to the procedure we need
 	dll, proc, err := loadAndFind(procGetLayerMountPath)
@@ -86,6 +86,6 @@ func GetLayerMountPath(info DriverInfo, id string) (string, error) {
 	}
 
 	path := syscall.UTF16ToString(mountPathp[0:])
-	logrus.Debugf(title+" - succeeded id=%s flavour=%d path=%s", id, info.Flavour, path)
+	logrus.Debugf(title+"succeeded flavour=%d id=%s path=%s", info.Flavour, id, path)
 	return path, nil
 }

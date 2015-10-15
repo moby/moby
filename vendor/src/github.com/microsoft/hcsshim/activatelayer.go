@@ -14,7 +14,7 @@ import (
 // An activated layer must later be deactivated via DeactivateLayer.
 func ActivateLayer(info DriverInfo, id string) error {
 	title := "hcsshim::ActivateLayer "
-	logrus.Debugf(title+"Flavour %s ID %s", info.Flavour, id)
+	logrus.Debugf(title+"Flavour %d ID %s", info.Flavour, id)
 
 	// Load the DLL and get a handle to the procedure we need
 	dll, proc, err := loadAndFind(procActivateLayer)

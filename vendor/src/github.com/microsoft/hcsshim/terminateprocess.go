@@ -44,6 +44,6 @@ func TerminateProcessInComputeSystem(id string, processid uint32) (err error) {
 		return err
 	}
 
-	logrus.Debugf(title+" - succeeded id=%s", id)
+	logrus.Debugf(title+" succeeded id=%s", id)
 	return nil
 }

@@ -70,7 +70,7 @@ func (p *pipe) Write(b []byte) (int, error) {
 func CreateProcessInComputeSystem(id string, useStdin bool, useStdout bool, useStderr bool, params CreateProcessParams) (processid uint32, stdin io.WriteCloser, stdout io.ReadCloser, stderr io.ReadCloser, err error) {
 
 	title := "HCSShim::CreateProcessInComputeSystem"
-	logrus.Debugf(title+"id=%s params=%s", id, params)
+	logrus.Debugf(title+" id=%s", id)
 
 	// Load the DLL and get a handle to the procedure we need
 	dll, proc, err := loadAndFind(procCreateProcessWithStdHandlesInComputeSystem)
@@ -110,7 +110,7 @@ func CreateProcessInComputeSystem(id string, useStdin bool, useStdout bool, useS
 	// Get a POINTER to variable to take the pid outparm
 	pid := new(uint32)
 
-	logrus.Debugf(title+" - Calling the procedure itself %s %s", id, paramsJson)
+	logrus.Debugf(title+" - Calling Win32 %s %s", id, paramsJson)
 
 	var stdinHandle, stdoutHandle, stderrHandle syscall.Handle
 	var stdinParam, stdoutParam, stderrParam uintptr
