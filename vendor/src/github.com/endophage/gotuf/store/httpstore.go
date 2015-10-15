@@ -90,6 +90,7 @@ func (s HTTPStore) GetMeta(name string, size int64) ([]byte, error) {
 	if resp.StatusCode == http.StatusNotFound {
 		return nil, ErrMetaNotFound{}
 	} else if resp.StatusCode != http.StatusOK {
+		logrus.Debugf("received HTTP status %d when requesting %s.", resp.StatusCode, name)
 		return nil, ErrServerUnavailable{code: resp.StatusCode}
 	}
 	if resp.ContentLength > size {

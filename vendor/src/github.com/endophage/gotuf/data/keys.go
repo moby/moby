@@ -71,7 +71,7 @@ func (k TUFKey) Public() []byte {
 	return k.Value.Public
 }
 
-func (k *TUFKey) Private() []byte {
+func (k TUFKey) Private() []byte {
 	return k.Value.Private
 }
 
