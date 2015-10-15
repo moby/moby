@@ -10,6 +10,14 @@ var (
 	ErrInsufficientKeys = errors.New("tuf: insufficient keys to meet threshold")
 )
 
+type ErrChecksumMismatch struct {
+	role string
+}
+
+func (e ErrChecksumMismatch) Error() string {
+	return fmt.Sprintf("tuf: checksum for %s did not match", e.role)
+}
+
 type ErrMissingRemoteMetadata struct {
 	Name string
 }
