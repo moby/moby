@@ -273,9 +273,10 @@ func (s *DockerSuite) TestRunWithBlkioWeight(c *check.C) {
 
 func (s *DockerSuite) TestRunWithBlkioInvalidWeight(c *check.C) {
 	testRequires(c, blkioWeight)
-	if _, _, err := dockerCmdWithError("run", "--blkio-weight", "5", "busybox", "true"); err == nil {
-		c.Fatalf("run with invalid blkio-weight should failed")
-	}
+	out, _, err := dockerCmdWithError("run", "--blkio-weight", "5", "busybox", "true")
+	c.Assert(err, check.NotNil, check.Commentf(out))
+	expected := "Range of blkio weight is from 10 to 1000"
+	c.Assert(out, checker.Contains, expected)
 }
 
 func (s *DockerSuite) TestRunOOMExitCode(c *check.C) {
