@@ -150,9 +150,8 @@ func (daemon *Daemon) foldFilter(config *ContainersConfig) (*listContext, error)
 			if !isValidStateString(value) {
 				return nil, errors.New("Unrecognised filter value for status")
 			}
-			if value == "exited" || value == "created" {
-				config.All = true
-			}
+
+			config.All = true
 		}
 	}
 
