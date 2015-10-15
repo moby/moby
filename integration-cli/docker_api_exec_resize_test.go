@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/go-check/check"
 )
 
@@ -19,8 +20,8 @@ func (s *DockerSuite) TestExecResizeApiHeightWidthNoInt(c *check.C) {
 
 	endpoint := "/exec/" + cleanedContainerID + "/resize?h=foo&w=bar"
 	status, _, err := sockRequest("POST", endpoint, nil)
-	c.Assert(status, check.Equals, http.StatusInternalServerError)
-	c.Assert(err, check.IsNil)
+	c.Assert(err, checker.IsNil)
+	c.Assert(status, checker.Equals, http.StatusInternalServerError)
 }
 
 // Part of #14845
