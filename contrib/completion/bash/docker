@@ -1060,7 +1060,7 @@ _docker_network_ls() {
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--help --latest -l -n --no-trunc --quiet -q" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--help --no-trunc --quiet -q" -- "$cur" ) )
 			;;
 	esac
 }
