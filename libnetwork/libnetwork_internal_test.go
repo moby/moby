@@ -6,9 +6,11 @@ import (
 	"net"
 	"testing"
 
+	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/ipamapi"
 	"github.com/docker/libnetwork/netlabel"
+	"github.com/docker/libnetwork/testutils"
 	"github.com/docker/libnetwork/types"
 )
 
@@ -327,4 +329,105 @@ func TestAuxAddresses(t *testing.T) {
 
 		n.ipamRelease()
 	}
+}
+
+func TestIpamReleaseOnNetDriverFailures(t *testing.T) {
+	if !testutils.IsRunningInContainer() {
+		defer testutils.SetupTestOSContext(t)()
+	}
+
+	cfgOptions, err := OptionBoltdbWithRandomDBFile()
+	c, err := New(cfgOptions...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Stop()
+
+	cc := c.(*controller)
+	bd := badDriver{failNetworkCreation: true}
+	cc.drivers[badDriverName] = &driverData{driver: &bd, capability: driverapi.Capability{DataScope: datastore.LocalScope}}
+
+	// Test whether ipam state release is invoked  on network create failure from net driver
+	// by checking whether subsequent network creation requesting same gateway IP succeeds
+	ipamOpt := NetworkOptionIpam(ipamapi.DefaultIPAM, "", []*IpamConf{&IpamConf{PreferredPool: "10.34.0.0/16", Gateway: "10.34.255.254"}}, nil)
+	if _, err := c.NewNetwork(badDriverName, "badnet1", ipamOpt); err == nil {
+		t.Fatalf("bad network driver should have failed network creation")
+	}
+
+	gnw, err := c.NewNetwork("bridge", "goodnet1", ipamOpt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	gnw.Delete()
+
+	// Now check whether ipam release works on endpoint creation failure
+	bd.failNetworkCreation = false
+	bnw, err := c.NewNetwork(badDriverName, "badnet2", ipamOpt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer bnw.Delete()
+
+	if _, err := bnw.CreateEndpoint("ep0"); err == nil {
+		t.Fatalf("bad network driver should have failed endpoint creation")
+	}
+
+	// Now create good bridge network with different gateway
+	ipamOpt2 := NetworkOptionIpam(ipamapi.DefaultIPAM, "", []*IpamConf{&IpamConf{PreferredPool: "10.34.0.0/16", Gateway: "10.34.255.253"}}, nil)
+	gnw, err = c.NewNetwork("bridge", "goodnet2", ipamOpt2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer gnw.Delete()
+
+	ep, err := gnw.CreateEndpoint("ep1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ep.Delete()
+
+	expectedIP, _ := types.ParseCIDR("10.34.0.1/16")
+	if !types.CompareIPNet(ep.Info().Iface().Address(), expectedIP) {
+		t.Fatalf("Ipam release must have failed, endpoint has unexpected address: %v", ep.Info().Iface().Address())
+	}
+}
+
+var badDriverName = "bad network driver"
+
+type badDriver struct {
+	failNetworkCreation bool
+}
+
+func (b *badDriver) CreateNetwork(nid string, options map[string]interface{}, ipV4Data, ipV6Data []driverapi.IPAMData) error {
+	if b.failNetworkCreation {
+		return fmt.Errorf("I will not create any network")
+	}
+	return nil
+}
+func (b *badDriver) DeleteNetwork(nid string) error {
+	return nil
+}
+func (b *badDriver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo, options map[string]interface{}) error {
+	return fmt.Errorf("I will not create any endpoint")
+}
+func (b *badDriver) DeleteEndpoint(nid, eid string) error {
+	return nil
+}
+func (b *badDriver) EndpointOperInfo(nid, eid string) (map[string]interface{}, error) {
+	return nil, nil
+}
+func (b *badDriver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo, options map[string]interface{}) error {
+	return fmt.Errorf("I will not allow any join")
+}
+func (b *badDriver) Leave(nid, eid string) error {
+	return nil
+}
+func (b *badDriver) DiscoverNew(dType driverapi.DiscoveryType, data interface{}) error {
+	return nil
+}
+func (b *badDriver) DiscoverDelete(dType driverapi.DiscoveryType, data interface{}) error {
+	return nil
+}
+func (b *badDriver) Type() string {
+	return badDriverName
 }
