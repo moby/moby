@@ -165,6 +165,7 @@ func (s *Server) makeHTTPHandler(handler httputils.APIFunc) http.HandlerFunc {
 func (s *Server) InitRouters(d *daemon.Daemon) {
 	s.addRouter(local.NewRouter(d))
 	s.addRouter(network.NewRouter(d))
+
 	for _, srv := range s.servers {
 		srv.srv.Handler = s.CreateMux()
 	}
