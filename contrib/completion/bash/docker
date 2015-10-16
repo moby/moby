@@ -461,8 +461,37 @@ _docker_attach() {
 }
 
 _docker_build() {
+	local options_with_args="
+		--build-arg
+		--cgroup-parent
+		--cpuset-cpus
+		--cpuset-mems
+		--cpu-shares -c
+		--cpu-period
+		--cpu-quota
+		--file -f
+		--memory -m
+		--memory-swap
+		--tag -t
+		--ulimit
+	"
+
+	local boolean_options="
+		--disable-content-trust=false
+		--force-rm
+		--help
+		--no-cache
+		--pull
+		--quiet -q
+		--rm
+	"
+
+	local all_options="$options_with_args $boolean_options"
+
 	case "$prev" in
-		--cgroup-parent|--cpuset-cpus|--cpuset-mems|--cpu-shares|-c|--cpu-period|--cpu-quota|--memory|-m|--memory-swap)
+		--build-arg)
+			COMPREPLY=( $( compgen -e -- "$cur" ) )
+			__docker_nospace
 			return
 			;;
 		--file|-f)
@@ -473,14 +502,17 @@ _docker_build() {
 			__docker_image_repos_and_tags
 			return
 			;;
+		$(__docker_to_extglob "$options_with_args") )
+			return
+			;;
 	esac
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--cgroup-parent --cpuset-cpus --cpuset-mems --cpu-shares -c --cpu-period --cpu-quota --file -f --force-rm --help --memory -m --memory-swap --no-cache --pull --quiet -q --rm --tag -t --ulimit" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "$all_options" -- "$cur" ) )
 			;;
 		*)
-			local counter="$(__docker_pos_first_nonflag '--cgroup-parent|--cpuset-cpus|--cpuset-mems|--cpu-shares|-c|--cpu-period|--cpu-quota|--file|-f|--memory|-m|--memory-swap|--tag|-t')"
+			local counter=$( __docker_pos_first_nonflag $( __docker_to_alternatives "$options_with_args" ) )
 			if [ $cword -eq $counter ]; then
 				_filedir -d
 			fi
