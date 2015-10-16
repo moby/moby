@@ -6,7 +6,6 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/iptables"
-	"github.com/docker/libnetwork/netutils"
 )
 
 // DockerChain: DOCKER iptable chain name
@@ -60,6 +59,8 @@ func setupIPChains(config *configuration) (*iptables.ChainInfo, *iptables.ChainI
 }
 
 func (n *bridgeNetwork) setupIPTables(config *networkConfiguration, i *bridgeInterface) error {
+	var err error
+
 	d := n.driver
 	d.Lock()
 	driverConfig := d.config
@@ -73,14 +74,9 @@ func (n *bridgeNetwork) setupIPTables(config *networkConfiguration, i *bridgeInt
 	// Pickup this configuraton option from driver
 	hairpinMode := !driverConfig.EnableUserlandProxy
 
-	addrv4, _, err := netutils.GetIfaceAddr(config.BridgeName)
-	if err != nil {
-		return fmt.Errorf("Failed to setup IP tables, cannot acquire Interface address: %s", err.Error())
-	}
-	ipnet := addrv4.(*net.IPNet)
 	maskedAddrv4 := &net.IPNet{
-		IP:   ipnet.IP.Mask(ipnet.Mask),
-		Mask: ipnet.Mask,
+		IP:   i.bridgeIPv4.IP.Mask(i.bridgeIPv4.Mask),
+		Mask: i.bridgeIPv4.Mask,
 	}
 	if config.Internal {
 		if err = setupInternalNetworkRules(config.BridgeName, maskedAddrv4, true); err != nil {
