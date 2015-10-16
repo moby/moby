@@ -204,7 +204,16 @@ func (graph *Graph) Exists(id string) bool {
 func (graph *Graph) Get(name string) (*image.Image, error) {
 	id, err := graph.idIndex.Get(name)
 	if err != nil {
-		return nil, fmt.Errorf("could not find image: %v", err)
+		if !strings.Contains(name, "/") { // try again with docker.io/name to cover prior releases that used docker.io/name for locally stored images
+			id2, err2 := graph.idIndex.Get("docker.io/" + name)
+			if err2 == nil {
+				err = nil
+				id = id2
+			}
+		}
+		if err != nil { // report the err from the first attemp
+			return nil, fmt.Errorf("could not find image: %v", err)
+		}
 	}
 	img, err := graph.loadImage(id)
 	if err != nil {

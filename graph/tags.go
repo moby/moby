@@ -262,14 +262,21 @@ func (store *TagStore) Delete(repoName, ref string) (bool, error) {
 	}
 
 	repoRefs, exists := store.Repositories[repoName]
+	rn := repoName
 	if !exists {
-		return false, fmt.Errorf("No such repository: %s", repoName)
+		if !strings.Contains(repoName, "/") { // try again with docker.io/name to cover prior releases that used docker.io/name for locally stored images
+			rn = "docker.io/" + repoName
+			repoRefs, exists = store.Repositories[rn]
+		}
+		if !exists {
+			return false, fmt.Errorf("No such repository: %s", repoName)
+		}
 	}
 
 	if _, exists := repoRefs[ref]; exists {
 		delete(repoRefs, ref)
 		if len(repoRefs) == 0 {
-			delete(store.Repositories, repoName)
+			delete(store.Repositories, rn)
 		}
 		deleted = true
 	}
