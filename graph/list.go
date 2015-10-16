@@ -51,8 +51,10 @@ func (s *TagStore) Images(filterArgs, filter string, all bool) ([]*types.Image, 
 
 	if i, ok := imageFilters["dangling"]; ok {
 		for _, value := range i {
-			if strings.ToLower(value) == "true" {
+			if v := strings.ToLower(value); v == "true" {
 				filtTagged = false
+			} else if v != "false" {
+				return nil, fmt.Errorf("Invalid filter 'dangling=%s'", v)
 			}
 		}
 	}
