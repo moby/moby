@@ -1,3 +1,145 @@
+## Red Hat Patches
+Red Hat is carrying a series of experimental patches that we feel are required
+for our customers or for our support engineering.
+
+#### Warning-message-for-lvm-devmapper-running-on-top-of-.patch
+
+Red Hat File System support engineers are very concerned about a customer
+running docker storage using device mapper on top of loopback devices in
+production.  We ship docker by default with this setup so that you can easily
+run/build/test containers without having to setup dedicated storage for the
+containers, but when you want to run the containers in production, you need
+to setup the storage.  Docker upstream accepted a patch to log this information
+but did not like the output showing up in the `docker run` client.
+
+#### Return-rpm-version-of-packages-in-docker-version.patch
+
+Red Hat Support wants to know the version of the rpm package that docker
+is running.  This patch allows the distribution to show the rpm version
+of the client and server using the `docker info` command.  Docker upstream
+was not interested in this patch. This patch only affects the `docker info`
+command.
+
+https://github.com/docker/docker/pull/14591
+
+#### Change-the-default-mount-mode-of-containers-from-Pri.patch
+
+Red Hat wants the default mount propagation to be Slave instead of Private.
+This allows volume (bind) mounts, to be altered on the host and the new
+mounts show up inside of the container.  We use this functionality for several
+use cases.  Kubernetes uses it to be able to add mount points on the host.  We
+want to allow Automount to work from the host inside of the container.  We also
+want to eventually allow mounting from inside of a container to alter the mount
+points on the host.  We have gotten several patches accepted into the docker
+to support these use cases, and we hope to have all use cases supported by
+docker-1.10.
+
+https://github.com/docker/libcontainer/pull/623
+
+Two related pull requests:
+
+https://github.com/docker/docker/pull/16773
+
+https://github.com/docker/docker/pull/17034
+
+#### rebase-distribution-specific-build.patch
+
+Current docker tests run totally on Ubuntu.  We want to be able to make sure
+all tests run on platforms and containers we support.  This patch allows us
+to run distribution specific tests. This means that `make test` on RHEL7 will
+use rhel7 based images for the test, and `make test` on Fedora will use
+fedora based images for the test.  Docker was not crazy about the substitutions
+done in this patch, and the changes never show up in the docker client/daemon
+that we ship.
+
+https://github.com/docker/docker/pull/15364
+
+#### Add-RHEL-super-secrets-patch.patch
+
+This patch allows us to provide subscription management information from the
+host into containers for both `docker run` and `docker build`.  In order to get
+access to RHEL7 and RHEL6 content inside of a container via yum you need to
+use a subscription.  This patch allows the subscriptions to work inside of the
+container.  Docker thought this was too RHEL specific so told us to carry a
+patch.
+
+https://github.com/docker/docker/pull/6075
+
+#### Add-add-registry-and-block-registry-options-to-docke.patch
+
+Customers have been asking for us to provide a mechanism to allow additional
+registries to be specified in addition to docker.io.  We also want to have
+Red Hat Content available from our Registry by default. This patch allows
+users to customize the default registries available.  We believe this closely
+aligns with the way yum and apt currently work.  This patch also allows
+customers to block images from registries.  Some customers do not want software
+to be accidentally pulled and run on a machine.  Some customers also have no
+access to the internet and want to setup private registries to handle their
+content.
+
+https://github.com/docker/docker/pull/11991
+https://github.com/docker/docker/pull/10411
+
+#### Confirm-a-push-to-public-Docker-registry.patch
+
+Red Hat content is not supposed to be shared with other customers. For example
+RHE7 and RHEL6 base images are not supposed to be shared with a public registry.
+Pushing content to the docker registry breaks the subscription agreement with
+Red Hat. The patch helps prevent customers from accidentally pushing,
+`docker push`, RHEL content to docker.io
+
+#### Improved-searching-experience.patch
+
+Red Hat wants to allow users to search multiple registries as described above.
+This patch improves the search experience.
+
+#### Allow-for-remote-repository-inspection.patch
+
+Red Hat wants to be able to search the json content on a registry, specifically
+looking for things like labels. This patch allow `atomic verify` to examine
+layers of an image and then search the registry for newer versions.  For example
+you might be running a jboss application that is based on RHEL7.1 base image,
+`atomic verify` would then search registries for alternate RHEL7 base images.
+If it found a base image of RHEL7.2 it would notify the user.
+
+https://github.com/docker/docker/pull/14258
+
+#### Fixed-docker-s-authentication-issue.patch
+
+Docker client sends configuration file with stored credentials together
+with several requests to Docker daemon. Daemon then takes the first
+authentication information and tries to use it against any registry it
+contacts. This results in authentication errors while trying pull from
+any registry but the one stored first in configuration file. This patch
+checks whether the given credentials belong to desired endpoint before
+creating an new session.  This patch is required to support multiple
+registries.
+
+#### Prefer-to-build-dynamic-binaries.patch
+
+Red Hat ships docker as a dynamic binary.  This patch changes the default
+build/test environment to use dynamic binary rather then static. This makes
+our tests more robust.
+
+#### System-logging-for-docker-daemon-API-calls.patch
+Red Hat wants to log all access to the docker daemon.  This patch records all
+access to the docker daemon in syslog/journald.  Currently docker logs access
+in its event logs but these logs are not stored permanently and do not record
+critical information like loginuid to record which user created/started/stopped
+... containers.  We will continue to work with Docker to get this patch
+merged. Docker indicates that they want to wait until the authentication patches
+get merged.
+
+https://github.com/docker/docker/pull/14446
+
+#### Audit-logging-support-for-daemon-API-calls.patch
+
+This is a follow on patch to the previous syslog patch, to record all auditable
+events to the audit log.  We want to get `docker daemon` to some level of common
+criteria.  In order to do this administrator activity must be audited.
+
+https://github.com/rhatdan/docker/pull/109
+
 Docker: the container engine [![Release](https://img.shields.io/github/release/docker/docker.svg)](https://github.com/docker/docker/releases/latest)
 ============================
 
