@@ -459,6 +459,7 @@ __docker_subcommand() {
             _arguments \
                 $opts_help \
                 $opts_cpumemlimit \
+                "($help)*--build-arg[Set build-time variables]:<varname>=<value>: " \
                 "($help -f --file)"{-f,--file=-}"[Name of the Dockerfile]:Dockerfile:_files" \
                 "($help)--force-rm[Always remove intermediate containers]" \
                 "($help)--no-cache[Do not use cache when building the image]" \
