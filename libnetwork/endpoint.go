@@ -425,28 +425,32 @@ func (ep *endpoint) sbLeave(sbox Sandbox, options ...EndpointOption) error {
 
 	ep.processOptions(options...)
 
-	ep.Lock()
-	ep.sandboxID = ""
-	ep.network = n
-	ep.Unlock()
-
-	if err := n.getController().updateToStore(ep); err != nil {
-		ep.Lock()
-		ep.sandboxID = sid
-		ep.Unlock()
-		return err
-	}
-
 	d, err := n.driver()
 	if err != nil {
 		return fmt.Errorf("failed to leave endpoint: %v", err)
 	}
 
+	ep.Lock()
+	ep.sandboxID = ""
+	ep.network = n
+	ep.Unlock()
+
 	if err := d.Leave(n.id, ep.id); err != nil {
-		return err
+		if _, ok := err.(types.MaskableError); !ok {
+			log.Warnf("driver error disconnecting container %s : %v", ep.name, err)
+		}
 	}
 
 	if err := sb.clearNetworkResources(ep); err != nil {
+		log.Warnf("Could not cleanup network resources on container %s disconnect: %v", ep.name, err)
+	}
+
+	// Update the store about the sandbox detach only after we
+	// have completed sb.clearNetworkresources above to avoid
+	// spurious logs when cleaning up the sandbox when the daemon
+	// ungracefully exits and restarts before completing sandbox
+	// detach but after store has been updated.
+	if err := n.getController().updateToStore(ep); err != nil {
 		return err
 	}
 
