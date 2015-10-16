@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/go-check/check"
 )
@@ -196,4 +197,10 @@ func (s *DockerSuite) TestImagesEnsureDanglingImageOnlyListedOnce(c *check.C) {
 	if e, a := 1, strings.Count(out, imageID); e != a {
 		c.Fatalf("expected 1 dangling image, got %d: %s", a, out)
 	}
+}
+
+func (s *DockerSuite) TestImagesWithIncorrectFilter(c *check.C) {
+	out, _, err := dockerCmdWithError("images", "-f", "dangling=invalid")
+	c.Assert(err, check.NotNil)
+	c.Assert(out, checker.Contains, "Invalid filter")
 }
