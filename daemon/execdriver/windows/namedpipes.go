@@ -3,6 +3,7 @@
 package windows
 
 import (
+	"fmt"
 	"io"
 
 	"github.com/Sirupsen/logrus"
@@ -22,7 +23,11 @@ func startStdinCopy(dst io.WriteCloser, src io.Reader) {
 	go func() {
 		defer dst.Close()
 		bytes, err := io.Copy(dst, src)
-		logrus.Debugf("Copied %d bytes from stdin err=%s", bytes, err)
+		log := fmt.Sprintf("Copied %d bytes from stdin.", bytes)
+		if err != nil {
+			log = log + " err=" + err.Error()
+		}
+		logrus.Debugf(log)
 	}()
 }
 
@@ -35,7 +40,11 @@ func startStdouterrCopy(dst io.Writer, src io.ReadCloser, name string) {
 	go func() {
 		defer src.Close()
 		bytes, err := io.Copy(dst, src)
-		logrus.Debugf("Copied %d bytes from %s err=%s", bytes, name, err)
+		log := fmt.Sprintf("Copied %d bytes from %s.", bytes, name)
+		if err != nil {
+			log = log + " err=" + err.Error()
+		}
+		logrus.Debugf(log)
 	}()
 }
 
