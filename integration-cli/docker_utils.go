@@ -57,21 +57,15 @@ type Daemon struct {
 // The daemon will not automatically start.
 func NewDaemon(c *check.C) *Daemon {
 	dest := os.Getenv("DEST")
-	if dest == "" {
-		c.Fatal("Please set the DEST environment variable")
-	}
+	c.Assert(dest, check.Not(check.Equals), "", check.Commentf("Please set the DEST environment variable"))
 
 	id := fmt.Sprintf("d%d", time.Now().UnixNano()%100000000)
 	dir := filepath.Join(dest, id)
 	daemonFolder, err := filepath.Abs(dir)
-	if err != nil {
-		c.Fatalf("Could not make %q an absolute path: %v", dir, err)
-	}
+	c.Assert(err, check.IsNil, check.Commentf("Could not make %q an absolute path", dir))
 	daemonRoot := filepath.Join(daemonFolder, "root")
 
-	if err := os.MkdirAll(daemonRoot, 0755); err != nil {
-		c.Fatalf("Could not create daemon root %q: %v", dir, err)
-	}
+	c.Assert(os.MkdirAll(daemonRoot, 0755), check.IsNil, check.Commentf("Could not create daemon root %q", dir))
 
 	userlandProxy := true
 	if env := os.Getenv("DOCKER_USERLANDPROXY"); env != "" {
@@ -96,9 +90,7 @@ func NewDaemon(c *check.C) *Daemon {
 // You can specify additional daemon flags.
 func (d *Daemon) Start(arg ...string) error {
 	dockerBinary, err := exec.LookPath(dockerBinary)
-	if err != nil {
-		d.c.Fatalf("[%s] could not find docker binary in $PATH: %v", d.id, err)
-	}
+	d.c.Assert(err, check.IsNil, check.Commentf("[%s] could not find docker binary in $PATH", d.id))
 
 	args := append(d.GlobalFlags,
 		d.Command,
@@ -136,9 +128,7 @@ func (d *Daemon) Start(arg ...string) error {
 	d.cmd = exec.Command(dockerBinary, args...)
 
 	d.logFile, err = os.OpenFile(filepath.Join(d.folder, "docker.log"), os.O_RDWR|os.O_CREATE|os.O_APPEND, 0600)
-	if err != nil {
-		d.c.Fatalf("[%s] Could not create %s/docker.log: %v", d.id, d.folder, err)
-	}
+	d.c.Assert(err, check.IsNil, check.Commentf("[%s] Could not create %s/docker.log", d.id, d.folder))
 
 	d.cmd.Stdout = d.logFile
 	d.cmd.Stderr = d.logFile
@@ -187,9 +177,7 @@ func (d *Daemon) Start(arg ...string) error {
 			defer client.Close()
 
 			req, err := http.NewRequest("GET", "/_ping", nil)
-			if err != nil {
-				d.c.Fatalf("[%s] could not create new request: %v", d.id, err)
-			}
+			d.c.Assert(err, check.IsNil, check.Commentf("[%s] could not create new request", d.id))
 
 			resp, err := client.Do(req)
 			if err != nil {
@@ -754,13 +742,7 @@ func dockerCmdInDirWithTimeout(timeout time.Duration, path string, args ...strin
 }
 
 func findContainerIP(c *check.C, id string, vargs ...string) string {
-	args := append(vargs, "inspect", "--format='{{ .NetworkSettings.IPAddress }}'", id)
-	cmd := exec.Command(dockerBinary, args...)
-	out, _, err := runCommandWithOutput(cmd)
-	if err != nil {
-		c.Fatal(err, out)
-	}
-
+	out, _ := dockerCmd(c, "inspect", "--format='{{ .NetworkSettings.IPAddress }}'", id)
 	return strings.Trim(out, " \r\n'")
 }
 
@@ -1312,30 +1294,23 @@ func newFakeGit(name string, files map[string]string, enforceLocalServer bool) (
 // Write `content` to the file at path `dst`, creating it if necessary,
 // as well as any missing directories.
 // The file is truncated if it already exists.
-// Call c.Fatal() at the first error.
+// Fail the test when error occures.
 func writeFile(dst, content string, c *check.C) {
 	// Create subdirectories if necessary
-	if err := os.MkdirAll(path.Dir(dst), 0700); err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(os.MkdirAll(path.Dir(dst), 0700), check.IsNil)
 	f, err := os.OpenFile(dst, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0700)
-	if err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(err, check.IsNil)
 	defer f.Close()
 	// Write content (truncate if it exists)
-	if _, err := io.Copy(f, strings.NewReader(content)); err != nil {
-		c.Fatal(err)
-	}
+	_, err = io.Copy(f, strings.NewReader(content))
+	c.Assert(err, check.IsNil)
 }
 
 // Return the contents of file at path `src`.
-// Call c.Fatal() at the first error (including if the file doesn't exist)
+// Fail the test when error occures.
 func readFile(src string, c *check.C) (content string) {
 	data, err := ioutil.ReadFile(src)
-	if err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(err, check.IsNil)
 
 	return string(data)
 }
@@ -1387,30 +1362,25 @@ func daemonTime(c *check.C) time.Time {
 	}
 
 	status, body, err := sockRequest("GET", "/info", nil)
-	c.Assert(status, check.Equals, http.StatusOK)
 	c.Assert(err, check.IsNil)
+	c.Assert(status, check.Equals, http.StatusOK)
 
 	type infoJSON struct {
 		SystemTime string
 	}
 	var info infoJSON
-	if err = json.Unmarshal(body, &info); err != nil {
-		c.Fatalf("unable to unmarshal /info response: %v", err)
-	}
+	err = json.Unmarshal(body, &info)
+	c.Assert(err, check.IsNil, check.Commentf("unable to unmarshal GET /info response"))
 
 	dt, err := time.Parse(time.RFC3339Nano, info.SystemTime)
-	if err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(err, check.IsNil, check.Commentf("invalid time format in GET /info response"))
 	return dt
 }
 
 func setupRegistry(c *check.C) *testRegistryV2 {
 	testRequires(c, RegistryHosting)
 	reg, err := newTestRegistryV2(c)
-	if err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(err, check.IsNil)
 
 	// Wait for registry to be ready to serve requests.
 	for i := 0; i != 5; i++ {
@@ -1420,18 +1390,14 @@ func setupRegistry(c *check.C) *testRegistryV2 {
 		time.Sleep(100 * time.Millisecond)
 	}
 
-	if err != nil {
-		c.Fatal("Timeout waiting for test registry to become available")
-	}
+	c.Assert(err, check.IsNil, check.Commentf("Timeout waiting for test registry to become available"))
 	return reg
 }
 
 func setupNotary(c *check.C) *testNotary {
 	testRequires(c, NotaryHosting)
 	ts, err := newTestNotary(c)
-	if err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(err, check.IsNil)
 
 	return ts
 }
