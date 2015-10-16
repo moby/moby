@@ -1309,6 +1309,7 @@ _docker_run() {
 		--volumes-from
 		--volume -v
 		--workdir -w
+		--root-mount-propagation
 	"
 
 	local all_options="$options_with_args

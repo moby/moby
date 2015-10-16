@@ -445,6 +445,7 @@ __docker_subcommand() {
         "($help)*-v[Bind mount a volume]:volume: "
         "($help)*--volumes-from=-[Mount volumes from the specified container]:volume: "
         "($help -w --workdir)"{-w,--workdir=-}"[Working directory inside the container]:directory:_directories"
+        "($help)*--root-mount-propagation=-[Root mount propagation mode]:mode: "
     )
 
     case "$words[1]" in

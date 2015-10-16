@@ -59,5 +59,11 @@ func DecodeContainerConfig(src io.Reader) (*Config, *HostConfig, error) {
 		return nil, nil, err
 	}
 
+	if hc != nil {
+		if err := validateRootPropagation(hc.RootMountPropagation); err != nil {
+			return nil, nil, err
+		}
+	}
+
 	return w.Config, hc, nil
 }

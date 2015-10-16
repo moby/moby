@@ -61,6 +61,7 @@ docker-create - Create a new container
 [**-v**|**--volume**[=*[]*]]
 [**--volumes-from**[=*[]*]]
 [**-w**|**--workdir**[=*WORKDIR*]]
+[**--root-mount-propagation**[=*[]*]]
 IMAGE [COMMAND] [ARG...]
 
 # DESCRIPTION
@@ -280,6 +281,11 @@ This value should always larger than **-m**, so you should always use this with 
 
 **-w**, **--workdir**=""
    Working directory inside the container
+
+**--root-mount-propagation**=[]
+   Specify mount propagation flag for / (root). Valid values are [r]private,
+   [r]slave, [r]shared. These can be helpful in implementing shared/slave
+   volumes inside containers.
 
 # HISTORY
 August 2014, updated by Sven Dowideit <SvenDowideit@home.org.au>
