@@ -39,7 +39,7 @@ Then, run a container and specify values for the `labels` or `env`.  For example
 
 ```
 docker run --label foo=bar -e fizz=buzz -d -P training/webapp python app.py
-````
+```
 
 This adds additional fields to the log depending on the driver, e.g. for
 `json-file` that looks like:
