@@ -466,7 +466,7 @@ _docker_build() {
 		--cgroup-parent
 		--cpuset-cpus
 		--cpuset-mems
-		--cpu-shares -c
+		--cpu-shares
 		--cpu-period
 		--cpu-quota
 		--file -f
@@ -1310,7 +1310,7 @@ _docker_run() {
 		--cpu-quota
 		--cpuset-cpus
 		--cpuset-mems
-		--cpu-shares -c
+		--cpu-shares
 		--device
 		--dns
 		--dns-opt

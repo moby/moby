@@ -21,6 +21,8 @@ The following short variant options are deprecated in favor of their long
 variants:
 
     docker run -c (--cpu-shares)
+    docker build -c (--cpu-shares)
+    docker create -c (--cpu-shares)
 
 ### Driver Specific Log Tags
 **Deprecated In Release: v1.9**

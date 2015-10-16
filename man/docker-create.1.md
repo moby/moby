@@ -9,7 +9,7 @@ docker-create - Create a new container
 [**-a**|**--attach**[=*[]*]]
 [**--add-host**[=*[]*]]
 [**--blkio-weight**[=*[BLKIO-WEIGHT]*]]
-[**-c**|**--cpu-shares**[=*0*]]
+[**--cpu-shares**[=*0*]]
 [**--cap-add**[=*[]*]]
 [**--cap-drop**[=*[]*]]
 [**--cgroup-parent**[=*CGROUP-PATH*]]
@@ -83,7 +83,7 @@ The initial status of the container created with **docker create** is 'created'.
 **--blkio-weight**=0
    Block IO weight (relative weight) accepts a weight value between 10 and 1000.
 
-**-c**, **--cpu-shares**=0
+**--cpu-shares**=0
    CPU shares (relative weight)
 
 **--cap-add**=[]
