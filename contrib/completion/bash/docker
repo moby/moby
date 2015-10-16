@@ -865,12 +865,18 @@ _docker_images() {
 }
 
 _docker_import() {
+	case "$prev" in
+		--change|-c|--message|-m)
+			return
+			;;
+	esac
+
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--help" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--change -c --help --message -m" -- "$cur" ) )
 			;;
 		*)
-			local counter=$(__docker_pos_first_nonflag)
+			local counter=$(__docker_pos_first_nonflag '--change|-c|--message|-m')
 			if [ $cword -eq $counter ]; then
 				return
 			fi
