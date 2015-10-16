@@ -20,7 +20,7 @@ apt-get -y install bridge-utils
 wget -qO- https://experimental.docker.com/ | sh
 gpasswd -a vagrant docker
 echo DOCKER_OPTS=\\"--cluster-store=consul://192.168.33.10:8500 --cluster-advertise=${1}:0\\" >> /etc/default/docker
-cp /vagrant/vagrant-systemd/docker.service /etc/systemd/system/
+cp /vagrant/docs/vagrant-systemd/docker.service /etc/systemd/system/
 systemctl daemon-reload
 systemctl restart docker.service
 SCRIPT
