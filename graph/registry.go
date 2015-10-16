@@ -57,7 +57,7 @@ func NewV2Repository(repoInfo *registry.RepositoryInfo, endpoint registry.APIEnd
 	authTransport := transport.NewTransport(base, modifiers...)
 	pingClient := &http.Client{
 		Transport: authTransport,
-		Timeout:   5 * time.Second,
+		Timeout:   15 * time.Second,
 	}
 	endpointStr := endpoint.URL + "/v2/"
 	req, err := http.NewRequest("GET", endpointStr, nil)
