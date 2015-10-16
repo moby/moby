@@ -1465,12 +1465,15 @@ a base64-encoded AuthConfig object.
 
 Query Parameters:
 
--   **fromImage** – Name of the image to pull.
+-   **fromImage** – Name of the image to pull. The name may include a tag or
+        digest. This parameter may only be used when pulling an image.
 -   **fromSrc** – Source to import.  The value may be a URL from which the image
         can be retrieved or `-` to read the image from the request body.
--   **repo** – Repository name.
--   **tag** – Tag.
--   **registry** – The registry to pull from.
+        This parameter may only be used when importing an image.
+-   **repo** – Repository name given to an image when it is imported.
+        The repo may include a tag. This parameter may only be used when importing
+        an image.
+-   **tag** – Tag or digest.
 
     Request Headers:
 
