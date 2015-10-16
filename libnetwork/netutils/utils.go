@@ -161,8 +161,8 @@ func GenerateIfaceName(prefix string, len int) (string, error) {
 		if err != nil {
 			continue
 		}
-		if _, err := net.InterfaceByName(name); err != nil {
-			if strings.Contains(err.Error(), "no such") {
+		if _, err := netlink.LinkByName(name); err != nil {
+			if strings.Contains(err.Error(), "not found") {
 				return name, nil
 			}
 			return "", err
