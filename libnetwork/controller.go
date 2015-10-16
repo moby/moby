@@ -356,7 +356,7 @@ func (c *controller) NewNetwork(networkType, name string, options ...NetworkOpti
 		}
 	}()
 
-	if err := c.addNetwork(network); err != nil {
+	if err = c.addNetwork(network); err != nil {
 		return nil, err
 	}
 	defer func() {
