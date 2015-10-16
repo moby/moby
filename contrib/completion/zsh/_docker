@@ -642,6 +642,7 @@ __docker_subcommand() {
             _arguments \
                 $opts_help \
                 "($help -c --change)*"{-c,--change=-}"[Apply Dockerfile instruction to the created image]:Dockerfile:_files" \
+                "($help -m --message)"{-m,--message=-}"[Set commit message for imported image]:message: " \
                 "($help -):URL:(- http:// file://)" \
                 "($help -): :__docker_repositories_with_tags" && ret=0
             ;;
