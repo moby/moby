@@ -14,7 +14,7 @@ weight=2
 The `fluentd` logging driver sends container logs to the
 [Fluentd](http://www.fluentd.org/) collector as structured log data. Then, users
 can use any of the [various output plugins of
-Fluentd](http://dwww.fluentd.org/plugins) to write these logs to various
+Fluentd](http://www.fluentd.org/plugins) to write these logs to various
 destinations.
 
 In addition to the log message itself, the `fluentd` log
