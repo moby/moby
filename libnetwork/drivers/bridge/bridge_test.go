@@ -218,6 +218,9 @@ func TestCreateMultipleNetworks(t *testing.T) {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
 
+	// Verify the network isolation rules are installed, each network subnet should appear 2 times
+	verifyV4INCEntries(d.networks, 2, t)
+
 	config3 := &networkConfiguration{BridgeName: "net_test_3"}
 	genericOption[netlabel.GenericData] = config3
 	if err := d.CreateNetwork("3", genericOption, getIPv4Data(t), nil); err != nil {

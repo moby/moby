@@ -6,6 +6,7 @@ import (
 	"net"
 
 	"github.com/docker/libnetwork/netutils"
+	"github.com/docker/libnetwork/osl"
 	"github.com/docker/libnetwork/resolvconf"
 	"github.com/vishvananda/netlink"
 )
@@ -20,6 +21,8 @@ func ElectInterfaceAddresses(name string) (*net.IPNet, []*net.IPNet, error) {
 		v6Nets []*net.IPNet
 		err    error
 	)
+
+	defer osl.InitOSContext()()
 
 	link, _ := netlink.LinkByName(name)
 	if link != nil {
