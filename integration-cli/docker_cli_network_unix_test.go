@@ -44,9 +44,7 @@ func (s *DockerNetworkSuite) TearDownTest(c *check.C) {
 func (s *DockerNetworkSuite) SetUpSuite(c *check.C) {
 	mux := http.NewServeMux()
 	s.server = httptest.NewServer(mux)
-	if s.server == nil {
-		c.Fatal("Failed to start a HTTP Server")
-	}
+	c.Assert(s.server, check.NotNil, check.Commentf("Failed to start a HTTP Server"))
 
 	mux.HandleFunc("/Plugin.Activate", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
@@ -68,14 +66,12 @@ func (s *DockerNetworkSuite) SetUpSuite(c *check.C) {
 		fmt.Fprintf(w, "null")
 	})
 
-	if err := os.MkdirAll("/etc/docker/plugins", 0755); err != nil {
-		c.Fatal(err)
-	}
+	err := os.MkdirAll("/etc/docker/plugins", 0755)
+	c.Assert(err, checker.IsNil)
 
 	fileName := fmt.Sprintf("/etc/docker/plugins/%s.spec", dummyNetworkDriver)
-	if err := ioutil.WriteFile(fileName, []byte(s.server.URL), 0644); err != nil {
-		c.Fatal(err)
-	}
+	err = ioutil.WriteFile(fileName, []byte(s.server.URL), 0644)
+	c.Assert(err, checker.IsNil)
 }
 
 func (s *DockerNetworkSuite) TearDownSuite(c *check.C) {
@@ -85,9 +81,8 @@ func (s *DockerNetworkSuite) TearDownSuite(c *check.C) {
 
 	s.server.Close()
 
-	if err := os.RemoveAll("/etc/docker/plugins"); err != nil {
-		c.Fatal(err)
-	}
+	err := os.RemoveAll("/etc/docker/plugins")
+	c.Assert(err, checker.IsNil)
 }
 
 func assertNwIsAvailable(c *check.C, name string) {
@@ -146,8 +141,8 @@ func (s *DockerNetworkSuite) TestDockerNetworkConnectDisconnect(c *check.C) {
 	assertNwIsAvailable(c, "test")
 	nr := getNwResource(c, "test")
 
-	c.Assert(nr.Name, check.Equals, "test")
-	c.Assert(len(nr.Containers), check.Equals, 0)
+	c.Assert(nr.Name, checker.Equals, "test")
+	c.Assert(len(nr.Containers), checker.Equals, 0)
 
 	// run a container
 	out, _ := dockerCmd(c, "run", "-d", "--name", "test", "busybox", "top")
@@ -159,20 +154,20 @@ func (s *DockerNetworkSuite) TestDockerNetworkConnectDisconnect(c *check.C) {
 
 	// inspect the network to make sure container is connected
 	nr = getNetworkResource(c, nr.ID)
-	c.Assert(len(nr.Containers), check.Equals, 1)
+	c.Assert(len(nr.Containers), checker.Equals, 1)
 	c.Assert(nr.Containers[containerID], check.NotNil)
 
 	// check if container IP matches network inspect
 	ip, _, err := net.ParseCIDR(nr.Containers[containerID].IPv4Address)
 	c.Assert(err, check.IsNil)
 	containerIP := findContainerIP(c, "test")
-	c.Assert(ip.String(), check.Equals, containerIP)
+	c.Assert(ip.String(), checker.Equals, containerIP)
 
 	// disconnect container from the network
 	dockerCmd(c, "network", "disconnect", "test", containerID)
 	nr = getNwResource(c, "test")
-	c.Assert(nr.Name, check.Equals, "test")
-	c.Assert(len(nr.Containers), check.Equals, 0)
+	c.Assert(nr.Name, checker.Equals, "test")
+	c.Assert(len(nr.Containers), checker.Equals, 0)
 
 	// check if network connect fails for inactive containers
 	dockerCmd(c, "stop", containerID)
@@ -229,13 +224,13 @@ func (s *DockerNetworkSuite) TestDockerNetworkInspect(c *check.C) {
 	assertNwIsAvailable(c, "br0")
 
 	nr := getNetworkResource(c, "br0")
-	c.Assert(nr.Driver, check.Equals, "bridge")
-	c.Assert(nr.Scope, check.Equals, "local")
-	c.Assert(nr.IPAM.Driver, check.Equals, "default")
-	c.Assert(len(nr.IPAM.Config), check.Equals, 1)
-	c.Assert(nr.IPAM.Config[0].Subnet, check.Equals, "172.28.0.0/16")
-	c.Assert(nr.IPAM.Config[0].IPRange, check.Equals, "172.28.5.0/24")
-	c.Assert(nr.IPAM.Config[0].Gateway, check.Equals, "172.28.5.254")
+	c.Assert(nr.Driver, checker.Equals, "bridge")
+	c.Assert(nr.Scope, checker.Equals, "local")
+	c.Assert(nr.IPAM.Driver, checker.Equals, "default")
+	c.Assert(len(nr.IPAM.Config), checker.Equals, 1)
+	c.Assert(nr.IPAM.Config[0].Subnet, checker.Equals, "172.28.0.0/16")
+	c.Assert(nr.IPAM.Config[0].IPRange, checker.Equals, "172.28.5.0/24")
+	c.Assert(nr.IPAM.Config[0].Gateway, checker.Equals, "172.28.5.254")
 	dockerCmd(c, "network", "rm", "br0")
 }
 
