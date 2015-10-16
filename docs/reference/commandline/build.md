@@ -15,7 +15,7 @@ parent = "smn_cli"
     Build a new image from the source code at PATH
 
       --build-arg=[]                  Set build-time variables
-      -c, --cpu-shares                CPU Shares (relative weight)
+      --cpu-shares                    CPU Shares (relative weight)
       --cgroup-parent=""              Optional parent cgroup for the container
       --cpu-period=0                  Limit the CPU CFS (Completely Fair Scheduler) period
       --cpu-quota=0                   Limit the CPU CFS (Completely Fair Scheduler) quota

@@ -9,7 +9,7 @@ docker-run - Run a command in a new container
 [**-a**|**--attach**[=*[]*]]
 [**--add-host**[=*[]*]]
 [**--blkio-weight**[=*[BLKIO-WEIGHT]*]]
-[**-c**|**--cpu-shares**[=*0*]]
+[**--cpu-shares**[=*0*]]
 [**--cap-add**[=*[]*]]
 [**--cap-drop**[=*[]*]]
 [**--cgroup-parent**[=*CGROUP-PATH*]]
@@ -100,14 +100,14 @@ option can be set multiple times.
 **--blkio-weight**=0
    Block IO weight (relative weight) accepts a weight value between 10 and 1000.
 
-**-c**, **--cpu-shares**=0
+**--cpu-shares**=0
    CPU shares (relative weight)
 
    By default, all containers get the same proportion of CPU cycles. This proportion
 can be modified by changing the container's CPU share weighting relative
 to the weighting of all other running containers.
 
-To modify the proportion from the default of 1024, use the **-c** or **--cpu-shares**
+To modify the proportion from the default of 1024, use the **--cpu-shares**
 flag to set the weighting to 2 or higher.
 
 The proportion will only apply when CPU-intensive processes are running.

@@ -7,7 +7,7 @@ docker-build - Build a new image from the source code at PATH
 # SYNOPSIS
 **docker build**
 [**--build-arg**[=*[]*]]
-[**-c**|**--cpu-shares**[=*0*]]
+[**--cpu-shares**[=*0*]]
 [**--cgroup-parent**[=*CGROUP-PARENT*]]
 [**--help**]
 [**-f**|**--file**[=*PATH/Dockerfile*]]
@@ -90,7 +90,7 @@ set as the **URL**, the repository is cloned locally and then sent as the contex
 **--memory-swap**=*MEMORY-SWAP*
   Total memory (memory + swap), '-1' to disable swap.
 
-**-c**, **--cpu-shares**=*0*
+**--cpu-shares**=*0*
   CPU shares (relative weight).
 
   By default, all containers get the same proportion of CPU cycles.
