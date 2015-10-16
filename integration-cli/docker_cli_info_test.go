@@ -43,9 +43,11 @@ func (s *DockerSuite) TestInfoEnsureSucceeds(c *check.C) {
 func (s *DockerSuite) TestInfoDiscoveryBackend(c *check.C) {
 	testRequires(c, SameHostDaemon)
 
+	testDaemonHTTPAddr := "localhost:2375"
 	d := NewDaemon(c)
 	discoveryBackend := "consul://consuladdr:consulport/some/path"
-	if err := d.Start(fmt.Sprintf("--cluster-store=%s", discoveryBackend), "--cluster-advertise=foo"); err != nil {
+	if err := d.Start(fmt.Sprintf("--cluster-store=%s", discoveryBackend), fmt.Sprintf("--cluster-advertise=%s", testDaemonHTTPAddr),
+		fmt.Sprintf("-H=tcp://%s", testDaemonHTTPAddr)); err != nil {
 		c.Fatal(err)
 	}
 	defer d.Stop()
