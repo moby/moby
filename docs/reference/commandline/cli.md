@@ -121,7 +121,7 @@ To list the help on any command just execute the command, followed by the
     Run a command in a new container
 
       -a, --attach=[]            Attach to STDIN, STDOUT or STDERR
-      -c, --cpu-shares=0         CPU shares (relative weight)
+      --cpu-shares=0             CPU shares (relative weight)
     ...
 
 ## Option types
