@@ -28,7 +28,7 @@ func (s *DockerSuite) TestVolumesApiCreate(c *check.C) {
 	config := types.VolumeCreateRequest{
 		Name: "test",
 	}
-	status, b, err := sockRequest("POST", "/volumes", config)
+	status, b, err := sockRequest("POST", "/volumes/create", config)
 	c.Assert(err, check.IsNil)
 	c.Assert(status, check.Equals, http.StatusCreated, check.Commentf(string(b)))
 
@@ -68,7 +68,7 @@ func (s *DockerSuite) TestVolumesApiInspect(c *check.C) {
 	config := types.VolumeCreateRequest{
 		Name: "test",
 	}
-	status, b, err := sockRequest("POST", "/volumes", config)
+	status, b, err := sockRequest("POST", "/volumes/create", config)
 	c.Assert(err, check.IsNil)
 	c.Assert(status, check.Equals, http.StatusCreated, check.Commentf(string(b)))
 

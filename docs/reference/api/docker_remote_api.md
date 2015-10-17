@@ -100,7 +100,7 @@ This section lists each version from latest to oldest.  Each listing includes a 
 [Docker Remote API v1.21](docker_remote_api_v1.21.md) documentation
 
 * `GET /volumes` lists volumes from all volume drivers.
-* `POST /volumes` to create a volume.
+* `POST /volumes/create` to create a volume.
 * `GET /volumes/(name)` get low-level information about a volume.
 * `DELETE /volumes/(name)`remove a volume with the specified name.
 * `VolumeDriver` has been moved from config to hostConfig to make the configuration portable.

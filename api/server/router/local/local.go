@@ -141,7 +141,7 @@ func (r *router) initRoutes() {
 		NewPostRoute("/exec/{name:.*}/start", r.postContainerExecStart),
 		NewPostRoute("/exec/{name:.*}/resize", r.postContainerExecResize),
 		NewPostRoute("/containers/{name:.*}/rename", r.postContainerRename),
-		NewPostRoute("/volumes", r.postVolumesCreate),
+		NewPostRoute("/volumes/create", r.postVolumesCreate),
 		// PUT
 		NewPutRoute("/containers/{name:.*}/archive", r.putContainersArchive),
 		// DELETE

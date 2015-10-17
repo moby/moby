@@ -304,7 +304,7 @@ type VolumesListResponse struct {
 }
 
 // VolumeCreateRequest contains the response for the remote API:
-// POST "/volumes"
+// POST "/volumes/create"
 type VolumeCreateRequest struct {
 	Name       string            // Name is the requested name of the volume
 	Driver     string            // Driver is the name of the driver that should be used to create the volume
