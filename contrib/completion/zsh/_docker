@@ -467,7 +467,7 @@ __docker_subcommand() {
                 "($help)--pull[Attempt to pull a newer version of the image]" \
                 "($help -q --quiet)"{-q,--quiet}"[Suppress verbose build output]" \
                 "($help)--rm[Remove intermediate containers after a successful build]" \
-                "($help -t --tag)"{-t,--tag=}"[Repository, name and tag for the image]: :__docker_repositories_with_tags" \
+                "($help -t --tag)*"{-t,--tag=}"[Repository, name and tag for the image]: :__docker_repositories_with_tags" \
                 "($help -):path or URL:_directories" && ret=0
             ;;
         (commit)
