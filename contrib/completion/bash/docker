@@ -1463,7 +1463,7 @@ _docker_run() {
 				on-failure:*)
 					;;
 				*)
-					COMPREPLY=( $( compgen -W "no on-failure on-failure: always" -- "$cur") )
+					COMPREPLY=( $( compgen -W "always no on-failure on-failure: unless-stopped" -- "$cur") )
 					;;
 			esac
 			return
