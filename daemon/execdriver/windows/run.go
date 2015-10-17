@@ -95,7 +95,7 @@ func (d *Driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, hooks execd
 
 	cu := &containerInit{
 		SystemType:              "Container",
-		Name:                    c.ID,
+		Name:                    c.Name,
 		Owner:                   defaultOwner,
 		IsDummy:                 dummyMode,
 		VolumePath:              c.Rootfs,

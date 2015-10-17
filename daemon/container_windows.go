@@ -125,6 +125,7 @@ func populateCommand(c *Container, env []string) error {
 	// TODO Windows: Factor out remainder of unused fields.
 	c.command = &execdriver.Command{
 		ID:             c.ID,
+		Name:           strings.Replace(c.Name, "/", "", -1), // Strips prefix
 		Rootfs:         c.rootfsPath(),
 		ReadonlyRootfs: c.hostConfig.ReadonlyRootfs,
 		InitPath:       "/.dockerinit",
