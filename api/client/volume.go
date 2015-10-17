@@ -195,7 +195,7 @@ func (cli *DockerCli) CmdVolumeCreate(args ...string) error {
 		volReq.Name = *flName
 	}
 
-	resp, err := cli.call("POST", "/volumes", volReq, nil)
+	resp, err := cli.call("POST", "/volumes/create", volReq, nil)
 	if err != nil {
 		return err
 	}
