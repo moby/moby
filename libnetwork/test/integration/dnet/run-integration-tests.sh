@@ -99,7 +99,7 @@ function run_dnet_tests() {
     ./integration-tmp/bin/bats ./test/integration/dnet/dnet.bats
 }
 
-function run_simple_tests() {
+function run_simple_consul_tests() {
     # Test a single node configuration with a global scope test driver
     ## Setup
     start_dnet 1 simple 1>>${INTEGRATION_ROOT}/test.log 2>&1
@@ -205,15 +205,15 @@ if [ -z "$SUITES" ]; then
     then
 	# We can only run a limited list of suites in circleci because of the
 	# old kernel and limited docker environment.
-	suites="dnet simple multi_consul multi_zk multi_etcd"
+	suites="dnet simple_consul multi_consul multi_zk multi_etcd"
     else
-	suites="dnet simple multi_consul multi_zk multi_etcd  bridge overlay_consul overlay_zk overlay_etcd"
+	suites="dnet simple_consul multi_consul multi_zk multi_etcd  bridge overlay_consul overlay_zk overlay_etcd"
     fi
 else
     suites="$SUITES"
 fi
 
-if [[ "$suites" =~ .*consul.* ]]; then
+if [[ ( "$suites" =~ .*consul.* ) ||  ( "$suites" =~ .*bridge.* ) ]]; then
     echo "Starting consul ..."
     start_consul 1>>${INTEGRATION_ROOT}/test.log 2>&1
     cmap[pr_consul]=pr_consul
