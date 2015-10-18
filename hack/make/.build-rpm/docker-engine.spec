@@ -137,13 +137,13 @@ install -p -m 644 contrib/init/systemd/docker.socket $RPM_BUILD_ROOT/%{_unitdir}
 install -p -m 644 contrib/init/sysvinit-redhat/docker.sysconfig $RPM_BUILD_ROOT/etc/sysconfig/docker
 install -p -m 755 contrib/init/sysvinit-redhat/docker $RPM_BUILD_ROOT/%{_initddir}/docker
 %endif
-# add bash completions
+# add bash, zsh, and fish completions
 install -d $RPM_BUILD_ROOT/usr/share/bash-completion/completions
 install -d $RPM_BUILD_ROOT/usr/share/zsh/vendor-completions
-install -d $RPM_BUILD_ROOT/usr/share/fish/completions
+install -d $RPM_BUILD_ROOT/usr/share/fish/vendor_completions.d
 install -p -m 644 contrib/completion/bash/docker $RPM_BUILD_ROOT/usr/share/bash-completion/completions/docker
 install -p -m 644 contrib/completion/zsh/_docker $RPM_BUILD_ROOT/usr/share/zsh/vendor-completions/_docker
-install -p -m 644 contrib/completion/fish/docker.fish $RPM_BUILD_ROOT/usr/share/fish/completions/docker.fish
+install -p -m 644 contrib/completion/fish/docker.fish $RPM_BUILD_ROOT/usr/share/fish/vendor_completions.d/docker.fish
 
 # install manpages
 install -d %{buildroot}%{_mandir}/man1
@@ -178,7 +178,7 @@ install -p -m 644 contrib/syntax/nano/Dockerfile.nanorc $RPM_BUILD_ROOT/usr/shar
 %endif
 /usr/share/bash-completion/completions/docker
 /usr/share/zsh/vendor-completions/_docker
-/usr/share/fish/completions/docker.fish
+/usr/share/fish/vendor_completions.d/docker.fish
 %doc
 /%{_mandir}/man1/*
 /%{_mandir}/man5/*
