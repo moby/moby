@@ -89,6 +89,12 @@ func NewDaemon(c *check.C) *Daemon {
 // Start will start the daemon and return once it is ready to receive requests.
 // You can specify additional daemon flags.
 func (d *Daemon) Start(arg ...string) error {
+	return d.StartWithEnv(nil, arg...)
+}
+
+// StartWithEnv will start the daemon with the specified environment and return
+// once it is ready to receive requests. You can specify additional daemon flags.
+func (d *Daemon) StartWithEnv(env []string, arg ...string) error {
 	dockerBinary, err := exec.LookPath(dockerBinary)
 	d.c.Assert(err, check.IsNil, check.Commentf("[%s] could not find docker binary in $PATH", d.id))
 
@@ -132,6 +138,9 @@ func (d *Daemon) Start(arg ...string) error {
 
 	d.cmd.Stdout = d.logFile
 	d.cmd.Stderr = d.logFile
+	if env != nil {
+		d.cmd.Env = env
+	}
 
 	if err := d.cmd.Start(); err != nil {
 		return fmt.Errorf("[%s] could not start daemon container: %v", d.id, err)
@@ -357,6 +366,13 @@ func (d *Daemon) CmdWithArgs(daemonArgs []string, name string, arg ...string) (s
 	c := exec.Command(dockerBinary, args...)
 	b, err := c.CombinedOutput()
 	return string(b), err
+}
+
+// CmdOrAssert will execute a docker CLI command against a daemon and assert that it succeeded
+func (d *Daemon) CmdOrAssert(name string, args ...string) string {
+	out, err := d.Cmd(name, args...)
+	d.c.Assert(err, check.IsNil, check.Commentf("%q %q failed with errors: %s, %v", name, strings.Join(args, " "), out, err))
+	return out
 }
 
 // LogfileName returns the path the the daemon's log file

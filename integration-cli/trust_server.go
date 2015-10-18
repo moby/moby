@@ -175,3 +175,22 @@ func (s *DockerTrustSuite) setupTrustedImage(c *check.C, name string) string {
 
 	return repoName
 }
+
+func (s *DockerDaemonTrustSuite) startDaemonWithServer(server string, args ...string) error {
+	env := append(os.Environ(), fmt.Sprintf("DOCKER_CONTENT_TRUST_SERVER=%s", server))
+	allArgs := append([]string{"--untrusted-pull=false"}, args...)
+	return s.d.StartWithEnv(env, allArgs...)
+}
+
+func (s *DockerDaemonTrustSuite) restartDaemonWithServer(server string, args ...string) error {
+	s.d.Stop()
+	return s.startDaemonWithServer(server, args...)
+}
+
+func (s *DockerDaemonTrustSuite) startDaemon(args ...string) error {
+	return s.startDaemonWithServer(notaryURL, args...)
+}
+
+func (s *DockerDaemonTrustSuite) restartDaemon(args ...string) error {
+	return s.restartDaemonWithServer(notaryURL, args...)
+}

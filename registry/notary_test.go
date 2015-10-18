@@ -1,10 +1,8 @@
-package client
+package registry
 
 import (
 	"os"
 	"testing"
-
-	"github.com/docker/docker/registry"
 )
 
 func unsetENV() {
@@ -14,7 +12,7 @@ func unsetENV() {
 
 func TestENVTrustServer(t *testing.T) {
 	defer unsetENV()
-	indexInfo := &registry.IndexInfo{Name: "testserver"}
+	indexInfo := &IndexInfo{Name: "testserver"}
 	if err := os.Setenv("DOCKER_CONTENT_TRUST_SERVER", "https://notary-test.com:5000"); err != nil {
 		t.Fatal("Failed to set ENV variable")
 	}
@@ -27,7 +25,7 @@ func TestENVTrustServer(t *testing.T) {
 
 func TestHTTPENVTrustServer(t *testing.T) {
 	defer unsetENV()
-	indexInfo := &registry.IndexInfo{Name: "testserver"}
+	indexInfo := &IndexInfo{Name: "testserver"}
 	if err := os.Setenv("DOCKER_CONTENT_TRUST_SERVER", "http://notary-test.com:5000"); err != nil {
 		t.Fatal("Failed to set ENV variable")
 	}
@@ -38,15 +36,15 @@ func TestHTTPENVTrustServer(t *testing.T) {
 }
 
 func TestOfficialTrustServer(t *testing.T) {
-	indexInfo := &registry.IndexInfo{Name: "testserver", Official: true}
+	indexInfo := &IndexInfo{Name: "testserver", Official: true}
 	output, err := trustServer(indexInfo)
-	if err != nil || output != registry.NotaryServer {
-		t.Fatalf("Expected server to be %s, got %s", registry.NotaryServer, output)
+	if err != nil || output != NotaryServer {
+		t.Fatalf("Expected server to be %s, got %s", NotaryServer, output)
 	}
 }
 
 func TestNonOfficialTrustServer(t *testing.T) {
-	indexInfo := &registry.IndexInfo{Name: "testserver", Official: false}
+	indexInfo := &IndexInfo{Name: "testserver", Official: false}
 	output, err := trustServer(indexInfo)
 	expectedStr := "https://" + indexInfo.Name
 	if err != nil || output != expectedStr {

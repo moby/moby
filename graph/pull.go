@@ -9,6 +9,7 @@ import (
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/utils"
+	"github.com/docker/notary/client"
 )
 
 // ImagePullConfig stores pull configuration.
@@ -70,7 +71,55 @@ func (s *TagStore) Pull(image string, tag string, imagePullConfig *ImagePullConf
 	if err != nil {
 		return err
 	}
+	ref := registry.ParseReference(tag)
 
+	if s.untrustedPull || ref.HasDigest() {
+		return s.doPull(image, repoInfo, tag, imagePullConfig, sf)
+	}
+
+	notaryRepo, err := s.getNotaryRepository(repoInfo, imagePullConfig)
+	if err != nil {
+		return err
+	}
+
+	refs, err := registry.ResolveTagSetByNotary(notaryRepo, ref.String())
+	if err != nil {
+		return err
+	}
+	// Unlike the non-notary case, this is pulling images one at a time.
+	for i, r := range refs {
+		displayTag := r.Reference.String()
+		if displayTag != "" {
+			displayTag = ":" + displayTag
+		}
+		logrus.Debugf("Pull (%d of %d): %s%s@%s\n", i+1, len(refs), repoInfo.LocalName, displayTag, r.Digest)
+		err = s.doPull(repoInfo.LocalName, repoInfo, r.Digest.String(), imagePullConfig, sf)
+		if err != nil {
+			return err
+		}
+
+		// If reference is not trusted, tag by trusted reference
+		if !r.Reference.HasDigest() {
+			trustedName := registry.DigestReference(r.Digest).ImageName(repoInfo.LocalName)
+			imagePullConfig.OutStream.Write(sf.FormatStatus("", "Tagging %s as %s\n", trustedName, r.Reference.ImageName(repoInfo.LocalName)))
+			if err := s.Tag(repoInfo.LocalName, r.Reference.String(), trustedName, true); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// Private keys, and therefore passphrases, are unnecessary for pulling and verifying targets information. So stub the retriever out.
+func stubPassphraseRetriever(keyName, alias string, createNew bool, attempts int) (passphrase string, giveup bool, err error) {
+	return "", true, fmt.Errorf("Unexpected request for passwords in daemon's pull operation")
+}
+
+func (s *TagStore) getNotaryRepository(repoInfo *registry.RepositoryInfo, imagePullConfig *ImagePullConfig) (*client.NotaryRepository, error) {
+	return registry.GetNotaryRepository(repoInfo, s.trustDir, registry.CertsDir, imagePullConfig.AuthConfig, stubPassphraseRetriever)
+}
+
+func (s *TagStore) doPull(image string, repoInfo *registry.RepositoryInfo, tag string, imagePullConfig *ImagePullConfig, sf *streamformatter.StreamFormatter) error {
 	// makes sure name is not empty or `scratch`
 	if err := validateRepoName(repoInfo.LocalName); err != nil {
 		return err

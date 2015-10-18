@@ -43,6 +43,8 @@ type TagStore struct {
 	pushingPool     map[string]*broadcaster.Buffered
 	registryService *registry.Service
 	eventsService   *events.Events
+	trustDir        string
+	untrustedPull   bool
 }
 
 // Repository maps tags to image IDs.
@@ -78,6 +80,10 @@ type TagStoreConfig struct {
 	Registry *registry.Service
 	// Events is the events service to use for logging.
 	Events *events.Events
+	// TrustDir is the directory used to store trusted notary certificates and cached metadata
+	TrustDir string
+	// UntrustedPull disables use of notary when pulling images
+	UntrustedPull bool
 }
 
 // NewTagStore creates a new TagStore at specified path, using the parameters
@@ -97,6 +103,8 @@ func NewTagStore(path string, cfg *TagStoreConfig) (*TagStore, error) {
 		pushingPool:     make(map[string]*broadcaster.Buffered),
 		registryService: cfg.Registry,
 		eventsService:   cfg.Events,
+		trustDir:        cfg.TrustDir,
+		untrustedPull:   cfg.UntrustedPull,
 	}
 	// Load the json file if it exists, otherwise create it.
 	if err := store.reload(); os.IsNotExist(err) {

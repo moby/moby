@@ -106,3 +106,26 @@ func (s *DockerTrustSuite) TearDownTest(c *check.C) {
 	s.not.Close()
 	s.ds.TearDownTest(c)
 }
+
+func init() {
+	check.Suite(&DockerDaemonTrustSuite{
+		dts: &DockerTrustSuite{},
+	})
+}
+
+type DockerDaemonTrustSuite struct {
+	dts *DockerTrustSuite
+	d   *Daemon
+}
+
+func (s *DockerDaemonTrustSuite) SetUpTest(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	s.dts.SetUpTest(c)
+	s.d = NewDaemon(c)
+}
+
+func (s *DockerDaemonTrustSuite) TearDownTest(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	s.d.Stop()
+	s.dts.TearDownTest(c)
+}

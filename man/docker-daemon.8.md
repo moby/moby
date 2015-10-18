@@ -52,6 +52,7 @@ docker-daemon - Enable daemon mode
 [**--tlskey**[=*~/.docker/key.pem*]]
 [**--tlsverify**[=*false*]]
 [**--userland-proxy**[=*true*]]
+[**--untrusted-pull**[=*true*]]
 
 # DESCRIPTION
 **docker** has two distinct functions. It is used for starting the Docker
@@ -217,6 +218,9 @@ unix://[/path/to/socket] to use.
 
 **--userland-proxy**=*true*|*false*
     Rely on a userland proxy implementation for inter-container and outside-to-container loopback communications. Default is true.
+
+**--untrusted-pull**=*true*|*false*
+  Pull images from remote repositories without using the notary to verify their authenticity. Default is true. If set to false, uses the notary set by the DOCKER_CONTENT_TRUST_SERVER environment variable, or if not specified, assumes that each registry has a collocated notary.
 
 # STORAGE DRIVER OPTIONS
 

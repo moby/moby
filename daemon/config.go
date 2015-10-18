@@ -33,6 +33,7 @@ type CommonConfig struct {
 	RemappedRoot   string
 	Root           string
 	TrustKeyPath   string
+	UntrustedPull  bool
 	DefaultNetwork string
 
 	// ClusterStore is the storage backend used for the cluster information. It is used by both
@@ -71,6 +72,7 @@ func (config *Config) InstallCommonFlags(cmd *flag.FlagSet, usageFn func(string)
 	cmd.Var(opts.NewListOptsRef(&config.Labels, opts.ValidateLabel), []string{"-label"}, usageFn("Set key=value labels to the daemon"))
 	cmd.StringVar(&config.LogConfig.Type, []string{"-log-driver"}, "json-file", usageFn("Default driver for container logs"))
 	cmd.Var(opts.NewMapOpts(config.LogConfig.Config, nil), []string{"-log-opt"}, usageFn("Set log driver options"))
+	cmd.BoolVar(&config.UntrustedPull, []string{"-untrusted-pull"}, true, usageFn("Allow pulling untrusted images"))
 	cmd.StringVar(&config.ClusterAdvertise, []string{"-cluster-advertise"}, "", usageFn("Address of the daemon instance to advertise"))
 	cmd.StringVar(&config.ClusterStore, []string{"-cluster-store"}, "", usageFn("Set the cluster store"))
 	cmd.Var(opts.NewMapOpts(config.ClusterOpts, nil), []string{"-cluster-store-opt"}, usageFn("Set cluster store options"))
