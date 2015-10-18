@@ -1,27 +1,22 @@
-<!--[metadata]>
-+++
-title = "network create"
-description = "The network create command description and usage"
-keywords = ["network create"]
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
+% DOCKER(1) Docker User Manuals
+% Docker Community
+% OCT 2015
+# NAME
+docker-network-create - create a new network
 
-# network create
+# SYNOPSIS
+**docker network create**
 
-    Usage:  docker network create [OPTIONS] NETWORK-NAME
+**--aux-address=map[]**    
+**-d** | **--driver=DRIVER**       
+**--gateway=[]**             
+**--help=false**             
+**--ip-range=[]**            
+**--ipam-driver=default**    
+**-o** | **--opt=map[]**           
+**--subnet=[]**              
 
-    Creates a new network with a name specified by the user
-
-    --aux-address=map[]      Auxiliary ipv4 or ipv6 addresses used by network driver
-    -d --driver=DRIVER       Driver to manage the Network bridge or overlay. The default is bridge.
-    --gateway=[]             ipv4 or ipv6 Gateway for the master subnet
-    --help=false             Print usage
-    --ip-range=[]            Allocate container ip from a sub-range
-    --ipam-driver=default    IP Address Management Driver
-    -o --opt=map[]           Set custom network plugin options
-    --subnet=[]              Subnet in CIDR format that represents a network segment
+# DESCRIPTION
 
 Creates a new network. The `DRIVER` accepts `bridge` or `overlay` which are the
 built-in network drivers. If you have installed a third party or your own custom
@@ -54,8 +49,9 @@ The `docker daemon` options that support the `overlay` network are:
 * `--cluster-advertise`
 
 To read more about these options and how to configure them, see ["*Get started
-with multi-host network*"](../../userguide/networking/get-started-overlay.md).
- 
+with multi-host
+network*"](https://www.docker.com/engine/userguide/networking/get-started-overlay.md).
+
 It is also a good idea, though not required, that you install Docker Swarm on to
 manage the cluster that makes up your network. Swarm provides sophisticated
 discovery and server management that can assist your implementation.
@@ -94,7 +90,11 @@ disconnect` command.
 
 ## Specifying advanced options
 
-When you create a network, Engine creates a non-overlapping subnetwork for the network by default. This subnetwork is not a subdivision of an existing network. It is purely for ip-addressing purposes. You can override this default and specify subnetwork values directly using the the `--subnet` option. On a `bridge` network you can only create a single subnet:
+When you create a network, Engine creates a non-overlapping subnetwork for the
+network by default. This subnetwork is not a subdivision of an existing network.
+It is purely for ip-addressing purposes. You can override this default and
+specify subnetwork values directly using the the `--subnet` option. On a
+`bridge` network you can only create a single subnet:
 
 ```bash
 docker network create -d --subnet=192.168.0.0/16
@@ -120,11 +120,30 @@ docker network create -d overlay
 ```
 Be sure that your subnetworks do not overlap. If they do, the network create fails and Engine returns an error.
 
-## Related information
+# OPTIONS
+**--aux-address=map[]**     
+  Auxiliary ipv4 or ipv6 addresses used by network driver
 
-* [network inspect](network_inspect.md)
-* [network connect](network_connect.md)
-* [network disconnect](network_disconnect.md)
-* [network ls](network_ls.md)
-* [network rm](network_rm.md)
-* [Understand Docker container networks](../../userguide/networking/dockernetworks.md)
+**-d** | **--driver=DRIVER**       
+  Driver to manage the Network bridge or overlay. The default is bridge.
+
+**--gateway=[] **            
+  ipv4 or ipv6 Gateway for the master subnet
+
+**--help=false **            
+  Print usage
+
+**--ip-range=[] **           
+  Allocate container ip from a sub-range
+
+**--ipam-driver=default **   
+  IP Address Management Driver
+
+**-o | --opt=map[]**           
+  Set custom network plugin options
+
+**--subnet=[]**              
+  Subnet in CIDR format that represents a network segment
+
+# HISTORY
+OCT 2015, created by Mary Anthony <mary@docker.com>
