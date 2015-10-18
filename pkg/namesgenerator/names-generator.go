@@ -190,6 +190,9 @@ var (
 		// Euclid invented geometry. https://en.wikipedia.org/wiki/Euclid
 		"euclid",
 
+		// Leonhard Euler invented large parts of modern mathematics. https://de.wikipedia.org/wiki/Leonhard_Euler
+		"euler",
+		
 		// Pierre de Fermat pioneered several aspects of modern mathematics. https://en.wikipedia.org/wiki/Pierre_de_Fermat
 		"fermat",
 
@@ -332,7 +335,7 @@ var (
 		"mestorf",
 
 		// Lise Meitner was an Austrian physicist who worked on radioactivity and nuclear physics. She played a major role in the discovery of nuclear fission. https://en.wikipedia.org/wiki/Lise_Meitner
-		"mietner",
+		"meitner",
 
 		// Maryam Mirzakhani - an Iranian mathematician and the first woman to win the Fields Medal. https://en.wikipedia.org/wiki/Maryam_Mirzakhani
 		"mirzakhani",
