@@ -258,6 +258,7 @@ __docker_network_subcommand() {
                 "($help)*--ip-range=[Allocate container ip from a sub-range]:IP/mask: " \
                 "($help)*--gateway=[ipv4 or ipv6 Gateway for the master subnet]:IP: " \
                 "($help)*--aux-address[Auxiliary ipv4 or ipv6 addresses used by network driver]:key=IP: " \
+                "($help)*"{-o=,--opt=}"[Set driver specific options]:key=value: " \
                 "($help -)1:Network Name: " && ret=0
             ;;
         (inspect|rm)
