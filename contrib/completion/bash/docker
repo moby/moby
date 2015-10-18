@@ -561,9 +561,18 @@ _docker_cp() {
 						return
 						;;
 					*)
+						# combined container and filename completion
+						_filedir
+						local files=( ${COMPREPLY[@]} )
+
 						__docker_containers_all
 						COMPREPLY=( $( compgen -W "${COMPREPLY[*]}" -S ':' ) )
-						__docker_nospace
+						local containers=( ${COMPREPLY[@]} )
+
+						COMPREPLY=( $( compgen -W "${files[*]} ${containers[*]}" -- "$cur" ) )
+						if [[ "$COMPREPLY" == *: ]]; then
+							__docker_nospace
+						fi
 						return
 						;;
 				esac
@@ -571,7 +580,13 @@ _docker_cp() {
 			(( counter++ ))
 
 			if [ $cword -eq $counter ]; then
-				_filedir -d
+				if [ -e "$prev" ]; then
+					__docker_containers_all
+					COMPREPLY=( $( compgen -W "${COMPREPLY[*]}" -S ':' ) )
+					__docker_nospace
+				else
+					_filedir
+				fi
 				return
 			fi
 			;;
