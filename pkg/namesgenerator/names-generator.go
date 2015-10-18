@@ -217,6 +217,9 @@ var (
 		// Jane Goodall - British primatologist, ethologist, and anthropologist who is considered to be the world's foremost expert on chimpanzees - https://en.wikipedia.org/wiki/Jane_Goodall
 		"goodall",
 
+		// Paul Graham - Founder of Y Combinator, programmer, and author. - https://en.wikipedia.org/wiki/Paul_Graham_(computer_programmer)
+		"graham",
+
 		// Margaret Hamilton - Director of the Software Engineering Division of the MIT Instrumentation Laboratory, which developed on-board flight software for the Apollo space program. https://en.wikipedia.org/wiki/Margaret_Hamilton_(scientist)
 		"hamilton",
 
@@ -297,6 +300,9 @@ var (
 
 		// Barbara Liskov - co-developed the Liskov substitution principle. Liskov was also the winner of the Turing Prize in 2008. - https://en.wikipedia.org/wiki/Barbara_Liskov
 		"liskov",
+
+		// Jessica Livingston - Founder of Y Combinator, and author. - https://en.wikipedia.org/wiki/Jessica_Livingston
+		"livingston",
 
 		// Ada Lovelace invented the first algorithm. https://en.wikipedia.org/wiki/Ada_Lovelace (thanks James Turnbull)
 		"lovelace",
