@@ -245,7 +245,7 @@ func checkConfigOptions(config *Config) error {
 		return fmt.Errorf("You specified -b & --bip, mutually exclusive options. Please specify only one.")
 	}
 	if !config.Bridge.EnableIPTables && !config.Bridge.InterContainerCommunication {
-		return fmt.Errorf("You specified --iptables=false with --icc=false. ICC uses iptables to function. Please set --icc or --iptables to true.")
+		return fmt.Errorf("You specified --iptables=false with --icc=false. ICC=false uses iptables to function. Please set --icc or --iptables to true.")
 	}
 	if !config.Bridge.EnableIPTables && config.Bridge.EnableIPMasq {
 		config.Bridge.EnableIPMasq = false
