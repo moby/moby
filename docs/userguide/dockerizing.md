@@ -18,7 +18,7 @@ application inside a container takes a single command: `docker run`.
 >**Note**: Depending on your Docker system configuration, you may be required to
 >preface each `docker` command on this page with `sudo`. To avoid this behavior,
 >your system administrator can create a Unix group called `docker` and add users
->to it. 
+>to it.
 
 ## Hello world
 
@@ -56,6 +56,8 @@ the result on the command line:
 So what happened to our container after that? Well Docker containers
 only run as long as the command you specify is active. Here, as soon as
 `Hello world` was echoed, the container stopped.
+
+![hello_world](hello_world_images/helloworld.gif)
 
 ## An interactive container
 
@@ -99,6 +101,8 @@ use the `exit` command or enter Ctrl-D to finish.
 As with our previous container, once the Bash shell process has
 finished, the container is stopped.
 
+![interactive_container](hello_world_images/interactivecontainer.gif)
+
 ## A daemonized Hello world
 
 Now a container that runs a command and then exits has some uses but
@@ -132,7 +136,7 @@ a really long string:
 This really long string is called a *container ID*. It uniquely
 identifies a container so we can work with it.
 
-> **Note:** 
+> **Note:**
 > The container ID is a bit long and unwieldy. A bit later,
 > we'll see a shorter ID and ways to name our containers to make
 > working with them easier.
@@ -154,9 +158,9 @@ information about it, starting with a shorter variant of its container ID:
 
 We can also see the image we used to build it, `ubuntu:14.04`, the command it
 is running, its status and an automatically assigned name,
-`insane_babbage`. 
+`insane_babbage`.
 
-> **Note:** 
+> **Note:**
 > Docker automatically generates names for any containers started.
 > We'll see how to specify your own names a bit later.
 
@@ -194,10 +198,11 @@ Let's check it worked with the `docker ps` command.
 
 Excellent. Our container has been stopped.
 
+![daemonized](hello_world_images/daemonized.gif)
+
 # Next steps
 
 Now we've seen how simple it is to get started with Docker. Let's learn how to
 do some more advanced tasks.
 
 Go to [Working With Containers](usingdocker.md).
-
