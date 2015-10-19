@@ -445,9 +445,9 @@ func TestParseHost(t *testing.T) {
 		"fd://":                    "fd://",
 		"fd://something":           "fd://something",
 		"tcp://host:":              "tcp://host:2375",
-		"tcp://":                   "tcp://127.0.0.1:2375",
-		"tcp://:2375":              "tcp://127.0.0.1:2375", // default ip address
-		"tcp://:2376":              "tcp://127.0.0.1:2376", // default ip address
+		"tcp://":                   "tcp://localhost:2375",
+		"tcp://:2375":              "tcp://localhost:2375", // default ip address
+		"tcp://:2376":              "tcp://localhost:2376", // default ip address
 		"tcp://0.0.0.0:8080":       "tcp://0.0.0.0:8080",
 		"tcp://192.168.0.0:12000":  "tcp://192.168.0.0:12000",
 		"tcp://192.168:8080":       "tcp://192.168:8080",
@@ -458,12 +458,12 @@ func TestParseHost(t *testing.T) {
 	}
 
 	for value, errorMessage := range invalid {
-		if _, err := ParseHost(value); err == nil || err.Error() != errorMessage {
+		if _, err := ParseHost(defaultHTTPHost, value); err == nil || err.Error() != errorMessage {
 			t.Fatalf("Expected an error for %v with [%v], got [%v]", value, errorMessage, err)
 		}
 	}
 	for value, expected := range valid {
-		if actual, err := ParseHost(value); err != nil || actual != expected {
+		if actual, err := ParseHost(defaultHTTPHost, value); err != nil || actual != expected {
 			t.Fatalf("Expected for %v [%v], got [%v, %v]", value, expected, actual, err)
 		}
 	}

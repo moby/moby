@@ -16,7 +16,7 @@ var (
 	alphaRegexp  = regexp.MustCompile(`[a-zA-Z]`)
 	domainRegexp = regexp.MustCompile(`^(:?(:?[a-zA-Z0-9]|(:?[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9]))(:?\.(:?[a-zA-Z0-9]|(:?[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])))*)\.?\s*$`)
 	// DefaultHTTPHost Default HTTP Host used if only port is provided to -H flag e.g. docker daemon -H tcp://:8080
-	DefaultHTTPHost = "127.0.0.1"
+	DefaultHTTPHost = "localhost"
 
 	// DefaultHTTPPort Default HTTP Port used if only the protocol is provided to -H flag e.g. docker daemon -H tcp://
 	// TODO Windows. DefaultHTTPPort is only used on Windows if a -H parameter
@@ -342,7 +342,7 @@ func ValidateLabel(val string) (string, error) {
 
 // ValidateHost validates that the specified string is a valid host and returns it.
 func ValidateHost(val string) (string, error) {
-	_, err := parsers.ParseDockerDaemonHost(DefaultTCPHost, DefaultUnixSocket, val)
+	_, err := parsers.ParseDockerDaemonHost(DefaultTCPHost, DefaultTLSHost, DefaultUnixSocket, "", val)
 	if err != nil {
 		return val, err
 	}
@@ -352,8 +352,8 @@ func ValidateHost(val string) (string, error) {
 }
 
 // ParseHost and set defaults for a Daemon host string
-func ParseHost(val string) (string, error) {
-	host, err := parsers.ParseDockerDaemonHost(DefaultTCPHost, DefaultUnixSocket, val)
+func ParseHost(defaultHost, val string) (string, error) {
+	host, err := parsers.ParseDockerDaemonHost(DefaultTCPHost, DefaultTLSHost, DefaultUnixSocket, defaultHost, val)
 	if err != nil {
 		return val, err
 	}

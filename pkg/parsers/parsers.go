@@ -16,9 +16,12 @@ import (
 // Depending of the address specified, will use the defaultTCPAddr or defaultUnixAddr
 // defaultUnixAddr must be a absolute file path (no `unix://` prefix)
 // defaultTCPAddr must be the full `tcp://host:port` form
-func ParseDockerDaemonHost(defaultTCPAddr, defaultUnixAddr, addr string) (string, error) {
+func ParseDockerDaemonHost(defaultTCPAddr, defaultTLSHost, defaultUnixAddr, defaultAddr, addr string) (string, error) {
 	addr = strings.TrimSpace(addr)
 	if addr == "" {
+		if defaultAddr == defaultTLSHost {
+			return defaultTLSHost, nil
+		}
 		if runtime.GOOS != "windows" {
 			return fmt.Sprintf("unix://%s", defaultUnixAddr), nil
 		}
