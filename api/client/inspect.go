@@ -101,7 +101,6 @@ func (cli *DockerCli) CmdInspect(args ...string) error {
 		} else {
 			rdr := bytes.NewReader(obj)
 			dec := json.NewDecoder(rdr)
-
 			if isImage {
 				inspPtr := types.ImageInspect{}
 				if err := dec.Decode(&inspPtr); err != nil {
@@ -110,14 +109,7 @@ func (cli *DockerCli) CmdInspect(args ...string) error {
 					continue
 				}
 				if err := tmpl.Execute(cli.out, inspPtr); err != nil {
-					rdr.Seek(0, 0)
-					var raw interface{}
-					if err := dec.Decode(&raw); err != nil {
-						return err
-					}
-					if err = tmpl.Execute(cli.out, raw); err != nil {
-						return err
-					}
+					return err
 				}
 			} else {
 				inspPtr := types.ContainerJSON{}
@@ -127,14 +119,7 @@ func (cli *DockerCli) CmdInspect(args ...string) error {
 					continue
 				}
 				if err := tmpl.Execute(cli.out, inspPtr); err != nil {
-					rdr.Seek(0, 0)
-					var raw interface{}
-					if err := dec.Decode(&raw); err != nil {
-						return err
-					}
-					if err = tmpl.Execute(cli.out, raw); err != nil {
-						return err
-					}
+					return err
 				}
 			}
 			cli.out.Write([]byte{'\n'})

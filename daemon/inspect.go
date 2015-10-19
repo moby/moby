@@ -27,7 +27,36 @@ func (daemon *Daemon) ContainerInspect(name string, size bool) (*types.Container
 
 	mountPoints := addMountPoints(container)
 
-	return &types.ContainerJSON{base, mountPoints, container.Config}, nil
+	containerConfig := types.RunConfig{
+		Hostname:        container.Config.Hostname,
+		Domainname:      container.Config.Domainname,
+		User:            container.Config.User,
+		AttachStdin:     container.Config.AttachStdin,
+		AttachStdout:    container.Config.AttachStdout,
+		AttachStderr:    container.Config.AttachStderr,
+		ExposedPorts:    map[string]struct{}{},
+		PublishService:  container.Config.PublishService,
+		Tty:             container.Config.Tty,
+		OpenStdin:       container.Config.OpenStdin,
+		StdinOnce:       container.Config.StdinOnce,
+		Env:             container.Config.Env,
+		Cmd:             container.Config.Cmd.Slice(),
+		Image:           container.Config.Image,
+		Volumes:         container.Config.Volumes,
+		WorkingDir:      container.Config.WorkingDir,
+		Entrypoint:      container.Config.Entrypoint.Slice(),
+		NetworkDisabled: container.Config.NetworkDisabled,
+		MacAddress:      container.Config.MacAddress,
+		OnBuild:         container.Config.OnBuild,
+		Labels:          container.Config.Labels,
+		StopSignal:      container.Config.StopSignal,
+	}
+
+	for k, v := range container.Config.ExposedPorts {
+		containerConfig.ExposedPorts[string(k)] = v
+	}
+
+	return &types.ContainerJSON{base, mountPoints, containerConfig}, nil
 }
 
 // ContainerInspect120 serializes the master version of a container into a json type.

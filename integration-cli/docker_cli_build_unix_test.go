@@ -28,6 +28,11 @@ func (s *DockerSuite) TestBuildResourceConstraintsAreUsed(c *check.C) {
 
 	cID := strings.TrimSpace(out)
 
+	cfg, err := inspectFieldJSON(cID, "HostConfig")
+	if err != nil {
+		c.Fatal(err)
+	}
+
 	type hostConfig struct {
 		Memory     int64
 		MemorySwap int64
@@ -38,15 +43,11 @@ func (s *DockerSuite) TestBuildResourceConstraintsAreUsed(c *check.C) {
 		Ulimits    []*ulimit.Ulimit
 	}
 
-	cfg, err := inspectFieldJSON(cID, "HostConfig")
-	if err != nil {
-		c.Fatal(err)
-	}
-
 	var c1 hostConfig
 	if err := json.Unmarshal([]byte(cfg), &c1); err != nil {
 		c.Fatal(err, cfg)
 	}
+
 	if c1.Memory != 67108864 || c1.MemorySwap != -1 || c1.CpusetCpus != "0" || c1.CpusetMems != "0" || c1.CPUShares != 100 || c1.CPUQuota != 8000 || c1.Ulimits[0].Name != "nofile" || c1.Ulimits[0].Hard != 42 {
 		c.Fatalf("resource constraints not set properly:\nMemory: %d, MemSwap: %d, CpusetCpus: %s, CpusetMems: %s, CPUShares: %d, CPUQuota: %d, Ulimits: %s",
 			c1.Memory, c1.MemorySwap, c1.CpusetCpus, c1.CpusetMems, c1.CPUShares, c1.CPUQuota, c1.Ulimits[0])

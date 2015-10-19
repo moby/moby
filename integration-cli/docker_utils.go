@@ -1079,7 +1079,7 @@ func inspectMountPointJSON(j, destination string) (types.MountPoint, error) {
 }
 
 func getIDByName(name string) (string, error) {
-	return inspectField(name, "Id")
+	return inspectField(name, "ID")
 }
 
 // getContainerState returns the exit code of the container

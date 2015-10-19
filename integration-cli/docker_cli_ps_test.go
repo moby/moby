@@ -508,7 +508,7 @@ func (s *DockerSuite) TestPsRightTagName(c *check.C) {
 	id2 = strings.TrimSpace(string(out))
 
 	var imageID string
-	out, _ = dockerCmd(c, "inspect", "-f", "{{.Id}}", "busybox")
+	out, _ = dockerCmd(c, "inspect", "-f", "{{.ID}}", "busybox")
 	imageID = strings.TrimSpace(string(out))
 
 	var id3 string

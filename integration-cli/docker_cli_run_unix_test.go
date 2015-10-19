@@ -187,7 +187,7 @@ func (s *DockerSuite) TestRunEchoStdoutWithCPUQuota(c *check.C) {
 		c.Errorf("container should've printed 'test'")
 	}
 
-	out, err = inspectField("test", "HostConfig.CpuQuota")
+	out, err = inspectField("test", "HostConfig.CPUQuota")
 	c.Assert(err, check.IsNil)
 
 	if out != "8000" {
@@ -202,7 +202,7 @@ func (s *DockerSuite) TestRunWithCpuPeriod(c *check.C) {
 		c.Fatalf("failed to run container: %v", err)
 	}
 
-	out, err := inspectField("test", "HostConfig.CpuPeriod")
+	out, err := inspectField("test", "HostConfig.CPUPeriod")
 	c.Assert(err, check.IsNil)
 	if out != "50000" {
 		c.Fatalf("setting the CPU CFS period failed")

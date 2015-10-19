@@ -39,8 +39,37 @@ func (daemon *Daemon) ContainerInspectPre120(name string) (*v1p19.ContainerJSON,
 		volumesRW[m.Destination] = m.RW
 	}
 
+	runConfig := types.RunConfig{
+		Hostname:        container.Config.Hostname,
+		Domainname:      container.Config.Domainname,
+		User:            container.Config.User,
+		AttachStdin:     container.Config.AttachStdin,
+		AttachStdout:    container.Config.AttachStdout,
+		AttachStderr:    container.Config.AttachStderr,
+		ExposedPorts:    map[string]struct{}{},
+		PublishService:  container.Config.PublishService,
+		Tty:             container.Config.Tty,
+		OpenStdin:       container.Config.OpenStdin,
+		StdinOnce:       container.Config.StdinOnce,
+		Env:             container.Config.Env,
+		Cmd:             container.Config.Cmd.Slice(),
+		Image:           container.Config.Image,
+		Volumes:         container.Config.Volumes,
+		WorkingDir:      container.Config.WorkingDir,
+		Entrypoint:      container.Config.Entrypoint.Slice(),
+		NetworkDisabled: container.Config.NetworkDisabled,
+		MacAddress:      container.Config.MacAddress,
+		OnBuild:         container.Config.OnBuild,
+		Labels:          container.Config.Labels,
+		StopSignal:      container.Config.StopSignal,
+	}
+
+	for k, v := range container.Config.ExposedPorts {
+		runConfig.ExposedPorts[string(k)] = v
+	}
+
 	config := &v1p19.ContainerConfig{
-		container.Config,
+		runConfig,
 		container.hostConfig.VolumeDriver,
 		container.hostConfig.Memory,
 		container.hostConfig.MemorySwap,

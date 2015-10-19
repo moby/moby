@@ -177,7 +177,7 @@ func (s *DockerRegistrySuite) TestRemoveImageByDigest(c *check.C) {
 	dockerCmd(c, "pull", imageReference)
 
 	// make sure inspect runs ok
-	if _, err := inspectField(imageReference, "Id"); err != nil {
+	if _, err := inspectField(imageReference, "ID"); err != nil {
 		c.Fatalf("failed to inspect image: %v", err)
 	}
 
@@ -187,7 +187,7 @@ func (s *DockerRegistrySuite) TestRemoveImageByDigest(c *check.C) {
 	}
 
 	// try to inspect again - it should error this time
-	if _, err := inspectField(imageReference, "Id"); err == nil {
+	if _, err := inspectField(imageReference, "ID"); err == nil {
 		c.Fatalf("unexpected nil err trying to inspect what should be a non-existent image")
 	} else if !strings.Contains(err.Error(), "No such image") {
 		c.Fatalf("expected 'No such image' output, got %v", err)
@@ -206,7 +206,7 @@ func (s *DockerRegistrySuite) TestBuildByDigest(c *check.C) {
 	dockerCmd(c, "pull", imageReference)
 
 	// get the image id
-	imageID, err := inspectField(imageReference, "Id")
+	imageID, err := inspectField(imageReference, "ID")
 	if err != nil {
 		c.Fatalf("error getting image id: %v", err)
 	}
@@ -247,12 +247,12 @@ func (s *DockerRegistrySuite) TestTagByDigest(c *check.C) {
 	tag := "tagbydigest"
 	dockerCmd(c, "tag", imageReference, tag)
 
-	expectedID, err := inspectField(imageReference, "Id")
+	expectedID, err := inspectField(imageReference, "ID")
 	if err != nil {
 		c.Fatalf("error getting original image id: %v", err)
 	}
 
-	tagID, err := inspectField(tag, "Id")
+	tagID, err := inspectField(tag, "ID")
 	if err != nil {
 		c.Fatalf("error getting tagged image id: %v", err)
 	}
@@ -438,7 +438,7 @@ func (s *DockerRegistrySuite) TestDeleteImageByIDOnlyPulledByDigest(c *check.C) 
 	dockerCmd(c, "pull", imageReference)
 	// just in case...
 
-	imageID, err := inspectField(imageReference, "Id")
+	imageID, err := inspectField(imageReference, "ID")
 	if err != nil {
 		c.Fatalf("error inspecting image id: %v", err)
 	}

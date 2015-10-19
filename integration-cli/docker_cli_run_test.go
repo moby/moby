@@ -3184,7 +3184,7 @@ func (s *DockerSuite) TestRunCreateContainerFailedCleanUp(c *check.C) {
 	_, _, err := dockerCmdWithError("run", "--name", name, "--link", "nothing:nothing", "busybox")
 	c.Assert(err, check.NotNil, check.Commentf("Expected docker run to fail!"))
 
-	containerID, err := inspectField(name, "Id")
+	containerID, err := inspectField(name, "ID")
 	c.Assert(containerID, check.Equals, "", check.Commentf("Expected not to have this container: %s!", containerID))
 }
 
