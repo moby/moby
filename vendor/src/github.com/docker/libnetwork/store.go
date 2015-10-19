@@ -82,6 +82,38 @@ func (c *controller) getNetworkFromStore(nid string) (*network, error) {
 	return nil, fmt.Errorf("network %s not found", nid)
 }
 
+func (c *controller) getNetworksForScope(scope string) ([]*network, error) {
+	var nl []*network
+
+	store := c.getStore(scope)
+	if store == nil {
+		return nil, nil
+	}
+
+	kvol, err := store.List(datastore.Key(datastore.NetworkKeyPrefix),
+		&network{ctrlr: c})
+	if err != nil && err != datastore.ErrKeyNotFound {
+		return nil, fmt.Errorf("failed to get networks for scope %s: %v",
+			scope, err)
+	}
+
+	for _, kvo := range kvol {
+		n := kvo.(*network)
+		n.ctrlr = c
+
+		ec := &endpointCnt{n: n}
+		err = store.GetObject(datastore.Key(ec.Key()...), ec)
+		if err != nil {
+			return nil, fmt.Errorf("could not find endpoint count key %s for network %s while listing: %v", datastore.Key(ec.Key()...), n.Name(), err)
+		}
+
+		n.epCnt = ec
+		nl = append(nl, n)
+	}
+
+	return nl, nil
+}
+
 func (c *controller) getNetworksFromStore() ([]*network, error) {
 	var nl []*network
 
