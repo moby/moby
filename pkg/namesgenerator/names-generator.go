@@ -190,6 +190,9 @@ var (
 		// Euclid invented geometry. https://en.wikipedia.org/wiki/Euclid
 		"euclid",
 
+		// Leonhard Euler invented large parts of modern mathematics. https://de.wikipedia.org/wiki/Leonhard_Euler
+		"euler",
+
 		// Pierre de Fermat pioneered several aspects of modern mathematics. https://en.wikipedia.org/wiki/Pierre_de_Fermat
 		"fermat",
 
@@ -331,9 +334,6 @@ var (
 		// Johanna Mestorf - German prehistoric archaeologist and first female museum director in Germany - https://en.wikipedia.org/wiki/Johanna_Mestorf
 		"mestorf",
 
-		// Lise Meitner was an Austrian physicist who worked on radioactivity and nuclear physics. She played a major role in the discovery of nuclear fission. https://en.wikipedia.org/wiki/Lise_Meitner
-		"mietner",
-
 		// Maryam Mirzakhani - an Iranian mathematician and the first woman to win the Fields Medal. https://en.wikipedia.org/wiki/Maryam_Mirzakhani
 		"mirzakhani",
 
@@ -345,6 +345,9 @@ var (
 
 		// Alfred Nobel - a Swedish chemist, engineer, innovator, and armaments manufacturer (inventor of dynamite) - https://en.wikipedia.org/wiki/Alfred_Nobel
 		"nobel",
+
+		// Emmy Noether, German mathematician. Noether's Theorem is named after her. https://en.wikipedia.org/wiki/Emmy_Noether
+		"noether",
 
 		// Poppy Northcutt. Poppy Northcutt was the first woman to work as part of NASA’s Mission Control. http://www.businessinsider.com/poppy-northcutt-helped-apollo-astronauts-2014-12?op=1
 		"northcutt",
