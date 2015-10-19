@@ -1723,3 +1723,37 @@ func (s *DockerDaemonSuite) TestDaemonStartWithoutHost(c *check.C) {
 	}()
 	c.Assert(s.d.Start(), check.IsNil)
 }
+
+func (s *DockerDaemonSuite) TestDaemonStartWithDefalutTlsHost(c *check.C) {
+	s.d.useDefaultTLSHost = true
+	defer func() {
+		s.d.useDefaultTLSHost = false
+	}()
+	if err := s.d.Start(
+		"--tlsverify",
+		"--tlscacert", "fixtures/https/ca.pem",
+		"--tlscert", "fixtures/https/server-cert.pem",
+		"--tlskey", "fixtures/https/server-key.pem"); err != nil {
+		c.Fatalf("Could not start daemon: %v", err)
+	}
+
+	// The client with --tlsverify should also use default host localhost:2376
+	tmpHost := os.Getenv("DOCKER_HOST")
+	defer func() {
+		os.Setenv("DOCKER_HOST", tmpHost)
+	}()
+
+	os.Setenv("DOCKER_HOST", "")
+
+	out, _ := dockerCmd(
+		c,
+		"--tlsverify",
+		"--tlscacert", "fixtures/https/ca.pem",
+		"--tlscert", "fixtures/https/client-cert.pem",
+		"--tlskey", "fixtures/https/client-key.pem",
+		"version",
+	)
+	if !strings.Contains(out, "Server") {
+		c.Fatalf("docker version should return information of server side")
+	}
+}

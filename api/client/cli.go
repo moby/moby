@@ -112,8 +112,13 @@ func NewDockerCli(in io.ReadCloser, out, err io.Writer, clientFlags *cli.ClientF
 			return errors.New("Please specify only one -H")
 		}
 
+		defaultHost := opts.DefaultTCPHost
+		if clientFlags.Common.TLSOptions != nil {
+			defaultHost = opts.DefaultTLSHost
+		}
+
 		var e error
-		if hosts[0], e = opts.ParseHost(hosts[0]); e != nil {
+		if hosts[0], e = opts.ParseHost(defaultHost, hosts[0]); e != nil {
 			return e
 		}
 
