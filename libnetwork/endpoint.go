@@ -708,3 +708,25 @@ func (ep *endpoint) releaseAddress() {
 		}
 	}
 }
+
+func (c *controller) cleanupLocalEndpoints() {
+	nl, err := c.getNetworksForScope(datastore.LocalScope)
+	if err != nil {
+		log.Warnf("Could not get list of networks during endpoint cleanup: %v", err)
+		return
+	}
+
+	for _, n := range nl {
+		epl, err := n.getEndpointsFromStore()
+		if err != nil {
+			log.Warnf("Could not get list of endpoints in network %s during endpoint cleanup: %v", n.name, err)
+			continue
+		}
+
+		for _, ep := range epl {
+			if err := ep.Delete(); err != nil {
+				log.Warnf("Could not delete local endpoint %s during endpoint cleanup: %v", ep.name, err)
+			}
+		}
+	}
+}
