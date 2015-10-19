@@ -17,6 +17,12 @@ const (
 	NetworkByName
 )
 
+// NetworkControllerEnabled checks if the networking stack is enabled.
+// This feature depends on OS primitives and it's dissabled in systems like Windows.
+func (daemon *Daemon) NetworkControllerEnabled() bool {
+	return daemon.netController != nil
+}
+
 // FindNetwork function finds a network for a given string that can represent network name or id
 func (daemon *Daemon) FindNetwork(idName string) (libnetwork.Network, error) {
 	// Find by Name
