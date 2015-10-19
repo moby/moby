@@ -37,7 +37,7 @@ func (p *v2Puller) Pull(tag string) (fallback bool, err error) {
 	// TODO(tiborvass): was ReceiveTimeout
 	p.repo, err = NewV2Repository(p.repoInfo, p.endpoint, p.config.MetaHeaders, p.config.AuthConfig, "pull")
 	if err != nil {
-		logrus.Debugf("Error getting v2 registry: %v", err)
+		logrus.Warnf("Error getting v2 registry: %v", err)
 		return true, err
 	}
 
