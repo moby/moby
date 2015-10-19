@@ -536,7 +536,10 @@ func (ep *endpoint) deleteEndpoint() error {
 		if _, ok := err.(types.ForbiddenError); ok {
 			return err
 		}
-		log.Warnf("driver error deleting endpoint %s : %v", name, err)
+
+		if _, ok := err.(types.MaskableError); !ok {
+			log.Warnf("driver error deleting endpoint %s : %v", name, err)
+		}
 	}
 
 	return nil
