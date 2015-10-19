@@ -88,12 +88,11 @@ func (s *router) getEvents(ctx context.Context, w http.ResponseWriter, r *http.R
 	}
 
 	enc := buildOutputEncoder(w)
-	d := s.daemon
-	es := d.EventsService
-	current, l := es.Subscribe()
-	defer es.Evict(l)
 
-	eventFilter := d.GetEventFilter(ef)
+	current, l, cancel := s.daemon.SubscribeToEvents()
+	defer cancel()
+
+	eventFilter := s.daemon.GetEventFilter(ef)
 	handleEvent := func(ev *jsonmessage.JSONMessage) error {
 		if eventFilter.Include(ev) {
 			if err := enc.Encode(ev); err != nil {

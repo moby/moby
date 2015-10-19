@@ -39,6 +39,7 @@ import (
 	"github.com/docker/docker/pkg/graphdb"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/ioutils"
+	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/pkg/namesgenerator"
 	"github.com/docker/docker/pkg/nat"
 	"github.com/docker/docker/pkg/parsers/filters"
@@ -546,6 +547,11 @@ func (daemon *Daemon) GetEventFilter(filter filters.Args) *events.Filter {
 		}
 	}
 	return events.NewFilter(filter, daemon.GetLabels)
+}
+
+// SubscribeToEvents returns the currently record of events, a channel to stream new events from, and a function to cancel the stream of events.
+func (daemon *Daemon) SubscribeToEvents() ([]*jsonmessage.JSONMessage, chan interface{}, func()) {
+	return daemon.EventsService.Subscribe()
 }
 
 // GetLabels for a container or image id
