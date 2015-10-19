@@ -50,6 +50,7 @@ import (
 	"github.com/docker/docker/pkg/truncindex"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/runconfig"
+	"github.com/docker/docker/utils"
 	volumedrivers "github.com/docker/docker/volume/drivers"
 	"github.com/docker/docker/volume/local"
 	"github.com/docker/docker/volume/store"
@@ -1026,7 +1027,11 @@ func (daemon *Daemon) Graph() *graph.Graph {
 // imageName. If force is true, an existing tag with the same name may be
 // overwritten.
 func (daemon *Daemon) TagImage(repoName, tag, imageName string, force bool) error {
-	return daemon.repositories.Tag(repoName, tag, imageName, force)
+	if err := daemon.repositories.Tag(repoName, tag, imageName, force); err != nil {
+		return err
+	}
+	daemon.EventsService.Log("tag", utils.ImageReference(repoName, tag), "")
+	return nil
 }
 
 // PullImage initiates a pull operation. image is the repository name to pull, and

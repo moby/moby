@@ -414,13 +414,13 @@ func (s *DockerSuite) TestEventsFilterLabels(c *check.C) {
 func (s *DockerSuite) TestEventsFilterImageLabels(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	since := daemonTime(c).Unix()
-	name := "labelfilterimage"
+	name := "labelfiltertest"
 	label := "io.docker.testing=image"
 
 	// Build a test image.
-	_, err := buildImage(name, `
+	_, err := buildImage(name, fmt.Sprintf(`
 		FROM busybox:latest
-		LABEL io.docker.testing=image`, true)
+		LABEL %s`, label), true)
 	if err != nil {
 		c.Fatalf("Couldn't create image: %q", err)
 	}
@@ -437,7 +437,9 @@ func (s *DockerSuite) TestEventsFilterImageLabels(c *check.C) {
 		"--filter", fmt.Sprintf("label=%s", label))
 
 	events := strings.Split(strings.TrimSpace(out), "\n")
-	c.Assert(len(events), checker.Equals, 2, check.Commentf("Events == %s", events))
+
+	// 2 events from the "docker tag" command, another one is from "docker build"
+	c.Assert(len(events), checker.Equals, 3, check.Commentf("Events == %s", events))
 	for _, e := range events {
 		c.Assert(e, checker.Contains, "labelfiltertest")
 	}
