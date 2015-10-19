@@ -192,6 +192,7 @@ func New(cfgOptions ...config.Option) (NetworkController, error) {
 	}
 
 	c.sandboxCleanup()
+	c.cleanupLocalEndpoints()
 
 	if err := c.startExternalKeyListener(); err != nil {
 		return nil, err
