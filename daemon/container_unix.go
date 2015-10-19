@@ -894,11 +894,7 @@ func (container *Container) allocateNetwork() error {
 
 	for _, n := range settings {
 		if err := container.connectToNetwork(n, updateSettings); err != nil {
-			if updateSettings {
-				return err
-			}
-			// dont fail a container restart case if the user removed the network
-			logrus.Warnf("Could not connect container %s : %v", container.ID, err)
+			return err
 		}
 	}
 
