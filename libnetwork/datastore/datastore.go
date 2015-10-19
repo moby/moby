@@ -265,6 +265,13 @@ func (ds *datastore) Watch(kvObject KVObject, stopCh <-chan struct{}) (<-chan KV
 				close(sCh)
 				return
 			case kvPair := <-kvpCh:
+				// If the backend KV store gets reset libkv's go routine
+				// for the watch can exit resulting in a nil value in
+				// channel.
+				if kvPair == nil {
+					close(sCh)
+					return
+				}
 				dstO := ctor.New()
 
 				if err := dstO.SetValue(kvPair.Value); err != nil {
