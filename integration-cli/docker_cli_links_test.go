@@ -2,10 +2,10 @@ package main
 
 import (
 	"fmt"
-	"reflect"
 	"regexp"
 	"strings"
 
+	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/go-check/check"
 )
 
@@ -13,12 +13,8 @@ func (s *DockerSuite) TestLinksPingUnlinkedContainers(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	_, exitCode, err := dockerCmdWithError("run", "--rm", "busybox", "sh", "-c", "ping -c 1 alias1 -W 1 && ping -c 1 alias2 -W 1")
 
-	if exitCode == 0 {
-		c.Fatal("run ping did not fail")
-	} else if exitCode != 1 {
-		c.Fatalf("run ping failed with errors: %v", err)
-	}
-
+	// run ping failed with error
+	c.Assert(exitCode, checker.Equals, 1, check.Commentf("error: %v", err))
 }
 
 // Test for appropriate error when calling --link with an invalid target container
@@ -26,13 +22,10 @@ func (s *DockerSuite) TestLinksInvalidContainerTarget(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	out, _, err := dockerCmdWithError("run", "--link", "bogus:alias", "busybox", "true")
 
-	if err == nil {
-		c.Fatal("an invalid container target should produce an error")
-	}
-	if !strings.Contains(out, "Could not get container") {
-		c.Fatalf("error output expected 'Could not get container', but got %q instead; err: %v", out, err)
-	}
-
+	// an invalid container target should produce an error
+	c.Assert(err, checker.NotNil, check.Commentf("out: %s", out))
+	// an invalid container target should produce an error
+	c.Assert(out, checker.Contains, "Could not get container")
 }
 
 func (s *DockerSuite) TestLinksPingLinkedContainers(c *check.C) {
@@ -76,22 +69,14 @@ func (s *DockerSuite) TestLinksInspectLinksStarted(c *check.C) {
 	dockerCmd(c, "run", "-d", "--name", "container2", "busybox", "top")
 	dockerCmd(c, "run", "-d", "--name", "testinspectlink", "--link", "container1:alias1", "--link", "container2:alias2", "busybox", "top")
 	links, err := inspectFieldJSON("testinspectlink", "HostConfig.Links")
-	if err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(err, checker.IsNil)
 
 	err = unmarshalJSON([]byte(links), &result)
-	if err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(err, checker.IsNil)
 
 	output := convertSliceOfStringsToMap(result)
 
-	equal := reflect.DeepEqual(output, expected)
-
-	if !equal {
-		c.Fatalf("Links %s, expected %s", result, expected)
-	}
+	c.Assert(output, checker.DeepEquals, expected)
 }
 
 func (s *DockerSuite) TestLinksInspectLinksStopped(c *check.C) {
@@ -104,23 +89,14 @@ func (s *DockerSuite) TestLinksInspectLinksStopped(c *check.C) {
 	dockerCmd(c, "run", "-d", "--name", "container2", "busybox", "top")
 	dockerCmd(c, "run", "-d", "--name", "testinspectlink", "--link", "container1:alias1", "--link", "container2:alias2", "busybox", "true")
 	links, err := inspectFieldJSON("testinspectlink", "HostConfig.Links")
-	if err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(err, checker.IsNil)
 
 	err = unmarshalJSON([]byte(links), &result)
-	if err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(err, checker.IsNil)
 
 	output := convertSliceOfStringsToMap(result)
 
-	equal := reflect.DeepEqual(output, expected)
-
-	if !equal {
-		c.Fatalf("Links %s, but expected %s", result, expected)
-	}
-
+	c.Assert(output, checker.DeepEquals, expected)
 }
 
 func (s *DockerSuite) TestLinksNotStartedParentNotFail(c *check.C) {
@@ -141,22 +117,15 @@ func (s *DockerSuite) TestLinksHostsFilesInject(c *check.C) {
 	out, _ = dockerCmd(c, "run", "-itd", "--name", "two", "--link", "one:onetwo", "busybox", "top")
 	idTwo := strings.TrimSpace(out)
 
-	c.Assert(waitRun(idTwo), check.IsNil)
+	c.Assert(waitRun(idTwo), checker.IsNil)
 
 	contentOne, err := readContainerFileWithExec(idOne, "/etc/hosts")
-	if err != nil {
-		c.Fatal(err, string(contentOne))
-	}
+	c.Assert(err, checker.IsNil, check.Commentf("contentOne: %s", string(contentOne)))
 
 	contentTwo, err := readContainerFileWithExec(idTwo, "/etc/hosts")
-	if err != nil {
-		c.Fatal(err, string(contentTwo))
-	}
-
-	if !strings.Contains(string(contentTwo), "onetwo") {
-		c.Fatal("Host is not present in updated hosts file", string(contentTwo))
-	}
-
+	c.Assert(err, checker.IsNil, check.Commentf("contentTwo: %s", string(contentTwo)))
+	// Host is not present in updated hosts file
+	c.Assert(string(contentTwo), checker.Contains, "onetwo")
 }
 
 func (s *DockerSuite) TestLinksUpdateOnRestart(c *check.C) {
@@ -170,50 +139,42 @@ func (s *DockerSuite) TestLinksUpdateOnRestart(c *check.C) {
 	if err != nil {
 		c.Fatal(err)
 	}
+	c.Assert(err, checker.IsNil)
 	content, err := readContainerFileWithExec(id, "/etc/hosts")
-	if err != nil {
-		c.Fatal(err, string(content))
-	}
+	c.Assert(err, checker.IsNil)
+
 	getIP := func(hosts []byte, hostname string) string {
 		re := regexp.MustCompile(fmt.Sprintf(`(\S*)\t%s`, regexp.QuoteMeta(hostname)))
 		matches := re.FindSubmatch(hosts)
-		if matches == nil {
-			c.Fatalf("Hostname %s have no matches in hosts", hostname)
-		}
+		c.Assert(matches, checker.NotNil, check.Commentf("Hostname %s have no matches in hosts", hostname))
 		return string(matches[1])
 	}
-	if ip := getIP(content, "one"); ip != realIP {
-		c.Fatalf("For 'one' alias expected IP: %s, got: %s", realIP, ip)
-	}
-	if ip := getIP(content, "onetwo"); ip != realIP {
-		c.Fatalf("For 'onetwo' alias expected IP: %s, got: %s", realIP, ip)
-	}
+	ip := getIP(content, "one")
+	c.Assert(ip, checker.Equals, realIP)
+
+	ip = getIP(content, "onetwo")
+	c.Assert(ip, checker.Equals, realIP)
+
 	dockerCmd(c, "restart", "one")
 	realIP, err = inspectField("one", "NetworkSettings.IPAddress")
-	if err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(err, checker.IsNil)
+
 	content, err = readContainerFileWithExec(id, "/etc/hosts")
-	if err != nil {
-		c.Fatal(err, string(content))
-	}
-	if ip := getIP(content, "one"); ip != realIP {
-		c.Fatalf("For 'one' alias expected IP: %s, got: %s", realIP, ip)
-	}
-	if ip := getIP(content, "onetwo"); ip != realIP {
-		c.Fatalf("For 'onetwo' alias expected IP: %s, got: %s", realIP, ip)
-	}
+	c.Assert(err, checker.IsNil, check.Commentf("content: %s", string(content)))
+	ip = getIP(content, "one")
+	c.Assert(ip, checker.Equals, realIP)
+
+	ip = getIP(content, "onetwo")
+	c.Assert(ip, checker.Equals, realIP)
 }
 
 func (s *DockerSuite) TestLinksEnvs(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "run", "-d", "-e", "e1=", "-e", "e2=v2", "-e", "e3=v3=v3", "--name=first", "busybox", "top")
 	out, _ := dockerCmd(c, "run", "--name=second", "--link=first:first", "busybox", "env")
-	if !strings.Contains(out, "FIRST_ENV_e1=\n") ||
-		!strings.Contains(out, "FIRST_ENV_e2=v2") ||
-		!strings.Contains(out, "FIRST_ENV_e3=v3=v3") {
-		c.Fatalf("Incorrect output: %s", out)
-	}
+	c.Assert(out, checker.Contains, "FIRST_ENV_e1=\n")
+	c.Assert(out, checker.Contains, "FIRST_ENV_e2=v2")
+	c.Assert(out, checker.Contains, "FIRST_ENV_e3=v3=v3")
 }
 
 func (s *DockerSuite) TestLinkShortDefinition(c *check.C) {
@@ -221,31 +182,32 @@ func (s *DockerSuite) TestLinkShortDefinition(c *check.C) {
 	out, _ := dockerCmd(c, "run", "-d", "--name", "shortlinkdef", "busybox", "top")
 
 	cid := strings.TrimSpace(out)
-	c.Assert(waitRun(cid), check.IsNil)
+	c.Assert(waitRun(cid), checker.IsNil)
 
 	out, _ = dockerCmd(c, "run", "-d", "--name", "link2", "--link", "shortlinkdef", "busybox", "top")
 
 	cid2 := strings.TrimSpace(out)
-	c.Assert(waitRun(cid2), check.IsNil)
+	c.Assert(waitRun(cid2), checker.IsNil)
 
 	links, err := inspectFieldJSON(cid2, "HostConfig.Links")
-	c.Assert(err, check.IsNil)
-	c.Assert(links, check.Equals, "[\"/shortlinkdef:/link2/shortlinkdef\"]")
+	c.Assert(err, checker.IsNil)
+	c.Assert(links, checker.Equals, "[\"/shortlinkdef:/link2/shortlinkdef\"]")
 }
 
 func (s *DockerSuite) TestLinksNetworkHostContainer(c *check.C) {
 	testRequires(c, DaemonIsLinux, NotUserNamespace)
 	dockerCmd(c, "run", "-d", "--net", "host", "--name", "host_container", "busybox", "top")
 	out, _, err := dockerCmdWithError("run", "--name", "should_fail", "--link", "host_container:tester", "busybox", "true")
-	if err == nil || !strings.Contains(out, "--net=host can't be used with links. This would result in undefined behavior") {
-		c.Fatalf("Running container linking to a container with --net host should have failed: %s", out)
-	}
+
+	// Running container linking to a container with --net host should have failed
+	c.Assert(err, checker.NotNil, check.Commentf("out: %s", out))
+	// Running container linking to a container with --net host should have failed
+	c.Assert(out, checker.Contains, "--net=host can't be used with links. This would result in undefined behavior")
 }
 
 func (s *DockerSuite) TestLinksEtcHostsRegularFile(c *check.C) {
 	testRequires(c, DaemonIsLinux, NotUserNamespace)
 	out, _ := dockerCmd(c, "run", "--net=host", "busybox", "ls", "-la", "/etc/hosts")
-	if !strings.HasPrefix(out, "-") {
-		c.Errorf("/etc/hosts should be a regular file")
-	}
+	// /etc/hosts should be a regular file
+	c.Assert(out, checker.Matches, "^-.+\n")
 }
