@@ -6,6 +6,7 @@
 package daemon
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -18,6 +19,8 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/distribution/digest"
+	"github.com/docker/distribution/manifest"
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/cliconfig"
@@ -1092,6 +1095,103 @@ func (daemon *Daemon) ImageHistory(name string) ([]*types.ImageHistory, error) {
 // be used.
 func (daemon *Daemon) GetImage(name string) (*image.Image, error) {
 	return daemon.repositories.LookupImage(name)
+}
+
+func (daemon *Daemon) getImageDigest(img string) (digest.Digest, error) {
+	image, err := daemon.graph.Get(img)
+	if err != nil {
+		return "", err
+	}
+	arch, err := daemon.graph.TarLayer(image)
+	if err != nil {
+		return "", err
+	}
+	defer arch.Close()
+	digester := digest.Canonical.New()
+	_, err = io.Copy(digester.Hash(), arch)
+	if err != nil {
+		return "", err
+	}
+
+	return digester.Digest(), nil
+}
+
+func (daemon *Daemon) GetImageManifest(name, repository, tag string) ([]byte, error) {
+	logrus.Debugf("name: %q repository: %q tag: %q", name, repository, tag)
+
+	image, error := daemon.repositories.LookupImage(name)
+	if error != nil {
+		return nil, fmt.Errorf("Invalid image name %q", name)
+	}
+
+	layersSeen := make(map[string]bool)
+
+	layer, err := daemon.graph.Get(image.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	m := &manifest.Manifest{
+		Versioned: manifest.Versioned{
+			SchemaVersion: 1,
+		},
+		Name:         repository,
+		Tag:          tag,
+		Architecture: layer.Architecture,
+		FSLayers:     []manifest.FSLayer{},
+		History:      []manifest.History{},
+	}
+
+	var metadata runconfig.Config
+	if layer != nil && layer.Config != nil {
+		metadata = *layer.Config
+	}
+
+	for ; layer != nil; layer, err = daemon.graph.GetParent(layer) {
+		if err != nil {
+			return nil, err
+		}
+
+		if layersSeen[layer.ID] {
+			break
+		}
+
+		if layer.Config != nil && metadata.Image != layer.ID {
+			if err := runconfig.Merge(&metadata, layer.Config); err != nil {
+				return nil, err
+			}
+		}
+
+		dgst, err := daemon.graph.GetLayerDigest(layer.ID)
+		if err != nil {
+			logrus.Debugf("Error getting digest: %s", err)
+		}
+
+		if dgst == "" {
+			if dgst, err = daemon.getImageDigest(layer.ID); err != nil {
+				return nil, fmt.Errorf("Error computing digest for: %s: %s", layer.ID, err)
+			}
+
+			daemon.graph.SetLayerDigest(layer.ID, dgst)
+		}
+
+		jsonData, err := daemon.graph.GenerateV1CompatibilityChain(layer.ID)
+		if err != nil {
+			return nil, fmt.Errorf("cannot retrieve the path for %s: %s", layer.ID, err)
+		}
+
+		m.FSLayers = append(m.FSLayers, manifest.FSLayer{BlobSum: dgst})
+		m.History = append(m.History, manifest.History{V1Compatibility: string(jsonData)})
+
+		layersSeen[layer.ID] = true
+	}
+
+	obj, err := json.MarshalIndent(m, "", "   ")
+	if err == nil {
+		return obj, nil
+	}
+
+	return nil, err
 }
 
 func (daemon *Daemon) config() *Config {

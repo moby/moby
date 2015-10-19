@@ -106,6 +106,7 @@ func (r *router) initRoutes() {
 		NewGetRoute("/images/{name:.*}/get", r.getImagesGet),
 		NewGetRoute("/images/{name:.*}/history", r.getImagesHistory),
 		NewGetRoute("/images/{name:.*}/json", r.getImagesByName),
+		NewGetRoute("/images/{name:.*}/manifest", r.getImagesManifest),
 		NewGetRoute("/containers/json", r.getContainersJSON),
 		NewGetRoute("/containers/{name:.*}/export", r.getContainersExport),
 		NewGetRoute("/containers/{name:.*}/changes", r.getContainersChanges),
