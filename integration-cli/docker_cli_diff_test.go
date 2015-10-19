@@ -3,6 +3,7 @@ package main
 import (
 	"strings"
 
+	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/go-check/check"
 )
 
@@ -22,9 +23,7 @@ func (s *DockerSuite) TestDiffFilenameShownInOutput(c *check.C) {
 			break
 		}
 	}
-	if !found {
-		c.Errorf("couldn't find the new file in docker diff's output: %v", out)
-	}
+	c.Assert(found, checker.True)
 }
 
 // test to ensure GH #3840 doesn't occur any more
@@ -43,9 +42,7 @@ func (s *DockerSuite) TestDiffEnsureDockerinitFilesAreIgnored(c *check.C) {
 		out, _ = dockerCmd(c, "diff", cleanCID)
 
 		for _, filename := range dockerinitFiles {
-			if strings.Contains(out, filename) {
-				c.Errorf("found file which should've been ignored %v in diff output", filename)
-			}
+			c.Assert(out, checker.Not(checker.Contains), filename)
 		}
 	}
 }
@@ -78,15 +75,13 @@ func (s *DockerSuite) TestDiffEnsureOnlyKmsgAndPtmx(c *check.C) {
 	}
 
 	for _, line := range strings.Split(out, "\n") {
-		if line != "" && !expected[line] {
-			c.Errorf("%q is shown in the diff but shouldn't", line)
-		}
+		c.Assert(line == "" || expected[line], checker.True)
 	}
 }
 
 // https://github.com/docker/docker/pull/14381#discussion_r33859347
 func (s *DockerSuite) TestDiffEmptyArgClientError(c *check.C) {
 	out, _, err := dockerCmdWithError("diff", "")
-	c.Assert(err, check.NotNil)
-	c.Assert(strings.TrimSpace(out), check.Equals, "Container name cannot be empty")
+	c.Assert(err, checker.NotNil)
+	c.Assert(strings.TrimSpace(out), checker.Equals, "Container name cannot be empty")
 }
