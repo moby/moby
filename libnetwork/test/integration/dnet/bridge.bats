@@ -64,6 +64,23 @@ function test_single_network_connectivity() {
     done
 }
 
+@test "Test default network dnet ungraceful restart" {
+    skip_for_circleci
+
+    echo $(docker ps)
+
+    for iter in `seq 1 2`;
+    do
+	if [ "$iter" -eq 1 ]; then
+	    test_single_network_connectivity bridge 3 skip
+	    docker restart dnet-1-bridge
+	    wait_for_dnet $(inst_id2port 1) dnet-1-bridge
+	else
+	    test_single_network_connectivity bridge 3
+	fi
+    done
+}
+
 @test "Test bridge network" {
     skip_for_circleci
 
