@@ -132,6 +132,7 @@ type execOutput struct {
 // Run implements the exec driver Driver interface,
 // it calls libcontainer APIs to run a container.
 func (d *Driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, hooks execdriver.Hooks) (execdriver.ExitStatus, error) {
+	destroyed := false
 	// take the Command and populate the libcontainer.Config from it
 	container, err := d.createContainer(c, hooks)
 	if err != nil {
@@ -157,7 +158,9 @@ func (d *Driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, hooks execd
 	d.activeContainers[c.ID] = cont
 	d.Unlock()
 	defer func() {
-		cont.Destroy()
+		if !destroyed {
+			cont.Destroy()
+		}
 		d.cleanContainer(c.ID)
 	}()
 
@@ -191,6 +194,7 @@ func (d *Driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, hooks execd
 		ps = execErr.ProcessState
 	}
 	cont.Destroy()
+	destroyed = true
 	_, oomKill := <-oom
 	return execdriver.ExitStatus{ExitCode: utils.ExitStatus(ps.Sys().(syscall.WaitStatus)), OOMKilled: oomKill}, nil
 }
