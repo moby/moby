@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/go-check/check"
 	"github.com/kr/pty"
 )
@@ -21,9 +22,7 @@ func (s *DockerSuite) TestExecInteractiveStdinClose(c *check.C) {
 
 	cmd := exec.Command(dockerBinary, "exec", "-i", contID, "echo", "-n", "hello")
 	p, err := pty.Start(cmd)
-	if err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(err, checker.IsNil)
 
 	b := bytes.NewBuffer(nil)
 	go io.Copy(b, p)
@@ -33,12 +32,9 @@ func (s *DockerSuite) TestExecInteractiveStdinClose(c *check.C) {
 
 	select {
 	case err := <-ch:
-		if err != nil {
-			c.Errorf("cmd finished with error %v", err)
-		}
-		if output := b.String(); strings.TrimSpace(output) != "hello" {
-			c.Fatalf("Unexpected output %s", output)
-		}
+		c.Assert(err, checker.IsNil)
+		output := b.String()
+		c.Assert(strings.TrimSpace(output), checker.Equals, "hello")
 	case <-time.After(1 * time.Second):
 		c.Fatal("timed out running docker exec")
 	}
@@ -50,11 +46,11 @@ func (s *DockerSuite) TestExecTTY(c *check.C) {
 
 	cmd := exec.Command(dockerBinary, "exec", "-it", "test", "sh")
 	p, err := pty.Start(cmd)
-	c.Assert(err, check.IsNil)
+	c.Assert(err, checker.IsNil)
 	defer p.Close()
 
 	_, err = p.Write([]byte("cat /foo && exit\n"))
-	c.Assert(err, check.IsNil)
+	c.Assert(err, checker.IsNil)
 
 	chErr := make(chan error)
 	go func() {
@@ -62,13 +58,13 @@ func (s *DockerSuite) TestExecTTY(c *check.C) {
 	}()
 	select {
 	case err := <-chErr:
-		c.Assert(err, check.IsNil)
+		c.Assert(err, checker.IsNil)
 	case <-time.After(3 * time.Second):
 		c.Fatal("timeout waiting for exec to exit")
 	}
 
 	buf := make([]byte, 256)
 	read, err := p.Read(buf)
-	c.Assert(err, check.IsNil)
-	c.Assert(bytes.Contains(buf, []byte("hello")), check.Equals, true, check.Commentf(string(buf[:read])))
+	c.Assert(err, checker.IsNil)
+	c.Assert(bytes.Contains(buf, []byte("hello")), checker.Equals, true, check.Commentf(string(buf[:read])))
 }
