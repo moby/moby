@@ -48,6 +48,9 @@ func (daemon *Daemon) ContainerInspect120(name string) (*v1p20.ContainerJSON, er
 	mountPoints := addMountPoints(container)
 	config := &v1p20.ContainerConfig{
 		container.Config,
+		container.Config.MacAddress,
+		container.Config.NetworkDisabled,
+		container.Config.ExposedPorts,
 		container.hostConfig.VolumeDriver,
 	}
 
