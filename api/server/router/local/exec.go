@@ -60,6 +60,9 @@ func (s *router) postContainerExecStart(ctx context.Context, w http.ResponseWrit
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
+	if err := httputils.CheckForJSON(r); err != nil {
+		return err
+	}
 	var (
 		execName                  = vars["name"]
 		stdin, inStream           io.ReadCloser
