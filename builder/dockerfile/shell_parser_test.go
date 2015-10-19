@@ -15,7 +15,7 @@ func TestShellParser(t *testing.T) {
 	defer file.Close()
 
 	scanner := bufio.NewScanner(file)
-	envs := []string{"PWD=/home", "SHELL=bash"}
+	envs := []string{"PWD=/home", "SHELL=bash", "KOREAN=한국어"}
 	for scanner.Scan() {
 		line := scanner.Text()
 
