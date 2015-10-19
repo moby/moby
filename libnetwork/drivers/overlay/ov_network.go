@@ -179,6 +179,7 @@ func (n *network) destroySandbox() {
 			}
 		}
 		sbox.Destroy()
+		n.setSandbox(nil)
 	}
 }
 
@@ -193,7 +194,7 @@ func (n *network) initSubnetSandbox(s *subnet) error {
 	if err := sbox.AddInterface(brName, "br",
 		sbox.InterfaceOptions().Address(s.gwIP),
 		sbox.InterfaceOptions().Bridge(true)); err != nil {
-		return fmt.Errorf("bridge creation in sandbox failed for subnet %q: %v", s.subnetIP.IP.String(), err)
+		return fmt.Errorf("bridge creation in sandbox failed for subnet %q: %v", s.subnetIP.String(), err)
 	}
 
 	vxlanName, err := createVxlan(n.vxlanID(s))
@@ -203,7 +204,7 @@ func (n *network) initSubnetSandbox(s *subnet) error {
 
 	if err := sbox.AddInterface(vxlanName, "vxlan",
 		sbox.InterfaceOptions().Master(brName)); err != nil {
-		return fmt.Errorf("vxlan interface creation failed for subnet %q: %v", s.subnetIP.IP.String(), err)
+		return fmt.Errorf("vxlan interface creation failed for subnet %q: %v", s.subnetIP.String(), err)
 	}
 
 	n.Lock()
