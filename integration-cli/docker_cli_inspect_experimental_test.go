@@ -4,6 +4,7 @@ package main
 
 import (
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/go-check/check"
 )
 
@@ -12,34 +13,22 @@ func (s *DockerSuite) TestInspectNamedMountPoint(c *check.C) {
 	dockerCmd(c, "run", "-d", "--name", "test", "-v", "data:/data", "busybox", "cat")
 
 	vol, err := inspectFieldJSON("test", "Mounts")
-	c.Assert(err, check.IsNil)
+	c.Assert(err, checker.IsNil)
 
 	var mp []types.MountPoint
 	err = unmarshalJSON([]byte(vol), &mp)
-	c.Assert(err, check.IsNil)
+	c.Assert(err, checker.IsNil)
 
-	if len(mp) != 1 {
-		c.Fatalf("Expected 1 mount point, was %v\n", len(mp))
-	}
+	c.Assert(mp, checker.HasLen, 1, check.Commentf("Expected 1 mount point"))
 
 	m := mp[0]
-	if m.Name != "data" {
-		c.Fatalf("Expected name data, was %s\n", m.Name)
-	}
+	c.Assert(m.Name, checker.Equals, "data", check.Commentf("Expected name data"))
 
-	if m.Driver != "local" {
-		c.Fatalf("Expected driver local, was %s\n", m.Driver)
-	}
+	c.Assert(m.Driver, checker.Equals, "local", check.Commentf("Expected driver local"))
 
-	if m.Source == "" {
-		c.Fatalf("Expected source to not be empty")
-	}
+	c.Assert(m.Source, checker.Not(checker.Equals), "", check.Commentf("Expected source to not be empty"))
 
-	if m.RW != true {
-		c.Fatalf("Expected rw to be true")
-	}
+	c.Assert(m.RW, checker.Equals, true)
 
-	if m.Destination != "/data" {
-		c.Fatalf("Expected destination /data, was %s\n", m.Destination)
-	}
+	c.Assert(m.Destination, checker.Equals, "/data", check.Commentf("Expected destination /data"))
 }
