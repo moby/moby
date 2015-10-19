@@ -169,15 +169,17 @@ func (p *v2Pusher) pushV2Tag(tag string) error {
 		// if digest was empty or not saved, or if blob does not exist on the remote repository,
 		// then fetch it.
 		if !exists {
-			if pushDigest, err := p.pushV2Image(p.repo.Blobs(context.Background()), layer); err != nil {
+			var pushDigest digest.Digest
+			if pushDigest, err = p.pushV2Image(p.repo.Blobs(context.Background()), layer); err != nil {
 				return err
-			} else if pushDigest != dgst {
+			}
+			if dgst == "" {
 				// Cache new checksum
 				if err := p.graph.SetLayerDigest(layer.ID, pushDigest); err != nil {
 					return err
 				}
-				dgst = pushDigest
 			}
+			dgst = pushDigest
 		}
 
 		// read v1Compatibility config, generate new if needed
