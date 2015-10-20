@@ -33,6 +33,8 @@ DOCKER_RUN_DOCKER := docker run --rm -it --privileged $(DOCKER_ENVS) $(DOCKER_MO
 
 DOCKER_RUN_DOCS := docker run --rm -it $(DOCS_MOUNT) -e AWS_S3_BUCKET -e NOCACHE
 
+DOCKER_FILE := $(shell go run ./distribution/gen_dockerfile.go)
+
 # for some docs workarounds (see below in "docs-build" target)
 GITCOMMIT := $(shell git rev-parse --short HEAD 2>/dev/null)
 
@@ -72,7 +74,7 @@ shell: build
 	$(DOCKER_RUN_DOCKER) bash
 
 build: bundles
-	docker build -t "$(DOCKER_IMAGE)" .
+	docker build -t "$(DOCKER_IMAGE)" -f $(DOCKER_FILE) .
 
 bundles:
 	mkdir bundles

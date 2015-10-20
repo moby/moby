@@ -23,6 +23,7 @@
 # the case. Therefore, you don't have to disable it anymore.
 #
 
+# Cut for distribution specific
 FROM ubuntu:14.04
 MAINTAINER Tianon Gravi <admwiggin@gmail.com> (@tianon)
 
@@ -33,16 +34,11 @@ RUN	echo deb http://ppa.launchpad.net/zfs-native/stable/ubuntu trusty main > /et
 RUN apt-get update && apt-get install -y \
 	apparmor \
 	aufs-tools \
-	automake \
-	bash-completion \
 	btrfs-tools \
 	build-essential \
 	createrepo \
-	curl \
 	dpkg-sig \
 	gcc-mingw-w64 \
-	git \
-	iptables \
 	libapparmor-dev \
 	libcap-dev \
 	libsqlite3-dev \
@@ -50,8 +46,6 @@ RUN apt-get update && apt-get install -y \
 	mercurial \
 	parallel \
 	pkg-config \
-	python-mock \
-	python-pip \
 	python-websocket \
 	reprepro \
 	ruby1.9.1 \
@@ -60,7 +54,17 @@ RUN apt-get update && apt-get install -y \
 	ubuntu-zfs \
 	xfsprogs \
 	libzfs-dev \
-	--no-install-recommends
+	--no-install-recommends \
+# End dependencies cut
+	automake \
+	bash-completion \
+	curl \
+	git \
+	iptables \
+	mercurial \
+	parallel \
+	python-mock \
+	python-pip
 
 # Get lvm2 source for compiling statically
 RUN git clone -b v2_02_103 https://git.fedorahosted.org/git/lvm2.git /usr/local/lvm2
@@ -72,6 +76,8 @@ RUN cd /usr/local/lvm2 \
 	&& make device-mapper \
 	&& make install_device-mapper
 # see https://git.fedorahosted.org/cgit/lvm2.git/tree/INSTALL
+
+# Sqlite3 install manually
 
 # Install lxc
 ENV LXC_VERSION 1.1.2
@@ -173,7 +179,9 @@ RUN useradd --create-home --gid docker unprivilegeduser
 
 VOLUME /var/lib/docker
 WORKDIR /go/src/github.com/docker/docker
+#  Cut for buildtags distribution specific
 ENV DOCKER_BUILDTAGS apparmor selinux
+# End buildtags cut
 
 # Let us use a .bashrc file
 RUN ln -sfv $PWD/.bashrc ~/.bashrc
@@ -184,7 +192,7 @@ RUN ln -sv $PWD/contrib/completion/bash/docker /etc/bash_completion.d/docker
 # Get useful and necessary Hub images so we can "docker load" locally instead of pulling
 COPY contrib/download-frozen-image.sh /go/src/github.com/docker/docker/contrib/
 RUN ./contrib/download-frozen-image.sh /docker-frozen-images \
-	busybox:latest@8c2e06607696bd4afb3d03b687e361cc43cf8ec1a4a725bc96e39f05ba97dd55 \
+	busybox:latest@d7057cb020844f245031d27b76cb18af05db1cc3a96a29fa7777af75f5ac91a3 \
 	hello-world:frozen@91c95931e552b11604fea91c2f537284149ec32fff0f700a4769cfd31d7696ae \
 	jess/unshare@5c9f6ea50341a2a8eb6677527f2bdedbf331ae894a41714fda770fb130f3314d
 # see also "hack/make/.ensure-frozen-images" (which needs to be updated any time this list is)
