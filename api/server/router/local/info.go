@@ -137,3 +137,17 @@ func (s *router) getEvents(ctx context.Context, w http.ResponseWriter, r *http.R
 		}
 	}
 }
+
+func (s *router) postConfigDaemon(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if err := httputils.ParseForm(r); err != nil {
+		return err
+	}
+	method := r.Form.Get("method")
+	config := r.Form.Get("config")
+
+	if err := s.daemon.ModifyDaemonConfig(method, config); err != nil {
+		return err
+	}
+
+	return nil
+}

@@ -136,6 +136,63 @@ func NewServiceConfig(options *Options) *ServiceConfig {
 	return config
 }
 
+// ModifyRegistryService add or remove insecure registry
+func (config *ServiceConfig) ModifyRegistryService(method, value string) error {
+	if method == "Add" {
+		// Check if CIDR was passed to --insecure-registry
+		_, ipnet, err := net.ParseCIDR(value)
+		if err == nil {
+			// Valid CIDR.
+			for _, ipNet := range config.InsecureRegistryCIDRs {
+				if (*net.IPNet)(ipNet).String() == ipnet.String() {
+					return nil
+				}
+			}
+			config.InsecureRegistryCIDRs = append(config.InsecureRegistryCIDRs, (*netIPNet)(ipnet))
+		} else {
+			hostport := strings.Split(value, ":")
+			if len(hostport) != 2 {
+				return fmt.Errorf("Invalid registry!")
+			}
+			// Assume `host:port` if not CIDR.
+			_, ok := config.IndexConfigs[value]
+			if ok {
+				return nil
+			}
+			config.IndexConfigs[value] = &IndexInfo{
+				Name:     value,
+				Mirrors:  make([]string, 0),
+				Secure:   false,
+				Official: false,
+			}
+		}
+		return nil
+	}
+	if method == "Remove" {
+		// Check if CIDR was passed to --insecure-registry
+		_, ipnet, err := net.ParseCIDR(value)
+		if err == nil {
+			// Valid CIDR.
+			for i, ipNet := range config.InsecureRegistryCIDRs {
+				if (*net.IPNet)(ipNet).String() == ipnet.String() {
+					config.InsecureRegistryCIDRs = append(config.InsecureRegistryCIDRs[0:i], config.InsecureRegistryCIDRs[i+1:]...)
+				}
+			}
+		} else {
+			_, ok := config.IndexConfigs[value]
+			if !ok {
+				return nil
+			}
+			delete(config.IndexConfigs, value)
+		}
+		return nil
+	}
+	if method == "Modify" {
+		return fmt.Errorf("method 'modify' not support for insecure-registry")
+	}
+	return nil
+}
+
 // isSecureIndex returns false if the provided indexName is part of the list of insecure registries
 // Insecure registries accept HTTP and/or accept HTTPS with certificates from unknown CAs.
 //

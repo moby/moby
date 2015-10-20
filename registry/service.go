@@ -160,3 +160,8 @@ func (s *Service) lookupEndpoints(repoName string) (endpoints []APIEndpoint, err
 
 	return endpoints, nil
 }
+
+// ModifyRegistryService modify the insecure regsitry
+func (s *Service) ModifyRegistryService(method, value string) error {
+	return s.Config.ModifyRegistryService(method, value)
+}

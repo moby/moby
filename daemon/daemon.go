@@ -1290,3 +1290,32 @@ func (daemon *Daemon) SearchRegistryForImages(term string,
 	headers map[string][]string) (*registry.SearchResults, error) {
 	return daemon.RegistryService.Search(term, authConfig, headers)
 }
+
+// ModifyInsecureRegistry add insecure registry in the runtime
+func (daemon *Daemon) ModifyInsecureRegistry(method, value string) error {
+	return daemon.RegistryService.ModifyRegistryService(method, value)
+}
+
+// ModifyDaemonConfig add/remove/modify some daemon config
+func (daemon *Daemon) ModifyDaemonConfig(method, config string) error {
+	if method != "Add" && method != "Remove" && method != "Modify" {
+		return fmt.Errorf("Operation method `%s` not exists, see docker config --help", method)
+	}
+	slice := strings.SplitN(config, "=", 2)
+	if len(slice) < 2 {
+		return fmt.Errorf("Invalid format `%s`, valid format should be: key=value(=bar)", config)
+	}
+	key := slice[0]
+	value := slice[1]
+	_, ok := DaemonAllowedModifedArgs[key]
+	if !ok {
+		return fmt.Errorf("Config `%s` is not support modified during daemon running", key)
+	}
+	if key == "insecure-registry" {
+		return daemon.ModifyInsecureRegistry(method, value)
+	}
+	if key == "label" {
+		return daemon.ModifyLabel(method, value)
+	}
+	return nil
+}
