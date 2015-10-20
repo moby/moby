@@ -662,7 +662,7 @@ This endpoint returns a live stream of a container's resource usage statistics.
 
       {
          "read" : "2015-01-08T22:57:31.547920715Z",
-         "network": {
+         "networks": {
                  "eth0": {
                      "rx_bytes": 5338,
                      "rx_dropped": 0,
