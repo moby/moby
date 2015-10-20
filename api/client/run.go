@@ -192,7 +192,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 
 	defer func() {
 		if *flAutoRemove {
-			if _, _, err = readBody(cli.call("DELETE", "/containers/"+createResponse.ID+"?v=1", nil, nil)); err != nil {
+			if _, _, err = readBody(cli.call("DELETE", "/containers/"+createResponse.ID, nil, nil)); err != nil {
 				fmt.Fprintf(cli.err, "Error deleting container: %s\n", err)
 			}
 		}

@@ -168,7 +168,7 @@ func (s *DockerExternalVolumeSuite) TestStartExternalNamedVolumeDriver(c *check.
 
 	c.Assert(s.ec.activations, check.Equals, 1)
 	c.Assert(s.ec.creations, check.Equals, 1)
-	c.Assert(s.ec.removals, check.Equals, 1)
+	c.Assert(s.ec.removals, check.Equals, 0)
 	c.Assert(s.ec.mounts, check.Equals, 1)
 	c.Assert(s.ec.unmounts, check.Equals, 1)
 }
@@ -189,7 +189,7 @@ func (s *DockerExternalVolumeSuite) TestStartExternalVolumeUnnamedDriver(c *chec
 
 	c.Assert(s.ec.activations, check.Equals, 1)
 	c.Assert(s.ec.creations, check.Equals, 1)
-	c.Assert(s.ec.removals, check.Equals, 1)
+	c.Assert(s.ec.removals, check.Equals, 0)
 	c.Assert(s.ec.mounts, check.Equals, 1)
 	c.Assert(s.ec.unmounts, check.Equals, 1)
 }
@@ -265,7 +265,7 @@ func (s *DockerExternalVolumeSuite) TestStartExternalNamedVolumeDriverCheckBindL
 
 	c.Assert(s.ec.activations, check.Equals, 1)
 	c.Assert(s.ec.creations, check.Equals, 1)
-	c.Assert(s.ec.removals, check.Equals, 1)
+	c.Assert(s.ec.removals, check.Equals, 0)
 	c.Assert(s.ec.mounts, check.Equals, 1)
 	c.Assert(s.ec.unmounts, check.Equals, 1)
 }
@@ -342,7 +342,7 @@ func (s *DockerExternalVolumeSuite) TestStartExternalVolumeDriverRetryNotImmedia
 
 	c.Assert(s.ec.activations, check.Equals, 1)
 	c.Assert(s.ec.creations, check.Equals, 1)
-	c.Assert(s.ec.removals, check.Equals, 1)
+	c.Assert(s.ec.removals, check.Equals, 0)
 	c.Assert(s.ec.mounts, check.Equals, 1)
 	c.Assert(s.ec.unmounts, check.Equals, 1)
 }

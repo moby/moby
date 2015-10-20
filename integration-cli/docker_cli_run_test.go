@@ -3610,3 +3610,9 @@ func (s *DockerSuite) TestRunWrongCpusetMemsFlagValue(c *check.C) {
 	expected := "Error response from daemon: Invalid value 1-42-- for cpuset mems.\n"
 	c.Assert(out, check.Equals, expected, check.Commentf("Expected output to contain %q, got %q", expected, out))
 }
+
+// Make sure that when `--rm` is used, the volume is not removed
+func (s *DockerSuite) TestRunRmKeepVolume(c *check.C) {
+	dockerCmd(c, "run", "--rm", "-v", "test:/foo", "busybox", "/bin/sh", "-c", "echo hello world")
+	dockerCmd(c, "volume", "inspect", "test")
+}
