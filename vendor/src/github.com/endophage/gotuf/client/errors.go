@@ -18,6 +18,14 @@ func (e ErrChecksumMismatch) Error() string {
 	return fmt.Sprintf("tuf: checksum for %s did not match", e.role)
 }
 
+type ErrMissingMeta struct {
+	role string
+}
+
+func (e ErrMissingMeta) Error() string {
+	return fmt.Sprintf("tuf: sha256 checksum required for %s", e.role)
+}
+
 type ErrMissingRemoteMetadata struct {
 	Name string
 }
