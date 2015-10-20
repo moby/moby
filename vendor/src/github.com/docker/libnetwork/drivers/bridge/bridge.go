@@ -989,7 +989,7 @@ func (d *driver) DeleteEndpoint(nid, eid string) error {
 	d.Unlock()
 
 	if !ok {
-		return types.NotFoundErrorf("network %s does not exist", nid)
+		return types.InternalMaskableErrorf("network %s does not exist", nid)
 	}
 	if n == nil {
 		return driverapi.ErrNoNetwork(nid)
@@ -1145,7 +1145,7 @@ func (d *driver) Leave(nid, eid string) error {
 
 	network, err := d.getNetwork(nid)
 	if err != nil {
-		return err
+		return types.InternalMaskableErrorf("%s", err)
 	}
 
 	endpoint, err := network.getEndpoint(eid)

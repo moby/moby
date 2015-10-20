@@ -188,7 +188,7 @@ func ParseKey(key string) ([]string, error) {
 }
 
 // newClient used to connect to KV Store
-func newClient(scope string, kv string, addrs string, config *store.Config, cached bool) (DataStore, error) {
+func newClient(scope string, kv string, addr string, config *store.Config, cached bool) (DataStore, error) {
 	if cached && scope != LocalScope {
 		return nil, fmt.Errorf("caching supported only for scope %s", LocalScope)
 	}
@@ -196,7 +196,10 @@ func newClient(scope string, kv string, addrs string, config *store.Config, cach
 	if config == nil {
 		config = &store.Config{}
 	}
-	store, err := libkv.NewStore(store.Backend(kv), []string{addrs}, config)
+
+	addrs := strings.Split(addr, ",")
+
+	store, err := libkv.NewStore(store.Backend(kv), addrs, config)
 	if err != nil {
 		return nil, err
 	}
@@ -262,6 +265,13 @@ func (ds *datastore) Watch(kvObject KVObject, stopCh <-chan struct{}) (<-chan KV
 				close(sCh)
 				return
 			case kvPair := <-kvpCh:
+				// If the backend KV store gets reset libkv's go routine
+				// for the watch can exit resulting in a nil value in
+				// channel.
+				if kvPair == nil {
+					close(sCh)
+					return
+				}
 				dstO := ctor.New()
 
 				if err := dstO.SetValue(kvPair.Value); err != nil {

@@ -123,6 +123,8 @@ func (sb *sandbox) storeUpdate() error {
 		ID: sb.id,
 	}
 
+retry:
+	sbs.Eps = nil
 	for _, ep := range sb.getConnectedEndpoints() {
 		eps := epState{
 			Nid: ep.getNetwork().ID(),
@@ -132,7 +134,16 @@ func (sb *sandbox) storeUpdate() error {
 		sbs.Eps = append(sbs.Eps, eps)
 	}
 
-	return sb.controller.updateToStore(sbs)
+	err := sb.controller.updateToStore(sbs)
+	if err == datastore.ErrKeyModified {
+		// When we get ErrKeyModified it is sufficient to just
+		// go back and retry.  No need to get the object from
+		// the store because we always regenerate the store
+		// state from in memory sandbox state
+		goto retry
+	}
+
+	return err
 }
 
 func (sb *sandbox) storeDelete() error {
