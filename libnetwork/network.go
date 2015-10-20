@@ -753,6 +753,10 @@ func (n *network) EndpointByID(id string) (Endpoint, error) {
 }
 
 func (n *network) updateSvcRecord(ep *endpoint, localEps []*endpoint, isAdd bool) {
+	if ep.isAnonymous() {
+		return
+	}
+
 	c := n.getController()
 	sr, ok := c.svcDb[n.ID()]
 	if !ok {
