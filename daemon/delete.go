@@ -76,21 +76,19 @@ func (daemon *Daemon) rm(container *Container, forceRemove bool) (err error) {
 		}
 	}
 
+	// Container state RemovalInProgress should be used to avoid races.
+	if err = container.setRemovalInProgress(); err != nil {
+		if err == derr.ErrorCodeAlreadyRemoving {
+			// do not fail when the removal is in progress started by other request.
+			return nil
+		}
+		return derr.ErrorCodeRmState.WithArgs(err)
+	}
+	defer container.resetRemovalInProgress()
+
 	// stop collection of stats for the container regardless
 	// if stats are currently getting collected.
 	daemon.statsCollector.stopCollection(container)
-
-	element := daemon.containers.Get(container.ID)
-	if element == nil {
-		return derr.ErrorCodeRmNotFound.WithArgs(container.ID)
-	}
-
-	// Container state RemovalInProgress should be used to avoid races.
-	if err = container.setRemovalInProgress(); err != nil {
-		return derr.ErrorCodeRmState.WithArgs(err)
-	}
-
-	defer container.resetRemovalInProgress()
 
 	if err = container.Stop(3); err != nil {
 		return err
