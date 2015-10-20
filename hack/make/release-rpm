@@ -67,7 +67,7 @@ for distro in "${distros[@]}"; do
 		fi
 
 		# copy the rpms to the packages folder
-		cp "$RPMFILE" "$REPO/$suite/Packages"
+		cp "${RPMFILE[@]}" "$REPO/$suite/Packages"
 
 		# update the repo
 		createrepo --pretty --update "$REPO/$suite"
