@@ -79,3 +79,48 @@ func TestInitializeWithVolumes(t *testing.T) {
 		t.Fatal("expected to re-initialize root with existing volumes")
 	}
 }
+
+func TestCreate(t *testing.T) {
+	rootDir, err := ioutil.TempDir("", "local-volume-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(rootDir)
+
+	r, err := New(rootDir, 0, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cases := map[string]bool{
+		"name":                  true,
+		"name-with-dash":        true,
+		"name_with_underscore":  true,
+		"name/with/slash":       false,
+		"name/with/../../slash": false,
+		"./name":                false,
+		"../name":               false,
+		"./":                    false,
+		"../":                   false,
+		"~":                     false,
+		".":                     false,
+		"..":                    false,
+		"...":                   false,
+	}
+
+	for name, success := range cases {
+		v, err := r.Create(name, nil)
+		if success {
+			if err != nil {
+				t.Fatal(err)
+			}
+			if v.Name() != name {
+				t.Fatalf("Expected volume with name %s, got %s", name, v.Name())
+			}
+		} else {
+			if err == nil {
+				t.Fatalf("Expected error creating volume with name %s, got nil", name)
+			}
+		}
+	}
+}

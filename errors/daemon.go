@@ -387,10 +387,10 @@ var (
 
 	// ErrorCodeVolumeName is generated when the name of named volume isn't valid.
 	ErrorCodeVolumeName = errcode.Register(errGroup, errcode.ErrorDescriptor{
-		Value:          "VOLUMENAME",
-		Message:        "%s looks like a relative path, but it's taken as a name. And it is not a valid name.",
-		Description:    "The name of named volume is invalid",
-		HTTPStatusCode: http.StatusInternalServerError,
+		Value:          "VOLUME_NAME_INVALID",
+		Message:        "%s includes invalid characters for a local volume name, only %s are allowed",
+		Description:    "The name of volume is invalid",
+		HTTPStatusCode: http.StatusBadRequest,
 	})
 
 	// ErrorCodeVolumeFromBlank is generated when path to a volume is blank.
