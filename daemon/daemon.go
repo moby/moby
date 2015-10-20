@@ -12,7 +12,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"regexp"
 	"runtime"
 	"strings"
 	"sync"
@@ -50,6 +49,7 @@ import (
 	"github.com/docker/docker/pkg/truncindex"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/runconfig"
+	"github.com/docker/docker/utils"
 	volumedrivers "github.com/docker/docker/volume/drivers"
 	"github.com/docker/docker/volume/local"
 	"github.com/docker/docker/volume/store"
@@ -57,8 +57,8 @@ import (
 )
 
 var (
-	validContainerNameChars   = `[a-zA-Z0-9][a-zA-Z0-9_.-]`
-	validContainerNamePattern = regexp.MustCompile(`^/?` + validContainerNameChars + `+$`)
+	validContainerNameChars   = utils.RestrictedNameChars
+	validContainerNamePattern = utils.RestrictedNamePattern
 
 	errSystemNotSupported = errors.New("The Docker daemon is not supported on this platform.")
 )
