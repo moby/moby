@@ -421,7 +421,7 @@ its root filesystem mounted as read only prohibiting any writes.
 
    When set to true Docker can allocate a pseudo-tty and attach to the standard
 input of any container. This can be used, for example, to run a throwaway
-interactive shell. The default is value is false.
+interactive shell. The default is false.
 
 The **-t** option is incompatible with a redirection of the docker client
 standard input.
