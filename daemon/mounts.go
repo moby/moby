@@ -4,7 +4,7 @@ import (
 	"strings"
 
 	derr "github.com/docker/docker/errors"
-	"github.com/docker/docker/volume/store"
+	volumestore "github.com/docker/docker/volume/store"
 )
 
 func (daemon *Daemon) prepareMountPoints(container *Container) error {
@@ -34,7 +34,7 @@ func (daemon *Daemon) removeMountPoints(container *Container, rm bool) error {
 			// not an error, but an implementation detail.
 			// This prevents docker from logging "ERROR: Volume in use"
 			// where there is another container using the volume.
-			if err != nil && err != store.ErrVolumeInUse {
+			if err != nil && !volumestore.IsInUse(err) {
 				rmErrors = append(rmErrors, err.Error())
 			}
 		}
