@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"crypto/md5"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -138,8 +139,9 @@ func TestLoadWithVolume(t *testing.T) {
 	}
 
 	hostVolumeID := stringid.GenerateNonCryptoID()
+	volumeMD5 := fmt.Sprintf("%x", md5.Sum([]byte(hostVolumeID)))
 	vfsPath := filepath.Join(tmp, "vfs", "dir", hostVolumeID)
-	volumePath := filepath.Join(tmp, "volumes", hostVolumeID)
+	volumePath := filepath.Join(tmp, "volumes", volumeMD5)
 
 	if err := os.MkdirAll(vfsPath, 0755); err != nil {
 		t.Fatal(err)
@@ -322,7 +324,8 @@ func TestLoadWithVolume17RC(t *testing.T) {
 	}
 
 	hostVolumeID := "6a3c03fc4a4e588561a543cc3bdd50089e27bd11bbb0e551e19bf735e2514101"
-	volumePath := filepath.Join(tmp, "volumes", hostVolumeID)
+	volumeMD5 := fmt.Sprintf("%x", md5.Sum([]byte(hostVolumeID)))
+	volumePath := filepath.Join(tmp, "volumes", volumeMD5)
 
 	if err := os.MkdirAll(volumePath, 0755); err != nil {
 		t.Fatal(err)
@@ -423,7 +426,8 @@ func TestRemoveLocalVolumesFollowingSymlinks(t *testing.T) {
 
 	hostVolumeID := stringid.GenerateNonCryptoID()
 	vfsPath := filepath.Join(tmp, "vfs", "dir", hostVolumeID)
-	volumePath := filepath.Join(tmp, "volumes", hostVolumeID)
+	volumeMD5 := fmt.Sprintf("%x", md5.Sum([]byte(hostVolumeID)))
+	volumePath := filepath.Join(tmp, "volumes", volumeMD5)
 
 	if err := os.MkdirAll(vfsPath, 0755); err != nil {
 		t.Fatal(err)

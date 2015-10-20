@@ -4,6 +4,7 @@
 package local
 
 import (
+	"crypto/md5"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -54,7 +55,7 @@ func New(scope string, rootUID, rootGID int) (*Root, error) {
 		r.volumes[name] = &localVolume{
 			driverName: r.Name(),
 			name:       name,
-			path:       r.DataPath(name),
+			path:       r.rawDataPath(d.Name()),
 		}
 	}
 
@@ -84,6 +85,11 @@ func (r *Root) List() []volume.Volume {
 
 // DataPath returns the constructed path of this volume.
 func (r *Root) DataPath(volumeName string) string {
+	return r.rawDataPath(volumeNameChecksum(volumeName))
+}
+
+// rawDataPath constructs the volume path raw, without mutating the parameters.
+func (r *Root) rawDataPath(volumeName string) string {
 	return filepath.Join(r.path, volumeName, VolumeDataPathName)
 }
 
@@ -165,13 +171,21 @@ func removePath(path string) error {
 
 // Get looks up the volume for the given name and returns it if found
 func (r *Root) Get(name string) (volume.Volume, error) {
+	// Test whether the checksum of the name or the name itself
+	// exist in the local volume store to keep backwards compatibility.
+	// Volumes created by docker >= 1.9 use a checksum to avoid directory propagation,
+	// that's not the case with docker < 1.9.
+	validVolumeNames := []string{volumeNameChecksum(name), name}
+
 	r.m.Lock()
-	v, exists := r.volumes[name]
-	r.m.Unlock()
-	if !exists {
-		return nil, ErrNotFound
+	for _, n := range validVolumeNames {
+		if v, exists := r.volumes[n]; exists {
+			return v, nil
+		}
 	}
-	return v, nil
+	r.m.Unlock()
+
+	return nil, ErrNotFound
 }
 
 // localVolume implements the Volume interface from the volume package and
@@ -210,4 +224,8 @@ func (v *localVolume) Mount() (string, error) {
 // Umount is for satisfying the localVolume interface and does not do anything in this driver.
 func (v *localVolume) Unmount() error {
 	return nil
+}
+
+func volumeNameChecksum(name string) string {
+	return fmt.Sprintf("%x", md5.Sum([]byte(name)))
 }
