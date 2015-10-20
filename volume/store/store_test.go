@@ -1,6 +1,7 @@
 package store
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/docker/docker/volume"
@@ -30,8 +31,8 @@ func TestGet(t *testing.T) {
 		t.Fatalf("Expected fake1 volume, got %v", v)
 	}
 
-	if _, err := s.Get("fake4"); err != ErrNoSuchVolume {
-		t.Fatalf("Expected ErrNoSuchVolume error, got %v", err)
+	if _, err := s.Get("fake4"); !IsNotExist(err) {
+		t.Fatalf("Expected IsNotExist error, got %v", err)
 	}
 }
 
@@ -54,24 +55,25 @@ func TestCreate(t *testing.T) {
 	}
 
 	_, err = s.Create("fakeError", "fake", map[string]string{"error": "create error"})
-	if err == nil || err.Error() != "create error" {
-		t.Fatalf("Expected create error, got %v", err)
+	expected := &OpErr{Op: "create", Name: "fakeError", Err: errors.New("create error")}
+	if err != nil && err.Error() != expected.Error() {
+		t.Fatalf("Expected create fakeError: create error, got %v", err)
 	}
 }
 
 func TestRemove(t *testing.T) {
 	volumedrivers.Register(vt.FakeDriver{}, "fake")
 	s := New()
-	if err := s.Remove(vt.NoopVolume{}); err != ErrNoSuchVolume {
-		t.Fatalf("Expected ErrNoSuchVolume error, got %v", err)
+	if err := s.Remove(vt.NoopVolume{}); !IsNotExist(err) {
+		t.Fatalf("Expected IsNotExist error, got %v", err)
 	}
 	v, err := s.Create("fake1", "fake", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	s.Increment(v)
-	if err := s.Remove(v); err != ErrVolumeInUse {
-		t.Fatalf("Expected ErrVolumeInUse error, got %v", err)
+	if err := s.Remove(v); !IsInUse(err) {
+		t.Fatalf("Expected IsInUse error, got %v", err)
 	}
 	s.Decrement(v)
 	if err := s.Remove(v); err != nil {
