@@ -26,7 +26,6 @@ type v2Puller struct {
 	*TagStore
 	endpoint  registry.APIEndpoint
 	config    *ImagePullConfig
-	sf        *streamformatter.StreamFormatter
 	repoInfo  *registry.RepositoryInfo
 	repo      distribution.Repository
 	sessionID string
@@ -75,7 +74,7 @@ func (p *v2Puller) pullV2Repository(tag string) (err error) {
 
 	poolKey := "v2:" + taggedName
 	broadcaster, found := p.poolAdd("pull", poolKey)
-	broadcaster.Add(p.config.OutStream)
+	broadcaster.Add(p.config.OutStream.Writer)
 	if found {
 		// Another pull of the same repository is already taking place; just wait for it to finish
 		return broadcaster.Wait()
@@ -98,7 +97,7 @@ func (p *v2Puller) pullV2Repository(tag string) (err error) {
 		layersDownloaded = layersDownloaded || pulledNew
 	}
 
-	writeStatus(taggedName, broadcaster, p.sf, layersDownloaded)
+	writeStatus(taggedName, broadcaster, p.config.OutStream.StreamFormatter, layersDownloaded)
 
 	return nil
 }
@@ -201,18 +200,13 @@ func (p *v2Puller) download(di *downloadInfo) {
 		return
 	}
 
-	reader := progressreader.New(progressreader.Config{
-		In:        ioutil.NopCloser(io.TeeReader(layerDownload, verifier)),
-		Out:       di.broadcaster,
-		Formatter: p.sf,
-		Size:      di.size,
-		NewLines:  false,
-		ID:        stringid.TruncateID(di.img.id),
-		Action:    "Downloading",
-	})
+	sf := p.config.OutStream.StreamFormatter
+	formattedOut := streamformatter.NewStdoutCustomFormattedWriter(di.broadcaster, sf)
+	in := ioutil.NopCloser(io.TeeReader(layerDownload, verifier))
+	reader := progressreader.NewReaderWithFormatter(formattedOut, in, di.size, false, stringid.TruncateID(di.img.id), "Downloading")
 	io.Copy(di.tmpFile, reader)
 
-	di.broadcaster.Write(p.sf.FormatProgress(stringid.TruncateID(di.img.id), "Verifying Checksum", nil))
+	di.broadcaster.Write(sf.FormatProgress(stringid.TruncateID(di.img.id), "Verifying Checksum", nil))
 
 	if !verifier.Verified() {
 		err = fmt.Errorf("filesystem layer verification failed for digest %s", di.digest)
@@ -221,7 +215,7 @@ func (p *v2Puller) download(di *downloadInfo) {
 		return
 	}
 
-	di.broadcaster.Write(p.sf.FormatProgress(stringid.TruncateID(di.img.id), "Download complete", nil))
+	di.broadcaster.Write(sf.FormatProgress(stringid.TruncateID(di.img.id), "Download complete", nil))
 
 	logrus.Debugf("Downloaded %s to tempfile %s", di.img.id, di.tmpFile.Name())
 	di.layer = layerDownload
@@ -261,7 +255,8 @@ func (p *v2Puller) pullV2Tag(out io.Writer, tag, taggedName string) (tagUpdated 
 		return false, err
 	}
 
-	out.Write(p.sf.FormatStatus(tag, "Pulling from %s", p.repo.Name()))
+	sf := p.config.OutStream.StreamFormatter
+	out.Write(sf.FormatStatus(tag, "Pulling from %s", p.repo.Name()))
 
 	var downloads []*downloadInfo
 
@@ -300,7 +295,7 @@ func (p *v2Puller) pullV2Tag(out io.Writer, tag, taggedName string) (tagUpdated 
 		}
 		p.graph.imageMutex.Unlock(img.id)
 
-		out.Write(p.sf.FormatProgress(stringid.TruncateID(img.id), "Pulling fs layer", nil))
+		out.Write(sf.FormatProgress(stringid.TruncateID(img.id), "Pulling fs layer", nil))
 
 		d := &downloadInfo{
 			img:      img,
@@ -348,15 +343,8 @@ func (p *v2Puller) pullV2Tag(out io.Writer, tag, taggedName string) (tagUpdated 
 
 		d.tmpFile.Seek(0, 0)
 		err := func() error {
-			reader := progressreader.New(progressreader.Config{
-				In:        d.tmpFile,
-				Out:       d.broadcaster,
-				Formatter: p.sf,
-				Size:      d.size,
-				NewLines:  false,
-				ID:        stringid.TruncateID(d.img.id),
-				Action:    "Extracting",
-			})
+			formattedOut := streamformatter.NewStdoutCustomFormattedWriter(d.broadcaster, sf)
+			reader := progressreader.NewReaderWithFormatter(formattedOut, d.tmpFile, d.size, false, stringid.TruncateID(d.img.id), "Extracting")
 
 			p.graph.imagesMutex.Lock()
 			defer p.graph.imagesMutex.Unlock()
@@ -392,7 +380,7 @@ func (p *v2Puller) pullV2Tag(out io.Writer, tag, taggedName string) (tagUpdated 
 			return false, err
 		}
 
-		d.broadcaster.Write(p.sf.FormatProgress(stringid.TruncateID(d.img.id), "Pull complete", nil))
+		d.broadcaster.Write(sf.FormatProgress(stringid.TruncateID(d.img.id), "Pull complete", nil))
 		d.broadcaster.Close()
 		tagUpdated = true
 	}
@@ -434,7 +422,7 @@ func (p *v2Puller) pullV2Tag(out io.Writer, tag, taggedName string) (tagUpdated 
 	}
 
 	if manifestDigest != "" {
-		out.Write(p.sf.FormatStatus("", "Digest: %s", manifestDigest))
+		out.Write(sf.FormatStatus("", "Digest: %s", manifestDigest))
 	}
 
 	return tagUpdated, nil

@@ -6,8 +6,6 @@ import (
 	"io"
 	"io/ioutil"
 	"testing"
-
-	"github.com/docker/docker/pkg/streamformatter"
 )
 
 func TestOutputOnPrematureClose(t *testing.T) {
@@ -16,16 +14,7 @@ func TestOutputOnPrematureClose(t *testing.T) {
 	reader := ioutil.NopCloser(bytes.NewReader(content))
 	writer := bufio.NewWriter(&outBuf)
 
-	prCfg := Config{
-		In:        reader,
-		Out:       writer,
-		Formatter: streamformatter.NewStreamFormatter(),
-		Size:      int64(len(content)),
-		NewLines:  true,
-		ID:        "Test",
-		Action:    "Read",
-	}
-	pr := New(prCfg)
+	pr := NewReader(writer, reader, int64(len(content)), true, "Test", "Read")
 
 	part := make([]byte, 4, 4)
 	_, err := io.ReadFull(pr, part)
@@ -56,16 +45,7 @@ func TestCompleteSilently(t *testing.T) {
 	reader := ioutil.NopCloser(bytes.NewReader(content))
 	writer := bufio.NewWriter(&outBuf)
 
-	prCfg := Config{
-		In:        reader,
-		Out:       writer,
-		Formatter: streamformatter.NewStreamFormatter(),
-		Size:      int64(len(content)),
-		NewLines:  true,
-		ID:        "Test",
-		Action:    "Read",
-	}
-	pr := New(prCfg)
+	pr := NewReader(writer, reader, int64(len(content)), true, "Test", "Read")
 
 	out, err := ioutil.ReadAll(pr)
 	if err != nil {

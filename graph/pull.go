@@ -19,9 +19,18 @@ type ImagePullConfig struct {
 	// AuthConfig holds authentication credentials for authenticating with
 	// the registry.
 	AuthConfig *cliconfig.AuthConfig
-	// OutStream is the output writer for showing the status of the pull
+	// OutStream is the formatted output writer for showing the status of the pull
 	// operation.
-	OutStream io.Writer
+	OutStream *streamformatter.StdoutFormattedWriter
+}
+
+// NewImagePullConfig initializes ImagePullConfig structs with headers, auth configuration and a json stream formatter.
+func NewImagePullConfig(headers map[string][]string, authConfig *cliconfig.AuthConfig, outStream *streamformatter.StdoutFormattedWriter) *ImagePullConfig {
+	return &ImagePullConfig{
+		MetaHeaders: headers,
+		AuthConfig:  authConfig,
+		OutStream:   outStream,
+	}
 }
 
 // Puller is an interface that abstracts pulling for different API versions.
@@ -38,14 +47,13 @@ type Puller interface {
 // whether a v1 or v2 puller will be created. The other parameters are passed
 // through to the underlying puller implementation for use during the actual
 // pull operation.
-func NewPuller(s *TagStore, endpoint registry.APIEndpoint, repoInfo *registry.RepositoryInfo, imagePullConfig *ImagePullConfig, sf *streamformatter.StreamFormatter) (Puller, error) {
+func NewPuller(s *TagStore, endpoint registry.APIEndpoint, repoInfo *registry.RepositoryInfo, imagePullConfig *ImagePullConfig) (Puller, error) {
 	switch endpoint.Version {
 	case registry.APIVersion2:
 		return &v2Puller{
 			TagStore: s,
 			endpoint: endpoint,
 			config:   imagePullConfig,
-			sf:       sf,
 			repoInfo: repoInfo,
 		}, nil
 	case registry.APIVersion1:
@@ -53,7 +61,6 @@ func NewPuller(s *TagStore, endpoint registry.APIEndpoint, repoInfo *registry.Re
 			TagStore: s,
 			endpoint: endpoint,
 			config:   imagePullConfig,
-			sf:       sf,
 			repoInfo: repoInfo,
 		}, nil
 	}
@@ -63,8 +70,6 @@ func NewPuller(s *TagStore, endpoint registry.APIEndpoint, repoInfo *registry.Re
 // Pull initiates a pull operation. image is the repository name to pull, and
 // tag may be either empty, or indicate a specific tag to pull.
 func (s *TagStore) Pull(image string, tag string, imagePullConfig *ImagePullConfig) error {
-	var sf = streamformatter.NewJSONStreamFormatter()
-
 	// Resolve the Repository name from fqn to RepositoryInfo
 	repoInfo, err := s.registryService.ResolveRepository(image)
 	if err != nil {
@@ -101,7 +106,7 @@ func (s *TagStore) Pull(image string, tag string, imagePullConfig *ImagePullConf
 	for _, endpoint := range endpoints {
 		logrus.Debugf("Trying to pull %s from %s %s", repoInfo.LocalName, endpoint.URL, endpoint.Version)
 
-		puller, err := NewPuller(s, endpoint, repoInfo, imagePullConfig, sf)
+		puller, err := NewPuller(s, endpoint, repoInfo, imagePullConfig)
 		if err != nil {
 			lastErr = err
 			continue

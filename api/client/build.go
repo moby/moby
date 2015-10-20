@@ -177,16 +177,9 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	context = replaceDockerfileTarWrapper(context, newDockerfile, relDockerfile)
 
 	// Setup an upload progress bar
-	// FIXME: ProgressReader shouldn't be this annoying to use
-	sf := streamformatter.NewStreamFormatter()
-	var body io.Reader = progressreader.New(progressreader.Config{
-		In:        context,
-		Out:       cli.out,
-		Formatter: sf,
-		NewLines:  true,
-		ID:        "",
-		Action:    "Sending build context to Docker daemon",
-	})
+	sf := streamformatter.NewStdoutFormattedWriter(cli.out)
+	progress := progressreader.NewReaderWithFormatter(sf, context, 0, true, "", "Sending build context to Docker daemon")
+	var body io.Reader = progress
 
 	var memory int64
 	if *flMemoryString != "" {
@@ -506,15 +499,9 @@ func getContextFromURL(out io.Writer, remoteURL, dockerfileName string) (absCont
 	defer response.Body.Close()
 
 	// Pass the response body through a progress reader.
-	progReader := &progressreader.Config{
-		In:        response.Body,
-		Out:       out,
-		Formatter: streamformatter.NewStreamFormatter(),
-		Size:      response.ContentLength,
-		NewLines:  true,
-		ID:        "",
-		Action:    fmt.Sprintf("Downloading build context from remote url: %s", remoteURL),
-	}
+	sf := streamformatter.NewStdoutFormattedWriter(out)
+	action := fmt.Sprintf("Downloading build context from remote url: %s", remoteURL)
+	progReader := progressreader.NewReaderWithFormatter(sf, response.Body, response.ContentLength, true, "", action)
 
 	return getContextFromReader(progReader, dockerfileName)
 }

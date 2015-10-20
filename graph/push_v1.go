@@ -2,16 +2,13 @@ package graph
 
 import (
 	"fmt"
-	"io"
 	"os"
 	"sync"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/registry/client/transport"
 	"github.com/docker/docker/image"
-	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/progressreader"
-	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/utils"
@@ -23,10 +20,7 @@ type v1Pusher struct {
 	localRepo Repository
 	repoInfo  *registry.RepositoryInfo
 	config    *ImagePushConfig
-	sf        *streamformatter.StreamFormatter
 	session   *registry.Session
-
-	out io.Writer
 }
 
 func (p *v1Pusher) Push() (fallback bool, err error) {
@@ -153,7 +147,7 @@ func (p *v1Pusher) lookupImageOnEndpoint(wg *sync.WaitGroup, images chan imagePu
 			imagesToPush <- image.id
 			continue
 		}
-		p.out.Write(p.sf.FormatStatus("", "Image %s already pushed, skipping", stringid.TruncateID(image.id)))
+		p.config.OutStream.WriteStatus("", "Image %s already pushed, skipping", stringid.TruncateID(image.id))
 	}
 }
 
@@ -208,7 +202,7 @@ func (p *v1Pusher) pushImageToEndpoint(endpoint string, imageIDs []string, tags 
 			}
 		}
 		for _, tag := range tags[id] {
-			p.out.Write(p.sf.FormatStatus("", "Pushing tag for rev [%s] on {%s}", stringid.TruncateID(id), endpoint+"repositories/"+p.repoInfo.RemoteName+"/tags/"+tag))
+			p.config.OutStream.WriteStatus("", "Pushing tag for rev [%s] on {%s}", stringid.TruncateID(id), endpoint+"repositories/"+p.repoInfo.RemoteName+"/tags/"+tag)
 			compatibilityID, err := p.getV1ID(id)
 			if err != nil {
 				return err
@@ -224,12 +218,12 @@ func (p *v1Pusher) pushImageToEndpoint(endpoint string, imageIDs []string, tags 
 // pushRepository pushes layers that do not already exist on the registry.
 func (p *v1Pusher) pushRepository(tag string) error {
 	logrus.Debugf("Local repo: %s", p.localRepo)
-	p.out = ioutils.NewWriteFlusher(p.config.OutStream)
+
 	imgList, tags, err := p.getImageList(tag)
 	if err != nil {
 		return err
 	}
-	p.out.Write(p.sf.FormatStatus("", "Sending image list"))
+	p.config.OutStream.WriteStatus("", "Sending image list")
 
 	imageIndex := p.createImageIndex(imgList, tags)
 	logrus.Debugf("Preparing to push %s with the following images and tags", p.localRepo)
@@ -258,7 +252,7 @@ func (p *v1Pusher) pushRepository(tag string) error {
 	if tag == "" {
 		nTag = len(p.localRepo)
 	}
-	p.out.Write(p.sf.FormatStatus("", "Pushing repository %s (%d tags)", p.repoInfo.CanonicalName, nTag))
+	p.config.OutStream.WriteStatus("", "Pushing repository %s (%d tags)", p.repoInfo.CanonicalName, nTag)
 	// push the repository to each of the endpoints only if it does not exist.
 	for _, endpoint := range repoData.Endpoints {
 		if err := p.pushImageToEndpoint(endpoint, imgList, tags, repoData); err != nil {
@@ -274,7 +268,7 @@ func (p *v1Pusher) pushImage(imgID, ep string) (checksum string, err error) {
 	if err != nil {
 		return "", fmt.Errorf("Cannot retrieve the path for {%s}: %s", imgID, err)
 	}
-	p.out.Write(p.sf.FormatProgress(stringid.TruncateID(imgID), "Pushing", nil))
+	p.config.OutStream.WriteProgress(stringid.TruncateID(imgID), "Pushing", nil)
 
 	compatibilityID, err := p.getV1ID(imgID)
 	if err != nil {
@@ -290,13 +284,13 @@ func (p *v1Pusher) pushImage(imgID, ep string) (checksum string, err error) {
 	// Send the json
 	if err := p.session.PushImageJSONRegistry(imgData, jsonRaw, ep); err != nil {
 		if err == registry.ErrAlreadyExists {
-			p.out.Write(p.sf.FormatProgress(stringid.TruncateID(imgID), "Image already pushed, skipping", nil))
+			p.config.OutStream.WriteProgress(stringid.TruncateID(imgID), "Image already pushed, skipping", nil)
 			return "", nil
 		}
 		return "", err
 	}
 
-	layerData, err := p.graph.TempLayerArchive(imgID, p.sf, p.out)
+	layerData, err := p.graph.TempLayerArchive(imgID, p.config.OutStream)
 	if err != nil {
 		return "", fmt.Errorf("Failed to generate layer archive: %s", err)
 	}
@@ -305,16 +299,8 @@ func (p *v1Pusher) pushImage(imgID, ep string) (checksum string, err error) {
 	// Send the layer
 	logrus.Debugf("rendered layer for %s of [%d] size", imgID, layerData.Size)
 
-	checksum, checksumPayload, err := p.session.PushImageLayerRegistry(imgData.ID,
-		progressreader.New(progressreader.Config{
-			In:        layerData,
-			Out:       p.out,
-			Formatter: p.sf,
-			Size:      layerData.Size,
-			NewLines:  false,
-			ID:        stringid.TruncateID(imgID),
-			Action:    "Pushing",
-		}), ep, jsonRaw)
+	reader := progressreader.NewReaderWithFormatter(p.config.OutStream, layerData, layerData.Size, false, stringid.TruncateID(imgID), "Pushing")
+	checksum, checksumPayload, err := p.session.PushImageLayerRegistry(imgData.ID, reader, ep, jsonRaw)
 	if err != nil {
 		return "", err
 	}
@@ -325,7 +311,7 @@ func (p *v1Pusher) pushImage(imgID, ep string) (checksum string, err error) {
 		return "", err
 	}
 
-	p.out.Write(p.sf.FormatProgress(stringid.TruncateID(imgID), "Image successfully pushed", nil))
+	p.config.OutStream.WriteProgress(stringid.TruncateID(imgID), "Image successfully pushed", nil)
 	return imgData.Checksum, nil
 }
 

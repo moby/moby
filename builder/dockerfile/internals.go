@@ -269,17 +269,12 @@ func (b *Builder) download(srcURL string) (fi builder.FileInfo, err error) {
 		return
 	}
 
+	formattedOut := b.Stdout.(*streamformatter.StdoutFormattedWriter)
+
+	progress := progressreader.NewReaderWithFormatter(formattedOut, resp.Body, resp.ContentLength, true, "", "Downloading")
+
 	// Download and dump result to tmp file
-	if _, err = io.Copy(tmpFile, progressreader.New(progressreader.Config{
-		In: resp.Body,
-		// TODO: make progressreader streamformatter agnostic
-		Out:       b.Stdout.(*streamformatter.StdoutFormatter).Writer,
-		Formatter: b.Stdout.(*streamformatter.StdoutFormatter).StreamFormatter,
-		Size:      resp.ContentLength,
-		NewLines:  true,
-		ID:        "",
-		Action:    "Downloading",
-	})); err != nil {
+	if _, err = io.Copy(tmpFile, progress); err != nil {
 		tmpFile.Close()
 		return
 	}

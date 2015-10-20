@@ -14,7 +14,6 @@ import (
 	"github.com/docker/distribution/manifest/schema1"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/progressreader"
-	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/runconfig"
@@ -30,7 +29,6 @@ type v2Pusher struct {
 	localRepo Repository
 	repoInfo  *registry.RepositoryInfo
 	config    *ImagePushConfig
-	sf        *streamformatter.StreamFormatter
 	repo      distribution.Repository
 
 	// layersPushed is the set of layers known to exist on the remote side.
@@ -158,11 +156,11 @@ func (p *v2Pusher) pushV2Tag(tag string) error {
 			switch err {
 			case nil:
 				exists = true
-				out.Write(p.sf.FormatProgress(stringid.TruncateID(layer.ID), "Image already exists", nil))
+				out.WriteProgress(stringid.TruncateID(layer.ID), "Image already exists", nil)
 			case distribution.ErrBlobUnknown:
 				// nop
 			default:
-				out.Write(p.sf.FormatProgress(stringid.TruncateID(layer.ID), "Image push failed", nil))
+				out.WriteProgress(stringid.TruncateID(layer.ID), "Image push failed", nil)
 				return err
 			}
 		case ErrDigestNotSet:
@@ -211,7 +209,7 @@ func (p *v2Pusher) pushV2Tag(tag string) error {
 		return err
 	}
 	if manifestDigest != "" {
-		out.Write(p.sf.FormatStatus("", "%s: digest: %s size: %d", tag, manifestDigest, manifestSize))
+		out.WriteStatus("", "%s: digest: %s size: %d", tag, manifestDigest, manifestSize)
 	}
 
 	manSvc, err := p.repo.Manifests(context.Background())
@@ -224,7 +222,7 @@ func (p *v2Pusher) pushV2Tag(tag string) error {
 func (p *v2Pusher) pushV2Image(bs distribution.BlobService, img *image.Image) (digest.Digest, error) {
 	out := p.config.OutStream
 
-	out.Write(p.sf.FormatProgress(stringid.TruncateID(img.ID), "Preparing", nil))
+	out.WriteProgress(stringid.TruncateID(img.ID), "Preparing", nil)
 
 	image, err := p.graph.Get(img.ID)
 	if err != nil {
@@ -243,20 +241,11 @@ func (p *v2Pusher) pushV2Image(bs distribution.BlobService, img *image.Image) (d
 	}
 	defer layerUpload.Close()
 
-	reader := progressreader.New(progressreader.Config{
-		In:        ioutil.NopCloser(arch), // we'll take care of close here.
-		Out:       out,
-		Formatter: p.sf,
-
-		// TODO(stevvooe): This may cause a size reporting error. Try to get
-		// this from tar-split or elsewhere. The main issue here is that we
-		// don't want to buffer to disk *just* to calculate the size.
-		Size: img.Size,
-
-		NewLines: false,
-		ID:       stringid.TruncateID(img.ID),
-		Action:   "Pushing",
-	})
+	// TODO(stevvooe): This may cause a size reporting error. Try to get
+	// this from tar-split or elsewhere. The main issue here is that we
+	// don't want to buffer to disk *just* to calculate the size.
+	// We take care of close here.
+	reader := progressreader.NewReaderWithFormatter(out, ioutil.NopCloser(arch), img.Size, false, stringid.TruncateID(img.ID), "Pushing")
 
 	digester := digest.Canonical.New()
 	// HACK: The MultiWriter doesn't write directly to layerUpload because
@@ -282,7 +271,7 @@ func (p *v2Pusher) pushV2Image(bs distribution.BlobService, img *image.Image) (d
 		}
 	}()
 
-	out.Write(p.sf.FormatProgress(stringid.TruncateID(img.ID), "Pushing", nil))
+	out.WriteProgress(stringid.TruncateID(img.ID), "Pushing", nil)
 	nn, err := layerUpload.ReadFrom(pipeReader)
 	pipeReader.Close()
 	if err != nil {
@@ -295,7 +284,7 @@ func (p *v2Pusher) pushV2Image(bs distribution.BlobService, img *image.Image) (d
 	}
 
 	logrus.Debugf("uploaded layer %s (%s), %d bytes", img.ID, dgst, nn)
-	out.Write(p.sf.FormatProgress(stringid.TruncateID(img.ID), "Pushed", nil))
+	out.WriteProgress(stringid.TruncateID(img.ID), "Pushed", nil)
 
 	return dgst, nil
 }

@@ -12,8 +12,7 @@ import (
 // Config contains the configuration for a Reader with progress bar.
 type Config struct {
 	In         io.ReadCloser // Stream to read from
-	Out        io.Writer     // Where to send progress bar to
-	Formatter  *streamformatter.StreamFormatter
+	out        *streamformatter.StdoutFormattedWriter
 	Size       int64
 	Current    int64
 	LastUpdate int64
@@ -22,9 +21,22 @@ type Config struct {
 	Action     string
 }
 
-// New creates a new Config.
-func New(newReader Config) *Config {
-	return &newReader
+// NewReader initializes a new progress reader configuration.
+// It uses a JSON stream formatted writer as default output.
+func NewReader(out io.Writer, in io.ReadCloser, size int64, newLines bool, id, action string) *Config {
+	return NewReaderWithFormatter(streamformatter.NewStdoutJSONFormattedWriter(out), in, size, newLines, id, action)
+}
+
+// NewReaderWithFormatter initializes a new progress reader configuration with a given stream formatted writer.
+func NewReaderWithFormatter(out *streamformatter.StdoutFormattedWriter, in io.ReadCloser, size int64, newLines bool, id, action string) *Config {
+	return &Config{
+		In:       in,
+		out:      out,
+		Size:     size,
+		NewLines: newLines,
+		ID:       id,
+		Action:   action,
+	}
 }
 
 func (config *Config) Read(p []byte) (n int, err error) {
@@ -45,7 +57,7 @@ func (config *Config) Read(p []byte) (n int, err error) {
 	if err != nil && read == 0 {
 		updateProgress(config)
 		if config.NewLines {
-			config.Out.Write(config.Formatter.FormatStatus("", ""))
+			config.out.WriteStatus("", "")
 		}
 	}
 	return read, err
@@ -63,6 +75,5 @@ func (config *Config) Close() error {
 
 func updateProgress(config *Config) {
 	progress := jsonmessage.JSONProgress{Current: config.Current, Total: config.Size}
-	fmtMessage := config.Formatter.FormatProgress(config.ID, config.Action, &progress)
-	config.Out.Write(fmtMessage)
+	config.out.WriteProgress(config.ID, config.Action, &progress)
 }

@@ -364,7 +364,7 @@ func createRootFilesystemInDriver(graph *Graph, id, parent string) error {
 // TempLayerArchive creates a temporary archive of the given image's filesystem layer.
 //   The archive is stored on disk and will be automatically deleted as soon as has been read.
 //   If output is not nil, a human-readable progress bar will be written to it.
-func (graph *Graph) TempLayerArchive(id string, sf *streamformatter.StreamFormatter, output io.Writer) (*archive.TempArchive, error) {
+func (graph *Graph) TempLayerArchive(id string, output *streamformatter.StdoutFormattedWriter) (*archive.TempArchive, error) {
 	image, err := graph.Get(id)
 	if err != nil {
 		return nil, err
@@ -378,15 +378,7 @@ func (graph *Graph) TempLayerArchive(id string, sf *streamformatter.StreamFormat
 	if err != nil {
 		return nil, err
 	}
-	progressReader := progressreader.New(progressreader.Config{
-		In:        a,
-		Out:       output,
-		Formatter: sf,
-		Size:      0,
-		NewLines:  false,
-		ID:        stringid.TruncateID(id),
-		Action:    "Buffering to disk",
-	})
+	progressReader := progressreader.NewReaderWithFormatter(output, a, 0, false, stringid.TruncateID(id), "Buffering to disk")
 	defer progressReader.Close()
 	return archive.NewTempArchive(progressReader, tmp)
 }
