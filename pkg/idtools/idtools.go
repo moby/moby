@@ -38,13 +38,20 @@ const (
 // ownership to the requested uid/gid.  If the directory already exists, this
 // function will still change ownership to the requested uid/gid pair.
 func MkdirAllAs(path string, mode os.FileMode, ownerUID, ownerGID int) error {
-	return mkdirAs(path, mode, ownerUID, ownerGID, true)
+	return mkdirAs(path, mode, ownerUID, ownerGID, true, true)
+}
+
+// MkdirAllNewAs creates a directory (include any along the path) and then modifies
+// ownership ONLY of newly created directories to the requested uid/gid. If the
+// directories along the path exist, no change of ownership will be performed
+func MkdirAllNewAs(path string, mode os.FileMode, ownerUID, ownerGID int) error {
+	return mkdirAs(path, mode, ownerUID, ownerGID, true, false)
 }
 
 // MkdirAs creates a directory and then modifies ownership to the requested uid/gid.
 // If the directory already exists, this function still changes ownership
 func MkdirAs(path string, mode os.FileMode, ownerUID, ownerGID int) error {
-	return mkdirAs(path, mode, ownerUID, ownerGID, false)
+	return mkdirAs(path, mode, ownerUID, ownerGID, false, true)
 }
 
 // GetRootUIDGID retrieves the remapped root uid/gid pair from the set of maps.
