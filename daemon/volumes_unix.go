@@ -40,6 +40,20 @@ func copyOwnership(source, destination string) error {
 // /etc/resolv.conf, and if it is not, appends it to the array of mounts.
 func (container *Container) setupMounts() ([]execdriver.Mount, error) {
 	var mounts []execdriver.Mount
+
+	secretsPath, err := container.secretsPath()
+	if err != nil {
+		return nil, err
+	}
+
+	if _, err := os.Stat(secretsPath); !os.IsNotExist(err) {
+		mounts = append(mounts, execdriver.Mount{
+			Source:      secretsPath,
+			Destination: "/run/secrets",
+			Writable:    true,
+		})
+	}
+
 	for _, m := range container.MountPoints {
 		path, err := m.Setup()
 		if err != nil {

@@ -309,6 +309,12 @@ func (container *Container) Start() (err error) {
 		return err
 	}
 
+	defer container.cleanupSecrets()
+
+	if err := container.setupSecretFiles(); err != nil {
+		return err
+	}
+
 	if !container.hostConfig.IpcMode.IsContainer() && !container.hostConfig.IpcMode.IsHost() {
 		if err := container.setupIpcDirs(); err != nil {
 			return err

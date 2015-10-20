@@ -201,3 +201,10 @@ func (container *Container) ipcMounts() []execdriver.Mount {
 func getDefaultRouteMtu() (int, error) {
 	return -1, errSystemNotSupported
 }
+
+func (container *Container) cleanupSecrets() {
+	return
+}
+func (container *Container) setupSecretFiles() error {
+	return nil
+}

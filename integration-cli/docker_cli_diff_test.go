@@ -75,6 +75,8 @@ func (s *DockerSuite) TestDiffEnsureOnlyKmsgAndPtmx(c *check.C) {
 		"A /dev/tty":     true,
 		"A /dev/urandom": true,
 		"A /dev/zero":    true,
+		"A /run":         true, // secrets patch
+		"A /run/secrets": true, // secrets patch
 	}
 
 	for _, line := range strings.Split(out, "\n") {
