@@ -21,7 +21,7 @@ func (s *DockerSuite) TestTagUnprefixedRepoByName(c *check.C) {
 // tagging an image by ID in a new unprefixed repo should work
 func (s *DockerSuite) TestTagUnprefixedRepoByID(c *check.C) {
 	testRequires(c, DaemonIsLinux)
-	imageID, err := inspectField("busybox", "Id")
+	imageID, err := inspectField("busybox", "ID")
 	c.Assert(err, check.IsNil)
 	dockerCmd(c, "tag", imageID, "testfoobarbaz")
 }

@@ -75,7 +75,7 @@ func (s *DockerSuite) TestRmiImgIDMultipleTag(c *check.C) {
 	// tag busybox to create 2 more images with same imageID
 	c.Assert(strings.Count(imagesAfter, "\n"), checker.Equals, strings.Count(imagesBefore, "\n")+2, check.Commentf("docker images shows: %q\n", imagesAfter))
 
-	imgID, err := inspectField("busybox-one:tag1", "Id")
+	imgID, err := inspectField("busybox-one:tag1", "ID")
 	c.Assert(err, checker.IsNil)
 
 	// run a container with the image
@@ -114,7 +114,7 @@ func (s *DockerSuite) TestRmiImgIDForce(c *check.C) {
 		imagesAfter, _ := dockerCmd(c, "images", "-a")
 		c.Assert(strings.Count(imagesAfter, "\n"), checker.Equals, strings.Count(imagesBefore, "\n")+4, check.Commentf("before: %q\n\nafter: %q\n", imagesBefore, imagesAfter))
 	}
-	imgID, err := inspectField("busybox-test", "Id")
+	imgID, err := inspectField("busybox-test", "ID")
 	c.Assert(err, checker.IsNil)
 
 	// first checkout without force it fails

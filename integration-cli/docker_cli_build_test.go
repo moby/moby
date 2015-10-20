@@ -2301,7 +2301,7 @@ func (s *DockerSuite) TestBuildContextCleanupFailedBuild(c *check.C) {
 func (s *DockerSuite) TestBuildCmd(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	name := "testbuildcmd"
-	expected := "{[/bin/echo Hello World]}"
+	expected := "[/bin/echo Hello World]"
 	_, err := buildImage(name,
 		`FROM scratch
         CMD ["/bin/echo", "Hello World"]`,
@@ -2401,7 +2401,7 @@ func (s *DockerSuite) TestBuildExposeOrder(c *check.C) {
 		if err != nil {
 			c.Fatal(err)
 		}
-		id, err := inspectField(name, "Id")
+		id, err := inspectField(name, "ID")
 		if err != nil {
 			c.Fatal(err)
 		}
@@ -2452,7 +2452,7 @@ func (s *DockerSuite) TestBuildEmptyEntrypointInheritance(c *check.C) {
 		c.Fatal(err)
 	}
 
-	expected := "{[/bin/echo]}"
+	expected := "[/bin/echo]"
 	if res != expected {
 		c.Fatalf("Entrypoint %s, expected %s", res, expected)
 	}
@@ -2469,7 +2469,7 @@ func (s *DockerSuite) TestBuildEmptyEntrypointInheritance(c *check.C) {
 		c.Fatal(err)
 	}
 
-	expected = "{[]}"
+	expected = "[]"
 
 	if res != expected {
 		c.Fatalf("Entrypoint %s, expected %s", res, expected)
@@ -2480,7 +2480,7 @@ func (s *DockerSuite) TestBuildEmptyEntrypointInheritance(c *check.C) {
 func (s *DockerSuite) TestBuildEmptyEntrypoint(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	name := "testbuildentrypoint"
-	expected := "{[]}"
+	expected := "[]"
 
 	_, err := buildImage(name,
 		`FROM busybox
@@ -2502,7 +2502,7 @@ func (s *DockerSuite) TestBuildEmptyEntrypoint(c *check.C) {
 func (s *DockerSuite) TestBuildEntrypoint(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	name := "testbuildentrypoint"
-	expected := "{[/bin/echo]}"
+	expected := "[/bin/echo]"
 	_, err := buildImage(name,
 		`FROM scratch
         ENTRYPOINT ["/bin/echo"]`,
@@ -3198,8 +3198,8 @@ func (s *DockerSuite) TestBuildEntrypointRunCleanup(c *check.C) {
 		c.Fatal(err)
 	}
 	// Cmd must be cleaned up
-	if res != "<nil>" {
-		c.Fatalf("Cmd %s, expected nil", res)
+	if res != "[]" {
+		c.Fatalf("Cmd %s, expected []", res)
 	}
 }
 
@@ -3272,7 +3272,7 @@ func (s *DockerSuite) TestBuildInheritance(c *check.C) {
 	if err != nil {
 		c.Fatal(err)
 	}
-	if expected := "{[/bin/echo]}"; res != expected {
+	if expected := "[/bin/echo]"; res != expected {
 		c.Fatalf("Entrypoint %s, expected %s", res, expected)
 	}
 	ports2, err := inspectField(name, "Config.ExposedPorts")
@@ -4347,15 +4347,15 @@ func (s *DockerSuite) TestBuildCleanupCmdOnEntrypoint(c *check.C) {
 	if err != nil {
 		c.Fatal(err)
 	}
-	if res != "<nil>" {
-		c.Fatalf("Cmd %s, expected nil", res)
+	if res != "[]" {
+		c.Fatalf("Cmd %s, expected []", res)
 	}
 
 	res, err = inspectField(name, "Config.Entrypoint")
 	if err != nil {
 		c.Fatal(err)
 	}
-	if expected := "{[cat]}"; res != expected {
+	if expected := "[cat]"; res != expected {
 		c.Fatalf("Entrypoint %s, expected %s", res, expected)
 	}
 }

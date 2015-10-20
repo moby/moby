@@ -3,7 +3,6 @@ package v1p19
 
 import (
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/runconfig"
 )
 
 // ContainerJSON is a backcompatibility struct for APIs prior to 1.20.
@@ -17,7 +16,7 @@ type ContainerJSON struct {
 
 // ContainerConfig is a backcompatibility struct for APIs prior to 1.20.
 type ContainerConfig struct {
-	*runconfig.Config
+	types.RunConfig
 
 	// backward compatibility, they now live in HostConfig
 	VolumeDriver string

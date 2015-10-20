@@ -92,19 +92,45 @@ type GraphDriverData struct {
 	Data map[string]string
 }
 
+// RunConfig struct used for ImageInspect and ContainerJSON structs.
+type RunConfig struct {
+	Hostname        string
+	Domainname      string
+	User            string
+	AttachStdin     bool
+	AttachStdout    bool
+	AttachStderr    bool
+	ExposedPorts    map[string]struct{} // List of exposed ports
+	PublishService  string
+	Tty             bool
+	OpenStdin       bool
+	StdinOnce       bool
+	Env             []string
+	Cmd             []string
+	Image           string
+	Volumes         map[string]struct{}
+	WorkingDir      string
+	Entrypoint      []string
+	NetworkDisabled bool
+	MacAddress      string
+	OnBuild         []string
+	Labels          map[string]string
+	StopSignal      string
+}
+
 // ImageInspect contains response of Remote API:
 // GET "/images/{name:.*}/json"
 type ImageInspect struct {
-	ID              string `json:"Id"`
+	ID              string
 	Tags            []string
 	Parent          string
 	Comment         string
 	Created         string
 	Container       string
-	ContainerConfig *runconfig.Config
+	ContainerConfig RunConfig
 	DockerVersion   string
 	Author          string
-	Config          *runconfig.Config
+	Config          RunConfig
 	Architecture    string
 	Os              string
 	Size            int64
@@ -248,7 +274,7 @@ type ContainerState struct {
 // ContainerJSONBase contains response of Remote API:
 // GET "/containers/{name:.*}/json"
 type ContainerJSONBase struct {
-	ID              string `json:"Id"`
+	ID              string
 	Created         string
 	Path            string
 	Args            []string
@@ -277,7 +303,7 @@ type ContainerJSONBase struct {
 type ContainerJSON struct {
 	*ContainerJSONBase
 	Mounts []MountPoint
-	Config *runconfig.Config
+	Config RunConfig
 }
 
 // MountPoint represents a mount point configuration inside the container.

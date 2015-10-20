@@ -72,7 +72,7 @@ func (s *DockerSuite) TestApiImagesSaveAndLoad(c *check.C) {
 
 	defer loadBody.Close()
 
-	inspectOut, _ := dockerCmd(c, "inspect", "--format='{{ .Id }}'", id)
+	inspectOut, _ := dockerCmd(c, "inspect", "--format='{{ .ID }}'", id)
 	if strings.TrimSpace(string(inspectOut)) != id {
 		c.Fatal("load did not work properly")
 	}

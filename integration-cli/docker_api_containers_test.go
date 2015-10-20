@@ -570,7 +570,7 @@ func (s *DockerSuite) TestContainerApiCommit(c *check.C) {
 	if err != nil {
 		c.Fatal(err)
 	}
-	if cmd != "{[/bin/sh -c touch /test]}" {
+	if cmd != "[/bin/sh -c touch /test]" {
 		c.Fatalf("got wrong Cmd from commit: %q", cmd)
 	}
 	// sanity check, make sure the image is what we think it is
@@ -615,7 +615,7 @@ func (s *DockerSuite) TestContainerApiCommitWithLabelInConfig(c *check.C) {
 	if err != nil {
 		c.Fatal(err)
 	}
-	if cmd != "{[/bin/sh -c touch /test]}" {
+	if cmd != "[/bin/sh -c touch /test]" {
 		c.Fatalf("got wrong Cmd from commit: %q", cmd)
 	}
 
@@ -811,7 +811,7 @@ func (s *DockerSuite) TestContainerApiCreateWithCpuSharesCpuset(c *check.C) {
 
 	c.Assert(json.Unmarshal(body, &containerJSON), check.IsNil)
 
-	out, err := inspectField(containerJSON.ID, "HostConfig.CpuShares")
+	out, err := inspectField(containerJSON.ID, "HostConfig.CPUShares")
 	c.Assert(err, check.IsNil)
 	c.Assert(out, check.Equals, "512")
 

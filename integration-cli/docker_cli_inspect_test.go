@@ -15,9 +15,9 @@ import (
 
 func (s *DockerSuite) TestInspectImage(c *check.C) {
 	testRequires(c, DaemonIsLinux)
-	imageTest := "emptyfs"
-	imageTestID := "511136ea3c5a64f264b78b5433614aec563103b4d4702f3ba7d4d2698e22c158"
-	id, err := inspectField(imageTest, "Id")
+	imageTest := "busybox"
+	imageTestID := "8c2e06607696bd4afb3d03b687e361cc43cf8ec1a4a725bc96e39f05ba97dd55"
+	id, err := inspectField(imageTest, "ID")
 	c.Assert(err, check.IsNil)
 
 	if id != imageTestID {
@@ -147,7 +147,7 @@ func (s *DockerSuite) TestInspectTypeFlagWithInvalidValue(c *check.C) {
 
 func (s *DockerSuite) TestInspectImageFilterInt(c *check.C) {
 	testRequires(c, DaemonIsLinux)
-	imageTest := "emptyfs"
+	imageTest := "busybox"
 	out, err := inspectField(imageTest, "Size")
 	c.Assert(err, check.IsNil)
 
@@ -196,7 +196,7 @@ func (s *DockerSuite) TestInspectContainerFilterInt(c *check.C) {
 
 func (s *DockerSuite) TestInspectImageGraphDriver(c *check.C) {
 	testRequires(c, DaemonIsLinux)
-	imageTest := "emptyfs"
+	imageTest := "busybox"
 	name, err := inspectField(imageTest, "GraphDriver.Name")
 	c.Assert(err, check.IsNil)
 
