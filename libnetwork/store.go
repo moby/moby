@@ -60,12 +60,11 @@ func (c *controller) getNetworkFromStore(nid string) (*network, error) {
 	for _, store := range c.getStores() {
 		n := &network{id: nid, ctrlr: c}
 		err := store.GetObject(datastore.Key(n.Key()...), n)
-		if err != nil && err != datastore.ErrKeyNotFound {
-			return nil, fmt.Errorf("could not find network %s: %v", nid, err)
-		}
-
 		// Continue searching in the next store if the key is not found in this store
-		if err == datastore.ErrKeyNotFound {
+		if err != nil {
+			if err != datastore.ErrKeyNotFound {
+				log.Debugf("could not find network %s: %v", nid, err)
+			}
 			continue
 		}
 
@@ -120,13 +119,11 @@ func (c *controller) getNetworksFromStore() ([]*network, error) {
 	for _, store := range c.getStores() {
 		kvol, err := store.List(datastore.Key(datastore.NetworkKeyPrefix),
 			&network{ctrlr: c})
-		if err != nil && err != datastore.ErrKeyNotFound {
-			return nil, fmt.Errorf("failed to get networks for scope %s: %v",
-				store.Scope(), err)
-		}
-
 		// Continue searching in the next store if no keys found in this store
-		if err == datastore.ErrKeyNotFound {
+		if err != nil {
+			if err != datastore.ErrKeyNotFound {
+				log.Debugf("failed to get networks for scope %s: %v", store.Scope(), err)
+			}
 			continue
 		}
 
@@ -149,22 +146,17 @@ func (c *controller) getNetworksFromStore() ([]*network, error) {
 }
 
 func (n *network) getEndpointFromStore(eid string) (*endpoint, error) {
-	for _, store := range n.ctrlr.getStores() {
-		ep := &endpoint{id: eid, network: n}
-		err := store.GetObject(datastore.Key(ep.Key()...), ep)
-		if err != nil && err != datastore.ErrKeyNotFound {
-			return nil, fmt.Errorf("could not find endpoint %s: %v", eid, err)
-		}
-
-		// Continue searching in the next store if the key is not found in this store
-		if err == datastore.ErrKeyNotFound {
-			continue
-		}
-
-		return ep, nil
+	store := n.ctrlr.getStore(n.Scope())
+	if store == nil {
+		return nil, fmt.Errorf("could not find endpoint %s: datastore not found for scope %s", eid, n.Scope())
 	}
 
-	return nil, fmt.Errorf("endpoint %s not found", eid)
+	ep := &endpoint{id: eid, network: n}
+	err := store.GetObject(datastore.Key(ep.Key()...), ep)
+	if err != nil {
+		return nil, fmt.Errorf("could not find endpoint %s: %v", eid, err)
+	}
+	return ep, nil
 }
 
 func (n *network) getEndpointsFromStore() ([]*endpoint, error) {
@@ -173,14 +165,12 @@ func (n *network) getEndpointsFromStore() ([]*endpoint, error) {
 	tmp := endpoint{network: n}
 	for _, store := range n.getController().getStores() {
 		kvol, err := store.List(datastore.Key(tmp.KeyPrefix()...), &endpoint{network: n})
-		if err != nil && err != datastore.ErrKeyNotFound {
-			return nil,
-				fmt.Errorf("failed to get endpoints for network %s scope %s: %v",
-					n.Name(), store.Scope(), err)
-		}
-
 		// Continue searching in the next store if no keys found in this store
-		if err == datastore.ErrKeyNotFound {
+		if err != nil {
+			if err != datastore.ErrKeyNotFound {
+				log.Debugf("failed to get endpoints for network %s scope %s: %v",
+					n.Name(), store.Scope(), err)
+			}
 			continue
 		}
 
