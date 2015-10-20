@@ -23,95 +23,78 @@ import (
 )
 
 func (s *DockerDaemonSuite) TestDaemonRestartWithRunningContainersPorts(c *check.C) {
-	if err := s.d.StartWithBusybox(); err != nil {
-		c.Fatalf("Could not start daemon with busybox: %v", err)
-	}
+	c.Assert(s.d.StartWithBusybox(), checker.IsNil, check.Commentf("Could not start daemon with busybox"))
 
-	if out, err := s.d.Cmd("run", "-d", "--name", "top1", "-p", "1234:80", "--restart", "always", "busybox:latest", "top"); err != nil {
-		c.Fatalf("Could not run top1: err=%v\n%s", err, out)
-	}
+	out, err := s.d.Cmd("run", "-d", "--name", "top1", "-p", "1234:80", "--restart", "always", "busybox:latest", "top")
+	c.Assert(err, checker.IsNil, check.Commentf("Could not run top1: %s", out))
+
 	// --restart=no by default
-	if out, err := s.d.Cmd("run", "-d", "--name", "top2", "-p", "80", "busybox:latest", "top"); err != nil {
-		c.Fatalf("Could not run top2: err=%v\n%s", err, out)
-	}
+	out, err = s.d.Cmd("run", "-d", "--name", "top2", "-p", "80", "busybox:latest", "top")
+	c.Assert(err, checker.IsNil, check.Commentf("Could not run top2: %s", out))
 
 	testRun := func(m map[string]bool, prefix string) {
 		var format string
 		for cont, shouldRun := range m {
 			out, err := s.d.Cmd("ps")
-			if err != nil {
-				c.Fatalf("Could not run ps: err=%v\n%q", err, out)
-			}
+			c.Assert(err, checker.IsNil, check.Commentf("Could not run ps: %q", out))
 			if shouldRun {
-				format = "%scontainer %q is not running"
+				format = "%s container %q is not running"
 			} else {
-				format = "%scontainer %q is running"
+				format = "%s container %q is running"
 			}
-			if shouldRun != strings.Contains(out, cont) {
-				c.Fatalf(format, prefix, cont)
-			}
+			c.Assert(strings.Contains(out, cont), checker.Equals, shouldRun, check.Commentf(format, prefix, cont))
 		}
 	}
 
 	testRun(map[string]bool{"top1": true, "top2": true}, "")
 
-	if err := s.d.Restart(); err != nil {
-		c.Fatalf("Could not restart daemon: %v", err)
-	}
+	c.Assert(s.d.Restart(), checker.IsNil, check.Commentf("Could not restart daemon"))
+
 	testRun(map[string]bool{"top1": true, "top2": false}, "After daemon restart: ")
 }
 
 func (s *DockerDaemonSuite) TestDaemonRestartWithVolumesRefs(c *check.C) {
-	if err := s.d.StartWithBusybox(); err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(s.d.StartWithBusybox(), checker.IsNil, check.Commentf("Could not start daemon with busybox"))
 
-	if out, err := s.d.Cmd("run", "-d", "--name", "volrestarttest1", "-v", "/foo", "busybox"); err != nil {
-		c.Fatal(err, out)
-	}
+	out, err := s.d.Cmd("run", "-d", "--name", "volrestarttest1", "-v", "/foo", "busybox")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
 
-	if err := s.d.Restart(); err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(s.d.Restart(), checker.IsNil)
 
-	if _, err := s.d.Cmd("run", "-d", "--volumes-from", "volrestarttest1", "--name", "volrestarttest2", "busybox", "top"); err != nil {
-		c.Fatal(err)
-	}
+	out, err = s.d.Cmd("run", "-d", "--volumes-from", "volrestarttest1", "--name", "volrestarttest2", "busybox", "top")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
 
-	if out, err := s.d.Cmd("rm", "-fv", "volrestarttest2"); err != nil {
-		c.Fatal(err, out)
-	}
+	out, err = s.d.Cmd("rm", "-fv", "volrestarttest2")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
 
-	out, err := s.d.Cmd("inspect", "-f", "{{json .Mounts}}", "volrestarttest1")
-	c.Assert(err, check.IsNil)
+	out, err = s.d.Cmd("inspect", "-f", "{{json .Mounts}}", "volrestarttest1")
+	c.Assert(err, checker.IsNil)
 
-	if _, err := inspectMountPointJSON(out, "/foo"); err != nil {
-		c.Fatalf("Expected volume to exist: /foo, error: %v\n", err)
-	}
+	_, err = inspectMountPointJSON(out, "/foo")
+	c.Assert(err, checker.IsNil, check.Commentf("Expected volume to exist: /foo"))
 }
 
 // #11008
 func (s *DockerDaemonSuite) TestDaemonRestartUnlessStopped(c *check.C) {
-	err := s.d.StartWithBusybox()
-	c.Assert(err, check.IsNil)
+	c.Assert(s.d.StartWithBusybox(), checker.IsNil, check.Commentf("Could not start daemon with busybox"))
 
 	out, err := s.d.Cmd("run", "-d", "--name", "top1", "--restart", "always", "busybox:latest", "top")
-	c.Assert(err, check.IsNil, check.Commentf("run top1: %v", out))
+	c.Assert(err, checker.IsNil, check.Commentf("run top1: %v", out))
 
 	out, err = s.d.Cmd("run", "-d", "--name", "top2", "--restart", "unless-stopped", "busybox:latest", "top")
-	c.Assert(err, check.IsNil, check.Commentf("run top2: %v", out))
+	c.Assert(err, checker.IsNil, check.Commentf("run top2: %v", out))
 
 	testRun := func(m map[string]bool, prefix string) {
 		var format string
 		for name, shouldRun := range m {
 			out, err := s.d.Cmd("ps")
-			c.Assert(err, check.IsNil, check.Commentf("run ps: %v", out))
+			c.Assert(err, checker.IsNil, check.Commentf("run ps: %v", out))
 			if shouldRun {
-				format = "%scontainer %q is not running"
+				format = "%s container %q is not running"
 			} else {
-				format = "%scontainer %q is running"
+				format = "%s container %q is running"
 			}
-			c.Assert(strings.Contains(out, name), check.Equals, shouldRun, check.Commentf(format, prefix, name))
+			c.Assert(strings.Contains(out, name), checker.Equals, shouldRun, check.Commentf(format, prefix, name))
 		}
 	}
 
@@ -119,25 +102,25 @@ func (s *DockerDaemonSuite) TestDaemonRestartUnlessStopped(c *check.C) {
 	testRun(map[string]bool{"top1": true, "top2": true}, "")
 
 	out, err = s.d.Cmd("stop", "top1")
-	c.Assert(err, check.IsNil, check.Commentf(out))
+	c.Assert(err, checker.IsNil, check.Commentf(out))
 
 	out, err = s.d.Cmd("stop", "top2")
-	c.Assert(err, check.IsNil, check.Commentf(out))
+	c.Assert(err, checker.IsNil, check.Commentf(out))
 
 	// both stopped
 	testRun(map[string]bool{"top1": false, "top2": false}, "")
 
 	err = s.d.Restart()
-	c.Assert(err, check.IsNil)
+	c.Assert(err, checker.IsNil)
 
 	// restart=always running
 	testRun(map[string]bool{"top1": true, "top2": false}, "After daemon restart: ")
 
 	out, err = s.d.Cmd("start", "top2")
-	c.Assert(err, check.IsNil, check.Commentf("start top2: %v", out))
+	c.Assert(err, checker.IsNil, check.Commentf("start top2: %v", out))
 
 	err = s.d.Restart()
-	c.Assert(err, check.IsNil)
+	c.Assert(err, checker.IsNil)
 
 	// both running
 	testRun(map[string]bool{"top1": true, "top2": true}, "After second daemon restart: ")
@@ -145,9 +128,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartUnlessStopped(c *check.C) {
 }
 
 func (s *DockerDaemonSuite) TestDaemonStartIptablesFalse(c *check.C) {
-	if err := s.d.Start("--iptables=false"); err != nil {
-		c.Fatalf("we should have been able to start the daemon with passing iptables=false: %v", err)
-	}
+	c.Assert(s.d.Start("--iptables=false"), checker.IsNil, check.Commentf("we should have been able to start the daemon with passing iptables=false"))
 }
 
 // Issue #8444: If docker0 bridge is modified (intentionally or unintentionally) and
@@ -157,107 +138,70 @@ func (s *DockerDaemonSuite) TestDaemonStartBridgeWithoutIPAssociation(c *check.C
 	// rather than depending on brctl commands to verify docker0 is created and up
 	// let's start the daemon and stop it, and then make a modification to run the
 	// actual test
-	if err := s.d.Start(); err != nil {
-		c.Fatalf("Could not start daemon: %v", err)
-	}
-	if err := s.d.Stop(); err != nil {
-		c.Fatalf("Could not stop daemon: %v", err)
-	}
+	c.Assert(s.d.Start(), checker.IsNil, check.Commentf("Could not start daemon"))
+	c.Assert(s.d.Stop(), checker.IsNil, check.Commentf("Could not stop daemon"))
 
 	// now we will remove the ip from docker0 and then try starting the daemon
 	ipCmd := exec.Command("ip", "addr", "flush", "dev", "docker0")
 	stdout, stderr, _, err := runCommandWithStdoutStderr(ipCmd)
-	if err != nil {
-		c.Fatalf("failed to remove docker0 IP association: %v, stdout: %q, stderr: %q", err, stdout, stderr)
-	}
+	c.Assert(err, checker.IsNil, check.Commentf("failed to remove docker0 IP association: stdout: %q, stderr: %q", stdout, stderr))
 
-	if err := s.d.Start(); err != nil {
-		warning := "**WARNING: Docker bridge network in bad state--delete docker0 bridge interface to fix"
-		c.Fatalf("Could not start daemon when docker0 has no IP address: %v\n%s", err, warning)
-	}
+	warning := "**WARNING: Docker bridge network in bad state--delete docker0 bridge interface to fix"
+	c.Assert(s.d.Start(), checker.IsNil, check.Commentf("Could not start daemon when docker0 has no IP address: %s", warning))
 }
 
 func (s *DockerDaemonSuite) TestDaemonIptablesClean(c *check.C) {
-	if err := s.d.StartWithBusybox(); err != nil {
-		c.Fatalf("Could not start daemon with busybox: %v", err)
-	}
+	c.Assert(s.d.StartWithBusybox(), checker.IsNil, check.Commentf("Could not start daemon with busybox"))
 
-	if out, err := s.d.Cmd("run", "-d", "--name", "top", "-p", "80", "busybox:latest", "top"); err != nil {
-		c.Fatalf("Could not run top: %s, %v", out, err)
-	}
+	out, err := s.d.Cmd("run", "-d", "--name", "top", "-p", "80", "busybox:latest", "top")
+	c.Assert(err, checker.IsNil, check.Commentf("Could not run top: %s", out))
 
 	// get output from iptables with container running
 	ipTablesSearchString := "tcp dpt:80"
 	ipTablesCmd := exec.Command("iptables", "-nvL")
-	out, _, err := runCommandWithOutput(ipTablesCmd)
-	if err != nil {
-		c.Fatalf("Could not run iptables -nvL: %s, %v", out, err)
-	}
+	out, _, err = runCommandWithOutput(ipTablesCmd)
+	c.Assert(err, checker.IsNil, check.Commentf("Could not run iptables -nvL: %s", out))
 
-	if !strings.Contains(out, ipTablesSearchString) {
-		c.Fatalf("iptables output should have contained %q, but was %q", ipTablesSearchString, out)
-	}
+	c.Assert(out, checker.Contains, ipTablesSearchString)
 
-	if err := s.d.Stop(); err != nil {
-		c.Fatalf("Could not stop daemon: %v", err)
-	}
+	c.Assert(s.d.Stop(), checker.IsNil, check.Commentf("could not stop daemon"))
 
 	// get output from iptables after restart
 	ipTablesCmd = exec.Command("iptables", "-nvL")
 	out, _, err = runCommandWithOutput(ipTablesCmd)
-	if err != nil {
-		c.Fatalf("Could not run iptables -nvL: %s, %v", out, err)
-	}
+	c.Assert(err, checker.IsNil, check.Commentf("Could not run iptables -nvL: %s", out))
 
-	if strings.Contains(out, ipTablesSearchString) {
-		c.Fatalf("iptables output should not have contained %q, but was %q", ipTablesSearchString, out)
-	}
+	c.Assert(out, checker.Not(checker.Contains), ipTablesSearchString)
 }
 
 func (s *DockerDaemonSuite) TestDaemonIptablesCreate(c *check.C) {
-	if err := s.d.StartWithBusybox(); err != nil {
-		c.Fatalf("Could not start daemon with busybox: %v", err)
-	}
+	c.Assert(s.d.StartWithBusybox(), checker.IsNil, check.Commentf("Could not start daemon with busybox"))
 
-	if out, err := s.d.Cmd("run", "-d", "--name", "top", "--restart=always", "-p", "80", "busybox:latest", "top"); err != nil {
-		c.Fatalf("Could not run top: %s, %v", out, err)
-	}
+	out, err := s.d.Cmd("run", "-d", "--name", "top", "--restart=always", "-p", "80", "busybox:latest", "top")
+	c.Assert(err, checker.IsNil, check.Commentf("Could not run top: %s", out))
 
 	// get output from iptables with container running
 	ipTablesSearchString := "tcp dpt:80"
 	ipTablesCmd := exec.Command("iptables", "-nvL")
-	out, _, err := runCommandWithOutput(ipTablesCmd)
-	if err != nil {
-		c.Fatalf("Could not run iptables -nvL: %s, %v", out, err)
-	}
+	out, _, err = runCommandWithOutput(ipTablesCmd)
+	c.Assert(err, checker.IsNil, check.Commentf("Could not run iptables -nvL: %s", out))
 
-	if !strings.Contains(out, ipTablesSearchString) {
-		c.Fatalf("iptables output should have contained %q, but was %q", ipTablesSearchString, out)
-	}
+	c.Assert(out, checker.Contains, ipTablesSearchString)
 
-	if err := s.d.Restart(); err != nil {
-		c.Fatalf("Could not restart daemon: %v", err)
-	}
+	c.Assert(s.d.Restart(), checker.IsNil)
 
 	// make sure the container is not running
 	runningOut, err := s.d.Cmd("inspect", "--format='{{.State.Running}}'", "top")
-	if err != nil {
-		c.Fatalf("Could not inspect on container: %s, %v", out, err)
-	}
-	if strings.TrimSpace(runningOut) != "true" {
-		c.Fatalf("Container should have been restarted after daemon restart. Status running should have been true but was: %q", strings.TrimSpace(runningOut))
-	}
+	c.Assert(err, checker.IsNil, check.Commentf("Could not inspect on container: %s", out))
+
+	c.Assert(strings.TrimSpace(runningOut), checker.Equals, "true", check.Commentf("Container should have been restarted after daemon restart. Status running should have been true."))
 
 	// get output from iptables after restart
 	ipTablesCmd = exec.Command("iptables", "-nvL")
 	out, _, err = runCommandWithOutput(ipTablesCmd)
-	if err != nil {
-		c.Fatalf("Could not run iptables -nvL: %s, %v", out, err)
-	}
+	c.Assert(err, checker.IsNil, check.Commentf("Could not run iptables -nvL: %s", out))
 
-	if !strings.Contains(out, ipTablesSearchString) {
-		c.Fatalf("iptables output after restart should have contained %q, but was %q", ipTablesSearchString, out)
-	}
+	c.Assert(out, checker.Contains, ipTablesSearchString)
 }
 
 // TestDaemonIPv6Enabled checks that when the daemon is started with --ipv6=true that the docker0 bridge
@@ -265,26 +209,18 @@ func (s *DockerDaemonSuite) TestDaemonIptablesCreate(c *check.C) {
 func (s *DockerSuite) TestDaemonIPv6Enabled(c *check.C) {
 	testRequires(c, IPv6)
 
-	if err := setupV6(); err != nil {
-		c.Fatal("Could not set up host for IPv6 tests")
-	}
+	setupV6(c)
 
 	d := NewDaemon(c)
 
-	if err := d.StartWithBusybox("--ipv6"); err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(d.StartWithBusybox("--ipv6"), checker.IsNil)
 	defer d.Stop()
 
 	iface, err := net.InterfaceByName("docker0")
-	if err != nil {
-		c.Fatalf("Error getting docker0 interface: %v", err)
-	}
+	c.Assert(err, checker.IsNil, check.Commentf("Error getting docker0 interface"))
 
 	addrs, err := iface.Addrs()
-	if err != nil {
-		c.Fatalf("Error getting addresses for docker0 interface: %v", err)
-	}
+	c.Assert(err, checker.IsNil, check.Commentf("Error getting addresses for docker0 interface"))
 
 	var found bool
 	expected := "fe80::1/64"
@@ -295,39 +231,28 @@ func (s *DockerSuite) TestDaemonIPv6Enabled(c *check.C) {
 		}
 	}
 
-	if !found {
-		c.Fatalf("Bridge does not have an IPv6 Address")
-	}
+	c.Assert(found, checker.True, check.Commentf("Bridge does not have an IPv6 Address"))
 
-	if out, err := d.Cmd("run", "-itd", "--name=ipv6test", "busybox:latest"); err != nil {
-		c.Fatalf("Could not run container: %s, %v", out, err)
-	}
+	out, err := d.Cmd("run", "-itd", "--name=ipv6test", "busybox:latest")
+	c.Assert(err, checker.IsNil, check.Commentf("Could not run container: %s", out))
 
-	out, err := d.Cmd("inspect", "--format", "'{{.NetworkSettings.Networks.bridge.LinkLocalIPv6Address}}'", "ipv6test")
+	out, err = d.Cmd("inspect", "--format", "'{{.NetworkSettings.Networks.bridge.LinkLocalIPv6Address}}'", "ipv6test")
 	out = strings.Trim(out, " \r\n'")
 
-	if err != nil {
-		c.Fatalf("Error inspecting container: %s, %v", out, err)
-	}
+	c.Assert(err, checker.IsNil, check.Commentf("Error inspecting container: %s", out))
 
-	if ip := net.ParseIP(out); ip == nil {
-		c.Fatalf("Container should have a link-local IPv6 address")
-	}
+	ip := net.ParseIP(out)
+	c.Assert(ip, checker.NotNil, check.Commentf("Container should have a link-local IPv6 address"))
 
 	out, err = d.Cmd("inspect", "--format", "'{{.NetworkSettings.Networks.bridge.GlobalIPv6Address}}'", "ipv6test")
 	out = strings.Trim(out, " \r\n'")
 
-	if err != nil {
-		c.Fatalf("Error inspecting container: %s, %v", out, err)
-	}
+	c.Assert(err, checker.IsNil, check.Commentf("Error inspecting container: %s", out))
 
-	if ip := net.ParseIP(out); ip != nil {
-		c.Fatalf("Container should not have a global IPv6 address: %v", out)
-	}
+	ip = net.ParseIP(out)
+	c.Assert(ip, checker.IsNil, check.Commentf("Container should not have a global IPv6 address: %v", out))
 
-	if err := teardownV6(); err != nil {
-		c.Fatal("Could not perform teardown for IPv6 tests")
-	}
+	teardownV6(c)
 
 }
 
@@ -336,45 +261,32 @@ func (s *DockerSuite) TestDaemonIPv6Enabled(c *check.C) {
 func (s *DockerSuite) TestDaemonIPv6FixedCIDR(c *check.C) {
 	testRequires(c, IPv6)
 
-	if err := setupV6(); err != nil {
-		c.Fatal("Could not set up host for IPv6 tests")
-	}
+	setupV6(c)
 
 	d := NewDaemon(c)
 
-	if err := d.StartWithBusybox("--ipv6", "--fixed-cidr-v6='2001:db8:1::/64'"); err != nil {
-		c.Fatalf("Could not start daemon with busybox: %v", err)
-	}
+	c.Assert(d.StartWithBusybox("--ipv6", "--fixed-cidr-v6='2001:db8:1::/64'"), checker.IsNil, check.Commentf("Could not start daemon with busybox"))
 	defer d.Stop()
 
-	if out, err := d.Cmd("run", "-itd", "--name=ipv6test", "busybox:latest"); err != nil {
-		c.Fatalf("Could not run container: %s, %v", out, err)
-	}
+	out, err := d.Cmd("run", "-itd", "--name=ipv6test", "busybox:latest")
+	c.Assert(err, checker.IsNil, check.Commentf("Could not run container: %s", out))
 
 	out, err := d.Cmd("inspect", "--format", "'{{.NetworkSettings.Networks.bridge.LinkLocalIPv6Address}}'", "ipv6test")
+	c.Assert(err, checker.IsNil, check.Commentf("Error inspecting container: %s", out))
+
 	out = strings.Trim(out, " \r\n'")
-
-	if err != nil {
-		c.Fatalf("Error inspecting container: %s, %v", out, err)
-	}
-
-	if ip := net.ParseIP(out); ip == nil {
-		c.Fatalf("Container should have a link-local IPv6 address")
-	}
+	ip := net.ParseIP(out)
+	c.Assert(ip, checker.NotNil, check.Commentf("Container should have a link-local IPv6 address"))
 
 	out, err = d.Cmd("inspect", "--format", "'{{.NetworkSettings.Networks.bridge.GlobalIPv6Address}}'", "ipv6test")
 	out = strings.Trim(out, " \r\n'")
 
-	if err != nil {
-		c.Fatalf("Error inspecting container: %s, %v", out, err)
-	}
+	c.Assert(err, checker.IsNil, check.Commentf("Error inspecting container: %s", out))
 
-	if ip := net.ParseIP(out); ip == nil {
-		c.Fatalf("Container should have a global IPv6 address")
-	}
-	if err := teardownV6(); err != nil {
-		c.Fatal("Could not perform teardown for IPv6 tests")
-	}
+	ip = net.ParseIP(out)
+	c.Assert(ip, checker.NotNil, check.Commentf("Container should have a global IPv6 address"))
+
+	teardownV6(c)
 }
 
 // TestDaemonIPv6FixedCIDRAndMac checks that when the daemon is started with ipv6 fixed CIDR
@@ -420,10 +332,8 @@ func (s *DockerSuite) TestDaemonStartWithBackwardCompatibility(c *check.C) {
 	for _, args := range validCommandArgs {
 		d := NewDaemon(c)
 		d.Command = "--daemon"
-		if err := d.Start(args...); err != nil {
-			c.Fatalf("Daemon should have started successfully with --daemon %v: %v", args, err)
-		}
-		d.Stop()
+		c.Assert(d.Start(args...), checker.IsNil, check.Commentf("Daemon should have started successfully with --daemon %v", args))
+		c.Assert(d.Stop(), checker.IsNil, check.Commentf("Daemon should have stopped successfully with --daemon %v", args))
 	}
 
 	for _, args := range invalidCommandArgs {
@@ -463,10 +373,8 @@ func (s *DockerSuite) TestDaemonStartWithDaemonCommand(c *check.C) {
 	for _, f := range flags {
 		d := NewDaemon(c)
 		args := append(f[common], f[daemon]...)
-		if err := d.Start(args...); err != nil {
-			c.Fatalf("Daemon should have started successfully with %v: %v", args, err)
-		}
-		d.Stop()
+		c.Assert(d.Start(args...), checker.IsNil, check.Commentf("Daemon should have started successfully with %v", args))
+		c.Assert(d.Stop(), checker.IsNil, check.Commentf("Daemon should have stopped successfully with %v", args))
 	}
 
 	// `docker -l info daemon --selinux-enabled`
@@ -492,61 +400,44 @@ func (s *DockerSuite) TestDaemonStartWithDaemonCommand(c *check.C) {
 			cmd.Process.Kill()
 		case err = <-errch:
 		}
-		if err == nil {
-			c.Fatalf("Daemon should have failed to start with docker %v daemon", f)
-		}
+		c.Assert(err, checker.NotNil, check.Commentf("Daemon should have failed to start with docker %v daemon", f))
 	}
 }
 
 func (s *DockerDaemonSuite) TestDaemonLogLevelDebug(c *check.C) {
-	if err := s.d.Start("--log-level=debug"); err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(s.d.Start("--log-level=debug"), checker.IsNil)
+
 	content, _ := ioutil.ReadFile(s.d.logFile.Name())
-	if !strings.Contains(string(content), `level=debug`) {
-		c.Fatalf(`Missing level="debug" in log file:\n%s`, string(content))
-	}
+	c.Assert(string(content), checker.Contains, `level=debug`, check.Commentf(`Should have level="debug" in log file using --log-level=debug`))
 }
 
 func (s *DockerDaemonSuite) TestDaemonLogLevelFatal(c *check.C) {
 	// we creating new daemons to create new logFile
-	if err := s.d.Start("--log-level=fatal"); err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(s.d.Start("--log-level=fatal"), checker.IsNil)
+
 	content, _ := ioutil.ReadFile(s.d.logFile.Name())
-	if strings.Contains(string(content), `level=debug`) {
-		c.Fatalf(`Should not have level="debug" in log file:\n%s`, string(content))
-	}
+	c.Assert(string(content), checker.Not(checker.Contains), `level=debug`, check.Commentf(`Should not have level="debug" in log file`))
 }
 
 func (s *DockerDaemonSuite) TestDaemonFlagD(c *check.C) {
-	if err := s.d.Start("-D"); err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(s.d.Start("-D"), checker.IsNil)
+
 	content, _ := ioutil.ReadFile(s.d.logFile.Name())
-	if !strings.Contains(string(content), `level=debug`) {
-		c.Fatalf(`Should have level="debug" in log file using -D:\n%s`, string(content))
-	}
+	c.Assert(string(content), checker.Contains, `level=debug`, check.Commentf(`Should have level="debug" in log file using -D`))
 }
 
 func (s *DockerDaemonSuite) TestDaemonFlagDebug(c *check.C) {
-	if err := s.d.Start("--debug"); err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(s.d.Start("--debug"), checker.IsNil)
+
 	content, _ := ioutil.ReadFile(s.d.logFile.Name())
-	if !strings.Contains(string(content), `level=debug`) {
-		c.Fatalf(`Should have level="debug" in log file using --debug:\n%s`, string(content))
-	}
+	c.Assert(string(content), checker.Contains, `level=debug`, check.Commentf(`Should have level="debug" in log file using --debug`))
 }
 
 func (s *DockerDaemonSuite) TestDaemonFlagDebugLogLevelFatal(c *check.C) {
-	if err := s.d.Start("--debug", "--log-level=fatal"); err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(s.d.Start("--debug", "--log-level=fatal"), checker.IsNil)
+
 	content, _ := ioutil.ReadFile(s.d.logFile.Name())
-	if !strings.Contains(string(content), `level=debug`) {
-		c.Fatalf(`Should have level="debug" in log file when using both --debug and --log-level=fatal:\n%s`, string(content))
-	}
+	c.Assert(string(content), checker.Contains, `level=debug`, check.Commentf(`Should have level="debug" in log file when using both --debug and --log-level=fatal`))
 }
 
 func (s *DockerDaemonSuite) TestDaemonAllocatesListeningPort(c *check.C) {
@@ -561,65 +452,48 @@ func (s *DockerDaemonSuite) TestDaemonAllocatesListeningPort(c *check.C) {
 		cmdArgs = append(cmdArgs, "--host", fmt.Sprintf("tcp://%s:%s", hostDirective[0], hostDirective[2]))
 	}
 
-	if err := s.d.StartWithBusybox(cmdArgs...); err != nil {
-		c.Fatalf("Could not start daemon with busybox: %v", err)
-	}
+	c.Assert(s.d.StartWithBusybox(cmdArgs...), check.IsNil, check.Commentf("Could not start daemon with busybox"))
 
 	for _, hostDirective := range listeningPorts {
 		output, err := s.d.Cmd("run", "-p", fmt.Sprintf("%s:%s:80", hostDirective[1], hostDirective[2]), "busybox", "true")
-		if err == nil {
-			c.Fatalf("Container should not start, expected port already allocated error: %q", output)
-		} else if !strings.Contains(output, "port is already allocated") {
-			c.Fatalf("Expected port is already allocated error: %q", output)
-		}
+		c.Assert(err, checker.NotNil, check.Commentf("Container should not start, expected port already allocated error: %q", output))
+		c.Assert(output, checker.Contains, "port is already allocated")
 	}
 }
 
 func (s *DockerDaemonSuite) TestDaemonKeyGeneration(c *check.C) {
 	// TODO: skip or update for Windows daemon
 	os.Remove("/etc/docker/key.json")
-	if err := s.d.Start(); err != nil {
-		c.Fatalf("Could not start daemon: %v", err)
-	}
-	s.d.Stop()
+	c.Assert(s.d.Start(), checker.IsNil, check.Commentf("Could not start daemon"))
+	c.Assert(s.d.Stop(), checker.IsNil)
 
 	k, err := libtrust.LoadKeyFile("/etc/docker/key.json")
-	if err != nil {
-		c.Fatalf("Error opening key file")
-	}
+	c.Assert(err, checker.IsNil, check.Commentf("Error opening key file"))
+
 	kid := k.KeyID()
 	// Test Key ID is a valid fingerprint (e.g. QQXN:JY5W:TBXI:MK3X:GX6P:PD5D:F56N:NHCS:LVRZ:JA46:R24J:XEFF)
-	if len(kid) != 59 {
-		c.Fatalf("Bad key ID: %s", kid)
-	}
+	c.Assert(kid, checker.HasLen, 59, check.Commentf("Bad key ID: %s", kid))
 }
 
 func (s *DockerDaemonSuite) TestDaemonKeyMigration(c *check.C) {
 	// TODO: skip or update for Windows daemon
 	os.Remove("/etc/docker/key.json")
 	k1, err := libtrust.GenerateECP256PrivateKey()
-	if err != nil {
-		c.Fatalf("Error generating private key: %s", err)
-	}
-	if err := os.MkdirAll(filepath.Join(os.Getenv("HOME"), ".docker"), 0755); err != nil {
-		c.Fatalf("Error creating .docker directory: %s", err)
-	}
-	if err := libtrust.SaveKey(filepath.Join(os.Getenv("HOME"), ".docker", "key.json"), k1); err != nil {
-		c.Fatalf("Error saving private key: %s", err)
-	}
+	c.Assert(err, checker.IsNil, check.Commentf("Error generating private key"))
 
-	if err := s.d.Start(); err != nil {
-		c.Fatalf("Could not start daemon: %v", err)
-	}
-	s.d.Stop()
+	err = os.MkdirAll(filepath.Join(os.Getenv("HOME"), ".docker"), 0755)
+	c.Assert(err, checker.IsNil, check.Commentf("Error creating .docker directory"))
+
+	err = libtrust.SaveKey(filepath.Join(os.Getenv("HOME"), ".docker", "key.json"), k1)
+	c.Assert(err, checker.IsNil, check.Commentf("Error saving private key"))
+
+	c.Assert(s.d.Start(), checker.IsNil, check.Commentf("Could not start daemon"))
+	c.Assert(s.d.Stop(), checker.IsNil, check.Commentf("Could not stop daemon"))
 
 	k2, err := libtrust.LoadKeyFile("/etc/docker/key.json")
-	if err != nil {
-		c.Fatalf("Error opening key file")
-	}
-	if k1.KeyID() != k2.KeyID() {
-		c.Fatalf("Key not migrated")
-	}
+	c.Assert(err, checker.IsNil, check.Commentf("Error opening key file"))
+
+	c.Assert(k1.KeyID(), checker.Equals, k2.KeyID(), check.Commentf("Key not migrated"))
 }
 
 // GH#11320 - verify that the daemon exits on failure properly
@@ -629,14 +503,11 @@ func (s *DockerDaemonSuite) TestDaemonExitOnFailure(c *check.C) {
 	//attempt to start daemon with incorrect flags (we know -b and --bip conflict)
 	if err := s.d.Start("--bridge", "nosuchbridge", "--bip", "1.1.1.1"); err != nil {
 		//verify we got the right error
-		if !strings.Contains(err.Error(), "Daemon exited and never started") {
-			c.Fatalf("Expected daemon not to start, got %v", err)
-		}
+		c.Assert(err.Error(), checker.Contains, "Daemon exited and never started")
 		// look in the log and make sure we got the message that daemon is shutting down
 		runCmd := exec.Command("grep", "Error starting daemon", s.d.LogfileName())
-		if out, _, err := runCommandWithOutput(runCmd); err != nil {
-			c.Fatalf("Expected 'Error starting daemon' message; but doesn't exist in log: %q, err: %v", out, err)
-		}
+		out, _, err := runCommandWithOutput(runCmd)
+		c.Assert(err, checker.IsNil, check.Commentf("Expected 'Error starting daemon' message; but doesn't exist in log: %q", out))
 	} else {
 		//if we didn't get an error and the daemon is running, this is a failure
 		c.Fatal("Conflicting options should cause the daemon to error out with a failure")
@@ -654,27 +525,25 @@ func (s *DockerDaemonSuite) TestDaemonBridgeExternal(c *check.C) {
 	_, bridgeIPNet, _ := net.ParseCIDR(bridgeIP)
 
 	out, err := createInterface(c, "bridge", bridgeName, bridgeIP)
-	c.Assert(err, check.IsNil, check.Commentf(out))
+	c.Assert(err, checker.IsNil, check.Commentf(out))
 	defer deleteInterface(c, bridgeName)
 
 	err = d.StartWithBusybox("--bridge", bridgeName)
-	c.Assert(err, check.IsNil)
+	c.Assert(err, checker.IsNil)
 
 	ipTablesSearchString := bridgeIPNet.String()
 	ipTablesCmd := exec.Command("iptables", "-t", "nat", "-nvL")
 	out, _, err = runCommandWithOutput(ipTablesCmd)
-	c.Assert(err, check.IsNil)
+	c.Assert(err, checker.IsNil)
 
-	c.Assert(strings.Contains(out, ipTablesSearchString), check.Equals, true,
-		check.Commentf("iptables output should have contained %q, but was %q",
-			ipTablesSearchString, out))
+	c.Assert(out, checker.Contains, ipTablesSearchString)
 
 	_, err = d.Cmd("run", "-d", "--name", "ExtContainer", "busybox", "top")
-	c.Assert(err, check.IsNil)
+	c.Assert(err, checker.IsNil)
 
 	containerIP := d.findContainerIP("ExtContainer")
 	ip := net.ParseIP(containerIP)
-	c.Assert(bridgeIPNet.Contains(ip), check.Equals, true,
+	c.Assert(bridgeIPNet.Contains(ip), checker.True,
 		check.Commentf("Container IP-Address must be in the same subnet range : %s",
 			containerIP))
 }
