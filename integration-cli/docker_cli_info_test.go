@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/docker/docker/utils"
@@ -32,9 +31,7 @@ func (s *DockerSuite) TestInfoEnsureSucceeds(c *check.C) {
 	}
 
 	for _, linePrefix := range stringsToCheck {
-		if !strings.Contains(out, linePrefix) {
-			c.Errorf("couldn't find string %v in output", linePrefix)
-		}
+		c.Assert(out, checker.Contains, linePrefix, check.Commentf("couldn't find string %v in output", linePrefix))
 	}
 }
 
@@ -45,9 +42,8 @@ func (s *DockerSuite) TestInfoDiscoveryBackend(c *check.C) {
 
 	d := NewDaemon(c)
 	discoveryBackend := "consul://consuladdr:consulport/some/path"
-	if err := d.Start(fmt.Sprintf("--cluster-store=%s", discoveryBackend), "--cluster-advertise=foo"); err != nil {
-		c.Fatal(err)
-	}
+	err := d.Start(fmt.Sprintf("--cluster-store=%s", discoveryBackend), "--cluster-advertise=foo")
+	c.Assert(err, checker.IsNil)
 	defer d.Stop()
 
 	out, err := d.Cmd("info")
