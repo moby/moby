@@ -3,6 +3,7 @@ package client
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 	"text/tabwriter"
 	"time"
@@ -40,38 +41,36 @@ func (cli *DockerCli) CmdHistory(args ...string) error {
 	}
 
 	w := tabwriter.NewWriter(cli.out, 20, 1, 3, ' ', 0)
-	if !*quiet {
-		fmt.Fprintln(w, "IMAGE\tCREATED\tCREATED BY\tSIZE\tCOMMENT")
+
+	if *quiet {
+		for _, entry := range history {
+			if *noTrunc {
+				fmt.Fprintf(w, "%s\n", entry.ID)
+			} else {
+				fmt.Fprintf(w, "%s\n", stringid.TruncateID(entry.ID))
+			}
+		}
+		w.Flush()
+		return nil
 	}
 
+	fmt.Fprintln(w, "IMAGE\tCREATED\tCREATED BY\tSIZE\tCOMMENT")
 	for _, entry := range history {
-		if *noTrunc {
-			fmt.Fprintf(w, entry.ID)
-		} else {
-			fmt.Fprintf(w, stringid.TruncateID(entry.ID))
+		imageID := entry.ID
+		createdBy := strings.Replace(entry.CreatedBy, "\t", " ", -1)
+		if *noTrunc == false {
+			createdBy = stringutils.Truncate(createdBy, 45)
+			imageID = stringid.TruncateID(entry.ID)
 		}
-		if !*quiet {
-			if *human {
-				fmt.Fprintf(w, "\t%s ago\t", units.HumanDuration(time.Now().UTC().Sub(time.Unix(entry.Created, 0))))
-			} else {
-				fmt.Fprintf(w, "\t%s\t", time.Unix(entry.Created, 0).Format(time.RFC3339))
-			}
 
-			if *noTrunc {
-				fmt.Fprintf(w, "%s\t", strings.Replace(entry.CreatedBy, "\t", " ", -1))
-			} else {
-				fmt.Fprintf(w, "%s\t", stringutils.Truncate(strings.Replace(entry.CreatedBy, "\t", " ", -1), 45))
-			}
-
-			if *human {
-				fmt.Fprintf(w, "%s\t", units.HumanSize(float64(entry.Size)))
-			} else {
-				fmt.Fprintf(w, "%d\t", entry.Size)
-			}
-
-			fmt.Fprintf(w, "%s", entry.Comment)
+		created := units.HumanDuration(time.Now().UTC().Sub(time.Unix(entry.Created, 0))) + " ago"
+		size := units.HumanSize(float64(entry.Size))
+		if *human == false {
+			created = time.Unix(entry.Created, 0).Format(time.RFC3339)
+			size = strconv.FormatInt(entry.Size, 10)
 		}
-		fmt.Fprintf(w, "\n")
+
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", imageID, created, createdBy, size, entry.Comment)
 	}
 	w.Flush()
 	return nil
