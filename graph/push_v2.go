@@ -1,6 +1,7 @@
 package graph
 
 import (
+	"compress/gzip"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -238,11 +239,8 @@ func (p *v2Pusher) pushV2Image(bs distribution.BlobService, img *image.Image) (d
 	}
 	defer layerUpload.Close()
 
-	digester := digest.Canonical.New()
-	tee := io.TeeReader(arch, digester.Hash())
-
 	reader := progressreader.New(progressreader.Config{
-		In:        ioutil.NopCloser(tee), // we'll take care of close here.
+		In:        ioutil.NopCloser(arch), // we'll take care of close here.
 		Out:       out,
 		Formatter: p.sf,
 
@@ -256,8 +254,28 @@ func (p *v2Pusher) pushV2Image(bs distribution.BlobService, img *image.Image) (d
 		Action:   "Pushing",
 	})
 
+	digester := digest.Canonical.New()
+	// HACK: The MultiWriter doesn't write directly to layerUpload because
+	// we must make sure the ReadFrom is used, not Write. Using Write would
+	// send a PATCH request for every Write call.
+	pipeReader, pipeWriter := io.Pipe()
+	compressor := gzip.NewWriter(io.MultiWriter(pipeWriter, digester.Hash()))
+
+	go func() {
+		_, err := io.Copy(compressor, reader)
+		if err == nil {
+			err = compressor.Close()
+		}
+		if err != nil {
+			pipeWriter.CloseWithError(err)
+		} else {
+			pipeWriter.Close()
+		}
+	}()
+
 	out.Write(p.sf.FormatProgress(stringid.TruncateID(img.ID), "Pushing", nil))
-	nn, err := io.Copy(layerUpload, reader)
+	nn, err := layerUpload.ReadFrom(pipeReader)
+	pipeReader.Close()
 	if err != nil {
 		return "", err
 	}
