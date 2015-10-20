@@ -76,6 +76,6 @@ func TestInitializeWithVolumes(t *testing.T) {
 	}
 
 	if v.Path() != vol.Path() {
-		t.Fatal("expected to re-initialize root with existing volumes")
+		t.Fatalf("expected to re-initialize root with existing volumes, expected %s, got %s", vol.Path(), v.Path())
 	}
 }
