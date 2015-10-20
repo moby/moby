@@ -231,6 +231,19 @@ func (cli *DaemonCli) CmdDaemon(args ...string) error {
 			logrus.Fatalf("error parsing -H %s : %v", commonFlags.Hosts[i], err)
 		}
 	}
+	if len(cli.ClusterAdvertise) != 0 {
+		var exists bool
+		for _, addr := range commonFlags.Hosts {
+			if addr == "tcp://"+cli.ClusterAdvertise {
+				exists = true
+				break
+			}
+		}
+		if !exists {
+			return fmt.Errorf("--cluser-advertise '%s' should be give to -H", cli.ClusterAdvertise)
+		}
+	}
+
 	for _, protoAddr := range commonFlags.Hosts {
 		protoAddrParts := strings.SplitN(protoAddr, "://", 2)
 		if len(protoAddrParts) != 2 {
