@@ -741,10 +741,8 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 		return nil, fmt.Errorf("Couldn't create Tag store repositories-%s: %s", d.driver.String(), err)
 	}
 
-	if restorer, ok := d.driver.(graphdriver.ImageRestorer); ok {
-		if _, err := restorer.RestoreCustomImages(repositories, g); err != nil {
-			return nil, fmt.Errorf("Couldn't restore custom images: %s", err)
-		}
+	if err := tryRestorer(d, repositories, g); err != nil {
+		return nil, err
 	}
 
 	// Discovery is only enabled when the daemon is launched with an address to advertise.  When

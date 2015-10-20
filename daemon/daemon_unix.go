@@ -15,6 +15,7 @@ import (
 	"github.com/docker/docker/autogen/dockerversion"
 	"github.com/docker/docker/daemon/graphdriver"
 	derr "github.com/docker/docker/errors"
+	"github.com/docker/docker/graph"
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/parsers"
@@ -40,6 +41,11 @@ const (
 	linuxMaxCPUShares = 262144
 	platformSupported = true
 )
+
+// noop, as the behavior is windows-only
+func tryRestorer(d *Daemon, repositories *graph.TagStore, g *graph.Graph) error {
+	return nil
+}
 
 func parseSecurityOpt(container *Container, config *runconfig.HostConfig) error {
 	var (
