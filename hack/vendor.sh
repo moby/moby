@@ -43,7 +43,7 @@ clone git github.com/docker/distribution 20c4b7a1805a52753dfd593ee1cc35558722a0c
 clone git github.com/vbatts/tar-split v0.9.10
 
 clone git github.com/docker/notary 089d8450d8928aa1c58fd03f09cabbde9bcb4590
-clone git github.com/endophage/gotuf 876c31a61bc4aa0dae09bb8ef3946dc26dd04924
+clone git github.com/endophage/gotuf 2df1c8e0a7b7e10ae2113bf37aaa1bf1c1de8cc5
 clone git github.com/jfrazelle/go 6e461eb70cb4187b41a84e9a567d7137bdbe0f16
 clone git github.com/agl/ed25519 d2b94fd789ea21d12fac1a4443dd3a3f79cda72c
 
