@@ -110,19 +110,26 @@ func ParseTCPAddr(tryAddr string, defaultAddr string) (string, error) {
 //     Ex: localhost.localdomain:5000/samalba/hipache:latest
 //     Digest ex: localhost:5000/foo/bar@sha256:bc8813ea7b3603864987522f02a76101c17ad122e1c46d790efc0fca78ca7bfb
 func ParseRepositoryTag(repos string) (string, string) {
-	n := strings.Index(repos, "@")
+	// Handle escaped characters sent by a HTTP client.
+	unescapedRepos, err := url.QueryUnescape(repos)
+	
+	if err != nil {
+		unescapedRepos = repos
+	}
+	
+	n := strings.Index(unescapedRepos, "@")
 	if n >= 0 {
-		parts := strings.Split(repos, "@")
+		parts := strings.Split(unescapedRepos, "@")
 		return parts[0], parts[1]
 	}
-	n = strings.LastIndex(repos, ":")
+	n = strings.LastIndex(unescapedRepos, ":")
 	if n < 0 {
-		return repos, ""
+		return unescapedRepos, ""
 	}
-	if tag := repos[n+1:]; !strings.Contains(tag, "/") {
-		return repos[:n], tag
+	if tag := unescapedRepos[n+1:]; !strings.Contains(tag, "/") {
+		return unescapedRepos[:n], tag
 	}
-	return repos, ""
+	return unescapedRepos, ""
 }
 
 // PartParser parses and validates the specified string (data) using the specified template
