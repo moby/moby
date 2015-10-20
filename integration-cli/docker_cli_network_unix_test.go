@@ -16,11 +16,14 @@ import (
 	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/docker/libnetwork/driverapi"
 	remoteapi "github.com/docker/libnetwork/drivers/remote/api"
+	"github.com/docker/libnetwork/ipamapi"
+	remoteipam "github.com/docker/libnetwork/ipams/remote/api"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/go-check/check"
 )
 
 const dummyNetworkDriver = "dummy-network-driver"
+const dummyIpamDriver = "dummy-ipam-driver"
 
 var remoteDriverNetworkRequest remoteapi.CreateNetworkRequest
 
@@ -52,9 +55,10 @@ func (s *DockerNetworkSuite) SetUpSuite(c *check.C) {
 
 	mux.HandleFunc("/Plugin.Activate", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
-		fmt.Fprintf(w, `{"Implements": ["%s"]}`, driverapi.NetworkPluginEndpointType)
+		fmt.Fprintf(w, `{"Implements": ["%s", "%s"]}`, driverapi.NetworkPluginEndpointType, ipamapi.PluginEndpointType)
 	})
 
+	// Network driver implementation
 	mux.HandleFunc(fmt.Sprintf("/%s.GetCapabilities", driverapi.NetworkPluginEndpointType), func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
 		fmt.Fprintf(w, `{"Scope":"local"}`)
@@ -75,11 +79,98 @@ func (s *DockerNetworkSuite) SetUpSuite(c *check.C) {
 		fmt.Fprintf(w, "null")
 	})
 
+	// Ipam Driver implementation
+	var (
+		poolRequest       remoteipam.RequestPoolRequest
+		poolReleaseReq    remoteipam.ReleasePoolRequest
+		addressRequest    remoteipam.RequestAddressRequest
+		addressReleaseReq remoteipam.ReleaseAddressRequest
+		lAS               = "localAS"
+		gAS               = "globalAS"
+		pool              = "172.28.0.0/16"
+		poolID            = lAS + "/" + pool
+		gw                = "172.28.255.254/16"
+	)
+
+	mux.HandleFunc(fmt.Sprintf("/%s.GetDefaultAddressSpaces", ipamapi.PluginEndpointType), func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
+		fmt.Fprintf(w, `{"LocalDefaultAddressSpace":"`+lAS+`", "GlobalDefaultAddressSpace": "`+gAS+`"}`)
+	})
+
+	mux.HandleFunc(fmt.Sprintf("/%s.RequestPool", ipamapi.PluginEndpointType), func(w http.ResponseWriter, r *http.Request) {
+		err := json.NewDecoder(r.Body).Decode(&poolRequest)
+		if err != nil {
+			http.Error(w, "Unable to decode JSON payload: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
+		if poolRequest.AddressSpace != lAS && poolRequest.AddressSpace != gAS {
+			fmt.Fprintf(w, `{"Error":"Unknown address space in pool request: `+poolRequest.AddressSpace+`"}`)
+		} else if poolRequest.Pool != "" && poolRequest.Pool != pool {
+			fmt.Fprintf(w, `{"Error":"Cannot handle explicit pool requests yet"}`)
+		} else {
+			fmt.Fprintf(w, `{"PoolID":"`+poolID+`", "Pool":"`+pool+`"}`)
+		}
+	})
+
+	mux.HandleFunc(fmt.Sprintf("/%s.RequestAddress", ipamapi.PluginEndpointType), func(w http.ResponseWriter, r *http.Request) {
+		err := json.NewDecoder(r.Body).Decode(&addressRequest)
+		if err != nil {
+			http.Error(w, "Unable to decode JSON payload: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
+		// make sure libnetwork is now querying on the expected pool id
+		if addressRequest.PoolID != poolID {
+			fmt.Fprintf(w, `{"Error":"unknown pool id"}`)
+		} else if addressRequest.Address != "" {
+			fmt.Fprintf(w, `{"Error":"Cannot handle explicit address requests yet"}`)
+		} else {
+			fmt.Fprintf(w, `{"Address":"`+gw+`"}`)
+		}
+	})
+
+	mux.HandleFunc(fmt.Sprintf("/%s.ReleaseAddress", ipamapi.PluginEndpointType), func(w http.ResponseWriter, r *http.Request) {
+		err := json.NewDecoder(r.Body).Decode(&addressReleaseReq)
+		if err != nil {
+			http.Error(w, "Unable to decode JSON payload: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
+		// make sure libnetwork is now asking to release the expected address fro mthe expected poolid
+		if addressRequest.PoolID != poolID {
+			fmt.Fprintf(w, `{"Error":"unknown pool id"}`)
+		} else if addressReleaseReq.Address != gw {
+			fmt.Fprintf(w, `{"Error":"unknown address"}`)
+		} else {
+			fmt.Fprintf(w, "null")
+		}
+	})
+
+	mux.HandleFunc(fmt.Sprintf("/%s.ReleasePool", ipamapi.PluginEndpointType), func(w http.ResponseWriter, r *http.Request) {
+		err := json.NewDecoder(r.Body).Decode(&poolReleaseReq)
+		if err != nil {
+			http.Error(w, "Unable to decode JSON payload: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
+		// make sure libnetwork is now asking to release the expected poolid
+		if addressRequest.PoolID != poolID {
+			fmt.Fprintf(w, `{"Error":"unknown pool id"}`)
+		} else {
+			fmt.Fprintf(w, "null")
+		}
+	})
+
 	err := os.MkdirAll("/etc/docker/plugins", 0755)
 	c.Assert(err, checker.IsNil)
 
 	fileName := fmt.Sprintf("/etc/docker/plugins/%s.spec", dummyNetworkDriver)
 	err = ioutil.WriteFile(fileName, []byte(s.server.URL), 0644)
+	c.Assert(err, checker.IsNil)
+
+	ipamFileName := fmt.Sprintf("/etc/docker/plugins/%s.spec", dummyIpamDriver)
+	err = ioutil.WriteFile(ipamFileName, []byte(s.server.URL), 0644)
 	c.Assert(err, checker.IsNil)
 }
 
@@ -225,6 +316,21 @@ func (s *DockerNetworkSuite) TestDockerNetworkIpamMultipleNetworks(c *check.C) {
 	for i := 1; i < 8; i++ {
 		dockerCmd(c, "network", "rm", fmt.Sprintf("test%d", i))
 	}
+}
+
+func (s *DockerNetworkSuite) TestDockerNetworkCustomIpam(c *check.C) {
+	// Create a bridge network using custom ipam driver
+	dockerCmd(c, "network", "create", "--ipam-driver", dummyIpamDriver, "br0")
+	assertNwIsAvailable(c, "br0")
+
+	// Verify expected network ipam fields are there
+	nr := getNetworkResource(c, "br0")
+	c.Assert(nr.Driver, checker.Equals, "bridge")
+	c.Assert(nr.IPAM.Driver, checker.Equals, dummyIpamDriver)
+
+	// remove network and exercise remote ipam driver
+	dockerCmd(c, "network", "rm", "br0")
+	assertNwNotAvailable(c, "br0")
 }
 
 func (s *DockerNetworkSuite) TestDockerNetworkInspect(c *check.C) {
