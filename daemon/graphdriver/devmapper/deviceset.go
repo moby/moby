@@ -599,6 +599,7 @@ func (devices *DeviceSet) cleanupDeletedDevices() error {
 
 	// If there are no deleted devices, there is nothing to do.
 	if devices.nrDeletedDevices == 0 {
+		devices.Unlock()
 		return nil
 	}
 
