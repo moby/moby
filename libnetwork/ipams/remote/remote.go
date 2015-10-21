@@ -78,7 +78,11 @@ func (a *allocator) ReleasePool(poolID string) error {
 
 // RequestAddress requests an address from the address pool
 func (a *allocator) RequestAddress(poolID string, address net.IP, options map[string]string) (*net.IPNet, map[string]string, error) {
-	var prefAddress string
+	var (
+		prefAddress string
+		retAddress  *net.IPNet
+		err         error
+	)
 	if address != nil {
 		prefAddress = address.String()
 	}
@@ -87,7 +91,9 @@ func (a *allocator) RequestAddress(poolID string, address net.IP, options map[st
 	if err := a.call("RequestAddress", req, res); err != nil {
 		return nil, nil, err
 	}
-	retAddress, err := types.ParseCIDR(res.Address)
+	if res.Address != "" {
+		retAddress, err = types.ParseCIDR(res.Address)
+	}
 	return retAddress, res.Data, err
 }
 
