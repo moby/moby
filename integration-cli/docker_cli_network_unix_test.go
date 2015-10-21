@@ -431,11 +431,11 @@ func (s *DockerDaemonSuite) TestDockerNetworkNoDiscoveryDefaultBridgeNetwork(c *
 	hosts, err := s.d.Cmd("exec", cid1, "cat", hostsFile)
 	c.Assert(err, checker.IsNil)
 
-	out, err = s.d.Cmd("run", "-d", "busybox", "top")
+	out, err = s.d.Cmd("run", "-d", "--name", "container2", "busybox", "top")
 	c.Assert(err, check.IsNil)
 	cid2 := strings.TrimSpace(out)
 
-	// verify first container's etc/hosts file has not changed after spawning second container
+	// verify first container's etc/hosts file has not changed after spawning the second named container
 	hostsPost, err := s.d.Cmd("exec", cid1, "cat", hostsFile)
 	c.Assert(err, checker.IsNil)
 	c.Assert(string(hosts), checker.Equals, string(hostsPost),
@@ -484,4 +484,85 @@ func (s *DockerDaemonSuite) TestDockerNetworkNoDiscoveryDefaultBridgeNetwork(c *
 	c.Assert(err, checker.IsNil)
 	c.Assert(string(hosts), checker.Equals, string(hostsPost),
 		check.Commentf("Unexpected %s content after disconnecting from second network", hostsFile))
+}
+
+func (s *DockerNetworkSuite) TestDockerNetworkAnonymousEndpoint(c *check.C) {
+	hostsFile := "/etc/hosts"
+	cstmBridgeNw := "custom-bridge-nw"
+
+	dockerCmd(c, "network", "create", "-d", "bridge", cstmBridgeNw)
+	assertNwIsAvailable(c, cstmBridgeNw)
+
+	// run two anonymous containers and store their etc/hosts content
+	out, _ := dockerCmd(c, "run", "-d", "--net", cstmBridgeNw, "busybox", "top")
+	cid1 := strings.TrimSpace(out)
+
+	hosts1, err := readContainerFileWithExec(cid1, hostsFile)
+	c.Assert(err, checker.IsNil)
+
+	out, _ = dockerCmd(c, "run", "-d", "--net", cstmBridgeNw, "busybox", "top")
+	cid2 := strings.TrimSpace(out)
+
+	hosts2, err := readContainerFileWithExec(cid2, hostsFile)
+	c.Assert(err, checker.IsNil)
+
+	// verify first container etc/hosts file has not changed
+	hosts1post, err := readContainerFileWithExec(cid1, hostsFile)
+	c.Assert(err, checker.IsNil)
+	c.Assert(string(hosts1), checker.Equals, string(hosts1post),
+		check.Commentf("Unexpected %s change on anonymous container creation", hostsFile))
+
+	// start a named container
+	cName := "AnyName"
+	out, _ = dockerCmd(c, "run", "-d", "--net", cstmBridgeNw, "--name", cName, "busybox", "top")
+	cid3 := strings.TrimSpace(out)
+
+	// verify etc/hosts file for first two containers contains the named container entry
+	hosts1post, err = readContainerFileWithExec(cid1, hostsFile)
+	c.Assert(err, checker.IsNil)
+	c.Assert(string(hosts1post), checker.Contains, cName,
+		check.Commentf("Container 1  %s file does not contain entries for named container %q: %s", hostsFile, cName, string(hosts1post)))
+
+	hosts2post, err := readContainerFileWithExec(cid2, hostsFile)
+	c.Assert(err, checker.IsNil)
+	c.Assert(string(hosts2post), checker.Contains, cName,
+		check.Commentf("Container 2  %s file does not contain entries for named container %q: %s", hostsFile, cName, string(hosts2post)))
+
+	// Stop named container and verify first two containers' etc/hosts entries are back to original
+	dockerCmd(c, "stop", cid3)
+	hosts1post, err = readContainerFileWithExec(cid1, hostsFile)
+	c.Assert(err, checker.IsNil)
+	c.Assert(string(hosts1), checker.Equals, string(hosts1post),
+		check.Commentf("Unexpected %s change on anonymous container creation", hostsFile))
+
+	hosts2post, err = readContainerFileWithExec(cid2, hostsFile)
+	c.Assert(err, checker.IsNil)
+	c.Assert(string(hosts2), checker.Equals, string(hosts2post),
+		check.Commentf("Unexpected %s change on anonymous container creation", hostsFile))
+}
+
+func (s *DockerNetworkSuite) TestDockerNetworkLinkOndefaultNetworkOnly(c *check.C) {
+	// Link feature must work only on default network, and not across networks
+	cnt1 := "container1"
+	cnt2 := "container2"
+	network := "anotherbridge"
+
+	// Run first container on default network
+	dockerCmd(c, "run", "-d", "--name", cnt1, "busybox", "top")
+
+	// Create another network and run the second container on it
+	dockerCmd(c, "network", "create", network)
+	assertNwIsAvailable(c, network)
+	dockerCmd(c, "run", "-d", "--net", network, "--name", cnt2, "busybox", "top")
+
+	// Try launching a container on default network, linking to the first container. Must succeed
+	dockerCmd(c, "run", "-d", "--link", fmt.Sprintf("%s:%s", cnt1, cnt1), "busybox", "top")
+
+	// Try launching a container on default network, linking to the second container. Must fail
+	_, _, err := dockerCmdWithError("run", "-d", "--link", fmt.Sprintf("%s:%s", cnt2, cnt2), "busybox", "top")
+	c.Assert(err, checker.NotNil)
+
+	// Connect second container to default network. Now a container on default network can link to it
+	dockerCmd(c, "network", "connect", "bridge", cnt2)
+	dockerCmd(c, "run", "-d", "--link", fmt.Sprintf("%s:%s", cnt2, cnt2), "busybox", "top")
 }

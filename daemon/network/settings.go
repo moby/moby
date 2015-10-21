@@ -43,4 +43,5 @@ type Settings struct {
 	SandboxKey             string
 	SecondaryIPAddresses   []Address
 	SecondaryIPv6Addresses []Address
+	IsAnonymousEndpoint    bool
 }
