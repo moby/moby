@@ -311,7 +311,7 @@ EOF
 	fi
 
 	# Upload repo
-	s3cmd --acl-public "$s3Headers" sync "$APTDIR/" "s3://$BUCKET/ubuntu/"
+	s3cmd --acl-public $s3Headers sync "$APTDIR/" "s3://$BUCKET/ubuntu/"
 	cat <<EOF | write_to_s3 s3://$BUCKET/ubuntu/index
 echo "# WARNING! This script is deprecated. Please use the script"
 echo "# at https://get.docker.com/"
