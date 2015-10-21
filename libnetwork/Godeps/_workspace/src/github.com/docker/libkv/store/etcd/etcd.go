@@ -368,6 +368,10 @@ func (s *Etcd) AtomicDelete(key string, previous *store.KVPair) (bool, error) {
 	_, err := s.client.Delete(context.Background(), s.normalize(key), delOpts)
 	if err != nil {
 		if etcdError, ok := err.(etcd.Error); ok {
+			// Key Not Found
+			if etcdError.Code == etcd.ErrorCodeKeyNotFound {
+				return false, store.ErrKeyNotFound
+			}
 			// Compare failed
 			if etcdError.Code == etcd.ErrorCodeTestFailed {
 				return false, store.ErrKeyModified
