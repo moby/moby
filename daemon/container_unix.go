@@ -531,6 +531,9 @@ func (container *Container) buildSandboxOptions(n libnetwork.Network) ([]libnetw
 	}
 
 	for linkAlias, child := range children {
+		if !isLinkable(child) {
+			return nil, fmt.Errorf("Cannot link to %s, as it does not belong to the default network", child.Name)
+		}
 		_, alias := path.Split(linkAlias)
 		// allow access to the linked container via the alias, real name, and container hostname
 		aliasList := alias + " " + child.Config.Hostname
@@ -575,6 +578,16 @@ func (container *Container) buildSandboxOptions(n libnetwork.Network) ([]libnetw
 	sboxOptions = append(sboxOptions, libnetwork.OptionGeneric(linkOptions))
 
 	return sboxOptions, nil
+}
+
+func isLinkable(child *Container) bool {
+	// A container is linkable only if it belongs to the default network
+	for _, nw := range child.NetworkSettings.Networks {
+		if nw == "bridge" {
+			return true
+		}
+	}
+	return false
 }
 
 func (container *Container) getEndpointInNetwork(n libnetwork.Network) (libnetwork.Endpoint, error) {
@@ -861,7 +874,7 @@ func (container *Container) buildCreateEndpointOptions(n libnetwork.Network) ([]
 		createOptions = append(createOptions, libnetwork.EndpointOptionGeneric(genericOption))
 	}
 
-	if n.Name() == "bridge" {
+	if n.Name() == "bridge" || container.NetworkSettings.IsAnonymousEndpoint {
 		createOptions = append(createOptions, libnetwork.CreateOptionAnonymous())
 	}
 
