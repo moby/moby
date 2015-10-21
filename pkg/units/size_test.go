@@ -18,8 +18,8 @@ func TestBytesSize(t *testing.T) {
 }
 
 func TestHumanSize(t *testing.T) {
-	assertEquals(t, "1 kB", HumanSize(1000))
-	assertEquals(t, "1.024 kB", HumanSize(1024))
+	assertEquals(t, "1 KB", HumanSize(1000))
+	assertEquals(t, "1.024 KB", HumanSize(1024))
 	assertEquals(t, "1 MB", HumanSize(1000000))
 	assertEquals(t, "1.049 MB", HumanSize(1048576))
 	assertEquals(t, "2 MB", HumanSize(2*MB))

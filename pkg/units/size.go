@@ -34,7 +34,7 @@ var (
 	sizeRegex  = regexp.MustCompile(`^(\d+)([kKmMgGtTpP])?[bB]?$`)
 )
 
-var decimapAbbrs = []string{"B", "kB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"}
+var decimapAbbrs = []string{"B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"}
 var binaryAbbrs = []string{"B", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB", "ZiB", "YiB"}
 
 // CustomSize returns a human-readable approximation of a size
