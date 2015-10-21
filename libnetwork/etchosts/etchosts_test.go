@@ -2,8 +2,10 @@ package etchosts
 
 import (
 	"bytes"
+	"fmt"
 	"io/ioutil"
 	"os"
+	"sync"
 	"testing"
 
 	_ "github.com/docker/libnetwork/testutils"
@@ -245,5 +247,63 @@ func TestDelete(t *testing.T) {
 
 	if expected := "1.1.1.1\ttesthostname1\n"; bytes.Contains(content, []byte(expected)) {
 		t.Fatalf("Did not expect to find '%s' got '%s'", expected, content)
+	}
+}
+
+func TestConcurrentWrites(t *testing.T) {
+	file, err := ioutil.TempFile("", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(file.Name())
+
+	err = Build(file.Name(), "", "", "", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := Add(file.Name(), []Record{
+		Record{
+			Hosts: "inithostname",
+			IP:    "172.17.0.1",
+		},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	var wg sync.WaitGroup
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			rec := []Record{
+				Record{
+					IP:    fmt.Sprintf("%d.%d.%d.%d", i, i, i, i),
+					Hosts: fmt.Sprintf("testhostname%d", i),
+				},
+			}
+
+			for j := 0; j < 25; j++ {
+				if err := Add(file.Name(), rec); err != nil {
+					t.Fatal(err)
+				}
+
+				if err := Delete(file.Name(), rec); err != nil {
+					t.Fatal(err)
+				}
+			}
+		}()
+	}
+
+	wg.Wait()
+
+	content, err := ioutil.ReadFile(file.Name())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if expected := "172.17.0.1\tinithostname\n"; !bytes.Contains(content, []byte(expected)) {
+		t.Fatalf("Expected to find '%s' got '%s'", expected, content)
 	}
 }
