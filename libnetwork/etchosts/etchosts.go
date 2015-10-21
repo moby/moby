@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"os"
 	"regexp"
+	"sync"
 )
 
 // Record Structure for a single host record
@@ -21,14 +22,47 @@ func (r Record) WriteTo(w io.Writer) (int64, error) {
 	return int64(n), err
 }
 
-// Default hosts config records slice
-var defaultContent = []Record{
-	{Hosts: "localhost", IP: "127.0.0.1"},
-	{Hosts: "localhost ip6-localhost ip6-loopback", IP: "::1"},
-	{Hosts: "ip6-localnet", IP: "fe00::0"},
-	{Hosts: "ip6-mcastprefix", IP: "ff00::0"},
-	{Hosts: "ip6-allnodes", IP: "ff02::1"},
-	{Hosts: "ip6-allrouters", IP: "ff02::2"},
+var (
+	// Default hosts config records slice
+	defaultContent = []Record{
+		{Hosts: "localhost", IP: "127.0.0.1"},
+		{Hosts: "localhost ip6-localhost ip6-loopback", IP: "::1"},
+		{Hosts: "ip6-localnet", IP: "fe00::0"},
+		{Hosts: "ip6-mcastprefix", IP: "ff00::0"},
+		{Hosts: "ip6-allnodes", IP: "ff02::1"},
+		{Hosts: "ip6-allrouters", IP: "ff02::2"},
+	}
+
+	// A cache of path level locks for synchronizing /etc/hosts
+	// updates on a file level
+	pathMap = make(map[string]*sync.Mutex)
+
+	// A package level mutex to synchronize the cache itself
+	pathMutex sync.Mutex
+)
+
+func pathLock(path string) func() {
+	pathMutex.Lock()
+	defer pathMutex.Unlock()
+
+	pl, ok := pathMap[path]
+	if !ok {
+		pl = &sync.Mutex{}
+		pathMap[path] = pl
+	}
+
+	pl.Lock()
+	return func() {
+		pl.Unlock()
+	}
+}
+
+// Drop drops the path string from the path cache
+func Drop(path string) {
+	pathMutex.Lock()
+	defer pathMutex.Unlock()
+
+	delete(pathMap, path)
 }
 
 // Build function
@@ -36,6 +70,8 @@ var defaultContent = []Record{
 // IP, hostname, and domainname set main record leave empty for no master record
 // extraContent is an array of extra host records.
 func Build(path, IP, hostname, domainname string, extraContent []Record) error {
+	defer pathLock(path)()
+
 	content := bytes.NewBuffer(nil)
 	if IP != "" {
 		//set main record
@@ -68,6 +104,8 @@ func Build(path, IP, hostname, domainname string, extraContent []Record) error {
 
 // Add adds an arbitrary number of Records to an already existing /etc/hosts file
 func Add(path string, recs []Record) error {
+	defer pathLock(path)()
+
 	if len(recs) == 0 {
 		return nil
 	}
@@ -95,6 +133,8 @@ func Add(path string, recs []Record) error {
 
 // Delete deletes an arbitrary number of Records already existing in /etc/hosts file
 func Delete(path string, recs []Record) error {
+	defer pathLock(path)()
+
 	if len(recs) == 0 {
 		return nil
 	}
@@ -118,6 +158,8 @@ func Delete(path string, recs []Record) error {
 // IP is new IP address
 // hostname is hostname to search for to replace IP
 func Update(path, IP, hostname string) error {
+	defer pathLock(path)()
+
 	old, err := ioutil.ReadFile(path)
 	if err != nil {
 		return err
