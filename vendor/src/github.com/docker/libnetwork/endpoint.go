@@ -57,6 +57,7 @@ type endpoint struct {
 	joinInfo      *endpointJoinInfo
 	sandboxID     string
 	exposedPorts  []types.TransportPort
+	anonymous     bool
 	generic       map[string]interface{}
 	joinLeaveDone chan struct{}
 	dbIndex       uint64
@@ -77,6 +78,7 @@ func (ep *endpoint) MarshalJSON() ([]byte, error) {
 		epMap["generic"] = ep.generic
 	}
 	epMap["sandbox"] = ep.sandboxID
+	epMap["anonymous"] = ep.anonymous
 	return json.Marshal(epMap)
 }
 
@@ -105,6 +107,10 @@ func (ep *endpoint) UnmarshalJSON(b []byte) (err error) {
 	if v, ok := epMap["generic"]; ok {
 		ep.generic = v.(map[string]interface{})
 	}
+
+	if v, ok := epMap["anonymous"]; ok {
+		ep.anonymous = v.(bool)
+	}
 	return nil
 }
 
@@ -122,6 +128,7 @@ func (ep *endpoint) CopyTo(o datastore.KVObject) error {
 	dstEp.sandboxID = ep.sandboxID
 	dstEp.dbIndex = ep.dbIndex
 	dstEp.dbExists = ep.dbExists
+	dstEp.anonymous = ep.anonymous
 
 	if ep.iface != nil {
 		dstEp.iface = &endpointInterface{}
@@ -159,6 +166,12 @@ func (ep *endpoint) Network() string {
 	}
 
 	return ep.network.name
+}
+
+func (ep *endpoint) isAnonymous() bool {
+	ep.Lock()
+	defer ep.Unlock()
+	return ep.anonymous
 }
 
 // endpoint Key structure : endpoint/network-id/endpoint-id
@@ -600,6 +613,14 @@ func CreateOptionPortMapping(portBindings []types.PortBinding) EndpointOption {
 		pbs := make([]types.PortBinding, len(portBindings))
 		copy(pbs, portBindings)
 		ep.generic[netlabel.PortMap] = pbs
+	}
+}
+
+// CreateOptionAnonymous function returns an option setter for setting
+// this endpoint as anonymous
+func CreateOptionAnonymous() EndpointOption {
+	return func(ep *endpoint) {
+		ep.anonymous = true
 	}
 }
 
