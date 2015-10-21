@@ -119,10 +119,10 @@ func isNwPresent(c *check.C, name string) bool {
 
 func getNwResource(c *check.C, name string) *types.NetworkResource {
 	out, _ := dockerCmd(c, "network", "inspect", name)
-	nr := types.NetworkResource{}
+	nr := []types.NetworkResource{}
 	err := json.Unmarshal([]byte(out), &nr)
 	c.Assert(err, check.IsNil)
-	return &nr
+	return &nr[0]
 }
 
 func (s *DockerNetworkSuite) TestDockerNetworkLsDefault(c *check.C) {
@@ -143,6 +143,30 @@ func (s *DockerNetworkSuite) TestDockerNetworkCreateDelete(c *check.C) {
 func (s *DockerSuite) TestDockerNetworkDeleteNotExists(c *check.C) {
 	out, _, err := dockerCmdWithError("network", "rm", "test")
 	c.Assert(err, checker.NotNil, check.Commentf("%v", out))
+}
+
+func (s *DockerSuite) TestDockerInspectMultipleNetwork(c *check.C) {
+	out, _ := dockerCmd(c, "network", "inspect", "host", "none")
+	networkResources := []types.NetworkResource{}
+	err := json.Unmarshal([]byte(out), &networkResources)
+	c.Assert(err, check.IsNil)
+	c.Assert(networkResources, checker.HasLen, 2)
+
+	// Should print an error, return an exitCode 1 *but* should print the host network
+	out, exitCode, err := dockerCmdWithError("network", "inspect", "host", "nonexistent")
+	c.Assert(err, checker.NotNil)
+	c.Assert(exitCode, checker.Equals, 1)
+	c.Assert(out, checker.Contains, "Error: No such network: nonexistent")
+	networkResources = []types.NetworkResource{}
+	inspectOut := strings.SplitN(out, "\n", 2)[1]
+	err = json.Unmarshal([]byte(inspectOut), &networkResources)
+	c.Assert(networkResources, checker.HasLen, 1)
+
+	// Should print an error and return an exitCode, nothing else
+	out, exitCode, err = dockerCmdWithError("network", "inspect", "nonexistent")
+	c.Assert(err, checker.NotNil)
+	c.Assert(exitCode, checker.Equals, 1)
+	c.Assert(out, checker.Contains, "Error: No such network: nonexistent")
 }
 
 func (s *DockerNetworkSuite) TestDockerNetworkConnectDisconnect(c *check.C) {
