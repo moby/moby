@@ -819,10 +819,10 @@ RUN [ $(ls -l /exists/exists_file | awk '{print $3":"$4}') = 'dockerio:dockerio'
 			"test_file3": "test3",
 			"test_file4": "test4",
 		})
-	defer ctx.Close()
 	if err != nil {
 		c.Fatal(err)
 	}
+	defer ctx.Close()
 
 	if _, err := buildImageFromContext(name, ctx, true); err != nil {
 		c.Fatal(err)
@@ -839,10 +839,10 @@ func (s *DockerSuite) TestBuildAddMultipleFilesToFile(c *check.C) {
 			"file1.txt": "test1",
 			"file2.txt": "test1",
 		})
-	defer ctx.Close()
 	if err != nil {
 		c.Fatal(err)
 	}
+	defer ctx.Close()
 
 	expected := "When using ADD with more than one source file, the destination must be a directory and end with a /"
 	if _, err := buildImageFromContext(name, ctx, true); err == nil || !strings.Contains(err.Error(), expected) {
@@ -861,10 +861,10 @@ func (s *DockerSuite) TestBuildJSONAddMultipleFilesToFile(c *check.C) {
 			"file1.txt": "test1",
 			"file2.txt": "test1",
 		})
-	defer ctx.Close()
 	if err != nil {
 		c.Fatal(err)
 	}
+	defer ctx.Close()
 
 	expected := "When using ADD with more than one source file, the destination must be a directory and end with a /"
 	if _, err := buildImageFromContext(name, ctx, true); err == nil || !strings.Contains(err.Error(), expected) {
@@ -883,10 +883,10 @@ func (s *DockerSuite) TestBuildAddMultipleFilesToFileWild(c *check.C) {
 			"file1.txt": "test1",
 			"file2.txt": "test1",
 		})
-	defer ctx.Close()
 	if err != nil {
 		c.Fatal(err)
 	}
+	defer ctx.Close()
 
 	expected := "When using ADD with more than one source file, the destination must be a directory and end with a /"
 	if _, err := buildImageFromContext(name, ctx, true); err == nil || !strings.Contains(err.Error(), expected) {
@@ -905,10 +905,10 @@ func (s *DockerSuite) TestBuildJSONAddMultipleFilesToFileWild(c *check.C) {
 			"file1.txt": "test1",
 			"file2.txt": "test1",
 		})
-	defer ctx.Close()
 	if err != nil {
 		c.Fatal(err)
 	}
+	defer ctx.Close()
 
 	expected := "When using ADD with more than one source file, the destination must be a directory and end with a /"
 	if _, err := buildImageFromContext(name, ctx, true); err == nil || !strings.Contains(err.Error(), expected) {
@@ -927,10 +927,10 @@ func (s *DockerSuite) TestBuildCopyMultipleFilesToFile(c *check.C) {
 			"file1.txt": "test1",
 			"file2.txt": "test1",
 		})
-	defer ctx.Close()
 	if err != nil {
 		c.Fatal(err)
 	}
+	defer ctx.Close()
 
 	expected := "When using COPY with more than one source file, the destination must be a directory and end with a /"
 	if _, err := buildImageFromContext(name, ctx, true); err == nil || !strings.Contains(err.Error(), expected) {
@@ -949,10 +949,10 @@ func (s *DockerSuite) TestBuildJSONCopyMultipleFilesToFile(c *check.C) {
 			"file1.txt": "test1",
 			"file2.txt": "test1",
 		})
-	defer ctx.Close()
 	if err != nil {
 		c.Fatal(err)
 	}
+	defer ctx.Close()
 
 	expected := "When using COPY with more than one source file, the destination must be a directory and end with a /"
 	if _, err := buildImageFromContext(name, ctx, true); err == nil || !strings.Contains(err.Error(), expected) {
@@ -987,10 +987,10 @@ RUN [ $(cat "/test dir/test_file6") = 'test6' ]`,
 			"test_dir/test_file5": "test5",
 			"test dir/test_file6": "test6",
 		})
-	defer ctx.Close()
 	if err != nil {
 		c.Fatal(err)
 	}
+	defer ctx.Close()
 
 	if _, err := buildImageFromContext(name, ctx, true); err != nil {
 		c.Fatal(err)
@@ -1023,10 +1023,10 @@ RUN [ $(cat "/test dir/test_file6") = 'test6' ]`,
 			"test_dir/test_file5": "test5",
 			"test dir/test_file6": "test6",
 		})
-	defer ctx.Close()
 	if err != nil {
 		c.Fatal(err)
 	}
+	defer ctx.Close()
 
 	if _, err := buildImageFromContext(name, ctx, true); err != nil {
 		c.Fatal(err)
@@ -1043,10 +1043,10 @@ func (s *DockerSuite) TestBuildAddMultipleFilesToFileWithWhitespace(c *check.C) 
 			"test file1": "test1",
 			"test file2": "test2",
 		})
-	defer ctx.Close()
 	if err != nil {
 		c.Fatal(err)
 	}
+	defer ctx.Close()
 
 	expected := "When using ADD with more than one source file, the destination must be a directory and end with a /"
 	if _, err := buildImageFromContext(name, ctx, true); err == nil || !strings.Contains(err.Error(), expected) {
@@ -1065,10 +1065,10 @@ func (s *DockerSuite) TestBuildCopyMultipleFilesToFileWithWhitespace(c *check.C)
 			"test file1": "test1",
 			"test file2": "test2",
 		})
-	defer ctx.Close()
 	if err != nil {
 		c.Fatal(err)
 	}
+	defer ctx.Close()
 
 	expected := "When using COPY with more than one source file, the destination must be a directory and end with a /"
 	if _, err := buildImageFromContext(name, ctx, true); err == nil || !strings.Contains(err.Error(), expected) {
@@ -1134,10 +1134,10 @@ func (s *DockerSuite) TestBuildCopyWildcardNoFind(c *check.C) {
 	ctx, err := fakeContext(`FROM busybox
 	COPY file*.txt /tmp/
 	`, nil)
-	defer ctx.Close()
 	if err != nil {
 		c.Fatal(err)
 	}
+	defer ctx.Close()
 
 	_, err = buildImageFromContext(name, ctx, true)
 	if err == nil {
@@ -1182,10 +1182,10 @@ func (s *DockerSuite) TestBuildCopyWildcardCache(c *check.C) {
 		map[string]string{
 			"file1.txt": "test1",
 		})
-	defer ctx.Close()
 	if err != nil {
 		c.Fatal(err)
 	}
+	defer ctx.Close()
 
 	id1, err := buildImageFromContext(name, ctx, true)
 	if err != nil {
@@ -2214,10 +2214,10 @@ func (s *DockerSuite) TestBuildRelativeCopy(c *check.C) {
 	ctx, err := fakeContext(dockerfile, map[string]string{
 		"foo": "hello",
 	})
-	defer ctx.Close()
 	if err != nil {
 		c.Fatal(err)
 	}
+	defer ctx.Close()
 	_, err = buildImageFromContext(name, ctx, false)
 	if err != nil {
 		c.Fatal(err)
@@ -2699,10 +2699,10 @@ func (s *DockerSuite) TestBuildAddLocalFileWithCache(c *check.C) {
 	ctx, err := fakeContext(dockerfile, map[string]string{
 		"foo": "hello",
 	})
-	defer ctx.Close()
 	if err != nil {
 		c.Fatal(err)
 	}
+	defer ctx.Close()
 	id1, err := buildImageFromContext(name, ctx, true)
 	if err != nil {
 		c.Fatal(err)
@@ -2728,10 +2728,10 @@ func (s *DockerSuite) TestBuildAddMultipleLocalFileWithCache(c *check.C) {
 	ctx, err := fakeContext(dockerfile, map[string]string{
 		"foo": "hello",
 	})
-	defer ctx.Close()
 	if err != nil {
 		c.Fatal(err)
 	}
+	defer ctx.Close()
 	id1, err := buildImageFromContext(name, ctx, true)
 	if err != nil {
 		c.Fatal(err)
@@ -2759,10 +2759,10 @@ func (s *DockerSuite) TestBuildAddLocalFileWithoutCache(c *check.C) {
 	ctx, err := fakeContext(dockerfile, map[string]string{
 		"foo": "hello",
 	})
-	defer ctx.Close()
 	if err != nil {
 		c.Fatal(err)
 	}
+	defer ctx.Close()
 	id1, err := buildImageFromContext(name, ctx, true)
 	if err != nil {
 		c.Fatal(err)
@@ -2786,10 +2786,10 @@ func (s *DockerSuite) TestBuildCopyDirButNotFile(c *check.C) {
 	ctx, err := fakeContext(dockerfile, map[string]string{
 		"dir/foo": "hello",
 	})
-	defer ctx.Close()
 	if err != nil {
 		c.Fatal(err)
 	}
+	defer ctx.Close()
 	id1, err := buildImageFromContext(name, ctx, true)
 	if err != nil {
 		c.Fatal(err)
@@ -2820,10 +2820,10 @@ func (s *DockerSuite) TestBuildAddCurrentDirWithCache(c *check.C) {
 	ctx, err := fakeContext(dockerfile, map[string]string{
 		"foo": "hello",
 	})
-	defer ctx.Close()
 	if err != nil {
 		c.Fatal(err)
 	}
+	defer ctx.Close()
 	id1, err := buildImageFromContext(name, ctx, true)
 	if err != nil {
 		c.Fatal(err)
@@ -2876,10 +2876,10 @@ func (s *DockerSuite) TestBuildAddCurrentDirWithoutCache(c *check.C) {
 	ctx, err := fakeContext(dockerfile, map[string]string{
 		"foo": "hello",
 	})
-	defer ctx.Close()
 	if err != nil {
 		c.Fatal(err)
 	}
+	defer ctx.Close()
 	id1, err := buildImageFromContext(name, ctx, true)
 	if err != nil {
 		c.Fatal(err)
@@ -3065,10 +3065,10 @@ CMD ["cat", "/foo"]`,
 			"foo": "bar",
 		},
 	)
-	defer ctx.Close()
 	if err != nil {
 		c.Fatal(err)
 	}
+	defer ctx.Close()
 	context, err := archive.Tar(ctx.Dir, compression)
 	if err != nil {
 		c.Fatalf("failed to build context tar: %v", err)
@@ -3186,10 +3186,10 @@ func (s *DockerSuite) TestBuildEntrypointRunCleanup(c *check.C) {
 		map[string]string{
 			"foo": "hello",
 		})
-	defer ctx.Close()
 	if err != nil {
 		c.Fatal(err)
 	}
+	defer ctx.Close()
 	if _, err := buildImageFromContext(name, ctx, true); err != nil {
 		c.Fatal(err)
 	}
@@ -3213,10 +3213,10 @@ func (s *DockerSuite) TestBuildForbiddenContextPath(c *check.C) {
 			"test.txt":  "test1",
 			"other.txt": "other",
 		})
-	defer ctx.Close()
 	if err != nil {
 		c.Fatal(err)
 	}
+	defer ctx.Close()
 
 	expected := "Forbidden path outside the build context: ../../ "
 	if _, err := buildImageFromContext(name, ctx, true); err == nil || !strings.Contains(err.Error(), expected) {
@@ -3231,10 +3231,10 @@ func (s *DockerSuite) TestBuildAddFileNotFound(c *check.C) {
 	ctx, err := fakeContext(`FROM scratch
         ADD foo /usr/local/bar`,
 		map[string]string{"bar": "hello"})
-	defer ctx.Close()
 	if err != nil {
 		c.Fatal(err)
 	}
+	defer ctx.Close()
 	if _, err := buildImageFromContext(name, ctx, true); err != nil {
 		if !strings.Contains(err.Error(), "foo: no such file or directory") {
 			c.Fatalf("Wrong error %v, must be about missing foo file or directory", err)
@@ -3631,10 +3631,10 @@ func (s *DockerSuite) TestBuildDockerignoringDockerignore(c *check.C) {
 		"Dockerfile":    dockerfile,
 		".dockerignore": ".dockerignore\n",
 	})
-	defer ctx.Close()
 	if err != nil {
 		c.Fatal(err)
 	}
+	defer ctx.Close()
 	if _, err = buildImageFromContext(name, ctx, true); err != nil {
 		c.Fatalf("Didn't ignore .dockerignore correctly:%s", err)
 	}
@@ -3653,10 +3653,10 @@ func (s *DockerSuite) TestBuildDockerignoreTouchDockerfile(c *check.C) {
 		"Dockerfile":    dockerfile,
 		".dockerignore": "Dockerfile\n",
 	})
-	defer ctx.Close()
 	if err != nil {
 		c.Fatal(err)
 	}
+	defer ctx.Close()
 
 	if id1, err = buildImageFromContext(name, ctx, true); err != nil {
 		c.Fatalf("Didn't build it correctly:%s", err)
@@ -4926,10 +4926,10 @@ func (s *DockerSuite) TestBuildRenamedDockerfile(c *check.C) {
 			"dFile":            "FROM busybox\nRUN echo from dFile",
 			"files/dFile2":     "FROM busybox\nRUN echo from files/dFile2",
 		})
-	defer ctx.Close()
 	if err != nil {
 		c.Fatal(err)
 	}
+	defer ctx.Close()
 
 	out, _, err := dockerCmdInDir(c, ctx.Dir, "build", "-t", "test1", ".")
 	if err != nil {
@@ -5028,10 +5028,10 @@ func (s *DockerSuite) TestBuildFromMixedcaseDockerfile(c *check.C) {
 		map[string]string{
 			"dockerfile": "FROM busybox\nRUN echo from dockerfile",
 		})
-	defer ctx.Close()
 	if err != nil {
 		c.Fatal(err)
 	}
+	defer ctx.Close()
 
 	out, _, err := dockerCmdInDir(c, ctx.Dir, "build", "-t", "test1", ".")
 	if err != nil {
@@ -5053,10 +5053,10 @@ RUN echo from Dockerfile`,
 		map[string]string{
 			"dockerfile": "FROM busybox\nRUN echo from dockerfile",
 		})
-	defer ctx.Close()
 	if err != nil {
 		c.Fatal(err)
 	}
+	defer ctx.Close()
 
 	out, _, err := dockerCmdInDir(c, ctx.Dir, "build", "-t", "test1", ".")
 	if err != nil {
@@ -5084,10 +5084,10 @@ RUN find /tmp/`})
 	ctx, err := fakeContext(`FROM busybox
 RUN echo from Dockerfile`,
 		map[string]string{})
-	defer ctx.Close()
 	if err != nil {
 		c.Fatal(err)
 	}
+	defer ctx.Close()
 
 	// Make sure that -f is ignored and that we don't use the Dockerfile
 	// that's in the current dir
@@ -5109,10 +5109,10 @@ func (s *DockerSuite) TestBuildFromStdinWithF(c *check.C) {
 	ctx, err := fakeContext(`FROM busybox
 RUN echo from Dockerfile`,
 		map[string]string{})
-	defer ctx.Close()
 	if err != nil {
 		c.Fatal(err)
 	}
+	defer ctx.Close()
 
 	// Make sure that -f is ignored and that we don't use the Dockerfile
 	// that's in the current dir
@@ -5669,8 +5669,8 @@ func (s *DockerSuite) TestBuildNullStringInAddCopyVolume(c *check.C) {
 			"nullfile": "test2",
 		},
 	)
-	defer ctx.Close()
 	c.Assert(err, check.IsNil)
+	defer ctx.Close()
 
 	_, err = buildImageFromContext(name, ctx, true)
 	c.Assert(err, check.IsNil)

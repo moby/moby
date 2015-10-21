@@ -1146,6 +1146,14 @@ func (daemon *Daemon) GetRemappedUIDGID() (int, int) {
 // created. nil is returned if a child cannot be found. An error is
 // returned if the parent image cannot be found.
 func (daemon *Daemon) ImageGetCached(imgID string, config *runconfig.Config) (*image.Image, error) {
+	// for now just exit if imgID has no children.
+	// maybe parentRefs in graph could be used to store
+	// the Image obj children for faster lookup below but this can
+	// be quite memory hungry.
+	if !daemon.Graph().HasChildren(imgID) {
+		return nil, nil
+	}
+
 	// Retrieve all images
 	images := daemon.Graph().Map()
 

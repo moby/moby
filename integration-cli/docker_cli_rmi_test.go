@@ -284,3 +284,15 @@ RUN echo 2 #layer2
 	// should be allowed to untag with the -f flag
 	c.Assert(out, checker.Contains, fmt.Sprintf("Untagged: %s:latest", newTag))
 }
+
+func (*DockerSuite) TestRmiParentImageFail(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	parent, err := inspectField("busybox", "Parent")
+	c.Assert(err, check.IsNil)
+	out, _, err := dockerCmdWithError("rmi", parent)
+	c.Assert(err, check.NotNil)
+	if !strings.Contains(out, "image has dependent child images") {
+		c.Fatalf("rmi should have failed because it's a parent image, got %s", out)
+	}
+}

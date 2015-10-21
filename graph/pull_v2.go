@@ -7,7 +7,6 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	"sync"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution"
@@ -359,6 +358,9 @@ func (p *v2Puller) pullV2Tag(out io.Writer, tag, taggedName string) (tagUpdated 
 				Action:    "Extracting",
 			})
 
+			p.graph.imagesMutex.Lock()
+			defer p.graph.imagesMutex.Unlock()
+
 			p.graph.imageMutex.Lock(d.img.id)
 			defer p.graph.imageMutex.Unlock(d.img.id)
 
@@ -549,8 +551,6 @@ func (p *v2Puller) getImageInfos(m *manifest.Manifest) ([]contentAddressableDesc
 	return imgs, nil
 }
 
-var idReuseLock sync.Mutex
-
 // attemptIDReuse does a best attempt to match verified compatibilityIDs
 // already in the graph with the computed strongIDs so we can keep using them.
 // This process will never fail but may just return the strongIDs if none of
@@ -561,8 +561,8 @@ func (p *v2Puller) attemptIDReuse(imgs []contentAddressableDescriptor) {
 	// This function needs to be protected with a global lock, because it
 	// locks multiple IDs at once, and there's no good way to make sure
 	// the locking happens a deterministic order.
-	idReuseLock.Lock()
-	defer idReuseLock.Unlock()
+	p.graph.imagesMutex.Lock()
+	defer p.graph.imagesMutex.Unlock()
 
 	idMap := make(map[string]struct{})
 	for _, img := range imgs {
