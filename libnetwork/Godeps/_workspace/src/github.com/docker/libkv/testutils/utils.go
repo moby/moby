@@ -312,6 +312,11 @@ func testAtomicDelete(t *testing.T, kv store.Store) {
 	success, err = kv.AtomicDelete(key, pair)
 	assert.NoError(t, err)
 	assert.True(t, success)
+
+	// Delete a non-existent key; should fail
+	success, err = kv.AtomicDelete(key, pair)
+	assert.Error(t, store.ErrKeyNotFound)
+	assert.False(t, success)
 }
 
 func testLockUnlock(t *testing.T, kv store.Store) {
