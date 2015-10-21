@@ -2,8 +2,9 @@
 package ipamapi
 
 import (
-	"errors"
 	"net"
+
+	"github.com/docker/libnetwork/types"
 )
 
 /********************
@@ -29,22 +30,19 @@ type Callback interface {
 
 // Weel-known errors returned by IPAM
 var (
-	ErrInvalidIpamService       = errors.New("Invalid IPAM Service")
-	ErrInvalidIpamConfigService = errors.New("Invalid IPAM Config Service")
-	ErrIpamNotAvailable         = errors.New("IPAM Service not available")
-	ErrIpamInternalError        = errors.New("IPAM Internal Error")
-	ErrInvalidAddressSpace      = errors.New("Invalid Address Space")
-	ErrInvalidPool              = errors.New("Invalid Address Pool")
-	ErrInvalidSubPool           = errors.New("Invalid Address SubPool")
-	ErrInvalidRequest           = errors.New("Invalid Request")
-	ErrPoolNotFound             = errors.New("Address Pool not found")
-	ErrOverlapPool              = errors.New("Address pool overlaps with existing pool on this address space")
-	ErrNoAvailablePool          = errors.New("No available pool")
-	ErrNoAvailableIPs           = errors.New("No available addresses on this pool")
-	ErrIPAlreadyAllocated       = errors.New("Address already in use")
-	ErrIPOutOfRange             = errors.New("Requested address is out of range")
-	ErrPoolOverlap              = errors.New("Pool overlaps with other one on this address space")
-	ErrBadPool                  = errors.New("Address space does not contain specified address pool")
+	ErrIpamInternalError   = types.InternalErrorf("IPAM Internal Error")
+	ErrInvalidAddressSpace = types.BadRequestErrorf("Invalid Address Space")
+	ErrInvalidPool         = types.BadRequestErrorf("Invalid Address Pool")
+	ErrInvalidSubPool      = types.BadRequestErrorf("Invalid Address SubPool")
+	ErrInvalidRequest      = types.BadRequestErrorf("Invalid Request")
+	ErrPoolNotFound        = types.BadRequestErrorf("Address Pool not found")
+	ErrOverlapPool         = types.ForbiddenErrorf("Address pool overlaps with existing pool on this address space")
+	ErrNoAvailablePool     = types.NoServiceErrorf("No available pool")
+	ErrNoAvailableIPs      = types.NoServiceErrorf("No available addresses on this pool")
+	ErrIPAlreadyAllocated  = types.ForbiddenErrorf("Address already in use")
+	ErrIPOutOfRange        = types.BadRequestErrorf("Requested address is out of range")
+	ErrPoolOverlap         = types.ForbiddenErrorf("Pool overlaps with other one on this address space")
+	ErrBadPool             = types.BadRequestErrorf("Address space does not contain specified address pool")
 )
 
 /*******************************

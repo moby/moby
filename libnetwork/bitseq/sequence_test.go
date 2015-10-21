@@ -657,7 +657,7 @@ func TestSetInRange(t *testing.T) {
 	if err == nil {
 		t.Fatalf("Expected failure. Got success with ordinal:%d", o)
 	}
-	if err != errNoBitAvailable {
+	if err != ErrNoBitAvailable {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 
@@ -673,7 +673,7 @@ func TestSetInRange(t *testing.T) {
 	if err == nil {
 		t.Fatalf("Expected failure. Got success with ordinal:%d", o)
 	}
-	if err != errNoBitAvailable {
+	if err != ErrNoBitAvailable {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 
@@ -687,7 +687,7 @@ func TestSetInRange(t *testing.T) {
 	if err == nil {
 		t.Fatalf("Expected failure. Got success with ordinal:%d", o)
 	}
-	if err != errNoBitAvailable {
+	if err != ErrNoBitAvailable {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 }
