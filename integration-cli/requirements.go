@@ -141,10 +141,10 @@ var (
 	NotGCCGO = testRequirement{
 		func() bool {
 			out, err := exec.Command("go", "version").Output()
-			if err != nil && strings.Contains(string(out), "gccgo") {
-				return true
+			if err == nil && strings.Contains(string(out), "gccgo") {
+				return false
 			}
-			return false
+			return true
 		},
 		"Test requires native Golang compiler instead of GCCGO",
 	}

@@ -3138,7 +3138,7 @@ func (s *DockerSuite) TestAppArmorDeniesPtrace(c *check.C) {
 
 	// Run through 'sh' so we are NOT pid 1. Pid 1 may be able to trace
 	// itself, but pid>1 should not be able to trace pid1.
-	_, exitCode, _ := dockerCmdWithError("run", "busybox", "sh", "-c", "readlink /proc/1/ns/net")
+	_, exitCode, _ := dockerCmdWithError("run", "busybox", "sh", "-c", "sh -c readlink /proc/1/ns/net")
 	if exitCode == 0 {
 		c.Fatal("ptrace was not successfully restricted by AppArmor")
 	}
