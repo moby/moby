@@ -21,19 +21,19 @@ weight=2
     border-radius: 2px;
     box-shadow: inset 0 -1px 0 rgba(0,0,0,0.12);
 }
-.gh-label.beginner { background-color: #B5E0B5; color: #333333; }
-.gh-label.expert { background-color: #599898; color: #ffffff; }
+.gh-label.beginner { background-color: #A8DBA8; color: #333333; }
+.gh-label.expert { background-color: #3B8686; color: #ffffff; }
 .gh-label.master { background-color: #306481; color: #ffffff; }
-.gh-label.novice { background-color: #D6F2AC; color: #333333; }
-.gh-label.proficient { background-color: #8DC7A9; color: #333333; }
-.gh-label.bug { background-color: #FF9DA4; color: #333333; }
-.gh-label.cleanup { background-color: #FFB7B3; color: #333333; }
+.gh-label.intermediate { background-color: #79BD9A; color: #333333; }
+.gh-label.kinddocs { background-color: #A8E6CE; color: #333333; }
+.gh-label.kindbug { background-color: #FF8C94; color: #333333; }
+.gh-label.enhancement { background-color: #E8CAAF; color: #333333; }
 .gh-label.content { background-color: #CDD3C2; color: #333333; }
-.gh-label.feature { background-color: #B7BEB7; color: #333333; }
+.gh-label.kindfeature { background-color: #AAB3AB; color: #333333; }
 .gh-label.graphics { background-color: #E1EFCB; color: #333333; }
 .gh-label.improvement { background-color: #EBD2BB; color: #333333; }
 .gh-label.proposal { background-color: #FFD9C0; color: #333333; }
-.gh-label.question { background-color: #EEF1D1; color: #333333; }
+.gh-label.kindquestion { background-color: #EBEFC9; color: #333333; }
 .gh-label.usecase { background-color: #F0E4C2; color: #333333; }
 .gh-label.writing { background-color: #B5E9D5; color: #333333; }
 
@@ -42,68 +42,94 @@ weight=2
 
 # Find and claim an issue
 
-On this page, you choose the issue you want to work on. As a contributor, you can work
-on whatever you want. If you are new to contributing, you should start by
-working with our known issues.
+As a contributor, you can work on any open issue you want. You can view issues in the Issues tab in every repository.
+If you are new to contributing, use the filter option to find suitable issues. You can filter issues by Author, Labels, Milestones, and Assignee or sort by time such as newest and oldest. 
 
 ## Understand the issue types
+To help you identify the different types of issues, our maintainers assign labels to issues. Labels are color-coded and help you categorize and filter issues. There are four labels categories, kind, area, experience, and priority. You can filter using one or more labels. The kind and experience labels are useful for new contributors.
 
-An existing issue is something reported by a Docker user. As issues come in,
-our maintainers triage them. Triage is its own topic. For now, it is important
-for you to know that triage includes ranking issues according to difficulty. 
-
-Triaged issues have one of these labels:
+The following table describes the kind labels.
 
 <table class="tg">
-  <thead>
-    <tr>
-      <td class="tg-031e">Label</td>
-      <td class="tg-031e">Experience level guideline</td>
-    </tr>
-  </thead>
+<thead>
+<tr>
+<td class="tg-031e">Kind Label</td>
+<td class="tg-031e">Description</td>
+</tr>
+</thead>
   <tbody>
     <tr>
-      <td class="tg-031e"><strong class="gh-label beginner">exp/beginner</strong></td>
-      <td class="tg-031e">You have made less than ten contributions in your life time to any open source project.</td>
+      <td class="tg-031e"><strong class="gh-label kindbug">kind/bug</strong></td>
+      <td class="tg-031e">These issues contain bugs. The cause may or may not be known at triage time so debugging should be taken account into the time estimate.</td>
     </tr>
     <tr>
-      <td class="tg-031e"><strong class="gh-label novice">exp/novice</strong></td>
-      <td class="tg-031e">You have made more than ten contributions to an open source project or at least 5 contributions to Docker.  </td>
+      <td class="tg-031e"><strong class="gh-label kinddocs">kind/docs</strong></td>
+      <td class="tg-031e">These issues contain documentation, man pages, articles, blogs, or other significant word-driven task.
+      </td>
     </tr>
     <tr>
-      <td class="tg-031e"><strong class="gh-label proficient">exp/proficient</strong></td>
-      <td class="tg-031e">You have made more than five contributions to Docker which amount to at least 200 code lines or 1000 documentation lines. </td>
+      <td class="tg-031e"><strong class="gh-label enhancement">kind/enhancement</strong></td>
+      <td class="tg-031e">These issues contain enhancements that are not bugs or new features but can drastically improve usability or performance of a project component.     
+ </td>
     </tr>
     <tr>
-      <td class="tg-031e"><strong class="gh-label expert">exp/expert</strong></td>
-      <td class="tg-031e">You have made less than 20 commits to Docker which amount to 500-1000 code lines or 1000-3000 documentation lines. </td>
+      <td class="tg-031e"><strong class="gh-label kindfeature">kind/feature</strong></td>
+      <td class="tg-031e">These issues contain new features, functionality, and elements that the project does not currently support. 
+ </td>
     </tr>
     <tr>
-      <td class="tg-031e"><strong class="gh-label master">exp/master</strong></td>
-      <td class="tg-031e">You have made more than 20 commits to Docker and greater than 1000 code lines or 3000 documentation lines.</td>
+      <td class="tg-031e"><strong class="gh-label kindquestion">kind/question</strong></td>
+      <td class="tg-031e">These issues contain a user or contributor question that requires a response. 
+ </td>
     </tr>
   </tbody>
 </table>
 
-These labels are guidelines. You might have written a whole plugin for Docker in a personal 
-project and never contributed to Docker. With that kind of experience, you could take on an <strong
-class="gh-label expert">exp/expert</strong> or <strong class="gh-label
-master">exp/master</strong> level issue.
 
-## Claim a beginner or novice issue
+The following table describes the experience level guidelines.
+
+<table class="tg">
+<thead>
+<tr>
+<td class="tg-031e"> Exp Label</td>
+<td class="tg-031e">Experience Level</td>
+</tr>
+</thead>
+  <tbody>
+    <tr>
+      <td class="tg-031e"><strong class="gh-label beginner">exp/beginner</strong></td>
+      <td class="tg-031e">You are new to Docker and Golang and want to start contributing to the project. 
+      These issues are for beginners who want to learn the basics. We encourage new contributors to start with exp/beginner issues.</td>
+    </tr>
+    <tr>
+      <td class="tg-031e"><strong class="gh-label intermediate">exp/intermediate</strong></td>
+      <td class="tg-031e">You understand the core concepts of Docker and are comfortable with Golang. 
+      These issues are for intermediates who want to dive deeper into the project.</td>
+    </tr>
+    <tr>
+      <td class="tg-031e"><strong class="gh-label expert">exp/expert</strong></td>
+      <td class="tg-031e">You are proficient with Docker and Golang and are activey involved in the community. These issues are for experts who understand the rationale behind design decisions and where the project is headed. 
+ </td>
+    </tr>
+  </tbody>
+</table>
+
+As stated, these labels are guidelines. You might have written a whole plugin for Docker in a personal 
+project and never contributed to Docker. With that kind of experience, you could take on an <strong
+class="gh-label expert">exp/expert</strong> issue. 
+
+## Claim a beginner issue
 
 To claim an issue:
 
 1. Go to the `docker/docker` <a
 	href="https://github.com/docker/docker" target="_blank">repository</a>.
 
-2. Click the "Issues" link.
-
-    A list of the open issues appears. 
+2. Click the Issues tab. A list of the open issues appears. 
 
     ![Open issues](images/issue_list.png)
 
-3. From the "Labels" drop-down, select <strong class="gh-label beginner">exp/beginner</strong>.
+3. From the Labels drop-down, select <strong class="gh-label beginner">exp/beginner</strong>.
 
     The system filters to show only open <strong class="gh-label beginner">exp/beginner</strong> issues.
 
