@@ -463,7 +463,7 @@ func GetBlockDeviceSize(file *os.File) (uint64, error) {
 // syncfs syscall available in newer linux kernels (2.6.39)
 // syscall.SYS_SYNCFS = 306
 func syncfs(fd uintptr) (err error) {
-	_, _, e := syscall.Syscall(syscall.SYS_SYNCFS, fd, 0, 0)
+	_, _, e := syscall.Syscall(306, fd, 0, 0)
 
 	if e != 0 {
 		err = syscall.Errno(e)
