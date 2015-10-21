@@ -2428,13 +2428,13 @@ Status Codes:
 
 ### Create a volume
 
-`POST /volumes`
+`POST /volumes/create`
 
 Create a volume
 
 **Example request**:
 
-  POST /volumes HTTP/1.1
+  POST /volumes/create HTTP/1.1
   Content-Type: application/json
 
   {
