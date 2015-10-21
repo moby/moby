@@ -8,6 +8,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/registry/client/transport"
+	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/progressreader"
 	"github.com/docker/docker/pkg/streamformatter"
@@ -127,7 +128,7 @@ func (s *TagStore) createImageIndex(images []string, tags map[string][]string) [
 			continue
 		}
 		// If the image does not have a tag it still needs to be sent to the
-		// registry with an empty tag so that it is accociated with the repository
+		// registry with an empty tag so that it is associated with the repository
 		imageIndex = append(imageIndex, &registry.ImgData{
 			ID:  id,
 			Tag: "",
@@ -137,9 +138,10 @@ func (s *TagStore) createImageIndex(images []string, tags map[string][]string) [
 }
 
 type imagePushData struct {
-	id       string
-	endpoint string
-	tokens   []string
+	id              string
+	compatibilityID string
+	endpoint        string
+	tokens          []string
 }
 
 // lookupImageOnEndpoint checks the specified endpoint to see if an image exists
@@ -147,7 +149,7 @@ type imagePushData struct {
 func (p *v1Pusher) lookupImageOnEndpoint(wg *sync.WaitGroup, images chan imagePushData, imagesToPush chan string) {
 	defer wg.Done()
 	for image := range images {
-		if err := p.session.LookupRemoteImage(image.id, image.endpoint); err != nil {
+		if err := p.session.LookupRemoteImage(image.compatibilityID, image.endpoint); err != nil {
 			logrus.Errorf("Error in LookupRemoteImage: %s", err)
 			imagesToPush <- image.id
 			continue
@@ -181,10 +183,15 @@ func (p *v1Pusher) pushImageToEndpoint(endpoint string, imageIDs []string, tags 
 		pushes <- shouldPush
 	}()
 	for _, id := range imageIDs {
+		compatibilityID, err := p.getV1ID(id)
+		if err != nil {
+			return err
+		}
 		imageData <- imagePushData{
-			id:       id,
-			endpoint: endpoint,
-			tokens:   repo.Tokens,
+			id:              id,
+			compatibilityID: compatibilityID,
+			endpoint:        endpoint,
+			tokens:          repo.Tokens,
 		}
 	}
 	// close the channel to notify the workers that there will be no more images to check.
@@ -204,7 +211,11 @@ func (p *v1Pusher) pushImageToEndpoint(endpoint string, imageIDs []string, tags 
 		}
 		for _, tag := range tags[id] {
 			p.out.Write(p.sf.FormatStatus("", "Pushing tag for rev [%s] on {%s}", stringid.TruncateID(id), endpoint+"repositories/"+p.repoInfo.RemoteName+"/tags/"+tag))
-			if err := p.session.PushRegistryTag(p.repoInfo.RemoteName, id, tag, endpoint); err != nil {
+			compatibilityID, err := p.getV1ID(id)
+			if err != nil {
+				return err
+			}
+			if err := p.session.PushRegistryTag(p.repoInfo.RemoteName, compatibilityID, tag, endpoint); err != nil {
 				return err
 			}
 		}
@@ -214,7 +225,6 @@ func (p *v1Pusher) pushImageToEndpoint(endpoint string, imageIDs []string, tags 
 
 // pushRepository pushes layers that do not already exist on the registry.
 func (p *v1Pusher) pushRepository(tag string) error {
-
 	logrus.Debugf("Local repo: %s", p.localRepo)
 	p.out = ioutils.NewWriteFlusher(p.config.OutStream)
 	imgList, tags, err := p.getImageList(tag)
@@ -227,6 +237,12 @@ func (p *v1Pusher) pushRepository(tag string) error {
 	logrus.Debugf("Preparing to push %s with the following images and tags", p.localRepo)
 	for _, data := range imageIndex {
 		logrus.Debugf("Pushing ID: %s with Tag: %s", data.ID, data.Tag)
+
+		// convert IDs to compatibilityIDs, imageIndex only used in registry calls
+		data.ID, err = p.getV1ID(data.ID)
+		if err != nil {
+			return err
+		}
 	}
 
 	if _, err := p.poolAdd("push", p.repoInfo.LocalName); err != nil {
@@ -256,20 +272,27 @@ func (p *v1Pusher) pushRepository(tag string) error {
 }
 
 func (p *v1Pusher) pushImage(imgID, ep string, token []string) (checksum string, err error) {
-	jsonRaw, err := p.graph.RawJSON(imgID)
+	jsonRaw, err := p.getV1Config(imgID)
 	if err != nil {
 		return "", fmt.Errorf("Cannot retrieve the path for {%s}: %s", imgID, err)
 	}
 	p.out.Write(p.sf.FormatProgress(stringid.TruncateID(imgID), "Pushing", nil))
 
+	compatibilityID, err := p.getV1ID(imgID)
+	if err != nil {
+		return "", err
+	}
+
+	// General rule is to use ID for graph accesses and compatibilityID for
+	// calls to session.registry()
 	imgData := &registry.ImgData{
-		ID: imgID,
+		ID: compatibilityID,
 	}
 
 	// Send the json
 	if err := p.session.PushImageJSONRegistry(imgData, jsonRaw, ep); err != nil {
 		if err == registry.ErrAlreadyExists {
-			p.out.Write(p.sf.FormatProgress(stringid.TruncateID(imgData.ID), "Image already pushed, skipping", nil))
+			p.out.Write(p.sf.FormatProgress(stringid.TruncateID(imgID), "Image already pushed, skipping", nil))
 			return "", nil
 		}
 		return "", err
@@ -282,7 +305,7 @@ func (p *v1Pusher) pushImage(imgID, ep string, token []string) (checksum string,
 	defer os.RemoveAll(layerData.Name())
 
 	// Send the layer
-	logrus.Debugf("rendered layer for %s of [%d] size", imgData.ID, layerData.Size)
+	logrus.Debugf("rendered layer for %s of [%d] size", imgID, layerData.Size)
 
 	checksum, checksumPayload, err := p.session.PushImageLayerRegistry(imgData.ID,
 		progressreader.New(progressreader.Config{
@@ -291,7 +314,7 @@ func (p *v1Pusher) pushImage(imgID, ep string, token []string) (checksum string,
 			Formatter: p.sf,
 			Size:      int(layerData.Size),
 			NewLines:  false,
-			ID:        stringid.TruncateID(imgData.ID),
+			ID:        stringid.TruncateID(imgID),
 			Action:    "Pushing",
 		}), ep, jsonRaw)
 	if err != nil {
@@ -304,6 +327,30 @@ func (p *v1Pusher) pushImage(imgID, ep string, token []string) (checksum string,
 		return "", err
 	}
 
-	p.out.Write(p.sf.FormatProgress(stringid.TruncateID(imgData.ID), "Image successfully pushed", nil))
+	p.out.Write(p.sf.FormatProgress(stringid.TruncateID(imgID), "Image successfully pushed", nil))
 	return imgData.Checksum, nil
+}
+
+// getV1ID returns the compatibilityID for the ID in the graph. compatibilityID
+// is read from from the v1Compatibility config file in the disk.
+func (p *v1Pusher) getV1ID(id string) (string, error) {
+	jsonData, err := p.getV1Config(id)
+	if err != nil {
+		return "", err
+	}
+	img, err := image.NewImgJSON(jsonData)
+	if err != nil {
+		return "", err
+	}
+	return img.ID, nil
+}
+
+// getV1Config returns v1Compatibility config for the image in the graph. If
+// there is no v1Compatibility file on disk for the image
+func (p *v1Pusher) getV1Config(id string) ([]byte, error) {
+	jsonData, err := p.graph.GenerateV1CompatibilityChain(id)
+	if err != nil {
+		return nil, err
+	}
+	return jsonData, nil
 }

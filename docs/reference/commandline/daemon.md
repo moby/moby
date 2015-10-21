@@ -32,7 +32,7 @@ parent = "smn_cli"
       -G, --group="docker"                   Group for the unix socket
       -g, --graph="/var/lib/docker"          Root of the Docker runtime
       -H, --host=[]                          Daemon socket(s) to connect to
-      -h, --help=false                       Print usage
+      --help=false                           Print usage
       --icc=true                             Enable inter-container communication
       --insecure-registry=[]                 Enable insecure registry communication
       --ip=0.0.0.0                           Default IP when binding container ports
@@ -45,6 +45,7 @@ parent = "smn_cli"
       --log-driver="json-file"               Default driver for container logs
       --log-opt=[]                           Log driver specific options
       --mtu=0                                Set the containers network MTU
+      --disable-legacy-registry=false        Do not contact legacy registries
       -p, --pidfile="/var/run/docker.pid"    Path to use for daemon PID file
       --registry-mirror=[]                   Preferred Docker registry mirror
       -s, --storage-driver=""                Storage driver to use
@@ -182,7 +183,7 @@ options for `zfs` start with `zfs`.
 
      If using a block device for device mapper storage, it is best to use `lvm`
      to create and manage the thin-pool volume. This volume is then handed to Docker
-     to exclusively create snapshot volumes needed for images and containers.  
+     to exclusively create snapshot volumes needed for images and containers.
 
      Managing the thin-pool outside of Docker makes for the most feature-rich
      method of having Docker utilize device mapper thin provisioning as the
@@ -218,7 +219,7 @@ options for `zfs` start with `zfs`.
  *  `dm.loopdatasize`
 
     >**Note**: This option configures devicemapper loopback, which should not be used in production.
-		
+
     Specifies the size to use when creating the loopback file for the
     "data" device which is used for the thin pool. The default size is
     100G. The file is sparse, so it will not initially take up this
@@ -444,6 +445,13 @@ Local registries, whose IP address falls in the 127.0.0.0/8 range, are
 automatically marked as insecure as of Docker 1.3.2. It is not recommended to
 rely on this, as it may change in the future.
 
+## Legacy Registries
+
+Enabling `--disable-legacy-registry` forces a docker daemon to only interact with
+registries which support the V2 protocol.  Specifically, the daemon will not
+attempt `push`, `pull` and `login` to v1 registries.  The exception to this
+is `search` which can still be performed on v1 registries.
+
 ## Running a Docker daemon behind a HTTPS_PROXY
 
 When running inside a LAN that uses a `HTTPS` proxy, the Docker Hub
@@ -466,7 +474,7 @@ use the proxy
 `--default-ulimit` allows you to set the default `ulimit` options to use for
 all containers. It takes the same options as `--ulimit` for `docker run`. If
 these defaults are not set, `ulimit` settings will be inherited, if not set on
-`docker run`, from the Docker daemon. Any `--ulimit` options passed to 
+`docker run`, from the Docker daemon. Any `--ulimit` options passed to
 `docker run` will overwrite these defaults.
 
 Be careful setting `nproc` with the `ulimit` flag as `nproc` is designed by Linux to

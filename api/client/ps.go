@@ -95,7 +95,7 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 
 	f := *format
 	if len(f) == 0 {
-		if len(cli.PsFormat()) > 0 {
+		if len(cli.PsFormat()) > 0 && !*quiet {
 			f = cli.PsFormat()
 		} else {
 			f = "table"

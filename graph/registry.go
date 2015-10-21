@@ -100,8 +100,9 @@ func NewV2Repository(repoInfo *registry.RepositoryInfo, endpoint registry.APIEnd
 func digestFromManifest(m *manifest.SignedManifest, localName string) (digest.Digest, int, error) {
 	payload, err := m.Payload()
 	if err != nil {
-		logrus.Debugf("could not retrieve manifest payload: %v", err)
-		return "", 0, err
+		// If this failed, the signatures section was corrupted
+		// or missing. Treat the entire manifest as the payload.
+		payload = m.Raw
 	}
 	manifestDigest, err := digest.FromBytes(payload)
 	if err != nil {

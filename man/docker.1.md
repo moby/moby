@@ -23,7 +23,7 @@ its own man page which explain usage and arguments.
 To see the man page for a command run **man docker <command>**.
 
 # OPTIONS
-**-h**, **--help**
+**--help**
   Print usage statement
 
 **--api-cors-header**=""
@@ -52,6 +52,9 @@ To see the man page for a command run **man docker <command>**.
 
 **--default-ulimit**=[]
   Set default ulimits for containers.
+
+**--disable-legacy-registry=**true|false
+  Do not contact legacy registries
 
 **--dns**=""
   Force Docker to use specific DNS servers
@@ -368,7 +371,7 @@ the size of images and containers. The default value is 100G. Note,
 thin devices are inherently "sparse", so a 100G device which is mostly
 empty doesn't use 100 GB of space on the pool. However, the filesystem
 will use more space for base images the larger the device
-is. 
+is.
 
 This value affects the system-wide "base" empty filesystem that may already
 be initialized and inherited by pulled images. Typically, a change to this
@@ -519,12 +522,12 @@ daemon with a supported environment.
 
 Use the **--exec-opt** flags to specify options to the exec-driver. The only
 driver that accepts this flag is the *native* (libcontainer) driver. As a
-result, you must also specify **-s=**native for this option to have effect. The 
+result, you must also specify **-s=**native for this option to have effect. The
 following is the only *native* option:
 
 #### native.cgroupdriver
-Specifies the management of the container's `cgroups`. You can specify 
-`cgroupfs` or `systemd`. If you specify `systemd` and it is not available, the 
+Specifies the management of the container's `cgroups`. You can specify
+`cgroupfs` or `systemd`. If you specify `systemd` and it is not available, the
 system uses `cgroupfs`.
 
 #### Client

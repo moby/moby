@@ -19,6 +19,7 @@ import (
 	"github.com/docker/libnetwork/netutils"
 	"github.com/docker/libnetwork/options"
 	"github.com/docker/libnetwork/portmapper"
+	"github.com/docker/libnetwork/sandbox"
 	"github.com/docker/libnetwork/types"
 	"github.com/vishvananda/netlink"
 )
@@ -545,6 +546,8 @@ func (d *driver) getNetworks() []*bridgeNetwork {
 func (d *driver) CreateNetwork(id types.UUID, option map[string]interface{}) error {
 	var err error
 
+	defer sandbox.InitOSContext()()
+
 	// Sanity checks
 	d.Lock()
 	if _, ok := d.networks[id]; ok {
@@ -696,6 +699,8 @@ func (d *driver) CreateNetwork(id types.UUID, option map[string]interface{}) err
 func (d *driver) DeleteNetwork(nid types.UUID) error {
 	var err error
 
+	defer sandbox.InitOSContext()()
+
 	// Get network handler and remove it from driver
 	d.Lock()
 	n, ok := d.networks[nid]
@@ -822,6 +827,8 @@ func (d *driver) CreateEndpoint(nid, eid types.UUID, epInfo driverapi.EndpointIn
 		ipv6Addr *net.IPNet
 		err      error
 	)
+
+	defer sandbox.InitOSContext()()
 
 	if epInfo == nil {
 		return errors.New("invalid endpoint info passed")
@@ -1032,6 +1039,8 @@ func (d *driver) CreateEndpoint(nid, eid types.UUID, epInfo driverapi.EndpointIn
 func (d *driver) DeleteEndpoint(nid, eid types.UUID) error {
 	var err error
 
+	defer sandbox.InitOSContext()()
+
 	// Get the network handler and make sure it exists
 	d.Lock()
 	n, ok := d.networks[nid]
@@ -1176,6 +1185,8 @@ func (d *driver) EndpointOperInfo(nid, eid types.UUID) (map[string]interface{}, 
 
 // Join method is invoked when a Sandbox is attached to an endpoint.
 func (d *driver) Join(nid, eid types.UUID, sboxKey string, jinfo driverapi.JoinInfo, options map[string]interface{}) error {
+	defer sandbox.InitOSContext()()
+
 	network, err := d.getNetwork(nid)
 	if err != nil {
 		return err
@@ -1219,6 +1230,8 @@ func (d *driver) Join(nid, eid types.UUID, sboxKey string, jinfo driverapi.JoinI
 
 // Leave method is invoked when a Sandbox detaches from an endpoint.
 func (d *driver) Leave(nid, eid types.UUID) error {
+	defer sandbox.InitOSContext()()
+
 	network, err := d.getNetwork(nid)
 	if err != nil {
 		return err

@@ -2,7 +2,10 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"reflect"
 	"strconv"
 	"strings"
@@ -552,5 +555,25 @@ func (s *DockerSuite) TestPsFormatHeaders(c *check.C) {
 	out, _ = dockerCmd(c, "ps", "--format", "table {{.Names}}")
 	if out != "NAMES\ntest\n" {
 		c.Fatalf(`Expected 'NAMES\ntest\n', got %v`, out)
+	}
+}
+
+func (s *DockerSuite) TestPsDefaultFormatAndQuiet(c *check.C) {
+	config := `{
+		"psFormat": "{{ .ID }} default"
+}`
+	d, err := ioutil.TempDir("", "integration-cli-")
+	c.Assert(err, check.IsNil)
+	defer os.RemoveAll(d)
+
+	err = ioutil.WriteFile(filepath.Join(d, "config.json"), []byte(config), 0644)
+	c.Assert(err, check.IsNil)
+
+	out, _ := dockerCmd(c, "run", "--name=test", "-d", "busybox", "top")
+	id := strings.TrimSpace(out)
+
+	out, _ = dockerCmd(c, "--config", d, "ps", "-q")
+	if !strings.HasPrefix(id, strings.TrimSpace(out)) {
+		c.Fatalf("Expected to print only the container id, got %v\n", out)
 	}
 }

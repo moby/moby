@@ -129,16 +129,11 @@ func (p *v2Pusher) pushV2Tag(tag string) error {
 			}
 		}
 
-		jsonData, err := p.graph.RawJSON(layer.ID)
-		if err != nil {
-			return fmt.Errorf("cannot retrieve the path for %s: %s", layer.ID, err)
-		}
-
 		var exists bool
-		dgst, err := p.graph.GetDigest(layer.ID)
+		dgst, err := p.graph.GetLayerDigest(layer.ID)
 		switch err {
 		case nil:
-			_, err := p.repo.Blobs(nil).Stat(nil, dgst)
+			_, err := p.repo.Blobs(context.Background()).Stat(context.Background(), dgst)
 			switch err {
 			case nil:
 				exists = true
@@ -158,15 +153,21 @@ func (p *v2Pusher) pushV2Tag(tag string) error {
 		// if digest was empty or not saved, or if blob does not exist on the remote repository,
 		// then fetch it.
 		if !exists {
-			if pushDigest, err := p.pushV2Image(p.repo.Blobs(nil), layer); err != nil {
+			if pushDigest, err := p.pushV2Image(p.repo.Blobs(context.Background()), layer); err != nil {
 				return err
 			} else if pushDigest != dgst {
 				// Cache new checksum
-				if err := p.graph.SetDigest(layer.ID, pushDigest); err != nil {
+				if err := p.graph.SetLayerDigest(layer.ID, pushDigest); err != nil {
 					return err
 				}
 				dgst = pushDigest
 			}
+		}
+
+		// read v1Compatibility config, generate new if needed
+		jsonData, err := p.graph.GenerateV1CompatibilityChain(layer.ID)
+		if err != nil {
+			return err
 		}
 
 		m.FSLayers = append(m.FSLayers, manifest.FSLayer{BlobSum: dgst})
@@ -226,7 +227,7 @@ func (p *v2Pusher) pushV2Image(bs distribution.BlobService, img *image.Image) (d
 
 	// Send the layer
 	logrus.Debugf("rendered layer for %s of [%d] size", img.ID, size)
-	layerUpload, err := bs.Create(nil)
+	layerUpload, err := bs.Create(context.Background())
 	if err != nil {
 		return "", err
 	}
@@ -250,7 +251,7 @@ func (p *v2Pusher) pushV2Image(bs distribution.BlobService, img *image.Image) (d
 	}
 
 	desc := distribution.Descriptor{Digest: dgst}
-	if _, err := layerUpload.Commit(nil, desc); err != nil {
+	if _, err := layerUpload.Commit(context.Background(), desc); err != nil {
 		return "", err
 	}
 

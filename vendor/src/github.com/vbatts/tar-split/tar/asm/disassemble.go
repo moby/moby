@@ -22,8 +22,8 @@ func NewInputTarStream(r io.Reader, p storage.Packer, fp storage.FilePutter) (io
 	// What to do here... folks will want their own access to the Reader that is
 	// their tar archive stream, but we'll need that same stream to use our
 	// forked 'archive/tar'.
-	// Perhaps do an io.TeeReader that hand back an io.Reader for them to read
-	// from, and we'll mitm the stream to store metadata.
+	// Perhaps do an io.TeeReader that hands back an io.Reader for them to read
+	// from, and we'll MITM the stream to store metadata.
 	// We'll need a storage.FilePutter too ...
 
 	// Another concern, whether to do any storage.FilePutter operations, such that we
@@ -32,7 +32,7 @@ func NewInputTarStream(r io.Reader, p storage.Packer, fp storage.FilePutter) (io
 	// Perhaps we have a DiscardFilePutter that is a bit bucket.
 
 	// we'll return the pipe reader, since TeeReader does not buffer and will
-	// only read what the outputRdr Read's. Since Tar archive's have padding on
+	// only read what the outputRdr Read's. Since Tar archives have padding on
 	// the end, we want to be the one reading the padding, even if the user's
 	// `archive/tar` doesn't care.
 	pR, pW := io.Pipe()
@@ -55,13 +55,15 @@ func NewInputTarStream(r io.Reader, p storage.Packer, fp storage.FilePutter) (io
 				}
 				// even when an EOF is reached, there is often 1024 null bytes on
 				// the end of an archive. Collect them too.
-				_, err := p.AddEntry(storage.Entry{
-					Type:    storage.SegmentType,
-					Payload: tr.RawBytes(),
-				})
-				if err != nil {
-					pW.CloseWithError(err)
-					return
+				if b := tr.RawBytes(); len(b) > 0 {
+					_, err := p.AddEntry(storage.Entry{
+						Type:    storage.SegmentType,
+						Payload: b,
+					})
+					if err != nil {
+						pW.CloseWithError(err)
+						return
+					}
 				}
 				break // not return. We need the end of the reader.
 			}
@@ -69,12 +71,15 @@ func NewInputTarStream(r io.Reader, p storage.Packer, fp storage.FilePutter) (io
 				break // not return. We need the end of the reader.
 			}
 
-			if _, err := p.AddEntry(storage.Entry{
-				Type:    storage.SegmentType,
-				Payload: tr.RawBytes(),
-			}); err != nil {
-				pW.CloseWithError(err)
-				return
+			if b := tr.RawBytes(); len(b) > 0 {
+				_, err := p.AddEntry(storage.Entry{
+					Type:    storage.SegmentType,
+					Payload: b,
+				})
+				if err != nil {
+					pW.CloseWithError(err)
+					return
+				}
 			}
 
 			var csum []byte

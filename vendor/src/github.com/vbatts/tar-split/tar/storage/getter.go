@@ -5,14 +5,13 @@ import (
 	"errors"
 	"hash/crc64"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 )
 
-// FileGetter is the interface for getting a stream of a file payload, address
-// by name/filename. Presumably, the names will be scoped to relative file
-// paths.
+// FileGetter is the interface for getting a stream of a file payload,
+// addressed by name/filename. Presumably, the names will be scoped to relative
+// file paths.
 type FileGetter interface {
 	// Get returns a stream for the provided file path
 	Get(filename string) (output io.ReadCloser, err error)
@@ -60,15 +59,15 @@ func (bfgp bufferFileGetPutter) Get(name string) (io.ReadCloser, error) {
 }
 
 func (bfgp *bufferFileGetPutter) Put(name string, r io.Reader) (int64, []byte, error) {
-	c := crc64.New(CRCTable)
-	tRdr := io.TeeReader(r, c)
-	b := bytes.NewBuffer([]byte{})
-	i, err := io.Copy(b, tRdr)
+	crc := crc64.New(CRCTable)
+	buf := bytes.NewBuffer(nil)
+	cw := io.MultiWriter(crc, buf)
+	i, err := io.Copy(cw, r)
 	if err != nil {
 		return 0, nil, err
 	}
-	bfgp.files[name] = b.Bytes()
-	return i, c.Sum(nil), nil
+	bfgp.files[name] = buf.Bytes()
+	return i, crc.Sum(nil), nil
 }
 
 type readCloserWrapper struct {
@@ -77,7 +76,7 @@ type readCloserWrapper struct {
 
 func (w *readCloserWrapper) Close() error { return nil }
 
-// NewBufferFileGetPutter is simple in memory FileGetPutter
+// NewBufferFileGetPutter is a simple in-memory FileGetPutter
 //
 // Implication is this is memory intensive...
 // Probably best for testing or light weight cases.
@@ -97,8 +96,7 @@ type bitBucketFilePutter struct {
 
 func (bbfp *bitBucketFilePutter) Put(name string, r io.Reader) (int64, []byte, error) {
 	c := crc64.New(CRCTable)
-	tRdr := io.TeeReader(r, c)
-	i, err := io.Copy(ioutil.Discard, tRdr)
+	i, err := io.Copy(c, r)
 	return i, c.Sum(nil), err
 }
 

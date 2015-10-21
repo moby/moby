@@ -20,19 +20,68 @@ APTDIR=$DOCKER_RELEASE_DIR/apt/repo
 # setup the apt repo (if it does not exist)
 mkdir -p "$APTDIR/conf" "$APTDIR/db"
 
+# supported arches/sections
+arches=( amd64 i386 )
+components=( main testing experimental )
+
 # create/update distributions file
-if [[ ! -f "$APTDIR/conf/distributions" ]]; then
+if [ ! -f "$APTDIR/conf/distributions" ]; then
 	for suite in $(exec contrib/reprepro/suites.sh); do
 		cat <<-EOF
 		Origin: Docker
 		Suite: $suite
 		Codename: $suite
-		Architectures: amd64 i386
-		Components: main testing experimental
+		Architectures: ${arches[*]}
+		Components: ${components[*]}
 		Description: Docker APT Repository
 
 		EOF
 	done > "$APTDIR/conf/distributions"
+fi
+
+# create/update distributions file
+if [ ! -f "$APTDIR/conf/apt-ftparchive.conf" ]; then
+	cat <<-EOF > "$APTDIR/conf/apt-ftparchive.conf"
+	Dir {
+		ArchiveDir "${APTDIR}";
+		CacheDir "${APTDIR}/db";
+	};
+
+	Default {
+		Packages::Compress ". gzip bzip2";
+		Sources::Compress ". gzip bzip2";
+		Contents::Compress ". gzip bzip2";
+	};
+
+	TreeDefault {
+		BinCacheDB "packages-\$(SECTION)-\$(ARCH).db";
+		Directory "pool/\$(SECTION)";
+		Packages "\$(DIST)/\$(SECTION)/binary-\$(ARCH)/Packages";
+		SrcDirectory "pool/\$(SECTION)";
+		Sources "\$(DIST)/\$(SECTION)/source/Sources";
+		Contents "\$(DIST)/\$(SECTION)/Contents-\$(ARCH)";
+		FileList "$APTDIR/\$(DIST)/\$(SECTION)/filelist";
+	};
+	EOF
+
+	for suite in $(exec contrib/reprepro/suites.sh); do
+		cat <<-EOF
+		Tree "dists/${suite}" {
+			Sections "main testing experimental";
+			Architectures "${arches[*]}";
+		}
+
+		EOF
+	done >> "$APTDIR/conf/apt-ftparchive.conf"
+fi
+
+if [ ! -f "$APTDIR/conf/docker-engine-release.conf" ]; then
+	cat <<-EOF > "$APTDIR/conf/docker-engine-release.conf"
+	APT::FTPArchive::Release::Origin "Docker";
+	APT::FTPArchive::Release::Components "${components[*]}";
+	APT::FTPArchive::Release::Label "Docker APT Repository";
+	APT::FTPArchive::Release::Architectures "${arches[*]}";
+	EOF
 fi
 
 # set the component and priority for the version being released
@@ -67,4 +116,35 @@ for dir in contrib/builder/deb/*/; do
 	reprepro -v --keepunreferencedfiles \
 		-S docker-engine -P "$priority" -C "$component" \
 		-b "$APTDIR" includedeb "$codename" "${DEBFILE[@]}"
+
+	# update the filelist for this codename/component
+	find "$APTDIR/pool/$component" \
+		-name *~${codename#*-}*.deb > "$APTDIR/dists/$codename/$component/filelist"
+done
+
+
+# run the apt-ftparchive commands so we can have pinning
+apt-ftparchive generate "$APTDIR/conf/apt-ftparchive.conf"
+
+for dir in contrib/builder/deb/*/; do
+	version="$(basename "$dir")"
+	codename="${version//debootstrap-}"	
+
+	apt-ftparchive \
+		-o "APT::FTPArchive::Release::Codename=$codename" \
+		-o "APT::FTPArchive::Release::Suite=$codename" \
+		-c "$APTDIR/conf/docker-engine-release.conf" \
+		release \
+		"$APTDIR/dists/$codename" > "$APTDIR/dists/$codename/Release"
+
+	for arch in "${arches[@]}"; do
+		apt-ftparchive \
+			-o "APT::FTPArchive::Release::Codename=$codename" \
+			-o "APT::FTPArchive::Release::Suite=$codename" \
+			-o "APT::FTPArchive::Release::Component=$component" \
+			-o "APT::FTPArchive::Release::Architecture=$arch" \
+			-c "$APTDIR/conf/docker-engine-release.conf" \
+			release \
+			"$APTDIR/dists/$codename/$component/binary-$arch" > "$APTDIR/dists/$codename/$component/binary-$arch/Release"
+	done
 done

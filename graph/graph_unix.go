@@ -3,8 +3,7 @@
 package graph
 
 import (
-	"encoding/json"
-	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -74,13 +73,6 @@ func SetupInitLayer(initLayer string) error {
 	return nil
 }
 
-func createRootFilesystemInDriver(graph *Graph, img *image.Image, layerData archive.ArchiveReader) error {
-	if err := graph.driver.Create(img.ID, img.Parent); err != nil {
-		return fmt.Errorf("Driver %s failed to create image rootfs %s: %s", graph.driver, img.ID, err)
-	}
-	return nil
-}
-
 func (graph *Graph) restoreBaseImages() ([]string, error) {
 	return nil, nil
 }
@@ -88,26 +80,35 @@ func (graph *Graph) restoreBaseImages() ([]string, error) {
 // storeImage stores file system layer data for the given image to the
 // graph's storage driver. Image metadata is stored in a file
 // at the specified root directory.
-func (graph *Graph) storeImage(img *image.Image, layerData archive.ArchiveReader, root string) (err error) {
+func (graph *Graph) storeImage(id, parent string, config []byte, layerData archive.ArchiveReader, root string) (err error) {
+	var size int64
 	// Store the layer. If layerData is not nil, unpack it into the new layer
 	if layerData != nil {
-		if err := graph.disassembleAndApplyTarLayer(img, layerData, root); err != nil {
+		if size, err = graph.disassembleAndApplyTarLayer(id, parent, layerData, root); err != nil {
 			return err
 		}
 	}
 
-	if err := graph.saveSize(root, int(img.Size)); err != nil {
+	if err := graph.saveSize(root, int(size)); err != nil {
 		return err
 	}
 
-	f, err := os.OpenFile(jsonPath(root), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.FileMode(0600))
+	if err := ioutil.WriteFile(jsonPath(root), config, 0600); err != nil {
+		return err
+	}
+
+	// If image is pointing to a parent via CompatibilityID write the reference to disk
+	img, err := image.NewImgJSON(config)
 	if err != nil {
 		return err
 	}
 
-	defer f.Close()
-
-	return json.NewEncoder(f).Encode(img)
+	if img.ParentID.Validate() == nil && parent != img.ParentID.Hex() {
+		if err := ioutil.WriteFile(filepath.Join(root, parentFileName), []byte(parent), 0600); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // TarLayer returns a tar archive of the image's filesystem layer.

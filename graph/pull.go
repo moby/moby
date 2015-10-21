@@ -86,12 +86,6 @@ func (s *TagStore) Pull(image string, tag string, imagePullConfig *ImagePullConf
 	for _, endpoint := range endpoints {
 		logrus.Debugf("Trying to pull %s from %s %s", repoInfo.LocalName, endpoint.URL, endpoint.Version)
 
-		if !endpoint.Mirror && (endpoint.Official || endpoint.Version == registry.APIVersion2) {
-			if repoInfo.Official {
-				s.trustService.UpdateBase()
-			}
-		}
-
 		puller, err := NewPuller(s, endpoint, repoInfo, imagePullConfig, sf)
 		if err != nil {
 			lastErr = err

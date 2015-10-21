@@ -35,7 +35,6 @@ import (
 	"github.com/docker/docker/pkg/truncindex"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/runconfig"
-	"github.com/docker/docker/trust"
 	"github.com/docker/libnetwork"
 	"github.com/opencontainers/runc/libcontainer/netlink"
 )
@@ -670,10 +669,6 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 	if err := system.MkdirAll(trustDir, 0700); err != nil && !os.IsExist(err) {
 		return nil, err
 	}
-	trustService, err := trust.NewTrustStore(trustDir)
-	if err != nil {
-		return nil, fmt.Errorf("could not create trust store: %s", err)
-	}
 
 	eventsService := events.New()
 	logrus.Debug("Creating repository list")
@@ -682,7 +677,6 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 		Key:      trustKey,
 		Registry: registryService,
 		Events:   eventsService,
-		Trust:    trustService,
 	}
 	repositories, err := graph.NewTagStore(filepath.Join(config.Root, "repositories-"+d.driver.String()), tagCfg)
 	if err != nil {
@@ -979,7 +973,7 @@ func getDefaultRouteMtu() (int, error) {
 		return 0, err
 	}
 	for _, r := range routes {
-		if r.Default {
+		if r.Default && r.Iface != nil {
 			return r.Iface.MTU, nil
 		}
 	}

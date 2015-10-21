@@ -1,5 +1,40 @@
 # Changelog
 
+## 1.8.3 (2015-10-12)
+
+### Distribution
+
+- Fix layer IDs lead to local graph poisoning (CVE-2014-8178)
+- Fix manifest validation and parsing logic errors allow pull-by-digest validation bypass (CVE-2014-8179)
++ Add `--disable-legacy-registry` to prevent a daemon from using a v1 registry
+
+## 1.8.2 (2015-09-10)
+
+### Distribution
+
+- Fixes rare edge case of handling GNU LongLink and LongName entries.
+- Fix ^C on docker pull.
+- Fix docker pull issues on client disconnection.
+- Fix issue that caused the daemon to panic when loggers weren't configured properly.
+- Fix goroutine leak pulling images from registry V2.
+
+### Runtime
+
+- Fix a bug mounting cgroups for docker daemons running inside docker containers.
+- Initialize log configuration properly.
+
+### Client:
+
+- Handle `-q` flag in `docker ps` properly when there is a default format.
+
+### Networking
+
+- Fix several corner cases with netlink.
+
+### Contrib
+
+- Fix several issues with bash completion.
+
 ## 1.8.1 (2015-08-12)
 
 ### Distribution
@@ -241,7 +276,7 @@
 #### Notable Features since 1.3.0
 + Set key=value labels to the daemon (displayed in `docker info`), applied with
   new `-label` daemon flag
-+ Add support for `ENV` in Dockerfile of the form: 
++ Add support for `ENV` in Dockerfile of the form:
   `ENV name=value name2=value2...`
 + New Overlayfs Storage Driver
 + `docker info` now returns an `ID` and `Name` field
@@ -703,7 +738,7 @@
 - Fix broken images API for version less than 1.7
 - Use the right encoding for all API endpoints which return JSON
 - Move remote api client to api/
-- Queue calls to the API using generic socket wait 
+- Queue calls to the API using generic socket wait
 
 #### Runtime
 
@@ -783,7 +818,7 @@ With the ongoing changes to the networking and execution subsystems of docker te
 - Do not add hostname when networking is disabled
 * Return most recent image from the cache by date
 - Return all errors from docker wait
-* Add Content-Type Header "application/json" to GET /version and /info responses 
+* Add Content-Type Header "application/json" to GET /version and /info responses
 
 #### Other
 
@@ -811,7 +846,7 @@ With the ongoing changes to the networking and execution subsystems of docker te
 #### Runtime
 
 - Only get the image's rootfs when we need to calculate the image size
-- Correctly handle unmapping UDP ports 
+- Correctly handle unmapping UDP ports
 * Make CopyFileWithTar use a pipe instead of a buffer to save memory on docker build
 - Fix login message to say pull instead of push
 - Fix "docker load" help by removing "SOURCE" prompt and mentioning STDIN

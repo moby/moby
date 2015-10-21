@@ -114,29 +114,31 @@ func NewCommand(parts ...string) *Command {
 // Note: the Config structure should hold only portable information about the container.
 // Here, "portable" means "independent from the host we are running on".
 // Non-portable information *should* appear in HostConfig.
+// All fields added to this struct must be marked `omitempty` to keep getting
+// predictable hashes from the old `v1Compatibility` configuration.
 type Config struct {
-	Hostname        string
-	Domainname      string
-	User            string
-	AttachStdin     bool
-	AttachStdout    bool
-	AttachStderr    bool
-	ExposedPorts    map[nat.Port]struct{}
-	PublishService  string
-	Tty             bool // Attach standard streams to a tty, including stdin if it is not closed.
-	OpenStdin       bool // Open stdin
-	StdinOnce       bool // If true, close stdin after the 1 attached client disconnects.
-	Env             []string
-	Cmd             *Command
-	Image           string // Name of the image as it was passed by the operator (eg. could be symbolic)
-	Volumes         map[string]struct{}
-	VolumeDriver    string
-	WorkingDir      string
-	Entrypoint      *Entrypoint
-	NetworkDisabled bool
-	MacAddress      string
-	OnBuild         []string
-	Labels          map[string]string
+	Hostname        string                // Hostname
+	Domainname      string                // Domainname
+	User            string                // User that will run the command(s) inside the container
+	AttachStdin     bool                  // Attach the standard input, makes possible user interaction
+	AttachStdout    bool                  // Attach the standard output
+	AttachStderr    bool                  // Attach the standard error
+	ExposedPorts    map[nat.Port]struct{} `json:",omitempty"` // List of exposed ports
+	PublishService  string                `json:",omitempty"` // Name of the network service exposed by the container
+	Tty             bool                  // Attach standard streams to a tty, including stdin if it is not closed.
+	OpenStdin       bool                  // Open stdin
+	StdinOnce       bool                  // If true, close stdin after the 1 attached client disconnects.
+	Env             []string              // List of environment variable to set in the container
+	Cmd             *Command              // Command to run when starting the container
+	Image           string                // Name of the image as it was passed by the operator (eg. could be symbolic)
+	Volumes         map[string]struct{}   // List of volumes (mounts) used for the container
+	VolumeDriver    string                `json:",omitempty"` // Name of the volume driver used to mount volumes
+	WorkingDir      string                // Current directory (PWD) in the command will be launched
+	Entrypoint      *Entrypoint           // Entrypoint to run when starting the container
+	NetworkDisabled bool                  `json:",omitempty"` // Is network disabled
+	MacAddress      string                `json:",omitempty"` // Mac Address of the container
+	OnBuild         []string              // ONBUILD metadata that were defined on the image Dockerfile
+	Labels          map[string]string     // List of labels set to this container
 }
 
 type ContainerConfigWrapper struct {

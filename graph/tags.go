@@ -19,7 +19,6 @@ import (
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/registry"
-	"github.com/docker/docker/trust"
 	"github.com/docker/docker/utils"
 	"github.com/docker/libtrust"
 )
@@ -38,7 +37,6 @@ type TagStore struct {
 	pushingPool     map[string]chan struct{}
 	registryService *registry.Service
 	eventsService   *events.Events
-	trustService    *trust.TrustStore
 }
 
 type Repository map[string]string
@@ -66,7 +64,6 @@ type TagStoreConfig struct {
 	Key      libtrust.PrivateKey
 	Registry *registry.Service
 	Events   *events.Events
-	Trust    *trust.TrustStore
 }
 
 func NewTagStore(path string, cfg *TagStoreConfig) (*TagStore, error) {
@@ -84,7 +81,6 @@ func NewTagStore(path string, cfg *TagStoreConfig) (*TagStore, error) {
 		pushingPool:     make(map[string]chan struct{}),
 		registryService: cfg.Registry,
 		eventsService:   cfg.Events,
-		trustService:    cfg.Trust,
 	}
 	// Load the json file if it exists, otherwise create it.
 	if err := store.reload(); os.IsNotExist(err) {

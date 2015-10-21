@@ -236,7 +236,7 @@ func getCgroupData(c *configs.Cgroup, pid int) (*data, error) {
 }
 
 func (raw *data) parent(subsystem, mountpoint, src string) (string, error) {
-	initPath, err := cgroups.GetInitCgroupDir(subsystem)
+	initPath, err := cgroups.GetThisCgroupDir(subsystem)
 	if err != nil {
 		return "", err
 	}

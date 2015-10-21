@@ -597,6 +597,7 @@ _docker() {
         "($help -d --daeamon)"{-d,--daemon}"[Enable daemon mode]" \
         "($help)--default-gateway[Container default gateway IPv4 address]:IPv4 address: " \
         "($help)--default-gateway-v6[Container default gateway IPv6 address]:IPv6 address: " \
+        "($help)--disable-legacy-registry[Do not contact legacy registries]" \
         "($help)*--dns=-[DNS server to use]:DNS: " \
         "($help)*--dns-search=-[DNS search domains to use]" \
         "($help)*--default-ulimit=-[Set default ulimit settings for containers]:ulimit: " \

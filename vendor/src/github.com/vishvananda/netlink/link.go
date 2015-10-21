@@ -157,6 +157,7 @@ type Vxlan struct {
 	L2miss       bool
 	L3miss       bool
 	NoAge        bool
+	GBP          bool
 	Age          int
 	Limit        int
 	Port         int
