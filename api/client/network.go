@@ -184,31 +184,49 @@ func (cli *DockerCli) CmdNetworkLs(args ...string) error {
 
 // CmdNetworkInspect inspects the network object for more details
 //
-// Usage: docker network inspect <NETWORK>
+// Usage: docker network inspect <NETWORK> [<NETWORK>]
 // CmdNetworkInspect handles Network inspect UI
 func (cli *DockerCli) CmdNetworkInspect(args ...string) error {
 	cmd := Cli.Subcmd("network inspect", []string{"NETWORK"}, "Displays detailed information on a network", false)
-	cmd.Require(flag.Exact, 1)
+	cmd.Require(flag.Min, 1)
 	err := cmd.ParseFlags(args, true)
 	if err != nil {
 		return err
 	}
 
-	obj, _, err := readBody(cli.call("GET", "/networks/"+cmd.Arg(0), nil, nil))
+	status := 0
+	var networks []*types.NetworkResource
+	for _, name := range cmd.Args() {
+		obj, _, err := readBody(cli.call("GET", "/networks/"+name, nil, nil))
+		if err != nil {
+			if strings.Contains(err.Error(), "not found") {
+				fmt.Fprintf(cli.err, "Error: No such network: %s\n", name)
+			} else {
+				fmt.Fprintf(cli.err, "%s", err)
+			}
+			status = 1
+			continue
+		}
+		networkResource := types.NetworkResource{}
+		if err := json.NewDecoder(bytes.NewReader(obj)).Decode(&networkResource); err != nil {
+			return err
+		}
+
+		networks = append(networks, &networkResource)
+	}
+
+	b, err := json.MarshalIndent(networks, "", "    ")
 	if err != nil {
 		return err
 	}
-	networkResource := &types.NetworkResource{}
-	if err := json.NewDecoder(bytes.NewReader(obj)).Decode(networkResource); err != nil {
-		return err
-	}
 
-	indented := new(bytes.Buffer)
-	if err := json.Indent(indented, obj, "", "    "); err != nil {
+	if _, err := io.Copy(cli.out, bytes.NewReader(b)); err != nil {
 		return err
 	}
-	if _, err := io.Copy(cli.out, indented); err != nil {
-		return err
+	io.WriteString(cli.out, "\n")
+
+	if status != 0 {
+		return Cli.StatusError{StatusCode: status}
 	}
 	return nil
 }
