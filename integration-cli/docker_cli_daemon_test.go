@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/docker/libnetwork/iptables"
 	"github.com/docker/libtrust"
 	"github.com/go-check/check"
@@ -846,6 +847,29 @@ func (s *DockerDaemonSuite) TestDaemonDefaultGatewayIPv4ExplicitOutsideContainer
 
 	deleteInterface(c, defaultNetworkBridge)
 	s.d.Restart()
+}
+
+func (s *DockerDaemonSuite) TestDaemonDefaultNetworkInvalidClusterConfig(c *check.C) {
+	testRequires(c, SameHostDaemon)
+
+	// Start daemon without docker0 bridge
+	defaultNetworkBridge := "docker0"
+	deleteInterface(c, defaultNetworkBridge)
+
+	d := NewDaemon(c)
+	discoveryBackend := "consul://consuladdr:consulport/some/path"
+	err := d.Start(fmt.Sprintf("--cluster-store=%s", discoveryBackend))
+	c.Assert(err, checker.IsNil)
+
+	// Start daemon with docker0 bridge
+	ifconfigCmd := exec.Command("ifconfig", defaultNetworkBridge)
+	_, err = runCommand(ifconfigCmd)
+	c.Assert(err, check.IsNil)
+
+	err = d.Restart(fmt.Sprintf("--cluster-store=%s", discoveryBackend))
+	c.Assert(err, checker.IsNil)
+
+	d.Stop()
 }
 
 func (s *DockerDaemonSuite) TestDaemonIP(c *check.C) {
