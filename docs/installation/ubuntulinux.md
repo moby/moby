@@ -172,11 +172,13 @@ To upgrade your kernel and install the additional packages, do the following:
 
 5. After your system reboots, go ahead and install Docker.
 
-
+If you are installing on Ubuntu 14.04 or 12.04, `apparmor` is required.  You can install it using: `apt-get install apparmor`
 
 ## Install
 
-Make sure you have installed the prerequisites for your Ubuntu version. Then,
+Make sure you have installed the prerequisites for your Ubuntu version.
+
+Then,
 install Docker using the following:
 
 1. Log into your Ubuntu installation as a user with `sudo` privileges.
