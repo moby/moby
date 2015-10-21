@@ -189,6 +189,7 @@ func TestEndpointMarshalling(t *testing.T) {
 		name:      "Bau",
 		id:        "efghijklmno",
 		sandboxID: "ambarabaciccicocco",
+		anonymous: true,
 		iface: &endpointInterface{
 			mac: []byte{11, 12, 13, 14, 15, 16},
 			addr: &net.IPNet{
@@ -214,7 +215,7 @@ func TestEndpointMarshalling(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if e.name != ee.name || e.id != ee.id || e.sandboxID != ee.sandboxID || !compareEndpointInterface(e.iface, ee.iface) {
+	if e.name != ee.name || e.id != ee.id || e.sandboxID != ee.sandboxID || !compareEndpointInterface(e.iface, ee.iface) || e.anonymous != ee.anonymous {
 		t.Fatalf("JSON marsh/unmarsh failed.\nOriginal:\n%#v\nDecoded:\n%#v\nOriginal iface: %#v\nDecodediface:\n%#v", e, ee, e.iface, ee.iface)
 	}
 }
@@ -302,7 +303,7 @@ func TestAuxAddresses(t *testing.T) {
 	}
 	defer c.Stop()
 
-	n := &network{ipamType: ipamapi.DefaultIPAM, ctrlr: c.(*controller)}
+	n := &network{ipamType: ipamapi.DefaultIPAM, networkType: "bridge", ctrlr: c.(*controller)}
 
 	input := []struct {
 		masterPool   string
