@@ -341,6 +341,9 @@ func (daemon *Daemon) networkOptions(dconfig *Config) ([]nwconfig.Option, error)
 		options = append(options, nwconfig.OptionKVProvider(kv[0]))
 		options = append(options, nwconfig.OptionKVProviderURL(strings.Join(kv[1:], "://")))
 	}
+	if len(dconfig.ClusterOpts) > 0 {
+		options = append(options, nwconfig.OptionKVOpts(dconfig.ClusterOpts))
+	}
 
 	if daemon.discoveryWatcher != nil {
 		options = append(options, nwconfig.OptionDiscoveryWatcher(daemon.discoveryWatcher))
