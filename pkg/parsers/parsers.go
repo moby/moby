@@ -112,11 +112,11 @@ func ParseTCPAddr(tryAddr string, defaultAddr string) (string, error) {
 func ParseRepositoryTag(repos string) (string, string) {
 	// Handle escaped characters sent by a HTTP client.
 	unescapedRepos, err := url.QueryUnescape(repos)
-	
+
 	if err != nil {
 		unescapedRepos = repos
 	}
-	
+
 	n := strings.Index(unescapedRepos, "@")
 	if n >= 0 {
 		parts := strings.Split(unescapedRepos, "@")
