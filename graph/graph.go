@@ -213,6 +213,11 @@ func (graph *Graph) Exists(id string) bool {
 	return true
 }
 
+// GetTruncIndex for the associated graph.
+func (graph *Graph) GetTruncIndex() *truncindex.TruncIndex {
+	return graph.idIndex
+}
+
 // Get returns the image with the given id, or an error if the image doesn't exist.
 func (graph *Graph) Get(name string) (*image.Image, error) {
 	id, err := graph.idIndex.Get(name)

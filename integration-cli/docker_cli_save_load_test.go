@@ -104,6 +104,48 @@ func (s *DockerSuite) TestSaveCheckTimes(c *check.C) {
 	c.Assert(err, checker.IsNil, check.Commentf("failed to save repo with image ID and 'repositories' file: %s, %v", out, err))
 }
 
+// TestSaveAndLoadMultipleTags test fix for Issue #10592.
+func (s *DockerSuite) TestSaveAndLoadMultipleTags(c *check.C) {
+	repoNameOne := "save-load-multiple-tags-one"
+	repoNameTwo := "save-load-multiple-tags-two"
+
+	// Tag emptyfs:latest with two more tags.
+	dockerCmd(c, "tag", "emptyfs:latest", repoNameOne+":latest")
+	dockerCmd(c, "tag", "emptyfs:latest", repoNameTwo+":latest")
+
+	tmpDir, err := ioutil.TempDir("", "save-load-multiple-tags")
+	c.Assert(err, check.IsNil)
+
+	out, _ := dockerCmd(c, "images", "-q", repoNameOne)
+	shortID := strings.TrimSpace(out)
+
+	// Save the image into a tarball. This should preserve all three tags.
+	saveCmd := exec.Command(dockerBinary, "save", shortID)
+	saveOut, err := saveCmd.CombinedOutput()
+	c.Assert(err, check.IsNil, check.Commentf(string(saveOut)))
+
+	err = ioutil.WriteFile(filepath.Join(tmpDir, "emptyfs.tar"), saveOut, 0666)
+	c.Assert(err, check.IsNil)
+
+	// Untag tags: save-load-multiple-tags-one and save-load-multiple-tags-two.
+	rmiCmd := exec.Command(dockerBinary, "rmi", repoNameOne, repoNameTwo)
+	outByte, err := rmiCmd.CombinedOutput()
+	c.Assert(err, check.IsNil, check.Commentf(string(outByte)))
+
+	// This load should populate the non-conflicting tags back.
+	// After this load, the image should have all 3 tags.
+	loadCmd := exec.Command(dockerBinary, "load", "-i", filepath.Join(tmpDir, "emptyfs.tar"))
+	outByte, err = loadCmd.CombinedOutput()
+	c.Assert(err, check.IsNil, check.Commentf(string(outByte)))
+
+	out, _ = dockerCmd(c, "images", "save-load-multiple-tags-one")
+	c.Assert(out, checker.Contains, "save-load-multiple-tags-one")
+
+	out, _ = dockerCmd(c, "images", "save-load-multiple-tags-two")
+	c.Assert(out, checker.Contains, "save-load-multiple-tags-two")
+
+}
+
 func (s *DockerSuite) TestSaveImageId(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	repoName := "foobar-save-image-id-test"
