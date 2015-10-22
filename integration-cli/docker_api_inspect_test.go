@@ -128,10 +128,10 @@ func (s *DockerSuite) TestInspectApiImageResponse(c *check.C) {
 		c.Fatalf("unable to unmarshal body for latest version: %v", err)
 	}
 
-	c.Assert(len(imageJSON.Tags), check.Equals, 2)
+	c.Assert(len(imageJSON.RepoTags), check.Equals, 2)
 
-	c.Assert(stringutils.InSlice(imageJSON.Tags, "busybox:latest"), check.Equals, true)
-	c.Assert(stringutils.InSlice(imageJSON.Tags, "busybox:mytag"), check.Equals, true)
+	c.Assert(stringutils.InSlice(imageJSON.RepoTags, "busybox:latest"), check.Equals, true)
+	c.Assert(stringutils.InSlice(imageJSON.RepoTags, "busybox:mytag"), check.Equals, true)
 }
 
 // #17131, #17139, #17173
