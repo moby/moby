@@ -575,6 +575,23 @@ func TestGetSameAddress(t *testing.T) {
 	}
 }
 
+func TestGetAddressSubPoolEqualPool(t *testing.T) {
+	a, err := getAllocator()
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Requesting a subpool of same size of the master pool should not cause any problem on ip allocation
+	pid, _, _, err := a.RequestPool(localAddressSpace, "172.18.0.0/16", "172.18.0.0/16", nil, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, _, err = a.RequestAddress(pid, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestRequestReleaseAddressFromSubPool(t *testing.T) {
 	a, err := getAllocator()
 	if err != nil {
