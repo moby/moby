@@ -218,7 +218,14 @@ func (c *controller) initDiscovery(watcher discovery.Watcher) error {
 	}
 
 	c.discovery = hostdiscovery.NewHostDiscovery(watcher)
-	return c.discovery.Watch(c.hostJoinCallback, c.hostLeaveCallback)
+	return c.discovery.Watch(c.activeCallback, c.hostJoinCallback, c.hostLeaveCallback)
+}
+
+func (c *controller) activeCallback() {
+	ds := c.getStore(datastore.GlobalScope)
+	if ds != nil && !ds.Active() {
+		ds.RestartWatch()
+	}
 }
 
 func (c *controller) hostJoinCallback(nodes []net.IP) {

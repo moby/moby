@@ -182,6 +182,10 @@ func (sb *sandbox) Delete() error {
 		}
 	}
 
+	// Container is going away. Path cache in etchosts is most
+	// likely not required any more. Drop it.
+	etchosts.Drop(sb.config.hostsPath)
+
 	if sb.osSbox != nil {
 		sb.osSbox.Destroy()
 	}
