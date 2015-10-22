@@ -34,7 +34,7 @@ func NewHostDiscovery(watcher discovery.Watcher) HostDiscovery {
 	return &hostDiscovery{watcher: watcher, nodes: mapset.NewSet(), stopChan: make(chan struct{})}
 }
 
-func (h *hostDiscovery) Watch(joinCallback JoinCallback, leaveCallback LeaveCallback) error {
+func (h *hostDiscovery) Watch(activeCallback ActiveCallback, joinCallback JoinCallback, leaveCallback LeaveCallback) error {
 	h.Lock()
 	d := h.watcher
 	h.Unlock()
@@ -42,15 +42,16 @@ func (h *hostDiscovery) Watch(joinCallback JoinCallback, leaveCallback LeaveCall
 		return types.BadRequestErrorf("invalid discovery watcher")
 	}
 	discoveryCh, errCh := d.Watch(h.stopChan)
-	go h.monitorDiscovery(discoveryCh, errCh, joinCallback, leaveCallback)
+	go h.monitorDiscovery(discoveryCh, errCh, activeCallback, joinCallback, leaveCallback)
 	return nil
 }
 
-func (h *hostDiscovery) monitorDiscovery(ch <-chan discovery.Entries, errCh <-chan error, joinCallback JoinCallback, leaveCallback LeaveCallback) {
+func (h *hostDiscovery) monitorDiscovery(ch <-chan discovery.Entries, errCh <-chan error,
+	activeCallback ActiveCallback, joinCallback JoinCallback, leaveCallback LeaveCallback) {
 	for {
 		select {
 		case entries := <-ch:
-			h.processCallback(entries, joinCallback, leaveCallback)
+			h.processCallback(entries, activeCallback, joinCallback, leaveCallback)
 		case err := <-errCh:
 			if err != nil {
 				log.Errorf("discovery error: %v", err)
@@ -71,7 +72,8 @@ func (h *hostDiscovery) StopDiscovery() error {
 	return nil
 }
 
-func (h *hostDiscovery) processCallback(entries discovery.Entries, joinCallback JoinCallback, leaveCallback LeaveCallback) {
+func (h *hostDiscovery) processCallback(entries discovery.Entries,
+	activeCallback ActiveCallback, joinCallback JoinCallback, leaveCallback LeaveCallback) {
 	updated := hosts(entries)
 	h.Lock()
 	existing := h.nodes
@@ -79,6 +81,7 @@ func (h *hostDiscovery) processCallback(entries discovery.Entries, joinCallback 
 	h.nodes = updated
 	h.Unlock()
 
+	activeCallback()
 	if len(added) > 0 {
 		joinCallback(added)
 	}
