@@ -308,6 +308,11 @@ func (c *controller) processEndpointCreate(nmap map[string]*netWatch, ep *endpoi
 
 		c.Lock()
 		nw.localEps[ep.ID()] = ep
+
+		// If we had learned that from the kv store remove it
+		// from remote ep list now that we know that this is
+		// indeed a local endpoint
+		delete(nw.remoteEps, ep.ID())
 		c.Unlock()
 		return
 	}
