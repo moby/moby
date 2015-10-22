@@ -22,6 +22,11 @@ for version in "${versions[@]}"; do
 	suite="${version##*-}"
 	from="${distro}:${suite}"
 
+	# build Amazon Linux AMI RPMs in a CentOS container
+	if [[ "$distro" == "amazon" ]]; then
+		from="centos:7"
+	fi
+
 	mkdir -p "$version"
 	echo "$version -> FROM $from"
 	cat > "$version/Dockerfile" <<-EOF
@@ -88,6 +93,14 @@ for version in "${versions[@]}"; do
 
 	echo >> "$version/Dockerfile"
 
+	if [[ "$distro" == "amazon" ]]; then
+		cat >> "$version/Dockerfile" <<-EOF
+			# Set dist tags to match Amazon Linux AMI
+			RUN echo -e '%amzn 1\\n%dist .amzn1\\n%amzn1 1' > /etc/rpm/macros.dist
+
+		EOF
+	fi
+
 	awk '$1 == "ENV" && $2 == "GO_VERSION" { print; exit }' ../../../Dockerfile >> "$version/Dockerfile"
 	echo 'RUN curl -fSL "https://storage.googleapis.com/golang/go${GO_VERSION}.linux-amd64.tar.gz" | tar xzC /usr/local' >> "$version/Dockerfile"
 	echo 'ENV PATH $PATH:/usr/local/go/bin' >> "$version/Dockerfile"
@@ -96,5 +109,10 @@ for version in "${versions[@]}"; do
 
 	echo 'ENV AUTO_GOPATH 1' >> "$version/Dockerfile"
 
-	echo 'ENV DOCKER_BUILDTAGS selinux' >> "$version/Dockerfile"
+	DOCKER_BUILDTAGS="selinux"
+	if [[ "$distro" == "amazon" ]]; then
+		DOCKER_BUILDTAGS="$DOCKER_BUILDTAGS !journald"
+	fi
+
+	echo "ENV DOCKER_BUILDTAGS $DOCKER_BUILDTAGS" >> "$version/Dockerfile"
 done

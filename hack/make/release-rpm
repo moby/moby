@@ -19,7 +19,7 @@ YUMDIR=$DOCKER_RELEASE_DIR/yum/repo
 : ${GPG_KEYID:=releasedocker}
 
 # manage the repos for each distribution separately
-distros=( fedora centos opensuse oraclelinux )
+distros=( fedora centos opensuse oraclelinux amazon )
 
 # get the release
 release="main"
