@@ -330,6 +330,9 @@ func (b *BoltDB) AtomicDelete(key string, previous *store.KVPair) (bool, error) 
 		}
 
 		val = bucket.Get([]byte(key))
+		if val == nil {
+			return store.ErrKeyNotFound
+		}
 		dbIndex := binary.LittleEndian.Uint64(val[:libkvmetadatalen])
 		if dbIndex != previous.LastIndex {
 			return store.ErrKeyModified
