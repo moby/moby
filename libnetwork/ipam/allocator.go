@@ -250,11 +250,6 @@ func (a *Allocator) insertBitMask(key SubnetKey, pool *net.IPNet) error {
 	ones, bits := pool.Mask.Size()
 	numAddresses := uint64(1 << uint(bits-ones))
 
-	if ipVer == v4 {
-		// Do not let broadcast address be reserved
-		numAddresses--
-	}
-
 	// Allow /64 subnet
 	if ipVer == v6 && numAddresses == 0 {
 		numAddresses--
@@ -269,6 +264,11 @@ func (a *Allocator) insertBitMask(key SubnetKey, pool *net.IPNet) error {
 	// Do not let network identifier address be reserved
 	// Do the same for IPv6 so that bridge ip starts with XXXX...::1
 	h.Set(0)
+
+	// Do not let broadcast address be reserved
+	if ipVer == v4 {
+		h.Set(numAddresses - 1)
+	}
 
 	a.Lock()
 	a.addresses[key] = h
