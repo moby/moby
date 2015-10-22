@@ -84,10 +84,6 @@ func (a *Allocator) refresh(as string) error {
 		return nil
 	}
 
-	if err := a.updateBitMasks(aSpace); err != nil {
-		return fmt.Errorf("error updating bit masks during init: %v", err)
-	}
-
 	a.Lock()
 	a.addrSpaces[as] = aSpace
 	a.Unlock()
