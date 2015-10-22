@@ -104,7 +104,7 @@ This section lists each version from latest to oldest.  Each listing includes a 
 * `GET /volumes/(name)` get low-level information about a volume.
 * `DELETE /volumes/(name)`remove a volume with the specified name.
 * `VolumeDriver` has been moved from config to hostConfig to make the configuration portable.
-* `GET /images/(name)/json` now returns information about tags of the image.
+* `GET /images/(name)/json` now returns information about tags and digests of the image.
 * The `config` option now accepts the field `StopSignal`, which specifies the signal to use to kill a container.
 * `GET /containers/(id)/stats` will return networking information respectively for each interface.
 * The `hostConfig` option now accepts the field `DnsOptions`, which specifies a

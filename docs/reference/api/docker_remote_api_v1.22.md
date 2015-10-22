@@ -1547,7 +1547,10 @@ Return low-level information on the image `name`
           "Name" : "aufs",
           "Data" : null
        },
-       "Tags" : [
+       "RepoDigests" : [
+          "localhost:5000/test/busybox/example@sha256:cbbf2f9a99b47fc460d422812b6a5adff7dfee951d8fa2e4a98caa0382cfbdbf"
+       ],
+       "RepoTags" : [
           "example:1.0",
           "example:latest",
           "example:stable"
