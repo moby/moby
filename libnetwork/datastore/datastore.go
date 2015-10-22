@@ -34,6 +34,10 @@ type DataStore interface {
 	Watchable() bool
 	// Watch for changes on a KVObject
 	Watch(kvObject KVObject, stopCh <-chan struct{}) (<-chan KVObject, error)
+	// RestartWatch retriggers stopped Watches
+	RestartWatch()
+	// Active returns if the store is active
+	Active() bool
 	// List returns of a list of KVObjects belonging to the parent
 	// key. The caller must pass a KVObject of the same type as
 	// the objects that need to be listed
@@ -53,9 +57,11 @@ var (
 )
 
 type datastore struct {
-	scope string
-	store store.Store
-	cache *cache
+	scope   string
+	store   store.Store
+	cache   *cache
+	watchCh chan struct{}
+	active  bool
 	sync.Mutex
 }
 
@@ -204,7 +210,7 @@ func newClient(scope string, kv string, addr string, config *store.Config, cache
 		return nil, err
 	}
 
-	ds := &datastore{scope: scope, store: store}
+	ds := &datastore{scope: scope, store: store, active: true, watchCh: make(chan struct{})}
 	if cached {
 		ds.cache = newCache(ds)
 	}
@@ -239,6 +245,10 @@ func (ds *datastore) Scope() string {
 	return ds.scope
 }
 
+func (ds *datastore) Active() bool {
+	return ds.active
+}
+
 func (ds *datastore) Watchable() bool {
 	return ds.scope != LocalScope
 }
@@ -259,6 +269,15 @@ func (ds *datastore) Watch(kvObject KVObject, stopCh <-chan struct{}) (<-chan KV
 	kvoCh := make(chan KVObject)
 
 	go func() {
+	retry_watch:
+		var err error
+
+		// Make sure to get a new instance of watch channel
+		ds.Lock()
+		watchCh := ds.watchCh
+		ds.Unlock()
+
+	loop:
 		for {
 			select {
 			case <-stopCh:
@@ -269,12 +288,15 @@ func (ds *datastore) Watch(kvObject KVObject, stopCh <-chan struct{}) (<-chan KV
 				// for the watch can exit resulting in a nil value in
 				// channel.
 				if kvPair == nil {
-					close(sCh)
-					return
+					ds.Lock()
+					ds.active = false
+					ds.Unlock()
+					break loop
 				}
+
 				dstO := ctor.New()
 
-				if err := dstO.SetValue(kvPair.Value); err != nil {
+				if err = dstO.SetValue(kvPair.Value); err != nil {
 					log.Printf("Could not unmarshal kvpair value = %s", string(kvPair.Value))
 					break
 				}
@@ -283,9 +305,29 @@ func (ds *datastore) Watch(kvObject KVObject, stopCh <-chan struct{}) (<-chan KV
 				kvoCh <- dstO
 			}
 		}
+
+		// Wait on watch channel for a re-trigger when datastore becomes active
+		<-watchCh
+
+		kvpCh, err = ds.store.Watch(Key(kvObject.Key()...), sCh)
+		if err != nil {
+			log.Printf("Could not watch the key %s in store: %v", Key(kvObject.Key()...), err)
+		}
+
+		goto retry_watch
 	}()
 
 	return kvoCh, nil
+}
+
+func (ds *datastore) RestartWatch() {
+	ds.Lock()
+	defer ds.Unlock()
+
+	ds.active = true
+	watchCh := ds.watchCh
+	ds.watchCh = make(chan struct{})
+	close(watchCh)
 }
 
 func (ds *datastore) KVStore() store.Store {

@@ -44,7 +44,7 @@ func TestAddedCallback(t *testing.T) {
 
 	added := false
 	removed := false
-	hd.processCallback(update, func(hosts []net.IP) { added = true }, func(hosts []net.IP) { removed = true })
+	hd.processCallback(update, func() {}, func(hosts []net.IP) { added = true }, func(hosts []net.IP) { removed = true })
 	if !added {
 		t.Fatalf("Expecting a Added callback notification. But none received")
 	}
@@ -57,7 +57,7 @@ func TestRemovedCallback(t *testing.T) {
 
 	added := false
 	removed := false
-	hd.processCallback(update, func(hosts []net.IP) { added = true }, func(hosts []net.IP) { removed = true })
+	hd.processCallback(update, func() {}, func(hosts []net.IP) { added = true }, func(hosts []net.IP) { removed = true })
 	if !removed {
 		t.Fatalf("Expecting a Removed callback notification. But none received")
 	}
@@ -70,7 +70,7 @@ func TestNoCallback(t *testing.T) {
 
 	added := false
 	removed := false
-	hd.processCallback(update, func(hosts []net.IP) { added = true }, func(hosts []net.IP) { removed = true })
+	hd.processCallback(update, func() {}, func(hosts []net.IP) { added = true }, func(hosts []net.IP) { removed = true })
 	if added || removed {
 		t.Fatalf("Not expecting any callback notification. But received a callback")
 	}
