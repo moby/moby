@@ -408,3 +408,80 @@ func (s *DockerNetworkSuite) TestDockerNetworkDriverOptions(c *check.C) {
 	dockerCmd(c, "network", "rm", "testopt")
 
 }
+
+func (s *DockerDaemonSuite) TestDockerNetworkDiscoveryICCFalse(c *check.C) {
+	// When icc == false, containers' etc/hosts should not be populated with containers' names
+	hostsFile := "/etc/hosts"
+	bridgeName := "external-bridge"
+	bridgeIP := "192.169.255.254/24"
+	out, err := createInterface(c, "bridge", bridgeName, bridgeIP)
+	c.Assert(err, check.IsNil, check.Commentf(out))
+	defer deleteInterface(c, bridgeName)
+
+	err = s.d.StartWithBusybox("--bridge", bridgeName, "--icc=false")
+	c.Assert(err, check.IsNil)
+	defer s.d.Restart()
+
+	// run two containers and store first container's etc/hosts content
+	out, err = s.d.Cmd("run", "-d", "busybox", "top")
+	c.Assert(err, check.IsNil)
+	cid1 := strings.TrimSpace(out)
+	defer s.d.Cmd("stop", cid1)
+
+	hosts, err := s.d.Cmd("exec", cid1, "cat", hostsFile)
+	c.Assert(err, checker.IsNil)
+
+	out, err = s.d.Cmd("run", "-d", "busybox", "top")
+	c.Assert(err, check.IsNil)
+	cid2 := strings.TrimSpace(out)
+
+	// verify first container's etc/hosts file has not changed after spawning second container
+	hostsPost, err := s.d.Cmd("exec", cid1, "cat", hostsFile)
+	c.Assert(err, checker.IsNil)
+	c.Assert(string(hosts), checker.Equals, string(hostsPost),
+		check.Commentf("Unexpected %s change on second container creation", hostsFile))
+
+	// stop container 2 and verify first container's etc/hosts has not changed
+	_, err = s.d.Cmd("stop", cid2)
+	c.Assert(err, check.IsNil)
+
+	hostsPost, err = s.d.Cmd("exec", cid1, "cat", hostsFile)
+	c.Assert(err, checker.IsNil)
+	c.Assert(string(hosts), checker.Equals, string(hostsPost),
+		check.Commentf("Unexpected %s change on second container creation", hostsFile))
+
+	// but discovery is on when connecting to non default bridge network
+	network := "anotherbridge"
+	out, err = s.d.Cmd("network", "create", network)
+	c.Assert(err, check.IsNil, check.Commentf(out))
+	defer s.d.Cmd("network", "rm", network)
+
+	out, err = s.d.Cmd("network", "connect", network, cid1)
+	c.Assert(err, check.IsNil, check.Commentf(out))
+
+	hostsPost, err = s.d.Cmd("exec", cid1, "cat", hostsFile)
+	c.Assert(err, checker.IsNil)
+	c.Assert(string(hosts), checker.Equals, string(hostsPost),
+		check.Commentf("Unexpected %s change on second network connection", hostsFile))
+
+	cName := "container3"
+	out, err = s.d.Cmd("run", "-d", "--net", network, "--name", cName, "busybox", "top")
+	c.Assert(err, check.IsNil, check.Commentf(out))
+	cid3 := strings.TrimSpace(out)
+	defer s.d.Cmd("stop", cid3)
+
+	// container1 etc/hosts file should contain an entry for the third container
+	hostsPost, err = s.d.Cmd("exec", cid1, "cat", hostsFile)
+	c.Assert(err, checker.IsNil)
+	c.Assert(string(hostsPost), checker.Contains, cName,
+		check.Commentf("Container 1  %s file does not contain entries for named container %q: %s", hostsFile, cName, string(hostsPost)))
+
+	// on container3 disconnect, first container's etc/hosts should go back to original form
+	out, err = s.d.Cmd("network", "disconnect", network, cid3)
+	c.Assert(err, check.IsNil, check.Commentf(out))
+
+	hostsPost, err = s.d.Cmd("exec", cid1, "cat", hostsFile)
+	c.Assert(err, checker.IsNil)
+	c.Assert(string(hosts), checker.Equals, string(hostsPost),
+		check.Commentf("Unexpected %s content after disconnecting from second network", hostsFile))
+}
