@@ -777,7 +777,7 @@ func (container *Container) updateNetwork() error {
 	return nil
 }
 
-func (container *Container) buildCreateEndpointOptions() ([]libnetwork.EndpointOption, error) {
+func (container *Container) buildCreateEndpointOptions(n libnetwork.Network) ([]libnetwork.EndpointOption, error) {
 	var (
 		portSpecs     = make(nat.PortSet)
 		bindings      = make(nat.PortMap)
@@ -853,6 +853,10 @@ func (container *Container) buildCreateEndpointOptions() ([]libnetwork.EndpointO
 		}
 
 		createOptions = append(createOptions, libnetwork.EndpointOptionGeneric(genericOption))
+	}
+
+	if n.Name() == "bridge" && !container.daemon.config().Bridge.InterContainerCommunication {
+		createOptions = append(createOptions, libnetwork.CreateOptionAnonymous())
 	}
 
 	return createOptions, nil
@@ -944,7 +948,7 @@ func (container *Container) connectToNetwork(idOrName string, updateSettings boo
 		return err
 	}
 
-	createOptions, err := container.buildCreateEndpointOptions()
+	createOptions, err := container.buildCreateEndpointOptions(n)
 	if err != nil {
 		return err
 	}
