@@ -26,7 +26,7 @@ have `sudo` privileges on your local machine or in the VM.
 This sandbox requires you to install two Docker tools: Docker Engine and Docker
 Compose. To install the Docker Engine, choose from the [list of supported
 platforms](../../installation). To install Docker Compose, see the
-[detailed instructions here](https://docs.docker.com/compose/install.md).
+[detailed instructions here](https://docs.docker.com/compose/install/).
 
 Finally, you'll need to have `git` installed on your local system or VM.
 
