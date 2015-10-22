@@ -17,6 +17,13 @@
 #
 # Configuration:
 #
+# For several commands, the amount of completions can be configured by
+# setting environment variables.
+#
+# DOCKER_COMPLETION_SHOW_NETWORK_IDS
+#   "false" - Show names only (default)
+#   "true"  - Show names and ids
+#
 # You can tailor completion for the "events", "history", "inspect", "run",
 # "rmi" and "save" commands by settings the following environment
 # variables:
@@ -139,7 +146,12 @@ __docker_containers_and_images() {
 }
 
 __docker_networks() {
-	COMPREPLY=( $(compgen -W "$(__docker_q network ls | awk 'NR>1 {print $2}')" -- "$cur") )
+	# By default, only network names are completed.
+	# Set DOCKER_COMPLETION_SHOW_NETWORK_IDS=true to also complete network IDs.
+	local fields='$2'
+	[ "${DOCKER_COMPLETION_SHOW_NETWORK_IDS}" = true ] && fields='$1,$2'
+	local networks=$(__docker_q network ls --no-trunc | awk "NR>1 {print $fields}")
+	COMPREPLY=( $(compgen -W "$networks" -- "$cur") )
 }
 
 __docker_volumes() {
