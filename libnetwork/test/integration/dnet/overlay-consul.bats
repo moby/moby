@@ -7,3 +7,8 @@ load helpers
     skip_for_circleci
     test_overlay consul
 }
+
+@test "Test overlay network singlehost with consul" {
+    skip_for_circleci
+    test_overlay_singlehost consul
+}
