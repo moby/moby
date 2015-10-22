@@ -1101,11 +1101,7 @@ _docker_network_inspect() {
 			COMPREPLY=( $( compgen -W "--help" -- "$cur" ) )
 			;;
 		*)
-			local counter=$(__docker_pos_first_nonflag)
-			if [ $cword -eq $counter ]; then
-				__docker_networks
-			fi
-			;;
+			__docker_networks
 	esac
 }
 
