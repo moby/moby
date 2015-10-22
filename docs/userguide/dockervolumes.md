@@ -150,8 +150,8 @@ Here we've mounted the same `/src/webapp` directory but we've added the `ro`
 option to specify that the mount should be read-only.
 
 Because of [limitations in the `mount`
-function](http://lists.linuxfoundation.org/pipermail/containers/2015-April/
-035788.html), moving subdirectories within the host's source directory can give
+function](http://lists.linuxfoundation.org/pipermail/containers/2015-April/035788.html),
+moving subdirectories within the host's source directory can give
 access from the container to the host's file system. This requires a malicious
 user with access to host and its mounted directory. 
 
