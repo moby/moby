@@ -59,7 +59,6 @@ func (cli *DockerCli) CmdInspect(args ...string) error {
 	}
 
 	for _, name := range cmd.Args() {
-
 		if *inspectType == "" || *inspectType == "container" {
 			obj, _, err = readBody(cli.call("GET", "/containers/"+name+"/json?"+v.Encode(), nil, nil))
 			if err != nil && *inspectType == "container" {
@@ -101,42 +100,45 @@ func (cli *DockerCli) CmdInspect(args ...string) error {
 		} else {
 			rdr := bytes.NewReader(obj)
 			dec := json.NewDecoder(rdr)
+			buf := bytes.NewBufferString("")
 
 			if isImage {
 				inspPtr := types.ImageInspect{}
 				if err := dec.Decode(&inspPtr); err != nil {
-					fmt.Fprintf(cli.err, "%s\n", err)
+					fmt.Fprintf(cli.err, "Unable to read inspect data: %v\n", err)
 					status = 1
-					continue
+					break
 				}
-				if err := tmpl.Execute(cli.out, inspPtr); err != nil {
+				if err := tmpl.Execute(buf, inspPtr); err != nil {
 					rdr.Seek(0, 0)
-					var raw interface{}
-					if err := dec.Decode(&raw); err != nil {
-						return err
-					}
-					if err = tmpl.Execute(cli.out, raw); err != nil {
-						return err
+					var ok bool
+
+					if buf, ok = cli.decodeRawInspect(tmpl, dec); !ok {
+						fmt.Fprintf(cli.err, "Template parsing error: %v\n", err)
+						status = 1
+						break
 					}
 				}
 			} else {
 				inspPtr := types.ContainerJSON{}
 				if err := dec.Decode(&inspPtr); err != nil {
-					fmt.Fprintf(cli.err, "%s\n", err)
+					fmt.Fprintf(cli.err, "Unable to read inspect data: %v\n", err)
 					status = 1
-					continue
+					break
 				}
-				if err := tmpl.Execute(cli.out, inspPtr); err != nil {
+				if err := tmpl.Execute(buf, inspPtr); err != nil {
 					rdr.Seek(0, 0)
-					var raw interface{}
-					if err := dec.Decode(&raw); err != nil {
-						return err
-					}
-					if err = tmpl.Execute(cli.out, raw); err != nil {
-						return err
+					var ok bool
+
+					if buf, ok = cli.decodeRawInspect(tmpl, dec); !ok {
+						fmt.Fprintf(cli.err, "Template parsing error: %v\n", err)
+						status = 1
+						break
 					}
 				}
 			}
+
+			cli.out.Write(buf.Bytes())
 			cli.out.Write([]byte{'\n'})
 		}
 		indented.WriteString(",")
@@ -161,4 +163,34 @@ func (cli *DockerCli) CmdInspect(args ...string) error {
 		return Cli.StatusError{StatusCode: status}
 	}
 	return nil
+}
+
+// decodeRawInspect executes the inspect template with a raw interface.
+// This allows docker cli to parse inspect structs injected with Swarm fields.
+// Unfortunately, go 1.4 doesn't fail executing invalid templates when the input is an interface.
+// It doesn't allow to modify this behavior either, sending <no value> messages to the output.
+// We assume that the template is invalid when there is a <no value>, if the template was valid
+// we'd get <nil> or "" values. In that case we fail with the original error raised executing the
+// template with the typed input.
+//
+// TODO: Go 1.5 allows to customize the error behavior, we can probably get rid of this as soon as
+// we build Docker with that version:
+// https://golang.org/pkg/text/template/#Template.Option
+func (cli *DockerCli) decodeRawInspect(tmpl *template.Template, dec *json.Decoder) (*bytes.Buffer, bool) {
+	var raw interface{}
+	buf := bytes.NewBufferString("")
+
+	if rawErr := dec.Decode(&raw); rawErr != nil {
+		fmt.Fprintf(cli.err, "Unable to read inspect data: %v\n", rawErr)
+		return buf, false
+	}
+
+	if rawErr := tmpl.Execute(buf, raw); rawErr != nil {
+		return buf, false
+	}
+
+	if strings.Contains(buf.String(), "<no value>") {
+		return buf, false
+	}
+	return buf, true
 }
