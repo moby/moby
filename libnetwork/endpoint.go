@@ -345,7 +345,7 @@ func (ep *endpoint) sbJoin(sbox Sandbox, options ...EndpointOption) error {
 	if ip := ep.getFirstInterfaceAddress(); ip != nil {
 		address = ip.String()
 	}
-	if err = sb.updateHostsFile(address, network.getSvcRecords()); err != nil {
+	if err = sb.updateHostsFile(address, network.getSvcRecords(ep)); err != nil {
 		return err
 	}
 
@@ -467,9 +467,6 @@ func (ep *endpoint) sbLeave(sbox Sandbox, options ...EndpointOption) error {
 		return err
 	}
 
-	// unwatch for service records
-	n.getController().unWatchSvcRecord(ep)
-
 	if sb.needDefaultGW() {
 		ep := sb.getEPwithoutGateway()
 		if ep == nil {
@@ -501,17 +498,6 @@ func (ep *endpoint) Delete() error {
 	}
 	ep.Unlock()
 
-	if err = n.getEpCnt().DecEndpointCnt(); err != nil {
-		return err
-	}
-	defer func() {
-		if err != nil {
-			if e := n.getEpCnt().IncEndpointCnt(); e != nil {
-				log.Warnf("failed to update network %s : %v", n.name, e)
-			}
-		}
-	}()
-
 	if err = n.getController().deleteFromStore(ep); err != nil {
 		return err
 	}
@@ -523,6 +509,20 @@ func (ep *endpoint) Delete() error {
 			}
 		}
 	}()
+
+	if err = n.getEpCnt().DecEndpointCnt(); err != nil {
+		return err
+	}
+	defer func() {
+		if err != nil {
+			if e := n.getEpCnt().IncEndpointCnt(); e != nil {
+				log.Warnf("failed to update network %s : %v", n.name, e)
+			}
+		}
+	}()
+
+	// unwatch for service records
+	n.getController().unWatchSvcRecord(ep)
 
 	if err = ep.deleteEndpoint(); err != nil {
 		return err

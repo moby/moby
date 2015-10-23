@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"strconv"
+	"strings"
 	"sync"
 
 	log "github.com/Sirupsen/logrus"
@@ -685,6 +686,14 @@ func (n *network) CreateEndpoint(name string, options ...EndpointOption) (Endpoi
 		}
 	}()
 
+	// Watch for service records
+	n.getController().watchSvcRecord(ep)
+	defer func() {
+		if err != nil {
+			n.getController().unWatchSvcRecord(ep)
+		}
+	}()
+
 	// Increment endpoint count to indicate completion of endpoint addition
 	if err = n.getEpCnt().IncEndpointCnt(); err != nil {
 		return nil, err
@@ -768,6 +777,12 @@ func (n *network) updateSvcRecord(ep *endpoint, localEps []*endpoint, isAdd bool
 	var recs []etchosts.Record
 	if iface := ep.Iface(); iface.Address() != nil {
 		if isAdd {
+			// If we already have this endpoint in service db just return
+			if _, ok := sr[ep.Name()]; ok {
+				n.Unlock()
+				return
+			}
+
 			sr[ep.Name()] = iface.Address().IP
 			sr[ep.Name()+"."+n.name] = iface.Address().IP
 		} else {
@@ -793,8 +808,12 @@ func (n *network) updateSvcRecord(ep *endpoint, localEps []*endpoint, isAdd bool
 	}
 
 	var sbList []*sandbox
-	for _, ep := range localEps {
-		if sb, hasSandbox := ep.getSandbox(); hasSandbox {
+	for _, lEp := range localEps {
+		if ep.ID() == lEp.ID() {
+			continue
+		}
+
+		if sb, hasSandbox := lEp.getSandbox(); hasSandbox {
 			sbList = append(sbList, sb)
 		}
 	}
@@ -808,7 +827,7 @@ func (n *network) updateSvcRecord(ep *endpoint, localEps []*endpoint, isAdd bool
 	}
 }
 
-func (n *network) getSvcRecords() []etchosts.Record {
+func (n *network) getSvcRecords(ep *endpoint) []etchosts.Record {
 	n.Lock()
 	defer n.Unlock()
 
@@ -816,6 +835,10 @@ func (n *network) getSvcRecords() []etchosts.Record {
 	sr, _ := n.ctrlr.svcDb[n.id]
 
 	for h, ip := range sr {
+		if ep != nil && strings.Split(h, ".")[0] == ep.Name() {
+			continue
+		}
+
 		recs = append(recs, etchosts.Record{
 			Hosts: h,
 			IP:    ip.String(),
