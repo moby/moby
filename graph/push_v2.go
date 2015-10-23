@@ -1,6 +1,7 @@
 package graph
 
 import (
+	"bufio"
 	"compress/gzip"
 	"fmt"
 	"io"
@@ -19,6 +20,8 @@ import (
 	"github.com/docker/docker/utils"
 	"golang.org/x/net/context"
 )
+
+const compressionBufSize = 32768
 
 type v2Pusher struct {
 	*TagStore
@@ -259,12 +262,17 @@ func (p *v2Pusher) pushV2Image(bs distribution.BlobService, img *image.Image) (d
 	// we must make sure the ReadFrom is used, not Write. Using Write would
 	// send a PATCH request for every Write call.
 	pipeReader, pipeWriter := io.Pipe()
-	compressor := gzip.NewWriter(io.MultiWriter(pipeWriter, digester.Hash()))
+	// Use a bufio.Writer to avoid excessive chunking in HTTP request.
+	bufWriter := bufio.NewWriterSize(io.MultiWriter(pipeWriter, digester.Hash()), compressionBufSize)
+	compressor := gzip.NewWriter(bufWriter)
 
 	go func() {
 		_, err := io.Copy(compressor, reader)
 		if err == nil {
 			err = compressor.Close()
+		}
+		if err == nil {
+			err = bufWriter.Flush()
 		}
 		if err != nil {
 			pipeWriter.CloseWithError(err)
