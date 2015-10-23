@@ -104,6 +104,7 @@ To get information on a container use its ID or instance name:
         "Destination": "/data",
         "Mode": "ro,Z",
         "RW": false
+	"Propagation": ""
       }
     ],
     "AppArmorProfile": "",

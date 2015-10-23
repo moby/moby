@@ -338,6 +338,7 @@ type MountPoint struct {
 	Driver      string `json:",omitempty"`
 	Mode        string
 	RW          bool
+	Propagation string
 }
 
 // Volume represents the configuration of a volume for the remote API
