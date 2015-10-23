@@ -327,7 +327,7 @@ func (graph *Graph) register(im image.Descriptor, layerData io.Reader) (err erro
 	parent := im.Parent()
 
 	// Create root filesystem in the driver
-	if err := createRootFilesystemInDriver(graph, imgID, parent, layerData); err != nil {
+	if err := createRootFilesystemInDriver(graph, imgID, parent); err != nil {
 		return err
 	}
 
@@ -353,7 +353,7 @@ func (graph *Graph) register(im image.Descriptor, layerData io.Reader) (err erro
 	return nil
 }
 
-func createRootFilesystemInDriver(graph *Graph, id, parent string, layerData io.Reader) error {
+func createRootFilesystemInDriver(graph *Graph, id, parent string) error {
 	if err := graph.driver.Create(id, parent); err != nil {
 		return fmt.Errorf("Driver %s failed to create image rootfs %s: %s", graph.driver, id, err)
 	}
