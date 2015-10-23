@@ -315,6 +315,7 @@ __docker_capabilities() {
 
 __docker_log_drivers() {
 	COMPREPLY=( $( compgen -W "
+		awslogs
 		fluentd
 		gelf
 		journald
@@ -326,15 +327,21 @@ __docker_log_drivers() {
 
 __docker_log_driver_options() {
 	# see docs/reference/logging/index.md
-	local fluentd_options="fluentd-address tag"
-	local gelf_options="gelf-address tag"
-	local json_file_options="max-file max-size"
-	local syslog_options="syslog-address syslog-facility tag"
 	local awslogs_options="awslogs-region awslogs-group awslogs-stream"
+	local fluentd_options="env fluentd-address labels tag"
+	local gelf_options="env gelf-address labels tag"
+	local journald_options="env labels"
+	local json_file_options="env labels max-file max-size"
+	local syslog_options="syslog-address syslog-facility tag"
+
+	local all_options="$fluentd_options $gelf_options $journald_options $json_file_options $syslog_options"
 
 	case $(__docker_value_of_option --log-driver) in
 		'')
-			COMPREPLY=( $( compgen -W "$fluentd_options $gelf_options $json_file_options $syslog_options" -S = -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "$all_options" -S = -- "$cur" ) )
+			;;
+		awslogs)
+			COMPREPLY=( $( compgen -W "$awslogs_options" -S = -- "$cur" ) )
 			;;
 		fluentd)
 			COMPREPLY=( $( compgen -W "$fluentd_options" -S = -- "$cur" ) )
@@ -342,14 +349,14 @@ __docker_log_driver_options() {
 		gelf)
 			COMPREPLY=( $( compgen -W "$gelf_options" -S = -- "$cur" ) )
 			;;
+		journald)
+			COMPREPLY=( $( compgen -W "$journald_options" -S = -- "$cur" ) )
+			;;
 		json-file)
 			COMPREPLY=( $( compgen -W "$json_file_options" -S = -- "$cur" ) )
 			;;
 		syslog)
 			COMPREPLY=( $( compgen -W "$syslog_options" -S = -- "$cur" ) )
-			;;
-		awslogs)
-			COMPREPLY=( $( compgen -W "$awslogs_options" -S = -- "$cur" ) )
 			;;
 		*)
 			return
