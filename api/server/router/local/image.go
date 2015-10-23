@@ -308,16 +308,9 @@ func (s *router) postBuild(ctx context.Context, w http.ResponseWriter, r *http.R
 		buildConfig.Pull = true
 	}
 
-	repoName, tag := parsers.ParseRepositoryTag(r.FormValue("t"))
-	if repoName != "" {
-		if err := registry.ValidateRepositoryName(repoName); err != nil {
-			return errf(err)
-		}
-		if len(tag) > 0 {
-			if err := tags.ValidateTagName(tag); err != nil {
-				return errf(err)
-			}
-		}
+	repoAndTags, err := sanitizeRepoAndTags(r.Form["t"])
+	if err != nil {
+		return errf(err)
 	}
 
 	buildConfig.DockerfileName = r.FormValue("dockerfile")
@@ -369,7 +362,6 @@ func (s *router) postBuild(ctx context.Context, w http.ResponseWriter, r *http.R
 	var (
 		context        builder.ModifiableContext
 		dockerfileName string
-		err            error
 	)
 	context, dockerfileName, err = daemonbuilder.DetectContextFromRemoteURL(r.Body, remoteURL, pReader)
 	if err != nil {
@@ -418,13 +410,55 @@ func (s *router) postBuild(ctx context.Context, w http.ResponseWriter, r *http.R
 		return errf(err)
 	}
 
-	if repoName != "" {
-		if err := s.daemon.TagImage(repoName, tag, string(imgID), true); err != nil {
+	for _, rt := range repoAndTags {
+		if err := s.daemon.TagImage(rt.repo, rt.tag, string(imgID), true); err != nil {
 			return errf(err)
 		}
 	}
 
 	return nil
+}
+
+// repoAndTag is a helper struct for holding the parsed repositories and tags of
+// the input "t" argument.
+type repoAndTag struct {
+	repo, tag string
+}
+
+// sanitizeRepoAndTags parses the raw "t" parameter received from the client
+// to a slice of repoAndTag.
+// It also validates each repoName and tag.
+func sanitizeRepoAndTags(names []string) ([]repoAndTag, error) {
+	var (
+		repoAndTags []repoAndTag
+		// This map is used for deduplicating the "-t" paramter.
+		uniqNames = make(map[string]struct{})
+	)
+	for _, repo := range names {
+		name, tag := parsers.ParseRepositoryTag(repo)
+		if name == "" {
+			continue
+		}
+
+		if err := registry.ValidateRepositoryName(name); err != nil {
+			return nil, err
+		}
+
+		nameWithTag := name
+		if len(tag) > 0 {
+			if err := tags.ValidateTagName(tag); err != nil {
+				return nil, err
+			}
+			nameWithTag += ":" + tag
+		} else {
+			nameWithTag += ":" + tags.DefaultTag
+		}
+		if _, exists := uniqNames[nameWithTag]; !exists {
+			uniqNames[nameWithTag] = struct{}{}
+			repoAndTags = append(repoAndTags, repoAndTag{repo: name, tag: tag})
+		}
+	}
+	return repoAndTags, nil
 }
 
 func (s *router) getImagesJSON(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
