@@ -264,7 +264,7 @@ __docker_network_subcommand() {
         (inspect|rm)
             _arguments \
                 $opts_help \
-                "($help -):network:__docker_networks" && ret=0
+                "($help -)*:network:__docker_networks" && ret=0
             ;;
         (ls)
             _arguments \
