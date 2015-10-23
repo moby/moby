@@ -52,6 +52,9 @@ type MountPoint struct {
 
 	// Note Mode is not used on Windows
 	Mode string `json:"Relabel"` // Originally field was `Relabel`"
+
+	// Note Propagation is not used on Windows
+	Propagation string // Mount propagation string
 }
 
 // Setup sets up a mount point by either mounting the volume if it is
@@ -85,17 +88,6 @@ func (m *MountPoint) Path() string {
 	return m.Source
 }
 
-// ValidMountMode will make sure the mount mode is valid.
-// returns if it's a valid mount mode or not.
-func ValidMountMode(mode string) bool {
-	return roModes[strings.ToLower(mode)] || rwModes[strings.ToLower(mode)]
-}
-
-// ReadWrite tells you if a mode string is a valid read-write mode or not.
-func ReadWrite(mode string) bool {
-	return rwModes[strings.ToLower(mode)]
-}
-
 // ParseVolumesFrom ensure that the supplied volumes-from is valid.
 func ParseVolumesFrom(spec string) (string, string, error) {
 	if len(spec) == 0 {
@@ -109,6 +101,13 @@ func ParseVolumesFrom(spec string) (string, string, error) {
 	if len(specParts) == 2 {
 		mode = specParts[1]
 		if !ValidMountMode(mode) {
+			return "", "", derr.ErrorCodeVolumeInvalidMode.WithArgs(mode)
+		}
+		// For now don't allow propagation properties while importing
+		// volumes from data container. These volumes will inherit
+		// the same propagation property as of the original volume
+		// in data container. This probably can be relaxed in future.
+		if HasPropagation(mode) {
 			return "", "", derr.ErrorCodeVolumeInvalidMode.WithArgs(mode)
 		}
 	}

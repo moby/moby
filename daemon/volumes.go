@@ -99,6 +99,7 @@ func (daemon *Daemon) registerMountPoints(container *container.Container, hostCo
 				RW:          m.RW && volume.ReadWrite(mode),
 				Driver:      m.Driver,
 				Destination: m.Destination,
+				Propagation: m.Propagation,
 			}
 
 			if len(cp.Source) == 0 {

@@ -186,3 +186,14 @@ func IsVolumeNameValid(name string) (bool, error) {
 	}
 	return true, nil
 }
+
+// ValidMountMode will make sure the mount mode is valid.
+// returns if it's a valid mount mode or not.
+func ValidMountMode(mode string) bool {
+	return roModes[strings.ToLower(mode)] || rwModes[strings.ToLower(mode)]
+}
+
+// ReadWrite tells you if a mode string is a valid read-write mode or not.
+func ReadWrite(mode string) bool {
+	return rwModes[strings.ToLower(mode)]
+}
