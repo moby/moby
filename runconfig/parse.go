@@ -205,6 +205,9 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 			if arr[1] == "/" {
 				return nil, nil, cmd, fmt.Errorf("Invalid bind mount: destination can't be '/'")
 			}
+			if strings.Count(arr[0], "@") > 1 {
+				return nil, nil, cmd, fmt.Errorf("Invalid format: '%s', valid format should be 'volumename' or 'volumename@volumedriver'", arr[0])
+			}
 			// after creating the bind mount we want to delete it from the flVolumes values because
 			// we do not want bind mounts being committed to image configs
 			binds = append(binds, bind)

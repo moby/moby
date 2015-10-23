@@ -102,7 +102,7 @@ func parseBindMount(spec, volumeDriver string) (*mountPoint, error) {
 	}
 
 	if len(source) == 0 {
-		bind.Driver = volumeDriver
+		name, bind.Driver = getVolumeDriverFromName(name, volumeDriver)
 		if len(bind.Driver) == 0 {
 			bind.Driver = volume.DefaultDriverName
 		}
@@ -113,6 +113,16 @@ func parseBindMount(spec, volumeDriver string) (*mountPoint, error) {
 	bind.Name = name
 	bind.Destination = filepath.Clean(bind.Destination)
 	return bind, nil
+}
+
+func getVolumeDriverFromName(name, volumeDriver string) (string, string) {
+	arr := strings.Split(name, "@")
+	switch len(arr) {
+	case 2:
+		return arr[0], arr[1]
+	default:
+		return arr[0], volumeDriver
+	}
 }
 
 // sortMounts sorts an array of mounts in lexicographic order. This ensure that
