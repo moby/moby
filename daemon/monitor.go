@@ -138,6 +138,30 @@ func (m *containerMonitor) Start() error {
 
 		m.lastStartTime = time.Now()
 
+		// Make the network settings available to the execution
+		// driver to allow for integration with libnetwork networking.
+		m.container.command.NetworkSettings = m.container.NetworkSettings
+
+		// Allow the execution driver to query memory limits
+		m.container.command.HostConfig = m.container.hostConfig
+
+		// Make the network endpoint details available to the execution
+		// driver as well.
+		n, _err := m.container.daemon.netController.NetworkByID(m.container.NetworkSettings.NetworkID)
+		if _err == nil {
+			var eps []map[string]interface{}
+
+			for _, ep := range n.Endpoints() {
+				info, err := ep.DriverInfo()
+				if err != nil {
+					continue
+				}
+				eps = append(eps, info)
+			}
+
+			m.container.command.EndpointInfo = eps
+		}
+
 		if exitStatus, err = m.container.daemon.Run(m.container, pipes, m.callback); err != nil {
 			// if we receive an internal error from the initial start of a container then lets
 			// return it instead of entering the restart loop

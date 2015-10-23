@@ -58,6 +58,12 @@ RUN apt-get update && apt-get install -y \
 	libzfs-dev \
 	--no-install-recommends
 
+# clr
+RUN	echo deb http://download.opensuse.org/repositories/home:/clearlinux:/preview/xUbuntu_15.04/ / > /etc/apt/sources.list.d/clear-containers-docker.list
+RUN apt-get --allow-unauthenticated update && apt-get install -y --force-yes \
+	kvmtool\
+	linux-container
+
 # Get lvm2 source for compiling statically
 RUN git clone -b v2_02_103 https://git.fedorahosted.org/git/lvm2.git /usr/local/lvm2
 # see https://git.fedorahosted.org/cgit/lvm2.git/refs/tags for release tags

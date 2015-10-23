@@ -38,7 +38,10 @@ static void	log_with_errno_init()
 */
 import "C"
 
-import "unsafe"
+import (
+	"reflect"
+	"unsafe"
+)
 
 type (
 	CDmTask C.struct_dm_task
@@ -184,12 +187,21 @@ func dmTaskGetDepsFct(task *CDmTask) *Deps {
 	if Cdeps == nil {
 		return nil
 	}
+
+	// golang issue: https://github.com/golang/go/issues/11925
+	hdr := reflect.SliceHeader{
+		Data: uintptr(unsafe.Pointer(uintptr(unsafe.Pointer(Cdeps)) + unsafe.Sizeof(*Cdeps))),
+		Len:  int(Cdeps.count),
+		Cap:  int(Cdeps.count),
+	}
+	devices := *(*[]C.uint64_t)(unsafe.Pointer(&hdr))
+
 	deps := &Deps{
 		Count:  uint32(Cdeps.count),
 		Filler: uint32(Cdeps.filler),
 	}
-	for _, device := range Cdeps.device {
-		deps.Device = append(deps.Device, (uint64)(device))
+	for _, device := range devices {
+		deps.Device = append(deps.Device, uint64(device))
 	}
 	return deps
 }

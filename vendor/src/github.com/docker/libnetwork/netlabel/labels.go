@@ -24,6 +24,17 @@ const (
 	//EnableIPv6 constant represents enabling IPV6 at network level
 	EnableIPv6 = Prefix + ".enable_ipv6"
 
+	// BridgeName constant represents the name of the network bridge
+	BridgeName = "io.docker.network.bridge.name"
+
+	// BridgePeername constant represents the interface name provided to
+	// the container.
+	BridgePeername = "io.docker.network.bridge.peername"
+
+	// BridgeLinkName constant represents the interface name created on
+	// the host side.
+	BridgeLinkName = "io.docker.network.bridge.linkname"
+
 	// KVProvider constant represents the KV provider backend
 	KVProvider = DriverPrefix + ".kv_provider"
 

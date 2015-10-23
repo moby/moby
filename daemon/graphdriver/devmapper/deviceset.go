@@ -1482,12 +1482,16 @@ func (devices *DeviceSet) deactivatePool() error {
 	if err != nil {
 		return err
 	}
-	if d, err := devicemapper.GetDeps(devname); err == nil {
-		// Access to more Debug output
-		logrus.Debugf("[devmapper] devicemapper.GetDeps() %s: %#v", devname, d)
+
+	if devinfo.Exists == 0 {
+		return nil
 	}
-	if devinfo.Exists != 0 {
-		return devicemapper.RemoveDevice(devname)
+	if err := devicemapper.RemoveDevice(devname); err != nil {
+		return err
+	}
+
+	if d, err := devicemapper.GetDeps(devname); err == nil {
+		logrus.Warnf("[devmapper] device %s still has %d active dependents", devname, d.Count)
 	}
 
 	return nil
