@@ -293,6 +293,102 @@ func checkResetVolumePropagation(container *configs.Config) {
 	}
 }
 
+func getMountInfo(mountinfo []*mount.Info, dir string) *mount.Info {
+	for _, m := range mountinfo {
+		if m.Mountpoint == dir {
+			return m
+		}
+	}
+	return nil
+}
+
+// Get the source mount point of directory passed in as argument. Also return
+// optional fields.
+func getSourceMount(source string) (string, string, error) {
+	// Ensure any symlinks are resolved.
+	sourcePath, err := filepath.EvalSymlinks(source)
+	if err != nil {
+		return "", "", err
+	}
+
+	mountinfos, err := mount.GetMounts()
+	if err != nil {
+		return "", "", err
+	}
+
+	mountinfo := getMountInfo(mountinfos, sourcePath)
+	if mountinfo != nil {
+		return sourcePath, mountinfo.Optional, nil
+	}
+
+	path := sourcePath
+	for {
+		path = filepath.Dir(path)
+
+		mountinfo = getMountInfo(mountinfos, path)
+		if mountinfo != nil {
+			return path, mountinfo.Optional, nil
+		}
+
+		if path == "/" {
+			break
+		}
+	}
+
+	// If we are here, we did not find parent mount. Something is wrong.
+	return "", "", fmt.Errorf("Could not find source mount of %s", source)
+}
+
+// Ensure mount point on which path is mouted, is shared.
+func ensureShared(path string) error {
+	sharedMount := false
+
+	sourceMount, optionalOpts, err := getSourceMount(path)
+	if err != nil {
+		return err
+	}
+	// Make sure source mount point is shared.
+	optsSplit := strings.Split(optionalOpts, " ")
+	for _, opt := range optsSplit {
+		if strings.HasPrefix(opt, "shared:") {
+			sharedMount = true
+			break
+		}
+	}
+
+	if !sharedMount {
+		return fmt.Errorf("Path %s is mounted on %s but it is not a shared mount.", path, sourceMount)
+	}
+	return nil
+}
+
+// Ensure mount point on which path is mounted, is either shared or slave.
+func ensureSharedOrSlave(path string) error {
+	sharedMount := false
+	slaveMount := false
+
+	sourceMount, optionalOpts, err := getSourceMount(path)
+	if err != nil {
+		return err
+	}
+	// Make sure source mount point is shared.
+	optsSplit := strings.Split(optionalOpts, " ")
+	for _, opt := range optsSplit {
+		if strings.HasPrefix(opt, "shared:") {
+			sharedMount = true
+			break
+		} else if strings.HasPrefix(opt, "master:") {
+			slaveMount = true
+			break
+		}
+	}
+
+	if !sharedMount && !slaveMount {
+		return fmt.Errorf("Path %s is mounted on %s but it is not a shared or slave mount.", path, sourceMount)
+	}
+	return nil
+}
+
 func (d *Driver) setupMounts(container *configs.Config, c *execdriver.Command) error {
 	userMounts := make(map[string]struct{})
 	for _, m := range c.Mounts {
@@ -370,11 +466,17 @@ func (d *Driver) setupMounts(container *configs.Config, c *execdriver.Command) e
 
 		pFlag = mountPropagationMap[m.Propagation]
 		if pFlag == mount.SHARED || pFlag == mount.RSHARED {
+			if err := ensureShared(m.Source); err != nil {
+				return err
+			}
 			rootpg := container.RootPropagation
 			if rootpg != mount.SHARED && rootpg != mount.RSHARED {
 				execdriver.SetRootPropagation(container, mount.SHARED)
 			}
 		} else if pFlag == mount.SLAVE || pFlag == mount.RSLAVE {
+			if err := ensureSharedOrSlave(m.Source); err != nil {
+				return err
+			}
 			rootpg := container.RootPropagation
 			if rootpg != mount.SHARED && rootpg != mount.RSHARED && rootpg != mount.SLAVE && rootpg != mount.RSLAVE {
 				execdriver.SetRootPropagation(container, mount.RSLAVE)
