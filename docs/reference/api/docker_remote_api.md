@@ -117,6 +117,10 @@ This section lists each version from latest to oldest.  Each listing includes a 
 * `POST /networks/create` now supports restricting external access to the network by setting the `internal` field.
 * `POST /networks/(id)/disconnect` now includes a `Force` option to forcefully disconnect a container from network
 * `GET /containers/(id)/json` now returns the `NetworkID` of containers.
+* `POST /networks/create` Now supports an options field in the IPAM config that provides options 
+  for custom IPAM plugins.
+* `GET /networks/{network-id}` Now returns IPAM config options for custom IPAM plugins if any
+  are available.
 
 ### v1.21 API changes
 

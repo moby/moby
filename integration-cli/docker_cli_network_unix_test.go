@@ -523,6 +523,18 @@ func (s *DockerNetworkSuite) TestDockerNetworkCustomIpam(c *check.C) {
 	assertNwNotAvailable(c, "br0")
 }
 
+func (s *DockerNetworkSuite) TestDockerNetworkIpamOptions(c *check.C) {
+	// Create a bridge network using custom ipam driver and options
+	dockerCmd(c, "network", "create", "--ipam-driver", dummyIpamDriver, "--ipam-opt", "opt1=drv1", "--ipam-opt", "opt2=drv2", "br0")
+	assertNwIsAvailable(c, "br0")
+
+	// Verify expected network ipam options
+	nr := getNetworkResource(c, "br0")
+	opts := nr.IPAM.Options
+	c.Assert(opts["opt1"], checker.Equals, "drv1")
+	c.Assert(opts["opt2"], checker.Equals, "drv2")
+}
+
 func (s *DockerNetworkSuite) TestDockerNetworkInspect(c *check.C) {
 	// if unspecified, network gateway will be selected from inside preferred pool
 	dockerCmd(c, "network", "create", "--driver=bridge", "--subnet=172.28.0.0/16", "--ip-range=172.28.5.0/24", "--gateway=172.28.5.254", "br0")
