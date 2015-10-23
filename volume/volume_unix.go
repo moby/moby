@@ -12,22 +12,14 @@ import (
 
 // read-write modes
 var rwModes = map[string]bool{
-	"rw":   true,
-	"rw,Z": true,
-	"rw,z": true,
-	"z,rw": true,
-	"Z,rw": true,
-	"Z":    true,
-	"z":    true,
+	"rw": true,
+	"ro": true,
 }
 
-// read-only modes
-var roModes = map[string]bool{
-	"ro":   true,
-	"ro,Z": true,
-	"ro,z": true,
-	"z,ro": true,
-	"Z,ro": true,
+// label modes
+var labelModes = map[string]bool{
+	"Z": true,
+	"z": true,
 }
 
 // BackwardsCompatible decides whether this mount point can be
@@ -51,7 +43,8 @@ func ParseMountSpec(spec, volumeDriver string) (*MountPoint, error) {
 	spec = filepath.ToSlash(spec)
 
 	mp := &MountPoint{
-		RW: true,
+		RW:          true,
+		Propagation: DefaultPropagationMode,
 	}
 	if strings.Count(spec, ":") > 2 {
 		return nil, derr.ErrorCodeVolumeInvalid.WithArgs(spec)
@@ -84,6 +77,7 @@ func ParseMountSpec(spec, volumeDriver string) (*MountPoint, error) {
 			return nil, derr.ErrorCodeVolumeInvalidMode.WithArgs(mp.Mode)
 		}
 		mp.RW = ReadWrite(mp.Mode)
+		mp.Propagation = GetPropagation(mp.Mode)
 	default:
 		return nil, derr.ErrorCodeVolumeInvalid.WithArgs(spec)
 	}
@@ -105,6 +99,17 @@ func ParseMountSpec(spec, volumeDriver string) (*MountPoint, error) {
 		mp.Driver = volumeDriver
 		if len(mp.Driver) == 0 {
 			mp.Driver = DefaultDriverName
+		}
+		// Named volumes can't have propagation properties specified.
+		// Their defaults will be decided by docker. This is just a
+		// safeguard. Don't want to get into situations where named
+		// volumes were mounted as '[r]shared' inside container and
+		// container does further mounts under that volume and these
+		// mounts become visible on  host and later original volume
+		// cleanup becomes an issue if container does not unmount
+		// submounts explicitly.
+		if HasPropagation(mp.Mode) {
+			return nil, derr.ErrorCodeVolumeInvalid.WithArgs(spec)
 		}
 	} else {
 		mp.Source = filepath.Clean(source)
@@ -129,4 +134,49 @@ func ParseVolumeSource(spec string) (string, string) {
 // IsVolumeNameValid checks a volume name in a platform specific manner.
 func IsVolumeNameValid(name string) (bool, error) {
 	return true, nil
+}
+
+// ValidMountMode will make sure the mount mode is valid.
+// returns if it's a valid mount mode or not.
+func ValidMountMode(mode string) bool {
+	rwModeCount := 0
+	labelModeCount := 0
+	propagationModeCount := 0
+
+	for _, o := range strings.Split(mode, ",") {
+		if rwModes[o] {
+			rwModeCount++
+			continue
+		} else if labelModes[o] {
+			labelModeCount++
+			continue
+		} else if propagationModes[o] {
+			propagationModeCount++
+			continue
+		}
+		return false
+	}
+
+	// Only one string for each mode is allowed.
+	if rwModeCount > 1 || labelModeCount > 1 || propagationModeCount > 1 {
+		return false
+	}
+	return true
+}
+
+// ReadWrite tells you if a mode string is a valid read-write mode or not.
+// If there are no specifications w.r.t read write mode, then by default
+// it returs true.
+func ReadWrite(mode string) bool {
+	if !ValidMountMode(mode) {
+		return false
+	}
+
+	for _, o := range strings.Split(mode, ",") {
+		if o == "ro" {
+			return false
+		}
+	}
+
+	return true
 }

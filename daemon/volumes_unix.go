@@ -24,11 +24,13 @@ func (daemon *Daemon) setupMounts(container *container.Container) ([]execdriver.
 			return nil, err
 		}
 		if !container.TrySetNetworkMount(m.Destination, path) {
-			mounts = append(mounts, execdriver.Mount{
+			mnt := execdriver.Mount{
 				Source:      path,
 				Destination: m.Destination,
 				Writable:    m.RW,
-			})
+				Propagation: m.Propagation,
+			}
+			mounts = append(mounts, mnt)
 		}
 	}
 

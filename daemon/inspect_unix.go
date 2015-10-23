@@ -72,6 +72,7 @@ func addMountPoints(container *container.Container) []types.MountPoint {
 			Driver:      m.Driver,
 			Mode:        m.Mode,
 			RW:          m.RW,
+			Propagation: m.Propagation,
 		})
 	}
 	return mountPoints
