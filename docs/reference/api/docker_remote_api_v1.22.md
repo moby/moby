@@ -2956,7 +2956,10 @@ Content-Type: application/json
       {
         "Subnet": "172.17.0.0/16"
       }
-    ]
+    ],
+    "Options": {
+        "foo": "bar"
+    }
   },
   "Containers": {
     "39b69226f9d79f5634485fb236a23b2fe4e96a0a94128390a7fbbcc167065867": {
@@ -3003,7 +3006,10 @@ Content-Type: application/json
       "Subnet":"172.20.0.0/16",
       "IPRange":"172.20.10.0/24",
       "Gateway":"172.20.10.11"
-    }]
+    }],
+    "Options": {
+        "foo": "bar"
+    }
   },
   "Internal":true
 }

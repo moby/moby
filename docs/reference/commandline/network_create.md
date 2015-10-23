@@ -22,6 +22,7 @@ parent = "smn_cli"
     --ip-range=[]            Allocate container ip from a sub-range
     --ipam-driver=default    IP Address Management Driver
     -o --opt=map[]           Set custom network plugin options
+    --ipam-opt=map[]         Set custom IPAM plugin options
     --subnet=[]              Subnet in CIDR format that represents a network segment
 
 Creates a new network. The `DRIVER` accepts `bridge` or `overlay` which are the
