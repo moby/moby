@@ -144,7 +144,8 @@ func makeDefaultScopes() map[string]*ScopeCfg {
 	return def
 }
 
-var rootChain = []string{"docker", "network", "v1.0"}
+var defaultRootChain = []string{"docker", "network", "v1.0"}
+var rootChain = defaultRootChain
 
 func init() {
 	consul.Register()
@@ -195,6 +196,11 @@ func ParseKey(key string) ([]string, error) {
 
 // newClient used to connect to KV Store
 func newClient(scope string, kv string, addr string, config *store.Config, cached bool) (DataStore, error) {
+	var (
+		parts = strings.SplitN(addr, "/", 2)
+		addrs = strings.Split(parts[0], ",")
+	)
+
 	if cached && scope != LocalScope {
 		return nil, fmt.Errorf("caching supported only for scope %s", LocalScope)
 	}
@@ -203,7 +209,10 @@ func newClient(scope string, kv string, addr string, config *store.Config, cache
 		config = &store.Config{}
 	}
 
-	addrs := strings.Split(addr, ",")
+	// Add the custom prefix to the root chain
+	if len(parts) == 2 {
+		rootChain = append([]string{parts[1]}, defaultRootChain...)
+	}
 
 	store, err := libkv.NewStore(store.Backend(kv), addrs, config)
 	if err != nil {
