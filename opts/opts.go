@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"strings"
 
+	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/volume"
 )
@@ -175,7 +176,7 @@ func ValidateAttach(val string) (string, error) {
 			return s, nil
 		}
 	}
-	return val, fmt.Errorf("valid streams are STDIN, STDOUT and STDERR")
+	return val, derr.ErrorCodeInvalidStream
 }
 
 // ValidateLink validates that the specified string has a valid link format (containerName:alias).
@@ -227,12 +228,12 @@ func validatePath(val string, validator func(string) bool) (string, error) {
 	var mode string
 
 	if strings.Count(val, ":") > 2 {
-		return val, fmt.Errorf("bad format for path: %s", val)
+		return val, derr.ErrorCodeInvalidVolPath.WithArgs(val)
 	}
 
 	split := strings.SplitN(val, ":", 3)
 	if split[0] == "" {
-		return val, fmt.Errorf("bad format for path: %s", val)
+		return val, derr.ErrorCodeInvalidVolPath.WithArgs(val)
 	}
 	switch len(split) {
 	case 1:
@@ -251,13 +252,13 @@ func validatePath(val string, validator func(string) bool) (string, error) {
 		containerPath = split[1]
 		mode = split[2]
 		if isValid := validator(split[2]); !isValid {
-			return val, fmt.Errorf("bad mode specified: %s", mode)
+			return val, derr.ErrorCodeInvalidVolMode.WithArgs(mode)
 		}
 		val = fmt.Sprintf("%s:%s:%s", split[0], containerPath, mode)
 	}
 
 	if !path.IsAbs(containerPath) {
-		return val, fmt.Errorf("%s is not an absolute path", containerPath)
+		return val, derr.ErrorCodeInvalidContainerPath.WithArgs(containerPath)
 	}
 	return val, nil
 }
@@ -285,7 +286,7 @@ func ValidateIPAddress(val string) (string, error) {
 	if ip != nil {
 		return ip.String(), nil
 	}
-	return "", fmt.Errorf("%s is not an ip address", val)
+	return "", derr.ErrorCodeInvalidIPFormat.WithArgs(val)
 }
 
 // ValidateMACAddress validates a MAC address.
@@ -308,13 +309,13 @@ func ValidateDNSSearch(val string) (string, error) {
 
 func validateDomain(val string) (string, error) {
 	if alphaRegexp.FindString(val) == "" {
-		return "", fmt.Errorf("%s is not a valid domain", val)
+		return "", derr.ErrorCodeInvalidDomain.WithArgs(val)
 	}
 	ns := domainRegexp.FindSubmatch([]byte(val))
 	if len(ns) > 0 && len(ns[1]) < 255 {
 		return string(ns[1]), nil
 	}
-	return "", fmt.Errorf("%s is not a valid domain", val)
+	return "", derr.ErrorCodeInvalidDomain.WithArgs(val)
 }
 
 // ValidateExtraHost validates that the specified string is a valid extrahost and returns it.
@@ -323,10 +324,10 @@ func ValidateExtraHost(val string) (string, error) {
 	// allow for IPv6 addresses in extra hosts by only splitting on first ":"
 	arr := strings.SplitN(val, ":", 2)
 	if len(arr) != 2 || len(arr[0]) == 0 {
-		return "", fmt.Errorf("bad format for add-host: %q", val)
+		return "", derr.ErrorCodeInvalidExtraHost.WithArgs(val)
 	}
 	if _, err := ValidateIPAddress(arr[1]); err != nil {
-		return "", fmt.Errorf("invalid IP address in add-host: %q", arr[1])
+		return "", derr.ErrorCodeInvalidExtraHostIP.WithArgs(arr[1])
 	}
 	return val, nil
 }
@@ -335,7 +336,7 @@ func ValidateExtraHost(val string) (string, error) {
 // Labels are in the form on key=value.
 func ValidateLabel(val string) (string, error) {
 	if strings.Count(val, "=") < 1 {
-		return "", fmt.Errorf("bad attribute format: %s", val)
+		return "", derr.ErrorCodeInvalidLabel.WithArgs(val)
 	}
 	return val, nil
 }

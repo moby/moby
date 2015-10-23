@@ -3,6 +3,9 @@ package opts
 import (
 	"net"
 	"testing"
+
+	derr "github.com/docker/docker/errors"
+	"github.com/docker/docker/utils"
 )
 
 func TestIpOptString(t *testing.T) {
@@ -46,9 +49,9 @@ func TestIpOptSetInvalidVal(t *testing.T) {
 	ipOpt := &IPOpt{IP: &ip}
 
 	invalidIP := "invalid ip"
-	expectedError := "invalid ip is not an ip address"
+	expectedError := derr.ErrorCodeInvalidIPFormat.Message
 	err := ipOpt.Set(invalidIP)
-	if err == nil || err.Error() != expectedError {
-		t.Fatalf("Expected an Error with [%v], got [%v]", expectedError, err.Error())
+	if err == nil || utils.GetErrorMessage(err) != expectedError {
+		t.Fatalf("Expected an Error with [%v], got [%v]", expectedError, utils.GetErrorMessage(err))
 	}
 }
