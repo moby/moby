@@ -106,6 +106,51 @@ func (ep *endpoint) UnmarshalJSON(b []byte) (err error) {
 
 	if v, ok := epMap["generic"]; ok {
 		ep.generic = v.(map[string]interface{})
+
+		if opt, ok := ep.generic[netlabel.PortMap]; ok {
+			pblist := []types.PortBinding{}
+
+			for i := 0; i < len(opt.([]interface{})); i++ {
+				pb := types.PortBinding{}
+				tmp := opt.([]interface{})[i].(map[string]interface{})
+
+				bytes, err := json.Marshal(tmp)
+				if err != nil {
+					log.Error(err)
+					break
+				}
+				err = json.Unmarshal(bytes, &pb)
+				if err != nil {
+					log.Error(err)
+					break
+				}
+				pblist = append(pblist, pb)
+			}
+			ep.generic[netlabel.PortMap] = pblist
+		}
+
+		if opt, ok := ep.generic[netlabel.ExposedPorts]; ok {
+			tplist := []types.TransportPort{}
+
+			for i := 0; i < len(opt.([]interface{})); i++ {
+				tp := types.TransportPort{}
+				tmp := opt.([]interface{})[i].(map[string]interface{})
+
+				bytes, err := json.Marshal(tmp)
+				if err != nil {
+					log.Error(err)
+					break
+				}
+				err = json.Unmarshal(bytes, &tp)
+				if err != nil {
+					log.Error(err)
+					break
+				}
+				tplist = append(tplist, tp)
+			}
+			ep.generic[netlabel.ExposedPorts] = tplist
+
+		}
 	}
 
 	if v, ok := epMap["anonymous"]; ok {
