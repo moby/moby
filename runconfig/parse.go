@@ -12,6 +12,7 @@ import (
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/stringutils"
 	"github.com/docker/docker/pkg/units"
+	"github.com/docker/docker/volume"
 )
 
 var (
@@ -46,7 +47,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 	var (
 		// FIXME: use utils.ListOpts for attach and volumes?
 		flAttach  = opts.NewListOpts(opts.ValidateAttach)
-		flVolumes = opts.NewListOpts(opts.ValidatePath)
+		flVolumes = opts.NewListOpts(nil)
 		flLinks   = opts.NewListOpts(opts.ValidateLink)
 		flEnv     = opts.NewListOpts(opts.ValidateEnv)
 		flLabels  = opts.NewListOpts(opts.ValidateEnv)
@@ -201,16 +202,11 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 	var binds []string
 	// add any bind targets to the list of container volumes
 	for bind := range flVolumes.GetMap() {
-		if arr := strings.Split(bind, ":"); len(arr) > 1 {
-			if arr[1] == "/" {
-				return nil, nil, cmd, fmt.Errorf("Invalid bind mount: destination can't be '/'")
-			}
+		if arr := volume.SplitN(bind, 2); len(arr) > 1 {
 			// after creating the bind mount we want to delete it from the flVolumes values because
 			// we do not want bind mounts being committed to image configs
 			binds = append(binds, bind)
 			flVolumes.Delete(bind)
-		} else if bind == "/" {
-			return nil, nil, cmd, fmt.Errorf("Invalid volume: path can't be '/'")
 		}
 	}
 

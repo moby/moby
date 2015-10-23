@@ -359,12 +359,12 @@ var (
 		HTTPStatusCode: http.StatusInternalServerError,
 	})
 
-	// ErrorCodeVolumeInvalidMode is generated when we the mode of a volume
+	// ErrorCodeVolumeInvalidMode is generated when we the mode of a volume/bind
 	// mount is invalid.
 	ErrorCodeVolumeInvalidMode = errcode.Register(errGroup, errcode.ErrorDescriptor{
 		Value:          "VOLUMEINVALIDMODE",
-		Message:        "invalid mode for volumes-from: %s",
-		Description:    "An invalid 'mode' was specified in the mount request",
+		Message:        "invalid mode: %s",
+		Description:    "An invalid 'mode' was specified",
 		HTTPStatusCode: http.StatusInternalServerError,
 	})
 
@@ -393,20 +393,46 @@ var (
 		HTTPStatusCode: http.StatusBadRequest,
 	})
 
+	// ErrorCodeVolumeSlash is generated when destination path to a volume is /
+	ErrorCodeVolumeSlash = errcode.Register(errGroup, errcode.ErrorDescriptor{
+		Value:          "VOLUMESLASH",
+		Message:        "Invalid specification: destination can't be '/' in '%s'",
+		HTTPStatusCode: http.StatusInternalServerError,
+	})
+
+	// ErrorCodeVolumeDestIsC is generated the destination is c: (Windows specific)
+	ErrorCodeVolumeDestIsC = errcode.Register(errGroup, errcode.ErrorDescriptor{
+		Value:          "VOLUMEDESTISC",
+		Message:        "Destination drive letter in '%s' cannot be c:",
+		HTTPStatusCode: http.StatusInternalServerError,
+	})
+
+	// ErrorCodeVolumeDestIsCRoot is generated the destination path is c:\ (Windows specific)
+	ErrorCodeVolumeDestIsCRoot = errcode.Register(errGroup, errcode.ErrorDescriptor{
+		Value:          "VOLUMEDESTISCROOT",
+		Message:        `Destination path in '%s' cannot be c:\`,
+		HTTPStatusCode: http.StatusInternalServerError,
+	})
+
+	// ErrorCodeVolumeSourceNotFound is generated the source directory could not be found (Windows specific)
+	ErrorCodeVolumeSourceNotFound = errcode.Register(errGroup, errcode.ErrorDescriptor{
+		Value:          "VOLUMESOURCENOTFOUND",
+		Message:        "Source directory '%s' could not be found: %v",
+		HTTPStatusCode: http.StatusInternalServerError,
+	})
+
+	// ErrorCodeVolumeSourceNotDirectory is generated the source is not a directory (Windows specific)
+	ErrorCodeVolumeSourceNotDirectory = errcode.Register(errGroup, errcode.ErrorDescriptor{
+		Value:          "VOLUMESOURCENOTDIRECTORY",
+		Message:        "Source '%s' is not a directory",
+		HTTPStatusCode: http.StatusInternalServerError,
+	})
+
 	// ErrorCodeVolumeFromBlank is generated when path to a volume is blank.
 	ErrorCodeVolumeFromBlank = errcode.Register(errGroup, errcode.ErrorDescriptor{
 		Value:          "VOLUMEFROMBLANK",
 		Message:        "malformed volumes-from specification: %s",
 		Description:    "An invalid 'destination' path was specified in the mount request, it must not be blank",
-		HTTPStatusCode: http.StatusInternalServerError,
-	})
-
-	// ErrorCodeVolumeMode is generated when 'mode' for a volume
-	// isn't a valid.
-	ErrorCodeVolumeMode = errcode.Register(errGroup, errcode.ErrorDescriptor{
-		Value:          "VOLUMEMODE",
-		Message:        "invalid mode for volumes-from: %s",
-		Description:    "An invalid 'mode' path was specified in the mount request",
 		HTTPStatusCode: http.StatusInternalServerError,
 	})
 
@@ -416,6 +442,22 @@ var (
 		Value:          "VOLUMEDUP",
 		Message:        "Duplicate bind mount %s",
 		Description:    "An attempt was made to mount a volume but the specified destination location is already used in a previous mount",
+		HTTPStatusCode: http.StatusInternalServerError,
+	})
+
+	// ErrorCodeVolumeNoSourceForMount is generated when no source directory
+	// for a volume mount was found. (Windows specific)
+	ErrorCodeVolumeNoSourceForMount = errcode.Register(errGroup, errcode.ErrorDescriptor{
+		Value:          "VOLUMENOSOURCEFORMOUNT",
+		Message:        "No source for mount name %q driver %q destination %s",
+		HTTPStatusCode: http.StatusInternalServerError,
+	})
+
+	// ErrorCodeVolumeNameReservedWord is generated when the name in a volume
+	// uses a reserved word for filenames. (Windows specific)
+	ErrorCodeVolumeNameReservedWord = errcode.Register(errGroup, errcode.ErrorDescriptor{
+		Value:          "VOLUMENAMERESERVEDWORD",
+		Message:        "Volume name %q cannot be a reserved word for Windows filenames",
 		HTTPStatusCode: http.StatusInternalServerError,
 	})
 

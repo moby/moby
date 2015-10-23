@@ -83,7 +83,12 @@ func (d Docker) Container(id string) (*daemon.Container, error) {
 
 // Create creates a new Docker container and returns potential warnings
 func (d Docker) Create(cfg *runconfig.Config, hostCfg *runconfig.HostConfig) (*daemon.Container, []string, error) {
-	ccr, err := d.Daemon.ContainerCreate("", cfg, hostCfg, true)
+	ccr, err := d.Daemon.ContainerCreate(&daemon.ContainerCreateConfig{
+		Name:            "",
+		Config:          cfg,
+		HostConfig:      hostCfg,
+		AdjustCPUShares: true,
+	})
 	if err != nil {
 		return nil, nil, err
 	}

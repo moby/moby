@@ -18,6 +18,15 @@ import (
 	"github.com/opencontainers/runc/libcontainer/configs"
 )
 
+// Mount contains information for a mount operation.
+type Mount struct {
+	Source      string `json:"source"`
+	Destination string `json:"destination"`
+	Writable    bool   `json:"writable"`
+	Private     bool   `json:"private"`
+	Slave       bool   `json:"slave"`
+}
+
 // Network settings of the container
 type Network struct {
 	Mtu            int    `json:"mtu"`

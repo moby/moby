@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/docker/docker/pkg/parsers"
-	"github.com/docker/docker/volume"
 )
 
 var (
@@ -210,14 +209,6 @@ func ValidDeviceMode(mode string) bool {
 // It also validates the device mode.
 func ValidateDevice(val string) (string, error) {
 	return validatePath(val, ValidDeviceMode)
-}
-
-// ValidatePath validates a path for volumes
-// It will make sure 'val' is in the form:
-//    [host-dir:]container-path[:rw|ro]
-// It also validates the mount mode.
-func ValidatePath(val string) (string, error) {
-	return validatePath(val, volume.ValidMountMode)
 }
 
 func validatePath(val string, validator func(string) bool) (string, error) {

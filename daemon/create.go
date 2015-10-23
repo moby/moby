@@ -15,26 +15,34 @@ import (
 	"github.com/opencontainers/runc/libcontainer/label"
 )
 
+// ContainerCreateConfig is the parameter set to ContainerCreate()
+type ContainerCreateConfig struct {
+	Name            string
+	Config          *runconfig.Config
+	HostConfig      *runconfig.HostConfig
+	AdjustCPUShares bool
+}
+
 // ContainerCreate takes configs and creates a container.
-func (daemon *Daemon) ContainerCreate(name string, config *runconfig.Config, hostConfig *runconfig.HostConfig, adjustCPUShares bool) (types.ContainerCreateResponse, error) {
-	if config == nil {
+func (daemon *Daemon) ContainerCreate(params *ContainerCreateConfig) (types.ContainerCreateResponse, error) {
+	if params.Config == nil {
 		return types.ContainerCreateResponse{}, derr.ErrorCodeEmptyConfig
 	}
 
-	warnings, err := daemon.verifyContainerSettings(hostConfig, config)
+	warnings, err := daemon.verifyContainerSettings(params.HostConfig, params.Config)
 	if err != nil {
 		return types.ContainerCreateResponse{"", warnings}, err
 	}
 
-	daemon.adaptContainerSettings(hostConfig, adjustCPUShares)
+	daemon.adaptContainerSettings(params.HostConfig, params.AdjustCPUShares)
 
-	container, err := daemon.Create(config, hostConfig, name)
+	container, err := daemon.create(params)
 	if err != nil {
-		if daemon.Graph().IsNotExist(err, config.Image) {
-			if strings.Contains(config.Image, "@") {
-				return types.ContainerCreateResponse{"", warnings}, derr.ErrorCodeNoSuchImageHash.WithArgs(config.Image)
+		if daemon.Graph().IsNotExist(err, params.Config.Image) {
+			if strings.Contains(params.Config.Image, "@") {
+				return types.ContainerCreateResponse{"", warnings}, derr.ErrorCodeNoSuchImageHash.WithArgs(params.Config.Image)
 			}
-			img, tag := parsers.ParseRepositoryTag(config.Image)
+			img, tag := parsers.ParseRepositoryTag(params.Config.Image)
 			if tag == "" {
 				tag = tags.DefaultTag
 			}
@@ -47,7 +55,7 @@ func (daemon *Daemon) ContainerCreate(name string, config *runconfig.Config, hos
 }
 
 // Create creates a new container from the given configuration with a given name.
-func (daemon *Daemon) Create(config *runconfig.Config, hostConfig *runconfig.HostConfig, name string) (retC *Container, retErr error) {
+func (daemon *Daemon) create(params *ContainerCreateConfig) (retC *Container, retErr error) {
 	var (
 		container *Container
 		img       *image.Image
@@ -55,8 +63,8 @@ func (daemon *Daemon) Create(config *runconfig.Config, hostConfig *runconfig.Hos
 		err       error
 	)
 
-	if config.Image != "" {
-		img, err = daemon.repositories.LookupImage(config.Image)
+	if params.Config.Image != "" {
+		img, err = daemon.repositories.LookupImage(params.Config.Image)
 		if err != nil {
 			return nil, err
 		}
@@ -66,20 +74,20 @@ func (daemon *Daemon) Create(config *runconfig.Config, hostConfig *runconfig.Hos
 		imgID = img.ID
 	}
 
-	if err := daemon.mergeAndVerifyConfig(config, img); err != nil {
+	if err := daemon.mergeAndVerifyConfig(params.Config, img); err != nil {
 		return nil, err
 	}
 
-	if hostConfig == nil {
-		hostConfig = &runconfig.HostConfig{}
+	if params.HostConfig == nil {
+		params.HostConfig = &runconfig.HostConfig{}
 	}
-	if hostConfig.SecurityOpt == nil {
-		hostConfig.SecurityOpt, err = daemon.generateSecurityOpt(hostConfig.IpcMode, hostConfig.PidMode)
+	if params.HostConfig.SecurityOpt == nil {
+		params.HostConfig.SecurityOpt, err = daemon.generateSecurityOpt(params.HostConfig.IpcMode, params.HostConfig.PidMode)
 		if err != nil {
 			return nil, err
 		}
 	}
-	if container, err = daemon.newContainer(name, config, imgID); err != nil {
+	if container, err = daemon.newContainer(params.Name, params.Config, imgID); err != nil {
 		return nil, err
 	}
 	defer func() {
@@ -96,7 +104,7 @@ func (daemon *Daemon) Create(config *runconfig.Config, hostConfig *runconfig.Hos
 	if err := daemon.createRootfs(container); err != nil {
 		return nil, err
 	}
-	if err := daemon.setHostConfig(container, hostConfig); err != nil {
+	if err := daemon.setHostConfig(container, params.HostConfig); err != nil {
 		return nil, err
 	}
 	defer func() {
@@ -111,7 +119,7 @@ func (daemon *Daemon) Create(config *runconfig.Config, hostConfig *runconfig.Hos
 	}
 	defer container.Unmount()
 
-	if err := createContainerPlatformSpecificSettings(container, config, hostConfig, img); err != nil {
+	if err := createContainerPlatformSpecificSettings(container, params.Config, params.HostConfig, img); err != nil {
 		return nil, err
 	}
 
