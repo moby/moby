@@ -64,10 +64,10 @@ three things
 
 Where **dockerhost** can be:
 1. The Docker host IP that can be obtained:
-1.1. On the Docker host machine ````ip route|awk '/default/ { print  $3}')```` 
-1.2. Via docker-machine ````docker-machine ssh DOCKER_MACHINE_NAME ip route|awk '/default/ { print  $3}'````
+1.1. On the Docker host machine `ip route|awk '/default/ { print  $3}')` 
+1.2. Via docker-machine `docker-machine ssh DOCKER_MACHINE_NAME ip route|awk '/default/ { print  $3}'`
 2. The test_apt_cacher_ng container IP that can be obtained:
-2.1. ````docker inspect --format '{{ .NetworkSettings.IPAddress }}'````
+2.1. `docker inspect --format '{{ .NetworkSettings.IPAddress }}'`
 
 **Option 1** injects the settings safely into your apt configuration in
 a local version of a common base:
