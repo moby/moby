@@ -51,8 +51,15 @@ func (d *Driver) Exec(c *execdriver.Command, processConfig *execdriver.ProcessCo
 	logrus.Debugln("commandLine: ", createProcessParms.CommandLine)
 
 	// Start the command running in the container.
-	pid, stdin, stdout, stderr, err := hcsshim.CreateProcessInComputeSystem(c.ID, pipes.Stdin != nil, true, !processConfig.Tty, createProcessParms)
+	pid, stdin, stdout, stderr, rc, err := hcsshim.CreateProcessInComputeSystem(c.ID, pipes.Stdin != nil, true, !processConfig.Tty, createProcessParms)
 	if err != nil {
+		// TODO Windows: TP4 Workaround. In Hyper-V containers, there is a limitation
+		// of one exec per container. This should be fixed post TP4. CreateProcessInComputeSystem
+		// will return a specific error which we handle here to give a good error message
+		// back to the user instead of an inactionable "An invalid argument was supplied"
+		if rc == hcsshim.Win32InvalidArgument {
+			return -1, fmt.Errorf("The limit of docker execs per Hyper-V container has been exceeded")
+		}
 		logrus.Errorf("CreateProcessInComputeSystem() failed %s", err)
 		return -1, err
 	}

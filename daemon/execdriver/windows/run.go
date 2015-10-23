@@ -263,7 +263,7 @@ func (d *Driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, hooks execd
 	logrus.Debugf("CommandLine: %s", createProcessParms.CommandLine)
 
 	// Start the command running in the container.
-	pid, stdin, stdout, stderr, err := hcsshim.CreateProcessInComputeSystem(c.ID, pipes.Stdin != nil, true, !c.ProcessConfig.Tty, createProcessParms)
+	pid, stdin, stdout, stderr, _, err := hcsshim.CreateProcessInComputeSystem(c.ID, pipes.Stdin != nil, true, !c.ProcessConfig.Tty, createProcessParms)
 	if err != nil {
 		logrus.Errorf("CreateProcessInComputeSystem() failed %s", err)
 		return execdriver.ExitStatus{ExitCode: -1}, err
