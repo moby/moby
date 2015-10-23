@@ -40,9 +40,10 @@ type Logger interface {
 
 // ReadConfig is the configuration passed into ReadLogs.
 type ReadConfig struct {
-	Since  time.Time
-	Tail   int
-	Follow bool
+	Since            time.Time
+	Tail             int
+	Follow           bool
+	ContainerStopped chan bool
 }
 
 // LogReader is the interface for reading log messages for loggers that support reading.

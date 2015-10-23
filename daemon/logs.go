@@ -65,12 +65,37 @@ func (daemon *Daemon) ContainerLogs(containerName string, config *ContainerLogsC
 
 	logrus.Debug("logs: begin stream")
 	readConfig := logger.ReadConfig{
-		Since:  config.Since,
-		Tail:   tailLines,
-		Follow: follow,
+		Since:            config.Since,
+		Tail:             tailLines,
+		Follow:           follow,
+		ContainerStopped: make(chan bool, 2),
 	}
-	logs := logReader.ReadLogs(readConfig)
 
+	done := false
+
+	/*
+	 * In case of follow notify logger code when container stops
+	 */
+	if follow {
+		go func() {
+			for {
+				container.WaitStop(time.Second)
+				if !container.IsRunning() {
+					readConfig.ContainerStopped <- true
+					return
+				}
+				if done {
+					return
+				}
+			}
+		}()
+	}
+
+	defer func() {
+		done = true
+	}()
+
+	logs := logReader.ReadLogs(readConfig)
 	for {
 		select {
 		case err := <-logs.Err:

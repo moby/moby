@@ -296,7 +296,7 @@ func (l *JSONFileLogger) readLogs(logWatcher *logger.LogWatcher, config logger.R
 	l.mu.Unlock()
 
 	notifyRotate := l.notifyRotate.Subscribe()
-	followLogs(latestFile, logWatcher, notifyRotate, config.Since)
+	followLogs(latestFile, logWatcher, notifyRotate, config.Since, config.ContainerStopped)
 
 	l.mu.Lock()
 	delete(l.readers, logWatcher)
@@ -332,7 +332,7 @@ func tailFile(f io.ReadSeeker, logWatcher *logger.LogWatcher, tail int, since ti
 	}
 }
 
-func followLogs(f *os.File, logWatcher *logger.LogWatcher, notifyRotate chan interface{}, since time.Time) {
+func followLogs(f *os.File, logWatcher *logger.LogWatcher, notifyRotate chan interface{}, since time.Time, containerStopped chan bool) {
 	dec := json.NewDecoder(f)
 	l := &jsonlog.JSONLog{}
 	fileWatcher, err := fsnotify.NewWatcher()
@@ -365,6 +365,8 @@ func followLogs(f *os.File, logWatcher *logger.LogWatcher, notifyRotate chan int
 			case <-fileWatcher.Events:
 				dec = json.NewDecoder(f)
 				continue
+			case <-containerStopped:
+				return
 			case <-fileWatcher.Errors:
 				logWatcher.Err <- err
 				return
