@@ -146,3 +146,19 @@ func (daemon *Daemon) DisconnectContainerFromNetwork(containerName string, netwo
 	}
 	return container.DisconnectFromNetwork(network)
 }
+
+// GetNetworkDriverList returns the list of plugins drivers
+// registered for network.
+func (daemon *Daemon) GetNetworkDriverList() map[string]bool {
+	pluginList := make(map[string]bool)
+
+	c := daemon.netController
+	networks := c.Networks()
+
+	for _, network := range networks {
+		driver := network.Type()
+		pluginList[driver] = true
+	}
+
+	return pluginList
+}
