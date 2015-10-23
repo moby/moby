@@ -73,6 +73,7 @@ to build a Docker binary with the experimental features enabled:
 
  * [External graphdriver plugins](plugins_graphdriver.md)
  * [User namespaces](userns.md)
+ * [Bind mounts user chown'ing](bind_mounts_user_chowning.md)
 
 ## How to comment on an experimental feature
 
