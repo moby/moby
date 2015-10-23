@@ -143,6 +143,7 @@ type controller struct {
 	watchCh        chan *endpoint
 	unWatchCh      chan *endpoint
 	svcDb          map[string]svcMap
+	nmap           map[string]*netWatch
 	sync.Mutex
 }
 

@@ -1134,6 +1134,10 @@ func (f *fakeSandbox) Delete() error {
 	return nil
 }
 
+func (f *fakeSandbox) Rename(name string) error {
+	return nil
+}
+
 func (f *fakeSandbox) SetKey(key string) error {
 	return nil
 }
