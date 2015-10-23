@@ -34,6 +34,8 @@ type Sandbox interface {
 	Refresh(options ...SandboxOption) error
 	// SetKey updates the Sandbox Key
 	SetKey(key string) error
+	// Rename changes the name of all attached Endpoints
+	Rename(name string) error
 	// Delete destroys this container after detaching it from all connected endpoints.
 	Delete() error
 }
@@ -199,6 +201,30 @@ func (sb *sandbox) Delete() error {
 	c.Unlock()
 
 	return nil
+}
+
+func (sb *sandbox) Rename(name string) error {
+	var err error
+
+	for _, ep := range sb.getConnectedEndpoints() {
+		if ep.endpointInGWNetwork() {
+			continue
+		}
+
+		oldName := ep.Name()
+		lEp := ep
+		if err = ep.rename(name); err != nil {
+			break
+		}
+
+		defer func() {
+			if err != nil {
+				lEp.rename(oldName)
+			}
+		}()
+	}
+
+	return err
 }
 
 func (sb *sandbox) Refresh(options ...SandboxOption) error {
