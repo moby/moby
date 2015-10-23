@@ -52,7 +52,7 @@ program code and documentation code.
 
 * Use existing Docker test files (`name_test.go`) for inspiration. 
 
-* Run <a href="../test-and-docs" target="_blank">the full test suite</a> on your
+* Run <a href="../test-and-docs/" target="_blank">the full test suite</a> on your
   branch before submitting a pull request.
 
 * Run `make docs` to build the documentation and then check it locally.
