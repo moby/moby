@@ -133,7 +133,7 @@ func makeDefaultScopes() map[string]*ScopeCfg {
 	def := make(map[string]*ScopeCfg)
 	def[LocalScope] = &ScopeCfg{
 		Client: ScopeClientCfg{
-			Provider: "boltdb",
+			Provider: string(store.BOLTDB),
 			Address:  defaultPrefix + "/local-kv.db",
 			Config: &store.Config{
 				Bucket: "libnetwork",
@@ -196,10 +196,6 @@ func ParseKey(key string) ([]string, error) {
 
 // newClient used to connect to KV Store
 func newClient(scope string, kv string, addr string, config *store.Config, cached bool) (DataStore, error) {
-	var (
-		parts = strings.SplitN(addr, "/", 2)
-		addrs = strings.Split(parts[0], ",")
-	)
 
 	if cached && scope != LocalScope {
 		return nil, fmt.Errorf("caching supported only for scope %s", LocalScope)
@@ -209,16 +205,26 @@ func newClient(scope string, kv string, addr string, config *store.Config, cache
 		config = &store.Config{}
 	}
 
-	// Add the custom prefix to the root chain
-	if len(parts) == 2 {
-		rootChain = append([]string{parts[1]}, defaultRootChain...)
+	var addrs []string
+
+	if kv == string(store.BOLTDB) {
+		// Parse file path
+		addrs = strings.Split(addr, ",")
+	} else {
+		// Parse URI
+		parts := strings.SplitN(addr, "/", 2)
+		addrs = strings.Split(parts[0], ",")
+
+		// Add the custom prefix to the root chain
+		if len(parts) == 2 {
+			rootChain = append([]string{parts[1]}, defaultRootChain...)
+		}
 	}
 
 	store, err := libkv.NewStore(store.Backend(kv), addrs, config)
 	if err != nil {
 		return nil, err
 	}
-
 	ds := &datastore{scope: scope, store: store, active: true, watchCh: make(chan struct{})}
 	if cached {
 		ds.cache = newCache(ds)
