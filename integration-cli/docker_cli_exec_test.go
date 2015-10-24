@@ -127,6 +127,7 @@ func (s *DockerSuite) TestExecEnv(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "run", "-e", "LALA=value1", "-e", "LALA=value2",
 		"-d", "--name", "testing", "busybox", "top")
+	c.Assert(waitRun("testing"), check.IsNil)
 
 	out, _ := dockerCmd(c, "exec", "testing", "env")
 	if strings.Contains(out, "LALA=value1") ||
