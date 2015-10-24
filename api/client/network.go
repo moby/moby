@@ -184,10 +184,10 @@ func (cli *DockerCli) CmdNetworkLs(args ...string) error {
 
 // CmdNetworkInspect inspects the network object for more details
 //
-// Usage: docker network inspect <NETWORK> [<NETWORK>]
+// Usage: docker network inspect [OPTIONS] NETWORK [NETWORK...]
 // CmdNetworkInspect handles Network inspect UI
 func (cli *DockerCli) CmdNetworkInspect(args ...string) error {
-	cmd := Cli.Subcmd("network inspect", []string{"NETWORK"}, "Displays detailed information on a network", false)
+	cmd := Cli.Subcmd("network inspect", []string{"NETWORK [NETWORK...]"}, "Displays detailed information on a network", false)
 	cmd.Require(flag.Min, 1)
 	err := cmd.ParseFlags(args, true)
 	if err != nil {
