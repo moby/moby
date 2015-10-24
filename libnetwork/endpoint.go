@@ -512,6 +512,8 @@ func (ep *endpoint) sbLeave(sbox Sandbox, options ...EndpointOption) error {
 		return err
 	}
 
+	sb.deleteHostsEntries(n.getSvcRecords(ep))
+
 	if sb.needDefaultGW() {
 		ep := sb.getEPwithoutGateway()
 		if ep == nil {
