@@ -321,6 +321,7 @@ __docker_log_drivers() {
 		journald
 		json-file
 		none
+		splunk
 		syslog
 	" -- "$cur" ) )
 }
@@ -333,8 +334,9 @@ __docker_log_driver_options() {
 	local journald_options="env labels"
 	local json_file_options="env labels max-file max-size"
 	local syslog_options="syslog-address syslog-facility tag"
+	local splunk_options="splunk-caname splunk-capath splunk-index splunk-insecureskipverify splunk-source splunk-sourcetype splunk-token splunk-url"
 
-	local all_options="$fluentd_options $gelf_options $journald_options $json_file_options $syslog_options"
+	local all_options="$fluentd_options $gelf_options $journald_options $json_file_options $syslog_options $splunk_options"
 
 	case $(__docker_value_of_option --log-driver) in
 		'')
@@ -357,6 +359,9 @@ __docker_log_driver_options() {
 			;;
 		syslog)
 			COMPREPLY=( $( compgen -W "$syslog_options" -S = -- "$cur" ) )
+			;;
+		splunk)
+			COMPREPLY=( $( compgen -W "$splunk_options" -S = -- "$cur" ) )
 			;;
 		*)
 			return
@@ -403,6 +408,17 @@ __docker_complete_log_driver_options() {
 				user
 				uucp
 			" -- "${cur#=}" ) )
+			return
+			;;
+		*splunk-url=*)
+			COMPREPLY=( $( compgen -W "http:// https://" -- "${cur#=}" ) )
+			compopt -o nospace
+			__ltrim_colon_completions "${cur}"
+			return
+			;;
+		*splunk-insecureskipverify=*)
+			COMPREPLY=( $( compgen -W "true false" -- "${cur#=}" ) )
+			compopt -o nospace
 			return
 			;;
 	esac
