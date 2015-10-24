@@ -336,7 +336,7 @@ __docker_volume_subcommand() {
                 $opts_help \
                 "($help -d --driver)"{-d,--driver=}"[Specify volume driver name]:Driver name: " \
                 "($help)--name=[Specify volume name]" \
-                "($help -o --opt)*"{-o,--opt=}"[Set driver specific options]:Driver option: " && ret=0
+                "($help)*"{-o,--opt=}"[Set driver specific options]:Driver option: " && ret=0
             ;;
         (inspect)
             _arguments \
@@ -347,7 +347,7 @@ __docker_volume_subcommand() {
         (ls)
             _arguments \
                 $opts_help \
-                "($help -f --filter)*"{-f,--filter=}"[Provide filter values (i.e. 'dangling=true')]:filter: " \
+                "($help)*"{-f,--filter=}"[Provide filter values (i.e. 'dangling=true')]:filter: " \
                 "($help -q --quiet)"{-q,--quiet}"[Only display volume names]" && ret=0
             ;;
         (rm)
@@ -474,7 +474,7 @@ __docker_subcommand() {
             _arguments \
                 $opts_help \
                 "($help -a --author)"{-a,--author=}"[Author]:author: " \
-                "($help -c --change)*"{-c,--change=}"[Apply Dockerfile instruction to the created image]:Dockerfile:_files" \
+                "($help)*"{-c,--change=}"[Apply Dockerfile instruction to the created image]:Dockerfile:_files" \
                 "($help -m --message)"{-m,--message=}"[Commit message]:message: " \
                 "($help -p --pause)"{-p,--pause}"[Pause container during commit]" \
                 "($help -):container:__docker_containers" \
@@ -642,7 +642,7 @@ __docker_subcommand() {
         (import)
             _arguments \
                 $opts_help \
-                "($help -c --change)*"{-c,--change=}"[Apply Dockerfile instruction to the created image]:Dockerfile:_files" \
+                "($help)*"{-c,--change=}"[Apply Dockerfile instruction to the created image]:Dockerfile:_files" \
                 "($help -m --message)"{-m,--message=}"[Set commit message for imported image]:message: " \
                 "($help -):URL:(- http:// file://)" \
                 "($help -): :__docker_repositories_with_tags" && ret=0
