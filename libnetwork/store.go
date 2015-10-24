@@ -265,6 +265,7 @@ func (c *controller) networkWatchLoop(nw *netWatch, ep *endpoint, ecCh <-chan da
 			var addEp []*endpoint
 
 			delEpMap := make(map[string]*endpoint)
+			renameEpMap := make(map[string]bool)
 			for k, v := range nw.remoteEps {
 				delEpMap[k] = v
 			}
@@ -285,9 +286,19 @@ func (c *controller) networkWatchLoop(nw *netWatch, ep *endpoint, ecCh <-chan da
 						delete(delEpMap, lEp.ID())
 						continue
 					}
+					renameEpMap[lEp.ID()] = true
 				}
 				nw.remoteEps[lEp.ID()] = lEp
 				addEp = append(addEp, lEp)
+			}
+
+			// EPs whose name are to be deleted from the svc records
+			// should also be removed from nw's remote EP list, except
+			// the ones that are getting renamed.
+			for _, lEp := range delEpMap {
+				if !renameEpMap[lEp.ID()] {
+					delete(nw.remoteEps, lEp.ID())
+				}
 			}
 			c.Unlock()
 
