@@ -427,7 +427,7 @@ __docker_subcommand() {
         "($help)--kernel-memory[Kernel memory limit in bytes.]:Memory limit: "
         "($help)*--link=[Add link to another container]:link:->link"
         "($help)*"{-l,--label=}"[Set meta data on a container]:label: "
-        "($help)--log-driver=[Default driver for container logs]:Logging driver:(json-file syslog journald gelf fluentd awslogs none)"
+        "($help)--log-driver=[Default driver for container logs]:Logging driver:(json-file syslog journald gelf fluentd awslogs splunk none)"
         "($help)*--log-opt=[Log driver specific options]:log driver options: "
         "($help)*--lxc-conf=[Add custom lxc options]:lxc options: "
         "($help)--mac-address=[Container MAC address]:MAC address: "
@@ -549,7 +549,7 @@ __docker_subcommand() {
                 "($help)--ipv6[Enable IPv6 networking]" \
                 "($help -l --log-level)"{-l,--log-level=}"[Set the logging level]:level:(debug info warn error fatal)" \
                 "($help)*--label=[Set key=value labels to the daemon]:label: " \
-                "($help)--log-driver=[Default driver for container logs]:Logging driver:(json-file syslog journald gelf fluentd awslogs none)" \
+                "($help)--log-driver=[Default driver for container logs]:Logging driver:(json-file syslog journald gelf fluentd awslogs splunk none)" \
                 "($help)*--log-opt=[Log driver specific options]:log driver options: " \
                 "($help)--mtu=[Set the containers network MTU]:mtu:(0 576 1420 1500 9000)" \
                 "($help -p --pidfile)"{-p,--pidfile=}"[Path to use for daemon PID file]:PID file:_files" \
