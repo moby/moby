@@ -11,9 +11,9 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/server/httputils"
-	"github.com/docker/docker/autogen/dockerversion"
 	"github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/version"
+	dockerversion "github.com/docker/docker/version"
 	"golang.org/x/net/context"
 )
 
