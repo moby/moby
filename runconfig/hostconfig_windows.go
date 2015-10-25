@@ -27,3 +27,8 @@ func MergeConfigs(config *Config, hostConfig *HostConfig) *ContainerConfigWrappe
 		hostConfig,
 	}
 }
+
+// IsPreDefinedNetwork indicates if a network is predefined by the daemon
+func IsPreDefinedNetwork(network string) bool {
+	return false
+}
