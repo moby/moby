@@ -106,7 +106,7 @@ func (s *router) postImagesCreate(ctx context.Context, w http.ResponseWriter, r 
 		output = ioutils.NewWriteFlusher(w)
 	)
 
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", "application/json; boundary=NL")
 
 	if image != "" { //pull
 		if tag == "" {
@@ -191,7 +191,7 @@ func (s *router) postImagesPush(ctx context.Context, w http.ResponseWriter, r *h
 		OutStream:   output,
 	}
 
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", "application/json; boundary=NL")
 
 	if err := s.daemon.PushImage(name, imagePushConfig); err != nil {
 		if !output.Flushed() {
@@ -279,7 +279,7 @@ func (s *router) postBuild(ctx context.Context, w http.ResponseWriter, r *http.R
 		}
 	}
 
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", "application/json; boundary=NL")
 
 	version := httputils.VersionFromContext(ctx)
 	output := ioutils.NewWriteFlusher(w)

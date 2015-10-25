@@ -53,7 +53,7 @@ func (s *router) getInfo(ctx context.Context, w http.ResponseWriter, r *http.Req
 }
 
 func buildOutputEncoder(w http.ResponseWriter) *json.Encoder {
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", "application/json; boundary=NL")
 	outStream := ioutils.NewWriteFlusher(w)
 	// Write an empty chunk of data.
 	// This is to ensure that the HTTP status code is sent immediately,
