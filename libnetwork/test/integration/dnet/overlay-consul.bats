@@ -12,3 +12,8 @@ load helpers
     skip_for_circleci
     test_overlay_singlehost consul
 }
+
+@test "test overlay network etc hosts with consul" {
+    skip_for_circleci
+    test_overlay_etchosts consul
+}
