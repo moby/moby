@@ -1804,3 +1804,30 @@ func (s *DockerDaemonSuite) TestDaemonStartWithDefalutTlsHost(c *check.C) {
 		c.Fatalf("docker version should return information of server side")
 	}
 }
+
+func (s *DockerDaemonSuite) TestBridgeIPIsExcludedFromAllocatorPool(c *check.C) {
+	defaultNetworkBridge := "docker0"
+	deleteInterface(c, defaultNetworkBridge)
+
+	bridgeIP := "192.169.1.1"
+	bridgeRange := bridgeIP + "/30"
+
+	err := s.d.StartWithBusybox("--bip", bridgeRange)
+	c.Assert(err, check.IsNil)
+	defer s.d.Restart()
+
+	var cont int
+	for {
+		contName := fmt.Sprintf("container%d", cont)
+		_, err = s.d.Cmd("run", "--name", contName, "-d", "busybox", "/bin/sleep", "2")
+		if err != nil {
+			// pool exhausted
+			break
+		}
+		ip, err := s.d.Cmd("inspect", "--format", "'{{.NetworkSettings.IPAddress}}'", contName)
+		c.Assert(err, check.IsNil)
+
+		c.Assert(ip, check.Not(check.Equals), bridgeIP)
+		cont++
+	}
+}
