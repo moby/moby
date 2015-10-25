@@ -26,9 +26,7 @@ contains the last release of documentation.
 
 After a release, documentation updates are continually merged into `master` as
 they occur. This work includes new documentation for forthcoming features, bug
-fixes, and other updates. Docker's CI system automatically builds and updates
-the `master` documentation after each merge and posts it to
-[http://docs.master.dockerproject.org](http://docs.master.dockerproject.org). 
+fixes, and other updates. 
 
 Periodically, the Docker maintainers update `docs.docker.com` between official
 releases of Docker. They do this by cherry-picking commits from `master`,
@@ -67,7 +65,7 @@ own.
 	The `docker/docker` repository contains a `Dockerfile` and a `Makefile`.
 	Together, these create a development environment in which you can build and
 	run a container running the Docker documentation website. To build the
-	documentation site, enter `make docs` at the root of your `docker/docker`
+	documentation site, enter `make docs` in the `docs` directory of your `docker/docker`
 	fork:
 	
 		$ make docs
