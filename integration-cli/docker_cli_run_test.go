@@ -3812,3 +3812,12 @@ func (s *DockerSuite) TestRunWithOomScoreAdjInvalidRange(c *check.C) {
 		c.Fatalf("Expected output to contain %q, got %q instead", expected, out)
 	}
 }
+
+func (s *DockerSuite) TestRunWithLabelNameOnly(c *check.C) {
+	name := "label-name-only"
+	label := "testing"
+	dockerCmd(c, "run", "--name", name, "--label", label, "busybox", "true")
+	nameonly, err := inspectFieldMap(name, "Config.Labels", label)
+	c.Assert(err, check.IsNil)
+	c.Assert(nameonly, check.Equals, "")
+}
