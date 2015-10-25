@@ -66,6 +66,12 @@ func (n NetworkMode) IsUserDefined() bool {
 	return !n.IsDefault() && !n.IsBridge() && !n.IsHost() && !n.IsNone() && !n.IsContainer()
 }
 
+// IsPreDefinedNetwork indicates if a network is predefined by the daemon
+func IsPreDefinedNetwork(network string) bool {
+	n := NetworkMode(network)
+	return n.IsBridge() || n.IsHost() || n.IsNone()
+}
+
 //UserDefined indicates user-created network
 func (n NetworkMode) UserDefined() string {
 	if n.IsUserDefined() {
