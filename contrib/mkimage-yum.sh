@@ -11,13 +11,18 @@ usage() {
 $(basename $0) [OPTIONS] <name>
 OPTIONS:
   -y <yumconf>  The path to the yum config to install packages from. The
-                default is /etc/yum.conf.
+                default is /etc/yum.conf for Centos/RHEL and /etc/dnf/dnf.conf for Fedora 
 EOOPTS
     exit 1
 }
 
 # option defaults
-yum_config=/etc/yum.conf
+
+if [ -e /etc/dnf/dnf.conf ] ; then
+	yum_config=/etc/dnf/dnf.conf
+else
+	yum_config=/etc/yum.conf
+fi 
 while getopts ":y:h" opt; do
     case $opt in
         y)
@@ -63,9 +68,15 @@ if [ -d /etc/yum/vars ]; then
 	cp -a /etc/yum/vars "$target"/etc/yum/
 fi
 
-yum -c "$yum_config" --installroot="$target" --releasever=/ --setopt=tsflags=nodocs \
-    --setopt=group_package_types=mandatory -y groupinstall Core
-yum -c "$yum_config" --installroot="$target" -y clean all
+if [ -e /etc/dnf/dnf.conf ] ; then 
+	dnf -c "$yum_config" --installroot="$target" --releasever=/ --setopt=tsflags=nodocs \
+		--setopt=group_package_types=mandatory -y groupinstall Core
+	dnf -c "$yum_config" --installroot="$target" -y clean all
+else
+	yum -c "$yum_config" --installroot="$target" --releasever=/ --setopt=tsflags=nodocs \
+    		--setopt=group_package_types=mandatory -y groupinstall Core
+	yum -c "$yum_config" --installroot="$target" -y clean all
+fi 
 
 cat > "$target"/etc/sysconfig/network <<EOF
 NETWORKING=yes
