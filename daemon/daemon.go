@@ -767,10 +767,17 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 	// initialized, the daemon is registered and we can store the discovery backend as its read-only
 	// DiscoveryWatcher version.
 	if config.ClusterStore != "" && config.ClusterAdvertise != "" {
-		var err error
-		if d.discoveryWatcher, err = initDiscovery(config.ClusterStore, config.ClusterAdvertise, config.ClusterOpts); err != nil {
+		advertise, err := discovery.ParseAdvertise(config.ClusterStore, config.ClusterAdvertise)
+		if err != nil {
+			return nil, fmt.Errorf("discovery advertise parsing failed (%v)", err)
+		}
+		config.ClusterAdvertise = advertise
+		d.discoveryWatcher, err = initDiscovery(config.ClusterStore, config.ClusterAdvertise, config.ClusterOpts)
+		if err != nil {
 			return nil, fmt.Errorf("discovery initialization failed (%v)", err)
 		}
+	} else if config.ClusterAdvertise != "" {
+		return nil, fmt.Errorf("invalid cluster configuration. --cluster-advertise must be accompanied by --cluster-store configuration")
 	}
 
 	d.netController, err = d.initNetworkController(config)
