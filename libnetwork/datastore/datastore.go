@@ -225,6 +225,7 @@ func newClient(scope string, kv string, addr string, config *store.Config, cache
 	if err != nil {
 		return nil, err
 	}
+
 	ds := &datastore{scope: scope, store: store, active: true, watchCh: make(chan struct{})}
 	if cached {
 		ds.cache = newCache(ds)
