@@ -125,8 +125,10 @@ func (s *TagStore) recursiveLoad(address, tmpImageDir string) error {
 		if err := s.graph.Register(v1Descriptor{img}, layer); err != nil {
 			return err
 		}
+		logrus.Debugf("Completed processing %s", address)
+		return nil
 	}
-	logrus.Debugf("Completed processing %s", address)
+	logrus.Debugf("already loaded %s", address)
 
 	return nil
 }
