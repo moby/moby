@@ -948,7 +948,8 @@ func (container *Container) connectToNetwork(idOrName string, updateSettings boo
 
 	ep, err := container.getEndpointInNetwork(n)
 	if err == nil {
-		return fmt.Errorf("container already connected to network %s", idOrName)
+		// container is already connected to this network
+		return nil
 	}
 
 	if _, ok := err.(libnetwork.ErrNoSuchEndpoint); !ok {
