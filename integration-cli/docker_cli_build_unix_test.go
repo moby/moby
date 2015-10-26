@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"strings"
 
+	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/docker/docker/pkg/ulimit"
 	"github.com/go-check/check"
 )
@@ -18,14 +19,11 @@ func (s *DockerSuite) TestBuildResourceConstraintsAreUsed(c *check.C) {
 	FROM hello-world:frozen
 	RUN ["/hello"]
 	`, map[string]string{})
-	if err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(err, checker.IsNil)
 
 	dockerCmdInDir(c, ctx.Dir, "build", "--no-cache", "--rm=false", "--memory=64m", "--memory-swap=-1", "--cpuset-cpus=0", "--cpuset-mems=0", "--cpu-shares=100", "--cpu-quota=8000", "--ulimit", "nofile=42", "-t", name, ".")
 
 	out, _ := dockerCmd(c, "ps", "-lq")
-
 	cID := strings.TrimSpace(out)
 
 	type hostConfig struct {
@@ -39,34 +37,36 @@ func (s *DockerSuite) TestBuildResourceConstraintsAreUsed(c *check.C) {
 	}
 
 	cfg, err := inspectFieldJSON(cID, "HostConfig")
-	if err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(err, checker.IsNil)
 
 	var c1 hostConfig
-	if err := json.Unmarshal([]byte(cfg), &c1); err != nil {
-		c.Fatal(err, cfg)
-	}
-	if c1.Memory != 67108864 || c1.MemorySwap != -1 || c1.CpusetCpus != "0" || c1.CpusetMems != "0" || c1.CPUShares != 100 || c1.CPUQuota != 8000 || c1.Ulimits[0].Name != "nofile" || c1.Ulimits[0].Hard != 42 {
-		c.Fatalf("resource constraints not set properly:\nMemory: %d, MemSwap: %d, CpusetCpus: %s, CpusetMems: %s, CPUShares: %d, CPUQuota: %d, Ulimits: %s",
-			c1.Memory, c1.MemorySwap, c1.CpusetCpus, c1.CpusetMems, c1.CPUShares, c1.CPUQuota, c1.Ulimits[0])
-	}
+	err = json.Unmarshal([]byte(cfg), &c1)
+	c.Assert(err, checker.IsNil, check.Commentf(cfg))
+
+	c.Assert(c1.Memory, checker.Equals, int64(64*1024*1024), check.Commentf("resource constraints not set properly for Memory"))
+	c.Assert(c1.MemorySwap, checker.Equals, int64(-1), check.Commentf("resource constraints not set properly for MemorySwap"))
+	c.Assert(c1.CpusetCpus, checker.Equals, "0", check.Commentf("resource constraints not set properly for CpusetCpus"))
+	c.Assert(c1.CpusetMems, checker.Equals, "0", check.Commentf("resource constraints not set properly for CpusetMems"))
+	c.Assert(c1.CPUShares, checker.Equals, int64(100), check.Commentf("resource constraints not set properly for CPUShares"))
+	c.Assert(c1.CPUQuota, checker.Equals, int64(8000), check.Commentf("resource constraints not set properly for CPUQuota"))
+	c.Assert(c1.Ulimits[0].Name, checker.Equals, "nofile", check.Commentf("resource constraints not set properly for Ulimits"))
+	c.Assert(c1.Ulimits[0].Hard, checker.Equals, int64(42), check.Commentf("resource constraints not set properly for Ulimits"))
 
 	// Make sure constraints aren't saved to image
 	dockerCmd(c, "run", "--name=test", name)
 
 	cfg, err = inspectFieldJSON("test", "HostConfig")
-	if err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(err, checker.IsNil)
+
 	var c2 hostConfig
-	if err := json.Unmarshal([]byte(cfg), &c2); err != nil {
-		c.Fatal(err, cfg)
-	}
-	if c2.Memory == 67108864 || c2.MemorySwap == -1 || c2.CpusetCpus == "0" || c2.CpusetMems == "0" || c2.CPUShares == 100 || c2.CPUQuota == 8000 || c2.Ulimits != nil {
-		c.Fatalf("resource constraints leaked from build:\nMemory: %d, MemSwap: %d, CpusetCpus: %s, CpusetMems: %s, CPUShares: %d, CPUQuota: %d, Ulimits: %s",
-			c2.Memory, c2.MemorySwap, c2.CpusetCpus, c2.CpusetMems, c2.CPUShares, c2.CPUQuota, c2.Ulimits)
+	err = json.Unmarshal([]byte(cfg), &c2)
+	c.Assert(err, checker.IsNil, check.Commentf(cfg))
 
-	}
-
+	c.Assert(c2.Memory, check.Not(checker.Equals), int64(64*1024*1024), check.Commentf("resource leaked from build for Memory"))
+	c.Assert(c2.MemorySwap, check.Not(checker.Equals), int64(-1), check.Commentf("resource leaked from build for MemorySwap"))
+	c.Assert(c2.CpusetCpus, check.Not(checker.Equals), "0", check.Commentf("resource leaked from build for CpusetCpus"))
+	c.Assert(c2.CpusetMems, check.Not(checker.Equals), "0", check.Commentf("resource leaked from build for CpusetMems"))
+	c.Assert(c2.CPUShares, check.Not(checker.Equals), int64(100), check.Commentf("resource leaked from build for CPUShares"))
+	c.Assert(c2.CPUQuota, check.Not(checker.Equals), int64(8000), check.Commentf("resource leaked from build for CPUQuota"))
+	c.Assert(c2.Ulimits, checker.IsNil, check.Commentf("resource leaked from build for Ulimits"))
 }
