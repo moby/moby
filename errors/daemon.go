@@ -359,11 +359,11 @@ var (
 		HTTPStatusCode: http.StatusInternalServerError,
 	})
 
-	// ErrorCodeVolumeInvalidMode is generated when we the mode of a volume/bind
+	// ErrorCodeVolumeInvalidMode is generated when the mode of a volume/bind
 	// mount is invalid.
 	ErrorCodeVolumeInvalidMode = errcode.Register(errGroup, errcode.ErrorDescriptor{
 		Value:          "VOLUMEINVALIDMODE",
-		Message:        "invalid mode: %s",
+		Message:        "invalid mode: %q",
 		Description:    "An invalid 'mode' was specified",
 		HTTPStatusCode: http.StatusInternalServerError,
 	})
@@ -372,7 +372,7 @@ var (
 	// volume specification isn't valid.
 	ErrorCodeVolumeInvalid = errcode.Register(errGroup, errcode.ErrorDescriptor{
 		Value:          "VOLUMEINVALID",
-		Message:        "Invalid volume specification: %s",
+		Message:        "Invalid volume specification: '%s'",
 		Description:    "An invalid 'volume' was specified in the mount request",
 		HTTPStatusCode: http.StatusInternalServerError,
 	})
@@ -380,7 +380,7 @@ var (
 	// ErrorCodeVolumeAbs is generated when path to a volume isn't absolute.
 	ErrorCodeVolumeAbs = errcode.Register(errGroup, errcode.ErrorDescriptor{
 		Value:          "VOLUMEABS",
-		Message:        "Invalid volume destination path: %s mount path must be absolute.",
+		Message:        "Invalid volume destination path: '%s' mount path must be absolute.",
 		Description:    "An invalid 'destination' path was specified in the mount request, it must be an absolute path",
 		HTTPStatusCode: http.StatusInternalServerError,
 	})
@@ -388,7 +388,7 @@ var (
 	// ErrorCodeVolumeName is generated when the name of named volume isn't valid.
 	ErrorCodeVolumeName = errcode.Register(errGroup, errcode.ErrorDescriptor{
 		Value:          "VOLUME_NAME_INVALID",
-		Message:        "%s includes invalid characters for a local volume name, only %s are allowed",
+		Message:        "%q includes invalid characters for a local volume name, only %q are allowed",
 		Description:    "The name of volume is invalid",
 		HTTPStatusCode: http.StatusBadRequest,
 	})
@@ -417,7 +417,7 @@ var (
 	// ErrorCodeVolumeSourceNotFound is generated the source directory could not be found (Windows specific)
 	ErrorCodeVolumeSourceNotFound = errcode.Register(errGroup, errcode.ErrorDescriptor{
 		Value:          "VOLUMESOURCENOTFOUND",
-		Message:        "Source directory '%s' could not be found: %v",
+		Message:        "Source directory '%s' could not be found: %s",
 		HTTPStatusCode: http.StatusInternalServerError,
 	})
 
@@ -431,7 +431,7 @@ var (
 	// ErrorCodeVolumeFromBlank is generated when path to a volume is blank.
 	ErrorCodeVolumeFromBlank = errcode.Register(errGroup, errcode.ErrorDescriptor{
 		Value:          "VOLUMEFROMBLANK",
-		Message:        "malformed volumes-from specification: %s",
+		Message:        "malformed volumes-from specification: %q",
 		Description:    "An invalid 'destination' path was specified in the mount request, it must not be blank",
 		HTTPStatusCode: http.StatusInternalServerError,
 	})
@@ -440,7 +440,7 @@ var (
 	// to the same path.
 	ErrorCodeVolumeDup = errcode.Register(errGroup, errcode.ErrorDescriptor{
 		Value:          "VOLUMEDUP",
-		Message:        "Duplicate bind mount %s",
+		Message:        "Duplicate bind mount '%s'",
 		Description:    "An attempt was made to mount a volume but the specified destination location is already used in a previous mount",
 		HTTPStatusCode: http.StatusInternalServerError,
 	})
@@ -449,7 +449,7 @@ var (
 	// for a volume mount was found. (Windows specific)
 	ErrorCodeVolumeNoSourceForMount = errcode.Register(errGroup, errcode.ErrorDescriptor{
 		Value:          "VOLUMENOSOURCEFORMOUNT",
-		Message:        "No source for mount name %q driver %q destination %s",
+		Message:        "No source for mount name '%s' driver %q destination '%s'",
 		HTTPStatusCode: http.StatusInternalServerError,
 	})
 
