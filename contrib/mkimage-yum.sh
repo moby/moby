@@ -18,7 +18,7 @@ EOOPTS
 
 # option defaults
 
-if [ -e /etc/dnf/dnf.conf ] ; then
+if [ -f /etc/dnf/dnf.conf ] ; then
 	yum_config=/etc/dnf/dnf.conf
 else
 	yum_config=/etc/yum.conf
@@ -68,7 +68,7 @@ if [ -d /etc/yum/vars ]; then
 	cp -a /etc/yum/vars "$target"/etc/yum/
 fi
 
-if [ -e /etc/dnf/dnf.conf ] ; then 
+if [ -f /etc/dnf/dnf.conf ] ; then 
 	dnf -c "$yum_config" --installroot="$target" --releasever=/ --setopt=tsflags=nodocs \
 		--setopt=group_package_types=mandatory -y groupinstall Core
 	dnf -c "$yum_config" --installroot="$target" -y clean all
