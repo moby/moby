@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 
+	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/docker/docker/pkg/reexec"
 )
 
@@ -62,10 +63,7 @@ func init() {
 	}
 	var err error
 	dockerBinary, err = exec.LookPath(dockerBinary)
-	if err != nil {
-		fmt.Printf("ERROR: couldn't resolve full path to the Docker binary (%v)", err)
-		os.Exit(1)
-	}
+	c.Assert(err, checker.IsNil, check.Commentf("ERROR: couldn't resolve full path to the Docker binary"))
 	if registryImage := os.Getenv("REGISTRY_IMAGE"); registryImage != "" {
 		registryImageName = registryImage
 	}
