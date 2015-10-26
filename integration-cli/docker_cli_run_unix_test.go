@@ -235,10 +235,13 @@ func (s *DockerSuite) TestRunEchoStdoutWitCPUShares(c *check.C) {
 
 // "test" should be printed
 func (s *DockerSuite) TestRunEchoStdoutWithCPUSharesAndMemoryLimit(c *check.C) {
-	testRequires(c, cpuShare)
-	testRequires(c, memoryLimitSupport)
-	out, _, _ := dockerCmdWithStdoutStderr(c, "run", "--cpu-shares", "1000", "-m", "16m", "busybox", "echo", "test")
-	if out != "test\n" {
+	testRequires(c, cpuShare, memoryLimitSupport)
+	out, err, rc := dockerCmdWithStdoutStderr(c, "run", "--cpu-shares", "512", "-m", "16m", "--name", "echo_w_cpu_mem", "busybox", "echo", "test")
+	out = strings.TrimSpace(out)
+	if rc != 0 {
+		c.Fatalf("Failed to run container: %d, output: %q  error: %q", rc, out, err)
+	}
+	if out != "test" {
 		c.Errorf("container should've printed 'test', got %q instead", out)
 	}
 }
@@ -302,9 +305,11 @@ func (s *DockerSuite) TestRunOOMExitCode(c *check.C) {
 // "test" should be printed
 func (s *DockerSuite) TestRunEchoStdoutWithMemoryLimit(c *check.C) {
 	testRequires(c, memoryLimitSupport)
-	out, _, _ := dockerCmdWithStdoutStderr(c, "run", "-m", "16m", "busybox", "echo", "test")
-	out = strings.Trim(out, "\r\n")
-
+	out, err, rc := dockerCmdWithStdoutStderr(c, "run", "-m", "16m", "--name", "echo_w_mem", "busybox", "echo", "test")
+	out = strings.TrimSpace(out)
+	if rc != 0 {
+		c.Fatalf("Failed to run container: %d, output: %q  error: %q", rc, out, err)
+	}
 	if expected := "test"; out != expected {
 		c.Fatalf("container should've printed %q but printed %q", expected, out)
 	}
