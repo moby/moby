@@ -14,7 +14,7 @@ import (
 )
 
 func TestZooKeeperBackend(t *testing.T) {
-	c, err := testNewController(t, "zk", "127.0.0.1:2181")
+	c, err := testNewController(t, "zk", "127.0.0.1:2181/custom_prefix")
 	if err != nil {
 		t.Fatal(err)
 	}
