@@ -431,6 +431,51 @@ func (ep *endpoint) sbJoin(sbox Sandbox, options ...EndpointOption) error {
 	return sb.clearDefaultGW()
 }
 
+func (ep *endpoint) rename(name string) error {
+	var err error
+	n := ep.getNetwork()
+	if n == nil {
+		return fmt.Errorf("network not connected for ep %q", ep.name)
+	}
+
+	n.getController().Lock()
+	netWatch, ok := n.getController().nmap[n.ID()]
+	n.getController().Unlock()
+
+	if !ok {
+		return fmt.Errorf("watch null for network %q", n.Name())
+	}
+
+	n.updateSvcRecord(ep, n.getController().getLocalEps(netWatch), false)
+
+	oldName := ep.name
+	ep.name = name
+
+	n.updateSvcRecord(ep, n.getController().getLocalEps(netWatch), true)
+	defer func() {
+		if err != nil {
+			n.updateSvcRecord(ep, n.getController().getLocalEps(netWatch), false)
+			ep.name = oldName
+			n.updateSvcRecord(ep, n.getController().getLocalEps(netWatch), true)
+		}
+	}()
+
+	// Update the store with the updated name
+	if err = n.getController().updateToStore(ep); err != nil {
+		return err
+	}
+	// After the name change do a dummy endpoint count update to
+	// trigger the service record update in the peer nodes
+
+	// Ignore the error because updateStore fail for EpCnt is a
+	// benign error. Besides there is no meaningful recovery that
+	// we can do. When the cluster recovers subsequent EpCnt update
+	// will force the peers to get the correct EP name.
+	_ = n.getEpCnt().updateStore()
+
+	return err
+}
+
 func (ep *endpoint) hasInterface(iName string) bool {
 	ep.Lock()
 	defer ep.Unlock()
