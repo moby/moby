@@ -407,20 +407,12 @@ func (daemon *Daemon) reserveName(id, name string) (string, error) {
 
 		conflictingContainer, err := daemon.GetByName(name)
 		if err != nil {
-			if strings.Contains(err.Error(), "Could not find entity") {
-				return "", err
-			}
-
-			// Remove name and continue starting the container
-			if err := daemon.containerGraphDB.Delete(name); err != nil {
-				return "", err
-			}
-		} else {
-			nameAsKnownByUser := strings.TrimPrefix(name, "/")
-			return "", fmt.Errorf(
-				"Conflict. The name %q is already in use by container %s. You have to remove (or rename) that container to be able to reuse that name.", nameAsKnownByUser,
-				stringid.TruncateID(conflictingContainer.ID))
+			return "", err
 		}
+		return "", fmt.Errorf(
+			"Conflict. The name %q is already in use by container %s. You have to remove (or rename) that container to be able to reuse that name.", strings.TrimPrefix(name, "/"),
+			stringid.TruncateID(conflictingContainer.ID))
+
 	}
 	return name, nil
 }
