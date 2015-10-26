@@ -134,12 +134,13 @@ function start_dnet() {
     mkdir -p /tmp/dnet/${name}
     tomlfile="/tmp/dnet/${name}/libnetwork.toml"
 
+    # Try discovery URLs with or without path
     if [ "$store" = "zookeeper" ]; then
 	read discovery provider address < <(parse_discovery_str zk://${bridge_ip}:2182)
     elif [ "$store" = "etcd" ]; then
-	read discovery provider address < <(parse_discovery_str etcd://${bridge_ip}:42000)
+	read discovery provider address < <(parse_discovery_str etcd://${bridge_ip}:42000/custom_prefix)
     else
-	read discovery provider address < <(parse_discovery_str consul://${bridge_ip}:8500)
+	read discovery provider address < <(parse_discovery_str consul://${bridge_ip}:8500/custom_prefix)
     fi
 
     cat > ${tomlfile} <<EOF
