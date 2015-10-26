@@ -55,6 +55,7 @@ const (
 	Win32SystemShutdownIsInProgress       = 0x8007045B // ShutdownComputeSystem: A system shutdown is in progress
 	Win32SpecifiedPathInvalid             = 0x800700A1 // ShutdownComputeSystem: The specified path is invalid
 	Win32SystemCannotFindThePathSpecified = 0x80070003 // ShutdownComputeSystem: The system cannot find the path specified
+	Win32InvalidArgument                  = 0x80072726 // CreateProcessInComputeSystem: An invalid argument was supplied
 
 	// Timeout on wait calls
 	TimeoutInfinite = 0xFFFFFFFF
