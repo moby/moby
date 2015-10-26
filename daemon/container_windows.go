@@ -86,7 +86,9 @@ func populateCommand(c *Container, env []string) error {
 
 	// TODO Windows. More resource controls to be implemented later.
 	resources := &execdriver.Resources{
-		CPUShares: c.hostConfig.CPUShares,
+		CommonResources: execdriver.CommonResources{
+			CPUShares: c.hostConfig.CPUShares,
+		},
 	}
 
 	// TODO Windows. Further refactoring required (privileged/user)

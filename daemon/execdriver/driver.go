@@ -7,8 +7,6 @@ import (
 	"time"
 
 	"github.com/docker/docker/pkg/idtools"
-	// TODO Windows: Factor out ulimit
-	"github.com/docker/docker/pkg/ulimit"
 	"github.com/opencontainers/runc/libcontainer"
 	"github.com/opencontainers/runc/libcontainer/configs"
 )
@@ -138,23 +136,13 @@ type UTS struct {
 	HostUTS bool `json:"host_uts"`
 }
 
-// Resources contains all resource configs for a driver.
-// Currently these are all for cgroup configs.
-// TODO Windows: Factor out ulimit.Rlimit
-type Resources struct {
-	Memory            int64            `json:"memory"`
-	MemorySwap        int64            `json:"memory_swap"`
-	MemoryReservation int64            `json:"memory_reservation"`
-	KernelMemory      int64            `json:"kernel_memory"`
-	CPUShares         int64            `json:"cpu_shares"`
-	CpusetCpus        string           `json:"cpuset_cpus"`
-	CpusetMems        string           `json:"cpuset_mems"`
-	CPUPeriod         int64            `json:"cpu_period"`
-	CPUQuota          int64            `json:"cpu_quota"`
-	BlkioWeight       uint16           `json:"blkio_weight"`
-	Rlimits           []*ulimit.Rlimit `json:"rlimits"`
-	OomKillDisable    bool             `json:"oom_kill_disable"`
-	MemorySwappiness  int64            `json:"memory_swappiness"`
+// CommonResources contains the resource configs for a driver that are
+// common across platforms.
+type CommonResources struct {
+	Memory            int64  `json:"memory"`
+	MemoryReservation int64  `json:"memory_reservation"`
+	CPUShares         int64  `json:"cpu_shares"`
+	BlkioWeight       uint16 `json:"blkio_weight"`
 }
 
 // ResourceStats contains information about resource usage by a container.
