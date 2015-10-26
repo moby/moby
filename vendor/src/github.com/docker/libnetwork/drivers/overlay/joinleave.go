@@ -118,10 +118,12 @@ func (d *driver) Leave(nid, eid string) error {
 		return fmt.Errorf("could not find network with id %s", nid)
 	}
 
-	d.notifyCh <- ovNotify{
-		action: "leave",
-		nid:    nid,
-		eid:    eid,
+	if d.notifyCh != nil {
+		d.notifyCh <- ovNotify{
+			action: "leave",
+			nid:    nid,
+			eid:    eid,
+		}
 	}
 
 	n.leaveSandbox()
