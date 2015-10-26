@@ -79,6 +79,9 @@ func (d *Driver) createContainer(c *execdriver.Command, hooks execdriver.Hooks) 
 		container.AppArmorProfile = c.AppArmorProfile
 	}
 
+	if c.SeccompProfile != "" {
+		container.Seccomp, _ = loadSeccomp(c.SeccompProfile)
+	}
 	if err := execdriver.SetupCgroups(container, c); err != nil {
 		return nil, err
 	}

@@ -59,6 +59,7 @@ RUN apt-get update && apt-get install -y \
 	s3cmd=1.1.0* \
 	ubuntu-zfs \
 	libzfs-dev \
+	libtool\
 	--no-install-recommends
 
 # Get lvm2 source for compiling statically
@@ -212,6 +213,12 @@ RUN set -x \
     && cd /go/src/github.com/akavel/rsrc \
     && git checkout -q $RSRC_COMMIT \
     && go install -v
+
+# Need Libseccomp v2.2.1
+RUN git clone https://github.com/seccomp/libseccomp /libseccomp
+RUN cd /libseccomp && git checkout v2.2.1 && ./autogen.sh && ./configure && make && make check && make install
+# Fix linking error
+RUN cp /usr/local/lib/libseccomp.so /usr/lib/libseccomp.so.2
 
 # Wrap all commands in the "docker-in-docker" script to allow nested containers
 ENTRYPOINT ["hack/dind"]
