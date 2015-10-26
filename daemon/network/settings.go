@@ -26,22 +26,34 @@ type IPAMConfig struct {
 // TODO Windows. Many of these fields can be factored out.,
 type Settings struct {
 	Bridge                 string
-	EndpointID             string
+	EndpointID             string // this is for backward compatibility
 	SandboxID              string
-	Gateway                string
-	GlobalIPv6Address      string
-	GlobalIPv6PrefixLen    int
+	Gateway                string // this is for backward compatibility
+	GlobalIPv6Address      string // this is for backward compatibility
+	GlobalIPv6PrefixLen    int    // this is for backward compatibility
 	HairpinMode            bool
-	IPAddress              string
-	IPPrefixLen            int
-	IPv6Gateway            string
+	IPAddress              string // this is for backward compatibility
+	IPPrefixLen            int    // this is for backward compatibility
+	IPv6Gateway            string // this is for backward compatibility
 	LinkLocalIPv6Address   string
 	LinkLocalIPv6PrefixLen int
-	MacAddress             string
-	Networks               []string
+	MacAddress             string // this is for backward compatibility
+	Networks               map[string]*EndpointSettings
 	Ports                  nat.PortMap
 	SandboxKey             string
 	SecondaryIPAddresses   []Address
 	SecondaryIPv6Addresses []Address
 	IsAnonymousEndpoint    bool
+}
+
+// EndpointSettings stores the network endpoint details
+type EndpointSettings struct {
+	EndpointID          string
+	Gateway             string
+	IPAddress           string
+	IPPrefixLen         int
+	IPv6Gateway         string
+	GlobalIPv6Address   string
+	GlobalIPv6PrefixLen int
+	MacAddress          string
 }
