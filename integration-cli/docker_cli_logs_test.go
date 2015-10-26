@@ -216,7 +216,7 @@ func (s *DockerSuite) TestLogsSinceFutureFollow(c *check.C) {
 // Regression test for #8832
 func (s *DockerSuite) TestLogsFollowSlowStdoutConsumer(c *check.C) {
 	testRequires(c, DaemonIsLinux)
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", `usleep 200000;yes X | head -c 200000`)
+	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", `usleep 600000;yes X | head -c 200000`)
 
 	id := strings.TrimSpace(out)
 
