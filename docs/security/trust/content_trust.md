@@ -31,7 +31,10 @@ Docker registries. These signatures allow client-side verification of the
 integrity and publisher of specific image tags.
 
 Currently, content trust is disabled by default. You must enabled it by setting
-the `DOCKER_CONTENT_TRUST` environment variable.
+the `DOCKER_CONTENT_TRUST` environment variable. Refer to the
+[environment variables](../../reference/commandline/cli.md#environment-variables)
+and [Notary](../../reference/commandline/cli.md#notary) configuration
+for the docker client for more options.
 
 Once content trust is enabled, image publishers can sign their images. Image consumers can
 ensure that the images they use are signed. publishers and consumers can be
