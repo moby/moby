@@ -1172,7 +1172,7 @@ func (container *Container) unmountVolumes(forceSyscall bool) error {
 
 	for _, volumeMount := range volumeMounts {
 		if forceSyscall {
-			system.UnmountWithSyscall(volumeMount.Destination)
+			system.Unmount(volumeMount.Destination)
 		}
 
 		if volumeMount.Volume != nil {
