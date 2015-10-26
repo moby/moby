@@ -58,6 +58,8 @@ func (sb *sandbox) setupDefaultGW(srcEp *endpoint) error {
 		}
 	}
 
+	createOptions = append(createOptions, CreateOptionAnonymous())
+
 	eplen := gwEPlen
 	if len(sb.containerID) < gwEPlen {
 		eplen = len(sb.containerID)
