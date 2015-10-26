@@ -4,8 +4,8 @@ package system
 
 import "syscall"
 
-// UnmountWithSyscall is a platform-specific helper function to call
+// Unmount is a platform-specific helper function to call
 // the unmount syscall.
-func UnmountWithSyscall(dest string) {
+func Unmount(dest string) {
 	syscall.Unmount(dest, 0)
 }
