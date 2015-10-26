@@ -13,6 +13,7 @@ import (
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/pkg/parsers/filters"
+	"github.com/docker/docker/runconfig"
 	"github.com/docker/libnetwork"
 )
 
@@ -83,6 +84,11 @@ func (n *networkRouter) postNetworkCreate(ctx context.Context, w http.ResponseWr
 
 	if err := json.NewDecoder(r.Body).Decode(&create); err != nil {
 		return err
+	}
+
+	if runconfig.IsPreDefinedNetwork(create.Name) {
+		return httputils.WriteJSON(w, http.StatusForbidden,
+			fmt.Sprintf("%s is a pre-defined network and cannot be created", create.Name))
 	}
 
 	nw, err := n.daemon.GetNetwork(create.Name, daemon.NetworkByName)
@@ -159,6 +165,11 @@ func (n *networkRouter) deleteNetwork(ctx context.Context, w http.ResponseWriter
 	nw, err := n.daemon.FindNetwork(vars["id"])
 	if err != nil {
 		return err
+	}
+
+	if runconfig.IsPreDefinedNetwork(nw.Name()) {
+		return httputils.WriteJSON(w, http.StatusForbidden,
+			fmt.Sprintf("%s is a pre-defined network and cannot be removed", nw.Name()))
 	}
 
 	return nw.Delete()

@@ -193,6 +193,23 @@ func (s *DockerSuite) TestApiNetworkIpamMultipleBridgeNetworks(c *check.C) {
 	}
 }
 
+func (s *DockerSuite) TestApiCreateDeletePredefinedNetworks(c *check.C) {
+	createDeletePredefinedNetwork(c, "bridge")
+	createDeletePredefinedNetwork(c, "none")
+	createDeletePredefinedNetwork(c, "host")
+}
+
+func createDeletePredefinedNetwork(c *check.C, name string) {
+	// Create pre-defined network
+	config := types.NetworkCreate{
+		Name:           name,
+		CheckDuplicate: true,
+	}
+	shouldSucceed := false
+	createNetwork(c, config, shouldSucceed)
+	deleteNetwork(c, name, shouldSucceed)
+}
+
 func isNetworkAvailable(c *check.C, name string) bool {
 	status, body, err := sockRequest("GET", "/networks", nil)
 	c.Assert(status, checker.Equals, http.StatusOK)
@@ -284,7 +301,6 @@ func deleteNetwork(c *check.C, id string, shouldSucceed bool) {
 	status, _, err := sockRequest("DELETE", "/networks/"+id, nil)
 	if !shouldSucceed {
 		c.Assert(status, checker.Not(checker.Equals), http.StatusOK)
-		c.Assert(err, checker.NotNil)
 		return
 	}
 	c.Assert(status, checker.Equals, http.StatusOK)
