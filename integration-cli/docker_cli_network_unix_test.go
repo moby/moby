@@ -284,7 +284,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkConnectDisconnect(c *check.C) {
 	// check if container IP matches network inspect
 	ip, _, err := net.ParseCIDR(nr.Containers[containerID].IPv4Address)
 	c.Assert(err, check.IsNil)
-	containerIP := findContainerIP(c, "test")
+	containerIP := findContainerIP(c, "test", "test")
 	c.Assert(ip.String(), checker.Equals, containerIP)
 
 	// disconnect container from the network
