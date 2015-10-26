@@ -48,6 +48,8 @@ by the `docker` command line:
 * `DOCKER_TLS_VERIFY` When set Docker uses TLS and verifies the remote.
 * `DOCKER_CONTENT_TRUST` When set Docker uses notary to sign and verify images.
   Equates to `--disable-content-trust=false` for build, create, pull, push, run.
+* `DOCKER_CONTENT_TRUST_SERVER` The URL of the Notary server to use. This defaults
+  to the same URL as the registry.
 * `DOCKER_TMPDIR` Location for temporary Docker files.
 
 Because Docker is developed using 'Go', you can also use any environment
@@ -108,6 +110,15 @@ Following is a sample `config.json` file:
       },
       "psFormat": "table {{.ID}}\\t{{.Image}}\\t{{.Command}}\\t{{.Labels}}"
     }
+
+### Notary
+
+If using your own notary server and a self-signed certificate or an internal
+Certificate Authority, you need to place the certificate at
+`tls/<registry_url>/ca.crt` in your docker config directory.
+
+Alternatively you can trust the certificate globally by adding it to your system's
+list of root Certificate Authorities.
 
 ## Help
 
