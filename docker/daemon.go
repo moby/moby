@@ -19,6 +19,7 @@ import (
 	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/daemon/logger"
+	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/opts"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/pidfile"
@@ -101,23 +102,23 @@ func migrateKey() (err error) {
 		}()
 
 		if err := system.MkdirAll(getDaemonConfDir(), os.FileMode(0644)); err != nil {
-			return fmt.Errorf("Unable to create daemon configuration directory: %s", err)
+			return derr.ErrorCodeFailCreateConfDir.WithArgs(err)
 		}
 
 		newFile, err := os.OpenFile(newPath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
 		if err != nil {
-			return fmt.Errorf("error creating key file %q: %s", newPath, err)
+			return derr.ErrorCodeFailCreateKeyFile.WithArgs(newPath, err)
 		}
 		defer newFile.Close()
 
 		oldFile, err := os.Open(oldPath)
 		if err != nil {
-			return fmt.Errorf("error opening key file %q: %s", oldPath, err)
+			return derr.ErrorCodeFailOpenKeyFile.WithArgs(oldPath, err)
 		}
 		defer oldFile.Close()
 
 		if _, err := io.Copy(newFile, oldFile); err != nil {
-			return fmt.Errorf("error copying key: %s", err)
+			return derr.ErrorCodeFailCopyKeyFile.WithArgs(err)
 		}
 
 		logrus.Infof("Migrated key from %s to %s", oldPath, newPath)
