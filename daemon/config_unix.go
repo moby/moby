@@ -48,6 +48,7 @@ type bridgeConfig struct {
 	DefaultGatewayIPv4          net.IP
 	DefaultGatewayIPv6          net.IP
 	InterContainerCommunication bool
+	ContainerDiscovery          bool
 }
 
 // InstallFlags adds command-line options to the top-level flag parser for
@@ -74,6 +75,7 @@ func (config *Config) InstallFlags(cmd *flag.FlagSet, usageFn func(string) strin
 	cmd.Var(opts.NewIPOpt(&config.Bridge.DefaultGatewayIPv4, ""), []string{"-default-gateway"}, usageFn("Container default gateway IPv4 address"))
 	cmd.Var(opts.NewIPOpt(&config.Bridge.DefaultGatewayIPv6, ""), []string{"-default-gateway-v6"}, usageFn("Container default gateway IPv6 address"))
 	cmd.BoolVar(&config.Bridge.InterContainerCommunication, []string{"#icc", "-icc"}, true, usageFn("Enable inter-container communication"))
+	cmd.BoolVar(&config.Bridge.ContainerDiscovery, []string{"-container-discovery"}, true, usageFn("Enable container discovery implemented in Docker"))
 	cmd.Var(opts.NewIPOpt(&config.Bridge.DefaultIP, "0.0.0.0"), []string{"#ip", "-ip"}, usageFn("Default IP when binding container ports"))
 	cmd.BoolVar(&config.Bridge.EnableUserlandProxy, []string{"-userland-proxy"}, true, usageFn("Use userland proxy for loopback traffic"))
 	cmd.BoolVar(&config.EnableCors, []string{"#api-enable-cors", "#-api-enable-cors"}, false, usageFn("Enable CORS headers in the remote API, this is deprecated by --api-cors-header"))
