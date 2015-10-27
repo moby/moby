@@ -14,10 +14,10 @@ import (
 	"strings"
 
 	"github.com/docker/distribution/registry/api/errcode"
-	"github.com/docker/docker/autogen/dockerversion"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/docker/version"
 )
 
 // SelfPath figures out the absolute path of our own binary (if it's still around).
@@ -60,7 +60,7 @@ func isValidDockerInitPath(target string, selfPath string) bool { // target and 
 	if target == "" {
 		return false
 	}
-	if dockerversion.IAMSTATIC == "true" {
+	if version.IAMSTATIC == "true" {
 		if selfPath == "" {
 			return false
 		}
@@ -77,7 +77,7 @@ func isValidDockerInitPath(target string, selfPath string) bool { // target and 
 		}
 		return os.SameFile(targetFileInfo, selfPathFileInfo)
 	}
-	return dockerversion.INITSHA1 != "" && dockerInitSha1(target) == dockerversion.INITSHA1
+	return version.INITSHA1 != "" && dockerInitSha1(target) == version.INITSHA1
 }
 
 // DockerInitPath figures out the path of our dockerinit (which may be SelfPath())
@@ -89,7 +89,7 @@ func DockerInitPath(localCopy string) string {
 	}
 	var possibleInits = []string{
 		localCopy,
-		dockerversion.INITPATH,
+		version.INITPATH,
 		filepath.Join(filepath.Dir(selfPath), "dockerinit"),
 
 		// FHS 3.0 Draft: "/usr/libexec includes internal binaries that are not intended to be executed directly by users or shell scripts. Applications may use a single subdirectory under /usr/libexec."
