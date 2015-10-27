@@ -2,7 +2,7 @@
 
 rm -rf autogen
 
-cat > version/version_autogen.go <<DVEOF
+cat > versionlib/version_autogen.go <<DVEOF
 // +build autogen
 // Package version is auto-generated at build-time
 package version

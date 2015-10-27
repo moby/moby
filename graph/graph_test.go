@@ -12,7 +12,7 @@ import (
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/docker/docker/version"
+	"github.com/docker/docker/versionlib"
 )
 
 func TestMount(t *testing.T) {

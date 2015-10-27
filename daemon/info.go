@@ -14,7 +14,7 @@ import (
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/utils"
-	"github.com/docker/docker/version"
+	"github.com/docker/docker/versionlib"
 )
 
 // SystemInfo returns information about the host server the daemon is running on.

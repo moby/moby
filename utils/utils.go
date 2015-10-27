@@ -17,7 +17,7 @@ import (
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/docker/docker/version"
+	"github.com/docker/docker/versionlib"
 )
 
 // SelfPath figures out the absolute path of our own binary (if it's still around).

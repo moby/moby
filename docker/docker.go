@@ -11,7 +11,7 @@ import (
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/docker/pkg/term"
 	"github.com/docker/docker/utils"
-	"github.com/docker/docker/version"
+	"github.com/docker/docker/versionlib"
 )
 
 func main() {

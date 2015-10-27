@@ -23,7 +23,7 @@ import (
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/random"
-	"github.com/docker/docker/version"
+	"github.com/docker/docker/versionlib"
 	"github.com/microsoft/hcsshim"
 )
 

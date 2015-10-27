@@ -17,7 +17,7 @@ import (
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/docker/pkg/term"
-	"github.com/docker/docker/version"
+	"github.com/docker/docker/versionlib"
 )
 
 type tlsClientCon struct {

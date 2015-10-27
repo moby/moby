@@ -15,7 +15,7 @@ import (
 	"github.com/docker/docker/pkg/parsers/filters"
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/utils"
-	"github.com/docker/docker/version"
+	"github.com/docker/docker/versionlib"
 	"golang.org/x/net/context"
 )
 

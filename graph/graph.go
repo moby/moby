@@ -26,7 +26,7 @@ import (
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/truncindex"
 	"github.com/docker/docker/runconfig"
-	"github.com/docker/docker/version"
+	"github.com/docker/docker/versionlib"
 	"github.com/vbatts/tar-split/tar/asm"
 	"github.com/vbatts/tar-split/tar/storage"
 )
