@@ -109,22 +109,18 @@ func (ec *endpointCnt) EndpointCnt() uint64 {
 }
 
 func (ec *endpointCnt) updateStore() error {
-retry:
 	store := ec.n.getController().getStore(ec.DataScope())
 	if store == nil {
-		return fmt.Errorf("store not found for scope %s", ec.DataScope())
+		return fmt.Errorf("store not found for scope %s on endpoint count update", ec.DataScope())
 	}
-
-	if err := ec.n.getController().updateToStore(ec); err != nil {
-		if err == datastore.ErrKeyModified {
-			if err := store.GetObject(datastore.Key(ec.Key()...), ec); err != nil {
-				return fmt.Errorf("could not update the kvobject to latest on rename: %v", err)
-			}
-			goto retry
+	for {
+		if err := ec.n.getController().updateToStore(ec); err == nil || err != datastore.ErrKeyModified {
+			return err
 		}
-		return err
+		if err := store.GetObject(datastore.Key(ec.Key()...), ec); err != nil {
+			return fmt.Errorf("could not update the kvobject to latest on endpoint count update: %v", err)
+		}
 	}
-	return nil
 }
 
 func (ec *endpointCnt) atomicIncDecEpCnt(inc bool) error {

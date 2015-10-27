@@ -471,7 +471,7 @@ func (ep *endpoint) rename(name string) error {
 	// benign error. Besides there is no meaningful recovery that
 	// we can do. When the cluster recovers subsequent EpCnt update
 	// will force the peers to get the correct EP name.
-	_ = n.getEpCnt().updateStore()
+	n.getEpCnt().updateStore()
 
 	return err
 }
