@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/go-check/check"
 )
 
@@ -15,12 +16,10 @@ func (s *DockerSuite) TestApiCreateWithNotExistImage(c *check.C) {
 	}
 
 	status, resp, err := sockRequest("POST", "/containers/create?name="+name, config)
-	c.Assert(err, check.IsNil)
-	c.Assert(status, check.Equals, http.StatusNotFound)
+	c.Assert(err, checker.IsNil)
+	c.Assert(status, checker.Equals, http.StatusNotFound)
 	expected := "No such image: test456:v1"
-	if !strings.Contains(string(resp), expected) {
-		c.Fatalf("expected: %s, got: %s", expected, string(resp))
-	}
+	c.Assert(string(resp), checker.Not(checker.Contains), expected, Commentf("expected: %s, got: %s", expected, string(resp)))
 
 	config2 := map[string]interface{}{
 		"Image":   "test456",
@@ -28,11 +27,9 @@ func (s *DockerSuite) TestApiCreateWithNotExistImage(c *check.C) {
 	}
 
 	status, resp, err = sockRequest("POST", "/containers/create?name="+name, config2)
-	c.Assert(err, check.IsNil)
-	c.Assert(status, check.Equals, http.StatusNotFound)
+	c.Assert(err, checker.IsNil)
+	c.Assert(status, checker.Equals, http.StatusNotFound)
 	expected = "No such image: test456:latest"
-	if !strings.Contains(string(resp), expected) {
-		c.Fatalf("expected: %s, got: %s", expected, string(resp))
-	}
+	c.Assert(string(resp), checker.Not(checker.Contains), expected, Commentf("expected: %s, got: %s", expected, string(resp)))
 
 }
