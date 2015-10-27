@@ -1,21 +1,17 @@
-<!--[metadata]>
-+++
-title = "network ls"
-description = "The network ls command description and usage"
-keywords = ["network, list"]
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
+% DOCKER(1) Docker User Manuals
+% Docker Community
+% OCT 2015
+# NAME
+docker-network-ls - list networks
 
-# docker network ls
+# SYNOPSIS
+**docker network ls**
 
-    Usage:  docker network ls [OPTIONS]
+[**--no-trunc**]
+[**-q** | **--quiet**]
+[**--help**]
 
-    Lists all the networks created by the user
-      --help=false          Print usage
-      --no-trunc=false      Do not truncate the output
-      -q, --quiet=false     Only display numeric IDs
+# DESCRIPTION
 
 Lists all the networks the Engine `daemon` knows about. This includes the
 networks that span across multiple hosts in a cluster, for example:
@@ -40,12 +36,16 @@ c288470c46f6c8949c5f7e5099b5b7947b07eabe8d9a27d79a9cbf111adcbf47   host         
 95e74588f40db048e86320c6526440c504650a1ff3e9f7d60a497c4d2163e5bd   foo                 bridge    
 ```
 
+# OPTIONS
 
-## Related information
+[**--no-trunc**]
+  Do not truncate the output
 
-* [network disconnect ](network_disconnect.md)
-* [network connect](network_connect.md)
-* [network create](network_create.md)
-* [network inspect](network_inspect.md)
-* [network rm](network_rm.md)
-* [Understand Docker container networks](../../userguide/networking/dockernetworks.md)
+[**-q** | **--quiet**]
+  Only display numeric IDs
+
+**--help**
+  Print usage statement
+
+# HISTORY
+OCT 2015, created by Mary Anthony <mary@docker.com>

@@ -1,20 +1,15 @@
-<!--[metadata]>
-+++
-title = "network connect"
-description = "The network connect command description and usage"
-keywords = ["network, connect"]
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
+% DOCKER(1) Docker User Manuals
+% Docker Community
+% OCT 2015
+# NAME
+docker-network-connect - connect a container to a network
 
-# network connect
+# SYNOPSIS
+**docker network connect NAME CONTAINER**
 
-    Usage:  docker network connect [OPTIONS] NETWORK CONTAINER
+[**--help**]
 
-    Connects a container to a network
-
-      --help=false       Print usage
+# DESCRIPTION
 
 Connects a running container to a network. You can connect a container by name
 or by ID. Once connected, the container can communicate with other containers in
@@ -45,11 +40,16 @@ network but launched from different Engines can also communicate in this way.
 
 You can connect a container to one or more networks. The networks need not be the same type. For example, you can connect a single container bridge and overlay networks.
 
-## Related information
 
-* [network inspect](network_inspect.md)
-* [network create](network_create.md)
-* [network disconnect](network_disconnect.md)
-* [network ls](network_ls.md)
-* [network rm](network_rm.md)
-* [Understand Docker container networks](../../userguide/networking/dockernetworks.md)
+# OPTIONS
+**NAME**
+  Specify network driver name
+
+**CONTAINER**
+  Specify container name
+
+**--help**
+  Print usage statement
+
+# HISTORY
+OCT 2015, created by Mary Anthony <mary@docker.com>

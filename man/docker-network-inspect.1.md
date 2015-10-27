@@ -1,20 +1,15 @@
-<!--[metadata]>
-+++
-title = "network inspect"
-description = "The network inspect command description and usage"
-keywords = ["network, inspect"]
-[menu.main]
-parent = "smn_cli"
-+++
-<![end-metadata]-->
+% DOCKER(1) Docker User Manuals
+% Docker Community
+% OCT 2015
+# NAME
+docker-network-inspect - inspect a network
 
-# network inspect
+# SYNOPSIS
+**docker network inspect NETWORK [NETWORK...]**
 
-    Usage:  docker network inspect [OPTIONS] NETWORK [NETWORK..]
+[**--help**]
 
-    Displays detailed information on a network
-
-      --help=false       Print usage
+# DESCRIPTION
 
 Returns information about one or more networks. By default, this command renders all results in a JSON object. For example, if you connect two containers to a network:
 
@@ -54,11 +49,10 @@ $ sudo docker network inspect bridge
 ```
 
 
-## Related information
+# OPTIONS
 
-* [network disconnect ](network_disconnect.md)
-* [network connect](network_connect.md)
-* [network create](network_create.md)
-* [network ls](network_ls.md)
-* [network rm](network_rm.md)
-* [Understand Docker container networks](../../userguide/networking/dockernetworks.md)
+**--help**
+  Print usage statement
+
+# HISTORY
+OCT 2015, created by Mary Anthony <mary@docker.com>
