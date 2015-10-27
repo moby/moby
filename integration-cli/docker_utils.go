@@ -788,7 +788,11 @@ func findContainerIP(c *check.C, id string, network string) string {
 }
 
 func (d *Daemon) findContainerIP(id string) string {
-	return findContainerIP(d.c, id, "--host")
+	out, err := d.Cmd("inspect", fmt.Sprintf("--format='{{ .NetworkSettings.Networks.bridge.IPAddress }}'"), id)
+	if err != nil {
+		d.c.Log(err)
+	}
+	return strings.Trim(out, " \r\n'")
 }
 
 func getContainerCount() (int, error) {

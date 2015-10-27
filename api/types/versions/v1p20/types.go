@@ -10,8 +10,9 @@ import (
 // ContainerJSON is a backcompatibility struct for the API 1.20
 type ContainerJSON struct {
 	*types.ContainerJSONBase
-	Mounts []types.MountPoint
-	Config *ContainerConfig
+	Mounts          []types.MountPoint
+	Config          *ContainerConfig
+	NetworkSettings *NetworkSettings
 }
 
 // ContainerConfig is a backcompatibility struct used in ContainerJSON for the API 1.20
@@ -30,4 +31,17 @@ type ContainerConfig struct {
 type StatsJSON struct {
 	types.Stats
 	Network types.NetworkStats `json:"network,omitempty"`
+}
+
+// NetworkSettings is a backward compatible struct for APIs prior to 1.21
+type NetworkSettings struct {
+	types.NetworkSettingsBase
+	EndpointID          string
+	Gateway             string
+	GlobalIPv6Address   string
+	GlobalIPv6PrefixLen int
+	IPAddress           string
+	IPPrefixLen         int
+	IPv6Gateway         string
+	MacAddress          string
 }

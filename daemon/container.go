@@ -332,10 +332,6 @@ func (streamConfig *streamConfig) StderrPipe() io.ReadCloser {
 	return ioutils.NewBufReader(reader)
 }
 
-func (container *Container) isNetworkAllocated() bool {
-	return container.NetworkSettings.IPAddress != ""
-}
-
 // cleanup releases any network resources allocated to the container along with any rules
 // around how containers are linked together.  It also unmounts the container's root filesystem.
 func (container *Container) cleanup() {

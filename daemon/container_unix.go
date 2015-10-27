@@ -88,15 +88,25 @@ func (container *Container) setupLinkedContainers() ([]string, error) {
 		return nil, err
 	}
 
+	bridgeSettings := container.NetworkSettings.Networks["bridge"]
+	if bridgeSettings == nil {
+		return nil, nil
+	}
+
 	if len(children) > 0 {
 		for linkAlias, child := range children {
 			if !child.IsRunning() {
 				return nil, derr.ErrorCodeLinkNotRunning.WithArgs(child.Name, linkAlias)
 			}
 
+			childBridgeSettings := child.NetworkSettings.Networks["bridge"]
+			if childBridgeSettings == nil {
+				return nil, fmt.Errorf("container %d not attached to default bridge network", child.ID)
+			}
+
 			link := links.NewLink(
-				container.NetworkSettings.IPAddress,
-				child.NetworkSettings.IPAddress,
+				bridgeSettings.IPAddress,
+				childBridgeSettings.IPAddress,
 				linkAlias,
 				child.Config.Env,
 				child.Config.ExposedPorts,
@@ -542,13 +552,14 @@ func (container *Container) buildSandboxOptions(n libnetwork.Network) ([]libnetw
 		if alias != child.Name[1:] {
 			aliasList = aliasList + " " + child.Name[1:]
 		}
-		sboxOptions = append(sboxOptions, libnetwork.OptionExtraHost(aliasList, child.NetworkSettings.IPAddress))
+		sboxOptions = append(sboxOptions, libnetwork.OptionExtraHost(aliasList, child.NetworkSettings.Networks["bridge"].IPAddress))
 		cEndpoint, _ := child.getEndpointInNetwork(n)
 		if cEndpoint != nil && cEndpoint.ID() != "" {
 			childEndpoints = append(childEndpoints, cEndpoint.ID())
 		}
 	}
 
+	bridgeSettings := container.NetworkSettings.Networks["bridge"]
 	refs := container.daemon.containerGraph().RefPaths(container.ID)
 	for _, ref := range refs {
 		if ref.ParentID == "0" {
@@ -561,8 +572,8 @@ func (container *Container) buildSandboxOptions(n libnetwork.Network) ([]libnetw
 		}
 
 		if c != nil && !container.daemon.configStore.DisableBridge && container.hostConfig.NetworkMode.IsPrivate() {
-			logrus.Debugf("Update /etc/hosts of %s for alias %s with ip %s", c.ID, ref.Name, container.NetworkSettings.IPAddress)
-			sboxOptions = append(sboxOptions, libnetwork.OptionParentUpdate(c.ID, ref.Name, container.NetworkSettings.IPAddress))
+			logrus.Debugf("Update /etc/hosts of %s for alias %s with ip %s", c.ID, ref.Name, bridgeSettings.IPAddress)
+			sboxOptions = append(sboxOptions, libnetwork.OptionParentUpdate(c.ID, ref.Name, bridgeSettings.IPAddress))
 			if ep.ID() != "" {
 				parentEndpoints = append(parentEndpoints, ep.ID())
 			}
@@ -583,12 +594,8 @@ func (container *Container) buildSandboxOptions(n libnetwork.Network) ([]libnetw
 
 func isLinkable(child *Container) bool {
 	// A container is linkable only if it belongs to the default network
-	for _, nw := range child.NetworkSettings.Networks {
-		if nw == "bridge" {
-			return true
-		}
-	}
-	return false
+	_, ok := child.NetworkSettings.Networks["bridge"]
+	return ok
 }
 
 func (container *Container) getEndpointInNetwork(n libnetwork.Network) (libnetwork.Endpoint, error) {
@@ -663,6 +670,9 @@ func (container *Container) buildEndpointInfo(n libnetwork.Network, ep libnetwor
 		return networkSettings, nil
 	}
 
+	if _, ok := networkSettings.Networks[n.Name()]; !ok {
+		networkSettings.Networks[n.Name()] = new(network.EndpointSettings)
+	}
 	networkSettings.Networks[n.Name()].EndpointID = ep.ID()
 
 	iface := epInfo.Iface()
@@ -670,25 +680,14 @@ func (container *Container) buildEndpointInfo(n libnetwork.Network, ep libnetwor
 		return networkSettings, nil
 	}
 
-	if networkSettings.EndpointID == "" {
-		networkSettings.EndpointID = ep.ID()
-	}
 	if iface.Address() != nil {
 		ones, _ := iface.Address().Mask.Size()
-		if networkSettings.IPAddress == "" || networkSettings.IPPrefixLen == 0 {
-			networkSettings.IPAddress = iface.Address().IP.String()
-			networkSettings.IPPrefixLen = ones
-		}
 		networkSettings.Networks[n.Name()].IPAddress = iface.Address().IP.String()
 		networkSettings.Networks[n.Name()].IPPrefixLen = ones
 	}
 
 	if iface.AddressIPv6() != nil && iface.AddressIPv6().IP.To16() != nil {
 		onesv6, _ := iface.AddressIPv6().Mask.Size()
-		if networkSettings.GlobalIPv6Address == "" || networkSettings.GlobalIPv6PrefixLen == 0 {
-			networkSettings.GlobalIPv6Address = iface.AddressIPv6().IP.String()
-			networkSettings.GlobalIPv6PrefixLen = onesv6
-		}
 		networkSettings.Networks[n.Name()].GlobalIPv6Address = iface.AddressIPv6().IP.String()
 		networkSettings.Networks[n.Name()].GlobalIPv6PrefixLen = onesv6
 	}
@@ -703,9 +702,6 @@ func (container *Container) buildEndpointInfo(n libnetwork.Network, ep libnetwor
 		return networkSettings, nil
 	}
 	if mac, ok := driverInfo[netlabel.MacAddress]; ok {
-		if networkSettings.MacAddress == "" {
-			networkSettings.MacAddress = mac.(net.HardwareAddr).String()
-		}
 		networkSettings.Networks[n.Name()].MacAddress = mac.(net.HardwareAddr).String()
 	}
 
@@ -718,14 +714,8 @@ func (container *Container) updateJoinInfo(n libnetwork.Network, ep libnetwork.E
 		// It is not an error to get an empty endpoint info
 		return nil
 	}
-	if container.NetworkSettings.Gateway == "" {
-		container.NetworkSettings.Gateway = epInfo.Gateway().String()
-	}
 	container.NetworkSettings.Networks[n.Name()].Gateway = epInfo.Gateway().String()
 	if epInfo.GatewayIPv6().To16() != nil {
-		if container.NetworkSettings.IPv6Gateway == "" {
-			container.NetworkSettings.IPv6Gateway = epInfo.GatewayIPv6().String()
-		}
 		container.NetworkSettings.Networks[n.Name()].IPv6Gateway = epInfo.GatewayIPv6().String()
 	}
 
@@ -1231,17 +1221,6 @@ func (container *Container) disconnectFromNetwork(n libnetwork.Network) error {
 		return fmt.Errorf("endpoint delete failed for container %s on network %s: %v", container.ID, n.Name(), err)
 	}
 
-	if container.NetworkSettings.EndpointID == container.NetworkSettings.Networks[n.Name()].EndpointID {
-		container.NetworkSettings.EndpointID = ""
-		container.NetworkSettings.Gateway = ""
-		container.NetworkSettings.GlobalIPv6Address = ""
-		container.NetworkSettings.GlobalIPv6PrefixLen = 0
-		container.NetworkSettings.IPAddress = ""
-		container.NetworkSettings.IPPrefixLen = 0
-		container.NetworkSettings.IPv6Gateway = ""
-		container.NetworkSettings.MacAddress = ""
-
-	}
 	delete(container.NetworkSettings.Networks, n.Name())
 	return nil
 }

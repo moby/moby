@@ -135,7 +135,7 @@ func (s *DockerSuite) TestLinksUpdateOnRestart(c *check.C) {
 	out, _ := dockerCmd(c, "run", "-d", "--name", "two", "--link", "one:onetwo", "--link", "one:one", "busybox", "top")
 	id := strings.TrimSpace(string(out))
 
-	realIP, err := inspectField("one", "NetworkSettings.IPAddress")
+	realIP, err := inspectField("one", "NetworkSettings.Networks.bridge.IPAddress")
 	if err != nil {
 		c.Fatal(err)
 	}
@@ -156,7 +156,7 @@ func (s *DockerSuite) TestLinksUpdateOnRestart(c *check.C) {
 	c.Assert(ip, checker.Equals, realIP)
 
 	dockerCmd(c, "restart", "one")
-	realIP, err = inspectField("one", "NetworkSettings.IPAddress")
+	realIP, err = inspectField("one", "NetworkSettings.Networks.bridge.IPAddress")
 	c.Assert(err, checker.IsNil)
 
 	content, err = readContainerFileWithExec(id, "/etc/hosts")
