@@ -177,10 +177,10 @@ func (daemon *Daemon) load(id string) (*Container, error) {
 	}
 
 	if container.ID != id {
-		return &container, fmt.Errorf("Container %s is stored at %s", container.ID, id)
+		return container, fmt.Errorf("Container %s is stored at %s", container.ID, id)
 	}
 
-	return &container, nil
+	return container, nil
 }
 
 // Register makes a container object usable by the daemon as <container.ID>
@@ -484,7 +484,7 @@ func (daemon *Daemon) newContainer(name string, config *runconfig.Config, imgID 
 	base.Driver = daemon.driver.String()
 	base.ExecDriver = daemon.execDriver.Name()
 
-	return &base, err
+	return base, err
 }
 
 // GetFullContainerName returns a constructed container name. I think
