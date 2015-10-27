@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/daemon/execdriver"
-	nativeTemplate "github.com/docker/docker/daemon/execdriver/native/template"
+	nativetemplate "github.com/docker/docker/daemon/execdriver/native/template"
 	"github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/syndtr/gocapability/capability"
 )
@@ -281,7 +281,7 @@ func TestCustomLxcConfigMisc(t *testing.T) {
 	// hostname
 	grepFile(t, p, "lxc.utsname = testhost")
 	grepFile(t, p, "lxc.cgroup.cpuset.cpus = 0,1")
-	container := nativeTemplate.New()
+	container := nativetemplate.New()
 	for _, cap := range container.Capabilities {
 		realCap := execdriver.GetCapability(cap)
 		numCap := fmt.Sprintf("%d", realCap.Value)
@@ -332,7 +332,7 @@ func TestCustomLxcConfigMiscOverride(t *testing.T) {
 	// hostname
 	grepFile(t, p, "lxc.utsname = testhost")
 	grepFile(t, p, "lxc.cgroup.cpuset.cpus = 0,1")
-	container := nativeTemplate.New()
+	container := nativetemplate.New()
 	for _, cap := range container.Capabilities {
 		realCap := execdriver.GetCapability(cap)
 		numCap := fmt.Sprintf("%d", realCap.Value)

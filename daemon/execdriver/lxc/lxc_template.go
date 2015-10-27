@@ -10,7 +10,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/execdriver"
-	nativeTemplate "github.com/docker/docker/daemon/execdriver/native/template"
+	nativetemplate "github.com/docker/docker/daemon/execdriver/native/template"
 	"github.com/docker/docker/pkg/stringutils"
 	"github.com/opencontainers/runc/libcontainer/label"
 )
@@ -163,7 +163,7 @@ func escapeFstabSpaces(field string) string {
 }
 
 func keepCapabilities(adds []string, drops []string) ([]string, error) {
-	container := nativeTemplate.New()
+	container := nativetemplate.New()
 	logrus.Debugf("adds %s drops %s\n", adds, drops)
 	caps, err := execdriver.TweakCapabilities(container.Capabilities, adds, drops)
 	if err != nil {
