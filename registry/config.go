@@ -4,8 +4,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/docker/distribution/registry/api/v2"
@@ -136,6 +139,23 @@ func NewServiceConfig(options *Options) *ServiceConfig {
 	return config
 }
 
+// certificatesPresent returns false if certificates are not found in CertsDir.
+// True will be returned if directory contains any *.crt file
+func certificatesPresent(indexName string) bool {
+	certPath := filepath.Join(CertsDir, cleanPath(indexName))
+	files, err := ioutil.ReadDir(certPath)
+	if err != nil && !os.IsNotExist(err) {
+		return false
+	}
+
+	for _, f := range files {
+		if strings.HasSuffix(f.Name(), ".crt") {
+			return true
+		}
+	}
+	return false
+}
+
 // isSecureIndex returns false if the provided indexName is part of the list of insecure registries
 // Insecure registries accept HTTP and/or accept HTTPS with certificates from unknown CAs.
 //
@@ -152,6 +172,11 @@ func (config *ServiceConfig) isSecureIndex(indexName string) bool {
 	// is called from anything besides NewIndexInfo, in order to honor per-index configurations.
 	if index, ok := config.IndexConfigs[indexName]; ok {
 		return index.Secure
+	}
+
+	// Check for certificates, if they are installed, connection should be secure
+	if certificatesPresent(indexName) {
+		return true
 	}
 
 	host, _, err := net.SplitHostPort(indexName)
@@ -212,7 +237,16 @@ func ValidateIndexName(val string) (string, error) {
 	if strings.HasPrefix(val, "-") || strings.HasSuffix(val, "-") {
 		return "", fmt.Errorf("Invalid index name (%s). Cannot begin or end with a hyphen.", val)
 	}
-	// *TODO: Check if valid hostname[:port]/ip[:port]?
+
+	parsedURL, err := url.Parse(val)
+	if err != nil {
+		return "", fmt.Errorf("Invalid index url (%s): %v\n", val, err)
+	}
+
+	if parsedURL.Host != "" {
+		val = parsedURL.Host
+	}
+
 	return val, nil
 }
 
@@ -253,6 +287,12 @@ func ValidateRepositoryName(reposName string) error {
 // NewIndexInfo returns IndexInfo configuration from indexName
 func (config *ServiceConfig) NewIndexInfo(indexName string) (*IndexInfo, error) {
 	var err error
+	secureIndex := false
+
+	if strings.HasPrefix(indexName, "https://") {
+		secureIndex = true
+	}
+
 	indexName, err = ValidateIndexName(indexName)
 	if err != nil {
 		return nil, err
@@ -268,8 +308,13 @@ func (config *ServiceConfig) NewIndexInfo(indexName string) (*IndexInfo, error) 
 		Name:     indexName,
 		Mirrors:  make([]string, 0),
 		Official: false,
+		Secure:   secureIndex,
 	}
-	index.Secure = config.isSecureIndex(indexName)
+
+	if !secureIndex {
+		index.Secure = config.isSecureIndex(indexName)
+	}
+
 	return index, nil
 }
 
