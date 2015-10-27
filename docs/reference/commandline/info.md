@@ -21,6 +21,9 @@ For example:
 
     $ docker -D info
     Containers: 14
+     Running: 3
+     Paused: 1
+     Stopped: 10
     Images: 52
     Server Version: 1.9.0
     Storage Driver: aufs
