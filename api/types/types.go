@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/daemon/network"
+	"github.com/docker/docker/pkg/nat"
 	"github.com/docker/docker/pkg/version"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/runconfig"
@@ -256,7 +257,6 @@ type ContainerJSONBase struct {
 	Args            []string
 	State           *ContainerState
 	Image           string
-	NetworkSettings *network.Settings
 	ResolvConfPath  string
 	HostnamePath    string
 	HostsPath       string
@@ -278,8 +278,28 @@ type ContainerJSONBase struct {
 // ContainerJSON is newly used struct along with MountPoint
 type ContainerJSON struct {
 	*ContainerJSONBase
-	Mounts []MountPoint
-	Config *runconfig.Config
+	Mounts          []MountPoint
+	Config          *runconfig.Config
+	NetworkSettings *NetworkSettings
+}
+
+// NetworkSettings exposes the network settings in the api
+type NetworkSettings struct {
+	NetworkSettingsBase
+	Networks map[string]*network.EndpointSettings
+}
+
+// NetworkSettingsBase holds basic information about networks
+type NetworkSettingsBase struct {
+	Bridge                 string
+	SandboxID              string
+	HairpinMode            bool
+	LinkLocalIPv6Address   string
+	LinkLocalIPv6PrefixLen int
+	Ports                  nat.PortMap
+	SandboxKey             string
+	SecondaryIPAddresses   []network.Address
+	SecondaryIPv6Addresses []network.Address
 }
 
 // MountPoint represents a mount point configuration inside the container.

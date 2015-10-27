@@ -303,7 +303,7 @@ func (s *DockerSuite) TestDaemonIPv6Enabled(c *check.C) {
 		c.Fatalf("Could not run container: %s, %v", out, err)
 	}
 
-	out, err := d.Cmd("inspect", "--format", "'{{.NetworkSettings.LinkLocalIPv6Address}}'", "ipv6test")
+	out, err := d.Cmd("inspect", "--format", "'{{.NetworkSettings.Networks.bridge.LinkLocalIPv6Address}}'", "ipv6test")
 	out = strings.Trim(out, " \r\n'")
 
 	if err != nil {
@@ -314,7 +314,7 @@ func (s *DockerSuite) TestDaemonIPv6Enabled(c *check.C) {
 		c.Fatalf("Container should have a link-local IPv6 address")
 	}
 
-	out, err = d.Cmd("inspect", "--format", "'{{.NetworkSettings.GlobalIPv6Address}}'", "ipv6test")
+	out, err = d.Cmd("inspect", "--format", "'{{.NetworkSettings.Networks.bridge.GlobalIPv6Address}}'", "ipv6test")
 	out = strings.Trim(out, " \r\n'")
 
 	if err != nil {
@@ -351,7 +351,7 @@ func (s *DockerSuite) TestDaemonIPv6FixedCIDR(c *check.C) {
 		c.Fatalf("Could not run container: %s, %v", out, err)
 	}
 
-	out, err := d.Cmd("inspect", "--format", "'{{.NetworkSettings.LinkLocalIPv6Address}}'", "ipv6test")
+	out, err := d.Cmd("inspect", "--format", "'{{.NetworkSettings.Networks.bridge.LinkLocalIPv6Address}}'", "ipv6test")
 	out = strings.Trim(out, " \r\n'")
 
 	if err != nil {
@@ -362,7 +362,7 @@ func (s *DockerSuite) TestDaemonIPv6FixedCIDR(c *check.C) {
 		c.Fatalf("Container should have a link-local IPv6 address")
 	}
 
-	out, err = d.Cmd("inspect", "--format", "'{{.NetworkSettings.GlobalIPv6Address}}'", "ipv6test")
+	out, err = d.Cmd("inspect", "--format", "'{{.NetworkSettings.Networks.bridge.GlobalIPv6Address}}'", "ipv6test")
 	out = strings.Trim(out, " \r\n'")
 
 	if err != nil {

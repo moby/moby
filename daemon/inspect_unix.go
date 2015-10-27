@@ -50,8 +50,9 @@ func (daemon *Daemon) ContainerInspectPre120(name string) (*v1p19.ContainerJSON,
 		container.hostConfig.CPUShares,
 		container.hostConfig.CpusetCpus,
 	}
+	networkSettings := getBackwardsCompatibleNetworkSettings(container.NetworkSettings)
 
-	return &v1p19.ContainerJSON{base, volumes, volumesRW, config}, nil
+	return &v1p19.ContainerJSON{base, volumes, volumesRW, config, networkSettings}, nil
 }
 
 func addMountPoints(container *Container) []types.MountPoint {

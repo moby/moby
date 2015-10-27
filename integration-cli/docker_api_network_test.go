@@ -120,7 +120,6 @@ func (s *DockerSuite) TestApiNetworkConnectDisconnect(c *check.C) {
 	c.Assert(err, check.IsNil)
 	containerIP := findContainerIP(c, "test", "testnetwork")
 	c.Assert(ip.String(), check.Equals, containerIP)
-	c.Assert(ip.String(), checker.Equals, containerIP)
 
 	// disconnect container from the network
 	disconnectNetwork(c, nr.ID, containerID)
