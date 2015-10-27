@@ -114,6 +114,9 @@ lxc.cgroup.cpuset.mems = {{.Resources.CpusetMems}}
 {{if .Resources.CPUQuota}}
 lxc.cgroup.cpu.cfs_quota_us = {{.Resources.CPUQuota}}
 {{end}}
+{{if .Resources.PidsLimit}}
+lxc.cgroup.pids.max = {{.Resources.PidsLimit}}
+{{end}}
 {{if .Resources.BlkioWeight}}
 lxc.cgroup.blkio.weight = {{.Resources.BlkioWeight}}
 {{end}}

@@ -49,6 +49,7 @@ docker-run - Run a command in a new container
 [**-P**|**--publish-all**[=*false*]]
 [**-p**|**--publish**[=*[]*]]
 [**--pid**[=*[]*]]
+[**--pids-limit**[=*-1*]]
 [**--privileged**[=*false*]]
 [**--read-only**[=*false*]]
 [**--restart**[=*RESTART*]]
@@ -349,6 +350,10 @@ ports and the exposed ports, use `docker port`.
    Set the PID mode for the container
      **host**: use the host's PID namespace inside the container.
      Note: the host mode gives the container full access to local PID and is therefore considered insecure.
+
+**--pids-limit**=-1
+   Set the maximum number of tasks for the container
+     **-1**: means no limit
 
 **--uts**=host
    Set the UTS mode for the container

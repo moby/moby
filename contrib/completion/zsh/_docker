@@ -249,6 +249,7 @@ __docker_subcommand() {
         "($help -P --publish-all)"{-P,--publish-all}"[Publish all exposed ports]"
         "($help)*"{-p,--publish=-}"[Expose a container's port to the host]:port:_ports"
         "($help)--pid=-[PID namespace to use]:PID: "
+	"($help)--pids-limit=-[set the maximum number of tasks(-1 means no limit)]:Limit for tasks: "
         "($help)--privileged[Give extended privileges to this container]"
         "($help)--read-only[Mount the container's root filesystem as read only]"
         "($help)--restart=-[Restart policy]:restart policy:(no on-failure always)"

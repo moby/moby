@@ -70,6 +70,7 @@ func SetupCgroups(container *configs.Config, c *Command) error {
 		container.Cgroups.CpusetMems = c.Resources.CpusetMems
 		container.Cgroups.CpuPeriod = c.Resources.CPUPeriod
 		container.Cgroups.CpuQuota = c.Resources.CPUQuota
+		container.Cgroups.PidsLimit = c.Resources.PidsLimit
 		container.Cgroups.BlkioWeight = c.Resources.BlkioWeight
 		container.Cgroups.OomKillDisable = c.Resources.OomKillDisable
 		container.Cgroups.MemorySwappiness = c.Resources.MemorySwappiness

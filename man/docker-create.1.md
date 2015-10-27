@@ -48,6 +48,7 @@ docker-create - Create a new container
 [**-P**|**--publish-all**[=*false*]]
 [**-p**|**--publish**[=*[]*]]
 [**--pid**[=*[]*]]
+[**--pids-limit**[=*-1*]]
 [**--privileged**[=*false*]]
 [**--read-only**[=*false*]]
 [**--restart**[=*RESTART*]]
@@ -232,6 +233,10 @@ This value should always larger than **-m**, so you should always use this with 
    Set the PID mode for the container
      **host**: use the host's PID namespace inside the container.
      Note: the host mode gives the container full access to local PID and is therefore considered insecure.
+
+**--pids-limit**=-1
+   Set the maximum number of tasks for the container
+     **-1**: means no limit
 
 **--privileged**=*true*|*false*
    Give extended privileges to this container. The default is *false*.

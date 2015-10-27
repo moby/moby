@@ -254,6 +254,13 @@ func (s *DockerSuite) TestRunWithCpusetMems(c *check.C) {
 	}
 }
 
+func (s *DockerSuite) TestRunWithPidsLimit(c *check.C) {
+	testRequires(c, cgroupPids)
+	if _, _, code := dockerCmdWithError(c, "run", "--pids-Limit", "0", "busybox", "true|cat"); err == nil {
+		c.Fatalf("run with exhausting pids-limit should failed")
+	}
+}
+
 func (s *DockerSuite) TestRunWithBlkioWeight(c *check.C) {
 	testRequires(c, blkioWeight)
 	if _, code := dockerCmd(c, "run", "--blkio-weight", "300", "busybox", "true"); code != 0 {

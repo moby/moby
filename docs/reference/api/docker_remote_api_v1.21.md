@@ -178,6 +178,7 @@ Create a container
              "CpuPeriod": 100000,
              "CpusetCpus": "0,1",
              "CpusetMems": "0,1",
+             "PidsLimit": -1
              "BlkioWeight": 300,
              "MemorySwappiness": 60,
              "OomKillDisable": false,
@@ -230,6 +231,7 @@ Json Parameters:
 -   **Cpuset** - Deprecated please don't use. Use `CpusetCpus` instead. 
 -   **CpusetCpus** - String value containing the `cgroups CpusetCpus` to use.
 -   **CpusetMems** - Memory nodes (MEMs) in which to allow execution (0-3, 0,1). Only effective on NUMA systems.
+-   **PidsLimit** - An integer value to set the maximum number of tasks in container.
 -   **BlkioWeight** - Block IO weight (relative weight) accepts a weight value between 10 and 1000.
 -   **MemorySwappiness** - Tune a container's memory swappiness behavior. Accepts an integer between 0 and 100.
 -   **OomKillDisable** - Boolean value, whether to disable OOM Killer for the container or not.
@@ -388,6 +390,7 @@ Return low-level information on the container `id`
 			"CpusetMems": "",
 			"CpuShares": 0,
 			"CpuPeriod": 100000,
+                        "PidsLimit": -1
 			"Devices": [],
 			"Dns": null,
 			"DnsOptions": null,

@@ -550,6 +550,7 @@ container:
 | `--cpuset-cpus="" `        | CPUs in which to allow execution (0-3, 0,1)                                                 |
 | `--cpuset-mems=""`         | Memory nodes (MEMs) in which to allow execution (0-3, 0,1). Only effective on NUMA systems. |
 | `--cpu-quota=0`            | Limit the CPU CFS (Completely Fair Scheduler) quota                                         |
+| `--pids-limit=-1`          | Set the maximum number of tasks in container                                                |
 | `--blkio-weight=0`         | Block IO weight (relative weight) accepts a weight value between 10 and 1000.               |
 | `--oom-kill-disable=false` | Whether to disable OOM Killer for the container or not.                                     |
 | `--memory-swappiness=""  ` | Tune a container's memory swappiness behavior. Accepts an integer between 0 and 100.        |
@@ -819,6 +820,16 @@ Scheduler) handles resource allocation for executing processes and is default
 Linux Scheduler used by the kernel. Set this value to 50000 to limit the container
 to 50% of a CPU resource. For multiple CPUs, adjust the `--cpu-quota` as necessary.
 For more information, see the [CFS documentation on bandwidth limiting](https://www.kernel.org/doc/Documentation/scheduler/sched-bwc.txt).
+
+### Pids limit
+
+The `--pids-limit` flag limits the container's maximum number of pids. The default -1 value
+means there is no limit on pids in this container. It is used to allow a cgroup controller to
+stop any new tasks from being fork()'d or clone()'d after a certain limit is reached.
+Since it is trivial to hit the task limit without hitting any kmemcg limits in place,
+PIDs are a fundamental resource. As such, PID exhaustion must be preventable in the scope
+of a cgroup hierarchy by allowing resource limiting of the number of tasks in a cgroup.
+For more information, see the (https://www.kernel.org/doc/Documentation/cgroups/pids.txt).
 
 ### Block IO bandwidth (Blkio) constraint
 

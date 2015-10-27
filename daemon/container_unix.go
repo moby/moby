@@ -261,6 +261,7 @@ func populateCommand(c *Container, env []string) error {
 		CpusetMems:       c.hostConfig.CpusetMems,
 		CPUPeriod:        c.hostConfig.CPUPeriod,
 		CPUQuota:         c.hostConfig.CPUQuota,
+		PidsLimit:        c.hostConfig.PidsLimit,
 		BlkioWeight:      c.hostConfig.BlkioWeight,
 		Rlimits:          rlimits,
 		OomKillDisable:   c.hostConfig.OomKillDisable,
