@@ -205,7 +205,6 @@ func (sb *sandbox) Delete() error {
 
 func (sb *sandbox) Rename(name string) error {
 	var err error
-	undo := []func(){}
 
 	for _, ep := range sb.getConnectedEndpoints() {
 		if ep.endpointInGWNetwork() {
@@ -217,18 +216,14 @@ func (sb *sandbox) Rename(name string) error {
 		if err = ep.rename(name); err != nil {
 			break
 		}
-		undo = append(undo,
-			func() {
-				// Ignore the error while undoing
-				_ = lEp.rename(oldName)
-			})
+
+		defer func() {
+			if err != nil {
+				lEp.rename(oldName)
+			}
+		}()
 	}
 
-	if err != nil {
-		for _, f := range undo {
-			f()
-		}
-	}
 	return err
 }
 
