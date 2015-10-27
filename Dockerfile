@@ -84,15 +84,9 @@ RUN cd /usr/src/lxc \
 
 # Install Go
 ENV GO_VERSION 1.5.1
-RUN curl -sSL https://golang.org/dl/go1.4.3.src.tar.gz | tar -v -C /usr/local -xz \
-	&& cd /usr/local/ && mv go go1.4.3
-RUN cd /usr/local/go1.4.3/src/ && ./make.bash
-ENV GOROOT_BOOTSTRAP /usr/local/go1.4.3
-RUN curl -sSL https://golang.org/dl/go${GO_VERSION}.src.tar.gz | tar -v -C /usr/local -xz \
-	&& mkdir -p /go/bin
+RUN curl -sSL  "https://storage.googleapis.com/golang/go${GO_VERSION}.linux-amd64.tar.gz" | tar -v -C /usr/local -xz
 ENV PATH /go/bin:/usr/local/go/bin:$PATH
 ENV GOPATH /go:/go/src/github.com/docker/docker/vendor
-RUN cd /usr/local/go/src && ./make.bash --no-clean 2>&1
 
 # Compile Go for cross compilation
 ENV DOCKER_CROSSPLATFORMS \
@@ -103,13 +97,6 @@ ENV DOCKER_CROSSPLATFORMS \
 
 # (set an explicit GOARM of 5 for maximum compatibility)
 ENV GOARM 5
-RUN cd /usr/local/go/src \
-	&& set -x \
-	&& for platform in $DOCKER_CROSSPLATFORMS; do \
-		GOOS=${platform%/*} \
-		GOARCH=${platform##*/} \
-			./make.bash --no-clean 2>&1; \
-	done
 
 # This has been commented out and kept as reference because we don't support compiling with older Go anymore.
 # ENV GOFMT_VERSION 1.3.3
