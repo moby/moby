@@ -106,6 +106,51 @@ func (ep *endpoint) UnmarshalJSON(b []byte) (err error) {
 
 	if v, ok := epMap["generic"]; ok {
 		ep.generic = v.(map[string]interface{})
+
+		if opt, ok := ep.generic[netlabel.PortMap]; ok {
+			pblist := []types.PortBinding{}
+
+			for i := 0; i < len(opt.([]interface{})); i++ {
+				pb := types.PortBinding{}
+				tmp := opt.([]interface{})[i].(map[string]interface{})
+
+				bytes, err := json.Marshal(tmp)
+				if err != nil {
+					log.Error(err)
+					break
+				}
+				err = json.Unmarshal(bytes, &pb)
+				if err != nil {
+					log.Error(err)
+					break
+				}
+				pblist = append(pblist, pb)
+			}
+			ep.generic[netlabel.PortMap] = pblist
+		}
+
+		if opt, ok := ep.generic[netlabel.ExposedPorts]; ok {
+			tplist := []types.TransportPort{}
+
+			for i := 0; i < len(opt.([]interface{})); i++ {
+				tp := types.TransportPort{}
+				tmp := opt.([]interface{})[i].(map[string]interface{})
+
+				bytes, err := json.Marshal(tmp)
+				if err != nil {
+					log.Error(err)
+					break
+				}
+				err = json.Unmarshal(bytes, &tp)
+				if err != nil {
+					log.Error(err)
+					break
+				}
+				tplist = append(tplist, tp)
+			}
+			ep.generic[netlabel.ExposedPorts] = tplist
+
+		}
 	}
 
 	if v, ok := epMap["anonymous"]; ok {
@@ -345,7 +390,7 @@ func (ep *endpoint) sbJoin(sbox Sandbox, options ...EndpointOption) error {
 	if ip := ep.getFirstInterfaceAddress(); ip != nil {
 		address = ip.String()
 	}
-	if err = sb.updateHostsFile(address, network.getSvcRecords()); err != nil {
+	if err = sb.updateHostsFile(address, network.getSvcRecords(ep)); err != nil {
 		return err
 	}
 
@@ -467,8 +512,7 @@ func (ep *endpoint) sbLeave(sbox Sandbox, options ...EndpointOption) error {
 		return err
 	}
 
-	// unwatch for service records
-	n.getController().unWatchSvcRecord(ep)
+	sb.deleteHostsEntries(n.getSvcRecords(ep))
 
 	if sb.needDefaultGW() {
 		ep := sb.getEPwithoutGateway()
@@ -501,17 +545,6 @@ func (ep *endpoint) Delete() error {
 	}
 	ep.Unlock()
 
-	if err = n.getEpCnt().DecEndpointCnt(); err != nil {
-		return err
-	}
-	defer func() {
-		if err != nil {
-			if e := n.getEpCnt().IncEndpointCnt(); e != nil {
-				log.Warnf("failed to update network %s : %v", n.name, e)
-			}
-		}
-	}()
-
 	if err = n.getController().deleteFromStore(ep); err != nil {
 		return err
 	}
@@ -523,6 +556,20 @@ func (ep *endpoint) Delete() error {
 			}
 		}
 	}()
+
+	if err = n.getEpCnt().DecEndpointCnt(); err != nil {
+		return err
+	}
+	defer func() {
+		if err != nil {
+			if e := n.getEpCnt().IncEndpointCnt(); e != nil {
+				log.Warnf("failed to update network %s : %v", n.name, e)
+			}
+		}
+	}()
+
+	// unwatch for service records
+	n.getController().unWatchSvcRecord(ep)
 
 	if err = ep.deleteEndpoint(); err != nil {
 		return err
