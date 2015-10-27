@@ -911,7 +911,7 @@ _docker() {
         "($help)--config[Location of client config files]:path:_directories" \
         "($help -D --debug)"{-D,--debug}"[Enable debug mode]" \
         "($help -H --host)"{-H=,--host=}"[tcp://host:port to bind/connect to]:host: " \
-        "($help -l --log-level)"{-l=,--log-level=}[Set the logging level]:level:(debug info warn error fatal)" \
+        "($help -l --log-level)"{-l=,--log-level=}"[Set the logging level]:level:(debug info warn error fatal)" \
         "($help)--tls[Use TLS]" \
         "($help)--tlscacert=[Trust certs signed only by this CA]:PEM file:_files -g "*.(pem|crt)"" \
         "($help)--tlscert=[Path to TLS certificate file]:PEM file:_files -g "*.(pem|crt)"" \
