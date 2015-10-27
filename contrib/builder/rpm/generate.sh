@@ -21,6 +21,10 @@ for version in "${versions[@]}"; do
 	distro="${version%-*}"
 	suite="${version##*-}"
 	from="${distro}:${suite}"
+	installer=yum
+	if [[ "$distro" == "fedora" ]] && [[ "$suite" -ge "22" ]]; then
+		installer=dnf
+	fi
 
 	mkdir -p "$version"
 	echo "$version -> FROM $from"
@@ -52,7 +56,7 @@ for version in "${versions[@]}"; do
 			echo 'RUN zypper --non-interactive install ca-certificates* curl gzip rpm-build' >> "$version/Dockerfile"
 			;;
 		*)
-			echo 'RUN yum install -y @development-tools fedora-packager' >> "$version/Dockerfile"
+			echo "RUN ${installer} install -y @development-tools fedora-packager" >> "$version/Dockerfile"
 			;;
 	esac
 
@@ -82,7 +86,7 @@ for version in "${versions[@]}"; do
 			echo "RUN zypper --non-interactive install ${packages[*]}" >> "$version/Dockerfile"
 			;;
 		*)
-			echo "RUN yum install -y ${packages[*]}" >> "$version/Dockerfile"
+			echo "RUN ${installer} install -y ${packages[*]}" >> "$version/Dockerfile"
 			;;
 	esac
 
