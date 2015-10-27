@@ -54,7 +54,7 @@ func (s *DockerSuite) TestApiNetworkInspect(c *check.C) {
 	// run a container and attach it to the default bridge network
 	out, _ := dockerCmd(c, "run", "-d", "--name", "test", "busybox", "top")
 	containerID := strings.TrimSpace(out)
-	containerIP := findContainerIP(c, "test")
+	containerIP := findContainerIP(c, "test", "bridge")
 
 	// inspect default bridge network again and make sure the container is connected
 	nr = getNetworkResource(c, nr.ID)
@@ -122,7 +122,7 @@ func (s *DockerSuite) TestApiNetworkConnectDisconnect(c *check.C) {
 	// check if container IP matches network inspect
 	ip, _, err := net.ParseCIDR(nr.Containers[containerID].IPv4Address)
 	c.Assert(err, checker.IsNil)
-	containerIP := findContainerIP(c, "test")
+	containerIP := findContainerIP(c, "test", "testnetwork")
 	c.Assert(ip.String(), checker.Equals, containerIP)
 
 	// disconnect container from the network

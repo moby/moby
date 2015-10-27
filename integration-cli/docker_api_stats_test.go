@@ -85,7 +85,7 @@ func (s *DockerSuite) TestApiStatsNetworkStats(c *check.C) {
 	c.Assert(waitRun(id), checker.IsNil)
 
 	// Retrieve the container address
-	contIP := findContainerIP(c, id)
+	contIP := findContainerIP(c, id, "bridge")
 	numPings := 10
 
 	var preRxPackets uint64

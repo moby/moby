@@ -782,13 +782,13 @@ func dockerCmdInDirWithTimeout(timeout time.Duration, path string, args ...strin
 	return integration.DockerCmdInDirWithTimeout(dockerBinary, timeout, path, args...)
 }
 
-func findContainerIP(c *check.C, id string, vargs ...string) string {
-	out, _ := dockerCmd(c, "inspect", "--format='{{ .NetworkSettings.IPAddress }}'", id)
+func findContainerIP(c *check.C, id string, network string) string {
+	out, _ := dockerCmd(c, "inspect", fmt.Sprintf("--format='{{ .NetworkSettings.Networks.%s.IPAddress }}'", network), id)
 	return strings.Trim(out, " \r\n'")
 }
 
 func (d *Daemon) findContainerIP(id string) string {
-	return findContainerIP(d.c, id, "--host", d.sock())
+	return findContainerIP(d.c, id, "--host")
 }
 
 func getContainerCount() (int, error) {
