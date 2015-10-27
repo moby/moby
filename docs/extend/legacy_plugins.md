@@ -27,8 +27,8 @@ example, a [volume plugin](plugins_volume.md) might enable Docker
 volumes to persist across multiple Docker hosts and a
 [network plugin](plugins_network.md) might provide network plumbing.
 
-Currently Docker supports authorization, volume and network driver plugins. In the future it
-will support additional plugin types.
+Currently Docker supports authorization, volume, network driver, and
+authentication plugins. In the future it will support additional plugin types.
 
 ## Installing a plugin
 

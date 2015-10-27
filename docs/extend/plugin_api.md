@@ -174,6 +174,7 @@ After activation, the plugin will then be sent events from this subsystem.
 
 Possible values are:
 
+* [`Authentication`](plugins_authentication.md)
 * [`authz`](plugins_authorization.md)
 * [`NetworkDriver`](plugins_network.md)
 * [`VolumeDriver`](plugins_volume.md)
