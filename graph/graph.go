@@ -247,7 +247,7 @@ func (graph *Graph) Create(layerData io.Reader, containerID, containerImage, com
 		ID:            stringid.GenerateRandomID(),
 		Comment:       comment,
 		Created:       time.Now().UTC(),
-		DockerVersion: version.VERSION,
+		DockerVersion: version.Version,
 		Author:        author,
 		Config:        config,
 		Architecture:  runtime.GOARCH,

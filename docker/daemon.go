@@ -206,7 +206,7 @@ func (cli *DaemonCli) CmdDaemon(args ...string) error {
 
 	serverConfig := &apiserver.Config{
 		Logging: true,
-		Version: version.VERSION,
+		Version: version.Version,
 	}
 	serverConfig = setPlatformServerConfig(serverConfig, cli.Config)
 
@@ -279,8 +279,8 @@ func (cli *DaemonCli) CmdDaemon(args ...string) error {
 	logrus.Info("Daemon has completed initialization")
 
 	logrus.WithFields(logrus.Fields{
-		"version":     version.VERSION,
-		"commit":      version.GITCOMMIT,
+		"version":     version.Version,
+		"commit":      version.GitCommit,
 		"execdriver":  d.ExecutionDriver().Name(),
 		"graphdriver": d.GraphDriver().String(),
 	}).Info("Docker daemon")

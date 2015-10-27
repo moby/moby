@@ -24,7 +24,7 @@ var forceKill bool
 // Define name and version for windows
 var (
 	DriverName = "Windows 1854"
-	Version    = version.VERSION + " " + version.GITCOMMIT
+	Version    = version.Version + " " + version.GitCommit
 )
 
 type activeContainer struct {

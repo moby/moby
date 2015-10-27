@@ -77,8 +77,8 @@ func main() {
 
 func showVersion() {
 	if utils.ExperimentalBuild() {
-		fmt.Printf("Docker version %s, build %s, experimental\n", version.VERSION, version.GITCOMMIT)
+		fmt.Printf("Docker version %s, build %s, experimental\n", version.Version, version.GitCommit)
 	} else {
-		fmt.Printf("Docker version %s, build %s\n", version.VERSION, version.GITCOMMIT)
+		fmt.Printf("Docker version %s, build %s\n", version.Version, version.GitCommit)
 	}
 }

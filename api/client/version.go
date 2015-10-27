@@ -60,11 +60,11 @@ func (cli *DockerCli) CmdVersion(args ...string) (err error) {
 
 	vd := versionData{
 		Client: types.Version{
-			Version:      version.VERSION,
+			Version:      version.Version,
 			APIVersion:   api.Version,
 			GoVersion:    runtime.Version(),
-			GitCommit:    version.GITCOMMIT,
-			BuildTime:    version.BUILDTIME,
+			GitCommit:    version.GitCommit,
+			BuildTime:    version.BuildTime,
 			Os:           runtime.GOOS,
 			Arch:         runtime.GOARCH,
 			Experimental: utils.ExperimentalBuild(),

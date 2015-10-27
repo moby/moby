@@ -39,9 +39,9 @@ var dockerUserAgent string
 
 func init() {
 	httpVersion := make([]useragent.VersionInfo, 0, 6)
-	httpVersion = append(httpVersion, useragent.VersionInfo{"docker", version.VERSION})
+	httpVersion = append(httpVersion, useragent.VersionInfo{"docker", version.Version})
 	httpVersion = append(httpVersion, useragent.VersionInfo{"go", runtime.Version()})
-	httpVersion = append(httpVersion, useragent.VersionInfo{"git-commit", version.GITCOMMIT})
+	httpVersion = append(httpVersion, useragent.VersionInfo{"git-commit", version.GitCommit})
 	if kernelVersion, err := kernel.GetKernelVersion(); err == nil {
 		httpVersion = append(httpVersion, useragent.VersionInfo{"kernel", kernelVersion.String()})
 	}
