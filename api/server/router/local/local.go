@@ -116,8 +116,6 @@ func (r *router) initRoutes() {
 		NewGetRoute("/containers/{name:.*}/attach/ws", r.wsContainersAttach),
 		NewGetRoute("/exec/{id:.*}/json", r.getExecByID),
 		NewGetRoute("/containers/{name:.*}/archive", r.getContainersArchive),
-		NewGetRoute("/volumes", r.getVolumesList),
-		NewGetRoute("/volumes/{name:.*}", r.getVolumeByName),
 		// POST
 		NewPostRoute("/auth", r.postAuth),
 		NewPostRoute("/commit", r.postCommit),
@@ -141,13 +139,11 @@ func (r *router) initRoutes() {
 		NewPostRoute("/exec/{name:.*}/start", r.postContainerExecStart),
 		NewPostRoute("/exec/{name:.*}/resize", r.postContainerExecResize),
 		NewPostRoute("/containers/{name:.*}/rename", r.postContainerRename),
-		NewPostRoute("/volumes/create", r.postVolumesCreate),
 		// PUT
 		NewPutRoute("/containers/{name:.*}/archive", r.putContainersArchive),
 		// DELETE
 		NewDeleteRoute("/containers/{name:.*}", r.deleteContainers),
 		NewDeleteRoute("/images/{name:.*}", r.deleteImages),
-		NewDeleteRoute("/volumes/{name:.*}", r.deleteVolumes),
 	}
 }
 
