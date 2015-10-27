@@ -16,7 +16,9 @@ weight = -1
     A self-sufficient runtime for linux containers.
 
     Options:
+      -a, --authn=false                      Require clients to authenticate
       --api-cors-header=""                   Set CORS headers in the remote API
+      --authn-opt=[]                         Set authentication options
       -b, --bridge=""                        Attach containers to a network bridge
       --bip=""                               Specify network bridge IP
       -D, --debug=false                      Enable debug mode

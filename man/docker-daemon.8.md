@@ -6,7 +6,9 @@ docker-daemon - Enable daemon mode
 
 # SYNOPSIS
 **docker daemon**
+[**-a**|**--authn**[=*false*]]
 [**--api-cors-header**=[=*API-CORS-HEADER*]]
+[**--authn-opt**[=*[]*]]
 [**-b**|**--bridge**[=*BRIDGE*]]
 [**--bip**[=*BIP*]]
 [**--cluster-store**[=*[]*]]
@@ -67,8 +69,14 @@ format.
 
 # OPTIONS
 
+**-a**, **--authn**=*true*|*false*
+  Require clients to authenticate to the docker daemon when issuing requests; the historical default is false
+
 **--api-cors-header**=""
   Set CORS headers in the remote API. Default is cors disabled. Give urls like "http://foo, http://bar, ...". Give "*" to allow all.
+
+**--authn-opt=**=[]
+  Set authentication options.  See AUTHENTICATION OPTIONS.
 
 **-b**, **--bridge**=""
   Attach containers to a pre\-existing network bridge; use 'none' to disable container networking
@@ -214,6 +222,80 @@ unix://[/path/to/socket] to use.
 
 **--userland-proxy**=*true*|*false*
     Rely on a userland proxy implementation for inter-container and outside-to-container loopback communications. Default is true.
+
+# AUTHENTICATION OPTIONS
+
+The Docker daemon provides multiple methods for authenticating its clients.
+Authentication is enabled by using the **-a** flag, and particular
+authentication schemes can be enabled and configured with **--authn-opt**
+flags.  When the **-H** option is used to configure a "unix" listening socket,
+the **local-auth** option is recommended.
+
+Here is the list of authentication options:
+
+#### certmap
+
+When a client connects using TLS with a client certificate, pass the client's
+certificate to the named plugin or plugins to determine the client's identity.
+
+Example use: `docker daemon --authn-opt certmap=sss`
+
+#### htpasswd
+
+Offer HTTP authentication using the `Basic` scheme, and check user names and
+passwords supplied by clients by running the external `htpasswd` command and
+using the specified file.
+
+Example use: `docker daemon --authn-opt htpasswd=/etc/docker/htpasswd`
+
+#### keytab
+
+When offering HTTP authentication using the `Negotiate` scheme, use the
+specified keytab instead of the host system's default keytab.  By default,
+docker uses the library's default keytab, which is typically
+`FILE:/etc/krb5.keytab`.
+
+Support for `Negotiate` is available only in dynamic builds, and only when the
+necessary development files are detected at build-time.  It is offered to
+clients only if the daemon can confirm that it has acceptor credentials at
+startup-time.
+
+Example use: `docker daemon --authn-opt keytab=FILE:/etc/docker/docker.keytab`
+
+#### libsasl2
+
+Offer HTTP authentication using the `Basic` scheme, and check user names and
+passwords supplied by clients by passing them to libsasl2, which can in turn be
+configured to consult a local `saslauthd` daemon, among other options.  The
+service name which is passed to the library is `docker`.
+
+This option is only available in dynamic builds, and only when the necessary
+development files are detected at build-time.
+
+Example use: `docker daemon --authn-opt libsasl2=true`
+
+#### local-auth
+
+When a client connects over a "unix" socket, ask the host system's kernel for
+help in determining the client's identity.  On Linux systems, this is
+accomplished by reading the peer credentials for the client connection.
+
+Example use: `docker daemon --authn-opt local-auth=true`
+
+#### plugins
+
+In addition to authentication schemes implemented in and offered by the daemon,
+call the named plugin or plugins to produce challenges and check client
+responses in order to authenticate clients.
+
+Example use: `docker daemon --authn-opt plugins=sss`
+
+#### realm
+
+When offering HTTP authentication using the `Basic` scheme, use the specified
+name as the name of the authentication "realm".  The default is `localhost`.
+
+Example use: `docker daemon --authn-opt realm=example.com`
 
 # STORAGE DRIVER OPTIONS
 
