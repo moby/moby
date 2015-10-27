@@ -469,8 +469,9 @@ func (daemon *Daemon) getEntrypointAndArgs(configEntrypoint *stringutils.StrSlic
 
 func (daemon *Daemon) newContainer(name string, config *runconfig.Config, imgID string) (*Container, error) {
 	var (
-		id  string
-		err error
+		id             string
+		err            error
+		noExplicitName = name == ""
 	)
 	id, name, err = daemon.generateIDAndName(name)
 	if err != nil {
@@ -487,7 +488,7 @@ func (daemon *Daemon) newContainer(name string, config *runconfig.Config, imgID 
 	base.Config = config
 	base.hostConfig = &runconfig.HostConfig{}
 	base.ImageID = imgID
-	base.NetworkSettings = &network.Settings{}
+	base.NetworkSettings = &network.Settings{IsAnonymousEndpoint: noExplicitName}
 	base.Name = name
 	base.Driver = daemon.driver.String()
 	base.ExecDriver = daemon.execDriver.Name()
