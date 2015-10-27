@@ -72,6 +72,11 @@ func NewV2Repository(repoInfo *registry.RepositoryInfo, endpoint registry.APIEnd
 	defer resp.Body.Close()
 
 	versions := auth.APIVersions(resp, endpoint.VersionHeader)
+	if len(versions) == 0 {
+		// The remote server didn't give us a version header. Let's set it to something to avoid nil pointer
+		// errors later
+		versions = append(versions, auth.APIVersion{Type: "unknown", Version: "-1"})
+	}
 	if endpoint.VersionHeader != "" && len(endpoint.Versions) > 0 {
 		var foundVersion bool
 		for _, version := range endpoint.Versions {
