@@ -450,21 +450,12 @@ func (daemon *Daemon) generateHostname(id string, config *runconfig.Config) {
 }
 
 func (daemon *Daemon) getEntrypointAndArgs(configEntrypoint *stringutils.StrSlice, configCmd *stringutils.StrSlice) (string, []string) {
-	var (
-		entrypoint string
-		args       []string
-	)
-
 	cmdSlice := configCmd.Slice()
 	if configEntrypoint.Len() != 0 {
 		eSlice := configEntrypoint.Slice()
-		entrypoint = eSlice[0]
-		args = append(eSlice[1:], cmdSlice...)
-	} else {
-		entrypoint = cmdSlice[0]
-		args = cmdSlice[1:]
+		return eSlice[0], append(eSlice[1:], cmdSlice...)
 	}
-	return entrypoint, args
+	return cmdSlice[0], cmdSlice[1:]
 }
 
 func (daemon *Daemon) newContainer(name string, config *runconfig.Config, imgID string) (*Container, error) {
