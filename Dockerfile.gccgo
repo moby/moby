@@ -26,6 +26,7 @@ RUN apt-get update && apt-get install -y \
 	python-mock \
 	python-pip \
 	python-websocket \
+	libtool	\
 	--no-install-recommends
 
 # Get lvm2 source for compiling statically
@@ -56,6 +57,12 @@ ENV DOCKER_PY_COMMIT 139850f3f3b17357bab5ba3edfb745fb14043764
 RUN git clone https://github.com/docker/docker-py.git /docker-py \
 	&& cd /docker-py \
 	&& git checkout -q $DOCKER_PY_COMMIT
+
+# Need Libseccomp v2.2.1
+RUN git clone https://github.com/seccomp/libseccomp /libseccomp
+RUN cd /libseccomp && git checkout v2.2.1 && ./autogen.sh && ./configure && make && make check && make install
+# Fix linking error
+RUN cp /usr/local/lib/libseccomp.so /usr/lib/libseccomp.so.2
 
 # Add an unprivileged user to be used for tests which need it
 RUN groupadd -r docker

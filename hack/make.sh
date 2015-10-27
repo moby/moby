@@ -102,6 +102,11 @@ if [ "$DOCKER_EXPERIMENTAL" ] || [ "$DOCKER_REMAP_ROOT" ]; then
 	DOCKER_BUILDTAGS+=" experimental"
 fi
 
+if [ "$DOCKER_SECCOMP" ] ; then
+         echo >&2 '# WARNING! DOCKER_SECCOMP is set: building seccomp features'
+         echo >&2
+         DOCKER_BUILDTAGS+=" seccomp"
+fi
 if [ -z "$DOCKER_CLIENTONLY" ]; then
 	DOCKER_BUILDTAGS+=" daemon"
 	if pkg-config libsystemd-journal 2> /dev/null ; then

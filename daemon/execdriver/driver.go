@@ -217,6 +217,7 @@ type Command struct {
 	MountLabel         string            `json:"mount_label"`
 	LxcConfig          []string          `json:"lxc_config"`
 	AppArmorProfile    string            `json:"apparmor_profile"`
+	SeccompProfile     string            `json:"seccomp_profile"`
 	CgroupParent       string            `json:"cgroup_parent"` // The parent cgroup for this command.
 	FirstStart         bool              `json:"first_start"`
 	LayerPaths         []string          `json:"layer_paths"` // Windows needs to know the layer paths and folder for a command

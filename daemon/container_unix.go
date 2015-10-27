@@ -52,6 +52,7 @@ type Container struct {
 	// Fields below here are platform specific.
 	activeLinks     map[string]*links.Link
 	AppArmorProfile string
+	SeccompProfile  string
 	HostnamePath    string
 	HostsPath       string
 	ShmPath         string // TODO Windows - Factor this out (GH15862)
@@ -341,6 +342,7 @@ func populateCommand(c *Container, env []string) error {
 		MountLabel:         c.getMountLabel(),
 		LxcConfig:          lxcConfig,
 		AppArmorProfile:    c.AppArmorProfile,
+		SeccompProfile:     c.SeccompProfile,
 		CgroupParent:       c.hostConfig.CgroupParent,
 	}
 
