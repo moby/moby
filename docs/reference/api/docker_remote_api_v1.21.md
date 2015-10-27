@@ -265,6 +265,8 @@ Json Parameters:
            + `container_path` to create a new volume for the container
            + `host_path:container_path` to bind-mount a host path into the container
            + `host_path:container_path:ro` to make the bind-mount read-only inside the container.
+           + `volume_name:container_path` to bind-mount a volume managed by a volume plugin into the container.
+           + `volume_name:container_path:ro` to make the bind mount read-only inside the container.
     -   **Links** - A list of links for the container. Each link entry should be
           in the form of `container_name:alias`.
     -   **LxcConf** - LXC specific configurations. These configurations only
