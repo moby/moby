@@ -14,10 +14,8 @@ import (
 
 func (s *DockerSuite) TestImagesEnsureImageIsListed(c *check.C) {
 	testRequires(c, DaemonIsLinux)
-	out, _ := dockerCmd(c, "images")
-	if !strings.Contains(out, "busybox") {
-		c.Fatal("images should've listed busybox")
-	}
+	imagesOut, _ := dockerCmd(c, "images")
+	c.Assert(imagesOut, checker.Contains, "busybox")
 }
 
 func (s *DockerSuite) TestImagesEnsureImageWithTagIsListed(c *check.C) {
@@ -32,25 +30,20 @@ func (s *DockerSuite) TestImagesEnsureImageWithTagIsListed(c *check.C) {
 		MAINTAINER dockerio1`, true)
 	c.Assert(err, check.IsNil)
 
-	out, _ := dockerCmd(c, "images", "imagewithtag:v1")
+	imagesOut, _ := dockerCmd(c, "images", "imagewithtag:v1")
+	c.Assert(imagesOut, checker.Contains, "imagewithtag")
+	c.Assert(imagesOut, checker.Contains, "v1")
+	c.Assert(imagesOut, checker.Not(checker.Contains), "v2")
 
-	if !strings.Contains(out, "imagewithtag") || !strings.Contains(out, "v1") || strings.Contains(out, "v2") {
-		c.Fatal("images should've listed imagewithtag:v1 and not imagewithtag:v2")
-	}
-
-	out, _ = dockerCmd(c, "images", "imagewithtag")
-
-	if !strings.Contains(out, "imagewithtag") || !strings.Contains(out, "v1") || !strings.Contains(out, "v2") {
-		c.Fatal("images should've listed imagewithtag:v1 and imagewithtag:v2")
-	}
+	imagesOut, _ = dockerCmd(c, "images", "imagewithtag")
+	c.Assert(imagesOut, checker.Contains, "imagewithtag")
+	c.Assert(imagesOut, checker.Contains, "v1")
+	c.Assert(imagesOut, checker.Contains, "v2")
 }
 
 func (s *DockerSuite) TestImagesEnsureImageWithBadTagIsNotListed(c *check.C) {
-	out, _ := dockerCmd(c, "images", "busybox:nonexistent")
-
-	if strings.Contains(out, "busybox") {
-		c.Fatal("images should not have listed busybox")
-	}
+	imagesOut, _ := dockerCmd(c, "images", "busybox:nonexistent")
+	c.Assert(imagesOut, checker.Not(checker.Contains), "busybox")
 }
 
 func (s *DockerSuite) TestImagesOrderedByCreationDate(c *check.C) {
@@ -58,42 +51,29 @@ func (s *DockerSuite) TestImagesOrderedByCreationDate(c *check.C) {
 	id1, err := buildImage("order:test_a",
 		`FROM scratch
 		MAINTAINER dockerio1`, true)
-	if err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(err, checker.IsNil)
 	time.Sleep(1 * time.Second)
 	id2, err := buildImage("order:test_c",
 		`FROM scratch
 		MAINTAINER dockerio2`, true)
-	if err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(err, checker.IsNil)
 	time.Sleep(1 * time.Second)
 	id3, err := buildImage("order:test_b",
 		`FROM scratch
 		MAINTAINER dockerio3`, true)
-	if err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(err, checker.IsNil)
 
 	out, _ := dockerCmd(c, "images", "-q", "--no-trunc")
 	imgs := strings.Split(out, "\n")
-	if imgs[0] != id3 {
-		c.Fatalf("First image must be %s, got %s", id3, imgs[0])
-	}
-	if imgs[1] != id2 {
-		c.Fatalf("Second image must be %s, got %s", id2, imgs[1])
-	}
-	if imgs[2] != id1 {
-		c.Fatalf("Third image must be %s, got %s", id1, imgs[2])
-	}
+	c.Assert(imgs[0], checker.Equals, id3, check.Commentf("First image must be %s, got %s", id3, imgs[0]))
+	c.Assert(imgs[1], checker.Equals, id2, check.Commentf("First image must be %s, got %s", id2, imgs[1]))
+	c.Assert(imgs[2], checker.Equals, id1, check.Commentf("First image must be %s, got %s", id1, imgs[2]))
 }
 
 func (s *DockerSuite) TestImagesErrorWithInvalidFilterNameTest(c *check.C) {
 	out, _, err := dockerCmdWithError("images", "-f", "FOO=123")
-	if err == nil || !strings.Contains(out, "Invalid filter") {
-		c.Fatalf("error should occur when listing images with invalid filter name FOO, %s", out)
-	}
+	c.Assert(err, checker.NotNil)
+	c.Assert(out, checker.Contains, "Invalid filter")
 }
 
 func (s *DockerSuite) TestImagesFilterLabel(c *check.C) {
@@ -193,9 +173,8 @@ func (s *DockerSuite) TestImagesEnsureDanglingImageOnlyListedOnce(c *check.C) {
 	dockerCmd(c, "tag", "-f", "busybox", "foobox")
 
 	out, _ = dockerCmd(c, "images", "-q", "-f", "dangling=true")
-	if e, a := 1, strings.Count(out, imageID); e != a {
-		c.Fatalf("expected 1 dangling image, got %d: %s", a, out)
-	}
+	// Exect one dangling image
+	c.Assert(strings.Count(out, imageID), checker.Equals, 1)
 }
 
 func (s *DockerSuite) TestImagesWithIncorrectFilter(c *check.C) {
@@ -222,12 +201,10 @@ func (s *DockerSuite) TestImagesEnsureOnlyHeadsImagesShown(c *check.C) {
 	intermediate := strings.TrimSpace(split[5][7:])
 
 	out, _ = dockerCmd(c, "images")
-	if strings.Contains(out, intermediate) {
-		c.Fatalf("images shouldn't show non-heads images, got %s in %s", intermediate, out)
-	}
-	if !strings.Contains(out, head[:12]) {
-		c.Fatalf("images should contain final built images, want %s in out, got %s", head[:12], out)
-	}
+	// images shouldn't show non-heads images
+	c.Assert(out, checker.Not(checker.Contains), intermediate)
+	// images should contain final built images
+	c.Assert(out, checker.Contains, head[:12])
 }
 
 func (s *DockerSuite) TestImagesEnsureImagesFromScratchShown(c *check.C) {
@@ -241,7 +218,6 @@ func (s *DockerSuite) TestImagesEnsureImagesFromScratchShown(c *check.C) {
 	c.Assert(err, check.IsNil)
 
 	out, _ := dockerCmd(c, "images")
-	if !strings.Contains(out, id[:12]) {
-		c.Fatalf("images should contain images built from scratch (e.g. %s), got %s", id[:12], out)
-	}
+	// images should contain images built from scratch
+	c.Assert(out, checker.Contains, id[:12])
 }
