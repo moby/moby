@@ -362,7 +362,7 @@ func (s *DockerSuite) TestLinksPingLinkedContainersOnRename(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunExecDir(c *check.C) {
-	testRequires(c, SameHostDaemon)
+	testRequires(c, SameHostDaemon, DaemonIsLinux)
 
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
 	id := strings.TrimSpace(out)
@@ -409,8 +409,7 @@ func (s *DockerSuite) TestRunExecDir(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunMutableNetworkFiles(c *check.C) {
-	testRequires(c, SameHostDaemon)
-
+	testRequires(c, SameHostDaemon, DaemonIsLinux)
 	for _, fn := range []string{"resolv.conf", "hosts"} {
 		deleteAllContainers()
 

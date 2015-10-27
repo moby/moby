@@ -595,7 +595,7 @@ func rewriteDockerfileFrom(dockerfileName string, translator func(string, regist
 
 			repoInfo, err := registry.ParseRepositoryInfo(repo)
 			if err != nil {
-				return nil, nil, fmt.Errorf("unable to parse repository info: %v", err)
+				return nil, nil, fmt.Errorf("unable to parse repository info %q: %v", repo, err)
 			}
 
 			ref := registry.ParseReference(tag)
