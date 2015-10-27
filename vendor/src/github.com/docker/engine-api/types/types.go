@@ -192,6 +192,9 @@ type Version struct {
 type Info struct {
 	ID                 string
 	Containers         int
+	ContainersRunning  int
+	ContainersPaused   int
+	ContainersStopped  int
 	Images             int
 	Driver             string
 	DriverStatus       [][2]string
