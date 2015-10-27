@@ -192,6 +192,9 @@ These labels appear as part of the `docker info` output for the daemon:
 
     $ docker -D info
     Containers: 12
+     Running: 5
+     Paused: 2
+     Stopped: 5
     Images: 672
     Server Version: 1.9.0
     Storage Driver: aufs
