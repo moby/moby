@@ -19,4 +19,6 @@ Currently, you can extend Docker Engine by adding a plugin. This section contain
 * [Write a volume plugin](plugins_volume.md)
 * [Write a network plugin](plugins_network.md)
 * [Write an authorization plugin](authorization.md)
+* [Write an authentication plugin](plugins_authn.md)
+* [Write a certificate mapping plugin](plugins_certmap.md)
 * [Docker plugin API](plugin_api.md)
