@@ -440,7 +440,7 @@ func (d *Driver) RestoreCustomImages(tagger graphdriver.Tagger, recorder graphdr
 			img := &image.Image{
 				ID:            id,
 				Created:       imageData.CreatedTime,
-				DockerVersion: version.VERSION,
+				DockerVersion: version.Version,
 				Architecture:  runtime.GOARCH,
 				OS:            runtime.GOOS,
 				Size:          imageData.Size,

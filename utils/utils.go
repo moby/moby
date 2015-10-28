@@ -60,7 +60,7 @@ func isValidDockerInitPath(target string, selfPath string) bool { // target and 
 	if target == "" {
 		return false
 	}
-	if version.IAMSTATIC == "true" {
+	if version.IAmStatic == "true" {
 		if selfPath == "" {
 			return false
 		}
@@ -77,7 +77,7 @@ func isValidDockerInitPath(target string, selfPath string) bool { // target and 
 		}
 		return os.SameFile(targetFileInfo, selfPathFileInfo)
 	}
-	return version.INITSHA1 != "" && dockerInitSha1(target) == version.INITSHA1
+	return version.InitSHA1 != "" && dockerInitSha1(target) == version.InitSHA1
 }
 
 // DockerInitPath figures out the path of our dockerinit (which may be SelfPath())
@@ -89,7 +89,7 @@ func DockerInitPath(localCopy string) string {
 	}
 	var possibleInits = []string{
 		localCopy,
-		version.INITPATH,
+		version.InitPath,
 		filepath.Join(filepath.Dir(selfPath), "dockerinit"),
 
 		// FHS 3.0 Draft: "/usr/libexec includes internal binaries that are not intended to be executed directly by users or shell scripts. Applications may use a single subdirectory under /usr/libexec."

@@ -152,7 +152,7 @@ func (cli *DockerCli) hijackWithContentType(method, path, contentType string, se
 		req.Header.Set(k, v)
 	}
 
-	req.Header.Set("User-Agent", "Docker-Client/"+version.VERSION+" ("+runtime.GOOS+")")
+	req.Header.Set("User-Agent", "Docker-Client/"+version.Version+" ("+runtime.GOOS+")")
 	req.Header.Set("Content-Type", contentType)
 	req.Header.Set("Connection", "Upgrade")
 	req.Header.Set("Upgrade", "tcp")

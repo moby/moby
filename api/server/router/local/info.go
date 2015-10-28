@@ -21,13 +21,13 @@ import (
 
 func (s *router) getVersion(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	v := &types.Version{
-		Version:    version.VERSION,
+		Version:    version.Version,
 		APIVersion: api.Version,
-		GitCommit:  version.GITCOMMIT,
+		GitCommit:  version.GitCommit,
 		GoVersion:  runtime.Version(),
 		Os:         runtime.GOOS,
 		Arch:       runtime.GOARCH,
-		BuildTime:  version.BUILDTIME,
+		BuildTime:  version.BuildTime,
 	}
 
 	version := httputils.VersionFromContext(ctx)
