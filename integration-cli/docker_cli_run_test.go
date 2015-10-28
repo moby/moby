@@ -184,7 +184,7 @@ func (s *DockerSuite) TestRunLinksContainerWithContainerName(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "run", "-i", "-t", "-d", "--name", "parent", "busybox")
 
-	ip, err := inspectField("parent", "NetworkSettings.IPAddress")
+	ip, err := inspectField("parent", "NetworkSettings.Networks.bridge.IPAddress")
 	c.Assert(err, check.IsNil)
 
 	out, _ := dockerCmd(c, "run", "--link", "parent:test", "busybox", "/bin/cat", "/etc/hosts")
@@ -201,7 +201,7 @@ func (s *DockerSuite) TestRunLinksContainerWithContainerId(c *check.C) {
 	cID, _ := dockerCmd(c, "run", "-i", "-t", "-d", "busybox")
 
 	cID = strings.TrimSpace(cID)
-	ip, err := inspectField(cID, "NetworkSettings.IPAddress")
+	ip, err := inspectField(cID, "NetworkSettings.Networks.bridge.IPAddress")
 	c.Assert(err, check.IsNil)
 
 	out, _ := dockerCmd(c, "run", "--link", cID+":test", "busybox", "/bin/cat", "/etc/hosts")
@@ -1945,7 +1945,7 @@ func (s *DockerSuite) TestRunInspectMacAddress(c *check.C) {
 	out, _ := dockerCmd(c, "run", "-d", "--mac-address="+mac, "busybox", "top")
 
 	id := strings.TrimSpace(out)
-	inspectedMac, err := inspectField(id, "NetworkSettings.MacAddress")
+	inspectedMac, err := inspectField(id, "NetworkSettings.Networks.bridge.MacAddress")
 	c.Assert(err, check.IsNil)
 	if inspectedMac != mac {
 		c.Fatalf("docker inspect outputs wrong MAC address: %q, should be: %q", inspectedMac, mac)
@@ -1968,7 +1968,7 @@ func (s *DockerSuite) TestRunDeallocatePortOnMissingIptablesRule(c *check.C) {
 	out, _ := dockerCmd(c, "run", "-d", "-p", "23:23", "busybox", "top")
 
 	id := strings.TrimSpace(out)
-	ip, err := inspectField(id, "NetworkSettings.IPAddress")
+	ip, err := inspectField(id, "NetworkSettings.Networks.bridge.IPAddress")
 	c.Assert(err, check.IsNil)
 	iptCmd := exec.Command("iptables", "-D", "DOCKER", "-d", fmt.Sprintf("%s/32", ip),
 		"!", "-i", "docker0", "-o", "docker0", "-p", "tcp", "-m", "tcp", "--dport", "23", "-j", "ACCEPT")
@@ -3548,7 +3548,7 @@ func (s *DockerSuite) TestRunNetworkNotInitializedNoneMode(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "--net=none", "busybox", "top")
 	id := strings.TrimSpace(out)
-	res, err := inspectField(id, "NetworkSettings.IPAddress")
+	res, err := inspectField(id, "NetworkSettings.Networks.none.IPAddress")
 	c.Assert(err, check.IsNil)
 	if res != "" {
 		c.Fatalf("For 'none' mode network must not be initialized, but container got IP: %s", res)
