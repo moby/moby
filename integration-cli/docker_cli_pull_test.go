@@ -34,11 +34,9 @@ func (s *DockerHubPullSuite) TestPullFromCentralRegistry(c *check.C) {
 
 	// We should have a single entry in images.
 	img := strings.TrimSpace(s.Cmd(c, "images"))
-	if splitImg := strings.Split(img, "\n"); len(splitImg) != 2 {
-		c.Fatalf("expected only two lines in the output of `docker images`, got %d", len(splitImg))
-	} else if re := regexp.MustCompile(`^hello-world\s+latest`); !re.Match([]byte(splitImg[1])) {
-		c.Fatal("invalid output for `docker images` (expected image and tag name")
-	}
+	splitImg := strings.Split(img, "\n")
+	c.Assert(splitImg, check.HasLen, 2, check.Commentf("expected only two lines in the output of `docker images`, got %d", len(splitImg)))
+	c.Assert(splitImg[1], checker.Matches, `^hello-world\s+latest`, check.Commentf("invalid output for `docker images` (expected image and tag name)"))
 }
 
 // TestPullNonExistingImage pulls non-existing images from the central registry, with different
@@ -85,11 +83,10 @@ func (s *DockerHubPullSuite) TestPullFromCentralRegistryImplicitRefParts(c *chec
 
 	// We should have a single entry in images.
 	img := strings.TrimSpace(s.Cmd(c, "images"))
-	if splitImg := strings.Split(img, "\n"); len(splitImg) != 2 {
-		c.Fatalf("expected only two lines in the output of `docker images`, got %d", len(splitImg))
-	} else if re := regexp.MustCompile(`^hello-world\s+latest`); !re.Match([]byte(splitImg[1])) {
-		c.Fatal("invalid output for `docker images` (expected image and tag name")
-	}
+	splitImg := strings.Split(img, "\n")
+	c.Assert(splitImg, check.HasLen, 2, check.Commentf("expected only two lines in the output of `docker images`, got %d", len(splitImg)))
+	c.Assert(splitImg[1], checker.Matches, `^hello-world\s+latest`, check.Commentf("invalid output for `docker images` (expected image and tag name)"))
+
 }
 
 // TestPullScratchNotAllowed verifies that pulling 'scratch' is rejected.
@@ -112,9 +109,8 @@ func (s *DockerHubPullSuite) TestPullAllTagsFromCentralRegistry(c *check.C) {
 
 	s.Cmd(c, "pull", "--all-tags=true", "busybox")
 	outImageAllTagCmd := s.Cmd(c, "images", "busybox")
-	if linesCount := strings.Count(outImageAllTagCmd, "\n"); linesCount <= 2 {
-		c.Fatalf("pulling all tags should provide more images, got %d", linesCount-1)
-	}
+	linesCount := strings.Count(outImageAllTagCmd, "\n")
+	c.Assert(linesCount, checker.GreaterThan, 2, check.Commentf("pulling all tags should provide more images, got %d", linesCount-1))
 
 	// Verify that the line for 'busybox:latest' is left unchanged.
 	var latestLine string
@@ -157,9 +153,7 @@ func (s *DockerHubPullSuite) TestPullClientDisconnect(c *check.C) {
 		if _, err := s.CmdWithError("inspect", repoName); err == nil {
 			break
 		}
-		if i >= maxAttempts {
-			c.Fatal("timeout reached: image was not pulled after client disconnected")
-		}
+		c.Assert(i, checker.LessThan, maxAttempts, check.Commentf("timeout reached: image was not pulled after client disconnected"))
 		time.Sleep(500 * time.Millisecond)
 	}
 }
@@ -173,9 +167,7 @@ func inspectImage(c *check.C, imageRef string) idAndParent {
 	out, _ := dockerCmd(c, "inspect", imageRef)
 	var inspectOutput []idAndParent
 	err := json.Unmarshal([]byte(out), &inspectOutput)
-	if err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(err, checker.IsNil)
 
 	return inspectOutput[0]
 }
@@ -199,9 +191,7 @@ func (s *DockerRegistrySuite) TestPullMigration(c *check.C) {
 	    ENV IMAGE base
 	    CMD echo %s
 	`, baseImage), true)
-	if err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(err, checker.IsNil)
 
 	baseIDBeforePush := imageID(c, baseImage)
 	baseParentBeforePush := imageParent(c, baseImage)
@@ -211,9 +201,7 @@ func (s *DockerRegistrySuite) TestPullMigration(c *check.C) {
 	    FROM %s
 	    CMD echo %s
 	`, baseImage, derivedImage), true)
-	if err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(err, checker.IsNil)
 
 	derivedIDBeforePush := imageID(c, derivedImage)
 
@@ -230,13 +218,9 @@ func (s *DockerRegistrySuite) TestPullMigration(c *check.C) {
 	derivedIDAfterPull1 := imageID(c, derivedImage)
 	derivedParentAfterPull1 := imageParent(c, derivedImage)
 
-	if derivedIDAfterPull1 == derivedIDBeforePush {
-		c.Fatal("image's ID should have changed on after deleting and pulling")
-	}
+	c.Assert((derivedIDAfterPull1 == derivedIDBeforePush), checker.Equals, false, check.Commentf("image's ID should have changed on after deleting and pulling"))
 
-	if derivedParentAfterPull1 != baseIDBeforePush {
-		c.Fatalf("pulled image's parent ID (%s) does not match base image's ID (%s)", derivedParentAfterPull1, baseIDBeforePush)
-	}
+	c.Assert(derivedIDAfterPull1, checker.Equals, baseIDBeforePush, check.Commentf("pulled image's parent ID (%s) does not match base image's ID (%s)", derivedParentAfterPull1, baseIDBeforePush))
 
 	// Confirm that repushing and repulling does not change the computed ID
 	dockerCmd(c, "push", derivedImage)
@@ -246,13 +230,9 @@ func (s *DockerRegistrySuite) TestPullMigration(c *check.C) {
 	derivedIDAfterPull2 := imageID(c, derivedImage)
 	derivedParentAfterPull2 := imageParent(c, derivedImage)
 
-	if derivedIDAfterPull2 != derivedIDAfterPull1 {
-		c.Fatal("image's ID unexpectedly changed after a repush/repull")
-	}
+	c.Assert(derivedIDAfterPull2, checker.Equals, derivedIDAfterPull1, check.Commentf("image's ID unexpectedly changed after a repush/repull"))
 
-	if derivedParentAfterPull2 != baseIDBeforePush {
-		c.Fatalf("pulled image's parent ID (%s) does not match base image's ID (%s)", derivedParentAfterPull2, baseIDBeforePush)
-	}
+	c.Assert(derivedIDAfterPull2, checker.Equals, baseIDBeforePush, check.Commentf("pulled image's parent ID (%s) does not match base image's ID (%s)", derivedParentAfterPull2, baseIDBeforePush))
 
 	// Remove everything, repull, and make sure everything uses computed IDs
 	dockerCmd(c, "rmi", baseImage, derivedImage)
@@ -262,17 +242,11 @@ func (s *DockerRegistrySuite) TestPullMigration(c *check.C) {
 	derivedParentAfterPull3 := imageParent(c, derivedImage)
 	derivedGrandparentAfterPull3 := imageParent(c, derivedParentAfterPull3)
 
-	if derivedIDAfterPull3 != derivedIDAfterPull1 {
-		c.Fatal("image's ID unexpectedly changed after a second repull")
-	}
+	c.Assert(derivedIDAfterPull3, checker.Equals, derivedIDAfterPull1, check.Commentf("image's ID unexpectedly changed after a second repull"))
 
-	if derivedParentAfterPull3 == baseIDBeforePush {
-		c.Fatalf("pulled image's parent ID (%s) should not match base image's original ID (%s)", derivedParentAfterPull3, derivedIDBeforePush)
-	}
+	c.Assert((derivedIDAfterPull3 == baseIDBeforePush), checker.Equals, false, check.Commentf("pulled image's parent ID (%s) should not match base image's original ID (%s)", derivedParentAfterPull3, derivedIDBeforePush))
 
-	if derivedGrandparentAfterPull3 == baseParentBeforePush {
-		c.Fatal("base image's parent ID should have been rewritten on pull")
-	}
+	c.Assert((derivedGrandparentAfterPull3 == baseParentBeforePush), checker.Equals, false, check.Commentf("base image's parent ID should have been rewritten on pull"))
 }
 
 // TestPullMigrationRun verifies that pulling an image based on layers
@@ -291,9 +265,7 @@ func (s *DockerRegistrySuite) TestPullMigrationRun(c *check.C) {
 	    RUN dd if=/dev/zero of=/file bs=1024 count=1024
 	    CMD echo %s
 	`, baseImage, derivedImage), true)
-	if err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(err, checker.IsNil)
 
 	baseIDBeforePush := imageID(c, baseImage)
 	derivedIDBeforePush := imageID(c, derivedImage)
@@ -310,19 +282,13 @@ func (s *DockerRegistrySuite) TestPullMigrationRun(c *check.C) {
 	derivedIDAfterPull1 := imageID(c, derivedImage)
 	derivedParentAfterPull1 := imageParent(c, imageParent(c, derivedImage))
 
-	if derivedIDAfterPull1 == derivedIDBeforePush {
-		c.Fatal("image's ID should have changed on after deleting and pulling")
-	}
+	c.Assert((derivedIDAfterPull1 == derivedIDBeforePush), checker.Equals, false, check.Commentf("image's ID should have changed on after deleting and pulling"))
 
-	if derivedParentAfterPull1 != baseIDBeforePush {
-		c.Fatalf("pulled image's parent ID (%s) does not match base image's ID (%s)", derivedParentAfterPull1, baseIDBeforePush)
-	}
+	c.Assert(derivedParentAfterPull1, checker.Equals, baseIDBeforePush, check.Commentf("pulled image's parent ID (%s) does not match base image's ID (%s)", derivedParentAfterPull1, baseIDBeforePush))
 
 	// Make sure the image runs correctly
 	out, _ := dockerCmd(c, "run", "--rm", derivedImage)
-	if strings.TrimSpace(out) != derivedImage {
-		c.Fatalf("expected %s; got %s", derivedImage, out)
-	}
+	c.Assert(strings.TrimSpace(out), checker.Equals, derivedImage, check.Commentf("expected %s; got %s", derivedImage, out))
 
 	// Confirm that repushing and repulling does not change the computed ID
 	dockerCmd(c, "push", derivedImage)
@@ -332,19 +298,13 @@ func (s *DockerRegistrySuite) TestPullMigrationRun(c *check.C) {
 	derivedIDAfterPull2 := imageID(c, derivedImage)
 	derivedParentAfterPull2 := imageParent(c, imageParent(c, derivedImage))
 
-	if derivedIDAfterPull2 != derivedIDAfterPull1 {
-		c.Fatal("image's ID unexpectedly changed after a repush/repull")
-	}
+	c.Assert(derivedIDAfterPull2, checker.Equals, derivedIDAfterPull1, check.Commentf("image's ID unexpectedly changed after a repush/repull"))
 
-	if derivedParentAfterPull2 != baseIDBeforePush {
-		c.Fatalf("pulled image's parent ID (%s) does not match base image's ID (%s)", derivedParentAfterPull2, baseIDBeforePush)
-	}
+	c.Assert(derivedParentAfterPull2, checker.Equals, baseIDBeforePush, check.Commentf("pulled image's parent ID (%s) does not match base image's ID (%s)", derivedParentAfterPull2, baseIDBeforePush))
 
 	// Make sure the image still runs
 	out, _ = dockerCmd(c, "run", "--rm", derivedImage)
-	if strings.TrimSpace(out) != derivedImage {
-		c.Fatalf("expected %s; got %s", derivedImage, out)
-	}
+	c.Assert(strings.TrimSpace(out), checker.Equals, derivedImage, check.Commentf("expected %s; got %s", derivedImage, out))
 }
 
 // TestPullConflict provides coverage of the situation where a computed
@@ -357,9 +317,7 @@ func (s *DockerRegistrySuite) TestPullConflict(c *check.C) {
 	    ENV IMAGE conflict
 	    CMD echo conflict
 	`, true)
-	if err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(err, checker.IsNil)
 
 	dockerCmd(c, "push", repoName)
 
@@ -371,9 +329,7 @@ func (s *DockerRegistrySuite) TestPullConflict(c *check.C) {
 
 	// Load/save to turn this into an unverified image with the same ID
 	tmpDir, err := ioutil.TempDir("", "conflict-save-output")
-	if err != nil {
-		c.Errorf("failed to create temporary directory: %s", err)
-	}
+	c.Assert(err, checker.IsNil, check.Commentf("failed to create temporary directory: %s", err))
 	defer os.RemoveAll(tmpDir)
 
 	tarFile := filepath.Join(tmpDir, "repo.tar")
@@ -385,9 +341,7 @@ func (s *DockerRegistrySuite) TestPullConflict(c *check.C) {
 	// Check that the the ID is the same after save/load.
 	IDAfterLoad := imageID(c, repoName)
 
-	if IDAfterLoad != IDBeforeLoad {
-		c.Fatal("image's ID should be the same after save/load")
-	}
+	c.Assert(IDAfterLoad, checker.Equals, IDBeforeLoad, check.Commentf("image's ID should be the same after save/load"))
 
 	// Repull
 	dockerCmd(c, "pull", repoName)
@@ -397,20 +351,13 @@ func (s *DockerRegistrySuite) TestPullConflict(c *check.C) {
 
 	// Expect the new ID to be SHA256(oldID)
 	expectedIDDigest, err := digest.FromBytes([]byte(IDBeforeLoad))
-	if err != nil {
-		c.Fatalf("digest error: %v", err)
-	}
+	c.Assert(err, checker.IsNil, check.Commentf("digest error: %v", err))
 	expectedID := expectedIDDigest.Hex()
-	if IDAfterPull1 != expectedID {
-		c.Fatalf("image's ID should have changed on pull to %s (got %s)", expectedID, IDAfterPull1)
-	}
-
+	c.Assert(IDAfterPull1, checker.Equals, expectedID, check.Commentf("image's ID should have changed on pull to %s (got %s)", expectedID, IDAfterPull1))
 	// A second pull should use the new ID again.
 	dockerCmd(c, "pull", repoName)
 
 	IDAfterPull2 := imageID(c, repoName)
 
-	if IDAfterPull2 != IDAfterPull1 {
-		c.Fatal("image's ID unexpectedly changed after a repull")
-	}
+	c.Assert(IDAfterPull2, checker.Equals, IDAfterPull1, check.Commentf("image's ID unexpectedly changed after a repull"))
 }
