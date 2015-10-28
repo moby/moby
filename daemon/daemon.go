@@ -955,14 +955,12 @@ func (daemon *Daemon) stats(c *Container) (*execdriver.ResourceStats, error) {
 	return daemon.execDriver.Stats(c.ID)
 }
 
-func (daemon *Daemon) subscribeToContainerStats(c *Container) (chan interface{}, error) {
-	ch := daemon.statsCollector.collect(c)
-	return ch, nil
+func (daemon *Daemon) subscribeToContainerStats(c *Container) chan interface{} {
+	return daemon.statsCollector.collect(c)
 }
 
-func (daemon *Daemon) unsubscribeToContainerStats(c *Container, ch chan interface{}) error {
+func (daemon *Daemon) unsubscribeToContainerStats(c *Container, ch chan interface{}) {
 	daemon.statsCollector.unsubscribe(c, ch)
-	return nil
 }
 
 func (daemon *Daemon) changes(container *Container) ([]archive.Change, error) {
