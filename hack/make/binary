@@ -14,7 +14,7 @@ if [ "$(go env GOOS)/$(go env GOARCH)" != "$(go env GOHOSTOS)/$(go env GOHOSTARC
 		windows/amd64)
 			export CC=x86_64-w64-mingw32-gcc
 			export CGO_ENABLED=1
-			export LDFLAGS_STATIC_DOCKER="${LDFLAGS_STATIC_DOCKER/-linkmode external/} -extld=${CC}"
+			export LDFLAGS_STATIC_DOCKER="${LDFLAGS_STATIC_DOCKER/-linkmode external/-linkmode internal} -extld=${CC}"
 			;;
 	esac
 fi
