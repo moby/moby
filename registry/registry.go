@@ -23,7 +23,7 @@ import (
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/tlsconfig"
 	"github.com/docker/docker/pkg/useragent"
-	"github.com/docker/docker/version"
+	"github.com/docker/docker/versionlib"
 )
 
 var (

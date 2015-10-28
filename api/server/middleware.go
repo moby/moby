@@ -13,7 +13,7 @@ import (
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/version"
-	dockerversion "github.com/docker/docker/version"
+	dockerversion "github.com/docker/docker/versionlib"
 	"golang.org/x/net/context"
 )
 

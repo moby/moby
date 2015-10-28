@@ -6,7 +6,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/integration/checker"
-	"github.com/docker/docker/version"
+	"github.com/docker/docker/versionlib"
 	"github.com/go-check/check"
 )
 

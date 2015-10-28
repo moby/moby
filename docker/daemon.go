@@ -27,7 +27,7 @@ import (
 	"github.com/docker/docker/pkg/tlsconfig"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/utils"
-	"github.com/docker/docker/version"
+	"github.com/docker/docker/versionlib"
 )
 
 const daemonUsage = "       docker daemon [ --help | ... ]\n"

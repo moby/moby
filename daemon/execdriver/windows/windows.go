@@ -10,7 +10,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/pkg/parsers"
-	"github.com/docker/docker/version"
+	"github.com/docker/docker/versionlib"
 )
 
 // This is a daemon development variable only and should not be
