@@ -1,3 +1,5 @@
+// +build ppc64le
+
 package bolt
 
 // maxMapSize represents the largest mmap size supported by Bolt.
