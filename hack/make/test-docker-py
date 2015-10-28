@@ -12,7 +12,7 @@ set -e
 	}
 
 	# exporting PYTHONPATH to import "docker" from our local docker-py
-	test_env PYTHONPATH="$dockerPy" NOT_ON_HOST=true python "$dockerPy/tests/integration_test.py"
+	test_env PYTHONPATH="$dockerPy" py.test "$dockerPy/tests/integration"
 
 	bundle .integration-daemon-stop
 ) 2>&1 | tee -a "$DEST/test.log"
