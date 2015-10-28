@@ -163,6 +163,17 @@ func (ep *endpoint) Info() EndpointInfo {
 }
 
 func (ep *endpoint) DriverInfo() (map[string]interface{}, error) {
+	ep, err := ep.retrieveFromStore()
+	if err != nil {
+		return nil, err
+	}
+
+	if sb, ok := ep.getSandbox(); ok {
+		if gwep := sb.getEndpointInGWNetwork(); gwep != nil && gwep.ID() != ep.ID() {
+			return gwep.DriverInfo()
+		}
+	}
+
 	n, err := ep.getNetworkFromStore()
 	if err != nil {
 		return nil, fmt.Errorf("could not find network in store for driver info: %v", err)
@@ -316,4 +327,12 @@ func (ep *endpoint) SetGatewayIPv6(gw6 net.IP) error {
 
 	ep.joinInfo.gw6 = types.GetIPCopy(gw6)
 	return nil
+}
+
+func (ep *endpoint) retrieveFromStore() (*endpoint, error) {
+	n, err := ep.getNetworkFromStore()
+	if err != nil {
+		return nil, fmt.Errorf("could not find network in store to get latest endpoint %s: %v", ep.Name(), err)
+	}
+	return n.getEndpointFromStore(ep.ID())
 }
