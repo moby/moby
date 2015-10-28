@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"errors"
 	"io/ioutil"
+	"os"
 )
 
 var (
@@ -14,13 +15,23 @@ var (
 
 	// file to check to determine Operating System
 	etcOsRelease = "/etc/os-release"
+
+	// used by stateless systems like Clear Linux
+	altEtcOSRelease = "/usr/lib/os-release"
 )
 
 // GetOperatingSystem gets the name of the current operating system.
 func GetOperatingSystem() (string, error) {
 	b, err := ioutil.ReadFile(etcOsRelease)
 	if err != nil {
-		return "", err
+		if _, err2 := os.Stat(altEtcOSRelease); err2 == nil {
+			b, err2 = ioutil.ReadFile(altEtcOSRelease)
+			if err2 != nil {
+				return "", err2
+			}
+		} else {
+			return "", err
+		}
 	}
 	if i := bytes.Index(b, []byte("PRETTY_NAME")); i >= 0 {
 		b = b[i+13:]
