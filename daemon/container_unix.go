@@ -714,7 +714,9 @@ func (container *Container) updateJoinInfo(n libnetwork.Network, ep libnetwork.E
 		// It is not an error to get an empty endpoint info
 		return nil
 	}
-	container.NetworkSettings.Networks[n.Name()].Gateway = epInfo.Gateway().String()
+	if epInfo.Gateway() != nil {
+		container.NetworkSettings.Networks[n.Name()].Gateway = epInfo.Gateway().String()
+	}
 	if epInfo.GatewayIPv6().To16() != nil {
 		container.NetworkSettings.Networks[n.Name()].IPv6Gateway = epInfo.GatewayIPv6().String()
 	}
