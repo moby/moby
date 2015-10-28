@@ -524,11 +524,9 @@ func (b *Builder) create() (string, error) {
 
 func (b *Builder) run(cID string) (err error) {
 	errCh := make(chan error)
-	if b.Verbose {
-		go func() {
-			errCh <- b.docker.ContainerAttach(cID, nil, b.Stdout, b.Stderr, true)
-		}()
-	}
+	go func() {
+		errCh <- b.docker.ContainerAttach(cID, nil, b.Stdout, b.Stderr, true)
+	}()
 
 	finished := make(chan struct{})
 	defer close(finished)
@@ -546,11 +544,9 @@ func (b *Builder) run(cID string) (err error) {
 		return err
 	}
 
-	if b.Verbose {
-		// Block on reading output from container, stop on err or chan closed
-		if err := <-errCh; err != nil {
-			return err
-		}
+	// Block on reading output from container, stop on err or chan closed
+	if err := <-errCh; err != nil {
+		return err
 	}
 
 	if ret, _ := b.docker.ContainerWait(cID, -1); ret != 0 {
