@@ -36,7 +36,7 @@ clone git github.com/coreos/etcd v2.2.0
 fix_rewritten_imports github.com/coreos/etcd
 clone git github.com/ugorji/go 5abd4e96a45c386928ed2ca2a7ef63e2533e18ec
 clone git github.com/hashicorp/consul v0.5.2
-clone git github.com/boltdb/bolt v1.0
+clone git github.com/boltdb/bolt v1.1.0
 
 # get graph and distribution packages
 clone git github.com/docker/distribution 20c4b7a1805a52753dfd593ee1cc35558722a0ce # docker/1.9 branch

@@ -36,6 +36,10 @@ var (
 	// ErrTxClosed is returned when committing or rolling back a transaction
 	// that has already been committed or rolled back.
 	ErrTxClosed = errors.New("tx closed")
+
+	// ErrDatabaseReadOnly is returned when a mutating transaction is started on a
+	// read-only database.
+	ErrDatabaseReadOnly = errors.New("database is in read-only mode")
 )
 
 // These errors can occur when putting or deleting a value or a bucket.

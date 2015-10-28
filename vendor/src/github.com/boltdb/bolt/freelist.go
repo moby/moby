@@ -1,6 +1,7 @@
 package bolt
 
 import (
+	"fmt"
 	"sort"
 	"unsafe"
 )
@@ -47,15 +48,14 @@ func (f *freelist) pending_count() int {
 
 // all returns a list of all free ids and all pending ids in one sorted list.
 func (f *freelist) all() []pgid {
-	ids := make([]pgid, len(f.ids))
-	copy(ids, f.ids)
+	m := make(pgids, 0)
 
 	for _, list := range f.pending {
-		ids = append(ids, list...)
+		m = append(m, list...)
 	}
 
-	sort.Sort(pgids(ids))
-	return ids
+	sort.Sort(m)
+	return pgids(f.ids).merge(m)
 }
 
 // allocate returns the starting page id of a contiguous list of pages of a given size.
@@ -67,7 +67,9 @@ func (f *freelist) allocate(n int) pgid {
 
 	var initial, previd pgid
 	for i, id := range f.ids {
-		_assert(id > 1, "invalid page allocation: %d", id)
+		if id <= 1 {
+			panic(fmt.Sprintf("invalid page allocation: %d", id))
+		}
 
 		// Reset initial page if this is not contiguous.
 		if previd == 0 || id-previd != 1 {
@@ -103,13 +105,17 @@ func (f *freelist) allocate(n int) pgid {
 // free releases a page and its overflow for a given transaction id.
 // If the page is already free then a panic will occur.
 func (f *freelist) free(txid txid, p *page) {
-	_assert(p.id > 1, "cannot free page 0 or 1: %d", p.id)
+	if p.id <= 1 {
+		panic(fmt.Sprintf("cannot free page 0 or 1: %d", p.id))
+	}
 
 	// Free page and all its overflow pages.
 	var ids = f.pending[txid]
 	for id := p.id; id <= p.id+pgid(p.overflow); id++ {
 		// Verify that page is not already free.
-		_assert(!f.cache[id], "page %d already freed", id)
+		if f.cache[id] {
+			panic(fmt.Sprintf("page %d already freed", id))
+		}
 
 		// Add to the freelist and cache.
 		ids = append(ids, id)
@@ -120,15 +126,17 @@ func (f *freelist) free(txid txid, p *page) {
 
 // release moves all page ids for a transaction id (or older) to the freelist.
 func (f *freelist) release(txid txid) {
+	m := make(pgids, 0)
 	for tid, ids := range f.pending {
 		if tid <= txid {
 			// Move transaction's pending pages to the available freelist.
 			// Don't remove from the cache since the page is still free.
-			f.ids = append(f.ids, ids...)
+			m = append(m, ids...)
 			delete(f.pending, tid)
 		}
 	}
-	sort.Sort(pgids(f.ids))
+	sort.Sort(m)
+	f.ids = pgids(f.ids).merge(m)
 }
 
 // rollback removes the pages from a given pending tx.

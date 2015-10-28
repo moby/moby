@@ -1,3 +1,5 @@
+// +build s390x
+
 package bolt
 
 // maxMapSize represents the largest mmap size supported by Bolt.
