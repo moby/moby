@@ -933,8 +933,7 @@ func (daemon *Daemon) Mount(container *Container) error {
 }
 
 func (daemon *Daemon) unmount(container *Container) error {
-	daemon.driver.Put(container.ID)
-	return nil
+	return daemon.driver.Put(container.ID)
 }
 
 func (daemon *Daemon) run(c *Container, pipes *execdriver.Pipes, startCallback execdriver.DriverCallback) (execdriver.ExitStatus, error) {
