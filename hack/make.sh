@@ -146,7 +146,7 @@ fi
 EXTLDFLAGS_STATIC='-static'
 # ORIG_BUILDFLAGS is necessary for the cross target which cannot always build
 # with options like -race.
-ORIG_BUILDFLAGS=( -a -tags "autogen netgo static_build sqlite_omit_load_extension $DOCKER_BUILDTAGS" -installsuffix netgo )
+ORIG_BUILDFLAGS=( -a -tags "netgo static_build sqlite_omit_load_extension $DOCKER_BUILDTAGS" -installsuffix netgo )
 # see https://github.com/golang/go/issues/9369#issuecomment-69864440 for why -installsuffix is necessary here
 BUILDFLAGS=( $BUILDFLAGS "${ORIG_BUILDFLAGS[@]}" )
 # Test timeout.

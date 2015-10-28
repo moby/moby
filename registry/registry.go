@@ -20,10 +20,10 @@ import (
 	"github.com/docker/distribution/registry/api/v2"
 	"github.com/docker/distribution/registry/client"
 	"github.com/docker/distribution/registry/client/transport"
+	"github.com/docker/docker/autogen/dockerversion"
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/tlsconfig"
 	"github.com/docker/docker/pkg/useragent"
-	"github.com/docker/docker/version"
 )
 
 var (
@@ -39,9 +39,9 @@ var dockerUserAgent string
 
 func init() {
 	httpVersion := make([]useragent.VersionInfo, 0, 6)
-	httpVersion = append(httpVersion, useragent.VersionInfo{"docker", version.VERSION})
+	httpVersion = append(httpVersion, useragent.VersionInfo{"docker", dockerversion.VERSION})
 	httpVersion = append(httpVersion, useragent.VersionInfo{"go", runtime.Version()})
-	httpVersion = append(httpVersion, useragent.VersionInfo{"git-commit", version.GITCOMMIT})
+	httpVersion = append(httpVersion, useragent.VersionInfo{"git-commit", dockerversion.GITCOMMIT})
 	if kernelVersion, err := kernel.GetKernelVersion(); err == nil {
 		httpVersion = append(httpVersion, useragent.VersionInfo{"kernel", kernelVersion.String()})
 	}

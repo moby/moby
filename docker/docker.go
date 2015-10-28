@@ -6,12 +6,12 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/client"
+	"github.com/docker/docker/autogen/dockerversion"
 	"github.com/docker/docker/cli"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/docker/pkg/term"
 	"github.com/docker/docker/utils"
-	"github.com/docker/docker/version"
 )
 
 func main() {
@@ -77,8 +77,8 @@ func main() {
 
 func showVersion() {
 	if utils.ExperimentalBuild() {
-		fmt.Printf("Docker version %s, build %s, experimental\n", version.VERSION, version.GITCOMMIT)
+		fmt.Printf("Docker version %s, build %s, experimental\n", dockerversion.VERSION, dockerversion.GITCOMMIT)
 	} else {
-		fmt.Printf("Docker version %s, build %s\n", version.VERSION, version.GITCOMMIT)
+		fmt.Printf("Docker version %s, build %s\n", dockerversion.VERSION, dockerversion.GITCOMMIT)
 	}
 }

@@ -8,9 +8,9 @@ import (
 	"sync"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/autogen/dockerversion"
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/pkg/parsers"
-	"github.com/docker/docker/version"
 )
 
 // This is a daemon development variable only and should not be
@@ -24,7 +24,7 @@ var forceKill bool
 // Define name and version for windows
 var (
 	DriverName = "Windows 1854"
-	Version    = version.VERSION + " " + version.GITCOMMIT
+	Version    = dockerversion.VERSION + " " + dockerversion.GITCOMMIT
 )
 
 type activeContainer struct {

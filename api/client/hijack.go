@@ -15,9 +15,9 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api"
+	"github.com/docker/docker/autogen/dockerversion"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/docker/pkg/term"
-	"github.com/docker/docker/version"
 )
 
 type tlsClientCon struct {
@@ -152,7 +152,7 @@ func (cli *DockerCli) hijackWithContentType(method, path, contentType string, se
 		req.Header.Set(k, v)
 	}
 
-	req.Header.Set("User-Agent", "Docker-Client/"+version.VERSION+" ("+runtime.GOOS+")")
+	req.Header.Set("User-Agent", "Docker-Client/"+dockerversion.VERSION+" ("+runtime.GOOS+")")
 	req.Header.Set("Content-Type", contentType)
 	req.Header.Set("Connection", "Upgrade")
 	req.Header.Set("Upgrade", "tcp")
