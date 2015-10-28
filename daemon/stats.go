@@ -35,11 +35,6 @@ func (daemon *Daemon) ContainerStats(prefixOrName string, config *ContainerStats
 		return json.NewEncoder(config.OutStream).Encode(&types.Stats{})
 	}
 
-	updates, err := daemon.subscribeToContainerStats(container)
-	if err != nil {
-		return err
-	}
-
 	if config.Stream {
 		// Write an empty chunk of data.
 		// This is to ensure that the HTTP status code is sent immediately,
@@ -65,6 +60,7 @@ func (daemon *Daemon) ContainerStats(prefixOrName string, config *ContainerStats
 
 	enc := json.NewEncoder(config.OutStream)
 
+	updates := daemon.subscribeToContainerStats(container)
 	defer daemon.unsubscribeToContainerStats(container, updates)
 
 	noStreamFirstFrame := true
