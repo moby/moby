@@ -253,6 +253,37 @@ func (s *DockerSuite) TestRmiWithMultipleRepositories(c *check.C) {
 	}
 }
 
+func (s *DockerSuite) TestRmiForceWithMultipleRepositories(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	imageName := "rmiimage"
+	tag1 := imageName + ":tag1"
+	tag2 := imageName + ":tag2"
+
+	_, err := buildImage(tag1,
+		`FROM scratch
+		MAINTAINER "docker"`,
+		true)
+	if err != nil {
+		c.Fatal(err)
+	}
+
+	dockerCmd(c, "tag", tag1, tag2)
+
+	out, _ := dockerCmd(c, "rmi", "-f", tag2)
+	if !strings.Contains(out, "Untagged: "+tag2) {
+		c.Fatalf("should contain Untagged: %s", tag2)
+	}
+	if strings.Contains(out, "Untagged: " + tag1) {
+		c.Fatalf("should not contain Untagged: %s", tag1)
+	}
+
+	// Check built image still exists
+	images, _ := dockerCmd(c, "images", "-a")
+	if !strings.Contains(images, imageName) {
+		c.Fatalf("Built image missing %q; Images: %q", imageName, images)
+	}
+}
+
 func (s *DockerSuite) TestRmiBlank(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	// try to delete a blank image name
