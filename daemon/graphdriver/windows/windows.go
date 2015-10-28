@@ -129,7 +129,7 @@ func (d *Driver) Exists(id string) bool {
 }
 
 // Create creates a new layer with the given id.
-func (d *Driver) Create(id, parent string) error {
+func (d *Driver) Create(id, parent, mountLabel string) error {
 	rPId, err := d.resolveID(parent)
 	if err != nil {
 		return err

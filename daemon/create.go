@@ -87,6 +87,12 @@ func (daemon *Daemon) create(params *ContainerCreateConfig) (retC *Container, re
 	if err := daemon.Register(container); err != nil {
 		return nil, err
 	}
+	container.Lock()
+	if err := parseSecurityOpt(container, params.HostConfig); err != nil {
+		container.Unlock()
+		return nil, err
+	}
+	container.Unlock()
 	if err := daemon.createRootfs(container); err != nil {
 		return nil, err
 	}

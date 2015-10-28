@@ -241,7 +241,7 @@ func (d *Driver) mountPath(id string) string {
 }
 
 // Create prepares the dataset and filesystem for the ZFS driver for the given id under the parent.
-func (d *Driver) Create(id string, parent string) error {
+func (d *Driver) Create(id string, parent string, mountLabel string) error {
 	err := d.create(id, parent)
 	if err == nil {
 		return nil

@@ -259,8 +259,8 @@ func checkSystem() error {
 func configureKernelSecuritySupport(config *Config, driverName string) error {
 	if config.EnableSelinuxSupport {
 		if selinuxEnabled() {
-			// As Docker on either btrfs or overlayFS and SELinux are incompatible at present, error on both being enabled
-			if driverName == "btrfs" || driverName == "overlay" {
+			// As Docker on overlayFS and SELinux are incompatible at present, error on overlayfs being enabled
+			if driverName == "overlay" {
 				return fmt.Errorf("SELinux is not supported with the %s graph driver", driverName)
 			}
 			logrus.Debug("SELinux enabled successfully")
