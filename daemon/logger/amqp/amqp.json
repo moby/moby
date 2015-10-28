@@ -1,0 +1,4 @@
+[
+	{"url":"amqp://guest:guest@localhost:5672/", "exchange":"log", "queue":"log-queue", "routingkey":"log-key"},
+	{"url":"amqps://guest:guest@127.0.0.1:5672/", "exchange":"log", "queue":"log-queue", "routingkey":"log-key"}
+]

@@ -67,4 +67,7 @@ clone git gopkg.in/fsnotify.v1 v1.2.0
 clone git github.com/aws/aws-sdk-go v0.7.1
 clone git github.com/vaughan0/go-ini a98ad7ee00ec53921f08832bc06ecf7fd600e6a1
 
+# amqp log driver deps
+clone git github.com/streadway/amqp 79beb307dcf5904fb8cb061276f1c14f222012c2
+
 clean
