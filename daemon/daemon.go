@@ -992,13 +992,17 @@ func (daemon *Daemon) createRootfs(container *Container) error {
 	}
 
 	if err := setupInitLayer(initPath, rootUID, rootGID); err != nil {
-		daemon.driver.Put(initID)
+		if err := daemon.driver.Put(initID); err != nil {
+			logrus.Errorf("Failed to Put init layer: %v", err)
+		}
 		return err
 	}
 
 	// We want to unmount init layer before we take snapshot of it
 	// for the actual container.
-	daemon.driver.Put(initID)
+	if err := daemon.driver.Put(initID); err != nil {
+		return err
+	}
 
 	if err := daemon.driver.Create(container.ID, initID); err != nil {
 		return err
