@@ -830,6 +830,45 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 	return d, nil
 }
 
+func stopContainer(c *Container) error {
+	// TODO(windows): Handle docker restart with paused containers
+	if c.isPaused() {
+		// To terminate a process in freezer cgroup, we should send
+		// SIGTERM to this process then unfreeze it, and the process will
+		// force to terminate immediately.
+		logrus.Debugf("Found container %s is paused, sending SIGTERM before unpause it", c.ID)
+		sig, ok := signal.SignalMap["TERM"]
+		if !ok {
+			return fmt.Errorf("System doesn not support SIGTERM")
+		}
+		if err := c.daemon.kill(c, int(sig)); err != nil {
+			return fmt.Errorf("sending SIGTERM to container %s with error: %v", c.ID, err)
+		}
+		if err := c.unpause(); err != nil {
+			return fmt.Errorf("Failed to unpause container %s with error: %v", c.ID, err)
+		}
+		if _, err := c.WaitStop(10 * time.Second); err != nil {
+			logrus.Debugf("container %s failed to exit in 10 second of SIGTERM, sending SIGKILL to force", c.ID)
+			sig, ok := signal.SignalMap["KILL"]
+			if !ok {
+				return fmt.Errorf("System does not support SIGKILL")
+			}
+			if err := c.daemon.kill(c, int(sig)); err != nil {
+				logrus.Errorf("Failed to SIGKILL container %s", c.ID)
+			}
+			c.WaitStop(-1 * time.Second)
+			return err
+		}
+	}
+	// If container failed to exit in 10 seconds of SIGTERM, then using the force
+	if err := c.Stop(10); err != nil {
+		return fmt.Errorf("Stop container %s with error: %v", c.ID, err)
+	}
+
+	c.WaitStop(-1 * time.Second)
+	return nil
+}
+
 // Shutdown stops the daemon.
 func (daemon *Daemon) Shutdown() error {
 	daemon.shutdown = true
@@ -837,58 +876,26 @@ func (daemon *Daemon) Shutdown() error {
 		group := sync.WaitGroup{}
 		logrus.Debug("starting clean shutdown of all containers...")
 		for _, container := range daemon.List() {
-			c := container
-			if c.IsRunning() {
-				logrus.Debugf("stopping %s", c.ID)
-				group.Add(1)
-
-				go func() {
-					defer group.Done()
-					// TODO(windows): Handle docker restart with paused containers
-					if c.isPaused() {
-						// To terminate a process in freezer cgroup, we should send
-						// SIGTERM to this process then unfreeze it, and the process will
-						// force to terminate immediately.
-						logrus.Debugf("Found container %s is paused, sending SIGTERM before unpause it", c.ID)
-						sig, ok := signal.SignalMap["TERM"]
-						if !ok {
-							logrus.Warnf("System does not support SIGTERM")
-							return
-						}
-						if err := daemon.kill(c, int(sig)); err != nil {
-							logrus.Debugf("sending SIGTERM to container %s with error: %v", c.ID, err)
-							return
-						}
-						if err := c.unpause(); err != nil {
-							logrus.Debugf("Failed to unpause container %s with error: %v", c.ID, err)
-							return
-						}
-						if _, err := c.WaitStop(10 * time.Second); err != nil {
-							logrus.Debugf("container %s failed to exit in 10 second of SIGTERM, sending SIGKILL to force", c.ID)
-							sig, ok := signal.SignalMap["KILL"]
-							if !ok {
-								logrus.Warnf("System does not support SIGKILL")
-								return
-							}
-							daemon.kill(c, int(sig))
-						}
-					} else {
-						// If container failed to exit in 10 seconds of SIGTERM, then using the force
-						if err := c.Stop(10); err != nil {
-							logrus.Errorf("Stop container %s with error: %v", c.ID, err)
-						}
-					}
-					c.WaitStop(-1 * time.Second)
-					logrus.Debugf("container stopped %s", c.ID)
-				}()
+			if !container.IsRunning() {
+				continue
 			}
+			logrus.Debugf("stopping %s", container.ID)
+			group.Add(1)
+			go func(c *Container) {
+				defer group.Done()
+				if err := stopContainer(c); err != nil {
+					logrus.Errorf("Stop container error: %v", err)
+					return
+				}
+				logrus.Debugf("container stopped %s", c.ID)
+			}(container)
 		}
 		group.Wait()
+	}
 
-		// trigger libnetwork Stop only if it's initialized
-		if daemon.netController != nil {
-			daemon.netController.Stop()
-		}
+	// trigger libnetwork Stop only if it's initialized
+	if daemon.netController != nil {
+		daemon.netController.Stop()
 	}
 
 	if daemon.containerGraphDB != nil {
