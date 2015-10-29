@@ -54,6 +54,13 @@ func (cli *DockerCli) CmdNetworkCreate(args ...string) error {
 		return err
 	}
 
+	// Set the default driver to "" if the user didn't set the value.
+	// That way we can know whether it was user input or not.
+	driver := *flDriver
+	if !cmd.IsSet("-driver") && !cmd.IsSet("d") {
+		driver = ""
+	}
+
 	ipamCfg, err := consolidateIpam(flIpamSubnet.GetAll(), flIpamIPRange.GetAll(), flIpamGateway.GetAll(), flIpamAux.GetAll())
 	if err != nil {
 		return err
@@ -62,7 +69,7 @@ func (cli *DockerCli) CmdNetworkCreate(args ...string) error {
 	// Construct network create request body
 	nc := types.NetworkCreate{
 		Name:           cmd.Arg(0),
-		Driver:         *flDriver,
+		Driver:         driver,
 		IPAM:           network.IPAM{Driver: *flIpamDriver, Config: ipamCfg},
 		Options:        flOpts.GetAll(),
 		CheckDuplicate: true,
