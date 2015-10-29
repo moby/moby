@@ -6,7 +6,8 @@ Requires=docker.socket
 
 [Service]
 Type=notify
-ExecStart=/usr/bin/docker daemon -H fd://
+EnvironmentFile=-/etc/default/docker
+ExecStart=/usr/bin/docker daemon -H fd:// $DOCKER_OPTS
 MountFlags=slave
 LimitNOFILE=1048576
 LimitNPROC=1048576
