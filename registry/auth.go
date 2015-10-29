@@ -23,7 +23,6 @@ func Login(authConfig *cliconfig.AuthConfig, registryEndpoint *Endpoint) (string
 // loginV1 tries to register/login to the v1 registry server.
 func loginV1(authConfig *cliconfig.AuthConfig, registryEndpoint *Endpoint) (string, error) {
 	var (
-		status        string
 		reqBody       []byte
 		err           error
 		reqStatusCode = 0
@@ -35,8 +34,6 @@ func loginV1(authConfig *cliconfig.AuthConfig, registryEndpoint *Endpoint) (stri
 	if serverAddress == "" {
 		return "", fmt.Errorf("Server Error: Server Address not set.")
 	}
-
-	loginAgainstOfficialIndex := serverAddress == IndexServer
 
 	// to avoid sending the server address to the server it should be removed before being marshalled
 	authCopy := *authConfig
@@ -60,71 +57,93 @@ func loginV1(authConfig *cliconfig.AuthConfig, registryEndpoint *Endpoint) (stri
 		return "", fmt.Errorf("Server Error: [%#v] %s", reqStatusCode, err)
 	}
 
+	loginAgainstOfficialIndex := serverAddress == IndexServer
+
 	if reqStatusCode == 201 {
 		if loginAgainstOfficialIndex {
-			status = "Account created. Please use the confirmation link we sent" +
-				" to your e-mail to activate it."
-		} else {
-			// *TODO: Use registry configuration to determine what this says, if anything?
-			status = "Account created. Please see the documentation of the registry " + serverAddress + " for instructions how to activate it."
+			return "Account created. Please use the confirmation link we sent" +
+				" to your e-mail to activate it.", nil
 		}
-	} else if reqStatusCode == 400 {
-		if string(reqBody) == "\"Username or email already exists\"" {
-			req, err := http.NewRequest("GET", serverAddress+"users/", nil)
-			req.SetBasicAuth(authConfig.Username, authConfig.Password)
-			resp, err := registryEndpoint.client.Do(req)
-			if err != nil {
-				return "", err
-			}
-			defer resp.Body.Close()
-			body, err := ioutil.ReadAll(resp.Body)
-			if err != nil {
-				return "", err
-			}
-			if resp.StatusCode == 200 {
-				return "Login Succeeded", nil
-			} else if resp.StatusCode == 401 {
-				return "", fmt.Errorf("Wrong login/password, please try again")
-			} else if resp.StatusCode == 403 {
-				if loginAgainstOfficialIndex {
-					return "", fmt.Errorf("Login: Account is not Active. Please check your e-mail for a confirmation link.")
-				}
-				// *TODO: Use registry configuration to determine what this says, if anything?
-				return "", fmt.Errorf("Login: Account is not Active. Please see the documentation of the registry %s for instructions how to activate it.", serverAddress)
-			} else if resp.StatusCode == 500 { // Issue #14326
-				logrus.Errorf("%s returned status code %d. Response Body :\n%s", req.URL.String(), resp.StatusCode, body)
-				return "", fmt.Errorf("Internal Server Error")
-			}
-			return "", fmt.Errorf("Login: %s (Code: %d; Headers: %s)", body, resp.StatusCode, resp.Header)
-		}
-		return "", fmt.Errorf("Registration: %s", reqBody)
+		// *TODO: Use registry configuration to determine what this says, if anything?
+		return "Account created. Please see the documentation of the registry " + serverAddress + " for instructions how to activate it.", nil
+	}
 
-	} else if reqStatusCode == 401 {
+	if reqStatusCode == 400 {
+		if string(reqBody) != "\"Username or email already exists\"" {
+			return "", fmt.Errorf("Registration: %s", reqBody)
+		}
+
+		req, err := http.NewRequest("GET", serverAddress+"users/", nil)
+		req.SetBasicAuth(authConfig.Username, authConfig.Password)
+		resp, err := registryEndpoint.client.Do(req)
+
+		if err != nil {
+			return "", err
+		}
+
+		defer resp.Body.Close()
+		body, err := ioutil.ReadAll(resp.Body)
+
+		if err != nil {
+			return "", err
+		}
+
+		if resp.StatusCode == 200 {
+			return "Login Succeeded", nil
+		}
+
+		if resp.StatusCode == 401 {
+			return "", fmt.Errorf("Wrong login/password, please try again")
+		}
+
+		if resp.StatusCode == 403 {
+			if loginAgainstOfficialIndex {
+				return "", fmt.Errorf("Login: Account is not Active. Please check your e-mail for a confirmation link.")
+			}
+			// *TODO: Use registry configuration to determine what this says, if anything?
+			return "", fmt.Errorf("Login: Account is not Active. Please see the documentation of the registry %s for instructions how to activate it.", serverAddress)
+		}
+
+		if resp.StatusCode == 500 { // Issue #14326
+			logrus.Errorf("%s returned status code %d. Response Body :\n%s", req.URL.String(), resp.StatusCode, body)
+			return "", fmt.Errorf("Internal Server Error")
+		}
+
+		return "", fmt.Errorf("Login: %s (Code: %d; Headers: %s)", body, resp.StatusCode, resp.Header)
+
+	}
+
+	if reqStatusCode == 401 {
 		// This case would happen with private registries where /v1/users is
 		// protected, so people can use `docker login` as an auth check.
 		req, err := http.NewRequest("GET", serverAddress+"users/", nil)
 		req.SetBasicAuth(authConfig.Username, authConfig.Password)
 		resp, err := registryEndpoint.client.Do(req)
+
 		if err != nil {
 			return "", err
 		}
+
 		defer resp.Body.Close()
 		body, err := ioutil.ReadAll(resp.Body)
+
 		if err != nil {
 			return "", err
 		}
+
 		if resp.StatusCode == 200 {
 			return "Login Succeeded", nil
-		} else if resp.StatusCode == 401 {
-			return "", fmt.Errorf("Wrong login/password, please try again")
-		} else {
-			return "", fmt.Errorf("Login: %s (Code: %d; Headers: %s)", body,
-				resp.StatusCode, resp.Header)
 		}
-	} else {
-		return "", fmt.Errorf("Unexpected status code [%d] : %s", reqStatusCode, reqBody)
+
+		if resp.StatusCode == 401 {
+			return "", fmt.Errorf("Wrong login/password, please try again")
+		}
+
+		return "", fmt.Errorf("Login: %s (Code: %d; Headers: %s)", body,
+			resp.StatusCode, resp.Header)
 	}
-	return status, nil
+
+	return "", fmt.Errorf("Unexpected status code [%d] : %s", reqStatusCode, reqBody)
 }
 
 // loginV2 tries to login to the v2 registry server. The given registry endpoint has been
@@ -232,7 +251,8 @@ func ResolveAuthConfig(config *cliconfig.ConfigFile, index *IndexInfo) cliconfig
 		stripped := url
 		if strings.HasPrefix(url, "http://") {
 			stripped = strings.Replace(url, "http://", "", 1)
-		} else if strings.HasPrefix(url, "https://") {
+		}
+		if strings.HasPrefix(url, "https://") {
 			stripped = strings.Replace(url, "https://", "", 1)
 		}
 
