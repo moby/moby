@@ -680,6 +680,10 @@ func (container *Container) buildEndpointInfo(n libnetwork.Network, ep libnetwor
 		return networkSettings, nil
 	}
 
+	if iface.MacAddress() != nil {
+		networkSettings.Networks[n.Name()].MacAddress = iface.MacAddress().String()
+	}
+
 	if iface.Address() != nil {
 		ones, _ := iface.Address().Mask.Size()
 		networkSettings.Networks[n.Name()].IPAddress = iface.Address().IP.String()
@@ -692,23 +696,14 @@ func (container *Container) buildEndpointInfo(n libnetwork.Network, ep libnetwor
 		networkSettings.Networks[n.Name()].GlobalIPv6PrefixLen = onesv6
 	}
 
-	driverInfo, err := ep.DriverInfo()
-	if err != nil {
-		return nil, err
-	}
-
-	if driverInfo == nil {
-		// It is not an error for epInfo to be nil
-		return networkSettings, nil
-	}
-	if mac, ok := driverInfo[netlabel.MacAddress]; ok {
-		networkSettings.Networks[n.Name()].MacAddress = mac.(net.HardwareAddr).String()
-	}
-
 	return networkSettings, nil
 }
 
 func (container *Container) updateJoinInfo(n libnetwork.Network, ep libnetwork.Endpoint) error {
+	if _, err := container.buildPortMapInfo(ep, container.NetworkSettings); err != nil {
+		return err
+	}
+
 	epInfo := ep.Info()
 	if epInfo == nil {
 		// It is not an error to get an empty endpoint info
@@ -754,12 +749,7 @@ func (container *Container) updateNetworkSettings(n libnetwork.Network) error {
 }
 
 func (container *Container) updateEndpointNetworkSettings(n libnetwork.Network, ep libnetwork.Endpoint) error {
-	networkSettings, err := container.buildPortMapInfo(ep, container.NetworkSettings)
-	if err != nil {
-		return err
-	}
-
-	networkSettings, err = container.buildEndpointInfo(n, ep, networkSettings)
+	networkSettings, err := container.buildEndpointInfo(n, ep, container.NetworkSettings)
 	if err != nil {
 		return err
 	}
