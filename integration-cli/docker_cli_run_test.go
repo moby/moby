@@ -508,7 +508,7 @@ func (s *DockerSuite) TestRunVolumesFromSymlinkPath(c *check.C) {
 		prefix = `c:`
 		dfContents = `FROM ` + WindowsBaseImage + `
 	    RUN mkdir c:\home
-		RUN mklink /D c:\foo c:\home 
+		RUN mklink /D c:\foo c:\home
 		VOLUME ["c:/foo/bar"]
 		ENTRYPOINT c:\windows\system32\cmd.exe`
 	}
@@ -2161,6 +2161,7 @@ func (s *DockerSuite) TestRunNoOutputFromPullInStdout(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunVolumesCleanPaths(c *check.C) {
+	testRequires(c, SameHostDaemon)
 	prefix := ""
 	slash := `/`
 	if daemonPlatform == "windows" {
