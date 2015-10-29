@@ -28,7 +28,7 @@ profile /usr/bin/docker (attach_disconnected, complain) {
   owner /** rw,
   @{DOCKER_GRAPH_PATH}/** rwl,
   @{DOCKER_GRAPH_PATH}/linkgraph.db k,
-  @{DOCKER_GRAPH_PATH}/network/files/boltdb.db k,
+  /var/lib/docker/network/files/boltdb.db k,
 
   # For non-root client use:
   /dev/urandom r,
