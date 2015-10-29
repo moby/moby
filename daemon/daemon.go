@@ -163,6 +163,12 @@ func (daemon *Daemon) Exists(id string) bool {
 	return c != nil
 }
 
+// IsPaused returns a bool indicating if the specified container is paused.
+func (daemon *Daemon) IsPaused(id string) bool {
+	c, _ := daemon.Get(id)
+	return c.State.isPaused()
+}
+
 func (daemon *Daemon) containerRoot(id string) string {
 	return filepath.Join(daemon.repository, id)
 }

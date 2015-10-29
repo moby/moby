@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/go-check/check"
 )
 
@@ -149,4 +150,13 @@ func (s *DockerSuite) TestAttachDisconnect(c *check.C) {
 	running, err := inspectField(id, "State.Running")
 	c.Assert(err, check.IsNil)
 	c.Assert(running, check.Equals, "true")
+}
+
+func (s *DockerSuite) TestAttachPausedContainer(c *check.C) {
+	defer unpauseAllContainers()
+	dockerCmd(c, "run", "-d", "--name=test", "busybox", "top")
+	dockerCmd(c, "pause", "test")
+	out, _, err := dockerCmdWithError("attach", "test")
+	c.Assert(err, checker.NotNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "You cannot attach to a paused container, unpause it first")
 }

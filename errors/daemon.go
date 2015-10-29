@@ -46,6 +46,14 @@ var (
 		HTTPStatusCode: http.StatusInternalServerError,
 	})
 
+	// ErrorCodePausedContainer is generated when we attempt to attach a
+	// container but its paused.
+	ErrorCodePausedContainer = errcode.Register(errGroup, errcode.ErrorDescriptor{
+		Value:          "CONTAINERPAUSED",
+		Message:        "Container %s is paused. Unpause the container before attach",
+		Description:    "The specified container is paused, unpause the container before attach",
+		HTTPStatusCode: http.StatusConflict,
+	})
 	// ErrorCodeAlreadyPaused is generated when we attempt to pause a
 	// container when its already paused.
 	ErrorCodeAlreadyPaused = errcode.Register(errGroup, errcode.ErrorDescriptor{
