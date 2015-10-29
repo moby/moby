@@ -168,7 +168,8 @@ EOF
 	   -v $(pwd)/${TMPC_ROOT}:/scratch \
 	   -v /usr/local/bin/runc:/usr/local/bin/runc \
 	   -w /go/src/github.com/docker/libnetwork \
-	   golang:1.4 ./cmd/dnet/dnet -d -D ${hopt} -c ${tomlfile}
+	   mrjana/golang ./cmd/dnet/dnet -d -D ${hopt} -c ${tomlfile}
+
     wait_for_dnet $(inst_id2port ${inst}) ${name}
 }
 
@@ -256,14 +257,16 @@ function stop_zookeeper() {
 
 function test_overlay() {
     dnet_suffix=$1
-    shift
 
     echo $(docker ps)
 
     start=1
     end=3
     # Setup overlay network and connect containers ot it
-    dnet_cmd $(inst_id2port 1) network create -d overlay multihost
+    if [ -z "${2}" -o "${2}" != "skip_add" ]; then
+	dnet_cmd $(inst_id2port 1) network create -d overlay multihost
+    fi
+
     for i in `seq ${start} ${end}`;
     do
 	dnet_cmd $(inst_id2port $i) container create container_${i}
@@ -273,6 +276,8 @@ function test_overlay() {
     # Now test connectivity between all the containers using service names
     for i in `seq ${start} ${end}`;
     do
+	runc $(dnet_container_name $i $dnet_suffix) $(get_sbox_id ${i} container_${i}) \
+	     "ping -c 1 www.google.com"
 	for j in `seq ${start} ${end}`;
 	do
 	    if [ "$i" -eq "$j" ]; then
@@ -290,7 +295,9 @@ function test_overlay() {
 	dnet_cmd $(inst_id2port $i) container rm container_${i}
     done
 
-    dnet_cmd $(inst_id2port 2) network rm multihost
+    if [ -z "${2}" -o "${2}" != "skip_rm" ]; then
+	dnet_cmd $(inst_id2port 2) network rm multihost
+    fi
 }
 
 function check_etchosts() {

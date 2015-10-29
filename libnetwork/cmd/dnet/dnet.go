@@ -225,6 +225,16 @@ func (d *dnetConnection) dnetDaemon(cfgFile string) error {
 	if err == nil {
 		cOptions = processConfig(cfg)
 	}
+
+	bridgeConfig := options.Generic{
+		"EnableIPForwarding": true,
+		"EnableIPTables":     true,
+	}
+
+	bridgeOption := options.Generic{netlabel.GenericData: bridgeConfig}
+
+	cOptions = append(cOptions, config.OptionDriverConfig("bridge", bridgeOption))
+
 	controller, err := libnetwork.New(cOptions...)
 	if err != nil {
 		fmt.Println("Error starting dnetDaemon :", err)
