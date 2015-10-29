@@ -309,7 +309,7 @@ Json Parameters:
         systems, such as SELinux.
     -   **LogConfig** - Log configuration for the container, specified as a JSON object in the form
           `{ "Type": "<driver_name>", "Config": {"key1": "val1"}}`.
-          Available types: `json-file`, `syslog`, `journald`, `gelf`, `awslogs`, `none`.
+          Available types: `json-file`, `syslog`, `journald`, `gelf`, `awslogs`, `splunk`, `none`.
           `json-file` logging driver.
     -   **CgroupParent** - Path to `cgroups` under which the container's `cgroup` is created. If the path is not absolute, the path is considered to be relative to the `cgroups` path of the init process. Cgroups are created if they do not already exist.
     -   **VolumeDriver** - Driver that this container users to mount volumes.
@@ -435,11 +435,26 @@ Return low-level information on the container `id`
 		"Name": "/boring_euclid",
 		"NetworkSettings": {
 			"Bridge": "",
-			"Gateway": "",
-			"IPAddress": "",
-			"IPPrefixLen": 0,
-			"MacAddress": "",
-			"Ports": null
+			"SandboxID": "",
+			"HairpinMode": false,
+			"LinkLocalIPv6Address": "",
+			"LinkLocalIPv6PrefixLen": 0,
+			"SandboxKey": "",
+			"SecondaryIPAddresses": [],
+			"SecondaryIPv6Addresses": [],
+			"Ports": null,
+			"Networks": {
+				"bridge": {
+					"EndpointID": "",
+					"Gateway": "",
+					"IPAdress": "",
+					"IPPrefixLen": 0,
+					"IPv6Gateway": "",
+					"GlobalIPv6Address": "",
+					"GlobalIPv6PrefixLen": 0,
+					"MacAddress": ""
+				}
+			}
 		},
 		"Path": "/bin/sh",
 		"ProcessLabel": "",
@@ -662,7 +677,7 @@ This endpoint returns a live stream of a container's resource usage statistics.
 
       {
          "read" : "2015-01-08T22:57:31.547920715Z",
-         "network": {
+         "networks": {
                  "eth0": {
                      "rx_bytes": 5338,
                      "rx_dropped": 0,
@@ -1386,8 +1401,9 @@ Query Parameters:
 
 -   **dockerfile** - Path within the build context to the Dockerfile. This is
         ignored if `remote` is specified and points to an individual filename.
--   **t** – A repository name (and optionally a tag) to apply to
-        the resulting image in case of success.
+-   **t** – A name and optional tag to apply to the image in the `name:tag` format.
+        If you omit the `tag` the default `latest` value is assumed.
+        You can provide one or more `t` parameters.
 -   **remote** – A Git repository URI or HTTP/HTTPS URI build source. If the 
         URI specifies a filename, the file's contents are placed into a file 
 		called `Dockerfile`.
@@ -1547,7 +1563,10 @@ Return low-level information on the image `name`
           "Name" : "aufs",
           "Data" : null
        },
-       "Tags" : [
+       "RepoDigests" : [
+          "localhost:5000/test/busybox/example@sha256:cbbf2f9a99b47fc460d422812b6a5adff7dfee951d8fa2e4a98caa0382cfbdbf"
+       ],
+       "RepoTags" : [
           "example:1.0",
           "example:latest",
           "example:stable"
@@ -2360,14 +2379,29 @@ Return low-level information about the `exec` command `id`.
           "SecurityOpt" : null
         },
         "Image" : "5506de2b643be1e6febbf3b8a240760c6843244c41e12aa2f60ccbb7153d17f5",
-        "NetworkSettings" : {
-          "IPAddress" : "172.17.0.2",
-          "IPPrefixLen" : 16,
-          "MacAddress" : "02:42:ac:11:00:02",
-          "Gateway" : "172.17.42.1",
-          "Bridge" : "docker0",
-          "Ports" : {}
-        },
+	"NetworkSettings": {
+		"Bridge": "",
+		"SandboxID": "",
+		"HairpinMode": false,
+		"LinkLocalIPv6Address": "",
+		"LinkLocalIPv6PrefixLen": 0,
+		"SandboxKey": "",
+		"SecondaryIPAddresses": [],
+		"SecondaryIPv6Addresses": [],
+		"Ports": null,
+		"Networks": {
+			"bridge": {
+				"EndpointID": "",
+				"Gateway": "",
+				"IPAdress": "",
+				"IPPrefixLen": 0,
+				"IPv6Gateway": "",
+				"GlobalIPv6Address": "",
+				"GlobalIPv6PrefixLen": 0,
+				"MacAddress": ""
+			}
+		}
+	},
         "ResolvConfPath" : "/var/lib/docker/containers/8f177a186b977fb451136e0fdf182abff5599a08b3c7f6ef0d36a55aaf89634c/resolv.conf",
         "HostnamePath" : "/var/lib/docker/containers/8f177a186b977fb451136e0fdf182abff5599a08b3c7f6ef0d36a55aaf89634c/hostname",
         "HostsPath" : "/var/lib/docker/containers/8f177a186b977fb451136e0fdf182abff5599a08b3c7f6ef0d36a55aaf89634c/hosts",
@@ -2425,13 +2459,13 @@ Status Codes:
 
 ### Create a volume
 
-`POST /volumes`
+`POST /volumes/create`
 
 Create a volume
 
 **Example request**:
 
-  POST /volumes HTTP/1.1
+  POST /volumes/create HTTP/1.1
   Content-Type: application/json
 
   {

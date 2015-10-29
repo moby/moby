@@ -25,16 +25,21 @@ func New() *Events {
 	}
 }
 
-// Subscribe adds new listener to events, returns slice of 64 stored last events
-// channel in which you can expect new events in form of interface{}, so you
-// need type assertion.
-func (e *Events) Subscribe() ([]*jsonmessage.JSONMessage, chan interface{}) {
+// Subscribe adds new listener to events, returns slice of 64 stored
+// last events, a channel in which you can expect new events (in form
+// of interface{}, so you need type assertion), and a function to call
+// to stop the stream of events.
+func (e *Events) Subscribe() ([]*jsonmessage.JSONMessage, chan interface{}, func()) {
 	e.mu.Lock()
 	current := make([]*jsonmessage.JSONMessage, len(e.events))
 	copy(current, e.events)
 	l := e.pub.Subscribe()
 	e.mu.Unlock()
-	return current, l
+
+	cancel := func() {
+		e.Evict(l)
+	}
+	return current, l, cancel
 }
 
 // Evict evicts listener from pubsub

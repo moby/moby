@@ -57,6 +57,7 @@ type endpoint struct {
 	joinInfo      *endpointJoinInfo
 	sandboxID     string
 	exposedPorts  []types.TransportPort
+	anonymous     bool
 	generic       map[string]interface{}
 	joinLeaveDone chan struct{}
 	dbIndex       uint64
@@ -77,6 +78,7 @@ func (ep *endpoint) MarshalJSON() ([]byte, error) {
 		epMap["generic"] = ep.generic
 	}
 	epMap["sandbox"] = ep.sandboxID
+	epMap["anonymous"] = ep.anonymous
 	return json.Marshal(epMap)
 }
 
@@ -104,6 +106,55 @@ func (ep *endpoint) UnmarshalJSON(b []byte) (err error) {
 
 	if v, ok := epMap["generic"]; ok {
 		ep.generic = v.(map[string]interface{})
+
+		if opt, ok := ep.generic[netlabel.PortMap]; ok {
+			pblist := []types.PortBinding{}
+
+			for i := 0; i < len(opt.([]interface{})); i++ {
+				pb := types.PortBinding{}
+				tmp := opt.([]interface{})[i].(map[string]interface{})
+
+				bytes, err := json.Marshal(tmp)
+				if err != nil {
+					log.Error(err)
+					break
+				}
+				err = json.Unmarshal(bytes, &pb)
+				if err != nil {
+					log.Error(err)
+					break
+				}
+				pblist = append(pblist, pb)
+			}
+			ep.generic[netlabel.PortMap] = pblist
+		}
+
+		if opt, ok := ep.generic[netlabel.ExposedPorts]; ok {
+			tplist := []types.TransportPort{}
+
+			for i := 0; i < len(opt.([]interface{})); i++ {
+				tp := types.TransportPort{}
+				tmp := opt.([]interface{})[i].(map[string]interface{})
+
+				bytes, err := json.Marshal(tmp)
+				if err != nil {
+					log.Error(err)
+					break
+				}
+				err = json.Unmarshal(bytes, &tp)
+				if err != nil {
+					log.Error(err)
+					break
+				}
+				tplist = append(tplist, tp)
+			}
+			ep.generic[netlabel.ExposedPorts] = tplist
+
+		}
+	}
+
+	if v, ok := epMap["anonymous"]; ok {
+		ep.anonymous = v.(bool)
 	}
 	return nil
 }
@@ -122,6 +173,7 @@ func (ep *endpoint) CopyTo(o datastore.KVObject) error {
 	dstEp.sandboxID = ep.sandboxID
 	dstEp.dbIndex = ep.dbIndex
 	dstEp.dbExists = ep.dbExists
+	dstEp.anonymous = ep.anonymous
 
 	if ep.iface != nil {
 		dstEp.iface = &endpointInterface{}
@@ -159,6 +211,12 @@ func (ep *endpoint) Network() string {
 	}
 
 	return ep.network.name
+}
+
+func (ep *endpoint) isAnonymous() bool {
+	ep.Lock()
+	defer ep.Unlock()
+	return ep.anonymous
 }
 
 // endpoint Key structure : endpoint/network-id/endpoint-id
@@ -332,7 +390,7 @@ func (ep *endpoint) sbJoin(sbox Sandbox, options ...EndpointOption) error {
 	if ip := ep.getFirstInterfaceAddress(); ip != nil {
 		address = ip.String()
 	}
-	if err = sb.updateHostsFile(address, network.getSvcRecords()); err != nil {
+	if err = sb.updateHostsFile(address, network.getSvcRecords(ep)); err != nil {
 		return err
 	}
 
@@ -371,6 +429,51 @@ func (ep *endpoint) sbJoin(sbox Sandbox, options ...EndpointOption) error {
 		return sb.setupDefaultGW(ep)
 	}
 	return sb.clearDefaultGW()
+}
+
+func (ep *endpoint) rename(name string) error {
+	var err error
+	n := ep.getNetwork()
+	if n == nil {
+		return fmt.Errorf("network not connected for ep %q", ep.name)
+	}
+
+	n.getController().Lock()
+	netWatch, ok := n.getController().nmap[n.ID()]
+	n.getController().Unlock()
+
+	if !ok {
+		return fmt.Errorf("watch null for network %q", n.Name())
+	}
+
+	n.updateSvcRecord(ep, n.getController().getLocalEps(netWatch), false)
+
+	oldName := ep.name
+	ep.name = name
+
+	n.updateSvcRecord(ep, n.getController().getLocalEps(netWatch), true)
+	defer func() {
+		if err != nil {
+			n.updateSvcRecord(ep, n.getController().getLocalEps(netWatch), false)
+			ep.name = oldName
+			n.updateSvcRecord(ep, n.getController().getLocalEps(netWatch), true)
+		}
+	}()
+
+	// Update the store with the updated name
+	if err = n.getController().updateToStore(ep); err != nil {
+		return err
+	}
+	// After the name change do a dummy endpoint count update to
+	// trigger the service record update in the peer nodes
+
+	// Ignore the error because updateStore fail for EpCnt is a
+	// benign error. Besides there is no meaningful recovery that
+	// we can do. When the cluster recovers subsequent EpCnt update
+	// will force the peers to get the correct EP name.
+	n.getEpCnt().updateStore()
+
+	return err
 }
 
 func (ep *endpoint) hasInterface(iName string) bool {
@@ -425,33 +528,36 @@ func (ep *endpoint) sbLeave(sbox Sandbox, options ...EndpointOption) error {
 
 	ep.processOptions(options...)
 
-	ep.Lock()
-	ep.sandboxID = ""
-	ep.network = n
-	ep.Unlock()
-
-	if err := n.getController().updateToStore(ep); err != nil {
-		ep.Lock()
-		ep.sandboxID = sid
-		ep.Unlock()
-		return err
-	}
-
 	d, err := n.driver()
 	if err != nil {
 		return fmt.Errorf("failed to leave endpoint: %v", err)
 	}
 
+	ep.Lock()
+	ep.sandboxID = ""
+	ep.network = n
+	ep.Unlock()
+
 	if err := d.Leave(n.id, ep.id); err != nil {
-		return err
+		if _, ok := err.(types.MaskableError); !ok {
+			log.Warnf("driver error disconnecting container %s : %v", ep.name, err)
+		}
 	}
 
 	if err := sb.clearNetworkResources(ep); err != nil {
+		log.Warnf("Could not cleanup network resources on container %s disconnect: %v", ep.name, err)
+	}
+
+	// Update the store about the sandbox detach only after we
+	// have completed sb.clearNetworkresources above to avoid
+	// spurious logs when cleaning up the sandbox when the daemon
+	// ungracefully exits and restarts before completing sandbox
+	// detach but after store has been updated.
+	if err := n.getController().updateToStore(ep); err != nil {
 		return err
 	}
 
-	// unwatch for service records
-	n.getController().unWatchSvcRecord(ep)
+	sb.deleteHostsEntries(n.getSvcRecords(ep))
 
 	if sb.needDefaultGW() {
 		ep := sb.getEPwithoutGateway()
@@ -484,17 +590,6 @@ func (ep *endpoint) Delete() error {
 	}
 	ep.Unlock()
 
-	if err = n.getEpCnt().DecEndpointCnt(); err != nil {
-		return err
-	}
-	defer func() {
-		if err != nil {
-			if e := n.getEpCnt().IncEndpointCnt(); e != nil {
-				log.Warnf("failed to update network %s : %v", n.name, e)
-			}
-		}
-	}()
-
 	if err = n.getController().deleteFromStore(ep); err != nil {
 		return err
 	}
@@ -506,6 +601,20 @@ func (ep *endpoint) Delete() error {
 			}
 		}
 	}()
+
+	if err = n.getEpCnt().DecEndpointCnt(); err != nil {
+		return err
+	}
+	defer func() {
+		if err != nil {
+			if e := n.getEpCnt().IncEndpointCnt(); e != nil {
+				log.Warnf("failed to update network %s : %v", n.name, e)
+			}
+		}
+	}()
+
+	// unwatch for service records
+	n.getController().unWatchSvcRecord(ep)
 
 	if err = ep.deleteEndpoint(); err != nil {
 		return err
@@ -532,7 +641,10 @@ func (ep *endpoint) deleteEndpoint() error {
 		if _, ok := err.(types.ForbiddenError); ok {
 			return err
 		}
-		log.Warnf("driver error deleting endpoint %s : %v", name, err)
+
+		if _, ok := err.(types.MaskableError); !ok {
+			log.Warnf("driver error deleting endpoint %s : %v", name, err)
+		}
 	}
 
 	return nil
@@ -593,6 +705,14 @@ func CreateOptionPortMapping(portBindings []types.PortBinding) EndpointOption {
 		pbs := make([]types.PortBinding, len(portBindings))
 		copy(pbs, portBindings)
 		ep.generic[netlabel.PortMap] = pbs
+	}
+}
+
+// CreateOptionAnonymous function returns an option setter for setting
+// this endpoint as anonymous
+func CreateOptionAnonymous() EndpointOption {
+	return func(ep *endpoint) {
+		ep.anonymous = true
 	}
 }
 
@@ -701,6 +821,28 @@ func (ep *endpoint) releaseAddress() {
 	if ep.iface.addrv6 != nil && ep.iface.addrv6.IP.IsGlobalUnicast() {
 		if err := ipam.ReleaseAddress(ep.iface.v6PoolID, ep.iface.addrv6.IP); err != nil {
 			log.Warnf("Failed to release ip address %s on delete of endpoint %s (%s): %v", ep.iface.addrv6.IP, ep.Name(), ep.ID(), err)
+		}
+	}
+}
+
+func (c *controller) cleanupLocalEndpoints() {
+	nl, err := c.getNetworksForScope(datastore.LocalScope)
+	if err != nil {
+		log.Warnf("Could not get list of networks during endpoint cleanup: %v", err)
+		return
+	}
+
+	for _, n := range nl {
+		epl, err := n.getEndpointsFromStore()
+		if err != nil {
+			log.Warnf("Could not get list of endpoints in network %s during endpoint cleanup: %v", n.name, err)
+			continue
+		}
+
+		for _, ep := range epl {
+			if err := ep.Delete(); err != nil {
+				log.Warnf("Could not delete local endpoint %s during endpoint cleanup: %v", ep.name, err)
+			}
 		}
 	}
 }

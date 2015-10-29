@@ -217,16 +217,12 @@ func ValidateIndexName(val string) (string, error) {
 }
 
 func validateRemoteName(remoteName string) error {
-	rn := remoteName
-	remoteNameParts := strings.SplitN(remoteName, "/", 2)
-	if len(remoteNameParts) == 2 && remoteNameParts[0] == "docker.io" {
-		rn = remoteNameParts[1]
-	}
-	if !strings.Contains(rn, "/") {
+
+	if !strings.Contains(remoteName, "/") {
 
 		// the repository name must not be a valid image ID
-		if err := image.ValidateID(rn); err == nil {
-			return fmt.Errorf("Invalid repository name (%s), cannot specify 64-byte hexadecimal strings", rn)
+		if err := image.ValidateID(remoteName); err == nil {
+			return fmt.Errorf("Invalid repository name (%s), cannot specify 64-byte hexadecimal strings", remoteName)
 		}
 	}
 
@@ -290,9 +286,8 @@ func (index *IndexInfo) GetAuthConfigKey() string {
 func splitReposName(reposName string) (string, string) {
 	nameParts := strings.SplitN(reposName, "/", 2)
 	var indexName, remoteName string
-	if len(nameParts) == 1 ||
-		(len(nameParts) == 2 && nameParts[0] == "docker.io" && !strings.Contains(nameParts[1], "/")) ||
-		(!strings.Contains(nameParts[0], ".") && !strings.Contains(nameParts[0], ":") && nameParts[0] != "localhost") {
+	if len(nameParts) == 1 || (!strings.Contains(nameParts[0], ".") &&
+		!strings.Contains(nameParts[0], ":") && nameParts[0] != "localhost") {
 		// This is a Docker Index repos (ex: samalba/hipache or ubuntu)
 		// 'docker.io'
 		indexName = IndexName
@@ -316,10 +311,6 @@ func (config *ServiceConfig) NewRepositoryInfo(reposName string, bySearch bool) 
 		if err := validateRemoteName(remoteName); err != nil {
 			return nil, err
 		}
-	}
-
-	if indexName == "docker.io" && strings.HasPrefix(remoteName, "docker.io/") {
-		remoteName = strings.SplitN(remoteName, "/", 2)[1]
 	}
 
 	repoInfo := &RepositoryInfo{

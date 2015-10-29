@@ -557,8 +557,9 @@ func (b *Builder) run(c *daemon.Container) error {
 	go func() {
 		select {
 		case <-b.cancelled:
-			logrus.Debugln("Build cancelled, killing container:", c.ID)
+			logrus.Debugln("Build cancelled, killing and removing container:", c.ID)
 			c.Kill()
+			b.removeContainer(c.ID)
 		case <-finished:
 		}
 	}()
@@ -582,14 +583,21 @@ func (b *Builder) run(c *daemon.Container) error {
 	return nil
 }
 
+func (b *Builder) removeContainer(c string) error {
+	rmConfig := &daemon.ContainerRmConfig{
+		ForceRemove:  true,
+		RemoveVolume: true,
+	}
+	if err := b.docker.Remove(c, rmConfig); err != nil {
+		fmt.Fprintf(b.Stdout, "Error removing intermediate container %s: %v\n", stringid.TruncateID(c), err)
+		return err
+	}
+	return nil
+}
+
 func (b *Builder) clearTmp() {
 	for c := range b.tmpContainers {
-		rmConfig := &daemon.ContainerRmConfig{
-			ForceRemove:  true,
-			RemoveVolume: true,
-		}
-		if err := b.docker.Remove(c, rmConfig); err != nil {
-			fmt.Fprintf(b.Stdout, "Error removing intermediate container %s: %v\n", stringid.TruncateID(c), err)
+		if err := b.removeContainer(c); err != nil {
 			return
 		}
 		delete(b.tmpContainers, c)

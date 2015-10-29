@@ -2,10 +2,12 @@ package runconfig
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 
 	"github.com/docker/docker/pkg/nat"
 	"github.com/docker/docker/pkg/stringutils"
+	"github.com/docker/docker/volume"
 )
 
 // Config contains the configuration data about a container.
@@ -44,14 +46,28 @@ type Config struct {
 // Be aware this function is not checking whether the resulted structs are nil,
 // it's your business to do so
 func DecodeContainerConfig(src io.Reader) (*Config, *HostConfig, error) {
-	decoder := json.NewDecoder(src)
-
 	var w ContainerConfigWrapper
+
+	decoder := json.NewDecoder(src)
 	if err := decoder.Decode(&w); err != nil {
 		return nil, nil, err
 	}
 
 	hc := w.getHostConfig()
+
+	// Perform platform-specific processing of Volumes and Binds.
+	if w.Config != nil && hc != nil {
+
+		// Initialise the volumes map if currently nil
+		if w.Config.Volumes == nil {
+			w.Config.Volumes = make(map[string]struct{})
+		}
+
+		// Now validate all the volumes and binds
+		if err := validateVolumesAndBindSettings(w.Config, hc); err != nil {
+			return nil, nil, err
+		}
+	}
 
 	// Certain parameters need daemon-side validation that cannot be done
 	// on the client, as only the daemon knows what is valid for the platform.
@@ -60,4 +76,23 @@ func DecodeContainerConfig(src io.Reader) (*Config, *HostConfig, error) {
 	}
 
 	return w.Config, hc, nil
+}
+
+// validateVolumesAndBindSettings validates each of the volumes and bind settings
+// passed by the caller to ensure they are valid.
+func validateVolumesAndBindSettings(c *Config, hc *HostConfig) error {
+
+	// Ensure all volumes and binds are valid.
+	for spec := range c.Volumes {
+		if _, err := volume.ParseMountSpec(spec, hc.VolumeDriver); err != nil {
+			return fmt.Errorf("Invalid volume spec %q: %v", spec, err)
+		}
+	}
+	for _, spec := range hc.Binds {
+		if _, err := volume.ParseMountSpec(spec, hc.VolumeDriver); err != nil {
+			return fmt.Errorf("Invalid bind mount spec %q: %v", spec, err)
+		}
+	}
+
+	return nil
 }

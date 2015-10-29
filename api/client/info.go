@@ -107,5 +107,8 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 		fmt.Fprintf(cli.out, "Cluster store: %s\n", info.ClusterStore)
 	}
 
+	if info.ClusterAdvertise != "" {
+		fmt.Fprintf(cli.out, "Cluster advertise: %s\n", info.ClusterAdvertise)
+	}
 	return nil
 }

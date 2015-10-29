@@ -102,9 +102,7 @@ func (s *DockerExternalGraphdriverSuite) SetUpSuite(c *check.C) {
 	base, err := ioutil.TempDir("", "external-graph-test")
 	c.Assert(err, check.IsNil)
 	vfsProto, err := vfs.Init(base, []string{}, nil, nil)
-	if err != nil {
-		c.Fatalf("error initializing graph driver: %v", err)
-	}
+	c.Assert(err, check.IsNil, check.Commentf("error initializing graph driver"))
 	driver := graphdriver.NewNaiveDiffDriver(vfsProto, nil, nil)
 
 	mux.HandleFunc("/Plugin.Activate", func(w http.ResponseWriter, r *http.Request) {
@@ -285,21 +283,18 @@ func (s *DockerExternalGraphdriverSuite) SetUpSuite(c *check.C) {
 		respond(w, &graphDriverResponse{Size: size})
 	})
 
-	if err := os.MkdirAll("/etc/docker/plugins", 0755); err != nil {
-		c.Fatal(err)
-	}
+	err = os.MkdirAll("/etc/docker/plugins", 0755)
+	c.Assert(err, check.IsNil, check.Commentf("error creating /etc/docker/plugins"))
 
-	if err := ioutil.WriteFile("/etc/docker/plugins/test-external-graph-driver.spec", []byte(s.server.URL), 0644); err != nil {
-		c.Fatal(err)
-	}
+	err = ioutil.WriteFile("/etc/docker/plugins/test-external-graph-driver.spec", []byte(s.server.URL), 0644)
+	c.Assert(err, check.IsNil, check.Commentf("error writing to /etc/docker/plugins/test-external-graph-driver.spec"))
 }
 
 func (s *DockerExternalGraphdriverSuite) TearDownSuite(c *check.C) {
 	s.server.Close()
 
-	if err := os.RemoveAll("/etc/docker/plugins"); err != nil {
-		c.Fatal(err)
-	}
+	err := os.RemoveAll("/etc/docker/plugins")
+	c.Assert(err, check.IsNil, check.Commentf("error removing /etc/docker/plugins"))
 }
 
 func (s *DockerExternalGraphdriverSuite) TestExternalGraphDriver(c *check.C) {

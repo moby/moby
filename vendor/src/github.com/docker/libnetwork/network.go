@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"strconv"
+	"strings"
 	"sync"
 
 	log "github.com/Sirupsen/logrus"
@@ -33,7 +34,6 @@ type Network interface {
 
 	// Create a new endpoint to this network symbolically identified by the
 	// specified unique name. The options parameter carry driver specific options.
-	// Labels support will be added in the near future.
 	CreateEndpoint(name string, options ...EndpointOption) (Endpoint, error)
 
 	// Delete the network.
@@ -58,7 +58,7 @@ type Network interface {
 // NetworkInfo returns some configuration and operational information about the network
 type NetworkInfo interface {
 	IpamConfig() (string, []*IpamConf, []*IpamConf)
-	Labels() map[string]string
+	DriverOptions() map[string]string
 	Scope() string
 }
 
@@ -402,7 +402,7 @@ func (n *network) UnmarshalJSON(b []byte) (err error) {
 
 	if v, ok := netMap["generic"]; ok {
 		n.generic = v.(map[string]interface{})
-		// Restore labels in their map[string]string form
+		// Restore opts in their map[string]string form
 		if v, ok := n.generic[netlabel.GenericData]; ok {
 			var lmap map[string]string
 			ba, err := json.Marshal(v)
@@ -484,19 +484,19 @@ func NetworkOptionIpam(ipamDriver string, addrSpace string, ipV4 []*IpamConf, ip
 	}
 }
 
-// NetworkOptionLabels function returns an option setter for any parameter described by a map
-func NetworkOptionLabels(labels map[string]string) NetworkOption {
+// NetworkOptionDriverOpts function returns an option setter for any parameter described by a map
+func NetworkOptionDriverOpts(opts map[string]string) NetworkOption {
 	return func(n *network) {
 		if n.generic == nil {
 			n.generic = make(map[string]interface{})
 		}
-		if labels == nil {
-			labels = make(map[string]string)
+		if opts == nil {
+			opts = make(map[string]string)
 		}
 		// Store the options
-		n.generic[netlabel.GenericData] = labels
+		n.generic[netlabel.GenericData] = opts
 		// Decode and store the endpoint options of libnetwork interest
-		if val, ok := labels[netlabel.EnableIPv6]; ok {
+		if val, ok := opts[netlabel.EnableIPv6]; ok {
 			var err error
 			if n.enableIPv6, err = strconv.ParseBool(val); err != nil {
 				log.Warnf("Failed to parse %s' value: %s (%s)", netlabel.EnableIPv6, val, err.Error())
@@ -686,6 +686,14 @@ func (n *network) CreateEndpoint(name string, options ...EndpointOption) (Endpoi
 		}
 	}()
 
+	// Watch for service records
+	n.getController().watchSvcRecord(ep)
+	defer func() {
+		if err != nil {
+			n.getController().unWatchSvcRecord(ep)
+		}
+	}()
+
 	// Increment endpoint count to indicate completion of endpoint addition
 	if err = n.getEpCnt().IncEndpointCnt(); err != nil {
 		return nil, err
@@ -754,6 +762,10 @@ func (n *network) EndpointByID(id string) (Endpoint, error) {
 }
 
 func (n *network) updateSvcRecord(ep *endpoint, localEps []*endpoint, isAdd bool) {
+	if ep.isAnonymous() {
+		return
+	}
+
 	c := n.getController()
 	sr, ok := c.svcDb[n.ID()]
 	if !ok {
@@ -765,6 +777,12 @@ func (n *network) updateSvcRecord(ep *endpoint, localEps []*endpoint, isAdd bool
 	var recs []etchosts.Record
 	if iface := ep.Iface(); iface.Address() != nil {
 		if isAdd {
+			// If we already have this endpoint in service db just return
+			if _, ok := sr[ep.Name()]; ok {
+				n.Unlock()
+				return
+			}
+
 			sr[ep.Name()] = iface.Address().IP
 			sr[ep.Name()+"."+n.name] = iface.Address().IP
 		} else {
@@ -790,8 +808,12 @@ func (n *network) updateSvcRecord(ep *endpoint, localEps []*endpoint, isAdd bool
 	}
 
 	var sbList []*sandbox
-	for _, ep := range localEps {
-		if sb, hasSandbox := ep.getSandbox(); hasSandbox {
+	for _, lEp := range localEps {
+		if ep.ID() == lEp.ID() {
+			continue
+		}
+
+		if sb, hasSandbox := lEp.getSandbox(); hasSandbox {
 			sbList = append(sbList, sb)
 		}
 	}
@@ -805,7 +827,7 @@ func (n *network) updateSvcRecord(ep *endpoint, localEps []*endpoint, isAdd bool
 	}
 }
 
-func (n *network) getSvcRecords() []etchosts.Record {
+func (n *network) getSvcRecords(ep *endpoint) []etchosts.Record {
 	n.Lock()
 	defer n.Unlock()
 
@@ -813,6 +835,10 @@ func (n *network) getSvcRecords() []etchosts.Record {
 	sr, _ := n.ctrlr.svcDb[n.id]
 
 	for h, ip := range sr {
+		if ep != nil && strings.Split(h, ".")[0] == ep.Name() {
+			continue
+		}
+
 		recs = append(recs, etchosts.Record{
 			Hosts: h,
 			IP:    ip.String(),
@@ -1056,7 +1082,7 @@ func (n *network) Info() NetworkInfo {
 	return n
 }
 
-func (n *network) Labels() map[string]string {
+func (n *network) DriverOptions() map[string]string {
 	n.Lock()
 	defer n.Unlock()
 	if n.generic != nil {

@@ -34,6 +34,8 @@ type Sandbox interface {
 	Refresh(options ...SandboxOption) error
 	// SetKey updates the Sandbox Key
 	SetKey(key string) error
+	// Rename changes the name of all attached Endpoints
+	Rename(name string) error
 	// Delete destroys this container after detaching it from all connected endpoints.
 	Delete() error
 }
@@ -66,6 +68,7 @@ type sandbox struct {
 	joinLeaveDone chan struct{}
 	dbIndex       uint64
 	dbExists      bool
+	inDelete      bool
 	sync.Mutex
 }
 
@@ -146,6 +149,22 @@ func (sb *sandbox) Statistics() (map[string]*types.InterfaceStatistics, error) {
 }
 
 func (sb *sandbox) Delete() error {
+	sb.Lock()
+	if sb.inDelete {
+		sb.Unlock()
+		return types.ForbiddenErrorf("another sandbox delete in progress")
+	}
+	// Set the inDelete flag. This will ensure that we don't
+	// update the store until we have completed all the endpoint
+	// leaves and deletes. And when endpoint leaves and deletes
+	// are completed then we can finally delete the sandbox object
+	// altogether from the data store. If the daemon exits
+	// ungracefully in the middle of a sandbox delete this way we
+	// will have all the references to the endpoints in the
+	// sandbox so that we can clean them up when we restart
+	sb.inDelete = true
+	sb.Unlock()
+
 	c := sb.controller
 
 	// Detach from all endpoints
@@ -165,6 +184,10 @@ func (sb *sandbox) Delete() error {
 		}
 	}
 
+	// Container is going away. Path cache in etchosts is most
+	// likely not required any more. Drop it.
+	etchosts.Drop(sb.config.hostsPath)
+
 	if sb.osSbox != nil {
 		sb.osSbox.Destroy()
 	}
@@ -178,6 +201,30 @@ func (sb *sandbox) Delete() error {
 	c.Unlock()
 
 	return nil
+}
+
+func (sb *sandbox) Rename(name string) error {
+	var err error
+
+	for _, ep := range sb.getConnectedEndpoints() {
+		if ep.endpointInGWNetwork() {
+			continue
+		}
+
+		oldName := ep.Name()
+		lEp := ep
+		if err = ep.rename(name); err != nil {
+			break
+		}
+
+		defer func() {
+			if err != nil {
+				lEp.rename(oldName)
+			}
+		}()
+	}
+
+	return err
 }
 
 func (sb *sandbox) Refresh(options ...SandboxOption) error {
@@ -355,6 +402,10 @@ func releaseOSSboxResources(osSbox osl.Sandbox, ep *endpoint) {
 	joinInfo := ep.joinInfo
 	ep.Unlock()
 
+	if joinInfo == nil {
+		return
+	}
+
 	// Remove non-interface routes.
 	for _, r := range joinInfo.StaticRoutes {
 		if err := osSbox.RemoveStaticRoute(r); err != nil {
@@ -386,6 +437,7 @@ func (sb *sandbox) populateNetworkResources(ep *endpoint) error {
 		sb.Unlock()
 		return nil
 	}
+	inDelete := sb.inDelete
 	sb.Unlock()
 
 	ep.Lock()
@@ -425,7 +477,16 @@ func (sb *sandbox) populateNetworkResources(ep *endpoint) error {
 			}
 		}
 	}
-	return sb.storeUpdate()
+
+	// Only update the store if we did not come here as part of
+	// sandbox delete. If we came here as part of delete then do
+	// not bother updating the store. The sandbox object will be
+	// deleted anyway
+	if !inDelete {
+		return sb.storeUpdate()
+	}
+
+	return nil
 }
 
 func (sb *sandbox) clearNetworkResources(origEp *endpoint) error {
@@ -437,6 +498,7 @@ func (sb *sandbox) clearNetworkResources(origEp *endpoint) error {
 
 	sb.Lock()
 	osSbox := sb.osSbox
+	inDelete := sb.inDelete
 	sb.Unlock()
 	if osSbox != nil {
 		releaseOSSboxResources(osSbox, ep)
@@ -480,7 +542,15 @@ func (sb *sandbox) clearNetworkResources(origEp *endpoint) error {
 		sb.updateGateway(gwepAfter)
 	}
 
-	return sb.storeUpdate()
+	// Only update the store if we did not come here as part of
+	// sandbox delete. If we came here as part of delete then do
+	// not bother updating the store. The sandbox object will be
+	// deleted anyway
+	if !inDelete {
+		return sb.storeUpdate()
+	}
+
+	return nil
 }
 
 const (

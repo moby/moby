@@ -59,11 +59,6 @@ This will create a new volume inside a container at `/webapp`.
 > You can also use the `VOLUME` instruction in a `Dockerfile` to add one or
 > more new volumes to any container created from that image.
 
-Docker volumes default to mount in read-write mode, but you can also set it to be mounted read-only.
-
-    $ docker run -d -P --name web -v /opt/webapp:ro training/webapp python app.py
-
-
 ### Locating a volume
 
 You can locate the volume on the host by utilizing the 'docker inspect' command.
@@ -155,8 +150,8 @@ Here we've mounted the same `/src/webapp` directory but we've added the `ro`
 option to specify that the mount should be read-only.
 
 Because of [limitations in the `mount`
-function](http://lists.linuxfoundation.org/pipermail/containers/2015-April/
-035788.html), moving subdirectories within the host's source directory can give
+function](http://lists.linuxfoundation.org/pipermail/containers/2015-April/035788.html),
+moving subdirectories within the host's source directory can give
 access from the container to the host's file system. This requires a malicious
 user with access to host and its mounted directory. 
 

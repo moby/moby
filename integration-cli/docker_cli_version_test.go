@@ -3,6 +3,7 @@ package main
 import (
 	"strings"
 
+	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/go-check/check"
 )
 
@@ -21,9 +22,7 @@ func (s *DockerSuite) TestVersionEnsureSucceeds(c *check.C) {
 	}
 
 	for k, v := range stringsToCheck {
-		if strings.Count(out, k) != v {
-			c.Errorf("%v expected %d instances found %d", k, v, strings.Count(out, k))
-		}
+		c.Assert(strings.Count(out, k), checker.Equals, v, check.Commentf("The count of %v in %s does not match excepted", k, out))
 	}
 }
 
@@ -44,9 +43,7 @@ func testVersionPlatform(c *check.C, platform string) {
 	expected := "OS/Arch:      " + platform
 
 	split := strings.Split(out, "\n")
-	if len(split) < 14 { // To avoid invalid indexing in loop below
-		c.Errorf("got %d lines from version", len(split))
-	}
+	c.Assert(len(split) >= 14, checker.Equals, true, check.Commentf("got %d lines from version", len(split)))
 
 	// Verify the second 'OS/Arch' matches the platform. Experimental has
 	// more lines of output than 'regular'
@@ -57,7 +54,5 @@ func testVersionPlatform(c *check.C, platform string) {
 			break
 		}
 	}
-	if !bFound {
-		c.Errorf("Could not find server '%s' in '%s'", expected, out)
-	}
+	c.Assert(bFound, checker.Equals, true, check.Commentf("Could not find server '%s' in '%s'", expected, out))
 }

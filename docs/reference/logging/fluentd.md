@@ -39,7 +39,7 @@ Some options are supported by specifying `--log-opt` as many times as needed:
 Configure the default logging driver by passing the
 `--log-driver` option to the Docker daemon:
 
-    docker --log-driver=fluentd
+    docker daemon --log-driver=fluentd
 
 To set the logging driver for a specific container, pass the
 `--log-driver` option to `docker run`:

@@ -24,11 +24,6 @@ func checkSupportedOptions(c *execdriver.Command) error {
 		return errors.New("Windows does not support lxc options")
 	}
 
-	// Windows doesn't support ulimit
-	if c.Resources.Rlimits != nil {
-		return errors.New("Windows does not support ulimit options")
-	}
-
 	// TODO Windows: Validate other fields which Windows doesn't support, factor
 	// out where applicable per platform.
 

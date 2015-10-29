@@ -17,6 +17,7 @@ import (
 	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/registry"
 	"golang.org/x/net/context"
+	"strings"
 )
 
 type dumbCredentialStore struct {
@@ -57,9 +58,9 @@ func NewV2Repository(repoInfo *registry.RepositoryInfo, endpoint registry.APIEnd
 	authTransport := transport.NewTransport(base, modifiers...)
 	pingClient := &http.Client{
 		Transport: authTransport,
-		Timeout:   5 * time.Second,
+		Timeout:   15 * time.Second,
 	}
-	endpointStr := endpoint.URL + "/v2/"
+	endpointStr := strings.TrimRight(endpoint.URL, "/") + "/v2/"
 	req, err := http.NewRequest("GET", endpointStr, nil)
 	if err != nil {
 		return nil, err

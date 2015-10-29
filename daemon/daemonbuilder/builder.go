@@ -17,10 +17,10 @@ import (
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/httputils"
+	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/progressreader"
-	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/pkg/urlutil"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/runconfig"
@@ -83,7 +83,12 @@ func (d Docker) Container(id string) (*daemon.Container, error) {
 
 // Create creates a new Docker container and returns potential warnings
 func (d Docker) Create(cfg *runconfig.Config, hostCfg *runconfig.HostConfig) (*daemon.Container, []string, error) {
-	ccr, err := d.Daemon.ContainerCreate("", cfg, hostCfg, true)
+	ccr, err := d.Daemon.ContainerCreate(&daemon.ContainerCreateConfig{
+		Name:            "",
+		Config:          cfg,
+		HostConfig:      hostCfg,
+		AdjustCPUShares: true,
+	})
 	if err != nil {
 		return nil, nil, err
 	}
@@ -180,7 +185,7 @@ func (d Docker) Copy(c *daemon.Container, destPath string, src builder.FileInfo,
 		destPath = filepath.Join(destPath, filepath.Base(srcPath))
 	}
 
-	if err := system.MkdirAll(filepath.Dir(destPath), 0755); err != nil {
+	if err := idtools.MkdirAllNewAs(filepath.Dir(destPath), 0755, rootUID, rootGID); err != nil {
 		return err
 	}
 	if err := d.Archiver.CopyFileWithTar(srcPath, destPath); err != nil {
@@ -193,7 +198,7 @@ func (d Docker) Copy(c *daemon.Container, destPath string, src builder.FileInfo,
 // GetCachedImage returns a reference to a cached image whose parent equals `parent`
 // and runconfig equals `cfg`. A cache miss is expected to return an empty ID and a nil error.
 func (d Docker) GetCachedImage(imgID string, cfg *runconfig.Config) (string, error) {
-	cache, err := d.Daemon.ImageGetCached(string(imgID), cfg)
+	cache, err := d.Daemon.ImageGetCached(imgID, cfg)
 	if cache == nil || err != nil {
 		return "", err
 	}

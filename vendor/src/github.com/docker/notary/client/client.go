@@ -245,6 +245,7 @@ func (r *NotaryRepository) AddTarget(target *Target) error {
 	if err != nil {
 		return err
 	}
+	defer cl.Close()
 	logrus.Debugf("Adding target \"%s\" with sha256 \"%x\" and size %d bytes.\n", target.Name, target.Hashes["sha256"], target.Length)
 
 	meta := data.FileMeta{Length: target.Length, Hashes: target.Hashes}
@@ -258,7 +259,7 @@ func (r *NotaryRepository) AddTarget(target *Target) error {
 	if err != nil {
 		return err
 	}
-	return cl.Close()
+	return nil
 }
 
 // RemoveTarget creates a new changelist entry to remove a target from the repository
@@ -326,6 +327,17 @@ func (r *NotaryRepository) GetTargetByName(name string) (*Target, error) {
 	return &Target{Name: name, Hashes: meta.Hashes, Length: meta.Length}, nil
 }
 
+// GetChangelist returns the list of the repository's unpublished changes
+func (r *NotaryRepository) GetChangelist() (changelist.Changelist, error) {
+	changelistDir := filepath.Join(r.tufRepoPath, "changelist")
+	cl, err := changelist.NewFileChangelist(changelistDir)
+	if err != nil {
+		logrus.Debug("Error initializing changelist")
+		return nil, err
+	}
+	return cl, nil
+}
+
 // Publish pushes the local changes in signed material to the remote notary-server
 // Conceptually it performs an operation similar to a `git rebase`
 func (r *NotaryRepository) Publish() error {
@@ -371,11 +383,8 @@ func (r *NotaryRepository) Publish() error {
 			return err
 		}
 	}
-	// load the changelist for this repo
-	changelistDir := filepath.Join(r.tufRepoPath, "changelist")
-	cl, err := changelist.NewFileChangelist(changelistDir)
+	cl, err := r.GetChangelist()
 	if err != nil {
-		logrus.Debug("Error initializing changelist")
 		return err
 	}
 	// apply the changelist to the repo
@@ -445,7 +454,7 @@ func (r *NotaryRepository) Publish() error {
 		// This is not a critical problem when only a single host is pushing
 		// but will cause weird behaviour if changelist cleanup is failing
 		// and there are multiple hosts writing to the repo.
-		logrus.Warn("Unable to clear changelist. You may want to manually delete the folder ", changelistDir)
+		logrus.Warn("Unable to clear changelist. You may want to manually delete the folder ", filepath.Join(r.tufRepoPath, "changelist"))
 	}
 	return nil
 }
@@ -595,4 +604,56 @@ func (r *NotaryRepository) bootstrapClient() (*tufclient.Client, error) {
 		kdb,
 		r.fileStore,
 	), nil
+}
+
+// RotateKeys removes all existing keys associated with role and adds
+// the keys specified by keyIDs to the role. These changes are staged
+// in a changelist until publish is called.
+func (r *NotaryRepository) RotateKeys() error {
+	for _, role := range []string{"targets", "snapshot"} {
+		key, err := r.cryptoService.Create(role, data.ECDSAKey)
+		if err != nil {
+			return err
+		}
+		err = r.rootFileKeyChange(role, changelist.ActionCreate, key)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (r *NotaryRepository) rootFileKeyChange(role, action string, key data.PublicKey) error {
+	cl, err := changelist.NewFileChangelist(filepath.Join(r.tufRepoPath, "changelist"))
+	if err != nil {
+		return err
+	}
+	defer cl.Close()
+
+	k, ok := key.(*data.TUFKey)
+	if !ok {
+		return errors.New("Invalid key type found during rotation.")
+	}
+
+	meta := changelist.TufRootData{
+		RoleName: role,
+		Keys:     []data.TUFKey{*k},
+	}
+	metaJSON, err := json.Marshal(meta)
+	if err != nil {
+		return err
+	}
+
+	c := changelist.NewTufChange(
+		action,
+		changelist.ScopeRoot,
+		changelist.TypeRootRole,
+		role,
+		metaJSON,
+	)
+	err = cl.Add(c)
+	if err != nil {
+		return err
+	}
+	return nil
 }

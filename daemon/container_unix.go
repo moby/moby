@@ -23,12 +23,12 @@ import (
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/nat"
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/docker/pkg/symlink"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/pkg/ulimit"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
 	"github.com/docker/docker/volume"
-	"github.com/docker/docker/volume/store"
 	"github.com/docker/libnetwork"
 	"github.com/docker/libnetwork/drivers/bridge"
 	"github.com/docker/libnetwork/netlabel"
@@ -54,9 +54,8 @@ type Container struct {
 	AppArmorProfile string
 	HostnamePath    string
 	HostsPath       string
-	ShmPath         string
-	MqueuePath      string
-	MountPoints     map[string]*mountPoint
+	ShmPath         string // TODO Windows - Factor this out (GH15862)
+	MqueuePath      string // TODO Windows - Factor this out (GH15862)
 	ResolvConfPath  string
 
 	Volumes   map[string]string // Deprecated since 1.7, kept for backwards compatibility
@@ -89,15 +88,25 @@ func (container *Container) setupLinkedContainers() ([]string, error) {
 		return nil, err
 	}
 
+	bridgeSettings := container.NetworkSettings.Networks["bridge"]
+	if bridgeSettings == nil {
+		return nil, nil
+	}
+
 	if len(children) > 0 {
 		for linkAlias, child := range children {
 			if !child.IsRunning() {
 				return nil, derr.ErrorCodeLinkNotRunning.WithArgs(child.Name, linkAlias)
 			}
 
+			childBridgeSettings := child.NetworkSettings.Networks["bridge"]
+			if childBridgeSettings == nil {
+				return nil, fmt.Errorf("container %d not attached to default bridge network", child.ID)
+			}
+
 			link := links.NewLink(
-				container.NetworkSettings.IPAddress,
-				child.NetworkSettings.IPAddress,
+				bridgeSettings.IPAddress,
+				childBridgeSettings.IPAddress,
 				linkAlias,
 				child.Config.Env,
 				child.Config.ExposedPorts,
@@ -218,6 +227,12 @@ func populateCommand(c *Container, env []string) error {
 	} else {
 		ipc.HostIpc = c.hostConfig.IpcMode.IsHost()
 		if ipc.HostIpc {
+			if _, err := os.Stat("/dev/shm"); err != nil {
+				return fmt.Errorf("/dev/shm is not mounted, but must be for --host=ipc")
+			}
+			if _, err := os.Stat("/dev/mqueue"); err != nil {
+				return fmt.Errorf("/dev/mqueue is not mounted, but must be for --host=ipc")
+			}
 			c.ShmPath = "/dev/shm"
 			c.MqueuePath = "/dev/mqueue"
 		}
@@ -274,19 +289,21 @@ func populateCommand(c *Container, env []string) error {
 	}
 
 	resources := &execdriver.Resources{
-		Memory:            c.hostConfig.Memory,
-		MemorySwap:        c.hostConfig.MemorySwap,
-		MemoryReservation: c.hostConfig.MemoryReservation,
-		KernelMemory:      c.hostConfig.KernelMemory,
-		CPUShares:         c.hostConfig.CPUShares,
-		CpusetCpus:        c.hostConfig.CpusetCpus,
-		CpusetMems:        c.hostConfig.CpusetMems,
-		CPUPeriod:         c.hostConfig.CPUPeriod,
-		CPUQuota:          c.hostConfig.CPUQuota,
-		BlkioWeight:       c.hostConfig.BlkioWeight,
-		Rlimits:           rlimits,
-		OomKillDisable:    c.hostConfig.OomKillDisable,
-		MemorySwappiness:  -1,
+		CommonResources: execdriver.CommonResources{
+			Memory:            c.hostConfig.Memory,
+			MemoryReservation: c.hostConfig.MemoryReservation,
+			CPUShares:         c.hostConfig.CPUShares,
+			BlkioWeight:       c.hostConfig.BlkioWeight,
+		},
+		MemorySwap:       c.hostConfig.MemorySwap,
+		KernelMemory:     c.hostConfig.KernelMemory,
+		CpusetCpus:       c.hostConfig.CpusetCpus,
+		CpusetMems:       c.hostConfig.CpusetMems,
+		CPUPeriod:        c.hostConfig.CPUPeriod,
+		CPUQuota:         c.hostConfig.CPUQuota,
+		Rlimits:          rlimits,
+		OomKillDisable:   c.hostConfig.OomKillDisable,
+		MemorySwappiness: -1,
 	}
 
 	if c.hostConfig.MemorySwappiness != nil {
@@ -525,6 +542,9 @@ func (container *Container) buildSandboxOptions(n libnetwork.Network) ([]libnetw
 	}
 
 	for linkAlias, child := range children {
+		if !isLinkable(child) {
+			return nil, fmt.Errorf("Cannot link to %s, as it does not belong to the default network", child.Name)
+		}
 		_, alias := path.Split(linkAlias)
 		// allow access to the linked container via the alias, real name, and container hostname
 		aliasList := alias + " " + child.Config.Hostname
@@ -532,13 +552,14 @@ func (container *Container) buildSandboxOptions(n libnetwork.Network) ([]libnetw
 		if alias != child.Name[1:] {
 			aliasList = aliasList + " " + child.Name[1:]
 		}
-		sboxOptions = append(sboxOptions, libnetwork.OptionExtraHost(aliasList, child.NetworkSettings.IPAddress))
+		sboxOptions = append(sboxOptions, libnetwork.OptionExtraHost(aliasList, child.NetworkSettings.Networks["bridge"].IPAddress))
 		cEndpoint, _ := child.getEndpointInNetwork(n)
 		if cEndpoint != nil && cEndpoint.ID() != "" {
 			childEndpoints = append(childEndpoints, cEndpoint.ID())
 		}
 	}
 
+	bridgeSettings := container.NetworkSettings.Networks["bridge"]
 	refs := container.daemon.containerGraph().RefPaths(container.ID)
 	for _, ref := range refs {
 		if ref.ParentID == "0" {
@@ -551,8 +572,8 @@ func (container *Container) buildSandboxOptions(n libnetwork.Network) ([]libnetw
 		}
 
 		if c != nil && !container.daemon.configStore.DisableBridge && container.hostConfig.NetworkMode.IsPrivate() {
-			logrus.Debugf("Update /etc/hosts of %s for alias %s with ip %s", c.ID, ref.Name, container.NetworkSettings.IPAddress)
-			sboxOptions = append(sboxOptions, libnetwork.OptionParentUpdate(c.ID, ref.Name, container.NetworkSettings.IPAddress))
+			logrus.Debugf("Update /etc/hosts of %s for alias %s with ip %s", c.ID, ref.Name, bridgeSettings.IPAddress)
+			sboxOptions = append(sboxOptions, libnetwork.OptionParentUpdate(c.ID, ref.Name, bridgeSettings.IPAddress))
 			if ep.ID() != "" {
 				parentEndpoints = append(parentEndpoints, ep.ID())
 			}
@@ -569,6 +590,12 @@ func (container *Container) buildSandboxOptions(n libnetwork.Network) ([]libnetw
 	sboxOptions = append(sboxOptions, libnetwork.OptionGeneric(linkOptions))
 
 	return sboxOptions, nil
+}
+
+func isLinkable(child *Container) bool {
+	// A container is linkable only if it belongs to the default network
+	_, ok := child.NetworkSettings.Networks["bridge"]
+	return ok
 }
 
 func (container *Container) getEndpointInNetwork(n libnetwork.Network) (libnetwork.Endpoint, error) {
@@ -593,10 +620,6 @@ func (container *Container) buildPortMapInfo(ep libnetwork.Endpoint, networkSett
 	if driverInfo == nil {
 		// It is not an error for epInfo to be nil
 		return networkSettings, nil
-	}
-
-	if mac, ok := driverInfo[netlabel.MacAddress]; ok {
-		networkSettings.MacAddress = mac.(net.HardwareAddr).String()
 	}
 
 	networkSettings.Ports = nat.PortMap{}
@@ -632,7 +655,7 @@ func (container *Container) buildPortMapInfo(ep libnetwork.Endpoint, networkSett
 	return networkSettings, nil
 }
 
-func (container *Container) buildEndpointInfo(ep libnetwork.Endpoint, networkSettings *network.Settings) (*network.Settings, error) {
+func (container *Container) buildEndpointInfo(n libnetwork.Network, ep libnetwork.Endpoint, networkSettings *network.Settings) (*network.Settings, error) {
 	if ep == nil {
 		return nil, derr.ErrorCodeEmptyEndpoint
 	}
@@ -647,6 +670,11 @@ func (container *Container) buildEndpointInfo(ep libnetwork.Endpoint, networkSet
 		return networkSettings, nil
 	}
 
+	if _, ok := networkSettings.Networks[n.Name()]; !ok {
+		networkSettings.Networks[n.Name()] = new(network.EndpointSettings)
+	}
+	networkSettings.Networks[n.Name()].EndpointID = ep.ID()
+
 	iface := epInfo.Iface()
 	if iface == nil {
 		return networkSettings, nil
@@ -654,29 +682,43 @@ func (container *Container) buildEndpointInfo(ep libnetwork.Endpoint, networkSet
 
 	if iface.Address() != nil {
 		ones, _ := iface.Address().Mask.Size()
-		networkSettings.IPAddress = iface.Address().IP.String()
-		networkSettings.IPPrefixLen = ones
+		networkSettings.Networks[n.Name()].IPAddress = iface.Address().IP.String()
+		networkSettings.Networks[n.Name()].IPPrefixLen = ones
 	}
 
 	if iface.AddressIPv6() != nil && iface.AddressIPv6().IP.To16() != nil {
 		onesv6, _ := iface.AddressIPv6().Mask.Size()
-		networkSettings.GlobalIPv6Address = iface.AddressIPv6().IP.String()
-		networkSettings.GlobalIPv6PrefixLen = onesv6
+		networkSettings.Networks[n.Name()].GlobalIPv6Address = iface.AddressIPv6().IP.String()
+		networkSettings.Networks[n.Name()].GlobalIPv6PrefixLen = onesv6
+	}
+
+	driverInfo, err := ep.DriverInfo()
+	if err != nil {
+		return nil, err
+	}
+
+	if driverInfo == nil {
+		// It is not an error for epInfo to be nil
+		return networkSettings, nil
+	}
+	if mac, ok := driverInfo[netlabel.MacAddress]; ok {
+		networkSettings.Networks[n.Name()].MacAddress = mac.(net.HardwareAddr).String()
 	}
 
 	return networkSettings, nil
 }
 
-func (container *Container) updateJoinInfo(ep libnetwork.Endpoint) error {
+func (container *Container) updateJoinInfo(n libnetwork.Network, ep libnetwork.Endpoint) error {
 	epInfo := ep.Info()
 	if epInfo == nil {
 		// It is not an error to get an empty endpoint info
 		return nil
 	}
-
-	container.NetworkSettings.Gateway = epInfo.Gateway().String()
+	if epInfo.Gateway() != nil {
+		container.NetworkSettings.Networks[n.Name()].Gateway = epInfo.Gateway().String()
+	}
 	if epInfo.GatewayIPv6().To16() != nil {
-		container.NetworkSettings.IPv6Gateway = epInfo.GatewayIPv6().String()
+		container.NetworkSettings.Networks[n.Name()].IPv6Gateway = epInfo.GatewayIPv6().String()
 	}
 
 	return nil
@@ -684,11 +726,10 @@ func (container *Container) updateJoinInfo(ep libnetwork.Endpoint) error {
 
 func (container *Container) updateNetworkSettings(n libnetwork.Network) error {
 	if container.NetworkSettings == nil {
-		container.NetworkSettings = &network.Settings{Networks: []string{}}
+		container.NetworkSettings = &network.Settings{Networks: make(map[string]*network.EndpointSettings)}
 	}
-	settings := container.NetworkSettings
 
-	for _, s := range settings.Networks {
+	for s := range container.NetworkSettings.Networks {
 		sn, err := container.daemon.FindNetwork(s)
 		if err != nil {
 			continue
@@ -707,7 +748,7 @@ func (container *Container) updateNetworkSettings(n libnetwork.Network) error {
 			return runconfig.ErrConflictNoNetwork
 		}
 	}
-	settings.Networks = append(settings.Networks, n.Name())
+	container.NetworkSettings.Networks[n.Name()] = new(network.EndpointSettings)
 
 	return nil
 }
@@ -718,7 +759,7 @@ func (container *Container) updateEndpointNetworkSettings(n libnetwork.Network, 
 		return err
 	}
 
-	networkSettings, err = container.buildEndpointInfo(ep, networkSettings)
+	networkSettings, err = container.buildEndpointInfo(n, ep, networkSettings)
 	if err != nil {
 		return err
 	}
@@ -749,7 +790,7 @@ func (container *Container) updateNetwork() error {
 
 	// Find if container is connected to the default bridge network
 	var n libnetwork.Network
-	for _, name := range container.NetworkSettings.Networks {
+	for name := range container.NetworkSettings.Networks {
 		sn, err := container.daemon.FindNetwork(name)
 		if err != nil {
 			continue
@@ -777,7 +818,7 @@ func (container *Container) updateNetwork() error {
 	return nil
 }
 
-func (container *Container) buildCreateEndpointOptions() ([]libnetwork.EndpointOption, error) {
+func (container *Container) buildCreateEndpointOptions(n libnetwork.Network) ([]libnetwork.EndpointOption, error) {
 	var (
 		portSpecs     = make(nat.PortSet)
 		bindings      = make(nat.PortMap)
@@ -855,6 +896,10 @@ func (container *Container) buildCreateEndpointOptions() ([]libnetwork.EndpointO
 		createOptions = append(createOptions, libnetwork.EndpointOptionGeneric(genericOption))
 	}
 
+	if n.Name() == "bridge" || container.NetworkSettings.IsAnonymousEndpoint {
+		createOptions = append(createOptions, libnetwork.CreateOptionAnonymous())
+	}
+
 	return createOptions, nil
 }
 
@@ -875,9 +920,8 @@ func createNetwork(controller libnetwork.NetworkController, dnet string, driver 
 }
 
 func (container *Container) allocateNetwork() error {
-	settings := container.NetworkSettings.Networks
 	updateSettings := false
-	if settings == nil {
+	if len(container.NetworkSettings.Networks) == 0 {
 		mode := container.hostConfig.NetworkMode
 		controller := container.daemon.netController
 		if container.Config.NetworkDisabled || mode.IsContainer() {
@@ -888,17 +932,14 @@ func (container *Container) allocateNetwork() error {
 		if mode.IsDefault() {
 			networkName = controller.Config().Daemon.DefaultNetwork
 		}
-		settings = []string{networkName}
+		container.NetworkSettings.Networks = make(map[string]*network.EndpointSettings)
+		container.NetworkSettings.Networks[networkName] = new(network.EndpointSettings)
 		updateSettings = true
 	}
 
-	for _, n := range settings {
+	for n := range container.NetworkSettings.Networks {
 		if err := container.connectToNetwork(n, updateSettings); err != nil {
-			if updateSettings {
-				return err
-			}
-			// dont fail a container restart case if the user removed the network
-			logrus.Warnf("Could not connect container %s : %v", container.ID, err)
+			return err
 		}
 	}
 
@@ -914,6 +955,8 @@ func (container *Container) ConnectToNetwork(idOrName string) error {
 }
 
 func (container *Container) connectToNetwork(idOrName string, updateSettings bool) error {
+	var err error
+
 	if container.hostConfig.NetworkMode.IsContainer() {
 		return runconfig.ErrConflictSharedNetwork
 	}
@@ -938,22 +981,31 @@ func (container *Container) connectToNetwork(idOrName string, updateSettings boo
 	}
 
 	ep, err := container.getEndpointInNetwork(n)
-	if err != nil {
-		if _, ok := err.(libnetwork.ErrNoSuchEndpoint); !ok {
-			return err
-		}
-
-		createOptions, err := container.buildCreateEndpointOptions()
-		if err != nil {
-			return err
-		}
-
-		endpointName := strings.TrimPrefix(container.Name, "/")
-		ep, err = n.CreateEndpoint(endpointName, createOptions...)
-		if err != nil {
-			return err
-		}
+	if err == nil {
+		return fmt.Errorf("container already connected to network %s", idOrName)
 	}
+
+	if _, ok := err.(libnetwork.ErrNoSuchEndpoint); !ok {
+		return err
+	}
+
+	createOptions, err := container.buildCreateEndpointOptions(n)
+	if err != nil {
+		return err
+	}
+
+	endpointName := strings.TrimPrefix(container.Name, "/")
+	ep, err = n.CreateEndpoint(endpointName, createOptions...)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err != nil {
+			if e := ep.Delete(); e != nil {
+				logrus.Warnf("Could not rollback container connection to network %s", idOrName)
+			}
+		}
+	}()
 
 	if err := container.updateEndpointNetworkSettings(n, ep); err != nil {
 		return err
@@ -976,15 +1028,15 @@ func (container *Container) connectToNetwork(idOrName string, updateSettings boo
 		if err != nil {
 			return err
 		}
-	}
 
-	container.updateSandboxNetworkSettings(sb)
+		container.updateSandboxNetworkSettings(sb)
+	}
 
 	if err := ep.Join(sb); err != nil {
 		return err
 	}
 
-	if err := container.updateJoinInfo(ep); err != nil {
+	if err := container.updateJoinInfo(n, ep); err != nil {
 		return derr.ErrorCodeJoinInfo.WithArgs(err)
 	}
 
@@ -1111,6 +1163,9 @@ func (container *Container) releaseNetwork() {
 
 	sid := container.NetworkSettings.SandboxID
 	networks := container.NetworkSettings.Networks
+	for n := range networks {
+		networks[n] = &network.EndpointSettings{}
+	}
 
 	container.NetworkSettings = &network.Settings{Networks: networks}
 
@@ -1124,14 +1179,6 @@ func (container *Container) releaseNetwork() {
 		return
 	}
 
-	for _, ns := range networks {
-		n, err := container.daemon.FindNetwork(ns)
-		if err != nil {
-			continue
-		}
-		container.disconnectFromNetwork(n, false)
-	}
-
 	if err := sb.Delete(); err != nil {
 		logrus.Errorf("Error deleting sandbox id %s for container %s: %v", sid, container.ID, err)
 	}
@@ -1143,10 +1190,10 @@ func (container *Container) DisconnectFromNetwork(n libnetwork.Network) error {
 		return derr.ErrorCodeNotRunning.WithArgs(container.ID)
 	}
 
-	return container.disconnectFromNetwork(n, true)
+	return container.disconnectFromNetwork(n)
 }
 
-func (container *Container) disconnectFromNetwork(n libnetwork.Network, updateSettings bool) error {
+func (container *Container) disconnectFromNetwork(n libnetwork.Network) error {
 	var (
 		ep   libnetwork.Endpoint
 		sbox libnetwork.Sandbox
@@ -1176,57 +1223,20 @@ func (container *Container) disconnectFromNetwork(n libnetwork.Network, updateSe
 		return fmt.Errorf("endpoint delete failed for container %s on network %s: %v", container.ID, n.Name(), err)
 	}
 
-	if updateSettings {
-		networks := container.NetworkSettings.Networks
-		for i, s := range networks {
-			sn, err := container.daemon.FindNetwork(s)
-			if err != nil {
-				continue
-			}
-			if sn.Name() == n.Name() {
-				networks = append(networks[:i], networks[i+1:]...)
-				container.NetworkSettings.Networks = networks
-				break
-			}
-		}
-	}
+	delete(container.NetworkSettings.Networks, n.Name())
 	return nil
 }
 
-func (container *Container) unmountVolumes(forceSyscall bool) error {
-	var volumeMounts []mountPoint
-
-	for _, mntPoint := range container.MountPoints {
-		dest, err := container.GetResourcePath(mntPoint.Destination)
-		if err != nil {
-			return err
-		}
-
-		volumeMounts = append(volumeMounts, mountPoint{Destination: dest, Volume: mntPoint.Volume})
-	}
-
+// appendNetworkMounts appends any network mounts to the array of mount points passed in
+func appendNetworkMounts(container *Container, volumeMounts []volume.MountPoint) ([]volume.MountPoint, error) {
 	for _, mnt := range container.networkMounts() {
 		dest, err := container.GetResourcePath(mnt.Destination)
 		if err != nil {
-			return err
+			return nil, err
 		}
-
-		volumeMounts = append(volumeMounts, mountPoint{Destination: dest})
+		volumeMounts = append(volumeMounts, volume.MountPoint{Destination: dest})
 	}
-
-	for _, volumeMount := range volumeMounts {
-		if forceSyscall {
-			syscall.Unmount(volumeMount.Destination, 0)
-		}
-
-		if volumeMount.Volume != nil {
-			if err := volumeMount.Volume.Unmount(); err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
+	return volumeMounts, nil
 }
 
 func (container *Container) networkMounts() []execdriver.Mount {
@@ -1286,74 +1296,29 @@ func (container *Container) networkMounts() []execdriver.Mount {
 	return mounts
 }
 
-func (container *Container) addBindMountPoint(name, source, destination string, rw bool) {
-	container.MountPoints[destination] = &mountPoint{
-		Name:        name,
-		Source:      source,
-		Destination: destination,
-		RW:          rw,
+func (container *Container) copyImagePathContent(v volume.Volume, destination string) error {
+	rootfs, err := symlink.FollowSymlinkInScope(filepath.Join(container.basefs, destination), container.basefs)
+	if err != nil {
+		return err
 	}
-}
 
-func (container *Container) addLocalMountPoint(name, destination string, rw bool) {
-	container.MountPoints[destination] = &mountPoint{
-		Name:        name,
-		Driver:      volume.DefaultDriverName,
-		Destination: destination,
-		RW:          rw,
-	}
-}
-
-func (container *Container) addMountPointWithVolume(destination string, vol volume.Volume, rw bool) {
-	container.MountPoints[destination] = &mountPoint{
-		Name:        vol.Name(),
-		Driver:      vol.DriverName(),
-		Destination: destination,
-		RW:          rw,
-		Volume:      vol,
-	}
-}
-
-func (container *Container) isDestinationMounted(destination string) bool {
-	return container.MountPoints[destination] != nil
-}
-
-func (container *Container) prepareMountPoints() error {
-	for _, config := range container.MountPoints {
-		if len(config.Driver) > 0 {
-			v, err := container.daemon.createVolume(config.Name, config.Driver, nil)
-			if err != nil {
-				return err
-			}
-			config.Volume = v
+	if _, err = ioutil.ReadDir(rootfs); err != nil {
+		if os.IsNotExist(err) {
+			return nil
 		}
+		return err
 	}
-	return nil
-}
 
-func (container *Container) removeMountPoints(rm bool) error {
-	var rmErrors []string
-	for _, m := range container.MountPoints {
-		if m.Volume == nil {
-			continue
-		}
-		container.daemon.volumes.Decrement(m.Volume)
-		if rm {
-			err := container.daemon.volumes.Remove(m.Volume)
-			// ErrVolumeInUse is ignored because having this
-			// volume being referenced by othe container is
-			// not an error, but an implementation detail.
-			// This prevents docker from logging "ERROR: Volume in use"
-			// where there is another container using the volume.
-			if err != nil && err != store.ErrVolumeInUse {
-				rmErrors = append(rmErrors, err.Error())
-			}
-		}
+	path, err := v.Mount()
+	if err != nil {
+		return err
 	}
-	if len(rmErrors) > 0 {
-		return derr.ErrorCodeRemovingVolume.WithArgs(strings.Join(rmErrors, "\n"))
+
+	if err := copyExistingContents(rootfs, path); err != nil {
+		return err
 	}
-	return nil
+
+	return v.Unmount()
 }
 
 func (container *Container) shmPath() (string, error) {

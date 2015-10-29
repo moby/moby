@@ -279,7 +279,7 @@ func (daemon *Daemon) checkImageDeleteHardConflict(img *image.Image) *imageDelet
 	}
 
 	// Check if the image has any descendent images.
-	if daemon.Graph().HasChildren(img) {
+	if daemon.Graph().HasChildren(img.ID) {
 		return &imageDeleteConflict{
 			hard:    true,
 			imgID:   img.ID,
@@ -337,5 +337,5 @@ func (daemon *Daemon) checkImageDeleteSoftConflict(img *image.Image) *imageDelet
 // that there are no repository references to the given image and it has no
 // child images.
 func (daemon *Daemon) imageIsDangling(img *image.Image) bool {
-	return !(daemon.repositories.HasReferences(img) || daemon.Graph().HasChildren(img))
+	return !(daemon.repositories.HasReferences(img) || daemon.Graph().HasChildren(img.ID))
 }

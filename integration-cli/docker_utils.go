@@ -26,9 +26,67 @@ import (
 	"github.com/docker/docker/pkg/httputils"
 	"github.com/docker/docker/pkg/integration"
 	"github.com/docker/docker/pkg/ioutils"
+	"github.com/docker/docker/pkg/sockets"
 	"github.com/docker/docker/pkg/stringutils"
+	"github.com/docker/docker/pkg/tlsconfig"
 	"github.com/go-check/check"
 )
+
+func init() {
+	out, err := exec.Command(dockerBinary, "images").CombinedOutput()
+	if err != nil {
+		panic(err)
+	}
+	lines := strings.Split(string(out), "\n")[1:]
+	for _, l := range lines {
+		if l == "" {
+			continue
+		}
+		fields := strings.Fields(l)
+		imgTag := fields[0] + ":" + fields[1]
+		// just for case if we have dangling images in tested daemon
+		if imgTag != "<none>:<none>" {
+			protectedImages[imgTag] = struct{}{}
+		}
+	}
+
+	// Obtain the daemon platform so that it can be used by tests to make
+	// intelligent decisions about how to configure themselves, and validate
+	// that the target platform is valid.
+	res, _, err := sockRequestRaw("GET", "/version", nil, "application/json")
+	if err != nil || res == nil || (res != nil && res.StatusCode != http.StatusOK) {
+		panic(fmt.Errorf("Init failed to get version: %v. Res=%v", err.Error(), res))
+	}
+	svrHeader, _ := httputils.ParseServerHeader(res.Header.Get("Server"))
+	daemonPlatform = svrHeader.OS
+	if daemonPlatform != "linux" && daemonPlatform != "windows" {
+		panic("Cannot run tests against platform: " + daemonPlatform)
+	}
+
+	// On Windows, extract out the version as we need to make selective
+	// decisions during integration testing as and when features are implemented.
+	if daemonPlatform == "windows" {
+		if body, err := ioutil.ReadAll(res.Body); err == nil {
+			var server types.Version
+			if err := json.Unmarshal(body, &server); err == nil {
+				// eg in "10.0 10550 (10550.1000.amd64fre.branch.date-time)" we want 10550
+				windowsDaemonKV, _ = strconv.Atoi(strings.Split(server.KernelVersion, " ")[1])
+			}
+		}
+	}
+
+	// Now we know the daemon platform, can set paths used by tests.
+	_, body, err := sockRequest("GET", "/info", nil)
+	if err != nil {
+		panic(err)
+	}
+
+	var info types.Info
+	err = json.Unmarshal(body, &info)
+	dockerBasePath = info.DockerRootDir
+	volumesConfigPath = filepath.Join(dockerBasePath, "volumes")
+	containerStoragePath = filepath.Join(dockerBasePath, "containers")
+}
 
 // Daemon represents a Docker daemon for the testing framework.
 type Daemon struct {
@@ -37,19 +95,26 @@ type Daemon struct {
 	Command     string
 	GlobalFlags []string
 
-	id             string
-	c              *check.C
-	logFile        *os.File
-	folder         string
-	root           string
-	stdin          io.WriteCloser
-	stdout, stderr io.ReadCloser
-	cmd            *exec.Cmd
-	storageDriver  string
-	execDriver     string
-	wait           chan error
-	userlandProxy  bool
-	useDefaultHost bool
+	id                string
+	c                 *check.C
+	logFile           *os.File
+	folder            string
+	root              string
+	stdin             io.WriteCloser
+	stdout, stderr    io.ReadCloser
+	cmd               *exec.Cmd
+	storageDriver     string
+	execDriver        string
+	wait              chan error
+	userlandProxy     bool
+	useDefaultHost    bool
+	useDefaultTLSHost bool
+}
+
+type clientConfig struct {
+	transport *http.Transport
+	scheme    string
+	addr      string
 }
 
 // NewDaemon returns a Daemon instance to be used for testing.
@@ -57,21 +122,15 @@ type Daemon struct {
 // The daemon will not automatically start.
 func NewDaemon(c *check.C) *Daemon {
 	dest := os.Getenv("DEST")
-	if dest == "" {
-		c.Fatal("Please set the DEST environment variable")
-	}
+	c.Assert(dest, check.Not(check.Equals), "", check.Commentf("Please set the DEST environment variable"))
 
 	id := fmt.Sprintf("d%d", time.Now().UnixNano()%100000000)
 	dir := filepath.Join(dest, id)
 	daemonFolder, err := filepath.Abs(dir)
-	if err != nil {
-		c.Fatalf("Could not make %q an absolute path: %v", dir, err)
-	}
+	c.Assert(err, check.IsNil, check.Commentf("Could not make %q an absolute path", dir))
 	daemonRoot := filepath.Join(daemonFolder, "root")
 
-	if err := os.MkdirAll(daemonRoot, 0755); err != nil {
-		c.Fatalf("Could not create daemon root %q: %v", dir, err)
-	}
+	c.Assert(os.MkdirAll(daemonRoot, 0755), check.IsNil, check.Commentf("Could not create daemon root %q", dir))
 
 	userlandProxy := true
 	if env := os.Getenv("DOCKER_USERLANDPROXY"); env != "" {
@@ -92,13 +151,55 @@ func NewDaemon(c *check.C) *Daemon {
 	}
 }
 
+func (d *Daemon) getClientConfig() (*clientConfig, error) {
+	var (
+		transport *http.Transport
+		scheme    string
+		addr      string
+		proto     string
+	)
+	if d.useDefaultTLSHost {
+		option := &tlsconfig.Options{
+			CAFile:   "fixtures/https/ca.pem",
+			CertFile: "fixtures/https/client-cert.pem",
+			KeyFile:  "fixtures/https/client-key.pem",
+		}
+		tlsConfig, err := tlsconfig.Client(*option)
+		if err != nil {
+			return nil, err
+		}
+		transport = &http.Transport{
+			TLSClientConfig: tlsConfig,
+		}
+		addr = fmt.Sprintf("%s:%d", opts.DefaultHTTPHost, opts.DefaultTLSHTTPPort)
+		scheme = "https"
+		proto = "tcp"
+	} else if d.useDefaultHost {
+		addr = opts.DefaultUnixSocket
+		proto = "unix"
+		scheme = "http"
+		transport = &http.Transport{}
+	} else {
+		addr = filepath.Join(d.folder, "docker.sock")
+		proto = "unix"
+		scheme = "http"
+		transport = &http.Transport{}
+	}
+
+	sockets.ConfigureTCPTransport(transport, proto, addr)
+
+	return &clientConfig{
+		transport: transport,
+		scheme:    scheme,
+		addr:      addr,
+	}, nil
+}
+
 // Start will start the daemon and return once it is ready to receive requests.
 // You can specify additional daemon flags.
 func (d *Daemon) Start(arg ...string) error {
 	dockerBinary, err := exec.LookPath(dockerBinary)
-	if err != nil {
-		d.c.Fatalf("[%s] could not find docker binary in $PATH: %v", d.id, err)
-	}
+	d.c.Assert(err, check.IsNil, check.Commentf("[%s] could not find docker binary in $PATH", d.id))
 
 	args := append(d.GlobalFlags,
 		d.Command,
@@ -106,7 +207,7 @@ func (d *Daemon) Start(arg ...string) error {
 		"--pidfile", fmt.Sprintf("%s/docker.pid", d.folder),
 		fmt.Sprintf("--userland-proxy=%t", d.userlandProxy),
 	)
-	if !d.useDefaultHost {
+	if !(d.useDefaultHost || d.useDefaultTLSHost) {
 		args = append(args, []string{"--host", d.sock()}...)
 	}
 	if root := os.Getenv("DOCKER_REMAP_ROOT"); root != "" {
@@ -136,9 +237,7 @@ func (d *Daemon) Start(arg ...string) error {
 	d.cmd = exec.Command(dockerBinary, args...)
 
 	d.logFile, err = os.OpenFile(filepath.Join(d.folder, "docker.log"), os.O_RDWR|os.O_CREATE|os.O_APPEND, 0600)
-	if err != nil {
-		d.c.Fatalf("[%s] Could not create %s/docker.log: %v", d.id, d.folder, err)
-	}
+	d.c.Assert(err, check.IsNil, check.Commentf("[%s] Could not create %s/docker.log", d.id, d.folder))
 
 	d.cmd.Stdout = d.logFile
 	d.cmd.Stderr = d.logFile
@@ -170,27 +269,19 @@ func (d *Daemon) Start(arg ...string) error {
 		case <-time.After(2 * time.Second):
 			return fmt.Errorf("[%s] timeout: daemon does not respond", d.id)
 		case <-tick:
-			var (
-				c   net.Conn
-				err error
-			)
-			if d.useDefaultHost {
-				c, err = net.Dial("unix", "/var/run/docker.sock")
-			} else {
-				c, err = net.Dial("unix", filepath.Join(d.folder, "docker.sock"))
-			}
+			clientConfig, err := d.getClientConfig()
 			if err != nil {
-				continue
+				return err
 			}
 
-			client := httputil.NewClientConn(c, nil)
-			defer client.Close()
+			client := &http.Client{
+				Transport: clientConfig.transport,
+			}
 
 			req, err := http.NewRequest("GET", "/_ping", nil)
-			if err != nil {
-				d.c.Fatalf("[%s] could not create new request: %v", d.id, err)
-			}
-
+			d.c.Assert(err, check.IsNil, check.Commentf("[%s] could not create new request", d.id))
+			req.URL.Host = clientConfig.addr
+			req.URL.Scheme = clientConfig.scheme
 			resp, err := client.Do(req)
 			if err != nil {
 				continue
@@ -301,34 +392,28 @@ func (d *Daemon) Restart(arg ...string) error {
 func (d *Daemon) queryRootDir() (string, error) {
 	// update daemon root by asking /info endpoint (to support user
 	// namespaced daemon with root remapped uid.gid directory)
-	var (
-		conn net.Conn
-		err  error
-	)
-	if d.useDefaultHost {
-		conn, err = net.Dial("unix", "/var/run/docker.sock")
-	} else {
-		conn, err = net.Dial("unix", filepath.Join(d.folder, "docker.sock"))
-	}
+	clientConfig, err := d.getClientConfig()
 	if err != nil {
 		return "", err
 	}
-	client := httputil.NewClientConn(conn, nil)
+
+	client := &http.Client{
+		Transport: clientConfig.transport,
+	}
 
 	req, err := http.NewRequest("GET", "/info", nil)
 	if err != nil {
-		client.Close()
 		return "", err
 	}
 	req.Header.Set("Content-Type", "application/json")
+	req.URL.Host = clientConfig.addr
+	req.URL.Scheme = clientConfig.scheme
 
 	resp, err := client.Do(req)
 	if err != nil {
-		client.Close()
 		return "", err
 	}
 	body := ioutils.NewReadCloserWrapper(resp.Body, func() error {
-		defer client.Close()
 		return resp.Body.Close()
 	})
 
@@ -578,38 +663,6 @@ func getAllVolumes() ([]*types.Volume, error) {
 
 var protectedImages = map[string]struct{}{}
 
-func init() {
-	out, err := exec.Command(dockerBinary, "images").CombinedOutput()
-	if err != nil {
-		panic(err)
-	}
-	lines := strings.Split(string(out), "\n")[1:]
-	for _, l := range lines {
-		if l == "" {
-			continue
-		}
-		fields := strings.Fields(l)
-		imgTag := fields[0] + ":" + fields[1]
-		// just for case if we have dangling images in tested daemon
-		if imgTag != "<none>:<none>" {
-			protectedImages[imgTag] = struct{}{}
-		}
-	}
-
-	// Obtain the daemon platform so that it can be used by tests to make
-	// intelligent decisions about how to configure themselves, and validate
-	// that the target platform is valid.
-	res, _, err := sockRequestRaw("GET", "/version", nil, "application/json")
-	if err != nil || res == nil || (res != nil && res.StatusCode != http.StatusOK) {
-		panic(fmt.Errorf("Init failed to get version: %v. Res=%v", err.Error(), res))
-	}
-	svrHeader, _ := httputils.ParseServerHeader(res.Header.Get("Server"))
-	daemonPlatform = svrHeader.OS
-	if daemonPlatform != "linux" && daemonPlatform != "windows" {
-		panic("Cannot run tests against platform: " + daemonPlatform)
-	}
-}
-
 func deleteAllImages() error {
 	out, err := exec.Command(dockerBinary, "images").CombinedOutput()
 	if err != nil {
@@ -753,19 +806,17 @@ func dockerCmdInDirWithTimeout(timeout time.Duration, path string, args ...strin
 	return integration.DockerCmdInDirWithTimeout(dockerBinary, timeout, path, args...)
 }
 
-func findContainerIP(c *check.C, id string, vargs ...string) string {
-	args := append(vargs, "inspect", "--format='{{ .NetworkSettings.IPAddress }}'", id)
-	cmd := exec.Command(dockerBinary, args...)
-	out, _, err := runCommandWithOutput(cmd)
-	if err != nil {
-		c.Fatal(err, out)
-	}
-
+func findContainerIP(c *check.C, id string, network string) string {
+	out, _ := dockerCmd(c, "inspect", fmt.Sprintf("--format='{{ .NetworkSettings.Networks.%s.IPAddress }}'", network), id)
 	return strings.Trim(out, " \r\n'")
 }
 
 func (d *Daemon) findContainerIP(id string) string {
-	return findContainerIP(d.c, id, "--host", d.sock())
+	out, err := d.Cmd("inspect", fmt.Sprintf("--format='{{ .NetworkSettings.Networks.bridge.IPAddress }}'"), id)
+	if err != nil {
+		d.c.Log(err)
+	}
+	return strings.Trim(out, " \r\n'")
 }
 
 func getContainerCount() (int, error) {
@@ -1140,7 +1191,6 @@ func buildImageCmd(name, dockerfile string, useCache bool, buildFlags ...string)
 	buildCmd := exec.Command(dockerBinary, args...)
 	buildCmd.Stdin = strings.NewReader(dockerfile)
 	return buildCmd
-
 }
 
 func buildImageWithOut(name, dockerfile string, useCache bool, buildFlags ...string) (string, string, error) {
@@ -1312,30 +1362,23 @@ func newFakeGit(name string, files map[string]string, enforceLocalServer bool) (
 // Write `content` to the file at path `dst`, creating it if necessary,
 // as well as any missing directories.
 // The file is truncated if it already exists.
-// Call c.Fatal() at the first error.
+// Fail the test when error occures.
 func writeFile(dst, content string, c *check.C) {
 	// Create subdirectories if necessary
-	if err := os.MkdirAll(path.Dir(dst), 0700); err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(os.MkdirAll(path.Dir(dst), 0700), check.IsNil)
 	f, err := os.OpenFile(dst, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0700)
-	if err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(err, check.IsNil)
 	defer f.Close()
 	// Write content (truncate if it exists)
-	if _, err := io.Copy(f, strings.NewReader(content)); err != nil {
-		c.Fatal(err)
-	}
+	_, err = io.Copy(f, strings.NewReader(content))
+	c.Assert(err, check.IsNil)
 }
 
 // Return the contents of file at path `src`.
-// Call c.Fatal() at the first error (including if the file doesn't exist)
+// Fail the test when error occures.
 func readFile(src string, c *check.C) (content string) {
 	data, err := ioutil.ReadFile(src)
-	if err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(err, check.IsNil)
 
 	return string(data)
 }
@@ -1387,30 +1430,25 @@ func daemonTime(c *check.C) time.Time {
 	}
 
 	status, body, err := sockRequest("GET", "/info", nil)
-	c.Assert(status, check.Equals, http.StatusOK)
 	c.Assert(err, check.IsNil)
+	c.Assert(status, check.Equals, http.StatusOK)
 
 	type infoJSON struct {
 		SystemTime string
 	}
 	var info infoJSON
-	if err = json.Unmarshal(body, &info); err != nil {
-		c.Fatalf("unable to unmarshal /info response: %v", err)
-	}
+	err = json.Unmarshal(body, &info)
+	c.Assert(err, check.IsNil, check.Commentf("unable to unmarshal GET /info response"))
 
 	dt, err := time.Parse(time.RFC3339Nano, info.SystemTime)
-	if err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(err, check.IsNil, check.Commentf("invalid time format in GET /info response"))
 	return dt
 }
 
 func setupRegistry(c *check.C) *testRegistryV2 {
 	testRequires(c, RegistryHosting)
 	reg, err := newTestRegistryV2(c)
-	if err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(err, check.IsNil)
 
 	// Wait for registry to be ready to serve requests.
 	for i := 0; i != 5; i++ {
@@ -1420,18 +1458,14 @@ func setupRegistry(c *check.C) *testRegistryV2 {
 		time.Sleep(100 * time.Millisecond)
 	}
 
-	if err != nil {
-		c.Fatal("Timeout waiting for test registry to become available")
-	}
+	c.Assert(err, check.IsNil, check.Commentf("Timeout waiting for test registry to become available"))
 	return reg
 }
 
 func setupNotary(c *check.C) *testNotary {
 	testRequires(c, NotaryHosting)
 	ts, err := newTestNotary(c)
-	if err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(err, check.IsNil)
 
 	return ts
 }

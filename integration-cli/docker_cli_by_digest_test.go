@@ -8,6 +8,8 @@ import (
 
 	"github.com/docker/distribution/digest"
 	"github.com/docker/distribution/manifest"
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/pkg/stringutils"
 	"github.com/docker/docker/utils"
 	"github.com/go-check/check"
 )
@@ -388,6 +390,27 @@ func (s *DockerRegistrySuite) TestListImagesWithDigests(c *check.C) {
 	if !busyboxRe.MatchString(out) {
 		c.Fatalf("expected %q: %s", busyboxRe.String(), out)
 	}
+}
+
+func (s *DockerRegistrySuite) TestInspectImageWithDigests(c *check.C) {
+	digest, err := setupImage(c)
+	c.Assert(err, check.IsNil, check.Commentf("error setting up image: %v", err))
+
+	imageReference := fmt.Sprintf("%s@%s", repoName, digest)
+
+	// pull from the registry using the <name>@<digest> reference
+	dockerCmd(c, "pull", imageReference)
+
+	out, _ := dockerCmd(c, "inspect", imageReference)
+
+	var imageJSON []types.ImageInspect
+	if err = json.Unmarshal([]byte(out), &imageJSON); err != nil {
+		c.Fatalf("unable to unmarshal body for latest version: %v", err)
+	}
+
+	c.Assert(len(imageJSON), check.Equals, 1)
+	c.Assert(len(imageJSON[0].RepoDigests), check.Equals, 1)
+	c.Assert(stringutils.InSlice(imageJSON[0].RepoDigests, imageReference), check.Equals, true)
 }
 
 func (s *DockerRegistrySuite) TestPsListContainersFilterAncestorImageByDigest(c *check.C) {

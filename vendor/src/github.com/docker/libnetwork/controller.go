@@ -74,7 +74,6 @@ type NetworkController interface {
 	Config() config.Config
 
 	// Create a new network. The options parameter carries network specific options.
-	// Labels support will be added in the near future.
 	NewNetwork(networkType, name string, options ...NetworkOption) (Network, error)
 
 	// Networks returns the list of Network(s) managed by this controller.
@@ -144,6 +143,7 @@ type controller struct {
 	watchCh        chan *endpoint
 	unWatchCh      chan *endpoint
 	svcDb          map[string]svcMap
+	nmap           map[string]*netWatch
 	sync.Mutex
 }
 
@@ -179,7 +179,7 @@ func New(cfgOptions ...config.Option) (NetworkController, error) {
 		if err := c.initDiscovery(cfg.Cluster.Watcher); err != nil {
 			// Failing to initalize discovery is a bad situation to be in.
 			// But it cannot fail creating the Controller
-			log.Debugf("Failed to Initialize Discovery : %v", err)
+			log.Errorf("Failed to Initialize Discovery : %v", err)
 		}
 	}
 
@@ -193,6 +193,7 @@ func New(cfgOptions ...config.Option) (NetworkController, error) {
 	}
 
 	c.sandboxCleanup()
+	c.cleanupLocalEndpoints()
 
 	if err := c.startExternalKeyListener(); err != nil {
 		return nil, err
@@ -218,7 +219,14 @@ func (c *controller) initDiscovery(watcher discovery.Watcher) error {
 	}
 
 	c.discovery = hostdiscovery.NewHostDiscovery(watcher)
-	return c.discovery.Watch(c.hostJoinCallback, c.hostLeaveCallback)
+	return c.discovery.Watch(c.activeCallback, c.hostJoinCallback, c.hostLeaveCallback)
+}
+
+func (c *controller) activeCallback() {
+	ds := c.getStore(datastore.GlobalScope)
+	if ds != nil && !ds.Active() {
+		ds.RestartWatch()
+	}
 }
 
 func (c *controller) hostJoinCallback(nodes []net.IP) {
@@ -357,7 +365,7 @@ func (c *controller) NewNetwork(networkType, name string, options ...NetworkOpti
 		}
 	}()
 
-	if err := c.addNetwork(network); err != nil {
+	if err = c.addNetwork(network); err != nil {
 		return nil, err
 	}
 	defer func() {

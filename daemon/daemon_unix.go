@@ -22,6 +22,7 @@ import (
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
+	"github.com/docker/docker/volume"
 	"github.com/docker/libnetwork"
 	nwconfig "github.com/docker/libnetwork/config"
 	"github.com/docker/libnetwork/drivers/bridge"
@@ -245,7 +246,7 @@ func checkConfigOptions(config *Config) error {
 		return fmt.Errorf("You specified -b & --bip, mutually exclusive options. Please specify only one.")
 	}
 	if !config.Bridge.EnableIPTables && !config.Bridge.InterContainerCommunication {
-		return fmt.Errorf("You specified --iptables=false with --icc=false. ICC uses iptables to function. Please set --icc or --iptables to true.")
+		return fmt.Errorf("You specified --iptables=false with --icc=false. ICC=false uses iptables to function. Please set --icc or --iptables to true.")
 	}
 	if !config.Bridge.EnableIPTables && config.Bridge.EnableIPMasq {
 		config.Bridge.EnableIPMasq = false
@@ -340,6 +341,9 @@ func (daemon *Daemon) networkOptions(dconfig *Config) ([]nwconfig.Option, error)
 		}
 		options = append(options, nwconfig.OptionKVProvider(kv[0]))
 		options = append(options, nwconfig.OptionKVProviderURL(strings.Join(kv[1:], "://")))
+	}
+	if len(dconfig.ClusterOpts) > 0 {
+		options = append(options, nwconfig.OptionKVOpts(dconfig.ClusterOpts))
 	}
 
 	if daemon.discoveryWatcher != nil {
@@ -441,6 +445,8 @@ func initBridgeDriver(controller libnetwork.NetworkController, config *Config) e
 			return err
 		}
 		ipamV4Conf.Gateway = ip.String()
+	} else if bridgeName == bridge.DefaultBridgeName && ipamV4Conf.PreferredPool != "" {
+		logrus.Infof("Default bridge (%s) is assigned with an IP address %s. Daemon option --bip can be used to set a preferred IP address", bridgeName, ipamV4Conf.PreferredPool)
 	}
 
 	if config.Bridge.FixedCIDR != "" {
@@ -593,17 +599,17 @@ func (daemon *Daemon) registerLinks(container *Container, hostConfig *runconfig.
 	return nil
 }
 
-func (daemon *Daemon) newBaseContainer(id string) Container {
-	return Container{
+func (daemon *Daemon) newBaseContainer(id string) *Container {
+	return &Container{
 		CommonContainer: CommonContainer{
 			ID:           id,
 			State:        NewState(),
 			execCommands: newExecStore(),
 			root:         daemon.containerRoot(id),
+			MountPoints:  make(map[string]*volume.MountPoint),
 		},
-		MountPoints: make(map[string]*mountPoint),
-		Volumes:     make(map[string]string),
-		VolumesRW:   make(map[string]bool),
+		Volumes:   make(map[string]string),
+		VolumesRW: make(map[string]bool),
 	}
 }
 

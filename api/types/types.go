@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/daemon/network"
+	"github.com/docker/docker/pkg/nat"
 	"github.com/docker/docker/pkg/version"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/runconfig"
@@ -96,7 +97,8 @@ type GraphDriverData struct {
 // GET "/images/{name:.*}/json"
 type ImageInspect struct {
 	ID              string `json:"Id"`
-	Tags            []string
+	RepoTags        []string
+	RepoDigests     []string
 	Parent          string
 	Comment         string
 	Created         string
@@ -218,6 +220,7 @@ type Info struct {
 	ExperimentalBuild  bool
 	ServerVersion      string
 	ClusterStore       string
+	ClusterAdvertise   string
 }
 
 // ExecStartCheck is a temp struct used by execStart
@@ -254,7 +257,6 @@ type ContainerJSONBase struct {
 	Args            []string
 	State           *ContainerState
 	Image           string
-	NetworkSettings *network.Settings
 	ResolvConfPath  string
 	HostnamePath    string
 	HostsPath       string
@@ -276,8 +278,28 @@ type ContainerJSONBase struct {
 // ContainerJSON is newly used struct along with MountPoint
 type ContainerJSON struct {
 	*ContainerJSONBase
-	Mounts []MountPoint
-	Config *runconfig.Config
+	Mounts          []MountPoint
+	Config          *runconfig.Config
+	NetworkSettings *NetworkSettings
+}
+
+// NetworkSettings exposes the network settings in the api
+type NetworkSettings struct {
+	NetworkSettingsBase
+	Networks map[string]*network.EndpointSettings
+}
+
+// NetworkSettingsBase holds basic information about networks
+type NetworkSettingsBase struct {
+	Bridge                 string
+	SandboxID              string
+	HairpinMode            bool
+	LinkLocalIPv6Address   string
+	LinkLocalIPv6PrefixLen int
+	Ports                  nat.PortMap
+	SandboxKey             string
+	SecondaryIPAddresses   []network.Address
+	SecondaryIPv6Addresses []network.Address
 }
 
 // MountPoint represents a mount point configuration inside the container.
@@ -304,7 +326,7 @@ type VolumesListResponse struct {
 }
 
 // VolumeCreateRequest contains the response for the remote API:
-// POST "/volumes"
+// POST "/volumes/create"
 type VolumeCreateRequest struct {
 	Name       string            // Name is the requested name of the volume
 	Driver     string            // Driver is the name of the driver that should be used to create the volume
@@ -319,6 +341,7 @@ type NetworkResource struct {
 	Driver     string                      `json:"driver"`
 	IPAM       network.IPAM                `json:"ipam"`
 	Containers map[string]EndpointResource `json:"containers"`
+	Options    map[string]string           `json:"options"`
 }
 
 //EndpointResource contains network resources allocated and usd for a container in a network
@@ -331,10 +354,11 @@ type EndpointResource struct {
 
 // NetworkCreate is the expected body of the "create network" http request message
 type NetworkCreate struct {
-	Name           string       `json:"name"`
-	CheckDuplicate bool         `json:"check_duplicate"`
-	Driver         string       `json:"driver"`
-	IPAM           network.IPAM `json:"ipam"`
+	Name           string            `json:"name"`
+	CheckDuplicate bool              `json:"check_duplicate"`
+	Driver         string            `json:"driver"`
+	IPAM           network.IPAM      `json:"ipam"`
+	Options        map[string]string `json:"options"`
 }
 
 // NetworkCreateResponse is the response message sent by the server for network create call

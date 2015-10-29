@@ -17,7 +17,7 @@ parent = "smn_cli"
       -a, --attach=[]               Attach to STDIN, STDOUT or STDERR
       --add-host=[]                 Add a custom host-to-IP mapping (host:ip)
       --blkio-weight=0              Block IO weight (relative weight)
-      -c, --cpu-shares=0            CPU shares (relative weight)
+      --cpu-shares=0                CPU shares (relative weight)
       --cap-add=[]                  Add Linux capabilities
       --cap-drop=[]                 Drop Linux capabilities
       --cgroup-parent=""            Optional parent cgroup for the container
@@ -54,7 +54,12 @@ parent = "smn_cli"
       --memory-swap=""              Total memory (memory + swap), '-1' to disable swap
       --memory-swappiness=""        Tune a container's memory swappiness behavior. Accepts an integer between 0 and 100.
       --name=""                     Assign a name to the container
-      --net="default"               Set the Network mode for the container
+      --net="bridge"                Connects a container to a network
+                                    'bridge': creates a new network stack for the container on the docker bridge
+                                    'none': no networking for this container
+                                    'container:<name|id>': reuses another container network stack
+                                    'host': use the host network stack inside the container
+                                    'NETWORK': connects the container to user-created network using `docker network create` command
       --oom-kill-disable=false      Whether to disable OOM Killer for the container or not
       -P, --publish-all=false       Publish all exposed ports to random ports
       -p, --publish=[]              Publish a container's port(s) to the host

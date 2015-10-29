@@ -47,9 +47,11 @@ func TestLXCConfig(t *testing.T) {
 	command := &execdriver.Command{
 		ID: "1",
 		Resources: &execdriver.Resources{
-			Memory:     int64(mem),
 			MemorySwap: int64(swap),
-			CPUShares:  int64(cpu),
+			CommonResources: execdriver.CommonResources{
+				Memory:    int64(mem),
+				CPUShares: int64(cpu),
+			},
 		},
 		Network: &execdriver.Network{
 			Mtu: 1500,

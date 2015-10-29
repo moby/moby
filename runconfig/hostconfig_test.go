@@ -234,8 +234,8 @@ func TestDecodeHostConfig(t *testing.T) {
 	fixtures := []struct {
 		file string
 	}{
-		{"fixtures/container_hostconfig_1_14.json"},
-		{"fixtures/container_hostconfig_1_19.json"},
+		{"fixtures/unix/container_hostconfig_1_14.json"},
+		{"fixtures/unix/container_hostconfig_1_19.json"},
 	}
 
 	for _, f := range fixtures {

@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/go-check/check"
 )
 
@@ -23,32 +24,26 @@ func (s *DockerRegistrySuite) TestPushBusyboxImage(c *check.C) {
 
 // pushing an image without a prefix should throw an error
 func (s *DockerSuite) TestPushUnprefixedRepo(c *check.C) {
-	if out, _, err := dockerCmdWithError("push", "busybox"); err == nil {
-		c.Fatalf("pushing an unprefixed repo didn't result in a non-zero exit status: %s", out)
-	}
+	out, _, err := dockerCmdWithError("push", "busybox")
+	c.Assert(err, check.NotNil, check.Commentf("pushing an unprefixed repo didn't result in a non-zero exit status: %s", out))
 }
 
 func (s *DockerRegistrySuite) TestPushUntagged(c *check.C) {
 	repoName := fmt.Sprintf("%v/dockercli/busybox", privateRegistryURL)
-
 	expected := "Repository does not exist"
-	if out, _, err := dockerCmdWithError("push", repoName); err == nil {
-		c.Fatalf("pushing the image to the private registry should have failed: output %q", out)
-	} else if !strings.Contains(out, expected) {
-		c.Fatalf("pushing the image failed with an unexpected message: expected %q, got %q", expected, out)
-	}
+
+	out, _, err := dockerCmdWithError("push", repoName)
+	c.Assert(err, check.NotNil, check.Commentf("pushing the image to the private registry should have failed: output %q", out))
+	c.Assert(out, checker.Contains, expected, check.Commentf("pushing the image failed"))
 }
 
 func (s *DockerRegistrySuite) TestPushBadTag(c *check.C) {
 	repoName := fmt.Sprintf("%v/dockercli/busybox:latest", privateRegistryURL)
-
 	expected := "does not exist"
 
-	if out, _, err := dockerCmdWithError("push", repoName); err == nil {
-		c.Fatalf("pushing the image to the private registry should have failed: output %q", out)
-	} else if !strings.Contains(out, expected) {
-		c.Fatalf("pushing the image failed with an unexpected message: expected %q, got %q", expected, out)
-	}
+	out, _, err := dockerCmdWithError("push", repoName)
+	c.Assert(err, check.NotNil, check.Commentf("pushing the image to the private registry should have failed: output %q", out))
+	c.Assert(out, checker.Contains, expected, check.Commentf("pushing the image failed"))
 }
 
 func (s *DockerRegistrySuite) TestPushMultipleTags(c *check.C) {
@@ -64,9 +59,7 @@ func (s *DockerRegistrySuite) TestPushMultipleTags(c *check.C) {
 
 	// Ensure layer list is equivalent for repoTag1 and repoTag2
 	out1, _ := dockerCmd(c, "pull", repoTag1)
-	if strings.Contains(out1, "Tag t1 not found") {
-		c.Fatalf("Unable to pull pushed image: %s", out1)
-	}
+
 	imageAlreadyExists := ": Image already exists"
 	var out1Lines []string
 	for _, outputLine := range strings.Split(out1, "\n") {
@@ -76,54 +69,40 @@ func (s *DockerRegistrySuite) TestPushMultipleTags(c *check.C) {
 	}
 
 	out2, _ := dockerCmd(c, "pull", repoTag2)
-	if strings.Contains(out2, "Tag t2 not found") {
-		c.Fatalf("Unable to pull pushed image: %s", out1)
-	}
+
 	var out2Lines []string
 	for _, outputLine := range strings.Split(out2, "\n") {
 		if strings.Contains(outputLine, imageAlreadyExists) {
 			out1Lines = append(out1Lines, outputLine)
 		}
 	}
-
-	if len(out1Lines) != len(out2Lines) {
-		c.Fatalf("Mismatched output length:\n%s\n%s", out1, out2)
-	}
+	c.Assert(out2Lines, checker.HasLen, len(out1Lines))
 
 	for i := range out1Lines {
-		if out1Lines[i] != out2Lines[i] {
-			c.Fatalf("Mismatched output line:\n%s\n%s", out1Lines[i], out2Lines[i])
-		}
+		c.Assert(out1Lines[i], checker.Equals, out2Lines[i])
 	}
 }
 
 func (s *DockerRegistrySuite) TestPushEmptyLayer(c *check.C) {
 	repoName := fmt.Sprintf("%v/dockercli/emptylayer", privateRegistryURL)
 	emptyTarball, err := ioutil.TempFile("", "empty_tarball")
-	if err != nil {
-		c.Fatalf("Unable to create test file: %v", err)
-	}
+	c.Assert(err, check.IsNil, check.Commentf("Unable to create test file"))
+
 	tw := tar.NewWriter(emptyTarball)
 	err = tw.Close()
-	if err != nil {
-		c.Fatalf("Error creating empty tarball: %v", err)
-	}
+	c.Assert(err, check.IsNil, check.Commentf("Error creating empty tarball"))
+
 	freader, err := os.Open(emptyTarball.Name())
-	if err != nil {
-		c.Fatalf("Could not open test tarball: %v", err)
-	}
+	c.Assert(err, check.IsNil, check.Commentf("Could not open test tarball"))
 
 	importCmd := exec.Command(dockerBinary, "import", "-", repoName)
 	importCmd.Stdin = freader
 	out, _, err := runCommandWithOutput(importCmd)
-	if err != nil {
-		c.Errorf("import failed with errors: %v, output: %q", err, out)
-	}
+	c.Assert(err, check.IsNil, check.Commentf("import failed: %q", out))
 
 	// Now verify we can push it
-	if out, _, err := dockerCmdWithError("push", repoName); err != nil {
-		c.Fatalf("pushing the image to the private registry has failed: %s, %v", out, err)
-	}
+	out, _, err = dockerCmdWithError("push", repoName)
+	c.Assert(err, check.IsNil, check.Commentf("pushing the image to the private registry has failed: %s", out))
 }
 
 func (s *DockerTrustSuite) TestTrustedPush(c *check.C) {
@@ -134,12 +113,8 @@ func (s *DockerTrustSuite) TestTrustedPush(c *check.C) {
 	pushCmd := exec.Command(dockerBinary, "push", repoName)
 	s.trustedCmd(pushCmd)
 	out, _, err := runCommandWithOutput(pushCmd)
-	if err != nil {
-		c.Fatalf("Error running trusted push: %s\n%s", err, out)
-	}
-	if !strings.Contains(string(out), "Signing and pushing trust metadata") {
-		c.Fatalf("Missing expected output on trusted push:\n%s", out)
-	}
+	c.Assert(err, check.IsNil, check.Commentf("Error running trusted push: %s\n%s", err, out))
+	c.Assert(out, checker.Contains, "Signing and pushing trust metadata", check.Commentf("Missing expected output on trusted push"))
 }
 
 func (s *DockerTrustSuite) TestTrustedPushWithEnvPasswords(c *check.C) {
@@ -150,12 +125,8 @@ func (s *DockerTrustSuite) TestTrustedPushWithEnvPasswords(c *check.C) {
 	pushCmd := exec.Command(dockerBinary, "push", repoName)
 	s.trustedCmdWithPassphrases(pushCmd, "12345678", "12345678")
 	out, _, err := runCommandWithOutput(pushCmd)
-	if err != nil {
-		c.Fatalf("Error running trusted push: %s\n%s", err, out)
-	}
-	if !strings.Contains(string(out), "Signing and pushing trust metadata") {
-		c.Fatalf("Missing expected output on trusted push:\n%s", out)
-	}
+	c.Assert(err, check.IsNil, check.Commentf("Error running trusted push: %s\n%s", err, out))
+	c.Assert(out, checker.Contains, "Signing and pushing trust metadata", check.Commentf("Missing expected output on trusted push"))
 }
 
 // This test ensures backwards compatibility with old ENV variables. Should be
@@ -168,12 +139,8 @@ func (s *DockerTrustSuite) TestTrustedPushWithDeprecatedEnvPasswords(c *check.C)
 	pushCmd := exec.Command(dockerBinary, "push", repoName)
 	s.trustedCmdWithDeprecatedEnvPassphrases(pushCmd, "12345678", "12345678")
 	out, _, err := runCommandWithOutput(pushCmd)
-	if err != nil {
-		c.Fatalf("Error running trusted push: %s\n%s", err, out)
-	}
-	if !strings.Contains(string(out), "Signing and pushing trust metadata") {
-		c.Fatalf("Missing expected output on trusted push:\n%s", out)
-	}
+	c.Assert(err, check.IsNil, check.Commentf("Error running trusted push: %s\n%s", err, out))
+	c.Assert(out, checker.Contains, "Signing and pushing trust metadata", check.Commentf("Missing expected output on trusted push"))
 }
 
 func (s *DockerTrustSuite) TestTrustedPushWithFaillingServer(c *check.C) {
@@ -184,13 +151,8 @@ func (s *DockerTrustSuite) TestTrustedPushWithFaillingServer(c *check.C) {
 	pushCmd := exec.Command(dockerBinary, "push", repoName)
 	s.trustedCmdWithServer(pushCmd, "https://example.com:81/")
 	out, _, err := runCommandWithOutput(pushCmd)
-	if err == nil {
-		c.Fatalf("Missing error while running trusted push w/ no server")
-	}
-
-	if !strings.Contains(string(out), "error contacting notary server") {
-		c.Fatalf("Missing expected output on trusted push:\n%s", out)
-	}
+	c.Assert(err, check.NotNil, check.Commentf("Missing error while running trusted push w/ no server"))
+	c.Assert(out, checker.Contains, "error contacting notary server", check.Commentf("Missing expected output on trusted push"))
 }
 
 func (s *DockerTrustSuite) TestTrustedPushWithoutServerAndUntrusted(c *check.C) {
@@ -201,13 +163,8 @@ func (s *DockerTrustSuite) TestTrustedPushWithoutServerAndUntrusted(c *check.C) 
 	pushCmd := exec.Command(dockerBinary, "push", "--disable-content-trust", repoName)
 	s.trustedCmdWithServer(pushCmd, "https://example.com/")
 	out, _, err := runCommandWithOutput(pushCmd)
-	if err != nil {
-		c.Fatalf("trusted push with no server and --disable-content-trust failed: %s\n%s", err, out)
-	}
-
-	if strings.Contains(string(out), "Error establishing connection to notary repository") {
-		c.Fatalf("Missing expected output on trusted push with --disable-content-trust:\n%s", out)
-	}
+	c.Assert(err, check.IsNil, check.Commentf("trusted push with no server and --disable-content-trust failed: %s\n%s", err, out))
+	c.Assert(out, check.Not(checker.Contains), "Error establishing connection to notary repository", check.Commentf("Missing expected output on trusted push with --disable-content-trust:"))
 }
 
 func (s *DockerTrustSuite) TestTrustedPushWithExistingTag(c *check.C) {
@@ -219,13 +176,8 @@ func (s *DockerTrustSuite) TestTrustedPushWithExistingTag(c *check.C) {
 	pushCmd := exec.Command(dockerBinary, "push", repoName)
 	s.trustedCmd(pushCmd)
 	out, _, err := runCommandWithOutput(pushCmd)
-	if err != nil {
-		c.Fatalf("trusted push failed: %s\n%s", err, out)
-	}
-
-	if !strings.Contains(string(out), "Signing and pushing trust metadata") {
-		c.Fatalf("Missing expected output on trusted push with existing tag:\n%s", out)
-	}
+	c.Assert(err, check.IsNil, check.Commentf("trusted push failed: %s\n%s", err, out))
+	c.Assert(out, checker.Contains, "Signing and pushing trust metadata", check.Commentf("Missing expected output on trusted push with existing tag"))
 }
 
 func (s *DockerTrustSuite) TestTrustedPushWithExistingSignedTag(c *check.C) {
@@ -237,25 +189,15 @@ func (s *DockerTrustSuite) TestTrustedPushWithExistingSignedTag(c *check.C) {
 	pushCmd := exec.Command(dockerBinary, "push", repoName)
 	s.trustedCmd(pushCmd)
 	out, _, err := runCommandWithOutput(pushCmd)
-	if err != nil {
-		c.Fatalf("trusted push failed: %s\n%s", err, out)
-	}
-
-	if !strings.Contains(string(out), "Signing and pushing trust metadata") {
-		c.Fatalf("Missing expected output on trusted push with existing tag:\n%s", out)
-	}
+	c.Assert(err, check.IsNil, check.Commentf("trusted push failed: %s\n%s", err, out))
+	c.Assert(out, checker.Contains, "Signing and pushing trust metadata", check.Commentf("Missing expected output on trusted push with existing tag"))
 
 	// Do another trusted push
 	pushCmd = exec.Command(dockerBinary, "push", repoName)
 	s.trustedCmd(pushCmd)
 	out, _, err = runCommandWithOutput(pushCmd)
-	if err != nil {
-		c.Fatalf("trusted push failed: %s\n%s", err, out)
-	}
-
-	if !strings.Contains(string(out), "Signing and pushing trust metadata") {
-		c.Fatalf("Missing expected output on trusted push with existing tag:\n%s", out)
-	}
+	c.Assert(err, check.IsNil, check.Commentf("trusted push failed: %s\n%s", err, out))
+	c.Assert(out, checker.Contains, "Signing and pushing trust metadata", check.Commentf("Missing expected output on trusted push with existing tag"))
 
 	dockerCmd(c, "rmi", repoName)
 
@@ -263,13 +205,9 @@ func (s *DockerTrustSuite) TestTrustedPushWithExistingSignedTag(c *check.C) {
 	pullCmd := exec.Command(dockerBinary, "pull", repoName)
 	s.trustedCmd(pullCmd)
 	out, _, err = runCommandWithOutput(pullCmd)
-	if err != nil {
-		c.Fatalf("Error running trusted pull: %s\n%s", err, out)
-	}
+	c.Assert(err, check.IsNil, check.Commentf("Error running trusted pull: %s\n%s", err, out))
+	c.Assert(out, checker.Contains, "Status: Downloaded", check.Commentf("Missing expected output on trusted pull with --disable-content-trust"))
 
-	if !strings.Contains(string(out), "Status: Downloaded") {
-		c.Fatalf("Missing expected output on trusted pull with --disable-content-trust:\n%s", out)
-	}
 }
 
 func (s *DockerTrustSuite) TestTrustedPushWithIncorrectPassphraseForNonRoot(c *check.C) {
@@ -281,25 +219,15 @@ func (s *DockerTrustSuite) TestTrustedPushWithIncorrectPassphraseForNonRoot(c *c
 	pushCmd := exec.Command(dockerBinary, "push", repoName)
 	s.trustedCmd(pushCmd)
 	out, _, err := runCommandWithOutput(pushCmd)
-	if err != nil {
-		c.Fatalf("trusted push failed: %s\n%s", err, out)
-	}
-
-	if !strings.Contains(string(out), "Signing and pushing trust metadata") {
-		c.Fatalf("Missing expected output on trusted push:\n%s", out)
-	}
+	c.Assert(err, check.IsNil, check.Commentf("trusted push failed: %s\n%s", err, out))
+	c.Assert(out, checker.Contains, "Signing and pushing trust metadata", check.Commentf("Missing expected output on trusted push:\n%s", out))
 
 	// Push with wrong passphrases
 	pushCmd = exec.Command(dockerBinary, "push", repoName)
 	s.trustedCmdWithPassphrases(pushCmd, "12345678", "87654321")
 	out, _, err = runCommandWithOutput(pushCmd)
-	if err == nil {
-		c.Fatalf("Error missing from trusted push with short targets passphrase: \n%s", out)
-	}
-
-	if !strings.Contains(string(out), "password invalid, operation has failed") {
-		c.Fatalf("Missing expected output on trusted push with short targets/snapsnot passphrase:\n%s", out)
-	}
+	c.Assert(err, check.NotNil, check.Commentf("Error missing from trusted push with short targets passphrase: \n%s", out))
+	c.Assert(out, checker.Contains, "password invalid, operation has failed", check.Commentf("Missing expected output on trusted push with short targets/snapsnot passphrase"))
 }
 
 // This test ensures backwards compatibility with old ENV variables. Should be
@@ -313,25 +241,15 @@ func (s *DockerTrustSuite) TestTrustedPushWithIncorrectDeprecatedPassphraseForNo
 	pushCmd := exec.Command(dockerBinary, "push", repoName)
 	s.trustedCmd(pushCmd)
 	out, _, err := runCommandWithOutput(pushCmd)
-	if err != nil {
-		c.Fatalf("trusted push failed: %s\n%s", err, out)
-	}
-
-	if !strings.Contains(string(out), "Signing and pushing trust metadata") {
-		c.Fatalf("Missing expected output on trusted push:\n%s", out)
-	}
+	c.Assert(err, check.IsNil, check.Commentf("trusted push failed: %s\n%s", err, out))
+	c.Assert(out, checker.Contains, "Signing and pushing trust metadata", check.Commentf("Missing expected output on trusted push"))
 
 	// Push with wrong passphrases
 	pushCmd = exec.Command(dockerBinary, "push", repoName)
 	s.trustedCmdWithDeprecatedEnvPassphrases(pushCmd, "12345678", "87654321")
 	out, _, err = runCommandWithOutput(pushCmd)
-	if err == nil {
-		c.Fatalf("Error missing from trusted push with short targets passphrase: \n%s", out)
-	}
-
-	if !strings.Contains(string(out), "password invalid, operation has failed") {
-		c.Fatalf("Missing expected output on trusted push with short targets/snapsnot passphrase:\n%s", out)
-	}
+	c.Assert(err, check.NotNil, check.Commentf("Error missing from trusted push with short targets passphrase: \n%s", out))
+	c.Assert(out, checker.Contains, "password invalid, operation has failed", check.Commentf("Missing expected output on trusted push with short targets/snapsnot passphrase"))
 }
 
 func (s *DockerTrustSuite) TestTrustedPushWithExpiredSnapshot(c *check.C) {
@@ -344,13 +262,8 @@ func (s *DockerTrustSuite) TestTrustedPushWithExpiredSnapshot(c *check.C) {
 	pushCmd := exec.Command(dockerBinary, "push", repoName)
 	s.trustedCmd(pushCmd)
 	out, _, err := runCommandWithOutput(pushCmd)
-	if err != nil {
-		c.Fatalf("trusted push failed: %s\n%s", err, out)
-	}
-
-	if !strings.Contains(string(out), "Signing and pushing trust metadata") {
-		c.Fatalf("Missing expected output on trusted push:\n%s", out)
-	}
+	c.Assert(err, check.IsNil, check.Commentf("trusted push failed: %s\n%s", err, out))
+	c.Assert(out, checker.Contains, "Signing and pushing trust metadata", check.Commentf("Missing expected output on trusted push"))
 
 	// Snapshots last for three years. This should be expired
 	fourYearsLater := time.Now().Add(time.Hour * 24 * 365 * 4)
@@ -360,13 +273,8 @@ func (s *DockerTrustSuite) TestTrustedPushWithExpiredSnapshot(c *check.C) {
 		pushCmd = exec.Command(dockerBinary, "push", repoName)
 		s.trustedCmd(pushCmd)
 		out, _, err = runCommandWithOutput(pushCmd)
-		if err == nil {
-			c.Fatalf("Error missing from trusted push with expired snapshot: \n%s", out)
-		}
-
-		if !strings.Contains(string(out), "repository out-of-date") {
-			c.Fatalf("Missing expected output on trusted push with expired snapshot:\n%s", out)
-		}
+		c.Assert(err, check.NotNil, check.Commentf("Error missing from trusted push with expired snapshot: \n%s", out))
+		c.Assert(out, checker.Contains, "repository out-of-date", check.Commentf("Missing expected output on trusted push with expired snapshot"))
 	})
 }
 
@@ -380,13 +288,8 @@ func (s *DockerTrustSuite) TestTrustedPushWithExpiredTimestamp(c *check.C) {
 	pushCmd := exec.Command(dockerBinary, "push", repoName)
 	s.trustedCmd(pushCmd)
 	out, _, err := runCommandWithOutput(pushCmd)
-	if err != nil {
-		c.Fatalf("trusted push failed: %s\n%s", err, out)
-	}
-
-	if !strings.Contains(string(out), "Signing and pushing trust metadata") {
-		c.Fatalf("Missing expected output on trusted push:\n%s", out)
-	}
+	c.Assert(err, check.IsNil, check.Commentf("trusted push failed: %s\n%s", err, out))
+	c.Assert(out, checker.Contains, "Signing and pushing trust metadata", check.Commentf("Missing expected output on trusted push"))
 
 	// The timestamps expire in two weeks. Lets check three
 	threeWeeksLater := time.Now().Add(time.Hour * 24 * 21)
@@ -396,11 +299,7 @@ func (s *DockerTrustSuite) TestTrustedPushWithExpiredTimestamp(c *check.C) {
 		pushCmd := exec.Command(dockerBinary, "push", repoName)
 		s.trustedCmd(pushCmd)
 		out, _, err := runCommandWithOutput(pushCmd)
-		if err != nil {
-			c.Fatalf("Error running trusted push: %s\n%s", err, out)
-		}
-		if !strings.Contains(string(out), "Signing and pushing trust metadata") {
-			c.Fatalf("Missing expected output on trusted push with expired timestamp:\n%s", out)
-		}
+		c.Assert(err, check.IsNil, check.Commentf("Error running trusted push: %s\n%s", err, out))
+		c.Assert(out, checker.Contains, "Signing and pushing trust metadata", check.Commentf("Missing expected output on trusted push with expired timestamp"))
 	})
 }

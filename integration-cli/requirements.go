@@ -29,6 +29,18 @@ var (
 		func() bool { return daemonPlatform == "windows" },
 		"Test requires a Windows daemon",
 	}
+	WindowsDaemonSupportsVolumes = testRequirement{
+		func() bool {
+			if daemonPlatform != "windows" {
+				return false
+			}
+			if windowsDaemonKV == 0 {
+				panic("windowsDaemonKV is not set")
+			}
+			return windowsDaemonKV >= 10559
+		},
+		"Test requires a Windows daemon that supports volumes",
+	}
 	DaemonIsLinux = testRequirement{
 		func() bool { return daemonPlatform == "linux" },
 		"Test requires a Linux daemon",
@@ -141,10 +153,10 @@ var (
 	NotGCCGO = testRequirement{
 		func() bool {
 			out, err := exec.Command("go", "version").Output()
-			if err != nil && strings.Contains(string(out), "gccgo") {
-				return true
+			if err == nil && strings.Contains(string(out), "gccgo") {
+				return false
 			}
-			return false
+			return true
 		},
 		"Test requires native Golang compiler instead of GCCGO",
 	}

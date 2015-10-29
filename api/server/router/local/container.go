@@ -331,7 +331,12 @@ func (s *router) postContainersCreate(ctx context.Context, w http.ResponseWriter
 	version := httputils.VersionFromContext(ctx)
 	adjustCPUShares := version.LessThan("1.19")
 
-	ccr, err := s.daemon.ContainerCreate(name, config, hostConfig, adjustCPUShares)
+	ccr, err := s.daemon.ContainerCreate(&daemon.ContainerCreateConfig{
+		Name:            name,
+		Config:          config,
+		HostConfig:      hostConfig,
+		AdjustCPUShares: adjustCPUShares,
+	})
 	if err != nil {
 		return err
 	}

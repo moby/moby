@@ -16,9 +16,11 @@ import (
 
 // createContainerPlatformSpecificSettings performs platform specific container create functionality
 func createContainerPlatformSpecificSettings(container *Container, config *runconfig.Config, hostConfig *runconfig.HostConfig, img *image.Image) error {
+	var name, destination string
+
 	for spec := range config.Volumes {
-		name := stringid.GenerateNonCryptoID()
-		destination := filepath.Clean(spec)
+		name = stringid.GenerateNonCryptoID()
+		destination = filepath.Clean(spec)
 
 		// Skip volumes for which we already have something mounted on that
 		// destination because of a --volume-from.

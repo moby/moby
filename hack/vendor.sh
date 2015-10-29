@@ -9,23 +9,24 @@ source 'hack/.vendor-helpers.sh'
 clone git github.com/Azure/go-ansiterm 70b2c90b260171e829f1ebd7c17f600c11858dbe
 clone git github.com/Sirupsen/logrus v0.8.2 # logrus is a common dependency among multiple deps
 clone git github.com/docker/libtrust 9cbd2a1374f46905c68a4eb3694a130610adc62a
-clone git github.com/go-check/check 64131543e7896d5bcc6bd5a76287eb75ea96c673
+clone git github.com/go-check/check 11d3bc7aa68e238947792f30573146a3231fc0f1
 clone git github.com/gorilla/context 14f550f51a
 clone git github.com/gorilla/mux e444e69cbd
 clone git github.com/kr/pty 5cf931ef8f
 clone git github.com/mattn/go-sqlite3 v1.1.0
-clone git github.com/microsoft/hcsshim 325e531f8c49dd78580d5fd197ddb972fa4610e7
+clone git github.com/microsoft/hcsshim de43b42b5ce14dfdcbeedb0628b0032174d89caa
 clone git github.com/mistifyio/go-zfs v2.1.1
 clone git github.com/tchap/go-patricia v2.1.0
+clone git github.com/vdemeester/shakers 3c10293ce22b900c27acad7b28656196fcc2f73b
 clone git golang.org/x/net 3cffabab72adf04f8e3b01c5baf775361837b5fe https://github.com/golang/net.git
 
 #get libnetwork packages
-clone git github.com/docker/libnetwork dd1c5f0ffe7697f75a82bd8e4bbd6f225ec5e383
+clone git github.com/docker/libnetwork abc0807d72e309f53155ec4f6374a77fd6613849
 clone git github.com/armon/go-metrics eb0af217e5e9747e41dd5303755356b62d28e3ec
 clone git github.com/hashicorp/go-msgpack 71c2886f5a673a35f909803f38ece5810165097b
 clone git github.com/hashicorp/memberlist 9a1e242e454d2443df330bdd51a436d5a9058fc4
 clone git github.com/hashicorp/serf 7151adcef72687bf95f451a2e0ba15cb19412bf2
-clone git github.com/docker/libkv 749af6c5b3fb755bec1738cc5e0d3a6f1574d730
+clone git github.com/docker/libkv c2aac5dbbaa5c872211edea7c0f32b3bd67e7410
 clone git github.com/vishvananda/netns 604eaf189ee867d8c147fafc28def2394e878d25
 clone git github.com/vishvananda/netlink 4b5dce31de6d42af5bb9811c6d265472199e0fec
 clone git github.com/BurntSushi/toml f706d00e3de6abe700c994cdd545a1a4915af060
@@ -35,14 +36,14 @@ clone git github.com/coreos/etcd v2.2.0
 fix_rewritten_imports github.com/coreos/etcd
 clone git github.com/ugorji/go 5abd4e96a45c386928ed2ca2a7ef63e2533e18ec
 clone git github.com/hashicorp/consul v0.5.2
-clone git github.com/boltdb/bolt v1.0
+clone git github.com/boltdb/bolt v1.1.0
 
 # get graph and distribution packages
 clone git github.com/docker/distribution 20c4b7a1805a52753dfd593ee1cc35558722a0ce # docker/1.9 branch
 clone git github.com/vbatts/tar-split v0.9.10
 
-clone git github.com/docker/notary ac05822d7d71ef077df3fc24f506672282a1feea
-clone git github.com/endophage/gotuf 9bcdad0308e34a49f38448b8ad436ad8860825ce
+clone git github.com/docker/notary 089d8450d8928aa1c58fd03f09cabbde9bcb4590
+clone git github.com/endophage/gotuf 2df1c8e0a7b7e10ae2113bf37aaa1bf1c1de8cc5
 clone git github.com/jfrazelle/go 6e461eb70cb4187b41a84e9a567d7137bdbe0f16
 clone git github.com/agl/ed25519 d2b94fd789ea21d12fac1a4443dd3a3f79cda72c
 

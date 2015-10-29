@@ -13,10 +13,38 @@ import (
 
 	"github.com/docker/docker/daemon/execdriver/native/template"
 	"github.com/docker/docker/pkg/mount"
+	"github.com/docker/docker/pkg/ulimit"
 	"github.com/opencontainers/runc/libcontainer"
 	"github.com/opencontainers/runc/libcontainer/cgroups/fs"
 	"github.com/opencontainers/runc/libcontainer/configs"
 )
+
+// Mount contains information for a mount operation.
+type Mount struct {
+	Source      string `json:"source"`
+	Destination string `json:"destination"`
+	Writable    bool   `json:"writable"`
+	Private     bool   `json:"private"`
+	Slave       bool   `json:"slave"`
+}
+
+// Resources contains all resource configs for a driver.
+// Currently these are all for cgroup configs.
+type Resources struct {
+	CommonResources
+
+	// Fields below here are platform specific
+
+	MemorySwap       int64            `json:"memory_swap"`
+	KernelMemory     int64            `json:"kernel_memory"`
+	CPUQuota         int64            `json:"cpu_quota"`
+	CpusetCpus       string           `json:"cpuset_cpus"`
+	CpusetMems       string           `json:"cpuset_mems"`
+	CPUPeriod        int64            `json:"cpu_period"`
+	Rlimits          []*ulimit.Rlimit `json:"rlimits"`
+	OomKillDisable   bool             `json:"oom_kill_disable"`
+	MemorySwappiness int64            `json:"memory_swappiness"`
+}
 
 // Network settings of the container
 type Network struct {

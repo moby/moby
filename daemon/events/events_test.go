@@ -10,8 +10,8 @@ import (
 
 func TestEventsLog(t *testing.T) {
 	e := New()
-	_, l1 := e.Subscribe()
-	_, l2 := e.Subscribe()
+	_, l1, _ := e.Subscribe()
+	_, l2, _ := e.Subscribe()
 	defer e.Evict(l1)
 	defer e.Evict(l2)
 	count := e.SubscribersCount()
@@ -65,7 +65,7 @@ func TestEventsLog(t *testing.T) {
 
 func TestEventsLogTimeout(t *testing.T) {
 	e := New()
-	_, l := e.Subscribe()
+	_, l, _ := e.Subscribe()
 	defer e.Evict(l)
 
 	c := make(chan struct{})
@@ -91,7 +91,7 @@ func TestLogEvents(t *testing.T) {
 		e.Log(action, id, from)
 	}
 	time.Sleep(50 * time.Millisecond)
-	current, l := e.Subscribe()
+	current, l, _ := e.Subscribe()
 	for i := 0; i < 10; i++ {
 		num := i + eventsLimit + 16
 		action := fmt.Sprintf("action_%d", num)

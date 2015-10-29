@@ -8,7 +8,17 @@ func setPlatformSpecificContainerFields(container *Container, contJSONBase *type
 }
 
 func addMountPoints(container *Container) []types.MountPoint {
-	return nil
+	mountPoints := make([]types.MountPoint, 0, len(container.MountPoints))
+	for _, m := range container.MountPoints {
+		mountPoints = append(mountPoints, types.MountPoint{
+			Name:        m.Name,
+			Source:      m.Path(),
+			Destination: m.Destination,
+			Driver:      m.Driver,
+			RW:          m.RW,
+		})
+	}
+	return mountPoints
 }
 
 // ContainerInspectPre120 get containers for pre 1.20 APIs.

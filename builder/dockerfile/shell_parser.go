@@ -9,13 +9,15 @@ package dockerfile
 import (
 	"fmt"
 	"strings"
+	"text/scanner"
 	"unicode"
 )
 
 type shellWord struct {
-	word string
-	envs []string
-	pos  int
+	word    string
+	scanner scanner.Scanner
+	envs    []string
+	pos     int
 }
 
 // ProcessWord will use the 'env' list of environment variables,
@@ -26,11 +28,12 @@ func ProcessWord(word string, env []string) (string, error) {
 		envs: env,
 		pos:  0,
 	}
+	sw.scanner.Init(strings.NewReader(word))
 	return sw.process()
 }
 
 func (sw *shellWord) process() (string, error) {
-	return sw.processStopOn('\000')
+	return sw.processStopOn(scanner.EOF)
 }
 
 // Process the word, starting at 'pos', and stop when we get to the
@@ -43,10 +46,11 @@ func (sw *shellWord) processStopOn(stopChar rune) (string, error) {
 		'$':  sw.processDollar,
 	}
 
-	for sw.pos < len(sw.word) {
-		ch := sw.peek()
-		if stopChar != '\000' && ch == stopChar {
-			sw.next()
+	for sw.scanner.Peek() != scanner.EOF {
+		ch := sw.scanner.Peek()
+
+		if stopChar != scanner.EOF && ch == stopChar {
+			sw.scanner.Next()
 			break
 		}
 		if fn, ok := charFuncMapping[ch]; ok {
@@ -58,14 +62,19 @@ func (sw *shellWord) processStopOn(stopChar rune) (string, error) {
 			result += tmp
 		} else {
 			// Not special, just add it to the result
-			ch = sw.next()
+			ch = sw.scanner.Next()
+
 			if ch == '\\' {
 				// '\' escapes, except end of line
-				ch = sw.next()
-				if ch == '\000' {
-					continue
+
+				ch = sw.scanner.Next()
+
+				if ch == scanner.EOF {
+					break
 				}
+
 			}
+
 			result += string(ch)
 		}
 	}
@@ -73,36 +82,21 @@ func (sw *shellWord) processStopOn(stopChar rune) (string, error) {
 	return result, nil
 }
 
-func (sw *shellWord) peek() rune {
-	if sw.pos == len(sw.word) {
-		return '\000'
-	}
-	return rune(sw.word[sw.pos])
-}
-
-func (sw *shellWord) next() rune {
-	if sw.pos == len(sw.word) {
-		return '\000'
-	}
-	ch := rune(sw.word[sw.pos])
-	sw.pos++
-	return ch
-}
-
 func (sw *shellWord) processSingleQuote() (string, error) {
 	// All chars between single quotes are taken as-is
 	// Note, you can't escape '
 	var result string
 
-	sw.next()
+	sw.scanner.Next()
 
 	for {
-		ch := sw.next()
-		if ch == '\000' || ch == '\'' {
+		ch := sw.scanner.Next()
+		if ch == '\'' || ch == scanner.EOF {
 			break
 		}
 		result += string(ch)
 	}
+
 	return result, nil
 }
 
@@ -111,12 +105,12 @@ func (sw *shellWord) processDoubleQuote() (string, error) {
 	// But you can escape " with a \
 	var result string
 
-	sw.next()
+	sw.scanner.Next()
 
-	for sw.pos < len(sw.word) {
-		ch := sw.peek()
+	for sw.scanner.Peek() != scanner.EOF {
+		ch := sw.scanner.Peek()
 		if ch == '"' {
-			sw.next()
+			sw.scanner.Next()
 			break
 		}
 		if ch == '$' {
@@ -126,18 +120,18 @@ func (sw *shellWord) processDoubleQuote() (string, error) {
 			}
 			result += tmp
 		} else {
-			ch = sw.next()
+			ch = sw.scanner.Next()
 			if ch == '\\' {
-				chNext := sw.peek()
+				chNext := sw.scanner.Peek()
 
-				if chNext == '\000' {
+				if chNext == scanner.EOF {
 					// Ignore \ at end of word
 					continue
 				}
 
 				if chNext == '"' || chNext == '$' {
 					// \" and \$ can be escaped, all other \'s are left as-is
-					ch = sw.next()
+					ch = sw.scanner.Next()
 				}
 			}
 			result += string(ch)
@@ -148,23 +142,23 @@ func (sw *shellWord) processDoubleQuote() (string, error) {
 }
 
 func (sw *shellWord) processDollar() (string, error) {
-	sw.next()
-	ch := sw.peek()
+	sw.scanner.Next()
+	ch := sw.scanner.Peek()
 	if ch == '{' {
-		sw.next()
+		sw.scanner.Next()
 		name := sw.processName()
-		ch = sw.peek()
+		ch = sw.scanner.Peek()
 		if ch == '}' {
 			// Normal ${xx} case
-			sw.next()
+			sw.scanner.Next()
 			return sw.getEnv(name), nil
 		}
 		if ch == ':' {
 			// Special ${xx:...} format processing
 			// Yes it allows for recursive $'s in the ... spot
 
-			sw.next() // skip over :
-			modifier := sw.next()
+			sw.scanner.Next() // skip over :
+			modifier := sw.scanner.Next()
 
 			word, err := sw.processStopOn('}')
 			if err != nil {
@@ -207,16 +201,16 @@ func (sw *shellWord) processName() string {
 	// If it starts with a numeric then just return $#
 	var name string
 
-	for sw.pos < len(sw.word) {
-		ch := sw.peek()
+	for sw.scanner.Peek() != scanner.EOF {
+		ch := sw.scanner.Peek()
 		if len(name) == 0 && unicode.IsDigit(ch) {
-			ch = sw.next()
+			ch = sw.scanner.Next()
 			return string(ch)
 		}
 		if !unicode.IsLetter(ch) && !unicode.IsDigit(ch) && ch != '_' {
 			break
 		}
-		ch = sw.next()
+		ch = sw.scanner.Next()
 		name += string(ch)
 	}
 
