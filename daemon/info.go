@@ -69,9 +69,6 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 		Images:             imgcount,
 		Driver:             daemon.GraphDriver().String(),
 		DriverStatus:       daemon.GraphDriver().Status(),
-		IPv4Forwarding:     !sysInfo.IPv4ForwardingDisabled,
-		BridgeNfIptables:   !sysInfo.BridgeNfCallIptablesDisabled,
-		BridgeNfIP6tables:  !sysInfo.BridgeNfCallIP6tablesDisabled,
 		Debug:              os.Getenv("DEBUG") != "",
 		NFd:                fileutils.GetTotalUsedFds(),
 		NGoroutines:        runtime.NumGoroutine(),
@@ -100,6 +97,9 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 	// sysinfo.cgroupCpuInfo will be nil otherwise and cause a SIGSEGV if
 	// an attempt is made to access through them.
 	if runtime.GOOS != "windows" {
+		v.IPv4Forwarding = !sysInfo.IPv4ForwardingDisabled
+		v.BridgeNfIptables = !sysInfo.BridgeNfCallIptablesDisabled
+		v.BridgeNfIP6tables = !sysInfo.BridgeNfCallIP6tablesDisabled
 		v.MemoryLimit = sysInfo.MemoryLimit
 		v.SwapLimit = sysInfo.SwapLimit
 		v.OomKillDisable = sysInfo.OomKillDisable
