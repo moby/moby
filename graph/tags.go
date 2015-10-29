@@ -203,8 +203,6 @@ func (store *TagStore) Delete(repoName, ref string) (bool, error) {
 		return false, err
 	}
 
-	repoName = registry.NormalizeLocalName(repoName)
-
 	if ref == "" {
 		// Delete the whole repository.
 		delete(store.Repositories, repoName)
@@ -212,6 +210,7 @@ func (store *TagStore) Delete(repoName, ref string) (bool, error) {
 	}
 
 	repoRefs, exists := store.Repositories[repoName]
+
 	if !exists {
 		return false, fmt.Errorf("No such repository: %s", repoName)
 	}
