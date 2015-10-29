@@ -1006,12 +1006,7 @@ func (daemon *Daemon) createRootfs(container *Container) error {
 	return nil
 }
 
-// Graph needs to be removed.
-//
-// FIXME: this is a convenience function for integration tests
-// which need direct access to daemon.graph.
-// Once the tests switch to using engine and jobs, this method
-// can go away.
+// Graph returns *graph.Graph which can be using for layers graph operations.
 func (daemon *Daemon) Graph() *graph.Graph {
 	return daemon.graph
 }
