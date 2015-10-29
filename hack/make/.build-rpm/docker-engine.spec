@@ -43,7 +43,7 @@ Requires: iptables
 Requires: libcgroup
 Requires: tar
 Requires: xz
-%if 0%{?fedora} >= 21
+%if 0%{?fedora} >= 21 || 0%{?centos} >= 7
 # Resolves: rhbz#1165615
 Requires: device-mapper-libs >= 1.02.90-1
 %endif
