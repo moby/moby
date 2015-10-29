@@ -3,9 +3,14 @@
 package operatingsystem
 
 import (
+	"bufio"
 	"bytes"
-	"errors"
+	"fmt"
 	"io/ioutil"
+	"os"
+	"strings"
+
+	"github.com/mattn/go-shellwords"
 )
 
 var (
@@ -18,15 +23,34 @@ var (
 
 // GetOperatingSystem gets the name of the current operating system.
 func GetOperatingSystem() (string, error) {
-	b, err := ioutil.ReadFile(etcOsRelease)
+	osReleaseFile, err := os.Open(etcOsRelease)
 	if err != nil {
 		return "", err
 	}
-	if i := bytes.Index(b, []byte("PRETTY_NAME")); i >= 0 {
-		b = b[i+13:]
-		return string(b[:bytes.IndexByte(b, '"')]), nil
+	defer osReleaseFile.Close()
+
+	var prettyName string
+	scanner := bufio.NewScanner(osReleaseFile)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.HasPrefix(line, "PRETTY_NAME=") {
+			data := strings.SplitN(line, "=", 2)
+			prettyNames, err := shellwords.Parse(data[1])
+			if err != nil {
+				return "", fmt.Errorf("PRETTY_NAME is invalid: %s", err.Error())
+			}
+			if len(prettyNames) != 1 {
+				return "", fmt.Errorf("PRETTY_NAME needs to be enclosed by quotes if they have spaces: %s", data[1])
+			}
+			prettyName = prettyNames[0]
+		}
 	}
-	return "", errors.New("PRETTY_NAME not found")
+	if prettyName != "" {
+		return prettyName, nil
+	}
+	// If not set, defaults to PRETTY_NAME="Linux"
+	// c.f. http://www.freedesktop.org/software/systemd/man/os-release.html
+	return "Linux", nil
 }
 
 // IsContainerized returns true if we are running inside a container.
