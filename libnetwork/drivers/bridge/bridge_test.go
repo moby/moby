@@ -1,7 +1,6 @@
 package bridge
 
 import (
-	"bytes"
 	"fmt"
 	"net"
 	"regexp"
@@ -13,7 +12,6 @@ import (
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/testutils"
 	"github.com/docker/libnetwork/types"
-	"github.com/vishvananda/netlink"
 )
 
 func getIPv4Data(t *testing.T) []driverapi.IPAMData {
@@ -494,50 +492,6 @@ func testQueryEndpointInfo(t *testing.T, ulPxyEnabled bool) {
 	err = network.releasePorts(ep)
 	if err != nil {
 		t.Fatalf("Failed to release mapped ports: %v", err)
-	}
-}
-
-func TestCreateLinkWithOptions(t *testing.T) {
-	defer testutils.SetupTestOSContext(t)()
-	d := newDriver()
-
-	if err := d.configure(nil); err != nil {
-		t.Fatalf("Failed to setup driver config: %v", err)
-	}
-
-	netconfig := &networkConfiguration{BridgeName: DefaultBridgeName}
-	netOptions := make(map[string]interface{})
-	netOptions[netlabel.GenericData] = netconfig
-
-	ipdList := getIPv4Data(t)
-	err := d.CreateNetwork("net1", netOptions, ipdList, nil)
-	if err != nil {
-		t.Fatalf("Failed to create bridge: %v", err)
-	}
-
-	mac := net.HardwareAddr([]byte{0x1e, 0x67, 0x66, 0x44, 0x55, 0x66})
-	epOptions := make(map[string]interface{})
-	epOptions[netlabel.MacAddress] = mac
-
-	te := newTestEndpoint(ipdList[0].Pool, 11)
-	err = d.CreateEndpoint("net1", "ep", te.Interface(), epOptions)
-	if err != nil {
-		t.Fatalf("Failed to create an endpoint: %s", err.Error())
-	}
-
-	err = d.Join("net1", "ep", "sbox", te, nil)
-	if err != nil {
-		t.Fatalf("Failed to join the endpoint: %v", err)
-	}
-
-	ifaceName := te.iface.srcName
-	veth, err := netlink.LinkByName(ifaceName)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if !bytes.Equal(mac, veth.Attrs().HardwareAddr) {
-		t.Fatalf("Failed to parse and program endpoint configuration")
 	}
 }
 

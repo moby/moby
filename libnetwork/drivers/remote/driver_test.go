@@ -1,6 +1,7 @@
 package remote
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -290,7 +291,7 @@ func TestRemoteDriver(t *testing.T) {
 		dst:            "vethdst",
 		address:        "192.168.5.7/16",
 		addressIPv6:    "2001:DB8::5:7/48",
-		macAddress:     "",
+		macAddress:     "ab:cd:ef:ee:ee:ee",
 		gateway:        "192.168.0.1",
 		gatewayIPv6:    "2001:DB8::1",
 		hostsPath:      "/here/comes/the/host/path",
@@ -326,7 +327,9 @@ func TestRemoteDriver(t *testing.T) {
 	})
 	handle(t, mux, "CreateEndpoint", func(msg map[string]interface{}) interface{} {
 		iface := map[string]interface{}{
-			"MacAddress": ep.macAddress,
+			"MacAddress":  ep.macAddress,
+			"Address":     ep.address,
+			"AddressIPv6": ep.addressIPv6,
 		}
 		return map[string]interface{}{
 			"Interface": iface,
@@ -401,9 +404,17 @@ func TestRemoteDriver(t *testing.T) {
 	}
 
 	endID := "dummy-endpoint"
-	err = d.CreateEndpoint(netID, endID, ep, map[string]interface{}{})
+	ifInfo := &testEndpoint{}
+	err = d.CreateEndpoint(netID, endID, ifInfo, map[string]interface{}{})
 	if err != nil {
 		t.Fatal(err)
+	}
+
+	if !bytes.Equal(ep.MacAddress(), ifInfo.MacAddress()) || !types.CompareIPNet(ep.Address(), ifInfo.Address()) ||
+		!types.CompareIPNet(ep.AddressIPv6(), ifInfo.AddressIPv6()) {
+		t.Fatalf("Unexpected InterfaceInfo data. Expected (%s, %s, %s). Got (%v, %v, %v)",
+			ep.MacAddress(), ep.Address(), ep.AddressIPv6(),
+			ifInfo.MacAddress(), ifInfo.Address(), ifInfo.AddressIPv6())
 	}
 
 	joinOpts := map[string]interface{}{"foo": "fooValue"}

@@ -42,6 +42,12 @@ func (n *networkNamespace) Master(name string) IfaceOption {
 	}
 }
 
+func (n *networkNamespace) MacAddress(mac net.HardwareAddr) IfaceOption {
+	return func(i *nwIface) {
+		i.mac = mac
+	}
+}
+
 func (n *networkNamespace) Address(addr *net.IPNet) IfaceOption {
 	return func(i *nwIface) {
 		i.address = addr

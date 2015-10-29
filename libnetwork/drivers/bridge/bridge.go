@@ -934,27 +934,18 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 		}
 	}
 
-	// Create the sandbox side pipe interface
+	// Store the sandbox side pipe interface parameters
 	endpoint.srcName = containerIfName
 	endpoint.macAddress = ifInfo.MacAddress()
 	endpoint.addr = ifInfo.Address()
 	endpoint.addrv6 = ifInfo.AddressIPv6()
 
-	// Down the interface before configuring mac address.
-	if err = netlink.LinkSetDown(sbox); err != nil {
-		return fmt.Errorf("could not set link down for container interface %s: %v", containerIfName, err)
-	}
-
-	// Set the sbox's MAC. If specified, use the one configured by user, otherwise generate one based on IP.
+	// Set the sbox's MAC if not provided. If specified, use the one configured by user, otherwise generate one based on IP.
 	if endpoint.macAddress == nil {
 		endpoint.macAddress = electMacAddress(epConfig, endpoint.addr.IP)
-		if err := ifInfo.SetMacAddress(endpoint.macAddress); err != nil {
+		if err = ifInfo.SetMacAddress(endpoint.macAddress); err != nil {
 			return err
 		}
-	}
-	err = netlink.LinkSetHardwareAddr(sbox, endpoint.macAddress)
-	if err != nil {
-		return fmt.Errorf("could not set mac address for container interface %s: %v", containerIfName, err)
 	}
 
 	// Up the host interface after finishing all netlink configuration
@@ -982,7 +973,7 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 		}
 
 		endpoint.addrv6 = &net.IPNet{IP: ip6, Mask: network.Mask}
-		if err := ifInfo.SetIPAddress(endpoint.addrv6); err != nil {
+		if err = ifInfo.SetIPAddress(endpoint.addrv6); err != nil {
 			return err
 		}
 	}
