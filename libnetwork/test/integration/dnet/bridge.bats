@@ -20,6 +20,8 @@ function test_single_network_connectivity() {
     # Now test connectivity between all the containers using service names
     for i in `seq ${start} ${end}`;
     do
+	runc $(dnet_container_name 1 bridge) $(get_sbox_id 1 container_${i}) \
+	     "ping -c 1 www.google.com"
 	for j in `seq ${start} ${end}`;
 	do
 	    if [ "$i" -eq "$j" ]; then
@@ -48,6 +50,7 @@ function test_single_network_connectivity() {
     echo $(docker ps)
     test_single_network_connectivity bridge 3
 }
+
 
 @test "Test default network dnet restart" {
     skip_for_circleci
