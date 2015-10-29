@@ -270,6 +270,29 @@ func (s *DockerSuite) TestDockerNetworkDeleteNotExists(c *check.C) {
 	c.Assert(err, checker.NotNil, check.Commentf("%v", out))
 }
 
+func (s *DockerSuite) TestDockerNetworkDeleteMultiple(c *check.C) {
+	dockerCmd(c, "network", "create", "testDelMulti0")
+	assertNwIsAvailable(c, "testDelMulti0")
+	dockerCmd(c, "network", "create", "testDelMulti1")
+	assertNwIsAvailable(c, "testDelMulti1")
+	dockerCmd(c, "network", "create", "testDelMulti2")
+	assertNwIsAvailable(c, "testDelMulti2")
+	out, _ := dockerCmd(c, "run", "-d", "--net", "testDelMulti2", "busybox", "top")
+	waitRun(strings.TrimSpace(out))
+
+	// delete three networks at the same time, since testDelMulti2
+	// contains active container, it's deletion should fail.
+	out, _, err := dockerCmdWithError("network", "rm", "testDelMulti0", "testDelMulti1", "testDelMulti2")
+	// err should not be nil due to deleting testDelMulti2 failed.
+	c.Assert(err, checker.NotNil, check.Commentf("out: %s", out))
+	// testDelMulti2 should fail due to network has active endpoints
+	c.Assert(out, checker.Contains, "has active endpoints")
+	assertNwNotAvailable(c, "testDelMulti0")
+	assertNwNotAvailable(c, "testDelMulti1")
+	// testDelMulti2 can't be deleted, so it should exists
+	assertNwIsAvailable(c, "testDelMulti2")
+}
+
 func (s *DockerSuite) TestDockerInspectMultipleNetwork(c *check.C) {
 	out, _ := dockerCmd(c, "network", "inspect", "host", "none")
 	networkResources := []types.NetworkResource{}

@@ -87,19 +87,28 @@ func (cli *DockerCli) CmdNetworkCreate(args ...string) error {
 	return nil
 }
 
-// CmdNetworkRm deletes a network
+// CmdNetworkRm deletes one or more networks
 //
-// Usage: docker network rm <NETWORK-NAME | NETWORK-ID>
+// Usage: docker network rm NETWORK-NAME|NETWORK-ID [NETWORK-NAME|NETWORK-ID...]
 func (cli *DockerCli) CmdNetworkRm(args ...string) error {
-	cmd := Cli.Subcmd("network rm", []string{"NETWORK"}, "Deletes a network", false)
-	cmd.Require(flag.Exact, 1)
+	cmd := Cli.Subcmd("network rm", []string{"NETWORK [NETWORK...]"}, "Deletes one or more networks", false)
+	cmd.Require(flag.Min, 1)
 	err := cmd.ParseFlags(args, true)
 	if err != nil {
 		return err
 	}
-	_, _, err = readBody(cli.call("DELETE", "/networks/"+cmd.Arg(0), nil, nil))
-	if err != nil {
-		return err
+
+	status := 0
+	for _, net := range cmd.Args() {
+		_, _, err = readBody(cli.call("DELETE", "/networks/"+net, nil, nil))
+		if err != nil {
+			fmt.Fprintf(cli.err, "%s\n", err)
+			status = 1
+			continue
+		}
+	}
+	if status != 0 {
+		return Cli.StatusError{StatusCode: status}
 	}
 	return nil
 }
@@ -193,7 +202,7 @@ func (cli *DockerCli) CmdNetworkLs(args ...string) error {
 //
 // Usage: docker network inspect [OPTIONS] <NETWORK> [NETWORK...]
 func (cli *DockerCli) CmdNetworkInspect(args ...string) error {
-	cmd := Cli.Subcmd("network inspect", []string{"NETWORK [NETWORK...]"}, "Displays detailed information on a network", false)
+	cmd := Cli.Subcmd("network inspect", []string{"NETWORK [NETWORK...]"}, "Displays detailed information on one or more networks", false)
 	cmd.Require(flag.Min, 1)
 	err := cmd.ParseFlags(args, true)
 	if err != nil {
@@ -208,7 +217,7 @@ func (cli *DockerCli) CmdNetworkInspect(args ...string) error {
 			if strings.Contains(err.Error(), "not found") {
 				fmt.Fprintf(cli.err, "Error: No such network: %s\n", name)
 			} else {
-				fmt.Fprintf(cli.err, "%s", err)
+				fmt.Fprintf(cli.err, "%s\n", err)
 			}
 			status = 1
 			continue
