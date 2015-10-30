@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/docker/daemon/execdriver/native/template"
+	nativetemplate "github.com/docker/docker/daemon/execdriver/native/template"
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/ulimit"
 	"github.com/opencontainers/runc/libcontainer"
@@ -58,7 +58,7 @@ type Network struct {
 // It returns the initial configs for a container. It's mostly
 // defined by the default template.
 func InitContainer(c *Command) *configs.Config {
-	container := template.New()
+	container := nativetemplate.New()
 
 	container.Hostname = getEnv("HOSTNAME", c.ProcessConfig.Env)
 	container.Cgroups.Name = c.ID
