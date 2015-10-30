@@ -3,6 +3,7 @@ package libnetwork
 import (
 	"container/heap"
 	"encoding/json"
+	"sync"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/datastore"
@@ -119,8 +120,9 @@ func (sbs *sbState) DataScope() string {
 
 func (sb *sandbox) storeUpdate() error {
 	sbs := &sbState{
-		c:  sb.controller,
-		ID: sb.id,
+		c:   sb.controller,
+		ID:  sb.id,
+		Cid: sb.containerID,
 	}
 
 retry:
@@ -197,15 +199,17 @@ func (c *controller) sandboxCleanup() {
 
 		for _, eps := range sbs.Eps {
 			n, err := c.getNetworkFromStore(eps.Nid)
+			var ep *endpoint
 			if err != nil {
 				logrus.Errorf("getNetworkFromStore for nid %s failed while trying to build sandbox for cleanup: %v", eps.Nid, err)
-				continue
-			}
-
-			ep, err := n.getEndpointFromStore(eps.Eid)
-			if err != nil {
-				logrus.Errorf("getEndpointFromStore for eid %s failed while trying to build sandbox for cleanup: %v", eps.Eid, err)
-				continue
+				n = &network{id: eps.Nid, ctrlr: c, drvOnce: &sync.Once{}}
+				ep = &endpoint{id: eps.Eid, network: n}
+			} else {
+				ep, err = n.getEndpointFromStore(eps.Eid)
+				if err != nil {
+					logrus.Errorf("getEndpointFromStore for eid %s failed while trying to build sandbox for cleanup: %v", eps.Eid, err)
+					ep = &endpoint{id: eps.Eid, network: n}
+				}
 			}
 
 			heap.Push(&sb.endpoints, ep)
