@@ -341,7 +341,7 @@ func (streamConfig *streamConfig) StderrPipe() io.ReadCloser {
 func (container *Container) cleanup() {
 	container.releaseNetwork()
 
-	if err := container.unmountIpcMounts(); err != nil {
+	if err := container.unmountIpcMounts(detachMounted); err != nil {
 		logrus.Errorf("%s: Failed to umount ipc filesystems: %v", container.ID, err)
 	}
 

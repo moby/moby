@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/pkg/mount"
 )
 
 // cleanupMounts umounts shm/mqueue mounts for old containers
@@ -20,7 +21,7 @@ func (daemon *Daemon) cleanupMounts() error {
 	}
 	defer f.Close()
 
-	return daemon.cleanupMountsFromReader(f, detachMounted)
+	return daemon.cleanupMountsFromReader(f, mount.Unmount)
 }
 
 func (daemon *Daemon) cleanupMountsFromReader(reader io.Reader, unmount func(target string) error) error {

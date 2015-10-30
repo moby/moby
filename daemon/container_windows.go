@@ -185,7 +185,11 @@ func (container *Container) setupIpcDirs() error {
 	return nil
 }
 
-func (container *Container) unmountIpcMounts() error {
+func (container *Container) unmountIpcMounts(unmount func(pth string) error) error {
+	return nil
+}
+
+func detachMounted(path string) error {
 	return nil
 }
 

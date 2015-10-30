@@ -39,6 +39,7 @@ import (
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/jsonmessage"
+	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/namesgenerator"
 	"github.com/docker/docker/pkg/nat"
 	"github.com/docker/docker/pkg/parsers/filters"
@@ -223,7 +224,7 @@ func (daemon *Daemon) Register(container *Container) error {
 		}
 		daemon.execDriver.Terminate(cmd)
 
-		if err := container.unmountIpcMounts(); err != nil {
+		if err := container.unmountIpcMounts(mount.Unmount); err != nil {
 			logrus.Errorf("%s: Failed to umount ipc filesystems: %v", container.ID, err)
 		}
 		if err := container.Unmount(); err != nil {
