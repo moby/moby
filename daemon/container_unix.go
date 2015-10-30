@@ -30,7 +30,6 @@ import (
 	"github.com/docker/docker/utils"
 	"github.com/docker/docker/volume"
 	"github.com/docker/libnetwork"
-	"github.com/docker/libnetwork/drivers/bridge"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/options"
 	"github.com/docker/libnetwork/types"
@@ -891,22 +890,6 @@ func (container *Container) buildCreateEndpointOptions(n libnetwork.Network) ([]
 	}
 
 	return createOptions, nil
-}
-
-func createNetwork(controller libnetwork.NetworkController, dnet string, driver string) (libnetwork.Network, error) {
-	createOptions := []libnetwork.NetworkOption{}
-	genericOption := options.Generic{}
-
-	// Bridge driver is special due to legacy reasons
-	if runconfig.NetworkMode(driver).IsBridge() {
-		genericOption[netlabel.GenericData] = map[string]string{
-			bridge.BridgeName: dnet,
-		}
-		networkOption := libnetwork.NetworkOptionGeneric(genericOption)
-		createOptions = append(createOptions, networkOption)
-	}
-
-	return controller.NewNetwork(driver, dnet, createOptions...)
 }
 
 func (container *Container) allocateNetwork() error {
