@@ -66,6 +66,17 @@ func buildStruct(value reflect.Value, buf *bytes.Buffer, tag reflect.StructTag) 
 		return nil
 	}
 
+	// unwrap payloads
+	if payload := tag.Get("payload"); payload != "" {
+		field, _ := value.Type().FieldByName(payload)
+		tag = field.Tag
+		value = elemOf(value.FieldByName(payload))
+
+		if !value.IsValid() {
+			return nil
+		}
+	}
+
 	buf.WriteString("{")
 
 	t, fields := value.Type(), []*reflect.StructField{}
@@ -196,4 +207,12 @@ func writeString(s string, buf *bytes.Buffer) {
 		}
 	}
 	buf.WriteByte('"')
+}
+
+// Returns the reflection element of a value, if it is a pointer.
+func elemOf(value reflect.Value) reflect.Value {
+	for value.Kind() == reflect.Ptr {
+		value = value.Elem()
+	}
+	return value
 }

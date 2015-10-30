@@ -2,8 +2,10 @@
 package awslogs
 
 import (
+	"errors"
 	"fmt"
 	"os"
+	"runtime"
 	"sort"
 	"strings"
 	"sync"
@@ -12,8 +14,12 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
+	"github.com/aws/aws-sdk-go/aws/defaults"
+	"github.com/aws/aws-sdk-go/aws/ec2metadata"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/cloudwatchlogs"
 	"github.com/docker/docker/daemon/logger"
+	"github.com/docker/docker/version"
 )
 
 const (
@@ -35,6 +41,8 @@ const (
 	resourceAlreadyExistsCode = "ResourceAlreadyExistsException"
 	dataAlreadyAcceptedCode   = "DataAlreadyAcceptedException"
 	invalidSequenceTokenCode  = "InvalidSequenceTokenException"
+
+	userAgentHeader = "User-Agent"
 )
 
 type logStream struct {
@@ -52,12 +60,16 @@ type api interface {
 	PutLogEvents(*cloudwatchlogs.PutLogEventsInput) (*cloudwatchlogs.PutLogEventsOutput, error)
 }
 
+type regionFinder interface {
+	Region() (string, error)
+}
+
 type byTimestamp []*cloudwatchlogs.InputLogEvent
 
 // init registers the awslogs driver and sets the default region, if provided
 func init() {
 	if os.Getenv(regionEnvKey) != "" {
-		aws.DefaultConfig.Region = aws.String(os.Getenv(regionEnvKey))
+		defaults.DefaultConfig.Region = aws.String(os.Getenv(regionEnvKey))
 	}
 	if err := logger.RegisterLogDriver(name, New); err != nil {
 		logrus.Fatal(err)
@@ -79,25 +91,69 @@ func New(ctx logger.Context) (logger.Logger, error) {
 	if ctx.Config[logStreamKey] != "" {
 		logStreamName = ctx.Config[logStreamKey]
 	}
-	config := aws.DefaultConfig
-	if ctx.Config[regionKey] != "" {
-		config = aws.DefaultConfig.Merge(&aws.Config{
-			Region: aws.String(ctx.Config[regionKey]),
-		})
+	client, err := newAWSLogsClient(ctx)
+	if err != nil {
+		return nil, err
 	}
 	containerStream := &logStream{
 		logStreamName: logStreamName,
 		logGroupName:  logGroupName,
-		client:        cloudwatchlogs.New(config),
+		client:        client,
 		messages:      make(chan *logger.Message, 4096),
 	}
-	err := containerStream.create()
+	err = containerStream.create()
 	if err != nil {
 		return nil, err
 	}
 	go containerStream.collectBatch()
 
 	return containerStream, nil
+}
+
+// newRegionFinder is a variable such that the implementation
+// can be swapped out for unit tests.
+var newRegionFinder = func() regionFinder {
+	return ec2metadata.New(nil)
+}
+
+// newAWSLogsClient creates the service client for Amazon CloudWatch Logs.
+// Customizations to the default client from the SDK include a Docker-specific
+// User-Agent string and automatic region detection using the EC2 Instance
+// Metadata Service when region is otherwise unspecified.
+func newAWSLogsClient(ctx logger.Context) (api, error) {
+	config := defaults.DefaultConfig
+	if ctx.Config[regionKey] != "" {
+		config = defaults.DefaultConfig.Merge(&aws.Config{
+			Region: aws.String(ctx.Config[regionKey]),
+		})
+	}
+	if config.Region == nil || *config.Region == "" {
+		logrus.Info("Trying to get region from EC2 Metadata")
+		ec2MetadataClient := newRegionFinder()
+		region, err := ec2MetadataClient.Region()
+		if err != nil {
+			logrus.WithFields(logrus.Fields{
+				"error": err,
+			}).Error("Could not get region from EC2 metadata, environment, or log option")
+			return nil, errors.New("Cannot determine region for awslogs driver")
+		}
+		config.Region = &region
+	}
+	logrus.WithFields(logrus.Fields{
+		"region": *config.Region,
+	}).Debug("Created awslogs client")
+	client := cloudwatchlogs.New(config)
+
+	client.Handlers.Build.PushBackNamed(request.NamedHandler{
+		Name: "DockerUserAgentHandler",
+		Fn: func(r *request.Request) {
+			currentAgent := r.HTTPRequest.Header.Get(userAgentHeader)
+			r.HTTPRequest.Header.Set(userAgentHeader,
+				fmt.Sprintf("Docker %s (%s) %s",
+					version.VERSION, runtime.GOOS, currentAgent))
+		},
+	})
+	return client, nil
 }
 
 // Name returns the name of the awslogs logging driver
@@ -290,12 +346,6 @@ func ValidateLogOpt(cfg map[string]string) error {
 	}
 	if cfg[logGroupKey] == "" {
 		return fmt.Errorf("must specify a value for log opt '%s'", logGroupKey)
-	}
-	if cfg[regionKey] == "" && os.Getenv(regionEnvKey) == "" {
-		return fmt.Errorf(
-			"must specify a value for environment variable '%s' or log opt '%s'",
-			regionEnvKey,
-			regionKey)
 	}
 	return nil
 }
