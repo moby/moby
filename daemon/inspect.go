@@ -28,7 +28,7 @@ func (daemon *Daemon) ContainerInspect(name string, size bool) (*types.Container
 
 	mountPoints := addMountPoints(container)
 	networkSettings := &types.NetworkSettings{
-		types.NetworkSettingsBase{
+		NetworkSettingsBase: types.NetworkSettingsBase{
 			Bridge:                 container.NetworkSettings.Bridge,
 			SandboxID:              container.NetworkSettings.SandboxID,
 			HairpinMode:            container.NetworkSettings.HairpinMode,
@@ -39,7 +39,8 @@ func (daemon *Daemon) ContainerInspect(name string, size bool) (*types.Container
 			SecondaryIPAddresses:   container.NetworkSettings.SecondaryIPAddresses,
 			SecondaryIPv6Addresses: container.NetworkSettings.SecondaryIPv6Addresses,
 		},
-		container.NetworkSettings.Networks,
+		DefaultNetworkSettings: daemon.getDefaultNetworkSettings(container.NetworkSettings.Networks),
+		Networks:               container.NetworkSettings.Networks,
 	}
 
 	return &types.ContainerJSON{base, mountPoints, container.Config, networkSettings}, nil
@@ -68,7 +69,7 @@ func (daemon *Daemon) ContainerInspect120(name string) (*v1p20.ContainerJSON, er
 		container.Config.ExposedPorts,
 		container.hostConfig.VolumeDriver,
 	}
-	networkSettings := getBackwardsCompatibleNetworkSettings(container.NetworkSettings)
+	networkSettings := daemon.getBackwardsCompatibleNetworkSettings(container.NetworkSettings)
 
 	return &v1p20.ContainerJSON{base, mountPoints, config, networkSettings}, nil
 }
@@ -167,7 +168,7 @@ func (daemon *Daemon) VolumeInspect(name string) (*types.Volume, error) {
 	return volumeToAPIType(v), nil
 }
 
-func getBackwardsCompatibleNetworkSettings(settings *network.Settings) *v1p20.NetworkSettings {
+func (daemon *Daemon) getBackwardsCompatibleNetworkSettings(settings *network.Settings) *v1p20.NetworkSettings {
 	result := &v1p20.NetworkSettings{
 		NetworkSettingsBase: types.NetworkSettingsBase{
 			Bridge:                 settings.Bridge,
@@ -180,16 +181,26 @@ func getBackwardsCompatibleNetworkSettings(settings *network.Settings) *v1p20.Ne
 			SecondaryIPAddresses:   settings.SecondaryIPAddresses,
 			SecondaryIPv6Addresses: settings.SecondaryIPv6Addresses,
 		},
+		DefaultNetworkSettings: daemon.getDefaultNetworkSettings(settings.Networks),
 	}
-	if bridgeSettings := settings.Networks["bridge"]; bridgeSettings != nil {
-		result.EndpointID = bridgeSettings.EndpointID
-		result.Gateway = bridgeSettings.Gateway
-		result.GlobalIPv6Address = bridgeSettings.GlobalIPv6Address
-		result.GlobalIPv6PrefixLen = bridgeSettings.GlobalIPv6PrefixLen
-		result.IPAddress = bridgeSettings.IPAddress
-		result.IPPrefixLen = bridgeSettings.IPPrefixLen
-		result.IPv6Gateway = bridgeSettings.IPv6Gateway
-		result.MacAddress = bridgeSettings.MacAddress
-	}
+
 	return result
+}
+
+// getDefaultNetworkSettings creates the deprecated structure that holds the information
+// about the bridge network for a container.
+func (daemon *Daemon) getDefaultNetworkSettings(networks map[string]*network.EndpointSettings) types.DefaultNetworkSettings {
+	var settings types.DefaultNetworkSettings
+
+	if defaultNetwork, ok := networks["bridge"]; ok {
+		settings.EndpointID = defaultNetwork.EndpointID
+		settings.Gateway = defaultNetwork.Gateway
+		settings.GlobalIPv6Address = defaultNetwork.GlobalIPv6Address
+		settings.GlobalIPv6PrefixLen = defaultNetwork.GlobalIPv6PrefixLen
+		settings.IPAddress = defaultNetwork.IPAddress
+		settings.IPPrefixLen = defaultNetwork.IPPrefixLen
+		settings.IPv6Gateway = defaultNetwork.IPv6Gateway
+		settings.MacAddress = defaultNetwork.MacAddress
+	}
+	return settings
 }
