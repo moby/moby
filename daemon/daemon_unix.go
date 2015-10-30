@@ -115,9 +115,6 @@ func (daemon *Daemon) adaptContainerSettings(hostConfig *runconfig.HostConfig, a
 		// By default, MemorySwap is set to twice the size of Memory.
 		hostConfig.MemorySwap = hostConfig.Memory * 2
 	}
-	if hostConfig.MemoryReservation == 0 && hostConfig.Memory > 0 {
-		hostConfig.MemoryReservation = hostConfig.Memory
-	}
 }
 
 // verifyPlatformContainerSettings performs platform-specific validation of the
