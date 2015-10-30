@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/versions/v1p20"
 	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/docker/libnetwork/driverapi"
 	remoteapi "github.com/docker/libnetwork/drivers/remote/api"
@@ -640,4 +641,32 @@ func (s *DockerNetworkSuite) TestDockerNetworkMacInspect(c *check.C) {
 	mac, err := inspectField(ctn, "NetworkSettings.Networks."+nwn+".MacAddress")
 	c.Assert(err, checker.IsNil)
 	c.Assert(mac, checker.Equals, "a0:b1:c2:d3:e4:f5")
+}
+
+func (s *DockerSuite) TestInspectApiMultipeNetworks(c *check.C) {
+	dockerCmd(c, "network", "create", "mybridge1")
+	dockerCmd(c, "network", "create", "mybridge2")
+	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
+	id := strings.TrimSpace(out)
+	c.Assert(waitRun(id), check.IsNil)
+
+	dockerCmd(c, "network", "connect", "mybridge1", id)
+	dockerCmd(c, "network", "connect", "mybridge2", id)
+
+	body := getInspectBody(c, "v1.20", id)
+	var inspect120 v1p20.ContainerJSON
+	err := json.Unmarshal(body, &inspect120)
+	c.Assert(err, checker.IsNil)
+
+	versionedIP := inspect120.NetworkSettings.IPAddress
+
+	body = getInspectBody(c, "v1.21", id)
+	var inspect121 types.ContainerJSON
+	err = json.Unmarshal(body, &inspect121)
+	c.Assert(err, checker.IsNil)
+	c.Assert(inspect121.NetworkSettings.Networks, checker.HasLen, 3)
+
+	bridge := inspect121.NetworkSettings.Networks["bridge"]
+	c.Assert(bridge.IPAddress, checker.Equals, versionedIP)
+	c.Assert(bridge.IPAddress, checker.Equals, inspect121.NetworkSettings.IPAddress)
 }
