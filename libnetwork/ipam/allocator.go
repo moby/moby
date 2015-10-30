@@ -195,7 +195,7 @@ func (a *Allocator) getAddrSpace(as string) (*addrSpace, error) {
 	defer a.Unlock()
 	aSpace, ok := a.addrSpaces[as]
 	if !ok {
-		return nil, types.BadRequestErrorf("cannot find address space %s (most likey the backing datastore is not configured)", as)
+		return nil, types.BadRequestErrorf("cannot find address space %s (most likely the backing datastore is not configured)", as)
 	}
 	return aSpace, nil
 }
