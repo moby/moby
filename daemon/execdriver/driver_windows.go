@@ -33,3 +33,16 @@ type NetworkInterface struct {
 	// container and the port on the host.
 	PortBindings nat.PortMap `json:"port_bindings"`
 }
+
+// Command wraps an os/exec.Cmd to add more metadata
+type Command struct {
+	CommonCommand
+
+	// Fields below here are platform specific
+
+	FirstStart  bool     `json:"first_start"`  // Optimisation for first boot of Windows
+	Hostname    string   `json:"hostname"`     // Windows sets the hostname in the execdriver
+	LayerFolder string   `json:"layer_folder"` // Layer folder for a command
+	LayerPaths  []string `json:"layer_paths"`  // Layer paths for a command
+	Isolated    bool     `json:"isolated"`     // True if a Hyper-V container
+}

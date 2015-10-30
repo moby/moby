@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/daemon/execdriver/native/template"
+	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/ulimit"
 	"github.com/opencontainers/runc/libcontainer"
@@ -46,12 +47,65 @@ type Resources struct {
 	MemorySwappiness int64            `json:"memory_swappiness"`
 }
 
+// Ipc settings of the container
+// It is for IPC namespace setting. Usually different containers
+// have their own IPC namespace, however this specifies to use
+// an existing IPC namespace.
+// You can join the host's or a container's IPC namespace.
+type Ipc struct {
+	ContainerID string `json:"container_id"` // id of the container to join ipc.
+	HostIpc     bool   `json:"host_ipc"`
+}
+
+// Pid settings of the container
+// It is for PID namespace setting. Usually different containers
+// have their own PID namespace, however this specifies to use
+// an existing PID namespace.
+// Joining the host's PID namespace is currently the only supported
+// option.
+type Pid struct {
+	HostPid bool `json:"host_pid"`
+}
+
+// UTS settings of the container
+// It is for UTS namespace setting. Usually different containers
+// have their own UTS namespace, however this specifies to use
+// an existing UTS namespace.
+// Joining the host's UTS namespace is currently the only supported
+// option.
+type UTS struct {
+	HostUTS bool `json:"host_uts"`
+}
+
 // Network settings of the container
 type Network struct {
 	Mtu            int    `json:"mtu"`
 	ContainerID    string `json:"container_id"` // id of the container to join network.
 	NamespacePath  string `json:"namespace_path"`
 	HostNetworking bool   `json:"host_networking"`
+}
+
+// Command wraps an os/exec.Cmd to add more metadata
+type Command struct {
+	CommonCommand
+
+	// Fields below here are platform specific
+
+	AllowedDevices     []*configs.Device `json:"allowed_devices"`
+	AppArmorProfile    string            `json:"apparmor_profile"`
+	AutoCreatedDevices []*configs.Device `json:"autocreated_devices"`
+	CapAdd             []string          `json:"cap_add"`
+	CapDrop            []string          `json:"cap_drop"`
+	CgroupParent       string            `json:"cgroup_parent"` // The parent cgroup for this command.
+	GIDMapping         []idtools.IDMap   `json:"gidmapping"`
+	GroupAdd           []string          `json:"group_add"`
+	Ipc                *Ipc              `json:"ipc"`
+	LxcConfig          []string          `json:"lxc_config"`
+	Pid                *Pid              `json:"pid"`
+	ReadonlyRootfs     bool              `json:"readonly_rootfs"`
+	RemappedRoot       *User             `json:"remap_root"`
+	UIDMapping         []idtools.IDMap   `json:"uidmapping"`
+	UTS                *UTS              `json:"uts"`
 }
 
 // InitContainer is the initialization of a container config.

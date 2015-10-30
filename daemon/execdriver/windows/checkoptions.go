@@ -9,19 +9,9 @@ import (
 )
 
 func checkSupportedOptions(c *execdriver.Command) error {
-	// Windows doesn't support read-only root filesystem
-	if c.ReadonlyRootfs {
-		return errors.New("Windows does not support the read-only root filesystem option")
-	}
-
 	// Windows doesn't support username
 	if c.ProcessConfig.User != "" {
 		return errors.New("Windows does not support the username option")
-	}
-
-	// Windows doesn't support custom lxc options
-	if c.LxcConfig != nil {
-		return errors.New("Windows does not support lxc options")
 	}
 
 	// TODO Windows: Validate other fields which Windows doesn't support, factor

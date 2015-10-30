@@ -250,15 +250,15 @@ type HostConfig struct {
 	VolumesFrom       []string              // List of volumes to take from other container
 	Devices           []DeviceMapping       // List of devices to map inside the container
 	NetworkMode       NetworkMode           // Network namespace to use for the container
-	IpcMode           IpcMode               // IPC namespace to use for the container
-	PidMode           PidMode               // PID namespace to use for the container
-	UTSMode           UTSMode               // UTS namespace to use for the container
+	IpcMode           IpcMode               // IPC namespace to use for the container	// Unix specific
+	PidMode           PidMode               // PID namespace to use for the container	// Unix specific
+	UTSMode           UTSMode               // UTS namespace to use for the container	// Unix specific
 	CapAdd            *stringutils.StrSlice // List of kernel capabilities to add to the container
 	CapDrop           *stringutils.StrSlice // List of kernel capabilities to remove from the container
 	GroupAdd          []string              // List of additional groups that the container process will run as
 	RestartPolicy     RestartPolicy         // Restart policy to be used for the container
 	SecurityOpt       []string              // List of string values to customize labels for MLS systems, such as SELinux.
-	ReadonlyRootfs    bool                  // Is the container root filesystem in read-only
+	ReadonlyRootfs    bool                  // Is the container root filesystem in read-only	// Unix specific
 	Ulimits           []*ulimit.Ulimit      // List of ulimits to be set in the container
 	LogConfig         LogConfig             // Configuration of the logs for this container
 	CgroupParent      string                // Parent cgroup.

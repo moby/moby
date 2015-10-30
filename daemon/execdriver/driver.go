@@ -6,9 +6,7 @@ import (
 	"os/exec"
 	"time"
 
-	"github.com/docker/docker/pkg/idtools"
 	"github.com/opencontainers/runc/libcontainer"
-	"github.com/opencontainers/runc/libcontainer/configs"
 )
 
 // Context is a generic key value pair that allows
@@ -106,36 +104,6 @@ type Driver interface {
 	SupportsHooks() bool
 }
 
-// Ipc settings of the container
-// It is for IPC namespace setting. Usually different containers
-// have their own IPC namespace, however this specifies to use
-// an existing IPC namespace.
-// You can join the host's or a container's IPC namespace.
-type Ipc struct {
-	ContainerID string `json:"container_id"` // id of the container to join ipc.
-	HostIpc     bool   `json:"host_ipc"`
-}
-
-// Pid settings of the container
-// It is for PID namespace setting. Usually different containers
-// have their own PID namespace, however this specifies to use
-// an existing PID namespace.
-// Joining the host's PID namespace is currently the only supported
-// option.
-type Pid struct {
-	HostPid bool `json:"host_pid"`
-}
-
-// UTS settings of the container
-// It is for UTS namespace setting. Usually different containers
-// have their own UTS namespace, however this specifies to use
-// an existing UTS namespace.
-// Joining the host's UTS namespace is currently the only supported
-// option.
-type UTS struct {
-	HostUTS bool `json:"host_uts"`
-}
-
 // CommonResources contains the resource configs for a driver that are
 // common across platforms.
 type CommonResources struct {
@@ -169,46 +137,23 @@ type ProcessConfig struct {
 	Tty         bool     `json:"tty"`
 	Entrypoint  string   `json:"entrypoint"`
 	Arguments   []string `json:"arguments"`
-	Terminal    Terminal `json:"-"` // standard or tty terminal
-	Console     string   `json:"-"` // dev/console path
-	ConsoleSize [2]int   `json:"-"` // h,w of initial console size
+	Terminal    Terminal `json:"-"` // standard or tty terminal (Unix)
+	Console     string   `json:"-"` // dev/console path (Unix)
+	ConsoleSize [2]int   `json:"-"` // h,w of initial console size (Windows)
 }
 
-// Command wraps an os/exec.Cmd to add more metadata
-//
-// TODO Windows: Factor out unused fields such as LxcConfig, AppArmorProfile,
-// and CgroupParent.
-type Command struct {
-	ID                 string            `json:"id"`
-	Rootfs             string            `json:"rootfs"` // root fs of the container
-	ReadonlyRootfs     bool              `json:"readonly_rootfs"`
-	InitPath           string            `json:"initpath"` // dockerinit
-	WorkingDir         string            `json:"working_dir"`
-	ConfigPath         string            `json:"config_path"` // this should be able to be removed when the lxc template is moved into the driver
-	Network            *Network          `json:"network"`
-	Ipc                *Ipc              `json:"ipc"`
-	Pid                *Pid              `json:"pid"`
-	UTS                *UTS              `json:"uts"`
-	RemappedRoot       *User             `json:"remap_root"`
-	UIDMapping         []idtools.IDMap   `json:"uidmapping"`
-	GIDMapping         []idtools.IDMap   `json:"gidmapping"`
-	Resources          *Resources        `json:"resources"`
-	Mounts             []Mount           `json:"mounts"`
-	AllowedDevices     []*configs.Device `json:"allowed_devices"`
-	AutoCreatedDevices []*configs.Device `json:"autocreated_devices"`
-	CapAdd             []string          `json:"cap_add"`
-	CapDrop            []string          `json:"cap_drop"`
-	GroupAdd           []string          `json:"group_add"`
-	ContainerPid       int               `json:"container_pid"`  // the pid for the process inside a container
-	ProcessConfig      ProcessConfig     `json:"process_config"` // Describes the init process of the container.
-	ProcessLabel       string            `json:"process_label"`
-	MountLabel         string            `json:"mount_label"`
-	LxcConfig          []string          `json:"lxc_config"`
-	AppArmorProfile    string            `json:"apparmor_profile"`
-	CgroupParent       string            `json:"cgroup_parent"` // The parent cgroup for this command.
-	FirstStart         bool              `json:"first_start"`
-	LayerPaths         []string          `json:"layer_paths"` // Windows needs to know the layer paths and folder for a command
-	LayerFolder        string            `json:"layer_folder"`
-	Hostname           string            `json:"hostname"` // Windows sets the hostname in the execdriver
-	Isolated           bool              `json:"isolated"` // Windows: Isolated is a Hyper-V container rather than Windows Server Container
+// CommonCommand is the common platform agnostic part of the Command structure
+// which wraps an os/exec.Cmd to add more metadata
+type CommonCommand struct {
+	ContainerPid  int           `json:"container_pid"` // the pid for the process inside a container
+	ID            string        `json:"id"`
+	InitPath      string        `json:"initpath"`    // dockerinit
+	MountLabel    string        `json:"mount_label"` // TODO Windows. More involved, but can be factored out
+	Mounts        []Mount       `json:"mounts"`
+	Network       *Network      `json:"network"`
+	ProcessConfig ProcessConfig `json:"process_config"` // Describes the init process of the container.
+	ProcessLabel  string        `json:"process_label"`  // TODO Windows. More involved, but can be factored out
+	Resources     *Resources    `json:"resources"`
+	Rootfs        string        `json:"rootfs"` // root fs of the container
+	WorkingDir    string        `json:"working_dir"`
 }
