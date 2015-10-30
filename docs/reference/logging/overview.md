@@ -25,6 +25,7 @@ container's logging driver. The following options are supported:
 | `fluentd`   | Fluentd logging driver for Docker. Writes log messages to `fluentd` (forward input).                                          |
 | `awslogs`   | Amazon CloudWatch Logs logging driver for Docker. Writes log messages to Amazon CloudWatch Logs.                              |
 | `splunk`    | Splunk logging driver for Docker. Writes log messages to `splunk` using HTTP Event Collector.                                 |
+| `plain-text`| Plain Text logging driver for Docker. Writes log messages to file.                                                            |
 
 The `docker logs`command is available only for the `json-file` logging driver.
 
@@ -183,3 +184,15 @@ The Splunk logging driver requires the following options:
 
 For detailed information about working with this logging driver, see the [Splunk logging driver](splunk.md)
 reference documentation.
+
+## plain-text options
+
+The following logging options are supported for the `plain-text` logging driver:
+
+    --log-opt log-path=<log_file_path>
+    --log-opt max-size=[0-9+][k|m|g]
+    --log-opt max-file=[0-9+]
+
+Logs that reach `max-size` are rolled over. You can set the size in kilobytes(k), megabytes(m), or gigabytes(g). eg `--log-opt max-size=50m`. If `max-size` is not set, then logs are not rolled over.
+
+`max-file` specifies the maximum number of files that a log is rolled over before being discarded. eg `--log-opt max-file=100`. If `max-size` is not set, then `max-file` is not honored.
