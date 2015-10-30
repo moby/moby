@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -165,17 +164,18 @@ func (container *Container) readHostConfig() error {
 }
 
 func (container *Container) writeHostConfig() error {
-	data, err := json.Marshal(container.hostConfig)
-	if err != nil {
-		return err
-	}
-
 	pth, err := container.hostConfigPath()
 	if err != nil {
 		return err
 	}
 
-	return ioutil.WriteFile(pth, data, 0666)
+	f, err := os.Create(pth)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	return json.NewEncoder(f).Encode(&container.hostConfig)
 }
 
 func (container *Container) logEvent(action string) {
