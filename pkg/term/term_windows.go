@@ -32,8 +32,8 @@ type Winsize struct {
 func StdStreams() (stdIn io.ReadCloser, stdOut, stdErr io.Writer) {
 	switch {
 	case os.Getenv("ConEmuANSI") == "ON":
-		// The ConEmu shell emulates ANSI well by default.
-		return os.Stdin, os.Stdout, os.Stderr
+		// The ConEmu terminal emulates ANSI on output streams well.
+		return windows.ConEmuStreams()
 	case os.Getenv("MSYSTEM") != "":
 		// MSYS (mingw) does not emulate ANSI well.
 		return windows.ConsoleStreams()
