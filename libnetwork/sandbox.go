@@ -168,6 +168,7 @@ func (sb *sandbox) Delete() error {
 	c := sb.controller
 
 	// Detach from all endpoints
+	retain := false
 	for _, ep := range sb.getConnectedEndpoints() {
 		// endpoint in the Gateway network will be cleaned up
 		// when when sandbox no longer needs external connectivity
@@ -176,14 +177,22 @@ func (sb *sandbox) Delete() error {
 		}
 
 		if err := ep.Leave(sb); err != nil {
+			retain = true
 			log.Warnf("Failed detaching sandbox %s from endpoint %s: %v\n", sb.ID(), ep.ID(), err)
 		}
 
 		if err := ep.Delete(); err != nil {
+			retain = true
 			log.Warnf("Failed deleting endpoint %s: %v\n", ep.ID(), err)
 		}
 	}
 
+	if retain {
+		sb.Lock()
+		sb.inDelete = false
+		sb.Unlock()
+		return fmt.Errorf("could not cleanup all the endpoints in container %s / sandbox %s", sb.containerID, sb.id)
+	}
 	// Container is going away. Path cache in etchosts is most
 	// likely not required any more. Drop it.
 	etchosts.Drop(sb.config.hostsPath)
