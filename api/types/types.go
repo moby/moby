@@ -286,6 +286,7 @@ type ContainerJSON struct {
 // NetworkSettings exposes the network settings in the api
 type NetworkSettings struct {
 	NetworkSettingsBase
+	DefaultNetworkSettings
 	Networks map[string]*network.EndpointSettings
 }
 
@@ -300,6 +301,20 @@ type NetworkSettingsBase struct {
 	SandboxKey             string
 	SecondaryIPAddresses   []network.Address
 	SecondaryIPv6Addresses []network.Address
+}
+
+// DefaultNetworkSettings holds network information
+// during the 2 release deprecation period.
+// It will be removed in Docker 1.11.
+type DefaultNetworkSettings struct {
+	EndpointID          string
+	Gateway             string
+	GlobalIPv6Address   string
+	GlobalIPv6PrefixLen int
+	IPAddress           string
+	IPPrefixLen         int
+	IPv6Gateway         string
+	MacAddress          string
 }
 
 // MountPoint represents a mount point configuration inside the container.

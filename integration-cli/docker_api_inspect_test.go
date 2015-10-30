@@ -2,11 +2,12 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"strings"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/versions/v1p20"
+	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/docker/docker/pkg/stringutils"
 	"github.com/go-check/check"
 )
@@ -23,19 +24,15 @@ func (s *DockerSuite) TestInspectApiContainerResponse(c *check.C) {
 		version string
 		keys    []string
 	}{
-		{"1.20", append(keysBase, "Mounts")},
-		{"1.19", append(keysBase, "Volumes", "VolumesRW")},
+		{"v1.20", append(keysBase, "Mounts")},
+		{"v1.19", append(keysBase, "Volumes", "VolumesRW")},
 	}
 
 	for _, cs := range cases {
-		endpoint := fmt.Sprintf("/v%s/containers/%s/json", cs.version, cleanedContainerID)
-
-		status, body, err := sockRequest("GET", endpoint, nil)
-		c.Assert(err, check.IsNil)
-		c.Assert(status, check.Equals, http.StatusOK)
+		body := getInspectBody(c, cs.version, cleanedContainerID)
 
 		var inspectJSON map[string]interface{}
-		if err = json.Unmarshal(body, &inspectJSON); err != nil {
+		if err := json.Unmarshal(body, &inspectJSON); err != nil {
 			c.Fatalf("unable to unmarshal body for version %s: %v", cs.version, err)
 		}
 
@@ -57,15 +54,12 @@ func (s *DockerSuite) TestInspectApiContainerVolumeDriverLegacy(c *check.C) {
 
 	cleanedContainerID := strings.TrimSpace(out)
 
-	cases := []string{"1.19", "1.20"}
+	cases := []string{"v1.19", "v1.20"}
 	for _, version := range cases {
-		endpoint := fmt.Sprintf("/v%s/containers/%s/json", version, cleanedContainerID)
-		status, body, err := sockRequest("GET", endpoint, nil)
-		c.Assert(err, check.IsNil)
-		c.Assert(status, check.Equals, http.StatusOK)
+		body := getInspectBody(c, version, cleanedContainerID)
 
 		var inspectJSON map[string]interface{}
-		if err = json.Unmarshal(body, &inspectJSON); err != nil {
+		if err := json.Unmarshal(body, &inspectJSON); err != nil {
 			c.Fatalf("unable to unmarshal body for version %s: %v", version, err)
 		}
 
@@ -85,13 +79,10 @@ func (s *DockerSuite) TestInspectApiContainerVolumeDriver(c *check.C) {
 
 	cleanedContainerID := strings.TrimSpace(out)
 
-	endpoint := fmt.Sprintf("/v1.21/containers/%s/json", cleanedContainerID)
-	status, body, err := sockRequest("GET", endpoint, nil)
-	c.Assert(err, check.IsNil)
-	c.Assert(status, check.Equals, http.StatusOK)
+	body := getInspectBody(c, "v1.21", cleanedContainerID)
 
 	var inspectJSON map[string]interface{}
-	if err = json.Unmarshal(body, &inspectJSON); err != nil {
+	if err := json.Unmarshal(body, &inspectJSON); err != nil {
 		c.Fatalf("unable to unmarshal body for version 1.21: %v", err)
 	}
 
@@ -140,15 +131,12 @@ func (s *DockerSuite) TestInspectApiEmptyFieldsInConfigPre121(c *check.C) {
 
 	cleanedContainerID := strings.TrimSpace(out)
 
-	cases := []string{"1.19", "1.20"}
+	cases := []string{"v1.19", "v1.20"}
 	for _, version := range cases {
-		endpoint := fmt.Sprintf("/v%s/containers/%s/json", version, cleanedContainerID)
-		status, body, err := sockRequest("GET", endpoint, nil)
-		c.Assert(err, check.IsNil)
-		c.Assert(status, check.Equals, http.StatusOK)
+		body := getInspectBody(c, version, cleanedContainerID)
 
 		var inspectJSON map[string]interface{}
-		if err = json.Unmarshal(body, &inspectJSON); err != nil {
+		if err := json.Unmarshal(body, &inspectJSON); err != nil {
 			c.Fatalf("unable to unmarshal body for version %s: %v", version, err)
 		}
 
@@ -163,4 +151,34 @@ func (s *DockerSuite) TestInspectApiEmptyFieldsInConfigPre121(c *check.C) {
 			}
 		}
 	}
+}
+
+func (s *DockerSuite) TestInspectApiBridgeNetworkSettings120(c *check.C) {
+	out, _ := dockerCmd(c, "run", "-d", "busybox", "true")
+
+	cleanedContainerID := strings.TrimSpace(out)
+	body := getInspectBody(c, "v1.20", cleanedContainerID)
+
+	var inspectJSON v1p20.ContainerJSON
+	err := json.Unmarshal(body, &inspectJSON)
+	c.Assert(err, checker.IsNil)
+
+	settings := inspectJSON.NetworkSettings
+	c.Assert(settings.IPAddress, checker.Not(checker.HasLen), 0)
+}
+
+func (s *DockerSuite) TestInspectApiBridgeNetworkSettings121(c *check.C) {
+	out, _ := dockerCmd(c, "run", "-d", "busybox", "true")
+	cleanedContainerID := strings.TrimSpace(out)
+
+	body := getInspectBody(c, "v1.21", cleanedContainerID)
+
+	var inspectJSON types.ContainerJSON
+	err := json.Unmarshal(body, &inspectJSON)
+	c.Assert(err, checker.IsNil)
+
+	settings := inspectJSON.NetworkSettings
+	c.Assert(settings.IPAddress, checker.Not(checker.HasLen), 0)
+	c.Assert(settings.Networks["bridge"], checker.Not(checker.IsNil))
+	c.Assert(settings.IPAddress, checker.Equals, settings.Networks["bridge"].IPAddress)
 }

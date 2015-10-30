@@ -36,12 +36,5 @@ type StatsJSON struct {
 // NetworkSettings is a backward compatible struct for APIs prior to 1.21
 type NetworkSettings struct {
 	types.NetworkSettingsBase
-	EndpointID          string
-	Gateway             string
-	GlobalIPv6Address   string
-	GlobalIPv6PrefixLen int
-	IPAddress           string
-	IPPrefixLen         int
-	IPv6Gateway         string
-	MacAddress          string
+	types.DefaultNetworkSettings
 }
