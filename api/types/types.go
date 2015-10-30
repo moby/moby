@@ -335,44 +335,44 @@ type VolumeCreateRequest struct {
 
 // NetworkResource is the body of the "get network" http response message
 type NetworkResource struct {
-	Name       string                      `json:"name"`
-	ID         string                      `json:"id"`
-	Scope      string                      `json:"scope"`
-	Driver     string                      `json:"driver"`
-	IPAM       network.IPAM                `json:"ipam"`
-	Containers map[string]EndpointResource `json:"containers"`
-	Options    map[string]string           `json:"options"`
+	Name       string
+	ID         string `json:"Id"`
+	Scope      string
+	Driver     string
+	IPAM       network.IPAM
+	Containers map[string]EndpointResource
+	Options    map[string]string
 }
 
 //EndpointResource contains network resources allocated and usd for a container in a network
 type EndpointResource struct {
-	EndpointID  string `json:"endpoint"`
-	MacAddress  string `json:"mac_address"`
-	IPv4Address string `json:"ipv4_address"`
-	IPv6Address string `json:"ipv6_address"`
+	EndpointID  string
+	MacAddress  string
+	IPv4Address string
+	IPv6Address string
 }
 
 // NetworkCreate is the expected body of the "create network" http request message
 type NetworkCreate struct {
-	Name           string            `json:"name"`
-	CheckDuplicate bool              `json:"check_duplicate"`
-	Driver         string            `json:"driver"`
-	IPAM           network.IPAM      `json:"ipam"`
-	Options        map[string]string `json:"options"`
+	Name           string
+	CheckDuplicate bool
+	Driver         string
+	IPAM           network.IPAM
+	Options        map[string]string
 }
 
 // NetworkCreateResponse is the response message sent by the server for network create call
 type NetworkCreateResponse struct {
-	ID      string `json:"id"`
-	Warning string `json:"warning"`
+	ID      string `json:"Id"`
+	Warning string
 }
 
 // NetworkConnect represents the data to be used to connect a container to the network
 type NetworkConnect struct {
-	Container string `json:"container"`
+	Container string
 }
 
 // NetworkDisconnect represents the data to be used to disconnect a container from the network
 type NetworkDisconnect struct {
-	Container string `json:"container"`
+	Container string
 }
