@@ -507,13 +507,14 @@ func (c *controller) NewSandbox(containerID string, options ...SandboxOption) (S
 		return nil, err
 	}
 
+	c.Lock()
 	if sb.osSbox == nil && !sb.config.useExternalKey {
 		if sb.osSbox, err = osl.NewSandbox(sb.Key(), !sb.config.useDefaultSandBox); err != nil {
+			c.Unlock()
 			return nil, fmt.Errorf("failed to create new osl sandbox: %v", err)
 		}
 	}
 
-	c.Lock()
 	c.sandboxes[sb.id] = sb
 	c.Unlock()
 	defer func() {

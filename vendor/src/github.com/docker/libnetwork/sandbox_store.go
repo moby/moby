@@ -197,27 +197,27 @@ func (c *controller) sandboxCleanup() {
 			continue
 		}
 
+		c.Lock()
+		c.sandboxes[sb.id] = sb
+		c.Unlock()
+
 		for _, eps := range sbs.Eps {
 			n, err := c.getNetworkFromStore(eps.Nid)
 			var ep *endpoint
 			if err != nil {
 				logrus.Errorf("getNetworkFromStore for nid %s failed while trying to build sandbox for cleanup: %v", eps.Nid, err)
 				n = &network{id: eps.Nid, ctrlr: c, drvOnce: &sync.Once{}}
-				ep = &endpoint{id: eps.Eid, network: n}
+				ep = &endpoint{id: eps.Eid, network: n, sandboxID: sbs.ID}
 			} else {
 				ep, err = n.getEndpointFromStore(eps.Eid)
 				if err != nil {
 					logrus.Errorf("getEndpointFromStore for eid %s failed while trying to build sandbox for cleanup: %v", eps.Eid, err)
-					ep = &endpoint{id: eps.Eid, network: n}
+					ep = &endpoint{id: eps.Eid, network: n, sandboxID: sbs.ID}
 				}
 			}
 
 			heap.Push(&sb.endpoints, ep)
 		}
-
-		c.Lock()
-		c.sandboxes[sb.id] = sb
-		c.Unlock()
 
 		if err := sb.Delete(); err != nil {
 			logrus.Errorf("failed to delete sandbox %s while trying to cleanup: %v", sb.id, err)
