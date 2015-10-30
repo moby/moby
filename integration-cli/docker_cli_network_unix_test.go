@@ -232,7 +232,8 @@ func isNwPresent(c *check.C, name string) bool {
 	out, _ := dockerCmd(c, "network", "ls")
 	lines := strings.Split(out, "\n")
 	for i := 1; i < len(lines)-1; i++ {
-		if strings.Contains(lines[i], name) {
+		netFields := strings.Fields(lines[i])
+		if netFields[1] == name {
 			return true
 		}
 	}
