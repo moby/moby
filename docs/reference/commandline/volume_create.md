@@ -33,7 +33,7 @@ Multiple containers can use the same volume in the same time period. This is use
 Volume names must be unique among drivers.  This means you cannot use the same volume name with two different drivers.  If you attempt this `docker` returns an error:
 
 ```
-A volume named  %s  already exists with the %s driver. Choose a different volume name.
+A volume named  "hello"  already exists with the "some-other" driver. Choose a different volume name.
 ```
 
 If you specify a volume name already in use on the current driver, Docker assumes you want to re-use the existing volume and does not return an error.   

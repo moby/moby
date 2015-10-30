@@ -917,7 +917,7 @@ var (
 	// trying to create a volume that has existed using different driver.
 	ErrorVolumeNameTaken = errcode.Register(errGroup, errcode.ErrorDescriptor{
 		Value:          "VOLUME_NAME_TAKEN",
-		Message:        "A volume name %s already exists with the %s driver. Choose a different volume name.",
+		Message:        "A volume named %q already exists with the %q driver. Choose a different volume name.",
 		Description:    "An attempt to create a volume using a driver but the volume already exists with a different driver",
 		HTTPStatusCode: http.StatusInternalServerError,
 	})
