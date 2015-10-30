@@ -1,4 +1,4 @@
-package local
+package volume
 
 import (
 	"encoding/json"
@@ -9,31 +9,31 @@ import (
 	"golang.org/x/net/context"
 )
 
-func (s *router) getVolumesList(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (v *volumeRouter) getVolumesList(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
 
-	volumes, err := s.daemon.Volumes(r.Form.Get("filters"))
+	volumes, err := v.daemon.Volumes(r.Form.Get("filters"))
 	if err != nil {
 		return err
 	}
 	return httputils.WriteJSON(w, http.StatusOK, &types.VolumesListResponse{Volumes: volumes})
 }
 
-func (s *router) getVolumeByName(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (v *volumeRouter) getVolumeByName(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
 
-	v, err := s.daemon.VolumeInspect(vars["name"])
+	volume, err := v.daemon.VolumeInspect(vars["name"])
 	if err != nil {
 		return err
 	}
-	return httputils.WriteJSON(w, http.StatusOK, v)
+	return httputils.WriteJSON(w, http.StatusOK, volume)
 }
 
-func (s *router) postVolumesCreate(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (v *volumeRouter) postVolumesCreate(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
@@ -47,18 +47,18 @@ func (s *router) postVolumesCreate(ctx context.Context, w http.ResponseWriter, r
 		return err
 	}
 
-	volume, err := s.daemon.VolumeCreate(req.Name, req.Driver, req.DriverOpts)
+	volume, err := v.daemon.VolumeCreate(req.Name, req.Driver, req.DriverOpts)
 	if err != nil {
 		return err
 	}
 	return httputils.WriteJSON(w, http.StatusCreated, volume)
 }
 
-func (s *router) deleteVolumes(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (v *volumeRouter) deleteVolumes(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
-	if err := s.daemon.VolumeRm(vars["name"]); err != nil {
+	if err := v.daemon.VolumeRm(vars["name"]); err != nil {
 		return err
 	}
 	w.WriteHeader(http.StatusNoContent)
