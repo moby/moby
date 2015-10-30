@@ -1361,22 +1361,21 @@ func (container *Container) setupIpcDirs() error {
 	return nil
 }
 
-func (container *Container) unmountIpcMounts(unmount func(pth string) error) error {
+func (container *Container) unmountIpcMounts(unmount func(pth string) error) {
 	if container.hostConfig.IpcMode.IsContainer() || container.hostConfig.IpcMode.IsHost() {
-		return nil
+		return
 	}
 
-	var errors []string
+	var warnings []string
 
 	if !container.hasMountFor("/dev/shm") {
 		shmPath, err := container.shmPath()
 		if err != nil {
 			logrus.Error(err)
-			errors = append(errors, err.Error())
-		} else {
+			warnings = append(warnings, err.Error())
+		} else if shmPath != "" {
 			if err := unmount(shmPath); err != nil {
-				logrus.Errorf("failed to umount %s: %v", shmPath, err)
-				errors = append(errors, err.Error())
+				warnings = append(warnings, fmt.Sprintf("failed to umount %s: %v", shmPath, err))
 			}
 
 		}
@@ -1386,20 +1385,17 @@ func (container *Container) unmountIpcMounts(unmount func(pth string) error) err
 		mqueuePath, err := container.mqueuePath()
 		if err != nil {
 			logrus.Error(err)
-			errors = append(errors, err.Error())
-		} else {
+			warnings = append(warnings, err.Error())
+		} else if mqueuePath != "" {
 			if err := unmount(mqueuePath); err != nil {
-				logrus.Errorf("failed to umount %s: %v", mqueuePath, err)
-				errors = append(errors, err.Error())
+				warnings = append(warnings, fmt.Sprintf("failed to umount %s: %v", mqueuePath, err))
 			}
 		}
 	}
 
-	if len(errors) > 0 {
-		return fmt.Errorf("failed to cleanup ipc mounts:\n%v", strings.Join(errors, "\n"))
+	if len(warnings) > 0 {
+		logrus.Warnf("failed to cleanup ipc mounts:\n%v", strings.Join(warnings, "\n"))
 	}
-
-	return nil
 }
 
 func (container *Container) ipcMounts() []execdriver.Mount {
