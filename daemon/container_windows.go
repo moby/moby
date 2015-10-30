@@ -183,11 +183,15 @@ func (container *Container) removeMountPoints(_ bool) error {
 	return nil
 }
 
-func (container *Container) setupIpcDirs() error {
+func (container *Container) unmountIpcMounts(unmount func(pth string) error) error {
 	return nil
 }
 
-func (container *Container) unmountIpcMounts() error {
+func detachMounted(path string) error {
+	return nil
+}
+
+func (container *Container) setupIpcDirs() error {
 	return nil
 }
 
