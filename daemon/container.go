@@ -112,17 +112,21 @@ func (container *Container) fromDisk() error {
 }
 
 func (container *Container) toDisk() error {
-	data, err := json.Marshal(container)
-	if err != nil {
-		return err
-	}
-
 	pth, err := container.jsonPath()
 	if err != nil {
 		return err
 	}
 
-	if err := ioutil.WriteFile(pth, data, 0666); err != nil {
+	jsonSource, err := os.Create(pth)
+	if err != nil {
+		return err
+	}
+	defer jsonSource.Close()
+
+	enc := json.NewEncoder(jsonSource)
+
+	// Save container settings
+	if err := enc.Encode(container); err != nil {
 		return err
 	}
 
