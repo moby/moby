@@ -326,6 +326,13 @@ func (s *router) postBuild(ctx context.Context, w http.ResponseWriter, r *http.R
 	buildConfig.CPUSetMems = r.FormValue("cpusetmems")
 	buildConfig.CgroupParent = r.FormValue("cgroupparent")
 
+	if i := runconfig.IsolationLevel(r.FormValue("isolation")); i != "" {
+		if !runconfig.IsolationLevel.IsValid(i) {
+			return errf(fmt.Errorf("Unsupported isolation: %q", i))
+		}
+		buildConfig.Isolation = i
+	}
+
 	var buildUlimits = []*ulimit.Ulimit{}
 	ulimitsJSON := r.FormValue("ulimits")
 	if ulimitsJSON != "" {

@@ -54,6 +54,7 @@ type Config struct {
 	ForceRemove bool
 	Pull        bool
 	BuildArgs   map[string]string // build-time args received in build context for expansion/substitution and commands in 'run'.
+	Isolation   runconfig.IsolationLevel
 
 	// resource constraints
 	// TODO: factor out to be reused with Run ?
