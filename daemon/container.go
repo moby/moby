@@ -150,13 +150,11 @@ func (container *Container) readHostConfig() error {
 		return err
 	}
 
-	_, err = os.Stat(pth)
-	if os.IsNotExist(err) {
-		return nil
-	}
-
 	f, err := os.Open(pth)
 	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
 		return err
 	}
 	defer f.Close()
