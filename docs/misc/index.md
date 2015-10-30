@@ -73,7 +73,7 @@ Docker consists of:
 
 ## About this guide
 
-The [Understanding Docker section](../introduction/understanding-docker.md) will help you:
+The [Understanding Docker section](https://docs.docker.com/introduction/understanding-docker/) will help you:
 
  - See how Docker works at a high level
  - Understand the architecture of Docker
