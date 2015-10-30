@@ -18,8 +18,8 @@ import (
 	"github.com/aws/aws-sdk-go/aws/ec2metadata"
 	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/cloudwatchlogs"
+	"github.com/docker/docker/autogen/dockerversion"
 	"github.com/docker/docker/daemon/logger"
-	"github.com/docker/docker/version"
 )
 
 const (
@@ -150,7 +150,7 @@ func newAWSLogsClient(ctx logger.Context) (api, error) {
 			currentAgent := r.HTTPRequest.Header.Get(userAgentHeader)
 			r.HTTPRequest.Header.Set(userAgentHeader,
 				fmt.Sprintf("Docker %s (%s) %s",
-					version.VERSION, runtime.GOOS, currentAgent))
+					dockerversion.VERSION, runtime.GOOS, currentAgent))
 		},
 	})
 	return client, nil

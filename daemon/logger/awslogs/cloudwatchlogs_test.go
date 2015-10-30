@@ -13,8 +13,8 @@ import (
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/cloudwatchlogs"
+	"github.com/docker/docker/autogen/dockerversion"
 	"github.com/docker/docker/daemon/logger"
-	"github.com/docker/docker/version"
 )
 
 const (
@@ -48,7 +48,7 @@ func TestNewAWSLogsClientUserAgentHandler(t *testing.T) {
 	}
 	buildHandlerList.Run(request)
 	expectedUserAgentString := fmt.Sprintf("Docker %s (%s) %s/%s",
-		version.VERSION, runtime.GOOS, aws.SDKName, aws.SDKVersion)
+		dockerversion.VERSION, runtime.GOOS, aws.SDKName, aws.SDKVersion)
 	userAgent := request.HTTPRequest.Header.Get("User-Agent")
 	if userAgent != expectedUserAgentString {
 		t.Errorf("Wrong User-Agent string, expected \"%s\" but was \"%s\"",
