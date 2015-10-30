@@ -1,8 +1,21 @@
 package runconfig
 
+import "strings"
+
 // IsDefault indicates whether container uses the default network stack.
 func (n NetworkMode) IsDefault() bool {
 	return n == "default"
+}
+
+// IsHyperV indicates the use of Hyper-V Containers for isolation (as opposed
+// to Windows Server Containers
+func (i IsolationLevel) IsHyperV() bool {
+	return strings.ToLower(string(i)) == "hyperv"
+}
+
+// IsValid indicates is an isolation level is valid
+func (i IsolationLevel) IsValid() bool {
+	return i.IsDefault() || i.IsHyperV()
 }
 
 // DefaultDaemonNetworkMode returns the default network stack the daemon should

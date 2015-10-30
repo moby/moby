@@ -210,4 +210,5 @@ type Command struct {
 	LayerPaths         []string          `json:"layer_paths"` // Windows needs to know the layer paths and folder for a command
 	LayerFolder        string            `json:"layer_folder"`
 	Hostname           string            `json:"hostname"` // Windows sets the hostname in the execdriver
+	Isolated           bool              `json:"isolated"` // Windows: Isolated is a Hyper-V container rather than Windows Server Container
 }

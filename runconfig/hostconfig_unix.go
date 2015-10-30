@@ -6,6 +6,11 @@ import (
 	"strings"
 )
 
+// IsValid indicates is an isolation level is valid
+func (i IsolationLevel) IsValid() bool {
+	return i.IsDefault()
+}
+
 // IsPrivate indicates whether container uses it's private network stack.
 func (n NetworkMode) IsPrivate() bool {
 	return !(n.IsHost() || n.IsContainer())

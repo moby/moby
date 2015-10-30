@@ -55,22 +55,21 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 
 		flUlimits = opts.NewUlimitOpt(nil)
 
-		flPublish     = opts.NewListOpts(nil)
-		flExpose      = opts.NewListOpts(nil)
-		flDNS         = opts.NewListOpts(opts.ValidateIPAddress)
-		flDNSSearch   = opts.NewListOpts(opts.ValidateDNSSearch)
-		flDNSOptions  = opts.NewListOpts(nil)
-		flExtraHosts  = opts.NewListOpts(opts.ValidateExtraHost)
-		flVolumesFrom = opts.NewListOpts(nil)
-		flLxcOpts     = opts.NewListOpts(nil)
-		flEnvFile     = opts.NewListOpts(nil)
-		flCapAdd      = opts.NewListOpts(nil)
-		flCapDrop     = opts.NewListOpts(nil)
-		flGroupAdd    = opts.NewListOpts(nil)
-		flSecurityOpt = opts.NewListOpts(nil)
-		flLabelsFile  = opts.NewListOpts(nil)
-		flLoggingOpts = opts.NewListOpts(nil)
-
+		flPublish           = opts.NewListOpts(nil)
+		flExpose            = opts.NewListOpts(nil)
+		flDNS               = opts.NewListOpts(opts.ValidateIPAddress)
+		flDNSSearch         = opts.NewListOpts(opts.ValidateDNSSearch)
+		flDNSOptions        = opts.NewListOpts(nil)
+		flExtraHosts        = opts.NewListOpts(opts.ValidateExtraHost)
+		flVolumesFrom       = opts.NewListOpts(nil)
+		flLxcOpts           = opts.NewListOpts(nil)
+		flEnvFile           = opts.NewListOpts(nil)
+		flCapAdd            = opts.NewListOpts(nil)
+		flCapDrop           = opts.NewListOpts(nil)
+		flGroupAdd          = opts.NewListOpts(nil)
+		flSecurityOpt       = opts.NewListOpts(nil)
+		flLabelsFile        = opts.NewListOpts(nil)
+		flLoggingOpts       = opts.NewListOpts(nil)
 		flNetwork           = cmd.Bool([]string{"#n", "#-networking"}, true, "Enable networking for this container")
 		flPrivileged        = cmd.Bool([]string{"#privileged", "-privileged"}, false, "Give extended privileges to this container")
 		flPidMode           = cmd.String([]string{"-pid"}, "", "PID namespace to use")
@@ -104,6 +103,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		flCgroupParent      = cmd.String([]string{"-cgroup-parent"}, "", "Optional parent cgroup for the container")
 		flVolumeDriver      = cmd.String([]string{"-volume-driver"}, "", "Optional volume driver for the container")
 		flStopSignal        = cmd.String([]string{"-stop-signal"}, signal.DefaultStopSignal, fmt.Sprintf("Signal to stop a container, %v by default", signal.DefaultStopSignal))
+		flIsolation         = cmd.String([]string{"-isolation"}, "default", "Container isolation level")
 	)
 
 	cmd.Var(&flAttach, []string{"a", "-attach"}, "Attach to STDIN, STDOUT or STDERR")
@@ -377,6 +377,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		LogConfig:         LogConfig{Type: *flLoggingDriver, Config: loggingOpts},
 		CgroupParent:      *flCgroupParent,
 		VolumeDriver:      *flVolumeDriver,
+		Isolation:         IsolationLevel(*flIsolation),
 	}
 
 	// When allocating stdin in attached mode, close stdin at client disconnect

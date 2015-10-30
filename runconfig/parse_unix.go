@@ -4,6 +4,7 @@ package runconfig
 
 import (
 	"fmt"
+	"runtime"
 	"strings"
 )
 
@@ -55,6 +56,20 @@ func ValidateNetMode(c *Config, hc *HostConfig) error {
 
 	if hc.NetworkMode.IsContainer() && len(c.ExposedPorts) > 0 {
 		return ErrConflictNetworkExposePorts
+	}
+	return nil
+}
+
+// ValidateIsolationLevel performs platform specific validation of the
+// isolation level in the hostconfig structure. Linux only supports "default"
+// which is LXC container isolation
+func ValidateIsolationLevel(hc *HostConfig) error {
+	// We may not be passed a host config, such as in the case of docker commit
+	if hc == nil {
+		return nil
+	}
+	if !hc.Isolation.IsValid() {
+		return fmt.Errorf("invalid --isolation: %q - %s only supports 'default'", hc.Isolation, runtime.GOOS)
 	}
 	return nil
 }
