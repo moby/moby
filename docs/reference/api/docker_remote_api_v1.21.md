@@ -1873,6 +1873,7 @@ Display system-wide information
     Content-Type: application/json
 
     {
+        "Architecture": "amd64",
         "Containers": 11,
         "CpuCfsPeriod": true,
         "CpuCfsQuota": true,
@@ -1904,6 +1905,7 @@ Display system-wide information
         "Name": "prod-server-42",
         "NoProxy": "9.81.1.160",
         "OomKillDisable": true,
+        "OSType": "linux",
         "OperatingSystem": "Boot2Docker",
         "RegistryConfig": {
             "IndexConfigs": {
