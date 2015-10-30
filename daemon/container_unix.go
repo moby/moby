@@ -1359,7 +1359,7 @@ func (container *Container) setupIpcDirs() error {
 	return nil
 }
 
-func (container *Container) unmountIpcMounts() error {
+func (container *Container) unmountIpcMounts(unmount func(pth string) error) error {
 	if container.hostConfig.IpcMode.IsContainer() || container.hostConfig.IpcMode.IsHost() {
 		return nil
 	}
@@ -1372,7 +1372,7 @@ func (container *Container) unmountIpcMounts() error {
 			logrus.Error(err)
 			errors = append(errors, err.Error())
 		} else {
-			if err := detachMounted(shmPath); err != nil {
+			if err := unmount(shmPath); err != nil {
 				logrus.Errorf("failed to umount %s: %v", shmPath, err)
 				errors = append(errors, err.Error())
 			}
@@ -1386,7 +1386,7 @@ func (container *Container) unmountIpcMounts() error {
 			logrus.Error(err)
 			errors = append(errors, err.Error())
 		} else {
-			if err := detachMounted(mqueuePath); err != nil {
+			if err := unmount(mqueuePath); err != nil {
 				logrus.Errorf("failed to umount %s: %v", mqueuePath, err)
 				errors = append(errors, err.Error())
 			}
