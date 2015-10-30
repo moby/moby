@@ -598,15 +598,16 @@ func deleteAllNetworks() error {
 	}
 	var errors []string
 	for _, n := range networks {
-		if n.Name != "bridge" {
-			status, b, err := sockRequest("DELETE", "/networks/"+n.Name, nil)
-			if err != nil {
-				errors = append(errors, err.Error())
-				continue
-			}
-			if status != http.StatusNoContent {
-				errors = append(errors, fmt.Sprintf("error deleting network %s: %s", n.Name, string(b)))
-			}
+		if n.Name == "bridge" || n.Name == "none" || n.Name == "host" {
+			continue
+		}
+		status, b, err := sockRequest("DELETE", "/networks/"+n.Name, nil)
+		if err != nil {
+			errors = append(errors, err.Error())
+			continue
+		}
+		if status != http.StatusNoContent {
+			errors = append(errors, fmt.Sprintf("error deleting network %s: %s", n.Name, string(b)))
 		}
 	}
 	if len(errors) > 0 {
