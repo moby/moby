@@ -118,6 +118,12 @@ func (d *driver) Leave(nid, eid string) error {
 		return fmt.Errorf("could not find network with id %s", nid)
 	}
 
+	ep := n.endpoint(eid)
+
+	if ep == nil {
+		return types.InternalMaskableErrorf("could not find endpoint with id %s", eid)
+	}
+
 	if d.notifyCh != nil {
 		d.notifyCh <- ovNotify{
 			action: "leave",
