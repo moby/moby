@@ -49,7 +49,7 @@ your `apt` sources to the new Docker repository.
 Docker's `apt` repository contains Docker 1.7.1 and higher. To set `apt` to use
 packages from the new repository:
 
-1. If you haven't already done so, log into your Ubuntu instance.
+1. If you haven't already done so, log into your Ubuntu instance as a privileged user.
 
 2. Open a terminal window.
 
