@@ -386,6 +386,14 @@ out2:
 // Restart will restart the daemon by first stopping it and then starting it.
 func (d *Daemon) Restart(arg ...string) error {
 	d.Stop()
+	// in the case of tests running a user namespace-enabled daemon, we have resolved
+	// d.root to be the actual final path of the graph dir after the "uid.gid" of
+	// remapped root is added--we need to subtract it from the path before calling
+	// start or else we will continue making subdirectories rather than truly restarting
+	// with the same location/root:
+	if root := os.Getenv("DOCKER_REMAP_ROOT"); root != "" {
+		d.root = filepath.Dir(d.root)
+	}
 	return d.Start(arg...)
 }
 
