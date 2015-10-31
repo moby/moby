@@ -1,7 +1,7 @@
 package changelist
 
 import (
-	"github.com/endophage/gotuf/data"
+	"github.com/docker/notary/tuf/data"
 )
 
 // Scopes for TufChanges are simply the TUF roles.
@@ -38,8 +38,8 @@ type TufChange struct {
 // TufRootData represents a modification of the keys associated
 // with a role that appears in the root.json
 type TufRootData struct {
-	Keys     []data.TUFKey `json:"keys"`
-	RoleName string        `json:"role"`
+	Keys     data.KeyList `json:"keys"`
+	RoleName string       `json:"role"`
 }
 
 // NewTufChange initializes a tufChange object
