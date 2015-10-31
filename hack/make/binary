@@ -25,6 +25,10 @@ if [ "$(go env GOHOSTOS)/$(go env GOHOSTARCH)" == "windows/amd64" ] && [ "$(go e
 	export LDFLAGS_STATIC_DOCKER="$LDFLAGS_STATIC_DOCKER -linkmode=internal"
 fi
 
+if [ "$IAMSTATIC" == "true" ]; then
+	export BUILDFLAGS=( "${BUILDFLAGS[@]/pkcs11 /}" ) # we cannot dlopen in pkcs11 in a static binary
+fi
+
 echo "Building: $DEST/$BINARY_FULLNAME"
 go build \
 	-o "$DEST/$BINARY_FULLNAME" \
