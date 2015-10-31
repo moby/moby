@@ -733,3 +733,8 @@ func (s *DockerNetworkSuite) TestDockerNetworkMultipleNetworksUngracefulDaemonRe
 
 	verifyContainerIsConnectedToNetworks(c, s.d, cName, nwList)
 }
+
+func (s *DockerNetworkSuite) TestDockerNetworkRunNetByID(c *check.C) {
+	out, _ := dockerCmd(c, "network", "create", "one")
+	dockerCmd(c, "run", "-d", "--net", strings.TrimSpace(out), "busybox", "top")
+}

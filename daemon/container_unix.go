@@ -914,6 +914,13 @@ func (container *Container) allocateNetwork() error {
 		if mode.IsDefault() {
 			networkName = controller.Config().Daemon.DefaultNetwork
 		}
+		if mode.IsUserDefined() {
+			n, err := container.daemon.FindNetwork(networkName)
+			if err != nil {
+				return err
+			}
+			networkName = n.Name()
+		}
 		container.NetworkSettings.Networks = make(map[string]*network.EndpointSettings)
 		container.NetworkSettings.Networks[networkName] = new(network.EndpointSettings)
 		updateSettings = true
@@ -954,9 +961,7 @@ func (container *Container) ConnectToNetwork(idOrName string) error {
 	return nil
 }
 
-func (container *Container) connectToNetwork(idOrName string, updateSettings bool) error {
-	var err error
-
+func (container *Container) connectToNetwork(idOrName string, updateSettings bool) (err error) {
 	if container.hostConfig.NetworkMode.IsContainer() {
 		return runconfig.ErrConflictSharedNetwork
 	}
