@@ -7,10 +7,10 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/notary/client/changelist"
-	tuf "github.com/endophage/gotuf"
-	"github.com/endophage/gotuf/data"
-	"github.com/endophage/gotuf/keys"
-	"github.com/endophage/gotuf/store"
+	tuf "github.com/docker/notary/tuf"
+	"github.com/docker/notary/tuf/data"
+	"github.com/docker/notary/tuf/keys"
+	"github.com/docker/notary/tuf/store"
 )
 
 // Use this to initialize remote HTTPStores from the config settings
@@ -25,7 +25,7 @@ func getRemoteStore(baseURL, gun string, rt http.RoundTripper) (store.RemoteStor
 	)
 }
 
-func applyChangelist(repo *tuf.TufRepo, cl changelist.Changelist) error {
+func applyChangelist(repo *tuf.Repo, cl changelist.Changelist) error {
 	it, err := cl.NewIterator()
 	if err != nil {
 		return err
@@ -53,7 +53,7 @@ func applyChangelist(repo *tuf.TufRepo, cl changelist.Changelist) error {
 	return nil
 }
 
-func applyTargetsChange(repo *tuf.TufRepo, c changelist.Change) error {
+func applyTargetsChange(repo *tuf.Repo, c changelist.Change) error {
 	var err error
 	switch c.Action() {
 	case changelist.ActionCreate:
@@ -77,7 +77,7 @@ func applyTargetsChange(repo *tuf.TufRepo, c changelist.Change) error {
 	return nil
 }
 
-func applyRootChange(repo *tuf.TufRepo, c changelist.Change) error {
+func applyRootChange(repo *tuf.Repo, c changelist.Change) error {
 	var err error
 	switch c.Type() {
 	case changelist.TypeRootRole:
@@ -88,7 +88,7 @@ func applyRootChange(repo *tuf.TufRepo, c changelist.Change) error {
 	return err // might be nil
 }
 
-func applyRootRoleChange(repo *tuf.TufRepo, c changelist.Change) error {
+func applyRootRoleChange(repo *tuf.Repo, c changelist.Change) error {
 	switch c.Action() {
 	case changelist.ActionCreate:
 		// replaces all keys for a role
@@ -97,11 +97,7 @@ func applyRootRoleChange(repo *tuf.TufRepo, c changelist.Change) error {
 		if err != nil {
 			return err
 		}
-		k := []data.PublicKey{}
-		for _, key := range d.Keys {
-			k = append(k, data.NewPublicKey(key.Algorithm(), key.Public()))
-		}
-		err = repo.ReplaceBaseKeys(d.RoleName, k...)
+		err = repo.ReplaceBaseKeys(d.RoleName, d.Keys...)
 		if err != nil {
 			return err
 		}

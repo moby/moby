@@ -1,19 +1,13 @@
 package cryptoservice
 
 import (
-	"crypto"
-	"crypto/ecdsa"
 	"crypto/rand"
-	"crypto/rsa"
-	"crypto/sha256"
-	"crypto/x509"
 	"fmt"
 	"path/filepath"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/agl/ed25519"
 	"github.com/docker/notary/trustmanager"
-	"github.com/endophage/gotuf/data"
+	"github.com/docker/notary/tuf/data"
 )
 
 const (
@@ -23,17 +17,17 @@ const (
 // CryptoService implements Sign and Create, holding a specific GUN and keystore to
 // operate on
 type CryptoService struct {
-	gun      string
-	keyStore trustmanager.KeyStore
+	gun       string
+	keyStores []trustmanager.KeyStore
 }
 
 // NewCryptoService returns an instance of CryptoService
-func NewCryptoService(gun string, keyStore trustmanager.KeyStore) *CryptoService {
-	return &CryptoService{gun: gun, keyStore: keyStore}
+func NewCryptoService(gun string, keyStores ...trustmanager.KeyStore) *CryptoService {
+	return &CryptoService{gun: gun, keyStores: keyStores}
 }
 
 // Create is used to generate keys for targets, snapshots and timestamps
-func (ccs *CryptoService) Create(role string, algorithm data.KeyAlgorithm) (data.PublicKey, error) {
+func (cs *CryptoService) Create(role, algorithm string) (data.PublicKey, error) {
 	var privKey data.PrivateKey
 	var err error
 
@@ -59,72 +53,90 @@ func (ccs *CryptoService) Create(role string, algorithm data.KeyAlgorithm) (data
 	logrus.Debugf("generated new %s key for role: %s and keyID: %s", algorithm, role, privKey.ID())
 
 	// Store the private key into our keystore with the name being: /GUN/ID.key with an alias of role
-	err = ccs.keyStore.AddKey(filepath.Join(ccs.gun, privKey.ID()), role, privKey)
+	var keyPath string
+	if role == data.CanonicalRootRole {
+		keyPath = privKey.ID()
+	} else {
+		keyPath = filepath.Join(cs.gun, privKey.ID())
+	}
+
+	for _, ks := range cs.keyStores {
+		err = ks.AddKey(keyPath, role, privKey)
+		if err == nil {
+			return data.PublicKeyFromPrivate(privKey), nil
+		}
+	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to add key to filestore: %v", err)
 	}
-	return data.PublicKeyFromPrivate(privKey), nil
+	return nil, fmt.Errorf("keystores would not accept new private keys for unknown reasons")
+
+}
+
+// GetPrivateKey returns a private key by ID. It tries to get the key first
+// without a GUN (in which case it's a root key).  If that fails, try to get
+// the key with the GUN (non-root key).
+// If that fails, then we don't have the key.
+func (cs *CryptoService) GetPrivateKey(keyID string) (k data.PrivateKey, role string, err error) {
+	keyPaths := []string{keyID, filepath.Join(cs.gun, keyID)}
+	for _, ks := range cs.keyStores {
+		for _, keyPath := range keyPaths {
+			k, role, err = ks.GetKey(keyPath)
+			if err != nil {
+				continue
+			}
+			return
+		}
+	}
+	return // returns whatever the final values were
 }
 
 // GetKey returns a key by ID
-func (ccs *CryptoService) GetKey(keyID string) data.PublicKey {
-	key, _, err := ccs.keyStore.GetKey(keyID)
+func (cs *CryptoService) GetKey(keyID string) data.PublicKey {
+	privKey, _, err := cs.GetPrivateKey(keyID)
 	if err != nil {
 		return nil
 	}
-	return data.PublicKeyFromPrivate(key)
+	return data.PublicKeyFromPrivate(privKey)
 }
 
 // RemoveKey deletes a key by ID
-func (ccs *CryptoService) RemoveKey(keyID string) error {
-	return ccs.keyStore.RemoveKey(keyID)
+func (cs *CryptoService) RemoveKey(keyID string) (err error) {
+	keyPaths := []string{keyID, filepath.Join(cs.gun, keyID)}
+	for _, ks := range cs.keyStores {
+		for _, keyPath := range keyPaths {
+			ks.RemoveKey(keyPath)
+		}
+	}
+	return // returns whatever the final values were
 }
 
 // Sign returns the signatures for the payload with a set of keyIDs. It ignores
 // errors to sign and expects the called to validate if the number of returned
 // signatures is adequate.
-func (ccs *CryptoService) Sign(keyIDs []string, payload []byte) ([]data.Signature, error) {
+func (cs *CryptoService) Sign(keyIDs []string, payload []byte) ([]data.Signature, error) {
 	signatures := make([]data.Signature, 0, len(keyIDs))
-	for _, keyid := range keyIDs {
-		// ccs.gun will be empty if this is the root key
-		keyName := filepath.Join(ccs.gun, keyid)
-
-		var privKey data.PrivateKey
-		var err error
-
-		privKey, _, err = ccs.keyStore.GetKey(keyName)
+	for _, keyID := range keyIDs {
+		privKey, _, err := cs.GetPrivateKey(keyID)
 		if err != nil {
-			logrus.Debugf("error attempting to retrieve key ID: %s, %v", keyid, err)
-			return nil, err
+			logrus.Debugf("error attempting to retrieve private key: %s, %v", keyID, err)
+			continue
 		}
 
-		algorithm := privKey.Algorithm()
-		var sigAlgorithm data.SigAlgorithm
-		var sig []byte
-
-		switch algorithm {
-		case data.RSAKey:
-			sig, err = rsaSign(privKey, payload)
-			sigAlgorithm = data.RSAPSSSignature
-		case data.ECDSAKey:
-			sig, err = ecdsaSign(privKey, payload)
-			sigAlgorithm = data.ECDSASignature
-		case data.ED25519Key:
-			// ED25519 does not operate on a SHA256 hash
-			sig, err = ed25519Sign(privKey, payload)
-			sigAlgorithm = data.EDDSASignature
-		}
+		sigAlgo := privKey.SignatureAlgorithm()
+		sig, err := privKey.Sign(rand.Reader, payload, nil)
 		if err != nil {
-			logrus.Debugf("ignoring error attempting to %s sign with keyID: %s, %v", algorithm, keyid, err)
-			return nil, err
+			logrus.Debugf("ignoring error attempting to %s sign with keyID: %s, %v",
+				privKey.Algorithm(), keyID, err)
+			continue
 		}
 
-		logrus.Debugf("appending %s signature with Key ID: %s", algorithm, keyid)
+		logrus.Debugf("appending %s signature with Key ID: %s", privKey.Algorithm(), keyID)
 
 		// Append signatures to result array
 		signatures = append(signatures, data.Signature{
-			KeyID:     keyid,
-			Method:    sigAlgorithm,
+			KeyID:     keyID,
+			Method:    sigAlgo,
 			Signature: sig[:],
 		})
 	}
@@ -132,68 +144,26 @@ func (ccs *CryptoService) Sign(keyIDs []string, payload []byte) ([]data.Signatur
 	return signatures, nil
 }
 
-func rsaSign(privKey data.PrivateKey, message []byte) ([]byte, error) {
-	if privKey.Algorithm() != data.RSAKey {
-		return nil, fmt.Errorf("private key type not supported: %s", privKey.Algorithm())
+// ListKeys returns a list of key IDs valid for the given role
+func (cs *CryptoService) ListKeys(role string) []string {
+	var res []string
+	for _, ks := range cs.keyStores {
+		for k, r := range ks.ListKeys() {
+			if r == role {
+				res = append(res, k)
+			}
+		}
 	}
-
-	hashed := sha256.Sum256(message)
-
-	// Create an rsa.PrivateKey out of the private key bytes
-	rsaPrivKey, err := x509.ParsePKCS1PrivateKey(privKey.Private())
-	if err != nil {
-		return nil, err
-	}
-
-	// Use the RSA key to RSASSA-PSS sign the data
-	sig, err := rsa.SignPSS(rand.Reader, rsaPrivKey, crypto.SHA256, hashed[:], &rsa.PSSOptions{SaltLength: rsa.PSSSaltLengthEqualsHash})
-	if err != nil {
-		return nil, err
-	}
-
-	return sig, nil
+	return res
 }
 
-func ecdsaSign(privKey data.PrivateKey, message []byte) ([]byte, error) {
-	if privKey.Algorithm() != data.ECDSAKey {
-		return nil, fmt.Errorf("private key type not supported: %s", privKey.Algorithm())
+// ListAllKeys returns a map of key IDs to role
+func (cs *CryptoService) ListAllKeys() map[string]string {
+	res := make(map[string]string)
+	for _, ks := range cs.keyStores {
+		for k, r := range ks.ListKeys() {
+			res[k] = r // keys are content addressed so don't care about overwrites
+		}
 	}
-
-	hashed := sha256.Sum256(message)
-
-	// Create an ecdsa.PrivateKey out of the private key bytes
-	ecdsaPrivKey, err := x509.ParseECPrivateKey(privKey.Private())
-	if err != nil {
-		return nil, err
-	}
-
-	// Use the ECDSA key to sign the data
-	r, s, err := ecdsa.Sign(rand.Reader, ecdsaPrivKey, hashed[:])
-	if err != nil {
-		return nil, err
-	}
-
-	rBytes, sBytes := r.Bytes(), s.Bytes()
-	octetLength := (ecdsaPrivKey.Params().BitSize + 7) >> 3
-
-	// MUST include leading zeros in the output
-	rBuf := make([]byte, octetLength-len(rBytes), octetLength)
-	sBuf := make([]byte, octetLength-len(sBytes), octetLength)
-
-	rBuf = append(rBuf, rBytes...)
-	sBuf = append(sBuf, sBytes...)
-
-	return append(rBuf, sBuf...), nil
-}
-
-func ed25519Sign(privKey data.PrivateKey, message []byte) ([]byte, error) {
-	if privKey.Algorithm() != data.ED25519Key {
-		return nil, fmt.Errorf("private key type not supported: %s", privKey.Algorithm())
-	}
-
-	priv := [ed25519.PrivateKeySize]byte{}
-	copy(priv[:], privKey.Private()[ed25519.PublicKeySize:])
-	sig := ed25519.Sign(&priv, message)
-
-	return sig[:], nil
+	return res
 }
