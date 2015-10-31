@@ -5,7 +5,7 @@
 FROM opensuse:13.2
 
 RUN zypper --non-interactive install ca-certificates* curl gzip rpm-build
-RUN zypper --non-interactive install libbtrfs-devel device-mapper-devel glibc-static libselinux-devel selinux-policy selinux-policy-devel sqlite-devel tar
+RUN zypper --non-interactive install libbtrfs-devel device-mapper-devel glibc-static libltdl-devel libselinux-devel selinux-policy selinux-policy-devel sqlite-devel tar
 
 ENV GO_VERSION 1.5.1
 RUN curl -fSL "https://storage.googleapis.com/golang/go${GO_VERSION}.linux-amd64.tar.gz" | tar xzC /usr/local

@@ -56,6 +56,7 @@ for version in "${versions[@]}"; do
 		git # for "git commit" info in "docker -v"
 		libapparmor-dev # for "sys/apparmor.h"
 		libdevmapper-dev # for "libdevmapper.h"
+		libltdl-dev # for pkcs11 "ltdl.h"
 		libsqlite3-dev # for "sqlite3.h"
 	)
 	# packaging for "sd-journal.h" and libraries varies
