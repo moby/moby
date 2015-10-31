@@ -396,6 +396,10 @@ func (s *router) postContainersAttach(ctx context.Context, w http.ResponseWriter
 		return derr.ErrorCodeNoSuchContainer.WithArgs(containerName)
 	}
 
+	if s.daemon.IsPaused(containerName) {
+		return derr.ErrorCodePausedContainer.WithArgs(containerName)
+	}
+
 	inStream, outStream, err := httputils.HijackConnection(w)
 	if err != nil {
 		return err
