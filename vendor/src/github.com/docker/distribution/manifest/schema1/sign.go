@@ -1,4 +1,4 @@
-package manifest
+package schema1
 
 import (
 	"crypto/x509"

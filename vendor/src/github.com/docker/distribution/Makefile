@@ -28,18 +28,20 @@ ${PREFIX}/bin/registry: version/version.go $(shell find . -type f -name '*.go')
 	@echo "+ $@"
 	@go build -tags "${DOCKER_BUILDTAGS}" -o $@ ${GO_LDFLAGS}  ${GO_GCFLAGS} ./cmd/registry
 
+${PREFIX}/bin/digest: version/version.go $(shell find . -type f -name '*.go')
+	@echo "+ $@"
+	@go build -tags "${DOCKER_BUILDTAGS}" -o $@ ${GO_LDFLAGS}  ${GO_GCFLAGS} ./cmd/digest
+
 ${PREFIX}/bin/registry-api-descriptor-template: version/version.go $(shell find . -type f -name '*.go')
 	@echo "+ $@"
 	@go build -o $@ ${GO_LDFLAGS} ${GO_GCFLAGS} ./cmd/registry-api-descriptor-template
 
-${PREFIX}/bin/dist: version/version.go $(shell find . -type f -name '*.go')
-	@echo "+ $@"
-	@go build -o $@ ${GO_LDFLAGS} ${GO_GCFLAGS} ./cmd/dist
-
 docs/spec/api.md: docs/spec/api.md.tmpl ${PREFIX}/bin/registry-api-descriptor-template
 	./bin/registry-api-descriptor-template $< > $@
 
-vet:
+# Depends on binaries because vet will silently fail if it can't load compiled
+# imports
+vet: binaries
 	@echo "+ $@"
 	@go vet ./...
 
@@ -64,11 +66,9 @@ test-full:
 	@echo "+ $@"
 	@go test ./...
 
-binaries: ${PREFIX}/bin/registry ${PREFIX}/bin/registry-api-descriptor-template ${PREFIX}/bin/dist
+binaries: ${PREFIX}/bin/registry ${PREFIX}/bin/digest ${PREFIX}/bin/registry-api-descriptor-template
 	@echo "+ $@"
 
 clean:
 	@echo "+ $@"
 	@rm -rf "${PREFIX}/bin/registry" "${PREFIX}/bin/registry-api-descriptor-template"
-
-	

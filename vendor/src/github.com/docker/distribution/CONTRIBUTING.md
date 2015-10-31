@@ -33,6 +33,7 @@ By following these simple rules you will get better and faster feedback on your 
  - please refrain from adding "same thing here" or "+1" comments
  - you don't need to comment on an issue to get notified of updates: just hit the "subscribe" button
  - comment if you have some new, technical and relevant information to add to the case
+ - __DO NOT__ comment on closed issues or merged PRs. If you think you have a related problem, open up a new issue and reference the PR or issue.
 
 ### If you have not found an existing issue that describes your problem:
 

@@ -776,6 +776,9 @@ func TestValidRemoteName(t *testing.T) {
 		// single character names are now allowed.
 		"d/docker",
 		"jess/t",
+
+		// Consecutive underscores.
+		"dock__er/docker",
 	}
 	for _, repositoryName := range validRepositoryNames {
 		if err := validateRemoteName(repositoryName); err != nil {
@@ -803,8 +806,7 @@ func TestValidRemoteName(t *testing.T) {
 
 		"_docker/_docker",
 
-		// Disallow consecutive underscores and periods.
-		"dock__er/docker",
+		// Disallow consecutive periods.
 		"dock..er/docker",
 		"dock_.er/docker",
 		"dock-.er/docker",

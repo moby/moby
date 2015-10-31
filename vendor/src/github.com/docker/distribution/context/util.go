@@ -20,7 +20,7 @@ func Since(ctx Context, key interface{}) time.Duration {
 
 // GetStringValue returns a string value from the context. The empty string
 // will be returned if not found.
-func GetStringValue(ctx Context, key string) (value string) {
+func GetStringValue(ctx Context, key interface{}) (value string) {
 	stringi := ctx.Value(key)
 	if stringi != nil {
 		if valuev, ok := stringi.(string); ok {

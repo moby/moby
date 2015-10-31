@@ -10,7 +10,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/digest"
-	"github.com/docker/distribution/manifest"
+	"github.com/docker/distribution/manifest/schema1"
 	"github.com/docker/distribution/registry/client"
 	"github.com/docker/distribution/registry/client/auth"
 	"github.com/docker/distribution/registry/client/transport"
@@ -100,7 +100,7 @@ func NewV2Repository(repoInfo *registry.RepositoryInfo, endpoint registry.APIEnd
 	return client.NewRepository(ctx, repoName, endpoint.URL, tr)
 }
 
-func digestFromManifest(m *manifest.SignedManifest, localName string) (digest.Digest, int, error) {
+func digestFromManifest(m *schema1.SignedManifest, localName string) (digest.Digest, int, error) {
 	payload, err := m.Payload()
 	if err != nil {
 		// If this failed, the signatures section was corrupted

@@ -70,15 +70,10 @@ func ParseDigest(s string) (Digest, error) {
 	return d, d.Validate()
 }
 
-// FromReader returns the most valid digest for the underlying content.
+// FromReader returns the most valid digest for the underlying content using
+// the canonical digest algorithm.
 func FromReader(rd io.Reader) (Digest, error) {
-	digester := Canonical.New()
-
-	if _, err := io.Copy(digester.Hash(), rd); err != nil {
-		return "", err
-	}
-
-	return digester.Digest(), nil
+	return Canonical.FromReader(rd)
 }
 
 // FromTarArchive produces a tarsum digest from reader rd.
