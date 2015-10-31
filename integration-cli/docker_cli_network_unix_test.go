@@ -670,3 +670,66 @@ func (s *DockerSuite) TestInspectApiMultipeNetworks(c *check.C) {
 	c.Assert(bridge.IPAddress, checker.Equals, versionedIP)
 	c.Assert(bridge.IPAddress, checker.Equals, inspect121.NetworkSettings.IPAddress)
 }
+
+func connectContainerToNetworks(c *check.C, d *Daemon, cName string, nws []string) {
+	// Run a container on the default network
+	out, err := d.Cmd("run", "-d", "--name", cName, "busybox", "top")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+
+	// Attach the container to other three networks
+	for _, nw := range nws {
+		out, err = d.Cmd("network", "create", nw)
+		c.Assert(err, checker.IsNil, check.Commentf(out))
+		out, err = d.Cmd("network", "connect", nw, cName)
+		c.Assert(err, checker.IsNil, check.Commentf(out))
+	}
+}
+
+func verifyContainerIsConnectedToNetworks(c *check.C, d *Daemon, cName string, nws []string) {
+	// Verify container is connected to all three networks
+	for _, nw := range nws {
+		out, err := d.Cmd("inspect", "-f", fmt.Sprintf("{{.NetworkSettings.Networks.%s}}", nw), cName)
+		c.Assert(err, checker.IsNil, check.Commentf(out))
+		c.Assert(out, checker.Not(checker.Equals), "<no value>\n")
+	}
+}
+
+func (s *DockerNetworkSuite) TestDockerNetworkMultipleNetworksGracefulDaemonRestart(c *check.C) {
+	cName := "bb"
+	nwList := []string{"nw1", "nw2", "nw3"}
+
+	s.d.Start()
+
+	connectContainerToNetworks(c, s.d, cName, nwList)
+	verifyContainerIsConnectedToNetworks(c, s.d, cName, nwList)
+
+	// Reload daemon
+	s.d.Restart()
+
+	_, err := s.d.Cmd("start", cName)
+	c.Assert(err, checker.IsNil)
+
+	verifyContainerIsConnectedToNetworks(c, s.d, cName, nwList)
+}
+
+func (s *DockerNetworkSuite) TestDockerNetworkMultipleNetworksUngracefulDaemonRestart(c *check.C) {
+	cName := "cc"
+	nwList := []string{"nw1", "nw2", "nw3"}
+
+	s.d.Start()
+
+	connectContainerToNetworks(c, s.d, cName, nwList)
+	verifyContainerIsConnectedToNetworks(c, s.d, cName, nwList)
+
+	// Kill daemon and restart
+	if err := s.d.cmd.Process.Kill(); err != nil {
+		c.Fatal(err)
+	}
+	s.d.Restart()
+
+	// Restart container
+	_, err := s.d.Cmd("start", cName)
+	c.Assert(err, checker.IsNil)
+
+	verifyContainerIsConnectedToNetworks(c, s.d, cName, nwList)
+}

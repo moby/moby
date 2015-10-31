@@ -479,7 +479,7 @@ func (sb *sandbox) populateNetworkResources(ep *endpoint) error {
 	for _, gwep := range sb.getConnectedEndpoints() {
 		if len(gwep.Gateway()) > 0 {
 			if gwep != ep {
-				return nil
+				break
 			}
 			if err := sb.updateGateway(gwep); err != nil {
 				return err

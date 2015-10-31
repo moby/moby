@@ -945,7 +945,13 @@ func (container *Container) ConnectToNetwork(idOrName string) error {
 	if !container.Running {
 		return derr.ErrorCodeNotRunning.WithArgs(container.ID)
 	}
-	return container.connectToNetwork(idOrName, true)
+	if err := container.connectToNetwork(idOrName, true); err != nil {
+		return err
+	}
+	if err := container.toDiskLocking(); err != nil {
+		return fmt.Errorf("Error saving container to disk: %v", err)
+	}
+	return nil
 }
 
 func (container *Container) connectToNetwork(idOrName string, updateSettings bool) error {
@@ -1177,7 +1183,14 @@ func (container *Container) DisconnectFromNetwork(n libnetwork.Network) error {
 		return derr.ErrorCodeNotRunning.WithArgs(container.ID)
 	}
 
-	return container.disconnectFromNetwork(n)
+	if err := container.disconnectFromNetwork(n); err != nil {
+		return err
+	}
+
+	if err := container.toDiskLocking(); err != nil {
+		return fmt.Errorf("Error saving container to disk: %v", err)
+	}
+	return nil
 }
 
 func (container *Container) disconnectFromNetwork(n libnetwork.Network) error {
