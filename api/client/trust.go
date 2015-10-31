@@ -28,9 +28,9 @@ import (
 	"github.com/docker/docker/pkg/tlsconfig"
 	"github.com/docker/docker/registry"
 	"github.com/docker/notary/client"
-	"github.com/docker/notary/pkg/passphrase"
+	"github.com/docker/notary/passphrase"
 	"github.com/docker/notary/trustmanager"
-	"github.com/endophage/gotuf/data"
+	"github.com/docker/notary/tuf/data"
 )
 
 var untrusted bool
@@ -342,22 +342,6 @@ func (cli *DockerCli) trustedPull(repoInfo *registry.RepositoryInfo, ref registr
 	return nil
 }
 
-func selectKey(keys map[string]string) string {
-	if len(keys) == 0 {
-		return ""
-	}
-
-	keyIDs := []string{}
-	for k := range keys {
-		keyIDs = append(keyIDs, k)
-	}
-
-	// TODO(dmcgowan): let user choose if multiple keys, now pick consistently
-	sort.Strings(keyIDs)
-
-	return keyIDs[0]
-}
-
 func targetStream(in io.Writer) (io.WriteCloser, <-chan []target) {
 	r, w := io.Pipe()
 	out := io.MultiWriter(in, w)
@@ -454,23 +438,22 @@ func (cli *DockerCli) trustedPush(repoInfo *registry.RepositoryInfo, tag string,
 		return notaryError(err)
 	}
 
-	ks := repo.KeyStoreManager
-	keys := ks.RootKeyStore().ListKeys()
+	keys := repo.CryptoService.ListKeys(data.CanonicalRootRole)
 
-	rootKey := selectKey(keys)
-	if rootKey == "" {
-		rootKey, err = ks.GenRootKey("ecdsa")
+	var rootKeyID string
+	// always select the first root key
+	if len(keys) > 0 {
+		sort.Strings(keys)
+		rootKeyID = keys[0]
+	} else {
+		rootPublicKey, err := repo.CryptoService.Create(data.CanonicalRootRole, data.ECDSAKey)
 		if err != nil {
 			return err
 		}
+		rootKeyID = rootPublicKey.ID()
 	}
 
-	cryptoService, err := ks.GetRootCryptoService(rootKey)
-	if err != nil {
-		return err
-	}
-
-	if err := repo.Initialize(cryptoService); err != nil {
+	if err := repo.Initialize(rootKeyID); err != nil {
 		return notaryError(err)
 	}
 	fmt.Fprintf(cli.out, "Finished initializing %q\n", repoInfo.CanonicalName)

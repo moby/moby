@@ -19,7 +19,7 @@ clone git github.com/microsoft/hcsshim de43b42b5ce14dfdcbeedb0628b0032174d89caa
 clone git github.com/mistifyio/go-zfs v2.1.1
 clone git github.com/tchap/go-patricia v2.1.0
 clone git github.com/vdemeester/shakers 3c10293ce22b900c27acad7b28656196fcc2f73b
-clone git golang.org/x/net 3cffabab72adf04f8e3b01c5baf775361837b5fe https://github.com/golang/net.git
+clone git golang.org/x/net 47990a1ba55743e6ef1affd3a14e5bac8553615d https://github.com/golang/net.git
 
 #get libnetwork packages
 clone git github.com/docker/libnetwork e8ebc0bf6510343c88d162db08b3d855cbbe75b9
@@ -43,8 +43,9 @@ clone git github.com/boltdb/bolt v1.1.0
 clone git github.com/docker/distribution c6c9194e9c6097f84b0ff468a741086ff7704aa3
 clone git github.com/vbatts/tar-split v0.9.10
 
-clone git github.com/docker/notary 089d8450d8928aa1c58fd03f09cabbde9bcb4590
-clone git github.com/endophage/gotuf 2df1c8e0a7b7e10ae2113bf37aaa1bf1c1de8cc5
+clone git github.com/docker/notary 45de2828b5e0083bfb4e9a5a781eddb05e2ef9d0
+clone git google.golang.org/grpc 174192fc93efcb188fc8f46ca447f0da606b6885 https://github.com/grpc/grpc-go.git
+clone git github.com/miekg/pkcs11 80f102b5cac759de406949c47f0928b99bd64cdf
 clone git github.com/jfrazelle/go v1.5.1-1
 clone git github.com/agl/ed25519 d2b94fd789ea21d12fac1a4443dd3a3f79cda72c
 
