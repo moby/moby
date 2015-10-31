@@ -67,6 +67,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	flCgroupParent := cmd.String([]string{"-cgroup-parent"}, "", "Optional parent cgroup for the container")
 	flBuildArg := opts.NewListOpts(opts.ValidateEnv)
 	cmd.Var(&flBuildArg, []string{"-build-arg"}, "Set build-time variables")
+	isolation := cmd.String([]string{"-isolation"}, "", "Container isolation level")
 
 	ulimits := make(map[string]*ulimit.Ulimit)
 	flUlimits := opts.NewUlimitOpt(&ulimits)
@@ -234,6 +235,10 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 
 	if *pull {
 		v.Set("pull", "1")
+	}
+
+	if !runconfig.IsolationLevel.IsDefault(runconfig.IsolationLevel(*isolation)) {
+		v.Set("isolation", *isolation)
 	}
 
 	v.Set("cpusetcpus", *flCPUSetCpus)
