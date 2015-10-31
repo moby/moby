@@ -43,7 +43,7 @@ automated processes such as builds.
 An individual image record has the following identifier:
 
 ```
-[REGISTRY_HOST[:REGISTRY_PORT]/]REPOSITORY[:TAG]
+[REGISTRY_HOST[:REGISTRY_PORT]]/REPOSITORY[:TAG]
 ```
 
 A particular image `REPOSITORY` can have multiple tags. For example, `latest` and
