@@ -94,7 +94,13 @@ set -e
 			cat >> "$DEST/$version/Dockerfile.build" <<-EOF
 				RUN tar -cz -C /usr/src/${rpmName}/contrib -f /root/rpmbuild/SOURCES/${rpmName}-selinux.tar.gz ${rpmName}-selinux
 				RUN { echo '* $rpmDate $rpmPackager $rpmVersion-$rpmRelease'; echo '* Version: $VERSION'; } >> ${rpmName}-selinux.spec && tail >&2 ${rpmName}-selinux.spec
-				RUN rpmbuild -ba --define '_gitcommit $DOCKER_GITCOMMIT' --define '_release $rpmRelease' --define '_version $rpmVersion' --define '_origversion $VERSION' ${rpmName}-selinux.spec
+				RUN rpmbuild -ba \
+						--define '_gitcommit $DOCKER_GITCOMMIT' \
+						--define '_release $rpmRelease' \
+						--define '_version $rpmVersion' \
+						--define '_origversion $VERSION' \
+						--define '_experimental ${DOCKER_EXPERIMENTAL:-0}' \
+						${rpmName}-selinux.spec
 			EOF
 		fi
 		tempImage="docker-temp/build-rpm:$version"
