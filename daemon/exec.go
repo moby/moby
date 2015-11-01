@@ -156,18 +156,14 @@ func (d *Daemon) ContainerExecCreate(config *runconfig.ExecConfig) (string, erro
 	cmd := stringutils.NewStrSlice(config.Cmd...)
 	entrypoint, args := d.getEntrypointAndArgs(stringutils.NewStrSlice(), cmd)
 
-	user := config.User
-	if len(user) == 0 {
-		user = container.Config.User
-	}
-
 	processConfig := &execdriver.ProcessConfig{
-		Tty:        config.Tty,
-		Entrypoint: entrypoint,
-		Arguments:  args,
-		User:       user,
-		Privileged: config.Privileged,
+		CommonProcessConfig: execdriver.CommonProcessConfig{
+			Tty:        config.Tty,
+			Entrypoint: entrypoint,
+			Arguments:  args,
+		},
 	}
+	setPlatformSpecificExecProcessConfig(config, container, processConfig)
 
 	ExecConfig := &ExecConfig{
 		ID:            stringid.GenerateNonCryptoID(),

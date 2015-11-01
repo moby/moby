@@ -86,13 +86,12 @@ func (daemon *Daemon) populateCommand(c *Container, env []string) error {
 		},
 	}
 
-	// TODO Windows. Further refactoring required (privileged/user)
 	processConfig := execdriver.ProcessConfig{
-		Privileged:  c.hostConfig.Privileged,
-		Entrypoint:  c.Path,
-		Arguments:   c.Args,
-		Tty:         c.Config.Tty,
-		User:        c.Config.User,
+		CommonProcessConfig: execdriver.CommonProcessConfig{
+			Entrypoint: c.Path,
+			Arguments:  c.Args,
+			Tty:        c.Config.Tty,
+		},
 		ConsoleSize: c.hostConfig.ConsoleSize,
 	}
 
