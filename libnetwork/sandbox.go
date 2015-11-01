@@ -197,7 +197,7 @@ func (sb *sandbox) Delete() error {
 	// likely not required any more. Drop it.
 	etchosts.Drop(sb.config.hostsPath)
 
-	if sb.osSbox != nil {
+	if sb.osSbox != nil && !sb.config.useDefaultSandBox {
 		sb.osSbox.Destroy()
 	}
 

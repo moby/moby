@@ -144,6 +144,8 @@ type controller struct {
 	unWatchCh      chan *endpoint
 	svcDb          map[string]svcMap
 	nmap           map[string]*netWatch
+	defOsSbox      osl.Sandbox
+	sboxOnce       sync.Once
 	sync.Mutex
 }
 
@@ -492,12 +494,6 @@ func (c *controller) NewSandbox(containerID string, options ...SandboxOption) (S
 		config:      containerConfig{},
 		controller:  c,
 	}
-	// This sandbox may be using an existing osl sandbox, sharing it with another sandbox
-	var peerSb Sandbox
-	c.WalkSandboxes(SandboxKeyWalker(&peerSb, sb.Key()))
-	if peerSb != nil {
-		sb.osSbox = peerSb.(*sandbox).osSbox
-	}
 
 	heap.Init(&sb.endpoints)
 
@@ -507,14 +503,26 @@ func (c *controller) NewSandbox(containerID string, options ...SandboxOption) (S
 		return nil, err
 	}
 
-	c.Lock()
+	if sb.config.useDefaultSandBox {
+		c.sboxOnce.Do(func() {
+			c.defOsSbox, err = osl.NewSandbox(sb.Key(), false)
+		})
+
+		if err != nil {
+			c.sboxOnce = sync.Once{}
+			return nil, fmt.Errorf("failed to create default sandbox: %v", err)
+		}
+
+		sb.osSbox = c.defOsSbox
+	}
+
 	if sb.osSbox == nil && !sb.config.useExternalKey {
 		if sb.osSbox, err = osl.NewSandbox(sb.Key(), !sb.config.useDefaultSandBox); err != nil {
-			c.Unlock()
 			return nil, fmt.Errorf("failed to create new osl sandbox: %v", err)
 		}
 	}
 
+	c.Lock()
 	c.sandboxes[sb.id] = sb
 	c.Unlock()
 	defer func() {
