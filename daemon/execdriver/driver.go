@@ -121,13 +121,6 @@ type ResourceStats struct {
 	SystemUsage uint64    `json:"system_usage"`
 }
 
-// User contains the uid and gid representing a Unix user
-// TODO Windows: Factor out User
-type User struct {
-	UID int `json:"root_uid"`
-	GID int `json:"root_gid"`
-}
-
 // ProcessConfig describes a process that will be run inside a container.
 type ProcessConfig struct {
 	exec.Cmd `json:"-"`
