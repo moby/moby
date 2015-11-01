@@ -52,15 +52,6 @@ type Terminal interface {
 	Resize(height, width int) error
 }
 
-// ExitStatus provides exit reasons for a container.
-type ExitStatus struct {
-	// The exit code with which the container exited.
-	ExitCode int
-
-	// Whether the container encountered an OOM.
-	OOMKilled bool
-}
-
 // Driver is an interface for drivers to implement
 // including all basic functions a driver should have
 type Driver interface {
