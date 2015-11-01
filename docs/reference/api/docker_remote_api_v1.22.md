@@ -5,7 +5,7 @@ description = "API Documentation for Docker"
 keywords = ["API, Docker, rcli, REST,  documentation"]
 [menu.main]
 parent="smn_remoteapi"
-weight = 0
+weight=-3
 +++
 <![end-metadata]-->
 
@@ -1404,8 +1404,8 @@ Query Parameters:
 -   **t** – A name and optional tag to apply to the image in the `name:tag` format.
         If you omit the `tag` the default `latest` value is assumed.
         You can provide one or more `t` parameters.
--   **remote** – A Git repository URI or HTTP/HTTPS URI build source. If the 
-        URI specifies a filename, the file's contents are placed into a file 
+-   **remote** – A Git repository URI or HTTP/HTTPS URI build source. If the
+        URI specifies a filename, the file's contents are placed into a file
 		called `Dockerfile`.
 -   **q** – Suppress verbose build output.
 -   **nocache** – Do not use the cache when building the image.
@@ -2798,7 +2798,7 @@ from **200 OK** to **101 UPGRADED** and resends the same headers.
 
 ## 3.3 CORS Requests
 
-To set cross origin requests to the remote api please give values to 
+To set cross origin requests to the remote api please give values to
 `--api-cors-header` when running Docker in daemon mode. Set * (asterisk) allows all,
 default or blank means CORS disabled
 

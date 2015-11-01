@@ -5,19 +5,20 @@ description = "API Documentation for Docker"
 keywords = ["API, Docker, rcli, REST,  documentation"]
 [menu.main]
 parent = "smn_remoteapi"
+weight=-3
 +++
 <![end-metadata]-->
 
 # Docker Remote API
 
-Docker's Remote API uses an open schema model.  In this model, unknown 
+Docker's Remote API uses an open schema model.  In this model, unknown
 properties in incoming messages are ignored. Client applications need to take
 this behavior into account to ensure they do not break when talking to newer
 Docker daemons.
 
 The API tends to be REST, but for some complex commands, like attach or pull,
 the HTTP connection is hijacked to transport STDOUT, STDIN, and STDERR.
-   
+
 By default the Docker daemon listens on `unix:///var/run/docker.sock` and the
 client must have `root` access to interact with the daemon. If a group named
 `docker` exists on your system, `docker` applies ownership of the socket to the
@@ -31,15 +32,15 @@ Use the table below to find the API version for a Docker version:
 
 Docker version  | API version                                     | Changes
 ----------------|-------------------------------------------------|-----------------------------
-1.10.x          | [1.22](/reference/api/docker_remote_api_v1.22/) | [API changes](/reference/api/docker_remote_api/#v1-22-api-changes)
-1.9.x           | [1.21](/reference/api/docker_remote_api_v1.21/) | [API changes](/reference/api/docker_remote_api/#v1-21-api-changes)
-1.8.x           | [1.20](/reference/api/docker_remote_api_v1.20/) | [API changes](/reference/api/docker_remote_api/#v1-20-api-changes)
-1.7.x           | [1.19](/reference/api/docker_remote_api_v1.19/) | [API changes](/reference/api/docker_remote_api/#v1-19-api-changes)
-1.6.x           | [1.18](/reference/api/docker_remote_api_v1.18/) | [API changes](/reference/api/docker_remote_api/#v1-18-api-changes)
-1.5.x           | [1.17](/reference/api/docker_remote_api_v1.17/) | [API changes](/reference/api/docker_remote_api/#v1-17-api-changes)
-1.4.x           | [1.16](/reference/api/docker_remote_api_v1.16/) | [API changes](/reference/api/docker_remote_api/#v1-16-api-changes)
-1.3.x           | [1.15](/reference/api/docker_remote_api_v1.15/) | [API changes](/reference/api/docker_remote_api/#v1-15-api-changes)
-1.2.x           | [1.14](/reference/api/docker_remote_api_v1.14/) | [API changes](/reference/api/docker_remote_api/#v1-14-api-changes)
+1.10.x          | [1.22](docker_remote_api_v1.22.md) | [API changes](docker_remote_api.md#v1-22-api-changes)
+1.9.x           | [1.21](docker_remote_api_v1.21.md) | [API changes](docker_remote_api.md#v1-21-api-changes)
+1.8.x           | [1.20](docker_remote_api_v1.20.md) | [API changes](docker_remote_api.md#v1-20-api-changes)
+1.7.x           | [1.19](docker_remote_api_v1.19.md) | [API changes](docker_remote_api.md#v1-19-api-changes)
+1.6.x           | [1.18](docker_remote_api_v1.18.md) | [API changes](docker_remote_api.md#v1-18-api-changes)
+1.5.x           | [1.17](docker_remote_api_v1.17.md) | [API changes](docker_remote_api.md#v1-17-api-changes)
+1.4.x           | [1.16](docker_remote_api_v1.16.md) | [API changes](docker_remote_api.md#v1-16-api-changes)
+1.3.x           | [1.15](docker_remote_api_v1.15.md) | [API changes](docker_remote_api.md#v1-15-api-changes)
+1.2.x           | [1.14](docker_remote_api_v1.14.md) | [API changes](docker_remote_api.md#v1-14-api-changes)
 
 Refer to the [GitHub repository](
 https://github.com/docker/docker/tree/master/docs/reference/api) for
@@ -56,7 +57,7 @@ client has to send the `authConfig` as a `POST` in `/images/(name)/push`. The
 {"username": "string", "password": "string", "email": "string",
    "serveraddress" : "string", "auth": ""}
 ```
-   
+
 Callers should leave the `auth` empty. The `serveraddress` is a domain/ip
 without protocol. Throughout this structure, double quotes are required.
 
@@ -172,7 +173,7 @@ example you could add data describing the content of an image. `LABEL
 * `GET /containers/(id)/json` returns the list current execs associated with the
 container (`ExecIDs`). This endpoint now returns the container labels
 (`Config.Labels`).
-* `POST /containers/(id)/rename` renames a container `id` to a new name.* 
+* `POST /containers/(id)/rename` renames a container `id` to a new name.*
 * `POST /containers/create` and `POST /containers/(id)/start` callers can pass
 `ReadonlyRootfs` in the host config to mount the container's root filesystem as
 read only.
