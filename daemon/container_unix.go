@@ -895,17 +895,16 @@ func (container *Container) buildCreateEndpointOptions(n libnetwork.Network) ([]
 }
 
 func (container *Container) allocateNetwork() error {
-	sb := container.getNetworkSandbox()
-	if sb != nil {
-		// Cleanup any stale sandbox left over due to ungraceful daemon shutdown
-		if err := sb.Delete(); err != nil {
-			logrus.Errorf("failed to cleanup up stale network sandbox for container %s", container.ID)
-		}
+	controller := container.daemon.netController
+
+	// Cleanup any stale sandbox left over due to ungraceful daemon shutdown
+	if err := controller.SandboxDestroy(container.ID); err != nil {
+		logrus.Errorf("failed to cleanup up stale network sandbox for container %s", container.ID)
 	}
+
 	updateSettings := false
 	if len(container.NetworkSettings.Networks) == 0 {
 		mode := container.hostConfig.NetworkMode
-		controller := container.daemon.netController
 		if container.Config.NetworkDisabled || mode.IsContainer() {
 			return nil
 		}

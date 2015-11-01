@@ -128,6 +128,12 @@ func (sb *sandbox) storeUpdate() error {
 retry:
 	sbs.Eps = nil
 	for _, ep := range sb.getConnectedEndpoints() {
+		// If the endpoint is not persisted then do not add it to
+		// the sandbox checkpoint
+		if ep.Skip() {
+			continue
+		}
+
 		eps := epState{
 			Nid: ep.getNetwork().ID(),
 			Eid: ep.ID(),
@@ -188,6 +194,7 @@ func (c *controller) sandboxCleanup() {
 			endpoints:   epHeap{},
 			epPriority:  map[string]int{},
 			dbIndex:     sbs.dbIndex,
+			isStub:      true,
 			dbExists:    true,
 		}
 
