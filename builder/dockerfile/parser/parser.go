@@ -30,6 +30,8 @@ type Node struct {
 	Attributes map[string]bool // special attributes for this node
 	Original   string          // original line used before parsing
 	Flags      []string        // only top Node should have this set
+	StartLine  int             // the line in the original dockerfile where the node begins
+	EndLine    int             // the line in the original dockerfile where the node ends
 }
 
 var (
@@ -101,19 +103,24 @@ func parseLine(line string) (string, *Node, error) {
 // Parse is the main parse routine.
 // It handles an io.ReadWriteCloser and returns the root of the AST.
 func Parse(rwc io.Reader) (*Node, error) {
+	currentLine := 0
 	root := &Node{}
+	root.StartLine = -1
 	scanner := bufio.NewScanner(rwc)
 
 	for scanner.Scan() {
 		scannedLine := strings.TrimLeftFunc(scanner.Text(), unicode.IsSpace)
+		currentLine++
 		line, child, err := parseLine(scannedLine)
 		if err != nil {
 			return nil, err
 		}
+		startLine := currentLine
 
 		if line != "" && child == nil {
 			for scanner.Scan() {
 				newline := scanner.Text()
+				currentLine++
 
 				if stripComments(strings.TrimSpace(newline)) == "" {
 					continue
@@ -137,6 +144,15 @@ func Parse(rwc io.Reader) (*Node, error) {
 		}
 
 		if child != nil {
+			// Update the line information for the current child.
+			child.StartLine = startLine
+			child.EndLine = currentLine
+			// Update the line information for the root. The starting line of the root is always the
+			// starting line of the first child and the ending line is the ending line of the last child.
+			if root.StartLine < 0 {
+				root.StartLine = currentLine
+			}
+			root.EndLine = currentLine
 			root.Children = append(root.Children, child)
 		}
 	}
