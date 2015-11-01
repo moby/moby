@@ -422,16 +422,16 @@ func (s *DockerRegistrySuite) TestPullFromAdditionalRegistry(c *check.C) {
 	}
 	defer d.Stop()
 
-	busyboxID := d.getAndTestImageEntry(c, 1, "busybox", "").id
+	bbImg := d.getAndTestImageEntry(c, 1, "busybox", "")
 
 	// this will pull from docker.io
 	if _, err := d.Cmd("pull", "library/hello-world"); err != nil {
 		c.Fatalf("we should have been able to pull library/hello-world from %q: %v", s.reg.url, err)
 	}
 
-	helloWorldID := d.getAndTestImageEntry(c, 2, "docker.io/hello-world", "").id
-	if helloWorldID == busyboxID {
-		c.Fatalf("docker.io/hello-world must have different ID than busybox image")
+	hwImg := d.getAndTestImageEntry(c, 2, "docker.io/hello-world", "")
+	if hwImg.id == bbImg.id || hwImg.size == bbImg.size {
+		c.Fatalf("docker.io/hello-world must have different ID and size than busybox image")
 	}
 
 	// push busybox to additional registry as "library/hello-world" and remove all local images
@@ -451,7 +451,10 @@ func (s *DockerRegistrySuite) TestPullFromAdditionalRegistry(c *check.C) {
 	if _, err := d.Cmd("pull", "library/hello-world"); err != nil {
 		c.Fatalf("we should have been able to pull library/hello-world from %q: %v", s.reg.url, err)
 	}
-	d.getAndTestImageEntry(c, 1, s.reg.url+"/library/hello-world", busyboxID)
+	hw2Img := d.getAndTestImageEntry(c, 1, s.reg.url+"/library/hello-world", "")
+	if hw2Img.size != bbImg.size {
+		c.Fatalf("expected %s and %s to have the same size (%s != %s)", hw2Img.name, bbImg.name, hw2Img.size, hwImg.size)
+	}
 
 	// empty images once more
 	if out, err := d.Cmd("rmi", s.reg.url+"/library/hello-world"); err != nil {
@@ -463,7 +466,10 @@ func (s *DockerRegistrySuite) TestPullFromAdditionalRegistry(c *check.C) {
 	if _, err := d.Cmd("pull", "docker.io/library/hello-world"); err != nil {
 		c.Fatalf("we should have been able to pull docker.io/library/hello-world from %q: %v", s.reg.url, err)
 	}
-	d.getAndTestImageEntry(c, 1, "docker.io/hello-world", helloWorldID)
+	hw3Img := d.getAndTestImageEntry(c, 1, "docker.io/hello-world", "")
+	if hw3Img.size != hwImg.size {
+		c.Fatalf("expected %s and %s to have the same size (%s != %s)", hw3Img.name, hwImg.name, hw3Img.size, hwImg.size)
+	}
 }
 
 func (s *DockerRegistriesSuite) TestPullFromAdditionalRegistries(c *check.C) {
@@ -474,14 +480,14 @@ func (s *DockerRegistriesSuite) TestPullFromAdditionalRegistries(c *check.C) {
 	}
 	defer d.Stop()
 
-	busyboxID := d.getAndTestImageEntry(c, 1, "busybox", "").id
+	bbImg := d.getAndTestImageEntry(c, 1, "busybox", "")
 
 	// this will pull from docker.io
 	if out, err := d.Cmd("pull", "library/hello-world"); err != nil {
 		c.Fatalf("we should have been able to pull library/hello-world from \"docker.io\": %s\n\nError:%v", out, err)
 	}
-	helloWorldID := d.getAndTestImageEntry(c, 2, "docker.io/hello-world", "").id
-	if helloWorldID == busyboxID {
+	hwImg := d.getAndTestImageEntry(c, 2, "docker.io/hello-world", "")
+	if hwImg.id == bbImg.id {
 		c.Fatalf("docker.io/hello-world must have different ID than busybox image")
 	}
 
@@ -511,13 +517,19 @@ func (s *DockerRegistriesSuite) TestPullFromAdditionalRegistries(c *check.C) {
 	if _, err := d.Cmd("pull", "library/hello-world"); err != nil {
 		c.Fatalf("we should have been able to pull library/hello-world from %q: %v", s.reg2.url, err)
 	}
-	d.getAndTestImageEntry(c, 1, s.reg2.url+"/library/hello-world", busyboxID)
+	hw2Img := d.getAndTestImageEntry(c, 1, s.reg2.url+"/library/hello-world", "")
+	if hw2Img.size != bbImg.size {
+		c.Fatalf("expected %s and %s to have the same size (%s != %s)", hw2Img.name, bbImg.name, hw2Img.size, bbImg.size)
+	}
 
 	// now pull the "misc/hello-world" from 1st additional registry
 	if _, err := d.Cmd("pull", "misc/hello-world"); err != nil {
 		c.Fatalf("we should have been able to pull misc/hello-world from %q: %v", s.reg2.url, err)
 	}
-	d.getAndTestImageEntry(c, 2, s.reg1.url+"/misc/hello-world", helloWorldID)
+	hw3Img := d.getAndTestImageEntry(c, 2, s.reg1.url+"/misc/hello-world", "")
+	if hw3Img.size != hwImg.size {
+		c.Fatalf("expected %s and %s to have the same size (%s != %s)", hw3Img.name, hwImg.name, hw3Img.size, hwImg.size)
+	}
 
 	// tag it as library/hello-world and push it to 1st registry
 	if out, err := d.Cmd("tag", s.reg1.url+"/misc/hello-world", s.reg1.url+"/library/hello-world"); err != nil {
@@ -538,13 +550,19 @@ func (s *DockerRegistriesSuite) TestPullFromAdditionalRegistries(c *check.C) {
 	if _, err := d.Cmd("pull", "library/hello-world"); err != nil {
 		c.Fatalf("we should have been able to pull library/hello-world from %q: %v", s.reg1.url, err)
 	}
-	d.getAndTestImageEntry(c, 1, s.reg1.url+"/library/hello-world", helloWorldID)
+	hw4Img := d.getAndTestImageEntry(c, 1, s.reg1.url+"/library/hello-world", "")
+	if hw4Img.size != hwImg.size {
+		c.Fatalf("expected %s and %s to have the same size (%s != %s)", hw4Img.name, hwImg.name, hw4Img.size, hwImg.size)
+	}
 
 	// now pull fully qualified image from 2nd registry
 	if _, err := d.Cmd("pull", s.reg2.url+"/library/hello-world"); err != nil {
 		c.Fatalf("we should have been able to pull %s/library/hello-world: %v", s.reg2.url, err)
 	}
-	d.getAndTestImageEntry(c, 2, s.reg2.url+"/library/hello-world", busyboxID)
+	bb2Img := d.getAndTestImageEntry(c, 2, s.reg2.url+"/library/hello-world", "")
+	if bb2Img.size != bbImg.size {
+		c.Fatalf("expected %s and %s to have the same size (%s != %s)", bb2Img.name, bbImg.name, bb2Img.size, bbImg.size)
+	}
 }
 
 // Test pulls from blocked public registry and from private registry. This
@@ -623,7 +641,7 @@ func (s *DockerRegistriesSuite) doTestPullFromPrivateRegistriesWithPublicBlocked
 	}
 	defer d.Stop()
 
-	busyboxID := d.getAndTestImageEntry(c, 1, "busybox", "").id
+	bbImg := d.getAndTestImageEntry(c, 1, "busybox", "")
 
 	// try to pull from blocked public registry
 	if out, err := d.Cmd("pull", "library/hello-world"); err == nil {
@@ -663,7 +681,10 @@ func (s *DockerRegistriesSuite) doTestPullFromPrivateRegistriesWithPublicBlocked
 	if _, err := d.Cmd("pull", "misc/busybox"); err != nil {
 		c.Fatalf("we should have been able to pull misc/hello-world from %q: %v", s.reg1.url, err)
 	}
-	d.getAndTestImageEntry(c, 1, s.reg1.url+"/misc/busybox", busyboxID)
+	bb2Img := d.getAndTestImageEntry(c, 1, s.reg1.url+"/misc/busybox", "")
+	if bb2Img.size != bbImg.size {
+		c.Fatalf("expected %s and %s to have the same size (%s != %s)", bb2Img.name, bbImg.name, bb2Img.size, bbImg.size)
+	}
 
 	// try to pull "library/busybox" from private registry
 	if out, err := d.Cmd("pull", s.reg2.url+"/library/busybox"); !allBlocked && err != nil {
@@ -671,7 +692,10 @@ func (s *DockerRegistriesSuite) doTestPullFromPrivateRegistriesWithPublicBlocked
 	} else if allBlocked && err == nil {
 		c.Fatalf("pull from private registry should have failed, output: %q", out)
 	} else if !allBlocked {
-		d.getAndTestImageEntry(c, 2, s.reg2.url+"/library/busybox", busyboxID)
+		bb3Img := d.getAndTestImageEntry(c, 2, s.reg2.url+"/library/busybox", "")
+		if bb3Img.size != bbImg.size {
+			c.Fatalf("expected %s and %s to have the same size (%s != %s)", bb3Img.name, bbImg.name, bb3Img.size, bbImg.size)
+		}
 	}
 }
 
@@ -693,15 +717,15 @@ func (s *DockerRegistriesSuite) TestPullFromBlockedRegistry(c *check.C) {
 	}
 	defer d.Stop()
 
-	busyboxID := d.getAndTestImageEntry(c, 1, "busybox", "").id
+	bbImg := d.getAndTestImageEntry(c, 1, "busybox", "")
 
 	// pull image from docker.io
 	if _, err := d.Cmd("pull", "library/hello-world"); err != nil {
 		c.Fatalf("we should have been able to pull library/hello-world from \"docker.io\": %v", err)
 	}
-	helloWorldID := d.getAndTestImageEntry(c, 2, "docker.io/hello-world", "").id
-	if helloWorldID == busyboxID {
-		c.Fatalf("docker.io/hello-world must have different ID than busybox image")
+	hwImg := d.getAndTestImageEntry(c, 2, "docker.io/hello-world", "")
+	if hwImg.size == bbImg.size {
+		c.Fatalf("docker.io/hello-world must have different size than busybox image")
 	}
 
 	// push "hello-world" to blocked and additional registry and remove all local images
@@ -732,5 +756,8 @@ func (s *DockerRegistriesSuite) TestPullFromBlockedRegistry(c *check.C) {
 	if _, err := d.Cmd("pull", s.reg2.url+"/library/hello-world"); err != nil {
 		c.Fatalf("we should have been able to pull library/hello-world from %q: %v", s.reg2.url, err)
 	}
-	d.getAndTestImageEntry(c, 1, s.reg2.url+"/library/hello-world", busyboxID)
+	bb2Img := d.getAndTestImageEntry(c, 1, s.reg2.url+"/library/hello-world", "")
+	if bb2Img.size != bbImg.size {
+		c.Fatalf("expected %s and %s to have the same size (%s != %s)", bb2Img.name, bbImg.name, bb2Img.size, bbImg.size)
+	}
 }

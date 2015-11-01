@@ -31,7 +31,7 @@ func (s *DockerSuite) TestRmiWithContainerFails(c *check.C) {
 	}
 
 	// create a container
-	out, _, err := dockerCmdWithError("run", "-d", "busybox", "true")
+	out, _, err = dockerCmdWithError("run", "-d", "busybox", "true")
 	if err != nil {
 		c.Fatalf("failed to create a container: %s, %v", out, err)
 	}

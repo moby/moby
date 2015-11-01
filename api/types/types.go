@@ -93,9 +93,9 @@ type GraphDriverData struct {
 	Data map[string]string
 }
 
-// ImageInspect contains response of Remote API:
+// ImageInspectBase contains response of Remote API:
 // GET "/images/{name:.*}/json"
-type ImageInspect struct {
+type ImageInspectBase struct {
 	ID              string `json:"Id"`
 	RepoTags        []string
 	RepoDigests     []string
@@ -110,8 +110,23 @@ type ImageInspect struct {
 	Architecture    string
 	Os              string
 	Size            int64
-	VirtualSize     int64
-	GraphDriver     GraphDriverData
+}
+
+// ImageInspect contains response of Remote API:
+// GET "/images/{name:.*}/json"
+type ImageInspect struct {
+	ImageInspectBase
+	VirtualSize int64
+	GraphDriver GraphDriverData
+}
+
+// RemoteImageInspect contains response of RemoteAPI:
+// GET "/images/{name:.*}/json?remote=1"
+type RemoteImageInspect struct {
+	ImageInspectBase
+	Registry string
+	Digest   string
+	Tag      string
 }
 
 // Port stores open ports info of container
@@ -326,6 +341,20 @@ type MountPoint struct {
 	Driver      string `json:",omitempty"`
 	Mode        string
 	RW          bool
+}
+
+// RepositoryTag stores an metadata for a image's tag.
+type RepositoryTag struct {
+	Tag     string
+	ImageID string
+}
+
+// RepositoryTagList contains the response for the remote API:
+// GET "/images/{name:.*}/tags"
+type RepositoryTagList struct {
+	// Fully qualified repository name
+	Name    string
+	TagList []*RepositoryTag
 }
 
 // Volume represents the configuration of a volume for the remote API

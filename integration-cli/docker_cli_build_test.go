@@ -6356,7 +6356,7 @@ func (s *DockerRegistrySuite) TestBuildWithAdditionalRegistry(c *check.C) {
 		c.Fatalf("we should have been able to start the daemon with passing add-registry=%s: %v", s.reg.url, err)
 	}
 	defer d.Stop()
-	busyboxID := d.getAndTestImageEntry(c, 1, "busybox", "").id
+	bbImg := d.getAndTestImageEntry(c, 1, "busybox", "")
 
 	// build image based on hello-world from docker.io
 	_, _, err := d.buildImageWithOut(name, fmt.Sprintf(`
@@ -6366,34 +6366,34 @@ func (s *DockerRegistrySuite) TestBuildWithAdditionalRegistry(c *check.C) {
 	if err != nil {
 		c.Fatal(err)
 	}
-	helloWorldID := d.getAndTestImageEntry(c, 3, "docker.io/hello-world", "").id
-	if helloWorldID == busyboxID {
+	hwImg := d.getAndTestImageEntry(c, 3, "docker.io/hello-world", "")
+	if hwImg.id == bbImg.id {
 		c.Fatalf("docker.io/hello-world must have different ID than busybox image")
 	}
-	buildID := d.getAndTestImageEntry(c, 3, name, "").id
-	if buildID == helloWorldID || buildID == busyboxID {
+	bImg := d.getAndTestImageEntry(c, 3, name, "")
+	if bImg.id == hwImg.id || bImg.id == bbImg.id {
 		c.Fatalf("built image %s must have different ID than other images", name)
 	}
 	res, err := d.inspectField(name, "Parent")
 	if err != nil {
 		c.Fatal(err)
 	}
-	if !strings.HasPrefix(res, helloWorldID) {
-		c.Fatalf("built image %s should have docker.io/hello-world(id=%s) as a parent, not %s", name, helloWorldID, res)
+	if !strings.HasPrefix(res, hwImg.id) {
+		c.Fatalf("built image %s should have docker.io/hello-world(id=%s) as a parent, not %s", name, hwImg.id, res)
 	}
 
-	// push busybox to additional registry as "library/hello-world" and remove all local images
+	// push busybox to additional registry as "library/hello-world"
 	if out, err := d.Cmd("tag", "busybox", s.reg.url+"/library/hello-world"); err != nil {
 		c.Fatalf("failed to tag image %s: error %v, output %q", "busybox", err, out)
 	}
 	if out, err := d.Cmd("push", s.reg.url+"/library/hello-world"); err != nil {
 		c.Fatalf("failed to push image %s: error %v, output %q", s.reg.url+"/library/hello-world", err, out)
 	}
-	toRemove := []string{s.reg.url + "/library/hello-world", "busybox", "hello-world", name}
+	toRemove := []string{s.reg.url + "/library/hello-world", "hello-world"}
 	if out, err := d.Cmd("rmi", toRemove...); err != nil {
 		c.Fatalf("failed to remove images %v: %v, output: %s", toRemove, err, out)
 	}
-	d.getAndTestImageEntry(c, 0, "", "")
+	d.getAndTestImageEntry(c, 2, name, "")
 
 	// Build again. The result shall now be based on busybox image from
 	// additional registry.
@@ -6404,14 +6404,14 @@ func (s *DockerRegistrySuite) TestBuildWithAdditionalRegistry(c *check.C) {
 	if err != nil {
 		c.Fatal(err)
 	}
-	d.getAndTestImageEntry(c, 2, s.reg.url+"/library/hello-world", busyboxID)
-	d.getAndTestImageEntry(c, 2, name, "")
+	d.getAndTestImageEntry(c, 4, s.reg.url+"/library/hello-world", bbImg.id)
+	d.getAndTestImageEntry(c, 4, name, "")
 	res, err = d.inspectField(name, "Parent")
 	if err != nil {
 		c.Fatal(err)
 	}
-	if !strings.HasPrefix(res, busyboxID) {
-		c.Fatalf("built image %s should have busybox image (id=%s) as a parent, not %s", name, busyboxID, res)
+	if !strings.HasPrefix(res, bbImg.id) {
+		c.Fatalf("built image %s should have busybox image (id=%s) as a parent, not %s", name, bbImg.id, res)
 	}
 
 	// build again with docker.io explicitly specified
@@ -6422,14 +6422,14 @@ func (s *DockerRegistrySuite) TestBuildWithAdditionalRegistry(c *check.C) {
 	if err != nil {
 		c.Fatal(err)
 	}
-	d.getAndTestImageEntry(c, 3, "docker.io/hello-world", helloWorldID)
-	d.getAndTestImageEntry(c, 3, name, "")
+	d.getAndTestImageEntry(c, 5, "docker.io/hello-world", hwImg.id)
+	d.getAndTestImageEntry(c, 5, name, "")
 	res, err = d.inspectField(name, "Parent")
 	if err != nil {
 		c.Fatal(err)
 	}
-	if !strings.HasPrefix(res, helloWorldID) {
-		c.Fatalf("built image %s should have docker.io/hello-world(id=%s) as a parent, not %s", name, helloWorldID, res)
+	if !strings.HasPrefix(res, hwImg.id) {
+		c.Fatalf("built image %s should have docker.io/hello-world(id=%s) as a parent, not %s", name, hwImg.id, res)
 	}
 
 	// build again from additional registry explicitly specified
@@ -6440,17 +6440,13 @@ func (s *DockerRegistrySuite) TestBuildWithAdditionalRegistry(c *check.C) {
 	if err != nil {
 		c.Fatal(err)
 	}
-	d.getAndTestImageEntry(c, 3, s.reg.url+"/library/hello-world", busyboxID)
-	tmpID := d.getAndTestImageEntry(c, 3, name, "").id
-	if tmpID == buildID || tmpID == busyboxID || tmpID == helloWorldID {
-		c.Fatalf("built image must have unique ID")
-	}
+	d.getAndTestImageEntry(c, 5, s.reg.url+"/library/hello-world", bbImg.id)
 	res, err = d.inspectField(name, "Parent")
 	if err != nil {
 		c.Fatal(err)
 	}
-	if !strings.HasPrefix(res, busyboxID) {
-		c.Fatalf("built image %s should have busybox(id=%s) as a parent, not %s", name, busyboxID, res)
+	if !strings.HasPrefix(res, bbImg.id) {
+		c.Fatalf("built image %s should have busybox(id=%s) as a parent, not %s", name, bbImg.id, res)
 	}
 }
 

@@ -508,7 +508,7 @@ func (s *DockerRegistrySuite) TestPushToAdditionalRegistry(c *check.C) {
 	}
 	defer d.Stop()
 
-	busyboxID := d.getAndTestImageEntry(c, 1, "busybox", "").id
+	bbImg := d.getAndTestImageEntry(c, 1, "busybox", "")
 
 	// push busybox to additional registry as "library/busybox" and remove all local images
 	if out, err := d.Cmd("tag", "busybox", "library/busybox"); err != nil {
@@ -527,7 +527,10 @@ func (s *DockerRegistrySuite) TestPushToAdditionalRegistry(c *check.C) {
 	if _, err := d.Cmd("pull", "library/busybox"); err != nil {
 		c.Fatalf("we should have been able to pull library/busybox from %q: %v", s.reg.url, err)
 	}
-	d.getAndTestImageEntry(c, 1, s.reg.url+"/library/busybox", busyboxID)
+	bb2Img := d.getAndTestImageEntry(c, 1, s.reg.url+"/library/busybox", "")
+	if bb2Img.size != bbImg.size {
+		c.Fatalf("expected %s and %s to have the same size (%s != %s)", bb2Img.name, bbImg.name, bb2Img.size, bbImg.size)
+	}
 }
 
 func (s *DockerRegistrySuite) TestPushCustomTagToAdditionalRegistry(c *check.C) {

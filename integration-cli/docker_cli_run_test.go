@@ -3618,7 +3618,7 @@ func (s *DockerRegistrySuite) TestRunWithAdditionalRegistry(c *check.C) {
 	}
 	defer d.Stop()
 
-	busyboxID := d.getAndTestImageEntry(c, 1, "busybox", "").id
+	bbImg := d.getAndTestImageEntry(c, 1, "busybox", "")
 
 	// push busybox to additional registry as "library/hello-world" and remove all local images
 	if out, err := d.Cmd("tag", "busybox", s.reg.url+"/busybox"); err != nil {
@@ -3627,7 +3627,7 @@ func (s *DockerRegistrySuite) TestRunWithAdditionalRegistry(c *check.C) {
 	if out, err := d.Cmd("rmi", "busybox"); err != nil {
 		c.Fatalf("failed to remove image busybox: %v, output: %s", err, out)
 	}
-	d.getAndTestImageEntry(c, 1, s.reg.url+"/busybox", busyboxID)
+	d.getAndTestImageEntry(c, 1, s.reg.url+"/busybox", bbImg.id)
 
 	// try to run fully qualified image
 	if out, err := d.Cmd("run", "-t", s.reg.url+"/busybox", "sh", "-c", "echo foo"); err != nil {
@@ -3675,5 +3675,10 @@ func (s *DockerRegistrySuite) TestRunWithAdditionalRegistry(c *check.C) {
 	} else if !strings.HasSuffix(strings.TrimSpace(out), "\nfoo") {
 		c.Fatalf("got unexpected output: %q", out)
 	}
-	d.getAndTestImageEntry(c, 1, s.reg.url+"/library/hello-world", busyboxID)
+	// image id now differs from busybox because ids are generated again upon full pull
+	hwImg := d.getAndTestImageEntry(c, 1, s.reg.url+"/library/hello-world", "")
+	// therefore we need to compare size
+	if bbImg.size != hwImg.size {
+		c.Fatalf("expected %s:%s and %s:%s to have equal size (%s != %s)", hwImg.name, hwImg.tag, bbImg.name, bbImg.tag, hwImg.size, bbImg.size)
+	}
 }
