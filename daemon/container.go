@@ -347,7 +347,9 @@ func (container *Container) cleanup() {
 		container.daemon.unregisterExecCommand(eConfig)
 	}
 
-	container.unmountVolumes(false)
+	if err := container.unmountVolumes(false); err != nil {
+		logrus.Warnf("%s cleanup: Failed to umount volumes: %v", container.ID, err)
+	}
 }
 
 // killSig sends the container the given signal. This wrapper for the
