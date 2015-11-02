@@ -32,6 +32,7 @@ type CommonConfig struct {
 	Pidfile        string
 	RemappedRoot   string
 	Root           string
+	Repositories   string
 	TrustKeyPath   string
 	DefaultNetwork string
 
@@ -59,6 +60,7 @@ func (config *Config) InstallCommonFlags(cmd *flag.FlagSet, usageFn func(string)
 	cmd.Var(opts.NewListOptsRef(&config.ExecOptions, nil), []string{"-exec-opt"}, usageFn("Set exec driver options"))
 	cmd.StringVar(&config.Pidfile, []string{"p", "-pidfile"}, defaultPidFile, usageFn("Path to use for daemon PID file"))
 	cmd.StringVar(&config.Root, []string{"g", "-graph"}, defaultGraph, usageFn("Root of the Docker runtime"))
+	cmd.StringVar(&config.Repositories, []string{"-repositories"}, defaultGraph, usageFn("Root of the Repositories storage"))
 	cmd.StringVar(&config.ExecRoot, []string{"-exec-root"}, "/var/run/docker", usageFn("Root of the Docker execdriver"))
 	cmd.BoolVar(&config.AutoRestart, []string{"#r", "#-restart"}, true, usageFn("--restart on the daemon has been deprecated in favor of --restart policies on docker run"))
 	cmd.StringVar(&config.GraphDriver, []string{"s", "-storage-driver"}, "", usageFn("Storage driver to use"))
