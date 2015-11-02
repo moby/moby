@@ -373,6 +373,7 @@ do_install() {
 			gpgcheck=1
 			gpgkey=https://yum.dockerproject.org/gpg
 			EOF
+			$sh_c 'echo -e "[Service]\nExecStart=/usr/bin/docker daemon -s devicemapper --storage-opt dm.fs=xfs" > /etc/systemd/system/docker.service'
 			if [ "$lsb_dist" = "fedora" ] && [ "$dist_version" -ge "22" ]; then
 				(
 					set -x
