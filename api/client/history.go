@@ -54,18 +54,24 @@ func (cli *DockerCli) CmdHistory(args ...string) error {
 		return nil
 	}
 
+	var imageID string
+	var createdBy string
+	var created string
+	var size string
+
 	fmt.Fprintln(w, "IMAGE\tCREATED\tCREATED BY\tSIZE\tCOMMENT")
 	for _, entry := range history {
-		imageID := entry.ID
-		createdBy := strings.Replace(entry.CreatedBy, "\t", " ", -1)
+		imageID = entry.ID
+		createdBy = strings.Replace(entry.CreatedBy, "\t", " ", -1)
 		if *noTrunc == false {
 			createdBy = stringutils.Truncate(createdBy, 45)
 			imageID = stringid.TruncateID(entry.ID)
 		}
 
-		created := units.HumanDuration(time.Now().UTC().Sub(time.Unix(entry.Created, 0))) + " ago"
-		size := units.HumanSize(float64(entry.Size))
-		if *human == false {
+		if *human {
+			created = units.HumanDuration(time.Now().UTC().Sub(time.Unix(entry.Created, 0))) + " ago"
+			size = units.HumanSize(float64(entry.Size))
+		} else {
 			created = time.Unix(entry.Created, 0).Format(time.RFC3339)
 			size = strconv.FormatInt(entry.Size, 10)
 		}
