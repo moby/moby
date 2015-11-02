@@ -343,50 +343,6 @@ func (container *Container) ExitOnNext() {
 	container.monitor.ExitOnNext()
 }
 
-func (container *Container) pause() error {
-	container.Lock()
-	defer container.Unlock()
-
-	// We cannot Pause the container which is not running
-	if !container.Running {
-		return derr.ErrorCodeNotRunning.WithArgs(container.ID)
-	}
-
-	// We cannot Pause the container which is already paused
-	if container.Paused {
-		return derr.ErrorCodeAlreadyPaused.WithArgs(container.ID)
-	}
-
-	if err := container.daemon.execDriver.Pause(container.command); err != nil {
-		return err
-	}
-	container.Paused = true
-	container.logEvent("pause")
-	return nil
-}
-
-func (container *Container) unpause() error {
-	container.Lock()
-	defer container.Unlock()
-
-	// We cannot unpause the container which is not running
-	if !container.Running {
-		return derr.ErrorCodeNotRunning.WithArgs(container.ID)
-	}
-
-	// We cannot unpause the container which is not paused
-	if !container.Paused {
-		return derr.ErrorCodeNotPaused.WithArgs(container.ID)
-	}
-
-	if err := container.daemon.execDriver.Unpause(container.command); err != nil {
-		return err
-	}
-	container.Paused = false
-	container.logEvent("unpause")
-	return nil
-}
-
 // Resize changes the TTY of the process running inside the container
 // to the given height and width. The container must be running.
 func (container *Container) Resize(h, w int) error {

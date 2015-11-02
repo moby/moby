@@ -849,10 +849,10 @@ func (daemon *Daemon) shutdownContainer(c *Container) error {
 		if !ok {
 			return fmt.Errorf("System doesn not support SIGTERM")
 		}
-		if err := c.daemon.kill(c, int(sig)); err != nil {
+		if err := daemon.kill(c, int(sig)); err != nil {
 			return fmt.Errorf("sending SIGTERM to container %s with error: %v", c.ID, err)
 		}
-		if err := c.unpause(); err != nil {
+		if err := daemon.containerUnpause(c); err != nil {
 			return fmt.Errorf("Failed to unpause container %s with error: %v", c.ID, err)
 		}
 		if _, err := c.WaitStop(10 * time.Second); err != nil {
@@ -861,7 +861,7 @@ func (daemon *Daemon) shutdownContainer(c *Container) error {
 			if !ok {
 				return fmt.Errorf("System does not support SIGKILL")
 			}
-			if err := c.daemon.kill(c, int(sig)); err != nil {
+			if err := daemon.kill(c, int(sig)); err != nil {
 				logrus.Errorf("Failed to SIGKILL container %s", c.ID)
 			}
 			c.WaitStop(-1 * time.Second)

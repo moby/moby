@@ -22,8 +22,8 @@ type ContainerCommitConfig struct {
 // The image can optionally be tagged into a repository.
 func (daemon *Daemon) Commit(container *Container, c *ContainerCommitConfig) (*image.Image, error) {
 	if c.Pause && !container.isPaused() {
-		container.pause()
-		defer container.unpause()
+		daemon.containerPause(container)
+		defer daemon.containerUnpause(container)
 	}
 
 	rwTar, err := daemon.exportContainerRw(container)
