@@ -44,10 +44,9 @@ func (graph *Graph) depth(img *image.Image) (int, error) {
 	return count, nil
 }
 
-// Set the max depth to the aufs default that most
-// kernels are compiled with
+// Set the max depth to the aufs default that most kernels are compiled with.
 // For more information see: http://sourceforge.net/p/aufs/aufs3-standalone/ci/aufs3.12/tree/config.mk
-const MaxImageDepth = 127
+const maxImageDepth = 127
 
 // CheckDepth returns an error if the depth of an image, as returned
 // by ImageDepth, is too large to support creating a container from it
@@ -59,8 +58,8 @@ func (graph *Graph) CheckDepth(img *image.Image) error {
 	if err != nil {
 		return err
 	}
-	if depth+2 >= MaxImageDepth {
-		return fmt.Errorf("Cannot create container with more than %d parents", MaxImageDepth)
+	if depth+2 >= maxImageDepth {
+		return fmt.Errorf("Cannot create container with more than %d parents", maxImageDepth)
 	}
 	return nil
 }
