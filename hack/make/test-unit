@@ -9,11 +9,16 @@ set -e
 #
 bundle_test_unit() {
 	date
+	if [ -z "$TESTDIRS" ]; then
+		TEST_PATH=./...
+	else
+		TEST_PATH=./${TESTDIRS}
+	fi
 	pkg_list=$(go list -e \
 		-f '{{if ne .Name "github.com/docker/docker"}}
-				{{.ImportPath}}
-			{{end}}' \
-		"${BUILDFLAGS[@]}" ./... \
+			{{.ImportPath}}
+		    {{end}}' \
+		"${BUILDFLAGS[@]}" $TEST_PATH \
 		| grep -v github.com/docker/docker/vendor \
 		| grep -v github.com/docker/docker/integration-cli)
 	go test -cover $GCCGOFLAGS -ldflags "$LDFLAGS" "${BUILDFLAGS[@]}" $TESTFLAGS $pkg_list
