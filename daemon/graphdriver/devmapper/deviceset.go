@@ -2270,7 +2270,7 @@ func NewDeviceSet(root string, doInit bool, options []string, uidMaps, gidMaps [
 		metaDataLoopbackSize:  defaultMetaDataLoopbackSize,
 		baseFsSize:            defaultBaseFsSize,
 		overrideUdevSyncCheck: defaultUdevSyncOverride,
-		filesystem:            "ext4",
+		filesystem:            "xfs",
 		doBlkDiscard:          true,
 		thinpBlockSize:        defaultThinpBlockSize,
 		deviceIDMap:           make([]byte, deviceIDMapSz),
