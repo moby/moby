@@ -44,7 +44,7 @@ clone git github.com/vbatts/tar-split v0.9.10
 
 clone git github.com/docker/notary 089d8450d8928aa1c58fd03f09cabbde9bcb4590
 clone git github.com/endophage/gotuf 2df1c8e0a7b7e10ae2113bf37aaa1bf1c1de8cc5
-clone git github.com/jfrazelle/go 6e461eb70cb4187b41a84e9a567d7137bdbe0f16
+clone git github.com/jfrazelle/go v1.5.1-1
 clone git github.com/agl/ed25519 d2b94fd789ea21d12fac1a4443dd3a3f79cda72c
 
 clone git github.com/opencontainers/runc 6c198ae2d065c37f44316e0de3df7f3b88950923 # libcontainer
