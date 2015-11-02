@@ -232,9 +232,8 @@ func (daemon *Daemon) Register(container *Container) error {
 		}
 		daemon.execDriver.Terminate(cmd)
 
-		if err := container.unmountIpcMounts(mount.Unmount); err != nil {
-			logrus.Errorf("%s: Failed to umount ipc filesystems: %v", container.ID, err)
-		}
+		container.unmountIpcMounts(mount.Unmount)
+
 		if err := container.Unmount(); err != nil {
 			logrus.Debugf("unmount error %s", err)
 		}
