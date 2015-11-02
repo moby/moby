@@ -6,6 +6,6 @@ import "syscall"
 
 // Unmount is a platform-specific helper function to call
 // the unmount syscall.
-func Unmount(dest string) {
-	syscall.Unmount(dest, 0)
+func Unmount(dest string) error {
+	return syscall.Unmount(dest, 0)
 }
