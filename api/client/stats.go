@@ -206,9 +206,9 @@ func calculateCPUPercent(previousCPU, previousSystem uint64, v *types.StatsJSON)
 	var (
 		cpuPercent = 0.0
 		// calculate the change for the cpu usage of the container in between readings
-		cpuDelta = float64(v.CPUStats.CPUUsage.TotalUsage - previousCPU)
+		cpuDelta = float64(v.CPUStats.CPUUsage.TotalUsage) - float64(previousCPU)
 		// calculate the change for the entire system between readings
-		systemDelta = float64(v.CPUStats.SystemUsage - previousSystem)
+		systemDelta = float64(v.CPUStats.SystemUsage) - float64(previousSystem)
 	)
 
 	if systemDelta > 0.0 && cpuDelta > 0.0 {
