@@ -68,6 +68,7 @@ type sandbox struct {
 	joinLeaveDone chan struct{}
 	dbIndex       uint64
 	dbExists      bool
+	isStub        bool
 	inDelete      bool
 	sync.Mutex
 }
@@ -197,7 +198,7 @@ func (sb *sandbox) Delete() error {
 	// likely not required any more. Drop it.
 	etchosts.Drop(sb.config.hostsPath)
 
-	if sb.osSbox != nil {
+	if sb.osSbox != nil && !sb.config.useDefaultSandBox {
 		sb.osSbox.Destroy()
 	}
 
