@@ -28,7 +28,7 @@ import (
 const (
 	// Name is the name of the file that the jsonlogger logs to.
 	Name               = "json-file"
-	maxJSONDecodeRetry = 10
+	maxJSONDecodeRetry = 20000
 )
 
 // JSONFileLogger is Logger implementation for default Docker logging.
