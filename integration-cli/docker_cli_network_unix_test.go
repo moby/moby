@@ -293,6 +293,47 @@ func (s *DockerSuite) TestDockerInspectMultipleNetwork(c *check.C) {
 	c.Assert(out, checker.Contains, "Error: No such network: nonexistent")
 }
 
+func (s *DockerSuite) TestDockerInspectNetworkWithContainerName(c *check.C) {
+	dockerCmd(c, "network", "create", "brNetForInspect")
+	assertNwIsAvailable(c, "brNetForInspect")
+	defer func() {
+		dockerCmd(c, "network", "rm", "brNetForInspect")
+		assertNwNotAvailable(c, "brNetForInspect")
+	}()
+
+	out, _ := dockerCmd(c, "run", "-d", "--name", "testNetInspect1", "--net", "brNetForInspect", "busybox", "top")
+	c.Assert(waitRun("testNetInspect1"), check.IsNil)
+	containerID := strings.TrimSpace(out)
+	defer func() {
+		// we don't stop container by name, because we'll rename it later
+		dockerCmd(c, "stop", containerID)
+	}()
+
+	out, _ = dockerCmd(c, "network", "inspect", "brNetForInspect")
+	networkResources := []types.NetworkResource{}
+	err := json.Unmarshal([]byte(out), &networkResources)
+	c.Assert(err, check.IsNil)
+	c.Assert(networkResources, checker.HasLen, 1)
+	container, ok := networkResources[0].Containers[containerID]
+	c.Assert(ok, checker.True)
+	c.Assert(container.Name, checker.Equals, "testNetInspect1")
+
+	// rename container and check docker inspect output update
+	newName := "HappyNewName"
+	dockerCmd(c, "rename", "testNetInspect1", newName)
+
+	// check whether network inspect works properly
+	out, _ = dockerCmd(c, "network", "inspect", "brNetForInspect")
+	newNetRes := []types.NetworkResource{}
+	err = json.Unmarshal([]byte(out), &newNetRes)
+	c.Assert(err, check.IsNil)
+	c.Assert(newNetRes, checker.HasLen, 1)
+	container1, ok := newNetRes[0].Containers[containerID]
+	c.Assert(ok, checker.True)
+	c.Assert(container1.Name, checker.Equals, newName)
+
+}
+
 func (s *DockerNetworkSuite) TestDockerNetworkConnectDisconnect(c *check.C) {
 	dockerCmd(c, "network", "create", "test")
 	assertNwIsAvailable(c, "test")

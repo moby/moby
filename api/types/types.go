@@ -361,6 +361,7 @@ type NetworkResource struct {
 
 // EndpointResource contains network resources allocated and used for a container in a network
 type EndpointResource struct {
+	Name        string
 	EndpointID  string
 	MacAddress  string
 	IPv4Address string

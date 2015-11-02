@@ -237,6 +237,7 @@ func buildEndpointResource(e libnetwork.Endpoint) types.EndpointResource {
 	}
 
 	er.EndpointID = e.ID()
+	er.Name = e.Name()
 	ei := e.Info()
 	if ei == nil {
 		return er
