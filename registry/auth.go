@@ -88,29 +88,23 @@ func loginV1(authConfig *cliconfig.AuthConfig, registryEndpoint *Endpoint) (stri
 			return "", err
 		}
 
-		if resp.StatusCode == 200 {
+		switch resp.StatusCode {
+		case 200:
 			return "Login Succeeded", nil
-		}
-
-		if resp.StatusCode == 401 {
+		case 401:
 			return "", fmt.Errorf("Wrong login/password, please try again")
-		}
-
-		if resp.StatusCode == 403 {
+		case 403:
 			if loginAgainstOfficialIndex {
 				return "", fmt.Errorf("Login: Account is not Active. Please check your e-mail for a confirmation link.")
 			}
 			// *TODO: Use registry configuration to determine what this says, if anything?
 			return "", fmt.Errorf("Login: Account is not Active. Please see the documentation of the registry %s for instructions how to activate it.", serverAddress)
-		}
-
-		if resp.StatusCode == 500 { // Issue #14326
+		case 500:
 			logrus.Errorf("%s returned status code %d. Response Body :\n%s", req.URL.String(), resp.StatusCode, body)
 			return "", fmt.Errorf("Internal Server Error")
+		default:
+			return "", fmt.Errorf("Login: %s (Code: %d; Headers: %s)", body, resp.StatusCode, resp.Header)
 		}
-
-		return "", fmt.Errorf("Login: %s (Code: %d; Headers: %s)", body, resp.StatusCode, resp.Header)
-
 	}
 
 	if reqStatusCode == 401 {
@@ -131,16 +125,15 @@ func loginV1(authConfig *cliconfig.AuthConfig, registryEndpoint *Endpoint) (stri
 			return "", err
 		}
 
-		if resp.StatusCode == 200 {
+		switch resp.StatusCode {
+		case 200:
 			return "Login Succeeded", nil
-		}
-
-		if resp.StatusCode == 401 {
+		case 401:
 			return "", fmt.Errorf("Wrong login/password, please try again")
+		default:
+			return "", fmt.Errorf("Login: %s (Code: %d; Headers: %s)", body,
+				resp.StatusCode, resp.Header)
 		}
-
-		return "", fmt.Errorf("Login: %s (Code: %d; Headers: %s)", body,
-			resp.StatusCode, resp.Header)
 	}
 
 	return "", fmt.Errorf("Unexpected status code [%d] : %s", reqStatusCode, reqBody)
