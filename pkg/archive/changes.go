@@ -31,6 +31,18 @@ const (
 	ChangeDelete
 )
 
+func (c ChangeType) String() string {
+	switch c {
+	case ChangeModify:
+		return "C"
+	case ChangeAdd:
+		return "A"
+	case ChangeDelete:
+		return "D"
+	}
+	return ""
+}
+
 // Change represents a change, it wraps the change type and path.
 // It describes changes of the files in the path respect to the
 // parent layers. The change could be modify, add, delete.
@@ -41,16 +53,7 @@ type Change struct {
 }
 
 func (change *Change) String() string {
-	var kind string
-	switch change.Kind {
-	case ChangeModify:
-		kind = "C"
-	case ChangeAdd:
-		kind = "A"
-	case ChangeDelete:
-		kind = "D"
-	}
-	return fmt.Sprintf("%s %s", kind, change.Path)
+	return fmt.Sprintf("%s %s", change.Kind, change.Path)
 }
 
 // for sort.Sort

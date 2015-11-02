@@ -386,9 +386,14 @@ func (s *router) postBuild(ctx context.Context, w http.ResponseWriter, r *http.R
 		UIDMaps: uidMaps,
 		GIDMaps: gidMaps,
 	}
-	docker := daemonbuilder.Docker{s.daemon, output, authConfigs, defaultArchiver}
+	docker := &daemonbuilder.Docker{
+		Daemon:      s.daemon,
+		OutOld:      output,
+		AuthConfigs: authConfigs,
+		Archiver:    defaultArchiver,
+	}
 
-	b, err := dockerfile.NewBuilder(buildConfig, docker, builder.DockerIgnoreContext{context}, nil)
+	b, err := dockerfile.NewBuilder(buildConfig, docker, builder.DockerIgnoreContext{ModifiableContext: context}, nil)
 	if err != nil {
 		return errf(err)
 	}

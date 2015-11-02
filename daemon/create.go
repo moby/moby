@@ -31,7 +31,7 @@ func (daemon *Daemon) ContainerCreate(params *ContainerCreateConfig) (types.Cont
 
 	warnings, err := daemon.verifyContainerSettings(params.HostConfig, params.Config)
 	if err != nil {
-		return types.ContainerCreateResponse{"", warnings}, err
+		return types.ContainerCreateResponse{ID: "", Warnings: warnings}, err
 	}
 
 	daemon.adaptContainerSettings(params.HostConfig, params.AdjustCPUShares)
@@ -40,18 +40,18 @@ func (daemon *Daemon) ContainerCreate(params *ContainerCreateConfig) (types.Cont
 	if err != nil {
 		if daemon.Graph().IsNotExist(err, params.Config.Image) {
 			if strings.Contains(params.Config.Image, "@") {
-				return types.ContainerCreateResponse{"", warnings}, derr.ErrorCodeNoSuchImageHash.WithArgs(params.Config.Image)
+				return types.ContainerCreateResponse{ID: "", Warnings: warnings}, derr.ErrorCodeNoSuchImageHash.WithArgs(params.Config.Image)
 			}
 			img, tag := parsers.ParseRepositoryTag(params.Config.Image)
 			if tag == "" {
 				tag = tags.DefaultTag
 			}
-			return types.ContainerCreateResponse{"", warnings}, derr.ErrorCodeNoSuchImageTag.WithArgs(img, tag)
+			return types.ContainerCreateResponse{ID: "", Warnings: warnings}, derr.ErrorCodeNoSuchImageTag.WithArgs(img, tag)
 		}
-		return types.ContainerCreateResponse{"", warnings}, err
+		return types.ContainerCreateResponse{ID: "", Warnings: warnings}, err
 	}
 
-	return types.ContainerCreateResponse{container.ID, warnings}, nil
+	return types.ContainerCreateResponse{ID: container.ID, Warnings: warnings}, nil
 }
 
 // Create creates a new container from the given configuration with a given name.
