@@ -1,10 +1,12 @@
 package parser
 
 import (
+	"bytes"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -64,6 +66,11 @@ func TestTestData(t *testing.T) {
 		content, err := ioutil.ReadFile(resultfile)
 		if err != nil {
 			t.Fatalf("Error reading %s's result file: %v", dir, err)
+		}
+
+		if runtime.GOOS == "windows" {
+			// CRLF --> CR to match Unix behaviour
+			content = bytes.Replace(content, []byte{'\x0d', '\x0a'}, []byte{'\x0a'}, -1)
 		}
 
 		if ast.Dump()+"\n" != string(content) {
