@@ -503,7 +503,7 @@ func (container *Container) Stop(seconds int) error {
 		// 3. If it doesn't, then send SIGKILL
 		if err := container.Kill(); err != nil {
 			container.WaitStop(-1 * time.Second)
-			return err
+			logrus.Warn(err) // Don't return error because we only care that container is stopped, not what function stopped it
 		}
 	}
 
