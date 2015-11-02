@@ -100,6 +100,9 @@ type NetworkController interface {
 	// SandboxByID returns the Sandbox which has the passed id. If not found, a types.NotFoundError is returned.
 	SandboxByID(id string) (Sandbox, error)
 
+	// SandboxDestroy destroys a sandbox given a container ID
+	SandboxDestroy(id string) error
+
 	// Stop network controller
 	Stop()
 }
@@ -478,21 +481,37 @@ func (c *controller) NewSandbox(containerID string, options ...SandboxOption) (S
 		return nil, types.BadRequestErrorf("invalid container ID")
 	}
 
-	var existing Sandbox
-	look := SandboxContainerWalker(&existing, containerID)
-	c.WalkSandboxes(look)
-	if existing != nil {
-		return nil, types.BadRequestErrorf("container %s is already present: %v", containerID, existing)
+	var sb *sandbox
+	c.Lock()
+	for _, s := range c.sandboxes {
+		if s.containerID == containerID {
+			// If not a stub, then we already have a complete sandbox.
+			if !s.isStub {
+				c.Unlock()
+				return nil, types.BadRequestErrorf("container %s is already present: %v", containerID, s)
+			}
+
+			// We already have a stub sandbox from the
+			// store. Make use of it so that we don't lose
+			// the endpoints from store but reset the
+			// isStub flag.
+			sb = s
+			sb.isStub = false
+			break
+		}
 	}
+	c.Unlock()
 
 	// Create sandbox and process options first. Key generation depends on an option
-	sb := &sandbox{
-		id:          stringid.GenerateRandomID(),
-		containerID: containerID,
-		endpoints:   epHeap{},
-		epPriority:  map[string]int{},
-		config:      containerConfig{},
-		controller:  c,
+	if sb == nil {
+		sb = &sandbox{
+			id:          stringid.GenerateRandomID(),
+			containerID: containerID,
+			endpoints:   epHeap{},
+			epPriority:  map[string]int{},
+			config:      containerConfig{},
+			controller:  c,
+		}
 	}
 
 	heap.Init(&sb.endpoints)
@@ -547,6 +566,11 @@ func (c *controller) Sandboxes() []Sandbox {
 
 	list := make([]Sandbox, 0, len(c.sandboxes))
 	for _, s := range c.sandboxes {
+		// Hide stub sandboxes from libnetwork users
+		if s.isStub {
+			continue
+		}
+
 		list = append(list, s)
 	}
 
@@ -572,6 +596,26 @@ func (c *controller) SandboxByID(id string) (Sandbox, error) {
 		return nil, types.NotFoundErrorf("sandbox %s not found", id)
 	}
 	return s, nil
+}
+
+// SandboxDestroy destroys a sandbox given a container ID
+func (c *controller) SandboxDestroy(id string) error {
+	var sb *sandbox
+	c.Lock()
+	for _, s := range c.sandboxes {
+		if s.containerID == id {
+			sb = s
+			break
+		}
+	}
+	c.Unlock()
+
+	// It is not an error if sandbox is not available
+	if sb == nil {
+		return nil
+	}
+
+	return sb.Delete()
 }
 
 // SandboxContainerWalker returns a Sandbox Walker function which looks for an existing Sandbox with the passed containerID
