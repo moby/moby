@@ -182,7 +182,7 @@ func (graph *Graph) restore() error {
 		if graph.driver.Exists(id) {
 			img, err := graph.loadImage(id)
 			if err != nil {
-				return err
+				return fmt.Errorf("could not restore image %s: %v", id, err)
 			}
 			graph.imageMutex.Lock(img.Parent)
 			graph.parentRefs[img.Parent]++
