@@ -126,7 +126,10 @@ Create a container
              "Tty":false,
              "OpenStdin":false,
              "StdinOnce":false,
-             "Env":null,
+             "Env": [
+                     "FOO=bar",
+                     "BAZ=quux"
+             ],
              "Cmd":[
                      "date"
              ],
