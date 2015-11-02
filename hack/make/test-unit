@@ -19,6 +19,7 @@ bundle_test_unit() {
 			{{.ImportPath}}
 		    {{end}}' \
 		"${BUILDFLAGS[@]}" $TEST_PATH \
+		| grep github.com/docker/docker \
 		| grep -v github.com/docker/docker/vendor \
 		| grep -v github.com/docker/docker/integration-cli)
 	go test $COVER $GCCGOFLAGS -ldflags "$LDFLAGS" "${BUILDFLAGS[@]}" $TESTFLAGS $pkg_list
