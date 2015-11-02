@@ -225,21 +225,6 @@ func (container *Container) getRootResourcePath(path string) (string, error) {
 	return symlink.FollowSymlinkInScope(filepath.Join(container.root, cleanPath), container.root)
 }
 
-func (container *Container) exportContainerRw() (archive.Archive, error) {
-	if container.daemon == nil {
-		return nil, derr.ErrorCodeUnregisteredContainer.WithArgs(container.ID)
-	}
-	archive, err := container.daemon.diff(container)
-	if err != nil {
-		return nil, err
-	}
-	return ioutils.NewReadCloserWrapper(archive, func() error {
-			err := archive.Close()
-			return err
-		}),
-		nil
-}
-
 // Start prepares the container to run by setting up everything the
 // container needs, such as storage and networking, as well as links
 // between containers. The container is left waiting for a signal to

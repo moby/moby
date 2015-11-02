@@ -2,6 +2,8 @@ package daemon
 
 import (
 	"github.com/docker/docker/image"
+	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/runconfig"
 )
 
@@ -24,7 +26,7 @@ func (daemon *Daemon) Commit(container *Container, c *ContainerCommitConfig) (*i
 		defer container.unpause()
 	}
 
-	rwTar, err := container.exportContainerRw()
+	rwTar, err := daemon.exportContainerRw(container)
 	if err != nil {
 		return nil, err
 	}
@@ -48,4 +50,16 @@ func (daemon *Daemon) Commit(container *Container, c *ContainerCommitConfig) (*i
 	}
 	container.logEvent("commit")
 	return img, nil
+}
+
+func (daemon *Daemon) exportContainerRw(container *Container) (archive.Archive, error) {
+	archive, err := daemon.diff(container)
+	if err != nil {
+		return nil, err
+	}
+	return ioutils.NewReadCloserWrapper(archive, func() error {
+			err := archive.Close()
+			return err
+		}),
+		nil
 }
