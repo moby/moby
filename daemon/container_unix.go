@@ -100,7 +100,7 @@ func (container *Container) setupLinkedContainers() ([]string, error) {
 
 			childBridgeSettings := child.NetworkSettings.Networks["bridge"]
 			if childBridgeSettings == nil {
-				return nil, fmt.Errorf("container %d not attached to default bridge network", child.ID)
+				return nil, fmt.Errorf("container %s not attached to default bridge network", child.ID)
 			}
 
 			link := links.NewLink(
