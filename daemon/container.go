@@ -356,30 +356,6 @@ func (container *Container) Resize(h, w int) error {
 	return nil
 }
 
-func (container *Container) export() (archive.Archive, error) {
-	if err := container.Mount(); err != nil {
-		return nil, err
-	}
-
-	uidMaps, gidMaps := container.daemon.GetUIDGIDMaps()
-	archive, err := archive.TarWithOptions(container.basefs, &archive.TarOptions{
-		Compression: archive.Uncompressed,
-		UIDMaps:     uidMaps,
-		GIDMaps:     gidMaps,
-	})
-	if err != nil {
-		container.Unmount()
-		return nil, err
-	}
-	arch := ioutils.NewReadCloserWrapper(archive, func() error {
-		err := archive.Close()
-		container.Unmount()
-		return err
-	})
-	container.logEvent("export")
-	return arch, err
-}
-
 // Mount sets container.basefs
 func (container *Container) Mount() error {
 	return container.daemon.Mount(container)
