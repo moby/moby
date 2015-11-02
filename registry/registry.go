@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -219,6 +220,10 @@ func ContinueOnError(err error) bool {
 		return shouldV2Fallback(v)
 	case *client.UnexpectedHTTPResponseError:
 		return true
+	case error:
+		if val := strings.Contains(err.Error(), strings.ToLower(syscall.ENOSPC.Error())); val {
+			return false
+		}
 	}
 	// let's be nice and fallback if the error is a completely
 	// unexpected one.
