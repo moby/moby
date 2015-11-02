@@ -398,6 +398,7 @@ func createRouter(s *Server) *mux.Router {
 			"/images/load":                  s.postImagesLoad,
 			"/images/{name:.*}/push":        s.postImagesPush,
 			"/images/{name:.*}/tag":         s.postImagesTag,
+			"/containers/modresources":      s.postModifyResources,
 			"/containers/create":            s.postContainersCreate,
 			"/containers/{name:.*}/kill":    s.postContainersKill,
 			"/containers/{name:.*}/pause":   s.postContainersPause,

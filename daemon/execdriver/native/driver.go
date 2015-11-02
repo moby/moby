@@ -129,6 +129,50 @@ type execOutput struct {
 	err      error
 }
 
+// ModifyResources changes the cgroup resources of a currently active container
+func (d *Driver) ModifyResources(contID string, r *execdriver.Resources) error {
+	logrus.Debugf("In the driver, modresources called")
+
+	libContainerContainer := d.activeContainers[contID]
+	contConfig := libContainerContainer.Config()
+	cgroups := &configs.Cgroup{
+		Name:                         contConfig.Cgroups.Name,
+		Parent:                       contConfig.Cgroups.Parent,
+		AllowAllDevices:              contConfig.Cgroups.AllowAllDevices,
+		AllowedDevices:               contConfig.Cgroups.AllowedDevices,
+		DeniedDevices:                contConfig.Cgroups.DeniedDevices,
+		Memory:                       contConfig.Cgroups.Memory,
+		MemoryReservation:            contConfig.Cgroups.MemoryReservation,
+		MemorySwap:                   contConfig.Cgroups.MemorySwap,
+		KernelMemory:                 contConfig.Cgroups.KernelMemory,
+		CpuShares:                    r.CPUShares,
+		CpuQuota:                     r.CPUQuota,
+		CpuPeriod:                    r.CPUPeriod,
+		CpuRtRuntime:                 contConfig.Cgroups.CpuRtRuntime,
+		CpuRtPeriod:                  contConfig.Cgroups.CpuRtPeriod,
+		CpusetCpus:                   r.CpusetCpus,
+		CpusetMems:                   r.CpusetMems,
+		BlkioThrottleReadBpsDevice:   r.BlkioReadLimit,
+		BlkioThrottleWriteBpsDevice:  contConfig.Cgroups.BlkioThrottleWriteBpsDevice,
+		BlkioThrottleReadIOpsDevice:  contConfig.Cgroups.BlkioThrottleReadIOpsDevice,
+		BlkioThrottleWriteIOpsDevice: contConfig.Cgroups.BlkioThrottleWriteIOpsDevice,
+		BlkioWeight:                  r.BlkioWeight,
+		BlkioWeightDevice:            contConfig.Cgroups.BlkioWeightDevice,
+		Freezer:                      contConfig.Cgroups.Freezer,
+		HugetlbLimit:                 contConfig.Cgroups.HugetlbLimit,
+		Slice:                        contConfig.Cgroups.Slice,
+		OomKillDisable:               contConfig.Cgroups.OomKillDisable,
+		MemorySwappiness:             contConfig.Cgroups.MemorySwappiness,
+		NetPrioIfpriomap:             contConfig.Cgroups.NetPrioIfpriomap,
+		NetClsClassid:                contConfig.Cgroups.NetClsClassid,
+	}
+
+	contConfig.Cgroups = cgroups
+
+	libContainerContainer.Set(contConfig)
+	return nil
+}
+
 // Run implements the exec driver Driver interface,
 // it calls libcontainer APIs to run a container.
 func (d *Driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, hooks execdriver.Hooks) (execdriver.ExitStatus, error) {

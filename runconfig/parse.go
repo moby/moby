@@ -36,7 +36,7 @@ var (
 // Parse parses the specified args for the specified command and generates a Config,
 // a HostConfig and returns them with the specified command.
 // If the specified args are not valid, it will return an error.
-func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSet, error) {
+func Parse(cmd *flag.FlagSet, args []string, cgroupOrig *HostConfig) (*Config, *HostConfig, *flag.FlagSet, error) {
 	var (
 		// FIXME: use utils.ListOpts for attach and volumes?
 		flAttach  = opts.NewListOpts(opts.ValidateAttach)
@@ -80,24 +80,44 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		flKernelMemory    = cmd.String([]string{"-kernel-memory"}, "", "Kernel memory limit")
 		flUser            = cmd.String([]string{"u", "-user"}, "", "Username or UID (format: <name|uid>[:<group|gid>])")
 		flWorkingDir      = cmd.String([]string{"w", "-workdir"}, "", "Working directory inside the container")
-		flCPUShares       = cmd.Int64([]string{"#c", "-cpu-shares"}, 0, "CPU shares (relative weight)")
-		flCPUPeriod       = cmd.Int64([]string{"-cpu-period"}, 0, "Limit CPU CFS (Completely Fair Scheduler) period")
-		flCPUQuota        = cmd.Int64([]string{"-cpu-quota"}, 0, "Limit CPU CFS (Completely Fair Scheduler) quota")
-		flCpusetCpus      = cmd.String([]string{"#-cpuset", "-cpuset-cpus"}, "", "CPUs in which to allow execution (0-3, 0,1)")
-		flCpusetMems      = cmd.String([]string{"-cpuset-mems"}, "", "MEMs in which to allow execution (0-3, 0,1)")
-		flBlkioWeight     = cmd.Int64([]string{"-blkio-weight"}, 0, "Block IO (relative weight), between 10 and 1000")
-		flBlkioReadLimit  = cmd.String([]string{"-blkio-read-limit"}, "", "Block IO read limit, in bytes per second. Default unlimited")
-		flSwappiness      = cmd.Int64([]string{"-memory-swappiness"}, -1, "Tuning container memory swappiness (0 to 100)")
-		flNetMode         = cmd.String([]string{"-net"}, "default", "Set the Network mode for the container")
-		flMacAddress      = cmd.String([]string{"-mac-address"}, "", "Container MAC address (e.g. 92:d0:c6:0a:29:33)")
-		flIpcMode         = cmd.String([]string{"-ipc"}, "", "IPC namespace to use")
-		flRestartPolicy   = cmd.String([]string{"-restart"}, "no", "Restart policy to apply when a container exits")
-		flReadonlyRootfs  = cmd.Bool([]string{"-read-only"}, false, "Mount the container's root filesystem as read only")
-		flLoggingDriver   = cmd.String([]string{"-log-driver"}, "", "Logging driver for container")
-		flCgroupParent    = cmd.String([]string{"-cgroup-parent"}, "", "Optional parent cgroup for the container")
-		flVolumeDriver    = cmd.String([]string{"-volume-driver"}, "", "Optional volume driver for the container")
-		flStopSignal      = cmd.String([]string{"-stop-signal"}, signal.DefaultStopSignal, fmt.Sprintf("Signal to stop a container, %v by default", signal.DefaultStopSignal))
+
+		flSwappiness     = cmd.Int64([]string{"-memory-swappiness"}, -1, "Tuning container memory swappiness (0 to 100)")
+		flNetMode        = cmd.String([]string{"-net"}, "default", "Set the Network mode for the container")
+		flMacAddress     = cmd.String([]string{"-mac-address"}, "", "Container MAC address (e.g. 92:d0:c6:0a:29:33)")
+		flIpcMode        = cmd.String([]string{"-ipc"}, "", "IPC namespace to use")
+		flRestartPolicy  = cmd.String([]string{"-restart"}, "no", "Restart policy to apply when a container exits")
+		flReadonlyRootfs = cmd.Bool([]string{"-read-only"}, false, "Mount the container's root filesystem as read only")
+		flLoggingDriver  = cmd.String([]string{"-log-driver"}, "", "Logging driver for container")
+		flCgroupParent   = cmd.String([]string{"-cgroup-parent"}, "", "Optional parent cgroup for the container")
+		flVolumeDriver   = cmd.String([]string{"-volume-driver"}, "", "Optional volume driver for the container")
+		flStopSignal     = cmd.String([]string{"-stop-signal"}, signal.DefaultStopSignal, fmt.Sprintf("Signal to stop a container, %v by default", signal.DefaultStopSignal))
+
+		flCPUShares      *int64  //cmd.Int64([]string{"#c", "-cpu-shares"}, cgroupOrig.CPUShares, "CPU shares (relative weight)")
+		flCPUPeriod      *int64  //cmd.Int64([]string{"-cpu-period"}, 0, "Limit CPU CFS (Completely Fair Scheduler) period")
+		flCPUQuota       *int64  //cmd.Int64([]string{"-cpu-quota"}, 0, "Limit CPU CFS (Completely Fair Scheduler) quota")
+		flCpusetCpus     *string //cmd.String([]string{"#-cpuset", "-cpuset-cpus"}, "", "CPUs in which to allow execution (0-3, 0,1)")
+		flCpusetMems     *string //cmd.String([]string{"-cpuset-mems"}, "", "MEMs in which to allow execution (0-3, 0,1)")
+		flBlkioWeight    *int64  //cmd.Int64([]string{"-blkio-weight"}, 0, "Block IO (relative weight), between 10 and 1000")
+		flBlkioReadLimit *string //cmd.String([]string{"-blkio-read-limit"}, "", "Block IO read limit, in bytes per second. Default unlimited")
 	)
+
+	if cgroupOrig != nil {
+		flCPUShares = cmd.Int64([]string{"#c", "-cpu-shares"}, cgroupOrig.CPUShares, "CPU shares (relative weight)")
+		flCPUPeriod = cmd.Int64([]string{"-cpu-period"}, cgroupOrig.CPUPeriod, "Limit CPU CFS (Completely Fair Scheduler) period")
+		flCPUQuota = cmd.Int64([]string{"-cpu-quota"}, cgroupOrig.CPUQuota, "Limit CPU CFS (Completely Fair Scheduler) quota")
+		flCpusetCpus = cmd.String([]string{"#-cpuset", "-cpuset-cpus"}, cgroupOrig.CpusetCpus, "CPUs in which to allow execution (0-3, 0,1)")
+		flCpusetMems = cmd.String([]string{"-cpuset-mems"}, cgroupOrig.CpusetMems, "MEMs in which to allow execution (0-3, 0,1)")
+		flBlkioWeight = cmd.Int64([]string{"-blkio-weight"}, cgroupOrig.BlkioWeight, "Block IO (relative weight), between 10 and 1000")
+		flBlkioReadLimit = cmd.String([]string{"-blkio-read-limit"}, cgroupOrig.BlkioReadLimit, "Block IO read limit, in bytes per second. Default unlimited")
+	} else {
+		flCPUShares = cmd.Int64([]string{"#c", "-cpu-shares"}, 0, "CPU shares (relative weight)")
+		flCPUPeriod = cmd.Int64([]string{"-cpu-period"}, 0, "Limit CPU CFS (Completely Fair Scheduler) period")
+		flCPUQuota = cmd.Int64([]string{"-cpu-quota"}, 0, "Limit CPU CFS (Completely Fair Scheduler) quota")
+		flCpusetCpus = cmd.String([]string{"#-cpuset", "-cpuset-cpus"}, "", "CPUs in which to allow execution (0-3, 0,1)")
+		flCpusetMems = cmd.String([]string{"-cpuset-mems"}, "", "MEMs in which to allow execution (0-3, 0,1)")
+		flBlkioWeight = cmd.Int64([]string{"-blkio-weight"}, 0, "Block IO (relative weight), between 10 and 1000")
+		flBlkioReadLimit = cmd.String([]string{"-blkio-read-limit"}, "", "Block IO read limit, in bytes per second. Default unlimited")
+	}
 
 	cmd.Var(&flAttach, []string{"a", "-attach"}, "Attach to STDIN, STDOUT or STDERR")
 	cmd.Var(&flVolumes, []string{"v", "-volume"}, "Bind mount a volume")
@@ -307,7 +327,6 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		return nil, nil, cmd, err
 	}
 
-	fmt.Println("Volumes: ", binds);
 	config := &Config{
 		Hostname:        hostname,
 		Domainname:      domainname,

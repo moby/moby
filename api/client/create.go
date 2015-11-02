@@ -167,7 +167,7 @@ func (cli *DockerCli) CmdCreate(args ...string) error {
 		flName = cmd.String([]string{"-name"}, "", "Assign a name to the container")
 	)
 
-	config, hostConfig, cmd, err := runconfig.Parse(cmd, args)
+	config, hostConfig, cmd, err := runconfig.Parse(cmd, args, nil)
 	if err != nil {
 		cmd.ReportError(err.Error(), true)
 		os.Exit(1)
