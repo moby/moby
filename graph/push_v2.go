@@ -11,6 +11,7 @@ import (
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/digest"
 	"github.com/docker/distribution/manifest"
+	"github.com/docker/distribution/manifest/schema1"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/progressreader"
 	"github.com/docker/docker/pkg/streamformatter"
@@ -103,15 +104,15 @@ func (p *v2Pusher) pushV2Tag(tag string) error {
 		return err
 	}
 
-	m := &manifest.Manifest{
+	m := &schema1.Manifest{
 		Versioned: manifest.Versioned{
 			SchemaVersion: 1,
 		},
 		Name:         p.repo.Name(),
 		Tag:          tag,
 		Architecture: layer.Architecture,
-		FSLayers:     []manifest.FSLayer{},
-		History:      []manifest.History{},
+		FSLayers:     []schema1.FSLayer{},
+		History:      []schema1.History{},
 	}
 
 	var metadata runconfig.Config
@@ -192,15 +193,15 @@ func (p *v2Pusher) pushV2Tag(tag string) error {
 			return err
 		}
 
-		m.FSLayers = append(m.FSLayers, manifest.FSLayer{BlobSum: dgst})
-		m.History = append(m.History, manifest.History{V1Compatibility: string(jsonData)})
+		m.FSLayers = append(m.FSLayers, schema1.FSLayer{BlobSum: dgst})
+		m.History = append(m.History, schema1.History{V1Compatibility: string(jsonData)})
 
 		layersSeen[layer.ID] = true
 		p.layersPushed[dgst] = true
 	}
 
 	logrus.Infof("Signed manifest for %s:%s using daemon's key: %s", p.repo.Name(), tag, p.trustKey.KeyID())
-	signed, err := manifest.Sign(m, p.trustKey)
+	signed, err := schema1.Sign(m, p.trustKey)
 	if err != nil {
 		return err
 	}

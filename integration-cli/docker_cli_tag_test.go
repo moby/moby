@@ -101,12 +101,12 @@ func (s *DockerSuite) TestTagWithPrefixHyphen(c *check.C) {
 	// test repository name begin with '-'
 	out, _, err := dockerCmdWithError("tag", "busybox:latest", "-busybox:test")
 	c.Assert(err, checker.NotNil, check.Commentf(out))
-	c.Assert(out, checker.Contains, "repository name component must match", check.Commentf("tag a name begin with '-' should failed"))
+	c.Assert(out, checker.Contains, "invalid reference format", check.Commentf("tag a name begin with '-' should failed"))
 
 	// test namespace name begin with '-'
 	out, _, err = dockerCmdWithError("tag", "busybox:latest", "-test/busybox:test")
 	c.Assert(err, checker.NotNil, check.Commentf(out))
-	c.Assert(out, checker.Contains, "repository name component must match", check.Commentf("tag a name begin with '-' should failed"))
+	c.Assert(out, checker.Contains, "invalid reference format", check.Commentf("tag a name begin with '-' should failed"))
 
 	// test index name begin with '-'
 	out, _, err = dockerCmdWithError("tag", "busybox:latest", "-index:5000/busybox:test")

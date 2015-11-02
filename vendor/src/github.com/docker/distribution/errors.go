@@ -1,11 +1,20 @@
 package distribution
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/docker/distribution/digest"
 )
+
+// ErrManifestNotModified is returned when a conditional manifest GetByTag
+// returns nil due to the client indicating it has the latest version
+var ErrManifestNotModified = errors.New("manifest not modified")
+
+// ErrUnsupported is returned when an unimplemented or unsupported action is
+// performed
+var ErrUnsupported = errors.New("operation unsupported")
 
 // ErrRepositoryUnknown is returned if the named repository is not known by
 // the registry.

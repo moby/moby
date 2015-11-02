@@ -1,9 +1,10 @@
-package manifest
+package schema1
 
 import (
 	"encoding/json"
 
 	"github.com/docker/distribution/digest"
+	"github.com/docker/distribution/manifest"
 	"github.com/docker/libtrust"
 )
 
@@ -17,18 +18,18 @@ const (
 	ManifestMediaType = "application/vnd.docker.distribution.manifest.v1+json"
 )
 
-// Versioned provides a struct with just the manifest schemaVersion. Incoming
-// content with unknown schema version can be decoded against this struct to
-// check the version.
-type Versioned struct {
-	// SchemaVersion is the image manifest schema that this image follows
-	SchemaVersion int `json:"schemaVersion"`
-}
+var (
+	// SchemaVersion provides a pre-initialized version structure for this
+	// packages version of the manifest.
+	SchemaVersion = manifest.Versioned{
+		SchemaVersion: 1,
+	}
+)
 
 // Manifest provides the base accessible fields for working with V2 image
 // format in the registry.
 type Manifest struct {
-	Versioned
+	manifest.Versioned
 
 	// Name is the name of the image's repository
 	Name string `json:"name"`
@@ -61,15 +62,20 @@ type SignedManifest struct {
 
 // UnmarshalJSON populates a new ImageManifest struct from JSON data.
 func (sm *SignedManifest) UnmarshalJSON(b []byte) error {
+	sm.Raw = make([]byte, len(b), len(b))
+	copy(sm.Raw, b)
+
+	p, err := sm.Payload()
+	if err != nil {
+		return err
+	}
+
 	var manifest Manifest
-	if err := json.Unmarshal(b, &manifest); err != nil {
+	if err := json.Unmarshal(p, &manifest); err != nil {
 		return err
 	}
 
 	sm.Manifest = manifest
-	sm.Raw = make([]byte, len(b), len(b))
-	copy(sm.Raw, b)
-
 	return nil
 }
 

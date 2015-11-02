@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/docker/distribution/digest"
-	"github.com/docker/distribution/manifest"
+	"github.com/docker/distribution/manifest/schema1"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/stringutils"
 	"github.com/docker/docker/utils"
@@ -481,22 +481,22 @@ func (s *DockerRegistrySuite) TestPullFailsWithAlteredManifest(c *check.C) {
 	// Load the target manifest blob.
 	manifestBlob := s.reg.readBlobContents(c, manifestDigest)
 
-	var imgManifest manifest.Manifest
+	var imgManifest schema1.Manifest
 	if err := json.Unmarshal(manifestBlob, &imgManifest); err != nil {
 		c.Fatalf("unable to decode image manifest from blob: %s", err)
 	}
 
-	// Add a malicious layer digest to the list of layers in the manifest.
-	imgManifest.FSLayers = append(imgManifest.FSLayers, manifest.FSLayer{
+	// Change a layer in the manifest.
+	imgManifest.FSLayers[0] = schema1.FSLayer{
 		BlobSum: digest.Digest("sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"),
-	})
+	}
 
 	// Move the existing data file aside, so that we can replace it with a
 	// malicious blob of data. NOTE: we defer the returned undo func.
 	undo := s.reg.tempMoveBlobData(c, manifestDigest)
 	defer undo()
 
-	alteredManifestBlob, err := json.Marshal(imgManifest)
+	alteredManifestBlob, err := json.MarshalIndent(imgManifest, "", "   ")
 	if err != nil {
 		c.Fatalf("unable to encode altered image manifest to JSON: %s", err)
 	}
@@ -531,7 +531,7 @@ func (s *DockerRegistrySuite) TestPullFailsWithAlteredLayer(c *check.C) {
 	// Load the target manifest blob.
 	manifestBlob := s.reg.readBlobContents(c, manifestDigest)
 
-	var imgManifest manifest.Manifest
+	var imgManifest schema1.Manifest
 	if err := json.Unmarshal(manifestBlob, &imgManifest); err != nil {
 		c.Fatalf("unable to decode image manifest from blob: %s", err)
 	}

@@ -190,7 +190,7 @@ func addRequiredHeadersToRedirectedRequests(req *http.Request, via []*http.Reque
 func shouldV2Fallback(err errcode.Error) bool {
 	logrus.Debugf("v2 error: %T %v", err, err)
 	switch err.Code {
-	case v2.ErrorCodeUnauthorized, v2.ErrorCodeManifestUnknown:
+	case errcode.ErrorCodeUnauthorized, v2.ErrorCodeManifestUnknown:
 		return true
 	}
 	return false

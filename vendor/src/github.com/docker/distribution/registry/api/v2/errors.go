@@ -9,24 +9,6 @@ import (
 const errGroup = "registry.api.v2"
 
 var (
-	// ErrorCodeUnsupported is returned when an operation is not supported.
-	ErrorCodeUnsupported = errcode.Register(errGroup, errcode.ErrorDescriptor{
-		Value:   "UNSUPPORTED",
-		Message: "The operation is unsupported.",
-		Description: `The operation was unsupported due to a missing
-		implementation or invalid set of parameters.`,
-	})
-
-	// ErrorCodeUnauthorized is returned if a request is not authorized.
-	ErrorCodeUnauthorized = errcode.Register(errGroup, errcode.ErrorDescriptor{
-		Value:   "UNAUTHORIZED",
-		Message: "access to the requested resource is not authorized",
-		Description: `The access controller denied access for the operation on
-		a resource. Often this will be accompanied by a 401 Unauthorized
-		response status.`,
-		HTTPStatusCode: http.StatusUnauthorized,
-	})
-
 	// ErrorCodeDigestInvalid is returned when uploading a blob if the
 	// provided digest does not match the blob contents.
 	ErrorCodeDigestInvalid = errcode.Register(errGroup, errcode.ErrorDescriptor{
