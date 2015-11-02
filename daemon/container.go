@@ -337,51 +337,10 @@ func (container *Container) cleanup() {
 	}
 }
 
-// killSig sends the container the given signal. This wrapper for the
-// host specific kill command prepares the container before attempting
-// to send the signal. An error is returned if the container is paused
-// or not running, or if there is a problem returned from the
-// underlying kill command.
-func (container *Container) killSig(sig int) error {
-	logrus.Debugf("Sending %d to %s", sig, container.ID)
-	container.Lock()
-	defer container.Unlock()
-
-	// We could unpause the container for them rather than returning this error
-	if container.Paused {
-		return derr.ErrorCodeUnpauseContainer.WithArgs(container.ID)
-	}
-
-	if !container.Running {
-		return derr.ErrorCodeNotRunning.WithArgs(container.ID)
-	}
-
-	// signal to the monitor that it should not restart the container
-	// after we send the kill signal
+// ExitOnNext signals to the monitor that it should not restart the container
+// after we send the kill signal.
+func (container *Container) ExitOnNext() {
 	container.monitor.ExitOnNext()
-
-	// if the container is currently restarting we do not need to send the signal
-	// to the process.  Telling the monitor that it should exit on it's next event
-	// loop is enough
-	if container.Restarting {
-		return nil
-	}
-
-	if err := container.daemon.kill(container, sig); err != nil {
-		return err
-	}
-	container.logEvent("kill")
-	return nil
-}
-
-// Wrapper aroung killSig() suppressing "no such process" error.
-func (container *Container) killPossiblyDeadProcess(sig int) error {
-	err := container.killSig(sig)
-	if err == syscall.ESRCH {
-		logrus.Debugf("Cannot kill process (pid=%d) with signal %d: no such process.", container.getPID(), sig)
-		return nil
-	}
-	return err
 }
 
 func (container *Container) pause() error {
@@ -425,98 +384,6 @@ func (container *Container) unpause() error {
 	}
 	container.Paused = false
 	container.logEvent("unpause")
-	return nil
-}
-
-// Kill forcefully terminates a container.
-func (container *Container) Kill() error {
-	if !container.IsRunning() {
-		return derr.ErrorCodeNotRunning.WithArgs(container.ID)
-	}
-
-	// 1. Send SIGKILL
-	if err := container.killPossiblyDeadProcess(int(syscall.SIGKILL)); err != nil {
-		// While normally we might "return err" here we're not going to
-		// because if we can't stop the container by this point then
-		// its probably because its already stopped. Meaning, between
-		// the time of the IsRunning() call above and now it stopped.
-		// Also, since the err return will be exec driver specific we can't
-		// look for any particular (common) error that would indicate
-		// that the process is already dead vs something else going wrong.
-		// So, instead we'll give it up to 2 more seconds to complete and if
-		// by that time the container is still running, then the error
-		// we got is probably valid and so we return it to the caller.
-
-		if container.IsRunning() {
-			container.WaitStop(2 * time.Second)
-			if container.IsRunning() {
-				return err
-			}
-		}
-	}
-
-	// 2. Wait for the process to die, in last resort, try to kill the process directly
-	if err := killProcessDirectly(container); err != nil {
-		return err
-	}
-
-	container.WaitStop(-1 * time.Second)
-	return nil
-}
-
-// Stop halts a container by sending a stop signal, waiting for the given
-// duration in seconds, and then calling SIGKILL and waiting for the
-// process to exit. If a negative duration is given, Stop will wait
-// for the initial signal forever. If the container is not running Stop returns
-// immediately.
-func (container *Container) Stop(seconds int) error {
-	if !container.IsRunning() {
-		return nil
-	}
-
-	// 1. Send a SIGTERM
-	if err := container.killPossiblyDeadProcess(container.stopSignal()); err != nil {
-		logrus.Infof("Failed to send SIGTERM to the process, force killing")
-		if err := container.killPossiblyDeadProcess(9); err != nil {
-			return err
-		}
-	}
-
-	// 2. Wait for the process to exit on its own
-	if _, err := container.WaitStop(time.Duration(seconds) * time.Second); err != nil {
-		logrus.Infof("Container %v failed to exit within %d seconds of SIGTERM - using the force", container.ID, seconds)
-		// 3. If it doesn't, then send SIGKILL
-		if err := container.Kill(); err != nil {
-			container.WaitStop(-1 * time.Second)
-			logrus.Warn(err) // Don't return error because we only care that container is stopped, not what function stopped it
-		}
-	}
-
-	container.logEvent("stop")
-	return nil
-}
-
-// Restart attempts to gracefully stop and then start the
-// container. When stopping, wait for the given duration in seconds to
-// gracefully stop, before forcefully terminating the container. If
-// given a negative duration, wait forever for a graceful stop.
-func (container *Container) Restart(seconds int) error {
-	// Avoid unnecessarily unmounting and then directly mounting
-	// the container when the container stops and then starts
-	// again
-	if err := container.Mount(); err == nil {
-		defer container.Unmount()
-	}
-
-	if err := container.Stop(seconds); err != nil {
-		return err
-	}
-
-	if err := container.Start(); err != nil {
-		return err
-	}
-
-	container.logEvent("restart")
 	return nil
 }
 

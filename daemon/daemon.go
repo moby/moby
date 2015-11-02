@@ -838,7 +838,7 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 	return d, nil
 }
 
-func stopContainer(c *Container) error {
+func (daemon *Daemon) shutdownContainer(c *Container) error {
 	// TODO(windows): Handle docker restart with paused containers
 	if c.isPaused() {
 		// To terminate a process in freezer cgroup, we should send
@@ -869,7 +869,7 @@ func stopContainer(c *Container) error {
 		}
 	}
 	// If container failed to exit in 10 seconds of SIGTERM, then using the force
-	if err := c.Stop(10); err != nil {
+	if err := daemon.containerStop(c, 10); err != nil {
 		return fmt.Errorf("Stop container %s with error: %v", c.ID, err)
 	}
 
@@ -891,7 +891,7 @@ func (daemon *Daemon) Shutdown() error {
 			group.Add(1)
 			go func(c *Container) {
 				defer group.Done()
-				if err := stopContainer(c); err != nil {
+				if err := daemon.shutdownContainer(c); err != nil {
 					logrus.Errorf("Stop container error: %v", err)
 					return
 				}

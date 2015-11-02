@@ -15,8 +15,32 @@ func (daemon *Daemon) ContainerRestart(name string, seconds int) error {
 	if err != nil {
 		return err
 	}
-	if err := container.Restart(seconds); err != nil {
+	if err := daemon.containerRestart(container, seconds); err != nil {
 		return derr.ErrorCodeCantRestart.WithArgs(name, err)
 	}
+	return nil
+}
+
+// containerRestart attempts to gracefully stop and then start the
+// container. When stopping, wait for the given duration in seconds to
+// gracefully stop, before forcefully terminating the container. If
+// given a negative duration, wait forever for a graceful stop.
+func (daemon *Daemon) containerRestart(container *Container, seconds int) error {
+	// Avoid unnecessarily unmounting and then directly mounting
+	// the container when the container stops and then starts
+	// again
+	if err := container.Mount(); err == nil {
+		defer container.Unmount()
+	}
+
+	if err := daemon.containerStop(container, seconds); err != nil {
+		return err
+	}
+
+	if err := container.Start(); err != nil {
+		return err
+	}
+
+	daemon.logContainerEvent(container, "restart")
 	return nil
 }

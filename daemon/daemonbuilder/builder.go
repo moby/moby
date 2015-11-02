@@ -205,6 +205,11 @@ func (d Docker) GetCachedImage(imgID string, cfg *runconfig.Config) (string, err
 	return cache.ID, nil
 }
 
+// Kill stops the container execution abruptly.
+func (d Docker) Kill(container *daemon.Container) error {
+	return d.Daemon.Kill(container)
+}
+
 // Following is specific to builder contexts
 
 // DetectContextFromRemoteURL returns a context and in certain cases the name of the dockerfile to be used

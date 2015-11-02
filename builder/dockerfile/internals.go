@@ -559,7 +559,7 @@ func (b *Builder) run(c *daemon.Container) error {
 		select {
 		case <-b.cancelled:
 			logrus.Debugln("Build cancelled, killing and removing container:", c.ID)
-			c.Kill()
+			b.docker.Kill(c)
 			b.removeContainer(c.ID)
 		case <-finished:
 		}

@@ -71,7 +71,7 @@ func (daemon *Daemon) rm(container *Container, forceRemove bool) (err error) {
 		if !forceRemove {
 			return derr.ErrorCodeRmRunning
 		}
-		if err := container.Kill(); err != nil {
+		if err := daemon.Kill(container); err != nil {
 			return derr.ErrorCodeRmFailed.WithArgs(err)
 		}
 	}
@@ -90,7 +90,7 @@ func (daemon *Daemon) rm(container *Container, forceRemove bool) (err error) {
 	// if stats are currently getting collected.
 	daemon.statsCollector.stopCollection(container)
 
-	if err = container.Stop(3); err != nil {
+	if err = daemon.containerStop(container, 3); err != nil {
 		return err
 	}
 
