@@ -2364,7 +2364,7 @@ Return low-level information about the `exec` command `id`.
           "ExitCode" : 0,
           "Error" : "",
           "StartedAt" : "2014-11-17T22:26:03.717657531Z",
-          "FinishedAt" : "0001-01-01T00:00:00Z"
+          "FinishedAt" : ""
         },
         "ID" : "8f177a186b977fb451136e0fdf182abff5599a08b3c7f6ef0d36a55aaf89634c",
         "Created" : "2014-11-17T22:26:03.626304998Z",
