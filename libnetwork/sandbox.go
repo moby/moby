@@ -68,6 +68,7 @@ type sandbox struct {
 	joinLeaveDone chan struct{}
 	dbIndex       uint64
 	dbExists      bool
+	isStub        bool
 	inDelete      bool
 	sync.Mutex
 }

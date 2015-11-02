@@ -188,6 +188,7 @@ func (c *controller) sandboxCleanup() {
 			endpoints:   epHeap{},
 			epPriority:  map[string]int{},
 			dbIndex:     sbs.dbIndex,
+			isStub:      true,
 			dbExists:    true,
 		}
 
