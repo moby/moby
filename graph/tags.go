@@ -115,7 +115,10 @@ func (store *TagStore) save() error {
 	if err != nil {
 		return err
 	}
-	if err := ioutil.WriteFile(store.path, jsonData, 0600); err != nil {
+	if err := ioutil.WriteFile(store.path + ".tmp", jsonData, 0600); err != nil {
+		return err
+	}
+	if err := os.Rename(store.path + ".tmp", store.path); err != nil {
 		return err
 	}
 	return nil
