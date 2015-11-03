@@ -236,24 +236,6 @@ func (streamConfig *streamConfig) StderrPipe() io.ReadCloser {
 	return ioutils.NewBufReader(reader)
 }
 
-// cleanup releases any network resources allocated to the container along with any rules
-// around how containers are linked together.  It also unmounts the container's root filesystem.
-func (container *Container) cleanup() {
-	container.releaseNetwork()
-
-	container.unmountIpcMounts(detachMounted)
-
-	container.daemon.conditionalUnmountOnCleanup(container)
-
-	for _, eConfig := range container.execCommands.s {
-		container.daemon.unregisterExecCommand(eConfig)
-	}
-
-	if err := container.unmountVolumes(false); err != nil {
-		logrus.Warnf("%s cleanup: Failed to umount volumes: %v", container.ID, err)
-	}
-}
-
 // ExitOnNext signals to the monitor that it should not restart the container
 // after we send the kill signal.
 func (container *Container) ExitOnNext() {

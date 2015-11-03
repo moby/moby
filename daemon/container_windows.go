@@ -162,7 +162,7 @@ func (container *Container) updateNetwork() error {
 	return nil
 }
 
-func (container *Container) releaseNetwork() {
+func (daemon *Daemon) releaseNetwork(container *Container) {
 }
 
 // appendNetworkMounts appends any network mounts to the array of mount points passed in.

@@ -21,6 +21,8 @@ const (
 type containerSupervisor interface {
 	// LogContainerEvent generates events related to a given container
 	LogContainerEvent(*Container, string)
+	// Cleanup ensures that the container is properly unmounted
+	Cleanup(*Container)
 }
 
 // containerMonitor monitors the execution of a container's main process.
@@ -96,7 +98,7 @@ func (m *containerMonitor) ExitOnNext() {
 // unmounts the contatiner's root filesystem
 func (m *containerMonitor) Close() error {
 	// Cleanup networking and mounts
-	m.container.cleanup()
+	m.supervisor.Cleanup(m.container)
 
 	// FIXME: here is race condition between two RUN instructions in Dockerfile
 	// because they share same runconfig and change image. Must be fixed

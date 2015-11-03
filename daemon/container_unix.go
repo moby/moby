@@ -1153,7 +1153,7 @@ func (container *Container) getNetworkedContainer() (*Container, error) {
 	}
 }
 
-func (container *Container) releaseNetwork() {
+func (daemon *Daemon) releaseNetwork(container *Container) {
 	if container.hostConfig.NetworkMode.IsContainer() || container.Config.NetworkDisabled {
 		return
 	}
@@ -1170,7 +1170,7 @@ func (container *Container) releaseNetwork() {
 		return
 	}
 
-	sb, err := container.daemon.netController.SandboxByID(sid)
+	sb, err := daemon.netController.SandboxByID(sid)
 	if err != nil {
 		logrus.Errorf("error locating sandbox id %s: %v", sid, err)
 		return

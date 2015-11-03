@@ -3,6 +3,7 @@ package daemon
 import (
 	"runtime"
 
+	"github.com/Sirupsen/logrus"
 	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/promise"
 	"github.com/docker/docker/runconfig"
@@ -83,7 +84,7 @@ func (daemon *Daemon) containerStart(container *Container) (err error) {
 				container.ExitCode = 128
 			}
 			container.toDisk()
-			container.cleanup()
+			daemon.Cleanup(container)
 			daemon.LogContainerEvent(container, "die")
 		}
 	}()
@@ -139,4 +140,22 @@ func (daemon *Daemon) waitForStart(container *Container) error {
 	}
 
 	return nil
+}
+
+// Cleanup releases any network resources allocated to the container along with any rules
+// around how containers are linked together.  It also unmounts the container's root filesystem.
+func (daemon *Daemon) Cleanup(container *Container) {
+	daemon.releaseNetwork(container)
+
+	container.unmountIpcMounts(detachMounted)
+
+	daemon.conditionalUnmountOnCleanup(container)
+
+	for _, eConfig := range container.execCommands.s {
+		daemon.unregisterExecCommand(eConfig)
+	}
+
+	if err := container.unmountVolumes(false); err != nil {
+		logrus.Warnf("%s cleanup: Failed to umount volumes: %v", container.ID, err)
+	}
 }
