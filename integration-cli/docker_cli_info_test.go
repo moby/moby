@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
-	"strings"
 	"net"
+	"strings"
 
 	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/docker/docker/utils"
@@ -92,7 +92,7 @@ func (s *DockerSuite) TestInfoDiscoveryAdvertiseInterfaceName(c *check.C) {
 	addrs, err := iface.Addrs()
 	c.Assert(err, checker.IsNil)
 	if len(addrs) <= 0 {
-		c.Fatalf("addrs %v has to have at least one element")
+		c.Fatalf("addrs %v has to have at least one element", addrs)
 	}
 	ip, _, err := net.ParseCIDR(addrs[0].String())
 	c.Assert(err, checker.IsNil)

@@ -273,7 +273,7 @@ func (s *DockerSuite) TestRmiForceWithMultipleRepositories(c *check.C) {
 	if !strings.Contains(out, "Untagged: "+tag2) {
 		c.Fatalf("should contain Untagged: %s", tag2)
 	}
-	if strings.Contains(out, "Untagged: " + tag1) {
+	if strings.Contains(out, "Untagged: "+tag1) {
 		c.Fatalf("should not contain Untagged: %s", tag1)
 	}
 
