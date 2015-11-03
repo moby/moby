@@ -8,8 +8,6 @@ import (
 	"github.com/docker/docker/api/types/versions/v1p20"
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/pkg/version"
-	lntypes "github.com/docker/libnetwork/types"
-	"github.com/opencontainers/runc/libcontainer"
 )
 
 // ContainerStatsConfig holds information for configuring the runtime
@@ -45,10 +43,6 @@ func (daemon *Daemon) ContainerStats(prefixOrName string, config *ContainerStats
 	var preCPUStats types.CPUStats
 	getStatJSON := func(v interface{}) *types.StatsJSON {
 		update := v.(*execdriver.ResourceStats)
-		// Retrieve the nw statistics from libnetwork and inject them in the Stats
-		if nwStats, err := daemon.getNetworkStats(container); err == nil {
-			update.Stats.Interfaces = nwStats
-		}
 		ss := convertStatsToAPITypes(update.Stats)
 		ss.PreCPUStats = preCPUStats
 		ss.MemoryStats.Limit = uint64(update.MemoryLimit)
@@ -128,38 +122,4 @@ func (daemon *Daemon) ContainerStats(prefixOrName string, config *ContainerStats
 			return nil
 		}
 	}
-}
-
-func (daemon *Daemon) getNetworkStats(c *Container) ([]*libcontainer.NetworkInterface, error) {
-	var list []*libcontainer.NetworkInterface
-
-	sb, err := daemon.netController.SandboxByID(c.NetworkSettings.SandboxID)
-	if err != nil {
-		return list, err
-	}
-
-	stats, err := sb.Statistics()
-	if err != nil {
-		return list, err
-	}
-
-	// Convert libnetwork nw stats into libcontainer nw stats
-	for ifName, ifStats := range stats {
-		list = append(list, convertLnNetworkStats(ifName, ifStats))
-	}
-
-	return list, nil
-}
-
-func convertLnNetworkStats(name string, stats *lntypes.InterfaceStatistics) *libcontainer.NetworkInterface {
-	n := &libcontainer.NetworkInterface{Name: name}
-	n.RxBytes = stats.RxBytes
-	n.RxPackets = stats.RxPackets
-	n.RxErrors = stats.RxErrors
-	n.RxDropped = stats.RxDropped
-	n.TxBytes = stats.TxBytes
-	n.TxPackets = stats.TxPackets
-	n.TxErrors = stats.TxErrors
-	n.TxDropped = stats.TxDropped
-	return n
 }
