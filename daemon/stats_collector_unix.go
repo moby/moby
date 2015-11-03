@@ -14,6 +14,8 @@ import (
 	"github.com/docker/docker/daemon/execdriver"
 	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/pubsub"
+	lntypes "github.com/docker/libnetwork/types"
+	"github.com/opencontainers/runc/libcontainer"
 	"github.com/opencontainers/runc/libcontainer/system"
 )
 
@@ -118,6 +120,11 @@ func (s *statsCollector) run() {
 				continue
 			}
 			stats.SystemUsage = systemUsage
+
+			// Retrieve the nw statistics from libnetwork and inject them in the Stats
+			if nwStats, err := s.getNetworkStats(pair.container); err == nil {
+				stats.Interfaces = nwStats
+			}
 			pair.publisher.Publish(stats)
 		}
 	}
@@ -169,4 +176,38 @@ func (s *statsCollector) getSystemCPUUsage() (uint64, error) {
 		}
 	}
 	return 0, derr.ErrorCodeBadStatFormat
+}
+
+func (s *statsCollector) getNetworkStats(c *Container) ([]*libcontainer.NetworkInterface, error) {
+	var list []*libcontainer.NetworkInterface
+
+	sb, err := c.daemon.netController.SandboxByID(c.NetworkSettings.SandboxID)
+	if err != nil {
+		return list, err
+	}
+
+	stats, err := sb.Statistics()
+	if err != nil {
+		return list, err
+	}
+
+	// Convert libnetwork nw stats into libcontainer nw stats
+	for ifName, ifStats := range stats {
+		list = append(list, convertLnNetworkStats(ifName, ifStats))
+	}
+
+	return list, nil
+}
+
+func convertLnNetworkStats(name string, stats *lntypes.InterfaceStatistics) *libcontainer.NetworkInterface {
+	n := &libcontainer.NetworkInterface{Name: name}
+	n.RxBytes = stats.RxBytes
+	n.RxPackets = stats.RxPackets
+	n.RxErrors = stats.RxErrors
+	n.RxDropped = stats.RxDropped
+	n.TxBytes = stats.TxBytes
+	n.TxPackets = stats.TxPackets
+	n.TxErrors = stats.TxErrors
+	n.TxDropped = stats.TxDropped
+	return n
 }
