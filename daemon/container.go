@@ -75,7 +75,6 @@ type CommonContainer struct {
 	command                *execdriver.Command
 	monitor                *containerMonitor
 	execCommands           *execStore
-	daemon                 *Daemon
 	// logDriver for closing
 	logDriver logger.Logger
 	logCopier *logger.Copier
