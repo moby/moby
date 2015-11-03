@@ -234,7 +234,7 @@ func (daemon *Daemon) Register(container *Container) error {
 
 		container.unmountIpcMounts(mount.Unmount)
 
-		if err := container.Unmount(); err != nil {
+		if err := daemon.Unmount(container); err != nil {
 			logrus.Debugf("unmount error %s", err)
 		}
 		if err := container.toDiskLocking(); err != nil {
@@ -349,7 +349,7 @@ func (daemon *Daemon) restore() error {
 			if daemon.configStore.AutoRestart && container.shouldRestart() {
 				logrus.Debugf("Starting container %s", container.ID)
 
-				if err := container.Start(); err != nil {
+				if err := daemon.containerStart(container); err != nil {
 					logrus.Errorf("Failed to start container %s: %s", container.ID, err)
 				}
 			}
@@ -947,7 +947,8 @@ func (daemon *Daemon) Mount(container *Container) error {
 	return nil
 }
 
-func (daemon *Daemon) unmount(container *Container) error {
+// Unmount unsets the container base filesystem
+func (daemon *Daemon) Unmount(container *Container) error {
 	return daemon.driver.Put(container.ID)
 }
 

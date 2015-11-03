@@ -29,15 +29,15 @@ func (daemon *Daemon) containerRestart(container *Container, seconds int) error 
 	// Avoid unnecessarily unmounting and then directly mounting
 	// the container when the container stops and then starts
 	// again
-	if err := container.Mount(); err == nil {
-		defer container.Unmount()
+	if err := daemon.Mount(container); err == nil {
+		defer daemon.Unmount(container)
 	}
 
 	if err := daemon.containerStop(container, seconds); err != nil {
 		return err
 	}
 
-	if err := container.Start(); err != nil {
+	if err := daemon.containerStart(container); err != nil {
 		return err
 	}
 

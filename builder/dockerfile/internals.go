@@ -67,10 +67,10 @@ func (b *Builder) commit(id string, autoCmd *stringutils.StrSlice, comment strin
 		}
 		id = container.ID
 
-		if err := container.Mount(); err != nil {
+		if err := b.docker.Mount(container); err != nil {
 			return err
 		}
-		defer container.Unmount()
+		defer b.docker.Unmount(container)
 	}
 
 	container, err := b.docker.Container(id)
@@ -201,7 +201,7 @@ func (b *Builder) runContextCommand(args []string, allowRemote bool, allowLocalD
 	if err != nil {
 		return err
 	}
-	defer container.Unmount()
+	defer b.docker.Unmount(container)
 	b.tmpContainers[container.ID] = struct{}{}
 
 	comment := fmt.Sprintf("%s %s in %s", cmdName, origPaths, dest)
@@ -524,7 +524,7 @@ func (b *Builder) create() (*daemon.Container, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer c.Unmount()
+	defer b.docker.Unmount(c)
 	for _, warning := range warnings {
 		fmt.Fprintf(b.Stdout, " ---> [Warning] %s\n", warning)
 	}
@@ -549,7 +549,7 @@ func (b *Builder) run(c *daemon.Container) error {
 	}
 
 	//start the container
-	if err := c.Start(); err != nil {
+	if err := b.docker.Start(c); err != nil {
 		return err
 	}
 

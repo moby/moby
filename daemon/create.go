@@ -114,10 +114,10 @@ func (daemon *Daemon) create(params *ContainerCreateConfig) (retC *Container, re
 			}
 		}
 	}()
-	if err := container.Mount(); err != nil {
+	if err := daemon.Mount(container); err != nil {
 		return nil, err
 	}
-	defer container.Unmount()
+	defer daemon.Unmount(container)
 
 	if err := createContainerPlatformSpecificSettings(container, params.Config, params.HostConfig, img); err != nil {
 		return nil, err
@@ -127,7 +127,7 @@ func (daemon *Daemon) create(params *ContainerCreateConfig) (retC *Container, re
 		logrus.Errorf("Error saving new container to disk: %v", err)
 		return nil, err
 	}
-	container.logEvent("create")
+	daemon.logContainerEvent(container, "create")
 	return container, nil
 }
 

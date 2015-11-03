@@ -225,76 +225,6 @@ func (container *Container) getRootResourcePath(path string) (string, error) {
 	return symlink.FollowSymlinkInScope(filepath.Join(container.root, cleanPath), container.root)
 }
 
-// Start prepares the container to run by setting up everything the
-// container needs, such as storage and networking, as well as links
-// between containers. The container is left waiting for a signal to
-// begin running.
-func (container *Container) Start() (err error) {
-	container.Lock()
-	defer container.Unlock()
-
-	if container.Running {
-		return nil
-	}
-
-	if container.removalInProgress || container.Dead {
-		return derr.ErrorCodeContainerBeingRemoved
-	}
-
-	// if we encounter an error during start we need to ensure that any other
-	// setup has been cleaned up properly
-	defer func() {
-		if err != nil {
-			container.setError(err)
-			// if no one else has set it, make sure we don't leave it at zero
-			if container.ExitCode == 0 {
-				container.ExitCode = 128
-			}
-			container.toDisk()
-			container.cleanup()
-			container.logEvent("die")
-		}
-	}()
-
-	if err := container.conditionalMountOnStart(); err != nil {
-		return err
-	}
-
-	// Make sure NetworkMode has an acceptable value. We do this to ensure
-	// backwards API compatibility.
-	container.hostConfig = runconfig.SetDefaultNetModeIfBlank(container.hostConfig)
-
-	if err := container.initializeNetworking(); err != nil {
-		return err
-	}
-	linkedEnv, err := container.setupLinkedContainers()
-	if err != nil {
-		return err
-	}
-	if err := container.setupWorkingDirectory(); err != nil {
-		return err
-	}
-	env := container.createDaemonEnvironment(linkedEnv)
-	if err := populateCommand(container, env); err != nil {
-		return err
-	}
-
-	if !container.hostConfig.IpcMode.IsContainer() && !container.hostConfig.IpcMode.IsHost() {
-		if err := container.setupIpcDirs(); err != nil {
-			return err
-		}
-	}
-
-	mounts, err := container.setupMounts()
-	if err != nil {
-		return err
-	}
-	mounts = append(mounts, container.ipcMounts()...)
-
-	container.command.Mounts = mounts
-	return container.waitForStart()
-}
-
 // streamConfig.StdinPipe returns a WriteCloser which can be used to feed data
 // to the standard input of the container's active process.
 // Container.StdoutPipe and Container.StderrPipe each return a ReadCloser
@@ -326,7 +256,7 @@ func (container *Container) cleanup() {
 
 	container.unmountIpcMounts(detachMounted)
 
-	container.conditionalUnmountOnCleanup()
+	container.daemon.conditionalUnmountOnCleanup(container)
 
 	for _, eConfig := range container.execCommands.s {
 		container.daemon.unregisterExecCommand(eConfig)
@@ -356,11 +286,6 @@ func (container *Container) Resize(h, w int) error {
 	return nil
 }
 
-// Mount sets container.basefs
-func (container *Container) Mount() error {
-	return container.daemon.Mount(container)
-}
-
 func (container *Container) changes() ([]archive.Change, error) {
 	container.Lock()
 	defer container.Unlock()
@@ -372,12 +297,6 @@ func (container *Container) getImage() (*image.Image, error) {
 		return nil, derr.ErrorCodeImageUnregContainer
 	}
 	return container.daemon.graph.Get(container.ImageID)
-}
-
-// Unmount asks the daemon to release the layered filesystems that are
-// mounted by the container.
-func (container *Container) Unmount() error {
-	return container.daemon.unmount(container)
 }
 
 func (container *Container) hostConfigPath() (string, error) {
@@ -401,7 +320,7 @@ func validateID(id string) error {
 	return nil
 }
 
-func (container *Container) copy(resource string) (rc io.ReadCloser, err error) {
+func (daemon *Daemon) containerCopy(container *Container, resource string) (rc io.ReadCloser, err error) {
 	container.Lock()
 
 	defer func() {
@@ -413,7 +332,7 @@ func (container *Container) copy(resource string) (rc io.ReadCloser, err error) 
 		}
 	}()
 
-	if err := container.Mount(); err != nil {
+	if err := daemon.Mount(container); err != nil {
 		return nil, err
 	}
 
@@ -422,7 +341,7 @@ func (container *Container) copy(resource string) (rc io.ReadCloser, err error) 
 			// unmount any volumes
 			container.unmountVolumes(true)
 			// unmount the container's rootfs
-			container.Unmount()
+			daemon.Unmount(container)
 		}
 	}()
 
@@ -458,11 +377,11 @@ func (container *Container) copy(resource string) (rc io.ReadCloser, err error) 
 	reader := ioutils.NewReadCloserWrapper(archive, func() error {
 		err := archive.Close()
 		container.unmountVolumes(true)
-		container.Unmount()
+		daemon.Unmount(container)
 		container.Unlock()
 		return err
 	})
-	container.logEvent("copy")
+	daemon.logContainerEvent(container, "copy")
 	return reader, nil
 }
 

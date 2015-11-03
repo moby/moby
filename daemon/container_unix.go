@@ -379,24 +379,23 @@ func mergeDevices(defaultDevices, userDevices []*configs.Device) []*configs.Devi
 	return append(devs, userDevices...)
 }
 
-// GetSize returns the real size & virtual size of the container.
-func (container *Container) getSize() (int64, int64) {
+// getSize returns the real size & virtual size of the container.
+func (daemon *Daemon) getSize(container *Container) (int64, int64) {
 	var (
 		sizeRw, sizeRootfs int64
 		err                error
-		driver             = container.daemon.driver
 	)
 
-	if err := container.Mount(); err != nil {
+	if err := daemon.Mount(container); err != nil {
 		logrus.Errorf("Failed to compute size of container rootfs %s: %s", container.ID, err)
 		return sizeRw, sizeRootfs
 	}
-	defer container.Unmount()
+	defer daemon.Unmount(container)
 
 	initID := fmt.Sprintf("%s-init", container.ID)
-	sizeRw, err = driver.DiffSize(container.ID, initID)
+	sizeRw, err = daemon.driver.DiffSize(container.ID, initID)
 	if err != nil {
-		logrus.Errorf("Driver %s couldn't return diff size of container %s: %s", driver, container.ID, err)
+		logrus.Errorf("Driver %s couldn't return diff size of container %s: %s", daemon.driver, container.ID, err)
 		// FIXME: GetSize should return an error. Not changing it now in case
 		// there is a side-effect.
 		sizeRw = -1
@@ -1443,21 +1442,4 @@ func (container *Container) ipcMounts() []execdriver.Mount {
 
 func detachMounted(path string) error {
 	return syscall.Unmount(path, syscall.MNT_DETACH)
-}
-
-// conditionalMountOnStart is a platform specific helper function during the
-// container start to call mount.
-func (container *Container) conditionalMountOnStart() error {
-	if err := container.Mount(); err != nil {
-		return err
-	}
-	return nil
-}
-
-// conditionalUnmountOnCleanup is a platform specific helper function called
-// during the cleanup of a container to unmount.
-func (container *Container) conditionalUnmountOnCleanup() {
-	if err := container.Unmount(); err != nil {
-		logrus.Errorf("%v: Failed to umount filesystem: %v", container.ID, err)
-	}
 }

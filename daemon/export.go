@@ -41,12 +41,12 @@ func (daemon *Daemon) containerExport(container *Container) (archive.Archive, er
 		GIDMaps:     gidMaps,
 	})
 	if err != nil {
-		daemon.unmount(container)
+		daemon.Unmount(container)
 		return nil, err
 	}
 	arch := ioutils.NewReadCloserWrapper(archive, func() error {
 		err := archive.Close()
-		container.Unmount()
+		daemon.Unmount(container)
 		return err
 	})
 	daemon.logContainerEvent(container, "export")
