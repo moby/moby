@@ -71,7 +71,7 @@ func (daemon *Daemon) killWithSignal(container *Container, sig int) error {
 		return err
 	}
 
-	daemon.logContainerEvent(container, "kill")
+	daemon.LogContainerEvent(container, "kill")
 	return nil
 }
 

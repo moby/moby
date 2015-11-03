@@ -2,7 +2,10 @@ package daemon
 
 import (
 	"io"
+	"time"
 
+	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/pkg/stdcopy"
 )
 
@@ -43,7 +46,7 @@ func (daemon *Daemon) ContainerAttachWithLogs(prefixOrName string, c *ContainerA
 		stderr = errStream
 	}
 
-	return container.attachWithLogs(stdin, stdout, stderr, c.Logs, c.Stream)
+	return daemon.attachWithLogs(container, stdin, stdout, stderr, c.Logs, c.Stream)
 }
 
 // ContainerWsAttachWithLogsConfig attach with websockets, since all
@@ -60,5 +63,61 @@ func (daemon *Daemon) ContainerWsAttachWithLogs(prefixOrName string, c *Containe
 	if err != nil {
 		return err
 	}
-	return container.attachWithLogs(c.InStream, c.OutStream, c.ErrStream, c.Logs, c.Stream)
+	return daemon.attachWithLogs(container, c.InStream, c.OutStream, c.ErrStream, c.Logs, c.Stream)
+}
+
+func (daemon *Daemon) attachWithLogs(container *Container, stdin io.ReadCloser, stdout, stderr io.Writer, logs, stream bool) error {
+	if logs {
+		logDriver, err := container.getLogger()
+		if err != nil {
+			return err
+		}
+		cLog, ok := logDriver.(logger.LogReader)
+		if !ok {
+			return logger.ErrReadLogsNotSupported
+		}
+		logs := cLog.ReadLogs(logger.ReadConfig{Tail: -1})
+
+	LogLoop:
+		for {
+			select {
+			case msg, ok := <-logs.Msg:
+				if !ok {
+					break LogLoop
+				}
+				if msg.Source == "stdout" && stdout != nil {
+					stdout.Write(msg.Line)
+				}
+				if msg.Source == "stderr" && stderr != nil {
+					stderr.Write(msg.Line)
+				}
+			case err := <-logs.Err:
+				logrus.Errorf("Error streaming logs: %v", err)
+				break LogLoop
+			}
+		}
+	}
+
+	daemon.LogContainerEvent(container, "attach")
+
+	//stream
+	if stream {
+		var stdinPipe io.ReadCloser
+		if stdin != nil {
+			r, w := io.Pipe()
+			go func() {
+				defer w.Close()
+				defer logrus.Debugf("Closing buffered stdin pipe")
+				io.Copy(w, stdin)
+			}()
+			stdinPipe = r
+		}
+		<-container.Attach(stdinPipe, stdout, stderr)
+		// If we are in stdinonce mode, wait for the process to end
+		// otherwise, simply return
+		if container.Config.StdinOnce && !container.Config.Tty {
+			container.WaitStop(-1 * time.Second)
+		}
+	}
+	return nil
 }

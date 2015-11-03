@@ -38,6 +38,6 @@ func (daemon *Daemon) containerPause(container *Container) error {
 		return err
 	}
 	container.Paused = true
-	daemon.logContainerEvent(container, "pause")
+	daemon.LogContainerEvent(container, "pause")
 	return nil
 }

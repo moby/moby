@@ -76,6 +76,6 @@ func (daemon *Daemon) ContainerTop(name string, psArgs string) (*types.Container
 			}
 		}
 	}
-	container.logEvent("top")
+	daemon.LogContainerEvent(container, "top")
 	return procList, nil
 }

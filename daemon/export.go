@@ -49,6 +49,6 @@ func (daemon *Daemon) containerExport(container *Container) (archive.Archive, er
 		daemon.Unmount(container)
 		return err
 	})
-	daemon.logContainerEvent(container, "export")
+	daemon.LogContainerEvent(container, "export")
 	return arch, err
 }

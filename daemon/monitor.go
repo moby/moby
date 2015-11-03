@@ -17,6 +17,12 @@ const (
 	loggerCloseTimeout   = 10 * time.Second
 )
 
+// containerSupervisor defines the interface that a supervisor must implement
+type containerSupervisor interface {
+	// LogContainerEvent generates events related to a given container
+	LogContainerEvent(*Container, string)
+}
+
 // containerMonitor monitors the execution of a container's main process.
 // If a restart policy is specified for the container the monitor will ensure that the
 // process is restarted based on the rules of the policy.  When the container is finally stopped
@@ -24,6 +30,9 @@ const (
 // and the rootfs
 type containerMonitor struct {
 	mux sync.Mutex
+
+	// supervisor keeps track of the container and the events it generates
+	supervisor containerSupervisor
 
 	// container is the container being monitored
 	container *Container
@@ -57,8 +66,9 @@ type containerMonitor struct {
 
 // newContainerMonitor returns an initialized containerMonitor for the provided container
 // honoring the provided restart policy
-func newContainerMonitor(container *Container, policy runconfig.RestartPolicy) *containerMonitor {
+func (daemon *Daemon) newContainerMonitor(container *Container, policy runconfig.RestartPolicy) *containerMonitor {
 	return &containerMonitor{
+		supervisor:    daemon,
 		container:     container,
 		restartPolicy: policy,
 		timeIncrement: defaultTimeIncrement,
@@ -138,7 +148,7 @@ func (m *containerMonitor) Start() error {
 
 		pipes := execdriver.NewPipes(m.container.stdin, m.container.stdout, m.container.stderr, m.container.Config.OpenStdin)
 
-		m.container.logEvent("start")
+		m.logEvent("start")
 
 		m.lastStartTime = time.Now()
 
@@ -162,7 +172,7 @@ func (m *containerMonitor) Start() error {
 
 		if m.shouldRestart(exitStatus.ExitCode) {
 			m.container.setRestarting(&exitStatus)
-			m.container.logEvent("die")
+			m.logEvent("die")
 			m.resetContainer(true)
 
 			// sleep with a small time increment between each restart to help avoid issues cased by quickly
@@ -177,7 +187,7 @@ func (m *containerMonitor) Start() error {
 			continue
 		}
 
-		m.container.logEvent("die")
+		m.logEvent("die")
 		m.resetContainer(true)
 		return err
 	}
@@ -249,7 +259,7 @@ func (m *containerMonitor) callback(processConfig *execdriver.ProcessConfig, pid
 	go func() {
 		_, ok := <-chOOM
 		if ok {
-			m.container.logEvent("oom")
+			m.logEvent("oom")
 		}
 	}()
 
@@ -344,4 +354,8 @@ func (m *containerMonitor) resetContainer(lock bool) {
 		Dir:         c.Dir,
 		SysProcAttr: c.SysProcAttr,
 	}
+}
+
+func (m *containerMonitor) logEvent(action string) {
+	m.supervisor.LogContainerEvent(m.container, action)
 }

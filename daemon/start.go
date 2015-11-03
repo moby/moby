@@ -4,6 +4,7 @@ import (
 	"runtime"
 
 	derr "github.com/docker/docker/errors"
+	"github.com/docker/docker/pkg/promise"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
 )
@@ -83,7 +84,7 @@ func (daemon *Daemon) containerStart(container *Container) (err error) {
 			}
 			container.toDisk()
 			container.cleanup()
-			daemon.logContainerEvent(container, "die")
+			daemon.LogContainerEvent(container, "die")
 		}
 	}()
 
@@ -123,5 +124,19 @@ func (daemon *Daemon) containerStart(container *Container) (err error) {
 	mounts = append(mounts, container.ipcMounts()...)
 
 	container.command.Mounts = mounts
-	return container.waitForStart()
+	return daemon.waitForStart(container)
+}
+
+func (daemon *Daemon) waitForStart(container *Container) error {
+	container.monitor = daemon.newContainerMonitor(container, container.hostConfig.RestartPolicy)
+
+	// block until we either receive an error from the initial start of the container's
+	// process or until the process is running in the container
+	select {
+	case <-container.monitor.startSignal:
+	case err := <-promise.Go(container.monitor.Start):
+		return err
+	}
+
+	return nil
 }

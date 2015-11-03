@@ -219,7 +219,7 @@ func (daemon *Daemon) containerArchivePath(container *Container, path string) (c
 		return err
 	})
 
-	container.logEvent("archive-path")
+	daemon.LogContainerEvent(container, "archive-path")
 
 	return content, stat, nil
 }
@@ -318,7 +318,7 @@ func (daemon *Daemon) containerExtractToDir(container *Container, path string, n
 		return err
 	}
 
-	container.logEvent("extract-to-dir")
+	daemon.LogContainerEvent(container, "extract-to-dir")
 
 	return nil
 }
@@ -384,6 +384,6 @@ func (daemon *Daemon) containerCopy(container *Container, resource string) (rc i
 		container.Unlock()
 		return err
 	})
-	daemon.logContainerEvent(container, "copy")
+	daemon.LogContainerEvent(container, "copy")
 	return reader, nil
 }

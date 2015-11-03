@@ -41,6 +41,6 @@ func (daemon *Daemon) containerRestart(container *Container, seconds int) error 
 		return err
 	}
 
-	daemon.logContainerEvent(container, "restart")
+	daemon.LogContainerEvent(container, "restart")
 	return nil
 }

@@ -172,15 +172,6 @@ func (container *Container) writeHostConfig() error {
 	return json.NewEncoder(f).Encode(&container.hostConfig)
 }
 
-func (container *Container) logEvent(action string) {
-	d := container.daemon
-	d.EventsService.Log(
-		action,
-		container.ID,
-		container.Config.Image,
-	)
-}
-
 // GetResourcePath evaluates `path` in the scope of the container's basefs, with proper path
 // sanitisation. Symlinks are all scoped to the basefs of the container, as
 // though the container's basefs was `/`.
@@ -278,7 +269,6 @@ func (container *Container) Resize(h, w int) error {
 	if err := container.command.ProcessConfig.Terminal.Resize(h, w); err != nil {
 		return err
 	}
-	container.logEvent("resize")
 	return nil
 }
 
@@ -380,20 +370,6 @@ func (container *Container) startLogging() error {
 	return nil
 }
 
-func (container *Container) waitForStart() error {
-	container.monitor = newContainerMonitor(container, container.hostConfig.RestartPolicy)
-
-	// block until we either receive an error from the initial start of the container's
-	// process or until the process is running in the container
-	select {
-	case <-container.monitor.startSignal:
-	case err := <-promise.Go(container.monitor.Start):
-		return err
-	}
-
-	return nil
-}
-
 func (container *Container) getProcessLabel() string {
 	// even if we have a process label return "" if we are running
 	// in privileged mode
@@ -422,62 +398,6 @@ func (container *Container) getExecIDs() []string {
 // streams or websockets depending on the configuration.
 func (container *Container) Attach(stdin io.ReadCloser, stdout io.Writer, stderr io.Writer) chan error {
 	return attach(&container.streamConfig, container.Config.OpenStdin, container.Config.StdinOnce, container.Config.Tty, stdin, stdout, stderr)
-}
-
-func (container *Container) attachWithLogs(stdin io.ReadCloser, stdout, stderr io.Writer, logs, stream bool) error {
-	if logs {
-		logDriver, err := container.getLogger()
-		if err != nil {
-			return err
-		}
-		cLog, ok := logDriver.(logger.LogReader)
-		if !ok {
-			return logger.ErrReadLogsNotSupported
-		}
-		logs := cLog.ReadLogs(logger.ReadConfig{Tail: -1})
-
-	LogLoop:
-		for {
-			select {
-			case msg, ok := <-logs.Msg:
-				if !ok {
-					break LogLoop
-				}
-				if msg.Source == "stdout" && stdout != nil {
-					stdout.Write(msg.Line)
-				}
-				if msg.Source == "stderr" && stderr != nil {
-					stderr.Write(msg.Line)
-				}
-			case err := <-logs.Err:
-				logrus.Errorf("Error streaming logs: %v", err)
-				break LogLoop
-			}
-		}
-	}
-
-	container.logEvent("attach")
-
-	//stream
-	if stream {
-		var stdinPipe io.ReadCloser
-		if stdin != nil {
-			r, w := io.Pipe()
-			go func() {
-				defer w.Close()
-				defer logrus.Debugf("Closing buffered stdin pipe")
-				io.Copy(w, stdin)
-			}()
-			stdinPipe = r
-		}
-		<-container.Attach(stdinPipe, stdout, stderr)
-		// If we are in stdinonce mode, wait for the process to end
-		// otherwise, simply return
-		if container.Config.StdinOnce && !container.Config.Tty {
-			container.WaitStop(-1 * time.Second)
-		}
-	}
-	return nil
 }
 
 func attach(streamConfig *streamConfig, openStdin, stdinOnce, tty bool, stdin io.ReadCloser, stdout io.Writer, stderr io.Writer) chan error {

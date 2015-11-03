@@ -55,6 +55,6 @@ func (daemon *Daemon) containerStop(container *Container, seconds int) error {
 		}
 	}
 
-	daemon.logContainerEvent(container, "stop")
+	daemon.LogContainerEvent(container, "stop")
 	return nil
 }

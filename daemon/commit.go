@@ -48,7 +48,8 @@ func (daemon *Daemon) Commit(container *Container, c *ContainerCommitConfig) (*i
 			return img, err
 		}
 	}
-	container.logEvent("commit")
+
+	daemon.LogContainerEvent(container, "commit")
 	return img, nil
 }
 

@@ -127,7 +127,7 @@ func (daemon *Daemon) create(params *ContainerCreateConfig) (retC *Container, re
 		logrus.Errorf("Error saving new container to disk: %v", err)
 		return nil, err
 	}
-	daemon.logContainerEvent(container, "create")
+	daemon.LogContainerEvent(container, "create")
 	return container, nil
 }
 
