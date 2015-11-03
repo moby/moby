@@ -21,6 +21,8 @@ some pre-existing conditions before you can create one. These conditions are:
 * A cluster of hosts with connectivity to the key-value store.
 * A properly configured Engine `daemon` on each host in the cluster.
 
+Though Docker Machine and Swarm are not mandatory to experience Docker multi-host-networking,
+we will use them in this example to showcase how they are integrated.
 You'll use Docker Machine to create both the the key-value store server and the
 host cluster. This example creates a Swarm cluster.
 
@@ -203,7 +205,7 @@ Once your network is created, you can start a container on any of the hosts and 
 
 1. Point your environment to your `mhs-demo0` instance.
 
-			$ eval $(docker-machine env mhs-demo0)
+		$ eval $(docker-machine env mhs-demo0)
 
 2. Start an Nginx server on `mhs-demo0`.
 
@@ -215,7 +217,7 @@ Once your network is created, you can start a container on any of the hosts and 
 
 		$ eval $(docker-machine env mhs-demo1)
 
-2. Run a Busybox instance and get the contents of the Ngnix server's home page.
+4. Run a Busybox instance and get the contents of the Ngnix server's home page.
 
 		$ docker run -it --rm --net=my-net --env="constraint:node==mhs-demo1" busybox wget -O- http://web
 		Unable to find image 'busybox:latest' locally
@@ -252,7 +254,65 @@ Once your network is created, you can start a container on any of the hosts and 
 		</html>
 		-                    100% |*******************************|   612   0:00:00 ETA
 
-## Step 5: Extra Credit with Docker Compose
+## Step 5: Check external connectivity
+
+As seen above, the multi-host networking using overlay driver provides out-of-the-box
+connectivity between the containers within the same network in that cluster.
+Also, these containers connected to the multi-host network gets external connectivity
+by default with the help of `docker_gwbridge`. These containers are automatically connected
+to the `docker_gwbridge` network as well & this network is responsible for any external
+connectivity outside of this cluster.
+
+1. Switch to each Swarm agent in turn and list the network to spot the `docker_gwbridge` network
+
+			$ eval $(docker-machine env mhs-demo0)
+
+			$ docker network ls
+			NETWORK ID          NAME                DRIVER
+			6b07d0be843f        my-net              overlay
+			dd51763e6dd2        bridge              bridge
+			b4234109bd9b        none                null
+			1aeead6dd890        host                host
+			e1dbd5dff8be        docker_gwbridge     bridge
+
+			$ eval $(docker-machine env mhs-demo1)
+
+			$ docker network ls
+			NETWORK ID          NAME                DRIVER
+			6b07d0be843f        my-net              overlay
+			d0bb78cbe7bd        bridge              bridge
+			1c0eb8f69ebb        none                null
+			412c2496d0eb        host                host
+			97102a22e8d2        docker_gwbridge     bridge
+
+2. Check the Ngnix container's network interfaces
+
+			$ eval $(docker-machine env mhs-demo0)
+
+			$ docker exec web ip addr
+			1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN group default
+			link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+			inet 127.0.0.1/8 scope host lo
+			    valid_lft forever preferred_lft forever
+			inet6 ::1/128 scope host
+			    valid_lft forever preferred_lft forever
+			22: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1450 qdisc noqueue state UP group default
+			link/ether 02:42:0a:00:09:03 brd ff:ff:ff:ff:ff:ff
+			inet 10.0.9.3/24 scope global eth0
+			    valid_lft forever preferred_lft forever
+			inet6 fe80::42:aff:fe00:903/64 scope link
+			    valid_lft forever preferred_lft forever
+			24: eth1: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP group default
+			link/ether 02:42:ac:12:00:02 brd ff:ff:ff:ff:ff:ff
+			inet 172.18.0.2/16 scope global eth1
+			    valid_lft forever preferred_lft forever
+			inet6 fe80::42:acff:fe12:2/64 scope link
+			    valid_lft forever preferred_lft forever
+
+	`eth0` interface represents the container interface that is connected to the `my-net` overlay network.
+	`eth1` interface represents the container interface that is connected to the `docker_gwbridge` network.
+
+## Step 6: Extra Credit with Docker Compose
 
 You can try starting a second network on your existing Swarm cluser using Docker Compose.
 
