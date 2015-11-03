@@ -1191,7 +1191,11 @@ func (container *Container) disconnectFromNetwork(n libnetwork.Network) error {
 	)
 
 	s := func(current libnetwork.Endpoint) bool {
-		if sb := current.Info().Sandbox(); sb != nil {
+		epInfo := current.Info()
+		if epInfo == nil {
+			return false
+		}
+		if sb := epInfo.Sandbox(); sb != nil {
 			if sb.ContainerID() == container.ID {
 				ep = current
 				sbox = sb

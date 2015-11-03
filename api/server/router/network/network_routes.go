@@ -191,7 +191,11 @@ func buildNetworkResource(nw libnetwork.Network) *types.NetworkResource {
 
 	epl := nw.Endpoints()
 	for _, e := range epl {
-		sb := e.Info().Sandbox()
+		ei := e.Info()
+		if ei == nil {
+			continue
+		}
+		sb := ei.Sandbox()
 		if sb == nil {
 			continue
 		}
@@ -233,7 +237,12 @@ func buildEndpointResource(e libnetwork.Endpoint) types.EndpointResource {
 	}
 
 	er.EndpointID = e.ID()
-	if iface := e.Info().Iface(); iface != nil {
+	ei := e.Info()
+	if ei == nil {
+		return er
+	}
+
+	if iface := ei.Iface(); iface != nil {
 		if mac := iface.MacAddress(); mac != nil {
 			er.MacAddress = mac.String()
 		}
