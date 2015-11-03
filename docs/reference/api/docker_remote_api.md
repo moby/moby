@@ -116,6 +116,16 @@ list of DNS options to be used in the container.
 * `GET /containers/json` will return `ImageID` of the image used by container.
 * `POST /exec/(name)/start` will now return an HTTP 409 when the container is either stopped or paused.
 * `GET /containers/(name)/json` now accepts a `size` parameter. Setting this parameter to '1' returns container size information in the `SizeRw` and `SizeRootFs` fields.
+* `GET /containers/(name)/json` now returns a `NetworkSettings.Networks` field,
+  detailing network settings per network. This field deprecates the
+  `NetworkSettings.Gateway`, `NetworkSettings.IPAddress`,
+  `NetworkSettings.IPPrefixLen`, and `NetworkSettings.MacAddress` fields, which
+  are still returned for backward-compatibility, but will be removed in a future version.
+* `GET /exec/(id)/json` now returns a `NetworkSettings.Networks` field,
+  detailing networksettings per network. This field deprecates the
+  `NetworkSettings.Gateway`, `NetworkSettings.IPAddress`,
+  `NetworkSettings.IPPrefixLen`, and `NetworkSettings.MacAddress` fields, which
+  are still returned for backward-compatibility, but will be removed in a future version.
 
 ### v1.20 API changes
 
