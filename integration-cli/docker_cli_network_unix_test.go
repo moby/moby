@@ -643,7 +643,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkMacInspect(c *check.C) {
 	c.Assert(mac, checker.Equals, "a0:b1:c2:d3:e4:f5")
 }
 
-func (s *DockerSuite) TestInspectApiMultipeNetworks(c *check.C) {
+func (s *DockerSuite) TestInspectApiMultipleNetworks(c *check.C) {
 	dockerCmd(c, "network", "create", "mybridge1")
 	dockerCmd(c, "network", "create", "mybridge2")
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
