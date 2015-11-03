@@ -14,18 +14,22 @@ import (
 	"github.com/docker/docker/daemon/execdriver"
 	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/pubsub"
-	lntypes "github.com/docker/libnetwork/types"
-	"github.com/opencontainers/runc/libcontainer"
 	"github.com/opencontainers/runc/libcontainer/system"
 )
+
+type statsSupervisor interface {
+	// GetContainerStats collects all the stats related to a container
+	GetContainerStats(container *Container) (*execdriver.ResourceStats, error)
+}
 
 // newStatsCollector returns a new statsCollector that collections
 // network and cgroup stats for a registered container at the specified
 // interval.  The collector allows non-running containers to be added
 // and will start processing stats when they are started.
-func newStatsCollector(interval time.Duration) *statsCollector {
+func (daemon *Daemon) newStatsCollector(interval time.Duration) *statsCollector {
 	s := &statsCollector{
 		interval:            interval,
+		supervisor:          daemon,
 		publishers:          make(map[*Container]*pubsub.Publisher),
 		clockTicksPerSecond: uint64(system.GetClockTicks()),
 		bufReader:           bufio.NewReaderSize(nil, 128),
@@ -37,6 +41,7 @@ func newStatsCollector(interval time.Duration) *statsCollector {
 // statsCollector manages and provides container resource stats
 type statsCollector struct {
 	m                   sync.Mutex
+	supervisor          statsSupervisor
 	interval            time.Duration
 	clockTicksPerSecond uint64
 	publishers          map[*Container]*pubsub.Publisher
@@ -112,7 +117,7 @@ func (s *statsCollector) run() {
 		}
 
 		for _, pair := range pairs {
-			stats, err := pair.container.stats()
+			stats, err := s.supervisor.GetContainerStats(pair.container)
 			if err != nil {
 				if err != execdriver.ErrNotRunning {
 					logrus.Errorf("collecting stats for %s: %v", pair.container.ID, err)
@@ -121,10 +126,6 @@ func (s *statsCollector) run() {
 			}
 			stats.SystemUsage = systemUsage
 
-			// Retrieve the nw statistics from libnetwork and inject them in the Stats
-			if nwStats, err := s.getNetworkStats(pair.container); err == nil {
-				stats.Interfaces = nwStats
-			}
 			pair.publisher.Publish(stats)
 		}
 	}
@@ -176,38 +177,4 @@ func (s *statsCollector) getSystemCPUUsage() (uint64, error) {
 		}
 	}
 	return 0, derr.ErrorCodeBadStatFormat
-}
-
-func (s *statsCollector) getNetworkStats(c *Container) ([]*libcontainer.NetworkInterface, error) {
-	var list []*libcontainer.NetworkInterface
-
-	sb, err := c.daemon.netController.SandboxByID(c.NetworkSettings.SandboxID)
-	if err != nil {
-		return list, err
-	}
-
-	stats, err := sb.Statistics()
-	if err != nil {
-		return list, err
-	}
-
-	// Convert libnetwork nw stats into libcontainer nw stats
-	for ifName, ifStats := range stats {
-		list = append(list, convertLnNetworkStats(ifName, ifStats))
-	}
-
-	return list, nil
-}
-
-func convertLnNetworkStats(name string, stats *lntypes.InterfaceStatistics) *libcontainer.NetworkInterface {
-	n := &libcontainer.NetworkInterface{Name: name}
-	n.RxBytes = stats.RxBytes
-	n.RxPackets = stats.RxPackets
-	n.RxErrors = stats.RxErrors
-	n.RxDropped = stats.RxDropped
-	n.TxBytes = stats.TxBytes
-	n.TxPackets = stats.TxPackets
-	n.TxErrors = stats.TxErrors
-	n.TxDropped = stats.TxDropped
-	return n
 }

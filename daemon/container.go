@@ -338,10 +338,6 @@ func (container *Container) getMountLabel() string {
 	return container.MountLabel
 }
 
-func (container *Container) stats() (*execdriver.ResourceStats, error) {
-	return container.daemon.stats(container)
-}
-
 func (container *Container) getExecIDs() []string {
 	return container.execCommands.List()
 }

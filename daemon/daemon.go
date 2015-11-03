@@ -56,6 +56,8 @@ import (
 	"github.com/docker/docker/volume/local"
 	"github.com/docker/docker/volume/store"
 	"github.com/docker/libnetwork"
+	lntypes "github.com/docker/libnetwork/types"
+	"github.com/opencontainers/runc/libcontainer"
 )
 
 var (
@@ -816,7 +818,7 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 	d.configStore = config
 	d.sysInitPath = sysInitPath
 	d.execDriver = ed
-	d.statsCollector = newStatsCollector(1 * time.Second)
+	d.statsCollector = d.newStatsCollector(1 * time.Second)
 	d.defaultLogConfig = config.LogConfig
 	d.RegistryService = registryService
 	d.EventsService = eventsService
@@ -1299,4 +1301,54 @@ func (daemon *Daemon) SearchRegistryForImages(term string,
 	authConfig *cliconfig.AuthConfig,
 	headers map[string][]string) (*registry.SearchResults, error) {
 	return daemon.RegistryService.Search(term, authConfig, headers)
+}
+
+func (daemon *Daemon) GetContainerStats(container *Container) (*execdriver.ResourceStats, error) {
+	stats, err := daemon.stats(container)
+	if err != nil {
+		return nil, err
+	}
+
+	// Retrieve the nw statistics from libnetwork and inject them in the Stats
+	var nwStats []*libcontainer.NetworkInterface
+	if nwStats, err = daemon.getNetworkStats(container); err != nil {
+		return nil, err
+	}
+	stats.Interfaces = nwStats
+
+	return stats, nil
+}
+
+func (daemon *Daemon) getNetworkStats(c *Container) ([]*libcontainer.NetworkInterface, error) {
+	var list []*libcontainer.NetworkInterface
+
+	sb, err := daemon.netController.SandboxByID(c.NetworkSettings.SandboxID)
+	if err != nil {
+		return list, err
+	}
+
+	stats, err := sb.Statistics()
+	if err != nil {
+		return list, err
+	}
+
+	// Convert libnetwork nw stats into libcontainer nw stats
+	for ifName, ifStats := range stats {
+		list = append(list, convertLnNetworkStats(ifName, ifStats))
+	}
+
+	return list, nil
+}
+
+func convertLnNetworkStats(name string, stats *lntypes.InterfaceStatistics) *libcontainer.NetworkInterface {
+	n := &libcontainer.NetworkInterface{Name: name}
+	n.RxBytes = stats.RxBytes
+	n.RxPackets = stats.RxPackets
+	n.RxErrors = stats.RxErrors
+	n.RxDropped = stats.RxDropped
+	n.TxBytes = stats.TxBytes
+	n.TxPackets = stats.TxPackets
+	n.TxErrors = stats.TxErrors
+	n.TxDropped = stats.TxDropped
+	return n
 }
