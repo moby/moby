@@ -13,7 +13,7 @@ weight=-3
 
 This article uses an example to explain the basics of creating a mult-host
 network. Docker Engine supports multi-host-networking out-of-the-box through the
-`overlay` network driver.  Unlike `bridge` networks overlay networks require
+`overlay` network driver.  Unlike `bridge` networks, overlay networks require
 some pre-existing conditions before you can create one. These conditions are:
 
 * A host with a 3.16 kernel version or higher.
@@ -39,14 +39,14 @@ Machine to the latest versions.
 
 An overlay network requires a key-value store. The key-value stores information
 about the network state which includes discovery, networks, endpoints,
-ip-addresses, and more. Docker supports Consul, Etcd, and Zookeeper (Distributed
+ip-addresses, and more. Docker supports Consul, Etcd, and ZooKeeper (Distributed
 store) key-value stores. This example uses Consul.
 
 1. Log into a system prepared with the prerequisite Docker Engine, Docker Machine, and VirtualBox software.
 
 2. Provision a VirtualBox machine called `mh-keystore`.  
 
-				$ docker-machine create -d VirtualBox mh-keystore
+				$ docker-machine create -d virtualbox mh-keystore
 
 	When you provision a new machine, the process adds Docker Engine to the
 	host. This means rather than installing Consul manually, you can create an
@@ -62,15 +62,12 @@ store) key-value stores. This example uses Consul.
 
 	 You passed the `docker run` command the connection configuration using a bash
 	 expansion `$(docker-machine config mh-keystore)`.  The client started a
-	 `progrium/consul` image running in the `mh-keystore` machine. The server is called `consul`and is listening port `8500`.
+	 `progrium/consul` image running in the `mh-keystore` machine. The server is 
+	 called `consul` and it is listening on port `8500`.
 
-4. Set your local environment to the `mh-keystore` machine.
+4. Run the `docker ps` command to see the `consul` container.
 
-			$  eval "$(docker-machine env mh-keystore)"
-
-5. Run the `docker ps` command to see the `consul` container.
-
-			$ docker ps
+			$ docker $(docker-machine config mh-keystore) ps
 			CONTAINER ID        IMAGE               COMMAND                  CREATED             STATUS              PORTS                                                                            NAMES
 			4d51392253b3        progrium/consul     "/bin/start -server -"   25 minutes ago      Up 25 minutes       53/tcp, 53/udp, 8300-8302/tcp, 0.0.0.0:8500->8500/tcp, 8400/tcp, 8301-8302/udp   admiring_panini
 
@@ -80,26 +77,32 @@ Keep your terminal open and move onto the next step.
 ## Step 2: Create a Swarm cluster
 
 In this step, you use `docker-machine` to provision the hosts for your network.
-At this point, you won't actually created the network. You'll create several
-machines in VirtualBox. One of the machines will act as the Swarm master;
-you'll create that first. As you create each host, you'll pass the Engine on
-that machine options that are needed by the `overlay` network driver.
+At this point, you won't actually be creating the network. You'll create several
+machines in VirtualBox. One of the machines will act as the Swarm master; you'll
+create that first. As you create each host, you'll pass the created Docker
+Engine on that configuration options that are needed by the `overlay` network
+driver.
 
 1. Create a Swarm master.
 
 			$ docker-machine create \
-			-d VirtualBox \
+			-d virtualbox \
 			--swarm --swarm-image="swarm" --swarm-master \
 			--swarm-discovery="consul://$(docker-machine ip mh-keystore):8500" \
-			--engine-opt="cluster-store=consul://$(docker-machine ip mh-keystore):8500"
+			--engine-opt="cluster-store=consul://$(docker-machine ip mh-keystore):8500" \
 			--engine-opt="cluster-advertise=eth1:2376" \
 			mhs-demo0
 
-	At creation time, you supply the Engine `daemon` with the ` --cluster-store` option. This option tells the Engine the location of the key-value store for the `overlay` network. The bash expansion `$(docker-machine ip mh-keystore)` resolves to the IP address of the Consul server you created in "STEP 1". The `--cluster-advertise` option advertises the machine on the network.
+	At creation time, you supply the Engine `daemon` with the ` --cluster-store`
+option. This option tells the Engine the location of the key-value store for the
+`overlay` network. The bash expansion `$(docker-machine ip mh-keystore)`
+resolves to the IP address of the Consul server you created in "STEP 1". The
+`--cluster-advertise` option advertises the machine on the network.
 
 2. Create another host and add it to the Swarm cluster.
 
-		$ docker-machine create -d VirtualBox \
+		$ docker-machine create \
+			-d virtualbox \
 			--swarm --swarm-image="swarm:1.0.0-rc2" \
 			--swarm-discovery="consul://$(docker-machine ip mh-keystore):8500" \
 			--engine-opt="cluster-store=consul://$(docker-machine ip mh-keystore):8500" \
@@ -110,10 +113,10 @@ that machine options that are needed by the `overlay` network driver.
 
 		$ docker-machine ls
 		NAME         ACTIVE   DRIVER       STATE     URL                         SWARM
-		default               VirtualBox   Running   tcp://192.168.99.100:2376   
-		mh-keystore            VirtualBox   Running   tcp://192.168.99.103:2376   
-		mhs-demo0             VirtualBox   Running   tcp://192.168.99.104:2376   mhs-demo0 (master)
-		mhs-demo1             VirtualBox   Running   tcp://192.168.99.105:2376   mhs-demo0
+		default               virtualbox   Running   tcp://192.168.99.100:2376   
+		mh-keystore           virtualbox   Running   tcp://192.168.99.103:2376   
+		mhs-demo0             virtualbox   Running   tcp://192.168.99.104:2376   mhs-demo0 (master)
+		mhs-demo1             virtualbox   Running   tcp://192.168.99.105:2376   mhs-demo0
 
 At this point you have a set of hosts running on your network. You are ready to create a multi-host network for containers using these hosts.
 
@@ -122,11 +125,11 @@ Leave your terminal open and go onto the next step.
 
 ## Step 3: Create the overlay Network
 
-To create an overlay network
+To create an overlay network:
 
 1. Set your docker environment to the Swarm master.
 
-			$ eval $(docker-machine --swarm env mhs-demo0)
+			$ eval $(docker-machine env --swarm mhs-demo0)
 
 		Using the `--swarm` flag with `docker-machine` restricts the `docker` commands to Swarm information alone.
 
@@ -207,7 +210,7 @@ Once your network is created, you can start a container on any of the hosts and 
 
 2. Start an Nginx server on `mhs-demo0`.
 
-		$ docker run -itd --name=web --net=my-net --env="constraint:node==mhs-demo0" nginx
+		$ docker run -d --name=web --net=my-net --env="constraint:node==mhs-demo0" nginx
 
 	This command starts a web server on the Swarm master.
 
