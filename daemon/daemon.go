@@ -246,7 +246,7 @@ func (daemon *Daemon) Register(container *Container) error {
 		return err
 	}
 
-	if err := container.prepareMountPoints(); err != nil {
+	if err := daemon.prepareMountPoints(container); err != nil {
 		return err
 	}
 

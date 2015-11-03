@@ -58,7 +58,7 @@ func (daemon *Daemon) ContainerRm(name string, config *ContainerRmConfig) error 
 		return err
 	}
 
-	if err := container.removeMountPoints(config.RemoveVolume); err != nil {
+	if err := daemon.removeMountPoints(container, config.RemoveVolume); err != nil {
 		logrus.Error(err)
 	}
 

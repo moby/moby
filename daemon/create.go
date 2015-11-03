@@ -109,7 +109,7 @@ func (daemon *Daemon) create(params *ContainerCreateConfig) (retC *Container, re
 	}
 	defer func() {
 		if retErr != nil {
-			if err := container.removeMountPoints(true); err != nil {
+			if err := daemon.removeMountPoints(container, true); err != nil {
 				logrus.Error(err)
 			}
 		}
