@@ -149,7 +149,7 @@ func (daemon *Daemon) getSize(container *Container) (int64, int64) {
 }
 
 // setNetworkNamespaceKey is a no-op on Windows.
-func (daemon *Daemon) setNetworkNamespaceKey(containerId string, pid int) error {
+func (daemon *Daemon) setNetworkNamespaceKey(containerID string, pid int) error {
 	return nil
 }
 

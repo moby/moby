@@ -498,8 +498,8 @@ func (container *Container) shouldRestart() bool {
 		(container.hostConfig.RestartPolicy.Name == "on-failure" && container.ExitCode != 0)
 }
 
-func (container *Container) mountVolumes() error {
-	mounts, err := container.setupMounts()
+func (daemon *Daemon) mountVolumes(container *Container) error {
+	mounts, err := daemon.setupMounts(container)
 	if err != nil {
 		return err
 	}

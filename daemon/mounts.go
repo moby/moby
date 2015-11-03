@@ -26,7 +26,7 @@ func (daemon *Daemon) removeMountPoints(container *Container, rm bool) error {
 		if m.Volume == nil {
 			continue
 		}
-		container.daemon.volumes.Decrement(m.Volume)
+		daemon.volumes.Decrement(m.Volume)
 		if rm {
 			err := daemon.volumes.Remove(m.Volume)
 			// ErrVolumeInUse is ignored because having this

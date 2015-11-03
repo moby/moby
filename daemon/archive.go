@@ -142,7 +142,7 @@ func (daemon *Daemon) containerStatPath(container *Container, path string) (stat
 	}
 	defer daemon.Unmount(container)
 
-	err = container.mountVolumes()
+	err = daemon.mountVolumes(container)
 	defer container.unmountVolumes(true)
 	if err != nil {
 		return nil, err
@@ -184,7 +184,7 @@ func (daemon *Daemon) containerArchivePath(container *Container, path string) (c
 		}
 	}()
 
-	if err = container.mountVolumes(); err != nil {
+	if err = daemon.mountVolumes(container); err != nil {
 		return nil, nil, err
 	}
 
@@ -239,7 +239,7 @@ func (daemon *Daemon) containerExtractToDir(container *Container, path string, n
 	}
 	defer daemon.Unmount(container)
 
-	err = container.mountVolumes()
+	err = daemon.mountVolumes(container)
 	defer container.unmountVolumes(true)
 	if err != nil {
 		return err
@@ -348,7 +348,7 @@ func (daemon *Daemon) containerCopy(container *Container, resource string) (rc i
 		}
 	}()
 
-	if err := container.mountVolumes(); err != nil {
+	if err := daemon.mountVolumes(container); err != nil {
 		return nil, err
 	}
 

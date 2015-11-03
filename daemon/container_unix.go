@@ -744,14 +744,14 @@ func (daemon *Daemon) updateNetworkSettings(container *Container, n libnetwork.N
 	return nil
 }
 
-func (container *Container) updateEndpointNetworkSettings(n libnetwork.Network, ep libnetwork.Endpoint) error {
+func (daemon *Daemon) updateEndpointNetworkSettings(container *Container, n libnetwork.Network, ep libnetwork.Endpoint) error {
 	networkSettings, err := container.buildEndpointInfo(n, ep, container.NetworkSettings)
 	if err != nil {
 		return err
 	}
 
 	if container.hostConfig.NetworkMode == runconfig.NetworkMode("bridge") {
-		networkSettings.Bridge = container.daemon.configStore.Bridge.Iface
+		networkSettings.Bridge = daemon.configStore.Bridge.Iface
 	}
 
 	return nil
@@ -1006,7 +1006,7 @@ func (daemon *Daemon) connectToNetwork(container *Container, idOrName string, up
 		}
 	}()
 
-	if err := container.updateEndpointNetworkSettings(n, ep); err != nil {
+	if err := daemon.updateEndpointNetworkSettings(container, n, ep); err != nil {
 		return err
 	}
 
@@ -1075,13 +1075,13 @@ func (daemon *Daemon) initializeNetworking(container *Container) error {
 
 // called from the libcontainer pre-start hook to set the network
 // namespace configuration linkage to the libnetwork "sandbox" entity
-func (daemon *Daemon) setNetworkNamespaceKey(containerId string, pid int) error {
+func (daemon *Daemon) setNetworkNamespaceKey(containerID string, pid int) error {
 	path := fmt.Sprintf("/proc/%d/ns/net", pid)
 	var sandbox libnetwork.Sandbox
-	search := libnetwork.SandboxContainerWalker(&sandbox, containerId)
+	search := libnetwork.SandboxContainerWalker(&sandbox, containerID)
 	daemon.netController.WalkSandboxes(search)
 	if sandbox == nil {
-		return derr.ErrorCodeNoSandbox.WithArgs(containerId)
+		return derr.ErrorCodeNoSandbox.WithArgs(containerID)
 	}
 
 	return sandbox.SetKey(path)
@@ -1126,16 +1126,16 @@ func (container *Container) setupWorkingDirectory() error {
 	return nil
 }
 
-func (daemon *Daemon) getNetworkedContainer(containerId, connectedContainerId string) (*Container, error) {
-	nc, err := daemon.Get(connectedContainerId)
+func (daemon *Daemon) getNetworkedContainer(containerID, connectedContainerID string) (*Container, error) {
+	nc, err := daemon.Get(connectedContainerID)
 	if err != nil {
 		return nil, err
 	}
-	if containerId == nc.ID {
+	if containerID == nc.ID {
 		return nil, derr.ErrorCodeJoinSelf
 	}
 	if !nc.IsRunning() {
-		return nil, derr.ErrorCodeJoinRunning.WithArgs(connectedContainerId)
+		return nil, derr.ErrorCodeJoinRunning.WithArgs(connectedContainerID)
 	}
 	return nc, nil
 }

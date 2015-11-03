@@ -331,7 +331,7 @@ func (d *Daemon) containerExecIds() map[string]struct{} {
 	return ids
 }
 
-func (daemon *Daemon) containerExec(container *Container, ec *ExecConfig) error {
+func (d *Daemon) containerExec(container *Container, ec *ExecConfig) error {
 	container.Lock()
 	defer container.Unlock()
 
@@ -350,7 +350,7 @@ func (daemon *Daemon) containerExec(container *Container, ec *ExecConfig) error 
 
 	// We use a callback here instead of a goroutine and an chan for
 	// synchronization purposes
-	cErr := promise.Go(func() error { return daemon.monitorExec(container, ec, callback) })
+	cErr := promise.Go(func() error { return d.monitorExec(container, ec, callback) })
 
 	// Exec should not return until the process is actually running
 	select {
@@ -362,13 +362,13 @@ func (daemon *Daemon) containerExec(container *Container, ec *ExecConfig) error 
 	return nil
 }
 
-func (daemon *Daemon) monitorExec(container *Container, ExecConfig *ExecConfig, callback execdriver.DriverCallback) error {
+func (d *Daemon) monitorExec(container *Container, ExecConfig *ExecConfig, callback execdriver.DriverCallback) error {
 	var (
 		err      error
 		exitCode int
 	)
 	pipes := execdriver.NewPipes(ExecConfig.streamConfig.stdin, ExecConfig.streamConfig.stdout, ExecConfig.streamConfig.stderr, ExecConfig.OpenStdin)
-	exitCode, err = daemon.Exec(container, ExecConfig, pipes, callback)
+	exitCode, err = d.Exec(container, ExecConfig, pipes, callback)
 	if err != nil {
 		logrus.Errorf("Error running command in existing container %s: %s", container.ID, err)
 	}

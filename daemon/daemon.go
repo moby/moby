@@ -194,7 +194,7 @@ func (daemon *Daemon) load(id string) (*Container, error) {
 
 // Register makes a container object usable by the daemon as <container.ID>
 func (daemon *Daemon) Register(container *Container) error {
-	if container.daemon != nil || daemon.Exists(container.ID) {
+	if daemon.Exists(container.ID) {
 		return fmt.Errorf("Container is already loaded")
 	}
 	if err := validateID(container.ID); err != nil {
@@ -203,8 +203,6 @@ func (daemon *Daemon) Register(container *Container) error {
 	if err := daemon.ensureName(container); err != nil {
 		return err
 	}
-
-	container.daemon = daemon
 
 	// Attach to stdout and stderr
 	container.stderr = new(broadcaster.Unbuffered)
@@ -954,7 +952,8 @@ func (daemon *Daemon) Unmount(container *Container) error {
 	return daemon.driver.Put(container.ID)
 }
 
-func (daemon *Daemon) run(c *Container, pipes *execdriver.Pipes, startCallback execdriver.DriverCallback) (execdriver.ExitStatus, error) {
+// Run uses the execution driver to run a given container
+func (daemon *Daemon) Run(c *Container, pipes *execdriver.Pipes, startCallback execdriver.DriverCallback) (execdriver.ExitStatus, error) {
 	hooks := execdriver.Hooks{
 		Start: startCallback,
 	}
@@ -1303,6 +1302,12 @@ func (daemon *Daemon) SearchRegistryForImages(term string,
 	return daemon.RegistryService.Search(term, authConfig, headers)
 }
 
+// IsShuttingDown tells whether the daemon is shutting down or not
+func (daemon *Daemon) IsShuttingDown() bool {
+	return daemon.shutdown
+}
+
+// GetContainerStats collects all the stats published by a container
 func (daemon *Daemon) GetContainerStats(container *Container) (*execdriver.ResourceStats, error) {
 	stats, err := daemon.stats(container)
 	if err != nil {

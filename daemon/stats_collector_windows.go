@@ -6,7 +6,7 @@ import "time"
 // for a registered container at the specified interval. The collector allows
 // non-running containers to be added and will start processing stats when
 // they are started.
-func newStatsCollector(interval time.Duration) *statsCollector {
+func (daemon *Daemon) newStatsCollector(interval time.Duration) *statsCollector {
 	return &statsCollector{}
 }
 

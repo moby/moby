@@ -25,6 +25,10 @@ type containerSupervisor interface {
 	Cleanup(*Container)
 	// StartLogging starts the logging driver for the container
 	StartLogging(*Container) error
+	// Run starts a container
+	Run(c *Container, pipes *execdriver.Pipes, startCallback execdriver.DriverCallback) (execdriver.ExitStatus, error)
+	// IsShuttingDown tells whether the supervisor is shutting down or not
+	IsShuttingDown() bool
 }
 
 // containerMonitor monitors the execution of a container's main process.
@@ -156,7 +160,7 @@ func (m *containerMonitor) Start() error {
 
 		m.lastStartTime = time.Now()
 
-		if exitStatus, err = m.container.daemon.run(m.container, pipes, m.callback); err != nil {
+		if exitStatus, err = m.supervisor.Run(m.container, pipes, m.callback); err != nil {
 			// if we receive an internal error from the initial start of a container then lets
 			// return it instead of entering the restart loop
 			if m.container.RestartCount == 0 {
@@ -236,7 +240,7 @@ func (m *containerMonitor) shouldRestart(exitCode int) bool {
 
 	// do not restart if the user or docker has requested that this container be stopped
 	if m.shouldStop {
-		m.container.HasBeenManuallyStopped = !m.container.daemon.shutdown
+		m.container.HasBeenManuallyStopped = !m.supervisor.IsShuttingDown()
 		return false
 	}
 

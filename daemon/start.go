@@ -118,7 +118,7 @@ func (daemon *Daemon) containerStart(container *Container) (err error) {
 		}
 	}
 
-	mounts, err := container.setupMounts()
+	mounts, err := daemon.setupMounts(container)
 	if err != nil {
 		return err
 	}
