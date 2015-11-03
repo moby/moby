@@ -105,6 +105,7 @@ func (s *router) postImagesCreate(ctx context.Context, w http.ResponseWriter, r 
 		err    error
 		output = ioutils.NewWriteFlusher(w)
 	)
+	defer output.Close()
 
 	w.Header().Set("Content-Type", "application/json")
 
@@ -184,6 +185,7 @@ func (s *router) postImagesPush(ctx context.Context, w http.ResponseWriter, r *h
 
 	name := vars["name"]
 	output := ioutils.NewWriteFlusher(w)
+	defer output.Close()
 	imagePushConfig := &graph.ImagePushConfig{
 		MetaHeaders: metaHeaders,
 		AuthConfig:  authConfig,
@@ -211,6 +213,7 @@ func (s *router) getImagesGet(ctx context.Context, w http.ResponseWriter, r *htt
 	w.Header().Set("Content-Type", "application/x-tar")
 
 	output := ioutils.NewWriteFlusher(w)
+	defer output.Close()
 	var names []string
 	if name, ok := vars["name"]; ok {
 		names = []string{name}
@@ -283,6 +286,7 @@ func (s *router) postBuild(ctx context.Context, w http.ResponseWriter, r *http.R
 
 	version := httputils.VersionFromContext(ctx)
 	output := ioutils.NewWriteFlusher(w)
+	defer output.Close()
 	sf := streamformatter.NewJSONStreamFormatter()
 	errf := func(err error) error {
 		// Do not write the error in the http output if it's still empty.
