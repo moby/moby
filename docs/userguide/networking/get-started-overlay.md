@@ -17,7 +17,7 @@ network. Docker Engine supports multi-host-networking out-of-the-box through the
 some pre-existing conditions before you can create one. These conditions are:
 
 * A host with a 3.16 kernel version or higher.
-* Access to a key-value store. Docker supports Consul, Etcd, and Zookeeper (Distributed store) key-value stores.
+* Access to a key-value store. Docker supports Consul, Etcd, and ZooKeeper (Distributed store) key-value stores.
 * A cluster of hosts with connectivity to the key-value store.
 * A properly configured Engine `daemon` on each host in the cluster.
 
@@ -39,14 +39,14 @@ Machine to the latest versions.
 
 An overlay network requires a key-value store. The key-value stores information
 about the network state which includes discovery, networks, endpoints,
-ip-addresses, and more. Docker supports Consul, Etcd, and Zookeeper (Distributed
+ip-addresses, and more. Docker supports Consul, Etcd, and ZooKeeper (Distributed
 store) key-value stores. This example uses Consul.
 
 1. Log into a system prepared with the prerequisite Docker Engine, Docker Machine, and VirtualBox software.
 
 2. Provision a VirtualBox machine called `mh-keystore`.  
 
-				$ docker-machine create -d VirtualBox mh-keystore
+				$ docker-machine create -d virtualbox mh-keystore
 
 	When you provision a new machine, the process adds Docker Engine to the
 	host. This means rather than installing Consul manually, you can create an
@@ -88,10 +88,10 @@ that machine options that are needed by the `overlay` network driver.
 1. Create a Swarm master.
 
 			$ docker-machine create \
-			-d VirtualBox \
+			-d virtualbox \
 			--swarm --swarm-image="swarm" --swarm-master \
 			--swarm-discovery="consul://$(docker-machine ip mh-keystore):8500" \
-			--engine-opt="cluster-store=consul://$(docker-machine ip mh-keystore):8500"
+			--engine-opt="cluster-store=consul://$(docker-machine ip mh-keystore):8500" \
 			--engine-opt="cluster-advertise=eth1:2376" \
 			mhs-demo0
 
@@ -99,7 +99,7 @@ that machine options that are needed by the `overlay` network driver.
 
 2. Create another host and add it to the Swarm cluster.
 
-		$ docker-machine create -d VirtualBox \
+		$ docker-machine create -d virtualbox \
 			--swarm --swarm-image="swarm:1.0.0-rc2" \
 			--swarm-discovery="consul://$(docker-machine ip mh-keystore):8500" \
 			--engine-opt="cluster-store=consul://$(docker-machine ip mh-keystore):8500" \
@@ -110,10 +110,10 @@ that machine options that are needed by the `overlay` network driver.
 
 		$ docker-machine ls
 		NAME         ACTIVE   DRIVER       STATE     URL                         SWARM
-		default               VirtualBox   Running   tcp://192.168.99.100:2376   
-		mh-keystore            VirtualBox   Running   tcp://192.168.99.103:2376   
-		mhs-demo0             VirtualBox   Running   tcp://192.168.99.104:2376   mhs-demo0 (master)
-		mhs-demo1             VirtualBox   Running   tcp://192.168.99.105:2376   mhs-demo0
+		default               virtualbox   Running   tcp://192.168.99.100:2376   
+		mh-keystore           virtualbox   Running   tcp://192.168.99.103:2376   
+		mhs-demo0             virtualbox   Running   tcp://192.168.99.104:2376   mhs-demo0 (master)
+		mhs-demo1             virtualbox   Running   tcp://192.168.99.105:2376   mhs-demo0
 
 At this point you have a set of hosts running on your network. You are ready to create a multi-host network for containers using these hosts.
 
@@ -126,7 +126,7 @@ To create an overlay network
 
 1. Set your docker environment to the Swarm master.
 
-			$ eval $(docker-machine --swarm env mhs-demo0)
+			$ eval $(docker-machine env --swarm mhs-demo0)
 
 		Using the `--swarm` flag with `docker-machine` restricts the `docker` commands to Swarm information alone.
 
@@ -143,12 +143,12 @@ To create an overlay network
 			└ Containers: 2
 			└ Reserved CPUs: 0 / 1
 			└ Reserved Memory: 0 B / 1.021 GiB
-			└ Labels: executiondriver=native-0.2, kernelversion=4.1.10-boot2docker, operatingsystem=Boot2Docker 1.9.0-rc1 (TCL 6.4); master : 4187d2c - Wed Oct 14 14:00:28 UTC 2015, provider=VirtualBox, storagedriver=aufs
+			└ Labels: executiondriver=native-0.2, kernelversion=4.1.10-boot2docker, operatingsystem=Boot2Docker 1.9.0-rc1 (TCL 6.4); master : 4187d2c - Wed Oct 14 14:00:28 UTC 2015, provider=virtualbox, storagedriver=aufs
 			mhs-demo1: 192.168.99.105:2376
 			└ Containers: 1
 			└ Reserved CPUs: 0 / 1
 			└ Reserved Memory: 0 B / 1.021 GiB
-			└ Labels: executiondriver=native-0.2, kernelversion=4.1.10-boot2docker, operatingsystem=Boot2Docker 1.9.0-rc1 (TCL 6.4); master : 4187d2c - Wed Oct 14 14:00:28 UTC 2015, provider=VirtualBox, storagedriver=aufs
+			└ Labels: executiondriver=native-0.2, kernelversion=4.1.10-boot2docker, operatingsystem=Boot2Docker 1.9.0-rc1 (TCL 6.4); master : 4187d2c - Wed Oct 14 14:00:28 UTC 2015, provider=virtualbox, storagedriver=aufs
 			CPUs: 2
 			Total Memory: 2.043 GiB
 			Name: 30438ece0915
