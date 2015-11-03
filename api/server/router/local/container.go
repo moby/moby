@@ -63,7 +63,9 @@ func (s *router) getContainersStats(ctx context.Context, w http.ResponseWriter, 
 		w.Header().Set("Content-Type", "application/json")
 		out = w
 	} else {
-		out = ioutils.NewWriteFlusher(w)
+		wf := ioutils.NewWriteFlusher(w)
+		out = wf
+		defer wf.Close()
 	}
 
 	var closeNotifier <-chan bool
@@ -116,11 +118,16 @@ func (s *router) getContainersLogs(ctx context.Context, w http.ResponseWriter, r
 		return derr.ErrorCodeNoSuchContainer.WithArgs(containerName)
 	}
 
-	outStream := ioutils.NewWriteFlusher(w)
 	// write an empty chunk of data (this is to ensure that the
 	// HTTP Response is sent immediately, even if the container has
 	// not yet produced any data)
-	outStream.Write(nil)
+	w.WriteHeader(http.StatusOK)
+	if flusher, ok := w.(http.Flusher); ok {
+		flusher.Flush()
+	}
+
+	output := ioutils.NewWriteFlusher(w)
+	defer output.Close()
 
 	logsConfig := &daemon.ContainerLogsConfig{
 		Follow:     httputils.BoolValue(r, "follow"),
@@ -129,7 +136,7 @@ func (s *router) getContainersLogs(ctx context.Context, w http.ResponseWriter, r
 		Tail:       r.Form.Get("tail"),
 		UseStdout:  stdout,
 		UseStderr:  stderr,
-		OutStream:  outStream,
+		OutStream:  output,
 		Stop:       closeNotifier,
 	}
 

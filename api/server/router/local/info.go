@@ -52,16 +52,6 @@ func (s *router) getInfo(ctx context.Context, w http.ResponseWriter, r *http.Req
 	return httputils.WriteJSON(w, http.StatusOK, info)
 }
 
-func buildOutputEncoder(w http.ResponseWriter) *json.Encoder {
-	w.Header().Set("Content-Type", "application/json")
-	outStream := ioutils.NewWriteFlusher(w)
-	// Write an empty chunk of data.
-	// This is to ensure that the HTTP status code is sent immediately,
-	// so that it will not block the receiver.
-	outStream.Write(nil)
-	return json.NewEncoder(outStream)
-}
-
 func (s *router) getEvents(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
@@ -87,7 +77,19 @@ func (s *router) getEvents(ctx context.Context, w http.ResponseWriter, r *http.R
 		return err
 	}
 
-	enc := buildOutputEncoder(w)
+	w.Header().Set("Content-Type", "application/json")
+
+	// This is to ensure that the HTTP status code is sent immediately,
+	// so that it will not block the receiver.
+	w.WriteHeader(http.StatusOK)
+	if flusher, ok := w.(http.Flusher); ok {
+		flusher.Flush()
+	}
+
+	output := ioutils.NewWriteFlusher(w)
+	defer output.Close()
+
+	enc := json.NewEncoder(output)
 
 	current, l, cancel := s.daemon.SubscribeToEvents()
 	defer cancel()
