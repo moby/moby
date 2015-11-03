@@ -1,28 +1,26 @@
 <!--[metadata]>
 +++
-title = "Get started with images"
+title = "Build your own images"
 description = "How to work with Docker images."
 keywords = ["documentation, docs, the docker guide, docker guide, docker, docker platform, virtualization framework, docker.io, Docker images, Docker image, image management, Docker repos, Docker repositories, docker, docker tag, docker tags, Docker Hub,  collaboration"]
 [menu.main]
-parent = "smn_images"
-weight = 1
+parent = "smn_containers"
+weight = -4
 +++
 <![end-metadata]-->
 
-# Get started with images
+# Build your own images
 
-In the [introduction](../introduction/understanding-docker.md) we've discovered that Docker
-images are the basis of containers. In the
-[previous](dockerizing.md) [sections](usingdocker.md)
-we've used Docker images that already exist, for example the `ubuntu`
-image and the `training/webapp` image.
+Docker images are the basis of containers. Each time you've used `docker run`
+you told it which image you wanted. In the previous sections of the guide you
+used Docker images that already exist, for example the `ubuntu` image and the
+`training/webapp` image.
 
-We've also discovered that Docker stores downloaded images on the Docker
-host. If an image isn't already present on the host then it'll be
-downloaded from a registry: by default the
-[Docker Hub Registry](https://registry.hub.docker.com).
+You also discovered that Docker stores downloaded images on the Docker host. If
+an image isn't already present on the host then it'll be downloaded from a
+registry: by default the [Docker Hub Registry](https://registry.hub.docker.com).
 
-In this section we're going to explore Docker images a bit more
+In this section you're going to explore Docker images a bit more
 including:
 
 * Managing and working with images locally on your Docker host.
@@ -31,55 +29,40 @@ including:
 
 ## Listing images on the host
 
-Let's start with listing the images we have locally on our host. You can
+Let's start with listing the images you have locally on our host. You can
 do this using the `docker images` command like so:
 
     $ docker images
-    REPOSITORY       TAG      IMAGE ID      CREATED      VIRTUAL SIZE
-    training/webapp  latest   fc77f57ad303  3 weeks ago  280.5 MB
-    ubuntu           13.10    5e019ab7bf6d  4 weeks ago  180 MB
-    ubuntu           saucy    5e019ab7bf6d  4 weeks ago  180 MB
-    ubuntu           12.04    74fe38d11401  4 weeks ago  209.6 MB
-    ubuntu           precise  74fe38d11401  4 weeks ago  209.6 MB
-    ubuntu           12.10    a7cf8ae4e998  4 weeks ago  171.3 MB
-    ubuntu           quantal  a7cf8ae4e998  4 weeks ago  171.3 MB
-    ubuntu           14.04    99ec81b80c55  4 weeks ago  266 MB
-    ubuntu           latest   99ec81b80c55  4 weeks ago  266 MB
-    ubuntu           trusty   99ec81b80c55  4 weeks ago  266 MB
-    ubuntu           13.04    316b678ddf48  4 weeks ago  169.4 MB
-    ubuntu           raring   316b678ddf48  4 weeks ago  169.4 MB
-    ubuntu           10.04    3db9c44f4520  4 weeks ago  183 MB
-    ubuntu           lucid    3db9c44f4520  4 weeks ago  183 MB
+    REPOSITORY          TAG                 IMAGE ID            CREATED             VIRTUAL SIZE
+    ubuntu              14.04               1d073211c498        3 days ago          187.9 MB
+    busybox             latest              2c5ac3f849df        5 days ago          1.113 MB
+    training/webapp     latest              54bb4e8718e8        5 months ago        348.7 MB
 
-We can see the images we've previously used in our user guide.
-Each has been downloaded from [Docker Hub](https://hub.docker.com) when we
-launched a container using that image.
-
-We can see three crucial pieces of information about our images in the listing.
+You can see the images you've previously used in the user guide.
+Each has been downloaded from [Docker Hub](https://hub.docker.com) when you
+launched a container using that image. When you list images, you get three crucial pieces of information in the listing.
 
 * What repository they came from, for example `ubuntu`.
 * The tags for each image, for example `14.04`.
 * The image ID of each image.
 
-> **Note:**
-> Previously, the `docker images` command supported the `--tree` and `--dot`
-> arguments, which displayed different visualizations of the image data. Docker
-> core removed this functionality in the 1.7 version. If you liked this
-> functionality, you can still find it in
-> [the third-party dockviz tool](https://github.com/justone/dockviz).
+> **Tip:**
+> You can use [a third-party dockviz tool](https://github.com/justone/dockviz)
+> or the [Image layers site](https://imagelayers.io/) to display  
+> visualizations of image data.
 
 A repository potentially holds multiple variants of an image. In the case of
-our `ubuntu` image we can see multiple variants covering Ubuntu 10.04, 12.04,
+our `ubuntu` image you can see multiple variants covering Ubuntu 10.04, 12.04,
 12.10, 13.04, 13.10 and 14.04. Each variant is identified by a tag and you can
 refer to a tagged image like so:
 
     ubuntu:14.04
 
-So when we run a container we refer to a tagged image like so:
+So when you run a container you refer to a tagged image like so:
 
     $ docker run -t -i ubuntu:14.04 /bin/bash
 
-If instead we wanted to run an Ubuntu 12.04 image we'd use:
+If instead you wanted to run an Ubuntu 12.04 image you'd use:
 
     $ docker run -t -i ubuntu:12.04 /bin/bash
 
@@ -87,16 +70,16 @@ If you don't specify a variant, for example you just use `ubuntu`, then Docker
 will default to using the `ubuntu:latest` image.
 
 > **Tip:**
-> We recommend you always use a specific tagged image, for example
+> You recommend you always use a specific tagged image, for example
 > `ubuntu:12.04`. That way you always know exactly what variant of an image is
 > being used.
 
 ## Getting a new image
 
-So how do we get new images? Well Docker will automatically download any image
-we use that isn't already present on the Docker host. But this can potentially
-add some time to the launch of a container. If we want to pre-load an image we
-can download it using the `docker pull` command. Let's say we'd like to
+So how do you get new images? Well Docker will automatically download any image
+you use that isn't already present on the Docker host. But this can potentially
+add some time to the launch of a container. If you want to pre-load an image you
+can download it using the `docker pull` command. Suppose you'd like to
 download the `centos` image.
 
     $ docker pull centos
@@ -109,8 +92,8 @@ download the `centos` image.
 
     Status: Downloaded newer image for centos
 
-We can see that each layer of the image has been pulled down and now we
-can run a container from this image and we won't have to wait to
+You can see that each layer of the image has been pulled down and now you
+can run a container from this image and you won't have to wait to
 download the image.
 
     $ docker run -t -i centos /bin/bash
@@ -120,14 +103,14 @@ download the image.
 
 One of the features of Docker is that a lot of people have created Docker
 images for a variety of purposes. Many of these have been uploaded to
-[Docker Hub](https://hub.docker.com). We can search these images on the
+[Docker Hub](https://hub.docker.com). You can search these images on the
 [Docker Hub](https://hub.docker.com) website.
 
 ![indexsearch](search.png)
 
-We can also search for images on the command line using the `docker search`
-command. Let's say our team wants an image with Ruby and Sinatra installed on
-which to do our web application development. We can search for a suitable image
+You can also search for images on the command line using the `docker search`
+command. Suppose your team wants an image with Ruby and Sinatra installed on
+which to do our web application development. You can search for a suitable image
 by using the `docker search` command to find all the images that contain the
 term `sinatra`.
 
@@ -142,29 +125,29 @@ term `sinatra`.
     bmorearty/sinatra                                                                      0
     . . .
 
-We can see we've returned a lot of images that use the term `sinatra`. We've
-returned a list of image names, descriptions, Stars (which measure the social
-popularity of images - if a user likes an image then they can "star" it), and
-the Official and Automated build statuses.
-[Official Repositories](https://docs.docker.com/docker-hub/official_repos) are a carefully curated set
-of Docker repositories supported by Docker, Inc.  Automated repositories are
-[Automated Builds](dockerrepos.md#automated-builds) that allow you to
-validate the source and content of an image.
+You can see the command returns a lot of images that use the term `sinatra`.
+You've received a list of image names, descriptions, Stars (which measure the
+social popularity of images - if a user likes an image then they can "star" it),
+and the Official and Automated build statuses. [Official
+Repositories](https://docs.docker.com/docker-hub/official_repos) are a carefully
+curated set of Docker repositories supported by Docker, Inc.  Automated
+repositories are [Automated Builds](dockerrepos.md#automated-builds) that allow
+you to validate the source and content of an image.
 
-We've reviewed the images available to use and we decided to use the
-`training/sinatra` image. So far we've seen two types of images repositories,
+You've reviewed the images available to use and you decided to use the
+`training/sinatra` image. So far you've seen two types of images repositories,
 images like `ubuntu`, which are called base or root images. These base images
 are provided by Docker Inc and are built, validated and supported. These can be
 identified by their single word names.
 
-We've also seen user images, for example the `training/sinatra` image we've
+You've also seen user images, for example the `training/sinatra` image you've
 chosen. A user image belongs to a member of the Docker community and is built
 and maintained by them.  You can identify user images as they are always
 prefixed with the user name, here `training`, of the user that created them.
 
 ## Pulling our image
 
-We've identified a suitable image, `training/sinatra`, and now we can download it using the `docker pull` command.
+You've identified a suitable image, `training/sinatra`, and now you can download it using the `docker pull` command.
 
     $ docker pull training/sinatra
 
@@ -175,24 +158,24 @@ The team can now use this image by running their own containers.
 
 ## Creating our own images
 
-The team has found the `training/sinatra` image pretty useful but it's not quite what
-they need and we need to make some changes to it. There are two ways we can
-update and create images.
+The team has found the `training/sinatra` image pretty useful but it's not quite
+what they need and you need to make some changes to it. There are two ways you
+can update and create images.
 
-1. We can update a container created from an image and commit the results to an image.
-2. We can use a `Dockerfile` to specify instructions to create an image.
+1. You can update a container created from an image and commit the results to an image.
+2. You can use a `Dockerfile` to specify instructions to create an image.
 
 
 ### Updating and committing an image
 
-To update an image we first need to create a container from the image
-we'd like to update.
+To update an image you first need to create a container from the image
+you'd like to update.
 
     $ docker run -t -i training/sinatra /bin/bash
     root@0b2616b0e5a8:/#
 
 > **Note:**
-> Take note of the container ID that has been created, `0b2616b0e5a8`, as we'll
+> Take note of the container ID that has been created, `0b2616b0e5a8`, as you'll
 > need it in a moment.
 
 Inside our running container let's add the `json` gem.
@@ -202,7 +185,7 @@ Inside our running container let's add the `json` gem.
 Once this has completed let's exit our container using the `exit`
 command.
 
-Now we have a container with the change we want to make. We can then
+Now you have a container with the change you want to make. You can then
 commit a copy of this container to an image using the `docker commit`
 command.
 
@@ -210,23 +193,23 @@ command.
     0b2616b0e5a8 ouruser/sinatra:v2
     4f177bd27a9ff0f6dc2a830403925b5360bfe0b93d476f7fc3231110e7f71b1c
 
-Here we've used the `docker commit` command. We've specified two flags: `-m`
+Here you've used the `docker commit` command. You've specified two flags: `-m`
 and `-a`. The `-m` flag allows us to specify a commit message, much like you
 would with a commit on a version control system. The `-a` flag allows us to
 specify an author for our update.
 
-We've also specified the container we want to create this new image from,
-`0b2616b0e5a8` (the ID we recorded earlier) and we've specified a target for
+You've also specified the container you want to create this new image from,
+`0b2616b0e5a8` (the ID you recorded earlier) and you've specified a target for
 the image:
 
     ouruser/sinatra:v2
 
-Let's break this target down. It consists of a new user, `ouruser`, that we're
-writing this image to. We've also specified the name of the image, here we're
-keeping the original image name `sinatra`. Finally we're specifying a tag for
+Break this target down. It consists of a new user, `ouruser`, that you're
+writing this image to. You've also specified the name of the image, here you're
+keeping the original image name `sinatra`. Finally you're specifying a tag for
 the image: `v2`.
 
-We can then look at our new `ouruser/sinatra` image using the `docker images`
+You can then look at our new `ouruser/sinatra` image using the `docker images`
 command.
 
     $ docker images
@@ -235,7 +218,7 @@ command.
     ouruser/sinatra     v2      3c59e02ddd1a   10 hours ago  446.7 MB
     ouruser/sinatra     latest  5db5f8471261   10 hours ago  446.7 MB
 
-To use our new image to create a container we can then:
+To use our new image to create a container you can then:
 
     $ docker run -t -i ouruser/sinatra:v2 /bin/bash
     root@78e82f680994:/#
@@ -244,13 +227,13 @@ To use our new image to create a container we can then:
 
 Using the `docker commit` command is a pretty simple way of extending an image
 but it's a bit cumbersome and it's not easy to share a development process for
-images amongst a team. Instead we can use a new command, `docker build`, to
+images amongst a team. Instead you can use a new command, `docker build`, to
 build new images from scratch.
 
-To do this we create a `Dockerfile` that contains a set of instructions that
+To do this you create a `Dockerfile` that contains a set of instructions that
 tell Docker how to build our image.
 
-Let's create a directory and a `Dockerfile` first.
+First, create a directory and a `Dockerfile`.
 
     $ mkdir sinatra
     $ cd sinatra
@@ -259,8 +242,8 @@ Let's create a directory and a `Dockerfile` first.
 If you are using Docker Machine on Windows, you may access your host
 directory by `cd` to `/c/Users/your_user_name`.
 
-Each instruction creates a new layer of the image. Let's look at a simple
-example now for building our own Sinatra image for our development team.
+Each instruction creates a new layer of the image. Try a simple example now for
+building your own Sinatra image for your fictitious development team.
 
     # This is a comment
     FROM ubuntu:14.04
@@ -268,25 +251,22 @@ example now for building our own Sinatra image for our development team.
     RUN apt-get update && apt-get install -y ruby ruby-dev
     RUN gem install sinatra
 
-Let's look at what our `Dockerfile` does. Each instruction prefixes a statement and is capitalized.
+Examine what your `Dockerfile` does. Each instruction prefixes a statement and
+is capitalized.
 
     INSTRUCTION statement
 
-> **Note:**
-> We use `#` to indicate a comment
+> **Note:** You use `#` to indicate a comment
 
 The first instruction `FROM` tells Docker what the source of our image is, in
-this case we're basing our new image on an Ubuntu 14.04 image.
+this case you're basing our new image on an Ubuntu 14.04 image. The instruction uses the `MAINTAINER` instruction to specify who maintains the new image.
 
-Next we use the `MAINTAINER` instruction to specify who maintains our new image.
-
-Lastly, we've specified two `RUN` instructions. A `RUN` instruction executes
-a command inside the image, for example installing a package. Here we're
+Lastly, you've specified two `RUN` instructions. A `RUN` instruction executes
+a command inside the image, for example installing a package. Here you're
 updating our APT cache, installing Ruby and RubyGems and then installing the
 Sinatra gem.
 
-> **Note:**
-> There are [a lot more instructions available to us in a Dockerfile](../reference/builder.md).
+
 
 Now let's take our `Dockerfile` and use the `docker build` command to build an image.
 
@@ -454,26 +434,26 @@ Now let's take our `Dockerfile` and use the `docker build` command to build an i
     Removing intermediate container 6b81cb6313e5
     Successfully built 97feabe5d2ed
 
-We've specified our `docker build` command and used the `-t` flag to identify
+You've specified our `docker build` command and used the `-t` flag to identify
 our new image as belonging to the user `ouruser`, the repository name `sinatra`
 and given it the tag `v2`.
 
-We've also specified the location of our `Dockerfile` using the `.` to
+You've also specified the location of our `Dockerfile` using the `.` to
 indicate a `Dockerfile` in the current directory.
 
 > **Note:**
 > You can also specify a path to a `Dockerfile`.
 
-Now we can see the build process at work. The first thing Docker does is
+Now you can see the build process at work. The first thing Docker does is
 upload the build context: basically the contents of the directory you're
 building in. This is done because the Docker daemon does the actual
 build of the image and it needs the local context to do it.
 
-Next we can see each instruction in the `Dockerfile` being executed
-step-by-step. We can see that each step creates a new container, runs
+Next you can see each instruction in the `Dockerfile` being executed
+step-by-step. You can see that each step creates a new container, runs
 the instruction inside that container and then commits that change -
-just like the `docker commit` work flow we saw earlier. When all the
-instructions have executed we're left with the `97feabe5d2ed` image
+just like the `docker commit` work flow you saw earlier. When all the
+instructions have executed you're left with the `97feabe5d2ed` image
 (also helpfully tagged as `ouruser/sinatra:v2`) and all intermediate
 containers will get removed to clean things up.
 
@@ -482,7 +462,7 @@ containers will get removed to clean things up.
 > This limitation is set globally to encourage optimization of the overall
 > size of images.
 
-We can then create a container from our new image.
+You can then create a container from our new image.
 
     $ docker run -t -i ouruser/sinatra:v2 /bin/bash
     root@8196968dac35:/#
@@ -493,14 +473,14 @@ We can then create a container from our new image.
 > those instructions in later sections of the Guide or you can refer to the
 > [`Dockerfile`](../reference/builder.md) reference for a
 > detailed description and examples of every instruction.
-> To help you write a clear, readable, maintainable `Dockerfile`, we've also
+> To help you write a clear, readable, maintainable `Dockerfile`, you've also
 > written a [`Dockerfile` Best Practices guide](../articles/dockerfile_best-practices.md).
 
 
 ## Setting tags on an image
 
 You can also add a tag to an existing image after you commit or build it. We
-can do this using the `docker tag` command. Let's add a new tag to our
+can do this using the `docker tag` command. Now, add a new tag to your
 `ouruser/sinatra` image.
 
     $ docker tag 5db5f8471261 ouruser/sinatra:devel
@@ -508,7 +488,7 @@ can do this using the `docker tag` command. Let's add a new tag to our
 The `docker tag` command takes the ID of the image, here `5db5f8471261`, and our
 user name, the repository name and the new tag.
 
-Let's see our new tag using the `docker images` command.
+Now, see your new tag using the `docker images` command.
 
     $ docker images ouruser/sinatra
     REPOSITORY          TAG     IMAGE ID      CREATED        VIRTUAL SIZE
@@ -553,7 +533,7 @@ private repository](https://registry.hub.docker.com/plans/).
 You can also remove images on your Docker host in a way [similar to
 containers](usingdocker.md) using the `docker rmi` command.
 
-Let's delete the `training/sinatra` image as we don't need it anymore.
+Delete the `training/sinatra` image as you don't need it anymore.
 
     $ docker rmi training/sinatra
     Untagged: training/sinatra:latest
@@ -561,13 +541,13 @@ Let's delete the `training/sinatra` image as we don't need it anymore.
     Deleted: ed0fffdcdae5eb2c3a55549857a8be7fc8bc4241fb19ad714364cbfd7a56b22f
     Deleted: 5c58979d73ae448df5af1d8142436d81116187a7633082650549c52c3a2418f0
 
-> **Note:** In order to remove an image from the host, please make sure
+> **Note:** To remove an image from the host, please make sure
 > that there are no containers actively based on it.
 
 # Next steps
 
-Until now we've seen how to build individual applications inside Docker
+Until now you've seen how to build individual applications inside Docker
 containers. Now learn how to build whole application stacks with Docker
-by linking together multiple Docker containers.
+by networking together multiple Docker containers.
 
-Go to [Linking Containers Together](dockerlinks.md).
+Go to [Network containers](networkingcontainers.md).

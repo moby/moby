@@ -194,7 +194,7 @@ To get information on a container use its ID or instance name:
 
 To get the IP address of a container use:
 
-    $ docker inspect --format='{{.NetworkSettings.IPAddress}}' d2cc496561d6
+    $ docker inspect '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' d2cc496561d6
     172.17.0.2
 
 ## Listing all port bindings

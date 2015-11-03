@@ -81,8 +81,9 @@ format.
   URL of the distributed storage backend
 
 **--cluster-advertise**=""
-  Specifies the 'host:port' combination that this particular daemon instance should use when advertising
-  itself to the cluster. The daemon is reached by remote hosts on this 'host:port' combination.
+  Specifies the 'host:port' or `interface:port` combination that this particular
+  daemon instance should use when advertising itself to the cluster. The daemon
+  is reached through this value.
 
 **--cluster-store-opt**=""
   Specifies options for the Key/Value store.
