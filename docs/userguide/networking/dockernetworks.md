@@ -392,7 +392,7 @@ out-of-the-box. This support is accomplished with the help of `libnetwork`, a
 built-in VXLAN-based overlay network driver, and Docker's `libkv` library.
 
 The `overlay` network requires a valid key-value store service. Currently,
-Docker's supports Consul, Etcd, and Zookeeper (Distributed store). Before
+Docker's supports Consul, Etcd, and ZooKeeper (Distributed store). Before
 creating a network you must install and configure your chosen key-value store
 service. The Docker hosts that you intend to network and the service must be
 able to communicate.

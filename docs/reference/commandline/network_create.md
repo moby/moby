@@ -43,7 +43,7 @@ Engine, you must create an `overlay` network. Unlike `bridge` networks overlay
 networks require some pre-existing conditions before you can create one. These
 conditions are:
 
-* Access to a key-value store. Engine supports Consul, Etcd, and Zookeeper (Distributed store) key-value stores.
+* Access to a key-value store. Engine supports Consul, Etcd, and ZooKeeper (Distributed store) key-value stores.
 * A cluster of hosts with connectivity to the key-value store.
 * A properly configured Engine `daemon` on each host in the cluster.
 
