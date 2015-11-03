@@ -2712,6 +2712,12 @@ Content-Type: application/json
 {
   "Name":"isolated_nw",
   "Driver":"bridge"
+  "IPAM":{
+    "Config":[{
+      "Subnet":"172.20.0.0/16",
+      "IPRange":"172.20.10.0/24",
+      "Gateway":"172.20.10.11"
+    }]
 }
 ```
 
@@ -2737,6 +2743,7 @@ JSON Parameters:
 
 - **Name** - The new network's name. this is a mandatory field
 - **Driver** - Name of the network driver to use. Defaults to `bridge` driver
+- **IPAM** - Optional custom IP scheme for the network
 - **Options** - Network specific options to be used by the drivers
 - **CheckDuplicate** - Requests daemon to check for networks with same name
 

@@ -355,9 +355,9 @@ ports and the exposed ports, use `docker port`.
    Publish a container's port, or range of ports, to the host.
 
    Format: `ip:hostPort:containerPort | ip::containerPort | hostPort:containerPort | containerPort`
-Both hostPort and containerPort can be specified as a range of ports. 
+Both hostPort and containerPort can be specified as a range of ports.
 When specifying ranges for both, the number of container ports in the range must match the number of host ports in the range.
-(e.g., `docker run -p 1234-1236:1222-1224 --name thisWorks -t busybox` 
+(e.g., `docker run -p 1234-1236:1222-1224 --name thisWorks -t busybox`
 but not `docker run -p 1230-1236:1230-1240 --name RangeContainerPortsBiggerThanRangeHostPorts -t busybox`)
 With ip: `docker run -p 127.0.0.1:$HOSTPORT:$CONTAINERPORT --name CONTAINER -t someimage`
 Use `docker port` to see the actual mapping: `docker port CONTAINER $CONTAINERPORT`
@@ -437,17 +437,17 @@ standard input.
 ""--ulimit""=[]
     Ulimit options
 
-**-v**, **--volume**=[] Create a bind mount 
+**-v**, **--volume**=[] Create a bind mount
    (format: `[host-dir:]container-dir[:<suffix options>]`, where suffix options
 are comma delimited and selected from [rw|ro] and [z|Z].)
-   
+
    (e.g., using -v /host-dir:/container-dir, bind mounts /host-dir in the
 host to /container-dir in the Docker container)
-   
+
    If 'host-dir' is missing, then docker automatically creates the new volume
 on the host. **This auto-creation of the host path has been deprecated in
 Release: v1.9.**
-   
+
    The **-v** option can be used one or
 more times to add one or more mounts to a container. These mounts can then be
 used in other containers using the **--volumes-from** option.
@@ -469,31 +469,31 @@ content label. Shared volume labels allow all containers to read/write content.
 The `Z` option tells Docker to label the content with a private unshared label.
 Only the current container can use a private volume.
 
-The `container-dir` must always be an absolute path such as `/src/docs`. 
-The `host-dir` can either be an absolute path or a `name` value. If you 
-supply an absolute path for the `host-dir`, Docker bind-mounts to the path 
+The `container-dir` must always be an absolute path such as `/src/docs`.
+The `host-dir` can either be an absolute path or a `name` value. If you
+supply an absolute path for the `host-dir`, Docker bind-mounts to the path
 you specify. If you supply a `name`, Docker creates a named volume by that `name`.
 
-A `name` value must start with start with an alphanumeric character, 
-followed by `a-z0-9`, `_` (underscore), `.` (period) or `-` (hyphen). 
+A `name` value must start with start with an alphanumeric character,
+followed by `a-z0-9`, `_` (underscore), `.` (period) or `-` (hyphen).
 An absolute path starts with a `/` (forward slash).
 
-For example, you can specify either `/foo` or `foo` for a `host-dir` value. 
-If you supply the `/foo` value, Docker creates a bind-mount. If you supply 
+For example, you can specify either `/foo` or `foo` for a `host-dir` value.
+If you supply the `/foo` value, Docker creates a bind-mount. If you supply
 the `foo` specification, Docker creates a named volume.
 
 **--volumes-from**=[]
    Mount volumes from the specified container(s)
 
    Mounts already mounted volumes from a source container onto another
-   container. You must supply the source's container-id. To share 
+   container. You must supply the source's container-id. To share
    a volume, use the **--volumes-from** option when running
-   the target container. You can share volumes even if the source container 
+   the target container. You can share volumes even if the source container
    is not running.
 
-   By default, Docker mounts the volumes in the same mode (read-write or 
-   read-only) as it is mounted in the source container. Optionally, you 
-   can change this by suffixing the container-id with either the `:ro` or 
+   By default, Docker mounts the volumes in the same mode (read-write or
+   read-only) as it is mounted in the source container. Optionally, you
+   can change this by suffixing the container-id with either the `:ro` or
    `:rw ` keyword.
 
    If the location of the volume from the source container overlaps with
@@ -558,7 +558,7 @@ Now run a regular container, and it correctly does NOT see the shared memory seg
 ```
  $ docker run -it shm ipcs -m
 
- ------ Shared Memory Segments --------	
+ ------ Shared Memory Segments --------
  key        shmid      owner      perms      bytes      nattch     status      
 ```
 
@@ -636,6 +636,15 @@ Running the **env** command in the linker container shows environment variables
 
 When linking two containers Docker will use the exposed ports of the container
 to create a secure tunnel for the parent to access.
+
+If a container is connected to the default bridge network and `linked`
+with other containers, then the container's `/etc/hosts` file is updated
+with the linked container's name.
+
+> **Note** Since Docker may live update the container’s `/etc/hosts` file, there
+may be situations when processes inside the container can end up reading an
+empty or incomplete `/etc/hosts` file. In most cases, retrying the read again
+should fix the problem.
 
 
 ## Mapping Ports for External Usage
