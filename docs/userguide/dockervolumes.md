@@ -25,9 +25,7 @@ Docker.
 ## Data volumes
 
 A *data volume* is a specially-designated directory within one or more
-containers that bypasses the [*Union File
-System*](../reference/glossary.md#union-file-system). Data volumes provide several
-useful features for persistent or shared data:
+containers that bypasses the [*Union File System*](../reference/glossary.md#union-file-system). Data volumes provide several useful features for persistent or shared data:
 
 - Volumes are initialized when a container is created. If the container's
   base image contains data at the specified mount point, that existing data is
@@ -266,6 +264,12 @@ Then un-tar the backup file in the new container's data volume.
 
 You can use the techniques above to automate backup, migration and
 restore testing using your preferred tools.
+
+## Important tips on using shared volumes
+
+Multiple containers can also share one or more data volumes. However, multiple containers writing to a single shared volume can cause data corruption. Make sure you're applications are designed to write to shared data stores.
+
+Data volumes are directly accessible from the Docker host. This means you can read and write to them with normal Linux tools. In most cases you should not do this as it can cause data corruption if your containers and applications are unaware of your direct access.
 
 # Next steps
 
