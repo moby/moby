@@ -589,7 +589,7 @@ var Usage = func() {
 	PrintDefaults()
 }
 
-// Usage prints to standard error a usage message documenting the standard command layout
+// ShortUsage prints to standard error a usage message documenting the standard command layout
 // The function is a variable that may be changed to point to a custom function.
 var ShortUsage = func() {
 	fmt.Fprintf(CommandLine.output, "Usage of %s:\n", os.Args[0])

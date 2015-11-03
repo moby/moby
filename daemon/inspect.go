@@ -43,7 +43,12 @@ func (daemon *Daemon) ContainerInspect(name string, size bool) (*types.Container
 		Networks:               container.NetworkSettings.Networks,
 	}
 
-	return &types.ContainerJSON{base, mountPoints, container.Config, networkSettings}, nil
+	return &types.ContainerJSON{
+		ContainerJSONBase: base,
+		Mounts:            mountPoints,
+		Config:            container.Config,
+		NetworkSettings:   networkSettings,
+	}, nil
 }
 
 // ContainerInspect120 serializes the master version of a container into a json type.
@@ -63,15 +68,20 @@ func (daemon *Daemon) ContainerInspect120(name string) (*v1p20.ContainerJSON, er
 
 	mountPoints := addMountPoints(container)
 	config := &v1p20.ContainerConfig{
-		container.Config,
-		container.Config.MacAddress,
-		container.Config.NetworkDisabled,
-		container.Config.ExposedPorts,
-		container.hostConfig.VolumeDriver,
+		Config:          container.Config,
+		MacAddress:      container.Config.MacAddress,
+		NetworkDisabled: container.Config.NetworkDisabled,
+		ExposedPorts:    container.Config.ExposedPorts,
+		VolumeDriver:    container.hostConfig.VolumeDriver,
 	}
 	networkSettings := daemon.getBackwardsCompatibleNetworkSettings(container.NetworkSettings)
 
-	return &v1p20.ContainerJSON{base, mountPoints, config, networkSettings}, nil
+	return &v1p20.ContainerJSON{
+		ContainerJSONBase: base,
+		Mounts:            mountPoints,
+		Config:            config,
+		NetworkSettings:   networkSettings,
+	}, nil
 }
 
 func (daemon *Daemon) getInspectData(container *Container, size bool) (*types.ContainerJSONBase, error) {

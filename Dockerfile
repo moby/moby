@@ -102,8 +102,7 @@ ENV GOARM 5
 # ENV GOFMT_VERSION 1.3.3
 # RUN curl -sSL https://storage.googleapis.com/golang/go${GOFMT_VERSION}.$(go env GOOS)-$(go env GOARCH).tar.gz | tar -C /go/bin -xz --strip-components=2 go/bin/gofmt
 
-# Update this sha when we upgrade to go 1.5.0
-ENV GO_TOOLS_COMMIT 069d2f3bcb68257b627205f0486d6cc69a231ff9
+ENV GO_TOOLS_COMMIT 823804e1ae08dbb14eb807afc7db9993bc9e3cc3
 # Grab Go's cover tool for dead-simple code coverage testing
 # Grab Go's vet tool for examining go code to find suspicious constructs
 # and help prevent errors that the compiler might not catch
@@ -112,7 +111,7 @@ RUN git clone https://github.com/golang/tools.git /go/src/golang.org/x/tools \
 	&& go install -v golang.org/x/tools/cmd/cover \
 	&& go install -v golang.org/x/tools/cmd/vet
 # Grab Go's lint tool
-ENV GO_LINT_COMMIT f42f5c1c440621302702cb0741e9d2ca547ae80f
+ENV GO_LINT_COMMIT 32a87160691b3c96046c0c678fe57c5bef761456
 RUN git clone https://github.com/golang/lint.git /go/src/github.com/golang/lint \
 	&& (cd /go/src/github.com/golang/lint && git checkout -q $GO_LINT_COMMIT) \
 	&& go install -v github.com/golang/lint/golint
