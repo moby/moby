@@ -281,7 +281,7 @@ func (container *Container) exposes(p nat.Port) bool {
 	return exists
 }
 
-func (container *Container) getLogConfig() runconfig.LogConfig {
+func (container *Container) getLogConfig(defaultConfig runconfig.LogConfig) runconfig.LogConfig {
 	cfg := container.hostConfig.LogConfig
 	if cfg.Type != "" || len(cfg.Config) > 0 { // container has log driver configured
 		if cfg.Type == "" {
@@ -290,17 +290,11 @@ func (container *Container) getLogConfig() runconfig.LogConfig {
 		return cfg
 	}
 	// Use daemon's default log config for containers
-	return container.daemon.defaultLogConfig
+	return defaultConfig
 }
 
-func (container *Container) getLogger() (logger.Logger, error) {
-	if container.logDriver != nil && container.IsRunning() {
-		return container.logDriver, nil
-	}
-	cfg := container.getLogConfig()
-	if err := logger.ValidateLogOpts(cfg.Type, cfg.Config); err != nil {
-		return nil, err
-	}
+// StartLogger starts a new logger driver for the container.
+func (container *Container) StartLogger(cfg runconfig.LogConfig) (logger.Logger, error) {
 	c, err := logger.GetLogDriver(cfg.Type)
 	if err != nil {
 		return nil, derr.ErrorCodeLoggingFactory.WithArgs(err)
@@ -326,30 +320,6 @@ func (container *Container) getLogger() (logger.Logger, error) {
 		}
 	}
 	return c(ctx)
-}
-
-func (container *Container) startLogging() error {
-	cfg := container.getLogConfig()
-	if cfg.Type == "none" {
-		return nil // do not start logging routines
-	}
-
-	l, err := container.getLogger()
-	if err != nil {
-		return derr.ErrorCodeInitLogger.WithArgs(err)
-	}
-
-	copier := logger.NewCopier(container.ID, map[string]io.Reader{"stdout": container.StdoutPipe(), "stderr": container.StderrPipe()}, l)
-	container.logCopier = copier
-	copier.Run()
-	container.logDriver = l
-
-	// set LogPath field only for json-file logdriver
-	if jl, ok := l.(*jsonfilelog.JSONFileLogger); ok {
-		container.LogPath = jl.LogPath()
-	}
-
-	return nil
 }
 
 func (container *Container) getProcessLabel() string {

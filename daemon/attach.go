@@ -68,7 +68,7 @@ func (daemon *Daemon) ContainerWsAttachWithLogs(prefixOrName string, c *Containe
 
 func (daemon *Daemon) attachWithLogs(container *Container, stdin io.ReadCloser, stdout, stderr io.Writer, logs, stream bool) error {
 	if logs {
-		logDriver, err := container.getLogger()
+		logDriver, err := daemon.getLogger(container)
 		if err != nil {
 			return err
 		}

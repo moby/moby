@@ -23,6 +23,8 @@ type containerSupervisor interface {
 	LogContainerEvent(*Container, string)
 	// Cleanup ensures that the container is properly unmounted
 	Cleanup(*Container)
+	// StartLogging starts the logging driver for the container
+	StartLogging(*Container) error
 }
 
 // containerMonitor monitors the execution of a container's main process.
@@ -142,7 +144,7 @@ func (m *containerMonitor) Start() error {
 	for {
 		m.container.RestartCount++
 
-		if err := m.container.startLogging(); err != nil {
+		if err := m.supervisor.StartLogging(m.container); err != nil {
 			m.resetContainer(false)
 
 			return err
