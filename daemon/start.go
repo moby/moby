@@ -97,10 +97,10 @@ func (daemon *Daemon) containerStart(container *Container) (err error) {
 	// backwards API compatibility.
 	container.hostConfig = runconfig.SetDefaultNetModeIfBlank(container.hostConfig)
 
-	if err := container.initializeNetworking(); err != nil {
+	if err := daemon.initializeNetworking(container); err != nil {
 		return err
 	}
-	linkedEnv, err := container.setupLinkedContainers()
+	linkedEnv, err := daemon.setupLinkedContainers(container)
 	if err != nil {
 		return err
 	}
@@ -108,12 +108,12 @@ func (daemon *Daemon) containerStart(container *Container) (err error) {
 		return err
 	}
 	env := container.createDaemonEnvironment(linkedEnv)
-	if err := populateCommand(container, env); err != nil {
+	if err := daemon.populateCommand(container, env); err != nil {
 		return err
 	}
 
 	if !container.hostConfig.IpcMode.IsContainer() && !container.hostConfig.IpcMode.IsHost() {
-		if err := container.setupIpcDirs(); err != nil {
+		if err := daemon.setupIpcDirs(container); err != nil {
 			return err
 		}
 	}

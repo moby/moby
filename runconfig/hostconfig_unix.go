@@ -66,6 +66,15 @@ func (n NetworkMode) IsNone() bool {
 	return n == "none"
 }
 
+// ConnectedContainer is the id of the container which network this container is connected to.
+func (n NetworkMode) ConnectedContainer() string {
+	parts := strings.SplitN(string(n), ":", 2)
+	if len(parts) > 1 {
+		return parts[1]
+	}
+	return ""
+}
+
 // IsUserDefined indicates user-created network
 func (n NetworkMode) IsUserDefined() bool {
 	return !n.IsDefault() && !n.IsBridge() && !n.IsHost() && !n.IsNone() && !n.IsContainer()

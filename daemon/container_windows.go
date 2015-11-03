@@ -27,7 +27,7 @@ func killProcessDirectly(container *Container) error {
 	return nil
 }
 
-func (container *Container) setupLinkedContainers() ([]string, error) {
+func (daemon *Daemon) setupLinkedContainers(container *Container) ([]string, error) {
 	return nil, nil
 }
 
@@ -36,12 +36,12 @@ func (container *Container) createDaemonEnvironment(linkedEnv []string) []string
 	return container.Config.Env
 }
 
-func (container *Container) initializeNetworking() error {
+func (daemon *Daemon) initializeNetworking(container *Container) error {
 	return nil
 }
 
 // ConnectToNetwork connects a container to the network
-func (container *Container) ConnectToNetwork(idOrName string) error {
+func (daemon *Daemon) ConnectToNetwork(container *Container, idOrName string) error {
 	return nil
 }
 
@@ -54,7 +54,7 @@ func (container *Container) setupWorkingDirectory() error {
 	return nil
 }
 
-func populateCommand(c *Container, env []string) error {
+func (daemon *Daemon) populateCommand(c *Container, env []string) error {
 	en := &execdriver.Network{
 		Interface: nil,
 	}
@@ -66,7 +66,7 @@ func populateCommand(c *Container, env []string) error {
 		if !c.Config.NetworkDisabled {
 			en.Interface = &execdriver.NetworkInterface{
 				MacAddress:   c.Config.MacAddress,
-				Bridge:       c.daemon.configStore.Bridge.VirtualSwitchName,
+				Bridge:       daemon.configStore.Bridge.VirtualSwitchName,
 				PortBindings: c.hostConfig.PortBindings,
 
 				// TODO Windows. Include IPAddress. There already is a
@@ -99,22 +99,22 @@ func populateCommand(c *Container, env []string) error {
 	processConfig.Env = env
 
 	var layerPaths []string
-	img, err := c.daemon.graph.Get(c.ImageID)
+	img, err := daemon.graph.Get(c.ImageID)
 	if err != nil {
 		return derr.ErrorCodeGetGraph.WithArgs(c.ImageID, err)
 	}
-	for i := img; i != nil && err == nil; i, err = c.daemon.graph.GetParent(i) {
-		lp, err := c.daemon.driver.Get(i.ID, "")
+	for i := img; i != nil && err == nil; i, err = daemon.graph.GetParent(i) {
+		lp, err := daemon.driver.Get(i.ID, "")
 		if err != nil {
-			return derr.ErrorCodeGetLayer.WithArgs(c.daemon.driver.String(), i.ID, err)
+			return derr.ErrorCodeGetLayer.WithArgs(daemon.driver.String(), i.ID, err)
 		}
 		layerPaths = append(layerPaths, lp)
-		err = c.daemon.driver.Put(i.ID)
+		err = daemon.driver.Put(i.ID)
 		if err != nil {
-			return derr.ErrorCodePutLayer.WithArgs(c.daemon.driver.String(), i.ID, err)
+			return derr.ErrorCodePutLayer.WithArgs(daemon.driver.String(), i.ID, err)
 		}
 	}
-	m, err := c.daemon.driver.GetMetadata(c.ID)
+	m, err := daemon.driver.GetMetadata(c.ID)
 	if err != nil {
 		return derr.ErrorCodeGetLayerMetadata.WithArgs(err)
 	}
@@ -149,16 +149,16 @@ func (daemon *Daemon) getSize(container *Container) (int64, int64) {
 }
 
 // setNetworkNamespaceKey is a no-op on Windows.
-func (container *Container) setNetworkNamespaceKey(pid int) error {
+func (daemon *Daemon) setNetworkNamespaceKey(containerId string, pid int) error {
 	return nil
 }
 
 // allocateNetwork is a no-op on Windows.
-func (container *Container) allocateNetwork() error {
+func (daemon *Daemon) allocateNetwork(container *Container) error {
 	return nil
 }
 
-func (container *Container) updateNetwork() error {
+func (daemon *Daemon) updateNetwork(container *Container) error {
 	return nil
 }
 
@@ -172,7 +172,7 @@ func appendNetworkMounts(container *Container, volumeMounts []volume.MountPoint)
 	return volumeMounts, nil
 }
 
-func (container *Container) setupIpcDirs() error {
+func (daemon *Daemon) setupIpcDirs(container *Container) error {
 	return nil
 }
 
