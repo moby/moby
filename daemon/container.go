@@ -20,7 +20,6 @@ import (
 	"github.com/docker/docker/daemon/logger/jsonfilelog"
 	"github.com/docker/docker/daemon/network"
 	derr "github.com/docker/docker/errors"
-	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/broadcaster"
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/ioutils"
@@ -304,71 +303,6 @@ func validateID(id string) error {
 		return derr.ErrorCodeEmptyID
 	}
 	return nil
-}
-
-func (daemon *Daemon) containerCopy(container *Container, resource string) (rc io.ReadCloser, err error) {
-	container.Lock()
-
-	defer func() {
-		if err != nil {
-			// Wait to unlock the container until the archive is fully read
-			// (see the ReadCloseWrapper func below) or if there is an error
-			// before that occurs.
-			container.Unlock()
-		}
-	}()
-
-	if err := daemon.Mount(container); err != nil {
-		return nil, err
-	}
-
-	defer func() {
-		if err != nil {
-			// unmount any volumes
-			container.unmountVolumes(true)
-			// unmount the container's rootfs
-			daemon.Unmount(container)
-		}
-	}()
-
-	if err := container.mountVolumes(); err != nil {
-		return nil, err
-	}
-
-	basePath, err := container.GetResourcePath(resource)
-	if err != nil {
-		return nil, err
-	}
-	stat, err := os.Stat(basePath)
-	if err != nil {
-		return nil, err
-	}
-	var filter []string
-	if !stat.IsDir() {
-		d, f := filepath.Split(basePath)
-		basePath = d
-		filter = []string{f}
-	} else {
-		filter = []string{filepath.Base(basePath)}
-		basePath = filepath.Dir(basePath)
-	}
-	archive, err := archive.TarWithOptions(basePath, &archive.TarOptions{
-		Compression:  archive.Uncompressed,
-		IncludeFiles: filter,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	reader := ioutils.NewReadCloserWrapper(archive, func() error {
-		err := archive.Close()
-		container.unmountVolumes(true)
-		daemon.Unmount(container)
-		container.Unlock()
-		return err
-	})
-	daemon.logContainerEvent(container, "copy")
-	return reader, nil
 }
 
 // Returns true if the container exposes a certain port
