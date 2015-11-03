@@ -253,6 +253,37 @@ func (s *DockerSuite) TestRmiWithMultipleRepositories(c *check.C) {
 	}
 }
 
+func (s *DockerSuite) TestRmiForceWithMultipleRepositories(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	imageName := "rmiimage"
+	tag1 := imageName + ":tag1"
+	tag2 := imageName + ":tag2"
+
+	_, err := buildImage(tag1,
+		`FROM scratch
+		MAINTAINER "docker"`,
+		true)
+	if err != nil {
+		c.Fatal(err)
+	}
+
+	dockerCmd(c, "tag", tag1, tag2)
+
+	out, _ := dockerCmd(c, "rmi", "-f", tag2)
+	if !strings.Contains(out, "Untagged: "+tag2) {
+		c.Fatalf("should contain Untagged: %s", tag2)
+	}
+	if strings.Contains(out, "Untagged: "+tag1) {
+		c.Fatalf("should not contain Untagged: %s", tag1)
+	}
+
+	// Check built image still exists
+	images, _ := dockerCmd(c, "images", "-a")
+	if !strings.Contains(images, imageName) {
+		c.Fatalf("Built image missing %q; Images: %q", imageName, images)
+	}
+}
+
 func (s *DockerSuite) TestRmiBlank(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	// try to delete a blank image name
@@ -352,5 +383,17 @@ RUN echo 2 #layer2
 	if !strings.Contains(out, fmt.Sprintf("Untagged: %s:latest", newTag)) {
 		c.Log(out)
 		c.Fatalf("%q should be allowed to untag with the -f flag", newTag)
+	}
+}
+
+func (*DockerSuite) TestRmiParentImageFail(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	parent, err := inspectField("busybox", "Parent")
+	c.Assert(err, check.IsNil)
+	out, _, err := dockerCmdWithError("rmi", parent)
+	c.Assert(err, check.NotNil)
+	if !strings.Contains(out, "image has dependent child images") {
+		c.Fatalf("rmi should have failed because it's a parent image, got %s", out)
 	}
 }

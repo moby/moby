@@ -39,7 +39,7 @@ of another container. Of course, if the host system is setup
 accordingly, containers can interact with each other through their
 respective network interfaces — just like they can interact with
 external hosts. When you specify public ports for your containers or use
-[*links*](../userguide/dockerlinks.md)
+[*links*](../userguide/networking/default_network/dockerlinks.md)
 then IP traffic is allowed between containers. They can ping each other,
 send/receive UDP packets, and establish TCP connections, but that can be
 restricted if necessary. From a network architecture point of view, all
@@ -129,7 +129,7 @@ privilege separation.
 
 Eventually, it is expected that the Docker daemon will run restricted
 privileges, delegating operations well-audited sub-processes,
-each with its own (very limited) scope of Linux capabilities, 
+each with its own (very limited) scope of Linux capabilities,
 virtual network setup, filesystem management, etc. That is, most likely,
 pieces of the Docker engine itself will run inside of containers.
 

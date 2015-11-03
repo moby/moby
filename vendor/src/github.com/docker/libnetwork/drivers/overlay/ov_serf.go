@@ -48,6 +48,7 @@ func (d *driver) serfInit() error {
 	config.UserQuiescentPeriod = 50 * time.Millisecond
 
 	config.LogOutput = &logWriter{}
+	config.MemberlistConfig.LogOutput = config.LogOutput
 
 	s, err := serf.Create(config)
 	if err != nil {

@@ -90,6 +90,7 @@ func (s HTTPStore) GetMeta(name string, size int64) ([]byte, error) {
 	if resp.StatusCode == http.StatusNotFound {
 		return nil, ErrMetaNotFound{}
 	} else if resp.StatusCode != http.StatusOK {
+		logrus.Debugf("received HTTP status %d when requesting %s.", resp.StatusCode, name)
 		return nil, ErrServerUnavailable{code: resp.StatusCode}
 	}
 	if resp.ContentLength > size {
@@ -98,10 +99,6 @@ func (s HTTPStore) GetMeta(name string, size int64) ([]byte, error) {
 	logrus.Debugf("%d when retrieving metadata for %s", resp.StatusCode, name)
 	b := io.LimitReader(resp.Body, size)
 	body, err := ioutil.ReadAll(b)
-	if resp.ContentLength > 0 && int64(len(body)) < resp.ContentLength {
-		return nil, ErrShortRead{}
-	}
-
 	if err != nil {
 		return nil, err
 	}

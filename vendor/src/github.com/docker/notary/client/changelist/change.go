@@ -1,5 +1,9 @@
 package changelist
 
+import (
+	"github.com/endophage/gotuf/data"
+)
+
 // Scopes for TufChanges are simply the TUF roles.
 // Unfortunately because of targets delegations, we can only
 // cover the base roles.
@@ -10,6 +14,17 @@ const (
 	ScopeTimestamp = "timestamp"
 )
 
+// Types for TufChanges are namespaced by the Role they
+// are relevant for. The Root and Targets roles are the
+// only ones for which user action can cause a change, as
+// all changes in Snapshot and Timestamp are programatically
+// generated base on Root and Targets changes.
+const (
+	TypeRootRole          = "role"
+	TypeTargetsTarget     = "target"
+	TypeTargetsDelegation = "delegation"
+)
+
 // TufChange represents a change to a TUF repo
 type TufChange struct {
 	// Abbreviated because Go doesn't permit a field and method of the same name
@@ -18,6 +33,13 @@ type TufChange struct {
 	ChangeType string `json:"type"`
 	ChangePath string `json:"path"`
 	Data       []byte `json:"data"`
+}
+
+// TufRootData represents a modification of the keys associated
+// with a role that appears in the root.json
+type TufRootData struct {
+	Keys     []data.TUFKey `json:"keys"`
+	RoleName string        `json:"role"`
 }
 
 // NewTufChange initializes a tufChange object

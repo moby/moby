@@ -20,12 +20,12 @@ clone git github.com/tchap/go-patricia v2.1.0
 clone git golang.org/x/net 3cffabab72adf04f8e3b01c5baf775361837b5fe https://github.com/golang/net.git
 
 #get libnetwork packages
-clone git github.com/docker/libnetwork dd1c5f0ffe7697f75a82bd8e4bbd6f225ec5e383
+clone git github.com/docker/libnetwork e7719596c01a83f9ef24d33e9d609a64acacd7b8
 clone git github.com/armon/go-metrics eb0af217e5e9747e41dd5303755356b62d28e3ec
 clone git github.com/hashicorp/go-msgpack 71c2886f5a673a35f909803f38ece5810165097b
 clone git github.com/hashicorp/memberlist 9a1e242e454d2443df330bdd51a436d5a9058fc4
 clone git github.com/hashicorp/serf 7151adcef72687bf95f451a2e0ba15cb19412bf2
-clone git github.com/docker/libkv 749af6c5b3fb755bec1738cc5e0d3a6f1574d730
+clone git github.com/docker/libkv c2aac5dbbaa5c872211edea7c0f32b3bd67e7410
 clone git github.com/vishvananda/netns 604eaf189ee867d8c147fafc28def2394e878d25
 clone git github.com/vishvananda/netlink 4b5dce31de6d42af5bb9811c6d265472199e0fec
 clone git github.com/BurntSushi/toml f706d00e3de6abe700c994cdd545a1a4915af060
@@ -41,8 +41,8 @@ clone git github.com/boltdb/bolt v1.0
 clone git github.com/docker/distribution 20c4b7a1805a52753dfd593ee1cc35558722a0ce # docker/1.9 branch
 clone git github.com/vbatts/tar-split v0.9.10
 
-clone git github.com/docker/notary ac05822d7d71ef077df3fc24f506672282a1feea
-clone git github.com/endophage/gotuf 9bcdad0308e34a49f38448b8ad436ad8860825ce
+clone git github.com/docker/notary 089d8450d8928aa1c58fd03f09cabbde9bcb4590
+clone git github.com/endophage/gotuf 2df1c8e0a7b7e10ae2113bf37aaa1bf1c1de8cc5
 clone git github.com/jfrazelle/go 6e461eb70cb4187b41a84e9a567d7137bdbe0f16
 clone git github.com/agl/ed25519 d2b94fd789ea21d12fac1a4443dd3a3f79cda72c
 

@@ -89,15 +89,25 @@ func (container *Container) setupLinkedContainers() ([]string, error) {
 		return nil, err
 	}
 
+	bridgeSettings := container.NetworkSettings.Networks["bridge"]
+	if bridgeSettings == nil {
+		return nil, nil
+	}
+
 	if len(children) > 0 {
 		for linkAlias, child := range children {
 			if !child.IsRunning() {
 				return nil, derr.ErrorCodeLinkNotRunning.WithArgs(child.Name, linkAlias)
 			}
 
+			childBridgeSettings := child.NetworkSettings.Networks["bridge"]
+			if childBridgeSettings == nil {
+				return nil, fmt.Errorf("container %d not attached to default bridge network", child.ID)
+			}
+
 			link := links.NewLink(
-				container.NetworkSettings.IPAddress,
-				child.NetworkSettings.IPAddress,
+				bridgeSettings.IPAddress,
+				childBridgeSettings.IPAddress,
 				linkAlias,
 				child.Config.Env,
 				child.Config.ExposedPorts,
@@ -218,6 +228,12 @@ func populateCommand(c *Container, env []string) error {
 	} else {
 		ipc.HostIpc = c.hostConfig.IpcMode.IsHost()
 		if ipc.HostIpc {
+			if _, err := os.Stat("/dev/shm"); err != nil {
+				return fmt.Errorf("/dev/shm is not mounted, but must be for --host=ipc")
+			}
+			if _, err := os.Stat("/dev/mqueue"); err != nil {
+				return fmt.Errorf("/dev/mqueue is not mounted, but must be for --host=ipc")
+			}
 			c.ShmPath = "/dev/shm"
 			c.MqueuePath = "/dev/mqueue"
 		}
@@ -525,6 +541,9 @@ func (container *Container) buildSandboxOptions(n libnetwork.Network) ([]libnetw
 	}
 
 	for linkAlias, child := range children {
+		if !isLinkable(child) {
+			return nil, fmt.Errorf("Cannot link to %s, as it does not belong to the default network", child.Name)
+		}
 		_, alias := path.Split(linkAlias)
 		// allow access to the linked container via the alias, real name, and container hostname
 		aliasList := alias + " " + child.Config.Hostname
@@ -532,13 +551,14 @@ func (container *Container) buildSandboxOptions(n libnetwork.Network) ([]libnetw
 		if alias != child.Name[1:] {
 			aliasList = aliasList + " " + child.Name[1:]
 		}
-		sboxOptions = append(sboxOptions, libnetwork.OptionExtraHost(aliasList, child.NetworkSettings.IPAddress))
+		sboxOptions = append(sboxOptions, libnetwork.OptionExtraHost(aliasList, child.NetworkSettings.Networks["bridge"].IPAddress))
 		cEndpoint, _ := child.getEndpointInNetwork(n)
 		if cEndpoint != nil && cEndpoint.ID() != "" {
 			childEndpoints = append(childEndpoints, cEndpoint.ID())
 		}
 	}
 
+	bridgeSettings := container.NetworkSettings.Networks["bridge"]
 	refs := container.daemon.containerGraph().RefPaths(container.ID)
 	for _, ref := range refs {
 		if ref.ParentID == "0" {
@@ -551,8 +571,8 @@ func (container *Container) buildSandboxOptions(n libnetwork.Network) ([]libnetw
 		}
 
 		if c != nil && !container.daemon.configStore.DisableBridge && container.hostConfig.NetworkMode.IsPrivate() {
-			logrus.Debugf("Update /etc/hosts of %s for alias %s with ip %s", c.ID, ref.Name, container.NetworkSettings.IPAddress)
-			sboxOptions = append(sboxOptions, libnetwork.OptionParentUpdate(c.ID, ref.Name, container.NetworkSettings.IPAddress))
+			logrus.Debugf("Update /etc/hosts of %s for alias %s with ip %s", c.ID, ref.Name, bridgeSettings.IPAddress)
+			sboxOptions = append(sboxOptions, libnetwork.OptionParentUpdate(c.ID, ref.Name, bridgeSettings.IPAddress))
 			if ep.ID() != "" {
 				parentEndpoints = append(parentEndpoints, ep.ID())
 			}
@@ -569,6 +589,12 @@ func (container *Container) buildSandboxOptions(n libnetwork.Network) ([]libnetw
 	sboxOptions = append(sboxOptions, libnetwork.OptionGeneric(linkOptions))
 
 	return sboxOptions, nil
+}
+
+func isLinkable(child *Container) bool {
+	// A container is linkable only if it belongs to the default network
+	_, ok := child.NetworkSettings.Networks["bridge"]
+	return ok
 }
 
 func (container *Container) getEndpointInNetwork(n libnetwork.Network) (libnetwork.Endpoint, error) {
@@ -593,10 +619,6 @@ func (container *Container) buildPortMapInfo(ep libnetwork.Endpoint, networkSett
 	if driverInfo == nil {
 		// It is not an error for epInfo to be nil
 		return networkSettings, nil
-	}
-
-	if mac, ok := driverInfo[netlabel.MacAddress]; ok {
-		networkSettings.MacAddress = mac.(net.HardwareAddr).String()
 	}
 
 	networkSettings.Ports = nat.PortMap{}
@@ -632,7 +654,7 @@ func (container *Container) buildPortMapInfo(ep libnetwork.Endpoint, networkSett
 	return networkSettings, nil
 }
 
-func (container *Container) buildEndpointInfo(ep libnetwork.Endpoint, networkSettings *network.Settings) (*network.Settings, error) {
+func (container *Container) buildEndpointInfo(n libnetwork.Network, ep libnetwork.Endpoint, networkSettings *network.Settings) (*network.Settings, error) {
 	if ep == nil {
 		return nil, derr.ErrorCodeEmptyEndpoint
 	}
@@ -647,36 +669,50 @@ func (container *Container) buildEndpointInfo(ep libnetwork.Endpoint, networkSet
 		return networkSettings, nil
 	}
 
+	if _, ok := networkSettings.Networks[n.Name()]; !ok {
+		networkSettings.Networks[n.Name()] = new(network.EndpointSettings)
+	}
+	networkSettings.Networks[n.Name()].EndpointID = ep.ID()
+
 	iface := epInfo.Iface()
 	if iface == nil {
 		return networkSettings, nil
 	}
 
+	if iface.MacAddress() != nil {
+		networkSettings.Networks[n.Name()].MacAddress = iface.MacAddress().String()
+	}
+
 	if iface.Address() != nil {
 		ones, _ := iface.Address().Mask.Size()
-		networkSettings.IPAddress = iface.Address().IP.String()
-		networkSettings.IPPrefixLen = ones
+		networkSettings.Networks[n.Name()].IPAddress = iface.Address().IP.String()
+		networkSettings.Networks[n.Name()].IPPrefixLen = ones
 	}
 
 	if iface.AddressIPv6() != nil && iface.AddressIPv6().IP.To16() != nil {
 		onesv6, _ := iface.AddressIPv6().Mask.Size()
-		networkSettings.GlobalIPv6Address = iface.AddressIPv6().IP.String()
-		networkSettings.GlobalIPv6PrefixLen = onesv6
+		networkSettings.Networks[n.Name()].GlobalIPv6Address = iface.AddressIPv6().IP.String()
+		networkSettings.Networks[n.Name()].GlobalIPv6PrefixLen = onesv6
 	}
 
 	return networkSettings, nil
 }
 
-func (container *Container) updateJoinInfo(ep libnetwork.Endpoint) error {
+func (container *Container) updateJoinInfo(n libnetwork.Network, ep libnetwork.Endpoint) error {
+	if _, err := container.buildPortMapInfo(ep, container.NetworkSettings); err != nil {
+		return err
+	}
+
 	epInfo := ep.Info()
 	if epInfo == nil {
 		// It is not an error to get an empty endpoint info
 		return nil
 	}
-
-	container.NetworkSettings.Gateway = epInfo.Gateway().String()
+	if epInfo.Gateway() != nil {
+		container.NetworkSettings.Networks[n.Name()].Gateway = epInfo.Gateway().String()
+	}
 	if epInfo.GatewayIPv6().To16() != nil {
-		container.NetworkSettings.IPv6Gateway = epInfo.GatewayIPv6().String()
+		container.NetworkSettings.Networks[n.Name()].IPv6Gateway = epInfo.GatewayIPv6().String()
 	}
 
 	return nil
@@ -684,11 +720,10 @@ func (container *Container) updateJoinInfo(ep libnetwork.Endpoint) error {
 
 func (container *Container) updateNetworkSettings(n libnetwork.Network) error {
 	if container.NetworkSettings == nil {
-		container.NetworkSettings = &network.Settings{Networks: []string{}}
+		container.NetworkSettings = &network.Settings{Networks: make(map[string]*network.EndpointSettings)}
 	}
-	settings := container.NetworkSettings
 
-	for _, s := range settings.Networks {
+	for s := range container.NetworkSettings.Networks {
 		sn, err := container.daemon.FindNetwork(s)
 		if err != nil {
 			continue
@@ -707,18 +742,13 @@ func (container *Container) updateNetworkSettings(n libnetwork.Network) error {
 			return runconfig.ErrConflictNoNetwork
 		}
 	}
-	settings.Networks = append(settings.Networks, n.Name())
+	container.NetworkSettings.Networks[n.Name()] = new(network.EndpointSettings)
 
 	return nil
 }
 
 func (container *Container) updateEndpointNetworkSettings(n libnetwork.Network, ep libnetwork.Endpoint) error {
-	networkSettings, err := container.buildPortMapInfo(ep, container.NetworkSettings)
-	if err != nil {
-		return err
-	}
-
-	networkSettings, err = container.buildEndpointInfo(ep, networkSettings)
+	networkSettings, err := container.buildEndpointInfo(n, ep, container.NetworkSettings)
 	if err != nil {
 		return err
 	}
@@ -749,7 +779,7 @@ func (container *Container) updateNetwork() error {
 
 	// Find if container is connected to the default bridge network
 	var n libnetwork.Network
-	for _, name := range container.NetworkSettings.Networks {
+	for name := range container.NetworkSettings.Networks {
 		sn, err := container.daemon.FindNetwork(name)
 		if err != nil {
 			continue
@@ -777,7 +807,7 @@ func (container *Container) updateNetwork() error {
 	return nil
 }
 
-func (container *Container) buildCreateEndpointOptions() ([]libnetwork.EndpointOption, error) {
+func (container *Container) buildCreateEndpointOptions(n libnetwork.Network) ([]libnetwork.EndpointOption, error) {
 	var (
 		portSpecs     = make(nat.PortSet)
 		bindings      = make(nat.PortMap)
@@ -855,6 +885,10 @@ func (container *Container) buildCreateEndpointOptions() ([]libnetwork.EndpointO
 		createOptions = append(createOptions, libnetwork.EndpointOptionGeneric(genericOption))
 	}
 
+	if n.Name() == "bridge" || container.NetworkSettings.IsAnonymousEndpoint {
+		createOptions = append(createOptions, libnetwork.CreateOptionAnonymous())
+	}
+
 	return createOptions, nil
 }
 
@@ -875,11 +909,16 @@ func createNetwork(controller libnetwork.NetworkController, dnet string, driver 
 }
 
 func (container *Container) allocateNetwork() error {
-	settings := container.NetworkSettings.Networks
+	controller := container.daemon.netController
+
+	// Cleanup any stale sandbox left over due to ungraceful daemon shutdown
+	if err := controller.SandboxDestroy(container.ID); err != nil {
+		logrus.Errorf("failed to cleanup up stale network sandbox for container %s", container.ID)
+	}
+
 	updateSettings := false
-	if settings == nil {
+	if len(container.NetworkSettings.Networks) == 0 {
 		mode := container.hostConfig.NetworkMode
-		controller := container.daemon.netController
 		if container.Config.NetworkDisabled || mode.IsContainer() {
 			return nil
 		}
@@ -888,21 +927,30 @@ func (container *Container) allocateNetwork() error {
 		if mode.IsDefault() {
 			networkName = controller.Config().Daemon.DefaultNetwork
 		}
-		settings = []string{networkName}
+		container.NetworkSettings.Networks = make(map[string]*network.EndpointSettings)
+		container.NetworkSettings.Networks[networkName] = new(network.EndpointSettings)
 		updateSettings = true
 	}
 
-	for _, n := range settings {
+	for n := range container.NetworkSettings.Networks {
 		if err := container.connectToNetwork(n, updateSettings); err != nil {
-			if updateSettings {
-				return err
-			}
-			// dont fail a container restart case if the user removed the network
-			logrus.Warnf("Could not connect container %s : %v", container.ID, err)
+			return err
 		}
 	}
 
 	return container.writeHostConfig()
+}
+
+func (container *Container) getNetworkSandbox() libnetwork.Sandbox {
+	var sb libnetwork.Sandbox
+	container.daemon.netController.WalkSandboxes(func(s libnetwork.Sandbox) bool {
+		if s.ContainerID() == container.ID {
+			sb = s
+			return true
+		}
+		return false
+	})
+	return sb
 }
 
 // ConnectToNetwork connects a container to a netork
@@ -910,10 +958,18 @@ func (container *Container) ConnectToNetwork(idOrName string) error {
 	if !container.Running {
 		return derr.ErrorCodeNotRunning.WithArgs(container.ID)
 	}
-	return container.connectToNetwork(idOrName, true)
+	if err := container.connectToNetwork(idOrName, true); err != nil {
+		return err
+	}
+	if err := container.toDiskLocking(); err != nil {
+		return fmt.Errorf("Error saving container to disk: %v", err)
+	}
+	return nil
 }
 
 func (container *Container) connectToNetwork(idOrName string, updateSettings bool) error {
+	var err error
+
 	if container.hostConfig.NetworkMode.IsContainer() {
 		return runconfig.ErrConflictSharedNetwork
 	}
@@ -938,35 +994,37 @@ func (container *Container) connectToNetwork(idOrName string, updateSettings boo
 	}
 
 	ep, err := container.getEndpointInNetwork(n)
-	if err != nil {
-		if _, ok := err.(libnetwork.ErrNoSuchEndpoint); !ok {
-			return err
-		}
-
-		createOptions, err := container.buildCreateEndpointOptions()
-		if err != nil {
-			return err
-		}
-
-		endpointName := strings.TrimPrefix(container.Name, "/")
-		ep, err = n.CreateEndpoint(endpointName, createOptions...)
-		if err != nil {
-			return err
-		}
+	if err == nil {
+		return fmt.Errorf("container already connected to network %s", idOrName)
 	}
+
+	if _, ok := err.(libnetwork.ErrNoSuchEndpoint); !ok {
+		return err
+	}
+
+	createOptions, err := container.buildCreateEndpointOptions(n)
+	if err != nil {
+		return err
+	}
+
+	endpointName := strings.TrimPrefix(container.Name, "/")
+	ep, err = n.CreateEndpoint(endpointName, createOptions...)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err != nil {
+			if e := ep.Delete(); e != nil {
+				logrus.Warnf("Could not rollback container connection to network %s", idOrName)
+			}
+		}
+	}()
 
 	if err := container.updateEndpointNetworkSettings(n, ep); err != nil {
 		return err
 	}
 
-	var sb libnetwork.Sandbox
-	controller.WalkSandboxes(func(s libnetwork.Sandbox) bool {
-		if s.ContainerID() == container.ID {
-			sb = s
-			return true
-		}
-		return false
-	})
+	sb := container.getNetworkSandbox()
 	if sb == nil {
 		options, err := container.buildSandboxOptions(n)
 		if err != nil {
@@ -976,15 +1034,15 @@ func (container *Container) connectToNetwork(idOrName string, updateSettings boo
 		if err != nil {
 			return err
 		}
-	}
 
-	container.updateSandboxNetworkSettings(sb)
+		container.updateSandboxNetworkSettings(sb)
+	}
 
 	if err := ep.Join(sb); err != nil {
 		return err
 	}
 
-	if err := container.updateJoinInfo(ep); err != nil {
+	if err := container.updateJoinInfo(n, ep); err != nil {
 		return derr.ErrorCodeJoinInfo.WithArgs(err)
 	}
 
@@ -1111,6 +1169,9 @@ func (container *Container) releaseNetwork() {
 
 	sid := container.NetworkSettings.SandboxID
 	networks := container.NetworkSettings.Networks
+	for n := range networks {
+		networks[n] = &network.EndpointSettings{}
+	}
 
 	container.NetworkSettings = &network.Settings{Networks: networks}
 
@@ -1124,14 +1185,6 @@ func (container *Container) releaseNetwork() {
 		return
 	}
 
-	for _, ns := range networks {
-		n, err := container.daemon.FindNetwork(ns)
-		if err != nil {
-			continue
-		}
-		container.disconnectFromNetwork(n, false)
-	}
-
 	if err := sb.Delete(); err != nil {
 		logrus.Errorf("Error deleting sandbox id %s for container %s: %v", sid, container.ID, err)
 	}
@@ -1143,10 +1196,17 @@ func (container *Container) DisconnectFromNetwork(n libnetwork.Network) error {
 		return derr.ErrorCodeNotRunning.WithArgs(container.ID)
 	}
 
-	return container.disconnectFromNetwork(n, true)
+	if err := container.disconnectFromNetwork(n); err != nil {
+		return err
+	}
+
+	if err := container.toDiskLocking(); err != nil {
+		return fmt.Errorf("Error saving container to disk: %v", err)
+	}
+	return nil
 }
 
-func (container *Container) disconnectFromNetwork(n libnetwork.Network, updateSettings bool) error {
+func (container *Container) disconnectFromNetwork(n libnetwork.Network) error {
 	var (
 		ep   libnetwork.Endpoint
 		sbox libnetwork.Sandbox
@@ -1176,20 +1236,7 @@ func (container *Container) disconnectFromNetwork(n libnetwork.Network, updateSe
 		return fmt.Errorf("endpoint delete failed for container %s on network %s: %v", container.ID, n.Name(), err)
 	}
 
-	if updateSettings {
-		networks := container.NetworkSettings.Networks
-		for i, s := range networks {
-			sn, err := container.daemon.FindNetwork(s)
-			if err != nil {
-				continue
-			}
-			if sn.Name() == n.Name() {
-				networks = append(networks[:i], networks[i+1:]...)
-				container.NetworkSettings.Networks = networks
-				break
-			}
-		}
-	}
+	delete(container.NetworkSettings.Networks, n.Name())
 	return nil
 }
 

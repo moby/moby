@@ -9,9 +9,10 @@ import (
 
 func TestParseDockerDaemonHost(t *testing.T) {
 	var (
-		defaultHTTPHost = "tcp://127.0.0.1:2376"
-		defaultUnix     = "/var/run/docker.sock"
-		defaultHOST     = "unix:///var/run/docker.sock"
+		defaultHTTPHost  = "tcp://localhost:2375"
+		defaultHTTPSHost = "tcp://localhost:2376"
+		defaultUnix      = "/var/run/docker.sock"
+		defaultHOST      = "unix:///var/run/docker.sock"
 	)
 	if runtime.GOOS == "windows" {
 		defaultHOST = defaultHTTPHost
@@ -28,30 +29,33 @@ func TestParseDockerDaemonHost(t *testing.T) {
 		"fd":   "Invalid bind address format: fd",
 	}
 	valids := map[string]string{
-		"0.0.0.1:":                "tcp://0.0.0.1:2376",
+		"0.0.0.1:":                "tcp://0.0.0.1:2375",
 		"0.0.0.1:5555":            "tcp://0.0.0.1:5555",
 		"0.0.0.1:5555/path":       "tcp://0.0.0.1:5555/path",
-		":6666":                   "tcp://127.0.0.1:6666",
-		":6666/path":              "tcp://127.0.0.1:6666/path",
+		":6666":                   "tcp://localhost:6666",
+		":6666/path":              "tcp://localhost:6666/path",
 		"":                        defaultHOST,
 		" ":                       defaultHOST,
 		"  ":                      defaultHOST,
 		"tcp://":                  defaultHTTPHost,
-		"tcp://:7777":             "tcp://127.0.0.1:7777",
-		"tcp://:7777/path":        "tcp://127.0.0.1:7777/path",
-		" tcp://:7777/path ":      "tcp://127.0.0.1:7777/path",
+		"tcp://:7777":             "tcp://localhost:7777",
+		"tcp://:7777/path":        "tcp://localhost:7777/path",
+		" tcp://:7777/path ":      "tcp://localhost:7777/path",
 		"unix:///run/docker.sock": "unix:///run/docker.sock",
 		"unix://":                 "unix:///var/run/docker.sock",
 		"fd://":                   "fd://",
 		"fd://something":          "fd://something",
+		"localhost:":              "tcp://localhost:2375",
+		"localhost:5555":          "tcp://localhost:5555",
+		"localhost:5555/path":     "tcp://localhost:5555/path",
 	}
 	for invalidAddr, expectedError := range invalids {
-		if addr, err := ParseDockerDaemonHost(defaultHTTPHost, defaultUnix, invalidAddr); err == nil || err.Error() != expectedError {
+		if addr, err := ParseDockerDaemonHost(defaultHTTPHost, defaultHTTPSHost, defaultUnix, "", invalidAddr); err == nil || err.Error() != expectedError {
 			t.Errorf("tcp %v address expected error %v return, got %s and addr %v", invalidAddr, expectedError, err, addr)
 		}
 	}
 	for validAddr, expectedAddr := range valids {
-		if addr, err := ParseDockerDaemonHost(defaultHTTPHost, defaultUnix, validAddr); err != nil || addr != expectedAddr {
+		if addr, err := ParseDockerDaemonHost(defaultHTTPHost, defaultHTTPSHost, defaultUnix, "", validAddr); err != nil || addr != expectedAddr {
 			t.Errorf("%v -> expected %v, got (%v) addr (%v)", validAddr, expectedAddr, err, addr)
 		}
 	}

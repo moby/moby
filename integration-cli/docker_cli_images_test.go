@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/go-check/check"
 )
@@ -50,7 +51,6 @@ func (s *DockerSuite) TestImagesEnsureImageWithBadTagIsNotListed(c *check.C) {
 	if strings.Contains(out, "busybox") {
 		c.Fatal("images should not have listed busybox")
 	}
-
 }
 
 func (s *DockerSuite) TestImagesOrderedByCreationDate(c *check.C) {
@@ -195,5 +195,53 @@ func (s *DockerSuite) TestImagesEnsureDanglingImageOnlyListedOnce(c *check.C) {
 	out, _ = dockerCmd(c, "images", "-q", "-f", "dangling=true")
 	if e, a := 1, strings.Count(out, imageID); e != a {
 		c.Fatalf("expected 1 dangling image, got %d: %s", a, out)
+	}
+}
+
+func (s *DockerSuite) TestImagesWithIncorrectFilter(c *check.C) {
+	out, _, err := dockerCmdWithError("images", "-f", "dangling=invalid")
+	c.Assert(err, check.NotNil)
+	c.Assert(out, checker.Contains, "Invalid filter")
+}
+
+func (s *DockerSuite) TestImagesEnsureOnlyHeadsImagesShown(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	dockerfile := `
+        FROM scratch
+        MAINTAINER docker
+        ENV foo bar`
+
+	head, out, err := buildImageWithOut("scratch-image", dockerfile, false)
+	c.Assert(err, check.IsNil)
+
+	// this is just the output of docker build
+	// we're interested in getting the image id of the MAINTAINER instruction
+	// and that's located at output, line 5, from 7 to end
+	split := strings.Split(out, "\n")
+	intermediate := strings.TrimSpace(split[5][7:])
+
+	out, _ = dockerCmd(c, "images")
+	if strings.Contains(out, intermediate) {
+		c.Fatalf("images shouldn't show non-heads images, got %s in %s", intermediate, out)
+	}
+	if !strings.Contains(out, head[:12]) {
+		c.Fatalf("images should contain final built images, want %s in out, got %s", head[:12], out)
+	}
+}
+
+func (s *DockerSuite) TestImagesEnsureImagesFromScratchShown(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	dockerfile := `
+        FROM scratch
+        MAINTAINER docker`
+
+	id, _, err := buildImageWithOut("scratch-image", dockerfile, false)
+	c.Assert(err, check.IsNil)
+
+	out, _ := dockerCmd(c, "images")
+	if !strings.Contains(out, id[:12]) {
+		c.Fatalf("images should contain images built from scratch (e.g. %s), got %s", id[:12], out)
 	}
 }

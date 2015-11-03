@@ -35,7 +35,7 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 
 	fmt.Fprintf(cli.out, "Containers: %d\n", info.Containers)
 	fmt.Fprintf(cli.out, "Images: %d\n", info.Images)
-	fmt.Fprintf(cli.out, "Engine Version: %s\n", info.ServerVersion)
+	ioutils.FprintfIfNotEmpty(cli.out, "Server Version: %s\n", info.ServerVersion)
 	ioutils.FprintfIfNotEmpty(cli.out, "Storage Driver: %s\n", info.Driver)
 	if info.DriverStatus != nil {
 		for _, pair := range info.DriverStatus {
@@ -107,5 +107,8 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 		fmt.Fprintf(cli.out, "Cluster store: %s\n", info.ClusterStore)
 	}
 
+	if info.ClusterAdvertise != "" {
+		fmt.Fprintf(cli.out, "Cluster advertise: %s\n", info.ClusterAdvertise)
+	}
 	return nil
 }

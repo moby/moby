@@ -114,9 +114,6 @@ func (daemon *Daemon) adaptContainerSettings(hostConfig *runconfig.HostConfig, a
 		// By default, MemorySwap is set to twice the size of Memory.
 		hostConfig.MemorySwap = hostConfig.Memory * 2
 	}
-	if hostConfig.MemoryReservation == 0 && hostConfig.Memory > 0 {
-		hostConfig.MemoryReservation = hostConfig.Memory
-	}
 }
 
 // verifyPlatformContainerSettings performs platform-specific validation of the
@@ -341,6 +338,9 @@ func (daemon *Daemon) networkOptions(dconfig *Config) ([]nwconfig.Option, error)
 		options = append(options, nwconfig.OptionKVProvider(kv[0]))
 		options = append(options, nwconfig.OptionKVProviderURL(strings.Join(kv[1:], "://")))
 	}
+	if len(dconfig.ClusterOpts) > 0 {
+		options = append(options, nwconfig.OptionKVOpts(dconfig.ClusterOpts))
+	}
 
 	if daemon.discoveryWatcher != nil {
 		options = append(options, nwconfig.OptionDiscoveryWatcher(daemon.discoveryWatcher))
@@ -441,6 +441,8 @@ func initBridgeDriver(controller libnetwork.NetworkController, config *Config) e
 			return err
 		}
 		ipamV4Conf.Gateway = ip.String()
+	} else if bridgeName == bridge.DefaultBridgeName && ipamV4Conf.PreferredPool != "" {
+		logrus.Infof("Default bridge (%s) is assigned with an IP address %s. Daemon option --bip can be used to set a preferred IP address", bridgeName, ipamV4Conf.PreferredPool)
 	}
 
 	if config.Bridge.FixedCIDR != "" {

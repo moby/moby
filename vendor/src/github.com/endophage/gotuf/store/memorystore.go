@@ -31,7 +31,15 @@ type memoryStore struct {
 }
 
 func (m *memoryStore) GetMeta(name string, size int64) ([]byte, error) {
-	return m.meta[name], nil
+	d, ok := m.meta[name]
+	if ok {
+		if int64(len(d)) < size {
+			return d, nil
+		}
+		return d[:size], nil
+	} else {
+		return nil, ErrMetaNotFound{}
+	}
 }
 
 func (m *memoryStore) SetMeta(name string, meta []byte) error {

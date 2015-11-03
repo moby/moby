@@ -34,6 +34,7 @@ func (cli *DockerCli) CmdNetwork(args ...string) error {
 func (cli *DockerCli) CmdNetworkCreate(args ...string) error {
 	cmd := Cli.Subcmd("network create", []string{"NETWORK-NAME"}, "Creates a new network with a name specified by the user", false)
 	flDriver := cmd.String([]string{"d", "-driver"}, "bridge", "Driver to manage the Network")
+	flOpts := opts.NewMapOpts(nil, nil)
 
 	flIpamDriver := cmd.String([]string{"-ipam-driver"}, "default", "IP Address Management Driver")
 	flIpamSubnet := opts.NewListOpts(nil)
@@ -41,15 +42,23 @@ func (cli *DockerCli) CmdNetworkCreate(args ...string) error {
 	flIpamGateway := opts.NewListOpts(nil)
 	flIpamAux := opts.NewMapOpts(nil, nil)
 
-	cmd.Var(&flIpamSubnet, []string{"-subnet"}, "Subnet in CIDR format that represents a network segment")
+	cmd.Var(&flIpamSubnet, []string{"-subnet"}, "subnet in CIDR format that represents a network segment")
 	cmd.Var(&flIpamIPRange, []string{"-ip-range"}, "allocate container ip from a sub-range")
 	cmd.Var(&flIpamGateway, []string{"-gateway"}, "ipv4 or ipv6 Gateway for the master subnet")
-	cmd.Var(flIpamAux, []string{"-aux-address"}, "Auxiliary ipv4 or ipv6 addresses used by network driver")
+	cmd.Var(flIpamAux, []string{"-aux-address"}, "auxiliary ipv4 or ipv6 addresses used by Network driver")
+	cmd.Var(flOpts, []string{"o", "-opt"}, "set driver specific options")
 
 	cmd.Require(flag.Exact, 1)
 	err := cmd.ParseFlags(args, true)
 	if err != nil {
 		return err
+	}
+
+	// Set the default driver to "" if the user didn't set the value.
+	// That way we can know whether it was user input or not.
+	driver := *flDriver
+	if !cmd.IsSet("-driver") && !cmd.IsSet("d") {
+		driver = ""
 	}
 
 	ipamCfg, err := consolidateIpam(flIpamSubnet.GetAll(), flIpamIPRange.GetAll(), flIpamGateway.GetAll(), flIpamAux.GetAll())
@@ -60,8 +69,9 @@ func (cli *DockerCli) CmdNetworkCreate(args ...string) error {
 	// Construct network create request body
 	nc := types.NetworkCreate{
 		Name:           cmd.Arg(0),
-		Driver:         *flDriver,
+		Driver:         driver,
 		IPAM:           network.IPAM{Driver: *flIpamDriver, Config: ipamCfg},
+		Options:        flOpts.GetAll(),
 		CheckDuplicate: true,
 	}
 	obj, _, err := readBody(cli.call("POST", "/networks/create", nc, nil))
@@ -181,31 +191,48 @@ func (cli *DockerCli) CmdNetworkLs(args ...string) error {
 
 // CmdNetworkInspect inspects the network object for more details
 //
-// Usage: docker network inspect <NETWORK>
-// CmdNetworkInspect handles Network inspect UI
+// Usage: docker network inspect [OPTIONS] <NETWORK> [NETWORK...]
 func (cli *DockerCli) CmdNetworkInspect(args ...string) error {
-	cmd := Cli.Subcmd("network inspect", []string{"NETWORK"}, "Displays detailed information on a network", false)
-	cmd.Require(flag.Exact, 1)
+	cmd := Cli.Subcmd("network inspect", []string{"NETWORK [NETWORK...]"}, "Displays detailed information on a network", false)
+	cmd.Require(flag.Min, 1)
 	err := cmd.ParseFlags(args, true)
 	if err != nil {
 		return err
 	}
 
-	obj, _, err := readBody(cli.call("GET", "/networks/"+cmd.Arg(0), nil, nil))
+	status := 0
+	var networks []*types.NetworkResource
+	for _, name := range cmd.Args() {
+		obj, _, err := readBody(cli.call("GET", "/networks/"+name, nil, nil))
+		if err != nil {
+			if strings.Contains(err.Error(), "not found") {
+				fmt.Fprintf(cli.err, "Error: No such network: %s\n", name)
+			} else {
+				fmt.Fprintf(cli.err, "%s", err)
+			}
+			status = 1
+			continue
+		}
+		networkResource := types.NetworkResource{}
+		if err := json.NewDecoder(bytes.NewReader(obj)).Decode(&networkResource); err != nil {
+			return err
+		}
+
+		networks = append(networks, &networkResource)
+	}
+
+	b, err := json.MarshalIndent(networks, "", "    ")
 	if err != nil {
 		return err
 	}
-	networkResource := &types.NetworkResource{}
-	if err := json.NewDecoder(bytes.NewReader(obj)).Decode(networkResource); err != nil {
-		return err
-	}
 
-	indented := new(bytes.Buffer)
-	if err := json.Indent(indented, obj, "", "    "); err != nil {
+	if _, err := io.Copy(cli.out, bytes.NewReader(b)); err != nil {
 		return err
 	}
-	if _, err := io.Copy(cli.out, indented); err != nil {
-		return err
+	io.WriteString(cli.out, "\n")
+
+	if status != 0 {
+		return Cli.StatusError{StatusCode: status}
 	}
 	return nil
 }

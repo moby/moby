@@ -1,6 +1,8 @@
 package graph
 
 import (
+	"bufio"
+	"compress/gzip"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -18,6 +20,8 @@ import (
 	"github.com/docker/docker/utils"
 	"golang.org/x/net/context"
 )
+
+const compressionBufSize = 32768
 
 type v2Pusher struct {
 	*TagStore
@@ -169,15 +173,17 @@ func (p *v2Pusher) pushV2Tag(tag string) error {
 		// if digest was empty or not saved, or if blob does not exist on the remote repository,
 		// then fetch it.
 		if !exists {
-			if pushDigest, err := p.pushV2Image(p.repo.Blobs(context.Background()), layer); err != nil {
+			var pushDigest digest.Digest
+			if pushDigest, err = p.pushV2Image(p.repo.Blobs(context.Background()), layer); err != nil {
 				return err
-			} else if pushDigest != dgst {
+			}
+			if dgst == "" {
 				// Cache new checksum
 				if err := p.graph.SetLayerDigest(layer.ID, pushDigest); err != nil {
 					return err
 				}
-				dgst = pushDigest
 			}
+			dgst = pushDigest
 		}
 
 		// read v1Compatibility config, generate new if needed
@@ -236,11 +242,8 @@ func (p *v2Pusher) pushV2Image(bs distribution.BlobService, img *image.Image) (d
 	}
 	defer layerUpload.Close()
 
-	digester := digest.Canonical.New()
-	tee := io.TeeReader(arch, digester.Hash())
-
 	reader := progressreader.New(progressreader.Config{
-		In:        ioutil.NopCloser(tee), // we'll take care of close here.
+		In:        ioutil.NopCloser(arch), // we'll take care of close here.
 		Out:       out,
 		Formatter: p.sf,
 
@@ -254,8 +257,33 @@ func (p *v2Pusher) pushV2Image(bs distribution.BlobService, img *image.Image) (d
 		Action:   "Pushing",
 	})
 
+	digester := digest.Canonical.New()
+	// HACK: The MultiWriter doesn't write directly to layerUpload because
+	// we must make sure the ReadFrom is used, not Write. Using Write would
+	// send a PATCH request for every Write call.
+	pipeReader, pipeWriter := io.Pipe()
+	// Use a bufio.Writer to avoid excessive chunking in HTTP request.
+	bufWriter := bufio.NewWriterSize(io.MultiWriter(pipeWriter, digester.Hash()), compressionBufSize)
+	compressor := gzip.NewWriter(bufWriter)
+
+	go func() {
+		_, err := io.Copy(compressor, reader)
+		if err == nil {
+			err = compressor.Close()
+		}
+		if err == nil {
+			err = bufWriter.Flush()
+		}
+		if err != nil {
+			pipeWriter.CloseWithError(err)
+		} else {
+			pipeWriter.Close()
+		}
+	}()
+
 	out.Write(p.sf.FormatProgress(stringid.TruncateID(img.ID), "Pushing", nil))
-	nn, err := io.Copy(layerUpload, reader)
+	nn, err := layerUpload.ReadFrom(pipeReader)
+	pipeReader.Close()
 	if err != nil {
 		return "", err
 	}

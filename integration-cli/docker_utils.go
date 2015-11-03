@@ -26,7 +26,9 @@ import (
 	"github.com/docker/docker/pkg/httputils"
 	"github.com/docker/docker/pkg/integration"
 	"github.com/docker/docker/pkg/ioutils"
+	"github.com/docker/docker/pkg/sockets"
 	"github.com/docker/docker/pkg/stringutils"
+	"github.com/docker/docker/pkg/tlsconfig"
 	"github.com/go-check/check"
 )
 
@@ -37,19 +39,26 @@ type Daemon struct {
 	Command     string
 	GlobalFlags []string
 
-	id             string
-	c              *check.C
-	logFile        *os.File
-	folder         string
-	root           string
-	stdin          io.WriteCloser
-	stdout, stderr io.ReadCloser
-	cmd            *exec.Cmd
-	storageDriver  string
-	execDriver     string
-	wait           chan error
-	userlandProxy  bool
-	useDefaultHost bool
+	id                string
+	c                 *check.C
+	logFile           *os.File
+	folder            string
+	root              string
+	stdin             io.WriteCloser
+	stdout, stderr    io.ReadCloser
+	cmd               *exec.Cmd
+	storageDriver     string
+	execDriver        string
+	wait              chan error
+	userlandProxy     bool
+	useDefaultHost    bool
+	useDefaultTLSHost bool
+}
+
+type clientConfig struct {
+	transport *http.Transport
+	scheme    string
+	addr      string
 }
 
 // NewDaemon returns a Daemon instance to be used for testing.
@@ -92,6 +101,50 @@ func NewDaemon(c *check.C) *Daemon {
 	}
 }
 
+func (d *Daemon) getClientConfig() (*clientConfig, error) {
+	var (
+		transport *http.Transport
+		scheme    string
+		addr      string
+		proto     string
+	)
+	if d.useDefaultTLSHost {
+		option := &tlsconfig.Options{
+			CAFile:   "fixtures/https/ca.pem",
+			CertFile: "fixtures/https/client-cert.pem",
+			KeyFile:  "fixtures/https/client-key.pem",
+		}
+		tlsConfig, err := tlsconfig.Client(*option)
+		if err != nil {
+			return nil, err
+		}
+		transport = &http.Transport{
+			TLSClientConfig: tlsConfig,
+		}
+		addr = fmt.Sprintf("%s:%d", opts.DefaultHTTPHost, opts.DefaultTLSHTTPPort)
+		scheme = "https"
+		proto = "tcp"
+	} else if d.useDefaultHost {
+		addr = opts.DefaultUnixSocket
+		proto = "unix"
+		scheme = "http"
+		transport = &http.Transport{}
+	} else {
+		addr = filepath.Join(d.folder, "docker.sock")
+		proto = "unix"
+		scheme = "http"
+		transport = &http.Transport{}
+	}
+
+	sockets.ConfigureTCPTransport(transport, proto, addr)
+
+	return &clientConfig{
+		transport: transport,
+		scheme:    scheme,
+		addr:      addr,
+	}, nil
+}
+
 // Start will start the daemon and return once it is ready to receive requests.
 // You can specify additional daemon flags.
 func (d *Daemon) Start(arg ...string) error {
@@ -106,7 +159,7 @@ func (d *Daemon) Start(arg ...string) error {
 		"--pidfile", fmt.Sprintf("%s/docker.pid", d.folder),
 		fmt.Sprintf("--userland-proxy=%t", d.userlandProxy),
 	)
-	if !d.useDefaultHost {
+	if !(d.useDefaultHost || d.useDefaultTLSHost) {
 		args = append(args, []string{"--host", d.sock()}...)
 	}
 	if root := os.Getenv("DOCKER_REMAP_ROOT"); root != "" {
@@ -170,27 +223,21 @@ func (d *Daemon) Start(arg ...string) error {
 		case <-time.After(2 * time.Second):
 			return fmt.Errorf("[%s] timeout: daemon does not respond", d.id)
 		case <-tick:
-			var (
-				c   net.Conn
-				err error
-			)
-			if d.useDefaultHost {
-				c, err = net.Dial("unix", "/var/run/docker.sock")
-			} else {
-				c, err = net.Dial("unix", filepath.Join(d.folder, "docker.sock"))
-			}
+			clientConfig, err := d.getClientConfig()
 			if err != nil {
-				continue
+				return err
 			}
 
-			client := httputil.NewClientConn(c, nil)
-			defer client.Close()
+			client := &http.Client{
+				Transport: clientConfig.transport,
+			}
 
 			req, err := http.NewRequest("GET", "/_ping", nil)
 			if err != nil {
 				d.c.Fatalf("[%s] could not create new request: %v", d.id, err)
 			}
-
+			req.URL.Host = clientConfig.addr
+			req.URL.Scheme = clientConfig.scheme
 			resp, err := client.Do(req)
 			if err != nil {
 				continue
@@ -301,34 +348,28 @@ func (d *Daemon) Restart(arg ...string) error {
 func (d *Daemon) queryRootDir() (string, error) {
 	// update daemon root by asking /info endpoint (to support user
 	// namespaced daemon with root remapped uid.gid directory)
-	var (
-		conn net.Conn
-		err  error
-	)
-	if d.useDefaultHost {
-		conn, err = net.Dial("unix", "/var/run/docker.sock")
-	} else {
-		conn, err = net.Dial("unix", filepath.Join(d.folder, "docker.sock"))
-	}
+	clientConfig, err := d.getClientConfig()
 	if err != nil {
 		return "", err
 	}
-	client := httputil.NewClientConn(conn, nil)
+
+	client := &http.Client{
+		Transport: clientConfig.transport,
+	}
 
 	req, err := http.NewRequest("GET", "/info", nil)
 	if err != nil {
-		client.Close()
 		return "", err
 	}
 	req.Header.Set("Content-Type", "application/json")
+	req.URL.Host = clientConfig.addr
+	req.URL.Scheme = clientConfig.scheme
 
 	resp, err := client.Do(req)
 	if err != nil {
-		client.Close()
 		return "", err
 	}
 	body := ioutils.NewReadCloserWrapper(resp.Body, func() error {
-		defer client.Close()
 		return resp.Body.Close()
 	})
 
@@ -504,6 +545,42 @@ func deleteAllContainers() error {
 		return err
 	}
 	return nil
+}
+
+func deleteAllNetworks() error {
+	networks, err := getAllNetworks()
+	if err != nil {
+		return err
+	}
+	var errors []string
+	for _, n := range networks {
+		if n.Name != "bridge" {
+			status, b, err := sockRequest("DELETE", "/networks/"+n.Name, nil)
+			if err != nil {
+				errors = append(errors, err.Error())
+				continue
+			}
+			if status != http.StatusNoContent {
+				errors = append(errors, fmt.Sprintf("error deleting network %s: %s", n.Name, string(b)))
+			}
+		}
+	}
+	if len(errors) > 0 {
+		return fmt.Errorf(strings.Join(errors, "\n"))
+	}
+	return nil
+}
+
+func getAllNetworks() ([]types.NetworkResource, error) {
+	var networks []types.NetworkResource
+	_, b, err := sockRequest("GET", "/networks", nil)
+	if err != nil {
+		return nil, err
+	}
+	if err := json.Unmarshal(b, &networks); err != nil {
+		return nil, err
+	}
+	return networks, nil
 }
 
 func deleteAllVolumes() error {
@@ -717,19 +794,17 @@ func dockerCmdInDirWithTimeout(timeout time.Duration, path string, args ...strin
 	return integration.DockerCmdInDirWithTimeout(dockerBinary, timeout, path, args...)
 }
 
-func findContainerIP(c *check.C, id string, vargs ...string) string {
-	args := append(vargs, "inspect", "--format='{{ .NetworkSettings.IPAddress }}'", id)
-	cmd := exec.Command(dockerBinary, args...)
-	out, _, err := runCommandWithOutput(cmd)
-	if err != nil {
-		c.Fatal(err, out)
-	}
-
+func findContainerIP(c *check.C, id string, network string) string {
+	out, _ := dockerCmd(c, "inspect", fmt.Sprintf("--format='{{ .NetworkSettings.Networks.%s.IPAddress }}'", network), id)
 	return strings.Trim(out, " \r\n'")
 }
 
 func (d *Daemon) findContainerIP(id string) string {
-	return findContainerIP(d.c, id, "--host", d.sock())
+	out, err := d.Cmd("inspect", fmt.Sprintf("--format='{{ .NetworkSettings.Networks.bridge.IPAddress }}'"), id)
+	if err != nil {
+		d.c.Log(err)
+	}
+	return strings.Trim(out, " \r\n'")
 }
 
 func getContainerCount() (int, error) {
@@ -1516,4 +1591,12 @@ func waitInspect(name, expr, expected string, timeout time.Duration) error {
 		time.Sleep(100 * time.Millisecond)
 	}
 	return nil
+}
+
+func getInspectBody(c *check.C, version, id string) []byte {
+	endpoint := fmt.Sprintf("/%s/containers/%s/json", version, id)
+	status, body, err := sockRequest("GET", endpoint, nil)
+	c.Assert(err, check.IsNil)
+	c.Assert(status, check.Equals, http.StatusOK)
+	return body
 }

@@ -166,7 +166,7 @@ func (s *DockerSuite) TestLinksUpdateOnRestart(c *check.C) {
 	out, _ := dockerCmd(c, "run", "-d", "--name", "two", "--link", "one:onetwo", "--link", "one:one", "busybox", "top")
 	id := strings.TrimSpace(string(out))
 
-	realIP, err := inspectField("one", "NetworkSettings.IPAddress")
+	realIP, err := inspectField("one", "NetworkSettings.Networks.bridge.IPAddress")
 	if err != nil {
 		c.Fatal(err)
 	}
@@ -189,10 +189,9 @@ func (s *DockerSuite) TestLinksUpdateOnRestart(c *check.C) {
 		c.Fatalf("For 'onetwo' alias expected IP: %s, got: %s", realIP, ip)
 	}
 	dockerCmd(c, "restart", "one")
-	realIP, err = inspectField("one", "NetworkSettings.IPAddress")
-	if err != nil {
-		c.Fatal(err)
-	}
+	realIP, err = inspectField("one", "NetworkSettings.Networks.bridge.IPAddress")
+	c.Assert(err, check.IsNil)
+
 	content, err = readContainerFileWithExec(id, "/etc/hosts")
 	if err != nil {
 		c.Fatal(err, string(content))

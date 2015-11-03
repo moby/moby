@@ -150,10 +150,11 @@ RUN set -x \
 	&& rm -rf "$GOPATH"
 
 # Get the "docker-py" source so we can run their integration tests
-ENV DOCKER_PY_COMMIT 139850f3f3b17357bab5ba3edfb745fb14043764
+ENV DOCKER_PY_COMMIT 47ab89ec2bd3bddf1221b856ffbaff333edeabb4
 RUN git clone https://github.com/docker/docker-py.git /docker-py \
 	&& cd /docker-py \
-	&& git checkout -q $DOCKER_PY_COMMIT
+	&& git checkout -q $DOCKER_PY_COMMIT \
+	&& pip install -r test-requirements.txt
 
 # Setup s3cmd config
 RUN { \

@@ -21,7 +21,7 @@ and Command Line Tools](http://docs.aws.amazon.com/cli/latest/reference/logs/ind
 You can configure the default logging driver by passing the `--log-driver`
 option to the Docker daemon:
 
-    docker --log-driver=awslogs
+    docker daemon --log-driver=awslogs
 
 You can set the logging driver for a specific container by using the
 `--log-driver` option to `docker run`:

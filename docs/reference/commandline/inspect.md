@@ -33,14 +33,14 @@ describes all the details of the format.
 For the most part, you can pick out any field from the JSON in a fairly
 straightforward manner.
 
-    $ docker inspect --format='{{.NetworkSettings.IPAddress}}' $INSTANCE_ID
+    $ docker inspect --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $INSTANCE_ID
 
 **Get an instance's MAC Address:**
 
 For the most part, you can pick out any field from the JSON in a fairly
 straightforward manner.
 
-    $ docker inspect --format='{{.NetworkSettings.MacAddress}}' $INSTANCE_ID
+    $ docker inspect '{{range .NetworkSettings.Networks}}{{.MacAddress}}{{end}}' $INSTANCE_ID
 
 **Get an instance's log path:**
 
@@ -58,7 +58,7 @@ output:
 The `.Field` syntax doesn't work when the field name begins with a
 number, but the template language's `index` function does. The
 `.NetworkSettings.Ports` section contains a map of the internal port
-mappings to a list of external address/port objects, so to grab just the
+mappings to a list of external address/port objects. To grab just the
 numeric public port, you use `index` to find the specific port map, and
 then `index` 0 contains the first object inside of that. Then we ask for
 the `HostPort` field to get the public address.

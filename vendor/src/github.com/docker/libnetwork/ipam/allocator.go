@@ -84,10 +84,6 @@ func (a *Allocator) refresh(as string) error {
 		return nil
 	}
 
-	if err := a.updateBitMasks(aSpace); err != nil {
-		return fmt.Errorf("error updating bit masks during init: %v", err)
-	}
-
 	a.Lock()
 	a.addrSpaces[as] = aSpace
 	a.Unlock()
@@ -199,7 +195,7 @@ func (a *Allocator) getAddrSpace(as string) (*addrSpace, error) {
 	defer a.Unlock()
 	aSpace, ok := a.addrSpaces[as]
 	if !ok {
-		return nil, types.BadRequestErrorf("cannot find address space %s (most likey the backing datastore is not configured)", as)
+		return nil, types.BadRequestErrorf("cannot find address space %s (most likely the backing datastore is not configured)", as)
 	}
 	return aSpace, nil
 }
@@ -250,11 +246,6 @@ func (a *Allocator) insertBitMask(key SubnetKey, pool *net.IPNet) error {
 	ones, bits := pool.Mask.Size()
 	numAddresses := uint64(1 << uint(bits-ones))
 
-	if ipVer == v4 {
-		// Do not let broadcast address be reserved
-		numAddresses--
-	}
-
 	// Allow /64 subnet
 	if ipVer == v6 && numAddresses == 0 {
 		numAddresses--
@@ -269,6 +260,11 @@ func (a *Allocator) insertBitMask(key SubnetKey, pool *net.IPNet) error {
 	// Do not let network identifier address be reserved
 	// Do the same for IPv6 so that bridge ip starts with XXXX...::1
 	h.Set(0)
+
+	// Do not let broadcast address be reserved
+	if ipVer == v4 {
+		h.Set(numAddresses - 1)
+	}
 
 	a.Lock()
 	a.addresses[key] = h

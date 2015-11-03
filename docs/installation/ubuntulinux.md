@@ -49,13 +49,13 @@ your `apt` sources to the new Docker repository.
 Docker's `apt` repository contains Docker 1.7.1 and higher. To set `apt` to use
 packages from the new repository:
 
-1. If you haven't already done so, log into your Ubuntu instance.
+1. If you haven't already done so, log into your Ubuntu instance as a privileged user.
 
 2. Open a terminal window.
 
 3. Add the new `gpg` key.
 
-        $ apt-key adv --keyserver hkp://pgp.mit.edu:80 --recv-keys 58118E89F3A912897C070ADBF76221572C52609D
+        $ sudo apt-key adv --keyserver hkp://pgp.mit.edu:80 --recv-keys 58118E89F3A912897C070ADBF76221572C52609D
 
 4. Open the `/etc/apt/sources.list.d/docker.list` file in your favorite editor.
 

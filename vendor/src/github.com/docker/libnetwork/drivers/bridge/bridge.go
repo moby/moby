@@ -338,16 +338,11 @@ func (c *networkConfiguration) conflictsWithNetworks(id string, others []*bridge
 }
 
 func (d *driver) configure(option map[string]interface{}) error {
-	var config *configuration
-	var err error
-
-	err = d.initStore(option)
-	if err != nil {
-		return err
-	}
-
-	d.Lock()
-	defer d.Unlock()
+	var (
+		config                *configuration
+		err                   error
+		natChain, filterChain *iptables.ChainInfo
+	)
 
 	genericData, ok := option[netlabel.GenericData]
 	if !ok || genericData == nil {
@@ -375,13 +370,23 @@ func (d *driver) configure(option map[string]interface{}) error {
 	}
 
 	if config.EnableIPTables {
-		d.natChain, d.filterChain, err = setupIPChains(config)
+		natChain, filterChain, err = setupIPChains(config)
 		if err != nil {
 			return err
 		}
 	}
 
+	d.Lock()
+	d.natChain = natChain
+	d.filterChain = filterChain
 	d.config = config
+	d.Unlock()
+
+	err = d.initStore(option)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -989,7 +994,7 @@ func (d *driver) DeleteEndpoint(nid, eid string) error {
 	d.Unlock()
 
 	if !ok {
-		return types.NotFoundErrorf("network %s does not exist", nid)
+		return types.InternalMaskableErrorf("network %s does not exist", nid)
 	}
 	if n == nil {
 		return driverapi.ErrNoNetwork(nid)
@@ -1145,7 +1150,7 @@ func (d *driver) Leave(nid, eid string) error {
 
 	network, err := d.getNetwork(nid)
 	if err != nil {
-		return err
+		return types.InternalMaskableErrorf("%s", err)
 	}
 
 	endpoint, err := network.getEndpoint(eid)

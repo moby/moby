@@ -12,7 +12,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"regexp"
 	"runtime"
 	"strings"
 	"sync"
@@ -50,6 +49,7 @@ import (
 	"github.com/docker/docker/pkg/truncindex"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/runconfig"
+	"github.com/docker/docker/utils"
 	volumedrivers "github.com/docker/docker/volume/drivers"
 	"github.com/docker/docker/volume/local"
 	"github.com/docker/docker/volume/store"
@@ -57,8 +57,8 @@ import (
 )
 
 var (
-	validContainerNameChars   = `[a-zA-Z0-9][a-zA-Z0-9_.-]`
-	validContainerNamePattern = regexp.MustCompile(`^/?` + validContainerNameChars + `+$`)
+	validContainerNameChars   = utils.RestrictedNameChars
+	validContainerNamePattern = utils.RestrictedNamePattern
 
 	errSystemNotSupported = errors.New("The Docker daemon is not supported on this platform.")
 )
@@ -406,20 +406,12 @@ func (daemon *Daemon) reserveName(id, name string) (string, error) {
 
 		conflictingContainer, err := daemon.GetByName(name)
 		if err != nil {
-			if strings.Contains(err.Error(), "Could not find entity") {
-				return "", err
-			}
-
-			// Remove name and continue starting the container
-			if err := daemon.containerGraphDB.Delete(name); err != nil {
-				return "", err
-			}
-		} else {
-			nameAsKnownByUser := strings.TrimPrefix(name, "/")
-			return "", fmt.Errorf(
-				"Conflict. The name %q is already in use by container %s. You have to remove (or rename) that container to be able to reuse that name.", nameAsKnownByUser,
-				stringid.TruncateID(conflictingContainer.ID))
+			return "", err
 		}
+		return "", fmt.Errorf(
+			"Conflict. The name %q is already in use by container %s. You have to remove (or rename) that container to be able to reuse that name.", strings.TrimPrefix(name, "/"),
+			stringid.TruncateID(conflictingContainer.ID))
+
 	}
 	return name, nil
 }
@@ -476,8 +468,9 @@ func (daemon *Daemon) getEntrypointAndArgs(configEntrypoint *stringutils.StrSlic
 
 func (daemon *Daemon) newContainer(name string, config *runconfig.Config, imgID string) (*Container, error) {
 	var (
-		id  string
-		err error
+		id             string
+		err            error
+		noExplicitName = name == ""
 	)
 	id, name, err = daemon.generateIDAndName(name)
 	if err != nil {
@@ -494,7 +487,7 @@ func (daemon *Daemon) newContainer(name string, config *runconfig.Config, imgID 
 	base.Config = config
 	base.hostConfig = &runconfig.HostConfig{}
 	base.ImageID = imgID
-	base.NetworkSettings = &network.Settings{}
+	base.NetworkSettings = &network.Settings{IsAnonymousEndpoint: noExplicitName}
 	base.Name = name
 	base.Driver = daemon.driver.String()
 	base.ExecDriver = daemon.execDriver.Name()
@@ -761,10 +754,17 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 	// initialized, the daemon is registered and we can store the discovery backend as its read-only
 	// DiscoveryWatcher version.
 	if config.ClusterStore != "" && config.ClusterAdvertise != "" {
-		var err error
-		if d.discoveryWatcher, err = initDiscovery(config.ClusterStore, config.ClusterAdvertise, config.ClusterOpts); err != nil {
+		advertise, err := discovery.ParseAdvertise(config.ClusterStore, config.ClusterAdvertise)
+		if err != nil {
+			return nil, fmt.Errorf("discovery advertise parsing failed (%v)", err)
+		}
+		config.ClusterAdvertise = advertise
+		d.discoveryWatcher, err = initDiscovery(config.ClusterStore, config.ClusterAdvertise, config.ClusterOpts)
+		if err != nil {
 			return nil, fmt.Errorf("discovery initialization failed (%v)", err)
 		}
+	} else if config.ClusterAdvertise != "" {
+		return nil, fmt.Errorf("invalid cluster configuration. --cluster-advertise must be accompanied by --cluster-store configuration")
 	}
 
 	d.netController, err = d.initNetworkController(config)
@@ -1136,6 +1136,14 @@ func (daemon *Daemon) GetRemappedUIDGID() (int, int) {
 // created. nil is returned if a child cannot be found. An error is
 // returned if the parent image cannot be found.
 func (daemon *Daemon) ImageGetCached(imgID string, config *runconfig.Config) (*image.Image, error) {
+	// for now just exit if imgID has no children.
+	// maybe parentRefs in graph could be used to store
+	// the Image obj children for faster lookup below but this can
+	// be quite memory hungry.
+	if !daemon.Graph().HasChildren(imgID) {
+		return nil, nil
+	}
+
 	// Retrieve all images
 	images := daemon.Graph().Map()
 

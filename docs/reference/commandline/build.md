@@ -15,7 +15,7 @@ parent = "smn_cli"
     Build a new image from the source code at PATH
 
       --build-arg=[]                  Set build-time variables
-      -c, --cpu-shares                CPU Shares (relative weight)
+      --cpu-shares                    CPU Shares (relative weight)
       --cgroup-parent=""              Optional parent cgroup for the container
       --cpu-period=0                  Limit the CPU CFS (Completely Fair Scheduler) period
       --cpu-quota=0                   Limit the CPU CFS (Completely Fair Scheduler) quota
@@ -128,6 +128,8 @@ See also:
 
 ## Examples
 
+### Build with PATH
+
     $ docker build .
     Uploading context 10240 bytes
     Step 1 : FROM busybox
@@ -168,6 +170,31 @@ The transfer of context from the local machine to the Docker daemon is what the
 If you wish to keep the intermediate containers after the build is complete,
 you must use `--rm=false`. This does not affect the build cache.
 
+### Build with URL
+
+    $ docker build github.com/creack/docker-firefox
+
+This will clone the GitHub repository and use the cloned repository as context.
+The Dockerfile at the root of the repository is used as Dockerfile. Note that
+you can specify an arbitrary Git repository by using the `git://` or `git@`
+schema.
+
+### Build with -
+
+    $ docker build - < Dockerfile
+
+This will read a Dockerfile from `STDIN` without context. Due to the lack of a
+context, no contents of any local directory will be sent to the Docker daemon.
+Since there is no context, a Dockerfile `ADD` only works if it refers to a
+remote URL.
+
+    $ docker build - < context.tar.gz
+
+This will build an image for a compressed context read from `STDIN`.  Supported
+formats are: bzip2, gzip and xz.
+
+### Usage of .dockerignore
+
     $ docker build .
     Uploading context 18.829 MB
     Uploading context
@@ -193,29 +220,14 @@ directory from the context. Its effect can be seen in the changed size of the
 uploaded context. The builder reference contains detailed information on
 [creating a .dockerignore file](../builder.md#dockerignore-file)
 
+### Tag image (-t)
+
     $ docker build -t vieux/apache:2.0 .
 
 This will build like the previous example, but it will then tag the resulting
 image. The repository name will be `vieux/apache` and the tag will be `2.0`
 
-    $ docker build - < Dockerfile
-
-This will read a Dockerfile from `STDIN` without context. Due to the lack of a
-context, no contents of any local directory will be sent to the Docker daemon.
-Since there is no context, a Dockerfile `ADD` only works if it refers to a
-remote URL.
-
-    $ docker build - < context.tar.gz
-
-This will build an image for a compressed context read from `STDIN`.  Supported
-formats are: bzip2, gzip and xz.
-
-    $ docker build github.com/creack/docker-firefox
-
-This will clone the GitHub repository and use the cloned repository as context.
-The Dockerfile at the root of the repository is used as Dockerfile. Note that
-you can specify an arbitrary Git repository by using the `git://` or `git@`
-schema.
+### Specify Dockerfile (-f)
 
     $ docker build -f Dockerfile.debug .
 
@@ -248,13 +260,19 @@ the command line.
 > repeatable builds on remote Docker hosts. This is also the reason why
 > `ADD ../file` will not work.
 
+### Optional parent cgroup (--cgroup-parent)
+
 When `docker build` is run with the `--cgroup-parent` option the containers
 used in the build will be run with the [corresponding `docker run`
 flag](../run.md#specifying-custom-cgroups).
 
+### Set ulimits in container (--ulimit)
+
 Using the `--ulimit` option with `docker build` will cause each build step's
 container to be started using those [`--ulimit`
 flag values](../run.md#setting-ulimits-in-a-container).
+
+### Set build-time variables (--build-arg)
 
 You can use `ENV` instructions in a Dockerfile to define variable
 values. These values persist in the built image. However, often
@@ -263,7 +281,7 @@ depending on which host they build an image on.
 
 A good example is `http_proxy` or source versions for pulling intermediate
 files. The `ARG` instruction lets Dockerfile authors define values that users
-can set at build-time using the  `---build-arg` flag:
+can set at build-time using the  `--build-arg` flag:
 
     $ docker build --build-arg HTTP_PROXY=http://10.20.30.2:1234 .
 

@@ -23,7 +23,7 @@ weight = -1
       --default-gateway=""                   Container default gateway IPv4 address
       --default-gateway-v6=""                Container default gateway IPv6 address
       --cluster-store=""                     URL of the distributed storage backend
-      --cluster-advertise=""                 Address of the daemon instance to advertise
+      --cluster-advertise=""                 Address of the daemon instance on the cluster
       --cluster-store-opt=map[]              Set cluster options
       --dns=[]                               DNS server to use
       --dns-opt=[]                           DNS options to use
@@ -205,9 +205,10 @@ options for `zfs` start with `zfs`.
 
      Example use:
 
-        docker daemon --storage-opt dm.thinpooldev=/dev/mapper/thin-pool
+        $ docker daemon \
+              --storage-opt dm.thinpooldev=/dev/mapper/thin-pool
 
- *  `dm.basesize`
+*  `dm.basesize`
 
     Specifies the size to use when creating the base device, which limits the
     size of images and containers. The default value is 100G. Note, thin devices
@@ -227,9 +228,11 @@ options for `zfs` start with `zfs`.
 
         $ docker daemon --storage-opt dm.basesize=20G
 
- *  `dm.loopdatasize`
+*  `dm.loopdatasize`
 
-    >**Note**: This option configures devicemapper loopback, which should not be used in production.
+    > **Note**:
+	> This option configures devicemapper loopback, which should not
+	> be used in production.
 
     Specifies the size to use when creating the loopback file for the
     "data" device which is used for the thin pool. The default size is
@@ -240,9 +243,11 @@ options for `zfs` start with `zfs`.
 
         $ docker daemon --storage-opt dm.loopdatasize=200G
 
- *  `dm.loopmetadatasize`
+*  `dm.loopmetadatasize`
 
-    >**Note**: This option configures devicemapper loopback, which should not be used in production.
+    > **Note**:
+    > This option configures devicemapper loopback, which should not
+    > be used in production.
 
     Specifies the size to use when creating the loopback file for the
     "metadata" device which is used for the thin pool. The default size
@@ -253,7 +258,7 @@ options for `zfs` start with `zfs`.
 
         $ docker daemon --storage-opt dm.loopmetadatasize=4G
 
- *  `dm.fs`
+*  `dm.fs`
 
     Specifies the filesystem type to use for the base device. The supported
     options are "ext4" and "xfs". The default is "ext4"
@@ -262,7 +267,7 @@ options for `zfs` start with `zfs`.
 
         $ docker daemon --storage-opt dm.fs=xfs
 
- *  `dm.mkfsarg`
+*  `dm.mkfsarg`
 
     Specifies extra mkfs arguments to be used when creating the base device.
 
@@ -270,7 +275,7 @@ options for `zfs` start with `zfs`.
 
         $ docker daemon --storage-opt "dm.mkfsarg=-O ^has_journal"
 
- *  `dm.mountopt`
+*  `dm.mountopt`
 
     Specifies extra mount options used when mounting the thin devices.
 
@@ -278,7 +283,7 @@ options for `zfs` start with `zfs`.
 
         $ docker daemon --storage-opt dm.mountopt=nodiscard
 
- *  `dm.datadev`
+*  `dm.datadev`
 
     (Deprecated, use `dm.thinpooldev`)
 
@@ -290,9 +295,11 @@ options for `zfs` start with `zfs`.
 
     Example use:
 
-        $ docker daemon --storage-opt dm.datadev=/dev/sdb1 --storage-opt dm.metadatadev=/dev/sdc1
+        $ docker daemon \
+              --storage-opt dm.datadev=/dev/sdb1 \
+              --storage-opt dm.metadatadev=/dev/sdc1
 
- *  `dm.metadatadev`
+*  `dm.metadatadev`
 
     (Deprecated, use `dm.thinpooldev`)
 
@@ -304,13 +311,15 @@ options for `zfs` start with `zfs`.
     If setting up a new metadata pool it is required to be valid. This can be
     achieved by zeroing the first 4k to indicate empty metadata, like this:
 
-	$ dd if=/dev/zero of=$metadata_dev bs=4096 count=1
+        $ dd if=/dev/zero of=$metadata_dev bs=4096 count=1
 
     Example use:
 
-        $ docker daemon --storage-opt dm.datadev=/dev/sdb1 --storage-opt dm.metadatadev=/dev/sdc1
+        $ docker daemon \
+              --storage-opt dm.datadev=/dev/sdb1 \
+              --storage-opt dm.metadatadev=/dev/sdc1
 
- *  `dm.blocksize`
+*  `dm.blocksize`
 
     Specifies a custom blocksize to use for the thin pool. The default
     blocksize is 64K.
@@ -319,7 +328,7 @@ options for `zfs` start with `zfs`.
 
         $ docker daemon --storage-opt dm.blocksize=512K
 
- *  `dm.blkdiscard`
+*  `dm.blkdiscard`
 
     Enables or disables the use of blkdiscard when removing devicemapper
     devices. This is enabled by default (only) if using loopback devices and is
@@ -333,7 +342,7 @@ options for `zfs` start with `zfs`.
 
         $ docker daemon --storage-opt dm.blkdiscard=false
 
- *  `dm.override_udev_sync_check`
+*  `dm.override_udev_sync_check`
 
     Overrides the `udev` synchronization checks between `devicemapper` and `udev`.
     `udev` is the device manager for the Linux kernel.
@@ -369,7 +378,7 @@ options for `zfs` start with `zfs`.
     > Otherwise, set this flag for migrating existing Docker daemons to
     > a daemon with a supported environment.
 
- *  `dm.use_deferred_removal`
+*  `dm.use_deferred_removal`
 
     Enables use of deferred device removal if `libdm` and the kernel driver
     support the mechanism.
@@ -385,21 +394,25 @@ options for `zfs` start with `zfs`.
     system to schedule the device for deferred removal. It does not wait in a
     loop trying to remove a busy device.
 
-    Example use: `docker daemon --storage-opt dm.use_deferred_removal=true`
+    Example use:
 
- *  `dm.use_deferred_deletion`
+        $ docker daemon --storage-opt dm.use_deferred_removal=true
+
+*  `dm.use_deferred_deletion`
 
     Enables use of deferred device deletion for thin pool devices. By default,
     thin pool device deletion is synchronous. Before a container is deleted,
     the Docker daemon removes any associated devices. If the storage driver
     can not remove a device, the container deletion fails and daemon returns.
 
-    `Error deleting container: Error response from daemon: Cannot destroy container`
+        Error deleting container: Error response from daemon: Cannot destroy container
 
     To avoid this failure, enable both deferred device deletion and deferred
     device removal on the daemon.
 
-    `docker daemon --storage-opt dm.use_deferred_deletion=true --storage-opt dm.use_deferred_removal=true`
+        $ docker daemon \
+              --storage-opt dm.use_deferred_deletion=true \
+              --storage-opt dm.use_deferred_removal=true
 
     With these two options enabled, if a device is busy when the driver is
     deleting a container, the driver marks the device as deleted. Later, when
@@ -411,7 +424,7 @@ options for `zfs` start with `zfs`.
 
 Currently supported options of `zfs`:
 
- * `zfs.fsname`
+* `zfs.fsname`
 
     Set zfs filesystem under which docker will create its own datasets.
     By default docker will pick up the zfs filesystem where docker graph
@@ -534,13 +547,16 @@ please check the [run](run.md) reference.
 
 ## Nodes discovery
 
-`--cluster-advertise` specifies the 'host:port' combination that this particular
-daemon instance should use when advertising itself to the cluster. The daemon
-is reached by remote hosts on this 'host:port' combination.
+The `--cluster-advertise` option specifies the 'host:port' or `interface:port`
+combination that this particular daemon instance should use when advertising
+itself to the cluster. The daemon is reached by remote hosts through this value.
+If you  specify an interface, make sure it includes the IP address of the actual
+Docker host. For Engine installation created through `docker-machine`, the
+interface is typically `eth1`.
 
 The daemon uses [libkv](https://github.com/docker/libkv/) to advertise
-the node within the cluster.  Some Key/Value backends support mutual
-TLS, and the client TLS settings used by the daemon can be configured
+the node within the cluster. Some key-value backends support mutual
+TLS. To configure the client TLS settings used by the daemon can be configured
 using the `--cluster-store-opt` flag, specifying the paths to PEM encoded
 files. For example:
 

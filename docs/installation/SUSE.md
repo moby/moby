@@ -109,8 +109,8 @@ You must delete the user created configuration files manually.
 
 ## Where to go from here
 
-You can find more details about Docker on openSUSE or SUSE Linux Enterprise in
-the [Docker quick start guide](https://www.suse.com/documentation/sles-12/dockerquick/data/dockerquick.
-html) on the SUSE website. The document targets SUSE Linux Enterprise, but its contents apply also to openSUSE.
+You can find more details about Docker on openSUSE or SUSE Linux Enterprise in the
+[Docker quick start guide](https://www.suse.com/documentation/sles-12/dockerquick/data/dockerquick.html)
+on the SUSE website. The document targets SUSE Linux Enterprise, but its contents apply also to openSUSE.
 
 Continue to the [User Guide](../userguide/).

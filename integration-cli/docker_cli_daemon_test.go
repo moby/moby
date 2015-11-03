@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/docker/libnetwork/iptables"
 	"github.com/docker/libtrust"
 	"github.com/go-check/check"
@@ -302,7 +303,7 @@ func (s *DockerSuite) TestDaemonIPv6Enabled(c *check.C) {
 		c.Fatalf("Could not run container: %s, %v", out, err)
 	}
 
-	out, err := d.Cmd("inspect", "--format", "'{{.NetworkSettings.LinkLocalIPv6Address}}'", "ipv6test")
+	out, err := d.Cmd("inspect", "--format", "'{{.NetworkSettings.Networks.bridge.LinkLocalIPv6Address}}'", "ipv6test")
 	out = strings.Trim(out, " \r\n'")
 
 	if err != nil {
@@ -313,7 +314,7 @@ func (s *DockerSuite) TestDaemonIPv6Enabled(c *check.C) {
 		c.Fatalf("Container should have a link-local IPv6 address")
 	}
 
-	out, err = d.Cmd("inspect", "--format", "'{{.NetworkSettings.GlobalIPv6Address}}'", "ipv6test")
+	out, err = d.Cmd("inspect", "--format", "'{{.NetworkSettings.Networks.bridge.GlobalIPv6Address}}'", "ipv6test")
 	out = strings.Trim(out, " \r\n'")
 
 	if err != nil {
@@ -350,7 +351,7 @@ func (s *DockerSuite) TestDaemonIPv6FixedCIDR(c *check.C) {
 		c.Fatalf("Could not run container: %s, %v", out, err)
 	}
 
-	out, err := d.Cmd("inspect", "--format", "'{{.NetworkSettings.LinkLocalIPv6Address}}'", "ipv6test")
+	out, err := d.Cmd("inspect", "--format", "'{{.NetworkSettings.Networks.bridge.LinkLocalIPv6Address}}'", "ipv6test")
 	out = strings.Trim(out, " \r\n'")
 
 	if err != nil {
@@ -361,7 +362,7 @@ func (s *DockerSuite) TestDaemonIPv6FixedCIDR(c *check.C) {
 		c.Fatalf("Container should have a link-local IPv6 address")
 	}
 
-	out, err = d.Cmd("inspect", "--format", "'{{.NetworkSettings.GlobalIPv6Address}}'", "ipv6test")
+	out, err = d.Cmd("inspect", "--format", "'{{.NetworkSettings.Networks.bridge.GlobalIPv6Address}}'", "ipv6test")
 	out = strings.Trim(out, " \r\n'")
 
 	if err != nil {
@@ -793,6 +794,26 @@ func (s *DockerDaemonSuite) TestDaemonBridgeFixedCidr(c *check.C) {
 	}
 }
 
+func (s *DockerDaemonSuite) TestDaemonBridgeFixedCidrFixedCIDREqualBridgeNetwork(c *check.C) {
+	d := s.d
+
+	bridgeName := "external-bridge"
+	bridgeIP := "172.27.42.1/16"
+
+	out, err := createInterface(c, "bridge", bridgeName, bridgeIP)
+	c.Assert(err, check.IsNil, check.Commentf(out))
+	defer deleteInterface(c, bridgeName)
+
+	err = d.StartWithBusybox("--bridge", bridgeName, "--fixed-cidr", bridgeIP)
+	c.Assert(err, check.IsNil)
+	defer s.d.Restart()
+
+	out, err = d.Cmd("run", "-d", "busybox", "top")
+	c.Assert(err, check.IsNil, check.Commentf(out))
+	cid1 := strings.TrimSpace(out)
+	defer d.Cmd("stop", cid1)
+}
+
 func (s *DockerDaemonSuite) TestDaemonDefaultGatewayIPv4Implicit(c *check.C) {
 	defaultNetworkBridge := "docker0"
 	deleteInterface(c, defaultNetworkBridge)
@@ -846,6 +867,29 @@ func (s *DockerDaemonSuite) TestDaemonDefaultGatewayIPv4ExplicitOutsideContainer
 
 	deleteInterface(c, defaultNetworkBridge)
 	s.d.Restart()
+}
+
+func (s *DockerDaemonSuite) TestDaemonDefaultNetworkInvalidClusterConfig(c *check.C) {
+	testRequires(c, SameHostDaemon)
+
+	// Start daemon without docker0 bridge
+	defaultNetworkBridge := "docker0"
+	deleteInterface(c, defaultNetworkBridge)
+
+	d := NewDaemon(c)
+	discoveryBackend := "consul://consuladdr:consulport/some/path"
+	err := d.Start(fmt.Sprintf("--cluster-store=%s", discoveryBackend))
+	c.Assert(err, checker.IsNil)
+
+	// Start daemon with docker0 bridge
+	ifconfigCmd := exec.Command("ifconfig", defaultNetworkBridge)
+	_, err = runCommand(ifconfigCmd)
+	c.Assert(err, check.IsNil)
+
+	err = d.Restart(fmt.Sprintf("--cluster-store=%s", discoveryBackend))
+	c.Assert(err, checker.IsNil)
+
+	d.Stop()
 }
 
 func (s *DockerDaemonSuite) TestDaemonIP(c *check.C) {
@@ -1722,4 +1766,38 @@ func (s *DockerDaemonSuite) TestDaemonStartWithoutHost(c *check.C) {
 		s.d.useDefaultHost = false
 	}()
 	c.Assert(s.d.Start(), check.IsNil)
+}
+
+func (s *DockerDaemonSuite) TestDaemonStartWithDefalutTlsHost(c *check.C) {
+	s.d.useDefaultTLSHost = true
+	defer func() {
+		s.d.useDefaultTLSHost = false
+	}()
+	if err := s.d.Start(
+		"--tlsverify",
+		"--tlscacert", "fixtures/https/ca.pem",
+		"--tlscert", "fixtures/https/server-cert.pem",
+		"--tlskey", "fixtures/https/server-key.pem"); err != nil {
+		c.Fatalf("Could not start daemon: %v", err)
+	}
+
+	// The client with --tlsverify should also use default host localhost:2376
+	tmpHost := os.Getenv("DOCKER_HOST")
+	defer func() {
+		os.Setenv("DOCKER_HOST", tmpHost)
+	}()
+
+	os.Setenv("DOCKER_HOST", "")
+
+	out, _ := dockerCmd(
+		c,
+		"--tlsverify",
+		"--tlscacert", "fixtures/https/ca.pem",
+		"--tlscert", "fixtures/https/client-cert.pem",
+		"--tlskey", "fixtures/https/client-key.pem",
+		"version",
+	)
+	if !strings.Contains(out, "Server") {
+		c.Fatalf("docker version should return information of server side")
+	}
 }

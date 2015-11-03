@@ -13,6 +13,7 @@ import (
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/pkg/parsers/filters"
+	"github.com/docker/docker/runconfig"
 	"github.com/docker/libnetwork"
 )
 
@@ -85,6 +86,11 @@ func (n *networkRouter) postNetworkCreate(ctx context.Context, w http.ResponseWr
 		return err
 	}
 
+	if runconfig.IsPreDefinedNetwork(create.Name) {
+		return httputils.WriteJSON(w, http.StatusForbidden,
+			fmt.Sprintf("%s is a pre-defined network and cannot be created", create.Name))
+	}
+
 	nw, err := n.daemon.GetNetwork(create.Name, daemon.NetworkByName)
 	if _, ok := err.(libnetwork.ErrNoSuchNetwork); err != nil && !ok {
 		return err
@@ -96,7 +102,7 @@ func (n *networkRouter) postNetworkCreate(ctx context.Context, w http.ResponseWr
 		warning = fmt.Sprintf("Network with name %s (id : %s) already exists", nw.Name(), nw.ID())
 	}
 
-	nw, err = n.daemon.CreateNetwork(create.Name, create.Driver, create.IPAM)
+	nw, err = n.daemon.CreateNetwork(create.Name, create.Driver, create.IPAM, create.Options)
 	if err != nil {
 		return err
 	}
@@ -169,6 +175,11 @@ func (n *networkRouter) deleteNetwork(ctx context.Context, w http.ResponseWriter
 		return err
 	}
 
+	if runconfig.IsPreDefinedNetwork(nw.Name()) {
+		return httputils.WriteJSON(w, http.StatusForbidden,
+			fmt.Sprintf("%s is a pre-defined network and cannot be removed", nw.Name()))
+	}
+
 	return nw.Delete()
 }
 
@@ -182,6 +193,7 @@ func buildNetworkResource(nw libnetwork.Network) *types.NetworkResource {
 	r.ID = nw.ID()
 	r.Scope = nw.Info().Scope()
 	r.Driver = nw.Type()
+	r.Options = nw.Info().DriverOptions()
 	r.Containers = make(map[string]types.EndpointResource)
 	buildIpamResources(r, nw)
 

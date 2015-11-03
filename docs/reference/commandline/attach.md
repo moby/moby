@@ -22,7 +22,7 @@ The `docker attach` command allows you to attach to a running container using
 the container's ID or name, either to view its ongoing output or to control it
 interactively. You can attach to the same contained process multiple times
 simultaneously, screen sharing style, or quickly view the progress of your
-daemonized process.
+detached  process.
 
 You can detach from the container and leave it running with `CTRL-p CTRL-q`
 (for a quiet exit) or with `CTRL-c` if `--sig-proxy` is false.

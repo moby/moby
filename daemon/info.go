@@ -92,6 +92,7 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 		ExperimentalBuild:  utils.ExperimentalBuild(),
 		ServerVersion:      dockerversion.VERSION,
 		ClusterStore:       daemon.config().ClusterStore,
+		ClusterAdvertise:   daemon.config().ClusterAdvertise,
 	}
 
 	// TODO Windows. Refactor this more once sysinfo is refactored into

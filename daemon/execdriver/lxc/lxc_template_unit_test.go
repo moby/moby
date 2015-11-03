@@ -34,6 +34,7 @@ func TestLXCConfig(t *testing.T) {
 		memMin = 33554432
 		memMax = 536870912
 		mem    = memMin + r.Intn(memMax-memMin)
+		swap   = memMax
 		cpuMin = 100
 		cpuMax = 10000
 		cpu    = cpuMin + r.Intn(cpuMax-cpuMin)
@@ -46,8 +47,9 @@ func TestLXCConfig(t *testing.T) {
 	command := &execdriver.Command{
 		ID: "1",
 		Resources: &execdriver.Resources{
-			Memory:    int64(mem),
-			CPUShares: int64(cpu),
+			Memory:     int64(mem),
+			MemorySwap: int64(swap),
+			CPUShares:  int64(cpu),
 		},
 		Network: &execdriver.Network{
 			Mtu: 1500,
@@ -63,7 +65,7 @@ func TestLXCConfig(t *testing.T) {
 		fmt.Sprintf("lxc.cgroup.memory.limit_in_bytes = %d", mem))
 
 	grepFile(t, p,
-		fmt.Sprintf("lxc.cgroup.memory.memsw.limit_in_bytes = %d", mem*2))
+		fmt.Sprintf("lxc.cgroup.memory.memsw.limit_in_bytes = %d", swap))
 }
 
 func TestCustomLxcConfig(t *testing.T) {

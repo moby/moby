@@ -41,14 +41,18 @@ func (daemon *Daemon) ContainerInspectPre120(name string) (*v1p19.ContainerJSON,
 
 	config := &v1p19.ContainerConfig{
 		container.Config,
+		container.Config.MacAddress,
+		container.Config.NetworkDisabled,
+		container.Config.ExposedPorts,
 		container.hostConfig.VolumeDriver,
 		container.hostConfig.Memory,
 		container.hostConfig.MemorySwap,
 		container.hostConfig.CPUShares,
 		container.hostConfig.CpusetCpus,
 	}
+	networkSettings := daemon.getBackwardsCompatibleNetworkSettings(container.NetworkSettings)
 
-	return &v1p19.ContainerJSON{base, volumes, volumesRW, config}, nil
+	return &v1p19.ContainerJSON{base, volumes, volumesRW, config, networkSettings}, nil
 }
 
 func addMountPoints(container *Container) []types.MountPoint {

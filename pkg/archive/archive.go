@@ -20,6 +20,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/idtools"
+	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/pools"
 	"github.com/docker/docker/pkg/promise"
 	"github.com/docker/docker/pkg/system"
@@ -116,10 +117,10 @@ func DetectCompression(source []byte) Compression {
 	return Uncompressed
 }
 
-func xzDecompress(archive io.Reader) (io.ReadCloser, error) {
+func xzDecompress(archive io.Reader) (io.ReadCloser, <-chan struct{}, error) {
 	args := []string{"xz", "-d", "-c", "-q"}
 
-	return CmdStream(exec.Command(args[0], args[1:]...), archive)
+	return cmdStream(exec.Command(args[0], args[1:]...), archive)
 }
 
 // DecompressStream decompress the archive and returns a ReaderCloser with the decompressed archive.
@@ -148,12 +149,15 @@ func DecompressStream(archive io.Reader) (io.ReadCloser, error) {
 		readBufWrapper := p.NewReadCloserWrapper(buf, bz2Reader)
 		return readBufWrapper, nil
 	case Xz:
-		xzReader, err := xzDecompress(buf)
+		xzReader, chdone, err := xzDecompress(buf)
 		if err != nil {
 			return nil, err
 		}
 		readBufWrapper := p.NewReadCloserWrapper(buf, xzReader)
-		return readBufWrapper, nil
+		return ioutils.NewReadCloserWrapper(readBufWrapper, func() error {
+			<-chdone
+			return readBufWrapper.Close()
+		}), nil
 	default:
 		return nil, fmt.Errorf("Unsupported compression format %s", (&compression).Extension())
 	}
@@ -910,7 +914,11 @@ func (archiver *Archiver) CopyFileWithTar(src, dst string) (err error) {
 		}
 	}()
 
-	return archiver.Untar(r, filepath.Dir(dst), nil)
+	err = archiver.Untar(r, filepath.Dir(dst), nil)
+	if err != nil {
+		r.CloseWithError(err)
+	}
+	return err
 }
 
 // CopyFileWithTar emulates the behavior of the 'cp' command-line
@@ -925,57 +933,33 @@ func CopyFileWithTar(src, dst string) (err error) {
 	return defaultArchiver.CopyFileWithTar(src, dst)
 }
 
-// CmdStream executes a command, and returns its stdout as a stream.
+// cmdStream executes a command, and returns its stdout as a stream.
 // If the command fails to run or doesn't complete successfully, an error
 // will be returned, including anything written on stderr.
-func CmdStream(cmd *exec.Cmd, input io.Reader) (io.ReadCloser, error) {
-	if input != nil {
-		stdin, err := cmd.StdinPipe()
-		if err != nil {
-			return nil, err
-		}
-		// Write stdin if any
-		go func() {
-			io.Copy(stdin, input)
-			stdin.Close()
-		}()
-	}
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		return nil, err
-	}
-	stderr, err := cmd.StderrPipe()
-	if err != nil {
-		return nil, err
-	}
+func cmdStream(cmd *exec.Cmd, input io.Reader) (io.ReadCloser, <-chan struct{}, error) {
+	chdone := make(chan struct{})
+	cmd.Stdin = input
 	pipeR, pipeW := io.Pipe()
-	errChan := make(chan []byte)
-	// Collect stderr, we will use it in case of an error
-	go func() {
-		errText, e := ioutil.ReadAll(stderr)
-		if e != nil {
-			errText = []byte("(...couldn't fetch stderr: " + e.Error() + ")")
-		}
-		errChan <- errText
-	}()
+	cmd.Stdout = pipeW
+	var errBuf bytes.Buffer
+	cmd.Stderr = &errBuf
+
+	// Run the command and return the pipe
+	if err := cmd.Start(); err != nil {
+		return nil, nil, err
+	}
+
 	// Copy stdout to the returned pipe
 	go func() {
-		_, err := io.Copy(pipeW, stdout)
-		if err != nil {
-			pipeW.CloseWithError(err)
-		}
-		errText := <-errChan
 		if err := cmd.Wait(); err != nil {
-			pipeW.CloseWithError(fmt.Errorf("%s: %s", err, errText))
+			pipeW.CloseWithError(fmt.Errorf("%s: %s", err, errBuf.String()))
 		} else {
 			pipeW.Close()
 		}
+		close(chdone)
 	}()
-	// Run the command and return the pipe
-	if err := cmd.Start(); err != nil {
-		return nil, err
-	}
-	return pipeR, nil
+
+	return pipeR, chdone, nil
 }
 
 // NewTempArchive reads the content of src into a temporary file, and returns the contents

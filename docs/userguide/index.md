@@ -11,10 +11,8 @@ parent = "mn_fun_docker"
 # Welcome to the Docker user guide
 
 In the [Introduction](../misc) you got a taste of what Docker is and how it
-works. In this guide we're going to take you through the fundamentals of
-using Docker and integrating it into your environment.
-
-We’ll teach you how to use Docker to:
+works. This guide takes you through the fundamentals of using Docker and
+integrating it into your environment. You'll learn how to use Docker to:
 
 * Dockerize your applications.
 * Run your own containers.
@@ -22,8 +20,8 @@ We’ll teach you how to use Docker to:
 * Share your Docker images with others.
 * And a whole lot more!
 
-We've broken this guide into major sections that take you through
-the Docker life cycle:
+This guide is broken into major sections that take you through the Docker life
+cycle:
 
 ## Getting started with Docker Hub
 
@@ -44,6 +42,7 @@ applications. To learn how to Dockerize applications and run them:
 
 Go to [Dockerizing Applications](dockerizing.md).
 
+
 ## Working with containers
 
 *How do I manage my containers?*
@@ -63,23 +62,13 @@ learn how to build your own application images with Docker.
 
 Go to [Working with Docker Images](dockerimages.md).
 
-## Linking containers together
+## Networking containers
 
 Until now we've seen how to build individual applications inside Docker
 containers. Now learn how to build whole application stacks with Docker
-by linking together multiple Docker containers.
+networking.
 
-Go to [Linking Containers Together](dockerlinks.md).
-
-## Docker container networking
-
-Links provides a very easy and convenient way to connect the containers.
-But, it is very opinionated and doesnt provide a lot of flexibility or
-choice to the end-users. Now, lets learn about a flexible way to connect 
-containers together within a host or across multiple hosts in a cluster
-using various networking technologies, with the help of extensible plugins.
-
-Go to [Docker Networking](dockernetworks.md).
+Go to [Networking Containers](networkingcontainers.md).
 
 ## Managing data in containers
 
@@ -136,4 +125,3 @@ Go to [Docker Swarm user guide](https://docs.docker.com/swarm/).
 * Get [Docker help](https://stackoverflow.com/search?q=docker) on
   StackOverflow
 * [Docker.com](https://www.docker.com/)
-

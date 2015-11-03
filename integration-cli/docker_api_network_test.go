@@ -53,7 +53,7 @@ func (s *DockerSuite) TestApiNetworkInspect(c *check.C) {
 	// run a container and attach it to the default bridge network
 	out, _ := dockerCmd(c, "run", "-d", "--name", "test", "busybox", "top")
 	containerID := strings.TrimSpace(out)
-	containerIP := findContainerIP(c, "test")
+	containerIP := findContainerIP(c, "test", "bridge")
 
 	// inspect default bridge network again and make sure the container is connected
 	nr = getNetworkResource(c, nr.ID)
@@ -73,9 +73,10 @@ func (s *DockerSuite) TestApiNetworkInspect(c *check.C) {
 		Config: []network.IPAMConfig{{Subnet: "172.28.0.0/16", IPRange: "172.28.5.0/24", Gateway: "172.28.5.254"}},
 	}
 	config := types.NetworkCreate{
-		Name:   "br0",
-		Driver: "bridge",
-		IPAM:   ipam,
+		Name:    "br0",
+		Driver:  "bridge",
+		IPAM:    ipam,
+		Options: map[string]string{"foo": "bar", "opts": "dopts"},
 	}
 	id0 := createNetwork(c, config, true)
 	c.Assert(isNetworkAvailable(c, "br0"), check.Equals, true)
@@ -117,7 +118,7 @@ func (s *DockerSuite) TestApiNetworkConnectDisconnect(c *check.C) {
 	// check if container IP matches network inspect
 	ip, _, err := net.ParseCIDR(nr.Containers[containerID].IPv4Address)
 	c.Assert(err, check.IsNil)
-	containerIP := findContainerIP(c, "test")
+	containerIP := findContainerIP(c, "test", "testnetwork")
 	c.Assert(ip.String(), check.Equals, containerIP)
 
 	// disconnect container from the network
@@ -186,6 +187,23 @@ func (s *DockerSuite) TestApiNetworkIpamMultipleBridgeNetworks(c *check.C) {
 	for i := 1; i < 6; i++ {
 		deleteNetwork(c, fmt.Sprintf("test%d", i), true)
 	}
+}
+
+func (s *DockerSuite) TestApiCreateDeletePredefinedNetworks(c *check.C) {
+	createDeletePredefinedNetwork(c, "bridge")
+	createDeletePredefinedNetwork(c, "none")
+	createDeletePredefinedNetwork(c, "host")
+}
+
+func createDeletePredefinedNetwork(c *check.C, name string) {
+	// Create pre-defined network
+	config := types.NetworkCreate{
+		Name:           name,
+		CheckDuplicate: true,
+	}
+	shouldSucceed := false
+	createNetwork(c, config, shouldSucceed)
+	deleteNetwork(c, name, shouldSucceed)
 }
 
 func isNetworkAvailable(c *check.C, name string) bool {
@@ -279,7 +297,6 @@ func deleteNetwork(c *check.C, id string, shouldSucceed bool) {
 	status, _, err := sockRequest("DELETE", "/networks/"+id, nil)
 	if !shouldSucceed {
 		c.Assert(status, check.Not(check.Equals), http.StatusOK)
-		c.Assert(err, check.NotNil)
 		return
 	}
 	c.Assert(status, check.Equals, http.StatusOK)

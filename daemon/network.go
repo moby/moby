@@ -17,6 +17,12 @@ const (
 	NetworkByName
 )
 
+// NetworkControllerEnabled checks if the networking stack is enabled.
+// This feature depends on OS primitives and it's dissabled in systems like Windows.
+func (daemon *Daemon) NetworkControllerEnabled() bool {
+	return daemon.netController != nil
+}
+
 // FindNetwork function finds a network for a given string that can represent network name or id
 func (daemon *Daemon) FindNetwork(idName string) (libnetwork.Network, error) {
 	// Find by Name
@@ -80,7 +86,7 @@ func (daemon *Daemon) GetNetworksByID(partialID string) []libnetwork.Network {
 }
 
 // CreateNetwork creates a network with the given name, driver and other optional parameters
-func (daemon *Daemon) CreateNetwork(name, driver string, ipam network.IPAM) (libnetwork.Network, error) {
+func (daemon *Daemon) CreateNetwork(name, driver string, ipam network.IPAM, options map[string]string) (libnetwork.Network, error) {
 	c := daemon.netController
 	if driver == "" {
 		driver = c.Config().Daemon.DefaultDriver
@@ -93,9 +99,8 @@ func (daemon *Daemon) CreateNetwork(name, driver string, ipam network.IPAM) (lib
 		return nil, err
 	}
 
-	if len(ipam.Config) > 0 {
-		nwOptions = append(nwOptions, libnetwork.NetworkOptionIpam(ipam.Driver, "", v4Conf, v6Conf))
-	}
+	nwOptions = append(nwOptions, libnetwork.NetworkOptionIpam(ipam.Driver, "", v4Conf, v6Conf))
+	nwOptions = append(nwOptions, libnetwork.NetworkOptionDriverOpts(options))
 	return c.NewNetwork(driver, name, nwOptions...)
 }
 
