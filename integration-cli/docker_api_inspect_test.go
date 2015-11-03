@@ -154,10 +154,11 @@ func (s *DockerSuite) TestInspectApiEmptyFieldsInConfigPre121(c *check.C) {
 }
 
 func (s *DockerSuite) TestInspectApiBridgeNetworkSettings120(c *check.C) {
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "true")
+	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
+	containerID := strings.TrimSpace(out)
+	waitRun(containerID)
 
-	cleanedContainerID := strings.TrimSpace(out)
-	body := getInspectBody(c, "v1.20", cleanedContainerID)
+	body := getInspectBody(c, "v1.20", containerID)
 
 	var inspectJSON v1p20.ContainerJSON
 	err := json.Unmarshal(body, &inspectJSON)
@@ -168,10 +169,11 @@ func (s *DockerSuite) TestInspectApiBridgeNetworkSettings120(c *check.C) {
 }
 
 func (s *DockerSuite) TestInspectApiBridgeNetworkSettings121(c *check.C) {
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "true")
-	cleanedContainerID := strings.TrimSpace(out)
+	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
+	containerID := strings.TrimSpace(out)
+	waitRun(containerID)
 
-	body := getInspectBody(c, "v1.21", cleanedContainerID)
+	body := getInspectBody(c, "v1.21", containerID)
 
 	var inspectJSON types.ContainerJSON
 	err := json.Unmarshal(body, &inspectJSON)
