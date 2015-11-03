@@ -80,6 +80,16 @@ type CommonContainer struct {
 }
 
 func (container *Container) fromDisk() error {
+	if err := container.loadConfig(); err != nil {
+		return err
+	}
+	if err := label.ReserveLabel(container.ProcessLabel); err != nil {
+		return err
+	}
+	return container.readHostConfig()
+}
+
+func (container *Container) loadConfig() error {
 	pth, err := container.jsonPath()
 	if err != nil {
 		return err
@@ -92,16 +102,7 @@ func (container *Container) fromDisk() error {
 	defer jsonSource.Close()
 
 	dec := json.NewDecoder(jsonSource)
-
-	// Load container settings
-	if err := dec.Decode(container); err != nil {
-		return err
-	}
-
-	if err := label.ReserveLabel(container.ProcessLabel); err != nil {
-		return err
-	}
-	return container.readHostConfig()
+	return dec.Decode(container)
 }
 
 func (container *Container) toDisk() error {
