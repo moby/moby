@@ -286,12 +286,6 @@ func (container *Container) Resize(h, w int) error {
 	return nil
 }
 
-func (container *Container) changes() ([]archive.Change, error) {
-	container.Lock()
-	defer container.Unlock()
-	return container.daemon.changes(container)
-}
-
 func (container *Container) getImage() (*image.Image, error) {
 	if container.daemon == nil {
 		return nil, derr.ErrorCodeImageUnregContainer
