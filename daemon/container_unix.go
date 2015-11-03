@@ -1105,27 +1105,28 @@ func (container *Container) getIpcContainer() (*Container, error) {
 }
 
 func (container *Container) setupWorkingDirectory() error {
-	if container.Config.WorkingDir != "" {
-		container.Config.WorkingDir = filepath.Clean(container.Config.WorkingDir)
+	if container.Config.WorkingDir == "" {
+		return nil
+	}
+	container.Config.WorkingDir = filepath.Clean(container.Config.WorkingDir)
 
-		pth, err := container.GetResourcePath(container.Config.WorkingDir)
-		if err != nil {
+	pth, err := container.GetResourcePath(container.Config.WorkingDir)
+	if err != nil {
+		return err
+	}
+
+	pthInfo, err := os.Stat(pth)
+	if err != nil {
+		if !os.IsNotExist(err) {
 			return err
 		}
 
-		pthInfo, err := os.Stat(pth)
-		if err != nil {
-			if !os.IsNotExist(err) {
-				return err
-			}
-
-			if err := system.MkdirAll(pth, 0755); err != nil {
-				return err
-			}
+		if err := system.MkdirAll(pth, 0755); err != nil {
+			return err
 		}
-		if pthInfo != nil && !pthInfo.IsDir() {
-			return derr.ErrorCodeNotADir.WithArgs(container.Config.WorkingDir)
-		}
+	}
+	if pthInfo != nil && !pthInfo.IsDir() {
+		return derr.ErrorCodeNotADir.WithArgs(container.Config.WorkingDir)
 	}
 	return nil
 }
