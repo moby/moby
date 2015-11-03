@@ -46,7 +46,7 @@ List containers
                  "Id": "8dfafdbc3a40",
                  "Names":["/boring_feynman"],
                  "Image": "ubuntu:latest",
-		 "ImageID": "d74508fb6632491cea586a1fd7d748dfc5274cd6fdfedee309ecdcbc2bf5cb82",
+                 "ImageID": "d74508fb6632491cea586a1fd7d748dfc5274cd6fdfedee309ecdcbc2bf5cb82",
                  "Command": "echo 1",
                  "Created": 1367854155,
                  "Status": "Exit 0",
@@ -63,7 +63,7 @@ List containers
                  "Id": "9cd87474be90",
                  "Names":["/coolName"],
                  "Image": "ubuntu:latest",
-		 "ImageID": "d74508fb6632491cea586a1fd7d748dfc5274cd6fdfedee309ecdcbc2bf5cb82",
+                 "ImageID": "d74508fb6632491cea586a1fd7d748dfc5274cd6fdfedee309ecdcbc2bf5cb82",
                  "Command": "echo 222222",
                  "Created": 1367854155,
                  "Status": "Exit 0",
@@ -76,7 +76,7 @@ List containers
                  "Id": "3176a2479c92",
                  "Names":["/sleepy_dog"],
                  "Image": "ubuntu:latest",
-		 "ImageID": "d74508fb6632491cea586a1fd7d748dfc5274cd6fdfedee309ecdcbc2bf5cb82",
+                 "ImageID": "d74508fb6632491cea586a1fd7d748dfc5274cd6fdfedee309ecdcbc2bf5cb82",
                  "Command": "echo 3333333333333333",
                  "Created": 1367854154,
                  "Status": "Exit 0",
@@ -89,7 +89,7 @@ List containers
                  "Id": "4cb07b47f9fb",
                  "Names":["/running_cat"],
                  "Image": "ubuntu:latest",
-		 "ImageID": "d74508fb6632491cea586a1fd7d748dfc5274cd6fdfedee309ecdcbc2bf5cb82",
+                 "ImageID": "d74508fb6632491cea586a1fd7d748dfc5274cd6fdfedee309ecdcbc2bf5cb82",
                  "Command": "echo 444444444444444444444444444444444",
                  "Created": 1367854152,
                  "Status": "Exit 0",
@@ -204,7 +204,7 @@ Create a container
              "LogConfig": { "Type": "json-file", "Config": {} },
              "SecurityOpt": [""],
              "CgroupParent": "",
-	      "VolumeDriver": ""
+             "VolumeDriver": ""
           }
       }
 
@@ -441,15 +441,23 @@ Return low-level information on the container `id`
 			"HairpinMode": false,
 			"LinkLocalIPv6Address": "",
 			"LinkLocalIPv6PrefixLen": 0,
-			"SandboxKey": "",
-			"SecondaryIPAddresses": [],
-			"SecondaryIPv6Addresses": [],
 			"Ports": null,
+			"SandboxKey": "",
+			"SecondaryIPAddresses": null,
+			"SecondaryIPv6Addresses": null,
+			"EndpointID": "",
+			"Gateway": "",
+			"GlobalIPv6Address": "",
+			"GlobalIPv6PrefixLen": 0,
+			"IPAddress": "",
+			"IPPrefixLen": 0,
+			"IPv6Gateway": "",
+			"MacAddress": "",
 			"Networks": {
 				"bridge": {
 					"EndpointID": "",
 					"Gateway": "",
-					"IPAdress": "",
+					"IPAddress": "",
 					"IPPrefixLen": 0,
 					"IPv6Gateway": "",
 					"GlobalIPv6Address": "",
@@ -562,7 +570,7 @@ Status Codes:
 Get `stdout` and `stderr` logs from the container ``id``
 
 > **Note**:
-> This endpoint works only for containers with `json-file` logging driver.
+> This endpoint works only for containers with the `json-file` or `journald` logging drivers.
 
 **Example request**:
 
@@ -1244,14 +1252,14 @@ Query Parameters:
 
 **Example request**:
 
-        PUT /containers/8cce319429b2/archive?path=/vol1 HTTP/1.1
-        Content-Type: application/x-tar
+    PUT /containers/8cce319429b2/archive?path=/vol1 HTTP/1.1
+    Content-Type: application/x-tar
 
-        {{ TAR STREAM }}
+    {{ TAR STREAM }}
 
 **Example response**:
 
-        HTTP/1.1 200 OK
+    HTTP/1.1 200 OK
 
 Status Codes:
 
@@ -2384,29 +2392,37 @@ Return low-level information about the `exec` command `id`.
           "SecurityOpt" : null
         },
         "Image" : "5506de2b643be1e6febbf3b8a240760c6843244c41e12aa2f60ccbb7153d17f5",
-	"NetworkSettings": {
-		"Bridge": "",
-		"SandboxID": "",
-		"HairpinMode": false,
-		"LinkLocalIPv6Address": "",
-		"LinkLocalIPv6PrefixLen": 0,
-		"SandboxKey": "",
-		"SecondaryIPAddresses": [],
-		"SecondaryIPv6Addresses": [],
-		"Ports": null,
-		"Networks": {
-			"bridge": {
-				"EndpointID": "",
-				"Gateway": "",
-				"IPAdress": "",
-				"IPPrefixLen": 0,
-				"IPv6Gateway": "",
-				"GlobalIPv6Address": "",
-				"GlobalIPv6PrefixLen": 0,
-				"MacAddress": ""
-			}
-		}
-	},
+        "NetworkSettings": {
+            "Bridge": "",
+            "SandboxID": "",
+            "HairpinMode": false,
+            "LinkLocalIPv6Address": "",
+            "LinkLocalIPv6PrefixLen": 0,
+            "Ports": null,
+            "SandboxKey": "",
+            "SecondaryIPAddresses": null,
+            "SecondaryIPv6Addresses": null,
+            "EndpointID": "",
+            "Gateway": "",
+            "GlobalIPv6Address": "",
+            "GlobalIPv6PrefixLen": 0,
+            "IPAddress": "",
+            "IPPrefixLen": 0,
+            "IPv6Gateway": "",
+            "MacAddress": "",
+            "Networks": {
+                "bridge": {
+                    "EndpointID": "",
+                    "Gateway": "",
+                    "IPAddress": "",
+                    "IPPrefixLen": 0,
+                    "IPv6Gateway": "",
+                    "GlobalIPv6Address": "",
+                    "GlobalIPv6PrefixLen": 0,
+                    "MacAddress": ""
+                }
+            }
+        },
         "ResolvConfPath" : "/var/lib/docker/containers/8f177a186b977fb451136e0fdf182abff5599a08b3c7f6ef0d36a55aaf89634c/resolv.conf",
         "HostnamePath" : "/var/lib/docker/containers/8f177a186b977fb451136e0fdf182abff5599a08b3c7f6ef0d36a55aaf89634c/hostname",
         "HostsPath" : "/var/lib/docker/containers/8f177a186b977fb451136e0fdf182abff5599a08b3c7f6ef0d36a55aaf89634c/hosts",
@@ -2436,22 +2452,22 @@ Status Codes:
 
 **Example request**:
 
-  GET /volumes HTTP/1.1
+    GET /volumes HTTP/1.1
 
 **Example response**:
 
-  HTTP/1.1 200 OK
-  Content-Type: application/json
+    HTTP/1.1 200 OK
+    Content-Type: application/json
 
-  {
-    "Volumes": [
-      {
-        "Name": "tardis",
-        "Driver": "local",
-        "Mountpoint": "/var/lib/docker/volumes/tardis"
-      }
-    ]
-  }
+    {
+      "Volumes": [
+        {
+          "Name": "tardis",
+          "Driver": "local",
+          "Mountpoint": "/var/lib/docker/volumes/tardis"
+        }
+      ]
+    }
 
 Query Parameters:
 
@@ -2470,23 +2486,23 @@ Create a volume
 
 **Example request**:
 
-  POST /volumes/create HTTP/1.1
-  Content-Type: application/json
+    POST /volumes/create HTTP/1.1
+    Content-Type: application/json
 
-  {
-    "Name": "tardis"
-  }
+    {
+      "Name": "tardis"
+    }
 
 **Example response**:
 
-  HTTP/1.1 201 Created
-  Content-Type: application/json
+    HTTP/1.1 201 Created
+    Content-Type: application/json
 
-  {
-    "Name": "tardis"
-    "Driver": "local",
-    "Mountpoint": "/var/lib/docker/volumes/tardis"
-  }
+    {
+      "Name": "tardis",
+      "Driver": "local",
+      "Mountpoint": "/var/lib/docker/volumes/tardis"
+    }
 
 Status Codes:
 
@@ -2512,14 +2528,14 @@ Return low-level information on the volume `name`
 
 **Example response**:
 
-  HTTP/1.1 200 OK
-  Content-Type: application/json
+    HTTP/1.1 200 OK
+    Content-Type: application/json
 
-  {
-    "Name": "tardis",
-    "Driver": "local",
-    "Mountpoint": "/var/lib/docker/volumes/tardis"
-  }
+    {
+      "Name": "tardis",
+      "Driver": "local",
+      "Mountpoint": "/var/lib/docker/volumes/tardis"
+    }
 
 Status Codes:
 
@@ -2535,11 +2551,11 @@ Instruct the driver to remove the volume (`name`).
 
 **Example request**:
 
-  DELETE /volumes/local/tardis HTTP/1.1
+    DELETE /volumes/local/tardis HTTP/1.1
 
 **Example response**:
 
-  HTTP/1.1 204 No Content
+    HTTP/1.1 204 No Content
 
 Status Codes
 
@@ -2556,34 +2572,70 @@ Status Codes
 
 **Example request**:
 
-  GET /networks HTTP/1.1
+    GET /networks HTTP/1.1
 
 **Example response**:
 
-  HTTP/1.1 200 OK
-  Content-Type: application/json
-
 ```
-  [
-    {
-      "name": "bridge",
-      "id": "f995e41e471c833266786a64df584fbe4dc654ac99f63a4ee7495842aa093fc4",
-      "driver": "bridge",
-      "containers": {}
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+[
+  {
+    "Name": "bridge",
+    "Id": "f2de39df4171b0dc801e8002d1d999b77256983dfc63041c0f34030aa3977566",
+    "Scope": "local",
+    "Driver": "bridge",
+    "IPAM": {
+      "Driver": "default",
+      "Config": [
+        {
+          "Subnet": "172.17.0.0/16"
+        }
+      ]
     },
-    {
-      "name": "none",
-      "id": "21e34df9b29c74ae45ba312f8e9f83c02433c9a877cfebebcf57be78f69b77c8",
-      "driver": "null",
-      "containers": {}
+    "Containers": {
+      "39b69226f9d79f5634485fb236a23b2fe4e96a0a94128390a7fbbcc167065867": {
+        "EndpointID": "ed2419a97c1d9954d05b46e462e7002ea552f216e9b136b80a7db8d98b442eda",
+        "MacAddress": "02:42:ac:11:00:02",
+        "IPv4Address": "172.17.0.2/16",
+        "IPv6Address": ""
+      }
     },
-    {
-      "name": "host",
-      "id": "3f43a0873f00310a71cd6a71e2e60c113cf17d1812be2ec22fd519fbac68ec91",
-      "driver": "host",
-      "containers": {}
+    "Options": {
+      "com.docker.network.bridge.default_bridge": "true",
+      "com.docker.network.bridge.enable_icc": "true",
+      "com.docker.network.bridge.enable_ip_masquerade": "true",
+      "com.docker.network.bridge.host_binding_ipv4": "0.0.0.0",
+      "com.docker.network.bridge.name": "docker0",
+      "com.docker.network.driver.mtu": "1500"
     }
-  ]
+  },
+  {
+    "Name": "none",
+    "Id": "e086a3893b05ab69242d3c44e49483a3bbbd3a26b46baa8f61ab797c1088d794",
+    "Scope": "local",
+    "Driver": "null",
+    "IPAM": {
+      "Driver": "default",
+      "Config": []
+    },
+    "Containers": {},
+    "Options": {}
+  },
+  {
+    "Name": "host",
+    "Id": "13e871235c677f196c4e1ecebb9dc733b9b2d2ab589e30c539efeda84a24215e",
+    "Scope": "local",
+    "Driver": "host",
+    "IPAM": {
+      "Driver": "default",
+      "Config": []
+    },
+    "Containers": {},
+    "Options": {}
+  }
+]
 ```
 
 
@@ -2603,39 +2655,44 @@ Status Codes:
 
 **Example request**:
 
-  GET /networks/f995e41e471c833266786a64df584fbe4dc654ac99f63a4ee7495842aa093fc4 HTTP/1.1
+    GET /networks/f2de39df4171b0dc801e8002d1d999b77256983dfc63041c0f34030aa3977566 HTTP/1.1
 
 **Example response**:
 
-  HTTP/1.1 200 OK
-  Content-Type: application/json
-
 ```
-  {
-    "name": "bridge",
-    "id": "f995e41e471c833266786a64df584fbe4dc654ac99f63a4ee7495842aa093fc4",
-    "driver": "bridge",
-    "containers": {
-      "931d29e96e63022a3691f55ca18b28600239acf53878451975f77054b05ba559": {
-        "endpoint": "aa79321e2899e6d72fcd46e6a4ad7f81ab9a19c3b06e384ef4ce51fea35827f9",
-        "mac_address": "02:42:ac:11:00:04",
-        "ipv4_address": "172.17.0.4/16",
-        "ipv6_address": ""
-      },
-      "961249b4ae6c764b11eed923e8463c102689111fffd933627b2e7e359c7d0f7c": {
-        "endpoint": "4f62c5aea6b9a70512210be7db976bd4ec2cdba47125e4fe514d18c81b1624b1",
-        "mac_address": "02:42:ac:11:00:02",
-        "ipv4_address": "172.17.0.2/16",
-        "ipv6_address": ""
-      },
-      "9f6e0fec4449f42a173ed85be96dc2253b6719edd850d8169bc31bdc45db675c": {
-        "endpoint": "352b512a5bccdfc77d16c2c04d04408e718f879a16f9ce3913a4733139e4f98d",
-        "mac_address": "02:42:ac:11:00:03",
-        "ipv4_address": "172.17.0.3/16",
-        "ipv6_address": ""
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "Name": "bridge",
+  "Id": "f2de39df4171b0dc801e8002d1d999b77256983dfc63041c0f34030aa3977566",
+  "Scope": "local",
+  "Driver": "bridge",
+  "IPAM": {
+    "Driver": "default",
+    "Config": [
+      {
+        "Subnet": "172.17.0.0/16"
       }
+    ]
+  },
+  "Containers": {
+    "39b69226f9d79f5634485fb236a23b2fe4e96a0a94128390a7fbbcc167065867": {
+      "EndpointID": "ed2419a97c1d9954d05b46e462e7002ea552f216e9b136b80a7db8d98b442eda",
+      "MacAddress": "02:42:ac:11:00:02",
+      "IPv4Address": "172.17.0.2/16",
+      "IPv6Address": ""
     }
+  },
+  "Options": {
+    "com.docker.network.bridge.default_bridge": "true",
+    "com.docker.network.bridge.enable_icc": "true",
+    "com.docker.network.bridge.enable_ip_masquerade": "true",
+    "com.docker.network.bridge.host_binding_ipv4": "0.0.0.0",
+    "com.docker.network.bridge.name": "docker0",
+    "com.docker.network.driver.mtu": "1500"
   }
+}
 ```
 
 Status Codes:
@@ -2651,26 +2708,26 @@ Create a network
 
 **Example request**:
 
-  POST /networks/create HTTP/1.1
-  Content-Type: application/json
-
 ```
-  {
-    "name":"isolated_nw",
-    "driver":"bridge"
-  }
+POST /networks/create HTTP/1.1
+Content-Type: application/json
+
+{
+  "Name":"isolated_nw",
+  "Driver":"bridge"
+}
 ```
 
 **Example response**:
 
-  HTTP/1.1 201 Created
-  Content-Type: application/json
-
 ```
-  {
-    "id": "22be93d5babb089c5aab8dbc369042fad48ff791584ca2da2100db837a1c7c30",
-    "warning": ""
-  }
+HTTP/1.1 201 Created
+Content-Type: application/json
+
+{
+  "Id": "22be93d5babb089c5aab8dbc369042fad48ff791584ca2da2100db837a1c7c30",
+  "Warning": ""
+}
 ```
 
 Status Codes:
@@ -2681,10 +2738,10 @@ Status Codes:
 
 JSON Parameters:
 
-- **name** - The new network's name. this is a mandatory field
-- **driver** - Name of the network driver to use. Defaults to `bridge` driver
-- **options** - Network specific options to be used by the drivers
-- **check_duplicate** - Requests daemon to check for networks with same name
+- **Name** - The new network's name. this is a mandatory field
+- **Driver** - Name of the network driver to use. Defaults to `bridge` driver
+- **Options** - Network specific options to be used by the drivers
+- **CheckDuplicate** - Requests daemon to check for networks with same name
 
 ### Connect a container to a network
 
@@ -2694,18 +2751,18 @@ Connects a container to a network
 
 **Example request**:
 
-  POST /networks/22be93d5babb089c5aab8dbc369042fad48ff791584ca2da2100db837a1c7c30/connect HTTP/1.1
-  Content-Type: application/json
-
 ```
-  {
-    "container":"3613f73ba0e4"
-  }
+POST /networks/22be93d5babb089c5aab8dbc369042fad48ff791584ca2da2100db837a1c7c30/connect HTTP/1.1
+Content-Type: application/json
+
+{
+  "Container":"3613f73ba0e4"
+}
 ```
 
 **Example response**:
 
-  HTTP/1.1 200 OK
+    HTTP/1.1 200 OK
 
 Status Codes:
 
@@ -2724,18 +2781,18 @@ Disconnects a container from a network
 
 **Example request**:
 
-  POST /networks/22be93d5babb089c5aab8dbc369042fad48ff791584ca2da2100db837a1c7c30/disconnect HTTP/1.1
-  Content-Type: application/json
-
 ```
-  {
-    "container":"3613f73ba0e4"
-  }
+POST /networks/22be93d5babb089c5aab8dbc369042fad48ff791584ca2da2100db837a1c7c30/disconnect HTTP/1.1
+Content-Type: application/json
+
+{
+  "Container":"3613f73ba0e4"
+}
 ```
 
 **Example response**:
 
-  HTTP/1.1 200 OK
+    HTTP/1.1 200 OK
 
 Status Codes:
 
@@ -2744,7 +2801,7 @@ Status Codes:
 
 JSON Parameters:
 
-- **container** - container-id/name to be disconnected from a network
+- **Container** - container-id/name to be disconnected from a network
 
 ### Remove a network
 
@@ -2754,11 +2811,11 @@ Instruct the driver to remove the network (`id`).
 
 **Example request**:
 
-  DELETE /networks/22be93d5babb089c5aab8dbc369042fad48ff791584ca2da2100db837a1c7c30 HTTP/1.1
+    DELETE /networks/22be93d5babb089c5aab8dbc369042fad48ff791584ca2da2100db837a1c7c30 HTTP/1.1
 
 **Example response**:
 
-  HTTP/1.1 204 No Content
+    HTTP/1.1 204 No Content
 
 Status Codes
 
