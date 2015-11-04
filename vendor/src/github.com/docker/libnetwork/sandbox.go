@@ -177,13 +177,18 @@ func (sb *sandbox) Delete() error {
 			continue
 		}
 
-		if err := ep.Leave(sb); err != nil {
+		// Retain the sanbdox if we can't obtain the network from store.
+		if _, err := c.getNetworkFromStore(ep.getNetwork().ID()); err != nil {
 			retain = true
+			log.Warnf("Failed getting network for ep %s during sandbox %s delete: %v", ep.ID(), sb.ID(), err)
+			continue
+		}
+
+		if err := ep.Leave(sb); err != nil {
 			log.Warnf("Failed detaching sandbox %s from endpoint %s: %v\n", sb.ID(), ep.ID(), err)
 		}
 
 		if err := ep.Delete(); err != nil {
-			retain = true
 			log.Warnf("Failed deleting endpoint %s: %v\n", ep.ID(), err)
 		}
 	}
@@ -455,7 +460,7 @@ func (sb *sandbox) populateNetworkResources(ep *endpoint) error {
 	i := ep.iface
 	ep.Unlock()
 
-	if i.srcName != "" {
+	if i != nil && i.srcName != "" {
 		var ifaceOptions []osl.IfaceOption
 
 		ifaceOptions = append(ifaceOptions, sb.osSbox.InterfaceOptions().Address(i.addr), sb.osSbox.InterfaceOptions().Routes(i.routes))
@@ -951,6 +956,11 @@ func OptionGeneric(generic map[string]interface{}) SandboxOption {
 func (eh epHeap) Len() int { return len(eh) }
 
 func (eh epHeap) Less(i, j int) bool {
+	var (
+		cip, cjp int
+		ok       bool
+	)
+
 	ci, _ := eh[i].getSandbox()
 	cj, _ := eh[j].getSandbox()
 
@@ -965,14 +975,20 @@ func (eh epHeap) Less(i, j int) bool {
 		return true
 	}
 
-	cip, ok := ci.epPriority[eh[i].ID()]
-	if !ok {
-		cip = 0
+	if ci != nil {
+		cip, ok = ci.epPriority[eh[i].ID()]
+		if !ok {
+			cip = 0
+		}
 	}
-	cjp, ok := cj.epPriority[eh[j].ID()]
-	if !ok {
-		cjp = 0
+
+	if cj != nil {
+		cjp, ok = cj.epPriority[eh[j].ID()]
+		if !ok {
+			cjp = 0
+		}
 	}
+
 	if cip == cjp {
 		return eh[i].network.Name() < eh[j].network.Name()
 	}
