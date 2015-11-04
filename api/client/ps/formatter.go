@@ -17,6 +17,7 @@ const (
 
 	defaultTableFormat = "table {{.ID}}\t{{.Image}}\t{{.Command}}\t{{.RunningFor}} ago\t{{.Status}}\t{{.Ports}}\t{{.Names}}"
 	defaultQuietFormat = "{{.ID}}"
+	defaultSmallFormat = "table {{.ID}}\t{{.Image}}\t{{.Command}}\t{{.Names}}"
 )
 
 // Context contains information required by the formatter to print the output as desired.
@@ -29,6 +30,8 @@ type Context struct {
 	Size bool
 	// Quiet when set to true will simply print minimal information.
 	Quiet bool
+	// Small when set to true will print only important information, less wide.
+	Small bool
 	// Trunc when set to true will truncate the output of certain fields such as Container ID.
 	Trunc bool
 }
@@ -72,6 +75,8 @@ func tableFormat(ctx Context, containers []types.Container) {
 	ctx.Format = defaultTableFormat
 	if ctx.Quiet {
 		ctx.Format = defaultQuietFormat
+	} else if ctx.Small {
+		ctx.Format = defaultSmallFormat
 	}
 
 	customFormat(ctx, containers)
