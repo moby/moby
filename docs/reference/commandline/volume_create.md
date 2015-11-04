@@ -24,7 +24,8 @@ Creates a new volume that containers can consume and store data in. If a name is
     $ docker volume create --name hello
     hello
 
-    $ docker run -d -v hello:/world busybox ls /world
+    $ docker run -d -v hello:/world busybox
+    $ ls /world
 
 The mount is created inside the container's `/world` directory. Docker does not support relative paths for mount points inside the container.
 
