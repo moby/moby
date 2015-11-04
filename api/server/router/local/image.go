@@ -242,7 +242,7 @@ func (s *router) deleteImages(ctx context.Context, w http.ResponseWriter, r *htt
 
 	name := vars["name"]
 
-	if name == "" {
+	if strings.TrimSpace(name) == "" {
 		return fmt.Errorf("image name cannot be blank")
 	}
 

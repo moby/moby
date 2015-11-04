@@ -218,7 +218,10 @@ func (graph *Graph) Exists(id string) bool {
 func (graph *Graph) Get(name string) (*image.Image, error) {
 	id, err := graph.idIndex.Get(name)
 	if err != nil {
-		return nil, fmt.Errorf("could not find image: %v", err)
+		if err == truncindex.ErrNotExist {
+			return nil, fmt.Errorf("image %s does not exist", name)
+		}
+		return nil, err
 	}
 	img, err := graph.loadImage(id)
 	if err != nil {
