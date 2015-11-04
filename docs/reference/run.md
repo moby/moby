@@ -39,7 +39,6 @@ defaults related to:
  * container identification
  * network settings
  * runtime constraints on CPU and memory
- * privileges and LXC configuration
 
 With the `docker run [OPTIONS]` an operator can add to or override the
 image defaults set by a developer. And, additionally, operators can
@@ -75,7 +74,7 @@ following options.
  - [Restart policies (--restart)](#restart-policies-restart)
  - [Clean up (--rm)](#clean-up-rm)
  - [Runtime constraints on resources](#runtime-constraints-on-resources)
- - [Runtime privilege, Linux capabilities, and LXC configuration](#runtime-privilege-linux-capabilities-and-lxc-configuration)
+ - [Runtime privilege and Linux capabilities](#runtime-privilege-and-linux-capabilities)
 
 ## Detached vs foreground
 
@@ -933,21 +932,18 @@ one can use this flag:
     $ docker run -ti --rm --group-add audio  --group-add dbus --group-add 777 busybox id
     uid=0(root) gid=0(root) groups=10(wheel),29(audio),81(dbus),777
 
-## Runtime privilege, Linux capabilities, and LXC configuration
+## Runtime privilege and Linux capabilities
 
     --cap-add: Add Linux capabilities
     --cap-drop: Drop Linux capabilities
     --privileged=false: Give extended privileges to this container
     --device=[]: Allows you to run devices inside the container without the --privileged flag.
-    --lxc-conf=[]: Add custom lxc options
 
 By default, Docker containers are "unprivileged" and cannot, for
 example, run a Docker daemon inside a Docker container. This is because
 by default a container is not allowed to access any devices, but a
-"privileged" container is given access to all devices (see [lxc-template.go](
-https://github.com/docker/docker/blob/master/daemon/execdriver/lxc/lxc_template.go)
-and documentation on [cgroups devices](
-https://www.kernel.org/doc/Documentation/cgroups/devices.txt)).
+"privileged" container is given access to all devices (see 
+the documentation on [cgroups devices](https://www.kernel.org/doc/Documentation/cgroups/devices.txt)).
 
 When the operator executes `docker run --privileged`, Docker will enable
 to access to all devices on the host as well as set some configuration
@@ -1060,22 +1056,6 @@ To mount a FUSE based filesystem, you need to combine both `--cap-add` and
     -rw-rw-r-- 1 1000 1000    461 Dec  4 06:08 .gitignore
     ....
 
-
-If the Docker daemon was started using the `lxc` exec-driver
-(`docker daemon --exec-driver=lxc`) then the operator can also specify LXC options
-using one or more `--lxc-conf` parameters. These can be new parameters or
-override existing parameters from the [lxc-template.go](
-https://github.com/docker/docker/blob/master/daemon/execdriver/lxc/lxc_template.go).
-Note that in the future, a given host's docker daemon may not use LXC, so this
-is an implementation-specific configuration meant for operators already
-familiar with using LXC directly.
-
-> **Note:**
-> If you use `--lxc-conf` to modify a container's configuration which is also
-> managed by the Docker daemon, then the Docker daemon will not know about this
-> modification, and you will need to manage any conflicts yourself. For example,
-> you can use `--lxc-conf` to set a container's IP address, but this will not be
-> reflected in the `/etc/hosts` file.
 
 ## Logging drivers (--log-driver)
 
@@ -1258,7 +1238,6 @@ above, or already defined by the developer with a Dockerfile `ENV`:
     declare -x PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
     declare -x PWD="/"
     declare -x SHLVL="1"
-    declare -x container="lxc"
     declare -x deep="purple"
 
 Similarly the operator can set the **hostname** with `-h`.

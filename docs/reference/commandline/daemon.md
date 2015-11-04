@@ -439,11 +439,6 @@ Currently supported options of `zfs`:
 The Docker daemon uses a specifically built `libcontainer` execution driver as
 its interface to the Linux kernel `namespaces`, `cgroups`, and `SELinux`.
 
-There is still legacy support for the original [LXC userspace tools](
-https://linuxcontainers.org/) via the `lxc` execution driver, however, this is
-not where the primary development of new functionality is taking place.
-Add `-e lxc` to the daemon flags to use the `lxc` execution driver.
-
 ## Options for the native execdriver
 
 You can configure the `native` (libcontainer) execdriver using options specified

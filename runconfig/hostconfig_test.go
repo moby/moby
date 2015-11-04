@@ -162,53 +162,6 @@ func TestRestartPolicy(t *testing.T) {
 	}
 }
 
-func TestLxcConfigMarshalJSON(t *testing.T) {
-	lxcConfigs := map[*LxcConfig]string{
-		nil:          "",
-		&LxcConfig{}: "null",
-		&LxcConfig{
-			[]KeyValuePair{{"key1", "value1"}},
-		}: `[{"Key":"key1","Value":"value1"}]`,
-	}
-
-	for lxcconfig, expected := range lxcConfigs {
-		data, err := lxcconfig.MarshalJSON()
-		if err != nil {
-			t.Fatal(err)
-		}
-		if string(data) != expected {
-			t.Fatalf("Expected %v, got %v", expected, string(data))
-		}
-	}
-}
-
-func TestLxcConfigUnmarshalJSON(t *testing.T) {
-	keyvaluePairs := map[string][]KeyValuePair{
-		"":   {{"key1", "value1"}},
-		"[]": {},
-		`[{"Key":"key2","Value":"value2"}]`: {{"key2", "value2"}},
-	}
-	for json, expectedParts := range keyvaluePairs {
-		lxcConfig := &LxcConfig{
-			[]KeyValuePair{{"key1", "value1"}},
-		}
-		if err := lxcConfig.UnmarshalJSON([]byte(json)); err != nil {
-			t.Fatal(err)
-		}
-
-		actualParts := lxcConfig.Slice()
-		if len(actualParts) != len(expectedParts) {
-			t.Fatalf("Expected %v keyvaluePairs, got %v (%v)", len(expectedParts), len(actualParts), expectedParts)
-		}
-		for index, part := range actualParts {
-			if part != expectedParts[index] {
-				t.Fatalf("Expected %v, got %v", expectedParts, actualParts)
-				break
-			}
-		}
-	}
-}
-
 func TestMergeConfigs(t *testing.T) {
 	expectedHostname := "hostname"
 	expectedContainerIDFile := "containerIdFile"

@@ -1379,7 +1379,6 @@ _docker_run() {
 		--link
 		--log-driver
 		--log-opt
-		--lxc-conf
 		--mac-address
 		--memory -m
 		--memory-swap

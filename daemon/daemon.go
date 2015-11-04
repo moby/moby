@@ -451,7 +451,6 @@ func (daemon *Daemon) generateNewName(id string) (string, error) {
 
 func (daemon *Daemon) generateHostname(id string, config *runconfig.Config) {
 	// Generate default hostname
-	// FIXME: the lxc template no longer needs to set a default hostname
 	if config.Hostname == "" {
 		config.Hostname = id[:12]
 	}
@@ -786,13 +785,6 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 	d.containerGraphDB = graph
 
 	var sysInitPath string
-	if config.ExecDriver == "lxc" {
-		initPath, err := configureSysInit(config, rootUID, rootGID)
-		if err != nil {
-			return nil, err
-		}
-		sysInitPath = initPath
-	}
 
 	sysInfo := sysinfo.New(false)
 	// Check if Devices cgroup is mounted, it is hard requirement for container security,

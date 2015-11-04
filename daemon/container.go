@@ -261,7 +261,6 @@ func (container *Container) jsonPath() (string, error) {
 	return container.getRootResourcePath("config.json")
 }
 
-// This method must be exported to be used from the lxc template
 // This directory is only usable when the container is running
 func (container *Container) rootfsPath() string {
 	return container.basefs

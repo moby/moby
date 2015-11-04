@@ -128,10 +128,6 @@ func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *runconfig.HostC
 		return warnings, err
 	}
 
-	if hostConfig.LxcConf.Len() > 0 && !strings.Contains(daemon.ExecutionDriver().Name(), "lxc") {
-		return warnings, fmt.Errorf("Cannot use --lxc-conf with execdriver: %s", daemon.ExecutionDriver().Name())
-	}
-
 	// memory subsystem checks and adjustments
 	if hostConfig.Memory != 0 && hostConfig.Memory < 4194304 {
 		return warnings, fmt.Errorf("Minimum memory limit allowed is 4MB")

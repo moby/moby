@@ -31,13 +31,6 @@ if ! mountpoint -q /sys/fs/cgroup; then
 	# Mount the cgroup hierarchies exactly as they are in the parent system.
 	for HIER in $(cut -d: -f2 /proc/1/cgroup); do
 
-		# The following sections address a bug which manifests itself
-		# by a cryptic "lxc-start: no ns_cgroup option specified" when
-		# trying to start containers within a container.
-		# The bug seems to appear when the cgroup hierarchies are not
-		# mounted on the exact same directories in the host, and in the
-		# container.
-
 		SUBSYSTEMS="${HIER%name=*}"
 
 		# If cgroup hierarchy is named(mounted with "-o name=foo") we

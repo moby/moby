@@ -66,13 +66,11 @@ func (s *DockerSuite) TestRunLookupGoogleDns(c *check.C) {
 }
 
 // the exit code should be 0
-// some versions of lxc might make this test fail
 func (s *DockerSuite) TestRunExitCodeZero(c *check.C) {
 	dockerCmd(c, "run", "busybox", "true")
 }
 
 // the exit code should be 1
-// some versions of lxc might make this test fail
 func (s *DockerSuite) TestRunExitCodeOne(c *check.C) {
 	_, exitCode, err := dockerCmdWithError("run", "busybox", "false")
 	if err != nil && !strings.Contains("exit status 1", fmt.Sprintf("%s", err)) {
@@ -84,7 +82,6 @@ func (s *DockerSuite) TestRunExitCodeOne(c *check.C) {
 }
 
 // it should be possible to pipe in data via stdin to a process running in a container
-// some versions of lxc might make this test fail
 func (s *DockerSuite) TestRunStdinPipe(c *check.C) {
 	// TODO Windows: This needs some work to make compatible.
 	testRequires(c, DaemonIsLinux)
@@ -664,7 +661,7 @@ func (s *DockerSuite) TestRunTwoConcurrentContainers(c *check.C) {
 
 func (s *DockerSuite) TestRunEnvironment(c *check.C) {
 	// TODO Windows: Environment handling is different between Linux and
-	// Windows and this test relies currently on lxc and unix functionality.
+	// Windows and this test relies currently on unix functionality.
 	testRequires(c, DaemonIsLinux)
 	cmd := exec.Command(dockerBinary, "run", "-h", "testing", "-e=FALSE=true", "-e=TRUE", "-e=TRICKY", "-e=HOME=", "busybox", "env")
 	cmd.Env = append(os.Environ(),
@@ -677,13 +674,7 @@ func (s *DockerSuite) TestRunEnvironment(c *check.C) {
 		c.Fatal(err, out)
 	}
 
-	actualEnvLxc := strings.Split(strings.TrimSpace(out), "\n")
-	actualEnv := []string{}
-	for i := range actualEnvLxc {
-		if actualEnvLxc[i] != "container=lxc" {
-			actualEnv = append(actualEnv, actualEnvLxc[i])
-		}
-	}
+	actualEnv := strings.Split(strings.TrimSpace(out), "\n")
 	sort.Strings(actualEnv)
 
 	goodEnv := []string{
@@ -709,7 +700,7 @@ func (s *DockerSuite) TestRunEnvironment(c *check.C) {
 
 func (s *DockerSuite) TestRunEnvironmentErase(c *check.C) {
 	// TODO Windows: Environment handling is different between Linux and
-	// Windows and this test relies currently on lxc and unix functionality.
+	// Windows and this test relies currently on unix functionality.
 	testRequires(c, DaemonIsLinux)
 
 	// Test to make sure that when we use -e on env vars that are
@@ -724,13 +715,7 @@ func (s *DockerSuite) TestRunEnvironmentErase(c *check.C) {
 		c.Fatal(err, out)
 	}
 
-	actualEnvLxc := strings.Split(strings.TrimSpace(out), "\n")
-	actualEnv := []string{}
-	for i := range actualEnvLxc {
-		if actualEnvLxc[i] != "container=lxc" {
-			actualEnv = append(actualEnv, actualEnvLxc[i])
-		}
-	}
+	actualEnv := strings.Split(strings.TrimSpace(out), "\n")
 	sort.Strings(actualEnv)
 
 	goodEnv := []string{
@@ -750,7 +735,7 @@ func (s *DockerSuite) TestRunEnvironmentErase(c *check.C) {
 
 func (s *DockerSuite) TestRunEnvironmentOverride(c *check.C) {
 	// TODO Windows: Environment handling is different between Linux and
-	// Windows and this test relies currently on lxc and unix functionality.
+	// Windows and this test relies currently on unix functionality.
 	testRequires(c, DaemonIsLinux)
 
 	// Test to make sure that when we use -e on env vars that are
@@ -764,13 +749,7 @@ func (s *DockerSuite) TestRunEnvironmentOverride(c *check.C) {
 		c.Fatal(err, out)
 	}
 
-	actualEnvLxc := strings.Split(strings.TrimSpace(out), "\n")
-	actualEnv := []string{}
-	for i := range actualEnvLxc {
-		if actualEnvLxc[i] != "container=lxc" {
-			actualEnv = append(actualEnv, actualEnvLxc[i])
-		}
-	}
+	actualEnv := strings.Split(strings.TrimSpace(out), "\n")
 	sort.Strings(actualEnv)
 
 	goodEnv := []string{

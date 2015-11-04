@@ -174,7 +174,6 @@ Create a container
            "HostConfig": {
              "Binds": ["/tmp:/tmp"],
              "Links": ["redis3:redis"],
-             "LxcConf": {"lxc.utsname":"docker"},
              "Memory": 0,
              "MemorySwap": 0,
              "MemoryReservation": 0,
@@ -270,8 +269,6 @@ Json Parameters:
            + `volume_name:container_path:ro` to make the bind mount read-only inside the container.
     -   **Links** - A list of links for the container. Each link entry should be
           in the form of `container_name:alias`.
-    -   **LxcConf** - LXC specific configurations. These configurations only
-          work when using the `lxc` execution driver.
     -   **PortBindings** - A map of exposed container ports and the host port they
           should map to. A JSON object in the form
           `{ <port>/<protocol>: [{ "HostPort": "<port>" }] }`

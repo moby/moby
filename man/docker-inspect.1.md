@@ -111,7 +111,6 @@ To get information on a container use its ID or instance name:
     "HostConfig": {
         "Binds": null,
         "ContainerIDFile": "",
-        "LxcConf": [],
         "Memory": 0,
         "MemorySwap": 0,
         "CpuShares": 0,

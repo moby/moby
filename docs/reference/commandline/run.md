@@ -47,7 +47,6 @@ parent = "smn_cli"
       --link=[]                     Add link to another container
       --log-driver=""               Logging driver for container
       --log-opt=[]                  Log driver specific options
-      --lxc-conf=[]                 Add custom lxc options
       -m, --memory=""               Memory limit
       --mac-address=""              Container MAC address (e.g. 92:d0:c6:0a:29:33)
       --memory-reservation=""       Memory soft limit
