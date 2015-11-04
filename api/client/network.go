@@ -237,7 +237,7 @@ func (cli *DockerCli) CmdNetworkInspect(args ...string) error {
 	return nil
 }
 
-// Consolidates the ipam configuration as a group from differnt related configurations
+// Consolidates the ipam configuration as a group from different related configurations
 // user can configure network with multiple non-overlapping subnets and hence it is
 // possible to corelate the various related parameters and consolidate them.
 // consoidateIpam consolidates subnets, ip-ranges, gateways and auxilary addresses into
