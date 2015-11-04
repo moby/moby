@@ -149,7 +149,7 @@ func (daemon *Daemon) Get(prefixOrName string) (*Container, error) {
 	containerID, indexError := daemon.idIndex.Get(prefixOrName)
 	if indexError != nil {
 		// When truncindex defines an error type, use that instead
-		if strings.Contains(indexError.Error(), "no such id") {
+		if indexError == truncindex.ErrNotExist {
 			return nil, derr.ErrorCodeNoSuchContainer.WithArgs(prefixOrName)
 		}
 		return nil, indexError

@@ -55,7 +55,7 @@ func (daemon *Daemon) ImageDelete(imageRef string, force, prune bool) ([]types.I
 
 	img, err := daemon.repositories.LookupImage(imageRef)
 	if err != nil {
-		return nil, err
+		return nil, daemon.graphNotExistToErrcode(imageRef, err)
 	}
 
 	var removedRepositoryRef bool

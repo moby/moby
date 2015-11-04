@@ -1,14 +1,10 @@
 package daemon
 
 import (
-	"strings"
-
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
 	derr "github.com/docker/docker/errors"
-	"github.com/docker/docker/graph/tags"
 	"github.com/docker/docker/image"
-	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/volume"
@@ -38,17 +34,7 @@ func (daemon *Daemon) ContainerCreate(params *ContainerCreateConfig) (types.Cont
 
 	container, err := daemon.create(params)
 	if err != nil {
-		if daemon.Graph().IsNotExist(err, params.Config.Image) {
-			if strings.Contains(params.Config.Image, "@") {
-				return types.ContainerCreateResponse{ID: "", Warnings: warnings}, derr.ErrorCodeNoSuchImageHash.WithArgs(params.Config.Image)
-			}
-			img, tag := parsers.ParseRepositoryTag(params.Config.Image)
-			if tag == "" {
-				tag = tags.DefaultTag
-			}
-			return types.ContainerCreateResponse{ID: "", Warnings: warnings}, derr.ErrorCodeNoSuchImageTag.WithArgs(img, tag)
-		}
-		return types.ContainerCreateResponse{ID: "", Warnings: warnings}, err
+		return types.ContainerCreateResponse{ID: "", Warnings: warnings}, daemon.graphNotExistToErrcode(params.Config.Image, err)
 	}
 
 	return types.ContainerCreateResponse{ID: container.ID, Warnings: warnings}, nil

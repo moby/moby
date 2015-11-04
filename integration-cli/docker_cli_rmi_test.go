@@ -230,10 +230,10 @@ func (s *DockerSuite) TestRmiBlank(c *check.C) {
 	c.Assert(out, checker.Contains, "image name cannot be blank", check.Commentf("out: %s", out))
 
 	out, _, err = dockerCmdWithError("rmi", " ")
-	// Should have failed to delete '' image
+	// Should have failed to delete ' ' image
 	c.Assert(err, checker.NotNil)
 	// Expected error message not generated
-	c.Assert(out, checker.Contains, "no such id", check.Commentf("out: %s", out))
+	c.Assert(out, checker.Contains, "image name cannot be blank", check.Commentf("out: %s", out))
 }
 
 func (s *DockerSuite) TestRmiContainerImageNotFound(c *check.C) {
