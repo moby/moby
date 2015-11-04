@@ -26,7 +26,7 @@ Once you decide which driver is best, you set this driver on the Docker daemon a
 |--------------|---------------------|
 |OverlayFS     |`overlay`            |
 |AUFS          |`aufs`               |
-|BTRFS         |`btrfs`              |
+|Btrfs         |`btrfs`              |
 |Device Maper  |`devicemapper`       |
 |VFS*          |`vfs`                |
 |ZFS           |`zfs`                |
@@ -115,5 +115,5 @@ Whichever driver you choose, make sure it has strong community support and momen
 
 * [Understand images, containers, and storage drivers](imagesandcontainers.md)
 * [AUFS storage driver in practice](aufs-driver.md)
-* [BTRFS storage driver in practice](btrfs-driver.md)
+* [Btrfs storage driver in practice](btrfs-driver.md)
 * [Device Mapper storage driver in practice](device-mapper-driver.md)
