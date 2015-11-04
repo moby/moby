@@ -17,6 +17,7 @@ weight = -1
 
     Options:
       --api-cors-header=""                   Set CORS headers in the remote API
+      --authz-plugins=[]                     Set authorization plugins to load
       -b, --bridge=""                        Attach containers to a network bridge
       --bip=""                               Specify network bridge IP
       -D, --debug=false                      Enable debug mode
@@ -601,6 +602,12 @@ The currently supported cluster store options are:
     private key is used as the client key for communication with the
     Key/Value store.
 
+## Access authorization
+
+The `--authz-plugins` option instructs the daemon to load the authorization plugins. Authorization plugins must follow the rules described in [Docker Plugin API](http://docs.docker.com/engine/extend/plugin_api/) and reside within directories described under the [plugin discovery](http://docs.docker.com/engine/extend/plugin_api/#plugin-discovery) section. The option accepts a set of plugin names to load, for example `--authz-plugins=plugin1,plugin2`.
+
+
+More information about how to create an authorization plugin can be found under the [authorization](https://docs.docker.com/engine/extend/authorization/) section in the user guide.
 
 ## Miscellaneous options
 
