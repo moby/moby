@@ -124,3 +124,16 @@ func (s *DockerSuite) TestContainerRestartwithGoodContainer(c *check.C) {
 	c.Assert(MaximumRetryCount, checker.Equals, "3")
 
 }
+
+func (s *DockerSuite) TestContainerRestartKillNonFatal(c *check.C) {
+	dockerCmd(c, "run", "-d", "--name=test", "--restart=always", "busybox", "sh", "-c", "trap 'exit 0' USR1 TERM; while true; do sleep 1; done")
+	c.Assert(waitRun("test"), check.IsNil)
+	dockerCmd(c, "kill", "-s=USR1", "test")
+
+	c.Assert(waitRun("test"), check.IsNil)
+	err := waitInspect("test", "RestartCounts", "1", 5*time.Second)
+	c.Assert(err, check.IsNil)
+
+	dockerCmd(c, "kill", "-s=TERM", "test")
+	waitExited("test", 5*time.Second)
+}
