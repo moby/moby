@@ -333,11 +333,11 @@ func (daemon *Daemon) networkOptions(dconfig *Config) ([]nwconfig.Option, error)
 
 	if strings.TrimSpace(dconfig.ClusterStore) != "" {
 		kv := strings.Split(dconfig.ClusterStore, "://")
-		if len(kv) < 2 {
+		if len(kv) != 2 {
 			return nil, fmt.Errorf("kv store daemon config must be of the form KV-PROVIDER://KV-URL")
 		}
 		options = append(options, nwconfig.OptionKVProvider(kv[0]))
-		options = append(options, nwconfig.OptionKVProviderURL(strings.Join(kv[1:], "://")))
+		options = append(options, nwconfig.OptionKVProviderURL(kv[1]))
 	}
 	if len(dconfig.ClusterOpts) > 0 {
 		options = append(options, nwconfig.OptionKVOpts(dconfig.ClusterOpts))

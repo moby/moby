@@ -549,3 +549,28 @@ func TestParseSecurityOpt(t *testing.T) {
 		t.Fatal("Expected parseSecurityOpt error, got nil")
 	}
 }
+
+func TestNetworkOptions(t *testing.T) {
+	daemon := &Daemon{}
+	dconfigCorrect := &Config{
+		CommonConfig: CommonConfig{
+			DefaultNetwork:   "netPlugin:mynet:dev",
+			ClusterStore:     "consul://localhost:8500",
+			ClusterAdvertise: "192.168.0.1:8000",
+		},
+	}
+
+	if _, err := daemon.networkOptions(dconfigCorrect); err != nil {
+		t.Fatalf("Expect networkOptions sucess, got error: %v", err)
+	}
+
+	dconfigWrong := &Config{
+		CommonConfig: CommonConfig{
+			ClusterStore: "consul://localhost:8500://test://bbb",
+		},
+	}
+
+	if _, err := daemon.networkOptions(dconfigWrong); err == nil {
+		t.Fatalf("Expected networkOptions error, got nil")
+	}
+}
