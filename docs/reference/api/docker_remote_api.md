@@ -101,6 +101,7 @@ This section lists each version from latest to oldest.  Each listing includes a 
 * `GET /networks/(name)` now returns a `Name` field for each container attached to the network.
 * `GET /version` now returns the `BuildTime` field in RFC3339Nano format to make it 
   consistent with other date/time values returned by the API.
+* `AuthConfig` now supports a `registrytoken` for token based authentication
 
 ### v1.21 API changes
 
