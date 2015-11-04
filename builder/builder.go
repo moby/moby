@@ -33,7 +33,8 @@ type Context interface {
 	Close() error
 	// Stat returns an entry corresponding to path if any.
 	// It is recommended to return an error if path was not found.
-	Stat(path string) (FileInfo, error)
+	// If path is a symlink it also returns the path to the target file.
+	Stat(path string) (string, FileInfo, error)
 	// Open opens path from the context and returns a readable stream of it.
 	Open(path string) (io.ReadCloser, error)
 	// Walk walks the tree of the context with the function passed to it.
@@ -64,11 +65,21 @@ type PathFileInfo struct {
 	os.FileInfo
 	// FilePath holds the absolute path to the file.
 	FilePath string
+	// Name holds the basename for the file.
+	FileName string
 }
 
 // Path returns the absolute path to the file.
 func (fi PathFileInfo) Path() string {
 	return fi.FilePath
+}
+
+// Name returns the basename of the file.
+func (fi PathFileInfo) Name() string {
+	if fi.FileName != "" {
+		return fi.FileName
+	}
+	return fi.FileInfo.Name()
 }
 
 // Hashed defines an extra method intended for implementations of os.FileInfo.

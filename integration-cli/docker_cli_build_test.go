@@ -21,6 +21,7 @@ import (
 
 	"github.com/docker/docker/builder/dockerfile/command"
 	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/docker/docker/pkg/stringutils"
 	"github.com/go-check/check"
 )
@@ -6276,4 +6277,128 @@ func (s *DockerSuite) TestBuildMultipleTags(c *check.C) {
 	id2, err := getIDByName("tag2:v2")
 	c.Assert(err, check.IsNil)
 	c.Assert(id1, check.Equals, id2)
+}
+
+// #17290
+func (s *DockerSuite) TestBuildCacheBrokenSymlink(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	name := "testbuildbrokensymlink"
+	ctx, err := fakeContext(`
+	FROM busybox
+	COPY . ./`,
+		map[string]string{
+			"foo": "bar",
+		})
+	c.Assert(err, checker.IsNil)
+	defer ctx.Close()
+
+	err = os.Symlink(filepath.Join(ctx.Dir, "nosuchfile"), filepath.Join(ctx.Dir, "asymlink"))
+	c.Assert(err, checker.IsNil)
+
+	// warm up cache
+	_, err = buildImageFromContext(name, ctx, true)
+	c.Assert(err, checker.IsNil)
+
+	// add new file to context, should invalidate cache
+	err = ioutil.WriteFile(filepath.Join(ctx.Dir, "newfile"), []byte("foo"), 0644)
+	c.Assert(err, checker.IsNil)
+
+	_, out, err := buildImageFromContextWithOut(name, ctx, true)
+	c.Assert(err, checker.IsNil)
+
+	c.Assert(out, checker.Not(checker.Contains), "Using cache")
+
+}
+
+func (s *DockerSuite) TestBuildFollowSymlinkToFile(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	name := "testbuildbrokensymlink"
+	ctx, err := fakeContext(`
+	FROM busybox
+	COPY asymlink target`,
+		map[string]string{
+			"foo": "bar",
+		})
+	c.Assert(err, checker.IsNil)
+	defer ctx.Close()
+
+	err = os.Symlink("foo", filepath.Join(ctx.Dir, "asymlink"))
+	c.Assert(err, checker.IsNil)
+
+	id, err := buildImageFromContext(name, ctx, true)
+	c.Assert(err, checker.IsNil)
+
+	out, _ := dockerCmd(c, "run", "--rm", id, "cat", "target")
+	c.Assert(out, checker.Matches, "bar")
+
+	// change target file should invalidate cache
+	err = ioutil.WriteFile(filepath.Join(ctx.Dir, "foo"), []byte("baz"), 0644)
+	c.Assert(err, checker.IsNil)
+
+	id, out, err = buildImageFromContextWithOut(name, ctx, true)
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Not(checker.Contains), "Using cache")
+
+	out, _ = dockerCmd(c, "run", "--rm", id, "cat", "target")
+	c.Assert(out, checker.Matches, "baz")
+}
+
+func (s *DockerSuite) TestBuildFollowSymlinkToDir(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	name := "testbuildbrokensymlink"
+	ctx, err := fakeContext(`
+	FROM busybox
+	COPY asymlink /`,
+		map[string]string{
+			"foo/abc": "bar",
+			"foo/def": "baz",
+		})
+	c.Assert(err, checker.IsNil)
+	defer ctx.Close()
+
+	err = os.Symlink("foo", filepath.Join(ctx.Dir, "asymlink"))
+	c.Assert(err, checker.IsNil)
+
+	id, err := buildImageFromContext(name, ctx, true)
+	c.Assert(err, checker.IsNil)
+
+	out, _ := dockerCmd(c, "run", "--rm", id, "cat", "abc", "def")
+	c.Assert(out, checker.Matches, "barbaz")
+
+	// change target file should invalidate cache
+	err = ioutil.WriteFile(filepath.Join(ctx.Dir, "foo/def"), []byte("bax"), 0644)
+	c.Assert(err, checker.IsNil)
+
+	id, out, err = buildImageFromContextWithOut(name, ctx, true)
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Not(checker.Contains), "Using cache")
+
+	out, _ = dockerCmd(c, "run", "--rm", id, "cat", "abc", "def")
+	c.Assert(out, checker.Matches, "barbax")
+
+}
+
+// TestBuildSymlinkBasename tests that target file gets basename from symlink,
+// not from the target file.
+func (s *DockerSuite) TestBuildSymlinkBasename(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	name := "testbuildbrokensymlink"
+	ctx, err := fakeContext(`
+	FROM busybox
+	COPY asymlink /`,
+		map[string]string{
+			"foo": "bar",
+		})
+	c.Assert(err, checker.IsNil)
+	defer ctx.Close()
+
+	err = os.Symlink("foo", filepath.Join(ctx.Dir, "asymlink"))
+	c.Assert(err, checker.IsNil)
+
+	id, err := buildImageFromContext(name, ctx, true)
+	c.Assert(err, checker.IsNil)
+
+	out, _ := dockerCmd(c, "run", "--rm", id, "cat", "asymlink")
+	c.Assert(out, checker.Matches, "bar")
+
 }

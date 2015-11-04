@@ -1234,6 +1234,14 @@ func buildImage(name, dockerfile string, useCache bool, buildFlags ...string) (s
 }
 
 func buildImageFromContext(name string, ctx *FakeContext, useCache bool, buildFlags ...string) (string, error) {
+	id, _, err := buildImageFromContextWithOut(name, ctx, useCache, buildFlags...)
+	if err != nil {
+		return "", err
+	}
+	return id, nil
+}
+
+func buildImageFromContextWithOut(name string, ctx *FakeContext, useCache bool, buildFlags ...string) (string, string, error) {
 	args := []string{"build", "-t", name}
 	if !useCache {
 		args = append(args, "--no-cache")
@@ -1244,9 +1252,13 @@ func buildImageFromContext(name string, ctx *FakeContext, useCache bool, buildFl
 	buildCmd.Dir = ctx.Dir
 	out, exitCode, err := runCommandWithOutput(buildCmd)
 	if err != nil || exitCode != 0 {
-		return "", fmt.Errorf("failed to build the image: %s", out)
+		return "", "", fmt.Errorf("failed to build the image: %s", out)
 	}
-	return getIDByName(name)
+	id, err := getIDByName(name)
+	if err != nil {
+		return "", "", err
+	}
+	return id, out, nil
 }
 
 func buildImageFromPath(name, path string, useCache bool, buildFlags ...string) (string, error) {

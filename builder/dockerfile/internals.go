@@ -366,7 +366,7 @@ func (b *Builder) calcCopyInfo(cmdName, origPath string, allowLocalDecompression
 
 	// Must be a dir or a file
 
-	fi, err := b.context.Stat(origPath)
+	statPath, fi, err := b.context.Stat(origPath)
 	if err != nil {
 		return nil, err
 	}
@@ -383,11 +383,9 @@ func (b *Builder) calcCopyInfo(cmdName, origPath string, allowLocalDecompression
 		hfi.SetHash("file:" + hfi.Hash())
 		return copyInfos, nil
 	}
-
 	// Must be a dir
-
 	var subfiles []string
-	b.context.Walk(origPath, func(path string, info builder.FileInfo, err error) error {
+	err = b.context.Walk(statPath, func(path string, info builder.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
@@ -395,6 +393,9 @@ func (b *Builder) calcCopyInfo(cmdName, origPath string, allowLocalDecompression
 		subfiles = append(subfiles, info.(builder.Hashed).Hash())
 		return nil
 	})
+	if err != nil {
+		return nil, err
+	}
 
 	sort.Strings(subfiles)
 	hasher := sha256.New()
@@ -613,9 +614,9 @@ func (b *Builder) readDockerfile() error {
 	// back to 'Dockerfile' and use that in the error message.
 	if b.DockerfileName == "" {
 		b.DockerfileName = api.DefaultDockerfileName
-		if _, err := b.context.Stat(b.DockerfileName); os.IsNotExist(err) {
+		if _, _, err := b.context.Stat(b.DockerfileName); os.IsNotExist(err) {
 			lowercase := strings.ToLower(b.DockerfileName)
-			if _, err := b.context.Stat(lowercase); err == nil {
+			if _, _, err := b.context.Stat(lowercase); err == nil {
 				b.DockerfileName = lowercase
 			}
 		}
