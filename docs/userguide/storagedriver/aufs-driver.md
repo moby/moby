@@ -193,5 +193,5 @@ reason, you may want to place heavy write workloads on data volumes.
 
 * [Understand images, containers, and storage drivers](imagesandcontainers.md)
 * [Select a storage driver](selectadriver.md)
-* [BTRFS storage driver in practice](btrfs-driver.md)
+* [Btrfs storage driver in practice](btrfs-driver.md)
 * [Device Mapper storage driver in practice](device-mapper-driver.md)
