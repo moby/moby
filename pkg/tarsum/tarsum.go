@@ -20,7 +20,6 @@ package tarsum
 import (
 	"archive/tar"
 	"bytes"
-	"compress/gzip"
 	"crypto"
 	"crypto/sha256"
 	"encoding/hex"
@@ -29,6 +28,8 @@ import (
 	"hash"
 	"io"
 	"strings"
+
+	gzip "github.com/klauspost/pgzip"
 )
 
 const (

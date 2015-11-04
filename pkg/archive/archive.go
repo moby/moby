@@ -5,7 +5,6 @@ import (
 	"bufio"
 	"bytes"
 	"compress/bzip2"
-	"compress/gzip"
 	"errors"
 	"fmt"
 	"io"
@@ -16,6 +15,8 @@ import (
 	"runtime"
 	"strings"
 	"syscall"
+
+	gzip "github.com/klauspost/pgzip"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/fileutils"

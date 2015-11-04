@@ -67,4 +67,10 @@ clone git gopkg.in/fsnotify.v1 v1.2.0
 clone git github.com/aws/aws-sdk-go v0.9.9
 clone git github.com/vaughan0/go-ini a98ad7ee00ec53921f08832bc06ecf7fd600e6a1
 
+# parallel gzip
+clone git github.com/klauspost/pgzip fccba12d82cf377f4f4fba76e17689af4f676a4f
+clone git github.com/klauspost/compress fa08a787327fffa9a47ddc53437f3b10fb921344
+clone git github.com/klauspost/crc32 f8d2e12057f7ef26ae42ecfa42697f4bdc32d7eb
+clone git github.com/klauspost/cpuid 8d9fe9648674c9699346aa4a5456cc9e1c0a96db
+
 clean

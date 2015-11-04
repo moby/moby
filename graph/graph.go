@@ -1,7 +1,6 @@
 package graph
 
 import (
-	"compress/gzip"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -14,6 +13,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	gzip "github.com/klauspost/pgzip"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/digest"
