@@ -5,7 +5,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/chrootarchive"
@@ -43,26 +42,32 @@ func (c *tarSumContext) Open(path string) (io.ReadCloser, error) {
 	return r, nil
 }
 
-func (c *tarSumContext) Stat(path string) (fi FileInfo, err error) {
+func (c *tarSumContext) Stat(path string) (string, FileInfo, error) {
 	cleanpath, fullpath, err := c.normalize(path)
 	if err != nil {
-		return nil, err
+		return "", nil, err
 	}
 
 	st, err := os.Lstat(fullpath)
 	if err != nil {
-		return nil, convertPathError(err, cleanpath)
+		return "", nil, convertPathError(err, cleanpath)
 	}
 
-	fi = PathFileInfo{st, fullpath}
-	// we set sum to path by default for the case where GetFile returns nil.
-	// The usual case is if cleanpath is empty.
+	rel, err := filepath.Rel(c.root, fullpath)
+	if err != nil {
+		return "", nil, convertPathError(err, cleanpath)
+	}
+
+	// We set sum to path by default for the case where GetFile returns nil.
+	// The usual case is if relative path is empty.
 	sum := path
-	if tsInfo := c.sums.GetFile(cleanpath); tsInfo != nil {
+	// Use the checksum of the followed path(not the possible symlink) because
+	// this is the file that is actually copied.
+	if tsInfo := c.sums.GetFile(rel); tsInfo != nil {
 		sum = tsInfo.Sum()
 	}
-	fi = &HashedFileInfo{fi, sum}
-	return fi, nil
+	fi := &HashedFileInfo{PathFileInfo{st, fullpath, filepath.Base(cleanpath)}, sum}
+	return rel, fi, nil
 }
 
 // MakeTarSumContext returns a build Context from a tar stream.
@@ -114,7 +119,7 @@ func (c *tarSumContext) normalize(path string) (cleanpath, fullpath string, err 
 	if err != nil {
 		return "", "", fmt.Errorf("Forbidden path outside the build context: %s (%s)", path, fullpath)
 	}
-	_, err = os.Stat(fullpath)
+	_, err = os.Lstat(fullpath)
 	if err != nil {
 		return "", "", convertPathError(err, path)
 	}
@@ -122,38 +127,26 @@ func (c *tarSumContext) normalize(path string) (cleanpath, fullpath string, err 
 }
 
 func (c *tarSumContext) Walk(root string, walkFn WalkFunc) error {
-	for _, tsInfo := range c.sums {
-		path := tsInfo.Name()
-		path, fullpath, err := c.normalize(path)
+	root = filepath.Join(c.root, filepath.Join(string(filepath.Separator), root))
+	return filepath.Walk(root, func(fullpath string, info os.FileInfo, err error) error {
+		rel, err := filepath.Rel(c.root, fullpath)
 		if err != nil {
 			return err
 		}
-
-		// Any file in the context that starts with the given path will be
-		// picked up and its hashcode used.  However, we'll exclude the
-		// root dir itself.  We do this for a coupel of reasons:
-		// 1 - ADD/COPY will not copy the dir itself, just its children
-		//     so there's no reason to include it in the hash calc
-		// 2 - the metadata on the dir will change when any child file
-		//     changes.  This will lead to a miss in the cache check if that
-		//     child file is in the .dockerignore list.
-		if rel, err := filepath.Rel(root, path); err != nil {
-			return err
-		} else if rel == "." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
-			continue
+		if rel == "." {
+			return nil
 		}
 
-		info, err := os.Lstat(fullpath)
-		if err != nil {
-			return convertPathError(err, path)
+		sum := rel
+		if tsInfo := c.sums.GetFile(rel); tsInfo != nil {
+			sum = tsInfo.Sum()
 		}
-		// TODO check context breakout?
-		fi := &HashedFileInfo{PathFileInfo{info, fullpath}, tsInfo.Sum()}
-		if err := walkFn(path, fi, nil); err != nil {
+		fi := &HashedFileInfo{PathFileInfo{FileInfo: info, FilePath: fullpath}, sum}
+		if err := walkFn(rel, fi, nil); err != nil {
 			return err
 		}
-	}
-	return nil
+		return nil
+	})
 }
 
 func (c *tarSumContext) Remove(path string) error {

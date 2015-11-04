@@ -177,7 +177,7 @@ func (d Docker) Copy(c *daemon.Container, destPath string, src builder.FileInfo,
 
 	// only needed for fixPermissions, but might as well put it before CopyFileWithTar
 	if destExists && destStat.IsDir() {
-		destPath = filepath.Join(destPath, filepath.Base(srcPath))
+		destPath = filepath.Join(destPath, src.Name())
 	}
 
 	if err := system.MkdirAll(filepath.Dir(destPath), 0755); err != nil {
