@@ -104,6 +104,9 @@ type Driver interface {
 
 	// SupportsHooks refers to the driver capability to exploit pre/post hook functionality
 	SupportsHooks() bool
+
+	// ModifyResources changes the cgroup resources of a currently active container
+	ModifyResources(contID string, r *Resources) error
 }
 
 // Ipc settings of the container

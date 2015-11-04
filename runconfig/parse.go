@@ -307,7 +307,6 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		return nil, nil, cmd, err
 	}
 
-	fmt.Println("Volumes: ", binds);
 	config := &Config{
 		Hostname:        hostname,
 		Domainname:      domainname,

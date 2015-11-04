@@ -123,6 +123,12 @@ func killNetNsProc(proc *os.Process) {
 	proc.Wait()
 }
 
+// ModifyResources changes the cgroup resources of a currently active container
+func (d *Driver) ModifyResources(contID string, r *execdriver.Resources) error {
+	// TODO
+	return nil
+}
+
 // Run implements the exec driver Driver interface,
 // it calls 'exec.Cmd' to launch lxc commands to run a container.
 func (d *Driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, hooks execdriver.Hooks) (execdriver.ExitStatus, error) {

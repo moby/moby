@@ -22,11 +22,8 @@ func main() {
 	// Set terminal emulation based on platform as required.
 	stdin, stdout, stderr := term.StdStreams()
 
-	logfile, err := os.Create("/home/pratik/Documents/tmp/docker.logs")
-
-	fmt.Println(err)
-
-	logrus.SetOutput(logfile)
+	logrus.SetLevel(logrus.DebugLevel)
+	logrus.SetOutput(stderr)
 
 	flag.Merge(flag.CommandLine, clientFlags.FlagSet, commonFlags.FlagSet)
 
@@ -40,7 +37,7 @@ func main() {
 		help := "\nCommands:\n"
 
 		for _, cmd := range dockerCommands {
-			help += fmt.Sprintf("    %-10.10s%s\n", cmd.name, cmd.description)
+			help += fmt.Sprintf("      %-15.15s%s\n", cmd.name, cmd.description)
 		}
 
 		help += "\nRun 'docker COMMAND --help' for more information on a command."

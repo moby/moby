@@ -475,6 +475,28 @@ func (s *Server) postContainersAttach(ctx context.Context, w http.ResponseWriter
 	return nil
 }
 
+func (s *Server) postModifyResources(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if err := parseForm(r); err != nil {
+		return err
+	}
+
+	logrus.Debugf("mod resourses called for container " + r.Form.Get("ID"))
+
+	_, hostConfig, err := runconfig.DecodeContainerConfig(r.Body)
+	if err != nil {
+		return err
+	}
+
+	logrus.Debugf("%+v\n", hostConfig)
+
+	_, err = s.daemon.ContainerModResources(r.Form.Get("ID"), hostConfig)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (s *Server) wsContainersAttach(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := parseForm(r); err != nil {
 		return err

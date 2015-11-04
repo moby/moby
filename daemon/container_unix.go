@@ -289,11 +289,6 @@ func populateCommand(c *Container, env []string) error {
 		rlimits = append(rlimits, rl)
 	}
 
-	dumpfile, _ := os.OpenFile("/home/pratik/Desktop/dump", os.O_APPEND|os.O_WRONLY, 0600)
-	fmt.Fprintln(dumpfile, c.hostConfig.Binds, c.hostConfig.BlkioReadLimit)
-
-	fmt.Fprintln(dumpfile, constructBlkioArgs(c.hostConfig.Binds, c.hostConfig.BlkioReadLimit))
-
 	resources := &execdriver.Resources{
 		Memory:           c.hostConfig.Memory,
 		MemorySwap:       c.hostConfig.MemorySwap,
