@@ -3,13 +3,17 @@ package daemon
 import (
 	"io"
 	"os/exec"
+	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/execdriver"
+	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/runconfig"
+	"github.com/docker/docker/utils"
 )
 
 const (
@@ -163,11 +167,30 @@ func (m *containerMonitor) Start() error {
 		if exitStatus, err = m.supervisor.Run(m.container, pipes, m.callback); err != nil {
 			// if we receive an internal error from the initial start of a container then lets
 			// return it instead of entering the restart loop
+			// set to 127 for contained cmd not found/does not exist)
+			if strings.Contains(err.Error(), "executable file not found") ||
+				strings.Contains(err.Error(), "no such file or directory") ||
+				strings.Contains(err.Error(), "system cannot find the file specified") {
+				if m.container.RestartCount == 0 {
+					m.container.ExitCode = 127
+					m.resetContainer(false)
+					return derr.ErrorCodeCmdNotFound
+				}
+			}
+			// set to 126 for contained cmd can't be invoked errors
+			if strings.Contains(err.Error(), syscall.EACCES.Error()) {
+				if m.container.RestartCount == 0 {
+					m.container.ExitCode = 126
+					m.resetContainer(false)
+					return derr.ErrorCodeCmdCouldNotBeInvoked
+				}
+			}
+
 			if m.container.RestartCount == 0 {
 				m.container.ExitCode = -1
 				m.resetContainer(false)
 
-				return err
+				return derr.ErrorCodeCantStart.WithArgs(utils.GetErrorMessage(err))
 			}
 
 			logrus.Errorf("Error running container: %s", err)

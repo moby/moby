@@ -508,6 +508,38 @@ running binaries within a container is the root directory (/). The developer can
 set a different default with the Dockerfile WORKDIR instruction. The operator
 can override the working directory by using the **-w** option.
 
+# Exit Status
+
+The exit code from `docker run` gives information about why the container
+failed to run or why it exited.  When `docker run` exits with a non-zero code,
+the exit codes follow the `chroot` standard, see below:
+
+**_125_** if the error is with Docker daemon **_itself_** 
+
+    $ docker run --foo busybox; echo $?
+    # flag provided but not defined: --foo
+      See 'docker run --help'.
+      125
+
+**_126_** if the **_contained command_** cannot be invoked
+
+    $ docker run busybox /etc; echo $?
+    # exec: "/etc": permission denied
+      docker: Error response from daemon: Contained command could not be invoked
+      126
+
+**_127_** if the **_contained command_** cannot be found
+
+    $ docker run busybox foo; echo $?
+    # exec: "foo": executable file not found in $PATH
+      docker: Error response from daemon: Contained command not found or does not exist
+      127
+
+**_Exit code_** of **_contained command_** otherwise 
+    
+    $ docker run busybox /bin/sh -c 'exit 3' 
+    # 3
+
 # EXAMPLES
 
 ## Exposing log messages from the container to the host's log
@@ -732,3 +764,4 @@ April 2014, Originally compiled by William Henry (whenry at redhat dot com)
 based on docker.com source material and internal work.
 June 2014, updated by Sven Dowideit <SvenDowideit@home.org.au>
 July 2014, updated by Sven Dowideit <SvenDowideit@home.org.au>
+November 2015, updated by Sally O'Malley <somalley@redhat.com>

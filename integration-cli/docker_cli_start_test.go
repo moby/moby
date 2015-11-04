@@ -129,11 +129,15 @@ func (s *DockerSuite) TestStartMultipleContainers(c *check.C) {
 
 	// start all the three containers, container `child_first` start first which should be failed
 	// container 'parent' start second and then start container 'child_second'
+	expOut := "Cannot link to a non running container"
+	expErr := "failed to start containers: [child_first]"
 	out, _, err = dockerCmdWithError("start", "child_first", "parent", "child_second")
 	// err shouldn't be nil because start will fail
 	c.Assert(err, checker.NotNil, check.Commentf("out: %s", out))
 	// output does not correspond to what was expected
-	c.Assert(out, checker.Contains, "Cannot start container child_first")
+	if !(strings.Contains(out, expOut) || strings.Contains(err.Error(), expErr)) {
+		c.Fatalf("Expected out: %v with err: %v  but got out: %v with err: %v", expOut, expErr, out, err)
+	}
 
 	for container, expected := range map[string]string{"parent": "true", "child_first": "false", "child_second": "true"} {
 		out, err := inspectField(container, "State.Running")

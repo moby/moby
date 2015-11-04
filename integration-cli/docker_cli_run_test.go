@@ -1645,9 +1645,9 @@ func (s *DockerSuite) TestRunWorkdirExistsAndIsFile(c *check.C) {
 		expected = "The directory name is invalid"
 	}
 
-	out, exit, err := dockerCmdWithError("run", "-w", existingFile, "busybox")
-	if !(err != nil && exit == 1 && strings.Contains(out, expected)) {
-		c.Fatalf("Docker must complains about making dir, but we got out: %s, exit: %d, err: %s", out, exit, err)
+	out, exitCode, err := dockerCmdWithError("run", "-w", existingFile, "busybox")
+	if !(err != nil && exitCode == 125 && strings.Contains(out, expected)) {
+		c.Fatalf("Docker must complains about making dir with exitCode 125 but we got out: %s, exitCode: %d", out, exitCode)
 	}
 }
 
@@ -3746,17 +3746,72 @@ func (s *DockerSuite) TestRunStdinBlockedAfterContainerExit(c *check.C) {
 func (s *DockerSuite) TestRunWrongCpusetCpusFlagValue(c *check.C) {
 	// TODO Windows: This needs validation (error out) in the daemon.
 	testRequires(c, DaemonIsLinux)
-	out, _, err := dockerCmdWithError("run", "--cpuset-cpus", "1-10,11--", "busybox", "true")
+	out, exitCode, err := dockerCmdWithError("run", "--cpuset-cpus", "1-10,11--", "busybox", "true")
 	c.Assert(err, check.NotNil)
 	expected := "Error response from daemon: Invalid value 1-10,11-- for cpuset cpus.\n"
-	c.Assert(out, check.Equals, expected, check.Commentf("Expected output to contain %q, got %q", expected, out))
+	if !(strings.Contains(out, expected) || exitCode == 125) {
+		c.Fatalf("Expected output to contain %q with exitCode 125, got out: %q exitCode: %v", expected, out, exitCode)
+	}
 }
 
 func (s *DockerSuite) TestRunWrongCpusetMemsFlagValue(c *check.C) {
 	// TODO Windows: This needs validation (error out) in the daemon.
 	testRequires(c, DaemonIsLinux)
-	out, _, err := dockerCmdWithError("run", "--cpuset-mems", "1-42--", "busybox", "true")
+	out, exitCode, err := dockerCmdWithError("run", "--cpuset-mems", "1-42--", "busybox", "true")
 	c.Assert(err, check.NotNil)
 	expected := "Error response from daemon: Invalid value 1-42-- for cpuset mems.\n"
-	c.Assert(out, check.Equals, expected, check.Commentf("Expected output to contain %q, got %q", expected, out))
+	if !(strings.Contains(out, expected) || exitCode == 125) {
+		c.Fatalf("Expected output to contain %q with exitCode 125, got out: %q exitCode: %v", expected, out, exitCode)
+	}
+}
+
+// TestRunNonExecutableCmd checks that 'docker run busybox foo' exits with error code 127'
+func (s *DockerSuite) TestRunNonExecutableCmd(c *check.C) {
+	name := "testNonExecutableCmd"
+	runCmd := exec.Command(dockerBinary, "run", "--name", name, "busybox", "foo")
+	_, exit, _ := runCommandWithOutput(runCmd)
+	stateExitCode := findContainerExitCode(c, name)
+	if !(exit == 127 && strings.Contains(stateExitCode, "127")) {
+		c.Fatalf("Run non-executable command should have errored with exit code 127, but we got exit: %d, State.ExitCode: %s", exit, stateExitCode)
+	}
+}
+
+// TestRunNonExistingCmd checks that 'docker run busybox /bin/foo' exits with code 127.
+func (s *DockerSuite) TestRunNonExistingCmd(c *check.C) {
+	name := "testNonExistingCmd"
+	runCmd := exec.Command(dockerBinary, "run", "--name", name, "busybox", "/bin/foo")
+	_, exit, _ := runCommandWithOutput(runCmd)
+	stateExitCode := findContainerExitCode(c, name)
+	if !(exit == 127 && strings.Contains(stateExitCode, "127")) {
+		c.Fatalf("Run non-existing command should have errored with exit code 127, but we got exit: %d, State.ExitCode: %s", exit, stateExitCode)
+	}
+}
+
+// TestCmdCannotBeInvoked checks that 'docker run busybox /etc' exits with 126.
+func (s *DockerSuite) TestCmdCannotBeInvoked(c *check.C) {
+	name := "testCmdCannotBeInvoked"
+	runCmd := exec.Command(dockerBinary, "run", "--name", name, "busybox", "/etc")
+	_, exit, _ := runCommandWithOutput(runCmd)
+	stateExitCode := findContainerExitCode(c, name)
+	if !(exit == 126 && strings.Contains(stateExitCode, "126")) {
+		c.Fatalf("Run cmd that cannot be invoked should have errored with code 126, but we got exit: %d, State.ExitCode: %s", exit, stateExitCode)
+	}
+}
+
+// TestRunNonExistingImage checks that 'docker run foo' exits with error msg 125 and contains  'Unable to find image'
+func (s *DockerSuite) TestRunNonExistingImage(c *check.C) {
+	runCmd := exec.Command(dockerBinary, "run", "foo")
+	out, exit, err := runCommandWithOutput(runCmd)
+	if !(err != nil && exit == 125 && strings.Contains(out, "Unable to find image")) {
+		c.Fatalf("Run non-existing image should have errored with 'Unable to find image' code 125, but we got out: %s, exit: %d, err: %s", out, exit, err)
+	}
+}
+
+// TestDockerFails checks that 'docker run -foo busybox' exits with 125 to signal docker run failed
+func (s *DockerSuite) TestDockerFails(c *check.C) {
+	runCmd := exec.Command(dockerBinary, "run", "-foo", "busybox")
+	out, exit, err := runCommandWithOutput(runCmd)
+	if !(err != nil && exit == 125) {
+		c.Fatalf("Docker run with flag not defined should exit with 125, but we got out: %s, exit: %d, err: %s", out, exit, err)
+	}
 }
