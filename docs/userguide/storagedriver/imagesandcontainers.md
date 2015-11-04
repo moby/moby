@@ -251,5 +251,5 @@ For detailed information about data volumes [Managing data in containers](https:
 
 * [Select a storage driver](selectadriver.md)
 * [AUFS storage driver in practice](aufs-driver.md)
-* [BTRFS storage driver in practice](btrfs-driver.md)
+* [Btrfs storage driver in practice](btrfs-driver.md)
 * [Device Mapper storage driver in practice](device-mapper-driver.md)
