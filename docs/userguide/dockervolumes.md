@@ -260,11 +260,11 @@ we'll be left with a backup of our `dbdata` volume.
 You could then restore it to the same container, or another that you've made
 elsewhere. Create a new container.
 
-    $ docker run -v /dbdata --name dbstore ubuntu /bin/bash
+    $ docker run -v /dbdata --name dbstore2 ubuntu /bin/bash
 
 Then un-tar the backup file in the new container's data volume.
 
-    $ docker run --volumes-from dbstore -v $(pwd):/backup ubuntu cd /dbdata && tar xvf /backup/backup.tar
+    $ docker run --volumes-from dbstore2 -v $(pwd):/backup ubuntu cd /dbdata && tar xvf /backup/backup.tar
 
 You can use the techniques above to automate backup, migration and
 restore testing using your preferred tools.
