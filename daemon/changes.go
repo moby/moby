@@ -9,5 +9,7 @@ func (daemon *Daemon) ContainerChanges(name string) ([]archive.Change, error) {
 		return nil, err
 	}
 
-	return container.changes()
+	container.Lock()
+	defer container.Unlock()
+	return daemon.changes(container)
 }

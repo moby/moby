@@ -58,7 +58,7 @@ func copyOwnership(source, destination string) error {
 // setupMounts iterates through each of the mount points for a container and
 // calls Setup() on each. It also looks to see if is a network mount such as
 // /etc/resolv.conf, and if it is not, appends it to the array of mounts.
-func (container *Container) setupMounts() ([]execdriver.Mount, error) {
+func (daemon *Daemon) setupMounts(container *Container) ([]execdriver.Mount, error) {
 	var mounts []execdriver.Mount
 	for _, m := range container.MountPoints {
 		path, err := m.Setup()
@@ -79,7 +79,7 @@ func (container *Container) setupMounts() ([]execdriver.Mount, error) {
 	// if we are going to mount any of the network files from container
 	// metadata, the ownership must be set properly for potential container
 	// remapped root (user namespaces)
-	rootUID, rootGID := container.daemon.GetRemappedUIDGID()
+	rootUID, rootGID := daemon.GetRemappedUIDGID()
 	for _, mount := range netMounts {
 		if err := os.Chown(mount.Source, rootUID, rootGID); err != nil {
 			return nil, err

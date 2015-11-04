@@ -128,6 +128,14 @@ type Docker interface {
 	// Release releases a list of images that were retained for the time of a build.
 	// TODO: remove
 	Release(sessionID string, activeImages []string)
+	// Kill stops the container execution abruptly.
+	Kill(c *daemon.Container) error
+	// Mount mounts the root filesystem for the container.
+	Mount(c *daemon.Container) error
+	// Unmount unmounts the root filesystem for the container.
+	Unmount(c *daemon.Container) error
+	// Start starts a new container
+	Start(c *daemon.Container) error
 }
 
 // ImageCache abstracts an image cache store.

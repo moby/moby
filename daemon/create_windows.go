@@ -10,7 +10,7 @@ import (
 )
 
 // createContainerPlatformSpecificSettings performs platform specific container create functionality
-func createContainerPlatformSpecificSettings(container *Container, config *runconfig.Config, hostConfig *runconfig.HostConfig, img *image.Image) error {
+func (daemon *Daemon) createContainerPlatformSpecificSettings(container *Container, config *runconfig.Config, hostConfig *runconfig.HostConfig, img *image.Image) error {
 	for spec := range config.Volumes {
 
 		mp, err := volume.ParseMountSpec(spec, hostConfig.VolumeDriver)
@@ -41,7 +41,7 @@ func createContainerPlatformSpecificSettings(container *Container, config *runco
 
 		// Create the volume in the volume driver. If it doesn't exist,
 		// a new one will be created.
-		v, err := container.daemon.createVolume(mp.Name, volumeDriver, nil)
+		v, err := daemon.createVolume(mp.Name, volumeDriver, nil)
 		if err != nil {
 			return err
 		}

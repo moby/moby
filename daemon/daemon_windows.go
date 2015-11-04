@@ -154,3 +154,26 @@ func (daemon *Daemon) newBaseContainer(id string) *Container {
 func (daemon *Daemon) cleanupMounts() error {
 	return nil
 }
+
+// conditionalMountOnStart is a platform specific helper function during the
+// container start to call mount.
+func (daemon *Daemon) conditionalMountOnStart(container *Container) error {
+	// We do not mount if a Hyper-V container
+	if !container.hostConfig.Isolation.IsHyperV() {
+		if err := daemon.Mount(container); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// conditionalUnmountOnCleanup is a platform specific helper function called
+// during the cleanup of a container to unmount.
+func (daemon *Daemon) conditionalUnmountOnCleanup(container *Container) {
+	// We do not unmount if a Hyper-V container
+	if !container.hostConfig.Isolation.IsHyperV() {
+		if err := daemon.Unmount(container); err != nil {
+			logrus.Errorf("%v: Failed to umount filesystem: %v", container.ID, err)
+		}
+	}
+}

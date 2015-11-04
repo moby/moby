@@ -610,6 +610,20 @@ func (daemon *Daemon) newBaseContainer(id string) *Container {
 	}
 }
 
+// conditionalMountOnStart is a platform specific helper function during the
+// container start to call mount.
+func (daemon *Daemon) conditionalMountOnStart(container *Container) error {
+	return daemon.Mount(container)
+}
+
+// conditionalUnmountOnCleanup is a platform specific helper function called
+// during the cleanup of a container to unmount.
+func (daemon *Daemon) conditionalUnmountOnCleanup(container *Container) {
+	if err := daemon.Unmount(container); err != nil {
+		logrus.Errorf("%v: Failed to umount filesystem: %v", container.ID, err)
+	}
+}
+
 // getDefaultRouteMtu returns the MTU for the default route's interface.
 func getDefaultRouteMtu() (int, error) {
 	routes, err := netlink.RouteList(nil, 0)

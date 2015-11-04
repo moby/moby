@@ -45,7 +45,7 @@ func (daemon *Daemon) ContainerRm(name string, config *ContainerRmConfig) error 
 
 		parentContainer, _ := daemon.Get(pe.ID())
 		if parentContainer != nil {
-			if err := parentContainer.updateNetwork(); err != nil {
+			if err := daemon.updateNetwork(parentContainer); err != nil {
 				logrus.Debugf("Could not update network to remove link %s: %v", n, err)
 			}
 		}
@@ -58,7 +58,7 @@ func (daemon *Daemon) ContainerRm(name string, config *ContainerRmConfig) error 
 		return err
 	}
 
-	if err := container.removeMountPoints(config.RemoveVolume); err != nil {
+	if err := daemon.removeMountPoints(container, config.RemoveVolume); err != nil {
 		logrus.Error(err)
 	}
 
@@ -71,7 +71,7 @@ func (daemon *Daemon) rm(container *Container, forceRemove bool) (err error) {
 		if !forceRemove {
 			return derr.ErrorCodeRmRunning
 		}
-		if err := container.Kill(); err != nil {
+		if err := daemon.Kill(container); err != nil {
 			return derr.ErrorCodeRmFailed.WithArgs(err)
 		}
 	}
@@ -90,7 +90,7 @@ func (daemon *Daemon) rm(container *Container, forceRemove bool) (err error) {
 	// if stats are currently getting collected.
 	daemon.statsCollector.stopCollection(container)
 
-	if err = container.Stop(3); err != nil {
+	if err = daemon.containerStop(container, 3); err != nil {
 		return err
 	}
 
@@ -111,7 +111,7 @@ func (daemon *Daemon) rm(container *Container, forceRemove bool) (err error) {
 			daemon.idIndex.Delete(container.ID)
 			daemon.containers.Delete(container.ID)
 			os.RemoveAll(container.root)
-			container.logEvent("destroy")
+			daemon.LogContainerEvent(container, "destroy")
 		}
 	}()
 
@@ -140,7 +140,7 @@ func (daemon *Daemon) rm(container *Container, forceRemove bool) (err error) {
 	daemon.idIndex.Delete(container.ID)
 	daemon.containers.Delete(container.ID)
 
-	container.logEvent("destroy")
+	daemon.LogContainerEvent(container, "destroy")
 	return nil
 }
 

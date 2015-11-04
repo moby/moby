@@ -140,7 +140,7 @@ func (daemon *Daemon) getInspectData(container *Container, size bool) (*types.Co
 		sizeRootFs int64
 	)
 	if size {
-		sizeRw, sizeRootFs = container.getSize()
+		sizeRw, sizeRootFs = daemon.getSize(container)
 		contJSONBase.SizeRw = &sizeRw
 		contJSONBase.SizeRootFs = &sizeRootFs
 	}

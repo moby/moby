@@ -1,10 +1,11 @@
 package daemon
 
 import (
+	"strings"
+
 	"github.com/Sirupsen/logrus"
 	derr "github.com/docker/docker/errors"
 	"github.com/docker/libnetwork"
-	"strings"
 )
 
 // ContainerRename changes the name of a container, using the oldName
@@ -54,7 +55,7 @@ func (daemon *Daemon) ContainerRename(oldName, newName string) error {
 	}
 
 	if !container.Running {
-		container.logEvent("rename")
+		daemon.LogContainerEvent(container, "rename")
 		return nil
 	}
 
@@ -78,6 +79,6 @@ func (daemon *Daemon) ContainerRename(oldName, newName string) error {
 		return err
 	}
 
-	container.logEvent("rename")
+	daemon.LogContainerEvent(container, "rename")
 	return nil
 }

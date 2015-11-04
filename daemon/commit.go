@@ -2,6 +2,8 @@ package daemon
 
 import (
 	"github.com/docker/docker/image"
+	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/runconfig"
 )
 
@@ -20,11 +22,11 @@ type ContainerCommitConfig struct {
 // The image can optionally be tagged into a repository.
 func (daemon *Daemon) Commit(container *Container, c *ContainerCommitConfig) (*image.Image, error) {
 	if c.Pause && !container.isPaused() {
-		container.pause()
-		defer container.unpause()
+		daemon.containerPause(container)
+		defer daemon.containerUnpause(container)
 	}
 
-	rwTar, err := container.exportContainerRw()
+	rwTar, err := daemon.exportContainerRw(container)
 	if err != nil {
 		return nil, err
 	}
@@ -46,6 +48,19 @@ func (daemon *Daemon) Commit(container *Container, c *ContainerCommitConfig) (*i
 			return img, err
 		}
 	}
-	container.logEvent("commit")
+
+	daemon.LogContainerEvent(container, "commit")
 	return img, nil
+}
+
+func (daemon *Daemon) exportContainerRw(container *Container) (archive.Archive, error) {
+	archive, err := daemon.diff(container)
+	if err != nil {
+		return nil, err
+	}
+	return ioutils.NewReadCloserWrapper(archive, func() error {
+			err := archive.Close()
+			return err
+		}),
+		nil
 }

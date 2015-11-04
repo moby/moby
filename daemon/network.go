@@ -134,7 +134,7 @@ func (daemon *Daemon) ConnectContainerToNetwork(containerName, networkName strin
 	if err != nil {
 		return err
 	}
-	return container.ConnectToNetwork(networkName)
+	return daemon.ConnectToNetwork(container, networkName)
 }
 
 // DisconnectContainerFromNetwork disconnects the given container from

@@ -8,7 +8,10 @@ func (daemon *Daemon) ContainerResize(name string, height, width int) error {
 		return err
 	}
 
-	return container.Resize(height, width)
+	if err = container.Resize(height, width); err == nil {
+		daemon.LogContainerEvent(container, "resize")
+	}
+	return err
 }
 
 // ContainerExecResize changes the size of the TTY of the process

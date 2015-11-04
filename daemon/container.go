@@ -7,7 +7,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -20,8 +19,6 @@ import (
 	"github.com/docker/docker/daemon/logger/jsonfilelog"
 	"github.com/docker/docker/daemon/network"
 	derr "github.com/docker/docker/errors"
-	"github.com/docker/docker/image"
-	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/broadcaster"
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/ioutils"
@@ -33,7 +30,6 @@ import (
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/volume"
-	"github.com/docker/docker/volume/store"
 )
 
 var (
@@ -79,7 +75,6 @@ type CommonContainer struct {
 	command                *execdriver.Command
 	monitor                *containerMonitor
 	execCommands           *execStore
-	daemon                 *Daemon
 	// logDriver for closing
 	logDriver logger.Logger
 	logCopier *logger.Copier
@@ -176,15 +171,6 @@ func (container *Container) writeHostConfig() error {
 	return json.NewEncoder(f).Encode(&container.hostConfig)
 }
 
-func (container *Container) logEvent(action string) {
-	d := container.daemon
-	d.EventsService.Log(
-		action,
-		container.ID,
-		container.Config.Image,
-	)
-}
-
 // GetResourcePath evaluates `path` in the scope of the container's basefs, with proper path
 // sanitisation. Symlinks are all scoped to the basefs of the container, as
 // though the container's basefs was `/`.
@@ -225,91 +211,6 @@ func (container *Container) getRootResourcePath(path string) (string, error) {
 	return symlink.FollowSymlinkInScope(filepath.Join(container.root, cleanPath), container.root)
 }
 
-func (container *Container) exportContainerRw() (archive.Archive, error) {
-	if container.daemon == nil {
-		return nil, derr.ErrorCodeUnregisteredContainer.WithArgs(container.ID)
-	}
-	archive, err := container.daemon.diff(container)
-	if err != nil {
-		return nil, err
-	}
-	return ioutils.NewReadCloserWrapper(archive, func() error {
-			err := archive.Close()
-			return err
-		}),
-		nil
-}
-
-// Start prepares the container to run by setting up everything the
-// container needs, such as storage and networking, as well as links
-// between containers. The container is left waiting for a signal to
-// begin running.
-func (container *Container) Start() (err error) {
-	container.Lock()
-	defer container.Unlock()
-
-	if container.Running {
-		return nil
-	}
-
-	if container.removalInProgress || container.Dead {
-		return derr.ErrorCodeContainerBeingRemoved
-	}
-
-	// if we encounter an error during start we need to ensure that any other
-	// setup has been cleaned up properly
-	defer func() {
-		if err != nil {
-			container.setError(err)
-			// if no one else has set it, make sure we don't leave it at zero
-			if container.ExitCode == 0 {
-				container.ExitCode = 128
-			}
-			container.toDisk()
-			container.cleanup()
-			container.logEvent("die")
-		}
-	}()
-
-	if err := container.conditionalMountOnStart(); err != nil {
-		return err
-	}
-
-	// Make sure NetworkMode has an acceptable value. We do this to ensure
-	// backwards API compatibility.
-	container.hostConfig = runconfig.SetDefaultNetModeIfBlank(container.hostConfig)
-
-	if err := container.initializeNetworking(); err != nil {
-		return err
-	}
-	linkedEnv, err := container.setupLinkedContainers()
-	if err != nil {
-		return err
-	}
-	if err := container.setupWorkingDirectory(); err != nil {
-		return err
-	}
-	env := container.createDaemonEnvironment(linkedEnv)
-	if err := populateCommand(container, env); err != nil {
-		return err
-	}
-
-	if !container.hostConfig.IpcMode.IsContainer() && !container.hostConfig.IpcMode.IsHost() {
-		if err := container.setupIpcDirs(); err != nil {
-			return err
-		}
-	}
-
-	mounts, err := container.setupMounts()
-	if err != nil {
-		return err
-	}
-	mounts = append(mounts, container.ipcMounts()...)
-
-	container.command.Mounts = mounts
-	return container.waitForStart()
-}
-
 // streamConfig.StdinPipe returns a WriteCloser which can be used to feed data
 // to the standard input of the container's active process.
 // Container.StdoutPipe and Container.StderrPipe each return a ReadCloser
@@ -334,205 +235,10 @@ func (streamConfig *streamConfig) StderrPipe() io.ReadCloser {
 	return ioutils.NewBufReader(reader)
 }
 
-// cleanup releases any network resources allocated to the container along with any rules
-// around how containers are linked together.  It also unmounts the container's root filesystem.
-func (container *Container) cleanup() {
-	container.releaseNetwork()
-
-	container.unmountIpcMounts(detachMounted)
-
-	container.conditionalUnmountOnCleanup()
-
-	for _, eConfig := range container.execCommands.s {
-		container.daemon.unregisterExecCommand(eConfig)
-	}
-
-	if err := container.unmountVolumes(false); err != nil {
-		logrus.Warnf("%s cleanup: Failed to umount volumes: %v", container.ID, err)
-	}
-}
-
-// killSig sends the container the given signal. This wrapper for the
-// host specific kill command prepares the container before attempting
-// to send the signal. An error is returned if the container is paused
-// or not running, or if there is a problem returned from the
-// underlying kill command.
-func (container *Container) killSig(sig int) error {
-	logrus.Debugf("Sending %d to %s", sig, container.ID)
-	container.Lock()
-	defer container.Unlock()
-
-	// We could unpause the container for them rather than returning this error
-	if container.Paused {
-		return derr.ErrorCodeUnpauseContainer.WithArgs(container.ID)
-	}
-
-	if !container.Running {
-		return derr.ErrorCodeNotRunning.WithArgs(container.ID)
-	}
-
-	// signal to the monitor that it should not restart the container
-	// after we send the kill signal
+// ExitOnNext signals to the monitor that it should not restart the container
+// after we send the kill signal.
+func (container *Container) ExitOnNext() {
 	container.monitor.ExitOnNext()
-
-	// if the container is currently restarting we do not need to send the signal
-	// to the process.  Telling the monitor that it should exit on it's next event
-	// loop is enough
-	if container.Restarting {
-		return nil
-	}
-
-	if err := container.daemon.kill(container, sig); err != nil {
-		return err
-	}
-	container.logEvent("kill")
-	return nil
-}
-
-// Wrapper aroung killSig() suppressing "no such process" error.
-func (container *Container) killPossiblyDeadProcess(sig int) error {
-	err := container.killSig(sig)
-	if err == syscall.ESRCH {
-		logrus.Debugf("Cannot kill process (pid=%d) with signal %d: no such process.", container.getPID(), sig)
-		return nil
-	}
-	return err
-}
-
-func (container *Container) pause() error {
-	container.Lock()
-	defer container.Unlock()
-
-	// We cannot Pause the container which is not running
-	if !container.Running {
-		return derr.ErrorCodeNotRunning.WithArgs(container.ID)
-	}
-
-	// We cannot Pause the container which is already paused
-	if container.Paused {
-		return derr.ErrorCodeAlreadyPaused.WithArgs(container.ID)
-	}
-
-	if err := container.daemon.execDriver.Pause(container.command); err != nil {
-		return err
-	}
-	container.Paused = true
-	container.logEvent("pause")
-	return nil
-}
-
-func (container *Container) unpause() error {
-	container.Lock()
-	defer container.Unlock()
-
-	// We cannot unpause the container which is not running
-	if !container.Running {
-		return derr.ErrorCodeNotRunning.WithArgs(container.ID)
-	}
-
-	// We cannot unpause the container which is not paused
-	if !container.Paused {
-		return derr.ErrorCodeNotPaused.WithArgs(container.ID)
-	}
-
-	if err := container.daemon.execDriver.Unpause(container.command); err != nil {
-		return err
-	}
-	container.Paused = false
-	container.logEvent("unpause")
-	return nil
-}
-
-// Kill forcefully terminates a container.
-func (container *Container) Kill() error {
-	if !container.IsRunning() {
-		return derr.ErrorCodeNotRunning.WithArgs(container.ID)
-	}
-
-	// 1. Send SIGKILL
-	if err := container.killPossiblyDeadProcess(int(syscall.SIGKILL)); err != nil {
-		// While normally we might "return err" here we're not going to
-		// because if we can't stop the container by this point then
-		// its probably because its already stopped. Meaning, between
-		// the time of the IsRunning() call above and now it stopped.
-		// Also, since the err return will be exec driver specific we can't
-		// look for any particular (common) error that would indicate
-		// that the process is already dead vs something else going wrong.
-		// So, instead we'll give it up to 2 more seconds to complete and if
-		// by that time the container is still running, then the error
-		// we got is probably valid and so we return it to the caller.
-
-		if container.IsRunning() {
-			container.WaitStop(2 * time.Second)
-			if container.IsRunning() {
-				return err
-			}
-		}
-	}
-
-	// 2. Wait for the process to die, in last resort, try to kill the process directly
-	if err := killProcessDirectly(container); err != nil {
-		return err
-	}
-
-	container.WaitStop(-1 * time.Second)
-	return nil
-}
-
-// Stop halts a container by sending a stop signal, waiting for the given
-// duration in seconds, and then calling SIGKILL and waiting for the
-// process to exit. If a negative duration is given, Stop will wait
-// for the initial signal forever. If the container is not running Stop returns
-// immediately.
-func (container *Container) Stop(seconds int) error {
-	if !container.IsRunning() {
-		return nil
-	}
-
-	// 1. Send a SIGTERM
-	if err := container.killPossiblyDeadProcess(container.stopSignal()); err != nil {
-		logrus.Infof("Failed to send SIGTERM to the process, force killing")
-		if err := container.killPossiblyDeadProcess(9); err != nil {
-			return err
-		}
-	}
-
-	// 2. Wait for the process to exit on its own
-	if _, err := container.WaitStop(time.Duration(seconds) * time.Second); err != nil {
-		logrus.Infof("Container %v failed to exit within %d seconds of SIGTERM - using the force", container.ID, seconds)
-		// 3. If it doesn't, then send SIGKILL
-		if err := container.Kill(); err != nil {
-			container.WaitStop(-1 * time.Second)
-			logrus.Warn(err) // Don't return error because we only care that container is stopped, not what function stopped it
-		}
-	}
-
-	container.logEvent("stop")
-	return nil
-}
-
-// Restart attempts to gracefully stop and then start the
-// container. When stopping, wait for the given duration in seconds to
-// gracefully stop, before forcefully terminating the container. If
-// given a negative duration, wait forever for a graceful stop.
-func (container *Container) Restart(seconds int) error {
-	// Avoid unnecessarily unmounting and then directly mounting
-	// the container when the container stops and then starts
-	// again
-	if err := container.Mount(); err == nil {
-		defer container.Unmount()
-	}
-
-	if err := container.Stop(seconds); err != nil {
-		return err
-	}
-
-	if err := container.Start(); err != nil {
-		return err
-	}
-
-	container.logEvent("restart")
-	return nil
 }
 
 // Resize changes the TTY of the process running inside the container
@@ -544,56 +250,7 @@ func (container *Container) Resize(h, w int) error {
 	if err := container.command.ProcessConfig.Terminal.Resize(h, w); err != nil {
 		return err
 	}
-	container.logEvent("resize")
 	return nil
-}
-
-func (container *Container) export() (archive.Archive, error) {
-	if err := container.Mount(); err != nil {
-		return nil, err
-	}
-
-	uidMaps, gidMaps := container.daemon.GetUIDGIDMaps()
-	archive, err := archive.TarWithOptions(container.basefs, &archive.TarOptions{
-		Compression: archive.Uncompressed,
-		UIDMaps:     uidMaps,
-		GIDMaps:     gidMaps,
-	})
-	if err != nil {
-		container.Unmount()
-		return nil, err
-	}
-	arch := ioutils.NewReadCloserWrapper(archive, func() error {
-		err := archive.Close()
-		container.Unmount()
-		return err
-	})
-	container.logEvent("export")
-	return arch, err
-}
-
-// Mount sets container.basefs
-func (container *Container) Mount() error {
-	return container.daemon.Mount(container)
-}
-
-func (container *Container) changes() ([]archive.Change, error) {
-	container.Lock()
-	defer container.Unlock()
-	return container.daemon.changes(container)
-}
-
-func (container *Container) getImage() (*image.Image, error) {
-	if container.daemon == nil {
-		return nil, derr.ErrorCodeImageUnregContainer
-	}
-	return container.daemon.graph.Get(container.ImageID)
-}
-
-// Unmount asks the daemon to release the layered filesystems that are
-// mounted by the container.
-func (container *Container) Unmount() error {
-	return container.daemon.unmount(container)
 }
 
 func (container *Container) hostConfigPath() (string, error) {
@@ -617,78 +274,13 @@ func validateID(id string) error {
 	return nil
 }
 
-func (container *Container) copy(resource string) (rc io.ReadCloser, err error) {
-	container.Lock()
-
-	defer func() {
-		if err != nil {
-			// Wait to unlock the container until the archive is fully read
-			// (see the ReadCloseWrapper func below) or if there is an error
-			// before that occurs.
-			container.Unlock()
-		}
-	}()
-
-	if err := container.Mount(); err != nil {
-		return nil, err
-	}
-
-	defer func() {
-		if err != nil {
-			// unmount any volumes
-			container.unmountVolumes(true)
-			// unmount the container's rootfs
-			container.Unmount()
-		}
-	}()
-
-	if err := container.mountVolumes(); err != nil {
-		return nil, err
-	}
-
-	basePath, err := container.GetResourcePath(resource)
-	if err != nil {
-		return nil, err
-	}
-	stat, err := os.Stat(basePath)
-	if err != nil {
-		return nil, err
-	}
-	var filter []string
-	if !stat.IsDir() {
-		d, f := filepath.Split(basePath)
-		basePath = d
-		filter = []string{f}
-	} else {
-		filter = []string{filepath.Base(basePath)}
-		basePath = filepath.Dir(basePath)
-	}
-	archive, err := archive.TarWithOptions(basePath, &archive.TarOptions{
-		Compression:  archive.Uncompressed,
-		IncludeFiles: filter,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	reader := ioutils.NewReadCloserWrapper(archive, func() error {
-		err := archive.Close()
-		container.unmountVolumes(true)
-		container.Unmount()
-		container.Unlock()
-		return err
-	})
-	container.logEvent("copy")
-	return reader, nil
-}
-
 // Returns true if the container exposes a certain port
 func (container *Container) exposes(p nat.Port) bool {
 	_, exists := container.Config.ExposedPorts[p]
 	return exists
 }
 
-func (container *Container) getLogConfig() runconfig.LogConfig {
+func (container *Container) getLogConfig(defaultConfig runconfig.LogConfig) runconfig.LogConfig {
 	cfg := container.hostConfig.LogConfig
 	if cfg.Type != "" || len(cfg.Config) > 0 { // container has log driver configured
 		if cfg.Type == "" {
@@ -697,17 +289,11 @@ func (container *Container) getLogConfig() runconfig.LogConfig {
 		return cfg
 	}
 	// Use daemon's default log config for containers
-	return container.daemon.defaultLogConfig
+	return defaultConfig
 }
 
-func (container *Container) getLogger() (logger.Logger, error) {
-	if container.logDriver != nil && container.IsRunning() {
-		return container.logDriver, nil
-	}
-	cfg := container.getLogConfig()
-	if err := logger.ValidateLogOpts(cfg.Type, cfg.Config); err != nil {
-		return nil, err
-	}
+// StartLogger starts a new logger driver for the container.
+func (container *Container) StartLogger(cfg runconfig.LogConfig) (logger.Logger, error) {
 	c, err := logger.GetLogDriver(cfg.Type)
 	if err != nil {
 		return nil, derr.ErrorCodeLoggingFactory.WithArgs(err)
@@ -735,44 +321,6 @@ func (container *Container) getLogger() (logger.Logger, error) {
 	return c(ctx)
 }
 
-func (container *Container) startLogging() error {
-	cfg := container.getLogConfig()
-	if cfg.Type == "none" {
-		return nil // do not start logging routines
-	}
-
-	l, err := container.getLogger()
-	if err != nil {
-		return derr.ErrorCodeInitLogger.WithArgs(err)
-	}
-
-	copier := logger.NewCopier(container.ID, map[string]io.Reader{"stdout": container.StdoutPipe(), "stderr": container.StderrPipe()}, l)
-	container.logCopier = copier
-	copier.Run()
-	container.logDriver = l
-
-	// set LogPath field only for json-file logdriver
-	if jl, ok := l.(*jsonfilelog.JSONFileLogger); ok {
-		container.LogPath = jl.LogPath()
-	}
-
-	return nil
-}
-
-func (container *Container) waitForStart() error {
-	container.monitor = newContainerMonitor(container, container.hostConfig.RestartPolicy)
-
-	// block until we either receive an error from the initial start of the container's
-	// process or until the process is running in the container
-	select {
-	case <-container.monitor.startSignal:
-	case err := <-promise.Go(container.monitor.Start):
-		return err
-	}
-
-	return nil
-}
-
 func (container *Container) getProcessLabel() string {
 	// even if we have a process label return "" if we are running
 	// in privileged mode
@@ -789,138 +337,14 @@ func (container *Container) getMountLabel() string {
 	return container.MountLabel
 }
 
-func (container *Container) stats() (*execdriver.ResourceStats, error) {
-	return container.daemon.stats(container)
-}
-
 func (container *Container) getExecIDs() []string {
 	return container.execCommands.List()
-}
-
-func (container *Container) exec(ec *ExecConfig) error {
-	container.Lock()
-	defer container.Unlock()
-
-	callback := func(processConfig *execdriver.ProcessConfig, pid int, chOOM <-chan struct{}) error {
-		if processConfig.Tty {
-			// The callback is called after the process Start()
-			// so we are in the parent process. In TTY mode, stdin/out/err is the PtySlave
-			// which we close here.
-			if c, ok := processConfig.Stdout.(io.Closer); ok {
-				c.Close()
-			}
-		}
-		close(ec.waitStart)
-		return nil
-	}
-
-	// We use a callback here instead of a goroutine and an chan for
-	// synchronization purposes
-	cErr := promise.Go(func() error { return container.monitorExec(ec, callback) })
-
-	// Exec should not return until the process is actually running
-	select {
-	case <-ec.waitStart:
-	case err := <-cErr:
-		return err
-	}
-
-	return nil
-}
-
-func (container *Container) monitorExec(ExecConfig *ExecConfig, callback execdriver.DriverCallback) error {
-	var (
-		err      error
-		exitCode int
-	)
-	pipes := execdriver.NewPipes(ExecConfig.streamConfig.stdin, ExecConfig.streamConfig.stdout, ExecConfig.streamConfig.stderr, ExecConfig.OpenStdin)
-	exitCode, err = container.daemon.Exec(container, ExecConfig, pipes, callback)
-	if err != nil {
-		logrus.Errorf("Error running command in existing container %s: %s", container.ID, err)
-	}
-	logrus.Debugf("Exec task in container %s exited with code %d", container.ID, exitCode)
-	if ExecConfig.OpenStdin {
-		if err := ExecConfig.streamConfig.stdin.Close(); err != nil {
-			logrus.Errorf("Error closing stdin while running in %s: %s", container.ID, err)
-		}
-	}
-	if err := ExecConfig.streamConfig.stdout.Clean(); err != nil {
-		logrus.Errorf("Error closing stdout while running in %s: %s", container.ID, err)
-	}
-	if err := ExecConfig.streamConfig.stderr.Clean(); err != nil {
-		logrus.Errorf("Error closing stderr while running in %s: %s", container.ID, err)
-	}
-	if ExecConfig.ProcessConfig.Terminal != nil {
-		if err := ExecConfig.ProcessConfig.Terminal.Close(); err != nil {
-			logrus.Errorf("Error closing terminal while running in container %s: %s", container.ID, err)
-		}
-	}
-	// remove the exec command from the container's store only and not the
-	// daemon's store so that the exec command can be inspected.
-	container.execCommands.Delete(ExecConfig.ID)
-	return err
 }
 
 // Attach connects to the container's TTY, delegating to standard
 // streams or websockets depending on the configuration.
 func (container *Container) Attach(stdin io.ReadCloser, stdout io.Writer, stderr io.Writer) chan error {
 	return attach(&container.streamConfig, container.Config.OpenStdin, container.Config.StdinOnce, container.Config.Tty, stdin, stdout, stderr)
-}
-
-func (container *Container) attachWithLogs(stdin io.ReadCloser, stdout, stderr io.Writer, logs, stream bool) error {
-	if logs {
-		logDriver, err := container.getLogger()
-		if err != nil {
-			return err
-		}
-		cLog, ok := logDriver.(logger.LogReader)
-		if !ok {
-			return logger.ErrReadLogsNotSupported
-		}
-		logs := cLog.ReadLogs(logger.ReadConfig{Tail: -1})
-
-	LogLoop:
-		for {
-			select {
-			case msg, ok := <-logs.Msg:
-				if !ok {
-					break LogLoop
-				}
-				if msg.Source == "stdout" && stdout != nil {
-					stdout.Write(msg.Line)
-				}
-				if msg.Source == "stderr" && stderr != nil {
-					stderr.Write(msg.Line)
-				}
-			case err := <-logs.Err:
-				logrus.Errorf("Error streaming logs: %v", err)
-				break LogLoop
-			}
-		}
-	}
-
-	container.logEvent("attach")
-
-	//stream
-	if stream {
-		var stdinPipe io.ReadCloser
-		if stdin != nil {
-			r, w := io.Pipe()
-			go func() {
-				defer w.Close()
-				defer logrus.Debugf("Closing buffered stdin pipe")
-				io.Copy(w, stdin)
-			}()
-			stdinPipe = r
-		}
-		<-container.Attach(stdinPipe, stdout, stderr)
-		// If we are in stdinonce mode, wait for the process to end
-		// otherwise, simply return
-		if container.Config.StdinOnce && !container.Config.Tty {
-			container.WaitStop(-1 * time.Second)
-		}
-	}
-	return nil
 }
 
 func attach(streamConfig *streamConfig, openStdin, stdinOnce, tty bool, stdin io.ReadCloser, stdout io.Writer, stderr io.Writer) chan error {
@@ -1074,8 +498,8 @@ func (container *Container) shouldRestart() bool {
 		(container.hostConfig.RestartPolicy.Name == "on-failure" && container.ExitCode != 0)
 }
 
-func (container *Container) mountVolumes() error {
-	mounts, err := container.setupMounts()
+func (daemon *Daemon) mountVolumes(container *Container) error {
+	mounts, err := daemon.setupMounts(container)
 	if err != nil {
 		return err
 	}
@@ -1105,44 +529,6 @@ func (container *Container) mountVolumes() error {
 		}
 	}
 
-	return nil
-}
-
-func (container *Container) prepareMountPoints() error {
-	for _, config := range container.MountPoints {
-		if len(config.Driver) > 0 {
-			v, err := container.daemon.createVolume(config.Name, config.Driver, nil)
-			if err != nil {
-				return err
-			}
-			config.Volume = v
-		}
-	}
-	return nil
-}
-
-func (container *Container) removeMountPoints(rm bool) error {
-	var rmErrors []string
-	for _, m := range container.MountPoints {
-		if m.Volume == nil {
-			continue
-		}
-		container.daemon.volumes.Decrement(m.Volume)
-		if rm {
-			err := container.daemon.volumes.Remove(m.Volume)
-			// ErrVolumeInUse is ignored because having this
-			// volume being referenced by other container is
-			// not an error, but an implementation detail.
-			// This prevents docker from logging "ERROR: Volume in use"
-			// where there is another container using the volume.
-			if err != nil && err != store.ErrVolumeInUse {
-				rmErrors = append(rmErrors, err.Error())
-			}
-		}
-	}
-	if len(rmErrors) > 0 {
-		return derr.ErrorCodeRemovingVolume.WithArgs(strings.Join(rmErrors, "\n"))
-	}
 	return nil
 }
 

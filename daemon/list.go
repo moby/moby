@@ -369,7 +369,7 @@ func (daemon *Daemon) transformContainer(container *Container, ctx *listContext)
 	}
 
 	if ctx.Size {
-		sizeRw, sizeRootFs := container.getSize()
+		sizeRw, sizeRootFs := daemon.getSize(container)
 		newC.SizeRw = sizeRw
 		newC.SizeRootFs = sizeRootFs
 	}

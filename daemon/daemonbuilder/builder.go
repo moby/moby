@@ -96,7 +96,8 @@ func (d Docker) Create(cfg *runconfig.Config, hostCfg *runconfig.HostConfig) (*d
 	if err != nil {
 		return nil, ccr.Warnings, err
 	}
-	return container, ccr.Warnings, container.Mount()
+
+	return container, ccr.Warnings, d.Mount(container)
 }
 
 // Remove removes a container specified by `id`.
@@ -203,6 +204,26 @@ func (d Docker) GetCachedImage(imgID string, cfg *runconfig.Config) (string, err
 		return "", err
 	}
 	return cache.ID, nil
+}
+
+// Kill stops the container execution abruptly.
+func (d Docker) Kill(container *daemon.Container) error {
+	return d.Daemon.Kill(container)
+}
+
+// Mount mounts the root filesystem for the container.
+func (d Docker) Mount(c *daemon.Container) error {
+	return d.Daemon.Mount(c)
+}
+
+// Unmount unmounts the root filesystem for the container.
+func (d Docker) Unmount(c *daemon.Container) error {
+	return d.Daemon.Unmount(c)
+}
+
+// Start starts a container
+func (d Docker) Start(c *daemon.Container) error {
+	return d.Daemon.Start(c)
 }
 
 // Following is specific to builder contexts

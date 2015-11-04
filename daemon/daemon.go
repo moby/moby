@@ -56,6 +56,8 @@ import (
 	"github.com/docker/docker/volume/local"
 	"github.com/docker/docker/volume/store"
 	"github.com/docker/libnetwork"
+	lntypes "github.com/docker/libnetwork/types"
+	"github.com/opencontainers/runc/libcontainer"
 )
 
 var (
@@ -192,7 +194,7 @@ func (daemon *Daemon) load(id string) (*Container, error) {
 
 // Register makes a container object usable by the daemon as <container.ID>
 func (daemon *Daemon) Register(container *Container) error {
-	if container.daemon != nil || daemon.Exists(container.ID) {
+	if daemon.Exists(container.ID) {
 		return fmt.Errorf("Container is already loaded")
 	}
 	if err := validateID(container.ID); err != nil {
@@ -201,8 +203,6 @@ func (daemon *Daemon) Register(container *Container) error {
 	if err := daemon.ensureName(container); err != nil {
 		return err
 	}
-
-	container.daemon = daemon
 
 	// Attach to stdout and stderr
 	container.stderr = new(broadcaster.Unbuffered)
@@ -234,7 +234,7 @@ func (daemon *Daemon) Register(container *Container) error {
 
 		container.unmountIpcMounts(mount.Unmount)
 
-		if err := container.Unmount(); err != nil {
+		if err := daemon.Unmount(container); err != nil {
 			logrus.Debugf("unmount error %s", err)
 		}
 		if err := container.toDiskLocking(); err != nil {
@@ -246,7 +246,7 @@ func (daemon *Daemon) Register(container *Container) error {
 		return err
 	}
 
-	if err := container.prepareMountPoints(); err != nil {
+	if err := daemon.prepareMountPoints(container); err != nil {
 		return err
 	}
 
@@ -349,7 +349,7 @@ func (daemon *Daemon) restore() error {
 			if daemon.configStore.AutoRestart && container.shouldRestart() {
 				logrus.Debugf("Starting container %s", container.ID)
 
-				if err := container.Start(); err != nil {
+				if err := daemon.containerStart(container); err != nil {
 					logrus.Errorf("Failed to start container %s: %s", container.ID, err)
 				}
 			}
@@ -816,7 +816,7 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 	d.configStore = config
 	d.sysInitPath = sysInitPath
 	d.execDriver = ed
-	d.statsCollector = newStatsCollector(1 * time.Second)
+	d.statsCollector = d.newStatsCollector(1 * time.Second)
 	d.defaultLogConfig = config.LogConfig
 	d.RegistryService = registryService
 	d.EventsService = eventsService
@@ -838,7 +838,7 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 	return d, nil
 }
 
-func stopContainer(c *Container) error {
+func (daemon *Daemon) shutdownContainer(c *Container) error {
 	// TODO(windows): Handle docker restart with paused containers
 	if c.isPaused() {
 		// To terminate a process in freezer cgroup, we should send
@@ -849,10 +849,10 @@ func stopContainer(c *Container) error {
 		if !ok {
 			return fmt.Errorf("System doesn not support SIGTERM")
 		}
-		if err := c.daemon.kill(c, int(sig)); err != nil {
+		if err := daemon.kill(c, int(sig)); err != nil {
 			return fmt.Errorf("sending SIGTERM to container %s with error: %v", c.ID, err)
 		}
-		if err := c.unpause(); err != nil {
+		if err := daemon.containerUnpause(c); err != nil {
 			return fmt.Errorf("Failed to unpause container %s with error: %v", c.ID, err)
 		}
 		if _, err := c.WaitStop(10 * time.Second); err != nil {
@@ -861,7 +861,7 @@ func stopContainer(c *Container) error {
 			if !ok {
 				return fmt.Errorf("System does not support SIGKILL")
 			}
-			if err := c.daemon.kill(c, int(sig)); err != nil {
+			if err := daemon.kill(c, int(sig)); err != nil {
 				logrus.Errorf("Failed to SIGKILL container %s", c.ID)
 			}
 			c.WaitStop(-1 * time.Second)
@@ -869,7 +869,7 @@ func stopContainer(c *Container) error {
 		}
 	}
 	// If container failed to exit in 10 seconds of SIGTERM, then using the force
-	if err := c.Stop(10); err != nil {
+	if err := daemon.containerStop(c, 10); err != nil {
 		return fmt.Errorf("Stop container %s with error: %v", c.ID, err)
 	}
 
@@ -891,7 +891,7 @@ func (daemon *Daemon) Shutdown() error {
 			group.Add(1)
 			go func(c *Container) {
 				defer group.Done()
-				if err := stopContainer(c); err != nil {
+				if err := daemon.shutdownContainer(c); err != nil {
 					logrus.Errorf("Stop container error: %v", err)
 					return
 				}
@@ -947,16 +947,18 @@ func (daemon *Daemon) Mount(container *Container) error {
 	return nil
 }
 
-func (daemon *Daemon) unmount(container *Container) error {
+// Unmount unsets the container base filesystem
+func (daemon *Daemon) Unmount(container *Container) error {
 	return daemon.driver.Put(container.ID)
 }
 
-func (daemon *Daemon) run(c *Container, pipes *execdriver.Pipes, startCallback execdriver.DriverCallback) (execdriver.ExitStatus, error) {
+// Run uses the execution driver to run a given container
+func (daemon *Daemon) Run(c *Container, pipes *execdriver.Pipes, startCallback execdriver.DriverCallback) (execdriver.ExitStatus, error) {
 	hooks := execdriver.Hooks{
 		Start: startCallback,
 	}
 	hooks.PreStart = append(hooks.PreStart, func(processConfig *execdriver.ProcessConfig, pid int, chOOM <-chan struct{}) error {
-		return c.setNetworkNamespaceKey(pid)
+		return daemon.setNetworkNamespaceKey(c.ID, pid)
 	})
 	return daemon.execDriver.Run(c.command, pipes, hooks)
 }
@@ -1298,4 +1300,60 @@ func (daemon *Daemon) SearchRegistryForImages(term string,
 	authConfig *cliconfig.AuthConfig,
 	headers map[string][]string) (*registry.SearchResults, error) {
 	return daemon.RegistryService.Search(term, authConfig, headers)
+}
+
+// IsShuttingDown tells whether the daemon is shutting down or not
+func (daemon *Daemon) IsShuttingDown() bool {
+	return daemon.shutdown
+}
+
+// GetContainerStats collects all the stats published by a container
+func (daemon *Daemon) GetContainerStats(container *Container) (*execdriver.ResourceStats, error) {
+	stats, err := daemon.stats(container)
+	if err != nil {
+		return nil, err
+	}
+
+	// Retrieve the nw statistics from libnetwork and inject them in the Stats
+	var nwStats []*libcontainer.NetworkInterface
+	if nwStats, err = daemon.getNetworkStats(container); err != nil {
+		return nil, err
+	}
+	stats.Interfaces = nwStats
+
+	return stats, nil
+}
+
+func (daemon *Daemon) getNetworkStats(c *Container) ([]*libcontainer.NetworkInterface, error) {
+	var list []*libcontainer.NetworkInterface
+
+	sb, err := daemon.netController.SandboxByID(c.NetworkSettings.SandboxID)
+	if err != nil {
+		return list, err
+	}
+
+	stats, err := sb.Statistics()
+	if err != nil {
+		return list, err
+	}
+
+	// Convert libnetwork nw stats into libcontainer nw stats
+	for ifName, ifStats := range stats {
+		list = append(list, convertLnNetworkStats(ifName, ifStats))
+	}
+
+	return list, nil
+}
+
+func convertLnNetworkStats(name string, stats *lntypes.InterfaceStatistics) *libcontainer.NetworkInterface {
+	n := &libcontainer.NetworkInterface{Name: name}
+	n.RxBytes = stats.RxBytes
+	n.RxPackets = stats.RxPackets
+	n.RxErrors = stats.RxErrors
+	n.RxDropped = stats.RxDropped
+	n.TxBytes = stats.TxBytes
+	n.TxPackets = stats.TxPackets
+	n.TxErrors = stats.TxErrors
+	n.TxDropped = stats.TxDropped
+	return n
 }

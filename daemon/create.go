@@ -109,17 +109,17 @@ func (daemon *Daemon) create(params *ContainerCreateConfig) (retC *Container, re
 	}
 	defer func() {
 		if retErr != nil {
-			if err := container.removeMountPoints(true); err != nil {
+			if err := daemon.removeMountPoints(container, true); err != nil {
 				logrus.Error(err)
 			}
 		}
 	}()
-	if err := container.Mount(); err != nil {
+	if err := daemon.Mount(container); err != nil {
 		return nil, err
 	}
-	defer container.Unmount()
+	defer daemon.Unmount(container)
 
-	if err := createContainerPlatformSpecificSettings(container, params.Config, params.HostConfig, img); err != nil {
+	if err := daemon.createContainerPlatformSpecificSettings(container, params.Config, params.HostConfig, img); err != nil {
 		return nil, err
 	}
 
@@ -127,7 +127,7 @@ func (daemon *Daemon) create(params *ContainerCreateConfig) (retC *Container, re
 		logrus.Errorf("Error saving new container to disk: %v", err)
 		return nil, err
 	}
-	container.logEvent("create")
+	daemon.LogContainerEvent(container, "create")
 	return container, nil
 }
 
