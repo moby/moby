@@ -200,6 +200,7 @@ Create a container
              "RestartPolicy": { "Name": "", "MaximumRetryCount": 0 },
              "NetworkMode": "bridge",
              "Devices": [],
+             "Sysctls": { "net.ipv4.ip_forward": "1" },
              "Ulimits": [{}],
              "LogConfig": { "Type": "json-file", "Config": {} },
              "SecurityOpt": [""],
@@ -304,6 +305,10 @@ Json Parameters:
     -   **Devices** - A list of devices to add to the container specified as a JSON object in the
       form
           `{ "PathOnHost": "/dev/deviceName", "PathInContainer": "/dev/deviceName", "CgroupPermissions": "mrw"}`
+    -   **Sysctls** - A list of kernel parameters (sysctls) to set in the container, specified as
+          `{ <name>: <Value> }`, for example:
+	  `{ "net.ipv4.ip_forward": "1" }`
+
     -   **Ulimits** - A list of ulimits to set in the container, specified as
           `{ "Name": <name>, "Soft": <soft limit>, "Hard": <hard limit> }`, for example:
           `Ulimits: { "Name": "nofile", "Soft": 1024, "Hard": 2048 }`
@@ -424,6 +429,9 @@ Return low-level information on the container `id`
 				"Type": "json-file"
 			},
 			"SecurityOpt": null,
+			"Sysctls": {
+			        "net.ipv4.ip_forward": "1"
+			},
 			"VolumesFrom": null,
 			"Ulimits": [{}],
 			"VolumeDriver": ""

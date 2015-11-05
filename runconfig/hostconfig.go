@@ -259,6 +259,7 @@ type HostConfig struct {
 	RestartPolicy     RestartPolicy         // Restart policy to be used for the container
 	SecurityOpt       []string              // List of string values to customize labels for MLS systems, such as SELinux.
 	ReadonlyRootfs    bool                  // Is the container root filesystem in read-only	// Unix specific
+	Sysctls           map[string]string     // List of system controls to be set in the container
 	Ulimits           []*ulimit.Ulimit      // List of ulimits to be set in the container
 	LogConfig         LogConfig             // Configuration of the logs for this container
 	CgroupParent      string                // Parent cgroup.

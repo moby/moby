@@ -4,6 +4,7 @@ package main
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -459,4 +460,31 @@ func (s *DockerSuite) TestRunWithCorrectMemorySwapOnLXC(c *check.C) {
 	swap, err := units.RAMInBytes("64m")
 	c.Assert(err, check.IsNil)
 	c.Assert(cgSwap, check.Equals, swap)
+}
+
+func (s *DockerSuite) TestRunSysctls(c *check.C) {
+
+	testRequires(c, NativeExecDriver)
+	var err error
+
+	out, _ := dockerCmd(c, "run", "--sysctl", "net.ipv4.ip_forward=1", "--name", "test", "busybox", "cat", "/proc/sys/net/ipv4/ip_forward")
+	c.Assert(strings.TrimSpace(out), check.Equals, "1")
+
+	out, err = inspectFieldJSON("test", "HostConfig.Sysctls")
+	c.Assert(err, check.IsNil)
+
+	sysctls := make(map[string]string)
+	err = json.Unmarshal([]byte(out), &sysctls)
+	c.Assert(err, check.IsNil)
+	c.Assert(sysctls["net.ipv4.ip_forward"], check.Equals, "1")
+
+	out, _ = dockerCmd(c, "run", "--sysctl", "net.ipv4.ip_forward=0", "--name", "test1", "busybox", "cat", "/proc/sys/net/ipv4/ip_forward")
+	c.Assert(strings.TrimSpace(out), check.Equals, "0")
+
+	out, err = inspectFieldJSON("test1", "HostConfig.Sysctls")
+	c.Assert(err, check.IsNil)
+
+	err = json.Unmarshal([]byte(out), &sysctls)
+	c.Assert(err, check.IsNil)
+	c.Assert(sysctls["net.ipv4.ip_forward"], check.Equals, "0")
 }
