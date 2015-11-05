@@ -359,7 +359,7 @@ type NetworkResource struct {
 	Options    map[string]string
 }
 
-//EndpointResource contains network resources allocated and usd for a container in a network
+// EndpointResource contains network resources allocated and used for a container in a network
 type EndpointResource struct {
 	EndpointID  string
 	MacAddress  string
