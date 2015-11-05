@@ -61,14 +61,19 @@ func (cli *DockerCli) CmdInspect(args ...string) error {
 	for _, name := range cmd.Args() {
 		if *inspectType == "" || *inspectType == "container" {
 			obj, _, err = readBody(cli.call("GET", "/containers/"+name+"/json?"+v.Encode(), nil, nil))
-			if err != nil && *inspectType == "container" {
-				if strings.Contains(err.Error(), "No such") {
-					fmt.Fprintf(cli.err, "Error: No such container: %s\n", name)
-				} else {
-					fmt.Fprintf(cli.err, "%s", err)
+			if err != nil {
+				if err == errConnectionFailed {
+					return err
 				}
-				status = 1
-				continue
+				if *inspectType == "container" {
+					if strings.Contains(err.Error(), "No such") {
+						fmt.Fprintf(cli.err, "Error: No such container: %s\n", name)
+					} else {
+						fmt.Fprintf(cli.err, "%s", err)
+					}
+					status = 1
+					continue
+				}
 			}
 		}
 
@@ -76,6 +81,9 @@ func (cli *DockerCli) CmdInspect(args ...string) error {
 			obj, _, err = readBody(cli.call("GET", "/images/"+name+"/json", nil, nil))
 			isImage = true
 			if err != nil {
+				if err == errConnectionFailed {
+					return err
+				}
 				if strings.Contains(err.Error(), "No such") {
 					if *inspectType == "" {
 						fmt.Fprintf(cli.err, "Error: No such image or container: %s\n", name)
@@ -88,7 +96,6 @@ func (cli *DockerCli) CmdInspect(args ...string) error {
 				status = 1
 				continue
 			}
-
 		}
 
 		if tmpl == nil {
