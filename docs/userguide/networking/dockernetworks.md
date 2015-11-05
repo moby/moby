@@ -426,7 +426,7 @@ provides complete isolation for the containers.
 
 Then, on each host, launch containers making sure to specify the network name.
 
-        $ docker run -itd --net=mmy-multi-host-network busybox
+        $ docker run -itd --net=my-multi-host-network busybox
 
 Once connected, each container has access to all the containers in the network
 regardless of which Docker host the container was launched on.
@@ -477,4 +477,4 @@ and removed in a future release.
 - [Managing Data in Containers](../dockervolumes.md)
 - [Docker Machine overview](https://docs.docker.com/machine)
 - [Docker Swarm overview](https://docs.docker.com/swarm)
-- [Investigate the LibNetwork project](https://github.com/docker/libnetwork/blob/master)
+- [Investigate the LibNetwork project](https://github.com/docker/libnetwork)
