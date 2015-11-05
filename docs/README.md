@@ -39,7 +39,7 @@ on other branches by special arrangement with the Docker maintainers.
 
 If you are a new or beginner contributor, we encourage you to read through the
 [our detailed contributors
-guide](who-written-for.md). The guide explains in
+guide](https://docs.docker.com/opensource/code/). The guide explains in
 detail, with examples, how to contribute. If you are an experienced contributor
 this quickstart should be enough to get you started.
 
