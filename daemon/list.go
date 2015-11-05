@@ -71,10 +71,12 @@ type listContext struct {
 	filters filters.Args
 	// exitAllowed is a list of exit codes allowed to filter with
 	exitAllowed []int
-	// beforeContainer is a filter to ignore containers that appear before the one given
-	beforeContainer *Container
-	// sinceContainer is a filter to stop the filtering when the iterator arrive to the given container
-	sinceContainer *Container
+	// beforeFilter is a filter to ignore containers that appear before the one given
+	// this is used for --filter=before= and --before=, the latter is deprecated.
+	beforeFilter *Container
+	// sinceFilter is a filter to stop the filtering when the iterator arrive to the given container
+	// this is used for --filter=since= and --since=, the latter is deprecated.
+	sinceFilter *Container
 	// ContainersConfig is the filters set by the user
 	*ContainersConfig
 }
@@ -155,6 +157,25 @@ func (daemon *Daemon) foldFilter(config *ContainersConfig) (*listContext, error)
 		}
 	}
 
+	var beforeContFilter, sinceContFilter *Container
+	if i, ok := psFilters["before"]; ok {
+		for _, value := range i {
+			beforeContFilter, err = daemon.Get(value)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	if i, ok := psFilters["since"]; ok {
+		for _, value := range i {
+			sinceContFilter, err = daemon.Get(value)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+
 	imagesFilter := map[string]bool{}
 	var ancestorFilter bool
 	if ancestors, ok := psFilters["ancestor"]; ok {
@@ -183,16 +204,15 @@ func (daemon *Daemon) foldFilter(config *ContainersConfig) (*listContext, error)
 		return nil
 	}, 1)
 
-	var beforeCont, sinceCont *Container
 	if config.Before != "" {
-		beforeCont, err = daemon.Get(config.Before)
+		beforeContFilter, err = daemon.Get(config.Before)
 		if err != nil {
 			return nil, err
 		}
 	}
 
 	if config.Since != "" {
-		sinceCont, err = daemon.Get(config.Since)
+		sinceContFilter, err = daemon.Get(config.Since)
 		if err != nil {
 			return nil, err
 		}
@@ -204,8 +224,8 @@ func (daemon *Daemon) foldFilter(config *ContainersConfig) (*listContext, error)
 		names:            names,
 		images:           imagesFilter,
 		exitAllowed:      filtExited,
-		beforeContainer:  beforeCont,
-		sinceContainer:   sinceCont,
+		beforeFilter:     beforeContFilter,
+		sinceFilter:      sinceContFilter,
 		ContainersConfig: config,
 	}, nil
 }
@@ -214,7 +234,7 @@ func (daemon *Daemon) foldFilter(config *ContainersConfig) (*listContext, error)
 // It also decides if the iteration should be stopped or not.
 func includeContainerInList(container *Container, ctx *listContext) iterationAction {
 	// Do not include container if it's stopped and we're not filters
-	if !container.Running && !ctx.All && ctx.Limit <= 0 && ctx.beforeContainer == nil && ctx.sinceContainer == nil {
+	if !container.Running && !ctx.All && ctx.Limit <= 0 && ctx.beforeFilter == nil && ctx.sinceFilter == nil {
 		return excludeContainer
 	}
 
@@ -240,23 +260,23 @@ func includeContainerInList(container *Container, ctx *listContext) iterationAct
 
 	// Do not include container if it's in the list before the filter container.
 	// Set the filter container to nil to include the rest of containers after this one.
-	if ctx.beforeContainer != nil {
-		if container.ID == ctx.beforeContainer.ID {
-			ctx.beforeContainer = nil
+	if ctx.beforeFilter != nil {
+		if container.ID == ctx.beforeFilter.ID {
+			ctx.beforeFilter = nil
 		}
 		return excludeContainer
+	}
+
+	// Stop interation when the container arrives to the filter container
+	if ctx.sinceFilter != nil {
+		if container.ID == ctx.sinceFilter.ID {
+			return stopIteration
+		}
 	}
 
 	// Stop iteration when the index is over the limit
 	if ctx.Limit > 0 && ctx.idx == ctx.Limit {
 		return stopIteration
-	}
-
-	// Stop interation when the container arrives to the filter container
-	if ctx.sinceContainer != nil {
-		if container.ID == ctx.sinceContainer.ID {
-			return stopIteration
-		}
 	}
 
 	// Do not include container if its exit code is not in the filter

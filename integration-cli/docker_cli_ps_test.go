@@ -58,52 +58,53 @@ func (s *DockerSuite) TestPsListContainersBase(c *check.C) {
 	out, _ = dockerCmd(c, "ps", "-n=2")
 	c.Assert(assertContainerList(out, expected), checker.Equals, true, check.Commentf("LIMIT: Container list is not in the correct order: \n%s", out))
 
-	// since
-	out, _ = dockerCmd(c, "ps", "--since", firstID, "-a")
+	// filter since
+	out, _ = dockerCmd(c, "ps", "-f", "since="+firstID, "-a")
 	expected = []string{fourthID, thirdID, secondID}
 	c.Assert(assertContainerList(out, expected), checker.Equals, true, check.Commentf("SINCE & ALL: Container list is not in the correct order: \n%s", out))
 
-	out, _ = dockerCmd(c, "ps", "--since", firstID)
+	out, _ = dockerCmd(c, "ps", "-f", "since="+firstID)
 	c.Assert(assertContainerList(out, expected), checker.Equals, true, check.Commentf("SINCE: Container list is not in the correct order: \n%s", out))
 
-	// before
-	out, _ = dockerCmd(c, "ps", "--before", thirdID, "-a")
+	// filter before
+	out, _ = dockerCmd(c, "ps", "-f", "before="+thirdID, "-a")
 	expected = []string{secondID, firstID}
 	c.Assert(assertContainerList(out, expected), checker.Equals, true, check.Commentf("BEFORE & ALL: Container list is not in the correct order: \n%s", out))
 
-	out, _ = dockerCmd(c, "ps", "--before", thirdID)
+	out, _ = dockerCmd(c, "ps", "-f", "before="+thirdID)
 	c.Assert(assertContainerList(out, expected), checker.Equals, true, check.Commentf("BEFORE: Container list is not in the correct order: \n%s", out))
 
-	// since & before
-	out, _ = dockerCmd(c, "ps", "--since", firstID, "--before", fourthID, "-a")
+	// filter since & before
+	out, _ = dockerCmd(c, "ps", "-f", "since="+firstID, "-f", "before="+fourthID, "-a")
 	expected = []string{thirdID, secondID}
 	c.Assert(assertContainerList(out, expected), checker.Equals, true, check.Commentf("SINCE, BEFORE & ALL: Container list is not in the correct order: \n%s", out))
 
-	out, _ = dockerCmd(c, "ps", "--since", firstID, "--before", fourthID)
+	out, _ = dockerCmd(c, "ps", "-f", "since="+firstID, "-f", "before="+fourthID)
 	c.Assert(assertContainerList(out, expected), checker.Equals, true, check.Commentf("SINCE, BEFORE: Container list is not in the correct order: \n%s", out))
 
-	// since & limit
-	out, _ = dockerCmd(c, "ps", "--since", firstID, "-n=2", "-a")
+	// filter since & limit
+	out, _ = dockerCmd(c, "ps", "-f", "since="+firstID, "-n=2", "-a")
 	expected = []string{fourthID, thirdID}
 
 	c.Assert(assertContainerList(out, expected), checker.Equals, true, check.Commentf("SINCE, LIMIT & ALL: Container list is not in the correct order: \n%s", out))
 
-	out, _ = dockerCmd(c, "ps", "--since", firstID, "-n=2")
+	out, _ = dockerCmd(c, "ps", "-f", "since="+firstID, "-n=2")
 	c.Assert(assertContainerList(out, expected), checker.Equals, true, check.Commentf("SINCE, LIMIT: Container list is not in the correct order: \n%s", out))
 
-	// before & limit
-	out, _ = dockerCmd(c, "ps", "--before", fourthID, "-n=1", "-a")
+	// filter before & limit
+	out, _ = dockerCmd(c, "ps", "-f", "before="+fourthID, "-n=1", "-a")
 	expected = []string{thirdID}
 	c.Assert(assertContainerList(out, expected), checker.Equals, true, check.Commentf("BEFORE, LIMIT & ALL: Container list is not in the correct order: \n%s", out))
 
-	out, _ = dockerCmd(c, "ps", "--before", fourthID, "-n=1")
+	out, _ = dockerCmd(c, "ps", "-f", "before="+fourthID, "-n=1")
 	c.Assert(assertContainerList(out, expected), checker.Equals, true, check.Commentf("BEFORE, LIMIT: Container list is not in the correct order: \n%s", out))
 
-	out, _ = dockerCmd(c, "ps", "--since", firstID, "--before", fourthID, "-n=1", "-a")
+	// filter since & filter before & limit
+	out, _ = dockerCmd(c, "ps", "-f", "since="+firstID, "-f", "before="+fourthID, "-n=1", "-a")
 	expected = []string{thirdID}
 	c.Assert(assertContainerList(out, expected), checker.Equals, true, check.Commentf("SINCE, BEFORE, LIMIT & ALL: Container list is not in the correct order: \n%s", out))
 
-	out, _ = dockerCmd(c, "ps", "--since", firstID, "--before", fourthID, "-n=1")
+	out, _ = dockerCmd(c, "ps", "-f", "since="+firstID, "-f", "before="+fourthID, "-n=1")
 	c.Assert(assertContainerList(out, expected), checker.Equals, true, check.Commentf("SINCE, BEFORE, LIMIT: Container list is not in the correct order: \n%s", out))
 
 }
