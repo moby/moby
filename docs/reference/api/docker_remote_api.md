@@ -94,6 +94,7 @@ This section lists each version from latest to oldest.  Each listing includes a 
 
 [Docker Remote API v1.22](docker_remote_api_v1.22.md) documentation
 
+* `GET /containers/json` supports filter `isolation` on Windows.
 
 ### v1.21 API changes
 

@@ -51,6 +51,7 @@ The currently supported filters are:
 * exited (int - the code of exited containers. Only useful with `--all`)
 * status (created|restarting|running|paused|exited)
 * ancestor (`<image-name>[:<tag>]`,  `<image id>` or `<image@digest>`) - filters containers that were created from the given image or a descendant.
+* isolation (default|hyperv)   (Windows daemon only)
 
 
 #### Label
