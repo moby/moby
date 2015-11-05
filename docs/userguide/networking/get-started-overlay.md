@@ -335,7 +335,7 @@ You can try starting a second network on your existing Swarm cluster using Docke
 
 6. Start the application with Compose.
 
-		$ docker-compose --x-networking --project-name=counter up -d
+		$ docker-compose --x-networking up -d
 
 7. Get the Swarm master's IP address.
 
