@@ -255,12 +255,6 @@ func (daemon *Daemon) populateCommand(c *Container, env []string) error {
 
 	autoCreatedDevices := mergeDevices(configs.DefaultAutoCreatedDevices, userSpecifiedDevices)
 
-	// TODO: this can be removed after lxc-conf is fully deprecated
-	lxcConfig, err := mergeLxcConfIntoOptions(c.hostConfig)
-	if err != nil {
-		return err
-	}
-
 	var rlimits []*ulimit.Rlimit
 	ulimits := c.hostConfig.Ulimits
 
@@ -345,7 +339,6 @@ func (daemon *Daemon) populateCommand(c *Container, env []string) error {
 		GIDMapping:         gidMap,
 		GroupAdd:           c.hostConfig.GroupAdd,
 		Ipc:                ipc,
-		LxcConfig:          lxcConfig,
 		Pid:                pid,
 		ReadonlyRootfs:     c.hostConfig.ReadonlyRootfs,
 		RemappedRoot:       remappedRoot,

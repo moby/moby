@@ -100,7 +100,6 @@ type Command struct {
 	GIDMapping         []idtools.IDMap   `json:"gidmapping"`
 	GroupAdd           []string          `json:"group_add"`
 	Ipc                *Ipc              `json:"ipc"`
-	LxcConfig          []string          `json:"lxc_config"`
 	Pid                *Pid              `json:"pid"`
 	ReadonlyRootfs     bool              `json:"readonly_rootfs"`
 	RemappedRoot       *User             `json:"remap_root"`

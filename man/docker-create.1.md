@@ -37,7 +37,6 @@ docker-create - Create a new container
 [**--link**[=*[]*]]
 [**--log-driver**[=*[]*]]
 [**--log-opt**[=*[]*]]
-[**--lxc-conf**[=*[]*]]
 [**-m**|**--memory**[=*MEMORY*]]
 [**--mac-address**[=*MAC-ADDRESS*]]
 [**--memory-reservation**[=*MEMORY-RESERVATION*]]
@@ -181,9 +180,6 @@ millions of trillions.
 
 **--log-opt**=[]
   Logging driver specific options.
-
-**--lxc-conf**=[]
-   (lxc exec-driver only) Add custom lxc options --lxc-conf="lxc.cgroup.cpuset.cpus = 0,1"
 
 **-m**, **--memory**=""
    Memory limit (format: <number>[<unit>], where unit = b, k, m or g)

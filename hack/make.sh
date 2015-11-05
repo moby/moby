@@ -109,10 +109,6 @@ if [ -z "$DOCKER_CLIENTONLY" ]; then
 	fi
 fi
 
-if [ "$DOCKER_EXECDRIVER" = 'lxc' ]; then
-	DOCKER_BUILDTAGS+=' test_no_exec'
-fi
-
 # test whether "btrfs/version.h" exists and apply btrfs_noversion appropriately
 if \
 	command -v gcc &> /dev/null \

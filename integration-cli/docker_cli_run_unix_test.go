@@ -17,7 +17,6 @@ import (
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/sysinfo"
-	"github.com/docker/docker/pkg/units"
 	"github.com/go-check/check"
 	"github.com/kr/pty"
 )
@@ -93,7 +92,7 @@ func (s *DockerSuite) TestRunWithVolumesIsRecursive(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunDeviceDirectory(c *check.C) {
-	testRequires(c, NativeExecDriver, NotUserNamespace)
+	testRequires(c, DaemonIsLinux, NotUserNamespace)
 	if _, err := os.Stat("/dev/snd"); err != nil {
 		c.Skip("Host does not have /dev/snd")
 	}
@@ -315,7 +314,7 @@ func (s *DockerSuite) TestRunEchoStdoutWithMemoryLimit(c *check.C) {
 // 16M memory and as much swap memory as they need (if the host
 // supports swap memory).
 func (s *DockerSuite) TestRunWithoutMemoryswapLimit(c *check.C) {
-	testRequires(c, NativeExecDriver)
+	testRequires(c, DaemonIsLinux)
 	testRequires(c, memoryLimitSupport)
 	testRequires(c, swapMemorySupport)
 	dockerCmd(c, "run", "-m", "16m", "--memory-swap", "-1", "busybox", "true")
@@ -425,7 +424,7 @@ func (s *DockerSuite) TestRunInvalidCpusetMemsFlagValue(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunInvalidCPUShares(c *check.C) {
-	testRequires(c, cpuShare, NativeExecDriver)
+	testRequires(c, cpuShare, DaemonIsLinux)
 	out, _, err := dockerCmdWithError("run", "--cpu-shares", "1", "busybox", "echo", "test")
 	c.Assert(err, check.NotNil, check.Commentf(out))
 	expected := "The minimum allowed cpu-shares is 2"
@@ -440,23 +439,4 @@ func (s *DockerSuite) TestRunInvalidCPUShares(c *check.C) {
 	c.Assert(err, check.NotNil, check.Commentf(out))
 	expected = "The maximum allowed cpu-shares is"
 	c.Assert(out, checker.Contains, expected)
-}
-
-func (s *DockerSuite) TestRunWithCorrectMemorySwapOnLXC(c *check.C) {
-	testRequires(c, memoryLimitSupport)
-	testRequires(c, swapMemorySupport)
-	testRequires(c, SameHostDaemon)
-
-	out, _ := dockerCmd(c, "run", "-d", "-m", "32m", "--memory-swap", "64m", "busybox", "top")
-	if _, err := os.Stat("/sys/fs/cgroup/memory/lxc"); err != nil {
-		c.Skip("Excecution driver must be LXC for this test")
-	}
-	id := strings.TrimSpace(out)
-	memorySwap, err := ioutil.ReadFile(fmt.Sprintf("/sys/fs/cgroup/memory/lxc/%s/memory.memsw.limit_in_bytes", id))
-	c.Assert(err, check.IsNil)
-	cgSwap, err := strconv.ParseInt(strings.TrimSpace(string(memorySwap)), 10, 64)
-	c.Assert(err, check.IsNil)
-	swap, err := units.RAMInBytes("64m")
-	c.Assert(err, check.IsNil)
-	c.Assert(cgSwap, check.Equals, swap)
 }

@@ -50,7 +50,6 @@ IRC channel on the Freenode network.
 | contrib       |  Yes    |Install additional contributed scripts and components.|
 | device-mapper |  Yes    |Enables dependencies for the "devicemapper" graph driver, including necessary kernel flags.|
 | doc           |         |Add extra documentation (API, Javadoc, etc). It is recommended to enable per package instead of globally.|
-| lxc           |         |Enables dependencies for the "lxc" execution driver.|
 | vim-syntax    |         |Pulls in related vim syntax scripts.|
 | zsh-completion|         |Enable zsh completion support.|
 

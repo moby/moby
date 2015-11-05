@@ -264,7 +264,6 @@ type ContainerJSONBase struct {
 	Name            string
 	RestartCount    int
 	Driver          string
-	ExecDriver      string
 	MountLabel      string
 	ProcessLabel    string
 	AppArmorProfile string

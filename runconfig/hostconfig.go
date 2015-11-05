@@ -24,7 +24,7 @@ type NetworkMode string
 type IsolationLevel string
 
 // IsDefault indicates the default isolation level of a container. On Linux this
-// is LXC. On Windows, this is a Windows Server Container.
+// is the native driver. On Windows, this is a Windows Server Container.
 func (i IsolationLevel) IsDefault() bool {
 	return strings.ToLower(string(i)) == "default" || string(i) == ""
 }
@@ -164,69 +164,12 @@ type LogConfig struct {
 	Config map[string]string
 }
 
-// LxcConfig represents the specific LXC configuration of the container.
-type LxcConfig struct {
-	values []KeyValuePair
-}
-
-// MarshalJSON marshals (or serializes) the LxcConfig into JSON.
-func (c *LxcConfig) MarshalJSON() ([]byte, error) {
-	if c == nil {
-		return []byte{}, nil
-	}
-	return json.Marshal(c.Slice())
-}
-
-// UnmarshalJSON unmarshals (or deserializes) the specified byte slices from JSON to
-// a LxcConfig.
-func (c *LxcConfig) UnmarshalJSON(b []byte) error {
-	if len(b) == 0 {
-		return nil
-	}
-
-	var kv []KeyValuePair
-	if err := json.Unmarshal(b, &kv); err != nil {
-		var h map[string]string
-		if err := json.Unmarshal(b, &h); err != nil {
-			return err
-		}
-		for k, v := range h {
-			kv = append(kv, KeyValuePair{k, v})
-		}
-	}
-	c.values = kv
-
-	return nil
-}
-
-// Len returns the number of specific lxc configuration.
-func (c *LxcConfig) Len() int {
-	if c == nil {
-		return 0
-	}
-	return len(c.values)
-}
-
-// Slice returns the specific lxc configuration into a slice of KeyValuePair.
-func (c *LxcConfig) Slice() []KeyValuePair {
-	if c == nil {
-		return nil
-	}
-	return c.values
-}
-
-// NewLxcConfig creates a LxcConfig from the specified slice of KeyValuePair.
-func NewLxcConfig(values []KeyValuePair) *LxcConfig {
-	return &LxcConfig{values}
-}
-
 // HostConfig the non-portable Config structure of a container.
 // Here, "non-portable" means "dependent of the host we are running on".
 // Portable information *should* appear in Config.
 type HostConfig struct {
 	Binds             []string              // List of volume bindings for this container
 	ContainerIDFile   string                // File (path) where the containerId is written
-	LxcConf           *LxcConfig            // Additional lxc configuration
 	Memory            int64                 // Memory limit (in bytes)
 	MemoryReservation int64                 // Memory soft limit (in bytes)
 	MemorySwap        int64                 // Total memory usage (memory + swap); set `-1` to disable swap

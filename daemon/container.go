@@ -63,7 +63,6 @@ type CommonContainer struct {
 	LogPath         string
 	Name            string
 	Driver          string
-	ExecDriver      string
 	// MountLabel contains the options for the 'mount' command
 	MountLabel             string
 	ProcessLabel           string
@@ -258,7 +257,6 @@ func (container *Container) jsonPath() (string, error) {
 	return container.getRootResourcePath("config.json")
 }
 
-// This method must be exported to be used from the lxc template
 // This directory is only usable when the container is running
 func (container *Container) rootfsPath() string {
 	return container.basefs

@@ -212,7 +212,6 @@ recommendations.
         dpkg-sig \
         libcap-dev \
         libsqlite3-dev \
-        lxc=1.0* \
         mercurial \
         reprepro \
         ruby1.9.1 \

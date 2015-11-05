@@ -39,16 +39,6 @@ RUN cd /usr/local/lvm2 \
 	&& make install_device-mapper
 # see https://git.fedorahosted.org/cgit/lvm2.git/tree/INSTALL
 
-# Install lxc
-ENV LXC_VERSION 1.1.2
-RUN mkdir -p /usr/src/lxc \
-	&& curl -sSL https://linuxcontainers.org/downloads/lxc/lxc-${LXC_VERSION}.tar.gz | tar -v -C /usr/src/lxc/ -xz --strip-components=1
-RUN cd /usr/src/lxc \
-	&& ./configure \
-	&& make \
-	&& make install \
-	&& ldconfig
-
 ENV GOPATH /go:/go/src/github.com/docker/docker/vendor
 
 # Get the "docker-py" source so we can run their integration tests

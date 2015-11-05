@@ -90,7 +90,6 @@ files_etc_filetrans(docker_t, docker_config_t, dir, "docker")
 
 manage_dirs_pattern(docker_t, docker_lock_t, docker_lock_t)
 manage_files_pattern(docker_t, docker_lock_t, docker_lock_t)
-files_lock_filetrans(docker_t, docker_lock_t, { dir file }, "lxc")
 
 manage_dirs_pattern(docker_t, docker_log_t, docker_log_t)
 manage_files_pattern(docker_t, docker_log_t, docker_log_t)
@@ -213,10 +212,6 @@ optional_policy(`
 	openvswitch_stream_connect(docker_t)
 ')
 
-#
-# lxc rules
-#
-
 allow docker_t self:capability { dac_override setgid setpcap setuid sys_admin sys_boot sys_chroot sys_ptrace };
 
 allow docker_t self:process { getcap setcap setexec setpgid setsched signal_perms };
@@ -317,7 +312,6 @@ optional_policy(`
 	virt_exec_sandbox_files(docker_t)
 	virt_manage_sandbox_files(docker_t)
 	virt_relabel_sandbox_filesystem(docker_t)
-	# for lxc
 	virt_transition_svirt_sandbox(docker_t, system_r)
 	virt_mounton_sandbox_file(docker_t)
 #	virt_attach_sandbox_tun_iface(docker_t)
@@ -385,11 +379,6 @@ optional_policy(`
     staff_stub()
     docker_stream_connect(staff_t)
     docker_exec(staff_t)
-')
-
-optional_policy(`
-    virt_stub_lxc()
-    docker_exec_lib(virtd_lxc_t)
 ')
 
 optional_policy(`

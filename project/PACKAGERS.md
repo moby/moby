@@ -298,7 +298,6 @@ the client will even run on alternative platforms such as Mac OS X / Darwin.
 Some of Docker's features are activated by using optional command-line flags or
 by having support for them in the kernel or userspace. A few examples include:
 
-* LXC execution driver (requires version 1.0.7 or later of lxc and the lxc-libs)
 * AUFS graph driver (requires AUFS patches/support enabled in the kernel, and at
   least the "auplink" utility from aufs-tools)
 * BTRFS graph driver (requires BTRFS support enabled in the kernel)

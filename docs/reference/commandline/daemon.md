@@ -29,7 +29,6 @@ weight = -1
       --dns-opt=[]                           DNS options to use
       --dns-search=[]                        DNS search domains to use
       --default-ulimit=[]                    Set default ulimit settings for containers
-      -e, --exec-driver="native"             Exec driver to use
       --exec-opt=[]                          Set exec driver options
       --exec-root="/var/run/docker"          Root of the Docker execdriver
       --fixed-cidr=""                        IPv4 subnet for fixed IPs
@@ -438,11 +437,6 @@ Currently supported options of `zfs`:
 
 The Docker daemon uses a specifically built `libcontainer` execution driver as
 its interface to the Linux kernel `namespaces`, `cgroups`, and `SELinux`.
-
-There is still legacy support for the original [LXC userspace tools](
-https://linuxcontainers.org/) via the `lxc` execution driver, however, this is
-not where the primary development of new functionality is taking place.
-Add `-e lxc` to the daemon flags to use the `lxc` execution driver.
 
 ## Options for the native execdriver
 

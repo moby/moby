@@ -451,7 +451,6 @@ func (daemon *Daemon) generateNewName(id string) (string, error) {
 
 func (daemon *Daemon) generateHostname(id string, config *runconfig.Config) {
 	// Generate default hostname
-	// FIXME: the lxc template no longer needs to set a default hostname
 	if config.Hostname == "" {
 		config.Hostname = id[:12]
 	}
@@ -490,7 +489,6 @@ func (daemon *Daemon) newContainer(name string, config *runconfig.Config, imgID 
 	base.NetworkSettings = &network.Settings{IsAnonymousEndpoint: noExplicitName}
 	base.Name = name
 	base.Driver = daemon.driver.String()
-	base.ExecDriver = daemon.execDriver.Name()
 
 	return base, err
 }
@@ -786,13 +784,6 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 	d.containerGraphDB = graph
 
 	var sysInitPath string
-	if config.ExecDriver == "lxc" {
-		initPath, err := configureSysInit(config, rootUID, rootGID)
-		if err != nil {
-			return nil, err
-		}
-		sysInitPath = initPath
-	}
 
 	sysInfo := sysinfo.New(false)
 	// Check if Devices cgroup is mounted, it is hard requirement for container security,
@@ -801,7 +792,7 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 		return nil, fmt.Errorf("Devices cgroup isn't mounted")
 	}
 
-	ed, err := execdrivers.NewDriver(config.ExecDriver, config.ExecOptions, config.ExecRoot, config.Root, sysInitPath, sysInfo)
+	ed, err := execdrivers.NewDriver(config.ExecOptions, config.ExecRoot, config.Root, sysInitPath, sysInfo)
 	if err != nil {
 		return nil, err
 	}

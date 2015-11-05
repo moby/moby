@@ -1504,7 +1504,7 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 	}
 
 	// It seems libdevmapper opens this without O_CLOEXEC, and go exec will not close files
-	// that are not Close-on-exec, and lxc-start will die if it inherits any unexpected files,
+	// that are not Close-on-exec,
 	// so we add this badhack to make sure it closes itself
 	setCloseOnExec("/dev/mapper/control")
 

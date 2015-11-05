@@ -128,7 +128,6 @@ func (daemon *Daemon) getInspectData(container *Container, size bool) (*types.Co
 		Name:         container.Name,
 		RestartCount: container.RestartCount,
 		Driver:       container.Driver,
-		ExecDriver:   container.ExecDriver,
 		MountLabel:   container.MountLabel,
 		ProcessLabel: container.ProcessLabel,
 		ExecIDs:      container.getExecIDs(),

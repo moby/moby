@@ -18,7 +18,7 @@ func (s *DockerSuite) TestInspectApiContainerResponse(c *check.C) {
 
 	cleanedContainerID := strings.TrimSpace(out)
 	keysBase := []string{"Id", "State", "Created", "Path", "Args", "Config", "Image", "NetworkSettings",
-		"ResolvConfPath", "HostnamePath", "HostsPath", "LogPath", "Name", "Driver", "ExecDriver", "MountLabel", "ProcessLabel", "GraphDriver"}
+		"ResolvConfPath", "HostnamePath", "HostsPath", "LogPath", "Name", "Driver", "MountLabel", "ProcessLabel", "GraphDriver"}
 
 	cases := []struct {
 		version string

@@ -15,11 +15,8 @@ import (
 )
 
 func setupRemappedRoot(config *Config) ([]idtools.IDMap, []idtools.IDMap, error) {
-	if config.ExecDriver != "native" && config.RemappedRoot != "" {
-		return nil, nil, fmt.Errorf("User namespace remapping is only supported with the native execdriver")
-	}
-	if runtime.GOOS == "windows" && config.RemappedRoot != "" {
-		return nil, nil, fmt.Errorf("User namespaces are not supported on Windows")
+	if runtime.GOOS != "linux" && config.RemappedRoot != "" {
+		return nil, nil, fmt.Errorf("User namespaces are not supported on Linux")
 	}
 
 	// if the daemon was started with remapped root option, parse

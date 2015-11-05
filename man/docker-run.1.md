@@ -38,7 +38,6 @@ docker-run - Run a command in a new container
 [**--link**[=*[]*]]
 [**--log-driver**[=*[]*]]
 [**--log-opt**[=*[]*]]
-[**--lxc-conf**[=*[]*]]
 [**-m**|**--memory**[=*MEMORY*]]
 [**--mac-address**[=*MAC-ADDRESS*]]
 [**--memory-reservation**[=*MEMORY-RESERVATION*]]
@@ -273,9 +272,6 @@ uses **--link** when starting the new client container, then the client
 container can access the exposed port via a private networking interface. Docker
 will set some environment variables in the client container to help indicate
 which interface and port to use.
-
-**--lxc-conf**=[]
-   (lxc exec-driver only) Add custom lxc options --lxc-conf="lxc.cgroup.cpuset.cpus = 0,1"
 
 **--log-driver**="|*json-file*|*syslog*|*journald*|*gelf*|*fluentd*|*awslogs*|*splunk*|*none*"
   Logging driver for container. Default is defined by daemon `--log-driver` flag.

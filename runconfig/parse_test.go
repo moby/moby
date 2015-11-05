@@ -12,7 +12,6 @@ import (
 
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/nat"
-	"github.com/docker/docker/pkg/parsers"
 )
 
 func parseRun(args []string) (*Config, *HostConfig, *flag.FlagSet, error) {
@@ -342,35 +341,6 @@ func setupPlatformVolume(u []string, w []string) ([]string, string) {
 		s = s + "-v " + v + " "
 	}
 	return a, s
-}
-
-func TestParseLxcConfOpt(t *testing.T) {
-	opts := []string{"lxc.utsname=docker", "lxc.utsname = docker "}
-
-	for _, o := range opts {
-		k, v, err := parsers.ParseKeyValueOpt(o)
-		if err != nil {
-			t.FailNow()
-		}
-		if k != "lxc.utsname" {
-			t.Fail()
-		}
-		if v != "docker" {
-			t.Fail()
-		}
-	}
-
-	// With parseRun too
-	_, hostconfig, _, err := parseRun([]string{"lxc.utsname=docker", "lxc.utsname = docker ", "img", "cmd"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, lxcConf := range hostconfig.LxcConf.Slice() {
-		if lxcConf.Key != "lxc.utsname" || lxcConf.Value != "docker" {
-			t.Fail()
-		}
-	}
-
 }
 
 // Simple parse with MacAddress validatation

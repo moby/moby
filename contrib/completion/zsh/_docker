@@ -438,7 +438,6 @@ __docker_subcommand() {
         "($help)*"{-l=,--label=}"[Set meta data on a container]:label: "
         "($help)--log-driver=[Default driver for container logs]:Logging driver:(json-file syslog journald gelf fluentd awslogs splunk none)"
         "($help)*--log-opt=[Log driver specific options]:log driver options: "
-        "($help)*--lxc-conf=[Add custom lxc options]:lxc options: "
         "($help)--mac-address=[Container MAC address]:MAC address: "
         "($help)--name=[Container name]:name: "
         "($help)--net=[Connect a container to a network]:network mode:(bridge none container host)"
@@ -541,7 +540,6 @@ __docker_subcommand() {
                 "($help)*--dns-opt=[DNS options to use]:DNS option: " \
                 "($help)*--default-ulimit=[Set default ulimit settings for containers]:ulimit: " \
                 "($help)--disable-legacy-registry[Do not contact legacy registries]" \
-                "($help -e --exec-driver)"{-e=,--exec-driver=}"[Exec driver to use]:driver:(native lxc windows)" \
                 "($help)*--exec-opt=[Set exec driver options]:exec driver options: " \
                 "($help)--exec-root=[Root of the Docker execdriver]:path:_directories" \
                 "($help)--fixed-cidr=[IPv4 subnet for fixed IPs]:IPv4 subnet: " \
