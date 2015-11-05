@@ -326,7 +326,7 @@ You can try starting a second network on your existing Swarm cluster using Docke
 			image: bfirsh/compose-mongodb-demo
 			environment:
 				- "MONGO_HOST=counter_mongo_1"
-				- "constraint:node==swl-demo0"
+				- "constraint:node==mhs-demo0"
 			ports:
 				- "80:5000"
 		mongo:
@@ -336,7 +336,7 @@ You can try starting a second network on your existing Swarm cluster using Docke
 
 6. Start the application with Compose.
 
-		$ docker-compose up --x-networking up -d
+		$ docker-compose --x-networking up -d
 
 ## Related information
 
