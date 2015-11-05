@@ -1,4 +1,4 @@
-package local
+package container
 
 import (
 	"net/http"
@@ -8,7 +8,7 @@ import (
 )
 
 // getContainersByName inspects containers configuration and serializes it as json.
-func (s *router) getContainersByName(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (s *containerRouter) getContainersByName(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	displaySize := httputils.BoolValue(r, "size")
 
 	var json interface{}
@@ -18,11 +18,11 @@ func (s *router) getContainersByName(ctx context.Context, w http.ResponseWriter,
 
 	switch {
 	case version.LessThan("1.20"):
-		json, err = s.daemon.ContainerInspectPre120(vars["name"])
+		json, err = s.backend.ContainerInspectPre120(vars["name"])
 	case version.Equal("1.20"):
-		json, err = s.daemon.ContainerInspect120(vars["name"])
+		json, err = s.backend.ContainerInspect120(vars["name"])
 	default:
-		json, err = s.daemon.ContainerInspect(vars["name"], displaySize)
+		json, err = s.backend.ContainerInspect(vars["name"], displaySize)
 	}
 
 	if err != nil {
