@@ -91,6 +91,7 @@ Requires(pre): %{name}-selinux >= %{epoch}:%{version}-%{release}
 # conflicting packages
 Conflicts: docker
 Conflicts: docker-io
+Conflicts: docker-engine-cs
 
 %description
 Docker is an open source project to build, ship and run any application as a
