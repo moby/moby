@@ -190,7 +190,7 @@ func (m *containerMonitor) Start() error {
 				m.container.ExitCode = -1
 				m.resetContainer(false)
 
-				return derr.ErrorCodeCantStart.WithArgs(utils.GetErrorMessage(err))
+				return derr.ErrorCodeCantStart.WithArgs(m.container.ID, utils.GetErrorMessage(err))
 			}
 
 			logrus.Errorf("Error running container: %s", err)
