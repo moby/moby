@@ -14,6 +14,9 @@ profile /usr/bin/docker (attach_disconnected, complain) {
   mount -> /proc/**,
   mount -> /sys/**,
   mount -> /run/docker/netns/**,
+  mount -> /.pivot_root[0-9]*/,
+
+  / r,
 
   umount,
   pivot_root,
@@ -29,6 +32,7 @@ profile /usr/bin/docker (attach_disconnected, complain) {
   @{DOCKER_GRAPH_PATH}/** rwl,
   @{DOCKER_GRAPH_PATH}/linkgraph.db k,
   @{DOCKER_GRAPH_PATH}/network/files/boltdb.db k,
+  @{DOCKER_GRAPH_PATH}/network/files/local-kv.db k,
 
   # For non-root client use:
   /dev/urandom r,
