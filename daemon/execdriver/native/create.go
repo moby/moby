@@ -74,6 +74,7 @@ func (d *Driver) createContainer(c *execdriver.Command, hooks execdriver.Hooks) 
 		}
 	}
 	container.AdditionalGroups = c.GroupAdd
+	container.Sysctl = c.Sysctls
 
 	if c.AppArmorProfile != "" {
 		container.AppArmorProfile = c.AppArmorProfile

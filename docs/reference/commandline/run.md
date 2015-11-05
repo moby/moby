@@ -71,6 +71,7 @@ parent = "smn_cli"
       --security-opt=[]             Security Options
       --sig-proxy=true              Proxy received signals to the process
       --stop-signal="SIGTERM"       Signal to stop a container
+      --sysctl[=*[]*]]              Configure namespaced kernel parameters at runtime
       -t, --tty=false               Allocate a pseudo-TTY
       -u, --user=""                 Username or UID (format: <name|uid>[:<group|gid>])
       --ulimit=[]                   Ulimit options
@@ -540,3 +541,16 @@ the three processes quota set for the `daemon` user.
 The `--stop-signal` flag sets the system call signal that will be sent to the container to exit.
 This signal can be a valid unsigned number that matches a position in the kernel's syscall table, for instance 9,
 or a signal name in the format SIGNAME, for instance SIGKILL.
+
+### Configure namespaced kernel parameters (sysctls) at runtime
+
+The `--sysctl` sets namespaced kernel parameters (sysctls) in the
+container. For example, to turn on IP forwarding in the containers
+network namespace, run this command:
+
+    $ docker run --sysctl net.ipv4.ip_forward=1 someimage
+
+
+> **Note**: Not all sysctls are namespaced. You should make sure that
+> modifying a sysctl inside of a container does not modify it on the host
+> system. As the kernel evolves more sysctls will become namespaced.

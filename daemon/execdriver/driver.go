@@ -145,15 +145,16 @@ type ProcessConfig struct {
 // CommonCommand is the common platform agnostic part of the Command structure
 // which wraps an os/exec.Cmd to add more metadata
 type CommonCommand struct {
-	ContainerPid  int           `json:"container_pid"` // the pid for the process inside a container
-	ID            string        `json:"id"`
-	InitPath      string        `json:"initpath"`    // dockerinit
-	MountLabel    string        `json:"mount_label"` // TODO Windows. More involved, but can be factored out
-	Mounts        []Mount       `json:"mounts"`
-	Network       *Network      `json:"network"`
-	ProcessConfig ProcessConfig `json:"process_config"` // Describes the init process of the container.
-	ProcessLabel  string        `json:"process_label"`  // TODO Windows. More involved, but can be factored out
-	Resources     *Resources    `json:"resources"`
-	Rootfs        string        `json:"rootfs"` // root fs of the container
-	WorkingDir    string        `json:"working_dir"`
+	ContainerPid  int               `json:"container_pid"` // the pid for the process inside a container
+	ID            string            `json:"id"`
+	InitPath      string            `json:"initpath"`    // dockerinit
+	MountLabel    string            `json:"mount_label"` // TODO Windows. More involved, but can be factored out
+	Mounts        []Mount           `json:"mounts"`
+	Network       *Network          `json:"network"`
+	ProcessConfig ProcessConfig     `json:"process_config"` // Describes the init process of the container.
+	ProcessLabel  string            `json:"process_label"`  // TODO Windows. More involved, but can be factored out
+	Resources     *Resources        `json:"resources"`
+	Rootfs        string            `json:"rootfs"` // root fs of the container
+	Sysctls       map[string]string `json:"sysctls"`
+	WorkingDir    string            `json:"working_dir"`
 }

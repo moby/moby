@@ -334,6 +334,7 @@ func (daemon *Daemon) populateCommand(c *Container, env []string) error {
 			ProcessLabel:  c.getProcessLabel(),
 			Rootfs:        c.rootfsPath(),
 			Resources:     resources,
+			Sysctls:       c.hostConfig.Sysctls,
 			WorkingDir:    c.Config.WorkingDir,
 		},
 		AllowedDevices:     allowedDevices,

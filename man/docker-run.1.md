@@ -55,8 +55,9 @@ docker-run - Run a command in a new container
 [**--restart**[=*RESTART*]]
 [**--rm**[=*false*]]
 [**--security-opt**[=*[]*]]
-[**--stop-signal**[=*SIGNAL*]]
 [**--sig-proxy**[=*true*]]
+[**--stop-signal**[=*SIGNAL*]]
+[**--sysctl**[=*[]*]]
 [**-t**|**--tty**[=*false*]]
 [**-u**|**--user**[=*USER*]]
 [**-v**|**--volume**[=*[]*]]
@@ -410,6 +411,9 @@ its root filesystem mounted as read only prohibiting any writes.
 **--stop-signal**=SIGTERM
   Signal to stop a container. Default is SIGTERM.
 
+**--sysctl**=SYSCTL
+  Configure namespaced kernel parameters at runtime
+
 **--sig-proxy**=*true*|*false*
    Proxy received signals to the process (non-TTY mode only). SIGCHLD, SIGSTOP, and SIGKILL are not proxied. The default is *true*.
 
@@ -758,6 +762,20 @@ command:
 Note:
 
 You would have to write policy defining a `svirt_apache_t` type.
+
+## Setting Namespaced Kernel Parameters (Sysctls)
+
+The `--sysctl` sets namespaced kernel parameters (sysctls) in the
+container. For example, to turn on IP forwarding in the containers
+network namespace, run this command:
+
+    $ docker run --sysctl net.ipv4.ip_forward=1 someimage
+
+Note:
+
+Not all sysctls are namespaced. You should make sure that
+modifying a sysctl inside of a container does not modify it on the host
+system. As the kernel evolves more sysctls will become namespaced.
 
 # HISTORY
 April 2014, Originally compiled by William Henry (whenry at redhat dot com)

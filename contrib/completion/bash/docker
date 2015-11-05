@@ -1392,6 +1392,7 @@ _docker_run() {
 		--restart
 		--security-opt
 		--stop-signal
+		--sysctl
 		--ulimit
 		--user -u
 		--uts

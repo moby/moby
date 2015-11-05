@@ -65,6 +65,7 @@ Creates a new container.
       --restart="no"                Restart policy (no, on-failure[:max-retry], always, unless-stopped)
       --security-opt=[]             Security options
       --stop-signal="SIGTERM"       Signal to stop a container
+      --sysctl[=*[]*]]              Configure namespaced kernel parameters at runtime
       -t, --tty=false               Allocate a pseudo-TTY
       -u, --user=""                 Username or UID
       --ulimit=[]                   Ulimit options

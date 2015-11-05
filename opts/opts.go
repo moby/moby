@@ -358,3 +358,12 @@ func doesEnvExist(name string) bool {
 	}
 	return false
 }
+
+// ValidateSysctl validates an sysctl and returns it.
+func ValidateSysctl(val string) (string, error) {
+	arr := strings.Split(val, "=")
+	if len(arr) > 1 {
+		return val, nil
+	}
+	return val, fmt.Errorf("sysctl '%s' is not valid ", val)
+}
