@@ -29,7 +29,6 @@ weight = -1
       --dns-opt=[]                           DNS options to use
       --dns-search=[]                        DNS search domains to use
       --default-ulimit=[]                    Set default ulimit settings for containers
-      -e, --exec-driver="native"             Exec driver to use
       --exec-opt=[]                          Set exec driver options
       --exec-root="/var/run/docker"          Root of the Docker execdriver
       --fixed-cidr=""                        IPv4 subnet for fixed IPs

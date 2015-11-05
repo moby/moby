@@ -32,8 +32,7 @@ func (s *DockerSuite) TestExperimentalVersion(c *check.C) {
 // 1. validate uid/gid maps are set properly
 // 2. verify that files created are owned by remapped root
 func (s *DockerDaemonSuite) TestDaemonUserNamespaceRootSetting(c *check.C) {
-	testRequires(c, NativeExecDriver)
-	testRequires(c, SameHostDaemon)
+	testRequires(c, DaemonIsLinux, SameHostDaemon)
 
 	c.Assert(s.d.StartWithBusybox("--userns-remap", "default"), checker.IsNil)
 

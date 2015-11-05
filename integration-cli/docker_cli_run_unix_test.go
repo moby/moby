@@ -92,7 +92,7 @@ func (s *DockerSuite) TestRunWithVolumesIsRecursive(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunDeviceDirectory(c *check.C) {
-	testRequires(c, NativeExecDriver, NotUserNamespace)
+	testRequires(c, DaemonIsLinux, NotUserNamespace)
 	if _, err := os.Stat("/dev/snd"); err != nil {
 		c.Skip("Host does not have /dev/snd")
 	}
@@ -314,7 +314,7 @@ func (s *DockerSuite) TestRunEchoStdoutWithMemoryLimit(c *check.C) {
 // 16M memory and as much swap memory as they need (if the host
 // supports swap memory).
 func (s *DockerSuite) TestRunWithoutMemoryswapLimit(c *check.C) {
-	testRequires(c, NativeExecDriver)
+	testRequires(c, DaemonIsLinux)
 	testRequires(c, memoryLimitSupport)
 	testRequires(c, swapMemorySupport)
 	dockerCmd(c, "run", "-m", "16m", "--memory-swap", "-1", "busybox", "true")
@@ -420,7 +420,7 @@ func (s *DockerSuite) TestRunInvalidCpusetMemsFlagValue(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunInvalidCPUShares(c *check.C) {
-	testRequires(c, cpuShare, NativeExecDriver)
+	testRequires(c, cpuShare, DaemonIsLinux)
 	out, _, err := dockerCmdWithError("run", "--cpu-shares", "1", "busybox", "echo", "test")
 	c.Assert(err, check.NotNil, check.Commentf(out))
 	expected := "The minimum allowed cpu-shares is 2"

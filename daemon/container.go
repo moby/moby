@@ -63,7 +63,6 @@ type CommonContainer struct {
 	LogPath         string
 	Name            string
 	Driver          string
-	ExecDriver      string
 	// MountLabel contains the options for the 'mount' command
 	MountLabel             string
 	ProcessLabel           string

@@ -20,7 +20,6 @@ docker-daemon - Enable daemon mode
 [**--dns**[=*[]*]]
 [**--dns-opt**[=*[]*]]
 [**--dns-search**[=*[]*]]
-[**-e**|**--exec-driver**[=*native*]]
 [**--exec-opt**[=*[]*]]
 [**--exec-root**[=*/var/run/docker*]]
 [**--fixed-cidr**[=*FIXED-CIDR*]]
@@ -111,9 +110,6 @@ format.
 
 **--dns-search**=[]
   DNS search domains to use.
-
-**-e**, **--exec-driver**=""
-  Force Docker to use specific exec driver. Default is `native`.
 
 **--exec-opt**=[]
   Set exec driver options. See EXEC DRIVER OPTIONS.

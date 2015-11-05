@@ -5459,7 +5459,6 @@ func (s *DockerSuite) TestBuildEmptyStringVolume(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildContainerWithCgroupParent(c *check.C) {
-	testRequires(c, NativeExecDriver)
 	testRequires(c, SameHostDaemon)
 	testRequires(c, DaemonIsLinux)
 

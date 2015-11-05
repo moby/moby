@@ -489,7 +489,6 @@ func (daemon *Daemon) newContainer(name string, config *runconfig.Config, imgID 
 	base.NetworkSettings = &network.Settings{IsAnonymousEndpoint: noExplicitName}
 	base.Name = name
 	base.Driver = daemon.driver.String()
-	base.ExecDriver = daemon.execDriver.Name()
 
 	return base, err
 }
@@ -793,7 +792,7 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 		return nil, fmt.Errorf("Devices cgroup isn't mounted")
 	}
 
-	ed, err := execdrivers.NewDriver(config.ExecDriver, config.ExecOptions, config.ExecRoot, config.Root, sysInitPath, sysInfo)
+	ed, err := execdrivers.NewDriver(config.ExecOptions, config.ExecRoot, config.Root, sysInitPath, sysInfo)
 	if err != nil {
 		return nil, err
 	}

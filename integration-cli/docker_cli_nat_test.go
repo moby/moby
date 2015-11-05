@@ -50,8 +50,7 @@ func getContainerStatus(c *check.C, containerID string) string {
 }
 
 func (s *DockerSuite) TestNetworkNat(c *check.C) {
-	testRequires(c, DaemonIsLinux)
-	testRequires(c, SameHostDaemon, NativeExecDriver)
+	testRequires(c, DaemonIsLinux, SameHostDaemon)
 	msg := "it works"
 	startServerContainer(c, msg, 8080)
 	endpoint := getExternalAddress(c)
@@ -67,8 +66,7 @@ func (s *DockerSuite) TestNetworkNat(c *check.C) {
 }
 
 func (s *DockerSuite) TestNetworkLocalhostTCPNat(c *check.C) {
-	testRequires(c, DaemonIsLinux)
-	testRequires(c, SameHostDaemon, NativeExecDriver)
+	testRequires(c, DaemonIsLinux, SameHostDaemon)
 	var (
 		msg = "hi yall"
 	)
@@ -85,8 +83,7 @@ func (s *DockerSuite) TestNetworkLocalhostTCPNat(c *check.C) {
 }
 
 func (s *DockerSuite) TestNetworkLoopbackNat(c *check.C) {
-	testRequires(c, DaemonIsLinux)
-	testRequires(c, SameHostDaemon, NativeExecDriver, NotUserNamespace)
+	testRequires(c, DaemonIsLinux, SameHostDaemon, NotUserNamespace)
 	msg := "it works"
 	startServerContainer(c, msg, 8080)
 	endpoint := getExternalAddress(c)

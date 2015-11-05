@@ -229,9 +229,6 @@ func (d *Daemon) Start(arg ...string) error {
 	if d.storageDriver != "" {
 		args = append(args, "--storage-driver", d.storageDriver)
 	}
-	if d.execDriver != "" {
-		args = append(args, "--exec-driver", d.execDriver)
-	}
 
 	args = append(args, arg...)
 	d.cmd = exec.Command(dockerBinary, args...)

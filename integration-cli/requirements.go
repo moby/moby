@@ -1,10 +1,8 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"os"
 	"os/exec"
@@ -23,8 +21,6 @@ type testRequirement struct {
 
 // List test requirements
 var (
-	daemonExecDriver string
-
 	DaemonIsWindows = testRequirement{
 		func() bool { return daemonPlatform == "windows" },
 		"Test requires a Windows daemon",
@@ -104,30 +100,6 @@ var (
 			return err == nil
 		},
 		fmt.Sprintf("Test requires an environment that can host %s in the same host", notaryBinary),
-	}
-	NativeExecDriver = testRequirement{
-		func() bool {
-			if daemonExecDriver == "" {
-				// get daemon info
-				status, body, err := sockRequest("GET", "/info", nil)
-				if err != nil || status != http.StatusOK {
-					log.Fatalf("sockRequest failed for /info: %v", err)
-				}
-
-				type infoJSON struct {
-					ExecutionDriver string
-				}
-				var info infoJSON
-				if err = json.Unmarshal(body, &info); err != nil {
-					log.Fatalf("unable to unmarshal body: %v", err)
-				}
-
-				daemonExecDriver = info.ExecutionDriver
-			}
-
-			return strings.HasPrefix(daemonExecDriver, "native")
-		},
-		"Test requires the native (libcontainer) exec driver.",
 	}
 	NotOverlay = testRequirement{
 		func() bool {

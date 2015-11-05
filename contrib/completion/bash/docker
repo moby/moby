@@ -659,7 +659,6 @@ _docker_daemon() {
 		--dns
 		--dns-search
 		--dns-opt
-		--exec-driver -e
 		--exec-opt
 		--exec-root
 		--fixed-cidr

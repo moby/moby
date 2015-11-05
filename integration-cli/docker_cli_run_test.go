@@ -259,7 +259,7 @@ func (s *DockerSuite) TestRunCreateVolumesInSymlinkDir(c *check.C) {
 	if daemonPlatform == "windows" {
 		testRequires(c, SameHostDaemon, WindowsDaemonSupportsVolumes)
 	} else {
-		testRequires(c, SameHostDaemon, NativeExecDriver)
+		testRequires(c, SameHostDaemon)
 	}
 
 	name := "test-volume-symlink"
@@ -923,7 +923,7 @@ func (s *DockerSuite) TestRunCapAddALLDropNetAdminCanDownInterface(c *check.C) {
 
 func (s *DockerSuite) TestRunGroupAdd(c *check.C) {
 	// Not applicable for Windows as there is no concept of --group-add
-	testRequires(c, DaemonIsLinux, NativeExecDriver)
+	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "--group-add=audio", "--group-add=staff", "--group-add=777", "busybox", "sh", "-c", "id")
 
 	groupsList := "uid=0(root) gid=0(root) groups=10(wheel),29(audio),50(staff),777"
@@ -1280,7 +1280,7 @@ func (s *DockerSuite) TestRunNonRootUserResolvName(c *check.C) {
 // uses the host's /etc/resolv.conf and does not have any dns options provided.
 func (s *DockerSuite) TestRunResolvconfUpdate(c *check.C) {
 	// Not applicable on Windows as testing unix specific functionality
-	testRequires(c, SameHostDaemon, DaemonIsLinux, NativeExecDriver)
+	testRequires(c, SameHostDaemon, DaemonIsLinux)
 
 	tmpResolvConf := []byte("search pommesfrites.fr\nnameserver 12.34.56.78\n")
 	tmpLocalhostResolvConf := []byte("nameserver 127.0.0.1")
@@ -2240,9 +2240,6 @@ func (s *DockerSuite) TestRunExposePort(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunUnknownCommand(c *check.C) {
-	if daemonPlatform != "windows" {
-		testRequires(c, NativeExecDriver)
-	}
 	out, _, _ := dockerCmdWithStdoutStderr(c, "create", "busybox", "/bin/nada")
 
 	cID := strings.TrimSpace(out)
@@ -2384,7 +2381,7 @@ func (s *DockerSuite) TestContainerNetworkMode(c *check.C) {
 
 func (s *DockerSuite) TestRunModePidHost(c *check.C) {
 	// Not applicable on Windows as uses Unix-specific capabilities
-	testRequires(c, NativeExecDriver, SameHostDaemon, DaemonIsLinux, NotUserNamespace)
+	testRequires(c, SameHostDaemon, DaemonIsLinux, NotUserNamespace)
 
 	hostPid, err := os.Readlink("/proc/1/ns/pid")
 	if err != nil {
@@ -2406,7 +2403,7 @@ func (s *DockerSuite) TestRunModePidHost(c *check.C) {
 
 func (s *DockerSuite) TestRunModeUTSHost(c *check.C) {
 	// Not applicable on Windows as uses Unix-specific capabilities
-	testRequires(c, NativeExecDriver, SameHostDaemon, DaemonIsLinux)
+	testRequires(c, SameHostDaemon, DaemonIsLinux)
 
 	hostUTS, err := os.Readlink("/proc/1/ns/uts")
 	if err != nil {
@@ -2636,7 +2633,7 @@ func (s *DockerSuite) TestRunContainerWithWritableRootfs(c *check.C) {
 
 func (s *DockerSuite) TestRunContainerWithReadonlyRootfs(c *check.C) {
 	// Not applicable on Windows which does not support --read-only
-	testRequires(c, NativeExecDriver, DaemonIsLinux)
+	testRequires(c, DaemonIsLinux)
 
 	for _, f := range []string{"/file", "/etc/hosts", "/etc/resolv.conf", "/etc/hostname", "/sys/kernel", "/dev/.dont.touch.me"} {
 		testReadOnlyFile(f, c)
@@ -2647,7 +2644,7 @@ func (s *DockerSuite) TestPermissionsPtsReadonlyRootfs(c *check.C) {
 	// Not applicable on Windows due to use of Unix specific functionality, plus
 	// the use of --read-only which is not supported.
 	// --read-only + userns has remount issues
-	testRequires(c, DaemonIsLinux, NativeExecDriver, NotUserNamespace)
+	testRequires(c, DaemonIsLinux, NotUserNamespace)
 
 	// Ensure we have not broken writing /dev/pts
 	out, status := dockerCmd(c, "run", "--read-only", "--rm", "busybox", "mount")
@@ -2662,7 +2659,7 @@ func (s *DockerSuite) TestPermissionsPtsReadonlyRootfs(c *check.C) {
 
 func testReadOnlyFile(filename string, c *check.C) {
 	// Not applicable on Windows which does not support --read-only
-	testRequires(c, NativeExecDriver, DaemonIsLinux, NotUserNamespace)
+	testRequires(c, DaemonIsLinux, NotUserNamespace)
 
 	out, _, err := dockerCmdWithError("run", "--read-only", "--rm", "busybox", "touch", filename)
 	if err == nil {
@@ -2686,7 +2683,7 @@ func testReadOnlyFile(filename string, c *check.C) {
 func (s *DockerSuite) TestRunContainerWithReadonlyEtcHostsAndLinkedContainer(c *check.C) {
 	// Not applicable on Windows which does not support --link
 	// --read-only + userns has remount issues
-	testRequires(c, NativeExecDriver, DaemonIsLinux, NotUserNamespace)
+	testRequires(c, DaemonIsLinux, NotUserNamespace)
 
 	dockerCmd(c, "run", "-d", "--name", "test-etc-hosts-ro-linked", "busybox", "top")
 
@@ -2699,7 +2696,7 @@ func (s *DockerSuite) TestRunContainerWithReadonlyEtcHostsAndLinkedContainer(c *
 func (s *DockerSuite) TestRunContainerWithReadonlyRootfsWithDnsFlag(c *check.C) {
 	// Not applicable on Windows which does not support either --read-only or --dns.
 	// --read-only + userns has remount issues
-	testRequires(c, NativeExecDriver, DaemonIsLinux, NotUserNamespace)
+	testRequires(c, DaemonIsLinux, NotUserNamespace)
 
 	out, _ := dockerCmd(c, "run", "--read-only", "--dns", "1.1.1.1", "busybox", "/bin/cat", "/etc/resolv.conf")
 	if !strings.Contains(string(out), "1.1.1.1") {
@@ -2710,7 +2707,7 @@ func (s *DockerSuite) TestRunContainerWithReadonlyRootfsWithDnsFlag(c *check.C) 
 func (s *DockerSuite) TestRunContainerWithReadonlyRootfsWithAddHostFlag(c *check.C) {
 	// Not applicable on Windows which does not support --read-only
 	// --read-only + userns has remount issues
-	testRequires(c, NativeExecDriver, DaemonIsLinux, NotUserNamespace)
+	testRequires(c, DaemonIsLinux, NotUserNamespace)
 
 	out, _ := dockerCmd(c, "run", "--read-only", "--add-host", "testreadonly:127.0.0.1", "busybox", "/bin/cat", "/etc/hosts")
 	if !strings.Contains(string(out), "testreadonly") {
@@ -2815,7 +2812,7 @@ func (s *DockerSuite) TestRunWriteToProcAsound(c *check.C) {
 
 func (s *DockerSuite) TestRunReadProcTimer(c *check.C) {
 	// Not applicable on Windows as uses Unix specific functionality
-	testRequires(c, NativeExecDriver, DaemonIsLinux)
+	testRequires(c, DaemonIsLinux)
 	out, code, err := dockerCmdWithError("run", "busybox", "cat", "/proc/timer_stats")
 	if code != 0 {
 		return
@@ -2830,7 +2827,7 @@ func (s *DockerSuite) TestRunReadProcTimer(c *check.C) {
 
 func (s *DockerSuite) TestRunReadProcLatency(c *check.C) {
 	// Not applicable on Windows as uses Unix specific functionality
-	testRequires(c, NativeExecDriver, DaemonIsLinux)
+	testRequires(c, DaemonIsLinux)
 	// some kernels don't have this configured so skip the test if this file is not found
 	// on the host running the tests.
 	if _, err := os.Stat("/proc/latency_stats"); err != nil {
@@ -2875,7 +2872,6 @@ func (s *DockerSuite) TestRunReadFilteredProc(c *check.C) {
 func (s *DockerSuite) TestMountIntoProc(c *check.C) {
 	// Not applicable on Windows as uses Unix specific functionality
 	testRequires(c, DaemonIsLinux)
-	testRequires(c, NativeExecDriver)
 	_, code, err := dockerCmdWithError("run", "-v", "/proc//sys", "busybox", "true")
 	if err == nil || code == 0 {
 		c.Fatal("container should not be able to mount into /proc")
@@ -2885,7 +2881,7 @@ func (s *DockerSuite) TestMountIntoProc(c *check.C) {
 func (s *DockerSuite) TestMountIntoSys(c *check.C) {
 	// Not applicable on Windows as uses Unix specific functionality
 	testRequires(c, DaemonIsLinux)
-	testRequires(c, NativeExecDriver, NotUserNamespace)
+	testRequires(c, NotUserNamespace)
 	dockerCmd(c, "run", "-v", "/sys/fs/cgroup", "busybox", "true")
 }
 
@@ -2893,7 +2889,7 @@ func (s *DockerSuite) TestRunUnshareProc(c *check.C) {
 	c.Skip("unstable test: is apparmor in a container reliable?")
 
 	// Not applicable on Windows as uses Unix specific functionality
-	testRequires(c, Apparmor, NativeExecDriver, DaemonIsLinux)
+	testRequires(c, Apparmor, DaemonIsLinux)
 
 	name := "acidburn"
 	if out, _, err := dockerCmdWithError("run", "--name", name, "jess/unshare", "unshare", "-p", "-m", "-f", "-r", "--mount-proc=/proc", "mount"); err == nil || !strings.Contains(out, "Permission denied") {
@@ -2927,7 +2923,6 @@ func (s *DockerSuite) TestRunPublishPort(c *check.C) {
 func (s *DockerSuite) TestDevicePermissions(c *check.C) {
 	// Not applicable on Windows as uses Unix specific functionality
 	testRequires(c, DaemonIsLinux)
-	testRequires(c, NativeExecDriver)
 	const permissions = "crw-rw-rw-"
 	out, status := dockerCmd(c, "run", "--device", "/dev/fuse:/dev/fuse:mrw", "busybox:latest", "ls", "-l", "/dev/fuse")
 	if status != 0 {
@@ -2941,7 +2936,6 @@ func (s *DockerSuite) TestDevicePermissions(c *check.C) {
 func (s *DockerSuite) TestRunCapAddCHOWN(c *check.C) {
 	// Not applicable on Windows as uses Unix specific functionality
 	testRequires(c, DaemonIsLinux)
-	testRequires(c, NativeExecDriver)
 	out, _ := dockerCmd(c, "run", "--cap-drop=ALL", "--cap-add=CHOWN", "busybox", "sh", "-c", "adduser -D -H newuser && chown newuser /home && echo ok")
 
 	if actual := strings.Trim(out, "\r\n"); actual != "ok" {
@@ -2984,7 +2978,7 @@ func (s *DockerSuite) TestVolumeFromMixedRWOptions(c *check.C) {
 
 func (s *DockerSuite) TestRunWriteFilteredProc(c *check.C) {
 	// Not applicable on Windows as uses Unix specific functionality
-	testRequires(c, Apparmor, NativeExecDriver, DaemonIsLinux, NotUserNamespace)
+	testRequires(c, Apparmor, DaemonIsLinux, NotUserNamespace)
 
 	testWritePaths := []string{
 		/* modprobe and core_pattern should both be denied by generic
@@ -3253,7 +3247,7 @@ func (s *DockerSuite) TestPtraceContainerProcsFromHost(c *check.C) {
 
 func (s *DockerSuite) TestAppArmorDeniesPtrace(c *check.C) {
 	// Not applicable on Windows as uses Unix specific functionality
-	testRequires(c, SameHostDaemon, NativeExecDriver, Apparmor, DaemonIsLinux, NotGCCGO)
+	testRequires(c, SameHostDaemon, Apparmor, DaemonIsLinux, NotGCCGO)
 
 	// Run through 'sh' so we are NOT pid 1. Pid 1 may be able to trace
 	// itself, but pid>1 should not be able to trace pid1.
@@ -3277,7 +3271,7 @@ func (s *DockerSuite) TestAppArmorDeniesChmodProc(c *check.C) {
 	c.Skip("Test is failing, and what it tests is unclear")
 
 	// Not applicable on Windows as uses Unix specific functionality
-	testRequires(c, SameHostDaemon, NativeExecDriver, Apparmor, DaemonIsLinux)
+	testRequires(c, SameHostDaemon, Apparmor, DaemonIsLinux)
 	_, exitCode, _ := dockerCmdWithError("run", "busybox", "chmod", "744", "/proc/cpuinfo")
 	if exitCode == 0 {
 		// If our test failed, attempt to repair the host system...
@@ -3290,7 +3284,7 @@ func (s *DockerSuite) TestAppArmorDeniesChmodProc(c *check.C) {
 
 func (s *DockerSuite) TestRunCapAddSYSTIME(c *check.C) {
 	// Not applicable on Windows as uses Unix specific functionality
-	testRequires(c, DaemonIsLinux, NativeExecDriver)
+	testRequires(c, DaemonIsLinux)
 
 	dockerCmd(c, "run", "--cap-drop=ALL", "--cap-add=SYS_TIME", "busybox", "sh", "-c", "grep ^CapEff /proc/self/status | sed 's/^CapEff:\t//' | grep ^0000000002000000$")
 }
@@ -3327,7 +3321,7 @@ func (s *DockerSuite) TestRunNamedVolume(c *check.C) {
 
 func (s *DockerSuite) TestRunWithUlimits(c *check.C) {
 	// Not applicable on Windows as uses Unix specific functionality
-	testRequires(c, DaemonIsLinux, NativeExecDriver)
+	testRequires(c, DaemonIsLinux)
 
 	out, _ := dockerCmd(c, "run", "--name=testulimits", "--ulimit", "nofile=42", "busybox", "/bin/sh", "-c", "ulimit -n")
 	ul := strings.TrimSpace(out)
@@ -3338,7 +3332,7 @@ func (s *DockerSuite) TestRunWithUlimits(c *check.C) {
 
 func (s *DockerSuite) TestRunContainerWithCgroupParent(c *check.C) {
 	// Not applicable on Windows as uses Unix specific functionality
-	testRequires(c, DaemonIsLinux, NativeExecDriver)
+	testRequires(c, DaemonIsLinux)
 
 	cgroupParent := "test"
 	name := "cgroup-test"
@@ -3368,7 +3362,7 @@ func (s *DockerSuite) TestRunContainerWithCgroupParent(c *check.C) {
 
 func (s *DockerSuite) TestRunContainerWithCgroupParentAbsPath(c *check.C) {
 	// Not applicable on Windows as uses Unix specific functionality
-	testRequires(c, DaemonIsLinux, NativeExecDriver)
+	testRequires(c, DaemonIsLinux)
 
 	cgroupParent := "/cgroup-parent/test"
 	name := "cgroup-test"
@@ -3398,7 +3392,7 @@ func (s *DockerSuite) TestRunContainerWithCgroupParentAbsPath(c *check.C) {
 func (s *DockerSuite) TestRunContainerWithCgroupMountRO(c *check.C) {
 	// Not applicable on Windows as uses Unix specific functionality
 	// --read-only + userns has remount issues
-	testRequires(c, DaemonIsLinux, NativeExecDriver, NotUserNamespace)
+	testRequires(c, DaemonIsLinux, NotUserNamespace)
 
 	filename := "/sys/fs/cgroup/devices/test123"
 	out, _, err := dockerCmdWithError("run", "busybox", "touch", filename)
@@ -3553,7 +3547,7 @@ func (s *DockerSuite) TestContainersInUserDefinedNetwork(c *check.C) {
 }
 
 func (s *DockerSuite) TestContainersInMultipleNetworks(c *check.C) {
-	testRequires(c, DaemonIsLinux, NotUserNamespace, NativeExecDriver)
+	testRequires(c, DaemonIsLinux, NotUserNamespace)
 	// Create 2 networks using bridge driver
 	dockerCmd(c, "network", "create", "-d", "bridge", "testnetwork1")
 	dockerCmd(c, "network", "create", "-d", "bridge", "testnetwork2")
@@ -3572,7 +3566,7 @@ func (s *DockerSuite) TestContainersInMultipleNetworks(c *check.C) {
 }
 
 func (s *DockerSuite) TestContainersNetworkIsolation(c *check.C) {
-	testRequires(c, DaemonIsLinux, NotUserNamespace, NativeExecDriver)
+	testRequires(c, DaemonIsLinux, NotUserNamespace)
 	// Create 2 networks using bridge driver
 	dockerCmd(c, "network", "create", "-d", "bridge", "testnetwork1")
 	dockerCmd(c, "network", "create", "-d", "bridge", "testnetwork2")
@@ -3617,7 +3611,7 @@ func (s *DockerSuite) TestNetworkRmWithActiveContainers(c *check.C) {
 }
 
 func (s *DockerSuite) TestContainerRestartInMultipleNetworks(c *check.C) {
-	testRequires(c, DaemonIsLinux, NotUserNamespace, NativeExecDriver)
+	testRequires(c, DaemonIsLinux, NotUserNamespace)
 	// Create 2 networks using bridge driver
 	dockerCmd(c, "network", "create", "-d", "bridge", "testnetwork1")
 	dockerCmd(c, "network", "create", "-d", "bridge", "testnetwork2")

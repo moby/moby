@@ -540,7 +540,6 @@ __docker_subcommand() {
                 "($help)*--dns-opt=[DNS options to use]:DNS option: " \
                 "($help)*--default-ulimit=[Set default ulimit settings for containers]:ulimit: " \
                 "($help)--disable-legacy-registry[Do not contact legacy registries]" \
-                "($help -e --exec-driver)"{-e=,--exec-driver=}"[Exec driver to use]:driver:(native windows)" \
                 "($help)*--exec-opt=[Set exec driver options]:exec driver options: " \
                 "($help)--exec-root=[Root of the Docker execdriver]:path:_directories" \
                 "($help)--fixed-cidr=[IPv4 subnet for fixed IPs]:IPv4 subnet: " \
