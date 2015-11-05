@@ -304,7 +304,7 @@ func (b *Builder) download(srcURL string) (fi builder.FileInfo, err error) {
 		}
 	}
 
-	if err = system.Chtimes(tmpFileName, time.Time{}, mTime); err != nil {
+	if err = system.Chtimes(tmpFileName, mTime, mTime); err != nil {
 		return
 	}
 
