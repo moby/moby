@@ -738,7 +738,9 @@ func (d *driver) DeleteNetwork(nid string) error {
 
 	// We only delete the bridge when it's not the default bridge. This is keep the backward compatible behavior.
 	if !config.DefaultBridge {
-		err = netlink.LinkDel(n.bridge.Link)
+		if err := netlink.LinkDel(n.bridge.Link); err != nil {
+			logrus.Warnf("Failed to remove bridge interface %s on network %s delete: %v", config.BridgeName, nid, err)
+		}
 	}
 
 	return d.storeDelete(config)
@@ -1037,9 +1039,8 @@ func (d *driver) DeleteEndpoint(nid, eid string) error {
 	// Remove port mappings. Do not stop endpoint delete on unmap failure
 	n.releasePorts(ep)
 
-	// Try removal of link. Discard error: link pair might have
-	// already been deleted by sandbox delete. Make sure defer
-	// does not see this error either.
+	// Try removal of link. Discard error: it is a best effort.
+	// Also make sure defer does not see this error either.
 	if link, err := netlink.LinkByName(ep.srcName); err == nil {
 		netlink.LinkDel(link)
 	}
