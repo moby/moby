@@ -8,6 +8,15 @@ images=(
 	jess/unshare:latest
 )
 
+# on ARM we need images that work for the ARM architecture
+if [ -v DOCKER_ENGINE_OSARCH ] && [ "$DOCKER_ENGINE_OSARCH" = "linux/arm" ]; then
+  images=(
+    hypriot/armhf-busybox@ea0800bb83571c585c5652b53668e76b29c7c0eef719892f9d0a48607984f9e1
+    hypriot/armhf-hello-world@508c59a4f8b23c77bbcf43296c3f580873dc7eecb1f0d680cea3067e221fd4c2
+    hypriot/armhf-unshare@3f1db65f8bbabc743fd739cf7145a56c35b2a0979ae3174e9d79b7fa4b00fca1
+  )
+fi
+
 if ! docker inspect "${images[@]}" &> /dev/null; then
 	hardCodedDir='/docker-frozen-images'
 	if [ -d "$hardCodedDir" ]; then
@@ -32,7 +41,19 @@ if ! docker inspect "${images[@]}" &> /dev/null; then
 					inCont = 0;
 				}
 			}
-		' Dockerfile | sh -x
+		' ${DOCKER_FILE:="Dockerfile"} | sh -x
 		( set -x; tar -cC "$dir" . | docker load )
 	fi
+fi
+
+if [ -v DOCKER_ENGINE_OSARCH ] && [ "$DOCKER_ENGINE_OSARCH" = "linux/arm" ]; then
+  # tag images to ensure that all integrations work with the defined image names
+  docker tag hypriot/armhf-busybox:latest busybox:latest
+  docker tag hypriot/armhf-hello-world:latest hello-world:frozen
+  docker tag hypriot/armhf-unshare:latest jess/unshare:latest
+
+  # remove orignal tags as these make problems with later tests: TestInspectApiImageResponse
+  docker rmi hypriot/armhf-busybox:latest
+  docker rmi hypriot/armhf-hello-world:latest
+  docker rmi hypriot/armhf-unshare:latest
 fi
