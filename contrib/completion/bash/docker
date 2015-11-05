@@ -335,7 +335,8 @@ __docker_log_driver_options() {
 	local json_file_options="env labels max-file max-size"
 	local syslog_options="syslog-address syslog-facility tag"
 	local splunk_options="splunk-caname splunk-capath splunk-index splunk-insecureskipverify splunk-source splunk-sourcetype splunk-token splunk-url"
-
+	local plain_text_options="log-path max-file max-size"
+  
 	local all_options="$fluentd_options $gelf_options $journald_options $json_file_options $syslog_options $splunk_options"
 
 	case $(__docker_value_of_option --log-driver) in
@@ -362,6 +363,9 @@ __docker_log_driver_options() {
 			;;
 		splunk)
 			COMPREPLY=( $( compgen -W "$splunk_options" -S = -- "$cur" ) )
+			;;
+		plain-text)
+			COMPREPLY=( $( compgen -W "$plain_text_options" -S = -- "$cur" ) )
 			;;
 		*)
 			return
