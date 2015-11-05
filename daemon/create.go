@@ -100,10 +100,6 @@ func (daemon *Daemon) create(params *ContainerCreateConfig) (retC *Container, re
 			}
 		}
 	}()
-	if err := daemon.Mount(container); err != nil {
-		return nil, err
-	}
-	defer daemon.Unmount(container)
 
 	if err := daemon.createContainerPlatformSpecificSettings(container, params.Config, params.HostConfig, img); err != nil {
 		return nil, err
