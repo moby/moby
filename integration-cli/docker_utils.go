@@ -86,6 +86,15 @@ func init() {
 	dockerBasePath = info.DockerRootDir
 	volumesConfigPath = filepath.Join(dockerBasePath, "volumes")
 	containerStoragePath = filepath.Join(dockerBasePath, "containers")
+	// Make sure in context of daemon, not the local platform. Note we can't
+	// use filepath.FromSlash or ToSlash here as they are a no-op on Unix.
+	if daemonPlatform == "windows" {
+		volumesConfigPath = strings.Replace(volumesConfigPath, `/`, `\`, -1)
+		containerStoragePath = strings.Replace(containerStoragePath, `/`, `\`, -1)
+	} else {
+		volumesConfigPath = strings.Replace(volumesConfigPath, `\`, `/`, -1)
+		containerStoragePath = strings.Replace(containerStoragePath, `\`, `/`, -1)
+	}
 }
 
 // Daemon represents a Docker daemon for the testing framework.
