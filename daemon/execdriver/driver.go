@@ -10,7 +10,7 @@ import (
 )
 
 // Context is a generic key value pair that allows
-// arbatrary data to be sent
+// arbitrary data to be sent
 type Context map[string]string
 
 // Define error messages
