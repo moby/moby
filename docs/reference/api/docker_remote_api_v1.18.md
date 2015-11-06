@@ -15,7 +15,7 @@ weight = 3
 
  - The Remote API has replaced `rcli`.
  - The daemon listens on `unix:///var/run/docker.sock` but you can
-   [Bind Docker to another host/port or a Unix socket](../../articles/basics.md#bind-docker-to-another-hostport-or-a-unix-socket).
+   [Bind Docker to another host/port or a Unix socket](../../userguide/basics.md#bind-docker-to-another-host-port-or-a-unix-socket).
  - The API tends to be REST, but for some complex commands, like `attach`
    or `pull`, the HTTP connection is hijacked to transport `STDOUT`,
    `STDIN` and `STDERR`.
