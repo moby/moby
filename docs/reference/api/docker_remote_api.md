@@ -130,7 +130,7 @@ list of DNS options to be used in the container.
 
 ### v1.20 API changes
 
-[Docker Remote API v1.20](docker_remote_api_v1.20/) documentation
+[Docker Remote API v1.20](docker_remote_api_v1.20.md) documentation
 
 * `GET /containers/(id)/archive` get an archive of filesystem content from a container.
 * `PUT /containers/(id)/archive` upload an archive of content to be extracted to
