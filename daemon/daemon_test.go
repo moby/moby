@@ -182,7 +182,7 @@ func TestLoadWithVolume(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	daemon, err := initDaemonForVolumesTest(tmp)
+	daemon, err := initDaemonWithVolumeStore(tmp)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -270,7 +270,7 @@ func TestLoadWithBindMount(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	daemon, err := initDaemonForVolumesTest(tmp)
+	daemon, err := initDaemonWithVolumeStore(tmp)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -361,7 +361,7 @@ func TestLoadWithVolume17RC(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	daemon, err := initDaemonForVolumesTest(tmp)
+	daemon, err := initDaemonWithVolumeStore(tmp)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -466,7 +466,7 @@ func TestRemoveLocalVolumesFollowingSymlinks(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	daemon, err := initDaemonForVolumesTest(tmp)
+	daemon, err := initDaemonWithVolumeStore(tmp)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -502,7 +502,7 @@ func TestRemoveLocalVolumesFollowingSymlinks(t *testing.T) {
 	}
 }
 
-func initDaemonForVolumesTest(tmp string) (*Daemon, error) {
+func initDaemonWithVolumeStore(tmp string) (*Daemon, error) {
 	daemon := &Daemon{
 		repository: tmp,
 		root:       tmp,
