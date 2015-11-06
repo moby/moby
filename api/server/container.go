@@ -489,13 +489,12 @@ func (s *Server) postModifyResources(ctx context.Context, w http.ResponseWriter,
 
 	logrus.Debugf("%+v\n", hostConfig)
 
-	_, err = s.daemon.ContainerModResources(r.Form, hostConfig)
+	_, err = s.daemon.ContainerModResources(r.Form.Get("ID"), hostConfig)
 	if err != nil {
 		return err
 	}
-	return nil
 
-	// return writeJSON(w, http.StatusOK, warnings)
+	return nil
 }
 
 func (s *Server) wsContainersAttach(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {

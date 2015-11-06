@@ -38,7 +38,7 @@ func main() {
 		help := "\nCommands:\n"
 
 		for _, cmd := range dockerCommands {
-			help += fmt.Sprintf("    %-10.10s%s\n", cmd.name, cmd.description)
+			help += fmt.Sprintf("      %-15.15s%s\n", cmd.name, cmd.description)
 		}
 
 		help += "\nRun 'docker COMMAND --help' for more information on a command."

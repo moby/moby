@@ -1,28 +1,16 @@
 package daemon
 
 import (
-	"net/url"
-	// "strconv"
-
 	"github.com/Sirupsen/logrus"
 	derr "github.com/docker/docker/api/errors"
 	"github.com/docker/docker/daemon/execdriver"
-	// "github.com/docker/docker/api/types"
-	// "github.com/docker/docker/graph/tags"
-	// "github.com/docker/docker/image"
-	// "github.com/docker/docker/pkg/parsers"
-	// "github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/runconfig"
 )
 
-func (daemon *Daemon) ContainerModResources(httpForm url.Values, hostConfig *runconfig.HostConfig) ([]string, error) {
+func (daemon *Daemon) ContainerModResources(contID string, hostConfig *runconfig.HostConfig) ([]string, error) {
 	logrus.Debugf("Server pinged!!!")
 
-	contID := httpForm.Get("ID")
-	// if val, ok := dict["foo"]; ok {
-	//     //do something here
-	// }
-
+	// Is this needed here?
 	if contID == "" {
 		return nil, derr.ErrorCodeEmptyConfig
 	}
@@ -30,65 +18,68 @@ func (daemon *Daemon) ContainerModResources(httpForm url.Values, hostConfig *run
 	logrus.Debugf("In modresourcs")
 
 	// Get the container
-	dockerContainer, err := daemon.Get(contID)
-	if err != nil {
+	if dockerContainer, err := daemon.Get(contID); err == nil {
+		logrus.Debugf("Container found")
+
+		// libContContainer := daemon.execDriver.activeContainers[dockerContainer.ID]
+
+		logrus.Debugf("libcontainer Container found")
+
+		resources := new(execdriver.Resources)
+
+		logrus.Debugf("resources here \n%v\n", resources)
+		logrus.Debugf("hostconfig received \n%v\n", hostConfig)
+
+		if hostConfig.CPUShares != -1 {
+			resources.CPUShares = hostConfig.CPUShares
+		}
+		if hostConfig.CPUPeriod != -1 {
+			resources.CPUPeriod = hostConfig.CPUPeriod
+		}
+		if hostConfig.CPUQuota != -1 {
+			resources.CPUQuota = hostConfig.CPUQuota
+		}
+		if hostConfig.CpusetCpus != "notset" {
+			resources.CpusetCpus = hostConfig.CpusetCpus
+		}
+		if hostConfig.CpusetMems != "notset" {
+			resources.CpusetMems = hostConfig.CpusetMems
+		}
+		if hostConfig.BlkioWeight != -1 {
+			resources.BlkioWeight = hostConfig.BlkioWeight
+		}
+		if hostConfig.BlkioReadLimit != "notset" {
+			resources.BlkioReadLimit = constructBlkioArgs(dockerContainer.hostConfig.Binds, hostConfig.BlkioReadLimit)
+		}
+		if *(hostConfig.MemorySwappiness) != -1 {
+			resources.MemorySwappiness = *hostConfig.MemorySwappiness
+		}
+
+		logrus.Debugf("Resources object:\n%v\n", resources)
+
+		logrus.Debugf("Original HostConfig object:\n%v\n", dockerContainer.hostConfig)
+
+		if err := daemon.execDriver.ModifyResources(dockerContainer.ID, resources); err != nil {
+			return nil, err
+		}
+
+		dockerContainer.hostConfig.Memory = resources.Memory
+		dockerContainer.hostConfig.MemorySwap = resources.MemorySwap
+		dockerContainer.hostConfig.KernelMemory = resources.KernelMemory
+		dockerContainer.hostConfig.CPUShares = resources.CPUShares
+		dockerContainer.hostConfig.CpusetCpus = resources.CpusetCpus
+		dockerContainer.hostConfig.CpusetMems = resources.CpusetMems
+		dockerContainer.hostConfig.CPUPeriod = resources.CPUPeriod
+		dockerContainer.hostConfig.CPUQuota = resources.CPUQuota
+		dockerContainer.hostConfig.BlkioWeight = resources.BlkioWeight
+		if hostConfig.BlkioReadLimit != "notset" {
+			dockerContainer.hostConfig.BlkioReadLimit = resources.BlkioReadLimit
+		}
+		dockerContainer.hostConfig.OomKillDisable = resources.OomKillDisable
+		*dockerContainer.hostConfig.MemorySwappiness = resources.MemorySwappiness
+
+		return nil, nil
+	} else {
 		return nil, err
 	}
-	logrus.Debugf("Container found")
-
-	// libContContainer := daemon.execDriver.activeContainers[dockerContainer.ID]
-
-	logrus.Debugf("libcontainer Container found")
-
-	resources := &execdriver.Resources{
-		Memory:           dockerContainer.hostConfig.Memory,
-		MemorySwap:       dockerContainer.hostConfig.MemorySwap,
-		KernelMemory:     dockerContainer.hostConfig.KernelMemory,
-		CPUShares:        dockerContainer.hostConfig.CPUShares,
-		CpusetCpus:       dockerContainer.hostConfig.CpusetCpus,
-		CpusetMems:       dockerContainer.hostConfig.CpusetMems,
-		CPUPeriod:        dockerContainer.hostConfig.CPUPeriod,
-		CPUQuota:         dockerContainer.hostConfig.CPUQuota,
-		BlkioWeight:      dockerContainer.hostConfig.BlkioWeight,
-		BlkioReadLimit:   constructBlkioArgs(dockerContainer.hostConfig.Binds, dockerContainer.hostConfig.BlkioReadLimit),
-		OomKillDisable:   dockerContainer.hostConfig.OomKillDisable,
-		MemorySwappiness: -1,
-	}
-
-	// if CPUShares := httpForm.Get("CPUShares"); CPUShares != "" {
-	// 	dockerContainer.hostConfig.CPUShares, _ = strconv.ParseInt(CPUShares, 10, 64)
-	// 	resources.CPUShares = dockerContainer.hostConfig.CPUShares
-	// }
-	// if CPUPeriod := httpForm.Get("CPUPeriod"); CPUPeriod != "" {
-	// 	dockerContainer.hostConfig.CPUPeriod, _ = strconv.ParseInt(CPUPeriod, 10, 64)
-	// 	resources.CPUPeriod = dockerContainer.hostConfig.CPUPeriod
-	// }
-	// if CPUQuota := httpForm.Get("CPUQuota"); CPUQuota != "" {
-	// 	dockerContainer.hostConfig.CPUQuota, _ = strconv.ParseInt(CPUQuota, 10, 64)
-	// 	resources.CPUQuota = dockerContainer.hostConfig.CPUQuota
-	// }
-	// if CpusetCpus := httpForm.Get("CpusetCpus"); CpusetCpus != "" {
-	// 	dockerContainer.hostConfig.CpusetCpus = CpusetCpus
-	// 	resources.CpusetCpus = dockerContainer.hostConfig.CpusetCpus
-	// }
-	// if CpusetMems := httpForm.Get("CpusetMems"); CpusetMems != "" {
-	// 	dockerContainer.hostConfig.CpusetMems = CpusetMems
-	// 	resources.CpusetMems = dockerContainer.hostConfig.CpusetMems
-	// }
-	// if BlkioWeight := httpForm.Get("BlkioWeight"); BlkioWeight != "" {
-	// 	dockerContainer.hostConfig.BlkioWeight, _ = strconv.ParseInt(BlkioWeight, 10, 64)
-	// 	resources.BlkioWeight = dockerContainer.hostConfig.BlkioWeight
-	// }
-	// if BlkioReadLimit := httpForm.Get("BlkioReadLimit"); BlkioReadLimit != "" {
-	// 	dockerContainer.hostConfig.BlkioReadLimit = BlkioReadLimit
-	// 	resources.BlkioReadLimit = dockerContainer.hostConfig.BlkioReadLimit
-	// }
-	if hostConfig.CPUShares != 0 {
-		dockerContainer.hostConfig.CPUShares = hostConfig.CPUShares
-		resources.CPUShares = hostConfig.CPUShares
-	}
-
-	daemon.execDriver.ModifyResources(dockerContainer.ID, resources)
-
-	return nil, nil
 }
