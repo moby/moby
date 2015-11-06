@@ -60,7 +60,6 @@ func (b *Builder) commit(id string, autoCmd *stringutils.StrSlice, comment strin
 		} else if hit {
 			return nil
 		}
-
 		container, err := b.create()
 		if err != nil {
 			return err
@@ -71,11 +70,6 @@ func (b *Builder) commit(id string, autoCmd *stringutils.StrSlice, comment strin
 			return err
 		}
 		defer b.docker.Unmount(container)
-	}
-
-	container, err := b.docker.Container(id)
-	if err != nil {
-		return err
 	}
 
 	// Note: Actually copy the struct
@@ -89,7 +83,7 @@ func (b *Builder) commit(id string, autoCmd *stringutils.StrSlice, comment strin
 	}
 
 	// Commit the container
-	image, err := b.docker.Commit(container, commitCfg)
+	image, err := b.docker.Commit(id, commitCfg)
 	if err != nil {
 		return err
 	}

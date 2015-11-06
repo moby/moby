@@ -106,8 +106,8 @@ func (d Docker) Remove(id string, cfg *daemon.ContainerRmConfig) error {
 }
 
 // Commit creates a new Docker image from an existing Docker container.
-func (d Docker) Commit(c *daemon.Container, cfg *daemon.ContainerCommitConfig) (*image.Image, error) {
-	return d.Daemon.Commit(c, cfg)
+func (d Docker) Commit(name string, cfg *daemon.ContainerCommitConfig) (*image.Image, error) {
+	return d.Daemon.Commit(name, cfg)
 }
 
 // Retain retains an image avoiding it to be removed or overwritten until a corresponding Release() call.
