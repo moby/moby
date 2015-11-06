@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/pkg/locker"
 	"github.com/docker/docker/volume"
 	"github.com/docker/docker/volume/drivers"
 )
@@ -22,14 +23,35 @@ var (
 // reference counting of volumes in the system.
 func New() *VolumeStore {
 	return &VolumeStore{
-		vols: make(map[string]*volumeCounter),
+		vols:  make(map[string]*volumeCounter),
+		locks: &locker.Locker{},
 	}
+}
+
+func (s *VolumeStore) get(name string) (*volumeCounter, bool) {
+	s.globalLock.Lock()
+	vc, exists := s.vols[name]
+	s.globalLock.Unlock()
+	return vc, exists
+}
+
+func (s *VolumeStore) set(name string, vc *volumeCounter) {
+	s.globalLock.Lock()
+	s.vols[name] = vc
+	s.globalLock.Unlock()
+}
+
+func (s *VolumeStore) remove(name string) {
+	s.globalLock.Lock()
+	delete(s.vols, name)
+	s.globalLock.Unlock()
 }
 
 // VolumeStore is a struct that stores the list of volumes available and keeps track of their usage counts
 type VolumeStore struct {
-	vols map[string]*volumeCounter
-	mu   sync.Mutex
+	vols       map[string]*volumeCounter
+	locks      *locker.Locker
+	globalLock sync.Mutex
 }
 
 // volumeCounter keeps track of references to a volume
@@ -47,14 +69,14 @@ func (s *VolumeStore) AddAll(vols []volume.Volume) {
 
 // Create tries to find an existing volume with the given name or create a new one from the passed in driver
 func (s *VolumeStore) Create(name, driverName string, opts map[string]string) (volume.Volume, error) {
-	s.mu.Lock()
 	name = normaliseVolumeName(name)
-	if vc, exists := s.vols[name]; exists {
+	s.locks.Lock(name)
+	defer s.locks.Unlock(name)
+
+	if vc, exists := s.get(name); exists {
 		v := vc.Volume
-		s.mu.Unlock()
 		return v, nil
 	}
-	s.mu.Unlock()
 	logrus.Debugf("Registering new volume reference: driver %s, name %s", driverName, name)
 
 	vd, err := volumedrivers.GetDriver(driverName)
@@ -76,19 +98,17 @@ func (s *VolumeStore) Create(name, driverName string, opts map[string]string) (v
 		return nil, err
 	}
 
-	s.mu.Lock()
-	s.vols[normaliseVolumeName(v.Name())] = &volumeCounter{v, 0}
-	s.mu.Unlock()
-
+	s.set(name, &volumeCounter{v, 0})
 	return v, nil
 }
 
 // Get looks if a volume with the given name exists and returns it if so
 func (s *VolumeStore) Get(name string) (volume.Volume, error) {
 	name = normaliseVolumeName(name)
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	vc, exists := s.vols[name]
+	s.locks.Lock(name)
+	defer s.locks.Unlock(name)
+
+	vc, exists := s.get(name)
 	if !exists {
 		return nil, ErrNoSuchVolume
 	}
@@ -97,11 +117,12 @@ func (s *VolumeStore) Get(name string) (volume.Volume, error) {
 
 // Remove removes the requested volume. A volume is not removed if the usage count is > 0
 func (s *VolumeStore) Remove(v volume.Volume) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
 	name := normaliseVolumeName(v.Name())
+	s.locks.Lock(name)
+	defer s.locks.Unlock(name)
+
 	logrus.Debugf("Removing volume reference: driver %s, name %s", v.DriverName(), name)
-	vc, exists := s.vols[name]
+	vc, exists := s.get(name)
 	if !exists {
 		return ErrNoSuchVolume
 	}
@@ -117,20 +138,21 @@ func (s *VolumeStore) Remove(v volume.Volume) error {
 	if err := vd.Remove(vc.Volume); err != nil {
 		return err
 	}
-	delete(s.vols, name)
+
+	s.remove(name)
 	return nil
 }
 
 // Increment increments the usage count of the passed in volume by 1
 func (s *VolumeStore) Increment(v volume.Volume) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
 	name := normaliseVolumeName(v.Name())
-	logrus.Debugf("Incrementing volume reference: driver %s, name %s", v.DriverName(), name)
+	s.locks.Lock(name)
+	defer s.locks.Unlock(name)
 
-	vc, exists := s.vols[name]
+	logrus.Debugf("Incrementing volume reference: driver %s, name %s", v.DriverName(), v.Name())
+	vc, exists := s.get(name)
 	if !exists {
-		s.vols[name] = &volumeCounter{v, 1}
+		s.set(name, &volumeCounter{v, 1})
 		return
 	}
 	vc.count++
@@ -138,12 +160,12 @@ func (s *VolumeStore) Increment(v volume.Volume) {
 
 // Decrement decrements the usage count of the passed in volume by 1
 func (s *VolumeStore) Decrement(v volume.Volume) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
 	name := normaliseVolumeName(v.Name())
-	logrus.Debugf("Decrementing volume reference: driver %s, name %s", v.DriverName(), name)
+	s.locks.Lock(name)
+	defer s.locks.Unlock(name)
+	logrus.Debugf("Decrementing volume reference: driver %s, name %s", v.DriverName(), v.Name())
 
-	vc, exists := s.vols[name]
+	vc, exists := s.get(name)
 	if !exists {
 		return
 	}
@@ -155,9 +177,11 @@ func (s *VolumeStore) Decrement(v volume.Volume) {
 
 // Count returns the usage count of the passed in volume
 func (s *VolumeStore) Count(v volume.Volume) uint {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	vc, exists := s.vols[normaliseVolumeName(v.Name())]
+	name := normaliseVolumeName(v.Name())
+	s.locks.Lock(name)
+	defer s.locks.Unlock(name)
+
+	vc, exists := s.get(name)
 	if !exists {
 		return 0
 	}
@@ -166,8 +190,8 @@ func (s *VolumeStore) Count(v volume.Volume) uint {
 
 // List returns all the available volumes
 func (s *VolumeStore) List() []volume.Volume {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.globalLock.Lock()
+	defer s.globalLock.Unlock()
 	var ls []volume.Volume
 	for _, vc := range s.vols {
 		ls = append(ls, vc.Volume)
@@ -192,8 +216,8 @@ func byDriver(name string) filterFunc {
 
 // filter returns the available volumes filtered by a filterFunc function
 func (s *VolumeStore) filter(f filterFunc) []volume.Volume {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.globalLock.Lock()
+	defer s.globalLock.Unlock()
 	var ls []volume.Volume
 	for _, vc := range s.vols {
 		if f(vc.Volume) {
