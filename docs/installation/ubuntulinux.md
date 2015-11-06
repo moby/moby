@@ -67,13 +67,13 @@ packages from the new repository:
 
     The possible entries are:
 
-        # Ubuntu Precise
+        # Ubuntu Precise 12.04 (LTS)
         deb https://apt.dockerproject.org/repo ubuntu-precise main
-        # Ubuntu Trusty
+        # Ubuntu Trusty 14.04 (LTS)
         deb https://apt.dockerproject.org/repo ubuntu-trusty main
-        # Ubuntu Vivid
+        # Ubuntu Vivid 15.04
         deb https://apt.dockerproject.org/repo ubuntu-vivid main
-        # Ubuntu Wily
+        # Ubuntu Wily 15.10
         deb https://apt.dockerproject.org/repo ubuntu-wily main
 
 7. Save and close the `/etc/apt/sources.list.d/docker.list` file.
@@ -94,11 +94,30 @@ packages from the new repository:
 
 ### Prerequisites by Ubuntu Version
 
-The following Ubuntu versions have no additional prerequisites:
-
 - Ubuntu Wily 15.10
 - Ubuntu Vivid 15.04
 - Ubuntu Trusty 14.04 (LTS)
+
+For Ubuntu Trusty, Vivid, and Wily, it's recommended to install the
+`linux-image-extra` kernel package. The `linux-image-extra` package
+allows you use the `aufs` storage driver.
+
+To install the `linux-image-extra` package for your kernel version:
+
+1. Open a terminal on your Ubuntu host.
+
+2. Update your package manager.
+
+        $ sudo apt-get update
+
+3. Install the recommended package.
+
+        $ sudo apt-get install linux-image-extra-$(uname -r)
+
+4. Go ahead and install Docker.
+
+
+#### Ubuntu Precise 12.04 (LTS)
 
 For Ubuntu Precise, Docker requires the 3.13 kernel version. If your kernel
 version is older than 3.13, you must upgrade it. Refer to this table to see
