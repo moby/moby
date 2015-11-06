@@ -25,51 +25,58 @@ func (daemon *Daemon) ContainerModResources(contID string, hostConfig *runconfig
 
 		logrus.Debugf("libcontainer Container found")
 
+		resources := new(execdriver.Resources)
+
+		logrus.Debugf("resources here \n%v\n", resources)
+		logrus.Debugf("hostconfig received \n%v\n", hostConfig)
+
 		if hostConfig.CPUShares != -1 {
-			dockerContainer.hostConfig.CPUShares = hostConfig.CPUShares
+			resources.CPUShares = hostConfig.CPUShares
 		}
 		if hostConfig.CPUPeriod != -1 {
-			dockerContainer.hostConfig.CPUPeriod = hostConfig.CPUPeriod
+			resources.CPUPeriod = hostConfig.CPUPeriod
 		}
 		if hostConfig.CPUQuota != -1 {
-			dockerContainer.hostConfig.CPUQuota = hostConfig.CPUQuota
+			resources.CPUQuota = hostConfig.CPUQuota
 		}
 		if hostConfig.CpusetCpus != "notset" {
-			dockerContainer.hostConfig.CpusetCpus = hostConfig.CpusetCpus
+			resources.CpusetCpus = hostConfig.CpusetCpus
 		}
 		if hostConfig.CpusetMems != "notset" {
-			dockerContainer.hostConfig.CpusetMems = hostConfig.CpusetMems
+			resources.CpusetMems = hostConfig.CpusetMems
 		}
 		if hostConfig.BlkioWeight != -1 {
-			dockerContainer.hostConfig.BlkioWeight = hostConfig.BlkioWeight
+			resources.BlkioWeight = hostConfig.BlkioWeight
 		}
 		if hostConfig.BlkioReadLimit != "notset" {
-			dockerContainer.hostConfig.BlkioReadLimit = hostConfig.BlkioReadLimit
+			resources.BlkioReadLimit = constructBlkioArgs(dockerContainer.hostConfig.Binds, hostConfig.BlkioReadLimit)
 		}
 		if *(hostConfig.MemorySwappiness) != -1 {
-			dockerContainer.hostConfig.MemorySwappiness = hostConfig.MemorySwappiness
+			resources.MemorySwappiness = *hostConfig.MemorySwappiness
 		}
 
-		resources := &execdriver.Resources{
-			Memory:           dockerContainer.hostConfig.Memory,
-			MemorySwap:       dockerContainer.hostConfig.MemorySwap,
-			KernelMemory:     dockerContainer.hostConfig.KernelMemory,
-			CPUShares:        dockerContainer.hostConfig.CPUShares,
-			CpusetCpus:       dockerContainer.hostConfig.CpusetCpus,
-			CpusetMems:       dockerContainer.hostConfig.CpusetMems,
-			CPUPeriod:        dockerContainer.hostConfig.CPUPeriod,
-			CPUQuota:         dockerContainer.hostConfig.CPUQuota,
-			BlkioWeight:      dockerContainer.hostConfig.BlkioWeight,
-			BlkioReadLimit:   constructBlkioArgs(dockerContainer.hostConfig.Binds, dockerContainer.hostConfig.BlkioReadLimit),
-			OomKillDisable:   dockerContainer.hostConfig.OomKillDisable,
-			MemorySwappiness: *(dockerContainer.hostConfig.MemorySwappiness),
-		}
+		logrus.Debugf("Resources object:\n%v\n", resources)
+
+		logrus.Debugf("Original HostConfig object:\n%v\n", dockerContainer.hostConfig)
 
 		if err := daemon.execDriver.ModifyResources(dockerContainer.ID, resources); err != nil {
 			return nil, err
 		}
 
-		logrus.Debugf("Resources object:\n%v\n", resources)
+		dockerContainer.hostConfig.Memory = resources.Memory
+		dockerContainer.hostConfig.MemorySwap = resources.MemorySwap
+		dockerContainer.hostConfig.KernelMemory = resources.KernelMemory
+		dockerContainer.hostConfig.CPUShares = resources.CPUShares
+		dockerContainer.hostConfig.CpusetCpus = resources.CpusetCpus
+		dockerContainer.hostConfig.CpusetMems = resources.CpusetMems
+		dockerContainer.hostConfig.CPUPeriod = resources.CPUPeriod
+		dockerContainer.hostConfig.CPUQuota = resources.CPUQuota
+		dockerContainer.hostConfig.BlkioWeight = resources.BlkioWeight
+		if hostConfig.BlkioReadLimit != "notset" {
+			dockerContainer.hostConfig.BlkioReadLimit = resources.BlkioReadLimit
+		}
+		dockerContainer.hostConfig.OomKillDisable = resources.OomKillDisable
+		*dockerContainer.hostConfig.MemorySwappiness = resources.MemorySwappiness
 
 		return nil, nil
 	} else {
