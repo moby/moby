@@ -25,16 +25,12 @@ import (
 func (s *DockerSuite) TestRunRedirectStdout(c *check.C) {
 	checkRedirect := func(command string) {
 		_, tty, err := pty.Open()
-		if err != nil {
-			c.Fatalf("Could not open pty: %v", err)
-		}
+		c.Assert(err, checker.IsNil, check.Commentf("Could not open pty"))
 		cmd := exec.Command("sh", "-c", command)
 		cmd.Stdin = tty
 		cmd.Stdout = tty
 		cmd.Stderr = tty
-		if err := cmd.Start(); err != nil {
-			c.Fatalf("start err: %v", err)
-		}
+		c.Assert(cmd.Start(), checker.IsNil)
 		ch := make(chan error)
 		go func() {
 			ch <- cmd.Wait()
@@ -45,9 +41,7 @@ func (s *DockerSuite) TestRunRedirectStdout(c *check.C) {
 		case <-time.After(10 * time.Second):
 			c.Fatal("command timeout")
 		case err := <-ch:
-			if err != nil {
-				c.Fatalf("wait err=%v", err)
-			}
+			c.Assert(err, checker.IsNil, check.Commentf("wait err"))
 		}
 	}
 
@@ -60,35 +54,23 @@ func (s *DockerSuite) TestRunWithVolumesIsRecursive(c *check.C) {
 	// /tmp gets permission denied
 	testRequires(c, NotUserNamespace)
 	tmpDir, err := ioutil.TempDir("", "docker_recursive_mount_test")
-	if err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(err, checker.IsNil)
 
 	defer os.RemoveAll(tmpDir)
 
 	// Create a temporary tmpfs mount.
 	tmpfsDir := filepath.Join(tmpDir, "tmpfs")
-	if err := os.MkdirAll(tmpfsDir, 0777); err != nil {
-		c.Fatalf("failed to mkdir at %s - %s", tmpfsDir, err)
-	}
-	if err := mount.Mount("tmpfs", tmpfsDir, "tmpfs", ""); err != nil {
-		c.Fatalf("failed to create a tmpfs mount at %s - %s", tmpfsDir, err)
-	}
+	c.Assert(os.MkdirAll(tmpfsDir, 0777), checker.IsNil, check.Commentf("failed to mkdir at %s", tmpfsDir))
+	c.Assert(mount.Mount("tmpfs", tmpfsDir, "tmpfs", ""), checker.IsNil, check.Commentf("failed to create a tmpfs mount at %s", tmpfsDir))
 
 	f, err := ioutil.TempFile(tmpfsDir, "touch-me")
-	if err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(err, checker.IsNil)
 	defer f.Close()
 
 	runCmd := exec.Command(dockerBinary, "run", "--name", "test-data", "--volume", fmt.Sprintf("%s:/tmp:ro", tmpDir), "busybox:latest", "ls", "/tmp/tmpfs")
-	out, stderr, exitCode, err := runCommandWithStdoutStderr(runCmd)
-	if err != nil && exitCode != 0 {
-		c.Fatal(out, stderr, err)
-	}
-	if !strings.Contains(out, filepath.Base(f.Name())) {
-		c.Fatal("Recursive bind mount test failed. Expected file not found")
-	}
+	out, _, _, err := runCommandWithStdoutStderr(runCmd)
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Contains, filepath.Base(f.Name()), check.Commentf("Recursive bind mount test failed. Expected file not found"))
 }
 
 func (s *DockerSuite) TestRunDeviceDirectory(c *check.C) {
@@ -98,14 +80,10 @@ func (s *DockerSuite) TestRunDeviceDirectory(c *check.C) {
 	}
 
 	out, _ := dockerCmd(c, "run", "--device", "/dev/snd:/dev/snd", "busybox", "sh", "-c", "ls /dev/snd/")
-	if actual := strings.Trim(out, "\r\n"); !strings.Contains(out, "timer") {
-		c.Fatalf("expected output /dev/snd/timer, received %s", actual)
-	}
+	c.Assert(strings.Trim(out, "\r\n"), checker.Contains, "timer", check.Commentf("expected output /dev/snd/timer"))
 
 	out, _ = dockerCmd(c, "run", "--device", "/dev/snd:/dev/othersnd", "busybox", "sh", "-c", "ls /dev/othersnd/")
-	if actual := strings.Trim(out, "\r\n"); !strings.Contains(out, "seq") {
-		c.Fatalf("expected output /dev/othersnd/seq, received %s", actual)
-	}
+	c.Assert(strings.Trim(out, "\r\n"), checker.Contains, "seq", check.Commentf("expected output /dev/othersnd/seq"))
 }
 
 // TestRunDetach checks attaching and detaching with the escape sequence.
@@ -113,40 +91,27 @@ func (s *DockerSuite) TestRunAttachDetach(c *check.C) {
 	name := "attach-detach"
 	cmd := exec.Command(dockerBinary, "run", "--name", name, "-it", "busybox", "cat")
 	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(err, checker.IsNil)
 	cpty, tty, err := pty.Open()
-	if err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(err, checker.IsNil)
 	defer cpty.Close()
 	cmd.Stdin = tty
-	if err := cmd.Start(); err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(cmd.Start(), checker.IsNil)
 	c.Assert(waitRun(name), check.IsNil)
 
-	if _, err := cpty.Write([]byte("hello\n")); err != nil {
-		c.Fatal(err)
-	}
+	_, err = cpty.Write([]byte("hello\n"))
+	c.Assert(err, checker.IsNil)
 
 	out, err := bufio.NewReader(stdout).ReadString('\n')
-	if err != nil {
-		c.Fatal(err)
-	}
-	if strings.TrimSpace(out) != "hello" {
-		c.Fatalf("expected 'hello', got %q", out)
-	}
+	c.Assert(err, checker.IsNil)
+	c.Assert(strings.TrimSpace(out), checker.Equals, "hello")
 
 	// escape sequence
-	if _, err := cpty.Write([]byte{16}); err != nil {
-		c.Fatal(err)
-	}
+	_, err = cpty.Write([]byte{16})
+	c.Assert(err, checker.IsNil)
 	time.Sleep(100 * time.Millisecond)
-	if _, err := cpty.Write([]byte{17}); err != nil {
-		c.Fatal(err)
-	}
+	_, err = cpty.Write([]byte{17})
+	c.Assert(err, checker.IsNil)
 
 	ch := make(chan struct{})
 	go func() {
@@ -155,12 +120,8 @@ func (s *DockerSuite) TestRunAttachDetach(c *check.C) {
 	}()
 
 	running, err := inspectField(name, "State.Running")
-	if err != nil {
-		c.Fatal(err)
-	}
-	if running != "true" {
-		c.Fatal("expected container to still be running")
-	}
+	c.Assert(err, checker.IsNil)
+	c.Assert(running, checker.Equals, "true", check.Commentf("expected container to still be running"))
 
 	go func() {
 		exec.Command(dockerBinary, "kill", name).Run()
@@ -178,34 +139,24 @@ func (s *DockerSuite) TestRunEchoStdoutWithCPUQuota(c *check.C) {
 	testRequires(c, cpuCfsQuota)
 
 	out, _, err := dockerCmdWithError("run", "--cpu-quota", "8000", "--name", "test", "busybox", "echo", "test")
-	if err != nil {
-		c.Fatalf("failed to run container: %v, output: %q", err, out)
-	}
+	c.Assert(err, checker.IsNil, check.Commentf("failed to run container, output: %q", out))
 	out = strings.TrimSpace(out)
-	if out != "test" {
-		c.Errorf("container should've printed 'test'")
-	}
+	c.Assert(out, checker.Equals, "test", check.Commentf("container should've printed 'test'"))
 
 	out, err = inspectField("test", "HostConfig.CpuQuota")
 	c.Assert(err, check.IsNil)
 
-	if out != "8000" {
-		c.Fatalf("setting the CPU CFS quota failed")
-	}
+	c.Assert(out, checker.Equals, "8000", check.Commentf("setting the CPU CFS quota failed"))
 }
 
 func (s *DockerSuite) TestRunWithCpuPeriod(c *check.C) {
 	testRequires(c, cpuCfsPeriod)
 
-	if _, _, err := dockerCmdWithError("run", "--cpu-period", "50000", "--name", "test", "busybox", "true"); err != nil {
-		c.Fatalf("failed to run container: %v", err)
-	}
+	dockerCmd(c, "run", "--cpu-period", "50000", "--name", "test", "busybox", "true")
 
 	out, err := inspectField("test", "HostConfig.CpuPeriod")
 	c.Assert(err, check.IsNil)
-	if out != "50000" {
-		c.Fatalf("setting the CPU CFS period failed")
-	}
+	c.Assert(out, checker.Equals, "50000", check.Commentf("setting the CPU CFS period failed"))
 }
 
 func (s *DockerSuite) TestRunWithKernelMemory(c *check.C) {
@@ -227,9 +178,7 @@ func (s *DockerSuite) TestRunWithKernelMemory(c *check.C) {
 func (s *DockerSuite) TestRunEchoStdoutWitCPUShares(c *check.C) {
 	testRequires(c, cpuShare)
 	out, _ := dockerCmd(c, "run", "--cpu-shares", "1000", "busybox", "echo", "test")
-	if out != "test\n" {
-		c.Errorf("container should've printed 'test', got %q instead", out)
-	}
+	c.Assert(out, checker.Equals, "test\n", check.Commentf("container should've printed 'test'"))
 }
 
 // "test" should be printed
@@ -237,37 +186,27 @@ func (s *DockerSuite) TestRunEchoStdoutWithCPUSharesAndMemoryLimit(c *check.C) {
 	testRequires(c, cpuShare)
 	testRequires(c, memoryLimitSupport)
 	out, _, _ := dockerCmdWithStdoutStderr(c, "run", "--cpu-shares", "1000", "-m", "32m", "busybox", "echo", "test")
-	if out != "test\n" {
-		c.Errorf("container should've printed 'test', got %q instead", out)
-	}
+	c.Assert(out, checker.Equals, "test\n", check.Commentf("container should've printed 'test'"))
 }
 
 func (s *DockerSuite) TestRunWithCpuset(c *check.C) {
 	testRequires(c, cgroupCpuset)
-	if _, code := dockerCmd(c, "run", "--cpuset", "0", "busybox", "true"); code != 0 {
-		c.Fatalf("container should run successfully with cpuset of 0")
-	}
+	dockerCmd(c, "run", "--cpuset", "0", "busybox", "true")
 }
 
 func (s *DockerSuite) TestRunWithCpusetCpus(c *check.C) {
 	testRequires(c, cgroupCpuset)
-	if _, code := dockerCmd(c, "run", "--cpuset-cpus", "0", "busybox", "true"); code != 0 {
-		c.Fatalf("container should run successfully with cpuset-cpus of 0")
-	}
+	dockerCmd(c, "run", "--cpuset-cpus", "0", "busybox", "true")
 }
 
 func (s *DockerSuite) TestRunWithCpusetMems(c *check.C) {
 	testRequires(c, cgroupCpuset)
-	if _, code := dockerCmd(c, "run", "--cpuset-mems", "0", "busybox", "true"); code != 0 {
-		c.Fatalf("container should run successfully with cpuset-mems of 0")
-	}
+	dockerCmd(c, "run", "--cpuset-mems", "0", "busybox", "true")
 }
 
 func (s *DockerSuite) TestRunWithBlkioWeight(c *check.C) {
 	testRequires(c, blkioWeight)
-	if _, code := dockerCmd(c, "run", "--blkio-weight", "300", "busybox", "true"); code != 0 {
-		c.Fatalf("container should run successfully with blkio-weight of 300")
-	}
+	dockerCmd(c, "run", "--blkio-weight", "300", "busybox", "true")
 }
 
 func (s *DockerSuite) TestRunWithBlkioInvalidWeight(c *check.C) {
@@ -304,9 +243,7 @@ func (s *DockerSuite) TestRunEchoStdoutWithMemoryLimit(c *check.C) {
 	out, _, _ := dockerCmdWithStdoutStderr(c, "run", "-m", "32m", "busybox", "echo", "test")
 	out = strings.Trim(out, "\r\n")
 
-	if expected := "test"; out != expected {
-		c.Fatalf("container should've printed %q but printed %q", expected, out)
-	}
+	c.Assert(out, checker.Equals, "test", check.Commentf("container should've printed 'test'"))
 }
 
 // TestRunWithoutMemoryswapLimit sets memory limit and disables swap
@@ -348,25 +285,19 @@ func (s *DockerSuite) TestRunWithMemoryReservationInvalid(c *check.C) {
 	out, _, err := dockerCmdWithError("run", "-m", "500M", "--memory-reservation", "800M", "busybox", "true")
 	c.Assert(err, check.NotNil)
 	expected := "Minimum memory limit should be larger than memory reservation limit"
-	if !strings.Contains(strings.TrimSpace(out), expected) {
-		c.Fatalf("run container should fail with invalid memory reservation, output: %q", out)
-	}
+	c.Assert(strings.TrimSpace(out), checker.Contains, expected, check.Commentf("run container should fail with invalid memory reservation"))
 }
 
 func (s *DockerSuite) TestStopContainerSignal(c *check.C) {
 	out, _ := dockerCmd(c, "run", "--stop-signal", "SIGUSR1", "-d", "busybox", "/bin/sh", "-c", `trap 'echo "exit trapped"; exit 0' USR1; while true; do sleep 1; done`)
 	containerID := strings.TrimSpace(out)
 
-	if err := waitRun(containerID); err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(waitRun(containerID), checker.IsNil)
 
 	dockerCmd(c, "stop", containerID)
 	out, _ = dockerCmd(c, "logs", containerID)
 
-	if !strings.Contains(out, "exit trapped") {
-		c.Fatalf("Expected `exit trapped` in the log, got %v", out)
-	}
+	c.Assert(out, checker.Contains, "exit trapped", check.Commentf("Expected `exit trapped` in the log"))
 }
 
 func (s *DockerSuite) TestRunSwapLessThanMemoryLimit(c *check.C) {
@@ -376,9 +307,7 @@ func (s *DockerSuite) TestRunSwapLessThanMemoryLimit(c *check.C) {
 	expected := "Minimum memoryswap limit should be larger than memory limit"
 	c.Assert(err, check.NotNil)
 
-	if !strings.Contains(out, expected) {
-		c.Fatalf("Expected output to contain %q, not %q", out, expected)
-	}
+	c.Assert(out, checker.Contains, expected)
 }
 
 func (s *DockerSuite) TestRunInvalidCpusetCpusFlagValue(c *check.C) {
@@ -397,9 +326,7 @@ func (s *DockerSuite) TestRunInvalidCpusetCpusFlagValue(c *check.C) {
 	out, _, err := dockerCmdWithError("run", "--cpuset-cpus", strconv.Itoa(invalid), "busybox", "true")
 	c.Assert(err, check.NotNil)
 	expected := fmt.Sprintf("Error response from daemon: Requested CPUs are not available - requested %s, available: %s", strconv.Itoa(invalid), sysInfo.Cpus)
-	if !(strings.Contains(out, expected)) {
-		c.Fatalf("Expected output to contain %q, got %q", expected, out)
-	}
+	c.Assert(out, checker.Contains, expected)
 }
 
 func (s *DockerSuite) TestRunInvalidCpusetMemsFlagValue(c *check.C) {
@@ -418,9 +345,7 @@ func (s *DockerSuite) TestRunInvalidCpusetMemsFlagValue(c *check.C) {
 	out, _, err := dockerCmdWithError("run", "--cpuset-mems", strconv.Itoa(invalid), "busybox", "true")
 	c.Assert(err, check.NotNil)
 	expected := fmt.Sprintf("Error response from daemon: Requested memory nodes are not available - requested %s, available: %s", strconv.Itoa(invalid), sysInfo.Mems)
-	if !(strings.Contains(out, expected)) {
-		c.Fatalf("Expected output to contain %q, got %q", expected, out)
-	}
+	c.Assert(out, checker.Contains, expected)
 }
 
 func (s *DockerSuite) TestRunInvalidCPUShares(c *check.C) {
