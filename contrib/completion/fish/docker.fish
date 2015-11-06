@@ -336,7 +336,7 @@ complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l restart -d 'Res
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l rm -d 'Automatically remove the container when it exits (incompatible with -d)'
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l security-opt -d 'Security Options'
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l sig-proxy -d 'Proxy received signals to the process (non-TTY mode only). SIGCHLD, SIGSTOP, and SIGKILL are not proxied.'
-complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l stop-signal 'Signal to kill a container'
+complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l stop-signal -d 'Signal to kill a container'
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -s t -l tty -d 'Allocate a pseudo-TTY'
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -s u -l user -d 'Username or UID'
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -s v -l volume -d 'Bind mount a volume (e.g., from the host: -v /host:/container, from Docker: -v /container)'
