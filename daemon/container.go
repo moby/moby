@@ -543,3 +543,7 @@ func (container *Container) stopSignal() int {
 	}
 	return int(stopSignal)
 }
+
+func (container *Container) unAttachable(defaultConfig runconfig.LogConfig) bool {
+	return !container.Config.AttachStdout && !container.Config.AttachStderr && container.getLogConfig(defaultConfig).Type == "none"
+}

@@ -71,6 +71,14 @@ func (streamConfig *StreamConfig) StderrPipe() io.ReadCloser {
 	return bytesPipe
 }
 
+// ResetStdoutStderr sets stdout and stderr to nil
+func (streamConfig *StreamConfig) ResetStdoutStderr() {
+	streamConfig.stdout.Clean()
+	streamConfig.stdout = nil
+	streamConfig.stderr.Clean()
+	streamConfig.stderr = nil
+}
+
 // NewInputPipes creates new pipes for both standard inputs, Stdin and StdinPipe.
 func (streamConfig *StreamConfig) NewInputPipes() {
 	streamConfig.stdin, streamConfig.stdinPipe = io.Pipe()
@@ -91,12 +99,16 @@ func (streamConfig *StreamConfig) CloseStreams() error {
 		}
 	}
 
-	if err := streamConfig.stdout.Clean(); err != nil {
-		errors = append(errors, fmt.Sprintf("error close stdout: %s", err))
+	if streamConfig.stdout != nil {
+		if err := streamConfig.stdout.Clean(); err != nil {
+			errors = append(errors, fmt.Sprintf("error close stdout: %s", err))
+		}
 	}
 
-	if err := streamConfig.stderr.Clean(); err != nil {
-		errors = append(errors, fmt.Sprintf("error close stderr: %s", err))
+	if streamConfig.stderr != nil {
+		if err := streamConfig.stderr.Clean(); err != nil {
+			errors = append(errors, fmt.Sprintf("error close stderr: %s", err))
+		}
 	}
 
 	if len(errors) > 0 {

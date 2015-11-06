@@ -6,6 +6,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/logger"
+	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/stdcopy"
 )
 
@@ -118,6 +119,21 @@ func (daemon *Daemon) attachWithLogs(container *Container, stdin io.ReadCloser, 
 		if container.Config.StdinOnce && !container.Config.Tty {
 			container.WaitStop(-1 * time.Second)
 		}
+	}
+	return nil
+}
+
+// CheckContainerAttachable checks if the container named containerName can be attached to
+func (daemon *Daemon) CheckContainerAttachable(containerName string) error {
+	c, _ := daemon.Get(containerName)
+	if c == nil {
+		return derr.ErrorCodeNoSuchContainer.WithArgs(containerName)
+	}
+	if c.State.isPaused() {
+		return derr.ErrorCodePausedContainer.WithArgs(containerName)
+	}
+	if c.unAttachable(daemon.defaultLogConfig) {
+		return derr.ErrorCodeAttach.WithArgs(containerName, "can't attach to a detached container whose log driver is none")
 	}
 	return nil
 }

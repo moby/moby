@@ -160,3 +160,13 @@ func (s *DockerSuite) TestAttachPausedContainer(c *check.C) {
 	c.Assert(err, checker.NotNil, check.Commentf(out))
 	c.Assert(out, checker.Contains, "You cannot attach to a paused container, unpause it first")
 }
+
+func (s *DockerSuite) TestAttachToUnAttachableContainer(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	out, _ := dockerCmd(c, "run", "-d", "--log-driver", "none", "busybox", "/bin/sh", "-c", `while true; do echo 2; sleep 1; done`)
+	id := strings.TrimSpace(out)
+
+	out, _, err := dockerCmdWithError("attach", id)
+	c.Assert(err, checker.NotNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "can't attach to a detached container whose log driver is none")
+}

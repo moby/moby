@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"net/http/httputil"
@@ -180,7 +181,11 @@ func (cli *DockerCli) hijackWithContentType(method, path, contentType string, se
 	defer clientconn.Close()
 
 	// Server hijacks the connection, error 'connection closed' expected
-	clientconn.Do(req)
+	res, _ := clientconn.Do(req)
+	if res.StatusCode != 101 && res.StatusCode != 200 {
+		body, _ := ioutil.ReadAll(res.Body)
+		return fmt.Errorf("Error response from daemon: %s", string(body))
+	}
 
 	rwc, br := clientconn.Hijack()
 	defer rwc.Close()
