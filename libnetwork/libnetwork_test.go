@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -302,6 +303,59 @@ func TestBridge(t *testing.T) {
 	}
 	if len(pm) != 5 {
 		t.Fatalf("Incomplete data for port mapping in endpoint operational data: %d", len(pm))
+	}
+
+	if err := ep.Delete(); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := network.Delete(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// Testing IPV6 from MAC address
+func TestBridgeIpv6FromMac(t *testing.T) {
+	if !testutils.IsRunningInContainer() {
+		defer testutils.SetupTestOSContext(t)()
+	}
+
+	netOption := options.Generic{
+		netlabel.GenericData: options.Generic{
+			"BridgeName":         "testipv6mac",
+			"EnableIPv6":         true,
+			"EnableICC":          true,
+			"EnableIPMasquerade": true,
+		},
+	}
+	ipamV4ConfList := []*libnetwork.IpamConf{&libnetwork.IpamConf{PreferredPool: "192.168.100.0/24", Gateway: "192.168.100.1"}}
+	ipamV6ConfList := []*libnetwork.IpamConf{&libnetwork.IpamConf{PreferredPool: "fe90::/64", Gateway: "fe90::22"}}
+
+	network, err := controller.NewNetwork(bridgeNetType, "testipv6mac",
+		libnetwork.NetworkOptionGeneric(netOption),
+		libnetwork.NetworkOptionIpam(ipamapi.DefaultIPAM, "", ipamV4ConfList, ipamV6ConfList),
+		libnetwork.NetworkOptionDeferIPv6Alloc(true))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	mac := net.HardwareAddr{0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff}
+	epOption := options.Generic{netlabel.MacAddress: mac}
+
+	ep, err := network.CreateEndpoint("testep", libnetwork.EndpointOptionGeneric(epOption))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	iface := ep.Info().Iface()
+	if !bytes.Equal(iface.MacAddress(), mac) {
+		t.Fatalf("Unexpected mac address: %v", iface.MacAddress())
+	}
+
+	ip, expIP, _ := net.ParseCIDR("fe90::aabb:ccdd:eeff/64")
+	expIP.IP = ip
+	if !types.CompareIPNet(expIP, iface.AddressIPv6()) {
+		t.Fatalf("Expected %v. Got: %v", expIP, iface.AddressIPv6())
 	}
 
 	if err := ep.Delete(); err != nil {

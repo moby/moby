@@ -152,6 +152,7 @@ type network struct {
 	ipamV4Info   []*IpamInfo
 	ipamV6Info   []*IpamInfo
 	enableIPv6   bool
+	postIPv6     bool
 	epCnt        *endpointCnt
 	generic      options.Generic
 	dbIndex      uint64
@@ -298,6 +299,7 @@ func (n *network) CopyTo(o datastore.KVObject) error {
 	dstN.ipamType = n.ipamType
 	dstN.enableIPv6 = n.enableIPv6
 	dstN.persist = n.persist
+	dstN.postIPv6 = n.postIPv6
 	dstN.dbIndex = n.dbIndex
 	dstN.dbExists = n.dbExists
 	dstN.drvOnce = n.drvOnce
@@ -358,6 +360,7 @@ func (n *network) MarshalJSON() ([]byte, error) {
 		netMap["generic"] = n.generic
 	}
 	netMap["persist"] = n.persist
+	netMap["postIPv6"] = n.postIPv6
 	if len(n.ipamV4Config) > 0 {
 		ics, err := json.Marshal(n.ipamV4Config)
 		if err != nil {
@@ -417,6 +420,9 @@ func (n *network) UnmarshalJSON(b []byte) (err error) {
 	}
 	if v, ok := netMap["persist"]; ok {
 		n.persist = v.(bool)
+	}
+	if v, ok := netMap["postIPv6"]; ok {
+		n.postIPv6 = v.(bool)
 	}
 	if v, ok := netMap["ipamType"]; ok {
 		n.ipamType = v.(string)
@@ -502,6 +508,16 @@ func NetworkOptionDriverOpts(opts map[string]string) NetworkOption {
 				log.Warnf("Failed to parse %s' value: %s (%s)", netlabel.EnableIPv6, val, err.Error())
 			}
 		}
+	}
+}
+
+// NetworkOptionDeferIPv6Alloc instructs the network to defer the IPV6 address allocation until after the endpoint has been created
+// It is being provided to support the specific docker daemon flags where user can deterministically assign an IPv6 address
+// to a container as combination of fixed-cidr-v6 + mac-address
+// TODO: Remove this option setter once we support endpoint ipam options
+func NetworkOptionDeferIPv6Alloc(enable bool) NetworkOption {
+	return func(n *network) {
+		n.postIPv6 = enable
 	}
 }
 
@@ -655,7 +671,7 @@ func (n *network) CreateEndpoint(name string, options ...EndpointOption) (Endpoi
 
 	ep.processOptions(options...)
 
-	if err = ep.assignAddress(); err != nil {
+	if err = ep.assignAddress(true, !n.postIPv6); err != nil {
 		return nil, err
 	}
 	defer func() {
@@ -674,6 +690,10 @@ func (n *network) CreateEndpoint(name string, options ...EndpointOption) (Endpoi
 			}
 		}
 	}()
+
+	if err = ep.assignAddress(false, n.postIPv6); err != nil {
+		return nil, err
+	}
 
 	if err = n.getController().updateToStore(ep); err != nil {
 		return nil, err

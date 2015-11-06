@@ -111,18 +111,35 @@ func TestCreateFullOptionsLabels(t *testing.T) {
 		t.Fatalf("Failed to setup driver config: %v", err)
 	}
 
+	bndIPs := "127.0.0.1"
+	nwV6s := "2100:2400:2600:2700:2800::/80"
+	gwV6s := "2100:2400:2600:2700:2800::25/80"
+	nwV6, _ := types.ParseCIDR(nwV6s)
+	gwV6, _ := types.ParseCIDR(gwV6s)
+
 	labels := map[string]string{
-		BridgeName:          "cu",
+		BridgeName:          DefaultBridgeName,
+		DefaultBridge:       "true",
 		netlabel.EnableIPv6: "true",
 		EnableICC:           "true",
 		EnableIPMasquerade:  "true",
-		DefaultBindingIP:    "127.0.0.1",
+		DefaultBindingIP:    bndIPs,
 	}
 
 	netOption := make(map[string]interface{})
 	netOption[netlabel.GenericData] = labels
 
-	err := d.CreateNetwork("dummy", netOption, getIPv4Data(t), nil)
+	ipdList := getIPv4Data(t)
+	ipd6List := []driverapi.IPAMData{
+		driverapi.IPAMData{
+			Pool: nwV6,
+			AuxAddresses: map[string]*net.IPNet{
+				DefaultGatewayV6AuxKey: gwV6,
+			},
+		},
+	}
+
+	err := d.CreateNetwork("dummy", netOption, ipdList, ipd6List)
 	if err != nil {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
@@ -132,7 +149,7 @@ func TestCreateFullOptionsLabels(t *testing.T) {
 		t.Fatalf("Cannot find dummy network in bridge driver")
 	}
 
-	if nw.config.BridgeName != "cu" {
+	if nw.config.BridgeName != DefaultBridgeName {
 		t.Fatalf("incongruent name in bridge network")
 	}
 
@@ -146,6 +163,36 @@ func TestCreateFullOptionsLabels(t *testing.T) {
 
 	if !nw.config.EnableIPMasquerade {
 		t.Fatalf("incongruent EnableIPMasquerade in bridge network")
+	}
+
+	bndIP := net.ParseIP(bndIPs)
+	if !bndIP.Equal(nw.config.DefaultBindingIP) {
+		t.Fatalf("Unexpected: %v", nw.config.DefaultBindingIP)
+	}
+
+	if !types.CompareIPNet(nw.config.AddressIPv6, nwV6) {
+		t.Fatalf("Unexpected: %v", nw.config.AddressIPv6)
+	}
+
+	if !gwV6.IP.Equal(nw.config.DefaultGatewayIPv6) {
+		t.Fatalf("Unexpected: %v", nw.config.DefaultGatewayIPv6)
+	}
+
+	// In short here we are testing --fixed-cidr-v6 daemon option
+	// plus --mac-address run option
+	mac, _ := net.ParseMAC("aa:bb:cc:dd:ee:ff")
+	epOptions := map[string]interface{}{netlabel.MacAddress: mac}
+	te := newTestEndpoint(ipdList[0].Pool, 20)
+	err = d.CreateEndpoint("dummy", "ep1", te.Interface(), epOptions)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !nwV6.Contains(te.Interface().AddressIPv6().IP) {
+		t.Fatalf("endpoint got assigned address outside of container network(%s): %s", nwV6.String(), te.Interface().AddressIPv6())
+	}
+	if te.Interface().AddressIPv6().IP.String() != "2100:2400:2600:2700:2800:aabb:ccdd:eeff" {
+		t.Fatalf("Unexpected endpoint IPv6 address: %v", te.Interface().AddressIPv6().IP)
 	}
 }
 
