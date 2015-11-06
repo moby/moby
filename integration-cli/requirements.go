@@ -43,7 +43,7 @@ var (
 	}
 	SameHostDaemon = testRequirement{
 		func() bool { return isLocalDaemon },
-		"Test requires docker daemon to runs on the same machine as CLI",
+		"Test requires docker daemon to run on the same machine as CLI",
 	}
 	UnixCli = testRequirement{
 		func() bool { return isUnixCli },
