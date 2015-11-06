@@ -152,7 +152,28 @@ func (container *Container) readHostConfig() error {
 	}
 	defer f.Close()
 
-	return json.NewDecoder(f).Decode(&container.hostConfig)
+	if err := json.NewDecoder(f).Decode(&container.hostConfig); err != nil {
+		return err
+	}
+
+	// Make sure the dns fields are never nil.
+	// New containers don't ever have those fields nil,
+	// but pre created containers can still have those nil values.
+	// See https://github.com/docker/docker/pull/17779
+	// for a more detailed explanation on why we don't want that.
+	if container.hostConfig.DNS == nil {
+		container.hostConfig.DNS = make([]string, 0)
+	}
+
+	if container.hostConfig.DNSSearch == nil {
+		container.hostConfig.DNSSearch = make([]string, 0)
+	}
+
+	if container.hostConfig.DNSOptions == nil {
+		container.hostConfig.DNSOptions = make([]string, 0)
+	}
+
+	return nil
 }
 
 func (container *Container) writeHostConfig() error {
