@@ -344,8 +344,8 @@ func (s *DockerSuite) TestRunVolumesFromInReadWriteMode(c *check.C) {
 	dockerCmd(c, "run", "--name", "parent", "-v", volumeDir, "busybox", "true")
 	dockerCmd(c, "run", "--volumes-from", "parent:rw", "busybox", "touch", fileInVol)
 
-	if out, _, err := dockerCmdWithError("run", "--volumes-from", "parent:bar", "busybox", "touch", fileInVol); err == nil || !strings.Contains(out, "invalid mode: bar") {
-		c.Fatalf("running --volumes-from parent:bar should have failed with invalid mount mode: %q", out)
+	if out, _, err := dockerCmdWithError("run", "--volumes-from", "parent:bar", "busybox", "touch", fileInVol); err == nil || !strings.Contains(out, `invalid mode: "bar"`) {
+		c.Fatalf("running --volumes-from parent:bar should have failed with invalid mode: %q", out)
 	}
 
 	dockerCmd(c, "run", "--volumes-from", "parent", "busybox", "touch", fileInVol)
