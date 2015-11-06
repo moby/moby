@@ -1242,10 +1242,10 @@ func (s *DockerDaemonSuite) TestDaemonLoggingDriverNoneLogsError(c *check.C) {
 	}
 	id := strings.TrimSpace(out)
 	out, err = s.d.Cmd("logs", id)
-	if err != nil {
-		c.Fatalf("Logs request should be sent and then fail with \"none\" driver")
+	if err == nil {
+		c.Fatalf("Logs should fail with 'none' driver")
 	}
-	if !strings.Contains(out, `Error running logs job: Failed to get logging factory: logger: no log driver named 'none' is registered`) {
+	if !strings.Contains(out, `"logs" command is supported only for "json-file" and "journald" logging drivers (got: none)`) {
 		c.Fatalf("There should be an error about none not being a recognized log driver, got: %s", out)
 	}
 }
