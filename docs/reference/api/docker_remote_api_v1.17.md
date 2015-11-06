@@ -133,7 +133,10 @@ Create a container
              "Tty": false,
              "OpenStdin": false,
              "StdinOnce": false,
-             "Env": null,
+             "Env": [
+                     "FOO=bar",
+                     "BAZ=quux"
+             ],
              "Cmd": [
                      "date"
              ],
@@ -198,7 +201,7 @@ Json Parameters:
 -   **Tty** - Boolean value, Attach standard streams to a tty, including stdin if it is not closed.
 -   **OpenStdin** - Boolean value, opens stdin,
 -   **StdinOnce** - Boolean value, close stdin after the 1 attached client disconnects.
--   **Env** - A list of environment variables in the form of `VAR=value`
+-   **Env** - A list of environment variables in the form of `["VAR=value"[,"VAR2=value2"]]`
 -   **Cmd** - Command to run specified as a string or an array of strings.
 -   **Entrypoint** - Set the entrypoint for the container a string or an array
       of strings
