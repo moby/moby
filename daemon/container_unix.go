@@ -611,7 +611,9 @@ func (container *Container) buildPortMapInfo(ep libnetwork.Endpoint, networkSett
 		return networkSettings, nil
 	}
 
-	networkSettings.Ports = nat.PortMap{}
+	if networkSettings.Ports == nil {
+		networkSettings.Ports = nat.PortMap{}
+	}
 
 	if expData, ok := driverInfo[netlabel.ExposedPorts]; ok {
 		if exposedPorts, ok := expData.([]types.TransportPort); ok {
@@ -810,6 +812,17 @@ func (container *Container) buildCreateEndpointOptions(n libnetwork.Network) ([]
 		createOptions []libnetwork.EndpointOption
 	)
 
+	if n.Name() == "bridge" || container.NetworkSettings.IsAnonymousEndpoint {
+		createOptions = append(createOptions, libnetwork.CreateOptionAnonymous())
+	}
+
+	// Other configs are applicable only for the endpoint in the network
+	// to which container was connected to on docker run.
+	if n.Name() != container.hostConfig.NetworkMode.NetworkName() &&
+		!(n.Name() == "bridge" && container.hostConfig.NetworkMode.IsDefault()) {
+		return createOptions, nil
+	}
+
 	if container.Config.ExposedPorts != nil {
 		portSpecs = container.Config.ExposedPorts
 	}
@@ -877,10 +890,6 @@ func (container *Container) buildCreateEndpointOptions(n libnetwork.Network) ([]
 		}
 
 		createOptions = append(createOptions, libnetwork.EndpointOptionGeneric(genericOption))
-	}
-
-	if n.Name() == "bridge" || container.NetworkSettings.IsAnonymousEndpoint {
-		createOptions = append(createOptions, libnetwork.CreateOptionAnonymous())
 	}
 
 	return createOptions, nil
