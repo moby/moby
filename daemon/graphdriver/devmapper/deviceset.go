@@ -826,8 +826,7 @@ func (devices *DeviceSet) loadMetadata(hash string) *devInfo {
 func getDeviceUUID(device string) (string, error) {
 	out, err := exec.Command("blkid", "-s", "UUID", "-o", "value", device).Output()
 	if err != nil {
-		logrus.Debugf("Failed to find uuid for device %s:%v", device, err)
-		return "", err
+		return "", fmt.Errorf("Failed to find uuid for device %s:%v", device, err)
 	}
 
 	uuid := strings.TrimSuffix(string(out), "\n")
