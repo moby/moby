@@ -19,6 +19,12 @@ if [ "$(go env GOOS)/$(go env GOARCH)" != "$(go env GOHOSTOS)/$(go env GOHOSTARC
 	esac
 fi
 
+if [ "$(go env GOHOSTOS)/$(go env GOHOSTARCH)" == "windows/amd64" ] && [ "$(go env GOOS)" == "windows" ]; then
+	# native compilation of Windows on Windows with golang 1.5+ needs linkmode internal
+	# https://github.com/golang/go/issues/13070
+	export LDFLAGS_STATIC_DOCKER="$LDFLAGS_STATIC_DOCKER -linkmode=internal"
+fi
+
 echo "Building: $DEST/$BINARY_FULLNAME"
 go build \
 	-o "$DEST/$BINARY_FULLNAME" \
