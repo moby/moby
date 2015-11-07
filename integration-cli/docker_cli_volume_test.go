@@ -50,6 +50,19 @@ func (s *DockerSuite) TestVolumeCliInspect(c *check.C) {
 	c.Assert(strings.TrimSpace(out), check.Equals, "test")
 }
 
+func (s *DockerSuite) TestVolumeCliInspectMulti(c *check.C) {
+	dockerCmd(c, "volume", "create", "--name", "test1")
+	dockerCmd(c, "volume", "create", "--name", "test2")
+
+	out, _ := dockerCmd(c, "volume", "inspect", "--format='{{ .Name }}'", "test1", "test2", "doesntexist")
+	outArr := strings.Split(strings.TrimSpace(out), "\n")
+	c.Assert(len(outArr), check.Equals, 3, check.Commentf("\n%s", out))
+
+	c.Assert(strings.Contains(out, "test1\n"), check.Equals, true)
+	c.Assert(strings.Contains(out, "test2\n"), check.Equals, true)
+	c.Assert(strings.Contains(out, "Error: No such volume: doesntexist\n"), check.Equals, true)
+}
+
 func (s *DockerSuite) TestVolumeCliLs(c *check.C) {
 	prefix := ""
 	if daemonPlatform == "windows" {
