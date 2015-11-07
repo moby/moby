@@ -7,10 +7,12 @@ import (
 	"testing"
 )
 
-func TestShellParser(t *testing.T) {
-	file, err := os.Open("words")
+func TestShellParser4EnvVars(t *testing.T) {
+	fn := "envVarTest"
+
+	file, err := os.Open(fn)
 	if err != nil {
-		t.Fatalf("Can't open 'words': %s", err)
+		t.Fatalf("Can't open '%s': %s", err, fn)
 	}
 	defer file.Close()
 
@@ -32,7 +34,7 @@ func TestShellParser(t *testing.T) {
 
 		words := strings.Split(line, "|")
 		if len(words) != 2 {
-			t.Fatalf("Error in 'words' - should be 2 words:%q", words)
+			t.Fatalf("Error in '%s' - should be exactly one | in:%q", fn, line)
 		}
 
 		words[0] = strings.TrimSpace(words[0])
@@ -46,6 +48,54 @@ func TestShellParser(t *testing.T) {
 
 		if newWord != words[1] {
 			t.Fatalf("Error. Src: %s  Calc: %s  Expected: %s", words[0], newWord, words[1])
+		}
+	}
+}
+
+func TestShellParser4Words(t *testing.T) {
+	fn := "wordsTest"
+
+	file, err := os.Open(fn)
+	if err != nil {
+		t.Fatalf("Can't open '%s': %s", err, fn)
+	}
+	defer file.Close()
+
+	envs := []string{}
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := scanner.Text()
+
+		if strings.HasPrefix(line, "#") {
+			continue
+		}
+
+		if strings.HasPrefix(line, "ENV ") {
+			line = strings.TrimLeft(line[3:], " ")
+			envs = append(envs, line)
+			continue
+		}
+
+		words := strings.Split(line, "|")
+		if len(words) != 2 {
+			t.Fatalf("Error in '%s' - should be exactly one | in: %q", fn, line)
+		}
+		test := strings.TrimSpace(words[0])
+		expected := strings.Split(strings.TrimLeft(words[1], " "), ",")
+
+		result, err := ProcessWords(test, envs)
+
+		if err != nil {
+			result = []string{"error"}
+		}
+
+		if len(result) != len(expected) {
+			t.Fatalf("Error. %q was suppose to result in %q, but got %q instead", test, expected, result)
+		}
+		for i, w := range expected {
+			if w != result[i] {
+				t.Fatalf("Error. %q was suppose to result in %q, but got %q instead", test, expected, result)
+			}
 		}
 	}
 }
