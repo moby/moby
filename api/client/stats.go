@@ -13,7 +13,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	Cli "github.com/docker/docker/cli"
-	flag "github.com/docker/docker/pkg/mflag"
+	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/pkg/units"
 )
 
@@ -29,6 +29,11 @@ type containerStats struct {
 	BlockWrite       float64
 	mu               sync.RWMutex
 	err              error
+}
+
+type stats struct {
+	mu sync.Mutex
+	cs []*containerStats
 }
 
 func (s *containerStats) Collect(cli *DockerCli, streamStats bool) {
@@ -139,18 +144,41 @@ func (s *containerStats) Display(w io.Writer) error {
 //
 // This shows real-time information on CPU usage, memory usage, and network I/O.
 //
-// Usage: docker stats CONTAINER [CONTAINER...]
+// Usage: docker stats [OPTIONS] [CONTAINER...]
 func (cli *DockerCli) CmdStats(args ...string) error {
-	cmd := Cli.Subcmd("stats", []string{"CONTAINER [CONTAINER...]"}, Cli.DockerCommands["stats"].Description, true)
+	cmd := Cli.Subcmd("stats", []string{"[CONTAINER...]"}, Cli.DockerCommands["stats"].Description, true)
+	all := cmd.Bool([]string{"a", "-all"}, false, "Show all containers (default shows just running)")
 	noStream := cmd.Bool([]string{"-no-stream"}, false, "Disable streaming stats and only pull the first result")
-	cmd.Require(flag.Min, 1)
 
 	cmd.ParseFlags(args, true)
 
 	names := cmd.Args()
+	showAll := len(names) == 0
+
+	if showAll {
+		v := url.Values{}
+		if *all {
+			v.Set("all", "1")
+		}
+		body, _, err := readBody(cli.call("GET", "/containers/json?"+v.Encode(), nil, nil))
+		if err != nil {
+			return err
+		}
+		var cs []types.Container
+		if err := json.Unmarshal(body, &cs); err != nil {
+			return err
+		}
+		for _, c := range cs {
+			names = append(names, c.ID[:12])
+		}
+	}
+	if len(names) == 0 && !showAll {
+		return fmt.Errorf("No containers found")
+	}
 	sort.Strings(names)
+
 	var (
-		cStats []*containerStats
+		cStats = stats{}
 		w      = tabwriter.NewWriter(cli.out, 20, 1, 3, ' ', 0)
 	)
 	printHeader := func() {
@@ -162,41 +190,124 @@ func (cli *DockerCli) CmdStats(args ...string) error {
 	}
 	for _, n := range names {
 		s := &containerStats{Name: n}
-		cStats = append(cStats, s)
+		// no need to lock here since only the main goroutine is running here
+		cStats.cs = append(cStats.cs, s)
 		go s.Collect(cli, !*noStream)
+	}
+	closeChan := make(chan error)
+	if showAll {
+		type watch struct {
+			cid   string
+			event string
+			err   error
+		}
+		getNewContainers := func(c chan<- watch) {
+			res, err := cli.call("GET", "/events", nil, nil)
+			if err != nil {
+				c <- watch{err: err}
+				return
+			}
+			defer res.body.Close()
+
+			dec := json.NewDecoder(res.body)
+			for {
+				var j *jsonmessage.JSONMessage
+				if err := dec.Decode(&j); err != nil {
+					c <- watch{err: err}
+					return
+				}
+				c <- watch{j.ID[:12], j.Status, nil}
+			}
+		}
+		go func(stopChan chan<- error) {
+			cChan := make(chan watch)
+			go getNewContainers(cChan)
+			for {
+				c := <-cChan
+				if c.err != nil {
+					stopChan <- c.err
+					return
+				}
+				switch c.event {
+				case "create":
+					s := &containerStats{Name: c.cid}
+					cStats.mu.Lock()
+					cStats.cs = append(cStats.cs, s)
+					cStats.mu.Unlock()
+					go s.Collect(cli, !*noStream)
+				case "stop":
+				case "die":
+					if !*all {
+						var remove int
+						// cStats cannot be O(1) with a map cause ranging over it would cause
+						// containers in stats to move up and down in the list...:(
+						cStats.mu.Lock()
+						for i, s := range cStats.cs {
+							if s.Name == c.cid {
+								remove = i
+								break
+							}
+						}
+						cStats.cs = append(cStats.cs[:remove], cStats.cs[remove+1:]...)
+						cStats.mu.Unlock()
+					}
+				}
+			}
+		}(closeChan)
+	} else {
+		close(closeChan)
 	}
 	// do a quick pause so that any failed connections for containers that do not exist are able to be
 	// evicted before we display the initial or default values.
 	time.Sleep(1500 * time.Millisecond)
 	var errs []string
-	for _, c := range cStats {
+	cStats.mu.Lock()
+	for _, c := range cStats.cs {
 		c.mu.Lock()
 		if c.err != nil {
 			errs = append(errs, fmt.Sprintf("%s: %v", c.Name, c.err))
 		}
 		c.mu.Unlock()
 	}
+	cStats.mu.Unlock()
 	if len(errs) > 0 {
 		return fmt.Errorf("%s", strings.Join(errs, ", "))
 	}
 	for range time.Tick(500 * time.Millisecond) {
 		printHeader()
 		toRemove := []int{}
-		for i, s := range cStats {
+		cStats.mu.Lock()
+		for i, s := range cStats.cs {
 			if err := s.Display(w); err != nil && !*noStream {
 				toRemove = append(toRemove, i)
 			}
 		}
 		for j := len(toRemove) - 1; j >= 0; j-- {
 			i := toRemove[j]
-			cStats = append(cStats[:i], cStats[i+1:]...)
+			cStats.cs = append(cStats.cs[:i], cStats.cs[i+1:]...)
 		}
-		if len(cStats) == 0 {
+		if len(cStats.cs) == 0 && !showAll {
 			return nil
 		}
+		cStats.mu.Unlock()
 		w.Flush()
 		if *noStream {
 			break
+		}
+		select {
+		case err, ok := <-closeChan:
+			if ok {
+				if err != nil {
+					// this is suppressing "unexpected EOF" in the cli when the
+					// daemon restarts so it shudowns cleanly
+					if err == io.ErrUnexpectedEOF {
+						return nil
+					}
+					return err
+				}
+			}
+		default:
+			// just skip
 		}
 	}
 	return nil

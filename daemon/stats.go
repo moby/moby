@@ -22,7 +22,6 @@ type ContainerStatsConfig struct {
 // ContainerStats writes information about the container to the stream
 // given in the config object.
 func (daemon *Daemon) ContainerStats(prefixOrName string, config *ContainerStatsConfig) error {
-
 	container, err := daemon.Get(prefixOrName)
 	if err != nil {
 		return err
