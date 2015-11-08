@@ -48,25 +48,6 @@ type TagStore struct {
 // Repository maps tags to image IDs.
 type Repository map[string]string
 
-// Update updates repository mapping with content of repository 'u'.
-func (r Repository) Update(u Repository) {
-	for k, v := range u {
-		r[k] = v
-	}
-}
-
-// Contains returns true if the contents of Repository u are wholly contained
-// in Repository r.
-func (r Repository) Contains(u Repository) bool {
-	for k, v := range u {
-		// if u's key is not present in r OR u's key is present, but not the same value
-		if rv, ok := r[k]; !ok || (ok && rv != v) {
-			return false
-		}
-	}
-	return true
-}
-
 // TagStoreConfig provides parameters for a new TagStore.
 type TagStoreConfig struct {
 	// Graph is the versioned image store
@@ -211,35 +192,6 @@ func (store *TagStore) ByID() map[string][]string {
 // more repositories.
 func (store *TagStore) HasReferences(img *image.Image) bool {
 	return len(store.ByID()[img.ID]) > 0
-}
-
-// ImageName returns name of an image, given the image's ID.
-func (store *TagStore) ImageName(id string) string {
-	if names, exists := store.ByID()[id]; exists && len(names) > 0 {
-		return names[0]
-	}
-	return stringid.TruncateID(id)
-}
-
-// DeleteAll removes images identified by a specific ID from the store.
-func (store *TagStore) DeleteAll(id string) error {
-	names, exists := store.ByID()[id]
-	if !exists || len(names) == 0 {
-		return nil
-	}
-	for _, name := range names {
-		if strings.Contains(name, ":") {
-			nameParts := strings.Split(name, ":")
-			if _, err := store.Delete(nameParts[0], nameParts[1]); err != nil {
-				return err
-			}
-		} else {
-			if _, err := store.Delete(name, ""); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
 }
 
 // Delete deletes a repository or a specific tag. If ref is empty, the entire
@@ -406,22 +358,6 @@ func (store *TagStore) GetImage(repoName, refOrID string) (*image.Image, error) 
 	}
 
 	return nil, nil
-}
-
-// GetRepoRefs returns a map with image IDs as keys, and slices listing
-// repo/tag references as the values. It covers all repositories.
-func (store *TagStore) GetRepoRefs() map[string][]string {
-	store.Lock()
-	reporefs := make(map[string][]string)
-
-	for name, repository := range store.Repositories {
-		for tag, id := range repository {
-			shortID := stringid.TruncateID(id)
-			reporefs[shortID] = append(reporefs[shortID], utils.ImageReference(name, tag))
-		}
-	}
-	store.Unlock()
-	return reporefs
 }
 
 // validateRepoName validates the name of a repository.
