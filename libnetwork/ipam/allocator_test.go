@@ -666,6 +666,59 @@ func TestRequestReleaseAddressFromSubPool(t *testing.T) {
 	if !types.CompareIPNet(rp, ip) {
 		t.Fatalf("Unexpected IP from subpool. Expected: %s. Got: %v.", rp, ip)
 	}
+
+	// Request any addresses from subpool after explicit address request
+	unoExp, _ := types.ParseCIDR("10.2.2.0/16")
+	dueExp, _ := types.ParseCIDR("10.2.2.2/16")
+	treExp, _ := types.ParseCIDR("10.2.2.1/16")
+	if poolID, _, _, err = a.RequestPool("rosso", "10.2.0.0/16", "10.2.2.0/24", nil, false); err != nil {
+		t.Fatal(err)
+	}
+	tre, _, err := a.RequestAddress(poolID, treExp.IP, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !types.CompareIPNet(tre, treExp) {
+		t.Fatalf("Unexpected address: %v", tre)
+	}
+
+	uno, _, err := a.RequestAddress(poolID, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !types.CompareIPNet(uno, unoExp) {
+		t.Fatalf("Unexpected address: %v", uno)
+	}
+
+	due, _, err := a.RequestAddress(poolID, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !types.CompareIPNet(due, dueExp) {
+		t.Fatalf("Unexpected address: %v", due)
+	}
+
+	if err = a.ReleaseAddress(poolID, uno.IP); err != nil {
+		t.Fatal(err)
+	}
+	uno, _, err = a.RequestAddress(poolID, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !types.CompareIPNet(uno, unoExp) {
+		t.Fatalf("Unexpected address: %v", uno)
+	}
+
+	if err = a.ReleaseAddress(poolID, tre.IP); err != nil {
+		t.Fatal(err)
+	}
+	tre, _, err = a.RequestAddress(poolID, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !types.CompareIPNet(tre, treExp) {
+		t.Fatalf("Unexpected address: %v", tre)
+	}
 }
 
 func TestGetAddress(t *testing.T) {
