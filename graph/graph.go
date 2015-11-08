@@ -22,6 +22,7 @@ import (
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/idtools"
+	"github.com/docker/docker/pkg/locker"
 	"github.com/docker/docker/pkg/progressreader"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/stringid"
@@ -100,7 +101,7 @@ type Graph struct {
 	idIndex          *truncindex.TruncIndex
 	driver           graphdriver.Driver
 	imagesMutex      sync.Mutex
-	imageMutex       imageMutex // protect images in driver.
+	imageMutex       locker.Locker // protect images in driver.
 	retained         *retainedLayers
 	tarSplitDisabled bool
 	uidMaps          []idtools.IDMap
