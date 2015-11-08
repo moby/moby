@@ -85,16 +85,17 @@ via-package-manager#rhelcentosscientific-linux-6):
     # Install Node.js and npm
     RUN     yum install -y nodejs npm
 
+Install your app dependencies using the `npm` binary:
+
+    # Install app dependencies
+    COPY package.json /src/package.json
+    RUN cd /src; npm install
+
 To bundle your app's source code inside the Docker image, use the `COPY`
 instruction:
 
     # Bundle app source
     COPY . /src
-
-Install your app dependencies using the `npm` binary:
-
-    # Install app dependencies
-    RUN cd /src; npm install
 
 Your app binds to port `8080` so you'll use the `EXPOSE` instruction to have
 it mapped by the `docker` daemon:
@@ -116,10 +117,12 @@ Your `Dockerfile` should now look like this:
     # Install Node.js and npm
     RUN     yum install -y nodejs npm
 
+    # Install app dependencies
+    COPY package.json /src/package.json
+    RUN cd /src; npm install
+
     # Bundle app source
     COPY . /src
-    # Install app dependencies
-    RUN cd /src; npm install
 
     EXPOSE  8080
     CMD ["node", "/src/index.js"]
