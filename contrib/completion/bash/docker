@@ -49,6 +49,9 @@
 # options immediately following their corresponding long form.
 # This order should be applied to lists, alternatives and code blocks.
 
+__docker_previous_extglob_setting=$(shopt -p extglob)
+shopt -s extglob
+
 __docker_q() {
 	docker ${host:+-H "$host"} ${config:+--config "$config"} 2>/dev/null "$@"
 }
@@ -1889,5 +1892,8 @@ _docker() {
 	eval "$previous_extglob_setting"
 	return 0
 }
+
+eval "$__docker_previous_extglob_setting"
+unset __docker_previous_extglob_setting
 
 complete -F _docker docker
