@@ -5,13 +5,13 @@ import (
 	"github.com/docker/docker/api/server/router/local"
 )
 
-// volumesRouter is a router to talk with the volumes controller
+// volumeRouter is a router to talk with the volumes controller
 type volumeRouter struct {
 	backend Backend
 	routes  []router.Route
 }
 
-// NewRouter initializes a new volumes router
+// NewRouter initializes a new volumeRouter
 func NewRouter(b Backend) router.Router {
 	r := &volumeRouter{
 		backend: b,
