@@ -24,8 +24,8 @@ type ImagePullConfig struct {
 	OutStream io.Writer
 }
 
-// Puller is an interface that abstracts pulling for different API versions.
-type Puller interface {
+// puller is an interface that abstracts pulling for different API versions.
+type puller interface {
 	// Pull tries to pull the image referenced by `tag`
 	// Pull returns an error if any, as well as a boolean that determines whether to retry Pull on the next configured endpoint.
 	//
@@ -33,12 +33,12 @@ type Puller interface {
 	Pull(tag string) (fallback bool, err error)
 }
 
-// NewPuller returns a Puller interface that will pull from either a v1 or v2
+// newPuller returns a Puller interface that will pull from either a v1 or v2
 // registry. The endpoint argument contains a Version field that determines
 // whether a v1 or v2 puller will be created. The other parameters are passed
 // through to the underlying puller implementation for use during the actual
 // pull operation.
-func NewPuller(s *TagStore, endpoint registry.APIEndpoint, repoInfo *registry.RepositoryInfo, imagePullConfig *ImagePullConfig, sf *streamformatter.StreamFormatter) (Puller, error) {
+func newPuller(s *TagStore, endpoint registry.APIEndpoint, repoInfo *registry.RepositoryInfo, imagePullConfig *ImagePullConfig, sf *streamformatter.StreamFormatter) (puller, error) {
 	switch endpoint.Version {
 	case registry.APIVersion2:
 		return &v2Puller{
@@ -101,7 +101,7 @@ func (s *TagStore) Pull(image string, tag string, imagePullConfig *ImagePullConf
 	for _, endpoint := range endpoints {
 		logrus.Debugf("Trying to pull %s from %s %s", repoInfo.LocalName, endpoint.URL, endpoint.Version)
 
-		puller, err := NewPuller(s, endpoint, repoInfo, imagePullConfig, sf)
+		puller, err := newPuller(s, endpoint, repoInfo, imagePullConfig, sf)
 		if err != nil {
 			lastErr = err
 			continue

@@ -20,7 +20,7 @@ import (
 type v1Pusher struct {
 	*TagStore
 	endpoint  registry.APIEndpoint
-	localRepo Repository
+	localRepo repository
 	repoInfo  *registry.RepositoryInfo
 	config    *ImagePushConfig
 	sf        *streamformatter.StreamFormatter
@@ -296,7 +296,7 @@ func (p *v1Pusher) pushImage(imgID, ep string) (checksum string, err error) {
 		return "", err
 	}
 
-	layerData, err := p.graph.TempLayerArchive(imgID, p.sf, p.out)
+	layerData, err := p.graph.tempLayerArchive(imgID, p.sf, p.out)
 	if err != nil {
 		return "", fmt.Errorf("Failed to generate layer archive: %s", err)
 	}
@@ -346,7 +346,7 @@ func (p *v1Pusher) getV1ID(id string) (string, error) {
 // getV1Config returns v1Compatibility config for the image in the graph. If
 // there is no v1Compatibility file on disk for the image
 func (p *v1Pusher) getV1Config(id string) ([]byte, error) {
-	jsonData, err := p.graph.GenerateV1CompatibilityChain(id)
+	jsonData, err := p.graph.generateV1CompatibilityChain(id)
 	if err != nil {
 		return nil, err
 	}

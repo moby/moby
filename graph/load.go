@@ -64,7 +64,7 @@ func (s *TagStore) Load(inTar io.ReadCloser, outStream io.Writer) error {
 	}
 	defer reposJSONFile.Close()
 
-	repositories := map[string]Repository{}
+	repositories := map[string]repository{}
 	if err := json.NewDecoder(reposJSONFile).Decode(&repositories); err != nil {
 		return err
 	}

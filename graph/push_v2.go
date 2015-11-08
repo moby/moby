@@ -27,7 +27,7 @@ const compressionBufSize = 32768
 type v2Pusher struct {
 	*TagStore
 	endpoint  registry.APIEndpoint
-	localRepo Repository
+	localRepo repository
 	repoInfo  *registry.RepositoryInfo
 	config    *ImagePushConfig
 	sf        *streamformatter.StreamFormatter
@@ -40,7 +40,7 @@ type v2Pusher struct {
 }
 
 func (p *v2Pusher) Push() (fallback bool, err error) {
-	p.repo, err = NewV2Repository(p.repoInfo, p.endpoint, p.config.MetaHeaders, p.config.AuthConfig, "push", "pull")
+	p.repo, err = newV2Repository(p.repoInfo, p.endpoint, p.config.MetaHeaders, p.config.AuthConfig, "push", "pull")
 	if err != nil {
 		logrus.Debugf("Error getting v2 registry: %v", err)
 		return true, err
@@ -144,7 +144,7 @@ func (p *v2Pusher) pushV2Tag(tag string) error {
 		}
 
 		var exists bool
-		dgst, err := p.graph.GetLayerDigest(layer.ID)
+		dgst, err := p.graph.getLayerDigestWithLock(layer.ID)
 		switch err {
 		case nil:
 			if p.layersPushed[dgst] {
@@ -165,7 +165,7 @@ func (p *v2Pusher) pushV2Tag(tag string) error {
 				out.Write(p.sf.FormatProgress(stringid.TruncateID(layer.ID), "Image push failed", nil))
 				return err
 			}
-		case ErrDigestNotSet:
+		case errDigestNotSet:
 			// nop
 		case digest.ErrDigestInvalidFormat, digest.ErrDigestUnsupported:
 			return fmt.Errorf("error getting image checksum: %v", err)
@@ -180,7 +180,7 @@ func (p *v2Pusher) pushV2Tag(tag string) error {
 			}
 			if dgst == "" {
 				// Cache new checksum
-				if err := p.graph.SetLayerDigest(layer.ID, pushDigest); err != nil {
+				if err := p.graph.setLayerDigestWithLock(layer.ID, pushDigest); err != nil {
 					return err
 				}
 			}
@@ -188,7 +188,7 @@ func (p *v2Pusher) pushV2Tag(tag string) error {
 		}
 
 		// read v1Compatibility config, generate new if needed
-		jsonData, err := p.graph.GenerateV1CompatibilityChain(layer.ID)
+		jsonData, err := p.graph.generateV1CompatibilityChain(layer.ID)
 		if err != nil {
 			return err
 		}
@@ -230,7 +230,7 @@ func (p *v2Pusher) pushV2Image(bs distribution.BlobService, img *image.Image) (d
 	if err != nil {
 		return "", err
 	}
-	arch, err := p.graph.TarLayer(image)
+	arch, err := p.graph.tarLayer(image)
 	if err != nil {
 		return "", err
 	}

@@ -34,7 +34,7 @@ type v2Puller struct {
 
 func (p *v2Puller) Pull(tag string) (fallback bool, err error) {
 	// TODO(tiborvass): was ReceiveTimeout
-	p.repo, err = NewV2Repository(p.repoInfo, p.endpoint, p.config.MetaHeaders, p.config.AuthConfig, "pull")
+	p.repo, err = newV2Repository(p.repoInfo, p.endpoint, p.config.MetaHeaders, p.config.AuthConfig, "pull")
 	if err != nil {
 		logrus.Warnf("Error getting v2 registry: %v", err)
 		return true, err
@@ -404,7 +404,7 @@ func (p *v2Puller) pullV2Tag(out io.Writer, tag, taggedName string) (tagUpdated 
 
 	// Check for new tag if no layers downloaded
 	if !tagUpdated {
-		repo, err := p.Get(p.repoInfo.LocalName)
+		repo, err := p.get(p.repoInfo.LocalName)
 		if err != nil {
 			return false, err
 		}
@@ -423,7 +423,7 @@ func (p *v2Puller) pullV2Tag(out io.Writer, tag, taggedName string) (tagUpdated 
 		// use the digest whether we pull by it or not. Unfortunately, the tag
 		// store treats the digest as a separate tag, meaning there may be an
 		// untagged digest image that would seem to be dangling by a user.
-		if err = p.SetDigest(p.repoInfo.LocalName, tag, firstID); err != nil {
+		if err = p.setDigest(p.repoInfo.LocalName, tag, firstID); err != nil {
 			return false, err
 		}
 	} else {
@@ -570,7 +570,7 @@ func (p *v2Puller) attemptIDReuse(imgs []contentAddressableDescriptor) {
 		idMap[img.compatibilityID] = struct{}{}
 
 		if p.graph.Exists(img.compatibilityID) {
-			if _, err := p.graph.GenerateV1CompatibilityChain(img.compatibilityID); err != nil {
+			if _, err := p.graph.generateV1CompatibilityChain(img.compatibilityID); err != nil {
 				logrus.Debugf("Migration v1Compatibility generation error: %v", err)
 				return
 			}

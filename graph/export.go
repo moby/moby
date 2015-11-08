@@ -29,11 +29,11 @@ func (s *TagStore) ImageExport(names []string, outStream io.Writer) error {
 	}
 	defer os.RemoveAll(tempdir)
 
-	rootRepoMap := map[string]Repository{}
+	rootRepoMap := map[string]repository{}
 	addKey := func(name string, tag string, id string) {
 		logrus.Debugf("add key [%s:%s]", name, tag)
 		if repo, ok := rootRepoMap[name]; !ok {
-			rootRepoMap[name] = Repository{tag: id}
+			rootRepoMap[name] = repository{tag: id}
 		} else {
 			repo[tag] = id
 		}
@@ -163,7 +163,7 @@ func (s *TagStore) exportImage(name, tempdir string) error {
 		if err != nil {
 			return err
 		}
-		if err := s.ImageTarLayer(n, fsTar); err != nil {
+		if err := s.imageTarLayer(n, fsTar); err != nil {
 			return err
 		}
 
