@@ -223,10 +223,10 @@ func (daemon *Daemon) populateCommand(c *Container, env []string) error {
 		ipc.HostIpc = c.hostConfig.IpcMode.IsHost()
 		if ipc.HostIpc {
 			if _, err := os.Stat("/dev/shm"); err != nil {
-				return fmt.Errorf("/dev/shm is not mounted, but must be for --host=ipc")
+				return fmt.Errorf("/dev/shm is not mounted, but must be for --ipc=host")
 			}
 			if _, err := os.Stat("/dev/mqueue"); err != nil {
-				return fmt.Errorf("/dev/mqueue is not mounted, but must be for --host=ipc")
+				return fmt.Errorf("/dev/mqueue is not mounted, but must be for --ipc=host")
 			}
 			c.ShmPath = "/dev/shm"
 			c.MqueuePath = "/dev/mqueue"
