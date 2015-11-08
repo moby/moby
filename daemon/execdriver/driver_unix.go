@@ -256,3 +256,9 @@ func Stats(containerDir string, containerMemoryLimit int64, machineMemory int64)
 		MemoryLimit: memoryLimit,
 	}, nil
 }
+
+// User contains the uid and gid representing a Unix user
+type User struct {
+	UID int `json:"root_uid"`
+	GID int `json:"root_gid"`
+}
