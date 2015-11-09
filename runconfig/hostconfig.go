@@ -168,51 +168,46 @@ type LogConfig struct {
 // Here, "non-portable" means "dependent of the host we are running on".
 // Portable information *should* appear in Config.
 type HostConfig struct {
-	// Applicable to all platforms
-	Binds           []string      // List of volume bindings for this container
-	ContainerIDFile string        // File (path) where the containerId is written
-	CPUShares       int64         `json:"CpuShares"` // CPU shares (relative weight vs. other containers)
-	LogConfig       LogConfig     // Configuration of the logs for this container
-	NetworkMode     NetworkMode   // Network mode to use for the container
-	PortBindings    nat.PortMap   // Port mapping between the exposed port (container) and the host
-	RestartPolicy   RestartPolicy // Restart policy to be used for the container
-	VolumeDriver    string        // Name of the volume driver used to mount volumes
-	VolumesFrom     []string      // List of volumes to take from other container
-
-	// Applicable to UNIX platforms
-	BlkioWeight       uint16                // Block IO weight (relative weight vs. other containers)
-	CapAdd            *stringutils.StrSlice // List of kernel capabilities to add to the container
-	CapDrop           *stringutils.StrSlice // List of kernel capabilities to remove from the container
-	CgroupParent      string                // Parent cgroup.
+	Binds             []string              // List of volume bindings for this container
+	ContainerIDFile   string                // File (path) where the containerId is written
+	Memory            int64                 // Memory limit (in bytes)
+	MemoryReservation int64                 // Memory soft limit (in bytes)
+	MemorySwap        int64                 // Total memory usage (memory + swap); set `-1` to disable swap
+	KernelMemory      int64                 // Kernel memory limit (in bytes)
+	CPUShares         int64                 `json:"CpuShares"` // CPU shares (relative weight vs. other containers)
 	CPUPeriod         int64                 `json:"CpuPeriod"` // CPU CFS (Completely Fair Scheduler) period
-	CPUQuota          int64                 `json:"CpuQuota"`  // CPU CFS (Completely Fair Scheduler) quota
 	CpusetCpus        string                // CpusetCpus 0-2, 0,1
 	CpusetMems        string                // CpusetMems 0-2, 0,1
-	Devices           []DeviceMapping       // List of devices to map inside the container
+	CPUQuota          int64                 `json:"CpuQuota"` // CPU CFS (Completely Fair Scheduler) quota
+	BlkioWeight       uint16                // Block IO weight (relative weight vs. other containers)
+	OomKillDisable    bool                  // Whether to disable OOM Killer or not
+	MemorySwappiness  *int64                // Tuning container memory swappiness behaviour
+	Privileged        bool                  // Is the container in privileged mode
+	PortBindings      nat.PortMap           // Port mapping between the exposed port (container) and the host
+	Links             []string              // List of links (in the name:alias form)
+	PublishAllPorts   bool                  // Should docker publish all exposed port for the container
 	DNS               []string              `json:"Dns"`        // List of DNS server to lookup
 	DNSOptions        []string              `json:"DnsOptions"` // List of DNSOption to look for
 	DNSSearch         []string              `json:"DnsSearch"`  // List of DNSSearch to look for
 	ExtraHosts        []string              // List of extra hosts
+	VolumesFrom       []string              // List of volumes to take from other container
+	Devices           []DeviceMapping       // List of devices to map inside the container
+	NetworkMode       NetworkMode           // Network namespace to use for the container
+	IpcMode           IpcMode               // IPC namespace to use for the container	// Unix specific
+	PidMode           PidMode               // PID namespace to use for the container	// Unix specific
+	UTSMode           UTSMode               // UTS namespace to use for the container	// Unix specific
+	CapAdd            *stringutils.StrSlice // List of kernel capabilities to add to the container
+	CapDrop           *stringutils.StrSlice // List of kernel capabilities to remove from the container
 	GroupAdd          []string              // List of additional groups that the container process will run as
-	IpcMode           IpcMode               // IPC namespace to use for the container
-	KernelMemory      int64                 // Kernel memory limit (in bytes)
-	Links             []string              // List of links (in the name:alias form)
-	Memory            int64                 // Memory limit (in bytes)
-	MemoryReservation int64                 // Memory soft limit (in bytes)
-	MemorySwap        int64                 // Total memory usage (memory + swap); set `-1` to disable swap
-	MemorySwappiness  *int64                // Tuning container memory swappiness behaviour
-	OomKillDisable    bool                  // Whether to disable OOM Killer or not
-	PidMode           PidMode               // PID namespace to use for the container
-	Privileged        bool                  // Is the container in privileged mode
-	PublishAllPorts   bool                  // Should docker publish all exposed port for the container
-	ReadonlyRootfs    bool                  // Is the container root filesystem in read-only
+	RestartPolicy     RestartPolicy         // Restart policy to be used for the container
 	SecurityOpt       []string              // List of string values to customize labels for MLS systems, such as SELinux.
+	ReadonlyRootfs    bool                  // Is the container root filesystem in read-only	// Unix specific
 	Ulimits           []*ulimit.Ulimit      // List of ulimits to be set in the container
-	UTSMode           UTSMode               // UTS namespace to use for the container
-
-	// Applicable to Windows
-	ConsoleSize [2]int         // Initial console size
-	Isolation   IsolationLevel // Isolation level of the container (eg default, hyperv)
+	LogConfig         LogConfig             // Configuration of the logs for this container
+	CgroupParent      string                // Parent cgroup.
+	ConsoleSize       [2]int                // Initial console size on Windows
+	VolumeDriver      string                // Name of the volume driver used to mount volumes
+	Isolation         IsolationLevel        // Isolation level of the container (eg default, hyperv)
 }
 
 // DecodeHostConfig creates a HostConfig based on the specified Reader.
