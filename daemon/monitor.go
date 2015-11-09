@@ -167,7 +167,7 @@ func (m *containerMonitor) Start() error {
 		if exitStatus, err = m.supervisor.Run(m.container, pipes, m.callback); err != nil {
 			// if we receive an internal error from the initial start of a container then lets
 			// return it instead of entering the restart loop
-			// set to 127 for contained cmd not found/does not exist)
+			// set to 127 for container cmd not found/does not exist)
 			if strings.Contains(err.Error(), "executable file not found") ||
 				strings.Contains(err.Error(), "no such file or directory") ||
 				strings.Contains(err.Error(), "system cannot find the file specified") {
@@ -177,7 +177,7 @@ func (m *containerMonitor) Start() error {
 					return derr.ErrorCodeCmdNotFound
 				}
 			}
-			// set to 126 for contained cmd can't be invoked errors
+			// set to 126 for container cmd can't be invoked errors
 			if strings.Contains(err.Error(), syscall.EACCES.Error()) {
 				if m.container.RestartCount == 0 {
 					m.container.ExitCode = 126
