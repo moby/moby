@@ -389,6 +389,8 @@ func run(b *Builder, args []string, attributes map[string]bool, original string)
 	b.runConfig.Cmd = config.Cmd
 	// set build-time environment for 'run'.
 	b.runConfig.Env = append(b.runConfig.Env, cmdBuildEnv...)
+	// set config as already being escaped, this prevents double escaping on windows
+	b.runConfig.ArgsEscaped = true
 
 	logrus.Debugf("[BUILDER] Command to be executed: %v", b.runConfig.Cmd)
 
@@ -479,7 +481,7 @@ func entrypoint(b *Builder, args []string, attributes map[string]bool, original 
 		if runtime.GOOS != "windows" {
 			b.runConfig.Entrypoint = stringutils.NewStrSlice("/bin/sh", "-c", parsed[0])
 		} else {
-			b.runConfig.Entrypoint = stringutils.NewStrSlice("cmd", "/S /C", parsed[0])
+			b.runConfig.Entrypoint = stringutils.NewStrSlice("cmd", "/S", "/C", parsed[0])
 		}
 	}
 
