@@ -17,28 +17,32 @@ import (
 // All fields added to this struct must be marked `omitempty` to keep getting
 // predictable hashes from the old `v1Compatibility` configuration.
 type Config struct {
-	Hostname        string                // Hostname
-	Domainname      string                // Domainname
-	User            string                // User that will run the command(s) inside the container
+
+	// Applicable to all platforms
 	AttachStdin     bool                  // Attach the standard input, makes possible user interaction
 	AttachStdout    bool                  // Attach the standard output
 	AttachStderr    bool                  // Attach the standard error
+	Cmd             *stringutils.StrSlice // Command to run when starting the container
+	Entrypoint      *stringutils.StrSlice // Entrypoint to run when starting the container
+	Env             []string              // List of environment variable to set in the container
 	ExposedPorts    map[nat.Port]struct{} `json:",omitempty"` // List of exposed ports
-	PublishService  string                `json:",omitempty"` // Name of the network service exposed by the container
-	Tty             bool                  // Attach standard streams to a tty, including stdin if it is not closed.
+	Hostname        string                // Hostname
+	Image           string                // Name of the image as it was passed by the operator (eg. could be symbolic)
+	Labels          map[string]string     // List of labels set to this container
+	MacAddress      string                `json:",omitempty"` // Mac Address of the container
+	NetworkDisabled bool                  `json:",omitempty"` // Is network disabled (--net=none)
+	OnBuild         []string              // ONBUILD metadata that were defined on the image Dockerfile
 	OpenStdin       bool                  // Open stdin
 	StdinOnce       bool                  // If true, close stdin after the 1 attached client disconnects.
-	Env             []string              // List of environment variable to set in the container
-	Cmd             *stringutils.StrSlice // Command to run when starting the container
-	Image           string                // Name of the image as it was passed by the operator (eg. could be symbolic)
+	Tty             bool                  // Attach standard streams to a tty, including stdin if it is not closed.
 	Volumes         map[string]struct{}   // List of volumes (mounts) used for the container
 	WorkingDir      string                // Current directory (PWD) in the command will be launched
-	Entrypoint      *stringutils.StrSlice // Entrypoint to run when starting the container
-	NetworkDisabled bool                  `json:",omitempty"` // Is network disabled
-	MacAddress      string                `json:",omitempty"` // Mac Address of the container
-	OnBuild         []string              // ONBUILD metadata that were defined on the image Dockerfile
-	Labels          map[string]string     // List of labels set to this container
-	StopSignal      string                `json:",omitempty"` // Signal to stop a container
+
+	// Applicable to UNIX platforms
+	Domainname     string // Domainname
+	PublishService string `json:",omitempty"` // Name of the network service exposed by the container
+	StopSignal     string `json:",omitempty"` // Signal to stop a container
+	User           string // User that will run the command(s) inside the container
 }
 
 // DecodeContainerConfig decodes a json encoded config into a ContainerConfigWrapper
