@@ -136,6 +136,7 @@ func (daemon *Daemon) populateCommand(c *Container, env []string) error {
 		LayerPaths:  layerPaths,
 		Hostname:    c.Config.Hostname,
 		Isolation:   c.hostConfig.Isolation,
+		ArgsEscaped: c.Config.ArgsEscaped,
 	}
 
 	return nil
