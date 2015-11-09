@@ -113,7 +113,6 @@ type Daemon struct {
 	stdout, stderr    io.ReadCloser
 	cmd               *exec.Cmd
 	storageDriver     string
-	execDriver        string
 	wait              chan error
 	userlandProxy     bool
 	useDefaultHost    bool
@@ -155,7 +154,6 @@ func NewDaemon(c *check.C) *Daemon {
 		folder:        daemonFolder,
 		root:          daemonRoot,
 		storageDriver: os.Getenv("DOCKER_GRAPHDRIVER"),
-		execDriver:    os.Getenv("DOCKER_EXECDRIVER"),
 		userlandProxy: userlandProxy,
 	}
 }
