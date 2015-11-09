@@ -1607,7 +1607,7 @@ _docker_start() {
 _docker_stats() {
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--no-stream --help" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--all -a --help --no-stream" -- "$cur" ) )
 			;;
 		*)
 			__docker_containers_running
