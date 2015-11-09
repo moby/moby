@@ -6,15 +6,14 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/docker/docker/pkg/integration/checker"
-	"github.com/go-check/check"
-	"sort"
-
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/go-check/check"
 )
 
 func (s *DockerSuite) TestPsListContainersBase(c *check.C) {

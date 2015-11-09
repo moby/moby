@@ -404,37 +404,6 @@ func (s *DockerDaemonSuite) TestDaemonLogLevelWrong(c *check.C) {
 	c.Assert(s.d.Start("--log-level=bogus"), check.NotNil, check.Commentf("Daemon shouldn't start with wrong log level"))
 }
 
-func (s *DockerSuite) TestDaemonStartWithBackwardCompatibility(c *check.C) {
-
-	var validCommandArgs = [][]string{
-		{"--selinux-enabled", "-l", "info"},
-		{"--insecure-registry", "daemon"},
-	}
-
-	var invalidCommandArgs = [][]string{
-		{"--selinux-enabled", "--storage-opt"},
-		{"-D", "-b"},
-		{"--config", "/tmp"},
-	}
-
-	for _, args := range validCommandArgs {
-		d := NewDaemon(c)
-		d.Command = "--daemon"
-		if err := d.Start(args...); err != nil {
-			c.Fatalf("Daemon should have started successfully with --daemon %v: %v", args, err)
-		}
-		d.Stop()
-	}
-
-	for _, args := range invalidCommandArgs {
-		d := NewDaemon(c)
-		if err := d.Start(args...); err == nil {
-			d.Stop()
-			c.Fatalf("Daemon should have failed to start with %v", args)
-		}
-	}
-}
-
 func (s *DockerSuite) TestDaemonStartWithDaemonCommand(c *check.C) {
 
 	type kind int

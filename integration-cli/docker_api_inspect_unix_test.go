@@ -16,7 +16,7 @@ func (s *DockerSuite) TestInspectApiCpusetInConfigPre120(c *check.C) {
 	testRequires(c, cgroupCpuset)
 
 	name := "cpusetinconfig-pre120"
-	dockerCmd(c, "run", "--name", name, "--cpuset", "0-1", "busybox", "true")
+	dockerCmd(c, "run", "--name", name, "--cpuset-cpus", "0-1", "busybox", "true")
 
 	status, body, err := sockRequest("GET", fmt.Sprintf("/v1.19/containers/%s/json", name), nil)
 	c.Assert(status, check.Equals, http.StatusOK)

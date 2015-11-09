@@ -72,16 +72,15 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		flSecurityOpt       = opts.NewListOpts(nil)
 		flLabelsFile        = opts.NewListOpts(nil)
 		flLoggingOpts       = opts.NewListOpts(nil)
-		flNetwork           = cmd.Bool([]string{"#n", "#-networking"}, true, "Enable networking for this container")
-		flPrivileged        = cmd.Bool([]string{"#privileged", "-privileged"}, false, "Give extended privileges to this container")
+		flPrivileged        = cmd.Bool([]string{"-privileged"}, false, "Give extended privileges to this container")
 		flPidMode           = cmd.String([]string{"-pid"}, "", "PID namespace to use")
 		flUTSMode           = cmd.String([]string{"-uts"}, "", "UTS namespace to use")
 		flPublishAll        = cmd.Bool([]string{"P", "-publish-all"}, false, "Publish all exposed ports to random ports")
 		flStdin             = cmd.Bool([]string{"i", "-interactive"}, false, "Keep STDIN open even if not attached")
 		flTty               = cmd.Bool([]string{"t", "-tty"}, false, "Allocate a pseudo-TTY")
 		flOomKillDisable    = cmd.Bool([]string{"-oom-kill-disable"}, false, "Disable OOM Killer")
-		flContainerIDFile   = cmd.String([]string{"#cidfile", "-cidfile"}, "", "Write the container ID to the file")
-		flEntrypoint        = cmd.String([]string{"#entrypoint", "-entrypoint"}, "", "Overwrite the default ENTRYPOINT of the image")
+		flContainerIDFile   = cmd.String([]string{"-cidfile"}, "", "Write the container ID to the file")
+		flEntrypoint        = cmd.String([]string{"-entrypoint"}, "", "Overwrite the default ENTRYPOINT of the image")
 		flHostname          = cmd.String([]string{"h", "-hostname"}, "", "Container host name")
 		flMemoryString      = cmd.String([]string{"m", "-memory"}, "", "Memory limit")
 		flMemoryReservation = cmd.String([]string{"-memory-reservation"}, "", "Memory soft limit")
@@ -92,7 +91,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		flCPUShares         = cmd.Int64([]string{"#c", "-cpu-shares"}, 0, "CPU shares (relative weight)")
 		flCPUPeriod         = cmd.Int64([]string{"-cpu-period"}, 0, "Limit CPU CFS (Completely Fair Scheduler) period")
 		flCPUQuota          = cmd.Int64([]string{"-cpu-quota"}, 0, "Limit CPU CFS (Completely Fair Scheduler) quota")
-		flCpusetCpus        = cmd.String([]string{"#-cpuset", "-cpuset-cpus"}, "", "CPUs in which to allow execution (0-3, 0,1)")
+		flCpusetCpus        = cmd.String([]string{"-cpuset-cpus"}, "", "CPUs in which to allow execution (0-3, 0,1)")
 		flCpusetMems        = cmd.String([]string{"-cpuset-mems"}, "", "MEMs in which to allow execution (0-3, 0,1)")
 		flBlkioWeight       = cmd.Uint16([]string{"-blkio-weight"}, 0, "Block IO (relative weight), between 10 and 1000")
 		flSwappiness        = cmd.Int64([]string{"-memory-swappiness"}, -1, "Tuning container memory swappiness (0 to 100)")
@@ -111,19 +110,19 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 	cmd.Var(&flAttach, []string{"a", "-attach"}, "Attach to STDIN, STDOUT or STDERR")
 	cmd.Var(&flBlkioWeightDevice, []string{"-blkio-weight-device"}, "Block IO weight (relative device weight)")
 	cmd.Var(&flVolumes, []string{"v", "-volume"}, "Bind mount a volume")
-	cmd.Var(&flLinks, []string{"#link", "-link"}, "Add link to another container")
+	cmd.Var(&flLinks, []string{"-link"}, "Add link to another container")
 	cmd.Var(&flDevices, []string{"-device"}, "Add a host device to the container")
 	cmd.Var(&flLabels, []string{"l", "-label"}, "Set meta data on a container")
 	cmd.Var(&flLabelsFile, []string{"-label-file"}, "Read in a line delimited file of labels")
 	cmd.Var(&flEnv, []string{"e", "-env"}, "Set environment variables")
 	cmd.Var(&flEnvFile, []string{"-env-file"}, "Read in a file of environment variables")
 	cmd.Var(&flPublish, []string{"p", "-publish"}, "Publish a container's port(s) to the host")
-	cmd.Var(&flExpose, []string{"#expose", "-expose"}, "Expose a port or a range of ports")
-	cmd.Var(&flDNS, []string{"#dns", "-dns"}, "Set custom DNS servers")
+	cmd.Var(&flExpose, []string{"-expose"}, "Expose a port or a range of ports")
+	cmd.Var(&flDNS, []string{"-dns"}, "Set custom DNS servers")
 	cmd.Var(&flDNSSearch, []string{"-dns-search"}, "Set custom DNS search domains")
 	cmd.Var(&flDNSOptions, []string{"-dns-opt"}, "Set DNS options")
 	cmd.Var(&flExtraHosts, []string{"-add-host"}, "Add a custom host-to-IP mapping (host:ip)")
-	cmd.Var(&flVolumesFrom, []string{"#volumes-from", "-volumes-from"}, "Mount volumes from the specified container(s)")
+	cmd.Var(&flVolumesFrom, []string{"-volumes-from"}, "Mount volumes from the specified container(s)")
 	cmd.Var(&flCapAdd, []string{"-cap-add"}, "Add Linux capabilities")
 	cmd.Var(&flCapDrop, []string{"-cap-drop"}, "Drop Linux capabilities")
 	cmd.Var(&flGroupAdd, []string{"-group-add"}, "Add additional groups to join")
@@ -312,12 +311,15 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 	}
 
 	config := &Config{
-		Hostname:        hostname,
-		Domainname:      domainname,
-		ExposedPorts:    ports,
-		User:            *flUser,
-		Tty:             *flTty,
-		NetworkDisabled: !*flNetwork,
+		Hostname:     hostname,
+		Domainname:   domainname,
+		ExposedPorts: ports,
+		User:         *flUser,
+		Tty:          *flTty,
+		// TODO: deprecated, it comes from -n, --networking
+		// it's still needed internally to set the network to disabled
+		// if e.g. bridge is none in daemon opts, and in inspect
+		NetworkDisabled: false,
 		OpenStdin:       *flStdin,
 		AttachStdin:     attachStdin,
 		AttachStdout:    attachStdout,

@@ -70,7 +70,6 @@ are deprecated and replaced with double-dash options (`--opt`):
     docker ps -sinceId
     docker rm -link
     docker run -cidfile
-    docker run -cpuset
     docker run -dns
     docker run -entrypoint
     docker run -expose
@@ -87,6 +86,7 @@ are deprecated and replaced with double-dash options (`--opt`):
 
 The following double-dash options are deprecated and have no replacement:
 
+    docker run --cpuset
     docker run --networking
     docker ps --since-id
     docker ps --before-id

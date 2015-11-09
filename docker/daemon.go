@@ -33,33 +33,8 @@ import (
 const daemonUsage = "       docker daemon [ --help | ... ]\n"
 
 var (
-	flDaemon              = flag.Bool([]string{"#d", "#-daemon"}, false, "Enable daemon mode (deprecated; use docker daemon)")
 	daemonCli cli.Handler = NewDaemonCli()
 )
-
-// TODO: remove once `-d` is retired
-func handleGlobalDaemonFlag() {
-	// This block makes sure that if the deprecated daemon flag `--daemon` is absent,
-	// then all daemon-specific flags are absent as well.
-	if !*flDaemon && daemonFlags != nil {
-		flag.CommandLine.Visit(func(fl *flag.Flag) {
-			for _, name := range fl.Names {
-				name := strings.TrimPrefix(name, "#")
-				if daemonFlags.Lookup(name) != nil {
-					// daemon flag was NOT specified, but daemon-specific flags were
-					// so let's error out
-					fmt.Fprintf(os.Stderr, "docker: the daemon flag '-%s' must follow the 'docker daemon' command.\n", name)
-					os.Exit(1)
-				}
-			}
-		})
-	}
-
-	if *flDaemon {
-		daemonCli.(*DaemonCli).CmdDaemon(flag.Args()...)
-		os.Exit(0)
-	}
-}
 
 func presentInHelp(usage string) string { return usage }
 func absentFromHelp(string) string      { return "" }
@@ -154,10 +129,7 @@ func (cli *DaemonCli) CmdDaemon(args ...string) error {
 	// warn from uuid package when running the daemon
 	uuid.Loggerf = logrus.Warnf
 
-	if *flDaemon {
-		// allow legacy forms `docker -D -d` and `docker -d -D`
-		logrus.Warn("please use 'docker daemon' instead.")
-	} else if !commonFlags.FlagSet.IsEmpty() || !clientFlags.FlagSet.IsEmpty() {
+	if !commonFlags.FlagSet.IsEmpty() || !clientFlags.FlagSet.IsEmpty() {
 		// deny `docker -D daemon`
 		illegalFlag := getGlobalFlag()
 		fmt.Fprintf(os.Stderr, "invalid flag '-%s'.\nSee 'docker daemon --help'.\n", illegalFlag.Names[0])
