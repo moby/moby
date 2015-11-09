@@ -9,9 +9,9 @@ import (
 	"github.com/docker/docker/utils"
 )
 
-// WalkHistory calls the handler function for each image in the
+// walkHistory calls the handler function for each image in the
 // provided images lineage starting from immediate parent.
-func (graph *Graph) WalkHistory(img *image.Image, handler func(image.Image) error) (err error) {
+func (graph *Graph) walkHistory(img *image.Image, handler func(image.Image) error) (err error) {
 	currentImg := img
 	for currentImg != nil {
 		if handler != nil {
@@ -85,7 +85,7 @@ func (s *TagStore) History(name string) ([]*types.ImageHistory, error) {
 
 	history := []*types.ImageHistory{}
 
-	err = s.graph.WalkHistory(foundImage, func(img image.Image) error {
+	err = s.graph.walkHistory(foundImage, func(img image.Image) error {
 		history = append(history, &types.ImageHistory{
 			ID:        img.ID,
 			Created:   img.Created.Unix(),
@@ -108,12 +108,12 @@ func (graph *Graph) GetParent(img *image.Image) (*image.Image, error) {
 	return graph.Get(img.Parent)
 }
 
-// GetParentsSize returns the combined size of all parent images. If there is
+// getParentsSize returns the combined size of all parent images. If there is
 // no parent image or it's unavailable, it returns 0.
-func (graph *Graph) GetParentsSize(img *image.Image) int64 {
+func (graph *Graph) getParentsSize(img *image.Image) int64 {
 	parentImage, err := graph.GetParent(img)
 	if err != nil || parentImage == nil {
 		return 0
 	}
-	return parentImage.Size + graph.GetParentsSize(parentImage)
+	return parentImage.Size + graph.getParentsSize(parentImage)
 }

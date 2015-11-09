@@ -27,8 +27,8 @@ type ImagePushConfig struct {
 	OutStream io.Writer
 }
 
-// Pusher is an interface that abstracts pushing for different API versions.
-type Pusher interface {
+// pusher is an interface that abstracts pushing for different API versions.
+type pusher interface {
 	// Push tries to push the image configured at the creation of Pusher.
 	// Push returns an error if any, as well as a boolean that determines whether to retry Push on the next configured endpoint.
 	//
@@ -36,12 +36,12 @@ type Pusher interface {
 	Push() (fallback bool, err error)
 }
 
-// NewPusher creates a new Pusher interface that will push to either a v1 or v2
+// newPusher creates a new Pusher interface that will push to either a v1 or v2
 // registry. The endpoint argument contains a Version field that determines
 // whether a v1 or v2 pusher will be created. The other parameters are passed
 // through to the underlying pusher implementation for use during the actual
 // push operation.
-func (s *TagStore) NewPusher(endpoint registry.APIEndpoint, localRepo Repository, repoInfo *registry.RepositoryInfo, imagePushConfig *ImagePushConfig, sf *streamformatter.StreamFormatter) (Pusher, error) {
+func (s *TagStore) newPusher(endpoint registry.APIEndpoint, localRepo repository, repoInfo *registry.RepositoryInfo, imagePushConfig *ImagePushConfig, sf *streamformatter.StreamFormatter) (pusher, error) {
 	switch endpoint.Version {
 	case registry.APIVersion2:
 		return &v2Pusher{
@@ -100,7 +100,7 @@ func (s *TagStore) Push(localName string, imagePushConfig *ImagePushConfig) erro
 	for _, endpoint := range endpoints {
 		logrus.Debugf("Trying to push %s to %s %s", repoInfo.CanonicalName, endpoint.URL, endpoint.Version)
 
-		pusher, err := s.NewPusher(endpoint, localRepo, repoInfo, imagePushConfig, sf)
+		pusher, err := s.newPusher(endpoint, localRepo, repoInfo, imagePushConfig, sf)
 		if err != nil {
 			lastErr = err
 			continue
