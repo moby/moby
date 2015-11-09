@@ -21,9 +21,10 @@ parent = "smn_cli"
 
 Creates a new volume that containers can consume and store data in. If a name is not specified, Docker generates a random name. You create a volume and then configure the container to use it, for example:
 
-  $ docker volume create --name hello
-  hello
-  $ docker run -d -v hello:/world busybox ls /world
+    $ docker volume create --name hello
+    hello
+
+    $ docker run -d -v hello:/world busybox ls /world
 
 The mount is created inside the container's `/world` directory. Docker does not support relative paths for mount points inside the container.
 
@@ -41,7 +42,7 @@ If you specify a volume name already in use on the current driver, Docker assume
 
 Some volume drivers may take options to customize the volume creation. Use the `-o` or `--opt` flags to pass driver options:
 
-  $ docker volume create --driver fake --opt tardis=blue --opt timey=wimey
+    $ docker volume create --driver fake --opt tardis=blue --opt timey=wimey
 
 These options are passed directly to the volume driver. Options for
 different volume drivers may do different things (or nothing at all).
