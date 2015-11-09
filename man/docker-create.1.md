@@ -32,6 +32,7 @@ docker-create - Create a new container
 [**--help**]
 [**-i**|**--interactive**[=*false*]]
 [**--ipc**[=*IPC*]]
+[**--isolation**[=*default*]]
 [**--kernel-memory**[=*KERNEL-MEMORY*]]
 [**-l**|**--label**[=*[]*]]
 [**--label-file**[=*[]*]]
@@ -158,6 +159,9 @@ two memory nodes.
    Default is to create a private IPC namespace (POSIX SysV IPC) for the container
                                'container:<name|id>': reuses another container shared memory, semaphores and message queues
                                'host': use the host shared memory,semaphores and message queues inside the container.  Note: the host mode gives the container full access to local shared memory and is therefore considered insecure.
+
+**--isolation**="*default*"
+   Isolation specifies the type of isolation technology used by containers. 
 
 **--kernel-memory**=""
    Kernel memory limit (format: `<number>[<unit>]`, where unit = b, k, m or g)
@@ -286,6 +290,21 @@ This value should always larger than **-m**, so you should always use this with 
 
 **-w**, **--workdir**=""
    Working directory inside the container
+
+# EXAMPLES
+
+## Specify isolation technology for container (--isolation)
+
+This option is useful in situations where you are running Docker containers on
+Windows. The `--isolation=<value>` option sets a container's isolation
+technology. On Linux, the only supported is the `default` option which uses
+Linux namespaces. On Microsoft Windows, you can specify these values:
+
+* `default`: Use the value specified by the Docker daemon's `--exec-opt` . If the `daemon` does not specify an isolation technology, Microsoft Windows uses `process` as its default value.
+* `process`: Namespace isolation only.
+* `hyperv`: Hyper-V hypervisor partition-based isolation.
+
+Specifying the `--isolation` flag without a value is the same as setting `--isolation="default"`.
 
 # HISTORY
 August 2014, updated by Sven Dowideit <SvenDowideit@home.org.au>

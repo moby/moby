@@ -33,6 +33,7 @@ docker-run - Run a command in a new container
 [**--help**]
 [**-i**|**--interactive**[=*false*]]
 [**--ipc**[=*IPC*]]
+[**--isolation**[=*default*]]
 [**--kernel-memory**[=*KERNEL-MEMORY*]]
 [**-l**|**--label**[=*[]*]]
 [**--label-file**[=*[]*]]
@@ -252,6 +253,9 @@ redirection on the host system.
    Default is to create a private IPC namespace (POSIX SysV IPC) for the container
                                'container:<name|id>': reuses another container shared memory, semaphores and message queues
                                'host': use the host shared memory,semaphores and message queues inside the container.  Note: the host mode gives the container full access to local shared memory and is therefore considered insecure.
+
+**--isolation**="*default*"
+   Isolation specifies the type of isolation technology used by containers.
 
 **-l**, **--label**=[]
    Set metadata on the container (e.g., --label com.example.key=value)
@@ -771,6 +775,38 @@ If you want to set `/dev/sda` device weight to `200`, you can specify the device
 weight by `--blkio-weight-device` flag. Use the following command:
 
    # docker run -it --blkio-weight-device "/dev/sda:200" ubuntu
+
+## Specify isolation technology for container (--isolation)
+
+This option is useful in situations where you are running Docker containers on
+Microsoft Windows. The `--isolation <value>` option sets a container's isolation
+technology. On Linux, the only supported is the `default` option which uses
+Linux namespaces. These two commands are equivalent on Linux:
+
+```
+$ docker run -d busybox top
+$ docker run -d --isolation default busybox top
+```
+
+On Microsoft Windows, can take any of these values:
+
+* `default`: Use the value specified by the Docker daemon's `--exec-opt` . If the `daemon` does not specify an isolation technology, Microsoft Windows uses `process` as its default value.
+* `process`: Namespace isolation only.
+* `hyperv`: Hyper-V hypervisor partition-based isolation.
+
+In practice, when running on Microsoft Windows without a `daemon` option set,  these two commands are equivalent:
+
+```
+$ docker run -d --isolation default busybox top
+$ docker run -d --isolation process busybox top
+```
+
+If you have set the `--exec-opt isolation=hyperv` option on the Docker `daemon`, any of these commands also result in `hyperv` isolation:
+
+```
+$ docker run -d --isolation default busybox top
+$ docker run -d --isolation hyperv busybox top
+```
 
 # HISTORY
 April 2014, Originally compiled by William Henry (whenry at redhat dot com)
