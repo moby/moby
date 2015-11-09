@@ -262,3 +262,12 @@ type User struct {
 	UID int `json:"root_uid"`
 	GID int `json:"root_gid"`
 }
+
+// ExitStatus provides exit reasons for a container.
+type ExitStatus struct {
+	// The exit code with which the container exited.
+	ExitCode int
+
+	// Whether the container encountered an OOM.
+	OOMKilled bool
+}

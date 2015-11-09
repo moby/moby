@@ -46,3 +46,9 @@ type Command struct {
 	LayerPaths  []string `json:"layer_paths"`  // Layer paths for a command
 	Isolated    bool     `json:"isolated"`     // True if a Hyper-V container
 }
+
+// ExitStatus provides exit reasons for a container.
+type ExitStatus struct {
+	// The exit code with which the container exited.
+	ExitCode int
+}

@@ -201,8 +201,7 @@ func (s *State) setStopped(exitStatus *execdriver.ExitStatus) {
 	s.Restarting = false
 	s.Pid = 0
 	s.FinishedAt = time.Now().UTC()
-	s.ExitCode = exitStatus.ExitCode
-	s.OOMKilled = exitStatus.OOMKilled
+	s.setFromExitStatus(exitStatus)
 	close(s.waitChan) // fire waiters for stop
 	s.waitChan = make(chan struct{})
 }
@@ -222,8 +221,7 @@ func (s *State) setRestarting(exitStatus *execdriver.ExitStatus) {
 	s.Restarting = true
 	s.Pid = 0
 	s.FinishedAt = time.Now().UTC()
-	s.ExitCode = exitStatus.ExitCode
-	s.OOMKilled = exitStatus.OOMKilled
+	s.setFromExitStatus(exitStatus)
 	close(s.waitChan) // fire waiters for stop
 	s.waitChan = make(chan struct{})
 }
