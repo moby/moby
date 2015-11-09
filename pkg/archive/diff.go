@@ -25,6 +25,7 @@ func UnpackLayer(dest string, layer Reader, options *TarOptions) (size int64, er
 	defer pools.BufioReader32KPool.Put(trBuf)
 
 	var dirs []*tar.Header
+	unpackedPaths := make(map[string]struct{})
 
 	if options == nil {
 		options = &TarOptions{}
@@ -134,14 +135,27 @@ func UnpackLayer(dest string, layer Reader, options *TarOptions) (size int64, er
 		if strings.HasPrefix(base, WhiteoutPrefix) {
 			dir := filepath.Dir(path)
 			if base == WhiteoutOpaqueDir {
-				fi, err := os.Lstat(dir)
-				if err != nil && !os.IsNotExist(err) {
+				_, err := os.Lstat(dir)
+				if err != nil {
 					return 0, err
 				}
-				if err := os.RemoveAll(dir); err != nil {
-					return 0, err
-				}
-				if err := os.Mkdir(dir, fi.Mode()&os.ModePerm); err != nil {
+				err = filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+					if err != nil {
+						if os.IsNotExist(err) {
+							err = nil // parent was deleted
+						}
+						return err
+					}
+					if path == dir {
+						return nil
+					}
+					if _, exists := unpackedPaths[path]; !exists {
+						err := os.RemoveAll(path)
+						return err
+					}
+					return nil
+				})
+				if err != nil {
 					return 0, err
 				}
 			} else {
@@ -214,6 +228,7 @@ func UnpackLayer(dest string, layer Reader, options *TarOptions) (size int64, er
 			if hdr.Typeflag == tar.TypeDir {
 				dirs = append(dirs, hdr)
 			}
+			unpackedPaths[path] = struct{}{}
 		}
 	}
 
