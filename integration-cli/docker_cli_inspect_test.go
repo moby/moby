@@ -329,3 +329,11 @@ func (s *DockerSuite) TestInspectTempateError(c *check.C) {
 	c.Assert(err, check.Not(check.IsNil))
 	c.Assert(out, checker.Contains, "Template parsing error")
 }
+
+func (s *DockerSuite) TestInspectJSONFields(c *check.C) {
+	dockerCmd(c, "run", "--name=busybox", "-d", "busybox", "top")
+	out, _, err := dockerCmdWithError("inspect", "--type=container", "--format='{{.HostConfig.Dns}}'", "busybox")
+
+	c.Assert(err, check.IsNil)
+	c.Assert(out, checker.Equals, "[]\n")
+}

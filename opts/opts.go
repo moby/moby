@@ -95,6 +95,16 @@ func (opts *ListOpts) GetAll() []string {
 	return (*opts.values)
 }
 
+// GetAllOrEmpty returns the values of the slice
+// or an empty slice when there are no values.
+func (opts *ListOpts) GetAllOrEmpty() []string {
+	v := *opts.values
+	if v == nil {
+		return make([]string, 0)
+	}
+	return v
+}
+
 // Get checks the existence of the specified key.
 func (opts *ListOpts) Get(key string) bool {
 	for _, k := range *opts.values {
