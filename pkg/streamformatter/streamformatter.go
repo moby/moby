@@ -92,13 +92,14 @@ func (sf *StreamFormatter) FormatProgress(id, action string, progress *jsonmessa
 	return []byte(action + " " + progress.String() + endl)
 }
 
-// StdoutFormatter is a streamFormatter that writes to the standard output.
-type StdoutFormatter struct {
+// IOFormattedWriter holds a writer and a formatter to write information
+type IOFormattedWriter struct {
 	io.Writer
 	*StreamFormatter
 }
 
-func (sf *StdoutFormatter) Write(buf []byte) (int, error) {
+// Write writes a byte buffer stream formatted.
+func (sf *IOFormattedWriter) Write(buf []byte) (int, error) {
 	formattedBuf := sf.StreamFormatter.FormatStream(string(buf))
 	n, err := sf.Writer.Write(formattedBuf)
 	if n != len(formattedBuf) {
@@ -107,13 +108,56 @@ func (sf *StdoutFormatter) Write(buf []byte) (int, error) {
 	return len(buf), err
 }
 
-// StderrFormatter is a streamFormatter that writes to the standard error.
-type StderrFormatter struct {
-	io.Writer
-	*StreamFormatter
+// WriteError writes an error formatted.
+func (sf *IOFormattedWriter) WriteError(err error) (int, error) {
+	buf := sf.StreamFormatter.FormatError(err)
+	return sf.Writer.Write(buf)
 }
 
-func (sf *StderrFormatter) Write(buf []byte) (int, error) {
+// WriteStatus writes a status formatted.
+func (sf *IOFormattedWriter) WriteStatus(id, format string, a ...interface{}) (int, error) {
+	buf := sf.StreamFormatter.FormatStatus(id, format, a...)
+	return sf.Writer.Write(buf)
+}
+
+// WriteProgress writes progress status formatted.
+func (sf *IOFormattedWriter) WriteProgress(id, action string, progress *jsonmessage.JSONProgress) (int, error) {
+	fmtMessage := sf.StreamFormatter.FormatProgress(id, action, progress)
+	return sf.Writer.Write(fmtMessage)
+}
+
+// StdoutFormattedWriter is a streamFormatter that writes to the standard output.
+type StdoutFormattedWriter struct {
+	*IOFormattedWriter
+}
+
+// NewStdoutFormattedWriter initializes an StdoutFormattedWriter with a plain stream formatter.
+func NewStdoutFormattedWriter(w io.Writer) *StdoutFormattedWriter {
+	return NewStdoutCustomFormattedWriter(w, NewStreamFormatter())
+}
+
+// NewStdoutJSONFormattedWriter initializes an StdoutFormattedWriter with a JSON stream formatter.
+func NewStdoutJSONFormattedWriter(w io.Writer) *StdoutFormattedWriter {
+	return NewStdoutCustomFormattedWriter(w, NewJSONStreamFormatter())
+}
+
+// NewStdoutCustomFormattedWriter initializes an StdoutFormattedWriter with a writer and a custom formatter.
+func NewStdoutCustomFormattedWriter(w io.Writer, sf *StreamFormatter) *StdoutFormattedWriter {
+	return &StdoutFormattedWriter{&IOFormattedWriter{Writer: w, StreamFormatter: sf}}
+}
+
+// StderrFormattedWriter is a streamFormatter that writes to the standard error.
+type StderrFormattedWriter struct {
+	*IOFormattedWriter
+}
+
+// NewStderrJSONFormattedWriter initializes an StderrFormattedWriter with a JSON stream formatter.
+func NewStderrJSONFormattedWriter(w io.Writer) *StderrFormattedWriter {
+	return &StderrFormattedWriter{&IOFormattedWriter{Writer: w, StreamFormatter: NewJSONStreamFormatter()}}
+}
+
+// Write writes a byte buffer stream formatted.
+func (sf *StderrFormattedWriter) Write(buf []byte) (int, error) {
 	formattedBuf := sf.StreamFormatter.FormatStream("\033[91m" + string(buf) + "\033[0m")
 	n, err := sf.Writer.Write(formattedBuf)
 	if n != len(formattedBuf) {

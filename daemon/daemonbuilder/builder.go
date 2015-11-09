@@ -21,10 +21,13 @@ import (
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/progressreader"
+	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/urlutil"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/runconfig"
 )
+
+const unknownMimeType = ""
 
 // Docker implements builder.Docker for the docker Daemon object.
 type Docker struct {
@@ -64,10 +67,8 @@ func (d Docker) Pull(name string) (*image.Image, error) {
 		pullRegistryAuth = &resolvedConfig
 	}
 
-	imagePullConfig := &graph.ImagePullConfig{
-		AuthConfig: pullRegistryAuth,
-		OutStream:  ioutils.NopWriteCloser(d.OutOld),
-	}
+	outStream := streamformatter.NewStdoutJSONFormattedWriter(ioutils.NopWriteCloser(d.OutOld))
+	imagePullConfig := graph.NewImagePullConfig(make(map[string][]string), pullRegistryAuth, outStream)
 
 	if err := d.Daemon.PullImage(remote, tag, imagePullConfig); err != nil {
 		return nil, err
@@ -228,13 +229,14 @@ func (d Docker) Start(c *daemon.Container) error {
 
 // Following is specific to builder contexts
 
-// DetectContextFromRemoteURL returns a context and in certain cases the name of the dockerfile to be used
+// detectContextFromRemoteURL returns a context and in certain cases the name of the dockerfile to be used
 // irrespective of user input.
 // progressReader is only used if remoteURL is actually a URL (not empty, and not a Git endpoint).
-func DetectContextFromRemoteURL(r io.ReadCloser, remoteURL string, progressReader *progressreader.Config) (context builder.ModifiableContext, dockerfileName string, err error) {
+func detectContextFromRemoteURL(tarSumReader io.ReadCloser, downloadProgressWriter io.Writer, remoteURL string, size int64) (context builder.ModifiableContext, dockerfileName string, err error) {
+	logrus.Debugf("Detecting build context for remote url `%s`", remoteURL)
 	switch {
 	case remoteURL == "":
-		context, err = builder.MakeTarSumContext(r)
+		context, err = builder.MakeTarSumContext(tarSumReader)
 	case urlutil.IsGitURL(remoteURL):
 		context, err = builder.MakeGitContext(remoteURL)
 	case urlutil.IsURL(remoteURL):
@@ -253,9 +255,8 @@ func DetectContextFromRemoteURL(r io.ReadCloser, remoteURL string, progressReade
 				return archive.Generate(dockerfileName, string(dockerfile))
 			},
 			// fallback handler (tar context)
-			"": func(rc io.ReadCloser) (io.ReadCloser, error) {
-				progressReader.In = rc
-				return progressReader, nil
+			unknownMimeType: func(rc io.ReadCloser) (io.ReadCloser, error) {
+				return progressreader.NewReader(downloadProgressWriter, rc, size, true, "Downloading context", remoteURL), nil
 			},
 		})
 	default:

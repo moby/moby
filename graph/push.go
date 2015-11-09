@@ -7,6 +7,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/digest"
 	"github.com/docker/docker/cliconfig"
+	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/registry"
 )
@@ -22,9 +23,19 @@ type ImagePushConfig struct {
 	// Tag is the specific variant of the image to be pushed.
 	// If no tag is provided, all tags will be pushed.
 	Tag string
-	// OutStream is the output writer for showing the status of the push
+	// OutStream is the formatted output writer for showing the status of the push
 	// operation.
-	OutStream io.Writer
+	OutStream *streamformatter.StdoutFormattedWriter
+}
+
+// NewImagePushConfig initializes ImagePushConfig structs with headers, auth configuration, a tag, and a json stream formatter.
+func NewImagePushConfig(headers map[string][]string, authConfig *cliconfig.AuthConfig, tag string, out io.Writer) *ImagePushConfig {
+	return &ImagePushConfig{
+		MetaHeaders: headers,
+		AuthConfig:  authConfig,
+		Tag:         tag,
+		OutStream:   streamformatter.NewStdoutJSONFormattedWriter(out),
+	}
 }
 
 // Pusher is an interface that abstracts pushing for different API versions.
@@ -41,7 +52,7 @@ type Pusher interface {
 // whether a v1 or v2 pusher will be created. The other parameters are passed
 // through to the underlying pusher implementation for use during the actual
 // push operation.
-func (s *TagStore) NewPusher(endpoint registry.APIEndpoint, localRepo Repository, repoInfo *registry.RepositoryInfo, imagePushConfig *ImagePushConfig, sf *streamformatter.StreamFormatter) (Pusher, error) {
+func (s *TagStore) NewPusher(endpoint registry.APIEndpoint, localRepo Repository, repoInfo *registry.RepositoryInfo, imagePushConfig *ImagePushConfig) (Pusher, error) {
 	switch endpoint.Version {
 	case registry.APIVersion2:
 		return &v2Pusher{
@@ -50,17 +61,18 @@ func (s *TagStore) NewPusher(endpoint registry.APIEndpoint, localRepo Repository
 			localRepo:    localRepo,
 			repoInfo:     repoInfo,
 			config:       imagePushConfig,
-			sf:           sf,
 			layersPushed: make(map[digest.Digest]bool),
 		}, nil
 	case registry.APIVersion1:
+		w := imagePushConfig.OutStream.Writer
+		imagePushConfig.OutStream.Writer = ioutils.NewWriteFlusher(w)
+
 		return &v1Pusher{
 			TagStore:  s,
 			endpoint:  endpoint,
 			localRepo: localRepo,
 			repoInfo:  repoInfo,
 			config:    imagePushConfig,
-			sf:        sf,
 		}, nil
 	}
 	return nil, fmt.Errorf("unknown version %d for registry %s", endpoint.Version, endpoint.URL)
@@ -69,9 +81,6 @@ func (s *TagStore) NewPusher(endpoint registry.APIEndpoint, localRepo Repository
 // Push initiates a push operation on the repository named localName.
 func (s *TagStore) Push(localName string, imagePushConfig *ImagePushConfig) error {
 	// FIXME: Allow to interrupt current push when new push of same image is done.
-
-	var sf = streamformatter.NewJSONStreamFormatter()
-
 	// Resolve the Repository name from fqn to RepositoryInfo
 	repoInfo, err := s.registryService.ResolveRepository(localName)
 	if err != nil {
@@ -88,7 +97,7 @@ func (s *TagStore) Push(localName string, imagePushConfig *ImagePushConfig) erro
 		reposLen = len(s.Repositories[repoInfo.LocalName])
 	}
 
-	imagePushConfig.OutStream.Write(sf.FormatStatus("", "The push refers to a repository [%s] (len: %d)", repoInfo.CanonicalName, reposLen))
+	imagePushConfig.OutStream.WriteStatus("", "The push refers to a repository [%s] (len: %d)", repoInfo.CanonicalName, reposLen)
 
 	// If it fails, try to get the repository
 	localRepo, exists := s.Repositories[repoInfo.LocalName]
@@ -100,7 +109,7 @@ func (s *TagStore) Push(localName string, imagePushConfig *ImagePushConfig) erro
 	for _, endpoint := range endpoints {
 		logrus.Debugf("Trying to push %s to %s %s", repoInfo.CanonicalName, endpoint.URL, endpoint.Version)
 
-		pusher, err := s.NewPusher(endpoint, localRepo, repoInfo, imagePushConfig, sf)
+		pusher, err := s.NewPusher(endpoint, localRepo, repoInfo, imagePushConfig)
 		if err != nil {
 			lastErr = err
 			continue

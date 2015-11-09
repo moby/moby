@@ -42,10 +42,18 @@ var BuiltinAllowedBuildArgs = map[string]bool{
 	"no_proxy":    true,
 }
 
+// RepoAndTag is a helper struct for holding the parsed repositories and tags of
+// the input "t" argument.
+type RepoAndTag struct {
+	Repo, Tag string
+}
+
 // Config constitutes the configuration for a Dockerfile builder.
 type Config struct {
 	// only used if Dockerfile has to be extracted from Context
 	DockerfileName string
+	RemoteURL      string
+	ReposAndTags   []RepoAndTag
 
 	Verbose     bool
 	UseCache    bool

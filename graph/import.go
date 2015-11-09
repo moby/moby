@@ -18,11 +18,11 @@ import (
 // the repo and tag arguments, respectively.
 func (s *TagStore) Import(src string, repo string, tag string, msg string, inConfig io.ReadCloser, outStream io.Writer, containerConfig *runconfig.Config) error {
 	var (
-		sf      = streamformatter.NewJSONStreamFormatter()
 		archive io.ReadCloser
 		resp    *http.Response
 	)
 
+	sf := streamformatter.NewStdoutJSONFormattedWriter(outStream)
 	if src == "-" {
 		archive = inConfig
 	} else {
@@ -36,21 +36,14 @@ func (s *TagStore) Import(src string, repo string, tag string, msg string, inCon
 			u.Host = src
 			u.Path = ""
 		}
-		outStream.Write(sf.FormatStatus("", "Downloading from %s", u))
+
+		sf.WriteStatus("", "Downloading from %s", u)
+
 		resp, err = httputils.Download(u.String())
 		if err != nil {
 			return err
 		}
-		progressReader := progressreader.New(progressreader.Config{
-			In:        resp.Body,
-			Out:       outStream,
-			Formatter: sf,
-			Size:      resp.ContentLength,
-			NewLines:  true,
-			ID:        "",
-			Action:    "Importing",
-		})
-		archive = progressReader
+		archive = progressreader.NewReaderWithFormatter(sf, resp.Body, resp.ContentLength, true, "", "Importing")
 	}
 
 	defer archive.Close()

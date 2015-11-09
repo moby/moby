@@ -3,32 +3,25 @@ package local
 import (
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builder/dockerfile"
 	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/daemon/daemonbuilder"
 	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/graph"
 	"github.com/docker/docker/graph/tags"
-	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/parsers"
-	"github.com/docker/docker/pkg/progressreader"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/ulimit"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/runconfig"
-	"github.com/docker/docker/utils"
 	"golang.org/x/net/context"
 )
 
@@ -120,11 +113,8 @@ func (s *router) postImagesCreate(ctx context.Context, w http.ResponseWriter, r 
 			}
 		}
 
-		imagePullConfig := &graph.ImagePullConfig{
-			MetaHeaders: metaHeaders,
-			AuthConfig:  authConfig,
-			OutStream:   output,
-		}
+		outStream := streamformatter.NewStdoutJSONFormattedWriter(output)
+		imagePullConfig := graph.NewImagePullConfig(metaHeaders, authConfig, outStream)
 
 		err = s.daemon.PullImage(image, tag, imagePullConfig)
 	} else { //import
@@ -186,12 +176,7 @@ func (s *router) postImagesPush(ctx context.Context, w http.ResponseWriter, r *h
 	name := vars["name"]
 	output := ioutils.NewWriteFlusher(w)
 	defer output.Close()
-	imagePushConfig := &graph.ImagePushConfig{
-		MetaHeaders: metaHeaders,
-		AuthConfig:  authConfig,
-		Tag:         r.Form.Get("tag"),
-		OutStream:   output,
-	}
+	imagePushConfig := graph.NewImagePushConfig(metaHeaders, authConfig, r.Form.Get("tag"), output)
 
 	w.Header().Set("Content-Type", "application/json")
 
@@ -266,217 +251,6 @@ func (s *router) getImagesByName(ctx context.Context, w http.ResponseWriter, r *
 	return httputils.WriteJSON(w, http.StatusOK, imageInspect)
 }
 
-func (s *router) postBuild(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	var (
-		authConfigs        = map[string]cliconfig.AuthConfig{}
-		authConfigsEncoded = r.Header.Get("X-Registry-Config")
-		buildConfig        = &dockerfile.Config{}
-	)
-
-	if authConfigsEncoded != "" {
-		authConfigsJSON := base64.NewDecoder(base64.URLEncoding, strings.NewReader(authConfigsEncoded))
-		if err := json.NewDecoder(authConfigsJSON).Decode(&authConfigs); err != nil {
-			// for a pull it is not an error if no auth was given
-			// to increase compatibility with the existing api it is defaulting
-			// to be empty.
-		}
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-
-	version := httputils.VersionFromContext(ctx)
-	output := ioutils.NewWriteFlusher(w)
-	defer output.Close()
-	sf := streamformatter.NewJSONStreamFormatter()
-	errf := func(err error) error {
-		// Do not write the error in the http output if it's still empty.
-		// This prevents from writing a 200(OK) when there is an interal error.
-		if !output.Flushed() {
-			return err
-		}
-		_, err = w.Write(sf.FormatError(errors.New(utils.GetErrorMessage(err))))
-		if err != nil {
-			logrus.Warnf("could not write error response: %v", err)
-		}
-		return nil
-	}
-
-	if httputils.BoolValue(r, "forcerm") && version.GreaterThanOrEqualTo("1.12") {
-		buildConfig.Remove = true
-	} else if r.FormValue("rm") == "" && version.GreaterThanOrEqualTo("1.12") {
-		buildConfig.Remove = true
-	} else {
-		buildConfig.Remove = httputils.BoolValue(r, "rm")
-	}
-	if httputils.BoolValue(r, "pull") && version.GreaterThanOrEqualTo("1.16") {
-		buildConfig.Pull = true
-	}
-
-	repoAndTags, err := sanitizeRepoAndTags(r.Form["t"])
-	if err != nil {
-		return errf(err)
-	}
-
-	buildConfig.DockerfileName = r.FormValue("dockerfile")
-	buildConfig.Verbose = !httputils.BoolValue(r, "q")
-	buildConfig.UseCache = !httputils.BoolValue(r, "nocache")
-	buildConfig.ForceRemove = httputils.BoolValue(r, "forcerm")
-	buildConfig.MemorySwap = httputils.Int64ValueOrZero(r, "memswap")
-	buildConfig.Memory = httputils.Int64ValueOrZero(r, "memory")
-	buildConfig.CPUShares = httputils.Int64ValueOrZero(r, "cpushares")
-	buildConfig.CPUPeriod = httputils.Int64ValueOrZero(r, "cpuperiod")
-	buildConfig.CPUQuota = httputils.Int64ValueOrZero(r, "cpuquota")
-	buildConfig.CPUSetCpus = r.FormValue("cpusetcpus")
-	buildConfig.CPUSetMems = r.FormValue("cpusetmems")
-	buildConfig.CgroupParent = r.FormValue("cgroupparent")
-
-	if i := runconfig.IsolationLevel(r.FormValue("isolation")); i != "" {
-		if !runconfig.IsolationLevel.IsValid(i) {
-			return errf(fmt.Errorf("Unsupported isolation: %q", i))
-		}
-		buildConfig.Isolation = i
-	}
-
-	var buildUlimits = []*ulimit.Ulimit{}
-	ulimitsJSON := r.FormValue("ulimits")
-	if ulimitsJSON != "" {
-		if err := json.NewDecoder(strings.NewReader(ulimitsJSON)).Decode(&buildUlimits); err != nil {
-			return errf(err)
-		}
-		buildConfig.Ulimits = buildUlimits
-	}
-
-	var buildArgs = map[string]string{}
-	buildArgsJSON := r.FormValue("buildargs")
-	if buildArgsJSON != "" {
-		if err := json.NewDecoder(strings.NewReader(buildArgsJSON)).Decode(&buildArgs); err != nil {
-			return errf(err)
-		}
-		buildConfig.BuildArgs = buildArgs
-	}
-
-	remoteURL := r.FormValue("remote")
-
-	// Currently, only used if context is from a remote url.
-	// The field `In` is set by DetectContextFromRemoteURL.
-	// Look at code in DetectContextFromRemoteURL for more information.
-	pReader := &progressreader.Config{
-		// TODO: make progressreader streamformatter-agnostic
-		Out:       output,
-		Formatter: sf,
-		Size:      r.ContentLength,
-		NewLines:  true,
-		ID:        "Downloading context",
-		Action:    remoteURL,
-	}
-
-	var (
-		context        builder.ModifiableContext
-		dockerfileName string
-	)
-	context, dockerfileName, err = daemonbuilder.DetectContextFromRemoteURL(r.Body, remoteURL, pReader)
-	if err != nil {
-		return errf(err)
-	}
-	defer func() {
-		if err := context.Close(); err != nil {
-			logrus.Debugf("[BUILDER] failed to remove temporary context: %v", err)
-		}
-	}()
-
-	uidMaps, gidMaps := s.daemon.GetUIDGIDMaps()
-	defaultArchiver := &archive.Archiver{
-		Untar:   chrootarchive.Untar,
-		UIDMaps: uidMaps,
-		GIDMaps: gidMaps,
-	}
-	docker := &daemonbuilder.Docker{
-		Daemon:      s.daemon,
-		OutOld:      output,
-		AuthConfigs: authConfigs,
-		Archiver:    defaultArchiver,
-	}
-
-	b, err := dockerfile.NewBuilder(buildConfig, docker, builder.DockerIgnoreContext{ModifiableContext: context}, nil)
-	if err != nil {
-		return errf(err)
-	}
-	b.Stdout = &streamformatter.StdoutFormatter{Writer: output, StreamFormatter: sf}
-	b.Stderr = &streamformatter.StderrFormatter{Writer: output, StreamFormatter: sf}
-
-	if closeNotifier, ok := w.(http.CloseNotifier); ok {
-		finished := make(chan struct{})
-		defer close(finished)
-		go func() {
-			select {
-			case <-finished:
-			case <-closeNotifier.CloseNotify():
-				logrus.Infof("Client disconnected, cancelling job: build")
-				b.Cancel()
-			}
-		}()
-	}
-
-	if len(dockerfileName) > 0 {
-		b.DockerfileName = dockerfileName
-	}
-
-	imgID, err := b.Build()
-	if err != nil {
-		return errf(err)
-	}
-
-	for _, rt := range repoAndTags {
-		if err := s.daemon.TagImage(rt.repo, rt.tag, string(imgID), true); err != nil {
-			return errf(err)
-		}
-	}
-
-	return nil
-}
-
-// repoAndTag is a helper struct for holding the parsed repositories and tags of
-// the input "t" argument.
-type repoAndTag struct {
-	repo, tag string
-}
-
-// sanitizeRepoAndTags parses the raw "t" parameter received from the client
-// to a slice of repoAndTag.
-// It also validates each repoName and tag.
-func sanitizeRepoAndTags(names []string) ([]repoAndTag, error) {
-	var (
-		repoAndTags []repoAndTag
-		// This map is used for deduplicating the "-t" paramter.
-		uniqNames = make(map[string]struct{})
-	)
-	for _, repo := range names {
-		name, tag := parsers.ParseRepositoryTag(repo)
-		if name == "" {
-			continue
-		}
-
-		if err := registry.ValidateRepositoryName(name); err != nil {
-			return nil, err
-		}
-
-		nameWithTag := name
-		if len(tag) > 0 {
-			if err := tags.ValidateTagName(tag); err != nil {
-				return nil, err
-			}
-			nameWithTag += ":" + tag
-		} else {
-			nameWithTag += ":" + tags.DefaultTag
-		}
-		if _, exists := uniqNames[nameWithTag]; !exists {
-			uniqNames[nameWithTag] = struct{}{}
-			repoAndTags = append(repoAndTags, repoAndTag{repo: name, tag: tag})
-		}
-	}
-	return repoAndTags, nil
-}
-
 func (s *router) getImagesJSON(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
@@ -544,4 +318,128 @@ func (s *router) getImagesSearch(ctx context.Context, w http.ResponseWriter, r *
 		return err
 	}
 	return httputils.WriteJSON(w, http.StatusOK, query.Results)
+}
+
+func (s *router) postBuild(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	var (
+		authConfigs        = map[string]cliconfig.AuthConfig{}
+		authConfigsEncoded = r.Header.Get("X-Registry-Config")
+	)
+
+	if authConfigsEncoded != "" {
+		authConfigsJSON := base64.NewDecoder(base64.URLEncoding, strings.NewReader(authConfigsEncoded))
+		// JSON decode error not captured here.
+		// For a pull it is not an error if no auth was given
+		// to increase compatibility with the existing api it is defaulting
+		// to be empty.
+		json.NewDecoder(authConfigsJSON).Decode(&authConfigs)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	buildConfig, err := parseBuildConfig(ctx, r)
+	if err != nil {
+		return err
+	}
+
+	return daemonbuilder.BuildImage(s.daemon, buildConfig, authConfigs, r.Body, w, r.ContentLength)
+}
+
+func parseBuildConfig(ctx context.Context, r *http.Request) (*dockerfile.Config, error) {
+	buildConfig := &dockerfile.Config{}
+	version := httputils.VersionFromContext(ctx)
+
+	if httputils.BoolValue(r, "forcerm") && version.GreaterThanOrEqualTo("1.12") {
+		buildConfig.Remove = true
+	} else if r.FormValue("rm") == "" && version.GreaterThanOrEqualTo("1.12") {
+		buildConfig.Remove = true
+	} else {
+		buildConfig.Remove = httputils.BoolValue(r, "rm")
+	}
+	if httputils.BoolValue(r, "pull") && version.GreaterThanOrEqualTo("1.16") {
+		buildConfig.Pull = true
+	}
+
+	reposAndTags, err := sanitizeReposAndTags(r.Form["t"])
+	if err != nil {
+		return nil, err
+	}
+
+	buildConfig.ReposAndTags = reposAndTags
+	buildConfig.DockerfileName = r.FormValue("dockerfile")
+	buildConfig.Verbose = !httputils.BoolValue(r, "q")
+	buildConfig.UseCache = !httputils.BoolValue(r, "nocache")
+	buildConfig.ForceRemove = httputils.BoolValue(r, "forcerm")
+	buildConfig.MemorySwap = httputils.Int64ValueOrZero(r, "memswap")
+	buildConfig.Memory = httputils.Int64ValueOrZero(r, "memory")
+	buildConfig.CPUShares = httputils.Int64ValueOrZero(r, "cpushares")
+	buildConfig.CPUPeriod = httputils.Int64ValueOrZero(r, "cpuperiod")
+	buildConfig.CPUQuota = httputils.Int64ValueOrZero(r, "cpuquota")
+	buildConfig.CPUSetCpus = r.FormValue("cpusetcpus")
+	buildConfig.CPUSetMems = r.FormValue("cpusetmems")
+	buildConfig.CgroupParent = r.FormValue("cgroupparent")
+
+	if i := runconfig.IsolationLevel(r.FormValue("isolation")); i != "" {
+		if !runconfig.IsolationLevel.IsValid(i) {
+			return nil, fmt.Errorf("Unsupported isolation: %q", i)
+		}
+		buildConfig.Isolation = i
+	}
+
+	var buildUlimits = []*ulimit.Ulimit{}
+	ulimitsJSON := r.FormValue("ulimits")
+	if ulimitsJSON != "" {
+		if err := json.NewDecoder(strings.NewReader(ulimitsJSON)).Decode(&buildUlimits); err != nil {
+			return nil, err
+		}
+		buildConfig.Ulimits = buildUlimits
+	}
+
+	var buildArgs = map[string]string{}
+	buildArgsJSON := r.FormValue("buildargs")
+	if buildArgsJSON != "" {
+		if err := json.NewDecoder(strings.NewReader(buildArgsJSON)).Decode(&buildArgs); err != nil {
+			return nil, err
+		}
+		buildConfig.BuildArgs = buildArgs
+	}
+
+	buildConfig.RemoteURL = r.FormValue("remote")
+	return buildConfig, nil
+}
+
+// sanitizeReposAndTags parses the raw "t" parameter received from the client
+// to a slice of repoAndTag.
+// It also validates each repoName and tag.
+func sanitizeReposAndTags(names []string) ([]dockerfile.RepoAndTag, error) {
+	var (
+		reposAndTags []dockerfile.RepoAndTag
+		// This map is used for deduplicating the "-t" paramter.
+		uniqNames = make(map[string]bool)
+	)
+
+	for _, repo := range names {
+		name, tag := parsers.ParseRepositoryTag(repo)
+		if name == "" {
+			continue
+		}
+
+		if err := registry.ValidateRepositoryName(name); err != nil {
+			return nil, err
+		}
+
+		nameWithTag := name
+		if len(tag) > 0 {
+			if err := tags.ValidateTagName(tag); err != nil {
+				return nil, err
+			}
+			nameWithTag += ":" + tag
+		} else {
+			nameWithTag += ":" + tags.DefaultTag
+		}
+		if !uniqNames[nameWithTag] {
+			uniqNames[nameWithTag] = true
+			reposAndTags = append(reposAndTags, dockerfile.RepoAndTag{name, tag})
+		}
+	}
+	return reposAndTags, nil
 }
