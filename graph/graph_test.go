@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/autogen/dockerversion"
 	"github.com/docker/docker/daemon/graphdriver"
+	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/stringid"
 )
@@ -106,8 +106,8 @@ func TestGraphCreate(t *testing.T) {
 	if img.Comment != "Testing" {
 		t.Fatalf("Wrong comment: should be '%s', not '%s'", "Testing", img.Comment)
 	}
-	if img.DockerVersion != dockerversion.VERSION {
-		t.Fatalf("Wrong docker_version: should be '%s', not '%s'", dockerversion.VERSION, img.DockerVersion)
+	if img.DockerVersion != dockerversion.Version {
+		t.Fatalf("Wrong docker_version: should be '%s', not '%s'", dockerversion.Version, img.DockerVersion)
 	}
 	images := graph.Map()
 	if l := len(images); l != 1 {
