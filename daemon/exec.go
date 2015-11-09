@@ -358,12 +358,8 @@ func (d *Daemon) containerExec(container *Container, ec *ExecConfig) error {
 }
 
 func (d *Daemon) monitorExec(container *Container, ExecConfig *ExecConfig, callback execdriver.DriverCallback) error {
-	var (
-		err      error
-		exitCode int
-	)
 	pipes := execdriver.NewPipes(ExecConfig.streamConfig.stdin, ExecConfig.streamConfig.stdout, ExecConfig.streamConfig.stderr, ExecConfig.OpenStdin)
-	exitCode, err = d.Exec(container, ExecConfig, pipes, callback)
+	exitCode, err := d.Exec(container, ExecConfig, pipes, callback)
 	if err != nil {
 		logrus.Errorf("Error running command in existing container %s: %s", container.ID, err)
 	}
