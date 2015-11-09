@@ -135,9 +135,10 @@ func (daemon *Daemon) registerMountPoints(container *Container, hostConfig *runc
 			bind.Driver = v.DriverName()
 			bind = setBindModeIfNull(bind)
 		}
-		shared := label.IsShared(bind.Mode)
-		if err := label.Relabel(bind.Source, container.MountLabel, shared); err != nil {
-			return err
+		if label.RelabelNeeded(bind.Mode) {
+			if err := label.Relabel(bind.Source, container.MountLabel, label.IsShared(bind.Mode)); err != nil {
+				return err
+			}
 		}
 		binds[bind.Destination] = true
 		mountPoints[bind.Destination] = bind
