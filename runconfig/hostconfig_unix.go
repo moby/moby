@@ -113,46 +113,69 @@ func ValidateNetMode(c *Config, hc *HostConfig) error {
 	if hc == nil {
 		return nil
 	}
-	parts := strings.Split(string(hc.NetworkMode), ":")
+
+	if len(hc.NetworkModes) > 1 {
+		for _, net := range hc.NetworkModes {
+			if net.IsHost() || net.IsContainer() || net.IsNone() {
+				return fmt.Errorf("multiple network mode can not contain shared network mode (host/container) or none network mode")
+			}
+		}
+		var hasBridge bool
+		if len(hc.Links) > 0 {
+			for _, net := range hc.NetworkModes {
+				if net.IsBridge() {
+					hasBridge = true
+					break
+				}
+			}
+			if !hasBridge {
+				return fmt.Errorf("can not use --link without bridge network")
+			}
+		}
+		return nil
+	}
+	net := hc.NetworkModes[0]
+
+	parts := strings.Split(string(net), ":")
 	if parts[0] == "container" {
 		if len(parts) < 2 || parts[1] == "" {
 			return fmt.Errorf("--net: invalid net mode: invalid container format container:<name|id>")
 		}
 	}
 
-	if (hc.NetworkMode.IsHost() || hc.NetworkMode.IsContainer()) && c.Hostname != "" {
+	if (net.IsHost() || net.IsContainer()) && c.Hostname != "" {
 		return ErrConflictNetworkHostname
 	}
 
-	if hc.NetworkMode.IsHost() && len(hc.Links) > 0 {
+	if net.IsHost() && len(hc.Links) > 0 {
 		return ErrConflictHostNetworkAndLinks
 	}
 
-	if hc.NetworkMode.IsContainer() && len(hc.Links) > 0 {
+	if net.IsContainer() && len(hc.Links) > 0 {
 		return ErrConflictContainerNetworkAndLinks
 	}
 
-	if hc.NetworkMode.IsUserDefined() && len(hc.Links) > 0 {
+	if net.IsUserDefined() && len(hc.Links) > 0 {
 		return ErrConflictUserDefinedNetworkAndLinks
 	}
 
-	if (hc.NetworkMode.IsHost() || hc.NetworkMode.IsContainer()) && len(hc.DNS) > 0 {
+	if (net.IsHost() || net.IsContainer()) && len(hc.DNS) > 0 {
 		return ErrConflictNetworkAndDNS
 	}
 
-	if (hc.NetworkMode.IsContainer() || hc.NetworkMode.IsHost()) && len(hc.ExtraHosts) > 0 {
+	if (net.IsContainer() || net.IsHost()) && len(hc.ExtraHosts) > 0 {
 		return ErrConflictNetworkHosts
 	}
 
-	if (hc.NetworkMode.IsContainer() || hc.NetworkMode.IsHost()) && c.MacAddress != "" {
+	if (net.IsContainer() || net.IsHost()) && c.MacAddress != "" {
 		return ErrConflictContainerNetworkAndMac
 	}
 
-	if hc.NetworkMode.IsContainer() && (len(hc.PortBindings) > 0 || hc.PublishAllPorts == true) {
+	if net.IsContainer() && (len(hc.PortBindings) > 0 || hc.PublishAllPorts == true) {
 		return ErrConflictNetworkPublishPorts
 	}
 
-	if hc.NetworkMode.IsContainer() && len(c.ExposedPorts) > 0 {
+	if net.IsContainer() && len(c.ExposedPorts) > 0 {
 		return ErrConflictNetworkExposePorts
 	}
 	return nil

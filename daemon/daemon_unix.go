@@ -567,14 +567,14 @@ func (daemon *Daemon) registerLinks(container *Container, hostConfig *runconfig.
 			//An error from daemon.Get() means this name could not be found
 			return fmt.Errorf("Could not get container for %s", name)
 		}
-		for child.hostConfig.NetworkMode.IsContainer() {
-			parts := strings.SplitN(string(child.hostConfig.NetworkMode), ":", 2)
+		for child.hostConfig.NetworkModes[0].IsContainer() {
+			parts := strings.SplitN(string(child.hostConfig.NetworkModes[0]), ":", 2)
 			child, err = daemon.Get(parts[1])
 			if err != nil {
 				return fmt.Errorf("Could not get container for %s", parts[1])
 			}
 		}
-		if child.hostConfig.NetworkMode.IsHost() {
+		if child.hostConfig.NetworkModes[0].IsHost() {
 			return runconfig.ErrConflictHostNetworkAndLinks
 		}
 		if err := daemon.registerLink(container, child, alias); err != nil {

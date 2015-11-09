@@ -69,6 +69,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		flSecurityOpt       = opts.NewListOpts(nil)
 		flLabelsFile        = opts.NewListOpts(nil)
 		flLoggingOpts       = opts.NewListOpts(nil)
+		flNetModes          = opts.NewListOpts(nil)
 		flNetwork           = cmd.Bool([]string{"#n", "#-networking"}, true, "Enable networking for this container")
 		flPrivileged        = cmd.Bool([]string{"#privileged", "-privileged"}, false, "Give extended privileges to this container")
 		flPidMode           = cmd.String([]string{"-pid"}, "", "PID namespace to use")
@@ -93,7 +94,6 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		flCpusetMems        = cmd.String([]string{"-cpuset-mems"}, "", "MEMs in which to allow execution (0-3, 0,1)")
 		flBlkioWeight       = cmd.Uint16([]string{"-blkio-weight"}, 0, "Block IO (relative weight), between 10 and 1000")
 		flSwappiness        = cmd.Int64([]string{"-memory-swappiness"}, -1, "Tuning container memory swappiness (0 to 100)")
-		flNetMode           = cmd.String([]string{"-net"}, "default", "Set the Network for the container")
 		flMacAddress        = cmd.String([]string{"-mac-address"}, "", "Container MAC address (e.g. 92:d0:c6:0a:29:33)")
 		flIpcMode           = cmd.String([]string{"-ipc"}, "", "IPC namespace to use")
 		flRestartPolicy     = cmd.String([]string{"-restart"}, "no", "Restart policy to apply when a container exits")
@@ -126,6 +126,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 	cmd.Var(&flSecurityOpt, []string{"-security-opt"}, "Security Options")
 	cmd.Var(flUlimits, []string{"-ulimit"}, "Ulimit options")
 	cmd.Var(&flLoggingOpts, []string{"-log-opt"}, "Log driver options")
+	cmd.Var(&flNetModes, []string{"-net"}, "Set the Network for the container")
 
 	cmd.Require(flag.Min, 1)
 
@@ -306,7 +307,6 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 	if err != nil {
 		return nil, nil, cmd, err
 	}
-
 	config := &Config{
 		Hostname:        hostname,
 		Domainname:      domainname,
@@ -353,7 +353,8 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		DNSOptions:        flDNSOptions.GetAll(),
 		ExtraHosts:        flExtraHosts.GetAll(),
 		VolumesFrom:       flVolumesFrom.GetAll(),
-		NetworkMode:       NetworkMode(*flNetMode),
+		NetworkModes:      getNetMode(flNetModes),
+		NetworkMode:       getNetMode(flNetModes)[0],
 		IpcMode:           ipcMode,
 		PidMode:           pidMode,
 		UTSMode:           utsMode,
@@ -502,4 +503,16 @@ func ParseDevice(device string) (DeviceMapping, error) {
 		CgroupPermissions: permissions,
 	}
 	return deviceMapping, nil
+}
+
+func getNetMode(opts opts.ListOpts) []NetworkMode {
+	var nets []NetworkMode
+	if len(opts.GetAll()) == 0 {
+		nets = []NetworkMode{"default"}
+		return nets
+	}
+	for _, net := range opts.GetAll() {
+		nets = append(nets, NetworkMode(net))
+	}
+	return nets
 }
