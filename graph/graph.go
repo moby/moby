@@ -17,8 +17,8 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/digest"
-	"github.com/docker/docker/autogen/dockerversion"
 	"github.com/docker/docker/daemon/graphdriver"
+	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/idtools"
@@ -252,7 +252,7 @@ func (graph *Graph) Create(layerData io.Reader, containerID, containerImage, com
 		ID:            stringid.GenerateRandomID(),
 		Comment:       comment,
 		Created:       time.Now().UTC(),
-		DockerVersion: dockerversion.VERSION,
+		DockerVersion: dockerversion.Version,
 		Author:        author,
 		Config:        config,
 		Architecture:  runtime.GOARCH,

@@ -8,8 +8,8 @@ import (
 	"sync"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/autogen/dockerversion"
 	"github.com/docker/docker/daemon/execdriver"
+	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/pkg/parsers"
 )
 
@@ -24,7 +24,7 @@ var forceKill bool
 // Define name and version for windows
 var (
 	DriverName = "Windows 1854"
-	Version    = dockerversion.VERSION + " " + dockerversion.GITCOMMIT
+	Version    = dockerversion.Version + " " + dockerversion.GitCommit
 )
 
 type activeContainer struct {

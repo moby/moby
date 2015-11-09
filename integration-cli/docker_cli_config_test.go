@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"github.com/docker/docker/autogen/dockerversion"
+	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/pkg/homedir"
 	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/go-check/check"
@@ -54,7 +54,7 @@ func (s *DockerSuite) TestConfigHttpHeader(c *check.C) {
 
 	c.Assert(headers["User-Agent"], checker.NotNil, check.Commentf("Missing User-Agent"))
 
-	c.Assert(headers["User-Agent"][0], checker.Equals, "Docker-Client/"+dockerversion.VERSION+" ("+runtime.GOOS+")", check.Commentf("Badly formatted User-Agent,out:%v", out))
+	c.Assert(headers["User-Agent"][0], checker.Equals, "Docker-Client/"+dockerversion.Version+" ("+runtime.GOOS+")", check.Commentf("Badly formatted User-Agent,out:%v", out))
 
 	c.Assert(headers["Myheader"], checker.NotNil)
 	c.Assert(headers["Myheader"][0], checker.Equals, "MyValue", check.Commentf("Missing/bad header,out:%v", out))
