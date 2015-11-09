@@ -922,25 +922,25 @@ var (
 		HTTPStatusCode: http.StatusInternalServerError,
 	})
 
-	// ErrorCodeCmdNotFound is generated when contained cmd can't start,
-	// contained command not found error, exit code 127
+	// ErrorCodeCmdNotFound is generated when container cmd can't start,
+	// container command not found error, exit code 127
 	ErrorCodeCmdNotFound = errcode.Register(errGroup, errcode.ErrorDescriptor{
 		Value:          "CMDNOTFOUND",
-		Message:        "Contained command not found or does not exist.",
+		Message:        "Container command not found or does not exist.",
 		Description:    "Command could not be found, command does not exist",
 		HTTPStatusCode: http.StatusInternalServerError,
 	})
 
-	// ErrorCodeCmdCouldNotBeInvoked is generated when contained cmd can't start,
-	// contained command permission denied error, exit code 126
+	// ErrorCodeCmdCouldNotBeInvoked is generated when container cmd can't start,
+	// container command permission denied error, exit code 126
 	ErrorCodeCmdCouldNotBeInvoked = errcode.Register(errGroup, errcode.ErrorDescriptor{
 		Value:          "CMDCOULDNOTBEINVOKED",
-		Message:        "Contained command could not be invoked.",
+		Message:        "Container command could not be invoked.",
 		Description:    "Permission denied, cannot invoke command",
 		HTTPStatusCode: http.StatusInternalServerError,
 	})
 
-	// ErrorCodeCantStart is generated when contained cmd can't start,
+	// ErrorCodeCantStart is generated when container cmd can't start,
 	// for any reason other than above 2 errors
 	ErrorCodeCantStart = errcode.Register(errGroup, errcode.ErrorDescriptor{
 		Value:          "CANTSTART",
