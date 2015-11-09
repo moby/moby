@@ -212,7 +212,6 @@ test_env() {
 	# use "env -i" to tightly control the environment variables that bleed into the tests
 	env -i \
 		DEST="$DEST" \
-		DOCKER_EXECDRIVER="$DOCKER_EXECDRIVER" \
 		DOCKER_GRAPHDRIVER="$DOCKER_GRAPHDRIVER" \
 		DOCKER_USERLANDPROXY="$DOCKER_USERLANDPROXY" \
 		DOCKER_HOST="$DOCKER_HOST" \
