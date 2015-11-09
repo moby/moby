@@ -48,7 +48,9 @@ clone git github.com/endophage/gotuf 2df1c8e0a7b7e10ae2113bf37aaa1bf1c1de8cc5
 clone git github.com/jfrazelle/go v1.5.1-1
 clone git github.com/agl/ed25519 d2b94fd789ea21d12fac1a4443dd3a3f79cda72c
 
-clone git github.com/opencontainers/runc 6c198ae2d065c37f44316e0de3df7f3b88950923 # libcontainer
+# this runc commit from branch relabel_fix_docker_1.9.1, pls remove it when you
+# update next time
+clone git github.com/opencontainers/runc 1349b37bd56f4f5ce2690b5b2c0f53f88a261c67 # libcontainer
 # libcontainer deps (see src/github.com/opencontainers/runc/Godeps/Godeps.json)
 clone git github.com/coreos/go-systemd v3
 clone git github.com/godbus/dbus v2
