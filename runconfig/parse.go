@@ -22,6 +22,8 @@ var (
 	ErrConflictUserDefinedNetworkAndLinks = fmt.Errorf("Conflicting options: --net=<NETWORK> can't be used with links. This would result in undefined behavior")
 	// ErrConflictSharedNetwork conflict between private and other networks
 	ErrConflictSharedNetwork = fmt.Errorf("Container sharing network namespace with another container or host cannot be connected to any other network")
+	// ErrConflictHostNetwork conflict from being disconnected from host network or connected to host network.
+	ErrConflictHostNetwork = fmt.Errorf("Container cannot be disconnected from host network or connected to host network")
 	// ErrConflictNoNetwork conflict between private and other networks
 	ErrConflictNoNetwork = fmt.Errorf("Container cannot be connected to multiple networks with one of the networks in --none mode")
 	// ErrConflictNetworkAndDNS conflict between --dns and the network mode

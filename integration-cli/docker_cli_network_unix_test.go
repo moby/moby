@@ -15,6 +15,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/versions/v1p20"
 	"github.com/docker/docker/pkg/integration/checker"
+	"github.com/docker/docker/runconfig"
 	"github.com/docker/libnetwork/driverapi"
 	remoteapi "github.com/docker/libnetwork/drivers/remote/api"
 	"github.com/docker/libnetwork/ipamapi"
@@ -763,4 +764,21 @@ func (s *DockerNetworkSuite) TestDockerNetworkHostModeUngracefulDaemonRestart(c 
 		c.Assert(err, checker.IsNil)
 		c.Assert(strings.TrimSpace(runningOut), checker.Equals, "true")
 	}
+}
+
+func (s *DockerNetworkSuite) TestDockerNetworkConnectToHostFromOtherNetwork(c *check.C) {
+	dockerCmd(c, "run", "-d", "--name", "container1", "busybox", "top")
+	c.Assert(waitRun("container1"), check.IsNil)
+	dockerCmd(c, "network", "disconnect", "bridge", "container1")
+	out, _, err := dockerCmdWithError("network", "connect", "host", "container1")
+	c.Assert(err, checker.NotNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, runconfig.ErrConflictHostNetwork.Error())
+}
+
+func (s *DockerNetworkSuite) TestDockerNetworkDisconnectFromHost(c *check.C) {
+	dockerCmd(c, "run", "-d", "--name", "container1", "--net=host", "busybox", "top")
+	c.Assert(waitRun("container1"), check.IsNil)
+	out, _, err := dockerCmdWithError("network", "disconnect", "host", "container1")
+	c.Assert(err, checker.NotNil, check.Commentf("Should err out disconnect from host"))
+	c.Assert(out, checker.Contains, runconfig.ErrConflictHostNetwork.Error())
 }
