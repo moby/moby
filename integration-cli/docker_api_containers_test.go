@@ -781,7 +781,7 @@ func UtilCreateNetworkMode(c *check.C, networkMode string) {
 		c.Fatal(err)
 	}
 
-	if containerJSON.HostConfig.NetworkMode != runconfig.NetworkMode(networkMode) {
+	if containerJSON.HostConfig.NetworkModes[0] != runconfig.NetworkMode(networkMode) {
 		c.Fatalf("Mismatched NetworkMode, Expected %s, Actual: %s ", networkMode, containerJSON.HostConfig.NetworkMode)
 	}
 }

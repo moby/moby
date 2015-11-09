@@ -138,7 +138,8 @@ type Container struct {
 	Labels     map[string]string
 	Status     string
 	HostConfig struct {
-		NetworkMode string `json:",omitempty"`
+		NetworkMode  string `json:",omitempty"`
+		NetworkModes string `json:",omitempty"`
 	}
 }
 

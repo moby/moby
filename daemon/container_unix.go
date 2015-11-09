@@ -186,12 +186,12 @@ func (daemon *Daemon) populateCommand(c *Container, env []string) error {
 	var en *execdriver.Network
 	if !c.Config.NetworkDisabled {
 		en = &execdriver.Network{}
-		if !daemon.execDriver.SupportsHooks() || c.hostConfig.NetworkMode.IsHost() {
+		if !daemon.execDriver.SupportsHooks() || c.hostConfig.NetworkModes[0].IsHost() {
 			en.NamespacePath = c.NetworkSettings.SandboxKey
 		}
 
-		if c.hostConfig.NetworkMode.IsContainer() {
-			nc, err := daemon.getNetworkedContainer(c.ID, c.hostConfig.NetworkMode.ConnectedContainer())
+		if c.hostConfig.NetworkModes[0].IsContainer() {
+			nc, err := daemon.getNetworkedContainer(c.ID, c.hostConfig.NetworkModes[0].ConnectedContainer())
 			if err != nil {
 				return err
 			}
@@ -443,7 +443,7 @@ func (daemon *Daemon) buildSandboxOptions(container *Container, n libnetwork.Net
 	sboxOptions = append(sboxOptions, libnetwork.OptionHostname(container.Config.Hostname),
 		libnetwork.OptionDomainname(container.Config.Domainname))
 
-	if container.hostConfig.NetworkMode.IsHost() {
+	if container.hostConfig.NetworkModes[0].IsHost() {
 		sboxOptions = append(sboxOptions, libnetwork.OptionUseDefaultSandbox())
 		sboxOptions = append(sboxOptions, libnetwork.OptionOriginHostsPath("/etc/hosts"))
 		sboxOptions = append(sboxOptions, libnetwork.OptionOriginResolvConfPath("/etc/resolv.conf"))
@@ -560,7 +560,7 @@ func (daemon *Daemon) buildSandboxOptions(container *Container, n libnetwork.Net
 			logrus.Error(err)
 		}
 
-		if c != nil && !daemon.configStore.DisableBridge && container.hostConfig.NetworkMode.IsPrivate() {
+		if c != nil && !daemon.configStore.DisableBridge && container.hostConfig.NetworkModes[0].IsPrivate() {
 			logrus.Debugf("Update /etc/hosts of %s for alias %s with ip %s", c.ID, ref.Name, bridgeSettings.IPAddress)
 			sboxOptions = append(sboxOptions, libnetwork.OptionParentUpdate(c.ID, ref.Name, bridgeSettings.IPAddress))
 			if ep.ID() != "" {
@@ -743,8 +743,10 @@ func (daemon *Daemon) updateEndpointNetworkSettings(container *Container, n libn
 		return err
 	}
 
-	if container.hostConfig.NetworkMode == runconfig.NetworkMode("bridge") {
-		networkSettings.Bridge = daemon.configStore.Bridge.Iface
+	for _, mode := range container.hostConfig.NetworkModes {
+		if mode == runconfig.NetworkMode("bridge") {
+			networkSettings.Bridge = daemon.configStore.Bridge.Iface
+		}
 	}
 
 	return nil
@@ -892,24 +894,25 @@ func (daemon *Daemon) allocateNetwork(container *Container) error {
 
 	updateSettings := false
 	if len(container.NetworkSettings.Networks) == 0 {
-		mode := container.hostConfig.NetworkMode
-		if container.Config.NetworkDisabled || mode.IsContainer() {
-			return nil
-		}
-
-		networkName := mode.NetworkName()
-		if mode.IsDefault() {
-			networkName = controller.Config().Daemon.DefaultNetwork
-		}
-		if mode.IsUserDefined() {
-			n, err := daemon.FindNetwork(networkName)
-			if err != nil {
-				return err
-			}
-			networkName = n.Name()
-		}
 		container.NetworkSettings.Networks = make(map[string]*network.EndpointSettings)
-		container.NetworkSettings.Networks[networkName] = new(network.EndpointSettings)
+		for _, mode := range container.hostConfig.NetworkModes {
+			if container.Config.NetworkDisabled || mode.IsContainer() {
+				return nil
+			}
+
+			networkName := mode.NetworkName()
+			if mode.IsDefault() {
+				networkName = controller.Config().Daemon.DefaultNetwork
+			}
+			if mode.IsUserDefined() {
+				n, err := daemon.FindNetwork(networkName)
+				if err != nil {
+					return err
+				}
+				networkName = n.Name()
+			}
+			container.NetworkSettings.Networks[networkName] = new(network.EndpointSettings)
+		}
 		updateSettings = true
 	}
 
@@ -949,7 +952,7 @@ func (daemon *Daemon) ConnectToNetwork(container *Container, idOrName string) er
 }
 
 func (daemon *Daemon) connectToNetwork(container *Container, idOrName string, updateSettings bool) (err error) {
-	if container.hostConfig.NetworkMode.IsContainer() {
+	if container.hostConfig.NetworkModes[0].IsContainer() {
 		return runconfig.ErrConflictSharedNetwork
 	}
 
@@ -1030,10 +1033,9 @@ func (daemon *Daemon) connectToNetwork(container *Container, idOrName string, up
 
 func (daemon *Daemon) initializeNetworking(container *Container) error {
 	var err error
-
-	if container.hostConfig.NetworkMode.IsContainer() {
+	if container.hostConfig.NetworkModes[0].IsContainer() {
 		// we need to get the hosts files from the container to join
-		nc, err := daemon.getNetworkedContainer(container.ID, container.hostConfig.NetworkMode.ConnectedContainer())
+		nc, err := daemon.getNetworkedContainer(container.ID, container.hostConfig.NetworkModes[0].ConnectedContainer())
 		if err != nil {
 			return err
 		}
@@ -1045,7 +1047,7 @@ func (daemon *Daemon) initializeNetworking(container *Container) error {
 		return nil
 	}
 
-	if container.hostConfig.NetworkMode.IsHost() {
+	if container.hostConfig.NetworkModes[0].IsHost() {
 		container.Config.Hostname, err = os.Hostname()
 		if err != nil {
 			return err
@@ -1134,7 +1136,7 @@ func (daemon *Daemon) getNetworkedContainer(containerID, connectedContainerID st
 }
 
 func (daemon *Daemon) releaseNetwork(container *Container) {
-	if container.hostConfig.NetworkMode.IsContainer() || container.Config.NetworkDisabled {
+	if container.hostConfig.NetworkModes[0].IsContainer() || container.Config.NetworkDisabled {
 		return
 	}
 
@@ -1229,7 +1231,7 @@ func appendNetworkMounts(container *Container, volumeMounts []volume.MountPoint)
 
 func (container *Container) networkMounts() []execdriver.Mount {
 	var mounts []execdriver.Mount
-	shared := container.hostConfig.NetworkMode.IsContainer()
+	shared := container.hostConfig.NetworkModes[0].IsContainer()
 	if container.ResolvConfPath != "" {
 		if _, err := os.Stat(container.ResolvConfPath); err != nil {
 			logrus.Warnf("ResolvConfPath set to %q, but can't stat this filename (err = %v); skipping", container.ResolvConfPath, err)

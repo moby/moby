@@ -192,7 +192,8 @@ type HostConfig struct {
 	ExtraHosts        []string              // List of extra hosts
 	VolumesFrom       []string              // List of volumes to take from other container
 	Devices           []DeviceMapping       // List of devices to map inside the container
-	NetworkMode       NetworkMode           // Network namespace to use for the container
+	NetworkMode       NetworkMode           // Network namespace to use for the container, deprecated by Networks
+	NetworkModes      []NetworkMode         // Networks used for container
 	IpcMode           IpcMode               // IPC namespace to use for the container	// Unix specific
 	PidMode           PidMode               // PID namespace to use for the container	// Unix specific
 	UTSMode           UTSMode               // UTS namespace to use for the container	// Unix specific
@@ -230,8 +231,12 @@ func DecodeHostConfig(src io.Reader) (*HostConfig, error) {
 // docker daemon.
 func SetDefaultNetModeIfBlank(hc *HostConfig) *HostConfig {
 	if hc != nil {
-		if hc.NetworkMode == NetworkMode("") {
+		if len(hc.NetworkModes) == 0 && hc.NetworkMode == NetworkMode("") {
+			hc.NetworkModes = []NetworkMode{"default"}
 			hc.NetworkMode = NetworkMode("default")
+		}
+		if len(hc.NetworkModes) == 0 && hc.NetworkMode != NetworkMode("") {
+			hc.NetworkModes = append(hc.NetworkModes, hc.NetworkMode)
 		}
 	}
 	return hc

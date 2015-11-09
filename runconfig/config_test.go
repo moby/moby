@@ -109,8 +109,8 @@ func callDecodeContainerConfigIsolation(isolation string) (*Config, *HostConfig,
 	w := ContainerConfigWrapper{
 		Config: &Config{},
 		HostConfig: &HostConfig{
-			NetworkMode: "none",
-			Isolation:   IsolationLevel(isolation)},
+			NetworkModes: []NetworkMode{"none"},
+			Isolation:    IsolationLevel(isolation)},
 	}
 	if b, err = json.Marshal(w); err != nil {
 		return nil, nil, fmt.Errorf("Error on marshal %s", err.Error())

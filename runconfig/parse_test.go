@@ -292,8 +292,8 @@ func callDecodeContainerConfig(volumes []string, binds []string) (*Config, *Host
 			Volumes: map[string]struct{}{},
 		},
 		HostConfig: &HostConfig{
-			NetworkMode: "none",
-			Binds:       binds,
+			NetworkModes: []NetworkMode{"none"},
+			Binds:        binds,
 		},
 	}
 	for _, v := range volumes {

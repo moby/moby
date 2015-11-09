@@ -345,6 +345,7 @@ func (daemon *Daemon) transformContainer(container *Container, ctx *listContext)
 	newC.Created = container.Created.Unix()
 	newC.Status = container.State.String()
 	newC.HostConfig.NetworkMode = string(container.hostConfig.NetworkMode)
+	newC.HostConfig.NetworkModes = fmt.Sprintf("%s", container.hostConfig.NetworkModes)
 
 	newC.Ports = []types.Port{}
 	for port, bindings := range container.NetworkSettings.Ports {
