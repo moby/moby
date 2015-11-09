@@ -723,6 +723,10 @@ func (container *Container) updateNetworkSettings(n libnetwork.Network) error {
 		container.NetworkSettings = &network.Settings{Networks: make(map[string]*network.EndpointSettings)}
 	}
 
+	if !container.hostConfig.NetworkMode.IsHost() && runconfig.NetworkMode(n.Type()).IsHost() {
+		return runconfig.ErrConflictHostNetwork
+	}
+
 	for s := range container.NetworkSettings.Networks {
 		sn, err := container.daemon.FindNetwork(s)
 		if err != nil {
@@ -1199,6 +1203,10 @@ func (container *Container) releaseNetwork() {
 func (container *Container) DisconnectFromNetwork(n libnetwork.Network) error {
 	if !container.Running {
 		return derr.ErrorCodeNotRunning.WithArgs(container.ID)
+	}
+
+	if container.hostConfig.NetworkMode.IsHost() && runconfig.NetworkMode(n.Type()).IsHost() {
+		return runconfig.ErrConflictHostNetwork
 	}
 
 	if err := container.disconnectFromNetwork(n); err != nil {
