@@ -764,3 +764,10 @@ func (s *DockerNetworkSuite) TestDockerNetworkHostModeUngracefulDaemonRestart(c 
 		c.Assert(strings.TrimSpace(runningOut), checker.Equals, "true")
 	}
 }
+
+func (s *DockerNetworkSuite) TestDockerNetworkConnectWitpPortMapping(c *check.C) {
+	dockerCmd(c, "network", "create", "test1")
+	dockerCmd(c, "run", "-d", "--name", "c1", "-p", "5000:5000", "busybox", "top")
+	c.Assert(waitRun("c1"), check.IsNil)
+	dockerCmd(c, "network", "connect", "test1", "c1")
+}

@@ -597,6 +597,10 @@ func (container *Container) buildPortMapInfo(ep libnetwork.Endpoint, networkSett
 		return nil, derr.ErrorCodeEmptyEndpoint
 	}
 
+	if len(container.NetworkSettings.Ports) > 0 {
+		return networkSettings, nil
+	}
+
 	if networkSettings == nil {
 		return nil, derr.ErrorCodeEmptyNetwork
 	}
@@ -857,11 +861,17 @@ func (container *Container) buildCreateEndpointOptions(n libnetwork.Network) ([]
 			pbList = append(pbList, pb)
 		}
 	}
+	if n.Type() == "bridge" {
 
-	createOptions = append(createOptions,
-		libnetwork.CreateOptionPortMapping(pbList),
-		libnetwork.CreateOptionExposedPorts(exposeList))
-
+		if len(container.NetworkSettings.Ports) > 0 && len(pbList) > 0 {
+			createOptions = append(createOptions,
+				libnetwork.CreateOptionExposedPorts(exposeList))
+		} else {
+			createOptions = append(createOptions,
+				libnetwork.CreateOptionPortMapping(pbList),
+				libnetwork.CreateOptionExposedPorts(exposeList))
+		}
+	}
 	if container.Config.MacAddress != "" {
 		mac, err := net.ParseMAC(container.Config.MacAddress)
 		if err != nil {
