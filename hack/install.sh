@@ -439,7 +439,7 @@ do_install() {
 	  a package for Docker.  Please visit the following URL for more detailed
 	  installation instructions:
 
-	    https://docs.docker.com/en/latest/installation/
+	    https://docs.docker.com/engine/installation/
 
 	EOF
 	exit 1
