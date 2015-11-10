@@ -86,6 +86,11 @@ type EventsOptions struct {
 	Filters filters.Args
 }
 
+// NetworkListOptions holds parameters to filter the list of networks with.
+type NetworkListOptions struct {
+	Filters filters.Args
+}
+
 // HijackedResponse holds connection information for a hijacked request.
 type HijackedResponse struct {
 	Conn   net.Conn
