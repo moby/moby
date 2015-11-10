@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
@@ -23,17 +24,31 @@ type iterationAction int
 // Returns the object to serialize by the api.
 type containerReducer func(*Container, *listContext) (*types.Container, error)
 
-const (
-	// includeContainer is the action to include a container in the reducer.
-	includeContainer iterationAction = iota
-	// excludeContainer is the action to exclude a container in the reducer.
-	excludeContainer
-	// stopIteration is the action to stop iterating over the list of containers.
-	stopIteration
-)
+// containerList represent a list to store containers.
+// This struct is concurrently safe.
+type containerList struct {
+	list []*types.Container
+	m    sync.Mutex
+}
 
-// errStopIteration makes the iterator to stop without returning an error.
-var errStopIteration = errors.New("container list iteration stopped")
+// newContainerList creates a new list of containers with a predefined capacity.
+func newContainerList(capacity int) *containerList {
+	return &containerList{
+		list: make([]*types.Container, 0, capacity),
+	}
+}
+
+// Add appends containers to the list.
+func (c *containerList) Add(container *types.Container) {
+	c.m.Lock()
+	c.list = append(c.list, container)
+	c.m.Unlock()
+}
+
+// List returns the collection of containers.
+func (c *containerList) List() []*types.Container {
+	return c.list
+}
 
 // List returns an array of all containers registered in the daemon.
 func (daemon *Daemon) List() []*Container {
@@ -86,45 +101,34 @@ func (daemon *Daemon) Containers(config *ContainersConfig) ([]*types.Container, 
 
 // reduceContainer parses the user filtering and generates the list of containers to return based on a reducer.
 func (daemon *Daemon) reduceContainers(config *ContainersConfig, reducer containerReducer) ([]*types.Container, error) {
-	containers := []*types.Container{}
-
 	ctx, err := daemon.foldFilter(config)
 	if err != nil {
 		return nil, err
 	}
 
-	for _, container := range daemon.List() {
-		t, err := daemon.reducePsContainer(container, ctx, reducer)
-		if err != nil {
-			if err != errStopIteration {
-				return nil, err
+	var (
+		filtered   = daemon.containers.Filter(ctx)
+		containers = newContainerList(len(filtered))
+		wg         sync.WaitGroup
+	)
+
+	for _, container := range filtered {
+		wg.Add(1)
+		go func(container *Container, ctx *listContext) {
+			defer wg.Done()
+			// transform internal container struct into api structs
+
+			ct, err := reducer(container, ctx)
+			if err != nil {
+				logrus.Warnf("Error inspecting container: %q, %v", container, err)
+				return
 			}
-			break
-		}
-		if t != nil {
-			containers = append(containers, t)
-			ctx.idx++
-		}
-	}
-	return containers, nil
-}
-
-// reducePsContainer is the basic representation for a container as expected by the ps command.
-func (daemon *Daemon) reducePsContainer(container *Container, ctx *listContext, reducer containerReducer) (*types.Container, error) {
-	container.Lock()
-	defer container.Unlock()
-
-	// filter containers to return
-	action := includeContainerInList(container, ctx)
-	switch action {
-	case excludeContainer:
-		return nil, nil
-	case stopIteration:
-		return nil, errStopIteration
+			containers.Add(ct)
+		}(container, ctx)
 	}
 
-	// transform internal container struct into api structs
-	return reducer(container, ctx)
+	wg.Wait()
+	return containers.List(), nil
 }
 
 // foldFilter generates the container filter based in the user's filtering options.
@@ -213,51 +217,41 @@ func (daemon *Daemon) foldFilter(config *ContainersConfig) (*listContext, error)
 
 // includeContainerInList decides whether a containers should be include in the output or not based in the filter.
 // It also decides if the iteration should be stopped or not.
-func includeContainerInList(container *Container, ctx *listContext) iterationAction {
+func includeContainerInList(container *Container, ctx *listContext) bool {
 	// Do not include container if it's stopped and we're not filters
 	if !container.Running && !ctx.All && ctx.Limit <= 0 && ctx.beforeContainer == nil && ctx.sinceContainer == nil {
-		return excludeContainer
+		return false
 	}
 
 	// Do not include container if the name doesn't match
 	if !ctx.filters.Match("name", container.Name) {
-		return excludeContainer
+		return false
 	}
 
 	// Do not include container if the id doesn't match
 	if !ctx.filters.Match("id", container.ID) {
-		return excludeContainer
+		return false
 	}
 
 	// Do not include container if any of the labels don't match
 	if !ctx.filters.MatchKVList("label", container.Config.Labels) {
-		return excludeContainer
+		return false
 	}
 
 	// Do not include container if the isolation mode doesn't match
-	if excludeContainer == excludeByIsolation(container, ctx) {
-		return excludeContainer
+	if excludeByIsolation(container, ctx) {
+		return false
 	}
 
 	// Do not include container if it's in the list before the filter container.
 	// Set the filter container to nil to include the rest of containers after this one.
 	if ctx.beforeContainer != nil {
-		if container.ID == ctx.beforeContainer.ID {
-			ctx.beforeContainer = nil
-		}
-		return excludeContainer
-	}
-
-	// Stop iteration when the index is over the limit
-	if ctx.Limit > 0 && ctx.idx == ctx.Limit {
-		return stopIteration
+		return container.Created.After(ctx.beforeContainer.Created)
 	}
 
 	// Stop interation when the container arrives to the filter container
 	if ctx.sinceContainer != nil {
-		if container.ID == ctx.sinceContainer.ID {
-			return stopIteration
-		}
+		return container.Created.Before(ctx.sinceContainer.Created)
 	}
 
 	// Do not include container if its exit code is not in the filter
@@ -270,25 +264,25 @@ func includeContainerInList(container *Container, ctx *listContext) iterationAct
 			}
 		}
 		if shouldSkip {
-			return excludeContainer
+			return false
 		}
 	}
 
 	// Do not include container if its status doesn't match the filter
 	if !ctx.filters.Match("status", container.State.StateString()) {
-		return excludeContainer
+		return false
 	}
 
 	if ctx.ancestorFilter {
 		if len(ctx.images) == 0 {
-			return excludeContainer
+			return false
 		}
 		if !ctx.images[container.ImageID] {
-			return excludeContainer
+			return false
 		}
 	}
 
-	return includeContainer
+	return true
 }
 
 func getImage(s *graph.TagStore, img, imgID string) (string, error) {

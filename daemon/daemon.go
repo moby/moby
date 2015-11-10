@@ -102,6 +102,29 @@ func (c *contStore) List() []*Container {
 	return *containers
 }
 
+// Filter returns a list of containers in the store filtered by
+// the context. It limits the list of results returned based
+// of the limit attribute after applying the rest of the filters
+// on the complete list.
+func (c *contStore) Filter(ctx *listContext) []*Container {
+	containers := new(History)
+	c.Lock()
+	for _, cont := range c.s {
+		// filter containers to return
+		if includeContainerInList(cont, ctx) {
+			containers.Add(cont)
+		}
+	}
+	c.Unlock()
+	containers.sort()
+
+	cl := *containers
+	if ctx.Limit > 0 && len(cl) > ctx.Limit {
+		return cl[0:ctx.Limit]
+	}
+	return cl
+}
+
 // Daemon holds information about the Docker daemon.
 type Daemon struct {
 	ID               string
