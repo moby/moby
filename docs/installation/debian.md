@@ -63,12 +63,20 @@ from the new repository:
 
      The possible entries are:
 
-         # Debian Wheezy
-        deb https://apt.dockerproject.org/repo debian-wheezy main
-        # Debian Jessie
-        deb https://apt.dockerproject.org/repo debian-jessie main
-        # Debian Stretch/Sid
-        deb https://apt.dockerproject.org/repo debian-stretch main
+     - On Debian Wheezy
+
+            # Debian Wheezy
+            deb https://apt.dockerproject.org/repo debian-wheezy main
+
+    - On Debian Jessie
+
+            # Debian Jessie
+            deb https://apt.dockerproject.org/repo debian-jessie main
+
+    - On Debian Stretch/Sid
+
+            # Debian Stretch/Sid
+            deb https://apt.dockerproject.org/repo debian-stretch main
 
  8. Save and close the file.
 
