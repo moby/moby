@@ -65,7 +65,7 @@ type apiClient interface {
 	NetworkCreate(options types.NetworkCreate) (types.NetworkCreateResponse, error)
 	NetworkDisconnect(networkID, containerID string) error
 	NetworkInspect(networkID string) (types.NetworkResource, error)
-	NetworkList() ([]types.NetworkResource, error)
+	NetworkList(options types.NetworkListOptions) ([]types.NetworkResource, error)
 	NetworkRemove(networkID string) error
 	RegistryLogin(auth types.AuthConfig) (types.AuthResponse, error)
 	ServerVersion() (types.Version, error)

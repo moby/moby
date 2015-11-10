@@ -109,6 +109,7 @@ This section lists each version from latest to oldest.  Each listing includes a 
   the push or pull completes.
 * `POST /containers/create` now allows you to set a read/write rate limit for a 
   device (in bytes per second or IO per second).
+* `GET /networks` now supports filtering by `name`, `id` and `type`.
 
 ### v1.21 API changes
 

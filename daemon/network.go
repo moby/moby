@@ -85,6 +85,19 @@ func (daemon *Daemon) GetNetworksByID(partialID string) []libnetwork.Network {
 	return list
 }
 
+// GetAllNetworks returns a list containing all networks
+func (daemon *Daemon) GetAllNetworks() []libnetwork.Network {
+	c := daemon.netController
+	list := []libnetwork.Network{}
+	l := func(nw libnetwork.Network) bool {
+		list = append(list, nw)
+		return false
+	}
+	c.WalkNetworks(l)
+
+	return list
+}
+
 // CreateNetwork creates a network with the given name, driver and other optional parameters
 func (daemon *Daemon) CreateNetwork(name, driver string, ipam network.IPAM, options map[string]string) (libnetwork.Network, error) {
 	c := daemon.netController

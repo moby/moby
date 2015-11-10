@@ -3,8 +3,10 @@ package lib
 import (
 	"encoding/json"
 	"net/http"
+	"net/url"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/filters"
 )
 
 // NetworkCreate creates a new network in the docker host.
@@ -44,9 +46,18 @@ func (cli *Client) NetworkDisconnect(networkID, containerID string) error {
 }
 
 // NetworkList returns the list of networks configured in the docker host.
-func (cli *Client) NetworkList() ([]types.NetworkResource, error) {
+func (cli *Client) NetworkList(options types.NetworkListOptions) ([]types.NetworkResource, error) {
+	query := url.Values{}
+	if options.Filters.Len() > 0 {
+		filterJSON, err := filters.ToParam(options.Filters)
+		if err != nil {
+			return nil, err
+		}
+
+		query.Set("filters", filterJSON)
+	}
 	var networkResources []types.NetworkResource
-	resp, err := cli.get("/networks", nil, nil)
+	resp, err := cli.get("/networks", query, nil)
 	if err != nil {
 		return networkResources, err
 	}
