@@ -673,6 +673,15 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 	if err != nil {
 		return nil, fmt.Errorf("error initializing graphdriver: %v", err)
 	}
+	// make sure the graphdriver actually works as configured
+	// often if there is an unknown backingfs or dangling mounts from an improperly shutdown daemon there can be issues
+	logrus.Debugf("testing graph driver initialization")
+	if err := testGraphDriver(driver); err != nil {
+		driver.Cleanup()
+		logrus.Debugf("Graph Driver Status: %v", driver.Status())
+		return nil, fmt.Errorf("error testing graphdriver: %v", err)
+	}
+
 	logrus.Debugf("Using graph driver %s", driver)
 
 	d := &Daemon{}
@@ -1347,4 +1356,29 @@ func convertLnNetworkStats(name string, stats *lntypes.InterfaceStatistics) *lib
 	n.TxErrors = stats.TxErrors
 	n.TxDropped = stats.TxDropped
 	return n
+}
+
+// testGraphDriver will create 2 new empty graph layers (parent/child), mount them, then remove
+// if there is an error in any step of the way an error will be returned
+func testGraphDriver(driver graphdriver.Driver) error {
+	parentID := stringid.GenerateNonCryptoID()
+	if err := driver.Create(parentID, ""); err != nil {
+		return err
+	}
+	defer driver.Remove(parentID)
+
+	testID := stringid.GenerateNonCryptoID()
+	if err := driver.Create(testID, parentID); err != nil {
+		return err
+	}
+	defer driver.Remove(testID)
+
+	if _, err := driver.Get(testID, ""); err != nil {
+		return err
+	}
+
+	if err := driver.Put(testID); err != nil {
+		return err
+	}
+	return nil
 }
