@@ -130,7 +130,7 @@ format.
 **-g**, **--graph**=""
   Path to use as the root of the Docker runtime. Default is `/var/lib/docker`.
 
-**-H**, **--host**=[unix:///var/run/docker.sock]: tcp://[host:port] to bind or
+**-H**, **--host**=[*unix:///var/run/docker.sock*]: tcp://[host:port] to bind or
 unix://[/path/to/socket] to use.
   The socket(s) to bind to in daemon mode specified using one or more
   tcp://host:port, unix:///path/to/socket, fd://* or fd://socketfd.
@@ -165,7 +165,7 @@ unix://[/path/to/socket] to use.
 **--ipv6**=*true*|*false*
   Enable IPv6 support. Default is false. Docker will create an IPv6-enabled bridge with address fe80::1 which will allow you to create IPv6-enabled containers. Use together with `--fixed-cidr-v6` to provide globally routable IPv6 addresses. IPv6 forwarding will be enabled if not used with `--ip-forward=false`. This may collide with your host's current IPv6 settings. For more information please consult the documentation about "Advanced Networking - IPv6".
 
-**-l**, **--log-level**="*debug*|*info*|*warn*|*error*|*fatal*""
+**-l**, **--log-level**="*debug*|*info*|*warn*|*error*|*fatal*"
   Set the logging level. Default is `info`.
 
 **--label**="[]"
@@ -178,13 +178,13 @@ unix://[/path/to/socket] to use.
 **--log-opt**=[]
   Logging driver specific options.
 
-**--mtu**=VALUE
+**--mtu**=*0*
   Set the containers network mtu. Default is `0`.
 
 **-p**, **--pidfile**=""
   Path to use for daemon PID file. Default is `/var/run/docker.pid`
 
-**--registry-mirror**=<scheme>://<host>
+**--registry-mirror**=*<scheme>://<host>*
   Prepend a registry mirror to be used for image pulls. May be specified multiple times.
 
 **-s**, **--storage-driver**=""
@@ -199,13 +199,13 @@ unix://[/path/to/socket] to use.
 **--tls**=*true*|*false*
   Use TLS; implied by --tlsverify. Default is false.
 
-**--tlscacert**=~/.docker/ca.pem
+**--tlscacert**=*~/.docker/ca.pem*
   Trust certs signed only by this CA.
 
-**--tlscert**=~/.docker/cert.pem
+**--tlscert**=*~/.docker/cert.pem*
   Path to TLS certificate file.
 
-**--tlskey**=~/.docker/key.pem
+**--tlskey**=*~/.docker/key.pem*
   Path to TLS key file.
 
 **--tlsverify**=*true*|*false*

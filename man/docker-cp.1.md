@@ -8,6 +8,9 @@ docker-cp - Copy files/folders between a container and the local filesystem.
 **docker cp**
 [**--help**]
 CONTAINER:PATH LOCALPATH|-
+
+**docker cp**
+[**--help**]
 LOCALPATH|- CONTAINER:PATH
 
 # DESCRIPTION

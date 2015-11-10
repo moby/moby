@@ -6,15 +6,15 @@ docker-network-create - create a new network
 
 # SYNOPSIS
 **docker network create**
-
-**--aux-address=map[]**    
-**-d** | **--driver=DRIVER**       
-**--gateway=[]**             
-**--help=false**             
-**--ip-range=[]**            
-**--ipam-driver=default**    
-**-o** | **--opt=map[]**           
-**--subnet=[]**              
+[**--aux-address**=*map[]*]
+[**-d**|**--driver**=*DRIVER*]
+[**--gateway**=*[]*]
+[**--help**]
+[**--ip-range**=*[]*]
+[**--ipam-driver**=*default*]
+[**-o**|**--opt**=*map[]*]
+[**--subnet**=*[]*]
+NETWORK-NAME
 
 # DESCRIPTION
 
@@ -97,7 +97,7 @@ specify subnetwork values directly using the the `--subnet` option. On a
 `bridge` network you can only create a single subnet:
 
 ```bash
-docker network create -d --subnet=192.168.0.0/16
+docker network create -d bridge --subnet=192.168.0.0/16 br0
 ```
 Additionally, you also specify the `--gateway` `--ip-range` and `--aux-address` options.
 
@@ -121,28 +121,28 @@ docker network create -d overlay
 Be sure that your subnetworks do not overlap. If they do, the network create fails and Engine returns an error.
 
 # OPTIONS
-**--aux-address=map[]**     
+**--aux-address**=map[]
   Auxiliary ipv4 or ipv6 addresses used by network driver
 
-**-d** | **--driver=DRIVER**       
+**-d**, **--driver**=*DRIVER*
   Driver to manage the Network bridge or overlay. The default is bridge.
 
-**--gateway=[] **            
+**--gateway**=[]
   ipv4 or ipv6 Gateway for the master subnet
 
-**--help=false **            
+**--help**
   Print usage
 
-**--ip-range=[] **           
+**--ip-range**=[]
   Allocate container ip from a sub-range
 
-**--ipam-driver=default **   
+**--ipam-driver**=*default*
   IP Address Management Driver
 
-**-o | --opt=map[]**           
+**-o**, **--opt**=map[]
   Set custom network plugin options
 
-**--subnet=[]**              
+**--subnet**=[]
   Subnet in CIDR format that represents a network segment
 
 # HISTORY

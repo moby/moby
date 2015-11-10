@@ -6,9 +6,8 @@ docker-network-ls - list networks
 
 # SYNOPSIS
 **docker network ls**
-
-[**--no-trunc**]
-[**-q** | **--quiet**]
+[**--no-trunc**[=*true*|*false*]]
+[**-q**|**--quiet**[=*true*|*false*]]
 [**--help**]
 
 # DESCRIPTION
@@ -38,10 +37,10 @@ c288470c46f6c8949c5f7e5099b5b7947b07eabe8d9a27d79a9cbf111adcbf47   host         
 
 # OPTIONS
 
-[**--no-trunc**]
+**--no-trunc**=*true*|*false*
   Do not truncate the output
 
-[**-q** | **--quiet**]
+**-q**, **--quiet**=*true*|*false*
   Only display numeric IDs
 
 **--help**

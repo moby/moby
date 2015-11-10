@@ -39,7 +39,7 @@ logging drivers.
 **-t**, **--timestamps**=*true*|*false*
    Show timestamps. The default is *false*.
 
-**--tail**="all"
+**--tail**="*all*"
    Output the specified number of lines at the end of logs (defaults to all logs)
 
 The `--since` option shows only the container logs generated after
