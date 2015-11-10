@@ -29,17 +29,17 @@ import (
 )
 
 // Environment variable interpolation will happen on these statements only.
-var replaceEnvAllowed = map[string]struct{}{
-	command.Env:        {},
-	command.Label:      {},
-	command.Add:        {},
-	command.Copy:       {},
-	command.Workdir:    {},
-	command.Expose:     {},
-	command.Volume:     {},
-	command.User:       {},
-	command.StopSignal: {},
-	command.Arg:        {},
+var replaceEnvAllowed = map[string]bool{
+	command.Env:        true,
+	command.Label:      true,
+	command.Add:        true,
+	command.Copy:       true,
+	command.Workdir:    true,
+	command.Expose:     true,
+	command.Volume:     true,
+	command.User:       true,
+	command.StopSignal: true,
+	command.Arg:        true,
 }
 
 // Certain commands are allowed to have their args split into more
@@ -163,11 +163,11 @@ func (b *Builder) dispatch(stepN int, ast *parser.Node) error {
 		ast = ast.Next
 		var str string
 		str = ast.Value
-		if _, ok := replaceEnvAllowed[cmd]; ok {
+		if replaceEnvAllowed[cmd] {
 			var err error
 			var words []string
 
-			if _, ok := allowWordExpansion[cmd]; ok {
+			if allowWordExpansion[cmd] {
 				words, err = ProcessWords(str, envs)
 				if err != nil {
 					return err
