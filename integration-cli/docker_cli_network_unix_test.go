@@ -764,3 +764,18 @@ func (s *DockerNetworkSuite) TestDockerNetworkHostModeUngracefulDaemonRestart(c 
 		c.Assert(strings.TrimSpace(runningOut), checker.Equals, "true")
 	}
 }
+
+func (s *DockerNetworkSuite) TestDockerNetworkConnectWithMac(c *check.C) {
+	macAddress := "02:42:ac:11:00:02"
+	dockerCmd(c, "network", "create", "mynetwork")
+	dockerCmd(c, "run", "--name=test", "-d", "--mac-address", macAddress, "busybox", "top")
+	c.Assert(waitRun("test"), check.IsNil)
+	mac1, err := inspectField("test", "NetworkSettings.Networks.bridge.MacAddress")
+	c.Assert(err, checker.IsNil)
+	c.Assert(strings.TrimSpace(mac1), checker.Equals, macAddress)
+	dockerCmd(c, "network", "connect", "mynetwork", "test")
+	mac2, err := inspectField("test", "NetworkSettings.Networks.mynetwork.MacAddress")
+	c.Assert(err, checker.IsNil)
+	c.Assert(strings.TrimSpace(mac2), checker.Not(checker.Equals), strings.TrimSpace(mac1))
+
+}
