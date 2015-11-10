@@ -1,6 +1,9 @@
 package execdriver
 
-import "github.com/docker/docker/pkg/nat"
+import (
+	"github.com/docker/docker/pkg/nat"
+	"github.com/docker/docker/runconfig"
+)
 
 // Mount contains information for a mount operation.
 type Mount struct {
@@ -40,11 +43,11 @@ type Command struct {
 
 	// Fields below here are platform specific
 
-	FirstStart  bool     `json:"first_start"`  // Optimisation for first boot of Windows
-	Hostname    string   `json:"hostname"`     // Windows sets the hostname in the execdriver
-	LayerFolder string   `json:"layer_folder"` // Layer folder for a command
-	LayerPaths  []string `json:"layer_paths"`  // Layer paths for a command
-	Isolated    bool     `json:"isolated"`     // True if a Hyper-V container
+	FirstStart  bool                     `json:"first_start"`  // Optimisation for first boot of Windows
+	Hostname    string                   `json:"hostname"`     // Windows sets the hostname in the execdriver
+	LayerFolder string                   `json:"layer_folder"` // Layer folder for a command
+	LayerPaths  []string                 `json:"layer_paths"`  // Layer paths for a command
+	Isolation   runconfig.IsolationLevel `json:"isolation"`    // Isolation level for the container
 }
 
 // ExitStatus provides exit reasons for a container.

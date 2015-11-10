@@ -10,15 +10,19 @@ func (n NetworkMode) IsDefault() bool {
 	return n == "default"
 }
 
-// IsHyperV indicates the use of Hyper-V Containers for isolation (as opposed
-// to Windows Server Containers
+// IsHyperV indicates the use of a Hyper-V partition for isolation
 func (i IsolationLevel) IsHyperV() bool {
 	return strings.ToLower(string(i)) == "hyperv"
 }
 
+// IsProcess indicates the use of process isolation
+func (i IsolationLevel) IsProcess() bool {
+	return strings.ToLower(string(i)) == "process"
+}
+
 // IsValid indicates is an isolation level is valid
 func (i IsolationLevel) IsValid() bool {
-	return i.IsDefault() || i.IsHyperV()
+	return i.IsDefault() || i.IsHyperV() || i.IsProcess()
 }
 
 // DefaultDaemonNetworkMode returns the default network stack the daemon should
@@ -67,15 +71,14 @@ func ValidateNetMode(c *Config, hc *HostConfig) error {
 
 // ValidateIsolationLevel performs platform specific validation of the
 // isolation level in the hostconfig structure. Windows supports 'default' (or
-// blank), and 'hyperv'. These refer to Windows Server Containers and
-// Hyper-V Containers respectively.
+// blank), 'process', or 'hyperv'.
 func ValidateIsolationLevel(hc *HostConfig) error {
 	// We may not be passed a host config, such as in the case of docker commit
 	if hc == nil {
 		return nil
 	}
 	if !hc.Isolation.IsValid() {
-		return fmt.Errorf("invalid --isolation: %q. Windows supports 'default' (Windows Server Container) or 'hyperv' (Hyper-V Container)", hc.Isolation)
+		return fmt.Errorf("invalid --isolation: %q. Windows supports 'default', 'process', or 'hyperv'", hc.Isolation)
 	}
 	return nil
 }

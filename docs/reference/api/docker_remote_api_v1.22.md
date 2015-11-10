@@ -116,7 +116,7 @@ Query Parameters:
   -   `exited=<int>`; -- containers with exit code of  `<int>` ;
   -   `status=`(`created`|`restarting`|`running`|`paused`|`exited`)
   -   `label=key` or `label="key=value"` of a container label
-  -   `isolation=`(`default`|`hyperv`)   (Windows daemon only)
+  -   `isolation=`(`default`|`process`|`hyperv`)   (Windows daemon only)
 
 Status Codes:
 
