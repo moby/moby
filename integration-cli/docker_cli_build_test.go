@@ -6408,3 +6408,30 @@ func (s *DockerSuite) TestBuildSymlinkBasename(c *check.C) {
 	c.Assert(out, checker.Matches, "bar")
 
 }
+
+// #17827
+func (s *DockerSuite) TestBuildCacheRootSource(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	name := "testbuildrootsource"
+	ctx, err := fakeContext(`
+	FROM busybox
+	COPY / /data`,
+		map[string]string{
+			"foo": "bar",
+		})
+	c.Assert(err, checker.IsNil)
+	defer ctx.Close()
+
+	// warm up cache
+	_, err = buildImageFromContext(name, ctx, true)
+	c.Assert(err, checker.IsNil)
+
+	// change file, should invalidate cache
+	err = ioutil.WriteFile(filepath.Join(ctx.Dir, "foo"), []byte("baz"), 0644)
+	c.Assert(err, checker.IsNil)
+
+	_, out, err := buildImageFromContextWithOut(name, ctx, true)
+	c.Assert(err, checker.IsNil)
+
+	c.Assert(out, checker.Not(checker.Contains), "Using cache")
+}
