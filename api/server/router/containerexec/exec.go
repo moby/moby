@@ -1,4 +1,4 @@
-package container
+package containerexec
 
 import (
 	"encoding/json"
@@ -15,7 +15,7 @@ import (
 	"golang.org/x/net/context"
 )
 
-func (s *containerRouter) getExecByID(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (s *execRouter) getExecByID(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	eConfig, err := s.backend.ContainerExecInspect(vars["id"])
 	if err != nil {
 		return err
@@ -24,7 +24,7 @@ func (s *containerRouter) getExecByID(ctx context.Context, w http.ResponseWriter
 	return httputils.WriteJSON(w, http.StatusOK, eConfig)
 }
 
-func (s *containerRouter) postContainerExecCreate(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (s *execRouter) postContainerExecCreate(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
@@ -56,7 +56,7 @@ func (s *containerRouter) postContainerExecCreate(ctx context.Context, w http.Re
 }
 
 // TODO(vishh): Refactor the code to avoid having to specify stream config as part of both create and start.
-func (s *containerRouter) postContainerExecStart(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (s *execRouter) postContainerExecStart(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
@@ -118,7 +118,7 @@ func (s *containerRouter) postContainerExecStart(ctx context.Context, w http.Res
 	return nil
 }
 
-func (s *containerRouter) postContainerExecResize(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (s *execRouter) postContainerExecResize(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}

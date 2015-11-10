@@ -11,6 +11,8 @@ import (
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/server/router"
 	"github.com/docker/docker/api/server/router/container"
+	"github.com/docker/docker/api/server/router/containerexec"
+	"github.com/docker/docker/api/server/router/containerinspect"
 	"github.com/docker/docker/api/server/router/local"
 	"github.com/docker/docker/api/server/router/network"
 	"github.com/docker/docker/api/server/router/volume"
@@ -174,6 +176,8 @@ func (s *Server) InitRouters(d *daemon.Daemon) {
 	s.addRouter(network.NewRouter(d))
 	s.addRouter(volume.NewRouter(d))
 	s.addRouter(container.NewRouter(d))
+	s.addRouter(containerexec.NewRouter(d))
+	s.addRouter(containerinspect.NewRouter(d))
 
 	for _, srv := range s.servers {
 		srv.srv.Handler = s.CreateMux()

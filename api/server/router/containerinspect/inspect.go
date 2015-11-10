@@ -1,4 +1,4 @@
-package container
+package containerinspect
 
 import (
 	"net/http"
@@ -8,7 +8,7 @@ import (
 )
 
 // getContainersByName inspects containers configuration and serializes it as json.
-func (s *containerRouter) getContainersByName(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (s *inspectRouter) getContainersByName(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	displaySize := httputils.BoolValue(r, "size")
 
 	var json interface{}

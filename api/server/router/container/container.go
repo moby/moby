@@ -34,12 +34,10 @@ func (r *containerRouter) initRoutes() {
 		local.NewGetRoute("/containers/json", r.getContainersJSON),
 		local.NewGetRoute("/containers/{name:.*}/export", r.getContainersExport),
 		local.NewGetRoute("/containers/{name:.*}/changes", r.getContainersChanges),
-		local.NewGetRoute("/containers/{name:.*}/json", r.getContainersByName),
 		local.NewGetRoute("/containers/{name:.*}/top", r.getContainersTop),
 		local.NewGetRoute("/containers/{name:.*}/logs", r.getContainersLogs),
 		local.NewGetRoute("/containers/{name:.*}/stats", r.getContainersStats),
 		local.NewGetRoute("/containers/{name:.*}/attach/ws", r.wsContainersAttach),
-		local.NewGetRoute("/exec/{id:.*}/json", r.getExecByID),
 		local.NewGetRoute("/containers/{name:.*}/archive", r.getContainersArchive),
 		// POST
 		local.NewPostRoute("/containers/create", r.postContainersCreate),
@@ -53,9 +51,6 @@ func (r *containerRouter) initRoutes() {
 		local.NewPostRoute("/containers/{name:.*}/resize", r.postContainersResize),
 		local.NewPostRoute("/containers/{name:.*}/attach", r.postContainersAttach),
 		local.NewPostRoute("/containers/{name:.*}/copy", r.postContainersCopy),
-		local.NewPostRoute("/containers/{name:.*}/exec", r.postContainerExecCreate),
-		local.NewPostRoute("/exec/{name:.*}/start", r.postContainerExecStart),
-		local.NewPostRoute("/exec/{name:.*}/resize", r.postContainerExecResize),
 		local.NewPostRoute("/containers/{name:.*}/rename", r.postContainerRename),
 		// PUT
 		local.NewPutRoute("/containers/{name:.*}/archive", r.putContainersArchive),
