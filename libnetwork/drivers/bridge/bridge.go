@@ -450,6 +450,8 @@ func (c *networkConfiguration) processIPAM(id string, ipamV4Data, ipamV6Data []d
 	}
 
 	if len(ipamV6Data) > 0 {
+		c.AddressIPv6 = ipamV6Data[0].Pool
+
 		if ipamV6Data[0].Gateway != nil {
 			c.AddressIPv6 = types.GetIPNetCopy(ipamV6Data[0].Gateway)
 		}
@@ -961,13 +963,20 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 	if endpoint.addrv6 == nil && config.EnableIPv6 {
 		var ip6 net.IP
 		network := n.bridge.bridgeIPv6
+		if config.AddressIPv6 != nil {
+			network = config.AddressIPv6
+		}
+
 		ones, _ := network.Mask.Size()
-		if ones <= 80 {
-			ip6 = make(net.IP, len(network.IP))
-			copy(ip6, network.IP)
-			for i, h := range endpoint.macAddress {
-				ip6[i+10] = h
-			}
+		if ones > 80 {
+			err = types.ForbiddenErrorf("Cannot self generate an IPv6 address on network %v: At least 48 host bits are needed.", network)
+			return err
+		}
+
+		ip6 = make(net.IP, len(network.IP))
+		copy(ip6, network.IP)
+		for i, h := range endpoint.macAddress {
+			ip6[i+10] = h
 		}
 
 		endpoint.addrv6 = &net.IPNet{IP: ip6, Mask: network.Mask}
