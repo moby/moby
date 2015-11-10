@@ -991,7 +991,10 @@ func (devices *DeviceSet) setupBaseImage() error {
 			if err := devices.setupVerifyBaseImageUUID(oldInfo); err != nil {
 				return err
 			}
-
+			if devices.baseFsSize != defaultBaseFsSize && devices.baseFsSize != devices.getBaseDeviceSize() {
+				logrus.Warnf("Base device is already initialized to size %s, new value of base device size %s will not take effect",
+					units.HumanSize(float64(devices.getBaseDeviceSize())), units.HumanSize(float64(devices.baseFsSize)))
+			}
 			return nil
 		}
 
