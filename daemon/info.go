@@ -19,13 +19,6 @@ import (
 
 // SystemInfo returns information about the host server the daemon is running on.
 func (daemon *Daemon) SystemInfo() (*types.Info, error) {
-	images := daemon.Graph().Map()
-	var imgcount int
-	if images == nil {
-		imgcount = 0
-	} else {
-		imgcount = len(images)
-	}
 	kernelVersion := "<unknown>"
 	if kv, err := kernel.GetKernelVersion(); err == nil {
 		kernelVersion = kv.String()
@@ -66,7 +59,7 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 	v := &types.Info{
 		ID:                 daemon.ID,
 		Containers:         len(daemon.List()),
-		Images:             imgcount,
+		Images:             len(daemon.Graph().Map()),
 		Driver:             daemon.GraphDriver().String(),
 		DriverStatus:       daemon.GraphDriver().Status(),
 		IPv4Forwarding:     !sysInfo.IPv4ForwardingDisabled,
