@@ -2,7 +2,7 @@
 
 Want to hack on Docker? Awesome!  We have a contributor's guide that explains
 [setting up a Docker development environment and the contribution
-process](https://docs.docker.com/project/who-written-for/). 
+process](https://docs.docker.com/opensource/project/who-written-for/). 
 
 ![Contributors guide](docs/static_files/contributors.png)
 
@@ -111,7 +111,7 @@ anybody starts working on it.
 We are always thrilled to receive pull requests. We do our best to process them
 quickly. If your pull request is not accepted on the first try,
 don't get discouraged! Our contributor's guide explains [the review process we
-use for simple changes](https://docs.docker.com/project/make-a-contribution/).
+use for simple changes](https://docs.docker.com/opensource/workflow/make-a-contribution/).
 
 ### Design and cleanup proposals
 
@@ -119,8 +119,8 @@ You can propose new designs for existing Docker features. You can also design
 entirely new features. We really appreciate contributors who want to refactor or
 otherwise cleanup our project. For information on making these types of
 contributions, see [the advanced contribution
-section](https://docs.docker.com/project/advanced-contributing/) in the
-contributors guide.
+section](https://docs.docker.com/opensource/workflow/advanced-contributing/) in
+the contributors guide.
 
 We try hard to keep Docker lean and focused. Docker can't do everything for
 everybody. This means that we might decide against incorporating a new feature.
@@ -141,7 +141,7 @@ However, there might be a way to implement that feature *on top of* Docker.
         IRC is a rich chat protocol but it can overwhelm new users. You can search
         <a href="https://botbot.me/freenode/docker/#" target="_blank">our chat archives</a>.
       </p>
-      Read our <a href="https://docs.docker.com/project/get-help/#irc-quickstart" target="_blank">IRC quickstart guide</a> for an easy way to get started.
+      Read our <a href="https://docs.docker.com/opensource/get-help/#irc-quickstart" target="_blank">IRC quickstart guide</a> for an easy way to get started.
     </td>
   </tr>
   <tr>
@@ -186,14 +186,14 @@ Fork the repository and make changes on your fork in a feature branch:
 
 Submit unit tests for your changes. Go has a great test framework built in; use
 it! Take a look at existing tests for inspiration. [Run the full test
-suite](https://docs.docker.com/project/test-and-docs/) on your branch before
+suite](https://docs.docker.com/opensource/project/test-and-docs/) on your branch before
 submitting a pull request.
 
 Update the documentation when creating or modifying features. Test your
 documentation changes for clarity, concision, and correctness, as well as a
 clean documentation build. See our contributors guide for [our style
-guide](https://docs.docker.com/project/doc-style) and instructions on [building
-the documentation](https://docs.docker.com/project/test-and-docs/#build-and-test-the-documentation).
+guide](https://docs.docker.com/opensource/doc-style) and instructions on [building
+the documentation](https://docs.docker.com/opensource/project/test-and-docs/#build-and-test-the-documentation).
 
 Write clean code. Universally formatted code promotes ease of writing, reading,
 and maintenance. Always run `gofmt -s -w file.go` on each changed file before
@@ -227,7 +227,7 @@ high majority of submissions should have a single commit, so if in doubt: squash
 down to one.
 
 After every commit, [make sure the test suite passes]
-(https://docs.docker.com/project/test-and-docs/). Include documentation
+(https://docs.docker.com/opensource/project/test-and-docs/). Include documentation
 changes in the same pull request so that a revert would remove all traces of
 the feature or fix.
 
