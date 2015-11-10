@@ -840,6 +840,7 @@ __docker_subcommand() {
         (stats)
             _arguments $(__docker_arguments) \
                 $opts_help \
+                "($help -a --all)"{-a,--all}"[Show all containers (default shows just running)]" \
                 "($help)--no-stream[Disable streaming stats and only pull the first result]" \
                 "($help -)*:containers:__docker_runningcontainers" && ret=0
             ;;
