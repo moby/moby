@@ -42,6 +42,19 @@ var replaceEnvAllowed = map[string]struct{}{
 	command.Arg:        {},
 }
 
+// Certain commands are allowed to have their args split into more
+// words after env var replacements. Meaning:
+//   ENV foo="123 456"
+//   EXPOSE $foo
+// should result in the same thing as:
+//   EXPOSE 123 456
+// and not treat "123 456" as a single word.
+// Note that: EXPOSE "$foo" and EXPOSE $foo are not the same thing.
+// Quotes will cause it to still be treated as single word.
+var allowWordExpansion = map[string]bool{
+	command.Expose: true,
+}
+
 var evaluateTable map[string]func(*Builder, []string, map[string]bool, string) error
 
 func init() {
@@ -92,7 +105,7 @@ func (b *Builder) dispatch(stepN int, ast *parser.Node) error {
 	attrs := ast.Attributes
 	original := ast.Original
 	flags := ast.Flags
-	strs := []string{}
+	strList := []string{}
 	msg := fmt.Sprintf("Step %d : %s", stepN+1, upperCasedCmd)
 
 	if len(ast.Flags) > 0 {
@@ -104,7 +117,7 @@ func (b *Builder) dispatch(stepN int, ast *parser.Node) error {
 			return fmt.Errorf("ONBUILD requires at least one argument")
 		}
 		ast = ast.Next.Children[0]
-		strs = append(strs, ast.Value)
+		strList = append(strList, ast.Value)
 		msg += " " + ast.Value
 
 		if len(ast.Flags) > 0 {
@@ -122,9 +135,6 @@ func (b *Builder) dispatch(stepN int, ast *parser.Node) error {
 		cursor = cursor.Next
 		n++
 	}
-	l := len(strs)
-	strList := make([]string, n+l)
-	copy(strList, strs)
 	msgList := make([]string, n)
 
 	var i int
@@ -155,12 +165,24 @@ func (b *Builder) dispatch(stepN int, ast *parser.Node) error {
 		str = ast.Value
 		if _, ok := replaceEnvAllowed[cmd]; ok {
 			var err error
-			str, err = ProcessWord(ast.Value, envs)
-			if err != nil {
-				return err
+			var words []string
+
+			if _, ok := allowWordExpansion[cmd]; ok {
+				words, err = ProcessWords(str, envs)
+				if err != nil {
+					return err
+				}
+				strList = append(strList, words...)
+			} else {
+				str, err = ProcessWord(str, envs)
+				if err != nil {
+					return err
+				}
+				strList = append(strList, str)
 			}
+		} else {
+			strList = append(strList, str)
 		}
-		strList[i+l] = str
 		msgList[i] = ast.Value
 		i++
 	}
