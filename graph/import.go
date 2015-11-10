@@ -9,7 +9,6 @@ import (
 	"github.com/docker/docker/pkg/progressreader"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/runconfig"
-	"github.com/docker/docker/utils"
 )
 
 // Import imports an image, getting the archived layer data either from
@@ -69,11 +68,6 @@ func (s *TagStore) Import(src string, repo string, tag string, msg string, inCon
 		}
 	}
 	outStream.Write(sf.FormatStatus("", img.ID))
-	logID := img.ID
-	if tag != "" {
-		logID = utils.ImageReference(logID, tag)
-	}
-
-	s.eventsService.Log("import", logID, "")
+	s.eventsService.Log("import", img.ID, "")
 	return nil
 }
