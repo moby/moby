@@ -58,9 +58,10 @@ docker-run - Run a command in a new container
 [**--sig-proxy**[=*true*]]
 [**-t**|**--tty**[=*false*]]
 [**-u**|**--user**[=*USER*]]
-[**-v**|**--volume**[=*[]*]]
 [**--ulimit**[=*[]*]]
 [**--uts**[=*[]*]]
+[**-v**|**--volume**[=*[]*]]
+[**--volume-driver**[=*DRIVER*]]
 [**--volumes-from**[=*[]*]]
 [**-w**|**--workdir**[=*WORKDIR*]]
 IMAGE [COMMAND] [ARG...]
@@ -477,6 +478,13 @@ An absolute path starts with a `/` (forward slash).
 For example, you can specify either `/foo` or `foo` for a `host-dir` value.
 If you supply the `/foo` value, Docker creates a bind-mount. If you supply
 the `foo` specification, Docker creates a named volume.
+
+**--volume-driver**=""
+   Optional volume driver for the container
+
+   If the container has a volume either from the `VOLUME` instruction in a
+   Dockerfile or the `-v` flag, a driver can be specified to create the volumes
+   with. See **docker-volume-create(1)** for full details.
 
 **--volumes-from**=[]
    Mount volumes from the specified container(s)

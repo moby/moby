@@ -58,6 +58,7 @@ docker-create - Create a new container
 [**--ulimit**[=*[]*]]
 [**--uts**[=*[]*]]
 [**-v**|**--volume**[=*[]*]]
+[**--volume-driver**[=*DRIVER*]]
 [**--volumes-from**[=*[]*]]
 [**-w**|**--workdir**[=*WORKDIR*]]
 IMAGE [COMMAND] [ARG...]
@@ -270,6 +271,13 @@ This value should always larger than **-m**, so you should always use this with 
 
 **-v**, **--volume**=[]
    Bind mount a volume (e.g., from the host: -v /host:/container, from Docker: -v /container)
+
+**--volume-driver**=""
+   Optional volume driver for the container
+
+   If the container has a volume either from the `VOLUME` instruction in a
+   Dockerfile or the `-v` flag, a driver can be specified to create the volumes
+   with. See **docker-volume-create(1)** for full details.
 
 **--volumes-from**=[]
    Mount volumes from the specified container(s)
