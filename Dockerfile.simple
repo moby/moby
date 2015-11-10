@@ -24,6 +24,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 		iptables \
 		procps \
 		xz-utils \
+		xfsprogs \
 		\
 		aufs-tools \
 	&& rm -rf /var/lib/apt/lists/*

@@ -260,11 +260,11 @@ options for `zfs` start with `zfs`.
 *  `dm.fs`
 
     Specifies the filesystem type to use for the base device. The supported
-    options are "ext4" and "xfs". The default is "ext4"
+    options are "ext4" and "xfs". The default is "xfs"
 
     Example use:
 
-        $ docker daemon --storage-opt dm.fs=xfs
+        $ docker daemon --storage-opt dm.fs=ext4
 
 *  `dm.mkfsarg`
 

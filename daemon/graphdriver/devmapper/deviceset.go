@@ -3,6 +3,7 @@
 package devmapper
 
 import (
+	"bufio"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -1480,6 +1481,29 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 		return err
 	}
 
+	xfsSupported := supportsXFS()
+
+	if _, err := os.Stat(devices.dataLoopFile); err == nil { // if devicemapper loopback exists
+		logrus.Debug("Using dataLoopFile: %s", devices.dataLoopFile)
+		detectFSMismatch(devices.dataLoopFile, devices.filesystem)
+	} else {
+		switch devices.filesystem {
+		case "xfs":
+			if !xfsSupported {
+				logrus.Warn("XFS is not supported in your system. Either the kernel doesnt support it or mkfs.xfs is not in your PATH")
+				devices.filesystem = "ext4"
+			}
+		case "ext4":
+			// Do nothing
+		case "":
+			if !xfsSupported {
+				devices.filesystem = "ext4"
+			} else {
+				devices.filesystem = "xfs"
+			}
+		}
+	}
+
 	// Set the device prefix from the device id and inode of the docker root dir
 
 	st, err := os.Stat(devices.root)
@@ -1503,8 +1527,7 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 	}
 
 	// It seems libdevmapper opens this without O_CLOEXEC, and go exec will not close files
-	// that are not Close-on-exec,
-	// so we add this badhack to make sure it closes itself
+	// that are not Close-on-exec, so we add this badhack to make sure it closes itself
 	setCloseOnExec("/dev/mapper/control")
 
 	// Make sure the sparse images exist in <root>/devicemapper/data and
@@ -2258,6 +2281,48 @@ func (devices *DeviceSet) exportDeviceMetadata(hash string) (*deviceMetadata, er
 	return metadata, nil
 }
 
+// Return true only if kernel supports xfs and mkfs.xfs is available
+func supportsXFS() bool {
+        exec.Command("modprobe", "xfs").Run()
+
+        f, err := os.Open("/proc/filesystems")
+        if err != nil {
+                return false
+        }
+        defer f.Close()
+
+        s := bufio.NewScanner(f)
+        for s.Scan() {
+                if strings.Contains(s.Text(), "xfs") {
+			if _, err := exec.LookPath("mkfs.xfs"); err == nil {
+				return true
+			}
+                }
+        }
+
+        return false
+}
+
+// if user requested XFS, but current images are formatted with ext4 (or vice versa), warn
+func detectFSMismatch(loopFile string, userReqFS string) {
+	out, err := exec.Command("blkid", "-s", "TYPE", loopFile).CombinedOutput()
+	if err != nil {
+		logrus.Debugf("Running blkid failed. err=%v\n", err)
+		return
+	}
+
+	outsplit := strings.Split(string(out), "=")
+	if len(outsplit) < 2 {
+		logrus.Debug("Error: Length of slice is less than 2. outsplit=%v", outsplit)
+		return
+	}
+	logrus.Debugf("%s is formatted with fstype %s\n", loopFile, outsplit[1])
+
+	if (outsplit[1] != userReqFS) {
+		logrus.Warn("user requested dm.fs=%s. Images currently formatted with %s", userReqFS, outsplit[1])
+	}
+}
+
 // NewDeviceSet creates the device set based on the options provided.
 func NewDeviceSet(root string, doInit bool, options []string, uidMaps, gidMaps []idtools.IDMap) (*DeviceSet, error) {
 	devicemapper.SetDevDir("/dev")
@@ -2269,7 +2334,6 @@ func NewDeviceSet(root string, doInit bool, options []string, uidMaps, gidMaps [
 		metaDataLoopbackSize:  defaultMetaDataLoopbackSize,
 		baseFsSize:            defaultBaseFsSize,
 		overrideUdevSyncCheck: defaultUdevSyncOverride,
-		filesystem:            "ext4",
 		doBlkDiscard:          true,
 		thinpBlockSize:        defaultThinpBlockSize,
 		deviceIDMap:           make([]byte, deviceIDMapSz),
