@@ -102,7 +102,7 @@ that machine options that are needed by the `overlay` network driver.
 2. Create another host and add it to the Swarm cluster.
 
 		$ docker-machine create -d virtualbox \
-			--swarm --swarm-image="swarm:1.0.0-rc2" \
+			--swarm --swarm-image="swarm" \
 			--swarm-discovery="consul://$(docker-machine ip mh-keystore):8500" \
 			--engine-opt="cluster-store=consul://$(docker-machine ip mh-keystore):8500" \
 			--engine-opt="cluster-advertise=eth1:2376" \
