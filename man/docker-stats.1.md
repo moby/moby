@@ -22,8 +22,8 @@ Display a live stream of one or more containers' resource usage statistics
 **--help**
   Print usage statement
 
-**--no-stream**="false"
-  Disable streaming stats and only pull the first result
+**--no-stream**=*true*|*false*
+  Disable streaming stats and only pull the first result, default setting is false.
 
 # EXAMPLES
 

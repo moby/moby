@@ -40,7 +40,7 @@ the running containers.
                           ancestor=(<image-name>[:tag]|<image-id>|<image@digest>) - filters containers that were
                           created from the given image or a descendant.
 
-**--format**=*"TEMPLATE"*
+**--format**="*TEMPLATE*"
    Pretty-print containers using a Go template.
    Valid placeholders:
       .ID - Container ID
@@ -60,7 +60,7 @@ the running containers.
 **-l**, **--latest**=*true*|*false*
    Show only the latest created container, include non-running ones. The default is *false*.
 
-**-n**=-1
+**-n**=*-1*
    Show n last created containers, include non-running ones.
 
 **--no-trunc**=*true*|*false*

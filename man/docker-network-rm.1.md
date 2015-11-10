@@ -5,9 +5,9 @@
 docker-network-rm - remove a new network
 
 # SYNOPSIS
-**docker network rm NETWORK**
-
+**docker network rm**
 [**--help**]
+NETWORK
 
 # DESCRIPTION
 
@@ -16,7 +16,6 @@ Removes a network by name or identifier. To remove a network, you must first dis
 ```
   $ docker network rm my-network
 ```
-
 
 # OPTIONS
 **NETWORK**

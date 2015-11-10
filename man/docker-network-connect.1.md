@@ -5,9 +5,9 @@
 docker-network-connect - connect a container to a network
 
 # SYNOPSIS
-**docker network connect NAME CONTAINER**
-
+**docker network connect**
 [**--help**]
+NETWORK CONTAINER
 
 # DESCRIPTION
 
@@ -42,8 +42,8 @@ You can connect a container to one or more networks. The networks need not be th
 
 
 # OPTIONS
-**NAME**
-  Specify network driver name
+**NETWORK**
+  Specify network name
 
 **CONTAINER**
   Specify container name

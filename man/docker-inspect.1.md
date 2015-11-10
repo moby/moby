@@ -26,10 +26,10 @@ each result.
 **-f**, **--format**=""
     Format the output using the given Go template.
 
-**-s**, **--size**=false
+**-s**, **--size**=*false*
     Display total file sizes if the type is container.
 
-**--type**=*container*|*image*
+**--type**="*container*|*image*"
     Return JSON for specified type, permissible values are "image" or "container"
 
 # EXAMPLES

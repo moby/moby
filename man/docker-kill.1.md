@@ -19,7 +19,7 @@ The main process inside each container specified will be sent SIGKILL,
 **--help**
   Print usage statement
 
-**-s**, **--signal**="KILL"
+**-s**, **--signal**="*KILL*"
    Signal to send to the container
 
 # HISTORY

@@ -5,9 +5,9 @@
 docker-network-disconnect - disconnect a container from a network
 
 # SYNOPSIS
-**docker network disconnect NETWORK CONTAINER**
-
+**docker network disconnect**
 [**--help**]
+NETWORK CONTAINER
 
 # DESCRIPTION
 

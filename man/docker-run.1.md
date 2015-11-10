@@ -96,10 +96,10 @@ each of stdin, stdout, and stderr.
    Add a line to /etc/hosts. The format is hostname:ip.  The **--add-host**
 option can be set multiple times.
 
-**--blkio-weight**=0
+**--blkio-weight**=*0*
    Block IO weight (relative weight) accepts a weight value between 10 and 1000.
 
-**--cpu-shares**=0
+**--cpu-shares**=*0*
    CPU shares (relative weight)
 
    By default, all containers get the same proportion of CPU cycles. This proportion
@@ -147,7 +147,7 @@ division of CPU shares:
 **--cidfile**=""
    Write the container ID to the file
 
-**--cpu-period**=0
+**--cpu-period**=*0*
    Limit the CPU CFS (Completely Fair Scheduler) period
 
    Limit the container's CPU usage. This flag tell the kernel to restrict the container's CPU usage to the period you specify.
@@ -162,7 +162,7 @@ division of CPU shares:
 then processes in your Docker container will only use memory from the first
 two memory nodes.
 
-**--cpu-quota**=0
+**--cpu-quota**=*0*
    Limit the CPU CFS (Completely Fair Scheduler) quota
 
    Limit the container's CPU usage. By default, containers run with the full
@@ -273,7 +273,7 @@ container can access the exposed port via a private networking interface. Docker
 will set some environment variables in the client container to help indicate
 which interface and port to use.
 
-**--log-driver**="|*json-file*|*syslog*|*journald*|*gelf*|*fluentd*|*awslogs*|*splunk*|*none*"
+**--log-driver**="*json-file*|*syslog*|*journald*|*gelf*|*fluentd*|*awslogs*|*splunk*|*none*"
   Logging driver for container. Default is defined by daemon `--log-driver` flag.
   **Warning**: the `docker logs` command works only for the `json-file` and
   `journald` logging drivers.
@@ -326,7 +326,7 @@ string name. The name is useful when defining links (see **--link**) (or any
 other place you need to identify a container). This works for both background
 and foreground Docker containers.
 
-**--net**="bridge"
+**--net**="*bridge*"
    Set the Network mode for the container
                                'bridge': creates a new network stack for the container on the docker bridge
                                'none': no networking for this container
@@ -358,12 +358,12 @@ but not `docker run -p 1230-1236:1230-1240 --name RangeContainerPortsBiggerThanR
 With ip: `docker run -p 127.0.0.1:$HOSTPORT:$CONTAINERPORT --name CONTAINER -t someimage`
 Use `docker port` to see the actual mapping: `docker port CONTAINER $CONTAINERPORT`
 
-**--pid**=host
+**--pid**=*host*
    Set the PID mode for the container
      **host**: use the host's PID namespace inside the container.
      Note: the host mode gives the container full access to local PID and is therefore considered insecure.
 
-**--uts**=host
+**--uts**=*host*
    Set the UTS mode for the container
      **host**: use the host's UTS namespace inside the container.
      Note: the host mode gives the container access to changing the host's hostname and is therefore considered insecure.
@@ -388,7 +388,7 @@ outside of a container on the host.
 to write files anywhere.  By specifying the `--read-only` flag the container will have
 its root filesystem mounted as read only prohibiting any writes.
 
-**--restart**="no"
+**--restart**="*no*"
    Restart policy to apply when a container exits (no, on-failure[:max-retry], always, unless-stopped).
 
 **--rm**=*true*|*false*
@@ -403,7 +403,7 @@ its root filesystem mounted as read only prohibiting any writes.
     "label:level:LEVEL" : Set the label level for the container
     "label:disable"     : Turn off label confinement for the container
 
-**--stop-signal**=SIGTERM
+**--stop-signal**=*SIGTERM*
   Signal to stop a container. Default is SIGTERM.
 
 **--sig-proxy**=*true*|*false*
@@ -430,7 +430,7 @@ standard input.
 
    Without this argument the command will be run as root in the container.
 
-""--ulimit""=[]
+**--ulimit**=[]
     Ulimit options
 
 **-v**, **--volume**=[] Create a bind mount

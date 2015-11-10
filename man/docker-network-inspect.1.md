@@ -5,9 +5,9 @@
 docker-network-inspect - inspect a network
 
 # SYNOPSIS
-**docker network inspect NETWORK [NETWORK...]**
-
+**docker network inspect**
 [**--help**]
+NETWORK [NETWORK...]
 
 # DESCRIPTION
 
