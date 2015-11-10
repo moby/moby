@@ -947,7 +947,7 @@ func (daemon *Daemon) getNetworkSandbox(container *Container) libnetwork.Sandbox
 	return sb
 }
 
-// ConnectToNetwork connects a container to a netork
+// ConnectToNetwork connects a container to a network
 func (daemon *Daemon) ConnectToNetwork(container *Container, idOrName string) error {
 	if !container.Running {
 		return derr.ErrorCodeNotRunning.WithArgs(container.ID)
