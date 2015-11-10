@@ -797,7 +797,7 @@ func (daemon *Daemon) updateNetwork(container *Container) error {
 	return nil
 }
 
-func (container *Container) buildCreateEndpointOptions(n libnetwork.Network) ([]libnetwork.EndpointOption, error) {
+func (container *Container) buildCreateEndpointOptions(n libnetwork.Network, controller libnetwork.NetworkController) ([]libnetwork.EndpointOption, error) {
 	var (
 		portSpecs     = make(nat.PortSet)
 		bindings      = make(nat.PortMap)
@@ -867,12 +867,14 @@ func (container *Container) buildCreateEndpointOptions(n libnetwork.Network) ([]
 		if err != nil {
 			return nil, err
 		}
+		if container.hostConfig.NetworkMode.NetworkName() == n.Name() ||
+			container.hostConfig.NetworkMode.IsDefault() && n.Name() == controller.Config().Daemon.DefaultNetwork {
+			genericOption := options.Generic{
+				netlabel.MacAddress: mac,
+			}
 
-		genericOption := options.Generic{
-			netlabel.MacAddress: mac,
+			createOptions = append(createOptions, libnetwork.EndpointOptionGeneric(genericOption))
 		}
-
-		createOptions = append(createOptions, libnetwork.EndpointOptionGeneric(genericOption))
 	}
 
 	if n.Name() == "bridge" || container.NetworkSettings.IsAnonymousEndpoint {
@@ -934,7 +936,7 @@ func (daemon *Daemon) getNetworkSandbox(container *Container) libnetwork.Sandbox
 	return sb
 }
 
-// ConnectToNetwork connects a container to a netork
+// ConnectToNetwork connects a container to a network
 func (daemon *Daemon) ConnectToNetwork(container *Container, idOrName string) error {
 	if !container.Running {
 		return derr.ErrorCodeNotRunning.WithArgs(container.ID)
@@ -981,7 +983,7 @@ func (daemon *Daemon) connectToNetwork(container *Container, idOrName string, up
 		return err
 	}
 
-	createOptions, err := container.buildCreateEndpointOptions(n)
+	createOptions, err := container.buildCreateEndpointOptions(n, controller)
 	if err != nil {
 		return err
 	}
