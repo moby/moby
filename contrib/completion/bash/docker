@@ -21,8 +21,8 @@
 # setting environment variables.
 #
 # DOCKER_COMPLETION_SHOW_NETWORK_IDS
-#   "false" - Show names only (default)
-#   "true"  - Show names and ids
+#   "no"  - Show names only (default)
+#   "yes" - Show names and ids
 #
 # You can tailor completion for the "events", "history", "inspect", "run",
 # "rmi" and "save" commands by settings the following environment
@@ -150,9 +150,9 @@ __docker_containers_and_images() {
 
 __docker_networks() {
 	# By default, only network names are completed.
-	# Set DOCKER_COMPLETION_SHOW_NETWORK_IDS=true to also complete network IDs.
+	# Set DOCKER_COMPLETION_SHOW_NETWORK_IDS=yes to also complete network IDs.
 	local fields='$2'
-	[ "${DOCKER_COMPLETION_SHOW_NETWORK_IDS}" = true ] && fields='$1,$2'
+	[ "${DOCKER_COMPLETION_SHOW_NETWORK_IDS}" = yes ] && fields='$1,$2'
 	local networks=$(__docker_q network ls --no-trunc | awk "NR>1 {print $fields}")
 	COMPREPLY=( $(compgen -W "$networks" -- "$cur") )
 }
