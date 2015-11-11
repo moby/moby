@@ -86,6 +86,9 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 		ServerVersion:      dockerversion.Version,
 		ClusterStore:       daemon.config().ClusterStore,
 		ClusterAdvertise:   daemon.config().ClusterAdvertise,
+		HTTPProxy:          os.Getenv("http_proxy"),
+		HTTPSProxy:         os.Getenv("https_proxy"),
+		NoProxy:            os.Getenv("no_proxy"),
 	}
 
 	// TODO Windows. Refactor this more once sysinfo is refactored into
@@ -100,15 +103,6 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 		v.CPUCfsQuota = sysInfo.CPUCfsQuota
 	}
 
-	if httpProxy := os.Getenv("http_proxy"); httpProxy != "" {
-		v.HTTPProxy = httpProxy
-	}
-	if httpsProxy := os.Getenv("https_proxy"); httpsProxy != "" {
-		v.HTTPSProxy = httpsProxy
-	}
-	if noProxy := os.Getenv("no_proxy"); noProxy != "" {
-		v.NoProxy = noProxy
-	}
 	if hostname, err := os.Hostname(); err == nil {
 		v.Name = hostname
 	}
