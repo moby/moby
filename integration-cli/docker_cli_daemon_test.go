@@ -377,6 +377,29 @@ func (s *DockerSuite) TestDaemonIPv6FixedCIDR(c *check.C) {
 	}
 }
 
+// TestDaemonIPv6FixedCIDRAndMac checks that when the daemon is started with ipv6 fixed CIDR
+// the running containers are given a an IPv6 address derived from the MAC address and the ipv6 fixed CIDR
+func (s *DockerSuite) TestDaemonIPv6FixedCIDRAndMac(c *check.C) {
+	err := setupV6()
+	c.Assert(err, checker.IsNil)
+
+	d := NewDaemon(c)
+
+	err = d.StartWithBusybox("--ipv6", "--fixed-cidr-v6='2001:db8:1::/64'")
+	c.Assert(err, checker.IsNil)
+	defer d.Stop()
+
+	out, err := d.Cmd("run", "-itd", "--name=ipv6test", "--mac-address", "AA:BB:CC:DD:EE:FF", "busybox")
+	c.Assert(err, checker.IsNil)
+
+	out, err = d.Cmd("inspect", "--format", "'{{.NetworkSettings.Networks.bridge.GlobalIPv6Address}}'", "ipv6test")
+	c.Assert(err, checker.IsNil)
+	c.Assert(strings.Trim(out, " \r\n'"), checker.Equals, "2001:db8:1::aabb:ccdd:eeff")
+
+	err = teardownV6()
+	c.Assert(err, checker.IsNil)
+}
+
 func (s *DockerDaemonSuite) TestDaemonLogLevelWrong(c *check.C) {
 	c.Assert(s.d.Start("--log-level=bogus"), check.NotNil, check.Commentf("Daemon shouldn't start with wrong log level"))
 }

@@ -737,7 +737,7 @@ func (ep *endpoint) DataScope() string {
 	return ep.getNetwork().DataScope()
 }
 
-func (ep *endpoint) assignAddress() error {
+func (ep *endpoint) assignAddress(assignIPv4, assignIPv6 bool) error {
 	var (
 		ipam ipamapi.Ipam
 		err  error
@@ -754,11 +754,18 @@ func (ep *endpoint) assignAddress() error {
 	if err != nil {
 		return err
 	}
-	err = ep.assignAddressVersion(4, ipam)
-	if err != nil {
-		return err
+
+	if assignIPv4 {
+		if err = ep.assignAddressVersion(4, ipam); err != nil {
+			return err
+		}
 	}
-	return ep.assignAddressVersion(6, ipam)
+
+	if assignIPv6 {
+		err = ep.assignAddressVersion(6, ipam)
+	}
+
+	return err
 }
 
 func (ep *endpoint) assignAddressVersion(ipVer int, ipam ipamapi.Ipam) error {
@@ -787,7 +794,11 @@ func (ep *endpoint) assignAddressVersion(ipVer int, ipam ipamapi.Ipam) error {
 	}
 
 	for _, d := range ipInfo {
-		addr, _, err := ipam.RequestAddress(d.PoolID, nil, nil)
+		var prefIP net.IP
+		if *address != nil {
+			prefIP = (*address).IP
+		}
+		addr, _, err := ipam.RequestAddress(d.PoolID, prefIP, nil)
 		if err == nil {
 			ep.Lock()
 			*address = addr
