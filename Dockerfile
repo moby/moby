@@ -55,6 +55,7 @@ RUN apt-get update && apt-get install -y \
 	python-websocket \
 	s3cmd=1.1.0* \
 	ubuntu-zfs \
+	xfsprogs \
 	libzfs-dev \
 	--no-install-recommends
 
