@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/Sirupsen/logrus"
@@ -110,8 +111,14 @@ func (s *router) postImagesCreate(ctx context.Context, w http.ResponseWriter, r 
 	w.Header().Set("Content-Type", "application/json")
 
 	if image != "" { //pull
+		// Handles the unescape characters.
+		unescapedImage, err := url.QueryUnescape(image)
+		if err != nil {
+			unescapedImage = image
+		}
+
 		if tag == "" {
-			image, tag = parsers.ParseRepositoryTag(image)
+			image, tag = parsers.ParseRepositoryTag(unescapedImage)
 		}
 		metaHeaders := map[string][]string{}
 		for k, v := range r.Header {
@@ -128,8 +135,14 @@ func (s *router) postImagesCreate(ctx context.Context, w http.ResponseWriter, r 
 
 		err = s.daemon.PullImage(image, tag, imagePullConfig)
 	} else { //import
+		// Handles the unescape characters.
+		unescapedRepo, err := url.QueryUnescape(repo)
+		if err != nil {
+			unescapedRepo = image
+		}
+
 		if tag == "" {
-			repo, tag = parsers.ParseRepositoryTag(repo)
+			repo, tag = parsers.ParseRepositoryTag(unescapedRepo)
 		}
 
 		src := r.Form.Get("fromSrc")
