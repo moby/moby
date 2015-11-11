@@ -3,6 +3,7 @@
 package devmapper
 
 import (
+	"bufio"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -532,7 +533,42 @@ func (devices *DeviceSet) activateDeviceIfNeeded(info *devInfo, ignoreDeleted bo
 	return devicemapper.ActivateDevice(devices.getPoolDevName(), info.Name(), info.DeviceID, info.Size)
 }
 
+// Return true only if kernel supports xfs and mkfs.xfs is available
+func xfsSupported() bool {
+	// Make sure mkfs.xfs is available
+	if _, err := exec.LookPath("mkfs.xfs"); err != nil {
+		return false
+	}
+
+	// Check if kernel supports xfs filesystem or not.
+	exec.Command("modprobe", "xfs").Run()
+
+	f, err := os.Open("/proc/filesystems")
+	if err != nil {
+		logrus.Warnf("Could not check if xfs is supported: %v", err)
+		return false
+	}
+	defer f.Close()
+
+	s := bufio.NewScanner(f)
+	for s.Scan() {
+		if strings.HasSuffix(s.Text(), "\txfs") {
+			return true
+		}
+	}
+
+	if err := s.Err(); err != nil {
+		logrus.Warnf("Could not check if xfs is supported: %v", err)
+	}
+	return false
+}
+
 func determineDefaultFS() string {
+	if xfsSupported() {
+		return "xfs"
+	}
+
+	logrus.Warn("XFS is not supported in your system. Either the kernel doesnt support it or mkfs.xfs is not in your PATH. Defaulting to ext4 filesystem")
 	return "ext4"
 }
 
