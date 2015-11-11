@@ -455,12 +455,25 @@ func initBridgeDriver(controller libnetwork.NetworkController, config *Config) e
 		ipamV4Conf.AuxAddresses["DefaultGatewayIPv4"] = config.Bridge.DefaultGatewayIPv4.String()
 	}
 
-	var ipamV6Conf *libnetwork.IpamConf
+	var (
+		ipamV6Conf     *libnetwork.IpamConf
+		deferIPv6Alloc bool
+	)
 	if config.Bridge.FixedCIDRv6 != "" {
 		_, fCIDRv6, err := net.ParseCIDR(config.Bridge.FixedCIDRv6)
 		if err != nil {
 			return err
 		}
+
+		// In case user has specified the daemon flag --fixed-cidr-v6 and the passed network has
+		// at least 48 host bits, we need to guarantee the current behavior where the containers'
+		// IPv6 addresses will be constructed based on the containers' interface MAC address.
+		// We do so by telling libnetwork to defer the IPv6 address allocation for the endpoints
+		// on this network until after the driver has created the endpoint and returned the
+		// constructed address. Libnetwork will then reserve this address with the ipam driver.
+		ones, _ := fCIDRv6.Mask.Size()
+		deferIPv6Alloc = ones <= 80
+
 		if ipamV6Conf == nil {
 			ipamV6Conf = &libnetwork.IpamConf{}
 		}
@@ -485,7 +498,8 @@ func initBridgeDriver(controller libnetwork.NetworkController, config *Config) e
 			netlabel.GenericData: netOption,
 			netlabel.EnableIPv6:  config.Bridge.EnableIPv6,
 		}),
-		libnetwork.NetworkOptionIpam("default", "", v4Conf, v6Conf))
+		libnetwork.NetworkOptionIpam("default", "", v4Conf, v6Conf),
+		libnetwork.NetworkOptionDeferIPv6Alloc(deferIPv6Alloc))
 	if err != nil {
 		return fmt.Errorf("Error creating default \"bridge\" network: %v", err)
 	}
