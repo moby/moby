@@ -70,9 +70,9 @@ If you don't specify a variant, for example you just use `ubuntu`, then Docker
 will default to using the `ubuntu:latest` image.
 
 > **Tip:**
-> You recommend you always use a specific tagged image, for example
-> `ubuntu:12.04`. That way you always know exactly what variant of an image is
-> being used.
+> You should always specify an image tag, for example `ubuntu:14.04`.
+> That way, you always know exactly what variant of an image you are using.
+> This is useful for troubleshooting and debugging.
 
 ## Getting a new image
 
