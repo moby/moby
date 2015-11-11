@@ -1,22 +1,12 @@
 package store
 
 import (
-	"errors"
 	"sync"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/locker"
 	"github.com/docker/docker/volume"
 	"github.com/docker/docker/volume/drivers"
-)
-
-var (
-	// ErrVolumeInUse is a typed error returned when trying to remove a volume that is currently in use by a container
-	ErrVolumeInUse = errors.New("volume is in use")
-	// ErrNoSuchVolume is a typed error returned if the requested volume doesn't exist in the volume store
-	ErrNoSuchVolume = errors.New("no such volume")
-	// ErrInvalidName is a typed error returned when creating a volume with a name that is not valid on the platform
-	ErrInvalidName = errors.New("volume name is not valid on this platform")
 )
 
 // New initializes a VolumeStore to keep
@@ -81,7 +71,7 @@ func (s *VolumeStore) Create(name, driverName string, opts map[string]string) (v
 
 	vd, err := volumedrivers.GetDriver(driverName)
 	if err != nil {
-		return nil, err
+		return nil, &OpErr{Err: err, Name: driverName, Op: "create"}
 	}
 
 	// Validate the name in a platform-specific manner
@@ -90,12 +80,12 @@ func (s *VolumeStore) Create(name, driverName string, opts map[string]string) (v
 		return nil, err
 	}
 	if !valid {
-		return nil, ErrInvalidName
+		return nil, &OpErr{Err: errInvalidName, Name: name, Op: "create"}
 	}
 
 	v, err := vd.Create(name, opts)
 	if err != nil {
-		return nil, err
+		return nil, &OpErr{Op: "create", Name: name, Err: err}
 	}
 
 	s.set(name, &volumeCounter{v, 0})
@@ -110,7 +100,7 @@ func (s *VolumeStore) Get(name string) (volume.Volume, error) {
 
 	vc, exists := s.get(name)
 	if !exists {
-		return nil, ErrNoSuchVolume
+		return nil, &OpErr{Err: errNoSuchVolume, Name: name, Op: "get"}
 	}
 	return vc.Volume, nil
 }
@@ -124,19 +114,19 @@ func (s *VolumeStore) Remove(v volume.Volume) error {
 	logrus.Debugf("Removing volume reference: driver %s, name %s", v.DriverName(), name)
 	vc, exists := s.get(name)
 	if !exists {
-		return ErrNoSuchVolume
+		return &OpErr{Err: errNoSuchVolume, Name: name, Op: "remove"}
 	}
 
 	if vc.count > 0 {
-		return ErrVolumeInUse
+		return &OpErr{Err: errVolumeInUse, Name: name, Op: "remove"}
 	}
 
 	vd, err := volumedrivers.GetDriver(vc.DriverName())
 	if err != nil {
-		return err
+		return &OpErr{Err: err, Name: vc.DriverName(), Op: "remove"}
 	}
 	if err := vd.Remove(vc.Volume); err != nil {
-		return err
+		return &OpErr{Err: err, Name: name, Op: "remove"}
 	}
 
 	s.remove(name)
