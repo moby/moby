@@ -145,6 +145,12 @@ func TestParseRepositoryTag(t *testing.T) {
 	if repo, tag := ParseRepositoryTag("url:5000/repo:tag"); repo != "url:5000/repo" || tag != "tag" {
 		t.Errorf("Expected repo: '%s' and tag: '%s', got '%s' and '%s'", "url:5000/repo", "tag", repo, tag)
 	}
+	if repo, tag := ParseRepositoryTag("url%3A5000%2Frepo"); repo != "url:5000/repo" || tag != "" {
+		t.Errorf("Expected repo: '%s' and tag: '%s', got '%s' and '%s' (the scenario with URI encoded characters)", "url:5000/repo", "", repo, tag)
+	}
+	if repo, tag := ParseRepositoryTag("url%3A5000%2Frepo%3Atag"); repo != "url:5000/repo" || tag != "tag" {
+		t.Errorf("Expected repo: '%s' and tag: '%s', got '%s' and '%s' (the scenario with URI encoded characters)", "url:5000/repo", "tag", repo, tag)
+	}
 	if repo, digest := ParseRepositoryTag("url:5000/repo@sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"); repo != "url:5000/repo" || digest != "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855" {
 		t.Errorf("Expected repo: '%s' and digest: '%s', got '%s' and '%s'", "url:5000/repo", "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", repo, digest)
 	}
