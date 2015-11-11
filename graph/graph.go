@@ -10,7 +10,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -239,9 +238,7 @@ func (graph *Graph) Get(name string) (*image.Image, error) {
 		}
 
 		img.Size = size
-		if err := graph.saveSize(graph.imageRoot(id), img.Size); err != nil {
-			return nil, err
-		}
+		graph.saveImage(img)
 	}
 	return img, nil
 }
@@ -337,11 +334,7 @@ func (graph *Graph) register(im image.Descriptor, layerData io.Reader) (err erro
 	}
 
 	// Apply the diff/layer
-	config, err := im.MarshalConfig()
-	if err != nil {
-		return err
-	}
-	if err := graph.storeImage(imgID, parent, config, layerData, tmp); err != nil {
+	if err := graph.storeImage(im, layerData, tmp); err != nil {
 		return err
 	}
 	// Commit
@@ -532,6 +525,26 @@ func (graph *Graph) imageRoot(id string) string {
 	return filepath.Join(graph.root, id)
 }
 
+// saveImage saves the given image structure into the graph.
+func (graph *Graph) saveImage(img *image.Image) error {
+	root := graph.imageRoot(img.ID)
+
+	// Open the JSON file to encode by streaming
+	jsonSource, err := os.Open(jsonPath(root))
+	if err != nil {
+		return err
+	}
+	defer jsonSource.Close()
+
+	enc := json.NewEncoder(jsonSource)
+
+	if err := enc.Encode(img); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // loadImage fetches the image with the given id from the graph.
 func (graph *Graph) loadImage(id string) (*image.Image, error) {
 	root := graph.imageRoot(id)
@@ -569,33 +582,7 @@ func (graph *Graph) loadImage(id string) (*image.Image, error) {
 		return nil, err
 	}
 
-	if buf, err := ioutil.ReadFile(filepath.Join(root, layersizeFileName)); err != nil {
-		if !os.IsNotExist(err) {
-			return nil, err
-		}
-		// If the layersize file does not exist then set the size to a negative number
-		// because a layer size of 0 (zero) is valid
-		img.Size = -1
-	} else {
-		// Using Atoi here instead would temporarily convert the size to a machine
-		// dependent integer type, which causes images larger than 2^31 bytes to
-		// display negative sizes on 32-bit machines:
-		size, err := strconv.ParseInt(string(buf), 10, 64)
-		if err != nil {
-			return nil, err
-		}
-		img.Size = int64(size)
-	}
-
 	return img, nil
-}
-
-// saveSize stores the `size` in the provided graph `img` directory `root`.
-func (graph *Graph) saveSize(root string, size int64) error {
-	if err := ioutil.WriteFile(filepath.Join(root, layersizeFileName), []byte(strconv.FormatInt(size, 10)), 0600); err != nil {
-		return fmt.Errorf("Error storing image size in %s/%s: %s", root, layersizeFileName, err)
-	}
-	return nil
 }
 
 // setLayerDigestWithLock sets the digest for the image layer to the provided value.
@@ -697,17 +684,20 @@ func jsonPath(root string) string {
 // storeImage stores file system layer data for the given image to the
 // graph's storage driver. Image metadata is stored in a file
 // at the specified root directory.
-func (graph *Graph) storeImage(id, parent string, config []byte, layerData io.Reader, root string) (err error) {
-	var size int64
-	// Store the layer. If layerData is not nil, unpack it into the new layer
-	if layerData != nil {
-		if size, err = graph.disassembleAndApplyTarLayer(id, parent, layerData, root); err != nil {
-			return err
-		}
+func (graph *Graph) storeImage(im image.Descriptor, layerData io.Reader, root string) (err error) {
+	config, err := im.MarshalConfig()
+	if err != nil {
+		return err
 	}
 
-	if err := graph.saveSize(root, size); err != nil {
-		return err
+	imgID := im.ID()
+	parent := im.Parent()
+
+	// Store the layer. If layerData is not nil, unpack it into the new layer
+	if layerData != nil {
+		if _, err = graph.disassembleAndApplyTarLayer(imgID, parent, layerData, root); err != nil {
+			return err
+		}
 	}
 
 	if err := ioutil.WriteFile(jsonPath(root), config, 0600); err != nil {
