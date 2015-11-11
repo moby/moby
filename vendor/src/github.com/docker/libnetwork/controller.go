@@ -128,14 +128,11 @@ type ipamData struct {
 
 type driverTable map[string]*driverData
 
-//type networkTable map[string]*network
-//type endpointTable map[string]*endpoint
 type ipamTable map[string]*ipamData
 type sandboxTable map[string]*sandbox
 
 type controller struct {
-	id string
-	//networks       networkTable
+	id             string
 	drivers        driverTable
 	ipamDrivers    ipamTable
 	sandboxes      sandboxTable
