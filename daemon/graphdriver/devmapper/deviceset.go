@@ -3,6 +3,7 @@
 package devmapper
 
 import (
+	"bufio"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -99,7 +100,7 @@ type DeviceSet struct {
 	dataLoopbackSize      int64
 	metaDataLoopbackSize  int64
 	baseFsSize            uint64
-	filesystem            string
+	userFilesystem        string // FS specified by user using dm.fs
 	mountOptions          string
 	mkfsArgs              []string
 	dataDevice            string // block or loop dev
@@ -532,6 +533,45 @@ func (devices *DeviceSet) activateDeviceIfNeeded(info *devInfo, ignoreDeleted bo
 	return devicemapper.ActivateDevice(devices.getPoolDevName(), info.Name(), info.DeviceID, info.Size)
 }
 
+// Return true only if kernel supports xfs and mkfs.xfs is available
+func xfsSupported() bool {
+	// Make sure mkfs.xfs is available
+	if _, err := exec.LookPath("mkfs.xfs"); err != nil {
+		return false
+	}
+
+	// Check if kernel supports xfs filesystem or not.
+	exec.Command("modprobe", "xfs").Run()
+
+	f, err := os.Open("/proc/filesystems")
+	if err != nil {
+		logrus.Warnf("Could not check if xfs is supported: %v", err)
+		return false
+	}
+	defer f.Close()
+
+	s := bufio.NewScanner(f)
+	for s.Scan() {
+		if strings.HasSuffix(s.Text(), "\txfs") {
+			return true
+		}
+	}
+
+	if err := s.Err(); err != nil {
+		logrus.Warnf("Could not check if xfs is supported: %v", err)
+	}
+	return false
+}
+
+func determineDefaultFS() string {
+	if xfsSupported() {
+		return "xfs"
+	}
+
+	logrus.Warn("XFS is not supported in your system. Either the kernel doesnt support it or mkfs.xfs is not in your PATH. Defaulting to ext4 filesystem")
+	return "ext4"
+}
+
 func (devices *DeviceSet) createFilesystem(info *devInfo) error {
 	devname := info.DevName()
 
@@ -543,7 +583,13 @@ func (devices *DeviceSet) createFilesystem(info *devInfo) error {
 	args = append(args, devname)
 
 	var err error
-	switch devices.filesystem {
+
+	fs := devices.userFilesystem
+	if fs == "" {
+		fs = determineDefaultFS()
+	}
+
+	switch fs {
 	case "xfs":
 		err = exec.Command("mkfs.xfs", args...).Run()
 	case "ext4":
@@ -556,7 +602,7 @@ func (devices *DeviceSet) createFilesystem(info *devInfo) error {
 		}
 		err = exec.Command("tune2fs", append([]string{"-c", "-1", "-i", "0"}, devname)...).Run()
 	default:
-		err = fmt.Errorf("Unsupported filesystem type %s", devices.filesystem)
+		err = fmt.Errorf("Unsupported filesystem type %s", fs)
 	}
 	if err != nil {
 		return err
@@ -843,7 +889,7 @@ func (devices *DeviceSet) getBaseDeviceSize() uint64 {
 	return info.Size
 }
 
-func (devices *DeviceSet) verifyBaseDeviceUUID(baseInfo *devInfo) error {
+func (devices *DeviceSet) verifyBaseDeviceUUIDFS(baseInfo *devInfo) error {
 	devices.Lock()
 	defer devices.Unlock()
 
@@ -859,9 +905,22 @@ func (devices *DeviceSet) verifyBaseDeviceUUID(baseInfo *devInfo) error {
 	}
 
 	if devices.BaseDeviceUUID != uuid {
-		return fmt.Errorf("Current Base Device UUID:%s does not match with stored UUID:%s", uuid, devices.BaseDeviceUUID)
+		return fmt.Errorf("Current Base Device UUID:%s does not match with stored UUID:%s. Possibly using a different thin pool than last invocation", uuid, devices.BaseDeviceUUID)
 	}
 
+	// If user specified a filesystem using dm.fs option and current
+	// file system of base image is not same, warn user that dm.fs
+	// will be ignored.
+	if devices.userFilesystem != "" {
+		fs, err := ProbeFsType(baseInfo.DevName())
+		if err != nil {
+			return err
+		}
+
+		if fs != devices.userFilesystem {
+			logrus.Warnf("Base device already exists and has filesystem %s on it. User specified filesystem %s will be ignored.", fs, devices.userFilesystem)
+		}
+	}
 	return nil
 }
 
@@ -962,7 +1021,7 @@ func (devices *DeviceSet) checkThinPool() error {
 
 // Base image is initialized properly. Either save UUID for first time (for
 // upgrade case or verify UUID.
-func (devices *DeviceSet) setupVerifyBaseImageUUID(baseInfo *devInfo) error {
+func (devices *DeviceSet) setupVerifyBaseImageUUIDFS(baseInfo *devInfo) error {
 	// If BaseDeviceUUID is nil (upgrade case), save it and return success.
 	if devices.BaseDeviceUUID == "" {
 		if err := devices.saveBaseDeviceUUID(baseInfo); err != nil {
@@ -971,8 +1030,8 @@ func (devices *DeviceSet) setupVerifyBaseImageUUID(baseInfo *devInfo) error {
 		return nil
 	}
 
-	if err := devices.verifyBaseDeviceUUID(baseInfo); err != nil {
-		return fmt.Errorf("Base Device UUID verification failed. Possibly using a different thin pool than last invocation:%v", err)
+	if err := devices.verifyBaseDeviceUUIDFS(baseInfo); err != nil {
+		return fmt.Errorf("Base Device UUID and Filesystem verification failed.%v", err)
 	}
 
 	return nil
@@ -987,7 +1046,7 @@ func (devices *DeviceSet) setupBaseImage() error {
 
 	if oldInfo != nil {
 		if oldInfo.Initialized && !oldInfo.Deleted {
-			if err := devices.setupVerifyBaseImageUUID(oldInfo); err != nil {
+			if err := devices.setupVerifyBaseImageUUIDFS(oldInfo); err != nil {
 				return err
 			}
 
@@ -2269,7 +2328,6 @@ func NewDeviceSet(root string, doInit bool, options []string, uidMaps, gidMaps [
 		metaDataLoopbackSize:  defaultMetaDataLoopbackSize,
 		baseFsSize:            defaultBaseFsSize,
 		overrideUdevSyncCheck: defaultUdevSyncOverride,
-		filesystem:            "ext4",
 		doBlkDiscard:          true,
 		thinpBlockSize:        defaultThinpBlockSize,
 		deviceIDMap:           make([]byte, deviceIDMapSz),
@@ -2308,7 +2366,7 @@ func NewDeviceSet(root string, doInit bool, options []string, uidMaps, gidMaps [
 			if val != "ext4" && val != "xfs" {
 				return nil, fmt.Errorf("Unsupported filesystem %s\n", val)
 			}
-			devices.filesystem = val
+			devices.userFilesystem = val
 		case "dm.mkfsarg":
 			devices.mkfsArgs = append(devices.mkfsArgs, val)
 		case "dm.mountopt":
