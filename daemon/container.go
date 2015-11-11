@@ -20,14 +20,12 @@ import (
 	"github.com/docker/docker/daemon/network"
 	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/broadcaster"
-	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/ioutils"
-	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/nat"
 	"github.com/docker/docker/pkg/promise"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/symlink"
-	"github.com/docker/docker/pkg/system"
+
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/volume"
 )
@@ -512,77 +510,6 @@ func (container *Container) shouldRestart() bool {
 	return container.hostConfig.RestartPolicy.Name == "always" ||
 		(container.hostConfig.RestartPolicy.Name == "unless-stopped" && !container.HasBeenManuallyStopped) ||
 		(container.hostConfig.RestartPolicy.Name == "on-failure" && container.ExitCode != 0)
-}
-
-func (daemon *Daemon) mountVolumes(container *Container) error {
-	mounts, err := daemon.setupMounts(container)
-	if err != nil {
-		return err
-	}
-
-	for _, m := range mounts {
-		dest, err := container.GetResourcePath(m.Destination)
-		if err != nil {
-			return err
-		}
-
-		var stat os.FileInfo
-		stat, err = os.Stat(m.Source)
-		if err != nil {
-			return err
-		}
-		if err = fileutils.CreateIfNotExists(dest, stat.IsDir()); err != nil {
-			return err
-		}
-
-		opts := "rbind,ro"
-		if m.Writable {
-			opts = "rbind,rw"
-		}
-
-		if err := mount.Mount(m.Source, dest, "bind", opts); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (container *Container) unmountVolumes(forceSyscall bool) error {
-	var (
-		volumeMounts []volume.MountPoint
-		err          error
-	)
-
-	for _, mntPoint := range container.MountPoints {
-		dest, err := container.GetResourcePath(mntPoint.Destination)
-		if err != nil {
-			return err
-		}
-
-		volumeMounts = append(volumeMounts, volume.MountPoint{Destination: dest, Volume: mntPoint.Volume})
-	}
-
-	// Append any network mounts to the list (this is a no-op on Windows)
-	if volumeMounts, err = appendNetworkMounts(container, volumeMounts); err != nil {
-		return err
-	}
-
-	for _, volumeMount := range volumeMounts {
-		if forceSyscall {
-			if err := system.Unmount(volumeMount.Destination); err != nil {
-				logrus.Warnf("%s unmountVolumes: Failed to force umount %v", container.ID, err)
-			}
-		}
-
-		if volumeMount.Volume != nil {
-			if err := volumeMount.Volume.Unmount(); err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
 }
 
 func (container *Container) addBindMountPoint(name, source, destination string, rw bool) {

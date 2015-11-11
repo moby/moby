@@ -190,3 +190,16 @@ func (container *Container) ipcMounts() []execdriver.Mount {
 func getDefaultRouteMtu() (int, error) {
 	return -1, errSystemNotSupported
 }
+
+// TODO Windows: Fix Post-TP4. This is a hack to allow docker cp to work
+// against containers which have volumes. You will still be able to cp
+// to somewhere on the container drive, but not to any mounted volumes
+// inside the container. Without this fix, docker cp is broken to any
+// container which has a volume, regardless of where the file is inside the
+// container.
+func (daemon *Daemon) mountVolumes(container *Container) error {
+	return nil
+}
+func (container *Container) unmountVolumes(forceSyscall bool) error {
+	return nil
+}
