@@ -26,7 +26,8 @@ container's logging driver. The following options are supported:
 | `awslogs`   | Amazon CloudWatch Logs logging driver for Docker. Writes log messages to Amazon CloudWatch Logs.                              |
 | `splunk`    | Splunk logging driver for Docker. Writes log messages to `splunk` using HTTP Event Collector.                                 |
 
-The `docker logs`command is available only for the `json-file` logging driver.
+The `docker logs`command is available only for the `json-file` and `journald`
+logging drivers.
 
 The `labels` and `env` options add additional attributes for use with logging drivers that accept them. Each option takes a comma-separated list of keys. If there is collision between `label` and `env` keys, the value of the `env` takes precedence.
 
