@@ -360,10 +360,20 @@ func (a *Driver) Diff(id, parent string) (archive.Archive, error) {
 }
 
 func (a *Driver) applyDiff(id string, diff archive.Reader) error {
-	return chrootarchive.UntarUncompressed(diff, path.Join(a.rootPath(), "diff", id), &archive.TarOptions{
+	dir := path.Join(a.rootPath(), "diff", id)
+	if err := chrootarchive.UntarUncompressed(diff, dir, &archive.TarOptions{
 		UIDMaps: a.uidMaps,
 		GIDMaps: a.gidMaps,
-	})
+	}); err != nil {
+		return err
+	}
+
+	// show invalid whiteouts warning.
+	files, err := ioutil.ReadDir(path.Join(dir, archive.WhiteoutLinkDir))
+	if err == nil && len(files) > 0 {
+		logrus.Warnf("Archive contains aufs hardlink references that are not supported.")
+	}
+	return nil
 }
 
 // DiffSize calculates the changes between the specified id
@@ -493,7 +503,7 @@ func (a *Driver) aufsMount(ro []string, rw, target, mountLabel string) (err erro
 		}
 
 		if firstMount {
-			opts := "dio,xino=/dev/shm/aufs.xino"
+			opts := "dio,noplink,xino=/dev/shm/aufs.xino"
 			if useDirperm() {
 				opts += ",dirperm1"
 			}

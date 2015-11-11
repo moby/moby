@@ -638,6 +638,88 @@ func TestApplyDiff(t *testing.T) {
 	}
 }
 
+func TestHardlinks(t *testing.T) {
+	// Copy 2 layers that have linked files to new layers and check if hardlink are preserved
+	d := newDriver(t)
+	defer os.RemoveAll(tmp)
+	defer d.Cleanup()
+
+	origFile := "test_file"
+	linkedFile := "linked_file"
+
+	if err := d.Create("source-1", ""); err != nil {
+		t.Fatal(err)
+	}
+
+	mountPath, err := d.Get("source-1", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	f, err := os.Create(path.Join(mountPath, origFile))
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.Close()
+
+	layerTar1, err := d.Diff("source-1", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := d.Create("source-2", "source-1"); err != nil {
+		t.Fatal(err)
+	}
+
+	mountPath, err = d.Get("source-2", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := os.Link(path.Join(mountPath, origFile), path.Join(mountPath, linkedFile)); err != nil {
+		t.Fatal(err)
+	}
+
+	layerTar2, err := d.Diff("source-2", "source-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := d.Create("target-1", ""); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := d.ApplyDiff("target-1", "", layerTar1); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := d.Create("target-2", "target-1"); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := d.ApplyDiff("target-2", "target-1", layerTar2); err != nil {
+		t.Fatal(err)
+	}
+
+	mountPath, err = d.Get("target-2", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	fi1, err := os.Lstat(path.Join(mountPath, origFile))
+	if err != nil {
+		t.Fatal(err)
+	}
+	fi2, err := os.Lstat(path.Join(mountPath, linkedFile))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !os.SameFile(fi1, fi2) {
+		t.Fatal("Target files are not linked")
+	}
+}
+
 func hash(c string) string {
 	h := sha256.New()
 	fmt.Fprint(h, c)
