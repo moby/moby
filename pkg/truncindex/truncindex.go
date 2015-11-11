@@ -14,11 +14,11 @@ import (
 
 var (
 	// ErrEmptyPrefix is an error returned if the prefix was empty.
-	ErrEmptyPrefix = errors.New("Prefix can't be empty")
+	ErrEmptyPrefix = errors.New("prefix can't be empty")
 
 	// ErrAmbiguousPrefix is returned if the prefix was ambiguous
 	// (multiple ids for the prefix).
-	ErrAmbiguousPrefix = errors.New("Multiple IDs found with provided prefix")
+	ErrAmbiguousPrefix = errors.New("multiple IDs found with provided prefix")
 
 	// ErrIllegalChar is returned when a space is in the ID
 	ErrIllegalChar = errors.New("illegal character: ' '")
