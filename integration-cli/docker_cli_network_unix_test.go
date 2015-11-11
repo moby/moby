@@ -525,6 +525,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkAnonymousEndpoint(c *check.C) {
 	testRequires(c, ExecSupport)
 	hostsFile := "/etc/hosts"
 	cstmBridgeNw := "custom-bridge-nw"
+	cstmBridgeNw1 := "custom-bridge-nw1"
 
 	dockerCmd(c, "network", "create", "-d", "bridge", cstmBridgeNw)
 	assertNwIsAvailable(c, cstmBridgeNw)
@@ -547,6 +548,18 @@ func (s *DockerNetworkSuite) TestDockerNetworkAnonymousEndpoint(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	c.Assert(string(hosts1), checker.Equals, string(hosts1post),
 		check.Commentf("Unexpected %s change on anonymous container creation", hostsFile))
+
+	// Connect the 2nd container to a new network and verify the
+	// first container /etc/hosts file still hasn't changed.
+	dockerCmd(c, "network", "create", "-d", "bridge", cstmBridgeNw1)
+	assertNwIsAvailable(c, cstmBridgeNw1)
+
+	dockerCmd(c, "network", "connect", cstmBridgeNw1, cid2)
+
+	hosts1post, err = readContainerFileWithExec(cid1, hostsFile)
+	c.Assert(err, checker.IsNil)
+	c.Assert(string(hosts1), checker.Equals, string(hosts1post),
+		check.Commentf("Unexpected %s change on container connect", hostsFile))
 
 	// start a named container
 	cName := "AnyName"
@@ -781,4 +794,25 @@ func (s *DockerNetworkSuite) TestDockerNetworkDisconnectFromHost(c *check.C) {
 	out, _, err := dockerCmdWithError("network", "disconnect", "host", "container1")
 	c.Assert(err, checker.NotNil, check.Commentf("Should err out disconnect from host"))
 	c.Assert(out, checker.Contains, runconfig.ErrConflictHostNetwork.Error())
+}
+
+func (s *DockerNetworkSuite) TestDockerNetworkConnectWithPortMapping(c *check.C) {
+	dockerCmd(c, "network", "create", "test1")
+	dockerCmd(c, "run", "-d", "--name", "c1", "-p", "5000:5000", "busybox", "top")
+	c.Assert(waitRun("c1"), check.IsNil)
+	dockerCmd(c, "network", "connect", "test1", "c1")
+}
+
+func (s *DockerNetworkSuite) TestDockerNetworkConnectWithMac(c *check.C) {
+	macAddress := "02:42:ac:11:00:02"
+	dockerCmd(c, "network", "create", "mynetwork")
+	dockerCmd(c, "run", "--name=test", "-d", "--mac-address", macAddress, "busybox", "top")
+	c.Assert(waitRun("test"), check.IsNil)
+	mac1, err := inspectField("test", "NetworkSettings.Networks.bridge.MacAddress")
+	c.Assert(err, checker.IsNil)
+	c.Assert(strings.TrimSpace(mac1), checker.Equals, macAddress)
+	dockerCmd(c, "network", "connect", "mynetwork", "test")
+	mac2, err := inspectField("test", "NetworkSettings.Networks.mynetwork.MacAddress")
+	c.Assert(err, checker.IsNil)
+	c.Assert(strings.TrimSpace(mac2), checker.Not(checker.Equals), strings.TrimSpace(mac1))
 }
