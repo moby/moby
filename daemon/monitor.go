@@ -136,8 +136,8 @@ func (m *containerMonitor) Start() error {
 	defer func() {
 		if afterRun {
 			m.container.Lock()
-			m.container.setStopped(&exitStatus)
 			defer m.container.Unlock()
+			m.container.setStopped(&exitStatus)
 		}
 		m.Close()
 	}()
