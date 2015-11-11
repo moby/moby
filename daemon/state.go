@@ -158,24 +158,21 @@ func (s *State) WaitStop(timeout time.Duration) (int, error) {
 // IsRunning returns whether the running flag is set. Used by Container to check whether a container is running.
 func (s *State) IsRunning() bool {
 	s.Lock()
-	res := s.Running
-	s.Unlock()
-	return res
+	defer s.Unlock()
+	return s.Running
 }
 
 // GetPID holds the process id of a container.
 func (s *State) GetPID() int {
 	s.Lock()
-	res := s.Pid
-	s.Unlock()
-	return res
+	defer s.Unlock()
+	return s.Pid
 }
 
 func (s *State) getExitCode() int {
 	s.Lock()
-	res := s.ExitCode
-	s.Unlock()
-	return res
+	defer s.Unlock()
+	return s.ExitCode
 }
 
 func (s *State) setRunning(pid int) {
@@ -235,9 +232,8 @@ func (s *State) setError(err error) {
 
 func (s *State) isPaused() bool {
 	s.Lock()
-	res := s.Paused
-	s.Unlock()
-	return res
+	defer s.Unlock()
+	return s.Paused
 }
 
 func (s *State) setRemovalInProgress() error {
