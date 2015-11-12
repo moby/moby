@@ -18,7 +18,7 @@ const (
 	defaultVirtualSwitch = "Virtual Switch"
 	platformSupported    = true
 	windowsMinCPUShares  = 1
-	windowsMaxCPUShares  = 9
+	windowsMaxCPUShares  = 10000
 )
 
 func parseSecurityOpt(container *Container, config *runconfig.HostConfig) error {
