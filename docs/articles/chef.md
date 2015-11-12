@@ -11,70 +11,64 @@ parent = "smn_third_party"
 # Using Chef
 
 > **Note**:
-> Please note this is a community contributed installation path. The only
-> `official` installation is using the
-> [*Ubuntu*](../installation/ubuntulinux.md) installation
-> path. This version may sometimes be out of date.
+> Please note this is a community contributed installation path.
 
 ## Requirements
 
 To use this guide you'll need a working installation of
-[Chef](http://www.getchef.com/). This cookbook supports a variety of
+[Chef](http://www.chef.io/). This cookbook supports a variety of
 operating systems.
 
 ## Installation
 
-The cookbook is available on the [Chef Community
-Site](http://community.opscode.com/cookbooks/docker) and can be
+The cookbook is available on the [Chef Supermarket](https://supermarket.chef.io/cookbooks/docker) and can be
 installed using your favorite cookbook dependency manager.
 
 The source can be found on
-[GitHub](https://github.com/bflad/chef-docker).
+[GitHub](https://github.com/someara/chef-docker).
 
-## Usage
+Usage
+-----
+- Add ```depends 'docker', '~> 2.0'``` to your cookbook's metadata.rb
+- Use resources shipped in cookbook in a recipe, the same way you'd
+  use core Chef resources (file, template, directory, package, etc).
 
-The cookbook provides recipes for installing Docker, configuring init
-for Docker, and resources for managing images and containers. It
-supports almost all Docker functionality.
+```ruby
+docker_service 'default' do
+  action [:create, :start]
+end
 
-### Installation
+docker_image 'busybox' do
+  action :pull
+end
 
-    include_recipe 'docker'
+docker_container 'an echo server' do
+  repo 'busybox'
+  port '1234:1234'
+  command "nc -ll -p 1234 -e /bin/cat"
+end
+```
 
-### Images
+## Getting Started
+Here's a quick example of pulling the latest image and running a
+container with exposed ports.
 
-The next step is to pull a Docker image. For this, we have a resource:
+```ruby
+# Pull latest image
+docker_image 'nginx' do
+  tag 'latest'
+  action :pull
+end
 
-    docker_image 'samalba/docker-registry'
-
-This is equivalent to running:
-
-    $ docker pull samalba/docker-registry
-
-There are attributes available to control how long the cookbook will
-allow for downloading (5 minute default).
-
-To remove images you no longer need:
-
-    docker_image 'samalba/docker-registry' do
-      action :remove
-    end
-
-### Containers
-
-Now you have an image where you can run commands within a container
-managed by Docker.
-
-    docker_container 'samalba/docker-registry' do
-      detach true
-      port '5000:5000'
-      env 'SETTINGS_FLAVOR=local'
-      volume '/mnt/docker:/docker-storage'
-    end
-
-This is equivalent to running the following command, but under upstart:
-
-    $ docker run --detach=true --publish='5000:5000' --env='SETTINGS_FLAVOR=local' --volume='/mnt/docker:/docker-storage' samalba/docker-registry
-
-The resources will accept a single string or an array of values for any
-Docker flags that allow multiple values.
+# Run container exposing ports
+docker_container 'my_nginx' do
+  repo 'nginx'
+  tag 'latest'
+  port '80:80'
+  binds [ '/some/local/files/:/etc/nginx/conf.d' ]
+  host_name 'www'
+  domain_name 'computers.biz'
+  env 'FOO=bar'
+  subscribes :redeploy, 'docker_image[nginx]'
+end
+```

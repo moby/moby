@@ -404,16 +404,26 @@ provision the hosts are with Docker Machine.
 
 ![Engine on each host](images/engine_on_net.png)
 
+You should open the following ports between each of your hosts.
+
+| Protocol | Port | Description           |
+|----------|------|-----------------------|
+| udp      | 4789 | Data plane (VXLAN)    |
+| tcp/udp  | 7946 | Control plane         |
+
+Your key-value store service may require additional ports. 
+Check your vendor's documentation and open any required ports.
+
 Once you have several machines provisioned, you can use Docker Swarm to quickly
 form them into a swarm which includes a discovery service as well.
 
 To create an overlay network, you configure options on  the `daemon` on each
 Docker Engine for use with `overlay` network. There are two options to set:
 
-| Option                           | Description                                               |
-|----------------------------------|-----------------------------------------------------------|
-| `--cluster-store=PROVIDER://URL` | Describes the location of the KV service.               |
-| `--cluster-advertise=HOST_IP`    | Advertises containers created by the HOST on the network. |
+| Option                                        | Description                                                 |
+|-----------------------------------------------|-------------------------------------------------------------|
+| `--cluster-store=PROVIDER://URL`              | Describes the location of the KV service.                   |
+| `--cluster-advertise=HOST_IP|HOST_IFACE:PORT` | The IP address or interface of the HOST used for clustering |
 
 Create an `overlay` network on one of the machines in the Swarm.
 
@@ -426,7 +436,7 @@ provides complete isolation for the containers.
 
 Then, on each host, launch containers making sure to specify the network name.
 
-        $ docker run -itd --net=mmy-multi-host-network busybox
+        $ docker run -itd --net=my-multi-host-network busybox
 
 Once connected, each container has access to all the containers in the network
 regardless of which Docker host the container was launched on.
@@ -477,4 +487,4 @@ and removed in a future release.
 - [Managing Data in Containers](../dockervolumes.md)
 - [Docker Machine overview](https://docs.docker.com/machine)
 - [Docker Swarm overview](https://docs.docker.com/swarm)
-- [Investigate the LibNetwork project](https://github.com/docker/libnetwork/blob/master)
+- [Investigate the LibNetwork project](https://github.com/docker/libnetwork)

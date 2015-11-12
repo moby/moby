@@ -1,14 +1,14 @@
 <!--[metadata]>
 +++
-title = "BTRFS storage in practice"
-description = "Learn how to optimize your use of BTRFS driver."
-keywords = ["container, storage, driver, BTRFS "]
+title = "Btrfs storage in practice"
+description = "Learn how to optimize your use of Btrfs driver."
+keywords = ["container, storage, driver, Btrfs "]
 [menu.main]
 parent = "mn_storage_docker"
 +++
 <![end-metadata]-->
 
-# Docker and BTRFS in practice
+# Docker and Btrfs in practice
 
 Btrfs is a next generation copy-on-write filesystem that supports many advanced
 storage technologies that make it a good fit for Docker. Btrfs is included in
@@ -250,7 +250,7 @@ Now that you have a Btrfs filesystem mounted at `/var/lib/docker`, the daemon sh
 
 Your Docker host is now configured to use the `btrfs` storage driver.
 
-## BTRFS and Docker performance
+## Btrfs and Docker performance
 
 There are several factors that influence Docker's performance under the  `btrfs` storage driver.
 

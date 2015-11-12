@@ -36,7 +36,7 @@ containers that bypasses the [*Union File System*](../reference/glossary.md#unio
 - Data volumes persist even if the container itself is deleted.
 
 Data volumes are designed to persist data, independent of the container's life
-cycle. Docker therefore *never* automatically delete volumes when you remove
+cycle. Docker therefore *never* automatically deletes volumes when you remove
 a container, nor will it "garbage collect" volumes that are no longer
 referenced by a container.
 
@@ -272,7 +272,7 @@ restore testing using your preferred tools.
 
 ## Important tips on using shared volumes
 
-Multiple containers can also share one or more data volumes. However, multiple containers writing to a single shared volume can cause data corruption. Make sure you're applications are designed to write to shared data stores.
+Multiple containers can also share one or more data volumes. However, multiple containers writing to a single shared volume can cause data corruption. Make sure your applications are designed to write to shared data stores.
 
 Data volumes are directly accessible from the Docker host. This means you can read and write to them with normal Linux tools. In most cases you should not do this as it can cause data corruption if your containers and applications are unaware of your direct access.
 

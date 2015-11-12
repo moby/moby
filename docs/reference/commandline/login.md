@@ -25,3 +25,16 @@ adding the server name.
 
     example:
     $ docker login localhost:8080
+
+
+`docker login` requires user to use `sudo` or be `root`, except when: 
+
+1.  connecting to a remote daemon, such as a `docker-machine` provisioned `docker engine`.
+2.  user is added to the `docker` group.  This will impact the security of your system; the `docker` group is `root` equivalent.  See [Docker Daemon Attack Surface](https://docs.docker.com/articles/security/#docker-daemon-attack-surface) for details. 
+
+You can log into any public or private repository for which you have
+credentials.  When you log in, the command stores encoded credentials in
+`$HOME/.docker/config.json` on Linux or `%USERPROFILE%/.docker/config.json` on Windows.
+
+> **Note**:  When running `sudo docker login` credentials are saved in `/root/.docker/config.json`.
+>
