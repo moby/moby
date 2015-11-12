@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -481,6 +482,26 @@ func daemonHost() string {
 	return daemonURLStr
 }
 
+func getTLSConfig() (*tls.Config, error) {
+	dockerCertPath := os.Getenv("DOCKER_CERT_PATH")
+
+	if dockerCertPath == "" {
+		return nil, fmt.Errorf("DOCKER_TLS_VERIFY specified, but no DOCKER_CERT_PATH environment variable")
+	}
+
+	option := &tlsconfig.Options{
+		CAFile:   filepath.Join(dockerCertPath, "ca.pem"),
+		CertFile: filepath.Join(dockerCertPath, "cert.pem"),
+		KeyFile:  filepath.Join(dockerCertPath, "key.pem"),
+	}
+	tlsConfig, err := tlsconfig.Client(*option)
+	if err != nil {
+		return nil, err
+	}
+
+	return tlsConfig, nil
+}
+
 func sockConn(timeout time.Duration) (net.Conn, error) {
 	daemon := daemonHost()
 	daemonURL, err := url.Parse(daemon)
@@ -493,6 +514,15 @@ func sockConn(timeout time.Duration) (net.Conn, error) {
 	case "unix":
 		return net.DialTimeout(daemonURL.Scheme, daemonURL.Path, timeout)
 	case "tcp":
+		if os.Getenv("DOCKER_TLS_VERIFY") != "" {
+			// Setup the socket TLS configuration.
+			tlsConfig, err := getTLSConfig()
+			if err != nil {
+				return nil, err
+			}
+			dialer := &net.Dialer{Timeout: timeout}
+			return tls.DialWithDialer(dialer, daemonURL.Scheme, daemonURL.Host, tlsConfig)
+		}
 		return net.DialTimeout(daemonURL.Scheme, daemonURL.Host, timeout)
 	default:
 		return c, fmt.Errorf("unknown scheme %v (%s)", daemonURL.Scheme, daemon)
