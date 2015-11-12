@@ -70,7 +70,12 @@ Creates a new container.
       -u, --user=""                 Username or UID
       --ulimit=[]                   Ulimit options
       --uts=""                      UTS namespace to use
-      -v, --volume=[]               Bind mount a volume
+      -v, --volume=[]               Bind mount a volume with: [host-src:]container-dest[:<options>], where
+                                    options are comma delimited and selected from [rw|ro] and [z|Z].
+                                    The 'host-src' can either be an absolute path or a name value.
+                                    If 'host-src' is missing, then docker creates a new volume.
+                                    If neither 'rw' or 'ro' is specified then the volume is mounted
+                                    in read-write mode.
       --volumes-from=[]             Mount volumes from the specified container(s)
       -w, --workdir=""              Working directory inside the container
 

@@ -215,8 +215,10 @@ then mounting the volumes from the `dbstore` container hides the
 `/dbdata` files from the `postgres` image. The result is only the files
 from the `dbstore` container are visible.
 
-You can use multiple `--volumes-from` parameters to bring together multiple data
-volumes from multiple containers.
+You can use multiple `--volumes-from` parameters to combine data volumes from
+several containers. To find detailed information about `--volumes-from` see the
+[Mount volumes from container](../reference/commandline/run.md#mount-volumes-from-container-volumes-from)
+in the `run` command reference.
 
 You can also extend the chain by mounting the volume that came from the
 `dbstore` container in yet another container via the `db1` or `db2` containers.

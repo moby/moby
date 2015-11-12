@@ -1300,9 +1300,9 @@ Similarly the operator can set the **hostname** with `-h`.
 
 ### VOLUME (shared filesystems)
 
-    -v=[]: Create a bind mount with: [host-dir:]container-dir[:<options>], where
+    -v=[]: Create a bind mount with: [host-src:]container-dest[:<options>], where
     options are comma delimited and selected from [rw|ro] and [z|Z].
-           If 'host-dir' is missing, then docker creates a new volume.
+           If 'host-src' is missing, then docker creates a new volume.
 		   If neither 'rw' or 'ro' is specified then the volume is mounted
 		   in read-write mode.
     --volumes-from="": Mount all volumes from the given container(s)
@@ -1317,8 +1317,8 @@ one or more `VOLUME`'s associated with an image, but only the operator
 can give access from one container to another (or from a container to a
 volume mounted on the host).
 
-The `container-dir` must always be an absolute path such as `/src/docs`.
-The `host-dir` can either be an absolute path or a `name` value. If you
+The `container-dest` must always be an absolute path such as `/src/docs`.
+The `host-src` can either be an absolute path or a `name` value. If you
 supply an absolute path for the `host-dir`, Docker bind-mounts to the path
 you specify. If you supply a `name`, Docker creates a named volume by that `name`.
 
@@ -1326,7 +1326,7 @@ A `name` value must start with start with an alphanumeric character,
 followed by `a-z0-9`, `_` (underscore), `.` (period) or `-` (hyphen).
 An absolute path starts with a `/` (forward slash).
 
-For example, you can specify either `/foo` or `foo` for a `host-dir` value.
+For example, you can specify either `/foo` or `foo` for a `host-src` value.
 If you supply the `/foo` value, Docker creates a bind-mount. If you supply
 the `foo` specification, Docker creates a named volume.
 
