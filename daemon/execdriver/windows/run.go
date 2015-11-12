@@ -74,7 +74,7 @@ type containerInit struct {
 	IgnoreFlushesDuringBoot bool        // Optimisation hint for container startup in Windows
 	LayerFolderPath         string      // Where the layer folders are located
 	Layers                  []layer     // List of storage layers
-	ProcessorWeight         int64       // CPU Shares 1..9 on Windows; or 0 is platform default.
+	ProcessorWeight         int64       `json:",omitempty"` // CPU Shares 0..10000 on Windows; where 0 will be ommited and HCS will default.
 	HostName                string      // Hostname
 	MappedDirectories       []mappedDir // List of mapped directories (volumes/mounts)
 	SandboxPath             string      // Location of unmounted sandbox (used for Hyper-V containers, not Windows Server containers)
