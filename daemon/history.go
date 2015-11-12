@@ -2,11 +2,13 @@ package daemon
 
 import (
 	"sort"
+
+	"github.com/docker/docker/container"
 )
 
 // History is a convenience type for storing a list of containers,
 // ordered by creation date.
-type History []*Container
+type History []*container.Container
 
 func (history *History) Len() int {
 	return len(*history)
@@ -23,7 +25,7 @@ func (history *History) Swap(i, j int) {
 }
 
 // Add the given container to history.
-func (history *History) Add(container *Container) {
+func (history *History) Add(container *container.Container) {
 	*history = append(*history, container)
 }
 

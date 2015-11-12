@@ -3,6 +3,7 @@ package daemon
 import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/container"
 	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/idtools"
@@ -48,9 +49,9 @@ func (daemon *Daemon) ContainerCreate(params *ContainerCreateConfig) (types.Cont
 }
 
 // Create creates a new container from the given configuration with a given name.
-func (daemon *Daemon) create(params *ContainerCreateConfig) (retC *Container, retErr error) {
+func (daemon *Daemon) create(params *ContainerCreateConfig) (retC *container.Container, retErr error) {
 	var (
-		container *Container
+		container *container.Container
 		img       *image.Image
 		imgID     image.ID
 		err       error
@@ -86,7 +87,7 @@ func (daemon *Daemon) create(params *ContainerCreateConfig) (retC *Container, re
 	if err != nil {
 		return nil, err
 	}
-	if err := idtools.MkdirAs(container.root, 0700, rootUID, rootGID); err != nil {
+	if err := idtools.MkdirAs(container.Root, 0700, rootUID, rootGID); err != nil {
 		return nil, err
 	}
 
@@ -105,7 +106,7 @@ func (daemon *Daemon) create(params *ContainerCreateConfig) (retC *Container, re
 		return nil, err
 	}
 
-	if err := container.toDiskLocking(); err != nil {
+	if err := container.ToDiskLocking(); err != nil {
 		logrus.Errorf("Error saving new container to disk: %v", err)
 		return nil, err
 	}

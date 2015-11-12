@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/logger/jsonfilelog"
 	derr "github.com/docker/docker/errors"
@@ -99,11 +100,11 @@ func (daemon *Daemon) ContainerLogs(containerName string, config *ContainerLogsC
 	}
 }
 
-func (daemon *Daemon) getLogger(container *Container) (logger.Logger, error) {
-	if container.logDriver != nil && container.IsRunning() {
-		return container.logDriver, nil
+func (daemon *Daemon) getLogger(container *container.Container) (logger.Logger, error) {
+	if container.LogDriver != nil && container.IsRunning() {
+		return container.LogDriver, nil
 	}
-	cfg := container.getLogConfig(daemon.defaultLogConfig)
+	cfg := container.GetLogConfig(daemon.defaultLogConfig)
 	if err := logger.ValidateLogOpts(cfg.Type, cfg.Config); err != nil {
 		return nil, err
 	}
@@ -111,8 +112,8 @@ func (daemon *Daemon) getLogger(container *Container) (logger.Logger, error) {
 }
 
 // StartLogging initializes and starts the container logging stream.
-func (daemon *Daemon) StartLogging(container *Container) error {
-	cfg := container.getLogConfig(daemon.defaultLogConfig)
+func (daemon *Daemon) StartLogging(container *container.Container) error {
+	cfg := container.GetLogConfig(daemon.defaultLogConfig)
 	if cfg.Type == "none" {
 		return nil // do not start logging routines
 	}
@@ -126,9 +127,9 @@ func (daemon *Daemon) StartLogging(container *Container) error {
 	}
 
 	copier := logger.NewCopier(container.ID, map[string]io.Reader{"stdout": container.StdoutPipe(), "stderr": container.StderrPipe()}, l)
-	container.logCopier = copier
+	container.LogCopier = copier
 	copier.Run()
-	container.logDriver = l
+	container.LogDriver = l
 
 	// set LogPath field only for json-file logdriver
 	if jl, ok := l.(*jsonfilelog.JSONFileLogger); ok {

@@ -10,6 +10,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/reference"
+	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/image"
@@ -34,7 +35,7 @@ func getBlkioWeightDevices(config *runconfig.HostConfig) ([]*blkiodev.WeightDevi
 	return nil, nil
 }
 
-func parseSecurityOpt(container *Container, config *runconfig.HostConfig) error {
+func parseSecurityOpt(container *container.Container, config *runconfig.HostConfig) error {
 	return nil
 }
 
@@ -115,7 +116,7 @@ func (daemon *Daemon) initNetworkController(config *Config) (libnetwork.NetworkC
 
 // registerLinks sets up links between containers and writes the
 // configuration out for persistence. As of Windows TP4, links are not supported.
-func (daemon *Daemon) registerLinks(container *Container, hostConfig *runconfig.HostConfig) error {
+func (daemon *Daemon) registerLinks(container *container.Container, hostConfig *runconfig.HostConfig) error {
 	return nil
 }
 
@@ -125,9 +126,9 @@ func (daemon *Daemon) cleanupMounts() error {
 
 // conditionalMountOnStart is a platform specific helper function during the
 // container start to call mount.
-func (daemon *Daemon) conditionalMountOnStart(container *Container) error {
+func (daemon *Daemon) conditionalMountOnStart(container *container.Container) error {
 	// We do not mount if a Hyper-V container
-	if !container.hostConfig.Isolation.IsHyperV() {
+	if !container.HostConfig.Isolation.IsHyperV() {
 		if err := daemon.Mount(container); err != nil {
 			return err
 		}
@@ -137,9 +138,9 @@ func (daemon *Daemon) conditionalMountOnStart(container *Container) error {
 
 // conditionalUnmountOnCleanup is a platform specific helper function called
 // during the cleanup of a container to unmount.
-func (daemon *Daemon) conditionalUnmountOnCleanup(container *Container) {
+func (daemon *Daemon) conditionalUnmountOnCleanup(container *container.Container) {
 	// We do not unmount if a Hyper-V container
-	if !container.hostConfig.Isolation.IsHyperV() {
+	if !container.HostConfig.Isolation.IsHyperV() {
 		daemon.Unmount(container)
 	}
 }

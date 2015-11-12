@@ -22,6 +22,7 @@ import (
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builder/dockerfile/parser"
+	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/archive"
@@ -419,8 +420,8 @@ func (b *Builder) processImageFrom(img *image.Image) error {
 	}
 
 	// The default path will be blank on Windows (set by HCS)
-	if len(b.runConfig.Env) == 0 && daemon.DefaultPathEnv != "" {
-		b.runConfig.Env = append(b.runConfig.Env, "PATH="+daemon.DefaultPathEnv)
+	if len(b.runConfig.Env) == 0 && container.DefaultPathEnv != "" {
+		b.runConfig.Env = append(b.runConfig.Env, "PATH="+container.DefaultPathEnv)
 	}
 
 	// Process ONBUILD triggers if they exist
@@ -492,7 +493,7 @@ func (b *Builder) probeCache() (bool, error) {
 	return true, nil
 }
 
-func (b *Builder) create() (*daemon.Container, error) {
+func (b *Builder) create() (*container.Container, error) {
 	if b.image == "" && !b.noBaseImage {
 		return nil, fmt.Errorf("Please provide a source image with `from` prior to run")
 	}
@@ -542,7 +543,7 @@ func (b *Builder) create() (*daemon.Container, error) {
 	return c, nil
 }
 
-func (b *Builder) run(c *daemon.Container) error {
+func (b *Builder) run(c *container.Container) error {
 	var errCh chan error
 	if b.Verbose {
 		errCh = c.Attach(nil, b.Stdout, b.Stderr)

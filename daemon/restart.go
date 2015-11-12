@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"github.com/docker/docker/container"
 	derr "github.com/docker/docker/errors"
 )
 
@@ -25,7 +26,7 @@ func (daemon *Daemon) ContainerRestart(name string, seconds int) error {
 // container. When stopping, wait for the given duration in seconds to
 // gracefully stop, before forcefully terminating the container. If
 // given a negative duration, wait forever for a graceful stop.
-func (daemon *Daemon) containerRestart(container *Container, seconds int) error {
+func (daemon *Daemon) containerRestart(container *container.Container, seconds int) error {
 	// Avoid unnecessarily unmounting and then directly mounting
 	// the container when the container stops and then starts
 	// again

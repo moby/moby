@@ -6,6 +6,7 @@ import (
 
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/container"
 	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/stringid"
@@ -133,7 +134,7 @@ func isImageIDPrefix(imageID, possiblePrefix string) bool {
 
 // getContainerUsingImage returns a container that was created using the given
 // imageID. Returns nil if there is no such container.
-func (daemon *Daemon) getContainerUsingImage(imageID image.ID) *Container {
+func (daemon *Daemon) getContainerUsingImage(imageID image.ID) *container.Container {
 	for _, container := range daemon.List() {
 		if container.ImageID == imageID {
 			return container

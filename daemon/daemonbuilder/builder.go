@@ -13,6 +13,7 @@ import (
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/cliconfig"
+	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/archive"
@@ -80,12 +81,12 @@ func (d Docker) Pull(name string) (*image.Image, error) {
 }
 
 // Container looks up a Docker container referenced by `id`.
-func (d Docker) Container(id string) (*daemon.Container, error) {
+func (d Docker) Container(id string) (*container.Container, error) {
 	return d.Daemon.Get(id)
 }
 
 // Create creates a new Docker container and returns potential warnings
-func (d Docker) Create(cfg *runconfig.Config, hostCfg *runconfig.HostConfig) (*daemon.Container, []string, error) {
+func (d Docker) Create(cfg *runconfig.Config, hostCfg *runconfig.HostConfig) (*container.Container, []string, error) {
 	ccr, err := d.Daemon.ContainerCreate(&daemon.ContainerCreateConfig{
 		Name:            "",
 		Config:          cfg,
@@ -129,7 +130,7 @@ func (d Docker) Release(sessionID string, activeImages []string) {
 // specified by a container object.
 // TODO: make sure callers don't unnecessarily convert destPath with filepath.FromSlash (Copy does it already).
 // Copy should take in abstract paths (with slashes) and the implementation should convert it to OS-specific paths.
-func (d Docker) Copy(c *daemon.Container, destPath string, src builder.FileInfo, decompress bool) error {
+func (d Docker) Copy(c *container.Container, destPath string, src builder.FileInfo, decompress bool) error {
 	srcPath := src.Path()
 	destExists := true
 	rootUID, rootGID := d.Daemon.GetRemappedUIDGID()
@@ -212,23 +213,23 @@ func (d Docker) GetCachedImage(imgID string, cfg *runconfig.Config) (string, err
 }
 
 // Kill stops the container execution abruptly.
-func (d Docker) Kill(container *daemon.Container) error {
+func (d Docker) Kill(container *container.Container) error {
 	return d.Daemon.Kill(container)
 }
 
 // Mount mounts the root filesystem for the container.
-func (d Docker) Mount(c *daemon.Container) error {
+func (d Docker) Mount(c *container.Container) error {
 	return d.Daemon.Mount(c)
 }
 
 // Unmount unmounts the root filesystem for the container.
-func (d Docker) Unmount(c *daemon.Container) error {
+func (d Docker) Unmount(c *container.Container) error {
 	d.Daemon.Unmount(c)
 	return nil
 }
 
 // Start starts a container
-func (d Docker) Start(c *daemon.Container) error {
+func (d Docker) Start(c *container.Container) error {
 	return d.Daemon.Start(c)
 }
 

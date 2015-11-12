@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/execdriver"
 	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/pubsub"
@@ -19,7 +20,7 @@ import (
 
 type statsSupervisor interface {
 	// GetContainerStats collects all the stats related to a container
-	GetContainerStats(container *Container) (*execdriver.ResourceStats, error)
+	GetContainerStats(container *container.Container) (*execdriver.ResourceStats, error)
 }
 
 // newStatsCollector returns a new statsCollector that collections
@@ -30,7 +31,7 @@ func (daemon *Daemon) newStatsCollector(interval time.Duration) *statsCollector 
 	s := &statsCollector{
 		interval:            interval,
 		supervisor:          daemon,
-		publishers:          make(map[*Container]*pubsub.Publisher),
+		publishers:          make(map[*container.Container]*pubsub.Publisher),
 		clockTicksPerSecond: uint64(system.GetClockTicks()),
 		bufReader:           bufio.NewReaderSize(nil, 128),
 	}
@@ -44,14 +45,14 @@ type statsCollector struct {
 	supervisor          statsSupervisor
 	interval            time.Duration
 	clockTicksPerSecond uint64
-	publishers          map[*Container]*pubsub.Publisher
+	publishers          map[*container.Container]*pubsub.Publisher
 	bufReader           *bufio.Reader
 }
 
 // collect registers the container with the collector and adds it to
 // the event loop for collection on the specified interval returning
 // a channel for the subscriber to receive on.
-func (s *statsCollector) collect(c *Container) chan interface{} {
+func (s *statsCollector) collect(c *container.Container) chan interface{} {
 	s.m.Lock()
 	defer s.m.Unlock()
 	publisher, exists := s.publishers[c]
@@ -64,7 +65,7 @@ func (s *statsCollector) collect(c *Container) chan interface{} {
 
 // stopCollection closes the channels for all subscribers and removes
 // the container from metrics collection.
-func (s *statsCollector) stopCollection(c *Container) {
+func (s *statsCollector) stopCollection(c *container.Container) {
 	s.m.Lock()
 	if publisher, exists := s.publishers[c]; exists {
 		publisher.Close()
@@ -74,7 +75,7 @@ func (s *statsCollector) stopCollection(c *Container) {
 }
 
 // unsubscribe removes a specific subscriber from receiving updates for a container's stats.
-func (s *statsCollector) unsubscribe(c *Container, ch chan interface{}) {
+func (s *statsCollector) unsubscribe(c *container.Container, ch chan interface{}) {
 	s.m.Lock()
 	publisher := s.publishers[c]
 	if publisher != nil {
@@ -88,7 +89,7 @@ func (s *statsCollector) unsubscribe(c *Container, ch chan interface{}) {
 
 func (s *statsCollector) run() {
 	type publishersPair struct {
-		container *Container
+		container *container.Container
 		publisher *pubsub.Publisher
 	}
 	// we cannot determine the capacity here.
