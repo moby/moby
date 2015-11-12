@@ -720,7 +720,9 @@ func (graph *Graph) storeImage(id, parent string, config []byte, layerData io.Re
 		return err
 	}
 
-	if img.ParentID.Validate() == nil && parent != img.ParentID.Hex() {
+	if (img.ParentID.Validate() == nil && parent != img.ParentID.Hex()) || (allowBaseParentImage && img.ParentID == "" && parent != "") {
+		// save compatibilityID parent if it doesn't match parentID
+		// on windows always save a parent file pointing to the base layer
 		if err := ioutil.WriteFile(filepath.Join(root, parentFileName), []byte(parent), 0600); err != nil {
 			return err
 		}
