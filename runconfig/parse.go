@@ -48,12 +48,13 @@ var (
 func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSet, error) {
 	var (
 		// FIXME: use utils.ListOpts for attach and volumes?
-		flAttach  = opts.NewListOpts(opts.ValidateAttach)
-		flVolumes = opts.NewListOpts(nil)
-		flLinks   = opts.NewListOpts(opts.ValidateLink)
-		flEnv     = opts.NewListOpts(opts.ValidateEnv)
-		flLabels  = opts.NewListOpts(opts.ValidateEnv)
-		flDevices = opts.NewListOpts(opts.ValidateDevice)
+		flAttach            = opts.NewListOpts(opts.ValidateAttach)
+		flVolumes           = opts.NewListOpts(nil)
+		flBlkioWeightDevice = opts.NewWeightdeviceOpt(opts.ValidateWeightDevice)
+		flLinks             = opts.NewListOpts(opts.ValidateLink)
+		flEnv               = opts.NewListOpts(opts.ValidateEnv)
+		flLabels            = opts.NewListOpts(opts.ValidateEnv)
+		flDevices           = opts.NewListOpts(opts.ValidateDevice)
 
 		flUlimits = opts.NewUlimitOpt(nil)
 
@@ -108,6 +109,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 	)
 
 	cmd.Var(&flAttach, []string{"a", "-attach"}, "Attach to STDIN, STDOUT or STDERR")
+	cmd.Var(&flBlkioWeightDevice, []string{"-blkio-weight-device"}, "Block IO weight (relative device weight)")
 	cmd.Var(&flVolumes, []string{"v", "-volume"}, "Bind mount a volume")
 	cmd.Var(&flLinks, []string{"#link", "-link"}, "Add link to another container")
 	cmd.Var(&flDevices, []string{"-device"}, "Add a host device to the container")
@@ -344,6 +346,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		CpusetMems:        *flCpusetMems,
 		CPUQuota:          *flCPUQuota,
 		BlkioWeight:       *flBlkioWeight,
+		BlkioWeightDevice: flBlkioWeightDevice.GetList(),
 		OomKillDisable:    *flOomKillDisable,
 		MemorySwappiness:  flSwappiness,
 		Privileged:        *flPrivileged,

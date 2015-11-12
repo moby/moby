@@ -271,6 +271,11 @@ func (daemon *Daemon) populateCommand(c *Container, env []string) error {
 		}
 	}
 
+	weightDevices, err := getBlkioWeightDevices(c.hostConfig)
+	if err != nil {
+		return err
+	}
+
 	for _, limit := range ulimits {
 		rl, err := limit.GetRlimit()
 		if err != nil {
@@ -286,15 +291,16 @@ func (daemon *Daemon) populateCommand(c *Container, env []string) error {
 			CPUShares:         c.hostConfig.CPUShares,
 			BlkioWeight:       c.hostConfig.BlkioWeight,
 		},
-		MemorySwap:       c.hostConfig.MemorySwap,
-		KernelMemory:     c.hostConfig.KernelMemory,
-		CpusetCpus:       c.hostConfig.CpusetCpus,
-		CpusetMems:       c.hostConfig.CpusetMems,
-		CPUPeriod:        c.hostConfig.CPUPeriod,
-		CPUQuota:         c.hostConfig.CPUQuota,
-		Rlimits:          rlimits,
-		OomKillDisable:   c.hostConfig.OomKillDisable,
-		MemorySwappiness: -1,
+		MemorySwap:        c.hostConfig.MemorySwap,
+		KernelMemory:      c.hostConfig.KernelMemory,
+		CpusetCpus:        c.hostConfig.CpusetCpus,
+		CpusetMems:        c.hostConfig.CpusetMems,
+		CPUPeriod:         c.hostConfig.CPUPeriod,
+		CPUQuota:          c.hostConfig.CPUQuota,
+		Rlimits:           rlimits,
+		BlkioWeightDevice: weightDevices,
+		OomKillDisable:    c.hostConfig.OomKillDisable,
+		MemorySwappiness:  -1,
 	}
 
 	if c.hostConfig.MemorySwappiness != nil {

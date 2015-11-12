@@ -623,6 +623,7 @@ container:
 | `--cpuset-mems=""`         | Memory nodes (MEMs) in which to allow execution (0-3, 0,1). Only effective on NUMA systems. |
 | `--cpu-quota=0`            | Limit the CPU CFS (Completely Fair Scheduler) quota                                         |
 | `--blkio-weight=0`         | Block IO weight (relative weight) accepts a weight value between 10 and 1000.               |
+| `--blkio-weight-device=""` | Block IO weight (relative device weight, format: `DEVICE_NAME:WEIGHT`)                                                |
 | `--oom-kill-disable=false` | Whether to disable OOM Killer for the container or not.                                     |
 | `--memory-swappiness=""  ` | Tune a container's memory swappiness behavior. Accepts an integer between 0 and 100.        |
 
@@ -937,6 +938,9 @@ By default, all containers get the same proportion of block IO bandwidth
 container's blkio weight relative to the weighting of all other running
 containers using the `--blkio-weight` flag.
 
+> **Note:** The blkio weight setting is only available for direct IO. Buffered IO
+> is not currently supported.
+
 The `--blkio-weight` flag can set the weighting to a value between 10 to 1000.
 For example, the commands below create two containers with different blkio
 weight:
@@ -951,8 +955,24 @@ If you do block IO in the two containers at the same time, by, for example:
 You'll find that the proportion of time is the same as the proportion of blkio
 weights of the two containers.
 
-> **Note:** The blkio weight setting is only available for direct IO. Buffered IO
-> is not currently supported.
+The `--blkio-weight-device="DEVICE_NAME:WEIGHT"` flag sets a specific device weight.
+The `DEVICE_NAME:WEIGHT` is a string containing a colon-separated device name and weight.
+For example, to set `/dev/sda` device weight to `200`:
+
+$ docker run -it \
+    --blkio-weight-device "/dev/sda:200" \
+    ubuntu
+
+If you specify both the `--blkio-weight` and `--blkio-weight-device`, Docker
+uses the `--blkio-weight` as the default weight and uses `--blkio-weight-device` 
+to override this default with a new value on a specific device. 
+The following example uses a default weight of `300` and overrides this default 
+on `/dev/sda` setting that weight to `200`:
+
+$ docker run -it \
+    --blkio-weight 300 \
+    --blkio-weight-device "/dev/sda:200" \
+    ubuntu
 
 ## Additional groups
     --group-add: Add Linux capabilities
