@@ -14,6 +14,10 @@ import (
 	"github.com/Azure/go-ansiterm/winterm"
 )
 
+const (
+	escapeSequence = ansiterm.KEY_ESC_CSI
+)
+
 // ansiReader wraps a standard input file (e.g., os.Stdin) providing ANSI sequence translation.
 type ansiReader struct {
 	file     *os.File
@@ -21,18 +25,15 @@ type ansiReader struct {
 	buffer   []byte
 	cbBuffer int
 	command  []byte
-	// TODO(azlinux): Remove this and hard-code the string -- it is not going to change
-	escapeSequence []byte
 }
 
 func newAnsiReader(nFile int) *ansiReader {
 	file, fd := winterm.GetStdFile(nFile)
 	return &ansiReader{
-		file:           file,
-		fd:             fd,
-		command:        make([]byte, 0, ansiterm.ANSI_MAX_CMD_LENGTH),
-		escapeSequence: []byte(ansiterm.KEY_ESC_CSI),
-		buffer:         make([]byte, 0),
+		file:    file,
+		fd:      fd,
+		command: make([]byte, 0, ansiterm.ANSI_MAX_CMD_LENGTH),
+		buffer:  make([]byte, 0),
 	}
 }
 
@@ -78,7 +79,7 @@ func (ar *ansiReader) Read(p []byte) (int, error) {
 		return 0, nil
 	}
 
-	keyBytes := translateKeyEvents(events, ar.escapeSequence)
+	keyBytes := translateKeyEvents(events, []byte(escapeSequence))
 
 	// Save excess bytes and right-size keyBytes
 	if len(keyBytes) > len(p) {
