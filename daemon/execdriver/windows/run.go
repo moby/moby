@@ -94,12 +94,6 @@ func (d *Driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, hooks execd
 		err  error
 	)
 
-	// Make sure the client isn't asking for options which aren't supported
-	err = checkSupportedOptions(c)
-	if err != nil {
-		return execdriver.ExitStatus{ExitCode: -1}, err
-	}
-
 	cu := &containerInit{
 		SystemType:              "Container",
 		Name:                    c.ID,

@@ -47,6 +47,17 @@ type Resources struct {
 	MemorySwappiness int64            `json:"memory_swappiness"`
 }
 
+// ProcessConfig is the platform specific structure that describes a process
+// that will be run inside a container.
+type ProcessConfig struct {
+	CommonProcessConfig
+
+	// Fields below here are platform specific
+	Privileged bool   `json:"privileged"`
+	User       string `json:"user"`
+	Console    string `json:"-"` // dev/console path
+}
+
 // Ipc settings of the container
 // It is for IPC namespace setting. Usually different containers
 // have their own IPC namespace, however this specifies to use

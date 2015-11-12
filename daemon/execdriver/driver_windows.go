@@ -20,6 +20,15 @@ type Resources struct {
 	// Fields below here are platform specific
 }
 
+// ProcessConfig is the platform specific structure that describes a process
+// that will be run inside a container.
+type ProcessConfig struct {
+	CommonProcessConfig
+
+	// Fields below here are platform specific
+	ConsoleSize [2]int `json:"-"` // h,w of initial console size
+}
+
 // Network settings of the container
 type Network struct {
 	Interface   *NetworkInterface `json:"interface"`

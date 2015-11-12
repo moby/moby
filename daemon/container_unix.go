@@ -302,10 +302,12 @@ func (daemon *Daemon) populateCommand(c *Container, env []string) error {
 	}
 
 	processConfig := execdriver.ProcessConfig{
+		CommonProcessConfig: execdriver.CommonProcessConfig{
+			Entrypoint: c.Path,
+			Arguments:  c.Args,
+			Tty:        c.Config.Tty,
+		},
 		Privileged: c.hostConfig.Privileged,
-		Entrypoint: c.Path,
-		Arguments:  c.Args,
-		Tty:        c.Config.Tty,
 		User:       c.Config.User,
 	}
 
