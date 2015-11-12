@@ -176,7 +176,6 @@ func (n *network) getEndpointsFromStore() ([]*endpoint, error) {
 
 		for _, kvo := range kvol {
 			ep := kvo.(*endpoint)
-			ep.network = n
 			epl = append(epl, ep)
 		}
 	}
