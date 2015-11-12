@@ -12,6 +12,7 @@ import (
 
 	"io/ioutil"
 
+	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/docker/docker/pkg/nat"
 	"github.com/go-check/check"
 )
@@ -32,17 +33,13 @@ func (s *DockerSuite) TestCreateArgs(c *check.C) {
 		Args    []string
 		Image   string
 	}{}
-	if err := json.Unmarshal([]byte(out), &containers); err != nil {
-		c.Fatalf("Error inspecting the container: %s", err)
-	}
-	if len(containers) != 1 {
-		c.Fatalf("Unexpected container count. Expected 0, received: %d", len(containers))
-	}
+
+	err := json.Unmarshal([]byte(out), &containers)
+	c.Assert(err, check.IsNil, check.Commentf("Error inspecting the container: %s", err))
+	c.Assert(containers, checker.HasLen, 1)
 
 	cont := containers[0]
-	if cont.Path != "command" {
-		c.Fatalf("Unexpected container path. Expected command, received: %s", cont.Path)
-	}
+	c.Assert(string(cont.Path), checker.Equals, "command", check.Commentf("Unexpected container path. Expected command, received: %s", cont.Path))
 
 	b := false
 	expected := []string{"arg1", "arg2", "arg with space"}
@@ -72,22 +69,14 @@ func (s *DockerSuite) TestCreateHostConfig(c *check.C) {
 			PublishAllPorts bool
 		}
 	}{}
-	if err := json.Unmarshal([]byte(out), &containers); err != nil {
-		c.Fatalf("Error inspecting the container: %s", err)
-	}
-	if len(containers) != 1 {
-		c.Fatalf("Unexpected container count. Expected 0, received: %d", len(containers))
-	}
+
+	err := json.Unmarshal([]byte(out), &containers)
+	c.Assert(err, check.IsNil, check.Commentf("Error inspecting the container: %s", err))
+	c.Assert(containers, checker.HasLen, 1)
 
 	cont := containers[0]
-	if cont.HostConfig == nil {
-		c.Fatalf("Expected HostConfig, got none")
-	}
-
-	if !cont.HostConfig.PublishAllPorts {
-		c.Fatalf("Expected PublishAllPorts, got false")
-	}
-
+	c.Assert(cont.HostConfig, check.NotNil, check.Commentf("Expected HostConfig, got none"))
+	c.Assert(cont.HostConfig.PublishAllPorts, check.NotNil, check.Commentf("Expected PublishAllPorts, got false"))
 }
 
 func (s *DockerSuite) TestCreateWithPortRange(c *check.C) {
@@ -103,28 +92,19 @@ func (s *DockerSuite) TestCreateWithPortRange(c *check.C) {
 			PortBindings map[nat.Port][]nat.PortBinding
 		}
 	}{}
-	if err := json.Unmarshal([]byte(out), &containers); err != nil {
-		c.Fatalf("Error inspecting the container: %s", err)
-	}
-	if len(containers) != 1 {
-		c.Fatalf("Unexpected container count. Expected 0, received: %d", len(containers))
-	}
+	err := json.Unmarshal([]byte(out), &containers)
+	c.Assert(err, check.IsNil, check.Commentf("Error inspecting the container: %s", err))
+	c.Assert(containers, checker.HasLen, 1)
 
 	cont := containers[0]
-	if cont.HostConfig == nil {
-		c.Fatalf("Expected HostConfig, got none")
-	}
 
-	if len(cont.HostConfig.PortBindings) != 4 {
-		c.Fatalf("Expected 4 ports bindings, got %d", len(cont.HostConfig.PortBindings))
-	}
+	c.Assert(cont.HostConfig, check.NotNil, check.Commentf("Expected HostConfig, got none"))
+	c.Assert(cont.HostConfig.PortBindings, checker.HasLen, 4, check.Commentf("Expected 4 ports bindings, got %d", len(cont.HostConfig.PortBindings)))
+
 	for k, v := range cont.HostConfig.PortBindings {
-		if len(v) != 1 {
-			c.Fatalf("Expected 1 ports binding, for the port  %s but found %s", k, v)
-		}
-		if k.Port() != v[0].HostPort {
-			c.Fatalf("Expected host port %s to match published port %s", k.Port(), v[0].HostPort)
-		}
+		c.Assert(v, checker.HasLen, 1, check.Commentf("Expected 1 ports binding, for the port  %s but found %s", k, v))
+		c.Assert(k.Port(), checker.Equals, v[0].HostPort, check.Commentf("Expected host port %s to match published port %s", k.Port(), v[0].HostPort))
+
 	}
 
 }
@@ -142,28 +122,18 @@ func (s *DockerSuite) TestCreateWithiLargePortRange(c *check.C) {
 			PortBindings map[nat.Port][]nat.PortBinding
 		}
 	}{}
-	if err := json.Unmarshal([]byte(out), &containers); err != nil {
-		c.Fatalf("Error inspecting the container: %s", err)
-	}
-	if len(containers) != 1 {
-		c.Fatalf("Unexpected container count. Expected 0, received: %d", len(containers))
-	}
+
+	err := json.Unmarshal([]byte(out), &containers)
+	c.Assert(err, check.IsNil, check.Commentf("Error inspecting the container: %s", err))
+	c.Assert(containers, checker.HasLen, 1)
 
 	cont := containers[0]
-	if cont.HostConfig == nil {
-		c.Fatalf("Expected HostConfig, got none")
-	}
+	c.Assert(cont.HostConfig, check.NotNil, check.Commentf("Expected HostConfig, got none"))
+	c.Assert(cont.HostConfig.PortBindings, checker.HasLen, 65535)
 
-	if len(cont.HostConfig.PortBindings) != 65535 {
-		c.Fatalf("Expected 65535 ports bindings, got %d", len(cont.HostConfig.PortBindings))
-	}
 	for k, v := range cont.HostConfig.PortBindings {
-		if len(v) != 1 {
-			c.Fatalf("Expected 1 ports binding, for the port  %s but found %s", k, v)
-		}
-		if k.Port() != v[0].HostPort {
-			c.Fatalf("Expected host port %s to match published port %s", k.Port(), v[0].HostPort)
-		}
+		c.Assert(v, checker.HasLen, 1)
+		c.Assert(k.Port(), checker.Equals, v[0].HostPort, check.Commentf("Expected host port %s to match published port %s", k.Port(), v[0].HostPort))
 	}
 
 }
@@ -177,10 +147,7 @@ func (s *DockerSuite) TestCreateEchoStdout(c *check.C) {
 	cleanedContainerID := strings.TrimSpace(out)
 
 	out, _ = dockerCmd(c, "start", "-ai", cleanedContainerID)
-
-	if out != "test123\n" {
-		c.Errorf("container should've printed 'test123', got %q", out)
-	}
+	c.Assert(out, checker.Equals, "test123\n", check.Commentf("container should've printed 'test123', got %q", out))
 
 }
 
@@ -192,9 +159,7 @@ func (s *DockerSuite) TestCreateVolumesCreated(c *check.C) {
 	dockerCmd(c, "create", "--name", name, "-v", "/foo", "busybox")
 
 	dir, err := inspectMountSourceField(name, "/foo")
-	if err != nil {
-		c.Fatalf("Error getting volume host path: %q", err)
-	}
+	c.Assert(err, check.IsNil, check.Commentf("Error getting volume host path: %q", err))
 
 	if _, err := os.Stat(dir); err != nil && os.IsNotExist(err) {
 		c.Fatalf("Volume was not created")
@@ -213,9 +178,7 @@ func (s *DockerSuite) TestCreateLabels(c *check.C) {
 
 	actual := make(map[string]string)
 	err := inspectFieldAndMarshall(name, "Config.Labels", &actual)
-	if err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(err, check.IsNil)
 
 	if !reflect.DeepEqual(expected, actual) {
 		c.Fatalf("Expected %s got %s", expected, actual)
@@ -229,9 +192,8 @@ func (s *DockerSuite) TestCreateLabelFromImage(c *check.C) {
 		`FROM busybox
 		LABEL k1=v1 k2=v2`,
 		true)
-	if err != nil {
-		c.Fatal(err)
-	}
+
+	c.Assert(err, check.IsNil)
 
 	name := "test_create_labels_from_image"
 	expected := map[string]string{"k2": "x", "k3": "v3", "k1": "v1"}
@@ -239,9 +201,7 @@ func (s *DockerSuite) TestCreateLabelFromImage(c *check.C) {
 
 	actual := make(map[string]string)
 	err = inspectFieldAndMarshall(name, "Config.Labels", &actual)
-	if err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(err, check.IsNil)
 
 	if !reflect.DeepEqual(expected, actual) {
 		c.Fatalf("Expected %s got %s", expected, actual)
@@ -251,9 +211,8 @@ func (s *DockerSuite) TestCreateLabelFromImage(c *check.C) {
 func (s *DockerSuite) TestCreateHostnameWithNumber(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-h", "web.0", "busybox", "hostname")
-	if strings.TrimSpace(out) != "web.0" {
-		c.Fatalf("hostname not set, expected `web.0`, got: %s", out)
-	}
+	c.Assert(strings.TrimSpace(out), checker.Equals, "web.0", check.Commentf("hostname not set, expected `web.0`, got: %s", out))
+
 }
 
 func (s *DockerSuite) TestCreateRM(c *check.C) {
@@ -291,13 +250,8 @@ func (s *DockerTrustSuite) TestTrustedCreate(c *check.C) {
 	createCmd := exec.Command(dockerBinary, "create", repoName)
 	s.trustedCmd(createCmd)
 	out, _, err := runCommandWithOutput(createCmd)
-	if err != nil {
-		c.Fatalf("Error running trusted create: %s\n%s", err, out)
-	}
-
-	if !strings.Contains(string(out), "Tagging") {
-		c.Fatalf("Missing expected output on trusted push:\n%s", out)
-	}
+	c.Assert(err, check.IsNil)
+	c.Assert(string(out), checker.Contains, "Tagging", check.Commentf("Missing expected output on trusted push:\n%s", out))
 
 	dockerCmd(c, "rmi", repoName)
 
@@ -305,13 +259,9 @@ func (s *DockerTrustSuite) TestTrustedCreate(c *check.C) {
 	createCmd = exec.Command(dockerBinary, "create", "--disable-content-trust=true", repoName)
 	s.trustedCmd(createCmd)
 	out, _, err = runCommandWithOutput(createCmd)
-	if err != nil {
-		c.Fatalf("Error running trusted create: %s\n%s", err, out)
-	}
+	c.Assert(err, check.IsNil)
+	c.Assert(string(out), checker.Contains, "Status: Downloaded", check.Commentf("Missing expected output on trusted create with --disable-content-trust:\n%s", out))
 
-	if !strings.Contains(string(out), "Status: Downloaded") {
-		c.Fatalf("Missing expected output on trusted create with --disable-content-trust:\n%s", out)
-	}
 }
 
 func (s *DockerTrustSuite) TestUntrustedCreate(c *check.C) {
@@ -325,13 +275,9 @@ func (s *DockerTrustSuite) TestUntrustedCreate(c *check.C) {
 	createCmd := exec.Command(dockerBinary, "create", repoName)
 	s.trustedCmd(createCmd)
 	out, _, err := runCommandWithOutput(createCmd)
-	if err == nil {
-		c.Fatalf("Error expected when running trusted create with:\n%s", out)
-	}
+	c.Assert(err, check.Not(check.IsNil))
+	c.Assert(string(out), checker.Contains, "no trust data available", check.Commentf("Missing expected output on trusted create:\n%s", out))
 
-	if !strings.Contains(string(out), "no trust data available") {
-		c.Fatalf("Missing expected output on trusted create:\n%s", out)
-	}
 }
 
 func (s *DockerTrustSuite) TestTrustedIsolatedCreate(c *check.C) {
@@ -341,13 +287,8 @@ func (s *DockerTrustSuite) TestTrustedIsolatedCreate(c *check.C) {
 	createCmd := exec.Command(dockerBinary, "--config", "/tmp/docker-isolated-create", "create", repoName)
 	s.trustedCmd(createCmd)
 	out, _, err := runCommandWithOutput(createCmd)
-	if err != nil {
-		c.Fatalf("Error running trusted create: %s\n%s", err, out)
-	}
-
-	if !strings.Contains(string(out), "Tagging") {
-		c.Fatalf("Missing expected output on trusted push:\n%s", out)
-	}
+	c.Assert(err, check.IsNil)
+	c.Assert(string(out), checker.Contains, "Tagging", check.Commentf("Missing expected output on trusted push:\n%s", out))
 
 	dockerCmd(c, "rmi", repoName)
 }
@@ -364,13 +305,8 @@ func (s *DockerTrustSuite) TestCreateWhenCertExpired(c *check.C) {
 		createCmd := exec.Command(dockerBinary, "create", repoName)
 		s.trustedCmd(createCmd)
 		out, _, err := runCommandWithOutput(createCmd)
-		if err == nil {
-			c.Fatalf("Error running trusted create in the distant future: %s\n%s", err, out)
-		}
-
-		if !strings.Contains(string(out), "could not validate the path to a trusted root") {
-			c.Fatalf("Missing expected output on trusted create in the distant future:\n%s", out)
-		}
+		c.Assert(err, check.Not(check.IsNil))
+		c.Assert(string(out), checker.Contains, "could not validate the path to a trusted root", check.Commentf("Missing expected output on trusted create in the distant future:\n%s", out))
 	})
 
 	runAtDifferentDate(elevenYearsFromNow, func() {
@@ -378,22 +314,16 @@ func (s *DockerTrustSuite) TestCreateWhenCertExpired(c *check.C) {
 		createCmd := exec.Command(dockerBinary, "create", "--disable-content-trust", repoName)
 		s.trustedCmd(createCmd)
 		out, _, err := runCommandWithOutput(createCmd)
-		if err != nil {
-			c.Fatalf("Error running untrusted create in the distant future: %s\n%s", err, out)
-		}
+		c.Assert(err, check.Not(check.IsNil))
+		c.Assert(string(out), checker.Contains, "Status: Downloaded", check.Commentf("Missing expected output on trusted create in the distant future:\n%s", out))
 
-		if !strings.Contains(string(out), "Status: Downloaded") {
-			c.Fatalf("Missing expected output on untrusted create in the distant future:\n%s", out)
-		}
 	})
 }
 
 func (s *DockerTrustSuite) TestTrustedCreateFromBadTrustServer(c *check.C) {
 	repoName := fmt.Sprintf("%v/dockerclievilcreate/trusted:latest", privateRegistryURL)
 	evilLocalConfigDir, err := ioutil.TempDir("", "evil-local-config-dir")
-	if err != nil {
-		c.Fatalf("Failed to create local temp dir")
-	}
+	c.Assert(err, check.IsNil)
 
 	// tag the image and upload it to the private registry
 	dockerCmd(c, "tag", "busybox", repoName)
@@ -401,12 +331,8 @@ func (s *DockerTrustSuite) TestTrustedCreateFromBadTrustServer(c *check.C) {
 	pushCmd := exec.Command(dockerBinary, "push", repoName)
 	s.trustedCmd(pushCmd)
 	out, _, err := runCommandWithOutput(pushCmd)
-	if err != nil {
-		c.Fatalf("Error creating trusted push: %s\n%s", err, out)
-	}
-	if !strings.Contains(string(out), "Signing and pushing trust metadata") {
-		c.Fatalf("Missing expected output on trusted push:\n%s", out)
-	}
+	c.Assert(err, check.IsNil)
+	c.Assert(string(out), checker.Contains, "Signing and pushing trust metadata", check.Commentf("Missing expected output on trusted push:\n%s", out))
 
 	dockerCmd(c, "rmi", repoName)
 
@@ -414,22 +340,15 @@ func (s *DockerTrustSuite) TestTrustedCreateFromBadTrustServer(c *check.C) {
 	createCmd := exec.Command(dockerBinary, "create", repoName)
 	s.trustedCmd(createCmd)
 	out, _, err = runCommandWithOutput(createCmd)
-	if err != nil {
-		c.Fatalf("Error creating trusted create: %s\n%s", err, out)
-	}
-
-	if !strings.Contains(string(out), "Tagging") {
-		c.Fatalf("Missing expected output on trusted push:\n%s", out)
-	}
+	c.Assert(err, check.IsNil)
+	c.Assert(string(out), checker.Contains, "Tagging", check.Commentf("Missing expected output on trusted push:\n%s", out))
 
 	dockerCmd(c, "rmi", repoName)
 
 	// Kill the notary server, start a new "evil" one.
 	s.not.Close()
 	s.not, err = newTestNotary(c)
-	if err != nil {
-		c.Fatalf("Restarting notary server failed.")
-	}
+	c.Assert(err, check.IsNil)
 
 	// In order to make an evil server, lets re-init a client (with a different trust dir) and push new data.
 	// tag an image and upload it to the private registry
@@ -439,24 +358,16 @@ func (s *DockerTrustSuite) TestTrustedCreateFromBadTrustServer(c *check.C) {
 	pushCmd = exec.Command(dockerBinary, "--config", evilLocalConfigDir, "push", repoName)
 	s.trustedCmd(pushCmd)
 	out, _, err = runCommandWithOutput(pushCmd)
-	if err != nil {
-		c.Fatalf("Error creating trusted push: %s\n%s", err, out)
-	}
-	if !strings.Contains(string(out), "Signing and pushing trust metadata") {
-		c.Fatalf("Missing expected output on trusted push:\n%s", out)
-	}
+	c.Assert(err, check.IsNil)
+	c.Assert(string(out), checker.Contains, "Signing and pushing trust metadata", check.Commentf("Missing expected output on trusted push:\n%s", out))
 
 	// Now, try creating with the original client from this new trust server. This should fail.
 	createCmd = exec.Command(dockerBinary, "create", repoName)
 	s.trustedCmd(createCmd)
 	out, _, err = runCommandWithOutput(createCmd)
-	if err == nil {
-		c.Fatalf("Expected to fail on this create due to different remote data: %s\n%s", err, out)
-	}
+	c.Assert(err, check.Not(check.IsNil))
+	c.Assert(string(out), checker.Contains, "failed to validate data with current trusted certificates", check.Commentf("Missing expected output on trusted push:\n%s", out))
 
-	if !strings.Contains(string(out), "failed to validate data with current trusted certificates") {
-		c.Fatalf("Missing expected output on trusted push:\n%s", out)
-	}
 }
 
 func (s *DockerSuite) TestCreateStopSignal(c *check.C) {
@@ -465,8 +376,6 @@ func (s *DockerSuite) TestCreateStopSignal(c *check.C) {
 
 	res, err := inspectFieldJSON(name, "Config.StopSignal")
 	c.Assert(err, check.IsNil)
+	c.Assert(res, checker.Contains, "9")
 
-	if res != `"9"` {
-		c.Fatalf("Expected 9, got %s", res)
-	}
 }
