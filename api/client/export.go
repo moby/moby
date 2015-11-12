@@ -30,7 +30,7 @@ func (cli *DockerCli) CmdExport(args ...string) error {
 			return err
 		}
 	} else if cli.isTerminalOut {
-		return errors.New("Cowardly refusing to save to a terminal. Use the -o flag or redirect.")
+		return errors.New("cowardly refusing to save to a terminal. Use the -o flag or redirect")
 	}
 
 	image := cmd.Arg(0)

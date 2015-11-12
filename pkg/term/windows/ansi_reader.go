@@ -93,7 +93,7 @@ func (ar *ansiReader) Read(p []byte) (int, error) {
 
 	copiedLength := copy(p, keyBytes)
 	if copiedLength != len(keyBytes) {
-		return 0, errors.New("Unexpected copy length encountered.")
+		return 0, errors.New("unexpected copy length encountered")
 	}
 
 	logger.Debugf("Read        p[%d]: % x", copiedLength, p)

@@ -41,7 +41,7 @@ const (
 var (
 	// ErrInvalidRepositoryName is an error returned if the repository name did
 	// not have the correct form
-	ErrInvalidRepositoryName = errors.New("Invalid repository name (ex: \"registry.domain.tld/myrepos\")")
+	ErrInvalidRepositoryName = errors.New("invalid repository name (ex: \"registry.domain.tld/myrepos\")")
 
 	emptyServiceConfig = NewServiceConfig(nil)
 

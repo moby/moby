@@ -135,7 +135,7 @@ func newAWSLogsClient(ctx logger.Context) (api, error) {
 			logrus.WithFields(logrus.Fields{
 				"error": err,
 			}).Error("Could not get region from EC2 metadata, environment, or log option")
-			return nil, errors.New("Cannot determine region for awslogs driver")
+			return nil, errors.New("cannot determine region for awslogs driver")
 		}
 		config.Region = &region
 	}

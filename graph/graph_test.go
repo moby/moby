@@ -72,7 +72,7 @@ func TestInterruptedRegister(t *testing.T) {
 		Comment: "testing",
 		Created: time.Now(),
 	}
-	w.CloseWithError(errors.New("But I'm not a tarball!")) // (Nobody's perfect, darling)
+	w.CloseWithError(errors.New("but I'm not a tarball")) // (Nobody's perfect, darling)
 	graph.Register(v1Descriptor{image}, badArchive)
 	if _, err := graph.Get(image.ID); err == nil {
 		t.Fatal("Image should not exist after Register is interrupted")

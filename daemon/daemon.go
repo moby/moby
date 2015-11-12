@@ -64,7 +64,7 @@ var (
 	validContainerNameChars   = utils.RestrictedNameChars
 	validContainerNamePattern = utils.RestrictedNamePattern
 
-	errSystemNotSupported = errors.New("The Docker daemon is not supported on this platform.")
+	errSystemNotSupported = errors.New("the Docker daemon is not supported on this platform")
 )
 
 type contStore struct {

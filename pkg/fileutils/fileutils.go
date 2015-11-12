@@ -43,7 +43,7 @@ func CleanPatterns(patterns []string) ([]string, [][]string, bool, error) {
 		}
 		if exclusion(pattern) {
 			if len(pattern) == 1 {
-				return nil, nil, false, errors.New("Illegal exclusion pattern: !")
+				return nil, nil, false, errors.New("illegal exclusion pattern")
 			}
 			exceptions = true
 		}

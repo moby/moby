@@ -14,5 +14,5 @@ type Utsname struct {
 }
 
 func uname() (*Utsname, error) {
-	return nil, errors.New("Kernel version detection is available only on linux")
+	return nil, errors.New("kernel version detection is available only on linux")
 }

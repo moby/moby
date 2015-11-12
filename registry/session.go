@@ -31,7 +31,7 @@ import (
 var (
 	// ErrRepoNotFound is returned if the repository didn't exist on the
 	// remote side
-	ErrRepoNotFound = errors.New("Repository not found")
+	ErrRepoNotFound = errors.New("repository not found")
 )
 
 // A Session is used to communicate with a V1 registry

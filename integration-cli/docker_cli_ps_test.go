@@ -193,8 +193,7 @@ func (s *DockerSuite) TestPsListContainersFilterStatus(c *check.C) {
 	c.Assert(containerOut, checker.Equals, secondID[:12], check.Commentf("Expected id %s, got %s for running filter, output: %q", secondID[:12], containerOut, out))
 
 	out, _, _ = dockerCmdWithTimeout(time.Second*60, "ps", "-a", "-q", "--filter=status=rubbish")
-	c.Assert(out, checker.Contains, "Unrecognised filter value for status", check.Commentf("Expected error response due to invalid status filter output: %q", out))
-
+	c.Assert(out, checker.Contains, "unrecognised filter value for status", check.Commentf("Expected error response due to invalid status filter output: %q", out))
 }
 
 func (s *DockerSuite) TestPsListContainersFilterID(c *check.C) {

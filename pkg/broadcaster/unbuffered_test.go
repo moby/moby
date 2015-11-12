@@ -15,7 +15,7 @@ type dummyWriter struct {
 
 func (dw *dummyWriter) Write(p []byte) (n int, err error) {
 	if dw.failOnWrite {
-		return 0, errors.New("Fake fail")
+		return 0, errors.New("fake fail")
 	}
 	return dw.buffer.Write(p)
 }

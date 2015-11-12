@@ -29,8 +29,8 @@ import (
 var (
 	// ErrAlreadyExists is an error returned if an image being pushed
 	// already exists on the remote side
-	ErrAlreadyExists = errors.New("Image already exists")
-	errLoginRequired = errors.New("Authentication is required.")
+	ErrAlreadyExists = errors.New("image already exists")
+	errLoginRequired = errors.New("authentication is required")
 )
 
 // dockerUserAgent is the User-Agent the Docker client uses to identify itself.

@@ -13,7 +13,7 @@ import (
 
 var (
 	// ErrNotFound plugin not found
-	ErrNotFound = errors.New("Plugin not found")
+	ErrNotFound = errors.New("plugin not found")
 	socketsPath = "/run/docker/plugins"
 	specsPaths  = []string{"/etc/docker/plugins", "/usr/lib/docker/plugins"}
 )

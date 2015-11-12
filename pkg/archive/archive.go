@@ -73,7 +73,7 @@ type (
 
 var (
 	// ErrNotImplemented is the error message of function not implemented.
-	ErrNotImplemented = errors.New("Function not implemented")
+	ErrNotImplemented = errors.New("function not implemented")
 	defaultArchiver   = &Archiver{Untar: Untar, UIDMaps: nil, GIDMaps: nil}
 )
 
