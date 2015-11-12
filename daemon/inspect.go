@@ -6,6 +6,8 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/versions/v1p20"
+	"github.com/docker/docker/container"
+	"github.com/docker/docker/daemon/exec"
 	"github.com/docker/docker/daemon/network"
 )
 
@@ -72,7 +74,7 @@ func (daemon *Daemon) ContainerInspect120(name string) (*v1p20.ContainerJSON, er
 		MacAddress:      container.Config.MacAddress,
 		NetworkDisabled: container.Config.NetworkDisabled,
 		ExposedPorts:    container.Config.ExposedPorts,
-		VolumeDriver:    container.hostConfig.VolumeDriver,
+		VolumeDriver:    container.HostConfig.VolumeDriver,
 	}
 	networkSettings := daemon.getBackwardsCompatibleNetworkSettings(container.NetworkSettings)
 
@@ -84,9 +86,9 @@ func (daemon *Daemon) ContainerInspect120(name string) (*v1p20.ContainerJSON, er
 	}, nil
 }
 
-func (daemon *Daemon) getInspectData(container *Container, size bool) (*types.ContainerJSONBase, error) {
+func (daemon *Daemon) getInspectData(container *container.Container, size bool) (*types.ContainerJSONBase, error) {
 	// make a copy to play with
-	hostConfig := *container.hostConfig
+	hostConfig := *container.HostConfig
 
 	if children, err := daemon.children(container.Name); err == nil {
 		for linkAlias, child := range children {
@@ -130,7 +132,7 @@ func (daemon *Daemon) getInspectData(container *Container, size bool) (*types.Co
 		Driver:       container.Driver,
 		MountLabel:   container.MountLabel,
 		ProcessLabel: container.ProcessLabel,
-		ExecIDs:      container.getExecIDs(),
+		ExecIDs:      container.GetExecIDs(),
 		HostConfig:   &hostConfig,
 	}
 
@@ -159,7 +161,7 @@ func (daemon *Daemon) getInspectData(container *Container, size bool) (*types.Co
 
 // ContainerExecInspect returns low-level information about the exec
 // command. An error is returned if the exec cannot be found.
-func (daemon *Daemon) ContainerExecInspect(id string) (*ExecConfig, error) {
+func (daemon *Daemon) ContainerExecInspect(id string) (*exec.Config, error) {
 	eConfig, err := daemon.getExecConfig(id)
 	if err != nil {
 		return nil, err

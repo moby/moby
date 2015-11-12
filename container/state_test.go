@@ -1,4 +1,4 @@
-package daemon
+package container
 
 import (
 	"sync/atomic"
@@ -19,7 +19,7 @@ func TestStateRunStop(t *testing.T) {
 			close(started)
 		}()
 		s.Lock()
-		s.setRunning(i + 100)
+		s.SetRunning(i + 100)
 		s.Unlock()
 
 		if !s.IsRunning() {
@@ -52,7 +52,7 @@ func TestStateRunStop(t *testing.T) {
 			atomic.StoreInt64(&exit, int64(exitCode))
 			close(stopped)
 		}()
-		s.setStoppedLocking(&execdriver.ExitStatus{ExitCode: i})
+		s.SetStoppedLocking(&execdriver.ExitStatus{ExitCode: i})
 		if s.IsRunning() {
 			t.Fatal("State is running")
 		}
@@ -93,7 +93,7 @@ func TestStateTimeoutWait(t *testing.T) {
 	}
 
 	s.Lock()
-	s.setRunning(49)
+	s.SetRunning(49)
 	s.Unlock()
 
 	stopped := make(chan struct{})

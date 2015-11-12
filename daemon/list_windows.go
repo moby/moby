@@ -1,11 +1,15 @@
 package daemon
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/docker/docker/container"
+)
 
 // excludeByIsolation is a platform specific helper function to support PS
 // filtering by Isolation. This is a Windows-only concept, so is a no-op on Unix.
-func excludeByIsolation(container *Container, ctx *listContext) iterationAction {
-	i := strings.ToLower(string(container.hostConfig.Isolation))
+func excludeByIsolation(container *container.Container, ctx *listContext) iterationAction {
+	i := strings.ToLower(string(container.HostConfig.Isolation))
 	if i == "" {
 		i = "default"
 	}

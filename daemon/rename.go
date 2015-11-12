@@ -13,17 +13,15 @@ import (
 // reserved.
 func (daemon *Daemon) ContainerRename(oldName, newName string) error {
 	var (
-		err       error
-		sid       string
-		sb        libnetwork.Sandbox
-		container *Container
+		sid string
+		sb  libnetwork.Sandbox
 	)
 
 	if oldName == "" || newName == "" {
 		return derr.ErrorCodeEmptyRename
 	}
 
-	container, err = daemon.Get(oldName)
+	container, err := daemon.Get(oldName)
 	if err != nil {
 		return err
 	}
@@ -50,7 +48,7 @@ func (daemon *Daemon) ContainerRename(oldName, newName string) error {
 		return derr.ErrorCodeRenameDelete.WithArgs(oldName, err)
 	}
 
-	if err = container.toDisk(); err != nil {
+	if err = container.ToDisk(); err != nil {
 		return err
 	}
 
@@ -62,7 +60,7 @@ func (daemon *Daemon) ContainerRename(oldName, newName string) error {
 	defer func() {
 		if err != nil {
 			container.Name = oldName
-			if e := container.toDisk(); e != nil {
+			if e := container.ToDisk(); e != nil {
 				logrus.Errorf("%s: Failed in writing to Disk on rename failure: %v", container.ID, e)
 			}
 		}

@@ -5,6 +5,8 @@ import (
 	"os"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/container"
+	"github.com/docker/docker/daemon/exec"
 	"github.com/docker/docker/daemon/graphdriver"
 	// register the windows graph driver
 	_ "github.com/docker/docker/daemon/graphdriver/windows"
@@ -26,7 +28,7 @@ func getBlkioWeightDevices(config *runconfig.HostConfig) ([]*blkiodev.WeightDevi
 	return nil, nil
 }
 
-func parseSecurityOpt(container *Container, config *runconfig.HostConfig) error {
+func parseSecurityOpt(container *container.Container, config *runconfig.HostConfig) error {
 	return nil
 }
 
@@ -110,7 +112,7 @@ func (daemon *Daemon) initNetworkController(config *Config) (libnetwork.NetworkC
 
 // registerLinks sets up links between containers and writes the
 // configuration out for persistence.
-func (daemon *Daemon) registerLinks(container *Container, hostConfig *runconfig.HostConfig) error {
+func (daemon *Daemon) registerLinks(container *container.Container, hostConfig *runconfig.HostConfig) error {
 	// TODO Windows. Factored out for network modes. There may be more
 	// refactoring required here.
 
@@ -136,19 +138,19 @@ func (daemon *Daemon) registerLinks(container *Container, hostConfig *runconfig.
 	// After we load all the links into the daemon
 	// set them to nil on the hostconfig
 	hostConfig.Links = nil
-	if err := container.writeHostConfig(); err != nil {
+	if err := container.WriteHostConfig(); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (daemon *Daemon) newBaseContainer(id string) *Container {
-	return &Container{
-		CommonContainer: CommonContainer{
+func (daemon *Daemon) newBaseContainer(id string) *container.Container {
+	return &container.Container{
+		CommonContainer: container.CommonContainer{
 			ID:           id,
-			State:        NewState(),
-			execCommands: newExecStore(),
-			root:         daemon.containerRoot(id),
+			State:        container.NewState(),
+			ExecCommands: exec.NewStore(),
+			Root:         daemon.containerRoot(id),
 		},
 	}
 }
@@ -159,9 +161,9 @@ func (daemon *Daemon) cleanupMounts() error {
 
 // conditionalMountOnStart is a platform specific helper function during the
 // container start to call mount.
-func (daemon *Daemon) conditionalMountOnStart(container *Container) error {
+func (daemon *Daemon) conditionalMountOnStart(container *container.Container) error {
 	// We do not mount if a Hyper-V container
-	if !container.hostConfig.Isolation.IsHyperV() {
+	if !container.HostConfig.Isolation.IsHyperV() {
 		if err := daemon.Mount(container); err != nil {
 			return err
 		}
@@ -171,9 +173,9 @@ func (daemon *Daemon) conditionalMountOnStart(container *Container) error {
 
 // conditionalUnmountOnCleanup is a platform specific helper function called
 // during the cleanup of a container to unmount.
-func (daemon *Daemon) conditionalUnmountOnCleanup(container *Container) {
+func (daemon *Daemon) conditionalUnmountOnCleanup(container *container.Container) {
 	// We do not unmount if a Hyper-V container
-	if !container.hostConfig.Isolation.IsHyperV() {
+	if !container.HostConfig.Isolation.IsHyperV() {
 		if err := daemon.Unmount(container); err != nil {
 			logrus.Errorf("%v: Failed to umount filesystem: %v", container.ID, err)
 		}

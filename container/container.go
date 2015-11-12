@@ -1,8 +1,7 @@
-package daemon
+package container
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -14,13 +13,13 @@ import (
 	"github.com/opencontainers/runc/libcontainer/label"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/container/streams"
+	"github.com/docker/docker/daemon/exec"
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/logger/jsonfilelog"
 	"github.com/docker/docker/daemon/network"
 	derr "github.com/docker/docker/errors"
-	"github.com/docker/docker/pkg/broadcaster"
-	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/nat"
 	"github.com/docker/docker/pkg/promise"
 	"github.com/docker/docker/pkg/signal"
@@ -30,27 +29,14 @@ import (
 	"github.com/docker/docker/volume"
 )
 
-var (
-	// ErrRootFSReadOnly is returned when a container
-	// rootfs is marked readonly.
-	ErrRootFSReadOnly = errors.New("container rootfs is marked read-only")
-)
-
-type streamConfig struct {
-	stdout    *broadcaster.Unbuffered
-	stderr    *broadcaster.Unbuffered
-	stdin     io.ReadCloser
-	stdinPipe io.WriteCloser
-}
-
 // CommonContainer holds the fields for a container which are
 // applicable across all platforms supported by the daemon.
 type CommonContainer struct {
-	streamConfig
+	streams.StreamConfig
 	// embed for Container to support states directly.
 	*State          `json:"State"` // Needed for remote api version <= 1.11
-	root            string         // Path to the "home" of the container, including metadata.
-	basefs          string         // Path to the graphdriver mountpoint
+	Root            string         `json:"-"` // Path to the "home" of the container, including metadata.
+	BaseFS          string         `json:"-"` // Path to the graphdriver mountpoint
 	ID              string
 	Created         time.Time
 	Path            string
@@ -68,16 +54,17 @@ type CommonContainer struct {
 	HasBeenStartedBefore   bool
 	HasBeenManuallyStopped bool // used for unless-stopped restart policy
 	MountPoints            map[string]*volume.MountPoint
-	hostConfig             *runconfig.HostConfig
-	command                *execdriver.Command
+	HostConfig             *runconfig.HostConfig `json:"-"` // do not serialize the host config in the json, otherwise we'll make the container unportable
+	Command                *execdriver.Command   `json:"-"`
 	monitor                *containerMonitor
-	execCommands           *execStore
+	ExecCommands           *exec.Store `json:"-"`
 	// logDriver for closing
-	logDriver logger.Logger
-	logCopier *logger.Copier
+	LogDriver logger.Logger  `json:"-"`
+	LogCopier *logger.Copier `json:"-"`
 }
 
-func (container *Container) fromDisk() error {
+// FromDisk loads the container configuration stured in the host.
+func (container *Container) FromDisk() error {
 	pth, err := container.jsonPath()
 	if err != nil {
 		return err
@@ -102,7 +89,8 @@ func (container *Container) fromDisk() error {
 	return container.readHostConfig()
 }
 
-func (container *Container) toDisk() error {
+// ToDisk saves the container configuration on disk.
+func (container *Container) ToDisk() error {
 	pth, err := container.jsonPath()
 	if err != nil {
 		return err
@@ -121,20 +109,22 @@ func (container *Container) toDisk() error {
 		return err
 	}
 
-	return container.writeHostConfig()
+	return container.WriteHostConfig()
 }
 
-func (container *Container) toDiskLocking() error {
+// ToDiskLocking saves the container configuration on disk in a thread safe way.
+func (container *Container) ToDiskLocking() error {
 	container.Lock()
-	err := container.toDisk()
+	err := container.ToDisk()
 	container.Unlock()
 	return err
 }
 
+// readHostConfig reads the host configuration from disk for the container.
 func (container *Container) readHostConfig() error {
-	container.hostConfig = &runconfig.HostConfig{}
+	container.HostConfig = &runconfig.HostConfig{}
 	// If the hostconfig file does not exist, do not read it.
-	// (We still have to initialize container.hostConfig,
+	// (We still have to initialize container.HostConfig,
 	// but that's OK, since we just did that above.)
 	pth, err := container.hostConfigPath()
 	if err != nil {
@@ -150,7 +140,7 @@ func (container *Container) readHostConfig() error {
 	}
 	defer f.Close()
 
-	if err := json.NewDecoder(f).Decode(&container.hostConfig); err != nil {
+	if err := json.NewDecoder(f).Decode(&container.HostConfig); err != nil {
 		return err
 	}
 
@@ -159,22 +149,23 @@ func (container *Container) readHostConfig() error {
 	// but pre created containers can still have those nil values.
 	// See https://github.com/docker/docker/pull/17779
 	// for a more detailed explanation on why we don't want that.
-	if container.hostConfig.DNS == nil {
-		container.hostConfig.DNS = make([]string, 0)
+	if container.HostConfig.DNS == nil {
+		container.HostConfig.DNS = make([]string, 0)
 	}
 
-	if container.hostConfig.DNSSearch == nil {
-		container.hostConfig.DNSSearch = make([]string, 0)
+	if container.HostConfig.DNSSearch == nil {
+		container.HostConfig.DNSSearch = make([]string, 0)
 	}
 
-	if container.hostConfig.DNSOptions == nil {
-		container.hostConfig.DNSOptions = make([]string, 0)
+	if container.HostConfig.DNSOptions == nil {
+		container.HostConfig.DNSOptions = make([]string, 0)
 	}
 
 	return nil
 }
 
-func (container *Container) writeHostConfig() error {
+// WriteHostConfig saves the host configuration on disk for the container.
+func (container *Container) WriteHostConfig() error {
 	pth, err := container.hostConfigPath()
 	if err != nil {
 		return err
@@ -186,19 +177,19 @@ func (container *Container) writeHostConfig() error {
 	}
 	defer f.Close()
 
-	return json.NewEncoder(f).Encode(&container.hostConfig)
+	return json.NewEncoder(f).Encode(&container.HostConfig)
 }
 
-// GetResourcePath evaluates `path` in the scope of the container's basefs, with proper path
-// sanitisation. Symlinks are all scoped to the basefs of the container, as
-// though the container's basefs was `/`.
+// GetResourcePath evaluates `path` in the scope of the container's BaseFS, with proper path
+// sanitisation. Symlinks are all scoped to the BaseFS of the container, as
+// though the container's BaseFS was `/`.
 //
-// The basefs of a container is the host-facing path which is bind-mounted as
+// The BaseFS of a container is the host-facing path which is bind-mounted as
 // `/` inside the container. This method is essentially used to access a
 // particular path inside the container as though you were a process in that
 // container.
 //
-// NOTE: The returned path is *only* safely scoped inside the container's basefs
+// NOTE: The returned path is *only* safely scoped inside the container's BaseFS
 //       if no component of the returned path changes (such as a component
 //       symlinking to a different path) between using this method and using the
 //       path. See symlink.FollowSymlinkInScope for more details.
@@ -206,11 +197,11 @@ func (container *Container) GetResourcePath(path string) (string, error) {
 	// IMPORTANT - These are paths on the OS where the daemon is running, hence
 	// any filepath operations must be done in an OS agnostic way.
 	cleanPath := filepath.Join(string(os.PathSeparator), path)
-	r, e := symlink.FollowSymlinkInScope(filepath.Join(container.basefs, cleanPath), container.basefs)
+	r, e := symlink.FollowSymlinkInScope(filepath.Join(container.BaseFS, cleanPath), container.BaseFS)
 	return r, e
 }
 
-// Evaluates `path` in the scope of the container's root, with proper path
+// GetRootResourcePath evaluates `path` in the scope of the container's root, with proper path
 // sanitisation. Symlinks are all scoped to the root of the container, as
 // though the container's root was `/`.
 //
@@ -222,35 +213,11 @@ func (container *Container) GetResourcePath(path string) (string, error) {
 //       if no component of the returned path changes (such as a component
 //       symlinking to a different path) between using this method and using the
 //       path. See symlink.FollowSymlinkInScope for more details.
-func (container *Container) getRootResourcePath(path string) (string, error) {
+func (container *Container) GetRootResourcePath(path string) (string, error) {
 	// IMPORTANT - These are paths on the OS where the daemon is running, hence
 	// any filepath operations must be done in an OS agnostic way.
 	cleanPath := filepath.Join(string(os.PathSeparator), path)
-	return symlink.FollowSymlinkInScope(filepath.Join(container.root, cleanPath), container.root)
-}
-
-// streamConfig.StdinPipe returns a WriteCloser which can be used to feed data
-// to the standard input of the container's active process.
-// Container.StdoutPipe and Container.StderrPipe each return a ReadCloser
-// which can be used to retrieve the standard output (and error) generated
-// by the container's active process. The output (and error) are actually
-// copied and delivered to all StdoutPipe and StderrPipe consumers, using
-// a kind of "broadcaster".
-
-func (streamConfig *streamConfig) StdinPipe() io.WriteCloser {
-	return streamConfig.stdinPipe
-}
-
-func (streamConfig *streamConfig) StdoutPipe() io.ReadCloser {
-	reader, writer := io.Pipe()
-	streamConfig.stdout.Add(writer)
-	return ioutils.NewBufReader(reader)
-}
-
-func (streamConfig *streamConfig) StderrPipe() io.ReadCloser {
-	reader, writer := io.Pipe()
-	streamConfig.stderr.Add(writer)
-	return ioutils.NewBufReader(reader)
+	return symlink.FollowSymlinkInScope(filepath.Join(container.Root, cleanPath), container.Root)
 }
 
 // ExitOnNext signals to the monitor that it should not restart the container
@@ -262,30 +229,18 @@ func (container *Container) ExitOnNext() {
 // Resize changes the TTY of the process running inside the container
 // to the given height and width. The container must be running.
 func (container *Container) Resize(h, w int) error {
-	if err := container.command.ProcessConfig.Terminal.Resize(h, w); err != nil {
+	if err := container.Command.ProcessConfig.Terminal.Resize(h, w); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (container *Container) hostConfigPath() (string, error) {
-	return container.getRootResourcePath("hostconfig.json")
+	return container.GetRootResourcePath("hostconfig.json")
 }
 
 func (container *Container) jsonPath() (string, error) {
-	return container.getRootResourcePath("config.json")
-}
-
-// This directory is only usable when the container is running
-func (container *Container) rootfsPath() string {
-	return container.basefs
-}
-
-func validateID(id string) error {
-	if id == "" {
-		return derr.ErrorCodeEmptyID
-	}
-	return nil
+	return container.GetRootResourcePath("config.json")
 }
 
 // Returns true if the container exposes a certain port
@@ -294,8 +249,9 @@ func (container *Container) exposes(p nat.Port) bool {
 	return exists
 }
 
-func (container *Container) getLogConfig(defaultConfig runconfig.LogConfig) runconfig.LogConfig {
-	cfg := container.hostConfig.LogConfig
+// GetLogConfig returns the log configuration for the container.
+func (container *Container) GetLogConfig(defaultConfig runconfig.LogConfig) runconfig.LogConfig {
+	cfg := container.HostConfig.LogConfig
 	if cfg.Type != "" || len(cfg.Config) > 0 { // container has log driver configured
 		if cfg.Type == "" {
 			cfg.Type = jsonfilelog.Name
@@ -327,7 +283,7 @@ func (container *Container) StartLogger(cfg runconfig.LogConfig) (logger.Logger,
 
 	// Set logging file for "json-logger"
 	if cfg.Type == jsonfilelog.Name {
-		ctx.LogPath, err = container.getRootResourcePath(fmt.Sprintf("%s-json.log", container.ID))
+		ctx.LogPath, err = container.GetRootResourcePath(fmt.Sprintf("%s-json.log", container.ID))
 		if err != nil {
 			return nil, err
 		}
@@ -335,33 +291,38 @@ func (container *Container) StartLogger(cfg runconfig.LogConfig) (logger.Logger,
 	return c(ctx)
 }
 
-func (container *Container) getProcessLabel() string {
+// GetProcessLabel returns the process label for the container.
+func (container *Container) GetProcessLabel() string {
 	// even if we have a process label return "" if we are running
 	// in privileged mode
-	if container.hostConfig.Privileged {
+	if container.HostConfig.Privileged {
 		return ""
 	}
 	return container.ProcessLabel
 }
 
-func (container *Container) getMountLabel() string {
-	if container.hostConfig.Privileged {
+// GetMountLabel returns the mounting label for the container.
+// This label is empty if the container is privileged.
+func (container *Container) GetMountLabel() string {
+	if container.HostConfig.Privileged {
 		return ""
 	}
 	return container.MountLabel
 }
 
-func (container *Container) getExecIDs() []string {
-	return container.execCommands.List()
+// GetExecIDs returns the list of exec commands running on the container.
+func (container *Container) GetExecIDs() []string {
+	return container.ExecCommands.List()
 }
 
 // Attach connects to the container's TTY, delegating to standard
 // streams or websockets depending on the configuration.
 func (container *Container) Attach(stdin io.ReadCloser, stdout io.Writer, stderr io.Writer) chan error {
-	return attach(&container.streamConfig, container.Config.OpenStdin, container.Config.StdinOnce, container.Config.Tty, stdin, stdout, stderr)
+	return AttachStreams(&container.StreamConfig, container.Config.OpenStdin, container.Config.StdinOnce, container.Config.Tty, stdin, stdout, stderr)
 }
 
-func attach(streamConfig *streamConfig, openStdin, stdinOnce, tty bool, stdin io.ReadCloser, stdout io.Writer, stderr io.Writer) chan error {
+// AttachStreams connects to a series of streams, regardless of the process that opened them.
+func AttachStreams(streamConfig *streams.StreamConfig, openStdin, stdinOnce, tty bool, stdin io.ReadCloser, stdout io.Writer, stderr io.Writer) chan error {
 	var (
 		cStdout, cStderr io.ReadCloser
 		cStdin           io.WriteCloser
@@ -370,7 +331,7 @@ func attach(streamConfig *streamConfig, openStdin, stdinOnce, tty bool, stdin io
 	)
 
 	if stdin != nil && openStdin {
-		cStdin = streamConfig.StdinPipe()
+		cStdin = streamConfig.StdinPipe
 		wg.Add(1)
 	}
 
@@ -506,13 +467,16 @@ func copyEscapable(dst io.Writer, src io.ReadCloser) (written int64, err error) 
 	return written, err
 }
 
-func (container *Container) shouldRestart() bool {
-	return container.hostConfig.RestartPolicy.Name == "always" ||
-		(container.hostConfig.RestartPolicy.Name == "unless-stopped" && !container.HasBeenManuallyStopped) ||
-		(container.hostConfig.RestartPolicy.Name == "on-failure" && container.ExitCode != 0)
+// ShouldRestart decides whether the daemon should restart the container or not.
+// This is based on the container's restart policy.
+func (container *Container) ShouldRestart() bool {
+	return container.HostConfig.RestartPolicy.Name == "always" ||
+		(container.HostConfig.RestartPolicy.Name == "unless-stopped" && !container.HasBeenManuallyStopped) ||
+		(container.HostConfig.RestartPolicy.Name == "on-failure" && container.ExitCode != 0)
 }
 
-func (container *Container) addBindMountPoint(name, source, destination string, rw bool) {
+// AddBindMountPoint adds a new bind mount point configuration to the container.
+func (container *Container) AddBindMountPoint(name, source, destination string, rw bool) {
 	container.MountPoints[destination] = &volume.MountPoint{
 		Name:        name,
 		Source:      source,
@@ -521,7 +485,8 @@ func (container *Container) addBindMountPoint(name, source, destination string, 
 	}
 }
 
-func (container *Container) addLocalMountPoint(name, destination string, rw bool) {
+// AddLocalMountPoint adds a new local mount point configuration to the container.
+func (container *Container) AddLocalMountPoint(name, destination string, rw bool) {
 	container.MountPoints[destination] = &volume.MountPoint{
 		Name:        name,
 		Driver:      volume.DefaultDriverName,
@@ -530,7 +495,8 @@ func (container *Container) addLocalMountPoint(name, destination string, rw bool
 	}
 }
 
-func (container *Container) addMountPointWithVolume(destination string, vol volume.Volume, rw bool) {
+// AddMountPointWithVolume adds a new mount point configured with a volume to the container.
+func (container *Container) AddMountPointWithVolume(destination string, vol volume.Volume, rw bool) {
 	container.MountPoints[destination] = &volume.MountPoint{
 		Name:        vol.Name(),
 		Driver:      vol.DriverName(),
@@ -540,11 +506,13 @@ func (container *Container) addMountPointWithVolume(destination string, vol volu
 	}
 }
 
-func (container *Container) isDestinationMounted(destination string) bool {
+// IsDestinationMounted checkes whether a path is mounted on the container or not.
+func (container *Container) IsDestinationMounted(destination string) bool {
 	return container.MountPoints[destination] != nil
 }
 
-func (container *Container) stopSignal() int {
+// StopSignal returns the signal used to stop the container.
+func (container *Container) StopSignal() int {
 	var stopSignal syscall.Signal
 	if container.Config.StopSignal != "" {
 		stopSignal, _ = signal.ParseSignal(container.Config.StopSignal)

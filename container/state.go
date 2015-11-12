@@ -1,4 +1,4 @@
-package daemon
+package container
 
 import (
 	"fmt"
@@ -21,7 +21,7 @@ type State struct {
 	Paused            bool
 	Restarting        bool
 	OOMKilled         bool
-	removalInProgress bool // Not need for this to be persistent on disk.
+	RemovalInProgress bool // Not need for this to be persistent on disk.
 	Dead              bool
 	Pid               int
 	ExitCode          int
@@ -51,7 +51,7 @@ func (s *State) String() string {
 		return fmt.Sprintf("Up %s", units.HumanDuration(time.Now().UTC().Sub(s.StartedAt)))
 	}
 
-	if s.removalInProgress {
+	if s.RemovalInProgress {
 		return "Removal In Progress"
 	}
 
@@ -93,7 +93,8 @@ func (s *State) StateString() string {
 	return "exited"
 }
 
-func isValidStateString(s string) bool {
+// IsValidStateString checks if the provided string is a valid container state or not.
+func IsValidStateString(s string) bool {
 	if s != "paused" &&
 		s != "restarting" &&
 		s != "running" &&
@@ -121,7 +122,7 @@ func wait(waitChan <-chan struct{}, timeout time.Duration) error {
 // waitRunning waits until state is running. If state is already
 // running it returns immediately. If you want wait forever you must
 // supply negative timeout. Returns pid, that was passed to
-// setRunning.
+// SetRunning.
 func (s *State) waitRunning(timeout time.Duration) (int, error) {
 	s.Lock()
 	if s.Running {
@@ -139,7 +140,7 @@ func (s *State) waitRunning(timeout time.Duration) (int, error) {
 
 // WaitStop waits until state is stopped. If state already stopped it returns
 // immediately. If you want wait forever you must supply negative timeout.
-// Returns exit code, that was passed to setStoppedLocking
+// Returns exit code, that was passed to SetStoppedLocking
 func (s *State) WaitStop(timeout time.Duration) (int, error) {
 	s.Lock()
 	if !s.Running {
@@ -178,7 +179,8 @@ func (s *State) getExitCode() int {
 	return res
 }
 
-func (s *State) setRunning(pid int) {
+// SetRunning sets the state of the container to "running".
+func (s *State) SetRunning(pid int) {
 	s.Error = ""
 	s.Running = true
 	s.Paused = false
@@ -190,13 +192,15 @@ func (s *State) setRunning(pid int) {
 	s.waitChan = make(chan struct{})
 }
 
-func (s *State) setStoppedLocking(exitStatus *execdriver.ExitStatus) {
+// SetStoppedLocking locks the container state is sets it to "stopped".
+func (s *State) SetStoppedLocking(exitStatus *execdriver.ExitStatus) {
 	s.Lock()
-	s.setStopped(exitStatus)
+	s.SetStopped(exitStatus)
 	s.Unlock()
 }
 
-func (s *State) setStopped(exitStatus *execdriver.ExitStatus) {
+// SetStopped sets the container state to "stopped" without locking.
+func (s *State) SetStopped(exitStatus *execdriver.ExitStatus) {
 	s.Running = false
 	s.Restarting = false
 	s.Pid = 0
@@ -206,15 +210,17 @@ func (s *State) setStopped(exitStatus *execdriver.ExitStatus) {
 	s.waitChan = make(chan struct{})
 }
 
-// setRestarting is when docker handles the auto restart of containers when they are
+// SetRestartingLocking is when docker handles the auto restart of containers when they are
 // in the middle of a stop and being restarted again
-func (s *State) setRestartingLocking(exitStatus *execdriver.ExitStatus) {
+func (s *State) SetRestartingLocking(exitStatus *execdriver.ExitStatus) {
 	s.Lock()
-	s.setRestarting(exitStatus)
+	s.SetRestarting(exitStatus)
 	s.Unlock()
 }
 
-func (s *State) setRestarting(exitStatus *execdriver.ExitStatus) {
+// SetRestarting sets the container state to "restarting".
+// It also sets the container PID to 0.
+func (s *State) SetRestarting(exitStatus *execdriver.ExitStatus) {
 	// we should consider the container running when it is restarting because of
 	// all the checks in docker around rm/stop/etc
 	s.Running = true
@@ -226,37 +232,41 @@ func (s *State) setRestarting(exitStatus *execdriver.ExitStatus) {
 	s.waitChan = make(chan struct{})
 }
 
-// setError sets the container's error state. This is useful when we want to
+// SetError sets the container's error state. This is useful when we want to
 // know the error that occurred when container transits to another state
 // when inspecting it
-func (s *State) setError(err error) {
+func (s *State) SetError(err error) {
 	s.Error = err.Error()
 }
 
-func (s *State) isPaused() bool {
+// IsPaused returns whether the container is paused or not.
+func (s *State) IsPaused() bool {
 	s.Lock()
 	res := s.Paused
 	s.Unlock()
 	return res
 }
 
-func (s *State) setRemovalInProgress() error {
+// SetRemovalInProgress sets the container state as being removed.
+func (s *State) SetRemovalInProgress() error {
 	s.Lock()
 	defer s.Unlock()
-	if s.removalInProgress {
+	if s.RemovalInProgress {
 		return derr.ErrorCodeAlreadyRemoving
 	}
-	s.removalInProgress = true
+	s.RemovalInProgress = true
 	return nil
 }
 
-func (s *State) resetRemovalInProgress() {
+// ResetRemovalInProgress make the RemovalInProgress state to false.
+func (s *State) ResetRemovalInProgress() {
 	s.Lock()
-	s.removalInProgress = false
+	s.RemovalInProgress = false
 	s.Unlock()
 }
 
-func (s *State) setDead() {
+// SetDead sets the container state to "dead"
+func (s *State) SetDead() {
 	s.Lock()
 	s.Dead = true
 	s.Unlock()

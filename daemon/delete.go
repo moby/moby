@@ -6,6 +6,7 @@ import (
 	"path"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/container"
 	derr "github.com/docker/docker/errors"
 	volumestore "github.com/docker/docker/volume/store"
 )
@@ -66,7 +67,7 @@ func (daemon *Daemon) ContainerRm(name string, config *ContainerRmConfig) error 
 }
 
 // Destroy unregisters a container from the daemon and cleanly removes its contents from the filesystem.
-func (daemon *Daemon) rm(container *Container, forceRemove bool) (err error) {
+func (daemon *Daemon) rm(container *container.Container, forceRemove bool) (err error) {
 	if container.IsRunning() {
 		if !forceRemove {
 			return derr.ErrorCodeRmRunning
@@ -77,14 +78,14 @@ func (daemon *Daemon) rm(container *Container, forceRemove bool) (err error) {
 	}
 
 	// Container state RemovalInProgress should be used to avoid races.
-	if err = container.setRemovalInProgress(); err != nil {
+	if err = container.SetRemovalInProgress(); err != nil {
 		if err == derr.ErrorCodeAlreadyRemoving {
 			// do not fail when the removal is in progress started by other request.
 			return nil
 		}
 		return derr.ErrorCodeRmState.WithArgs(err)
 	}
-	defer container.resetRemovalInProgress()
+	defer container.ResetRemovalInProgress()
 
 	// stop collection of stats for the container regardless
 	// if stats are currently getting collected.
@@ -95,12 +96,12 @@ func (daemon *Daemon) rm(container *Container, forceRemove bool) (err error) {
 	}
 
 	// Mark container dead. We don't want anybody to be restarting it.
-	container.setDead()
+	container.SetDead()
 
 	// Save container state to disk. So that if error happens before
 	// container meta file got removed from disk, then a restart of
 	// docker should not make a dead container alive.
-	if err := container.toDiskLocking(); err != nil {
+	if err := container.ToDiskLocking(); err != nil {
 		logrus.Errorf("Error saving dying container to disk: %v", err)
 	}
 
@@ -110,7 +111,7 @@ func (daemon *Daemon) rm(container *Container, forceRemove bool) (err error) {
 		if err != nil && forceRemove {
 			daemon.idIndex.Delete(container.ID)
 			daemon.containers.Delete(container.ID)
-			os.RemoveAll(container.root)
+			os.RemoveAll(container.Root)
 			daemon.LogContainerEvent(container, "destroy")
 		}
 	}()
@@ -128,7 +129,7 @@ func (daemon *Daemon) rm(container *Container, forceRemove bool) (err error) {
 		return derr.ErrorCodeRmInit.WithArgs(daemon.driver, initID, err)
 	}
 
-	if err = os.RemoveAll(container.root); err != nil {
+	if err = os.RemoveAll(container.Root); err != nil {
 		return derr.ErrorCodeRmFS.WithArgs(container.ID, err)
 	}
 

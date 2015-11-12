@@ -8,6 +8,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/container"
 	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/graph"
 	"github.com/docker/docker/image"
@@ -21,7 +22,7 @@ type iterationAction int
 
 // containerReducer represents a reducer for a container.
 // Returns the object to serialize by the api.
-type containerReducer func(*Container, *listContext) (*types.Container, error)
+type containerReducer func(*container.Container, *listContext) (*types.Container, error)
 
 const (
 	// includeContainer is the action to include a container in the reducer.
@@ -36,7 +37,7 @@ const (
 var errStopIteration = errors.New("container list iteration stopped")
 
 // List returns an array of all containers registered in the daemon.
-func (daemon *Daemon) List() []*Container {
+func (daemon *Daemon) List() []*container.Container {
 	return daemon.containers.List()
 }
 
@@ -72,9 +73,9 @@ type listContext struct {
 	// exitAllowed is a list of exit codes allowed to filter with
 	exitAllowed []int
 	// beforeContainer is a filter to ignore containers that appear before the one given
-	beforeContainer *Container
+	beforeContainer *container.Container
 	// sinceContainer is a filter to stop the filtering when the iterator arrive to the given container
-	sinceContainer *Container
+	sinceContainer *container.Container
 	// ContainersConfig is the filters set by the user
 	*ContainersConfig
 }
@@ -110,7 +111,7 @@ func (daemon *Daemon) reduceContainers(config *ContainersConfig, reducer contain
 }
 
 // reducePsContainer is the basic representation for a container as expected by the ps command.
-func (daemon *Daemon) reducePsContainer(container *Container, ctx *listContext, reducer containerReducer) (*types.Container, error) {
+func (daemon *Daemon) reducePsContainer(container *container.Container, ctx *listContext, reducer containerReducer) (*types.Container, error) {
 	container.Lock()
 	defer container.Unlock()
 
@@ -147,7 +148,7 @@ func (daemon *Daemon) foldFilter(config *ContainersConfig) (*listContext, error)
 
 	if i, ok := psFilters["status"]; ok {
 		for _, value := range i {
-			if !isValidStateString(value) {
+			if !container.IsValidStateString(value) {
 				return nil, errors.New("Unrecognised filter value for status")
 			}
 			if value == "exited" || value == "created" {
@@ -184,7 +185,7 @@ func (daemon *Daemon) foldFilter(config *ContainersConfig) (*listContext, error)
 		return nil
 	}, 1)
 
-	var beforeCont, sinceCont *Container
+	var beforeCont, sinceCont *container.Container
 	if config.Before != "" {
 		beforeCont, err = daemon.Get(config.Before)
 		if err != nil {
@@ -213,7 +214,7 @@ func (daemon *Daemon) foldFilter(config *ContainersConfig) (*listContext, error)
 
 // includeContainerInList decides whether a containers should be include in the output or not based in the filter.
 // It also decides if the iteration should be stopped or not.
-func includeContainerInList(container *Container, ctx *listContext) iterationAction {
+func includeContainerInList(container *container.Container, ctx *listContext) iterationAction {
 	// Do not include container if it's stopped and we're not filters
 	if !container.Running && !ctx.All && ctx.Limit <= 0 && ctx.beforeContainer == nil && ctx.sinceContainer == nil {
 		return excludeContainer
@@ -310,7 +311,7 @@ func getImage(s *graph.TagStore, img, imgID string) (string, error) {
 }
 
 // transformContainer generates the container type expected by the docker ps command.
-func (daemon *Daemon) transformContainer(container *Container, ctx *listContext) (*types.Container, error) {
+func (daemon *Daemon) transformContainer(container *container.Container, ctx *listContext) (*types.Container, error) {
 	newC := &types.Container{
 		ID:      container.ID,
 		Names:   ctx.names[container.ID],
@@ -344,7 +345,7 @@ func (daemon *Daemon) transformContainer(container *Container, ctx *listContext)
 	}
 	newC.Created = container.Created.Unix()
 	newC.Status = container.State.String()
-	newC.HostConfig.NetworkMode = string(container.hostConfig.NetworkMode)
+	newC.HostConfig.NetworkMode = string(container.HostConfig.NetworkMode)
 
 	newC.Ports = []types.Port{}
 	for port, bindings := range container.NetworkSettings.Ports {
