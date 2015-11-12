@@ -403,7 +403,7 @@ func (d *Driver) DiffSize(id, parent string) (size int64, err error) {
 }
 
 // RestoreCustomImages adds any auto-detected OS specific images to the tag and graph store.
-func (d *Driver) RestoreCustomImages(tagger graphdriver.Tagger, recorder graphdriver.Recorder) (imageIDs []string, err error) {
+func (d *Driver) RestoreCustomImages(tagger Tagger, recorder Recorder) (imageIDs []string, err error) {
 	strData, err := hcsshim.GetSharedBaseImages()
 	if err != nil {
 		return nil, fmt.Errorf("Failed to restore base images: %s", err)

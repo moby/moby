@@ -6,6 +6,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/graphdriver"
+	"github.com/docker/docker/graph"
 	// register the windows graph driver
 	_ "github.com/docker/docker/daemon/graphdriver/windows"
 	"github.com/docker/docker/pkg/parsers"
@@ -20,6 +21,15 @@ const (
 	windowsMinCPUShares  = 1
 	windowsMaxCPUShares  = 9
 )
+
+func tryRestorer(d *Daemon, repositories *graph.TagStore, g *graph.Graph) error {
+	if restorer, ok := d.driver.(windows.ImageRestorer); ok {
+		if _, err := restorer.RestoreCustomImages(repositories, g); err != nil {
+			return fmt.Errorf("Couldn't restore custom images: %s", err)
+		}
+	}
+	return nil
+}
 
 func parseSecurityOpt(container *Container, config *runconfig.HostConfig) error {
 	return nil
