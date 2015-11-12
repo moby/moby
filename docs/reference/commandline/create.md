@@ -82,7 +82,7 @@ This is useful when you want to set up a container configuration ahead of time
 so that it is ready to start when you need it. The initial status of the
 new container is `created`.
 
-Please see the [run command](run.md) section and the [Docker run reference](run.md) for more details.
+Please see the [run command](run.md) section and the [Docker run reference](../run.md) for more details.
 
 ## Examples
 
