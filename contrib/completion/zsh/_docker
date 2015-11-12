@@ -343,7 +343,7 @@ __docker_volume_subcommand() {
         (create)
             _arguments $(__docker_arguments) \
                 $opts_help \
-                "($help -d --driver)"{-d=,--driver=}"[Specify volume driver name]:Driver name: " \
+                "($help -d --driver)"{-d=,--driver=}"[Specify volume driver name]:Driver name:(local)" \
                 "($help)--name=[Specify volume name]" \
                 "($help)*"{-o=,--opt=}"[Set driver specific options]:Driver option: " && ret=0
             ;;
@@ -452,6 +452,7 @@ __docker_subcommand() {
         "($help -t --tty)"{-t,--tty}"[Allocate a pseudo-tty]"
         "($help -u --user)"{-u=,--user=}"[Username or UID]:user:_users"
         "($help)*-v[Bind mount a volume]:volume: "
+        "($help)--volume-driver=[Optional volume driver for the container]:volume driver:(local)"
         "($help)*--volumes-from=[Mount volumes from the specified container]:volume: "
         "($help -w --workdir)"{-w=,--workdir=}"[Working directory inside the container]:directory:_directories"
     )
