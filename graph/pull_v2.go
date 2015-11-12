@@ -500,7 +500,8 @@ func fixManifestLayers(m *schema1.Manifest) error {
 		}
 	}
 
-	if images[len(images)-1].Parent != "" {
+	if images[len(images)-1].Parent != "" && !allowBaseParentImage {
+		// Windows base layer can point to a base layer parent that is not in manifest.
 		return errors.New("Invalid parent ID in the base layer of the image.")
 	}
 
@@ -547,6 +548,17 @@ func (p *v2Puller) getImageInfos(m *schema1.Manifest) ([]contentAddressableDescr
 	}
 
 	p.attemptIDReuse(imgs)
+
+	// reset the base layer parent for windows
+	if allowBaseParentImage {
+		var base struct{ Parent string }
+		if err := json.Unmarshal(imgs[len(imgs)-1].v1Compatibility, &base); err != nil {
+			return nil, err
+		}
+		if base.Parent != "" {
+			imgs[len(imgs)-1].parent = base.Parent
+		}
+	}
 
 	return imgs, nil
 }
