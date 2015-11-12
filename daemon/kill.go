@@ -27,16 +27,9 @@ func (daemon *Daemon) ContainerKill(name string, sig uint64) error {
 
 	// If no signal is passed, or SIGKILL, perform regular Kill (SIGKILL + wait())
 	if sig == 0 || syscall.Signal(sig) == syscall.SIGKILL {
-		if err := daemon.Kill(container); err != nil {
-			return err
-		}
-	} else {
-		// Otherwise, just send the requested signal
-		if err := daemon.killWithSignal(container, int(sig)); err != nil {
-			return err
-		}
+		return daemon.Kill(container)
 	}
-	return nil
+	return daemon.killWithSignal(container, int(sig))
 }
 
 // killWithSignal sends the container the given signal. This wrapper for the
