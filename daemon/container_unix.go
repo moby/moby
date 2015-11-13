@@ -55,8 +55,8 @@ type Container struct {
 	AppArmorProfile string
 	HostnamePath    string
 	HostsPath       string
-	ShmPath         string // TODO Windows - Factor this out (GH15862)
-	MqueuePath      string // TODO Windows - Factor this out (GH15862)
+	ShmPath         string
+	MqueuePath      string
 	ResolvConfPath  string
 
 	Volumes   map[string]string // Deprecated since 1.7, kept for backwards compatibility
