@@ -3470,12 +3470,18 @@ func (s *DockerSuite) TestBuildDockerignore(c *check.C) {
 		RUN [[ ! -e /bla/README.md ]]
 		RUN [[ ! -e /bla/dir/foo ]]
 		RUN [[ ! -e /bla/foo ]]
-		RUN [[ ! -e /bla/.git ]]`
+		RUN [[ ! -e /bla/.git ]]
+		RUN [[ ! -e v.cc ]]
+		RUN [[ ! -e src/v.cc ]]
+		RUN [[ ! -e src/_vendor/v.cc ]]`
 	ctx, err := fakeContext(dockerfile, map[string]string{
 		"Makefile":         "all:",
 		".git/HEAD":        "ref: foo",
 		"src/x.go":         "package main",
 		"src/_vendor/v.go": "package main",
+		"src/_vendor/v.cc": "package main",
+		"src/v.cc":         "package main",
+		"v.cc":             "package main",
 		"dir/foo":          "",
 		".gitignore":       "",
 		"README.md":        "readme",
@@ -3485,6 +3491,7 @@ pkg
 .gitignore
 src/_vendor
 *.md
+**/*.cc
 dir`,
 	})
 	if err != nil {
@@ -3534,7 +3541,8 @@ func (s *DockerSuite) TestBuildDockerignoreExceptions(c *check.C) {
 		RUN [[ -f /bla/dir/e ]]
 		RUN [[ -f /bla/dir/e-dir/foo ]]
 		RUN [[ ! -e /bla/foo ]]
-		RUN [[ ! -e /bla/.git ]]`
+		RUN [[ ! -e /bla/.git ]]
+		RUN [[ -e /bla/dir/a.cc ]]`
 	ctx, err := fakeContext(dockerfile, map[string]string{
 		"Makefile":         "all:",
 		".git/HEAD":        "ref: foo",
@@ -3548,6 +3556,7 @@ func (s *DockerSuite) TestBuildDockerignoreExceptions(c *check.C) {
 		"dir/e-dir/foo":    "",
 		".gitignore":       "",
 		"README.md":        "readme",
+		"dir/a.cc":         "hello",
 		".dockerignore": `
 .git
 pkg
@@ -3556,7 +3565,9 @@ src/_vendor
 *.md
 dir
 !dir/e*
-!dir/dir/foo`,
+!dir/dir/foo
+**/*.cc
+!**/*.cc`,
 	})
 	if err != nil {
 		c.Fatal(err)
@@ -3739,7 +3750,7 @@ func (s *DockerSuite) TestBuildDockerignoringWholeDir(c *check.C) {
 
 func (s *DockerSuite) TestBuildDockerignoringBadExclusion(c *check.C) {
 	testRequires(c, DaemonIsLinux)
-	name := "testbuilddockerignorewholedir"
+	name := "testbuilddockerignorebadexclusion"
 	dockerfile := `
         FROM busybox
 		COPY . /
@@ -3760,6 +3771,112 @@ func (s *DockerSuite) TestBuildDockerignoringBadExclusion(c *check.C) {
 	if err.Error() != "failed to build the image: Error checking context: 'Illegal exclusion pattern: !'.\n" {
 		c.Fatalf("Incorrect output, got:%q", err.Error())
 	}
+}
+
+func (s *DockerSuite) TestBuildDockerignoringWildTopDir(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	dockerfile := `
+        FROM busybox
+		COPY . /
+		RUN [[ ! -e /.dockerignore ]]
+		RUN [[ ! -e /Dockerfile ]]
+		RUN [[ ! -e /file1 ]]
+		RUN [[ ! -e /dir ]]`
+
+	ctx, err := fakeContext(dockerfile, map[string]string{
+		"Dockerfile": "FROM scratch",
+		"file1":      "",
+		"dir/dfile1": "",
+	})
+	c.Assert(err, check.IsNil)
+	defer ctx.Close()
+
+	// All of these should result in ignoring all files
+	for _, variant := range []string{"**", "**/", "**/**", "*"} {
+		ctx.Add(".dockerignore", variant)
+		_, err = buildImageFromContext("noname", ctx, true)
+		c.Assert(err, check.IsNil, check.Commentf("variant: %s", variant))
+	}
+}
+
+func (s *DockerSuite) TestBuildDockerignoringWildDirs(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	dockerfile := `
+        FROM busybox
+		COPY . /
+		RUN [[ -e /.dockerignore ]]
+		RUN [[ -e /Dockerfile ]]
+
+		RUN [[ ! -e /file0 ]]
+		RUN [[ ! -e /dir1/file0 ]]
+		RUN [[ ! -e /dir2/file0 ]]
+
+		RUN [[ ! -e /file1 ]]
+		RUN [[ ! -e /dir1/file1 ]]
+		RUN [[ ! -e /dir1/dir2/file1 ]]
+
+		RUN [[ ! -e /dir1/file2 ]]
+		RUN [[   -e /dir1/dir2/file2 ]]
+
+		RUN [[ ! -e /dir1/dir2/file4 ]]
+		RUN [[ ! -e /dir1/dir2/file5 ]]
+		RUN [[ ! -e /dir1/dir2/file6 ]]
+		RUN [[ ! -e /dir1/dir3/file7 ]]
+		RUN [[ ! -e /dir1/dir3/file8 ]]
+		RUN [[   -e /dir1/dir3 ]]
+		RUN [[   -e /dir1/dir4 ]]
+
+		RUN [[ ! -e 'dir1/dir5/fileAA' ]]
+		RUN [[   -e 'dir1/dir5/fileAB' ]]
+		RUN [[   -e 'dir1/dir5/fileB' ]]   # "." in pattern means nothing
+
+		RUN echo all done!`
+
+	ctx, err := fakeContext(dockerfile, map[string]string{
+		"Dockerfile":      "FROM scratch",
+		"file0":           "",
+		"dir1/file0":      "",
+		"dir1/dir2/file0": "",
+
+		"file1":           "",
+		"dir1/file1":      "",
+		"dir1/dir2/file1": "",
+
+		"dir1/file2":      "",
+		"dir1/dir2/file2": "", // remains
+
+		"dir1/dir2/file4": "",
+		"dir1/dir2/file5": "",
+		"dir1/dir2/file6": "",
+		"dir1/dir3/file7": "",
+		"dir1/dir3/file8": "",
+		"dir1/dir4/file9": "",
+
+		"dir1/dir5/fileAA": "",
+		"dir1/dir5/fileAB": "",
+		"dir1/dir5/fileB":  "",
+
+		".dockerignore": `
+**/file0
+**/*file1
+**/dir1/file2
+dir1/**/file4
+**/dir2/file5
+**/dir1/dir2/file6
+dir1/dir3/**
+**/dir4/**
+**/file?A
+**/file\?B
+**/dir5/file.
+`,
+	})
+	c.Assert(err, check.IsNil)
+	defer ctx.Close()
+
+	_, err = buildImageFromContext("noname", ctx, true)
+	c.Assert(err, check.IsNil)
 }
 
 func (s *DockerSuite) TestBuildLineBreak(c *check.C) {
