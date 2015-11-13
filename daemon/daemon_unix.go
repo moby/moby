@@ -13,16 +13,13 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/graphdriver"
-	"github.com/docker/docker/dockerversion"
 	derr "github.com/docker/docker/errors"
 	pblkiodev "github.com/docker/docker/pkg/blkiodev"
-	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/runconfig"
-	"github.com/docker/docker/utils"
 	"github.com/docker/docker/volume"
 	"github.com/docker/libnetwork"
 	nwconfig "github.com/docker/libnetwork/config"
@@ -298,29 +295,6 @@ func configureKernelSecuritySupport(config *Config, driverName string) error {
 // MigrateIfDownlevel is a wrapper for AUFS migration for downlevel
 func migrateIfDownlevel(driver graphdriver.Driver, root string) error {
 	return migrateIfAufs(driver, root)
-}
-
-func configureSysInit(config *Config, rootUID, rootGID int) (string, error) {
-	localCopy := filepath.Join(config.Root, "init", fmt.Sprintf("dockerinit-%s", dockerversion.Version))
-	sysInitPath := utils.DockerInitPath(localCopy)
-	if sysInitPath == "" {
-		return "", fmt.Errorf("Could not locate dockerinit: This usually means docker was built incorrectly. See https://docs.docker.com/project/set-up-dev-env/ for official build instructions.")
-	}
-
-	if sysInitPath != localCopy {
-		// When we find a suitable dockerinit binary (even if it's our local binary), we copy it into config.Root at localCopy for future use (so that the original can go away without that being a problem, for example during a package upgrade).
-		if err := idtools.MkdirAs(filepath.Dir(localCopy), 0700, rootUID, rootGID); err != nil && !os.IsExist(err) {
-			return "", err
-		}
-		if _, err := fileutils.CopyFile(sysInitPath, localCopy); err != nil {
-			return "", err
-		}
-		if err := os.Chmod(localCopy, 0700); err != nil {
-			return "", err
-		}
-		sysInitPath = localCopy
-	}
-	return sysInitPath, nil
 }
 
 func isBridgeNetworkDisabled(config *Config) bool {

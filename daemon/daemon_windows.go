@@ -2,7 +2,6 @@ package daemon
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/graphdriver"
@@ -89,11 +88,6 @@ func configureKernelSecuritySupport(config *Config, driverName string) error {
 
 func migrateIfDownlevel(driver graphdriver.Driver, root string) error {
 	return nil
-}
-
-func configureSysInit(config *Config, rootUID, rootGID int) (string, error) {
-	// TODO Windows.
-	return os.Getenv("TEMP"), nil
 }
 
 func isBridgeNetworkDisabled(config *Config) bool {
