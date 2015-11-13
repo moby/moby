@@ -346,9 +346,9 @@ this same directory. The private key needs to be converted into the format PuTTY
 uses. You can do this with
 [puttygen](http://www.chiark.greenend.org.uk/~sgtatham/putty/download.html):
 
-1. Open `puttygen.exe` and load ("File"->"Load" menu) the private key from
+1. Open `puttygen.exe` and load ("File"->"Load" menu) the private key from (you may need to change to the `All Files (*.*)` filter)
 
-        %USERPROFILE%\.docker\machine\machines\<name_of_your_machine>
+        %USERPROFILE%\.docker\machine\machines\<name_of_your_machine>\id_rsa
 
 2. Click "Save Private Key".
 
