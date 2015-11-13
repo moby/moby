@@ -59,6 +59,7 @@ docker-create - Create a new container
 [**-p**|**--publish**[=*[]*]]
 [**--pid**[=*[]*]]
 [**--privileged**]
+[**--pull**[=*false*]]
 [**--read-only**]
 [**--restart**[=*RESTART*]]
 [**--security-opt**[=*[]*]]
@@ -292,6 +293,9 @@ unit, `b` is used. Set LIMIT to `-1` to enable unlimited swap.
 
 **--privileged**=*true*|*false*
    Give extended privileges to this container. The default is *false*.
+
+**--pull**=*true*|*false*
+   Always attempt to pull a newer version of the image.
 
 **--read-only**=*true*|*false*
    Mount the container's root filesystem as read only.

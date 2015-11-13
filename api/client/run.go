@@ -75,6 +75,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		flSigProxy   = cmd.Bool([]string{"-sig-proxy"}, true, "Proxy received signals to the process")
 		flName       = cmd.String([]string{"-name"}, "", "Assign a name to the container")
 		flDetachKeys = cmd.String([]string{"-detach-keys"}, "", "Override the key sequence for detaching a container")
+		flPull       = cmd.Bool([]string{"-pull"}, false, "Always attempt to pull a newer version of the image")
 		flAttach     *opts.ListOpts
 
 		ErrConflictAttachDetach               = fmt.Errorf("Conflicting options: -a and -d")
@@ -146,7 +147,15 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		hostConfig.ConsoleSize[0], hostConfig.ConsoleSize[1] = cli.getTtySize()
 	}
 
-	createResponse, err := cli.createContainer(config, hostConfig, networkingConfig, hostConfig.ContainerIDFile, *flName)
+	createConfig := &createConfig{
+		config:           config,
+		hostConfig:       hostConfig,
+		networkingConfig: networkingConfig,
+		cidfile:          hostConfig.ContainerIDFile,
+		name:             *flName,
+		pull:             *flPull,
+	}
+	createResponse, err := cli.createContainer(createConfig)
 	if err != nil {
 		cmd.ReportError(err.Error(), true)
 		return runStartContainerErr(err)

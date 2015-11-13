@@ -4176,3 +4176,16 @@ func (s *DockerSuite) TestRunNamedVolumesFromNotRemoved(c *check.C) {
 	out, _ := dockerCmd(c, "volume", "ls", "-q")
 	c.Assert(strings.TrimSpace(out), checker.Equals, "test")
 }
+
+func (s *DockerSuite) TestRunWithPull(c *check.C) {
+	testRequires(c, Network)
+	// pull a image from hub to local
+	dockerCmd(c, "pull", "hello-world")
+	// run with --pull still try to pull the image from hub
+	// even if the image exists on local
+	out, _, err := dockerCmdWithError("run", "--pull", "hello-world")
+	c.Assert(err, check.IsNil, check.Commentf(out))
+	if !(strings.Contains(out, "Downloaded newer image for hello-world:latest") || strings.Contains(out, "Image is up to date for hello-world:latest")) {
+		c.Fatalf("expected to download latest image from docker hub")
+	}
+}
