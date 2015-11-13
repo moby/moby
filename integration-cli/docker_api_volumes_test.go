@@ -14,7 +14,6 @@ func (s *DockerSuite) TestVolumesApiList(c *check.C) {
 	prefix := ""
 	if daemonPlatform == "windows" {
 		prefix = "c:"
-		testRequires(c, WindowsDaemonSupportsVolumes)
 	}
 	dockerCmd(c, "run", "-d", "-v", prefix+"/foo", "busybox")
 
@@ -29,9 +28,6 @@ func (s *DockerSuite) TestVolumesApiList(c *check.C) {
 }
 
 func (s *DockerSuite) TestVolumesApiCreate(c *check.C) {
-	if daemonPlatform == "windows" {
-		testRequires(c, WindowsDaemonSupportsVolumes)
-	}
 	config := types.VolumeCreateRequest{
 		Name: "test",
 	}
@@ -49,7 +45,6 @@ func (s *DockerSuite) TestVolumesApiCreate(c *check.C) {
 func (s *DockerSuite) TestVolumesApiRemove(c *check.C) {
 	prefix := ""
 	if daemonPlatform == "windows" {
-		testRequires(c, WindowsDaemonSupportsVolumes)
 		prefix = "c:"
 	}
 	dockerCmd(c, "run", "-d", "-v", prefix+"/foo", "--name=test", "busybox")
@@ -75,9 +70,6 @@ func (s *DockerSuite) TestVolumesApiRemove(c *check.C) {
 }
 
 func (s *DockerSuite) TestVolumesApiInspect(c *check.C) {
-	if daemonPlatform == "windows" {
-		testRequires(c, WindowsDaemonSupportsVolumes)
-	}
 	config := types.VolumeCreateRequest{
 		Name: "test",
 	}
