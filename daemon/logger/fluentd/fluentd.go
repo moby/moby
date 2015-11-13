@@ -8,6 +8,7 @@ import (
 	"net"
 	"strconv"
 	"strings"
+	"syscall"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/logger"
@@ -53,12 +54,19 @@ func New(ctx logger.Context) (logger.Logger, error) {
 		return nil, err
 	}
 	extra := ctx.ExtraAttributes(nil)
-	logrus.Debugf("logging driver fluentd configured for container:%s, host:%s, port:%d, tag:%s, extra:%v.", ctx.ContainerID, host, port, tag, extra)
+	logrus.Debugf("Logging driver fluentd configured for container:%s, host:%s, port:%d, tag:%s, extra:%v.", ctx.ContainerID, host, port, tag, extra)
 	// logger tries to recoonect 2**32 - 1 times
 	// failed (and panic) after 204 years [ 1.5 ** (2**32 - 1) - 1 seconds]
 	log, err := fluent.New(fluent.Config{FluentPort: port, FluentHost: host, RetryWait: 1000, MaxRetry: math.MaxInt32})
 	if err != nil {
-		return nil, err
+		// if get 'ECONNREFUSED' log this exception
+		// should run the container regardless fluentd status
+		// fluentd might get available later
+		if err, ok := err.(*net.OpError); ok && err.Err == syscall.ECONNREFUSED {
+			logrus.Errorf("Cannot connect container:%s to fluentd %s.", ctx.ContainerID, err)
+		} else {
+			return nil, err
+		}
 	}
 	return &fluentd{
 		tag:           tag,

@@ -52,9 +52,6 @@ connects to this daemon through `localhost:24224` by default. Use the
 
     docker run --log-driver=fluentd --log-opt fluentd-address=myhost.local:24224
 
-If container cannot connect to the Fluentd daemon, the container stops
-immediately.
-
 ## Options
 
 Users can use the `--log-opt NAME=VALUE` flag to specify additional Fluentd logging driver options.
