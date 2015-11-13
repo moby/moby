@@ -107,11 +107,7 @@ func ParseTCPAddr(tryAddr string, defaultAddr string) (string, error) {
 		return "", fmt.Errorf("Invalid bind address format: %s", tryAddr)
 	}
 
-	if net.ParseIP(host).To4() == nil && strings.Contains(host, ":") {
-		// This is either an ipv6 address
-		host = "[" + host + "]"
-	}
-	return fmt.Sprintf("tcp://%s:%d%s", host, p, u.Path), nil
+	return fmt.Sprintf("tcp://%s%s", net.JoinHostPort(host, port), u.Path), nil
 }
 
 // ParseRepositoryTag gets a repos name and returns the right reposName + tag|digest
