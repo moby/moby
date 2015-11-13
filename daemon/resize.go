@@ -29,5 +29,5 @@ func (daemon *Daemon) ContainerExecResize(name string, height, width int) error 
 		return err
 	}
 
-	return ExecConfig.resize(height, width)
+	return ExecConfig.Resize(height, width)
 }

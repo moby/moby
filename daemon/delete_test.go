@@ -5,6 +5,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/docker/docker/container"
 	"github.com/docker/docker/runconfig"
 )
 
@@ -19,15 +20,15 @@ func TestContainerDoubleDelete(t *testing.T) {
 		root:       tmp,
 	}
 
-	container := &Container{
-		CommonContainer: CommonContainer{
-			State:  NewState(),
+	container := &container.Container{
+		CommonContainer: container.CommonContainer{
+			State:  container.NewState(),
 			Config: &runconfig.Config{},
 		},
 	}
 
 	// Mark the container as having a delete in progress
-	if err := container.setRemovalInProgress(); err != nil {
+	if err := container.SetRemovalInProgress(); err != nil {
 		t.Fatal(err)
 	}
 

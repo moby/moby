@@ -5,6 +5,7 @@ package daemon
 import (
 	"sort"
 
+	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/execdriver"
 	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/volume"
@@ -14,7 +15,7 @@ import (
 // of the configured mounts on the container to the execdriver mount structure
 // which will ultimately be passed into the exec driver during container creation.
 // It also ensures each of the mounts are lexographically sorted.
-func (daemon *Daemon) setupMounts(container *Container) ([]execdriver.Mount, error) {
+func (daemon *Daemon) setupMounts(container *container.Container) ([]execdriver.Mount, error) {
 	var mnts []execdriver.Mount
 	for _, mount := range container.MountPoints { // type is volume.MountPoint
 		// If there is no source, take it from the volume path
@@ -38,7 +39,7 @@ func (daemon *Daemon) setupMounts(container *Container) ([]execdriver.Mount, err
 
 // verifyVolumesInfo ports volumes configured for the containers pre docker 1.7.
 // As the Windows daemon was not supported before 1.7, this is a no-op
-func (daemon *Daemon) verifyVolumesInfo(container *Container) error {
+func (daemon *Daemon) verifyVolumesInfo(container *container.Container) error {
 	return nil
 }
 
@@ -50,12 +51,12 @@ func setBindModeIfNull(bind *volume.MountPoint) *volume.MountPoint {
 
 // configureBackCompatStructures is platform specific processing for
 // registering mount points to populate old structures. This is a no-op on Windows.
-func configureBackCompatStructures(*Daemon, *Container, map[string]*volume.MountPoint) (map[string]string, map[string]bool) {
+func configureBackCompatStructures(*Daemon, *container.Container, map[string]*volume.MountPoint) (map[string]string, map[string]bool) {
 	return nil, nil
 }
 
 // setBackCompatStructures is a platform specific helper function to set
 // backwards compatible structures in the container when registering volumes.
 // This is a no-op on Windows.
-func setBackCompatStructures(*Container, map[string]string, map[string]bool) {
+func setBackCompatStructures(*container.Container, map[string]string, map[string]bool) {
 }

@@ -3,11 +3,12 @@ package daemon
 import (
 	"strings"
 
+	"github.com/docker/docker/container"
 	derr "github.com/docker/docker/errors"
 	volumestore "github.com/docker/docker/volume/store"
 )
 
-func (daemon *Daemon) prepareMountPoints(container *Container) error {
+func (daemon *Daemon) prepareMountPoints(container *container.Container) error {
 	for _, config := range container.MountPoints {
 		if len(config.Driver) > 0 {
 			v, err := daemon.createVolume(config.Name, config.Driver, nil)
@@ -20,7 +21,7 @@ func (daemon *Daemon) prepareMountPoints(container *Container) error {
 	return nil
 }
 
-func (daemon *Daemon) removeMountPoints(container *Container, rm bool) error {
+func (daemon *Daemon) removeMountPoints(container *container.Container, rm bool) error {
 	var rmErrors []string
 	for _, m := range container.MountPoints {
 		if m.Volume == nil {

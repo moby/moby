@@ -12,6 +12,8 @@ import (
 	"syscall"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/container"
+	"github.com/docker/docker/daemon/exec"
 	"github.com/docker/docker/daemon/graphdriver"
 	derr "github.com/docker/docker/errors"
 	pblkiodev "github.com/docker/docker/pkg/blkiodev"
@@ -55,7 +57,7 @@ func getBlkioWeightDevices(config *runconfig.HostConfig) ([]*blkiodev.WeightDevi
 	return BlkioWeightDevices, nil
 }
 
-func parseSecurityOpt(container *Container, config *runconfig.HostConfig) error {
+func parseSecurityOpt(container *container.Container, config *runconfig.HostConfig) error {
 	var (
 		labelOpts []string
 		err       error
@@ -562,7 +564,7 @@ func setupInitLayer(initLayer string, rootUID, rootGID int) error {
 }
 
 // registerLinks writes the links to a file.
-func (daemon *Daemon) registerLinks(container *Container, hostConfig *runconfig.HostConfig) error {
+func (daemon *Daemon) registerLinks(container *container.Container, hostConfig *runconfig.HostConfig) error {
 	if hostConfig == nil || hostConfig.Links == nil {
 		return nil
 	}
@@ -577,14 +579,14 @@ func (daemon *Daemon) registerLinks(container *Container, hostConfig *runconfig.
 			//An error from daemon.Get() means this name could not be found
 			return fmt.Errorf("Could not get container for %s", name)
 		}
-		for child.hostConfig.NetworkMode.IsContainer() {
-			parts := strings.SplitN(string(child.hostConfig.NetworkMode), ":", 2)
+		for child.HostConfig.NetworkMode.IsContainer() {
+			parts := strings.SplitN(string(child.HostConfig.NetworkMode), ":", 2)
 			child, err = daemon.Get(parts[1])
 			if err != nil {
 				return fmt.Errorf("Could not get container for %s", parts[1])
 			}
 		}
-		if child.hostConfig.NetworkMode.IsHost() {
+		if child.HostConfig.NetworkMode.IsHost() {
 			return runconfig.ErrConflictHostNetworkAndLinks
 		}
 		if err := daemon.registerLink(container, child, alias); err != nil {
@@ -595,20 +597,20 @@ func (daemon *Daemon) registerLinks(container *Container, hostConfig *runconfig.
 	// After we load all the links into the daemon
 	// set them to nil on the hostconfig
 	hostConfig.Links = nil
-	if err := container.writeHostConfig(); err != nil {
+	if err := container.WriteHostConfig(); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (daemon *Daemon) newBaseContainer(id string) *Container {
-	return &Container{
-		CommonContainer: CommonContainer{
+func (daemon *Daemon) newBaseContainer(id string) *container.Container {
+	return &container.Container{
+		CommonContainer: container.CommonContainer{
 			ID:           id,
-			State:        NewState(),
-			execCommands: newExecStore(),
-			root:         daemon.containerRoot(id),
+			State:        container.NewState(),
+			ExecCommands: exec.NewStore(),
+			Root:         daemon.containerRoot(id),
 			MountPoints:  make(map[string]*volume.MountPoint),
 		},
 		Volumes:   make(map[string]string),
@@ -618,13 +620,13 @@ func (daemon *Daemon) newBaseContainer(id string) *Container {
 
 // conditionalMountOnStart is a platform specific helper function during the
 // container start to call mount.
-func (daemon *Daemon) conditionalMountOnStart(container *Container) error {
+func (daemon *Daemon) conditionalMountOnStart(container *container.Container) error {
 	return daemon.Mount(container)
 }
 
 // conditionalUnmountOnCleanup is a platform specific helper function called
 // during the cleanup of a container to unmount.
-func (daemon *Daemon) conditionalUnmountOnCleanup(container *Container) {
+func (daemon *Daemon) conditionalUnmountOnCleanup(container *container.Container) {
 	if err := daemon.Unmount(container); err != nil {
 		logrus.Errorf("%v: Failed to umount filesystem: %v", container.ID, err)
 	}

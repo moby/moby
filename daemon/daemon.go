@@ -21,7 +21,9 @@ import (
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/cliconfig"
+	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/events"
+	"github.com/docker/docker/daemon/exec"
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/daemon/execdriver/execdrivers"
 	"github.com/docker/docker/daemon/graphdriver"
@@ -68,17 +70,17 @@ var (
 )
 
 type contStore struct {
-	s map[string]*Container
+	s map[string]*container.Container
 	sync.Mutex
 }
 
-func (c *contStore) Add(id string, cont *Container) {
+func (c *contStore) Add(id string, cont *container.Container) {
 	c.Lock()
 	c.s[id] = cont
 	c.Unlock()
 }
 
-func (c *contStore) Get(id string) *Container {
+func (c *contStore) Get(id string) *container.Container {
 	c.Lock()
 	res := c.s[id]
 	c.Unlock()
@@ -91,7 +93,7 @@ func (c *contStore) Delete(id string) {
 	c.Unlock()
 }
 
-func (c *contStore) List() []*Container {
+func (c *contStore) List() []*container.Container {
 	containers := new(History)
 	c.Lock()
 	for _, cont := range c.s {
@@ -108,7 +110,7 @@ type Daemon struct {
 	repository       string
 	sysInitPath      string
 	containers       *contStore
-	execCommands     *execStore
+	execCommands     *exec.Store
 	graph            *graph.Graph
 	repositories     *graph.TagStore
 	idIndex          *truncindex.TruncIndex
@@ -136,7 +138,7 @@ type Daemon struct {
 //  - A partial container ID prefix (e.g. short ID) of any length that is
 //    unique enough to only return a single container object
 //  If none of these searches succeed, an error is returned
-func (daemon *Daemon) Get(prefixOrName string) (*Container, error) {
+func (daemon *Daemon) Get(prefixOrName string) (*container.Container, error) {
 	if containerByID := daemon.containers.Get(prefixOrName); containerByID != nil {
 		// prefix is an exact match to a full container ID
 		return containerByID, nil
@@ -169,7 +171,7 @@ func (daemon *Daemon) Exists(id string) bool {
 // IsPaused returns a bool indicating if the specified container is paused.
 func (daemon *Daemon) IsPaused(id string) bool {
 	c, _ := daemon.Get(id)
-	return c.State.isPaused()
+	return c.State.IsPaused()
 }
 
 func (daemon *Daemon) containerRoot(id string) string {
@@ -178,10 +180,10 @@ func (daemon *Daemon) containerRoot(id string) string {
 
 // Load reads the contents of a container from disk
 // This is typically done at startup.
-func (daemon *Daemon) load(id string) (*Container, error) {
+func (daemon *Daemon) load(id string) (*container.Container, error) {
 	container := daemon.newBaseContainer(id)
 
-	if err := container.fromDisk(); err != nil {
+	if err := container.FromDisk(); err != nil {
 		return nil, err
 	}
 
@@ -193,7 +195,7 @@ func (daemon *Daemon) load(id string) (*Container, error) {
 }
 
 // Register makes a container object usable by the daemon as <container.ID>
-func (daemon *Daemon) Register(container *Container) error {
+func (daemon *Daemon) Register(container *container.Container) error {
 	if daemon.Exists(container.ID) {
 		return fmt.Errorf("Container is already loaded")
 	}
@@ -204,14 +206,13 @@ func (daemon *Daemon) Register(container *Container) error {
 		return err
 	}
 
-	// Attach to stdout and stderr
-	container.stderr = new(broadcaster.Unbuffered)
-	container.stdout = new(broadcaster.Unbuffered)
+	container.Stderr = new(broadcaster.Unbuffered)
+	container.Stdout = new(broadcaster.Unbuffered)
 	// Attach to stdin
 	if container.Config.OpenStdin {
-		container.stdin, container.stdinPipe = io.Pipe()
+		container.Stdin, container.StdinPipe = io.Pipe()
 	} else {
-		container.stdinPipe = ioutils.NopWriteCloser(ioutil.Discard) // Silently drop stdin
+		container.StdinPipe = ioutils.NopWriteCloser(ioutil.Discard) // Silently drop stdin
 	}
 	// done
 	daemon.containers.Add(container.ID, container)
@@ -223,7 +224,7 @@ func (daemon *Daemon) Register(container *Container) error {
 	if container.IsRunning() {
 		logrus.Debugf("killing old running container %s", container.ID)
 		// Set exit code to 128 + SIGKILL (9) to properly represent unsuccessful exit
-		container.setStoppedLocking(&execdriver.ExitStatus{ExitCode: 137})
+		container.SetStoppedLocking(&execdriver.ExitStatus{ExitCode: 137})
 		// use the current driver and ensure that the container is dead x.x
 		cmd := &execdriver.Command{
 			CommonCommand: execdriver.CommonCommand{
@@ -232,12 +233,12 @@ func (daemon *Daemon) Register(container *Container) error {
 		}
 		daemon.execDriver.Terminate(cmd)
 
-		container.unmountIpcMounts(mount.Unmount)
+		container.UnmountIpcMounts(mount.Unmount)
 
 		if err := daemon.Unmount(container); err != nil {
 			logrus.Debugf("unmount error %s", err)
 		}
-		if err := container.toDiskLocking(); err != nil {
+		if err := container.ToDiskLocking(); err != nil {
 			logrus.Errorf("Error saving stopped state to disk: %v", err)
 		}
 	}
@@ -253,7 +254,7 @@ func (daemon *Daemon) Register(container *Container) error {
 	return nil
 }
 
-func (daemon *Daemon) ensureName(container *Container) error {
+func (daemon *Daemon) ensureName(container *container.Container) error {
 	if container.Name == "" {
 		name, err := daemon.generateNewName(container.ID)
 		if err != nil {
@@ -261,7 +262,7 @@ func (daemon *Daemon) ensureName(container *Container) error {
 		}
 		container.Name = name
 
-		if err := container.toDiskLocking(); err != nil {
+		if err := container.ToDiskLocking(); err != nil {
 			logrus.Errorf("Error saving container name to disk: %v", err)
 		}
 	}
@@ -270,7 +271,7 @@ func (daemon *Daemon) ensureName(container *Container) error {
 
 func (daemon *Daemon) restore() error {
 	type cr struct {
-		container  *Container
+		container  *container.Container
 		registered bool
 	}
 
@@ -327,7 +328,7 @@ func (daemon *Daemon) restore() error {
 	for _, c := range containers {
 		group.Add(1)
 
-		go func(container *Container, registered bool) {
+		go func(container *container.Container, registered bool) {
 			defer group.Done()
 
 			if !registered {
@@ -346,7 +347,7 @@ func (daemon *Daemon) restore() error {
 
 			// check the restart policy on the containers and restart any container with
 			// the restart policy of "always"
-			if daemon.configStore.AutoRestart && container.shouldRestart() {
+			if daemon.configStore.AutoRestart && container.ShouldRestart() {
 				logrus.Debugf("Starting container %s", container.ID)
 
 				if err := daemon.containerStart(container); err != nil {
@@ -465,7 +466,7 @@ func (daemon *Daemon) getEntrypointAndArgs(configEntrypoint *stringutils.StrSlic
 	return cmdSlice[0], cmdSlice[1:]
 }
 
-func (daemon *Daemon) newContainer(name string, config *runconfig.Config, imgID string) (*Container, error) {
+func (daemon *Daemon) newContainer(name string, config *runconfig.Config, imgID string) (*container.Container, error) {
 	var (
 		id             string
 		err            error
@@ -484,7 +485,7 @@ func (daemon *Daemon) newContainer(name string, config *runconfig.Config, imgID 
 	base.Path = entrypoint
 	base.Args = args //FIXME: de-duplicate from config
 	base.Config = config
-	base.hostConfig = &runconfig.HostConfig{}
+	base.HostConfig = &runconfig.HostConfig{}
 	base.ImageID = imgID
 	base.NetworkSettings = &network.Settings{IsAnonymousEndpoint: noExplicitName}
 	base.Name = name
@@ -507,7 +508,7 @@ func GetFullContainerName(name string) (string, error) {
 }
 
 // GetByName returns a container given a name.
-func (daemon *Daemon) GetByName(name string) (*Container, error) {
+func (daemon *Daemon) GetByName(name string) (*container.Container, error) {
 	fullName, err := GetFullContainerName(name)
 	if err != nil {
 		return nil, err
@@ -561,12 +562,12 @@ func (daemon *Daemon) GetLabels(id string) map[string]string {
 // children returns all child containers of the container with the
 // given name. The containers are returned as a map from the container
 // name to a pointer to Container.
-func (daemon *Daemon) children(name string) (map[string]*Container, error) {
+func (daemon *Daemon) children(name string) (map[string]*container.Container, error) {
 	name, err := GetFullContainerName(name)
 	if err != nil {
 		return nil, err
 	}
-	children := make(map[string]*Container)
+	children := make(map[string]*container.Container)
 
 	err = daemon.containerGraphDB.Walk(name, func(p string, e *graphdb.Entity) error {
 		c, err := daemon.Get(e.ID())
@@ -594,7 +595,7 @@ func (daemon *Daemon) parents(name string) ([]string, error) {
 	return daemon.containerGraphDB.Parents(name)
 }
 
-func (daemon *Daemon) registerLink(parent, child *Container, alias string) error {
+func (daemon *Daemon) registerLink(parent, child *container.Container, alias string) error {
 	fullName := filepath.Join(parent.Name, alias)
 	if !daemon.containerGraphDB.Exists(fullName) {
 		_, err := daemon.containerGraphDB.Set(fullName, child.ID)
@@ -799,8 +800,8 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 
 	d.ID = trustKey.PublicKey().KeyID()
 	d.repository = daemonRepo
-	d.containers = &contStore{s: make(map[string]*Container)}
-	d.execCommands = newExecStore()
+	d.containers = &contStore{s: make(map[string]*container.Container)}
+	d.execCommands = exec.NewStore()
 	d.graph = g
 	d.repositories = repositories
 	d.idIndex = truncindex.NewTruncIndex([]string{})
@@ -829,9 +830,9 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 	return d, nil
 }
 
-func (daemon *Daemon) shutdownContainer(c *Container) error {
+func (daemon *Daemon) shutdownContainer(c *container.Container) error {
 	// TODO(windows): Handle docker restart with paused containers
-	if c.isPaused() {
+	if c.IsPaused() {
 		// To terminate a process in freezer cgroup, we should send
 		// SIGTERM to this process then unfreeze it, and the process will
 		// force to terminate immediately.
@@ -874,20 +875,20 @@ func (daemon *Daemon) Shutdown() error {
 	if daemon.containers != nil {
 		group := sync.WaitGroup{}
 		logrus.Debug("starting clean shutdown of all containers...")
-		for _, container := range daemon.List() {
-			if !container.IsRunning() {
+		for _, cont := range daemon.List() {
+			if !cont.IsRunning() {
 				continue
 			}
-			logrus.Debugf("stopping %s", container.ID)
+			logrus.Debugf("stopping %s", cont.ID)
 			group.Add(1)
-			go func(c *Container) {
+			go func(c *container.Container) {
 				defer group.Done()
 				if err := daemon.shutdownContainer(c); err != nil {
 					logrus.Errorf("Stop container error: %v", err)
 					return
 				}
 				logrus.Debugf("container stopped %s", c.ID)
-			}(container)
+			}(cont)
 		}
 		group.Wait()
 	}
@@ -916,78 +917,78 @@ func (daemon *Daemon) Shutdown() error {
 	return nil
 }
 
-// Mount sets container.basefs
+// Mount sets container.BaseFS
 // (is it not set coming in? why is it unset?)
-func (daemon *Daemon) Mount(container *Container) error {
-	dir, err := daemon.driver.Get(container.ID, container.getMountLabel())
+func (daemon *Daemon) Mount(container *container.Container) error {
+	dir, err := daemon.driver.Get(container.ID, container.GetMountLabel())
 	if err != nil {
 		return fmt.Errorf("Error getting container %s from driver %s: %s", container.ID, daemon.driver, err)
 	}
 
-	if container.basefs != dir {
+	if container.BaseFS != dir {
 		// The mount path reported by the graph driver should always be trusted on Windows, since the
 		// volume path for a given mounted layer may change over time.  This should only be an error
 		// on non-Windows operating systems.
-		if container.basefs != "" && runtime.GOOS != "windows" {
+		if container.BaseFS != "" && runtime.GOOS != "windows" {
 			daemon.driver.Put(container.ID)
 			return fmt.Errorf("Error: driver %s is returning inconsistent paths for container %s ('%s' then '%s')",
-				daemon.driver, container.ID, container.basefs, dir)
+				daemon.driver, container.ID, container.BaseFS, dir)
 		}
 	}
-	container.basefs = dir
+	container.BaseFS = dir
 	return nil
 }
 
 // Unmount unsets the container base filesystem
-func (daemon *Daemon) Unmount(container *Container) error {
+func (daemon *Daemon) Unmount(container *container.Container) error {
 	return daemon.driver.Put(container.ID)
 }
 
 // Run uses the execution driver to run a given container
-func (daemon *Daemon) Run(c *Container, pipes *execdriver.Pipes, startCallback execdriver.DriverCallback) (execdriver.ExitStatus, error) {
+func (daemon *Daemon) Run(c *container.Container, pipes *execdriver.Pipes, startCallback execdriver.DriverCallback) (execdriver.ExitStatus, error) {
 	hooks := execdriver.Hooks{
 		Start: startCallback,
 	}
 	hooks.PreStart = append(hooks.PreStart, func(processConfig *execdriver.ProcessConfig, pid int, chOOM <-chan struct{}) error {
 		return daemon.setNetworkNamespaceKey(c.ID, pid)
 	})
-	return daemon.execDriver.Run(c.command, pipes, hooks)
+	return daemon.execDriver.Run(c.Command, pipes, hooks)
 }
 
-func (daemon *Daemon) kill(c *Container, sig int) error {
-	return daemon.execDriver.Kill(c.command, sig)
+func (daemon *Daemon) kill(c *container.Container, sig int) error {
+	return daemon.execDriver.Kill(c.Command, sig)
 }
 
-func (daemon *Daemon) stats(c *Container) (*execdriver.ResourceStats, error) {
+func (daemon *Daemon) stats(c *container.Container) (*execdriver.ResourceStats, error) {
 	return daemon.execDriver.Stats(c.ID)
 }
 
-func (daemon *Daemon) subscribeToContainerStats(c *Container) chan interface{} {
+func (daemon *Daemon) subscribeToContainerStats(c *container.Container) chan interface{} {
 	return daemon.statsCollector.collect(c)
 }
 
-func (daemon *Daemon) unsubscribeToContainerStats(c *Container, ch chan interface{}) {
+func (daemon *Daemon) unsubscribeToContainerStats(c *container.Container, ch chan interface{}) {
 	daemon.statsCollector.unsubscribe(c, ch)
 }
 
-func (daemon *Daemon) changes(container *Container) ([]archive.Change, error) {
+func (daemon *Daemon) changes(container *container.Container) ([]archive.Change, error) {
 	initID := fmt.Sprintf("%s-init", container.ID)
 	return daemon.driver.Changes(container.ID, initID)
 }
 
-func (daemon *Daemon) diff(container *Container) (archive.Archive, error) {
+func (daemon *Daemon) diff(container *container.Container) (archive.Archive, error) {
 	initID := fmt.Sprintf("%s-init", container.ID)
 	return daemon.driver.Diff(container.ID, initID)
 }
 
-func (daemon *Daemon) createRootfs(container *Container) error {
+func (daemon *Daemon) createRootfs(container *container.Container) error {
 	// Step 1: create the container directory.
 	// This doubles as a barrier to avoid race conditions.
 	rootUID, rootGID, err := idtools.GetRootUIDGID(daemon.uidMaps, daemon.gidMaps)
 	if err != nil {
 		return err
 	}
-	if err := idtools.MkdirAs(container.root, 0700, rootUID, rootGID); err != nil {
+	if err := idtools.MkdirAs(container.Root, 0700, rootUID, rootGID); err != nil {
 		return err
 	}
 	initID := fmt.Sprintf("%s-init", container.ID)
@@ -1186,7 +1187,7 @@ func tempDir(rootDir string, rootUID, rootGID int) (string, error) {
 	return tmpDir, idtools.MkdirAllAs(tmpDir, 0700, rootUID, rootGID)
 }
 
-func (daemon *Daemon) setHostConfig(container *Container, hostConfig *runconfig.HostConfig) error {
+func (daemon *Daemon) setHostConfig(container *container.Container, hostConfig *runconfig.HostConfig) error {
 	container.Lock()
 	if err := parseSecurityOpt(container, hostConfig); err != nil {
 		container.Unlock()
@@ -1208,8 +1209,8 @@ func (daemon *Daemon) setHostConfig(container *Container, hostConfig *runconfig.
 		return err
 	}
 
-	container.hostConfig = hostConfig
-	container.toDisk()
+	container.HostConfig = hostConfig
+	container.ToDisk()
 	return nil
 }
 
@@ -1300,7 +1301,7 @@ func (daemon *Daemon) IsShuttingDown() bool {
 }
 
 // GetContainerStats collects all the stats published by a container
-func (daemon *Daemon) GetContainerStats(container *Container) (*execdriver.ResourceStats, error) {
+func (daemon *Daemon) GetContainerStats(container *container.Container) (*execdriver.ResourceStats, error) {
 	stats, err := daemon.stats(container)
 	if err != nil {
 		return nil, err
@@ -1316,7 +1317,7 @@ func (daemon *Daemon) GetContainerStats(container *Container) (*execdriver.Resou
 	return stats, nil
 }
 
-func (daemon *Daemon) getNetworkStats(c *Container) ([]*libcontainer.NetworkInterface, error) {
+func (daemon *Daemon) getNetworkStats(c *container.Container) ([]*libcontainer.NetworkInterface, error) {
 	var list []*libcontainer.NetworkInterface
 
 	sb, err := daemon.netController.SandboxByID(c.NetworkSettings.SandboxID)
@@ -1348,4 +1349,11 @@ func convertLnNetworkStats(name string, stats *lntypes.InterfaceStatistics) *lib
 	n.TxErrors = stats.TxErrors
 	n.TxDropped = stats.TxDropped
 	return n
+}
+
+func validateID(id string) error {
+	if id == "" {
+		return derr.ErrorCodeEmptyID
+	}
+	return nil
 }

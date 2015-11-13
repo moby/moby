@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"runtime"
 
+	"github.com/docker/docker/container"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/ioutils"
@@ -36,7 +37,7 @@ func (daemon *Daemon) Commit(name string, c *ContainerCommitConfig) (*image.Imag
 		return nil, fmt.Errorf("Windows does not support commit of a running container")
 	}
 
-	if c.Pause && !container.isPaused() {
+	if c.Pause && !container.IsPaused() {
 		daemon.containerPause(container)
 		defer daemon.containerUnpause(container)
 	}
@@ -74,7 +75,7 @@ func (daemon *Daemon) Commit(name string, c *ContainerCommitConfig) (*image.Imag
 	return img, nil
 }
 
-func (daemon *Daemon) exportContainerRw(container *Container) (archive.Archive, error) {
+func (daemon *Daemon) exportContainerRw(container *container.Container) (archive.Archive, error) {
 	archive, err := daemon.diff(container)
 	if err != nil {
 		return nil, err

@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/container"
 	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/graph/tags"
 	"github.com/docker/docker/image"
@@ -126,7 +127,7 @@ func (daemon *Daemon) imageHasMultipleRepositoryReferences(imageID string) bool 
 
 // getContainerUsingImage returns a container that was created using the given
 // imageID. Returns nil if there is no such container.
-func (daemon *Daemon) getContainerUsingImage(imageID string) *Container {
+func (daemon *Daemon) getContainerUsingImage(imageID string) *container.Container {
 	for _, container := range daemon.List() {
 		if container.ImageID == imageID {
 			return container

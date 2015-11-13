@@ -1,4 +1,6 @@
-package daemon
+// +build linux freebsd
+
+package container
 
 import "github.com/docker/docker/daemon/execdriver"
 
@@ -6,4 +8,5 @@ import "github.com/docker/docker/daemon/execdriver"
 // based on the ExitStatus structure.
 func (s *State) setFromExitStatus(exitStatus *execdriver.ExitStatus) {
 	s.ExitCode = exitStatus.ExitCode
+	s.OOMKilled = exitStatus.OOMKilled
 }
