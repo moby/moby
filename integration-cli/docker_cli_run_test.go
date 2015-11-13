@@ -3610,3 +3610,16 @@ func (s *DockerSuite) TestRunWrongCpusetMemsFlagValue(c *check.C) {
 	expected := "Error response from daemon: Invalid value 1-42-- for cpuset mems.\n"
 	c.Assert(out, check.Equals, expected, check.Commentf("Expected output to contain %q, got %q", expected, out))
 }
+
+func (s *DockerSuite) TestRunWithPull(c *check.C) {
+	testRequires(c, Network)
+	// pull a image from hub to local
+	dockerCmd(c, "pull", "hello-world")
+	// run with --pull still try to pull the image from hub
+	// even if the image exists on local
+	out, _, err := dockerCmdWithError("run", "--pull", "hello-world")
+	c.Assert(err, check.IsNil, check.Commentf(out))
+	if !(strings.Contains(out, "Downloaded newer image for hello-world:latest") || strings.Contains(out, "Image is up to date for hello-world:latest")) {
+		c.Fatalf("expected to download latest image from docker hub")
+	}
+}

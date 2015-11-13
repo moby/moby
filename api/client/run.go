@@ -49,6 +49,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		flDetach     = cmd.Bool([]string{"d", "-detach"}, false, "Run container in background and print container ID")
 		flSigProxy   = cmd.Bool([]string{"-sig-proxy"}, true, "Proxy received signals to the process")
 		flName       = cmd.String([]string{"-name"}, "", "Assign a name to the container")
+		flPull       = cmd.Bool([]string{"-pull"}, false, "Always attempt to pull a newer version of the image")
 		flAttach     *opts.ListOpts
 
 		ErrConflictAttachDetach               = fmt.Errorf("Conflicting options: -a and -d")
@@ -112,8 +113,14 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	if runtime.GOOS == "windows" {
 		hostConfig.ConsoleSize[0], hostConfig.ConsoleSize[1] = cli.getTtySize()
 	}
-
-	createResponse, err := cli.createContainer(config, hostConfig, hostConfig.ContainerIDFile, *flName)
+	createConfig := &createConfig{
+		config:     config,
+		hostConfig: hostConfig,
+		cidfile:    hostConfig.ContainerIDFile,
+		name:       *flName,
+		pull:       *flPull,
+	}
+	createResponse, err := cli.createContainer(createConfig)
 	if err != nil {
 		return err
 	}

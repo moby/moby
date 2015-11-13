@@ -17,6 +17,14 @@ import (
 	"github.com/docker/docker/runconfig"
 )
 
+type createConfig struct {
+	config     *runconfig.Config     // Config of the contaiiner
+	hostConfig *runconfig.HostConfig // HostConfig of the container
+	cidfile    string                // File the where the ContainerID is written
+	name       string                // The name assign to the container
+	pull       bool                  // Always to pull a newer version of the image
+}
+
 func (cli *DockerCli) pullImage(image string) error {
 	return cli.pullImageCustomOut(image, cli.out)
 }
@@ -77,7 +85,12 @@ func newCIDFile(path string) (*cidFile, error) {
 	return &cidFile{path: path, file: f}, nil
 }
 
-func (cli *DockerCli) createContainer(config *runconfig.Config, hostConfig *runconfig.HostConfig, cidfile, name string) (*types.ContainerCreateResponse, error) {
+func (cli *DockerCli) createContainer(createConfig *createConfig) (*types.ContainerCreateResponse, error) {
+	config := createConfig.config
+	hostConfig := createConfig.hostConfig
+	cidfile := createConfig.cidfile
+	name := createConfig.name
+	pull := createConfig.pull
 	containerValues := url.Values{}
 	if name != "" {
 		containerValues.Set("name", name)
@@ -102,6 +115,12 @@ func (cli *DockerCli) createContainer(config *runconfig.Config, hostConfig *runc
 	ref := registry.ParseReference(tag)
 	var trustedRef registry.Reference
 
+	if pull {
+		if err := cli.pullImageCustomOut(config.Image, cli.err); err != nil {
+			return nil, err
+		}
+	}
+
 	if isTrusted() && !ref.HasDigest() {
 		var err error
 		trustedRef, err = cli.trustedReference(repo, ref)
@@ -110,7 +129,6 @@ func (cli *DockerCli) createContainer(config *runconfig.Config, hostConfig *runc
 		}
 		config.Image = trustedRef.ImageName(repo)
 	}
-
 	//create the container
 	serverResp, err := cli.call("POST", "/containers/create?"+containerValues.Encode(), mergedConfig, nil)
 	//if image not found try to pull it
@@ -160,6 +178,7 @@ func (cli *DockerCli) createContainer(config *runconfig.Config, hostConfig *runc
 // Usage: docker create [OPTIONS] IMAGE [COMMAND] [ARG...]
 func (cli *DockerCli) CmdCreate(args ...string) error {
 	cmd := Cli.Subcmd("create", []string{"IMAGE [COMMAND] [ARG...]"}, Cli.DockerCommands["create"].Description, true)
+	flPull := cmd.Bool([]string{"-pull"}, false, "Always attempt to pull a newer version of the image")
 	addTrustedFlags(cmd, true)
 
 	// These are flags not stored in Config/HostConfig
@@ -176,7 +195,14 @@ func (cli *DockerCli) CmdCreate(args ...string) error {
 		cmd.Usage()
 		return nil
 	}
-	response, err := cli.createContainer(config, hostConfig, hostConfig.ContainerIDFile, *flName)
+	createConfig := &createConfig{
+		config:     config,
+		hostConfig: hostConfig,
+		cidfile:    hostConfig.ContainerIDFile,
+		name:       *flName,
+		pull:       *flPull,
+	}
+	response, err := cli.createContainer(createConfig)
 	if err != nil {
 		return err
 	}
