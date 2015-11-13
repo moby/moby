@@ -18,6 +18,8 @@ It benefits directly from the experience accumulated over several years
 of large-scale operation and support of hundreds of thousands of
 applications and databases.
 
+![Docker allows you to run several applications with conflicting requirements on the same machine.](docs/static_files/docker-logo-compressed.png "Docker")
+
 ## Security Disclosure
 
 Security is very important to us. If you have any issue regarding security, 
