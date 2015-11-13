@@ -113,7 +113,7 @@ list of DNS options to be used in the container.
 * `POST /build` now optionally takes a serialized map of build-time variables.
 * `GET /events` now includes a `timenano` field, in addition to the existing `time` field.
 * `GET /events` now supports filtering by image and container labels.
-* `GET /info` now lists engine version information.
+* `GET /info` now lists engine version information and return the information of `CPUShares` and `Cpuset`.
 * `GET /containers/json` will return `ImageID` of the image used by container.
 * `POST /exec/(name)/start` will now return an HTTP 409 when the container is either stopped or paused.
 * `GET /containers/(name)/json` now accepts a `size` parameter. Setting this parameter to '1' returns container size information in the `SizeRw` and `SizeRootFs` fields.

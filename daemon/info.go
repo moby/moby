@@ -101,6 +101,8 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 		v.OomKillDisable = sysInfo.OomKillDisable
 		v.CPUCfsPeriod = sysInfo.CPUCfsPeriod
 		v.CPUCfsQuota = sysInfo.CPUCfsQuota
+		v.CPUShares = sysInfo.CPUShares
+		v.CPUSet = sysInfo.Cpuset
 	}
 
 	if hostname, err := os.Hostname(); err == nil {
