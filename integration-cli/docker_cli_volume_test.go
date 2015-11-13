@@ -11,9 +11,6 @@ import (
 )
 
 func (s *DockerSuite) TestVolumeCliCreate(c *check.C) {
-	if daemonPlatform == "windows" {
-		testRequires(c, WindowsDaemonSupportsVolumes)
-	}
 	dockerCmd(c, "volume", "create")
 
 	_, err := runCommand(exec.Command(dockerBinary, "volume", "create", "-d", "nosuchdriver"))
@@ -25,9 +22,6 @@ func (s *DockerSuite) TestVolumeCliCreate(c *check.C) {
 }
 
 func (s *DockerSuite) TestVolumeCliCreateOptionConflict(c *check.C) {
-	if daemonPlatform == "windows" {
-		testRequires(c, WindowsDaemonSupportsVolumes)
-	}
 	dockerCmd(c, "volume", "create", "--name=test")
 	out, _, err := dockerCmdWithError("volume", "create", "--name", "test", "--driver", "nosuchdriver")
 	c.Assert(err, check.NotNil, check.Commentf("volume create exception name already in use with another driver"))
@@ -40,9 +34,6 @@ func (s *DockerSuite) TestVolumeCliCreateOptionConflict(c *check.C) {
 }
 
 func (s *DockerSuite) TestVolumeCliInspect(c *check.C) {
-	if daemonPlatform == "windows" {
-		testRequires(c, WindowsDaemonSupportsVolumes)
-	}
 	c.Assert(
 		exec.Command(dockerBinary, "volume", "inspect", "doesntexist").Run(),
 		check.Not(check.IsNil),
@@ -63,7 +54,6 @@ func (s *DockerSuite) TestVolumeCliLs(c *check.C) {
 	prefix := ""
 	if daemonPlatform == "windows" {
 		prefix = "c:"
-		testRequires(c, WindowsDaemonSupportsVolumes)
 	}
 	out, _ := dockerCmd(c, "volume", "create")
 	id := strings.TrimSpace(out)
@@ -84,7 +74,6 @@ func (s *DockerSuite) TestVolumeCliLsFilterDangling(c *check.C) {
 	prefix := ""
 	if daemonPlatform == "windows" {
 		prefix = "c:"
-		testRequires(c, WindowsDaemonSupportsVolumes)
 	}
 	dockerCmd(c, "volume", "create", "--name", "testnotinuse1")
 	dockerCmd(c, "volume", "create", "--name", "testisinuse1")
@@ -121,7 +110,6 @@ func (s *DockerSuite) TestVolumeCliRm(c *check.C) {
 	prefix := ""
 	if daemonPlatform == "windows" {
 		prefix = "c:"
-		testRequires(c, WindowsDaemonSupportsVolumes)
 	}
 	out, _ := dockerCmd(c, "volume", "create")
 	id := strings.TrimSpace(out)

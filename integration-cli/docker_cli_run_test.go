@@ -228,7 +228,6 @@ func (s *DockerSuite) TestRunWithVolumesFromExited(c *check.C) {
 
 	// Create a file in a volume
 	if daemonPlatform == "windows" {
-		testRequires(c, WindowsDaemonSupportsVolumes)
 		out, exitCode = dockerCmd(c, "run", "--name", "test-data", "--volume", `c:\some\dir`, WindowsBaseImage, `cmd /c echo hello > c:\some\dir\file`)
 	} else {
 		out, exitCode = dockerCmd(c, "run", "--name", "test-data", "--volume", "/some/dir", "busybox", "touch", "/some/dir/file")
@@ -256,12 +255,7 @@ func (s *DockerSuite) TestRunCreateVolumesInSymlinkDir(c *check.C) {
 		containerPath string
 		cmd           string
 	)
-	if daemonPlatform == "windows" {
-		testRequires(c, SameHostDaemon, WindowsDaemonSupportsVolumes)
-	} else {
-		testRequires(c, SameHostDaemon)
-	}
-
+	testRequires(c, SameHostDaemon)
 	name := "test-volume-symlink"
 
 	dir, err := ioutil.TempDir("", name)
@@ -310,7 +304,6 @@ func (s *DockerSuite) TestRunVolumesFromInReadonlyModeFails(c *check.C) {
 		fileInVol string
 	)
 	if daemonPlatform == "windows" {
-		testRequires(c, WindowsDaemonSupportsVolumes)
 		volumeDir = `c:/test` // Forward-slash as using busybox
 		fileInVol = `c:/test/file`
 	} else {
@@ -332,7 +325,6 @@ func (s *DockerSuite) TestRunVolumesFromInReadWriteMode(c *check.C) {
 		fileInVol string
 	)
 	if daemonPlatform == "windows" {
-		testRequires(c, WindowsDaemonSupportsVolumes)
 		volumeDir = `c:/test` // Forward-slash as using busybox
 		fileInVol = `c:/test/file`
 	} else {
@@ -378,7 +370,7 @@ func (s *DockerSuite) TestRunNoDupVolumes(c *check.C) {
 	someplace := ":/someplace"
 	if daemonPlatform == "windows" {
 		// Windows requires that the source directory exists before calling HCS
-		testRequires(c, SameHostDaemon, WindowsDaemonSupportsVolumes)
+		testRequires(c, SameHostDaemon)
 		someplace = `:c:\someplace`
 		if err := os.MkdirAll(path1, 0755); err != nil {
 			c.Fatalf("Failed to create %s: %q", path1, err)
@@ -405,7 +397,6 @@ func (s *DockerSuite) TestRunNoDupVolumes(c *check.C) {
 func (s *DockerSuite) TestRunApplyVolumesFromBeforeVolumes(c *check.C) {
 	prefix := ""
 	if daemonPlatform == "windows" {
-		testRequires(c, WindowsDaemonSupportsVolumes)
 		prefix = `c:`
 	}
 	dockerCmd(c, "run", "--name", "parent", "-v", prefix+"/test", "busybox", "touch", prefix+"/test/foo")
@@ -415,7 +406,6 @@ func (s *DockerSuite) TestRunApplyVolumesFromBeforeVolumes(c *check.C) {
 func (s *DockerSuite) TestRunMultipleVolumesFrom(c *check.C) {
 	prefix := ""
 	if daemonPlatform == "windows" {
-		testRequires(c, WindowsDaemonSupportsVolumes)
 		prefix = `c:`
 	}
 	dockerCmd(c, "run", "--name", "parent1", "-v", prefix+"/test", "busybox", "touch", prefix+"/test/foo")
@@ -446,7 +436,6 @@ func (s *DockerSuite) TestRunVerifyContainerID(c *check.C) {
 func (s *DockerSuite) TestRunCreateVolume(c *check.C) {
 	prefix := ""
 	if daemonPlatform == "windows" {
-		testRequires(c, WindowsDaemonSupportsVolumes)
 		prefix = `c:`
 	}
 	dockerCmd(c, "run", "-v", prefix+"/var/lib/data", "busybox", "true")
@@ -491,10 +480,6 @@ func (s *DockerSuite) TestRunCreateVolumeWithSymlink(c *check.C) {
 
 // Tests that a volume path that has a symlink exists in a container mounting it with `--volumes-from`.
 func (s *DockerSuite) TestRunVolumesFromSymlinkPath(c *check.C) {
-	if daemonPlatform == "windows" {
-		testRequires(c, WindowsDaemonSupportsVolumes)
-	}
-
 	name := "docker-test-volumesfromsymlinkpath"
 	prefix := ""
 	dfContents := `FROM busybox
@@ -1079,7 +1064,6 @@ func (s *DockerSuite) TestRunRootWorkdir(c *check.C) {
 
 func (s *DockerSuite) TestRunAllowBindMountingRoot(c *check.C) {
 	if daemonPlatform == "windows" {
-		testRequires(c, WindowsDaemonSupportsVolumes)
 		// Windows busybox will fail with Permission Denied on items such as pagefile.sys
 		dockerCmd(c, "run", "-v", `c:\:c:\host`, WindowsBaseImage, "cmd", "-c", "dir", `c:\host`)
 	} else {
@@ -1091,7 +1075,6 @@ func (s *DockerSuite) TestRunDisallowBindMountingRootToRoot(c *check.C) {
 	mount := "/:/"
 	targetDir := "/host"
 	if daemonPlatform == "windows" {
-		testRequires(c, WindowsDaemonSupportsVolumes)
 		mount = `c:\:c\`
 		targetDir = "c:/host" // Forward slash as using busybox
 	}
@@ -1797,9 +1780,7 @@ func (s *DockerSuite) TestRunEntrypoint(c *check.C) {
 
 func (s *DockerSuite) TestRunBindMounts(c *check.C) {
 	testRequires(c, SameHostDaemon)
-	if daemonPlatform == "windows" {
-		testRequires(c, WindowsDaemonSupportsVolumes)
-	} else {
+	if daemonPlatform == "linux" {
 		testRequires(c, DaemonIsLinux, NotUserNamespace)
 	}
 
@@ -2007,7 +1988,6 @@ func (s *DockerSuite) TestRunMountOrdering(c *check.C) {
 	testRequires(c, SameHostDaemon, DaemonIsLinux, NotUserNamespace)
 	prefix := ""
 	if daemonPlatform == "windows" {
-		testRequires(c, WindowsDaemonSupportsVolumes)
 		prefix = "c:"
 	}
 
@@ -2056,7 +2036,6 @@ func (s *DockerSuite) TestRunReuseBindVolumeThatIsSymlink(c *check.C) {
 	testRequires(c, SameHostDaemon, DaemonIsLinux, NotUserNamespace)
 	prefix := ""
 	if daemonPlatform == "windows" {
-		testRequires(c, WindowsDaemonSupportsVolumes)
 		prefix = "c:"
 	}
 
@@ -2144,7 +2123,6 @@ func (s *DockerSuite) TestRunVolumesCleanPaths(c *check.C) {
 	prefix := ""
 	slash := `/`
 	if daemonPlatform == "windows" {
-		testRequires(c, WindowsDaemonSupportsVolumes)
 		prefix = "c:"
 		slash = `\`
 	}
@@ -2719,7 +2697,6 @@ func (s *DockerSuite) TestRunVolumesFromRestartAfterRemoved(c *check.C) {
 	prefix := ""
 	if daemonPlatform == "windows" {
 		prefix = "c:"
-		testRequires(c, WindowsDaemonSupportsVolumes)
 	}
 	dockerCmd(c, "run", "-d", "--name", "voltest", "-v", prefix+"/foo", "busybox", "sleep", "60")
 	dockerCmd(c, "run", "-d", "--name", "restarter", "--volumes-from", "voltest", "busybox", "sleep", "60")
@@ -2950,7 +2927,6 @@ func (s *DockerSuite) TestVolumeFromMixedRWOptions(c *check.C) {
 	prefix := ""
 	slash := `/`
 	if daemonPlatform == "windows" {
-		testRequires(c, WindowsDaemonSupportsVolumes)
 		prefix = "c:"
 		slash = `\`
 	}
@@ -3305,7 +3281,6 @@ func (s *DockerSuite) TestRunNamedVolume(c *check.C) {
 	prefix := ""
 	slash := `/`
 	if daemonPlatform == "windows" {
-		testRequires(c, WindowsDaemonSupportsVolumes)
 		prefix = "c:"
 		slash = `\`
 	}
