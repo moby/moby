@@ -1,8 +1,9 @@
+// +build !windows
+
 package plugins
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/url"
@@ -12,8 +13,6 @@ import (
 )
 
 var (
-	// ErrNotFound plugin not found
-	ErrNotFound = errors.New("Plugin not found")
 	socketsPath = "/run/docker/plugins"
 	specsPaths  = []string{"/etc/docker/plugins", "/usr/lib/docker/plugins"}
 )
