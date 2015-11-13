@@ -100,7 +100,7 @@ type DeviceSet struct {
 	dataLoopbackSize      int64
 	metaDataLoopbackSize  int64
 	baseFsSize            uint64
-	userFilesystem        string // FS specified by user using dm.fs
+	filesystem            string
 	mountOptions          string
 	mkfsArgs              []string
 	dataDevice            string // block or loop dev
@@ -149,6 +149,8 @@ type Status struct {
 	Metadata DiskUsage
 	// BaseDeviceSize is base size of container and image
 	BaseDeviceSize uint64
+	// BaseDeviceFS is backing filesystem.
+	BaseDeviceFS string
 	// SectorSize size of the vector.
 	SectorSize uint64
 	// UdevSyncSupported is true if sync is supported.
@@ -584,12 +586,11 @@ func (devices *DeviceSet) createFilesystem(info *devInfo) error {
 
 	var err error
 
-	fs := devices.userFilesystem
-	if fs == "" {
-		fs = determineDefaultFS()
+	if devices.filesystem == "" {
+		devices.filesystem = determineDefaultFS()
 	}
 
-	switch fs {
+	switch devices.filesystem {
 	case "xfs":
 		err = exec.Command("mkfs.xfs", args...).Run()
 	case "ext4":
@@ -602,7 +603,7 @@ func (devices *DeviceSet) createFilesystem(info *devInfo) error {
 		}
 		err = exec.Command("tune2fs", append([]string{"-c", "-1", "-i", "0"}, devname)...).Run()
 	default:
-		err = fmt.Errorf("Unsupported filesystem type %s", fs)
+		err = fmt.Errorf("Unsupported filesystem type %s", devices.filesystem)
 	}
 	if err != nil {
 		return err
@@ -889,6 +890,10 @@ func (devices *DeviceSet) getBaseDeviceSize() uint64 {
 	return info.Size
 }
 
+func (devices *DeviceSet) getBaseDeviceFS() string {
+	return devices.filesystem
+}
+
 func (devices *DeviceSet) verifyBaseDeviceUUIDFS(baseInfo *devInfo) error {
 	devices.Lock()
 	defer devices.Unlock()
@@ -911,14 +916,15 @@ func (devices *DeviceSet) verifyBaseDeviceUUIDFS(baseInfo *devInfo) error {
 	// If user specified a filesystem using dm.fs option and current
 	// file system of base image is not same, warn user that dm.fs
 	// will be ignored.
-	if devices.userFilesystem != "" {
+	if devices.filesystem != "" {
 		fs, err := ProbeFsType(baseInfo.DevName())
 		if err != nil {
 			return err
 		}
 
-		if fs != devices.userFilesystem {
-			logrus.Warnf("Base device already exists and has filesystem %s on it. User specified filesystem %s will be ignored.", fs, devices.userFilesystem)
+		if fs != devices.filesystem {
+			logrus.Warnf("Base device already exists and has filesystem %s on it. User specified filesystem %s will be ignored.", fs, devices.filesystem)
+			devices.filesystem = fs
 		}
 	}
 	return nil
@@ -2268,6 +2274,7 @@ func (devices *DeviceSet) Status() *Status {
 	status.DeferredDeleteEnabled = devices.deferredDelete
 	status.DeferredDeletedDeviceCount = devices.nrDeletedDevices
 	status.BaseDeviceSize = devices.getBaseDeviceSize()
+	status.BaseDeviceFS = devices.getBaseDeviceFS()
 
 	totalSizeInSectors, _, dataUsed, dataTotal, metadataUsed, metadataTotal, err := devices.poolStatus()
 	if err == nil {
@@ -2366,7 +2373,7 @@ func NewDeviceSet(root string, doInit bool, options []string, uidMaps, gidMaps [
 			if val != "ext4" && val != "xfs" {
 				return nil, fmt.Errorf("Unsupported filesystem %s\n", val)
 			}
-			devices.userFilesystem = val
+			devices.filesystem = val
 		case "dm.mkfsarg":
 			devices.mkfsArgs = append(devices.mkfsArgs, val)
 		case "dm.mountopt":
