@@ -1042,7 +1042,6 @@ func (daemon *Daemon) initializeNetworking(container *Container) error {
 		container.ResolvConfPath = nc.ResolvConfPath
 		container.Config.Hostname = nc.Config.Hostname
 		container.Config.Domainname = nc.Config.Domainname
-		return nil
 	}
 
 	if container.hostConfig.NetworkMode.IsHost() {
@@ -1056,7 +1055,6 @@ func (daemon *Daemon) initializeNetworking(container *Container) error {
 			container.Config.Hostname = parts[0]
 			container.Config.Domainname = parts[1]
 		}
-
 	}
 
 	if err := daemon.allocateNetwork(container); err != nil {
