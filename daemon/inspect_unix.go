@@ -3,8 +3,11 @@
 package daemon
 
 import (
+	"time"
+
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/versions/v1p19"
+	"github.com/docker/docker/runconfig"
 )
 
 // This sets platform-specific fields
@@ -74,4 +77,26 @@ func addMountPoints(container *Container) []types.MountPoint {
 		})
 	}
 	return mountPoints
+}
+
+// populateJSONBase is a platform-specific helper function for inspect that
+// populates the ContainerJSONBase structure
+func populateJSONBase(container *Container, hostConfig *runconfig.HostConfig, containerState *types.ContainerState) *types.ContainerJSONBase {
+
+	return &types.ContainerJSONBase{
+		ID:           container.ID,
+		Created:      container.Created.Format(time.RFC3339Nano),
+		Path:         container.Path,
+		Args:         container.Args,
+		State:        containerState,
+		Image:        container.ImageID,
+		LogPath:      container.LogPath,
+		Name:         container.Name,
+		RestartCount: container.RestartCount,
+		Driver:       container.Driver,
+		MountLabel:   container.MountLabel,
+		ProcessLabel: container.ProcessLabel,
+		ExecIDs:      container.getExecIDs(),
+		HostConfig:   hostConfig,
+	}
 }

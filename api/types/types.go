@@ -252,6 +252,7 @@ type ContainerState struct {
 
 // ContainerJSONBase contains response of Remote API:
 // GET "/containers/{name:.*}/json"
+// TODO Windows: Refactor this for platform capabilities
 type ContainerJSONBase struct {
 	ID              string `json:"Id"`
 	Created         string

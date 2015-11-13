@@ -126,10 +126,8 @@ func (daemon *Daemon) populateCommand(c *Container, env []string) error {
 			InitPath:      "/.dockerinit",
 			WorkingDir:    c.Config.WorkingDir,
 			Network:       en,
-			MountLabel:    c.getMountLabel(),
 			Resources:     resources,
 			ProcessConfig: processConfig,
-			ProcessLabel:  c.getProcessLabel(),
 		},
 		FirstStart:  !c.HasBeenStartedBefore,
 		LayerFolder: layerFolder,
@@ -200,5 +198,11 @@ func (daemon *Daemon) mountVolumes(container *Container) error {
 	return nil
 }
 func (container *Container) unmountVolumes(forceSyscall bool) error {
+	return nil
+}
+
+// reserveLabel reserves a label for the process label in the container. This
+// is a no-op on Windows
+func reserveLabel(container *Container) error {
 	return nil
 }

@@ -59,3 +59,9 @@ func configureBackCompatStructures(*Daemon, *Container, map[string]*volume.Mount
 // This is a no-op on Windows.
 func setBackCompatStructures(*Container, map[string]string, map[string]bool) {
 }
+
+// reLabelIfNeeded is a platform specific helper to relabel binds. This is a
+// no-op on Windows.
+func reLabelIfNeeded(bind *volume.MountPoint, container *Container) error {
+	return nil
+}

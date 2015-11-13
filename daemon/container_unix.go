@@ -58,9 +58,10 @@ type Container struct {
 	ShmPath         string // TODO Windows - Factor this out (GH15862)
 	MqueuePath      string // TODO Windows - Factor this out (GH15862)
 	ResolvConfPath  string
-
-	Volumes   map[string]string // Deprecated since 1.7, kept for backwards compatibility
-	VolumesRW map[string]bool   // Deprecated since 1.7, kept for backwards compatibility
+	MountLabel      string // MountLabel contains the options for the 'mount' command
+	ProcessLabel    string
+	Volumes         map[string]string // Deprecated since 1.7, kept for backwards compatibility
+	VolumesRW       map[string]bool   // Deprecated since 1.7, kept for backwards compatibility
 }
 
 func killProcessDirectly(container *Container) error {
@@ -332,10 +333,8 @@ func (daemon *Daemon) populateCommand(c *Container, env []string) error {
 		CommonCommand: execdriver.CommonCommand{
 			ID:            c.ID,
 			InitPath:      "/.dockerinit",
-			MountLabel:    c.getMountLabel(),
 			Network:       en,
 			ProcessConfig: processConfig,
-			ProcessLabel:  c.getProcessLabel(),
 			Rootfs:        c.rootfsPath(),
 			Resources:     resources,
 			WorkingDir:    c.Config.WorkingDir,
@@ -349,7 +348,9 @@ func (daemon *Daemon) populateCommand(c *Container, env []string) error {
 		GIDMapping:         gidMap,
 		GroupAdd:           c.hostConfig.GroupAdd,
 		Ipc:                ipc,
+		MountLabel:         c.getMountLabel(),
 		Pid:                pid,
+		ProcessLabel:       c.getProcessLabel(),
 		ReadonlyRootfs:     c.hostConfig.ReadonlyRootfs,
 		RemappedRoot:       remappedRoot,
 		UIDMapping:         uidMap,
@@ -1524,4 +1525,27 @@ func (container *Container) unmountVolumes(forceSyscall bool) error {
 	}
 
 	return nil
+}
+
+// getProcessLabel returns the process label for the container.
+func (container *Container) getProcessLabel() string {
+	// even if we have a process label return "" if we are running
+	// in privileged mode
+	if container.hostConfig.Privileged {
+		return ""
+	}
+	return container.ProcessLabel
+}
+
+// getMountLabel returns the mount label for the container.
+func (container *Container) getMountLabel() string {
+	if container.hostConfig.Privileged {
+		return ""
+	}
+	return container.MountLabel
+}
+
+// reserveLabel reserves a label for the process label in the container
+func reserveLabel(container *Container) error {
+	return label.ReserveLabel(container.ProcessLabel)
 }

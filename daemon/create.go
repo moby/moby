@@ -8,7 +8,6 @@ import (
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/volume"
-	"github.com/opencontainers/runc/libcontainer/label"
 )
 
 // ContainerCreateConfig is the parameter set to ContainerCreate()
@@ -67,11 +66,8 @@ func (daemon *Daemon) create(params *ContainerCreateConfig) (retC *Container, re
 	if params.HostConfig == nil {
 		params.HostConfig = &runconfig.HostConfig{}
 	}
-	if params.HostConfig.SecurityOpt == nil {
-		params.HostConfig.SecurityOpt, err = daemon.generateSecurityOpt(params.HostConfig.IpcMode, params.HostConfig.PidMode)
-		if err != nil {
-			return nil, err
-		}
+	if err := daemon.setSecurityOpt(params); err != nil {
+		return nil, err
 	}
 	if container, err = daemon.newContainer(params.Name, params.Config, imgID); err != nil {
 		return nil, err
@@ -111,21 +107,6 @@ func (daemon *Daemon) create(params *ContainerCreateConfig) (retC *Container, re
 	}
 	daemon.LogContainerEvent(container, "create")
 	return container, nil
-}
-
-func (daemon *Daemon) generateSecurityOpt(ipcMode runconfig.IpcMode, pidMode runconfig.PidMode) ([]string, error) {
-	if ipcMode.IsHost() || pidMode.IsHost() {
-		return label.DisableSecOpt(), nil
-	}
-	if ipcContainer := ipcMode.Container(); ipcContainer != "" {
-		c, err := daemon.Get(ipcContainer)
-		if err != nil {
-			return nil, err
-		}
-
-		return label.DupSecOpt(c.ProcessLabel), nil
-	}
-	return nil, nil
 }
 
 // VolumeCreate creates a volume with the specified name, driver, and opts

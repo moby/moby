@@ -113,7 +113,9 @@ type Command struct {
 	GIDMapping         []idtools.IDMap   `json:"gidmapping"`
 	GroupAdd           []string          `json:"group_add"`
 	Ipc                *Ipc              `json:"ipc"`
+	MountLabel         string            `json:"mount_label"`
 	Pid                *Pid              `json:"pid"`
+	ProcessLabel       string            `json:"process_label"`
 	ReadonlyRootfs     bool              `json:"readonly_rootfs"`
 	RemappedRoot       *User             `json:"remap_root"`
 	UIDMapping         []idtools.IDMap   `json:"uidmapping"`
