@@ -1880,3 +1880,30 @@ func (s *DockerDaemonSuite) TestBridgeIPIsExcludedFromAllocatorPool(c *check.C) 
 		cont++
 	}
 }
+
+// Test daemon for no space left on device error
+func (s *DockerDaemonSuite) TestDaemonNoSpaceleftOnDeviceError(c *check.C) {
+	// create a 2MiB image and mount it as graph root
+	cmd := exec.Command("dd", "of=/tmp/testfs.img", "bs=1M", "seek=2", "count=0")
+	if err := cmd.Run(); err != nil {
+		c.Fatalf("dd failed: %v", err)
+	}
+	cmd = exec.Command("mkfs.ext4", "-F", "/tmp/testfs.img")
+	if err := cmd.Run(); err != nil {
+		c.Fatalf("mkfs.ext4 failed: %v", err)
+	}
+	cmd = exec.Command("mkdir", "-p", "/tmp/testfs-mount")
+	if err := cmd.Run(); err != nil {
+		c.Fatalf("mkdir failed: %v", err)
+	}
+	cmd = exec.Command("mount", "-t", "ext4", "-no", "loop,rw", "/tmp/testfs.img", "/tmp/testfs-mount")
+	if err := cmd.Run(); err != nil {
+		c.Fatalf("mount failed: %v", err)
+	}
+	err := s.d.Start("--graph", "/tmp/testfs-mount")
+	c.Assert(err, check.IsNil)
+
+	// pull a repository large enough to fill the mount point
+	out, err := s.d.Cmd("pull", "registry:2")
+	c.Assert(out, check.Not(check.Equals), 1, check.Commentf("no space left on device"))
+}
