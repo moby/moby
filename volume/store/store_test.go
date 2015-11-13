@@ -54,8 +54,8 @@ func TestCreate(t *testing.T) {
 		t.Fatalf("Expected unknown driver error, got nil")
 	}
 
-	_, err = s.Create("fakeError", "fake", map[string]string{"error": "create error"})
-	expected := &OpErr{Op: "create", Name: "fakeError", Err: errors.New("create error")}
+	_, err = s.Create("fakeerror", "fake", map[string]string{"error": "create error"})
+	expected := &OpErr{Op: "create", Name: "fakeerror", Err: errors.New("create error")}
 	if err != nil && err.Error() != expected.Error() {
 		t.Fatalf("Expected create fakeError: create error, got %v", err)
 	}
