@@ -12,12 +12,14 @@ import (
 	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/daemon/events"
 	"github.com/docker/docker/distribution/metadata"
+	"github.com/docker/docker/distribution/xfer"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
-	"github.com/docker/docker/pkg/streamformatter"
+	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/tag"
 	"github.com/docker/libtrust"
+	"golang.org/x/net/context"
 )
 
 // ImagePushConfig stores push configuration.
@@ -28,9 +30,9 @@ type ImagePushConfig struct {
 	// AuthConfig holds authentication credentials for authenticating with
 	// the registry.
 	AuthConfig *cliconfig.AuthConfig
-	// OutStream is the output writer for showing the status of the push
+	// ProgressOutput is the interface for showing the status of the push
 	// operation.
-	OutStream io.Writer
+	ProgressOutput progress.Output
 	// RegistryService is the registry service to use for TLS configuration
 	// and endpoint lookup.
 	RegistryService *registry.Service
@@ -48,6 +50,8 @@ type ImagePushConfig struct {
 	// TrustKey is the private key for legacy signatures. This is typically
 	// an ephemeral key, since these signatures are no longer verified.
 	TrustKey libtrust.PrivateKey
+	// UploadManager dispatches uploads.
+	UploadManager *xfer.LayerUploadManager
 }
 
 // Pusher is an interface that abstracts pushing for different API versions.
@@ -56,7 +60,7 @@ type Pusher interface {
 	// Push returns an error if any, as well as a boolean that determines whether to retry Push on the next configured endpoint.
 	//
 	// TODO(tiborvass): have Push() take a reference to repository + tag, so that the pusher itself is repository-agnostic.
-	Push() (fallback bool, err error)
+	Push(ctx context.Context) (fallback bool, err error)
 }
 
 const compressionBufSize = 32768
@@ -66,7 +70,7 @@ const compressionBufSize = 32768
 // whether a v1 or v2 pusher will be created. The other parameters are passed
 // through to the underlying pusher implementation for use during the actual
 // push operation.
-func NewPusher(ref reference.Named, endpoint registry.APIEndpoint, repoInfo *registry.RepositoryInfo, imagePushConfig *ImagePushConfig, sf *streamformatter.StreamFormatter) (Pusher, error) {
+func NewPusher(ref reference.Named, endpoint registry.APIEndpoint, repoInfo *registry.RepositoryInfo, imagePushConfig *ImagePushConfig) (Pusher, error) {
 	switch endpoint.Version {
 	case registry.APIVersion2:
 		return &v2Pusher{
@@ -75,8 +79,7 @@ func NewPusher(ref reference.Named, endpoint registry.APIEndpoint, repoInfo *reg
 			endpoint:       endpoint,
 			repoInfo:       repoInfo,
 			config:         imagePushConfig,
-			sf:             sf,
-			layersPushed:   make(map[digest.Digest]bool),
+			layersPushed:   pushMap{layersPushed: make(map[digest.Digest]bool)},
 		}, nil
 	case registry.APIVersion1:
 		return &v1Pusher{
@@ -85,7 +88,6 @@ func NewPusher(ref reference.Named, endpoint registry.APIEndpoint, repoInfo *reg
 			endpoint:    endpoint,
 			repoInfo:    repoInfo,
 			config:      imagePushConfig,
-			sf:          sf,
 		}, nil
 	}
 	return nil, fmt.Errorf("unknown version %d for registry %s", endpoint.Version, endpoint.URL)
@@ -94,10 +96,8 @@ func NewPusher(ref reference.Named, endpoint registry.APIEndpoint, repoInfo *reg
 // Push initiates a push operation on the repository named localName.
 // ref is the specific variant of the image to be pushed.
 // If no tag is provided, all tags will be pushed.
-func Push(ref reference.Named, imagePushConfig *ImagePushConfig) error {
+func Push(ctx context.Context, ref reference.Named, imagePushConfig *ImagePushConfig) error {
 	// FIXME: Allow to interrupt current push when new push of same image is done.
-
-	var sf = streamformatter.NewJSONStreamFormatter()
 
 	// Resolve the Repository name from fqn to RepositoryInfo
 	repoInfo, err := imagePushConfig.RegistryService.ResolveRepository(ref)
@@ -110,7 +110,7 @@ func Push(ref reference.Named, imagePushConfig *ImagePushConfig) error {
 		return err
 	}
 
-	imagePushConfig.OutStream.Write(sf.FormatStatus("", "The push refers to a repository [%s]", repoInfo.CanonicalName))
+	progress.Messagef(imagePushConfig.ProgressOutput, "", "The push refers to a repository [%s]", repoInfo.CanonicalName.String())
 
 	associations := imagePushConfig.TagStore.ReferencesByName(repoInfo.LocalName)
 	if len(associations) == 0 {
@@ -121,12 +121,20 @@ func Push(ref reference.Named, imagePushConfig *ImagePushConfig) error {
 	for _, endpoint := range endpoints {
 		logrus.Debugf("Trying to push %s to %s %s", repoInfo.CanonicalName, endpoint.URL, endpoint.Version)
 
-		pusher, err := NewPusher(ref, endpoint, repoInfo, imagePushConfig, sf)
+		pusher, err := NewPusher(ref, endpoint, repoInfo, imagePushConfig)
 		if err != nil {
 			lastErr = err
 			continue
 		}
-		if fallback, err := pusher.Push(); err != nil {
+		if fallback, err := pusher.Push(ctx); err != nil {
+			// Was this push cancelled? If so, don't try to fall
+			// back.
+			select {
+			case <-ctx.Done():
+				fallback = false
+			default:
+			}
+
 			if fallback {
 				lastErr = err
 				continue

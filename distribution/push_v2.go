@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
+	"sync"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -15,11 +15,12 @@ import (
 	"github.com/docker/distribution/manifest/schema1"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/distribution/metadata"
+	"github.com/docker/docker/distribution/xfer"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/image/v1"
 	"github.com/docker/docker/layer"
-	"github.com/docker/docker/pkg/progressreader"
-	"github.com/docker/docker/pkg/streamformatter"
+	"github.com/docker/docker/pkg/ioutils"
+	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/tag"
@@ -32,16 +33,20 @@ type v2Pusher struct {
 	endpoint       registry.APIEndpoint
 	repoInfo       *registry.RepositoryInfo
 	config         *ImagePushConfig
-	sf             *streamformatter.StreamFormatter
 	repo           distribution.Repository
 
 	// layersPushed is the set of layers known to exist on the remote side.
 	// This avoids redundant queries when pushing multiple tags that
 	// involve the same layers.
+	layersPushed pushMap
+}
+
+type pushMap struct {
+	sync.Mutex
 	layersPushed map[digest.Digest]bool
 }
 
-func (p *v2Pusher) Push() (fallback bool, err error) {
+func (p *v2Pusher) Push(ctx context.Context) (fallback bool, err error) {
 	p.repo, err = NewV2Repository(p.repoInfo, p.endpoint, p.config.MetaHeaders, p.config.AuthConfig, "push", "pull")
 	if err != nil {
 		logrus.Debugf("Error getting v2 registry: %v", err)
@@ -75,7 +80,7 @@ func (p *v2Pusher) Push() (fallback bool, err error) {
 	}
 
 	for _, association := range associations {
-		if err := p.pushV2Tag(association); err != nil {
+		if err := p.pushV2Tag(ctx, association); err != nil {
 			return false, err
 		}
 	}
@@ -83,7 +88,7 @@ func (p *v2Pusher) Push() (fallback bool, err error) {
 	return false, nil
 }
 
-func (p *v2Pusher) pushV2Tag(association tag.Association) error {
+func (p *v2Pusher) pushV2Tag(ctx context.Context, association tag.Association) error {
 	ref := association.Ref
 	logrus.Debugf("Pushing repository: %s", ref.String())
 
@@ -91,8 +96,6 @@ func (p *v2Pusher) pushV2Tag(association tag.Association) error {
 	if err != nil {
 		return fmt.Errorf("could not find image from tag %s: %v", ref.String(), err)
 	}
-
-	out := p.config.OutStream
 
 	var l layer.Layer
 
@@ -107,31 +110,39 @@ func (p *v2Pusher) pushV2Tag(association tag.Association) error {
 		defer layer.ReleaseAndLog(p.config.LayerStore, l)
 	}
 
-	fsLayers := make(map[layer.DiffID]schema1.FSLayer)
+	var descriptors []xfer.UploadDescriptor
 
 	// Push empty layer if necessary
 	for _, h := range img.History {
 		if h.EmptyLayer {
-			dgst, err := p.pushLayerIfNecessary(out, layer.EmptyLayer)
-			if err != nil {
-				return err
+			descriptors = []xfer.UploadDescriptor{
+				&v2PushDescriptor{
+					layer:          layer.EmptyLayer,
+					blobSumService: p.blobSumService,
+					repo:           p.repo,
+					layersPushed:   &p.layersPushed,
+				},
 			}
-			p.layersPushed[dgst] = true
-			fsLayers[layer.EmptyLayer.DiffID()] = schema1.FSLayer{BlobSum: dgst}
 			break
 		}
 	}
 
+	// Loop bounds condition is to avoid pushing the base layer on Windows.
 	for i := 0; i < len(img.RootFS.DiffIDs); i++ {
-		dgst, err := p.pushLayerIfNecessary(out, l)
-		if err != nil {
-			return err
+		descriptor := &v2PushDescriptor{
+			layer:          l,
+			blobSumService: p.blobSumService,
+			repo:           p.repo,
+			layersPushed:   &p.layersPushed,
 		}
-
-		p.layersPushed[dgst] = true
-		fsLayers[l.DiffID()] = schema1.FSLayer{BlobSum: dgst}
+		descriptors = append(descriptors, descriptor)
 
 		l = l.Parent()
+	}
+
+	fsLayers, err := p.config.UploadManager.Upload(ctx, descriptors, p.config.ProgressOutput)
+	if err != nil {
+		return err
 	}
 
 	var tag string
@@ -157,44 +168,103 @@ func (p *v2Pusher) pushV2Tag(association tag.Association) error {
 		if tagged, isTagged := ref.(reference.Tagged); isTagged {
 			// NOTE: do not change this format without first changing the trust client
 			// code. This information is used to determine what was pushed and should be signed.
-			out.Write(p.sf.FormatStatus("", "%s: digest: %s size: %d", tagged.Tag(), manifestDigest, manifestSize))
+			progress.Messagef(p.config.ProgressOutput, "", "%s: digest: %s size: %d", tagged.Tag(), manifestDigest, manifestSize)
 		}
 	}
 
-	manSvc, err := p.repo.Manifests(context.Background())
+	manSvc, err := p.repo.Manifests(ctx)
 	if err != nil {
 		return err
 	}
 	return manSvc.Put(signed)
 }
 
-func (p *v2Pusher) pushLayerIfNecessary(out io.Writer, l layer.Layer) (digest.Digest, error) {
-	logrus.Debugf("Pushing layer: %s", l.DiffID())
+type v2PushDescriptor struct {
+	layer          layer.Layer
+	blobSumService *metadata.BlobSumService
+	repo           distribution.Repository
+	layersPushed   *pushMap
+}
+
+func (pd *v2PushDescriptor) Key() string {
+	return "v2push:" + pd.repo.Name() + " " + pd.layer.DiffID().String()
+}
+
+func (pd *v2PushDescriptor) ID() string {
+	return stringid.TruncateID(pd.layer.DiffID().String())
+}
+
+func (pd *v2PushDescriptor) DiffID() layer.DiffID {
+	return pd.layer.DiffID()
+}
+
+func (pd *v2PushDescriptor) Upload(ctx context.Context, progressOutput progress.Output) (digest.Digest, error) {
+	diffID := pd.DiffID()
+
+	logrus.Debugf("Pushing layer: %s", diffID)
 
 	// Do we have any blobsums associated with this layer's DiffID?
-	possibleBlobsums, err := p.blobSumService.GetBlobSums(l.DiffID())
+	possibleBlobsums, err := pd.blobSumService.GetBlobSums(diffID)
 	if err == nil {
-		dgst, exists, err := p.blobSumAlreadyExists(possibleBlobsums)
+		dgst, exists, err := blobSumAlreadyExists(ctx, possibleBlobsums, pd.repo, pd.layersPushed)
 		if err != nil {
-			out.Write(p.sf.FormatProgress(stringid.TruncateID(string(l.DiffID())), "Image push failed", nil))
-			return "", err
+			progress.Update(progressOutput, pd.ID(), "Image push failed")
+			return "", retryOnError(err)
 		}
 		if exists {
-			out.Write(p.sf.FormatProgress(stringid.TruncateID(string(l.DiffID())), "Layer already exists", nil))
+			progress.Update(progressOutput, pd.ID(), "Layer already exists")
 			return dgst, nil
 		}
 	}
 
 	// if digest was empty or not saved, or if blob does not exist on the remote repository,
 	// then push the blob.
-	pushDigest, err := p.pushV2Layer(p.repo.Blobs(context.Background()), l)
+	bs := pd.repo.Blobs(ctx)
+
+	// Send the layer
+	layerUpload, err := bs.Create(ctx)
 	if err != nil {
-		return "", err
+		return "", retryOnError(err)
 	}
+	defer layerUpload.Close()
+
+	arch, err := pd.layer.TarStream()
+	if err != nil {
+		return "", xfer.DoNotRetry{Err: err}
+	}
+
+	// don't care if this fails; best effort
+	size, _ := pd.layer.DiffSize()
+
+	reader := progress.NewProgressReader(ioutils.NewCancelReadCloser(ctx, arch), progressOutput, size, pd.ID(), "Pushing")
+	defer reader.Close()
+	compressedReader := compress(reader)
+
+	digester := digest.Canonical.New()
+	tee := io.TeeReader(compressedReader, digester.Hash())
+
+	nn, err := layerUpload.ReadFrom(tee)
+	compressedReader.Close()
+	if err != nil {
+		return "", retryOnError(err)
+	}
+
+	pushDigest := digester.Digest()
+	if _, err := layerUpload.Commit(ctx, distribution.Descriptor{Digest: pushDigest}); err != nil {
+		return "", retryOnError(err)
+	}
+
+	logrus.Debugf("uploaded layer %s (%s), %d bytes", diffID, pushDigest, nn)
+	progress.Update(progressOutput, pd.ID(), "Pushed")
+
 	// Cache mapping from this layer's DiffID to the blobsum
-	if err := p.blobSumService.Add(l.DiffID(), pushDigest); err != nil {
-		return "", err
+	if err := pd.blobSumService.Add(diffID, pushDigest); err != nil {
+		return "", xfer.DoNotRetry{Err: err}
 	}
+
+	pd.layersPushed.Lock()
+	pd.layersPushed.layersPushed[pushDigest] = true
+	pd.layersPushed.Unlock()
 
 	return pushDigest, nil
 }
@@ -202,14 +272,20 @@ func (p *v2Pusher) pushLayerIfNecessary(out io.Writer, l layer.Layer) (digest.Di
 // blobSumAlreadyExists checks if the registry already know about any of the
 // blobsums passed in the "blobsums" slice. If it finds one that the registry
 // knows about, it returns the known digest and "true".
-func (p *v2Pusher) blobSumAlreadyExists(blobsums []digest.Digest) (digest.Digest, bool, error) {
+func blobSumAlreadyExists(ctx context.Context, blobsums []digest.Digest, repo distribution.Repository, layersPushed *pushMap) (digest.Digest, bool, error) {
+	layersPushed.Lock()
 	for _, dgst := range blobsums {
-		if p.layersPushed[dgst] {
+		if layersPushed.layersPushed[dgst] {
 			// it is already known that the push is not needed and
 			// therefore doing a stat is unnecessary
+			layersPushed.Unlock()
 			return dgst, true, nil
 		}
-		_, err := p.repo.Blobs(context.Background()).Stat(context.Background(), dgst)
+	}
+	layersPushed.Unlock()
+
+	for _, dgst := range blobsums {
+		_, err := repo.Blobs(ctx).Stat(ctx, dgst)
 		switch err {
 		case nil:
 			return dgst, true, nil
@@ -226,7 +302,7 @@ func (p *v2Pusher) blobSumAlreadyExists(blobsums []digest.Digest) (digest.Digest
 // FSLayer digests.
 // FIXME: This should be moved to the distribution repo, since it will also
 // be useful for converting new manifests to the old format.
-func CreateV2Manifest(name, tag string, img *image.Image, fsLayers map[layer.DiffID]schema1.FSLayer) (*schema1.Manifest, error) {
+func CreateV2Manifest(name, tag string, img *image.Image, fsLayers map[layer.DiffID]digest.Digest) (*schema1.Manifest, error) {
 	if len(img.History) == 0 {
 		return nil, errors.New("empty history when trying to create V2 manifest")
 	}
@@ -271,7 +347,7 @@ func CreateV2Manifest(name, tag string, img *image.Image, fsLayers map[layer.Dif
 		if !present {
 			return nil, fmt.Errorf("missing layer in CreateV2Manifest: %s", diffID.String())
 		}
-		dgst, err := digest.FromBytes([]byte(fsLayer.BlobSum.Hex() + " " + parent))
+		dgst, err := digest.FromBytes([]byte(fsLayer.Hex() + " " + parent))
 		if err != nil {
 			return nil, err
 		}
@@ -294,7 +370,7 @@ func CreateV2Manifest(name, tag string, img *image.Image, fsLayers map[layer.Dif
 
 		reversedIndex := len(img.History) - i - 1
 		history[reversedIndex].V1Compatibility = string(jsonBytes)
-		fsLayerList[reversedIndex] = fsLayer
+		fsLayerList[reversedIndex] = schema1.FSLayer{BlobSum: fsLayer}
 
 		parent = v1ID
 	}
@@ -315,11 +391,11 @@ func CreateV2Manifest(name, tag string, img *image.Image, fsLayers map[layer.Dif
 		return nil, fmt.Errorf("missing layer in CreateV2Manifest: %s", diffID.String())
 	}
 
-	dgst, err := digest.FromBytes([]byte(fsLayer.BlobSum.Hex() + " " + parent + " " + string(img.RawJSON())))
+	dgst, err := digest.FromBytes([]byte(fsLayer.Hex() + " " + parent + " " + string(img.RawJSON())))
 	if err != nil {
 		return nil, err
 	}
-	fsLayerList[0] = fsLayer
+	fsLayerList[0] = schema1.FSLayer{BlobSum: fsLayer}
 
 	// Top-level v1compatibility string should be a modified version of the
 	// image config.
@@ -345,67 +421,4 @@ func CreateV2Manifest(name, tag string, img *image.Image, fsLayers map[layer.Dif
 		FSLayers:     fsLayerList,
 		History:      history,
 	}, nil
-}
-
-func rawJSON(value interface{}) *json.RawMessage {
-	jsonval, err := json.Marshal(value)
-	if err != nil {
-		return nil
-	}
-	return (*json.RawMessage)(&jsonval)
-}
-
-func (p *v2Pusher) pushV2Layer(bs distribution.BlobService, l layer.Layer) (digest.Digest, error) {
-	out := p.config.OutStream
-	displayID := stringid.TruncateID(string(l.DiffID()))
-
-	out.Write(p.sf.FormatProgress(displayID, "Preparing", nil))
-
-	arch, err := l.TarStream()
-	if err != nil {
-		return "", err
-	}
-	defer arch.Close()
-
-	// Send the layer
-	layerUpload, err := bs.Create(context.Background())
-	if err != nil {
-		return "", err
-	}
-	defer layerUpload.Close()
-
-	// don't care if this fails; best effort
-	size, _ := l.DiffSize()
-
-	reader := progressreader.New(progressreader.Config{
-		In:        ioutil.NopCloser(arch), // we'll take care of close here.
-		Out:       out,
-		Formatter: p.sf,
-		Size:      size,
-		NewLines:  false,
-		ID:        displayID,
-		Action:    "Pushing",
-	})
-
-	compressedReader := compress(reader)
-
-	digester := digest.Canonical.New()
-	tee := io.TeeReader(compressedReader, digester.Hash())
-
-	out.Write(p.sf.FormatProgress(displayID, "Pushing", nil))
-	nn, err := layerUpload.ReadFrom(tee)
-	compressedReader.Close()
-	if err != nil {
-		return "", err
-	}
-
-	dgst := digester.Digest()
-	if _, err := layerUpload.Commit(context.Background(), distribution.Descriptor{Digest: dgst}); err != nil {
-		return "", err
-	}
-
-	logrus.Debugf("uploaded layer %s (%s), %d bytes", l.DiffID(), dgst, nn)
-	out.Write(p.sf.FormatProgress(displayID, "Pushed", nil))
-
-	return dgst, nil
 }

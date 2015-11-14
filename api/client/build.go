@@ -23,7 +23,7 @@ import (
 	"github.com/docker/docker/pkg/httputils"
 	"github.com/docker/docker/pkg/jsonmessage"
 	flag "github.com/docker/docker/pkg/mflag"
-	"github.com/docker/docker/pkg/progressreader"
+	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/ulimit"
 	"github.com/docker/docker/pkg/units"
@@ -169,16 +169,9 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	context = replaceDockerfileTarWrapper(context, newDockerfile, relDockerfile)
 
 	// Setup an upload progress bar
-	// FIXME: ProgressReader shouldn't be this annoying to use
-	sf := streamformatter.NewStreamFormatter()
-	var body io.Reader = progressreader.New(progressreader.Config{
-		In:        context,
-		Out:       cli.out,
-		Formatter: sf,
-		NewLines:  true,
-		ID:        "",
-		Action:    "Sending build context to Docker daemon",
-	})
+	progressOutput := streamformatter.NewStreamFormatter().NewProgressOutput(cli.out, true)
+
+	var body io.Reader = progress.NewProgressReader(context, progressOutput, 0, "", "Sending build context to Docker daemon")
 
 	var memory int64
 	if *flMemoryString != "" {
@@ -447,17 +440,10 @@ func getContextFromURL(out io.Writer, remoteURL, dockerfileName string) (absCont
 		return "", "", fmt.Errorf("unable to download remote context %s: %v", remoteURL, err)
 	}
 	defer response.Body.Close()
+	progressOutput := streamformatter.NewStreamFormatter().NewProgressOutput(out, true)
 
 	// Pass the response body through a progress reader.
-	progReader := &progressreader.Config{
-		In:        response.Body,
-		Out:       out,
-		Formatter: streamformatter.NewStreamFormatter(),
-		Size:      response.ContentLength,
-		NewLines:  true,
-		ID:        "",
-		Action:    fmt.Sprintf("Downloading build context from remote url: %s", remoteURL),
-	}
+	progReader := progress.NewProgressReader(response.Body, progressOutput, response.ContentLength, "", fmt.Sprintf("Downloading build context from remote url: %s", remoteURL))
 
 	return getContextFromReader(progReader, dockerfileName)
 }
