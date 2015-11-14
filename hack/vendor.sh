@@ -52,7 +52,7 @@ clone git github.com/agl/ed25519 d2b94fd789ea21d12fac1a4443dd3a3f79cda72c
 # update next time
 clone git github.com/opencontainers/runc 1349b37bd56f4f5ce2690b5b2c0f53f88a261c67 # libcontainer
 # libcontainer deps (see src/github.com/opencontainers/runc/Godeps/Godeps.json)
-clone git github.com/coreos/go-systemd v3
+clone git github.com/coreos/go-systemd v4
 clone git github.com/godbus/dbus v2
 clone git github.com/syndtr/gocapability 66ef2aa7a23ba682594e2b6f74cf40c0692b49fb
 clone git github.com/golang/protobuf 655cdfa588ea

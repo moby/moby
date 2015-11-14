@@ -3,6 +3,7 @@
 package server
 
 import (
+	"crypto/tls"
 	"fmt"
 	"net"
 	"net/http"
@@ -24,7 +25,7 @@ func (s *Server) newServer(proto, addr string) ([]*HTTPServer, error) {
 	)
 	switch proto {
 	case "fd":
-		ls, err = listenFD(addr)
+		ls, err = listenFD(addr, s.cfg.TLSConfig)
 		if err != nil {
 			return nil, err
 		}
@@ -84,9 +85,17 @@ func allocateDaemonPort(addr string) error {
 
 // listenFD returns the specified socket activated files as a slice of
 // net.Listeners or all of the activated files if "*" is given.
-func listenFD(addr string) ([]net.Listener, error) {
+func listenFD(addr string, tlsConfig *tls.Config) ([]net.Listener, error) {
+	var (
+		err       error
+		listeners []net.Listener
+	)
 	// socket activation
-	listeners, err := systemdActivation.Listeners(false)
+	if tlsConfig != nil {
+		listeners, err = systemdActivation.TLSListeners(false, tlsConfig)
+	} else {
+		listeners, err = systemdActivation.Listeners(false)
+	}
 	if err != nil {
 		return nil, err
 	}
