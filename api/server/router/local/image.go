@@ -138,7 +138,7 @@ func (s *router) postImagesCreate(ctx context.Context, w http.ResponseWriter, r 
 		// Handles the unescape characters.
 		unescapedRepo, err := url.QueryUnescape(repo)
 		if err != nil {
-			unescapedRepo = image
+			unescapedRepo = repo
 		}
 
 		if tag == "" {
