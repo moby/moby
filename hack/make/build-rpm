@@ -86,7 +86,12 @@ set -e
 			WORKDIR /root/rpmbuild/SPECS
 			RUN tar -cz -C /usr/src -f /root/rpmbuild/SOURCES/${rpmName}.tar.gz ${rpmName}
 			RUN { cat /usr/src/${rpmName}/contrib/builder/rpm/changelog; } >> ${rpmName}.spec && tail >&2 ${rpmName}.spec
-			RUN rpmbuild -ba --define '_release $rpmRelease' --define '_version $rpmVersion' --define '_origversion $VERSION' ${rpmName}.spec
+			RUN rpmbuild -ba \
+				--define '_release $rpmRelease' \
+				--define '_version $rpmVersion' \
+				--define '_origversion $VERSION' \
+				--define '_experimental ${DOCKER_EXPERIMENTAL:-0}' \
+				${rpmName}.spec
 		EOF
 		# selinux policy referencing systemd things won't work on non-systemd versions
 		# of centos or rhel, which we don't support anyways
@@ -99,7 +104,6 @@ set -e
 						--define '_release $rpmRelease' \
 						--define '_version $rpmVersion' \
 						--define '_origversion $VERSION' \
-						--define '_experimental ${DOCKER_EXPERIMENTAL:-0}' \
 						${rpmName}-selinux.spec
 			EOF
 		fi
