@@ -4,13 +4,11 @@ package windows
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
-	"syscall"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/execdriver"
@@ -273,21 +271,11 @@ func (d *Driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, hooks execd
 	// Configure the environment for the process
 	createProcessParms.Environment = setupEnvironmentVariables(c.ProcessConfig.Env)
 
-	// This should get caught earlier, but just in case - validate that we
-	// have something to run
-	if c.ProcessConfig.Entrypoint == "" {
-		err = errors.New("No entrypoint specified")
-		logrus.Error(err)
+	createProcessParms.CommandLine, err = createCommandLine(&c.ProcessConfig, c.ArgsEscaped)
+
+	if err != nil {
 		return execdriver.ExitStatus{ExitCode: -1}, err
 	}
-
-	// Build the command line of the process
-	createProcessParms.CommandLine = c.ProcessConfig.Entrypoint
-	for _, arg := range c.ProcessConfig.Arguments {
-		logrus.Debugln("appending ", arg)
-		createProcessParms.CommandLine += " " + syscall.EscapeArg(arg)
-	}
-	logrus.Debugf("CommandLine: %s", createProcessParms.CommandLine)
 
 	// Start the command running in the container.
 	pid, stdin, stdout, stderr, _, err := hcsshim.CreateProcessInComputeSystem(c.ID, pipes.Stdin != nil, true, !c.ProcessConfig.Tty, createProcessParms)

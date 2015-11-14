@@ -181,7 +181,7 @@ func (b *Builder) runContextCommand(args []string, allowRemote bool, allowLocalD
 	if runtime.GOOS != "windows" {
 		b.runConfig.Cmd = stringutils.NewStrSlice("/bin/sh", "-c", fmt.Sprintf("#(nop) %s %s in %s", cmdName, srcHash, dest))
 	} else {
-		b.runConfig.Cmd = stringutils.NewStrSlice("cmd", "/S /C", fmt.Sprintf("REM (nop) %s %s in %s", cmdName, srcHash, dest))
+		b.runConfig.Cmd = stringutils.NewStrSlice("cmd", "/S", "/C", fmt.Sprintf("REM (nop) %s %s in %s", cmdName, srcHash, dest))
 	}
 	defer func(cmd *stringutils.StrSlice) { b.runConfig.Cmd = cmd }(cmd)
 

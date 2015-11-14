@@ -57,6 +57,7 @@ type Command struct {
 	LayerFolder string                   `json:"layer_folder"` // Layer folder for a command
 	LayerPaths  []string                 `json:"layer_paths"`  // Layer paths for a command
 	Isolation   runconfig.IsolationLevel `json:"isolation"`    // Isolation level for the container
+	ArgsEscaped bool                     `json:"args_escaped"` // True if args are already escaped
 }
 
 // ExitStatus provides exit reasons for a container.

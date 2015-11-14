@@ -104,6 +104,8 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		return nil
 	}
 
+	config.ArgsEscaped = false
+
 	if !*flDetach {
 		if err := cli.CheckTtyInput(config.AttachStdin, config.Tty); err != nil {
 			return err
