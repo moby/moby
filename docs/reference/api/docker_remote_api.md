@@ -216,6 +216,6 @@ container. Previously this was only available when starting a container.
 * `DELETE /containers/(id)` when using `force`, the container will be immediately killed with SIGKILL.
 * `POST /containers/(id)/start` the `hostConfig` option accepts the field `CapAdd`, which specifies a list of capabilities
 to add, and the field `CapDrop`, which specifies a list of capabilities to drop.
-* `POST /images/create` th `fromImage` and `repo` parameters supportthe
+* `POST /images/create` th `fromImage` and `repo` parameters support the
 `repo:tag` format. Consequently,  the `tag` parameter is now obsolete. Using the
 new format and the `tag` parameter at the same time will return an error.

@@ -26,7 +26,7 @@ in the stream, and uses the `io.Seeker` interface if the underlying
 stream implements it. `(*fwd.Reader).Next` returns a slice pointing
 to the next `n` bytes in the read buffer (like `Peek`), but also
 increments the read position. This allows users to process streams
-in aribtrary block sizes without having to manage appropriately-sized
+in arbitrary block sizes without having to manage appropriately-sized
 slices. Additionally, obviating the need to copy the data from the
 buffer to another location in memory can improve performance dramatically
 in CPU-bound applications.
@@ -174,7 +174,7 @@ func (r *Reader) Skip(n int) (int, error)
 ```
 Skip moves the reader forward 'n' bytes.
 Returns the number of bytes skipped and any
-errors encountered. It is analagous to Seek(n, 1).
+errors encountered. It is analogous to Seek(n, 1).
 If the underlying reader implements io.Seeker, then
 that method will be used to skip forward.
 

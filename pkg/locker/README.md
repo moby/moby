@@ -42,7 +42,7 @@ func (i *important) Create(name string, data interface{}) {
 	i.locks.Lock(name)
 	defer i.locks.Unlock(name)
 
-	i.createImporatant(data)
+	i.createImportant(data)
 
 	s.mu.Lock()
 	i.data[name] = data
