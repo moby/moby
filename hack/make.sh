@@ -53,12 +53,11 @@ DEFAULT_BUNDLES=(
 	validate-vet
 
 	binary
+	dynbinary
 
 	test-unit
 	test-integration-cli
 	test-docker-py
-
-	dynbinary
 
 	cover
 	cross
