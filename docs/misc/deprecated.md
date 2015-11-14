@@ -93,7 +93,7 @@ The following double-dash options are deprecated and have no replacement:
     docker search --trusted
 
 ### Auto-creating missing host paths for bind mounts
-**Deprected in Release: v1.9**
+**Deprecated in Release: v1.9**
 
 **Target for Removal in Release: 1.11**
 
