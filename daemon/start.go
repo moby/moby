@@ -124,7 +124,11 @@ func (daemon *Daemon) containerStart(container *Container) (err error) {
 	mounts = append(mounts, container.ipcMounts()...)
 
 	container.command.Mounts = mounts
-	return daemon.waitForStart(container)
+	if err := daemon.waitForStart(container); err != nil {
+		return err
+	}
+	container.HasBeenStartedBefore = true
+	return nil
 }
 
 func (daemon *Daemon) waitForStart(container *Container) error {
