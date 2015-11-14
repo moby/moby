@@ -43,9 +43,9 @@ func (l *JSONFileLogger) ReadLogs(config logger.ReadConfig) *logger.LogWatcher {
 func (l *JSONFileLogger) readLogs(logWatcher *logger.LogWatcher, config logger.ReadConfig) {
 	defer close(logWatcher.Msg)
 
-	pth := l.ctx.LogPath
+	pth := l.writer.LogPath()
 	var files []io.ReadSeeker
-	for i := l.n; i > 1; i-- {
+	for i := l.writer.MaxFiles(); i > 1; i-- {
 		f, err := os.Open(fmt.Sprintf("%s.%d", pth, i-1))
 		if err != nil {
 			if !os.IsNotExist(err) {
@@ -84,14 +84,14 @@ func (l *JSONFileLogger) readLogs(logWatcher *logger.LogWatcher, config logger.R
 	l.readers[logWatcher] = struct{}{}
 	l.mu.Unlock()
 
-	notifyRotate := l.notifyRotate.Subscribe()
+	notifyRotate := l.writer.NotifyRotate()
 	followLogs(latestFile, logWatcher, notifyRotate, config.Since)
 
 	l.mu.Lock()
 	delete(l.readers, logWatcher)
 	l.mu.Unlock()
 
-	l.notifyRotate.Evict(notifyRotate)
+	l.writer.NotifyRotateEvict(notifyRotate)
 }
 
 func tailFile(f io.ReadSeeker, logWatcher *logger.LogWatcher, tail int, since time.Time) {
