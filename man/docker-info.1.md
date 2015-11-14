@@ -42,7 +42,7 @@ Here is a sample output:
     Kernel Version: 3.13.0-24-generic
     Operating System: Ubuntu 14.04 LTS
     OSType: linux
-    Architecture: amd64
+    Architecture: x86_64
     CPUs: 1
     Total Memory: 2 GiB
 

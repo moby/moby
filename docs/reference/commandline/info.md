@@ -32,7 +32,7 @@ For example:
     Logging Driver: json-file
     Kernel Version: 3.19.0-22-generic
     OSType: linux
-    Architecture: amd64
+    Architecture: x86_64
     Operating System: Ubuntu 15.04
     CPUs: 24
     Total Memory: 62.86 GiB

@@ -1884,7 +1884,7 @@ Display system-wide information
     Content-Type: application/json
 
     {
-        "Architecture": "amd64",
+        "Architecture": "x86_64",
         "Containers": 11,
         "CpuCfsPeriod": true,
         "CpuCfsQuota": true,
