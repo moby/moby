@@ -90,13 +90,17 @@ set -e
 		EOF
 		# selinux policy referencing systemd things won't work on non-systemd versions
 		# of centos or rhel, which we don't support anyways
-		if [ "${suite%.*}" -gt 6 ] && [[ "$version" != opensuse* ]]; then
-			cat >> "$DEST/$version/Dockerfile.build" <<-EOF
-				RUN tar -cz -C /usr/src/${rpmName}/contrib -f /root/rpmbuild/SOURCES/${rpmName}-selinux.tar.gz ${rpmName}-selinux
-				RUN { echo '* $rpmDate $rpmPackager $rpmVersion-$rpmRelease'; echo '* Version: $VERSION'; } >> ${rpmName}-selinux.spec && tail >&2 ${rpmName}-selinux.spec
-				RUN rpmbuild -ba --define '_gitcommit $DOCKER_GITCOMMIT' --define '_release $rpmRelease' --define '_version $rpmVersion' --define '_origversion $VERSION' ${rpmName}-selinux.spec
-			EOF
-		fi
+		case "$version" in
+			centos*|fedora*|oraclelinux*)
+				if [ "${suite%.*}" -gt 6 ]; then
+					cat >> "$DEST/$version/Dockerfile.build" <<-EOF
+						RUN tar -cz -C /usr/src/${rpmName}/contrib -f /root/rpmbuild/SOURCES/${rpmName}-selinux.tar.gz ${rpmName}-selinux
+						RUN { echo '* $rpmDate $rpmPackager $rpmVersion-$rpmRelease'; echo '* Version: $VERSION'; } >> ${rpmName}-selinux.spec && tail >&2 ${rpmName}-selinux.spec
+						RUN rpmbuild -ba --define '_gitcommit $DOCKER_GITCOMMIT' --define '_release $rpmRelease' --define '_version $rpmVersion' --define '_origversion $VERSION' ${rpmName}-selinux.spec
+					EOF
+				fi
+				;;
+		esac
 		tempImage="docker-temp/build-rpm:$version"
 		( set -x && docker build -t "$tempImage" -f $DEST/$version/Dockerfile.build . )
 		docker run --rm "$tempImage" bash -c 'cd /root/rpmbuild && tar -c *RPMS' | tar -xvC "$DEST/$version"

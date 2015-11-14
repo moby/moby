@@ -103,7 +103,7 @@ fi
 
 if [ -z "$DOCKER_CLIENTONLY" ]; then
 	DOCKER_BUILDTAGS+=" daemon"
-	if pkg-config libsystemd-journal 2> /dev/null ; then
+	if pkg-config libsystemd-journal 2> /dev/null && [[ $DOCKER_BUILDTAGS != *!journald* ]]; then
 		DOCKER_BUILDTAGS+=" journald"
 	fi
 fi
