@@ -76,12 +76,16 @@ clean() {
 	local buildTagCombos=(
 		''
 		'experimental'
+		'pkcs11'
 		"$dockerBuildTags"
 		"daemon $dockerBuildTags"
 		"daemon cgo $dockerBuildTags"
 		"experimental $dockerBuildTags"
 		"experimental daemon $dockerBuildTags"
 		"experimental daemon cgo $dockerBuildTags"
+		"pkcs11 $dockerBuildTags"
+		"pkcs11 daemon $dockerBuildTags"
+		"pkcs11 daemon cgo $dockerBuildTags"
 	)
 
 	echo

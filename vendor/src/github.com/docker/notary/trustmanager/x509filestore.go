@@ -260,6 +260,12 @@ func (s *X509FileStore) GetVerifyOptions(dnsName string) (x509.VerifyOptions, er
 	return opts, nil
 }
 
+// Empty returns true if there are no certificates in the X509FileStore, false
+// otherwise.
+func (s *X509FileStore) Empty() bool {
+	return len(s.fingerprintMap) == 0
+}
+
 func fileName(cert *x509.Certificate) (string, CertID, error) {
 	certID, err := fingerprintCert(cert)
 	if err != nil {

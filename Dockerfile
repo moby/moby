@@ -26,8 +26,13 @@
 FROM ubuntu:14.04
 MAINTAINER Tianon Gravi <admwiggin@gmail.com> (@tianon)
 
+# add zfs ppa
 RUN	apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys E871F18B51E0147C77796AC81196BA81F6B0FC61
 RUN	echo deb http://ppa.launchpad.net/zfs-native/stable/ubuntu trusty main > /etc/apt/sources.list.d/zfs.list
+
+# add llvm repo
+RUN	apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys 15CF4D18AF4F7421
+RUN	echo deb http://llvm.org/apt/trusty/ llvm-toolchain-trusty main > /etc/apt/sources.list.d/llvm.list
 
 # Packaged dependencies
 RUN apt-get update && apt-get install -y \
@@ -37,6 +42,7 @@ RUN apt-get update && apt-get install -y \
 	bash-completion \
 	btrfs-tools \
 	build-essential \
+	clang-3.8 \
 	createrepo \
 	curl \
 	dpkg-sig \
@@ -45,6 +51,7 @@ RUN apt-get update && apt-get install -y \
 	iptables \
 	libapparmor-dev \
 	libcap-dev \
+	libltdl-dev \
 	libsqlite3-dev \
 	libsystemd-journal-dev \
 	mercurial \
@@ -57,7 +64,9 @@ RUN apt-get update && apt-get install -y \
 	ubuntu-zfs \
 	xfsprogs \
 	libzfs-dev \
-	--no-install-recommends
+	--no-install-recommends \
+	&& ln -snf /usr/bin/clang-3.8 /usr/local/bin/clang \
+	&& ln -snf /usr/bin/clang++-3.8 /usr/local/bin/clang++
 
 # Get lvm2 source for compiling statically
 RUN git clone -b v2_02_103 https://git.fedorahosted.org/git/lvm2.git /usr/local/lvm2
@@ -103,6 +112,15 @@ ENV GO_LINT_COMMIT 32a87160691b3c96046c0c678fe57c5bef761456
 RUN git clone https://github.com/golang/lint.git /go/src/github.com/golang/lint \
 	&& (cd /go/src/github.com/golang/lint && git checkout -q $GO_LINT_COMMIT) \
 	&& go install -v github.com/golang/lint/golint
+
+# Configure the container for OSX cross compilation
+ENV OSX_SDK MacOSX10.11.sdk
+RUN set -x \
+	&& export OSXCROSS_PATH="/osxcross" \
+	&& git clone --depth 1 https://github.com/tpoechtrager/osxcross.git $OSXCROSS_PATH \
+	&& curl -sSL https://s3.dockerproject.org/darwin/${OSX_SDK}.tar.xz -o "${OSXCROSS_PATH}/tarballs/${OSX_SDK}.tar.xz" \
+	&& UNATTENDED=yes OSX_VERSION_MIN=10.6 ${OSXCROSS_PATH}/build.sh
+ENV PATH /osxcross/target/bin:$PATH
 
 # Install registry
 ENV REGISTRY_COMMIT ec87e9b6971d831f0eff752ddb54fb64693e51cd
