@@ -13,10 +13,12 @@ import (
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/digest"
 	"github.com/docker/distribution/manifest/schema1"
+	"github.com/docker/distribution/registry/api/errcode"
 	"github.com/docker/distribution/registry/client"
 	"github.com/docker/distribution/registry/client/auth"
 	"github.com/docker/distribution/registry/client/transport"
 	"github.com/docker/docker/cliconfig"
+	"github.com/docker/docker/distribution/xfer"
 	"github.com/docker/docker/registry"
 	"golang.org/x/net/context"
 )
@@ -59,7 +61,7 @@ func NewV2Repository(repoInfo *registry.RepositoryInfo, endpoint registry.APIEnd
 	authTransport := transport.NewTransport(base, modifiers...)
 	pingClient := &http.Client{
 		Transport: authTransport,
-		Timeout:   5 * time.Second,
+		Timeout:   15 * time.Second,
 	}
 	endpointStr := strings.TrimRight(endpoint.URL, "/") + "/v2/"
 	req, err := http.NewRequest("GET", endpointStr, nil)
@@ -131,4 +133,24 @@ func (th *existingTokenHandler) Scheme() string {
 func (th *existingTokenHandler) AuthorizeRequest(req *http.Request, params map[string]string) error {
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", th.token))
 	return nil
+}
+
+// retryOnError wraps the error in xfer.DoNotRetry if we should not retry the
+// operation after this error.
+func retryOnError(err error) error {
+	switch v := err.(type) {
+	case errcode.Errors:
+		return retryOnError(v[0])
+	case errcode.Error:
+		switch v.Code {
+		case errcode.ErrorCodeUnauthorized, errcode.ErrorCodeUnsupported, errcode.ErrorCodeDenied:
+			return xfer.DoNotRetry{Err: err}
+		}
+
+	}
+	// let's be nice and fallback if the error is a completely
+	// unexpected one.
+	// If new errors have to be handled in some way, please
+	// add them to the switch above.
+	return err
 }

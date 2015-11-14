@@ -13,7 +13,7 @@ import (
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/httputils"
-	"github.com/docker/docker/pkg/progressreader"
+	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/runconfig"
 )
@@ -47,16 +47,8 @@ func (daemon *Daemon) ImportImage(src string, newRef reference.Named, msg string
 		if err != nil {
 			return err
 		}
-		progressReader := progressreader.New(progressreader.Config{
-			In:        resp.Body,
-			Out:       outStream,
-			Formatter: sf,
-			Size:      resp.ContentLength,
-			NewLines:  true,
-			ID:        "",
-			Action:    "Importing",
-		})
-		archive = progressReader
+		progressOutput := sf.NewProgressOutput(outStream, true)
+		archive = progress.NewProgressReader(resp.Body, progressOutput, resp.ContentLength, "", "Importing")
 	}
 
 	defer archive.Close()

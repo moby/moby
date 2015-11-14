@@ -17,7 +17,6 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/reference"
@@ -270,7 +269,6 @@ func (r *Session) GetRemoteImageJSON(imgID, registry string) ([]byte, int64, err
 // GetRemoteImageLayer retrieves an image layer from the registry
 func (r *Session) GetRemoteImageLayer(imgID, registry string, imgSize int64) (io.ReadCloser, error) {
 	var (
-		retries    = 5
 		statusCode = 0
 		res        *http.Response
 		err        error
@@ -281,14 +279,9 @@ func (r *Session) GetRemoteImageLayer(imgID, registry string, imgSize int64) (io
 	if err != nil {
 		return nil, fmt.Errorf("Error while getting from the server: %v", err)
 	}
-	// TODO(tiborvass): why are we doing retries at this level?
-	// These retries should be generic to both v1 and v2
-	for i := 1; i <= retries; i++ {
-		statusCode = 0
-		res, err = r.client.Do(req)
-		if err == nil {
-			break
-		}
+	statusCode = 0
+	res, err = r.client.Do(req)
+	if err != nil {
 		logrus.Debugf("Error contacting registry %s: %v", registry, err)
 		if res != nil {
 			if res.Body != nil {
@@ -296,11 +289,8 @@ func (r *Session) GetRemoteImageLayer(imgID, registry string, imgSize int64) (io
 			}
 			statusCode = res.StatusCode
 		}
-		if i == retries {
-			return nil, fmt.Errorf("Server error: Status %d while fetching image layer (%s)",
-				statusCode, imgID)
-		}
-		time.Sleep(time.Duration(i) * 5 * time.Second)
+		return nil, fmt.Errorf("Server error: Status %d while fetching image layer (%s)",
+			statusCode, imgID)
 	}
 
 	if res.StatusCode != 200 {

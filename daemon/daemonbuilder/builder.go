@@ -21,7 +21,6 @@ import (
 	"github.com/docker/docker/pkg/httputils"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/ioutils"
-	"github.com/docker/docker/pkg/progressreader"
 	"github.com/docker/docker/pkg/urlutil"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/runconfig"
@@ -239,7 +238,7 @@ func (d Docker) Start(c *container.Container) error {
 // DetectContextFromRemoteURL returns a context and in certain cases the name of the dockerfile to be used
 // irrespective of user input.
 // progressReader is only used if remoteURL is actually a URL (not empty, and not a Git endpoint).
-func DetectContextFromRemoteURL(r io.ReadCloser, remoteURL string, progressReader *progressreader.Config) (context builder.ModifiableContext, dockerfileName string, err error) {
+func DetectContextFromRemoteURL(r io.ReadCloser, remoteURL string, createProgressReader func(in io.ReadCloser) io.ReadCloser) (context builder.ModifiableContext, dockerfileName string, err error) {
 	switch {
 	case remoteURL == "":
 		context, err = builder.MakeTarSumContext(r)
@@ -262,8 +261,7 @@ func DetectContextFromRemoteURL(r io.ReadCloser, remoteURL string, progressReade
 			},
 			// fallback handler (tar context)
 			"": func(rc io.ReadCloser) (io.ReadCloser, error) {
-				progressReader.In = rc
-				return progressReader, nil
+				return createProgressReader(rc), nil
 			},
 		})
 	default:

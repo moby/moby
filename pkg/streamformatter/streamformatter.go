@@ -7,6 +7,7 @@ import (
 	"io"
 
 	"github.com/docker/docker/pkg/jsonmessage"
+	"github.com/docker/docker/pkg/progress"
 )
 
 // StreamFormatter formats a stream, optionally using JSON.
@@ -90,6 +91,44 @@ func (sf *StreamFormatter) FormatProgress(id, action string, progress *jsonmessa
 		endl += "\n"
 	}
 	return []byte(action + " " + progress.String() + endl)
+}
+
+// NewProgressOutput returns a progress.Output object that can be passed to
+// progress.NewProgressReader.
+func (sf *StreamFormatter) NewProgressOutput(out io.Writer, newLines bool) progress.Output {
+	return &progressOutput{
+		sf:       sf,
+		out:      out,
+		newLines: newLines,
+	}
+}
+
+type progressOutput struct {
+	sf       *StreamFormatter
+	out      io.Writer
+	newLines bool
+}
+
+// WriteProgress formats progress information from a ProgressReader.
+func (out *progressOutput) WriteProgress(prog progress.Progress) error {
+	var formatted []byte
+	if prog.Message != "" {
+		formatted = out.sf.FormatStatus(prog.ID, prog.Message)
+	} else {
+		jsonProgress := jsonmessage.JSONProgress{Current: prog.Current, Total: prog.Total}
+		formatted = out.sf.FormatProgress(prog.ID, prog.Action, &jsonProgress)
+	}
+	_, err := out.out.Write(formatted)
+	if err != nil {
+		return err
+	}
+
+	if out.newLines && prog.LastUpdate {
+		_, err = out.out.Write(out.sf.FormatStatus("", ""))
+		return err
+	}
+
+	return nil
 }
 
 // StdoutFormatter is a streamFormatter that writes to the standard output.

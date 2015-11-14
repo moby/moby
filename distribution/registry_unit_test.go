@@ -11,9 +11,9 @@ import (
 	"github.com/docker/distribution/reference"
 	"github.com/docker/distribution/registry/client/auth"
 	"github.com/docker/docker/cliconfig"
-	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/utils"
+	"golang.org/x/net/context"
 )
 
 func TestTokenPassThru(t *testing.T) {
@@ -72,8 +72,7 @@ func TestTokenPassThru(t *testing.T) {
 		MetaHeaders: http.Header{},
 		AuthConfig:  authConfig,
 	}
-	sf := streamformatter.NewJSONStreamFormatter()
-	puller, err := newPuller(endpoint, repoInfo, imagePullConfig, sf)
+	puller, err := newPuller(endpoint, repoInfo, imagePullConfig)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -86,7 +85,7 @@ func TestTokenPassThru(t *testing.T) {
 	logrus.Debug("About to pull")
 	// We expect it to fail, since we haven't mock'd the full registry exchange in our handler above
 	tag, _ := reference.WithTag(n, "tag_goes_here")
-	_ = p.pullV2Repository(tag)
+	_ = p.pullV2Repository(context.Background(), tag)
 
 	if !gotToken {
 		t.Fatal("Failed to receive registry token")
