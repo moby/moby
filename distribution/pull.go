@@ -2,7 +2,7 @@ package distribution
 
 import (
 	"fmt"
-	"io"
+	"os"
 	"strings"
 
 	"github.com/Sirupsen/logrus"
@@ -10,11 +10,12 @@ import (
 	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/daemon/events"
 	"github.com/docker/docker/distribution/metadata"
+	"github.com/docker/docker/distribution/xfer"
 	"github.com/docker/docker/image"
-	"github.com/docker/docker/layer"
-	"github.com/docker/docker/pkg/streamformatter"
+	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/tag"
+	"golang.org/x/net/context"
 )
 
 // ImagePullConfig stores pull configuration.
@@ -25,9 +26,9 @@ type ImagePullConfig struct {
 	// AuthConfig holds authentication credentials for authenticating with
 	// the registry.
 	AuthConfig *cliconfig.AuthConfig
-	// OutStream is the output writer for showing the status of the pull
+	// ProgressOutput is the interface for showing the status of the pull
 	// operation.
-	OutStream io.Writer
+	ProgressOutput progress.Output
 	// RegistryService is the registry service to use for TLS configuration
 	// and endpoint lookup.
 	RegistryService *registry.Service
@@ -36,14 +37,12 @@ type ImagePullConfig struct {
 	// MetadataStore is the storage backend for distribution-specific
 	// metadata.
 	MetadataStore metadata.Store
-	// LayerStore manages layers.
-	LayerStore layer.Store
 	// ImageStore manages images.
 	ImageStore image.Store
 	// TagStore manages tags.
 	TagStore tag.Store
-	// Pool manages concurrent pulls.
-	Pool *Pool
+	// DownloadManager manages concurrent pulls.
+	DownloadManager *xfer.LayerDownloadManager
 }
 
 // Puller is an interface that abstracts pulling for different API versions.
@@ -51,7 +50,7 @@ type Puller interface {
 	// Pull tries to pull the image referenced by `tag`
 	// Pull returns an error if any, as well as a boolean that determines whether to retry Pull on the next configured endpoint.
 	//
-	Pull(ref reference.Named) (fallback bool, err error)
+	Pull(ctx context.Context, ref reference.Named) (fallback bool, err error)
 }
 
 // newPuller returns a Puller interface that will pull from either a v1 or v2
@@ -59,14 +58,13 @@ type Puller interface {
 // whether a v1 or v2 puller will be created. The other parameters are passed
 // through to the underlying puller implementation for use during the actual
 // pull operation.
-func newPuller(endpoint registry.APIEndpoint, repoInfo *registry.RepositoryInfo, imagePullConfig *ImagePullConfig, sf *streamformatter.StreamFormatter) (Puller, error) {
+func newPuller(endpoint registry.APIEndpoint, repoInfo *registry.RepositoryInfo, imagePullConfig *ImagePullConfig) (Puller, error) {
 	switch endpoint.Version {
 	case registry.APIVersion2:
 		return &v2Puller{
 			blobSumService: metadata.NewBlobSumService(imagePullConfig.MetadataStore),
 			endpoint:       endpoint,
 			config:         imagePullConfig,
-			sf:             sf,
 			repoInfo:       repoInfo,
 		}, nil
 	case registry.APIVersion1:
@@ -74,7 +72,6 @@ func newPuller(endpoint registry.APIEndpoint, repoInfo *registry.RepositoryInfo,
 			v1IDService: metadata.NewV1IDService(imagePullConfig.MetadataStore),
 			endpoint:    endpoint,
 			config:      imagePullConfig,
-			sf:          sf,
 			repoInfo:    repoInfo,
 		}, nil
 	}
@@ -83,9 +80,7 @@ func newPuller(endpoint registry.APIEndpoint, repoInfo *registry.RepositoryInfo,
 
 // Pull initiates a pull operation. image is the repository name to pull, and
 // tag may be either empty, or indicate a specific tag to pull.
-func Pull(ref reference.Named, imagePullConfig *ImagePullConfig) error {
-	var sf = streamformatter.NewJSONStreamFormatter()
-
+func Pull(ctx context.Context, ref reference.Named, imagePullConfig *ImagePullConfig) error {
 	// Resolve the Repository name from fqn to RepositoryInfo
 	repoInfo, err := imagePullConfig.RegistryService.ResolveRepository(ref)
 	if err != nil {
@@ -120,12 +115,19 @@ func Pull(ref reference.Named, imagePullConfig *ImagePullConfig) error {
 	for _, endpoint := range endpoints {
 		logrus.Debugf("Trying to pull %s from %s %s", repoInfo.LocalName, endpoint.URL, endpoint.Version)
 
-		puller, err := newPuller(endpoint, repoInfo, imagePullConfig, sf)
+		puller, err := newPuller(endpoint, repoInfo, imagePullConfig)
 		if err != nil {
 			errors = append(errors, err.Error())
 			continue
 		}
-		if fallback, err := puller.Pull(ref); err != nil {
+		if fallback, err := puller.Pull(ctx, ref); err != nil {
+			// Was this pull cancelled? If so, don't try to fall
+			// back.
+			select {
+			case <-ctx.Done():
+				fallback = false
+			default:
+			}
 			if fallback {
 				if _, ok := err.(registry.ErrNoSupport); !ok {
 					// Because we found an error that's not ErrNoSupport, discard all subsequent ErrNoSupport errors.
@@ -165,11 +167,11 @@ func Pull(ref reference.Named, imagePullConfig *ImagePullConfig) error {
 // status message indicates that a newer image was downloaded. Otherwise, it
 // indicates that the image is up to date. requestedTag is the tag the message
 // will refer to.
-func writeStatus(requestedTag string, out io.Writer, sf *streamformatter.StreamFormatter, layersDownloaded bool) {
+func writeStatus(requestedTag string, out progress.Output, layersDownloaded bool) {
 	if layersDownloaded {
-		out.Write(sf.FormatStatus("", "Status: Downloaded newer image for %s", requestedTag))
+		progress.Message(out, "", "Status: Downloaded newer image for "+requestedTag)
 	} else {
-		out.Write(sf.FormatStatus("", "Status: Image is up to date for %s", requestedTag))
+		progress.Message(out, "", "Status: Image is up to date for "+requestedTag)
 	}
 }
 
@@ -182,4 +184,17 @@ func validateRepoName(name string) error {
 		return fmt.Errorf("'scratch' is a reserved name")
 	}
 	return nil
+}
+
+// tmpFileClose creates a closer function for a temporary file that closes the file
+// and also deletes it.
+func tmpFileCloser(tmpFile *os.File) func() error {
+	return func() error {
+		tmpFile.Close()
+		if err := os.RemoveAll(tmpFile.Name()); err != nil {
+			logrus.Errorf("Failed to remove temp file: %s", tmpFile.Name())
+		}
+
+		return nil
+	}
 }
