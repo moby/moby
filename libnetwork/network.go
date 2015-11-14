@@ -671,6 +671,12 @@ func (n *network) CreateEndpoint(name string, options ...EndpointOption) (Endpoi
 
 	ep.processOptions(options...)
 
+	if opt, ok := ep.generic[netlabel.MacAddress]; ok {
+		if mac, ok := opt.(net.HardwareAddr); ok {
+			ep.iface.mac = mac
+		}
+	}
+
 	if err = ep.assignAddress(true, !n.postIPv6); err != nil {
 		return nil, err
 	}
