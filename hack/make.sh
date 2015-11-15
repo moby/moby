@@ -97,7 +97,10 @@ fi
 if [ "$DOCKER_EXPERIMENTAL" ] || [ "$DOCKER_REMAP_ROOT" ]; then
 	echo >&2 '# WARNING! DOCKER_EXPERIMENTAL is set: building experimental features'
 	echo >&2
-	DOCKER_BUILDTAGS+=" experimental pkcs11"
+	DOCKER_BUILDTAGS+=" experimental"
+	if [ "$PKCS11" ]; then
+		DOCKER_BUILDTAGS+=" pkcs11"
+	fi
 fi
 
 if [ -z "$DOCKER_CLIENTONLY" ]; then
