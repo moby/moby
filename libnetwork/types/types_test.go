@@ -180,13 +180,13 @@ func TestCompareIPMask(t *testing.T) {
 			ms:   0,
 		},
 		{ // ip and mask as v6
-			ip:   net.ParseIP("2005:2004:2002:2001:FFFF:ABCD:EEAB:00CD"),
+			ip:   net.ParseIP("2001:DB8:2002:2001:FFFF:ABCD:EEAB:00CD"),
 			mask: []byte{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0, 0, 0},
 			is:   0,
 			ms:   0,
 		},
 		{
-			ip:    net.ParseIP("2005:2004:2002:2001:FFFF:ABCD:EEAB:00CD"),
+			ip:    net.ParseIP("2001:DB8:2002:2001:FFFF:ABCD:EEAB:00CD"),
 			mask:  []byte{0xff, 0xff, 0xff, 0},
 			isErr: true,
 		},
@@ -244,7 +244,7 @@ func TestUtilGetHostPortionIP(t *testing.T) {
 			host: net.IPv4(0, 0, 0, 4)[12:],
 		},
 		{ // ip and mask as v6
-			ip:   net.ParseIP("2005:2004:2002:2001:FFFF:ABCD:EEAB:00CD"),
+			ip:   net.ParseIP("2001:DB8:2002:2001:FFFF:ABCD:EEAB:00CD"),
 			mask: []byte{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0, 0, 0},
 			host: net.ParseIP("0::AB:00CD"),
 		},
@@ -261,7 +261,7 @@ func TestUtilGetHostPortionIP(t *testing.T) {
 	}
 
 	// ip as v6 and mask as v4 are not compatible
-	if _, err := GetHostPartIP(net.ParseIP("2005:2004:2002:2001:FFFF:ABCD:EEAB:00CD"), []byte{0xff, 0xff, 0xff, 0}); err == nil {
+	if _, err := GetHostPartIP(net.ParseIP("2001:DB8:2002:2001:FFFF:ABCD:EEAB:00CD"), []byte{0xff, 0xff, 0xff, 0}); err == nil {
 		t.Fatalf("Unexpected success")
 	}
 	// ip as v4 and non conventional mask
@@ -326,9 +326,9 @@ func TestUtilGetBroadcastIP(t *testing.T) {
 			bcast: net.IPv4(172, 28, 255, 255)[12:],
 		},
 		{ // ip and mask as v6
-			ip:    net.ParseIP("2005:2004:2002:2001:FFFF:ABCD:EEAB:00CD"),
+			ip:    net.ParseIP("2001:DB8:2002:2001:FFFF:ABCD:EEAB:00CD"),
 			mask:  []byte{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0, 0, 0},
-			bcast: net.ParseIP("2005:2004:2002:2001:FFFF:ABCD:EEFF:FFFF"),
+			bcast: net.ParseIP("2001:DB8:2002:2001:FFFF:ABCD:EEFF:FFFF"),
 		},
 	}
 
@@ -343,7 +343,7 @@ func TestUtilGetBroadcastIP(t *testing.T) {
 	}
 
 	// ip as v6 and mask as v4 are not compatible
-	if _, err := GetBroadcastIP(net.ParseIP("2005:2004:2002:2001:FFFF:ABCD:EEAB:00CD"), []byte{0xff, 0xff, 0xff, 0}); err == nil {
+	if _, err := GetBroadcastIP(net.ParseIP("2001:DB8:2002:2001:FFFF:ABCD:EEAB:00CD"), []byte{0xff, 0xff, 0xff, 0}); err == nil {
 		t.Fatalf("Unexpected success")
 	}
 	// ip as v4 and non conventional mask
