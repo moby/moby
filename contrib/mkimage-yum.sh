@@ -17,12 +17,13 @@ EOOPTS
 }
 
 # option defaults
+yum_config=/etc/yum.conf
 
-if [ -f /etc/dnf/dnf.conf ] ; then
+if [ -f /etc/dnf/dnf.conf ] && command -v dnf &> /dev/null; then
 	yum_config=/etc/dnf/dnf.conf
-else
-	yum_config=/etc/yum.conf
+	alias yum=dnf
 fi 
+
 while getopts ":y:h" opt; do
     case $opt in
         y)
@@ -68,15 +69,9 @@ if [ -d /etc/yum/vars ]; then
 	cp -a /etc/yum/vars "$target"/etc/yum/
 fi
 
-if [ -f /etc/dnf/dnf.conf ] ; then 
-	dnf -c "$yum_config" --installroot="$target" --releasever=/ --setopt=tsflags=nodocs \
-		--setopt=group_package_types=mandatory -y groupinstall Core
-	dnf -c "$yum_config" --installroot="$target" -y clean all
-else
-	yum -c "$yum_config" --installroot="$target" --releasever=/ --setopt=tsflags=nodocs \
+yum -c "$yum_config" --installroot="$target" --releasever=/ --setopt=tsflags=nodocs \
     		--setopt=group_package_types=mandatory -y groupinstall Core
-	yum -c "$yum_config" --installroot="$target" -y clean all
-fi 
+yum -c "$yum_config" --installroot="$target" -y clean all
 
 cat > "$target"/etc/sysconfig/network <<EOF
 NETWORKING=yes
