@@ -134,7 +134,7 @@ makes the ownership of the Unix socket read/writable by the `docker` group.
 
 >**Warning**: The `docker` group is equivalent to the `root` user; For details
 >on how this impacts security in your system, see [*Docker Daemon Attack
->Surface*](../articles/security.md#docker-daemon-attack-surface) for details.
+>Surface*](../security/security.md#docker-daemon-attack-surface) for details.
 
 To create the `docker` group and add your user:
 

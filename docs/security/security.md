@@ -1,11 +1,12 @@
 <!--[metadata]>
 +++
+aliases = ["/engine/articles/security/"]
 title = "Docker security"
 description = "Review of the Docker Daemon attack surface"
 keywords = ["Docker, Docker documentation,  security"]
 [menu.main]
-parent = "smn_administrate"
-weight = 2
+parent = "smn_secure_docker"
+weight =-99
 +++
 <![end-metadata]-->
 
@@ -277,8 +278,9 @@ containerization systems, these are simply kernels features that may
 be implemented in Docker as well. We welcome users to submit issues,
 pull requests, and communicate via the mailing list.
 
-References:
+## Related Information
 
-* [Docker Containers: How Secure Are They? (2013)](
-http://blog.docker.com/2013/08/containers-docker-how-secure-are-they/).
-* [On the Security of Containers (2014)](https://medium.com/@ewindisch/on-the-security-of-containers-2c60ffe25a9e).
+* [Use trusted images](../security/trust/index.md)
+* [Seccomp security profiles for Docker](../security/seccomp.md)
+* [AppArmor security profiles for Docker](../security/apparmor.md)
+* [On the Security of Containers (2014)](https://medium.com/@ewindisch/on-the-security-of-containers-2c60ffe25a9e)
