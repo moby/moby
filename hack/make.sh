@@ -132,11 +132,7 @@ if [ -z "$DOCKER_DEBUG" ]; then
 	LDFLAGS='-w'
 fi
 
-LDFLAGS_STATIC='-linkmode external'
-# Cgo -H windows is incompatible with -linkmode external.
-if [ "$(go env GOOS)" == 'windows' ]; then
-	LDFLAGS_STATIC=''
-fi
+LDFLAGS_STATIC=''
 EXTLDFLAGS_STATIC='-static'
 # ORIG_BUILDFLAGS is necessary for the cross target which cannot always build
 # with options like -race.
