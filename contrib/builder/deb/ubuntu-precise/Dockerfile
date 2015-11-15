@@ -4,11 +4,12 @@
 
 FROM ubuntu:precise
 
-RUN apt-get update && apt-get install -y apparmor bash-completion  build-essential curl ca-certificates debhelper dh-apparmor  git libapparmor-dev  libltdl-dev libsqlite3-dev --no-install-recommends && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y apparmor bash-completion  build-essential curl ca-certificates debhelper dh-apparmor  git libapparmor-dev  libltdl-dev libsqlite3-dev  --no-install-recommends && rm -rf /var/lib/apt/lists/*
 
 ENV GO_VERSION 1.5.1
 RUN curl -fSL "https://storage.googleapis.com/golang/go${GO_VERSION}.linux-amd64.tar.gz" | tar xzC /usr/local
 ENV PATH $PATH:/usr/local/go/bin
 
 ENV AUTO_GOPATH 1
-ENV DOCKER_BUILDTAGS apparmor selinux exclude_graphdriver_devicemapper exclude_graphdriver_btrfs
+
+ENV DOCKER_BUILDTAGS apparmor exclude_graphdriver_btrfs exclude_graphdriver_devicemapper selinux

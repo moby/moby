@@ -38,6 +38,8 @@ for version in "${versions[@]}"; do
 
 	echo >> "$version/Dockerfile"
 
+	extraBuildTags=
+
 	case "$from" in
 		centos:*)
 			# get "Development Tools" packages dependencies
@@ -65,6 +67,7 @@ for version in "${versions[@]}"; do
 		btrfs-progs-devel # for "btrfs/ioctl.h" (and "version.h" if possible)
 		device-mapper-devel # for "libdevmapper.h"
 		glibc-static
+		libseccomp-devel # for "seccomp.h" & "libseccomp.so"
 		libselinux-devel # for "libselinux.so"
 		libtool-ltdl-devel # for pkcs11 "ltdl.h"
 		selinux-policy
@@ -77,6 +80,17 @@ for version in "${versions[@]}"; do
 		oraclelinux:7)
 			# Enable the optional repository
 			packages=( --enablerepo=ol7_optional_latest "${packages[*]}" )
+			;;
+	esac
+
+	# opensuse & oraclelinx:6 do not have the right libseccomp libs
+	# centos, fedora, & oraclelinux:7 do not have a libseccomp.a for compiling static dockerinit
+	case "$from" in
+		centos:*|fedora:*|opensuse:*|oraclelinux:*)
+			packages=( "${packages[@]/libseccomp-devel}" )
+			;;
+		*)
+			extraBuildTags+=' seccomp'
 			;;
 	esac
 
@@ -101,5 +115,10 @@ for version in "${versions[@]}"; do
 
 	echo 'ENV AUTO_GOPATH 1' >> "$version/Dockerfile"
 
-	echo 'ENV DOCKER_BUILDTAGS selinux' >> "$version/Dockerfile"
+	echo >> "$version/Dockerfile"
+
+	# print build tags in alphabetical order
+	buildTags=$( echo "selinux $extraBuildTags" | xargs -n1 | sort -n | tr '\n' ' ' | sed -e 's/[[:space:]]*$//' )
+
+	echo "ENV DOCKER_BUILDTAGS $buildTags" >> "$version/Dockerfile"
 done
