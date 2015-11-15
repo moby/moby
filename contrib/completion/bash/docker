@@ -1370,6 +1370,7 @@ _docker_run() {
 		--ulimit
 		--user -u
 		--uts
+		--volume-driver
 		--volumes-from
 		--volume -v
 		--workdir -w
@@ -1512,6 +1513,10 @@ _docker_run() {
 					__docker_nospace
 					;;
 			esac
+			return
+			;;
+		--volume-driver)
+			COMPREPLY=( $( compgen -W "local" -- "$cur" ) )
 			return
 			;;
 		--volumes-from)
