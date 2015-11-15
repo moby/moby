@@ -236,6 +236,7 @@ func (daemon *Daemon) populateCommand(c *container.Container, env []string) erro
 		Pid:                pid,
 		ReadonlyRootfs:     c.HostConfig.ReadonlyRootfs,
 		RemappedRoot:       remappedRoot,
+		SeccompProfile:     c.SeccompProfile,
 		UIDMapping:         uidMap,
 		UTS:                uts,
 	}

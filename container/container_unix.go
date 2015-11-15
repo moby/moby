@@ -51,6 +51,7 @@ type Container struct {
 	ShmPath         string
 	MqueuePath      string
 	ResolvConfPath  string
+	SeccompProfile  string
 }
 
 // CreateDaemonEnvironment returns the list of all environment variables given the list of

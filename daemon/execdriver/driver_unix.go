@@ -118,6 +118,7 @@ type Command struct {
 	Pid                *Pid              `json:"pid"`
 	ReadonlyRootfs     bool              `json:"readonly_rootfs"`
 	RemappedRoot       *User             `json:"remap_root"`
+	SeccompProfile     string            `json:"seccomp_profile"`
 	UIDMapping         []idtools.IDMap   `json:"uidmapping"`
 	UTS                *UTS              `json:"uts"`
 }

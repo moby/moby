@@ -74,6 +74,8 @@ func parseSecurityOpt(container *container.Container, config *runconfig.HostConf
 			labelOpts = append(labelOpts, con[1])
 		case "apparmor":
 			container.AppArmorProfile = con[1]
+		case "seccomp":
+			container.SeccompProfile = con[1]
 		default:
 			return fmt.Errorf("Invalid --security-opt: %q", opt)
 		}
