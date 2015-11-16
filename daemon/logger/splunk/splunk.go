@@ -16,6 +16,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/logger"
+	"github.com/docker/docker/daemon/logger/loggerutils"
 	"github.com/docker/docker/pkg/urlutil"
 )
 
@@ -29,6 +30,9 @@ const (
 	splunkCAPathKey             = "splunk-capath"
 	splunkCANameKey             = "splunk-caname"
 	splunkInsecureSkipVerifyKey = "splunk-insecureskipverify"
+	envKey                      = "env"
+	labelsKey                   = "labels"
+	tagKey                      = "tag"
 )
 
 type splunkLogger struct {
@@ -50,9 +54,10 @@ type splunkMessage struct {
 }
 
 type splunkMessageEvent struct {
-	Line        string `json:"line"`
-	ContainerID string `json:"containerId"`
-	Source      string `json:"source"`
+	Line   string            `json:"line"`
+	Source string            `json:"source"`
+	Tag    string            `json:"tag,omitempty"`
+	Attrs  map[string]string `json:"attrs,omitempty"`
 }
 
 func init() {
@@ -126,6 +131,13 @@ func New(ctx logger.Context) (logger.Logger, error) {
 	nullMessage.SourceType = ctx.Config[splunkSourceTypeKey]
 	nullMessage.Index = ctx.Config[splunkIndexKey]
 
+	tag, err := loggerutils.ParseLogTag(ctx, "{{.ID}}")
+	if err != nil {
+		return nil, err
+	}
+	nullMessage.Event.Tag = tag
+	nullMessage.Event.Attrs = ctx.ExtraAttributes(nil)
+
 	logger := &splunkLogger{
 		client:      client,
 		transport:   transport,
@@ -146,11 +158,8 @@ func (l *splunkLogger) Log(msg *logger.Message) error {
 	// Construct message as a copy of nullMessage
 	message := *l.nullMessage
 	message.Time = fmt.Sprintf("%f", float64(msg.Timestamp.UnixNano())/1000000000)
-	message.Event = splunkMessageEvent{
-		Line:        string(msg.Line),
-		ContainerID: msg.ContainerID,
-		Source:      msg.Source,
-	}
+	message.Event.Line = string(msg.Line)
+	message.Event.Source = msg.Source
 
 	jsonEvent, err := json.Marshal(&message)
 	if err != nil {
@@ -201,6 +210,9 @@ func ValidateLogOpt(cfg map[string]string) error {
 		case splunkCAPathKey:
 		case splunkCANameKey:
 		case splunkInsecureSkipVerifyKey:
+		case envKey:
+		case labelsKey:
+		case tagKey:
 		default:
 			return fmt.Errorf("unknown log opt '%s' for %s log driver", key, driverName)
 		}
