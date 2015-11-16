@@ -200,30 +200,30 @@ Let's create a new named container with a volume to share.
 While this container doesn't run an application, it reuses the `training/postgres`
 image so that all containers are using layers in common, saving disk space.
 
-    $ docker create -v /dbdata --name dbdata training/postgres /bin/true
+    $ docker create -v /dbdata --name dbstore training/postgres /bin/true
 
 You can then use the `--volumes-from` flag to mount the `/dbdata` volume in another container.
 
-    $ docker run -d --volumes-from dbdata --name db1 training/postgres
+    $ docker run -d --volumes-from dbstore --name db1 training/postgres
 
 And another:
 
-    $ docker run -d --volumes-from dbdata --name db2 training/postgres
+    $ docker run -d --volumes-from dbstore --name db2 training/postgres
 
 In this case, if the `postgres` image contained a directory called `/dbdata`
-then mounting the volumes from the `dbdata` container hides the
+then mounting the volumes from the `dbstore` container hides the
 `/dbdata` files from the `postgres` image. The result is only the files
-from the `dbdata` container are visible.
+from the `dbstore` container are visible.
 
 You can use multiple `--volumes-from` parameters to bring together multiple data
 volumes from multiple containers.
 
 You can also extend the chain by mounting the volume that came from the
-`dbdata` container in yet another container via the `db1` or `db2` containers.
+`dbstore` container in yet another container via the `db1` or `db2` containers.
 
     $ docker run -d --name db3 --volumes-from db1 training/postgres
 
-If you remove containers that mount volumes, including the initial `dbdata`
+If you remove containers that mount volumes, including the initial `dbstore`
 container, or the subsequent containers `db1` and `db2`, the volumes will not
 be deleted.  To delete the volume from disk, you must explicitly call
 `docker rm -v` against the last container with a reference to the volume. This
@@ -244,10 +244,10 @@ backups, restores or migrations.  We do this by using the
 `--volumes-from` flag to create a new container that mounts that volume,
 like so:
 
-    $ docker run --volumes-from dbdata -v $(pwd):/backup ubuntu tar cvf /backup/backup.tar /dbdata
+    $ docker run --volumes-from dbstore -v $(pwd):/backup ubuntu tar cvf /backup/backup.tar /dbdata
 
 Here we've launched a new container and mounted the volume from the
-`dbdata` container. We've then mounted a local host directory as
+`dbstore` container. We've then mounted a local host directory as
 `/backup`. Finally, we've passed a command that uses `tar` to backup the
 contents of the `dbdata` volume to a `backup.tar` file inside our
 `/backup` directory. When the command completes and the container stops
@@ -256,11 +256,11 @@ we'll be left with a backup of our `dbdata` volume.
 You could then restore it to the same container, or another that you've made
 elsewhere. Create a new container.
 
-    $ docker run -v /dbdata --name dbdata2 ubuntu /bin/bash
+    $ docker run -v /dbdata --name dbstore2 ubuntu /bin/bash
 
 Then un-tar the backup file in the new container's data volume.
 
-    $ docker run --volumes-from dbdata2 -v $(pwd):/backup ubuntu cd /dbdata && tar xvf /backup/backup.tar
+    $ docker run --volumes-from dbstore2 -v $(pwd):/backup ubuntu cd /dbdata && tar xvf /backup/backup.tar
 
 You can use the techniques above to automate backup, migration and
 restore testing using your preferred tools.
