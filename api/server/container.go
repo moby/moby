@@ -480,14 +480,10 @@ func (s *Server) postModifyResources(ctx context.Context, w http.ResponseWriter,
 		return err
 	}
 
-	logrus.Debugf("mod resourses called for container " + r.Form.Get("ID"))
-
 	_, hostConfig, err := runconfig.DecodeContainerConfig(r.Body)
 	if err != nil {
 		return err
 	}
-
-	logrus.Debugf("%+v\n", hostConfig)
 
 	_, err = s.daemon.ContainerModResources(r.Form.Get("ID"), hostConfig)
 	if err != nil {

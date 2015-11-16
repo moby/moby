@@ -15,20 +15,11 @@ func (daemon *Daemon) ContainerModResources(contID string, hostConfig *runconfig
 		return nil, derr.ErrorCodeEmptyConfig
 	}
 
-	logrus.Debugf("In modresourcs")
-
 	// Get the container
 	if dockerContainer, err := daemon.Get(contID); err == nil {
 		logrus.Debugf("Container found")
 
-		// libContContainer := daemon.execDriver.activeContainers[dockerContainer.ID]
-
-		logrus.Debugf("libcontainer Container found")
-
 		resources := new(execdriver.Resources)
-
-		logrus.Debugf("resources here \n%v\n", resources)
-		logrus.Debugf("hostconfig received \n%v\n", hostConfig)
 
 		if hostConfig.CPUShares != -1 {
 			resources.CPUShares = hostConfig.CPUShares
@@ -54,10 +45,6 @@ func (daemon *Daemon) ContainerModResources(contID string, hostConfig *runconfig
 		if *(hostConfig.MemorySwappiness) != -1 {
 			resources.MemorySwappiness = *hostConfig.MemorySwappiness
 		}
-
-		logrus.Debugf("Resources object:\n%v\n", resources)
-
-		logrus.Debugf("Original HostConfig object:\n%v\n", dockerContainer.hostConfig)
 
 		if err := daemon.execDriver.ModifyResources(dockerContainer.ID, resources); err != nil {
 			return nil, err

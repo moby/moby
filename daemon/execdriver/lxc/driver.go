@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	derr "github.com/docker/docker/api/errors"
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/pkg/stringutils"
 	sysinfo "github.com/docker/docker/pkg/system"
@@ -54,8 +55,9 @@ type Driver struct {
 }
 
 type activeContainer struct {
-	container *configs.Config
-	cmd       *exec.Cmd
+	container     *configs.Config
+	cmd           *exec.Cmd
+	execdriverCmd *execdriver.Command
 }
 
 // NewDriver returns a new lxc driver, called from NewDriver of execdriver
@@ -124,8 +126,22 @@ func killNetNsProc(proc *os.Process) {
 }
 
 // ModifyResources changes the cgroup resources of a currently active container
+// This would not work as lxc does not apparently support doing this. We just write
+// to the appropriate lxc config file here. How to "refersh" the cgroup fs for this
+// to take effect is something I could not figure out
 func (d *Driver) ModifyResources(contID string, r *execdriver.Resources) error {
-	// TODO
+	logrus.Debugf("In the LXC driver, modresources called for %s", contID)
+
+	if lxcActiveContainer, ok := d.activeContainers[contID]; ok {
+		var execdriverCmd = lxcActiveContainer.execdriverCmd
+		execdriverCmd.Resources = r
+		if _, err := d.generateLXCConfig(execdriverCmd); err != nil {
+			return nil
+		}
+	} else {
+		return derr.ErrorCodeNoSuchContainer.WithArgs(contID)
+	}
+
 	return nil
 }
 
@@ -159,8 +175,9 @@ func (d *Driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, hooks execd
 
 	d.Lock()
 	d.activeContainers[c.ID] = &activeContainer{
-		container: container,
-		cmd:       &c.ProcessConfig.Cmd,
+		container:     container,
+		cmd:           &c.ProcessConfig.Cmd,
+		execdriverCmd: c,
 	}
 	d.Unlock()
 
@@ -758,6 +775,9 @@ func (d *Driver) containerDir(containerID string) string {
 
 func (d *Driver) generateLXCConfig(c *execdriver.Command) (string, error) {
 	root := path.Join(d.containerDir(c.ID), "config.lxc")
+
+	logrus.Debugf("Root Path: " + root)
+	logrus.Debugf("Resources: \n%v\n", c)
 
 	fo, err := os.Create(root)
 	if err != nil {

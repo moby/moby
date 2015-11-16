@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	derr "github.com/docker/docker/api/errors"
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/pools"
@@ -134,9 +135,9 @@ func (d *Driver) ModifyResources(contID string, r *execdriver.Resources) error {
 	logrus.Debugf("In the driver, modresources called for %s", contID)
 
 	if libContainerContainer, ok := d.activeContainers[contID]; ok {
-		logrus.Debugf("libcontainer container found \n %v\n", libContainerContainer)
+		logrus.Debugf("libcontainer container found")
 		contConfig := libContainerContainer.Config()
-		logrus.Debugf("config found\n%v\n", contConfig)
+
 		cgroups := &configs.Cgroup{
 			Name:                         contConfig.Cgroups.Name,
 			Parent:                       contConfig.Cgroups.Parent,
@@ -172,16 +173,13 @@ func (d *Driver) ModifyResources(contID string, r *execdriver.Resources) error {
 		contConfig.Cgroups = cgroups
 
 		if err := libContainerContainer.Set(contConfig); err != nil {
-			logrus.Debugf("Error from libcontainer setting")
 			logrus.Debugf("cgroupconfig object:\n%v\n", contConfig.Cgroups)
 			return err
 		} else {
 			return nil
 		}
 	} else {
-		logrus.Debugf("No such container")
-		// FIXME: Better error
-		return nil
+		return derr.ErrorCodeNoSuchContainer.WithArgs(contID)
 	}
 }
 

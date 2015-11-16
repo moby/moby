@@ -117,6 +117,9 @@ lxc.cgroup.cpu.cfs_quota_us = {{.Resources.CPUQuota}}
 {{if .Resources.BlkioWeight}}
 lxc.cgroup.blkio.weight = {{.Resources.BlkioWeight}}
 {{end}}
+{{if .Resources.BlkioReadLimit}}
+lxc.cgroup.blkio.throttle.read_bps_device = {{.Resources.BlkioReadLimit}}
+{{end}}
 {{if .Resources.OomKillDisable}}
 lxc.cgroup.memory.oom_control = {{.Resources.OomKillDisable}}
 {{end}}

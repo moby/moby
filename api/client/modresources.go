@@ -21,8 +21,6 @@ func (cli *DockerCli) CmdModresources(args ...string) error {
 	cmd := Cli.Subcmd("modresources", []string{"--container CONTAINER OPTION [OPTIONS]"}, "Modify resource allocations to a running(?) container", true)
 	addTrustedFlags(cmd, true)
 
-	fmt.Println("Here")
-
 	var (
 		flid             = cmd.String([]string{"-container"}, "", "Container ID")
 		flCPUShares      = cmd.Int64([]string{"#c", "-cpu-shares"}, -1, "CPU shares (relative weight)")
@@ -36,8 +34,6 @@ func (cli *DockerCli) CmdModresources(args ...string) error {
 	)
 
 	cmd.ParseFlags(args, true)
-
-	fmt.Println("Container ID given: ", *flid)
 
 	if *flid == "" {
 		cmd.Usage()
@@ -59,10 +55,8 @@ func (cli *DockerCli) CmdModresources(args ...string) error {
 	newHostConfig.BlkioReadLimit = *flBlkioReadLimit
 	newHostConfig.MemorySwappiness = flSwappiness
 
-	fmt.Printf("newHostConfig%+v\n", newHostConfig)
-
 	if _, err := cli.call("POST", "/containers/modresources?"+containerValues.Encode(), runconfig.MergeConfigs(&newConfig, &newHostConfig), nil); err != nil {
-		return nil
+		return err
 	}
 
 	return nil
