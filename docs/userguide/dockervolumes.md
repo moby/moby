@@ -260,7 +260,7 @@ elsewhere. Create a new container.
 
 Then un-tar the backup file in the new container's data volume.
 
-    $ docker run --volumes-from dbstore2 -v $(pwd):/backup ubuntu cd /dbdata && tar xvf /backup/backup.tar
+    $ docker run --volumes-from dbstore2 -v $(pwd):/backup ubuntu bash -c "cd /dbdata && tar xvf /backup/backup.tar"
 
 You can use the techniques above to automate backup, migration and
 restore testing using your preferred tools.
