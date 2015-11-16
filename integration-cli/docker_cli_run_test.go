@@ -3429,7 +3429,7 @@ func (s *DockerSuite) TestRunContainerNetModeWithExposePort(c *check.C) {
 	}
 
 	out, _, err = dockerCmdWithError("run", "--expose", "5000", "--net=container:parent", "busybox")
-	if err == nil || !strings.Contains(out, "Conflicting options: --expose and the network mode (--expose)") {
+	if err == nil || !strings.Contains(out, "Conflicting options: --expose and the network mode (--net)") {
 		c.Fatalf("run --net=container with --expose should error out")
 	}
 }
