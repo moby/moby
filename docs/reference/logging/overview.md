@@ -25,6 +25,7 @@ container's logging driver. The following options are supported:
 | `fluentd`   | Fluentd logging driver for Docker. Writes log messages to `fluentd` (forward input).                                          |
 | `awslogs`   | Amazon CloudWatch Logs logging driver for Docker. Writes log messages to Amazon CloudWatch Logs.                              |
 | `splunk`    | Splunk logging driver for Docker. Writes log messages to `splunk` using HTTP Event Collector.                                 |
+| `socket`    | Socket logging driver for Docker. Writes log messages to TCP, UDP and Unix domain sockets.                                                |
 
 The `docker logs`command is available only for the `json-file` and `journald`
 logging drivers.
@@ -184,3 +185,19 @@ The Splunk logging driver requires the following options:
 
 For detailed information about working with this logging driver, see the [Splunk logging driver](splunk.md)
 reference documentation.
+
+## Socket options
+
+The socket logging driver requires the following options:
+
+    --log-opt destination=unix:///path/to/socket
+    --log-opt format=json
+
+The destination can take the following forms:
+
+ - unix:///path/to/socket
+ - tcp://example.com:1337
+ - udp://example.com:1337
+
+Currently the only supported format is JSON-objects written on a single line, separated by '\n'. This makes it possible for
+another application to listen on the socket, and process log entries as they arrive.
