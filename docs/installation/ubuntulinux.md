@@ -84,7 +84,7 @@ packages from the new repository:
 
 9. Purge the old repo if it exists.
 
-        $ apt-get purge lxc-docker*
+        $ apt-get purge lxc-docker
 
 10. Verify that `apt` is pulling from the right repository.
 
