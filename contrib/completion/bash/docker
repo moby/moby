@@ -158,13 +158,10 @@ __docker_networks() {
 }
 
 __docker_containers_in_network() {
-	local sed_name_command='s/^ \+"Name": "\(.*\)",\?/\1/p'
-	local sed_id_command='s/^ \+"\([0-9a-f]\{64\}\)":.*/\1/'
-	[ ${DOCKER_COMPLETION_SHOW_IMAGE_IDS:-none} != "none" ] && sed_id_command=${sed_id_command}p
-
 	local containers=$(__docker_q network inspect $1 \
 		| awk '/^        "Containers"/,/^        },/' \
-		| sed -n -e "$sed_name_command" -e "$sed_id_command")
+		| sed -n -e 's/^ \+"Name": "\(.*\)",\?/\1/p' \
+		         -e 's/^ \+"\([0-9a-f]\{64\}\)":.*/\1/p')
 	COMPREPLY=( $(compgen -W "$containers" -- "$cur") )
 }
 
