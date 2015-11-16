@@ -7,7 +7,6 @@ import (
 	"github.com/docker/docker/daemon/graphdriver"
 	// register the windows graph driver
 	_ "github.com/docker/docker/daemon/graphdriver/windows"
-	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/libnetwork"
@@ -103,36 +102,8 @@ func (daemon *Daemon) initNetworkController(config *Config) (libnetwork.NetworkC
 }
 
 // registerLinks sets up links between containers and writes the
-// configuration out for persistence.
+// configuration out for persistence. As of Windows TP4, links are not supported.
 func (daemon *Daemon) registerLinks(container *Container, hostConfig *runconfig.HostConfig) error {
-	// TODO Windows. Factored out for network modes. There may be more
-	// refactoring required here.
-
-	if hostConfig == nil || hostConfig.Links == nil {
-		return nil
-	}
-
-	for _, l := range hostConfig.Links {
-		name, alias, err := parsers.ParseLink(l)
-		if err != nil {
-			return err
-		}
-		child, err := daemon.Get(name)
-		if err != nil {
-			//An error from daemon.Get() means this name could not be found
-			return fmt.Errorf("Could not get container for %s", name)
-		}
-		if err := daemon.registerLink(container, child, alias); err != nil {
-			return err
-		}
-	}
-
-	// After we load all the links into the daemon
-	// set them to nil on the hostconfig
-	hostConfig.Links = nil
-	if err := container.writeHostConfig(); err != nil {
-		return err
-	}
 	return nil
 }
 
