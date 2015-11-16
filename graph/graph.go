@@ -97,15 +97,14 @@ func (r *retainedLayers) Exists(layerID string) bool {
 
 // A Graph is a store for versioned filesystem images and the relationship between them.
 type Graph struct {
-	root             string
-	idIndex          *truncindex.TruncIndex
-	driver           graphdriver.Driver
-	imagesMutex      sync.Mutex
-	imageMutex       locker.Locker // protect images in driver.
-	retained         *retainedLayers
-	tarSplitDisabled bool
-	uidMaps          []idtools.IDMap
-	gidMaps          []idtools.IDMap
+	root        string
+	idIndex     *truncindex.TruncIndex
+	driver      graphdriver.Driver
+	imagesMutex sync.Mutex
+	imageMutex  locker.Locker // protect images in driver.
+	retained    *retainedLayers
+	uidMaps     []idtools.IDMap
+	gidMaps     []idtools.IDMap
 
 	// access to parentRefs must be protected with imageMutex locking the image id
 	// on the key of the map (e.g. imageMutex.Lock(img.ID), parentRefs[img.ID]...)
@@ -154,11 +153,6 @@ func NewGraph(root string, driver graphdriver.Driver, uidMaps, gidMaps []idtools
 		uidMaps:    uidMaps,
 		gidMaps:    gidMaps,
 		parentRefs: make(map[string]int),
-	}
-
-	// Windows does not currently support tarsplit functionality.
-	if runtime.GOOS == "windows" {
-		graph.tarSplitDisabled = true
 	}
 
 	if err := graph.restore(); err != nil {
@@ -728,45 +722,6 @@ func (graph *Graph) storeImage(id, parent string, config []byte, layerData io.Re
 		}
 	}
 	return nil
-}
-
-func (graph *Graph) disassembleAndApplyTarLayer(id, parent string, layerData io.Reader, root string) (size int64, err error) {
-	var ar io.Reader
-
-	if graph.tarSplitDisabled {
-		ar = layerData
-	} else {
-		// this is saving the tar-split metadata
-		mf, err := os.OpenFile(filepath.Join(root, tarDataFileName), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.FileMode(0600))
-		if err != nil {
-			return 0, err
-		}
-
-		mfz := gzip.NewWriter(mf)
-		metaPacker := storage.NewJSONPacker(mfz)
-		defer mf.Close()
-		defer mfz.Close()
-
-		inflatedLayerData, err := archive.DecompressStream(layerData)
-		if err != nil {
-			return 0, err
-		}
-
-		// we're passing nil here for the file putter, because the ApplyDiff will
-		// handle the extraction of the archive
-		rdr, err := asm.NewInputTarStream(inflatedLayerData, metaPacker, nil)
-		if err != nil {
-			return 0, err
-		}
-
-		ar = archive.Reader(rdr)
-	}
-
-	if size, err = graph.driver.ApplyDiff(id, parent, ar); err != nil {
-		return 0, err
-	}
-
-	return
 }
 
 func (graph *Graph) assembleTarLayer(img *image.Image) (io.ReadCloser, error) {
