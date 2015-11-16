@@ -240,15 +240,28 @@ func validateNoSchema(reposName string) error {
 
 // ValidateRepositoryName validates a repository name
 func ValidateRepositoryName(reposName string) error {
-	var err error
-	if err = validateNoSchema(reposName); err != nil {
-		return err
+	_, _, err := loadRepositoryName(reposName, true)
+	return err
+}
+
+// loadRepositoryName returns the repo name splitted into index name
+// and remote repo name. It returns an error if the name is not valid.
+func loadRepositoryName(reposName string, checkRemoteName bool) (string, string, error) {
+	if err := validateNoSchema(reposName); err != nil {
+		return "", "", err
 	}
 	indexName, remoteName := splitReposName(reposName)
-	if _, err = ValidateIndexName(indexName); err != nil {
-		return err
+
+	var err error
+	if indexName, err = ValidateIndexName(indexName); err != nil {
+		return "", "", err
 	}
-	return validateRemoteName(remoteName)
+	if checkRemoteName {
+		if err = validateRemoteName(remoteName); err != nil {
+			return "", "", err
+		}
+	}
+	return indexName, remoteName, nil
 }
 
 // NewIndexInfo returns IndexInfo configuration from indexName
@@ -302,34 +315,22 @@ func splitReposName(reposName string) (string, string) {
 
 // NewRepositoryInfo validates and breaks down a repository name into a RepositoryInfo
 func (config *ServiceConfig) NewRepositoryInfo(reposName string, bySearch bool) (*RepositoryInfo, error) {
-	if err := validateNoSchema(reposName); err != nil {
+	indexName, remoteName, err := loadRepositoryName(reposName, !bySearch)
+	if err != nil {
 		return nil, err
-	}
-
-	indexName, remoteName := splitReposName(reposName)
-
-	if !bySearch {
-		if err := validateRemoteName(remoteName); err != nil {
-			return nil, err
-		}
 	}
 
 	repoInfo := &RepositoryInfo{
 		RemoteName: remoteName,
 	}
 
-	var err error
 	repoInfo.Index, err = config.NewIndexInfo(indexName)
 	if err != nil {
 		return nil, err
 	}
 
 	if repoInfo.Index.Official {
-		normalizedName := repoInfo.RemoteName
-		if strings.HasPrefix(normalizedName, "library/") {
-			// If pull "library/foo", it's stored locally under "foo"
-			normalizedName = strings.SplitN(normalizedName, "/", 2)[1]
-		}
+		normalizedName := normalizeLibraryRepoName(repoInfo.RemoteName)
 
 		repoInfo.LocalName = normalizedName
 		repoInfo.RemoteName = normalizedName
@@ -343,7 +344,7 @@ func (config *ServiceConfig) NewRepositoryInfo(reposName string, bySearch bool) 
 
 		repoInfo.CanonicalName = "docker.io/" + repoInfo.RemoteName
 	} else {
-		repoInfo.LocalName = repoInfo.Index.Name + "/" + repoInfo.RemoteName
+		repoInfo.LocalName = localNameFromRemote(repoInfo.Index.Name, repoInfo.RemoteName)
 		repoInfo.CanonicalName = repoInfo.LocalName
 
 	}
@@ -379,10 +380,38 @@ func ParseIndexInfo(reposName string) (*IndexInfo, error) {
 
 // NormalizeLocalName transforms a repository name into a normalize LocalName
 // Passes through the name without transformation on error (image id, etc)
+// It does not use the repository info because we don't want to load
+// the repository index and do request over the network.
 func NormalizeLocalName(name string) string {
-	repoInfo, err := ParseRepositoryInfo(name)
+	indexName, remoteName, err := loadRepositoryName(name, true)
 	if err != nil {
 		return name
 	}
-	return repoInfo.LocalName
+
+	var officialIndex bool
+	// Return any configured index info, first.
+	if index, ok := emptyServiceConfig.IndexConfigs[indexName]; ok {
+		officialIndex = index.Official
+	}
+
+	if officialIndex {
+		return normalizeLibraryRepoName(remoteName)
+	}
+	return localNameFromRemote(indexName, remoteName)
+}
+
+// normalizeLibraryRepoName removes the library prefix from
+// the repository name for official repos.
+func normalizeLibraryRepoName(name string) string {
+	if strings.HasPrefix(name, "library/") {
+		// If pull "library/foo", it's stored locally under "foo"
+		name = strings.SplitN(name, "/", 2)[1]
+	}
+	return name
+}
+
+// localNameFromRemote combines the index name and the repo remote name
+// to generate a repo local name.
+func localNameFromRemote(indexName, remoteName string) string {
+	return indexName + "/" + remoteName
 }
