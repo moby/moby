@@ -69,22 +69,18 @@ packages from the new repository:
 
     - On Ubuntu Precise 12.04 (LTS)
 
-            # Ubuntu Precise 12.04 (LTS)
             deb https://apt.dockerproject.org/repo ubuntu-precise main
 
     - On Ubuntu Trusty 14.04 (LTS)
 
-            # Ubuntu Trusty 14.04 (LTS)
             deb https://apt.dockerproject.org/repo ubuntu-trusty main
 
     - On Ubuntu Vivid 15.04
 
-            # Ubuntu Vivid 15.04
             deb https://apt.dockerproject.org/repo ubuntu-vivid main
 
     - Ubuntu Wily 15.10
 
-            # Ubuntu Wily 15.10
             deb https://apt.dockerproject.org/repo ubuntu-wily main
 
 7. Save and close the `/etc/apt/sources.list.d/docker.list` file.
