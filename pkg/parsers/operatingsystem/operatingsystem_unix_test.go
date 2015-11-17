@@ -195,3 +195,32 @@ func TestIsContainerized(t *testing.T) {
 		t.Fatal("Wrongly assuming non-containerized")
 	}
 }
+
+func TestOsReleaseFallback(t *testing.T) {
+	var backup = etcOsRelease
+	var altBackup = altOsRelease
+	dir := os.TempDir()
+	etcOsRelease = filepath.Join(dir, "etcOsRelease")
+	altOsRelease = filepath.Join(dir, "altOsRelease")
+
+	defer func() {
+		os.Remove(dir)
+		etcOsRelease = backup
+		altOsRelease = altBackup
+	}()
+	content := `NAME=Gentoo
+ID=gentoo
+PRETTY_NAME="Gentoo/Linux"
+ANSI_COLOR="1;32"
+HOME_URL="http://www.gentoo.org/"
+SUPPORT_URL="http://www.gentoo.org/main/en/support.xml"
+BUG_REPORT_URL="https://bugs.gentoo.org/"
+`
+	if err := ioutil.WriteFile(altOsRelease, []byte(content), 0600); err != nil {
+		t.Fatalf("failed to write to %s: %v", etcOsRelease, err)
+	}
+	s, err := GetOperatingSystem()
+	if err != nil || s != "Gentoo/Linux" {
+		t.Fatalf("Expected %q, got %q (err: %v)", "Gentoo/Linux", s, err)
+	}
+}
