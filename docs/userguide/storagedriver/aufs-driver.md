@@ -97,7 +97,7 @@ Storage Driver: aufs
  Dirperm1 Supported: false
 Execution Driver: native-0.2
 ...output truncated...
-````
+```
 
 The output above shows that the Docker daemon is running the AUFS storage driver on top of an existing ext4 backing filesystem.
 
