@@ -39,7 +39,7 @@ var (
 	// ErrConflictNetworkPublishPorts conflict between the pulbish options and the network mode
 	ErrConflictNetworkPublishPorts = fmt.Errorf("Conflicting options: -p, -P, --publish-all, --publish and the network mode (--net)")
 	// ErrConflictNetworkExposePorts conflict between the expose option and the network mode
-	ErrConflictNetworkExposePorts = fmt.Errorf("Conflicting options: --expose and the network mode (--expose)")
+	ErrConflictNetworkExposePorts = fmt.Errorf("Conflicting options: --expose and the network mode (--net)")
 )
 
 // Parse parses the specified args for the specified command and generates a Config,
