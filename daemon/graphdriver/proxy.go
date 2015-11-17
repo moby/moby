@@ -55,10 +55,11 @@ func (d *graphDriverProxy) String() string {
 	return d.name
 }
 
-func (d *graphDriverProxy) Create(id, parent string) error {
+func (d *graphDriverProxy) Create(id, parent, mountLabel string) error {
 	args := &graphDriverRequest{
-		ID:     id,
-		Parent: parent,
+		ID:         id,
+		Parent:     parent,
+		MountLabel: mountLabel,
 	}
 	var ret graphDriverResponse
 	if err := d.client.Call("GraphDriver.Create", args, &ret); err != nil {

@@ -991,7 +991,8 @@ func (daemon *Daemon) createRootfs(container *Container) error {
 		return err
 	}
 	initID := fmt.Sprintf("%s-init", container.ID)
-	if err := daemon.driver.Create(initID, container.ImageID); err != nil {
+
+	if err := daemon.driver.Create(initID, container.ImageID, container.getMountLabel()); err != nil {
 		return err
 	}
 	initPath, err := daemon.driver.Get(initID, "")
@@ -1012,7 +1013,7 @@ func (daemon *Daemon) createRootfs(container *Container) error {
 		return err
 	}
 
-	if err := daemon.driver.Create(container.ID, initID); err != nil {
+	if err := daemon.driver.Create(container.ID, initID, ""); err != nil {
 		return err
 	}
 	return nil
@@ -1187,12 +1188,6 @@ func tempDir(rootDir string, rootUID, rootGID int) (string, error) {
 }
 
 func (daemon *Daemon) setHostConfig(container *Container, hostConfig *runconfig.HostConfig) error {
-	container.Lock()
-	if err := parseSecurityOpt(container, hostConfig); err != nil {
-		container.Unlock()
-		return err
-	}
-	container.Unlock()
 
 	// Do not lock while creating volumes since this could be calling out to external plugins
 	// Don't want to block other actions, like `docker ps` because we're waiting on an external plugin

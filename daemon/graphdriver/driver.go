@@ -48,8 +48,8 @@ type ProtoDriver interface {
 	// String returns a string representation of this driver.
 	String() string
 	// Create creates a new, empty, filesystem layer with the
-	// specified id and parent. Parent may be "".
-	Create(id, parent string) error
+	// specified id and parent and mountLabel. Parent and mountLabel may be "".
+	Create(id, parent, mountLabel string) error
 	// Remove attempts to remove the filesystem layer with this id.
 	Remove(id string) error
 	// Get returns the mountpoint for the layered filesystem referred

@@ -21,6 +21,7 @@ import (
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/mount"
+	"github.com/opencontainers/runc/libcontainer/label"
 )
 
 func init() {
@@ -233,7 +234,7 @@ func (d *Driver) subvolumesDirID(id string) string {
 }
 
 // Create the filesystem with given id.
-func (d *Driver) Create(id string, parent string) error {
+func (d *Driver) Create(id, parent, mountLabel string) error {
 	subvolumes := path.Join(d.home, "subvolumes")
 	rootUID, rootGID, err := idtools.GetRootUIDGID(d.uidMaps, d.gidMaps)
 	if err != nil {
@@ -255,7 +256,8 @@ func (d *Driver) Create(id string, parent string) error {
 			return err
 		}
 	}
-	return nil
+
+	return label.Relabel(path.Join(subvolumes, id), mountLabel, false)
 }
 
 // Remove the filesystem with given id.
