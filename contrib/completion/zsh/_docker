@@ -192,6 +192,45 @@ __docker_search() {
     _wanted dockersearch expl 'available images' compadd -a result
 }
 
+__docker_get_log_options() {
+    [[ $PREFIX = -* ]] && return 1
+
+    integer ret=1
+    local log_driver=${opt_args[--log-driver]:-"all"}
+    local -a awslogs_options fluentd_options gelf_options journald_options json_file_options syslog_options splunk_options
+
+    awslogs_options=("awslogs-region" "awslogs-group" "awslogs-stream")
+    fluentd_options=("env" "fluentd-address" "labels" "tag")
+    gelf_options=("env" "gelf-address" "labels" "tag")
+    journald_options=("env" "labels")
+    json_file_options=("env" "labels" "max-file" "max-size")
+    syslog_options=("syslog-address" "syslog-facility" "tag")
+    splunk_options=("env" "labels" "splunk-caname" "splunk-capath" "splunk-index" "splunk-insecureskipverify" "splunk-source" "splunk-sourcetype" "splunk-token" "splunk-url" "tag")
+
+    [[ $log_driver = (awslogs|all) ]] && _describe -t awslogs-options "awslogs options" awslogs_options "$@" && ret=0
+    [[ $log_driver = (fluentd|all) ]] && _describe -t fluentd-options "fluentd options" fluentd_options "$@" && ret=0
+    [[ $log_driver = (gelf|all) ]] && _describe -t gelf-options "gelf options" gelf_options "$@" && ret=0
+    [[ $log_driver = (journald|all) ]] && _describe -t journald-options "journald options" journald_options "$@" && ret=0
+    [[ $log_driver = (json-file|all) ]] && _describe -t json-file-options "json-file options" json_file_options "$@" && ret=0
+    [[ $log_driver = (syslog|all) ]] && _describe -t syslog-options "syslog options" syslog_options "$@" && ret=0
+    [[ $log_driver = (splunk|all) ]] && _describe -t splunk-options "splunk options" splunk_options "$@" && ret=0
+
+    return ret
+}
+
+__docker_log_options() {
+    [[ $PREFIX = -* ]] && return 1
+    integer ret=1
+
+    if compset -P '*='; then
+        _message 'value' && ret=0
+    else
+        __docker_get_log_options -qS "=" && ret=0
+    fi
+
+    return ret
+}
+
 __docker_networks() {
     [[ $PREFIX = -* ]] && return 1
     integer ret=1
@@ -438,7 +477,8 @@ __docker_subcommand() {
         "($help)*--link=[Add link to another container]:link:->link"
         "($help)*"{-l=,--label=}"[Set meta data on a container]:label: "
         "($help)--log-driver=[Default driver for container logs]:Logging driver:(json-file syslog journald gelf fluentd awslogs splunk none)"
-        "($help)*--log-opt=[Log driver specific options]:log driver options: "
+        "($help)*--log-opt=[Log driver specific options]:log driver options:__docker_log_options"
+        "($help)*--lxc-conf=[Add custom lxc options]:lxc options: "
         "($help)--mac-address=[Container MAC address]:MAC address: "
         "($help)--name=[Container name]:name: "
         "($help)--net=[Connect a container to a network]:network mode:(bridge none container host)"
@@ -559,7 +599,7 @@ __docker_subcommand() {
                 "($help -l --log-level)"{-l=,--log-level=}"[Set the logging level]:level:(debug info warn error fatal)" \
                 "($help)*--label=[Set key=value labels to the daemon]:label: " \
                 "($help)--log-driver=[Default driver for container logs]:Logging driver:(json-file syslog journald gelf fluentd awslogs splunk none)" \
-                "($help)*--log-opt=[Log driver specific options]:log driver options: " \
+                "($help)*--log-opt=[Log driver specific options]:log driver options:__docker_log_options" \
                 "($help)--mtu=[Set the containers network MTU]:mtu:(0 576 1420 1500 9000)" \
                 "($help -p --pidfile)"{-p=,--pidfile=}"[Path to use for daemon PID file]:PID file:_files" \
                 "($help)*--registry-mirror=[Preferred Docker registry mirror]:registry mirror: " \
