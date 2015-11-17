@@ -11,6 +11,7 @@ import (
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/parsers/operatingsystem"
+	"github.com/docker/docker/pkg/platform"
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/registry"
@@ -77,6 +78,8 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 		KernelVersion:      kernelVersion,
 		OperatingSystem:    operatingSystem,
 		IndexServerAddress: registry.IndexServer,
+		OSType:             platform.OSType,
+		Architecture:       platform.Architecture,
 		RegistryConfig:     daemon.RegistryService.Config,
 		InitSha1:           dockerversion.InitSHA1,
 		InitPath:           initPath,
