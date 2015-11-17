@@ -172,6 +172,8 @@ You can use the `--log-opt NAME=VALUE` flag to specify these additional Fluentd 
 
  - `fluentd-address`: specify `host:port` to connect [localhost:24224]
  - `tag`: specify tag for `fluentd` message,
+ - `fail-on-startup-error`: true/false; Should the logging driver fail container startup in case of connect error during startup. Default: true (backwards compatible)
+ - `buffer-limit`: Size limit (bytes) for the buffer which is used to buffer messages in case of connection outages. Default: 1M
 
 For example, to specify both additional options:
 

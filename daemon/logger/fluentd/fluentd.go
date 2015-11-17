@@ -24,10 +24,12 @@ type fluentd struct {
 }
 
 const (
-	name             = "fluentd"
-	defaultHostName  = "localhost"
-	defaultPort      = 24224
-	defaultTagPrefix = "docker"
+	name                             = "fluentd"
+	defaultHostName                  = "localhost"
+	defaultPort                      = 24224
+	defaultTagPrefix                 = "docker"
+	defaultIgnoreConnectErrorOnStart = false           // So that we do not break existing behaviour
+	defaultBufferLimit               = 1 * 1024 * 1024 // 1M buffer by default
 )
 
 func init() {
@@ -52,13 +54,24 @@ func New(ctx logger.Context) (logger.Logger, error) {
 	if err != nil {
 		return nil, err
 	}
+	failOnStartupError, err := loggerutils.ParseFailOnStartupErrorFlag(ctx)
+	if err != nil {
+		return nil, err
+	}
+	bufferLimit, err := parseBufferLimit(ctx.Config["buffer-limit"])
+	if err != nil {
+		return nil, err
+	}
 	extra := ctx.ExtraAttributes(nil)
 	logrus.Debugf("logging driver fluentd configured for container:%s, host:%s, port:%d, tag:%s, extra:%v.", ctx.ContainerID, host, port, tag, extra)
 	// logger tries to reconnect 2**32 - 1 times
 	// failed (and panic) after 204 years [ 1.5 ** (2**32 - 1) - 1 seconds]
-	log, err := fluent.New(fluent.Config{FluentPort: port, FluentHost: host, RetryWait: 1000, MaxRetry: math.MaxInt32})
+	log, err := fluent.New(fluent.Config{FluentPort: port, FluentHost: host, RetryWait: 1000, MaxRetry: math.MaxInt32, BufferLimit: bufferLimit})
 	if err != nil {
-		return nil, err
+		if failOnStartupError {
+			return nil, err
+		}
+		logrus.Warnf("fluentd cannot connect to configured endpoint. Ignoring as instructed. Error: %q", err)
 	}
 	return &fluentd{
 		tag:           tag,
@@ -101,6 +114,8 @@ func ValidateLogOpt(cfg map[string]string) error {
 		case "tag":
 		case "labels":
 		case "env":
+		case "fail-on-startup-error":
+		case "buffer-limit":
 		default:
 			return fmt.Errorf("unknown log opt '%s' for fluentd log driver", key)
 		}
@@ -131,4 +146,15 @@ func parseAddress(address string) (string, int, error) {
 		return "", 0, fmt.Errorf("invalid fluentd-address %s: %s", address, err)
 	}
 	return host, portnum, nil
+}
+
+func parseBufferLimit(bufferLimit string) (int, error) {
+	if bufferLimit == "" {
+		return defaultBufferLimit, nil
+	}
+	limit, err := strconv.Atoi(bufferLimit)
+	if err != nil {
+		return 0, fmt.Errorf("invalid buffer limit %s: %s", bufferLimit, err)
+	}
+	return limit, nil
 }
