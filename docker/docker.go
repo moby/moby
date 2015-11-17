@@ -57,8 +57,6 @@ func main() {
 		return
 	}
 
-	// TODO: remove once `-d` is retired
-	handleGlobalDaemonFlag()
 	clientCli := client.NewDockerCli(stdin, stdout, stderr, clientFlags)
 
 	c := cli.New(clientCli, daemonCli)

@@ -26,7 +26,7 @@ var funcMap = template.FuncMap{
 // Usage: docker inspect [OPTIONS] CONTAINER|IMAGE [CONTAINER|IMAGE...]
 func (cli *DockerCli) CmdInspect(args ...string) error {
 	cmd := Cli.Subcmd("inspect", []string{"CONTAINER|IMAGE [CONTAINER|IMAGE...]"}, Cli.DockerCommands["inspect"].Description, true)
-	tmplStr := cmd.String([]string{"f", "#format", "-format"}, "", "Format the output using the given go template")
+	tmplStr := cmd.String([]string{"f", "-format"}, "", "Format the output using the given go template")
 	inspectType := cmd.String([]string{"-type"}, "", "Return JSON for specified type, (e.g image or container)")
 	size := cmd.Bool([]string{"s", "-size"}, false, "Display total file sizes if the type is container")
 	cmd.Require(flag.Min, 1)

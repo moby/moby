@@ -15,7 +15,7 @@ import (
 func (cli *DockerCli) CmdRm(args ...string) error {
 	cmd := Cli.Subcmd("rm", []string{"CONTAINER [CONTAINER...]"}, Cli.DockerCommands["rm"].Description, true)
 	v := cmd.Bool([]string{"v", "-volumes"}, false, "Remove the volumes associated with the container")
-	link := cmd.Bool([]string{"l", "#link", "-link"}, false, "Remove the specified link")
+	link := cmd.Bool([]string{"l", "-link"}, false, "Remove the specified link")
 	force := cmd.Bool([]string{"f", "-force"}, false, "Force the removal of a running container (uses SIGKILL)")
 	cmd.Require(flag.Min, 1)
 

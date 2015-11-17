@@ -163,15 +163,6 @@ func (s *DockerSuite) TestRunWithoutNetworking(c *check.C) {
 	if exitCode != 1 {
 		c.Errorf("--net=none should've disabled the network; the container shouldn't have been able to ping 8.8.8.8")
 	}
-
-	// And then with the short form -n
-	out, exitCode, err = dockerCmdWithError("run", "-n=false", image, "ping", count, "1", "8.8.8.8")
-	if err != nil && exitCode != 1 {
-		c.Fatal(out, err)
-	}
-	if exitCode != 1 {
-		c.Errorf("-n=false should've disabled the network; the container shouldn't have been able to ping 8.8.8.8")
-	}
 }
 
 //test --link use container name to link target
@@ -209,10 +200,9 @@ func (s *DockerSuite) TestRunLinksContainerWithContainerId(c *check.C) {
 
 // Issue 9677.
 func (s *DockerSuite) TestRunWithDaemonFlags(c *check.C) {
-	out, _, err := dockerCmdWithError("--exec-opt", "foo=bar", "run", "-i", "-t", "busybox", "true")
+	out, _, err := dockerCmdWithError("--exec-opt", "foo=bar", "run", "-i", "busybox", "true")
 	if err != nil {
-		if !strings.Contains(out, "must follow the 'docker daemon' command") && // daemon
-			!strings.Contains(out, "flag provided but not defined: --exec-opt") { // no daemon (client-only)
+		if !strings.Contains(out, "flag provided but not defined: --exec-opt") { // no daemon (client-only)
 			c.Fatal(err, out)
 		}
 	}

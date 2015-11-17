@@ -189,11 +189,6 @@ func (s *DockerSuite) TestRunEchoStdoutWithCPUSharesAndMemoryLimit(c *check.C) {
 	c.Assert(out, checker.Equals, "test\n", check.Commentf("container should've printed 'test'"))
 }
 
-func (s *DockerSuite) TestRunWithCpuset(c *check.C) {
-	testRequires(c, cgroupCpuset)
-	dockerCmd(c, "run", "--cpuset", "0", "busybox", "true")
-}
-
 func (s *DockerSuite) TestRunWithCpusetCpus(c *check.C) {
 	testRequires(c, cgroupCpuset)
 	dockerCmd(c, "run", "--cpuset-cpus", "0", "busybox", "true")
