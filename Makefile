@@ -1,5 +1,20 @@
 .PHONY: all binary build cross default docs docs-build docs-shell shell test test-unit test-integration-cli test-docker-py validate
 
+# get OS/Arch of docker engine
+DOCKER_ENGINE_OSARCH = $(shell docker version | grep 'OS/Arch' | tail -1 | cut -d':' -f2 | tr -d '[[:space:]]')
+DOCKER_ENGINE_GOOS = $(word 1, $(subst /, ,$(DOCKER_ENGINE_OSARCH)))
+DOCKER_ENGINE_GOARCH = $(word 2, $(subst /, ,$(DOCKER_ENGINE_OSARCH)))
+export DOCKER_ENGINE_OSARCH
+export DOCKER_ENGINE_GOOS
+export DOCKER_ENGINE_GOARCH
+# default for linux/amd64 and others
+DOCKER_FILE = Dockerfile
+# switch to different Dockerfile for linux/arm
+ifeq ($(DOCKER_ENGINE_OSARCH),linux/arm)
+  DOCKER_FILE = Dockerfile.arm
+endif
+export DOCKER_FILE
+
 # env vars passed through directly to Docker's build scripts
 # to allow things like `make DOCKER_CLIENTONLY=1 binary` easily
 # `docs/sources/contributing/devenvironment.md ` and `project/PACKAGERS.md` have some limited documentation of some of these
@@ -12,6 +27,10 @@ DOCKER_ENVS := \
 	-e DOCKER_GRAPHDRIVER \
 	-e DOCKER_STORAGE_OPTS \
 	-e DOCKER_USERLANDPROXY \
+	-e DOCKER_ENGINE_OSARCH \
+	-e DOCKER_ENGINE_GOOS \
+	-e DOCKER_ENGINE_GOARCH \
+	-e DOCKER_FILE \
 	-e TESTDIRS \
 	-e TESTFLAGS \
 	-e TIMEOUT
@@ -76,7 +95,7 @@ shell: build
 	$(DOCKER_RUN_DOCKER) bash
 
 build: bundles
-	docker build -t "$(DOCKER_IMAGE)" .
+	docker build -t "$(DOCKER_IMAGE)" -f $(DOCKER_FILE) .
 
 bundles:
 	mkdir bundles

@@ -8,7 +8,7 @@ dir="$DEST/httpserver"
 mkdir -p "$dir"
 (
 	cd "$dir"
-	GOOS=linux GOARCH=amd64 go build -o httpserver github.com/docker/docker/contrib/httpserver
+	GOOS=${DOCKER_ENGINE_GOOS:="linux"} GOARCH=${DOCKER_ENGINE_GOARCH:="amd64"} go build -o httpserver github.com/docker/docker/contrib/httpserver
 	cp ../../../../contrib/httpserver/Dockerfile .
 	docker build -qt httpserver . > /dev/null
 )
