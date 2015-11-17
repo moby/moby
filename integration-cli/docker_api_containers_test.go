@@ -791,7 +791,7 @@ func (s *DockerSuite) TestContainerApiCreateWithCpuSharesCpuset(c *check.C) {
 	config := map[string]interface{}{
 		"Image":      "busybox",
 		"CpuShares":  512,
-		"CpusetCpus": "0,1",
+		"CpusetCpus": "0",
 	}
 
 	status, body, err := sockRequest("POST", "/containers/create", config)
@@ -817,7 +817,7 @@ func (s *DockerSuite) TestContainerApiCreateWithCpuSharesCpuset(c *check.C) {
 
 	outCpuset, errCpuset := inspectField(containerJSON.ID, "HostConfig.CpusetCpus")
 	c.Assert(errCpuset, check.IsNil, check.Commentf("Output: %s", outCpuset))
-	c.Assert(outCpuset, check.Equals, "0,1")
+	c.Assert(outCpuset, check.Equals, "0")
 }
 
 func (s *DockerSuite) TestContainerApiVerifyHeader(c *check.C) {
