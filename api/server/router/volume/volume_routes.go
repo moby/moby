@@ -64,3 +64,26 @@ func (v *volumeRouter) deleteVolumes(ctx context.Context, w http.ResponseWriter,
 	w.WriteHeader(http.StatusNoContent)
 	return nil
 }
+
+func (v *volumeRouter) postVolumesRename(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+        if err := httputils.ParseForm(r); err != nil {
+                return err
+        }
+
+        if err := httputils.CheckForJSON(r); err != nil {
+                return err
+        }
+
+        var req types.VolumeRenameRequest
+        if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+                return err
+        }
+        err := v.backend.VolumeRename(req.OldName, req.NewName)
+        if err != nil {
+                return err
+        }
+//        return httputils.WriteJSON(w, http.StatusNoContent, volume)
+	w.WriteHeader(http.StatusNoContent)
+	return nil
+}
+

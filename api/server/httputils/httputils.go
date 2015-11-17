@@ -72,6 +72,7 @@ func ParseForm(r *http.Request) error {
 		return nil
 	}
 	if err := r.ParseForm(); err != nil && !strings.HasPrefix(err.Error(), "mime:") {
+		fmt.Errorf("haoshuwei")
 		return err
 	}
 	return nil

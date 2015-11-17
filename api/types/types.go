@@ -361,6 +361,14 @@ type VolumeCreateRequest struct {
 	DriverOpts map[string]string // DriverOpts holds the driver specific options to use for when creating the volume.
 }
 
+// VolumeRenameRequest contains the response for the remote API:
+// POST "/volumes/{name:.*}/rename"
+type VolumeRenameRequest struct {
+        OldName       string            // oldName is the requested name of the volume
+	NewName       string            // newName is the requested name of the volume
+}
+
+
 // NetworkResource is the body of the "get network" http response message
 type NetworkResource struct {
 	Name       string

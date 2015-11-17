@@ -41,6 +41,16 @@ func (daemon *Daemon) createVolume(name, driverName string, opts map[string]stri
 	return v, nil
 }
 
+// renameVolume renames a volume.
+//func (daemon *Daemon) renameVolume(oldName, newName string) error {
+//        err := daemon.volumes.Rename(oldName, newName)
+//        if err != nil {
+//                return err
+//        }
+//        return nil
+//}
+
+
 // Len returns the number of mounts. Used in sorting.
 func (m mounts) Len() int {
 	return len(m)

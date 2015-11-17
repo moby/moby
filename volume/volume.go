@@ -14,7 +14,7 @@ import (
 // implemented in the local package.
 const DefaultDriverName string = "local"
 
-// Driver is for creating and removing volumes.
+// Driver is for creating,removing and renaming volumes.
 type Driver interface {
 	// Name returns the name of the volume driver.
 	Name() string
@@ -22,6 +22,9 @@ type Driver interface {
 	Create(name string, opts map[string]string) (Volume, error)
 	// Remove deletes the volume.
 	Remove(Volume) error
+	// Rename renames the volume.
+        Rename(v Volume, newName string) error
+
 }
 
 // Volume is a place to store data. It is backed by a specific driver, and can be mounted.

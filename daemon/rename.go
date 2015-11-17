@@ -82,3 +82,24 @@ func (daemon *Daemon) ContainerRename(oldName, newName string) error {
 	daemon.LogContainerEvent(container, "rename")
 	return nil
 }
+
+// VolumeRename changes the name of a volume, using the oldName
+// to find the volume. An error is returned if newName is already
+// reserved.
+func (daemon *Daemon) VolumeRename(oldName, newName string) error {
+        if oldName == "" || newName == "" {
+                return derr.ErrorCodeEmptyRename
+        }
+
+	v, err := daemon.volumes.Get(oldName)
+        if err != nil {
+                return err
+        }
+
+        err = daemon.volumes.Rename(v, newName)
+        if err != nil {
+                return err
+        }
+
+	return nil
+}

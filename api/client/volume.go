@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"text/tabwriter"
 	"text/template"
+	"strings"
 
 	"github.com/docker/docker/api/types"
 	Cli "github.com/docker/docker/cli"
@@ -26,6 +27,7 @@ func (cli *DockerCli) CmdVolume(args ...string) error {
 		{"inspect", "Return low-level information on a volume"},
 		{"ls", "List volumes"},
 		{"rm", "Remove a volume"},
+		{"rename", "Rename a volume"},
 	}
 
 	for _, cmd := range commands {
@@ -232,3 +234,33 @@ func (cli *DockerCli) CmdVolumeRm(args ...string) error {
 	}
 	return nil
 }
+
+// CmdVolumeRename renames a volume.
+//
+// Usage: docker volume rename OLD_NAME NEW_NAME
+func (cli *DockerCli) CmdVolumeRename(args ...string) error {
+        cmd := Cli.Subcmd("volume rename", []string{"OLD_NAME NEW_NAME"}, "Rename a volume", true)
+        cmd.Require(flag.Exact, 2)
+        cmd.ParseFlags(args, true)
+
+	oldName := strings.TrimSpace(cmd.Arg(0))
+	newName := strings.TrimSpace(cmd.Arg(1))
+
+	if oldName == "" || newName == "" {
+		return fmt.Errorf("Error: Neither old nor new names may be empty")
+	}
+
+	_, err := cli.call("POST", "/volumes/"+oldName+"/rename?name="+newName, nil, nil)
+        if err != nil {
+		fmt.Fprintf(cli.out, "%s\n", err)
+                return err
+        }
+	fmt.Fprintf(cli.out, "%s\n", newName)
+
+//	if _, _, err := readBody(cli.call("POST", fmt.Sprintf("/volumes/%s/rename?name=%s", oldName, newName), nil, nil)); err != nil {
+//                fmt.Fprintf(cli.err, "%s\n", err)
+//                return fmt.Errorf("Error: failed to rename volume named %s", oldName)
+//        }
+        return nil
+}
+

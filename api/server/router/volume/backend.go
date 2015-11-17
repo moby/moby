@@ -13,4 +13,5 @@ type Backend interface {
 	VolumeCreate(name, driverName string,
 		opts map[string]string) (*types.Volume, error)
 	VolumeRm(name string) error
+	VolumeRename(oldName, newName string) error
 }

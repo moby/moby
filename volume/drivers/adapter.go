@@ -26,6 +26,11 @@ func (a *volumeDriverAdapter) Remove(v volume.Volume) error {
 	return a.proxy.Remove(v.Name())
 }
 
+func (a *volumeDriverAdapter) Rename(v volume.Volume, newName string) error {
+        return a.proxy.Rename(v.Name(), newName)
+}
+
+
 type volumeAdapter struct {
 	proxy      *volumeDriverProxy
 	name       string
