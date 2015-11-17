@@ -80,7 +80,7 @@ func (d *Driver) Status() [][2]string {
 		{"Pool Name", s.PoolName},
 		{"Pool Blocksize", fmt.Sprintf("%s", units.HumanSize(float64(s.SectorSize)))},
 		{"Base Device Size", fmt.Sprintf("%s", units.HumanSize(float64(s.BaseDeviceSize)))},
-		{"Backing Filesystem", backingFs},
+		{"Backing Filesystem", s.BaseDeviceFS},
 		{"Data file", s.DataFile},
 		{"Metadata file", s.MetadataFile},
 		{"Data Space Used", fmt.Sprintf("%s", units.HumanSize(float64(s.Data.Used)))},
