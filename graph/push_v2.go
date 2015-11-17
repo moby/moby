@@ -135,6 +135,11 @@ func (p *v2Pusher) pushV2Tag(tag string) error {
 			break
 		}
 
+		// Skip the base layer on Windows. This cannot be pushed.
+		if allowBaseParentImage && layer.Parent == "" {
+			break
+		}
+
 		logrus.Debugf("Pushing layer: %s", layer.ID)
 
 		if layer.Config != nil && metadata.Image != layer.ID {
