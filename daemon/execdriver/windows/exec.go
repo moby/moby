@@ -30,10 +30,11 @@ func (d *Driver) Exec(c *execdriver.Command, processConfig *execdriver.ProcessCo
 		WorkingDirectory: c.WorkingDir,
 	}
 
-	// Configure the environment for the process // Note NOT c.ProcessConfig.Tty
+	// Configure the environment for the process // Note NOT c.ProcessConfig.Env
 	createProcessParms.Environment = setupEnvironmentVariables(processConfig.Env)
 
-	createProcessParms.CommandLine, err = createCommandLine(&c.ProcessConfig, c.ArgsEscaped)
+	// Create the commandline for the process // Note NOT c.ProcessConfig
+	createProcessParms.CommandLine, err = createCommandLine(processConfig, false)
 
 	if err != nil {
 		return -1, err
