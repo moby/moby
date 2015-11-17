@@ -25,6 +25,8 @@ func (s *DockerSuite) TestInfoEnsureSucceeds(c *check.C) {
 		"Total Memory:",
 		"Kernel Version:",
 		"Storage Driver:",
+		"Volume:",
+		"Network:",
 	}
 
 	if utils.ExperimentalBuild() {

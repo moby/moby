@@ -15,6 +15,7 @@ import (
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/utils"
+	"github.com/docker/docker/volume/drivers"
 )
 
 // SystemInfo returns information about the host server the daemon is running on.
@@ -62,6 +63,7 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 		Images:             len(daemon.Graph().Map()),
 		Driver:             daemon.GraphDriver().String(),
 		DriverStatus:       daemon.GraphDriver().Status(),
+		Plugins:            daemon.showPluginsInfo(),
 		IPv4Forwarding:     !sysInfo.IPv4ForwardingDisabled,
 		BridgeNfIptables:   !sysInfo.BridgeNfCallIptablesDisabled,
 		BridgeNfIP6tables:  !sysInfo.BridgeNfCallIP6tablesDisabled,
@@ -110,4 +112,17 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 	}
 
 	return v, nil
+}
+
+func (daemon *Daemon) showPluginsInfo() types.PluginsInfo {
+	var pluginsInfo types.PluginsInfo
+
+	pluginsInfo.Volume = volumedrivers.GetDriverList()
+
+	networkDriverList := daemon.GetNetworkDriverList()
+	for nd := range networkDriverList {
+		pluginsInfo.Network = append(pluginsInfo.Network, nd)
+	}
+
+	return pluginsInfo
 }

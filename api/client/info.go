@@ -44,6 +44,19 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 	}
 	ioutils.FprintfIfNotEmpty(cli.out, "Execution Driver: %s\n", info.ExecutionDriver)
 	ioutils.FprintfIfNotEmpty(cli.out, "Logging Driver: %s\n", info.LoggingDriver)
+
+	fmt.Fprintf(cli.out, "Plugins: \n")
+	fmt.Fprintf(cli.out, " Volume:")
+	for _, driver := range info.Plugins.Volume {
+		fmt.Fprintf(cli.out, " %s", driver)
+	}
+	fmt.Fprintf(cli.out, "\n")
+	fmt.Fprintf(cli.out, " Network:")
+	for _, driver := range info.Plugins.Network {
+		fmt.Fprintf(cli.out, " %s", driver)
+	}
+	fmt.Fprintf(cli.out, "\n")
+
 	ioutils.FprintfIfNotEmpty(cli.out, "Kernel Version: %s\n", info.KernelVersion)
 	ioutils.FprintfIfNotEmpty(cli.out, "Operating System: %s\n", info.OperatingSystem)
 	fmt.Fprintf(cli.out, "CPUs: %d\n", info.NCPU)

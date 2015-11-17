@@ -39,6 +39,9 @@ Here is a sample output:
      Dirs: 80
     Execution Driver: native-0.2
     Logging Driver: json-file
+    Plugins:
+     Volume: local
+     Network: bridge null host
     Kernel Version: 3.13.0-24-generic
     Operating System: Ubuntu 14.04 LTS
     CPUs: 1
