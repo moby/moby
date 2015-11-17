@@ -135,14 +135,8 @@ func (s *router) postImagesCreate(ctx context.Context, w http.ResponseWriter, r 
 
 		err = s.daemon.PullImage(image, tag, imagePullConfig)
 	} else { //import
-		// Handles the unescape characters.
-		unescapedRepo, err := url.QueryUnescape(repo)
-		if err != nil {
-			unescapedRepo = repo
-		}
-
 		if tag == "" {
-			repo, tag = parsers.ParseRepositoryTag(unescapedRepo)
+			repo, tag = parsers.ParseRepositoryTag(repo)
 		}
 
 		src := r.Form.Get("fromSrc")
