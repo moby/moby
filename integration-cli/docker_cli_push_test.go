@@ -2,13 +2,16 @@ package main
 
 import (
 	"archive/tar"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/go-check/check"
 )
@@ -81,6 +84,46 @@ func (s *DockerRegistrySuite) TestPushMultipleTags(c *check.C) {
 	for i := range out1Lines {
 		c.Assert(out1Lines[i], checker.Equals, out2Lines[i])
 	}
+}
+
+// TestPushBadParentChain tries to push an image with a corrupted parent chain
+// in the v1compatibility files, and makes sure the push process fixes it.
+func (s *DockerRegistrySuite) TestPushBadParentChain(c *check.C) {
+	repoName := fmt.Sprintf("%v/dockercli/badparent", privateRegistryURL)
+
+	id, err := buildImage(repoName, `
+	    FROM busybox
+	    CMD echo "adding another layer"
+	    `, true)
+	if err != nil {
+		c.Fatal(err)
+	}
+
+	// Push to create v1compatibility file
+	dockerCmd(c, "push", repoName)
+
+	// Corrupt the parent in the v1compatibility file from the top layer
+	filename := filepath.Join(dockerBasePath, "graph", id, "v1Compatibility")
+
+	jsonBytes, err := ioutil.ReadFile(filename)
+	c.Assert(err, check.IsNil, check.Commentf("Could not read v1Compatibility file: %s", err))
+
+	var img image.Image
+	err = json.Unmarshal(jsonBytes, &img)
+	c.Assert(err, check.IsNil, check.Commentf("Could not unmarshal json: %s", err))
+
+	img.Parent = "1234123412341234123412341234123412341234123412341234123412341234"
+
+	jsonBytes, err = json.Marshal(&img)
+	c.Assert(err, check.IsNil, check.Commentf("Could not marshal json: %s", err))
+
+	err = ioutil.WriteFile(filename, jsonBytes, 0600)
+	c.Assert(err, check.IsNil, check.Commentf("Could not write v1Compatibility file: %s", err))
+
+	dockerCmd(c, "push", repoName)
+
+	// pull should succeed
+	dockerCmd(c, "pull", repoName)
 }
 
 func (s *DockerRegistrySuite) TestPushEmptyLayer(c *check.C) {
