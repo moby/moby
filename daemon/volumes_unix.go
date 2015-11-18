@@ -5,11 +5,8 @@ package daemon
 import (
 	"io/ioutil"
 	"os"
-	"path/filepath"
 	"sort"
-	"strings"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/system"
@@ -143,77 +140,6 @@ func validVolumeLayout(files []os.FileInfo) bool {
 	return true
 }
 
-// verifyVolumesInfo ports volumes configured for the containers pre docker 1.7.
-// It reads the container configuration and creates valid mount points for the old volumes.
-func (daemon *Daemon) verifyVolumesInfo(container *Container) error {
-	// Inspect old structures only when we're upgrading from old versions
-	// to versions >= 1.7 and the MountPoints has not been populated with volumes data.
-	if len(container.MountPoints) == 0 && len(container.Volumes) > 0 {
-		for destination, hostPath := range container.Volumes {
-			vfsPath := filepath.Join(daemon.root, "vfs", "dir")
-			rw := container.VolumesRW != nil && container.VolumesRW[destination]
-
-			if strings.HasPrefix(hostPath, vfsPath) {
-				id := filepath.Base(hostPath)
-				if err := migrateVolume(id, hostPath); err != nil {
-					return err
-				}
-				container.addLocalMountPoint(id, destination, rw)
-			} else { // Bind mount
-				id, source := volume.ParseVolumeSource(hostPath)
-				container.addBindMountPoint(id, source, destination, rw)
-			}
-		}
-	} else if len(container.MountPoints) > 0 {
-		// Volumes created with a Docker version >= 1.7. We verify integrity in case of data created
-		// with Docker 1.7 RC versions that put the information in
-		// DOCKER_ROOT/volumes/VOLUME_ID rather than DOCKER_ROOT/volumes/VOLUME_ID/_container_data.
-		l, err := volumedrivers.Lookup(volume.DefaultDriverName)
-		if err != nil {
-			return err
-		}
-
-		for _, m := range container.MountPoints {
-			if m.Driver != volume.DefaultDriverName {
-				continue
-			}
-			dataPath := l.(*local.Root).DataPath(m.Name)
-			volumePath := filepath.Dir(dataPath)
-
-			d, err := ioutil.ReadDir(volumePath)
-			if err != nil {
-				// If the volume directory doesn't exist yet it will be recreated,
-				// so we only return the error when there is a different issue.
-				if !os.IsNotExist(err) {
-					return err
-				}
-				// Do not check when the volume directory does not exist.
-				continue
-			}
-			if validVolumeLayout(d) {
-				continue
-			}
-
-			if err := os.Mkdir(dataPath, 0755); err != nil {
-				return err
-			}
-
-			// Move data inside the data directory
-			for _, f := range d {
-				oldp := filepath.Join(volumePath, f.Name())
-				newp := filepath.Join(dataPath, f.Name())
-				if err := os.Rename(oldp, newp); err != nil {
-					logrus.Errorf("Unable to move %s to %s\n", oldp, newp)
-				}
-			}
-		}
-
-		return container.toDiskLocking()
-	}
-
-	return nil
-}
-
 // setBindModeIfNull is platform specific processing to ensure the
 // shared mode is set to 'z' if it is null. This is called in the case
 // of processing a named volume and not a typical bind.
@@ -222,31 +148,4 @@ func setBindModeIfNull(bind *volume.MountPoint) *volume.MountPoint {
 		bind.Mode = "z"
 	}
 	return bind
-}
-
-// configureBackCompatStructures is platform specific processing for
-// registering mount points to populate old structures.
-func configureBackCompatStructures(daemon *Daemon, container *Container, mountPoints map[string]*volume.MountPoint) (map[string]string, map[string]bool) {
-	// Keep backwards compatible structures
-	bcVolumes := map[string]string{}
-	bcVolumesRW := map[string]bool{}
-	for _, m := range mountPoints {
-		if m.BackwardsCompatible() {
-			bcVolumes[m.Destination] = m.Path()
-			bcVolumesRW[m.Destination] = m.RW
-
-			// This mountpoint is replacing an existing one, so the count needs to be decremented
-			if mp, exists := container.MountPoints[m.Destination]; exists && mp.Volume != nil {
-				daemon.volumes.Decrement(mp.Volume)
-			}
-		}
-	}
-	return bcVolumes, bcVolumesRW
-}
-
-// setBackCompatStructures is a platform specific helper function to set
-// backwards compatible structures in the container when registering volumes.
-func setBackCompatStructures(container *Container, bcVolumes map[string]string, bcVolumesRW map[string]bool) {
-	container.Volumes = bcVolumes
-	container.VolumesRW = bcVolumesRW
 }

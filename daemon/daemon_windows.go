@@ -107,17 +107,6 @@ func (daemon *Daemon) registerLinks(container *Container, hostConfig *runconfig.
 	return nil
 }
 
-func (daemon *Daemon) newBaseContainer(id string) *Container {
-	return &Container{
-		CommonContainer: CommonContainer{
-			ID:           id,
-			State:        NewState(),
-			execCommands: newExecStore(),
-			root:         daemon.containerRoot(id),
-		},
-	}
-}
-
 func (daemon *Daemon) cleanupMounts() error {
 	return nil
 }

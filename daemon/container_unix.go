@@ -58,9 +58,6 @@ type Container struct {
 	ShmPath         string
 	MqueuePath      string
 	ResolvConfPath  string
-
-	Volumes   map[string]string // Deprecated since 1.7, kept for backwards compatibility
-	VolumesRW map[string]bool   // Deprecated since 1.7, kept for backwards compatibility
 }
 
 func killProcessDirectly(container *Container) error {

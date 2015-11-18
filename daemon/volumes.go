@@ -69,6 +69,7 @@ func (m mounts) parts(i int) int {
 // 1. Select the previously configured mount points for the containers, if any.
 // 2. Select the volumes mounted from another containers. Overrides previously configured mount point destination.
 // 3. Select the bind mounts set by the client. Overrides previously configured mount point destinations.
+// 4. Cleanup old volumes that are about to be reasigned.
 func (daemon *Daemon) registerMountPoints(container *Container, hostConfig *runconfig.HostConfig) error {
 	binds := map[string]bool{}
 	mountPoints := map[string]*volume.MountPoint{}
@@ -144,11 +145,17 @@ func (daemon *Daemon) registerMountPoints(container *Container, hostConfig *runc
 		mountPoints[bind.Destination] = bind
 	}
 
-	bcVolumes, bcVolumesRW := configureBackCompatStructures(daemon, container, mountPoints)
-
 	container.Lock()
+
+	// 4. Cleanup old volumes that are about to be reasigned.
+	for _, m := range mountPoints {
+		if m.BackwardsCompatible() {
+			if mp, exists := container.MountPoints[m.Destination]; exists && mp.Volume != nil {
+				daemon.volumes.Decrement(mp.Volume)
+			}
+		}
+	}
 	container.MountPoints = mountPoints
-	setBackCompatStructures(container, bcVolumes, bcVolumesRW)
 
 	container.Unlock()
 

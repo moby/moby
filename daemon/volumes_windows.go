@@ -36,26 +36,8 @@ func (daemon *Daemon) setupMounts(container *Container) ([]execdriver.Mount, err
 	return mnts, nil
 }
 
-// verifyVolumesInfo ports volumes configured for the containers pre docker 1.7.
-// As the Windows daemon was not supported before 1.7, this is a no-op
-func (daemon *Daemon) verifyVolumesInfo(container *Container) error {
-	return nil
-}
-
 // setBindModeIfNull is platform specific processing which is a no-op on
 // Windows.
 func setBindModeIfNull(bind *volume.MountPoint) *volume.MountPoint {
 	return bind
-}
-
-// configureBackCompatStructures is platform specific processing for
-// registering mount points to populate old structures. This is a no-op on Windows.
-func configureBackCompatStructures(*Daemon, *Container, map[string]*volume.MountPoint) (map[string]string, map[string]bool) {
-	return nil, nil
-}
-
-// setBackCompatStructures is a platform specific helper function to set
-// backwards compatible structures in the container when registering volumes.
-// This is a no-op on Windows.
-func setBackCompatStructures(*Container, map[string]string, map[string]bool) {
 }

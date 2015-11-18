@@ -80,6 +80,13 @@ const (
 	//
 )
 
+// BackwardsCompatible decides whether this mount point can be
+// used in old versions of Docker or not.
+// Windows volumes are never backwards compatible.
+func (m *MountPoint) BackwardsCompatible() bool {
+	return false
+}
+
 // ParseMountSpec validates the configuration of mount information is valid.
 func ParseMountSpec(spec string, volumeDriver string) (*MountPoint, error) {
 	var specExp = regexp.MustCompile(`^` + RXSource + RXDestination + RXMode + `$`)
