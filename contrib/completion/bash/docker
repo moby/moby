@@ -1544,7 +1544,7 @@ _docker_run() {
 					fi
 					;;
 				*)
-					COMPREPLY=( $( compgen -W "label apparmor" -S ":" -- "$cur") )
+					COMPREPLY=( $( compgen -W "label apparmor seccomp" -S ":" -- "$cur") )
 					__docker_nospace
 					;;
 			esac
