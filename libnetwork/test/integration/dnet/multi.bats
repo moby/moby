@@ -112,7 +112,7 @@ function is_network_exist() {
 
 	for j in `seq 1 3`;
 	do
-	    run dnet_cmd $(inst_id2port 2) service unpublish ${osvc}.${oname}
+	    run dnet_cmd $(inst_id2port $i) service unpublish ${osvc}.${oname}
 	    echo ${output}
 	    [ "$status" -ne 0 ]
 	    run dnet_cmd $(inst_id2port $j) network rm ${oname}
