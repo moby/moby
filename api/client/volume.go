@@ -250,17 +250,18 @@ func (cli *DockerCli) CmdVolumeRename(args ...string) error {
 		return fmt.Errorf("Error: Neither old nor new names may be empty")
 	}
 
-	_, err := cli.call("POST", "/volumes/"+oldName+"/rename?name="+newName, nil, nil)
+	volReq := &types.VolumeRenameRequest{
+                OldName:     oldName,
+                NewName:     newName,
+        }
+
+	_, err := cli.call("POST", "/volumes/"+oldName+"/rename?name="+newName, volReq, nil)
         if err != nil {
 		fmt.Fprintf(cli.out, "%s\n", err)
                 return err
         }
 	fmt.Fprintf(cli.out, "%s\n", newName)
 
-//	if _, _, err := readBody(cli.call("POST", fmt.Sprintf("/volumes/%s/rename?name=%s", oldName, newName), nil, nil)); err != nil {
-//                fmt.Fprintf(cli.err, "%s\n", err)
-//                return fmt.Errorf("Error: failed to rename volume named %s", oldName)
-//        }
         return nil
 }
 

@@ -133,9 +133,9 @@ func (r *Root) Create(name string, _ map[string]string) (volume.Volume, error) {
 }
 
 // Rename renames a  volume.Volume with the provided name
-func (r *Root) Rename(v volume.Volume, newName string) error {
+func (r *Root) Rename(v volume.Volume, newName string)  (volume.Volume, error) {
         if err := r.validateName(newName); err != nil {
-                return err
+                return nil, err
         }
 
         r.m.Lock()
@@ -143,17 +143,12 @@ func (r *Root) Rename(v volume.Volume, newName string) error {
 
         new_v, new_exists := r.volumes[newName]
         if new_exists {
-                return nil
+                return nil, nil
         }
-
-//	old_v, old_exists := r.volumes[oldname]
-//        if !old_exists {
-//                return  ErrNotFound
-//        }
 
 	lv, ok := v.(*localVolume)
         if !ok {
-                return errors.New("unknown volume type")
+                return nil, errors.New("unknown volume type")
         }
 
 	new_v = &localVolume{
@@ -163,7 +158,7 @@ func (r *Root) Rename(v volume.Volume, newName string) error {
 	}
 	r.volumes[newName] = new_v
 	
-        return nil
+        return new_v, nil
 }
 
 // Remove removes the specified volume and all underlying data. If the

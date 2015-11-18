@@ -122,19 +122,14 @@ func (s *VolumeStore) Rename(v volume.Volume, newName string) error {
                 return &OpErr{Err: errInvalidName, Name: newName, Op: "rename"}
         }
 
-        newvc, exists := s.get(newName) 
+        _, exists := s.get(newName) 
 	if exists {
 		return fmt.Errorf(
                         "Conflict. The name %q is already in use. You have to remove (or rename) that volume to be able to reuse that name.", strings.TrimPrefix(newName, "/"))
         }
-	if newvc.count > 0 {
-                return &OpErr{Err: errVolumeInUse, Name: newName, Op: "rename"}
-	}
-
-
         oldvc, exists := s.get(oldName)
 	if !exists {
-		return &OpErr{Err: errNoSuchVolume, Name: oldName, Op: "remove"}
+		return &OpErr{Err: errNoSuchVolume, Name: oldName, Op: "rename"}
         }
 	if oldvc.count > 0 {
 		return &OpErr{Err: errVolumeInUse, Name: oldName, Op: "rename"}
@@ -142,13 +137,14 @@ func (s *VolumeStore) Rename(v volume.Volume, newName string) error {
 
 	vd, err := volumedrivers.GetDriver(oldvc.DriverName())
         if err != nil {
-                return &OpErr{Err: err, Name: oldvc.DriverName(), Op: "remove"}
+                return &OpErr{Err: err, Name: oldvc.DriverName(), Op: "rename"}
         }
-        if err := vd.Rename(oldvc.Volume, newName); err != nil {
+        new_v, err := vd.Rename(oldvc.Volume, newName) 
+	if err != nil {
                 return &OpErr{Err: err, Name: newName, Op: "rename"}
         }
 
-	s.rename(oldName, newName, &volumeCounter{v, 0})
+	s.rename(oldName, newName, &volumeCounter{new_v, 0})
 	return nil
 }
 

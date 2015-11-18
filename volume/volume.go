@@ -23,7 +23,7 @@ type Driver interface {
 	// Remove deletes the volume.
 	Remove(Volume) error
 	// Rename renames the volume.
-        Rename(v Volume, newName string) error
+        Rename(v Volume, newName string) (Volume, error)
 
 }
 
