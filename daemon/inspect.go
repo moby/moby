@@ -117,22 +117,7 @@ func (daemon *Daemon) getInspectData(container *Container, size bool) (*types.Co
 		FinishedAt: container.State.FinishedAt.Format(time.RFC3339Nano),
 	}
 
-	contJSONBase := &types.ContainerJSONBase{
-		ID:           container.ID,
-		Created:      container.Created.Format(time.RFC3339Nano),
-		Path:         container.Path,
-		Args:         container.Args,
-		State:        containerState,
-		Image:        container.ImageID,
-		LogPath:      container.LogPath,
-		Name:         container.Name,
-		RestartCount: container.RestartCount,
-		Driver:       container.Driver,
-		MountLabel:   container.MountLabel,
-		ProcessLabel: container.ProcessLabel,
-		ExecIDs:      container.getExecIDs(),
-		HostConfig:   &hostConfig,
-	}
+	contJSONBase := populateJSONBase(container, &hostConfig, containerState)
 
 	var (
 		sizeRw     int64

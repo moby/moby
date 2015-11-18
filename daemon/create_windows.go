@@ -81,3 +81,9 @@ func (daemon *Daemon) createContainerPlatformSpecificSettings(container *Contain
 	}
 	return nil
 }
+
+// setSecurityOpt sets the security options for the container. This is a no-op
+// on Windows.
+func (daemon *Daemon) setSecurityOpt(params *ContainerCreateConfig) error {
+	return nil
+}

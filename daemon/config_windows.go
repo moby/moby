@@ -39,3 +39,9 @@ func (config *Config) InstallFlags(cmd *flag.FlagSet, usageFn func(string) strin
 	// Then platform-specific install flags.
 	cmd.StringVar(&config.Bridge.VirtualSwitchName, []string{"b", "-bridge"}, "", "Attach containers to a virtual switch")
 }
+
+// getMountLabel returns the mount label for the container. This is a no-op
+// on Windows
+func (container *Container) getMountLabel() string {
+	return ""
+}

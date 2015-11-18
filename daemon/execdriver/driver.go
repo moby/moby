@@ -128,12 +128,10 @@ type CommonProcessConfig struct {
 type CommonCommand struct {
 	ContainerPid  int           `json:"container_pid"` // the pid for the process inside a container
 	ID            string        `json:"id"`
-	InitPath      string        `json:"initpath"`    // dockerinit
-	MountLabel    string        `json:"mount_label"` // TODO Windows. More involved, but can be factored out
+	InitPath      string        `json:"initpath"` // dockerinit
 	Mounts        []Mount       `json:"mounts"`
 	Network       *Network      `json:"network"`
 	ProcessConfig ProcessConfig `json:"process_config"` // Describes the init process of the container.
-	ProcessLabel  string        `json:"process_label"`  // TODO Windows. More involved, but can be factored out
 	Resources     *Resources    `json:"resources"`
 	Rootfs        string        `json:"rootfs"` // root fs of the container
 	WorkingDir    string        `json:"working_dir"`

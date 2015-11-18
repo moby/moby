@@ -136,7 +136,7 @@ func (daemon *Daemon) rm(container *Container, forceRemove bool) (err error) {
 		return derr.ErrorCodeRmExecDriver.WithArgs(container.ID, err)
 	}
 
-	selinuxFreeLxcContexts(container.ProcessLabel)
+	platformSpecificRm(container)
 	daemon.idIndex.Delete(container.ID)
 	daemon.containers.Delete(container.ID)
 

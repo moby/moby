@@ -11,8 +11,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/opencontainers/runc/libcontainer/label"
-
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/daemon/logger"
@@ -48,22 +46,19 @@ type streamConfig struct {
 type CommonContainer struct {
 	streamConfig
 	// embed for Container to support states directly.
-	*State          `json:"State"` // Needed for remote api version <= 1.11
-	root            string         // Path to the "home" of the container, including metadata.
-	basefs          string         // Path to the graphdriver mountpoint
-	ID              string
-	Created         time.Time
-	Path            string
-	Args            []string
-	Config          *runconfig.Config
-	ImageID         string `json:"Image"`
-	NetworkSettings *network.Settings
-	LogPath         string
-	Name            string
-	Driver          string
-	// MountLabel contains the options for the 'mount' command
-	MountLabel             string
-	ProcessLabel           string
+	*State                 `json:"State"` // Needed for remote api version <= 1.11
+	root                   string         // Path to the "home" of the container, including metadata.
+	basefs                 string         // Path to the graphdriver mountpoint
+	ID                     string
+	Created                time.Time
+	Path                   string
+	Args                   []string
+	Config                 *runconfig.Config
+	ImageID                string `json:"Image"`
+	NetworkSettings        *network.Settings
+	LogPath                string
+	Name                   string
+	Driver                 string
 	RestartCount           int
 	HasBeenStartedBefore   bool
 	HasBeenManuallyStopped bool // used for unless-stopped restart policy
@@ -96,9 +91,10 @@ func (container *Container) fromDisk() error {
 		return err
 	}
 
-	if err := label.ReserveLabel(container.ProcessLabel); err != nil {
+	if err := reserveLabel(container); err != nil {
 		return err
 	}
+
 	return container.readHostConfig()
 }
 
@@ -333,22 +329,6 @@ func (container *Container) StartLogger(cfg runconfig.LogConfig) (logger.Logger,
 		}
 	}
 	return c(ctx)
-}
-
-func (container *Container) getProcessLabel() string {
-	// even if we have a process label return "" if we are running
-	// in privileged mode
-	if container.hostConfig.Privileged {
-		return ""
-	}
-	return container.ProcessLabel
-}
-
-func (container *Container) getMountLabel() string {
-	if container.hostConfig.Privileged {
-		return ""
-	}
-	return container.MountLabel
 }
 
 func (container *Container) getExecIDs() []string {

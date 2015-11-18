@@ -11,7 +11,6 @@ import (
 	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/volume"
-	"github.com/opencontainers/runc/libcontainer/label"
 )
 
 var (
@@ -135,11 +134,10 @@ func (daemon *Daemon) registerMountPoints(container *Container, hostConfig *runc
 			bind.Driver = v.DriverName()
 			bind = setBindModeIfNull(bind)
 		}
-		if label.RelabelNeeded(bind.Mode) {
-			if err := label.Relabel(bind.Source, container.MountLabel, label.IsShared(bind.Mode)); err != nil {
-				return err
-			}
+		if err := reLabelIfNeeded(bind, container); err != nil {
+			return err
 		}
+
 		binds[bind.Destination] = true
 		mountPoints[bind.Destination] = bind
 	}

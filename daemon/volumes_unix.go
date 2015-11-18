@@ -16,6 +16,7 @@ import (
 	"github.com/docker/docker/volume"
 	volumedrivers "github.com/docker/docker/volume/drivers"
 	"github.com/docker/docker/volume/local"
+	"github.com/opencontainers/runc/libcontainer/label"
 )
 
 // copyExistingContents copies from the source to the destination and
@@ -249,4 +250,14 @@ func configureBackCompatStructures(daemon *Daemon, container *Container, mountPo
 func setBackCompatStructures(container *Container, bcVolumes map[string]string, bcVolumesRW map[string]bool) {
 	container.Volumes = bcVolumes
 	container.VolumesRW = bcVolumesRW
+}
+
+// reLabelIfNeeded is a platform specific helper to relabel binds.
+func reLabelIfNeeded(bind *volume.MountPoint, container *Container) error {
+	if label.RelabelNeeded(bind.Mode) {
+		if err := label.Relabel(bind.Source, container.MountLabel, label.IsShared(bind.Mode)); err != nil {
+			return err
+		}
+	}
+	return nil
 }

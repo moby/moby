@@ -70,3 +70,21 @@ func (daemon *Daemon) createContainerPlatformSpecificSettings(container *Contain
 	}
 	return nil
 }
+
+// setSecurityOpt sets the security options for the container
+func (daemon *Daemon) setSecurityOpt(params *ContainerCreateConfig) error {
+	if params.HostConfig.SecurityOpt == nil {
+		if params.HostConfig.IpcMode.IsHost() || params.HostConfig.PidMode.IsHost() {
+			params.HostConfig.SecurityOpt = label.DisableSecOpt()
+			return nil
+		}
+		if ipcContainer := params.HostConfig.IpcMode.Container(); ipcContainer != "" {
+			c, err := daemon.Get(ipcContainer)
+			if err != nil {
+				return err
+			}
+			params.HostConfig.SecurityOpt = label.DupSecOpt(c.ProcessLabel)
+		}
+	}
+	return nil
+}
