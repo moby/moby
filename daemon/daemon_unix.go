@@ -20,7 +20,6 @@ import (
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/runconfig"
-	"github.com/docker/docker/volume"
 	"github.com/docker/libnetwork"
 	nwconfig "github.com/docker/libnetwork/config"
 	"github.com/docker/libnetwork/drivers/bridge"
@@ -600,20 +599,6 @@ func (daemon *Daemon) registerLinks(container *Container, hostConfig *runconfig.
 	}
 
 	return nil
-}
-
-func (daemon *Daemon) newBaseContainer(id string) *Container {
-	return &Container{
-		CommonContainer: CommonContainer{
-			ID:           id,
-			State:        NewState(),
-			execCommands: newExecStore(),
-			root:         daemon.containerRoot(id),
-			MountPoints:  make(map[string]*volume.MountPoint),
-		},
-		Volumes:   make(map[string]string),
-		VolumesRW: make(map[string]bool),
-	}
 }
 
 // conditionalMountOnStart is a platform specific helper function during the

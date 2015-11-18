@@ -77,6 +77,20 @@ type CommonContainer struct {
 	logCopier *logger.Copier
 }
 
+// newBaseContainer creates a new container with its
+// basic configuration.
+func newBaseContainer(id, root string) *Container {
+	return &Container{
+		CommonContainer: CommonContainer{
+			ID:           id,
+			State:        NewState(),
+			execCommands: newExecStore(),
+			root:         root,
+			MountPoints:  make(map[string]*volume.MountPoint),
+		},
+	}
+}
+
 func (container *Container) fromDisk() error {
 	pth, err := container.jsonPath()
 	if err != nil {
