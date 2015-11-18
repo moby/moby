@@ -554,7 +554,6 @@ func TestNetworkOptions(t *testing.T) {
 	daemon := &Daemon{}
 	dconfigCorrect := &Config{
 		CommonConfig: CommonConfig{
-			DefaultNetwork:   "netPlugin:mynet:dev",
 			ClusterStore:     "consul://localhost:8500",
 			ClusterAdvertise: "192.168.0.1:8000",
 		},
