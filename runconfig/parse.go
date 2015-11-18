@@ -323,6 +323,24 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		return nil, nil, cmd, err
 	}
 
+	resources := Resources{
+		CgroupParent:      *flCgroupParent,
+		Memory:            flMemory,
+		MemoryReservation: MemoryReservation,
+		MemorySwap:        memorySwap,
+		MemorySwappiness:  flSwappiness,
+		KernelMemory:      KernelMemory,
+		CPUShares:         *flCPUShares,
+		CPUPeriod:         *flCPUPeriod,
+		CpusetCpus:        *flCpusetCpus,
+		CpusetMems:        *flCpusetMems,
+		CPUQuota:          *flCPUQuota,
+		BlkioWeight:       *flBlkioWeight,
+		BlkioWeightDevice: flBlkioWeightDevice.GetList(),
+		Ulimits:           flUlimits.GetList(),
+		Devices:           deviceMappings,
+	}
+
 	config := &Config{
 		Hostname:     hostname,
 		Domainname:   domainname,
@@ -349,25 +367,13 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 	}
 
 	hostConfig := &HostConfig{
-		Binds:             binds,
-		ContainerIDFile:   *flContainerIDFile,
-		Memory:            flMemory,
-		MemoryReservation: MemoryReservation,
-		MemorySwap:        memorySwap,
-		KernelMemory:      KernelMemory,
-		CPUShares:         *flCPUShares,
-		CPUPeriod:         *flCPUPeriod,
-		CpusetCpus:        *flCpusetCpus,
-		CpusetMems:        *flCpusetMems,
-		CPUQuota:          *flCPUQuota,
-		BlkioWeight:       *flBlkioWeight,
-		BlkioWeightDevice: flBlkioWeightDevice.GetList(),
-		OomKillDisable:    *flOomKillDisable,
-		MemorySwappiness:  flSwappiness,
-		Privileged:        *flPrivileged,
-		PortBindings:      portBindings,
-		Links:             flLinks.GetAll(),
-		PublishAllPorts:   *flPublishAll,
+		Binds:           binds,
+		ContainerIDFile: *flContainerIDFile,
+		OomKillDisable:  *flOomKillDisable,
+		Privileged:      *flPrivileged,
+		PortBindings:    portBindings,
+		Links:           flLinks.GetAll(),
+		PublishAllPorts: *flPublishAll,
 		// Make sure the dns fields are never nil.
 		// New containers don't ever have those fields nil,
 		// but pre created containers can still have those nil values.
@@ -382,19 +388,17 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		IpcMode:        ipcMode,
 		PidMode:        pidMode,
 		UTSMode:        utsMode,
-		Devices:        deviceMappings,
 		CapAdd:         stringutils.NewStrSlice(flCapAdd.GetAll()...),
 		CapDrop:        stringutils.NewStrSlice(flCapDrop.GetAll()...),
 		GroupAdd:       flGroupAdd.GetAll(),
 		RestartPolicy:  restartPolicy,
 		SecurityOpt:    flSecurityOpt.GetAll(),
 		ReadonlyRootfs: *flReadonlyRootfs,
-		Ulimits:        flUlimits.GetList(),
 		LogConfig:      LogConfig{Type: *flLoggingDriver, Config: loggingOpts},
-		CgroupParent:   *flCgroupParent,
 		VolumeDriver:   *flVolumeDriver,
 		Isolation:      IsolationLevel(*flIsolation),
 		ShmSize:        parsedShm,
+		Resources:      resources,
 	}
 
 	// When allocating stdin in attached mode, close stdin at client disconnect
