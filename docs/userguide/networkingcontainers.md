@@ -201,7 +201,7 @@ Which network is your `web` application running under? Inspect the application a
 
 Then, get the IP address of your `web`
 
-    $ docker inspect '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' web
+    $ docker inspect --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' web
     172.17.0.2
 
 Now, open a shell to your running `db` container:
