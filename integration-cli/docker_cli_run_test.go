@@ -2853,10 +2853,8 @@ func (s *DockerSuite) TestMountIntoSys(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunUnshareProc(c *check.C) {
-	c.Skip("unstable test: is apparmor in a container reliable?")
-
 	// Not applicable on Windows as uses Unix specific functionality
-	testRequires(c, Apparmor, DaemonIsLinux)
+	testRequires(c, Apparmor, DaemonIsLinux, NotUserNamespace)
 
 	name := "acidburn"
 	if out, _, err := dockerCmdWithError("run", "--name", name, "jess/unshare", "unshare", "-p", "-m", "-f", "-r", "--mount-proc=/proc", "mount"); err == nil || !strings.Contains(out, "Permission denied") {
@@ -3234,10 +3232,8 @@ func (s *DockerSuite) TestAppArmorTraceSelf(c *check.C) {
 }
 
 func (s *DockerSuite) TestAppArmorDeniesChmodProc(c *check.C) {
-	c.Skip("Test is failing, and what it tests is unclear")
-
 	// Not applicable on Windows as uses Unix specific functionality
-	testRequires(c, SameHostDaemon, Apparmor, DaemonIsLinux)
+	testRequires(c, SameHostDaemon, Apparmor, DaemonIsLinux, NotUserNamespace)
 	_, exitCode, _ := dockerCmdWithError("run", "busybox", "chmod", "744", "/proc/cpuinfo")
 	if exitCode == 0 {
 		// If our test failed, attempt to repair the host system...
