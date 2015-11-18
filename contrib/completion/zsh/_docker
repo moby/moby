@@ -431,7 +431,7 @@ __docker_commands() {
         lines=(${(f)"$(_call_program commands docker 2>&1)"})
         _docker_subcommands=(${${${lines[$((${lines[(i)Commands:]} + 1)),${lines[(I)    *]}]}## #}/ ##/:})
         _docker_subcommands=($_docker_subcommands 'daemon:Enable daemon mode' 'help:Show help for a command')
-        _store_cache docker_subcommands _docker_subcommands
+        (( $#_docker_subcommands > 2 )) && _store_cache docker_subcommands _docker_subcommands
     fi
     _describe -t docker-commands "docker command" _docker_subcommands
 }
