@@ -325,6 +325,8 @@ func (s *DockerExternalGraphdriverSuite) TestExternalGraphDriver(c *check.C) {
 	err = s.d.Stop()
 	c.Assert(err, check.IsNil)
 
+	// Don't check s.ec.exists, because the daemon no longer calls the
+	// Exists function.
 	c.Assert(s.ec.activations, check.Equals, 2)
 	c.Assert(s.ec.init, check.Equals, 2)
 	c.Assert(s.ec.creations >= 1, check.Equals, true)
@@ -333,7 +335,6 @@ func (s *DockerExternalGraphdriverSuite) TestExternalGraphDriver(c *check.C) {
 	c.Assert(s.ec.puts >= 1, check.Equals, true)
 	c.Assert(s.ec.stats, check.Equals, 3)
 	c.Assert(s.ec.cleanups, check.Equals, 2)
-	c.Assert(s.ec.exists >= 1, check.Equals, true)
 	c.Assert(s.ec.applydiff >= 1, check.Equals, true)
 	c.Assert(s.ec.changes, check.Equals, 1)
 	c.Assert(s.ec.diffsize, check.Equals, 0)

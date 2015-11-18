@@ -125,7 +125,7 @@ type Docker interface {
 	// Remove removes a container specified by `id`.
 	Remove(id string, cfg *daemon.ContainerRmConfig) error
 	// Commit creates a new Docker image from an existing Docker container.
-	Commit(string, *daemon.ContainerCommitConfig) (*image.Image, error)
+	Commit(string, *daemon.ContainerCommitConfig) (string, error)
 	// Copy copies/extracts a source FileInfo to a destination path inside a container
 	// specified by a container object.
 	// TODO: make an Extract method instead of passing `decompress`

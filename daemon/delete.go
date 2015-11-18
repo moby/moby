@@ -1,12 +1,12 @@
 package daemon
 
 import (
-	"fmt"
 	"os"
 	"path"
 
 	"github.com/Sirupsen/logrus"
 	derr "github.com/docker/docker/errors"
+	"github.com/docker/docker/layer"
 	volumestore "github.com/docker/docker/volume/store"
 )
 
@@ -119,13 +119,10 @@ func (daemon *Daemon) rm(container *Container, forceRemove bool) (err error) {
 		logrus.Debugf("Unable to remove container from link graph: %s", err)
 	}
 
-	if err = daemon.driver.Remove(container.ID); err != nil {
+	metadata, err := daemon.layerStore.DeleteMount(container.ID)
+	layer.LogReleaseMetadata(metadata)
+	if err != nil {
 		return derr.ErrorCodeRmDriverFS.WithArgs(daemon.driver, container.ID, err)
-	}
-
-	initID := fmt.Sprintf("%s-init", container.ID)
-	if err := daemon.driver.Remove(initID); err != nil {
-		return derr.ErrorCodeRmInit.WithArgs(daemon.driver, initID, err)
 	}
 
 	if err = os.RemoveAll(container.root); err != nil {

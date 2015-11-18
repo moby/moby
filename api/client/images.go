@@ -4,18 +4,18 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"strings"
 	"text/tabwriter"
 	"time"
 
+	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	Cli "github.com/docker/docker/cli"
 	"github.com/docker/docker/opts"
 	flag "github.com/docker/docker/pkg/mflag"
-	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/parsers/filters"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/units"
-	"github.com/docker/docker/utils"
 )
 
 // CmdImages lists the images in a specified repository, or all top-level images if no repository is specified.
@@ -78,9 +78,9 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 	w := tabwriter.NewWriter(cli.out, 20, 1, 3, ' ', 0)
 	if !*quiet {
 		if *showDigests {
-			fmt.Fprintln(w, "REPOSITORY\tTAG\tDIGEST\tIMAGE ID\tCREATED\tVIRTUAL SIZE")
+			fmt.Fprintln(w, "REPOSITORY\tTAG\tDIGEST\tIMAGE ID\tCREATED\tSIZE")
 		} else {
-			fmt.Fprintln(w, "REPOSITORY\tTAG\tIMAGE ID\tCREATED\tVIRTUAL SIZE")
+			fmt.Fprintln(w, "REPOSITORY\tTAG\tIMAGE ID\tCREATED\tSIZE")
 		}
 	}
 
@@ -101,21 +101,31 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 		// combine the tags and digests lists
 		tagsAndDigests := append(repoTags, repoDigests...)
 		for _, repoAndRef := range tagsAndDigests {
-			repo, ref := parsers.ParseRepositoryTag(repoAndRef)
-			// default tag and digest to none - if there's a value, it'll be set below
+			// default repo, tag, and digest to none - if there's a value, it'll be set below
+			repo := "<none>"
 			tag := "<none>"
 			digest := "<none>"
-			if utils.DigestReference(ref) {
-				digest = ref
-			} else {
-				tag = ref
+
+			if !strings.HasPrefix(repoAndRef, "<none>") {
+				ref, err := reference.ParseNamed(repoAndRef)
+				if err != nil {
+					return err
+				}
+				repo = ref.Name()
+
+				switch x := ref.(type) {
+				case reference.Digested:
+					digest = x.Digest().String()
+				case reference.Tagged:
+					tag = x.Tag()
+				}
 			}
 
 			if !*quiet {
 				if *showDigests {
-					fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s ago\t%s\n", repo, tag, digest, ID, units.HumanDuration(time.Now().UTC().Sub(time.Unix(int64(image.Created), 0))), units.HumanSize(float64(image.VirtualSize)))
+					fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s ago\t%s\n", repo, tag, digest, ID, units.HumanDuration(time.Now().UTC().Sub(time.Unix(int64(image.Created), 0))), units.HumanSize(float64(image.Size)))
 				} else {
-					fmt.Fprintf(w, "%s\t%s\t%s\t%s ago\t%s\n", repo, tag, ID, units.HumanDuration(time.Now().UTC().Sub(time.Unix(int64(image.Created), 0))), units.HumanSize(float64(image.VirtualSize)))
+					fmt.Fprintf(w, "%s\t%s\t%s\t%s ago\t%s\n", repo, tag, ID, units.HumanDuration(time.Now().UTC().Sub(time.Unix(int64(image.Created), 0))), units.HumanSize(float64(image.Size)))
 				}
 			} else {
 				fmt.Fprintln(w, ID)

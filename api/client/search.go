@@ -10,7 +10,6 @@ import (
 
 	Cli "github.com/docker/docker/cli"
 	flag "github.com/docker/docker/pkg/mflag"
-	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/stringutils"
 	"github.com/docker/docker/registry"
 )
@@ -38,10 +37,7 @@ func (cli *DockerCli) CmdSearch(args ...string) error {
 	v := url.Values{}
 	v.Set("term", name)
 
-	// Resolve the Repository name from fqn to hostname + name
-	taglessRemote, _ := parsers.ParseRepositoryTag(name)
-
-	indexInfo, err := registry.ParseIndexInfo(taglessRemote)
+	indexInfo, err := registry.ParseSearchIndexInfo(name)
 	if err != nil {
 		return err
 	}

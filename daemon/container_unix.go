@@ -19,7 +19,6 @@ import (
 	"github.com/docker/docker/daemon/links"
 	"github.com/docker/docker/daemon/network"
 	derr "github.com/docker/docker/errors"
-	"github.com/docker/docker/pkg/directory"
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/mount"
@@ -388,8 +387,7 @@ func (daemon *Daemon) getSize(container *Container) (int64, int64) {
 	}
 	defer daemon.Unmount(container)
 
-	initID := fmt.Sprintf("%s-init", container.ID)
-	sizeRw, err = daemon.driver.DiffSize(container.ID, initID)
+	sizeRw, err = container.rwlayer.Size()
 	if err != nil {
 		logrus.Errorf("Driver %s couldn't return diff size of container %s: %s", daemon.driver, container.ID, err)
 		// FIXME: GetSize should return an error. Not changing it now in case
@@ -397,9 +395,12 @@ func (daemon *Daemon) getSize(container *Container) (int64, int64) {
 		sizeRw = -1
 	}
 
-	if _, err = os.Stat(container.basefs); err == nil {
-		if sizeRootfs, err = directory.Size(container.basefs); err != nil {
+	if parent := container.rwlayer.Parent(); parent != nil {
+		sizeRootfs, err = parent.Size()
+		if err != nil {
 			sizeRootfs = -1
+		} else if sizeRw != -1 {
+			sizeRootfs += sizeRw
 		}
 	}
 	return sizeRw, sizeRootfs

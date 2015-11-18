@@ -10,6 +10,8 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/distribution/digest"
+	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/builder"
@@ -17,17 +19,14 @@ import (
 	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/daemon/daemonbuilder"
 	derr "github.com/docker/docker/errors"
-	"github.com/docker/docker/graph"
-	"github.com/docker/docker/graph/tags"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/ioutils"
-	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/progressreader"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/ulimit"
-	"github.com/docker/docker/registry"
 	"github.com/docker/docker/runconfig"
+	tagpkg "github.com/docker/docker/tag"
 	"github.com/docker/docker/utils"
 	"golang.org/x/net/context"
 )
@@ -110,26 +109,55 @@ func (s *router) postImagesCreate(ctx context.Context, w http.ResponseWriter, r 
 	w.Header().Set("Content-Type", "application/json")
 
 	if image != "" { //pull
-		if tag == "" {
-			image, tag = parsers.ParseRepositoryTag(image)
-		}
-		metaHeaders := map[string][]string{}
-		for k, v := range r.Header {
-			if strings.HasPrefix(k, "X-Meta-") {
-				metaHeaders[k] = v
+		// Special case: "pull -a" may send an image name with a
+		// trailing :. This is ugly, but let's not break API
+		// compatibility.
+		image = strings.TrimSuffix(image, ":")
+
+		var ref reference.Named
+		ref, err = reference.ParseNamed(image)
+		if err == nil {
+			if tag != "" {
+				// The "tag" could actually be a digest.
+				var dgst digest.Digest
+				dgst, err = digest.ParseDigest(tag)
+				if err == nil {
+					ref, err = reference.WithDigest(ref, dgst)
+				} else {
+					ref, err = reference.WithTag(ref, tag)
+				}
+			}
+			if err == nil {
+				metaHeaders := map[string][]string{}
+				for k, v := range r.Header {
+					if strings.HasPrefix(k, "X-Meta-") {
+						metaHeaders[k] = v
+					}
+				}
+
+				err = s.daemon.PullImage(ref, metaHeaders, authConfig, output)
 			}
 		}
-
-		imagePullConfig := &graph.ImagePullConfig{
-			MetaHeaders: metaHeaders,
-			AuthConfig:  authConfig,
-			OutStream:   output,
-		}
-
-		err = s.daemon.PullImage(image, tag, imagePullConfig)
 	} else { //import
-		if tag == "" {
-			repo, tag = parsers.ParseRepositoryTag(repo)
+		var newRef reference.Named
+		if repo != "" {
+			var err error
+			newRef, err = reference.ParseNamed(repo)
+			if err != nil {
+				return err
+			}
+
+			switch newRef.(type) {
+			case reference.Digested:
+				return errors.New("cannot import digest reference")
+			}
+
+			if tag != "" {
+				newRef, err = reference.WithTag(newRef, tag)
+				if err != nil {
+					return err
+				}
+			}
 		}
 
 		src := r.Form.Get("fromSrc")
@@ -143,7 +171,7 @@ func (s *router) postImagesCreate(ctx context.Context, w http.ResponseWriter, r 
 			return err
 		}
 
-		err = s.daemon.ImportImage(src, repo, tag, message, r.Body, output, newConfig)
+		err = s.daemon.ImportImage(src, newRef, message, r.Body, output, newConfig)
 	}
 	if err != nil {
 		if !output.Flushed() {
@@ -183,19 +211,25 @@ func (s *router) postImagesPush(ctx context.Context, w http.ResponseWriter, r *h
 		}
 	}
 
-	name := vars["name"]
+	ref, err := reference.ParseNamed(vars["name"])
+	if err != nil {
+		return err
+	}
+	tag := r.Form.Get("tag")
+	if tag != "" {
+		// Push by digest is not supported, so only tags are supported.
+		ref, err = reference.WithTag(ref, tag)
+		if err != nil {
+			return err
+		}
+	}
+
 	output := ioutils.NewWriteFlusher(w)
 	defer output.Close()
-	imagePushConfig := &graph.ImagePushConfig{
-		MetaHeaders: metaHeaders,
-		AuthConfig:  authConfig,
-		Tag:         r.Form.Get("tag"),
-		OutStream:   output,
-	}
 
 	w.Header().Set("Content-Type", "application/json")
 
-	if err := s.daemon.PushImage(name, imagePushConfig); err != nil {
+	if err := s.daemon.PushImage(ref, metaHeaders, authConfig, output); err != nil {
 		if !output.Flushed() {
 			return err
 		}
@@ -428,7 +462,7 @@ func (s *router) postBuild(ctx context.Context, w http.ResponseWriter, r *http.R
 	}
 
 	for _, rt := range repoAndTags {
-		if err := s.daemon.TagImage(rt.repo, rt.tag, string(imgID), true); err != nil {
+		if err := s.daemon.TagImage(rt, imgID, true); err != nil {
 			return errf(err)
 		}
 	}
@@ -436,43 +470,38 @@ func (s *router) postBuild(ctx context.Context, w http.ResponseWriter, r *http.R
 	return nil
 }
 
-// repoAndTag is a helper struct for holding the parsed repositories and tags of
-// the input "t" argument.
-type repoAndTag struct {
-	repo, tag string
-}
-
 // sanitizeRepoAndTags parses the raw "t" parameter received from the client
 // to a slice of repoAndTag.
 // It also validates each repoName and tag.
-func sanitizeRepoAndTags(names []string) ([]repoAndTag, error) {
+func sanitizeRepoAndTags(names []string) ([]reference.Named, error) {
 	var (
-		repoAndTags []repoAndTag
+		repoAndTags []reference.Named
 		// This map is used for deduplicating the "-t" paramter.
 		uniqNames = make(map[string]struct{})
 	)
 	for _, repo := range names {
-		name, tag := parsers.ParseRepositoryTag(repo)
-		if name == "" {
+		if repo == "" {
 			continue
 		}
 
-		if err := registry.ValidateRepositoryName(name); err != nil {
+		ref, err := reference.ParseNamed(repo)
+		if err != nil {
 			return nil, err
 		}
 
-		nameWithTag := name
-		if len(tag) > 0 {
-			if err := tags.ValidateTagName(tag); err != nil {
-				return nil, err
-			}
-			nameWithTag += ":" + tag
-		} else {
-			nameWithTag += ":" + tags.DefaultTag
+		if _, isDigested := ref.(reference.Digested); isDigested {
+			return nil, errors.New("build tag cannot be a digest")
 		}
+
+		if _, isTagged := ref.(reference.Tagged); !isTagged {
+			ref, err = reference.WithTag(ref, tagpkg.DefaultTag)
+		}
+
+		nameWithTag := ref.String()
+
 		if _, exists := uniqNames[nameWithTag]; !exists {
 			uniqNames[nameWithTag] = struct{}{}
-			repoAndTags = append(repoAndTags, repoAndTag{repo: name, tag: tag})
+			repoAndTags = append(repoAndTags, ref)
 		}
 	}
 	return repoAndTags, nil
@@ -484,7 +513,7 @@ func (s *router) getImagesJSON(ctx context.Context, w http.ResponseWriter, r *ht
 	}
 
 	// FIXME: The filter parameter could just be a match filter
-	images, err := s.daemon.ListImages(r.Form.Get("filters"), r.Form.Get("filter"), httputils.BoolValue(r, "all"))
+	images, err := s.daemon.Images(r.Form.Get("filters"), r.Form.Get("filter"), httputils.BoolValue(r, "all"))
 	if err != nil {
 		return err
 	}
@@ -508,9 +537,17 @@ func (s *router) postImagesTag(ctx context.Context, w http.ResponseWriter, r *ht
 	}
 	repo := r.Form.Get("repo")
 	tag := r.Form.Get("tag")
-	name := vars["name"]
+	newTag, err := reference.WithName(repo)
+	if err != nil {
+		return err
+	}
+	if tag != "" {
+		if newTag, err = reference.WithTag(newTag, tag); err != nil {
+			return err
+		}
+	}
 	force := httputils.BoolValue(r, "force")
-	if err := s.daemon.TagImage(repo, tag, name, force); err != nil {
+	if err := s.daemon.TagImage(newTag, vars["name"], force); err != nil {
 		return err
 	}
 	w.WriteHeader(http.StatusCreated)

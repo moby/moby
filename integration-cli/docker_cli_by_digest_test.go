@@ -3,6 +3,8 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -11,7 +13,6 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/docker/docker/pkg/stringutils"
-	"github.com/docker/docker/utils"
 	"github.com/go-check/check"
 )
 
@@ -32,7 +33,7 @@ func setupImageWithTag(c *check.C, tag string) (digest.Digest, error) {
 	dockerCmd(c, "run", "-d", "-e", "digest=1", "--name", containerName, "busybox")
 
 	// tag the image to upload it to the private registry
-	repoAndTag := utils.ImageReference(repoName, tag)
+	repoAndTag := repoName + ":" + tag
 	out, _, err := dockerCmdWithError("commit", containerName, repoAndTag)
 	c.Assert(err, checker.IsNil, check.Commentf("image tagging failed: %s", out))
 
@@ -437,6 +438,11 @@ func (s *DockerRegistrySuite) TestPullFailsWithAlteredLayer(c *check.C) {
 
 	// Now try pulling that image by digest. We should get an error about
 	// digest verification for the target layer digest.
+
+	// Remove distribution cache to force a re-pull of the blobs
+	if err := os.RemoveAll(filepath.Join(dockerBasePath, "image", s.d.storageDriver, "distribution")); err != nil {
+		c.Fatalf("error clearing distribution cache: %v", err)
+	}
 
 	// Pull from the registry using the <name>@<digest> reference.
 	imageReference := fmt.Sprintf("%s@%s", repoName, manifestDigest)

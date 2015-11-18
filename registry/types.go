@@ -1,5 +1,9 @@
 package registry
 
+import (
+	"github.com/docker/distribution/reference"
+)
+
 // SearchResult describes a search result returned from a registry
 type SearchResult struct {
 	// StarCount indicates the number of stars this repository has
@@ -126,13 +130,13 @@ type RepositoryInfo struct {
 	Index *IndexInfo
 	// RemoteName is the remote name of the repository, such as
 	// "library/ubuntu-12.04-base"
-	RemoteName string
+	RemoteName reference.Named
 	// LocalName is the local name of the repository, such as
 	// "ubuntu-12.04-base"
-	LocalName string
+	LocalName reference.Named
 	// CanonicalName is the canonical name of the repository, such as
 	// "docker.io/library/ubuntu-12.04-base"
-	CanonicalName string
+	CanonicalName reference.Named
 	// Official indicates whether the repository is considered official.
 	// If the registry is official, and the normalized name does not
 	// contain a '/' (e.g. "foo"), then it is considered an official repo.

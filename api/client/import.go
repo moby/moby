@@ -6,10 +6,10 @@ import (
 	"net/url"
 	"os"
 
+	"github.com/docker/distribution/reference"
 	Cli "github.com/docker/docker/cli"
 	"github.com/docker/docker/opts"
 	flag "github.com/docker/docker/pkg/mflag"
-	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/urlutil"
 	"github.com/docker/docker/registry"
 )
@@ -47,8 +47,11 @@ func (cli *DockerCli) CmdImport(args ...string) error {
 
 	if repository != "" {
 		//Check if the given image name can be resolved
-		repo, _ := parsers.ParseRepositoryTag(repository)
-		if err := registry.ValidateRepositoryName(repo); err != nil {
+		ref, err := reference.ParseNamed(repository)
+		if err != nil {
+			return err
+		}
+		if err := registry.ValidateRepositoryName(ref); err != nil {
 			return err
 		}
 	}

@@ -8,10 +8,12 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
 
+	"github.com/docker/distribution/digest"
 	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/go-check/check"
 )
@@ -100,7 +102,7 @@ func (s *DockerSuite) TestSaveCheckTimes(c *check.C) {
 	out, _, err = runCommandPipelineWithOutput(
 		exec.Command(dockerBinary, "save", repoName),
 		exec.Command("tar", "tv"),
-		exec.Command("grep", "-E", fmt.Sprintf("%s %s", data[0].Created.Format(tarTvTimeFormat), data[0].ID)))
+		exec.Command("grep", "-E", fmt.Sprintf("%s %s", data[0].Created.Format(tarTvTimeFormat), digest.Digest(data[0].ID).Hex())))
 	c.Assert(err, checker.IsNil, check.Commentf("failed to save repo with image ID and 'repositories' file: %s, %v", out, err))
 }
 
@@ -110,7 +112,7 @@ func (s *DockerSuite) TestSaveImageId(c *check.C) {
 	dockerCmd(c, "tag", "emptyfs:latest", fmt.Sprintf("%v:latest", repoName))
 
 	out, _ := dockerCmd(c, "images", "-q", "--no-trunc", repoName)
-	cleanedLongImageID := strings.TrimSpace(out)
+	cleanedLongImageID := strings.TrimPrefix(strings.TrimSpace(out), "sha256:")
 
 	out, _ = dockerCmd(c, "images", "-q", repoName)
 	cleanedShortImageID := strings.TrimSpace(out)
@@ -207,20 +209,30 @@ func (s *DockerSuite) TestSaveRepoWithMultipleImages(c *check.C) {
 
 	// create the archive
 	out, _, err := runCommandPipelineWithOutput(
-		exec.Command(dockerBinary, "save", repoName),
-		exec.Command("tar", "t"),
-		exec.Command("grep", "VERSION"),
-		exec.Command("cut", "-d", "/", "-f1"))
+		exec.Command(dockerBinary, "save", repoName, "busybox:latest"),
+		exec.Command("tar", "t"))
 	c.Assert(err, checker.IsNil, check.Commentf("failed to save multiple images: %s, %v", out, err))
-	actual := strings.Split(strings.TrimSpace(out), "\n")
+
+	lines := strings.Split(strings.TrimSpace(out), "\n")
+	var actual []string
+	for _, l := range lines {
+		if regexp.MustCompile("^[a-f0-9]{64}\\.json$").Match([]byte(l)) {
+			actual = append(actual, strings.TrimSuffix(l, ".json"))
+		}
+	}
 
 	// make the list of expected layers
-	out, _ = dockerCmd(c, "history", "-q", "--no-trunc", "busybox:latest")
-	expected := append(strings.Split(strings.TrimSpace(out), "\n"), idFoo, idBar)
+	out, _ = dockerCmd(c, "inspect", "-f", "{{.Id}}", "busybox:latest")
+	expected := []string{strings.TrimSpace(out), idFoo, idBar}
+
+	// prefixes are not in tar
+	for i := range expected {
+		expected[i] = digest.Digest(expected[i]).Hex()
+	}
 
 	sort.Strings(actual)
 	sort.Strings(expected)
-	c.Assert(actual, checker.DeepEquals, expected, check.Commentf("archive does not contains the right layers: got %v, expected %v", actual, expected))
+	c.Assert(actual, checker.DeepEquals, expected, check.Commentf("archive does not contains the right layers: got %v, expected %v, output: %q", actual, expected, out))
 }
 
 // Issue #6722 #5892 ensure directories are included in changes

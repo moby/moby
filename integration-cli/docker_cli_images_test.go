@@ -98,9 +98,9 @@ func (s *DockerSuite) TestImagesFilterLabel(c *check.C) {
 
 	out, _ := dockerCmd(c, "images", "--no-trunc", "-q", "-f", "label=match")
 	out = strings.TrimSpace(out)
-	c.Assert(out, check.Matches, fmt.Sprintf("[\\s\\w]*%s[\\s\\w]*", image1ID))
-	c.Assert(out, check.Matches, fmt.Sprintf("[\\s\\w]*%s[\\s\\w]*", image2ID))
-	c.Assert(out, check.Not(check.Matches), fmt.Sprintf("[\\s\\w]*%s[\\s\\w]*", image3ID))
+	c.Assert(out, check.Matches, fmt.Sprintf("[\\s\\w:]*%s[\\s\\w:]*", image1ID))
+	c.Assert(out, check.Matches, fmt.Sprintf("[\\s\\w:]*%s[\\s\\w:]*", image2ID))
+	c.Assert(out, check.Not(check.Matches), fmt.Sprintf("[\\s\\w:]*%s[\\s\\w:]*", image3ID))
 
 	out, _ = dockerCmd(c, "images", "--no-trunc", "-q", "-f", "label=match=me too")
 	out = strings.TrimSpace(out)
@@ -204,7 +204,7 @@ func (s *DockerSuite) TestImagesEnsureOnlyHeadsImagesShown(c *check.C) {
 	// images shouldn't show non-heads images
 	c.Assert(out, checker.Not(checker.Contains), intermediate)
 	// images should contain final built images
-	c.Assert(out, checker.Contains, head[:12])
+	c.Assert(out, checker.Contains, stringid.TruncateID(head))
 }
 
 func (s *DockerSuite) TestImagesEnsureImagesFromScratchShown(c *check.C) {
@@ -219,5 +219,5 @@ func (s *DockerSuite) TestImagesEnsureImagesFromScratchShown(c *check.C) {
 
 	out, _ := dockerCmd(c, "images")
 	// images should contain images built from scratch
-	c.Assert(out, checker.Contains, id[:12])
+	c.Assert(out, checker.Contains, stringid.TruncateID(id))
 }

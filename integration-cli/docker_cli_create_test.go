@@ -14,6 +14,7 @@ import (
 
 	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/docker/docker/pkg/nat"
+	"github.com/docker/docker/pkg/stringid"
 	"github.com/go-check/check"
 )
 
@@ -241,6 +242,41 @@ func (s *DockerSuite) TestCreateModeIpcContainer(c *check.C) {
 	id := strings.TrimSpace(out)
 
 	dockerCmd(c, "create", fmt.Sprintf("--ipc=container:%s", id), "busybox")
+}
+
+func (s *DockerSuite) TestCreateByImageID(c *check.C) {
+	imageName := "testcreatebyimageid"
+	imageID, err := buildImage(imageName,
+		`FROM busybox
+		MAINTAINER dockerio`,
+		true)
+	if err != nil {
+		c.Fatal(err)
+	}
+	truncatedImageID := stringid.TruncateID(imageID)
+
+	dockerCmd(c, "create", imageID)
+	dockerCmd(c, "create", truncatedImageID)
+	dockerCmd(c, "create", fmt.Sprintf("%s:%s", imageName, truncatedImageID))
+
+	// Ensure this fails
+	out, exit, _ := dockerCmdWithError("create", fmt.Sprintf("%s:%s", imageName, imageID))
+	if exit == 0 {
+		c.Fatalf("expected non-zero exit code; received %d", exit)
+	}
+
+	if expected := "invalid reference format"; !strings.Contains(out, expected) {
+		c.Fatalf(`Expected %q in output; got: %s`, expected, out)
+	}
+
+	out, exit, _ = dockerCmdWithError("create", fmt.Sprintf("%s:%s", "wrongimage", truncatedImageID))
+	if exit == 0 {
+		c.Fatalf("expected non-zero exit code; received %d", exit)
+	}
+
+	if expected := "Unable to find image"; !strings.Contains(out, expected) {
+		c.Fatalf(`Expected %q in output; got: %s`, expected, out)
+	}
 }
 
 func (s *DockerTrustSuite) TestTrustedCreate(c *check.C) {

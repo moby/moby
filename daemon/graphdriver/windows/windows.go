@@ -6,10 +6,10 @@ import (
 	"crypto/sha512"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -17,8 +17,6 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/graphdriver"
-	"github.com/docker/docker/dockerversion"
-	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/idtools"
@@ -39,26 +37,6 @@ const (
 	// filterDriver is an hcsshim driver type
 	filterDriver
 )
-
-// CustomImageDescriptor is an image descriptor for use by RestoreCustomImages
-type customImageDescriptor struct {
-	img *image.Image
-}
-
-// ID returns the image ID specified in the image structure.
-func (img customImageDescriptor) ID() string {
-	return img.img.ID
-}
-
-// Parent returns the parent ID - in this case, none
-func (img customImageDescriptor) Parent() string {
-	return ""
-}
-
-// MarshalConfig renders the image structure into JSON.
-func (img customImageDescriptor) MarshalConfig() ([]byte, error) {
-	return json.Marshal(img.img)
-}
 
 // Driver represents a windows graph driver.
 type Driver struct {
@@ -195,7 +173,7 @@ func (d *Driver) Remove(id string) error {
 	if err != nil {
 		return err
 	}
-
+	os.RemoveAll(filepath.Join(d.info.HomeDir, "sysfile-backups", rID)) // ok to fail
 	return hcsshim.DestroyLayer(d.info, rID)
 }
 
@@ -402,22 +380,27 @@ func (d *Driver) DiffSize(id, parent string) (size int64, err error) {
 	return archive.ChangesSize(layerFs, changes), nil
 }
 
-// RestoreCustomImages adds any auto-detected OS specific images to the tag and graph store.
-func (d *Driver) RestoreCustomImages(tagger graphdriver.Tagger, recorder graphdriver.Recorder) (imageIDs []string, err error) {
+// CustomImageInfo is the object returned by the driver describing the base
+// image.
+type CustomImageInfo struct {
+	ID          string
+	Name        string
+	Version     string
+	Path        string
+	Size        int64
+	CreatedTime time.Time
+}
+
+// GetCustomImageInfos returns the image infos for window specific
+// base images which should always be present.
+func (d *Driver) GetCustomImageInfos() ([]CustomImageInfo, error) {
 	strData, err := hcsshim.GetSharedBaseImages()
 	if err != nil {
 		return nil, fmt.Errorf("Failed to restore base images: %s", err)
 	}
 
-	type customImageInfo struct {
-		Name        string
-		Version     string
-		Path        string
-		Size        int64
-		CreatedTime time.Time
-	}
 	type customImageInfoList struct {
-		Images []customImageInfo
+		Images []CustomImageInfo
 	}
 
 	var infoData customImageInfoList
@@ -428,43 +411,28 @@ func (d *Driver) RestoreCustomImages(tagger graphdriver.Tagger, recorder graphdr
 		return nil, err
 	}
 
+	var images []CustomImageInfo
+
 	for _, imageData := range infoData.Images {
-		_, folderName := filepath.Split(imageData.Path)
+		folderName := filepath.Base(imageData.Path)
 
 		// Use crypto hash of the foldername to generate a docker style id.
 		h := sha512.Sum384([]byte(folderName))
 		id := fmt.Sprintf("%x", h[:32])
 
-		if !recorder.Exists(id) {
-			// Register the image.
-			img := &image.Image{
-				ID:            id,
-				Created:       imageData.CreatedTime,
-				DockerVersion: dockerversion.Version,
-				Architecture:  runtime.GOARCH,
-				OS:            runtime.GOOS,
-				Size:          imageData.Size,
-			}
-
-			if err := recorder.Register(customImageDescriptor{img}, nil); err != nil {
-				return nil, err
-			}
-
-			// Create tags for the new image.
-			if err := tagger.Tag(strings.ToLower(imageData.Name), imageData.Version, img.ID, true); err != nil {
-				return nil, err
-			}
-
-			// Create the alternate ID file.
-			if err := d.setID(img.ID, folderName); err != nil {
-				return nil, err
-			}
-
-			imageIDs = append(imageIDs, img.ID)
+		if err := d.Create(id, "", ""); err != nil {
+			return nil, err
 		}
+		// Create the alternate ID file.
+		if err := d.setID(id, folderName); err != nil {
+			return nil, err
+		}
+
+		imageData.ID = id
+		images = append(images, imageData)
 	}
 
-	return imageIDs, nil
+	return images, nil
 }
 
 // GetMetadata returns custom driver information.
@@ -533,6 +501,10 @@ func (d *Driver) importLayer(id string, layerData archive.Reader, parentLayerPat
 	if size, err = chrootarchive.ApplyLayer(tempFolder, layerData); err != nil {
 		return
 	}
+	err = copySysFiles(tempFolder, filepath.Join(d.info.HomeDir, "sysfile-backups", id))
+	if err != nil {
+		return
+	}
 	logrus.Debugf("Untar time: %vs", time.Now().UTC().Sub(start).Seconds())
 
 	if err = hcsshim.ImportLayer(d.info, id, tempFolder, parentLayerPaths); err != nil {
@@ -595,4 +567,104 @@ func (d *Driver) setLayerChain(id string, chain []string) error {
 	}
 
 	return nil
+}
+
+// DiffPath returns a directory that contains files needed to construct layer diff.
+func (d *Driver) DiffPath(id string) (path string, release func() error, err error) {
+	id, err = d.resolveID(id)
+	if err != nil {
+		return
+	}
+
+	// Getting the layer paths must be done outside of the lock.
+	layerChain, err := d.getLayerChain(id)
+	if err != nil {
+		return
+	}
+
+	layerFolder := d.dir(id)
+	tempFolder := layerFolder + "-" + strconv.FormatUint(uint64(random.Rand.Uint32()), 10)
+	if err = os.MkdirAll(tempFolder, 0755); err != nil {
+		logrus.Errorf("Could not create %s %s", tempFolder, err)
+		return
+	}
+
+	defer func() {
+		if err != nil {
+			_, folderName := filepath.Split(tempFolder)
+			if err2 := hcsshim.DestroyLayer(d.info, folderName); err2 != nil {
+				logrus.Warnf("Couldn't clean-up tempFolder: %s %s", tempFolder, err2)
+			}
+		}
+	}()
+
+	if err = hcsshim.ExportLayer(d.info, id, tempFolder, layerChain); err != nil {
+		return
+	}
+
+	err = copySysFiles(filepath.Join(d.info.HomeDir, "sysfile-backups", id), tempFolder)
+	if err != nil {
+		return
+	}
+
+	return tempFolder, func() error {
+		// TODO: activate layers and release here?
+		_, folderName := filepath.Split(tempFolder)
+		return hcsshim.DestroyLayer(d.info, folderName)
+	}, nil
+}
+
+var sysFileWhiteList = []string{
+	"Hives\\*",
+	"Files\\BOOTNXT",
+	"tombstones.txt",
+}
+
+// note this only handles files
+func copySysFiles(src string, dest string) error {
+	if err := os.MkdirAll(dest, 0700); err != nil {
+		return err
+	}
+	return filepath.Walk(src, func(path string, info os.FileInfo, err error) error {
+		rel, err := filepath.Rel(src, path)
+		if err != nil {
+			return err
+		}
+		for _, sysfile := range sysFileWhiteList {
+			if matches, err := filepath.Match(sysfile, rel); err != nil || !matches {
+				continue
+			}
+
+			fi, err := os.Lstat(path)
+			if err != nil {
+				return err
+			}
+
+			if !fi.Mode().IsRegular() {
+				continue
+			}
+
+			targetPath := filepath.Join(dest, rel)
+			if err = os.MkdirAll(filepath.Dir(targetPath), 0700); err != nil {
+				return err
+			}
+
+			in, err := os.Open(path)
+			if err != nil {
+				return err
+			}
+			out, err := os.Create(targetPath)
+			if err != nil {
+				in.Close()
+				return err
+			}
+			_, err = io.Copy(out, in)
+			in.Close()
+			out.Close()
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }

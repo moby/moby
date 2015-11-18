@@ -159,3 +159,71 @@ func (s *DockerRegistrySuite) TestConcurrentPullMultipleTags(c *check.C) {
 		c.Assert(strings.TrimSpace(out), check.Equals, "/bin/sh -c echo "+repo, check.Commentf("CMD did not contain /bin/sh -c echo %s; %s", repo, out))
 	}
 }
+
+// TestPullIDStability verifies that pushing an image and pulling it back
+// preserves the image ID.
+func (s *DockerRegistrySuite) TestPullIDStability(c *check.C) {
+	derivedImage := privateRegistryURL + "/dockercli/id-stability"
+	baseImage := "busybox"
+
+	_, err := buildImage(derivedImage, fmt.Sprintf(`
+	    FROM %s
+	    ENV derived true
+	    ENV asdf true
+	    RUN dd if=/dev/zero of=/file bs=1024 count=1024
+	    CMD echo %s
+	`, baseImage, derivedImage), true)
+	if err != nil {
+		c.Fatal(err)
+	}
+
+	originalID, err := getIDByName(derivedImage)
+	if err != nil {
+		c.Fatalf("error inspecting: %v", err)
+	}
+	dockerCmd(c, "push", derivedImage)
+
+	// Pull
+	out, _ := dockerCmd(c, "pull", derivedImage)
+	if strings.Contains(out, "Pull complete") {
+		c.Fatalf("repull redownloaded a layer: %s", out)
+	}
+
+	derivedIDAfterPull, err := getIDByName(derivedImage)
+	if err != nil {
+		c.Fatalf("error inspecting: %v", err)
+	}
+
+	if derivedIDAfterPull != originalID {
+		c.Fatal("image's ID unexpectedly changed after a repush/repull")
+	}
+
+	// Make sure the image runs correctly
+	out, _ = dockerCmd(c, "run", "--rm", derivedImage)
+	if strings.TrimSpace(out) != derivedImage {
+		c.Fatalf("expected %s; got %s", derivedImage, out)
+	}
+
+	// Confirm that repushing and repulling does not change the computed ID
+	dockerCmd(c, "push", derivedImage)
+	dockerCmd(c, "rmi", derivedImage)
+	dockerCmd(c, "pull", derivedImage)
+
+	derivedIDAfterPull, err = getIDByName(derivedImage)
+	if err != nil {
+		c.Fatalf("error inspecting: %v", err)
+	}
+
+	if derivedIDAfterPull != originalID {
+		c.Fatal("image's ID unexpectedly changed after a repush/repull")
+	}
+	if err != nil {
+		c.Fatalf("error inspecting: %v", err)
+	}
+
+	// Make sure the image still runs
+	out, _ = dockerCmd(c, "run", "--rm", derivedImage)
+	if strings.TrimSpace(out) != derivedImage {
+		c.Fatalf("expected %s; got %s", derivedImage, out)
+	}
+}

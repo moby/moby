@@ -1,10 +1,16 @@
 package daemon
 
 import (
+	"encoding/json"
 	"fmt"
 	"runtime"
+	"strings"
+	"time"
 
+	"github.com/docker/distribution/reference"
+	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/image"
+	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/runconfig"
@@ -25,15 +31,15 @@ type ContainerCommitConfig struct {
 
 // Commit creates a new filesystem image from the current state of a container.
 // The image can optionally be tagged into a repository.
-func (daemon *Daemon) Commit(name string, c *ContainerCommitConfig) (*image.Image, error) {
+func (daemon *Daemon) Commit(name string, c *ContainerCommitConfig) (string, error) {
 	container, err := daemon.Get(name)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
 	// It is not possible to commit a running container on Windows
 	if runtime.GOOS == "windows" && container.IsRunning() {
-		return nil, fmt.Errorf("Windows does not support commit of a running container")
+		return "", fmt.Errorf("Windows does not support commit of a running container")
 	}
 
 	if c.Pause && !container.isPaused() {
@@ -43,13 +49,13 @@ func (daemon *Daemon) Commit(name string, c *ContainerCommitConfig) (*image.Imag
 
 	if c.MergeConfigs {
 		if err := runconfig.Merge(c.Config, container.Config); err != nil {
-			return nil, err
+			return "", err
 		}
 	}
 
 	rwTar, err := daemon.exportContainerRw(container)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 	defer func() {
 		if rwTar != nil {
@@ -57,31 +63,99 @@ func (daemon *Daemon) Commit(name string, c *ContainerCommitConfig) (*image.Imag
 		}
 	}()
 
-	// Create a new image from the container's base layers + a new layer from container changes
-	img, err := daemon.graph.Create(rwTar, container.ID, container.ImageID, c.Comment, c.Author, container.Config, c.Config)
-	if err != nil {
-		return nil, err
+	var history []image.History
+	rootFS := image.NewRootFS()
+
+	if container.ImageID != "" {
+		img, err := daemon.imageStore.Get(container.ImageID)
+		if err != nil {
+			return "", err
+		}
+		history = img.History
+		rootFS = img.RootFS
 	}
 
-	// Register the image if needed
+	l, err := daemon.layerStore.Register(rwTar, rootFS.ChainID())
+	if err != nil {
+		return "", err
+	}
+	defer layer.ReleaseAndLog(daemon.layerStore, l)
+
+	h := image.History{
+		Author:     c.Author,
+		Created:    time.Now().UTC(),
+		CreatedBy:  strings.Join(container.Config.Cmd.Slice(), " "),
+		Comment:    c.Comment,
+		EmptyLayer: true,
+	}
+
+	if diffID := l.DiffID(); layer.DigestSHA256EmptyTar != diffID {
+		h.EmptyLayer = false
+		rootFS.Append(diffID)
+	}
+
+	history = append(history, h)
+
+	config, err := json.Marshal(&image.Image{
+		V1Image: image.V1Image{
+			DockerVersion:   dockerversion.Version,
+			Config:          c.Config,
+			Architecture:    runtime.GOARCH,
+			OS:              runtime.GOOS,
+			Container:       container.ID,
+			ContainerConfig: *container.Config,
+			Author:          c.Author,
+			Created:         h.Created,
+		},
+		RootFS:  rootFS,
+		History: history,
+	})
+
+	if err != nil {
+		return "", err
+	}
+
+	id, err := daemon.imageStore.Create(config)
+	if err != nil {
+		return "", err
+	}
+
+	if container.ImageID != "" {
+		if err := daemon.imageStore.SetParent(id, container.ImageID); err != nil {
+			return "", err
+		}
+	}
+
 	if c.Repo != "" {
-		if err := daemon.repositories.Tag(c.Repo, c.Tag, img.ID, true); err != nil {
-			return img, err
+		newTag, err := reference.WithName(c.Repo) // todo: should move this to API layer
+		if err != nil {
+			return "", err
+		}
+		if c.Tag != "" {
+			if newTag, err = reference.WithTag(newTag, c.Tag); err != nil {
+				return "", err
+			}
+		}
+		if err := daemon.TagImage(newTag, id.String(), true); err != nil {
+			return "", err
 		}
 	}
 
 	daemon.LogContainerEvent(container, "commit")
-	return img, nil
+	return id.String(), nil
 }
 
 func (daemon *Daemon) exportContainerRw(container *Container) (archive.Archive, error) {
-	archive, err := daemon.diff(container)
+	if err := daemon.Mount(container); err != nil {
+		return nil, err
+	}
+
+	archive, err := container.rwlayer.TarStream()
 	if err != nil {
 		return nil, err
 	}
 	return ioutils.NewReadCloserWrapper(archive, func() error {
-			err := archive.Close()
-			return err
+			return daemon.layerStore.Unmount(container.ID)
 		}),
 		nil
 }
