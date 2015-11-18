@@ -478,7 +478,6 @@ __docker_subcommand() {
         "($help)*"{-l=,--label=}"[Set meta data on a container]:label: "
         "($help)--log-driver=[Default driver for container logs]:Logging driver:(json-file syslog journald gelf fluentd awslogs splunk none)"
         "($help)*--log-opt=[Log driver specific options]:log driver options:__docker_log_options"
-        "($help)*--lxc-conf=[Add custom lxc options]:lxc options: "
         "($help)--mac-address=[Container MAC address]:MAC address: "
         "($help)--name=[Container name]:name: "
         "($help)--net=[Connect a container to a network]:network mode:(bridge none container host)"
