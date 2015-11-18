@@ -110,6 +110,12 @@ will add the libraries here.
       <td>Active</td>
     </tr>
     <tr>
+      <td>Java</td>
+      <td>rx-docker-client</td>
+      <td><a class="reference external" href="https://github.com/shekhargulati/rx-docker-client">https://github.com/shekhargulati/rx-docker-client</a></td>
+      <td>Active</td>
+    </tr>
+    <tr>
       <td>JavaScript (NodeJS)</td>
       <td>dockerode</td>
       <td><a class="reference external" href="https://github.com/apocas/dockerode">https://github.com/apocas/dockerode</a>
