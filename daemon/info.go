@@ -3,6 +3,7 @@ package daemon
 import (
 	"os"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -91,9 +92,9 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 		ServerVersion:      dockerversion.Version,
 		ClusterStore:       daemon.config().ClusterStore,
 		ClusterAdvertise:   daemon.config().ClusterAdvertise,
-		HTTPProxy:          os.Getenv("http_proxy"),
-		HTTPSProxy:         os.Getenv("https_proxy"),
-		NoProxy:            os.Getenv("no_proxy"),
+		HTTPProxy:          getProxyEnv("http_proxy"),
+		HTTPSProxy:         getProxyEnv("https_proxy"),
+		NoProxy:            getProxyEnv("no_proxy"),
 	}
 
 	// TODO Windows. Refactor this more once sysinfo is refactored into
@@ -128,4 +129,14 @@ func (daemon *Daemon) showPluginsInfo() types.PluginsInfo {
 	}
 
 	return pluginsInfo
+}
+
+// The uppercase and the lowercase are available for the proxy settings.
+// See the Go specification for details on these variables. https://golang.org/pkg/net/http/
+func getProxyEnv(key string) string {
+	proxyValue := os.Getenv(strings.ToUpper(key))
+	if proxyValue == "" {
+		return os.Getenv(strings.ToLower(key))
+	}
+	return proxyValue
 }
