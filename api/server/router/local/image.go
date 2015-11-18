@@ -108,17 +108,17 @@ func (s *router) postImagesCreate(ctx context.Context, w http.ResponseWriter, r 
 	)
 	defer output.Close()
 
+	// Handles the unescape characters.
+	uTag, err := url.QueryUnescape(tag)
+	if err == nil {
+		tag = uTag
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 
 	if image != "" { //pull
-		// Handles the unescape characters.
-		unescapedImage, err := url.QueryUnescape(image)
-		if err != nil {
-			unescapedImage = image
-		}
-
 		if tag == "" {
-			image, tag = parsers.ParseRepositoryTag(unescapedImage)
+			image, tag = parsers.ParseRepositoryTag(image)
 		}
 		metaHeaders := map[string][]string{}
 		for k, v := range r.Header {
