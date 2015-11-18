@@ -177,7 +177,7 @@ func (d Docker) Copy(c *daemon.Container, destPath string, src builder.FileInfo,
 		if err := d.Archiver.UntarPath(srcPath, tarDest); err == nil {
 			return nil
 		} else if err != io.EOF {
-			logrus.Debugf("Couldn't untar to %s: %v", tarDest, err)
+			logrus.Errorf("Couldn't untar to %s: %v", tarDest, err)
 		}
 	}
 
