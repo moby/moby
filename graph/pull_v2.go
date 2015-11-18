@@ -7,6 +7,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"runtime"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution"
@@ -601,6 +602,15 @@ func (p *v2Puller) attemptIDReuse(imgs []contentAddressableDescriptor) {
 	continueReuse := true
 
 	for i := len(imgs) - 1; i >= 0; i-- {
+		// TODO - (swernli:11-16-2015) Skipping content addressable IDs on
+		// Windows as a hack for TP4 compat. The correct fix is to ensure that
+		// Windows layers do not have anything in them that takes a dependency
+		// on the ID of the layer in the management client. This will be fixed
+		// in Windows post-TP4.
+		if runtime.GOOS == "windows" {
+			imgs[i].id = imgs[i].compatibilityID
+		}
+
 		if p.graph.Exists(imgs[i].id) {
 			// Found an image in the graph under the strongID. Validate the
 			// image before using it.
@@ -657,6 +667,14 @@ func (p *v2Puller) validateImageInGraph(id string, imgs []contentAddressableDesc
 	img, err := p.graph.Get(id)
 	if err != nil {
 		return fmt.Errorf("missing: %v", err)
+	}
+	if runtime.GOOS == "windows" {
+		// TODO - (swernli:11-16-2015) Skipping content addressable IDs on
+		// Windows as a hack for TP4 compat. The correct fix is to ensure that
+		// Windows layers do not have anything in them that takes a dependency
+		// on the ID of the layer in the management client. This will be fixed
+		// in Windows post-TP4.
+		return nil
 	}
 	layerID, err := p.graph.getLayerDigest(id)
 	if err != nil {
