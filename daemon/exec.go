@@ -2,7 +2,6 @@ package daemon
 
 import (
 	"io"
-	"io/ioutil"
 	"strings"
 	"sync"
 	"time"
@@ -10,8 +9,6 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/execdriver"
 	derr "github.com/docker/docker/errors"
-	"github.com/docker/docker/pkg/broadcaster"
-	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/pools"
 	"github.com/docker/docker/pkg/promise"
 	"github.com/docker/docker/pkg/stringid"
@@ -28,12 +25,12 @@ type ExecConfig struct {
 	Running       bool
 	ExitCode      int
 	ProcessConfig *execdriver.ProcessConfig
-	streamConfig
-	OpenStdin  bool
-	OpenStderr bool
-	OpenStdout bool
-	Container  *Container
-	canRemove  bool
+	OpenStdin     bool
+	OpenStderr    bool
+	OpenStdout    bool
+	streamConfig  *runconfig.StreamConfig
+	Container     *Container
+	canRemove     bool
 
 	// waitStart will be closed immediately after the exec is really started.
 	waitStart chan struct{}
@@ -170,7 +167,7 @@ func (d *Daemon) ContainerExecCreate(config *runconfig.ExecConfig) (string, erro
 		OpenStdin:     config.AttachStdin,
 		OpenStdout:    config.AttachStdout,
 		OpenStderr:    config.AttachStderr,
-		streamConfig:  streamConfig{},
+		streamConfig:  runconfig.NewStreamConfig(),
 		ProcessConfig: processConfig,
 		Container:     container,
 		Running:       false,
@@ -225,16 +222,13 @@ func (d *Daemon) ContainerExecStart(name string, stdin io.ReadCloser, stdout io.
 		cStderr = stderr
 	}
 
-	ec.streamConfig.stderr = new(broadcaster.Unbuffered)
-	ec.streamConfig.stdout = new(broadcaster.Unbuffered)
-	// Attach to stdin
 	if ec.OpenStdin {
-		ec.streamConfig.stdin, ec.streamConfig.stdinPipe = io.Pipe()
+		ec.streamConfig.NewInputPipes()
 	} else {
-		ec.streamConfig.stdinPipe = ioutils.NopWriteCloser(ioutil.Discard) // Silently drop stdin
+		ec.streamConfig.NewNopInputPipe()
 	}
 
-	attachErr := attach(&ec.streamConfig, ec.OpenStdin, true, ec.ProcessConfig.Tty, cStdin, cStdout, cStderr)
+	attachErr := attach(ec.streamConfig, ec.OpenStdin, true, ec.ProcessConfig.Tty, cStdin, cStdout, cStderr)
 
 	execErr := make(chan error)
 
@@ -354,23 +348,17 @@ func (d *Daemon) containerExec(container *Container, ec *ExecConfig) error {
 }
 
 func (d *Daemon) monitorExec(container *Container, ExecConfig *ExecConfig, callback execdriver.DriverCallback) error {
-	pipes := execdriver.NewPipes(ExecConfig.streamConfig.stdin, ExecConfig.streamConfig.stdout, ExecConfig.streamConfig.stderr, ExecConfig.OpenStdin)
+	pipes := execdriver.NewPipes(ExecConfig.streamConfig.Stdin(), ExecConfig.streamConfig.Stdout(), ExecConfig.streamConfig.Stderr(), ExecConfig.OpenStdin)
 	exitCode, err := d.Exec(container, ExecConfig, pipes, callback)
 	if err != nil {
 		logrus.Errorf("Error running command in existing container %s: %s", container.ID, err)
 	}
 	logrus.Debugf("Exec task in container %s exited with code %d", container.ID, exitCode)
-	if ExecConfig.OpenStdin {
-		if err := ExecConfig.streamConfig.stdin.Close(); err != nil {
-			logrus.Errorf("Error closing stdin while running in %s: %s", container.ID, err)
-		}
+
+	if err := ExecConfig.streamConfig.CloseStreams(); err != nil {
+		logrus.Errorf("%s: %s", container.ID, err)
 	}
-	if err := ExecConfig.streamConfig.stdout.Clean(); err != nil {
-		logrus.Errorf("Error closing stdout while running in %s: %s", container.ID, err)
-	}
-	if err := ExecConfig.streamConfig.stderr.Clean(); err != nil {
-		logrus.Errorf("Error closing stderr while running in %s: %s", container.ID, err)
-	}
+
 	if ExecConfig.ProcessConfig.Terminal != nil {
 		if err := ExecConfig.ProcessConfig.Terminal.Close(); err != nil {
 			logrus.Errorf("Error closing terminal while running in container %s: %s", container.ID, err)
