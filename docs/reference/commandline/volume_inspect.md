@@ -18,8 +18,8 @@ parent = "smn_cli"
       --help=false        Print usage
 
 Returns information about a volume. By default, this command renders all results
-in a JSON array. You can specify an alternate format to execute a given template
-is executed for each result. Go's
+in a JSON array. You can specify an alternate format to execute a
+given template for each result. Go's
 [text/template](http://golang.org/pkg/text/template/) package describes all the
 details of the format.
 
