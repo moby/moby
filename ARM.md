@@ -33,7 +33,7 @@ A Scaleway C1 server can be easily purchased on demand on the Scaleway website:
 
 https://www.scaleway.com
 
-It is a cheap and fast way to get access to a pysical ARM server.
+It is a cheap and fast way to get access to a physical ARM server.
 It features a 4-cores ARMv7 CPU with 2GB of RAM and a 1 Gbit/s network card.
 
 Scaleway servers can be started we prepared images from their image hub.
