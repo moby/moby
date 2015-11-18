@@ -3,7 +3,6 @@ package tarsum
 import (
 	"archive/tar"
 	"bytes"
-	"compress/gzip"
 	"crypto/md5"
 	"crypto/rand"
 	"crypto/sha1"
@@ -16,6 +15,8 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	gzip "github.com/klauspost/pgzip"
 )
 
 type testLayer struct {

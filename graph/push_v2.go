@@ -2,10 +2,11 @@ package graph
 
 import (
 	"bufio"
-	"compress/gzip"
 	"fmt"
 	"io"
 	"io/ioutil"
+
+	gzip "github.com/klauspost/pgzip"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution"
