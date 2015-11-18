@@ -221,9 +221,7 @@ func ContinueOnError(err error) bool {
 	case *client.UnexpectedHTTPResponseError:
 		return true
 	case error:
-		if val := strings.Contains(err.Error(), strings.ToLower(syscall.ENOSPC.Error())); val {
-			return false
-		}
+		return !strings.Contains(err.Error(), strings.ToLower(syscall.ENOSPC.Error()))
 	}
 	// let's be nice and fallback if the error is a completely
 	// unexpected one.
