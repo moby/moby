@@ -86,7 +86,7 @@ lo        Link encap:Local Loopback
 The `host` network adds a container on the hosts network stack. You'll find the
 network configuration inside the container is identical to the host.
 
-With the exception of the the `bridge` network, you really don't need to
+With the exception of the `bridge` network, you really don't need to
 interact with these default networks. While you can list and inspect them, you
 cannot remove them. They are required by your Docker installation. However, you
 can add your own user-defined networks and these you can remove when you no
@@ -411,7 +411,7 @@ You should open the following ports between each of your hosts.
 | udp      | 4789 | Data plane (VXLAN)    |
 | tcp/udp  | 7946 | Control plane         |
 
-Your key-value store service may require additional ports. 
+Your key-value store service may require additional ports.
 Check your vendor's documentation and open any required ports.
 
 Once you have several machines provisioned, you can use Docker Swarm to quickly
