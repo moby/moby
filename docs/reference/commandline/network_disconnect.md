@@ -2,7 +2,7 @@
 +++
 title = "network disconnect"
 description = "The network disconnect command description and usage"
-keywords = ["network, disconnect"]
+keywords = ["network, disconnect, user-defined"]
 [menu.main]
 parent = "smn_cli"
 +++
@@ -16,12 +16,18 @@ parent = "smn_cli"
 
       --help=false       Print usage
 
-Disconnects a running container from a  network.
+Disconnects a container from a network. The container must be running to disconnect it from the network.
 
-```
-  $ docker network create -d overlay multi-host-network
-  $ docker run -d --net=multi-host-network --name=container1 busybox top
+```bash
   $ docker network disconnect multi-host-network container1
 ```
 
-the container will be disconnected from the network.
+
+## Related information
+
+* [network inspect](network_inspect.md)
+* [network connect](network_connect.md)
+* [network create](network_create.md)
+* [network ls](network_ls.md)
+* [network rm](network_rm.md)
+* [Understand Docker container networks](../../userguide/networking/dockernetworks.md)

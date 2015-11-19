@@ -2,6 +2,7 @@ package overlay
 
 import (
 	"fmt"
+	"net"
 	"sync"
 
 	"github.com/Sirupsen/logrus"
@@ -120,8 +121,30 @@ func (d *driver) Type() string {
 	return networkType
 }
 
+func validateSelf(node string) error {
+	advIP := net.ParseIP(node)
+	if advIP == nil {
+		return fmt.Errorf("invalid self address (%s)", node)
+	}
+
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		return fmt.Errorf("Unable to get interface addresses %v", err)
+	}
+	for _, addr := range addrs {
+		ip, _, err := net.ParseCIDR(addr.String())
+		if err == nil && ip.Equal(advIP) {
+			return nil
+		}
+	}
+	return fmt.Errorf("Multi-Host overlay networking requires cluster-advertise(%s) to be configured with a local ip-address that is reachable within the cluster", advIP.String())
+}
+
 func (d *driver) nodeJoin(node string, self bool) {
 	if self && !d.isSerfAlive() {
+		if err := validateSelf(node); err != nil {
+			logrus.Errorf("%s", err.Error())
+		}
 		d.Lock()
 		d.bindAddress = node
 		d.Unlock()

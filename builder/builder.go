@@ -33,7 +33,8 @@ type Context interface {
 	Close() error
 	// Stat returns an entry corresponding to path if any.
 	// It is recommended to return an error if path was not found.
-	Stat(path string) (FileInfo, error)
+	// If path is a symlink it also returns the path to the target file.
+	Stat(path string) (string, FileInfo, error)
 	// Open opens path from the context and returns a readable stream of it.
 	Open(path string) (io.ReadCloser, error)
 	// Walk walks the tree of the context with the function passed to it.
@@ -64,11 +65,21 @@ type PathFileInfo struct {
 	os.FileInfo
 	// FilePath holds the absolute path to the file.
 	FilePath string
+	// Name holds the basename for the file.
+	FileName string
 }
 
 // Path returns the absolute path to the file.
 func (fi PathFileInfo) Path() string {
 	return fi.FilePath
+}
+
+// Name returns the basename of the file.
+func (fi PathFileInfo) Name() string {
+	if fi.FileName != "" {
+		return fi.FileName
+	}
+	return fi.FileInfo.Name()
 }
 
 // Hashed defines an extra method intended for implementations of os.FileInfo.
@@ -114,7 +125,7 @@ type Docker interface {
 	// Remove removes a container specified by `id`.
 	Remove(id string, cfg *daemon.ContainerRmConfig) error
 	// Commit creates a new Docker image from an existing Docker container.
-	Commit(*daemon.Container, *daemon.ContainerCommitConfig) (*image.Image, error)
+	Commit(string, *daemon.ContainerCommitConfig) (*image.Image, error)
 	// Copy copies/extracts a source FileInfo to a destination path inside a container
 	// specified by a container object.
 	// TODO: make an Extract method instead of passing `decompress`
@@ -128,6 +139,14 @@ type Docker interface {
 	// Release releases a list of images that were retained for the time of a build.
 	// TODO: remove
 	Release(sessionID string, activeImages []string)
+	// Kill stops the container execution abruptly.
+	Kill(c *daemon.Container) error
+	// Mount mounts the root filesystem for the container.
+	Mount(c *daemon.Container) error
+	// Unmount unmounts the root filesystem for the container.
+	Unmount(c *daemon.Container) error
+	// Start starts a new container
+	Start(c *daemon.Container) error
 }
 
 // ImageCache abstracts an image cache store.

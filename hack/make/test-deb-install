@@ -1,0 +1,57 @@
+#!/bin/bash
+# This script is used for testing install.sh and that it works for
+# each of component of our apt and yum repos
+set -e
+
+: ${DEB_DIR:="$(pwd)/bundles/$(cat VERSION)/build-deb"}
+
+if [[ ! -d "${DEB_DIR}" ]]; then
+	echo "you must first run `make deb` or hack/make/build-deb"
+	exit 1
+fi
+
+test_deb_install(){
+	# test for each Dockerfile in contrib/builder
+	for dir in contrib/builder/deb/*/; do
+		local from="$(awk 'toupper($1) == "FROM" { print $2; exit }' "$dir/Dockerfile")"
+		local dir=$(basename "$dir")
+
+		if [[ ! -d "${DEB_DIR}/${dir}" ]]; then
+			echo "No deb found for ${dir}"
+			exit 1
+		fi
+
+		local script=$(mktemp /tmp/install-XXXXXXXXXX.sh)
+		cat <<-EOF > "${script}"
+		#!/bin/bash
+		set -e
+		set -x
+
+		apt-get update && apt-get install -y apparmor
+
+		dpkg -i /root/debs/*.deb || true
+
+		apt-get install -yf
+
+		/etc/init.d/apparmor start
+
+		# this will do everything _except_ load the profile into the kernel
+		(
+		cd /etc/apparmor.d
+		/sbin/apparmor_parser --skip-kernel-load docker-engine
+		)
+		EOF
+
+		chmod +x "${script}"
+
+		echo "testing deb install for ${from}"
+		docker run --rm -i --privileged \
+			-v ${DEB_DIR}/${dir}:/root/debs \
+			-v ${script}:/install.sh \
+			${from} /install.sh
+
+		rm -f ${script}
+	done
+}
+
+test_deb_install

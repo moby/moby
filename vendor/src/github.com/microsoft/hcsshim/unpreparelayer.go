@@ -54,6 +54,6 @@ func UnprepareLayer(info DriverInfo, layerId string) error {
 		return err
 	}
 
-	logrus.Debugf(title+"- succeeded layerId=%s flavour=%d", layerId, info.Flavour)
+	logrus.Debugf(title+"succeeded flavour %d layerId=%s", info.Flavour, layerId)
 	return nil
 }

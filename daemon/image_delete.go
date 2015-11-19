@@ -55,7 +55,7 @@ func (daemon *Daemon) ImageDelete(imageRef string, force, prune bool) ([]types.I
 
 	img, err := daemon.repositories.LookupImage(imageRef)
 	if err != nil {
-		return nil, err
+		return nil, daemon.graphNotExistToErrcode(imageRef, err)
 	}
 
 	var removedRepositoryRef bool
@@ -83,6 +83,11 @@ func (daemon *Daemon) ImageDelete(imageRef string, force, prune bool) ([]types.I
 
 		daemon.EventsService.Log("untag", img.ID, "")
 		records = append(records, untaggedRecord)
+
+		// If has remaining references then untag finishes the remove
+		if daemon.repositories.HasReferences(img) {
+			return records, nil
+		}
 
 		removedRepositoryRef = true
 	} else {
@@ -279,7 +284,7 @@ func (daemon *Daemon) checkImageDeleteHardConflict(img *image.Image) *imageDelet
 	}
 
 	// Check if the image has any descendent images.
-	if daemon.Graph().HasChildren(img) {
+	if daemon.Graph().HasChildren(img.ID) {
 		return &imageDeleteConflict{
 			hard:    true,
 			imgID:   img.ID,
@@ -337,5 +342,5 @@ func (daemon *Daemon) checkImageDeleteSoftConflict(img *image.Image) *imageDelet
 // that there are no repository references to the given image and it has no
 // child images.
 func (daemon *Daemon) imageIsDangling(img *image.Image) bool {
-	return !(daemon.repositories.HasReferences(img) || daemon.Graph().HasChildren(img))
+	return !(daemon.repositories.HasReferences(img) || daemon.Graph().HasChildren(img.ID))
 }

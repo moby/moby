@@ -34,7 +34,7 @@ func TruncateID(id string) string {
 
 func generateID(crypto bool) string {
 	b := make([]byte, 32)
-	var r io.Reader = random.Reader
+	r := random.Reader
 	if crypto {
 		r = rand.Reader
 	}

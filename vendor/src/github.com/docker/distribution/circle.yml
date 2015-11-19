@@ -21,7 +21,7 @@ machine:
     BASE_OLD: ../../../$HOME/.gvm/pkgsets/old/global/$BASE_DIR
     BASE_STABLE: ../../../$HOME/.gvm/pkgsets/stable/global/$BASE_DIR
   # BASE_BLEED: ../../../$HOME/.gvm/pkgsets/bleed/global/$BASE_DIR
-    DOCKER_BUILDTAGS: "include_rados"
+    DOCKER_BUILDTAGS: "include_rados include_oss include_gcs"
   # Workaround Circle parsing dumb bugs and/or YAML wonkyness
     CIRCLE_PAIN: "mode: set"
   # Ceph config
@@ -74,6 +74,11 @@ test:
     # - gvm use old && go version
     - gvm use stable && go version
     # - gvm use bleed && go version
+
+  # First thing: build everything. This will catch compile errors, and it's
+  # also necessary for go vet to work properly (see #807).
+    - gvm use stable && godep go install ./...:
+        pwd: $BASE_STABLE
 
   # FMT
     - gvm use stable && test -z "$(gofmt -s -l . | grep -v Godeps/_workspace/src/ | tee /dev/stderr)":

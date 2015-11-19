@@ -17,13 +17,19 @@ import (
 	"github.com/opencontainers/runc/libcontainer/system"
 )
 
+type statsSupervisor interface {
+	// GetContainerStats collects all the stats related to a container
+	GetContainerStats(container *Container) (*execdriver.ResourceStats, error)
+}
+
 // newStatsCollector returns a new statsCollector that collections
 // network and cgroup stats for a registered container at the specified
 // interval.  The collector allows non-running containers to be added
 // and will start processing stats when they are started.
-func newStatsCollector(interval time.Duration) *statsCollector {
+func (daemon *Daemon) newStatsCollector(interval time.Duration) *statsCollector {
 	s := &statsCollector{
 		interval:            interval,
+		supervisor:          daemon,
 		publishers:          make(map[*Container]*pubsub.Publisher),
 		clockTicksPerSecond: uint64(system.GetClockTicks()),
 		bufReader:           bufio.NewReaderSize(nil, 128),
@@ -35,6 +41,7 @@ func newStatsCollector(interval time.Duration) *statsCollector {
 // statsCollector manages and provides container resource stats
 type statsCollector struct {
 	m                   sync.Mutex
+	supervisor          statsSupervisor
 	interval            time.Duration
 	clockTicksPerSecond uint64
 	publishers          map[*Container]*pubsub.Publisher
@@ -110,7 +117,7 @@ func (s *statsCollector) run() {
 		}
 
 		for _, pair := range pairs {
-			stats, err := pair.container.stats()
+			stats, err := s.supervisor.GetContainerStats(pair.container)
 			if err != nil {
 				if err != execdriver.ErrNotRunning {
 					logrus.Errorf("collecting stats for %s: %v", pair.container.ID, err)
@@ -118,6 +125,7 @@ func (s *statsCollector) run() {
 				continue
 			}
 			stats.SystemUsage = systemUsage
+
 			pair.publisher.Publish(stats)
 		}
 	}

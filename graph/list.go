@@ -51,8 +51,10 @@ func (s *TagStore) Images(filterArgs, filter string, all bool) ([]*types.Image, 
 
 	if i, ok := imageFilters["dangling"]; ok {
 		for _, value := range i {
-			if strings.ToLower(value) == "true" {
+			if v := strings.ToLower(value); v == "true" {
 				filtTagged = false
+			} else if v != "false" {
+				return nil, fmt.Errorf("Invalid filter 'dangling=%s'", v)
 			}
 		}
 	}
@@ -62,7 +64,7 @@ func (s *TagStore) Images(filterArgs, filter string, all bool) ([]*types.Image, 
 	if all && filtTagged {
 		allImages = s.graph.Map()
 	} else {
-		allImages = s.graph.Heads()
+		allImages = s.graph.heads()
 	}
 
 	lookup := make(map[string]*types.Image)
@@ -120,7 +122,7 @@ func (s *TagStore) Images(filterArgs, filter string, all bool) ([]*types.Image, 
 					}
 				}
 				if filtTagged {
-					newImage := newImage(image, s.graph.GetParentsSize(image))
+					newImage := newImage(image, s.graph.getParentsSize(image))
 
 					if utils.DigestReference(ref) {
 						newImage.RepoTags = []string{}
@@ -156,7 +158,7 @@ func (s *TagStore) Images(filterArgs, filter string, all bool) ([]*types.Image, 
 					continue
 				}
 			}
-			newImage := newImage(image, s.graph.GetParentsSize(image))
+			newImage := newImage(image, s.graph.getParentsSize(image))
 			newImage.RepoTags = []string{"<none>:<none>"}
 			newImage.RepoDigests = []string{"<none>@<none>"}
 

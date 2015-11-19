@@ -23,7 +23,7 @@ There is a single supported filter `dangling=value` which takes a boolean of `tr
 **--help**
   Print usage statement
 
-**-q**, **--quiet**=false
+**-q**, **--quiet**=*true*|*false*
   Only display volume names
 
 # HISTORY

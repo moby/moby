@@ -279,6 +279,7 @@ func (d *Driver) setupMounts(container *configs.Config, c *execdriver.Command) e
 	for _, m := range container.Mounts {
 		if _, ok := userMounts[m.Destination]; !ok {
 			if mountDev && strings.HasPrefix(m.Destination, "/dev/") {
+				container.Devices = nil
 				continue
 			}
 			defaultMounts = append(defaultMounts, m)

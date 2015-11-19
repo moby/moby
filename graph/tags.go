@@ -24,6 +24,9 @@ import (
 	"github.com/docker/libtrust"
 )
 
+// ErrNameIsNotExist returned when there is no image with requested name.
+var ErrNameIsNotExist = errors.New("image with specified name does not exist")
+
 // TagStore manages repositories. It encompasses the Graph used for versioned
 // storage, as well as various services involved in pushing and pulling
 // repositories.
@@ -31,7 +34,7 @@ type TagStore struct {
 	path  string
 	graph *Graph
 	// Repositories is a map of repositories, indexed by name.
-	Repositories map[string]Repository
+	Repositories map[string]repository
 	trustKey     libtrust.PrivateKey
 	sync.Mutex
 	// FIXME: move push/pull-related fields
@@ -42,27 +45,8 @@ type TagStore struct {
 	eventsService   *events.Events
 }
 
-// Repository maps tags to image IDs.
-type Repository map[string]string
-
-// Update updates repository mapping with content of repository 'u'.
-func (r Repository) Update(u Repository) {
-	for k, v := range u {
-		r[k] = v
-	}
-}
-
-// Contains returns true if the contents of Repository u are wholly contained
-// in Repository r.
-func (r Repository) Contains(u Repository) bool {
-	for k, v := range u {
-		// if u's key is not present in r OR u's key is present, but not the same value
-		if rv, ok := r[k]; !ok || (ok && rv != v) {
-			return false
-		}
-	}
-	return true
-}
+// repository maps tags to image IDs.
+type repository map[string]string
 
 // TagStoreConfig provides parameters for a new TagStore.
 type TagStoreConfig struct {
@@ -89,7 +73,7 @@ func NewTagStore(path string, cfg *TagStoreConfig) (*TagStore, error) {
 		path:            abspath,
 		graph:           cfg.Graph,
 		trustKey:        cfg.Key,
-		Repositories:    make(map[string]Repository),
+		Repositories:    make(map[string]repository),
 		pullingPool:     make(map[string]*broadcaster.Buffered),
 		pushingPool:     make(map[string]*broadcaster.Buffered),
 		registryService: cfg.Registry,
@@ -134,8 +118,6 @@ func (store *TagStore) reload() error {
 // name. The name can include an optional tag; otherwise the default tag will
 // be used.
 func (store *TagStore) LookupImage(name string) (*image.Image, error) {
-	// FIXME: standardize on returning nil when the image doesn't exist, and err for everything else
-	// (so we can pass all errors here)
 	repoName, ref := parsers.ParseRepositoryTag(name)
 	if ref == "" {
 		ref = tags.DefaultTag
@@ -145,7 +127,7 @@ func (store *TagStore) LookupImage(name string) (*image.Image, error) {
 		img *image.Image
 	)
 
-	img, err = store.GetImage(repoName, ref)
+	img, err = store.getImage(repoName, ref)
 	if err != nil {
 		return nil, err
 	}
@@ -162,6 +144,26 @@ func (store *TagStore) LookupImage(name string) (*image.Image, error) {
 	}
 
 	return img, nil
+}
+
+// GetID returns ID for image name.
+func (store *TagStore) GetID(name string) (string, error) {
+	repoName, ref := parsers.ParseRepositoryTag(name)
+	if ref == "" {
+		ref = tags.DefaultTag
+	}
+	store.Lock()
+	defer store.Unlock()
+	repoName = registry.NormalizeLocalName(repoName)
+	repo, ok := store.Repositories[repoName]
+	if !ok {
+		return "", ErrNameIsNotExist
+	}
+	id, ok := repo[ref]
+	if !ok {
+		return "", ErrNameIsNotExist
+	}
+	return id, nil
 }
 
 // ByID returns a reverse-lookup table of all the names which refer to each
@@ -190,35 +192,6 @@ func (store *TagStore) HasReferences(img *image.Image) bool {
 	return len(store.ByID()[img.ID]) > 0
 }
 
-// ImageName returns name of an image, given the image's ID.
-func (store *TagStore) ImageName(id string) string {
-	if names, exists := store.ByID()[id]; exists && len(names) > 0 {
-		return names[0]
-	}
-	return stringid.TruncateID(id)
-}
-
-// DeleteAll removes images identified by a specific ID from the store.
-func (store *TagStore) DeleteAll(id string) error {
-	names, exists := store.ByID()[id]
-	if !exists || len(names) == 0 {
-		return nil
-	}
-	for _, name := range names {
-		if strings.Contains(name, ":") {
-			nameParts := strings.Split(name, ":")
-			if _, err := store.Delete(nameParts[0], nameParts[1]); err != nil {
-				return err
-			}
-		} else {
-			if _, err := store.Delete(name, ""); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-
 // Delete deletes a repository or a specific tag. If ref is empty, the entire
 // repository named repoName will be deleted; otherwise only the tag named by
 // ref will be deleted.
@@ -230,8 +203,6 @@ func (store *TagStore) Delete(repoName, ref string) (bool, error) {
 		return false, err
 	}
 
-	repoName = registry.NormalizeLocalName(repoName)
-
 	if ref == "" {
 		// Delete the whole repository.
 		delete(store.Repositories, repoName)
@@ -239,6 +210,7 @@ func (store *TagStore) Delete(repoName, ref string) (bool, error) {
 	}
 
 	repoRefs, exists := store.Repositories[repoName]
+
 	if !exists {
 		return false, fmt.Errorf("No such repository: %s", repoName)
 	}
@@ -282,7 +254,7 @@ func (store *TagStore) setLoad(repoName, tag, imageName string, force bool, out 
 	if err := store.reload(); err != nil {
 		return err
 	}
-	var repo Repository
+	var repo repository
 	repoName = registry.NormalizeLocalName(repoName)
 	if r, exists := store.Repositories[repoName]; exists {
 		repo = r
@@ -306,8 +278,8 @@ func (store *TagStore) setLoad(repoName, tag, imageName string, force bool, out 
 	return store.save()
 }
 
-// SetDigest creates a digest reference to an image ID.
-func (store *TagStore) SetDigest(repoName, digest, imageName string) error {
+// setDigest creates a digest reference to an image ID.
+func (store *TagStore) setDigest(repoName, digest, imageName string) error {
 	img, err := store.LookupImage(imageName)
 	if err != nil {
 		return err
@@ -330,7 +302,7 @@ func (store *TagStore) SetDigest(repoName, digest, imageName string) error {
 	repoName = registry.NormalizeLocalName(repoName)
 	repoRefs, exists := store.Repositories[repoName]
 	if !exists {
-		repoRefs = Repository{}
+		repoRefs = repository{}
 		store.Repositories[repoName] = repoRefs
 	} else if oldID, exists := repoRefs[digest]; exists && oldID != img.ID {
 		return fmt.Errorf("Conflict: Digest %s is already set to image %s", digest, oldID)
@@ -340,8 +312,8 @@ func (store *TagStore) SetDigest(repoName, digest, imageName string) error {
 	return store.save()
 }
 
-// Get returns the Repository tag/image map for a given repository.
-func (store *TagStore) Get(repoName string) (Repository, error) {
+// get returns the repository tag/image map for a given repository.
+func (store *TagStore) get(repoName string) (repository, error) {
 	store.Lock()
 	defer store.Unlock()
 	if err := store.reload(); err != nil {
@@ -354,10 +326,10 @@ func (store *TagStore) Get(repoName string) (Repository, error) {
 	return nil, nil
 }
 
-// GetImage returns a pointer to an Image structure describing the image
+// getImage returns a pointer to an Image structure describing the image
 // referred to by refOrID inside repository repoName.
-func (store *TagStore) GetImage(repoName, refOrID string) (*image.Image, error) {
-	repo, err := store.Get(repoName)
+func (store *TagStore) getImage(repoName, refOrID string) (*image.Image, error) {
+	repo, err := store.get(repoName)
 
 	if err != nil {
 		return nil, err
@@ -383,22 +355,6 @@ func (store *TagStore) GetImage(repoName, refOrID string) (*image.Image, error) 
 	}
 
 	return nil, nil
-}
-
-// GetRepoRefs returns a map with image IDs as keys, and slices listing
-// repo/tag references as the values. It covers all repositories.
-func (store *TagStore) GetRepoRefs() map[string][]string {
-	store.Lock()
-	reporefs := make(map[string][]string)
-
-	for name, repository := range store.Repositories {
-		for tag, id := range repository {
-			shortID := stringid.TruncateID(id)
-			reporefs[shortID] = append(reporefs[shortID], utils.ImageReference(name, tag))
-		}
-	}
-	store.Unlock()
-	return reporefs
 }
 
 // validateRepoName validates the name of a repository.

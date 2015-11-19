@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/docker/libnetwork/iptables"
 	"github.com/docker/libtrust"
 	"github.com/go-check/check"
@@ -302,7 +303,7 @@ func (s *DockerSuite) TestDaemonIPv6Enabled(c *check.C) {
 		c.Fatalf("Could not run container: %s, %v", out, err)
 	}
 
-	out, err := d.Cmd("inspect", "--format", "'{{.NetworkSettings.LinkLocalIPv6Address}}'", "ipv6test")
+	out, err := d.Cmd("inspect", "--format", "'{{.NetworkSettings.Networks.bridge.LinkLocalIPv6Address}}'", "ipv6test")
 	out = strings.Trim(out, " \r\n'")
 
 	if err != nil {
@@ -313,7 +314,7 @@ func (s *DockerSuite) TestDaemonIPv6Enabled(c *check.C) {
 		c.Fatalf("Container should have a link-local IPv6 address")
 	}
 
-	out, err = d.Cmd("inspect", "--format", "'{{.NetworkSettings.GlobalIPv6Address}}'", "ipv6test")
+	out, err = d.Cmd("inspect", "--format", "'{{.NetworkSettings.Networks.bridge.GlobalIPv6Address}}'", "ipv6test")
 	out = strings.Trim(out, " \r\n'")
 
 	if err != nil {
@@ -350,7 +351,7 @@ func (s *DockerSuite) TestDaemonIPv6FixedCIDR(c *check.C) {
 		c.Fatalf("Could not run container: %s, %v", out, err)
 	}
 
-	out, err := d.Cmd("inspect", "--format", "'{{.NetworkSettings.LinkLocalIPv6Address}}'", "ipv6test")
+	out, err := d.Cmd("inspect", "--format", "'{{.NetworkSettings.Networks.bridge.LinkLocalIPv6Address}}'", "ipv6test")
 	out = strings.Trim(out, " \r\n'")
 
 	if err != nil {
@@ -361,7 +362,7 @@ func (s *DockerSuite) TestDaemonIPv6FixedCIDR(c *check.C) {
 		c.Fatalf("Container should have a link-local IPv6 address")
 	}
 
-	out, err = d.Cmd("inspect", "--format", "'{{.NetworkSettings.GlobalIPv6Address}}'", "ipv6test")
+	out, err = d.Cmd("inspect", "--format", "'{{.NetworkSettings.Networks.bridge.GlobalIPv6Address}}'", "ipv6test")
 	out = strings.Trim(out, " \r\n'")
 
 	if err != nil {
@@ -376,39 +377,31 @@ func (s *DockerSuite) TestDaemonIPv6FixedCIDR(c *check.C) {
 	}
 }
 
-func (s *DockerDaemonSuite) TestDaemonLogLevelWrong(c *check.C) {
-	c.Assert(s.d.Start("--log-level=bogus"), check.NotNil, check.Commentf("Daemon shouldn't start with wrong log level"))
+// TestDaemonIPv6FixedCIDRAndMac checks that when the daemon is started with ipv6 fixed CIDR
+// the running containers are given a an IPv6 address derived from the MAC address and the ipv6 fixed CIDR
+func (s *DockerSuite) TestDaemonIPv6FixedCIDRAndMac(c *check.C) {
+	err := setupV6()
+	c.Assert(err, checker.IsNil)
+
+	d := NewDaemon(c)
+
+	err = d.StartWithBusybox("--ipv6", "--fixed-cidr-v6='2001:db8:1::/64'")
+	c.Assert(err, checker.IsNil)
+	defer d.Stop()
+
+	out, err := d.Cmd("run", "-itd", "--name=ipv6test", "--mac-address", "AA:BB:CC:DD:EE:FF", "busybox")
+	c.Assert(err, checker.IsNil)
+
+	out, err = d.Cmd("inspect", "--format", "'{{.NetworkSettings.Networks.bridge.GlobalIPv6Address}}'", "ipv6test")
+	c.Assert(err, checker.IsNil)
+	c.Assert(strings.Trim(out, " \r\n'"), checker.Equals, "2001:db8:1::aabb:ccdd:eeff")
+
+	err = teardownV6()
+	c.Assert(err, checker.IsNil)
 }
 
-func (s *DockerSuite) TestDaemonStartWithBackwardCompatibility(c *check.C) {
-
-	var validCommandArgs = [][]string{
-		{"--selinux-enabled", "-l", "info"},
-		{"--insecure-registry", "daemon"},
-	}
-
-	var invalidCommandArgs = [][]string{
-		{"--selinux-enabled", "--storage-opt"},
-		{"-D", "-b"},
-		{"--config", "/tmp"},
-	}
-
-	for _, args := range validCommandArgs {
-		d := NewDaemon(c)
-		d.Command = "--daemon"
-		if err := d.Start(args...); err != nil {
-			c.Fatalf("Daemon should have started successfully with --daemon %v: %v", args, err)
-		}
-		d.Stop()
-	}
-
-	for _, args := range invalidCommandArgs {
-		d := NewDaemon(c)
-		if err := d.Start(args...); err == nil {
-			d.Stop()
-			c.Fatalf("Daemon should have failed to start with %v", args)
-		}
-	}
+func (s *DockerDaemonSuite) TestDaemonLogLevelWrong(c *check.C) {
+	c.Assert(s.d.Start("--log-level=bogus"), check.NotNil, check.Commentf("Daemon shouldn't start with wrong log level"))
 }
 
 func (s *DockerSuite) TestDaemonStartWithDaemonCommand(c *check.C) {
@@ -793,6 +786,52 @@ func (s *DockerDaemonSuite) TestDaemonBridgeFixedCidr(c *check.C) {
 	}
 }
 
+func (s *DockerDaemonSuite) TestDaemonBridgeFixedCidr2(c *check.C) {
+	d := s.d
+
+	bridgeName := "external-bridge"
+	bridgeIP := "10.2.2.1/16"
+
+	out, err := createInterface(c, "bridge", bridgeName, bridgeIP)
+	c.Assert(err, check.IsNil, check.Commentf(out))
+	defer deleteInterface(c, bridgeName)
+
+	err = d.StartWithBusybox("--bip", bridgeIP, "--fixed-cidr", "10.2.2.0/24")
+	c.Assert(err, check.IsNil)
+	defer s.d.Restart()
+
+	out, err = d.Cmd("run", "-d", "--name", "bb", "busybox", "top")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	defer d.Cmd("stop", "bb")
+
+	out, err = d.Cmd("exec", "bb", "/bin/sh", "-c", "ifconfig eth0 | awk '/inet addr/{print substr($2,6)}'")
+	c.Assert(out, checker.Equals, "10.2.2.0\n")
+
+	out, err = d.Cmd("run", "--rm", "busybox", "/bin/sh", "-c", "ifconfig eth0 | awk '/inet addr/{print substr($2,6)}'")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(out, checker.Equals, "10.2.2.2\n")
+}
+
+func (s *DockerDaemonSuite) TestDaemonBridgeFixedCIDREqualBridgeNetwork(c *check.C) {
+	d := s.d
+
+	bridgeName := "external-bridge"
+	bridgeIP := "172.27.42.1/16"
+
+	out, err := createInterface(c, "bridge", bridgeName, bridgeIP)
+	c.Assert(err, check.IsNil, check.Commentf(out))
+	defer deleteInterface(c, bridgeName)
+
+	err = d.StartWithBusybox("--bridge", bridgeName, "--fixed-cidr", bridgeIP)
+	c.Assert(err, check.IsNil)
+	defer s.d.Restart()
+
+	out, err = d.Cmd("run", "-d", "busybox", "top")
+	c.Assert(err, check.IsNil, check.Commentf(out))
+	cid1 := strings.TrimSpace(out)
+	defer d.Cmd("stop", cid1)
+}
+
 func (s *DockerDaemonSuite) TestDaemonDefaultGatewayIPv4Implicit(c *check.C) {
 	defaultNetworkBridge := "docker0"
 	deleteInterface(c, defaultNetworkBridge)
@@ -846,6 +885,29 @@ func (s *DockerDaemonSuite) TestDaemonDefaultGatewayIPv4ExplicitOutsideContainer
 
 	deleteInterface(c, defaultNetworkBridge)
 	s.d.Restart()
+}
+
+func (s *DockerDaemonSuite) TestDaemonDefaultNetworkInvalidClusterConfig(c *check.C) {
+	testRequires(c, DaemonIsLinux, SameHostDaemon)
+
+	// Start daemon without docker0 bridge
+	defaultNetworkBridge := "docker0"
+	deleteInterface(c, defaultNetworkBridge)
+
+	d := NewDaemon(c)
+	discoveryBackend := "consul://consuladdr:consulport/some/path"
+	err := d.Start(fmt.Sprintf("--cluster-store=%s", discoveryBackend))
+	c.Assert(err, checker.IsNil)
+
+	// Start daemon with docker0 bridge
+	ifconfigCmd := exec.Command("ifconfig", defaultNetworkBridge)
+	_, err = runCommand(ifconfigCmd)
+	c.Assert(err, check.IsNil)
+
+	err = d.Restart(fmt.Sprintf("--cluster-store=%s", discoveryBackend))
+	c.Assert(err, checker.IsNil)
+
+	d.Stop()
 }
 
 func (s *DockerDaemonSuite) TestDaemonIP(c *check.C) {
@@ -988,7 +1050,7 @@ func (s *DockerDaemonSuite) TestDaemonLinksIpTablesRulesWhenLinkAndUnlink(c *che
 }
 
 func (s *DockerDaemonSuite) TestDaemonUlimitDefaults(c *check.C) {
-	testRequires(c, NativeExecDriver)
+	testRequires(c, DaemonIsLinux)
 
 	if err := s.d.StartWithBusybox("--default-ulimit", "nofile=42:42", "--default-ulimit", "nproc=1024:1024"); err != nil {
 		c.Fatal(err)
@@ -1198,10 +1260,10 @@ func (s *DockerDaemonSuite) TestDaemonLoggingDriverNoneLogsError(c *check.C) {
 	}
 	id := strings.TrimSpace(out)
 	out, err = s.d.Cmd("logs", id)
-	if err != nil {
-		c.Fatalf("Logs request should be sent and then fail with \"none\" driver")
+	if err == nil {
+		c.Fatalf("Logs should fail with 'none' driver")
 	}
-	if !strings.Contains(out, `Error running logs job: Failed to get logging factory: logger: no log driver named 'none' is registered`) {
+	if !strings.Contains(out, `"logs" command is supported only for "json-file" and "journald" logging drivers (got: none)`) {
 		c.Fatalf("There should be an error about none not being a recognized log driver, got: %s", out)
 	}
 }
@@ -1483,7 +1545,7 @@ func (s *DockerDaemonSuite) TestCleanupMountsAfterCrash(c *check.C) {
 }
 
 func (s *DockerDaemonSuite) TestRunContainerWithBridgeNone(c *check.C) {
-	testRequires(c, NativeExecDriver, NotUserNamespace)
+	testRequires(c, DaemonIsLinux, NotUserNamespace)
 	c.Assert(s.d.StartWithBusybox("-b", "none"), check.IsNil)
 
 	out, err := s.d.Cmd("run", "--rm", "busybox", "ip", "l")
@@ -1495,13 +1557,16 @@ func (s *DockerDaemonSuite) TestRunContainerWithBridgeNone(c *check.C) {
 	c.Assert(err, check.IsNil, check.Commentf("Output: %s", out))
 	c.Assert(strings.Contains(out, "eth0"), check.Equals, false,
 		check.Commentf("There shouldn't be eth0 in container in bridge mode when bridge network is disabled: %s", out))
-	cmd := exec.Command("ip", "l")
+	// the extra grep and awk clean up the output of `ip` to only list the number and name of
+	// interfaces, allowing for different versions of ip (e.g. inside and outside the container) to
+	// be used while still verifying that the interface list is the exact same
+	cmd := exec.Command("sh", "-c", "ip l | grep -E '^[0-9]+:' | awk -F: ' { print $1\":\"$2 } '")
 	stdout := bytes.NewBuffer(nil)
 	cmd.Stdout = stdout
 	if err := cmd.Run(); err != nil {
 		c.Fatal("Failed to get host network interface")
 	}
-	out, err = s.d.Cmd("run", "--rm", "--net=host", "busybox", "ip", "l")
+	out, err = s.d.Cmd("run", "--rm", "--net=host", "busybox", "sh", "-c", "ip l | grep -E '^[0-9]+:' | awk -F: ' { print $1\":\"$2 } '")
 	c.Assert(err, check.IsNil, check.Commentf("Output: %s", out))
 	c.Assert(out, check.Equals, fmt.Sprintf("%s", stdout),
 		check.Commentf("The network interfaces in container should be the same with host when --net=host when bridge network is disabled: %s", out))
@@ -1722,4 +1787,92 @@ func (s *DockerDaemonSuite) TestDaemonStartWithoutHost(c *check.C) {
 		s.d.useDefaultHost = false
 	}()
 	c.Assert(s.d.Start(), check.IsNil)
+}
+
+func (s *DockerDaemonSuite) TestDaemonStartWithDefalutTlsHost(c *check.C) {
+	s.d.useDefaultTLSHost = true
+	defer func() {
+		s.d.useDefaultTLSHost = false
+	}()
+	if err := s.d.Start(
+		"--tlsverify",
+		"--tlscacert", "fixtures/https/ca.pem",
+		"--tlscert", "fixtures/https/server-cert.pem",
+		"--tlskey", "fixtures/https/server-key.pem"); err != nil {
+		c.Fatalf("Could not start daemon: %v", err)
+	}
+
+	// The client with --tlsverify should also use default host localhost:2376
+	tmpHost := os.Getenv("DOCKER_HOST")
+	defer func() {
+		os.Setenv("DOCKER_HOST", tmpHost)
+	}()
+
+	os.Setenv("DOCKER_HOST", "")
+
+	out, _ := dockerCmd(
+		c,
+		"--tlsverify",
+		"--tlscacert", "fixtures/https/ca.pem",
+		"--tlscert", "fixtures/https/client-cert.pem",
+		"--tlskey", "fixtures/https/client-key.pem",
+		"version",
+	)
+	if !strings.Contains(out, "Server") {
+		c.Fatalf("docker version should return information of server side")
+	}
+}
+
+func (s *DockerDaemonSuite) TestBridgeIPIsExcludedFromAllocatorPool(c *check.C) {
+	defaultNetworkBridge := "docker0"
+	deleteInterface(c, defaultNetworkBridge)
+
+	bridgeIP := "192.169.1.1"
+	bridgeRange := bridgeIP + "/30"
+
+	err := s.d.StartWithBusybox("--bip", bridgeRange)
+	c.Assert(err, check.IsNil)
+	defer s.d.Restart()
+
+	var cont int
+	for {
+		contName := fmt.Sprintf("container%d", cont)
+		_, err = s.d.Cmd("run", "--name", contName, "-d", "busybox", "/bin/sleep", "2")
+		if err != nil {
+			// pool exhausted
+			break
+		}
+		ip, err := s.d.Cmd("inspect", "--format", "'{{.NetworkSettings.IPAddress}}'", contName)
+		c.Assert(err, check.IsNil)
+
+		c.Assert(ip, check.Not(check.Equals), bridgeIP)
+		cont++
+	}
+}
+
+// Test daemon for no space left on device error
+func (s *DockerDaemonSuite) TestDaemonNoSpaceleftOnDeviceError(c *check.C) {
+	// create a 2MiB image and mount it as graph root
+	cmd := exec.Command("dd", "of=/tmp/testfs.img", "bs=1M", "seek=2", "count=0")
+	if err := cmd.Run(); err != nil {
+		c.Fatalf("dd failed: %v", err)
+	}
+	cmd = exec.Command("mkfs.ext4", "-F", "/tmp/testfs.img")
+	if err := cmd.Run(); err != nil {
+		c.Fatalf("mkfs.ext4 failed: %v", err)
+	}
+	cmd = exec.Command("mkdir", "-p", "/tmp/testfs-mount")
+	if err := cmd.Run(); err != nil {
+		c.Fatalf("mkdir failed: %v", err)
+	}
+	cmd = exec.Command("mount", "-t", "ext4", "-no", "loop,rw", "/tmp/testfs.img", "/tmp/testfs-mount")
+	if err := cmd.Run(); err != nil {
+		c.Fatalf("mount failed: %v", err)
+	}
+	err := s.d.Start("--graph", "/tmp/testfs-mount")
+	c.Assert(err, check.IsNil)
+
+	// pull a repository large enough to fill the mount point
+	out, err := s.d.Cmd("pull", "registry:2")
+	c.Assert(out, check.Not(check.Equals), 1, check.Commentf("no space left on device"))
 }

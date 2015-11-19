@@ -3,6 +3,7 @@ package main
 import (
 	"strings"
 
+	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/go-check/check"
 )
 
@@ -49,10 +50,9 @@ func (s *DockerSuite) TestCommitPausedContainer(c *check.C) {
 	out, _ = dockerCmd(c, "commit", cleanedContainerID)
 
 	out, err := inspectField(cleanedContainerID, "State.Paused")
-	c.Assert(err, check.IsNil)
-	if !strings.Contains(out, "true") {
-		c.Fatalf("commit should not unpause a paused container")
-	}
+	c.Assert(err, checker.IsNil, check.Commentf("%s", out))
+	// commit should not unpause a paused container
+	c.Assert(out, checker.Contains, "true")
 }
 
 func (s *DockerSuite) TestCommitNewFile(c *check.C) {
@@ -60,14 +60,11 @@ func (s *DockerSuite) TestCommitNewFile(c *check.C) {
 	dockerCmd(c, "run", "--name", "commiter", "busybox", "/bin/sh", "-c", "echo koye > /foo")
 
 	imageID, _ := dockerCmd(c, "commit", "commiter")
-	imageID = strings.Trim(imageID, "\r\n")
+	imageID = strings.TrimSpace(imageID)
 
 	out, _ := dockerCmd(c, "run", imageID, "cat", "/foo")
-
-	if actual := strings.Trim(out, "\r\n"); actual != "koye" {
-		c.Fatalf("expected output koye received %q", actual)
-	}
-
+	actual := strings.TrimSpace(out)
+	c.Assert(actual, checker.Equals, "koye")
 }
 
 func (s *DockerSuite) TestCommitHardlink(c *check.C) {
@@ -76,35 +73,18 @@ func (s *DockerSuite) TestCommitHardlink(c *check.C) {
 
 	chunks := strings.Split(strings.TrimSpace(firstOutput), " ")
 	inode := chunks[0]
-	found := false
-	for _, chunk := range chunks[1:] {
-		if chunk == inode {
-			found = true
-			break
-		}
-	}
-	if !found {
-		c.Fatalf("Failed to create hardlink in a container. Expected to find %q in %q", inode, chunks[1:])
-	}
+	chunks = strings.SplitAfterN(strings.TrimSpace(firstOutput), " ", 2)
+	c.Assert(chunks[1], checker.Contains, chunks[0], check.Commentf("Failed to create hardlink in a container. Expected to find %q in %q", inode, chunks[1:]))
 
 	imageID, _ := dockerCmd(c, "commit", "hardlinks", "hardlinks")
-	imageID = strings.Trim(imageID, "\r\n")
+	imageID = strings.TrimSpace(imageID)
 
 	secondOutput, _ := dockerCmd(c, "run", "-t", "hardlinks", "ls", "-di", "file1", "file2")
 
 	chunks = strings.Split(strings.TrimSpace(secondOutput), " ")
 	inode = chunks[0]
-	found = false
-	for _, chunk := range chunks[1:] {
-		if chunk == inode {
-			found = true
-			break
-		}
-	}
-	if !found {
-		c.Fatalf("Failed to create hardlink in a container. Expected to find %q in %q", inode, chunks[1:])
-	}
-
+	chunks = strings.SplitAfterN(strings.TrimSpace(secondOutput), " ", 2)
+	c.Assert(chunks[1], checker.Contains, chunks[0], check.Commentf("Failed to create hardlink in a container. Expected to find %q in %q", inode, chunks[1:]))
 }
 
 func (s *DockerSuite) TestCommitTTY(c *check.C) {
@@ -112,10 +92,9 @@ func (s *DockerSuite) TestCommitTTY(c *check.C) {
 	dockerCmd(c, "run", "-t", "--name", "tty", "busybox", "/bin/ls")
 
 	imageID, _ := dockerCmd(c, "commit", "tty", "ttytest")
-	imageID = strings.Trim(imageID, "\r\n")
+	imageID = strings.TrimSpace(imageID)
 
 	dockerCmd(c, "run", "ttytest", "/bin/ls")
-
 }
 
 func (s *DockerSuite) TestCommitWithHostBindMount(c *check.C) {
@@ -123,10 +102,9 @@ func (s *DockerSuite) TestCommitWithHostBindMount(c *check.C) {
 	dockerCmd(c, "run", "--name", "bind-commit", "-v", "/dev/null:/winning", "busybox", "true")
 
 	imageID, _ := dockerCmd(c, "commit", "bind-commit", "bindtest")
-	imageID = strings.Trim(imageID, "\r\n")
+	imageID = strings.TrimSpace(imageID)
 
 	dockerCmd(c, "run", "bindtest", "true")
-
 }
 
 func (s *DockerSuite) TestCommitChange(c *check.C) {
@@ -146,7 +124,7 @@ func (s *DockerSuite) TestCommitChange(c *check.C) {
 		"--change", "VOLUME /var/lib/docker",
 		"--change", "ONBUILD /usr/local/bin/python-build --dir /app/src",
 		"test", "test-commit")
-	imageID = strings.Trim(imageID, "\r\n")
+	imageID = strings.TrimSpace(imageID)
 
 	expected := map[string]string{
 		"Config.ExposedPorts": "map[8080/tcp:{}]",
@@ -162,12 +140,11 @@ func (s *DockerSuite) TestCommitChange(c *check.C) {
 
 	for conf, value := range expected {
 		res, err := inspectField(imageID, conf)
-		c.Assert(err, check.IsNil)
+		c.Assert(err, checker.IsNil, check.Commentf("%s('%s')", conf, res))
 		if res != value {
 			c.Errorf("%s('%s'), expected %s", conf, res, value)
 		}
 	}
-
 }
 
 // TODO: commit --run is deprecated, remove this once --run is removed
@@ -180,22 +157,20 @@ func (s *DockerSuite) TestCommitMergeConfigRun(c *check.C) {
 	dockerCmd(c, "commit", `--run={"Cmd": ["cat", "/tmp/foo"]}`, id, "commit-test")
 
 	out, _ = dockerCmd(c, "run", "--name", name, "commit-test")
-	if strings.TrimSpace(out) != "testing" {
-		c.Fatal("run config in committed container was not merged")
-	}
+	//run config in committed container was not merged
+	c.Assert(strings.TrimSpace(out), checker.Equals, "testing")
 
 	type cfg struct {
 		Env []string
 		Cmd []string
 	}
 	config1 := cfg{}
-	if err := inspectFieldAndMarshall(id, "Config", &config1); err != nil {
-		c.Fatal(err)
-	}
+	err := inspectFieldAndMarshall(id, "Config", &config1)
+	c.Assert(err, checker.IsNil)
+
 	config2 := cfg{}
-	if err := inspectFieldAndMarshall(name, "Config", &config2); err != nil {
-		c.Fatal(err)
-	}
+	err = inspectFieldAndMarshall(name, "Config", &config2)
+	c.Assert(err, checker.IsNil)
 
 	// Env has at least PATH loaded as well here, so let's just grab the FOO one
 	var env1, env2 string
@@ -215,5 +190,4 @@ func (s *DockerSuite) TestCommitMergeConfigRun(c *check.C) {
 	if len(config1.Env) != len(config2.Env) || env1 != env2 && env2 != "" {
 		c.Fatalf("expected envs to match: %v - %v", config1.Env, config2.Env)
 	}
-
 }

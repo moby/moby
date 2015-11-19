@@ -16,6 +16,7 @@ import (
 	"github.com/docker/docker/builder/dockerfile"
 	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/daemon/daemonbuilder"
+	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/graph"
 	"github.com/docker/docker/graph/tags"
 	"github.com/docker/docker/pkg/archive"
@@ -63,12 +64,11 @@ func (s *router) postCommit(ctx context.Context, w http.ResponseWriter, r *http.
 		Config:  c,
 	}
 
-	container, err := s.daemon.Get(cname)
-	if err != nil {
-		return err
+	if !s.daemon.Exists(cname) {
+		return derr.ErrorCodeNoSuchContainer.WithArgs(cname)
 	}
 
-	imgID, err := dockerfile.Commit(container, s.daemon, commitCfg)
+	imgID, err := dockerfile.Commit(cname, s.daemon, commitCfg)
 	if err != nil {
 		return err
 	}
@@ -105,6 +105,7 @@ func (s *router) postImagesCreate(ctx context.Context, w http.ResponseWriter, r 
 		err    error
 		output = ioutils.NewWriteFlusher(w)
 	)
+	defer output.Close()
 
 	w.Header().Set("Content-Type", "application/json")
 
@@ -156,10 +157,6 @@ func (s *router) postImagesCreate(ctx context.Context, w http.ResponseWriter, r 
 }
 
 func (s *router) postImagesPush(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if vars == nil {
-		return fmt.Errorf("Missing parameter")
-	}
-
 	metaHeaders := map[string][]string{}
 	for k, v := range r.Header {
 		if strings.HasPrefix(k, "X-Meta-") {
@@ -188,6 +185,7 @@ func (s *router) postImagesPush(ctx context.Context, w http.ResponseWriter, r *h
 
 	name := vars["name"]
 	output := ioutils.NewWriteFlusher(w)
+	defer output.Close()
 	imagePushConfig := &graph.ImagePushConfig{
 		MetaHeaders: metaHeaders,
 		AuthConfig:  authConfig,
@@ -208,9 +206,6 @@ func (s *router) postImagesPush(ctx context.Context, w http.ResponseWriter, r *h
 }
 
 func (s *router) getImagesGet(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if vars == nil {
-		return fmt.Errorf("Missing parameter")
-	}
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
@@ -218,6 +213,7 @@ func (s *router) getImagesGet(ctx context.Context, w http.ResponseWriter, r *htt
 	w.Header().Set("Content-Type", "application/x-tar")
 
 	output := ioutils.NewWriteFlusher(w)
+	defer output.Close()
 	var names []string
 	if name, ok := vars["name"]; ok {
 		names = []string{name}
@@ -243,13 +239,10 @@ func (s *router) deleteImages(ctx context.Context, w http.ResponseWriter, r *htt
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
-	if vars == nil {
-		return fmt.Errorf("Missing parameter")
-	}
 
 	name := vars["name"]
 
-	if name == "" {
+	if strings.TrimSpace(name) == "" {
 		return fmt.Errorf("image name cannot be blank")
 	}
 
@@ -265,10 +258,6 @@ func (s *router) deleteImages(ctx context.Context, w http.ResponseWriter, r *htt
 }
 
 func (s *router) getImagesByName(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if vars == nil {
-		return fmt.Errorf("Missing parameter")
-	}
-
 	imageInspect, err := s.daemon.LookupImage(vars["name"])
 	if err != nil {
 		return err
@@ -297,6 +286,7 @@ func (s *router) postBuild(ctx context.Context, w http.ResponseWriter, r *http.R
 
 	version := httputils.VersionFromContext(ctx)
 	output := ioutils.NewWriteFlusher(w)
+	defer output.Close()
 	sf := streamformatter.NewJSONStreamFormatter()
 	errf := func(err error) error {
 		// Do not write the error in the http output if it's still empty.
@@ -322,16 +312,9 @@ func (s *router) postBuild(ctx context.Context, w http.ResponseWriter, r *http.R
 		buildConfig.Pull = true
 	}
 
-	repoName, tag := parsers.ParseRepositoryTag(r.FormValue("t"))
-	if repoName != "" {
-		if err := registry.ValidateRepositoryName(repoName); err != nil {
-			return errf(err)
-		}
-		if len(tag) > 0 {
-			if err := tags.ValidateTagName(tag); err != nil {
-				return errf(err)
-			}
-		}
+	repoAndTags, err := sanitizeRepoAndTags(r.Form["t"])
+	if err != nil {
+		return errf(err)
 	}
 
 	buildConfig.DockerfileName = r.FormValue("dockerfile")
@@ -346,6 +329,13 @@ func (s *router) postBuild(ctx context.Context, w http.ResponseWriter, r *http.R
 	buildConfig.CPUSetCpus = r.FormValue("cpusetcpus")
 	buildConfig.CPUSetMems = r.FormValue("cpusetmems")
 	buildConfig.CgroupParent = r.FormValue("cgroupparent")
+
+	if i := runconfig.IsolationLevel(r.FormValue("isolation")); i != "" {
+		if !runconfig.IsolationLevel.IsValid(i) {
+			return errf(fmt.Errorf("Unsupported isolation: %q", i))
+		}
+		buildConfig.Isolation = i
+	}
 
 	var buildUlimits = []*ulimit.Ulimit{}
 	ulimitsJSON := r.FormValue("ulimits")
@@ -383,7 +373,6 @@ func (s *router) postBuild(ctx context.Context, w http.ResponseWriter, r *http.R
 	var (
 		context        builder.ModifiableContext
 		dockerfileName string
-		err            error
 	)
 	context, dockerfileName, err = daemonbuilder.DetectContextFromRemoteURL(r.Body, remoteURL, pReader)
 	if err != nil {
@@ -401,9 +390,14 @@ func (s *router) postBuild(ctx context.Context, w http.ResponseWriter, r *http.R
 		UIDMaps: uidMaps,
 		GIDMaps: gidMaps,
 	}
-	docker := daemonbuilder.Docker{s.daemon, output, authConfigs, defaultArchiver}
+	docker := &daemonbuilder.Docker{
+		Daemon:      s.daemon,
+		OutOld:      output,
+		AuthConfigs: authConfigs,
+		Archiver:    defaultArchiver,
+	}
 
-	b, err := dockerfile.NewBuilder(buildConfig, docker, builder.DockerIgnoreContext{context}, nil)
+	b, err := dockerfile.NewBuilder(buildConfig, docker, builder.DockerIgnoreContext{ModifiableContext: context}, nil)
 	if err != nil {
 		return errf(err)
 	}
@@ -432,13 +426,55 @@ func (s *router) postBuild(ctx context.Context, w http.ResponseWriter, r *http.R
 		return errf(err)
 	}
 
-	if repoName != "" {
-		if err := s.daemon.TagImage(repoName, tag, string(imgID), true); err != nil {
+	for _, rt := range repoAndTags {
+		if err := s.daemon.TagImage(rt.repo, rt.tag, string(imgID), true); err != nil {
 			return errf(err)
 		}
 	}
 
 	return nil
+}
+
+// repoAndTag is a helper struct for holding the parsed repositories and tags of
+// the input "t" argument.
+type repoAndTag struct {
+	repo, tag string
+}
+
+// sanitizeRepoAndTags parses the raw "t" parameter received from the client
+// to a slice of repoAndTag.
+// It also validates each repoName and tag.
+func sanitizeRepoAndTags(names []string) ([]repoAndTag, error) {
+	var (
+		repoAndTags []repoAndTag
+		// This map is used for deduplicating the "-t" paramter.
+		uniqNames = make(map[string]struct{})
+	)
+	for _, repo := range names {
+		name, tag := parsers.ParseRepositoryTag(repo)
+		if name == "" {
+			continue
+		}
+
+		if err := registry.ValidateRepositoryName(name); err != nil {
+			return nil, err
+		}
+
+		nameWithTag := name
+		if len(tag) > 0 {
+			if err := tags.ValidateTagName(tag); err != nil {
+				return nil, err
+			}
+			nameWithTag += ":" + tag
+		} else {
+			nameWithTag += ":" + tags.DefaultTag
+		}
+		if _, exists := uniqNames[nameWithTag]; !exists {
+			uniqNames[nameWithTag] = struct{}{}
+			repoAndTags = append(repoAndTags, repoAndTag{repo: name, tag: tag})
+		}
+	}
+	return repoAndTags, nil
 }
 
 func (s *router) getImagesJSON(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -456,10 +492,6 @@ func (s *router) getImagesJSON(ctx context.Context, w http.ResponseWriter, r *ht
 }
 
 func (s *router) getImagesHistory(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if vars == nil {
-		return fmt.Errorf("Missing parameter")
-	}
-
 	name := vars["name"]
 	history, err := s.daemon.ImageHistory(name)
 	if err != nil {
@@ -473,10 +505,6 @@ func (s *router) postImagesTag(ctx context.Context, w http.ResponseWriter, r *ht
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
-	if vars == nil {
-		return fmt.Errorf("Missing parameter")
-	}
-
 	repo := r.Form.Get("repo")
 	tag := r.Form.Get("tag")
 	name := vars["name"]
@@ -484,7 +512,6 @@ func (s *router) postImagesTag(ctx context.Context, w http.ResponseWriter, r *ht
 	if err := s.daemon.TagImage(repo, tag, name, force); err != nil {
 		return err
 	}
-	s.daemon.EventsService.Log("tag", utils.ImageReference(repo, tag), "")
 	w.WriteHeader(http.StatusCreated)
 	return nil
 }

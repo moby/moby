@@ -21,11 +21,8 @@ const (
 // initDiscovery initialized the nodes discovery subsystem by connecting to the specified backend
 // and start a registration loop to advertise the current node under the specified address.
 func initDiscovery(backend, address string, clusterOpts map[string]string) (discovery.Backend, error) {
-	var (
-		discoveryBackend discovery.Backend
-		err              error
-	)
-	if discoveryBackend, err = discovery.New(backend, defaultDiscoveryHeartbeat, defaultDiscoveryTTL, clusterOpts); err != nil {
+	discoveryBackend, err := discovery.New(backend, defaultDiscoveryHeartbeat, defaultDiscoveryTTL, clusterOpts)
+	if err != nil {
 		return nil, err
 	}
 
@@ -35,14 +32,18 @@ func initDiscovery(backend, address string, clusterOpts map[string]string) (disc
 	return discoveryBackend, nil
 }
 
+func registerAddr(backend discovery.Backend, addr string) {
+	if err := backend.Register(addr); err != nil {
+		log.Warnf("Registering as %q in discovery failed: %v", addr, err)
+	}
+}
+
 // registrationLoop registers the current node against the discovery backend using the specified
 // address. The function never returns, as registration against the backend comes with a TTL and
 // requires regular heartbeats.
 func registrationLoop(discoveryBackend discovery.Backend, address string) {
-	for {
-		if err := discoveryBackend.Register(address); err != nil {
-			log.Errorf("Registering as %q in discovery failed: %v", address, err)
-		}
-		time.Sleep(defaultDiscoveryHeartbeat)
+	registerAddr(discoveryBackend, address)
+	for range time.Tick(defaultDiscoveryHeartbeat) {
+		registerAddr(discoveryBackend, address)
 	}
 }

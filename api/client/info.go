@@ -35,7 +35,7 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 
 	fmt.Fprintf(cli.out, "Containers: %d\n", info.Containers)
 	fmt.Fprintf(cli.out, "Images: %d\n", info.Images)
-	fmt.Fprintf(cli.out, "Engine Version: %s\n", info.ServerVersion)
+	ioutils.FprintfIfNotEmpty(cli.out, "Server Version: %s\n", info.ServerVersion)
 	ioutils.FprintfIfNotEmpty(cli.out, "Storage Driver: %s\n", info.Driver)
 	if info.DriverStatus != nil {
 		for _, pair := range info.DriverStatus {
@@ -44,8 +44,23 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 	}
 	ioutils.FprintfIfNotEmpty(cli.out, "Execution Driver: %s\n", info.ExecutionDriver)
 	ioutils.FprintfIfNotEmpty(cli.out, "Logging Driver: %s\n", info.LoggingDriver)
+
+	fmt.Fprintf(cli.out, "Plugins: \n")
+	fmt.Fprintf(cli.out, " Volume:")
+	for _, driver := range info.Plugins.Volume {
+		fmt.Fprintf(cli.out, " %s", driver)
+	}
+	fmt.Fprintf(cli.out, "\n")
+	fmt.Fprintf(cli.out, " Network:")
+	for _, driver := range info.Plugins.Network {
+		fmt.Fprintf(cli.out, " %s", driver)
+	}
+	fmt.Fprintf(cli.out, "\n")
+
 	ioutils.FprintfIfNotEmpty(cli.out, "Kernel Version: %s\n", info.KernelVersion)
 	ioutils.FprintfIfNotEmpty(cli.out, "Operating System: %s\n", info.OperatingSystem)
+	ioutils.FprintfIfNotEmpty(cli.out, "OSType: %s\n", info.OSType)
+	ioutils.FprintfIfNotEmpty(cli.out, "Architecture: %s\n", info.Architecture)
 	fmt.Fprintf(cli.out, "CPUs: %d\n", info.NCPU)
 	fmt.Fprintf(cli.out, "Total Memory: %s\n", units.BytesSize(float64(info.MemTotal)))
 	ioutils.FprintfIfNotEmpty(cli.out, "Name: %s\n", info.Name)
@@ -83,6 +98,21 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 			if !info.SwapLimit {
 				fmt.Fprintf(cli.err, "WARNING: No swap limit support\n")
 			}
+			if !info.OomKillDisable {
+				fmt.Fprintf(cli.err, "WARNING: No oom kill disable support\n")
+			}
+			if !info.CPUCfsQuota {
+				fmt.Fprintf(cli.err, "WARNING: No cpu cfs quota support\n")
+			}
+			if !info.CPUCfsPeriod {
+				fmt.Fprintf(cli.err, "WARNING: No cpu cfs period support\n")
+			}
+			if !info.CPUShares {
+				fmt.Fprintf(cli.err, "WARNING: No cpu shares support\n")
+			}
+			if !info.CPUSet {
+				fmt.Fprintf(cli.err, "WARNING: No cpuset support\n")
+			}
 			if !info.IPv4Forwarding {
 				fmt.Fprintf(cli.err, "WARNING: IPv4 forwarding is disabled\n")
 			}
@@ -107,5 +137,8 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 		fmt.Fprintf(cli.out, "Cluster store: %s\n", info.ClusterStore)
 	}
 
+	if info.ClusterAdvertise != "" {
+		fmt.Fprintf(cli.out, "Cluster advertise: %s\n", info.ClusterAdvertise)
+	}
 	return nil
 }

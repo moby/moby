@@ -12,7 +12,7 @@ import (
 // the parent layer provided.
 func CreateLayer(info DriverInfo, id, parent string) error {
 	title := "hcsshim::CreateLayer "
-	logrus.Debugf(title+"Flavour %s ID %s parent %s", info.Flavour, id, parent)
+	logrus.Debugf(title+"Flavour %d ID %s parent %s", info.Flavour, id, parent)
 
 	// Load the DLL and get a handle to the procedure we need
 	dll, proc, err := loadAndFind(procCreateLayer)

@@ -5,19 +5,20 @@ description = "API Documentation for Docker"
 keywords = ["API, Docker, rcli, REST,  documentation"]
 [menu.main]
 parent = "smn_remoteapi"
+weight=-3
 +++
 <![end-metadata]-->
 
 # Docker Remote API
 
-Docker's Remote API uses an open schema model.  In this model, unknown 
+Docker's Remote API uses an open schema model.  In this model, unknown
 properties in incoming messages are ignored. Client applications need to take
 this behavior into account to ensure they do not break when talking to newer
 Docker daemons.
 
 The API tends to be REST, but for some complex commands, like attach or pull,
 the HTTP connection is hijacked to transport STDOUT, STDIN, and STDERR.
-   
+
 By default the Docker daemon listens on `unix:///var/run/docker.sock` and the
 client must have `root` access to interact with the daemon. If a group named
 `docker` exists on your system, `docker` applies ownership of the socket to the
@@ -31,15 +32,14 @@ Use the table below to find the API version for a Docker version:
 
 Docker version  | API version                                     | Changes
 ----------------|-------------------------------------------------|-----------------------------
-1.10.x          | [1.22](/reference/api/docker_remote_api_v1.22/) | [API changes](/reference/api/docker_remote_api/#v1-22-api-changes)
-1.9.x           | [1.21](/reference/api/docker_remote_api_v1.21/) | [API changes](/reference/api/docker_remote_api/#v1-21-api-changes)
-1.8.x           | [1.20](/reference/api/docker_remote_api_v1.20/) | [API changes](/reference/api/docker_remote_api/#v1-20-api-changes)
-1.7.x           | [1.19](/reference/api/docker_remote_api_v1.19/) | [API changes](/reference/api/docker_remote_api/#v1-19-api-changes)
-1.6.x           | [1.18](/reference/api/docker_remote_api_v1.18/) | [API changes](/reference/api/docker_remote_api/#v1-18-api-changes)
-1.5.x           | [1.17](/reference/api/docker_remote_api_v1.17/) | [API changes](/reference/api/docker_remote_api/#v1-17-api-changes)
-1.4.x           | [1.16](/reference/api/docker_remote_api_v1.16/) | [API changes](/reference/api/docker_remote_api/#v1-16-api-changes)
-1.3.x           | [1.15](/reference/api/docker_remote_api_v1.15/) | [API changes](/reference/api/docker_remote_api/#v1-15-api-changes)
-1.2.x           | [1.14](/reference/api/docker_remote_api_v1.14/) | [API changes](/reference/api/docker_remote_api/#v1-14-api-changes)
+1.9.x           | [1.21](docker_remote_api_v1.21.md) | [API changes](docker_remote_api.md#v1-21-api-changes)
+1.8.x           | [1.20](docker_remote_api_v1.20.md) | [API changes](docker_remote_api.md#v1-20-api-changes)
+1.7.x           | [1.19](docker_remote_api_v1.19.md) | [API changes](docker_remote_api.md#v1-19-api-changes)
+1.6.x           | [1.18](docker_remote_api_v1.18.md) | [API changes](docker_remote_api.md#v1-18-api-changes)
+1.5.x           | [1.17](docker_remote_api_v1.17.md) | [API changes](docker_remote_api.md#v1-17-api-changes)
+1.4.x           | [1.16](docker_remote_api_v1.16.md) | [API changes](docker_remote_api.md#v1-16-api-changes)
+1.3.x           | [1.15](docker_remote_api_v1.15.md) | [API changes](docker_remote_api.md#v1-15-api-changes)
+1.2.x           | [1.14](docker_remote_api_v1.14.md) | [API changes](docker_remote_api.md#v1-14-api-changes)
 
 Refer to the [GitHub repository](
 https://github.com/docker/docker/tree/master/docs/reference/api) for
@@ -56,7 +56,7 @@ client has to send the `authConfig` as a `POST` in `/images/(name)/push`. The
 {"username": "string", "password": "string", "email": "string",
    "serveraddress" : "string", "auth": ""}
 ```
-   
+
 Callers should leave the `auth` empty. The `serveraddress` is a domain/ip
 without protocol. Throughout this structure, double quotes are required.
 
@@ -94,17 +94,18 @@ This section lists each version from latest to oldest.  Each listing includes a 
 
 [Docker Remote API v1.22](docker_remote_api_v1.22.md) documentation
 
+* `GET /containers/json` supports filter `isolation` on Windows.
 
 ### v1.21 API changes
 
 [Docker Remote API v1.21](docker_remote_api_v1.21.md) documentation
 
 * `GET /volumes` lists volumes from all volume drivers.
-* `POST /volumes` to create a volume.
+* `POST /volumes/create` to create a volume.
 * `GET /volumes/(name)` get low-level information about a volume.
 * `DELETE /volumes/(name)`remove a volume with the specified name.
 * `VolumeDriver` has been moved from config to hostConfig to make the configuration portable.
-* `GET /images/(name)/json` now returns information about tags of the image.
+* `GET /images/(name)/json` now returns information about tags and digests of the image.
 * The `config` option now accepts the field `StopSignal`, which specifies the signal to use to kill a container.
 * `GET /containers/(id)/stats` will return networking information respectively for each interface.
 * The `hostConfig` option now accepts the field `DnsOptions`, which specifies a
@@ -112,14 +113,24 @@ list of DNS options to be used in the container.
 * `POST /build` now optionally takes a serialized map of build-time variables.
 * `GET /events` now includes a `timenano` field, in addition to the existing `time` field.
 * `GET /events` now supports filtering by image and container labels.
-* `GET /info` now lists engine version information.
+* `GET /info` now lists engine version information and return the information of `CPUShares` and `Cpuset`.
 * `GET /containers/json` will return `ImageID` of the image used by container.
 * `POST /exec/(name)/start` will now return an HTTP 409 when the container is either stopped or paused.
 * `GET /containers/(name)/json` now accepts a `size` parameter. Setting this parameter to '1' returns container size information in the `SizeRw` and `SizeRootFs` fields.
+* `GET /containers/(name)/json` now returns a `NetworkSettings.Networks` field,
+  detailing network settings per network. This field deprecates the
+  `NetworkSettings.Gateway`, `NetworkSettings.IPAddress`,
+  `NetworkSettings.IPPrefixLen`, and `NetworkSettings.MacAddress` fields, which
+  are still returned for backward-compatibility, but will be removed in a future version.
+* `GET /exec/(id)/json` now returns a `NetworkSettings.Networks` field,
+  detailing networksettings per network. This field deprecates the
+  `NetworkSettings.Gateway`, `NetworkSettings.IPAddress`,
+  `NetworkSettings.IPPrefixLen`, and `NetworkSettings.MacAddress` fields, which
+  are still returned for backward-compatibility, but will be removed in a future version.
 
 ### v1.20 API changes
 
-[Docker Remote API v1.20](docker_remote_api_v1.20/) documentation
+[Docker Remote API v1.20](docker_remote_api_v1.20.md) documentation
 
 * `GET /containers/(id)/archive` get an archive of filesystem content from a container.
 * `PUT /containers/(id)/archive` upload an archive of content to be extracted to
@@ -172,7 +183,7 @@ example you could add data describing the content of an image. `LABEL
 * `GET /containers/(id)/json` returns the list current execs associated with the
 container (`ExecIDs`). This endpoint now returns the container labels
 (`Config.Labels`).
-* `POST /containers/(id)/rename` renames a container `id` to a new name.* 
+* `POST /containers/(id)/rename` renames a container `id` to a new name.*
 * `POST /containers/create` and `POST /containers/(id)/start` callers can pass
 `ReadonlyRootfs` in the host config to mount the container's root filesystem as
 read only.
@@ -205,6 +216,6 @@ container. Previously this was only available when starting a container.
 * `DELETE /containers/(id)` when using `force`, the container will be immediately killed with SIGKILL.
 * `POST /containers/(id)/start` the `hostConfig` option accepts the field `CapAdd`, which specifies a list of capabilities
 to add, and the field `CapDrop`, which specifies a list of capabilities to drop.
-* `POST /images/create` th `fromImage` and `repo` parameters supportthe
+* `POST /images/create` th `fromImage` and `repo` parameters support the
 `repo:tag` format. Consequently,  the `tag` parameter is now obsolete. Using the
 new format and the `tag` parameter at the same time will return an error.

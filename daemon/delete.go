@@ -7,7 +7,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	derr "github.com/docker/docker/errors"
-	"github.com/docker/docker/volume/store"
+	volumestore "github.com/docker/docker/volume/store"
 )
 
 // ContainerRmConfig is a holder for passing in runtime config.
@@ -45,7 +45,7 @@ func (daemon *Daemon) ContainerRm(name string, config *ContainerRmConfig) error 
 
 		parentContainer, _ := daemon.Get(pe.ID())
 		if parentContainer != nil {
-			if err := parentContainer.updateNetwork(); err != nil {
+			if err := daemon.updateNetwork(parentContainer); err != nil {
 				logrus.Debugf("Could not update network to remove link %s: %v", n, err)
 			}
 		}
@@ -58,7 +58,7 @@ func (daemon *Daemon) ContainerRm(name string, config *ContainerRmConfig) error 
 		return err
 	}
 
-	if err := container.removeMountPoints(config.RemoveVolume); err != nil {
+	if err := daemon.removeMountPoints(container, config.RemoveVolume); err != nil {
 		logrus.Error(err)
 	}
 
@@ -71,28 +71,26 @@ func (daemon *Daemon) rm(container *Container, forceRemove bool) (err error) {
 		if !forceRemove {
 			return derr.ErrorCodeRmRunning
 		}
-		if err := container.Kill(); err != nil {
+		if err := daemon.Kill(container); err != nil {
 			return derr.ErrorCodeRmFailed.WithArgs(err)
 		}
 	}
+
+	// Container state RemovalInProgress should be used to avoid races.
+	if err = container.setRemovalInProgress(); err != nil {
+		if err == derr.ErrorCodeAlreadyRemoving {
+			// do not fail when the removal is in progress started by other request.
+			return nil
+		}
+		return derr.ErrorCodeRmState.WithArgs(err)
+	}
+	defer container.resetRemovalInProgress()
 
 	// stop collection of stats for the container regardless
 	// if stats are currently getting collected.
 	daemon.statsCollector.stopCollection(container)
 
-	element := daemon.containers.Get(container.ID)
-	if element == nil {
-		return derr.ErrorCodeRmNotFound.WithArgs(container.ID)
-	}
-
-	// Container state RemovalInProgress should be used to avoid races.
-	if err = container.setRemovalInProgress(); err != nil {
-		return derr.ErrorCodeRmState.WithArgs(err)
-	}
-
-	defer container.resetRemovalInProgress()
-
-	if err = container.Stop(3); err != nil {
+	if err = daemon.containerStop(container, 3); err != nil {
 		return err
 	}
 
@@ -113,7 +111,7 @@ func (daemon *Daemon) rm(container *Container, forceRemove bool) (err error) {
 			daemon.idIndex.Delete(container.ID)
 			daemon.containers.Delete(container.ID)
 			os.RemoveAll(container.root)
-			container.logEvent("destroy")
+			daemon.LogContainerEvent(container, "destroy")
 		}
 	}()
 
@@ -142,7 +140,7 @@ func (daemon *Daemon) rm(container *Container, forceRemove bool) (err error) {
 	daemon.idIndex.Delete(container.ID)
 	daemon.containers.Delete(container.ID)
 
-	container.logEvent("destroy")
+	daemon.LogContainerEvent(container, "destroy")
 	return nil
 }
 
@@ -155,7 +153,7 @@ func (daemon *Daemon) VolumeRm(name string) error {
 		return err
 	}
 	if err := daemon.volumes.Remove(v); err != nil {
-		if err == store.ErrVolumeInUse {
+		if volumestore.IsInUse(err) {
 			return derr.ErrorCodeRmVolumeInUse.WithArgs(err)
 		}
 		return derr.ErrorCodeRmVolume.WithArgs(name, err)

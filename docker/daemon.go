@@ -14,11 +14,11 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/uuid"
 	apiserver "github.com/docker/docker/api/server"
-	"github.com/docker/docker/autogen/dockerversion"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/daemon/logger"
+	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/opts"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/pidfile"
@@ -33,33 +33,8 @@ import (
 const daemonUsage = "       docker daemon [ --help | ... ]\n"
 
 var (
-	flDaemon              = flag.Bool([]string{"#d", "#-daemon"}, false, "Enable daemon mode (deprecated; use docker daemon)")
 	daemonCli cli.Handler = NewDaemonCli()
 )
-
-// TODO: remove once `-d` is retired
-func handleGlobalDaemonFlag() {
-	// This block makes sure that if the deprecated daemon flag `--daemon` is absent,
-	// then all daemon-specific flags are absent as well.
-	if !*flDaemon && daemonFlags != nil {
-		flag.CommandLine.Visit(func(fl *flag.Flag) {
-			for _, name := range fl.Names {
-				name := strings.TrimPrefix(name, "#")
-				if daemonFlags.Lookup(name) != nil {
-					// daemon flag was NOT specified, but daemon-specific flags were
-					// so let's error out
-					fmt.Fprintf(os.Stderr, "docker: the daemon flag '-%s' must follow the 'docker daemon' command.\n", name)
-					os.Exit(1)
-				}
-			}
-		})
-	}
-
-	if *flDaemon {
-		daemonCli.(*DaemonCli).CmdDaemon(flag.Args()...)
-		os.Exit(0)
-	}
-}
 
 func presentInHelp(usage string) string { return usage }
 func absentFromHelp(string) string      { return "" }
@@ -154,10 +129,7 @@ func (cli *DaemonCli) CmdDaemon(args ...string) error {
 	// warn from uuid package when running the daemon
 	uuid.Loggerf = logrus.Warnf
 
-	if *flDaemon {
-		// allow legacy forms `docker -D -d` and `docker -d -D`
-		logrus.Warn("please use 'docker daemon' instead.")
-	} else if !commonFlags.FlagSet.IsEmpty() || !clientFlags.FlagSet.IsEmpty() {
+	if !commonFlags.FlagSet.IsEmpty() || !clientFlags.FlagSet.IsEmpty() {
 		// deny `docker -D daemon`
 		illegalFlag := getGlobalFlag()
 		fmt.Fprintf(os.Stderr, "invalid flag '-%s'.\nSee 'docker daemon --help'.\n", illegalFlag.Names[0])
@@ -206,10 +178,11 @@ func (cli *DaemonCli) CmdDaemon(args ...string) error {
 
 	serverConfig := &apiserver.Config{
 		Logging: true,
-		Version: dockerversion.VERSION,
+		Version: dockerversion.Version,
 	}
 	serverConfig = setPlatformServerConfig(serverConfig, cli.Config)
 
+	defaultHost := opts.DefaultHost
 	if commonFlags.TLSOptions != nil {
 		if !commonFlags.TLSOptions.InsecureSkipVerify {
 			// server requires and verifies client's certificate
@@ -220,6 +193,7 @@ func (cli *DaemonCli) CmdDaemon(args ...string) error {
 			logrus.Fatal(err)
 		}
 		serverConfig.TLSConfig = tlsConfig
+		defaultHost = opts.DefaultTLSHost
 	}
 
 	if len(commonFlags.Hosts) == 0 {
@@ -227,7 +201,7 @@ func (cli *DaemonCli) CmdDaemon(args ...string) error {
 	}
 	for i := 0; i < len(commonFlags.Hosts); i++ {
 		var err error
-		if commonFlags.Hosts[i], err = opts.ParseHost(commonFlags.Hosts[i]); err != nil {
+		if commonFlags.Hosts[i], err = opts.ParseHost(defaultHost, commonFlags.Hosts[i]); err != nil {
 			logrus.Fatalf("error parsing -H %s : %v", commonFlags.Hosts[i], err)
 		}
 	}
@@ -277,8 +251,8 @@ func (cli *DaemonCli) CmdDaemon(args ...string) error {
 	logrus.Info("Daemon has completed initialization")
 
 	logrus.WithFields(logrus.Fields{
-		"version":     dockerversion.VERSION,
-		"commit":      dockerversion.GITCOMMIT,
+		"version":     dockerversion.Version,
+		"commit":      dockerversion.GitCommit,
 		"execdriver":  d.ExecutionDriver().Name(),
 		"graphdriver": d.GraphDriver().String(),
 	}).Info("Docker daemon")

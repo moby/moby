@@ -188,7 +188,7 @@ These labels appear as part of the `docker info` output for the daemon:
     $ docker -D info
     Containers: 12
     Images: 672
-    Engine Version: 1.9.0
+    Server Version: 1.9.0
     Storage Driver: aufs
      Root Dir: /var/lib/docker/aufs
      Backing Filesystem: extfs

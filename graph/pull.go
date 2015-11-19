@@ -3,6 +3,7 @@ package graph
 import (
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/cliconfig"
@@ -24,8 +25,8 @@ type ImagePullConfig struct {
 	OutStream io.Writer
 }
 
-// Puller is an interface that abstracts pulling for different API versions.
-type Puller interface {
+// puller is an interface that abstracts pulling for different API versions.
+type puller interface {
 	// Pull tries to pull the image referenced by `tag`
 	// Pull returns an error if any, as well as a boolean that determines whether to retry Pull on the next configured endpoint.
 	//
@@ -33,12 +34,12 @@ type Puller interface {
 	Pull(tag string) (fallback bool, err error)
 }
 
-// NewPuller returns a Puller interface that will pull from either a v1 or v2
+// newPuller returns a Puller interface that will pull from either a v1 or v2
 // registry. The endpoint argument contains a Version field that determines
 // whether a v1 or v2 puller will be created. The other parameters are passed
 // through to the underlying puller implementation for use during the actual
 // pull operation.
-func NewPuller(s *TagStore, endpoint registry.APIEndpoint, repoInfo *registry.RepositoryInfo, imagePullConfig *ImagePullConfig, sf *streamformatter.StreamFormatter) (Puller, error) {
+func newPuller(s *TagStore, endpoint registry.APIEndpoint, repoInfo *registry.RepositoryInfo, imagePullConfig *ImagePullConfig, sf *streamformatter.StreamFormatter) (puller, error) {
 	switch endpoint.Version {
 	case registry.APIVersion2:
 		return &v2Puller{
@@ -87,12 +88,13 @@ func (s *TagStore) Pull(image string, tag string, imagePullConfig *ImagePullConf
 	}
 
 	var (
-		lastErr error
+		// use a slice to append the error strings and return a joined string to caller
+		errors []string
 
 		// discardNoSupportErrors is used to track whether an endpoint encountered an error of type registry.ErrNoSupport
-		// By default it is false, which means that if a ErrNoSupport error is encountered, it will be saved in lastErr.
+		// By default it is false, which means that if a ErrNoSupport error is encountered, it will be saved in errors.
 		// As soon as another kind of error is encountered, discardNoSupportErrors is set to true, avoiding the saving of
-		// any subsequent ErrNoSupport errors in lastErr.
+		// any subsequent ErrNoSupport errors in errors.
 		// It's needed for pull-by-digest on v1 endpoints: if there are only v1 endpoints configured, the error should be
 		// returned and displayed, but if there was a v2 endpoint which supports pull-by-digest, then the last relevant
 		// error is the ones from v2 endpoints not v1.
@@ -101,9 +103,9 @@ func (s *TagStore) Pull(image string, tag string, imagePullConfig *ImagePullConf
 	for _, endpoint := range endpoints {
 		logrus.Debugf("Trying to pull %s from %s %s", repoInfo.LocalName, endpoint.URL, endpoint.Version)
 
-		puller, err := NewPuller(s, endpoint, repoInfo, imagePullConfig, sf)
+		puller, err := newPuller(s, endpoint, repoInfo, imagePullConfig, sf)
 		if err != nil {
-			lastErr = err
+			errors = append(errors, err.Error())
 			continue
 		}
 		if fallback, err := puller.Pull(tag); err != nil {
@@ -111,28 +113,35 @@ func (s *TagStore) Pull(image string, tag string, imagePullConfig *ImagePullConf
 				if _, ok := err.(registry.ErrNoSupport); !ok {
 					// Because we found an error that's not ErrNoSupport, discard all subsequent ErrNoSupport errors.
 					discardNoSupportErrors = true
-					// save the current error
-					lastErr = err
+					// append subsequent errors
+					errors = append(errors, err.Error())
 				} else if !discardNoSupportErrors {
 					// Save the ErrNoSupport error, because it's either the first error or all encountered errors
 					// were also ErrNoSupport errors.
-					lastErr = err
+					// append subsequent errors
+					errors = append(errors, err.Error())
 				}
 				continue
 			}
-			logrus.Debugf("Not continuing with error: %v", err)
-			return err
-
+			errors = append(errors, err.Error())
+			logrus.Debugf("Not continuing with error: %v", fmt.Errorf(strings.Join(errors, "\n")))
+			if len(errors) > 0 {
+				return fmt.Errorf(strings.Join(errors, "\n"))
+			}
 		}
 
 		s.eventsService.Log("pull", logName, "")
 		return nil
 	}
 
-	if lastErr == nil {
-		lastErr = fmt.Errorf("no endpoints found for %s", image)
+	if len(errors) == 0 {
+		return fmt.Errorf("no endpoints found for %s", image)
 	}
-	return lastErr
+
+	if len(errors) > 0 {
+		return fmt.Errorf(strings.Join(errors, "\n"))
+	}
+	return nil
 }
 
 // writeStatus writes a status message to out. If layersDownloaded is true, the

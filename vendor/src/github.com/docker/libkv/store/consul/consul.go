@@ -467,6 +467,13 @@ func (s *Consul) AtomicDelete(key string, previous *store.KVPair) (bool, error) 
 	}
 
 	p := &api.KVPair{Key: s.normalize(key), ModifyIndex: previous.LastIndex}
+
+	// Extra Get operation to check on the key
+	_, err := s.Get(key)
+	if err != nil && err == store.ErrKeyNotFound {
+		return false, err
+	}
+
 	if work, _, err := s.client.KV().DeleteCAS(p, nil); err != nil {
 		return false, err
 	} else if !work {

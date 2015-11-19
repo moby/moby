@@ -3,7 +3,7 @@ package distribution
 import (
 	"github.com/docker/distribution/context"
 	"github.com/docker/distribution/digest"
-	"github.com/docker/distribution/manifest"
+	"github.com/docker/distribution/manifest/schema1"
 )
 
 // Scope defines the set of items that match a namespace.
@@ -76,13 +76,13 @@ type ManifestService interface {
 	Exists(dgst digest.Digest) (bool, error)
 
 	// Get retrieves the identified by the digest, if it exists.
-	Get(dgst digest.Digest) (*manifest.SignedManifest, error)
+	Get(dgst digest.Digest) (*schema1.SignedManifest, error)
 
 	// Delete removes the manifest, if it exists.
 	Delete(dgst digest.Digest) error
 
 	// Put creates or updates the manifest.
-	Put(manifest *manifest.SignedManifest) error
+	Put(manifest *schema1.SignedManifest) error
 
 	// TODO(stevvooe): The methods after this message should be moved to a
 	// discrete TagService, per active proposals.
@@ -94,7 +94,7 @@ type ManifestService interface {
 	ExistsByTag(tag string) (bool, error)
 
 	// GetByTag retrieves the named manifest, if it exists.
-	GetByTag(tag string, options ...ManifestServiceOption) (*manifest.SignedManifest, error)
+	GetByTag(tag string, options ...ManifestServiceOption) (*schema1.SignedManifest, error)
 
 	// TODO(stevvooe): There are several changes that need to be done to this
 	// interface:

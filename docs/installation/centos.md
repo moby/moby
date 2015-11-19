@@ -53,7 +53,7 @@ package manager.
 
 3. Add the yum repo.
 
-        $ cat >/etc/yum.repos.d/docker.repo <<-EOF
+        $ echo | sudo tee /etc/yum.repos.d/docker.repo <<-EOF
         [dockerrepo]
         name=Docker Repository
         baseurl=https://yum.dockerproject.org/repo/main/centos/7

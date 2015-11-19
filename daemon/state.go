@@ -134,7 +134,7 @@ func (s *State) waitRunning(timeout time.Duration) (int, error) {
 	if err := wait(waitChan, timeout); err != nil {
 		return -1, err
 	}
-	return s.getPID(), nil
+	return s.GetPID(), nil
 }
 
 // WaitStop waits until state is stopped. If state already stopped it returns
@@ -164,7 +164,7 @@ func (s *State) IsRunning() bool {
 }
 
 // GetPID holds the process id of a container.
-func (s *State) getPID() int {
+func (s *State) GetPID() int {
 	s.Lock()
 	res := s.Pid
 	s.Unlock()
@@ -201,8 +201,7 @@ func (s *State) setStopped(exitStatus *execdriver.ExitStatus) {
 	s.Restarting = false
 	s.Pid = 0
 	s.FinishedAt = time.Now().UTC()
-	s.ExitCode = exitStatus.ExitCode
-	s.OOMKilled = exitStatus.OOMKilled
+	s.setFromExitStatus(exitStatus)
 	close(s.waitChan) // fire waiters for stop
 	s.waitChan = make(chan struct{})
 }
@@ -222,8 +221,7 @@ func (s *State) setRestarting(exitStatus *execdriver.ExitStatus) {
 	s.Restarting = true
 	s.Pid = 0
 	s.FinishedAt = time.Now().UTC()
-	s.ExitCode = exitStatus.ExitCode
-	s.OOMKilled = exitStatus.OOMKilled
+	s.setFromExitStatus(exitStatus)
 	close(s.waitChan) // fire waiters for stop
 	s.waitChan = make(chan struct{})
 }

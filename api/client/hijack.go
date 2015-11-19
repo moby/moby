@@ -15,7 +15,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api"
-	"github.com/docker/docker/autogen/dockerversion"
+	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/docker/pkg/term"
 )
@@ -127,6 +127,10 @@ func (cli *DockerCli) dial() (net.Conn, error) {
 }
 
 func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.ReadCloser, stdout, stderr io.Writer, started chan io.Closer, data interface{}) error {
+	return cli.hijackWithContentType(method, path, "text/plain", setRawTerminal, in, stdout, stderr, started, data)
+}
+
+func (cli *DockerCli) hijackWithContentType(method, path, contentType string, setRawTerminal bool, in io.ReadCloser, stdout, stderr io.Writer, started chan io.Closer, data interface{}) error {
 	defer func() {
 		if started != nil {
 			close(started)
@@ -148,8 +152,8 @@ func (cli *DockerCli) hijack(method, path string, setRawTerminal bool, in io.Rea
 		req.Header.Set(k, v)
 	}
 
-	req.Header.Set("User-Agent", "Docker-Client/"+dockerversion.VERSION+" ("+runtime.GOOS+")")
-	req.Header.Set("Content-Type", "text/plain")
+	req.Header.Set("User-Agent", "Docker-Client/"+dockerversion.Version+" ("+runtime.GOOS+")")
+	req.Header.Set("Content-Type", contentType)
 	req.Header.Set("Connection", "Upgrade")
 	req.Header.Set("Upgrade", "tcp")
 	req.Host = cli.addr

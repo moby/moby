@@ -92,7 +92,7 @@ func mkTestTagStore(root string, t *testing.T) *TagStore {
 	if err := store.Tag(testPrivateImageName, "", testPrivateImageID, false); err != nil {
 		t.Fatal(err)
 	}
-	if err := store.SetDigest(testPrivateImageName, testPrivateImageDigest, testPrivateImageID); err != nil {
+	if err := store.setDigest(testPrivateImageName, testPrivateImageDigest, testPrivateImageID); err != nil {
 		t.Fatal(err)
 	}
 	return store

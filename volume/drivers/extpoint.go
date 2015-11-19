@@ -106,3 +106,13 @@ func GetDriver(name string) (volume.Driver, error) {
 	}
 	return Lookup(name)
 }
+
+// GetDriverList returns list of volume drivers registered.
+// If no driver is registered, empty string list will be returned.
+func GetDriverList() []string {
+	var driverList []string
+	for driverName := range drivers.extensions {
+		driverList = append(driverList, driverName)
+	}
+	return driverList
+}

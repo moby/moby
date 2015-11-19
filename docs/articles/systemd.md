@@ -134,7 +134,7 @@ that adds the `HTTP_PROXY` environment variable:
 If you have internal Docker registries that you need to contact without
 proxying you can specify them via the `NO_PROXY` environment variable:
 
-    Environment="HTTP_PROXY=http://proxy.example.com:80/" "NO_PROXY=localhost,127.0.0.0/8,docker-registry.somecorporation.com"
+    Environment="HTTP_PROXY=http://proxy.example.com:80/" "NO_PROXY=localhost,127.0.0.1,docker-registry.somecorporation.com"
 
 Flush changes:
 

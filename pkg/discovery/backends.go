@@ -2,6 +2,7 @@ package discovery
 
 import (
 	"fmt"
+	"net"
 	"strings"
 	"time"
 
@@ -37,6 +38,63 @@ func parse(rawurl string) (string, string) {
 		return "nodes", parts[0]
 	}
 	return parts[0], parts[1]
+}
+
+// ParseAdvertise parses the --cluster-advertise daemon config which accepts
+// <ip-address>:<port> or <interface-name>:<port>
+func ParseAdvertise(store, advertise string) (string, error) {
+	var (
+		iface *net.Interface
+		addrs []net.Addr
+		err   error
+	)
+
+	addr, port, err := net.SplitHostPort(advertise)
+
+	if err != nil {
+		return "", fmt.Errorf("invalid --cluster-advertise configuration: %s: %v", advertise, err)
+	}
+
+	ip := net.ParseIP(addr)
+	// If it is a valid ip-address, use it as is
+	if ip != nil {
+		return advertise, nil
+	}
+
+	// If advertise is a valid interface name, get the valid ipv4 address and use it to advertise
+	ifaceName := addr
+	iface, err = net.InterfaceByName(ifaceName)
+	if err != nil {
+		return "", fmt.Errorf("invalid cluster advertise IP address or interface name (%s) : %v", advertise, err)
+	}
+
+	addrs, err = iface.Addrs()
+	if err != nil {
+		return "", fmt.Errorf("unable to get advertise IP address from interface (%s) : %v", advertise, err)
+	}
+
+	if addrs == nil || len(addrs) == 0 {
+		return "", fmt.Errorf("no available advertise IP address in interface (%s)", advertise)
+	}
+
+	addr = ""
+	for _, a := range addrs {
+		ip, _, err := net.ParseCIDR(a.String())
+		if err != nil {
+			return "", fmt.Errorf("error deriving advertise ip-address in interface (%s) : %v", advertise, err)
+		}
+		if ip.To4() == nil || ip.IsLoopback() {
+			continue
+		}
+		addr = ip.String()
+		break
+	}
+	if addr == "" {
+		return "", fmt.Errorf("couldnt find a valid ip-address in interface %s", advertise)
+	}
+
+	addr = fmt.Sprintf("%s:%s", addr, port)
+	return addr, nil
 }
 
 // New returns a new Discovery given a URL, heartbeat and ttl settings.

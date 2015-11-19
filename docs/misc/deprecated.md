@@ -21,6 +21,8 @@ The following short variant options are deprecated in favor of their long
 variants:
 
     docker run -c (--cpu-shares)
+    docker build -c (--cpu-shares)
+    docker create -c (--cpu-shares)
 
 ### Driver Specific Log Tags
 **Deprecated In Release: v1.9**
@@ -42,7 +44,7 @@ The built-in LXC execution driver is deprecated for an external implementation.
 The lxc-conf flag and API fields will also be removed.
 
 ### Old Command Line Options
-**Deprecated In Release: [v1.8.0](../release-notes.md#docker-engine-1-8-0)**
+**Deprecated In Release: [v1.8.0](https://github.com/docker/docker/releases/tag/v1.8.0)**
 
 **Target For Removal In Release: v1.10**
 
@@ -68,7 +70,6 @@ are deprecated and replaced with double-dash options (`--opt`):
     docker ps -sinceId
     docker rm -link
     docker run -cidfile
-    docker run -cpuset
     docker run -dns
     docker run -entrypoint
     docker run -expose
@@ -85,13 +86,14 @@ are deprecated and replaced with double-dash options (`--opt`):
 
 The following double-dash options are deprecated and have no replacement:
 
+    docker run --cpuset
     docker run --networking
     docker ps --since-id
     docker ps --before-id
     docker search --trusted
 
 ### Auto-creating missing host paths for bind mounts
-**Deprected in Release: v1.9**
+**Deprecated in Release: v1.9**
 
 **Target for Removal in Release: 1.11**
 

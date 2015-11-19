@@ -34,6 +34,8 @@ type Sandbox interface {
 	Refresh(options ...SandboxOption) error
 	// SetKey updates the Sandbox Key
 	SetKey(key string) error
+	// Rename changes the name of all attached Endpoints
+	Rename(name string) error
 	// Delete destroys this container after detaching it from all connected endpoints.
 	Delete() error
 }
@@ -66,6 +68,8 @@ type sandbox struct {
 	joinLeaveDone chan struct{}
 	dbIndex       uint64
 	dbExists      bool
+	isStub        bool
+	inDelete      bool
 	sync.Mutex
 }
 
@@ -146,13 +150,37 @@ func (sb *sandbox) Statistics() (map[string]*types.InterfaceStatistics, error) {
 }
 
 func (sb *sandbox) Delete() error {
+	sb.Lock()
+	if sb.inDelete {
+		sb.Unlock()
+		return types.ForbiddenErrorf("another sandbox delete in progress")
+	}
+	// Set the inDelete flag. This will ensure that we don't
+	// update the store until we have completed all the endpoint
+	// leaves and deletes. And when endpoint leaves and deletes
+	// are completed then we can finally delete the sandbox object
+	// altogether from the data store. If the daemon exits
+	// ungracefully in the middle of a sandbox delete this way we
+	// will have all the references to the endpoints in the
+	// sandbox so that we can clean them up when we restart
+	sb.inDelete = true
+	sb.Unlock()
+
 	c := sb.controller
 
 	// Detach from all endpoints
+	retain := false
 	for _, ep := range sb.getConnectedEndpoints() {
 		// endpoint in the Gateway network will be cleaned up
 		// when when sandbox no longer needs external connectivity
 		if ep.endpointInGWNetwork() {
+			continue
+		}
+
+		// Retain the sanbdox if we can't obtain the network from store.
+		if _, err := c.getNetworkFromStore(ep.getNetwork().ID()); err != nil {
+			retain = true
+			log.Warnf("Failed getting network for ep %s during sandbox %s delete: %v", ep.ID(), sb.ID(), err)
 			continue
 		}
 
@@ -165,7 +193,17 @@ func (sb *sandbox) Delete() error {
 		}
 	}
 
-	if sb.osSbox != nil {
+	if retain {
+		sb.Lock()
+		sb.inDelete = false
+		sb.Unlock()
+		return fmt.Errorf("could not cleanup all the endpoints in container %s / sandbox %s", sb.containerID, sb.id)
+	}
+	// Container is going away. Path cache in etchosts is most
+	// likely not required any more. Drop it.
+	etchosts.Drop(sb.config.hostsPath)
+
+	if sb.osSbox != nil && !sb.config.useDefaultSandBox {
 		sb.osSbox.Destroy()
 	}
 
@@ -178,6 +216,30 @@ func (sb *sandbox) Delete() error {
 	c.Unlock()
 
 	return nil
+}
+
+func (sb *sandbox) Rename(name string) error {
+	var err error
+
+	for _, ep := range sb.getConnectedEndpoints() {
+		if ep.endpointInGWNetwork() {
+			continue
+		}
+
+		oldName := ep.Name()
+		lEp := ep
+		if err = ep.rename(name); err != nil {
+			break
+		}
+
+		defer func() {
+			if err != nil {
+				lEp.rename(oldName)
+			}
+		}()
+	}
+
+	return err
 }
 
 func (sb *sandbox) Refresh(options ...SandboxOption) error {
@@ -355,6 +417,10 @@ func releaseOSSboxResources(osSbox osl.Sandbox, ep *endpoint) {
 	joinInfo := ep.joinInfo
 	ep.Unlock()
 
+	if joinInfo == nil {
+		return
+	}
+
 	// Remove non-interface routes.
 	for _, r := range joinInfo.StaticRoutes {
 		if err := osSbox.RemoveStaticRoute(r); err != nil {
@@ -386,6 +452,7 @@ func (sb *sandbox) populateNetworkResources(ep *endpoint) error {
 		sb.Unlock()
 		return nil
 	}
+	inDelete := sb.inDelete
 	sb.Unlock()
 
 	ep.Lock()
@@ -393,7 +460,7 @@ func (sb *sandbox) populateNetworkResources(ep *endpoint) error {
 	i := ep.iface
 	ep.Unlock()
 
-	if i.srcName != "" {
+	if i != nil && i.srcName != "" {
 		var ifaceOptions []osl.IfaceOption
 
 		ifaceOptions = append(ifaceOptions, sb.osSbox.InterfaceOptions().Address(i.addr), sb.osSbox.InterfaceOptions().Routes(i.routes))
@@ -418,14 +485,23 @@ func (sb *sandbox) populateNetworkResources(ep *endpoint) error {
 	for _, gwep := range sb.getConnectedEndpoints() {
 		if len(gwep.Gateway()) > 0 {
 			if gwep != ep {
-				return nil
+				break
 			}
 			if err := sb.updateGateway(gwep); err != nil {
 				return err
 			}
 		}
 	}
-	return sb.storeUpdate()
+
+	// Only update the store if we did not come here as part of
+	// sandbox delete. If we came here as part of delete then do
+	// not bother updating the store. The sandbox object will be
+	// deleted anyway
+	if !inDelete {
+		return sb.storeUpdate()
+	}
+
+	return nil
 }
 
 func (sb *sandbox) clearNetworkResources(origEp *endpoint) error {
@@ -437,6 +513,7 @@ func (sb *sandbox) clearNetworkResources(origEp *endpoint) error {
 
 	sb.Lock()
 	osSbox := sb.osSbox
+	inDelete := sb.inDelete
 	sb.Unlock()
 	if osSbox != nil {
 		releaseOSSboxResources(osSbox, ep)
@@ -480,7 +557,15 @@ func (sb *sandbox) clearNetworkResources(origEp *endpoint) error {
 		sb.updateGateway(gwepAfter)
 	}
 
-	return sb.storeUpdate()
+	// Only update the store if we did not come here as part of
+	// sandbox delete. If we came here as part of delete then do
+	// not bother updating the store. The sandbox object will be
+	// deleted anyway
+	if !inDelete {
+		return sb.storeUpdate()
+	}
+
+	return nil
 }
 
 const (
@@ -871,6 +956,11 @@ func OptionGeneric(generic map[string]interface{}) SandboxOption {
 func (eh epHeap) Len() int { return len(eh) }
 
 func (eh epHeap) Less(i, j int) bool {
+	var (
+		cip, cjp int
+		ok       bool
+	)
+
 	ci, _ := eh[i].getSandbox()
 	cj, _ := eh[j].getSandbox()
 
@@ -885,14 +975,20 @@ func (eh epHeap) Less(i, j int) bool {
 		return true
 	}
 
-	cip, ok := ci.epPriority[eh[i].ID()]
-	if !ok {
-		cip = 0
+	if ci != nil {
+		cip, ok = ci.epPriority[eh[i].ID()]
+		if !ok {
+			cip = 0
+		}
 	}
-	cjp, ok := cj.epPriority[eh[j].ID()]
-	if !ok {
-		cjp = 0
+
+	if cj != nil {
+		cjp, ok = cj.epPriority[eh[j].ID()]
+		if !ok {
+			cjp = 0
+		}
 	}
+
 	if cip == cjp {
 		return eh[i].network.Name() < eh[j].network.Name()
 	}

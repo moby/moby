@@ -13,6 +13,7 @@ import (
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/pkg/parsers/filters"
+	"github.com/docker/docker/runconfig"
 	"github.com/docker/libnetwork"
 )
 
@@ -32,7 +33,7 @@ func (n *networkRouter) getNetworksList(ctx context.Context, w http.ResponseWrit
 	var names, ids []string
 	if names, nameFilter = netFilters["name"]; nameFilter {
 		for _, name := range names {
-			if nw, err := n.daemon.GetNetwork(name, daemon.NetworkByName); err == nil {
+			if nw, err := n.backend.GetNetwork(name, daemon.NetworkByName); err == nil {
 				list = append(list, buildNetworkResource(nw))
 			} else {
 				logrus.Errorf("failed to get network for filter=%s : %v", name, err)
@@ -42,14 +43,14 @@ func (n *networkRouter) getNetworksList(ctx context.Context, w http.ResponseWrit
 
 	if ids, idFilter = netFilters["id"]; idFilter {
 		for _, id := range ids {
-			for _, nw := range n.daemon.GetNetworksByID(id) {
+			for _, nw := range n.backend.GetNetworksByID(id) {
 				list = append(list, buildNetworkResource(nw))
 			}
 		}
 	}
 
 	if !nameFilter && !idFilter {
-		nwList := n.daemon.GetNetworksByID("")
+		nwList := n.backend.GetNetworksByID("")
 		for _, nw := range nwList {
 			list = append(list, buildNetworkResource(nw))
 		}
@@ -62,7 +63,7 @@ func (n *networkRouter) getNetwork(ctx context.Context, w http.ResponseWriter, r
 		return err
 	}
 
-	nw, err := n.daemon.FindNetwork(vars["id"])
+	nw, err := n.backend.FindNetwork(vars["id"])
 	if err != nil {
 		return err
 	}
@@ -85,7 +86,12 @@ func (n *networkRouter) postNetworkCreate(ctx context.Context, w http.ResponseWr
 		return err
 	}
 
-	nw, err := n.daemon.GetNetwork(create.Name, daemon.NetworkByName)
+	if runconfig.IsPreDefinedNetwork(create.Name) {
+		return httputils.WriteJSON(w, http.StatusForbidden,
+			fmt.Sprintf("%s is a pre-defined network and cannot be created", create.Name))
+	}
+
+	nw, err := n.backend.GetNetwork(create.Name, daemon.NetworkByName)
 	if _, ok := err.(libnetwork.ErrNoSuchNetwork); err != nil && !ok {
 		return err
 	}
@@ -96,7 +102,7 @@ func (n *networkRouter) postNetworkCreate(ctx context.Context, w http.ResponseWr
 		warning = fmt.Sprintf("Network with name %s (id : %s) already exists", nw.Name(), nw.ID())
 	}
 
-	nw, err = n.daemon.CreateNetwork(create.Name, create.Driver, create.IPAM)
+	nw, err = n.backend.CreateNetwork(create.Name, create.Driver, create.IPAM, create.Options)
 	if err != nil {
 		return err
 	}
@@ -121,16 +127,12 @@ func (n *networkRouter) postNetworkConnect(ctx context.Context, w http.ResponseW
 		return err
 	}
 
-	nw, err := n.daemon.FindNetwork(vars["id"])
+	nw, err := n.backend.FindNetwork(vars["id"])
 	if err != nil {
 		return err
 	}
 
-	container, err := n.daemon.Get(connect.Container)
-	if err != nil {
-		return fmt.Errorf("invalid container %s : %v", container, err)
-	}
-	return container.ConnectToNetwork(nw.Name())
+	return n.backend.ConnectContainerToNetwork(connect.Container, nw.Name())
 }
 
 func (n *networkRouter) postNetworkDisconnect(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -147,16 +149,12 @@ func (n *networkRouter) postNetworkDisconnect(ctx context.Context, w http.Respon
 		return err
 	}
 
-	nw, err := n.daemon.FindNetwork(vars["id"])
+	nw, err := n.backend.FindNetwork(vars["id"])
 	if err != nil {
 		return err
 	}
 
-	container, err := n.daemon.Get(disconnect.Container)
-	if err != nil {
-		return fmt.Errorf("invalid container %s : %v", container, err)
-	}
-	return container.DisconnectFromNetwork(nw)
+	return n.backend.DisconnectContainerFromNetwork(disconnect.Container, nw)
 }
 
 func (n *networkRouter) deleteNetwork(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -164,9 +162,14 @@ func (n *networkRouter) deleteNetwork(ctx context.Context, w http.ResponseWriter
 		return err
 	}
 
-	nw, err := n.daemon.FindNetwork(vars["id"])
+	nw, err := n.backend.FindNetwork(vars["id"])
 	if err != nil {
 		return err
+	}
+
+	if runconfig.IsPreDefinedNetwork(nw.Name()) {
+		return httputils.WriteJSON(w, http.StatusForbidden,
+			fmt.Sprintf("%s is a pre-defined network and cannot be removed", nw.Name()))
 	}
 
 	return nw.Delete()
@@ -182,12 +185,17 @@ func buildNetworkResource(nw libnetwork.Network) *types.NetworkResource {
 	r.ID = nw.ID()
 	r.Scope = nw.Info().Scope()
 	r.Driver = nw.Type()
+	r.Options = nw.Info().DriverOptions()
 	r.Containers = make(map[string]types.EndpointResource)
 	buildIpamResources(r, nw)
 
 	epl := nw.Endpoints()
 	for _, e := range epl {
-		sb := e.Info().Sandbox()
+		ei := e.Info()
+		if ei == nil {
+			continue
+		}
+		sb := ei.Sandbox()
 		if sb == nil {
 			continue
 		}
@@ -229,7 +237,13 @@ func buildEndpointResource(e libnetwork.Endpoint) types.EndpointResource {
 	}
 
 	er.EndpointID = e.ID()
-	if iface := e.Info().Iface(); iface != nil {
+	er.Name = e.Name()
+	ei := e.Info()
+	if ei == nil {
+		return er
+	}
+
+	if iface := ei.Iface(); iface != nil {
 		if mac := iface.MacAddress(); mac != nil {
 			er.MacAddress = mac.String()
 		}

@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/go-check/check"
 )
 
@@ -18,15 +19,16 @@ func (s *DockerSuite) TestPortList(c *check.C) {
 
 	out, _ = dockerCmd(c, "port", firstID, "80")
 
-	if !assertPortList(c, out, []string{"0.0.0.0:9876"}) {
-		c.Error("Port list is not correct")
-	}
+	err := assertPortList(c, out, []string{"0.0.0.0:9876"})
+	// Port list is not correct
+	c.Assert(err, checker.IsNil)
 
 	out, _ = dockerCmd(c, "port", firstID)
 
-	if !assertPortList(c, out, []string{"80/tcp -> 0.0.0.0:9876"}) {
-		c.Error("Port list is not correct")
-	}
+	err = assertPortList(c, out, []string{"80/tcp -> 0.0.0.0:9876"})
+	// Port list is not correct
+	c.Assert(err, checker.IsNil)
+
 	dockerCmd(c, "rm", "-f", firstID)
 
 	// three port
@@ -39,18 +41,19 @@ func (s *DockerSuite) TestPortList(c *check.C) {
 
 	out, _ = dockerCmd(c, "port", ID, "80")
 
-	if !assertPortList(c, out, []string{"0.0.0.0:9876"}) {
-		c.Error("Port list is not correct")
-	}
+	err = assertPortList(c, out, []string{"0.0.0.0:9876"})
+	// Port list is not correct
+	c.Assert(err, checker.IsNil)
 
 	out, _ = dockerCmd(c, "port", ID)
 
-	if !assertPortList(c, out, []string{
+	err = assertPortList(c, out, []string{
 		"80/tcp -> 0.0.0.0:9876",
 		"81/tcp -> 0.0.0.0:9877",
-		"82/tcp -> 0.0.0.0:9878"}) {
-		c.Error("Port list is not correct")
-	}
+		"82/tcp -> 0.0.0.0:9878"})
+	// Port list is not correct
+	c.Assert(err, checker.IsNil)
+
 	dockerCmd(c, "rm", "-f", ID)
 
 	// more and one port mapped to the same container port
@@ -64,19 +67,19 @@ func (s *DockerSuite) TestPortList(c *check.C) {
 
 	out, _ = dockerCmd(c, "port", ID, "80")
 
-	if !assertPortList(c, out, []string{"0.0.0.0:9876", "0.0.0.0:9999"}) {
-		c.Error("Port list is not correct")
-	}
+	err = assertPortList(c, out, []string{"0.0.0.0:9876", "0.0.0.0:9999"})
+	// Port list is not correct
+	c.Assert(err, checker.IsNil)
 
 	out, _ = dockerCmd(c, "port", ID)
 
-	if !assertPortList(c, out, []string{
+	err = assertPortList(c, out, []string{
 		"80/tcp -> 0.0.0.0:9876",
 		"80/tcp -> 0.0.0.0:9999",
 		"81/tcp -> 0.0.0.0:9877",
-		"82/tcp -> 0.0.0.0:9878"}) {
-		c.Error("Port list is not correct\n", out)
-	}
+		"82/tcp -> 0.0.0.0:9878"})
+	// Port list is not correct
+	c.Assert(err, checker.IsNil)
 	dockerCmd(c, "rm", "-f", ID)
 
 	testRange := func() {
@@ -90,19 +93,17 @@ func (s *DockerSuite) TestPortList(c *check.C) {
 
 			out, _ = dockerCmd(c, "port", IDs[i])
 
-			if !assertPortList(c, out, []string{
-				fmt.Sprintf("80/tcp -> 0.0.0.0:%d", 9090+i)}) {
-				c.Error("Port list is not correct\n", out)
-			}
+			err = assertPortList(c, out, []string{fmt.Sprintf("80/tcp -> 0.0.0.0:%d", 9090+i)})
+			// Port list is not correct
+			c.Assert(err, checker.IsNil)
 		}
 
 		// test port range exhaustion
-		out, _, err := dockerCmdWithError("run", "-d",
+		out, _, err = dockerCmdWithError("run", "-d",
 			"-p", "9090-9092:80",
 			"busybox", "top")
-		if err == nil {
-			c.Errorf("Exhausted port range did not return an error.  Out: %s", out)
-		}
+		// Exhausted port range did not return an error
+		c.Assert(err, checker.NotNil, check.Commentf("out: %s", out))
 
 		for i := 0; i < 3; i++ {
 			dockerCmd(c, "rm", "-f", IDs[i])
@@ -114,12 +115,11 @@ func (s *DockerSuite) TestPortList(c *check.C) {
 
 	// test invalid port ranges
 	for _, invalidRange := range []string{"9090-9089:80", "9090-:80", "-9090:80"} {
-		out, _, err := dockerCmdWithError("run", "-d",
+		out, _, err = dockerCmdWithError("run", "-d",
 			"-p", invalidRange,
 			"busybox", "top")
-		if err == nil {
-			c.Errorf("Port range should have returned an error.  Out: %s", out)
-		}
+		// Port range should have returned an error
+		c.Assert(err, checker.NotNil, check.Commentf("out: %s", out))
 	}
 
 	// test host range:container range spec.
@@ -130,13 +130,13 @@ func (s *DockerSuite) TestPortList(c *check.C) {
 
 	out, _ = dockerCmd(c, "port", ID)
 
-	if !assertPortList(c, out, []string{
+	err = assertPortList(c, out, []string{
 		"80/tcp -> 0.0.0.0:9800",
 		"81/tcp -> 0.0.0.0:9801",
 		"82/tcp -> 0.0.0.0:9802",
-		"83/tcp -> 0.0.0.0:9803"}) {
-		c.Error("Port list is not correct\n", out)
-	}
+		"83/tcp -> 0.0.0.0:9803"})
+	// Port list is not correct
+	c.Assert(err, checker.IsNil)
 	dockerCmd(c, "rm", "-f", ID)
 
 	// test mixing protocols in same port range
@@ -148,32 +148,29 @@ func (s *DockerSuite) TestPortList(c *check.C) {
 
 	out, _ = dockerCmd(c, "port", ID)
 
-	if !assertPortList(c, out, []string{
+	err = assertPortList(c, out, []string{
 		"80/tcp -> 0.0.0.0:8000",
-		"80/udp -> 0.0.0.0:8000"}) {
-		c.Error("Port list is not correct\n", out)
-	}
+		"80/udp -> 0.0.0.0:8000"})
+	// Port list is not correct
+	c.Assert(err, checker.IsNil)
 	dockerCmd(c, "rm", "-f", ID)
 }
 
-func assertPortList(c *check.C, out string, expected []string) bool {
-	//lines := strings.Split(out, "\n")
+func assertPortList(c *check.C, out string, expected []string) error {
 	lines := strings.Split(strings.Trim(out, "\n "), "\n")
 	if len(lines) != len(expected) {
-		c.Errorf("different size lists %s, %d, %d", out, len(lines), len(expected))
-		return false
+		return fmt.Errorf("different size lists %s, %d, %d", out, len(lines), len(expected))
 	}
 	sort.Strings(lines)
 	sort.Strings(expected)
 
 	for i := 0; i < len(expected); i++ {
 		if lines[i] != expected[i] {
-			c.Error("|" + lines[i] + "!=" + expected[i] + "|")
-			return false
+			return fmt.Errorf("|" + lines[i] + "!=" + expected[i] + "|")
 		}
 	}
 
-	return true
+	return nil
 }
 
 func stopRemoveContainer(id string, c *check.C) {
@@ -193,9 +190,10 @@ func (s *DockerSuite) TestUnpublishedPortsInPsOutput(c *check.C) {
 	unpPort1 := fmt.Sprintf("%d/tcp", port1)
 	unpPort2 := fmt.Sprintf("%d/tcp", port2)
 	out, _ := dockerCmd(c, "ps", "-n=1")
-	if !strings.Contains(out, unpPort1) || !strings.Contains(out, unpPort2) {
-		c.Errorf("Missing unpublished ports(s) (%s, %s) in docker ps output: %s", unpPort1, unpPort2, out)
-	}
+	// Missing unpublished ports in docker ps output
+	c.Assert(out, checker.Contains, unpPort1)
+	// Missing unpublished ports in docker ps output
+	c.Assert(out, checker.Contains, unpPort2)
 
 	// Run the container forcing to publish the exposed ports
 	dockerCmd(c, "run", "-d", "-P", expose1, expose2, "busybox", "sleep", "5")
@@ -204,10 +202,10 @@ func (s *DockerSuite) TestUnpublishedPortsInPsOutput(c *check.C) {
 	expBndRegx1 := regexp.MustCompile(`0.0.0.0:\d\d\d\d\d->` + unpPort1)
 	expBndRegx2 := regexp.MustCompile(`0.0.0.0:\d\d\d\d\d->` + unpPort2)
 	out, _ = dockerCmd(c, "ps", "-n=1")
-	if !expBndRegx1.MatchString(out) || !expBndRegx2.MatchString(out) {
-		c.Errorf("Cannot find expected port binding ports(s) (0.0.0.0:xxxxx->%s, 0.0.0.0:xxxxx->%s) in docker ps output:\n%s",
-			unpPort1, unpPort2, out)
-	}
+	// Cannot find expected port binding port (0.0.0.0:xxxxx->unpPort1) in docker ps output
+	c.Assert(expBndRegx1.MatchString(out), checker.Equals, true, check.Commentf("out: %s; unpPort1: %s", out, unpPort1))
+	// Cannot find expected port binding port (0.0.0.0:xxxxx->unpPort2) in docker ps output
+	c.Assert(expBndRegx2.MatchString(out), checker.Equals, true, check.Commentf("out: %s; unpPort2: %s", out, unpPort2))
 
 	// Run the container specifying explicit port bindings for the exposed ports
 	offset := 10000
@@ -220,9 +218,11 @@ func (s *DockerSuite) TestUnpublishedPortsInPsOutput(c *check.C) {
 	expBnd1 := fmt.Sprintf("0.0.0.0:%d->%s", offset+port1, unpPort1)
 	expBnd2 := fmt.Sprintf("0.0.0.0:%d->%s", offset+port2, unpPort2)
 	out, _ = dockerCmd(c, "ps", "-n=1")
-	if !strings.Contains(out, expBnd1) || !strings.Contains(out, expBnd2) {
-		c.Errorf("Cannot find expected port binding(s) (%s, %s) in docker ps output: %s", expBnd1, expBnd2, out)
-	}
+	// Cannot find expected port binding (expBnd1) in docker ps output
+	c.Assert(out, checker.Contains, expBnd1)
+	// Cannot find expected port binding (expBnd2) in docker ps output
+	c.Assert(out, checker.Contains, expBnd2)
+
 	// Remove container now otherwise it will interfeer with next test
 	stopRemoveContainer(id, c)
 
@@ -232,9 +232,10 @@ func (s *DockerSuite) TestUnpublishedPortsInPsOutput(c *check.C) {
 
 	// Check docker ps o/p for last created container reports the specified port mappings
 	out, _ = dockerCmd(c, "ps", "-n=1")
-	if !strings.Contains(out, expBnd1) || !strings.Contains(out, expBnd2) {
-		c.Errorf("Cannot find expected port binding(s) (%s, %s) in docker ps output: %s", expBnd1, expBnd2, out)
-	}
+	// Cannot find expected port binding (expBnd1) in docker ps output
+	c.Assert(out, checker.Contains, expBnd1)
+	// Cannot find expected port binding (expBnd2) in docker ps output
+	c.Assert(out, checker.Contains, expBnd2)
 	// Remove container now otherwise it will interfeer with next test
 	stopRemoveContainer(id, c)
 
@@ -243,9 +244,10 @@ func (s *DockerSuite) TestUnpublishedPortsInPsOutput(c *check.C) {
 
 	// Check docker ps o/p for last created container reports the specified unpublished port and port mapping
 	out, _ = dockerCmd(c, "ps", "-n=1")
-	if !strings.Contains(out, unpPort1) || !strings.Contains(out, expBnd2) {
-		c.Errorf("Missing unpublished ports or port binding (%s, %s) in docker ps output: %s", unpPort1, expBnd2, out)
-	}
+	// Missing unpublished exposed ports (unpPort1) in docker ps output
+	c.Assert(out, checker.Contains, unpPort1)
+	// Missing port binding (expBnd2) in docker ps output
+	c.Assert(out, checker.Contains, expBnd2)
 }
 
 func (s *DockerSuite) TestPortHostBinding(c *check.C) {
@@ -256,19 +258,18 @@ func (s *DockerSuite) TestPortHostBinding(c *check.C) {
 
 	out, _ = dockerCmd(c, "port", firstID, "80")
 
-	if !assertPortList(c, out, []string{"0.0.0.0:9876"}) {
-		c.Error("Port list is not correct")
-	}
+	err := assertPortList(c, out, []string{"0.0.0.0:9876"})
+	// Port list is not correct
+	c.Assert(err, checker.IsNil)
 
 	dockerCmd(c, "run", "--net=host", "busybox",
 		"nc", "localhost", "9876")
 
 	dockerCmd(c, "rm", "-f", firstID)
 
-	if _, _, err := dockerCmdWithError("run", "--net=host", "busybox",
-		"nc", "localhost", "9876"); err == nil {
-		c.Error("Port is still bound after the Container is removed")
-	}
+	out, _, err = dockerCmdWithError("run", "--net=host", "busybox", "nc", "localhost", "9876")
+	// Port is still bound after the Container is removed
+	c.Assert(err, checker.NotNil, check.Commentf("out: %s", out))
 }
 
 func (s *DockerSuite) TestPortExposeHostBinding(c *check.C) {
@@ -280,18 +281,15 @@ func (s *DockerSuite) TestPortExposeHostBinding(c *check.C) {
 	out, _ = dockerCmd(c, "port", firstID, "80")
 
 	_, exposedPort, err := net.SplitHostPort(out)
-
-	if err != nil {
-		c.Fatal(out, err)
-	}
+	c.Assert(err, checker.IsNil, check.Commentf("out: %s", out))
 
 	dockerCmd(c, "run", "--net=host", "busybox",
 		"nc", "localhost", strings.TrimSpace(exposedPort))
 
 	dockerCmd(c, "rm", "-f", firstID)
 
-	if _, _, err = dockerCmdWithError("run", "--net=host", "busybox",
-		"nc", "localhost", strings.TrimSpace(exposedPort)); err == nil {
-		c.Error("Port is still bound after the Container is removed")
-	}
+	out, _, err = dockerCmdWithError("run", "--net=host", "busybox",
+		"nc", "localhost", strings.TrimSpace(exposedPort))
+	// Port is still bound after the Container is removed
+	c.Assert(err, checker.NotNil, check.Commentf("out: %s", out))
 }

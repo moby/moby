@@ -6,18 +6,16 @@ import (
 	"os"
 	"path"
 	"regexp"
+	"strconv"
 	"strings"
 
+	"github.com/docker/docker/pkg/blkiodev"
 	"github.com/docker/docker/pkg/parsers"
-	"github.com/docker/docker/volume"
 )
 
 var (
 	alphaRegexp  = regexp.MustCompile(`[a-zA-Z]`)
 	domainRegexp = regexp.MustCompile(`^(:?(:?[a-zA-Z0-9]|(:?[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9]))(:?\.(:?[a-zA-Z0-9]|(:?[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])))*)\.?\s*$`)
-	// DefaultHTTPHost Default HTTP Host used if only port is provided to -H flag e.g. docker daemon -H tcp://:8080
-	DefaultHTTPHost = "127.0.0.1"
-
 	// DefaultHTTPPort Default HTTP Port used if only the protocol is provided to -H flag e.g. docker daemon -H tcp://
 	// TODO Windows. DefaultHTTPPort is only used on Windows if a -H parameter
 	// is not supplied. A better longer term solution would be to use a named
@@ -86,7 +84,6 @@ func (opts *ListOpts) Delete(key string) {
 
 // GetMap returns the content of values in a map in order to avoid
 // duplicates.
-// FIXME: can we remove this?
 func (opts *ListOpts) GetMap() map[string]struct{} {
 	ret := make(map[string]struct{})
 	for _, k := range *opts.values {
@@ -96,9 +93,18 @@ func (opts *ListOpts) GetMap() map[string]struct{} {
 }
 
 // GetAll returns the values of slice.
-// FIXME: Can we remove this?
 func (opts *ListOpts) GetAll() []string {
 	return (*opts.values)
+}
+
+// GetAllOrEmpty returns the values of the slice
+// or an empty slice when there are no values.
+func (opts *ListOpts) GetAllOrEmpty() []string {
+	v := *opts.values
+	if v == nil {
+		return make([]string, 0)
+	}
+	return v
 }
 
 // Get checks the existence of the specified key.
@@ -164,6 +170,9 @@ func NewMapOpts(values map[string]string, validator ValidatorFctType) *MapOpts {
 // ValidatorFctType defines a validator function that returns a validated string and/or an error.
 type ValidatorFctType func(val string) (string, error)
 
+// ValidatorWeightFctType defines a validator function that returns a validated struct and/or an error.
+type ValidatorWeightFctType func(val string) (*blkiodev.WeightDevice, error)
+
 // ValidatorFctListType defines a validator function that returns a validated list of string and/or an error
 type ValidatorFctListType func(val string) ([]string, error)
 
@@ -176,6 +185,29 @@ func ValidateAttach(val string) (string, error) {
 		}
 	}
 	return val, fmt.Errorf("valid streams are STDIN, STDOUT and STDERR")
+}
+
+// ValidateWeightDevice validates that the specified string has a valid device-weight format.
+func ValidateWeightDevice(val string) (*blkiodev.WeightDevice, error) {
+	split := strings.SplitN(val, ":", 2)
+	if len(split) != 2 {
+		return nil, fmt.Errorf("bad format: %s", val)
+	}
+	if !strings.HasPrefix(split[0], "/dev/") {
+		return nil, fmt.Errorf("bad format for device path: %s", val)
+	}
+	weight, err := strconv.ParseUint(split[1], 10, 0)
+	if err != nil {
+		return nil, fmt.Errorf("invalid weight for device: %s", val)
+	}
+	if weight > 0 && (weight < 10 || weight > 1000) {
+		return nil, fmt.Errorf("invalid weight for device: %s", val)
+	}
+
+	return &blkiodev.WeightDevice{
+		Path:   split[0],
+		Weight: uint16(weight),
+	}, nil
 }
 
 // ValidateLink validates that the specified string has a valid link format (containerName:alias).
@@ -212,14 +244,6 @@ func ValidDeviceMode(mode string) bool {
 // It also validates the device mode.
 func ValidateDevice(val string) (string, error) {
 	return validatePath(val, ValidDeviceMode)
-}
-
-// ValidatePath validates a path for volumes
-// It will make sure 'val' is in the form:
-//    [host-dir:]container-path[:rw|ro]
-// It also validates the mount mode.
-func ValidatePath(val string) (string, error) {
-	return validatePath(val, volume.ValidMountMode)
 }
 
 func validatePath(val string, validator func(string) bool) (string, error) {
@@ -342,7 +366,7 @@ func ValidateLabel(val string) (string, error) {
 
 // ValidateHost validates that the specified string is a valid host and returns it.
 func ValidateHost(val string) (string, error) {
-	_, err := parsers.ParseDockerDaemonHost(DefaultTCPHost, DefaultUnixSocket, val)
+	_, err := parsers.ParseDockerDaemonHost(DefaultTCPHost, DefaultTLSHost, DefaultUnixSocket, "", val)
 	if err != nil {
 		return val, err
 	}
@@ -352,8 +376,8 @@ func ValidateHost(val string) (string, error) {
 }
 
 // ParseHost and set defaults for a Daemon host string
-func ParseHost(val string) (string, error) {
-	host, err := parsers.ParseDockerDaemonHost(DefaultTCPHost, DefaultUnixSocket, val)
+func ParseHost(defaultHost, val string) (string, error) {
+	host, err := parsers.ParseDockerDaemonHost(DefaultTCPHost, DefaultTLSHost, DefaultUnixSocket, defaultHost, val)
 	if err != nil {
 		return val, err
 	}

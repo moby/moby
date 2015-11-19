@@ -59,7 +59,7 @@ in a database image.
 In almost all cases, you should only run a single process in a single
 container. Decoupling applications into multiple containers makes it much
 easier to scale horizontally and reuse containers. If that service depends on
-another service, make use of [container linking](../userguide/dockerlinks.md).
+another service, make use of [container linking](../userguide/networking/default_network/dockerlinks.md).
 
 ### Minimize the number of layers
 
@@ -212,7 +212,6 @@ recommendations.
         dpkg-sig \
         libcap-dev \
         libsqlite3-dev \
-        lxc=1.0* \
         mercurial \
         reprepro \
         ruby1.9.1 \

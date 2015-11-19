@@ -24,8 +24,10 @@ container's logging driver. The following options are supported:
 | `gelf`      | Graylog Extended Log Format (GELF) logging driver for Docker. Writes log messages to a GELF endpoint likeGraylog or Logstash. |
 | `fluentd`   | Fluentd logging driver for Docker. Writes log messages to `fluentd` (forward input).                                          |
 | `awslogs`   | Amazon CloudWatch Logs logging driver for Docker. Writes log messages to Amazon CloudWatch Logs.                              |
+| `splunk`    | Splunk logging driver for Docker. Writes log messages to `splunk` using HTTP Event Collector.                                 |
 
-The `docker logs`command is available only for the `json-file` logging driver.
+The `docker logs`command is available only for the `json-file` and `journald`
+logging drivers.
 
 The `labels` and `env` options add additional attributes for use with logging drivers that accept them. Each option takes a comma-separated list of keys. If there is collision between `label` and `env` keys, the value of the `env` takes precedence.
 
@@ -39,7 +41,7 @@ Then, run a container and specify values for the `labels` or `env`.  For example
 
 ```
 docker run --label foo=bar -e fizz=buzz -d -P training/webapp python app.py
-````
+```
 
 This adds additional fields to the log depending on the driver, e.g. for
 `json-file` that looks like:
@@ -172,3 +174,13 @@ The Amazon CloudWatch Logs logging driver supports the following options:
 
 
 For detailed information on working with this logging driver, see [the awslogs logging driver](awslogs.md) reference documentation.
+
+## Splunk options
+
+The Splunk logging driver requires the following options:
+
+    --log-opt splunk-token=<splunk_http_event_collector_token>
+    --log-opt splunk-url=https://your_splunk_instance:8088
+
+For detailed information about working with this logging driver, see the [Splunk logging driver](splunk.md)
+reference documentation.

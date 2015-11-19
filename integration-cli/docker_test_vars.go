@@ -34,6 +34,12 @@ var (
 	// a version call to the daemon and examining the response header.
 	daemonPlatform string
 
+	// windowsDaemonKV is used on Windows to distinguish between different
+	// versions. This is necessary to enable certain tests based on whether
+	// the platform supports it. For example, Windows Server 2016 TP3 does
+	// not support volumes, but TP4 does.
+	windowsDaemonKV int
+
 	// daemonDefaultImage is the name of the default image to use when running
 	// tests. This is platform dependent.
 	daemonDefaultImage string

@@ -3,6 +3,7 @@
 package devmapper
 
 import (
+	"bufio"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -148,6 +149,8 @@ type Status struct {
 	Metadata DiskUsage
 	// BaseDeviceSize is base size of container and image
 	BaseDeviceSize uint64
+	// BaseDeviceFS is backing filesystem.
+	BaseDeviceFS string
 	// SectorSize size of the vector.
 	SectorSize uint64
 	// UdevSyncSupported is true if sync is supported.
@@ -532,6 +535,45 @@ func (devices *DeviceSet) activateDeviceIfNeeded(info *devInfo, ignoreDeleted bo
 	return devicemapper.ActivateDevice(devices.getPoolDevName(), info.Name(), info.DeviceID, info.Size)
 }
 
+// Return true only if kernel supports xfs and mkfs.xfs is available
+func xfsSupported() bool {
+	// Make sure mkfs.xfs is available
+	if _, err := exec.LookPath("mkfs.xfs"); err != nil {
+		return false
+	}
+
+	// Check if kernel supports xfs filesystem or not.
+	exec.Command("modprobe", "xfs").Run()
+
+	f, err := os.Open("/proc/filesystems")
+	if err != nil {
+		logrus.Warnf("Could not check if xfs is supported: %v", err)
+		return false
+	}
+	defer f.Close()
+
+	s := bufio.NewScanner(f)
+	for s.Scan() {
+		if strings.HasSuffix(s.Text(), "\txfs") {
+			return true
+		}
+	}
+
+	if err := s.Err(); err != nil {
+		logrus.Warnf("Could not check if xfs is supported: %v", err)
+	}
+	return false
+}
+
+func determineDefaultFS() string {
+	if xfsSupported() {
+		return "xfs"
+	}
+
+	logrus.Warn("XFS is not supported in your system. Either the kernel doesnt support it or mkfs.xfs is not in your PATH. Defaulting to ext4 filesystem")
+	return "ext4"
+}
+
 func (devices *DeviceSet) createFilesystem(info *devInfo) error {
 	devname := info.DevName()
 
@@ -543,6 +585,11 @@ func (devices *DeviceSet) createFilesystem(info *devInfo) error {
 	args = append(args, devname)
 
 	var err error
+
+	if devices.filesystem == "" {
+		devices.filesystem = determineDefaultFS()
+	}
+
 	switch devices.filesystem {
 	case "xfs":
 		err = exec.Command("mkfs.xfs", args...).Run()
@@ -599,6 +646,7 @@ func (devices *DeviceSet) cleanupDeletedDevices() error {
 
 	// If there are no deleted devices, there is nothing to do.
 	if devices.nrDeletedDevices == 0 {
+		devices.Unlock()
 		return nil
 	}
 
@@ -825,8 +873,7 @@ func (devices *DeviceSet) loadMetadata(hash string) *devInfo {
 func getDeviceUUID(device string) (string, error) {
 	out, err := exec.Command("blkid", "-s", "UUID", "-o", "value", device).Output()
 	if err != nil {
-		logrus.Debugf("Failed to find uuid for device %s:%v", device, err)
-		return "", err
+		return "", fmt.Errorf("Failed to find uuid for device %s:%v", device, err)
 	}
 
 	uuid := strings.TrimSuffix(string(out), "\n")
@@ -843,7 +890,11 @@ func (devices *DeviceSet) getBaseDeviceSize() uint64 {
 	return info.Size
 }
 
-func (devices *DeviceSet) verifyBaseDeviceUUID(baseInfo *devInfo) error {
+func (devices *DeviceSet) getBaseDeviceFS() string {
+	return devices.filesystem
+}
+
+func (devices *DeviceSet) verifyBaseDeviceUUIDFS(baseInfo *devInfo) error {
 	devices.Lock()
 	defer devices.Unlock()
 
@@ -859,9 +910,23 @@ func (devices *DeviceSet) verifyBaseDeviceUUID(baseInfo *devInfo) error {
 	}
 
 	if devices.BaseDeviceUUID != uuid {
-		return fmt.Errorf("Current Base Device UUID:%s does not match with stored UUID:%s", uuid, devices.BaseDeviceUUID)
+		return fmt.Errorf("Current Base Device UUID:%s does not match with stored UUID:%s. Possibly using a different thin pool than last invocation", uuid, devices.BaseDeviceUUID)
 	}
 
+	// If user specified a filesystem using dm.fs option and current
+	// file system of base image is not same, warn user that dm.fs
+	// will be ignored.
+	if devices.filesystem != "" {
+		fs, err := ProbeFsType(baseInfo.DevName())
+		if err != nil {
+			return err
+		}
+
+		if fs != devices.filesystem {
+			logrus.Warnf("Base device already exists and has filesystem %s on it. User specified filesystem %s will be ignored.", fs, devices.filesystem)
+			devices.filesystem = fs
+		}
+	}
 	return nil
 }
 
@@ -962,7 +1027,7 @@ func (devices *DeviceSet) checkThinPool() error {
 
 // Base image is initialized properly. Either save UUID for first time (for
 // upgrade case or verify UUID.
-func (devices *DeviceSet) setupVerifyBaseImageUUID(baseInfo *devInfo) error {
+func (devices *DeviceSet) setupVerifyBaseImageUUIDFS(baseInfo *devInfo) error {
 	// If BaseDeviceUUID is nil (upgrade case), save it and return success.
 	if devices.BaseDeviceUUID == "" {
 		if err := devices.saveBaseDeviceUUID(baseInfo); err != nil {
@@ -971,8 +1036,8 @@ func (devices *DeviceSet) setupVerifyBaseImageUUID(baseInfo *devInfo) error {
 		return nil
 	}
 
-	if err := devices.verifyBaseDeviceUUID(baseInfo); err != nil {
-		return fmt.Errorf("Base Device UUID verification failed. Possibly using a different thin pool than last invocation:%v", err)
+	if err := devices.verifyBaseDeviceUUIDFS(baseInfo); err != nil {
+		return fmt.Errorf("Base Device UUID and Filesystem verification failed.%v", err)
 	}
 
 	return nil
@@ -987,10 +1052,13 @@ func (devices *DeviceSet) setupBaseImage() error {
 
 	if oldInfo != nil {
 		if oldInfo.Initialized && !oldInfo.Deleted {
-			if err := devices.setupVerifyBaseImageUUID(oldInfo); err != nil {
+			if err := devices.setupVerifyBaseImageUUIDFS(oldInfo); err != nil {
 				return err
 			}
-
+			if devices.baseFsSize != defaultBaseFsSize && devices.baseFsSize != devices.getBaseDeviceSize() {
+				logrus.Warnf("Base device is already initialized to size %s, new value of base device size %s will not take effect",
+					units.HumanSize(float64(devices.getBaseDeviceSize())), units.HumanSize(float64(devices.baseFsSize)))
+			}
 			return nil
 		}
 
@@ -1503,7 +1571,7 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 	}
 
 	// It seems libdevmapper opens this without O_CLOEXEC, and go exec will not close files
-	// that are not Close-on-exec, and lxc-start will die if it inherits any unexpected files,
+	// that are not Close-on-exec,
 	// so we add this badhack to make sure it closes itself
 	setCloseOnExec("/dev/mapper/control")
 
@@ -2209,6 +2277,7 @@ func (devices *DeviceSet) Status() *Status {
 	status.DeferredDeleteEnabled = devices.deferredDelete
 	status.DeferredDeletedDeviceCount = devices.nrDeletedDevices
 	status.BaseDeviceSize = devices.getBaseDeviceSize()
+	status.BaseDeviceFS = devices.getBaseDeviceFS()
 
 	totalSizeInSectors, _, dataUsed, dataTotal, metadataUsed, metadataTotal, err := devices.poolStatus()
 	if err == nil {
@@ -2269,7 +2338,6 @@ func NewDeviceSet(root string, doInit bool, options []string, uidMaps, gidMaps [
 		metaDataLoopbackSize:  defaultMetaDataLoopbackSize,
 		baseFsSize:            defaultBaseFsSize,
 		overrideUdevSyncCheck: defaultUdevSyncOverride,
-		filesystem:            "ext4",
 		doBlkDiscard:          true,
 		thinpBlockSize:        defaultThinpBlockSize,
 		deviceIDMap:           make([]byte, deviceIDMapSz),

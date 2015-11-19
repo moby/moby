@@ -29,7 +29,6 @@ in the packages. The core dependencies are:
  - bridge-utils
  - device-mapper
  - iproute2
- - lxc
  - sqlite
 
 ## Installation

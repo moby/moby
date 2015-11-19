@@ -3,6 +3,7 @@ package digest
 import (
 	"crypto"
 	"hash"
+	"io"
 )
 
 // Algorithm identifies and implementation of a digester by an identifier.
@@ -49,6 +50,22 @@ func (a Algorithm) Available() bool {
 	return h.Available()
 }
 
+func (a Algorithm) String() string {
+	return string(a)
+}
+
+// Set implemented to allow use of Algorithm as a command line flag.
+func (a *Algorithm) Set(value string) error {
+	if value == "" {
+		*a = Canonical
+	} else {
+		// just do a type conversion, support is queried with Available.
+		*a = Algorithm(value)
+	}
+
+	return nil
+}
+
 // New returns a new digester for the specified algorithm. If the algorithm
 // does not have a digester implementation, nil will be returned. This can be
 // checked by calling Available before calling New.
@@ -67,6 +84,17 @@ func (a Algorithm) Hash() hash.Hash {
 	}
 
 	return algorithms[a].New()
+}
+
+// FromReader returns the digest of the reader using the algorithm.
+func (a Algorithm) FromReader(rd io.Reader) (Digest, error) {
+	digester := a.New()
+
+	if _, err := io.Copy(digester.Hash(), rd); err != nil {
+		return "", err
+	}
+
+	return digester.Digest(), nil
 }
 
 // TODO(stevvooe): Allow resolution of verifiers using the digest type and

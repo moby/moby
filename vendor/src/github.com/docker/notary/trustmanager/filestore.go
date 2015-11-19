@@ -3,6 +3,7 @@ package trustmanager
 import (
 	"errors"
 	"fmt"
+	"github.com/docker/notary"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -11,8 +12,8 @@ import (
 )
 
 const (
-	visible os.FileMode = 0755
-	private os.FileMode = 0700
+	visible = notary.PubCertPerms
+	private = notary.PrivKeyPerms
 )
 
 var (
@@ -21,13 +22,12 @@ var (
 	ErrPathOutsideStore = errors.New("path outside file store")
 )
 
-// LimitedFileStore implements the bare bones primitives (no symlinks or
-// hierarchy)
+// LimitedFileStore implements the bare bones primitives (no hierarchy)
 type LimitedFileStore interface {
 	Add(fileName string, data []byte) error
 	Remove(fileName string) error
 	Get(fileName string) ([]byte, error)
-	ListFiles(symlinks bool) []string
+	ListFiles() []string
 }
 
 // FileStore is the interface for full-featured FileStores
@@ -36,8 +36,7 @@ type FileStore interface {
 
 	RemoveDir(directoryName string) error
 	GetPath(fileName string) (string, error)
-	ListDir(directoryName string, symlinks bool) []string
-	Link(src, dst string) error
+	ListDir(directoryName string) []string
 	BaseDir() string
 }
 
@@ -140,18 +139,18 @@ func (f *SimpleFileStore) GetPath(name string) (string, error) {
 }
 
 // ListFiles lists all the files inside of a store
-func (f *SimpleFileStore) ListFiles(symlinks bool) []string {
-	return f.list(f.baseDir, symlinks)
+func (f *SimpleFileStore) ListFiles() []string {
+	return f.list(f.baseDir)
 }
 
 // ListDir lists all the files inside of a directory identified by a name
-func (f *SimpleFileStore) ListDir(name string, symlinks bool) []string {
+func (f *SimpleFileStore) ListDir(name string) []string {
 	fullPath := filepath.Join(f.baseDir, name)
-	return f.list(fullPath, symlinks)
+	return f.list(fullPath)
 }
 
 // list lists all the files in a directory given a full path. Ignores symlinks.
-func (f *SimpleFileStore) list(path string, symlinks bool) []string {
+func (f *SimpleFileStore) list(path string) []string {
 	files := make([]string, 0, 0)
 	filepath.Walk(path, func(fp string, fi os.FileInfo, err error) error {
 		// If there are errors, ignore this particular file
@@ -163,8 +162,8 @@ func (f *SimpleFileStore) list(path string, symlinks bool) []string {
 			return nil
 		}
 
-		// If this is a symlink, and symlinks is true, ignore it
-		if !symlinks && fi.Mode()&os.ModeSymlink == os.ModeSymlink {
+		// If this is a symlink, ignore it
+		if fi.Mode()&os.ModeSymlink == os.ModeSymlink {
 			return nil
 		}
 
@@ -187,19 +186,6 @@ func (f *SimpleFileStore) list(path string, symlinks bool) []string {
 // genFileName returns the name using the right extension
 func (f *SimpleFileStore) genFileName(name string) string {
 	return fmt.Sprintf("%s.%s", name, f.fileExt)
-}
-
-// Link creates a symlink between the ID of the certificate used by a repository
-// and the ID of the root key that is being used.
-// We use full path for the source and local for the destination to use relative
-// path for the symlink
-func (f *SimpleFileStore) Link(oldname, newname string) error {
-	newnamePath, err := f.GetPath(newname)
-	if err != nil {
-		return err
-	}
-
-	return os.Symlink(f.genFileName(oldname), newnamePath)
 }
 
 // BaseDir returns the base directory of the filestore
@@ -282,7 +268,7 @@ func (f *MemoryFileStore) Get(name string) ([]byte, error) {
 }
 
 // ListFiles lists all the files inside of a store
-func (f *MemoryFileStore) ListFiles(symlinks bool) []string {
+func (f *MemoryFileStore) ListFiles() []string {
 	var list []string
 
 	for name := range f.files {

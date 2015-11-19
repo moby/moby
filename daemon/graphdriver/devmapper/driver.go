@@ -80,7 +80,7 @@ func (d *Driver) Status() [][2]string {
 		{"Pool Name", s.PoolName},
 		{"Pool Blocksize", fmt.Sprintf("%s", units.HumanSize(float64(s.SectorSize)))},
 		{"Base Device Size", fmt.Sprintf("%s", units.HumanSize(float64(s.BaseDeviceSize)))},
-		{"Backing Filesystem", backingFs},
+		{"Backing Filesystem", s.BaseDeviceFS},
 		{"Data file", s.DataFile},
 		{"Metadata file", s.MetadataFile},
 		{"Data Space Used", fmt.Sprintf("%s", units.HumanSize(float64(s.Data.Used)))},
@@ -133,7 +133,7 @@ func (d *Driver) Cleanup() error {
 }
 
 // Create adds a device with a given id and the parent.
-func (d *Driver) Create(id, parent string) error {
+func (d *Driver) Create(id, parent, mountLabel string) error {
 	if err := d.DeviceSet.AddDevice(id, parent); err != nil {
 		return err
 	}

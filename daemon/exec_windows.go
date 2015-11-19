@@ -1,9 +1,11 @@
-// +build windows
-
 package daemon
 
-// checkExecSupport returns an error if the exec driver does not support exec,
-// or nil if it is supported.
-func checkExecSupport(DriverName string) error {
-	return nil
+import (
+	"github.com/docker/docker/daemon/execdriver"
+	"github.com/docker/docker/runconfig"
+)
+
+// setPlatformSpecificExecProcessConfig sets platform-specific fields in the
+// ProcessConfig structure. This is a no-op on Windows
+func setPlatformSpecificExecProcessConfig(config *runconfig.ExecConfig, container *Container, pc *execdriver.ProcessConfig) {
 }

@@ -18,3 +18,4 @@ weight=8
 * [Fluentd logging driver](fluentd.md)
 * [Journald logging driver](journald.md)
 * [Amazon CloudWatch Logs logging driver](awslogs.md)
+* [Splunk logging driver](splunk.md)

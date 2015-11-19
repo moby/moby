@@ -389,6 +389,8 @@ func run(b *Builder, args []string, attributes map[string]bool, original string)
 	b.runConfig.Cmd = config.Cmd
 	// set build-time environment for 'run'.
 	b.runConfig.Env = append(b.runConfig.Env, cmdBuildEnv...)
+	// set config as already being escaped, this prevents double escaping on windows
+	b.runConfig.ArgsEscaped = true
 
 	logrus.Debugf("[BUILDER] Command to be executed: %v", b.runConfig.Cmd)
 
@@ -399,8 +401,8 @@ func run(b *Builder, args []string, attributes map[string]bool, original string)
 
 	// Ensure that we keep the container mounted until the commit
 	// to avoid unmounting and then mounting directly again
-	c.Mount()
-	defer c.Unmount()
+	b.docker.Mount(c)
+	defer b.docker.Unmount(c)
 
 	err = b.run(c)
 	if err != nil {
@@ -479,7 +481,7 @@ func entrypoint(b *Builder, args []string, attributes map[string]bool, original 
 		if runtime.GOOS != "windows" {
 			b.runConfig.Entrypoint = stringutils.NewStrSlice("/bin/sh", "-c", parsed[0])
 		} else {
-			b.runConfig.Entrypoint = stringutils.NewStrSlice("cmd", "/S /C", parsed[0])
+			b.runConfig.Entrypoint = stringutils.NewStrSlice("cmd", "/S", "/C", parsed[0])
 		}
 	}
 

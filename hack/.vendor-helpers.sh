@@ -62,7 +62,7 @@ _dockerfile_env() {
 			print;
 			exit;
 		}
-	' Dockerfile
+	' ${DOCKER_FILE:="Dockerfile"}
 }
 
 clean() {
@@ -71,17 +71,21 @@ clean() {
 		"${PROJECT}/dockerinit" # package main
 		"${PROJECT}/integration-cli" # external tests
 	)
-	local dockerPlatforms=( linux/amd64 $(_dockerfile_env DOCKER_CROSSPLATFORMS) )
+	local dockerPlatforms=( ${DOCKER_ENGINE_OSARCH:="linux/amd64"} $(_dockerfile_env DOCKER_CROSSPLATFORMS) )
 	local dockerBuildTags="$(_dockerfile_env DOCKER_BUILDTAGS)"
 	local buildTagCombos=(
 		''
 		'experimental'
+		'pkcs11'
 		"$dockerBuildTags"
 		"daemon $dockerBuildTags"
 		"daemon cgo $dockerBuildTags"
 		"experimental $dockerBuildTags"
 		"experimental daemon $dockerBuildTags"
 		"experimental daemon cgo $dockerBuildTags"
+		"pkcs11 $dockerBuildTags"
+		"pkcs11 daemon $dockerBuildTags"
+		"pkcs11 daemon cgo $dockerBuildTags"
 	)
 
 	echo

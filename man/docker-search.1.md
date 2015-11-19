@@ -30,7 +30,7 @@ of stars awarded, whether the image is official, and whether it is automated.
 **--no-trunc**=*true*|*false*
    Don't truncate output. The default is *false*.
 
-**-s**, **--stars**=X
+**-s**, **--stars**=*X*
    Only displays with at least X stars. The default is zero.
 
 # EXAMPLES

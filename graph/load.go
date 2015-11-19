@@ -64,7 +64,7 @@ func (s *TagStore) Load(inTar io.ReadCloser, outStream io.Writer) error {
 	}
 	defer reposJSONFile.Close()
 
-	repositories := map[string]Repository{}
+	repositories := map[string]repository{}
 	if err := json.NewDecoder(reposJSONFile).Decode(&repositories); err != nil {
 		return err
 	}
@@ -125,8 +125,10 @@ func (s *TagStore) recursiveLoad(address, tmpImageDir string) error {
 		if err := s.graph.Register(v1Descriptor{img}, layer); err != nil {
 			return err
 		}
+		logrus.Debugf("Completed processing %s", address)
+		return nil
 	}
-	logrus.Debugf("Completed processing %s", address)
+	logrus.Debugf("already loaded %s", address)
 
 	return nil
 }

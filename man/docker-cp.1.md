@@ -8,6 +8,9 @@ docker-cp - Copy files/folders between a container and the local filesystem.
 **docker cp**
 [**--help**]
 CONTAINER:PATH LOCALPATH|-
+
+**docker cp**
+[**--help**]
 LOCALPATH|- CONTAINER:PATH
 
 # DESCRIPTION
@@ -121,7 +124,7 @@ name if one exists. For example, this command:
 
 If `/test` does not exist on the local machine, it will be created as a file
 with the contents of `/tmp/foo/myfile.txt` from the container. If `/test`
-exists as a file, it will be overwritten. Lastly, if `/tmp` exists as a
+exists as a file, it will be overwritten. Lastly, if `/test` exists as a
 directory, the file will be copied to `/test/myfile.txt`.
 
 Next, suppose you want to copy a file or folder into a container. For example,

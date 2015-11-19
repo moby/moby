@@ -11,7 +11,6 @@ import (
 	"strings"
 
 	"github.com/docker/docker/pkg/homedir"
-	"github.com/docker/docker/pkg/system"
 )
 
 const (
@@ -228,7 +227,7 @@ func (configFile *ConfigFile) Save() error {
 		return fmt.Errorf("Can't save config with empty filename")
 	}
 
-	if err := system.MkdirAll(filepath.Dir(configFile.filename), 0700); err != nil {
+	if err := os.MkdirAll(filepath.Dir(configFile.filename), 0700); err != nil {
 		return err
 	}
 	f, err := os.OpenFile(configFile.filename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)

@@ -3,6 +3,7 @@ package libnetwork
 import (
 	"container/heap"
 	"encoding/json"
+	"sync"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/datastore"
@@ -119,11 +120,20 @@ func (sbs *sbState) DataScope() string {
 
 func (sb *sandbox) storeUpdate() error {
 	sbs := &sbState{
-		c:  sb.controller,
-		ID: sb.id,
+		c:   sb.controller,
+		ID:  sb.id,
+		Cid: sb.containerID,
 	}
 
+retry:
+	sbs.Eps = nil
 	for _, ep := range sb.getConnectedEndpoints() {
+		// If the endpoint is not persisted then do not add it to
+		// the sandbox checkpoint
+		if ep.Skip() {
+			continue
+		}
+
 		eps := epState{
 			Nid: ep.getNetwork().ID(),
 			Eid: ep.ID(),
@@ -132,7 +142,16 @@ func (sb *sandbox) storeUpdate() error {
 		sbs.Eps = append(sbs.Eps, eps)
 	}
 
-	return sb.controller.updateToStore(sbs)
+	err := sb.controller.updateToStore(sbs)
+	if err == datastore.ErrKeyModified {
+		// When we get ErrKeyModified it is sufficient to just
+		// go back and retry.  No need to get the object from
+		// the store because we always regenerate the store
+		// state from in memory sandbox state
+		goto retry
+	}
+
+	return err
 }
 
 func (sb *sandbox) storeDelete() error {
@@ -175,6 +194,7 @@ func (c *controller) sandboxCleanup() {
 			endpoints:   epHeap{},
 			epPriority:  map[string]int{},
 			dbIndex:     sbs.dbIndex,
+			isStub:      true,
 			dbExists:    true,
 		}
 
@@ -184,25 +204,27 @@ func (c *controller) sandboxCleanup() {
 			continue
 		}
 
+		c.Lock()
+		c.sandboxes[sb.id] = sb
+		c.Unlock()
+
 		for _, eps := range sbs.Eps {
 			n, err := c.getNetworkFromStore(eps.Nid)
+			var ep *endpoint
 			if err != nil {
 				logrus.Errorf("getNetworkFromStore for nid %s failed while trying to build sandbox for cleanup: %v", eps.Nid, err)
-				continue
-			}
-
-			ep, err := n.getEndpointFromStore(eps.Eid)
-			if err != nil {
-				logrus.Errorf("getEndpointFromStore for eid %s failed while trying to build sandbox for cleanup: %v", eps.Eid, err)
-				continue
+				n = &network{id: eps.Nid, ctrlr: c, drvOnce: &sync.Once{}}
+				ep = &endpoint{id: eps.Eid, network: n, sandboxID: sbs.ID}
+			} else {
+				ep, err = n.getEndpointFromStore(eps.Eid)
+				if err != nil {
+					logrus.Errorf("getEndpointFromStore for eid %s failed while trying to build sandbox for cleanup: %v", eps.Eid, err)
+					ep = &endpoint{id: eps.Eid, network: n, sandboxID: sbs.ID}
+				}
 			}
 
 			heap.Push(&sb.endpoints, ep)
 		}
-
-		c.Lock()
-		c.sandboxes[sb.id] = sb
-		c.Unlock()
 
 		if err := sb.Delete(); err != nil {
 			logrus.Errorf("failed to delete sandbox %s while trying to cleanup: %v", sb.id, err)

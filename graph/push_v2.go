@@ -1,6 +1,10 @@
 package graph
 
 import (
+	"bufio"
+	"compress/gzip"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -9,6 +13,7 @@ import (
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/digest"
 	"github.com/docker/distribution/manifest"
+	"github.com/docker/distribution/manifest/schema1"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/progressreader"
 	"github.com/docker/docker/pkg/streamformatter"
@@ -19,10 +24,12 @@ import (
 	"golang.org/x/net/context"
 )
 
+const compressionBufSize = 32768
+
 type v2Pusher struct {
 	*TagStore
 	endpoint  registry.APIEndpoint
-	localRepo Repository
+	localRepo repository
 	repoInfo  *registry.RepositoryInfo
 	config    *ImagePushConfig
 	sf        *streamformatter.StreamFormatter
@@ -35,7 +42,7 @@ type v2Pusher struct {
 }
 
 func (p *v2Pusher) Push() (fallback bool, err error) {
-	p.repo, err = NewV2Repository(p.repoInfo, p.endpoint, p.config.MetaHeaders, p.config.AuthConfig, "push", "pull")
+	p.repo, err = newV2Repository(p.repoInfo, p.endpoint, p.config.MetaHeaders, p.config.AuthConfig, "push", "pull")
 	if err != nil {
 		logrus.Debugf("Error getting v2 registry: %v", err)
 		return true, err
@@ -99,15 +106,15 @@ func (p *v2Pusher) pushV2Tag(tag string) error {
 		return err
 	}
 
-	m := &manifest.Manifest{
+	m := &schema1.Manifest{
 		Versioned: manifest.Versioned{
 			SchemaVersion: 1,
 		},
 		Name:         p.repo.Name(),
 		Tag:          tag,
 		Architecture: layer.Architecture,
-		FSLayers:     []manifest.FSLayer{},
-		History:      []manifest.History{},
+		FSLayers:     []schema1.FSLayer{},
+		History:      []schema1.History{},
 	}
 
 	var metadata runconfig.Config
@@ -130,6 +137,11 @@ func (p *v2Pusher) pushV2Tag(tag string) error {
 			break
 		}
 
+		// Skip the base layer on Windows. This cannot be pushed.
+		if allowBaseParentImage && layer.Parent == "" {
+			break
+		}
+
 		logrus.Debugf("Pushing layer: %s", layer.ID)
 
 		if layer.Config != nil && metadata.Image != layer.ID {
@@ -139,7 +151,7 @@ func (p *v2Pusher) pushV2Tag(tag string) error {
 		}
 
 		var exists bool
-		dgst, err := p.graph.GetLayerDigest(layer.ID)
+		dgst, err := p.graph.getLayerDigestWithLock(layer.ID)
 		switch err {
 		case nil:
 			if p.layersPushed[dgst] {
@@ -160,7 +172,7 @@ func (p *v2Pusher) pushV2Tag(tag string) error {
 				out.Write(p.sf.FormatProgress(stringid.TruncateID(layer.ID), "Image push failed", nil))
 				return err
 			}
-		case ErrDigestNotSet:
+		case errDigestNotSet:
 			// nop
 		case digest.ErrDigestInvalidFormat, digest.ErrDigestUnsupported:
 			return fmt.Errorf("error getting image checksum: %v", err)
@@ -169,32 +181,39 @@ func (p *v2Pusher) pushV2Tag(tag string) error {
 		// if digest was empty or not saved, or if blob does not exist on the remote repository,
 		// then fetch it.
 		if !exists {
-			if pushDigest, err := p.pushV2Image(p.repo.Blobs(context.Background()), layer); err != nil {
+			var pushDigest digest.Digest
+			if pushDigest, err = p.pushV2Image(p.repo.Blobs(context.Background()), layer); err != nil {
 				return err
-			} else if pushDigest != dgst {
+			}
+			if dgst == "" {
 				// Cache new checksum
-				if err := p.graph.SetLayerDigest(layer.ID, pushDigest); err != nil {
+				if err := p.graph.setLayerDigestWithLock(layer.ID, pushDigest); err != nil {
 					return err
 				}
-				dgst = pushDigest
 			}
+			dgst = pushDigest
 		}
 
 		// read v1Compatibility config, generate new if needed
-		jsonData, err := p.graph.GenerateV1CompatibilityChain(layer.ID)
+		jsonData, err := p.graph.generateV1CompatibilityChain(layer.ID)
 		if err != nil {
 			return err
 		}
 
-		m.FSLayers = append(m.FSLayers, manifest.FSLayer{BlobSum: dgst})
-		m.History = append(m.History, manifest.History{V1Compatibility: string(jsonData)})
+		m.FSLayers = append(m.FSLayers, schema1.FSLayer{BlobSum: dgst})
+		m.History = append(m.History, schema1.History{V1Compatibility: string(jsonData)})
 
 		layersSeen[layer.ID] = true
 		p.layersPushed[dgst] = true
 	}
 
+	// Fix parent chain if necessary
+	if err = fixHistory(m); err != nil {
+		return err
+	}
+
 	logrus.Infof("Signed manifest for %s:%s using daemon's key: %s", p.repo.Name(), tag, p.trustKey.KeyID())
-	signed, err := manifest.Sign(m, p.trustKey)
+	signed, err := schema1.Sign(m, p.trustKey)
 	if err != nil {
 		return err
 	}
@@ -214,6 +233,90 @@ func (p *v2Pusher) pushV2Tag(tag string) error {
 	return manSvc.Put(signed)
 }
 
+// fixHistory makes sure that the manifest has parent IDs that are consistent
+// with its image IDs. Because local image IDs are generated from the
+// configuration and filesystem contents, but IDs in the manifest are preserved
+// from the original pull, it's possible to have inconsistencies where parent
+// IDs don't match up with the other IDs in the manifest. This happens in the
+// case where an engine pulls images where are identical except the IDs from the
+// manifest - the local ID will be the same, and one of the v1Compatibility
+// files gets discarded.
+func fixHistory(m *schema1.Manifest) error {
+	var lastID string
+
+	for i := len(m.History) - 1; i >= 0; i-- {
+		var historyEntry map[string]*json.RawMessage
+		if err := json.Unmarshal([]byte(m.History[i].V1Compatibility), &historyEntry); err != nil {
+			return err
+		}
+
+		idJSON, present := historyEntry["id"]
+		if !present || idJSON == nil {
+			return errors.New("missing id key in v1compatibility file")
+		}
+		var id string
+		if err := json.Unmarshal(*idJSON, &id); err != nil {
+			return err
+		}
+
+		parentJSON, present := historyEntry["parent"]
+
+		if i == len(m.History)-1 {
+			// The base layer must not reference a parent layer,
+			// otherwise the manifest is incomplete. There is an
+			// exception for Windows to handle base layers.
+			if !allowBaseParentImage && present && parentJSON != nil {
+				var parent string
+				if err := json.Unmarshal(*parentJSON, &parent); err != nil {
+					return err
+				}
+				if parent != "" {
+					logrus.Debugf("parent id mismatch detected; fixing. parent reference: %s", parent)
+					delete(historyEntry, "parent")
+					fixedHistory, err := json.Marshal(historyEntry)
+					if err != nil {
+						return err
+					}
+					m.History[i].V1Compatibility = string(fixedHistory)
+				}
+			}
+		} else {
+			// For all other layers, the parent ID should equal the
+			// ID of the next item in the history list. If it
+			// doesn't, fix it up (but preserve all other fields,
+			// possibly including fields that aren't known to this
+			// engine version).
+			if !present || parentJSON == nil {
+				return errors.New("missing parent key in v1compatibility file")
+			}
+			var parent string
+			if err := json.Unmarshal(*parentJSON, &parent); err != nil {
+				return err
+			}
+			if parent != lastID {
+				logrus.Debugf("parent id mismatch detected; fixing. parent reference: %s actual id: %s", parent, id)
+				historyEntry["parent"] = rawJSON(lastID)
+				fixedHistory, err := json.Marshal(historyEntry)
+				if err != nil {
+					return err
+				}
+				m.History[i].V1Compatibility = string(fixedHistory)
+			}
+		}
+		lastID = id
+	}
+
+	return nil
+}
+
+func rawJSON(value interface{}) *json.RawMessage {
+	jsonval, err := json.Marshal(value)
+	if err != nil {
+		return nil
+	}
+	return (*json.RawMessage)(&jsonval)
+}
+
 func (p *v2Pusher) pushV2Image(bs distribution.BlobService, img *image.Image) (digest.Digest, error) {
 	out := p.config.OutStream
 
@@ -223,7 +326,7 @@ func (p *v2Pusher) pushV2Image(bs distribution.BlobService, img *image.Image) (d
 	if err != nil {
 		return "", err
 	}
-	arch, err := p.graph.TarLayer(image)
+	arch, err := p.graph.tarLayer(image)
 	if err != nil {
 		return "", err
 	}
@@ -236,11 +339,8 @@ func (p *v2Pusher) pushV2Image(bs distribution.BlobService, img *image.Image) (d
 	}
 	defer layerUpload.Close()
 
-	digester := digest.Canonical.New()
-	tee := io.TeeReader(arch, digester.Hash())
-
 	reader := progressreader.New(progressreader.Config{
-		In:        ioutil.NopCloser(tee), // we'll take care of close here.
+		In:        ioutil.NopCloser(arch), // we'll take care of close here.
 		Out:       out,
 		Formatter: p.sf,
 
@@ -254,8 +354,33 @@ func (p *v2Pusher) pushV2Image(bs distribution.BlobService, img *image.Image) (d
 		Action:   "Pushing",
 	})
 
+	digester := digest.Canonical.New()
+	// HACK: The MultiWriter doesn't write directly to layerUpload because
+	// we must make sure the ReadFrom is used, not Write. Using Write would
+	// send a PATCH request for every Write call.
+	pipeReader, pipeWriter := io.Pipe()
+	// Use a bufio.Writer to avoid excessive chunking in HTTP request.
+	bufWriter := bufio.NewWriterSize(io.MultiWriter(pipeWriter, digester.Hash()), compressionBufSize)
+	compressor := gzip.NewWriter(bufWriter)
+
+	go func() {
+		_, err := io.Copy(compressor, reader)
+		if err == nil {
+			err = compressor.Close()
+		}
+		if err == nil {
+			err = bufWriter.Flush()
+		}
+		if err != nil {
+			pipeWriter.CloseWithError(err)
+		} else {
+			pipeWriter.Close()
+		}
+	}()
+
 	out.Write(p.sf.FormatProgress(stringid.TruncateID(img.ID), "Pushing", nil))
-	nn, err := io.Copy(layerUpload, reader)
+	nn, err := layerUpload.ReadFrom(pipeReader)
+	pipeReader.Close()
 	if err != nil {
 		return "", err
 	}
