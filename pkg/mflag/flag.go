@@ -520,6 +520,20 @@ func Set(name, value string) error {
 	return CommandLine.Set(name, value)
 }
 
+// isZeroValue guesses whether the string represents the zero
+// value for a flag. It is not accurate but in practice works OK.
+func isZeroValue(value string) bool {
+	switch value {
+	case "false":
+		return true
+	case "":
+		return true
+	case "0":
+		return true
+	}
+	return false
+}
+
 // PrintDefaults prints, to standard error unless configured
 // otherwise, the default values of all defined flags in the set.
 func (fs *FlagSet) PrintDefaults() {
@@ -537,7 +551,6 @@ func (fs *FlagSet) PrintDefaults() {
 	}
 
 	fs.VisitAll(func(flag *Flag) {
-		format := "  -%s=%s"
 		names := []string{}
 		for _, name := range flag.Names {
 			if name[0] != '#' {
@@ -551,7 +564,13 @@ func (fs *FlagSet) PrintDefaults() {
 				val = homedir.GetShortcutString() + val[len(home):]
 			}
 
-			fmt.Fprintf(writer, format, strings.Join(names, ", -"), val)
+			if isZeroValue(val) {
+				format := "  -%s"
+				fmt.Fprintf(writer, format, strings.Join(names, ", -"))
+			} else {
+				format := "  -%s=%s"
+				fmt.Fprintf(writer, format, strings.Join(names, ", -"), val)
+			}
 			for i, line := range strings.Split(flag.Usage, "\n") {
 				if i != 0 {
 					line = "  " + line
