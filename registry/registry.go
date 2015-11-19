@@ -62,7 +62,7 @@ func newTLSConfig(hostname string, isSecure bool) (*tls.Config, error) {
 
 	tlsConfig.InsecureSkipVerify = !isSecure
 
-	if isSecure {
+	if isSecure && CertsDir != "" {
 		hostDir := filepath.Join(CertsDir, cleanPath(hostname))
 		logrus.Debugf("hostDir: %s", hostDir)
 		if err := ReadCertsDirectory(&tlsConfig, hostDir); err != nil {
