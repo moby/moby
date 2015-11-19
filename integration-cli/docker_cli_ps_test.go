@@ -168,14 +168,12 @@ func (s *DockerSuite) TestPsListContainersSize(c *check.C) {
 
 func (s *DockerSuite) TestPsListContainersFilterStatus(c *check.C) {
 	testRequires(c, DaemonIsLinux)
-	// FIXME: this should test paused, but it makes things hang and its wonky
-	// this is because paused containers can't be controlled by signals
 
 	// start exited container
 	out, _ := dockerCmd(c, "run", "-d", "busybox")
 	firstID := strings.TrimSpace(out)
 
-	// make sure the exited cintainer is not running
+	// make sure the exited container is not running
 	dockerCmd(c, "wait", firstID)
 
 	// start running container
@@ -183,17 +181,27 @@ func (s *DockerSuite) TestPsListContainersFilterStatus(c *check.C) {
 	secondID := strings.TrimSpace(out)
 
 	// filter containers by exited
-	out, _ = dockerCmd(c, "ps", "-q", "--filter=status=exited")
+	out, _ = dockerCmd(c, "ps", "--no-trunc", "-q", "--filter=status=exited")
 	containerOut := strings.TrimSpace(out)
-	c.Assert(containerOut, checker.Equals, firstID[:12], check.Commentf("Expected id %s, got %s for exited filter, output: %q", firstID[:12], containerOut, out))
+	c.Assert(containerOut, checker.Equals, firstID)
 
-	out, _ = dockerCmd(c, "ps", "-a", "-q", "--filter=status=running")
+	out, _ = dockerCmd(c, "ps", "-a", "--no-trunc", "-q", "--filter=status=running")
 	containerOut = strings.TrimSpace(out)
-	c.Assert(containerOut, checker.Equals, secondID[:12], check.Commentf("Expected id %s, got %s for running filter, output: %q", secondID[:12], containerOut, out))
+	c.Assert(containerOut, checker.Equals, secondID)
 
 	out, _, _ = dockerCmdWithTimeout(time.Second*60, "ps", "-a", "-q", "--filter=status=rubbish")
 	c.Assert(out, checker.Contains, "Unrecognised filter value for status", check.Commentf("Expected error response due to invalid status filter output: %q", out))
 
+	// pause running container
+	out, _ = dockerCmd(c, "run", "-itd", "busybox")
+	pausedID := strings.TrimSpace(out)
+	dockerCmd(c, "pause", pausedID)
+	// make sure the container is unpaused to let the daemon stop it properly
+	defer func() { dockerCmd(c, "unpause", pausedID) }()
+
+	out, _ = dockerCmd(c, "ps", "--no-trunc", "-q", "--filter=status=paused")
+	containerOut = strings.TrimSpace(out)
+	c.Assert(containerOut, checker.Equals, pausedID)
 }
 
 func (s *DockerSuite) TestPsListContainersFilterID(c *check.C) {
