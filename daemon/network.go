@@ -152,6 +152,9 @@ func (daemon *Daemon) DisconnectContainerFromNetwork(containerName string, netwo
 func (daemon *Daemon) GetNetworkDriverList() map[string]bool {
 	pluginList := make(map[string]bool)
 
+	if !daemon.NetworkControllerEnabled() {
+		return nil
+	}
 	c := daemon.netController
 	networks := c.Networks()
 
