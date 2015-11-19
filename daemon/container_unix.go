@@ -1508,8 +1508,8 @@ func (container *Container) unmountVolumes(forceSyscall bool) error {
 
 	for _, volumeMount := range volumeMounts {
 		if forceSyscall {
-			if err := system.Unmount(volumeMount.Destination); err != nil {
-				logrus.Warnf("%s unmountVolumes: Failed to force umount %v", container.ID, err)
+			if err := detachMounted(volumeMount.Destination); err != nil {
+				logrus.Warnf("%s unmountVolumes: Failed to do lazy umount %v", container.ID, err)
 			}
 		}
 
