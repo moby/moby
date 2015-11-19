@@ -860,7 +860,7 @@ func (container *Container) buildCreateEndpointOptions(n libnetwork.Network) ([]
 		createOptions = append(createOptions, libnetwork.EndpointOptionGeneric(genericOption))
 	}
 
-	if n.Name() == "bridge" && !container.daemon.config().Bridge.InterContainerCommunication {
+	if n.Name() == "bridge" {
 		createOptions = append(createOptions, libnetwork.CreateOptionAnonymous())
 	}
 

@@ -409,8 +409,8 @@ func (s *DockerNetworkSuite) TestDockerNetworkDriverOptions(c *check.C) {
 
 }
 
-func (s *DockerDaemonSuite) TestDockerNetworkDiscoveryICCFalse(c *check.C) {
-	// When icc == false, containers' etc/hosts should not be populated with containers' names
+func (s *DockerDaemonSuite) TestDockerNetworkNoDiscoveryDefaultBridgeNetwork(c *check.C) {
+	// On default bridge network built-in service discovery should not happen
 	hostsFile := "/etc/hosts"
 	bridgeName := "external-bridge"
 	bridgeIP := "192.169.255.254/24"
@@ -418,7 +418,7 @@ func (s *DockerDaemonSuite) TestDockerNetworkDiscoveryICCFalse(c *check.C) {
 	c.Assert(err, check.IsNil, check.Commentf(out))
 	defer deleteInterface(c, bridgeName)
 
-	err = s.d.StartWithBusybox("--bridge", bridgeName, "--icc=false")
+	err = s.d.StartWithBusybox("--bridge", bridgeName)
 	c.Assert(err, check.IsNil)
 	defer s.d.Restart()
 
