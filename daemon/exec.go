@@ -108,7 +108,7 @@ func (d *Daemon) getExecConfig(name string) (*ExecConfig, error) {
 	ec := d.execCommands.Get(name)
 
 	// If the exec is found but its container is not in the daemon's list of
-	// containers then it must have been delete, in which case instead of
+	// containers then it must have been deleted, in which case instead of
 	// saying the container isn't running, we should return a 404 so that
 	// the user sees the same error now that they will after the
 	// 5 minute clean-up loop is run which erases old/dead execs.

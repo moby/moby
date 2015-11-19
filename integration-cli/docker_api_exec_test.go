@@ -49,6 +49,21 @@ func (s *DockerSuite) TestExecApiCreateNoValidContentType(c *check.C) {
 	}
 }
 
+func (s *DockerSuite) TestExecApiCreateContainerPaused(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	name := "exec_create_test"
+	dockerCmd(c, "run", "-d", "-t", "--name", name, "busybox", "/bin/sh")
+
+	dockerCmd(c, "pause", name)
+	status, body, err := sockRequest("POST", fmt.Sprintf("/containers/%s/exec", name), map[string]interface{}{"Cmd": []string{"true"}})
+	c.Assert(err, check.IsNil)
+	c.Assert(status, check.Equals, http.StatusConflict)
+
+	if !bytes.Contains(body, []byte("Container "+name+" is paused, unpause the container before exec")) {
+		c.Fatalf("Expected message when creating exec command with Container %s is paused", name)
+	}
+}
+
 func (s *DockerSuite) TestExecAPIStart(c *check.C) {
 	dockerCmd(c, "run", "-d", "--name", "test", "busybox", "top")
 
