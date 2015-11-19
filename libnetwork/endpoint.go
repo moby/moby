@@ -584,7 +584,8 @@ func (ep *endpoint) Delete() error {
 	ep.Lock()
 	epid := ep.id
 	name := ep.name
-	if ep.sandboxID != "" {
+	sb, _ := n.getController().SandboxByID(ep.sandboxID)
+	if sb != nil {
 		ep.Unlock()
 		return &ActiveContainerError{name: name, id: epid}
 	}
