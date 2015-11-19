@@ -12,7 +12,7 @@ import (
 
 var (
 	headerRegexp     = regexp.MustCompile(`^(?:(.+)/(.+?))\((.+)\).*$`)
-	errInvalidHeader = errors.New("Bad header, should be in format `docker/version (platform)`")
+	errInvalidHeader = errors.New("bad header, should be in format `docker/version (platform)`")
 )
 
 // Download requests a given URL and returns an io.Reader.

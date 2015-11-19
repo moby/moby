@@ -27,7 +27,7 @@ func (cli *DockerCli) CmdSave(args ...string) error {
 	)
 
 	if *outfile == "" && cli.isTerminalOut {
-		return errors.New("Cowardly refusing to save to a terminal. Use the -o flag or redirect.")
+		return errors.New("cowardly refusing to save to a terminal. Use the -o flag or redirect")
 	}
 	if *outfile != "" {
 		if output, err = os.Create(*outfile); err != nil {

@@ -110,7 +110,7 @@ func TestCreateError(t *testing.T) {
 		client: mockClient,
 	}
 	mockClient.createLogStreamResult <- &createLogStreamResult{
-		errorResult: errors.New("Error!"),
+		errorResult: errors.New("error"),
 	}
 
 	err := stream.create()
@@ -190,7 +190,7 @@ func TestPublishBatchError(t *testing.T) {
 		sequenceToken: aws.String(sequenceToken),
 	}
 	mockClient.putLogEventsResult <- &putLogEventsResult{
-		errorResult: errors.New("Error!"),
+		errorResult: errors.New("error"),
 	}
 
 	events := []*cloudwatchlogs.InputLogEvent{

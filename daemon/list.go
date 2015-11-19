@@ -148,7 +148,7 @@ func (daemon *Daemon) foldFilter(config *ContainersConfig) (*listContext, error)
 	if i, ok := psFilters["status"]; ok {
 		for _, value := range i {
 			if !isValidStateString(value) {
-				return nil, errors.New("Unrecognised filter value for status")
+				return nil, errors.New("unrecognised filter value for status")
 			}
 			if value == "exited" || value == "created" {
 				config.All = true

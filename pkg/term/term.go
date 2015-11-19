@@ -15,7 +15,7 @@ import (
 
 var (
 	// ErrInvalidState is returned if the state of the terminal is invalid.
-	ErrInvalidState = errors.New("Invalid terminal state")
+	ErrInvalidState = errors.New("invalid terminal state")
 )
 
 // State represents the state of the terminal.

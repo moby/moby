@@ -15,7 +15,7 @@ import (
 )
 
 var (
-	errDockerfileNotStringArray = errors.New("When using JSON array syntax, arrays must be comprised of strings only.")
+	errDockerfileNotStringArray = errors.New("when using JSON array syntax, arrays must be comprised of strings only")
 )
 
 // ignore the current argument. This will still leave a command parsed, but

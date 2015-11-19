@@ -68,7 +68,7 @@ func NewStdWriter(w io.Writer, t StdType) *StdWriter {
 	}
 }
 
-var errInvalidStdHeader = errors.New("Unrecognized input header")
+var errInvalidStdHeader = errors.New("unrecognized input header")
 
 // StdCopy is a modified version of io.Copy.
 //

@@ -109,7 +109,7 @@ func NewDockerCli(in io.ReadCloser, out, err io.Writer, clientFlags *cli.ClientF
 		case 1:
 			// only accept one host to talk to
 		default:
-			return errors.New("Please specify only one -H")
+			return errors.New("please specify only one -H")
 		}
 
 		defaultHost := opts.DefaultTCPHost

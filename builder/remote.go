@@ -81,7 +81,7 @@ func inspectResponse(ct string, r io.ReadCloser, clen int64) (string, io.ReadClo
 	preamble := make([]byte, plen, plen)
 	rlen, err := r.Read(preamble)
 	if rlen == 0 {
-		return ct, r, errors.New("Empty response")
+		return ct, r, errors.New("empty response")
 	}
 	if err != nil && err != io.EOF {
 		return ct, r, err

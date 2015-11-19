@@ -82,7 +82,7 @@ func ParseRelease(release string) (*VersionInfo, error) {
 	// make sure we got all the version numbers.
 	parsed, _ = fmt.Sscanf(release, "%d.%d%s", &kernel, &major, &partial)
 	if parsed < 2 {
-		return nil, errors.New("Can't parse kernel version " + release)
+		return nil, errors.New("can't parse kernel version " + release)
 	}
 
 	// sometimes we have 3.12.25-gentoo, but sometimes we just have 3.12-1-amd64

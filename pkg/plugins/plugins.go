@@ -33,7 +33,7 @@ import (
 
 var (
 	// ErrNotImplements is returned if the plugin does not implement the requested driver.
-	ErrNotImplements = errors.New("Plugin does not implement the requested driver")
+	ErrNotImplements = errors.New("plugin does not implement the requested driver")
 )
 
 type plugins struct {

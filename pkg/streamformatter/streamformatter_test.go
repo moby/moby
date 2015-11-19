@@ -27,8 +27,8 @@ func TestFormatJSONStatus(t *testing.T) {
 
 func TestFormatSimpleError(t *testing.T) {
 	sf := NewStreamFormatter()
-	res := sf.FormatError(errors.New("Error for formatter"))
-	if string(res) != "Error: Error for formatter\r\n" {
+	res := sf.FormatError(errors.New("error for formatter"))
+	if string(res) != "Error: error for formatter\r\n" {
 		t.Fatalf("%q", res)
 	}
 }
@@ -51,8 +51,8 @@ func TestJSONFormatStatus(t *testing.T) {
 
 func TestJSONFormatSimpleError(t *testing.T) {
 	sf := NewJSONStreamFormatter()
-	res := sf.FormatError(errors.New("Error for formatter"))
-	if string(res) != `{"errorDetail":{"message":"Error for formatter"},"error":"Error for formatter"}`+"\r\n" {
+	res := sf.FormatError(errors.New("error for formatter"))
+	if string(res) != `{"errorDetail":{"message":"error for formatter"},"error":"error for formatter"}`+"\r\n" {
 		t.Fatalf("%q", res)
 	}
 }

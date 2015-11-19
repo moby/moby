@@ -15,10 +15,10 @@ type Context map[string]string
 
 // Define error messages
 var (
-	ErrNotRunning              = errors.New("Container is not running")
-	ErrWaitTimeoutReached      = errors.New("Wait timeout reached")
-	ErrDriverAlreadyRegistered = errors.New("A driver already registered this docker init function")
-	ErrDriverNotFound          = errors.New("The requested docker init has not been found")
+	ErrNotRunning              = errors.New("container is not running")
+	ErrWaitTimeoutReached      = errors.New("wait timeout reached")
+	ErrDriverAlreadyRegistered = errors.New("a driver already registered this docker init function")
+	ErrDriverNotFound          = errors.New("the requested docker init has not been found")
 )
 
 // DriverCallback defines a callback function which is used in "Run" and "Exec".
