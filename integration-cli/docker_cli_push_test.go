@@ -346,3 +346,24 @@ func (s *DockerTrustSuite) TestTrustedPushWithExpiredTimestamp(c *check.C) {
 		c.Assert(out, checker.Contains, "Signing and pushing trust metadata", check.Commentf("Missing expected output on trusted push with expired timestamp"))
 	})
 }
+
+// TestBuildPushFlag tests that --push flag
+// After the build successfully completes, test if repositry gets pushed to registry
+func (s *DockerRegistrySuite) TestBuildPushFlag(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	name := "testbuildpushflag"
+	repoName := fmt.Sprintf("%v/dockercli/%v", privateRegistryURL, name)
+	expected1 := fmt.Sprintf("The push refers to a repository [%v]", repoName)
+	expected2 := fmt.Sprintf("latest: digest")
+	_, out, err := buildImageWithOut(repoName, `
+	FROM busybox
+	ENV Foo Bar`,
+		true, "--push")
+	if err != nil {
+		c.Fatalf("docker build failed to push image to the registry: %s\n%s ", err, out)
+	}
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Contains, expected1, check.Commentf("connection refused"))
+	c.Assert(out, checker.Contains, expected2, check.Commentf("connection refused"))
+}
