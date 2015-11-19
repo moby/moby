@@ -140,7 +140,7 @@ ORIG_BUILDFLAGS=( -a -tags "autogen netgo static_build sqlite_omit_load_extensio
 # see https://github.com/golang/go/issues/9369#issuecomment-69864440 for why -installsuffix is necessary here
 BUILDFLAGS=( $BUILDFLAGS "${ORIG_BUILDFLAGS[@]}" )
 # Test timeout.
-: ${TIMEOUT:=60m}
+: ${TIMEOUT:=120m}
 TESTFLAGS+=" -test.timeout=${TIMEOUT}"
 
 LDFLAGS_STATIC_DOCKER="

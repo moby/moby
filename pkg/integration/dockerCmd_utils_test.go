@@ -171,7 +171,7 @@ func (s *DockerCmdSuite) TestDockerCmdWithTimeout(c *check.C) {
 		{
 			"doesnotexists",
 			[]string{},
-			100 * time.Millisecond,
+			200 * time.Millisecond,
 			`Command doesnotexists not found.`,
 			1,
 			fmt.Errorf(`"" failed with errors: exit status 1 : "Command doesnotexists not found."`),
@@ -179,7 +179,7 @@ func (s *DockerCmdSuite) TestDockerCmdWithTimeout(c *check.C) {
 		{
 			dockerBinary,
 			[]string{"an", "error"},
-			100 * time.Millisecond,
+			200 * time.Millisecond,
 			`an error has occurred`,
 			1,
 			fmt.Errorf(`"an error" failed with errors: exit status 1 : "an error has occurred"`),
@@ -195,7 +195,7 @@ func (s *DockerCmdSuite) TestDockerCmdWithTimeout(c *check.C) {
 		{
 			dockerBinary,
 			[]string{"run", "-ti", "ubuntu", "echo", "hello"},
-			100 * time.Millisecond,
+			200 * time.Millisecond,
 			"hello",
 			0,
 			nil,
@@ -282,7 +282,7 @@ func (s *DockerCmdSuite) TestDockerCmdInDirWithTimeout(c *check.C) {
 		{
 			"doesnotexists",
 			[]string{},
-			100 * time.Millisecond,
+			200 * time.Millisecond,
 			`Command doesnotexists not found.`,
 			1,
 			fmt.Errorf(`"dir:%s" failed with errors: exit status 1 : "Command doesnotexists not found."`, tempFolder),
@@ -290,7 +290,7 @@ func (s *DockerCmdSuite) TestDockerCmdInDirWithTimeout(c *check.C) {
 		{
 			dockerBinary,
 			[]string{"an", "error"},
-			100 * time.Millisecond,
+			200 * time.Millisecond,
 			`an error has occurred`,
 			1,
 			fmt.Errorf(`"dir:%s an error" failed with errors: exit status 1 : "an error has occurred"`, tempFolder),
@@ -306,7 +306,7 @@ func (s *DockerCmdSuite) TestDockerCmdInDirWithTimeout(c *check.C) {
 		{
 			dockerBinary,
 			[]string{"run", "-ti", "ubuntu", "echo", "hello"},
-			100 * time.Millisecond,
+			200 * time.Millisecond,
 			"hello",
 			0,
 			nil,
