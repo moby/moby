@@ -52,6 +52,7 @@ type Config struct {
 	Remove      bool
 	ForceRemove bool
 	Pull        bool
+	Push        bool
 	BuildArgs   map[string]string // build-time args received in build context for expansion/substitution and commands in 'run'.
 	Isolation   runconfig.IsolationLevel
 
