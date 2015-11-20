@@ -137,7 +137,7 @@ Once ZFS is installed and loaded, you're ready to configure ZFS for Docker.
 
         $ sudo zpool create -f zpool-docker /dev/xvdb
 
-  The command creates the `zpool` and gives it the name "zpool-docker". The name is arbitrary.
+    The command creates the `zpool` and gives it the name "zpool-docker". The name is arbitrary.
 
 2. Check that the `zpool` exists.
 
@@ -156,7 +156,7 @@ Once ZFS is installed and loaded, you're ready to configure ZFS for Docker.
         zpool-docker         93.5K  3.84G    19K  /zpool-docker
         zpool-docker/docker  19K    3.84G    19K  /var/lib/docker
 
-  Now that you have a ZFS filesystem mounted to `/var/lib/docker`, the daemon should automatically load with the `zfs` storage driver.
+    Now that you have a ZFS filesystem mounted to `/var/lib/docker`, the daemon should automatically load with the `zfs` storage driver.
 
 5. Start the Docker daemon.
 
@@ -185,9 +185,9 @@ Once ZFS is installed and loaded, you're ready to configure ZFS for Docker.
         Execution Driver: native-0.2
         [...]
 
-  The output of the command above shows that the Docker daemon is using the
-  `zfs` storage driver and that the parent dataset is the `zpool-docker/docker`
-  filesystem created earlier.
+    The output of the command above shows that the Docker daemon is using the
+    `zfs` storage driver and that the parent dataset is the `zpool-docker/docker`
+    filesystem created earlier.
 
 Your Docker host is now using ZFS to store to manage its images and containers.
 
@@ -207,7 +207,7 @@ using them with ZFS.
 
 * **ZFS Caching**. ZFS caches disk blocks in a memory structure called the adaptive replacement cache (ARC). The *Single Copy ARC* feature of ZFS allows a single cached copy of a block to be shared by multiple clones of a filesystem. This means that multiple running containers can share a single copy of cached block. This means that ZFS is a good option for PaaS and other high density use cases.
 
-- **Fragmentation**. Fragmentation is a natural byproduct of copy-on-write filesystems like ZFS. However, ZFS writes in 128K blocks and allocates *slabs* (multiple 128K blocks) to CoW operations in an attempt to reduce fragmentation. The ZFS intent log (ZIL) and the coalescing of writes (delayed writes) also help to reduce fragmentation. 
+- **Fragmentation**. Fragmentation is a natural byproduct of copy-on-write filesystems like ZFS. However, ZFS writes in 128K blocks and allocates *slabs* (multiple 128K blocks) to CoW operations in an attempt to reduce fragmentation. The ZFS intent log (ZIL) and the coalescing of writes (delayed writes) also help to reduce fragmentation.
 
 - **Use the native ZFS driver for Linux**. Although the Docker `zfs` storage driver supports the ZFS FUSE implementation, it is not recommended when high performance is required. The native ZFS on Linux driver tends to perform better than the FUSE implementation.
 

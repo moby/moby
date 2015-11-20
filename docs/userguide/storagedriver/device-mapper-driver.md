@@ -210,18 +210,20 @@ The procedure below will create a 90GB data volume and 4GB metadata volume to us
 
 5. Start the Docker daemon with the `devicemapper` storage driver and the `--storage-opt` flags.
 
-  The `data` and `metadata` devices that you pass to the `--storage-opt` options were created in the previous steps.
+    The `data` and `metadata` devices that you pass to the `--storage-opt` options were created in the previous steps.
 
-        $ sudo docker daemon --storage-driver=devicemapper --storage-opt dm.datadev=/dev/vg-docker/data --storage-opt dm.metadatadev=/dev/vg-docker/metadata &
-        [1] 2163
-        [root@ip-10-0-0-75 centos]# INFO[0000] Listening for HTTP on unix (/var/run/docker.sock)
-        INFO[0027] Option DefaultDriver: bridge
-        INFO[0027] Option DefaultNetwork: bridge
-        <output truncated>
-        INFO[0027] Daemon has completed initialization
-        INFO[0027] Docker daemon                                 commit=0a8c2e3 execdriver=native-0.2 graphdriver=devicemapper version=1.8.2
+          $ sudo docker daemon --storage-driver=devicemapper --storage-opt dm.datadev=/dev/vg-docker/data --storage-opt dm.metadatadev=/dev/vg-docker/metadata &
+          [1] 2163
+          [root@ip-10-0-0-75 centos]# INFO[0000] Listening for HTTP on unix (/var/run/docker.sock)
+          INFO[0027] Option DefaultDriver: bridge
+          INFO[0027] Option DefaultNetwork: bridge
+          <output truncated>
+          INFO[0027] Daemon has completed initialization
+          INFO[0027] Docker daemon commit=0a8c2e3 execdriver=native-0.2 graphdriver=devicemapper version=1.8.2
 
-    It is also possible to set the `--storage-driver` and `--storage-opt` flags in the Docker config file and start the daemon normally using the `service` or `systemd` commands.
+    It is also possible to set the `--storage-driver` and `--storage-opt` flags in
+    the Docker config file and start the daemon normally using the `service` or
+    `systemd` commands.
 
 6. Use the `docker info` command to verify that the daemon is using `data` and `metadata` devices you created.
 
