@@ -31,25 +31,45 @@ The `network inspect` command shows the containers, by id, in its results.
 ```bash
 $ sudo docker network inspect bridge
 [
-  {
-      "name": "bridge",
-      "id": "7fca4eb8c647e57e9d46c32714271e0c3f8bf8d17d346629e2820547b2d90039",
-      "driver": "bridge",
-      "containers": {
-          "bda12f8922785d1f160be70736f26c1e331ab8aaf8ed8d56728508f2e2fd4727": {
-              "endpoint": "e0ac95934f803d7e36384a2029b8d1eeb56cb88727aa2e8b7edfeebaa6dfd758",
-              "mac_address": "02:42:ac:11:00:03",
-              "ipv4_address": "172.17.0.3/16",
-              "ipv6_address": ""
-          },
-          "f2870c98fd504370fb86e59f32cd0753b1ac9b69b7d80566ffc7192a82b3ed27": {
-              "endpoint": "31de280881d2a774345bbfb1594159ade4ae4024ebfb1320cb74a30225f6a8ae",
-              "mac_address": "02:42:ac:11:00:02",
-              "ipv4_address": "172.17.0.2/16",
-              "ipv6_address": ""
-          }
-      }
-  }
+    {
+        "Name": "bridge",
+        "Id": "b2b1a2cba717161d984383fd68218cf70bbbd17d328496885f7c921333228b0f",
+        "Scope": "local",
+        "Driver": "bridge",
+        "IPAM": {
+            "Driver": "default",
+            "Config": [
+                {
+                    "Subnet": "172.17.42.1/16",
+                    "Gateway": "172.17.42.1"
+                }
+            ]
+        },
+        "Containers": {
+            "bda12f8922785d1f160be70736f26c1e331ab8aaf8ed8d56728508f2e2fd4727": {
+                "Name": "container2",
+                "EndpointID": "0aebb8fcd2b282abe1365979536f21ee4ceaf3ed56177c628eae9f706e00e019",
+                "MacAddress": "02:42:ac:11:00:02",
+                "IPv4Address": "172.17.0.2/16",
+                "IPv6Address": ""
+            },
+            "f2870c98fd504370fb86e59f32cd0753b1ac9b69b7d80566ffc7192a82b3ed27": {
+                "Name": "container1",
+                "EndpointID": "a00676d9c91a96bbe5bcfb34f705387a33d7cc365bac1a29e4e9728df92d10ad",
+                "MacAddress": "02:42:ac:11:00:01",
+                "IPv4Address": "172.17.0.1/16",
+                "IPv6Address": ""
+            }
+        },
+        "Options": {
+            "com.docker.network.bridge.default_bridge": "true",
+            "com.docker.network.bridge.enable_icc": "true",
+            "com.docker.network.bridge.enable_ip_masquerade": "true",
+            "com.docker.network.bridge.host_binding_ipv4": "0.0.0.0",
+            "com.docker.network.bridge.name": "docker0",
+            "com.docker.network.driver.mtu": "1500"
+        }
+    }
 ]
 ```
 
