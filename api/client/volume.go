@@ -257,7 +257,6 @@ func (cli *DockerCli) CmdVolumeRename(args ...string) error {
 
 	_, err := cli.call("POST", "/volumes/"+oldName+"/rename?name="+newName, volReq, nil)
         if err != nil {
-		fmt.Fprintf(cli.out, "%s\n", err)
                 return err
         }
 
