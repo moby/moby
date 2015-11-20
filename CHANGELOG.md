@@ -7,7 +7,7 @@ be found.
 
 ## 1.9.1
 
-## Runtime
+### Runtime
 
 - Do not prevent daemon from booting if images could not be restored (#17695)
 - Force IPC mount to unmount on daemon shutdown/init (#17539)
@@ -21,17 +21,17 @@ be found.
 - selinux: only relabel if user requested so with the `z` option (#17450, #17834)
 - Do not make network calls when normalizing names (#18014)
 
-## Client
+### Client
 
 - Fix `docker login` on windows (#17738)
 - Fix bug with `docker inspect` output when not connected to daemon (#17715)
 - Fix `docker inspect -f {{.HostConfig.Dns}} somecontainer` (#17680)
 
-## Builder
+### Builder
 
 - Fix regression with symlink behavior in ADD/COPY (#17710)
 
-## Networking
+### Networking
 
 - Allow passing a network ID as an argument for `--net` (#17558)
 - Fix connect to host and prevent disconnect from host for `host` network (#17476)
@@ -41,7 +41,7 @@ be found.
 - Allow port-mapping only for endpoints created on docker run (#17858)
 - Fixed an endpoint delete issue with a possible stale sbox (#18102)
 
-## Distribution
+### Distribution
 
 - Correct parent chain in v2 push when v1Compatibility files on the disk are inconsistent (#18047)
 
