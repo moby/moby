@@ -17,9 +17,7 @@ func TestChtimesWindows(t *testing.T) {
 	beforeUnixEpochTime := time.Unix(0, 0).Add(-100 * time.Second)
 	unixEpochTime := time.Unix(0, 0)
 	afterUnixEpochTime := time.Unix(100, 0)
-	// The max Unix time is 33 bits set
-	unixMaxTime := unixEpochTime.Add((1<<33 - 1) * time.Second)
-	afterUnixMaxTime := unixMaxTime.Add(100 * time.Second)
+	unixMaxTime := maxTime
 
 	// Test both aTime and mTime set to Unix Epoch
 	Chtimes(file, unixEpochTime, unixEpochTime)
@@ -82,33 +80,7 @@ func TestChtimesWindows(t *testing.T) {
 	}
 
 	aTime = time.Unix(0, f.Sys().(*syscall.Win32FileAttributeData).LastAccessTime.Nanoseconds())
-	if aTime != unixMaxTime {
-		t.Fatalf("Expected: %s, got: %s", unixMaxTime, aTime)
-	}
-
-	// Test aTime after Unix max time and mTime set to Unix max time
-	Chtimes(file, afterUnixMaxTime, unixMaxTime)
-
-	f, err = os.Stat(file)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	aTime = time.Unix(0, f.Sys().(*syscall.Win32FileAttributeData).LastAccessTime.Nanoseconds())
-	if aTime != unixEpochTime {
-		t.Fatalf("Expected: %s, got: %s", unixEpochTime, aTime)
-	}
-
-	// Test aTime set to Unix Epoch and mTime before Unix Epoch
-	Chtimes(file, unixMaxTime, afterUnixMaxTime)
-
-	f, err = os.Stat(file)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	aTime = time.Unix(0, f.Sys().(*syscall.Win32FileAttributeData).LastAccessTime.Nanoseconds())
-	if aTime != unixMaxTime {
-		t.Fatalf("Expected: %s, got: %s", unixMaxTime, aTime)
+	if aTime.Truncate(time.Second) != unixMaxTime.Truncate(time.Second) {
+		t.Fatalf("Expected: %s, got: %s", unixMaxTime.Truncate(time.Second), aTime.Truncate(time.Second))
 	}
 }
