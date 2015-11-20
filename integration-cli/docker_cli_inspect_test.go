@@ -337,3 +337,29 @@ func (s *DockerSuite) TestInspectJSONFields(c *check.C) {
 	c.Assert(err, check.IsNil)
 	c.Assert(out, checker.Equals, "[]\n")
 }
+
+func (s *DockerSuite) TestInspectContainerStateTimesEmpty(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	name := "both-times-empty"
+	dockerCmd(c, "create", "--name", name, "busybox")
+
+	startedAt, err := inspectField(name, "State.StartedAt")
+	c.Assert(err, checker.IsNil)
+	finishedAt, err := inspectField(name, "State.FinishedAt")
+	c.Assert(err, checker.IsNil)
+
+	if startedAt != "" || finishedAt != "" {
+		c.Fatalf("Expected .State.StartedAt and .State.FinishedAt to be both empty, got startedAt: %s, finishedAt: %s", startedAt, finishedAt)
+	}
+
+	name = "finishedAt-empty"
+	dockerCmd(c, "run", "-d", "--name", name, "busybox", "top")
+
+	finishedAt, err = inspectField(name, "State.FinishedAt")
+	c.Assert(err, checker.IsNil)
+
+	if finishedAt != "" {
+		c.Fatalf("Expected .State.FinishedAt to be empty, got %s", finishedAt)
+	}
+}
