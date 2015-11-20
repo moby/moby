@@ -665,8 +665,17 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 	}
 	logrus.Debugf("Using graph driver %s", driver)
 
-	d := &Daemon{}
-	d.driver = driver
+	d := &Daemon{
+		root:             config.Root,
+		uidMaps:          uidMaps,
+		gidMaps:          gidMaps,
+		containers:       &contStore{s: make(map[string]*Container)},
+		configStore:      config,
+		idIndex:          truncindex.NewTruncIndex([]string{}),
+		driver:           driver,
+		defaultLogConfig: config.LogConfig,
+		repository:       filepath.Join(config.Root, "containers"),
+	}
 
 	// Ensure the graph driver is shutdown at a later point
 	defer func() {
@@ -690,9 +699,7 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 		return nil, err
 	}
 
-	daemonRepo := filepath.Join(config.Root, "containers")
-
-	if err := idtools.MkdirAllAs(daemonRepo, 0700, rootUID, rootGID); err != nil && !os.IsExist(err) {
+	if err := idtools.MkdirAllAs(d.repository, 0700, rootUID, rootGID); err != nil && !os.IsExist(err) {
 		return nil, err
 	}
 
@@ -732,13 +739,13 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 		Registry: registryService,
 		Events:   eventsService,
 	}
-	repositories, err := graph.NewTagStore(filepath.Join(config.Root, "repositories-"+d.driver.String()), tagCfg)
+	d.repositories, err = graph.NewTagStore(filepath.Join(config.Root, "repositories-"+d.driver.String()), tagCfg)
 	if err != nil {
 		return nil, fmt.Errorf("Couldn't create Tag store repositories-%s: %s", d.driver.String(), err)
 	}
 
 	if restorer, ok := d.driver.(graphdriver.ImageRestorer); ok {
-		if _, err := restorer.RestoreCustomImages(repositories, g); err != nil {
+		if _, err := restorer.RestoreCustomImages(d.repositories, g); err != nil {
 			return nil, fmt.Errorf("Couldn't restore custom images: %s", err)
 		}
 	}
@@ -765,13 +772,13 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 		return nil, fmt.Errorf("Error initializing network controller: %v", err)
 	}
 
-	graphdbPath := filepath.Join(config.Root, "linkgraph.db")
-	graph, err := graphdb.NewSqliteConn(graphdbPath)
-	if err != nil {
+	dbFactory := newGraphdbFactory(d)
+	if d.containerGraphDB, err = dbFactory.get(d.driver.String()); err != nil {
 		return nil, err
 	}
-
-	d.containerGraphDB = graph
+	if err = dbFactory.migrate(); err != nil {
+		return nil, err
+	}
 
 	var sysInitPath string
 
@@ -788,23 +795,14 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 	}
 
 	d.ID = trustKey.PublicKey().KeyID()
-	d.repository = daemonRepo
-	d.containers = &contStore{s: make(map[string]*Container)}
 	d.execCommands = newExecStore()
 	d.graph = g
-	d.repositories = repositories
-	d.idIndex = truncindex.NewTruncIndex([]string{})
-	d.configStore = config
 	d.sysInitPath = sysInitPath
 	d.execDriver = ed
 	d.statsCollector = d.newStatsCollector(1 * time.Second)
-	d.defaultLogConfig = config.LogConfig
 	d.RegistryService = registryService
 	d.EventsService = eventsService
 	d.volumes = volStore
-	d.root = config.Root
-	d.uidMaps = uidMaps
-	d.gidMaps = gidMaps
 
 	if err := d.cleanupMounts(); err != nil {
 		return nil, err
