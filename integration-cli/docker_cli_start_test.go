@@ -33,7 +33,7 @@ func (s *DockerSuite) TestStartAttachReturnsOnError(c *check.C) {
 	select {
 	case err := <-ch:
 		c.Assert(err, check.IsNil)
-	case <-time.After(time.Second):
+	case <-time.After(5 * time.Second):
 		c.Fatalf("Attach did not exit properly")
 	}
 }

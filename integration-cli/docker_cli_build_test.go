@@ -759,7 +759,7 @@ ADD test_file .`,
 		close(errChan)
 	}()
 	select {
-	case <-time.After(5 * time.Second):
+	case <-time.After(15 * time.Second):
 		c.Fatal("Build with adding to workdir timed out")
 	case err := <-errChan:
 		c.Assert(err, check.IsNil)
@@ -1408,7 +1408,7 @@ COPY test_file .`,
 		close(errChan)
 	}()
 	select {
-	case <-time.After(5 * time.Second):
+	case <-time.After(15 * time.Second):
 		c.Fatal("Build with adding to workdir timed out")
 	case err := <-errChan:
 		c.Assert(err, check.IsNil)
