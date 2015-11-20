@@ -162,10 +162,6 @@ func detachMounted(path string) error {
 	return nil
 }
 
-func getDefaultRouteMtu() (int, error) {
-	return -1, errSystemNotSupported
-}
-
 func killProcessDirectly(container *container.Container) error {
 	return nil
 }
