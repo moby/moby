@@ -51,7 +51,11 @@ func (cli *DockerCli) CmdLogs(args ...string) error {
 	v.Set("stderr", "1")
 
 	if *since != "" {
-		v.Set("since", timeutils.GetTimestamp(*since, time.Now()))
+		ts, err := timeutils.GetTimestamp(*since, time.Now())
+		if err != nil {
+			return err
+		}
+		v.Set("since", ts)
 	}
 
 	if *times {

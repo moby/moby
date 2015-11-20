@@ -15,6 +15,7 @@ import (
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/pkg/parsers/filters"
 	"github.com/docker/docker/pkg/parsers/kernel"
+	"github.com/docker/docker/pkg/timeutils"
 	"github.com/docker/docker/utils"
 	"golang.org/x/net/context"
 )
@@ -56,19 +57,19 @@ func (s *router) getEvents(ctx context.Context, w http.ResponseWriter, r *http.R
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
-	since, err := httputils.Int64ValueOrDefault(r, "since", -1)
+	since, sinceNano, err := timeutils.ParseTimestamps(r.Form.Get("since"), -1)
 	if err != nil {
 		return err
 	}
-	until, err := httputils.Int64ValueOrDefault(r, "until", -1)
+	until, untilNano, err := timeutils.ParseTimestamps(r.Form.Get("until"), -1)
 	if err != nil {
 		return err
 	}
 
 	timer := time.NewTimer(0)
 	timer.Stop()
-	if until > 0 {
-		dur := time.Unix(until, 0).Sub(time.Now())
+	if until > 0 || untilNano > 0 {
+		dur := time.Unix(until, untilNano).Sub(time.Now())
 		timer = time.NewTimer(dur)
 	}
 
@@ -108,7 +109,7 @@ func (s *router) getEvents(ctx context.Context, w http.ResponseWriter, r *http.R
 		current = nil
 	}
 	for _, ev := range current {
-		if ev.Time < since {
+		if ev.Time < since || ((ev.Time == since) && (ev.TimeNano < sinceNano)) {
 			continue
 		}
 		if err := handleEvent(ev); err != nil {

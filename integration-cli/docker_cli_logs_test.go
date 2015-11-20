@@ -182,6 +182,11 @@ func (s *DockerSuite) TestLogsSince(c *check.C) {
 	for _, v := range unexpected {
 		c.Assert(out, checker.Not(checker.Contains), v, check.Commentf("unexpected log message returned, since=%v", since))
 	}
+
+	// Test to make sure a bad since format is caught by the client
+	out, _, _ = dockerCmdWithError("logs", "-t", "--since=2006-01-02T15:04:0Z", name)
+	c.Assert(out, checker.Contains, "cannot parse \"0Z\" as \"05\"", check.Commentf("bad since format passed to server"))
+
 	// Test with default value specified and parameter omitted
 	expected := []string{"log1", "log2", "log3"}
 	for _, cmd := range []*exec.Cmd{
