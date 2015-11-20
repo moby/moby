@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	gosignal "os/signal"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -29,6 +30,7 @@ import (
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/progressreader"
+	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/ulimit"
 	"github.com/docker/docker/pkg/units"
@@ -585,6 +587,28 @@ func rewriteDockerfileFrom(dockerfileName string, translator func(string, regist
 			trustedFile.Close()
 		}
 	}()
+
+	var signals []os.Signal
+	for _, sig := range []string{"INT", "TERM", "QUIT"} {
+		s, ok := signal.SignalMap[sig]
+		if ok {
+			signals = append(signals, s)
+		}
+	}
+	if len(signals) > 0 {
+		sigc := make(chan os.Signal, 1)
+		gosignal.Notify(sigc, signals...)
+		go func() {
+			for s := range sigc {
+				for sigStr, sigN := range signal.SignalMap {
+					if sigN == s && (sigStr == "INT" || sigStr == "TERM" || sigStr == "QUIT") {
+						trustedFile.Close()
+						os.Exit(0)
+					}
+				}
+			}
+		}()
+	}
 
 	// Scan the lines of the Dockerfile, looking for a "FROM" line.
 	for scanner.Scan() {
