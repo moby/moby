@@ -323,6 +323,7 @@ func (s *router) postBuild(ctx context.Context, w http.ResponseWriter, r *http.R
 	buildConfig.ForceRemove = httputils.BoolValue(r, "forcerm")
 	buildConfig.MemorySwap = httputils.Int64ValueOrZero(r, "memswap")
 	buildConfig.Memory = httputils.Int64ValueOrZero(r, "memory")
+	buildConfig.ShmSize = httputils.Int64ValueOrZero(r, "shmsize")
 	buildConfig.CPUShares = httputils.Int64ValueOrZero(r, "cpushares")
 	buildConfig.CPUPeriod = httputils.Int64ValueOrZero(r, "cpuperiod")
 	buildConfig.CPUQuota = httputils.Int64ValueOrZero(r, "cpuquota")

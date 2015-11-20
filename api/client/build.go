@@ -59,6 +59,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	dockerfileName := cmd.String([]string{"f", "-file"}, "", "Name of the Dockerfile (Default is 'PATH/Dockerfile')")
 	flMemoryString := cmd.String([]string{"m", "-memory"}, "", "Memory limit")
 	flMemorySwap := cmd.String([]string{"-memory-swap"}, "", "Total memory (memory + swap), '-1' to disable swap")
+	flShmSize := cmd.String([]string{"-shm-size"}, "", "Size of /dev/shm, default value is 64MB")
 	flCPUShares := cmd.Int64([]string{"#c", "-cpu-shares"}, 0, "CPU shares (relative weight)")
 	flCPUPeriod := cmd.Int64([]string{"-cpu-period"}, 0, "Limit the CPU CFS (Completely Fair Scheduler) period")
 	flCPUQuota := cmd.Int64([]string{"-cpu-quota"}, 0, "Limit the CPU CFS (Completely Fair Scheduler) quota")
@@ -210,6 +211,18 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		}
 	}
 
+	var shmSize int64 = 67108864 // initial SHM size is 64MB
+	if *flShmSize != "" {
+		parsedShmSize, err := units.RAMInBytes(*flShmSize)
+		if err != nil {
+			return err
+		}
+		if parsedShmSize <= 0 {
+			return fmt.Errorf("--shm-size: SHM size must be greater than 0 . You specified: %v ", parsedShmSize)
+		}
+		shmSize = parsedShmSize
+	}
+
 	// Send the build context
 	v := url.Values{
 		"t": flTags.GetAll(),
@@ -248,6 +261,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	v.Set("cpuperiod", strconv.FormatInt(*flCPUPeriod, 10))
 	v.Set("memory", strconv.FormatInt(memory, 10))
 	v.Set("memswap", strconv.FormatInt(memorySwap, 10))
+	v.Set("shmsize", strconv.FormatInt(shmSize, 10))
 	v.Set("cgroupparent", *flCgroupParent)
 
 	v.Set("dockerfile", relDockerfile)

@@ -54,6 +54,7 @@ docker-create - Create a new container
 [**--restart**[=*RESTART*]]
 [**--security-opt**[=*[]*]]
 [**--stop-signal**[=*SIGNAL*]]
+[**--shm-size**[=*[]*]]
 [**-t**|**--tty**[=*false*]]
 [**-u**|**--user**[=*USER*]]
 [**--ulimit**[=*[]*]]
@@ -251,6 +252,11 @@ This value should always larger than **-m**, so you should always use this with 
 
 **--restart**="*no*"
    Restart policy to apply when a container exits (no, on-failure[:max-retry], always, unless-stopped).
+
+**--shm-size**=""
+   Size of `/dev/shm`. The format is `<number><unit>`. `number` must be greater than `0`.
+   Unit is optional and can be `b` (bytes), `k` (kilobytes), `m` (megabytes), or `g` (gigabytes). If you omit the unit, the system uses bytes.
+   If you omit the size entirely, the system uses `64m`.
 
 **--security-opt**=[]
    Security Options

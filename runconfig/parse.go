@@ -105,6 +105,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		flVolumeDriver      = cmd.String([]string{"-volume-driver"}, "", "Optional volume driver for the container")
 		flStopSignal        = cmd.String([]string{"-stop-signal"}, signal.DefaultStopSignal, fmt.Sprintf("Signal to stop a container, %v by default", signal.DefaultStopSignal))
 		flIsolation         = cmd.String([]string{"-isolation"}, "", "Container isolation level")
+		flShmSize           = cmd.String([]string{"-shm-size"}, "", "Size of /dev/shm, default value is 64MB")
 	)
 
 	cmd.Var(&flAttach, []string{"a", "-attach"}, "Attach to STDIN, STDOUT or STDERR")
@@ -198,6 +199,18 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 	swappiness := *flSwappiness
 	if swappiness != -1 && (swappiness < 0 || swappiness > 100) {
 		return nil, nil, cmd, fmt.Errorf("Invalid value: %d. Valid memory swappiness range is 0-100", swappiness)
+	}
+
+	var parsedShm int64 = 67108864 // initial SHM size is 64MB
+	if *flShmSize != "" {
+		var err error
+		parsedShm, err = units.RAMInBytes(*flShmSize)
+		if err != nil {
+			return nil, nil, cmd, fmt.Errorf("--shm-size: invalid SHM size")
+		}
+		if parsedShm <= 0 {
+			return nil, nil, cmd, fmt.Errorf("--shm-size: SHM size must be greater than 0 . You specified: %v ", parsedShm)
+		}
 	}
 
 	var binds []string
@@ -381,6 +394,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		CgroupParent:   *flCgroupParent,
 		VolumeDriver:   *flVolumeDriver,
 		Isolation:      IsolationLevel(*flIsolation),
+		ShmSize:        parsedShm,
 	}
 
 	// When allocating stdin in attached mode, close stdin at client disconnect

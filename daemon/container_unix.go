@@ -1357,7 +1357,12 @@ func (daemon *Daemon) setupIpcDirs(container *Container) error {
 			return err
 		}
 
-		if err := syscall.Mount("shm", shmPath, "tmpfs", uintptr(syscall.MS_NOEXEC|syscall.MS_NOSUID|syscall.MS_NODEV), label.FormatMountLabel("mode=1777,size=65536k", container.getMountLabel())); err != nil {
+		// When ShmSize is 0 or less, the SHM size is set to 64MB.
+		if container.hostConfig.ShmSize <= 0 {
+			container.hostConfig.ShmSize = 67108864
+		}
+		shmproperty := "mode=1777,size=" + strconv.FormatInt(container.hostConfig.ShmSize, 10)
+		if err := syscall.Mount("shm", shmPath, "tmpfs", uintptr(syscall.MS_NOEXEC|syscall.MS_NOSUID|syscall.MS_NODEV), label.FormatMountLabel(shmproperty, container.getMountLabel())); err != nil {
 			return fmt.Errorf("mounting shm tmpfs: %s", err)
 		}
 		if err := os.Chown(shmPath, rootUID, rootGID); err != nil {
