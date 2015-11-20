@@ -38,10 +38,6 @@ import (
 	"github.com/docker/docker/utils"
 )
 
-const (
-	tarHeaderSize = 512
-)
-
 // CmdBuild builds a new image from the source code at a given path.
 //
 // If '-' is provided instead of a path or URL, Docker will build an image from either a Dockerfile or tar archive read from STDIN.
@@ -454,7 +450,7 @@ func writeToFile(r io.Reader, filename string) error {
 func getContextFromReader(r io.Reader, dockerfileName string) (absContextDir, relDockerfile string, err error) {
 	buf := bufio.NewReader(r)
 
-	magic, err := buf.Peek(tarHeaderSize)
+	magic, err := buf.Peek(archive.HeaderSize)
 	if err != nil && err != io.EOF {
 		return "", "", fmt.Errorf("failed to peek context header from STDIN: %v", err)
 	}
