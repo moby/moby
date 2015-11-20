@@ -22,7 +22,7 @@ func TestAdjustCPUShares(t *testing.T) {
 	}
 
 	hostConfig := &runconfig.HostConfig{
-		CPUShares: linuxMinCPUShares - 1,
+		Resources: runconfig.Resources{CPUShares: linuxMinCPUShares - 1},
 	}
 	daemon.adaptContainerSettings(hostConfig, true)
 	if hostConfig.CPUShares != linuxMinCPUShares {
@@ -60,7 +60,7 @@ func TestAdjustCPUSharesNoAdjustment(t *testing.T) {
 	}
 
 	hostConfig := &runconfig.HostConfig{
-		CPUShares: linuxMinCPUShares - 1,
+		Resources: runconfig.Resources{CPUShares: linuxMinCPUShares - 1},
 	}
 	daemon.adaptContainerSettings(hostConfig, false)
 	if hostConfig.CPUShares != linuxMinCPUShares-1 {

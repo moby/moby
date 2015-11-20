@@ -498,19 +498,23 @@ func (b *Builder) create() (*daemon.Container, error) {
 	}
 	b.runConfig.Image = b.image
 
-	// TODO: why not embed a hostconfig in builder?
-	hostConfig := &runconfig.HostConfig{
+	resources := runconfig.Resources{
+		CgroupParent: b.CgroupParent,
 		CPUShares:    b.CPUShares,
 		CPUPeriod:    b.CPUPeriod,
 		CPUQuota:     b.CPUQuota,
 		CpusetCpus:   b.CPUSetCpus,
 		CpusetMems:   b.CPUSetMems,
-		CgroupParent: b.CgroupParent,
 		Memory:       b.Memory,
 		MemorySwap:   b.MemorySwap,
-		ShmSize:      b.ShmSize,
 		Ulimits:      b.Ulimits,
-		Isolation:    b.Isolation,
+	}
+
+	// TODO: why not embed a hostconfig in builder?
+	hostConfig := &runconfig.HostConfig{
+		Isolation: b.Isolation,
+		ShmSize:   b.ShmSize,
+		Resources: resources,
 	}
 
 	config := *b.runConfig
