@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"text/tabwriter"
 	"text/template"
+	"strings"
 
 	"github.com/docker/docker/api/types"
 	Cli "github.com/docker/docker/cli"

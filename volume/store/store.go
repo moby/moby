@@ -2,6 +2,8 @@ package store
 
 import (
 	"sync"
+	"fmt"
+	"strings"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/locker"

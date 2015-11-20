@@ -5,8 +5,6 @@ package idtools
 import (
 	"os"
 	"path/filepath"
-//TEST
-	"fmt"
 
 	"github.com/docker/docker/pkg/system"
 )
