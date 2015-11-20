@@ -31,6 +31,8 @@ type volumeDriver interface {
 	Create(name string, opts opts) (err error)
 	// Remove the volume with the given name
 	Remove(name string) (err error)
+	// Rename the volume with the given name
+	Rename(oldName, newName string) (err error)
 	// Get the mountpoint of the given volume
 	Path(name string) (mountpoint string, err error)
 	// Mount the given volume and return the mountpoint

@@ -132,6 +132,44 @@ func (r *Root) Create(name string, _ map[string]string) (volume.Volume, error) {
 	return v, nil
 }
 
+// Rename renames a volume.Volume with the provided name
+func (r *Root) Rename(v volume.Volume, newName string) (volume.Volume, error) {
+	if err := r.validateName(newName); err != nil {
+		return nil, err
+	}
+
+	r.m.Lock()
+	defer r.m.Unlock()
+
+	newV, newExists := r.volumes[newName]
+	if newExists {
+		return nil, nil
+	}
+
+	lv, ok := v.(*localVolume)
+	if !ok {
+		return nil, errors.New("unknown volume type")
+	}
+
+	oldPath := lv.path
+	newPath := r.DataPath(newName)
+	if err := idtools.RenamedirAllAs(oldPath, newPath); err != nil {
+		if os.IsExist(err) {
+			return nil, fmt.Errorf("volume already exists under %s", filepath.Dir(newPath))
+		}
+		return nil, err
+	}
+
+	newV = &localVolume{
+		driverName: r.Name(),
+		name:       newName,
+		path:       newPath,
+	}
+	r.volumes[newName] = newV
+
+	return newV, nil
+}
+
 // Remove removes the specified volume and all underlying data. If the
 // given volume does not belong to this driver and an error is
 // returned. The volume is reference counted, if all references are

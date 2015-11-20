@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/url"
+	"strings"
 	"text/tabwriter"
 	"text/template"
 
@@ -25,6 +26,7 @@ func (cli *DockerCli) CmdVolume(args ...string) error {
 		{"create", "Create a volume"},
 		{"inspect", "Return low-level information on a volume"},
 		{"ls", "List volumes"},
+		{"rename", "Rename a volume"},
 		{"rm", "Remove a volume"},
 	}
 
@@ -230,5 +232,33 @@ func (cli *DockerCli) CmdVolumeRm(args ...string) error {
 	if status != 0 {
 		return Cli.StatusError{StatusCode: status}
 	}
+	return nil
+}
+
+// CmdVolumeRename renames a volume.
+//
+// Usage: docker volume rename OLD_NAME NEW_NAME
+func (cli *DockerCli) CmdVolumeRename(args ...string) error {
+	cmd := Cli.Subcmd("volume rename", []string{"OLD_NAME NEW_NAME"}, "Rename a volume", true)
+	cmd.Require(flag.Exact, 2)
+	cmd.ParseFlags(args, true)
+
+	oldName := strings.TrimSpace(cmd.Arg(0))
+	newName := strings.TrimSpace(cmd.Arg(1))
+
+	if oldName == "" || newName == "" {
+		return fmt.Errorf("Error: Neither old nor new names may be empty")
+	}
+
+	volReq := &types.VolumeRenameRequest{
+		OldName: oldName,
+		NewName: newName,
+	}
+
+	_, err := cli.call("POST", "/volumes/"+oldName+"/rename?name="+newName, volReq, nil)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }

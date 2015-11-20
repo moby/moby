@@ -58,3 +58,14 @@ func mkdirAs(path string, mode os.FileMode, ownerUID, ownerGID int, mkAll, chown
 	}
 	return nil
 }
+
+func renamedirAs(oldPath, newPath string) error {
+	// Only rename old path to new path and keep others unchanged
+	oldDirPath := filepath.Dir(oldPath)
+	newDirPath := filepath.Dir(newPath)
+
+	if err := os.Rename(oldDirPath, newDirPath); err != nil && !os.IsExist(err) {
+		return err
+	}
+	return nil
+}

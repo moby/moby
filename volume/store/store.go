@@ -1,6 +1,8 @@
 package store
 
 import (
+	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/Sirupsen/logrus"
@@ -34,6 +36,13 @@ func (s *VolumeStore) set(name string, vc *volumeCounter) {
 func (s *VolumeStore) remove(name string) {
 	s.globalLock.Lock()
 	delete(s.vols, name)
+	s.globalLock.Unlock()
+}
+
+func (s *VolumeStore) rename(oldName, newName string, vc *volumeCounter) {
+	s.globalLock.Lock()
+	delete(s.vols, oldName)
+	s.vols[newName] = vc
 	s.globalLock.Unlock()
 }
 
@@ -90,6 +99,52 @@ func (s *VolumeStore) Create(name, driverName string, opts map[string]string) (v
 
 	s.set(name, &volumeCounter{v, 0})
 	return v, nil
+}
+
+// Rename tries to rename an existing volume with the given name
+func (s *VolumeStore) Rename(v volume.Volume, newName string) error {
+	oldName := normaliseVolumeName(v.Name())
+	newName = normaliseVolumeName(newName)
+	s.locks.Lock(oldName)
+	s.locks.Lock(newName)
+
+	defer s.locks.Unlock(oldName)
+	defer s.locks.Unlock(newName)
+
+	logrus.Debugf("Renaming a old volume: %s", oldName)
+	// Validate the name in a platform-specific manner
+	newValid, err := volume.IsVolumeNameValid(newName)
+	if err != nil {
+		return err
+	}
+	if !newValid {
+		return &OpErr{Err: errInvalidName, Name: newName, Op: "rename"}
+	}
+
+	_, exists := s.get(newName)
+	if exists {
+		return fmt.Errorf(
+			"Conflict. The name %q is already in use. You have to remove (or rename) that volume to be able to reuse that name.", strings.TrimPrefix(newName, "/"))
+	}
+	oldvc, exists := s.get(oldName)
+	if !exists {
+		return &OpErr{Err: errNoSuchVolume, Name: oldName, Op: "rename"}
+	}
+	if oldvc.count > 0 {
+		return &OpErr{Err: errVolumeInUse, Name: oldName, Op: "rename"}
+	}
+
+	vd, err := volumedrivers.GetDriver(oldvc.DriverName())
+	if err != nil {
+		return &OpErr{Err: err, Name: oldvc.DriverName(), Op: "rename"}
+	}
+	newV, err := vd.Rename(oldvc.Volume, newName)
+	if err != nil {
+		return &OpErr{Err: err, Name: newName, Op: "rename"}
+	}
+
+	s.rename(oldName, newName, &volumeCounter{newV, 0})
+	return nil
 }
 
 // Get looks if a volume with the given name exists and returns it if so
