@@ -23,6 +23,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 		e2fsprogs \
 		iptables \
 		procps \
+		xfsprogs \
 		xz-utils \
 		\
 		aufs-tools \

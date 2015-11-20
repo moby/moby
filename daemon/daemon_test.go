@@ -182,7 +182,7 @@ func TestLoadWithVolume(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	daemon, err := initDaemonForVolumesTest(tmp)
+	daemon, err := initDaemonWithVolumeStore(tmp)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -270,7 +270,7 @@ func TestLoadWithBindMount(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	daemon, err := initDaemonForVolumesTest(tmp)
+	daemon, err := initDaemonWithVolumeStore(tmp)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -361,7 +361,7 @@ func TestLoadWithVolume17RC(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	daemon, err := initDaemonForVolumesTest(tmp)
+	daemon, err := initDaemonWithVolumeStore(tmp)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -466,7 +466,7 @@ func TestRemoveLocalVolumesFollowingSymlinks(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	daemon, err := initDaemonForVolumesTest(tmp)
+	daemon, err := initDaemonWithVolumeStore(tmp)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -502,7 +502,7 @@ func TestRemoveLocalVolumesFollowingSymlinks(t *testing.T) {
 	}
 }
 
-func initDaemonForVolumesTest(tmp string) (*Daemon, error) {
+func initDaemonWithVolumeStore(tmp string) (*Daemon, error) {
 	daemon := &Daemon{
 		repository: tmp,
 		root:       tmp,
@@ -547,5 +547,30 @@ func TestParseSecurityOpt(t *testing.T) {
 	config.SecurityOpt = []string{"test"}
 	if err := parseSecurityOpt(container, config); err == nil {
 		t.Fatal("Expected parseSecurityOpt error, got nil")
+	}
+}
+
+func TestNetworkOptions(t *testing.T) {
+	daemon := &Daemon{}
+	dconfigCorrect := &Config{
+		CommonConfig: CommonConfig{
+			DefaultNetwork:   "netPlugin:mynet:dev",
+			ClusterStore:     "consul://localhost:8500",
+			ClusterAdvertise: "192.168.0.1:8000",
+		},
+	}
+
+	if _, err := daemon.networkOptions(dconfigCorrect); err != nil {
+		t.Fatalf("Expect networkOptions sucess, got error: %v", err)
+	}
+
+	dconfigWrong := &Config{
+		CommonConfig: CommonConfig{
+			ClusterStore: "consul://localhost:8500://test://bbb",
+		},
+	}
+
+	if _, err := daemon.networkOptions(dconfigWrong); err == nil {
+		t.Fatalf("Expected networkOptions error, got nil")
 	}
 }

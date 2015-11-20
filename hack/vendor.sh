@@ -20,7 +20,7 @@ clone git github.com/tchap/go-patricia v2.1.0
 clone git golang.org/x/net 3cffabab72adf04f8e3b01c5baf775361837b5fe https://github.com/golang/net.git
 
 #get libnetwork packages
-clone git github.com/docker/libnetwork e7719596c01a83f9ef24d33e9d609a64acacd7b8
+clone git github.com/docker/libnetwork b4ddf18317b19d6e4bcc821145589749206a7d00
 clone git github.com/armon/go-metrics eb0af217e5e9747e41dd5303755356b62d28e3ec
 clone git github.com/hashicorp/go-msgpack 71c2886f5a673a35f909803f38ece5810165097b
 clone git github.com/hashicorp/memberlist 9a1e242e454d2443df330bdd51a436d5a9058fc4
@@ -46,7 +46,9 @@ clone git github.com/endophage/gotuf 2df1c8e0a7b7e10ae2113bf37aaa1bf1c1de8cc5
 clone git github.com/jfrazelle/go 6e461eb70cb4187b41a84e9a567d7137bdbe0f16
 clone git github.com/agl/ed25519 d2b94fd789ea21d12fac1a4443dd3a3f79cda72c
 
-clone git github.com/opencontainers/runc 6c198ae2d065c37f44316e0de3df7f3b88950923 # libcontainer
+# this runc commit from branch relabel_fix_docker_1.9.1, pls remove it when you
+# update next time
+clone git github.com/opencontainers/runc 1349b37bd56f4f5ce2690b5b2c0f53f88a261c67 # libcontainer
 # libcontainer deps (see src/github.com/opencontainers/runc/Godeps/Godeps.json)
 clone git github.com/coreos/go-systemd v3
 clone git github.com/godbus/dbus v2

@@ -377,6 +377,29 @@ func (s *DockerSuite) TestDaemonIPv6FixedCIDR(c *check.C) {
 	}
 }
 
+// TestDaemonIPv6FixedCIDRAndMac checks that when the daemon is started with ipv6 fixed CIDR
+// the running containers are given a an IPv6 address derived from the MAC address and the ipv6 fixed CIDR
+func (s *DockerSuite) TestDaemonIPv6FixedCIDRAndMac(c *check.C) {
+	err := setupV6()
+	c.Assert(err, checker.IsNil)
+
+	d := NewDaemon(c)
+
+	err = d.StartWithBusybox("--ipv6", "--fixed-cidr-v6='2001:db8:1::/64'")
+	c.Assert(err, checker.IsNil)
+	defer d.Stop()
+
+	out, err := d.Cmd("run", "-itd", "--name=ipv6test", "--mac-address", "AA:BB:CC:DD:EE:FF", "busybox")
+	c.Assert(err, checker.IsNil)
+
+	out, err = d.Cmd("inspect", "--format", "'{{.NetworkSettings.Networks.bridge.GlobalIPv6Address}}'", "ipv6test")
+	c.Assert(err, checker.IsNil)
+	c.Assert(strings.Trim(out, " \r\n'"), checker.Equals, "2001:db8:1::aabb:ccdd:eeff")
+
+	err = teardownV6()
+	c.Assert(err, checker.IsNil)
+}
+
 func (s *DockerDaemonSuite) TestDaemonLogLevelWrong(c *check.C) {
 	c.Assert(s.d.Start("--log-level=bogus"), check.NotNil, check.Commentf("Daemon shouldn't start with wrong log level"))
 }
@@ -794,7 +817,33 @@ func (s *DockerDaemonSuite) TestDaemonBridgeFixedCidr(c *check.C) {
 	}
 }
 
-func (s *DockerDaemonSuite) TestDaemonBridgeFixedCidrFixedCIDREqualBridgeNetwork(c *check.C) {
+func (s *DockerDaemonSuite) TestDaemonBridgeFixedCidr2(c *check.C) {
+	d := s.d
+
+	bridgeName := "external-bridge"
+	bridgeIP := "10.2.2.1/16"
+
+	out, err := createInterface(c, "bridge", bridgeName, bridgeIP)
+	c.Assert(err, check.IsNil, check.Commentf(out))
+	defer deleteInterface(c, bridgeName)
+
+	err = d.StartWithBusybox("--bip", bridgeIP, "--fixed-cidr", "10.2.2.0/24")
+	c.Assert(err, check.IsNil)
+	defer s.d.Restart()
+
+	out, err = d.Cmd("run", "-d", "--name", "bb", "busybox", "top")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	defer d.Cmd("stop", "bb")
+
+	out, err = d.Cmd("exec", "bb", "/bin/sh", "-c", "ifconfig eth0 | awk '/inet addr/{print substr($2,6)}'")
+	c.Assert(out, checker.Equals, "10.2.2.0\n")
+
+	out, err = d.Cmd("run", "--rm", "busybox", "/bin/sh", "-c", "ifconfig eth0 | awk '/inet addr/{print substr($2,6)}'")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(out, checker.Equals, "10.2.2.2\n")
+}
+
+func (s *DockerDaemonSuite) TestDaemonBridgeFixedCIDREqualBridgeNetwork(c *check.C) {
 	d := s.d
 
 	bridgeName := "external-bridge"
@@ -1242,10 +1291,10 @@ func (s *DockerDaemonSuite) TestDaemonLoggingDriverNoneLogsError(c *check.C) {
 	}
 	id := strings.TrimSpace(out)
 	out, err = s.d.Cmd("logs", id)
-	if err != nil {
-		c.Fatalf("Logs request should be sent and then fail with \"none\" driver")
+	if err == nil {
+		c.Fatalf("Logs should fail with 'none' driver")
 	}
-	if !strings.Contains(out, `Error running logs job: Failed to get logging factory: logger: no log driver named 'none' is registered`) {
+	if !strings.Contains(out, `"logs" command is supported only for "json-file" and "journald" logging drivers (got: none)`) {
 		c.Fatalf("There should be an error about none not being a recognized log driver, got: %s", out)
 	}
 }

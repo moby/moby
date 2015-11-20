@@ -21,6 +21,8 @@ var (
 	ErrConflictUserDefinedNetworkAndLinks = fmt.Errorf("Conflicting options: --net=<NETWORK> can't be used with links. This would result in undefined behavior")
 	// ErrConflictSharedNetwork conflict between private and other networks
 	ErrConflictSharedNetwork = fmt.Errorf("Container sharing network namespace with another container or host cannot be connected to any other network")
+	// ErrConflictHostNetwork conflict from being disconnected from host network or connected to host network.
+	ErrConflictHostNetwork = fmt.Errorf("Container cannot be disconnected from host network or connected to host network")
 	// ErrConflictNoNetwork conflict between private and other networks
 	ErrConflictNoNetwork = fmt.Errorf("Container cannot be connected to multiple networks with one of the networks in --none mode")
 	// ErrConflictNetworkAndDNS conflict between --dns and the network mode
@@ -361,26 +363,31 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		PortBindings:      portBindings,
 		Links:             flLinks.GetAll(),
 		PublishAllPorts:   *flPublishAll,
-		DNS:               flDNS.GetAll(),
-		DNSSearch:         flDNSSearch.GetAll(),
-		DNSOptions:        flDNSOptions.GetAll(),
-		ExtraHosts:        flExtraHosts.GetAll(),
-		VolumesFrom:       flVolumesFrom.GetAll(),
-		NetworkMode:       NetworkMode(*flNetMode),
-		IpcMode:           ipcMode,
-		PidMode:           pidMode,
-		UTSMode:           utsMode,
-		Devices:           deviceMappings,
-		CapAdd:            stringutils.NewStrSlice(flCapAdd.GetAll()...),
-		CapDrop:           stringutils.NewStrSlice(flCapDrop.GetAll()...),
-		GroupAdd:          flGroupAdd.GetAll(),
-		RestartPolicy:     restartPolicy,
-		SecurityOpt:       flSecurityOpt.GetAll(),
-		ReadonlyRootfs:    *flReadonlyRootfs,
-		Ulimits:           flUlimits.GetList(),
-		LogConfig:         LogConfig{Type: *flLoggingDriver, Config: loggingOpts},
-		CgroupParent:      *flCgroupParent,
-		VolumeDriver:      *flVolumeDriver,
+		// Make sure the dns fields are never nil.
+		// New containers don't ever have those fields nil,
+		// but pre created containers can still have those nil values.
+		// See https://github.com/docker/docker/pull/17779
+		// for a more detailed explanation on why we don't want that.
+		DNS:            flDNS.GetAllOrEmpty(),
+		DNSSearch:      flDNSSearch.GetAllOrEmpty(),
+		DNSOptions:     flDNSOptions.GetAllOrEmpty(),
+		ExtraHosts:     flExtraHosts.GetAll(),
+		VolumesFrom:    flVolumesFrom.GetAll(),
+		NetworkMode:    NetworkMode(*flNetMode),
+		IpcMode:        ipcMode,
+		PidMode:        pidMode,
+		UTSMode:        utsMode,
+		Devices:        deviceMappings,
+		CapAdd:         stringutils.NewStrSlice(flCapAdd.GetAll()...),
+		CapDrop:        stringutils.NewStrSlice(flCapDrop.GetAll()...),
+		GroupAdd:       flGroupAdd.GetAll(),
+		RestartPolicy:  restartPolicy,
+		SecurityOpt:    flSecurityOpt.GetAll(),
+		ReadonlyRootfs: *flReadonlyRootfs,
+		Ulimits:        flUlimits.GetList(),
+		LogConfig:      LogConfig{Type: *flLoggingDriver, Config: loggingOpts},
+		CgroupParent:   *flCgroupParent,
+		VolumeDriver:   *flVolumeDriver,
 	}
 
 	// When allocating stdin in attached mode, close stdin at client disconnect

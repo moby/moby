@@ -229,10 +229,10 @@ func populateCommand(c *Container, env []string) error {
 		ipc.HostIpc = c.hostConfig.IpcMode.IsHost()
 		if ipc.HostIpc {
 			if _, err := os.Stat("/dev/shm"); err != nil {
-				return fmt.Errorf("/dev/shm is not mounted, but must be for --host=ipc")
+				return fmt.Errorf("/dev/shm is not mounted, but must be for --ipc=host")
 			}
 			if _, err := os.Stat("/dev/mqueue"); err != nil {
-				return fmt.Errorf("/dev/mqueue is not mounted, but must be for --host=ipc")
+				return fmt.Errorf("/dev/mqueue is not mounted, but must be for --ipc=host")
 			}
 			c.ShmPath = "/dev/shm"
 			c.MqueuePath = "/dev/mqueue"
@@ -621,7 +621,9 @@ func (container *Container) buildPortMapInfo(ep libnetwork.Endpoint, networkSett
 		return networkSettings, nil
 	}
 
-	networkSettings.Ports = nat.PortMap{}
+	if networkSettings.Ports == nil {
+		networkSettings.Ports = nat.PortMap{}
+	}
 
 	if expData, ok := driverInfo[netlabel.ExposedPorts]; ok {
 		if exposedPorts, ok := expData.([]types.TransportPort); ok {
@@ -723,6 +725,10 @@ func (container *Container) updateNetworkSettings(n libnetwork.Network) error {
 		container.NetworkSettings = &network.Settings{Networks: make(map[string]*network.EndpointSettings)}
 	}
 
+	if !container.hostConfig.NetworkMode.IsHost() && runconfig.NetworkMode(n.Type()).IsHost() {
+		return runconfig.ErrConflictHostNetwork
+	}
+
 	for s := range container.NetworkSettings.Networks {
 		sn, err := container.daemon.FindNetwork(s)
 		if err != nil {
@@ -816,6 +822,17 @@ func (container *Container) buildCreateEndpointOptions(n libnetwork.Network) ([]
 		createOptions []libnetwork.EndpointOption
 	)
 
+	if n.Name() == "bridge" || container.NetworkSettings.IsAnonymousEndpoint {
+		createOptions = append(createOptions, libnetwork.CreateOptionAnonymous())
+	}
+
+	// Other configs are applicable only for the endpoint in the network
+	// to which container was connected to on docker run.
+	if n.Name() != container.hostConfig.NetworkMode.NetworkName() &&
+		!(n.Name() == "bridge" && container.hostConfig.NetworkMode.IsDefault()) {
+		return createOptions, nil
+	}
+
 	if container.Config.ExposedPorts != nil {
 		portSpecs = container.Config.ExposedPorts
 	}
@@ -885,10 +902,6 @@ func (container *Container) buildCreateEndpointOptions(n libnetwork.Network) ([]
 		createOptions = append(createOptions, libnetwork.EndpointOptionGeneric(genericOption))
 	}
 
-	if n.Name() == "bridge" || container.NetworkSettings.IsAnonymousEndpoint {
-		createOptions = append(createOptions, libnetwork.CreateOptionAnonymous())
-	}
-
 	return createOptions, nil
 }
 
@@ -927,6 +940,13 @@ func (container *Container) allocateNetwork() error {
 		if mode.IsDefault() {
 			networkName = controller.Config().Daemon.DefaultNetwork
 		}
+		if mode.IsUserDefined() {
+			n, err := container.daemon.FindNetwork(networkName)
+			if err != nil {
+				return err
+			}
+			networkName = n.Name()
+		}
 		container.NetworkSettings.Networks = make(map[string]*network.EndpointSettings)
 		container.NetworkSettings.Networks[networkName] = new(network.EndpointSettings)
 		updateSettings = true
@@ -953,7 +973,7 @@ func (container *Container) getNetworkSandbox() libnetwork.Sandbox {
 	return sb
 }
 
-// ConnectToNetwork connects a container to a netork
+// ConnectToNetwork connects a container to a network
 func (container *Container) ConnectToNetwork(idOrName string) error {
 	if !container.Running {
 		return derr.ErrorCodeNotRunning.WithArgs(container.ID)
@@ -967,9 +987,7 @@ func (container *Container) ConnectToNetwork(idOrName string) error {
 	return nil
 }
 
-func (container *Container) connectToNetwork(idOrName string, updateSettings bool) error {
-	var err error
-
+func (container *Container) connectToNetwork(idOrName string, updateSettings bool) (err error) {
 	if container.hostConfig.NetworkMode.IsContainer() {
 		return runconfig.ErrConflictSharedNetwork
 	}
@@ -1196,6 +1214,10 @@ func (container *Container) DisconnectFromNetwork(n libnetwork.Network) error {
 		return derr.ErrorCodeNotRunning.WithArgs(container.ID)
 	}
 
+	if container.hostConfig.NetworkMode.IsHost() && runconfig.NetworkMode(n.Type()).IsHost() {
+		return runconfig.ErrConflictHostNetwork
+	}
+
 	if err := container.disconnectFromNetwork(n); err != nil {
 		return err
 	}
@@ -1213,7 +1235,11 @@ func (container *Container) disconnectFromNetwork(n libnetwork.Network) error {
 	)
 
 	s := func(current libnetwork.Endpoint) bool {
-		if sb := current.Info().Sandbox(); sb != nil {
+		epInfo := current.Info()
+		if epInfo == nil {
+			return false
+		}
+		if sb := epInfo.Sandbox(); sb != nil {
 			if sb.ContainerID() == container.ID {
 				ep = current
 				sbox = sb
@@ -1456,22 +1482,21 @@ func (container *Container) setupIpcDirs() error {
 	return nil
 }
 
-func (container *Container) unmountIpcMounts() error {
+func (container *Container) unmountIpcMounts(unmount func(pth string) error) {
 	if container.hostConfig.IpcMode.IsContainer() || container.hostConfig.IpcMode.IsHost() {
-		return nil
+		return
 	}
 
-	var errors []string
+	var warnings []string
 
 	if !container.hasMountFor("/dev/shm") {
 		shmPath, err := container.shmPath()
 		if err != nil {
 			logrus.Error(err)
-			errors = append(errors, err.Error())
-		} else {
-			if err := detachMounted(shmPath); err != nil {
-				logrus.Errorf("failed to umount %s: %v", shmPath, err)
-				errors = append(errors, err.Error())
+			warnings = append(warnings, err.Error())
+		} else if shmPath != "" {
+			if err := unmount(shmPath); err != nil {
+				warnings = append(warnings, fmt.Sprintf("failed to umount %s: %v", shmPath, err))
 			}
 
 		}
@@ -1481,20 +1506,17 @@ func (container *Container) unmountIpcMounts() error {
 		mqueuePath, err := container.mqueuePath()
 		if err != nil {
 			logrus.Error(err)
-			errors = append(errors, err.Error())
-		} else {
-			if err := detachMounted(mqueuePath); err != nil {
-				logrus.Errorf("failed to umount %s: %v", mqueuePath, err)
-				errors = append(errors, err.Error())
+			warnings = append(warnings, err.Error())
+		} else if mqueuePath != "" {
+			if err := unmount(mqueuePath); err != nil {
+				warnings = append(warnings, fmt.Sprintf("failed to umount %s: %v", mqueuePath, err))
 			}
 		}
 	}
 
-	if len(errors) > 0 {
-		return fmt.Errorf("failed to cleanup ipc mounts:\n%v", strings.Join(errors, "\n"))
+	if len(warnings) > 0 {
+		logrus.Warnf("failed to cleanup ipc mounts:\n%v", strings.Join(warnings, "\n"))
 	}
-
-	return nil
 }
 
 func (container *Container) ipcMounts() []execdriver.Mount {

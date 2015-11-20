@@ -65,6 +65,11 @@ func Validate(label string) error {
 	return nil
 }
 
+// RelabelNeeded checks whether the user requested a relabel
+func RelabelNeeded(label string) bool {
+	return false
+}
+
 // IsShared checks that the label includes a "shared" mark
 func IsShared(label string) bool {
 	return false

@@ -450,6 +450,8 @@ func (c *networkConfiguration) processIPAM(id string, ipamV4Data, ipamV6Data []d
 	}
 
 	if len(ipamV6Data) > 0 {
+		c.AddressIPv6 = ipamV6Data[0].Pool
+
 		if ipamV6Data[0].Gateway != nil {
 			c.AddressIPv6 = types.GetIPNetCopy(ipamV6Data[0].Gateway)
 		}
@@ -738,7 +740,9 @@ func (d *driver) DeleteNetwork(nid string) error {
 
 	// We only delete the bridge when it's not the default bridge. This is keep the backward compatible behavior.
 	if !config.DefaultBridge {
-		err = netlink.LinkDel(n.bridge.Link)
+		if err := netlink.LinkDel(n.bridge.Link); err != nil {
+			logrus.Warnf("Failed to remove bridge interface %s on network %s delete: %v", config.BridgeName, nid, err)
+		}
 	}
 
 	return d.storeDelete(config)
@@ -959,13 +963,20 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 	if endpoint.addrv6 == nil && config.EnableIPv6 {
 		var ip6 net.IP
 		network := n.bridge.bridgeIPv6
+		if config.AddressIPv6 != nil {
+			network = config.AddressIPv6
+		}
+
 		ones, _ := network.Mask.Size()
-		if ones <= 80 {
-			ip6 = make(net.IP, len(network.IP))
-			copy(ip6, network.IP)
-			for i, h := range endpoint.macAddress {
-				ip6[i+10] = h
-			}
+		if ones > 80 {
+			err = types.ForbiddenErrorf("Cannot self generate an IPv6 address on network %v: At least 48 host bits are needed.", network)
+			return err
+		}
+
+		ip6 = make(net.IP, len(network.IP))
+		copy(ip6, network.IP)
+		for i, h := range endpoint.macAddress {
+			ip6[i+10] = h
 		}
 
 		endpoint.addrv6 = &net.IPNet{IP: ip6, Mask: network.Mask}
@@ -1037,9 +1048,8 @@ func (d *driver) DeleteEndpoint(nid, eid string) error {
 	// Remove port mappings. Do not stop endpoint delete on unmap failure
 	n.releasePorts(ep)
 
-	// Try removal of link. Discard error: link pair might have
-	// already been deleted by sandbox delete. Make sure defer
-	// does not see this error either.
+	// Try removal of link. Discard error: it is a best effort.
+	// Also make sure defer does not see this error either.
 	if link, err := netlink.LinkByName(ep.srcName); err == nil {
 		netlink.LinkDel(link)
 	}
