@@ -158,7 +158,7 @@ func (m *containerMonitor) Start() error {
 			return err
 		}
 
-		pipes := execdriver.NewPipes(m.container.stdin, m.container.stdout, m.container.stderr, m.container.Config.OpenStdin)
+		pipes := execdriver.NewPipes(m.container.Stdin(), m.container.Stdout(), m.container.Stderr(), m.container.Config.OpenStdin)
 
 		m.logEvent("start")
 
@@ -329,18 +329,8 @@ func (m *containerMonitor) resetContainer(lock bool) {
 		defer container.Unlock()
 	}
 
-	if container.Config.OpenStdin {
-		if err := container.stdin.Close(); err != nil {
-			logrus.Errorf("%s: Error close stdin: %s", container.ID, err)
-		}
-	}
-
-	if err := container.stdout.Clean(); err != nil {
-		logrus.Errorf("%s: Error close stdout: %s", container.ID, err)
-	}
-
-	if err := container.stderr.Clean(); err != nil {
-		logrus.Errorf("%s: Error close stderr: %s", container.ID, err)
+	if err := container.CloseStreams(); err != nil {
+		logrus.Errorf("%s: %s", container.ID, err)
 	}
 
 	if container.command != nil && container.command.ProcessConfig.Terminal != nil {
@@ -351,7 +341,7 @@ func (m *containerMonitor) resetContainer(lock bool) {
 
 	// Re-create a brand new stdin pipe once the container exited
 	if container.Config.OpenStdin {
-		container.stdin, container.stdinPipe = io.Pipe()
+		container.NewInputPipes()
 	}
 
 	if container.logDriver != nil {
