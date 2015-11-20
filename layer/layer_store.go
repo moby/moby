@@ -328,42 +328,39 @@ func (ls *layerStore) deleteLayer(layer *roLayer, metadata *Metadata) error {
 	return nil
 }
 
-func (ls *layerStore) releaseLayers(l *roLayer, removed *[]Metadata, depth int) error {
-	if l.referenceCount == 0 {
-		panic("layer not retained")
-	}
-	l.referenceCount--
-	if l.referenceCount != 0 {
-		return nil
-	}
-
-	if len(*removed) == 0 && depth > 0 {
-		panic("cannot remove layer with child")
-	}
-	if l.hasReferences() {
-		panic("cannot delete referenced layer")
-	}
-	var metadata Metadata
-	if err := ls.deleteLayer(l, &metadata); err != nil {
-		return err
-	}
-
-	delete(ls.layerMap, l.chainID)
-	*removed = append(*removed, metadata)
-
-	if l.parent != nil {
-		if err := ls.releaseLayers(l.parent, removed, depth+1); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (ls *layerStore) releaseLayer(layer *roLayer) ([]Metadata, error) {
+func (ls *layerStore) releaseLayer(l *roLayer) ([]Metadata, error) {
+	depth := 0
 	removed := []Metadata{}
-	err := ls.releaseLayers(layer, &removed, 0)
-	return removed, err
+	for {
+		if l.referenceCount == 0 {
+			panic("layer not retained")
+		}
+		l.referenceCount--
+		if l.referenceCount != 0 {
+			return removed, nil
+		}
+
+		if len(removed) == 0 && depth > 0 {
+			panic("cannot remove layer with child")
+		}
+		if l.hasReferences() {
+			panic("cannot delete referenced layer")
+		}
+		var metadata Metadata
+		if err := ls.deleteLayer(l, &metadata); err != nil {
+			return nil, err
+		}
+
+		delete(ls.layerMap, l.chainID)
+		removed = append(removed, metadata)
+
+		if l.parent == nil {
+			return removed, nil
+		}
+
+		depth++
+		l = l.parent
+	}
 }
 
 func (ls *layerStore) Release(l Layer) ([]Metadata, error) {
