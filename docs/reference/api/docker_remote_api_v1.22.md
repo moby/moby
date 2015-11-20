@@ -482,6 +482,7 @@ Return low-level information on the container `id`
 			"ExitCode": 9,
 			"FinishedAt": "2015-01-06T15:47:32.080254511Z",
 			"OOMKilled": false,
+			"Dead": false,
 			"Paused": false,
 			"Pid": 0,
 			"Restarting": false,
