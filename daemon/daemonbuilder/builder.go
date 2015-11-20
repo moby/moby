@@ -161,7 +161,7 @@ func (d Docker) Copy(c *daemon.Container, destPath string, src builder.FileInfo,
 		}
 		return fixPermissions(srcPath, destPath, rootUID, rootGID, destExists)
 	}
-	if decompress {
+	if decompress && archive.IsArchivePath(srcPath) {
 		// Only try to untar if it is a file and that we've been told to decompress (when ADD-ing a remote file)
 
 		// First try to unpack the source as an archive
@@ -174,11 +174,11 @@ func (d Docker) Copy(c *daemon.Container, destPath string, src builder.FileInfo,
 		}
 
 		// try to successfully untar the orig
-		if err := d.Archiver.UntarPath(srcPath, tarDest); err == nil {
-			return nil
-		} else if err != io.EOF {
-			logrus.Debugf("Couldn't untar to %s: %v", tarDest, err)
+		err := d.Archiver.UntarPath(srcPath, tarDest)
+		if err != nil {
+			logrus.Errorf("Couldn't untar to %s: %v", tarDest, err)
 		}
+		return err
 	}
 
 	// only needed for fixPermissions, but might as well put it before CopyFileWithTar
