@@ -33,7 +33,6 @@ import (
 	"github.com/docker/libnetwork/types"
 	blkiodev "github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/opencontainers/runc/libcontainer/label"
-	"github.com/vishvananda/netlink"
 )
 
 const (
@@ -668,25 +667,6 @@ func (daemon *Daemon) conditionalMountOnStart(container *container.Container) er
 // during the cleanup of a container to unmount.
 func (daemon *Daemon) conditionalUnmountOnCleanup(container *container.Container) {
 	daemon.Unmount(container)
-}
-
-// getDefaultRouteMtu returns the MTU for the default route's interface.
-func getDefaultRouteMtu() (int, error) {
-	routes, err := netlink.RouteList(nil, 0)
-	if err != nil {
-		return 0, err
-	}
-	for _, r := range routes {
-		// a nil Dst means that this is the default route.
-		if r.Dst == nil {
-			i, err := net.InterfaceByIndex(r.LinkIndex)
-			if err != nil {
-				continue
-			}
-			return i.MTU, nil
-		}
-	}
-	return 0, errNoDefaultRoute
 }
 
 func restoreCustomImage(driver graphdriver.Driver, is image.Store, ls layer.Store, ts tag.Store) error {

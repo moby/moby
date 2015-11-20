@@ -1382,12 +1382,7 @@ func setDefaultMtu(config *Config) {
 		return
 	}
 	config.Mtu = defaultNetworkMtu
-	if routeMtu, err := getDefaultRouteMtu(); err == nil {
-		config.Mtu = routeMtu
-	}
 }
-
-var errNoDefaultRoute = errors.New("no default route was found")
 
 // verifyContainerSettings performs validation of the hostconfig and config
 // structures.
