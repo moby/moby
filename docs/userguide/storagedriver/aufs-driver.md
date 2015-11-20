@@ -87,7 +87,7 @@ DOCKER_OPTS="--storage-driver=aufs"
 Once your daemon is running, verify the storage driver with the `docker info` command.
 
 ```bash
-$ sudo docker info
+$ docker info
 Containers: 1
 Images: 4
 Storage Driver: aufs
@@ -97,7 +97,7 @@ Storage Driver: aufs
  Dirperm1 Supported: false
 Execution Driver: native-0.2
 ...output truncated...
-````
+```
 
 The output above shows that the Docker daemon is running the AUFS storage driver on top of an existing ext4 backing filesystem.
 
