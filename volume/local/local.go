@@ -132,7 +132,7 @@ func (r *Root) Create(name string, _ map[string]string) (volume.Volume, error) {
 	return v, nil
 }
 
-// Rename renames a  volume.Volume with the provided name
+// Rename renames a volume.Volume with the provided name
 func (r *Root) Rename(v volume.Volume, newName string)  (volume.Volume, error) {
         if err := r.validateName(newName); err != nil {
                 return nil, err
@@ -151,10 +151,19 @@ func (r *Root) Rename(v volume.Volume, newName string)  (volume.Volume, error) {
                 return nil, errors.New("unknown volume type")
         }
 
+	old_path := lv.path
+	new_path := r.DataPath(newName)
+	if err := idtools.RenamedirAllAs(old_path, new_path); err != nil {
+                if os.IsExist(err) {
+			return nil, fmt.Errorf("volume already exists under %s", filepath.Dir(new_path))
+                }
+		return nil, err
+        }
+
 	new_v = &localVolume{
 		driverName: r.Name(),
 		name:       newName,
-		path:       lv.path,
+		path:       new_path,
 	}
 	r.volumes[newName] = new_v
 	

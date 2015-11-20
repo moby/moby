@@ -364,7 +364,7 @@ type VolumeCreateRequest struct {
 // VolumeRenameRequest contains the response for the remote API:
 // POST "/volumes/{name:.*}/rename"
 type VolumeRenameRequest struct {
-        OldName       string            // oldName is the requested name of the volume
+	OldName       string            // oldName is the requested name of the volume
 	NewName       string            // newName is the requested name of the volume
 }
 

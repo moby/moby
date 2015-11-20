@@ -41,6 +41,11 @@ func MkdirAllAs(path string, mode os.FileMode, ownerUID, ownerGID int) error {
 	return mkdirAs(path, mode, ownerUID, ownerGID, true, true)
 }
 
+// RenamedirAllAs renames a directory (include any along the path)
+func RenamedirAllAs(old_path, new_path string) error {
+	return renamedirAs(old_path, new_path)
+}
+
 // MkdirAllNewAs creates a directory (include any along the path) and then modifies
 // ownership ONLY of newly created directories to the requested uid/gid. If the
 // directories along the path exist, no change of ownership will be performed

@@ -8,7 +8,6 @@ import (
 	"net/url"
 	"text/tabwriter"
 	"text/template"
-	"strings"
 
 	"github.com/docker/docker/api/types"
 	Cli "github.com/docker/docker/cli"
@@ -26,8 +25,8 @@ func (cli *DockerCli) CmdVolume(args ...string) error {
 		{"create", "Create a volume"},
 		{"inspect", "Return low-level information on a volume"},
 		{"ls", "List volumes"},
-		{"rm", "Remove a volume"},
 		{"rename", "Rename a volume"},
+		{"rm", "Remove a volume"},
 	}
 
 	for _, cmd := range commands {
@@ -260,7 +259,6 @@ func (cli *DockerCli) CmdVolumeRename(args ...string) error {
 		fmt.Fprintf(cli.out, "%s\n", err)
                 return err
         }
-	fmt.Fprintf(cli.out, "%s\n", newName)
 
         return nil
 }
