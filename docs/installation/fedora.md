@@ -48,7 +48,7 @@ There are two ways to install Docker Engine.  You can install with the `yum` pac
 
     For Fedora 21 run:
 
-        $ echo | sudo tee /etc/yum.repos.d/docker.repo <<-EOF
+        $ sudo tee /etc/yum.repos.d/docker.repo <<-EOF
         [dockerrepo]
         name=Docker Repository
         baseurl=https://yum.dockerproject.org/repo/main/fedora/21
