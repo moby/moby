@@ -311,6 +311,9 @@ func (s *router) postBuild(ctx context.Context, w http.ResponseWriter, r *http.R
 	if httputils.BoolValue(r, "pull") && version.GreaterThanOrEqualTo("1.16") {
 		buildConfig.Pull = true
 	}
+	if httputils.BoolValue(r, "push") && version.GreaterThanOrEqualTo("1.22") {
+		buildConfig.Push = true
+	}
 
 	repoAndTags, err := sanitizeRepoAndTags(r.Form["t"])
 	if err != nil {
@@ -430,8 +433,33 @@ func (s *router) postBuild(ctx context.Context, w http.ResponseWriter, r *http.R
 		if err := s.daemon.TagImage(rt.repo, rt.tag, string(imgID), true); err != nil {
 			return errf(err)
 		}
-	}
+		// push the repo to the registry
+		if buildConfig.Push == true {
+			metaHeaders := map[string][]string{}
+			for k, v := range r.Header {
+				if strings.HasPrefix(k, "X-Meta-") {
+					metaHeaders[k] = v
+				}
+			}
 
+			authConfig := &cliconfig.AuthConfig{}
+			imagePushConfig := &graph.ImagePushConfig{
+				MetaHeaders: metaHeaders,
+				AuthConfig:  authConfig,
+				Tag:         r.Form.Get("tag"),
+				OutStream:   output,
+			}
+			w.Header().Set("Content-Type", "application/json")
+
+			if err := s.daemon.PushImage(rt.repo, imagePushConfig); err != nil {
+				if !output.Flushed() {
+					return err
+				}
+				sf := streamformatter.NewJSONStreamFormatter()
+				output.Write(sf.FormatError(err))
+			}
+		}
+	}
 	return nil
 }
 

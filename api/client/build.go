@@ -56,6 +56,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	rm := cmd.Bool([]string{"-rm"}, true, "Remove intermediate containers after a successful build")
 	forceRm := cmd.Bool([]string{"-force-rm"}, false, "Always remove intermediate containers")
 	pull := cmd.Bool([]string{"-pull"}, false, "Always attempt to pull a newer version of the image")
+	push := cmd.Bool([]string{"-push"}, false, "Attempt to push the image after a successful build")
 	dockerfileName := cmd.String([]string{"f", "-file"}, "", "Name of the Dockerfile (Default is 'PATH/Dockerfile')")
 	flMemoryString := cmd.String([]string{"m", "-memory"}, "", "Memory limit")
 	flMemorySwap := cmd.String([]string{"-memory-swap"}, "", "Total memory (memory + swap), '-1' to disable swap")
@@ -235,6 +236,10 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 
 	if *pull {
 		v.Set("pull", "1")
+	}
+
+	if *push {
+		v.Set("push", "1")
 	}
 
 	if !runconfig.IsolationLevel.IsDefault(runconfig.IsolationLevel(*isolation)) {
