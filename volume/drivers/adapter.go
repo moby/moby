@@ -29,14 +29,13 @@ func (a *volumeDriverAdapter) Remove(v volume.Volume) error {
 func (a *volumeDriverAdapter) Rename(v volume.Volume, newName string) (volume.Volume, error) {
 	err := a.proxy.Rename(v.Name(), newName)
 	if err != nil {
-                return nil, err
-        }
-        return &volumeAdapter{
-                proxy:      a.proxy,
-                name:       newName,
-                driverName: a.name}, nil
+		return nil, err
+	}
+	return &volumeAdapter{
+		proxy:      a.proxy,
+		name:       newName,
+		driverName: a.name}, nil
 }
-
 
 type volumeAdapter struct {
 	proxy      *volumeDriverProxy

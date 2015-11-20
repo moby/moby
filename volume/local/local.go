@@ -133,41 +133,41 @@ func (r *Root) Create(name string, _ map[string]string) (volume.Volume, error) {
 }
 
 // Rename renames a volume.Volume with the provided name
-func (r *Root) Rename(v volume.Volume, newName string)  (volume.Volume, error) {
-        if err := r.validateName(newName); err != nil {
-                return nil, err
-        }
+func (r *Root) Rename(v volume.Volume, newName string) (volume.Volume, error) {
+	if err := r.validateName(newName); err != nil {
+		return nil, err
+	}
 
-        r.m.Lock()
-        defer r.m.Unlock()
+	r.m.Lock()
+	defer r.m.Unlock()
 
-        new_v, new_exists := r.volumes[newName]
-        if new_exists {
-                return nil, nil
-        }
+	newV, newExists := r.volumes[newName]
+	if newExists {
+		return nil, nil
+	}
 
 	lv, ok := v.(*localVolume)
-        if !ok {
-                return nil, errors.New("unknown volume type")
-        }
+	if !ok {
+		return nil, errors.New("unknown volume type")
+	}
 
-	old_path := lv.path
-	new_path := r.DataPath(newName)
-	if err := idtools.RenamedirAllAs(old_path, new_path); err != nil {
-                if os.IsExist(err) {
-			return nil, fmt.Errorf("volume already exists under %s", filepath.Dir(new_path))
-                }
+	oldPath := lv.path
+	newPath := r.DataPath(newName)
+	if err := idtools.RenamedirAllAs(oldPath, newPath); err != nil {
+		if os.IsExist(err) {
+			return nil, fmt.Errorf("volume already exists under %s", filepath.Dir(newPath))
+		}
 		return nil, err
-        }
+	}
 
-	new_v = &localVolume{
+	newV = &localVolume{
 		driverName: r.Name(),
 		name:       newName,
-		path:       new_path,
+		path:       newPath,
 	}
-	r.volumes[newName] = new_v
-	
-        return new_v, nil
+	r.volumes[newName] = newV
+
+	return newV, nil
 }
 
 // Remove removes the specified volume and all underlying data. If the

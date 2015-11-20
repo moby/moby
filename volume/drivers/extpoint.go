@@ -32,7 +32,7 @@ type volumeDriver interface {
 	// Remove the volume with the given name
 	Remove(name string) (err error)
 	// Rename the volume with the given name
-        Rename(oldName, newName string) (err error)
+	Rename(oldName, newName string) (err error)
 	// Get the mountpoint of the given volume
 	Path(name string) (mountpoint string, err error)
 	// Mount the given volume and return the mountpoint

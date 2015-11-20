@@ -42,8 +42,8 @@ func MkdirAllAs(path string, mode os.FileMode, ownerUID, ownerGID int) error {
 }
 
 // RenamedirAllAs renames a directory (include any along the path)
-func RenamedirAllAs(old_path, new_path string) error {
-	return renamedirAs(old_path, new_path)
+func RenamedirAllAs(oldPath, newPath string) error {
+	return renamedirAs(oldPath, newPath)
 }
 
 // MkdirAllNewAs creates a directory (include any along the path) and then modifies

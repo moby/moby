@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"io"
 	"net/url"
+	"strings"
 	"text/tabwriter"
 	"text/template"
-	"strings"
 
 	"github.com/docker/docker/api/types"
 	Cli "github.com/docker/docker/cli"
@@ -239,9 +239,9 @@ func (cli *DockerCli) CmdVolumeRm(args ...string) error {
 //
 // Usage: docker volume rename OLD_NAME NEW_NAME
 func (cli *DockerCli) CmdVolumeRename(args ...string) error {
-        cmd := Cli.Subcmd("volume rename", []string{"OLD_NAME NEW_NAME"}, "Rename a volume", true)
-        cmd.Require(flag.Exact, 2)
-        cmd.ParseFlags(args, true)
+	cmd := Cli.Subcmd("volume rename", []string{"OLD_NAME NEW_NAME"}, "Rename a volume", true)
+	cmd.Require(flag.Exact, 2)
+	cmd.ParseFlags(args, true)
 
 	oldName := strings.TrimSpace(cmd.Arg(0))
 	newName := strings.TrimSpace(cmd.Arg(1))
@@ -251,15 +251,14 @@ func (cli *DockerCli) CmdVolumeRename(args ...string) error {
 	}
 
 	volReq := &types.VolumeRenameRequest{
-                OldName:     oldName,
-                NewName:     newName,
-        }
+		OldName: oldName,
+		NewName: newName,
+	}
 
 	_, err := cli.call("POST", "/volumes/"+oldName+"/rename?name="+newName, volReq, nil)
-        if err != nil {
-                return err
-        }
+	if err != nil {
+		return err
+	}
 
-        return nil
+	return nil
 }
-

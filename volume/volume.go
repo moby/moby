@@ -24,7 +24,6 @@ type Driver interface {
 	Remove(Volume) error
 	// Rename renames the volume.
 	Rename(v Volume, newName string) (Volume, error)
-
 }
 
 // Volume is a place to store data. It is backed by a specific driver, and can be mounted.

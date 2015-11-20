@@ -87,19 +87,19 @@ func (daemon *Daemon) ContainerRename(oldName, newName string) error {
 // to find the volume. An error is returned if newName is already
 // reserved.
 func (daemon *Daemon) VolumeRename(oldName, newName string) error {
-        if oldName == "" || newName == "" {
-                return derr.ErrorCodeEmptyRename
-        }
+	if oldName == "" || newName == "" {
+		return derr.ErrorCodeEmptyRename
+	}
 
 	v, err := daemon.volumes.Get(oldName)
-        if err != nil {
-                return err
-        }
+	if err != nil {
+		return err
+	}
 
-        err = daemon.volumes.Rename(v, newName)
-        if err != nil {
-                return err
-        }
+	err = daemon.volumes.Rename(v, newName)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }

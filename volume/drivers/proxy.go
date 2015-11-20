@@ -67,34 +67,32 @@ func (pp *volumeDriverProxy) Remove(name string) (err error) {
 }
 
 type volumeDriverProxyRenameRequest struct {
-        oldName string
-        newName string
+	oldName string
+	newName string
 }
 
 type volumeDriverProxyRenameResponse struct {
-        Err string
+	Err string
 }
-
 
 func (pp *volumeDriverProxy) Rename(oldName, newName string) (err error) {
-        var (
-                req volumeDriverProxyRenameRequest
-                ret volumeDriverProxyRenameResponse
-        )
+	var (
+		req volumeDriverProxyRenameRequest
+		ret volumeDriverProxyRenameResponse
+	)
 
-        req.oldName = oldName
+	req.oldName = oldName
 	req.newName = newName
-        if err = pp.Call("VolumeDriver.Rename", req, &ret); err != nil {
-                return
-        }
+	if err = pp.Call("VolumeDriver.Rename", req, &ret); err != nil {
+		return
+	}
 
-        if ret.Err != "" {
-                err = errors.New(ret.Err)
-        }
+	if ret.Err != "" {
+		err = errors.New(ret.Err)
+	}
 
-        return
+	return
 }
-
 
 type volumeDriverProxyPathRequest struct {
 	Name string
