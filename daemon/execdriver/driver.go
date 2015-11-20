@@ -8,7 +8,9 @@ import (
 
 	"github.com/docker/docker/pkg/idtools"
 	// TODO Windows: Factor out ulimit
+	"github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/pkg/ulimit"
+	"github.com/docker/docker/runconfig"
 	"github.com/opencontainers/runc/libcontainer"
 	"github.com/opencontainers/runc/libcontainer/configs"
 )
@@ -230,4 +232,8 @@ type Command struct {
 	LayerPaths         []string          `json:"layer_paths"` // Windows needs to know the layer paths and folder for a command
 	LayerFolder        string            `json:"layer_folder"`
 	Hostname           string            `json:"hostname"` // Windows sets the hostname in the execdriver
+	NetworkSettings    *network.Settings        `json:"network_settings"`
+	EndpointInfo      []map[string]interface{} `json:"endpoint_info"`
+	HostConfig         *runconfig.HostConfig `json:"hostconfig"`
+
 }

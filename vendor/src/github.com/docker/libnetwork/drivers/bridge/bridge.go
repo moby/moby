@@ -98,6 +98,7 @@ type bridgeNetwork struct {
 	endpoints  map[string]*bridgeEndpoint // key: endpoint id
 	portMapper *portmapper.PortMapper
 	driver     *driver // The network's driver
+	veth       *netlink.Veth
 	sync.Mutex
 }
 
@@ -874,11 +875,13 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 		return err
 	}
 
+	logrus.Warnf("network %v", n)
+	logrus.Warnf("veth %v", n.veth)
 	// Generate and add the interface pipe host <-> sandbox
-	veth := &netlink.Veth{
+	n.veth = &netlink.Veth{
 		LinkAttrs: netlink.LinkAttrs{Name: hostIfName, TxQLen: 0},
 		PeerName:  containerIfName}
-	if err = netlink.LinkAdd(veth); err != nil {
+	if err = netlink.LinkAdd(n.veth); err != nil {
 		return types.InternalErrorf("failed to add the host (%s) <=> sandbox (%s) pair interfaces: %v", hostIfName, containerIfName, err)
 	}
 
@@ -1109,6 +1112,11 @@ func (d *driver) EndpointOperInfo(nid, eid string) (map[string]interface{}, erro
 	if len(ep.macAddress) != 0 {
 		m[netlabel.MacAddress] = ep.macAddress
 	}
+
+	// Add details of the bridge
+	m[netlabel.BridgeName] = n.config.BridgeName
+	m[netlabel.BridgeLinkName] = n.veth.LinkAttrs.Name
+	m[netlabel.BridgeEID] = eid
 
 	return m, nil
 }

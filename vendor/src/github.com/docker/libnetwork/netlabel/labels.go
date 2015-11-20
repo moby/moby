@@ -33,6 +33,22 @@ const (
 	// DriverMTU constant represents the MTU size for the network driver
 	DriverMTU = DriverPrefix + ".mtu"
 
+	// BridgeName constant represents the name of the network bridge
+	BridgeName = "io.docker.network.bridge.name"
+
+	// BridgeEID is the endpoint ID for the bridge
+	BridgeEID = "io.docker.network.bridge.endpoint_id"
+
+	// BridgeLinkName constant represents the interface name created on
+	// the host side.
+	BridgeLinkName = "io.docker.network.bridge.linkname"
+
+	// KVProvider constant represents the KV provider backend
+	KVProvider = DriverPrefix + ".kv_provider"
+
+	// KVProviderURL constant represents the KV provider URL
+	KVProviderURL = DriverPrefix + ".kv_provider_url"
+
 	// OverlayBindInterface constant represents overlay driver bind interface
 	OverlayBindInterface = DriverPrefix + ".overlay.bind_interface"
 
