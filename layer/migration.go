@@ -35,9 +35,7 @@ func (ls *layerStore) MountByGraphID(name string, graphID string, parent ChainID
 
 	var p *roLayer
 	if string(parent) != "" {
-		ls.layerL.Lock()
-		p = ls.getAndRetainLayer(parent)
-		ls.layerL.Unlock()
+		p = ls.get(parent)
 		if p == nil {
 			return nil, ErrLayerDoesNotExist
 		}
@@ -209,7 +207,7 @@ func (ls *layerStore) RegisterByGraphID(graphID string, parent ChainID, tarDataF
 	ls.layerL.Lock()
 	defer ls.layerL.Unlock()
 
-	if existingLayer := ls.getAndRetainLayer(layer.chainID); existingLayer != nil {
+	if existingLayer := ls.getWithoutLock(layer.chainID); existingLayer != nil {
 		// Set error for cleanup, but do not return
 		err = errors.New("layer already exists")
 		return existingLayer.getReference(), nil
