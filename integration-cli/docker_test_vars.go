@@ -17,7 +17,8 @@ var (
 	registryImageName = "registry"
 
 	// the private registry to use for tests
-	privateRegistryURL = "127.0.0.1:5000"
+	privateRegistryURL  = "127.0.0.1:5000"
+	privateRegistryURL2 = "127.0.0.1:5001"
 
 	runtimePath    = "/var/run/docker"
 	execDriverPath = runtimePath + "/execdriver/native"

@@ -81,7 +81,7 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 		NEventsListener:    daemon.EventsService.SubscribersCount(),
 		KernelVersion:      kernelVersion,
 		OperatingSystem:    operatingSystem,
-		IndexServerAddress: registry.IndexServer,
+		IndexServerAddress: registry.IndexServerAddress(),
 		RegistryConfig:     daemon.RegistryService.Config,
 		InitSha1:           dockerversion.INITSHA1,
 		InitPath:           initPath,

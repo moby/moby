@@ -423,12 +423,12 @@ func (p *v2Puller) pullV2Tag(out io.Writer, tag, taggedName string) (tagUpdated 
 		// use the digest whether we pull by it or not. Unfortunately, the tag
 		// store treats the digest as a separate tag, meaning there may be an
 		// untagged digest image that would seem to be dangling by a user.
-		if err = p.SetDigest(p.repoInfo.LocalName, tag, firstID); err != nil {
+		if err = p.SetDigest(p.repoInfo.LocalName, tag, firstID, false); err != nil {
 			return false, err
 		}
 	} else {
 		// only set the repository/tag -> image ID mapping when pulling by tag (i.e. not by digest)
-		if err = p.Tag(p.repoInfo.LocalName, tag, firstID, true); err != nil {
+		if err = p.Tag(p.repoInfo.LocalName, tag, firstID, true, false); err != nil {
 			return false, err
 		}
 	}

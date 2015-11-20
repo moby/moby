@@ -20,7 +20,7 @@ type ImageRestorer interface {
 // Tagger is an interface that exposes the TagStore.Tag function without needing
 // to import graph.
 type Tagger interface {
-	Tag(repoName, tag, imageName string, force bool) error
+	Tag(repoName, tag, imageName string, force bool, keepUnqualified bool) error
 }
 
 // Recorder is an interface that exposes the Graph.Register and Graph.Exists

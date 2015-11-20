@@ -3,6 +3,7 @@ package graph
 import (
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/digest"
@@ -70,12 +71,32 @@ func (s *TagStore) NewPusher(endpoint registry.APIEndpoint, localRepo Repository
 func (s *TagStore) Push(localName string, imagePushConfig *ImagePushConfig) error {
 	// FIXME: Allow to interrupt current push when new push of same image is done.
 
-	var sf = streamformatter.NewJSONStreamFormatter()
+	var (
+		localRepo Repository
+		sf        = streamformatter.NewJSONStreamFormatter()
+	)
 
 	// Resolve the Repository name from fqn to RepositoryInfo
 	repoInfo, err := s.registryService.ResolveRepository(localName)
 	if err != nil {
 		return err
+	}
+
+	// If we're not using a custom registry, we know the restrictions
+	// applied to repository names and can warn the user in advance.
+	// Custom repositories can have different rules, and we must also
+	// allow pushing by image ID.
+	if repoInfo.Official {
+		username := imagePushConfig.AuthConfig.Username
+		if username == "" {
+			username = "<user>"
+		}
+		name := localName
+		parts := strings.Split(repoInfo.LocalName, "/")
+		if len(parts) > 0 {
+			name = parts[len(parts)-1]
+		}
+		return fmt.Errorf("You cannot push a \"root\" repository. Please rename your repository to <user>/<repo> (ex: %s/%s)", username, name)
 	}
 
 	endpoints, err := s.registryService.LookupPushEndpoints(repoInfo.CanonicalName)
@@ -89,11 +110,15 @@ func (s *TagStore) Push(localName string, imagePushConfig *ImagePushConfig) erro
 	}
 
 	imagePushConfig.OutStream.Write(sf.FormatStatus("", "The push refers to a repository [%s] (len: %d)", repoInfo.CanonicalName, reposLen))
-
-	// If it fails, try to get the repository
-	localRepo, exists := s.Repositories[repoInfo.LocalName]
-	if !exists {
-		return fmt.Errorf("Repository does not exist: %s", repoInfo.LocalName)
+	matching := s.getRepositoryList(localName)
+Loop:
+	for _, namedRepo := range matching {
+		for _, localRepo = range namedRepo {
+			break Loop
+		}
+	}
+	if localRepo == nil {
+		return fmt.Errorf("Repository does not exist: %s", localName)
 	}
 
 	var lastErr error

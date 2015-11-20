@@ -68,7 +68,6 @@ func (p *v1Puller) Pull(tag string) (fallback bool, err error) {
 
 func (p *v1Puller) pullRepository(askedTag string) error {
 	out := p.config.OutStream
-	out.Write(p.sf.FormatStatus("", "Pulling repository %s", p.repoInfo.CanonicalName))
 
 	repoData, err := p.session.GetRepositoryData(p.repoInfo.RemoteName)
 	if err != nil {
@@ -219,7 +218,7 @@ func (p *v1Puller) pullRepository(askedTag string) error {
 		if askedTag != "" && tag != askedTag {
 			continue
 		}
-		if err := p.Tag(p.repoInfo.LocalName, tag, id, true); err != nil {
+		if err := p.Tag(p.repoInfo.LocalName, tag, id, true, false); err != nil {
 			return err
 		}
 	}

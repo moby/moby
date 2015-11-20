@@ -204,6 +204,26 @@ func (cli *DaemonCli) CmdDaemon(args ...string) error {
 		}()
 	}
 
+	for _, r := range cli.BlockedRegistries {
+		if r == "all" {
+			r = "*"
+		} else if r == "public" {
+			r = registry.IndexName
+		}
+		registry.BlockedRegistries[r] = struct{}{}
+		if r == registry.IndexName || r == "*" {
+			registry.RegistryList = []string{}
+		}
+	}
+
+	newRegistryList := []string{}
+	for _, r := range cli.AdditionalRegistries {
+		if _, ok := registry.BlockedRegistries[r]; !ok {
+			newRegistryList = append(newRegistryList, r)
+		}
+	}
+	registry.RegistryList = append(newRegistryList, registry.RegistryList...)
+
 	serverConfig := &apiserver.Config{
 		Logging: true,
 		Version: dockerversion.VERSION,

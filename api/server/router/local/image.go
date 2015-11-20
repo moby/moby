@@ -437,7 +437,7 @@ func (s *router) postBuild(ctx context.Context, w http.ResponseWriter, r *http.R
 	}
 
 	if repoName != "" {
-		if err := s.daemon.TagImage(repoName, tag, string(imgID), true); err != nil {
+		if err := s.daemon.TagImage(repoName, tag, string(imgID), true, true); err != nil {
 			return errf(err)
 		}
 	}
@@ -485,7 +485,7 @@ func (s *router) postImagesTag(ctx context.Context, w http.ResponseWriter, r *ht
 	tag := r.Form.Get("tag")
 	name := vars["name"]
 	force := httputils.BoolValue(r, "force")
-	if err := s.daemon.TagImage(repo, tag, name, force); err != nil {
+	if err := s.daemon.TagImage(repo, tag, name, force, true); err != nil {
 		return err
 	}
 	s.daemon.EventsService.Log("tag", utils.ImageReference(repo, tag), "")

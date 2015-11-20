@@ -2,6 +2,7 @@ package registry
 
 import (
 	"crypto/tls"
+	"fmt"
 	"net/http"
 	"net/url"
 
@@ -30,7 +31,10 @@ func (s *Service) Auth(authConfig *cliconfig.AuthConfig) (string, error) {
 	addr := authConfig.ServerAddress
 	if addr == "" {
 		// Use the official registry address if not specified.
-		addr = IndexServer
+		addr = IndexServerAddress()
+	}
+	if addr == "" {
+		return "", fmt.Errorf("No configured registry to authenticate to.")
 	}
 	index, err := s.ResolveIndex(addr)
 	if err != nil {

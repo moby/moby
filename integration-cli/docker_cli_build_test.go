@@ -6348,3 +6348,194 @@ func (s *DockerSuite) TestBuildSymlinkBasename(c *check.C) {
 	c.Assert(out, checker.Matches, "bar")
 
 }
+
+func (s *DockerRegistrySuite) TestBuildWithAdditionalRegistry(c *check.C) {
+	name := "testbuildwithadditionalregistry"
+	d := NewDaemon(c)
+	if err := d.StartWithBusybox("--add-registry=" + s.reg.url); err != nil {
+		c.Fatalf("we should have been able to start the daemon with passing add-registry=%s: %v", s.reg.url, err)
+	}
+	defer d.Stop()
+	busyboxID := d.getAndTestImageEntry(c, 1, "busybox", "").id
+
+	// build image based on hello-world from docker.io
+	_, _, err := d.buildImageWithOut(name, fmt.Sprintf(`
+  FROM library/hello-world
+  ENV test %s
+  `, name), true)
+	if err != nil {
+		c.Fatal(err)
+	}
+	helloWorldID := d.getAndTestImageEntry(c, 3, "docker.io/hello-world", "").id
+	if helloWorldID == busyboxID {
+		c.Fatalf("docker.io/hello-world must have different ID than busybox image")
+	}
+	buildID := d.getAndTestImageEntry(c, 3, name, "").id
+	if buildID == helloWorldID || buildID == busyboxID {
+		c.Fatalf("built image %s must have different ID than other images", name)
+	}
+	res, err := d.inspectField(name, "Parent")
+	if err != nil {
+		c.Fatal(err)
+	}
+	if !strings.HasPrefix(res, helloWorldID) {
+		c.Fatalf("built image %s should have docker.io/hello-world(id=%s) as a parent, not %s", name, helloWorldID, res)
+	}
+
+	// push busybox to additional registry as "library/hello-world" and remove all local images
+	if out, err := d.Cmd("tag", "busybox", s.reg.url+"/library/hello-world"); err != nil {
+		c.Fatalf("failed to tag image %s: error %v, output %q", "busybox", err, out)
+	}
+	if out, err := d.Cmd("push", s.reg.url+"/library/hello-world"); err != nil {
+		c.Fatalf("failed to push image %s: error %v, output %q", s.reg.url+"/library/hello-world", err, out)
+	}
+	toRemove := []string{s.reg.url + "/library/hello-world", "busybox", "hello-world", name}
+	if out, err := d.Cmd("rmi", toRemove...); err != nil {
+		c.Fatalf("failed to remove images %v: %v, output: %s", toRemove, err, out)
+	}
+	d.getAndTestImageEntry(c, 0, "", "")
+
+	// Build again. The result shall now be based on busybox image from
+	// additional registry.
+	_, _, err = d.buildImageWithOut(name, fmt.Sprintf(`
+  FROM library/hello-world
+  ENV test %s
+  `, name), true)
+	if err != nil {
+		c.Fatal(err)
+	}
+	d.getAndTestImageEntry(c, 2, s.reg.url+"/library/hello-world", busyboxID)
+	d.getAndTestImageEntry(c, 2, name, "")
+	res, err = d.inspectField(name, "Parent")
+	if err != nil {
+		c.Fatal(err)
+	}
+	if !strings.HasPrefix(res, busyboxID) {
+		c.Fatalf("built image %s should have busybox image (id=%s) as a parent, not %s", name, busyboxID, res)
+	}
+
+	// build again with docker.io explicitly specified
+	_, _, err = d.buildImageWithOut(name, fmt.Sprintf(`
+  FROM docker.io/library/hello-world
+  ENV test %s
+  `, name), true)
+	if err != nil {
+		c.Fatal(err)
+	}
+	d.getAndTestImageEntry(c, 3, "docker.io/hello-world", helloWorldID)
+	d.getAndTestImageEntry(c, 3, name, "")
+	res, err = d.inspectField(name, "Parent")
+	if err != nil {
+		c.Fatal(err)
+	}
+	if !strings.HasPrefix(res, helloWorldID) {
+		c.Fatalf("built image %s should have docker.io/hello-world(id=%s) as a parent, not %s", name, helloWorldID, res)
+	}
+
+	// build again from additional registry explicitly specified
+	_, _, err = d.buildImageWithOut(name, fmt.Sprintf(`
+  FROM %s/library/hello-world
+  ENV test %s
+  `, s.reg.url, name), true)
+	if err != nil {
+		c.Fatal(err)
+	}
+	d.getAndTestImageEntry(c, 3, s.reg.url+"/library/hello-world", busyboxID)
+	tmpID := d.getAndTestImageEntry(c, 3, name, "").id
+	if tmpID == buildID || tmpID == busyboxID || tmpID == helloWorldID {
+		c.Fatalf("built image must have unique ID")
+	}
+	res, err = d.inspectField(name, "Parent")
+	if err != nil {
+		c.Fatal(err)
+	}
+	if !strings.HasPrefix(res, busyboxID) {
+		c.Fatalf("built image %s should have busybox(id=%s) as a parent, not %s", name, busyboxID, res)
+	}
+}
+
+// Test building of image based on busybox with public registry blocked. Name
+// of image that shall be built is specified by `name`. Parameter `daemonArgs`
+// shall contain at least one `--block-registry` flag.
+func (s *DockerRegistrySuite) doTestBuildWithPublicRegistryBlocked(c *check.C, name string, daemonArgs []string) {
+	allBlocked := false
+	for _, arg := range daemonArgs {
+		if arg == "--block-registry=all" {
+			allBlocked = true
+		}
+	}
+	d := NewDaemon(c)
+	if err := d.StartWithBusybox(daemonArgs...); err != nil {
+		c.Fatalf("we should have been able to start the daemon with passing { %s }: %v", strings.Join(daemonArgs, ", "), err)
+	}
+	defer d.Stop()
+	busyboxID := d.getAndTestImageEntry(c, 1, "busybox", "").id
+
+	// try to build image based on hello-world from docker.io
+	_, _, err := d.buildImageWithOut(name, fmt.Sprintf(`
+  FROM library/hello-world
+  ENV test %s
+  `, name), true)
+	if err == nil {
+		c.Fatal("build should have failed because of public registry being blocked")
+	}
+
+	// now base the image on local busybox image
+	_, _, err = d.buildImageWithOut(name, fmt.Sprintf(`
+  FROM busybox
+  ENV test %s
+  `, name), true)
+	if err != nil {
+		c.Fatal(err)
+	}
+	d.getAndTestImageEntry(c, 2, name, "")
+	if res, err := d.inspectField(name, "Parent"); err != nil {
+		c.Fatal(err)
+	} else if !strings.HasPrefix(res, busyboxID) {
+		c.Fatalf("built image %s should have busybox(id=%s) as a parent, not %s", name, busyboxID, res)
+	}
+
+	if out, err := d.Cmd("tag", "busybox", s.reg.url+"/library/busybox"); err != nil {
+		c.Fatalf("failed to tag image %s: error %v, output %q", "busybox", err, out)
+	}
+	if out, err := d.Cmd("push", s.reg.url+"/library/busybox"); !allBlocked && err != nil {
+		c.Fatalf("failed to push image %s: error %v, output %q", s.reg.url+"/library/busybox", err, out)
+	} else if allBlocked && err == nil {
+		c.Fatalf("push to private registry should have failed, output: %q", out)
+	}
+
+	toRemove := []string{"busybox", s.reg.url + "/library/busybox"}
+	if out, err := d.Cmd("rmi", toRemove...); err != nil {
+		c.Fatalf("failed to remove images %v: %v, output: %s", toRemove, err, out)
+	}
+	d.getAndTestImageEntry(c, 1, name, "")
+
+	// now base the image on busybox from private registry
+	_, _, err = d.buildImageWithOut(name, fmt.Sprintf(`
+  FROM %s/library/busybox
+  ENV test %s
+  `, s.reg.url, name), true)
+	if !allBlocked && err != nil {
+		c.Fatal(err)
+	} else if allBlocked && err == nil {
+		c.Fatalf("the build should have failed due to all registries being blocked")
+	}
+	if !allBlocked {
+		d.getAndTestImageEntry(c, 2, name, "")
+		if res, err := d.inspectField(name, "Parent"); err != nil {
+			c.Fatal(err)
+		} else if !strings.HasPrefix(res, busyboxID) {
+			c.Fatalf("built image %s should have busybox image (id=%s) as a parent, not %s", name, busyboxID, res)
+		}
+	}
+}
+
+func (s *DockerRegistrySuite) TestBuildWithPublicRegistryBlocked(c *check.C) {
+	for _, blockedRegistry := range []string{"public", "docker.io"} {
+		s.doTestBuildWithPublicRegistryBlocked(c, "testbuildpublicregistryblocked", []string{"--block-registry=" + blockedRegistry})
+	}
+}
+
+func (s *DockerRegistrySuite) TestBuildWithAllRegistriesBlocked(c *check.C) {
+	s.doTestBuildWithPublicRegistryBlocked(c, "testbuildwithallregistriesblocked", []string{"--block-registry=all"})
+}

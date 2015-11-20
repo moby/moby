@@ -104,5 +104,27 @@ func (s *DockerTrustSuite) SetUpTest(c *check.C) {
 func (s *DockerTrustSuite) TearDownTest(c *check.C) {
 	s.reg.Close()
 	s.not.Close()
+}
+
+type DockerRegistriesSuite struct {
+	ds   *DockerSuite
+	reg1 *testRegistryV2
+	reg2 *testRegistryV2
+}
+
+func (s *DockerRegistriesSuite) SetUpTest(c *check.C) {
+	s.reg1 = setupRegistryAt(c, privateRegistryURL)
+	s.reg2 = setupRegistryAt(c, privateRegistryURL2)
+}
+
+func (s *DockerRegistriesSuite) TearDownTest(c *check.C) {
+	s.reg2.Close()
+	s.reg1.Close()
 	s.ds.TearDownTest(c)
+}
+
+func init() {
+	check.Suite(&DockerRegistriesSuite{
+		ds: &DockerSuite{},
+	})
 }

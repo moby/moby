@@ -451,7 +451,7 @@ func (d *Driver) RestoreCustomImages(tagger graphdriver.Tagger, recorder graphdr
 			}
 
 			// Create tags for the new image.
-			if err := tagger.Tag(strings.ToLower(imageData.Name), imageData.Version, img.ID, true); err != nil {
+			if err := tagger.Tag(strings.ToLower(imageData.Name), imageData.Version, img.ID, true, true); err != nil {
 				return nil, err
 			}
 

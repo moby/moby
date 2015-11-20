@@ -1025,8 +1025,8 @@ func (daemon *Daemon) Graph() *graph.Graph {
 // TagImage creates a tag in the repository reponame, pointing to the image named
 // imageName. If force is true, an existing tag with the same name may be
 // overwritten.
-func (daemon *Daemon) TagImage(repoName, tag, imageName string, force bool) error {
-	return daemon.repositories.Tag(repoName, tag, imageName, force)
+func (daemon *Daemon) TagImage(repoName, tag, imageName string, force, keepUnqualified bool) error {
+	return daemon.repositories.Tag(repoName, tag, imageName, force, keepUnqualified)
 }
 
 // PullImage initiates a pull operation. image is the repository name to pull, and

@@ -39,6 +39,12 @@ const (
 )
 
 var (
+	// BlockedRegistries is a set of registries that can't be contacted. A
+	// special entry "*" causes all registries but those present in
+	// RegistryList to be blocked.
+	BlockedRegistries map[string]struct{}
+	// RegistryList is a list of default registries..
+	RegistryList = []string{IndexName}
 	// ErrInvalidRepositoryName is an error returned if the repository name did
 	// not have the correct form
 	ErrInvalidRepositoryName = errors.New("Invalid repository name (ex: \"registry.domain.tld/myrepos\")")
@@ -49,6 +55,29 @@ var (
 	// command line flag the daemon will not attempt to contact v1 legacy registries
 	V2Only = false
 )
+
+func init() {
+	BlockedRegistries = make(map[string]struct{})
+}
+
+// IndexServerName returns the name of default index server.
+func IndexServerName() string {
+	if len(RegistryList) < 1 {
+		return ""
+	}
+	return RegistryList[0]
+}
+
+// IndexServerAddress returns index uri of default registry.
+func IndexServerAddress() string {
+	if IndexServerName() == IndexName {
+		return IndexServer
+	} else if IndexServerName() == "" {
+		return ""
+	} else {
+		return fmt.Sprintf("https://%s/v1/", IndexServerName())
+	}
+}
 
 // InstallFlags adds command-line options to the top-level flag parser for
 // the current process.
@@ -125,12 +154,22 @@ func NewServiceConfig(options *Options) *ServiceConfig {
 		}
 	}
 
-	// Configure public registry.
-	config.IndexConfigs[IndexName] = &IndexInfo{
-		Name:     IndexName,
-		Mirrors:  config.Mirrors,
-		Secure:   true,
-		Official: true,
+	for _, r := range RegistryList {
+		var mirrors []string
+		if config.IndexConfigs[r] == nil {
+			// Use mirrors only with official index
+			if r == IndexName {
+				mirrors = config.Mirrors
+			} else {
+				mirrors = make([]string, 0)
+			}
+			config.IndexConfigs[r] = &IndexInfo{
+				Name:     r,
+				Mirrors:  mirrors,
+				Secure:   config.isSecureIndex(r),
+				Official: r == IndexName,
+			}
+		}
 	}
 
 	return config
@@ -152,6 +191,9 @@ func (config *ServiceConfig) isSecureIndex(indexName string) bool {
 	// is called from anything besides NewIndexInfo, in order to honor per-index configurations.
 	if index, ok := config.IndexConfigs[indexName]; ok {
 		return index.Secure
+	}
+	if indexName == IndexName {
+		return true
 	}
 
 	host, _, err := net.SplitHostPort(indexName)
@@ -209,6 +251,14 @@ func ValidateIndexName(val string) (string, error) {
 	if val == "index."+IndexName {
 		val = IndexName
 	}
+	for _, r := range RegistryList {
+		if val == r {
+			break
+		}
+		if val == "index."+r {
+			val = r
+		}
+	}
 	if strings.HasPrefix(val, "-") || strings.HasSuffix(val, "-") {
 		return "", fmt.Errorf("Invalid index name (%s). Cannot begin or end with a hyphen.", val)
 	}
@@ -249,7 +299,7 @@ func loadRepositoryName(reposName string, checkRemoteName bool) (string, string,
 	if err := validateNoSchema(reposName); err != nil {
 		return "", "", err
 	}
-	indexName, remoteName := splitReposName(reposName)
+	indexName, remoteName := SplitReposName(reposName, true)
 
 	var err error
 	if indexName, err = ValidateIndexName(indexName); err != nil {
@@ -261,6 +311,13 @@ func loadRepositoryName(reposName string, checkRemoteName bool) (string, string,
 		}
 	}
 	return indexName, remoteName, nil
+}
+
+// RepositoryNameHasIndex determines whether the given reposName has prepended
+// name of index.
+func RepositoryNameHasIndex(reposName string) bool {
+	indexName, _ := SplitReposName(reposName, false)
+	return indexName != ""
 }
 
 // NewIndexInfo returns IndexInfo configuration from indexName
@@ -280,9 +337,9 @@ func (config *ServiceConfig) NewIndexInfo(indexName string) (*IndexInfo, error) 
 	index := &IndexInfo{
 		Name:     indexName,
 		Mirrors:  make([]string, 0),
-		Official: false,
+		Official: indexName == IndexName,
+		Secure:   config.isSecureIndex(indexName),
 	}
-	index.Secure = config.isSecureIndex(indexName)
 	return index, nil
 }
 
@@ -295,21 +352,42 @@ func (index *IndexInfo) GetAuthConfigKey() string {
 	return index.Name
 }
 
-// splitReposName breaks a reposName into an index name and remote name
-func splitReposName(reposName string) (string, string) {
+// SplitReposName breaks a reposName into an index name and remote name
+// fixMissingIndex says to return current index server name if missing in
+// reposName
+func SplitReposName(reposName string, fixMissingIndex bool) (string, string) {
 	nameParts := strings.SplitN(reposName, "/", 2)
 	var indexName, remoteName string
 	if len(nameParts) == 1 || (!strings.Contains(nameParts[0], ".") &&
 		!strings.Contains(nameParts[0], ":") && nameParts[0] != "localhost") {
 		// This is a Docker Index repos (ex: samalba/hipache or ubuntu)
 		// 'docker.io'
-		indexName = IndexName
+		if fixMissingIndex {
+			indexName = IndexServerName()
+		}
 		remoteName = reposName
 	} else {
 		indexName = nameParts[0]
 		remoteName = nameParts[1]
 	}
 	return indexName, remoteName
+}
+
+// IsIndexBlocked allows to check whether index/registry or endpoint
+// is on a block list.
+func IsIndexBlocked(indexName string) bool {
+	if _, ok := BlockedRegistries[indexName]; ok {
+		return true
+	}
+	if _, ok := BlockedRegistries["*"]; ok {
+		for _, name := range RegistryList {
+			if indexName == name {
+				return false
+			}
+		}
+		return true
+	}
+	return false
 }
 
 // NewRepositoryInfo validates and breaks down a repository name into a RepositoryInfo
@@ -319,8 +397,18 @@ func (config *ServiceConfig) NewRepositoryInfo(reposName string, bySearch bool) 
 		return nil, err
 	}
 
+	if !bySearch {
+		if err := validateRemoteName(remoteName); err != nil {
+			return nil, err
+		}
+	}
+
 	repoInfo := &RepositoryInfo{
 		RemoteName: remoteName,
+	}
+
+	if IsIndexBlocked(indexName) {
+		return nil, fmt.Errorf("Blocked registry %q", indexName)
 	}
 
 	repoInfo.Index, err = config.NewIndexInfo(indexName)
@@ -331,7 +419,6 @@ func (config *ServiceConfig) NewRepositoryInfo(reposName string, bySearch bool) 
 	if repoInfo.Index.Official {
 		normalizedName := normalizeLibraryRepoName(repoInfo.RemoteName)
 
-		repoInfo.LocalName = normalizedName
 		repoInfo.RemoteName = normalizedName
 		// If the normalized name does not contain a '/' (e.g. "foo")
 		// then it is an official repo.
@@ -342,12 +429,15 @@ func (config *ServiceConfig) NewRepositoryInfo(reposName string, bySearch bool) 
 		}
 
 		repoInfo.CanonicalName = "docker.io/" + repoInfo.RemoteName
+		repoInfo.LocalName = repoInfo.Index.Name + "/" + normalizedName
 	} else {
-		repoInfo.LocalName = localNameFromRemote(repoInfo.Index.Name, repoInfo.RemoteName)
+		if repoInfo.Index.Name != "" {
+			repoInfo.LocalName = repoInfo.Index.Name + "/" + repoInfo.RemoteName
+		} else {
+			repoInfo.LocalName = repoInfo.RemoteName
+		}
 		repoInfo.CanonicalName = repoInfo.LocalName
-
 	}
-
 	return repoInfo, nil
 }
 
@@ -355,7 +445,7 @@ func (config *ServiceConfig) NewRepositoryInfo(reposName string, bySearch bool) 
 // remote name for private indexes.
 func (repoInfo *RepositoryInfo) GetSearchTerm() string {
 	if repoInfo.Index.Official {
-		return repoInfo.LocalName
+		return strings.TrimPrefix(repoInfo.RemoteName, "library/")
 	}
 	return repoInfo.RemoteName
 }
@@ -368,7 +458,7 @@ func ParseRepositoryInfo(reposName string) (*RepositoryInfo, error) {
 
 // ParseIndexInfo will use repository name to get back an indexInfo.
 func ParseIndexInfo(reposName string) (*IndexInfo, error) {
-	indexName, _ := splitReposName(reposName)
+	indexName, _ := SplitReposName(reposName, true)
 
 	indexInfo, err := emptyServiceConfig.NewIndexInfo(indexName)
 	if err != nil {

@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os/exec"
+	"regexp"
 	"strings"
 
 	"github.com/go-check/check"
@@ -11,6 +12,23 @@ import (
 func (s *DockerSuite) TestRmiWithContainerFails(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	errSubstr := "is using it"
+	imageName := regexp.MustCompile(`(?m)^([^/ ]+/busybox)\s+`)
+
+	// remove any fully-qualified busybox images created by prior tests
+	out, _, err := runCommandWithOutput(exec.Command(dockerBinary, "images"))
+	if err != nil {
+		c.Fatalf("failed to list images: %v", err)
+	}
+	args := []string{"rmi", "-f"}
+	for _, name := range imageName.FindAllStringSubmatch(out, -1) {
+		args = append(args, name[1])
+	}
+	if len(args) > 2 {
+		rmiCmd := exec.Command(dockerBinary, args...)
+		if out, _, err = runCommandWithOutput(rmiCmd); err != nil {
+			c.Errorf("failed to remove all fully-qualified busybox images: %s, %v", out, err)
+		}
+	}
 
 	// create a container
 	out, _, err := dockerCmdWithError("run", "-d", "busybox", "true")

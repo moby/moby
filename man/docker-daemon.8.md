@@ -6,12 +6,14 @@ docker-daemon - Enable daemon mode
 
 # SYNOPSIS
 **docker daemon**
+[**--add-registry**[=*[]*]]
 [**--api-cors-header**=[=*API-CORS-HEADER*]]
 [**-b**|**--bridge**[=*BRIDGE*]]
 [**--bip**[=*BIP*]]
 [**--cluster-store**[=*[]*]]
 [**--cluster-advertise**[=*[]*]]
 [**--cluster-store-opt**[=*map[]*]]
+[**--block-registry**[=*[]*]]
 [**-D**|**--debug**[=*false*]]
 [**--default-gateway**[=*DEFAULT-GATEWAY*]]
 [**--default-gateway-v6**[=*DEFAULT-GATEWAY-V6*]]
@@ -68,6 +70,9 @@ format.
 
 # OPTIONS
 
+**--add-registry**=[]
+  **EXPERIMENTAL** Each given registry will be queried before a public Docker registry during image pulls or searches. They will be searched in the order given. Registry mirrors won't apply to them.
+
 **--api-cors-header**=""
   Set CORS headers in the remote API. Default is cors disabled. Give urls like "http://foo, http://bar, ...". Give "*" to allow all.
 
@@ -87,6 +92,9 @@ format.
 
 **--cluster-store-opt**=""
   Specifies options for the Key/Value store.
+
+**--block-registry**=[]
+  **EXPERIMENTAL** Prevent Docker daemon from contacting specified registries. There are two special keywords recognized. The first is "public" and represents public Docker registry. The second is "all" which causes all registries but those added with **--add-registry** flag to be blocked.
 
 **-D**, **--debug**=*true*|*false*
   Enable debug mode. Default is false.

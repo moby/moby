@@ -622,8 +622,10 @@ _docker_daemon() {
 	"
 	local options_with_args="
 		$global_options_with_args
+		--add-registry
 		--api-cors-header
 		--bip
+		--block-registry
 		--bridge -b
 		--cluster-advertise
 		--cluster-store

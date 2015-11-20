@@ -2,12 +2,15 @@ package main
 
 import (
 	"archive/tar"
+	"bufio"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -188,7 +191,7 @@ func (s *DockerTrustSuite) TestTrustedPush(c *check.C) {
 func (s *DockerTrustSuite) TestTrustedPushWithEnvPasswords(c *check.C) {
 	repoName := fmt.Sprintf("%v/dockercli/trusted:latest", privateRegistryURL)
 	// tag the image and upload it to the private registry
-	dockerCmd(c, "tag", "busybox", repoName)
+	dockerCmd(c, "tag", "-f", "busybox", repoName)
 
 	pushCmd := exec.Command(dockerBinary, "push", repoName)
 	s.trustedCmdWithPassphrases(pushCmd, "12345678", "12345678")
@@ -222,7 +225,7 @@ func (s *DockerTrustSuite) TestTrustedPushWithDeprecatedEnvPasswords(c *check.C)
 func (s *DockerTrustSuite) TestTrustedPushWithFaillingServer(c *check.C) {
 	repoName := fmt.Sprintf("%v/dockercli/trusted:latest", privateRegistryURL)
 	// tag the image and upload it to the private registry
-	dockerCmd(c, "tag", "busybox", repoName)
+	dockerCmd(c, "tag", "-f", "busybox", repoName)
 
 	pushCmd := exec.Command(dockerBinary, "push", repoName)
 	s.trustedCmdWithServer(pushCmd, "https://example.com:81/")
@@ -239,7 +242,7 @@ func (s *DockerTrustSuite) TestTrustedPushWithFaillingServer(c *check.C) {
 func (s *DockerTrustSuite) TestTrustedPushWithoutServerAndUntrusted(c *check.C) {
 	repoName := fmt.Sprintf("%v/dockercli/trusted:latest", privateRegistryURL)
 	// tag the image and upload it to the private registry
-	dockerCmd(c, "tag", "busybox", repoName)
+	dockerCmd(c, "tag", "-f", "busybox", repoName)
 
 	pushCmd := exec.Command(dockerBinary, "push", "--disable-content-trust", repoName)
 	s.trustedCmdWithServer(pushCmd, "https://example.com/")
@@ -256,7 +259,7 @@ func (s *DockerTrustSuite) TestTrustedPushWithoutServerAndUntrusted(c *check.C) 
 func (s *DockerTrustSuite) TestTrustedPushWithExistingTag(c *check.C) {
 	repoName := fmt.Sprintf("%v/dockercli/trusted:latest", privateRegistryURL)
 	// tag the image and upload it to the private registry
-	dockerCmd(c, "tag", "busybox", repoName)
+	dockerCmd(c, "tag", "-f", "busybox", repoName)
 	dockerCmd(c, "push", repoName)
 
 	pushCmd := exec.Command(dockerBinary, "push", repoName)
@@ -446,4 +449,109 @@ func (s *DockerTrustSuite) TestTrustedPushWithExpiredTimestamp(c *check.C) {
 			c.Fatalf("Missing expected output on trusted push with expired timestamp:\n%s", out)
 		}
 	})
+}
+
+func (s *DockerSuite) TestPushOfficialImage(c *check.C) {
+	var reErr = regexp.MustCompile(`rename your repository to[^:]*:\s*<user>/busybox\b`)
+
+	// push busybox to public registry as "library/busybox"
+	cmd := exec.Command(dockerBinary, "push", "library/busybox")
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		c.Fatalf("Failed to get stdout pipe for process: %v", err)
+	}
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		c.Fatalf("Failed to get stderr pipe for process: %v", err)
+	}
+	if err := cmd.Start(); err != nil {
+		c.Fatalf("Failed to start pushing to public registry: %v", err)
+	}
+	outReader := bufio.NewReader(stdout)
+	errReader := bufio.NewReader(stderr)
+	line, isPrefix, err := errReader.ReadLine()
+	if err != nil {
+		c.Fatalf("Failed to read farewell: %v", err)
+	}
+	if isPrefix {
+		c.Errorf("Got unexpectedly long output.")
+	}
+	if !reErr.Match(line) {
+		c.Errorf("Got unexpected output %q", line)
+	}
+	if line, _, err = outReader.ReadLine(); err != io.EOF {
+		c.Errorf("Expected EOF, not: %q", line)
+	}
+	for ; err != io.EOF; line, _, err = errReader.ReadLine() {
+		c.Errorf("Expected no message on stderr, got: %q", string(line))
+	}
+
+	// Wait for command to finish with short timeout.
+	finish := make(chan struct{})
+	go func() {
+		if err := cmd.Wait(); err == nil {
+			c.Error("Push command should have failed.")
+		}
+		close(finish)
+	}()
+	select {
+	case <-finish:
+	case <-time.After(1 * time.Second):
+		c.Fatalf("Docker push failed to exit.")
+	}
+}
+
+func (s *DockerRegistrySuite) TestPushToAdditionalRegistry(c *check.C) {
+	d := NewDaemon(c)
+	if err := d.StartWithBusybox("--add-registry=" + s.reg.url); err != nil {
+		c.Fatalf("we should have been able to start the daemon with passing add-registry=%s: %v", s.reg.url, err)
+	}
+	defer d.Stop()
+
+	busyboxID := d.getAndTestImageEntry(c, 1, "busybox", "").id
+
+	// push busybox to additional registry as "library/busybox" and remove all local images
+	if out, err := d.Cmd("tag", "busybox", "library/busybox"); err != nil {
+		c.Fatalf("failed to tag image %s: error %v, output %q", "busybox", err, out)
+	}
+	if out, err := d.Cmd("push", "library/busybox"); err != nil {
+		c.Fatalf("failed to push image library/busybox: error %v, output %q", err, out)
+	}
+	toRemove := []string{"busybox", "library/busybox"}
+	if out, err := d.Cmd("rmi", toRemove...); err != nil {
+		c.Fatalf("failed to remove images %v: %v, output: %s", toRemove, err, out)
+	}
+	d.getAndTestImageEntry(c, 0, "", "")
+
+	// pull it from additional registry
+	if _, err := d.Cmd("pull", "library/busybox"); err != nil {
+		c.Fatalf("we should have been able to pull library/busybox from %q: %v", s.reg.url, err)
+	}
+	d.getAndTestImageEntry(c, 1, s.reg.url+"/library/busybox", busyboxID)
+}
+
+func (s *DockerRegistrySuite) TestPushCustomTagToAdditionalRegistry(c *check.C) {
+	d := NewDaemon(c)
+	if err := d.StartWithBusybox("--add-registry=" + s.reg.url); err != nil {
+		c.Fatalf("we should have been able to start the daemon with passing add-registry=%s: %v", s.reg.url, err)
+	}
+	defer d.Stop()
+
+	busyboxID := d.getAndTestImageEntry(c, 1, "busybox", "").id
+
+	if out, err := d.Cmd("tag", "busybox", "user/busybox:1.2.3"); err != nil {
+		c.Fatalf("failed to tag image %s: error %v, output %q", "busybox", err, out)
+	}
+	if out, err := d.Cmd("tag", "busybox", s.reg.url+"/user/busybox:latest"); err != nil {
+		c.Fatalf("failed to tag image %s: error %v, output %q", "busybox", err, out)
+	}
+	if out, err := d.Cmd("push", "user/busybox:1.2.3"); err != nil {
+		c.Fatalf("failed to push image user/busybox: error %v, output %q", err, out)
+	}
+	d.getAndTestImageEntry(c, 3, "user/busybox", busyboxID)
+	toRemove := []string{"user/busybox:1.2.3"}
+	if out, err := d.Cmd("rmi", toRemove...); err != nil {
+		c.Fatalf("failed to remove images %v: %v, output: %s", toRemove, err, out)
+	}
+	d.getAndTestImageEntry(c, 2, s.reg.url+"/user/busybox", busyboxID)
 }

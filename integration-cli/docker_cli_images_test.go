@@ -245,3 +245,58 @@ func (s *DockerSuite) TestImagesEnsureImagesFromScratchShown(c *check.C) {
 		c.Fatalf("images should contain images built from scratch (e.g. %s), got %s", id[:12], out)
 	}
 }
+
+func (s *DockerSuite) doTestImagesWithAdditionalRegistry(c *check.C, publicBlocked bool) {
+	d := NewDaemon(c)
+	daemonArgs := []string{"--add-registry=example.com"}
+	if publicBlocked {
+		daemonArgs = append(daemonArgs, "--block-registry=public")
+	}
+	if err := d.StartWithBusybox(daemonArgs...); err != nil {
+		c.Fatalf("we should have been able to start the daemon with passing { %s } flags: %v", strings.Join(daemonArgs, ", "), err)
+	}
+	defer d.Stop()
+
+	if out, err := d.Cmd("tag", "busybox", "example.com/busybox"); err != nil {
+		c.Fatalf("failed to tag image %s: error %v, output %q", "busybox", err, out)
+	}
+	if out, err := d.Cmd("tag", "busybox", "docker.io/busybox"); err != nil {
+		c.Fatalf("failed to tag image %s: error %v, output %q", "busybox", err, out)
+	}
+	if out, err := d.Cmd("tag", "busybox", "other.com/busybox"); err != nil {
+		c.Fatalf("failed to tag image %s: error %v, output %q", "busybox", err, out)
+	}
+
+	expected := []string{"busybox", "example.com/busybox"}
+	if !publicBlocked {
+		expected = append(expected, "docker.io/busybox")
+	}
+	images := d.getImages(c, "*box")
+	if len(images) != len(expected) {
+		c.Fatalf("got unexpected number of images (%d), expected: %d, images: %v", len(images), len(expected), images)
+	}
+	for _, exp := range expected {
+		if _, ok := images[exp]; !ok {
+			c.Errorf("expected image name %s, not found among images: %v", exp, images)
+		}
+	}
+
+	expected = []string{"docker.io/busybox", "example.com/busybox", "other.com/busybox"}
+	images = d.getImages(c, "*/*box")
+	if len(images) != len(expected) {
+		c.Fatalf("got unexpected number of images (%d), expected: %d, images: %v", len(images), len(expected), images)
+	}
+	for _, exp := range expected {
+		if _, ok := images[exp]; !ok {
+			c.Errorf("expected image name %s, not found among images: %v", exp, images)
+		}
+	}
+}
+
+func (s *DockerSuite) TestImagesWithAdditionalRegistry(c *check.C) {
+	s.doTestImagesWithAdditionalRegistry(c, false)
+}
+
+func (s *DockerSuite) TestImagesWithPublicRegistryBlocked(c *check.C) {
+	s.doTestImagesWithAdditionalRegistry(c, true)
+}

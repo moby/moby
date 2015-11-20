@@ -61,6 +61,12 @@ func main() {
 	handleGlobalDaemonFlag()
 	clientCli := client.NewDockerCli(stdin, stdout, stderr, clientFlags)
 
+	for _, lopt := range []string{"-add-registry", "-block-registry"} {
+		if flag.IsSet(lopt) {
+			logrus.Fatalf("The -%s option is recognized only by Docker daemon.", lopt)
+		}
+	}
+
 	c := cli.New(clientCli, daemonCli)
 	if err := c.Run(flag.Args()...); err != nil {
 		if sterr, ok := err.(cli.StatusError); ok {

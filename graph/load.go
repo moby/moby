@@ -71,7 +71,7 @@ func (s *TagStore) Load(inTar io.ReadCloser, outStream io.Writer) error {
 
 	for imageName, tagMap := range repositories {
 		for tag, address := range tagMap {
-			if err := s.setLoad(imageName, tag, address, true, outStream); err != nil {
+			if err := s.setLoad(imageName, tag, address, true, true, outStream); err != nil {
 				return err
 			}
 		}
