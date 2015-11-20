@@ -40,7 +40,7 @@ btrfs storage engine on both Oracle Linux 6 and 7.
 
     For version 6:
 
-        $ echo | sudo tee /etc/yum.repos.d/docker.repo <<-EOF
+        $ sudo tee /etc/yum.repos.d/docker.repo <<-EOF
         [dockerrepo]
         name=Docker Repository
         baseurl=https://yum.dockerproject.org/repo/main/oraclelinux/6
