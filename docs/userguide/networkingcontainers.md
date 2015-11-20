@@ -218,7 +218,7 @@ After a bit, use CTRL-C to end the `ping` and you'll find the ping failed. That 
 
 Docker networking allows you to attach a container to as many networks as you like. You can also attach an already running container. Go ahead and attach your running `web` app to the `my-bridge-network`.
 
-    $ docker network connect my-bridge-network Web
+    $ docker network connect my-bridge-network web
 
 Open a shell into the `db` application again and try the ping command. This time just use the container name `web` rather than the IP Address.
 
