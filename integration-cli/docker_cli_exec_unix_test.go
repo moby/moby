@@ -35,7 +35,7 @@ func (s *DockerSuite) TestExecInteractiveStdinClose(c *check.C) {
 		c.Assert(err, checker.IsNil)
 		output := b.String()
 		c.Assert(strings.TrimSpace(output), checker.Equals, "hello")
-	case <-time.After(1 * time.Second):
+	case <-time.After(5 * time.Second):
 		c.Fatal("timed out running docker exec")
 	}
 }

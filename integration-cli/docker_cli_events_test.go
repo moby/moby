@@ -53,7 +53,7 @@ func (s *DockerSuite) TestEventsUntag(c *check.C) {
 	dockerCmd(c, "rmi", "utest:tag1")
 	dockerCmd(c, "rmi", "utest:tag2")
 	eventsCmd := exec.Command(dockerBinary, "events", "--since=1")
-	out, exitCode, _, err := runCommandWithOutputForDuration(eventsCmd, time.Duration(time.Millisecond*500))
+	out, exitCode, _, err := runCommandWithOutputForDuration(eventsCmd, time.Duration(time.Millisecond*2500))
 	c.Assert(err, checker.IsNil)
 	c.Assert(exitCode, checker.Equals, 0, check.Commentf("Failed to get events"))
 	events := strings.Split(out, "\n")
