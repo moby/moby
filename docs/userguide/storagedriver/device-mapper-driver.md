@@ -221,7 +221,7 @@ The procedure below will create a 90GB data volume and 4GB metadata volume to us
         INFO[0027] Daemon has completed initialization
         INFO[0027] Docker daemon                                 commit=0a8c2e3 execdriver=native-0.2 graphdriver=devicemapper version=1.8.2
 
-    It is also possible to set the `--storage-driver` and `--storage-opt` flags in the Docker config file and start the daemon normally using the `service` or `systemd` commands.
+  It is also possible to set the `--storage-driver` and `--storage-opt` flags in the Docker config file and start the daemon normally using the `service` or `systemd` commands.
 
 6. Use the `docker info` command to verify that the daemon is using `data` and `metadata` devices you created.
 
