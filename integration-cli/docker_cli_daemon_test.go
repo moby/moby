@@ -1852,6 +1852,8 @@ func (s *DockerDaemonSuite) TestBridgeIPIsExcludedFromAllocatorPool(c *check.C) 
 
 // Test daemon for no space left on device error
 func (s *DockerDaemonSuite) TestDaemonNoSpaceleftOnDeviceError(c *check.C) {
+	testRequires(c, SameHostDaemon, DaemonIsLinux)
+
 	// create a 2MiB image and mount it as graph root
 	cmd := exec.Command("dd", "of=/tmp/testfs.img", "bs=1M", "seek=2", "count=0")
 	if err := cmd.Run(); err != nil {
