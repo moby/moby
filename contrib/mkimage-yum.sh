@@ -11,13 +11,17 @@ usage() {
 $(basename $0) [OPTIONS] <name>
 OPTIONS:
   -y <yumconf>  The path to the yum config to install packages from. The
-                default is /etc/yum.conf.
+                default is /etc/yum.conf for Centos/RHEL and /etc/dnf/dnf.conf for Fedora
 EOOPTS
     exit 1
 }
 
 # option defaults
 yum_config=/etc/yum.conf
+if [ -f /etc/dnf/dnf.conf ] && command -v dnf &> /dev/null; then
+	yum_config=/etc/dnf/dnf.conf
+	alias yum=dnf
+fi 
 while getopts ":y:h" opt; do
     case $opt in
         y)
