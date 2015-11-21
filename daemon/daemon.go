@@ -22,6 +22,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/daemon/events"
+	"github.com/docker/docker/daemon/exec"
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/daemon/execdriver/execdrivers"
 	"github.com/docker/docker/daemon/graphdriver"
@@ -106,7 +107,7 @@ type Daemon struct {
 	repository       string
 	sysInitPath      string
 	containers       *contStore
-	execCommands     *execStore
+	execCommands     *exec.Store
 	graph            *graph.Graph
 	repositories     *graph.TagStore
 	idIndex          *truncindex.TruncIndex
@@ -790,7 +791,7 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 	d.ID = trustKey.PublicKey().KeyID()
 	d.repository = daemonRepo
 	d.containers = &contStore{s: make(map[string]*Container)}
-	d.execCommands = newExecStore()
+	d.execCommands = exec.NewStore()
 	d.graph = g
 	d.repositories = repositories
 	d.idIndex = truncindex.NewTruncIndex([]string{})

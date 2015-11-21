@@ -160,8 +160,8 @@ func (daemon *Daemon) Cleanup(container *Container) {
 
 	daemon.conditionalUnmountOnCleanup(container)
 
-	for _, eConfig := range container.execCommands.s {
-		daemon.unregisterExecCommand(eConfig)
+	for _, eConfig := range container.execCommands.Commands() {
+		daemon.unregisterExecCommand(container, eConfig)
 	}
 
 	if err := container.unmountVolumes(false); err != nil {

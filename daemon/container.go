@@ -14,6 +14,7 @@ import (
 	"github.com/opencontainers/runc/libcontainer/label"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/daemon/exec"
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/logger/jsonfilelog"
@@ -62,7 +63,7 @@ type CommonContainer struct {
 	hostConfig             *runconfig.HostConfig
 	command                *execdriver.Command
 	monitor                *containerMonitor
-	execCommands           *execStore
+	execCommands           *exec.Store
 	// logDriver for closing
 	logDriver logger.Logger
 	logCopier *logger.Copier
@@ -75,7 +76,7 @@ func newBaseContainer(id, root string) *Container {
 		CommonContainer: CommonContainer{
 			ID:           id,
 			State:        NewState(),
-			execCommands: newExecStore(),
+			execCommands: exec.NewStore(),
 			root:         root,
 			MountPoints:  make(map[string]*volume.MountPoint),
 			StreamConfig: runconfig.NewStreamConfig(),

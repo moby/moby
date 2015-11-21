@@ -6,6 +6,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/versions/v1p20"
+	"github.com/docker/docker/daemon/exec"
 	"github.com/docker/docker/daemon/network"
 )
 
@@ -159,7 +160,7 @@ func (daemon *Daemon) getInspectData(container *Container, size bool) (*types.Co
 
 // ContainerExecInspect returns low-level information about the exec
 // command. An error is returned if the exec cannot be found.
-func (daemon *Daemon) ContainerExecInspect(id string) (*ExecConfig, error) {
+func (daemon *Daemon) ContainerExecInspect(id string) (*exec.Config, error) {
 	eConfig, err := daemon.getExecConfig(id)
 	if err != nil {
 		return nil, err
