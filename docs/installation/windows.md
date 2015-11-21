@@ -31,7 +31,7 @@ small ~24MB download, and boots in approximately 5s.
 
 ## Requirements
 
-Your machine must be running Windows 7, 8/8.1 or newer to run Docker. Windows 10 is not currently supported. To find out what version of Windows you have:
+Your machine must be running Windows 7 or newer to run Docker. To find out what version of Windows you have:
 
 1. Right click the Windows Start Menu and choose **System**.
 
@@ -43,9 +43,9 @@ Your machine must be running Windows 7, 8/8.1 or newer to run Docker. Windows 10
 2. Make sure your CPU supports [virtualization technology](https://en.wikipedia.org/wiki/X86_virtualization)
 and virtualization support is enabled in BIOS and recognized by Windows.
 
-    #### For Windows 8 or 8.1
+    #### For Windows 8, 8.1 or 10
 
-	  Choose **Start > Task Manager** and navigate to the **Performance** tab.
+	  Choose **Start > Task Manager**. On Windows 10, click more details. Navigate to the **Performance** tab.
 	  Under **CPU** you should see the following:
 
       ![Release page](images/virtualization.png)
