@@ -11,7 +11,7 @@ usage() {
 $(basename $0) [OPTIONS] <name>
 OPTIONS:
   -y <yumconf>  The path to the yum config to install packages from. The
-                default is /etc/yum.conf for Centos/RHEL and /etc/dnf/dnf.conf for Fedora 
+                default is /etc/yum.conf for Centos/RHEL and /etc/dnf/dnf.conf for Fedora linux
 EOOPTS
     exit 1
 }
