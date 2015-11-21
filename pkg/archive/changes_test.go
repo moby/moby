@@ -63,6 +63,9 @@ func createSampleDir(t *testing.T, root string) {
 		{Regular, "dir4/file3-2", "file4-2\n", 0666},
 		{Symlink, "symlink1", "target1", 0666},
 		{Symlink, "symlink2", "target2", 0666},
+		{Symlink, "symlink3", root + "/file1", 0666},
+		{Symlink, "symlink4", root + "/symlink3", 0666},
+		{Symlink, "dirSymlink", root + "/dir1", 0740},
 	}
 
 	now := time.Now()

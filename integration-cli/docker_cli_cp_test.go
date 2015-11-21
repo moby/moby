@@ -609,3 +609,57 @@ func (s *DockerSuite) TestCopyCreatedContainer(c *check.C) {
 	defer os.RemoveAll(tmpDir)
 	dockerCmd(c, "cp", "test_cp:/bin/sh", tmpDir)
 }
+
+// test copy with option `-L`: following symbol link
+// Check that symlinks to a file behave as expected when copying one from
+// a container to host following symbol link
+func (s *DockerSuite) TestCpSymlinkFromConToHostFollowSymlink(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	out, exitCode := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "mkdir -p '"+cpTestPath+"' && echo -n '"+cpContainerContents+"' > "+cpFullPath+" && ln -s "+cpFullPath+" /dir_link")
+	if exitCode != 0 {
+		c.Fatal("failed to create a container", out)
+	}
+
+	cleanedContainerID := strings.TrimSpace(out)
+
+	out, _ = dockerCmd(c, "wait", cleanedContainerID)
+	if strings.TrimSpace(out) != "0" {
+		c.Fatal("failed to set up container", out)
+	}
+
+	testDir, err := ioutil.TempDir("", "test-cp-symlink-container-to-host-follow-symlink")
+	if err != nil {
+		c.Fatal(err)
+	}
+	defer os.RemoveAll(testDir)
+
+	// This copy command should copy the symlink, not the target, into the
+	// temporary directory.
+	dockerCmd(c, "cp", "-L", cleanedContainerID+":"+"/dir_link", testDir)
+
+	expectedPath := filepath.Join(testDir, "dir_link")
+
+	expected := []byte(cpContainerContents)
+	actual, err := ioutil.ReadFile(expectedPath)
+
+	if !bytes.Equal(actual, expected) {
+		c.Fatalf("Expected copied file to be duplicate of the container symbol link target")
+	}
+	os.Remove(expectedPath)
+
+	// now test copy symbol link to an non-existing file in host
+	expectedPath = filepath.Join(testDir, "somefile_host")
+	// expectedPath shouldn't exist, if exists, remove it
+	if _, err := os.Lstat(expectedPath); err == nil {
+		os.Remove(expectedPath)
+	}
+
+	dockerCmd(c, "cp", "-L", cleanedContainerID+":"+"/dir_link", expectedPath)
+
+	actual, err = ioutil.ReadFile(expectedPath)
+
+	if !bytes.Equal(actual, expected) {
+		c.Fatalf("Expected copied file to be duplicate of the container symbol link target")
+	}
+	defer os.Remove(expectedPath)
+}
