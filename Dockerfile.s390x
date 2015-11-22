@@ -23,6 +23,7 @@ RUN apt-get update && apt-get install -y \
 	libsqlite3-dev \
 	mercurial \
 	parallel \
+	python-dev \
 	python-mock \
 	python-pip \
 	python-websocket \
