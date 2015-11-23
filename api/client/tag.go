@@ -14,7 +14,7 @@ import (
 // Usage: docker tag [OPTIONS] IMAGE[:TAG] [REGISTRYHOST/][USERNAME/]NAME[:TAG]
 func (cli *DockerCli) CmdTag(args ...string) error {
 	cmd := Cli.Subcmd("tag", []string{"IMAGE[:TAG] [REGISTRYHOST/][USERNAME/]NAME[:TAG]"}, Cli.DockerCommands["tag"].Description, true)
-	force := cmd.Bool([]string{"f", "-force"}, false, "Force")
+	force := cmd.Bool([]string{"f", "-force"}, false, "Force the tagging even if there's a conflict")
 	cmd.Require(flag.Exact, 2)
 
 	cmd.ParseFlags(args, true)
