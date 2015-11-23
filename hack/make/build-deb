@@ -5,6 +5,7 @@ set -e
 (
 	export TZ=UTC # make sure our "date" variables are UTC-based
 	bundle .integration-daemon-start
+	bundle .detect-daemon-osarch
 
 	# TODO consider using frozen images for the dockercore/builder-deb tags
 
@@ -37,7 +38,7 @@ set -e
 	./man/md2man-all.sh -q || true
 	# TODO decide if it's worth getting go-md2man in _each_ builder environment to avoid this
 
-	builderDir="contrib/builder/deb"
+	builderDir="contrib/builder/deb/${PACKAGE_ARCH}"
 	pkgs=( $(find "${builderDir}/"*/ -type d) )
 	if [ ! -z "$DOCKER_BUILD_PKGS" ]; then
 		pkgs=( $(echo ${DOCKER_BUILD_PKGS[@]/#/$builderDir\/}) )

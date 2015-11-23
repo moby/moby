@@ -17,7 +17,7 @@ Packager: Docker <support@docker.com>
 %endif
 
 # required packages for build
-# most are already in the container (see contrib/builder/rpm/generate.sh)
+# most are already in the container (see contrib/builder/rpm/ARCH/generate.sh)
 # only require systemd on those systems
 %if 0%{?is_systemd}
 BuildRequires: pkgconfig(systemd)
