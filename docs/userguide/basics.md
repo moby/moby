@@ -28,7 +28,7 @@ to preface each `docker` command with `sudo`. One way to avoid having to use
 add users that will be entering `docker` commands to the 'docker' group.
 
 For more information about installing Docker or `sudo` configuration, refer to
-the [installation](../installation) instructions for your operating system.
+the [installation](../installation/index.md) instructions for your operating system.
 
 
 ## Download a pre-built image

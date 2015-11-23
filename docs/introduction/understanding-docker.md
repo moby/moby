@@ -285,9 +285,9 @@ BSD Jails or Solaris Zones.
 
 ## Next steps
 ### Installing Docker
-Visit the [installation section](../installation/#installation).
+Visit the [installation section](../installation/index.md#installation).
 
 ### The Docker user guide
-[Learn Docker in depth](../userguide/).
+[Learn Docker in depth](../userguide/index.md).
 
 

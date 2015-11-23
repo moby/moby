@@ -48,6 +48,6 @@ operates on. You use Docker to push and pull images (data) to a registry.
 Content trust gives you the ability to both verify the integrity and the
 publisher of all the data received from a registry over any channel.
 
-[Content trust](../security/trust/) is currently only available for users of the
+[Content trust](../security/trust/index.md) is currently only available for users of the
 public Docker Hub. It is currently not available for the Docker Trusted Registry
 or for private registries.

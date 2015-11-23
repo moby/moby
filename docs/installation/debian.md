@@ -170,4 +170,4 @@ You must delete the user created configuration files manually.
 
 ## What next?
 
-Continue with the [User Guide](../userguide/).
+Continue with the [User Guide](../userguide/index.md).

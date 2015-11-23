@@ -113,4 +113,4 @@ You can find more details about Docker on openSUSE or SUSE Linux Enterprise in t
 [Docker quick start guide](https://www.suse.com/documentation/sles-12/dockerquick/data/dockerquick.html)
 on the SUSE website. The document targets SUSE Linux Enterprise, but its contents apply also to openSUSE.
 
-Continue to the [User Guide](../userguide/).
+Continue to the [User Guide](../userguide/index.md).
