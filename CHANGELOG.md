@@ -5,7 +5,7 @@ information on the list of deprecated flags and APIs please have a look at
 https://docs.docker.com/misc/deprecated/ where target removal dates can also
 be found.
 
-## 1.9.1
+## 1.9.1 (2015-11-21)
 
 ### Runtime
 
