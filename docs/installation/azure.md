@@ -24,7 +24,7 @@ machines on Azure:
 
 ## What next?
 
-Continue with the [User Guide](../userguide/).
+Continue with the [User Guide](../userguide/index.md).
 
 [0]: http://azure.microsoft.com/
 [1]: http://azure.microsoft.com/en-us/documentation/articles/virtual-machines-docker-vm-extension/

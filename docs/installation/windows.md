@@ -362,6 +362,6 @@ delete that file yourself.
 
 ## Learn more
 
-You can continue with the [Docker User Guide](../userguide). If you are
+You can continue with the [Docker User Guide](../userguide/index.md). If you are
 interested in using the Kitematic GUI, see the [Kitematic user
 guide](https://docs.docker.com/kitematic/userguide/).

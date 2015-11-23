@@ -10,7 +10,7 @@ parent = "mn_fun_docker"
 
 # Welcome to the Docker user guide
 
-In the [Introduction](../misc) you got a taste of what Docker is and how it
+In the [Introduction](../misc/index.md) you got a taste of what Docker is and how it
 works. This guide takes you through the fundamentals of using Docker and
 integrating it into your environment. You'll learn how to use Docker to:
 

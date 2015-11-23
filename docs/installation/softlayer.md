@@ -32,5 +32,5 @@ parent = "smn_cloud"
 
 ## What next?
 
-Continue with the [User Guide](../userguide/).
+Continue with the [User Guide](../userguide/index.md).
 

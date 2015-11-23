@@ -7,7 +7,8 @@ keywords = ["Docker, Docker documentation, CLI,  command line"]
 identifier= "smn_cli"
 parent = "mn_reference"
 +++
-<!-- [end-metadata]-->
+<![end-metadata]-->
+
 
 
 # The Docker commands
