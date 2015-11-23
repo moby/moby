@@ -12,7 +12,7 @@ fi
 
 test_deb_install(){
 	# test for each Dockerfile in contrib/builder
-	for dir in contrib/builder/deb/*/; do
+	for dir in contrib/builder/deb/${PACKAGE_ARCH}/*/; do
 		local from="$(awk 'toupper($1) == "FROM" { print $2; exit }' "$dir/Dockerfile")"
 		local dir=$(basename "$dir")
 

@@ -6,6 +6,7 @@ set -e
 	export TZ=UTC # make sure our "date" variables are UTC-based
 
 	source "$(dirname "$BASH_SOURCE")/.integration-daemon-start"
+	source "$(dirname "$BASH_SOURCE")/.detect-daemon-osarch"
 
 	# TODO consider using frozen images for the dockercore/builder-rpm tags
 
@@ -59,15 +60,15 @@ set -e
 	while read -r line || [[ -n "$line" ]]; do
 		if [ -z "$line" ]; then continue; fi
 		if [[ "$line" =~ $VERSION_REGEX ]]; then
-			echo >> contrib/builder/rpm/changelog
-			echo "* `date -d ${BASH_REMATCH[2]} '+%a %b %d %Y'` ${rpmPackager} - ${BASH_REMATCH[1]}" >> contrib/builder/rpm/changelog
+			echo >> contrib/builder/rpm/${PACKAGE_ARCH}/changelog
+			echo "* `date -d ${BASH_REMATCH[2]} '+%a %b %d %Y'` ${rpmPackager} - ${BASH_REMATCH[1]}" >> contrib/builder/rpm/${PACKAGE_ARCH}/changelog
 		fi
 		if [[ "$line" =~ $ENTRY_REGEX ]]; then
-			echo "- ${BASH_REMATCH[1]//\`}" >> contrib/builder/rpm/changelog
+			echo "- ${BASH_REMATCH[1]//\`}" >> contrib/builder/rpm/${PACKAGE_ARCH}/changelog
 		fi
 	done < CHANGELOG.md
 
-	builderDir="contrib/builder/rpm"
+	builderDir="contrib/builder/rpm/${PACKAGE_ARCH}"
 	pkgs=( $(find "${builderDir}/"*/ -type d) )
 	if [ ! -z "$DOCKER_BUILD_PKGS" ]; then
 		pkgs=( $(echo ${DOCKER_BUILD_PKGS[@]/#/$builderDir\/}) )
@@ -97,7 +98,7 @@ set -e
 			RUN ln -sfv /usr/src/${rpmName}/hack/make/.build-rpm SPECS
 			WORKDIR /root/rpmbuild/SPECS
 			RUN tar -cz -C /usr/src -f /root/rpmbuild/SOURCES/${rpmName}.tar.gz ${rpmName}
-			RUN { cat /usr/src/${rpmName}/contrib/builder/rpm/changelog; } >> ${rpmName}.spec && tail >&2 ${rpmName}.spec
+			RUN { cat /usr/src/${rpmName}/contrib/builder/rpm/${PACKAGE_ARCH}/changelog; } >> ${rpmName}.spec && tail >&2 ${rpmName}.spec
 			RUN rpmbuild -ba \
 				--define '_release $rpmRelease' \
 				--define '_version $rpmVersion' \

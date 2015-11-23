@@ -93,7 +93,7 @@ if [ ! -f "$APTDIR/conf/docker-engine-release.conf" ]; then
 fi
 
 # release the debs
-for dir in contrib/builder/deb/*/; do
+for dir in contrib/builder/deb/${PACKAGE_ARCH}/*/; do
 	version="$(basename "$dir")"
 	codename="${version//debootstrap-}"
 
@@ -122,7 +122,7 @@ apt-ftparchive clean "$APTDIR/conf/apt-ftparchive.conf"
 # run the apt-ftparchive commands so we can have pinning
 apt-ftparchive generate "$APTDIR/conf/apt-ftparchive.conf"
 
-for dir in contrib/builder/deb/*/; do
+for dir in contrib/builder/deb/${PACKAGE_ARCH}/*/; do
 	version="$(basename "$dir")"
 	codename="${version//debootstrap-}"
 
