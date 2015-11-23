@@ -1,4 +1,4 @@
-// +build linux
+// +build linux,!arm
 
 // Package journald provides the log driver for forwarding server logs
 // to endpoints that receive the systemd format.

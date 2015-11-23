@@ -1,4 +1,4 @@
-// +build !linux !cgo static_build !journald
+// +build !linux !cgo static_build !journald linux,arm
 
 package journald
 
