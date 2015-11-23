@@ -88,6 +88,10 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		os.Exit(125)
 	}
 
+	if hostConfig.OomKillDisable && hostConfig.Memory == 0 {
+		fmt.Fprintf(cli.err, "WARNING: Dangerous only disable the OOM Killer on containers but not set the '-m/--memory' option\n")
+	}
+
 	if len(hostConfig.DNS) > 0 {
 		// check the DNS settings passed via --dns against
 		// localhost regexp to warn if they are trying to
