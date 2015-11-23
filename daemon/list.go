@@ -53,6 +53,8 @@ type ContainersConfig struct {
 	Size bool
 	// return only containers that match filters
 	Filters string
+	// whether to ignore link names or not
+	IgnoreLinks bool
 }
 
 // listContext is the daemon generated filtering to iterate over containers.
@@ -76,6 +78,8 @@ type listContext struct {
 	// sinceFilter is a filter to stop the filtering when the iterator arrive to the given container
 	// this is used for --filter=since= and --since=, the latter is deprecated.
 	sinceFilter *Container
+	// images cached by name. To not repeat the same search in the graph every time.
+	cachedImages map[string]string
 	// ContainersConfig is the filters set by the user
 	*ContainersConfig
 }
@@ -197,10 +201,12 @@ func (daemon *Daemon) foldFilter(config *ContainersConfig) (*listContext, error)
 	}
 
 	names := make(map[string][]string)
-	daemon.containerGraph().Walk("/", func(p string, e *graphdb.Entity) error {
-		names[e.ID()] = append(names[e.ID()], p)
-		return nil
-	}, 1)
+	if !config.IgnoreLinks {
+		daemon.containerGraph().Walk("/", func(p string, e *graphdb.Entity) error {
+			names[e.ID()] = append(names[e.ID()], p)
+			return nil
+		}, 1)
+	}
 
 	if config.Before != "" {
 		beforeContFilter, err = daemon.Get(config.Before)
@@ -224,6 +230,7 @@ func (daemon *Daemon) foldFilter(config *ContainersConfig) (*listContext, error)
 		exitAllowed:      filtExited,
 		beforeFilter:     beforeContFilter,
 		sinceFilter:      sinceContFilter,
+		cachedImages:     map[string]string{},
 		ContainersConfig: config,
 	}, nil
 }
@@ -316,18 +323,23 @@ func (daemon *Daemon) transformContainer(container *Container, ctx *listContext)
 		ImageID: container.ImageID.String(),
 	}
 	if newC.Names == nil {
-		// Dead containers will often have no name, so make sure the response isn't  null
-		newC.Names = []string{}
+		newC.Names = []string{container.Name}
 	}
 
 	image := container.Config.Image // if possible keep the original ref
 	if image != container.ImageID.String() {
-		id, err := daemon.GetImageID(image)
-		if _, isDNE := err.(ErrImageDoesNotExist); err != nil && !isDNE {
-			return nil, err
-		}
-		if err != nil || id != container.ImageID {
-			image = container.ImageID.String()
+		cachedID, ok := ctx.cachedImages[container.Config.Image]
+		if !ok {
+			id, err := daemon.GetImageID(image)
+			if _, isDNE := err.(ErrImageDoesNotExist); err != nil && !isDNE {
+				return nil, err
+			}
+			if err != nil || id != container.ImageID {
+				image = container.ImageID.String()
+			}
+			ctx.cachedImages[container.Config.Image] = image
+		} else {
+			image = cachedID
 		}
 	}
 	newC.Image = image

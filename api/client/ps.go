@@ -64,6 +64,11 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 		v.Set("size", "1")
 	}
 
+	trunc := !*noTrunc
+	if trunc {
+		v.Set("ignoreLinks", "1")
+	}
+
 	// Consolidate all filter flags, and sanity check them.
 	// They'll get processed in the daemon/server.
 	for _, f := range flFilter.GetAll() {
@@ -107,7 +112,7 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 		Format: f,
 		Quiet:  *quiet,
 		Size:   *size,
-		Trunc:  !*noTrunc,
+		Trunc:  trunc,
 	}
 
 	ps.Format(psCtx, containers)

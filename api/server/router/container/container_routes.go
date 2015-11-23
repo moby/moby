@@ -30,11 +30,12 @@ func (s *containerRouter) getContainersJSON(ctx context.Context, w http.Response
 	}
 
 	config := &daemon.ContainersConfig{
-		All:     httputils.BoolValue(r, "all"),
-		Size:    httputils.BoolValue(r, "size"),
-		Since:   r.Form.Get("since"),
-		Before:  r.Form.Get("before"),
-		Filters: r.Form.Get("filters"),
+		All:         httputils.BoolValue(r, "all"),
+		Size:        httputils.BoolValue(r, "size"),
+		Since:       r.Form.Get("since"),
+		Before:      r.Form.Get("before"),
+		Filters:     r.Form.Get("filters"),
+		IgnoreLinks: httputils.BoolValue(r, "ignoreLinks"),
 	}
 
 	if tmpLimit := r.Form.Get("limit"); tmpLimit != "" {
