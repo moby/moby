@@ -83,14 +83,14 @@ The [Understanding Docker section](../introduction/understanding-docker.md) will
 
 ### Installation guides
 
-The [installation section](../installation) will show you how to install Docker
+The [installation section](../installation/index.md) will show you how to install Docker
 on a variety of platforms.
 
 
 ### Docker user guide
 
 To learn about Docker in more detail and to answer questions about usage and
-implementation, check out the [Docker User Guide](../userguide/).
+implementation, check out the [Docker User Guide](../userguide/index.md).
 
 ## Release notes
 

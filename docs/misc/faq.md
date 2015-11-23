@@ -269,4 +269,4 @@ You can find more answers on:
 - [Ask questions on Stackoverflow](http://stackoverflow.com/search?q=docker)
 - [Join the conversation on Twitter](http://twitter.com/docker)
 
-Looking for something else to read? Checkout the [User Guide](../userguide/).
+Looking for something else to read? Checkout the [User Guide](../userguide/index.md).
