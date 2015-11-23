@@ -3252,6 +3252,46 @@ func (s *DockerSuite) TestBuildAddFileNotFound(c *check.C) {
 	}
 }
 
+func (s *DockerSuite) TestBuildAddChangeOwnership(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	name := "testbuildaddown"
+
+	ctx := func() *FakeContext {
+		dockerfile := `
+			FROM busybox
+			ADD foo /bar/
+			RUN [ $(stat -c %U:%G "/bar") = 'root:root' ]
+			RUN [ $(stat -c %U:%G "/bar/foo") = 'root:root' ]
+			`
+		tmpDir, err := ioutil.TempDir("", "fake-context")
+		c.Assert(err, check.IsNil)
+		testFile, err := os.Create(filepath.Join(tmpDir, "foo"))
+		if err != nil {
+			c.Fatalf("failed to create foo file: %v", err)
+		}
+		defer testFile.Close()
+
+		chownCmd := exec.Command("chown", "daemon:daemon", "foo")
+		chownCmd.Dir = tmpDir
+		out, _, err := runCommandWithOutput(chownCmd)
+		if err != nil {
+			c.Fatal(err, out)
+		}
+
+		if err := ioutil.WriteFile(filepath.Join(tmpDir, "Dockerfile"), []byte(dockerfile), 0644); err != nil {
+			c.Fatalf("failed to open destination dockerfile: %v", err)
+		}
+		return fakeContextFromDir(tmpDir)
+	}()
+
+	defer ctx.Close()
+
+	if _, err := buildImageFromContext(name, ctx, true); err != nil {
+		c.Fatalf("build failed to complete for TestBuildAddChangeOwnership: %v", err)
+	}
+
+}
+
 func (s *DockerSuite) TestBuildInheritance(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	name := "testbuildinheritance"

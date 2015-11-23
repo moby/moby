@@ -127,6 +127,7 @@ func (d Docker) Release(sessionID string, activeImages []string) {
 func (d Docker) Copy(c *daemon.Container, destPath string, src builder.FileInfo, decompress bool) error {
 	srcPath := src.Path()
 	destExists := true
+	destDir := false
 	rootUID, rootGID := d.Daemon.GetRemappedUIDGID()
 
 	// Work in daemon-local OS specific file paths
@@ -140,6 +141,7 @@ func (d Docker) Copy(c *daemon.Container, destPath string, src builder.FileInfo,
 	// Preserve the trailing slash
 	// TODO: why are we appending another path separator if there was already one?
 	if strings.HasSuffix(destPath, string(os.PathSeparator)) || destPath == "." {
+		destDir = true
 		dest += string(os.PathSeparator)
 	}
 
@@ -182,7 +184,7 @@ func (d Docker) Copy(c *daemon.Container, destPath string, src builder.FileInfo,
 	}
 
 	// only needed for fixPermissions, but might as well put it before CopyFileWithTar
-	if destExists && destStat.IsDir() {
+	if destDir || (destExists && destStat.IsDir()) {
 		destPath = filepath.Join(destPath, src.Name())
 	}
 
