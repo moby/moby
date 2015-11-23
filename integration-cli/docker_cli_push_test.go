@@ -635,21 +635,19 @@ func (s *DockerSuite) TestPushToPublicRegistry(c *check.C) {
 	runTest(exec.Command(dockerBinary, "push", repoName), true)
 }
 
-func (s *DockerSuite) TestPushToPublicRegistryNoConfirm(c *check.C) {
-	d := NewDaemon(c)
+func (s *DockerDaemonSuite) TestPushToPublicRegistryNoConfirm(c *check.C) {
 	daemonArgs := []string{"--confirm-def-push=false"}
-	if err := d.StartWithBusybox(daemonArgs...); err != nil {
+	if err := s.d.StartWithBusybox(daemonArgs...); err != nil {
 		c.Fatalf("we should have been able to start the daemon with passing { %s } flags: %v", strings.Join(daemonArgs, ", "), err)
 	}
-	defer d.Stop()
 
 	repoName := "docker.io/user/hello-world"
-	if out, err := d.Cmd("tag", "busybox", repoName); err != nil {
+	if out, err := s.d.Cmd("tag", "busybox", repoName); err != nil {
 		c.Fatalf("failed to tag image %s: error %v, output %q", "busybox", err, out)
 	}
 
 	runTest := func(name string, arg ...string) {
-		args := []string{"--host", d.sock(), name}
+		args := []string{"--host", s.d.sock(), name}
 		args = append(args, arg...)
 		c.Logf("Running %s %s %s", dockerBinary, name, strings.Join(args, " "))
 		cmd := exec.Command(dockerBinary, args...)
@@ -727,59 +725,55 @@ func (s *DockerSuite) TestPushToPublicRegistryNoConfirm(c *check.C) {
 }
 
 func (s *DockerRegistrySuite) TestPushToAdditionalRegistry(c *check.C) {
-	d := NewDaemon(c)
-	if err := d.StartWithBusybox("--add-registry=" + s.reg.url); err != nil {
+	if err := s.d.StartWithBusybox("--add-registry=" + s.reg.url); err != nil {
 		c.Fatalf("we should have been able to start the daemon with passing add-registry=%s: %v", s.reg.url, err)
 	}
-	defer d.Stop()
 
-	bbImg := d.getAndTestImageEntry(c, 1, "busybox", "")
+	bbImg := s.d.getAndTestImageEntry(c, 1, "busybox", "")
 
 	// push busybox to additional registry as "library/busybox" and remove all local images
-	if out, err := d.Cmd("tag", "busybox", "library/busybox"); err != nil {
+	if out, err := s.d.Cmd("tag", "busybox", "library/busybox"); err != nil {
 		c.Fatalf("failed to tag image %s: error %v, output %q", "busybox", err, out)
 	}
-	if out, err := d.Cmd("push", "library/busybox"); err != nil {
+	if out, err := s.d.Cmd("push", "library/busybox"); err != nil {
 		c.Fatalf("failed to push image library/busybox: error %v, output %q", err, out)
 	}
 	toRemove := []string{"busybox", "library/busybox"}
-	if out, err := d.Cmd("rmi", toRemove...); err != nil {
+	if out, err := s.d.Cmd("rmi", toRemove...); err != nil {
 		c.Fatalf("failed to remove images %v: %v, output: %s", toRemove, err, out)
 	}
-	d.getAndTestImageEntry(c, 0, "", "")
+	s.d.getAndTestImageEntry(c, 0, "", "")
 
 	// pull it from additional registry
-	if _, err := d.Cmd("pull", "library/busybox"); err != nil {
+	if _, err := s.d.Cmd("pull", "library/busybox"); err != nil {
 		c.Fatalf("we should have been able to pull library/busybox from %q: %v", s.reg.url, err)
 	}
-	bb2Img := d.getAndTestImageEntry(c, 1, s.reg.url+"/library/busybox", "")
+	bb2Img := s.d.getAndTestImageEntry(c, 1, s.reg.url+"/library/busybox", "")
 	if bb2Img.size != bbImg.size {
 		c.Fatalf("expected %s and %s to have the same size (%s != %s)", bb2Img.name, bbImg.name, bb2Img.size, bbImg.size)
 	}
 }
 
 func (s *DockerRegistrySuite) TestPushCustomTagToAdditionalRegistry(c *check.C) {
-	d := NewDaemon(c)
-	if err := d.StartWithBusybox("--add-registry=" + s.reg.url); err != nil {
+	if err := s.d.StartWithBusybox("--add-registry=" + s.reg.url); err != nil {
 		c.Fatalf("we should have been able to start the daemon with passing add-registry=%s: %v", s.reg.url, err)
 	}
-	defer d.Stop()
 
-	busyboxID := d.getAndTestImageEntry(c, 1, "busybox", "").id
+	busyboxID := s.d.getAndTestImageEntry(c, 1, "busybox", "").id
 
-	if out, err := d.Cmd("tag", "busybox", "user/busybox:1.2.3"); err != nil {
+	if out, err := s.d.Cmd("tag", "busybox", "user/busybox:1.2.3"); err != nil {
 		c.Fatalf("failed to tag image %s: error %v, output %q", "busybox", err, out)
 	}
-	if out, err := d.Cmd("tag", "busybox", s.reg.url+"/user/busybox:latest"); err != nil {
+	if out, err := s.d.Cmd("tag", "busybox", s.reg.url+"/user/busybox:latest"); err != nil {
 		c.Fatalf("failed to tag image %s: error %v, output %q", "busybox", err, out)
 	}
-	if out, err := d.Cmd("push", "user/busybox:1.2.3"); err != nil {
+	if out, err := s.d.Cmd("push", "user/busybox:1.2.3"); err != nil {
 		c.Fatalf("failed to push image user/busybox: error %v, output %q", err, out)
 	}
-	d.getAndTestImageEntry(c, 3, "user/busybox", busyboxID)
+	s.d.getAndTestImageEntry(c, 3, "user/busybox", busyboxID)
 	toRemove := []string{"user/busybox:1.2.3"}
-	if out, err := d.Cmd("rmi", toRemove...); err != nil {
+	if out, err := s.d.Cmd("rmi", toRemove...); err != nil {
 		c.Fatalf("failed to remove images %v: %v, output: %s", toRemove, err, out)
 	}
-	d.getAndTestImageEntry(c, 2, s.reg.url+"/user/busybox", busyboxID)
+	s.d.getAndTestImageEntry(c, 2, s.reg.url+"/user/busybox", busyboxID)
 }

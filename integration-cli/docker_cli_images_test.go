@@ -246,24 +246,22 @@ func (s *DockerSuite) TestImagesEnsureImagesFromScratchShown(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) doTestImagesWithAdditionalRegistry(c *check.C, publicBlocked bool) {
-	d := NewDaemon(c)
+func (s *DockerDaemonSuite) doTestImagesWithAdditionalRegistry(c *check.C, publicBlocked bool) {
 	daemonArgs := []string{"--add-registry=example.com"}
 	if publicBlocked {
 		daemonArgs = append(daemonArgs, "--block-registry=public")
 	}
-	if err := d.StartWithBusybox(daemonArgs...); err != nil {
+	if err := s.d.StartWithBusybox(daemonArgs...); err != nil {
 		c.Fatalf("we should have been able to start the daemon with passing { %s } flags: %v", strings.Join(daemonArgs, ", "), err)
 	}
-	defer d.Stop()
 
-	if out, err := d.Cmd("tag", "busybox", "example.com/busybox"); err != nil {
+	if out, err := s.d.Cmd("tag", "busybox", "example.com/busybox"); err != nil {
 		c.Fatalf("failed to tag image %s: error %v, output %q", "busybox", err, out)
 	}
-	if out, err := d.Cmd("tag", "busybox", "docker.io/busybox"); err != nil {
+	if out, err := s.d.Cmd("tag", "busybox", "docker.io/busybox"); err != nil {
 		c.Fatalf("failed to tag image %s: error %v, output %q", "busybox", err, out)
 	}
-	if out, err := d.Cmd("tag", "busybox", "other.com/busybox"); err != nil {
+	if out, err := s.d.Cmd("tag", "busybox", "other.com/busybox"); err != nil {
 		c.Fatalf("failed to tag image %s: error %v, output %q", "busybox", err, out)
 	}
 
@@ -271,7 +269,7 @@ func (s *DockerSuite) doTestImagesWithAdditionalRegistry(c *check.C, publicBlock
 	if !publicBlocked {
 		expected = append(expected, "docker.io/busybox")
 	}
-	images := d.getImages(c, "*box")
+	images := s.d.getImages(c, "*box")
 	if len(images) != len(expected) {
 		c.Fatalf("got unexpected number of images (%d), expected: %d, images: %v", len(images), len(expected), images)
 	}
@@ -282,7 +280,7 @@ func (s *DockerSuite) doTestImagesWithAdditionalRegistry(c *check.C, publicBlock
 	}
 
 	expected = []string{"docker.io/busybox", "example.com/busybox", "other.com/busybox"}
-	images = d.getImages(c, "*/*box")
+	images = s.d.getImages(c, "*/*box")
 	if len(images) != len(expected) {
 		c.Fatalf("got unexpected number of images (%d), expected: %d, images: %v", len(images), len(expected), images)
 	}
@@ -293,10 +291,10 @@ func (s *DockerSuite) doTestImagesWithAdditionalRegistry(c *check.C, publicBlock
 	}
 }
 
-func (s *DockerSuite) TestImagesWithAdditionalRegistry(c *check.C) {
+func (s *DockerDaemonSuite) TestImagesWithAdditionalRegistry(c *check.C) {
 	s.doTestImagesWithAdditionalRegistry(c, false)
 }
 
-func (s *DockerSuite) TestImagesWithPublicRegistryBlocked(c *check.C) {
+func (s *DockerDaemonSuite) TestImagesWithPublicRegistryBlocked(c *check.C) {
 	s.doTestImagesWithAdditionalRegistry(c, true)
 }

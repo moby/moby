@@ -80,7 +80,9 @@ func (s *DockerDaemonSuite) SetUpTest(c *check.C) {
 
 func (s *DockerDaemonSuite) TearDownTest(c *check.C) {
 	testRequires(c, DaemonIsLinux)
-	s.d.Stop()
+	if s.d != nil {
+		s.d.Stop()
+	}
 	s.ds.TearDownTest(c)
 }
 
@@ -102,24 +104,38 @@ func (s *DockerTrustSuite) SetUpTest(c *check.C) {
 }
 
 func (s *DockerTrustSuite) TearDownTest(c *check.C) {
-	s.reg.Close()
-	s.not.Close()
+	if s.reg != nil {
+		s.reg.Close()
+	}
+	if s.not != nil {
+		s.not.Close()
+	}
+	s.ds.TearDownTest(c)
 }
 
 type DockerRegistriesSuite struct {
 	ds   *DockerSuite
 	reg1 *testRegistryV2
 	reg2 *testRegistryV2
+	d    *Daemon
 }
 
 func (s *DockerRegistriesSuite) SetUpTest(c *check.C) {
 	s.reg1 = setupRegistryAt(c, privateRegistryURL)
 	s.reg2 = setupRegistryAt(c, privateRegistryURL2)
+	s.d = NewDaemon(c)
 }
 
 func (s *DockerRegistriesSuite) TearDownTest(c *check.C) {
-	s.reg2.Close()
-	s.reg1.Close()
+	if s.reg2 != nil {
+		s.reg2.Close()
+	}
+	if s.reg1 != nil {
+		s.reg1.Close()
+	}
+	if s.d != nil {
+		s.d.Stop()
+	}
 	s.ds.TearDownTest(c)
 }
 

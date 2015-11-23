@@ -125,8 +125,6 @@ type ImageInspect struct {
 type RemoteImageInspect struct {
 	ImageInspectBase
 	Registry string
-	Digest   string
-	Tag      string
 }
 
 // Port stores open ports info of container

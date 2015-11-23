@@ -48,6 +48,7 @@ func assertTagListEqual(c *check.C, d *Daemon, remote, allowEmptyImageID bool, n
 		}
 		return d.sockRequest("GET", endpoint, nil)
 	}()
+
 	c.Assert(status, check.Equals, http.StatusOK)
 	c.Assert(err, check.IsNil)
 
@@ -67,15 +68,13 @@ func assertTagListEqual(c *check.C, d *Daemon, remote, allowEmptyImageID bool, n
 }
 
 func (s *DockerRegistriesSuite) TestTagApiListRemoteRepository(c *check.C) {
-	d := NewDaemon(c)
 	daemonArgs := []string{"--add-registry=" + s.reg2.url}
-	if err := d.StartWithBusybox(daemonArgs...); err != nil {
+	if err := s.d.StartWithBusybox(daemonArgs...); err != nil {
 		c.Fatalf("we should have been able to start the daemon with passing { %s } flags: %v", strings.Join(daemonArgs, ", "), err)
 	}
-	defer d.Stop()
 
 	{ // load hello-world
-		bb := filepath.Join(d.folder, "hello-world.tar")
+		bb := filepath.Join(s.d.folder, "hello-world.tar")
 		if _, err := os.Stat(bb); err != nil {
 			if !os.IsNotExist(err) {
 				c.Fatalf("unexpected error on hello-world.tar stat: %v", err)
@@ -86,37 +85,37 @@ func (s *DockerRegistriesSuite) TestTagApiListRemoteRepository(c *check.C) {
 			}
 		}
 		// loading hello-world image to this daemon
-		if _, err := d.Cmd("load", "--input", bb); err != nil {
+		if _, err := s.d.Cmd("load", "--input", bb); err != nil {
 			c.Fatalf("could not load hello-world image: %v", err)
 		}
 		if err := os.Remove(bb); err != nil {
-			d.c.Logf("could not remove %s: %v", bb, err)
+			s.d.c.Logf("could not remove %s: %v", bb, err)
 		}
 	}
-	busyboxID := d.getAndTestImageEntry(c, 2, "busybox", "").id
-	helloWorldID := d.getAndTestImageEntry(c, 2, "hello-world", "").id
+	busyboxID := s.d.getAndTestImageEntry(c, 2, "busybox", "").id
+	helloWorldID := s.d.getAndTestImageEntry(c, 2, "hello-world", "").id
 
 	for _, tag := range []string{"1.1-busy", "1.2-busy", "1.3-busy"} {
 		dest := s.reg1.url + "/foo/busybox:" + tag
-		if out, err := d.Cmd("tag", "busybox", dest); err != nil {
+		if out, err := s.d.Cmd("tag", "busybox", dest); err != nil {
 			c.Fatalf("failed to tag image %q as %q: error %v, output %q", "busybox", dest, err, out)
 		}
 	}
 	for _, tag := range []string{"1.4-hell", "1.5-hell"} {
 		dest := s.reg1.url + "/foo/busybox:" + tag
-		if out, err := d.Cmd("tag", "hello-world:frozen", dest); err != nil {
+		if out, err := s.d.Cmd("tag", "hello-world:frozen", dest); err != nil {
 			c.Fatalf("failed to tag image %q as %q: error %v, output %q", "busybox", dest, err, out)
 		}
 	}
 	for _, tag := range []string{"2.1-busy", "2.2-busy", "2.3-busy"} {
 		dest := s.reg2.url + "/foo/busybox:" + tag
-		if out, err := d.Cmd("tag", "busybox", dest); err != nil {
+		if out, err := s.d.Cmd("tag", "busybox", dest); err != nil {
 			c.Fatalf("failed to tag image %q as %q: error %v, output %q", "busybox", dest, err, out)
 		}
 	}
 	for _, tag := range []string{"2.4-hell", "2.5-hell"} {
 		dest := s.reg2.url + "/foo/busybox:" + tag
-		if out, err := d.Cmd("tag", "hello-world:frozen", dest); err != nil {
+		if out, err := s.d.Cmd("tag", "hello-world:frozen", dest); err != nil {
 			c.Fatalf("failed to tag image %q as %q: error %v, output %q", "busybox", dest, err, out)
 		}
 	}
@@ -129,20 +128,20 @@ func (s *DockerRegistriesSuite) TestTagApiListRemoteRepository(c *check.C) {
 			if (ri+i)%3 == 0 {
 				continue // upload 2/3 of registries
 			}
-			if out, err := d.Cmd("push", tag); err != nil {
+			if out, err := s.d.Cmd("push", tag); err != nil {
 				c.Fatalf("push of %q should have succeeded: %v, output: %s", tag, err, out)
 			}
 		}
 	}
 
-	assertTagListEqual(c, d, true, true, s.reg1.url+"/foo/busybox", s.reg1.url+"/foo/busybox",
+	assertTagListEqual(c, s.d, true, true, s.reg1.url+"/foo/busybox", s.reg1.url+"/foo/busybox",
 		[]types.RepositoryTag{
 			{"1.2-busy", busyboxID},
 			{"1.3-busy", busyboxID},
 			{"1.5-hell", helloWorldID},
 		})
 
-	assertTagListEqual(c, d, true, true, s.reg2.url+"/foo/busybox", s.reg2.url+"/foo/busybox",
+	assertTagListEqual(c, s.d, true, true, s.reg2.url+"/foo/busybox", s.reg2.url+"/foo/busybox",
 		[]types.RepositoryTag{
 			{"2.1-busy", busyboxID},
 			{"2.2-busy", busyboxID},
@@ -150,7 +149,7 @@ func (s *DockerRegistriesSuite) TestTagApiListRemoteRepository(c *check.C) {
 			{"2.5-hell", helloWorldID},
 		})
 
-	assertTagListEqual(c, d, true, true, "foo/busybox", s.reg2.url+"/foo/busybox",
+	assertTagListEqual(c, s.d, true, true, "foo/busybox", s.reg2.url+"/foo/busybox",
 		[]types.RepositoryTag{
 			{"2.1-busy", busyboxID},
 			{"2.2-busy", busyboxID},
@@ -158,7 +157,7 @@ func (s *DockerRegistriesSuite) TestTagApiListRemoteRepository(c *check.C) {
 			{"2.5-hell", helloWorldID},
 		})
 
-	assertTagListEqual(c, d, false, false, s.reg1.url+"/foo/busybox", s.reg1.url+"/foo/busybox",
+	assertTagListEqual(c, s.d, false, false, s.reg1.url+"/foo/busybox", s.reg1.url+"/foo/busybox",
 		[]types.RepositoryTag{
 			{"1.1-busy", busyboxID},
 			{"1.2-busy", busyboxID},
@@ -167,7 +166,7 @@ func (s *DockerRegistriesSuite) TestTagApiListRemoteRepository(c *check.C) {
 			{"1.5-hell", helloWorldID},
 		})
 
-	assertTagListEqual(c, d, false, false, s.reg2.url+"/foo/busybox", s.reg2.url+"/foo/busybox",
+	assertTagListEqual(c, s.d, false, false, s.reg2.url+"/foo/busybox", s.reg2.url+"/foo/busybox",
 		[]types.RepositoryTag{
 			{"2.1-busy", busyboxID},
 			{"2.2-busy", busyboxID},
@@ -177,12 +176,12 @@ func (s *DockerRegistriesSuite) TestTagApiListRemoteRepository(c *check.C) {
 		})
 
 	// now delete all local images
-	if out, err := d.Cmd("rmi", localTags...); err != nil {
+	if out, err := s.d.Cmd("rmi", localTags...); err != nil {
 		c.Fatalf("failed to remove images %v: %v, output: %s", localTags, err, out)
 	}
 
 	// and try again
-	assertTagListEqual(c, d, true, true, "foo/busybox", s.reg2.url+"/foo/busybox",
+	assertTagListEqual(c, s.d, true, true, "foo/busybox", s.reg2.url+"/foo/busybox",
 		[]types.RepositoryTag{
 			{"2.1-busy", busyboxID},
 			{"2.2-busy", busyboxID},
@@ -190,7 +189,7 @@ func (s *DockerRegistriesSuite) TestTagApiListRemoteRepository(c *check.C) {
 			{"2.5-hell", helloWorldID},
 		})
 
-	assertTagListEqual(c, d, false, true, s.reg1.url+"/foo/busybox", s.reg1.url+"/foo/busybox",
+	assertTagListEqual(c, s.d, false, true, s.reg1.url+"/foo/busybox", s.reg1.url+"/foo/busybox",
 		[]types.RepositoryTag{
 			{"1.2-busy", busyboxID},
 			{"1.3-busy", busyboxID},
@@ -199,24 +198,29 @@ func (s *DockerRegistriesSuite) TestTagApiListRemoteRepository(c *check.C) {
 }
 
 func (s *DockerRegistrySuite) TestTagApiListNotExistentRepository(c *check.C) {
-	d := NewDaemon(c)
-	if err := d.StartWithBusybox(); err != nil {
+	if err := s.d.StartWithBusybox(); err != nil {
 		c.Fatalf("we should have been able to start the daemon: %v", err)
 	}
-	defer d.Stop()
 
-	busyboxID := d.getAndTestImageEntry(c, 1, "busybox", "").id
+	busyboxID := s.d.getAndTestImageEntry(c, 1, "busybox", "").id
 
 	repoName := fmt.Sprintf("%s/foo/busybox", s.reg.url)
-	if out, err := d.Cmd("tag", "busybox", repoName); err != nil {
+	if out, err := s.d.Cmd("tag", "busybox", repoName); err != nil {
 		c.Fatalf("failed to tag image %q as %q: error %v, output %q", "busybox", repoName, err, out)
 	}
-	// list remote tags - shall list nothing
-	assertTagListEqual(c, d, true, true, repoName, repoName, []types.RepositoryTag{})
-
 	// list local tags
-	assertTagListEqual(c, d, false, false, repoName, repoName,
+	assertTagListEqual(c, s.d, false, false, repoName, repoName,
 		[]types.RepositoryTag{
 			{"latest", busyboxID},
 		})
+
+	// list remote tags - shall list nothing
+	endpoint := fmt.Sprintf("/v1.20/images/%s/tags?remote=1", repoName)
+	status, _, err := func() (int, []byte, error) {
+		return s.d.sockRequest("GET", endpoint, nil)
+	}()
+
+	c.Assert(status, check.Equals, http.StatusNotFound)
+	c.Assert(err, check.IsNil)
+
 }

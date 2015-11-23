@@ -194,14 +194,19 @@ func compareInspectValues(c *check.C, name string, fst, snd interface{}, localVs
 			"GraphDriver": {},
 			"VirtualSize": {},
 		}
-		additionalRemoteAttributes = map[string]struct{}{
-			"Registry": {},
-			"Digest":   {},
-			"Tag":      {},
-		}
+		additionalRemoteAttributes = map[string]struct{}{"Registry": {}}
 	}
 
 	isRootObject := len(name) <= 1
+
+	compareArrays := func(lVal, rVal []interface{}) {
+		if len(lVal) != len(rVal) {
+			c.Errorf("array length differs between fst and snd for %q: %d != %d", name, len(lVal), len(rVal))
+		}
+		for i := 0; i < len(lVal) && i < len(rVal); i++ {
+			compareInspectValues(c, fmt.Sprintf("%s[%d]", name, i), lVal[i], rVal[i], localVsRemote)
+		}
+	}
 
 	if reflect.TypeOf(fst) != reflect.TypeOf(snd) {
 		c.Errorf("types don't match for %q: %T != %T", name, fst, snd)
@@ -214,23 +219,26 @@ func compareInspectValues(c *check.C, name string, fst, snd interface{}, localVs
 		if lVal != rVal {
 			c.Errorf("fst value differs from snd for %q: %t != %t", name, lVal, rVal)
 		}
+
 	case float64:
 		lVal := fst.(float64)
 		rVal := snd.(float64)
 		if lVal != rVal {
 			c.Errorf("fst value differs from snd for %q: %f != %f", name, lVal, rVal)
 		}
+
 	case string:
 		lVal := fst.(string)
 		rVal := snd.(string)
 		if lVal != rVal {
 			c.Errorf("fst value differs from snd for %q: %q != %q", name, lVal, rVal)
 		}
+
 	// JSON array
 	case []interface{}:
 		lVal := fst.([]interface{})
 		rVal := snd.([]interface{})
-		if strings.HasSuffix(name, ".Tags") {
+		if strings.HasSuffix(name, ".RepoTags") {
 			if len(rVal) != 1 {
 				c.Errorf("expected one item in remote Tags, not: %d", len(rVal))
 			} else {
@@ -246,13 +254,9 @@ func compareInspectValues(c *check.C, name string, fst, snd interface{}, localVs
 				}
 			}
 		} else {
-			if len(lVal) != len(rVal) {
-				c.Errorf("array length differs between fst and snd for %q: %d != %d", name, len(lVal), len(rVal))
-			}
-			for i := 0; i < len(lVal) && i < len(rVal); i++ {
-				compareInspectValues(c, fmt.Sprintf("%s[%d]", name, i), lVal[i], rVal[i], localVsRemote)
-			}
+			compareArrays(lVal, rVal)
 		}
+
 	// JSON object
 	case map[string]interface{}:
 		lMap := fst.(map[string]interface{})
@@ -278,10 +282,12 @@ func compareInspectValues(c *check.C, name string, fst, snd interface{}, localVs
 				}
 			}
 		}
+
 	case nil:
 		if fst != snd {
 			c.Errorf("fst value differs from snd for %q: %v (%T) != %v (%T)", name, fst, fst, snd, snd)
 		}
+
 	default:
 		c.Fatalf("got unexpected type (%T) for %q", fst, name)
 	}
@@ -341,37 +347,35 @@ func (s *DockerRegistrySuite) TestInspectApiRemoteImage(c *check.C) {
 }
 
 func (s *DockerRegistrySuite) TestInspectApiImageFromAdditionalRegistry(c *check.C) {
-	d := NewDaemon(c)
 	daemonArgs := []string{"--add-registry=" + s.reg.url}
-	if err := d.StartWithBusybox(daemonArgs...); err != nil {
+	if err := s.d.StartWithBusybox(daemonArgs...); err != nil {
 		c.Fatalf("we should have been able to start the daemon with passing { %s } flags: %v", strings.Join(daemonArgs, ", "), err)
 	}
-	defer d.Stop()
 
 	repoName := fmt.Sprintf("dockercli/busybox")
 	fqn := s.reg.url + "/" + repoName
 	// tag the image and upload it to the private registry
-	if out, err := d.Cmd("tag", "busybox", fqn); err != nil {
+	if out, err := s.d.Cmd("tag", "busybox", fqn); err != nil {
 		c.Fatalf("image tagging failed: %s, %v", out, err)
 	}
 
-	localValue, _, _ := apiCallInspectImage(c, d, repoName, false, false)
+	localValue, _, _ := apiCallInspectImage(c, s.d, repoName, false, false)
 
-	_, status, _ := apiCallInspectImage(c, d, repoName, true, true)
+	_, status, _ := apiCallInspectImage(c, s.d, repoName, true, true)
 	c.Assert(status, check.Equals, http.StatusNotFound)
 
-	if out, err := d.Cmd("push", fqn); err != nil {
+	if out, err := s.d.Cmd("push", fqn); err != nil {
 		c.Fatalf("failed to push image %s: error %v, output %q", fqn, err, out)
 	}
 
-	remoteValue, _, _ := apiCallInspectImage(c, d, repoName, true, false)
+	remoteValue, _, _ := apiCallInspectImage(c, s.d, repoName, true, false)
 	compareInspectValues(c, "a", localValue, remoteValue, true)
 
-	if out, err := d.Cmd("rmi", fqn); err != nil {
+	if out, err := s.d.Cmd("rmi", fqn); err != nil {
 		c.Fatalf("failed to remove image %s: %s, %v", fqn, out, err)
 	}
 
-	remoteValue2, _, _ := apiCallInspectImage(c, d, fqn, true, false)
+	remoteValue2, _, _ := apiCallInspectImage(c, s.d, fqn, true, false)
 	compareInspectValues(c, "a", localValue, remoteValue2, true)
 }
 
@@ -385,5 +389,5 @@ func (s *DockerRegistrySuite) TestInspectApiNonExistentRepository(c *check.C) {
 
 	_, status, err = apiCallInspectImage(c, nil, repoName, true, true)
 	c.Assert(err, check.Not(check.IsNil))
-	c.Assert(err.Error(), check.Matches, `(?i).*(not found|no such image|no tags available).*`)
+	c.Assert(err.Error(), check.Matches, `(?i).*(not found|no such image|no tags available|not known).*`)
 }

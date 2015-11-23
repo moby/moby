@@ -49,11 +49,22 @@ func NewManifestFetcher(s *TagStore, endpoint registry.APIEndpoint, repoInfo *re
 }
 
 func makeRemoteImageInspect(repoInfo *registry.RepositoryInfo, img *image.Image, tag string, dgst digest.Digest) *types.RemoteImageInspect {
+	var (
+		repoTags    = make([]string, 0, 1)
+		repoDigests = make([]string, 0, 1)
+	)
+	if tag != "" {
+		repoTags = append(repoTags, utils.ImageReference(repoInfo.CanonicalName, tag))
+	}
+	if err := dgst.Validate(); err == nil {
+		repoDigests = append(repoDigests, dgst.String())
+	}
+
 	return &types.RemoteImageInspect{
-		types.ImageInspectBase{
+		ImageInspectBase: types.ImageInspectBase{
 			ID:              img.ID,
-			RepoTags:        []string{utils.ImageReference(repoInfo.CanonicalName, tag)},
-			RepoDigests:     []string{utils.ImageReference(repoInfo.CanonicalName, dgst.String())},
+			RepoTags:        repoTags,
+			RepoDigests:     repoDigests,
 			Parent:          img.Parent,
 			Comment:         img.Comment,
 			Created:         img.Created.Format(time.RFC3339Nano),
@@ -66,26 +77,8 @@ func makeRemoteImageInspect(repoInfo *registry.RepositoryInfo, img *image.Image,
 			Os:              img.OS,
 			Size:            img.Size,
 		},
-		repoInfo.Index.Name,
-		dgst.String(),
-		tag,
+		Registry: repoInfo.Index.Name,
 	}
-}
-
-// lookupRaw looks up an image by name in a TagStore and returns the raw JSON
-// describing the image.
-func (s *TagStore) lookupRaw(name string) ([]byte, error) {
-	image, err := s.LookupImage(name)
-	if err != nil || image == nil {
-		return nil, fmt.Errorf("No such image %s", name)
-	}
-
-	imageInspectRaw, err := s.graph.RawJSON(image.ID)
-	if err != nil {
-		return nil, err
-	}
-
-	return imageInspectRaw, nil
 }
 
 // Lookup looks up an image by name in a TagStore and returns it as an
@@ -115,7 +108,7 @@ func (s *TagStore) Lookup(name string) (*types.ImageInspect, error) {
 	s.Unlock()
 
 	imageInspect := &types.ImageInspect{
-		types.ImageInspectBase{
+		ImageInspectBase: types.ImageInspectBase{
 			ID:              image.ID,
 			RepoTags:        repoTags,
 			RepoDigests:     repoDigests,
@@ -131,8 +124,8 @@ func (s *TagStore) Lookup(name string) (*types.ImageInspect, error) {
 			Os:              image.OS,
 			Size:            image.Size,
 		},
-		s.graph.GetParentsSize(image) + image.Size,
-		types.GraphDriverData{
+		VirtualSize: s.graph.GetParentsSize(image) + image.Size,
+		GraphDriver: types.GraphDriverData{
 			Name: s.graph.driver.String(),
 		},
 	}

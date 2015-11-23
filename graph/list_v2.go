@@ -3,6 +3,7 @@ package graph
 import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution"
+	"github.com/docker/distribution/registry/api/errcode"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/registry"
 	"golang.org/x/net/context"
@@ -39,6 +40,12 @@ func (p *v2TagLister) listTagsWithRepository() ([]*types.RepositoryTag, error) {
 	}
 	tags, err := manSvc.Tags()
 	if err != nil {
+		switch t := err.(type) {
+		case errcode.Errors:
+			if len(t) == 1 {
+				return nil, t[0]
+			}
+		}
 		return nil, err
 	}
 	tagList := make([]*types.RepositoryTag, len(tags))

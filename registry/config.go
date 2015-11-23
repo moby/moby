@@ -397,18 +397,16 @@ func (config *ServiceConfig) NewRepositoryInfo(reposName string, bySearch bool) 
 		return nil, err
 	}
 
-	if !bySearch {
-		if err := validateRemoteName(remoteName); err != nil {
-			return nil, err
-		}
-	}
-
-	repoInfo := &RepositoryInfo{
-		RemoteName: remoteName,
+	if indexName == "" {
+		indexName = IndexServerName()
 	}
 
 	if IsIndexBlocked(indexName) {
 		return nil, fmt.Errorf("Blocked registry %q", indexName)
+	}
+
+	repoInfo := &RepositoryInfo{
+		RemoteName: remoteName,
 	}
 
 	repoInfo.Index, err = config.NewIndexInfo(indexName)
@@ -418,7 +416,6 @@ func (config *ServiceConfig) NewRepositoryInfo(reposName string, bySearch bool) 
 
 	if repoInfo.Index.Official {
 		normalizedName := normalizeLibraryRepoName(repoInfo.RemoteName)
-
 		repoInfo.RemoteName = normalizedName
 		// If the normalized name does not contain a '/' (e.g. "foo")
 		// then it is an official repo.
@@ -428,7 +425,7 @@ func (config *ServiceConfig) NewRepositoryInfo(reposName string, bySearch bool) 
 			repoInfo.RemoteName = "library/" + normalizedName
 		}
 
-		repoInfo.CanonicalName = "docker.io/" + repoInfo.RemoteName
+		repoInfo.CanonicalName = IndexName + "/" + repoInfo.RemoteName
 		repoInfo.LocalName = repoInfo.Index.Name + "/" + normalizedName
 	} else {
 		if repoInfo.Index.Name != "" {
@@ -477,6 +474,10 @@ func NormalizeLocalName(name string) string {
 		return name
 	}
 
+	if indexName == "" {
+		indexName = IndexServerName()
+	}
+
 	var officialIndex bool
 	// Return any configured index info, first.
 	if index, ok := emptyServiceConfig.IndexConfigs[indexName]; ok {
@@ -484,23 +485,34 @@ func NormalizeLocalName(name string) string {
 	}
 
 	if officialIndex {
-		return normalizeLibraryRepoName(remoteName)
+		return IndexName + "/" + normalizeLibraryRepoName(remoteName)
 	}
 	return localNameFromRemote(indexName, remoteName)
 }
 
 // normalizeLibraryRepoName removes the library prefix from
-// the repository name for official repos.
+// the repository name for official repos. It preserves index name if
+// it's part of the name.
 func normalizeLibraryRepoName(name string) string {
-	if strings.HasPrefix(name, "library/") {
-		// If pull "library/foo", it's stored locally under "foo"
-		name = strings.SplitN(name, "/", 2)[1]
+	indexName, remoteName := SplitReposName(name, false)
+	if strings.HasPrefix(remoteName, "library/") {
+		// If pull "library/foo", it's stored locally under "docker.io/foo"
+		remoteName = strings.SplitN(name, "/", 2)[1]
 	}
-	return name
+	if indexName == "" {
+		return remoteName
+	}
+	return indexName + "/" + remoteName
 }
 
 // localNameFromRemote combines the index name and the repo remote name
 // to generate a repo local name.
 func localNameFromRemote(indexName, remoteName string) string {
+	if indexName == "" {
+		indexName = IndexServerName()
+	}
+	if indexName == "" {
+		return remoteName
+	}
 	return indexName + "/" + remoteName
 }

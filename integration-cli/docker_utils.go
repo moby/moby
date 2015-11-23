@@ -696,10 +696,12 @@ func deleteAllContainers() error {
 	containers, err := getAllContainers()
 	if err != nil {
 		fmt.Println(containers)
+		fmt.Fprintf(os.Stderr, "deleteAllContainers: %v\n", err)
 		return err
 	}
 
 	if err = deleteContainer(containers); err != nil {
+		fmt.Fprintf(os.Stderr, "failed to delete containers %s: %v\n", containers, err)
 		return err
 	}
 	return nil
@@ -751,10 +753,13 @@ func deleteAllVolumes() error {
 		status, b, err := sockRequest("DELETE", "/volumes/"+v.Name, nil)
 		if err != nil {
 			errors = append(errors, err.Error())
+			fmt.Fprintf(os.Stderr, "deleteAllVolumes: %s\n", err.Error())
 			continue
 		}
 		if status != http.StatusNoContent {
-			errors = append(errors, fmt.Sprintf("error deleting volume %s: %s", v.Name, string(b)))
+			errMsg := fmt.Sprintf("error deleting volume %s: %s", v.Name, string(b))
+			fmt.Fprintf(os.Stderr, "%s\n", errMsg)
+			errors = append(errors, errMsg)
 		}
 	}
 	if len(errors) > 0 {
@@ -810,7 +815,7 @@ func init() {
 }
 
 func deleteAllImages() error {
-	out, err := exec.Command(dockerBinary, "images").CombinedOutput()
+	out, err := exec.Command(dockerBinary, "images", "--digests").CombinedOutput()
 	if err != nil {
 		return err
 	}
@@ -821,13 +826,20 @@ func deleteAllImages() error {
 			continue
 		}
 		fields := strings.Fields(l)
-		imgTag := fields[0] + ":" + fields[1]
-		if _, ok := protectedImages[imgTag]; !ok {
+		imgRef := fields[0] + ":" + fields[1]
+		if fields[1] == "<none>" {
+			if fields[2] != "<none>" {
+				imgRef = fields[0] + "@" + fields[2]
+			} else {
+				imgRef = fields[0]
+			}
+		}
+		if _, ok := protectedImages[imgRef]; !ok {
 			if fields[0] == "<none>" {
-				imgs = append(imgs, fields[2])
+				imgs = append(imgs, fields[3])
 				continue
 			}
-			imgs = append(imgs, imgTag)
+			imgs = append(imgs, imgRef)
 		}
 	}
 	if len(imgs) == 0 {
@@ -835,6 +847,7 @@ func deleteAllImages() error {
 	}
 	args := append([]string{"rmi", "-f"}, imgs...)
 	if err := exec.Command(dockerBinary, args...).Run(); err != nil {
+		fmt.Fprintf(os.Stderr, "removing unprotected images (%s): failed with: %v\n", strings.Join(imgs, ", "), err)
 		return err
 	}
 	return nil
@@ -899,6 +912,7 @@ func deleteImages(images ...string) error {
 	exitCode, err := runCommand(rmiCmd)
 	// set error manually if not set
 	if exitCode != 0 && err == nil {
+		fmt.Fprintf(os.Stderr, "deleteImages: failed to remove images: %v\n", err)
 		err = fmt.Errorf("failed to remove image: `docker rmi` exit is non-zero")
 	}
 	return err

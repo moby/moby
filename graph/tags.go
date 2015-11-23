@@ -178,28 +178,8 @@ func (store *TagStore) LookupImage(name string) (*image.Image, error) {
 	return img, nil
 }
 
-// GetID returns ID for image name.
-func (store *TagStore) GetID(name string) (string, error) {
-	repoName, ref := parsers.ParseRepositoryTag(name)
-	if ref == "" {
-		ref = tags.DefaultTag
-	}
-	store.Lock()
-	defer store.Unlock()
-	repoName = registry.NormalizeLocalName(repoName)
-	repo, ok := store.Repositories[repoName]
-	if !ok {
-		return "", ErrNameIsNotExist
-	}
-	id, ok := repo[ref]
-	if !ok {
-		return "", ErrNameIsNotExist
-	}
-	return id, nil
-}
-
-// NormalizeLocalName returns local name for given image if it doesn't exist.
-// Id of existing local image won't be changed.
+// NormalizeLocalName returns a local name for given image if it doesn't
+// exist. Id of existing local image won't be changed.
 func (store *TagStore) NormalizeLocalName(name string) string {
 	if _, exists := store.Repositories[name]; exists {
 		return name
@@ -208,6 +188,25 @@ func (store *TagStore) NormalizeLocalName(name string) string {
 		return name
 	}
 	return registry.NormalizeLocalName(name)
+}
+
+// GetID returns ID for image name.
+func (store *TagStore) GetID(name string) (string, error) {
+	repoName, ref := parsers.ParseRepositoryTag(name)
+	if ref == "" {
+		ref = tags.DefaultTag
+	}
+	store.Lock()
+	defer store.Unlock()
+	matching := store.getRepositoryList(repoName)
+	for _, repo := range matching {
+		for _, repoRefs := range repo {
+			if id, exists := repoRefs[ref]; exists {
+				return id, nil
+			}
+		}
+	}
+	return "", ErrNameIsNotExist
 }
 
 // ByID returns a reverse-lookup table of all the names which refer to each

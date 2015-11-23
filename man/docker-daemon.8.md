@@ -10,10 +10,10 @@ docker-daemon - Enable daemon mode
 [**--api-cors-header**=[=*API-CORS-HEADER*]]
 [**-b**|**--bridge**[=*BRIDGE*]]
 [**--bip**[=*BIP*]]
+[**--block-registry**[=*[]*]]
 [**--cluster-store**[=*[]*]]
 [**--cluster-advertise**[=*[]*]]
 [**--cluster-store-opt**[=*map[]*]]
-[**--block-registry**[=*[]*]]
 [**-D**|**--debug**[=*false*]]
 [**--default-gateway**[=*DEFAULT-GATEWAY*]]
 [**--default-gateway-v6**[=*DEFAULT-GATEWAY-V6*]]
@@ -82,6 +82,9 @@ format.
 **--bip**=""
   Use the provided CIDR notation address for the dynamically created bridge (docker0); Mutually exclusive of \-b
 
+**--block-registry**=[]
+  **EXPERIMENTAL** Prevent Docker daemon from contacting specified registries. There are two special keywords recognized. The first is "public" and represents public Docker registry. The second is "all" which causes all registries but those added with **--add-registry** flag to be blocked.
+
 **--cluster-store**=""
   URL of the distributed storage backend
 
@@ -92,9 +95,6 @@ format.
 
 **--cluster-store-opt**=""
   Specifies options for the Key/Value store.
-
-**--block-registry**=[]
-  **EXPERIMENTAL** Prevent Docker daemon from contacting specified registries. There are two special keywords recognized. The first is "public" and represents public Docker registry. The second is "all" which causes all registries but those added with **--add-registry** flag to be blocked.
 
 **-D**, **--debug**=*true*|*false*
   Enable debug mode. Default is false.
