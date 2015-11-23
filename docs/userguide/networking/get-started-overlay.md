@@ -7,7 +7,7 @@ keywords = ["Examples, Usage, network, docker, documentation, user guide, multih
 parent = "smn_networking"
 weight=-3
 +++
-<![end-metadata]-->
+<--![end-metadata]-->
 
 # Get started with multi-host networking
 
