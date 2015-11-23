@@ -1,4 +1,4 @@
-.PHONY: all binary build cross default docs docs-build docs-shell shell test test-unit test-integration-cli test-docker-py validate
+.PHONY: all binary build cross default docs docs-build docs-shell shell test test-docker-py test-integration-cli test-unit validate
 
 # get OS/Arch of docker engine
 DOCKER_ENGINE_OSARCH = $(shell docker version | grep 'OS/Arch' | tail -1 | cut -d':' -f2 | tr -d '[[:space:]]')
@@ -22,15 +22,15 @@ DOCKER_ENVS := \
 	-e BUILDFLAGS \
 	-e DOCKER_CLIENTONLY \
 	-e DOCKER_DEBUG \
+	-e DOCKER_ENGINE_GOARCH \
+	-e DOCKER_ENGINE_GOOS \
+	-e DOCKER_ENGINE_OSARCH \
 	-e DOCKER_EXPERIMENTAL \
-	-e DOCKER_REMAP_ROOT \
+	-e DOCKER_FILE \
 	-e DOCKER_GRAPHDRIVER \
+	-e DOCKER_REMAP_ROOT \
 	-e DOCKER_STORAGE_OPTS \
 	-e DOCKER_USERLANDPROXY \
-	-e DOCKER_ENGINE_OSARCH \
-	-e DOCKER_ENGINE_GOOS \
-	-e DOCKER_ENGINE_GOARCH \
-	-e DOCKER_FILE \
 	-e TESTDIRS \
 	-e TESTFLAGS \
 	-e TIMEOUT
@@ -67,38 +67,38 @@ all: build
 binary: build
 	$(DOCKER_RUN_DOCKER) hack/make.sh binary
 
-cross: build
-	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary binary cross
-
-deb: build
-	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary build-deb
-
-rpm: build
-	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary build-rpm
-
-test: build
-	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary cross test-unit test-integration-cli test-docker-py
-
-test-unit: build
-	$(DOCKER_RUN_DOCKER) hack/make.sh test-unit
-
-test-integration-cli: build
-	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary test-integration-cli
-
-test-docker-py: build
-	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary test-docker-py
-
-validate: build
-	$(DOCKER_RUN_DOCKER) hack/make.sh validate-dco validate-gofmt validate-pkg validate-lint validate-test validate-toml validate-vet
-
-shell: build
-	$(DOCKER_RUN_DOCKER) bash
-
 build: bundles
 	docker build -t "$(DOCKER_IMAGE)" -f $(DOCKER_FILE) .
 
 bundles:
 	mkdir bundles
 
+cross: build
+	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary binary cross
+
+deb: build
+	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary build-deb
+
 docs:
 	$(MAKE) -C docs docs
+
+rpm: build
+	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary build-rpm
+
+shell: build
+	$(DOCKER_RUN_DOCKER) bash
+
+test: build
+	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary cross test-unit test-integration-cli test-docker-py
+
+test-docker-py: build
+	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary test-docker-py
+
+test-integration-cli: build
+	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary test-integration-cli
+
+test-unit: build
+	$(DOCKER_RUN_DOCKER) hack/make.sh test-unit
+
+validate: build
+	$(DOCKER_RUN_DOCKER) hack/make.sh validate-dco validate-gofmt validate-pkg validate-lint validate-test validate-toml validate-vet
