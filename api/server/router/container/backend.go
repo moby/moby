@@ -1,4 +1,4 @@
-// +build windows
+// +build !windows
 
 package container
 
@@ -7,9 +7,10 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/versions/v1p20"
 	"github.com/docker/docker/daemon"
+	"github.com/docker/docker/daemon/exec"
 	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/version"
 	"github.com/docker/docker/runconfig"
 )
 
@@ -22,17 +23,12 @@ type Backend interface {
 	ContainerCopy(name string, res string) (io.ReadCloser, error)
 	ContainerCreate(params *daemon.ContainerCreateConfig) (types.ContainerCreateResponse, error)
 	ContainerExecCreate(config *runconfig.ExecConfig) (string, error)
-	ContainerExecInspect(id string) (*daemon.ExecConfig, error)
+	ContainerExecInspect(id string) (*exec.Config, error)
 	ContainerExecResize(name string, height, width int) error
 	ContainerExecStart(name string, stdin io.ReadCloser, stdout io.Writer, stderr io.Writer) error
 	ContainerExport(name string, out io.Writer) error
 	ContainerExtractToDir(name, path string, noOverwriteDirNonDir bool, content io.Reader) error
-	ContainerInspect(name string, size bool) (*types.ContainerJSON, error)
-	ContainerInspect120(name string) (*v1p20.ContainerJSON, error)
-	// unix version
-	//ContainerInspectPre120(name string) (*v1p19.ContainerJSON, error)
-	// windows version
-	ContainerInspectPre120(name string) (*types.ContainerJSON, error)
+	ContainerInspect(name string, size bool, version version.Version) (interface{}, error)
 	ContainerKill(name string, sig uint64) error
 	ContainerLogs(containerName string, config *daemon.ContainerLogsConfig) error
 	ContainerPause(name string) error

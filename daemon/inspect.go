@@ -9,12 +9,23 @@ import (
 	"github.com/docker/docker/daemon/exec"
 	"github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/layer"
+	"github.com/docker/docker/pkg/version"
 )
 
 // ContainerInspect returns low-level information about a
 // container. Returns an error if the container cannot be found, or if
 // there is an error getting the data.
-func (daemon *Daemon) ContainerInspect(name string, size bool) (*types.ContainerJSON, error) {
+func (daemon *Daemon) ContainerInspect(name string, size bool, version version.Version) (interface{}, error) {
+	switch {
+	case version.LessThan("1.20"):
+		return daemon.containerInspectPre120(name)
+	case version.Equal("1.20"):
+		return daemon.containerInspect120(name)
+	}
+	return daemon.containerInspectCurrent(name, size)
+}
+
+func (daemon *Daemon) containerInspectCurrent(name string, size bool) (*types.ContainerJSON, error) {
 	container, err := daemon.Get(name)
 	if err != nil {
 		return nil, err
@@ -53,8 +64,8 @@ func (daemon *Daemon) ContainerInspect(name string, size bool) (*types.Container
 	}, nil
 }
 
-// ContainerInspect120 serializes the master version of a container into a json type.
-func (daemon *Daemon) ContainerInspect120(name string) (*v1p20.ContainerJSON, error) {
+// containerInspect120 serializes the master version of a container into a json type.
+func (daemon *Daemon) containerInspect120(name string) (*v1p20.ContainerJSON, error) {
 	container, err := daemon.Get(name)
 	if err != nil {
 		return nil, err
