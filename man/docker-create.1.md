@@ -50,6 +50,7 @@ docker-create - Create a new container
 [**-p**|**--publish**[=*[]*]]
 [**--pid**[=*[]*]]
 [**--privileged**[=*false*]]
+[**--pull**[=*false*]]
 [**--read-only**[=*false*]]
 [**--restart**[=*RESTART*]]
 [**--security-opt**[=*[]*]]
@@ -246,6 +247,9 @@ This value should always larger than **-m**, so you should always use this with 
 
 **--privileged**=*true*|*false*
    Give extended privileges to this container. The default is *false*.
+
+**--pull**=*true*|*false*
+   Always attempt to pull a newer version of the image.
 
 **--read-only**=*true*|*false*
    Mount the container's root filesystem as read only.

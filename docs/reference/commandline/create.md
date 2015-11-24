@@ -61,6 +61,7 @@ Creates a new container.
       -p, --publish=[]              Publish a container's port(s) to the host
       --pid=""                      PID namespace to use
       --privileged=false            Give extended privileges to this container
+      --pull=false                  Always attempt to pull a newer version of the image
       --read-only=false             Mount the container's root filesystem as read only
       --restart="no"                Restart policy (no, on-failure[:max-retry], always, unless-stopped)
       --security-opt=[]             Security options

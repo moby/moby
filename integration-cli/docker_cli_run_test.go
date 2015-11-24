@@ -3749,3 +3749,16 @@ func (s *DockerSuite) TestDockerFails(c *check.C) {
 		c.Fatalf("Docker run with flag not defined should exit with 125, but we got out: %s, exit: %d, err: %s", out, exit, err)
 	}
 }
+
+func (s *DockerSuite) TestRunWithPull(c *check.C) {
+	testRequires(c, Network)
+	// pull a image from hub to local
+	dockerCmd(c, "pull", "hello-world")
+	// run with --pull still try to pull the image from hub
+	// even if the image exists on local
+	out, _, err := dockerCmdWithError("run", "--pull", "hello-world")
+	c.Assert(err, check.IsNil, check.Commentf(out))
+	if !(strings.Contains(out, "Downloaded newer image for hello-world:latest") || strings.Contains(out, "Image is up to date for hello-world:latest")) {
+		c.Fatalf("expected to download latest image from docker hub")
+	}
+}
