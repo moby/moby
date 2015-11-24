@@ -257,7 +257,7 @@ main() {
 	# We want this to fail if the bundles already exist and cannot be removed.
 	# This is to avoid mixing bundles from different versions of the code.
 	mkdir -p bundles
-	if [ -e "bundles/$VERSION" ]; then
+	if [ -e "bundles/$VERSION" ] && [ -z "$KEEPBUNDLE" ]; then
 		echo "bundles/$VERSION already exists. Removing."
 		rm -fr "bundles/$VERSION" && mkdir "bundles/$VERSION" || exit 1
 		echo
