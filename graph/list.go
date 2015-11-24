@@ -9,6 +9,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/image"
+	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/parsers/filters"
 	"github.com/docker/docker/utils"
 )
@@ -67,18 +68,11 @@ func (s *TagStore) Images(filterArgs, filter string, all bool) ([]*types.Image, 
 		allImages = s.graph.heads()
 	}
 
+	filterName, filterTagName := parsers.ParseRepositoryTag(filter)
 	lookup := make(map[string]*types.Image)
 	s.Lock()
 	for repoName, repository := range s.Repositories {
-		filterTagName := ""
-		if filter != "" {
-			filterName := filter
-			// Test if the tag was in there, if yes, get the name
-			if strings.Contains(filterName, ":") {
-				filterWithTag := strings.Split(filter, ":")
-				filterName = filterWithTag[0]
-				filterTagName = filterWithTag[1]
-			}
+		if filterName != "" {
 			if match, _ := path.Match(filterName, repoName); !match {
 				continue
 			}

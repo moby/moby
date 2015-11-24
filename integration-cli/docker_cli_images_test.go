@@ -221,3 +221,17 @@ func (s *DockerSuite) TestImagesEnsureImagesFromScratchShown(c *check.C) {
 	// images should contain images built from scratch
 	c.Assert(out, checker.Contains, id[:12])
 }
+
+// #18181
+func (s *DockerSuite) TestImagesFilterNameWithPort(c *check.C) {
+	tag := "a.b.c.d:5000/hello"
+	dockerCmd(c, "tag", "busybox", tag)
+	out, _ := dockerCmd(c, "images", tag)
+	c.Assert(out, checker.Contains, tag)
+
+	out, _ = dockerCmd(c, "images", tag+":latest")
+	c.Assert(out, checker.Contains, tag)
+
+	out, _ = dockerCmd(c, "images", tag+":no-such-tag")
+	c.Assert(out, checker.Not(checker.Contains), tag)
+}
