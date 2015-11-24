@@ -112,7 +112,7 @@ $ docker run -itd --name=container2 busybox
 498eaaaf328e1018042c04b2de04036fc04719a6e39a097a4f4866043a2c2152
 ```
 
-Then create a isolated, `bridge` network to test with.
+Then create an isolated, `bridge` network to test with.
 
 ```bash
 $ docker network create -d bridge isolated_nw

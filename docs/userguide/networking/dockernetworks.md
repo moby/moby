@@ -375,7 +375,7 @@ networks.
 
 Within a user-defined bridge network, linking is not supported. You can
 expose and publish container ports on containers in this network. This is useful
-if you want make a portion of the `bridge` network available to an outside
+if you want to make a portion of the `bridge` network available to an outside
 network.
 
 ![Bridge network](images/network_access.png)
