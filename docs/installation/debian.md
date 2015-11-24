@@ -75,6 +75,11 @@ from the new repository:
 
             deb https://apt.dockerproject.org/repo debian-stretch main
 
+    > **Note**: Docker does not provide packages for all architectures. To install docker on
+    > a multi-architecture system, add an `[arch=...]` clause to the entry. Refer to the
+    > [Debian Multiarch wiki](https://wiki.debian.org/Multiarch/HOWTO#Setting_up_apt_sources)
+    > for details.
+
  8. Save and close the file.
 
  9. Update the `apt` package index.
