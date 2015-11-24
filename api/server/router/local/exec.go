@@ -16,7 +16,7 @@ import (
 )
 
 func (s *router) getExecByID(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	eConfig, err := s.daemon.ContainerExecInspect(vars["id"])
+	eConfig, err := s.backend.ContainerExecInspect(vars["id"])
 	if err != nil {
 		return err
 	}
@@ -44,7 +44,7 @@ func (s *router) postContainerExecCreate(ctx context.Context, w http.ResponseWri
 	}
 
 	// Register an instance of Exec in container.
-	id, err := s.daemon.ContainerExecCreate(execConfig)
+	id, err := s.backend.ContainerExecCreate(execConfig)
 	if err != nil {
 		logrus.Errorf("Error setting up exec command in container %s: %s", name, err)
 		return err
@@ -79,7 +79,7 @@ func (s *router) postContainerExecStart(ctx context.Context, w http.ResponseWrit
 		return err
 	}
 
-	if exists, err := s.daemon.ExecExists(execName); !exists {
+	if exists, err := s.backend.ExecExists(execName); !exists {
 		return err
 	}
 
@@ -109,7 +109,7 @@ func (s *router) postContainerExecStart(ctx context.Context, w http.ResponseWrit
 	}
 
 	// Now run the user process in container.
-	if err := s.daemon.ContainerExecStart(execName, stdin, stdout, stderr); err != nil {
+	if err := s.backend.ContainerExecStart(execName, stdin, stdout, stderr); err != nil {
 		if execStartCheck.Detach {
 			return err
 		}
@@ -131,5 +131,5 @@ func (s *router) postContainerExecResize(ctx context.Context, w http.ResponseWri
 		return err
 	}
 
-	return s.daemon.ContainerExecResize(vars["name"], height, width)
+	return s.backend.ContainerExecResize(vars["name"], height, width)
 }

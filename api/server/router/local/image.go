@@ -64,7 +64,7 @@ func (s *router) postCommit(ctx context.Context, w http.ResponseWriter, r *http.
 		Config:  c,
 	}
 
-	if !s.daemon.Exists(cname) {
+	if !s.backend.Exists(cname) {
 		return derr.ErrorCodeNoSuchContainer.WithArgs(cname)
 	}
 
@@ -126,7 +126,7 @@ func (s *router) postImagesCreate(ctx context.Context, w http.ResponseWriter, r 
 			OutStream:   output,
 		}
 
-		err = s.daemon.PullImage(image, tag, imagePullConfig)
+		err = s.backend.PullImage(image, tag, imagePullConfig)
 	} else { //import
 		if tag == "" {
 			repo, tag = parsers.ParseRepositoryTag(repo)
@@ -143,7 +143,7 @@ func (s *router) postImagesCreate(ctx context.Context, w http.ResponseWriter, r 
 			return err
 		}
 
-		err = s.daemon.ImportImage(src, repo, tag, message, r.Body, output, newConfig)
+		err = s.backend.ImportImage(src, repo, tag, message, r.Body, output, newConfig)
 	}
 	if err != nil {
 		if !output.Flushed() {
@@ -195,7 +195,7 @@ func (s *router) postImagesPush(ctx context.Context, w http.ResponseWriter, r *h
 
 	w.Header().Set("Content-Type", "application/json")
 
-	if err := s.daemon.PushImage(name, imagePushConfig); err != nil {
+	if err := s.backend.PushImage(name, imagePushConfig); err != nil {
 		if !output.Flushed() {
 			return err
 		}
@@ -221,7 +221,7 @@ func (s *router) getImagesGet(ctx context.Context, w http.ResponseWriter, r *htt
 		names = r.Form["names"]
 	}
 
-	if err := s.daemon.ExportImage(names, output); err != nil {
+	if err := s.backend.ExportImage(names, output); err != nil {
 		if !output.Flushed() {
 			return err
 		}
@@ -232,7 +232,7 @@ func (s *router) getImagesGet(ctx context.Context, w http.ResponseWriter, r *htt
 }
 
 func (s *router) postImagesLoad(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	return s.daemon.LoadImage(r.Body, w)
+	return s.backend.LoadImage(r.Body, w)
 }
 
 func (s *router) deleteImages(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -249,7 +249,7 @@ func (s *router) deleteImages(ctx context.Context, w http.ResponseWriter, r *htt
 	force := httputils.BoolValue(r, "force")
 	prune := !httputils.BoolValue(r, "noprune")
 
-	list, err := s.daemon.ImageDelete(name, force, prune)
+	list, err := s.backend.ImageDelete(name, force, prune)
 	if err != nil {
 		return err
 	}
@@ -258,7 +258,7 @@ func (s *router) deleteImages(ctx context.Context, w http.ResponseWriter, r *htt
 }
 
 func (s *router) getImagesByName(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	imageInspect, err := s.daemon.LookupImage(vars["name"])
+	imageInspect, err := s.backend.LookupImage(vars["name"])
 	if err != nil {
 		return err
 	}
@@ -385,7 +385,7 @@ func (s *router) postBuild(ctx context.Context, w http.ResponseWriter, r *http.R
 		}
 	}()
 
-	uidMaps, gidMaps := s.daemon.GetUIDGIDMaps()
+	uidMaps, gidMaps := s.backend.GetUIDGIDMaps()
 	defaultArchiver := &archive.Archiver{
 		Untar:   chrootarchive.Untar,
 		UIDMaps: uidMaps,
@@ -428,7 +428,7 @@ func (s *router) postBuild(ctx context.Context, w http.ResponseWriter, r *http.R
 	}
 
 	for _, rt := range repoAndTags {
-		if err := s.daemon.TagImage(rt.repo, rt.tag, string(imgID), true); err != nil {
+		if err := s.backend.TagImage(rt.repo, rt.tag, string(imgID), true); err != nil {
 			return errf(err)
 		}
 	}
@@ -484,7 +484,7 @@ func (s *router) getImagesJSON(ctx context.Context, w http.ResponseWriter, r *ht
 	}
 
 	// FIXME: The filter parameter could just be a match filter
-	images, err := s.daemon.ListImages(r.Form.Get("filters"), r.Form.Get("filter"), httputils.BoolValue(r, "all"))
+	images, err := s.backend.ListImages(r.Form.Get("filters"), r.Form.Get("filter"), httputils.BoolValue(r, "all"))
 	if err != nil {
 		return err
 	}
@@ -494,7 +494,7 @@ func (s *router) getImagesJSON(ctx context.Context, w http.ResponseWriter, r *ht
 
 func (s *router) getImagesHistory(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	name := vars["name"]
-	history, err := s.daemon.ImageHistory(name)
+	history, err := s.backend.ImageHistory(name)
 	if err != nil {
 		return err
 	}
@@ -510,7 +510,7 @@ func (s *router) postImagesTag(ctx context.Context, w http.ResponseWriter, r *ht
 	tag := r.Form.Get("tag")
 	name := vars["name"]
 	force := httputils.BoolValue(r, "force")
-	if err := s.daemon.TagImage(repo, tag, name, force); err != nil {
+	if err := s.backend.TagImage(repo, tag, name, force); err != nil {
 		return err
 	}
 	w.WriteHeader(http.StatusCreated)
@@ -540,7 +540,7 @@ func (s *router) getImagesSearch(ctx context.Context, w http.ResponseWriter, r *
 			headers[k] = v
 		}
 	}
-	query, err := s.daemon.SearchRegistryForImages(r.Form.Get("term"), config, headers)
+	query, err := s.backend.SearchRegistryForImages(r.Form.Get("term"), config, headers)
 	if err != nil {
 		return err
 	}

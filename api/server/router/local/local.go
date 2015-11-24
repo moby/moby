@@ -12,8 +12,9 @@ import (
 
 // router is a docker router that talks with the local docker daemon.
 type router struct {
-	daemon *daemon.Daemon
-	routes []dkrouter.Route
+	daemon  *daemon.Daemon
+	backend Backend
+	routes  []dkrouter.Route
 }
 
 // localRoute defines an individual API route to connect with the docker daemon.
@@ -77,7 +78,8 @@ func NewHeadRoute(path string, handler httputils.APIFunc) dkrouter.Route {
 // NewRouter initializes a local router with a new daemon.
 func NewRouter(daemon *daemon.Daemon) dkrouter.Router {
 	r := &router{
-		daemon: daemon,
+		daemon:  daemon,
+		backend: daemon,
 	}
 	r.initRoutes()
 	return r
