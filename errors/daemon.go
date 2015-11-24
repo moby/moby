@@ -832,15 +832,6 @@ var (
 		HTTPStatusCode: http.StatusInternalServerError,
 	})
 
-	// ErrorCodeRmInit is generated when we try to delete a container
-	// but failed deleting its init filesystem.
-	ErrorCodeRmInit = errcode.Register(errGroup, errcode.ErrorDescriptor{
-		Value:          "RMINIT",
-		Message:        "Driver %s failed to remove init filesystem %s: %s",
-		Description:    "While trying to delete a container, the driver failed to remove the init filesystem",
-		HTTPStatusCode: http.StatusInternalServerError,
-	})
-
 	// ErrorCodeRmFS is generated when we try to delete a container
 	// but failed deleting its filesystem.
 	ErrorCodeRmFS = errcode.Register(errGroup, errcode.ErrorDescriptor{

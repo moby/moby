@@ -1,55 +1,59 @@
 package image
 
 import (
-	"bytes"
-	"io/ioutil"
+	"encoding/json"
+	"sort"
+	"strings"
 	"testing"
-
-	"github.com/docker/distribution/digest"
 )
 
-var fixtures = []string{
-	"fixtures/pre1.9",
-	"fixtures/post1.9",
-}
+const sampleImageJSON = `{
+	"architecture": "amd64",
+	"os": "linux",
+	"config": {},
+	"rootfs": {
+		"type": "layers",
+		"diff_ids": []
+	}
+}`
 
-func loadFixtureFile(t *testing.T, path string) []byte {
-	fileData, err := ioutil.ReadFile(path)
+func TestJSON(t *testing.T) {
+	img, err := NewFromJSON([]byte(sampleImageJSON))
 	if err != nil {
-		t.Fatalf("error opening %s: %v", path, err)
+		t.Fatal(err)
 	}
-
-	return bytes.TrimSpace(fileData)
-}
-
-// TestMakeImageConfig makes sure that MakeImageConfig returns the expected
-// canonical JSON for a reference Image.
-func TestMakeImageConfig(t *testing.T) {
-	for _, fixture := range fixtures {
-		v1Compatibility := loadFixtureFile(t, fixture+"/v1compatibility")
-		expectedConfig := loadFixtureFile(t, fixture+"/expected_config")
-		layerID := digest.Digest(loadFixtureFile(t, fixture+"/layer_id"))
-		parentID := digest.Digest(loadFixtureFile(t, fixture+"/parent_id"))
-
-		json, err := MakeImageConfig(v1Compatibility, layerID, parentID)
-		if err != nil {
-			t.Fatalf("MakeImageConfig on %s returned error: %v", fixture, err)
-		}
-		if !bytes.Equal(json, expectedConfig) {
-			t.Fatalf("did not get expected JSON for %s\nexpected: %s\ngot: %s", fixture, expectedConfig, json)
-		}
+	rawJSON := img.RawJSON()
+	if string(rawJSON) != sampleImageJSON {
+		t.Fatalf("Raw JSON of config didn't match: expected %+v, got %v", sampleImageJSON, rawJSON)
 	}
 }
 
-// TestGetStrongID makes sure that GetConfigJSON returns the expected
-// hash for a reference Image.
-func TestGetStrongID(t *testing.T) {
-	for _, fixture := range fixtures {
-		expectedConfig := loadFixtureFile(t, fixture+"/expected_config")
-		expectedComputedID := digest.Digest(loadFixtureFile(t, fixture+"/expected_computed_id"))
+func TestInvalidJSON(t *testing.T) {
+	_, err := NewFromJSON([]byte("{}"))
+	if err == nil {
+		t.Fatal("Expected JSON parse error")
+	}
+}
 
-		if id, err := StrongID(expectedConfig); err != nil || id != expectedComputedID {
-			t.Fatalf("did not get expected ID for %s\nexpected: %s\ngot: %s\nerror: %v", fixture, expectedComputedID, id, err)
-		}
+func TestMarshalKeyOrder(t *testing.T) {
+	b, err := json.Marshal(&Image{
+		V1Image: V1Image{
+			Comment:      "a",
+			Author:       "b",
+			Architecture: "c",
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expectedOrder := []string{"architecture", "author", "comment"}
+	var indexes []int
+	for _, k := range expectedOrder {
+		indexes = append(indexes, strings.Index(string(b), k))
+	}
+
+	if !sort.IntsAreSorted(indexes) {
+		t.Fatal("invalid key order in JSON: ", string(b))
 	}
 }

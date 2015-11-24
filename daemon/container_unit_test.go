@@ -99,7 +99,7 @@ func TestContainerInitDNS(t *testing.T) {
 "Name":"/ubuntu","Driver":"aufs","MountLabel":"","ProcessLabel":"","AppArmorProfile":"","RestartCount":0,
 "UpdateDns":false,"Volumes":{},"VolumesRW":{},"AppliedVolumesFrom":null}`
 
-	if err = ioutil.WriteFile(filepath.Join(containerPath, "config.json"), []byte(config), 0644); err != nil {
+	if err = ioutil.WriteFile(filepath.Join(containerPath, configFileName), []byte(config), 0644); err != nil {
 		t.Fatal(err)
 	}
 

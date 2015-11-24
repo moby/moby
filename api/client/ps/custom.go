@@ -62,8 +62,8 @@ func (c *containerContext) Image() string {
 		return "<no image>"
 	}
 	if c.trunc {
-		if stringid.TruncateID(c.c.ImageID) == stringid.TruncateID(c.c.Image) {
-			return stringutils.Truncate(c.c.Image, 12)
+		if trunc := stringid.TruncateID(c.c.ImageID); trunc == stringid.TruncateID(c.c.Image) {
+			return trunc
 		}
 	}
 	return c.c.Image

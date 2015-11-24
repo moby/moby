@@ -120,36 +120,6 @@ func TestParseInvalidUnixAddrInvalid(t *testing.T) {
 	}
 }
 
-func TestParseRepositoryTag(t *testing.T) {
-	if repo, tag := ParseRepositoryTag("root"); repo != "root" || tag != "" {
-		t.Errorf("Expected repo: '%s' and tag: '%s', got '%s' and '%s'", "root", "", repo, tag)
-	}
-	if repo, tag := ParseRepositoryTag("root:tag"); repo != "root" || tag != "tag" {
-		t.Errorf("Expected repo: '%s' and tag: '%s', got '%s' and '%s'", "root", "tag", repo, tag)
-	}
-	if repo, digest := ParseRepositoryTag("root@sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"); repo != "root" || digest != "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855" {
-		t.Errorf("Expected repo: '%s' and digest: '%s', got '%s' and '%s'", "root", "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", repo, digest)
-	}
-	if repo, tag := ParseRepositoryTag("user/repo"); repo != "user/repo" || tag != "" {
-		t.Errorf("Expected repo: '%s' and tag: '%s', got '%s' and '%s'", "user/repo", "", repo, tag)
-	}
-	if repo, tag := ParseRepositoryTag("user/repo:tag"); repo != "user/repo" || tag != "tag" {
-		t.Errorf("Expected repo: '%s' and tag: '%s', got '%s' and '%s'", "user/repo", "tag", repo, tag)
-	}
-	if repo, digest := ParseRepositoryTag("user/repo@sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"); repo != "user/repo" || digest != "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855" {
-		t.Errorf("Expected repo: '%s' and digest: '%s', got '%s' and '%s'", "user/repo", "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", repo, digest)
-	}
-	if repo, tag := ParseRepositoryTag("url:5000/repo"); repo != "url:5000/repo" || tag != "" {
-		t.Errorf("Expected repo: '%s' and tag: '%s', got '%s' and '%s'", "url:5000/repo", "", repo, tag)
-	}
-	if repo, tag := ParseRepositoryTag("url:5000/repo:tag"); repo != "url:5000/repo" || tag != "tag" {
-		t.Errorf("Expected repo: '%s' and tag: '%s', got '%s' and '%s'", "url:5000/repo", "tag", repo, tag)
-	}
-	if repo, digest := ParseRepositoryTag("url:5000/repo@sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"); repo != "url:5000/repo" || digest != "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855" {
-		t.Errorf("Expected repo: '%s' and digest: '%s', got '%s' and '%s'", "url:5000/repo", "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", repo, digest)
-	}
-}
-
 func TestParseKeyValueOpt(t *testing.T) {
 	invalids := map[string]string{
 		"":    "Unable to parse key/value option: ",

@@ -3749,3 +3749,15 @@ func (s *DockerSuite) TestDockerFails(c *check.C) {
 		c.Fatalf("Docker run with flag not defined should exit with 125, but we got out: %s, exit: %d, err: %s", out, exit, err)
 	}
 }
+
+// TestRunInvalidReference invokes docker run with a bad reference.
+func (s *DockerSuite) TestRunInvalidReference(c *check.C) {
+	out, exit, _ := dockerCmdWithError("run", "busybox@foo")
+	if exit == 0 {
+		c.Fatalf("expected non-zero exist code; received %d", exit)
+	}
+
+	if !strings.Contains(out, "invalid reference format") {
+		c.Fatalf(`Expected "invalid reference format" in output; got: %s`, out)
+	}
+}

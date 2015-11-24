@@ -1,8 +1,8 @@
 package events
 
 import (
+	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/pkg/jsonmessage"
-	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/parsers/filters"
 )
 
@@ -38,8 +38,11 @@ func (ef *Filter) isLabelFieldIncluded(id string) bool {
 // against the stripped repo name without any tags.
 func (ef *Filter) isImageIncluded(eventID string, eventFrom string) bool {
 	stripTag := func(image string) string {
-		repo, _ := parsers.ParseRepositoryTag(image)
-		return repo
+		ref, err := reference.ParseNamed(image)
+		if err != nil {
+			return image
+		}
+		return ref.Name()
 	}
 
 	return isFieldIncluded(eventID, ef.filter["image"]) ||

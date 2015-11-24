@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/opts"
 	"github.com/gorilla/mux"
 
@@ -349,15 +350,19 @@ func handlerGetDeleteTags(w http.ResponseWriter, r *http.Request) {
 	if !requiresAuth(w, r) {
 		return
 	}
-	repositoryName := mux.Vars(r)["repository"]
+	repositoryName, err := reference.WithName(mux.Vars(r)["repository"])
+	if err != nil {
+		apiError(w, "Could not parse repository", 400)
+		return
+	}
 	repositoryName = NormalizeLocalName(repositoryName)
-	tags, exists := testRepositories[repositoryName]
+	tags, exists := testRepositories[repositoryName.String()]
 	if !exists {
 		apiError(w, "Repository not found", 404)
 		return
 	}
 	if r.Method == "DELETE" {
-		delete(testRepositories, repositoryName)
+		delete(testRepositories, repositoryName.String())
 		writeResponse(w, true, 200)
 		return
 	}
@@ -369,10 +374,14 @@ func handlerGetTag(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	vars := mux.Vars(r)
-	repositoryName := vars["repository"]
+	repositoryName, err := reference.WithName(vars["repository"])
+	if err != nil {
+		apiError(w, "Could not parse repository", 400)
+		return
+	}
 	repositoryName = NormalizeLocalName(repositoryName)
 	tagName := vars["tag"]
-	tags, exists := testRepositories[repositoryName]
+	tags, exists := testRepositories[repositoryName.String()]
 	if !exists {
 		apiError(w, "Repository not found", 404)
 		return
@@ -390,13 +399,17 @@ func handlerPutTag(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	vars := mux.Vars(r)
-	repositoryName := vars["repository"]
+	repositoryName, err := reference.WithName(vars["repository"])
+	if err != nil {
+		apiError(w, "Could not parse repository", 400)
+		return
+	}
 	repositoryName = NormalizeLocalName(repositoryName)
 	tagName := vars["tag"]
-	tags, exists := testRepositories[repositoryName]
+	tags, exists := testRepositories[repositoryName.String()]
 	if !exists {
-		tags := make(map[string]string)
-		testRepositories[repositoryName] = tags
+		tags = make(map[string]string)
+		testRepositories[repositoryName.String()] = tags
 	}
 	tagValue := ""
 	readJSON(r, tagValue)

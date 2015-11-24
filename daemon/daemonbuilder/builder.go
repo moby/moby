@@ -9,17 +9,16 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/daemon"
-	"github.com/docker/docker/graph"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/httputils"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/ioutils"
-	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/progressreader"
 	"github.com/docker/docker/pkg/urlutil"
 	"github.com/docker/docker/registry"
@@ -44,15 +43,24 @@ func (d Docker) LookupImage(name string) (*image.Image, error) {
 
 // Pull tells Docker to pull image referenced by `name`.
 func (d Docker) Pull(name string) (*image.Image, error) {
-	remote, tag := parsers.ParseRepositoryTag(name)
-	if tag == "" {
-		tag = "latest"
+	ref, err := reference.ParseNamed(name)
+	if err != nil {
+		return nil, err
+	}
+	switch ref.(type) {
+	case reference.Tagged:
+	case reference.Digested:
+	default:
+		ref, err = reference.WithTag(ref, "latest")
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	pullRegistryAuth := &cliconfig.AuthConfig{}
 	if len(d.AuthConfigs) > 0 {
 		// The request came with a full auth config file, we prefer to use that
-		repoInfo, err := d.Daemon.RegistryService.ResolveRepository(remote)
+		repoInfo, err := d.Daemon.RegistryService.ResolveRepository(ref)
 		if err != nil {
 			return nil, err
 		}
@@ -64,12 +72,7 @@ func (d Docker) Pull(name string) (*image.Image, error) {
 		pullRegistryAuth = &resolvedConfig
 	}
 
-	imagePullConfig := &graph.ImagePullConfig{
-		AuthConfig: pullRegistryAuth,
-		OutStream:  ioutils.NopWriteCloser(d.OutOld),
-	}
-
-	if err := d.Daemon.PullImage(remote, tag, imagePullConfig); err != nil {
+	if err := d.Daemon.PullImage(ref, nil, pullRegistryAuth, ioutils.NopWriteCloser(d.OutOld)); err != nil {
 		return nil, err
 	}
 
@@ -106,18 +109,20 @@ func (d Docker) Remove(id string, cfg *daemon.ContainerRmConfig) error {
 }
 
 // Commit creates a new Docker image from an existing Docker container.
-func (d Docker) Commit(name string, cfg *daemon.ContainerCommitConfig) (*image.Image, error) {
+func (d Docker) Commit(name string, cfg *daemon.ContainerCommitConfig) (string, error) {
 	return d.Daemon.Commit(name, cfg)
 }
 
 // Retain retains an image avoiding it to be removed or overwritten until a corresponding Release() call.
 func (d Docker) Retain(sessionID, imgID string) {
-	d.Daemon.Graph().Retain(sessionID, imgID)
+	// FIXME: This will be solved with tags in client-side builder
+	//d.Daemon.Graph().Retain(sessionID, imgID)
 }
 
 // Release releases a list of images that were retained for the time of a build.
 func (d Docker) Release(sessionID string, activeImages []string) {
-	d.Daemon.Graph().Release(sessionID, activeImages...)
+	// FIXME: This will be solved with tags in client-side builder
+	//d.Daemon.Graph().Release(sessionID, activeImages...)
 }
 
 // Copy copies/extracts a source FileInfo to a destination path inside a container
@@ -199,11 +204,11 @@ func (d Docker) Copy(c *daemon.Container, destPath string, src builder.FileInfo,
 // GetCachedImage returns a reference to a cached image whose parent equals `parent`
 // and runconfig equals `cfg`. A cache miss is expected to return an empty ID and a nil error.
 func (d Docker) GetCachedImage(imgID string, cfg *runconfig.Config) (string, error) {
-	cache, err := d.Daemon.ImageGetCached(imgID, cfg)
+	cache, err := d.Daemon.ImageGetCached(image.ID(imgID), cfg)
 	if cache == nil || err != nil {
 		return "", err
 	}
-	return cache.ID, nil
+	return cache.ID().String(), nil
 }
 
 // Kill stops the container execution abruptly.
@@ -218,7 +223,8 @@ func (d Docker) Mount(c *daemon.Container) error {
 
 // Unmount unmounts the root filesystem for the container.
 func (d Docker) Unmount(c *daemon.Container) error {
-	return d.Daemon.Unmount(c)
+	d.Daemon.Unmount(c)
+	return nil
 }
 
 // Start starts a container

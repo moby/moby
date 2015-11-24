@@ -4,13 +4,15 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/pkg/tlsconfig"
 )
 
-func (s *Service) lookupV1Endpoints(repoName string) (endpoints []APIEndpoint, err error) {
+func (s *Service) lookupV1Endpoints(repoName reference.Named) (endpoints []APIEndpoint, err error) {
 	var cfg = tlsconfig.ServerDefault
 	tlsConfig := &cfg
-	if strings.HasPrefix(repoName, DefaultNamespace+"/") {
+	nameString := repoName.Name()
+	if strings.HasPrefix(nameString, DefaultNamespace+"/") {
 		endpoints = append(endpoints, APIEndpoint{
 			URL:          DefaultV1Registry,
 			Version:      APIVersion1,
@@ -21,11 +23,11 @@ func (s *Service) lookupV1Endpoints(repoName string) (endpoints []APIEndpoint, e
 		return endpoints, nil
 	}
 
-	slashIndex := strings.IndexRune(repoName, '/')
+	slashIndex := strings.IndexRune(nameString, '/')
 	if slashIndex <= 0 {
-		return nil, fmt.Errorf("invalid repo name: missing '/':  %s", repoName)
+		return nil, fmt.Errorf("invalid repo name: missing '/':  %s", nameString)
 	}
-	hostname := repoName[:slashIndex]
+	hostname := nameString[:slashIndex]
 
 	tlsConfig, err = s.TLSConfig(hostname)
 	if err != nil {

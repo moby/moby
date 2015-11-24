@@ -2,14 +2,15 @@ package client
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/url"
 
+	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	Cli "github.com/docker/docker/cli"
 	"github.com/docker/docker/opts"
 	flag "github.com/docker/docker/pkg/mflag"
-	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/runconfig"
 )
@@ -32,20 +33,35 @@ func (cli *DockerCli) CmdCommit(args ...string) error {
 	cmd.ParseFlags(args, true)
 
 	var (
-		name            = cmd.Arg(0)
-		repository, tag = parsers.ParseRepositoryTag(cmd.Arg(1))
+		name             = cmd.Arg(0)
+		repositoryAndTag = cmd.Arg(1)
+		repositoryName   string
+		tag              string
 	)
 
 	//Check if the given image name can be resolved
-	if repository != "" {
-		if err := registry.ValidateRepositoryName(repository); err != nil {
+	if repositoryAndTag != "" {
+		ref, err := reference.ParseNamed(repositoryAndTag)
+		if err != nil {
 			return err
+		}
+		if err := registry.ValidateRepositoryName(ref); err != nil {
+			return err
+		}
+
+		repositoryName = ref.Name()
+
+		switch x := ref.(type) {
+		case reference.Digested:
+			return errors.New("cannot commit to digest reference")
+		case reference.Tagged:
+			tag = x.Tag()
 		}
 	}
 
 	v := url.Values{}
 	v.Set("container", name)
-	v.Set("repo", repository)
+	v.Set("repo", repositoryName)
 	v.Set("tag", tag)
 	v.Set("comment", *flComment)
 	v.Set("author", *flAuthor)

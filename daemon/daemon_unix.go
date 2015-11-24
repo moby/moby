@@ -14,12 +14,15 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/graphdriver"
 	derr "github.com/docker/docker/errors"
+	"github.com/docker/docker/image"
+	"github.com/docker/docker/layer"
 	pblkiodev "github.com/docker/docker/pkg/blkiodev"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/runconfig"
+	"github.com/docker/docker/tag"
 	"github.com/docker/libnetwork"
 	nwconfig "github.com/docker/libnetwork/config"
 	"github.com/docker/libnetwork/drivers/bridge"
@@ -601,9 +604,7 @@ func (daemon *Daemon) conditionalMountOnStart(container *Container) error {
 // conditionalUnmountOnCleanup is a platform specific helper function called
 // during the cleanup of a container to unmount.
 func (daemon *Daemon) conditionalUnmountOnCleanup(container *Container) {
-	if err := daemon.Unmount(container); err != nil {
-		logrus.Errorf("%v: Failed to umount filesystem: %v", container.ID, err)
-	}
+	daemon.Unmount(container)
 }
 
 // getDefaultRouteMtu returns the MTU for the default route's interface.
@@ -623,4 +624,9 @@ func getDefaultRouteMtu() (int, error) {
 		}
 	}
 	return 0, errNoDefaultRoute
+}
+
+func restoreCustomImage(driver graphdriver.Driver, is image.Store, ls layer.Store, ts tag.Store) error {
+	// Unix has no custom images to register
+	return nil
 }

@@ -4543,7 +4543,7 @@ func (s *DockerSuite) TestBuildInvalidTag(c *check.C) {
 	_, out, err := buildImageWithOut(name, "FROM scratch\nMAINTAINER quux\n", true)
 	// if the error doesnt check for illegal tag name, or the image is built
 	// then this should fail
-	if !strings.Contains(out, "Illegal tag name") || strings.Contains(out, "Sending build context to Docker daemon") {
+	if !strings.Contains(out, "invalid reference format") || strings.Contains(out, "Sending build context to Docker daemon") {
 		c.Fatalf("failed to stop before building. Error: %s, Output: %s", err, out)
 	}
 }
@@ -6377,7 +6377,7 @@ func (s *DockerSuite) TestBuildTagEvent(c *check.C) {
 	select {
 	case ev := <-ch:
 		c.Assert(ev.Status, check.Equals, "tag")
-		c.Assert(ev.ID, check.Equals, "test:")
+		c.Assert(ev.ID, check.Equals, "test:latest")
 	case <-time.After(time.Second):
 		c.Fatal("The 'tag' event not heard from the server")
 	}

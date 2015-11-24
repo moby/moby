@@ -19,6 +19,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/digest"
+	"github.com/docker/distribution/reference"
 	"github.com/docker/distribution/registry/client/auth"
 	"github.com/docker/distribution/registry/client/transport"
 	"github.com/docker/docker/cliconfig"
@@ -163,12 +164,12 @@ func (cli *DockerCli) getNotaryRepository(repoInfo *registry.RepositoryInfo, aut
 	}
 
 	creds := simpleCredentialStore{auth: authConfig}
-	tokenHandler := auth.NewTokenHandler(authTransport, creds, repoInfo.CanonicalName, "push", "pull")
+	tokenHandler := auth.NewTokenHandler(authTransport, creds, repoInfo.CanonicalName.Name(), "push", "pull")
 	basicHandler := auth.NewBasicHandler(creds)
 	modifiers = append(modifiers, transport.RequestModifier(auth.NewAuthorizer(challengeManager, tokenHandler, basicHandler)))
 	tr := transport.NewTransport(base, modifiers...)
 
-	return client.NewNotaryRepository(cli.trustDirectory(), repoInfo.CanonicalName, server, tr, cli.getPassphraseRetriever())
+	return client.NewNotaryRepository(cli.trustDirectory(), repoInfo.CanonicalName.Name(), server, tr, cli.getPassphraseRetriever())
 }
 
 func convertTarget(t client.Target) (target, error) {
@@ -219,8 +220,8 @@ func (cli *DockerCli) getPassphraseRetriever() passphrase.Retriever {
 	}
 }
 
-func (cli *DockerCli) trustedReference(repo string, ref registry.Reference) (registry.Reference, error) {
-	repoInfo, err := registry.ParseRepositoryInfo(repo)
+func (cli *DockerCli) trustedReference(ref reference.NamedTagged) (reference.Canonical, error) {
+	repoInfo, err := registry.ParseRepositoryInfo(ref)
 	if err != nil {
 		return nil, err
 	}
@@ -234,7 +235,7 @@ func (cli *DockerCli) trustedReference(repo string, ref registry.Reference) (reg
 		return nil, err
 	}
 
-	t, err := notaryRepo.GetTargetByName(ref.String())
+	t, err := notaryRepo.GetTargetByName(ref.Tag())
 	if err != nil {
 		return nil, err
 	}
@@ -244,18 +245,17 @@ func (cli *DockerCli) trustedReference(repo string, ref registry.Reference) (reg
 
 	}
 
-	return registry.DigestReference(r.digest), nil
+	return reference.WithDigest(ref, r.digest)
 }
 
-func (cli *DockerCli) tagTrusted(repoInfo *registry.RepositoryInfo, trustedRef, ref registry.Reference) error {
-	fullName := trustedRef.ImageName(repoInfo.LocalName)
-	fmt.Fprintf(cli.out, "Tagging %s as %s\n", fullName, ref.ImageName(repoInfo.LocalName))
+func (cli *DockerCli) tagTrusted(trustedRef reference.Canonical, ref reference.NamedTagged) error {
+	fmt.Fprintf(cli.out, "Tagging %s as %s\n", trustedRef.String(), ref.String())
 	tv := url.Values{}
-	tv.Set("repo", repoInfo.LocalName)
-	tv.Set("tag", ref.String())
+	tv.Set("repo", trustedRef.Name())
+	tv.Set("tag", ref.Tag())
 	tv.Set("force", "1")
 
-	if _, _, err := readBody(cli.call("POST", "/images/"+fullName+"/tag?"+tv.Encode(), nil, nil)); err != nil {
+	if _, _, err := readBody(cli.call("POST", "/images/"+trustedRef.String()+"/tag?"+tv.Encode(), nil, nil)); err != nil {
 		return err
 	}
 
@@ -317,7 +317,7 @@ func (cli *DockerCli) trustedPull(repoInfo *registry.RepositoryInfo, ref registr
 		refs = append(refs, r)
 	}
 
-	v.Set("fromImage", repoInfo.LocalName)
+	v.Set("fromImage", repoInfo.LocalName.Name())
 	for i, r := range refs {
 		displayTag := r.reference.String()
 		if displayTag != "" {
@@ -333,7 +333,12 @@ func (cli *DockerCli) trustedPull(repoInfo *registry.RepositoryInfo, ref registr
 
 		// If reference is not trusted, tag by trusted reference
 		if !r.reference.HasDigest() {
-			if err := cli.tagTrusted(repoInfo, registry.DigestReference(r.digest), r.reference); err != nil {
+			tagged, err := reference.WithTag(repoInfo.LocalName, r.reference.String())
+			if err != nil {
+				return err
+			}
+			trustedRef, err := reference.WithDigest(repoInfo.LocalName, r.digest)
+			if err := cli.tagTrusted(trustedRef, tagged); err != nil {
 				return err
 
 			}
@@ -386,7 +391,7 @@ func (cli *DockerCli) trustedPush(repoInfo *registry.RepositoryInfo, tag string,
 	v := url.Values{}
 	v.Set("tag", tag)
 
-	_, _, err := cli.clientRequestAttemptLogin("POST", "/images/"+repoInfo.LocalName+"/push?"+v.Encode(), nil, streamOut, repoInfo.Index, "push")
+	_, _, err := cli.clientRequestAttemptLogin("POST", "/images/"+repoInfo.LocalName.Name()+"/push?"+v.Encode(), nil, streamOut, repoInfo.Index, "push")
 	// Close stream channel to finish target parsing
 	if err := streamOut.Close(); err != nil {
 		return err

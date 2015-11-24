@@ -110,26 +110,6 @@ func ParseTCPAddr(tryAddr string, defaultAddr string) (string, error) {
 	return fmt.Sprintf("tcp://%s%s", net.JoinHostPort(host, port), u.Path), nil
 }
 
-// ParseRepositoryTag gets a repos name and returns the right reposName + tag|digest
-// The tag can be confusing because of a port in a repository name.
-//     Ex: localhost.localdomain:5000/samalba/hipache:latest
-//     Digest ex: localhost:5000/foo/bar@sha256:bc8813ea7b3603864987522f02a76101c17ad122e1c46d790efc0fca78ca7bfb
-func ParseRepositoryTag(repos string) (string, string) {
-	n := strings.Index(repos, "@")
-	if n >= 0 {
-		parts := strings.Split(repos, "@")
-		return parts[0], parts[1]
-	}
-	n = strings.LastIndex(repos, ":")
-	if n < 0 {
-		return repos, ""
-	}
-	if tag := repos[n+1:]; !strings.Contains(tag, "/") {
-		return repos[:n], tag
-	}
-	return repos, ""
-}
-
 // PartParser parses and validates the specified string (data) using the specified template
 // e.g. ip:public:private -> 192.168.0.1:80:8000
 func PartParser(template, data string) (map[string]string, error) {

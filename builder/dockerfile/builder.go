@@ -277,9 +277,9 @@ func Commit(containerName string, d *daemon.Daemon, c *CommitConfig) (string, er
 		MergeConfigs: true,
 	}
 
-	img, err := d.Commit(containerName, commitCfg)
+	imgID, err := d.Commit(containerName, commitCfg)
 	if err != nil {
 		return "", err
 	}
-	return img.ID, nil
+	return imgID, nil
 }
