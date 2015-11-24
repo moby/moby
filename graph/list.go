@@ -82,11 +82,12 @@ func (s *TagStore) Images(filterArgs, filter string, all bool) ([]*types.Image, 
 				}
 			}
 		}
-		for ref, id := range repository {
-			imgRef := utils.ImageReference(repoName, ref)
-			if !strings.Contains(imgRef, filterTagName) {
+		for tag, id := range repository {
+			if filterTagName != "" && tag != filterTagName {
 				continue
 			}
+
+			imgRef := utils.ImageReference(repoName, tag)
 			image, err := s.graph.Get(id)
 			if err != nil {
 				logrus.Warnf("couldn't load %s from %s: %s", id, imgRef, err)
@@ -95,7 +96,7 @@ func (s *TagStore) Images(filterArgs, filter string, all bool) ([]*types.Image, 
 
 			if lImage, exists := lookup[id]; exists {
 				if filtTagged {
-					if utils.DigestReference(ref) {
+					if utils.DigestReference(tag) {
 						lImage.RepoDigests = append(lImage.RepoDigests, imgRef)
 					} else { // Tag Ref.
 						lImage.RepoTags = append(lImage.RepoTags, imgRef)
@@ -118,7 +119,7 @@ func (s *TagStore) Images(filterArgs, filter string, all bool) ([]*types.Image, 
 				if filtTagged {
 					newImage := newImage(image, s.graph.getParentsSize(image))
 
-					if utils.DigestReference(ref) {
+					if utils.DigestReference(tag) {
 						newImage.RepoTags = []string{}
 						newImage.RepoDigests = []string{imgRef}
 					} else {
