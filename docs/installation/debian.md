@@ -63,7 +63,7 @@ from the new repository:
 
      The possible entries are:
 
-     - On Debian Wheezy
+    - On Debian Wheezy
 
             deb https://apt.dockerproject.org/repo debian-wheezy main
 

@@ -86,7 +86,7 @@ own.
 6.  Check your writing for style and mechanical errors.
 
 	Use our [documentation style
-	guide](/opensource/doc-style.md) to check style. There are
+	guide](https://docs.docker.com/opensource/doc-style/) to check style. There are
 	several [good grammar and spelling online
 	checkers](http://www.hemingwayapp.com/) that can check your writing
 	mechanics.
@@ -106,7 +106,7 @@ links that are referenced in the documentation&mdash;there should be none.
 ## Style guide
 
 If you have questions about how to write for Docker's documentation, please see
-the [style guide](/opensource/doc-style.md). The style guide provides
+the [style guide](https://docs.docker.com/opensource/doc-style/). The style guide provides
 guidance about grammar, syntax, formatting, styling, language, or tone. If
 something isn't clear in the guide, please submit an issue to let us know or
 submit a pull request to help us improve it.
