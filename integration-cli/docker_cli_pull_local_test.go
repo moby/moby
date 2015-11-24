@@ -5,6 +5,7 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/go-check/check"
 )
 
@@ -35,7 +36,7 @@ func (s *DockerRegistrySuite) TestPullImageWithAliases(c *check.C) {
 	dockerCmd(c, "inspect", repos[0])
 	for _, repo := range repos[1:] {
 		_, _, err := dockerCmdWithError("inspect", repo)
-		c.Assert(err, check.NotNil, check.Commentf("Image %v shouldn't have been pulled down", repo))
+		c.Assert(err, checker.NotNil, check.Commentf("Image %v shouldn't have been pulled down", repo))
 	}
 }
 
@@ -53,7 +54,7 @@ func (s *DockerRegistrySuite) TestConcurrentPullWholeRepo(c *check.C) {
 		    ENV BAR bar
 		    CMD echo %s
 		`, repo), true)
-		c.Assert(err, check.IsNil)
+		c.Assert(err, checker.IsNil)
 		dockerCmd(c, "push", repo)
 		repos = append(repos, repo)
 	}
@@ -77,14 +78,14 @@ func (s *DockerRegistrySuite) TestConcurrentPullWholeRepo(c *check.C) {
 	// package is not goroutine-safe.
 	for i := 0; i != numPulls; i++ {
 		err := <-results
-		c.Assert(err, check.IsNil, check.Commentf("concurrent pull failed with error: %v", err))
+		c.Assert(err, checker.IsNil, check.Commentf("concurrent pull failed with error: %v", err))
 	}
 
 	// Ensure all tags were pulled successfully
 	for _, repo := range repos {
 		dockerCmd(c, "inspect", repo)
 		out, _ := dockerCmd(c, "run", "--rm", repo)
-		c.Assert(strings.TrimSpace(out), check.Equals, "/bin/sh -c echo "+repo, check.Commentf("CMD did not contain /bin/sh -c echo %s: %s", repo, out))
+		c.Assert(strings.TrimSpace(out), checker.Equals, "/bin/sh -c echo "+repo, check.Commentf("CMD did not contain /bin/sh -c echo %s: %s", repo, out))
 	}
 }
 
@@ -107,7 +108,7 @@ func (s *DockerRegistrySuite) TestConcurrentFailingPull(c *check.C) {
 	// package is not goroutine-safe.
 	for i := 0; i != numPulls; i++ {
 		err := <-results
-		c.Assert(err, check.NotNil, check.Commentf("expected pull to fail"))
+		c.Assert(err, checker.NotNil, check.Commentf("expected pull to fail"))
 	}
 }
 
@@ -126,7 +127,7 @@ func (s *DockerRegistrySuite) TestConcurrentPullMultipleTags(c *check.C) {
 		    ENV BAR bar
 		    CMD echo %s
 		`, repo), true)
-		c.Assert(err, check.IsNil)
+		c.Assert(err, checker.IsNil)
 		dockerCmd(c, "push", repo)
 		repos = append(repos, repo)
 	}
@@ -149,13 +150,13 @@ func (s *DockerRegistrySuite) TestConcurrentPullMultipleTags(c *check.C) {
 	// package is not goroutine-safe.
 	for range repos {
 		err := <-results
-		c.Assert(err, check.IsNil, check.Commentf("concurrent pull failed with error: %v", err))
+		c.Assert(err, checker.IsNil, check.Commentf("concurrent pull failed with error: %v", err))
 	}
 
 	// Ensure all tags were pulled successfully
 	for _, repo := range repos {
 		dockerCmd(c, "inspect", repo)
 		out, _ := dockerCmd(c, "run", "--rm", repo)
-		c.Assert(strings.TrimSpace(out), check.Equals, "/bin/sh -c echo "+repo, check.Commentf("CMD did not contain /bin/sh -c echo %s; %s", repo, out))
+		c.Assert(strings.TrimSpace(out), checker.Equals, "/bin/sh -c echo "+repo, check.Commentf("CMD did not contain /bin/sh -c echo %s; %s", repo, out))
 	}
 }
