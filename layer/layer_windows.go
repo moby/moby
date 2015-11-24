@@ -93,7 +93,7 @@ func (ls *layerStore) RegisterDiffID(graphID string, size int64) (Layer, error) 
 	ls.layerL.Lock()
 	defer ls.layerL.Unlock()
 
-	if existingLayer := ls.getAndRetainLayer(layer.chainID); existingLayer != nil {
+	if existingLayer := ls.getWithoutLock(layer.chainID); existingLayer != nil {
 		// Set error for cleanup, but do not return
 		err = errors.New("layer already exists")
 		return existingLayer.getReference(), nil

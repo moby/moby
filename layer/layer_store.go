@@ -269,7 +269,7 @@ func (ls *layerStore) Register(ts io.Reader, parent ChainID) (Layer, error) {
 	ls.layerL.Lock()
 	defer ls.layerL.Unlock()
 
-	if existingLayer := ls.getAndRetainLayer(layer.chainID); existingLayer != nil {
+	if existingLayer := ls.getWithoutLock(layer.chainID); existingLayer != nil {
 		// Set error for cleanup, but do not return the error
 		err = errors.New("layer already exists")
 		return existingLayer.getReference(), nil
@@ -284,18 +284,21 @@ func (ls *layerStore) Register(ts io.Reader, parent ChainID) (Layer, error) {
 	return layer.getReference(), nil
 }
 
-func (ls *layerStore) get(l ChainID) *roLayer {
-	ls.layerL.Lock()
-	defer ls.layerL.Unlock()
-
-	layer, ok := ls.layerMap[l]
+func (ls *layerStore) getWithoutLock(layer ChainID) *roLayer {
+	l, ok := ls.layerMap[layer]
 	if !ok {
 		return nil
 	}
 
-	layer.referenceCount++
+	l.referenceCount++
 
-	return layer
+	return l
+}
+
+func (ls *layerStore) get(l ChainID) *roLayer {
+	ls.layerL.Lock()
+	defer ls.layerL.Unlock()
+	return ls.getWithoutLock(l)
 }
 
 func (ls *layerStore) Get(l ChainID) (Layer, error) {
@@ -412,17 +415,6 @@ func (ls *layerStore) saveMount(mount *mountedLayer) error {
 	return nil
 }
 
-func (ls *layerStore) getAndRetainLayer(layer ChainID) *roLayer {
-	l, ok := ls.layerMap[layer]
-	if !ok {
-		return nil
-	}
-
-	l.referenceCount++
-
-	return l
-}
-
 func (ls *layerStore) initMount(graphID, parent, mountLabel string, initFunc MountInit) (string, error) {
 	// Use "<graph-id>-init" to maintain compatibility with graph drivers
 	// which are expecting this layer with this special name. If all
@@ -465,9 +457,7 @@ func (ls *layerStore) Mount(name string, parent ChainID, mountLabel string, init
 	var pid string
 	var p *roLayer
 	if string(parent) != "" {
-		ls.layerL.Lock()
-		p = ls.getAndRetainLayer(parent)
-		ls.layerL.Unlock()
+		p = ls.get(parent)
 		if p == nil {
 			return nil, ErrLayerDoesNotExist
 		}
