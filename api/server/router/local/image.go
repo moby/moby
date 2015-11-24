@@ -478,6 +478,34 @@ func sanitizeRepoAndTags(names []string) ([]repoAndTag, error) {
 	return repoAndTags, nil
 }
 
+func (s *router) getImagesManifest(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if vars == nil {
+		return fmt.Errorf("Missing parameter")
+	}
+	if err := httputils.ParseForm(r); err != nil {
+		return err
+	}
+
+	output := ioutils.NewWriteFlusher(w)
+	var (
+		name string
+	)
+
+	if _, ok := vars["name"]; ok {
+		name = vars["name"]
+	} else {
+		name = r.Form["names"][0]
+	}
+
+	repository, tag := parsers.ParseRepositoryTag(name)
+	manifest, err := s.daemon.GetImageManifest(name, repository, tag)
+	if err == nil {
+		output.Write(manifest)
+	}
+
+	return err
+}
+
 func (s *router) getImagesJSON(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
