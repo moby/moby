@@ -21,7 +21,7 @@ running code.
 Docker does this by combining a lightweight container virtualization platform
 with workflows and tooling that help you manage and deploy your applications.
 
-At its core, Docker provides a way to run almost any application securely
+At its core, Docker provides a way to run almost any applications securely
 isolated in a container. The isolation and security allow you to run many
 containers simultaneously on your host. The lightweight nature of containers,
 which run without the extra load of a hypervisor, means you can get more out of
@@ -119,7 +119,7 @@ Docker images are the **build** component of Docker.
 Docker registries hold images. These are public or private stores from which you
 upload or download images. The public Docker registry is provided with the
 [Docker Hub](http://hub.docker.com). It serves a huge collection of existing
-images for your use. These can be images you create yourself or you can use
+images for your use. These can be images you created for yourself or 
 images that others have previously created. Docker registries are the
 **distribution** component of Docker.
 
@@ -171,7 +171,7 @@ image. Instructions include actions like:
 * Run a command. 
 * Add a file or directory. 
 * Create an environment variable.
-* What process to run when launching a container from this image.
+* What process to run when launch a container from this image.
 
 These instructions are stored in a file called a `Dockerfile`. Docker reads this
 `Dockerfile` when you request a build of an image, executes the instructions, and
@@ -232,7 +232,7 @@ the file system and a read-write layer is added to the image.
 - **Allocates a network / bridge interface:** Creates a network interface that allows the 
 Docker container to talk to the local host. 
 - **Sets up an IP address:** Finds and attaches an available IP address from a pool. 
-- **Executes a process that you specify:** Runs your application, and; 
+- **Executes a process that you specify:** Runs your application.
 - **Captures and provides application output:** Connects and logs standard input, outputs 
 and errors for you to see how your application is running.
 
