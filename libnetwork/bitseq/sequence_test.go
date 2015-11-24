@@ -352,6 +352,62 @@ func TestPushReservation(t *testing.T) {
 		{&sequence{block: 0xffff0000, count: 7}, 25, 7, &sequence{block: 0xffff0000, count: 7}},
 		{&sequence{block: 0xffffffff, count: 7, next: &sequence{block: 0xfffffffe, count: 1, next: &sequence{block: 0xffffffff, count: 1}}}, 7, 7,
 			&sequence{block: 0xffffffff, count: 7, next: &sequence{block: 0xfffffffe, count: 1, next: &sequence{block: 0xffffffff, count: 1}}}},
+
+		// Set last bit
+		{&sequence{block: 0x0, count: 8}, 31, 7, &sequence{block: 0x0, count: 7, next: &sequence{block: 0x1, count: 1}}},
+
+		// Set bit in a middle sequence in the first block, first bit
+		{&sequence{block: 0x40000000, count: 1, next: &sequence{block: 0x0, count: 6, next: &sequence{block: 0x1, count: 1}}}, 4, 0,
+			&sequence{block: 0x40000000, count: 1, next: &sequence{block: 0x80000000, count: 1, next: &sequence{block: 0x0, count: 5,
+				next: &sequence{block: 0x1, count: 1}}}}},
+
+		// Set bit in a middle sequence in the first block, first bit (merge involved)
+		{&sequence{block: 0x80000000, count: 1, next: &sequence{block: 0x0, count: 6, next: &sequence{block: 0x1, count: 1}}}, 4, 0,
+			&sequence{block: 0x80000000, count: 2, next: &sequence{block: 0x0, count: 5, next: &sequence{block: 0x1, count: 1}}}},
+
+		// Set bit in a middle sequence in the first block, last bit
+		{&sequence{block: 0x80000000, count: 1, next: &sequence{block: 0x0, count: 6, next: &sequence{block: 0x1, count: 1}}}, 4, 31,
+			&sequence{block: 0x80000000, count: 1, next: &sequence{block: 0x1, count: 1, next: &sequence{block: 0x0, count: 5,
+				next: &sequence{block: 0x1, count: 1}}}}},
+
+		// Set bit in a middle sequence in the first block, middle bit
+		{&sequence{block: 0x80000000, count: 1, next: &sequence{block: 0x0, count: 6, next: &sequence{block: 0x1, count: 1}}}, 4, 16,
+			&sequence{block: 0x80000000, count: 1, next: &sequence{block: 0x8000, count: 1, next: &sequence{block: 0x0, count: 5,
+				next: &sequence{block: 0x1, count: 1}}}}},
+
+		// Set bit in a middle sequence in a middle block, first bit
+		{&sequence{block: 0x80000000, count: 1, next: &sequence{block: 0x0, count: 6, next: &sequence{block: 0x1, count: 1}}}, 16, 0,
+			&sequence{block: 0x80000000, count: 1, next: &sequence{block: 0x0, count: 3, next: &sequence{block: 0x80000000, count: 1,
+				next: &sequence{block: 0x0, count: 2, next: &sequence{block: 0x1, count: 1}}}}}},
+
+		// Set bit in a middle sequence in a middle block, last bit
+		{&sequence{block: 0x80000000, count: 1, next: &sequence{block: 0x0, count: 6, next: &sequence{block: 0x1, count: 1}}}, 16, 31,
+			&sequence{block: 0x80000000, count: 1, next: &sequence{block: 0x0, count: 3, next: &sequence{block: 0x1, count: 1,
+				next: &sequence{block: 0x0, count: 2, next: &sequence{block: 0x1, count: 1}}}}}},
+
+		// Set bit in a middle sequence in a middle block, middle bit
+		{&sequence{block: 0x80000000, count: 1, next: &sequence{block: 0x0, count: 6, next: &sequence{block: 0x1, count: 1}}}, 16, 15,
+			&sequence{block: 0x80000000, count: 1, next: &sequence{block: 0x0, count: 3, next: &sequence{block: 0x10000, count: 1,
+				next: &sequence{block: 0x0, count: 2, next: &sequence{block: 0x1, count: 1}}}}}},
+
+		// Set bit in a middle sequence in the last block, first bit
+		{&sequence{block: 0x80000000, count: 1, next: &sequence{block: 0x0, count: 6, next: &sequence{block: 0x1, count: 1}}}, 24, 0,
+			&sequence{block: 0x80000000, count: 1, next: &sequence{block: 0x0, count: 5, next: &sequence{block: 0x80000000, count: 1,
+				next: &sequence{block: 0x1, count: 1}}}}},
+
+		// Set bit in a middle sequence in the last block, last bit
+		{&sequence{block: 0x80000000, count: 1, next: &sequence{block: 0x0, count: 6, next: &sequence{block: 0x4, count: 1}}}, 24, 31,
+			&sequence{block: 0x80000000, count: 1, next: &sequence{block: 0x0, count: 5, next: &sequence{block: 0x1, count: 1,
+				next: &sequence{block: 0x4, count: 1}}}}},
+
+		// Set bit in a middle sequence in the last block, last bit (merge involved)
+		{&sequence{block: 0x80000000, count: 1, next: &sequence{block: 0x0, count: 6, next: &sequence{block: 0x1, count: 1}}}, 24, 31,
+			&sequence{block: 0x80000000, count: 1, next: &sequence{block: 0x0, count: 5, next: &sequence{block: 0x1, count: 2}}}},
+
+		// Set bit in a middle sequence in the last block, middle bit
+		{&sequence{block: 0x80000000, count: 1, next: &sequence{block: 0x0, count: 6, next: &sequence{block: 0x1, count: 1}}}, 24, 16,
+			&sequence{block: 0x80000000, count: 1, next: &sequence{block: 0x0, count: 5, next: &sequence{block: 0x8000, count: 1,
+				next: &sequence{block: 0x1, count: 1}}}}},
 	}
 
 	for n, i := range input {
@@ -633,5 +689,60 @@ func TestSetInRange(t *testing.T) {
 	}
 	if err != errNoBitAvailable {
 		t.Fatalf("Unexpected error: %v", err)
+	}
+}
+
+// This one tests an allocation pattern which unveiled an issue in pushReservation
+// Specifically a failure in detecting when we are in the (B) case (the bit to set
+// belongs to the last block of the current sequence). Because of a bug, code
+// was assuming the bit belonged to a block in the middle of the current sequence.
+// Which in turn caused an incorrect allocation when requesting a bit which is not
+// in the first or last sequence block.
+func TestSetAnyInRange(t *testing.T) {
+	numBits := uint64(8 * blockLen)
+	hnd, err := NewHandle("", nil, "", numBits)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := hnd.Set(0); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := hnd.Set(255); err != nil {
+		t.Fatal(err)
+	}
+
+	o, err := hnd.SetAnyInRange(128, 255)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if o != 128 {
+		t.Fatalf("Unexpected ordinal: %d", o)
+	}
+
+	o, err = hnd.SetAnyInRange(128, 255)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if o != 129 {
+		t.Fatalf("Unexpected ordinal: %d", o)
+	}
+
+	o, err = hnd.SetAnyInRange(246, 255)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if o != 246 {
+		t.Fatalf("Unexpected ordinal: %d", o)
+	}
+
+	o, err = hnd.SetAnyInRange(246, 255)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if o != 247 {
+		t.Fatalf("Unexpected ordinal: %d", o)
 	}
 }
