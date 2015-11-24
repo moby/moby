@@ -260,25 +260,6 @@ func (cli *DaemonCli) CmdDaemon(args ...string) error {
 		}
 		serverConfig.Addrs = append(serverConfig.Addrs, apiserver.Addr{Proto: protoAddrParts[0], Addr: protoAddrParts[1]})
 	}
-	api, err := apiserver.New(serverConfig)
-	if err != nil {
-		logrus.Fatal(err)
-	}
-
-	// The serve API routine never exits unless an error occurs
-	// We need to start it as a goroutine and wait on it so
-	// daemon doesn't exit
-	// All servers must be protected with some mechanism (systemd socket, listenbuffer)
-	// which prevents real handling of request until routes will be set.
-	serveAPIWait := make(chan error)
-	go func() {
-		if err := api.ServeAPI(); err != nil {
-			logrus.Errorf("ServeAPI error: %v", err)
-			serveAPIWait <- err
-			return
-		}
-		serveAPIWait <- nil
-	}()
 
 	if err := migrateKey(); err != nil {
 		logrus.Fatal(err)
@@ -296,7 +277,27 @@ func (cli *DaemonCli) CmdDaemon(args ...string) error {
 		logrus.Fatalf("Error starting daemon: %v", err)
 	}
 
+	api, err := apiserver.New(serverConfig, d)
+	if err != nil {
+		logrus.Fatal(err)
+	}
+
 	logrus.Info("Daemon has completed initialization")
+
+	// The serve API routine never exits unless an error occurs
+	// We need to start it as a goroutine and wait on it so
+	// daemon doesn't exit
+	// All servers must be protected with some mechanism (systemd socket, listenbuffer)
+	// which prevents real handling of request until routes will be set.
+	serveAPIWait := make(chan error)
+	go func() {
+		if err := api.ServeAPI(); err != nil {
+			logrus.Errorf("ServeAPI error: %v", err)
+			serveAPIWait <- err
+			return
+		}
+		serveAPIWait <- nil
+	}()
 
 	logrus.WithFields(logrus.Fields{
 		"version":     dockerversion.VERSION,
