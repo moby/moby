@@ -17,8 +17,8 @@ func setPlatformSpecificContainerFields(container *Container, contJSONBase *type
 	return contJSONBase
 }
 
-// ContainerInspectPre120 gets containers for pre 1.20 APIs.
-func (daemon *Daemon) ContainerInspectPre120(name string) (*v1p19.ContainerJSON, error) {
+// containerInspectPre120 gets containers for pre 1.20 APIs.
+func (daemon *Daemon) containerInspectPre120(name string) (*v1p19.ContainerJSON, error) {
 	container, err := daemon.Get(name)
 	if err != nil {
 		return nil, err
