@@ -40,6 +40,7 @@ RUN apt-get update && apt-get install -y \
 	dpkg-sig \
 	gcc-mingw-w64 \
 	libapparmor-dev \
+	libaudit-dev \
 	libcap-dev \
 	libsqlite3-dev \
 	libsystemd-journal-dev \

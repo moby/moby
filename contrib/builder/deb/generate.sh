@@ -53,6 +53,7 @@ for version in "${versions[@]}"; do
 		dh-systemd # for systemd debhelper integration
 		git # for "git commit" info in "docker -v"
 		libapparmor-dev # for "sys/apparmor.h"
+		libaudit-dev # for "libaudit.h" and libaudit.so
 		libdevmapper-dev # for "libdevmapper.h"
 		libsqlite3-dev # for "sqlite3.h"
 	)
