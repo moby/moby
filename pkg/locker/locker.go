@@ -32,22 +32,23 @@ type Locker struct {
 type lockCtr struct {
 	mu sync.Mutex
 	// waiters is the number of waiters waiting to acquire the lock
-	waiters uint32
+	// this is int32 instead of uint32 so we can add `-1` in `dec()`
+	waiters int32
 }
 
 // inc increments the number of waiters waiting for the lock
 func (l *lockCtr) inc() {
-	atomic.AddUint32(&l.waiters, 1)
+	atomic.AddInt32(&l.waiters, 1)
 }
 
 // dec decrements the number of waiters wating on the lock
 func (l *lockCtr) dec() {
-	atomic.AddUint32(&l.waiters, ^uint32(l.waiters-1))
+	atomic.AddInt32(&l.waiters, -1)
 }
 
 // count gets the current number of waiters
-func (l *lockCtr) count() uint32 {
-	return atomic.LoadUint32(&l.waiters)
+func (l *lockCtr) count() int32 {
+	return atomic.LoadInt32(&l.waiters)
 }
 
 // Lock locks the mutex
