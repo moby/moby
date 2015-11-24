@@ -159,7 +159,11 @@ func (ep *endpoint) Info() EndpointInfo {
 		return ep
 	}
 
-	return sb.getEndpoint(ep.ID())
+	if epi := sb.getEndpoint(ep.ID()); epi != nil {
+		return epi
+	}
+
+	return nil
 }
 
 func (ep *endpoint) DriverInfo() (map[string]interface{}, error) {
