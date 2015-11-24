@@ -61,7 +61,7 @@ You can also use `docker inspect` with the container's name.
 
 Container names must be unique. That means you can only call one container
 `web`. If you want to re-use a container name you must delete the old container
-(with `docker rm`) before you can reuse the name with a new container. Go ahead and stop and them remove your `web` container.
+(with `docker rm`) before you can reuse the name with a new container. Go ahead and stop and remove your old `web` container.
 
     $ docker stop web
     web
@@ -73,7 +73,7 @@ Container names must be unique. That means you can only call one container
 
 Docker includes support for networking containers through the use of **network
 drivers**. By default, Docker provides two network drivers for you, the
-`bridge` and the `overlay` driver. You can also write a network driver plugin so
+`bridge` and the `overlay` drivers. You can also write a network driver plugin so
 that you can create your own drivers but that is an advanced task.
 
 Every installation of the Docker Engine automatically includes three default networks. You can list them:
