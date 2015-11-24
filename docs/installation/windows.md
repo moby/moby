@@ -31,7 +31,7 @@ small ~24MB download, and boots in approximately 5s.
 
 ## Requirements
 
-Your machine must be running Windows 7, 8/8.1 or newer to run Docker. Windows 10 is not currently supported. To find out what version of Windows you have:
+Your machine must be running Windows 7 or newer to run Docker. To find out what version of Windows you have:
 
 1. Right click the Windows Start Menu and choose **System**.
 
@@ -43,9 +43,9 @@ Your machine must be running Windows 7, 8/8.1 or newer to run Docker. Windows 10
 2. Make sure your CPU supports [virtualization technology](https://en.wikipedia.org/wiki/X86_virtualization)
 and virtualization support is enabled in BIOS and recognized by Windows.
 
-    #### For Windows 8 or 8.1
+    #### For Windows 8, 8.1 or 10
 
-	  Choose **Start > Task Manager** and navigate to the **Performance** tab.
+	  Choose **Start > Task Manager**. On Windows 10, click more details. Navigate to the **Performance** tab.
 	  Under **CPU** you should see the following:
 
       ![Release page](images/virtualization.png)
@@ -346,9 +346,9 @@ this same directory. The private key needs to be converted into the format PuTTY
 uses. You can do this with
 [puttygen](http://www.chiark.greenend.org.uk/~sgtatham/putty/download.html):
 
-1. Open `puttygen.exe` and load ("File"->"Load" menu) the private key from
+1. Open `puttygen.exe` and load ("File"->"Load" menu) the private key from (you may need to change to the `All Files (*.*)` filter)
 
-        %USERPROFILE%\.docker\machine\machines\<name_of_your_machine>
+        %USERPROFILE%\.docker\machine\machines\<name_of_your_machine>\id_rsa
 
 2. Click "Save Private Key".
 
@@ -362,6 +362,6 @@ delete that file yourself.
 
 ## Learn more
 
-You can continue with the [Docker User Guide](../userguide). If you are
+You can continue with the [Docker User Guide](../userguide/index.md). If you are
 interested in using the Kitematic GUI, see the [Kitematic user
 guide](https://docs.docker.com/kitematic/userguide/).

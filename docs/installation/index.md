@@ -42,7 +42,7 @@ Instructions for installing prior releases of Docker can be found in the followi
 [Docker v1.7](http://docs.docker.com/v1.7/), [Docker v1.6](http://docs.docker.com/v1.6/), [Docker v1.5](http://docs.docker.com/v1.5/), and [Docker v1.4](http://docs.docker.com/v1.4/).
 
 ## Where to go After Installing
-* [About Docker](../misc)
+* [About Docker](../misc/index.md)
 * [Support](https://www.docker.com/support/)
 * [Training](https://training.docker.com//)
 

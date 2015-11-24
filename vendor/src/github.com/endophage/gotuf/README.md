@@ -16,7 +16,7 @@ from Docker should be considered the official CLI to be used with this implement
 - [ ] Ensure consistent capitalization in naming (TUF\_\_\_ vs Tuf\_\_\_)
 - [X] Make caching of metadata files smarter - PR #5
 - [ ] ~~Add configuration for CLI commands. Order of configuration priority from most to least: flags, config file, defaults~~ Notary should be the official CLI
-- [X] Reasses organization of data types. Possibly consolidate a few things into the data package but break up package into a few more distinct files
+- [X] Reassess organization of data types. Possibly consolidate a few things into the data package but break up package into a few more distinct files
 - [ ] Comprehensive test cases
 - [ ] Delete files no longer in use
 - [ ] Fix up errors. Some have to be instantiated, others don't, the inconsistency is annoying.

@@ -41,7 +41,7 @@ on other branches by special arrangement with the Docker maintainers.
 
 If you are a new or beginner contributor, we encourage you to read through the
 [our detailed contributors
-guide](who-written-for.md). The guide explains in
+guide](https://docs.docker.com/opensource/code/). The guide explains in
 detail, with examples, how to contribute. If you are an experienced contributor
 this quickstart should be enough to get you started.
 
@@ -89,7 +89,7 @@ own.
 6.  Check your writing for style and mechanical errors.
 
 	Use our [documentation style
-	guide](doc-style.md) to check style. There are
+	guide](/opensource/doc-style.md) to check style. There are
 	several [good grammar and spelling online
 	checkers](http://www.hemingwayapp.com/) that can check your writing
 	mechanics.
@@ -109,7 +109,7 @@ links that are referenced in the documentation&mdash;there should be none.
 ## Style guide
 
 If you have questions about how to write for Docker's documentation, please see
-the [style guide](doc-style.md). The style guide provides
+the [style guide](/opensource/doc-style.md). The style guide provides
 guidance about grammar, syntax, formatting, styling, language, or tone. If
 something isn't clear in the guide, please submit an issue to let us know or
 submit a pull request to help us improve it.
