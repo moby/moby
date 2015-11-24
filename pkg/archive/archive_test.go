@@ -216,11 +216,16 @@ func TestUntarPathWithInvalidDest(t *testing.T) {
 	invalidDestFolder := path.Join(tempFolder, "invalidDest")
 	// Create a src file
 	srcFile := path.Join(tempFolder, "src")
-	_, err = os.Create(srcFile)
+	tarFile := path.Join(tempFolder, "src.tar")
+	os.Create(srcFile)
+	os.Create(invalidDestFolder) // being a file (not dir) should cause an error
+	cmd := exec.Command("/bin/sh", "-c", "tar cf "+tarFile+" "+srcFile)
+	_, err = cmd.CombinedOutput()
 	if err != nil {
-		t.Fatalf("Fail to create the source file")
+		t.Fatal(err)
 	}
-	err = UntarPath(srcFile, invalidDestFolder)
+
+	err = UntarPath(tarFile, invalidDestFolder)
 	if err == nil {
 		t.Fatalf("UntarPath with invalid destination path should throw an error.")
 	}
