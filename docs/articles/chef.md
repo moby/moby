@@ -16,7 +16,7 @@ parent = "smn_third_party"
 ## Requirements
 
 To use this guide you'll need a working installation of
-[Chef](http://www.chef.io/). This cookbook supports a variety of
+[Chef](https://www.chef.io/). This cookbook supports a variety of
 operating systems.
 
 ## Installation
