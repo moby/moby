@@ -12,6 +12,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/digest"
 	"github.com/docker/docker/daemon/events"
 	"github.com/docker/docker/graph/tags"
@@ -108,6 +109,15 @@ func (store *TagStore) reload() error {
 		return err
 	}
 	defer f.Close()
+	finfo, err := f.Stat()
+	if err != nil {
+		return err
+	}
+	// check file is empty and continue with warning
+	if size := finfo.Size(); size == 0 {
+		logrus.Warnf("Tag store is empty: %s, image tags may have been lost.", store.path)
+		return nil
+	}
 	if err := json.NewDecoder(f).Decode(&store); err != nil {
 		return err
 	}

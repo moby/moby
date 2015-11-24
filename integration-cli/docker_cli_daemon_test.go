@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/pkg/integration/checker"
+	"github.com/docker/docker/utils"
 	"github.com/docker/libnetwork/iptables"
 	"github.com/docker/libtrust"
 	"github.com/go-check/check"
@@ -1877,4 +1878,42 @@ func (s *DockerDaemonSuite) TestDaemonNoSpaceleftOnDeviceError(c *check.C) {
 	// pull a repository large enough to fill the mount point
 	out, err := s.d.Cmd("pull", "registry:2")
 	c.Assert(out, check.Not(check.Equals), 1, check.Commentf("no space left on device"))
+}
+
+// Test Daemon starts when the repositories-{*} file is empty
+func (s *DockerDaemonSuite) TestDaemonStartWithEmptyRepoConf(c *check.C) error {
+	testRequires(c, SameHostDaemon)
+
+	repofilePath := filepath.Join(s.d.root, "repositories-"+s.d.storageDriver)
+	if err := s.d.Start(); err != nil {
+		c.Fatal(err)
+	}
+
+	if err := s.d.Stop(); err != nil {
+		c.Fatal(err)
+	}
+
+	if err := os.Remove(repofilePath); err != nil {
+		// experimental builds if the file does not exist return
+		if utils.ExperimentalBuild() {
+			return nil
+		}
+		c.Fatal(err)
+	}
+
+	// create an empty tag store
+	if _, err := os.Create(repofilePath); err != nil {
+		c.Fatal(err)
+	}
+
+	if err := s.d.Restart(); err != nil {
+		c.Fatal(err)
+	}
+
+	content, err := ioutil.ReadFile(s.d.logFile.Name())
+	if !strings.Contains(string(content), "Tag store is empty: "+repofilePath+", image tags may have been lost") {
+		c.Fatalf("docker daemon startup failed on empty tag store file: %s/repositories-%s: %v\n%s", s.d.root, s.d.storageDriver, err, string(content))
+	}
+
+	return nil
 }
