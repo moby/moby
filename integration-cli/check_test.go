@@ -59,7 +59,9 @@ func (s *DockerRegistrySuite) TearDownTest(c *check.C) {
 	if s.ds != nil {
 		s.ds.TearDownTest(c)
 	}
-	s.d.Stop()
+	if s.d != nil {
+		s.d.Stop()
+	}
 }
 
 func init() {

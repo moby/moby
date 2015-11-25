@@ -253,6 +253,13 @@ func compareInspectValues(c *check.C, name string, fst, snd interface{}, localVs
 					c.Errorf("expected remote tag %q to be in among local ones: %v", rVal[0].(string), lVal)
 				}
 			}
+		} else if strings.HasSuffix(name, ".RepoDigests") {
+			if len(lVal) >= 1 {
+				compareArrays(lVal, rVal)
+			}
+			if len(rVal) != 1 {
+				c.Errorf("expected just one item in %q array, not %d (%v)", name, len(rVal), rVal)
+			}
 		} else {
 			compareArrays(lVal, rVal)
 		}
