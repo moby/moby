@@ -105,6 +105,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		flVolumeDriver      = cmd.String([]string{"-volume-driver"}, "", "Optional volume driver for the container")
 		flStopSignal        = cmd.String([]string{"-stop-signal"}, signal.DefaultStopSignal, fmt.Sprintf("Signal to stop a container, %v by default", signal.DefaultStopSignal))
 		flIsolation         = cmd.String([]string{"-isolation"}, "", "Container isolation level")
+		flShmSize           = cmd.String([]string{"-shm-size"}, "", "Size of /dev/shm, default value is 64MB")
 	)
 
 	cmd.Var(&flAttach, []string{"a", "-attach"}, "Attach to STDIN, STDOUT or STDERR")
@@ -198,6 +199,18 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 	swappiness := *flSwappiness
 	if swappiness != -1 && (swappiness < 0 || swappiness > 100) {
 		return nil, nil, cmd, fmt.Errorf("Invalid value: %d. Valid memory swappiness range is 0-100", swappiness)
+	}
+
+	var parsedShm int64 = 67108864 // initial SHM size is 64MB
+	if *flShmSize != "" {
+		var err error
+		parsedShm, err = units.RAMInBytes(*flShmSize)
+		if err != nil {
+			return nil, nil, cmd, fmt.Errorf("--shm-size: invalid SHM size")
+		}
+		if parsedShm <= 0 {
+			return nil, nil, cmd, fmt.Errorf("--shm-size: SHM size must be greater than 0 . You specified: %v ", parsedShm)
+		}
 	}
 
 	var binds []string
@@ -310,6 +323,24 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		return nil, nil, cmd, err
 	}
 
+	resources := Resources{
+		CgroupParent:      *flCgroupParent,
+		Memory:            flMemory,
+		MemoryReservation: MemoryReservation,
+		MemorySwap:        memorySwap,
+		MemorySwappiness:  flSwappiness,
+		KernelMemory:      KernelMemory,
+		CPUShares:         *flCPUShares,
+		CPUPeriod:         *flCPUPeriod,
+		CpusetCpus:        *flCpusetCpus,
+		CpusetMems:        *flCpusetMems,
+		CPUQuota:          *flCPUQuota,
+		BlkioWeight:       *flBlkioWeight,
+		BlkioWeightDevice: flBlkioWeightDevice.GetList(),
+		Ulimits:           flUlimits.GetList(),
+		Devices:           deviceMappings,
+	}
+
 	config := &Config{
 		Hostname:     hostname,
 		Domainname:   domainname,
@@ -336,25 +367,13 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 	}
 
 	hostConfig := &HostConfig{
-		Binds:             binds,
-		ContainerIDFile:   *flContainerIDFile,
-		Memory:            flMemory,
-		MemoryReservation: MemoryReservation,
-		MemorySwap:        memorySwap,
-		KernelMemory:      KernelMemory,
-		CPUShares:         *flCPUShares,
-		CPUPeriod:         *flCPUPeriod,
-		CpusetCpus:        *flCpusetCpus,
-		CpusetMems:        *flCpusetMems,
-		CPUQuota:          *flCPUQuota,
-		BlkioWeight:       *flBlkioWeight,
-		BlkioWeightDevice: flBlkioWeightDevice.GetList(),
-		OomKillDisable:    *flOomKillDisable,
-		MemorySwappiness:  flSwappiness,
-		Privileged:        *flPrivileged,
-		PortBindings:      portBindings,
-		Links:             flLinks.GetAll(),
-		PublishAllPorts:   *flPublishAll,
+		Binds:           binds,
+		ContainerIDFile: *flContainerIDFile,
+		OomKillDisable:  *flOomKillDisable,
+		Privileged:      *flPrivileged,
+		PortBindings:    portBindings,
+		Links:           flLinks.GetAll(),
+		PublishAllPorts: *flPublishAll,
 		// Make sure the dns fields are never nil.
 		// New containers don't ever have those fields nil,
 		// but pre created containers can still have those nil values.
@@ -369,18 +388,17 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		IpcMode:        ipcMode,
 		PidMode:        pidMode,
 		UTSMode:        utsMode,
-		Devices:        deviceMappings,
 		CapAdd:         stringutils.NewStrSlice(flCapAdd.GetAll()...),
 		CapDrop:        stringutils.NewStrSlice(flCapDrop.GetAll()...),
 		GroupAdd:       flGroupAdd.GetAll(),
 		RestartPolicy:  restartPolicy,
 		SecurityOpt:    flSecurityOpt.GetAll(),
 		ReadonlyRootfs: *flReadonlyRootfs,
-		Ulimits:        flUlimits.GetList(),
 		LogConfig:      LogConfig{Type: *flLoggingDriver, Config: loggingOpts},
-		CgroupParent:   *flCgroupParent,
 		VolumeDriver:   *flVolumeDriver,
 		Isolation:      IsolationLevel(*flIsolation),
+		ShmSize:        parsedShm,
+		Resources:      resources,
 	}
 
 	// When allocating stdin in attached mode, close stdin at client disconnect

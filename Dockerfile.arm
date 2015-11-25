@@ -46,6 +46,7 @@ RUN apt-get update && apt-get install -y \
 	mercurial \
 	parallel \
 	pkg-config \
+	python-dev \
 	python-mock \
 	python-pip \
 	python-websocket \

@@ -37,10 +37,19 @@ and Docker images will report:
 **--until**=""
    Stream events until this timestamp
 
-You can specify `--since` and `--until` parameters as an RFC 3339 date,
-a UNIX timestamp, or a Go duration string (e.g. `1m30s`, `3h`). Docker computes
-the date relative to the client machine’s time.
-
+The `--since` and `--until` parameters can be Unix timestamps, date formated
+timestamps, or Go duration strings (e.g. `10m`, `1h30m`) computed
+relative to the client machine’s time. If you do not provide the --since option,
+the command returns only new and/or live events.  Supported formats for date
+formated time stamps include RFC3339Nano, RFC3339, `2006-01-02T15:04:05`,
+`2006-01-02T15:04:05.999999999`, `2006-01-02Z07:00`, and `2006-01-02`. The local
+timezone on the client will be used if you do not provide either a `Z` or a
+`+-00:00` timezone offset at the end of the timestamp.  When providing Unix
+timestamps enter seconds[.nanoseconds], where seconds is the number of seconds
+that have elapsed since January 1, 1970 (midnight UTC/GMT), not counting leap
+seconds (aka Unix epoch or Unix time), and the optional .nanoseconds field is a
+fraction of a second no more than nine digits long.
+   
 # EXAMPLES
 
 ## Listening for Docker events
@@ -71,8 +80,8 @@ The following example outputs all events that were generated in the last 3 minut
 relative to the current time on the client machine:
 
     # docker events --since '3m'
-    2015-05-12T11:51:30.999999999Z07:00 4386fb97867d: (from ubuntu-1:14.04) die
-    2015-05-12T15:52:12.999999999Z07:00 4 4386fb97867d: (from ubuntu-1:14.04) stop
+    2015-05-12T11:51:30.999999999Z07:00  4386fb97867d: (from ubuntu-1:14.04) die
+    2015-05-12T15:52:12.999999999Z07:00  4386fb97867d: (from ubuntu-1:14.04) stop
     2015-05-12T15:53:45.999999999Z07:00  7805c1d35632: (from redis:2.8) die
     2015-05-12T15:54:03.999999999Z07:00  7805c1d35632: (from redis:2.8) stop
 
@@ -84,3 +93,4 @@ April 2014, Originally compiled by William Henry (whenry at redhat dot com)
 based on docker.com source material and internal work.
 June 2014, updated by Sven Dowideit <SvenDowideit@home.org.au>
 June 2015, updated by Brian Goff <cpuguy83@gmail.com>
+October 2015, updated by Mike Brown <mikebrow@gmail.com>

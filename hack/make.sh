@@ -140,7 +140,7 @@ ORIG_BUILDFLAGS=( -a -tags "autogen netgo static_build sqlite_omit_load_extensio
 # see https://github.com/golang/go/issues/9369#issuecomment-69864440 for why -installsuffix is necessary here
 BUILDFLAGS=( $BUILDFLAGS "${ORIG_BUILDFLAGS[@]}" )
 # Test timeout.
-: ${TIMEOUT:=60m}
+: ${TIMEOUT:=120m}
 TESTFLAGS+=" -test.timeout=${TIMEOUT}"
 
 LDFLAGS_STATIC_DOCKER="
@@ -257,7 +257,7 @@ main() {
 	# We want this to fail if the bundles already exist and cannot be removed.
 	# This is to avoid mixing bundles from different versions of the code.
 	mkdir -p bundles
-	if [ -e "bundles/$VERSION" ]; then
+	if [ -e "bundles/$VERSION" ] && [ -z "$KEEPBUNDLE" ]; then
 		echo "bundles/$VERSION already exists. Removing."
 		rm -fr "bundles/$VERSION" && mkdir "bundles/$VERSION" || exit 1
 		echo

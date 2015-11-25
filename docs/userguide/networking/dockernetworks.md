@@ -375,7 +375,7 @@ networks.
 
 Within a user-defined bridge network, linking is not supported. You can
 expose and publish container ports on containers in this network. This is useful
-if you want make a portion of the `bridge` network available to an outside
+if you want to make a portion of the `bridge` network available to an outside
 network.
 
 ![Bridge network](images/network_access.png)
@@ -465,7 +465,7 @@ built-in network drivers. For example:
 You can inspect it, add containers too and from it, and so forth. Of course,
 different plugins may make use of different technologies or frameworks. Custom
 networks can include features not present in Docker's default networks. For more
-information on writing plugins, see [Extending Docker](../../extend) and
+information on writing plugins, see [Extending Docker](../../extend/index.md) and
 [Writing a network driver plugin](../../extend/plugins_network.md).
 
 ## Legacy links

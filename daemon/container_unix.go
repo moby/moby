@@ -19,7 +19,6 @@ import (
 	"github.com/docker/docker/daemon/links"
 	"github.com/docker/docker/daemon/network"
 	derr "github.com/docker/docker/errors"
-	"github.com/docker/docker/pkg/directory"
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/mount"
@@ -388,8 +387,7 @@ func (daemon *Daemon) getSize(container *Container) (int64, int64) {
 	}
 	defer daemon.Unmount(container)
 
-	initID := fmt.Sprintf("%s-init", container.ID)
-	sizeRw, err = daemon.driver.DiffSize(container.ID, initID)
+	sizeRw, err = container.rwlayer.Size()
 	if err != nil {
 		logrus.Errorf("Driver %s couldn't return diff size of container %s: %s", daemon.driver, container.ID, err)
 		// FIXME: GetSize should return an error. Not changing it now in case
@@ -397,9 +395,12 @@ func (daemon *Daemon) getSize(container *Container) (int64, int64) {
 		sizeRw = -1
 	}
 
-	if _, err = os.Stat(container.basefs); err == nil {
-		if sizeRootfs, err = directory.Size(container.basefs); err != nil {
+	if parent := container.rwlayer.Parent(); parent != nil {
+		sizeRootfs, err = parent.Size()
+		if err != nil {
 			sizeRootfs = -1
+		} else if sizeRw != -1 {
+			sizeRootfs += sizeRw
 		}
 	}
 	return sizeRw, sizeRootfs
@@ -1357,7 +1358,12 @@ func (daemon *Daemon) setupIpcDirs(container *Container) error {
 			return err
 		}
 
-		if err := syscall.Mount("shm", shmPath, "tmpfs", uintptr(syscall.MS_NOEXEC|syscall.MS_NOSUID|syscall.MS_NODEV), label.FormatMountLabel("mode=1777,size=65536k", container.getMountLabel())); err != nil {
+		// When ShmSize is 0 or less, the SHM size is set to 64MB.
+		if container.hostConfig.ShmSize <= 0 {
+			container.hostConfig.ShmSize = 67108864
+		}
+		shmproperty := "mode=1777,size=" + strconv.FormatInt(container.hostConfig.ShmSize, 10)
+		if err := syscall.Mount("shm", shmPath, "tmpfs", uintptr(syscall.MS_NOEXEC|syscall.MS_NOSUID|syscall.MS_NODEV), label.FormatMountLabel(shmproperty, container.getMountLabel())); err != nil {
 			return fmt.Errorf("mounting shm tmpfs: %s", err)
 		}
 		if err := os.Chown(shmPath, rootUID, rootGID); err != nil {
@@ -1508,8 +1514,8 @@ func (container *Container) unmountVolumes(forceSyscall bool) error {
 
 	for _, volumeMount := range volumeMounts {
 		if forceSyscall {
-			if err := system.Unmount(volumeMount.Destination); err != nil {
-				logrus.Warnf("%s unmountVolumes: Failed to force umount %v", container.ID, err)
+			if err := detachMounted(volumeMount.Destination); err != nil {
+				logrus.Warnf("%s unmountVolumes: Failed to do lazy umount %v", container.ID, err)
 			}
 		}
 

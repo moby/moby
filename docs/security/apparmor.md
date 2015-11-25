@@ -1,3 +1,9 @@
+<!-- [metadata]>
++++
+draft = true
++++
+<![end-metadata]-->
+
 AppArmor security profiles for Docker
 --------------------------------------
 

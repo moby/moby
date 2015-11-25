@@ -18,9 +18,7 @@ func (s *DockerSuite) TestSaveAndLoadRepoStdout(c *check.C) {
 	dockerCmd(c, "run", "--name", name, "busybox", "true")
 
 	repoName := "foobar-save-load-test"
-	out, _ := dockerCmd(c, "commit", name, repoName)
-
-	before, _ := dockerCmd(c, "inspect", repoName)
+	before, _ := dockerCmd(c, "commit", name, repoName)
 
 	tmpFile, err := ioutil.TempFile("", "foobar-save-load-test.tar")
 	c.Assert(err, check.IsNil)
@@ -40,10 +38,10 @@ func (s *DockerSuite) TestSaveAndLoadRepoStdout(c *check.C) {
 	loadCmd := exec.Command(dockerBinary, "load")
 	loadCmd.Stdin = tmpFile
 
-	out, _, err = runCommandWithOutput(loadCmd)
+	out, _, err := runCommandWithOutput(loadCmd)
 	c.Assert(err, check.IsNil, check.Commentf(out))
 
-	after, _ := dockerCmd(c, "inspect", repoName)
+	after, _ := dockerCmd(c, "inspect", "-f", "{{.Id}}", repoName)
 
 	c.Assert(before, check.Equals, after) //inspect is not the same after a save / load
 

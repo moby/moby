@@ -22,7 +22,7 @@ clone git github.com/vdemeester/shakers 3c10293ce22b900c27acad7b28656196fcc2f73b
 clone git golang.org/x/net 47990a1ba55743e6ef1affd3a14e5bac8553615d https://github.com/golang/net.git
 
 #get libnetwork packages
-clone git github.com/docker/libnetwork e8ebc0bf6510343c88d162db08b3d855cbbe75b9
+clone git github.com/docker/libnetwork b4ddf18317b19d6e4bcc821145589749206a7d00
 clone git github.com/armon/go-metrics eb0af217e5e9747e41dd5303755356b62d28e3ec
 clone git github.com/hashicorp/go-msgpack 71c2886f5a673a35f909803f38ece5810165097b
 clone git github.com/hashicorp/memberlist 9a1e242e454d2443df330bdd51a436d5a9058fc4

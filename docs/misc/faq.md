@@ -135,7 +135,7 @@ thousands or even millions of containers running in parallel.
 
 ### How do I connect Docker containers?
 
-Currently the recommended way to connect containers is via the Docker network feature. You can see details of how to [work with Docker networks here](https://docs.docker.com/networking).
+Currently the recommended way to connect containers is via the Docker network feature. You can see details of how to [work with Docker networks here](../userguide/networking/work-with-networks.md).
 
 Also useful for more flexible service portability is the [Ambassador linking
 pattern](../articles/ambassador_pattern_linking.md).
@@ -269,4 +269,4 @@ You can find more answers on:
 - [Ask questions on Stackoverflow](http://stackoverflow.com/search?q=docker)
 - [Join the conversation on Twitter](http://twitter.com/docker)
 
-Looking for something else to read? Checkout the [User Guide](../userguide/).
+Looking for something else to read? Checkout the [User Guide](../userguide/index.md).

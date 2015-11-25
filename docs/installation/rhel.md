@@ -47,7 +47,7 @@ There are two ways to install Docker Engine.  You can install with the `yum` pac
 
 3. Add the yum repo yourself.
 
-  		$ echo | sudo tee /etc/yum.repos.d/docker.repo <<-EOF
+        $ sudo tee /etc/yum.repos.d/docker.repo <<-EOF
         [dockerrepo]
         name=Docker Repository
         baseurl=https://yum.dockerproject.org/repo/main/centos/7

@@ -7,6 +7,7 @@ import (
 	"io"
 	"regexp"
 	"strconv"
+	"strings"
 
 	"github.com/docker/docker/pkg/random"
 )
@@ -25,6 +26,9 @@ func IsShortID(id string) bool {
 // In case of a collision a lookup with TruncIndex.Get() will fail, and the caller
 // will need to use a langer prefix, or the full-length Id.
 func TruncateID(id string) string {
+	if i := strings.IndexRune(id, ':'); i >= 0 {
+		id = id[i+1:]
+	}
 	trimTo := shortLen
 	if len(id) < shortLen {
 		trimTo = len(id)

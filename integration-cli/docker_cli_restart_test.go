@@ -1,6 +1,8 @@
 package main
 
 import (
+	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -123,4 +125,31 @@ func (s *DockerSuite) TestContainerRestartwithGoodContainer(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	c.Assert(MaximumRetryCount, checker.Equals, "3")
 
+}
+
+func (s *DockerSuite) TestContainerRestartSuccess(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	out, _ := dockerCmd(c, "run", "-d", "--restart=always", "busybox", "top")
+	id := strings.TrimSpace(out)
+	c.Assert(waitRun(id), check.IsNil)
+
+	pidStr, err := inspectField(id, "State.Pid")
+	c.Assert(err, check.IsNil)
+
+	pid, err := strconv.Atoi(pidStr)
+	c.Assert(err, check.IsNil)
+
+	p, err := os.FindProcess(pid)
+	c.Assert(err, check.IsNil)
+	c.Assert(p, check.NotNil)
+
+	err = p.Kill()
+	c.Assert(err, check.IsNil)
+
+	err = waitInspect(id, "{{.RestartCount}}", "1", 5*time.Second)
+	c.Assert(err, check.IsNil)
+
+	err = waitInspect(id, "{{.State.Status}}", "running", 5*time.Second)
+	c.Assert(err, check.IsNil)
 }

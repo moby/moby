@@ -5,6 +5,46 @@ information on the list of deprecated flags and APIs please have a look at
 https://docs.docker.com/misc/deprecated/ where target removal dates can also
 be found.
 
+## 1.9.1 (2015-11-21)
+
+### Runtime
+
+- Do not prevent daemon from booting if images could not be restored (#17695)
+- Force IPC mount to unmount on daemon shutdown/init (#17539)
+- Turn IPC unmount errors into warnings (#17554)
+- Fix `docker stats` performance regression (#17638)
+- Clarify cryptic error message upon `docker logs` if `--log-driver=none` (#17767)
+- Fix seldom panics (#17639, #17634, #17703)
+- Fix opq whiteouts problems for files with dot prefix (#17819)
+- devicemapper: try defaulting to xfs instead of ext4 for performance reasons (#17903, #17918)
+- devicemapper: fix displayed fs in docker info (#17974)
+- selinux: only relabel if user requested so with the `z` option (#17450, #17834)
+- Do not make network calls when normalizing names (#18014)
+
+### Client
+
+- Fix `docker login` on windows (#17738)
+- Fix bug with `docker inspect` output when not connected to daemon (#17715)
+- Fix `docker inspect -f {{.HostConfig.Dns}} somecontainer` (#17680)
+
+### Builder
+
+- Fix regression with symlink behavior in ADD/COPY (#17710)
+
+### Networking
+
+- Allow passing a network ID as an argument for `--net` (#17558)
+- Fix connect to host and prevent disconnect from host for `host` network (#17476)
+- Fix `--fixed-cidr` issue when gateway ip falls in ip-range and ip-range is
+  not the first block in the network (#17853)
+- Restore deterministic `IPv6` generation from `MAC` address on default `bridge` network (#17890)
+- Allow port-mapping only for endpoints created on docker run (#17858)
+- Fixed an endpoint delete issue with a possible stale sbox (#18102)
+
+### Distribution
+
+- Correct parent chain in v2 push when v1Compatibility files on the disk are inconsistent (#18047)
+
 ## 1.9.0 (2015-11-03)
 
 ### Runtime

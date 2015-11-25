@@ -553,7 +553,7 @@ func (s *DockerSuite) TestContainerApiCommit(c *check.C) {
 	cName := "testapicommit"
 	dockerCmd(c, "run", "--name="+cName, "busybox", "/bin/sh", "-c", "touch /test")
 
-	name := "TestContainerApiCommit"
+	name := "testcontainerapicommit"
 	status, b, err := sockRequest("POST", "/commit?repo="+name+"&testtag=tag&container="+cName, nil)
 	c.Assert(err, check.IsNil)
 	c.Assert(status, check.Equals, http.StatusCreated)
@@ -586,7 +586,7 @@ func (s *DockerSuite) TestContainerApiCommitWithLabelInConfig(c *check.C) {
 		"Labels": map[string]string{"key1": "value1", "key2": "value2"},
 	}
 
-	name := "TestContainerApiCommitWithConfig"
+	name := "testcontainerapicommitwithconfig"
 	status, b, err := sockRequest("POST", "/commit?repo="+name+"&container="+cName, config)
 	c.Assert(err, check.IsNil)
 	c.Assert(status, check.Equals, http.StatusCreated)

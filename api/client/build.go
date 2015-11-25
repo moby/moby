@@ -18,16 +18,15 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api"
 	Cli "github.com/docker/docker/cli"
-	"github.com/docker/docker/graph/tags"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/httputils"
 	"github.com/docker/docker/pkg/jsonmessage"
 	flag "github.com/docker/docker/pkg/mflag"
-	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/progressreader"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/ulimit"
@@ -35,6 +34,7 @@ import (
 	"github.com/docker/docker/pkg/urlutil"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/runconfig"
+	tagpkg "github.com/docker/docker/tag"
 	"github.com/docker/docker/utils"
 )
 
@@ -59,6 +59,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	dockerfileName := cmd.String([]string{"f", "-file"}, "", "Name of the Dockerfile (Default is 'PATH/Dockerfile')")
 	flMemoryString := cmd.String([]string{"m", "-memory"}, "", "Memory limit")
 	flMemorySwap := cmd.String([]string{"-memory-swap"}, "", "Total memory (memory + swap), '-1' to disable swap")
+	flShmSize := cmd.String([]string{"-shm-size"}, "", "Size of /dev/shm, default value is 64MB")
 	flCPUShares := cmd.Int64([]string{"#c", "-cpu-shares"}, 0, "CPU shares (relative weight)")
 	flCPUPeriod := cmd.Int64([]string{"-cpu-period"}, 0, "Limit the CPU CFS (Completely Fair Scheduler) period")
 	flCPUQuota := cmd.Int64([]string{"-cpu-quota"}, 0, "Limit the CPU CFS (Completely Fair Scheduler) quota")
@@ -210,6 +211,18 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		}
 	}
 
+	var shmSize int64 = 67108864 // initial SHM size is 64MB
+	if *flShmSize != "" {
+		parsedShmSize, err := units.RAMInBytes(*flShmSize)
+		if err != nil {
+			return err
+		}
+		if parsedShmSize <= 0 {
+			return fmt.Errorf("--shm-size: SHM size must be greater than 0 . You specified: %v ", parsedShmSize)
+		}
+		shmSize = parsedShmSize
+	}
+
 	// Send the build context
 	v := url.Values{
 		"t": flTags.GetAll(),
@@ -248,6 +261,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	v.Set("cpuperiod", strconv.FormatInt(*flCPUPeriod, 10))
 	v.Set("memory", strconv.FormatInt(memory, 10))
 	v.Set("memswap", strconv.FormatInt(memorySwap, 10))
+	v.Set("shmsize", strconv.FormatInt(shmSize, 10))
 	v.Set("cgroupparent", *flCgroupParent)
 
 	v.Set("dockerfile", relDockerfile)
@@ -309,7 +323,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	// Since the build was successful, now we must tag any of the resolved
 	// images from the above Dockerfile rewrite.
 	for _, resolved := range resolvedTags {
-		if err := cli.tagTrusted(resolved.repoInfo, resolved.digestRef, resolved.tagRef); err != nil {
+		if err := cli.tagTrusted(resolved.digestRef, resolved.tagRef); err != nil {
 			return err
 		}
 	}
@@ -319,16 +333,12 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 
 // validateTag checks if the given image name can be resolved.
 func validateTag(rawRepo string) (string, error) {
-	repository, tag := parsers.ParseRepositoryTag(rawRepo)
-	if err := registry.ValidateRepositoryName(repository); err != nil {
+	ref, err := reference.ParseNamed(rawRepo)
+	if err != nil {
 		return "", err
 	}
 
-	if len(tag) == 0 {
-		return rawRepo, nil
-	}
-
-	if err := tags.ValidateTagName(tag); err != nil {
+	if err := registry.ValidateRepositoryName(ref); err != nil {
 		return "", err
 	}
 
@@ -551,15 +561,16 @@ func (td *trustedDockerfile) Close() error {
 // resolvedTag records the repository, tag, and resolved digest reference
 // from a Dockerfile rewrite.
 type resolvedTag struct {
-	repoInfo          *registry.RepositoryInfo
-	digestRef, tagRef registry.Reference
+	repoInfo  *registry.RepositoryInfo
+	digestRef reference.Canonical
+	tagRef    reference.NamedTagged
 }
 
 // rewriteDockerfileFrom rewrites the given Dockerfile by resolving images in
 // "FROM <image>" instructions to a digest reference. `translator` is a
 // function that takes a repository name and tag reference and returns a
 // trusted digest reference.
-func rewriteDockerfileFrom(dockerfileName string, translator func(string, registry.Reference) (registry.Reference, error)) (newDockerfile *trustedDockerfile, resolvedTags []*resolvedTag, err error) {
+func rewriteDockerfileFrom(dockerfileName string, translator func(reference.NamedTagged) (reference.Canonical, error)) (newDockerfile *trustedDockerfile, resolvedTags []*resolvedTag, err error) {
 	dockerfile, err := os.Open(dockerfileName)
 	if err != nil {
 		return nil, nil, fmt.Errorf("unable to open Dockerfile: %v", err)
@@ -593,29 +604,39 @@ func rewriteDockerfileFrom(dockerfileName string, translator func(string, regist
 		matches := dockerfileFromLinePattern.FindStringSubmatch(line)
 		if matches != nil && matches[1] != "scratch" {
 			// Replace the line with a resolved "FROM repo@digest"
-			repo, tag := parsers.ParseRepositoryTag(matches[1])
-			if tag == "" {
-				tag = tags.DefaultTag
-			}
-
-			repoInfo, err := registry.ParseRepositoryInfo(repo)
+			ref, err := reference.ParseNamed(matches[1])
 			if err != nil {
-				return nil, nil, fmt.Errorf("unable to parse repository info %q: %v", repo, err)
+				return nil, nil, err
 			}
 
-			ref := registry.ParseReference(tag)
+			digested := false
+			switch ref.(type) {
+			case reference.Tagged:
+			case reference.Digested:
+				digested = true
+			default:
+				ref, err = reference.WithTag(ref, tagpkg.DefaultTag)
+				if err != nil {
+					return nil, nil, err
+				}
+			}
 
-			if !ref.HasDigest() && isTrusted() {
-				trustedRef, err := translator(repo, ref)
+			repoInfo, err := registry.ParseRepositoryInfo(ref)
+			if err != nil {
+				return nil, nil, fmt.Errorf("unable to parse repository info %q: %v", ref.String(), err)
+			}
+
+			if !digested && isTrusted() {
+				trustedRef, err := translator(ref.(reference.NamedTagged))
 				if err != nil {
 					return nil, nil, err
 				}
 
-				line = dockerfileFromLinePattern.ReplaceAllLiteralString(line, fmt.Sprintf("FROM %s", trustedRef.ImageName(repo)))
+				line = dockerfileFromLinePattern.ReplaceAllLiteralString(line, fmt.Sprintf("FROM %s", trustedRef.String()))
 				resolvedTags = append(resolvedTags, &resolvedTag{
 					repoInfo:  repoInfo,
 					digestRef: trustedRef,
-					tagRef:    ref,
+					tagRef:    ref.(reference.NamedTagged),
 				})
 			}
 		}

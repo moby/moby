@@ -36,8 +36,8 @@ const (
 
 var sysinfo systeminfo
 
-// GetRuntimeArchitecture get the name of the current architecture (x86, x86_64, …)
-func GetRuntimeArchitecture() (string, error) {
+// runtimeArchitecture get the name of the current architecture (x86, x86_64, …)
+func runtimeArchitecture() (string, error) {
 	syscall.Syscall(procGetSystemInfo.Addr(), 1, uintptr(unsafe.Pointer(&sysinfo)), 0, 0)
 	switch sysinfo.wProcessorArchitecture {
 	case ProcessorArchitecture64, ProcessorArchitectureIA64:

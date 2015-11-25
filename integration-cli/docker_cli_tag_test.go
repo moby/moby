@@ -1,9 +1,11 @@
 package main
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/docker/docker/pkg/integration/checker"
+	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/stringutils"
 	"github.com/go-check/check"
 )
@@ -111,7 +113,7 @@ func (s *DockerSuite) TestTagWithPrefixHyphen(c *check.C) {
 	// test index name begin with '-'
 	out, _, err = dockerCmdWithError("tag", "busybox:latest", "-index:5000/busybox:test")
 	c.Assert(err, checker.NotNil, check.Commentf(out))
-	c.Assert(out, checker.Contains, "Invalid index name (-index:5000). Cannot begin or end with a hyphen", check.Commentf("tag a name begin with '-' should failed"))
+	c.Assert(out, checker.Contains, "invalid reference format", check.Commentf("tag a name begin with '-' should failed"))
 }
 
 // ensure tagging using official names works
@@ -170,4 +172,58 @@ func (s *DockerSuite) TestTagMatchesDigest(c *check.C) {
 	if err == nil {
 		c.Fatal("inspecting by digest should have failed")
 	}
+}
+
+func (s *DockerSuite) TestTagInvalidRepoName(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	if err := pullImageIfNotExist("busybox:latest"); err != nil {
+		c.Fatal("couldn't find the busybox:latest image locally and failed to pull it")
+	}
+
+	// test setting tag fails
+	_, _, err := dockerCmdWithError("tag", "-f", "busybox:latest", "sha256:sometag")
+	if err == nil {
+		c.Fatal("tagging with image named \"sha256\" should have failed")
+	}
+}
+
+// ensure tags cannot create ambiguity with image ids
+func (s *DockerSuite) TestTagTruncationAmbiguity(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	if err := pullImageIfNotExist("busybox:latest"); err != nil {
+		c.Fatal("couldn't find the busybox:latest image locally and failed to pull it")
+	}
+
+	imageID, err := buildImage("notbusybox:latest",
+		`FROM busybox
+		MAINTAINER dockerio`,
+		true)
+	if err != nil {
+		c.Fatal(err)
+	}
+	truncatedImageID := stringid.TruncateID(imageID)
+	truncatedTag := fmt.Sprintf("notbusybox:%s", truncatedImageID)
+
+	id, err := inspectField(truncatedTag, "Id")
+	if err != nil {
+		c.Fatalf("Error inspecting by image id: %s", err)
+	}
+
+	// Ensure inspect by image id returns image for image id
+	c.Assert(id, checker.Equals, imageID)
+	c.Logf("Built image: %s", imageID)
+
+	// test setting tag fails
+	_, _, err = dockerCmdWithError("tag", "-f", "busybox:latest", truncatedTag)
+	if err != nil {
+		c.Fatalf("Error tagging with an image id: %s", err)
+	}
+
+	id, err = inspectField(truncatedTag, "Id")
+	if err != nil {
+		c.Fatalf("Error inspecting by image id: %s", err)
+	}
+
+	// Ensure id is imageID and not busybox:latest
+	c.Assert(id, checker.Not(checker.Equals), imageID)
 }

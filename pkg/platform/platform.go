@@ -15,7 +15,7 @@ var (
 
 func init() {
 	var err error
-	Architecture, err = GetRuntimeArchitecture()
+	Architecture, err = runtimeArchitecture()
 	if err != nil {
 		logrus.Errorf("Could no read system architecture info: %v", err)
 	}

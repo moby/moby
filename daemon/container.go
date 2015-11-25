@@ -14,13 +14,14 @@ import (
 	"github.com/opencontainers/runc/libcontainer/label"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/daemon/exec"
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/logger/jsonfilelog"
 	"github.com/docker/docker/daemon/network"
 	derr "github.com/docker/docker/errors"
-	"github.com/docker/docker/pkg/broadcaster"
-	"github.com/docker/docker/pkg/ioutils"
+	"github.com/docker/docker/image"
+	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/nat"
 	"github.com/docker/docker/pkg/promise"
 	"github.com/docker/docker/pkg/signal"
@@ -30,33 +31,29 @@ import (
 	"github.com/docker/docker/volume"
 )
 
+const configFileName = "config.v2.json"
+
 var (
 	// ErrRootFSReadOnly is returned when a container
 	// rootfs is marked readonly.
 	ErrRootFSReadOnly = errors.New("container rootfs is marked read-only")
 )
 
-type streamConfig struct {
-	stdout    *broadcaster.Unbuffered
-	stderr    *broadcaster.Unbuffered
-	stdin     io.ReadCloser
-	stdinPipe io.WriteCloser
-}
-
 // CommonContainer holds the fields for a container which are
 // applicable across all platforms supported by the daemon.
 type CommonContainer struct {
-	streamConfig
+	*runconfig.StreamConfig
 	// embed for Container to support states directly.
 	*State          `json:"State"` // Needed for remote api version <= 1.11
 	root            string         // Path to the "home" of the container, including metadata.
 	basefs          string         // Path to the graphdriver mountpoint
+	rwlayer         layer.RWLayer
 	ID              string
 	Created         time.Time
 	Path            string
 	Args            []string
 	Config          *runconfig.Config
-	ImageID         string `json:"Image"`
+	ImageID         image.ID `json:"Image"`
 	NetworkSettings *network.Settings
 	LogPath         string
 	Name            string
@@ -71,7 +68,7 @@ type CommonContainer struct {
 	hostConfig             *runconfig.HostConfig
 	command                *execdriver.Command
 	monitor                *containerMonitor
-	execCommands           *execStore
+	execCommands           *exec.Store
 	// logDriver for closing
 	logDriver logger.Logger
 	logCopier *logger.Copier
@@ -84,9 +81,10 @@ func newBaseContainer(id, root string) *Container {
 		CommonContainer: CommonContainer{
 			ID:           id,
 			State:        NewState(),
-			execCommands: newExecStore(),
+			execCommands: exec.NewStore(),
 			root:         root,
 			MountPoints:  make(map[string]*volume.MountPoint),
+			StreamConfig: runconfig.NewStreamConfig(),
 		},
 	}
 }
@@ -243,30 +241,6 @@ func (container *Container) getRootResourcePath(path string) (string, error) {
 	return symlink.FollowSymlinkInScope(filepath.Join(container.root, cleanPath), container.root)
 }
 
-// streamConfig.StdinPipe returns a WriteCloser which can be used to feed data
-// to the standard input of the container's active process.
-// Container.StdoutPipe and Container.StderrPipe each return a ReadCloser
-// which can be used to retrieve the standard output (and error) generated
-// by the container's active process. The output (and error) are actually
-// copied and delivered to all StdoutPipe and StderrPipe consumers, using
-// a kind of "broadcaster".
-
-func (streamConfig *streamConfig) StdinPipe() io.WriteCloser {
-	return streamConfig.stdinPipe
-}
-
-func (streamConfig *streamConfig) StdoutPipe() io.ReadCloser {
-	bytesPipe := ioutils.NewBytesPipe(nil)
-	streamConfig.stdout.Add(bytesPipe)
-	return bytesPipe
-}
-
-func (streamConfig *streamConfig) StderrPipe() io.ReadCloser {
-	bytesPipe := ioutils.NewBytesPipe(nil)
-	streamConfig.stderr.Add(bytesPipe)
-	return bytesPipe
-}
-
 // ExitOnNext signals to the monitor that it should not restart the container
 // after we send the kill signal.
 func (container *Container) ExitOnNext() {
@@ -287,7 +261,7 @@ func (container *Container) hostConfigPath() (string, error) {
 }
 
 func (container *Container) jsonPath() (string, error) {
-	return container.getRootResourcePath("config.json")
+	return container.getRootResourcePath(configFileName)
 }
 
 // This directory is only usable when the container is running
@@ -332,7 +306,7 @@ func (container *Container) StartLogger(cfg runconfig.LogConfig) (logger.Logger,
 		ContainerName:       container.Name,
 		ContainerEntrypoint: container.Path,
 		ContainerArgs:       container.Args,
-		ContainerImageID:    container.ImageID,
+		ContainerImageID:    container.ImageID.String(),
 		ContainerImageName:  container.Config.Image,
 		ContainerCreated:    container.Created,
 		ContainerEnv:        container.Config.Env,
@@ -372,10 +346,10 @@ func (container *Container) getExecIDs() []string {
 // Attach connects to the container's TTY, delegating to standard
 // streams or websockets depending on the configuration.
 func (container *Container) Attach(stdin io.ReadCloser, stdout io.Writer, stderr io.Writer) chan error {
-	return attach(&container.streamConfig, container.Config.OpenStdin, container.Config.StdinOnce, container.Config.Tty, stdin, stdout, stderr)
+	return attach(container.StreamConfig, container.Config.OpenStdin, container.Config.StdinOnce, container.Config.Tty, stdin, stdout, stderr)
 }
 
-func attach(streamConfig *streamConfig, openStdin, stdinOnce, tty bool, stdin io.ReadCloser, stdout io.Writer, stderr io.Writer) chan error {
+func attach(streamConfig *runconfig.StreamConfig, openStdin, stdinOnce, tty bool, stdin io.ReadCloser, stdout io.Writer, stderr io.Writer) chan error {
 	var (
 		cStdout, cStderr io.ReadCloser
 		cStdin           io.WriteCloser

@@ -56,6 +56,7 @@ docker-run - Run a command in a new container
 [**--rm**[=*false*]]
 [**--security-opt**[=*[]*]]
 [**--stop-signal**[=*SIGNAL*]]
+[**--shm-size**[=*[]*]]
 [**--sig-proxy**[=*true*]]
 [**-t**|**--tty**[=*false*]]
 [**-u**|**--user**[=*USER*]]
@@ -409,6 +410,11 @@ its root filesystem mounted as read only prohibiting any writes.
 
 **--stop-signal**=*SIGTERM*
   Signal to stop a container. Default is SIGTERM.
+
+**--shm-size**=""
+   Size of `/dev/shm`. The format is `<number><unit>`.
+   `number` must be greater than `0`.  Unit is optional and can be `b` (bytes), `k` (kilobytes), `m`(megabytes), or `g` (gigabytes).
+   If you omit the unit, the system uses bytes. If you omit the size entirely, the system uses `64m`.
 
 **--sig-proxy**=*true*|*false*
    Proxy received signals to the process (non-TTY mode only). SIGCHLD, SIGSTOP, and SIGKILL are not proxied. The default is *true*.

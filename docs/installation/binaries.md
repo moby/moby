@@ -37,7 +37,7 @@ runtime:
 ## Check kernel dependencies
 
 Docker in daemon mode has specific kernel requirements. For details,
-check your distribution in [*Installation*](../installation#installation-list).
+check your distribution in [*Installation*](index.md#on-linux).
 
 A 3.10 Linux kernel is the minimum requirement for Docker.
 Kernels older than 3.10 lack some of the features required to run Docker
@@ -211,4 +211,4 @@ Then follow the regular installation steps.
     # run a container and open an interactive shell in the container
     $ sudo ./docker run -i -t ubuntu /bin/bash
 
-Continue with the [User Guide](../userguide).
+Continue with the [User Guide](../userguide/index.md).

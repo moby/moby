@@ -20,4 +20,4 @@ Joyent provides a `sdc-docker-setup.sh` script that makes it easy to use Docker
 with Joyent. The [Docker API guide for
 Triton](https://apidocs.joyent.com/docker) has details on using this script.
 
-Once you are up and running with Joyent, continue with the [Docker user guide](../userguide/). 
+Once you are up and running with Joyent, continue with the [Docker user guide](../userguide/index.md). 

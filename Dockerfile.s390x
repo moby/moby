@@ -1,0 +1,88 @@
+# This file describes the standard way to build Docker, using docker
+#
+# Usage:
+#
+# # Assemble the full dev environment. This is slow the first time.
+# docker build -t docker -f Dockerfile.s390x .
+#
+
+FROM s390x/gcc:5.2
+
+# Packaged dependencies
+RUN apt-get update && apt-get install -y \
+	apparmor \
+	aufs-tools \
+	btrfs-tools \
+	build-essential \
+	curl \
+	git \
+	iptables \
+	net-tools \
+	libapparmor-dev \
+	libcap-dev \
+	libsqlite3-dev \
+	mercurial \
+	parallel \
+	python-dev \
+	python-mock \
+	python-pip \
+	python-websocket \
+	--no-install-recommends
+
+# Get lvm2 source for compiling statically
+RUN git clone -b v2_02_103 https://git.fedorahosted.org/git/lvm2.git /usr/local/lvm2
+# see https://git.fedorahosted.org/cgit/lvm2.git/refs/tags for release tags
+
+# Compile and install lvm2
+RUN cd /usr/local/lvm2 \
+	&& ./configure --enable-static_link \
+	&& make device-mapper \
+	&& make install_device-mapper
+
+ENV GOPATH /go:/go/src/github.com/docker/docker/vendor
+
+ENV REGISTRY_COMMIT ec87e9b6971d831f0eff752ddb54fb64693e51cd
+RUN set -x \
+	&& export GOPATH="$(mktemp -d)" \
+	&& git clone https://github.com/docker/distribution.git "$GOPATH/src/github.com/docker/distribution" \
+	&& (cd "$GOPATH/src/github.com/docker/distribution" && git checkout -q "$REGISTRY_COMMIT") \
+	&& GOPATH="$GOPATH/src/github.com/docker/distribution/Godeps/_workspace:$GOPATH" \
+		go build -o /usr/local/bin/registry-v2 github.com/docker/distribution/cmd/registry \
+	&& rm -rf "$GOPATH"
+
+# Install notary server
+ENV NOTARY_COMMIT 8e8122eb5528f621afcd4e2854c47302f17392f7
+RUN set -x \
+	&& export GOPATH="$(mktemp -d)" \
+	&& git clone https://github.com/docker/notary.git "$GOPATH/src/github.com/docker/notary" \
+	&& (cd "$GOPATH/src/github.com/docker/notary" && git checkout -q "$NOTARY_COMMIT") \
+	&& GOPATH="$GOPATH/src/github.com/docker/notary/Godeps/_workspace:$GOPATH" \
+		go build -o /usr/local/bin/notary-server github.com/docker/notary/cmd/notary-server \
+	&& rm -rf "$GOPATH"
+
+# Get the "docker-py" source so we can run their integration tests
+ENV DOCKER_PY_COMMIT 47ab89ec2bd3bddf1221b856ffbaff333edeabb4
+RUN git clone https://github.com/docker/docker-py.git /docker-py \
+	&& cd /docker-py \
+	&& git checkout -q $DOCKER_PY_COMMIT \
+	&& pip install -r test-requirements.txt
+
+# Add an unprivileged user to be used for tests which need it
+RUN groupadd -r docker
+RUN useradd --create-home --gid docker unprivilegeduser
+
+VOLUME /var/lib/docker
+WORKDIR /go/src/github.com/docker/docker
+ENV DOCKER_BUILDTAGS apparmor selinux
+
+ENV IMAGEREPO s390x
+COPY contrib/download-frozen-image.sh /go/src/github.com/docker/docker/contrib/
+RUN ./contrib/download-frozen-image.sh /docker-frozen-images \
+	$IMAGEREPO/busybox:latest \
+	$IMAGEREPO/hello-world:frozen 
+
+# Wrap all commands in the "docker-in-docker" script to allow nested containers
+ENTRYPOINT ["hack/dind"]
+
+# Upload docker source
+COPY . /go/src/github.com/docker/docker

@@ -58,52 +58,53 @@ func (s *DockerSuite) TestPsListContainersBase(c *check.C) {
 	out, _ = dockerCmd(c, "ps", "-n=2")
 	c.Assert(assertContainerList(out, expected), checker.Equals, true, check.Commentf("LIMIT: Container list is not in the correct order: \n%s", out))
 
-	// since
-	out, _ = dockerCmd(c, "ps", "--since", firstID, "-a")
+	// filter since
+	out, _ = dockerCmd(c, "ps", "-f", "since="+firstID, "-a")
 	expected = []string{fourthID, thirdID, secondID}
 	c.Assert(assertContainerList(out, expected), checker.Equals, true, check.Commentf("SINCE & ALL: Container list is not in the correct order: \n%s", out))
 
-	out, _ = dockerCmd(c, "ps", "--since", firstID)
+	out, _ = dockerCmd(c, "ps", "-f", "since="+firstID)
 	c.Assert(assertContainerList(out, expected), checker.Equals, true, check.Commentf("SINCE: Container list is not in the correct order: \n%s", out))
 
-	// before
-	out, _ = dockerCmd(c, "ps", "--before", thirdID, "-a")
+	// filter before
+	out, _ = dockerCmd(c, "ps", "-f", "before="+thirdID, "-a")
 	expected = []string{secondID, firstID}
 	c.Assert(assertContainerList(out, expected), checker.Equals, true, check.Commentf("BEFORE & ALL: Container list is not in the correct order: \n%s", out))
 
-	out, _ = dockerCmd(c, "ps", "--before", thirdID)
+	out, _ = dockerCmd(c, "ps", "-f", "before="+thirdID)
 	c.Assert(assertContainerList(out, expected), checker.Equals, true, check.Commentf("BEFORE: Container list is not in the correct order: \n%s", out))
 
-	// since & before
-	out, _ = dockerCmd(c, "ps", "--since", firstID, "--before", fourthID, "-a")
+	// filter since & before
+	out, _ = dockerCmd(c, "ps", "-f", "since="+firstID, "-f", "before="+fourthID, "-a")
 	expected = []string{thirdID, secondID}
 	c.Assert(assertContainerList(out, expected), checker.Equals, true, check.Commentf("SINCE, BEFORE & ALL: Container list is not in the correct order: \n%s", out))
 
-	out, _ = dockerCmd(c, "ps", "--since", firstID, "--before", fourthID)
+	out, _ = dockerCmd(c, "ps", "-f", "since="+firstID, "-f", "before="+fourthID)
 	c.Assert(assertContainerList(out, expected), checker.Equals, true, check.Commentf("SINCE, BEFORE: Container list is not in the correct order: \n%s", out))
 
-	// since & limit
-	out, _ = dockerCmd(c, "ps", "--since", firstID, "-n=2", "-a")
+	// filter since & limit
+	out, _ = dockerCmd(c, "ps", "-f", "since="+firstID, "-n=2", "-a")
 	expected = []string{fourthID, thirdID}
 
 	c.Assert(assertContainerList(out, expected), checker.Equals, true, check.Commentf("SINCE, LIMIT & ALL: Container list is not in the correct order: \n%s", out))
 
-	out, _ = dockerCmd(c, "ps", "--since", firstID, "-n=2")
+	out, _ = dockerCmd(c, "ps", "-f", "since="+firstID, "-n=2")
 	c.Assert(assertContainerList(out, expected), checker.Equals, true, check.Commentf("SINCE, LIMIT: Container list is not in the correct order: \n%s", out))
 
-	// before & limit
-	out, _ = dockerCmd(c, "ps", "--before", fourthID, "-n=1", "-a")
+	// filter before & limit
+	out, _ = dockerCmd(c, "ps", "-f", "before="+fourthID, "-n=1", "-a")
 	expected = []string{thirdID}
 	c.Assert(assertContainerList(out, expected), checker.Equals, true, check.Commentf("BEFORE, LIMIT & ALL: Container list is not in the correct order: \n%s", out))
 
-	out, _ = dockerCmd(c, "ps", "--before", fourthID, "-n=1")
+	out, _ = dockerCmd(c, "ps", "-f", "before="+fourthID, "-n=1")
 	c.Assert(assertContainerList(out, expected), checker.Equals, true, check.Commentf("BEFORE, LIMIT: Container list is not in the correct order: \n%s", out))
 
-	out, _ = dockerCmd(c, "ps", "--since", firstID, "--before", fourthID, "-n=1", "-a")
+	// filter since & filter before & limit
+	out, _ = dockerCmd(c, "ps", "-f", "since="+firstID, "-f", "before="+fourthID, "-n=1", "-a")
 	expected = []string{thirdID}
 	c.Assert(assertContainerList(out, expected), checker.Equals, true, check.Commentf("SINCE, BEFORE, LIMIT & ALL: Container list is not in the correct order: \n%s", out))
 
-	out, _ = dockerCmd(c, "ps", "--since", firstID, "--before", fourthID, "-n=1")
+	out, _ = dockerCmd(c, "ps", "-f", "since="+firstID, "-f", "before="+fourthID, "-n=1")
 	c.Assert(assertContainerList(out, expected), checker.Equals, true, check.Commentf("SINCE, BEFORE, LIMIT: Container list is not in the correct order: \n%s", out))
 
 }
@@ -168,14 +169,12 @@ func (s *DockerSuite) TestPsListContainersSize(c *check.C) {
 
 func (s *DockerSuite) TestPsListContainersFilterStatus(c *check.C) {
 	testRequires(c, DaemonIsLinux)
-	// FIXME: this should test paused, but it makes things hang and its wonky
-	// this is because paused containers can't be controlled by signals
 
 	// start exited container
 	out, _ := dockerCmd(c, "run", "-d", "busybox")
 	firstID := strings.TrimSpace(out)
 
-	// make sure the exited cintainer is not running
+	// make sure the exited container is not running
 	dockerCmd(c, "wait", firstID)
 
 	// start running container
@@ -183,17 +182,27 @@ func (s *DockerSuite) TestPsListContainersFilterStatus(c *check.C) {
 	secondID := strings.TrimSpace(out)
 
 	// filter containers by exited
-	out, _ = dockerCmd(c, "ps", "-q", "--filter=status=exited")
+	out, _ = dockerCmd(c, "ps", "--no-trunc", "-q", "--filter=status=exited")
 	containerOut := strings.TrimSpace(out)
-	c.Assert(containerOut, checker.Equals, firstID[:12], check.Commentf("Expected id %s, got %s for exited filter, output: %q", firstID[:12], containerOut, out))
+	c.Assert(containerOut, checker.Equals, firstID)
 
-	out, _ = dockerCmd(c, "ps", "-a", "-q", "--filter=status=running")
+	out, _ = dockerCmd(c, "ps", "-a", "--no-trunc", "-q", "--filter=status=running")
 	containerOut = strings.TrimSpace(out)
-	c.Assert(containerOut, checker.Equals, secondID[:12], check.Commentf("Expected id %s, got %s for running filter, output: %q", secondID[:12], containerOut, out))
+	c.Assert(containerOut, checker.Equals, secondID)
 
 	out, _, _ = dockerCmdWithTimeout(time.Second*60, "ps", "-a", "-q", "--filter=status=rubbish")
 	c.Assert(out, checker.Contains, "Unrecognised filter value for status", check.Commentf("Expected error response due to invalid status filter output: %q", out))
 
+	// pause running container
+	out, _ = dockerCmd(c, "run", "-itd", "busybox")
+	pausedID := strings.TrimSpace(out)
+	dockerCmd(c, "pause", pausedID)
+	// make sure the container is unpaused to let the daemon stop it properly
+	defer func() { dockerCmd(c, "unpause", pausedID) }()
+
+	out, _ = dockerCmd(c, "ps", "--no-trunc", "-q", "--filter=status=paused")
+	containerOut = strings.TrimSpace(out)
+	c.Assert(containerOut, checker.Equals, pausedID)
 }
 
 func (s *DockerSuite) TestPsListContainersFilterID(c *check.C) {

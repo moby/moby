@@ -42,11 +42,18 @@ logging drivers.
 **--tail**="*all*"
    Output the specified number of lines at the end of logs (defaults to all logs)
 
-The `--since` option shows only the container logs generated after
-a given date. You can specify the date as an RFC 3339 date, a UNIX
-timestamp, or a Go duration string (e.g. `1m30s`, `3h`). Docker computes
-the date relative to the client machine’s time. You can combine
-the `--since` option with either or both of the `--follow` or `--tail` options.
+The `--since` option can be Unix timestamps, date formated timestamps, or Go
+duration strings (e.g. `10m`, `1h30m`) computed relative to the client machine’s
+time. Supported formats for date formated time stamps include RFC3339Nano,
+RFC3339, `2006-01-02T15:04:05`, `2006-01-02T15:04:05.999999999`,
+`2006-01-02Z07:00`, and `2006-01-02`. The local timezone on the client will be
+used if you do not provide either a `Z` or a `+-00:00` timezone offset at the
+end of the timestamp.  When providing Unix timestamps enter
+seconds[.nanoseconds], where seconds is the number of seconds that have elapsed
+since January 1, 1970 (midnight UTC/GMT), not counting leap  seconds (aka Unix
+epoch or Unix time), and the optional .nanoseconds field is a fraction of a
+second no more than nine digits long. You can combine the `--since` option with
+either or both of the `--follow` or `--tail` options.
 
 # HISTORY
 April 2014, Originally compiled by William Henry (whenry at redhat dot com)
@@ -54,3 +61,4 @@ based on docker.com source material and internal work.
 June 2014, updated by Sven Dowideit <SvenDowideit@home.org.au>
 July 2014, updated by Sven Dowideit <SvenDowideit@home.org.au>
 April 2015, updated by Ahmet Alp Balkan <ahmetalpbalkan@gmail.com>
+October 2015, updated by Mike Brown <mikebrow@gmail.com>

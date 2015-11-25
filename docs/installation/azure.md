@@ -24,10 +24,10 @@ machines on Azure:
 
 ## What next?
 
-Continue with the [User Guide](../userguide/).
+Continue with the [User Guide](../userguide/index.md).
 
-[0]: http://azure.microsoft.com/
-[1]: http://azure.microsoft.com/en-us/documentation/articles/virtual-machines-docker-vm-extension/
-[2]: http://azure.microsoft.com/documentation/articles/virtual-machines-docker-with-xplat-cli/
-[3]: http://azure.microsoft.com/documentation/articles/virtual-machines-docker-with-portal/
-[4]: http://azure.microsoft.com/en-us/documentation/articles/virtual-machines-docker-machine/
+[0]: https://azure.microsoft.com/
+[1]: https://azure.microsoft.com/en-us/documentation/articles/virtual-machines-docker-vm-extension/
+[2]: https://azure.microsoft.com/documentation/articles/virtual-machines-docker-with-xplat-cli/
+[3]: https://azure.microsoft.com/documentation/articles/virtual-machines-docker-with-portal/
+[4]: https://azure.microsoft.com/en-us/documentation/articles/virtual-machines-docker-machine/

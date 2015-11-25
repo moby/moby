@@ -95,6 +95,7 @@ This section lists each version from latest to oldest.  Each listing includes a 
 [Docker Remote API v1.22](docker_remote_api_v1.22.md) documentation
 
 * `GET /containers/json` supports filter `isolation` on Windows.
+* `GET /networks/(name)` now returns a `Name` field for each container attached to the network.
 
 ### v1.21 API changes
 

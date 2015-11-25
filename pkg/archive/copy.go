@@ -135,28 +135,15 @@ type CopyInfo struct {
 // operation. The given path should be an absolute local path. A source path
 // has all symlinks evaluated that appear before the last path separator ("/"
 // on Unix). As it is to be a copy source, the path must exist.
-func CopyInfoSourcePath(path string) (CopyInfo, error) {
-	// Split the given path into its Directory and Base components. We will
-	// evaluate symlinks in the directory component then append the base.
+func CopyInfoSourcePath(path string, followLink bool) (CopyInfo, error) {
+	// normalize the file path and then evaluate the symbol link
+	// we will use the target file instead of the symbol link if
+	// followLink is set
 	path = normalizePath(path)
-	dirPath, basePath := filepath.Split(path)
 
-	resolvedDirPath, err := filepath.EvalSymlinks(dirPath)
+	resolvedPath, rebaseName, err := ResolveHostSourcePath(path, followLink)
 	if err != nil {
 		return CopyInfo{}, err
-	}
-
-	// resolvedDirPath will have been cleaned (no trailing path separators) so
-	// we can manually join it with the base path element.
-	resolvedPath := resolvedDirPath + string(filepath.Separator) + basePath
-
-	var rebaseName string
-	if hasTrailingPathSeparator(path) && filepath.Base(path) != filepath.Base(resolvedPath) {
-		// In the case where the path had a trailing separator and a symlink
-		// evaluation has changed the last path component, we will need to
-		// rebase the name in the archive that is being copied to match the
-		// originally requested name.
-		rebaseName = filepath.Base(path)
 	}
 
 	stat, err := os.Lstat(resolvedPath)
@@ -279,7 +266,10 @@ func PrepareArchiveCopy(srcContent Reader, srcInfo, dstInfo CopyInfo) (dstDir st
 		// The destination exists as some type of file and the source content
 		// is also a file. The source content entry will have to be renamed to
 		// have a basename which matches the destination path's basename.
-		return dstDir, rebaseArchiveEntries(srcContent, srcBase, dstBase), nil
+		if len(srcInfo.RebaseName) != 0 {
+			srcBase = srcInfo.RebaseName
+		}
+		return dstDir, RebaseArchiveEntries(srcContent, srcBase, dstBase), nil
 	case srcInfo.IsDir:
 		// The destination does not exist and the source content is an archive
 		// of a directory. The archive should be extracted to the parent of
@@ -287,7 +277,10 @@ func PrepareArchiveCopy(srcContent Reader, srcInfo, dstInfo CopyInfo) (dstDir st
 		// created as a result should take the name of the destination path.
 		// The source content entries will have to be renamed to have a
 		// basename which matches the destination path's basename.
-		return dstDir, rebaseArchiveEntries(srcContent, srcBase, dstBase), nil
+		if len(srcInfo.RebaseName) != 0 {
+			srcBase = srcInfo.RebaseName
+		}
+		return dstDir, RebaseArchiveEntries(srcContent, srcBase, dstBase), nil
 	case assertsDirectory(dstInfo.Path):
 		// The destination does not exist and is asserted to be created as a
 		// directory, but the source content is not a directory. This is an
@@ -301,14 +294,17 @@ func PrepareArchiveCopy(srcContent Reader, srcInfo, dstInfo CopyInfo) (dstDir st
 		// to be created when the archive is extracted and the source content
 		// entry will have to be renamed to have a basename which matches the
 		// destination path's basename.
-		return dstDir, rebaseArchiveEntries(srcContent, srcBase, dstBase), nil
+		if len(srcInfo.RebaseName) != 0 {
+			srcBase = srcInfo.RebaseName
+		}
+		return dstDir, RebaseArchiveEntries(srcContent, srcBase, dstBase), nil
 	}
 
 }
 
-// rebaseArchiveEntries rewrites the given srcContent archive replacing
+// RebaseArchiveEntries rewrites the given srcContent archive replacing
 // an occurrence of oldBase with newBase at the beginning of entry names.
-func rebaseArchiveEntries(srcContent Reader, oldBase, newBase string) Archive {
+func RebaseArchiveEntries(srcContent Reader, oldBase, newBase string) Archive {
 	if oldBase == string(os.PathSeparator) {
 		// If oldBase specifies the root directory, use an empty string as
 		// oldBase instead so that newBase doesn't replace the path separator
@@ -355,7 +351,7 @@ func rebaseArchiveEntries(srcContent Reader, oldBase, newBase string) Archive {
 // CopyResource performs an archive copy from the given source path to the
 // given destination path. The source path MUST exist and the destination
 // path's parent directory must exist.
-func CopyResource(srcPath, dstPath string) error {
+func CopyResource(srcPath, dstPath string, followLink bool) error {
 	var (
 		srcInfo CopyInfo
 		err     error
@@ -369,7 +365,7 @@ func CopyResource(srcPath, dstPath string) error {
 	srcPath = PreserveTrailingDotOrSeparator(filepath.Clean(srcPath), srcPath)
 	dstPath = PreserveTrailingDotOrSeparator(filepath.Clean(dstPath), dstPath)
 
-	if srcInfo, err = CopyInfoSourcePath(srcPath); err != nil {
+	if srcInfo, err = CopyInfoSourcePath(srcPath, followLink); err != nil {
 		return err
 	}
 
@@ -404,4 +400,59 @@ func CopyTo(content Reader, srcInfo CopyInfo, dstPath string) error {
 	}
 
 	return Untar(copyArchive, dstDir, options)
+}
+
+// ResolveHostSourcePath decides real path need to be copied with parameters such as
+// whether to follow symbol link or not, if followLink is true, resolvedPath will return
+// link target of any symbol link file, else it will only resolve symlink of directory
+// but return symbol link file itself without resolving.
+func ResolveHostSourcePath(path string, followLink bool) (resolvedPath, rebaseName string, err error) {
+	if followLink {
+		resolvedPath, err = filepath.EvalSymlinks(path)
+		if err != nil {
+			return
+		}
+
+		resolvedPath, rebaseName = GetRebaseName(path, resolvedPath)
+	} else {
+		dirPath, basePath := filepath.Split(path)
+
+		// if not follow symbol link, then resolve symbol link of parent dir
+		var resolvedDirPath string
+		resolvedDirPath, err = filepath.EvalSymlinks(dirPath)
+		if err != nil {
+			return
+		}
+		// resolvedDirPath will have been cleaned (no trailing path separators) so
+		// we can manually join it with the base path element.
+		resolvedPath = resolvedDirPath + string(filepath.Separator) + basePath
+		if hasTrailingPathSeparator(path) && filepath.Base(path) != filepath.Base(resolvedPath) {
+			rebaseName = filepath.Base(path)
+		}
+	}
+	return resolvedPath, rebaseName, nil
+}
+
+// GetRebaseName normalizes and compares path and resolvedPath,
+// return completed resolved path and rebased file name
+func GetRebaseName(path, resolvedPath string) (string, string) {
+	// linkTarget will have been cleaned (no trailing path separators and dot) so
+	// we can manually join it with them
+	var rebaseName string
+	if specifiesCurrentDir(path) && !specifiesCurrentDir(resolvedPath) {
+		resolvedPath += string(filepath.Separator) + "."
+	}
+
+	if hasTrailingPathSeparator(path) && !hasTrailingPathSeparator(resolvedPath) {
+		resolvedPath += string(filepath.Separator)
+	}
+
+	if filepath.Base(path) != filepath.Base(resolvedPath) {
+		// In the case where the path had a trailing separator and a symlink
+		// evaluation has changed the last path component, we will need to
+		// rebase the name in the archive that is being copied to match the
+		// originally requested name.
+		rebaseName = filepath.Base(path)
+	}
+	return resolvedPath, rebaseName
 }

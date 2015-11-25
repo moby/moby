@@ -446,11 +446,11 @@ single `native.cgroupdriver` option is available.
 
 The `native.cgroupdriver` option specifies the management of the container's
 cgroups. You can specify `cgroupfs` or `systemd`. If you specify `systemd` and
-it is not available, the system uses `cgroupfs`. By default, if no option is
-specified, the execdriver first tries `systemd` and falls back to `cgroupfs`.
-This example sets the execdriver to `cgroupfs`:
+it is not available, the system uses `cgroupfs`. If you omit the
+`native.cgroupdriver` option,` cgroupfs` is used.
+This example sets the `cgroupdriver` to `systemd`:
 
-    $ sudo docker daemon --exec-opt native.cgroupdriver=cgroupfs
+    $ sudo docker daemon --exec-opt native.cgroupdriver=systemd
 
 Setting this option applies to all containers the daemon launches.
 

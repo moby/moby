@@ -1,4 +1,4 @@
-// +build !linux
+// +build !linux linux,arm
 
 package journald
 

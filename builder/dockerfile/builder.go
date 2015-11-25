@@ -60,6 +60,7 @@ type Config struct {
 
 	Memory       int64
 	MemorySwap   int64
+	ShmSize      int64
 	CPUShares    int64
 	CPUPeriod    int64
 	CPUQuota     int64
@@ -276,9 +277,9 @@ func Commit(containerName string, d *daemon.Daemon, c *CommitConfig) (string, er
 		MergeConfigs: true,
 	}
 
-	img, err := d.Commit(containerName, commitCfg)
+	imgID, err := d.Commit(containerName, commitCfg)
 	if err != nil {
 		return "", err
 	}
-	return img.ID, nil
+	return imgID, nil
 }

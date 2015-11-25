@@ -89,5 +89,5 @@ mknod -m 666 $DEV/ptmx c 5 2
 ln -sf /proc/self/fd $DEV/fd
 
 tar --numeric-owner --xattrs --acls -C $ROOTFS -c . | docker import - archlinux
-docker run -t archlinux echo Success.
+docker run --rm -t archlinux echo Success.
 rm -rf $ROOTFS

@@ -9,7 +9,6 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
 	derr "github.com/docker/docker/errors"
-	"github.com/docker/docker/graph"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/graphdb"
 	"github.com/docker/docker/pkg/nat"
@@ -66,15 +65,17 @@ type listContext struct {
 	// names is a list of container names to filter with
 	names map[string][]string
 	// images is a list of images to filter with
-	images map[string]bool
+	images map[image.ID]bool
 	// filters is a collection of arguments to filter with, specified by the user
 	filters filters.Args
 	// exitAllowed is a list of exit codes allowed to filter with
 	exitAllowed []int
-	// beforeContainer is a filter to ignore containers that appear before the one given
-	beforeContainer *Container
-	// sinceContainer is a filter to stop the filtering when the iterator arrive to the given container
-	sinceContainer *Container
+	// beforeFilter is a filter to ignore containers that appear before the one given
+	// this is used for --filter=before= and --before=, the latter is deprecated.
+	beforeFilter *Container
+	// sinceFilter is a filter to stop the filtering when the iterator arrive to the given container
+	// this is used for --filter=since= and --since=, the latter is deprecated.
+	sinceFilter *Container
 	// ContainersConfig is the filters set by the user
 	*ContainersConfig
 }
@@ -150,31 +151,48 @@ func (daemon *Daemon) foldFilter(config *ContainersConfig) (*listContext, error)
 			if !isValidStateString(value) {
 				return nil, errors.New("Unrecognised filter value for status")
 			}
-			if value == "exited" || value == "created" {
-				config.All = true
+
+			config.All = true
+		}
+	}
+
+	var beforeContFilter, sinceContFilter *Container
+	if i, ok := psFilters["before"]; ok {
+		for _, value := range i {
+			beforeContFilter, err = daemon.Get(value)
+			if err != nil {
+				return nil, err
 			}
 		}
 	}
 
-	imagesFilter := map[string]bool{}
+	if i, ok := psFilters["since"]; ok {
+		for _, value := range i {
+			sinceContFilter, err = daemon.Get(value)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	imagesFilter := map[image.ID]bool{}
 	var ancestorFilter bool
 	if ancestors, ok := psFilters["ancestor"]; ok {
 		ancestorFilter = true
-		byParents := daemon.Graph().ByParent()
 		// The idea is to walk the graph down the most "efficient" way.
 		for _, ancestor := range ancestors {
 			// First, get the imageId of the ancestor filter (yay)
-			image, err := daemon.repositories.LookupImage(ancestor)
+			id, err := daemon.GetImageID(ancestor)
 			if err != nil {
 				logrus.Warnf("Error while looking up for image %v", ancestor)
 				continue
 			}
-			if imagesFilter[ancestor] {
+			if imagesFilter[id] {
 				// Already seen this ancestor, skip it
 				continue
 			}
 			// Then walk down the graph and put the imageIds in imagesFilter
-			populateImageFilterByParents(imagesFilter, image.ID, byParents)
+			populateImageFilterByParents(imagesFilter, id, daemon.imageStore.Children)
 		}
 	}
 
@@ -184,16 +202,15 @@ func (daemon *Daemon) foldFilter(config *ContainersConfig) (*listContext, error)
 		return nil
 	}, 1)
 
-	var beforeCont, sinceCont *Container
 	if config.Before != "" {
-		beforeCont, err = daemon.Get(config.Before)
+		beforeContFilter, err = daemon.Get(config.Before)
 		if err != nil {
 			return nil, err
 		}
 	}
 
 	if config.Since != "" {
-		sinceCont, err = daemon.Get(config.Since)
+		sinceContFilter, err = daemon.Get(config.Since)
 		if err != nil {
 			return nil, err
 		}
@@ -205,8 +222,8 @@ func (daemon *Daemon) foldFilter(config *ContainersConfig) (*listContext, error)
 		names:            names,
 		images:           imagesFilter,
 		exitAllowed:      filtExited,
-		beforeContainer:  beforeCont,
-		sinceContainer:   sinceCont,
+		beforeFilter:     beforeContFilter,
+		sinceFilter:      sinceContFilter,
 		ContainersConfig: config,
 	}, nil
 }
@@ -215,7 +232,7 @@ func (daemon *Daemon) foldFilter(config *ContainersConfig) (*listContext, error)
 // It also decides if the iteration should be stopped or not.
 func includeContainerInList(container *Container, ctx *listContext) iterationAction {
 	// Do not include container if it's stopped and we're not filters
-	if !container.Running && !ctx.All && ctx.Limit <= 0 && ctx.beforeContainer == nil && ctx.sinceContainer == nil {
+	if !container.Running && !ctx.All && ctx.Limit <= 0 && ctx.beforeFilter == nil && ctx.sinceFilter == nil {
 		return excludeContainer
 	}
 
@@ -241,23 +258,23 @@ func includeContainerInList(container *Container, ctx *listContext) iterationAct
 
 	// Do not include container if it's in the list before the filter container.
 	// Set the filter container to nil to include the rest of containers after this one.
-	if ctx.beforeContainer != nil {
-		if container.ID == ctx.beforeContainer.ID {
-			ctx.beforeContainer = nil
+	if ctx.beforeFilter != nil {
+		if container.ID == ctx.beforeFilter.ID {
+			ctx.beforeFilter = nil
 		}
 		return excludeContainer
+	}
+
+	// Stop interation when the container arrives to the filter container
+	if ctx.sinceFilter != nil {
+		if container.ID == ctx.sinceFilter.ID {
+			return stopIteration
+		}
 	}
 
 	// Stop iteration when the index is over the limit
 	if ctx.Limit > 0 && ctx.idx == ctx.Limit {
 		return stopIteration
-	}
-
-	// Stop interation when the container arrives to the filter container
-	if ctx.sinceContainer != nil {
-		if container.ID == ctx.sinceContainer.ID {
-			return stopIteration
-		}
 	}
 
 	// Do not include container if its exit code is not in the filter
@@ -291,41 +308,29 @@ func includeContainerInList(container *Container, ctx *listContext) iterationAct
 	return includeContainer
 }
 
-func getImage(s *graph.TagStore, img, imgID string) (string, error) {
-	// both Image and ImageID is actually ids, nothing to guess
-	if strings.HasPrefix(imgID, img) {
-		return img, nil
-	}
-	id, err := s.GetID(img)
-	if err != nil {
-		if err == graph.ErrNameIsNotExist {
-			return imgID, nil
-		}
-		return "", err
-	}
-	if id != imgID {
-		return imgID, nil
-	}
-	return img, nil
-}
-
 // transformContainer generates the container type expected by the docker ps command.
 func (daemon *Daemon) transformContainer(container *Container, ctx *listContext) (*types.Container, error) {
 	newC := &types.Container{
 		ID:      container.ID,
 		Names:   ctx.names[container.ID],
-		ImageID: container.ImageID,
+		ImageID: container.ImageID.String(),
 	}
 	if newC.Names == nil {
 		// Dead containers will often have no name, so make sure the response isn't  null
 		newC.Names = []string{}
 	}
 
-	showImg, err := getImage(daemon.repositories, container.Config.Image, container.ImageID)
-	if err != nil {
-		return nil, err
+	image := container.Config.Image // if possible keep the original ref
+	if image != container.ImageID.String() {
+		id, err := daemon.GetImageID(image)
+		if _, isDNE := err.(ErrImageDoesNotExist); err != nil && !isDNE {
+			return nil, err
+		}
+		if err != nil || id != container.ImageID {
+			image = container.ImageID.String()
+		}
 	}
-	newC.Image = showImg
+	newC.Image = image
 
 	if len(container.Args) > 0 {
 		args := []string{}
@@ -414,12 +419,10 @@ func (daemon *Daemon) Volumes(filter string) ([]*types.Volume, error) {
 	return volumesOut, nil
 }
 
-func populateImageFilterByParents(ancestorMap map[string]bool, imageID string, byParents map[string][]*image.Image) {
+func populateImageFilterByParents(ancestorMap map[image.ID]bool, imageID image.ID, getChildren func(image.ID) []image.ID) {
 	if !ancestorMap[imageID] {
-		if images, ok := byParents[imageID]; ok {
-			for _, image := range images {
-				populateImageFilterByParents(ancestorMap, image.ID, byParents)
-			}
+		for _, id := range getChildren(imageID) {
+			populateImageFilterByParents(ancestorMap, id, getChildren)
 		}
 		ancestorMap[imageID] = true
 	}

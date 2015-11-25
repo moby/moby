@@ -35,7 +35,7 @@ func (opt *WeightdeviceOpt) Set(val string) error {
 	return nil
 }
 
-// String returns Ulimit values as a string.
+// String returns WeightdeviceOpt values as a string.
 func (opt *WeightdeviceOpt) String() string {
 	var out []string
 	for _, v := range opt.values {

@@ -1,5 +1,4 @@
 // +build experimental
-// +build daemon
 
 package graphdriver
 

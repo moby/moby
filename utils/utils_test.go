@@ -26,36 +26,6 @@ func TestReplaceAndAppendEnvVars(t *testing.T) {
 	}
 }
 
-func TestImageReference(t *testing.T) {
-	tests := []struct {
-		repo     string
-		ref      string
-		expected string
-	}{
-		{"repo", "tag", "repo:tag"},
-		{"repo", "sha256:c100b11b25d0cacd52c14e0e7bf525e1a4c0e6aec8827ae007055545909d1a64", "repo@sha256:c100b11b25d0cacd52c14e0e7bf525e1a4c0e6aec8827ae007055545909d1a64"},
-	}
-
-	for i, test := range tests {
-		actual := ImageReference(test.repo, test.ref)
-		if test.expected != actual {
-			t.Errorf("%d: expected %q, got %q", i, test.expected, actual)
-		}
-	}
-}
-
-func TestDigestReference(t *testing.T) {
-	input := "sha256:c100b11b25d0cacd52c14e0e7bf525e1a4c0e6aec8827ae007055545909d1a64"
-	if !DigestReference(input) {
-		t.Errorf("Expected DigestReference=true for input %q", input)
-	}
-
-	input = "latest"
-	if DigestReference(input) {
-		t.Errorf("Unexpected DigestReference=true for input %q", input)
-	}
-}
-
 func TestReadDockerIgnore(t *testing.T) {
 	tmpDir, err := ioutil.TempDir("", "dockerignore-test")
 	if err != nil {

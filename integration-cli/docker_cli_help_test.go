@@ -126,7 +126,7 @@ func (s *DockerSuite) TestHelpTextVerify(c *check.C) {
 			out, stderr, _, err = runCommandWithStdoutStderr(helpCmd)
 			c.Assert(len(stderr), checker.Equals, 0, check.Commentf("Error on %q help. non-empty stderr:%q", cmd, stderr))
 			c.Assert(out, checker.Not(checker.HasSuffix), "\n\n", check.Commentf("Should not have blank line on %q\n", cmd))
-			c.Assert(out, checker.Contains, "--help=false", check.Commentf("Should show full usage on %q\n", cmd))
+			c.Assert(out, checker.Contains, "--help", check.Commentf("All commands should mention '--help'. Command '%v' did not.\n", cmd))
 
 			c.Assert(err, checker.IsNil, check.Commentf(out))
 
