@@ -1,6 +1,6 @@
-# GOTUF
+# GOTUF 
 
-This is still a work in progress but will shortly be a fully compliant
+This is still a work in progress but will shortly be a fully compliant 
 Go implementation of [The Update Framework (TUF)](http://theupdateframework.com/).
 
 ## Where's the CLI
@@ -16,7 +16,7 @@ from Docker should be considered the official CLI to be used with this implement
 - [ ] Ensure consistent capitalization in naming (TUF\_\_\_ vs Tuf\_\_\_)
 - [X] Make caching of metadata files smarter - PR #5
 - [ ] ~~Add configuration for CLI commands. Order of configuration priority from most to least: flags, config file, defaults~~ Notary should be the official CLI
-- [X] Reassess organization of data types. Possibly consolidate a few things into the data package but break up package into a few more distinct files
+- [X] Reasses organization of data types. Possibly consolidate a few things into the data package but break up package into a few more distinct files
 - [ ] Comprehensive test cases
 - [ ] Delete files no longer in use
 - [ ] Fix up errors. Some have to be instantiated, others don't, the inconsistency is annoying.
@@ -32,5 +32,5 @@ without the code becoming overly convoluted.
 Some features such as pluggable verifiers have alreayd been merged upstream to flynn/go-tuf
 and we are in discussion with [titanous](https://github.com/titanous) about working to merge the 2 implementations.
 
-This implementation retains the same 3 Clause BSD license present on
+This implementation retains the same 3 Clause BSD license present on 
 the original flynn implementation.
