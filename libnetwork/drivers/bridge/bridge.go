@@ -41,6 +41,9 @@ const (
 	DefaultGatewayV6AuxKey = "DefaultGatewayIPv6"
 )
 
+type iptableCleanFunc func() error
+type iptablesCleanFuncs []iptableCleanFunc
+
 // configuration info for the "bridge" driver.
 type configuration struct {
 	EnableIPForwarding  bool
@@ -92,12 +95,13 @@ type bridgeEndpoint struct {
 }
 
 type bridgeNetwork struct {
-	id         string
-	bridge     *bridgeInterface // The bridge's L3 interface
-	config     *networkConfiguration
-	endpoints  map[string]*bridgeEndpoint // key: endpoint id
-	portMapper *portmapper.PortMapper
-	driver     *driver // The network's driver
+	id            string
+	bridge        *bridgeInterface // The bridge's L3 interface
+	config        *networkConfiguration
+	endpoints     map[string]*bridgeEndpoint // key: endpoint id
+	portMapper    *portmapper.PortMapper
+	driver        *driver // The network's driver
+	iptCleanFuncs iptablesCleanFuncs
 	sync.Mutex
 }
 
@@ -234,6 +238,10 @@ func (c *networkConfiguration) fromLabels(labels map[string]string) error {
 
 func parseErr(label, value, errString string) error {
 	return types.BadRequestErrorf("failed to parse %s value: %v (%s)", label, value, errString)
+}
+
+func (n *bridgeNetwork) registerIptCleanFunc(clean iptableCleanFunc) {
+	n.iptCleanFuncs = append(n.iptCleanFuncs, clean)
 }
 
 func (n *bridgeNetwork) getDriverChains() (*iptables.ChainInfo, *iptables.ChainInfo, error) {
@@ -604,6 +612,10 @@ func (d *driver) createNetwork(config *networkConfiguration) error {
 			}
 			return err
 		}
+		network.registerIptCleanFunc(func() error {
+			nwList := d.getNetworks()
+			return network.isolateNetwork(nwList, false)
+		})
 		return nil
 	}
 
@@ -722,22 +734,6 @@ func (d *driver) DeleteNetwork(nid string) error {
 		return err
 	}
 
-	// In case of failures after this point, restore the network isolation rules
-	nwList := d.getNetworks()
-	defer func() {
-		if err != nil {
-			if err := n.isolateNetwork(nwList, true); err != nil {
-				logrus.Warnf("Failed on restoring the inter-network iptables rules on cleanup: %v", err)
-			}
-		}
-	}()
-
-	// Remove inter-network communication rules.
-	err = n.isolateNetwork(nwList, false)
-	if err != nil {
-		return err
-	}
-
 	// We only delete the bridge when it's not the default bridge. This is keep the backward compatible behavior.
 	if !config.DefaultBridge {
 		if err := netlink.LinkDel(n.bridge.Link); err != nil {
@@ -745,6 +741,12 @@ func (d *driver) DeleteNetwork(nid string) error {
 		}
 	}
 
+	// clean all relevant iptables rules
+	for _, cleanFunc := range n.iptCleanFuncs {
+		if errClean := cleanFunc(); errClean != nil {
+			logrus.Warnf("Failed to clean iptables rules for bridge network: %v", errClean)
+		}
+	}
 	return d.storeDelete(config)
 }
 

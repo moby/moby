@@ -22,13 +22,13 @@ func TestNewChain(t *testing.T) {
 
 	bridgeName = "lo"
 	natChain, err = NewChain(chainName, Nat, false)
-	err = ProgramChain(natChain, bridgeName, false)
+	err = ProgramChain(natChain, bridgeName, false, true)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	filterChain, err = NewChain(chainName, Filter, false)
-	err = ProgramChain(filterChain, bridgeName, false)
+	err = ProgramChain(filterChain, bridgeName, false, true)
 	if err != nil {
 		t.Fatal(err)
 	}

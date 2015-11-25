@@ -22,7 +22,7 @@ func TestReloaded(t *testing.T) {
 	fwdChain, err = NewChain("FWD", Filter, false)
 	bridgeName := "lo"
 
-	err = ProgramChain(fwdChain, bridgeName, false)
+	err = ProgramChain(fwdChain, bridgeName, false, true)
 	if err != nil {
 		t.Fatal(err)
 	}
