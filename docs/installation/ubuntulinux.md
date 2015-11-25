@@ -128,6 +128,7 @@ To install the `linux-image-extra` package for your kernel version:
 
 4. Go ahead and install Docker.
 
+If you are installing on Ubuntu 14.04 or 12.04, `apparmor` is required.  You can install it using: `apt-get install apparmor`
 
 #### Ubuntu Precise 12.04 (LTS)
 
@@ -176,8 +177,6 @@ To upgrade your kernel and install the additional packages, do the following:
         $ sudo reboot
 
 5. After your system reboots, go ahead and install Docker.
-
-If you are installing on Ubuntu 14.04 or 12.04, `apparmor` is required.  You can install it using: `apt-get install apparmor`
 
 ## Install
 
