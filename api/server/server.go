@@ -78,10 +78,11 @@ func (s *Server) Close() {
 }
 
 // ServeAPI loops through all initialized servers and spawns goroutine
-// with Serve() method for each.
+// with Server method for each. It sets CreateMux() as Handler also.
 func (s *Server) ServeAPI() error {
 	var chErrors = make(chan error, len(s.servers))
 	for _, srv := range s.servers {
+		srv.srv.Handler = s.CreateMux()
 		go func(srv *HTTPServer) {
 			var err error
 			logrus.Infof("API listen on %s", srv.l.Addr())
@@ -168,16 +169,11 @@ func (s *Server) makeHTTPHandler(handler httputils.APIFunc) http.HandlerFunc {
 }
 
 // InitRouters initializes a list of routers for the server.
-// Sets those routers as Handler for each server.
 func (s *Server) InitRouters(d *daemon.Daemon) {
 	s.addRouter(local.NewRouter(d))
 	s.addRouter(network.NewRouter(d))
 	s.addRouter(volume.NewRouter(d))
 	s.addRouter(container.NewRouter(d))
-
-	for _, srv := range s.servers {
-		srv.srv.Handler = s.CreateMux()
-	}
 }
 
 // addRouter adds a new router to the server.
