@@ -21,10 +21,10 @@ load helpers
     run dnet_cmd 8080 network ls
     echo ${output}
     [ "$status" -ne 0 ]
-    run ./cmd/dnet/dnet -H=unix://var/run/dnet.sock network ls
+    run ./bin/dnet -H=unix://var/run/dnet.sock network ls
     echo ${output}
     [ "$status" -ne 0 ]
-    run ./cmd/dnet/dnet -H= -l=invalid network ls
+    run ./bin/dnet -H= -l=invalid network ls
     echo ${output}
     [ "$status" -ne 0 ]
     stop_dnet 1 c
