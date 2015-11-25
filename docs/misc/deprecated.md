@@ -12,6 +12,14 @@ parent = "mn_use_docker"
 
 The following list of features are deprecated.
 
+### HostConfig at API container start
+**Deprecated In Release: v1.10**
+
+**Target For Removal In Release: v1.12**
+
+Passing an `HostConfig` to `POST /containers/{name}/start` is deprecated in favor of
+defining it at container creation (`POST /containers/create`).
+
 ### Docker ps 'before' and 'since' options
 
 **Deprecated In Release: [v1.10.0](https://github.com/docker/docker/releases/tag/v1.10.0)**
