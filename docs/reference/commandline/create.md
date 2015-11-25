@@ -71,6 +71,7 @@ Creates a new container.
       --ulimit=[]                   Ulimit options
       --uts=""                      UTS namespace to use
       -v, --volume=[]               Bind mount a volume
+      --volume-driver=""            Optional volume driver for the container
       --volumes-from=[]             Mount volumes from the specified container(s)
       -w, --workdir=""              Working directory inside the container
 
