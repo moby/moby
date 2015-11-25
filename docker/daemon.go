@@ -268,10 +268,8 @@ func (cli *DaemonCli) CmdDaemon(args ...string) error {
 		}
 	})
 
-	// after the daemon is done setting up we can tell the api to start
-	// accepting connections with specified daemon
+	// after the daemon is done setting up we can notify systemd api
 	notifySystem()
-	api.AcceptConnections()
 
 	// Daemon is fully initialized and handling API traffic
 	// Wait for serve API to complete
