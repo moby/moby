@@ -31,6 +31,8 @@ type Context struct {
 	Quiet bool
 	// Trunc when set to true will truncate the output of certain fields such as Container ID.
 	Trunc bool
+	// WithVolume when set to true will only show containers with volumes
+	WithVolume bool
 }
 
 // Format helps to format the output using the parameters set in the Context.
