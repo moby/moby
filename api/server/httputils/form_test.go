@@ -28,7 +28,8 @@ func TestBoolValue(t *testing.T) {
 
 		a := BoolValue(r, "test")
 		if a != e {
-			t.Fatalf("Value: %s, expected: %v, actual: %v", c, e, a)
+			t.Errorf("Value: %s, expected: %v, actual: %v", c, e, a)
+			continue
 		}
 	}
 }
@@ -64,7 +65,8 @@ func TestInt64ValueOrZero(t *testing.T) {
 
 		a := Int64ValueOrZero(r, "test")
 		if a != e {
-			t.Fatalf("Value: %s, expected: %v, actual: %v", c, e, a)
+			t.Errorf("Value: %s, expected: %v, actual: %v", c, e, a)
+			continue
 		}
 	}
 }
@@ -84,10 +86,12 @@ func TestInt64ValueOrDefault(t *testing.T) {
 
 		a, err := Int64ValueOrDefault(r, "test", -1)
 		if a != e {
-			t.Fatalf("Value: %s, expected: %v, actual: %v", c, e, a)
+			t.Errorf("Value: %s, expected: %v, actual: %v", c, e, a)
+			continue
 		}
 		if err != nil {
-			t.Fatalf("Error should be nil, but received: %s", err)
+			t.Errorf("Error should be nil, but received: %s", err)
+			continue
 		}
 	}
 }
