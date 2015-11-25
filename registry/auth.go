@@ -53,8 +53,8 @@ func loginV1(authConfig *cliconfig.AuthConfig, registryEndpoint *Endpoint) (stri
 	if err != nil {
 		return "", fmt.Errorf("Server Error: %s", err)
 	}
-	reqStatusCode = req1.StatusCode
 	defer req1.Body.Close()
+	reqStatusCode = req1.StatusCode
 	reqBody, err = ioutil.ReadAll(req1.Body)
 	if err != nil {
 		return "", fmt.Errorf("Server Error: [%#v] %s", reqStatusCode, err)
