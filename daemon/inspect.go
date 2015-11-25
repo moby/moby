@@ -200,7 +200,9 @@ func (daemon *Daemon) VolumeInspect(name string) (*types.Volume, error) {
 	if err != nil {
 		return nil, err
 	}
-	return volumeToAPIType(v), nil
+	volOut := volumeToAPIType(v)
+	volOut.Containers = daemon.volumes.GetRefs(name)
+	return volOut, nil
 }
 
 func (daemon *Daemon) getBackwardsCompatibleNetworkSettings(settings *network.Settings) *v1p20.NetworkSettings {

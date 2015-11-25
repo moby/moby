@@ -71,11 +71,11 @@ func TestRemove(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	s.Increment(v)
+	s.Increment(v, "")
 	if err := s.Remove(v); !IsInUse(err) {
 		t.Fatalf("Expected IsInUse error, got %v", err)
 	}
-	s.Decrement(v)
+	s.Decrement(v, "")
 	if err := s.Remove(v); err != nil {
 		t.Fatal(err)
 	}
@@ -87,7 +87,7 @@ func TestRemove(t *testing.T) {
 func TestIncrement(t *testing.T) {
 	s := New()
 	v := vt.NewFakeVolume("fake1")
-	s.Increment(v)
+	s.Increment(v, "cont1")
 	if l := s.List(); len(l) != 1 {
 		t.Fatalf("Expected 1 volume, got %v, %v", len(l), l)
 	}
@@ -95,7 +95,7 @@ func TestIncrement(t *testing.T) {
 		t.Fatalf("Expected 1 counter, got %v", c)
 	}
 
-	s.Increment(v)
+	s.Increment(v, "cont1")
 	if l := s.List(); len(l) != 1 {
 		t.Fatalf("Expected 1 volume, got %v, %v", len(l), l)
 	}
@@ -104,7 +104,7 @@ func TestIncrement(t *testing.T) {
 	}
 
 	v2 := vt.NewFakeVolume("fake2")
-	s.Increment(v2)
+	s.Increment(v2, "cont2")
 	if l := s.List(); len(l) != 2 {
 		t.Fatalf("Expected 2 volume, got %v, %v", len(l), l)
 	}
@@ -113,25 +113,25 @@ func TestIncrement(t *testing.T) {
 func TestDecrement(t *testing.T) {
 	s := New()
 	v := vt.NoopVolume{}
-	s.Decrement(v)
+	s.Decrement(v, "")
 	if c := s.Count(v); c != 0 {
 		t.Fatalf("Expected 0 volumes, got %v", c)
 	}
 
-	s.Increment(v)
-	s.Increment(v)
-	s.Decrement(v)
+	s.Increment(v, "c1")
+	s.Increment(v, "c2")
+	s.Decrement(v, "c1")
 	if c := s.Count(v); c != 1 {
 		t.Fatalf("Expected 1 volume, got %v", c)
 	}
 
-	s.Decrement(v)
+	s.Decrement(v, "c2")
 	if c := s.Count(v); c != 0 {
 		t.Fatalf("Expected 0 volumes, got %v", c)
 	}
 
 	// Test counter cannot be negative.
-	s.Decrement(v)
+	s.Decrement(v, "c2")
 	if c := s.Count(v); c != 0 {
 		t.Fatalf("Expected 0 volumes, got %v", c)
 	}
@@ -140,9 +140,9 @@ func TestDecrement(t *testing.T) {
 func TestFilterByDriver(t *testing.T) {
 	s := New()
 
-	s.Increment(vt.NewFakeVolume("fake1"))
-	s.Increment(vt.NewFakeVolume("fake2"))
-	s.Increment(vt.NoopVolume{})
+	s.Increment(vt.NewFakeVolume("fake1"), "cont1")
+	s.Increment(vt.NewFakeVolume("fake2"), "cont2")
+	s.Increment(vt.NoopVolume{}, "noCont")
 
 	if l := s.FilterByDriver("fake"); len(l) != 2 {
 		t.Fatalf("Expected 2 volumes, got %v, %v", len(l), l)

@@ -10,10 +10,11 @@ import (
 )
 
 // New initializes a VolumeStore to keep
-// reference counting of volumes in the system.
+// reference of the objects/containers using the volumes in the system.
 func New() *VolumeStore {
 	return &VolumeStore{
 		vols:  make(map[string]*volumeCounter),
+		refs:  make(map[string][]string),
 		locks: &locker.Locker{},
 	}
 }
@@ -34,6 +35,7 @@ func (s *VolumeStore) set(name string, vc *volumeCounter) {
 func (s *VolumeStore) remove(name string) {
 	s.globalLock.Lock()
 	delete(s.vols, name)
+	delete(s.refs, name)
 	s.globalLock.Unlock()
 }
 
@@ -42,6 +44,8 @@ type VolumeStore struct {
 	vols       map[string]*volumeCounter
 	locks      *locker.Locker
 	globalLock sync.Mutex
+	// refs stores the volume name and the list of things referencing it
+	refs map[string][]string
 }
 
 // volumeCounter keeps track of references to a volume
@@ -134,7 +138,8 @@ func (s *VolumeStore) Remove(v volume.Volume) error {
 }
 
 // Increment increments the usage count of the passed in volume by 1
-func (s *VolumeStore) Increment(v volume.Volume) {
+// also adds the ref to the list of containers where this volume is used
+func (s *VolumeStore) Increment(v volume.Volume, ref string) {
 	name := normaliseVolumeName(v.Name())
 	s.locks.Lock(name)
 	defer s.locks.Unlock(name)
@@ -146,13 +151,17 @@ func (s *VolumeStore) Increment(v volume.Volume) {
 		return
 	}
 	vc.count++
+
+	logrus.Debugf("Adding volume reference: driver %s, name %s, ref %s", v.DriverName(), v.Name(), ref)
+	s.AddRefs(v, ref)
 }
 
 // Decrement decrements the usage count of the passed in volume by 1
-func (s *VolumeStore) Decrement(v volume.Volume) {
+func (s *VolumeStore) Decrement(v volume.Volume, ref string) {
 	name := normaliseVolumeName(v.Name())
 	s.locks.Lock(name)
 	defer s.locks.Unlock(name)
+
 	logrus.Debugf("Decrementing volume reference: driver %s, name %s", v.DriverName(), v.Name())
 
 	vc, exists := s.get(name)
@@ -163,6 +172,9 @@ func (s *VolumeStore) Decrement(v volume.Volume) {
 		return
 	}
 	vc.count--
+
+	logrus.Debugf("Removing volume reference: driver %s, name %s", v.DriverName(), v.Name(), ref)
+	s.Dereference(v, ref)
 }
 
 // Count returns the usage count of the passed in volume
@@ -187,6 +199,39 @@ func (s *VolumeStore) List() []volume.Volume {
 		ls = append(ls, vc.Volume)
 	}
 	return ls
+}
+
+// GetRefs returns the list of objects/containers that are associated with the volume
+func (s *VolumeStore) GetRefs(name string) []string {
+	return s.refs[name]
+}
+
+// AddRefs adds a new reference to the list of objects/containers that are using this volume
+// to avoid duplicates we check if the list already contains this reference, if not it is added.
+func (s *VolumeStore) AddRefs(v volume.Volume, ref string) {
+	refs, exists := s.refs[v.Name()]
+	if exists {
+		for _, r := range refs {
+			if r == ref {
+				return
+			}
+		}
+	}
+	s.refs[v.Name()] = append(s.refs[v.Name()], ref)
+}
+
+// Dereference removes the specified reference to the volume
+func (s *VolumeStore) Dereference(v volume.Volume, ref string) {
+	refs, exists := s.refs[v.Name()]
+	if !exists {
+		return
+	}
+
+	for i, r := range refs {
+		if r == ref {
+			s.refs[v.Name()] = append(s.refs[v.Name()][:i], s.refs[v.Name()][i+1:]...)
+		}
+	}
 }
 
 // FilterByDriver returns the available volumes filtered by driver name
