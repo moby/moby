@@ -66,7 +66,7 @@ func (m *MountPoint) Setup() (string, error) {
 				return "", err
 			}
 			if runtime.GOOS != "windows" { // Windows does not have deprecation issues here
-				logrus.Warnf("Auto-creating non-existant volume host path %s, this is deprecated and will be removed soon", m.Source)
+				logrus.Warnf("Auto-creating non-existent volume host path %s, this is deprecated and will be removed soon", m.Source)
 				if err := system.MkdirAll(m.Source, 0755); err != nil {
 					return "", err
 				}

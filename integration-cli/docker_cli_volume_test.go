@@ -37,7 +37,7 @@ func (s *DockerSuite) TestVolumeCliInspect(c *check.C) {
 	c.Assert(
 		exec.Command(dockerBinary, "volume", "inspect", "doesntexist").Run(),
 		check.Not(check.IsNil),
-		check.Commentf("volume inspect should error on non-existant volume"),
+		check.Commentf("volume inspect should error on non-existent volume"),
 	)
 
 	out, _ := dockerCmd(c, "volume", "create")
@@ -144,7 +144,7 @@ func (s *DockerSuite) TestVolumeCliRm(c *check.C) {
 	c.Assert(
 		exec.Command("volume", "rm", "doesntexist").Run(),
 		check.Not(check.IsNil),
-		check.Commentf("volume rm should fail with non-existant volume"),
+		check.Commentf("volume rm should fail with non-existent volume"),
 	)
 }
 
