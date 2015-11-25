@@ -128,7 +128,7 @@ func (s *DockerSuite) TestContainerRestartwithGoodContainer(c *check.C) {
 }
 
 func (s *DockerSuite) TestContainerRestartSuccess(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	testRequires(c, DaemonIsLinux, SameHostDaemon)
 
 	out, _ := dockerCmd(c, "run", "-d", "--restart=always", "busybox", "top")
 	id := strings.TrimSpace(out)
