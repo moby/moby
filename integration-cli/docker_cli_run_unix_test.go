@@ -76,7 +76,7 @@ func (s *DockerSuite) TestRunWithVolumesIsRecursive(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunDeviceDirectory(c *check.C) {
-	testRequires(c, DaemonIsLinux, NotUserNamespace)
+	testRequires(c, DaemonIsLinux, NotUserNamespace, NotArm)
 	if _, err := os.Stat("/dev/snd"); err != nil {
 		c.Skip("Host does not have /dev/snd")
 	}
@@ -726,7 +726,7 @@ func (s *DockerSuite) TestRunTmpfsMounts(c *check.C) {
 
 // TestRunSeccompProfileDenyUnshare checks that 'docker run --security-opt seccomp:/tmp/profile.json debian:jessie unshare' exits with operation not permitted.
 func (s *DockerSuite) TestRunSeccompProfileDenyUnshare(c *check.C) {
-	testRequires(c, SameHostDaemon, seccompEnabled)
+	testRequires(c, SameHostDaemon, seccompEnabled, NotArm)
 	jsonData := `{
 	"defaultAction": "SCMP_ACT_ALLOW",
 	"syscalls": [
@@ -783,7 +783,7 @@ func (s *DockerSuite) TestRunSeccompProfileDenyChmod(c *check.C) {
 // TestRunSeccompProfileDenyUnshareUserns checks that 'docker run debian:jessie unshare --map-root-user --user sh -c whoami' with a specific profile to
 // deny unhare of a userns exits with operation not permitted.
 func (s *DockerSuite) TestRunSeccompProfileDenyUnshareUserns(c *check.C) {
-	testRequires(c, SameHostDaemon, seccompEnabled)
+	testRequires(c, SameHostDaemon, seccompEnabled, NotArm)
 	// from sched.h
 	jsonData := fmt.Sprintf(`{
 	"defaultAction": "SCMP_ACT_ALLOW",

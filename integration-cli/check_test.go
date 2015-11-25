@@ -128,6 +128,7 @@ type DockerTrustSuite struct {
 }
 
 func (s *DockerTrustSuite) SetUpTest(c *check.C) {
+	testRequires(c, NotArm)
 	s.reg = setupRegistry(c, false)
 	s.not = setupNotary(c)
 }
