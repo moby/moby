@@ -78,15 +78,18 @@ func TestContainerPsContext(t *testing.T) {
 				expMap[keyval[0]] = keyval[1]
 			}
 			if !reflect.DeepEqual(expMap, entriesMap) {
-				t.Fatalf("Expected entries: %v, got: %v", c.expValue, v)
+				t.Errorf("Expected entries: %v, got: %v", c.expValue, v)
+				continue
 			}
 		} else if v != c.expValue {
-			t.Fatalf("Expected %s, was %s\n", c.expValue, v)
+			t.Errorf("Expected %s, was %s\n", c.expValue, v)
+			continue
 		}
 
 		h := ctx.fullHeader()
 		if h != c.expHeader {
-			t.Fatalf("Expected %s, was %s\n", c.expHeader, h)
+			t.Errorf("Expected %s, was %s\n", c.expHeader, h)
+			continue
 		}
 	}
 
