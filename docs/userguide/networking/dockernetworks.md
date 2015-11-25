@@ -420,14 +420,28 @@ form them into a swarm which includes a discovery service as well.
 To create an overlay network, you configure options on  the `daemon` on each
 Docker Engine for use with `overlay` network. There are two options to set:
 
-| Option                                        | Description                                                 |
-|-----------------------------------------------|-------------------------------------------------------------|
-| `--cluster-store=PROVIDER://URL`              | Describes the location of the KV service.                   |
-| `--cluster-advertise=HOST_IP|HOST_IFACE:PORT` | The IP address or interface of the HOST used for clustering |
+<table>
+    <thead>
+    <tr>
+        <th>Option</th>
+        <th>Description</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr>
+        <td><pre>--cluster-store=PROVIDER://URL</pre></td>
+        <td>Describes the location of the KV service.</td>
+    </tr>
+    <tr>
+        <td><pre>--cluster-advertise=HOST_IP|HOST_IFACE:PORT</pre></td>
+        <td>The IP address or interface of the HOST used for clustering.</td>
+    </tr>
+    </tbody>
+</table>
 
 Create an `overlay` network on one of the machines in the Swarm.
 
-        $ docker network create --driver overlay my-multi-host-network
+    $ docker network create --driver overlay my-multi-host-network
 
 This results in a single network spanning multiple hosts. An `overlay` network
 provides complete isolation for the containers.
@@ -436,7 +450,7 @@ provides complete isolation for the containers.
 
 Then, on each host, launch containers making sure to specify the network name.
 
-        $ docker run -itd --net=my-multi-host-network busybox
+    $ docker run -itd --net=my-multi-host-network busybox
 
 Once connected, each container has access to all the containers in the network
 regardless of which Docker host the container was launched on.
