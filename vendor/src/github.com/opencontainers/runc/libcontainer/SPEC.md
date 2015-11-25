@@ -97,12 +97,12 @@ that is local to the container's rootfs.
 After the container has `/proc` mounted a few standard symlinks are setup 
 within `/dev/` for the io.
 
-|    Source    | Destination |
-| ------------ | ----------- |
-| /proc/1/fd   | /dev/fd     |
-| /proc/1/fd/0 | /dev/stdin  |
-| /proc/1/fd/1 | /dev/stdout |
-| /proc/1/fd/2 | /dev/stderr |
+|    Source       | Destination |
+| --------------- | ----------- |
+| /proc/self/fd   | /dev/fd     |
+| /proc/self/fd/0 | /dev/stdin  |
+| /proc/self/fd/1 | /dev/stdout |
+| /proc/self/fd/2 | /dev/stderr |
 
 A `pivot_root` is used to change the root for the process, effectively 
 jailing the process inside the rootfs.

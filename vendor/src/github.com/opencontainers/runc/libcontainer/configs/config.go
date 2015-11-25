@@ -33,17 +33,18 @@ type Seccomp struct {
 type Action int
 
 const (
-	Kill Action = iota - 4
+	Kill Action = iota + 1
 	Errno
 	Trap
 	Allow
+	Trace
 )
 
 // A comparison operator to be used when matching syscall arguments in Seccomp
 type Operator int
 
 const (
-	EqualTo Operator = iota
+	EqualTo Operator = iota + 1
 	NotEqualTo
 	GreaterThan
 	GreaterThanOrEqualTo
@@ -182,6 +183,9 @@ type Hooks struct {
 	// Prestart commands are executed after the container namespaces are created,
 	// but before the user supplied command is executed from init.
 	Prestart []Hook
+
+	// Poststart commands are executed after the container init process starts.
+	Poststart []Hook
 
 	// Poststop commands are executed after the container init process exits.
 	Poststop []Hook

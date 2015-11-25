@@ -552,7 +552,7 @@ func pushReservation(bytePos, bitPos uint64, head *sequence, release bool) *sequ
 		}
 		removeCurrentIfEmpty(&newHead, newSequence, current)
 		mergeSequences(previous)
-	} else if precBlocks == current.count-2 { // Last in sequence (B)
+	} else if precBlocks == current.count { // Last in sequence (B)
 		newSequence.next = current.next
 		current.next = newSequence
 		mergeSequences(current)

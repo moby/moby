@@ -1,3 +1,5 @@
+// +build linux freebsd
+
 package configs
 
 type FreezerState string
@@ -7,9 +9,6 @@ const (
 	Frozen    FreezerState = "FROZEN"
 	Thawed    FreezerState = "THAWED"
 )
-
-// TODO Windows: This can be factored out in the future as Cgroups are not
-// supported on the Windows platform.
 
 type Cgroup struct {
 	Name string `json:"name"`

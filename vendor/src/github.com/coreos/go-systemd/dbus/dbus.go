@@ -64,11 +64,11 @@ func PathBusEscape(path string) string {
 type Conn struct {
 	// sysconn/sysobj are only used to call dbus methods
 	sysconn *dbus.Conn
-	sysobj  *dbus.Object
+	sysobj  dbus.BusObject
 
 	// sigconn/sigobj are only used to receive dbus signals
 	sigconn *dbus.Conn
-	sigobj  *dbus.Object
+	sigobj  dbus.BusObject
 
 	jobListener struct {
 		jobs map[dbus.ObjectPath]chan<- string
@@ -86,14 +86,30 @@ type Conn struct {
 // New establishes a connection to the system bus and authenticates.
 // Callers should call Close() when done with the connection.
 func New() (*Conn, error) {
-	return newConnection(dbus.SystemBusPrivate)
+	return newConnection(func() (*dbus.Conn, error) {
+		return dbusAuthHelloConnection(dbus.SystemBusPrivate)
+	})
 }
 
 // NewUserConnection establishes a connection to the session bus and
 // authenticates. This can be used to connect to systemd user instances.
 // Callers should call Close() when done with the connection.
 func NewUserConnection() (*Conn, error) {
-	return newConnection(dbus.SessionBusPrivate)
+	return newConnection(func() (*dbus.Conn, error) {
+		return dbusAuthHelloConnection(dbus.SessionBusPrivate)
+	})
+}
+
+// NewSystemdConnection establishes a private, direct connection to systemd.
+// This can be used for communicating with systemd without a dbus daemon.
+// Callers should call Close() when done with the connection.
+func NewSystemdConnection() (*Conn, error) {
+	return newConnection(func() (*dbus.Conn, error) {
+		// We skip Hello when talking directly to systemd.
+		return dbusAuthConnection(func() (*dbus.Conn, error) {
+			return dbus.Dial("unix:path=/run/systemd/private")
+		})
+	})
 }
 
 // Close closes an established connection
@@ -103,12 +119,12 @@ func (c *Conn) Close() {
 }
 
 func newConnection(createBus func() (*dbus.Conn, error)) (*Conn, error) {
-	sysconn, err := dbusConnection(createBus)
+	sysconn, err := createBus()
 	if err != nil {
 		return nil, err
 	}
 
-	sigconn, err := dbusConnection(createBus)
+	sigconn, err := createBus()
 	if err != nil {
 		sysconn.Close()
 		return nil, err
@@ -132,7 +148,7 @@ func newConnection(createBus func() (*dbus.Conn, error)) (*Conn, error) {
 	return c, nil
 }
 
-func dbusConnection(createBus func() (*dbus.Conn, error)) (*dbus.Conn, error) {
+func dbusAuthConnection(createBus func() (*dbus.Conn, error)) (*dbus.Conn, error) {
 	conn, err := createBus()
 	if err != nil {
 		return nil, err
@@ -149,8 +165,16 @@ func dbusConnection(createBus func() (*dbus.Conn, error)) (*dbus.Conn, error) {
 		return nil, err
 	}
 
-	err = conn.Hello()
+	return conn, nil
+}
+
+func dbusAuthHelloConnection(createBus func() (*dbus.Conn, error)) (*dbus.Conn, error) {
+	conn, err := dbusAuthConnection(createBus)
 	if err != nil {
+		return nil, err
+	}
+
+	if err = conn.Hello(); err != nil {
 		conn.Close()
 		return nil, err
 	}
@@ -158,6 +182,6 @@ func dbusConnection(createBus func() (*dbus.Conn, error)) (*dbus.Conn, error) {
 	return conn, nil
 }
 
-func systemdObject(conn *dbus.Conn) *dbus.Object {
+func systemdObject(conn *dbus.Conn) dbus.BusObject {
 	return conn.Object("org.freedesktop.systemd1", dbus.ObjectPath("/org/freedesktop/systemd1"))
 }
