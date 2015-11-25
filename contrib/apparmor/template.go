@@ -25,7 +25,6 @@ profile /usr/bin/docker (attach_disconnected, complain) {
   signal (receive) peer=unconfined,
   signal (send),
 {{end}}{{end}}
-  ipc rw,
   network,
   capability,
   owner /** rw,
