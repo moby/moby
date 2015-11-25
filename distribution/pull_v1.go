@@ -332,7 +332,7 @@ func (p *v1Puller) pullImage(out io.Writer, v1ID, endpoint string, localNameRef 
 		return layersDownloaded, err
 	}
 
-	if err := p.config.TagStore.Add(localNameRef, imageID, true); err != nil {
+	if err := p.config.TagStore.AddTag(localNameRef, imageID, true); err != nil {
 		return layersDownloaded, err
 	}
 

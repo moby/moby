@@ -195,7 +195,7 @@ func restoreCustomImage(driver graphdriver.Driver, is image.Store, ls layer.Stor
 				return err
 			}
 
-			if err := ts.Add(ref, id, true); err != nil {
+			if err := ts.AddTag(ref, id, true); err != nil {
 				return err
 			}
 

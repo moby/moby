@@ -1024,20 +1024,16 @@ func (daemon *Daemon) changes(container *Container) ([]archive.Change, error) {
 // imageName. If force is true, an existing tag with the same name may be
 // overwritten.
 func (daemon *Daemon) TagImage(newTag reference.Named, imageName string, force bool) error {
-	if _, isDigested := newTag.(reference.Digested); isDigested {
-		return errors.New("refusing to create a tag with a digest reference")
-	}
-	if newTag.Name() == string(digest.Canonical) {
-		return errors.New("refusing to create an ambiguous tag using digest algorithm as name")
-	}
-
-	newTag = registry.NormalizeLocalReference(newTag)
 	imageID, err := daemon.GetImageID(imageName)
 	if err != nil {
 		return err
 	}
+	newTag = registry.NormalizeLocalReference(newTag)
+	if err := daemon.tagStore.AddTag(newTag, imageID, force); err != nil {
+		return err
+	}
 	daemon.EventsService.Log("tag", newTag.String(), "")
-	return daemon.tagStore.Add(newTag, imageID, force)
+	return nil
 }
 
 // PullImage initiates a pull operation. image is the repository name to pull, and

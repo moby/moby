@@ -128,7 +128,7 @@ func (l *tarexporter) setLoadedTag(ref reference.NamedTagged, imgID image.ID, ou
 		fmt.Fprintf(outStream, "The image %s already exists, renaming the old one with ID %s to empty string\n", ref.String(), string(prevID)) // todo: this message is wrong in case of multiple tags
 	}
 
-	if err := l.ts.Add(ref, imgID, true); err != nil {
+	if err := l.ts.AddTag(ref, imgID, true); err != nil {
 		return err
 	}
 	return nil

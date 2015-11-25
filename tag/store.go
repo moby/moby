@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/docker/distribution/digest"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/image"
 )
@@ -32,7 +33,8 @@ type Association struct {
 type Store interface {
 	References(id image.ID) []reference.Named
 	ReferencesByName(ref reference.Named) []Association
-	Add(ref reference.Named, id image.ID, force bool) error
+	AddTag(ref reference.Named, id image.ID, force bool) error
+	AddDigest(ref reference.Canonical, id image.ID, force bool) error
 	Delete(ref reference.Named) (bool, error)
 	Get(ref reference.Named) (image.ID, error)
 }
@@ -90,10 +92,24 @@ func NewTagStore(jsonPath string) (Store, error) {
 	return store, nil
 }
 
-// Add adds a tag or digest to the store. If force is set to true, existing
+// Add adds a tag to the store. If force is set to true, existing
 // references can be overwritten. This only works for tags, not digests.
-func (store *store) Add(ref reference.Named, id image.ID, force bool) error {
-	ref = defaultTagIfNameOnly(ref)
+func (store *store) AddTag(ref reference.Named, id image.ID, force bool) error {
+	if _, isDigested := ref.(reference.Digested); isDigested {
+		return errors.New("refusing to create a tag with a digest reference")
+	}
+	return store.addReference(defaultTagIfNameOnly(ref), id, force)
+}
+
+// Add adds a digest reference to the store.
+func (store *store) AddDigest(ref reference.Canonical, id image.ID, force bool) error {
+	return store.addReference(ref, id, force)
+}
+
+func (store *store) addReference(ref reference.Named, id image.ID, force bool) error {
+	if ref.Name() == string(digest.Canonical) {
+		return errors.New("refusing to create an ambiguous tag using digest algorithm as name")
+	}
 
 	store.mu.Lock()
 	defer store.mu.Unlock()

@@ -190,7 +190,8 @@ func migrateContainers(root string, ls graphIDMounter, is image.Store, imageMapp
 }
 
 type tagAdder interface {
-	Add(ref reference.Named, id image.ID, force bool) error
+	AddTag(ref reference.Named, id image.ID, force bool) error
+	AddDigest(ref reference.Canonical, id image.ID, force bool) error
 }
 
 func migrateTags(root, driverName string, ts tagAdder, mappings map[string]image.ID) error {
@@ -226,20 +227,23 @@ func migrateTags(root, driverName string, ts tagAdder, mappings map[string]image
 					continue
 				}
 				if dgst, err := digest.ParseDigest(tag); err == nil {
-					ref, err = reference.WithDigest(ref, dgst)
+					canonical, err := reference.WithDigest(ref, dgst)
 					if err != nil {
 						logrus.Errorf("migrate tags: invalid digest %q, %q", dgst, err)
 						continue
 					}
+					if err := ts.AddDigest(canonical, strongID, false); err != nil {
+						logrus.Errorf("can't migrate digest %q for %q, err: %q", ref.String(), strongID, err)
+					}
 				} else {
-					ref, err = reference.WithTag(ref, tag)
+					tagRef, err := reference.WithTag(ref, tag)
 					if err != nil {
 						logrus.Errorf("migrate tags: invalid tag %q, %q", tag, err)
 						continue
 					}
-				}
-				if err := ts.Add(ref, strongID, false); err != nil {
-					logrus.Errorf("can't migrate tag %q for %q, err: %q", ref.String(), strongID, err)
+					if err := ts.AddTag(tagRef, strongID, false); err != nil {
+						logrus.Errorf("can't migrate tag %q for %q, err: %q", ref.String(), strongID, err)
+					}
 				}
 				logrus.Infof("migrated tag %s:%s to point to %s", name, tag, strongID)
 			}
