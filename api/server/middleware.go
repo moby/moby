@@ -25,7 +25,7 @@ type middleware func(handler httputils.APIFunc) httputils.APIFunc
 func (s *Server) loggingMiddleware(handler httputils.APIFunc) httputils.APIFunc {
 	return func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 		if s.cfg.Logging {
-			logrus.Infof("%s %s", r.Method, r.RequestURI)
+			logrus.Debugf("%s %s", r.Method, r.RequestURI)
 		}
 		return handler(ctx, w, r, vars)
 	}
