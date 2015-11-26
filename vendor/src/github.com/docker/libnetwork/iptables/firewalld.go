@@ -27,7 +27,7 @@ const (
 // Conn is a connection to firewalld dbus endpoint.
 type Conn struct {
 	sysconn *dbus.Conn
-	sysobj  *dbus.Object
+	sysobj  dbus.BusObject
 	signal  chan *dbus.Signal
 }
 

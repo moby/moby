@@ -17,16 +17,25 @@ import (
 type MemoryGroup struct {
 }
 
-func (s *MemoryGroup) Apply(d *data) (err error) {
+func (s *MemoryGroup) Name() string {
+	return "memory"
+}
+
+func (s *MemoryGroup) Apply(d *cgroupData) (err error) {
 	path, err := d.path("memory")
-	if err != nil {
-		if cgroups.IsNotFound(err) {
-			return nil
-		}
+	if err != nil && !cgroups.IsNotFound(err) {
 		return err
 	}
-	if err := os.MkdirAll(path, 0755); err != nil {
-		return err
+	if memoryAssigned(d.config) {
+		if path != "" {
+			if err := os.MkdirAll(path, 0755); err != nil {
+				return err
+			}
+		}
+
+		if err := s.Set(path, d.config); err != nil {
+			return err
+		}
 	}
 
 	defer func() {
@@ -35,13 +44,10 @@ func (s *MemoryGroup) Apply(d *data) (err error) {
 		}
 	}()
 
-	if err := s.Set(path, d.c); err != nil {
-		return err
-	}
-
 	// We need to join memory cgroup after set memory limits, because
 	// kmem.limit_in_bytes can only be set when the cgroup is empty.
-	if _, err = d.join("memory"); err != nil {
+	_, err = d.join("memory")
+	if err != nil && !cgroups.IsNotFound(err) {
 		return err
 	}
 
@@ -88,7 +94,7 @@ func (s *MemoryGroup) Set(path string, cgroup *configs.Cgroup) error {
 	return nil
 }
 
-func (s *MemoryGroup) Remove(d *data) error {
+func (s *MemoryGroup) Remove(d *cgroupData) error {
 	return removePath(d.path("memory"))
 }
 
@@ -130,6 +136,15 @@ func (s *MemoryGroup) GetStats(path string, stats *cgroups.Stats) error {
 	stats.MemoryStats.KernelUsage = kernelUsage
 
 	return nil
+}
+
+func memoryAssigned(cgroup *configs.Cgroup) bool {
+	return cgroup.Memory != 0 ||
+		cgroup.MemoryReservation != 0 ||
+		cgroup.MemorySwap > 0 ||
+		cgroup.KernelMemory > 0 ||
+		cgroup.OomKillDisable ||
+		cgroup.MemorySwappiness != -1
 }
 
 func getMemoryData(path, name string) (cgroups.MemoryData, error) {

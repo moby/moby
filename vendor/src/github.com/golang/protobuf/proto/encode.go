@@ -1128,12 +1128,10 @@ func size_new_map(p *Properties, base structPointer) int {
 		keycopy.Set(key)
 		valcopy.Set(val)
 
-		// Tag codes for key and val are the responsibility of the sub-sizer.
-		keysize := p.mkeyprop.size(p.mkeyprop, keybase)
-		valsize := p.mvalprop.size(p.mvalprop, valbase)
-		entry := keysize + valsize
-		// Add on tag code and length of map entry itself.
-		n += len(p.tagcode) + sizeVarint(uint64(entry)) + entry
+		// Tag codes are two bytes per map entry.
+		n += 2
+		n += p.mkeyprop.size(p.mkeyprop, keybase)
+		n += p.mvalprop.size(p.mvalprop, valbase)
 	}
 	return n
 }

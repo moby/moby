@@ -1,33 +1,20 @@
-.PHONY: all all-local build build-local check check-code check-format run-tests check-local integration-tests install-deps coveralls circle-ci start-services clean
+.PHONY: all all-local build build-local clean cross cross-local check check-code check-format run-tests integration-tests check-local coveralls circle-ci-cross circle-ci-build circle-ci-check circle-ci
 SHELL=/bin/bash
 build_image=libnetworkbuild
 dockerargs = --privileged -v $(shell pwd):/go/src/github.com/docker/libnetwork -w /go/src/github.com/docker/libnetwork
 container_env = -e "INSIDECONTAINER=-incontainer=true"
-docker = docker run --rm -it ${dockerargs} ${container_env} ${build_image}
+docker = docker run --rm -it ${dockerargs} $$EXTRA_ARGS ${container_env} ${build_image}
 ciargs = -e "COVERALLS_TOKEN=$$COVERALLS_TOKEN" -e "INSIDECONTAINER=-incontainer=true"
-cidocker = docker run ${ciargs} ${dockerargs} golang:1.4
+cidocker = docker run ${dockerargs} ${ciargs} ${container_env} ${build_image}
+CROSS_PLATFORMS = linux/amd64 linux/386 linux/arm windows/amd64 windows/386
+
+${build_image}.created:
+	docker build -f Dockerfile.build -t ${build_image} .
+	touch ${build_image}.created
 
 all: ${build_image}.created build check integration-tests clean
 
-integration-tests: ./cmd/dnet/dnet
-	@./test/integration/dnet/run-integration-tests.sh
-
-./cmd/dnet/dnet:
-	make build
-
-clean:
-	@if [ -e ./cmd/dnet/dnet ]; then \
-		echo "Removing dnet binary"; \
-		rm -rf ./cmd/dnet/dnet; \
-	fi
-
-all-local: check-local build-local
-
-${build_image}.created:
-	docker run --name=libnetworkbuild -v $(shell pwd):/go/src/github.com/docker/libnetwork -w /go/src/github.com/docker/libnetwork golang:1.4 make install-deps
-	docker commit libnetworkbuild ${build_image}
-	docker rm libnetworkbuild
-	touch ${build_image}.created
+all-local: build-local check-local integration-tests-local clean
 
 build: ${build_image}.created
 	@echo "Building code... "
@@ -35,8 +22,25 @@ build: ${build_image}.created
 	@echo "Done building code"
 
 build-local:
-	@$(shell which godep) go build  ./...
-	@$(shell which godep) go build -o ./cmd/dnet/dnet ./cmd/dnet
+	@mkdir -p "bin"
+	$(shell which godep) go build -o "bin/dnet" ./cmd/dnet
+
+clean:
+	@if [ -d bin ]; then \
+		echo "Removing dnet binaries"; \
+		rm -rf bin; \
+	fi
+
+cross: ${build_image}.created
+	@mkdir -p "bin"
+	@for platform in ${CROSS_PLATFORMS}; do \
+	        EXTRA_ARGS="-e GOOS=$${platform%/*} -e GOARCH=$${platform##*/}" ; \
+		echo "$${platform}..." ; \
+	        ${docker} make cross-local ; \
+	done
+
+cross-local:
+	$(shell which godep) go build -o "bin/dnet-$$GOOS-$$GOARCH" ./cmd/dnet
 
 check: ${build_image}.created
 	@${docker} ./wrapmake.sh check-local
@@ -71,27 +75,31 @@ run-tests:
 	done
 	@echo "Done running tests"
 
-check-local:	check-format check-code start-services run-tests
+check-local:	check-format check-code run-tests
 
-install-deps:
-	apt-get update && apt-get -y install iptables zookeeperd
-	git clone https://github.com/golang/tools /go/src/golang.org/x/tools
-	go install golang.org/x/tools/cmd/vet
-	go install golang.org/x/tools/cmd/goimports
-	go install golang.org/x/tools/cmd/cover
-	go get github.com/tools/godep
-	go get github.com/golang/lint/golint
-	go get github.com/mattn/goveralls
+integration-tests: ./bin/dnet
+	@./test/integration/dnet/run-integration-tests.sh
+
+./bin/dnet:
+	make build
 
 coveralls:
 	-@goveralls -service circleci -coverprofile=coverage.coverprofile -repotoken $$COVERALLS_TOKEN
 
 # CircleCI's Docker fails when cleaning up using the --rm flag
-# The following target is a workaround for this
+# The following targets are a workaround for this
+circle-ci-cross: ${build_image}.created
+	@mkdir -p "bin"
+	@for platform in ${CROSS_PLATFORMS}; do \
+	        EXTRA_ARGS="-e GOOS=$${platform%/*} -e GOARCH=$${platform##*/}" ; \
+		echo "$${platform}..." ; \
+	        ${cidocker} make cross-local ; \
+	done
 
-circle-ci:
-	@${cidocker} make install-deps build-local check-local coveralls
-	make integration-tests
+circle-ci-check: ${build_image}.created
+	@${cidocker} make check-local coveralls
 
-start-services:
-	service zookeeper start
+circle-ci-build: ${build_image}.created
+	@${cidocker} make build-local
+
+circle-ci: circle-ci-check circle-ci-build integration-tests

@@ -12,7 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package journal provides write bindings to the systemd journal
+// Package journal provides write bindings to the local systemd journal.
+// It is implemented in pure Go and connects to the journal directly over its
+// unix socket.
+//
+// To read from the journal, see the "sdjournal" package, which wraps the
+// sd-journal a C API.
+//
+// http://www.freedesktop.org/software/systemd/man/systemd-journald.service.html
 package journal
 
 import (
@@ -53,14 +60,14 @@ func init() {
 	}
 }
 
-// Enabled returns true iff the systemd journal is available for logging
+// Enabled returns true if the local systemd journal is available for logging
 func Enabled() bool {
 	return conn != nil
 }
 
-// Send a message to the systemd journal. vars is a map of journald fields to
-// values.  Fields must be composed of uppercase letters, numbers, and
-// underscores, but must not start with an underscore. Within these
+// Send a message to the local systemd journal. vars is a map of journald
+// fields to values.  Fields must be composed of uppercase letters, numbers,
+// and underscores, but must not start with an underscore. Within these
 // restrictions, any arbitrary field name may be used.  Some names have special
 // significance: see the journalctl documentation
 // (http://www.freedesktop.org/software/systemd/man/systemd.journal-fields.html)
@@ -100,6 +107,11 @@ func Send(message string, priority Priority, vars map[string]string) error {
 		return journalError(err.Error())
 	}
 	return nil
+}
+
+// Print prints a message to the local systemd journal using Send().
+func Print(priority Priority, format string, a ...interface{}) error {
+	return Send(fmt.Sprintf(format, a...), priority, nil)
 }
 
 func appendVariable(w io.Writer, name, value string) {

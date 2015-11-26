@@ -1,3 +1,5 @@
+// +build !linux,!freebsd
+
 package configs
 
 // Namespace defines configuration for each namespace.  It specifies an

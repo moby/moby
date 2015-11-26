@@ -159,7 +159,7 @@ func (l *LinuxFactory) Create(id string, config *configs.Config) (Container, err
 	}
 	containerRoot := filepath.Join(l.Root, id)
 	if _, err := os.Stat(containerRoot); err == nil {
-		return nil, newGenericError(fmt.Errorf("Container with id exists: %v", id), IdInUse)
+		return nil, newGenericError(fmt.Errorf("container with id exists: %v", id), IdInUse)
 	} else if !os.IsNotExist(err) {
 		return nil, newGenericError(err, SystemError)
 	}
@@ -210,9 +210,10 @@ func (l *LinuxFactory) Type() string {
 // StartInitialization loads a container by opening the pipe fd from the parent to read the configuration and state
 // This is a low level implementation detail of the reexec and should not be consumed externally
 func (l *LinuxFactory) StartInitialization() (err error) {
-	pipefd, err := strconv.Atoi(os.Getenv("_LIBCONTAINER_INITPIPE"))
+	fdStr := os.Getenv("_LIBCONTAINER_INITPIPE")
+	pipefd, err := strconv.Atoi(fdStr)
 	if err != nil {
-		return err
+		return fmt.Errorf("error converting env var _LIBCONTAINER_INITPIPE(%q) to an int: %s", fdStr, err)
 	}
 	var (
 		pipe = os.NewFile(uintptr(pipefd), "pipe")
@@ -260,10 +261,10 @@ func (l *LinuxFactory) loadState(root string) (*State, error) {
 
 func (l *LinuxFactory) validateID(id string) error {
 	if !idRegex.MatchString(id) {
-		return newGenericError(fmt.Errorf("Invalid id format: %v", id), InvalidIdFormat)
+		return newGenericError(fmt.Errorf("invalid id format: %v", id), InvalidIdFormat)
 	}
 	if len(id) > maxIdLen {
-		return newGenericError(fmt.Errorf("Invalid id format: %v", id), InvalidIdFormat)
+		return newGenericError(fmt.Errorf("invalid id format: %v", id), InvalidIdFormat)
 	}
 	return nil
 }
