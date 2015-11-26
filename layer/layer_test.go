@@ -100,6 +100,7 @@ func createLayer(ls Store, parent ChainID, layerFunc layerInit) (Layer, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer ts.Close()
 
 	layer, err := ls.Register(ts, parent)
 	if err != nil {
@@ -521,6 +522,7 @@ func assertLayerDiff(t *testing.T, expected []byte, layer Layer) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer ts.Close()
 
 	actual, err := ioutil.ReadAll(ts)
 	if err != nil {

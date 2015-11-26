@@ -360,7 +360,7 @@ type mockLayer struct {
 	parent  *mockLayer
 }
 
-func (l *mockLayer) TarStream() (io.Reader, error) {
+func (l *mockLayer) TarStream() (io.ReadCloser, error) {
 	return nil, nil
 }
 
