@@ -22,12 +22,12 @@ func (ml *mountedLayer) cacheParent() string {
 	return ""
 }
 
-func (ml *mountedLayer) TarStream() (io.Reader, error) {
+func (ml *mountedLayer) TarStream() (io.ReadCloser, error) {
 	archiver, err := ml.layerStore.driver.Diff(ml.mountID, ml.cacheParent())
 	if err != nil {
 		return nil, err
 	}
-	return autoClosingReader{archiver}, nil
+	return archiver, nil
 }
 
 func (ml *mountedLayer) Path() (string, error) {
@@ -49,16 +49,4 @@ func (ml *mountedLayer) Parent() Layer {
 
 func (ml *mountedLayer) Size() (int64, error) {
 	return ml.layerStore.driver.DiffSize(ml.mountID, ml.cacheParent())
-}
-
-type autoClosingReader struct {
-	source io.ReadCloser
-}
-
-func (r autoClosingReader) Read(p []byte) (n int, err error) {
-	n, err = r.source.Read(p)
-	if err != nil {
-		r.source.Close()
-	}
-	return
 }

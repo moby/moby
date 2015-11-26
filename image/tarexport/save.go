@@ -287,6 +287,8 @@ func (s *saveSession) saveLayer(id layer.ChainID, legacyImg image.V1Image, creat
 	if err != nil {
 		return err
 	}
+	defer arch.Close()
+
 	if _, err := io.Copy(tarFile, arch); err != nil {
 		return err
 	}

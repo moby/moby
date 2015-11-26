@@ -429,6 +429,7 @@ func (p *v1Pusher) pushImage(v1Image v1Image, ep string) (checksum string, err e
 	if err != nil {
 		return "", err
 	}
+	defer arch.Close()
 
 	// don't care if this fails; best effort
 	size, _ := l.Size()
