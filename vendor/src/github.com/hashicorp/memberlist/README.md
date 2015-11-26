@@ -127,8 +127,8 @@ The changes from SWIM are noted here:
   also will periodically send out dedicated gossip messages on their own. This
   feature lets you have a higher gossip rate (for example once per 200ms)
   and a slower failure detection rate (such as once per second), resulting
-  in overall faster convergence rates and data propagation speeds. This feature
-  can be totally disabled as well, if you wish.
+  in overall faster convergence rates and data propogation speeds. This feature
+  can be totally disabed as well, if you wish.
 
 * memberlist stores around the state of dead nodes for a set amount of time,
   so that when full syncs are requested, the requester also receives information
