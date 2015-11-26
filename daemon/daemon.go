@@ -536,12 +536,11 @@ func (daemon *Daemon) GetByName(name string) (*Container, error) {
 func (daemon *Daemon) GetEventFilter(filter filters.Args) *events.Filter {
 	// incoming container filter can be name, id or partial id, convert to
 	// a full container id
-	for i, cn := range filter["container"] {
+	for _, cn := range filter.Get("container") {
 		c, err := daemon.Get(cn)
-		if err != nil {
-			filter["container"][i] = ""
-		} else {
-			filter["container"][i] = c.ID
+		filter.Del("container", cn)
+		if err == nil {
+			filter.Add("container", c.ID)
 		}
 	}
 	return events.NewFilter(filter, daemon.GetLabels)

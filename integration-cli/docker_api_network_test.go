@@ -230,9 +230,9 @@ func isNetworkAvailable(c *check.C, name string) bool {
 func getNetworkIDByName(c *check.C, name string) string {
 	var (
 		v          = url.Values{}
-		filterArgs = filters.Args{}
+		filterArgs = filters.NewArgs()
 	)
-	filterArgs["name"] = []string{name}
+	filterArgs.Add("name", name)
 	filterJSON, err := filters.ToParam(filterArgs)
 	c.Assert(err, checker.IsNil)
 	v.Set("filters", filterJSON)

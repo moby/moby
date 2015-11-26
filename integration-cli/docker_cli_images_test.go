@@ -74,7 +74,7 @@ func (s *DockerSuite) TestImagesErrorWithInvalidFilterNameTest(c *check.C) {
 	c.Assert(out, checker.Contains, "Invalid filter")
 }
 
-func (s *DockerSuite) TestImagesFilterLabel(c *check.C) {
+func (s *DockerSuite) TestImagesFilterLabelMatch(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	imageName1 := "images_filter_test1"
 	imageName2 := "images_filter_test2"

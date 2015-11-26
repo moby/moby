@@ -54,7 +54,7 @@ func (cli *DockerCli) CmdVolumeLs(args ...string) error {
 	cmd.Require(flag.Exact, 0)
 	cmd.ParseFlags(args, true)
 
-	volFilterArgs := filters.Args{}
+	volFilterArgs := filters.NewArgs()
 	for _, f := range flFilter.GetAll() {
 		var err error
 		volFilterArgs, err = filters.ParseFlag(f, volFilterArgs)
@@ -64,7 +64,7 @@ func (cli *DockerCli) CmdVolumeLs(args ...string) error {
 	}
 
 	v := url.Values{}
-	if len(volFilterArgs) > 0 {
+	if volFilterArgs.Len() > 0 {
 		filterJSON, err := filters.ToParam(volFilterArgs)
 		if err != nil {
 			return err

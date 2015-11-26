@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"path"
 	"sort"
-	"strings"
 
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
@@ -13,9 +12,9 @@ import (
 	"github.com/docker/docker/pkg/parsers/filters"
 )
 
-var acceptedImageFilterTags = map[string]struct{}{
-	"dangling": {},
-	"label":    {},
+var acceptedImageFilterTags = map[string]bool{
+	"dangling": true,
+	"label":    true,
 }
 
 // byCreated is a temporary type used to sort a list of images by creation
@@ -47,19 +46,15 @@ func (daemon *Daemon) Images(filterArgs, filter string, all bool) ([]*types.Imag
 	if err != nil {
 		return nil, err
 	}
-	for name := range imageFilters {
-		if _, ok := acceptedImageFilterTags[name]; !ok {
-			return nil, fmt.Errorf("Invalid filter '%s'", name)
-		}
+	if err := imageFilters.Validate(acceptedImageFilterTags); err != nil {
+		return nil, err
 	}
 
-	if i, ok := imageFilters["dangling"]; ok {
-		for _, value := range i {
-			if v := strings.ToLower(value); v == "true" {
-				danglingOnly = true
-			} else if v != "false" {
-				return nil, fmt.Errorf("Invalid filter 'dangling=%s'", v)
-			}
+	if imageFilters.Include("dangling") {
+		if imageFilters.ExactMatch("dangling", "true") {
+			danglingOnly = true
+		} else if !imageFilters.ExactMatch("dangling", "false") {
+			return nil, fmt.Errorf("Invalid filter 'dangling=%s'", imageFilters.Get("dangling"))
 		}
 	}
 
@@ -82,9 +77,9 @@ func (daemon *Daemon) Images(filterArgs, filter string, all bool) ([]*types.Imag
 	}
 
 	for id, img := range allImages {
-		if _, ok := imageFilters["label"]; ok {
+		if imageFilters.Include("label") {
+			// Very old image that do not have image.Config (or even labels)
 			if img.Config == nil {
-				// Very old image that do not have image.Config (or even labels)
 				continue
 			}
 			// We are now sure image.Config is not nil
