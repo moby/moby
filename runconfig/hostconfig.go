@@ -218,7 +218,7 @@ type HostConfig struct {
 	ReadonlyRootfs  bool                  // Is the container root filesystem in read-only
 	SecurityOpt     []string              // List of string values to customize labels for MLS systems, such as SELinux.
 	UTSMode         UTSMode               // UTS namespace to use for the container
-	ShmSize         int64                 // Total shm memory usage
+	ShmSize         *int64                // Total shm memory usage
 
 	// Applicable to Windows
 	ConsoleSize [2]int         // Initial console size

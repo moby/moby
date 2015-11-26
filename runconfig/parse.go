@@ -42,6 +42,9 @@ var (
 	ErrConflictNetworkExposePorts = fmt.Errorf("Conflicting options: --expose and the network mode (--net)")
 )
 
+// DefaultSHMSize is the default size (64MB) of the SHM which will be mounted in the container
+const DefaultSHMSize int64 = 67108864
+
 // Parse parses the specified args for the specified command and generates a Config,
 // a HostConfig and returns them with the specified command.
 // If the specified args are not valid, it will return an error.
@@ -201,16 +204,13 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		return nil, nil, cmd, fmt.Errorf("Invalid value: %d. Valid memory swappiness range is 0-100", swappiness)
 	}
 
-	var parsedShm int64 = 67108864 // initial SHM size is 64MB
+	var parsedShm *int64
 	if *flShmSize != "" {
-		var err error
-		parsedShm, err = units.RAMInBytes(*flShmSize)
+		shmSize, err := units.RAMInBytes(*flShmSize)
 		if err != nil {
-			return nil, nil, cmd, fmt.Errorf("--shm-size: invalid SHM size")
+			return nil, nil, cmd, err
 		}
-		if parsedShm <= 0 {
-			return nil, nil, cmd, fmt.Errorf("--shm-size: SHM size must be greater than 0 . You specified: %v ", parsedShm)
-		}
+		parsedShm = &shmSize
 	}
 
 	var binds []string
