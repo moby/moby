@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/url"
+	"reflect"
 	"sort"
 	"strings"
 	"sync"
@@ -29,6 +30,45 @@ type containerStats struct {
 	BlockWrite       float64
 	mu               sync.RWMutex
 	err              error
+}
+
+var sortFields = map[string]bool{
+	"Name":             true,
+	"CPUPercentage":    true,
+	"Memory":           true,
+	"MemoryLimit":      true,
+	"MemoryPercentage": true,
+	"NetworkRx":        true,
+	"NetworkTx":        true,
+	"BlockRead":        true,
+	"BlockWrite":       true,
+}
+
+type sortStatsBy func(s1, s2 *containerStats) bool
+
+func (by sortStatsBy) Sort(cs []*containerStats) {
+	css := &containerStatsSorter{
+		containerStats: cs,
+		by:             by,
+	}
+	sort.Sort(sort.Reverse(css))
+}
+
+type containerStatsSorter struct {
+	containerStats []*containerStats
+	by             func(s1, s2 *containerStats) bool
+}
+
+func (s *containerStatsSorter) Swap(i, j int) {
+	s.containerStats[i], s.containerStats[j] = s.containerStats[j], s.containerStats[i]
+}
+
+func (s *containerStatsSorter) Less(i, j int) bool {
+	return s.by(s.containerStats[i], s.containerStats[j])
+}
+
+func (s *containerStatsSorter) Len() int {
+	return len(s.containerStats)
 }
 
 type stats struct {
@@ -148,6 +188,7 @@ func (s *containerStats) Display(w io.Writer) error {
 func (cli *DockerCli) CmdStats(args ...string) error {
 	cmd := Cli.Subcmd("stats", []string{"[CONTAINER...]"}, Cli.DockerCommands["stats"].Description, true)
 	all := cmd.Bool([]string{"a", "-all"}, false, "Show all containers (default shows just running)")
+	sortField := cmd.String([]string{"s", "-sort"}, "", "Sort stats by given field in descending order")
 	noStream := cmd.Bool([]string{"-no-stream"}, false, "Disable streaming stats and only pull the first result")
 
 	cmd.ParseFlags(args, true)
@@ -174,6 +215,28 @@ func (cli *DockerCli) CmdStats(args ...string) error {
 	}
 	if len(names) == 0 && !showAll {
 		return fmt.Errorf("No containers found")
+	}
+	var sortFunc sortStatsBy
+	if *sortField != "" {
+		var ref containerStats
+		if val, ok := sortFields[*sortField]; ok && val {
+			statsKind := reflect.ValueOf(ref).FieldByName(*sortField).Kind()
+			if statsKind == reflect.Float64 {
+				sortFunc = func(s1, s2 *containerStats) bool {
+					value1 := reflect.ValueOf(*s1).FieldByName(*sortField).Float()
+					value2 := reflect.ValueOf(*s2).FieldByName(*sortField).Float()
+					return value1 < value2
+				}
+			} else if statsKind == reflect.String {
+				sortFunc = func(s1, s2 *containerStats) bool {
+					value1 := reflect.ValueOf(*s1).FieldByName(*sortField).String()
+					value2 := reflect.ValueOf(*s2).FieldByName(*sortField).String()
+					return value1 < value2
+				}
+			}
+		} else {
+			return fmt.Errorf("no such field in stats: %s", *sortField)
+		}
 	}
 	sort.Strings(names)
 
@@ -277,6 +340,9 @@ func (cli *DockerCli) CmdStats(args ...string) error {
 		printHeader()
 		toRemove := []int{}
 		cStats.mu.Lock()
+		if sortFunc != nil {
+			sortStatsBy(sortFunc).Sort(cStats.cs)
+		}
 		for i, s := range cStats.cs {
 			if err := s.Display(w); err != nil && !*noStream {
 				toRemove = append(toRemove, i)
