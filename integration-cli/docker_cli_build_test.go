@@ -1891,9 +1891,7 @@ func (s *DockerSuite) TestBuildCancellationKillsSleep(c *check.C) {
 
 	startEpoch := daemonTime(c).Unix()
 	// Watch for events since epoch.
-	eventsCmd := exec.Command(
-		dockerBinary, "events",
-		"--since", strconv.FormatInt(startEpoch, 10))
+	eventsCmd := exec.Command(dockerBinary, "events", "--since", strconv.FormatInt(startEpoch, 10))
 	stdout, err := eventsCmd.StdoutPipe()
 	if err != nil {
 		c.Fatal(err)
@@ -1932,12 +1930,12 @@ func (s *DockerSuite) TestBuildCancellationKillsSleep(c *check.C) {
 		c.Fatalf("failed to run build: %s", err)
 	}
 
-	matchCID := regexp.MustCompile("Running in ")
+	matchCID := regexp.MustCompile("Running in (.+)")
 	scanner := bufio.NewScanner(stdoutBuild)
 	for scanner.Scan() {
 		line := scanner.Text()
-		if ok := matchCID.MatchString(line); ok {
-			containerID <- line[len(line)-12:]
+		if matches := matchCID.FindStringSubmatch(line); len(matches) > 0 {
+			containerID <- matches[1]
 			break
 		}
 	}

@@ -92,27 +92,11 @@ func (s *router) getEvents(ctx context.Context, w http.ResponseWriter, r *http.R
 
 	enc := json.NewEncoder(output)
 
-	current, l, cancel := s.daemon.SubscribeToEvents()
-	defer cancel()
+	buffered, l := s.daemon.SubscribeToEvents(since, sinceNano, ef)
+	defer s.daemon.UnsubscribeFromEvents(l)
 
-	eventFilter := s.daemon.GetEventFilter(ef)
-	handleEvent := func(ev *jsonmessage.JSONMessage) error {
-		if eventFilter.Include(ev) {
-			if err := enc.Encode(ev); err != nil {
-				return err
-			}
-		}
-		return nil
-	}
-
-	if since == -1 {
-		current = nil
-	}
-	for _, ev := range current {
-		if ev.Time < since || ((ev.Time == since) && (ev.TimeNano < sinceNano)) {
-			continue
-		}
-		if err := handleEvent(ev); err != nil {
+	for _, ev := range buffered {
+		if err := enc.Encode(ev); err != nil {
 			return err
 		}
 	}
@@ -129,7 +113,7 @@ func (s *router) getEvents(ctx context.Context, w http.ResponseWriter, r *http.R
 			if !ok {
 				continue
 			}
-			if err := handleEvent(jev); err != nil {
+			if err := enc.Encode(jev); err != nil {
 				return err
 			}
 		case <-timer.C:

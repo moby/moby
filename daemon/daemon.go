@@ -532,8 +532,8 @@ func (daemon *Daemon) GetByName(name string) (*Container, error) {
 	return e, nil
 }
 
-// GetEventFilter returns a filters.Filter for a set of filters
-func (daemon *Daemon) GetEventFilter(filter filters.Args) *events.Filter {
+// getEventFilter returns a filters.Filter for a set of filters
+func (daemon *Daemon) getEventFilter(filter filters.Args) *events.Filter {
 	// incoming container filter can be name, id or partial id, convert to
 	// a full container id
 	for _, cn := range filter.Get("container") {
@@ -547,8 +547,15 @@ func (daemon *Daemon) GetEventFilter(filter filters.Args) *events.Filter {
 }
 
 // SubscribeToEvents returns the currently record of events, a channel to stream new events from, and a function to cancel the stream of events.
-func (daemon *Daemon) SubscribeToEvents() ([]*jsonmessage.JSONMessage, chan interface{}, func()) {
-	return daemon.EventsService.Subscribe()
+func (daemon *Daemon) SubscribeToEvents(since, sinceNano int64, filter filters.Args) ([]*jsonmessage.JSONMessage, chan interface{}) {
+	ef := daemon.getEventFilter(filter)
+	return daemon.EventsService.SubscribeTopic(since, sinceNano, ef)
+}
+
+// UnsubscribeFromEvents stops the event subscription for a client by closing the
+// channel where the daemon sends events to.
+func (daemon *Daemon) UnsubscribeFromEvents(listener chan interface{}) {
+	daemon.EventsService.Evict(listener)
 }
 
 // GetLabels for a container or image id
