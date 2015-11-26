@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"testing"
@@ -79,9 +80,16 @@ func TestSave(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to parse reference: %v", err)
 		}
-		err = store.Add(ref, id, false)
-		if err != nil {
-			t.Fatalf("could not add reference %s: %v", refStr, err)
+		if canonical, ok := ref.(reference.Canonical); ok {
+			err = store.AddDigest(canonical, id, false)
+			if err != nil {
+				t.Fatalf("could not add digest reference %s: %v", refStr, err)
+			}
+		} else {
+			err = store.AddTag(ref, id, false)
+			if err != nil {
+				t.Fatalf("could not add reference %s: %v", refStr, err)
+			}
 		}
 	}
 
@@ -130,7 +138,7 @@ func TestAddDeleteGet(t *testing.T) {
 	if err != nil {
 		t.Fatalf("could not parse reference: %v", err)
 	}
-	if err = store.Add(nameOnly, testImageID1, false); err != nil {
+	if err = store.AddTag(nameOnly, testImageID1, false); err != nil {
 		t.Fatalf("error adding to store: %v", err)
 	}
 
@@ -139,7 +147,7 @@ func TestAddDeleteGet(t *testing.T) {
 	if err != nil {
 		t.Fatalf("could not parse reference: %v", err)
 	}
-	if err = store.Add(ref1, testImageID1, false); err != nil {
+	if err = store.AddTag(ref1, testImageID1, false); err != nil {
 		t.Fatalf("error adding to store: %v", err)
 	}
 
@@ -147,7 +155,7 @@ func TestAddDeleteGet(t *testing.T) {
 	if err != nil {
 		t.Fatalf("could not parse reference: %v", err)
 	}
-	if err = store.Add(ref2, testImageID2, false); err != nil {
+	if err = store.AddTag(ref2, testImageID2, false); err != nil {
 		t.Fatalf("error adding to store: %v", err)
 	}
 
@@ -155,7 +163,7 @@ func TestAddDeleteGet(t *testing.T) {
 	if err != nil {
 		t.Fatalf("could not parse reference: %v", err)
 	}
-	if err = store.Add(ref3, testImageID1, false); err != nil {
+	if err = store.AddTag(ref3, testImageID1, false); err != nil {
 		t.Fatalf("error adding to store: %v", err)
 	}
 
@@ -163,7 +171,7 @@ func TestAddDeleteGet(t *testing.T) {
 	if err != nil {
 		t.Fatalf("could not parse reference: %v", err)
 	}
-	if err = store.Add(ref4, testImageID2, false); err != nil {
+	if err = store.AddTag(ref4, testImageID2, false); err != nil {
 		t.Fatalf("error adding to store: %v", err)
 	}
 
@@ -171,16 +179,16 @@ func TestAddDeleteGet(t *testing.T) {
 	if err != nil {
 		t.Fatalf("could not parse reference: %v", err)
 	}
-	if err = store.Add(ref5, testImageID2, false); err != nil {
+	if err = store.AddDigest(ref5.(reference.Canonical), testImageID2, false); err != nil {
 		t.Fatalf("error adding to store: %v", err)
 	}
 
 	// Attempt to overwrite with force == false
-	if err = store.Add(ref4, testImageID3, false); err == nil || !strings.HasPrefix(err.Error(), "Conflict:") {
+	if err = store.AddTag(ref4, testImageID3, false); err == nil || !strings.HasPrefix(err.Error(), "Conflict:") {
 		t.Fatalf("did not get expected error on overwrite attempt - got %v", err)
 	}
 	// Repeat to overwrite with force == true
-	if err = store.Add(ref4, testImageID3, true); err != nil {
+	if err = store.AddTag(ref4, testImageID3, true); err != nil {
 		t.Fatalf("failed to force tag overwrite: %v", err)
 	}
 
@@ -325,4 +333,36 @@ func TestAddDeleteGet(t *testing.T) {
 	if _, err := store.Get(nameOnly); err != ErrDoesNotExist {
 		t.Fatal("Expected ErrDoesNotExist from Get")
 	}
+}
+
+func TestInvalidTags(t *testing.T) {
+	tmpDir, err := ioutil.TempDir("", "tag-store-test")
+	defer os.RemoveAll(tmpDir)
+
+	store, err := NewTagStore(filepath.Join(tmpDir, "repositories.json"))
+	if err != nil {
+		t.Fatalf("error creating tag store: %v", err)
+	}
+	id := image.ID("sha256:470022b8af682154f57a2163d030eb369549549cba00edc69e1b99b46bb924d6")
+
+	// sha256 as repo name
+	ref, err := reference.ParseNamed("sha256:abc")
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = store.AddTag(ref, id, true)
+	if err == nil {
+		t.Fatalf("expected setting tag %q to fail", ref)
+	}
+
+	// setting digest as a tag
+	ref, err = reference.ParseNamed("registry@sha256:367eb40fd0330a7e464777121e39d2f5b3e8e23a1e159342e53ab05c9e4d94e6")
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = store.AddTag(ref, id, true)
+	if err == nil {
+		t.Fatalf("expected setting digest %q to fail", ref)
+	}
+
 }

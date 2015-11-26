@@ -406,7 +406,11 @@ func (p *v2Puller) pullV2Tag(out io.Writer, ref reference.Named) (tagUpdated boo
 	}
 
 	if tagUpdated {
-		if err = p.config.TagStore.Add(ref, imageID, true); err != nil {
+		if canonical, ok := ref.(reference.Canonical); ok {
+			if err = p.config.TagStore.AddDigest(canonical, imageID, true); err != nil {
+				return false, err
+			}
+		} else if err = p.config.TagStore.AddTag(ref, imageID, true); err != nil {
 			return false, err
 		}
 	}
