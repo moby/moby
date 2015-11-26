@@ -4,6 +4,7 @@ rm -rf autogen
 
 cat > dockerversion/version_autogen.go <<DVEOF
 // +build autogen
+
 // Package version is auto-generated at build-time
 package dockerversion
 
