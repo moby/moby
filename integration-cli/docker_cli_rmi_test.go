@@ -322,3 +322,18 @@ func (*DockerSuite) TestRmiParentImageFail(c *check.C) {
 		c.Fatalf("rmi should have failed because it's a parent image, got %s", out)
 	}
 }
+
+func (s *DockerSuite) TestRmiWithParentInUse(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	out, _ := dockerCmd(c, "create", "busybox")
+	cID := strings.TrimSpace(out)
+	out, _ = dockerCmd(c, "commit", cID)
+	imageID := strings.TrimSpace(out)
+
+	out, _ = dockerCmd(c, "create", imageID)
+	cID = strings.TrimSpace(out)
+	out, _ = dockerCmd(c, "commit", cID)
+	imageID = strings.TrimSpace(out)
+
+	dockerCmd(c, "rmi", imageID)
+}

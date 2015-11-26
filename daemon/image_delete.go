@@ -195,6 +195,7 @@ func (daemon *Daemon) removeAllReferencesToImageID(imgID image.ID, records *[]ty
 // Implements the error interface.
 type imageDeleteConflict struct {
 	hard    bool
+	used    bool
 	imgID   image.ID
 	message string
 }
@@ -225,8 +226,8 @@ func (daemon *Daemon) imageDeleteHelper(imgID image.ID, records *[]types.ImageDe
 	// First, determine if this image has any conflicts. Ignore soft conflicts
 	// if force is true.
 	if conflict := daemon.checkImageDeleteConflict(imgID, force); conflict != nil {
-		if quiet && !daemon.imageIsDangling(imgID) {
-			// Ignore conflicts UNLESS the image is "dangling" in
+		if quiet && (!daemon.imageIsDangling(imgID) || conflict.used) {
+			// Ignore conflicts UNLESS the image is "dangling" or not being used in
 			// which case we want the user to know.
 			return nil
 		}
@@ -312,6 +313,7 @@ func (daemon *Daemon) checkImageDeleteHardConflict(imgID image.ID) *imageDeleteC
 			return &imageDeleteConflict{
 				imgID:   imgID,
 				hard:    true,
+				used:    true,
 				message: fmt.Sprintf("image is being used by running container %s", stringid.TruncateID(container.ID)),
 			}
 		}
@@ -339,6 +341,7 @@ func (daemon *Daemon) checkImageDeleteSoftConflict(imgID image.ID) *imageDeleteC
 		if container.ImageID == imgID {
 			return &imageDeleteConflict{
 				imgID:   imgID,
+				used:    true,
 				message: fmt.Sprintf("image is being used by stopped container %s", stringid.TruncateID(container.ID)),
 			}
 		}

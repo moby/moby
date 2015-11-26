@@ -60,9 +60,9 @@ func (s *DockerSuite) TestRmContainerOrphaning(c *check.C) {
 	// rebuild dockerfile with a small addition at the end
 	_, err = buildImage(img, dockerfile2, true)
 	c.Assert(err, check.IsNil, check.Commentf("Could not rebuild image %s", img))
-	// try to remove the image, should error out.
+	// try to remove the image, should not error out.
 	out, _, err := dockerCmdWithError("rmi", img)
-	c.Assert(err, check.NotNil, check.Commentf("Expected to error out removing the image, but succeeded: %s", out))
+	c.Assert(err, check.IsNil, check.Commentf("Expected to removing the image, but failed: %s", out))
 
 	// check if we deleted the first image
 	out, _ = dockerCmd(c, "images", "-q", "--no-trunc")
