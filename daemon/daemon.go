@@ -44,7 +44,6 @@ import (
 	"github.com/docker/docker/pkg/graphdb"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/jsonmessage"
-	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/namesgenerator"
 	"github.com/docker/docker/pkg/nat"
 	"github.com/docker/docker/pkg/parsers/filters"
@@ -248,7 +247,7 @@ func (daemon *Daemon) Register(container *Container) error {
 		}
 		daemon.execDriver.Terminate(cmd)
 
-		container.unmountIpcMounts(mount.Unmount)
+		container.unmountIpcMounts(detachMounted)
 
 		daemon.Unmount(container)
 		if err := container.toDiskLocking(); err != nil {
