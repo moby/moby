@@ -498,9 +498,14 @@ Or, to get the last time the container was (re)started;
     $ docker inspect -f "{{ .State.StartedAt }}" my-container
     # 2015-03-04T23:47:07.691840179Z
 
-You cannot set any restart policy in combination with
-["clean up (--rm)"](#clean-up-rm). Setting both `--restart` and `--rm`
-results in an error.
+
+You cannot combine the `--restart` (restart policy) with the `--rm` (clean
+up) flag. Setting both `--restart` and `--rm` results in an error.  On container
+restart, attached clients are disconnected.  See the examples on using the
+[`--rm` (clean up)](#clean-up-rm) flag later in this page.
+
+Note that restart policies only apply when running
+in [detached mode](#detached-d).
 
 ### Examples
 
