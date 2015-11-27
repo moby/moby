@@ -55,6 +55,12 @@ type cgroupCPUInfo struct {
 
 	// Whether CPU CFS(Completely Fair Scheduler) quota is supported or not
 	CPUCfsQuota bool
+
+	// Whether CPU realtime scheduler period is supported or not
+	CPURTPeriod bool
+
+	// Whether CPU realtime scheduler runtime is supported or not
+	CPURTRuntime bool
 }
 
 type cgroupBlkioInfo struct {

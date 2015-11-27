@@ -208,6 +208,16 @@ func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *runconfig.HostC
 		logrus.Warnf("Your kernel does not support CPU cfs quota. Quota discarded.")
 		hostConfig.CPUQuota = 0
 	}
+	if hostConfig.CPURTPeriod > 0 && !sysInfo.CPURTPeriod {
+		warnings = append(warnings, "Your kernel does not support CPU realtime scheduler perioad. Period discarded.")
+		logrus.Warnf("Your kernel does not support CPU realtime scheduler perioad. Period discarded.")
+		hostConfig.CPURTPeriod = 0
+	}
+	if hostConfig.CPURTRuntime > 0 && !sysInfo.CPURTRuntime {
+		warnings = append(warnings, "Your kernel does not support CPU realtime scheduler runtime. Runtime discarded.")
+		logrus.Warnf("Your kernel does not support CPU realtime scheduler runtime. Runtime discarded.")
+		hostConfig.CPURTRuntime = 0
+	}
 	if (hostConfig.CpusetCpus != "" || hostConfig.CpusetMems != "") && !sysInfo.Cpuset {
 		warnings = append(warnings, "Your kernel does not support cpuset. Cpuset discarded.")
 		logrus.Warnf("Your kernel does not support cpuset. Cpuset discarded.")
