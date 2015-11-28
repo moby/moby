@@ -85,7 +85,7 @@ func (s *DockerRegistrySuite) TestConcurrentPullWholeRepo(c *check.C) {
 	for _, repo := range repos {
 		dockerCmd(c, "inspect", repo)
 		out, _ := dockerCmd(c, "run", "--rm", repo)
-		c.Assert(strings.TrimSpace(out), checker.Equals, "/bin/sh -c echo "+repo, check.Commentf("CMD did not contain /bin/sh -c echo %s: %s", repo, out))
+		c.Assert(strings.TrimSpace(out), checker.Equals, "/bin/sh -c echo "+repo)
 	}
 }
 
@@ -157,7 +157,7 @@ func (s *DockerRegistrySuite) TestConcurrentPullMultipleTags(c *check.C) {
 	for _, repo := range repos {
 		dockerCmd(c, "inspect", repo)
 		out, _ := dockerCmd(c, "run", "--rm", repo)
-		c.Assert(strings.TrimSpace(out), checker.Equals, "/bin/sh -c echo "+repo, check.Commentf("CMD did not contain /bin/sh -c echo %s; %s", repo, out))
+		c.Assert(strings.TrimSpace(out), checker.Equals, "/bin/sh -c echo "+repo)
 	}
 }
 
