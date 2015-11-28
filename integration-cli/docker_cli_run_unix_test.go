@@ -162,7 +162,9 @@ func (s *DockerSuite) TestRunWithCpuPeriod(c *check.C) {
 func (s *DockerSuite) TestRunWithKernelMemory(c *check.C) {
 	testRequires(c, kernelMemorySupport)
 
-	dockerCmd(c, "run", "--kernel-memory", "50M", "--name", "test1", "busybox", "true")
+	file := "/sys/fs/cgroup/memory/memory.kmem.limit_in_bytes"
+	out, _ := dockerCmd(c, "run", "--kernel-memory", "50M", "--name", "test1", "busybox", "cat", file)
+	c.Assert(out, checker.Contains, "52428800")
 
 	out, err := inspectField("test1", "HostConfig.KernelMemory")
 	c.Assert(err, check.IsNil)
