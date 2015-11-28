@@ -306,7 +306,7 @@ func (a *Allocator) getPredefinedPool(as string, ipV6 bool) (*net.IPNet, error) 
 	}
 
 	if as != localAddressSpace && as != globalAddressSpace {
-		return nil, fmt.Errorf("no default pool availbale for non-default addresss spaces")
+		return nil, fmt.Errorf("no default pool available for non-default address spaces")
 	}
 
 	aSpace, err := a.getAddrSpace(as)
