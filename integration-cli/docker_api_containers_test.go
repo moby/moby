@@ -16,6 +16,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/integration"
+	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/runconfig"
 	"github.com/go-check/check"
@@ -1552,4 +1553,21 @@ func (s *DockerSuite) TestPostContainersCreateWithWrongCpusetValues(c *check.C) 
 	c.Assert(status, check.Equals, http.StatusInternalServerError)
 	expected = "Invalid value 42-3,1-- for cpuset mems.\n"
 	c.Assert(string(body), check.Equals, expected, check.Commentf("Expected output to contain %q, got %q", expected, string(body)))
+}
+
+func (s *DockerSuite) TestStartWithNilDNS(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	out, _ := dockerCmd(c, "create", "busybox")
+	containerID := strings.TrimSpace(out)
+
+	config := `{"HostConfig": {"Dns": null}}`
+
+	res, b, err := sockRequestRaw("POST", "/containers/"+containerID+"/start", strings.NewReader(config), "application/json")
+	c.Assert(err, checker.IsNil)
+	c.Assert(res.StatusCode, checker.Equals, http.StatusNoContent)
+	b.Close()
+
+	dns, err := inspectFieldJSON(containerID, "HostConfig.Dns")
+	c.Assert(err, checker.IsNil)
+	c.Assert(dns, checker.Equals, "[]")
 }

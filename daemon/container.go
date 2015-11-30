@@ -166,22 +166,7 @@ func (container *Container) readHostConfig() error {
 		return err
 	}
 
-	// Make sure the dns fields are never nil.
-	// New containers don't ever have those fields nil,
-	// but pre created containers can still have those nil values.
-	// See https://github.com/docker/docker/pull/17779
-	// for a more detailed explanation on why we don't want that.
-	if container.hostConfig.DNS == nil {
-		container.hostConfig.DNS = make([]string, 0)
-	}
-
-	if container.hostConfig.DNSSearch == nil {
-		container.hostConfig.DNSSearch = make([]string, 0)
-	}
-
-	if container.hostConfig.DNSOptions == nil {
-		container.hostConfig.DNSOptions = make([]string, 0)
-	}
+	initDNSHostConfig(container)
 
 	return nil
 }
@@ -542,4 +527,26 @@ func (container *Container) stopSignal() int {
 		stopSignal, _ = signal.ParseSignal(signal.DefaultStopSignal)
 	}
 	return int(stopSignal)
+}
+
+// initDNSHostConfig ensures that the dns fields are never nil.
+// New containers don't ever have those fields nil,
+// but pre created containers can still have those nil values.
+// The non-recommended host configuration in the start api can
+// make these fields nil again, this corrects that issue until
+// we remove that behavior for good.
+// See https://github.com/docker/docker/pull/17779
+// for a more detailed explanation on why we don't want that.
+func initDNSHostConfig(container *Container) {
+	if container.hostConfig.DNS == nil {
+		container.hostConfig.DNS = make([]string, 0)
+	}
+
+	if container.hostConfig.DNSSearch == nil {
+		container.hostConfig.DNSSearch = make([]string, 0)
+	}
+
+	if container.hostConfig.DNSOptions == nil {
+		container.hostConfig.DNSOptions = make([]string, 0)
+	}
 }
