@@ -15,7 +15,9 @@ Libnetwork aims to satisfy that composable need for Networking in Containers.
 
 ## The Container Network Model
 
-Libnetwork implements Container Network Model (CNM) which formalizes the steps required to provide networking for containers while providing an abstraction that can be used to support multiple network drivers. The CNM is built on 3 main components.
+Libnetwork implements Container Network Model (CNM) which formalizes the steps required to provide networking for containers while providing an abstraction that can be used to support multiple network drivers. The CNM is built on 3 main components (shown below)
+
+![](https://blog.docker.com/media/2015/04/cnm-model.jpg)
 
 **Sandbox**
 
