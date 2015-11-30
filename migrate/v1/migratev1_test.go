@@ -234,9 +234,27 @@ func TestMigrateUnsupported(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpdir)
 
+	err = os.MkdirAll(filepath.Join(tmpdir, "graph"), 0700)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	err = Migrate(tmpdir, "generic", nil, nil, nil, nil)
 	if err != errUnsupported {
 		t.Fatalf("expected unsupported error, got %q", err)
+	}
+}
+
+func TestMigrateEmptyDir(t *testing.T) {
+	tmpdir, err := ioutil.TempDir("", "migrate-empty")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpdir)
+
+	err = Migrate(tmpdir, "generic", nil, nil, nil, nil)
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 
@@ -255,6 +273,17 @@ func addImage(dest, jsonConfig, parent, checksum string) (string, error) {
 		return "", err
 	}
 	if err := ioutil.WriteFile(filepath.Join(contDir, "json"), []byte(jsonConfig), 0600); err != nil {
+		return "", err
+	}
+	if checksum != "" {
+		if err := ioutil.WriteFile(filepath.Join(contDir, "checksum"), []byte(checksum), 0600); err != nil {
+			return "", err
+		}
+	}
+	if err := ioutil.WriteFile(filepath.Join(contDir, ".migration-diffid"), []byte(layer.EmptyLayer.DiffID()), 0600); err != nil {
+		return "", err
+	}
+	if err := ioutil.WriteFile(filepath.Join(contDir, ".migration-size"), []byte("0"), 0600); err != nil {
 		return "", err
 	}
 	if parent != "" {
@@ -305,7 +334,7 @@ type mockRegistrar struct {
 	count  int
 }
 
-func (r *mockRegistrar) RegisterByGraphID(graphID string, parent layer.ChainID, tarDataFile string) (layer.Layer, error) {
+func (r *mockRegistrar) RegisterByGraphID(graphID string, parent layer.ChainID, diffID layer.DiffID, tarDataFile string, size int64) (layer.Layer, error) {
 	r.count++
 	l := &mockLayer{}
 	if parent != "" {
@@ -316,7 +345,7 @@ func (r *mockRegistrar) RegisterByGraphID(graphID string, parent layer.ChainID, 
 		l.parent = p
 		l.diffIDs = append(l.diffIDs, p.diffIDs...)
 	}
-	l.diffIDs = append(l.diffIDs, layer.EmptyLayer.DiffID())
+	l.diffIDs = append(l.diffIDs, diffID)
 	if r.layers == nil {
 		r.layers = make(map[layer.ChainID]*mockLayer)
 	}
