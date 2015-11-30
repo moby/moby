@@ -97,16 +97,20 @@ func (fm *fileMetadataTransaction) SetCacheID(cacheID string) error {
 	return ioutil.WriteFile(filepath.Join(fm.root, "cache-id"), []byte(cacheID), 0644)
 }
 
-func (fm *fileMetadataTransaction) TarSplitWriter() (io.WriteCloser, error) {
+func (fm *fileMetadataTransaction) TarSplitWriter(compressInput bool) (io.WriteCloser, error) {
 	f, err := os.OpenFile(filepath.Join(fm.root, "tar-split.json.gz"), os.O_TRUNC|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		return nil, err
 	}
+	var wc io.WriteCloser
+	if compressInput {
+		wc = gzip.NewWriter(f)
+	} else {
+		wc = f
+	}
 
-	fz := gzip.NewWriter(f)
-
-	return ioutils.NewWriteCloserWrapper(fz, func() error {
-		fz.Close()
+	return ioutils.NewWriteCloserWrapper(wc, func() error {
+		wc.Close()
 		return f.Close()
 	}), nil
 }
