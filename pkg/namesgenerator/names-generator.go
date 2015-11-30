@@ -21,6 +21,7 @@ var (
 		"clever",
 		"cocky",
 		"compassionate",
+		"confused",
 		"condescending",
 		"cranky",
 		"desperate",
@@ -50,13 +51,16 @@ var (
 		"lonely",
 		"loving",
 		"mad",
+		"manipulative",
 		"modest",
 		"naughty",
 		"nauseous",
 		"nostalgic",
 		"pedantic",
 		"pensive",
+		"persistent",
 		"prickly",
+		"relentless",
 		"reverent",
 		"romantic",
 		"sad",
@@ -66,6 +70,7 @@ var (
 		"silly",
 		"sleepy",
 		"small",
+		"sticky",
 		"stoic",
 		"stupefied",
 		"suspicious",
@@ -73,6 +78,7 @@ var (
 		"thirsty",
 		"tiny",
 		"trusting",
+		"wild",
 	}
 
 	// Docker, starting from 0.7.x, generates names from notable scientists and hackers.
@@ -147,6 +153,9 @@ var (
 		// Walter Houser Brattain co-invented the transistor - https://en.wikipedia.org/wiki/Walter_Houser_Brattain
 		"brattain",
 
+		// Russian-American computer scientist and co-founder of Google with Larry Page. - https://en.wikipedia.org/wiki/Sergey_Brin
+		"brin",
+
 		// Emmett Brown invented time travel. https://en.wikipedia.org/wiki/Emmett_Brown (thanks Brian Goff)
 		"brown",
 
@@ -158,6 +167,9 @@ var (
 
 		// Jane Colden - American botanist widely considered the first female American botanist - https://en.wikipedia.org/wiki/Jane_Colden
 		"colden",
+
+		// Lynn Conway - Computer scientist, electrical engineer, inventor, and transgenger activist. Co-author of "Introduction to VLSI Systems". - https://en.wikipedia.org/wiki/Lynn_Conway
+		"conway"
 
 		// Gerty Theresa Cori - American biochemist who became the third woman—and first American woman—to win a Nobel Prize in science, and the first woman to be awarded the Nobel Prize in Physiology or Medicine. Cori was born in Prague. https://en.wikipedia.org/wiki/Gerty_Cori
 		"cori",
@@ -342,11 +354,17 @@ var (
 		// Johanna Mestorf - German prehistoric archaeologist and first female museum director in Germany - https://en.wikipedia.org/wiki/Johanna_Mestorf
 		"mestorf",
 
+		// Robert Metcalfe - Inventor of Ethernet, formulated Metcalfe's Law. - https://en.wikipedia.org/wiki/Robert_Metcalfe
+		"metcalfe"
+
 		// Maryam Mirzakhani - an Iranian mathematician and the first woman to win the Fields Medal. https://en.wikipedia.org/wiki/Maryam_Mirzakhani
 		"mirzakhani",
 
 		// Samuel Morse - contributed to the invention of a single-wire telegraph system based on European telegraphs and was a co-developer of the Morse code - https://en.wikipedia.org/wiki/Samuel_Morse
 		"morse",
+
+		// Elon Musk - American engineer, founder of SpaceX and co-founder of Zip2, PayPal, and Tesla Motors. - https://en.wikipedia.org/wiki/Elon_Musk
+		"musk"
 
 		// Isaac Newton invented classic mechanics and modern optics. https://en.wikipedia.org/wiki/Isaac_Newton
 		"newton",
@@ -362,6 +380,9 @@ var (
 
 		// Robert Noyce invented silicone integrated circuits and gave Silicon Valley its name. - https://en.wikipedia.org/wiki/Robert_Noyce
 		"noyce",
+
+		// Larry Page - American computer scientist and co-founder of Google. - https://en.wikipedia.org/wiki/Larry_Page
+		"page"
 
 		// Panini - Ancient Indian linguist and grammarian from 4th century CE who worked on the world's first formal system - https://en.wikipedia.org/wiki/P%C4%81%E1%B9%87ini#Comparison_with_modern_formal_systems
 		"panini",
@@ -464,6 +485,9 @@ var (
 
 		// Marlyn Wescoff - one of the original programmers of the ENIAC. https://en.wikipedia.org/wiki/ENIAC - https://en.wikipedia.org/wiki/Marlyn_Meltzer
 		"wescoff",
+
+		// Mary Allen Wilkes - Worked on the LINC computer, now called "the world's first personal computer". - https://en.wikipedia.org/wiki/Mary_Allen_Wilkes
+		"wilkes"
 
 		// Roberta Williams, did pioneering work in graphical adventure games for personal computers, particularly the King's Quest series. https://en.wikipedia.org/wiki/Roberta_Williams
 		"williams",
