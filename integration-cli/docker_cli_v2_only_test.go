@@ -123,5 +123,4 @@ func (s *DockerRegistrySuite) TestV1(c *check.C) {
 
 	s.d.Cmd("pull", repoName)
 	c.Assert(v1Repo, check.Equals, 3, check.Commentf("Expected v1 repository access after pull"))
-
 }
