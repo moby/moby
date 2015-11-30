@@ -15,7 +15,7 @@ DRAFT to prevent building. Keeping for one cycle before deleting.
 
 # How the default network
 
-The information in this section explains configuring container DNS within tthe Docker default bridge. This is a `bridge` network named `bridge` created
+The information in this section explains configuring container networks within the Docker default bridge. This is a `bridge` network named `bridge` created
 automatically when you install Docker.
 
 **Note**: The [Docker networks feature](../dockernetworks.md) allows you to create user-defined networks in addition to the default bridge network.
@@ -40,7 +40,7 @@ The steps with which Docker configures a container are:
 
 With these steps complete, the container now possesses an `eth0` (virtual) network card and will find itself able to communicate with other containers and the rest of the Internet.
 
-You can opt out of the above process for a particular container by giving the `--net=` option to `docker run`, which takes four possible values.
+You can opt out of the above process for a particular container by giving the `--net=` option to `docker run`, which takes these possible values.
 - `--net=bridge` -- The default action, that connects the container to the Docker bridge as described above.
 
 - `--net=host` -- Tells Docker to skip placing the container inside of a separate network stack.  In essence, this choice tells Docker to **not containerize the container's networking**!  While container processes will still be confined to their own filesystem and process list and resource limits, a quick `ip addr` command will show you that, network-wise, they live "outside" in the main Docker host and have full access to its network interfaces.  Note that this does **not** let the container reconfigure the host network stack -- that would require `--privileged=true` -- but it does let container processes open low-numbered ports like any other root process. It also allows the container to access local network services like D-bus.  This can lead to processes in the container being able to do unexpected things like [restart your computer](https://github.com/docker/docker/issues/6401). You should use this option with caution.
@@ -48,6 +48,8 @@ You can opt out of the above process for a particular container by giving the `-
 - `--net=container:NAME_or_ID` -- Tells Docker to put this container's processes inside of the network stack that has already been created inside of another container.  The new container's processes will be confined to their own filesystem and process list and resource limits, but will share the same IP address and port numbers as the first container, and processes on the two containers will be able to connect to each other over the loopback interface.
 
 - `--net=none` -- Tells Docker to put the container inside of its own network stack but not to take any steps to configure its network, leaving you free to build any of the custom configurations explored in the last few sections of this document.
+
+- `--net=<network-name>|<network-id>` -- Tells Docker to connect the container to a user-defined network.
 
 ## Manually network
 

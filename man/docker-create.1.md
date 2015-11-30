@@ -221,10 +221,11 @@ This value should always larger than **-m**, so you should always use this with 
 
 **--net**="*bridge*"
    Set the Network mode for the container
-                               'bridge': creates a new network stack for the container on the docker bridge
-                               'none': no networking for this container
-                               'container:<name|id>': reuses another container network stack
-                               'host': use the host network stack inside the container.  Note: the host mode gives the container full access to local system services such as D-bus and is therefore considered insecure.
+                               'bridge': create a network stack on the default Docker bridge
+                               'none': no networking
+                               'container:<name|id>': reuse another container's network stack
+                               'host': use the Docker host network stack.  Note: the host mode gives the container full access to local system services such as D-bus and is therefore considered insecure.
+                               '<network-name>|<network-id>': connect to a user-defined network
 
 **--oom-kill-disable**=*true*|*false*
 	Whether to disable OOM Killer for the container or not.

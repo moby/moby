@@ -55,7 +55,12 @@ Creates a new container.
       --memory-swap=""              Total memory (memory + swap), '-1' to disable swap
       --memory-swappiness=""        Tune a container's memory swappiness behavior. Accepts an integer between 0 and 100.
       --name=""                     Assign a name to the container
-      --net="default"               Set the Network mode for the container
+      --net="bridge"                Connect a container to a network
+                                    'bridge': create a network stack on the default Docker bridge
+                                    'none': no networking
+                                    'container:<name|id>': reuse another container's network stack
+                                    'host': use the Docker host network stack
+                                    '<network-name>|<network-id>': connect to a user-defined network
       --oom-kill-disable=false      Whether to disable OOM Killer for the container or not
       -P, --publish-all=false       Publish all exposed ports to random ports
       -p, --publish=[]              Publish a container's port(s) to the host
