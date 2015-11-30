@@ -52,11 +52,6 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 	// that's more intuitive (the copied path is trivial to derive
 	// by hand given VERSION)
 	initPath := utils.DockerInitPath("")
-	if initPath == "" {
-		// if that fails, we'll just return the path from the daemon
-		initPath = daemon.systemInitPath()
-	}
-
 	sysInfo := sysinfo.New(true)
 
 	v := &types.Info{

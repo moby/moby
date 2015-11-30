@@ -38,7 +38,6 @@ const (
 // it implements execdriver.Driver.
 type Driver struct {
 	root             string
-	initPath         string
 	activeContainers map[string]libcontainer.Container
 	machineMemory    int64
 	factory          libcontainer.Factory
@@ -46,7 +45,7 @@ type Driver struct {
 }
 
 // NewDriver returns a new native driver, called from NewDriver of execdriver.
-func NewDriver(root, initPath string, options []string) (*Driver, error) {
+func NewDriver(root string, options []string) (*Driver, error) {
 	meminfo, err := sysinfo.ReadMemInfo()
 	if err != nil {
 		return nil, err
@@ -114,7 +113,6 @@ func NewDriver(root, initPath string, options []string) (*Driver, error) {
 
 	return &Driver{
 		root:             root,
-		initPath:         initPath,
 		activeContainers: make(map[string]libcontainer.Container),
 		machineMemory:    meminfo.MemTotal,
 		factory:          f,

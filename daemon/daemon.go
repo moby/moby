@@ -122,7 +122,6 @@ func (c *contStore) List() []*Container {
 type Daemon struct {
 	ID                        string
 	repository                string
-	sysInitPath               string
 	containers                *contStore
 	execCommands              *exec.Store
 	tagStore                  tag.Store
@@ -811,8 +810,6 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 
 	d.containerGraphDB = graph
 
-	var sysInitPath string
-
 	sysInfo := sysinfo.New(false)
 	// Check if Devices cgroup is mounted, it is hard requirement for container security,
 	// on Linux/FreeBSD.
@@ -820,7 +817,7 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 		return nil, fmt.Errorf("Devices cgroup isn't mounted")
 	}
 
-	ed, err := execdrivers.NewDriver(config.ExecOptions, config.ExecRoot, config.Root, sysInitPath, sysInfo)
+	ed, err := execdrivers.NewDriver(config.ExecOptions, config.ExecRoot, config.Root, sysInfo)
 	if err != nil {
 		return nil, err
 	}
@@ -835,7 +832,6 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 	d.trustKey = trustKey
 	d.idIndex = truncindex.NewTruncIndex([]string{})
 	d.configStore = config
-	d.sysInitPath = sysInitPath
 	d.execDriver = ed
 	d.statsCollector = d.newStatsCollector(1 * time.Second)
 	d.defaultLogConfig = config.LogConfig
@@ -1273,10 +1269,6 @@ func (daemon *Daemon) GetImage(refOrID string) (*image.Image, error) {
 
 func (daemon *Daemon) config() *Config {
 	return daemon.configStore
-}
-
-func (daemon *Daemon) systemInitPath() string {
-	return daemon.sysInitPath
 }
 
 // GraphDriver returns the currently used driver for processing
