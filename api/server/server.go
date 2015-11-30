@@ -39,7 +39,6 @@ type Config struct {
 // Server contains instance details for the server
 type Server struct {
 	cfg     *Config
-	start   chan struct{}
 	servers []*HTTPServer
 	routers []router.Router
 }
@@ -54,8 +53,7 @@ type Addr struct {
 // It allocates resources which will be needed for ServeAPI(ports, unix-sockets).
 func New(cfg *Config) (*Server, error) {
 	s := &Server{
-		cfg:   cfg,
-		start: make(chan struct{}),
+		cfg: cfg,
 	}
 	for _, addr := range cfg.Addrs {
 		srv, err := s.newServer(addr.Proto, addr.Addr)
@@ -132,7 +130,7 @@ func (s *Server) initTCPSocket(addr string) (l net.Listener, err error) {
 	if s.cfg.TLSConfig == nil || s.cfg.TLSConfig.ClientAuth != tls.RequireAndVerifyClientCert {
 		logrus.Warn("/!\\ DON'T BIND ON ANY IP ADDRESS WITHOUT setting -tlsverify IF YOU DON'T KNOW WHAT YOU'RE DOING /!\\")
 	}
-	if l, err = sockets.NewTCPSocket(addr, s.cfg.TLSConfig, s.start); err != nil {
+	if l, err = sockets.NewTCPSocket(addr, s.cfg.TLSConfig); err != nil {
 		return nil, err
 	}
 	if err := allocateDaemonPort(addr); err != nil {
@@ -201,16 +199,4 @@ func (s *Server) CreateMux() *mux.Router {
 	}
 
 	return m
-}
-
-// AcceptConnections allows clients to connect to the API server.
-// Referenced Daemon is notified about this server, and waits for the
-// daemon acknowledgement before the incoming connections are accepted.
-func (s *Server) AcceptConnections() {
-	// close the lock so the listeners start accepting connections
-	select {
-	case <-s.start:
-	default:
-		close(s.start)
-	}
 }

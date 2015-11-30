@@ -10,20 +10,17 @@ import (
 	"syscall"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/pkg/listenbuffer"
 	"github.com/opencontainers/runc/libcontainer/user"
 )
 
 // NewUnixSocket creates a unix socket with the specified path and group.
-// The channel passed is used to activate the listenbuffer when the caller is ready
-// to accept connections.
-func NewUnixSocket(path, group string, activate <-chan struct{}) (net.Listener, error) {
+func NewUnixSocket(path, group string) (net.Listener, error) {
 	if err := syscall.Unlink(path); err != nil && !os.IsNotExist(err) {
 		return nil, err
 	}
 	mask := syscall.Umask(0777)
 	defer syscall.Umask(mask)
-	l, err := listenbuffer.NewListenBuffer("unix", path, activate)
+	l, err := net.Listen("unix", path)
 	if err != nil {
 		return nil, err
 	}
