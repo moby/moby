@@ -565,6 +565,18 @@ docker daemon \
 
 The currently supported cluster store options are:
 
+*  `discovery.heartbeat`
+
+    Specifies the heartbeat timer in seconds which is used by the daemon as a
+    keepalive mechanism to make sure discovery module treats the node as alive
+    in the cluster. If not configured, the default value is 20 seconds.
+
+*  `discovery.ttl`
+
+    Specifies the ttl (time-to-live) in seconds which is used by the discovery
+    module to timeout a node if a valid heartbeat is not received within the
+    configured ttl value. If not configured, the default value is 60 seconds.
+
 *  `kv.cacertfile`
 
     Specifies the path to a local file with PEM encoded CA certificates to trust
