@@ -426,11 +426,11 @@ var (
 		// Betty Snyder - one of the original programmers of the ENIAC. https://en.wikipedia.org/wiki/ENIAC - https://en.wikipedia.org/wiki/Betty_Holberton
 		"snyder",
 
-		// Ellen Spertus - earned a PhD in Electrical Engineering and Computer Science from MIT in 1998 with the notable thesis "ParaSite: Mining the structural information on the World-Wide Web https://en.wikipedia.org/wiki/Ellen_Spertus
-		"spertus",
-
 		// Frances Spence - one of the original programmers of the ENIAC. https://en.wikipedia.org/wiki/ENIAC - https://en.wikipedia.org/wiki/Frances_Spence
 		"spence",
+
+		// Ellen Spertus - earned a PhD in Electrical Engineering and Computer Science from MIT in 1998 with the notable thesis "ParaSite: Mining the structural information on the World-Wide Web https://en.wikipedia.org/wiki/Ellen_Spertus
+		"spertus",
 
 		// Richard Matthew Stallman - the founder of the Free Software movement, the GNU project, the Free Software Foundation, and the League for Programming Freedom. He also invented the concept of copyleft to protect the ideals of this movement, and enshrined this concept in the widely-used GPL (General Public License) for software. https://en.wikiquote.org/wiki/Richard_Stallman
 		"stallman",
