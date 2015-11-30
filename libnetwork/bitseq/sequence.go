@@ -250,8 +250,12 @@ func (h *Handle) set(ordinal, start, end uint64, any bool, release bool) (uint64
 	)
 
 	for {
-		if h.store != nil {
-			if err := h.store.GetObject(datastore.Key(h.Key()...), h); err != nil && err != datastore.ErrKeyNotFound {
+		var store datastore.DataStore
+		h.Lock()
+		store = h.store
+		h.Unlock()
+		if store != nil {
+			if err := store.GetObject(datastore.Key(h.Key()...), h); err != nil && err != datastore.ErrKeyNotFound {
 				return ret, err
 			}
 		}
