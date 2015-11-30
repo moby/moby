@@ -112,12 +112,12 @@ func (l *tarexporter) loadLayer(filename string, rootFS image.RootFS) (layer.Lay
 		logrus.Debugf("Error reading embedded tar: %v", err)
 		return nil, err
 	}
+	defer rawTar.Close()
+
 	inflatedLayerData, err := archive.DecompressStream(rawTar)
 	if err != nil {
 		return nil, err
 	}
-
-	defer rawTar.Close()
 	defer inflatedLayerData.Close()
 
 	return l.ls.Register(inflatedLayerData, rootFS.ChainID())

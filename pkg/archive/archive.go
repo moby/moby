@@ -128,7 +128,13 @@ func DecompressStream(archive io.Reader) (io.ReadCloser, error) {
 	p := pools.BufioReader32KPool
 	buf := p.Get(archive)
 	bs, err := buf.Peek(10)
-	if err != nil {
+	if err != nil && err != io.EOF {
+		// Note: we'll ignore any io.EOF error because there are some odd
+		// cases where the layer.tar file will be empty (zero bytes) and
+		// that results in an io.EOF from the Peek() call. So, in those
+		// cases we'll just treat it as a non-compressed stream and
+		// that means just create an empty layer.
+		// See Issue 18170
 		return nil, err
 	}
 
