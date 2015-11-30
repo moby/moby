@@ -112,11 +112,7 @@ func checkKernel() error {
 
 // adaptContainerSettings is called during container creation to modify any
 // settings necessary in the HostConfig structure.
-func (daemon *Daemon) adaptContainerSettings(hostConfig *runconfig.HostConfig, adjustCPUShares bool) {
-	if hostConfig == nil {
-		return
-	}
-
+func (daemon *Daemon) adaptContainerSettings(hostConfig *runconfig.HostConfig, adjustCPUShares bool) error {
 	if adjustCPUShares && hostConfig.CPUShares > 0 {
 		// Handle unsupported CPUShares
 		if hostConfig.CPUShares < linuxMinCPUShares {
@@ -135,6 +131,15 @@ func (daemon *Daemon) adaptContainerSettings(hostConfig *runconfig.HostConfig, a
 		shmSize := runconfig.DefaultSHMSize
 		hostConfig.ShmSize = &shmSize
 	}
+	var err error
+	if hostConfig.SecurityOpt == nil {
+		hostConfig.SecurityOpt, err = daemon.generateSecurityOpt(hostConfig.IpcMode, hostConfig.PidMode)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // verifyPlatformContainerSettings performs platform-specific validation of the
