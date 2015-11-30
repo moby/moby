@@ -12,6 +12,7 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/docker/docker/pkg/aaparser"
 	"github.com/opencontainers/runc/libcontainer/apparmor"
 )
 
@@ -21,8 +22,11 @@ const (
 
 type data struct {
 	Name         string
+	ExecPath     string
 	Imports      []string
 	InnerImports []string
+	MajorVersion int
+	MinorVersion int
 }
 
 const baseTemplate = `
@@ -55,6 +59,14 @@ profile {{.Name}} flags=(attach_disconnected,mediate_deleted) {
   deny /sys/fs/cg[^r]*/** wklx,
   deny /sys/firmware/efi/efivars/** rwklx,
   deny /sys/kernel/security/** rwklx,
+
+{{if ge .MajorVersion 2}}{{if ge .MinorVersion 9}}
+  # docker daemon confinement requires explict allow rule for signal
+  signal (receive) set=(kill,term) peer={{.ExecPath}},
+
+  # suppress ptrace denails when using 'docker ps'
+  ptrace (trace,read) peer=docker-default,
+{{end}}{{end}}
 }
 `
 
@@ -73,6 +85,14 @@ func generateProfile(out io.Writer) error {
 	}
 	if abstractionsExists() {
 		data.InnerImports = append(data.InnerImports, "#include <abstractions/base>")
+	}
+	data.MajorVersion, data.MinorVersion, err = aaparser.GetVersion()
+	if err != nil {
+		return err
+	}
+	data.ExecPath, err = exec.LookPath("docker")
+	if err != nil {
+		return err
 	}
 	if err := compiled.Execute(out, data); err != nil {
 		return err
