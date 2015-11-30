@@ -53,7 +53,7 @@ docker-run - Run a command in a new container
 [**--privileged**[=*false*]]
 [**--read-only**[=*false*]]
 [**--restart**[=*RESTART*]]
-[**--rm**[=*false*]]
+[**--rm**[=*true*]]
 [**--security-opt**[=*[]*]]
 [**--stop-signal**[=*SIGNAL*]]
 [**--shm-size**[=*[]*]]
