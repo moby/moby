@@ -40,7 +40,7 @@ profile {{.Name}} flags=(attach_disconnected,mediate_deleted) {
   file,
   umount,
 
-  deny @{PROC}/{*,**^[0-9*],sys/kernel/shm*} wkx,
+  deny @{PROC}/{*,**^[0-9]*,sys/kernel/shm*} wkx,
   deny @{PROC}/sysrq-trigger rwklx,
   deny @{PROC}/mem rwklx,
   deny @{PROC}/kmem rwklx,
