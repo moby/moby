@@ -44,14 +44,26 @@ var sortFields = map[string]bool{
 	"BlockWrite":       true,
 }
 
+type sortOrder int
+
+const (
+	descending sortOrder = iota
+	ascending            = iota
+)
+
+
 type sortStatsBy func(s1, s2 *containerStats) bool
 
-func (by sortStatsBy) Sort(cs []*containerStats) {
+func (by sortStatsBy) Sort(cs []*containerStats, so sortOrder) {
 	css := &containerStatsSorter{
 		containerStats: cs,
 		by:             by,
 	}
-	sort.Sort(sort.Reverse(css))
+	if so == descending {
+		sort.Sort(sort.Reverse(css))
+	} else {
+		sort.Sort(css)
+	}
 }
 
 type containerStatsSorter struct {
@@ -193,6 +205,7 @@ func (cli *DockerCli) CmdStats(args ...string) error {
 
 	cmd.ParseFlags(args, true)
 
+	var sortOrder sortOrder = descending
 	names := cmd.Args()
 	showAll := len(names) == 0
 
@@ -218,24 +231,33 @@ func (cli *DockerCli) CmdStats(args ...string) error {
 	}
 	var sortFunc sortStatsBy
 	if *sortField != "" {
+		sortField := string(*sortField)
 		var ref containerStats
-		if val, ok := sortFields[*sortField]; ok && val {
-			statsKind := reflect.ValueOf(ref).FieldByName(*sortField).Kind()
+		orderHint := sortField[0:1]
+		if orderHint == "-" {
+			sortOrder = ascending
+			sortField = sortField[1:]
+		} else if orderHint == "+" {
+			sortOrder = descending
+			sortField = sortField[1:]
+		}
+		if val, ok := sortFields[sortField]; ok && val {
+			statsKind := reflect.ValueOf(ref).FieldByName(sortField).Kind()
 			if statsKind == reflect.Float64 {
 				sortFunc = func(s1, s2 *containerStats) bool {
-					value1 := reflect.ValueOf(*s1).FieldByName(*sortField).Float()
-					value2 := reflect.ValueOf(*s2).FieldByName(*sortField).Float()
+					value1 := reflect.ValueOf(*s1).FieldByName(sortField).Float()
+					value2 := reflect.ValueOf(*s2).FieldByName(sortField).Float()
 					return value1 < value2
 				}
 			} else if statsKind == reflect.String {
 				sortFunc = func(s1, s2 *containerStats) bool {
-					value1 := reflect.ValueOf(*s1).FieldByName(*sortField).String()
-					value2 := reflect.ValueOf(*s2).FieldByName(*sortField).String()
+					value1 := reflect.ValueOf(*s1).FieldByName(sortField).String()
+					value2 := reflect.ValueOf(*s2).FieldByName(sortField).String()
 					return value1 < value2
 				}
 			}
 		} else {
-			return fmt.Errorf("no such field in stats: %s", *sortField)
+			return fmt.Errorf("no such field in stats: %s", sortField)
 		}
 	}
 	sort.Strings(names)
@@ -341,7 +363,7 @@ func (cli *DockerCli) CmdStats(args ...string) error {
 		toRemove := []int{}
 		cStats.mu.Lock()
 		if sortFunc != nil {
-			sortStatsBy(sortFunc).Sort(cStats.cs)
+			sortStatsBy(sortFunc).Sort(cStats.cs, sortOrder)
 		}
 		for i, s := range cStats.cs {
 			if err := s.Display(w); err != nil && !*noStream {
