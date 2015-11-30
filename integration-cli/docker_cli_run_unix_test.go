@@ -134,25 +134,24 @@ func (s *DockerSuite) TestRunAttachDetach(c *check.C) {
 	}
 }
 
-// "test" should be printed
-func (s *DockerSuite) TestRunEchoStdoutWithCPUQuota(c *check.C) {
+func (s *DockerSuite) TestRunWithCPUQuota(c *check.C) {
 	testRequires(c, cpuCfsQuota)
 
-	out, _, err := dockerCmdWithError("run", "--cpu-quota", "8000", "--name", "test", "busybox", "echo", "test")
-	c.Assert(err, checker.IsNil, check.Commentf("failed to run container, output: %q", out))
-	out = strings.TrimSpace(out)
-	c.Assert(out, checker.Equals, "test", check.Commentf("container should've printed 'test'"))
+	file := "/sys/fs/cgroup/cpu/cpu.cfs_quota_us"
+	out, _ := dockerCmd(c, "run", "--cpu-quota", "8000", "--name", "test", "busybox", "cat", file)
+	c.Assert(strings.TrimSpace(out), checker.Equals, "8000")
 
-	out, err = inspectField("test", "HostConfig.CpuQuota")
+	out, err := inspectField("test", "HostConfig.CpuQuota")
 	c.Assert(err, check.IsNil)
-
 	c.Assert(out, checker.Equals, "8000", check.Commentf("setting the CPU CFS quota failed"))
 }
 
 func (s *DockerSuite) TestRunWithCpuPeriod(c *check.C) {
 	testRequires(c, cpuCfsPeriod)
 
-	dockerCmd(c, "run", "--cpu-period", "50000", "--name", "test", "busybox", "true")
+	file := "/sys/fs/cgroup/cpu/cpu.cfs_period_us"
+	out, _ := dockerCmd(c, "run", "--cpu-period", "50000", "--name", "test", "busybox", "cat", file)
+	c.Assert(strings.TrimSpace(out), checker.Equals, "50000")
 
 	out, err := inspectField("test", "HostConfig.CpuPeriod")
 	c.Assert(err, check.IsNil)
@@ -163,8 +162,8 @@ func (s *DockerSuite) TestRunWithKernelMemory(c *check.C) {
 	testRequires(c, kernelMemorySupport)
 
 	file := "/sys/fs/cgroup/memory/memory.kmem.limit_in_bytes"
-	out, _ := dockerCmd(c, "run", "--kernel-memory", "50M", "--name", "test1", "busybox", "cat", file)
-	c.Assert(out, checker.Contains, "52428800")
+	stdout, _, _ := dockerCmdWithStdoutStderr(c, "run", "--kernel-memory", "50M", "--name", "test1", "busybox", "cat", file)
+	c.Assert(strings.TrimSpace(stdout), checker.Equals, "52428800")
 
 	out, err := inspectField("test1", "HostConfig.KernelMemory")
 	c.Assert(err, check.IsNil)
@@ -176,11 +175,16 @@ func (s *DockerSuite) TestRunWithKernelMemory(c *check.C) {
 	c.Assert(out, checker.Contains, expected)
 }
 
-// "test" should be printed
-func (s *DockerSuite) TestRunEchoStdoutWitCPUShares(c *check.C) {
+func (s *DockerSuite) TestRunWithCPUShares(c *check.C) {
 	testRequires(c, cpuShare)
-	out, _ := dockerCmd(c, "run", "--cpu-shares", "1000", "busybox", "echo", "test")
-	c.Assert(out, checker.Equals, "test\n", check.Commentf("container should've printed 'test'"))
+
+	file := "/sys/fs/cgroup/cpu/cpu.shares"
+	out, _ := dockerCmd(c, "run", "--cpu-shares", "1000", "--name", "test", "busybox", "cat", file)
+	c.Assert(strings.TrimSpace(out), checker.Equals, "1000")
+
+	out, err := inspectField("test", "HostConfig.CPUShares")
+	c.Assert(err, check.IsNil)
+	c.Assert(out, check.Equals, "1000")
 }
 
 // "test" should be printed
@@ -193,17 +197,38 @@ func (s *DockerSuite) TestRunEchoStdoutWithCPUSharesAndMemoryLimit(c *check.C) {
 
 func (s *DockerSuite) TestRunWithCpusetCpus(c *check.C) {
 	testRequires(c, cgroupCpuset)
-	dockerCmd(c, "run", "--cpuset-cpus", "0", "busybox", "true")
+
+	file := "/sys/fs/cgroup/cpuset/cpuset.cpus"
+	out, _ := dockerCmd(c, "run", "--cpuset-cpus", "0", "--name", "test", "busybox", "cat", file)
+	c.Assert(strings.TrimSpace(out), checker.Equals, "0")
+
+	out, err := inspectField("test", "HostConfig.CpusetCpus")
+	c.Assert(err, check.IsNil)
+	c.Assert(out, check.Equals, "0")
 }
 
 func (s *DockerSuite) TestRunWithCpusetMems(c *check.C) {
 	testRequires(c, cgroupCpuset)
-	dockerCmd(c, "run", "--cpuset-mems", "0", "busybox", "true")
+
+	file := "/sys/fs/cgroup/cpuset/cpuset.mems"
+	out, _ := dockerCmd(c, "run", "--cpuset-mems", "0", "--name", "test", "busybox", "cat", file)
+	c.Assert(strings.TrimSpace(out), checker.Equals, "0")
+
+	out, err := inspectField("test", "HostConfig.CpusetMems")
+	c.Assert(err, check.IsNil)
+	c.Assert(out, check.Equals, "0")
 }
 
 func (s *DockerSuite) TestRunWithBlkioWeight(c *check.C) {
 	testRequires(c, blkioWeight)
-	dockerCmd(c, "run", "--blkio-weight", "300", "busybox", "true")
+
+	file := "/sys/fs/cgroup/blkio/blkio.weight"
+	out, _ := dockerCmd(c, "run", "--blkio-weight", "300", "--name", "test", "busybox", "cat", file)
+	c.Assert(strings.TrimSpace(out), checker.Equals, "300")
+
+	out, err := inspectField("test", "HostConfig.BlkioWeight")
+	c.Assert(err, check.IsNil)
+	c.Assert(out, check.Equals, "300")
 }
 
 func (s *DockerSuite) TestRunWithBlkioInvalidWeight(c *check.C) {
@@ -240,13 +265,16 @@ func (s *DockerSuite) TestRunOOMExitCode(c *check.C) {
 	}
 }
 
-// "test" should be printed
-func (s *DockerSuite) TestRunEchoStdoutWithMemoryLimit(c *check.C) {
+func (s *DockerSuite) TestRunWithMemoryLimit(c *check.C) {
 	testRequires(c, memoryLimitSupport)
-	out, _, _ := dockerCmdWithStdoutStderr(c, "run", "-m", "32m", "busybox", "echo", "test")
-	out = strings.Trim(out, "\r\n")
 
-	c.Assert(out, checker.Equals, "test", check.Commentf("container should've printed 'test'"))
+	file := "/sys/fs/cgroup/memory/memory.limit_in_bytes"
+	stdout, _, _ := dockerCmdWithStdoutStderr(c, "run", "-m", "32M", "--name", "test", "busybox", "cat", file)
+	c.Assert(strings.TrimSpace(stdout), checker.Equals, "33554432")
+
+	out, err := inspectField("test", "HostConfig.Memory")
+	c.Assert(err, check.IsNil)
+	c.Assert(out, check.Equals, "33554432")
 }
 
 // TestRunWithoutMemoryswapLimit sets memory limit and disables swap
@@ -262,7 +290,13 @@ func (s *DockerSuite) TestRunWithoutMemoryswapLimit(c *check.C) {
 
 func (s *DockerSuite) TestRunWithSwappiness(c *check.C) {
 	testRequires(c, memorySwappinessSupport)
-	dockerCmd(c, "run", "--memory-swappiness", "0", "busybox", "true")
+	file := "/sys/fs/cgroup/memory/memory.swappiness"
+	out, _ := dockerCmd(c, "run", "--memory-swappiness", "0", "--name", "test", "busybox", "cat", file)
+	c.Assert(strings.TrimSpace(out), checker.Equals, "0")
+
+	out, err := inspectField("test", "HostConfig.MemorySwappiness")
+	c.Assert(err, check.IsNil)
+	c.Assert(out, check.Equals, "0")
 }
 
 func (s *DockerSuite) TestRunWithSwappinessInvalid(c *check.C) {
@@ -279,7 +313,14 @@ func (s *DockerSuite) TestRunWithSwappinessInvalid(c *check.C) {
 
 func (s *DockerSuite) TestRunWithMemoryReservation(c *check.C) {
 	testRequires(c, memoryReservationSupport)
-	dockerCmd(c, "run", "--memory-reservation", "200M", "busybox", "true")
+
+	file := "/sys/fs/cgroup/memory/memory.soft_limit_in_bytes"
+	out, _ := dockerCmd(c, "run", "--memory-reservation", "200M", "--name", "test", "busybox", "cat", file)
+	c.Assert(strings.TrimSpace(out), checker.Equals, "209715200")
+
+	out, err := inspectField("test", "HostConfig.MemoryReservation")
+	c.Assert(err, check.IsNil)
+	c.Assert(out, check.Equals, "209715200")
 }
 
 func (s *DockerSuite) TestRunWithMemoryReservationInvalid(c *check.C) {
