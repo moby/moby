@@ -1,0 +1,57 @@
+# This file describes the standard way to build Docker, using docker on TP4
+#
+# Usage:
+#
+# # Assemble the full dev environment. This is slow the first time.
+# docker build -t docker -f Dockerfile.windows .
+#
+# # Mount your source in an interactive container for quick testing:
+# docker run -it -v ${pwd}\bundles:c:/go/src/github.com/docker/docker/bundles docker cmd
+#
+
+FROM windowsservercore
+
+ENV GOLANG_VERSION=1.5.2 \
+    GIT_VERSION=2.7.0 \
+    RSRC_COMMIT=e48dbf1b7fc464a9e85fcec450dddf80816b76e0 \
+    GOPATH=C:/go;C:/go/src/github.com/docker/docker/vendor \
+    FROM_DOCKERFILE=1
+
+WORKDIR c:/windows/temp
+
+RUN powershell -command \
+    sleep 2 ; \
+    iex ((new-object net.webclient).DownloadString('https://chocolatey.org/install.ps1'))
+
+RUN powershell -command \
+    sleep 2 ; \
+    choco install curl -y -v ; \
+    choco install git -y -v --version=%GIT_VERSION% -params '"/GitAndUnixToolsOnPath"'
+
+RUN setx /M Path "c:\ProgramData\chocolatey\bin;c:\Program Files\Git\usr\bin;%Path%;c:\gcc\bin"
+
+RUN powershell -command \
+    sleep 2; \
+    curl.exe -L -k -o go.msi https://storage.googleapis.com/golang/go%GOLANG_VERSION%.windows-amd64.msi; \
+    curl.exe -L -k -o gcc.zip http://downloads.sourceforge.net/project/tdm-gcc/TDM-GCC%205%20series/5.1.0-tdm64-1/gcc-5.1.0-tdm64-1-core.zip ; \
+    curl.exe -L -k -o runtime.zip http://downloads.sourceforge.net/project/tdm-gcc/MinGW-w64%20runtime/GCC%205%20series/mingw64runtime-v4-git20150618-gcc5-tdm64-1.zip ; \
+    curl.exe -L -k -o binutils.zip http://downloads.sourceforge.net/project/tdm-gcc/GNU%20binutils/binutils-2.25-tdm64-1.zip
+
+RUN powershell -command \
+    .\go.msi /quiet ; \
+    Expand-Archive gcc.zip \gcc -Force ; \
+    Expand-Archive runtime.zip \gcc -Force ; \
+    Expand-Archive binutils.zip \gcc -Force
+
+RUN del go.msi gcc.zip runtime.zip binutils.zip
+
+RUN powershell -Command \
+    sleep 2 ; \
+    git clone https://github.com/akavel/rsrc.git c:\go\src\github.com\akavel\rsrc ; \
+    cd \go\src\github.com\akavel\rsrc ; \
+    git checkout -q $env:RSRC_COMMIT ; \
+    go install -v
+
+WORKDIR c:/go/src/github.com/docker/docker
+
+COPY . /go/src/github.com/docker/docker
