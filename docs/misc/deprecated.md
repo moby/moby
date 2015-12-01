@@ -12,6 +12,13 @@ parent = "mn_use_docker"
 
 The following list of features are deprecated.
 
+### `-f` flag on `docker tag`
+**Deprecated In Release: v1.10**
+
+**Target For Removal In Release: v1.12**
+
+To make tagging consistent across the various `docker` commands, the `-f` flag on the `docker tag` command is deprecated. It is not longer necessary to specify `-f` to move a tag from one image to another. Nor will `docker` generate an error if the `-f` flag is missing and the specified tag is already in use.
+
 ### HostConfig at API container start
 **Deprecated In Release: v1.10**
 
