@@ -574,7 +574,7 @@ func determineDefaultFS() string {
 	return "ext4"
 }
 
-func (devices *DeviceSet) createFilesystem(info *devInfo) error {
+func (devices *DeviceSet) createFilesystem(info *devInfo) (err error) {
 	devname := info.DevName()
 
 	args := []string{}
@@ -584,11 +584,18 @@ func (devices *DeviceSet) createFilesystem(info *devInfo) error {
 
 	args = append(args, devname)
 
-	var err error
-
 	if devices.filesystem == "" {
 		devices.filesystem = determineDefaultFS()
 	}
+
+	logrus.Infof("devmapper: Creating filesystem %s on device %s", devices.filesystem, info.Name())
+	defer func() {
+		if err != nil {
+			logrus.Infof("devmapper: Error while creating filesystem %s on device %s: %v", devices.filesystem, info.Name(), err)
+		} else {
+			logrus.Infof("devmapper: Successfully created filesystem %s on device %s", devices.filesystem, info.Name())
+		}
+	}()
 
 	switch devices.filesystem {
 	case "xfs":
@@ -605,11 +612,7 @@ func (devices *DeviceSet) createFilesystem(info *devInfo) error {
 	default:
 		err = fmt.Errorf("Unsupported filesystem type %s", devices.filesystem)
 	}
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return
 }
 
 func (devices *DeviceSet) migrateOldMetaData() error {
