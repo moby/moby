@@ -62,7 +62,7 @@ btrfs storage engine on both Oracle Linux 6 and 7.
 
 4. Install the Docker package.
 
-        $ sudo yum install docker
+        $ sudo yum install docker-engine
 
 5. Start the Docker daemon.
 
