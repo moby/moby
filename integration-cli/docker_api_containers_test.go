@@ -1371,3 +1371,20 @@ func (s *DockerSuite) TestPostContainersCreateWithWrongCpusetValues(c *check.C) 
 	expected = "Invalid value 42-3,1-- for cpuset mems.\n"
 	c.Assert(string(body), checker.Equals, expected)
 }
+
+func (s *DockerSuite) TestStartWithNilDNS(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	out, _ := dockerCmd(c, "create", "busybox")
+	containerID := strings.TrimSpace(out)
+
+	config := `{"HostConfig": {"Dns": null}}`
+
+	res, b, err := sockRequestRaw("POST", "/containers/"+containerID+"/start", strings.NewReader(config), "application/json")
+	c.Assert(err, checker.IsNil)
+	c.Assert(res.StatusCode, checker.Equals, http.StatusNoContent)
+	b.Close()
+
+	dns, err := inspectFieldJSON(containerID, "HostConfig.Dns")
+	c.Assert(err, checker.IsNil)
+	c.Assert(dns, checker.Equals, "[]")
+}
