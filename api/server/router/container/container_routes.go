@@ -400,12 +400,8 @@ func (s *containerRouter) postContainersAttach(ctx context.Context, w http.Respo
 	}
 	containerName := vars["name"]
 
-	if !s.backend.Exists(containerName) {
-		return derr.ErrorCodeNoSuchContainer.WithArgs(containerName)
-	}
-
-	if s.backend.IsPaused(containerName) {
-		return derr.ErrorCodePausedContainer.WithArgs(containerName)
+	if err := s.backend.CheckContainerAttachable(containerName); err != nil {
+		return err
 	}
 
 	inStream, outStream, err := httputils.HijackConnection(w)

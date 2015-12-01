@@ -158,7 +158,15 @@ func (m *containerMonitor) Start() error {
 			return err
 		}
 
-		pipes := execdriver.NewPipes(m.container.Stdin(), m.container.Stdout(), m.container.Stderr(), m.container.Config.OpenStdin)
+		var stdout, stderr io.Writer
+		if m.container.Stdout() != nil {
+			// if m.container.stdout is nil, we have to avoid assigning it to stdout, see https://golang.org/doc/faq#nil_error
+			stdout = m.container.Stdout()
+		}
+		if m.container.Stderr() != nil {
+			stderr = m.container.Stderr()
+		}
+		pipes := execdriver.NewPipes(m.container.Stdin(), stdout, stderr, m.container.Config.OpenStdin)
 
 		m.logEvent("start")
 

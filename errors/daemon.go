@@ -939,4 +939,13 @@ var (
 		Description:    "There was an error while trying to start a container",
 		HTTPStatusCode: http.StatusInternalServerError,
 	})
+
+	// ErrorCodeAttach is generated when we try to attach to an exec
+	// but failed.
+	ErrorCodeAttach = errcode.Register(errGroup, errcode.ErrorDescriptor{
+		Value:          "ATTACH",
+		Message:        "attach container %s failed with error: %s",
+		Description:    "There was an error while trying to attach container",
+		HTTPStatusCode: http.StatusInternalServerError,
+	})
 )

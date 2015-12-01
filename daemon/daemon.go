@@ -208,6 +208,8 @@ func (daemon *Daemon) load(id string) (*Container, error) {
 		return container, fmt.Errorf("Container %s is stored at %s", container.ID, id)
 	}
 
+	daemon.checkStreamConfig(container)
+
 	return container, nil
 }
 
@@ -221,13 +223,6 @@ func (daemon *Daemon) Register(container *Container) error {
 	}
 	if err := daemon.ensureName(container); err != nil {
 		return err
-	}
-
-	// Attach to stdout and stderr
-	if container.Config.OpenStdin {
-		container.NewInputPipes()
-	} else {
-		container.NewNopInputPipe()
 	}
 	daemon.containers.Add(container.ID, container)
 
@@ -1365,7 +1360,10 @@ func (daemon *Daemon) setHostConfig(container *Container, hostConfig *runconfig.
 	}
 
 	container.hostConfig = hostConfig
-	container.toDisk()
+	daemon.checkStreamConfig(container)
+	if err := container.toDisk(); err != nil {
+		return fmt.Errorf("Error saving hostConfig to disk: %v", err)
+	}
 	return nil
 }
 
@@ -1515,4 +1513,17 @@ func convertLnNetworkStats(name string, stats *lntypes.InterfaceStatistics) *lib
 	n.TxErrors = stats.TxErrors
 	n.TxDropped = stats.TxDropped
 	return n
+}
+
+func (daemon *Daemon) checkStreamConfig(container *Container) {
+	// Redirect containers' stdout/stderr to /dev/nil if running in detach mode with log-driver=none
+	if container.unAttachable(daemon.defaultLogConfig) {
+		container.StreamConfig.ResetStdoutStderr()
+	}
+	// Attach to stdin
+	if container.Config.OpenStdin {
+		container.NewInputPipes()
+	} else {
+		container.NewNopInputPipe()
+	}
 }
