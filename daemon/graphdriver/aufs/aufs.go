@@ -332,6 +332,14 @@ func (a *Driver) Put(id string) error {
 
 	m := a.active[id]
 	if m == nil {
+		// but it might be still here
+		if a.Exists(id) {
+			path := path.Join(a.rootPath(), "mnt", id)
+			err := Unmount(path)
+			if err != nil {
+				logrus.Debugf("Failed to unmount %s aufs: %v", id, err)
+			}
+		}
 		return nil
 	}
 	if count := m.referenceCount; count > 1 {
