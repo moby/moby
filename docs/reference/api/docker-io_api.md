@@ -11,5 +11,6 @@ weight = 99
 
 # Docker Hub API
 
-This API is deprecated as of 1.7. To view the old version, see the [Docker Hub API](docker-io_api.md) in the 1.7 documentation. 
+This API is deprecated as of 1.7. To view the old version, see the [Docker Hub
+API](https://docs.docker.com/v1.7/docker/reference/api/docker-io_api/) in the 1.7 documentation.
 
