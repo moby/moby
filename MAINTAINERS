@@ -219,13 +219,16 @@ made through a pull request.
 
 		people = [
 			"calavera",
+			"cpuguy83",
 			"crosbymichael",
+			"duglin",
 			"erikh",
 			"estesp",
 			"icecrime",
 			"jfrazelle",
 			"lk4d4",
 			"runcom",
+			"tianon",
 			"tibor",
 			"unclejack",
 			"vbatts",
@@ -234,17 +237,15 @@ made through a pull request.
 			"vishh"
 		]
 
-
     [Org."Docs maintainers"]
 
     # TODO Describe the docs maintainers role.
 
         people = [
-            "james",
-            "moxiegirl",
-            "thajeztah",
             "jamtur01",
-            "sven"
+            "moxiegirl",
+            "sven",
+            "thajeztah"
         ]
 
 	[Org.Curators]
@@ -346,6 +347,11 @@ made through a pull request.
 	Name = "Arnaud Porterie"
 	Email = "arnaud@docker.com"
 	GitHub = "icecrime"
+
+	[people.jamtur01]
+	Name = "James Turnbull"
+	Email = "james@lovedthanlost.net"
+	GitHub = "jamtur01"
 
 	[people.jfrazelle]
 	Name = "Jessie Frazelle"
