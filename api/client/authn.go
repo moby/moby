@@ -96,3 +96,18 @@ func (cli *DockerCli) GetBasicAuth(realm string) (string, string, error) {
 
 	return username, password, nil
 }
+
+// GetBearerAuth checks for a token passed in either via an environment
+// variable or a command-line option, and passes it back to the library.  It is
+// part of the authn.BearerAuther interface which the http client looks for in
+// the list of objects that we pass to its SetAuth() method.
+func (cli *DockerCli) GetBearerAuth(challenge string) (string, error) {
+	token, ok := cli.authnOpts["bearer.token"]
+	if !ok {
+		token = os.Getenv("DOCKER_BEARER_TOKEN")
+	}
+	if token == "" {
+		return "", errors.New("token required")
+	}
+	return token, nil
+}
