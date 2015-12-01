@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -408,4 +409,32 @@ func (s *DockerSuite) TestRunInvalidCPUShares(c *check.C) {
 	c.Assert(err, check.NotNil, check.Commentf(out))
 	expected = "The maximum allowed cpu-shares is"
 	c.Assert(out, checker.Contains, expected)
+}
+
+func (s *DockerSuite) TestRunWithDefaultShmSize(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	name := "shm-default"
+	out, _ := dockerCmd(c, "run", "--name", name, "busybox", "mount")
+	shmRegex := regexp.MustCompile(`shm on /dev/shm type tmpfs(.*)size=65536k`)
+	if !shmRegex.MatchString(out) {
+		c.Fatalf("Expected shm of 64MB in mount command, got %v", out)
+	}
+	shmSize, err := inspectField(name, "HostConfig.ShmSize")
+	c.Assert(err, check.IsNil)
+	c.Assert(shmSize, check.Equals, "67108864")
+}
+
+func (s *DockerSuite) TestRunWithShmSize(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	name := "shm"
+	out, _ := dockerCmd(c, "run", "--name", name, "--shm-size=1G", "busybox", "mount")
+	shmRegex := regexp.MustCompile(`shm on /dev/shm type tmpfs(.*)size=1048576k`)
+	if !shmRegex.MatchString(out) {
+		c.Fatalf("Expected shm of 1GB in mount command, got %v", out)
+	}
+	shmSize, err := inspectField(name, "HostConfig.ShmSize")
+	c.Assert(err, check.IsNil)
+	c.Assert(shmSize, check.Equals, "1073741824")
 }

@@ -131,6 +131,10 @@ func (daemon *Daemon) adaptContainerSettings(hostConfig *runconfig.HostConfig, a
 		// By default, MemorySwap is set to twice the size of Memory.
 		hostConfig.MemorySwap = hostConfig.Memory * 2
 	}
+	if hostConfig.ShmSize == nil {
+		shmSize := runconfig.DefaultSHMSize
+		hostConfig.ShmSize = &shmSize
+	}
 }
 
 // verifyPlatformContainerSettings performs platform-specific validation of the
@@ -142,6 +146,10 @@ func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *runconfig.HostC
 	warnings, err := daemon.verifyExperimentalContainerSettings(hostConfig, config)
 	if err != nil {
 		return warnings, err
+	}
+
+	if hostConfig.ShmSize != nil && *hostConfig.ShmSize <= 0 {
+		return warnings, fmt.Errorf("SHM size must be greater then 0")
 	}
 
 	// memory subsystem checks and adjustments
