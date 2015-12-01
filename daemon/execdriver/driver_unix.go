@@ -28,6 +28,7 @@ type Mount struct {
 	Writable    bool   `json:"writable"`
 	Private     bool   `json:"private"`
 	Slave       bool   `json:"slave"`
+	Data        string `json:"data"`
 }
 
 // Resources contains all resource configs for a driver.

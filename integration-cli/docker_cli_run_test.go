@@ -375,10 +375,10 @@ func (s *DockerSuite) TestRunNoDupVolumes(c *check.C) {
 	mountstr2 := path2 + someplace
 
 	if out, _, err := dockerCmdWithError("run", "-v", mountstr1, "-v", mountstr2, "busybox", "true"); err == nil {
-		c.Fatal("Expected error about duplicate volume definitions")
+		c.Fatal("Expected error about duplicate mount definitions")
 	} else {
-		if !strings.Contains(out, "Duplicate bind mount") {
-			c.Fatalf("Expected 'duplicate volume' error, got %v", out)
+		if !strings.Contains(out, "Duplicate mount point") {
+			c.Fatalf("Expected 'duplicate mount point' error, got %v", out)
 		}
 	}
 }

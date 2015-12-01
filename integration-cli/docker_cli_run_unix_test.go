@@ -438,3 +438,21 @@ func (s *DockerSuite) TestRunWithShmSize(c *check.C) {
 	c.Assert(err, check.IsNil)
 	c.Assert(shmSize, check.Equals, "1073741824")
 }
+
+func (s *DockerSuite) TestRunTmpfsMounts(c *check.C) {
+	// TODO Windows (Post TP4): This test cannot run on a Windows daemon as
+	// Windows does not support tmpfs mounts.
+	testRequires(c, DaemonIsLinux)
+	if out, _, err := dockerCmdWithError("run", "--tmpfs", "/run", "busybox", "touch", "/run/somefile"); err != nil {
+		c.Fatalf("/run directory not mounted on tmpfs %q %s", err, out)
+	}
+	if out, _, err := dockerCmdWithError("run", "--tmpfs", "/run:noexec,nosuid,rw,size=5k,mode=700", "busybox", "touch", "/run/somefile"); err != nil {
+		c.Fatalf("/run failed to mount on tmpfs with valid options %q %s", err, out)
+	}
+	if _, _, err := dockerCmdWithError("run", "--tmpfs", "/run:foobar", "busybox", "touch", "/run/somefile"); err == nil {
+		c.Fatalf("/run mounted on tmpfs when it should have vailed within invalid mount option")
+	}
+	if _, _, err := dockerCmdWithError("run", "--tmpfs", "/run", "-v", "/run:/run", "busybox", "touch", "/run/somefile"); err == nil {
+		c.Fatalf("Should have generated an error saying Duplicate mount  points")
+	}
+}

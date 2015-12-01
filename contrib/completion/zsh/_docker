@@ -491,6 +491,7 @@ __docker_subcommand() {
         "($help)*--security-opt=[Security options]:security option: "
         "($help -t --tty)"{-t,--tty}"[Allocate a pseudo-tty]"
         "($help -u --user)"{-u=,--user=}"[Username or UID]:user:_users"
+        "($help)--tmpfs[mount tmpfs] "
         "($help)*-v[Bind mount a volume]:volume: "
         "($help)--volume-driver=[Optional volume driver for the container]:volume driver:(local)"
         "($help)*--volumes-from=[Mount volumes from the specified container]:volume: "

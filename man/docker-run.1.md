@@ -59,6 +59,7 @@ docker-run - Run a command in a new container
 [**--shm-size**[=*[]*]]
 [**--sig-proxy**[=*true*]]
 [**-t**|**--tty**[=*false*]]
+[**--tmpfs**[=*[CONTAINER-DIR[:<OPTIONS>]*]]
 [**-u**|**--user**[=*USER*]]
 [**-v**|**--volume**[=*[]*]]
 [**--ulimit**[=*[]*]]
@@ -432,6 +433,20 @@ interactive shell. The default is false.
 The **-t** option is incompatible with a redirection of the docker client
 standard input.
 
+**--tmpfs**=[] Create a tmpfs mount
+
+   Mount a temporary filesystem (`tmpfs`) mount into a container, for example:
+
+   $ docker run -d --tmpfs /tmp:rw,size=787448k,mode=1777 my_image
+
+   This command mounts a `tmpfs` at `/tmp` within the container. The mount copies
+the underlying content of `my_image` into `/tmp`. For example if there was a
+directory `/tmp/content` in the base image, docker will copy this directory and
+all of its content on top of the tmpfs mounted on `/tmp`.  The supported mount
+options are the same as the Linux default `mount` flags. If you do not specify
+any options, the systems uses the following options:
+`rw,noexec,nosuid,nodev,size=65536k`.
+
 **-u**, **--user**=""
    Sets the username or UID used and optionally the groupname or GID for the specified command.
 
@@ -547,6 +562,19 @@ the exit codes follow the `chroot` standard, see below:
     # 3
 
 # EXAMPLES
+
+## Running container in read-only mode
+
+During container image development, containers often need to write to the image
+content.  Installing packages into /usr, for example.  In production,
+applications seldom need to write to the image.  Container applications write
+to volumes if they need to write to file systems at all.  Applications can be
+made more secure by running them in read-only mode using the --read-only switch.
+This protects the containers image from modification. Read only containers may
+still need to write temporary data.  The best way to handle this is to mount
+tmpfs directories on /run and /tmp.
+
+    # docker run --read-only --tmpfs /run --tmpfs /tmp -i -t fedora /bin/bash
 
 ## Exposing log messages from the container to the host's log
 

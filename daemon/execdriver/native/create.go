@@ -4,10 +4,13 @@ package native
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 	"syscall"
 
 	"github.com/docker/docker/daemon/execdriver"
+	derr "github.com/docker/docker/errors"
+	"github.com/docker/docker/pkg/mount"
 
 	"github.com/opencontainers/runc/libcontainer/apparmor"
 	"github.com/opencontainers/runc/libcontainer/configs"
@@ -288,6 +291,36 @@ func (d *Driver) setupMounts(container *configs.Config, c *execdriver.Command) e
 	container.Mounts = defaultMounts
 
 	for _, m := range c.Mounts {
+		for _, cm := range container.Mounts {
+			if cm.Destination == m.Destination {
+				return derr.ErrorCodeMountDup.WithArgs(m.Destination)
+			}
+		}
+
+		if m.Source == "tmpfs" {
+			var (
+				data  = "size=65536k"
+				flags = syscall.MS_NOEXEC | syscall.MS_NOSUID | syscall.MS_NODEV
+				err   error
+			)
+			fulldest := filepath.Join(c.Rootfs, m.Destination)
+			if m.Data != "" {
+				flags, data, err = mount.ParseTmpfsOptions(m.Data)
+				if err != nil {
+					return err
+				}
+			}
+			container.Mounts = append(container.Mounts, &configs.Mount{
+				Source:        m.Source,
+				Destination:   m.Destination,
+				Data:          data,
+				Device:        "tmpfs",
+				Flags:         flags,
+				PremountCmds:  genTmpfsPremountCmd(c.TmpDir, fulldest, m.Destination),
+				PostmountCmds: genTmpfsPostmountCmd(c.TmpDir, fulldest, m.Destination),
+			})
+			continue
+		}
 		flags := syscall.MS_BIND | syscall.MS_REC
 		if !m.Writable {
 			flags |= syscall.MS_RDONLY

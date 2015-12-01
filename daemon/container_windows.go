@@ -191,6 +191,10 @@ func (container *Container) ipcMounts() []execdriver.Mount {
 	return nil
 }
 
+func (container *Container) tmpfsMounts() []execdriver.Mount {
+	return nil
+}
+
 func getDefaultRouteMtu() (int, error) {
 	return -1, errSystemNotSupported
 }

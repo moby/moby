@@ -5,6 +5,7 @@ package native
 import (
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -128,6 +129,13 @@ type execOutput struct {
 // it calls libcontainer APIs to run a container.
 func (d *Driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, hooks execdriver.Hooks) (execdriver.ExitStatus, error) {
 	destroyed := false
+	var err error
+	c.TmpDir, err = ioutil.TempDir("", c.ID)
+	if err != nil {
+		return execdriver.ExitStatus{ExitCode: -1}, err
+	}
+	defer os.RemoveAll(c.TmpDir)
+
 	// take the Command and populate the libcontainer.Config from it
 	container, err := d.createContainer(c, hooks)
 	if err != nil {
