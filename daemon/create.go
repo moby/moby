@@ -76,7 +76,7 @@ func (daemon *Daemon) create(params *ContainerCreateConfig) (retC *Container, re
 	}
 	defer func() {
 		if retErr != nil {
-			if err := daemon.rm(container, false); err != nil {
+			if err := daemon.rm(container, true); err != nil {
 				logrus.Errorf("Clean up Error! Cannot destroy container %s: %v", container.ID, err)
 			}
 		}

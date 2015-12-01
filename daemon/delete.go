@@ -107,37 +107,31 @@ func (daemon *Daemon) rm(container *Container, forceRemove bool) (err error) {
 	// If force removal is required, delete container from various
 	// indexes even if removal failed.
 	defer func() {
-		if err != nil && forceRemove {
+		if err == nil || forceRemove {
+			if _, err := daemon.containerGraphDB.Purge(container.ID); err != nil {
+				logrus.Debugf("Unable to remove container from link graph: %s", err)
+			}
+			selinuxFreeLxcContexts(container.ProcessLabel)
 			daemon.idIndex.Delete(container.ID)
 			daemon.containers.Delete(container.ID)
-			os.RemoveAll(container.root)
 			daemon.LogContainerEvent(container, "destroy")
 		}
 	}()
 
-	if _, err := daemon.containerGraphDB.Purge(container.ID); err != nil {
-		logrus.Debugf("Unable to remove container from link graph: %s", err)
+	if err = os.RemoveAll(container.root); err != nil {
+		return derr.ErrorCodeRmFS.WithArgs(container.ID, err)
 	}
 
 	metadata, err := daemon.layerStore.DeleteMount(container.ID)
 	layer.LogReleaseMetadata(metadata)
-	if err != nil {
+	if err != nil && err != layer.ErrMountDoesNotExist {
 		return derr.ErrorCodeRmDriverFS.WithArgs(daemon.driver, container.ID, err)
-	}
-
-	if err = os.RemoveAll(container.root); err != nil {
-		return derr.ErrorCodeRmFS.WithArgs(container.ID, err)
 	}
 
 	if err = daemon.execDriver.Clean(container.ID); err != nil {
 		return derr.ErrorCodeRmExecDriver.WithArgs(container.ID, err)
 	}
 
-	selinuxFreeLxcContexts(container.ProcessLabel)
-	daemon.idIndex.Delete(container.ID)
-	daemon.containers.Delete(container.ID)
-
-	daemon.LogContainerEvent(container, "destroy")
 	return nil
 }
 
