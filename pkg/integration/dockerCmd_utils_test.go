@@ -204,7 +204,7 @@ func (s *DockerCmdSuite) TestDockerCmdWithTimeout(c *check.C) {
 	for _, cmd := range cmds {
 		out, exitCode, error := DockerCmdWithTimeout(cmd.binary, cmd.timeout, cmd.args...)
 		c.Assert(out, check.Equals, cmd.expectedOut, check.Commentf("Expected output %q for arguments %v, got %q", cmd.expectedOut, cmd.args, out))
-		c.Assert(exitCode, check.Equals, cmd.expectedExitCode, check.Commentf("Expected exitCode %q for arguments %v, got %q", cmd.expectedExitCode, cmd.args, exitCode))
+		c.Assert(exitCode, check.Equals, cmd.expectedExitCode, check.Commentf("Expected exitCode %d for arguments %v, got %d", cmd.expectedExitCode, cmd.args, exitCode))
 		if cmd.expectedError != nil {
 			c.Assert(error, check.NotNil, check.Commentf("Expected an error %q, got nothing", cmd.expectedError))
 			c.Assert(error.Error(), check.Equals, cmd.expectedError.Error(), check.Commentf("Expected error %q for arguments %v, got %q", cmd.expectedError.Error(), cmd.args, error.Error()))
