@@ -21,23 +21,12 @@ import (
 // Any function that has the appropriate signature can be register as a middleware.
 type middleware func(handler httputils.APIFunc) httputils.APIFunc
 
-// loggingMiddleware logs each request when logging is enabled.
-func (s *Server) loggingMiddleware(handler httputils.APIFunc) httputils.APIFunc {
-	return func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-		if s.cfg.Logging {
-			logrus.Infof("%s %s", r.Method, r.RequestURI)
-		}
-		return handler(ctx, w, r, vars)
-	}
-}
-
 // debugRequestMiddleware dumps the request to logger
-// This is implemented separately from `loggingMiddleware` so that we don't have to
-// check the logging level or have httputil.DumpRequest called on each request.
-// Instead the middleware is only injected when the logging level is set to debug
-func (s *Server) debugRequestMiddleware(handler httputils.APIFunc) httputils.APIFunc {
+func debugRequestMiddleware(handler httputils.APIFunc) httputils.APIFunc {
 	return func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-		if s.cfg.Logging && r.Method == "POST" {
+		logrus.Debugf("%s %s", r.Method, r.RequestURI)
+
+		if r.Method == "POST" {
 			if err := httputils.CheckForJSON(r); err == nil {
 				var buf bytes.Buffer
 				if _, err := buf.ReadFrom(r.Body); err == nil {
@@ -53,6 +42,7 @@ func (s *Server) debugRequestMiddleware(handler httputils.APIFunc) httputils.API
 				}
 			}
 		}
+
 		return handler(ctx, w, r, vars)
 	}
 }
@@ -136,14 +126,11 @@ func (s *Server) handleWithGlobalMiddlewares(handler httputils.APIFunc) httputil
 		versionMiddleware,
 		s.corsMiddleware,
 		s.userAgentMiddleware,
-		s.loggingMiddleware,
 	}
 
 	// Only want this on debug level
-	// this is separate from the logging middleware so that we can do this check here once,
-	// rather than for each request.
-	if logrus.GetLevel() == logrus.DebugLevel {
-		middlewares = append(middlewares, s.debugRequestMiddleware)
+	if s.cfg.Logging && logrus.GetLevel() == logrus.DebugLevel {
+		middlewares = append(middlewares, debugRequestMiddleware)
 	}
 
 	h := handler
