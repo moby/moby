@@ -1464,7 +1464,7 @@ func (s *DockerSuite) TestPostContainersCreateShmSizeOmitted(c *check.C) {
 	var containerJSON types.ContainerJSON
 	c.Assert(json.Unmarshal(body, &containerJSON), check.IsNil)
 
-	c.Assert(*containerJSON.HostConfig.ShmSize, check.Equals, runconfig.DefaultSHMSize)
+	c.Assert(*containerJSON.HostConfig.ShmSize, check.Equals, int64(67108864))
 
 	out, _ := dockerCmd(c, "start", "-i", containerJSON.ID)
 	shmRegexp := regexp.MustCompile(`shm on /dev/shm type tmpfs(.*)size=65536k`)

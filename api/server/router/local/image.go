@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/Sirupsen/logrus"
@@ -357,17 +358,20 @@ func (s *router) postBuild(ctx context.Context, w http.ResponseWriter, r *http.R
 	buildConfig.ForceRemove = httputils.BoolValue(r, "forcerm")
 	buildConfig.MemorySwap = httputils.Int64ValueOrZero(r, "memswap")
 	buildConfig.Memory = httputils.Int64ValueOrZero(r, "memory")
-	shmSize, err := httputils.Int64ValueOrDefault(r, "shmsize", runconfig.DefaultSHMSize)
-	if err != nil {
-		return errf(err)
-	}
-	buildConfig.ShmSize = &shmSize
 	buildConfig.CPUShares = httputils.Int64ValueOrZero(r, "cpushares")
 	buildConfig.CPUPeriod = httputils.Int64ValueOrZero(r, "cpuperiod")
 	buildConfig.CPUQuota = httputils.Int64ValueOrZero(r, "cpuquota")
 	buildConfig.CPUSetCpus = r.FormValue("cpusetcpus")
 	buildConfig.CPUSetMems = r.FormValue("cpusetmems")
 	buildConfig.CgroupParent = r.FormValue("cgroupparent")
+
+	if r.Form.Get("shmsize") != "" {
+		shmSize, err := strconv.ParseInt(r.Form.Get("shmsize"), 10, 64)
+		if err != nil {
+			return errf(err)
+		}
+		buildConfig.ShmSize = &shmSize
+	}
 
 	if i := runconfig.IsolationLevel(r.FormValue("isolation")); i != "" {
 		if !runconfig.IsolationLevel.IsValid(i) {
