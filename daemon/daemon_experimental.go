@@ -16,7 +16,7 @@ import (
 
 func setupRemappedRoot(config *Config) ([]idtools.IDMap, []idtools.IDMap, error) {
 	if runtime.GOOS != "linux" && config.RemappedRoot != "" {
-		return nil, nil, fmt.Errorf("User namespaces are not supported on Linux")
+		return nil, nil, fmt.Errorf("User namespaces are only supported on Linux")
 	}
 
 	// if the daemon was started with remapped root option, parse
