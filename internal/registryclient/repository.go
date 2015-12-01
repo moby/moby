@@ -391,17 +391,18 @@ func (bs *blobs) Get(ctx context.Context, dgst digest.Digest) ([]byte, error) {
 }
 
 func (bs *blobs) Open(ctx context.Context, dgst digest.Digest) (distribution.ReadSeekCloser, error) {
-	stat, err := bs.statter.Stat(ctx, dgst)
+	blobURL, err := bs.ub.BuildBlobURL(bs.name, dgst)
 	if err != nil {
 		return nil, err
 	}
 
-	blobURL, err := bs.ub.BuildBlobURL(bs.name, stat.Digest)
-	if err != nil {
-		return nil, err
-	}
-
-	return transport.NewHTTPReadSeeker(bs.client, blobURL, stat.Size), nil
+	return transport.NewHTTPReadSeeker(bs.client, blobURL,
+		func(resp *http.Response) error {
+			if resp.StatusCode == http.StatusNotFound {
+				return distribution.ErrBlobUnknown
+			}
+			return handleErrorResponse(resp)
+		}), nil
 }
 
 func (bs *blobs) ServeBlob(ctx context.Context, w http.ResponseWriter, r *http.Request, dgst digest.Digest) error {
