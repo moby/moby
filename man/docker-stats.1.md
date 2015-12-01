@@ -9,7 +9,7 @@ docker-stats - Display a live stream of one or more containers' resource usage s
 [**-a**|**--all**[=*false*]]
 [**--help**]
 [**--no-stream**[=*false*]]
-[**-s**|**--sort**[=*SORT-FIELD*]]
+[**-o**|**--order-by**[=*SORT-FIELD*]]
 [CONTAINER...]
 
 # DESCRIPTION
@@ -26,9 +26,11 @@ Display a live stream of one or more containers' resource usage statistics
 **--no-stream**=*true*|*false*
   Disable streaming stats and only pull the first result, default setting is false.
 
-**-s**, **--sort**=""
-  Sort field (valid fields are Name, CPUPercentage, Memory, MemoryLimit, MemoryPercentage,
-  NetworkRx, NetworkTx, BlockRead, BlockWrite)
+**-o**, **--order-by**=""
+  Sort output by the given field (valid fields are Name, CPUPercentage, Memory, MemoryLimit,
+  MemoryPercentage, NetworkRx, NetworkTx, BlockRead, BlockWrite).
+  You can prepend '+' or '-' to change the sort order, a leading '+' will result in descending
+  order (default), a leading '-' will give you ascending order.
 
 # EXAMPLES
 

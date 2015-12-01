@@ -200,7 +200,7 @@ func (s *containerStats) Display(w io.Writer) error {
 func (cli *DockerCli) CmdStats(args ...string) error {
 	cmd := Cli.Subcmd("stats", []string{"[CONTAINER...]"}, Cli.DockerCommands["stats"].Description, true)
 	all := cmd.Bool([]string{"a", "-all"}, false, "Show all containers (default shows just running)")
-	sortField := cmd.String([]string{"s", "-sort"}, "", "Sort stats by given field in descending order")
+	sortField := cmd.String([]string{"o", "-order-by"}, "", "Sort stats by given field in descending order")
 	noStream := cmd.Bool([]string{"-no-stream"}, false, "Disable streaming stats and only pull the first result")
 
 	cmd.ParseFlags(args, true)
