@@ -23,11 +23,11 @@ func Login(authConfig *cliconfig.AuthConfig, registryEndpoint *Endpoint) (string
 // loginV1 tries to register/login to the v1 registry server.
 func loginV1(authConfig *cliconfig.AuthConfig, registryEndpoint *Endpoint) (string, error) {
 	var (
-		status        string
-		reqBody       []byte
-		err           error
-		reqStatusCode = 0
-		serverAddress = authConfig.ServerAddress
+		status         string
+		respBody       []byte
+		err            error
+		respStatusCode = 0
+		serverAddress  = authConfig.ServerAddress
 	)
 
 	logrus.Debugf("attempting v1 login to registry endpoint %s", registryEndpoint)
@@ -49,18 +49,18 @@ func loginV1(authConfig *cliconfig.AuthConfig, registryEndpoint *Endpoint) (stri
 
 	// using `bytes.NewReader(jsonBody)` here causes the server to respond with a 411 status.
 	b := strings.NewReader(string(jsonBody))
-	req1, err := registryEndpoint.client.Post(serverAddress+"users/", "application/json; charset=utf-8", b)
+	resp1, err := registryEndpoint.client.Post(serverAddress+"users/", "application/json; charset=utf-8", b)
 	if err != nil {
 		return "", fmt.Errorf("Server Error: %s", err)
 	}
-	defer req1.Body.Close()
-	reqStatusCode = req1.StatusCode
-	reqBody, err = ioutil.ReadAll(req1.Body)
+	defer resp1.Body.Close()
+	respStatusCode = resp1.StatusCode
+	respBody, err = ioutil.ReadAll(resp1.Body)
 	if err != nil {
-		return "", fmt.Errorf("Server Error: [%#v] %s", reqStatusCode, err)
+		return "", fmt.Errorf("Server Error: [%#v] %s", respStatusCode, err)
 	}
 
-	if reqStatusCode == 201 {
+	if respStatusCode == 201 {
 		if loginAgainstOfficialIndex {
 			status = "Account created. Please use the confirmation link we sent" +
 				" to your e-mail to activate it."
@@ -68,8 +68,8 @@ func loginV1(authConfig *cliconfig.AuthConfig, registryEndpoint *Endpoint) (stri
 			// *TODO: Use registry configuration to determine what this says, if anything?
 			status = "Account created. Please see the documentation of the registry " + serverAddress + " for instructions how to activate it."
 		}
-	} else if reqStatusCode == 400 {
-		if string(reqBody) == "\"Username or email already exists\"" {
+	} else if respStatusCode == 400 {
+		if string(respBody) == "\"Username or email already exists\"" {
 			req, err := http.NewRequest("GET", serverAddress+"users/", nil)
 			req.SetBasicAuth(authConfig.Username, authConfig.Password)
 			resp, err := registryEndpoint.client.Do(req)
@@ -97,9 +97,9 @@ func loginV1(authConfig *cliconfig.AuthConfig, registryEndpoint *Endpoint) (stri
 			}
 			return "", fmt.Errorf("Login: %s (Code: %d; Headers: %s)", body, resp.StatusCode, resp.Header)
 		}
-		return "", fmt.Errorf("Registration: %s", reqBody)
+		return "", fmt.Errorf("Registration: %s", respBody)
 
-	} else if reqStatusCode == 401 {
+	} else if respStatusCode == 401 {
 		// This case would happen with private registries where /v1/users is
 		// protected, so people can use `docker login` as an auth check.
 		req, err := http.NewRequest("GET", serverAddress+"users/", nil)
@@ -122,7 +122,7 @@ func loginV1(authConfig *cliconfig.AuthConfig, registryEndpoint *Endpoint) (stri
 				resp.StatusCode, resp.Header)
 		}
 	} else {
-		return "", fmt.Errorf("Unexpected status code [%d] : %s", reqStatusCode, reqBody)
+		return "", fmt.Errorf("Unexpected status code [%d] : %s", respStatusCode, respBody)
 	}
 	return status, nil
 }
