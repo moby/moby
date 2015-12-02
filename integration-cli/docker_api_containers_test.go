@@ -1415,6 +1415,7 @@ func (s *DockerSuite) TestPostContainersCreateShmSizeZero(c *check.C) {
 }
 
 func (s *DockerSuite) TestPostContainersCreateShmSizeHostConfigOmitted(c *check.C) {
+	var defaultSHMSize int64 = 67108864
 	config := map[string]interface{}{
 		"Image": "busybox",
 		"Cmd":   "mount",
@@ -1434,7 +1435,7 @@ func (s *DockerSuite) TestPostContainersCreateShmSizeHostConfigOmitted(c *check.
 	var containerJSON types.ContainerJSON
 	c.Assert(json.Unmarshal(body, &containerJSON), check.IsNil)
 
-	c.Assert(*containerJSON.HostConfig.ShmSize, check.Equals, runconfig.DefaultSHMSize)
+	c.Assert(*containerJSON.HostConfig.ShmSize, check.Equals, defaultSHMSize)
 
 	out, _ := dockerCmd(c, "start", "-i", containerJSON.ID)
 	shmRegexp := regexp.MustCompile(`shm on /dev/shm type tmpfs(.*)size=65536k`)
