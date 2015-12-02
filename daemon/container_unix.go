@@ -296,11 +296,7 @@ func (daemon *Daemon) populateCommand(c *Container, env []string) error {
 		Rlimits:           rlimits,
 		BlkioWeightDevice: weightDevices,
 		OomKillDisable:    c.hostConfig.OomKillDisable,
-		MemorySwappiness:  -1,
-	}
-
-	if c.hostConfig.MemorySwappiness != nil {
-		resources.MemorySwappiness = *c.hostConfig.MemorySwappiness
+		MemorySwappiness:  *c.hostConfig.MemorySwappiness,
 	}
 
 	processConfig := execdriver.ProcessConfig{

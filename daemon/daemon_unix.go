@@ -138,6 +138,10 @@ func (daemon *Daemon) adaptContainerSettings(hostConfig *runconfig.HostConfig, a
 			return err
 		}
 	}
+	if hostConfig.MemorySwappiness == nil {
+		defaultSwappiness := int64(-1)
+		hostConfig.MemorySwappiness = &defaultSwappiness
+	}
 
 	return nil
 }

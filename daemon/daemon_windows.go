@@ -48,9 +48,9 @@ func checkKernel() error {
 
 // adaptContainerSettings is called during container creation to modify any
 // settings necessary in the HostConfig structure.
-func (daemon *Daemon) adaptContainerSettings(hostConfig *runconfig.HostConfig, adjustCPUShares bool) {
+func (daemon *Daemon) adaptContainerSettings(hostConfig *runconfig.HostConfig, adjustCPUShares bool) error {
 	if hostConfig == nil {
-		return
+		return nil
 	}
 
 	if hostConfig.CPUShares < 0 {
@@ -60,6 +60,8 @@ func (daemon *Daemon) adaptContainerSettings(hostConfig *runconfig.HostConfig, a
 		logrus.Warnf("Changing requested CPUShares of %d to maximum allowed of %d", hostConfig.CPUShares, windowsMaxCPUShares)
 		hostConfig.CPUShares = windowsMaxCPUShares
 	}
+
+	return nil
 }
 
 // verifyPlatformContainerSettings performs platform-specific validation of the

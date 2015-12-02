@@ -36,6 +36,9 @@ func (daemon *Daemon) ContainerStart(name string, hostConfig *runconfig.HostConf
 				return err
 			}
 			container.Unlock()
+			if err := daemon.adaptContainerSettings(hostConfig, false); err != nil {
+				return err
+			}
 			if err := daemon.setHostConfig(container, hostConfig); err != nil {
 				return err
 			}
