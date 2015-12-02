@@ -121,7 +121,7 @@ func (daemon *Daemon) registerMountPoints(container *Container, hostConfig *runc
 		}
 
 		if binds[bind.Destination] {
-			return derr.ErrorCodeVolumeDup.WithArgs(bind.Destination)
+			return derr.ErrorCodeMountDup.WithArgs(bind.Destination)
 		}
 
 		if len(bind.Name) > 0 && len(bind.Driver) > 0 {

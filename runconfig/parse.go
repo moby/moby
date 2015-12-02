@@ -7,6 +7,7 @@ import (
 
 	"github.com/docker/docker/opts"
 	flag "github.com/docker/docker/pkg/mflag"
+	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/nat"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/signal"
@@ -50,6 +51,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		// FIXME: use utils.ListOpts for attach and volumes?
 		flAttach            = opts.NewListOpts(opts.ValidateAttach)
 		flVolumes           = opts.NewListOpts(nil)
+		flTmpfs             = opts.NewListOpts(nil)
 		flBlkioWeightDevice = opts.NewWeightdeviceOpt(opts.ValidateWeightDevice)
 		flLinks             = opts.NewListOpts(opts.ValidateLink)
 		flEnv               = opts.NewListOpts(opts.ValidateEnv)
@@ -111,6 +113,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 	cmd.Var(&flAttach, []string{"a", "-attach"}, "Attach to STDIN, STDOUT or STDERR")
 	cmd.Var(&flBlkioWeightDevice, []string{"-blkio-weight-device"}, "Block IO weight (relative device weight)")
 	cmd.Var(&flVolumes, []string{"v", "-volume"}, "Bind mount a volume")
+	cmd.Var(&flTmpfs, []string{"-tmpfs"}, "Mount a tmpfs directory")
 	cmd.Var(&flLinks, []string{"-link"}, "Add link to another container")
 	cmd.Var(&flDevices, []string{"-device"}, "Add a host device to the container")
 	cmd.Var(&flLabels, []string{"l", "-label"}, "Set meta data on a container")
@@ -218,6 +221,19 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 			// we do not want bind mounts being committed to image configs
 			binds = append(binds, bind)
 			flVolumes.Delete(bind)
+		}
+	}
+
+	// Can't evalute options passed into --tmpfs until we actually mount
+	tmpfs := make(map[string]string)
+	for _, t := range flTmpfs.GetAll() {
+		if arr := strings.SplitN(t, ":", 2); len(arr) > 1 {
+			if _, _, err := mount.ParseTmpfsOptions(arr[1]); err != nil {
+				return nil, nil, cmd, err
+			}
+			tmpfs[arr[0]] = arr[1]
+		} else {
+			tmpfs[arr[0]] = ""
 		}
 	}
 
@@ -396,6 +412,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		Isolation:      IsolationLevel(*flIsolation),
 		ShmSize:        parsedShm,
 		Resources:      resources,
+		Tmpfs:          tmpfs,
 	}
 
 	// When allocating stdin in attached mode, close stdin at client disconnect

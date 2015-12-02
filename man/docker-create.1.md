@@ -57,6 +57,7 @@ docker-create - Create a new container
 [**--stop-signal**[=*SIGNAL*]]
 [**--shm-size**[=*[]*]]
 [**-t**|**--tty**[=*false*]]
+[**--tmpfs**[=*[CONTAINER-DIR[:<OPTIONS>]*]]
 [**-u**|**--user**[=*USER*]]
 [**--ulimit**[=*[]*]]
 [**--uts**[=*[]*]]
@@ -270,6 +271,20 @@ This value should always larger than **-m**, so you should always use this with 
 
 **-t**, **--tty**=*true*|*false*
    Allocate a pseudo-TTY. The default is *false*.
+
+**--tmpfs**=[] Create a tmpfs mount
+
+   Mount a temporary filesystem (`tmpfs`) mount into a container, for example:
+
+   $ docker run -d --tmpfs /tmp:rw,size=787448k,mode=1777 my_image
+
+   This command mounts a `tmpfs` at `/tmp` within the container. The mount copies
+the underlying content of `my_image` into `/tmp`. For example if there was a
+directory `/tmp/content` in the base image, docker will copy this directory and
+all of its content on top of the tmpfs mounted on `/tmp`.  The supported mount
+options are the same as the Linux default `mount` flags. If you do not specify
+any options, the systems uses the following options:
+`rw,noexec,nosuid,nodev,size=65536k`.
 
 **-u**, **--user**=""
    Username or UID

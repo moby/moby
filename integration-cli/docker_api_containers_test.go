@@ -212,7 +212,7 @@ func (s *DockerSuite) TestContainerApiStartDupVolumeBinds(c *check.C) {
 	status, body, err := sockRequest("POST", "/containers/"+name+"/start", config)
 	c.Assert(err, checker.IsNil)
 	c.Assert(status, checker.Equals, http.StatusInternalServerError)
-	c.Assert(string(body), checker.Contains, "Duplicate bind", check.Commentf("Expected failure due to duplicate bind mounts to same path, instead got: %q with error: %v", string(body), err))
+	c.Assert(string(body), checker.Contains, "Duplicate mount point", check.Commentf("Expected failure due to duplicate bind mounts to same path, instead got: %q with error: %v", string(body), err))
 }
 
 func (s *DockerSuite) TestContainerApiStartVolumesFrom(c *check.C) {

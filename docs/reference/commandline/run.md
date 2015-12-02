@@ -153,6 +153,14 @@ flag exists to allow special use-cases, like running Docker within Docker.
 The `-w` lets the command being executed inside directory given, here
 `/path/to/dir/`. If the path does not exists it is created inside the container.
 
+### mount tmpfs (--tmpfs)
+
+    $ docker run -d --tmpfs /run:rw,noexec,nosuid,size=65536k my_image
+
+    The --tmpfs flag mounts a tmpfs into the container with the rw,noexec,nosuid,size=65536k options.
+
+    Underlying content from the /run in the my_image image is copied into tmpfs.
+
 ### Mount volume (-v, --read-only)
 
     $ docker  run  -v `pwd`:`pwd` -w `pwd` -i -t  ubuntu pwd

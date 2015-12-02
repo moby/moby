@@ -1298,6 +1298,14 @@ above, or already defined by the developer with a Dockerfile `ENV`:
 
 Similarly the operator can set the **hostname** with `-h`.
 
+### TMPFS (mount tmpfs filesystems)
+
+    --tmpfs=[]: Create a tmpfs mount with: container-dir[:<options>], where the options are identical to the Linux `mount -t tmpfs -o` command.
+
+    Underlying content from the "container-dir" is copied into tmpfs.
+
+    $ docker run -d --tmpfs /run:rw,noexec,nosuid,size=65536k my_image
+
 ### VOLUME (shared filesystems)
 
     -v=[]: Create a bind mount with: [host-src:]container-dest[:<options>], where
