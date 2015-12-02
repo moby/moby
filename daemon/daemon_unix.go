@@ -132,7 +132,7 @@ func (daemon *Daemon) adaptContainerSettings(hostConfig *runconfig.HostConfig, a
 		hostConfig.MemorySwap = hostConfig.Memory * 2
 	}
 	if hostConfig.ShmSize == nil {
-		shmSize := runconfig.DefaultSHMSize
+		shmSize := DefaultSHMSize
 		hostConfig.ShmSize = &shmSize
 	}
 }

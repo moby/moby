@@ -42,9 +42,6 @@ var (
 	ErrConflictNetworkExposePorts = fmt.Errorf("Conflicting options: --expose and the network mode (--net)")
 )
 
-// DefaultSHMSize is the default size (64MB) of the SHM which will be mounted in the container
-const DefaultSHMSize int64 = 67108864
-
 // Parse parses the specified args for the specified command and generates a Config,
 // a HostConfig and returns them with the specified command.
 // If the specified args are not valid, it will return an error.

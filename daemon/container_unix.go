@@ -39,10 +39,15 @@ import (
 	"github.com/opencontainers/runc/libcontainer/label"
 )
 
-// DefaultPathEnv is unix style list of directories to search for
-// executables. Each directory is separated from the next by a colon
-// ':' character .
-const DefaultPathEnv = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+const (
+	// DefaultPathEnv is unix style list of directories to search for
+	// executables. Each directory is separated from the next by a colon
+	// ':' character .
+	DefaultPathEnv = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+
+	// DefaultSHMSize is the default size (64MB) of the SHM which will be mounted in the container
+	DefaultSHMSize int64 = 67108864
+)
 
 // Container holds the fields specific to unixen implementations. See
 // CommonContainer for standard fields common to all containers.
@@ -1358,7 +1363,7 @@ func (daemon *Daemon) setupIpcDirs(container *Container) error {
 			return err
 		}
 
-		shmSize := runconfig.DefaultSHMSize
+		shmSize := DefaultSHMSize
 		if container.hostConfig.ShmSize != nil {
 			shmSize = *container.hostConfig.ShmSize
 		}
