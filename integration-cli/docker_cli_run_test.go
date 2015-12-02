@@ -3761,3 +3761,31 @@ func (s *DockerSuite) TestRunInvalidReference(c *check.C) {
 		c.Fatalf(`Expected "invalid reference format" in output; got: %s`, out)
 	}
 }
+
+func (s *DockerSuite) TestRunWithOomScoreAdj(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	expected := "642"
+	out, _ := dockerCmd(c, "run", "--oom-score-adj", expected, "busybox", "cat", "/proc/self/oom_score_adj")
+	oomScoreAdj := strings.TrimSpace(out)
+	if oomScoreAdj != "642" {
+		c.Fatalf("Expected oom_score_adj set to %q, got %q instead", expected, oomScoreAdj)
+	}
+}
+
+func (s *DockerSuite) TestRunWithOomScoreAdjInvalidRange(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	out, _, err := dockerCmdWithError("run", "--oom-score-adj", "1001", "busybox", "true")
+	c.Assert(err, check.NotNil)
+	expected := "Invalid value 1001, range for oom score adj is [-1000, 1000]."
+	if !strings.Contains(out, expected) {
+		c.Fatalf("Expected output to contain %q, got %q instead", expected, out)
+	}
+	out, _, err = dockerCmdWithError("run", "--oom-score-adj", "-1001", "busybox", "true")
+	c.Assert(err, check.NotNil)
+	expected = "Invalid value -1001, range for oom score adj is [-1000, 1000]."
+	if !strings.Contains(out, expected) {
+		c.Fatalf("Expected output to contain %q, got %q instead", expected, out)
+	}
+}

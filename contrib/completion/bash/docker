@@ -1389,6 +1389,7 @@ _docker_run() {
 		--memory-reservation
 		--name
 		--net
+		--oom-score-adj
 		--pid
 		--publish -p
 		--restart

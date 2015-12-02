@@ -346,6 +346,7 @@ func (daemon *Daemon) populateCommand(c *Container, env []string) error {
 		GIDMapping:         gidMap,
 		GroupAdd:           c.hostConfig.GroupAdd,
 		Ipc:                ipc,
+		OomScoreAdj:        c.hostConfig.OomScoreAdj,
 		Pid:                pid,
 		ReadonlyRootfs:     c.hostConfig.ReadonlyRootfs,
 		RemappedRoot:       remappedRoot,

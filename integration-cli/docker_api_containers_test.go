@@ -1524,3 +1524,34 @@ func (s *DockerSuite) TestPostContainersCreateMemorySwappinessHostConfigOmitted(
 
 	c.Assert(*containerJSON.HostConfig.MemorySwappiness, check.Equals, int64(-1))
 }
+
+// check validation is done daemon side and not only in cli
+func (s *DockerSuite) TestPostContainersCreateWithOomScoreAdjInvalidRange(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	config := struct {
+		Image       string
+		OomScoreAdj int
+	}{"busybox", 1001}
+	name := "oomscoreadj-over"
+	status, b, err := sockRequest("POST", "/containers/create?name="+name, config)
+	c.Assert(err, check.IsNil)
+	c.Assert(status, check.Equals, http.StatusInternalServerError)
+	expected := "Invalid value 1001, range for oom score adj is [-1000, 1000]."
+	if !strings.Contains(string(b), expected) {
+		c.Fatalf("Expected output to contain %q, got %q", expected, string(b))
+	}
+
+	config = struct {
+		Image       string
+		OomScoreAdj int
+	}{"busybox", -1001}
+	name = "oomscoreadj-low"
+	status, b, err = sockRequest("POST", "/containers/create?name="+name, config)
+	c.Assert(err, check.IsNil)
+	c.Assert(status, check.Equals, http.StatusInternalServerError)
+	expected = "Invalid value -1001, range for oom score adj is [-1000, 1000]."
+	if !strings.Contains(string(b), expected) {
+		c.Fatalf("Expected output to contain %q, got %q", expected, string(b))
+	}
+}

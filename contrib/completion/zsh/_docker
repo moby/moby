@@ -482,6 +482,7 @@ __docker_subcommand() {
         "($help)--name=[Container name]:name: "
         "($help)--net=[Connect a container to a network]:network mode:(bridge none container host)"
         "($help)--oom-kill-disable[Disable OOM Killer]"
+        "($help)--oom-score-adj[Tune the host's OOM preferences for containers (accepts -1000 to 1000)]"
         "($help -P --publish-all)"{-P,--publish-all}"[Publish all exposed ports]"
         "($help)*"{-p=,--publish=}"[Expose a container's port to the host]:port:_ports"
         "($help)--pid=[PID namespace to use]:PID: "
