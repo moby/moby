@@ -1434,7 +1434,7 @@ func (s *DockerSuite) TestPostContainersCreateShmSizeHostConfigOmitted(c *check.
 	var containerJSON types.ContainerJSON
 	c.Assert(json.Unmarshal(body, &containerJSON), check.IsNil)
 
-	c.Assert(containerJSON.HostConfig.ShmSize, check.IsNil)
+	c.Assert(*containerJSON.HostConfig.ShmSize, check.Equals, runconfig.DefaultSHMSize)
 
 	out, _ := dockerCmd(c, "start", "-i", containerJSON.ID)
 	shmRegexp := regexp.MustCompile(`shm on /dev/shm type tmpfs(.*)size=65536k`)
@@ -1522,5 +1522,5 @@ func (s *DockerSuite) TestPostContainersCreateMemorySwappinessHostConfigOmitted(
 	var containerJSON types.ContainerJSON
 	c.Assert(json.Unmarshal(body, &containerJSON), check.IsNil)
 
-	c.Assert(containerJSON.HostConfig.MemorySwappiness, check.IsNil)
+	c.Assert(*containerJSON.HostConfig.MemorySwappiness, check.Equals, int64(-1))
 }
