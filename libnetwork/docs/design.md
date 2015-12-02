@@ -17,7 +17,7 @@ Libnetwork aims to satisfy that composable need for Networking in Containers.
 
 Libnetwork implements Container Network Model (CNM) which formalizes the steps required to provide networking for containers while providing an abstraction that can be used to support multiple network drivers. The CNM is built on 3 main components (shown below)
 
-![](../blob/master/docs/cnm-model.jpg?raw=true)
+![](/docs/cnm-model.jpg?raw=true)
 
 **Sandbox**
 
