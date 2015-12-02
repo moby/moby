@@ -2858,18 +2858,18 @@ func (s *DockerSuite) TestRunUnshareProc(c *check.C) {
 
 	name := "acidburn"
 	if out, _, err := dockerCmdWithError("run", "--name", name, "jess/unshare", "unshare", "-p", "-m", "-f", "-r", "--mount-proc=/proc", "mount"); err == nil || !strings.Contains(out, "Permission denied") {
-		c.Fatalf("unshare should have failed with permission denied, got: %s, %v", out, err)
+		c.Fatalf("unshare with --mount-proc should have failed with permission denied, got: %s, %v", out, err)
 	}
 
 	name = "cereal"
 	if out, _, err := dockerCmdWithError("run", "--name", name, "jess/unshare", "unshare", "-p", "-m", "-f", "-r", "mount", "-t", "proc", "none", "/proc"); err == nil || !strings.Contains(out, "Permission denied") {
-		c.Fatalf("unshare should have failed with permission denied, got: %s, %v", out, err)
+		c.Fatalf("unshare and mount of /proc should have failed with permission denied, got: %s, %v", out, err)
 	}
 
 	/* Ensure still fails if running privileged with the default policy */
 	name = "crashoverride"
 	if out, _, err := dockerCmdWithError("run", "--privileged", "--security-opt", "apparmor:docker-default", "--name", name, "jess/unshare", "unshare", "-p", "-m", "-f", "-r", "mount", "-t", "proc", "none", "/proc"); err == nil || !(strings.Contains(strings.ToLower(out), "permission denied") || strings.Contains(strings.ToLower(out), "operation not permitted")) {
-		c.Fatalf("unshare should have failed with permission denied, got: %s, %v", out, err)
+		c.Fatalf("privileged unshare with apparmor should have failed with permission denied, got: %s, %v", out, err)
 	}
 }
 
