@@ -278,7 +278,7 @@ __docker_network_commands() {
         "disconnect:Disconnects a container from a network"
         "inspect:Displays detailed information on a network"
         "ls:Lists all the networks created by the user"
-        "rm:Deletes a network"
+        "rm:Deletes one or more networks"
     )
     _describe -t docker-network-commands "docker network command" _docker_network_subcommands
 }
