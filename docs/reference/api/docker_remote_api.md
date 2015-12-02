@@ -99,6 +99,8 @@ This section lists each version from latest to oldest.  Each listing includes a 
 * `GET /info` Now returns `Architecture` and `OSType` fields, providing information
   about the host architecture and operating system type that the daemon runs on.
 * `GET /networks/(name)` now returns a `Name` field for each container attached to the network.
+* `GET /version` now returns the `BuildTime` field in RFC3339Nano format to make it 
+  consistent with other date/time values returned by the API.
 
 ### v1.21 API changes
 
