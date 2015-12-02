@@ -4,10 +4,12 @@ package daemon
 
 import (
 	"fmt"
+	"io/ioutil"
 	"net"
 	"os"
 	"path/filepath"
 	"runtime"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"syscall"
@@ -460,6 +462,23 @@ func checkSystem() error {
 		return fmt.Errorf("The Docker daemon needs to be run as root")
 	}
 	return checkKernel()
+}
+
+// configureMaxThreads sets the Go runtime max threads threshold
+// which is 90% of the kernel setting from /proc/sys/kernel/threads-max
+func configureMaxThreads(config *Config) error {
+	mt, err := ioutil.ReadFile("/proc/sys/kernel/threads-max")
+	if err != nil {
+		return err
+	}
+	mtint, err := strconv.Atoi(strings.TrimSpace(string(mt)))
+	if err != nil {
+		return err
+	}
+	maxThreads := (mtint / 100) * 90
+	debug.SetMaxThreads(maxThreads)
+	logrus.Debugf("Golang's threads limit set to %d", maxThreads)
+	return nil
 }
 
 // configureKernelSecuritySupport configures and validate security support for the kernel
