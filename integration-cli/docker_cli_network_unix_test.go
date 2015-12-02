@@ -293,6 +293,17 @@ func (s *DockerSuite) TestDockerNetworkDeleteMultiple(c *check.C) {
 	assertNwIsAvailable(c, "testDelMulti2")
 }
 
+func (s *DockerSuite) TestDockerNetworkInspect(c *check.C) {
+	out, _ := dockerCmd(c, "network", "inspect", "host")
+	networkResources := []types.NetworkResource{}
+	err := json.Unmarshal([]byte(out), &networkResources)
+	c.Assert(err, check.IsNil)
+	c.Assert(networkResources, checker.HasLen, 1)
+
+	out, _ = dockerCmd(c, "network", "inspect", "--format='{{ .Name }}'", "host")
+	c.Assert(strings.TrimSpace(out), check.Equals, "host")
+}
+
 func (s *DockerSuite) TestDockerInspectMultipleNetwork(c *check.C) {
 	out, _ := dockerCmd(c, "network", "inspect", "host", "none")
 	networkResources := []types.NetworkResource{}

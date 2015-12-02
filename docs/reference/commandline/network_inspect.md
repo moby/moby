@@ -14,6 +14,7 @@ parent = "smn_cli"
 
     Displays detailed information on a network
 
+      -f, --format=       Format the output using the given go template.
       --help=false       Print usage
 
 Returns information about one or more networks. By default, this command renders all results in a JSON object. For example, if you connect two containers to a network:
@@ -26,7 +27,11 @@ $ sudo docker run -itd --name=container2 busybox
 bda12f8922785d1f160be70736f26c1e331ab8aaf8ed8d56728508f2e2fd4727
 ```
 
-The `network inspect` command shows the containers, by id, in its results.
+The `network inspect` command shows the containers, by id, in its
+results. You can specify an alternate format to execute a given
+template for each result. Go's
+[text/template](http://golang.org/pkg/text/template/) package describes all the
+details of the format.
 
 ```bash
 $ sudo docker network inspect bridge
