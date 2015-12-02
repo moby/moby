@@ -18,13 +18,16 @@ func TestContainerDoubleDelete(t *testing.T) {
 		repository: tmp,
 		root:       tmp,
 	}
+	daemon.containers = &contStore{s: make(map[string]*Container)}
 
 	container := &Container{
 		CommonContainer: CommonContainer{
+			ID:     "test",
 			State:  NewState(),
 			Config: &runconfig.Config{},
 		},
 	}
+	daemon.containers.Add(container.ID, container)
 
 	// Mark the container as having a delete in progress
 	if err := container.setRemovalInProgress(); err != nil {
@@ -33,7 +36,7 @@ func TestContainerDoubleDelete(t *testing.T) {
 
 	// Try to remove the container when it's start is removalInProgress.
 	// It should ignore the container and not return an error.
-	if err := daemon.rm(container, true); err != nil {
+	if err := daemon.ContainerRm(container.ID, &ContainerRmConfig{ForceRemove: true}); err != nil {
 		t.Fatal(err)
 	}
 }

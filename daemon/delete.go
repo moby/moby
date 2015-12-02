@@ -25,6 +25,21 @@ func (daemon *Daemon) ContainerRm(name string, config *ContainerRmConfig) error 
 		return err
 	}
 
+	// Container state RemovalInProgress should be used to avoid races.
+	if err = container.setRemovalInProgress(); err != nil {
+		if err == derr.ErrorCodeAlreadyRemoving {
+			// do not fail when the removal is in progress started by other request.
+			return nil
+		}
+		return derr.ErrorCodeRmState.WithArgs(err)
+	}
+	defer container.resetRemovalInProgress()
+
+	// check if container wasn't deregistered by previous rm since Get
+	if c := daemon.containers.Get(container.ID); c == nil {
+		return nil
+	}
+
 	if config.RemoveLink {
 		name, err := GetFullContainerName(name)
 		if err != nil {
@@ -75,16 +90,6 @@ func (daemon *Daemon) rm(container *Container, forceRemove bool) (err error) {
 			return derr.ErrorCodeRmFailed.WithArgs(err)
 		}
 	}
-
-	// Container state RemovalInProgress should be used to avoid races.
-	if err = container.setRemovalInProgress(); err != nil {
-		if err == derr.ErrorCodeAlreadyRemoving {
-			// do not fail when the removal is in progress started by other request.
-			return nil
-		}
-		return derr.ErrorCodeRmState.WithArgs(err)
-	}
-	defer container.resetRemovalInProgress()
 
 	// stop collection of stats for the container regardless
 	// if stats are currently getting collected.
