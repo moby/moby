@@ -454,6 +454,14 @@ This example sets the `cgroupdriver` to `systemd`:
 
 Setting this option applies to all containers the daemon launches.
 
+Also Windows Container makes use of `--exec-opt` for special purpose. Docker user
+can specify default container isolation technology with this, for example:
+
+    $ docker daemon --exec-opt isolation=hyperv
+
+Will make `hyperv` the default isolation technology on Windows, without specifying
+isolation value on daemon start, Windows isolation technology will default to `process`.
+
 ## Daemon DNS options
 
 To set the DNS server for all Docker containers, use
