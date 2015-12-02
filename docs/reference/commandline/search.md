@@ -19,9 +19,19 @@ parent = "smn_cli"
       --no-trunc=false     Don't truncate output
       -s, --stars=0        Only displays with at least x stars
 
+Search [Docker Hub](https://hub.docker.com) for images
+
+See [*Find Public Images on Docker Hub*](../../userguide/dockerrepos.md#searching-for-images) for
+more details on finding shared images from the command line.
+
+> **Note:**
+> Search queries will only return up to 25 results
+
 ## Examples
 
-### Search images by keywords
+### Search images by name
+
+This example displays images with a name containing 'busybox':
 
     $ docker search busybox
     NAME                             DESCRIPTION                                     STARS     OFFICIAL   AUTOMATED
@@ -51,41 +61,37 @@ parent = "smn_cli"
     scottabernethy/busybox                                                           0                    [OK]
     marclop/busybox-solr
 
-This example will display images with the name containing busybox.
+### Search images by name and number of stars (-s, --stars)
 
-### Search images by limiting stars' number(-s OR --stars)
-    
-    $ docker search --stars 3 busybox
+This example displays images with a name containing 'busybox' and at
+least 3 stars:
+
+    $ docker search --stars=3 busybox
     NAME                 DESCRIPTION                                     STARS     OFFICIAL   AUTOMATED
     busybox              Busybox base image.                             325       [OK]       
     progrium/busybox                                                     50                   [OK]
     radial/busyboxplus   Full-chain, Internet enabled, busybox made...   8                    [OK]
 
-This example will display images with the name containing busybox and at least 3 stars.
 
-### Search automated images(--automated)
+### Search automated images (--automated)
 
-    $ docker search --stars=3 --automated=true busybox
+This example displays images with a name containing 'busybox', at
+least 3 stars and are automated builds:
+
+    $ docker search --stars=3 --automated busybox
     NAME                 DESCRIPTION                                     STARS     OFFICIAL   AUTOMATED
     progrium/busybox                                                     50                   [OK]
     radial/busyboxplus   Full-chain, Internet enabled, busybox made...   8                    [OK]
 
-This example will display images with at least 3 stars and automated builds.
 
-### Fully display 'DESCRIPTION'(--no-trunc=true)
+### Display non-truncated description (--no-trunc)
 
-    $ docker search --stars=3 --no-trunc=true busybox
+This example displays images with a name containing 'busybox',
+at least 3 stars and the description isn't truncated in the output:
+
+    $ docker search --stars=3 --no-trunc busybox
     NAME                 DESCRIPTION                                                                               STARS     OFFICIAL   AUTOMATED
     busybox              Busybox base image.                                                                       325       [OK]       
     progrium/busybox                                                                                               50                   [OK]
     radial/busyboxplus   Full-chain, Internet enabled, busybox made from scratch. Comes in git and cURL flavors.   8                    [OK]
 
-This example will display images with at least 3 stars and the console output isn't truncated.
-
-Search [Docker Hub](https://hub.docker.com) for images
-
-See [*Find Public Images on Docker Hub*](../../userguide/dockerrepos.md#searching-for-images) for
-more details on finding shared images from the command line.
-
-> **Note:**
-> Search queries will only return up to 25 results
