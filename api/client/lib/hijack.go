@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/pkg/sockets"
 )
 
 // tlsClientCon holds tls information and a dialed connection.
@@ -104,7 +105,12 @@ func tlsDialWithDialer(dialer *net.Dialer, network, addr string, config *tls.Con
 		})
 	}
 
-	rawConn, err := dialer.Dial(network, addr)
+	proxyDialer, err := sockets.DialerFromEnvironment(dialer)
+	if err != nil {
+		return nil, err
+	}
+
+	rawConn, err := proxyDialer.Dial(network, addr)
 	if err != nil {
 		return nil, err
 	}

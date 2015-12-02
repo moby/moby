@@ -3,7 +3,6 @@ package daemon
 import (
 	"os"
 	"runtime"
-	"strings"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -13,6 +12,7 @@ import (
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/parsers/operatingsystem"
 	"github.com/docker/docker/pkg/platform"
+	"github.com/docker/docker/pkg/sockets"
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/registry"
@@ -87,9 +87,9 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 		ServerVersion:      dockerversion.Version,
 		ClusterStore:       daemon.configStore.ClusterStore,
 		ClusterAdvertise:   daemon.configStore.ClusterAdvertise,
-		HTTPProxy:          getProxyEnv("http_proxy"),
-		HTTPSProxy:         getProxyEnv("https_proxy"),
-		NoProxy:            getProxyEnv("no_proxy"),
+		HTTPProxy:          sockets.GetProxyEnv("http_proxy"),
+		HTTPSProxy:         sockets.GetProxyEnv("https_proxy"),
+		NoProxy:            sockets.GetProxyEnv("no_proxy"),
 	}
 
 	// TODO Windows. Refactor this more once sysinfo is refactored into
@@ -143,14 +143,4 @@ func (daemon *Daemon) showPluginsInfo() types.PluginsInfo {
 	}
 
 	return pluginsInfo
-}
-
-// The uppercase and the lowercase are available for the proxy settings.
-// See the Go specification for details on these variables. https://golang.org/pkg/net/http/
-func getProxyEnv(key string) string {
-	proxyValue := os.Getenv(strings.ToUpper(key))
-	if proxyValue == "" {
-		return os.Getenv(strings.ToLower(key))
-	}
-	return proxyValue
 }
