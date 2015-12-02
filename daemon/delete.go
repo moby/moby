@@ -41,34 +41,10 @@ func (daemon *Daemon) ContainerRm(name string, config *ContainerRmConfig) error 
 	}
 
 	if config.RemoveLink {
-		name, err := GetFullContainerName(name)
-		if err != nil {
-			return err
-		}
-		parent, n := path.Split(name)
-		if parent == "/" {
-			return derr.ErrorCodeDefaultName
-		}
-		pe := daemon.containerGraph().Get(parent)
-		if pe == nil {
-			return derr.ErrorCodeNoParent.WithArgs(parent, name)
-		}
-
-		if err := daemon.containerGraph().Delete(name); err != nil {
-			return err
-		}
-
-		parentContainer, _ := daemon.Get(pe.ID())
-		if parentContainer != nil {
-			if err := daemon.updateNetwork(parentContainer); err != nil {
-				logrus.Debugf("Could not update network to remove link %s: %v", n, err)
-			}
-		}
-
-		return nil
+		return daemon.rmLink(name)
 	}
 
-	if err := daemon.rm(container, config.ForceRemove); err != nil {
+	if err := daemon.cleanupContainer(container, config.ForceRemove); err != nil {
 		// return derr.ErrorCodeCantDestroy.WithArgs(name, utils.GetErrorMessage(err))
 		return err
 	}
@@ -80,8 +56,38 @@ func (daemon *Daemon) ContainerRm(name string, config *ContainerRmConfig) error 
 	return nil
 }
 
-// Destroy unregisters a container from the daemon and cleanly removes its contents from the filesystem.
-func (daemon *Daemon) rm(container *Container, forceRemove bool) (err error) {
+// rmLink removes link by name from other containers
+func (daemon *Daemon) rmLink(name string) error {
+	name, err := GetFullContainerName(name)
+	if err != nil {
+		return err
+	}
+	parent, n := path.Split(name)
+	if parent == "/" {
+		return derr.ErrorCodeDefaultName
+	}
+	pe := daemon.containerGraph().Get(parent)
+	if pe == nil {
+		return derr.ErrorCodeNoParent.WithArgs(parent, name)
+	}
+
+	if err := daemon.containerGraph().Delete(name); err != nil {
+		return err
+	}
+
+	parentContainer, _ := daemon.Get(pe.ID())
+	if parentContainer != nil {
+		if err := daemon.updateNetwork(parentContainer); err != nil {
+			logrus.Debugf("Could not update network to remove link %s: %v", n, err)
+		}
+	}
+
+	return nil
+}
+
+// cleanupContainer unregisters a container from the daemon, stops stats
+// collection and cleanly removes contents and metadata from the filesystem.
+func (daemon *Daemon) cleanupContainer(container *Container, forceRemove bool) (err error) {
 	if container.IsRunning() {
 		if !forceRemove {
 			return derr.ErrorCodeRmRunning
