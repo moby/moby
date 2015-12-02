@@ -12,7 +12,7 @@ docker-build - Build a new image from the source code at PATH
 [**--help**]
 [**-f**|**--file**[=*PATH/Dockerfile*]]
 [**--force-rm**[=*false*]]
-[**--no-cache**[=*false*]]
+[**--no-cache**[=*true*]]
 [**--pull**[=*false*]]
 [**-q**|**--quiet**[=*false*]]
 [**--rm**[=*true*]]
