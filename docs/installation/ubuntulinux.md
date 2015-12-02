@@ -349,10 +349,11 @@ To avoid this warning, you can specify a DNS server for use by Docker
 containers. Or, you can disable `dnsmasq` in NetworkManager. Though, disabling
 `dnsmasq` might make DNS resolution slower on some networks.
 
-The instructions below describe how to configure the Docker daemon running on
-Ubuntu 14.10 or below. Ubuntu 15.04 and above use systemd as its boot
-and service manager. Refer to [control and configure Docker with systemd](../articles/systemd.md#custom-docker-daemon-options)
-to configure a daemon controled by systemd.
+The instructions below describe how to configure the Docker daemon
+running on Ubuntu 14.10 or below. Ubuntu 15.04 and above use `systemd`
+as the boot and service manager. Refer to [control and configure Docker
+with systemd](../articles/systemd.md#custom-docker-daemon-options) to
+configure a daemon controlled by `systemd`.
 
 To specify a DNS server for use by Docker:
 
