@@ -24,7 +24,10 @@ const (
 )
 
 var (
-	errNoBitAvailable = fmt.Errorf("no bit available")
+	// ErrNoBitAvailable is returned when no more bits are available to set
+	ErrNoBitAvailable = fmt.Errorf("no bit available")
+	// ErrBitAllocated is returned when the specific bit requested is already set
+	ErrBitAllocated = fmt.Errorf("requested bit is already allocated")
 )
 
 // Handle contains the sequece representing the bitmask and its identifier
@@ -94,7 +97,7 @@ func (s *sequence) toString() string {
 // GetAvailableBit returns the position of the first unset bit in the bitmask represented by this sequence
 func (s *sequence) getAvailableBit(from uint64) (uint64, uint64, error) {
 	if s.block == blockMAX || s.count == 0 {
-		return invalidPos, invalidPos, errNoBitAvailable
+		return invalidPos, invalidPos, ErrNoBitAvailable
 	}
 	bits := from
 	bitSel := blockFirstBit >> from
@@ -197,7 +200,7 @@ func (h *Handle) SetAnyInRange(start, end uint64) (uint64, error) {
 		return invalidPos, fmt.Errorf("invalid bit range [%d, %d]", start, end)
 	}
 	if h.Unselected() == 0 {
-		return invalidPos, errNoBitAvailable
+		return invalidPos, ErrNoBitAvailable
 	}
 	return h.set(0, start, end, true, false)
 }
@@ -205,7 +208,7 @@ func (h *Handle) SetAnyInRange(start, end uint64) (uint64, error) {
 // SetAny atomically sets the first unset bit in the sequence and returns the corresponding ordinal
 func (h *Handle) SetAny() (uint64, error) {
 	if h.Unselected() == 0 {
-		return invalidPos, errNoBitAvailable
+		return invalidPos, ErrNoBitAvailable
 	}
 	return h.set(0, 0, h.bits-1, true, false)
 }
@@ -269,7 +272,7 @@ func (h *Handle) set(ordinal, start, end uint64, any bool, release bool) (uint64
 				bytePos, bitPos, err = getFirstAvailable(h.head, start)
 				ret = posToOrdinal(bytePos, bitPos)
 				if end < ret {
-					err = errNoBitAvailable
+					err = ErrNoBitAvailable
 				}
 			} else {
 				bytePos, bitPos, err = checkIfAvailable(h.head, ordinal)
@@ -449,7 +452,7 @@ func getFirstAvailable(head *sequence, start uint64) (uint64, uint64, error) {
 		byteOffset += current.count * blockBytes
 		current = current.next
 	}
-	return invalidPos, invalidPos, errNoBitAvailable
+	return invalidPos, invalidPos, ErrNoBitAvailable
 }
 
 // checkIfAvailable checks if the bit correspondent to the specified ordinal is unset
@@ -467,7 +470,7 @@ func checkIfAvailable(head *sequence, ordinal uint64) (uint64, uint64, error) {
 		}
 	}
 
-	return invalidPos, invalidPos, fmt.Errorf("requested bit is not available")
+	return invalidPos, invalidPos, ErrBitAllocated
 }
 
 // Given the byte position and the sequences list head, return the pointer to the
