@@ -1017,15 +1017,14 @@ func (daemon *Daemon) changes(container *Container) ([]archive.Change, error) {
 }
 
 // TagImage creates a tag in the repository reponame, pointing to the image named
-// imageName. If force is true, an existing tag with the same name may be
-// overwritten.
-func (daemon *Daemon) TagImage(newTag reference.Named, imageName string, force bool) error {
+// imageName.
+func (daemon *Daemon) TagImage(newTag reference.Named, imageName string) error {
 	imageID, err := daemon.GetImageID(imageName)
 	if err != nil {
 		return err
 	}
 	newTag = registry.NormalizeLocalReference(newTag)
-	if err := daemon.tagStore.AddTag(newTag, imageID, force); err != nil {
+	if err := daemon.tagStore.AddTag(newTag, imageID, true); err != nil {
 		return err
 	}
 	daemon.EventsService.Log("tag", newTag.String(), "")
