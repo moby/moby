@@ -36,7 +36,10 @@ esac
 if ! docker inspect "${images[@]}" &> /dev/null; then
 	hardCodedDir='/docker-frozen-images'
 	if [ -d "$hardCodedDir" ]; then
-		( set -x; tar -cC "$hardCodedDir" . | docker load )
+		# Do not use a subshell for the following command. Windows CI
+		# runs bash 3.x so will not trap an error in a subshell.
+		# http://stackoverflow.com/questions/22630363/how-does-set-e-work-with-subshells
+		set -x; tar -cC "$hardCodedDir" . | docker load; set +x
 	else
 		dir="$DEST/frozen-images"
 		# extract the exact "RUN download-frozen-image-v2.sh" line from the Dockerfile itself for consistency
@@ -58,7 +61,10 @@ if ! docker inspect "${images[@]}" &> /dev/null; then
 				}
 			}
 		' ${DOCKER_FILE:="Dockerfile"} | sh -x
-		( set -x; tar -cC "$dir" . | docker load )
+		# Do not use a subshell for the following command. Windows CI
+		# runs bash 3.x so will not trap an error in a subshell.
+		# http://stackoverflow.com/questions/22630363/how-does-set-e-work-with-subshells
+		set -x; tar -cC "$dir" . | docker load; set +x
 	fi
 fi
 
