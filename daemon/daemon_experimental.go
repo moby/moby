@@ -100,7 +100,7 @@ func setupDaemonRoot(config *Config, rootDir string, rootUID, rootGID int) error
 }
 
 func (daemon *Daemon) verifyExperimentalContainerSettings(hostConfig *runconfig.HostConfig, config *runconfig.Config) ([]string, error) {
-	if hostConfig.Privileged && daemon.config().RemappedRoot != "" {
+	if hostConfig.Privileged && daemon.configStore.RemappedRoot != "" {
 		return nil, fmt.Errorf("Privileged mode is incompatible with user namespace mappings")
 	}
 	return nil, nil

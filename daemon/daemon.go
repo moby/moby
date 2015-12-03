@@ -1272,10 +1272,6 @@ func (daemon *Daemon) GetImage(refOrID string) (*image.Image, error) {
 	return daemon.imageStore.Get(imgID)
 }
 
-func (daemon *Daemon) config() *Config {
-	return daemon.configStore
-}
-
 // GraphDriver returns the currently used driver for processing
 // container layers.
 func (daemon *Daemon) GraphDriver() graphdriver.Driver {
