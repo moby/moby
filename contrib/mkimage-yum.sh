@@ -10,21 +10,32 @@ usage() {
     cat <<EOOPTS
 $(basename $0) [OPTIONS] <name>
 OPTIONS:
-  -y <yumconf>  The path to the yum config to install packages from. The
-                default is /etc/yum.conf.
+  -y <yumconf>     The path to the yum config to install packages from.
+                   The default is /etc/yum.conf.
+  -p "<packages>"  The list of packages to install in the container.
+                   The default is blank.
+  -g "<groups>"    The groups of packages to install in the container.
+                   The default is "Core".
 EOOPTS
     exit 1
 }
 
 # option defaults
 yum_config=/etc/yum.conf
-while getopts ":y:h" opt; do
+install_groups="Core"
+while getopts ":y:h:p:g" opt; do
     case $opt in
         y)
             yum_config=$OPTARG
             ;;
         h)
             usage
+            ;;
+        p)
+            install_packages="$OPTARG"
+            ;;
+        g)
+            install_groups="$OPTARG"
             ;;
         \?)
             echo "Invalid option: -$OPTARG"
@@ -56,13 +67,24 @@ mknod -m 666 "$target"/dev/urandom c 1 9
 mknod -m 666 "$target"/dev/zero c 1 5
 
 # amazon linux yum will fail without vars set
-if [ -d /etc/yum/vars ]; then
-	mkdir -p -m 755 "$target"/etc/yum
-	cp -a /etc/yum/vars "$target"/etc/yum/
+if [ -d /etc/yum/vars ];
+then
+    mkdir -p -m 755 "$target"/etc/yum
+    cp -a /etc/yum/vars "$target"/etc/yum/
 fi
 
-yum -c "$yum_config" --installroot="$target" --releasever=/ --setopt=tsflags=nodocs \
-    --setopt=group_package_types=mandatory -y groupinstall Core
+if [[ -n "$install_groups" ]];
+then
+    yum -c "$yum_config" --installroot="$target" --releasever=/ --setopt=tsflags=nodocs \
+        --setopt=group_package_types=mandatory -y groupinstall $install_groups
+fi
+
+if [[ -n "$install_packages" ]];
+then
+    yum -c "$yum_config" --installroot="$target" --releasever=/ --setopt=tsflags=nodocs \
+        --setopt=group_package_types=mandatory -y install $install_packages
+fi
+
 yum -c "$yum_config" --installroot="$target" -y clean all
 
 cat > "$target"/etc/sysconfig/network <<EOF
@@ -104,6 +126,6 @@ fi
 
 tar --numeric-owner -c -C "$target" . | docker import - $name:$version
 
-docker run -i -t $name:$version echo success
+docker run -i -t --rm $name:$version /bin/bash -c 'echo success'
 
 rm -rf "$target"
