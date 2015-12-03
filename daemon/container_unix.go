@@ -143,7 +143,7 @@ func (container *Container) createDaemonEnvironment(linkedEnv []string) []string
 	for localPort, exposedPort := range exposedPorts {
 		// if the exposedPort array is empty, then the port has not been published
 		if len(exposedPort) > 0 {
-			env = append(env, "PORT_" + localPort.Port() + "=" + string(exposedPort[0].HostPort))
+			env = append(env, "PORT_"+localPort.Port()+"="+string(exposedPort[0].HostPort))
 		}
 	}
 
