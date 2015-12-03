@@ -140,9 +140,10 @@ func (epi *endpointInterface) CopyTo(dstEpi *endpointInterface) error {
 }
 
 type endpointJoinInfo struct {
-	gw           net.IP
-	gw6          net.IP
-	StaticRoutes []*types.StaticRoute
+	gw                    net.IP
+	gw6                   net.IP
+	StaticRoutes          []*types.StaticRoute
+	disableGatewayService bool
 }
 
 func (ep *endpoint) Info() EndpointInfo {
@@ -354,4 +355,11 @@ func (ep *endpoint) retrieveFromStore() (*endpoint, error) {
 		return nil, fmt.Errorf("could not find network in store to get latest endpoint %s: %v", ep.Name(), err)
 	}
 	return n.getEndpointFromStore(ep.ID())
+}
+
+func (ep *endpoint) DisableGatewayService() {
+	ep.Lock()
+	defer ep.Unlock()
+
+	ep.joinInfo.disableGatewayService = true
 }
