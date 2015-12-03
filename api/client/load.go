@@ -17,26 +17,24 @@ func (cli *DockerCli) CmdLoad(args ...string) error {
 	cmd := Cli.Subcmd("load", nil, Cli.DockerCommands["load"].Description, true)
 	infile := cmd.String([]string{"i", "-input"}, "", "Read from a tar archive file, instead of STDIN")
 	cmd.Require(flag.Exact, 0)
-
 	cmd.ParseFlags(args, true)
 
-	var (
-		input io.Reader = cli.in
-		err   error
-	)
+	var input io.Reader = cli.in
 	if *infile != "" {
-		input, err = os.Open(*infile)
+		file, err := os.Open(*infile)
 		if err != nil {
 			return err
 		}
+		defer file.Close()
+		input = file
 	}
-	sopts := &streamOpts{
-		rawTerminal: true,
-		in:          input,
-		out:         cli.out,
-	}
-	if _, err := cli.stream("POST", "/images/load", sopts); err != nil {
+
+	responseBody, err := cli.client.ImageLoad(input)
+	if err != nil {
 		return err
 	}
-	return nil
+	defer responseBody.Close()
+
+	_, err = io.Copy(cli.out, responseBody)
+	return err
 }
