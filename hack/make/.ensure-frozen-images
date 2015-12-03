@@ -1,21 +1,37 @@
 #!/bin/bash
 set -e
 
-# this list should match roughly what's in the Dockerfile (minus the explicit image IDs, of course)
-images=(
-	busybox:latest
-	hello-world:latest
-	jess/unshare:latest
-)
-
-# on ARM we need images that work for the ARM architecture
-if [ "$DOCKER_ENGINE_OSARCH" = "linux/arm" ]; then
-	images=(
-		hypriot/armhf-busybox@ea0800bb83571c585c5652b53668e76b29c7c0eef719892f9d0a48607984f9e1
-		hypriot/armhf-hello-world@508c59a4f8b23c77bbcf43296c3f580873dc7eecb1f0d680cea3067e221fd4c2
-		hypriot/armhf-unshare@3f1db65f8bbabc743fd739cf7145a56c35b2a0979ae3174e9d79b7fa4b00fca1
-	)
-fi
+# image lists for different archs that should match what's in the Dockerfile (minus the explicit images IDs)
+case "$DOCKER_ENGINE_OSARCH" in
+	linux/arm) 
+		images=(
+                	hypriot/armhf-busybox@ea0800bb83571c585c5652b53668e76b29c7c0eef719892f9d0a48607984f9e1
+			hypriot/armhf-hello-world@508c59a4f8b23c77bbcf43296c3f580873dc7eecb1f0d680cea3067e221fd4c2
+                	hypriot/armhf-unshare@3f1db65f8bbabc743fd739cf7145a56c35b2a0979ae3174e9d79b7fa4b00fca1
+        	)
+		;;
+	linux/ppc64le)
+		images=(
+                	ppc64le/busybox:latest
+                	ppc64le/hello-world:frozen
+                	ppc64le/unshare:latest
+        	)
+		;;
+	linux/s390x)
+		images=(
+			s390x/busybox:latest
+			s390x/hello-world:frozen
+			s390x/unshare:latest	
+		)
+		;;
+	*)
+		images=(
+                	busybox:latest
+                	hello-world:latest
+                	jess/unshare:latest
+        	)
+		;;
+esac
 
 if ! docker inspect "${images[@]}" &> /dev/null; then
 	hardCodedDir='/docker-frozen-images'
@@ -46,16 +62,34 @@ if ! docker inspect "${images[@]}" &> /dev/null; then
 	fi
 fi
 
-if [ "$DOCKER_ENGINE_OSARCH" = "linux/arm" ]; then
-	# tag images to ensure that all integrations work with the defined image names
-	docker tag hypriot/armhf-busybox:latest busybox:latest
-	docker tag hypriot/armhf-hello-world:latest hello-world:frozen
-	docker tag hypriot/armhf-unshare:latest jess/unshare:latest
-
-	# remove orignal tags as these make problems with later tests: TestInspectApiImageResponse
-	docker rmi hypriot/armhf-busybox:latest
-	docker rmi hypriot/armhf-hello-world:latest
-	docker rmi hypriot/armhf-unshare:latest
-else
-	docker tag hello-world:latest hello-world:frozen
-fi
+# tag images to ensure that all integrations work with the defined image names
+# then remove original tags as these make problems with later tests (e.g., TestInspectApiImageResponse)
+case "$DOCKER_ENGINE_OSARCH" in
+	linux/arm)
+		docker tag hypriot/armhf-busybox:latest busybox:latest
+        	docker tag hypriot/armhf-hello-world:latest hello-world:frozen
+        	docker tag hypriot/armhf-unshare:latest jess/unshare:latest		
+		docker rmi hypriot/armhf-busybox:latest
+        	docker rmi hypriot/armhf-hello-world:latest
+        	docker rmi hypriot/armhf-unshare:latest
+		;;
+	linux/ppc64le)
+		docker tag ppc64le/busybox:latest busybox:latest
+        	docker tag ppc64le/hello-world:frozen hello-world:frozen
+		docker tag ppc64le/unshare:latest jess/unshare:latest
+		docker rmi ppc64le/busybox:latest
+        	docker rmi ppc64le/hello-world:frozen
+		docker rmi ppc64le/unshare:latest		
+		;;
+	linux/s390x)
+		docker tag s390x/busybox:latest busybox:latest
+		docker tag s390x/hello-world:frozen hello-world:frozen
+		docker tag s390x/unshare:latest jess/unshare:latest
+		docker rmi s390x/busybox:latest
+		docker rmi s390x/hello-world:frozen
+		docker rmi s390x/unshare:latest
+		;;
+	*)
+		docker tag hello-world:latest hello-world:frozen
+		;;
+esac
