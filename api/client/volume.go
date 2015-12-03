@@ -124,6 +124,7 @@ func (cli *DockerCli) CmdVolumeInspect(args ...string) error {
 
 	var status = 0
 	var volumes []*types.Volume
+
 	for _, name := range cmd.Args() {
 		resp, err := cli.call("GET", "/volumes/"+name, nil, nil)
 		if err != nil {
@@ -132,9 +133,9 @@ func (cli *DockerCli) CmdVolumeInspect(args ...string) error {
 
 		var volume types.Volume
 		if err := json.NewDecoder(resp.body).Decode(&volume); err != nil {
-			fmt.Fprintf(cli.err, "%s\n", err)
+			fmt.Fprintf(cli.err, "Unable to read inspect data: %v\n", err)
 			status = 1
-			continue
+			break
 		}
 
 		if tmpl == nil {
@@ -142,29 +143,28 @@ func (cli *DockerCli) CmdVolumeInspect(args ...string) error {
 			continue
 		}
 
-		if err := tmpl.Execute(cli.out, &volume); err != nil {
-			if err := tmpl.Execute(cli.out, &volume); err != nil {
-				fmt.Fprintf(cli.err, "%s\n", err)
-				status = 1
-				continue
-			}
+		buf := bytes.NewBufferString("")
+		if err := tmpl.Execute(buf, &volume); err != nil {
+			fmt.Fprintf(cli.err, "Template parsing error: %v\n", err)
+			status = 1
+			break
+		}
+
+		cli.out.Write(buf.Bytes())
+		cli.out.Write([]byte{'\n'})
+	}
+
+	if tmpl == nil {
+		b, err := json.MarshalIndent(volumes, "", "    ")
+		if err != nil {
+			return err
+		}
+		_, err = io.Copy(cli.out, bytes.NewReader(b))
+		if err != nil {
+			return err
 		}
 		io.WriteString(cli.out, "\n")
 	}
-
-	if tmpl != nil {
-		return nil
-	}
-
-	b, err := json.MarshalIndent(volumes, "", "    ")
-	if err != nil {
-		return err
-	}
-	_, err = io.Copy(cli.out, bytes.NewReader(b))
-	if err != nil {
-		return err
-	}
-	io.WriteString(cli.out, "\n")
 
 	if status != 0 {
 		return Cli.StatusError{StatusCode: status}
