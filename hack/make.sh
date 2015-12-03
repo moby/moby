@@ -70,7 +70,11 @@ if command -v git &> /dev/null && git rev-parse &> /dev/null; then
 	if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
 		GITCOMMIT="$GITCOMMIT-dirty"
 	fi
-	BUILDTIME=$(date --rfc-3339 ns | sed -e 's/ /T/')
+	! BUILDTIME=$(date --rfc-3339 ns | sed -e 's/ /T/') &> /dev/null
+	if [ -z $BUILDTIME ]; then
+		# If using bash 3.1 which doesn't support --rfc-3389, eg Windows CI
+		BUILDTIME=$(date -u)
+	fi
 elif [ "$DOCKER_GITCOMMIT" ]; then
 	GITCOMMIT="$DOCKER_GITCOMMIT"
 else
