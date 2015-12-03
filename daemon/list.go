@@ -8,7 +8,6 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
-	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/graphdb"
 	"github.com/docker/docker/pkg/nat"
@@ -136,64 +135,65 @@ func (daemon *Daemon) foldFilter(config *ContainersConfig) (*listContext, error)
 	}
 
 	var filtExited []int
-	if i, ok := psFilters["exited"]; ok {
-		for _, value := range i {
-			code, err := strconv.Atoi(value)
-			if err != nil {
-				return nil, err
-			}
-			filtExited = append(filtExited, code)
+	err = psFilters.WalkValues("exited", func(value string) error {
+		code, err := strconv.Atoi(value)
+		if err != nil {
+			return err
 		}
+		filtExited = append(filtExited, code)
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 
-	if i, ok := psFilters["status"]; ok {
-		for _, value := range i {
-			if !isValidStateString(value) {
-				return nil, errors.New("Unrecognised filter value for status")
-			}
-
-			config.All = true
+	err = psFilters.WalkValues("status", func(value string) error {
+		if !isValidStateString(value) {
+			return fmt.Errorf("Unrecognised filter value for status: %s", value)
 		}
+
+		config.All = true
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 
 	var beforeContFilter, sinceContFilter *Container
-	if i, ok := psFilters["before"]; ok {
-		for _, value := range i {
-			beforeContFilter, err = daemon.Get(value)
-			if err != nil {
-				return nil, err
-			}
-		}
+	err = psFilters.WalkValues("before", func(value string) error {
+		beforeContFilter, err = daemon.Get(value)
+		return err
+	})
+	if err != nil {
+		return nil, err
 	}
 
-	if i, ok := psFilters["since"]; ok {
-		for _, value := range i {
-			sinceContFilter, err = daemon.Get(value)
-			if err != nil {
-				return nil, err
-			}
-		}
+	err = psFilters.WalkValues("since", func(value string) error {
+		sinceContFilter, err = daemon.Get(value)
+		return err
+	})
+	if err != nil {
+		return nil, err
 	}
 
 	imagesFilter := map[image.ID]bool{}
 	var ancestorFilter bool
-	if ancestors, ok := psFilters["ancestor"]; ok {
+	if psFilters.Include("ancestor") {
 		ancestorFilter = true
-		// The idea is to walk the graph down the most "efficient" way.
-		for _, ancestor := range ancestors {
-			// First, get the imageId of the ancestor filter (yay)
+		psFilters.WalkValues("ancestor", func(ancestor string) error {
 			id, err := daemon.GetImageID(ancestor)
 			if err != nil {
 				logrus.Warnf("Error while looking up for image %v", ancestor)
-				continue
+				return nil
 			}
 			if imagesFilter[id] {
 				// Already seen this ancestor, skip it
-				continue
+				return nil
 			}
 			// Then walk down the graph and put the imageIds in imagesFilter
 			populateImageFilterByParents(imagesFilter, id, daemon.imageStore.Children)
-		}
+			return nil
+		})
 	}
 
 	names := make(map[string][]string)
@@ -202,14 +202,14 @@ func (daemon *Daemon) foldFilter(config *ContainersConfig) (*listContext, error)
 		return nil
 	}, 1)
 
-	if config.Before != "" {
+	if config.Before != "" && beforeContFilter == nil {
 		beforeContFilter, err = daemon.Get(config.Before)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	if config.Since != "" {
+	if config.Since != "" && sinceContFilter == nil {
 		sinceContFilter, err = daemon.Get(config.Since)
 		if err != nil {
 			return nil, err
@@ -397,17 +397,8 @@ func (daemon *Daemon) Volumes(filter string) ([]*types.Volume, error) {
 		return nil, err
 	}
 
-	filterUsed := false
-	if i, ok := volFilters["dangling"]; ok {
-		if len(i) > 1 {
-			return nil, derr.ErrorCodeDanglingOne
-		}
-
-		filterValue := i[0]
-		if strings.ToLower(filterValue) == "true" || filterValue == "1" {
-			filterUsed = true
-		}
-	}
+	filterUsed := volFilters.Include("dangling") &&
+		(volFilters.ExactMatch("dangling", "true") || volFilters.ExactMatch("dangling", "1"))
 
 	volumes := daemon.volumes.List()
 	for _, v := range volumes {

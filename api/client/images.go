@@ -36,7 +36,7 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 
 	// Consolidate all filter flags, and sanity check them early.
 	// They'll get process in the daemon/server.
-	imageFilterArgs := filters.Args{}
+	imageFilterArgs := filters.NewArgs()
 	for _, f := range flFilter.GetAll() {
 		var err error
 		imageFilterArgs, err = filters.ParseFlag(f, imageFilterArgs)
@@ -47,7 +47,7 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 
 	matchName := cmd.Arg(0)
 	v := url.Values{}
-	if len(imageFilterArgs) > 0 {
+	if imageFilterArgs.Len() > 0 {
 		filterJSON, err := filters.ToParam(imageFilterArgs)
 		if err != nil {
 			return err
