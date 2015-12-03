@@ -1,16 +1,13 @@
 package client
 
 import (
-	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"io"
-	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/docker/docker/api/client/lib"
 	"github.com/docker/docker/api/types"
 	Cli "github.com/docker/docker/cli"
 	"github.com/docker/docker/pkg/archive"
@@ -129,38 +126,7 @@ func splitCpArg(arg string) (container, path string) {
 }
 
 func (cli *DockerCli) statContainerPath(containerName, path string) (types.ContainerPathStat, error) {
-	var stat types.ContainerPathStat
-
-	query := make(url.Values, 1)
-	query.Set("path", filepath.ToSlash(path)) // Normalize the paths used in the API.
-
-	urlStr := fmt.Sprintf("/containers/%s/archive?%s", containerName, query.Encode())
-
-	response, err := cli.call("HEAD", urlStr, nil, nil)
-	if err != nil {
-		return stat, err
-	}
-	defer response.body.Close()
-
-	if response.statusCode != http.StatusOK {
-		return stat, fmt.Errorf("unexpected status code from daemon: %d", response.statusCode)
-	}
-
-	return getContainerPathStatFromHeader(response.header)
-}
-
-func getContainerPathStatFromHeader(header http.Header) (types.ContainerPathStat, error) {
-	var stat types.ContainerPathStat
-
-	encodedStat := header.Get("X-Docker-Container-Path-Stat")
-	statDecoder := base64.NewDecoder(base64.StdEncoding, strings.NewReader(encodedStat))
-
-	err := json.NewDecoder(statDecoder).Decode(&stat)
-	if err != nil {
-		err = fmt.Errorf("unable to decode container path stat header: %s", err)
-	}
-
-	return stat, err
+	return cli.client.StatContainerPath(containerName, path)
 }
 
 func resolveLocalPath(localPath string) (absPath string, err error) {
@@ -200,37 +166,17 @@ func (cli *DockerCli) copyFromContainer(srcContainer, srcPath, dstPath string, c
 
 	}
 
-	query := make(url.Values, 1)
-	query.Set("path", filepath.ToSlash(srcPath)) // Normalize the paths used in the API.
-
-	urlStr := fmt.Sprintf("/containers/%s/archive?%s", srcContainer, query.Encode())
-
-	response, err := cli.call("GET", urlStr, nil, nil)
+	content, stat, err := cli.client.CopyFromContainer(srcContainer, srcPath)
 	if err != nil {
 		return err
 	}
-	defer response.body.Close()
-
-	if response.statusCode != http.StatusOK {
-		return fmt.Errorf("unexpected status code from daemon: %d", response.statusCode)
-	}
+	defer content.Close()
 
 	if dstPath == "-" {
 		// Send the response to STDOUT.
-		_, err = io.Copy(os.Stdout, response.body)
+		_, err = io.Copy(os.Stdout, content)
 
 		return err
-	}
-
-	// In order to get the copy behavior right, we need to know information
-	// about both the source and the destination. The response headers include
-	// stat info about the source that we can use in deciding exactly how to
-	// copy it locally. Along with the stat info about the local destination,
-	// we have everything we need to handle the multiple possibilities there
-	// can be when copying a file/dir from one location to another file/dir.
-	stat, err := getContainerPathStatFromHeader(response.header)
-	if err != nil {
-		return fmt.Errorf("unable to get resource stat from response: %s", err)
 	}
 
 	// Prepare source copy info.
@@ -241,10 +187,10 @@ func (cli *DockerCli) copyFromContainer(srcContainer, srcPath, dstPath string, c
 		RebaseName: rebaseName,
 	}
 
-	preArchive := response.body
+	preArchive := content
 	if len(srcInfo.RebaseName) != 0 {
 		_, srcBase := archive.SplitPathDirEntry(srcInfo.Path)
-		preArchive = archive.RebaseArchiveEntries(response.body, srcBase, srcInfo.RebaseName)
+		preArchive = archive.RebaseArchiveEntries(content, srcBase, srcInfo.RebaseName)
 	}
 	// See comments in the implementation of `archive.CopyTo` for exactly what
 	// goes into deciding how and whether the source archive needs to be
@@ -340,22 +286,12 @@ func (cli *DockerCli) copyToContainer(srcPath, dstContainer, dstPath string, cpP
 		content = preparedArchive
 	}
 
-	query := make(url.Values, 2)
-	query.Set("path", filepath.ToSlash(resolvedDstPath)) // Normalize the paths used in the API.
-	// Do not allow for an existing directory to be overwritten by a non-directory and vice versa.
-	query.Set("noOverwriteDirNonDir", "true")
-
-	urlStr := fmt.Sprintf("/containers/%s/archive?%s", dstContainer, query.Encode())
-
-	response, err := cli.stream("PUT", urlStr, &streamOpts{in: content})
-	if err != nil {
-		return err
-	}
-	defer response.body.Close()
-
-	if response.statusCode != http.StatusOK {
-		return fmt.Errorf("unexpected status code from daemon: %d", response.statusCode)
+	options := lib.CopyToContainerOptions{
+		ContainerID:               dstContainer,
+		Path:                      resolvedDstPath,
+		Content:                   content,
+		AllowOverwriteDirWithFile: false,
 	}
 
-	return nil
+	return cli.client.CopyToContainer(options)
 }
