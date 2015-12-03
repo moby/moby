@@ -20,7 +20,7 @@ func CheckBlobDescriptorCache(t *testing.T, provider cache.BlobDescriptorCachePr
 }
 
 func checkBlobDescriptorCacheEmptyRepository(t *testing.T, ctx context.Context, provider cache.BlobDescriptorCacheProvider) {
-	if _, err := provider.Stat(ctx, "sha384:abc"); err != distribution.ErrBlobUnknown {
+	if _, err := provider.Stat(ctx, "sha384:abc111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111"); err != distribution.ErrBlobUnknown {
 		t.Fatalf("expected unknown blob error with empty store: %v", err)
 	}
 
@@ -41,7 +41,7 @@ func checkBlobDescriptorCacheEmptyRepository(t *testing.T, ctx context.Context, 
 		t.Fatalf("expected error with invalid digest: %v", err)
 	}
 
-	if err := cache.SetDescriptor(ctx, "sha384:abc", distribution.Descriptor{
+	if err := cache.SetDescriptor(ctx, "sha384:abc111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111", distribution.Descriptor{
 		Digest:    "",
 		Size:      10,
 		MediaType: "application/octet-stream"}); err == nil {
@@ -52,15 +52,15 @@ func checkBlobDescriptorCacheEmptyRepository(t *testing.T, ctx context.Context, 
 		t.Fatalf("expected error checking for cache item with empty digest: %v", err)
 	}
 
-	if _, err := cache.Stat(ctx, "sha384:abc"); err != distribution.ErrBlobUnknown {
+	if _, err := cache.Stat(ctx, "sha384:abc111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111"); err != distribution.ErrBlobUnknown {
 		t.Fatalf("expected unknown blob error with empty repo: %v", err)
 	}
 }
 
 func checkBlobDescriptorCacheSetAndRead(t *testing.T, ctx context.Context, provider cache.BlobDescriptorCacheProvider) {
-	localDigest := digest.Digest("sha384:abc")
+	localDigest := digest.Digest("sha384:abc111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111")
 	expected := distribution.Descriptor{
-		Digest:    "sha256:abc",
+		Digest:    "sha256:abc1111111111111111111111111111111111111111111111111111111111111",
 		Size:      10,
 		MediaType: "application/octet-stream"}
 
