@@ -192,7 +192,14 @@ func Load(configDir string) (*ConfigFile, error) {
 	}
 	defer file.Close()
 	err = configFile.LegacyLoadFromReader(file)
-	return &configFile, err
+	if err != nil {
+		return &configFile, err
+	}
+
+	if configFile.HTTPHeaders == nil {
+		configFile.HTTPHeaders = map[string]string{}
+	}
+	return &configFile, nil
 }
 
 // SaveToWriter encodes and writes out all the authorization information to
