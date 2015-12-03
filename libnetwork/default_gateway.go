@@ -103,6 +103,9 @@ func (sb *sandbox) needDefaultGW() bool {
 		if ep.getNetwork().Type() == "null" || ep.getNetwork().Type() == "host" {
 			continue
 		}
+		if ep.joinInfo.disableGatewayService {
+			return false
+		}
 		// TODO v6 needs to be handled.
 		if len(ep.Gateway()) > 0 {
 			return false

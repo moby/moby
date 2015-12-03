@@ -64,19 +64,20 @@ func setupPlugin(t *testing.T, name string, mux *http.ServeMux) func() {
 }
 
 type testEndpoint struct {
-	t              *testing.T
-	src            string
-	dst            string
-	address        string
-	addressIPv6    string
-	macAddress     string
-	gateway        string
-	gatewayIPv6    string
-	resolvConfPath string
-	hostsPath      string
-	nextHop        string
-	destination    string
-	routeType      int
+	t                     *testing.T
+	src                   string
+	dst                   string
+	address               string
+	addressIPv6           string
+	macAddress            string
+	gateway               string
+	gatewayIPv6           string
+	resolvConfPath        string
+	hostsPath             string
+	nextHop               string
+	destination           string
+	routeType             int
+	disableGatewayService bool
 }
 
 func (test *testEndpoint) Interface() driverapi.InterfaceInfo {
@@ -189,6 +190,10 @@ func (test *testEndpoint) AddStaticRoute(destination *net.IPNet, routeType int, 
 	}
 
 	return nil
+}
+
+func (test *testEndpoint) DisableGatewayService() {
+	test.disableGatewayService = true
 }
 
 func TestGetEmptyCapabilities(t *testing.T) {
@@ -343,7 +348,7 @@ func TestRemoteDriver(t *testing.T) {
 				"DstPrefix": ep.dst,
 			},
 			"StaticRoutes": []map[string]interface{}{
-				map[string]interface{}{
+				{
 					"Destination": ep.destination,
 					"RouteType":   ep.routeType,
 					"NextHop":     ep.nextHop,

@@ -416,6 +416,8 @@ func (te *testEndpoint) AddStaticRoute(destination *net.IPNet, routeType int, ne
 	return nil
 }
 
+func (te *testEndpoint) DisableGatewayService() {}
+
 func TestQueryEndpointInfo(t *testing.T) {
 	testQueryEndpointInfo(t, true)
 }

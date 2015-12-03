@@ -92,6 +92,8 @@ func (ep *endpoint) AddStaticRoute(destination *net.IPNet, routeType int,
 	return nil
 }
 
+func (ep *endpoint) DisableGatewayService() {}
+
 func main() {
 	if reexec.Init() {
 		return
