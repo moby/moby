@@ -61,10 +61,12 @@ else
 fi
 
 # give it a little time to come up so it's "ready"
-tries=30
+tries=60
+echo "INFO: Waiting for daemon to start..."
 while ! docker version &> /dev/null; do
 	(( tries-- ))
 	if [ $tries -le 0 ]; then
+		printf "\n"
 		if [ -z "$DOCKER_HOST" ]; then
 			echo >&2 "error: daemon failed to start"
 			echo >&2 "  check $DEST/docker.log for details"
@@ -74,5 +76,7 @@ while ! docker version &> /dev/null; do
 		fi
 		false
 	fi
+	printf "."
 	sleep 2
 done
+printf "\n"
