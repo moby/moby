@@ -60,12 +60,13 @@ profile {{.Name}} flags=(attach_disconnected,mediate_deleted) {
   deny /sys/firmware/efi/efivars/** rwklx,
   deny /sys/kernel/security/** rwklx,
 
+{{if ge .MajorVersion 2}}{{if ge .MinorVersion 8}}
+  # suppress ptrace denials when using 'docker ps' or using 'ps' inside a container
+  ptrace (trace,read) peer=docker-default,
+{{end}}{{end}}
 {{if ge .MajorVersion 2}}{{if ge .MinorVersion 9}}
   # docker daemon confinement requires explict allow rule for signal
   signal (receive) set=(kill,term) peer={{.ExecPath}},
-
-  # suppress ptrace denails when using 'docker ps'
-  ptrace (trace,read) peer=docker-default,
 {{end}}{{end}}
 }
 `
