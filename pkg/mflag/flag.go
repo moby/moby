@@ -571,10 +571,7 @@ func (fs *FlagSet) PrintDefaults() {
 				format := "  -%s=%s"
 				fmt.Fprintf(writer, format, strings.Join(names, ", -"), val)
 			}
-			for i, line := range strings.Split(flag.Usage, "\n") {
-				if i != 0 {
-					line = "  " + line
-				}
+			for _, line := range strings.Split(flag.Usage, "\n") {
 				fmt.Fprintln(writer, "\t", line)
 			}
 		}
