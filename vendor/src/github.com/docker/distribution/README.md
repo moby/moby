@@ -3,11 +3,14 @@
 The Docker toolset to pack, ship, store, and deliver content.
 
 This repository's main product is the Docker Registry 2.0 implementation
-for storing and distributing Docker images. It supersedes the [docker/docker-
-registry](https://github.com/docker/docker-registry) project with a new API
-design, focused around security and performance.
+for storing and distributing Docker images. It supersedes the
+[docker/docker-registry](https://github.com/docker/docker-registry)
+project with a new API design, focused around security and performance.
 
 <img src="https://www.docker.com/sites/default/files/oyster-registry-3.png" width=200px/>
+
+[![Circle CI](https://circleci.com/gh/docker/distribution/tree/master.svg?style=svg)](https://circleci.com/gh/docker/distribution/tree/master)
+[![GoDoc](https://godoc.org/github.com/docker/distribution?status.svg)](https://godoc.org/github.com/docker/distribution)
 
 This repository contains the following components:
 

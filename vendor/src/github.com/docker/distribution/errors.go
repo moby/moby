@@ -89,3 +89,14 @@ type ErrManifestBlobUnknown struct {
 func (err ErrManifestBlobUnknown) Error() string {
 	return fmt.Sprintf("unknown blob %v on manifest", err.Digest)
 }
+
+// ErrManifestNameInvalid should be used to denote an invalid manifest
+// name. Reason may set, indicating the cause of invalidity.
+type ErrManifestNameInvalid struct {
+	Name   string
+	Reason error
+}
+
+func (err ErrManifestNameInvalid) Error() string {
+	return fmt.Sprintf("manifest name %q invalid: %v", err.Name, err.Reason)
+}
