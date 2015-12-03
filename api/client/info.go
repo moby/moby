@@ -1,12 +1,9 @@
 package client
 
 import (
-	"encoding/json"
 	"fmt"
 
-	"github.com/docker/docker/api/types"
 	Cli "github.com/docker/docker/cli"
-	"github.com/docker/docker/pkg/httputils"
 	"github.com/docker/docker/pkg/ioutils"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/units"
@@ -21,16 +18,9 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 
 	cmd.ParseFlags(args, true)
 
-	serverResp, err := cli.call("GET", "/info", nil, nil)
+	info, err := cli.client.Info()
 	if err != nil {
 		return err
-	}
-
-	defer serverResp.body.Close()
-
-	info := &types.Info{}
-	if err := json.NewDecoder(serverResp.body).Decode(info); err != nil {
-		return fmt.Errorf("Error reading remote info: %v", err)
 	}
 
 	fmt.Fprintf(cli.out, "Containers: %d\n", info.Containers)
@@ -90,38 +80,36 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 	}
 
 	// Only output these warnings if the server does not support these features
-	if h, err := httputils.ParseServerHeader(serverResp.header.Get("Server")); err == nil {
-		if h.OS != "windows" {
-			if !info.MemoryLimit {
-				fmt.Fprintf(cli.err, "WARNING: No memory limit support\n")
-			}
-			if !info.SwapLimit {
-				fmt.Fprintf(cli.err, "WARNING: No swap limit support\n")
-			}
-			if !info.OomKillDisable {
-				fmt.Fprintf(cli.err, "WARNING: No oom kill disable support\n")
-			}
-			if !info.CPUCfsQuota {
-				fmt.Fprintf(cli.err, "WARNING: No cpu cfs quota support\n")
-			}
-			if !info.CPUCfsPeriod {
-				fmt.Fprintf(cli.err, "WARNING: No cpu cfs period support\n")
-			}
-			if !info.CPUShares {
-				fmt.Fprintf(cli.err, "WARNING: No cpu shares support\n")
-			}
-			if !info.CPUSet {
-				fmt.Fprintf(cli.err, "WARNING: No cpuset support\n")
-			}
-			if !info.IPv4Forwarding {
-				fmt.Fprintf(cli.err, "WARNING: IPv4 forwarding is disabled\n")
-			}
-			if !info.BridgeNfIptables {
-				fmt.Fprintf(cli.err, "WARNING: bridge-nf-call-iptables is disabled\n")
-			}
-			if !info.BridgeNfIP6tables {
-				fmt.Fprintf(cli.err, "WARNING: bridge-nf-call-ip6tables is disabled\n")
-			}
+	if info.OSType != "windows" {
+		if !info.MemoryLimit {
+			fmt.Fprintf(cli.err, "WARNING: No memory limit support\n")
+		}
+		if !info.SwapLimit {
+			fmt.Fprintf(cli.err, "WARNING: No swap limit support\n")
+		}
+		if !info.OomKillDisable {
+			fmt.Fprintf(cli.err, "WARNING: No oom kill disable support\n")
+		}
+		if !info.CPUCfsQuota {
+			fmt.Fprintf(cli.err, "WARNING: No cpu cfs quota support\n")
+		}
+		if !info.CPUCfsPeriod {
+			fmt.Fprintf(cli.err, "WARNING: No cpu cfs period support\n")
+		}
+		if !info.CPUShares {
+			fmt.Fprintf(cli.err, "WARNING: No cpu shares support\n")
+		}
+		if !info.CPUSet {
+			fmt.Fprintf(cli.err, "WARNING: No cpuset support\n")
+		}
+		if !info.IPv4Forwarding {
+			fmt.Fprintf(cli.err, "WARNING: IPv4 forwarding is disabled\n")
+		}
+		if !info.BridgeNfIptables {
+			fmt.Fprintf(cli.err, "WARNING: bridge-nf-call-iptables is disabled\n")
+		}
+		if !info.BridgeNfIP6tables {
+			fmt.Fprintf(cli.err, "WARNING: bridge-nf-call-ip6tables is disabled\n")
 		}
 	}
 
