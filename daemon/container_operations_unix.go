@@ -657,6 +657,62 @@ func (daemon *Daemon) connectToNetwork(container *container.Container, idOrName 
 	return nil
 }
 
+// DisconnectFromNetwork disconnects container from network n.
+func (daemon *Daemon) DisconnectFromNetwork(container *container.Container, n libnetwork.Network) error {
+	if !container.Running {
+		return derr.ErrorCodeNotRunning.WithArgs(container.ID)
+	}
+
+	if container.HostConfig.NetworkMode.IsHost() && runconfig.NetworkMode(n.Type()).IsHost() {
+		return runconfig.ErrConflictHostNetwork
+	}
+
+	return disconnectFromNetwork(container, n)
+}
+
+func disconnectFromNetwork(container *container.Container, n libnetwork.Network) error {
+
+	if err := container.ToDiskLocking(); err != nil {
+		return fmt.Errorf("Error saving container to disk: %v", err)
+	}
+
+	var (
+		ep   libnetwork.Endpoint
+		sbox libnetwork.Sandbox
+	)
+
+	s := func(current libnetwork.Endpoint) bool {
+		epInfo := current.Info()
+		if epInfo == nil {
+			return false
+		}
+		if sb := epInfo.Sandbox(); sb != nil {
+			if sb.ContainerID() == container.ID {
+				ep = current
+				sbox = sb
+				return true
+			}
+		}
+		return false
+	}
+	n.WalkEndpoints(s)
+
+	if ep == nil {
+		return fmt.Errorf("container %s is not connected to the network", container.ID)
+	}
+
+	if err := ep.Leave(sbox); err != nil {
+		return fmt.Errorf("container %s failed to leave network %s: %v", container.ID, n.Name(), err)
+	}
+
+	if err := ep.Delete(); err != nil {
+		return fmt.Errorf("endpoint delete failed for container %s on network %s: %v", container.ID, n.Name(), err)
+	}
+
+	delete(container.NetworkSettings.Networks, n.Name())
+	return nil
+}
+
 func (daemon *Daemon) initializeNetworking(container *container.Container) error {
 	var err error
 

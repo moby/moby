@@ -5,7 +5,6 @@ package container
 import (
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/volume"
-	"github.com/docker/libnetwork"
 )
 
 // DefaultPathEnv is deliberately empty on Windows as the default path will be set by
@@ -24,11 +23,6 @@ type Container struct {
 func (container *Container) CreateDaemonEnvironment(linkedEnv []string) []string {
 	// On Windows, nothing to link. Just return the container environment.
 	return container.Config.Env
-}
-
-// DisconnectFromNetwork disconnects a container from the network.
-func (container *Container) DisconnectFromNetwork(n libnetwork.Network) error {
-	return nil
 }
 
 // SetupWorkingDirectory initializes the container working directory.

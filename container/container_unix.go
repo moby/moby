@@ -20,7 +20,6 @@ import (
 	"github.com/docker/docker/pkg/nat"
 	"github.com/docker/docker/pkg/symlink"
 	"github.com/docker/docker/pkg/system"
-	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
 	"github.com/docker/docker/volume"
 	"github.com/docker/libnetwork"
@@ -371,64 +370,6 @@ func (container *Container) SetupWorkingDirectory() error {
 	if pthInfo != nil && !pthInfo.IsDir() {
 		return derr.ErrorCodeNotADir.WithArgs(container.Config.WorkingDir)
 	}
-	return nil
-}
-
-// DisconnectFromNetwork disconnects a container from a network
-func (container *Container) DisconnectFromNetwork(n libnetwork.Network) error {
-	if !container.Running {
-		return derr.ErrorCodeNotRunning.WithArgs(container.ID)
-	}
-
-	if container.HostConfig.NetworkMode.IsHost() && runconfig.NetworkMode(n.Type()).IsHost() {
-		return runconfig.ErrConflictHostNetwork
-	}
-
-	if err := container.disconnectFromNetwork(n); err != nil {
-		return err
-	}
-
-	if err := container.ToDiskLocking(); err != nil {
-		return fmt.Errorf("Error saving container to disk: %v", err)
-	}
-	return nil
-}
-
-func (container *Container) disconnectFromNetwork(n libnetwork.Network) error {
-	var (
-		ep   libnetwork.Endpoint
-		sbox libnetwork.Sandbox
-	)
-
-	s := func(current libnetwork.Endpoint) bool {
-		epInfo := current.Info()
-		if epInfo == nil {
-			return false
-		}
-		if sb := epInfo.Sandbox(); sb != nil {
-			if sb.ContainerID() == container.ID {
-				ep = current
-				sbox = sb
-				return true
-			}
-		}
-		return false
-	}
-	n.WalkEndpoints(s)
-
-	if ep == nil {
-		return fmt.Errorf("container %s is not connected to the network", container.ID)
-	}
-
-	if err := ep.Leave(sbox); err != nil {
-		return fmt.Errorf("container %s failed to leave network %s: %v", container.ID, n.Name(), err)
-	}
-
-	if err := ep.Delete(); err != nil {
-		return fmt.Errorf("endpoint delete failed for container %s on network %s: %v", container.ID, n.Name(), err)
-	}
-
-	delete(container.NetworkSettings.Networks, n.Name())
 	return nil
 }
 

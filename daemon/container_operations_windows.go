@@ -9,6 +9,7 @@ import (
 	"github.com/docker/docker/daemon/execdriver"
 	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/layer"
+	"github.com/docker/libnetwork"
 )
 
 func (daemon *Daemon) setupLinkedContainers(container *container.Container) ([]string, error) {
@@ -21,6 +22,11 @@ func (daemon *Daemon) initializeNetworking(container *container.Container) error
 
 // ConnectToNetwork connects a container to the network
 func (daemon *Daemon) ConnectToNetwork(container *container.Container, idOrName string) error {
+	return nil
+}
+
+// DisconnectFromNetwork disconnects a container from the network.
+func (daemon *Daemon) DisconnectFromNetwork(container *container.Container, n libnetwork.Network) error {
 	return nil
 }
 
