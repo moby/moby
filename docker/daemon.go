@@ -217,6 +217,10 @@ func (cli *DaemonCli) CmdDaemon(args ...string) error {
 		logrus.Fatal(err)
 	}
 
+	// notify systemd api. done here so systemd would not timeout if we hit the
+	// one time migration penalty.
+	notifySystem()
+
 	if err := migrateKey(); err != nil {
 		logrus.Fatal(err)
 	}
@@ -267,9 +271,6 @@ func (cli *DaemonCli) CmdDaemon(args ...string) error {
 			}
 		}
 	})
-
-	// after the daemon is done setting up we can notify systemd api
-	notifySystem()
 
 	// Daemon is fully initialized and handling API traffic
 	// Wait for serve API to complete
