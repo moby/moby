@@ -137,6 +137,16 @@ func (container *Container) createDaemonEnvironment(linkedEnv []string) []string
 	if container.Config.Tty {
 		env = append(env, "TERM=xterm")
 	}
+
+	// Set exposed ports as environment variables
+	exposedPorts := container.NetworkSettings.Ports
+	for localPort, exposedPort := range exposedPorts {
+		// if the exposedPort array is empty, then the port has not been published
+		if len(exposedPort) > 0 {
+			env = append(env, "PORT_" + localPort.Port() + "=" + string(exposedPort[0].HostPort))
+		}
+	}
+
 	env = append(env, linkedEnv...)
 	// because the env on the container can override certain default values
 	// we need to replace the 'env' keys where they match and append anything
