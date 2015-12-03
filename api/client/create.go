@@ -10,8 +10,10 @@ import (
 	"strings"
 
 	"github.com/docker/distribution/reference"
+	"github.com/docker/docker/api/client/lib"
 	"github.com/docker/docker/api/types"
 	Cli "github.com/docker/docker/cli"
+	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/runconfig"
 	tagpkg "github.com/docker/docker/tag"
@@ -22,8 +24,6 @@ func (cli *DockerCli) pullImage(image string) error {
 }
 
 func (cli *DockerCli) pullImageCustomOut(image string, out io.Writer) error {
-	v := url.Values{}
-
 	ref, err := reference.ParseNamed(image)
 	if err != nil {
 		return err
@@ -40,9 +40,6 @@ func (cli *DockerCli) pullImageCustomOut(image string, out io.Writer) error {
 		tag = tagpkg.DefaultTag
 	}
 
-	v.Set("fromImage", ref.Name())
-	v.Set("tag", tag)
-
 	// Resolve the Repository name from fqn to RepositoryInfo
 	repoInfo, err := registry.ParseRepositoryInfo(ref)
 	if err != nil {
@@ -56,18 +53,19 @@ func (cli *DockerCli) pullImageCustomOut(image string, out io.Writer) error {
 		return err
 	}
 
-	registryAuthHeader := []string{
-		base64.URLEncoding.EncodeToString(buf),
+	options := lib.CreateImageOptions{
+		Parent:       ref.Name(),
+		Tag:          tag,
+		RegistryAuth: base64.URLEncoding.EncodeToString(buf),
 	}
-	sopts := &streamOpts{
-		rawTerminal: true,
-		out:         out,
-		headers:     map[string][]string{"X-Registry-Auth": registryAuthHeader},
-	}
-	if _, err := cli.stream("POST", "/images/create?"+v.Encode(), sopts); err != nil {
+
+	responseBody, err := cli.client.CreateImage(options)
+	if err != nil {
 		return err
 	}
-	return nil
+	defer responseBody.Close()
+
+	return jsonmessage.DisplayJSONMessagesStream(responseBody, out, cli.outFd, cli.isTerminalOut)
 }
 
 type cidFile struct {
