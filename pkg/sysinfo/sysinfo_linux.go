@@ -100,10 +100,22 @@ func checkCgroupCPU(quiet bool) cgroupCPUInfo {
 	if !quiet && !cpuCfsQuota {
 		logrus.Warn("Your kernel does not support cgroup cfs quotas")
 	}
+
+	cpuRtPeriod := cgroupEnabled(mountPoint, "cpu.rt_period_us")
+	if !quiet && !cpuRtPeriod {
+		logrus.Warn("Your kernel does not support cgroup realtime scheduler period")
+	}
+
+	cpuRtRuntime := cgroupEnabled(mountPoint, "cpu.rt_runtime_us")
+	if !quiet && !cpuRtRuntime {
+		logrus.Warn("Your kernel does not support cgroup realtime scheduler runtime")
+	}
 	return cgroupCPUInfo{
 		CPUShares:    cpuShares,
 		CPUCfsPeriod: cpuCfsPeriod,
 		CPUCfsQuota:  cpuCfsQuota,
+		CPURTPeriod:  cpuRtPeriod,
+		CPURTRuntime: cpuRtRuntime,
 	}
 }
 

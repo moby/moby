@@ -298,6 +298,8 @@ func (daemon *Daemon) populateCommand(c *Container, env []string) error {
 		CpusetMems:        c.hostConfig.CpusetMems,
 		CPUPeriod:         c.hostConfig.CPUPeriod,
 		CPUQuota:          c.hostConfig.CPUQuota,
+		CPURTPeriod:       c.hostConfig.CPURTPeriod,
+		CPURTRuntime:      c.hostConfig.CPURTRuntime,
 		Rlimits:           rlimits,
 		BlkioWeightDevice: weightDevices,
 		OomKillDisable:    c.hostConfig.OomKillDisable,

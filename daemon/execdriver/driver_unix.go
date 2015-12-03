@@ -45,9 +45,12 @@ type Resources struct {
 	CpusetCpus        string                   `json:"cpuset_cpus"`
 	CpusetMems        string                   `json:"cpuset_mems"`
 	CPUPeriod         int64                    `json:"cpu_period"`
-	Rlimits           []*ulimit.Rlimit         `json:"rlimits"`
-	OomKillDisable    bool                     `json:"oom_kill_disable"`
-	MemorySwappiness  int64                    `json:"memory_swappiness"`
+	CPURTPeriod       int64                    `json:"cpu_rt_period"`
+	CPURTRuntime      int64                    `json:"cpu_rt_runtime"`
+
+	Rlimits          []*ulimit.Rlimit `json:"rlimits"`
+	OomKillDisable   bool             `json:"oom_kill_disable"`
+	MemorySwappiness int64            `json:"memory_swappiness"`
 }
 
 // ProcessConfig is the platform specific structure that describes a process
@@ -142,6 +145,8 @@ func InitContainer(c *Command) *configs.Config {
 	// Default parent cgroup is "docker". Override if required.
 	if c.CgroupParent != "" {
 		container.Cgroups.Parent = c.CgroupParent
+	} else if c.Resources.CPURTRuntime != 0 {
+		container.Cgroups.Parent = ""
 	}
 	return container
 }
@@ -168,6 +173,8 @@ func SetupCgroups(container *configs.Config, c *Command) error {
 		container.Cgroups.CpusetMems = c.Resources.CpusetMems
 		container.Cgroups.CpuPeriod = c.Resources.CPUPeriod
 		container.Cgroups.CpuQuota = c.Resources.CPUQuota
+		container.Cgroups.CpuRtPeriod = c.Resources.CPURTPeriod
+		container.Cgroups.CpuRtRuntime = c.Resources.CPURTRuntime
 		container.Cgroups.BlkioWeight = c.Resources.BlkioWeight
 		container.Cgroups.BlkioWeightDevice = c.Resources.BlkioWeightDevice
 		container.Cgroups.OomKillDisable = c.Resources.OomKillDisable

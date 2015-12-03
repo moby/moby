@@ -94,6 +94,8 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		flCPUShares         = cmd.Int64([]string{"#c", "-cpu-shares"}, 0, "CPU shares (relative weight)")
 		flCPUPeriod         = cmd.Int64([]string{"-cpu-period"}, 0, "Limit CPU CFS (Completely Fair Scheduler) period")
 		flCPUQuota          = cmd.Int64([]string{"-cpu-quota"}, 0, "Limit CPU CFS (Completely Fair Scheduler) quota")
+		flCPURTPeriod       = cmd.Int64([]string{"-cpu-rt-period"}, 0, "CPU realtime scheduler period")
+		flCPURTRuntime      = cmd.Int64([]string{"-cpu-rt-runtime"}, 0, "CPU realtime scheduler runtime")
 		flCpusetCpus        = cmd.String([]string{"-cpuset-cpus"}, "", "CPUs in which to allow execution (0-3, 0,1)")
 		flCpusetMems        = cmd.String([]string{"-cpuset-mems"}, "", "MEMs in which to allow execution (0-3, 0,1)")
 		flBlkioWeight       = cmd.Uint16([]string{"-blkio-weight"}, 0, "Block IO (relative weight), between 10 and 1000")
@@ -349,6 +351,8 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		CpusetCpus:        *flCpusetCpus,
 		CpusetMems:        *flCpusetMems,
 		CPUQuota:          *flCPUQuota,
+		CPURTPeriod:       *flCPURTPeriod,
+		CPURTRuntime:      *flCPURTRuntime,
 		BlkioWeight:       *flBlkioWeight,
 		BlkioWeightDevice: flBlkioWeightDevice.GetList(),
 		Ulimits:           flUlimits.GetList(),

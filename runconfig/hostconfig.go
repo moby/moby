@@ -174,8 +174,10 @@ type Resources struct {
 	CgroupParent      string // Parent cgroup.
 	BlkioWeight       uint16 // Block IO weight (relative weight vs. other containers)
 	BlkioWeightDevice []*blkiodev.WeightDevice
-	CPUPeriod         int64            `json:"CpuPeriod"` // CPU CFS (Completely Fair Scheduler) period
-	CPUQuota          int64            `json:"CpuQuota"`  // CPU CFS (Completely Fair Scheduler) quota
+	CPUPeriod         int64            `json:"CpuPeriod"`    // CPU CFS (Completely Fair Scheduler) period
+	CPUQuota          int64            `json:"CpuQuota"`     // CPU CFS (Completely Fair Scheduler) quota
+	CPURTPeriod       int64            `json:"CpuRtPeriod"`  // CPU realtime scheduler period
+	CPURTRuntime      int64            `json:"CpuRtRuntime"` // CPU realtime scheduler runtime
 	CpusetCpus        string           // CpusetCpus 0-2, 0,1
 	CpusetMems        string           // CpusetMems 0-2, 0,1
 	Devices           []DeviceMapping  // List of devices to map inside the container
