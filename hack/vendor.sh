@@ -41,7 +41,7 @@ clone git github.com/boltdb/bolt v1.1.0
 
 # get graph and distribution packages
 clone git github.com/docker/distribution c6c9194e9c6097f84b0ff468a741086ff7704aa3
-clone git github.com/vbatts/tar-split v0.9.10
+clone git github.com/vbatts/tar-split v0.9.11
 
 clone git github.com/docker/notary 45de2828b5e0083bfb4e9a5a781eddb05e2ef9d0
 clone git google.golang.org/grpc 174192fc93efcb188fc8f46ca447f0da606b6885 https://github.com/grpc/grpc-go.git
