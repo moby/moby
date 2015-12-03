@@ -83,7 +83,7 @@ Creates a new container.
                                     If 'host-src' is missing, then docker creates a new volume.
                                     If neither 'rw' or 'ro' is specified then the volume is mounted
                                     in read-write mode.
-      --volume-driver=""            Optional volume driver for the container
+      --volume-driver=""            Container's volume driver
       --volumes-from=[]             Mount volumes from the specified container(s)
       -w, --workdir=""              Working directory inside the container
 
