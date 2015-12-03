@@ -6,14 +6,14 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"os"
-	"strings"
+	"runtime"
 
+	"github.com/docker/docker/api/client/lib"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cliconfig"
+	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/opts"
-	"github.com/docker/docker/pkg/sockets"
 	"github.com/docker/docker/pkg/term"
 	"github.com/docker/docker/pkg/tlsconfig"
 )
@@ -23,13 +23,6 @@ import (
 type DockerCli struct {
 	// initializing closure
 	init func() error
-
-	// proto holds the client protocol i.e. unix.
-	proto string
-	// addr holds the client address.
-	addr string
-	// basePath holds the path to prepend to the requests
-	basePath string
 
 	// configFile has the client configuration file
 	configFile *cliconfig.ConfigFile
@@ -41,11 +34,6 @@ type DockerCli struct {
 	err io.Writer
 	// keyFile holds the key file as a string.
 	keyFile string
-	// tlsConfig holds the TLS configuration for the client, and will
-	// set the scheme to https in NewDockerCli if present.
-	tlsConfig *tls.Config
-	// scheme holds the scheme of the client i.e. https.
-	scheme string
 	// inFd holds the file descriptor of the client's STDIN (if valid).
 	inFd uintptr
 	// outFd holds file descriptor of the client's STDOUT (if valid).
@@ -54,6 +42,22 @@ type DockerCli struct {
 	isTerminalIn bool
 	// isTerminalOut indicates whether the client's STDOUT is a TTY
 	isTerminalOut bool
+	// client is the http client that performs all API operations
+	client *lib.Client
+
+	// DEPRECATED OPTIONS TO MAKE THE CLIENT COMPILE
+	// TODO: Remove
+	// proto holds the client protocol i.e. unix.
+	proto string
+	// addr holds the client address.
+	addr string
+	// basePath holds the path to prepend to the requests
+	basePath string
+	// tlsConfig holds the TLS configuration for the client, and will
+	// set the scheme to https in NewDockerCli if present.
+	tlsConfig *tls.Config
+	// scheme holds the scheme of the client i.e. https.
+	scheme string
 	// transport holds the client transport instance.
 	transport *http.Transport
 }
@@ -98,50 +102,35 @@ func NewDockerCli(in io.ReadCloser, out, err io.Writer, clientFlags *cli.ClientF
 	}
 
 	cli.init = func() error {
-
 		clientFlags.PostParse()
+		configFile, e := cliconfig.Load(cliconfig.ConfigDir())
+		if e != nil {
+			fmt.Fprintf(cli.err, "WARNING: Error loading config file:%v\n", e)
+		}
+		cli.configFile = configFile
 
-		hosts := clientFlags.Common.Hosts
-
-		switch len(hosts) {
-		case 0:
-			hosts = []string{os.Getenv("DOCKER_HOST")}
-		case 1:
-			// only accept one host to talk to
-		default:
-			return errors.New("Please specify only one -H")
+		host, err := getServerHost(clientFlags.Common.Hosts, clientFlags.Common.TLSOptions)
+		if err != nil {
+			return err
 		}
 
-		defaultHost := opts.DefaultTCPHost
-		if clientFlags.Common.TLSOptions != nil {
-			defaultHost = opts.DefaultTLSHost
+		customHeaders := cli.configFile.HTTPHeaders
+		if customHeaders == nil {
+			customHeaders = map[string]string{}
 		}
+		customHeaders["User-Agent"] = "Docker-Client/" + dockerversion.Version + " (" + runtime.GOOS + ")"
 
-		var e error
-		if hosts[0], e = opts.ParseHost(defaultHost, hosts[0]); e != nil {
-			return e
+		client, err := lib.NewClient(host, clientFlags.Common.TLSOptions, customHeaders)
+		if err != nil {
+			return err
 		}
+		cli.client = client
 
-		protoAddrParts := strings.SplitN(hosts[0], "://", 2)
-		cli.proto, cli.addr = protoAddrParts[0], protoAddrParts[1]
-
-		if cli.proto == "tcp" {
-			// error is checked in pkg/parsers already
-			parsed, _ := url.Parse("tcp://" + cli.addr)
-			cli.addr = parsed.Host
-			cli.basePath = parsed.Path
-		}
-
-		if clientFlags.Common.TLSOptions != nil {
-			cli.scheme = "https"
-			var e error
-			cli.tlsConfig, e = tlsconfig.Client(*clientFlags.Common.TLSOptions)
-			if e != nil {
-				return e
-			}
-		} else {
-			cli.scheme = "http"
-		}
+		// FIXME: Deprecated, only to keep the old code running.
+		cli.transport = client.HTTPClient.Transport.(*http.Transport)
+		cli.basePath = client.BasePath
+		cli.addr = client.Addr
+		cli.scheme = client.Scheme
 
 		if cli.in != nil {
 			cli.inFd, cli.isTerminalIn = term.GetFdInfo(cli.in)
@@ -150,20 +139,27 @@ func NewDockerCli(in io.ReadCloser, out, err io.Writer, clientFlags *cli.ClientF
 			cli.outFd, cli.isTerminalOut = term.GetFdInfo(cli.out)
 		}
 
-		// The transport is created here for reuse during the client session.
-		cli.transport = &http.Transport{
-			TLSClientConfig: cli.tlsConfig,
-		}
-		sockets.ConfigureTCPTransport(cli.transport, cli.proto, cli.addr)
-
-		configFile, e := cliconfig.Load(cliconfig.ConfigDir())
-		if e != nil {
-			fmt.Fprintf(cli.err, "WARNING: Error loading config file:%v\n", e)
-		}
-		cli.configFile = configFile
-
 		return nil
 	}
 
 	return cli
+}
+
+func getServerHost(hosts []string, tlsOptions *tlsconfig.Options) (host string, err error) {
+	switch len(hosts) {
+	case 0:
+		host = os.Getenv("DOCKER_HOST")
+	case 1:
+		host = hosts[0]
+	default:
+		return "", errors.New("Please specify only one -H")
+	}
+
+	defaultHost := opts.DefaultTCPHost
+	if tlsOptions != nil {
+		defaultHost = opts.DefaultTLSHost
+	}
+
+	host, err = opts.ParseHost(defaultHost, host)
+	return
 }
