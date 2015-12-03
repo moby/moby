@@ -13,6 +13,7 @@ import (
 	"github.com/docker/docker/api/server/router/container"
 	"github.com/docker/docker/api/server/router/local"
 	"github.com/docker/docker/api/server/router/network"
+	"github.com/docker/docker/api/server/router/system"
 	"github.com/docker/docker/api/server/router/volume"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/pkg/sockets"
@@ -168,10 +169,11 @@ func (s *Server) makeHTTPHandler(handler httputils.APIFunc) http.HandlerFunc {
 
 // InitRouters initializes a list of routers for the server.
 func (s *Server) InitRouters(d *daemon.Daemon) {
+	s.addRouter(container.NewRouter(d))
 	s.addRouter(local.NewRouter(d))
 	s.addRouter(network.NewRouter(d))
+	s.addRouter(system.NewRouter(d))
 	s.addRouter(volume.NewRouter(d))
-	s.addRouter(container.NewRouter(d))
 }
 
 // addRouter adds a new router to the server.

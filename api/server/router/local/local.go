@@ -1,10 +1,6 @@
 package local
 
 import (
-	"net/http"
-
-	"golang.org/x/net/context"
-
 	"github.com/docker/docker/api/server/httputils"
 	dkrouter "github.com/docker/docker/api/server/router"
 	"github.com/docker/docker/daemon"
@@ -92,12 +88,7 @@ func (r *router) Routes() []dkrouter.Route {
 func (r *router) initRoutes() {
 	r.routes = []dkrouter.Route{
 		// OPTIONS
-		NewOptionsRoute("/", optionsHandler),
 		// GET
-		NewGetRoute("/_ping", pingHandler),
-		NewGetRoute("/events", r.getEvents),
-		NewGetRoute("/info", r.getInfo),
-		NewGetRoute("/version", r.getVersion),
 		NewGetRoute("/images/json", r.getImagesJSON),
 		NewGetRoute("/images/search", r.getImagesSearch),
 		NewGetRoute("/images/get", r.getImagesGet),
@@ -105,7 +96,6 @@ func (r *router) initRoutes() {
 		NewGetRoute("/images/{name:.*}/history", r.getImagesHistory),
 		NewGetRoute("/images/{name:.*}/json", r.getImagesByName),
 		// POST
-		NewPostRoute("/auth", r.postAuth),
 		NewPostRoute("/commit", r.postCommit),
 		NewPostRoute("/build", r.postBuild),
 		NewPostRoute("/images/create", r.postImagesCreate),
@@ -115,14 +105,4 @@ func (r *router) initRoutes() {
 		// DELETE
 		NewDeleteRoute("/images/{name:.*}", r.deleteImages),
 	}
-}
-
-func optionsHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	w.WriteHeader(http.StatusOK)
-	return nil
-}
-
-func pingHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	_, err := w.Write([]byte{'O', 'K'})
-	return err
 }

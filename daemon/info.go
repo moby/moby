@@ -113,6 +113,25 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 	return v, nil
 }
 
+// SystemVersion returns version information about the daemon.
+func (daemon *Daemon) SystemVersion() types.Version {
+	v := types.Version{
+		Version:      dockerversion.Version,
+		GitCommit:    dockerversion.GitCommit,
+		GoVersion:    runtime.Version(),
+		Os:           runtime.GOOS,
+		Arch:         runtime.GOARCH,
+		BuildTime:    dockerversion.BuildTime,
+		Experimental: utils.ExperimentalBuild(),
+	}
+
+	if kernelVersion, err := kernel.GetKernelVersion(); err == nil {
+		v.KernelVersion = kernelVersion.String()
+	}
+
+	return v
+}
+
 func (daemon *Daemon) showPluginsInfo() types.PluginsInfo {
 	var pluginsInfo types.PluginsInfo
 
