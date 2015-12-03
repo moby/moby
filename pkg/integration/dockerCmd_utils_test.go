@@ -387,7 +387,7 @@ func TestHelperProcess(t *testing.T) {
 			fmt.Fprintf(os.Stderr, "an error has occurred")
 			os.Exit(1)
 		case "a command that times out":
-			time.Sleep(10 * time.Millisecond)
+			time.Sleep(10 * time.Second)
 			fmt.Fprintf(os.Stdout, "too long, should be killed")
 			// A random exit code (that should never happened in tests)
 			os.Exit(7)
