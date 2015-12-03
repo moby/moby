@@ -5,9 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"net/url"
 	"os"
-	"strings"
 
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/client/lib"
@@ -88,11 +86,6 @@ func newCIDFile(path string) (*cidFile, error) {
 }
 
 func (cli *DockerCli) createContainer(config *runconfig.Config, hostConfig *runconfig.HostConfig, cidfile, name string) (*types.ContainerCreateResponse, error) {
-	containerValues := url.Values{}
-	if name != "" {
-		containerValues.Set("name", name)
-	}
-
 	mergedConfig := runconfig.MergeConfigs(config, hostConfig)
 
 	var containerIDFile *cidFile
@@ -133,34 +126,32 @@ func (cli *DockerCli) createContainer(config *runconfig.Config, hostConfig *runc
 	}
 
 	//create the container
-	serverResp, err := cli.call("POST", "/containers/create?"+containerValues.Encode(), mergedConfig, nil)
+	response, err := cli.client.ContainerCreate(mergedConfig, name)
 	//if image not found try to pull it
-	if serverResp.statusCode == 404 && strings.Contains(err.Error(), config.Image) {
-		fmt.Fprintf(cli.err, "Unable to find image '%s' locally\n", ref.String())
+	if err != nil {
+		if lib.IsErrImageNotFound(err) {
+			fmt.Fprintf(cli.err, "Unable to find image '%s' locally\n", ref.String())
 
-		// we don't want to write to stdout anything apart from container.ID
-		if err = cli.pullImageCustomOut(config.Image, cli.err); err != nil {
-			return nil, err
-		}
-		if trustedRef != nil && !isDigested {
-			if err := cli.tagTrusted(trustedRef, ref.(reference.NamedTagged)); err != nil {
+			// we don't want to write to stdout anything apart from container.ID
+			if err = cli.pullImageCustomOut(config.Image, cli.err); err != nil {
 				return nil, err
 			}
-		}
-		// Retry
-		if serverResp, err = cli.call("POST", "/containers/create?"+containerValues.Encode(), mergedConfig, nil); err != nil {
+			if trustedRef != nil && !isDigested {
+				if err := cli.tagTrusted(trustedRef, ref.(reference.NamedTagged)); err != nil {
+					return nil, err
+				}
+			}
+			// Retry
+			var retryErr error
+			response, retryErr = cli.client.ContainerCreate(mergedConfig, name)
+			if retryErr != nil {
+				return nil, retryErr
+			}
+		} else {
 			return nil, err
 		}
-	} else if err != nil {
-		return nil, err
 	}
 
-	defer serverResp.body.Close()
-
-	var response types.ContainerCreateResponse
-	if err := json.NewDecoder(serverResp.body).Decode(&response); err != nil {
-		return nil, err
-	}
 	for _, warning := range response.Warnings {
 		fmt.Fprintf(cli.err, "WARNING: %s\n", warning)
 	}
