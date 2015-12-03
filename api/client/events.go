@@ -1,14 +1,12 @@
 package client
 
 import (
-	"net/url"
-	"time"
-
+	"github.com/docker/docker/api/client/lib"
 	Cli "github.com/docker/docker/cli"
 	"github.com/docker/docker/opts"
+	"github.com/docker/docker/pkg/jsonmessage"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/parsers/filters"
-	"github.com/docker/docker/pkg/timeutils"
 )
 
 // CmdEvents prints a live stream of real time events from the server.
@@ -24,10 +22,7 @@ func (cli *DockerCli) CmdEvents(args ...string) error {
 
 	cmd.ParseFlags(args, true)
 
-	var (
-		v               = url.Values{}
-		eventFilterArgs = filters.NewArgs()
-	)
+	eventFilterArgs := filters.NewArgs()
 
 	// Consolidate all filter flags, and sanity check them early.
 	// They'll get process in the daemon/server.
@@ -38,34 +33,18 @@ func (cli *DockerCli) CmdEvents(args ...string) error {
 			return err
 		}
 	}
-	ref := time.Now()
-	if *since != "" {
-		ts, err := timeutils.GetTimestamp(*since, ref)
-		if err != nil {
-			return err
-		}
-		v.Set("since", ts)
+
+	options := lib.EventsOptions{
+		Since:   *since,
+		Until:   *until,
+		Filters: eventFilterArgs,
 	}
-	if *until != "" {
-		ts, err := timeutils.GetTimestamp(*until, ref)
-		if err != nil {
-			return err
-		}
-		v.Set("until", ts)
-	}
-	if eventFilterArgs.Len() > 0 {
-		filterJSON, err := filters.ToParam(eventFilterArgs)
-		if err != nil {
-			return err
-		}
-		v.Set("filters", filterJSON)
-	}
-	sopts := &streamOpts{
-		rawTerminal: true,
-		out:         cli.out,
-	}
-	if _, err := cli.stream("GET", "/events?"+v.Encode(), sopts); err != nil {
+
+	responseBody, err := cli.client.Events(options)
+	if err != nil {
 		return err
 	}
-	return nil
+	defer responseBody.Close()
+
+	return jsonmessage.DisplayJSONMessagesStream(responseBody, cli.out, cli.outFd, cli.isTerminalOut)
 }
