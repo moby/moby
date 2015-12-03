@@ -190,14 +190,14 @@ made through a pull request.
 	# be fine".
 	"Chief Maintainer" = "crosbymichael"
 
-	# The community manager is responsible for serving the project community, including users, 
+	# The community manager is responsible for serving the project community, including users,
 	# contributors and partners. This involves:
 	#	- facilitating communication between maintainers, contributors and users
 	#	- organizing contributor and maintainer events
 	#	- helping new contributors get involved
 	#	- anything the project community needs to be successful
 	#
-	# The community manager is a point of contact for any contributor who has questions, concerns 
+	# The community manager is a point of contact for any contributor who has questions, concerns
 	# or feedback about project operations.
 	"Community Manager" = "theadactyl"
 
@@ -272,22 +272,6 @@ made through a pull request.
 # in the people section.
 
 	# ADD YOURSELF HERE IN ALPHABETICAL ORDER
-
-	[people.aanand]
-	Name = "Aanand Prasad"
-	Email = "aanand@docker.com"
-	GitHub = "aanand"
-
-	[people.aluzzardi]
-	Name = "Andrea Luzzardi"
-	Email = "aluzzardi@docker.com"
-	GitHub = "aluzzardi"
-
-	[people.bfirsh]
-	Name = "Ben Firshman"
-	Email = "ben@firshman.co.uk"
-	GitHub = "bfirsh"
-
 	[people.calavera]
 	Name = "David Calavera"
 	Email = "david.calavera@gmail.com"
@@ -302,41 +286,15 @@ made through a pull request.
 	Name = "Michael Crosby"
 	Email = "crosbymichael@gmail.com"
 	GitHub = "crosbymichael"
-
-	[people.diogomonica]
-	Name = "Diogo Monica"
-	Email = "diogo@docker.com"
-	GitHub = "diogomonica"
-
 	[people.duglin]
 	Name = "Doug Davis"
 	Email = "dug@us.ibm.com"
 	GitHub = "duglin"
 
-	[people.dmcg]
-	Name = "Derek McGowan"
-	Email = "derek@docker.com"
-	Github = "dmcgowan"
-
-	[people.dmp42]
-	Name = "Olivier Gambier"
-	Email = "olivier@docker.com"
-	Github = "dmp42"
-
-	[people.ehazlett]
-	Name = "Evan Hazlett"
-	Email = "ejhazlett@gmail.com"
-	GitHub = "ehazlett"
-
 	[people.erikh]
 	Name = "Erik Hollensbe"
 	Email = "erik@docker.com"
 	GitHub = "erikh"
-
-	[people.erw]
-	Name = "Eric Windisch"
-	Email = "eric@windisch.us"
-	GitHub = "ewindisch"
 
 	[people.estesp]
 	Name = "Phil Estes"
@@ -358,16 +316,6 @@ made through a pull request.
 	Email = "j@docker.com"
 	GitHub = "jfrazelle"
 
-	[people.jlhawn]
-	Name = "Josh Hawn"
-	Email = "josh.hawn@docker.com"
-	Github = "jlhawn"
-
-	[people.jnagal]
-	Name = "Rohit Jnagal"
-	Email = "jnagal@google.com"
-	GitHub = "rjnagal"
-
 	[people.lk4d4]
 	Name = "Alexander Morozov"
 	Email = "lk4d4@docker.com"
@@ -378,25 +326,10 @@ made through a pull request.
 	Email = "mary.anthony@docker.com"
 	GitHub = "moxiegirl"
 
-	[people.mpatel]
-	Name = "Mrunal Patel"
-	Email = "mpatel@redhat.com"
-	GitHub = "mrunalp"
-
-	[people.nathanmccauley]
-	Name = "Nathan McCauley"
-	Email = "nathan.mccauley@docker.com"
-	GitHub = "nathanmccauley"
-
 	[people.runcom]
 	Name = "Antonio Murdaca"
 	Email = "me@runcom.ninja"
 	GitHub = "runcom"
-
-	[people.sday]
-	Name = "Stephen Day"
-	Email = "stephen.day@docker.com"
-	Github = "stevvooe"
 
 	[people.shykes]
 	Name = "Solomon Hykes"
@@ -452,8 +385,3 @@ made through a pull request.
 	Name = "Vishnu Kannan"
 	Email = "vishnuk@google.com"
 	GitHub = "vishh"
-
-	[people.vmarmol]
-	Name = "Victor Marmol"
-	Email = "vmarmol@google.com"
-	GitHub = "vmarmol"
