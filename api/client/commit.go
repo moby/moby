@@ -1,18 +1,15 @@
 package client
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
-	"net/url"
 
 	"github.com/docker/distribution/reference"
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/client/lib"
 	Cli "github.com/docker/docker/cli"
 	"github.com/docker/docker/opts"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/registry"
-	"github.com/docker/docker/runconfig"
 )
 
 // CmdCommit creates a new image from a container's changes.
@@ -59,39 +56,19 @@ func (cli *DockerCli) CmdCommit(args ...string) error {
 		}
 	}
 
-	v := url.Values{}
-	v.Set("container", name)
-	v.Set("repo", repositoryName)
-	v.Set("tag", tag)
-	v.Set("comment", *flComment)
-	v.Set("author", *flAuthor)
-	for _, change := range flChanges.GetAll() {
-		v.Add("changes", change)
+	options := lib.ContainerCommitOptions{
+		ContainerID:    name,
+		RepositoryName: repositoryName,
+		Tag:            tag,
+		Comment:        *flComment,
+		Author:         *flAuthor,
+		Changes:        flChanges.GetAll(),
+		Pause:          *flPause,
+		JSONConfig:     *flConfig,
 	}
 
-	if *flPause != true {
-		v.Set("pause", "0")
-	}
-
-	var (
-		config   *runconfig.Config
-		response types.ContainerCommitResponse
-	)
-
-	if *flConfig != "" {
-		config = &runconfig.Config{}
-		if err := json.Unmarshal([]byte(*flConfig), config); err != nil {
-			return err
-		}
-	}
-	serverResp, err := cli.call("POST", "/commit?"+v.Encode(), config, nil)
+	response, err := cli.client.ContainerCommit(options)
 	if err != nil {
-		return err
-	}
-
-	defer serverResp.body.Close()
-
-	if err := json.NewDecoder(serverResp.body).Decode(&response); err != nil {
 		return err
 	}
 
