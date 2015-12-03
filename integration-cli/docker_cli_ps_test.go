@@ -638,3 +638,24 @@ func (s *DockerSuite) TestPsImageIDAfterUpdate(c *check.C) {
 	}
 
 }
+
+func (s *DockerSuite) TestPsIgnoreLink(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	dockerCmd(c, "run", "--name", "links-parent", "-d", "busybox", "top")
+
+	out, _ := dockerCmd(c, "ps", "--filter", "name=links-parent", "--format", "{{.Names}}")
+	name := strings.TrimSpace(out)
+	c.Assert(name, checker.Equals, "links-parent")
+
+	dockerCmd(c, "run", "--name", "links-child", "--link", "links-parent", "-d", "busybox", "top")
+
+	// truncate output, no show link names
+	out, _ = dockerCmd(c, "ps", "--filter", "name=links-parent", "--format", "{{.Names}}")
+	name = strings.TrimSpace(out)
+	c.Assert(name, checker.Equals, "links-parent")
+
+	// no truncate output, show link names
+	out, _ = dockerCmd(c, "ps", "--filter", "name=links-parent", "--no-trunc", "--format", "{{.Names}}")
+	name = strings.TrimSpace(out)
+	c.Assert(name, checker.Equals, "links-child/links-parent,links-parent")
+}
