@@ -223,6 +223,10 @@ func TestDelete(t *testing.T) {
 			Hosts: "testhostname2",
 			IP:    "2.2.2.2",
 		},
+		Record{
+			Hosts: "testhostname3",
+			IP:    "3.3.3.3",
+		},
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -231,6 +235,10 @@ func TestDelete(t *testing.T) {
 		Record{
 			Hosts: "testhostname1",
 			IP:    "1.1.1.1",
+		},
+		Record{
+			Hosts: "testhostname3",
+			IP:    "3.3.3.3",
 		},
 	}); err != nil {
 		t.Fatal(err)
@@ -305,5 +313,52 @@ func TestConcurrentWrites(t *testing.T) {
 
 	if expected := "172.17.0.1\tinithostname\n"; !bytes.Contains(content, []byte(expected)) {
 		t.Fatalf("Expected to find '%s' got '%s'", expected, content)
+	}
+}
+
+func benchDelete(b *testing.B) {
+	b.StopTimer()
+	file, err := ioutil.TempFile("", "")
+	if err != nil {
+		b.Fatal(err)
+	}
+	defer func() {
+		b.StopTimer()
+		file.Close()
+		os.Remove(file.Name())
+		b.StartTimer()
+	}()
+
+	err = Build(file.Name(), "", "", "", nil)
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	var records []Record
+	var toDelete []Record
+	for i := 0; i < 255; i++ {
+		record := Record{
+			Hosts: fmt.Sprintf("testhostname%d", i),
+			IP:    fmt.Sprintf("%d.%d.%d.%d", i, i, i, i),
+		}
+		records = append(records, record)
+		if i%2 == 0 {
+			toDelete = append(records, record)
+		}
+	}
+
+	if err := Add(file.Name(), records); err != nil {
+		b.Fatal(err)
+	}
+
+	b.StartTimer()
+	if err := Delete(file.Name(), toDelete); err != nil {
+		b.Fatal(err)
+	}
+}
+
+func BenchmarkDelete(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		benchDelete(b)
 	}
 }
