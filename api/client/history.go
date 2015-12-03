@@ -1,14 +1,12 @@
 package client
 
 import (
-	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
 	"text/tabwriter"
 	"time"
 
-	"github.com/docker/docker/api/types"
 	Cli "github.com/docker/docker/cli"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/stringid"
@@ -28,15 +26,8 @@ func (cli *DockerCli) CmdHistory(args ...string) error {
 
 	cmd.ParseFlags(args, true)
 
-	serverResp, err := cli.call("GET", "/images/"+cmd.Arg(0)+"/history", nil, nil)
+	history, err := cli.client.ImageHistory(cmd.Arg(0))
 	if err != nil {
-		return err
-	}
-
-	defer serverResp.body.Close()
-
-	history := []types.ImageHistory{}
-	if err := json.NewDecoder(serverResp.body).Decode(&history); err != nil {
 		return err
 	}
 
