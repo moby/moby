@@ -2,6 +2,7 @@ package client
 
 import (
 	"errors"
+	"io"
 	"os"
 
 	Cli "github.com/docker/docker/cli"
@@ -33,14 +34,12 @@ func (cli *DockerCli) CmdExport(args ...string) error {
 		return errors.New("Cowardly refusing to save to a terminal. Use the -o flag or redirect.")
 	}
 
-	image := cmd.Arg(0)
-	sopts := &streamOpts{
-		rawTerminal: true,
-		out:         output,
-	}
-	if _, err := cli.stream("GET", "/containers/"+image+"/export", sopts); err != nil {
+	responseBody, err := cli.client.ContainerExport(cmd.Arg(0))
+	if err != nil {
 		return err
 	}
+	defer responseBody.Close()
 
-	return nil
+	_, err = io.Copy(output, responseBody)
+	return err
 }
