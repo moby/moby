@@ -22,7 +22,7 @@ package opts
 // time="2015-11-06T13:38:37.259627400-08:00" level=debug msg="After createRootfs"
 // time="2015-11-06T13:38:37.263626300-08:00" level=debug msg="After setHostConfig"
 // time="2015-11-06T13:38:37.267631200-08:00" level=debug msg="before createContainerPl...."
-// time="2015-11-06T13:38:37.271629500-08:00" level=debug msg=toDiskLocking....
+// time="2015-11-06T13:38:37.271629500-08:00" level=debug msg=ToDiskLocking....
 // time="2015-11-06T13:38:37.275643200-08:00" level=debug msg="loggin event...."
 // time="2015-11-06T13:38:37.277627600-08:00" level=debug msg="logged event...."
 // time="2015-11-06T13:38:37.279631800-08:00" level=debug msg="In defer func"

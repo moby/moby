@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"github.com/docker/docker/container"
 	derr "github.com/docker/docker/errors"
 )
 
@@ -19,7 +20,7 @@ func (daemon *Daemon) ContainerUnpause(name string) error {
 }
 
 // containerUnpause resumes the container execution after the container is paused.
-func (daemon *Daemon) containerUnpause(container *Container) error {
+func (daemon *Daemon) containerUnpause(container *container.Container) error {
 	container.Lock()
 	defer container.Unlock()
 
@@ -33,7 +34,7 @@ func (daemon *Daemon) containerUnpause(container *Container) error {
 		return derr.ErrorCodeNotPaused.WithArgs(container.ID)
 	}
 
-	if err := daemon.execDriver.Unpause(container.command); err != nil {
+	if err := daemon.execDriver.Unpause(container.Command); err != nil {
 		return err
 	}
 

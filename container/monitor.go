@@ -1,4 +1,4 @@
-package daemon
+package container
 
 import (
 	"io"
@@ -11,6 +11,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/execdriver"
 	derr "github.com/docker/docker/errors"
+	"github.com/docker/docker/pkg/promise"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
@@ -21,8 +22,8 @@ const (
 	loggerCloseTimeout   = 10 * time.Second
 )
 
-// containerSupervisor defines the interface that a supervisor must implement
-type containerSupervisor interface {
+// supervisor defines the interface that a supervisor must implement
+type supervisor interface {
 	// LogContainerEvent generates events related to a given container
 	LogContainerEvent(*Container, string)
 	// Cleanup ensures that the container is properly unmounted
@@ -44,7 +45,7 @@ type containerMonitor struct {
 	mux sync.Mutex
 
 	// supervisor keeps track of the container and the events it generates
-	supervisor containerSupervisor
+	supervisor supervisor
 
 	// container is the container being monitored
 	container *Container
@@ -76,17 +77,32 @@ type containerMonitor struct {
 	lastStartTime time.Time
 }
 
-// newContainerMonitor returns an initialized containerMonitor for the provided container
-// honoring the provided restart policy
-func (daemon *Daemon) newContainerMonitor(container *Container, policy runconfig.RestartPolicy) *containerMonitor {
-	return &containerMonitor{
-		supervisor:    daemon,
+// StartMonitor initializes a containerMonitor for this container with the provided supervisor and restart policy
+// and starts the container's process.
+func (container *Container) StartMonitor(s supervisor, policy runconfig.RestartPolicy) error {
+	container.monitor = &containerMonitor{
+		supervisor:    s,
 		container:     container,
 		restartPolicy: policy,
 		timeIncrement: defaultTimeIncrement,
 		stopChan:      make(chan struct{}),
 		startSignal:   make(chan struct{}),
 	}
+
+	return container.monitor.wait()
+}
+
+// wait starts the container and wait until
+// we either receive an error from the initial start of the container's
+// process or until the process is running in the container
+func (m *containerMonitor) wait() error {
+	select {
+	case <-m.startSignal:
+	case err := <-promise.Go(m.start):
+		return err
+	}
+
+	return nil
 }
 
 // Stop signals to the container monitor that it should stop monitoring the container
@@ -113,7 +129,7 @@ func (m *containerMonitor) Close() error {
 	// FIXME: here is race condition between two RUN instructions in Dockerfile
 	// because they share same runconfig and change image. Must be fixed
 	// in builder/builder.go
-	if err := m.container.toDisk(); err != nil {
+	if err := m.container.ToDisk(); err != nil {
 		logrus.Errorf("Error dumping container %s state to disk: %s", m.container.ID, err)
 
 		return err
@@ -123,7 +139,7 @@ func (m *containerMonitor) Close() error {
 }
 
 // Start starts the containers process and monitors it according to the restart policy
-func (m *containerMonitor) Start() error {
+func (m *containerMonitor) start() error {
 	var (
 		err        error
 		exitStatus execdriver.ExitStatus
@@ -137,7 +153,7 @@ func (m *containerMonitor) Start() error {
 		if afterRun {
 			m.container.Lock()
 			defer m.container.Unlock()
-			m.container.setStopped(&exitStatus)
+			m.container.SetStopped(&exitStatus)
 		}
 		m.Close()
 	}()
@@ -202,7 +218,7 @@ func (m *containerMonitor) Start() error {
 		m.resetMonitor(err == nil && exitStatus.ExitCode == 0)
 
 		if m.shouldRestart(exitStatus.ExitCode) {
-			m.container.setRestarting(&exitStatus)
+			m.container.SetRestarting(&exitStatus)
 			m.logEvent("die")
 			m.resetContainer(true)
 
@@ -295,7 +311,7 @@ func (m *containerMonitor) callback(processConfig *execdriver.ProcessConfig, pid
 	}()
 
 	if processConfig.Tty {
-		// The callback is called after the process Start()
+		// The callback is called after the process start()
 		// so we are in the parent process. In TTY mode, stdin/out/err is the PtySlave
 		// which we close here.
 		if c, ok := processConfig.Stdout.(io.Closer); ok {
@@ -303,7 +319,7 @@ func (m *containerMonitor) callback(processConfig *execdriver.ProcessConfig, pid
 		}
 	}
 
-	m.container.setRunning(pid)
+	m.container.SetRunning(pid)
 
 	// signal that the process has started
 	// close channel only if not closed
@@ -313,7 +329,7 @@ func (m *containerMonitor) callback(processConfig *execdriver.ProcessConfig, pid
 		close(m.startSignal)
 	}
 
-	if err := m.container.toDiskLocking(); err != nil {
+	if err := m.container.ToDiskLocking(); err != nil {
 		logrus.Errorf("Error saving container to disk: %v", err)
 	}
 	return nil
@@ -333,8 +349,8 @@ func (m *containerMonitor) resetContainer(lock bool) {
 		logrus.Errorf("%s: %s", container.ID, err)
 	}
 
-	if container.command != nil && container.command.ProcessConfig.Terminal != nil {
-		if err := container.command.ProcessConfig.Terminal.Close(); err != nil {
+	if container.Command != nil && container.Command.ProcessConfig.Terminal != nil {
+		if err := container.Command.ProcessConfig.Terminal.Close(); err != nil {
 			logrus.Errorf("%s: Error closing terminal: %s", container.ID, err)
 		}
 	}
@@ -344,11 +360,11 @@ func (m *containerMonitor) resetContainer(lock bool) {
 		container.NewInputPipes()
 	}
 
-	if container.logDriver != nil {
-		if container.logCopier != nil {
+	if container.LogDriver != nil {
+		if container.LogCopier != nil {
 			exit := make(chan struct{})
 			go func() {
-				container.logCopier.Wait()
+				container.LogCopier.Wait()
 				close(exit)
 			}()
 			select {
@@ -357,14 +373,14 @@ func (m *containerMonitor) resetContainer(lock bool) {
 			case <-exit:
 			}
 		}
-		container.logDriver.Close()
-		container.logCopier = nil
-		container.logDriver = nil
+		container.LogDriver.Close()
+		container.LogCopier = nil
+		container.LogDriver = nil
 	}
 
-	c := container.command.ProcessConfig.Cmd
+	c := container.Command.ProcessConfig.Cmd
 
-	container.command.ProcessConfig.Cmd = exec.Cmd{
+	container.Command.ProcessConfig.Cmd = exec.Cmd{
 		Stdin:       c.Stdin,
 		Stdout:      c.Stdout,
 		Stderr:      c.Stderr,
