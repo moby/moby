@@ -3,23 +3,19 @@ package client
 import (
 	"archive/tar"
 	"bufio"
-	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
-	"net/http"
-	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
 	"runtime"
-	"strconv"
 	"strings"
 
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api"
+	"github.com/docker/docker/api/client/lib"
 	Cli "github.com/docker/docker/cli"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/archive"
@@ -33,7 +29,6 @@ import (
 	"github.com/docker/docker/pkg/units"
 	"github.com/docker/docker/pkg/urlutil"
 	"github.com/docker/docker/registry"
-	"github.com/docker/docker/runconfig"
 	tagpkg "github.com/docker/docker/tag"
 	"github.com/docker/docker/utils"
 )
@@ -207,108 +202,55 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		}
 	}
 
-	// Send the build context
-	v := url.Values{
-		"t": flTags.GetAll(),
-	}
-	if *suppressOutput {
-		v.Set("q", "1")
-	}
+	var remoteContext string
 	if isRemote {
-		v.Set("remote", cmd.Arg(0))
-	}
-	if *noCache {
-		v.Set("nocache", "1")
-	}
-	if *rm {
-		v.Set("rm", "1")
-	} else {
-		v.Set("rm", "0")
+		remoteContext = cmd.Arg(0)
 	}
 
-	if *forceRm {
-		v.Set("forcerm", "1")
+	options := lib.ImageBuildOptions{
+		Context:        body,
+		Memory:         memory,
+		MemorySwap:     memorySwap,
+		Tags:           flTags.GetAll(),
+		SuppressOutput: *suppressOutput,
+		RemoteContext:  remoteContext,
+		NoCache:        *noCache,
+		Remove:         *rm,
+		ForceRemove:    *forceRm,
+		PullParent:     *pull,
+		Isolation:      *isolation,
+		CPUSetCPUs:     *flCPUSetCpus,
+		CPUSetMems:     *flCPUSetMems,
+		CPUShares:      *flCPUShares,
+		CPUQuota:       *flCPUQuota,
+		CPUPeriod:      *flCPUPeriod,
+		CgroupParent:   *flCgroupParent,
+		ShmSize:        *flShmSize,
+		Dockerfile:     relDockerfile,
+		Ulimits:        flUlimits.GetList(),
+		BuildArgs:      flBuildArg.GetAll(),
+		AuthConfigs:    cli.configFile.AuthConfigs,
 	}
 
-	if *pull {
-		v.Set("pull", "1")
+	response, err := cli.client.ImageBuild(options)
+	if err != nil {
+		return err
 	}
 
-	if !runconfig.IsolationLevel.IsDefault(runconfig.IsolationLevel(*isolation)) {
-		v.Set("isolation", *isolation)
-	}
-
-	v.Set("cpusetcpus", *flCPUSetCpus)
-	v.Set("cpusetmems", *flCPUSetMems)
-	v.Set("cpushares", strconv.FormatInt(*flCPUShares, 10))
-	v.Set("cpuquota", strconv.FormatInt(*flCPUQuota, 10))
-	v.Set("cpuperiod", strconv.FormatInt(*flCPUPeriod, 10))
-	v.Set("memory", strconv.FormatInt(memory, 10))
-	v.Set("memswap", strconv.FormatInt(memorySwap, 10))
-	v.Set("cgroupparent", *flCgroupParent)
-
-	if *flShmSize != "" {
-		parsedShmSize, err := units.RAMInBytes(*flShmSize)
-		if err != nil {
-			return err
+	err = jsonmessage.DisplayJSONMessagesStream(response.Body, cli.out, cli.outFd, cli.isTerminalOut)
+	if err != nil {
+		if jerr, ok := err.(*jsonmessage.JSONError); ok {
+			// If no error code is set, default to 1
+			if jerr.Code == 0 {
+				jerr.Code = 1
+			}
+			return Cli.StatusError{Status: jerr.Message, StatusCode: jerr.Code}
 		}
-		v.Set("shmsize", strconv.FormatInt(parsedShmSize, 10))
 	}
-
-	v.Set("dockerfile", relDockerfile)
-
-	ulimitsVar := flUlimits.GetList()
-	ulimitsJSON, err := json.Marshal(ulimitsVar)
-	if err != nil {
-		return err
-	}
-	v.Set("ulimits", string(ulimitsJSON))
-
-	// collect all the build-time environment variables for the container
-	buildArgs := runconfig.ConvertKVStringsToMap(flBuildArg.GetAll())
-	buildArgsJSON, err := json.Marshal(buildArgs)
-	if err != nil {
-		return err
-	}
-	v.Set("buildargs", string(buildArgsJSON))
-
-	headers := http.Header(make(map[string][]string))
-	buf, err := json.Marshal(cli.configFile.AuthConfigs)
-	if err != nil {
-		return err
-	}
-	headers.Add("X-Registry-Config", base64.URLEncoding.EncodeToString(buf))
-	headers.Set("Content-Type", "application/tar")
-
-	sopts := &streamOpts{
-		rawTerminal: true,
-		in:          body,
-		out:         cli.out,
-		headers:     headers,
-	}
-
-	serverResp, err := cli.stream("POST", fmt.Sprintf("/build?%s", v.Encode()), sopts)
 
 	// Windows: show error message about modified file permissions.
-	if runtime.GOOS == "windows" {
-		h, err := httputils.ParseServerHeader(serverResp.header.Get("Server"))
-		if err == nil {
-			if h.OS != "windows" {
-				fmt.Fprintln(cli.err, `SECURITY WARNING: You are building a Docker image from Windows against a non-Windows Docker host. All files and directories added to build context will have '-rwxr-xr-x' permissions. It is recommended to double check and reset permissions for sensitive files and directories.`)
-			}
-		}
-	}
-
-	if jerr, ok := err.(*jsonmessage.JSONError); ok {
-		// If no error code is set, default to 1
-		if jerr.Code == 0 {
-			jerr.Code = 1
-		}
-		return Cli.StatusError{Status: jerr.Message, StatusCode: jerr.Code}
-	}
-
-	if err != nil {
-		return err
+	if response.OSType == "windows" {
+		fmt.Fprintln(cli.err, `SECURITY WARNING: You are building a Docker image from Windows against a non-Windows Docker host. All files and directories added to build context will have '-rwxr-xr-x' permissions. It is recommended to double check and reset permissions for sensitive files and directories.`)
 	}
 
 	// Since the build was successful, now we must tag any of the resolved
