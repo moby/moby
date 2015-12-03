@@ -1,15 +1,13 @@
 package client
 
 import (
-	"encoding/json"
 	"fmt"
-	"net/url"
 	"strings"
 	"text/tabwriter"
 	"time"
 
 	"github.com/docker/distribution/reference"
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/client/lib"
 	Cli "github.com/docker/docker/cli"
 	"github.com/docker/docker/opts"
 	flag "github.com/docker/docker/pkg/mflag"
@@ -45,33 +43,19 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 		}
 	}
 
-	matchName := cmd.Arg(0)
-	v := url.Values{}
-	if imageFilterArgs.Len() > 0 {
-		filterJSON, err := filters.ToParam(imageFilterArgs)
-		if err != nil {
-			return err
-		}
-		v.Set("filters", filterJSON)
-	}
-
+	var matchName string
 	if cmd.NArg() == 1 {
-		// FIXME rename this parameter, to not be confused with the filters flag
-		v.Set("filter", matchName)
-	}
-	if *all {
-		v.Set("all", "1")
+		matchName = cmd.Arg(0)
 	}
 
-	serverResp, err := cli.call("GET", "/images/json?"+v.Encode(), nil, nil)
+	options := lib.ImageListOptions{
+		MatchName: matchName,
+		All:       *all,
+		Filters:   imageFilterArgs,
+	}
+
+	images, err := cli.client.ImageList(options)
 	if err != nil {
-		return err
-	}
-
-	defer serverResp.body.Close()
-
-	images := []types.Image{}
-	if err := json.NewDecoder(serverResp.body).Decode(&images); err != nil {
 		return err
 	}
 
