@@ -25,6 +25,10 @@ type EndpointInfo interface {
 	// This will only return a valid value if a container has joined the endpoint.
 	GatewayIPv6() net.IP
 
+	// StaticRoutes returns the list of static routes configured by the network
+	// driver when the container joins a network
+	StaticRoutes() []*types.StaticRoute
+
 	// Sandbox returns the attached sandbox if there, nil otherwise.
 	Sandbox() Sandbox
 }
@@ -293,6 +297,17 @@ func (ep *endpoint) Sandbox() Sandbox {
 		return nil
 	}
 	return cnt
+}
+
+func (ep *endpoint) StaticRoutes() []*types.StaticRoute {
+	ep.Lock()
+	defer ep.Unlock()
+
+	if ep.joinInfo == nil {
+		return nil
+	}
+
+	return ep.joinInfo.StaticRoutes
 }
 
 func (ep *endpoint) Gateway() net.IP {

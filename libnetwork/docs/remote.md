@@ -222,6 +222,8 @@ The entries in `"StaticRoutes"` represent routes that should be added to an inte
 
 Routes are either given a `RouteType` of `0` and a value for `NextHop`; or, a `RouteType` of `1` and no value for `NextHop`, meaning a connected route.
 
+If no gateway and no default static route is set by the driver in the Join response, libnetwork will add an additional interface to the sandbox connecting to a default gateway network (a bridge network named *docker_gwbridge*) and program the default gateway into the sandbox accordingly, pointing to the interface address of the bridge *docker_gwbridge*.
+
 ### Leave
 
 If the proxy is asked to remove an endpoint from a sandbox, the remote process shall receive a POST to the URL `/NetworkDriver.Leave` of the form
