@@ -1,10 +1,8 @@
 package client
 
 import (
-	"encoding/json"
 	"fmt"
 
-	"github.com/docker/docker/api/types"
 	Cli "github.com/docker/docker/cli"
 	"github.com/docker/docker/pkg/archive"
 	flag "github.com/docker/docker/pkg/mflag"
@@ -27,15 +25,8 @@ func (cli *DockerCli) CmdDiff(args ...string) error {
 		return fmt.Errorf("Container name cannot be empty")
 	}
 
-	serverResp, err := cli.call("GET", "/containers/"+cmd.Arg(0)+"/changes", nil, nil)
+	changes, err := cli.client.ContainerDiff(cmd.Arg(0))
 	if err != nil {
-		return err
-	}
-
-	defer serverResp.body.Close()
-
-	changes := []types.ContainerChange{}
-	if err := json.NewDecoder(serverResp.body).Decode(&changes); err != nil {
 		return err
 	}
 
