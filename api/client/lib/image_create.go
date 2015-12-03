@@ -5,7 +5,7 @@ import (
 	"net/url"
 )
 
-// CreateImageOptions holds information to create images
+// CreateImageOptions holds information to create images.
 type CreateImageOptions struct {
 	// Parent is the image to create this image from
 	Parent string

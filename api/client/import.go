@@ -3,12 +3,13 @@ package client
 import (
 	"fmt"
 	"io"
-	"net/url"
 	"os"
 
 	"github.com/docker/distribution/reference"
+	"github.com/docker/docker/api/client/lib"
 	Cli "github.com/docker/docker/cli"
 	"github.com/docker/docker/opts"
+	"github.com/docker/docker/pkg/jsonmessage"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/urlutil"
 	"github.com/docker/docker/registry"
@@ -29,20 +30,17 @@ func (cli *DockerCli) CmdImport(args ...string) error {
 	cmd.ParseFlags(args, true)
 
 	var (
-		v          = url.Values{}
+		in         io.Reader
+		tag        string
 		src        = cmd.Arg(0)
+		srcName    = src
 		repository = cmd.Arg(1)
+		changes    = flChanges.GetAll()
 	)
 
-	v.Set("fromSrc", src)
-	v.Set("repo", repository)
-	v.Set("message", *message)
-	for _, change := range flChanges.GetAll() {
-		v.Add("changes", change)
-	}
 	if cmd.NArg() == 3 {
 		fmt.Fprintf(cli.err, "[DEPRECATED] The format 'file|URL|- [REPOSITORY [TAG]]' has been deprecated. Please use file|URL|- [REPOSITORY[:TAG]]\n")
-		v.Set("tag", cmd.Arg(2))
+		tag = cmd.Arg(2)
 	}
 
 	if repository != "" {
@@ -56,12 +54,10 @@ func (cli *DockerCli) CmdImport(args ...string) error {
 		}
 	}
 
-	var in io.Reader
-
 	if src == "-" {
 		in = cli.in
 	} else if !urlutil.IsURL(src) {
-		v.Set("fromSrc", "-")
+		srcName = "-"
 		file, err := os.Open(src)
 		if err != nil {
 			return err
@@ -71,12 +67,20 @@ func (cli *DockerCli) CmdImport(args ...string) error {
 
 	}
 
-	sopts := &streamOpts{
-		rawTerminal: true,
-		in:          in,
-		out:         cli.out,
+	options := lib.ImportImageOptions{
+		Source:         in,
+		SourceName:     srcName,
+		RepositoryName: repository,
+		Message:        *message,
+		Tag:            tag,
+		Changes:        changes,
 	}
 
-	_, err := cli.stream("POST", "/images/create?"+v.Encode(), sopts)
-	return err
+	responseBody, err := cli.client.ImportImage(options)
+	if err != nil {
+		return err
+	}
+	defer responseBody.Close()
+
+	return jsonmessage.DisplayJSONMessagesStream(responseBody, cli.out, cli.outFd, cli.isTerminalOut)
 }
