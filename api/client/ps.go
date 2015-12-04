@@ -1,8 +1,8 @@
 package client
 
 import (
-	"github.com/docker/docker/api/client/lib"
 	"github.com/docker/docker/api/client/ps"
+	"github.com/docker/docker/api/types"
 	Cli "github.com/docker/docker/cli"
 	"github.com/docker/docker/opts"
 	flag "github.com/docker/docker/pkg/mflag"
@@ -47,7 +47,7 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 		}
 	}
 
-	options := lib.ContainerListOptions{
+	options := types.ContainerListOptions{
 		All:    *all,
 		Limit:  *last,
 		Since:  *since,

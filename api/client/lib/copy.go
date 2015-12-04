@@ -13,17 +13,8 @@ import (
 	"github.com/docker/docker/api/types"
 )
 
-// CopyToContainerOptions holds information
-// about files to copy into a container
-type CopyToContainerOptions struct {
-	ContainerID               string
-	Path                      string
-	Content                   io.Reader
-	AllowOverwriteDirWithFile bool
-}
-
-// StatContainerPath returns Stat information about a path inside the container filesystem.
-func (cli *Client) StatContainerPath(containerID, path string) (types.ContainerPathStat, error) {
+// ContainerStatPath returns Stat information about a path inside the container filesystem.
+func (cli *Client) ContainerStatPath(containerID, path string) (types.ContainerPathStat, error) {
 	query := make(url.Values, 1)
 	query.Set("path", filepath.ToSlash(path)) // Normalize the paths used in the API.
 
@@ -37,7 +28,7 @@ func (cli *Client) StatContainerPath(containerID, path string) (types.ContainerP
 }
 
 // CopyToContainer copies content into the container filesystem.
-func (cli *Client) CopyToContainer(options CopyToContainerOptions) error {
+func (cli *Client) CopyToContainer(options types.CopyToContainerOptions) error {
 	var query url.Values
 	query.Set("path", filepath.ToSlash(options.Path)) // Normalize the paths used in the API.
 	// Do not allow for an existing directory to be overwritten by a non-directory and vice versa.

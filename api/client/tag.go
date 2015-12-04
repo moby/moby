@@ -4,7 +4,7 @@ import (
 	"errors"
 
 	"github.com/docker/distribution/reference"
-	"github.com/docker/docker/api/client/lib"
+	"github.com/docker/docker/api/types"
 	Cli "github.com/docker/docker/cli"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/registry"
@@ -41,7 +41,7 @@ func (cli *DockerCli) CmdTag(args ...string) error {
 		return err
 	}
 
-	options := lib.ImageTagOptions{
+	options := types.ImageTagOptions{
 		ImageID:        cmd.Arg(0),
 		RepositoryName: ref.Name(),
 		Tag:            tag,

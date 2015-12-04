@@ -43,7 +43,7 @@ type DockerCli struct {
 	// isTerminalOut indicates whether the client's STDOUT is a TTY
 	isTerminalOut bool
 	// client is the http client that performs all API operations
-	client *lib.Client
+	client apiClient
 
 	// DEPRECATED OPTIONS TO MAKE THE CLIENT COMPILE
 	// TODO: Remove
