@@ -176,7 +176,7 @@ Only the current container can use a private volume.
 The `-v` flag can also be used to mount a single file  - instead of *just*
 directories - from the host machine.
 
-    $ docker run --rm -it -v ~/.bash_history:/.bash_history ubuntu /bin/bash
+    $ docker run --rm -it -v ~/.bash_history:/root/.bash_history ubuntu /bin/bash
 
 This will drop you into a bash shell in a new container, you will have your bash
 history from the host and when you exit the container, the host will have the
