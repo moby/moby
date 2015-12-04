@@ -130,14 +130,6 @@ func (p *v2Puller) download(di *downloadInfo) {
 
 	blobs := p.repo.Blobs(context.Background())
 
-	desc, err := blobs.Stat(context.Background(), di.digest)
-	if err != nil {
-		logrus.Debugf("Error statting layer: %v", err)
-		di.err <- err
-		return
-	}
-	di.size = desc.Size
-
 	layerDownload, err := blobs.Open(context.Background(), di.digest)
 	if err != nil {
 		logrus.Debugf("Error fetching layer: %v", err)
@@ -145,6 +137,21 @@ func (p *v2Puller) download(di *downloadInfo) {
 		return
 	}
 	defer layerDownload.Close()
+
+	di.size, err = layerDownload.Seek(0, os.SEEK_END)
+	if err != nil {
+		// Seek failed, perhaps because there was no Content-Length
+		// header. This shouldn't fail the download, because we can
+		// still continue without a progress bar.
+		di.size = 0
+	} else {
+		// Restore the seek offset at the beginning of the stream.
+		_, err = layerDownload.Seek(0, os.SEEK_SET)
+		if err != nil {
+			di.err <- err
+			return
+		}
+	}
 
 	verifier, err := digest.NewDigestVerifier(di.digest)
 	if err != nil {
