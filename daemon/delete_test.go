@@ -5,6 +5,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/runconfig"
 )
@@ -37,7 +38,7 @@ func TestContainerDoubleDelete(t *testing.T) {
 
 	// Try to remove the container when it's start is removalInProgress.
 	// It should ignore the container and not return an error.
-	if err := daemon.ContainerRm(container.ID, &ContainerRmConfig{ForceRemove: true}); err != nil {
+	if err := daemon.ContainerRm(container.ID, &types.ContainerRmConfig{ForceRemove: true}); err != nil {
 		t.Fatal(err)
 	}
 }
