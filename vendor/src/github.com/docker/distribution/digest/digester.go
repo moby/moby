@@ -54,6 +54,15 @@ func (a Algorithm) String() string {
 	return string(a)
 }
 
+// Size returns number of bytes returned by the hash.
+func (a Algorithm) Size() int {
+	h, ok := algorithms[a]
+	if !ok {
+		return 0
+	}
+	return h.Size()
+}
+
 // Set implemented to allow use of Algorithm as a command line flag.
 func (a *Algorithm) Set(value string) error {
 	if value == "" {

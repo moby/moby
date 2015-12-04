@@ -342,3 +342,17 @@ func (s *DockerSuite) TestInspectJSONFields(c *check.C) {
 	c.Assert(err, check.IsNil)
 	c.Assert(out, checker.Equals, "[]\n")
 }
+
+func (s *DockerSuite) TestInspectByPrefix(c *check.C) {
+	id, err := inspectField("busybox", "Id")
+	c.Assert(err, checker.IsNil)
+	c.Assert(id, checker.HasPrefix, "sha256:")
+
+	id2, err := inspectField(id[:10], "Id")
+	c.Assert(err, checker.IsNil)
+	c.Assert(id, checker.Equals, id2)
+
+	id3, err := inspectField(strings.TrimPrefix(id, "sha256:")[:10], "Id")
+	c.Assert(err, checker.IsNil)
+	c.Assert(id, checker.Equals, id3)
+}

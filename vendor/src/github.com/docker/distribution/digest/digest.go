@@ -58,6 +58,9 @@ var (
 	// ErrDigestInvalidFormat returned when digest format invalid.
 	ErrDigestInvalidFormat = fmt.Errorf("invalid checksum digest format")
 
+	// ErrDigestInvalidLength returned when digest has invalid length.
+	ErrDigestInvalidLength = fmt.Errorf("invalid checksum digest length")
+
 	// ErrDigestUnsupported returned when the digest algorithm is unsupported.
 	ErrDigestUnsupported = fmt.Errorf("unsupported digest algorithm")
 )
@@ -126,8 +129,11 @@ func (d Digest) Validate() error {
 		return ErrDigestInvalidFormat
 	}
 
-	switch Algorithm(s[:i]) {
+	switch algorithm := Algorithm(s[:i]); algorithm {
 	case SHA256, SHA384, SHA512:
+		if algorithm.Size()*2 != len(s[i+1:]) {
+			return ErrDigestInvalidLength
+		}
 		break
 	default:
 		return ErrDigestUnsupported
