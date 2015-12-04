@@ -51,8 +51,7 @@ func (cli *Client) ContainerCommit(options types.ContainerCommitOptions) (types.
 	if err != nil {
 		return response, err
 	}
-
-	defer resp.body.Close()
+	defer ensureReaderClosed(resp)
 
 	if err := json.NewDecoder(resp.body).Decode(&response); err != nil {
 		return response, err

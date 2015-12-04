@@ -12,7 +12,7 @@ func (cli *Client) ContainerInspect(containerID string) (types.ContainerJSON, er
 	if err != nil {
 		return types.ContainerJSON{}, err
 	}
-	defer serverResp.body.Close()
+	defer ensureReaderClosed(serverResp)
 
 	var response types.ContainerJSON
 	json.NewDecoder(serverResp.body).Decode(&response)

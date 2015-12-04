@@ -41,7 +41,7 @@ func (cli *Client) ImageList(options ImageListOptions) ([]types.Image, error) {
 	if err != nil {
 		return images, err
 	}
-	defer serverResp.body.Close()
+	defer ensureReaderClosed(serverResp)
 
 	err = json.NewDecoder(serverResp.body).Decode(&images)
 	return images, err
