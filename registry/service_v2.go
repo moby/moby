@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/docker/distribution/registry/client/auth"
 	"github.com/docker/docker/pkg/tlsconfig"
 	"github.com/docker/docker/reference"
 )
@@ -52,20 +51,12 @@ func (s *Service) lookupV2Endpoints(repoName reference.Named) (endpoints []APIEn
 		return nil, err
 	}
 
-	v2Versions := []auth.APIVersion{
-		{
-			Type:    "registry",
-			Version: "2.0",
-		},
-	}
 	endpoints = []APIEndpoint{
 		{
-			URL:           "https://" + hostname,
-			Version:       APIVersion2,
-			TrimHostname:  true,
-			TLSConfig:     tlsConfig,
-			VersionHeader: DefaultRegistryVersionHeader,
-			Versions:      v2Versions,
+			URL:          "https://" + hostname,
+			Version:      APIVersion2,
+			TrimHostname: true,
+			TLSConfig:    tlsConfig,
 		},
 	}
 
@@ -75,9 +66,7 @@ func (s *Service) lookupV2Endpoints(repoName reference.Named) (endpoints []APIEn
 			Version:      APIVersion2,
 			TrimHostname: true,
 			// used to check if supposed to be secure via InsecureSkipVerify
-			TLSConfig:     tlsConfig,
-			VersionHeader: DefaultRegistryVersionHeader,
-			Versions:      v2Versions,
+			TLSConfig: tlsConfig,
 		})
 	}
 

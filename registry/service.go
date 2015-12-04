@@ -6,7 +6,6 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/docker/distribution/registry/client/auth"
 	"github.com/docker/docker/api/types"
 	registrytypes "github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/reference"
@@ -121,14 +120,12 @@ func (s *Service) ResolveIndex(name string) (*registrytypes.IndexInfo, error) {
 
 // APIEndpoint represents a remote API endpoint
 type APIEndpoint struct {
-	Mirror        bool
-	URL           string
-	Version       APIVersion
-	Official      bool
-	TrimHostname  bool
-	TLSConfig     *tls.Config
-	VersionHeader string
-	Versions      []auth.APIVersion
+	Mirror       bool
+	URL          string
+	Version      APIVersion
+	Official     bool
+	TrimHostname bool
+	TLSConfig    *tls.Config
 }
 
 // ToV1Endpoint returns a V1 API endpoint based on the APIEndpoint

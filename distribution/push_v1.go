@@ -29,10 +29,10 @@ type v1Pusher struct {
 	session     *registry.Session
 }
 
-func (p *v1Pusher) Push(ctx context.Context) (fallback bool, err error) {
+func (p *v1Pusher) Push(ctx context.Context) error {
 	tlsConfig, err := p.config.RegistryService.TLSConfig(p.repoInfo.Index.Name)
 	if err != nil {
-		return false, err
+		return err
 	}
 	// Adds Docker-specific headers as well as user-specified headers (metaHeaders)
 	tr := transport.NewTransport(
@@ -44,18 +44,18 @@ func (p *v1Pusher) Push(ctx context.Context) (fallback bool, err error) {
 	v1Endpoint, err := p.endpoint.ToV1Endpoint(p.config.MetaHeaders)
 	if err != nil {
 		logrus.Debugf("Could not get v1 endpoint: %v", err)
-		return true, err
+		return fallbackError{err: err}
 	}
 	p.session, err = registry.NewSession(client, p.config.AuthConfig, v1Endpoint)
 	if err != nil {
 		// TODO(dmcgowan): Check if should fallback
-		return true, err
+		return fallbackError{err: err}
 	}
 	if err := p.pushRepository(ctx); err != nil {
 		// TODO(dmcgowan): Check if should fallback
-		return false, err
+		return err
 	}
-	return false, nil
+	return nil
 }
 
 // v1Image exposes the configuration, filesystem layer ID, and a v1 ID for an
