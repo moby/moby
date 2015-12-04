@@ -60,6 +60,8 @@ type endpoint struct {
 	anonymous     bool
 	generic       map[string]interface{}
 	joinLeaveDone chan struct{}
+	prefAddress   net.IP
+	ipamOptions   map[string]string
 	dbIndex       uint64
 	dbExists      bool
 	sync.Mutex
@@ -685,6 +687,14 @@ func EndpointOptionGeneric(generic map[string]interface{}) EndpointOption {
 	}
 }
 
+// CreateOptionIpam function returns an option setter for the ipam configuration for this endpoint
+func CreateOptionIpam(prefAddress net.IP, ipamOptions map[string]string) EndpointOption {
+	return func(ep *endpoint) {
+		ep.prefAddress = prefAddress
+		ep.ipamOptions = ipamOptions
+	}
+}
+
 // CreateOptionExposedPorts function returns an option setter for the container exposed
 // ports option to be passed to network.CreateEndpoint() method.
 func CreateOptionExposedPorts(exposedPorts []types.TransportPort) EndpointOption {
@@ -799,7 +809,7 @@ func (ep *endpoint) assignAddressVersion(ipVer int, ipam ipamapi.Ipam) error {
 		if *address != nil {
 			prefIP = (*address).IP
 		}
-		addr, _, err := ipam.RequestAddress(d.PoolID, prefIP, nil)
+		addr, _, err := ipam.RequestAddress(d.PoolID, prefIP, ep.ipamOptions)
 		if err == nil {
 			ep.Lock()
 			*address = addr

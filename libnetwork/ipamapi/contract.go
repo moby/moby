@@ -16,6 +16,8 @@ const (
 	DefaultIPAM = "default"
 	// PluginEndpointType represents the Endpoint Type used by Plugin system
 	PluginEndpointType = "IpamDriver"
+	// RequestAddressType represents the Address Type used when requesting an address
+	RequestAddressType = "RequestAddressType"
 )
 
 // Callback provides a Callback interface for registering an IPAM instance into LibNetwork
