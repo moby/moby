@@ -19,7 +19,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api"
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/client/lib"
 	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/pkg/jsonmessage"
@@ -263,20 +263,13 @@ func (cli *DockerCli) resizeTty(id string, isExec bool) {
 // getExitCode perform an inspect on the container. It returns
 // the running state and the exit code.
 func getExitCode(cli *DockerCli, containerID string) (bool, int, error) {
-	serverResp, err := cli.call("GET", "/containers/"+containerID+"/json", nil, nil)
+	c, err := cli.client.ContainerInspect(containerID)
 	if err != nil {
 		// If we can't connect, then the daemon probably died.
-		if err != errConnectionFailed {
+		if err != lib.ErrConnectionFailed {
 			return false, -1, err
 		}
 		return false, -1, nil
-	}
-
-	defer serverResp.body.Close()
-
-	var c types.ContainerJSON
-	if err := json.NewDecoder(serverResp.body).Decode(&c); err != nil {
-		return false, -1, err
 	}
 
 	return c.State.Running, c.State.ExitCode, nil
