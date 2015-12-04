@@ -3762,6 +3762,29 @@ func (s *DockerSuite) TestRunInvalidReference(c *check.C) {
 	}
 }
 
+// Test fix for issue #17854
+func (s *DockerSuite) TestRunInitLayerPathOwnership(c *check.C) {
+	// Not applicable on Windows as it does not support Linux uid/gid ownership
+	testRequires(c, DaemonIsLinux)
+	name := "testetcfileownership"
+	_, err := buildImage(name,
+		`FROM busybox
+		RUN echo 'dockerio:x:1001:1001::/bin:/bin/false' >> /etc/passwd
+		RUN echo 'dockerio:x:1001:' >> /etc/group
+		RUN chown dockerio:dockerio /etc`,
+		true)
+	if err != nil {
+		c.Fatal(err)
+	}
+
+	// Test that dockerio ownership of /etc is retained at runtime
+	out, _ := dockerCmd(c, "run", "--rm", name, "stat", "-c", "%U:%G", "/etc")
+	out = strings.TrimSpace(out)
+	if out != "dockerio:dockerio" {
+		c.Fatalf("Wrong /etc ownership: expected dockerio:dockerio, got %q", out)
+	}
+}
+
 func (s *DockerSuite) TestRunWithOomScoreAdj(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 
