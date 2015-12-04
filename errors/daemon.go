@@ -14,7 +14,7 @@ var (
 	// name or ID and we can't find it.
 	ErrorCodeNoSuchContainer = errcode.Register(errGroup, errcode.ErrorDescriptor{
 		Value:          "NOSUCHCONTAINER",
-		Message:        "no such id: %s",
+		Message:        "No such container: %s",
 		Description:    "The specified container can not be found",
 		HTTPStatusCode: http.StatusNotFound,
 	})
