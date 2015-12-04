@@ -2,9 +2,9 @@ package client
 
 import (
 	"errors"
-	"net/url"
 
 	"github.com/docker/distribution/reference"
+	"github.com/docker/docker/api/client/lib"
 	Cli "github.com/docker/docker/cli"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/registry"
@@ -20,7 +20,6 @@ func (cli *DockerCli) CmdTag(args ...string) error {
 
 	cmd.ParseFlags(args, true)
 
-	v := url.Values{}
 	ref, err := reference.ParseNamed(cmd.Arg(1))
 	if err != nil {
 		return err
@@ -41,15 +40,13 @@ func (cli *DockerCli) CmdTag(args ...string) error {
 	if err := registry.ValidateRepositoryName(ref); err != nil {
 		return err
 	}
-	v.Set("repo", ref.Name())
-	v.Set("tag", tag)
 
-	if *force {
-		v.Set("force", "1")
+	options := lib.ImageTagOptions{
+		ImageID:        cmd.Arg(0),
+		RepositoryName: ref.Name(),
+		Tag:            tag,
+		Force:          *force,
 	}
 
-	if _, _, err := readBody(cli.call("POST", "/images/"+cmd.Arg(0)+"/tag?"+v.Encode(), nil, nil)); err != nil {
-		return err
-	}
-	return nil
+	return cli.client.ImageTag(options)
 }
