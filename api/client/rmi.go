@@ -1,11 +1,10 @@
 package client
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/url"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/client/lib"
 	Cli "github.com/docker/docker/cli"
 	flag "github.com/docker/docker/pkg/mflag"
 )
@@ -31,20 +30,17 @@ func (cli *DockerCli) CmdRmi(args ...string) error {
 
 	var errNames []string
 	for _, name := range cmd.Args() {
-		serverResp, err := cli.call("DELETE", "/images/"+name+"?"+v.Encode(), nil, nil)
+		options := lib.ImageRemoveOptions{
+			ImageID:       name,
+			Force:         *force,
+			PruneChildren: !*noprune,
+		}
+
+		dels, err := cli.client.ImageRemove(options)
 		if err != nil {
 			fmt.Fprintf(cli.err, "%s\n", err)
 			errNames = append(errNames, name)
 		} else {
-			defer serverResp.body.Close()
-
-			dels := []types.ImageDelete{}
-			if err := json.NewDecoder(serverResp.body).Decode(&dels); err != nil {
-				fmt.Fprintf(cli.err, "%s\n", err)
-				errNames = append(errNames, name)
-				continue
-			}
-
 			for _, del := range dels {
 				if del.Deleted != "" {
 					fmt.Fprintf(cli.out, "Deleted: %s\n", del.Deleted)
