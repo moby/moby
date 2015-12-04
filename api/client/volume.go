@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"net/http"
-	"net/url"
 	"text/tabwriter"
 	"text/template"
 
@@ -64,22 +62,8 @@ func (cli *DockerCli) CmdVolumeLs(args ...string) error {
 		}
 	}
 
-	v := url.Values{}
-	if volFilterArgs.Len() > 0 {
-		filterJSON, err := filters.ToParam(volFilterArgs)
-		if err != nil {
-			return err
-		}
-		v.Set("filters", filterJSON)
-	}
-
-	resp, err := cli.call("GET", "/volumes?"+v.Encode(), nil, nil)
+	volumes, err := cli.client.VolumeList(volFilterArgs)
 	if err != nil {
-		return err
-	}
-
-	var volumes types.VolumesListResponse
-	if err := json.NewDecoder(resp.body).Decode(&volumes); err != nil {
 		return err
 	}
 
@@ -127,18 +111,8 @@ func (cli *DockerCli) CmdVolumeInspect(args ...string) error {
 	var volumes []*types.Volume
 
 	for _, name := range cmd.Args() {
-		resp, err := cli.call("GET", "/volumes/"+name, nil, nil)
+		volume, err := cli.client.VolumeInspect(name)
 		if err != nil {
-			if resp.statusCode != http.StatusNotFound {
-				return err
-			}
-			status = 1
-			fmt.Fprintf(cli.err, "Error: No such volume: %s\n", name)
-			continue
-		}
-
-		var volume types.Volume
-		if err := json.NewDecoder(resp.body).Decode(&volume); err != nil {
 			fmt.Fprintf(cli.err, "Unable to read inspect data: %v\n", err)
 			status = 1
 			break
@@ -192,24 +166,17 @@ func (cli *DockerCli) CmdVolumeCreate(args ...string) error {
 	cmd.Require(flag.Exact, 0)
 	cmd.ParseFlags(args, true)
 
-	volReq := &types.VolumeCreateRequest{
+	volReq := types.VolumeCreateRequest{
 		Driver:     *flDriver,
 		DriverOpts: flDriverOpts.GetAll(),
+		Name:       *flName,
 	}
 
-	if *flName != "" {
-		volReq.Name = *flName
-	}
-
-	resp, err := cli.call("POST", "/volumes/create", volReq, nil)
+	vol, err := cli.client.VolumeCreate(volReq)
 	if err != nil {
 		return err
 	}
 
-	var vol types.Volume
-	if err := json.NewDecoder(resp.body).Decode(&vol); err != nil {
-		return err
-	}
 	fmt.Fprintf(cli.out, "%s\n", vol.Name)
 	return nil
 }
@@ -224,8 +191,7 @@ func (cli *DockerCli) CmdVolumeRm(args ...string) error {
 
 	var status = 0
 	for _, name := range cmd.Args() {
-		_, err := cli.call("DELETE", "/volumes/"+name, nil, nil)
-		if err != nil {
+		if err := cli.client.VolumeRemove(name); err != nil {
 			fmt.Fprintf(cli.err, "%s\n", err)
 			status = 1
 			continue
