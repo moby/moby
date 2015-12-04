@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/dockerversion"
@@ -15,6 +14,7 @@ import (
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/ioutils"
+	"github.com/docker/docker/reference"
 	"github.com/docker/docker/runconfig"
 )
 

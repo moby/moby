@@ -5,11 +5,11 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	Cli "github.com/docker/docker/cli"
 	"github.com/docker/docker/opts"
 	flag "github.com/docker/docker/pkg/mflag"
+	"github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/runconfig"
 )
@@ -51,9 +51,9 @@ func (cli *DockerCli) CmdCommit(args ...string) error {
 		repositoryName = ref.Name()
 
 		switch x := ref.(type) {
-		case reference.Digested:
+		case reference.Canonical:
 			return errors.New("cannot commit to digest reference")
-		case reference.Tagged:
+		case reference.NamedTagged:
 			tag = x.Tag()
 		}
 	}

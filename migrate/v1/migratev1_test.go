@@ -13,13 +13,13 @@ import (
 	"testing"
 
 	"github.com/docker/distribution/digest"
-	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/distribution/metadata"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
+	"github.com/docker/docker/reference"
 )
 
-func TestMigrateTags(t *testing.T) {
+func TestMigrateRefs(t *testing.T) {
 	tmpdir, err := ioutil.TempDir("", "migrate-tags")
 	if err != nil {
 		t.Fatal(err)
@@ -29,7 +29,7 @@ func TestMigrateTags(t *testing.T) {
 	ioutil.WriteFile(filepath.Join(tmpdir, "repositories-generic"), []byte(`{"Repositories":{"busybox":{"latest":"b3ca410aa2c115c05969a7b2c8cf8a9fcf62c1340ed6a601c9ee50df337ec108","sha256:16a2a52884c2a9481ed267c2d46483eac7693b813a63132368ab098a71303f8a":"b3ca410aa2c115c05969a7b2c8cf8a9fcf62c1340ed6a601c9ee50df337ec108"},"registry":{"2":"5d165b8e4b203685301c815e95663231691d383fd5e3d3185d1ce3f8dddead3d","latest":"8d5547a9f329b1d3f93198cd661fb5117e5a96b721c5cf9a2c389e7dd4877128"}}}`), 0600)
 
 	ta := &mockTagAdder{}
-	err = migrateTags(tmpdir, "generic", ta, map[string]image.ID{
+	err = migrateRefs(tmpdir, "generic", ta, map[string]image.ID{
 		"5d165b8e4b203685301c815e95663231691d383fd5e3d3185d1ce3f8dddead3d": image.ID("sha256:2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae"),
 		"b3ca410aa2c115c05969a7b2c8cf8a9fcf62c1340ed6a601c9ee50df337ec108": image.ID("sha256:fcde2b2edba56bf408601fb721fe9b5c338d10ee429ea04fae5511b68fbf8fb9"),
 		"abcdef3434c115c05969a7b2c8cf8a9fcf62c1340ed6a601c9ee50df337ec108": image.ID("sha256:56434342345ae68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae"),
@@ -50,7 +50,7 @@ func TestMigrateTags(t *testing.T) {
 
 	// second migration is no-op
 	ioutil.WriteFile(filepath.Join(tmpdir, "repositories-generic"), []byte(`{"Repositories":{"busybox":{"latest":"b3ca410aa2c115c05969a7b2c8cf8a9fcf62c1340ed6a601c9ee50df337ec108"`), 0600)
-	err = migrateTags(tmpdir, "generic", ta, map[string]image.ID{
+	err = migrateRefs(tmpdir, "generic", ta, map[string]image.ID{
 		"b3ca410aa2c115c05969a7b2c8cf8a9fcf62c1340ed6a601c9ee50df337ec108": image.ID("sha256:fcde2b2edba56bf408601fb721fe9b5c338d10ee429ea04fae5511b68fbf8fb9"),
 	})
 	if err != nil {
