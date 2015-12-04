@@ -104,19 +104,25 @@ func RunCommandWithOutputForDuration(cmd *exec.Cmd, duration time.Duration) (out
 	}
 	cmd.Stderr = &outputBuffer
 
-	done := make(chan error)
-
 	// Start the command in the main thread..
 	err = cmd.Start()
 	if err != nil {
 		err = fmt.Errorf("Fail to start command %v : %v", cmd, err)
 	}
 
+	type exitInfo struct {
+		exitErr  error
+		exitCode int
+	}
+
+	done := make(chan exitInfo, 1)
+
 	go func() {
 		// And wait for it to exit in the goroutine :)
-		exitErr := cmd.Wait()
-		exitCode = ProcessExitCode(exitErr)
-		done <- exitErr
+		info := exitInfo{}
+		info.exitErr = cmd.Wait()
+		info.exitCode = ProcessExitCode(info.exitErr)
+		done <- info
 	}()
 
 	select {
@@ -126,9 +132,9 @@ func RunCommandWithOutputForDuration(cmd *exec.Cmd, duration time.Duration) (out
 			fmt.Printf("failed to kill (pid=%d): %v\n", cmd.Process.Pid, killErr)
 		}
 		timedOut = true
-		break
-	case err = <-done:
-		break
+	case info := <-done:
+		err = info.exitErr
+		exitCode = info.exitCode
 	}
 	output = outputBuffer.String()
 	return
