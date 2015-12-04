@@ -10,6 +10,7 @@ import (
 	"sync"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builder/dockerfile/parser"
 	"github.com/docker/docker/daemon"
@@ -267,7 +268,7 @@ func Commit(containerName string, d *daemon.Daemon, c *CommitConfig) (string, er
 		return "", err
 	}
 
-	commitCfg := &daemon.ContainerCommitConfig{
+	commitCfg := &types.ContainerCommitConfig{
 		Pause:        c.Pause,
 		Repo:         c.Repo,
 		Tag:          c.Tag,
