@@ -12,20 +12,26 @@ func (i imageNotFoundError) Error() string {
 	return fmt.Sprintf("Image not found: %s", i.imageID)
 }
 
-// ImageNotFound returns the ID of the image not found on the docker host.
-func (i imageNotFoundError) ImageIDNotFound() string {
-	return i.imageID
-}
-
-// ImageNotFound is an interface that describes errors caused
-// when an image is not found in the docker host.
-type ImageNotFound interface {
-	ImageIDNotFound() string
-}
-
-// IsImageNotFound returns true when the error is caused
+// IsImageNotFound returns true if the error is caused
 // when an image is not found in the docker host.
 func IsErrImageNotFound(err error) bool {
-	_, ok := err.(ImageNotFound)
+	_, ok := err.(imageNotFoundError)
+	return ok
+}
+
+// unauthorizedError represents an authorization error in a remote registry.
+type unauthorizedError struct {
+	cause error
+}
+
+// Error returns a string representation of an unauthorizedError
+func (u unauthorizedError) Error() string {
+	return u.cause.Error()
+}
+
+// IsUnauthorized returns true if the error is caused
+// when an the remote registry authentication fails
+func IsErrUnauthorized(err error) bool {
+	_, ok := err.(unauthorizedError)
 	return ok
 }
