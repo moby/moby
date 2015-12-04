@@ -22,6 +22,7 @@ import (
 	"github.com/docker/distribution/reference"
 	"github.com/docker/distribution/registry/client/auth"
 	"github.com/docker/distribution/registry/client/transport"
+	"github.com/docker/docker/api/client/lib"
 	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/pkg/ansiescape"
 	"github.com/docker/docker/pkg/ioutils"
@@ -250,16 +251,15 @@ func (cli *DockerCli) trustedReference(ref reference.NamedTagged) (reference.Can
 
 func (cli *DockerCli) tagTrusted(trustedRef reference.Canonical, ref reference.NamedTagged) error {
 	fmt.Fprintf(cli.out, "Tagging %s as %s\n", trustedRef.String(), ref.String())
-	tv := url.Values{}
-	tv.Set("repo", trustedRef.Name())
-	tv.Set("tag", ref.Tag())
-	tv.Set("force", "1")
 
-	if _, _, err := readBody(cli.call("POST", "/images/"+trustedRef.String()+"/tag?"+tv.Encode(), nil, nil)); err != nil {
-		return err
+	options := lib.ImageTagOptions{
+		ImageID:        trustedRef.String(),
+		RepositoryName: trustedRef.Name(),
+		Tag:            ref.Tag(),
+		Force:          true,
 	}
 
-	return nil
+	return cli.client.ImageTag(options)
 }
 
 func notaryError(err error) error {
