@@ -57,7 +57,6 @@ RUN apt-get update && apt-get install -y \
 	libsystemd-journal-dev \
 	libtool \
 	mercurial \
-	parallel \
 	pkg-config \
 	python-dev \
 	python-mock \
