@@ -109,7 +109,7 @@ func (cli *Client) sendClientRequest(method, path string, query url.Values, in i
 
 	if err != nil {
 		if utils.IsTimeout(err) || strings.Contains(err.Error(), "connection refused") || strings.Contains(err.Error(), "dial unix") {
-			return serverResp, errConnectionFailed
+			return serverResp, ErrConnectionFailed
 		}
 
 		if cli.Scheme == "http" && strings.Contains(err.Error(), "malformed HTTP response") {
@@ -148,11 +148,7 @@ func encodeData(data interface{}) (*bytes.Buffer, error) {
 	return params, nil
 }
 
-<<<<<<< HEAD
 func ensureReaderClosed(response *ServerResponse) {
-=======
-func ensureReaderClosed(response *serverResponse) {
->>>>>>> 9c13063... Implement docker network with standalone client lib.
 	if response != nil && response.body != nil {
 		response.body.Close()
 	}
