@@ -15,7 +15,7 @@ func (cli *Client) Info() (types.Info, error) {
 	if err != nil {
 		return info, err
 	}
-	defer serverResp.body.Close()
+	defer ensureReaderClosed(serverResp)
 
 	if err := json.NewDecoder(serverResp.body).Decode(&info); err != nil {
 		return info, fmt.Errorf("Error reading remote info: %v", err)

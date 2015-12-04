@@ -15,7 +15,7 @@ func (cli *Client) ContainerDiff(containerID string) ([]types.ContainerChange, e
 	if err != nil {
 		return changes, err
 	}
-	defer serverResp.body.Close()
+	defer ensureReaderClosed(serverResp)
 
 	if err := json.NewDecoder(serverResp.body).Decode(&changes); err != nil {
 		return changes, err

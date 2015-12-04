@@ -20,7 +20,7 @@ func (cli *Client) RegistryLogin(auth cliconfig.AuthConfig) (types.AuthResponse,
 	if err != nil {
 		return types.AuthResponse{}, err
 	}
-	defer resp.body.Close()
+	defer ensureReaderClosed(resp)
 
 	var response types.AuthResponse
 	err = json.NewDecoder(resp.body).Decode(&response)

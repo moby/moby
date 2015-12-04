@@ -29,11 +29,13 @@ func (cli *Client) ContainerCreate(config *runconfig.ContainerConfigWrapper, con
 	}
 
 	if serverResp.statusCode == 404 && strings.Contains(err.Error(), config.Image) {
+		return response, imageNotFoundError{config.Image}
 	}
 
 	if err != nil {
 		return response, err
 	}
+	defer ensureReaderClosed(serverResp)
 
 	if err := json.NewDecoder(serverResp.body).Decode(&response); err != nil {
 		return response, err

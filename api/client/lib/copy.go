@@ -51,6 +51,7 @@ func (cli *Client) CopyToContainer(options CopyToContainerOptions) error {
 	if err != nil {
 		return err
 	}
+	defer ensureReaderClosed(response)
 
 	if response.statusCode != http.StatusOK {
 		return fmt.Errorf("unexpected status code from daemon: %d", response.statusCode)
