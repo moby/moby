@@ -8,18 +8,6 @@ import (
 	"github.com/docker/docker/runconfig"
 )
 
-// ContainerCommitOptions hods parameters to commit changes into a container.
-type ContainerCommitOptions struct {
-	ContainerID    string
-	RepositoryName string
-	Tag            string
-	Comment        string
-	Author         string
-	Changes        []string
-	Pause          bool
-	JSONConfig     string
-}
-
 // ContainerCommit applies changes into a container and creates a new tagged image.
 func (cli *Client) ContainerCommit(options types.ContainerCommitOptions) (types.ContainerCommitResponse, error) {
 	query := url.Values{}

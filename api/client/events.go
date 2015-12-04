@@ -1,7 +1,7 @@
 package client
 
 import (
-	"github.com/docker/docker/api/client/lib"
+	"github.com/docker/docker/api/types"
 	Cli "github.com/docker/docker/cli"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/jsonmessage"
@@ -34,7 +34,7 @@ func (cli *DockerCli) CmdEvents(args ...string) error {
 		}
 	}
 
-	options := lib.EventsOptions{
+	options := types.EventsOptions{
 		Since:   *since,
 		Until:   *until,
 		Filters: eventFilterArgs,

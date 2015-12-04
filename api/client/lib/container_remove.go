@@ -1,17 +1,13 @@
 package lib
 
-import "net/url"
+import (
+	"net/url"
 
-// ContainerRemoveOptions holds parameters to remove containers.
-type ContainerRemoveOptions struct {
-	ContainerID   string
-	RemoveVolumes bool
-	RemoveLinks   bool
-	Force         bool
-}
+	"github.com/docker/docker/api/types"
+)
 
 // ContainerRemove kills and removes a container from the docker host.
-func (cli *Client) ContainerRemove(options ContainerRemoveOptions) error {
+func (cli *Client) ContainerRemove(options types.ContainerRemoveOptions) error {
 	var query url.Values
 	if options.RemoveVolumes {
 		query.Set("v", "1")

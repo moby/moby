@@ -5,20 +5,14 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/parsers/filters"
 	"github.com/docker/docker/pkg/timeutils"
 )
 
-// EventsOptions hold parameters to filter events with.
-type EventsOptions struct {
-	Since   string
-	Until   string
-	Filters filters.Args
-}
-
 // Events returns a stream of events in the daemon in a ReadCloser.
 // It's up to the caller to close the stream.
-func (cli *Client) Events(options EventsOptions) (io.ReadCloser, error) {
+func (cli *Client) Events(options types.EventsOptions) (io.ReadCloser, error) {
 	var query url.Values
 	ref := time.Now()
 

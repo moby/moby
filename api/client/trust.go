@@ -22,7 +22,7 @@ import (
 	"github.com/docker/distribution/reference"
 	"github.com/docker/distribution/registry/client/auth"
 	"github.com/docker/distribution/registry/client/transport"
-	"github.com/docker/docker/api/client/lib"
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/pkg/ansiescape"
 	"github.com/docker/docker/pkg/ioutils"
@@ -252,7 +252,7 @@ func (cli *DockerCli) trustedReference(ref reference.NamedTagged) (reference.Can
 func (cli *DockerCli) tagTrusted(trustedRef reference.Canonical, ref reference.NamedTagged) error {
 	fmt.Fprintf(cli.out, "Tagging %s as %s\n", trustedRef.String(), ref.String())
 
-	options := lib.ImageTagOptions{
+	options := types.ImageTagOptions{
 		ImageID:        trustedRef.String(),
 		RepositoryName: trustedRef.Name(),
 		Tag:            ref.Tag(),

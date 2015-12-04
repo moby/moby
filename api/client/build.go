@@ -15,7 +15,7 @@ import (
 
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api"
-	"github.com/docker/docker/api/client/lib"
+	"github.com/docker/docker/api/types"
 	Cli "github.com/docker/docker/cli"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/archive"
@@ -207,7 +207,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		remoteContext = cmd.Arg(0)
 	}
 
-	options := lib.ImageBuildOptions{
+	options := types.ImageBuildOptions{
 		Context:        body,
 		Memory:         memory,
 		MemorySwap:     memorySwap,

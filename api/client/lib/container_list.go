@@ -9,20 +9,8 @@ import (
 	"github.com/docker/docker/pkg/parsers/filters"
 )
 
-// ContainerListOptions holds parameters to list containers with.
-type ContainerListOptions struct {
-	Quiet  bool
-	Size   bool
-	All    bool
-	Latest bool
-	Since  string
-	Before string
-	Limit  int
-	Filter filters.Args
-}
-
 // ContainerList returns the list of containers in the docker host.
-func (cli *Client) ContainerList(options ContainerListOptions) ([]types.Container, error) {
+func (cli *Client) ContainerList(options types.ContainerListOptions) ([]types.Container, error) {
 	var query url.Values
 
 	if options.All {

@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/docker/docker/api/client/lib"
 	"github.com/docker/docker/api/types"
 	Cli "github.com/docker/docker/cli"
 	"github.com/docker/docker/pkg/archive"
@@ -126,7 +125,7 @@ func splitCpArg(arg string) (container, path string) {
 }
 
 func (cli *DockerCli) statContainerPath(containerName, path string) (types.ContainerPathStat, error) {
-	return cli.client.StatContainerPath(containerName, path)
+	return cli.client.ContainerStatPath(containerName, path)
 }
 
 func resolveLocalPath(localPath string) (absPath string, err error) {
@@ -286,7 +285,7 @@ func (cli *DockerCli) copyToContainer(srcPath, dstContainer, dstPath string, cpP
 		content = preparedArchive
 	}
 
-	options := lib.CopyToContainerOptions{
+	options := types.CopyToContainerOptions{
 		ContainerID:               dstContainer,
 		Path:                      resolvedDstPath,
 		Content:                   content,

@@ -7,15 +7,8 @@ import (
 	"github.com/docker/docker/api/types"
 )
 
-// ImageRemoveOptions holds parameters to remove images.
-type ImageRemoveOptions struct {
-	ImageID       string
-	Force         bool
-	PruneChildren bool
-}
-
 // ImageRemove removes an image from the docker host.
-func (cli *Client) ImageRemove(options ImageRemoveOptions) ([]types.ImageDelete, error) {
+func (cli *Client) ImageRemove(options types.ImageRemoveOptions) ([]types.ImageDelete, error) {
 	var query url.Values
 
 	if options.Force {
