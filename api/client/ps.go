@@ -1,12 +1,8 @@
 package client
 
 import (
-	"encoding/json"
-	"net/url"
-	"strconv"
-
+	"github.com/docker/docker/api/client/lib"
 	"github.com/docker/docker/api/client/ps"
-	"github.com/docker/docker/api/types"
 	Cli "github.com/docker/docker/cli"
 	"github.com/docker/docker/opts"
 	flag "github.com/docker/docker/pkg/mflag"
@@ -21,7 +17,6 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 		err error
 
 		psFilterArgs = filters.NewArgs()
-		v            = url.Values{}
 
 		cmd      = Cli.Subcmd("ps", nil, Cli.DockerCommands["ps"].Description, true)
 		quiet    = cmd.Bool([]string{"q", "-quiet"}, false, "Only display numeric IDs")
@@ -44,26 +39,6 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 		*last = 1
 	}
 
-	if *all {
-		v.Set("all", "1")
-	}
-
-	if *last != -1 {
-		v.Set("limit", strconv.Itoa(*last))
-	}
-
-	if *since != "" {
-		v.Set("since", *since)
-	}
-
-	if *before != "" {
-		v.Set("before", *before)
-	}
-
-	if *size {
-		v.Set("size", "1")
-	}
-
 	// Consolidate all filter flags, and sanity check them.
 	// They'll get processed in the daemon/server.
 	for _, f := range flFilter.GetAll() {
@@ -72,24 +47,17 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 		}
 	}
 
-	if psFilterArgs.Len() > 0 {
-		filterJSON, err := filters.ToParam(psFilterArgs)
-		if err != nil {
-			return err
-		}
-
-		v.Set("filters", filterJSON)
+	options := lib.ContainerListOptions{
+		All:    *all,
+		Limit:  *last,
+		Since:  *since,
+		Before: *before,
+		Size:   *size,
+		Filter: psFilterArgs,
 	}
 
-	serverResp, err := cli.call("GET", "/containers/json?"+v.Encode(), nil, nil)
+	containers, err := cli.client.ContainerList(options)
 	if err != nil {
-		return err
-	}
-
-	defer serverResp.body.Close()
-
-	containers := []types.Container{}
-	if err := json.NewDecoder(serverResp.body).Decode(&containers); err != nil {
 		return err
 	}
 
