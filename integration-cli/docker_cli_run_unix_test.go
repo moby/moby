@@ -246,6 +246,18 @@ func (s *DockerSuite) TestRunWithBlkioInvalidWeightDevice(c *check.C) {
 	c.Assert(err, check.NotNil, check.Commentf(out))
 }
 
+func (s *DockerSuite) TestRunWithBlkioInvalidDeivceReadBps(c *check.C) {
+	testRequires(c, blkioWeight)
+	out, _, err := dockerCmdWithError("run", "--device-read-bps", "/dev/sda:500", "busybox", "true")
+	c.Assert(err, check.NotNil, check.Commentf(out))
+}
+
+func (s *DockerSuite) TestRunWithBlkioInvalidDeviceWriteBps(c *check.C) {
+	testRequires(c, blkioWeight)
+	out, _, err := dockerCmdWithError("run", "--device-write-bps", "/dev/sda:500", "busybox", "true")
+	c.Assert(err, check.NotNil, check.Commentf(out))
+}
+
 func (s *DockerSuite) TestRunOOMExitCode(c *check.C) {
 	testRequires(c, oomControl)
 	errChan := make(chan error)

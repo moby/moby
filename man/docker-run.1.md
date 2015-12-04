@@ -21,6 +21,8 @@ docker-run - Run a command in a new container
 [**--cpuset-mems**[=*CPUSET-MEMS*]]
 [**-d**|**--detach**[=*false*]]
 [**--device**[=*[]*]]
+[**--device-read-bps**[=*[]*]]
+[**--device-write-bps**[=*[]*]]
 [**--dns**[=*[]*]]
 [**--dns-opt**[=*[]*]]
 [**--dns-search**[=*[]*]]
@@ -191,6 +193,12 @@ stopping the process by pressing the keys CTRL-P CTRL-Q.
 
 **--device**=[]
    Add a host device to the container (e.g. --device=/dev/sdc:/dev/xvdc:rwm)
+
+**--device-read-bps**=[]
+   Limit read rate from a device (e.g. --device-read-bps=/dev/sda:1mb)
+
+**--device-write-bps**=[]
+   Limit write rate to a device (e.g. --device-write-bps=/dev/sda:1mb)
 
 **--dns-search**=[]
    Set custom DNS search domains (Use --dns-search=. if you don't wish to set the search domain)

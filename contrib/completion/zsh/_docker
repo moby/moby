@@ -468,6 +468,8 @@ __docker_subcommand() {
         "($help)*--cap-drop=[Drop Linux capabilities]:capability: "
         "($help)--cidfile=[Write the container ID to the file]:CID file:_files"
         "($help)*--device=[Add a host device to the container]:device:_files"
+        "($help)*--device-read-bps=[Limit the read rate (bytes per second) from a device]:device:IO rate: "
+        "($help)*--device-write-bps=[Limit the write rate (bytes per second) to a device]:device:IO rate: "
         "($help)*--dns=[Set custom DNS servers]:DNS server: "
         "($help)*--dns-opt=[Set custom DNS options]:DNS option: "
         "($help)*--dns-search=[Set custom DNS search domains]:DNS domains: "

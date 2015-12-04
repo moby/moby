@@ -1372,6 +1372,8 @@ _docker_run() {
 		--cpuset-mems
 		--cpu-shares
 		--device
+		--device-read-bps
+		--device-write-bps
 		--dns
 		--dns-opt
 		--dns-search

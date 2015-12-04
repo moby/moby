@@ -163,6 +163,16 @@ func (daemon *Daemon) populateCommand(c *container.Container, env []string) erro
 		return err
 	}
 
+	readBpsDevice, err := getBlkioReadBpsDevices(c.HostConfig)
+	if err != nil {
+		return err
+	}
+
+	writeBpsDevice, err := getBlkioWriteBpsDevices(c.HostConfig)
+	if err != nil {
+		return err
+	}
+
 	for _, limit := range ulimits {
 		rl, err := limit.GetRlimit()
 		if err != nil {
@@ -178,16 +188,18 @@ func (daemon *Daemon) populateCommand(c *container.Container, env []string) erro
 			CPUShares:         c.HostConfig.CPUShares,
 			BlkioWeight:       c.HostConfig.BlkioWeight,
 		},
-		MemorySwap:        c.HostConfig.MemorySwap,
-		KernelMemory:      c.HostConfig.KernelMemory,
-		CpusetCpus:        c.HostConfig.CpusetCpus,
-		CpusetMems:        c.HostConfig.CpusetMems,
-		CPUPeriod:         c.HostConfig.CPUPeriod,
-		CPUQuota:          c.HostConfig.CPUQuota,
-		Rlimits:           rlimits,
-		BlkioWeightDevice: weightDevices,
-		OomKillDisable:    c.HostConfig.OomKillDisable,
-		MemorySwappiness:  *c.HostConfig.MemorySwappiness,
+		MemorySwap:                  c.HostConfig.MemorySwap,
+		KernelMemory:                c.HostConfig.KernelMemory,
+		CpusetCpus:                  c.HostConfig.CpusetCpus,
+		CpusetMems:                  c.HostConfig.CpusetMems,
+		CPUPeriod:                   c.HostConfig.CPUPeriod,
+		CPUQuota:                    c.HostConfig.CPUQuota,
+		Rlimits:                     rlimits,
+		BlkioWeightDevice:           weightDevices,
+		BlkioThrottleReadBpsDevice:  readBpsDevice,
+		BlkioThrottleWriteBpsDevice: writeBpsDevice,
+		OomKillDisable:              c.HostConfig.OomKillDisable,
+		MemorySwappiness:            *c.HostConfig.MemorySwappiness,
 	}
 
 	processConfig := execdriver.ProcessConfig{
