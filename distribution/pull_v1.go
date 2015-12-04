@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/distribution/reference"
 	"github.com/docker/distribution/registry/client/transport"
 	"github.com/docker/docker/distribution/metadata"
 	"github.com/docker/docker/distribution/xfer"
@@ -21,6 +20,7 @@ import (
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
 	"golang.org/x/net/context"
 )
@@ -34,7 +34,7 @@ type v1Puller struct {
 }
 
 func (p *v1Puller) Pull(ctx context.Context, ref reference.Named) (fallback bool, err error) {
-	if _, isDigested := ref.(reference.Digested); isDigested {
+	if _, isCanonical := ref.(reference.Canonical); isCanonical {
 		// Allowing fallback, because HTTPS v1 is before HTTP v2
 		return true, registry.ErrNoSupport{Err: errors.New("Cannot pull by digest with v1 registry")}
 	}
@@ -84,7 +84,7 @@ func (p *v1Puller) pullRepository(ctx context.Context, ref reference.Named) erro
 
 	logrus.Debugf("Retrieving the tag list")
 	var tagsList map[string]string
-	tagged, isTagged := ref.(reference.Tagged)
+	tagged, isTagged := ref.(reference.NamedTagged)
 	if !isTagged {
 		tagsList, err = p.session.GetRemoteTags(repoData.Endpoints, p.repoInfo.RemoteName)
 	} else {
@@ -250,7 +250,7 @@ func (p *v1Puller) pullImage(ctx context.Context, v1ID, endpoint string, localNa
 		return err
 	}
 
-	if err := p.config.TagStore.AddTag(localNameRef, imageID, true); err != nil {
+	if err := p.config.ReferenceStore.AddTag(localNameRef, imageID, true); err != nil {
 		return err
 	}
 

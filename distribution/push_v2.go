@@ -13,7 +13,6 @@ import (
 	"github.com/docker/distribution/digest"
 	"github.com/docker/distribution/manifest"
 	"github.com/docker/distribution/manifest/schema1"
-	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/distribution/metadata"
 	"github.com/docker/docker/distribution/xfer"
 	"github.com/docker/docker/image"
@@ -22,8 +21,8 @@ import (
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
-	"github.com/docker/docker/tag"
 	"golang.org/x/net/context"
 )
 
@@ -55,14 +54,14 @@ func (p *v2Pusher) Push(ctx context.Context) (fallback bool, err error) {
 
 	localName := p.repoInfo.LocalName.Name()
 
-	var associations []tag.Association
-	if _, isTagged := p.ref.(reference.Tagged); isTagged {
-		imageID, err := p.config.TagStore.Get(p.ref)
+	var associations []reference.Association
+	if _, isTagged := p.ref.(reference.NamedTagged); isTagged {
+		imageID, err := p.config.ReferenceStore.Get(p.ref)
 		if err != nil {
 			return false, fmt.Errorf("tag does not exist: %s", p.ref.String())
 		}
 
-		associations = []tag.Association{
+		associations = []reference.Association{
 			{
 				Ref:     p.ref,
 				ImageID: imageID,
@@ -70,7 +69,7 @@ func (p *v2Pusher) Push(ctx context.Context) (fallback bool, err error) {
 		}
 	} else {
 		// Pull all tags
-		associations = p.config.TagStore.ReferencesByName(p.ref)
+		associations = p.config.ReferenceStore.ReferencesByName(p.ref)
 	}
 	if err != nil {
 		return false, fmt.Errorf("error getting tags for %s: %s", localName, err)
@@ -88,7 +87,7 @@ func (p *v2Pusher) Push(ctx context.Context) (fallback bool, err error) {
 	return false, nil
 }
 
-func (p *v2Pusher) pushV2Tag(ctx context.Context, association tag.Association) error {
+func (p *v2Pusher) pushV2Tag(ctx context.Context, association reference.Association) error {
 	ref := association.Ref
 	logrus.Debugf("Pushing repository: %s", ref.String())
 
@@ -146,7 +145,7 @@ func (p *v2Pusher) pushV2Tag(ctx context.Context, association tag.Association) e
 	}
 
 	var tag string
-	if tagged, isTagged := ref.(reference.Tagged); isTagged {
+	if tagged, isTagged := ref.(reference.NamedTagged); isTagged {
 		tag = tagged.Tag()
 	}
 	m, err := CreateV2Manifest(p.repo.Name(), tag, img, fsLayers)
@@ -165,7 +164,7 @@ func (p *v2Pusher) pushV2Tag(ctx context.Context, association tag.Association) e
 		return err
 	}
 	if manifestDigest != "" {
-		if tagged, isTagged := ref.(reference.Tagged); isTagged {
+		if tagged, isTagged := ref.(reference.NamedTagged); isTagged {
 			// NOTE: do not change this format without first changing the trust client
 			// code. This information is used to determine what was pushed and should be signed.
 			progress.Messagef(p.config.ProgressOutput, "", "%s: digest: %s size: %d", tagged.Tag(), manifestDigest, manifestSize)

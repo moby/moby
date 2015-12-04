@@ -7,11 +7,12 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/docker/distribution/reference"
+	distreference "github.com/docker/distribution/reference"
 	registrytypes "github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/image/v1"
 	"github.com/docker/docker/opts"
 	flag "github.com/docker/docker/pkg/mflag"
+	"github.com/docker/docker/reference"
 )
 
 // Options holds command line options.
@@ -269,7 +270,7 @@ func GetAuthConfigKey(index *registrytypes.IndexInfo) string {
 // splitReposName breaks a reposName into an index name and remote name
 func splitReposName(reposName reference.Named) (indexName string, remoteName reference.Named, err error) {
 	var remoteNameStr string
-	indexName, remoteNameStr = reference.SplitHostname(reposName)
+	indexName, remoteNameStr = distreference.SplitHostname(reposName)
 	if indexName == "" || (!strings.Contains(indexName, ".") &&
 		!strings.Contains(indexName, ":") && indexName != "localhost") {
 		// This is a Docker Index repos (ex: samalba/hipache or ubuntu)
@@ -405,13 +406,13 @@ func localNameFromRemote(indexName string, remoteName reference.Named) (referenc
 // error.
 func NormalizeLocalReference(ref reference.Named) reference.Named {
 	localName := NormalizeLocalName(ref)
-	if tagged, isTagged := ref.(reference.Tagged); isTagged {
+	if tagged, isTagged := ref.(reference.NamedTagged); isTagged {
 		newRef, err := reference.WithTag(localName, tagged.Tag())
 		if err != nil {
 			return ref
 		}
 		return newRef
-	} else if digested, isDigested := ref.(reference.Digested); isDigested {
+	} else if digested, isCanonical := ref.(reference.Canonical); isCanonical {
 		newRef, err := reference.WithDigest(localName, digested.Digest())
 		if err != nil {
 			return ref

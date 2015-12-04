@@ -11,12 +11,11 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/digest"
-	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/distribution/metadata"
 	"github.com/docker/docker/image"
 	imagev1 "github.com/docker/docker/image/v1"
 	"github.com/docker/docker/layer"
-	"github.com/docker/docker/tag"
+	"github.com/docker/docker/reference"
 )
 
 type graphIDRegistrar interface {
@@ -46,7 +45,7 @@ var (
 
 // Migrate takes an old graph directory and transforms the metadata into the
 // new format.
-func Migrate(root, driverName string, ls layer.Store, is image.Store, ts tag.Store, ms metadata.Store) error {
+func Migrate(root, driverName string, ls layer.Store, is image.Store, rs reference.Store, ms metadata.Store) error {
 	mappings := make(map[string]image.ID)
 
 	if registrar, ok := ls.(graphIDRegistrar); !ok {
@@ -61,7 +60,7 @@ func Migrate(root, driverName string, ls layer.Store, is image.Store, ts tag.Sto
 		return err
 	}
 
-	if err := migrateTags(root, driverName, ts, mappings); err != nil {
+	if err := migrateRefs(root, driverName, rs, mappings); err != nil {
 		return err
 	}
 
@@ -189,12 +188,12 @@ func migrateContainers(root string, ls graphIDMounter, is image.Store, imageMapp
 	return nil
 }
 
-type tagAdder interface {
+type refAdder interface {
 	AddTag(ref reference.Named, id image.ID, force bool) error
 	AddDigest(ref reference.Canonical, id image.ID, force bool) error
 }
 
-func migrateTags(root, driverName string, ts tagAdder, mappings map[string]image.ID) error {
+func migrateRefs(root, driverName string, rs refAdder, mappings map[string]image.ID) error {
 	migrationFile := filepath.Join(root, migrationTagsFileName)
 	if _, err := os.Lstat(migrationFile); !os.IsNotExist(err) {
 		return err
@@ -232,7 +231,7 @@ func migrateTags(root, driverName string, ts tagAdder, mappings map[string]image
 						logrus.Errorf("migrate tags: invalid digest %q, %q", dgst, err)
 						continue
 					}
-					if err := ts.AddDigest(canonical, strongID, false); err != nil {
+					if err := rs.AddDigest(canonical, strongID, false); err != nil {
 						logrus.Errorf("can't migrate digest %q for %q, err: %q", ref.String(), strongID, err)
 					}
 				} else {
@@ -241,7 +240,7 @@ func migrateTags(root, driverName string, ts tagAdder, mappings map[string]image
 						logrus.Errorf("migrate tags: invalid tag %q, %q", tag, err)
 						continue
 					}
-					if err := ts.AddTag(tagRef, strongID, false); err != nil {
+					if err := rs.AddTag(tagRef, strongID, false); err != nil {
 						logrus.Errorf("can't migrate tag %q for %q, err: %q", ref.String(), strongID, err)
 					}
 				}

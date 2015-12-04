@@ -19,7 +19,6 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/digest"
-	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
@@ -58,9 +57,9 @@ import (
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/pkg/truncindex"
+	"github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/runconfig"
-	"github.com/docker/docker/tag"
 	"github.com/docker/docker/utils"
 	volumedrivers "github.com/docker/docker/volume/drivers"
 	"github.com/docker/docker/volume/local"
@@ -138,7 +137,7 @@ type Daemon struct {
 	repository                string
 	containers                *contStore
 	execCommands              *exec.Store
-	tagStore                  tag.Store
+	referenceStore            reference.Store
 	downloadManager           *xfer.LayerDownloadManager
 	uploadManager             *xfer.LayerUploadManager
 	distributionMetadataStore dmetadata.Store
@@ -789,16 +788,16 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 
 	eventsService := events.New()
 
-	tagStore, err := tag.NewTagStore(filepath.Join(imageRoot, "repositories.json"))
+	referenceStore, err := reference.NewReferenceStore(filepath.Join(imageRoot, "repositories.json"))
 	if err != nil {
 		return nil, fmt.Errorf("Couldn't create Tag store repositories: %s", err)
 	}
 
-	if err := restoreCustomImage(d.driver, d.imageStore, d.layerStore, tagStore); err != nil {
+	if err := restoreCustomImage(d.driver, d.imageStore, d.layerStore, referenceStore); err != nil {
 		return nil, fmt.Errorf("Couldn't restore custom images: %s", err)
 	}
 
-	if err := v1.Migrate(config.Root, d.driver.String(), d.layerStore, d.imageStore, tagStore, distributionMetadataStore); err != nil {
+	if err := v1.Migrate(config.Root, d.driver.String(), d.layerStore, d.imageStore, referenceStore, distributionMetadataStore); err != nil {
 		return nil, err
 	}
 
@@ -848,7 +847,7 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 	d.repository = daemonRepo
 	d.containers = &contStore{s: make(map[string]*container.Container)}
 	d.execCommands = exec.NewStore()
-	d.tagStore = tagStore
+	d.referenceStore = referenceStore
 	d.distributionMetadataStore = distributionMetadataStore
 	d.trustKey = trustKey
 	d.idIndex = truncindex.NewTruncIndex([]string{})
@@ -1045,7 +1044,7 @@ func (daemon *Daemon) TagImage(newTag reference.Named, imageName string) error {
 		return err
 	}
 	newTag = registry.NormalizeLocalReference(newTag)
-	if err := daemon.tagStore.AddTag(newTag, imageID, true); err != nil {
+	if err := daemon.referenceStore.AddTag(newTag, imageID, true); err != nil {
 		return err
 	}
 	daemon.EventsService.Log("tag", newTag.String(), "")
@@ -1091,7 +1090,7 @@ func (daemon *Daemon) PullImage(ref reference.Named, metaHeaders map[string][]st
 		EventsService:   daemon.EventsService,
 		MetadataStore:   daemon.distributionMetadataStore,
 		ImageStore:      daemon.imageStore,
-		TagStore:        daemon.tagStore,
+		ReferenceStore:  daemon.referenceStore,
 		DownloadManager: daemon.downloadManager,
 	}
 
@@ -1107,7 +1106,7 @@ func (daemon *Daemon) PullImage(ref reference.Named, metaHeaders map[string][]st
 // the same tag are exported. names is the set of tags to export, and
 // outStream is the writer which the images are written to.
 func (daemon *Daemon) ExportImage(names []string, outStream io.Writer) error {
-	imageExporter := tarexport.NewTarExporter(daemon.imageStore, daemon.layerStore, daemon.tagStore)
+	imageExporter := tarexport.NewTarExporter(daemon.imageStore, daemon.layerStore, daemon.referenceStore)
 	return imageExporter.Save(names, outStream)
 }
 
@@ -1135,7 +1134,7 @@ func (daemon *Daemon) PushImage(ref reference.Named, metaHeaders map[string][]st
 		MetadataStore:   daemon.distributionMetadataStore,
 		LayerStore:      daemon.layerStore,
 		ImageStore:      daemon.imageStore,
-		TagStore:        daemon.tagStore,
+		ReferenceStore:  daemon.referenceStore,
 		TrustKey:        daemon.trustKey,
 		UploadManager:   daemon.uploadManager,
 	}
@@ -1154,14 +1153,14 @@ func (daemon *Daemon) LookupImage(name string) (*types.ImageInspect, error) {
 		return nil, fmt.Errorf("No such image: %s", name)
 	}
 
-	refs := daemon.tagStore.References(img.ID())
+	refs := daemon.referenceStore.References(img.ID())
 	repoTags := []string{}
 	repoDigests := []string{}
 	for _, ref := range refs {
 		switch ref.(type) {
-		case reference.Tagged:
+		case reference.NamedTagged:
 			repoTags = append(repoTags, ref.String())
-		case reference.Digested:
+		case reference.Canonical:
 			repoDigests = append(repoDigests, ref.String())
 		}
 	}
@@ -1215,7 +1214,7 @@ func (daemon *Daemon) LookupImage(name string) (*types.ImageInspect, error) {
 // complement of ImageExport.  The input stream is an uncompressed tar
 // ball containing images and metadata.
 func (daemon *Daemon) LoadImage(inTar io.ReadCloser, outStream io.Writer) error {
-	imageExporter := tarexport.NewTarExporter(daemon.imageStore, daemon.layerStore, daemon.tagStore)
+	imageExporter := tarexport.NewTarExporter(daemon.imageStore, daemon.layerStore, daemon.referenceStore)
 	return imageExporter.Load(inTar, outStream)
 }
 
@@ -1271,7 +1270,7 @@ func (daemon *Daemon) ImageHistory(name string) ([]*types.ImageHistory, error) {
 		h.ID = id.String()
 
 		var tags []string
-		for _, r := range daemon.tagStore.References(id) {
+		for _, r := range daemon.referenceStore.References(id) {
 			if _, ok := r.(reference.NamedTagged); ok {
 				tags = append(tags, r.String())
 			}
@@ -1303,12 +1302,12 @@ func (daemon *Daemon) GetImageID(refOrID string) (image.ID, error) {
 	// Treat it as a possible tag or digest reference
 	if ref, err := reference.ParseNamed(refOrID); err == nil {
 		ref = registry.NormalizeLocalReference(ref)
-		if id, err := daemon.tagStore.Get(ref); err == nil {
+		if id, err := daemon.referenceStore.Get(ref); err == nil {
 			return id, nil
 		}
-		if tagged, ok := ref.(reference.Tagged); ok {
+		if tagged, ok := ref.(reference.NamedTagged); ok {
 			if id, err := daemon.imageStore.Search(tagged.Tag()); err == nil {
-				for _, namedRef := range daemon.tagStore.References(id) {
+				for _, namedRef := range daemon.referenceStore.References(id) {
 					if namedRef.Name() == ref.Name() {
 						return id, nil
 					}

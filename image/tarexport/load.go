@@ -9,13 +9,13 @@ import (
 	"path/filepath"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/image/v1"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/symlink"
+	"github.com/docker/docker/reference"
 )
 
 func (l *tarexporter) Load(inTar io.ReadCloser, outStream io.Writer) error {
@@ -124,11 +124,11 @@ func (l *tarexporter) loadLayer(filename string, rootFS image.RootFS) (layer.Lay
 }
 
 func (l *tarexporter) setLoadedTag(ref reference.NamedTagged, imgID image.ID, outStream io.Writer) error {
-	if prevID, err := l.ts.Get(ref); err == nil && prevID != imgID {
+	if prevID, err := l.rs.Get(ref); err == nil && prevID != imgID {
 		fmt.Fprintf(outStream, "The image %s already exists, renaming the old one with ID %s to empty string\n", ref.String(), string(prevID)) // todo: this message is wrong in case of multiple tags
 	}
 
-	if err := l.ts.AddTag(ref, imgID, true); err != nil {
+	if err := l.rs.AddTag(ref, imgID, true); err != nil {
 		return err
 	}
 	return nil
