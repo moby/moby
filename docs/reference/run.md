@@ -10,7 +10,10 @@ parent = "mn_reference"
 
 <!-- TODO (@thaJeztah) define more flexible table/td classes -->
 <style>
-.content-body table .no-wrap {
+table .no-wrap {
+    white-space: nowrap;
+}
+table code {
     white-space: nowrap;
 }
 </style>
@@ -135,7 +138,8 @@ For interactive processes (like a shell), you must use `-i -t` together in
 order to allocate a tty for the container process. `-i -t` is often written `-it`
 as you'll see in later examples.  Specifying `-t` is forbidden when the client
 standard output is redirected or piped, such as in:
-`echo test | docker run -i busybox cat`.
+
+    $ echo test | docker run -i busybox cat
 
 >**Note**: A process running as PID 1 inside a container is treated
 >specially by Linux: it ignores any signal with the default action.
@@ -148,10 +152,11 @@ standard output is redirected or piped, such as in:
 
 The operator can identify a container in three ways:
 
--   UUID long identifier
-    ("f78375b1c487e03c9438c729345e54db9d20cfa2ac1fc3494b6eb60872e74778")
--   UUID short identifier ("f78375b1c487")
--   Name ("evil_ptolemy")
+| Identifier type       | Example value                                                      |
+| --------------------- | ------------------------------------------------------------------ |
+| UUID long identifier  | "f78375b1c487e03c9438c729345e54db9d20cfa2ac1fc3494b6eb60872e74778" |
+| UUID short identifier | "f78375b1c487"                                                     |
+| Name                  | "evil_ptolemy"                                                     |
 
 The UUID identifiers come from the Docker daemon. If you do not assign a
 container name with the `--name` option, then the daemon generates a random
@@ -160,7 +165,8 @@ container. If you specify a `name`, you can use it  when referencing the
 container within a Docker network. This works for both background and foreground
 Docker containers.
 
-**Note**: Containers on the default bridge network must be linked to communicate by name.  
+> **Note**: Containers on the default bridge network must be linked to
+> communicate by name.
 
 ### PID equivalent
 
@@ -390,7 +396,7 @@ $ docker run --net=my-net -itd --name=container3 busybox
 ### Managing /etc/hosts
 
 Your container will have lines in `/etc/hosts` which define the hostname of the
-container itself as well as `localhost` and a few other common things.  The
+container itself as well as `localhost` and a few other common things. The
 `--add-host` flag can be used to add additional lines to `/etc/hosts`.
 
     $ docker run -it --add-host db-static:86.75.30.9 ubuntu cat /etc/hosts
@@ -579,23 +585,23 @@ the `--security-opt` flag. For example, you can specify the MCS/MLS level, a
 requirement for MLS systems. Specifying the level in the following command
 allows you to share the same content between containers.
 
-    $ docker run --security-opt label:level:s0:c100,c200 -i -t fedora bash
+    $ docker run --security-opt label:level:s0:c100,c200 -it fedora bash
 
 An MLS example might be:
 
-    $ docker run --security-opt label:level:TopSecret -i -t rhel7 bash
+    $ docker run --security-opt label:level:TopSecret -it rhel7 bash
 
 To disable the security labeling for this container versus running with the
 `--permissive` flag, use the following command:
 
-    $ docker run --security-opt label:disable -i -t fedora bash
+    $ docker run --security-opt label:disable -it fedora bash
 
 If you want a tighter security policy on the processes within a container,
 you can specify an alternate type for the container. You could run a container
 that is only allowed to listen on Apache ports by executing the following
 command:
 
-    $ docker run --security-opt label:type:svirt_apache_t -i -t centos bash
+    $ docker run --security-opt label:type:svirt_apache_t -it centos bash
 
 > **Note**: You would have to write policy defining a `svirt_apache_t` type.
 
@@ -611,29 +617,24 @@ parent group.
 The operator can also adjust the performance parameters of the
 container:
 
-| Option                     |  Description                                                                                |
-|----------------------------|---------------------------------------------------------------------------------------------|
-| `-m`, `--memory="" `       | Memory limit (format: `<number>[<unit>]`, where unit = b, k, m or g)                        |
-| `--memory-swap=""`         | Total memory limit (memory + swap, format: `<number>[<unit>]`, where unit = b, k, m or g)   |
-| `--memory-reservation=""`  | Memory soft limit (format: `<number>[<unit>]`, where unit = b, k, m or g)                   |
-| `--kernel-memory=""`       | Kernel memory limit (format: `<number>[<unit>]`, where unit = b, k, m or g)                 |
-| `-c`, `--cpu-shares=0`     | CPU shares (relative weight)                                                                |
-| `--cpu-period=0`           | Limit the CPU CFS (Completely Fair Scheduler) period                                        |
-| `--cpuset-cpus="" `        | CPUs in which to allow execution (0-3, 0,1)                                                 |
-| `--cpuset-mems=""`         | Memory nodes (MEMs) in which to allow execution (0-3, 0,1). Only effective on NUMA systems. |
-| `--cpu-quota=0`            | Limit the CPU CFS (Completely Fair Scheduler) quota                                         |
-| `--blkio-weight=0`         | Block IO weight (relative weight) accepts a weight value between 10 and 1000.               |
-| `--blkio-weight-device=""` | Block IO weight (relative device weight, format: `DEVICE_NAME:WEIGHT`)                                                |
-| `--device-read-bps="" `    | Limit read rate from a device (format: `<device-path>:<number>[<unit>]`.                    |
-|                            | Number is a positive integer. Unit can be one of kb, mb, or gb.                             |
-| `--device-write-bps="" `   | Limit write rate to a device (format: `<device-path>:<number>[<unit>]`.                     |
-|                            | Number is a positive integer. Unit can be one of kb, mb, or gb.                             |
-| `--oom-kill-disable=false` | Whether to disable OOM Killer for the container or not.                                     |
-| `--memory-swappiness=""  ` | Tune a container's memory swappiness behavior. Accepts an integer between 0 and 100.        |
-| `--shm-size=""  `          | Size of `/dev/shm`. The format is `<number><unit>`. `number` must be greater than `0`.      |
-|                            | Unit  is  optional   and   can  be  `b` (bytes),  `k` (kilobytes),   `m` (megabytes),   or  |
-|                            | `g` (gigabytes).  If  you  omit  the  unit,  the system  uses bytes.  If you omit the size  |
-|                            | entirely, the system uses `64m`.                                                            |
+| Option                     |  Description                                                                                                                                    |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `-m`, `--memory=""`        | Memory limit (format: `<number>[<unit>]`). Number is a positive integer. Unit can be one of `b`, `k`, `m`, or `g`.                              |
+| `--memory-swap=""`         | Total memory limit (memory + swap, format: `<number>[<unit>]`). Number is a positive integer. Unit can be one of `b`, `k`, `m`, or `g`.         |
+| `--memory-reservation=""`  | Memory soft limit (format: `<number>[<unit>]`). Number is a positive integer. Unit can be one of `b`, `k`, `m`, or `g`.                         |
+| `--kernel-memory=""`       | Kernel memory limit (format: `<number>[<unit>]`). Number is a positive integer. Unit can be one of `b`, `k`, `m`, or `g`.                       |
+| `-c`, `--cpu-shares=0`     | CPU shares (relative weight)                                                                                                                    |
+| `--cpu-period=0`           | Limit the CPU CFS (Completely Fair Scheduler) period                                                                                            |
+| `--cpuset-cpus=""`         | CPUs in which to allow execution (0-3, 0,1)                                                                                                     |
+| `--cpuset-mems=""`         | Memory nodes (MEMs) in which to allow execution (0-3, 0,1). Only effective on NUMA systems.                                                     |
+| `--cpu-quota=0`            | Limit the CPU CFS (Completely Fair Scheduler) quota                                                                                             |
+| `--blkio-weight=0`         | Block IO weight (relative weight) accepts a weight value between 10 and 1000.                                                                   |
+| `--blkio-weight-device=""` | Block IO weight (relative device weight, format: `DEVICE_NAME:WEIGHT`)                                                                          |
+| `--device-read-bps=""`     | Limit read rate from a device (format: `<device-path>:<number>[<unit>]`). Number is a positive integer. Unit can be one of `kb`, `mb`, or `gb`. |
+| `--device-write-bps=""`    | Limit write rate to a device (format: `<device-path>:<number>[<unit>]`). Number is a positive integer. Unit can be one of `kb`, `mb`, or `gb`.  |
+| `--oom-kill-disable=false` | Whether to disable OOM Killer for the container or not.                                                                                         |
+| `--memory-swappiness=""`   | Tune a container's memory swappiness behavior. Accepts an integer between 0 and 100.                                                            |
+| `--shm-size=""`            | Size of `/dev/shm`. The format is `<number><unit>`. `number` must be greater than `0`. Unit is optional and can be `b` (bytes), `k` (kilobytes), `m` (megabytes), or `g` (gigabytes). If you omit the unit, the system uses bytes. If you omit the size entirely, the system uses `64m`. |
 
 ### User memory constraints
 
@@ -687,25 +688,25 @@ We have four ways to set user memory usage:
 
 Examples:
 
-    $ docker run -ti ubuntu:14.04 /bin/bash
+    $ docker run -it ubuntu:14.04 /bin/bash
 
 We set nothing about memory, this means the processes in the container can use
 as much memory and swap memory as they need.
 
-    $ docker run -ti -m 300M --memory-swap -1 ubuntu:14.04 /bin/bash
+    $ docker run -it -m 300M --memory-swap -1 ubuntu:14.04 /bin/bash
 
 We set memory limit and disabled swap memory limit, this means the processes in
 the container can use 300M memory and as much swap memory as they need (if the
 host supports swap memory).
 
-    $ docker run -ti -m 300M ubuntu:14.04 /bin/bash
+    $ docker run -it -m 300M ubuntu:14.04 /bin/bash
 
 We set memory limit only, this means the processes in the container can use
 300M memory and 300M swap memory, by default, the total virtual memory size
 (--memory-swap) will be set as double of memory, in this case, memory + swap
 would be 2*300M, so processes can use 300M swap memory as well.
 
-    $ docker run -ti -m 300M --memory-swap 1G ubuntu:14.04 /bin/bash
+    $ docker run -it -m 300M --memory-swap 1G ubuntu:14.04 /bin/bash
 
 We set both memory and swap memory, so the processes in the container can use
 300M memory and 700M swap memory.
@@ -730,7 +731,7 @@ The following example limits the memory (`-m`) to 500M and sets the memory
 reservation to 200M.
 
 ```bash
-$ docker run -ti -m 500M --memory-reservation 200M ubuntu:14.04 /bin/bash
+$ docker run -it -m 500M --memory-reservation 200M ubuntu:14.04 /bin/bash
 ```
 
 Under this configuration, when the container consumes memory more than 200M and
@@ -740,7 +741,7 @@ memory below 200M.
 The following example set memory reservation to 1G without a hard memory limit.
 
 ```bash
-$ docker run -ti --memory-reservation 1G ubuntu:14.04 /bin/bash
+$ docker run -it --memory-reservation 1G ubuntu:14.04 /bin/bash
 ```
 
 The container can use as much memory as it needs. The memory reservation setting
@@ -757,11 +758,11 @@ memory.
 The following example limits the memory to 100M and disables the OOM killer for
 this container:
 
-    $ docker run -ti -m 100M --oom-kill-disable ubuntu:14.04 /bin/bash
+    $ docker run -it -m 100M --oom-kill-disable ubuntu:14.04 /bin/bash
 
 The following example, illustrates a dangerous way to use the flag:
 
-    $ docker run -ti --oom-kill-disable ubuntu:14.04 /bin/bash
+    $ docker run -it --oom-kill-disable ubuntu:14.04 /bin/bash
 
 The container has unlimited memory which can cause the host to run out memory
 and require killing system processes to free memory.
@@ -826,12 +827,12 @@ limit and "K" the kernel limit. There are three possible ways to set limits:
 
 Examples:
 
-    $ docker run -ti -m 500M --kernel-memory 50M ubuntu:14.04 /bin/bash
+    $ docker run -it -m 500M --kernel-memory 50M ubuntu:14.04 /bin/bash
 
 We set memory and kernel memory, so the processes in the container can use
 500M memory in total, in this 500M memory, it can be 50M kernel memory tops.
 
-    $ docker run -ti --kernel-memory 50M ubuntu:14.04 /bin/bash
+    $ docker run -it --kernel-memory 50M ubuntu:14.04 /bin/bash
 
 We set kernel memory without **-m**, so the processes in the container can
 use as much memory as they want, but they can only use 50M kernel memory.
@@ -846,7 +847,7 @@ between 0 and 100. A value of 0 turns off anonymous page swapping. A value of
 
 For example, you can set:
 
-    $ docker run -ti --memory-swappiness=0 ubuntu:14.04 /bin/bash
+    $ docker run -it --memory-swappiness=0 ubuntu:14.04 /bin/bash
 
 Setting the `--memory-swappiness` option is helpful when you want to retain the
 container's working set and to avoid swapping performance penalties.
@@ -895,7 +896,7 @@ And usually `--cpu-period` should work with `--cpu-quota`.
 
 Examples:
 
-    $ docker run -ti --cpu-period=50000 --cpu-quota=25000 ubuntu:14.04 /bin/bash
+    $ docker run -it --cpu-period=50000 --cpu-quota=25000 ubuntu:14.04 /bin/bash
 
 If there is 1 CPU, this means the container can get 50% CPU worth of run-time every 50ms.
 
@@ -907,11 +908,11 @@ We can set cpus in which to allow execution for containers.
 
 Examples:
 
-    $ docker run -ti --cpuset-cpus="1,3" ubuntu:14.04 /bin/bash
+    $ docker run -it --cpuset-cpus="1,3" ubuntu:14.04 /bin/bash
 
 This means processes in container can be executed on cpu 1 and cpu 3.
 
-    $ docker run -ti --cpuset-cpus="0-2" ubuntu:14.04 /bin/bash
+    $ docker run -it --cpuset-cpus="0-2" ubuntu:14.04 /bin/bash
 
 This means processes in container can be executed on cpu 0, cpu 1 and cpu 2.
 
@@ -920,12 +921,12 @@ on NUMA systems.
 
 Examples:
 
-    $ docker run -ti --cpuset-mems="1,3" ubuntu:14.04 /bin/bash
+    $ docker run -it --cpuset-mems="1,3" ubuntu:14.04 /bin/bash
 
 This example restricts the processes in the container to only use memory from
 memory nodes 1 and 3.
 
-    $ docker run -ti --cpuset-mems="0-2" ubuntu:14.04 /bin/bash
+    $ docker run -it --cpuset-mems="0-2" ubuntu:14.04 /bin/bash
 
 This example restricts the processes in the container to only use memory from
 memory nodes 0, 1 and 2.
@@ -953,8 +954,8 @@ The `--blkio-weight` flag can set the weighting to a value between 10 to 1000.
 For example, the commands below create two containers with different blkio
 weight:
 
-    $ docker run -ti --name c1 --blkio-weight 300 ubuntu:14.04 /bin/bash
-    $ docker run -ti --name c2 --blkio-weight 600 ubuntu:14.04 /bin/bash
+    $ docker run -it --name c1 --blkio-weight 300 ubuntu:14.04 /bin/bash
+    $ docker run -it --name c2 --blkio-weight 600 ubuntu:14.04 /bin/bash
 
 If you do block IO in the two containers at the same time, by, for example:
 
@@ -967,9 +968,9 @@ The `--blkio-weight-device="DEVICE_NAME:WEIGHT"` flag sets a specific device wei
 The `DEVICE_NAME:WEIGHT` is a string containing a colon-separated device name and weight.
 For example, to set `/dev/sda` device weight to `200`:
 
-$ docker run -it \
-    --blkio-weight-device "/dev/sda:200" \
-    ubuntu
+    $ docker run -it \
+        --blkio-weight-device "/dev/sda:200" \
+        ubuntu
 
 If you specify both the `--blkio-weight` and `--blkio-weight-device`, Docker
 uses the `--blkio-weight` as the default weight and uses `--blkio-weight-device` 
@@ -977,22 +978,26 @@ to override this default with a new value on a specific device.
 The following example uses a default weight of `300` and overrides this default 
 on `/dev/sda` setting that weight to `200`:
 
-$ docker run -it \
-    --blkio-weight 300 \
-    --blkio-weight-device "/dev/sda:200" \
-    ubuntu
+    $ docker run -it \
+        --blkio-weight 300 \
+        --blkio-weight-device "/dev/sda:200" \
+        ubuntu
 
-The `--device-read-bps` flag can limit read rate from a device.
-For example, the command creates a container and limits theread rate to `1mb` per second from `/dev/sda`:
+The `--device-read-bps` flag limits the read rate from a device. For example,
+this command creates a container and limits the read rate to `1mb` per second
+from `/dev/sda`:
 
-    $ docker run -ti --device-read-bps /dev/sda:1mb ubuntu
+    $ docker run -it --device-read-bps /dev/sda:1mb ubuntu
 
-The `--device-write-bps` flag can limit write rate to a device.
-For example, the command creates a container and limits write rate to `1mb` per second to `/dev/sda`:
+The `--device-write-bps` flag limits the write rate to a device. For example,
+this command creates a container and limits the write rate to `1mb` per second
+for `/dev/sda`: 
 
-    $ docker run -ti --device-write-bps /dev/sda:1mb ubuntu
+    $ docker run -it --device-write-bps /dev/sda:1mb ubuntu
 
-Both flags take limits in the `<device-path>:<limit>[unit]` format. Both read and write rates must be a positive integer. You can specify the rate in `kb` (kilobytes), `mb` (megabytes), or `gb` (gigabytes).
+Both flags take limits in the `<device-path>:<limit>[unit]` format. Both read
+and write rates must be a positive integer. You can specify the rate in `kb`
+(kilobytes), `mb` (megabytes), or `gb` (gigabytes).
 
 ## Additional groups
     --group-add: Add Linux capabilities
@@ -1001,7 +1006,7 @@ By default, the docker container process runs with the supplementary groups look
 up for the specified user. If one wants to add more to that list of groups, then
 one can use this flag:
 
-    $ docker run -ti --rm --group-add audio  --group-add dbus --group-add 777 busybox id
+    $ docker run -it --rm --group-add audio  --group-add dbus --group-add 777 busybox id
     uid=0(root) gid=0(root) groups=10(wheel),29(audio),81(dbus),777
 
 ## Runtime privilege and Linux capabilities
@@ -1051,45 +1056,45 @@ In addition to `--privileged`, the operator can have fine grain control over the
 capabilities using `--cap-add` and `--cap-drop`. By default, Docker has a default
 list of capabilities that are kept. The following table lists the Linux capability options which can be added or dropped.
 
-| Capability Key | Capability Description |
-| -------------- | ---------------------- |
-| SETPCAP | Modify process capabilities. |
-| SYS_MODULE| Load and unload kernel modules. |
-| SYS_RAWIO | Perform I/O port operations (iopl(2) and ioperm(2)). |
-| SYS_PACCT | Use acct(2), switch process accounting on or off. |
-| SYS_ADMIN | Perform a range of system administration operations. |
-| SYS_NICE | Raise process nice value (nice(2), setpriority(2)) and change the nice value for arbitrary processes. |
-| SYS_RESOURCE | Override resource Limits. |
-| SYS_TIME | Set system clock (settimeofday(2), stime(2), adjtimex(2)); set real-time (hardware) clock. |
-| SYS_TTY_CONFIG | Use vhangup(2); employ various privileged ioctl(2) operations on virtual terminals. |
-| MKNOD | Create special files using mknod(2). |
-| AUDIT_WRITE | Write records to kernel auditing log. |
-| AUDIT_CONTROL | Enable and disable kernel auditing; change auditing filter rules; retrieve auditing status and filtering rules. |
-| MAC_OVERRIDE | Allow MAC configuration or state changes. Implemented for the Smack LSM. |
-| MAC_ADMIN | Override Mandatory Access Control (MAC). Implemented for the Smack Linux Security Module (LSM). |
-| NET_ADMIN | Perform various network-related operations. |
-| SYSLOG | Perform privileged syslog(2) operations.  |
-| CHOWN | Make arbitrary changes to file UIDs and GIDs (see chown(2)). |
-| NET_RAW | Use RAW and PACKET sockets. |
-| DAC_OVERRIDE | Bypass file read, write, and execute permission checks. |
-| FOWNER | Bypass permission checks on operations that normally require the file system UID of the process to match the UID of the file. |
-| DAC_READ_SEARCH | Bypass file read permission checks and directory read and execute permission checks. |
-| FSETID | Don't clear set-user-ID and set-group-ID permission bits when a file is modified. |
-| KILL | Bypass permission checks for sending signals. |
-| SETGID | Make arbitrary manipulations of process GIDs and supplementary GID list. |
-| SETUID | Make arbitrary manipulations of process UIDs. |
-| LINUX_IMMUTABLE | Set the FS_APPEND_FL and FS_IMMUTABLE_FL i-node flags. |
-| NET_BIND_SERVICE  | Bind a socket to internet domain privileged ports (port numbers less than 1024). |
-| NET_BROADCAST |  Make socket broadcasts, and listen to multicasts. |
-| IPC_LOCK | Lock memory (mlock(2), mlockall(2), mmap(2), shmctl(2)). |
-| IPC_OWNER | Bypass permission checks for operations on System V IPC objects. |
-| SYS_CHROOT | Use chroot(2), change root directory. |
-| SYS_PTRACE | Trace arbitrary processes using ptrace(2). |
-| SYS_BOOT | Use reboot(2) and kexec_load(2), reboot and load a new kernel for later execution. |
-| LEASE | Establish leases on arbitrary files (see fcntl(2)). |
-| SETFCAP | Set file capabilities.|
-| WAKE_ALARM | Trigger something that will wake up the system. |
-| BLOCK_SUSPEND | Employ features that can block system suspend. |
+| Capability Key   | Capability Description                                                                                                        |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| SETPCAP          | Modify process capabilities.                                                                                                  |
+| SYS_MODULE       | Load and unload kernel modules.                                                                                               |
+| SYS_RAWIO        | Perform I/O port operations (iopl(2) and ioperm(2)).                                                                          |
+| SYS_PACCT        | Use acct(2), switch process accounting on or off.                                                                             |
+| SYS_ADMIN        | Perform a range of system administration operations.                                                                          |
+| SYS_NICE         | Raise process nice value (nice(2), setpriority(2)) and change the nice value for arbitrary processes.                         |
+| SYS_RESOURCE     | Override resource Limits.                                                                                                     |
+| SYS_TIME         | Set system clock (settimeofday(2), stime(2), adjtimex(2)); set real-time (hardware) clock.                                    |
+| SYS_TTY_CONFIG   | Use vhangup(2); employ various privileged ioctl(2) operations on virtual terminals.                                           |
+| MKNOD            | Create special files using mknod(2).                                                                                          |
+| AUDIT_WRITE      | Write records to kernel auditing log.                                                                                         |
+| AUDIT_CONTROL    | Enable and disable kernel auditing; change auditing filter rules; retrieve auditing status and filtering rules.               |
+| MAC_OVERRIDE     | Allow MAC configuration or state changes. Implemented for the Smack LSM.                                                      |
+| MAC_ADMIN        | Override Mandatory Access Control (MAC). Implemented for the Smack Linux Security Module (LSM).                               |
+| NET_ADMIN        | Perform various network-related operations.                                                                                   |
+| SYSLOG           | Perform privileged syslog(2) operations.                                                                                      |
+| CHOWN            | Make arbitrary changes to file UIDs and GIDs (see chown(2)).                                                                  |
+| NET_RAW          | Use RAW and PACKET sockets.                                                                                                   |
+| DAC_OVERRIDE     | Bypass file read, write, and execute permission checks.                                                                       |
+| FOWNER           | Bypass permission checks on operations that normally require the file system UID of the process to match the UID of the file. |
+| DAC_READ_SEARCH  | Bypass file read permission checks and directory read and execute permission checks.                                          |
+| FSETID           | Don't clear set-user-ID and set-group-ID permission bits when a file is modified.                                             |
+| KILL             | Bypass permission checks for sending signals.                                                                                 |
+| SETGID           | Make arbitrary manipulations of process GIDs and supplementary GID list.                                                      |
+| SETUID           | Make arbitrary manipulations of process UIDs.                                                                                 |
+| LINUX_IMMUTABLE  | Set the FS_APPEND_FL and FS_IMMUTABLE_FL i-node flags.                                                                        |
+| NET_BIND_SERVICE | Bind a socket to internet domain privileged ports (port numbers less than 1024).                                              |
+| NET_BROADCAST    | Make socket broadcasts, and listen to multicasts.                                                                             |
+| IPC_LOCK         | Lock memory (mlock(2), mlockall(2), mmap(2), shmctl(2)).                                                                      |
+| IPC_OWNER        | Bypass permission checks for operations on System V IPC objects.                                                              |
+| SYS_CHROOT       | Use chroot(2), change root directory.                                                                                         |
+| SYS_PTRACE       | Trace arbitrary processes using ptrace(2).                                                                                    |
+| SYS_BOOT         | Use reboot(2) and kexec_load(2), reboot and load a new kernel for later execution.                                            |
+| LEASE            | Establish leases on arbitrary files (see fcntl(2)).                                                                           |
+| SETFCAP          | Set file capabilities.                                                                                                        |
+| WAKE_ALARM       | Trigger something that will wake up the system.                                                                               |
+| BLOCK_SUSPEND    | Employ features that can block system suspend.                                                                                 
 
 Further reference information is available on the [capabilities(7) - Linux man page](http://linux.die.net/man/7/capabilities)
 
@@ -1101,9 +1106,9 @@ operator wants to have all capabilities but `MKNOD` they could use:
 For interacting with the network stack, instead of using `--privileged` they
 should use `--cap-add=NET_ADMIN` to modify the network interfaces.
 
-    $ docker run -t -i --rm  ubuntu:14.04 ip link add dummy0 type dummy
+    $ docker run -it --rm  ubuntu:14.04 ip link add dummy0 type dummy
     RTNETLINK answers: Operation not permitted
-    $ docker run -t -i --rm --cap-add=NET_ADMIN ubuntu:14.04 ip link add dummy0 type dummy
+    $ docker run -it --rm --cap-add=NET_ADMIN ubuntu:14.04 ip link add dummy0 type dummy
 
 To mount a FUSE based filesystem, you need to combine both `--cap-add` and
 `--device`:
@@ -1135,8 +1140,9 @@ The container can have a different logging driver than the Docker daemon. Use
 the `--log-driver=VALUE` with the `docker run` command to configure the
 container's logging driver. The following options are supported:
 
+| Driver      | Description                                                                                                                   |
+| ----------- | ----------------------------------------------------------------------------------------------------------------------------- |
 | `none`      | Disables any logging for the container. `docker logs` won't be available with this driver.                                    |
-|-------------|-------------------------------------------------------------------------------------------------------------------------------|
 | `json-file` | Default logging driver for Docker. Writes JSON messages to file.  No logging options are supported for this driver.           |
 | `syslog`    | Syslog logging driver for Docker. Writes log messages to syslog.                                                              |
 | `journald`  | Journald logging driver for Docker. Writes log messages to `journald`.                                                        |
@@ -1202,12 +1208,12 @@ runtime by using a string to specify the new `ENTRYPOINT`. Here is an
 example of how to run a shell in a container that has been set up to
 automatically run something else (like `/usr/bin/redis-server`):
 
-    $ docker run -i -t --entrypoint /bin/bash example/redis
+    $ docker run -it --entrypoint /bin/bash example/redis
 
 or two examples of how to pass more parameters to that ENTRYPOINT:
 
-    $ docker run -i -t --entrypoint /bin/bash example/redis -c ls -l
-    $ docker run -i -t --entrypoint /usr/bin/redis-cli example/redis --help
+    $ docker run -it --entrypoint /bin/bash example/redis -c ls -l
+    $ docker run -it --entrypoint /usr/bin/redis-cli example/redis --help
 
 ### EXPOSE (incoming ports)
 
