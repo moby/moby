@@ -32,24 +32,26 @@ type v2Puller struct {
 	config         *ImagePullConfig
 	repoInfo       *registry.RepositoryInfo
 	repo           distribution.Repository
+	// confirmedV2 is set to true if we confirm we're talking to a v2
+	// registry. This is used to limit fallbacks to the v1 protocol.
+	confirmedV2 bool
 }
 
-func (p *v2Puller) Pull(ctx context.Context, ref reference.Named) (fallback bool, err error) {
+func (p *v2Puller) Pull(ctx context.Context, ref reference.Named) (err error) {
 	// TODO(tiborvass): was ReceiveTimeout
-	p.repo, err = NewV2Repository(p.repoInfo, p.endpoint, p.config.MetaHeaders, p.config.AuthConfig, "pull")
+	p.repo, p.confirmedV2, err = NewV2Repository(ctx, p.repoInfo, p.endpoint, p.config.MetaHeaders, p.config.AuthConfig, "pull")
 	if err != nil {
 		logrus.Warnf("Error getting v2 registry: %v", err)
-		return true, err
+		return fallbackError{err: err, confirmedV2: p.confirmedV2}
 	}
 
-	if err := p.pullV2Repository(ctx, ref); err != nil {
+	if err = p.pullV2Repository(ctx, ref); err != nil {
 		if registry.ContinueOnError(err) {
 			logrus.Debugf("Error trying v2 registry: %v", err)
-			return true, err
+			return fallbackError{err: err, confirmedV2: p.confirmedV2}
 		}
-		return false, err
 	}
-	return false, nil
+	return err
 }
 
 func (p *v2Puller) pullV2Repository(ctx context.Context, ref reference.Named) (err error) {
@@ -66,6 +68,10 @@ func (p *v2Puller) pullV2Repository(ctx context.Context, ref reference.Named) (e
 		if err != nil {
 			return err
 		}
+
+		// If this call succeeded, we can be confident that the
+		// registry on the other side speaks the v2 protocol.
+		p.confirmedV2 = true
 
 		// This probably becomes a lot nicer after the manifest
 		// refactor...
@@ -208,6 +214,11 @@ func (p *v2Puller) pullV2Tag(ctx context.Context, ref reference.Named) (tagUpdat
 	if unverifiedManifest == nil {
 		return false, fmt.Errorf("image manifest does not exist for tag or digest %q", tagOrDigest)
 	}
+
+	// If GetByTag succeeded, we can be confident that the registry on
+	// the other side speaks the v2 protocol.
+	p.confirmedV2 = true
+
 	var verifiedManifest *schema1.Manifest
 	verifiedManifest, err = verifyManifest(unverifiedManifest, ref)
 	if err != nil {

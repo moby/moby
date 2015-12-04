@@ -49,7 +49,7 @@ type Puller interface {
 	// Pull tries to pull the image referenced by `tag`
 	// Pull returns an error if any, as well as a boolean that determines whether to retry Pull on the next configured endpoint.
 	//
-	Pull(ctx context.Context, ref reference.Named) (fallback bool, err error)
+	Pull(ctx context.Context, ref reference.Named) error
 }
 
 // newPuller returns a Puller interface that will pull from either a v1 or v2
@@ -108,8 +108,17 @@ func Pull(ctx context.Context, ref reference.Named, imagePullConfig *ImagePullCo
 		// returned and displayed, but if there was a v2 endpoint which supports pull-by-digest, then the last relevant
 		// error is the ones from v2 endpoints not v1.
 		discardNoSupportErrors bool
+
+		// confirmedV2 is set to true if a pull attempt managed to
+		// confirm that it was talking to a v2 registry. This will
+		// prevent fallback to the v1 protocol.
+		confirmedV2 bool
 	)
 	for _, endpoint := range endpoints {
+		if confirmedV2 && endpoint.Version == registry.APIVersion1 {
+			logrus.Debugf("Skipping v1 endpoint %s because v2 registry was detected", endpoint.URL)
+			continue
+		}
 		logrus.Debugf("Trying to pull %s from %s %s", repoInfo.Name(), endpoint.URL, endpoint.Version)
 
 		puller, err := newPuller(endpoint, repoInfo, imagePullConfig)
@@ -117,13 +126,18 @@ func Pull(ctx context.Context, ref reference.Named, imagePullConfig *ImagePullCo
 			errors = append(errors, err.Error())
 			continue
 		}
-		if fallback, err := puller.Pull(ctx, ref); err != nil {
+		if err := puller.Pull(ctx, ref); err != nil {
 			// Was this pull cancelled? If so, don't try to fall
 			// back.
+			fallback := false
 			select {
 			case <-ctx.Done():
-				fallback = false
 			default:
+				if fallbackErr, ok := err.(fallbackError); ok {
+					fallback = true
+					confirmedV2 = confirmedV2 || fallbackErr.confirmedV2
+					err = fallbackErr.err
+				}
 			}
 			if fallback {
 				if _, ok := err.(registry.ErrNoSupport); !ok {

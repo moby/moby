@@ -33,15 +33,15 @@ type v1Puller struct {
 	session     *registry.Session
 }
 
-func (p *v1Puller) Pull(ctx context.Context, ref reference.Named) (fallback bool, err error) {
+func (p *v1Puller) Pull(ctx context.Context, ref reference.Named) error {
 	if _, isCanonical := ref.(reference.Canonical); isCanonical {
 		// Allowing fallback, because HTTPS v1 is before HTTP v2
-		return true, registry.ErrNoSupport{Err: errors.New("Cannot pull by digest with v1 registry")}
+		return fallbackError{err: registry.ErrNoSupport{Err: errors.New("Cannot pull by digest with v1 registry")}}
 	}
 
 	tlsConfig, err := p.config.RegistryService.TLSConfig(p.repoInfo.Index.Name)
 	if err != nil {
-		return false, err
+		return err
 	}
 	// Adds Docker-specific headers as well as user-specified headers (metaHeaders)
 	tr := transport.NewTransport(
@@ -53,21 +53,21 @@ func (p *v1Puller) Pull(ctx context.Context, ref reference.Named) (fallback bool
 	v1Endpoint, err := p.endpoint.ToV1Endpoint(p.config.MetaHeaders)
 	if err != nil {
 		logrus.Debugf("Could not get v1 endpoint: %v", err)
-		return true, err
+		return fallbackError{err: err}
 	}
 	p.session, err = registry.NewSession(client, p.config.AuthConfig, v1Endpoint)
 	if err != nil {
 		// TODO(dmcgowan): Check if should fallback
 		logrus.Debugf("Fallback from error: %s", err)
-		return true, err
+		return fallbackError{err: err}
 	}
 	if err := p.pullRepository(ctx, ref); err != nil {
 		// TODO(dmcgowan): Check if should fallback
-		return false, err
+		return err
 	}
 	progress.Message(p.config.ProgressOutput, "", p.repoInfo.FullName()+": this image was pulled from a legacy registry.  Important: This registry version will not be supported in future versions of docker.")
 
-	return false, nil
+	return nil
 }
 
 func (p *v1Puller) pullRepository(ctx context.Context, ref reference.Named) error {
