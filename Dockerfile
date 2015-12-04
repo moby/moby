@@ -56,7 +56,6 @@ RUN apt-get update && apt-get install -y \
 	libsqlite3-dev \
 	libsystemd-journal-dev \
 	mercurial \
-	parallel \
 	pkg-config \
 	python-dev \
 	python-mock \
