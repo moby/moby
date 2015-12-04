@@ -51,13 +51,13 @@ func (cli *DockerCli) pullImageCustomOut(image string, out io.Writer) error {
 		return err
 	}
 
-	options := lib.CreateImageOptions{
+	options := types.ImageCreateOptions{
 		Parent:       ref.Name(),
 		Tag:          tag,
 		RegistryAuth: base64.URLEncoding.EncodeToString(buf),
 	}
 
-	responseBody, err := cli.client.CreateImage(options)
+	responseBody, err := cli.client.ImageCreate(options)
 	if err != nil {
 		return err
 	}

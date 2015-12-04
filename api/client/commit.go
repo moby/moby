@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/docker/distribution/reference"
-	"github.com/docker/docker/api/client/lib"
+	"github.com/docker/docker/api/types"
 	Cli "github.com/docker/docker/cli"
 	"github.com/docker/docker/opts"
 	flag "github.com/docker/docker/pkg/mflag"
@@ -56,7 +56,7 @@ func (cli *DockerCli) CmdCommit(args ...string) error {
 		}
 	}
 
-	options := lib.ContainerCommitOptions{
+	options := types.ContainerCommitOptions{
 		ContainerID:    name,
 		RepositoryName: repositoryName,
 		Tag:            tag,

@@ -8,15 +8,8 @@ import (
 	"github.com/docker/docker/pkg/parsers/filters"
 )
 
-// ImageListOptions holds parameters to filter the list of images with.
-type ImageListOptions struct {
-	MatchName string
-	All       bool
-	Filters   filters.Args
-}
-
 // ImageList returns a list of images in the docker host.
-func (cli *Client) ImageList(options ImageListOptions) ([]types.Image, error) {
+func (cli *Client) ImageList(options types.ImageListOptions) ([]types.Image, error) {
 	var (
 		images []types.Image
 		query  url.Values

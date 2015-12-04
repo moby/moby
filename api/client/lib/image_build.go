@@ -3,73 +3,36 @@ package lib
 import (
 	"encoding/base64"
 	"encoding/json"
-	"io"
 	"net/http"
 	"net/url"
 	"strconv"
 
-	"github.com/docker/docker/cliconfig"
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/httputils"
-	"github.com/docker/docker/pkg/ulimit"
 	"github.com/docker/docker/pkg/units"
 	"github.com/docker/docker/runconfig"
 )
 
-// ImageBuildOptions holds the information
-// necessary to build images.
-type ImageBuildOptions struct {
-	Tags           []string
-	SuppressOutput bool
-	RemoteContext  string
-	NoCache        bool
-	Remove         bool
-	ForceRemove    bool
-	PullParent     bool
-	Isolation      string
-	CPUSetCPUs     string
-	CPUSetMems     string
-	CPUShares      int64
-	CPUQuota       int64
-	CPUPeriod      int64
-	Memory         int64
-	MemorySwap     int64
-	CgroupParent   string
-	ShmSize        string
-	Dockerfile     string
-	Ulimits        []*ulimit.Ulimit
-	BuildArgs      []string
-	AuthConfigs    map[string]cliconfig.AuthConfig
-	Context        io.Reader
-}
-
-// ImageBuildResponse holds information
-// returned by a server after building
-// an image.
-type ImageBuildResponse struct {
-	Body   io.ReadCloser
-	OSType string
-}
-
 // ImageBuild sends request to the daemon to build images.
 // The Body in the response implement an io.ReadCloser and it's up to the caller to
 // close it.
-func (cli *Client) ImageBuild(options ImageBuildOptions) (ImageBuildResponse, error) {
+func (cli *Client) ImageBuild(options types.ImageBuildOptions) (types.ImageBuildResponse, error) {
 	query, err := imageBuildOptionsToQuery(options)
 	if err != nil {
-		return ImageBuildResponse{}, err
+		return types.ImageBuildResponse{}, err
 	}
 
 	headers := http.Header(make(map[string][]string))
 	buf, err := json.Marshal(options.AuthConfigs)
 	if err != nil {
-		return ImageBuildResponse{}, err
+		return types.ImageBuildResponse{}, err
 	}
 	headers.Add("X-Registry-Config", base64.URLEncoding.EncodeToString(buf))
 	headers.Set("Content-Type", "application/tar")
 
 	serverResp, err := cli.POSTRaw("/build", query, options.Context, headers)
 	if err != nil {
-		return ImageBuildResponse{}, err
+		return types.ImageBuildResponse{}, err
 	}
 
 	var osType string
@@ -77,13 +40,13 @@ func (cli *Client) ImageBuild(options ImageBuildOptions) (ImageBuildResponse, er
 		osType = h.OS
 	}
 
-	return ImageBuildResponse{
+	return types.ImageBuildResponse{
 		Body:   serverResp.body,
 		OSType: osType,
 	}, nil
 }
 
-func imageBuildOptionsToQuery(options ImageBuildOptions) (url.Values, error) {
+func imageBuildOptionsToQuery(options types.ImageBuildOptions) (url.Values, error) {
 	query := url.Values{
 		"t": options.Tags,
 	}

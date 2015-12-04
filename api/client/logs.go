@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/docker/docker/api/client/lib"
+	"github.com/docker/docker/api/types"
 	Cli "github.com/docker/docker/cli"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/stdcopy"
@@ -39,7 +39,7 @@ func (cli *DockerCli) CmdLogs(args ...string) error {
 		return fmt.Errorf("\"logs\" command is supported only for \"json-file\" and \"journald\" logging drivers (got: %s)", c.HostConfig.LogConfig.Type)
 	}
 
-	options := lib.ContainerLogsOptions{
+	options := types.ContainerLogsOptions{
 		ContainerID: name,
 		ShowStdout:  true,
 		ShowStderr:  true,

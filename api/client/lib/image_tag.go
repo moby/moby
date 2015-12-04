@@ -1,14 +1,10 @@
 package lib
 
-import "net/url"
+import (
+	"net/url"
 
-// ImageTagOptions hold parameters to tag an image
-type ImageTagOptions struct {
-	ImageID        string
-	RepositoryName string
-	Tag            string
-	Force          bool
-}
+	"github.com/docker/docker/api/types"
+)
 
 // ImageTag tags an image in the docker host
 func (cli *Client) ImageTag(options types.ImageTagOptions) error {
