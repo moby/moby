@@ -5,13 +5,13 @@ import (
 	"io"
 	"os"
 
-	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	Cli "github.com/docker/docker/cli"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/jsonmessage"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/urlutil"
+	"github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
 )
 

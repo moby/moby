@@ -10,13 +10,12 @@ import (
 	"time"
 
 	"github.com/docker/distribution/digest"
-	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/image/v1"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
-	"github.com/docker/docker/tag"
 )
 
 type imageDescriptor struct {
@@ -50,13 +49,13 @@ func (l *tarexporter) parseNames(names []string) (map[image.ID]*imageDescriptor,
 
 		if ref != nil {
 			var tagged reference.NamedTagged
-			if _, ok := ref.(reference.Digested); ok {
+			if _, ok := ref.(reference.Canonical); ok {
 				return
 			}
 			var ok bool
 			if tagged, ok = ref.(reference.NamedTagged); !ok {
 				var err error
-				if tagged, err = reference.WithTag(ref, tag.DefaultTag); err != nil {
+				if tagged, err = reference.WithTag(ref, reference.DefaultTag); err != nil {
 					return
 				}
 			}
@@ -84,9 +83,9 @@ func (l *tarexporter) parseNames(names []string) (map[image.ID]*imageDescriptor,
 			addAssoc(imgID, nil)
 			continue
 		}
-		if _, ok := ref.(reference.Digested); !ok {
+		if _, ok := ref.(reference.Canonical); !ok {
 			if _, ok := ref.(reference.NamedTagged); !ok {
-				assocs := l.ts.ReferencesByName(ref)
+				assocs := l.rs.ReferencesByName(ref)
 				for _, assoc := range assocs {
 					addAssoc(assoc.ImageID, assoc.Ref)
 				}
@@ -101,7 +100,7 @@ func (l *tarexporter) parseNames(names []string) (map[image.ID]*imageDescriptor,
 			}
 		}
 		var imgID image.ID
-		if imgID, err = l.ts.Get(ref); err != nil {
+		if imgID, err = l.rs.Get(ref); err != nil {
 			return nil, err
 		}
 		addAssoc(imgID, ref)

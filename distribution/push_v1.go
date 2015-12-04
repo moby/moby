@@ -6,7 +6,6 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/digest"
-	"github.com/docker/distribution/reference"
 	"github.com/docker/distribution/registry/client/transport"
 	"github.com/docker/docker/distribution/metadata"
 	"github.com/docker/docker/image"
@@ -15,6 +14,7 @@ import (
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
 	"golang.org/x/net/context"
 )
@@ -141,16 +141,15 @@ func (p *v1Pusher) getImageList() (imageList []v1Image, tagsByImage map[image.ID
 	tagsByImage = make(map[image.ID][]string)
 
 	// Ignore digest references
-	_, isDigested := p.ref.(reference.Digested)
-	if isDigested {
+	if _, isCanonical := p.ref.(reference.Canonical); isCanonical {
 		return
 	}
 
-	tagged, isTagged := p.ref.(reference.Tagged)
+	tagged, isTagged := p.ref.(reference.NamedTagged)
 	if isTagged {
 		// Push a specific tag
 		var imgID image.ID
-		imgID, err = p.config.TagStore.Get(p.ref)
+		imgID, err = p.config.ReferenceStore.Get(p.ref)
 		if err != nil {
 			return
 		}
@@ -168,9 +167,9 @@ func (p *v1Pusher) getImageList() (imageList []v1Image, tagsByImage map[image.ID
 	imagesSeen := make(map[image.ID]struct{})
 	dependenciesSeen := make(map[layer.ChainID]*v1DependencyImage)
 
-	associations := p.config.TagStore.ReferencesByName(p.ref)
+	associations := p.config.ReferenceStore.ReferencesByName(p.ref)
 	for _, association := range associations {
-		if tagged, isTagged = association.Ref.(reference.Tagged); !isTagged {
+		if tagged, isTagged = association.Ref.(reference.NamedTagged); !isTagged {
 			// Ignore digest references.
 			continue
 		}
