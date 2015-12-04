@@ -5,6 +5,7 @@ import (
 	"fmt"
 )
 
+// ErrConnectionFailed is a error raised when the connection between the client and the server failed.
 var ErrConnectionFailed = errors.New("Cannot connect to the Docker daemon. Is the docker daemon running on this host?")
 
 // imageNotFoundError implements an error returned when an image is not in the docker host.
@@ -17,7 +18,7 @@ func (i imageNotFoundError) Error() string {
 	return fmt.Sprintf("Image not found: %s", i.imageID)
 }
 
-// IsImageNotFound returns true if the error is caused
+// IsErrImageNotFound returns true if the error is caused
 // when an image is not found in the docker host.
 func IsErrImageNotFound(err error) bool {
 	_, ok := err.(imageNotFoundError)
@@ -34,7 +35,7 @@ func (u unauthorizedError) Error() string {
 	return u.cause.Error()
 }
 
-// IsUnauthorized returns true if the error is caused
+// IsErrUnauthorized returns true if the error is caused
 // when an the remote registry authentication fails
 func IsErrUnauthorized(err error) bool {
 	_, ok := err.(unauthorizedError)
