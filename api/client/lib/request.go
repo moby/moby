@@ -148,7 +148,11 @@ func encodeData(data interface{}) (*bytes.Buffer, error) {
 	return params, nil
 }
 
+<<<<<<< HEAD
 func ensureReaderClosed(response *ServerResponse) {
+=======
+func ensureReaderClosed(response *serverResponse) {
+>>>>>>> 9c13063... Implement docker network with standalone client lib.
 	if response != nil && response.body != nil {
 		response.body.Close()
 	}
