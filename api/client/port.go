@@ -1,7 +1,6 @@
 package client
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -20,20 +19,8 @@ func (cli *DockerCli) CmdPort(args ...string) error {
 
 	cmd.ParseFlags(args, true)
 
-	serverResp, err := cli.call("GET", "/containers/"+cmd.Arg(0)+"/json", nil, nil)
+	c, err := cli.client.ContainerInspect(cmd.Arg(0))
 	if err != nil {
-		return err
-	}
-
-	defer serverResp.body.Close()
-
-	var c struct {
-		NetworkSettings struct {
-			Ports nat.PortMap
-		}
-	}
-
-	if err := json.NewDecoder(serverResp.body).Decode(&c); err != nil {
 		return err
 	}
 
