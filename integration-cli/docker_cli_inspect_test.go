@@ -348,11 +348,11 @@ func (s *DockerSuite) TestInspectByPrefix(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	c.Assert(id, checker.HasPrefix, "sha256:")
 
-	id2, err := inspectField(id[:10], "Id")
+	id2, err := inspectField(id[:12], "Id")
 	c.Assert(err, checker.IsNil)
 	c.Assert(id, checker.Equals, id2)
 
-	id3, err := inspectField(strings.TrimPrefix(id, "sha256:")[:10], "Id")
+	id3, err := inspectField(strings.TrimPrefix(id, "sha256:")[:12], "Id")
 	c.Assert(err, checker.IsNil)
 	c.Assert(id, checker.Equals, id3)
 }
