@@ -70,7 +70,7 @@ func (s *DockerSuite) TestPostContainersAttachContainerNotFound(c *check.C) {
 	status, body, err := sockRequest("POST", "/containers/doesnotexist/attach", nil)
 	c.Assert(status, checker.Equals, http.StatusNotFound)
 	c.Assert(err, checker.IsNil)
-	expected := "no such id: doesnotexist\n"
+	expected := "No such container: doesnotexist\n"
 	c.Assert(string(body), checker.Contains, expected)
 }
 
@@ -78,7 +78,7 @@ func (s *DockerSuite) TestGetContainersWsAttachContainerNotFound(c *check.C) {
 	status, body, err := sockRequest("GET", "/containers/doesnotexist/attach/ws", nil)
 	c.Assert(status, checker.Equals, http.StatusNotFound)
 	c.Assert(err, checker.IsNil)
-	expected := "no such id: doesnotexist\n"
+	expected := "No such container: doesnotexist\n"
 	c.Assert(string(body), checker.Contains, expected)
 }
 
