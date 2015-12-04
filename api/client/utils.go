@@ -260,22 +260,6 @@ func (cli *DockerCli) resizeTty(id string, isExec bool) {
 	}
 }
 
-func waitForExit(cli *DockerCli, containerID string) (int, error) {
-	serverResp, err := cli.call("POST", "/containers/"+containerID+"/wait", nil, nil)
-	if err != nil {
-		return -1, err
-	}
-
-	defer serverResp.body.Close()
-
-	var res types.ContainerWaitResponse
-	if err := json.NewDecoder(serverResp.body).Decode(&res); err != nil {
-		return -1, err
-	}
-
-	return res.StatusCode, nil
-}
-
 // getExitCode perform an inspect on the container. It returns
 // the running state and the exit code.
 func getExitCode(cli *DockerCli, containerID string) (bool, int, error) {

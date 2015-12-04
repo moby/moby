@@ -272,7 +272,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		// No Autoremove: Simply retrieve the exit code
 		if !config.Tty {
 			// In non-TTY mode, we can't detach, so we must wait for container exit
-			if status, err = waitForExit(cli, createResponse.ID); err != nil {
+			if status, err = cli.client.ContainerWait(createResponse.ID); err != nil {
 				return err
 			}
 		} else {
