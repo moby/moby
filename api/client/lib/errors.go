@@ -1,6 +1,11 @@
 package lib
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+)
+
+var ErrConnectionFailed = errors.New("Cannot connect to the Docker daemon. Is the docker daemon running on this host?")
 
 // imageNotFoundError implements an error returned when an image is not in the docker host.
 type imageNotFoundError struct {
