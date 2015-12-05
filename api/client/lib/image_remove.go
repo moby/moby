@@ -9,7 +9,7 @@ import (
 
 // ImageRemove removes an image from the docker host.
 func (cli *Client) ImageRemove(options types.ImageRemoveOptions) ([]types.ImageDelete, error) {
-	var query url.Values
+	query := url.Values{}
 
 	if options.Force {
 		query.Set("force", "1")

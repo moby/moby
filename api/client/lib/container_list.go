@@ -11,7 +11,7 @@ import (
 
 // ContainerList returns the list of containers in the docker host.
 func (cli *Client) ContainerList(options types.ContainerListOptions) ([]types.Container, error) {
-	var query url.Values
+	query := url.Values{}
 
 	if options.All {
 		query.Set("all", "1")

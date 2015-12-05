@@ -15,7 +15,7 @@ import (
 
 // ContainerStatPath returns Stat information about a path inside the container filesystem.
 func (cli *Client) ContainerStatPath(containerID, path string) (types.ContainerPathStat, error) {
-	query := make(url.Values, 1)
+	query := url.Values{}
 	query.Set("path", filepath.ToSlash(path)) // Normalize the paths used in the API.
 
 	urlStr := fmt.Sprintf("/containers/%s/archive", containerID)
@@ -29,7 +29,7 @@ func (cli *Client) ContainerStatPath(containerID, path string) (types.ContainerP
 
 // CopyToContainer copies content into the container filesystem.
 func (cli *Client) CopyToContainer(options types.CopyToContainerOptions) error {
-	var query url.Values
+	query := url.Values{}
 	query.Set("path", filepath.ToSlash(options.Path)) // Normalize the paths used in the API.
 	// Do not allow for an existing directory to be overwritten by a non-directory and vice versa.
 	if !options.AllowOverwriteDirWithFile {
