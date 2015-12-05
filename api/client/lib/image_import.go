@@ -10,7 +10,7 @@ import (
 // ImageImport creates a new image based in the source options.
 // It returns the JSON content in the response body.
 func (cli *Client) ImageImport(options types.ImageImportOptions) (io.ReadCloser, error) {
-	var query url.Values
+	query := url.Values{}
 	query.Set("fromSrc", options.SourceName)
 	query.Set("repo", options.RepositoryName)
 	query.Set("tag", options.Tag)

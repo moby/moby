@@ -12,10 +12,8 @@ import (
 // ContainerCreate creates a new container based in the given configuration.
 // It can be associated with a name, but it's not mandatory.
 func (cli *Client) ContainerCreate(config *runconfig.ContainerConfigWrapper, containerName string) (types.ContainerCreateResponse, error) {
-	var (
-		query    url.Values
-		response types.ContainerCreateResponse
-	)
+	var response types.ContainerCreateResponse
+	query := url.Values{}
 	if containerName != "" {
 		query.Set("name", containerName)
 	}
