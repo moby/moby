@@ -11,7 +11,7 @@ import (
 // VolumeList returns the volumes configured in the docker host.
 func (cli *Client) VolumeList(filter filters.Args) (types.VolumesListResponse, error) {
 	var volumes types.VolumesListResponse
-	var query url.Values
+	query := url.Values{}
 
 	if filter.Len() > 0 {
 		filterJSON, err := filters.ToParam(filter)

@@ -10,11 +10,8 @@ import (
 
 // ImageList returns a list of images in the docker host.
 func (cli *Client) ImageList(options types.ImageListOptions) ([]types.Image, error) {
-	var (
-		images []types.Image
-		query  url.Values
-	)
-
+	var images []types.Image
+	query := url.Values{}
 	if options.Filters.Len() > 0 {
 		filterJSON, err := filters.ToParam(options.Filters)
 		if err != nil {

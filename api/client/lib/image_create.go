@@ -10,7 +10,7 @@ import (
 // ImageCreate creates a new image based in the parent options.
 // It returns the JSON content in the response body.
 func (cli *Client) ImageCreate(options types.ImageCreateOptions) (io.ReadCloser, error) {
-	var query url.Values
+	query := url.Values{}
 	query.Set("fromImage", options.Parent)
 	query.Set("tag", options.Tag)
 

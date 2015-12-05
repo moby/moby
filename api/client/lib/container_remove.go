@@ -8,7 +8,7 @@ import (
 
 // ContainerRemove kills and removes a container from the docker host.
 func (cli *Client) ContainerRemove(options types.ContainerRemoveOptions) error {
-	var query url.Values
+	query := url.Values{}
 	if options.RemoveVolumes {
 		query.Set("v", "1")
 	}

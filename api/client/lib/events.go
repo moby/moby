@@ -13,7 +13,7 @@ import (
 // Events returns a stream of events in the daemon in a ReadCloser.
 // It's up to the caller to close the stream.
 func (cli *Client) Events(options types.EventsOptions) (io.ReadCloser, error) {
-	var query url.Values
+	query := url.Values{}
 	ref := time.Now()
 
 	if options.Since != "" {
