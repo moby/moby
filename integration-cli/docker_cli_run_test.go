@@ -3812,3 +3812,59 @@ func (s *DockerSuite) TestRunWithOomScoreAdjInvalidRange(c *check.C) {
 		c.Fatalf("Expected output to contain %q, got %q instead", expected, out)
 	}
 }
+
+// TestRunSeccompProfileDenyUnshare checks that 'docker run --security-opt seccomp:/tmp/profile.json jess/unshare unshare' exits with operation not permitted.
+func (s *DockerSuite) TestRunSeccompProfileDenyUnshare(c *check.C) {
+	testRequires(c, SameHostDaemon)
+	jsonData := `{
+	"defaultAction": "SCMP_ACT_ALLOW",
+	"syscalls": [
+		{
+			"name": "unshare",
+			"action": "SCMP_ACT_ERRNO"
+		}
+	]
+}`
+	tmpFile, err := ioutil.TempFile("", "profile.json")
+	defer tmpFile.Close()
+	if err != nil {
+		c.Fatal(err)
+	}
+
+	if _, err := tmpFile.Write([]byte(jsonData)); err != nil {
+		c.Fatal(err)
+	}
+	runCmd := exec.Command(dockerBinary, "run", "--security-opt", "seccomp:"+tmpFile.Name(), "jess/unshare", "unshare", "-p", "-m", "-f", "-r", "mount", "-t", "proc", "none", "/proc")
+	out, _, _ := runCommandWithOutput(runCmd)
+	if !strings.Contains(out, "Operation not permitted") {
+		c.Fatalf("expected unshare with seccomp profile denied to fail, got %s", out)
+	}
+}
+
+// TestRunSeccompProfileDenyChmod checks that 'docker run --security-opt seccomp:/tmp/profile.json busybox chmod 400 /etc/hostname' exits with operation not permitted.
+func (s *DockerSuite) TestRunSeccompProfileDenyChmod(c *check.C) {
+	testRequires(c, SameHostDaemon)
+	jsonData := `{
+	"defaultAction": "SCMP_ACT_ALLOW",
+	"syscalls": [
+		{
+			"name": "chmod",
+			"action": "SCMP_ACT_ERRNO"
+		}
+	]
+}`
+	tmpFile, err := ioutil.TempFile("", "profile.json")
+	defer tmpFile.Close()
+	if err != nil {
+		c.Fatal(err)
+	}
+
+	if _, err := tmpFile.Write([]byte(jsonData)); err != nil {
+		c.Fatal(err)
+	}
+	runCmd := exec.Command(dockerBinary, "run", "--security-opt", "seccomp:"+tmpFile.Name(), "busybox", "chmod", "400", "/etc/hostname")
+	out, _, _ := runCommandWithOutput(runCmd)
+	if !strings.Contains(out, "Operation not permitted") {
+		c.Fatalf("expected chmod with seccomp profile denied to fail, got %s", out)
+	}
+}

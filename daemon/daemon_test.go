@@ -152,6 +152,16 @@ func TestParseSecurityOpt(t *testing.T) {
 		t.Fatalf("Unexpected AppArmorProfile, expected: \"test_profile\", got %q", container.AppArmorProfile)
 	}
 
+	// test seccomp
+	sp := "/path/to/seccomp_test.json"
+	config.SecurityOpt = []string{"seccomp:" + sp}
+	if err := parseSecurityOpt(container, config); err != nil {
+		t.Fatalf("Unexpected parseSecurityOpt error: %v", err)
+	}
+	if container.SeccompProfile != sp {
+		t.Fatalf("Unexpected AppArmorProfile, expected: %q, got %q", sp, container.SeccompProfile)
+	}
+
 	// test valid label
 	config.SecurityOpt = []string{"label:user:USER"}
 	if err := parseSecurityOpt(container, config); err != nil {

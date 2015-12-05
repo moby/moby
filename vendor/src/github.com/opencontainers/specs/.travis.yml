@@ -1,0 +1,19 @@
+language: go
+go:
+  - 1.5.1
+  - 1.4.3
+  - 1.3.3
+
+sudo: false
+
+before_install:
+  - go get golang.org/x/tools/cmd/vet
+  - go get github.com/golang/lint/golint
+  - go get github.com/vbatts/git-validation
+
+install: true
+
+script:
+  - go vet -x ./...
+  - $HOME/gopath/bin/golint ./...
+  - $HOME/gopath/bin/git-validation -run DCO,short-subject -v -range ${TRAVIS_COMMIT_RANGE}
