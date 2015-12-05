@@ -143,7 +143,7 @@ func (s *DockerTrustSuite) TestTrustedPushWithDeprecatedEnvPasswords(c *check.C)
 	c.Assert(out, checker.Contains, "Signing and pushing trust metadata", check.Commentf("Missing expected output on trusted push"))
 }
 
-func (s *DockerTrustSuite) TestTrustedPushWithFaillingServer(c *check.C) {
+func (s *DockerTrustSuite) TestTrustedPushWithFailingServer(c *check.C) {
 	repoName := fmt.Sprintf("%v/dockercli/trusted:latest", privateRegistryURL)
 	// tag the image and upload it to the private registry
 	dockerCmd(c, "tag", "busybox", repoName)
