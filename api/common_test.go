@@ -251,7 +251,8 @@ func TestDisplayablePorts(t *testing.T) {
 	for _, port := range cases {
 		actual := DisplayablePorts(port.ports)
 		if port.expected != actual {
-			t.Fatalf("Expected %s, got %s.", port.expected, actual)
+			t.Errorf("Expected %s, got %s.", port.expected, actual)
+			continue
 		}
 	}
 }

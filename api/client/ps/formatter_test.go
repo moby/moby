@@ -149,15 +149,13 @@ size: 0 B
 		Format(context.context, containers)
 		actual := out.String()
 		if actual != context.expected {
-			t.Fatalf("Expected \n%s, got \n%s", context.expected, actual)
+			t.Errorf("Expected \n%s, got \n%s", context.expected, actual)
+			continue
 		}
-		// Clean buffer
-		out.Reset()
 	}
 }
 
 func TestCustomFormatNoContainers(t *testing.T) {
-	out := bytes.NewBufferString("")
 	containers := []types.Container{}
 
 	contexts := []struct {
@@ -167,21 +165,18 @@ func TestCustomFormatNoContainers(t *testing.T) {
 		{
 			Context{
 				Format: "{{.Image}}",
-				Output: out,
 			},
 			"",
 		},
 		{
 			Context{
 				Format: "table {{.Image}}",
-				Output: out,
 			},
 			"IMAGE\n",
 		},
 		{
 			Context{
 				Format: "{{.Image}}",
-				Output: out,
 				Size:   true,
 			},
 			"",
@@ -189,7 +184,6 @@ func TestCustomFormatNoContainers(t *testing.T) {
 		{
 			Context{
 				Format: "table {{.Image}}",
-				Output: out,
 				Size:   true,
 			},
 			"IMAGE               SIZE\n",
@@ -197,12 +191,13 @@ func TestCustomFormatNoContainers(t *testing.T) {
 	}
 
 	for _, context := range contexts {
+		out := bytes.NewBufferString("")
+		context.context.Output = out
 		customFormat(context.context, containers)
 		actual := out.String()
 		if actual != context.expected {
-			t.Fatalf("Expected \n%s, got \n%s", context.expected, actual)
+			t.Errorf("Expected \n%s, got \n%s", context.expected, actual)
+			continue
 		}
-		// Clean buffer
-		out.Reset()
 	}
 }

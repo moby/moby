@@ -31,13 +31,15 @@ func TestSelectAcceptableMIME(t *testing.T) {
 
 	for _, m := range invalidMimeStrings {
 		if len(selectAcceptableMIME(m)) > 0 {
-			t.Fatalf("Should not have accepted %q", m)
+			t.Errorf("Should not have accepted %q", m)
+			continue
 		}
 	}
 
 	for _, m := range validMimeStrings {
 		if str := selectAcceptableMIME(m); str == "" {
-			t.Fatalf("Should have accepted %q", m)
+			t.Errorf("Should have accepted %q", m)
+			continue
 		}
 	}
 }
@@ -80,7 +82,8 @@ func TestInspectResponseBinary(t *testing.T) {
 	}
 	for i := range body {
 		if body[i] != binaryContext[i] {
-			t.Fatalf("Corrupted response body at byte index %d", i)
+			t.Errorf("Corrupted response body at byte index %d", i)
+			continue
 		}
 	}
 }
