@@ -304,8 +304,7 @@ func (m *containerMonitor) shouldRestart(exitCode int) bool {
 // received ack from the execution drivers
 func (m *containerMonitor) callback(processConfig *execdriver.ProcessConfig, pid int, chOOM <-chan struct{}) error {
 	go func() {
-		_, ok := <-chOOM
-		if ok {
+		for range chOOM {
 			m.logEvent("oom")
 		}
 	}()
