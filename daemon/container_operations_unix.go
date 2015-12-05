@@ -616,7 +616,7 @@ func (daemon *Daemon) connectToNetwork(container *container.Container, idOrName 
 
 	ep, err := container.GetEndpointInNetwork(n)
 	if err == nil {
-		return fmt.Errorf("container already connected to network %s", idOrName)
+		return fmt.Errorf("Conflict. A container with name %q is already connected to network %s.", strings.TrimPrefix(container.Name, "/"), idOrName)
 	}
 
 	if _, ok := err.(libnetwork.ErrNoSuchEndpoint); !ok {
