@@ -137,6 +137,12 @@ will add the libraries here.
     </tr>
     <tr>
       <td>JavaScript (Angular) <strong>WebUI</strong></td>
+      <td>Albatros</td>
+      <td><a class="reference external" href="https://github.com/dcylabs/albatros">https://github.com/dcylabs/albatros</a></td>
+      <td>Active</td>
+    </tr>    
+    <tr>
+      <td>JavaScript (Angular) <strong>WebUI</strong></td>
       <td>docker-cp</td>
       <td><a class="reference external" href="https://github.com/13W/docker-cp">https://github.com/13W/docker-cp</a></td>
       <td>Active</td>
