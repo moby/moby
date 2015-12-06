@@ -352,6 +352,44 @@ func (s *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 	return httputils.WriteJSON(w, http.StatusCreated, ccr)
 }
 
+func (s *containerRouter) deleteAllContainers(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	var failed map[string]string
+
+	if err := httputils.ParseForm(r); err != nil {
+		return err
+	}
+
+	config := &daemon.ContainersConfig{
+		All:     true,
+		Size:    false,
+		Since:   "",
+		Before:  "",
+		Filters: "",
+	}
+
+	rmConfig := &daemon.ContainerRmConfig{
+		ForceRemove:  httputils.BoolValue(r, "force"),
+		RemoveVolume: httputils.BoolValue(r, "v"),
+		RemoveLink:   httputils.BoolValue(r, "link"),
+	}
+
+	containers, err := s.backend.Containers(config)
+	if err != nil {
+		return err
+	}
+
+	for _, container := range containers {
+		if err := s.backend.ContainerRm(container.ID, rmConfig); err != nil {
+			failed[container.ID] = err.Error()
+		}
+	}
+
+	return httputils.WriteJSON(w, http.StatusOK, &types.ContainerDeleteAll{
+		FailedCount:      len(failed),
+		FailedContainers: failed,
+	})
+}
+
 func (s *containerRouter) deleteContainers(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
@@ -366,7 +404,7 @@ func (s *containerRouter) deleteContainers(ctx context.Context, w http.ResponseW
 
 	if err := s.backend.ContainerRm(name, config); err != nil {
 		// Force a 404 for the empty string
-		if strings.Contains(strings.ToLower(err.Error()), "prefix can't be empty") {
+		if strings.Contains(strings.ToLower(err.Error()), "prefix can't be empty. To delete all containers, use /containers/_all endpoint.") {
 			return fmt.Errorf("no such id: \"\"")
 		}
 		return err
