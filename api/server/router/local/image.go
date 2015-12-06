@@ -278,7 +278,7 @@ func (s *router) deleteImages(ctx context.Context, w http.ResponseWriter, r *htt
 	name := vars["name"]
 
 	if strings.TrimSpace(name) == "" {
-		return fmt.Errorf("image name cannot be blank")
+		return fmt.Errorf("Image name cannot be blank. To delete all images, use /images/_all endpoint.")
 	}
 
 	force := httputils.BoolValue(r, "force")
@@ -290,6 +290,34 @@ func (s *router) deleteImages(ctx context.Context, w http.ResponseWriter, r *htt
 	}
 
 	return httputils.WriteJSON(w, http.StatusOK, list)
+}
+
+func (s *router) deleteAllImages(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	var failed = map[string]string{}
+
+	if err := httputils.ParseForm(r); err != nil {
+		return err
+	}
+
+	images, err := s.daemon.Images("", "", false)
+
+	if err != nil {
+		return err
+	}
+
+	force := httputils.BoolValue(r, "force")
+	prune := !httputils.BoolValue(r, "noprune")
+
+	for _, image := range images {
+		if _, err := s.daemon.ImageDelete(image.ID, force, prune); err != nil {
+			failed[image.ID] = err.Error()
+		}
+	}
+
+	return httputils.WriteJSON(w, http.StatusOK, &types.ImageDeleteAll{
+		Failed:       len(failed),
+		FailedImages: failed,
+	})
 }
 
 func (s *router) getImagesByName(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {

@@ -94,6 +94,32 @@ func (s *DockerSuite) TestApiImagesDelete(c *check.C) {
 	c.Assert(status, checker.Equals, http.StatusOK)
 }
 
+func (s *DockerSuite) TestApiImagesDeleteAll(c *check.C) {
+	c.Skip("Deletes images needed by other tests.")
+	testRequires(c, Network)
+	testRequires(c, DaemonIsLinux)
+	dockerCmd(c, "tag", "emptyfs", "tag1")
+	dockerCmd(c, "tag", "busybox", "tag2")
+	dockerCmd(c, "tag", "jess/unshare", "tag3")
+
+	for _, name := range []string{"image1", "image2"} {
+		_, err := buildImage(name, "FROM busybox\nENV FOO bar", false)
+		if err != nil {
+			c.Fatal(err)
+		}
+	}
+
+	status, body, err := sockRequest("DELETE", "/images/_all", nil)
+	c.Assert(err, check.IsNil)
+	c.Assert(status, check.Equals, http.StatusOK)
+	var deleteResults map[string]interface{}
+	if err = json.Unmarshal(body, &deleteResults); err != nil {
+		c.Fatalf("Error on unmarshal: %s", err)
+	}
+	c.Assert(deleteResults, check.Equals, "hello")
+	c.Assert(deleteResults["Failed"], check.Equals, float64(4))
+}
+
 func (s *DockerSuite) TestApiImagesHistory(c *check.C) {
 	testRequires(c, Network)
 	testRequires(c, DaemonIsLinux)

@@ -73,6 +73,13 @@ type ImageDelete struct {
 	Deleted  string `json:",omitempty"`
 }
 
+// ImageDeleteAll contains response of RemoteAPI:
+// DELETE "/images/_all"
+type ImageDeleteAll struct {
+	Failed       int
+	FailedImages map[string]string
+}
+
 // Image contains response of Remote API:
 // GET "/images/json"
 type Image struct {
