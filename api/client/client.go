@@ -23,6 +23,7 @@ type apiClient interface {
 	ContainerExecAttach(execID string, config runconfig.ExecConfig) (types.HijackedResponse, error)
 	ContainerExecCreate(config runconfig.ExecConfig) (types.ContainerExecCreateResponse, error)
 	ContainerExecInspect(execID string) (types.ContainerExecInspect, error)
+	ContainerExecResize(options types.ResizeOptions) error
 	ContainerExecStart(execID string, config types.ExecStartCheck) error
 	ContainerExport(containerID string) (io.ReadCloser, error)
 	ContainerInspect(containerID string) (types.ContainerJSON, error)
@@ -33,6 +34,7 @@ type apiClient interface {
 	ContainerPause(containerID string) error
 	ContainerRemove(options types.ContainerRemoveOptions) error
 	ContainerRename(containerID, newContainerName string) error
+	ContainerResize(options types.ResizeOptions) error
 	ContainerRestart(containerID string, timeout int) error
 	ContainerStatPath(containerID, path string) (types.ContainerPathStat, error)
 	ContainerStats(containerID string, stream bool) (io.ReadCloser, error)
