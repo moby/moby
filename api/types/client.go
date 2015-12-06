@@ -179,6 +179,14 @@ type ImageListOptions struct {
 	Filters   filters.Args
 }
 
+// ImagePullOptions holds information to pull images.
+type ImagePullOptions struct {
+	ImageID string
+	Tag     string
+	// RegistryAuth is the base64 encoded credentials for this server
+	RegistryAuth string
+}
+
 // ImageRemoveOptions holds parameters to remove images.
 type ImageRemoveOptions struct {
 	ImageID       string

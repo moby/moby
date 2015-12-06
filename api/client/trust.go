@@ -22,6 +22,7 @@ import (
 	"github.com/docker/distribution/reference"
 	"github.com/docker/distribution/registry/client/auth"
 	"github.com/docker/distribution/registry/client/transport"
+	"github.com/docker/docker/api/client/lib"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/pkg/ansiescape"
@@ -278,11 +279,8 @@ func notaryError(err error) error {
 	return err
 }
 
-func (cli *DockerCli) trustedPull(repoInfo *registry.RepositoryInfo, ref registry.Reference, authConfig cliconfig.AuthConfig) error {
-	var (
-		v    = url.Values{}
-		refs = []target{}
-	)
+func (cli *DockerCli) trustedPull(repoInfo *registry.RepositoryInfo, ref registry.Reference, authConfig cliconfig.AuthConfig, requestPrivilege lib.RequestPrivilegeFunc) error {
+	var refs []target
 
 	notaryRepo, err := cli.getNotaryRepository(repoInfo, authConfig)
 	if err != nil {
@@ -317,17 +315,14 @@ func (cli *DockerCli) trustedPull(repoInfo *registry.RepositoryInfo, ref registr
 		refs = append(refs, r)
 	}
 
-	v.Set("fromImage", repoInfo.LocalName.Name())
 	for i, r := range refs {
 		displayTag := r.reference.String()
 		if displayTag != "" {
 			displayTag = ":" + displayTag
 		}
 		fmt.Fprintf(cli.out, "Pull (%d of %d): %s%s@%s\n", i+1, len(refs), repoInfo.LocalName, displayTag, r.digest)
-		v.Set("tag", r.digest.String())
 
-		_, _, err = cli.clientRequestAttemptLogin("POST", "/images/create?"+v.Encode(), nil, cli.out, repoInfo.Index, "pull")
-		if err != nil {
+		if err := cli.imagePullPrivileged(authConfig, repoInfo.LocalName.Name(), r.digest.String(), requestPrivilege); err != nil {
 			return err
 		}
 
