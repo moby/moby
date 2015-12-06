@@ -8,7 +8,7 @@ import (
 
 // ContainerInspect returns the all the container information.
 func (cli *Client) ContainerInspect(containerID string) (types.ContainerJSON, error) {
-	serverResp, err := cli.GET("/containers/"+containerID+"/json", nil, nil)
+	serverResp, err := cli.get("/containers/"+containerID+"/json", nil, nil)
 	if err != nil {
 		return types.ContainerJSON{}, err
 	}

@@ -9,7 +9,7 @@ import (
 // NetworkCreate creates a new network in the docker host.
 func (cli *Client) NetworkCreate(options types.NetworkCreate) (types.NetworkCreateResponse, error) {
 	var response types.NetworkCreateResponse
-	serverResp, err := cli.POST("/networks/create", nil, options, nil)
+	serverResp, err := cli.post("/networks/create", nil, options, nil)
 	if err != nil {
 		return response, err
 	}
@@ -21,7 +21,7 @@ func (cli *Client) NetworkCreate(options types.NetworkCreate) (types.NetworkCrea
 
 // NetworkRemove removes an existent network from the docker host.
 func (cli *Client) NetworkRemove(networkID string) error {
-	resp, err := cli.DELETE("/networks/"+networkID, nil, nil)
+	resp, err := cli.delete("/networks/"+networkID, nil, nil)
 	ensureReaderClosed(resp)
 	return err
 }
@@ -29,7 +29,7 @@ func (cli *Client) NetworkRemove(networkID string) error {
 // NetworkConnect connects a container to an existent network in the docker host.
 func (cli *Client) NetworkConnect(networkID, containerID string) error {
 	nc := types.NetworkConnect{containerID}
-	resp, err := cli.POST("/networks/"+networkID+"/connect", nil, nc, nil)
+	resp, err := cli.post("/networks/"+networkID+"/connect", nil, nc, nil)
 	ensureReaderClosed(resp)
 	return err
 }
@@ -37,7 +37,7 @@ func (cli *Client) NetworkConnect(networkID, containerID string) error {
 // NetworkDisconnect disconnects a container from an existent network in the docker host.
 func (cli *Client) NetworkDisconnect(networkID, containerID string) error {
 	nc := types.NetworkConnect{containerID}
-	resp, err := cli.POST("/networks/"+networkID+"/disconnect", nil, nc, nil)
+	resp, err := cli.post("/networks/"+networkID+"/disconnect", nil, nc, nil)
 	ensureReaderClosed(resp)
 	return err
 }
@@ -45,7 +45,7 @@ func (cli *Client) NetworkDisconnect(networkID, containerID string) error {
 // NetworkList returns the list of networks configured in the docker host.
 func (cli *Client) NetworkList() ([]types.NetworkResource, error) {
 	var networkResources []types.NetworkResource
-	resp, err := cli.GET("/networks", nil, nil)
+	resp, err := cli.get("/networks", nil, nil)
 	if err != nil {
 		return networkResources, err
 	}
@@ -57,7 +57,7 @@ func (cli *Client) NetworkList() ([]types.NetworkResource, error) {
 // NetworkInspect returns the information for a specific network configured in the docker host.
 func (cli *Client) NetworkInspect(networkID string) (types.NetworkResource, error) {
 	var networkResource types.NetworkResource
-	resp, err := cli.GET("/networks/"+networkID, nil, nil)
+	resp, err := cli.get("/networks/"+networkID, nil, nil)
 	if err != nil {
 		return networkResource, err
 	}

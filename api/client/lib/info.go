@@ -11,7 +11,7 @@ import (
 // Info returns information about the docker server.
 func (cli *Client) Info() (types.Info, error) {
 	var info types.Info
-	serverResp, err := cli.GET("/info", url.Values{}, nil)
+	serverResp, err := cli.get("/info", url.Values{}, nil)
 	if err != nil {
 		return info, err
 	}

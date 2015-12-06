@@ -12,7 +12,7 @@ import (
 // RegistryLogin authenticates the docker server with a given docker registry.
 // It returns UnauthorizerError when the authentication fails.
 func (cli *Client) RegistryLogin(auth cliconfig.AuthConfig) (types.AuthResponse, error) {
-	resp, err := cli.POST("/auth", url.Values{}, auth, nil)
+	resp, err := cli.post("/auth", url.Values{}, auth, nil)
 
 	if resp != nil && resp.statusCode == http.StatusUnauthorized {
 		return types.AuthResponse{}, unauthorizedError{err}

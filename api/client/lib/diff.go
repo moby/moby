@@ -11,7 +11,7 @@ import (
 func (cli *Client) ContainerDiff(containerID string) ([]types.ContainerChange, error) {
 	var changes []types.ContainerChange
 
-	serverResp, err := cli.GET("/containers/"+containerID+"/changes", url.Values{}, nil)
+	serverResp, err := cli.get("/containers/"+containerID+"/changes", url.Values{}, nil)
 	if err != nil {
 		return changes, err
 	}

@@ -15,7 +15,7 @@ func (cli *Client) ImageCreate(options types.ImageCreateOptions) (io.ReadCloser,
 	query.Set("tag", options.Tag)
 
 	headers := map[string][]string{"X-Registry-Auth": {options.RegistryAuth}}
-	resp, err := cli.POST("/images/create", query, nil, headers)
+	resp, err := cli.post("/images/create", query, nil, headers)
 	if err != nil {
 		return nil, err
 	}

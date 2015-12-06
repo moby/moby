@@ -23,7 +23,7 @@ func (cli *Client) SystemVersion() (types.VersionResponse, error) {
 		Experimental: utils.ExperimentalBuild(),
 	}
 
-	resp, err := cli.GET("/version", nil, nil)
+	resp, err := cli.get("/version", nil, nil)
 	if err != nil {
 		return types.VersionResponse{Client: client}, err
 	}

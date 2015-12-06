@@ -38,7 +38,7 @@ func (cli *Client) ContainerLogs(options types.ContainerLogsOptions) (io.ReadClo
 	}
 	query.Set("tail", options.Tail)
 
-	resp, err := cli.GET("/containers/"+options.ContainerID+"/logs", query, nil)
+	resp, err := cli.get("/containers/"+options.ContainerID+"/logs", query, nil)
 	if err != nil {
 		return nil, err
 	}

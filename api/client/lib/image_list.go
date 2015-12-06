@@ -12,6 +12,7 @@ import (
 func (cli *Client) ImageList(options types.ImageListOptions) ([]types.Image, error) {
 	var images []types.Image
 	query := url.Values{}
+
 	if options.Filters.Len() > 0 {
 		filterJSON, err := filters.ToParam(options.Filters)
 		if err != nil {
@@ -27,7 +28,7 @@ func (cli *Client) ImageList(options types.ImageListOptions) ([]types.Image, err
 		query.Set("all", "1")
 	}
 
-	serverResp, err := cli.GET("/images/json?", query, nil)
+	serverResp, err := cli.get("/images/json", query, nil)
 	if err != nil {
 		return images, err
 	}

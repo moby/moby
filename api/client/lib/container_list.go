@@ -42,7 +42,7 @@ func (cli *Client) ContainerList(options types.ContainerListOptions) ([]types.Co
 		query.Set("filters", filterJSON)
 	}
 
-	resp, err := cli.GET("/containers/json", query, nil)
+	resp, err := cli.get("/containers/json", query, nil)
 	if err != nil {
 		return nil, err
 	}

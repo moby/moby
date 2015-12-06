@@ -20,7 +20,7 @@ func (cli *Client) ContainerRemove(options types.ContainerRemoveOptions) error {
 		query.Set("force", "1")
 	}
 
-	resp, err := cli.DELETE("/containers/"+options.ContainerID, query, nil)
+	resp, err := cli.delete("/containers/"+options.ContainerID, query, nil)
 	ensureReaderClosed(resp)
 	return err
 }
