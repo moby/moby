@@ -19,7 +19,7 @@ func (cli *Client) ImageImport(options types.ImageImportOptions) (io.ReadCloser,
 		query.Add("changes", change)
 	}
 
-	resp, err := cli.POSTRaw("/images/create", query, options.Source, nil)
+	resp, err := cli.postRaw("/images/create", query, options.Source, nil)
 	if err != nil {
 		return nil, err
 	}

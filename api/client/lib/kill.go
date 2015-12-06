@@ -7,7 +7,7 @@ func (cli *Client) ContainerKill(containerID, signal string) error {
 	query := url.Values{}
 	query.Set("signal", signal)
 
-	resp, err := cli.POST("/containers/"+containerID+"/kill", query, nil, nil)
+	resp, err := cli.post("/containers/"+containerID+"/kill", query, nil, nil)
 	ensureReaderClosed(resp)
 	return err
 }

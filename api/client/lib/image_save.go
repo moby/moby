@@ -12,7 +12,7 @@ func (cli *Client) ImageSave(imageIDs []string) (io.ReadCloser, error) {
 		"names": imageIDs,
 	}
 
-	resp, err := cli.GET("/images/get", query, nil)
+	resp, err := cli.get("/images/get", query, nil)
 	if err != nil {
 		return nil, err
 	}

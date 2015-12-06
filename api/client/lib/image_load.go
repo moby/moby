@@ -9,7 +9,7 @@ import (
 // It's up to the caller to close the io.ReadCloser returned by
 // this function.
 func (cli *Client) ImageLoad(input io.Reader) (io.ReadCloser, error) {
-	resp, err := cli.POSTRaw("/images/load", url.Values{}, input, nil)
+	resp, err := cli.postRaw("/images/load", url.Values{}, input, nil)
 	if err != nil {
 		return nil, err
 	}

@@ -38,7 +38,7 @@ func (cli *Client) Events(options types.EventsOptions) (io.ReadCloser, error) {
 		query.Set("filters", filterJSON)
 	}
 
-	serverResponse, err := cli.GET("/events", query, nil)
+	serverResponse, err := cli.get("/events", query, nil)
 	if err != nil {
 		return nil, err
 	}

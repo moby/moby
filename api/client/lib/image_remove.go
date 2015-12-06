@@ -18,7 +18,7 @@ func (cli *Client) ImageRemove(options types.ImageRemoveOptions) ([]types.ImageD
 		query.Set("noprune", "1")
 	}
 
-	resp, err := cli.DELETE("/images/"+options.ImageID, query, nil)
+	resp, err := cli.delete("/images/"+options.ImageID, query, nil)
 	if err != nil {
 		return nil, err
 	}

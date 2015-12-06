@@ -15,7 +15,7 @@ func (cli *Client) ImageTag(options types.ImageTagOptions) error {
 		query.Set("force", "1")
 	}
 
-	resp, err := cli.POST("/images/"+options.ImageID+"/tag", query, nil, nil)
+	resp, err := cli.post("/images/"+options.ImageID+"/tag", query, nil, nil)
 	ensureReaderClosed(resp)
 	return err
 }

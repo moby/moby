@@ -20,7 +20,7 @@ func (cli *Client) VolumeList(filter filters.Args) (types.VolumesListResponse, e
 		}
 		query.Set("filters", filterJSON)
 	}
-	resp, err := cli.GET("/volumes", query, nil)
+	resp, err := cli.get("/volumes", query, nil)
 	if err != nil {
 		return volumes, err
 	}
@@ -33,7 +33,7 @@ func (cli *Client) VolumeList(filter filters.Args) (types.VolumesListResponse, e
 // VolumeInspect returns the information about a specific volume in the docker host.
 func (cli *Client) VolumeInspect(volumeID string) (types.Volume, error) {
 	var volume types.Volume
-	resp, err := cli.GET("/volumes"+volumeID, nil, nil)
+	resp, err := cli.get("/volumes/"+volumeID, nil, nil)
 	if err != nil {
 		return volume, err
 	}
@@ -45,7 +45,7 @@ func (cli *Client) VolumeInspect(volumeID string) (types.Volume, error) {
 // VolumeCreate creates a volume in the docker host.
 func (cli *Client) VolumeCreate(options types.VolumeCreateRequest) (types.Volume, error) {
 	var volume types.Volume
-	resp, err := cli.POST("/volumes/create", nil, options, nil)
+	resp, err := cli.post("/volumes/create", nil, options, nil)
 	if err != nil {
 		return volume, err
 	}
@@ -56,7 +56,7 @@ func (cli *Client) VolumeCreate(options types.VolumeCreateRequest) (types.Volume
 
 // VolumeRemove removes a volume from the docker host.
 func (cli *Client) VolumeRemove(volumeID string) error {
-	resp, err := cli.DELETE("/volumes"+volumeID, nil, nil)
+	resp, err := cli.delete("/volumes/"+volumeID, nil, nil)
 	ensureReaderClosed(resp)
 	return err
 }
