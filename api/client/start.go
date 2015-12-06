@@ -95,13 +95,6 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 			return cli.holdHijackedConnection(c.Config.Tty, in, cli.out, cli.err, resp)
 		})
 
-		select {
-		case err := <-cErr:
-			if err != nil {
-				return err
-			}
-		}
-
 		// 3. Start the container.
 		if err := cli.client.ContainerStart(containerID); err != nil {
 			return err
