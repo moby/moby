@@ -3,10 +3,13 @@ package client
 import (
 	"errors"
 	"fmt"
-	"net/url"
 
 	"github.com/docker/distribution/reference"
+	"github.com/docker/docker/api/client/lib"
+	"github.com/docker/docker/api/types"
 	Cli "github.com/docker/docker/cli"
+	"github.com/docker/docker/cliconfig"
+	"github.com/docker/docker/pkg/jsonmessage"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/registry"
 	tagpkg "github.com/docker/docker/tag"
@@ -62,15 +65,34 @@ func (cli *DockerCli) CmdPull(args ...string) error {
 		return err
 	}
 
+	authConfig := registry.ResolveAuthConfig(cli.configFile, repoInfo.Index)
+	requestPrivilege := cli.registryAuthenticationPrivilegedFunc(repoInfo.Index, "pull")
+
 	if isTrusted() && !ref.HasDigest() {
 		// Check if tag is digest
-		authConfig := registry.ResolveAuthConfig(cli.configFile, repoInfo.Index)
-		return cli.trustedPull(repoInfo, ref, authConfig)
+		return cli.trustedPull(repoInfo, ref, authConfig, requestPrivilege)
 	}
 
-	v := url.Values{}
-	v.Set("fromImage", distributionRef.String())
+	return cli.imagePullPrivileged(authConfig, distributionRef.String(), "", requestPrivilege)
+}
 
-	_, _, err = cli.clientRequestAttemptLogin("POST", "/images/create?"+v.Encode(), nil, cli.out, repoInfo.Index, "pull")
-	return err
+func (cli *DockerCli) imagePullPrivileged(authConfig cliconfig.AuthConfig, imageID, tag string, requestPrivilege lib.RequestPrivilegeFunc) error {
+
+	encodedAuth, err := authConfig.EncodeToBase64()
+	if err != nil {
+		return err
+	}
+	options := types.ImagePullOptions{
+		ImageID:      imageID,
+		Tag:          tag,
+		RegistryAuth: encodedAuth,
+	}
+
+	responseBody, err := cli.client.ImagePull(options, requestPrivilege)
+	if err != nil {
+		return err
+	}
+	defer responseBody.Close()
+
+	return jsonmessage.DisplayJSONMessagesStream(responseBody, cli.out, cli.outFd, cli.isTerminalOut)
 }

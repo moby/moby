@@ -160,6 +160,21 @@ func (cli *DockerCli) cmdAttempt(authConfig cliconfig.AuthConfig, method, path s
 	return serverResp.body, serverResp.statusCode, err
 }
 
+func (cli *DockerCli) encodeRegistryAuth(index *registry.IndexInfo) (string, error) {
+	authConfig := registry.ResolveAuthConfig(cli.configFile, index)
+	return authConfig.EncodeToBase64()
+}
+
+func (cli *DockerCli) registryAuthenticationPrivilegedFunc(index *registry.IndexInfo, cmdName string) lib.RequestPrivilegeFunc {
+	return func() (string, error) {
+		fmt.Fprintf(cli.out, "\nPlease login prior to %s:\n", cmdName)
+		if err := cli.CmdLogin(index.GetAuthConfigKey()); err != nil {
+			return "", err
+		}
+		return cli.encodeRegistryAuth(index)
+	}
+}
+
 func (cli *DockerCli) clientRequestAttemptLogin(method, path string, in io.Reader, out io.Writer, index *registry.IndexInfo, cmdName string) (io.ReadCloser, int, error) {
 
 	// Resolve the Auth config relevant for this server
