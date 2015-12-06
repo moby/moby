@@ -33,6 +33,7 @@ type apiClient interface {
 	ContainerRename(containerID, newContainerName string) error
 	ContainerRestart(containerID string, timeout int) error
 	ContainerStatPath(containerID, path string) (types.ContainerPathStat, error)
+	ContainerStats(containerID string, stream bool) (io.ReadCloser, error)
 	ContainerStart(containerID string) error
 	ContainerStop(containerID string, timeout int) error
 	ContainerTop(containerID string, arguments []string) (types.ContainerProcessList, error)
