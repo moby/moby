@@ -26,6 +26,7 @@ type apiClient interface {
 	ContainerExecStart(execID string, config types.ExecStartCheck) error
 	ContainerExport(containerID string) (io.ReadCloser, error)
 	ContainerInspect(containerID string) (types.ContainerJSON, error)
+	ContainerInspectWithRaw(containerID string, getSize bool) (types.ContainerJSON, []byte, error)
 	ContainerKill(containerID, signal string) error
 	ContainerList(options types.ContainerListOptions) ([]types.Container, error)
 	ContainerLogs(options types.ContainerLogsOptions) (io.ReadCloser, error)
@@ -47,6 +48,7 @@ type apiClient interface {
 	ImageCreate(options types.ImageCreateOptions) (io.ReadCloser, error)
 	ImageHistory(imageID string) ([]types.ImageHistory, error)
 	ImageImport(options types.ImageImportOptions) (io.ReadCloser, error)
+	ImageInspectWithRaw(imageID string, getSize bool) (types.ImageInspect, []byte, error)
 	ImageList(options types.ImageListOptions) ([]types.Image, error)
 	ImageLoad(input io.Reader) (io.ReadCloser, error)
 	ImagePull(options types.ImagePullOptions, privilegeFunc lib.RequestPrivilegeFunc) (io.ReadCloser, error)

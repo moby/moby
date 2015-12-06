@@ -1,16 +1,12 @@
 package client
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
-	"net/url"
-	"strings"
 	"text/template"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/client/inspect"
+	"github.com/docker/docker/api/client/lib"
 	Cli "github.com/docker/docker/cli"
 	flag "github.com/docker/docker/pkg/mflag"
 )
@@ -34,10 +30,15 @@ func (cli *DockerCli) CmdInspect(args ...string) error {
 
 	cmd.ParseFlags(args, true)
 
-	var tmpl *template.Template
-	var err error
-	var obj []byte
-	var statusCode int
+	if *inspectType != "" && *inspectType != "container" && *inspectType != "image" {
+		return fmt.Errorf("%q is not a valid value for --type", *inspectType)
+	}
+
+	var (
+		err              error
+		tmpl             *template.Template
+		elementInspector inspect.Inspector
+	)
 
 	if *tmplStr != "" {
 		if tmpl, err = template.New("").Funcs(funcMap).Parse(*tmplStr); err != nil {
@@ -46,160 +47,84 @@ func (cli *DockerCli) CmdInspect(args ...string) error {
 		}
 	}
 
-	if *inspectType != "" && *inspectType != "container" && *inspectType != "image" {
-		return fmt.Errorf("%q is not a valid value for --type", *inspectType)
+	if tmpl != nil {
+		elementInspector = inspect.NewTemplateInspector(cli.out, tmpl)
+	} else {
+		elementInspector = inspect.NewIndentedInspector(cli.out)
 	}
 
-	indented := new(bytes.Buffer)
-	indented.WriteString("[\n")
-	status := 0
-	isImage := false
-
-	v := url.Values{}
-	if *size {
-		v.Set("size", "1")
+	switch *inspectType {
+	case "container":
+		err = cli.inspectContainers(cmd.Args(), *size, elementInspector)
+	case "images":
+		err = cli.inspectImages(cmd.Args(), *size, elementInspector)
+	default:
+		err = cli.inspectAll(cmd.Args(), *size, elementInspector)
 	}
 
-	for _, name := range cmd.Args() {
-		if *inspectType == "" || *inspectType == "container" {
-			obj, statusCode, err = readBody(cli.call("GET", "/containers/"+name+"/json?"+v.Encode(), nil, nil))
-			if err != nil {
-				if err == errConnectionFailed {
-					return err
-				}
-				if *inspectType == "container" {
-					if statusCode == http.StatusNotFound {
-						fmt.Fprintf(cli.err, "Error: No such container: %s\n", name)
-					} else {
-						fmt.Fprintf(cli.err, "%s", err)
-					}
-					status = 1
-					continue
-				}
-			}
-		}
-
-		if obj == nil && (*inspectType == "" || *inspectType == "image") {
-			obj, statusCode, err = readBody(cli.call("GET", "/images/"+name+"/json", nil, nil))
-			isImage = true
-			if err != nil {
-				if err == errConnectionFailed {
-					return err
-				}
-				if statusCode == http.StatusNotFound {
-					if *inspectType == "" {
-						fmt.Fprintf(cli.err, "Error: No such image or container: %s\n", name)
-					} else {
-						fmt.Fprintf(cli.err, "Error: No such image: %s\n", name)
-					}
-				} else {
-					fmt.Fprintf(cli.err, "%s", err)
-				}
-				status = 1
-				continue
-			}
-		}
-
-		if tmpl == nil {
-			if err := json.Indent(indented, obj, "", "    "); err != nil {
-				fmt.Fprintf(cli.err, "%s\n", err)
-				status = 1
-				continue
-			}
-		} else {
-			rdr := bytes.NewReader(obj)
-			dec := json.NewDecoder(rdr)
-			buf := bytes.NewBufferString("")
-
-			if isImage {
-				inspPtr := types.ImageInspect{}
-				if err := dec.Decode(&inspPtr); err != nil {
-					fmt.Fprintf(cli.err, "Unable to read inspect data: %v\n", err)
-					status = 1
-					break
-				}
-				if err := tmpl.Execute(buf, inspPtr); err != nil {
-					rdr.Seek(0, 0)
-					var ok bool
-
-					if buf, ok = cli.decodeRawInspect(tmpl, dec); !ok {
-						fmt.Fprintf(cli.err, "Template parsing error: %v\n", err)
-						status = 1
-						break
-					}
-				}
-			} else {
-				inspPtr := types.ContainerJSON{}
-				if err := dec.Decode(&inspPtr); err != nil {
-					fmt.Fprintf(cli.err, "Unable to read inspect data: %v\n", err)
-					status = 1
-					break
-				}
-				if err := tmpl.Execute(buf, inspPtr); err != nil {
-					rdr.Seek(0, 0)
-					var ok bool
-
-					if buf, ok = cli.decodeRawInspect(tmpl, dec); !ok {
-						fmt.Fprintf(cli.err, "Template parsing error: %v\n", err)
-						status = 1
-						break
-					}
-				}
-			}
-
-			cli.out.Write(buf.Bytes())
-			cli.out.Write([]byte{'\n'})
-		}
-		indented.WriteString(",")
+	if err := elementInspector.Flush(); err != nil {
+		return err
 	}
+	return err
+}
 
-	if indented.Len() > 1 {
-		// Remove trailing ','
-		indented.Truncate(indented.Len() - 1)
-	}
-	indented.WriteString("]\n")
-
-	if tmpl == nil {
-		// Note that we will always write "[]" when "-f" isn't specified,
-		// to make sure the output would always be array, see
-		// https://github.com/docker/docker/pull/9500#issuecomment-65846734
-		if _, err := io.Copy(cli.out, indented); err != nil {
+func (cli *DockerCli) inspectContainers(containerIDs []string, getSize bool, elementInspector inspect.Inspector) error {
+	for _, containerID := range containerIDs {
+		if err := cli.inspectContainer(containerID, getSize, elementInspector); err != nil {
+			if lib.IsErrContainerNotFound(err) {
+				return fmt.Errorf("Error: No such container: %s\n", containerID)
+			}
 			return err
 		}
-	}
-
-	if status != 0 {
-		return Cli.StatusError{StatusCode: status}
 	}
 	return nil
 }
 
-// decodeRawInspect executes the inspect template with a raw interface.
-// This allows docker cli to parse inspect structs injected with Swarm fields.
-// Unfortunately, go 1.4 doesn't fail executing invalid templates when the input is an interface.
-// It doesn't allow to modify this behavior either, sending <no value> messages to the output.
-// We assume that the template is invalid when there is a <no value>, if the template was valid
-// we'd get <nil> or "" values. In that case we fail with the original error raised executing the
-// template with the typed input.
-//
-// TODO: Go 1.5 allows to customize the error behavior, we can probably get rid of this as soon as
-// we build Docker with that version:
-// https://golang.org/pkg/text/template/#Template.Option
-func (cli *DockerCli) decodeRawInspect(tmpl *template.Template, dec *json.Decoder) (*bytes.Buffer, bool) {
-	var raw interface{}
-	buf := bytes.NewBufferString("")
+func (cli *DockerCli) inspectImages(imageIDs []string, getSize bool, elementInspector inspect.Inspector) error {
+	for _, imageID := range imageIDs {
+		if err := cli.inspectImage(imageID, getSize, elementInspector); err != nil {
+			if lib.IsErrImageNotFound(err) {
+				return fmt.Errorf("Error: No such image: %s\n", imageID)
+			}
+			return err
+		}
+	}
+	return nil
+}
 
-	if rawErr := dec.Decode(&raw); rawErr != nil {
-		fmt.Fprintf(cli.err, "Unable to read inspect data: %v\n", rawErr)
-		return buf, false
+func (cli *DockerCli) inspectAll(ids []string, getSize bool, elementInspector inspect.Inspector) error {
+	for _, id := range ids {
+		if err := cli.inspectContainer(id, getSize, elementInspector); err != nil {
+			// Search for image with that id if a container doesn't exist.
+			if lib.IsErrContainerNotFound(err) {
+				if err := cli.inspectImage(id, getSize, elementInspector); err != nil {
+					if lib.IsErrImageNotFound(err) {
+						return fmt.Errorf("Error: No such image or container: %s", id)
+					}
+					return err
+				}
+				continue
+			}
+			return err
+		}
+	}
+	return nil
+}
+
+func (cli *DockerCli) inspectContainer(containerID string, getSize bool, elementInspector inspect.Inspector) error {
+	c, raw, err := cli.client.ContainerInspectWithRaw(containerID, getSize)
+	if err != nil {
+		return err
 	}
 
-	if rawErr := tmpl.Execute(buf, raw); rawErr != nil {
-		return buf, false
+	return elementInspector.Inspect(c, raw)
+}
+
+func (cli *DockerCli) inspectImage(imageID string, getSize bool, elementInspector inspect.Inspector) error {
+	i, raw, err := cli.client.ImageInspectWithRaw(imageID, getSize)
+	if err != nil {
+		return err
 	}
 
-	if strings.Contains(buf.String(), "<no value>") {
-		return buf, false
-	}
-	return buf, true
+	return elementInspector.Inspect(i, raw)
 }
