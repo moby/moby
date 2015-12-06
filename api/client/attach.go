@@ -1,10 +1,8 @@
 package client
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
-	"net/url"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
@@ -25,15 +23,8 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 
 	cmd.ParseFlags(args, true)
 
-	serverResp, err := cli.call("GET", "/containers/"+cmd.Arg(0)+"/json", nil, nil)
+	c, err := cli.client.ContainerInspect(cmd.Arg(0))
 	if err != nil {
-		return err
-	}
-
-	defer serverResp.body.Close()
-
-	var c types.ContainerJSON
-	if err := json.NewDecoder(serverResp.body).Decode(&c); err != nil {
 		return err
 	}
 
@@ -55,28 +46,35 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 		}
 	}
 
-	var in io.ReadCloser
+	options := types.ContainerAttachOptions{
+		ContainerID: cmd.Arg(0),
+		Stream:      true,
+		Stdin:       !*noStdin && c.Config.OpenStdin,
+		Stdout:      true,
+		Stderr:      true,
+	}
 
-	v := url.Values{}
-	v.Set("stream", "1")
-	if !*noStdin && c.Config.OpenStdin {
-		v.Set("stdin", "1")
+	var in io.ReadCloser
+	if options.Stdin {
 		in = cli.in
 	}
 
-	v.Set("stdout", "1")
-	v.Set("stderr", "1")
-
 	if *proxy && !c.Config.Tty {
-		sigc := cli.forwardAllSignals(cmd.Arg(0))
+		sigc := cli.forwardAllSignals(options.ContainerID)
 		defer signal.StopCatch(sigc)
 	}
 
-	if err := cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?"+v.Encode(), c.Config.Tty, in, cli.out, cli.err, nil, nil); err != nil {
+	resp, err := cli.client.ContainerAttach(options)
+	if err != nil {
+		return err
+	}
+	defer resp.Close()
+
+	if err := cli.holdHijackedConnection(c.Config.Tty, in, cli.out, cli.err, resp); err != nil {
 		return err
 	}
 
-	_, status, err := getExitCode(cli, cmd.Arg(0))
+	_, status, err := getExitCode(cli, options.ContainerID)
 	if err != nil {
 		return err
 	}

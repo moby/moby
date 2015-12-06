@@ -1,14 +1,25 @@
 package types
 
 import (
+	"bufio"
 	"io"
+	"net"
 
 	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/pkg/parsers/filters"
 	"github.com/docker/docker/pkg/ulimit"
 )
 
-// ContainerCommitOptions hods parameters to commit changes into a container.
+// ContainerAttachOptions holds parameters to attach to a container.
+type ContainerAttachOptions struct {
+	ContainerID string
+	Stream      bool
+	Stdin       bool
+	Stdout      bool
+	Stderr      bool
+}
+
+// ContainerCommitOptions holds parameters to commit changes into a container.
 type ContainerCommitOptions struct {
 	ContainerID    string
 	RepositoryName string
@@ -65,6 +76,31 @@ type EventsOptions struct {
 	Since   string
 	Until   string
 	Filters filters.Args
+}
+
+// HijackedResponse holds connection information for a hijacked request.
+type HijackedResponse struct {
+	Conn   net.Conn
+	Reader *bufio.Reader
+}
+
+// Close closes the hijacked connection and reader.
+func (h *HijackedResponse) Close() {
+	h.Conn.Close()
+}
+
+// CloseWriter is an interface that implement structs
+// that close input streams to prevent from writing.
+type CloseWriter interface {
+	CloseWrite() error
+}
+
+// CloseWrite closes a readWriter for writing.
+func (h *HijackedResponse) CloseWrite() error {
+	if conn, ok := h.Conn.(CloseWriter); ok {
+		return conn.CloseWrite()
+	}
+	return nil
 }
 
 // ImageBuildOptions holds the information
