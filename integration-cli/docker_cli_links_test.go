@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/docker/docker/pkg/integration/checker"
+	"github.com/docker/docker/runconfig"
 	"github.com/go-check/check"
 )
 
@@ -202,7 +203,7 @@ func (s *DockerSuite) TestLinksNetworkHostContainer(c *check.C) {
 	// Running container linking to a container with --net host should have failed
 	c.Assert(err, checker.NotNil, check.Commentf("out: %s", out))
 	// Running container linking to a container with --net host should have failed
-	c.Assert(out, checker.Contains, "--net=host can't be used with links. This would result in undefined behavior")
+	c.Assert(out, checker.Contains, runconfig.ErrConflictHostNetworkAndLinks.Error())
 }
 
 func (s *DockerSuite) TestLinksEtcHostsRegularFile(c *check.C) {
