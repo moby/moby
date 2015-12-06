@@ -24,6 +24,8 @@ type Client struct {
 	BasePath string
 	// scheme holds the scheme of the client i.e. https.
 	Scheme string
+	// tlsConfig holds the tls configuration to use in hijacked requests.
+	tlsConfig *tls.Config
 	// httpClient holds the client transport instance. Exported to keep the old code running.
 	HTTPClient *http.Client
 	// version of the server to talk to.
@@ -78,9 +80,11 @@ func NewClientWithVersion(host string, version version.Version, tlsOptions *tlsc
 	sockets.ConfigureTCPTransport(transport, proto, addr)
 
 	return &Client{
+		Proto:             proto,
 		Addr:              addr,
 		BasePath:          basePath,
 		Scheme:            scheme,
+		tlsConfig:         tlsConfig,
 		HTTPClient:        &http.Client{Transport: transport},
 		version:           version,
 		customHTTPHeaders: httpHeaders,

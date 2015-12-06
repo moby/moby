@@ -71,37 +71,20 @@ func (cli *Client) sendRequest(method, path string, query url.Values, body inter
 	return cli.sendClientRequest(method, path, query, params, headers)
 }
 
-func (cli *Client) sendClientRequest(method, path string, query url.Values, in io.Reader, headers map[string][]string) (*serverResponse, error) {
+func (cli *Client) sendClientRequest(method, path string, query url.Values, body io.Reader, headers map[string][]string) (*serverResponse, error) {
 	serverResp := &serverResponse{
 		body:       nil,
 		statusCode: -1,
 	}
 
 	expectedPayload := (method == "POST" || method == "PUT")
-	if expectedPayload && in == nil {
-		in = bytes.NewReader([]byte{})
+	if expectedPayload && body == nil {
+		body = bytes.NewReader([]byte{})
 	}
 
-	apiPath := cli.getAPIPath(path, query)
-	req, err := http.NewRequest(method, apiPath, in)
-	if err != nil {
-		return serverResp, err
-	}
-
-	// Add CLI Config's HTTP Headers BEFORE we set the Docker headers
-	// then the user can't change OUR headers
-	for k, v := range cli.customHTTPHeaders {
-		req.Header.Set(k, v)
-	}
-
+	req, err := cli.newRequest(method, path, query, body, headers)
 	req.URL.Host = cli.Addr
 	req.URL.Scheme = cli.Scheme
-
-	if headers != nil {
-		for k, v := range headers {
-			req.Header[k] = v
-		}
-	}
 
 	if expectedPayload && req.Header.Get("Content-Type") == "" {
 		req.Header.Set("Content-Type", "text/plain")
@@ -141,6 +124,28 @@ func (cli *Client) sendClientRequest(method, path string, query url.Values, in i
 	serverResp.body = resp.Body
 	serverResp.header = resp.Header
 	return serverResp, nil
+}
+
+func (cli *Client) newRequest(method, path string, query url.Values, body io.Reader, headers map[string][]string) (*http.Request, error) {
+	apiPath := cli.getAPIPath(path, query)
+	req, err := http.NewRequest(method, apiPath, body)
+	if err != nil {
+		return nil, err
+	}
+
+	// Add CLI Config's HTTP Headers BEFORE we set the Docker headers
+	// then the user can't change OUR headers
+	for k, v := range cli.customHTTPHeaders {
+		req.Header.Set(k, v)
+	}
+
+	if headers != nil {
+		for k, v := range headers {
+			req.Header[k] = v
+		}
+	}
+
+	return req, nil
 }
 
 func encodeData(data interface{}) (*bytes.Buffer, error) {
