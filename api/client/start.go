@@ -1,11 +1,10 @@
 package client
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
-	"net/url"
 	"os"
+	"strings"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
@@ -54,119 +53,98 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 
 	cmd.ParseFlags(args, true)
 
-	var (
-		cErr chan error
-		tty  bool
-	)
-
 	if *attach || *openStdin {
+		// We're going to attach to a container.
+		// 1. Ensure we only have one container.
 		if cmd.NArg() > 1 {
 			return fmt.Errorf("You cannot start and attach multiple containers at once.")
 		}
 
-		serverResp, err := cli.call("GET", "/containers/"+cmd.Arg(0)+"/json", nil, nil)
+		// 2. Attach to the container.
+		containerID := cmd.Arg(0)
+		c, err := cli.client.ContainerInspect(containerID)
 		if err != nil {
 			return err
 		}
 
-		defer serverResp.body.Close()
-
-		var c types.ContainerJSON
-		if err := json.NewDecoder(serverResp.body).Decode(&c); err != nil {
-			return err
-		}
-
-		tty = c.Config.Tty
-
-		if !tty {
-			sigc := cli.forwardAllSignals(cmd.Arg(0))
+		if !c.Config.Tty {
+			sigc := cli.forwardAllSignals(containerID)
 			defer signal.StopCatch(sigc)
 		}
 
+		options := types.ContainerAttachOptions{
+			ContainerID: containerID,
+			Stream:      true,
+			Stdin:       *openStdin && c.Config.OpenStdin,
+			Stdout:      true,
+			Stderr:      true,
+		}
+
 		var in io.ReadCloser
-
-		v := url.Values{}
-		v.Set("stream", "1")
-
-		if *openStdin && c.Config.OpenStdin {
-			v.Set("stdin", "1")
+		if options.Stdin {
 			in = cli.in
 		}
 
-		v.Set("stdout", "1")
-		v.Set("stderr", "1")
+		resp, err := cli.client.ContainerAttach(options)
+		if err != nil {
+			return err
+		}
+		defer resp.Close()
 
-		hijacked := make(chan io.Closer)
-		// Block the return until the chan gets closed
-		defer func() {
-			logrus.Debugf("CmdStart() returned, defer waiting for hijack to finish.")
-			if _, ok := <-hijacked; ok {
-				fmt.Fprintln(cli.err, "Hijack did not finish (chan still open)")
-			}
-			cli.in.Close()
-		}()
-		cErr = promise.Go(func() error {
-			return cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?"+v.Encode(), tty, in, cli.out, cli.err, hijacked, nil)
+		cErr := promise.Go(func() error {
+			return cli.holdHijackedConnection(c.Config.Tty, in, cli.out, cli.err, resp)
 		})
 
-		// Acknowledge the hijack before starting
 		select {
-		case closer := <-hijacked:
-			// Make sure that the hijack gets closed when returning (results
-			// in closing the hijack chan and freeing server's goroutines)
-			if closer != nil {
-				defer closer.Close()
-			}
 		case err := <-cErr:
 			if err != nil {
 				return err
 			}
 		}
-	}
 
-	var encounteredError error
-	var errNames []string
-	for _, name := range cmd.Args() {
-		_, _, err := readBody(cli.call("POST", "/containers/"+name+"/start", nil, nil))
-		if err != nil {
-			if !*attach && !*openStdin {
-				// attach and openStdin is false means it could be starting multiple containers
-				// when a container start failed, show the error message and start next
-				fmt.Fprintf(cli.err, "%s\n", err)
-				errNames = append(errNames, name)
-			} else {
-				encounteredError = err
-			}
-		} else {
-			if !*attach && !*openStdin {
-				fmt.Fprintf(cli.out, "%s\n", name)
-			}
+		// 3. Start the container.
+		if err := cli.client.ContainerStart(containerID); err != nil {
+			return err
 		}
-	}
 
-	if len(errNames) > 0 {
-		encounteredError = fmt.Errorf("Error: failed to start containers: %v", errNames)
-	}
-	if encounteredError != nil {
-		return encounteredError
-	}
-
-	if *openStdin || *attach {
-		if tty && cli.isTerminalOut {
-			if err := cli.monitorTtySize(cmd.Arg(0), false); err != nil {
+		// 4. Wait for attachement to break.
+		if c.Config.Tty && cli.isTerminalOut {
+			if err := cli.monitorTtySize(containerID, false); err != nil {
 				fmt.Fprintf(cli.err, "Error monitoring TTY size: %s\n", err)
 			}
 		}
 		if attchErr := <-cErr; attchErr != nil {
 			return attchErr
 		}
-		_, status, err := getExitCode(cli, cmd.Arg(0))
+		_, status, err := getExitCode(cli, containerID)
 		if err != nil {
 			return err
 		}
 		if status != 0 {
 			return Cli.StatusError{StatusCode: status}
 		}
+	} else {
+		// We're not going to attach to anything.
+		// Start as many containers as we want.
+		return cli.startContainersWithoutAttachments(cmd.Args())
+	}
+
+	return nil
+}
+
+func (cli *DockerCli) startContainersWithoutAttachments(containerIDs []string) error {
+	var failedContainers []string
+	for _, containerID := range containerIDs {
+		if err := cli.client.ContainerStart(containerID); err != nil {
+			fmt.Fprintf(cli.err, "%s\n", err)
+			failedContainers = append(failedContainers, containerID)
+		} else {
+			fmt.Fprintf(cli.out, "%s\n", containerID)
+		}
+	}
+
+	if len(failedContainers) > 0 {
+		return fmt.Errorf("Error: failed to start containers: %v", strings.Join(failedContainers, ", "))
 	}
 	return nil
 }
