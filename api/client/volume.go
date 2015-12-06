@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 	"net/url"
 	"text/tabwriter"
 	"text/template"
@@ -128,7 +129,12 @@ func (cli *DockerCli) CmdVolumeInspect(args ...string) error {
 	for _, name := range cmd.Args() {
 		resp, err := cli.call("GET", "/volumes/"+name, nil, nil)
 		if err != nil {
-			return err
+			if resp.statusCode != http.StatusNotFound {
+				return err
+			}
+			status = 1
+			fmt.Fprintf(cli.err, "Error: No such volume: %s\n", name)
+			continue
 		}
 
 		var volume types.Volume
