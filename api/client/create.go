@@ -1,8 +1,6 @@
 package client
 
 import (
-	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -45,8 +43,7 @@ func (cli *DockerCli) pullImageCustomOut(image string, out io.Writer) error {
 	}
 
 	// Resolve the Auth config relevant for this server
-	authConfig := registry.ResolveAuthConfig(cli.configFile, repoInfo.Index)
-	buf, err := json.Marshal(authConfig)
+	encodedAuth, err := cli.encodeRegistryAuth(repoInfo.Index)
 	if err != nil {
 		return err
 	}
@@ -54,7 +51,7 @@ func (cli *DockerCli) pullImageCustomOut(image string, out io.Writer) error {
 	options := types.ImageCreateOptions{
 		Parent:       ref.Name(),
 		Tag:          tag,
-		RegistryAuth: base64.URLEncoding.EncodeToString(buf),
+		RegistryAuth: encodedAuth,
 	}
 
 	responseBody, err := cli.client.ImageCreate(options)

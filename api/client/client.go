@@ -7,6 +7,7 @@ package client
 import (
 	"io"
 
+	"github.com/docker/docker/api/client/lib"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/pkg/parsers/filters"
@@ -48,6 +49,7 @@ type apiClient interface {
 	ImageImport(options types.ImageImportOptions) (io.ReadCloser, error)
 	ImageList(options types.ImageListOptions) ([]types.Image, error)
 	ImageLoad(input io.Reader) (io.ReadCloser, error)
+	ImagePull(options types.ImagePullOptions, privilegeFunc lib.RequestPrivilegeFunc) (io.ReadCloser, error)
 	ImageRemove(options types.ImageRemoveOptions) ([]types.ImageDelete, error)
 	ImageSave(imageIDs []string) (io.ReadCloser, error)
 	ImageTag(options types.ImageTagOptions) error

@@ -13,11 +13,14 @@ func (cli *Client) ImageCreate(options types.ImageCreateOptions) (io.ReadCloser,
 	query := url.Values{}
 	query.Set("fromImage", options.Parent)
 	query.Set("tag", options.Tag)
-
-	headers := map[string][]string{"X-Registry-Auth": {options.RegistryAuth}}
-	resp, err := cli.post("/images/create", query, nil, headers)
+	resp, err := cli.tryImageCreate(query, options.RegistryAuth)
 	if err != nil {
 		return nil, err
 	}
 	return resp.body, nil
+}
+
+func (cli *Client) tryImageCreate(query url.Values, registryAuth string) (*serverResponse, error) {
+	headers := map[string][]string{"X-Registry-Auth": {registryAuth}}
+	return cli.post("/images/create", query, nil, headers)
 }
