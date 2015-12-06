@@ -197,12 +197,27 @@ type ImageRemoveOptions struct {
 	PruneChildren bool
 }
 
-// ImageTagOptions hold parameters to tag an image
+// ImageSearchOptions holds parameters to search images with.
+type ImageSearchOptions struct {
+	Term         string
+	RegistryAuth string
+}
+
+// ImageTagOptions holds parameters to tag an image
 type ImageTagOptions struct {
 	ImageID        string
 	RepositoryName string
 	Tag            string
 	Force          bool
+}
+
+// ResizeOptions holds parameters to resize a tty.
+// It can be used to resize container ttys and
+// exec process ttys too.
+type ResizeOptions struct {
+	ID     string
+	Height int
+	Width  int
 }
 
 // VersionResponse holds version information for the client and the server
