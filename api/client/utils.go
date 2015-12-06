@@ -278,29 +278,16 @@ func getExitCode(cli *DockerCli, containerID string) (bool, int, error) {
 // getExecExitCode perform an inspect on the exec command. It returns
 // the running state and the exit code.
 func getExecExitCode(cli *DockerCli, execID string) (bool, int, error) {
-	serverResp, err := cli.call("GET", "/exec/"+execID+"/json", nil, nil)
+	resp, err := cli.client.ContainerExecInspect(execID)
 	if err != nil {
 		// If we can't connect, then the daemon probably died.
-		if err != errConnectionFailed {
+		if err != lib.ErrConnectionFailed {
 			return false, -1, err
 		}
 		return false, -1, nil
 	}
 
-	defer serverResp.body.Close()
-
-	//TODO: Should we reconsider having a type in api/types?
-	//this is a response to exex/id/json not container
-	var c struct {
-		Running  bool
-		ExitCode int
-	}
-
-	if err := json.NewDecoder(serverResp.body).Decode(&c); err != nil {
-		return false, -1, err
-	}
-
-	return c.Running, c.ExitCode, nil
+	return resp.Running, resp.ExitCode, nil
 }
 
 func (cli *DockerCli) monitorTtySize(id string, isExec bool) error {

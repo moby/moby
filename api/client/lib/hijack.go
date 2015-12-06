@@ -4,7 +4,6 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
-	"io"
 	"net"
 	"net/http/httputil"
 	"net/url"
@@ -30,15 +29,15 @@ func (c *tlsClientCon) CloseWrite() error {
 }
 
 // postHijacked sends a POST request and hijacks the connection.
-func (cli *Client) postHijacked(path string, query url.Values, body io.Reader, headers map[string][]string) (*types.HijackedResponse, error) {
+func (cli *Client) postHijacked(path string, query url.Values, body interface{}, headers map[string][]string) (types.HijackedResponse, error) {
 	bodyEncoded, err := encodeData(body)
 	if err != nil {
-		return nil, err
+		return types.HijackedResponse{}, err
 	}
 
 	req, err := cli.newRequest("POST", path, query, bodyEncoded, headers)
 	if err != nil {
-		return nil, err
+		return types.HijackedResponse{}, err
 	}
 	req.Host = cli.Addr
 
@@ -48,9 +47,9 @@ func (cli *Client) postHijacked(path string, query url.Values, body io.Reader, h
 	conn, err := dial(cli.Proto, cli.Addr, cli.tlsConfig)
 	if err != nil {
 		if strings.Contains(err.Error(), "connection refused") {
-			return nil, fmt.Errorf("Cannot connect to the Docker daemon. Is 'docker daemon' running on this host?")
+			return types.HijackedResponse{}, fmt.Errorf("Cannot connect to the Docker daemon. Is 'docker daemon' running on this host?")
 		}
-		return nil, err
+		return types.HijackedResponse{}, err
 	}
 
 	// When we set up a TCP connection for hijack, there could be long periods
@@ -71,7 +70,7 @@ func (cli *Client) postHijacked(path string, query url.Values, body io.Reader, h
 
 	rwc, br := clientconn.Hijack()
 
-	return &types.HijackedResponse{rwc, br}, nil
+	return types.HijackedResponse{rwc, br}, nil
 }
 
 func tlsDial(network, addr string, config *tls.Config) (net.Conn, error) {

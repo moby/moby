@@ -31,6 +31,14 @@ type ContainerCommitOptions struct {
 	JSONConfig     string
 }
 
+// ContainerExecInspect holds information returned by exec inspect.
+type ContainerExecInspect struct {
+	ExecID      string
+	ContainerID string
+	Running     bool
+	ExitCode    int
+}
+
 // ContainerListOptions holds parameters to list containers with.
 type ContainerListOptions struct {
 	Quiet  bool
