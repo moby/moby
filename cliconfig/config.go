@@ -51,6 +51,7 @@ type AuthConfig struct {
 	Auth          string `json:"auth"`
 	Email         string `json:"email"`
 	ServerAddress string `json:"serveraddress,omitempty"`
+	RegistryToken string `json:"registrytoken,omitempty"`
 }
 
 // ConfigFile ~/.docker/config.json file info

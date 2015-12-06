@@ -1540,7 +1540,24 @@ Query Parameters:
 
     Request Headers:
 
--   **X-Registry-Auth** – base64-encoded AuthConfig object
+-   **X-Registry-Auth** – base64-encoded AuthConfig object, containing either login information, or a token
+    - Credential based login:
+
+        ```
+    {
+            "username": "jdoe",
+            "password": "secret",
+            "email": "jdoe@acme.com",
+    }
+        ```
+
+    - Token based login:
+
+        ```
+    {
+            "registrytoken": "9cbaf023786cd7..."
+    }
+        ```
 
 Status Codes:
 
@@ -1749,8 +1766,24 @@ Query Parameters:
 
 Request Headers:
 
--   **X-Registry-Auth** – Include a base64-encoded AuthConfig.
-        object.
+-   **X-Registry-Auth** – base64-encoded AuthConfig object, containing either login information, or a token
+    - Credential based login:
+
+        ```
+    {
+            "username": "jdoe",
+            "password": "secret",
+            "email": "jdoe@acme.com",
+    }
+        ```
+
+    - Token based login:
+
+        ```
+    {
+            "registrytoken": "9cbaf023786cd7..."
+    }
+        ```
 
 Status Codes:
 

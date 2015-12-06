@@ -2,6 +2,7 @@ package distribution
 
 import (
 	"errors"
+	"fmt"
 	"net"
 	"net/http"
 	"net/url"
@@ -91,10 +92,15 @@ func NewV2Repository(repoInfo *registry.RepositoryInfo, endpoint registry.APIEnd
 		return nil, err
 	}
 
-	creds := dumbCredentialStore{auth: authConfig}
-	tokenHandler := auth.NewTokenHandler(authTransport, creds, repoName.Name(), actions...)
-	basicHandler := auth.NewBasicHandler(creds)
-	modifiers = append(modifiers, auth.NewAuthorizer(challengeManager, tokenHandler, basicHandler))
+	if authConfig.RegistryToken != "" {
+		passThruTokenHandler := &existingTokenHandler{token: authConfig.RegistryToken}
+		modifiers = append(modifiers, auth.NewAuthorizer(challengeManager, passThruTokenHandler))
+	} else {
+		creds := dumbCredentialStore{auth: authConfig}
+		tokenHandler := auth.NewTokenHandler(authTransport, creds, repoName.Name(), actions...)
+		basicHandler := auth.NewBasicHandler(creds)
+		modifiers = append(modifiers, auth.NewAuthorizer(challengeManager, tokenHandler, basicHandler))
+	}
 	tr := transport.NewTransport(base, modifiers...)
 
 	return client.NewRepository(ctx, repoName.Name(), endpoint.URL, tr)
@@ -112,4 +118,17 @@ func digestFromManifest(m *schema1.SignedManifest, localName string) (digest.Dig
 		logrus.Infof("Could not compute manifest digest for %s:%s : %v", localName, m.Tag, err)
 	}
 	return manifestDigest, len(payload), nil
+}
+
+type existingTokenHandler struct {
+	token string
+}
+
+func (th *existingTokenHandler) Scheme() string {
+	return "bearer"
+}
+
+func (th *existingTokenHandler) AuthorizeRequest(req *http.Request, params map[string]string) error {
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", th.token))
+	return nil
 }
