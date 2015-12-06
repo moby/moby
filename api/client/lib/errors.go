@@ -25,6 +25,23 @@ func IsErrImageNotFound(err error) bool {
 	return ok
 }
 
+// containerNotFoundError implements an error returned when a container is not in the docker host.
+type containerNotFoundError struct {
+	containerID string
+}
+
+// Error returns a string representation of an containerNotFoundError
+func (e containerNotFoundError) Error() string {
+	return fmt.Sprintf("Container not found: %s", e.containerID)
+}
+
+// IsErrContainerNotFound returns true if the error is caused
+// when a container is not found in the docker host.
+func IsErrContainerNotFound(err error) bool {
+	_, ok := err.(containerNotFoundError)
+	return ok
+}
+
 // unauthorizedError represents an authorization error in a remote registry.
 type unauthorizedError struct {
 	cause error
