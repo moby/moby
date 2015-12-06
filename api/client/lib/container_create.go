@@ -18,7 +18,7 @@ func (cli *Client) ContainerCreate(config *runconfig.ContainerConfigWrapper, con
 		query.Set("name", containerName)
 	}
 
-	serverResp, err := cli.POST("/containers/create", query, config, nil)
+	serverResp, err := cli.post("/containers/create", query, config, nil)
 	if err != nil {
 		if serverResp != nil && serverResp.statusCode == 404 && strings.Contains(err.Error(), config.Image) {
 			return response, imageNotFoundError{config.Image}

@@ -30,7 +30,7 @@ func (cli *Client) ImageBuild(options types.ImageBuildOptions) (types.ImageBuild
 	headers.Add("X-Registry-Config", base64.URLEncoding.EncodeToString(buf))
 	headers.Set("Content-Type", "application/tar")
 
-	serverResp, err := cli.POSTRaw("/build", query, options.Context, headers)
+	serverResp, err := cli.postRaw("/build", query, options.Context, headers)
 	if err != nil {
 		return types.ImageBuildResponse{}, err
 	}

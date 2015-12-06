@@ -35,7 +35,7 @@ func (cli *Client) ContainerCommit(options types.ContainerCommitOptions) (types.
 		}
 	}
 
-	resp, err := cli.POST("/commit", query, config, nil)
+	resp, err := cli.post("/commit", query, config, nil)
 	if err != nil {
 		return response, err
 	}

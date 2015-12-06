@@ -13,44 +13,49 @@ import (
 	"github.com/docker/docker/utils"
 )
 
-// ServerResponse is a wrapper for http API responses.
-type ServerResponse struct {
+// serverResponse is a wrapper for http API responses.
+type serverResponse struct {
 	body       io.ReadCloser
 	header     http.Header
 	statusCode int
 }
 
-// HEAD sends an http request to the docker API using the method HEAD.
-func (cli *Client) HEAD(path string, query url.Values, headers map[string][]string) (*ServerResponse, error) {
+// head sends an http request to the docker API using the method HEAD.
+func (cli *Client) head(path string, query url.Values, headers map[string][]string) (*serverResponse, error) {
 	return cli.sendRequest("HEAD", path, query, nil, headers)
 }
 
-// GET sends an http request to the docker API using the method GET.
-func (cli *Client) GET(path string, query url.Values, headers map[string][]string) (*ServerResponse, error) {
+// get sends an http request to the docker API using the method GET.
+func (cli *Client) get(path string, query url.Values, headers map[string][]string) (*serverResponse, error) {
 	return cli.sendRequest("GET", path, query, nil, headers)
 }
 
-// POST sends an http request to the docker API using the method POST.
-func (cli *Client) POST(path string, query url.Values, body interface{}, headers map[string][]string) (*ServerResponse, error) {
+// post sends an http request to the docker API using the method POST.
+func (cli *Client) post(path string, query url.Values, body interface{}, headers map[string][]string) (*serverResponse, error) {
 	return cli.sendRequest("POST", path, query, body, headers)
 }
 
-// POSTRaw sends the raw input to the docker API using the method POST.
-func (cli *Client) POSTRaw(path string, query url.Values, body io.Reader, headers map[string][]string) (*ServerResponse, error) {
+// postRaw sends the raw input to the docker API using the method POST.
+func (cli *Client) postRaw(path string, query url.Values, body io.Reader, headers map[string][]string) (*serverResponse, error) {
 	return cli.sendClientRequest("POST", path, query, body, headers)
 }
 
-// PUT sends an http request to the docker API using the method PUT.
-func (cli *Client) PUT(path string, query url.Values, body interface{}, headers map[string][]string) (*ServerResponse, error) {
+// put sends an http request to the docker API using the method PUT.
+func (cli *Client) put(path string, query url.Values, body interface{}, headers map[string][]string) (*serverResponse, error) {
 	return cli.sendRequest("PUT", path, query, body, headers)
 }
 
-// DELETE sends an http request to the docker API using the method DELETE.
-func (cli *Client) DELETE(path string, query url.Values, headers map[string][]string) (*ServerResponse, error) {
+// putRaw sends the raw input to the docker API using the method PUT.
+func (cli *Client) putRaw(path string, query url.Values, body io.Reader, headers map[string][]string) (*serverResponse, error) {
+	return cli.sendClientRequest("PUT", path, query, body, headers)
+}
+
+// delete sends an http request to the docker API using the method DELETE.
+func (cli *Client) delete(path string, query url.Values, headers map[string][]string) (*serverResponse, error) {
 	return cli.sendRequest("DELETE", path, query, nil, headers)
 }
 
-func (cli *Client) sendRequest(method, path string, query url.Values, body interface{}, headers map[string][]string) (*ServerResponse, error) {
+func (cli *Client) sendRequest(method, path string, query url.Values, body interface{}, headers map[string][]string) (*serverResponse, error) {
 	params, err := encodeData(body)
 	if err != nil {
 		return nil, err
@@ -66,8 +71,8 @@ func (cli *Client) sendRequest(method, path string, query url.Values, body inter
 	return cli.sendClientRequest(method, path, query, params, headers)
 }
 
-func (cli *Client) sendClientRequest(method, path string, query url.Values, in io.Reader, headers map[string][]string) (*ServerResponse, error) {
-	serverResp := &ServerResponse{
+func (cli *Client) sendClientRequest(method, path string, query url.Values, in io.Reader, headers map[string][]string) (*serverResponse, error) {
+	serverResp := &serverResponse{
 		body:       nil,
 		statusCode: -1,
 	}
@@ -148,7 +153,7 @@ func encodeData(data interface{}) (*bytes.Buffer, error) {
 	return params, nil
 }
 
-func ensureReaderClosed(response *ServerResponse) {
+func ensureReaderClosed(response *serverResponse) {
 	if response != nil && response.body != nil {
 		response.body.Close()
 	}

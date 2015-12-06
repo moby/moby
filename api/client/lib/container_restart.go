@@ -11,7 +11,7 @@ import (
 func (cli *Client) ContainerRestart(containerID string, timeout int) error {
 	query := url.Values{}
 	query.Set("t", strconv.Itoa(timeout))
-	resp, err := cli.POST("/containers"+containerID+"/restart", query, nil, nil)
+	resp, err := cli.post("/containers/"+containerID+"/restart", query, nil, nil)
 	ensureReaderClosed(resp)
 	return err
 }
