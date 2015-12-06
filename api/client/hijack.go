@@ -21,7 +21,7 @@ import (
 	"github.com/docker/docker/pkg/term"
 )
 
-func (cli *DockerCli) holdHijackedConnection(setRawTerminal bool, inputStream io.ReadCloser, outputStream, errorStream io.Writer, resp *types.HijackedResponse) error {
+func (cli *DockerCli) holdHijackedConnection(setRawTerminal bool, inputStream io.ReadCloser, outputStream, errorStream io.Writer, resp types.HijackedResponse) error {
 	var (
 		err      error
 		oldState *term.State
