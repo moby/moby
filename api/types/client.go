@@ -187,6 +187,9 @@ type ImagePullOptions struct {
 	RegistryAuth string
 }
 
+//ImagePushOptions holds information to push images.
+type ImagePushOptions ImagePullOptions
+
 // ImageRemoveOptions holds parameters to remove images.
 type ImageRemoveOptions struct {
 	ImageID       string

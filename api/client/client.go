@@ -50,6 +50,7 @@ type apiClient interface {
 	ImageList(options types.ImageListOptions) ([]types.Image, error)
 	ImageLoad(input io.Reader) (io.ReadCloser, error)
 	ImagePull(options types.ImagePullOptions, privilegeFunc lib.RequestPrivilegeFunc) (io.ReadCloser, error)
+	ImagePush(options types.ImagePushOptions, privilegeFunc lib.RequestPrivilegeFunc) (io.ReadCloser, error)
 	ImageRemove(options types.ImageRemoveOptions) ([]types.ImageDelete, error)
 	ImageSave(imageIDs []string) (io.ReadCloser, error)
 	ImageTag(options types.ImageTagOptions) error
