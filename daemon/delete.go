@@ -5,22 +5,18 @@ import (
 	"path"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/container"
 	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/layer"
 	volumestore "github.com/docker/docker/volume/store"
 )
 
-// ContainerRmConfig is a holder for passing in runtime config.
-type ContainerRmConfig struct {
-	ForceRemove, RemoveVolume, RemoveLink bool
-}
-
 // ContainerRm removes the container id from the filesystem. An error
 // is returned if the container is not found, or if the remove
 // fails. If the remove succeeds, the container name is released, and
 // network links are removed.
-func (daemon *Daemon) ContainerRm(name string, config *ContainerRmConfig) error {
+func (daemon *Daemon) ContainerRm(name string, config *types.ContainerRmConfig) error {
 	container, err := daemon.Get(name)
 	if err != nil {
 		return err

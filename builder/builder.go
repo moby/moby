@@ -8,9 +8,8 @@ import (
 	"io"
 	"os"
 
-	// TODO: remove dependency on daemon
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/container"
-	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/runconfig"
 )
@@ -122,9 +121,9 @@ type Docker interface {
 	// TODO: put warnings in the error
 	Create(*runconfig.Config, *runconfig.HostConfig) (*container.Container, []string, error)
 	// Remove removes a container specified by `id`.
-	Remove(id string, cfg *daemon.ContainerRmConfig) error
+	Remove(id string, cfg *types.ContainerRmConfig) error
 	// Commit creates a new Docker image from an existing Docker container.
-	Commit(string, *daemon.ContainerCommitConfig) (string, error)
+	Commit(string, *types.ContainerCommitConfig) (string, error)
 	// Copy copies/extracts a source FileInfo to a destination path inside a container
 	// specified by a container object.
 	// TODO: make an Extract method instead of passing `decompress`

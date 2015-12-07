@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/docker/distribution/reference"
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/image"
@@ -17,22 +18,9 @@ import (
 	"github.com/docker/docker/runconfig"
 )
 
-// ContainerCommitConfig contains build configs for commit operation,
-// and is used when making a commit with the current state of the container.
-type ContainerCommitConfig struct {
-	Pause   bool
-	Repo    string
-	Tag     string
-	Author  string
-	Comment string
-	// merge container config into commit config before commit
-	MergeConfigs bool
-	Config       *runconfig.Config
-}
-
 // Commit creates a new filesystem image from the current state of a container.
 // The image can optionally be tagged into a repository.
-func (daemon *Daemon) Commit(name string, c *ContainerCommitConfig) (string, error) {
+func (daemon *Daemon) Commit(name string, c *types.ContainerCommitConfig) (string, error) {
 	container, err := daemon.Get(name)
 	if err != nil {
 		return "", err

@@ -358,7 +358,7 @@ func (s *containerRouter) deleteContainers(ctx context.Context, w http.ResponseW
 	}
 
 	name := vars["name"]
-	config := &daemon.ContainerRmConfig{
+	config := &types.ContainerRmConfig{
 		ForceRemove:  httputils.BoolValue(r, "force"),
 		RemoveVolume: httputils.BoolValue(r, "v"),
 		RemoveLink:   httputils.BoolValue(r, "link"),
