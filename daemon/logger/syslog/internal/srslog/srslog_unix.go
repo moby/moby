@@ -1,0 +1,25 @@
+package srslog
+
+import (
+	"errors"
+	"net"
+)
+
+// unixSyslog opens a connection to the syslog daemon running on the
+// local machine using a Unix domain socket.
+
+func unixSyslog() (conn serverConn, err error) {
+	logTypes := []string{"unixgram", "unix"}
+	logPaths := []string{"/dev/log", "/var/run/syslog", "/var/run/log"}
+	for _, network := range logTypes {
+		for _, path := range logPaths {
+			conn, err := net.Dial(network, path)
+			if err != nil {
+				continue
+			} else {
+				return &netConn{conn: conn, local: true}, nil
+			}
+		}
+	}
+	return nil, errors.New("Unix syslog delivery error")
+}
