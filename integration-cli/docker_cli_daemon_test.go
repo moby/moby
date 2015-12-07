@@ -10,6 +10,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -1930,4 +1931,32 @@ func (s *DockerDaemonSuite) TestDaemonRestartContainerLinksRestart(c *check.C) {
 			c.Fatalf("parent container is not running\n%s", string(log))
 		}
 	}
+}
+
+func (s *DockerDaemonSuite) TestDaemonCgroupParent(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	cgroupParent := "test"
+	name := "cgroup-test"
+
+	err := s.d.StartWithBusybox("--cgroup-parent", cgroupParent)
+	c.Assert(err, check.IsNil)
+	defer s.d.Restart()
+
+	out, err := s.d.Cmd("run", "--name", name, "busybox", "cat", "/proc/self/cgroup")
+	c.Assert(err, checker.IsNil)
+	cgroupPaths := parseCgroupPaths(string(out))
+	c.Assert(len(cgroupPaths), checker.Not(checker.Equals), 0, check.Commentf("unexpected output - %q", string(out)))
+	out, err = s.d.Cmd("inspect", "-f", "{{.Id}}", name)
+	c.Assert(err, checker.IsNil)
+	id := strings.TrimSpace(string(out))
+	expectedCgroup := path.Join(cgroupParent, id)
+	found := false
+	for _, path := range cgroupPaths {
+		if strings.HasSuffix(path, expectedCgroup) {
+			found = true
+			break
+		}
+	}
+	c.Assert(found, checker.True, check.Commentf("Cgroup path for container (%s) doesn't found in cgroups file: %s", expectedCgroup, cgroupPaths))
 }
