@@ -1,11 +1,9 @@
 package client
 
 import (
-	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
-	"net/http"
 	"os"
 	"runtime"
 
@@ -44,22 +42,6 @@ type DockerCli struct {
 	isTerminalOut bool
 	// client is the http client that performs all API operations
 	client apiClient
-
-	// DEPRECATED OPTIONS TO MAKE THE CLIENT COMPILE
-	// TODO: Remove
-	// proto holds the client protocol i.e. unix.
-	proto string
-	// addr holds the client address.
-	addr string
-	// basePath holds the path to prepend to the requests
-	basePath string
-	// tlsConfig holds the TLS configuration for the client, and will
-	// set the scheme to https in NewDockerCli if present.
-	tlsConfig *tls.Config
-	// scheme holds the scheme of the client i.e. https.
-	scheme string
-	// transport holds the client transport instance.
-	transport *http.Transport
 }
 
 // Initialize calls the init function that will setup the configuration for the client
@@ -125,12 +107,6 @@ func NewDockerCli(in io.ReadCloser, out, err io.Writer, clientFlags *cli.ClientF
 			return err
 		}
 		cli.client = client
-
-		// FIXME: Deprecated, only to keep the old code running.
-		cli.transport = client.HTTPClient.Transport.(*http.Transport)
-		cli.basePath = client.BasePath
-		cli.addr = client.Addr
-		cli.scheme = client.Scheme
 
 		if cli.in != nil {
 			cli.inFd, cli.isTerminalIn = term.GetFdInfo(cli.in)

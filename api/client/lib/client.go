@@ -17,17 +17,17 @@ import (
 // against a docker server.
 type Client struct {
 	// proto holds the client protocol i.e. unix.
-	Proto string
+	proto string
 	// addr holds the client address.
-	Addr string
+	addr string
 	// basePath holds the path to prepend to the requests
-	BasePath string
+	basePath string
 	// scheme holds the scheme of the client i.e. https.
-	Scheme string
+	scheme string
 	// tlsConfig holds the tls configuration to use in hijacked requests.
 	tlsConfig *tls.Config
 	// httpClient holds the client transport instance. Exported to keep the old code running.
-	HTTPClient *http.Client
+	httpClient *http.Client
 	// version of the server to talk to.
 	version version.Version
 	// custom http headers configured by users
@@ -80,12 +80,12 @@ func NewClientWithVersion(host string, version version.Version, tlsOptions *tlsc
 	sockets.ConfigureTCPTransport(transport, proto, addr)
 
 	return &Client{
-		Proto:             proto,
-		Addr:              addr,
-		BasePath:          basePath,
-		Scheme:            scheme,
+		proto:             proto,
+		addr:              addr,
+		basePath:          basePath,
+		scheme:            scheme,
 		tlsConfig:         tlsConfig,
-		HTTPClient:        &http.Client{Transport: transport},
+		httpClient:        &http.Client{Transport: transport},
 		version:           version,
 		customHTTPHeaders: httpHeaders,
 	}, nil
@@ -94,7 +94,7 @@ func NewClientWithVersion(host string, version version.Version, tlsOptions *tlsc
 // getAPIPath returns the versioned request path to call the api.
 // It appends the query parameters to the path if they are not empty.
 func (cli *Client) getAPIPath(p string, query url.Values) string {
-	apiPath := fmt.Sprintf("%s/v%s%s", cli.BasePath, cli.version, p)
+	apiPath := fmt.Sprintf("%s/v%s%s", cli.basePath, cli.version, p)
 	if len(query) > 0 {
 		apiPath += "?" + query.Encode()
 	}
