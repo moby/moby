@@ -25,6 +25,10 @@ type EndpointInfo interface {
 	// This will only return a valid value if a container has joined the endpoint.
 	GatewayIPv6() net.IP
 
+	// StaticRoutes returns the list of static routes configured by the network
+	// driver when the container joins a network
+	StaticRoutes() []*types.StaticRoute
+
 	// Sandbox returns the attached sandbox if there, nil otherwise.
 	Sandbox() Sandbox
 }
@@ -136,9 +140,10 @@ func (epi *endpointInterface) CopyTo(dstEpi *endpointInterface) error {
 }
 
 type endpointJoinInfo struct {
-	gw           net.IP
-	gw6          net.IP
-	StaticRoutes []*types.StaticRoute
+	gw                    net.IP
+	gw6                   net.IP
+	StaticRoutes          []*types.StaticRoute
+	disableGatewayService bool
 }
 
 func (ep *endpoint) Info() EndpointInfo {
@@ -295,6 +300,17 @@ func (ep *endpoint) Sandbox() Sandbox {
 	return cnt
 }
 
+func (ep *endpoint) StaticRoutes() []*types.StaticRoute {
+	ep.Lock()
+	defer ep.Unlock()
+
+	if ep.joinInfo == nil {
+		return nil
+	}
+
+	return ep.joinInfo.StaticRoutes
+}
+
 func (ep *endpoint) Gateway() net.IP {
 	ep.Lock()
 	defer ep.Unlock()
@@ -339,4 +355,11 @@ func (ep *endpoint) retrieveFromStore() (*endpoint, error) {
 		return nil, fmt.Errorf("could not find network in store to get latest endpoint %s: %v", ep.Name(), err)
 	}
 	return n.getEndpointFromStore(ep.ID())
+}
+
+func (ep *endpoint) DisableGatewayService() {
+	ep.Lock()
+	defer ep.Unlock()
+
+	ep.joinInfo.disableGatewayService = true
 }

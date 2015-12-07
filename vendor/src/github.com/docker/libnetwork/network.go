@@ -603,11 +603,12 @@ func (n *network) Delete() error {
 	if err = n.getController().deleteFromStore(n.getEpCnt()); err != nil {
 		return fmt.Errorf("error deleting network endpoint count from store: %v", err)
 	}
+
+	n.ipamRelease()
+
 	if err = n.getController().deleteFromStore(n); err != nil {
 		return fmt.Errorf("error deleting network from store: %v", err)
 	}
-
-	n.ipamRelease()
 
 	return nil
 }
@@ -970,7 +971,10 @@ func (n *network) ipamAllocateVersion(ipVer int, ipam ipamapi.Ipam) error {
 		// irrespective of whether ipam driver returned a gateway already.
 		// If none of the above is true, libnetwork will allocate one.
 		if cfg.Gateway != "" || d.Gateway == nil {
-			if d.Gateway, _, err = ipam.RequestAddress(d.PoolID, net.ParseIP(cfg.Gateway), nil); err != nil {
+			var gatewayOpts = map[string]string{
+				ipamapi.RequestAddressType: netlabel.Gateway,
+			}
+			if d.Gateway, _, err = ipam.RequestAddress(d.PoolID, net.ParseIP(cfg.Gateway), gatewayOpts); err != nil {
 				return types.InternalErrorf("failed to allocate gateway (%v): %v", cfg.Gateway, err)
 			}
 		}
