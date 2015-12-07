@@ -62,7 +62,6 @@ type sandbox struct {
 	osSbox        osl.Sandbox
 	controller    *controller
 	refCnt        int
-	hostsOnce     sync.Once
 	endpoints     epHeap
 	epPriority    map[string]int
 	joinLeaveDone chan struct{}
@@ -601,41 +600,21 @@ func (sb *sandbox) buildHostsFile() error {
 }
 
 func (sb *sandbox) updateHostsFile(ifaceIP string, svcRecords []etchosts.Record) error {
-	var err error
+	var mhost string
 
 	if sb.config.originHostsPath != "" {
 		return nil
 	}
 
-	max := func(a, b int) int {
-		if a < b {
-			return b
-		}
-
-		return a
+	if sb.config.domainName != "" {
+		mhost = fmt.Sprintf("%s.%s %s", sb.config.hostName, sb.config.domainName,
+			sb.config.hostName)
+	} else {
+		mhost = sb.config.hostName
 	}
 
-	extraContent := make([]etchosts.Record, 0,
-		max(len(sb.config.extraHosts), len(svcRecords)))
-
-	sb.hostsOnce.Do(func() {
-		// Rebuild the hosts file accounting for the passed
-		// interface IP and service records
-
-		for _, extraHost := range sb.config.extraHosts {
-			extraContent = append(extraContent,
-				etchosts.Record{Hosts: extraHost.name, IP: extraHost.IP})
-		}
-
-		err = etchosts.Build(sb.config.hostsPath, ifaceIP,
-			sb.config.hostName, sb.config.domainName, extraContent)
-	})
-
-	if err != nil {
-		return err
-	}
-
-	extraContent = extraContent[:0]
+	extraContent := make([]etchosts.Record, 0, len(svcRecords)+1)
+	extraContent = append(extraContent, etchosts.Record{Hosts: mhost, IP: ifaceIP})
 	for _, svc := range svcRecords {
 		extraContent = append(extraContent, svc)
 	}

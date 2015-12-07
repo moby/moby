@@ -1,6 +1,9 @@
 package netlink
 
-import "net"
+import (
+	"net"
+	"syscall"
+)
 
 // Link represents a link device from netlink. Shared link attributes
 // like name may be retrieved using the Attrs() method. Unique data
@@ -62,6 +65,19 @@ func (dummy *Dummy) Type() string {
 	return "dummy"
 }
 
+// Ifb links are advanced dummy devices for packet filtering
+type Ifb struct {
+	LinkAttrs
+}
+
+func (ifb *Ifb) Attrs() *LinkAttrs {
+	return &ifb.LinkAttrs
+}
+
+func (ifb *Ifb) Type() string {
+	return "ifb"
+}
+
 // Bridge links are simple linux bridges
 type Bridge struct {
 	LinkAttrs
@@ -114,6 +130,36 @@ func (macvlan *Macvlan) Type() string {
 	return "macvlan"
 }
 
+// Macvtap - macvtap is a virtual interfaces based on macvlan
+type Macvtap struct {
+	Macvlan
+}
+
+func (macvtap Macvtap) Type() string {
+	return "macvtap"
+}
+
+type TuntapMode uint16
+
+const (
+	TUNTAP_MODE_TUN TuntapMode = syscall.IFF_TUN
+	TUNTAP_MODE_TAP TuntapMode = syscall.IFF_TAP
+)
+
+// Tuntap links created via /dev/tun/tap, but can be destroyed via netlink
+type Tuntap struct {
+	LinkAttrs
+	Mode TuntapMode
+}
+
+func (tuntap *Tuntap) Attrs() *LinkAttrs {
+	return &tuntap.LinkAttrs
+}
+
+func (tuntap *Tuntap) Type() string {
+	return "tuntap"
+}
+
 // Veth devices must specify PeerName on create
 type Veth struct {
 	LinkAttrs
@@ -128,18 +174,18 @@ func (veth *Veth) Type() string {
 	return "veth"
 }
 
-// Generic links represent types that are not currently understood
+// GenericLink links represent types that are not currently understood
 // by this netlink library.
-type Generic struct {
+type GenericLink struct {
 	LinkAttrs
 	LinkType string
 }
 
-func (generic *Generic) Attrs() *LinkAttrs {
+func (generic *GenericLink) Attrs() *LinkAttrs {
 	return &generic.LinkAttrs
 }
 
-func (generic *Generic) Type() string {
+func (generic *GenericLink) Type() string {
 	return generic.LinkType
 }
 

@@ -91,6 +91,9 @@ type JoinInfo interface {
 	// AddStaticRoute adds a routes to the sandbox.
 	// It may be used in addtion to or instead of a default gateway (as above).
 	AddStaticRoute(destination *net.IPNet, routeType int, nextHop net.IP) error
+
+	// DisableGatewayService tells libnetwork not to provide Default GW for the container
+	DisableGatewayService()
 }
 
 // DriverCallback provides a Callback interface for Drivers into LibNetwork

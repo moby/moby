@@ -88,12 +88,12 @@ func (s *SubnetKey) String() string {
 // FromString populate the SubnetKey object reading it from string
 func (s *SubnetKey) FromString(str string) error {
 	if str == "" || !strings.Contains(str, "/") {
-		return fmt.Errorf("invalid string form for subnetkey: %s", str)
+		return types.BadRequestErrorf("invalid string form for subnetkey: %s", str)
 	}
 
 	p := strings.Split(str, "/")
 	if len(p) != 3 && len(p) != 5 {
-		return fmt.Errorf("invalid string form for subnetkey: %s", str)
+		return types.BadRequestErrorf("invalid string form for subnetkey: %s", str)
 	}
 	s.AddressSpace = p[0]
 	s.Subnet = fmt.Sprintf("%s/%s", p[1], p[2])
@@ -317,7 +317,7 @@ func (aSpace *addrSpace) updatePoolDBOnRemoval(k SubnetKey) (func() error, error
 				return func() error {
 					bm, err := aSpace.alloc.retrieveBitmask(k, c.Pool)
 					if err != nil {
-						return fmt.Errorf("could not find bitmask in datastore for pool %s removal: %v", k.String(), err)
+						return types.InternalErrorf("could not find bitmask in datastore for pool %s removal: %v", k.String(), err)
 					}
 					return bm.Destroy()
 				}, nil
