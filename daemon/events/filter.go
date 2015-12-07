@@ -8,19 +8,20 @@ import (
 
 // Filter can filter out docker events from a stream
 type Filter struct {
-	filter    filters.Args
-	getLabels func(id string) map[string]string
+	filter       filters.Args
+	getLabels    func(id string) map[string]string
+	updateFilter func(f *filters.Args)
 }
 
 // NewFilter creates a new Filter
-func NewFilter(filter filters.Args, getLabels func(id string) map[string]string) *Filter {
-	return &Filter{filter: filter, getLabels: getLabels}
+func NewFilter(filter filters.Args, getLabels func(id string) map[string]string, updateFilter func(f *filters.Args)) *Filter {
+	return &Filter{filter: filter, getLabels: getLabels, updateFilter: updateFilter}
 }
 
 // Include returns true when the event ev is included by the filters
 func (ef *Filter) Include(ev *jsonmessage.JSONMessage) bool {
 	return ef.filter.ExactMatch("event", ev.Status) &&
-		ef.filter.ExactMatch("container", ev.ID) &&
+		ef.isContainerIDIncluded(ev.ID) &&
 		ef.isImageIncluded(ev.ID, ev.From) &&
 		ef.isLabelFieldIncluded(ev.ID)
 }
@@ -30,6 +31,14 @@ func (ef *Filter) isLabelFieldIncluded(id string) bool {
 		return true
 	}
 	return ef.filter.MatchKVList("label", ef.getLabels(id))
+}
+
+func (ef *Filter) isContainerIDIncluded(id string) bool {
+	if !ef.filter.Include("container") {
+		return true
+	}
+	ef.updateFilter(&ef.filter)
+	return ef.filter.ExactMatch("container", id)
 }
 
 // The image filter will be matched against both event.ID (for image events)
