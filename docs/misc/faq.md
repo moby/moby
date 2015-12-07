@@ -29,12 +29,12 @@ https://github.com/docker/docker/blob/master/LICENSE)
 
 ### Does Docker run on Mac OS X or Windows?
 
-Docker currently runs only on Linux, but you can use VirtualBox to run Docker in
-a virtual machine on your box, and get the best of both worlds. Check out the
-[*Mac OS X*](../installation/mac.md) and [*Microsoft
+Docker currently runs only on Linux, but you can use VirtualBox to run Docker
+in a virtual machine on your box, and get the best of both worlds. Check out
+the [*Mac OS X*](../installation/mac.md) and [*Microsoft
 Windows*](../installation/windows.md) installation guides. The small Linux
-distribution Docker Machine can be run inside virtual machines on these two
-operating systems.
+distribution boot2docker can be set up using the Docker Machine tool to be run
+inside virtual machines on these two operating systems.
 
 >**Note:** if you are using a remote Docker daemon on a VM through Docker
 >Machine, then _do not_ type the `sudo` before the `docker` commands shown in
