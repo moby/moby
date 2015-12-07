@@ -31,7 +31,7 @@ func (s *containerRouter) postContainersCopy(ctx context.Context, w http.Respons
 
 	data, err := s.backend.ContainerCopy(vars["name"], cfg.Resource)
 	if err != nil {
-		if strings.Contains(strings.ToLower(err.Error()), "no such id") {
+		if strings.Contains(strings.ToLower(err.Error()), "no such container") {
 			w.WriteHeader(http.StatusNotFound)
 			return nil
 		}
