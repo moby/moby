@@ -1047,6 +1047,33 @@ func (s *DockerSuite) TestContainerApiDelete(c *check.C) {
 	c.Assert(status, checker.Equals, http.StatusNoContent)
 }
 
+func (s *DockerSuite) TestContainerApiDeleteAll(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
+
+	id := strings.TrimSpace(out)
+	c.Assert(waitRun(id), check.IsNil)
+
+	out, _ = dockerCmd(c, "run", "-d", "busybox", "top")
+
+	id2 := strings.TrimSpace(out)
+	c.Assert(waitRun(id2), check.IsNil)
+
+	dockerCmd(c, "stop", id)
+	dockerCmd(c, "stop", id2)
+
+	status, _, err := sockRequest("DELETE", "/containers/_all", nil)
+	c.Assert(err, check.IsNil)
+	c.Assert(status, check.Equals, http.StatusOK)
+
+	out, _ = dockerCmd(c, "ps", "-a")
+	containers := strings.Split(out, "\n")
+
+	c.Assert(len(containers), check.Equals, 2)
+	c.Assert(containers[1], check.Equals, "")
+}
+
 func (s *DockerSuite) TestContainerApiDeleteNotExist(c *check.C) {
 	status, body, err := sockRequest("DELETE", "/containers/doesnotexist", nil)
 	c.Assert(err, checker.IsNil)

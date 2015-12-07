@@ -60,6 +60,7 @@ func (r *containerRouter) initRoutes() {
 		// PUT
 		local.NewPutRoute("/containers/{name:.*}/archive", r.putContainersArchive),
 		// DELETE
+		local.NewDeleteRoute("/containers/_all", r.deleteAllContainers),
 		local.NewDeleteRoute("/containers/{name:.*}", r.deleteContainers),
 	}
 }

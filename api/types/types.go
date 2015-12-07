@@ -123,6 +123,13 @@ type Port struct {
 	Type        string
 }
 
+// ContainerDeleteAll contains response of Remote API:
+// DELETE "/containers/_all"
+type ContainerDeleteAll struct {
+	FailedCount      int
+	FailedContainers map[string]string
+}
+
 // Container contains response of Remote API:
 // GET  "/containers/json"
 type Container struct {
