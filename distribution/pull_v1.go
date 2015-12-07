@@ -175,7 +175,6 @@ func (p *v1Puller) downloadImage(ctx context.Context, repoData *registry.Reposit
 		progress.Update(p.config.ProgressOutput, stringid.TruncateID(img.ID), err.Error())
 		return err
 	}
-	progress.Update(p.config.ProgressOutput, stringid.TruncateID(img.ID), "Download complete")
 	return nil
 }
 
