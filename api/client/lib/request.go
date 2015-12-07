@@ -83,14 +83,14 @@ func (cli *Client) sendClientRequest(method, path string, query url.Values, body
 	}
 
 	req, err := cli.newRequest(method, path, query, body, headers)
-	req.URL.Host = cli.Addr
-	req.URL.Scheme = cli.Scheme
+	req.URL.Host = cli.addr
+	req.URL.Scheme = cli.scheme
 
 	if expectedPayload && req.Header.Get("Content-Type") == "" {
 		req.Header.Set("Content-Type", "text/plain")
 	}
 
-	resp, err := cli.HTTPClient.Do(req)
+	resp, err := cli.httpClient.Do(req)
 	if resp != nil {
 		serverResp.statusCode = resp.StatusCode
 	}
@@ -100,10 +100,10 @@ func (cli *Client) sendClientRequest(method, path string, query url.Values, body
 			return serverResp, ErrConnectionFailed
 		}
 
-		if cli.Scheme == "http" && strings.Contains(err.Error(), "malformed HTTP response") {
+		if cli.scheme == "http" && strings.Contains(err.Error(), "malformed HTTP response") {
 			return serverResp, fmt.Errorf("%v.\n* Are you trying to connect to a TLS-enabled daemon without TLS?", err)
 		}
-		if cli.Scheme == "https" && strings.Contains(err.Error(), "remote error: bad certificate") {
+		if cli.scheme == "https" && strings.Contains(err.Error(), "remote error: bad certificate") {
 			return serverResp, fmt.Errorf("The server probably has client authentication (--tlsverify) enabled. Please check your TLS client certification settings: %v", err)
 		}
 
