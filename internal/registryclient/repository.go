@@ -487,6 +487,10 @@ func (bs *blobStatter) Stat(ctx context.Context, dgst digest.Digest) (distributi
 
 	if SuccessStatus(resp.StatusCode) {
 		lengthHeader := resp.Header.Get("Content-Length")
+		if lengthHeader == "" {
+			return distribution.Descriptor{}, fmt.Errorf("missing content-length header for request: %s", u)
+		}
+
 		length, err := strconv.ParseInt(lengthHeader, 10, 64)
 		if err != nil {
 			return distribution.Descriptor{}, fmt.Errorf("error parsing content-length: %v", err)

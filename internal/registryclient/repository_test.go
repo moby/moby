@@ -159,6 +159,59 @@ func TestBlobFetch(t *testing.T) {
 	// TODO(dmcgowan): Test for unknown blob case
 }
 
+func TestBlobExistsNoContentLength(t *testing.T) {
+	var m testutil.RequestResponseMap
+
+	repo := "biff"
+	dgst, content := newRandomBlob(1024)
+	m = append(m, testutil.RequestResponseMapping{
+		Request: testutil.Request{
+			Method: "GET",
+			Route:  "/v2/" + repo + "/blobs/" + dgst.String(),
+		},
+		Response: testutil.Response{
+			StatusCode: http.StatusOK,
+			Body:       content,
+			Headers: http.Header(map[string][]string{
+				//			"Content-Length": {fmt.Sprint(len(content))},
+				"Last-Modified": {time.Now().Add(-1 * time.Second).Format(time.ANSIC)},
+			}),
+		},
+	})
+
+	m = append(m, testutil.RequestResponseMapping{
+		Request: testutil.Request{
+			Method: "HEAD",
+			Route:  "/v2/" + repo + "/blobs/" + dgst.String(),
+		},
+		Response: testutil.Response{
+			StatusCode: http.StatusOK,
+			Headers: http.Header(map[string][]string{
+				//			"Content-Length": {fmt.Sprint(len(content))},
+				"Last-Modified": {time.Now().Add(-1 * time.Second).Format(time.ANSIC)},
+			}),
+		},
+	})
+	e, c := testServer(m)
+	defer c()
+
+	ctx := context.Background()
+	r, err := NewRepository(ctx, repo, e, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	l := r.Blobs(ctx)
+
+	_, err = l.Stat(ctx, dgst)
+	if err == nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(err.Error(), "missing content-length heade") {
+		t.Fatalf("Expected missing content-length error message")
+	}
+
+}
+
 func TestBlobExists(t *testing.T) {
 	d1, b1 := newRandomBlob(1024)
 	var m testutil.RequestResponseMap
