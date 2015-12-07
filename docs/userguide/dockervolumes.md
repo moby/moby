@@ -246,7 +246,7 @@ backups, restores or migrations.  We do this by using the
 `--volumes-from` flag to create a new container that mounts that volume,
 like so:
 
-    $ docker run --volumes-from dbstore -v $(pwd):/backup ubuntu tar cvf /backup/backup.tar /dbdata
+    $ docker run --rm --volumes-from dbstore -v $(pwd):/backup ubuntu tar cvf /backup/backup.tar /dbdata
 
 Here we've launched a new container and mounted the volume from the
 `dbstore` container. We've then mounted a local host directory as
@@ -262,7 +262,7 @@ elsewhere. Create a new container.
 
 Then un-tar the backup file in the new container's data volume.
 
-    $ docker run --volumes-from dbstore2 -v $(pwd):/backup ubuntu bash -c "cd /dbdata && tar xvf /backup/backup.tar"
+    $ docker run --rm --volumes-from dbstore2 -v $(pwd):/backup ubuntu bash -c "cd /dbdata && tar xvf /backup/backup.tar"
 
 You can use the techniques above to automate backup, migration and
 restore testing using your preferred tools.
