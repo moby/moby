@@ -561,7 +561,7 @@ func (ep *endpoint) sbLeave(sbox Sandbox, options ...EndpointOption) error {
 
 	sb.deleteHostsEntries(n.getSvcRecords(ep))
 
-	if sb.needDefaultGW() {
+	if !sb.inDelete && sb.needDefaultGW() {
 		ep := sb.getEPwithoutGateway()
 		if ep == nil {
 			return fmt.Errorf("endpoint without GW expected, but not found")
