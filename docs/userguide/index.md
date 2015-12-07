@@ -2,7 +2,7 @@
 +++
 title = "The Docker user guide"
 description = "The Docker user guide home page"
-keywords = ["docker, introduction, documentation, about, technology, docker.io, user, guide, user's, manual, platform, framework, virtualization, home,  intro"]
+keywords = ["docker, introduction, documentation, about, technology, docker.io, user, guide, user's, manual, platform, framework, home,  intro"]
 [menu.main]
 parent = "mn_fun_docker"
 +++
@@ -37,8 +37,8 @@ Go to [Using Docker Hub](https://docs.docker.com/docker-hub).
 
 *How do I run applications inside containers?*
 
-Docker offers a *container-based* virtualization platform to power your
-applications. To learn how to Dockerize applications and run them:
+Docker offers a containerization platform to power your applications. To learn
+how to Dockerize applications and run them:
 
 Go to [Dockerizing Applications](dockerizing.md).
 

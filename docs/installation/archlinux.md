@@ -2,7 +2,7 @@
 +++
 title = "Installation on Arch Linux"
 description = "Installation instructions for Docker on ArchLinux."
-keywords = ["arch linux, virtualization, docker, documentation,  installation"]
+keywords = ["arch linux, docker, documentation,  installation"]
 [menu.main]
 parent = "smn_linux"
 +++

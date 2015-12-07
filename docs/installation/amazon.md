@@ -2,7 +2,7 @@
 +++
 title = "Amazon EC2 Installation"
 description = "Installation instructions for Docker on Amazon EC2."
-keywords = ["amazon ec2, virtualization, cloud, docker, documentation,  installation"]
+keywords = ["amazon ec2, cloud, docker, documentation,  installation"]
 [menu.main]
 parent = "smn_cloud"
 +++

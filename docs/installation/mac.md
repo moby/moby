@@ -111,7 +111,7 @@ and choosing "Open" from the pop-up menu.
 
 To run a Docker container, you:
 
-* create a new (or start an existing) Docker virtual machine
+* create a new (or start an existing) virtual machine that runs Docker.
 * switch your environment to your new VM
 * use the `docker` client to create, load, and manage containers
 

@@ -20,9 +20,9 @@ as fast as possible.
 
 Docker consists of:
 
-* The Docker Engine - our lightweight and powerful open source container
-  virtualization technology combined with a work flow for building
-  and containerizing your applications.
+* The Docker Engine - our lightweight and powerful open source containerization
+  technology combined with a work flow for building and containerizing your
+  applications.
 * [Docker Hub](https://hub.docker.com) - our SaaS service for
   sharing and managing your application stacks.
 
