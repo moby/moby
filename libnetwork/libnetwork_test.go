@@ -283,8 +283,28 @@ func TestBridge(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer func() {
+		if err := network.Delete(); err != nil {
+			t.Fatal(err)
+		}
+	}()
 
-	ep, err := network.CreateEndpoint("testep", libnetwork.CreateOptionPortMapping(getPortMapping()))
+	ep, err := network.CreateEndpoint("testep")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	sb, err := controller.NewSandbox(containerID, libnetwork.OptionPortMapping(getPortMapping()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := sb.Delete(); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	err = ep.Join(sb)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -303,14 +323,6 @@ func TestBridge(t *testing.T) {
 	}
 	if len(pm) != 5 {
 		t.Fatalf("Incomplete data for port mapping in endpoint operational data: %d", len(pm))
-	}
-
-	if err := ep.Delete(false); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := network.Delete(); err != nil {
-		t.Fatal(err)
 	}
 }
 

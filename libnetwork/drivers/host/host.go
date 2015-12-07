@@ -63,6 +63,14 @@ func (d *driver) Leave(nid, eid string) error {
 	return nil
 }
 
+func (d *driver) ProgramExternalConnectivity(nid, eid string, options map[string]interface{}) error {
+	return nil
+}
+
+func (d *driver) RevokeExternalConnectivity(nid, eid string) error {
+	return nil
+}
+
 func (d *driver) Type() string {
 	return networkType
 }

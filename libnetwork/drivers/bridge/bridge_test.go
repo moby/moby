@@ -463,14 +463,23 @@ func testQueryEndpointInfo(t *testing.T, ulPxyEnabled bool) {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
 
-	portMappings := getPortMapping()
-	epOptions := make(map[string]interface{})
-	epOptions[netlabel.PortMap] = portMappings
+	sbOptions := make(map[string]interface{})
+	sbOptions[netlabel.PortMap] = getPortMapping()
 
 	te := newTestEndpoint(ipdList[0].Pool, 11)
-	err = d.CreateEndpoint("net1", "ep1", te.Interface(), epOptions)
+	err = d.CreateEndpoint("net1", "ep1", te.Interface(), nil)
 	if err != nil {
 		t.Fatalf("Failed to create an endpoint : %s", err.Error())
+	}
+
+	err = d.Join("net1", "ep1", "sbox", te, sbOptions)
+	if err != nil {
+		t.Fatalf("Failed to join the endpoint: %v", err)
+	}
+
+	err = d.ProgramExternalConnectivity("net1", "ep1", sbOptions)
+	if err != nil {
+		t.Fatalf("Failed to program external connectivity: %v", err)
 	}
 
 	network, ok := d.networks["net1"]
@@ -499,10 +508,15 @@ func testQueryEndpointInfo(t *testing.T, ulPxyEnabled bool) {
 		}
 	}
 
-	// Cleanup as host ports are there
-	err = network.releasePorts(ep)
+	err = d.RevokeExternalConnectivity("net1", "ep1")
 	if err != nil {
-		t.Fatalf("Failed to release mapped ports: %v", err)
+		t.Fatal(err)
+	}
+
+	// release host mapped ports
+	err = d.Leave("net1", "ep1")
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 
@@ -594,14 +608,24 @@ func TestLinkContainers(t *testing.T) {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
 
-	exposedPorts := getExposedPorts()
-	epOptions := make(map[string]interface{})
-	epOptions[netlabel.ExposedPorts] = exposedPorts
-
 	te1 := newTestEndpoint(ipdList[0].Pool, 11)
-	err = d.CreateEndpoint("net1", "ep1", te1.Interface(), epOptions)
+	err = d.CreateEndpoint("net1", "ep1", te1.Interface(), nil)
 	if err != nil {
 		t.Fatalf("Failed to create an endpoint : %s", err.Error())
+	}
+
+	exposedPorts := getExposedPorts()
+	sbOptions := make(map[string]interface{})
+	sbOptions[netlabel.ExposedPorts] = exposedPorts
+
+	err = d.Join("net1", "ep1", "sbox", te1, sbOptions)
+	if err != nil {
+		t.Fatalf("Failed to join the endpoint: %v", err)
+	}
+
+	err = d.ProgramExternalConnectivity("net1", "ep1", sbOptions)
+	if err != nil {
+		t.Fatalf("Failed to program external connectivity: %v", err)
 	}
 
 	addr1 := te1.iface.addr
@@ -620,14 +644,17 @@ func TestLinkContainers(t *testing.T) {
 		t.Fatalf("No Ipv4 address assigned to the endpoint:  ep2")
 	}
 
-	ce := []string{"ep1"}
-	cConfig := &containerConfiguration{ChildEndpoints: ce}
-	genericOption = make(map[string]interface{})
-	genericOption[netlabel.GenericData] = cConfig
+	sbOptions = make(map[string]interface{})
+	sbOptions[ChildEndpoints] = []string{"ep1"}
 
-	err = d.Join("net1", "ep2", "", te2, genericOption)
+	err = d.Join("net1", "ep2", "", te2, sbOptions)
 	if err != nil {
 		t.Fatalf("Failed to link ep1 and ep2")
+	}
+
+	err = d.ProgramExternalConnectivity("net1", "ep2", sbOptions)
+	if err != nil {
+		t.Fatalf("Failed to program external connectivity: %v", err)
 	}
 
 	out, err := iptables.Raw("-L", DockerChain)
@@ -644,6 +671,11 @@ func TestLinkContainers(t *testing.T) {
 		if !matched {
 			t.Fatalf("IP Tables programming failed %s", string(out[:]))
 		}
+	}
+
+	err = d.RevokeExternalConnectivity("net1", "ep2")
+	if err != nil {
+		t.Fatalf("Failed to revoke external connectivity: %v", err)
 	}
 
 	err = d.Leave("net1", "ep2")
@@ -668,12 +700,14 @@ func TestLinkContainers(t *testing.T) {
 	}
 
 	// Error condition test with an invalid endpoint-id "ep4"
-	ce = []string{"ep1", "ep4"}
-	cConfig = &containerConfiguration{ChildEndpoints: ce}
-	genericOption = make(map[string]interface{})
-	genericOption[netlabel.GenericData] = cConfig
+	sbOptions = make(map[string]interface{})
+	sbOptions[ChildEndpoints] = []string{"ep1", "ep4"}
 
-	err = d.Join("net1", "ep2", "", te2, genericOption)
+	err = d.Join("net1", "ep2", "", te2, sbOptions)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = d.ProgramExternalConnectivity("net1", "ep2", sbOptions)
 	if err != nil {
 		out, err = iptables.Raw("-L", DockerChain)
 		for _, pm := range exposedPorts {

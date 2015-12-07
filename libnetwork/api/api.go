@@ -251,6 +251,12 @@ func (sc *sandboxCreate) parseOptions() []libnetwork.SandboxOption {
 			setFctList = append(setFctList, libnetwork.OptionExtraHost(e.Name, e.Address))
 		}
 	}
+	if sc.ExposedPorts != nil {
+		setFctList = append(setFctList, libnetwork.OptionExposedPorts(sc.ExposedPorts))
+	}
+	if sc.PortMapping != nil {
+		setFctList = append(setFctList, libnetwork.OptionPortMapping(sc.PortMapping))
+	}
 	return setFctList
 }
 
@@ -384,13 +390,6 @@ func procCreateEndpoint(c libnetwork.NetworkController, vars map[string]string, 
 	}
 
 	var setFctList []libnetwork.EndpointOption
-	if ec.ExposedPorts != nil {
-		setFctList = append(setFctList, libnetwork.CreateOptionExposedPorts(ec.ExposedPorts))
-	}
-	if ec.PortMapping != nil {
-		setFctList = append(setFctList, libnetwork.CreateOptionPortMapping(ec.PortMapping))
-	}
-
 	for _, str := range ec.MyAliases {
 		setFctList = append(setFctList, libnetwork.CreateOptionMyAlias(str))
 	}
@@ -633,13 +632,6 @@ func procPublishService(c libnetwork.NetworkController, vars map[string]string, 
 	}
 
 	var setFctList []libnetwork.EndpointOption
-	if sp.ExposedPorts != nil {
-		setFctList = append(setFctList, libnetwork.CreateOptionExposedPorts(sp.ExposedPorts))
-	}
-	if sp.PortMapping != nil {
-		setFctList = append(setFctList, libnetwork.CreateOptionPortMapping(sp.PortMapping))
-	}
-
 	for _, str := range sp.MyAliases {
 		setFctList = append(setFctList, libnetwork.CreateOptionMyAlias(str))
 	}

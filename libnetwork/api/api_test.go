@@ -293,9 +293,7 @@ func TestGetNetworksAndEndpoints(t *testing.T) {
 	}
 
 	ec1 := endpointCreate{
-		Name:         "ep1",
-		ExposedPorts: getExposedPorts(),
-		PortMapping:  getPortMapping(),
+		Name: "ep1",
 	}
 	b1, err := json.Marshal(ec1)
 	if err != nil {
@@ -823,10 +821,8 @@ func TestProcPublishUnpublishService(t *testing.T) {
 	}
 
 	sp := servicePublish{
-		Name:         "web",
-		Network:      "network",
-		ExposedPorts: getExposedPorts(),
-		PortMapping:  getPortMapping(),
+		Name:    "web",
+		Network: "network",
 	}
 	b, err = json.Marshal(sp)
 	if err != nil {
@@ -2087,7 +2083,10 @@ func TestEndToEnd(t *testing.T) {
 	cpid1 := string(chars[0 : len(chars)/2])
 
 	// Create sandboxes
-	sb1, err := json.Marshal(sandboxCreate{ContainerID: cid1})
+	sb1, err := json.Marshal(sandboxCreate{
+		ContainerID: cid1,
+		PortMapping: getPortMapping(),
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2111,7 +2110,10 @@ func TestEndToEnd(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	sb2, err := json.Marshal(sandboxCreate{ContainerID: cid2})
+	sb2, err := json.Marshal(sandboxCreate{
+		ContainerID:  cid2,
+		ExposedPorts: getExposedPorts(),
+	})
 	if err != nil {
 		t.Fatal(err)
 	}

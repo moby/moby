@@ -42,23 +42,23 @@ type networkCreate struct {
 
 // endpointCreate represents the body of the "create endpoint" http request message
 type endpointCreate struct {
-	Name         string                `json:"name"`
-	MyAliases    []string              `json:"my_aliases"`
-	ExposedPorts []types.TransportPort `json:"exposed_ports"`
-	PortMapping  []types.PortBinding   `json:"port_mapping"`
+	Name      string   `json:"name"`
+	MyAliases []string `json:"my_aliases"`
 }
 
 // sandboxCreate is the expected body of the "create sandbox" http request message
 type sandboxCreate struct {
-	ContainerID       string      `json:"container_id"`
-	HostName          string      `json:"host_name"`
-	DomainName        string      `json:"domain_name"`
-	HostsPath         string      `json:"hosts_path"`
-	ResolvConfPath    string      `json:"resolv_conf_path"`
-	DNS               []string    `json:"dns"`
-	ExtraHosts        []extraHost `json:"extra_hosts"`
-	UseDefaultSandbox bool        `json:"use_default_sandbox"`
-	UseExternalKey    bool        `json:"use_external_key"`
+	ContainerID       string                `json:"container_id"`
+	HostName          string                `json:"host_name"`
+	DomainName        string                `json:"domain_name"`
+	HostsPath         string                `json:"hosts_path"`
+	ResolvConfPath    string                `json:"resolv_conf_path"`
+	DNS               []string              `json:"dns"`
+	ExtraHosts        []extraHost           `json:"extra_hosts"`
+	UseDefaultSandbox bool                  `json:"use_default_sandbox"`
+	UseExternalKey    bool                  `json:"use_external_key"`
+	ExposedPorts      []types.TransportPort `json:"exposed_ports"`
+	PortMapping       []types.PortBinding   `json:"port_mapping"`
 }
 
 // endpointJoin represents the expected body of the "join endpoint" or "leave endpoint" http request messages
@@ -69,11 +69,9 @@ type endpointJoin struct {
 
 // servicePublish represents the body of the "publish service" http request message
 type servicePublish struct {
-	Name         string                `json:"name"`
-	MyAliases    []string              `json:"my_aliases"`
-	Network      string                `json:"network_name"`
-	ExposedPorts []types.TransportPort `json:"exposed_ports"`
-	PortMapping  []types.PortBinding   `json:"port_mapping"`
+	Name      string   `json:"name"`
+	MyAliases []string `json:"my_aliases"`
+	Network   string   `json:"network_name"`
 }
 
 // serviceDelete represents the body of the "unpublish service" http request message

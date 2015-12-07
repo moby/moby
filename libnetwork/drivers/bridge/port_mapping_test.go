@@ -35,8 +35,8 @@ func TestPortMappingConfig(t *testing.T) {
 	binding2 := types.PortBinding{Proto: types.TCP, Port: uint16(500), HostPort: uint16(65000)}
 	portBindings := []types.PortBinding{binding1, binding2}
 
-	epOptions := make(map[string]interface{})
-	epOptions[netlabel.PortMap] = portBindings
+	sbOptions := make(map[string]interface{})
+	sbOptions[netlabel.PortMap] = portBindings
 
 	netConfig := &networkConfiguration{
 		BridgeName: DefaultBridgeName,
@@ -51,9 +51,17 @@ func TestPortMappingConfig(t *testing.T) {
 	}
 
 	te := newTestEndpoint(ipdList[0].Pool, 11)
-	err = d.CreateEndpoint("dummy", "ep1", te.Interface(), epOptions)
+	err = d.CreateEndpoint("dummy", "ep1", te.Interface(), nil)
 	if err != nil {
 		t.Fatalf("Failed to create the endpoint: %s", err.Error())
+	}
+
+	if err = d.Join("dummy", "ep1", "sbox", te, sbOptions); err != nil {
+		t.Fatalf("Failed to join the endpoint: %v", err)
+	}
+
+	if err = d.ProgramExternalConnectivity("dummy", "ep1", sbOptions); err != nil {
+		t.Fatalf("Failed to program external connectivity: %v", err)
 	}
 
 	network, ok := d.networks["dummy"]
@@ -73,8 +81,14 @@ func TestPortMappingConfig(t *testing.T) {
 		t.Fatalf("operational port mapping data not found on bridgeEndpoint")
 	}
 
-	err = network.releasePorts(ep)
+	// release host mapped ports
+	err = d.Leave("dummy", "ep1")
 	if err != nil {
-		t.Fatalf("Failed to release mapped ports: %v", err)
+		t.Fatal(err)
+	}
+
+	err = d.RevokeExternalConnectivity("dummy", "ep1")
+	if err != nil {
+		t.Fatal(err)
 	}
 }

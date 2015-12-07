@@ -153,6 +153,29 @@ type LeaveResponse struct {
 	Response
 }
 
+// ProgramExternalConnectivityRequest describes the API for programming the external connectivity for the given endpoint.
+type ProgramExternalConnectivityRequest struct {
+	NetworkID  string
+	EndpointID string
+	Options    map[string]interface{}
+}
+
+// ProgramExternalConnectivityResponse is the answer to ProgramExternalConnectivityRequest.
+type ProgramExternalConnectivityResponse struct {
+	Response
+}
+
+// RevokeExternalConnectivityRequest describes the API for revoking the external connectivity for the given endpoint.
+type RevokeExternalConnectivityRequest struct {
+	NetworkID  string
+	EndpointID string
+}
+
+// RevokeExternalConnectivityResponse is the answer to RevokeExternalConnectivityRequest.
+type RevokeExternalConnectivityResponse struct {
+	Response
+}
+
 // DiscoveryNotification represents a discovery notification
 type DiscoveryNotification struct {
 	DiscoveryType discoverapi.DiscoveryType

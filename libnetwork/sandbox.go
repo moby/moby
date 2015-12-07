@@ -10,6 +10,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/etchosts"
+	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/osl"
 	"github.com/docker/libnetwork/types"
 )
@@ -118,6 +119,7 @@ type containerConfig struct {
 	useDefaultSandBox bool
 	useExternalKey    bool
 	prio              int // higher the value, more the priority
+	exposedPorts      []types.TransportPort
 }
 
 func (sb *sandbox) ID() string {
@@ -136,7 +138,13 @@ func (sb *sandbox) Key() string {
 }
 
 func (sb *sandbox) Labels() map[string]interface{} {
-	return sb.config.generic
+	sb.Lock()
+	sb.Unlock()
+	opts := make(map[string]interface{}, len(sb.config.generic))
+	for k, v := range sb.config.generic {
+		opts[k] = v
+	}
+	return opts
 }
 
 func (sb *sandbox) Statistics() (map[string]*types.InterfaceStatistics, error) {
@@ -327,6 +335,18 @@ func (sb *sandbox) getConnectedEndpoints() []*endpoint {
 	}
 
 	return eps
+}
+
+func (sb *sandbox) removeEndpoint(ep *endpoint) {
+	sb.Lock()
+	defer sb.Unlock()
+
+	for i, e := range sb.endpoints {
+		if e == ep {
+			heap.Remove(&sb.endpoints, i)
+			return
+		}
+	}
 }
 
 func (sb *sandbox) getEndpoint(id string) *endpoint {
@@ -624,14 +644,9 @@ func (sb *sandbox) populateNetworkResources(ep *endpoint) error {
 		}
 	}
 
-	for _, gwep := range sb.getConnectedEndpoints() {
-		if len(gwep.Gateway()) > 0 {
-			if gwep != ep {
-				break
-			}
-			if err := sb.updateGateway(gwep); err != nil {
-				return err
-			}
+	if ep == sb.getGatewayEndpoint() {
+		if err := sb.updateGateway(ep); err != nil {
+			return err
 		}
 	}
 
@@ -740,6 +755,13 @@ func (sb *sandbox) joinLeaveEnd() {
 		close(sb.joinLeaveDone)
 		sb.joinLeaveDone = nil
 	}
+}
+
+func (sb *sandbox) hasPortConfigs() bool {
+	opts := sb.Labels()
+	_, hasExpPorts := opts[netlabel.ExposedPorts]
+	_, hasPortMaps := opts[netlabel.PortMap]
+	return hasExpPorts || hasPortMaps
 }
 
 // OptionHostname function returns an option setter for hostname option to
@@ -851,7 +873,42 @@ func OptionUseExternalKey() SandboxOption {
 // net container creation method. Container Labels are a good example.
 func OptionGeneric(generic map[string]interface{}) SandboxOption {
 	return func(sb *sandbox) {
-		sb.config.generic = generic
+		if sb.config.generic == nil {
+			sb.config.generic = make(map[string]interface{}, len(generic))
+		}
+		for k, v := range generic {
+			sb.config.generic[k] = v
+		}
+	}
+}
+
+// OptionExposedPorts function returns an option setter for the container exposed
+// ports option to be passed to container Create method.
+func OptionExposedPorts(exposedPorts []types.TransportPort) SandboxOption {
+	return func(sb *sandbox) {
+		if sb.config.generic == nil {
+			sb.config.generic = make(map[string]interface{})
+		}
+		// Defensive copy
+		eps := make([]types.TransportPort, len(exposedPorts))
+		copy(eps, exposedPorts)
+		// Store endpoint label and in generic because driver needs it
+		sb.config.exposedPorts = eps
+		sb.config.generic[netlabel.ExposedPorts] = eps
+	}
+}
+
+// OptionPortMapping function returns an option setter for the mapping
+// ports option to be passed to container Create method.
+func OptionPortMapping(portBindings []types.PortBinding) SandboxOption {
+	return func(sb *sandbox) {
+		if sb.config.generic == nil {
+			sb.config.generic = make(map[string]interface{})
+		}
+		// Store a copy of the bindings as generic data to pass to the driver
+		pbs := make([]types.PortBinding, len(portBindings))
+		copy(pbs, portBindings)
+		sb.config.generic[netlabel.PortMap] = pbs
 	}
 }
 

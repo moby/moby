@@ -14,8 +14,8 @@ var (
 	defaultBindingIP = net.IPv4(0, 0, 0, 0)
 )
 
-func (n *bridgeNetwork) allocatePorts(epConfig *endpointConfiguration, ep *bridgeEndpoint, reqDefBindIP net.IP, ulPxyEnabled bool) ([]types.PortBinding, error) {
-	if epConfig == nil || epConfig.PortBindings == nil {
+func (n *bridgeNetwork) allocatePorts(ep *bridgeEndpoint, reqDefBindIP net.IP, ulPxyEnabled bool) ([]types.PortBinding, error) {
+	if ep.extConnConfig == nil || ep.extConnConfig.PortBindings == nil {
 		return nil, nil
 	}
 
@@ -24,7 +24,7 @@ func (n *bridgeNetwork) allocatePorts(epConfig *endpointConfiguration, ep *bridg
 		defHostIP = reqDefBindIP
 	}
 
-	return n.allocatePortsInternal(epConfig.PortBindings, ep.addr.IP, defHostIP, ulPxyEnabled)
+	return n.allocatePortsInternal(ep.extConnConfig.PortBindings, ep.addr.IP, defHostIP, ulPxyEnabled)
 }
 
 func (n *bridgeNetwork) allocatePortsInternal(bindings []types.PortBinding, containerIP, defHostIP net.IP, ulPxyEnabled bool) ([]types.PortBinding, error) {
