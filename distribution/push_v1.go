@@ -432,7 +432,7 @@ func (p *v1Pusher) pushImage(v1Image v1Image, ep string) (checksum string, err e
 	defer arch.Close()
 
 	// don't care if this fails; best effort
-	size, _ := l.Size()
+	size, _ := l.DiffSize()
 
 	// Send the layer
 	logrus.Debugf("rendered layer for %s of [%d] size", v1ID, size)
