@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/http"
 	"strings"
 	"text/tabwriter"
 	"text/template"
@@ -224,9 +225,9 @@ func (cli *DockerCli) CmdNetworkInspect(args ...string) error {
 	var networks []types.NetworkResource
 	buf := new(bytes.Buffer)
 	for _, name := range cmd.Args() {
-		obj, _, err := readBody(cli.call("GET", "/networks/"+name, nil, nil))
+		obj, statusCode, err := readBody(cli.call("GET", "/networks/"+name, nil, nil))
 		if err != nil {
-			if strings.Contains(err.Error(), "not found") {
+			if statusCode == http.StatusNotFound {
 				fmt.Fprintf(cli.err, "Error: No such network: %s\n", name)
 			} else {
 				fmt.Fprintf(cli.err, "%s\n", err)
