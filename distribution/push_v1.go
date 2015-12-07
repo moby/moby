@@ -297,11 +297,13 @@ func (p *v1Pusher) lookupImageOnEndpoint(wg *sync.WaitGroup, endpoint string, im
 	defer wg.Done()
 	for image := range images {
 		v1ID := image.V1ID()
+		truncID := stringid.TruncateID(image.Layer().DiffID().String())
 		if err := p.session.LookupRemoteImage(v1ID, endpoint); err != nil {
 			logrus.Errorf("Error in LookupRemoteImage: %s", err)
 			imagesToPush <- v1ID
+			progress.Update(p.config.ProgressOutput, truncID, "Waiting")
 		} else {
-			progress.Messagef(p.config.ProgressOutput, "", "Image %s already pushed, skipping", stringid.TruncateID(v1ID))
+			progress.Update(p.config.ProgressOutput, truncID, "Already exists")
 		}
 	}
 }
@@ -372,7 +374,6 @@ func (p *v1Pusher) pushRepository(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	progress.Message(p.config.ProgressOutput, "", "Sending image list")
 
 	imageIndex := createImageIndex(imgList, tags)
 	for _, data := range imageIndex {
@@ -385,7 +386,6 @@ func (p *v1Pusher) pushRepository(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	progress.Message(p.config.ProgressOutput, "", "Pushing repository "+p.repoInfo.FullName())
 	// push the repository to each of the endpoints only if it does not exist.
 	for _, endpoint := range repoData.Endpoints {
 		if err := p.pushImageToEndpoint(ctx, endpoint, imgList, tags, repoData); err != nil {
@@ -397,10 +397,12 @@ func (p *v1Pusher) pushRepository(ctx context.Context) error {
 }
 
 func (p *v1Pusher) pushImage(ctx context.Context, v1Image v1Image, ep string) (checksum string, err error) {
+	l := v1Image.Layer()
 	v1ID := v1Image.V1ID()
+	truncID := stringid.TruncateID(l.DiffID().String())
 
 	jsonRaw := v1Image.Config()
-	progress.Update(p.config.ProgressOutput, stringid.TruncateID(v1ID), "Pushing")
+	progress.Update(p.config.ProgressOutput, truncID, "Pushing")
 
 	// General rule is to use ID for graph accesses and compatibilityID for
 	// calls to session.registry()
@@ -411,13 +413,11 @@ func (p *v1Pusher) pushImage(ctx context.Context, v1Image v1Image, ep string) (c
 	// Send the json
 	if err := p.session.PushImageJSONRegistry(imgData, jsonRaw, ep); err != nil {
 		if err == registry.ErrAlreadyExists {
-			progress.Update(p.config.ProgressOutput, stringid.TruncateID(v1ID), "Image already pushed, skipping")
+			progress.Update(p.config.ProgressOutput, truncID, "Image already pushed, skipping")
 			return "", nil
 		}
 		return "", err
 	}
-
-	l := v1Image.Layer()
 
 	arch, err := l.TarStream()
 	if err != nil {
@@ -431,7 +431,7 @@ func (p *v1Pusher) pushImage(ctx context.Context, v1Image v1Image, ep string) (c
 	// Send the layer
 	logrus.Debugf("rendered layer for %s of [%d] size", v1ID, size)
 
-	reader := progress.NewProgressReader(ioutils.NewCancelReadCloser(ctx, arch), p.config.ProgressOutput, size, stringid.TruncateID(v1ID), "Pushing")
+	reader := progress.NewProgressReader(ioutils.NewCancelReadCloser(ctx, arch), p.config.ProgressOutput, size, truncID, "Pushing")
 	defer reader.Close()
 
 	checksum, checksumPayload, err := p.session.PushImageLayerRegistry(v1ID, reader, ep, jsonRaw)
@@ -449,6 +449,6 @@ func (p *v1Pusher) pushImage(ctx context.Context, v1Image v1Image, ep string) (c
 		logrus.Warnf("Could not set v1 ID mapping: %v", err)
 	}
 
-	progress.Update(p.config.ProgressOutput, stringid.TruncateID(v1ID), "Image successfully pushed")
+	progress.Update(p.config.ProgressOutput, truncID, "Image successfully pushed")
 	return imgData.Checksum, nil
 }
