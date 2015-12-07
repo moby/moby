@@ -54,7 +54,8 @@ func (s *DockerSuite) TestVolumeCliInspectMulti(c *check.C) {
 	dockerCmd(c, "volume", "create", "--name", "test1")
 	dockerCmd(c, "volume", "create", "--name", "test2")
 
-	out, _ := dockerCmd(c, "volume", "inspect", "--format='{{ .Name }}'", "test1", "test2", "doesntexist")
+	out, _, err := dockerCmdWithError("volume", "inspect", "--format='{{ .Name }}'", "test1", "test2", "doesntexist")
+	c.Assert(err, checker.NotNil)
 	outArr := strings.Split(strings.TrimSpace(out), "\n")
 	c.Assert(len(outArr), check.Equals, 3, check.Commentf("\n%s", out))
 
