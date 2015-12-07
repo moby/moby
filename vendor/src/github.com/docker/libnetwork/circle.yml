@@ -4,7 +4,7 @@ machine:
 
 dependencies:
   override:
-    - sudo apt-get update; sudo apt-get install -y iptables zookeeperd
+    - sudo apt-get update; sudo apt-get install -y iptables zookeeperd 
     - go get golang.org/x/tools/cmd/vet
     - go get golang.org/x/tools/cmd/goimports
     - go get golang.org/x/tools/cmd/cover

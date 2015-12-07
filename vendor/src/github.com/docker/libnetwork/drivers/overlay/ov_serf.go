@@ -151,6 +151,10 @@ func (d *driver) processQuery(q *serf.Query) {
 }
 
 func (d *driver) resolvePeer(nid string, peerIP net.IP) (net.HardwareAddr, net.IPMask, net.IP, error) {
+	if d.serfInstance == nil {
+		return nil, nil, nil, fmt.Errorf("could not resolve peer: serf instance not initialized")
+	}
+
 	qPayload := fmt.Sprintf("%s %s", string(nid), peerIP.String())
 	resp, err := d.serfInstance.Query("peerlookup", []byte(qPayload), nil)
 	if err != nil {

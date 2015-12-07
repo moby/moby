@@ -569,6 +569,9 @@ func (s *DockerDaemonSuite) TestDockerNetworkNoDiscoveryDefaultBridgeNetwork(c *
 	out, err = s.d.Cmd("network", "connect", network, cid1)
 	c.Assert(err, check.IsNil, check.Commentf(out))
 
+	hosts, err = s.d.Cmd("exec", cid1, "cat", hostsFile)
+	c.Assert(err, checker.IsNil)
+
 	hostsPost, err = s.d.Cmd("exec", cid1, "cat", hostsFile)
 	c.Assert(err, checker.IsNil)
 	c.Assert(string(hosts), checker.Equals, string(hostsPost),
@@ -630,6 +633,9 @@ func (s *DockerNetworkSuite) TestDockerNetworkAnonymousEndpoint(c *check.C) {
 	assertNwIsAvailable(c, cstmBridgeNw1)
 
 	dockerCmd(c, "network", "connect", cstmBridgeNw1, cid2)
+
+	hosts2, err = readContainerFileWithExec(cid2, hostsFile)
+	c.Assert(err, checker.IsNil)
 
 	hosts1post, err = readContainerFileWithExec(cid1, hostsFile)
 	c.Assert(err, checker.IsNil)

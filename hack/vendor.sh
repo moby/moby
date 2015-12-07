@@ -22,14 +22,14 @@ clone git github.com/vdemeester/shakers 3c10293ce22b900c27acad7b28656196fcc2f73b
 clone git golang.org/x/net 47990a1ba55743e6ef1affd3a14e5bac8553615d https://github.com/golang/net.git
 
 #get libnetwork packages
-clone git github.com/docker/libnetwork 04cc1fa0a89f8c407b7be8cab883d4b17531ea7d
+clone git github.com/docker/libnetwork bbd6e6d8ca1e7c9b42f6f53277b0bde72847ff90
 clone git github.com/armon/go-metrics eb0af217e5e9747e41dd5303755356b62d28e3ec
 clone git github.com/hashicorp/go-msgpack 71c2886f5a673a35f909803f38ece5810165097b
 clone git github.com/hashicorp/memberlist 9a1e242e454d2443df330bdd51a436d5a9058fc4
 clone git github.com/hashicorp/serf 7151adcef72687bf95f451a2e0ba15cb19412bf2
 clone git github.com/docker/libkv c2aac5dbbaa5c872211edea7c0f32b3bd67e7410
 clone git github.com/vishvananda/netns 604eaf189ee867d8c147fafc28def2394e878d25
-clone git github.com/vishvananda/netlink 4b5dce31de6d42af5bb9811c6d265472199e0fec
+clone git github.com/vishvananda/netlink 8e810149a2e531fed9b837c0c7d8a8922d2bedf7
 clone git github.com/BurntSushi/toml f706d00e3de6abe700c994cdd545a1a4915af060
 clone git github.com/samuel/go-zookeeper d0e0d8e11f318e000a8cc434616d69e329edc374
 clone git github.com/deckarep/golang-set ef32fa3046d9f249d399f98ebaf9be944430fd1d
