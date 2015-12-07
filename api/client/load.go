@@ -20,23 +20,20 @@ func (cli *DockerCli) CmdLoad(args ...string) error {
 
 	cmd.ParseFlags(args, true)
 
-	var (
-		input io.Reader = cli.in
-		err   error
-	)
+	var input io.Reader = cli.in
 	if *infile != "" {
-		input, err = os.Open(*infile)
+		file, err := os.Open(*infile)
 		if err != nil {
 			return err
 		}
+		defer file.Close()
+		input = file
 	}
 	sopts := &streamOpts{
 		rawTerminal: true,
 		in:          input,
 		out:         cli.out,
 	}
-	if _, err := cli.stream("POST", "/images/load", sopts); err != nil {
-		return err
-	}
-	return nil
+	_, err := cli.stream("POST", "/images/load", sopts)
+	return err
 }
