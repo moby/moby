@@ -5,7 +5,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 	"testing"
 
@@ -102,18 +101,6 @@ func TestSave(t *testing.T) {
 		t.Fatalf("save output did not match expectations\nexpected:\n%s\ngot:\n%s", marshalledSaveLoadTestCases, jsonBytes)
 	}
 }
-
-type LexicalRefs []reference.Named
-
-func (a LexicalRefs) Len() int           { return len(a) }
-func (a LexicalRefs) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
-func (a LexicalRefs) Less(i, j int) bool { return a[i].String() < a[j].String() }
-
-type LexicalAssociations []Association
-
-func (a LexicalAssociations) Len() int           { return len(a) }
-func (a LexicalAssociations) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
-func (a LexicalAssociations) Less(i, j int) bool { return a[i].Ref.String() < a[j].Ref.String() }
 
 func TestAddDeleteGet(t *testing.T) {
 	jsonFile, err := ioutil.TempFile("", "tag-store-test")
@@ -261,10 +248,11 @@ func TestAddDeleteGet(t *testing.T) {
 
 	// Check References
 	refs := store.References(testImageID1)
-	sort.Sort(LexicalRefs(refs))
 	if len(refs) != 3 {
 		t.Fatal("unexpected number of references")
 	}
+	// Looking for the references in this order verifies that they are
+	// returned lexically sorted.
 	if refs[0].String() != ref3.String() {
 		t.Fatalf("unexpected reference: %v", refs[0].String())
 	}
@@ -281,10 +269,11 @@ func TestAddDeleteGet(t *testing.T) {
 		t.Fatalf("could not parse reference: %v", err)
 	}
 	associations := store.ReferencesByName(repoName)
-	sort.Sort(LexicalAssociations(associations))
 	if len(associations) != 3 {
 		t.Fatal("unexpected number of associations")
 	}
+	// Looking for the associations in this order verifies that they are
+	// returned lexically sorted.
 	if associations[0].Ref.String() != ref3.String() {
 		t.Fatalf("unexpected reference: %v", associations[0].Ref.String())
 	}

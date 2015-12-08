@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"sort"
 	"sync"
 
 	"github.com/docker/distribution/digest"
@@ -54,6 +55,18 @@ type store struct {
 // Repository maps tags to image IDs. The key is a a stringified Reference,
 // including the repository name.
 type repository map[string]image.ID
+
+type lexicalRefs []reference.Named
+
+func (a lexicalRefs) Len() int           { return len(a) }
+func (a lexicalRefs) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a lexicalRefs) Less(i, j int) bool { return a[i].String() < a[j].String() }
+
+type lexicalAssociations []Association
+
+func (a lexicalAssociations) Len() int           { return len(a) }
+func (a lexicalAssociations) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a lexicalAssociations) Less(i, j int) bool { return a[i].Ref.String() < a[j].Ref.String() }
 
 func defaultTagIfNameOnly(ref reference.Named) reference.Named {
 	switch ref.(type) {
@@ -218,6 +231,8 @@ func (store *store) References(id image.ID) []reference.Named {
 		references = append(references, ref)
 	}
 
+	sort.Sort(lexicalRefs(references))
+
 	return references
 }
 
@@ -246,6 +261,8 @@ func (store *store) ReferencesByName(ref reference.Named) []Association {
 				ImageID: refID,
 			})
 	}
+
+	sort.Sort(lexicalAssociations(associations))
 
 	return associations
 }
