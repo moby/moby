@@ -1,46 +1,43 @@
 package image
 
-import (
-	dkrouter "github.com/docker/docker/api/server/router"
-	"github.com/docker/docker/api/server/router/local"
-)
+import "github.com/docker/docker/api/server/router"
 
-// imageRouter is a docker router that talks with the local docker daemon.
+// imageRouter is a docker router that talks with a docker backend.
 type imageRouter struct {
 	backend Backend
-	routes  []dkrouter.Route
+	routes  []router.Route
 }
 
-// NewRouter initializes a local router with a new daemon.
-func NewRouter(backend Backend) dkrouter.Router {
+// NewRouter initializes an image router with a backend.
+func NewRouter(backend Backend) router.Router {
 	r := &imageRouter{
 		backend: backend,
 	}
 
-	r.routes = []dkrouter.Route{
+	r.routes = []router.Route{
 		// OPTIONS
 		// GET
-		local.NewGetRoute("/images/json", r.getImagesJSON),
-		local.NewGetRoute("/images/search", r.getImagesSearch),
-		local.NewGetRoute("/images/get", r.getImagesGet),
-		local.NewGetRoute("/images/{name:.*}/get", r.getImagesGet),
-		local.NewGetRoute("/images/{name:.*}/history", r.getImagesHistory),
-		local.NewGetRoute("/images/{name:.*}/json", r.getImagesByName),
+		router.NewGetRoute("/images/json", r.getImagesJSON),
+		router.NewGetRoute("/images/search", r.getImagesSearch),
+		router.NewGetRoute("/images/get", r.getImagesGet),
+		router.NewGetRoute("/images/{name:.*}/get", r.getImagesGet),
+		router.NewGetRoute("/images/{name:.*}/history", r.getImagesHistory),
+		router.NewGetRoute("/images/{name:.*}/json", r.getImagesByName),
 		// POST
-		local.NewPostRoute("/commit", r.postCommit),
-		local.NewPostRoute("/build", r.postBuild),
-		local.NewPostRoute("/images/create", r.postImagesCreate),
-		local.NewPostRoute("/images/load", r.postImagesLoad),
-		local.NewPostRoute("/images/{name:.*}/push", r.postImagesPush),
-		local.NewPostRoute("/images/{name:.*}/tag", r.postImagesTag),
+		router.NewPostRoute("/commit", r.postCommit),
+		router.NewPostRoute("/build", r.postBuild),
+		router.NewPostRoute("/images/create", r.postImagesCreate),
+		router.NewPostRoute("/images/load", r.postImagesLoad),
+		router.NewPostRoute("/images/{name:.*}/push", r.postImagesPush),
+		router.NewPostRoute("/images/{name:.*}/tag", r.postImagesTag),
 		// DELETE
-		local.NewDeleteRoute("/images/{name:.*}", r.deleteImages),
+		router.NewDeleteRoute("/images/{name:.*}", r.deleteImages),
 	}
 
 	return r
 }
 
 // Routes returns the list of routes registered in the router.
-func (r *imageRouter) Routes() []dkrouter.Route {
+func (r *imageRouter) Routes() []router.Route {
 	return r.routes
 }

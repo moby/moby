@@ -1,9 +1,6 @@
 package system
 
-import (
-	"github.com/docker/docker/api/server/router"
-	"github.com/docker/docker/api/server/router/local"
-)
+import "github.com/docker/docker/api/server/router"
 
 // systemRouter is a Router that provides information about
 // the Docker system overall. It gathers information about
@@ -20,12 +17,12 @@ func NewRouter(b Backend) router.Router {
 	}
 
 	r.routes = []router.Route{
-		local.NewOptionsRoute("/", optionsHandler),
-		local.NewGetRoute("/_ping", pingHandler),
-		local.NewGetRoute("/events", r.getEvents),
-		local.NewGetRoute("/info", r.getInfo),
-		local.NewGetRoute("/version", r.getVersion),
-		local.NewPostRoute("/auth", r.postAuth),
+		router.NewOptionsRoute("/", optionsHandler),
+		router.NewGetRoute("/_ping", pingHandler),
+		router.NewGetRoute("/events", r.getEvents),
+		router.NewGetRoute("/info", r.getInfo),
+		router.NewGetRoute("/version", r.getVersion),
+		router.NewPostRoute("/auth", r.postAuth),
 	}
 
 	return r
