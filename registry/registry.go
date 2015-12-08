@@ -213,6 +213,9 @@ func (e ErrNoSupport) Error() string {
 func ContinueOnError(err error) bool {
 	switch v := err.(type) {
 	case errcode.Errors:
+		if len(v) == 0 {
+			return true
+		}
 		return ContinueOnError(v[0])
 	case ErrNoSupport:
 		return ContinueOnError(v.Err)
