@@ -136,9 +136,9 @@ The currently supported filters are:
 
 This will display untagged images, that are the leaves of the images tree (not
 intermediary layers). These images occur when a new build of an image takes the
-`repo:tag` away from the image ID, leaving it untagged. A warning will be issued
-if trying to remove an image when a container is presently using it.
-By having this flag it allows for batch cleanup.
+`repo:tag` away from the image ID, leaving it as `<none>:<none>` or untagged.
+A warning will be issued if trying to remove an image when a container is presently
+using it. By having this flag it allows for batch cleanup.
 
 Ready for use by `docker rmi ...`, like:
 
