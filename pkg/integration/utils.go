@@ -272,25 +272,25 @@ func RandomTmpDirPath(s string, platform string) string {
 	return filepath.ToSlash(path) // Using /
 }
 
-// ConsumeWithSpeed reads chunkSize bytes from reader after every interval.
-// Returns total read bytes.
+// ConsumeWithSpeed reads chunkSize bytes from reader before sleeping
+// for interval duration. Returns total read bytes. Send true to the
+// stop channel to return before reading to EOF on the reader.
 func ConsumeWithSpeed(reader io.Reader, chunkSize int, interval time.Duration, stop chan bool) (n int, err error) {
 	buffer := make([]byte, chunkSize)
 	for {
+		var readBytes int
+		readBytes, err = reader.Read(buffer)
+		n += readBytes
+		if err != nil {
+			if err == io.EOF {
+				err = nil
+			}
+			return
+		}
 		select {
 		case <-stop:
 			return
-		default:
-			var readBytes int
-			readBytes, err = reader.Read(buffer)
-			n += readBytes
-			if err != nil {
-				if err == io.EOF {
-					err = nil
-				}
-				return
-			}
-			time.Sleep(interval)
+		case <-time.After(interval):
 		}
 	}
 }
