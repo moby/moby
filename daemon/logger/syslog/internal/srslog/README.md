@@ -18,28 +18,37 @@ However, this _does_ have TLS support.
 Basic usage retains the same interface as the original `syslog` package. We
 only added to the interface where required to support new functionality.
 
+Switch from the standard library:
+
+```
+import(
+    //"log/syslog"
+    syslog "github.com/RackSec/srslog"
+)
+```
+
 You can still use it for local syslog:
 
 ```
-w, err := srslog.Dial("", "", srslog.LOG_ERR, "testtag")
+w, err := syslog.Dial("", "", syslog.LOG_ERR, "testtag")
 ```
 
 Or to unencrypted UDP:
 
 ```
-w, err := srslog.Dial("udp", "192.168.0.50:514", srslog.LOG_ERR, "testtag")
+w, err := syslog.Dial("udp", "192.168.0.50:514", syslog.LOG_ERR, "testtag")
 ```
 
 Or to unencrypted TCP:
 
 ```
-w, err := srslog.Dial("tcp", "192.168.0.51:514", srslog.LOG_ERR, "testtag")
+w, err := syslog.Dial("tcp", "192.168.0.51:514", syslog.LOG_ERR, "testtag")
 ```
 
 But now you can also send messages via TLS-encrypted TCP:
 
 ```
-w, err := srslog.DialWithTLSCertPath("tcp+tls", "192.168.0.52:514", srslog.LOG_ERR, "testtag", "/path/to/servercert.pem")
+w, err := syslog.DialWithTLSCertPath("tcp+tls", "192.168.0.52:514", syslog.LOG_ERR, "testtag", "/path/to/servercert.pem")
 ```
 
 And if you need more control over your TLS configuration :
