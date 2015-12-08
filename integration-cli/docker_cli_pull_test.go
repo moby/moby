@@ -123,6 +123,19 @@ func (s *DockerHubPullSuite) TestPullAllTagsFromCentralRegistry(c *check.C) {
 	c.Assert(latestLine, checker.Not(checker.Equals), "", check.Commentf("no entry for busybox:latest found after pulling all tags"))
 	splitLatest := strings.Fields(latestLine)
 	splitCurrent := strings.Fields(splitOutImageCmd[1])
+
+	// Clear relative creation times, since these can easily change between
+	// two invocations of "docker images". Without this, the test can fail
+	// like this:
+	// ... obtained []string = []string{"busybox", "latest", "d9551b4026f0", "27", "minutes", "ago", "1.113", "MB"}
+	// ... expected []string = []string{"busybox", "latest", "d9551b4026f0", "26", "minutes", "ago", "1.113", "MB"}
+	splitLatest[3] = ""
+	splitLatest[4] = ""
+	splitLatest[5] = ""
+	splitCurrent[3] = ""
+	splitCurrent[4] = ""
+	splitCurrent[5] = ""
+
 	c.Assert(splitLatest, checker.DeepEquals, splitCurrent, check.Commentf("busybox:latest was changed after pulling all tags"))
 }
 
