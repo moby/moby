@@ -76,7 +76,7 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 		IndexServerAddress: registry.IndexServer,
 		OSType:             platform.OSType,
 		Architecture:       platform.Architecture,
-		RegistryConfig:     daemon.RegistryService.Config,
+		RegistryConfig:     daemon.registryService.Config,
 		InitSha1:           dockerversion.InitSHA1,
 		InitPath:           initPath,
 		NCPU:               runtime.NumCPU(),

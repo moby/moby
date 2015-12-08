@@ -15,7 +15,6 @@ import (
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/container"
-	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/httputils"
@@ -29,10 +28,27 @@ import (
 
 // Docker implements builder.Docker for the docker Daemon object.
 type Docker struct {
-	Daemon      *daemon.Daemon
+	Daemon      Builder
 	OutOld      io.Writer
 	AuthConfigs map[string]cliconfig.AuthConfig
 	Archiver    *archive.Archiver
+}
+
+// Builder defines an interface that the responsible for building images must implement
+type Builder interface {
+	GetImage(ref string) (*image.Image, error)
+	ResolveRepository(ref reference.Named) (*registry.RepositoryInfo, error)
+	PullImage(ref reference.Named, metaHeaders map[string][]string, authConfig *cliconfig.AuthConfig, outStream io.Writer) error
+	GetContainer(ref string) (*container.Container, error)
+	ContainerCreate(params *types.ContainerCreateConfig) (types.ContainerCreateResponse, error)
+	ContainerRm(ref string, cfg *types.ContainerRmConfig) error
+	Commit(ref string, cfg *types.ContainerCommitConfig) (string, error)
+	GetRemappedUIDGID() (int, int)
+	Mount(c *container.Container) error
+	Unmount(c *container.Container)
+	Start(c *container.Container) error
+	Kill(container *container.Container) error
+	ImageGetCached(imgID image.ID, config *runconfig.Config) (*image.Image, error)
 }
 
 // ensure Docker implements builder.Docker
@@ -62,7 +78,7 @@ func (d Docker) Pull(name string) (*image.Image, error) {
 	pullRegistryAuth := &cliconfig.AuthConfig{}
 	if len(d.AuthConfigs) > 0 {
 		// The request came with a full auth config file, we prefer to use that
-		repoInfo, err := d.Daemon.RegistryService.ResolveRepository(ref)
+		repoInfo, err := d.Daemon.ResolveRepository(ref)
 		if err != nil {
 			return nil, err
 		}
@@ -83,12 +99,12 @@ func (d Docker) Pull(name string) (*image.Image, error) {
 
 // Container looks up a Docker container referenced by `id`.
 func (d Docker) Container(id string) (*container.Container, error) {
-	return d.Daemon.Get(id)
+	return d.Daemon.GetContainer(id)
 }
 
 // Create creates a new Docker container and returns potential warnings
 func (d Docker) Create(cfg *runconfig.Config, hostCfg *runconfig.HostConfig) (*container.Container, []string, error) {
-	ccr, err := d.Daemon.ContainerCreate(&daemon.ContainerCreateConfig{
+	ccr, err := d.Daemon.ContainerCreate(&types.ContainerCreateConfig{
 		Name:            "",
 		Config:          cfg,
 		HostConfig:      hostCfg,
@@ -97,7 +113,7 @@ func (d Docker) Create(cfg *runconfig.Config, hostCfg *runconfig.HostConfig) (*c
 	if err != nil {
 		return nil, nil, err
 	}
-	container, err := d.Daemon.Get(ccr.ID)
+	container, err := d.Daemon.GetContainer(ccr.ID)
 	if err != nil {
 		return nil, ccr.Warnings, err
 	}

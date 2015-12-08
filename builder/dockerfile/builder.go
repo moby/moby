@@ -10,8 +10,10 @@ import (
 	"sync"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builder/dockerfile/parser"
+	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/ulimit"
 	"github.com/docker/docker/runconfig"
@@ -67,6 +69,10 @@ type Config struct {
 	CPUSetMems   string
 	CgroupParent string
 	Ulimits      []*ulimit.Ulimit
+	RemoteURL    string
+	Size         int64
+	ReposAndTags []reference.Named
+	AuthConfigs  map[string]cliconfig.AuthConfig
 }
 
 // Builder is a Dockerfile builder

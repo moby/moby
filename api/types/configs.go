@@ -27,3 +27,11 @@ type ContainerCommitConfig struct {
 	MergeConfigs bool
 	Config       *runconfig.Config
 }
+
+// ContainerCreateConfig is the parameter set to ContainerCreate()
+type ContainerCreateConfig struct {
+	Name            string
+	Config          *runconfig.Config
+	HostConfig      *runconfig.HostConfig
+	AdjustCPUShares bool
+}
