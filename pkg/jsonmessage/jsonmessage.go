@@ -150,11 +150,11 @@ func (jm *JSONMessage) Display(out io.Writer, isTerminal bool) error {
 // each line and move the cursor while displaying.
 func DisplayJSONMessagesStream(in io.Reader, out io.Writer, terminalFd uintptr, isTerminal bool) error {
 	var (
-		dec  = json.NewDecoder(in)
-		ids  = make(map[string]int)
-		diff = 0
+		dec = json.NewDecoder(in)
+		ids = make(map[string]int)
 	)
 	for {
+		diff := 0
 		var jm JSONMessage
 		if err := dec.Decode(&jm); err != nil {
 			if err == io.EOF {
@@ -180,11 +180,12 @@ func DisplayJSONMessagesStream(in io.Reader, out io.Writer, terminalFd uintptr, 
 				if isTerminal {
 					fmt.Fprintf(out, "\n")
 				}
-				diff = 0
 			} else {
 				diff = len(ids) - line
 			}
 			if jm.ID != "" && isTerminal {
+				// NOTE: this appears to be necessary even if
+				// diff == 0.
 				// <ESC>[{diff}A = move cursor up diff rows
 				fmt.Fprintf(out, "%c[%dA", 27, diff)
 			}
@@ -198,6 +199,8 @@ func DisplayJSONMessagesStream(in io.Reader, out io.Writer, terminalFd uintptr, 
 		}
 		err := jm.Display(out, isTerminal)
 		if jm.ID != "" && isTerminal {
+			// NOTE: this appears to be necessary even if
+			// diff == 0.
 			// <ESC>[{diff}B = move cursor down diff rows
 			fmt.Fprintf(out, "%c[%dB", 27, diff)
 		}
