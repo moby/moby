@@ -133,7 +133,7 @@ func (s *DockerSuite) TestHelpTextVerify(c *check.C) {
 			// Check each line for lots of stuff
 			lines := strings.Split(out, "\n")
 			for _, line := range lines {
-				c.Assert(len(line), checker.LessOrEqualThan, 91, check.Commentf("Help for %q is too long:\n%s", cmd, line))
+				c.Assert(len(line), checker.LessOrEqualThan, 103, check.Commentf("Help for %q is too long:\n%s", cmd, line))
 
 				if scanForHome && strings.Contains(line, `"`+home) {
 					c.Fatalf("Help for %q should use ~ instead of %q on:\n%s",
