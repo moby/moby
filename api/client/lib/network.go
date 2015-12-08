@@ -2,6 +2,7 @@ package lib
 
 import (
 	"encoding/json"
+	"net/http"
 
 	"github.com/docker/docker/api/types"
 )
@@ -59,6 +60,9 @@ func (cli *Client) NetworkInspect(networkID string) (types.NetworkResource, erro
 	var networkResource types.NetworkResource
 	resp, err := cli.get("/networks/"+networkID, nil, nil)
 	if err != nil {
+		if resp.statusCode == http.StatusNotFound {
+			return networkResource, networkNotFoundError{networkID}
+		}
 		return networkResource, err
 	}
 	defer ensureReaderClosed(resp)

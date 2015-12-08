@@ -317,7 +317,7 @@ func (s *DockerSuite) TestDockerInspectMultipleNetwork(c *check.C) {
 	c.Assert(exitCode, checker.Equals, 1)
 	c.Assert(out, checker.Contains, "Error: No such network: nonexistent")
 	networkResources = []types.NetworkResource{}
-	inspectOut := strings.SplitN(out, "\n", 2)[1]
+	inspectOut := strings.SplitN(out, "\nError: No such network: nonexistent\n", 2)[0]
 	err = json.Unmarshal([]byte(inspectOut), &networkResources)
 	c.Assert(networkResources, checker.HasLen, 1)
 
