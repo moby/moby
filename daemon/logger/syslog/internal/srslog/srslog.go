@@ -1,8 +1,11 @@
 package srslog
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net"
 	"os"
@@ -68,11 +71,12 @@ const (
 
 // A Writer is a connection to a syslog server.
 type Writer struct {
-	priority Priority
-	tag      string
-	hostname string
-	network  string
-	raddr    string
+	priority  Priority
+	tag       string
+	hostname  string
+	network   string
+	raddr     string
+	tlsConfig *tls.Config
 
 	mu   sync.Mutex // guards conn
 	conn serverConn
@@ -85,7 +89,7 @@ type Writer struct {
 // return a type that satisfies this interface and simply calls the C
 // library syslog function.
 type serverConn interface {
-	writeString(p Priority, hostname, tag, s, nl string) error
+	writeString(p Priority, hostname, tag, s string) error
 	close() error
 }
 
@@ -107,6 +111,24 @@ func New(priority Priority, tag string) (w *Writer, err error) {
 // tag.
 // If network is empty, Dial will connect to the local syslog server.
 func Dial(network, raddr string, priority Priority, tag string) (*Writer, error) {
+	return DialWithTLSConfig(network, raddr, priority, tag, nil)
+}
+
+func DialWithTLSCertPath(network, raddr string, priority Priority, tag, certPath string) (*Writer, error) {
+	pool := x509.NewCertPool()
+	serverCert, err := ioutil.ReadFile(certPath)
+	if err != nil {
+		return nil, err
+	}
+	pool.AppendCertsFromPEM(serverCert)
+	config := tls.Config{
+		RootCAs: pool,
+	}
+
+	return DialWithTLSConfig(network, raddr, priority, tag, &config)
+}
+
+func DialWithTLSConfig(network, raddr string, priority Priority, tag string, tlsConfig *tls.Config) (*Writer, error) {
 	if priority < 0 || priority > LOG_LOCAL7|LOG_DEBUG {
 		return nil, errors.New("log/syslog: invalid priority")
 	}
@@ -117,11 +139,12 @@ func Dial(network, raddr string, priority Priority, tag string) (*Writer, error)
 	hostname, _ := os.Hostname()
 
 	w := &Writer{
-		priority: priority,
-		tag:      tag,
-		hostname: hostname,
-		network:  network,
-		raddr:    raddr,
+		priority:  priority,
+		tag:       tag,
+		hostname:  hostname,
+		network:   network,
+		raddr:     raddr,
+		tlsConfig: tlsConfig,
 	}
 
 	w.mu.Lock()
@@ -147,6 +170,15 @@ func (w *Writer) connect() (err error) {
 		w.conn, err = unixSyslog()
 		if w.hostname == "" {
 			w.hostname = "localhost"
+		}
+	} else if w.network == "tcp+tls" {
+		var c *tls.Conn
+		c, err = tls.Dial("tcp", w.raddr, w.tlsConfig)
+		if err == nil {
+			w.conn = &netConn{conn: c}
+			if w.hostname == "" {
+				w.hostname = c.LocalAddr().String()
+			}
 		}
 	} else {
 		var c net.Conn
@@ -256,12 +288,11 @@ func (w *Writer) writeAndRetry(p Priority, s string) (int, error) {
 // format is as follows: <PRI>TIMESTAMP HOSTNAME TAG[PID]: MSG
 func (w *Writer) write(p Priority, msg string) (int, error) {
 	// ensure it ends in a \n
-	nl := ""
 	if !strings.HasSuffix(msg, "\n") {
-		nl = "\n"
+		msg += "\n"
 	}
 
-	err := w.conn.writeString(p, w.hostname, w.tag, msg, nl)
+	err := w.conn.writeString(p, w.hostname, w.tag, msg)
 	if err != nil {
 		return 0, err
 	}
@@ -271,21 +302,21 @@ func (w *Writer) write(p Priority, msg string) (int, error) {
 	return len(msg), nil
 }
 
-func (n *netConn) writeString(p Priority, hostname, tag, msg, nl string) error {
+func (n *netConn) writeString(p Priority, hostname, tag, msg string) error {
 	if n.local {
 		// Compared to the network form below, the changes are:
 		//	1. Use time.Stamp instead of time.RFC3339.
 		//	2. Drop the hostname field from the Fprintf.
 		timestamp := time.Now().Format(time.Stamp)
-		_, err := fmt.Fprintf(n.conn, "<%d>%s %s[%d]: %s%s",
+		_, err := fmt.Fprintf(n.conn, "<%d>%s %s[%d]: %s",
 			p, timestamp,
-			tag, os.Getpid(), msg, nl)
+			tag, os.Getpid(), msg)
 		return err
 	}
 	timestamp := time.Now().Format(time.RFC3339)
-	_, err := fmt.Fprintf(n.conn, "<%d>%s %s %s[%d]: %s%s",
+	_, err := fmt.Fprintf(n.conn, "<%d>%s %s %s[%d]: %s",
 		p, timestamp, hostname,
-		tag, os.Getpid(), msg, nl)
+		tag, os.Getpid(), msg)
 	return err
 }
 

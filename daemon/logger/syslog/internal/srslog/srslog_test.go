@@ -2,6 +2,7 @@ package srslog
 
 import (
 	"bufio"
+	"crypto/tls"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -82,7 +83,7 @@ func runStreamSyslog(l net.Listener, done chan<- string, wg *sync.WaitGroup) {
 }
 
 func startServer(n, la string, done chan<- string) (addr string, sock io.Closer, wg *sync.WaitGroup) {
-	if n == "udp" || n == "tcp" {
+	if n == "udp" || n == "tcp" || n == "tcp+tls" {
 		la = "127.0.0.1:0"
 	} else {
 		// unix and unixgram: choose an address if none given
@@ -110,6 +111,23 @@ func startServer(n, la string, done chan<- string) (addr string, sock io.Closer,
 		go func() {
 			defer wg.Done()
 			runPktSyslog(l, done)
+		}()
+	} else if n == "tcp+tls" {
+		cert, err := tls.LoadX509KeyPair("test/cert.pem", "test/privkey.pem")
+		if err != nil {
+			log.Fatalf("failed to load TLS keypair: %v", err)
+		}
+		config := tls.Config{Certificates: []tls.Certificate{cert}}
+		l, e := tls.Listen("tcp", la, &config)
+		if e != nil {
+			log.Fatalf("startServer failed: %v", e)
+		}
+		addr = l.Addr().String()
+		sock = l
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			runStreamSyslog(l, done, wg)
 		}()
 	} else {
 		l, e := net.Listen(n, la)
@@ -242,6 +260,16 @@ func TestDial(t *testing.T) {
 	l.Close()
 }
 
+func TestDialTLSFails(t *testing.T) {
+	w, err := DialWithTLSCertPath("tcp+tls", "127.0.0.1:0", LOG_ERR, "syslog_test", "test/nocertfound.pem")
+	if w != nil {
+		t.Fatalf("Should not have a writer")
+	}
+	if err == nil {
+		t.Fatalf("Should have failed to load the cert")
+	}
+}
+
 func check(t *testing.T, in, out string) {
 	tmpl := fmt.Sprintf("<%d>%%s %%s syslog_test[%%d]: %s\n", LOG_USER+LOG_INFO, in)
 	if hostname, err := os.Hostname(); err != nil {
@@ -277,6 +305,48 @@ func TestWrite(t *testing.T) {
 			defer srvWG.Wait()
 			defer sock.Close()
 			l, err := Dial("udp", addr, test.pri, test.pre)
+			if err != nil {
+				t.Fatalf("syslog.Dial() failed: %v", err)
+			}
+			defer l.Close()
+			_, err = io.WriteString(l, test.msg)
+			if err != nil {
+				t.Fatalf("WriteString() failed: %v", err)
+			}
+			rcvd := <-done
+			test.exp = fmt.Sprintf("<%d>", test.pri) + test.exp
+			var parsedHostname, timestamp string
+			var pid int
+			if n, err := fmt.Sscanf(rcvd, test.exp, &timestamp, &parsedHostname, &pid); n != 3 || err != nil || hostname != parsedHostname {
+				t.Errorf("s.Info() = '%q', didn't match '%q' (%d %s)", rcvd, test.exp, n, err)
+			}
+		}
+	}
+}
+
+func TestTLSWrite(t *testing.T) {
+	tests := []struct {
+		pri Priority
+		pre string
+		msg string
+		exp string
+	}{
+		{LOG_USER | LOG_ERR, "syslog_test", "", "%s %s syslog_test[%d]: \n"},
+		{LOG_USER | LOG_ERR, "syslog_test", "write test", "%s %s syslog_test[%d]: write test\n"},
+		// Write should not add \n if there already is one
+		{LOG_USER | LOG_ERR, "syslog_test", "write test 2\n", "%s %s syslog_test[%d]: write test 2\n"},
+	}
+
+	if hostname, err := os.Hostname(); err != nil {
+		t.Fatalf("Error retrieving hostname")
+	} else {
+		for _, test := range tests {
+			done := make(chan string)
+			addr, sock, srvWG := startServer("tcp+tls", "", done)
+			defer srvWG.Wait()
+			defer sock.Close()
+
+			l, err := DialWithTLSCertPath("tcp+tls", addr, test.pri, test.pre, "test/cert.pem")
 			if err != nil {
 				t.Fatalf("syslog.Dial() failed: %v", err)
 			}
