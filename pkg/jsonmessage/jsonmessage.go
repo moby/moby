@@ -169,6 +169,12 @@ func DisplayJSONMessagesStream(in io.Reader, out io.Writer, terminalFd uintptr, 
 		if jm.ID != "" && (jm.Progress != nil || jm.ProgressMessage != "") {
 			line, ok := ids[jm.ID]
 			if !ok {
+				// NOTE: This approach of using len(id) to
+				// figure out the number of lines of history
+				// only works as long as we clear the history
+				// when we output something that's not
+				// accounted for in the map, such as a line
+				// with no ID.
 				line = len(ids)
 				ids[jm.ID] = line
 				if isTerminal {
@@ -182,6 +188,13 @@ func DisplayJSONMessagesStream(in io.Reader, out io.Writer, terminalFd uintptr, 
 				// <ESC>[{diff}A = move cursor up diff rows
 				fmt.Fprintf(out, "%c[%dA", 27, diff)
 			}
+		} else {
+			// When outputting something that isn't progress
+			// output, clear the history of previous lines. We
+			// don't want progress entries from some previous
+			// operation to be updated (for example, pull -a
+			// with multiple tags).
+			ids = make(map[string]int)
 		}
 		err := jm.Display(out, isTerminal)
 		if jm.ID != "" && isTerminal {
