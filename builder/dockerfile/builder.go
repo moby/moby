@@ -13,7 +13,6 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builder/dockerfile/parser"
-	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/ulimit"
 	"github.com/docker/docker/runconfig"
@@ -258,7 +257,7 @@ func BuildFromConfig(config *runconfig.Config, changes []string) (*runconfig.Con
 
 // Commit will create a new image from a container's changes
 // TODO: remove daemon, make Commit a method on *Builder ?
-func Commit(containerName string, d *daemon.Daemon, c *CommitConfig) (string, error) {
+func Commit(containerName string, d builder.ContainerCommitter, c *CommitConfig) (string, error) {
 	if c.Config == nil {
 		c.Config = &runconfig.Config{}
 	}

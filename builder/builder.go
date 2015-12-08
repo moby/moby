@@ -106,9 +106,18 @@ func (fi *HashedFileInfo) SetHash(h string) {
 	fi.FileHash = h
 }
 
+// ContainerCommitter is a backend which supports commiting a
+// container to an image.
+type ContainerCommitter interface {
+	// Commit creates a new Docker image from an existing Docker container.
+	Commit(string, *types.ContainerCommitConfig) (string, error)
+}
+
 // Docker abstracts calls to a Docker Daemon.
 type Docker interface {
 	// TODO: use digest reference instead of name
+
+	ContainerCommitter
 
 	// LookupImage looks up a Docker image referenced by `name`.
 	LookupImage(name string) (*image.Image, error)
@@ -122,8 +131,6 @@ type Docker interface {
 	Create(*runconfig.Config, *runconfig.HostConfig) (*container.Container, []string, error)
 	// Remove removes a container specified by `id`.
 	Remove(id string, cfg *types.ContainerRmConfig) error
-	// Commit creates a new Docker image from an existing Docker container.
-	Commit(string, *types.ContainerCommitConfig) (string, error)
 	// Copy copies/extracts a source FileInfo to a destination path inside a container
 	// specified by a container object.
 	// TODO: make an Extract method instead of passing `decompress`
