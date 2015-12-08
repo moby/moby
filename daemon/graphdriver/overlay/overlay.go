@@ -270,10 +270,10 @@ func (d *Driver) Create(id, parent, mountLabel string) (retErr error) {
 	parentRoot := path.Join(parentDir, "root")
 
 	if s, err := os.Lstat(parentRoot); err == nil {
-		if err := os.Mkdir(path.Join(dir, "upper"), s.Mode()); err != nil {
+		if err := idtools.MkdirAs(path.Join(dir, "upper"), s.Mode(), rootUID, rootGID); err != nil {
 			return err
 		}
-		if err := os.Mkdir(path.Join(dir, "work"), 0700); err != nil {
+		if err := idtools.MkdirAs(path.Join(dir, "work"), 0700, rootUID, rootGID); err != nil {
 			return err
 		}
 		if err := idtools.MkdirAs(path.Join(dir, "merged"), 0700, rootUID, rootGID); err != nil {
@@ -303,10 +303,10 @@ func (d *Driver) Create(id, parent, mountLabel string) (retErr error) {
 	}
 
 	upperDir := path.Join(dir, "upper")
-	if err := os.Mkdir(upperDir, s.Mode()); err != nil {
+	if err := idtools.MkdirAs(upperDir, s.Mode(), rootUID, rootGID); err != nil {
 		return err
 	}
-	if err := os.Mkdir(path.Join(dir, "work"), 0700); err != nil {
+	if err := idtools.MkdirAs(path.Join(dir, "work"), 0700, rootUID, rootGID); err != nil {
 		return err
 	}
 	if err := idtools.MkdirAs(path.Join(dir, "merged"), 0700, rootUID, rootGID); err != nil {
