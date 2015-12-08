@@ -75,6 +75,12 @@ var (
 		},
 		"Test requires an environment that supports cgroup cpuset.",
 	}
+	seccompEnabled = testRequirement{
+		func() bool {
+			return supportsSeccomp
+		},
+		"Test requires that seccomp support be enabled in the daemon.",
+	}
 )
 
 func init() {
