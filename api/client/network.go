@@ -1,14 +1,10 @@
 package client
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
-	"io"
 	"net"
 	"strings"
 	"text/tabwriter"
-	"text/template"
 
 	"github.com/docker/docker/api/types"
 	Cli "github.com/docker/docker/cli"
@@ -192,61 +188,12 @@ func (cli *DockerCli) CmdNetworkInspect(args ...string) error {
 		return err
 	}
 
-	var tmpl *template.Template
-	if *tmplStr != "" {
-		var err error
-		tmpl, err = template.New("").Funcs(funcMap).Parse(*tmplStr)
-		if err != nil {
-			return err
-		}
+	inspectSearcher := func(name string) (interface{}, []byte, error) {
+		i, err := cli.client.NetworkInspect(name)
+		return i, nil, err
 	}
 
-	status := 0
-	var networks []types.NetworkResource
-	buf := new(bytes.Buffer)
-	for _, name := range cmd.Args() {
-		networkResource, err := cli.client.NetworkInspect(name)
-		if err != nil {
-			fmt.Fprintf(cli.err, "%s\n", err)
-			return Cli.StatusError{StatusCode: 1}
-		}
-		if tmpl == nil {
-			networks = append(networks, networkResource)
-			continue
-		}
-
-		if err := tmpl.Execute(buf, &networkResource); err != nil {
-			fmt.Fprintf(cli.err, "%s\n", err)
-			return Cli.StatusError{StatusCode: 1}
-		}
-		buf.WriteString("\n")
-	}
-
-	if tmpl != nil {
-		if _, err := io.Copy(cli.out, buf); err != nil {
-			return err
-		}
-		return nil
-	}
-
-	if len(networks) == 0 {
-		io.WriteString(cli.out, "[]")
-	}
-
-	b, err := json.MarshalIndent(networks, "", "    ")
-	if err != nil {
-		return err
-	}
-
-	if _, err := io.Copy(cli.out, bytes.NewReader(b)); err != nil {
-		return err
-	}
-	io.WriteString(cli.out, "\n")
-
-	if status != 0 {
-		return Cli.StatusError{StatusCode: status}
-	}
-	return nil
+	return cli.inspectElements(*tmplStr, cmd.Args(), inspectSearcher)
 }
 
 // Consolidates the ipam configuration as a group from different related configurations

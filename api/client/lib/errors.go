@@ -15,7 +15,7 @@ type imageNotFoundError struct {
 
 // Error returns a string representation of an imageNotFoundError
 func (i imageNotFoundError) Error() string {
-	return fmt.Sprintf("Image not found: %s", i.imageID)
+	return fmt.Sprintf("Error: No such image: %s", i.imageID)
 }
 
 // IsErrImageNotFound returns true if the error is caused
@@ -32,13 +32,47 @@ type containerNotFoundError struct {
 
 // Error returns a string representation of an containerNotFoundError
 func (e containerNotFoundError) Error() string {
-	return fmt.Sprintf("Container not found: %s", e.containerID)
+	return fmt.Sprintf("Error: No such container: %s", e.containerID)
 }
 
 // IsErrContainerNotFound returns true if the error is caused
 // when a container is not found in the docker host.
 func IsErrContainerNotFound(err error) bool {
 	_, ok := err.(containerNotFoundError)
+	return ok
+}
+
+// networkNotFoundError implements an error returned when a network is not in the docker host.
+type networkNotFoundError struct {
+	networkID string
+}
+
+// Error returns a string representation of an networkNotFoundError
+func (e networkNotFoundError) Error() string {
+	return fmt.Sprintf("Error: No such network: %s", e.networkID)
+}
+
+// IsErrNetworkNotFound returns true if the error is caused
+// when a network is not found in the docker host.
+func IsErrNetworkNotFound(err error) bool {
+	_, ok := err.(networkNotFoundError)
+	return ok
+}
+
+// volumeNotFoundError implements an error returned when a volume is not in the docker host.
+type volumeNotFoundError struct {
+	volumeID string
+}
+
+// Error returns a string representation of an networkNotFoundError
+func (e volumeNotFoundError) Error() string {
+	return fmt.Sprintf("Error: No such volume: %s", e.volumeID)
+}
+
+// IsErrVolumeNotFound returns true if the error is caused
+// when a volume is not found in the docker host.
+func IsErrVolumeNotFound(err error) bool {
+	_, ok := err.(networkNotFoundError)
 	return ok
 }
 
