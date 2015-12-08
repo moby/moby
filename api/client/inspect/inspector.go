@@ -33,29 +33,41 @@ func NewTemplateInspector(outputStream io.Writer, tmpl *template.Template) Inspe
 // Inspect executes the inspect template.
 // It decodes the raw element into a map if the initial execution fails.
 // This allows docker cli to parse inspect structs injected with Swarm fields.
-func (i TemplateInspector) Inspect(typedElement interface{}, rawElement []byte) error {
+func (i *TemplateInspector) Inspect(typedElement interface{}, rawElement []byte) error {
 	buffer := new(bytes.Buffer)
 	if err := i.tmpl.Execute(buffer, typedElement); err != nil {
-		var raw interface{}
-		rdr := bytes.NewReader(rawElement)
-		dec := json.NewDecoder(rdr)
-
-		if rawErr := dec.Decode(&raw); rawErr != nil {
-			return fmt.Errorf("unable to read inspect data: %v\n", rawErr)
+		if rawElement == nil {
+			return fmt.Errorf("Template parsing error: %v", err)
 		}
-
-		tmplMissingKey := i.tmpl.Option("missingkey=error")
-		if rawErr := tmplMissingKey.Execute(buffer, raw); rawErr != nil {
-			return fmt.Errorf("Template parsing error: %v\n", err)
-		}
+		return i.tryRawInspectFallback(rawElement)
 	}
 	i.buffer.Write(buffer.Bytes())
 	i.buffer.WriteByte('\n')
 	return nil
 }
 
+func (i *TemplateInspector) tryRawInspectFallback(rawElement []byte) error {
+	var raw interface{}
+	buffer := new(bytes.Buffer)
+	rdr := bytes.NewReader(rawElement)
+	dec := json.NewDecoder(rdr)
+
+	if rawErr := dec.Decode(&raw); rawErr != nil {
+		return fmt.Errorf("unable to read inspect data: %v", rawErr)
+	}
+
+	tmplMissingKey := i.tmpl.Option("missingkey=error")
+	if rawErr := tmplMissingKey.Execute(buffer, raw); rawErr != nil {
+		return fmt.Errorf("Template parsing error: %v", rawErr)
+	}
+
+	i.buffer.Write(buffer.Bytes())
+	i.buffer.WriteByte('\n')
+	return nil
+}
+
 // Flush write the result of inspecting all elements into the output stream.
-func (i TemplateInspector) Flush() error {
+func (i *TemplateInspector) Flush() error {
 	_, err := io.Copy(i.outputStream, i.buffer)
 	return err
 }
@@ -63,39 +75,37 @@ func (i TemplateInspector) Flush() error {
 // IndentedInspector uses a buffer to stop the indented representation of an element.
 type IndentedInspector struct {
 	outputStream io.Writer
-	indented     *bytes.Buffer
+	elements     []interface{}
 }
 
 // NewIndentedInspector generates a new IndentedInspector.
 func NewIndentedInspector(outputStream io.Writer) Inspector {
-	indented := new(bytes.Buffer)
-	indented.WriteString("[\n")
 	return &IndentedInspector{
 		outputStream: outputStream,
-		indented:     indented,
 	}
 }
 
 // Inspect writes the raw element with an indented json format.
-func (i IndentedInspector) Inspect(_ interface{}, rawElement []byte) error {
-	if err := json.Indent(i.indented, rawElement, "", "    "); err != nil {
-		return err
-	}
-	i.indented.WriteByte(',')
+func (i *IndentedInspector) Inspect(typedElement interface{}, _ []byte) error {
+	i.elements = append(i.elements, typedElement)
 	return nil
 }
 
 // Flush write the result of inspecting all elements into the output stream.
-func (i IndentedInspector) Flush() error {
-	if i.indented.Len() > 1 {
-		// Remove trailing ','
-		i.indented.Truncate(i.indented.Len() - 1)
+func (i *IndentedInspector) Flush() error {
+	if len(i.elements) == 0 {
+		_, err := io.WriteString(i.outputStream, "[]\n")
+		return err
 	}
-	i.indented.WriteString("]\n")
 
-	// Note that we will always write "[]" when "-f" isn't specified,
-	// to make sure the output would always be array, see
-	// https://github.com/docker/docker/pull/9500#issuecomment-65846734
-	_, err := io.Copy(i.outputStream, i.indented)
+	buffer, err := json.MarshalIndent(i.elements, "", "    ")
+	if err != nil {
+		return err
+	}
+
+	if _, err := io.Copy(i.outputStream, bytes.NewReader(buffer)); err != nil {
+		return err
+	}
+	_, err = io.WriteString(i.outputStream, "\n")
 	return err
 }

@@ -2,6 +2,7 @@ package lib
 
 import (
 	"encoding/json"
+	"net/http"
 	"net/url"
 
 	"github.com/docker/docker/api/types"
@@ -35,6 +36,9 @@ func (cli *Client) VolumeInspect(volumeID string) (types.Volume, error) {
 	var volume types.Volume
 	resp, err := cli.get("/volumes/"+volumeID, nil, nil)
 	if err != nil {
+		if resp.statusCode == http.StatusNotFound {
+			return volume, volumeNotFoundError{volumeID}
+		}
 		return volume, err
 	}
 	defer ensureReaderClosed(resp)
