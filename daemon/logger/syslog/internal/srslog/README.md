@@ -15,6 +15,9 @@ However, this _does_ have TLS support.
 
 # Usage
 
+Basic usage retains the same interface as the original `syslog` package. We
+only added to the interface where required to support new functionality.
+
 You can still use it for local syslog:
 
 ```
@@ -86,7 +89,9 @@ python script/gen-certs.py
 ```
 
 That outputs the public key and private key to standard out. Put those into
-`.pem` files. (And don't put them into any source control.)
+`.pem` files. (And don't put them into any source control. The certificate in
+the `test` directory is used by the unit tests, and please do not actually use
+it anywhere else.)
 
 # Running Tests
 
@@ -108,3 +113,8 @@ That will open a new browser tab showing coverage information.
 # License
 
 This project uses the New BSD License, the same as the Go project itself.
+
+# Code of Conduct
+
+Please note that this project is released with a Contributor Code of Conduct.
+By participating in this project you agree to abide by its terms.
