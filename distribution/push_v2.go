@@ -194,7 +194,9 @@ func (p *v2Pusher) pushV2Tag(ctx context.Context, association reference.Associat
 	if err != nil {
 		return err
 	}
-	return manSvc.Put(signed)
+	_, err = manSvc.Put(ctx, signed)
+	// FIXME create a tag
+	return err
 }
 
 type v2PushDescriptor struct {
@@ -370,10 +372,7 @@ func CreateV2Manifest(name, tag string, img *image.Image, fsLayers map[layer.Dif
 		if !present {
 			return nil, fmt.Errorf("missing layer in CreateV2Manifest: %s", diffID.String())
 		}
-		dgst, err := digest.FromBytes([]byte(fsLayer.Hex() + " " + parent))
-		if err != nil {
-			return nil, err
-		}
+		dgst := digest.FromBytes([]byte(fsLayer.Hex() + " " + parent))
 		v1ID := dgst.Hex()
 
 		v1Compatibility := v1Compatibility{
@@ -414,11 +413,8 @@ func CreateV2Manifest(name, tag string, img *image.Image, fsLayers map[layer.Dif
 		return nil, fmt.Errorf("missing layer in CreateV2Manifest: %s", diffID.String())
 	}
 
-	dgst, err := digest.FromBytes([]byte(fsLayer.Hex() + " " + parent + " " + string(img.RawJSON())))
-	if err != nil {
-		return nil, err
-	}
 	fsLayerList[0] = schema1.FSLayer{BlobSum: fsLayer}
+	dgst := digest.FromBytes([]byte(fsLayer.Hex() + " " + parent + " " + string(img.RawJSON())))
 
 	// Top-level v1compatibility string should be a modified version of the
 	// image config.

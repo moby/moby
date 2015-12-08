@@ -548,10 +548,7 @@ func TestTarStreamStability(t *testing.T) {
 }
 
 func assertLayerDiff(t *testing.T, expected []byte, layer Layer) {
-	expectedDigest, err := digest.FromBytes(expected)
-	if err != nil {
-		t.Fatal(err)
-	}
+	expectedDigest := digest.FromBytes(expected)
 
 	if digest.Digest(layer.DiffID()) != expectedDigest {
 		t.Fatalf("Mismatched diff id for %s, got %s, expected %s", layer.ChainID(), layer.DiffID(), expected)
@@ -573,10 +570,7 @@ func assertLayerDiff(t *testing.T, expected []byte, layer Layer) {
 		t.Fatalf("Mismatched tar stream size for %s, got %d, expected %d", layer.ChainID(), len(actual), len(expected))
 	}
 
-	actualDigest, err := digest.FromBytes(actual)
-	if err != nil {
-		t.Fatal(err)
-	}
+	actualDigest := digest.FromBytes(actual)
 
 	if actualDigest != expectedDigest {
 		logByteDiff(t, actual, expected)

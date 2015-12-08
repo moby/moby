@@ -62,7 +62,7 @@ func (u *mockUploadDescriptor) Upload(ctx context.Context, progressOutput progre
 
 	// For the mock implementation, use SHA256(DiffID) as the returned
 	// digest.
-	return digest.FromBytes([]byte(u.diffID.String()))
+	return digest.FromBytes([]byte(u.diffID.String())), nil
 }
 
 func uploadDescriptors(currentUploads *int32) []UploadDescriptor {

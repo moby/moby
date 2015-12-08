@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/digest"
 	"github.com/docker/distribution/manifest/schema1"
@@ -126,17 +125,7 @@ func NewV2Repository(ctx context.Context, repoInfo *registry.RepositoryInfo, end
 }
 
 func digestFromManifest(m *schema1.SignedManifest, name reference.Named) (digest.Digest, int, error) {
-	payload, err := m.Payload()
-	if err != nil {
-		// If this failed, the signatures section was corrupted
-		// or missing. Treat the entire manifest as the payload.
-		payload = m.Raw
-	}
-	manifestDigest, err := digest.FromBytes(payload)
-	if err != nil {
-		logrus.Infof("Could not compute manifest digest for %s:%s : %v", name.Name(), m.Tag, err)
-	}
-	return manifestDigest, len(payload), nil
+	return digest.FromBytes(m.Canonical), len(m.Canonical), nil
 }
 
 type existingTokenHandler struct {
