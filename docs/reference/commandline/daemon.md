@@ -604,10 +604,29 @@ The currently supported cluster store options are:
 
 ## Access authorization
 
-The `--authz-plugins` option instructs the daemon to load the authorization plugins. Authorization plugins must follow the rules described in [Docker Plugin API](http://docs.docker.com/engine/extend/plugin_api/) and reside within directories described under the [plugin discovery](http://docs.docker.com/engine/extend/plugin_api/#plugin-discovery) section. The option accepts a set of plugin names to load, for example `--authz-plugins=plugin1,plugin2`.
+Docker's access authorization can be extended by authorization plugins that your
+organization can purchase or build themselves. You can install one or more
+authorization plugins when you start the Docker `daemon` using the
+`--authz-plugins=PLUGIN_ID` option.
 
+```bash
+docker daemon --authz-plugins=plugin1 --auth-plugins=plugin2,...
+```
 
-More information about how to create an authorization plugin can be found under the [authorization](https://docs.docker.com/engine/extend/authorization/) section in the user guide.
+The `PLUGIN_ID` value is either the plugin's name or a path to its specification
+file. The plugin's implementation determines whether you can specify a name or
+path. Consult with your Docker administrator to get information about the
+plugins available to you.
+
+Once a plugin is installed, requests made to the `daemon` through the command
+line or Docker's remote API are allowed or denied by the plugin.  If you have
+multiple plugins installed, at least one must allow the request for it to
+complete.
+
+For information about how to create an authorization plugin, see [authorization
+plugin](https://docs.docker.com/engine/extend/authorization/) section in the
+Docker extend section of this documentation.
+
 
 ## Miscellaneous options
 
@@ -623,3 +642,6 @@ set like this:
     # or
     export DOCKER_TMPDIR=/mnt/disk2/tmp
     /usr/local/bin/docker daemon -D -g /var/lib/docker -H unix:// > /var/lib/docker-machine/docker.log 2>&1
+
+
+
