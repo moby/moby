@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/RackSec/srslog.svg?branch=master)](https://travis-ci.org/RackSec/srslog)
+
 # srslog
 
 Go has a `syslog` package in the standard library, but it has the following
