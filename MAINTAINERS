@@ -1,205 +1,15 @@
 # Docker maintainers file
 #
-# This file describes who runs the Docker project and how.
-# This is a living document - if you see something out of date or missing,
-# speak up!
+# This file describes who runs the docker/docker project and how.
+# This is a living document - if you see something out of date or missing, speak up!
 #
 # It is structured to be consumable by both humans and programs.
 # To extract its contents programmatically, use any TOML-compliant
 # parser.
-
-[Rules]
-
-	[Rules.maintainers]
-
-		title = "What is a maintainer?"
-
-		text = """
-There are different types of maintainers, with different responsibilities, but
-all maintainers have 3 things in common:
-
-1) They share responsibility in the project's success.
-2) They have made a long-term, recurring time investment to improve the project.
-3) They spend that time doing whatever needs to be done, not necessarily what
-is the most interesting or fun.
-
-Maintainers are often under-appreciated, because their work is harder to appreciate.
-It's easy to appreciate a really cool and technically advanced feature. It's harder
-to appreciate the absence of bugs, the slow but steady improvement in stability,
-or the reliability of a release process. But those things distinguish a good
-project from a great one.
-"""
-
-	[Rules.bdfl]
-
-		title = "The Benevolent dictator for life (BDFL)"
-
-		text = """
-Docker follows the timeless, highly efficient and totally unfair system
-known as [Benevolent dictator for
-life](https://en.wikipedia.org/wiki/Benevolent_Dictator_for_Life), with
-yours truly, Solomon Hykes, in the role of BDFL. This means that all
-decisions are made, by default, by Solomon. Since making every decision
-myself would be highly un-scalable, in practice decisions are spread
-across multiple maintainers.
-
-Ideally, the BDFL role is like the Queen of England: awesome crown, but not
-an actual operational role day-to-day. The real job of a BDFL is to NEVER GO AWAY.
-Every other rule can change, perhaps drastically so, but the BDFL will always
-be there, preserving the philosophy and principles of the project, and keeping
-ultimate authority over its fate. This gives us great flexibility in experimenting
-with various governance models, knowing that we can always press the "reset" button
-without fear of fragmentation or deadlock. See the US congress for a counter-example.
-
-BDFL daily routine:
-
-* Is the project governance stuck in a deadlock or irreversibly fragmented?
-	* If yes: refactor the project governance
-* Are there issues or conflicts escalated by core?
-	* If yes: resolve them
-* Go back to polishing that crown.
-"""
-
-	[Rules.decisions]
-
-		title = "How are decisions made?"
-
-		text = """
-Short answer: EVERYTHING IS A PULL REQUEST.
-
-Docker is an open-source project with an open design philosophy. This
-means that the repository is the source of truth for EVERY aspect of the
-project, including its philosophy, design, road map, and APIs. *If it's
-part of the project, it's in the repo. If it's in the repo, it's part of
-the project.*
-
-As a result, all decisions can be expressed as changes to the
-repository. An implementation change is a change to the source code. An
-API change is a change to the API specification. A philosophy change is
-a change to the philosophy manifesto, and so on.
-
-All decisions affecting Docker, big and small, follow the same 3 steps:
-
-* Step 1: Open a pull request. Anyone can do this.
-
-* Step 2: Discuss the pull request. Anyone can do this.
-
-* Step 3: Merge or refuse the pull request. Who does this depends on the nature
-of the pull request and which areas of the project it affects. See *review flow*
-for details.
-
-Because Docker is such a large and active project, it's important for everyone to know
-who is responsible for deciding what. That is determined by a precise set of rules.
-
-* For every *decision* in the project, the rules should designate, in a deterministic way,
-who should *decide*.
-
-* For every *problem* in the project, the rules should designate, in a deterministic way,
-who should be responsible for *fixing* it.
-
-* For every *question* in the project, the rules should designate, in a deterministic way,
-who should be expected to have the *answer*.
-"""
-
-	[Rules.review]
-
-		title = "Review flow"
-
-		text = """
-Pull requests should be processed according to the following flow:
-
-* For each subsystem affected by the change, the maintainers of the subsystem must approve or refuse it.
-It is the responsibility of the subsystem maintainers to process patches affecting them in a timely
-manner.
-
-* If the change affects areas of the code which are not part of a subsystem,
-or if subsystem maintainers are unable to reach a timely decision, it must be approved by
-the core maintainers.
-
-* If the change affects the UI or public APIs, or if it represents a major change in architecture,
-the architects must approve or refuse it.
-
-* If the change affects the operations of the project, it must be approved or rejected by
-the relevant operators.
-
-* If the change affects the governance, philosophy, goals or principles of the project,
-it must be approved by BDFL.
-"""
-
-	[Rules.DCO]
-
-	title = "Helping contributors with the DCO"
-
-	text = """
-The [DCO or `Sign your work`](
-https://github.com/docker/docker/blob/master/CONTRIBUTING.md#sign-your-work)
-requirement is not intended as a roadblock or speed bump.
-
-Some Docker contributors are not as familiar with `git`, or have used a web based
-editor, and thus asking them to `git commit --amend -s` is not the best way forward.
-
-In this case, maintainers can update the commits based on clause (c) of the DCO. The
-most trivial way for a contributor to allow the maintainer to do this, is to add
-a DCO signature in a Pull Requests's comment, or a maintainer can simply note that
-the change is sufficiently trivial that it does not substantially change the existing
-contribution - i.e., a spelling change.
-
-When you add someone's DCO, please also add your own to keep a log.
-"""
-
-	[Rules.holiday]
-
-	title = "I'm a maintainer, and I'm going on holiday"
-
-	text = """
-Please let your co-maintainers and other contributors know by raising a pull
-request that comments out your `MAINTAINERS` file entry using a `#`.
-"""
-
-	[Rules."no direct push"]
-
-	title = "I'm a maintainer. Should I make pull requests too?"
-
-	text = """
-Yes. Nobody should ever push to master directly. All changes should be
-made through a pull request.
-"""
-
-	[Rules.meta]
-
-	title = "How is this process changed?"
-
-	text = "Just like everything else: by making a pull request :)"
-
-# Current project organization
+#
+# This file is compiled into the MAINTAINERS file in docker/opensource.
+#
 [Org]
-
-	bdfl = "shykes"
-
-	# The chief architect is responsible for the overall integrity of the technical architecture
-	# across all subsystems, and the consistency of APIs and UI.
-	#
-	# Changes to UI, public APIs and overall architecture (for example a plugin system) must
-	# be approved by the chief architect.
-	"Chief Architect" = "shykes"
-
-	# The chief maintainer is responsible for all aspects of quality for the project including
-	# code reviews, usability, stability, security, performance, etc.
-	# The most important function of the chief maintainer is to lead by example. On the first
-	# day of a new maintainer, the best advice should be "follow the C.M.'s example and you'll
-	# be fine".
-	"Chief Maintainer" = "crosbymichael"
-
-	# The community manager is responsible for serving the project community, including users,
-	# contributors and partners. This involves:
-	#	- facilitating communication between maintainers, contributors and users
-	#	- organizing contributor and maintainer events
-	#	- helping new contributors get involved
-	#	- anything the project community needs to be successful
-	#
-	# The community manager is a point of contact for any contributor who has questions, concerns
-	# or feedback about project operations.
-	"Community Manager" = "theadactyl"
 
 	[Org."Core maintainers"]
 
@@ -214,8 +24,6 @@ made through a pull request.
 	# For each release (including minor releases), a "release captain" is assigned from the
 	# pool of core maintainers. Rotation is encouraged across all maintainers, to ensure
 	# the release process is clear and up-to-date.
-	#
-	# It is common for core maintainers to "branch out" to join or start a subsystem.
 
 		people = [
 			"calavera",
@@ -237,16 +45,16 @@ made through a pull request.
 			"vishh"
 		]
 
-    [Org."Docs maintainers"]
+	[Org."Docs maintainers"]
 
-    # TODO Describe the docs maintainers role.
+	# TODO Describe the docs maintainers role.
 
-        people = [
-            "jamtur01",
-            "moxiegirl",
-            "sven",
-            "thajeztah"
-        ]
+		people = [
+			"jamtur01",
+			"moxiegirl",
+			"sven",
+			"thajeztah"
+		]
 
 	[Org.Curators]
 
@@ -260,9 +68,9 @@ made through a pull request.
 	# - close an issue or pull request when it's an exact duplicate
 	# - close an issue or pull request when it's inappropriate or off-topic
 
-	people = [
-		"thajeztah"
-	]
+		people = [
+			"thajeztah"
+		]
 
 
 [people]
@@ -272,6 +80,7 @@ made through a pull request.
 # in the people section.
 
 	# ADD YOURSELF HERE IN ALPHABETICAL ORDER
+
 	[people.calavera]
 	Name = "David Calavera"
 	Email = "david.calavera@gmail.com"
