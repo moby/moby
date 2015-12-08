@@ -206,10 +206,27 @@ on the system.  For example, you could build a container with debugging tools
 like `strace` or `gdb`, but want to use these tools when debugging processes
 within the container.
 
-    $ docker run --pid=host rhel7 strace -p 1234
+### Example: run htop inside a container
 
-This command would allow you to use `strace` inside the container on pid 1234 on
-the host.
+Create this Dockerfile:
+
+```
+FROM alpine:latest
+RUN apk add --update htop && rm -rf /var/cache/apk/*
+CMD ["htop"]
+```
+
+Build the Dockerfile and tag the image as `myhtop`:
+
+```bash
+$ docker build -t myhtop .
+```
+
+Use the following command to run `htop` inside a container:
+
+```
+$ docker run -it --rm --pid=host myhtop
+```
 
 ## UTS settings (--uts)
 
