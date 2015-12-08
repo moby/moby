@@ -41,6 +41,23 @@ RUN cd /usr/local/lvm2 \
 	&& make install_device-mapper
 # see https://git.fedorahosted.org/cgit/lvm2.git/tree/INSTALL
 
+# install seccomp
+# this can be changed to the ubuntu package libseccomp-dev if dockerinit is removed,
+# we need libseccomp.a (which the package does not provide) for dockerinit
+ENV SECCOMP_VERSION v2.2.3
+RUN set -x \
+    && export SECCOMP_PATH=$(mktemp -d) \
+    && git clone https://github.com/seccomp/libseccomp.git "$SECCOMP_PATH" \
+    && ( \
+        cd "$SECCOMP_PATH" \
+        && git checkout "$SECCOMP_VERSION" \
+        && ./autogen.sh \
+        && ./configure --prefix=/usr \
+        && make \
+        && make install \
+    ) \
+    && rm -rf "$SECCOMP_PATH"
+
 ENV GOPATH /go:/go/src/github.com/docker/docker/vendor
 
 # Get the "docker-py" source so we can run their integration tests
@@ -55,7 +72,7 @@ RUN useradd --create-home --gid docker unprivilegeduser
 
 VOLUME /var/lib/docker
 WORKDIR /go/src/github.com/docker/docker
-ENV DOCKER_BUILDTAGS apparmor selinux
+ENV DOCKER_BUILDTAGS apparmor seccomp selinux
 
 # Wrap all commands in the "docker-in-docker" script to allow nested containers
 ENTRYPOINT ["hack/dind"]
