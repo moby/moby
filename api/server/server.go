@@ -41,9 +41,9 @@ type Config struct {
 
 // Server contains instance details for the server
 type Server struct {
-	cfg     *Config
-	servers []*HTTPServer
-	routers []router.Router
+	cfg          *Config
+	servers      []*HTTPServer
+	routers      []router.Router
 	authZPlugins []authorization.Plugin
 }
 
