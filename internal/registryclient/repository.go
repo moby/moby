@@ -91,7 +91,7 @@ func (r *registry) Repositories(ctx context.Context, entries []string, last stri
 			returnErr = io.EOF
 		}
 	} else {
-		return 0, handleErrorResponse(resp)
+		return 0, HandleErrorResponse(resp)
 	}
 
 	return numFilled, returnErr
@@ -213,7 +213,7 @@ func (ms *manifests) Tags() ([]string, error) {
 
 		return tagsResponse.Tags, nil
 	}
-	return nil, handleErrorResponse(resp)
+	return nil, HandleErrorResponse(resp)
 }
 
 func (ms *manifests) Exists(dgst digest.Digest) (bool, error) {
@@ -238,7 +238,7 @@ func (ms *manifests) ExistsByTag(tag string) (bool, error) {
 	} else if resp.StatusCode == http.StatusNotFound {
 		return false, nil
 	}
-	return false, handleErrorResponse(resp)
+	return false, HandleErrorResponse(resp)
 }
 
 func (ms *manifests) Get(dgst digest.Digest) (*schema1.SignedManifest, error) {
@@ -297,7 +297,7 @@ func (ms *manifests) GetByTag(tag string, options ...distribution.ManifestServic
 		}
 		return &sm, nil
 	}
-	return nil, handleErrorResponse(resp)
+	return nil, HandleErrorResponse(resp)
 }
 
 func (ms *manifests) Put(m *schema1.SignedManifest) error {
@@ -323,7 +323,7 @@ func (ms *manifests) Put(m *schema1.SignedManifest) error {
 		// TODO(dmcgowan): make use of digest header
 		return nil
 	}
-	return handleErrorResponse(resp)
+	return HandleErrorResponse(resp)
 }
 
 func (ms *manifests) Delete(dgst digest.Digest) error {
@@ -345,7 +345,7 @@ func (ms *manifests) Delete(dgst digest.Digest) error {
 	if SuccessStatus(resp.StatusCode) {
 		return nil
 	}
-	return handleErrorResponse(resp)
+	return HandleErrorResponse(resp)
 }
 
 type blobs struct {
@@ -401,7 +401,7 @@ func (bs *blobs) Open(ctx context.Context, dgst digest.Digest) (distribution.Rea
 			if resp.StatusCode == http.StatusNotFound {
 				return distribution.ErrBlobUnknown
 			}
-			return handleErrorResponse(resp)
+			return HandleErrorResponse(resp)
 		}), nil
 }
 
@@ -457,7 +457,7 @@ func (bs *blobs) Create(ctx context.Context) (distribution.BlobWriter, error) {
 			location:  location,
 		}, nil
 	}
-	return nil, handleErrorResponse(resp)
+	return nil, HandleErrorResponse(resp)
 }
 
 func (bs *blobs) Resume(ctx context.Context, id string) (distribution.BlobWriter, error) {
@@ -505,7 +505,7 @@ func (bs *blobStatter) Stat(ctx context.Context, dgst digest.Digest) (distributi
 	} else if resp.StatusCode == http.StatusNotFound {
 		return distribution.Descriptor{}, distribution.ErrBlobUnknown
 	}
-	return distribution.Descriptor{}, handleErrorResponse(resp)
+	return distribution.Descriptor{}, HandleErrorResponse(resp)
 }
 
 func buildCatalogValues(maxEntries int, last string) url.Values {
@@ -542,7 +542,7 @@ func (bs *blobStatter) Clear(ctx context.Context, dgst digest.Digest) error {
 	if SuccessStatus(resp.StatusCode) {
 		return nil
 	}
-	return handleErrorResponse(resp)
+	return HandleErrorResponse(resp)
 }
 
 func (bs *blobStatter) SetDescriptor(ctx context.Context, dgst digest.Digest, desc distribution.Descriptor) error {
