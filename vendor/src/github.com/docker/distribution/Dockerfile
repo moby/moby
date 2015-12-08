@@ -1,4 +1,4 @@
-FROM golang:1.4
+FROM golang:1.5.2
 
 RUN apt-get update && \
     apt-get install -y librados-dev apache2-utils && \

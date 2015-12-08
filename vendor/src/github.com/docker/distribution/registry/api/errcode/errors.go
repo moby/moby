@@ -25,7 +25,8 @@ func (ec ErrorCode) ErrorCode() ErrorCode {
 
 // Error returns the ID/Value
 func (ec ErrorCode) Error() string {
-	return ec.Descriptor().Value
+	// NOTE(stevvooe): Cannot use message here since it may have unpopulated args.
+	return strings.ToLower(strings.Replace(ec.String(), "_", " ", -1))
 }
 
 // Descriptor returns the descriptor for the error code.
@@ -104,9 +105,7 @@ func (e Error) ErrorCode() ErrorCode {
 
 // Error returns a human readable representation of the error.
 func (e Error) Error() string {
-	return fmt.Sprintf("%s: %s",
-		strings.ToLower(strings.Replace(e.Code.String(), "_", " ", -1)),
-		e.Message)
+	return fmt.Sprintf("%s: %s", e.Code.Error(), e.Message)
 }
 
 // WithDetail will return a new Error, based on the current one, but with

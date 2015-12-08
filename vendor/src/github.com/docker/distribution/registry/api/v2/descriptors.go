@@ -495,7 +495,7 @@ var routeDescriptors = []RouteDescriptor{
 		Methods: []MethodDescriptor{
 			{
 				Method:      "GET",
-				Description: "Fetch the manifest identified by `name` and `reference` where `reference` can be a tag or digest.",
+				Description: "Fetch the manifest identified by `name` and `reference` where `reference` can be a tag or digest. A `HEAD` request can also be issued to this endpoint to obtain resource information without receiving all data.",
 				Requests: []RequestDescriptor{
 					{
 						Headers: []ParameterDescriptor{
