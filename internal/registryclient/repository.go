@@ -91,7 +91,7 @@ func (r *registry) Repositories(ctx context.Context, entries []string, last stri
 			returnErr = io.EOF
 		}
 	} else {
-		return 0, handleErrorResponse(resp)
+		return 0, HandleErrorResponse(resp)
 	}
 
 	return numFilled, returnErr
@@ -203,7 +203,7 @@ func (t *tags) All(ctx context.Context) ([]string, error) {
 		tags = tagsResponse.Tags
 		return tags, nil
 	}
-	return tags, handleErrorResponse(resp)
+	return tags, HandleErrorResponse(resp)
 }
 
 func descriptorFromResponse(response *http.Response) (distribution.Descriptor, error) {
@@ -276,7 +276,7 @@ check:
 		}
 		goto check
 	default:
-		return distribution.Descriptor{}, handleErrorResponse(resp)
+		return distribution.Descriptor{}, HandleErrorResponse(resp)
 	}
 }
 
@@ -315,7 +315,7 @@ func (ms *manifests) Exists(ctx context.Context, dgst digest.Digest) (bool, erro
 	} else if resp.StatusCode == http.StatusNotFound {
 		return false, nil
 	}
-	return false, handleErrorResponse(resp)
+	return false, HandleErrorResponse(resp)
 }
 
 // AddEtagToTag allows a client to supply an eTag to Get which will be
@@ -395,7 +395,7 @@ func (ms *manifests) Get(ctx context.Context, dgst digest.Digest, options ...dis
 		}
 		return m, nil
 	}
-	return nil, handleErrorResponse(resp)
+	return nil, HandleErrorResponse(resp)
 }
 
 // WithTag allows a tag to be passed into Put which enables the client
@@ -462,7 +462,7 @@ func (ms *manifests) Put(ctx context.Context, m distribution.Manifest, options .
 		return dgst, nil
 	}
 
-	return "", handleErrorResponse(resp)
+	return "", HandleErrorResponse(resp)
 }
 
 func (ms *manifests) Delete(ctx context.Context, dgst digest.Digest) error {
@@ -484,7 +484,7 @@ func (ms *manifests) Delete(ctx context.Context, dgst digest.Digest) error {
 	if SuccessStatus(resp.StatusCode) {
 		return nil
 	}
-	return handleErrorResponse(resp)
+	return HandleErrorResponse(resp)
 }
 
 // todo(richardscothern): Restore interface and implementation with merge of #1050
@@ -541,7 +541,7 @@ func (bs *blobs) Open(ctx context.Context, dgst digest.Digest) (distribution.Rea
 			if resp.StatusCode == http.StatusNotFound {
 				return distribution.ErrBlobUnknown
 			}
-			return handleErrorResponse(resp)
+			return HandleErrorResponse(resp)
 		}), nil
 }
 
@@ -597,7 +597,7 @@ func (bs *blobs) Create(ctx context.Context) (distribution.BlobWriter, error) {
 			location:  location,
 		}, nil
 	}
-	return nil, handleErrorResponse(resp)
+	return nil, HandleErrorResponse(resp)
 }
 
 func (bs *blobs) Resume(ctx context.Context, id string) (distribution.BlobWriter, error) {
@@ -645,7 +645,7 @@ func (bs *blobStatter) Stat(ctx context.Context, dgst digest.Digest) (distributi
 	} else if resp.StatusCode == http.StatusNotFound {
 		return distribution.Descriptor{}, distribution.ErrBlobUnknown
 	}
-	return distribution.Descriptor{}, handleErrorResponse(resp)
+	return distribution.Descriptor{}, HandleErrorResponse(resp)
 }
 
 func buildCatalogValues(maxEntries int, last string) url.Values {
@@ -682,7 +682,7 @@ func (bs *blobStatter) Clear(ctx context.Context, dgst digest.Digest) error {
 	if SuccessStatus(resp.StatusCode) {
 		return nil
 	}
-	return handleErrorResponse(resp)
+	return HandleErrorResponse(resp)
 }
 
 func (bs *blobStatter) SetDescriptor(ctx context.Context, dgst digest.Digest, desc distribution.Descriptor) error {
