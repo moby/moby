@@ -233,12 +233,7 @@ func createChainIDFromParent(parent ChainID, dgsts ...DiffID) ChainID {
 		return createChainIDFromParent(ChainID(dgsts[0]), dgsts[1:]...)
 	}
 	// H = "H(n-1) SHA256(n)"
-	dgst, err := digest.FromBytes([]byte(string(parent) + " " + string(dgsts[0])))
-	if err != nil {
-		// Digest calculation is not expected to throw an error,
-		// any error at this point is a program error
-		panic(err)
-	}
+	dgst := digest.FromBytes([]byte(string(parent) + " " + string(dgsts[0])))
 	return createChainIDFromParent(ChainID(dgst), dgsts[1:]...)
 }
 

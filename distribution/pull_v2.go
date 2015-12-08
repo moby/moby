@@ -14,6 +14,7 @@ import (
 	"github.com/docker/distribution/digest"
 	"github.com/docker/distribution/manifest/schema1"
 	"github.com/docker/distribution/registry/api/errcode"
+	"github.com/docker/distribution/registry/client"
 	"github.com/docker/docker/distribution/metadata"
 	"github.com/docker/docker/distribution/xfer"
 	"github.com/docker/docker/image"
@@ -61,18 +62,12 @@ func (p *v2Puller) Pull(ctx context.Context, ref reference.Named) (err error) {
 func (p *v2Puller) pullV2Repository(ctx context.Context, ref reference.Named) (err error) {
 	var layersDownloaded bool
 	if !reference.IsNameOnly(ref) {
-		var err error
 		layersDownloaded, err = p.pullV2Tag(ctx, ref)
 		if err != nil {
 			return err
 		}
 	} else {
-		manSvc, err := p.repo.Manifests(ctx)
-		if err != nil {
-			return err
-		}
-
-		tags, err := manSvc.Tags()
+		tags, err := p.repo.Tags(ctx).All(ctx)
 		if err != nil {
 			// If this repository doesn't exist on V2, we should
 			// permit a fallback to V1.
@@ -84,8 +79,6 @@ func (p *v2Puller) pullV2Repository(ctx context.Context, ref reference.Named) (e
 		// error later on.
 		p.confirmedV2 = true
 
-		// This probably becomes a lot nicer after the manifest
-		// refactor...
 		for _, tag := range tags {
 			tagRef, err := reference.WithTag(ref, tag)
 			if err != nil {
@@ -203,57 +196,91 @@ func (ld *v2LayerDescriptor) Registered(diffID layer.DiffID) {
 }
 
 func (p *v2Puller) pullV2Tag(ctx context.Context, ref reference.Named) (tagUpdated bool, err error) {
-	tagOrDigest := ""
-	if tagged, isTagged := ref.(reference.NamedTagged); isTagged {
-		tagOrDigest = tagged.Tag()
-	} else if digested, isCanonical := ref.(reference.Canonical); isCanonical {
-		tagOrDigest = digested.Digest().String()
-	} else {
-		return false, fmt.Errorf("internal error: reference has neither a tag nor a digest: %s", ref.String())
-	}
-
-	logrus.Debugf("Pulling ref from V2 registry: %s:%s", ref.FullName(), tagOrDigest)
-
 	manSvc, err := p.repo.Manifests(ctx)
 	if err != nil {
 		return false, err
 	}
 
-	unverifiedManifest, err := manSvc.GetByTag(tagOrDigest)
-	if err != nil {
-		// If this manifest did not exist, we should allow a possible
-		// fallback to the v1 protocol, because dual-version setups may
-		// not host all manifests with the v2 protocol. We may also get
-		// a "not authorized" error if the manifest doesn't exist.
-		return false, allowV1Fallback(err)
+	var (
+		manifest    distribution.Manifest
+		tagOrDigest string // Used for logging/progress only
+	)
+	if tagged, isTagged := ref.(reference.NamedTagged); isTagged {
+		// NOTE: not using TagService.Get, since it uses HEAD requests
+		// against the manifests endpoint, which are not supported by
+		// all registry versions.
+		manifest, err = manSvc.Get(ctx, "", client.WithTag(tagged.Tag()))
+		if err != nil {
+			return false, allowV1Fallback(err)
+		}
+		tagOrDigest = tagged.Tag()
+	} else if digested, isDigested := ref.(reference.Canonical); isDigested {
+		manifest, err = manSvc.Get(ctx, digested.Digest())
+		if err != nil {
+			return false, err
+		}
+		tagOrDigest = digested.Digest().String()
+	} else {
+		return false, fmt.Errorf("internal error: reference has neither a tag nor a digest: %s", ref.String())
 	}
-	if unverifiedManifest == nil {
+
+	if manifest == nil {
 		return false, fmt.Errorf("image manifest does not exist for tag or digest %q", tagOrDigest)
 	}
 
-	// If GetByTag succeeded, we can be confident that the registry on
+	// If manSvc.Get succeeded, we can be confident that the registry on
 	// the other side speaks the v2 protocol.
 	p.confirmedV2 = true
 
+	logrus.Debugf("Pulling ref from V2 registry: %s", ref.String())
+	progress.Message(p.config.ProgressOutput, tagOrDigest, "Pulling from "+p.repo.Name())
+
+	var imageID image.ID
+
+	switch v := manifest.(type) {
+	case *schema1.SignedManifest:
+		imageID, err = p.pullSchema1(ctx, ref, v)
+		if err != nil {
+			return false, err
+		}
+	default:
+		return false, errors.New("unsupported manifest format")
+	}
+
+	oldTagImageID, err := p.config.ReferenceStore.Get(ref)
+	if err == nil && oldTagImageID == imageID {
+		return false, nil
+	}
+
+	if canonical, ok := ref.(reference.Canonical); ok {
+		if err = p.config.ReferenceStore.AddDigest(canonical, imageID, true); err != nil {
+			return false, err
+		}
+	} else if err = p.config.ReferenceStore.AddTag(ref, imageID, true); err != nil {
+		return false, err
+	}
+
+	return true, nil
+}
+
+func (p *v2Puller) pullSchema1(ctx context.Context, ref reference.Named, unverifiedManifest *schema1.SignedManifest) (imageID image.ID, err error) {
 	var verifiedManifest *schema1.Manifest
 	verifiedManifest, err = verifyManifest(unverifiedManifest, ref)
 	if err != nil {
-		return false, err
+		return "", err
 	}
 
 	rootFS := image.NewRootFS()
 
 	if err := detectBaseLayer(p.config.ImageStore, verifiedManifest, rootFS); err != nil {
-		return false, err
+		return "", err
 	}
 
 	// remove duplicate layers and check parent chain validity
 	err = fixManifestLayers(verifiedManifest)
 	if err != nil {
-		return false, err
+		return "", err
 	}
-
-	progress.Message(p.config.ProgressOutput, tagOrDigest, "Pulling from "+p.repo.Name())
 
 	var descriptors []xfer.DownloadDescriptor
 
@@ -269,12 +296,12 @@ func (p *v2Puller) pullV2Tag(ctx context.Context, ref reference.Named) (tagUpdat
 			ThrowAway bool `json:"throwaway,omitempty"`
 		}
 		if err := json.Unmarshal([]byte(verifiedManifest.History[i].V1Compatibility), &throwAway); err != nil {
-			return false, err
+			return "", err
 		}
 
 		h, err := v1.HistoryFromConfig([]byte(verifiedManifest.History[i].V1Compatibility), throwAway.ThrowAway)
 		if err != nil {
-			return false, err
+			return "", err
 		}
 		history = append(history, h)
 
@@ -293,43 +320,30 @@ func (p *v2Puller) pullV2Tag(ctx context.Context, ref reference.Named) (tagUpdat
 
 	resultRootFS, release, err := p.config.DownloadManager.Download(ctx, *rootFS, descriptors, p.config.ProgressOutput)
 	if err != nil {
-		return false, err
+		return "", err
 	}
 	defer release()
 
 	config, err := v1.MakeConfigFromV1Config([]byte(verifiedManifest.History[0].V1Compatibility), &resultRootFS, history)
 	if err != nil {
-		return false, err
+		return "", err
 	}
 
-	imageID, err := p.config.ImageStore.Create(config)
+	imageID, err = p.config.ImageStore.Create(config)
 	if err != nil {
-		return false, err
+		return "", err
 	}
 
 	manifestDigest, _, err := digestFromManifest(unverifiedManifest, p.repoInfo)
 	if err != nil {
-		return false, err
+		return "", err
 	}
 
 	if manifestDigest != "" {
 		progress.Message(p.config.ProgressOutput, "", "Digest: "+manifestDigest.String())
 	}
 
-	oldTagImageID, err := p.config.ReferenceStore.Get(ref)
-	if err == nil && oldTagImageID == imageID {
-		return false, nil
-	}
-
-	if canonical, ok := ref.(reference.Canonical); ok {
-		if err = p.config.ReferenceStore.AddDigest(canonical, imageID, true); err != nil {
-			return false, err
-		}
-	} else if err = p.config.ReferenceStore.AddTag(ref, imageID, true); err != nil {
-		return false, err
-	}
-
-	return true, nil
+	return imageID, nil
 }
 
 // allowV1Fallback checks if the error is a possible reason to fallback to v1
@@ -362,13 +376,7 @@ func verifyManifest(signedManifest *schema1.SignedManifest, ref reference.Named)
 		if err != nil {
 			return nil, err
 		}
-		payload, err := signedManifest.Payload()
-		if err != nil {
-			// If this failed, the signatures section was corrupted
-			// or missing. Treat the entire manifest as the payload.
-			payload = signedManifest.Raw
-		}
-		if _, err := verifier.Write(payload); err != nil {
+		if _, err := verifier.Write(signedManifest.Canonical); err != nil {
 			return nil, err
 		}
 		if !verifier.Verified() {
@@ -376,15 +384,8 @@ func verifyManifest(signedManifest *schema1.SignedManifest, ref reference.Named)
 			logrus.Error(err)
 			return nil, err
 		}
-
-		var verifiedManifest schema1.Manifest
-		if err = json.Unmarshal(payload, &verifiedManifest); err != nil {
-			return nil, err
-		}
-		m = &verifiedManifest
-	} else {
-		m = &signedManifest.Manifest
 	}
+	m = &signedManifest.Manifest
 
 	if m.SchemaVersion != 1 {
 		return nil, fmt.Errorf("unsupported schema version %d for %q", m.SchemaVersion, ref.String())

@@ -65,12 +65,7 @@ func createChainIDFromParent(parent layer.ChainID, dgsts ...layer.DiffID) layer.
 		return createChainIDFromParent(layer.ChainID(dgsts[0]), dgsts[1:]...)
 	}
 	// H = "H(n-1) SHA256(n)"
-	dgst, err := digest.FromBytes([]byte(string(parent) + " " + string(dgsts[0])))
-	if err != nil {
-		// Digest calculation is not expected to throw an error,
-		// any error at this point is a program error
-		panic(err)
-	}
+	dgst := digest.FromBytes([]byte(string(parent) + " " + string(dgsts[0])))
 	return createChainIDFromParent(layer.ChainID(dgst), dgsts[1:]...)
 }
 
@@ -92,11 +87,7 @@ func (ls *mockLayerStore) Register(reader io.Reader, parentID layer.ChainID) (la
 	if err != nil {
 		return nil, err
 	}
-	diffID, err := digest.FromBytes(l.layerData.Bytes())
-	if err != nil {
-		return nil, err
-	}
-	l.diffID = layer.DiffID(diffID)
+	l.diffID = layer.DiffID(digest.FromBytes(l.layerData.Bytes()))
 	l.chainID = createChainIDFromParent(parentID, l.diffID)
 
 	ls.layers[l.chainID] = l
