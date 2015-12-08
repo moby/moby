@@ -2,20 +2,22 @@ package schema1
 
 import (
 	"encoding/json"
+	"fmt"
 
+	"github.com/docker/distribution"
 	"github.com/docker/distribution/digest"
 	"github.com/docker/distribution/manifest"
 	"github.com/docker/libtrust"
 )
 
-// TODO(stevvooe): When we rev the manifest format, the contents of this
-// package should be moved to manifest/v1.
-
 const (
-	// ManifestMediaType specifies the mediaType for the current version. Note
-	// that for schema version 1, the the media is optionally
-	// "application/json".
-	ManifestMediaType = "application/vnd.docker.distribution.manifest.v1+json"
+	// MediaTypeManifest specifies the mediaType for the current version. Note
+	// that for schema version 1, the the media is optionally "application/json".
+	MediaTypeManifest = "application/vnd.docker.distribution.manifest.v1+json"
+	// MediaTypeSignedManifest specifies the mediatype for current SignedManifest version
+	MediaTypeSignedManifest = "application/vnd.docker.distribution.manifest.v1+prettyjws"
+	// MediaTypeManifestLayer specifies the media type for manifest layers
+	MediaTypeManifestLayer = "application/vnd.docker.container.image.rootfs.diff+x-gtar"
 )
 
 var (
@@ -25,6 +27,47 @@ var (
 		SchemaVersion: 1,
 	}
 )
+
+func init() {
+	schema1Func := func(b []byte) (distribution.Manifest, distribution.Descriptor, error) {
+		sm := new(SignedManifest)
+		err := sm.UnmarshalJSON(b)
+		if err != nil {
+			return nil, distribution.Descriptor{}, err
+		}
+
+		desc := distribution.Descriptor{
+			Digest:    digest.FromBytes(sm.Canonical),
+			Size:      int64(len(sm.Canonical)),
+			MediaType: MediaTypeManifest,
+		}
+		return sm, desc, err
+	}
+	err := distribution.RegisterManifestSchema(MediaTypeManifest, schema1Func)
+	if err != nil {
+		panic(fmt.Sprintf("Unable to register manifest: %s", err))
+	}
+	err = distribution.RegisterManifestSchema("", schema1Func)
+	if err != nil {
+		panic(fmt.Sprintf("Unable to register manifest: %s", err))
+	}
+	err = distribution.RegisterManifestSchema("application/json; charset=utf-8", schema1Func)
+	if err != nil {
+		panic(fmt.Sprintf("Unable to register manifest: %s", err))
+	}
+}
+
+// FSLayer is a container struct for BlobSums defined in an image manifest
+type FSLayer struct {
+	// BlobSum is the tarsum of the referenced filesystem image layer
+	BlobSum digest.Digest `json:"blobSum"`
+}
+
+// History stores unstructured v1 compatibility information
+type History struct {
+	// V1Compatibility is the raw v1 compatibility information
+	V1Compatibility string `json:"v1Compatibility"`
+}
 
 // Manifest provides the base accessible fields for working with V2 image
 // format in the registry.
@@ -49,59 +92,64 @@ type Manifest struct {
 }
 
 // SignedManifest provides an envelope for a signed image manifest, including
-// the format sensitive raw bytes. It contains fields to
+// the format sensitive raw bytes.
 type SignedManifest struct {
 	Manifest
 
-	// Raw is the byte representation of the ImageManifest, used for signature
-	// verification. The value of Raw must be used directly during
-	// serialization, or the signature check will fail. The manifest byte
+	// Canonical is the canonical byte representation of the ImageManifest,
+	// without any attached signatures. The manifest byte
 	// representation cannot change or it will have to be re-signed.
-	Raw []byte `json:"-"`
+	Canonical []byte `json:"-"`
+
+	// all contains the byte representation of the Manifest including signatures
+	// and is retuend by Payload()
+	all []byte
 }
 
-// UnmarshalJSON populates a new ImageManifest struct from JSON data.
+// UnmarshalJSON populates a new SignedManifest struct from JSON data.
 func (sm *SignedManifest) UnmarshalJSON(b []byte) error {
-	sm.Raw = make([]byte, len(b), len(b))
-	copy(sm.Raw, b)
+	sm.all = make([]byte, len(b), len(b))
+	// store manifest and signatures in all
+	copy(sm.all, b)
 
-	p, err := sm.Payload()
+	jsig, err := libtrust.ParsePrettySignature(b, "signatures")
 	if err != nil {
 		return err
 	}
 
+	// Resolve the payload in the manifest.
+	bytes, err := jsig.Payload()
+	if err != nil {
+		return err
+	}
+
+	// sm.Canonical stores the canonical manifest JSON
+	sm.Canonical = make([]byte, len(bytes), len(bytes))
+	copy(sm.Canonical, bytes)
+
+	// Unmarshal canonical JSON into Manifest object
 	var manifest Manifest
-	if err := json.Unmarshal(p, &manifest); err != nil {
+	if err := json.Unmarshal(sm.Canonical, &manifest); err != nil {
 		return err
 	}
 
 	sm.Manifest = manifest
+
 	return nil
 }
 
-// Payload returns the raw, signed content of the signed manifest. The
-// contents can be used to calculate the content identifier.
-func (sm *SignedManifest) Payload() ([]byte, error) {
-	jsig, err := libtrust.ParsePrettySignature(sm.Raw, "signatures")
-	if err != nil {
-		return nil, err
+// References returnes the descriptors of this manifests references
+func (sm SignedManifest) References() []distribution.Descriptor {
+	dependencies := make([]distribution.Descriptor, len(sm.FSLayers))
+	for i, fsLayer := range sm.FSLayers {
+		dependencies[i] = distribution.Descriptor{
+			MediaType: "application/vnd.docker.container.image.rootfs.diff+x-gtar",
+			Digest:    fsLayer.BlobSum,
+		}
 	}
 
-	// Resolve the payload in the manifest.
-	return jsig.Payload()
-}
+	return dependencies
 
-// Signatures returns the signatures as provided by
-// (*libtrust.JSONSignature).Signatures. The byte slices are opaque jws
-// signatures.
-func (sm *SignedManifest) Signatures() ([][]byte, error) {
-	jsig, err := libtrust.ParsePrettySignature(sm.Raw, "signatures")
-	if err != nil {
-		return nil, err
-	}
-
-	// Resolve the payload in the manifest.
-	return jsig.Signatures()
 }
 
 // MarshalJSON returns the contents of raw. If Raw is nil, marshals the inner
@@ -109,22 +157,28 @@ func (sm *SignedManifest) Signatures() ([][]byte, error) {
 // use Raw directly, since the the content produced by json.Marshal will be
 // compacted and will fail signature checks.
 func (sm *SignedManifest) MarshalJSON() ([]byte, error) {
-	if len(sm.Raw) > 0 {
-		return sm.Raw, nil
+	if len(sm.all) > 0 {
+		return sm.all, nil
 	}
 
 	// If the raw data is not available, just dump the inner content.
 	return json.Marshal(&sm.Manifest)
 }
 
-// FSLayer is a container struct for BlobSums defined in an image manifest
-type FSLayer struct {
-	// BlobSum is the tarsum of the referenced filesystem image layer
-	BlobSum digest.Digest `json:"blobSum"`
+// Payload returns the signed content of the signed manifest.
+func (sm SignedManifest) Payload() (string, []byte, error) {
+	return MediaTypeManifest, sm.all, nil
 }
 
-// History stores unstructured v1 compatibility information
-type History struct {
-	// V1Compatibility is the raw v1 compatibility information
-	V1Compatibility string `json:"v1Compatibility"`
+// Signatures returns the signatures as provided by
+// (*libtrust.JSONSignature).Signatures. The byte slices are opaque jws
+// signatures.
+func (sm *SignedManifest) Signatures() ([][]byte, error) {
+	jsig, err := libtrust.ParsePrettySignature(sm.all, "signatures")
+	if err != nil {
+		return nil, err
+	}
+
+	// Resolve the payload in the manifest.
+	return jsig.Signatures()
 }

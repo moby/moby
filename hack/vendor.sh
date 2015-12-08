@@ -43,7 +43,7 @@ clone git github.com/hashicorp/consul v0.5.2
 clone git github.com/boltdb/bolt v1.1.0
 
 # get graph and distribution packages
-clone git github.com/docker/distribution 568bf038af6d65b376165d02886b1c7fcaef1f61
+clone git github.com/docker/distribution a7ae88da459b98b481a245e5b1750134724ac67d
 clone git github.com/vbatts/tar-split v0.9.11
 
 # get desired notary commit, might also need to be updated in Dockerfile

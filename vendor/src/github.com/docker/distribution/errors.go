@@ -16,6 +16,15 @@ var ErrManifestNotModified = errors.New("manifest not modified")
 // performed
 var ErrUnsupported = errors.New("operation unsupported")
 
+// ErrTagUnknown is returned if the given tag is not known by the tag service
+type ErrTagUnknown struct {
+	Tag string
+}
+
+func (err ErrTagUnknown) Error() string {
+	return fmt.Sprintf("unknown tag=%s", err.Tag)
+}
+
 // ErrRepositoryUnknown is returned if the named repository is not known by
 // the registry.
 type ErrRepositoryUnknown struct {

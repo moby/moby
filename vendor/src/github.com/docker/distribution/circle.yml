@@ -6,6 +6,8 @@ machine:
   # Install ceph to test rados driver & create pool
     - sudo -i ~/distribution/contrib/ceph/ci-setup.sh
     - ceph osd pool create docker-distribution 1
+  # Install codecov for coverage
+    - pip install --user codecov
 
   post:
   # go
@@ -45,9 +47,6 @@ dependencies:
     - >
       gvm use stable &&
       go get github.com/axw/gocov/gocov github.com/golang/lint/golint
- 
-  # Disabling goveralls for now
-  # go get github.com/axw/gocov/gocov github.com/mattn/goveralls github.com/golang/lint/golint
 
 test:
   pre:
@@ -73,25 +72,17 @@ test:
         pwd: $BASE_STABLE
 
   override:
-
   # Test stable, and report
-  # Preset the goverall report file
-  # - echo "$CIRCLE_PAIN" > ~/goverage.report
-
-     - gvm use stable; go list ./... | xargs -L 1 -I{} rm -f $GOPATH/src/{}/coverage.out:
-         pwd: $BASE_STABLE
-
-     - gvm use stable; go list -tags "$DOCKER_BUILDTAGS" ./... | xargs -L 1 -I{} godep go test -tags "$DOCKER_BUILDTAGS" -test.short -coverprofile=$GOPATH/src/{}/coverage.out {}:
+     - gvm use stable; export ROOT_PACKAGE=$(go list .); go list -tags "$DOCKER_BUILDTAGS" ./... | xargs -L 1 -I{} bash -c 'export PACKAGE={}; godep go test -tags "$DOCKER_BUILDTAGS" -test.short -coverprofile=$GOPATH/src/$PACKAGE/coverage.out -coverpkg=$(./coverpkg.sh $PACKAGE $ROOT_PACKAGE) $PACKAGE':
          timeout: 600
          pwd: $BASE_STABLE
 
   post:
-  # Aggregate and report to coveralls
-    - gvm use stable; go list -tags "$DOCKER_BUILDTAGS" ./... | xargs -L 1 -I{} cat "$GOPATH/src/{}/coverage.out" | grep -v "$CIRCLE_PAIN" >> ~/goverage.report:
+  # Report to codecov
+    - bash <(curl -s https://codecov.io/bash):
         pwd: $BASE_STABLE
 
   ## Notes
-  # Disabled coveralls reporting: build breaking sending coverage data to coveralls
   # Disabled the -race detector due to massive memory usage.
   # Do we want these as well?
   # - go get code.google.com/p/go.tools/cmd/goimports

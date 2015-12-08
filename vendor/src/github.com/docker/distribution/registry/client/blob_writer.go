@@ -33,7 +33,7 @@ func (hbu *httpBlobUpload) handleErrorResponse(resp *http.Response) error {
 	if resp.StatusCode == http.StatusNotFound {
 		return distribution.ErrBlobUploadUnknown
 	}
-	return handleErrorResponse(resp)
+	return HandleErrorResponse(resp)
 }
 
 func (hbu *httpBlobUpload) ReadFrom(r io.Reader) (n int64, err error) {
