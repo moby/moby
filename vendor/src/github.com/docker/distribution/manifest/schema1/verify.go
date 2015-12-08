@@ -10,7 +10,7 @@ import (
 // Verify verifies the signature of the signed manifest returning the public
 // keys used during signing.
 func Verify(sm *SignedManifest) ([]libtrust.PublicKey, error) {
-	js, err := libtrust.ParsePrettySignature(sm.Raw, "signatures")
+	js, err := libtrust.ParsePrettySignature(sm.all, "signatures")
 	if err != nil {
 		logrus.WithField("err", err).Debugf("(*SignedManifest).Verify")
 		return nil, err
@@ -23,7 +23,7 @@ func Verify(sm *SignedManifest) ([]libtrust.PublicKey, error) {
 // certificate pool returning the list of verified chains. Signatures without
 // an x509 chain are not checked.
 func VerifyChains(sm *SignedManifest, ca *x509.CertPool) ([][]*x509.Certificate, error) {
-	js, err := libtrust.ParsePrettySignature(sm.Raw, "signatures")
+	js, err := libtrust.ParsePrettySignature(sm.all, "signatures")
 	if err != nil {
 		return nil, err
 	}
