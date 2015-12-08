@@ -1,90 +1,80 @@
 package daemon
 
 import (
-	"strings"
-
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/container"
 	derr "github.com/docker/docker/errors"
-	"github.com/docker/docker/graph/tags"
 	"github.com/docker/docker/image"
-	"github.com/docker/docker/pkg/parsers"
+	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/volume"
 	"github.com/opencontainers/runc/libcontainer/label"
 )
 
+// ContainerCreateConfig is the parameter set to ContainerCreate()
+type ContainerCreateConfig struct {
+	Name            string
+	Config          *runconfig.Config
+	HostConfig      *runconfig.HostConfig
+	AdjustCPUShares bool
+}
+
 // ContainerCreate takes configs and creates a container.
-func (daemon *Daemon) ContainerCreate(name string, config *runconfig.Config, hostConfig *runconfig.HostConfig, adjustCPUShares bool) (types.ContainerCreateResponse, error) {
-	if config == nil {
+func (daemon *Daemon) ContainerCreate(params *ContainerCreateConfig) (types.ContainerCreateResponse, error) {
+	if params.Config == nil {
 		return types.ContainerCreateResponse{}, derr.ErrorCodeEmptyConfig
 	}
 
-	warnings, err := daemon.verifyContainerSettings(hostConfig, config)
+	warnings, err := daemon.verifyContainerSettings(params.HostConfig, params.Config)
 	if err != nil {
-		return types.ContainerCreateResponse{"", warnings}, err
+		return types.ContainerCreateResponse{ID: "", Warnings: warnings}, err
 	}
 
-	daemon.adaptContainerSettings(hostConfig, adjustCPUShares)
-
-	container, err := daemon.Create(config, hostConfig, name)
+	if params.HostConfig == nil {
+		params.HostConfig = &runconfig.HostConfig{}
+	}
+	err = daemon.adaptContainerSettings(params.HostConfig, params.AdjustCPUShares)
 	if err != nil {
-		if daemon.Graph().IsNotExist(err, config.Image) {
-			if strings.Contains(config.Image, "@") {
-				return types.ContainerCreateResponse{"", warnings}, derr.ErrorCodeNoSuchImageHash.WithArgs(config.Image)
-			}
-			img, tag := parsers.ParseRepositoryTag(config.Image)
-			if tag == "" {
-				tag = tags.DefaultTag
-			}
-			return types.ContainerCreateResponse{"", warnings}, derr.ErrorCodeNoSuchImageTag.WithArgs(img, tag)
-		}
-		return types.ContainerCreateResponse{"", warnings}, err
+		return types.ContainerCreateResponse{ID: "", Warnings: warnings}, err
 	}
 
-	return types.ContainerCreateResponse{container.ID, warnings}, nil
+	container, err := daemon.create(params)
+	if err != nil {
+		return types.ContainerCreateResponse{ID: "", Warnings: warnings}, daemon.imageNotExistToErrcode(err)
+	}
+
+	return types.ContainerCreateResponse{ID: container.ID, Warnings: warnings}, nil
 }
 
 // Create creates a new container from the given configuration with a given name.
-func (daemon *Daemon) Create(config *runconfig.Config, hostConfig *runconfig.HostConfig, name string) (retC *Container, retErr error) {
+func (daemon *Daemon) create(params *ContainerCreateConfig) (retC *container.Container, retErr error) {
 	var (
-		container *Container
+		container *container.Container
 		img       *image.Image
-		imgID     string
+		imgID     image.ID
 		err       error
 	)
 
-	if config.Image != "" {
-		img, err = daemon.repositories.LookupImage(config.Image)
+	if params.Config.Image != "" {
+		img, err = daemon.GetImage(params.Config.Image)
 		if err != nil {
 			return nil, err
 		}
-		if err = daemon.graph.CheckDepth(img); err != nil {
-			return nil, err
-		}
-		imgID = img.ID
+		imgID = img.ID()
 	}
 
-	if err := daemon.mergeAndVerifyConfig(config, img); err != nil {
+	if err := daemon.mergeAndVerifyConfig(params.Config, img); err != nil {
 		return nil, err
 	}
 
-	if hostConfig == nil {
-		hostConfig = &runconfig.HostConfig{}
-	}
-	if hostConfig.SecurityOpt == nil {
-		hostConfig.SecurityOpt, err = daemon.generateSecurityOpt(hostConfig.IpcMode, hostConfig.PidMode)
-		if err != nil {
-			return nil, err
-		}
-	}
-	if container, err = daemon.newContainer(name, config, imgID); err != nil {
+	if container, err = daemon.newContainer(params.Name, params.Config, imgID); err != nil {
 		return nil, err
 	}
 	defer func() {
 		if retErr != nil {
-			if err := daemon.rm(container, false); err != nil {
+			if err := daemon.ContainerRm(container.ID, &types.ContainerRmConfig{ForceRemove: true}); err != nil {
 				logrus.Errorf("Clean up Error! Cannot destroy container %s: %v", container.ID, err)
 			}
 		}
@@ -93,33 +83,34 @@ func (daemon *Daemon) Create(config *runconfig.Config, hostConfig *runconfig.Hos
 	if err := daemon.Register(container); err != nil {
 		return nil, err
 	}
-	if err := daemon.createRootfs(container); err != nil {
+	rootUID, rootGID, err := idtools.GetRootUIDGID(daemon.uidMaps, daemon.gidMaps)
+	if err != nil {
 		return nil, err
 	}
-	if err := daemon.setHostConfig(container, hostConfig); err != nil {
+	if err := idtools.MkdirAs(container.Root, 0700, rootUID, rootGID); err != nil {
+		return nil, err
+	}
+
+	if err := daemon.setHostConfig(container, params.HostConfig); err != nil {
 		return nil, err
 	}
 	defer func() {
 		if retErr != nil {
-			if err := container.removeMountPoints(true); err != nil {
+			if err := daemon.removeMountPoints(container, true); err != nil {
 				logrus.Error(err)
 			}
 		}
 	}()
-	if err := container.Mount(); err != nil {
-		return nil, err
-	}
-	defer container.Unmount()
 
-	if err := createContainerPlatformSpecificSettings(container, config, hostConfig, img); err != nil {
+	if err := daemon.createContainerPlatformSpecificSettings(container, params.Config, params.HostConfig, img); err != nil {
 		return nil, err
 	}
 
-	if err := container.toDiskLocking(); err != nil {
+	if err := container.ToDiskLocking(); err != nil {
 		logrus.Errorf("Error saving new container to disk: %v", err)
 		return nil, err
 	}
-	container.logEvent("create")
+	daemon.LogContainerEvent(container, "create")
 	return container, nil
 }
 

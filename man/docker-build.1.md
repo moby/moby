@@ -7,18 +7,20 @@ docker-build - Build a new image from the source code at PATH
 # SYNOPSIS
 **docker build**
 [**--build-arg**[=*[]*]]
-[**-c**|**--cpu-shares**[=*0*]]
+[**--cpu-shares**[=*0*]]
 [**--cgroup-parent**[=*CGROUP-PARENT*]]
 [**--help**]
 [**-f**|**--file**[=*PATH/Dockerfile*]]
 [**--force-rm**[=*false*]]
+[**--isolation**[=*default*]]
 [**--no-cache**[=*false*]]
 [**--pull**[=*false*]]
 [**-q**|**--quiet**[=*false*]]
 [**--rm**[=*true*]]
-[**-t**|**--tag**[=*TAG*]]
+[**-t**|**--tag**[=*[]*]]
 [**-m**|**--memory**[=*MEMORY*]]
 [**--memory-swap**[=*MEMORY-SWAP*]]
+[**--shm-size**[=*SHM-SIZE*]]
 [**--cpu-period**[=*0*]]
 [**--cpu-quota**[=*0*]]
 [**--cpuset-cpus**[=*CPUSET-CPUS*]]
@@ -66,6 +68,9 @@ set as the **URL**, the repository is cloned locally and then sent as the contex
 **--force-rm**=*true*|*false*
    Always remove intermediate containers, even after unsuccessful builds. The default is *false*.
 
+**--isolation**="*default*"
+   Isolation specifies the type of isolation technology used by containers. 
+
 **--no-cache**=*true*|*false*
    Do not use cache when building the image. The default is *false*.
 
@@ -82,7 +87,7 @@ set as the **URL**, the repository is cloned locally and then sent as the contex
    Remove intermediate containers after a successful build. The default is *true*.
 
 **-t**, **--tag**=""
-   Repository name (and optionally a tag) to be applied to the resulting image in case of success
+   Repository names (and optionally with tags) to be applied to the resulting image in case of success.
 
 **-m**, **--memory**=*MEMORY*
   Memory limit
@@ -90,7 +95,12 @@ set as the **URL**, the repository is cloned locally and then sent as the contex
 **--memory-swap**=*MEMORY-SWAP*
   Total memory (memory + swap), '-1' to disable swap.
 
-**-c**, **--cpu-shares**=*0*
+**--shm-size**=*SHM-SIZE*
+  Size of `/dev/shm`. The format is `<number><unit>`. `number` must be greater than `0`.
+  Unit is optional and can be `b` (bytes), `k` (kilobytes), `m` (megabytes), or `g` (gigabytes). If you omit the unit, the system uses bytes.
+  If you omit the size entirely, the system uses `64m`.
+
+**--cpu-shares**=*0*
   CPU shares (relative weight).
 
   By default, all containers get the same proportion of CPU cycles.
@@ -235,6 +245,14 @@ If you do not provide a version tag then Docker will assign `latest`:
 
 When you list the images, the image above will have the tag `latest`.
 
+You can apply multiple tags to an image. For example, you can apply the `latest`
+tag to a newly built image and add another tag that references a specific
+version.
+For example, to tag an image both as `whenry/fedora-jboss:latest` and
+`whenry/fedora-jboss:v2.1`, use the following:
+
+    docker build -t whenry/fedora-jboss:latest -t whenry/fedora-jboss:v2.1 .
+
 So renaming an image is arbitrary but consideration should be given to 
 a useful convention that makes sense for consumers and should also take
 into account Docker community conventions.
@@ -262,6 +280,19 @@ the system will look for that file inside the contents of the tarball.
     docker build -f dev/Dockerfile https://10.10.10.1/docker/context.tar.gz
 
 Note: supported compression formats are 'xz', 'bzip2', 'gzip' and 'identity' (no compression).
+
+## Specify isolation technology for container (--isolation)
+
+This option is useful in situations where you are running Docker containers on
+Windows. The `--isolation=<value>` option sets a container's isolation
+technology. On Linux, the only supported is the `default` option which uses
+Linux namespaces. On Microsoft Windows, you can specify these values:
+
+* `default`: Use the value specified by the Docker daemon's `--exec-opt` . If the `daemon` does not specify an isolation technology, Microsoft Windows uses `process` as its default value.
+* `process`: Namespace isolation only.
+* `hyperv`: Hyper-V hypervisor partition-based isolation.
+
+Specifying the `--isolation` flag without a value is the same as setting `--isolation="default"`.
 
 # HISTORY
 March 2014, Originally compiled by William Henry (whenry at redhat dot com)

@@ -43,7 +43,7 @@ Requires: iptables
 Requires: libcgroup
 Requires: tar
 Requires: xz
-%if 0%{?fedora} >= 21
+%if 0%{?fedora} >= 21 || 0%{?centos} >= 7 || 0%{?rhel} >= 7 || 0%{?oraclelinux} >= 7
 # Resolves: rhbz#1165615
 Requires: device-mapper-libs >= 1.02.90-1
 %endif
@@ -56,6 +56,13 @@ Requires: device-mapper >= 1.02.90-2
 # docker-selinux conditional
 %if 0%{?fedora} >= 20 || 0%{?centos} >= 7 || 0%{?rhel} >= 7 || 0%{?oraclelinux} >= 7
 %global with_selinux 1
+%endif
+
+%if 0%{?_experimental}
+# yubico-piv-tool conditional
+%if 0%{?fedora} >= 20 || 0%{?centos} >= 7 || 0%{?rhel} >= 7
+Requires: yubico-piv-tool >= 1.1.0
+%endif
 %endif
 
 # start if with_selinux
@@ -84,6 +91,7 @@ Requires(pre): %{name}-selinux >= %{epoch}:%{version}-%{release}
 # conflicting packages
 Conflicts: docker
 Conflicts: docker-io
+Conflicts: docker-engine-cs
 
 %description
 Docker is an open source project to build, ship and run any application as a
@@ -137,13 +145,13 @@ install -p -m 644 contrib/init/systemd/docker.socket $RPM_BUILD_ROOT/%{_unitdir}
 install -p -m 644 contrib/init/sysvinit-redhat/docker.sysconfig $RPM_BUILD_ROOT/etc/sysconfig/docker
 install -p -m 755 contrib/init/sysvinit-redhat/docker $RPM_BUILD_ROOT/%{_initddir}/docker
 %endif
-# add bash completions
+# add bash, zsh, and fish completions
 install -d $RPM_BUILD_ROOT/usr/share/bash-completion/completions
 install -d $RPM_BUILD_ROOT/usr/share/zsh/vendor-completions
-install -d $RPM_BUILD_ROOT/usr/share/fish/completions
+install -d $RPM_BUILD_ROOT/usr/share/fish/vendor_completions.d
 install -p -m 644 contrib/completion/bash/docker $RPM_BUILD_ROOT/usr/share/bash-completion/completions/docker
 install -p -m 644 contrib/completion/zsh/_docker $RPM_BUILD_ROOT/usr/share/zsh/vendor-completions/_docker
-install -p -m 644 contrib/completion/fish/docker.fish $RPM_BUILD_ROOT/usr/share/fish/completions/docker.fish
+install -p -m 644 contrib/completion/fish/docker.fish $RPM_BUILD_ROOT/usr/share/fish/vendor_completions.d/docker.fish
 
 # install manpages
 install -d %{buildroot}%{_mandir}/man1
@@ -178,7 +186,7 @@ install -p -m 644 contrib/syntax/nano/Dockerfile.nanorc $RPM_BUILD_ROOT/usr/shar
 %endif
 /usr/share/bash-completion/completions/docker
 /usr/share/zsh/vendor-completions/_docker
-/usr/share/fish/completions/docker.fish
+/usr/share/fish/vendor_completions.d/docker.fish
 %doc
 /%{_mandir}/man1/*
 /%{_mandir}/man5/*

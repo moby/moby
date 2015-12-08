@@ -13,7 +13,7 @@ parent = "mn_use_docker"
 
 Docker is an open platform for developing, shipping, and running applications.
 Docker is designed to deliver your applications faster. With Docker you can
-separate your applications from your infrastructure AND treat your
+separate your applications from your infrastructure and treat your
 infrastructure like a managed application. Docker helps you ship code faster,
 test faster, deploy faster, and shorten the cycle between writing code and
 running code.
@@ -34,7 +34,7 @@ help you in several ways:
 * distributing and shipping those containers to your teams for further development
 and testing
 * deploying those applications to your production environment,
- whether it be in a local data center or the Cloud.
+ whether it is in a local data center or the Cloud.
 
 ## What can I use Docker for?
 
@@ -285,9 +285,9 @@ BSD Jails or Solaris Zones.
 
 ## Next steps
 ### Installing Docker
-Visit the [installation section](../installation/#installation).
+Visit the [installation section](../installation/index.md#installation).
 
 ### The Docker user guide
-[Learn Docker in depth](../userguide/).
+[Learn Docker in depth](../userguide/index.md).
 
 

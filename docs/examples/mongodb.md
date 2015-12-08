@@ -172,6 +172,6 @@ the exposed port to two different ports on the host
     $ mongo --port 28001
     $ mongo --port 28002
 
- - [Linking containers](../userguide/dockerlinks.md)
+ - [Linking containers](../userguide/networking/default_network/dockerlinks.md)
  - [Cross-host linking containers](../articles/ambassador_pattern_linking.md)
  - [Creating an Automated Build](https://docs.docker.com/docker-hub/builds/)

@@ -2,36 +2,23 @@ package image
 
 import (
 	"encoding/json"
-	"fmt"
-	"regexp"
+	"errors"
+	"io"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/digest"
-	derr "github.com/docker/docker/errors"
-	"github.com/docker/docker/pkg/version"
 	"github.com/docker/docker/runconfig"
 )
 
-var validHex = regexp.MustCompile(`^([a-f0-9]{64})$`)
+// ID is the content-addressable ID of an image.
+type ID digest.Digest
 
-// noFallbackMinVersion is the minimum version for which v1compatibility
-// information will not be marshaled through the Image struct to remove
-// blank fields.
-var noFallbackMinVersion = version.Version("1.8.3")
-
-// Descriptor provides the information necessary to register an image in
-// the graph.
-type Descriptor interface {
-	ID() string
-	Parent() string
-	MarshalConfig() ([]byte, error)
+func (id ID) String() string {
+	return digest.Digest(id).String()
 }
 
-// Image stores the image configuration.
-// All fields in this struct must be marked `omitempty` to keep getting
-// predictable hashes from the old `v1Compatibility` configuration.
-type Image struct {
+// V1Image stores the V1 image configuration.
+type V1Image struct {
 	// ID a unique 64 character identifier of the image
 	ID string `json:"id,omitempty"`
 	// Parent id of the image
@@ -55,95 +42,87 @@ type Image struct {
 	// OS is the operating system used to build and run the image
 	OS string `json:"os,omitempty"`
 	// Size is the total size of the image including all layers it is composed of
-	Size int64 `json:",omitempty"` // capitalized for backwards compatibility
-	// ParentID specifies the strong, content address of the parent configuration.
-	ParentID digest.Digest `json:"parent_id,omitempty"`
-	// LayerID provides the content address of the associated layer.
-	LayerID digest.Digest `json:"layer_id,omitempty"`
+	Size int64 `json:",omitempty"`
 }
 
-// NewImgJSON creates an Image configuration from json.
-func NewImgJSON(src []byte) (*Image, error) {
-	ret := &Image{}
+// Image stores the image configuration
+type Image struct {
+	V1Image
+	Parent  ID        `json:"parent,omitempty"`
+	RootFS  *RootFS   `json:"rootfs,omitempty"`
+	History []History `json:"history,omitempty"`
 
-	// FIXME: Is there a cleaner way to "purify" the input json?
-	if err := json.Unmarshal(src, ret); err != nil {
-		return nil, err
-	}
-	return ret, nil
+	// rawJSON caches the immutable JSON associated with this image.
+	rawJSON []byte
+
+	// computedID is the ID computed from the hash of the image config.
+	// Not to be confused with the legacy V1 ID in V1Image.
+	computedID ID
 }
 
-// ValidateID checks whether an ID string is a valid image ID.
-func ValidateID(id string) error {
-	if ok := validHex.MatchString(id); !ok {
-		return derr.ErrorCodeInvalidImageID.WithArgs(id)
-	}
-	return nil
+// RawJSON returns the immutable JSON associated with the image.
+func (img *Image) RawJSON() []byte {
+	return img.rawJSON
 }
 
-// MakeImageConfig returns immutable configuration JSON for image based on the
-// v1Compatibility object, layer digest and parent StrongID. SHA256() of this
-// config is the new image ID (strongID).
-func MakeImageConfig(v1Compatibility []byte, layerID, parentID digest.Digest) ([]byte, error) {
+// ID returns the image's content-addressable ID.
+func (img *Image) ID() ID {
+	return img.computedID
+}
 
-	// Detect images created after 1.8.3
-	img, err := NewImgJSON(v1Compatibility)
+// MarshalJSON serializes the image to JSON. It sorts the top-level keys so
+// that JSON that's been manipulated by a push/pull cycle with a legacy
+// registry won't end up with a different key order.
+func (img *Image) MarshalJSON() ([]byte, error) {
+	type MarshalImage Image
+
+	pass1, err := json.Marshal(MarshalImage(*img))
 	if err != nil {
 		return nil, err
-	}
-	useFallback := version.Version(img.DockerVersion).LessThan(noFallbackMinVersion)
-
-	if useFallback {
-		// Fallback for pre-1.8.3. Calculate base config based on Image struct
-		// so that fields with default values added by Docker will use same ID
-		logrus.Debugf("Using fallback hash for %v", layerID)
-
-		v1Compatibility, err = json.Marshal(img)
-		if err != nil {
-			return nil, err
-		}
 	}
 
 	var c map[string]*json.RawMessage
-	if err := json.Unmarshal(v1Compatibility, &c); err != nil {
+	if err := json.Unmarshal(pass1, &c); err != nil {
 		return nil, err
 	}
-
-	if err := layerID.Validate(); err != nil {
-		return nil, fmt.Errorf("invalid layerID: %v", err)
-	}
-
-	c["layer_id"] = rawJSON(layerID)
-
-	if parentID != "" {
-		if err := parentID.Validate(); err != nil {
-			return nil, fmt.Errorf("invalid parentID %v", err)
-		}
-		c["parent_id"] = rawJSON(parentID)
-	}
-
-	delete(c, "id")
-	delete(c, "parent")
-	delete(c, "Size") // Size is calculated from data on disk and is inconsitent
-
 	return json.Marshal(c)
 }
 
-// StrongID returns image ID for the config JSON.
-func StrongID(configJSON []byte) (digest.Digest, error) {
-	digester := digest.Canonical.New()
-	if _, err := digester.Hash().Write(configJSON); err != nil {
-		return "", err
-	}
-	dgst := digester.Digest()
-	logrus.Debugf("H(%v) = %v", string(configJSON), dgst)
-	return dgst, nil
+// History stores build commands that were used to create an image
+type History struct {
+	// Created timestamp for build point
+	Created time.Time `json:"created"`
+	// Author of the build point
+	Author string `json:"author,omitempty"`
+	// CreatedBy keeps the Dockerfile command used while building image.
+	CreatedBy string `json:"created_by,omitempty"`
+	// Comment is custom mesage set by the user when creating the image.
+	Comment string `json:"comment,omitempty"`
+	// EmptyLayer is set to true if this history item did not generate a
+	// layer. Otherwise, the history item is associated with the next
+	// layer in the RootFS section.
+	EmptyLayer bool `json:"empty_layer,omitempty"`
 }
 
-func rawJSON(value interface{}) *json.RawMessage {
-	jsonval, err := json.Marshal(value)
-	if err != nil {
-		return nil
+// Exporter provides interface for exporting and importing images
+type Exporter interface {
+	Load(io.ReadCloser, io.Writer) error
+	// TODO: Load(net.Context, io.ReadCloser, <- chan StatusMessage) error
+	Save([]string, io.Writer) error
+}
+
+// NewFromJSON creates an Image configuration from json.
+func NewFromJSON(src []byte) (*Image, error) {
+	img := &Image{}
+
+	if err := json.Unmarshal(src, img); err != nil {
+		return nil, err
 	}
-	return (*json.RawMessage)(&jsonval)
+	if img.RootFS == nil {
+		return nil, errors.New("Invalid image JSON, no RootFS key.")
+	}
+
+	img.rawJSON = src
+
+	return img, nil
 }

@@ -15,7 +15,7 @@ weight = 5
 
  - The Remote API has replaced `rcli`.
  - The daemon listens on `unix:///var/run/docker.sock` but you can
-   [Bind Docker to another host/port or a Unix socket](../../articles/basics.md#bind-docker-to-another-hostport-or-a-unix-socket).
+   [Bind Docker to another host/port or a Unix socket](../../userguide/basics.md#bind-docker-to-another-host-port-or-a-unix-socket).
  - The API tends to be REST, but for some complex commands, like `attach`
    or `pull`, the HTTP connection is hijacked to transport `STDOUT`,
    `STDIN` and `STDERR`.
@@ -133,7 +133,10 @@ Create a container
              "Tty": false,
              "OpenStdin": false,
              "StdinOnce": false,
-             "Env": null,
+             "Env": [
+                     "FOO=bar",
+                     "BAZ=quux"
+             ],
              "Cmd": [
                      "date"
              ],
@@ -196,7 +199,7 @@ Json Parameters:
 -   **Tty** - Boolean value, Attach standard streams to a tty, including stdin if it is not closed.
 -   **OpenStdin** - Boolean value, opens stdin,
 -   **StdinOnce** - Boolean value, close stdin after the 1 attached client disconnects.
--   **Env** - A list of environment variables in the form of `VAR=value`
+-   **Env** - A list of environment variables in the form of `["VAR=value"[,"VAR2=value2"]]`
 -   **Cmd** - Command to run specified as a string or an array of strings.
 -   **Entrypoint** - Set the entrypoint for the container a string or an array
       of strings
@@ -354,40 +357,59 @@ Status Codes:
 
 `GET /containers/(id)/top`
 
-List processes running inside the container `id`
+List processes running inside the container `id`. On Unix systems this
+is done by running the `ps` command. This endpoint is not
+supported on Windows.
 
 **Example request**:
 
-        GET /containers/4fa6e0f0c678/top HTTP/1.1
+    GET /containers/4fa6e0f0c678/top HTTP/1.1
 
 **Example response**:
 
-        HTTP/1.1 200 OK
-        Content-Type: application/json
+    HTTP/1.1 200 OK
+    Content-Type: application/json
 
-        {
-             "Titles": [
-                     "USER",
-                     "PID",
-                     "%CPU",
-                     "%MEM",
-                     "VSZ",
-                     "RSS",
-                     "TTY",
-                     "STAT",
-                     "START",
-                     "TIME",
-                     "COMMAND"
-                     ],
-             "Processes": [
-                     ["root","20147","0.0","0.1","18060","1864","pts/4","S","10:06","0:00","bash"],
-                     ["root","20271","0.0","0.0","4312","352","pts/4","S+","10:07","0:00","sleep","10"]
-             ]
-        }
+    {
+       "Titles" : [
+         "UID", "PID", "PPID", "C", "STIME", "TTY", "TIME", "CMD"
+       ],
+       "Processes" : [
+         [
+           "root", "13642", "882", "0", "17:03", "pts/0", "00:00:00", "/bin/bash"
+         ],
+         [
+           "root", "13735", "13642", "0", "17:06", "pts/0", "00:00:00", "sleep 10"
+         ]
+       ]
+    }
+
+**Example request**:
+
+    GET /containers/4fa6e0f0c678/top?ps_args=aux HTTP/1.1
+
+**Example response**:
+
+    HTTP/1.1 200 OK
+    Content-Type: application/json
+
+    {
+      "Titles" : [
+        "USER","PID","%CPU","%MEM","VSZ","RSS","TTY","STAT","START","TIME","COMMAND"
+      ]
+      "Processes" : [
+        [
+          "root","13642","0.0","0.1","18172","3184","pts/0","Ss","17:03","0:00","/bin/bash"
+        ],
+        [
+          "root","13895","0.0","0.0","4348","692","pts/0","S+","17:15","0:00","sleep 10"
+        ]
+      ],
+    }
 
 Query Parameters:
 
--   **ps_args** – ps arguments to use (e.g., aux)
+-   **ps_args** – `ps` arguments to use (e.g., `aux`), defaults to `-ef`
 
 Status Codes:
 

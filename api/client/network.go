@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/http"
 	"strings"
 	"text/tabwriter"
+	"text/template"
 
 	"github.com/docker/docker/api/types"
 	Cli "github.com/docker/docker/cli"
@@ -34,6 +36,7 @@ func (cli *DockerCli) CmdNetwork(args ...string) error {
 func (cli *DockerCli) CmdNetworkCreate(args ...string) error {
 	cmd := Cli.Subcmd("network create", []string{"NETWORK-NAME"}, "Creates a new network with a name specified by the user", false)
 	flDriver := cmd.String([]string{"d", "-driver"}, "bridge", "Driver to manage the Network")
+	flOpts := opts.NewMapOpts(nil, nil)
 
 	flIpamDriver := cmd.String([]string{"-ipam-driver"}, "default", "IP Address Management Driver")
 	flIpamSubnet := opts.NewListOpts(nil)
@@ -41,15 +44,23 @@ func (cli *DockerCli) CmdNetworkCreate(args ...string) error {
 	flIpamGateway := opts.NewListOpts(nil)
 	flIpamAux := opts.NewMapOpts(nil, nil)
 
-	cmd.Var(&flIpamSubnet, []string{"-subnet"}, "Subnet in CIDR format that represents a network segment")
+	cmd.Var(&flIpamSubnet, []string{"-subnet"}, "subnet in CIDR format that represents a network segment")
 	cmd.Var(&flIpamIPRange, []string{"-ip-range"}, "allocate container ip from a sub-range")
 	cmd.Var(&flIpamGateway, []string{"-gateway"}, "ipv4 or ipv6 Gateway for the master subnet")
-	cmd.Var(flIpamAux, []string{"-aux-address"}, "Auxiliary ipv4 or ipv6 addresses used by network driver")
+	cmd.Var(flIpamAux, []string{"-aux-address"}, "auxiliary ipv4 or ipv6 addresses used by Network driver")
+	cmd.Var(flOpts, []string{"o", "-opt"}, "set driver specific options")
 
 	cmd.Require(flag.Exact, 1)
 	err := cmd.ParseFlags(args, true)
 	if err != nil {
 		return err
+	}
+
+	// Set the default driver to "" if the user didn't set the value.
+	// That way we can know whether it was user input or not.
+	driver := *flDriver
+	if !cmd.IsSet("-driver") && !cmd.IsSet("d") {
+		driver = ""
 	}
 
 	ipamCfg, err := consolidateIpam(flIpamSubnet.GetAll(), flIpamIPRange.GetAll(), flIpamGateway.GetAll(), flIpamAux.GetAll())
@@ -60,8 +71,9 @@ func (cli *DockerCli) CmdNetworkCreate(args ...string) error {
 	// Construct network create request body
 	nc := types.NetworkCreate{
 		Name:           cmd.Arg(0),
-		Driver:         *flDriver,
+		Driver:         driver,
 		IPAM:           network.IPAM{Driver: *flIpamDriver, Config: ipamCfg},
+		Options:        flOpts.GetAll(),
 		CheckDuplicate: true,
 	}
 	obj, _, err := readBody(cli.call("POST", "/networks/create", nc, nil))
@@ -77,19 +89,28 @@ func (cli *DockerCli) CmdNetworkCreate(args ...string) error {
 	return nil
 }
 
-// CmdNetworkRm deletes a network
+// CmdNetworkRm deletes one or more networks
 //
-// Usage: docker network rm <NETWORK-NAME | NETWORK-ID>
+// Usage: docker network rm NETWORK-NAME|NETWORK-ID [NETWORK-NAME|NETWORK-ID...]
 func (cli *DockerCli) CmdNetworkRm(args ...string) error {
-	cmd := Cli.Subcmd("network rm", []string{"NETWORK"}, "Deletes a network", false)
-	cmd.Require(flag.Exact, 1)
+	cmd := Cli.Subcmd("network rm", []string{"NETWORK [NETWORK...]"}, "Deletes one or more networks", false)
+	cmd.Require(flag.Min, 1)
 	err := cmd.ParseFlags(args, true)
 	if err != nil {
 		return err
 	}
-	_, _, err = readBody(cli.call("DELETE", "/networks/"+cmd.Arg(0), nil, nil))
-	if err != nil {
-		return err
+
+	status := 0
+	for _, net := range cmd.Args() {
+		_, _, err = readBody(cli.call("DELETE", "/networks/"+net, nil, nil))
+		if err != nil {
+			fmt.Fprintf(cli.err, "%s\n", err)
+			status = 1
+			continue
+		}
+	}
+	if status != 0 {
+		return Cli.StatusError{StatusCode: status}
 	}
 	return nil
 }
@@ -181,36 +202,86 @@ func (cli *DockerCli) CmdNetworkLs(args ...string) error {
 
 // CmdNetworkInspect inspects the network object for more details
 //
-// Usage: docker network inspect <NETWORK>
-// CmdNetworkInspect handles Network inspect UI
+// Usage: docker network inspect [OPTIONS] <NETWORK> [NETWORK...]
 func (cli *DockerCli) CmdNetworkInspect(args ...string) error {
-	cmd := Cli.Subcmd("network inspect", []string{"NETWORK"}, "Displays detailed information on a network", false)
-	cmd.Require(flag.Exact, 1)
-	err := cmd.ParseFlags(args, true)
+	cmd := Cli.Subcmd("network inspect", []string{"NETWORK [NETWORK...]"}, "Displays detailed information on one or more networks", false)
+	tmplStr := cmd.String([]string{"f", "-format"}, "", "Format the output using the given go template")
+	cmd.Require(flag.Min, 1)
+
+	if err := cmd.ParseFlags(args, true); err != nil {
+		return err
+	}
+
+	var tmpl *template.Template
+	if *tmplStr != "" {
+		var err error
+		tmpl, err = template.New("").Funcs(funcMap).Parse(*tmplStr)
+		if err != nil {
+			return err
+		}
+	}
+
+	status := 0
+	var networks []types.NetworkResource
+	buf := new(bytes.Buffer)
+	for _, name := range cmd.Args() {
+		obj, statusCode, err := readBody(cli.call("GET", "/networks/"+name, nil, nil))
+		if err != nil {
+			if statusCode == http.StatusNotFound {
+				fmt.Fprintf(cli.err, "Error: No such network: %s\n", name)
+			} else {
+				fmt.Fprintf(cli.err, "%s\n", err)
+			}
+			status = 1
+			continue
+		}
+		var networkResource types.NetworkResource
+		if err := json.NewDecoder(bytes.NewReader(obj)).Decode(&networkResource); err != nil {
+			return err
+		}
+
+		if tmpl == nil {
+			networks = append(networks, networkResource)
+			continue
+		}
+
+		if err := tmpl.Execute(buf, &networkResource); err != nil {
+			if err := tmpl.Execute(buf, &networkResource); err != nil {
+				fmt.Fprintf(cli.err, "%s\n", err)
+				return Cli.StatusError{StatusCode: 1}
+			}
+		}
+		buf.WriteString("\n")
+	}
+
+	if tmpl != nil {
+		if _, err := io.Copy(cli.out, buf); err != nil {
+			return err
+		}
+		return nil
+	}
+
+	if len(networks) == 0 {
+		io.WriteString(cli.out, "[]")
+	}
+
+	b, err := json.MarshalIndent(networks, "", "    ")
 	if err != nil {
 		return err
 	}
 
-	obj, _, err := readBody(cli.call("GET", "/networks/"+cmd.Arg(0), nil, nil))
-	if err != nil {
+	if _, err := io.Copy(cli.out, bytes.NewReader(b)); err != nil {
 		return err
 	}
-	networkResource := &types.NetworkResource{}
-	if err := json.NewDecoder(bytes.NewReader(obj)).Decode(networkResource); err != nil {
-		return err
-	}
+	io.WriteString(cli.out, "\n")
 
-	indented := new(bytes.Buffer)
-	if err := json.Indent(indented, obj, "", "    "); err != nil {
-		return err
-	}
-	if _, err := io.Copy(cli.out, indented); err != nil {
-		return err
+	if status != 0 {
+		return Cli.StatusError{StatusCode: status}
 	}
 	return nil
 }
 
-// Consolidates the ipam configuration as a group from differnt related configurations
+// Consolidates the ipam configuration as a group from different related configurations
 // user can configure network with multiple non-overlapping subnets and hence it is
 // possible to corelate the various related parameters and consolidate them.
 // consoidateIpam consolidates subnets, ip-ranges, gateways and auxilary addresses into

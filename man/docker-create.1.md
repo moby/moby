@@ -9,7 +9,8 @@ docker-create - Create a new container
 [**-a**|**--attach**[=*[]*]]
 [**--add-host**[=*[]*]]
 [**--blkio-weight**[=*[BLKIO-WEIGHT]*]]
-[**-c**|**--cpu-shares**[=*0*]]
+[**--blkio-weight-device**[=*[]*]]
+[**--cpu-shares**[=*0*]]
 [**--cap-add**[=*[]*]]
 [**--cap-drop**[=*[]*]]
 [**--cgroup-parent**[=*CGROUP-PATH*]]
@@ -19,6 +20,8 @@ docker-create - Create a new container
 [**--cpuset-cpus**[=*CPUSET-CPUS*]]
 [**--cpuset-mems**[=*CPUSET-MEMS*]]
 [**--device**[=*[]*]]
+[**--device-read-bps**[=*[]*]]
+[**--device-write-bps**[=*[]*]]
 [**--dns**[=*[]*]]
 [**--dns-search**[=*[]*]]
 [**--dns-opt**[=*[]*]]
@@ -31,13 +34,13 @@ docker-create - Create a new container
 [**--help**]
 [**-i**|**--interactive**[=*false*]]
 [**--ipc**[=*IPC*]]
+[**--isolation**[=*default*]]
 [**--kernel-memory**[=*KERNEL-MEMORY*]]
 [**-l**|**--label**[=*[]*]]
 [**--label-file**[=*[]*]]
 [**--link**[=*[]*]]
 [**--log-driver**[=*[]*]]
 [**--log-opt**[=*[]*]]
-[**--lxc-conf**[=*[]*]]
 [**-m**|**--memory**[=*MEMORY*]]
 [**--mac-address**[=*MAC-ADDRESS*]]
 [**--memory-reservation**[=*MEMORY-RESERVATION*]]
@@ -46,6 +49,7 @@ docker-create - Create a new container
 [**--name**[=*NAME*]]
 [**--net**[=*"bridge"*]]
 [**--oom-kill-disable**[=*false*]]
+[**--oom-score-adj**[=*0*]]
 [**-P**|**--publish-all**[=*false*]]
 [**-p**|**--publish**[=*[]*]]
 [**--pid**[=*[]*]]
@@ -54,11 +58,14 @@ docker-create - Create a new container
 [**--restart**[=*RESTART*]]
 [**--security-opt**[=*[]*]]
 [**--stop-signal**[=*SIGNAL*]]
+[**--shm-size**[=*[]*]]
 [**-t**|**--tty**[=*false*]]
+[**--tmpfs**[=*[CONTAINER-DIR[:<OPTIONS>]*]]
 [**-u**|**--user**[=*USER*]]
 [**--ulimit**[=*[]*]]
 [**--uts**[=*[]*]]
 [**-v**|**--volume**[=*[]*]]
+[**--volume-driver**[=*DRIVER*]]
 [**--volumes-from**[=*[]*]]
 [**-w**|**--workdir**[=*WORKDIR*]]
 IMAGE [COMMAND] [ARG...]
@@ -80,10 +87,13 @@ The initial status of the container created with **docker create** is 'created'.
 **--add-host**=[]
    Add a custom host-to-IP mapping (host:ip)
 
-**--blkio-weight**=0
+**--blkio-weight**=*0*
    Block IO weight (relative weight) accepts a weight value between 10 and 1000.
 
-**-c**, **--cpu-shares**=0
+**--blkio-weight-device**=[]
+   Block IO weight (relative device weight, format: `DEVICE_NAME:WEIGHT`).
+
+**--cpu-shares**=*0*
    CPU shares (relative weight)
 
 **--cap-add**=[]
@@ -98,7 +108,7 @@ The initial status of the container created with **docker create** is 'created'.
 **--cidfile**=""
    Write the container ID to the file
 
-**--cpu-period**=0
+**--cpu-period**=*0*
     Limit the CPU CFS (Completely Fair Scheduler) period
 
 **--cpuset-cpus**=""
@@ -111,11 +121,17 @@ The initial status of the container created with **docker create** is 'created'.
 then processes in your Docker container will only use memory from the first
 two memory nodes.
 
-**--cpu-quota**=0
+**--cpu-quota**=*0*
    Limit the CPU CFS (Completely Fair Scheduler) quota
 
 **--device**=[]
    Add a host device to the container (e.g. --device=/dev/sdc:/dev/xvdc:rwm)
+
+**--device-read-bps**=[]
+    Limit read rate (bytes per second) from a device (e.g. --device-read-bps=/dev/sda:1mb)
+
+**--device-write-bps**=[]
+    Limit write rate (bytes per second) to a device (e.g. --device-write-bps=/dev/sda:1mb)
 
 **--dns**=[]
    Set custom DNS servers
@@ -155,6 +171,9 @@ two memory nodes.
                                'container:<name|id>': reuses another container shared memory, semaphores and message queues
                                'host': use the host shared memory,semaphores and message queues inside the container.  Note: the host mode gives the container full access to local shared memory and is therefore considered insecure.
 
+**--isolation**="*default*"
+   Isolation specifies the type of isolation technology used by containers. 
+
 **--kernel-memory**=""
    Kernel memory limit (format: `<number>[<unit>]`, where unit = b, k, m or g)
 
@@ -174,16 +193,13 @@ millions of trillions.
    Add link to another container in the form of <name or id>:alias or just
    <name or id> in which case the alias will match the name.
 
-**--log-driver**="|*json-file*|*syslog*|*journald*|*gelf*|*fluentd*|*awslogs*|*none*"
+**--log-driver**="*json-file*|*syslog*|*journald*|*gelf*|*fluentd*|*awslogs*|*splunk*|*none*"
   Logging driver for container. Default is defined by daemon `--log-driver` flag.
   **Warning**: the `docker logs` command works only for the `json-file` and
   `journald` logging drivers.
 
 **--log-opt**=[]
   Logging driver specific options.
-
-**--lxc-conf**=[]
-   (lxc exec-driver only) Add custom lxc options --lxc-conf="lxc.cgroup.cpuset.cpus = 0,1"
 
 **-m**, **--memory**=""
    Memory limit (format: <number>[<unit>], where unit = b, k, m or g)
@@ -218,15 +234,19 @@ This value should always larger than **-m**, so you should always use this with 
 **--name**=""
    Assign a name to the container
 
-**--net**="bridge"
+**--net**="*bridge*"
    Set the Network mode for the container
-                               'bridge': creates a new network stack for the container on the docker bridge
-                               'none': no networking for this container
-                               'container:<name|id>': reuses another container network stack
-                               'host': use the host network stack inside the container.  Note: the host mode gives the container full access to local system services such as D-bus and is therefore considered insecure.
+                               'bridge': create a network stack on the default Docker bridge
+                               'none': no networking
+                               'container:<name|id>': reuse another container's network stack
+                               'host': use the Docker host network stack.  Note: the host mode gives the container full access to local system services such as D-bus and is therefore considered insecure.
+                               '<network-name>|<network-id>': connect to a user-defined network
 
 **--oom-kill-disable**=*true*|*false*
 	Whether to disable OOM Killer for the container or not.
+
+**--oom-score-adj**=""
+    Tune the host's OOM preferences for containers (accepts -1000 to 1000)
 
 **-P**, **--publish-all**=*true*|*false*
    Publish all exposed ports to random ports on the host interfaces. The default is *false*.
@@ -238,7 +258,7 @@ This value should always larger than **-m**, so you should always use this with 
                                When specifying ranges for both, the number of container ports in the range must match the number of host ports in the range. (e.g., `-p 1234-1236:1234-1236/tcp`)
                                (use 'docker port' to see the actual mapping)
 
-**--pid**=host
+**--pid**=*host*
    Set the PID mode for the container
      **host**: use the host's PID namespace inside the container.
      Note: the host mode gives the container full access to local PID and is therefore considered insecure.
@@ -249,17 +269,36 @@ This value should always larger than **-m**, so you should always use this with 
 **--read-only**=*true*|*false*
    Mount the container's root filesystem as read only.
 
-**--restart**="no"
+**--restart**="*no*"
    Restart policy to apply when a container exits (no, on-failure[:max-retry], always, unless-stopped).
+
+**--shm-size**=""
+   Size of `/dev/shm`. The format is `<number><unit>`. `number` must be greater than `0`.
+   Unit is optional and can be `b` (bytes), `k` (kilobytes), `m` (megabytes), or `g` (gigabytes). If you omit the unit, the system uses bytes.
+   If you omit the size entirely, the system uses `64m`.
 
 **--security-opt**=[]
    Security Options
 
-**--stop-signal**=SIGTERM
+**--stop-signal**=*SIGTERM*
   Signal to stop a container. Default is SIGTERM.
 
 **-t**, **--tty**=*true*|*false*
    Allocate a pseudo-TTY. The default is *false*.
+
+**--tmpfs**=[] Create a tmpfs mount
+
+   Mount a temporary filesystem (`tmpfs`) mount into a container, for example:
+
+   $ docker run -d --tmpfs /tmp:rw,size=787448k,mode=1777 my_image
+
+   This command mounts a `tmpfs` at `/tmp` within the container. The mount copies
+the underlying content of `my_image` into `/tmp`. For example if there was a
+directory `/tmp/content` in the base image, docker will copy this directory and
+all of its content on top of the tmpfs mounted on `/tmp`.  The supported mount
+options are the same as the Linux default `mount` flags. If you do not specify
+any options, the systems uses the following options:
+`rw,noexec,nosuid,nodev,size=65536k`.
 
 **-u**, **--user**=""
    Username or UID
@@ -267,7 +306,7 @@ This value should always larger than **-m**, so you should always use this with 
 **--ulimit**=[]
    Ulimit options
 
-**--uts**=host
+**--uts**=*host*
    Set the UTS mode for the container
      **host**: use the host's UTS namespace inside the container.
      Note: the host mode gives the container access to changing the host's hostname and is therefore considered insecure.
@@ -275,11 +314,31 @@ This value should always larger than **-m**, so you should always use this with 
 **-v**, **--volume**=[]
    Bind mount a volume (e.g., from the host: -v /host:/container, from Docker: -v /container)
 
+**--volume-driver**=""
+   Container's volume driver. This driver creates volumes specified either from
+   a Dockerfile's `VOLUME` instruction or from the `docker run -v` flag.
+   See **docker-volume-create(1)** for full details.
+
 **--volumes-from**=[]
    Mount volumes from the specified container(s)
 
 **-w**, **--workdir**=""
    Working directory inside the container
+
+# EXAMPLES
+
+## Specify isolation technology for container (--isolation)
+
+This option is useful in situations where you are running Docker containers on
+Windows. The `--isolation=<value>` option sets a container's isolation
+technology. On Linux, the only supported is the `default` option which uses
+Linux namespaces. On Microsoft Windows, you can specify these values:
+
+* `default`: Use the value specified by the Docker daemon's `--exec-opt` . If the `daemon` does not specify an isolation technology, Microsoft Windows uses `process` as its default value.
+* `process`: Namespace isolation only.
+* `hyperv`: Hyper-V hypervisor partition-based isolation.
+
+Specifying the `--isolation` flag without a value is the same as setting `--isolation="default"`.
 
 # HISTORY
 August 2014, updated by Sven Dowideit <SvenDowideit@home.org.au>

@@ -59,7 +59,7 @@ in a database image.
 In almost all cases, you should only run a single process in a single
 container. Decoupling applications into multiple containers makes it much
 easier to scale horizontally and reuse containers. If that service depends on
-another service, make use of [container linking](../userguide/dockerlinks.md).
+another service, make use of [container linking](../userguide/networking/default_network/dockerlinks.md).
 
 ### Minimize the number of layers
 
@@ -112,7 +112,7 @@ these checksums. During the cache lookup, the checksum is compared against the
 checksum in the existing images. If anything has changed in the file(s), such
 as the contents and metadata, then the cache is invalidated.
 
-* Aside from the `ADD` and `COPY` commands cache checking will not look at the
+* Aside from the `ADD` and `COPY` commands, cache checking will not look at the
 files in the container to determine a cache match. For example, when processing
 a `RUN apt-get -y update` command the files updated in the container
 will not be examined to determine if a cache hit exists.  In that case just
@@ -212,7 +212,6 @@ recommendations.
         dpkg-sig \
         libcap-dev \
         libsqlite3-dev \
-        lxc=1.0* \
         mercurial \
         reprepro \
         ruby1.9.1 \

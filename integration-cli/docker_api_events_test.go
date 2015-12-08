@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/go-check/check"
 )
 
@@ -21,8 +22,8 @@ func (s *DockerSuite) TestEventsApiEmptyOutput(c *check.C) {
 
 	select {
 	case r := <-chResp:
-		c.Assert(r.err, check.IsNil)
-		c.Assert(r.resp.StatusCode, check.Equals, http.StatusOK)
+		c.Assert(r.err, checker.IsNil)
+		c.Assert(r.resp.StatusCode, checker.Equals, http.StatusOK)
 	case <-time.After(3 * time.Second):
 		c.Fatal("timeout waiting for events api to respond, should have responded immediately")
 	}

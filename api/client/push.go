@@ -1,12 +1,13 @@
 package client
 
 import (
+	"errors"
 	"fmt"
 	"net/url"
 
+	"github.com/docker/distribution/reference"
 	Cli "github.com/docker/docker/cli"
 	flag "github.com/docker/docker/pkg/mflag"
-	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/registry"
 )
 
@@ -20,10 +21,21 @@ func (cli *DockerCli) CmdPush(args ...string) error {
 
 	cmd.ParseFlags(args, true)
 
-	remote, tag := parsers.ParseRepositoryTag(cmd.Arg(0))
+	ref, err := reference.ParseNamed(cmd.Arg(0))
+	if err != nil {
+		return err
+	}
+
+	var tag string
+	switch x := ref.(type) {
+	case reference.Digested:
+		return errors.New("cannot push a digest reference")
+	case reference.Tagged:
+		tag = x.Tag()
+	}
 
 	// Resolve the Repository name from fqn to RepositoryInfo
-	repoInfo, err := registry.ParseRepositoryInfo(remote)
+	repoInfo, err := registry.ParseRepositoryInfo(ref)
 	if err != nil {
 		return err
 	}
@@ -48,6 +60,6 @@ func (cli *DockerCli) CmdPush(args ...string) error {
 	v := url.Values{}
 	v.Set("tag", tag)
 
-	_, _, err = cli.clientRequestAttemptLogin("POST", "/images/"+remote+"/push?"+v.Encode(), nil, cli.out, repoInfo.Index, "push")
+	_, _, err = cli.clientRequestAttemptLogin("POST", "/images/"+ref.Name()+"/push?"+v.Encode(), nil, cli.out, repoInfo.Index, "push")
 	return err
 }

@@ -24,4 +24,13 @@ var (
 		Description:    "The client version is too old for the server",
 		HTTPStatusCode: http.StatusBadRequest,
 	})
+
+	// ErrorNetworkControllerNotEnabled is generated when the networking stack in not enabled
+	// for certain platforms, like windows.
+	ErrorNetworkControllerNotEnabled = errcode.Register(errGroup, errcode.ErrorDescriptor{
+		Value:          "NETWORK_CONTROLLER_NOT_ENABLED",
+		Message:        "the network controller is not enabled for this platform",
+		Description:    "Docker's networking stack is disabled for this platform",
+		HTTPStatusCode: http.StatusNotFound,
+	})
 )

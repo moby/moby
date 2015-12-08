@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"runtime"
 	"strings"
 
 	"github.com/docker/docker/api/types"
@@ -32,6 +33,11 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 	cmd.StringVar(&email, []string{"e", "-email"}, "", "Email")
 
 	cmd.ParseFlags(args, true)
+
+	// On Windows, force the use of the regular OS stdin stream. Fixes #14336/#14210
+	if runtime.GOOS == "windows" {
+		cli.in = os.Stdin
+	}
 
 	serverAddress := registry.IndexServer
 	if len(cmd.Args()) > 0 {

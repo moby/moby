@@ -23,10 +23,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 		e2fsprogs \
 		iptables \
 		procps \
+		xfsprogs \
 		xz-utils \
 		\
 		aufs-tools \
-		lxc \
 	&& rm -rf /var/lib/apt/lists/*
 
 ENV AUTO_GOPATH 1

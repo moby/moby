@@ -4,11 +4,12 @@ import (
 	"encoding/json"
 	"runtime"
 	"text/template"
+	"time"
 
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/autogen/dockerversion"
 	Cli "github.com/docker/docker/cli"
+	"github.com/docker/docker/dockerversion"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/utils"
 )
@@ -60,11 +61,11 @@ func (cli *DockerCli) CmdVersion(args ...string) (err error) {
 
 	vd := versionData{
 		Client: types.Version{
-			Version:      dockerversion.VERSION,
+			Version:      dockerversion.Version,
 			APIVersion:   api.Version,
 			GoVersion:    runtime.Version(),
-			GitCommit:    dockerversion.GITCOMMIT,
-			BuildTime:    dockerversion.BUILDTIME,
+			GitCommit:    dockerversion.GitCommit,
+			BuildTime:    dockerversion.BuildTime,
 			Os:           runtime.GOOS,
 			Arch:         runtime.GOARCH,
 			Experimental: utils.ExperimentalBuild(),
@@ -72,6 +73,16 @@ func (cli *DockerCli) CmdVersion(args ...string) (err error) {
 	}
 
 	defer func() {
+		// first we need to make BuildTime more human friendly
+		t, errTime := time.Parse(time.RFC3339Nano, vd.Client.BuildTime)
+		if errTime == nil {
+			vd.Client.BuildTime = t.Format(time.ANSIC)
+		}
+		t, errTime = time.Parse(time.RFC3339Nano, vd.Server.BuildTime)
+		if errTime == nil {
+			vd.Server.BuildTime = t.Format(time.ANSIC)
+		}
+
 		if err2 := tmpl.Execute(cli.out, vd); err2 != nil && err == nil {
 			err = err2
 		}

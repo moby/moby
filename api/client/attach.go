@@ -18,8 +18,8 @@ import (
 // Usage: docker attach [OPTIONS] CONTAINER
 func (cli *DockerCli) CmdAttach(args ...string) error {
 	cmd := Cli.Subcmd("attach", []string{"CONTAINER"}, Cli.DockerCommands["attach"].Description, true)
-	noStdin := cmd.Bool([]string{"#nostdin", "-no-stdin"}, false, "Do not attach STDIN")
-	proxy := cmd.Bool([]string{"#sig-proxy", "-sig-proxy"}, true, "Proxy all received signals to the process")
+	noStdin := cmd.Bool([]string{"-no-stdin"}, false, "Do not attach STDIN")
+	proxy := cmd.Bool([]string{"-sig-proxy"}, true, "Proxy all received signals to the process")
 
 	cmd.Require(flag.Exact, 1)
 
@@ -39,6 +39,10 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 
 	if !c.State.Running {
 		return fmt.Errorf("You cannot attach to a stopped container, start it first")
+	}
+
+	if c.State.Paused {
+		return fmt.Errorf("You cannot attach to a paused container, unpause it first")
 	}
 
 	if err := cli.CheckTtyInput(!*noStdin, c.Config.Tty); err != nil {

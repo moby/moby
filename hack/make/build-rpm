@@ -46,6 +46,20 @@ set -e
 	./man/md2man-all.sh -q || true
 	# TODO decide if it's worth getting go-md2man in _each_ builder environment to avoid this
 
+	# Convert the CHANGELOG.md file into RPM changelog format
+	VERSION_REGEX="^\W\W (.*) \((.*)\)$"
+	ENTRY_REGEX="^[-+*] (.*)$"
+	while read -r line || [[ -n "$line" ]]; do
+		if [ -z "$line" ]; then continue; fi
+		if [[ "$line" =~ $VERSION_REGEX ]]; then
+			echo >> contrib/builder/rpm/changelog
+			echo "* `date -d ${BASH_REMATCH[2]} '+%a %b %d %Y'` ${rpmPackager} - ${BASH_REMATCH[1]}" >> contrib/builder/rpm/changelog
+		fi
+		if [[ "$line" =~ $ENTRY_REGEX ]]; then
+			echo "- ${BASH_REMATCH[1]//\`}" >> contrib/builder/rpm/changelog
+		fi
+	done < CHANGELOG.md
+
 	# TODO add a configurable knob for _which_ rpms to build so we don't have to modify the file or build all of them every time we need to test
 	for dir in contrib/builder/rpm/*/; do
 		version="$(basename "$dir")"
@@ -71,8 +85,13 @@ set -e
 			RUN ln -sfv /usr/src/${rpmName}/hack/make/.build-rpm SPECS
 			WORKDIR /root/rpmbuild/SPECS
 			RUN tar -cz -C /usr/src -f /root/rpmbuild/SOURCES/${rpmName}.tar.gz ${rpmName}
-			RUN { echo '* $rpmDate $rpmPackager $rpmVersion-$rpmRelease'; echo '* Version: $VERSION'; } >> ${rpmName}.spec && tail >&2 ${rpmName}.spec
-			RUN rpmbuild -ba --define '_release $rpmRelease' --define '_version $rpmVersion' --define '_origversion $VERSION' ${rpmName}.spec
+			RUN { cat /usr/src/${rpmName}/contrib/builder/rpm/changelog; } >> ${rpmName}.spec && tail >&2 ${rpmName}.spec
+			RUN rpmbuild -ba \
+				--define '_release $rpmRelease' \
+				--define '_version $rpmVersion' \
+				--define '_origversion $VERSION' \
+				--define '_experimental ${DOCKER_EXPERIMENTAL:-0}' \
+				${rpmName}.spec
 		EOF
 		# selinux policy referencing systemd things won't work on non-systemd versions
 		# of centos or rhel, which we don't support anyways
@@ -80,7 +99,12 @@ set -e
 			cat >> "$DEST/$version/Dockerfile.build" <<-EOF
 				RUN tar -cz -C /usr/src/${rpmName}/contrib -f /root/rpmbuild/SOURCES/${rpmName}-selinux.tar.gz ${rpmName}-selinux
 				RUN { echo '* $rpmDate $rpmPackager $rpmVersion-$rpmRelease'; echo '* Version: $VERSION'; } >> ${rpmName}-selinux.spec && tail >&2 ${rpmName}-selinux.spec
-				RUN rpmbuild -ba --define '_gitcommit $DOCKER_GITCOMMIT' --define '_release $rpmRelease' --define '_version $rpmVersion' --define '_origversion $VERSION' ${rpmName}-selinux.spec
+				RUN rpmbuild -ba \
+						--define '_gitcommit $DOCKER_GITCOMMIT' \
+						--define '_release $rpmRelease' \
+						--define '_version $rpmVersion' \
+						--define '_origversion $VERSION' \
+						${rpmName}-selinux.spec
 			EOF
 		fi
 		tempImage="docker-temp/build-rpm:$version"

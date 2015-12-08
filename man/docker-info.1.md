@@ -33,14 +33,19 @@ Here is a sample output:
     # docker info
     Containers: 14
     Images: 52
-    Engine Version: 1.9.0
+    Server Version: 1.9.0
     Storage Driver: aufs
      Root Dir: /var/lib/docker/aufs
      Dirs: 80
     Execution Driver: native-0.2
     Logging Driver: json-file
+    Plugins:
+     Volume: local
+     Network: bridge null host
     Kernel Version: 3.13.0-24-generic
     Operating System: Ubuntu 14.04 LTS
+    OSType: linux
+    Architecture: x86_64
     CPUs: 1
     Total Memory: 2 GiB
 

@@ -17,8 +17,6 @@ var (
 )
 
 // Config defines the configuration of a docker daemon.
-// These are the configuration settings that you pass
-// to the docker daemon when you launch it with say: `docker daemon -e lxc`
 type Config struct {
 	CommonConfig
 

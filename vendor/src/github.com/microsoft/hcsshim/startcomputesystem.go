@@ -43,6 +43,6 @@ func StartComputeSystem(id string) error {
 		return err
 	}
 
-	logrus.Debugf("HCSShim::StartComputeSystem - succeeded id=%s", id)
+	logrus.Debugf(title+" succeeded id=%s", id)
 	return nil
 }

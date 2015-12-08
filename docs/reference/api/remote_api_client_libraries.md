@@ -110,6 +110,12 @@ will add the libraries here.
       <td>Active</td>
     </tr>
     <tr>
+      <td>Java</td>
+      <td>rx-docker-client</td>
+      <td><a class="reference external" href="https://github.com/shekhargulati/rx-docker-client">https://github.com/shekhargulati/rx-docker-client</a></td>
+      <td>Active</td>
+    </tr>
+    <tr>
       <td>JavaScript (NodeJS)</td>
       <td>dockerode</td>
       <td><a class="reference external" href="https://github.com/apocas/dockerode">https://github.com/apocas/dockerode</a>
@@ -129,6 +135,12 @@ will add the libraries here.
       <td><a class="reference external" href="https://github.com/dgoujard/docker-js">https://github.com/dgoujard/docker-js</a></td>
       <td>Outdated</td>
     </tr>
+    <tr>
+      <td>JavaScript (Angular) <strong>WebUI</strong></td>
+      <td>Albatros</td>
+      <td><a class="reference external" href="https://github.com/dcylabs/albatros">https://github.com/dcylabs/albatros</a></td>
+      <td>Active</td>
+    </tr>    
     <tr>
       <td>JavaScript (Angular) <strong>WebUI</strong></td>
       <td>docker-cp</td>

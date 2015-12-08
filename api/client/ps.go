@@ -20,7 +20,7 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 	var (
 		err error
 
-		psFilterArgs = filters.Args{}
+		psFilterArgs = filters.NewArgs()
 		v            = url.Values{}
 
 		cmd      = Cli.Subcmd("ps", nil, Cli.DockerCommands["ps"].Description, true)
@@ -28,11 +28,11 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 		small	 = cmd.Bool([]string{"small", "-small"}, false, "Only display important columns")
 		size     = cmd.Bool([]string{"s", "-size"}, false, "Display total file sizes")
 		all      = cmd.Bool([]string{"a", "-all"}, false, "Show all containers (default shows just running)")
-		noTrunc  = cmd.Bool([]string{"#notrunc", "-no-trunc"}, false, "Don't truncate output")
-		nLatest  = cmd.Bool([]string{"l", "-latest"}, false, "Show the latest created container, include non-running")
-		since    = cmd.String([]string{"#sinceId", "#-since-id", "-since"}, "", "Show created since Id or Name, include non-running")
-		before   = cmd.String([]string{"#beforeId", "#-before-id", "-before"}, "", "Show only container created before Id or Name")
-		last     = cmd.Int([]string{"n"}, -1, "Show n last created containers, include non-running")
+		noTrunc  = cmd.Bool([]string{"-no-trunc"}, false, "Don't truncate output")
+		nLatest  = cmd.Bool([]string{"l", "-latest"}, false, "Show the latest created container (includes all states)")
+		since    = cmd.String([]string{"#-since"}, "", "Show containers created since Id or Name (includes all states)")
+		before   = cmd.String([]string{"#-before"}, "", "Only show containers created before Id or Name")
+		last     = cmd.Int([]string{"n"}, -1, "Show n last created containers (includes all states)")
 		format   = cmd.String([]string{"-format"}, "", "Pretty-print containers using a Go template")
 		flFilter = opts.NewListOpts(nil)
 	)
@@ -73,7 +73,7 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 		}
 	}
 
-	if len(psFilterArgs) > 0 {
+	if psFilterArgs.Len() > 0 {
 		filterJSON, err := filters.ToParam(psFilterArgs)
 		if err != nil {
 			return err

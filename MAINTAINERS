@@ -183,43 +183,6 @@ made through a pull request.
 	# be approved by the chief architect.
 	"Chief Architect" = "shykes"
 
-	[Org.Operators]
-
-	# The operators make sure the trains run on time. They are responsible for overall operations
-	# of the project. This includes facilitating communication between all the participants; helping
-	# newcomers get involved and become successful contributors and maintainers; tracking the schedule
-	# of releases; managing the relationship with downstream distributions and upstream dependencies;
-	# define measures of success for the project and measure progress; Devise and implement tools and
-	# processes which make contributors and maintainers happier and more efficient.
-
-
-		[Org.Operators.security]
-
-			people = [
-				"erw",
-				"diogomonica",
-				"nathanmccauley"
-			]
-
-		[Org.Operators."monthly meetings"]
-
-			people = [
-				"sven",
-				"tianon"
-			]
-
-		[Org.Operators.infrastructure]
-
-			people = [
-				"jfrazelle",
-				"crosbymichael"
-			]
-
-		[Org.Operators.community]
-			people = [
-				"theadactyl"
-			]
-
 	# The chief maintainer is responsible for all aspects of quality for the project including
 	# code reviews, usability, stability, security, performance, etc.
 	# The most important function of the chief maintainer is to lead by example. On the first
@@ -227,14 +190,14 @@ made through a pull request.
 	# be fine".
 	"Chief Maintainer" = "crosbymichael"
 
-	# The community manager is responsible for serving the project community, including users, 
+	# The community manager is responsible for serving the project community, including users,
 	# contributors and partners. This involves:
 	#	- facilitating communication between maintainers, contributors and users
 	#	- organizing contributor and maintainer events
 	#	- helping new contributors get involved
 	#	- anything the project community needs to be successful
 	#
-	# The community manager is a point of contact for any contributor who has questions, concerns 
+	# The community manager is a point of contact for any contributor who has questions, concerns
 	# or feedback about project operations.
 	"Community Manager" = "theadactyl"
 
@@ -256,13 +219,16 @@ made through a pull request.
 
 		people = [
 			"calavera",
+			"cpuguy83",
 			"crosbymichael",
+			"duglin",
 			"erikh",
 			"estesp",
 			"icecrime",
 			"jfrazelle",
 			"lk4d4",
 			"runcom",
+			"tianon",
 			"tibor",
 			"unclejack",
 			"vbatts",
@@ -271,127 +237,16 @@ made through a pull request.
 			"vishh"
 		]
 
-	[Org.Subsystems]
+    [Org."Docs maintainers"]
 
-	# As the project grows, it gets separated into well-defined subsystems. Each subsystem
-	# has a dedicated group of maintainers, which are dedicated to that subsytem and responsible
-	# for its quality.
-	# This "cellular division" is the primary mechanism for scaling maintenance of the project as it grows.
-	#
-	# The maintainers of each subsytem are responsible for:
-	#
-	# 1. Exposing a clear road map for improving their subsystem.
-	# 2. Deliver prompt feedback and decisions on pull requests affecting their subsystem.
-	# 3. Be available to anyone with questions, bug reports, criticism etc.
-	#	on their component. This includes IRC, GitHub requests and the mailing
-	#	list.
-	# 4. Make sure their subsystem respects the philosophy, design and
-	#	road map of the project.
-	#
-	# #### How to review patches to your subsystem
-	#
-	# Accepting pull requests:
-	#
-	#	- If the pull request appears to be ready to merge, give it a `LGTM`, which
-	#	  stands for "Looks Good To Me".
-	#	- If the pull request has some small problems that need to be changed, make
-	#	  a comment adressing the issues.
-	#	- If the changes needed to a PR are small, you can add a "LGTM once the
-	#	  following comments are addressed..." this will reduce needless back and
-	#	  forth.
-	#	- If the PR only needs a few changes before being merged, any MAINTAINER can
-	#	  make a replacement PR that incorporates the existing commits and fixes the
-	#	  problems before a fast track merge.
-	#
-	# Closing pull requests:
-	#
-	#	- If a PR appears to be abandoned, after having attempted to contact the
-	#	  original contributor, then a replacement PR may be made. Once the
-	#	  replacement PR is made, any contributor may close the original one.
-	#	- If you are not sure if the pull request implements a good feature or you
-	#	  do not understand the purpose of the PR, ask the contributor to provide
-	#	  more documentation.  If the contributor is not able to adequately explain
-	#	  the purpose of the PR, the PR may be closed by any MAINTAINER.
-	#	- If a MAINTAINER feels that the pull request is sufficiently architecturally
-	#	  flawed, or if the pull request needs significantly more design discussion
-	#	  before being considered, the MAINTAINER should close the pull request with
-	#	  a short explanation of what discussion still needs to be had.  It is
-	#	  important not to leave such pull requests open, as this will waste both the
-	#	  MAINTAINER's time and the contributor's time.  It is not good to string a
-	#	  contributor on for weeks or months, having them make many changes to a PR
-	#	  that will eventually be rejected.
+    # TODO Describe the docs maintainers role.
 
-		[Org.Subsystems.Documentation]
-
-			people = [
-				"james",
-				"moxiegirl",
-				"thaJeztah",
-				"jamtur01",
-				"sven"
-			]
-
-		[Org.Subsystems.libcontainer]
-
-			people = [
-				"crosbymichael",
-				"jnagal",
-				"lk4d4",
-				"mpatel",
-				"vmarmol"
-			]
-
-		[Org.Subsystems.registry]
-
-			people = [
-				"dmcg",
-				"dmp42",
-				"jlhawn",
-				"samalba",
-				"sday",
-				"vbatts"
-			]
-
-		[Org.Subsystems."build tools"]
-
-			people = [
-				"shykes",
-				"tianon"
-			]
-
-		[Org.Subsystem."remote api"]
-
-			people = [
-				"vieux"
-			]
-
-		[Org.Subsystem.swarm]
-
-			people = [
-				"aluzzardi",
-				"vieux"
-			]
-
-		[Org.Subsystem.machine]
-
-			people = [
-				"bfirsh",
-				"ehazlett"
-			]
-
-		[Org.Subsystem.compose]
-
-			people = [
-				"aanand"
-			]
-
-		[Org.Subsystem.builder]
-
-			people = [
-				"duglin",
-				"erikh",
-				"tibor"
-			]
+        people = [
+            "jamtur01",
+            "moxiegirl",
+            "sven",
+            "thajeztah"
+        ]
 
 	[Org.Curators]
 
@@ -417,22 +272,6 @@ made through a pull request.
 # in the people section.
 
 	# ADD YOURSELF HERE IN ALPHABETICAL ORDER
-
-	[people.aanand]
-	Name = "Aanand Prasad"
-	Email = "aanand@docker.com"
-	GitHub = "aanand"
-
-	[people.aluzzardi]
-	Name = "Andrea Luzzardi"
-	Email = "aluzzardi@docker.com"
-	GitHub = "aluzzardi"
-
-	[people.bfirsh]
-	Name = "Ben Firshman"
-	Email = "ben@firshman.co.uk"
-	GitHub = "bfirsh"
-
 	[people.calavera]
 	Name = "David Calavera"
 	Email = "david.calavera@gmail.com"
@@ -447,41 +286,15 @@ made through a pull request.
 	Name = "Michael Crosby"
 	Email = "crosbymichael@gmail.com"
 	GitHub = "crosbymichael"
-
-	[people.diogomonica]
-	Name = "Diogo Monica"
-	Email = "diogo@docker.com"
-	GitHub = "diogomonica"
-
 	[people.duglin]
 	Name = "Doug Davis"
 	Email = "dug@us.ibm.com"
 	GitHub = "duglin"
 
-	[people.dmcg]
-	Name = "Derek McGowan"
-	Email = "derek@docker.com"
-	Github = "dmcgowan"
-
-	[people.dmp42]
-	Name = "Olivier Gambier"
-	Email = "olivier@docker.com"
-	Github = "dmp42"
-
-	[people.ehazlett]
-	Name = "Evan Hazlett"
-	Email = "ejhazlett@gmail.com"
-	GitHub = "ehazlett"
-
 	[people.erikh]
 	Name = "Erik Hollensbe"
 	Email = "erik@docker.com"
 	GitHub = "erikh"
-
-	[people.erw]
-	Name = "Eric Windisch"
-	Email = "eric@windisch.us"
-	GitHub = "ewindisch"
 
 	[people.estesp]
 	Name = "Phil Estes"
@@ -493,20 +306,15 @@ made through a pull request.
 	Email = "arnaud@docker.com"
 	GitHub = "icecrime"
 
+	[people.jamtur01]
+	Name = "James Turnbull"
+	Email = "james@lovedthanlost.net"
+	GitHub = "jamtur01"
+
 	[people.jfrazelle]
 	Name = "Jessie Frazelle"
 	Email = "j@docker.com"
 	GitHub = "jfrazelle"
-
-	[people.jlhawn]
-	Name = "Josh Hawn"
-	Email = "josh.hawn@docker.com"
-	Github = "jlhawn"
-
-	[people.jnagal]
-	Name = "Rohit Jnagal"
-	Email = "jnagal@google.com"
-	GitHub = "rjnagal"
 
 	[people.lk4d4]
 	Name = "Alexander Morozov"
@@ -518,25 +326,10 @@ made through a pull request.
 	Email = "mary.anthony@docker.com"
 	GitHub = "moxiegirl"
 
-	[people.mpatel]
-	Name = "Mrunal Patel"
-	Email = "mpatel@redhat.com"
-	GitHub = "mrunalp"
-
-	[people.nathanmccauley]
-	Name = "Nathan McCauley"
-	Email = "nathan.mccauley@docker.com"
-	GitHub = "nathanmccauley"
-
 	[people.runcom]
 	Name = "Antonio Murdaca"
 	Email = "me@runcom.ninja"
 	GitHub = "runcom"
-
-	[people.sday]
-	Name = "Stephen Day"
-	Email = "stephen.day@docker.com"
-	Github = "stevvooe"
 
 	[people.shykes]
 	Name = "Solomon Hykes"
@@ -592,8 +385,3 @@ made through a pull request.
 	Name = "Vishnu Kannan"
 	Email = "vishnuk@google.com"
 	GitHub = "vishh"
-
-	[people.vmarmol]
-	Name = "Victor Marmol"
-	Email = "vmarmol@google.com"
-	GitHub = "vmarmol"

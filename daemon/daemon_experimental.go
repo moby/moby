@@ -15,11 +15,8 @@ import (
 )
 
 func setupRemappedRoot(config *Config) ([]idtools.IDMap, []idtools.IDMap, error) {
-	if config.ExecDriver != "native" && config.RemappedRoot != "" {
-		return nil, nil, fmt.Errorf("User namespace remapping is only supported with the native execdriver")
-	}
-	if runtime.GOOS == "windows" && config.RemappedRoot != "" {
-		return nil, nil, fmt.Errorf("User namespaces are not supported on Windows")
+	if runtime.GOOS != "linux" && config.RemappedRoot != "" {
+		return nil, nil, fmt.Errorf("User namespaces are only supported on Linux")
 	}
 
 	// if the daemon was started with remapped root option, parse
@@ -103,7 +100,7 @@ func setupDaemonRoot(config *Config, rootDir string, rootUID, rootGID int) error
 }
 
 func (daemon *Daemon) verifyExperimentalContainerSettings(hostConfig *runconfig.HostConfig, config *runconfig.Config) ([]string, error) {
-	if hostConfig.Privileged && daemon.config().RemappedRoot != "" {
+	if hostConfig.Privileged && daemon.configStore.RemappedRoot != "" {
 		return nil, fmt.Errorf("Privileged mode is incompatible with user namespace mappings")
 	}
 	return nil, nil

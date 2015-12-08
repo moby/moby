@@ -68,21 +68,27 @@ func (n *bridgeNetwork) setupIPTables(config *networkConfiguration, i *bridgeInt
 	if err = setupIPTablesInternal(config.BridgeName, maskedAddrv4, config.EnableICC, config.EnableIPMasquerade, hairpinMode, true); err != nil {
 		return fmt.Errorf("Failed to Setup IP tables: %s", err.Error())
 	}
+	n.registerIptCleanFunc(func() error {
+		return setupIPTablesInternal(config.BridgeName, maskedAddrv4, config.EnableICC, config.EnableIPMasquerade, hairpinMode, false)
+	})
 
 	natChain, filterChain, err := n.getDriverChains()
 	if err != nil {
 		return fmt.Errorf("Failed to setup IP tables, cannot acquire chain info %s", err.Error())
 	}
 
-	err = iptables.ProgramChain(natChain, config.BridgeName, hairpinMode)
+	err = iptables.ProgramChain(natChain, config.BridgeName, hairpinMode, true)
 	if err != nil {
 		return fmt.Errorf("Failed to program NAT chain: %s", err.Error())
 	}
 
-	err = iptables.ProgramChain(filterChain, config.BridgeName, hairpinMode)
+	err = iptables.ProgramChain(filterChain, config.BridgeName, hairpinMode, true)
 	if err != nil {
 		return fmt.Errorf("Failed to program FILTER chain: %s", err.Error())
 	}
+	n.registerIptCleanFunc(func() error {
+		return iptables.ProgramChain(filterChain, config.BridgeName, hairpinMode, false)
+	})
 
 	n.portMapper.SetIptablesChain(filterChain, n.getNetworkBridgeName())
 

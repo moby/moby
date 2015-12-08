@@ -7,17 +7,13 @@ import (
 	"net"
 	"net/http"
 	"time"
-
-	"github.com/docker/docker/pkg/listenbuffer"
 )
 
 // NewTCPSocket creates a TCP socket listener with the specified address and
 // and the specified tls configuration. If TLSConfig is set, will encapsulate the
 // TCP listener inside a TLS one.
-// The channel passed is used to activate the listenbuffer when the caller is ready
-// to accept connections.
-func NewTCPSocket(addr string, tlsConfig *tls.Config, activate <-chan struct{}) (net.Listener, error) {
-	l, err := listenbuffer.NewListenBuffer("tcp", addr, activate)
+func NewTCPSocket(addr string, tlsConfig *tls.Config) (net.Listener, error) {
+	l, err := net.Listen("tcp", addr)
 	if err != nil {
 		return nil, err
 	}

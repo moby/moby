@@ -7,7 +7,6 @@ import (
 	"io"
 	"io/ioutil"
 	"reflect"
-	"strings"
 	"time"
 )
 
@@ -99,7 +98,7 @@ func unmarshalStruct(value reflect.Value, data interface{}, tag reflect.StructTa
 
 	for i := 0; i < t.NumField(); i++ {
 		field := t.Field(i)
-		if c := field.Name[0:1]; strings.ToLower(c) == c {
+		if field.PkgPath != "" {
 			continue // ignore unexported fields
 		}
 

@@ -18,7 +18,7 @@ Stop a container (Send SIGTERM, and then SIGKILL after
 **--help**
   Print usage statement
 
-**-t**, **--time**=10
+**-t**, **--time**=*10*
   Number of seconds to wait for the container to stop before killing it. Default is 10 seconds.
 
 #See also

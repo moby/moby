@@ -95,7 +95,7 @@ func NewChain(name string, table Table, hairpinMode bool) (*ChainInfo, error) {
 }
 
 // ProgramChain is used to add rules to a chain
-func ProgramChain(c *ChainInfo, bridgeName string, hairpinMode bool) error {
+func ProgramChain(c *ChainInfo, bridgeName string, hairpinMode, enable bool) error {
 	if c.Name == "" {
 		return fmt.Errorf("Could not program chain, missing chain name.")
 	}
@@ -106,9 +106,13 @@ func ProgramChain(c *ChainInfo, bridgeName string, hairpinMode bool) error {
 			"-m", "addrtype",
 			"--dst-type", "LOCAL",
 			"-j", c.Name}
-		if !Exists(Nat, "PREROUTING", preroute...) {
+		if !Exists(Nat, "PREROUTING", preroute...) && enable {
 			if err := c.Prerouting(Append, preroute...); err != nil {
 				return fmt.Errorf("Failed to inject docker in PREROUTING chain: %s", err)
+			}
+		} else if Exists(Nat, "PREROUTING", preroute...) && !enable {
+			if err := c.Prerouting(Delete, preroute...); err != nil {
+				return fmt.Errorf("Failed to remove docker in PREROUTING chain: %s", err)
 			}
 		}
 		output := []string{
@@ -118,8 +122,12 @@ func ProgramChain(c *ChainInfo, bridgeName string, hairpinMode bool) error {
 		if !hairpinMode {
 			output = append(output, "!", "--dst", "127.0.0.0/8")
 		}
-		if !Exists(Nat, "OUTPUT", output...) {
+		if !Exists(Nat, "OUTPUT", output...) && enable {
 			if err := c.Output(Append, output...); err != nil {
+				return fmt.Errorf("Failed to inject docker in OUTPUT chain: %s", err)
+			}
+		} else if Exists(Nat, "OUTPUT", output...) && !enable {
+			if err := c.Output(Delete, output...); err != nil {
 				return fmt.Errorf("Failed to inject docker in OUTPUT chain: %s", err)
 			}
 		}
@@ -131,13 +139,21 @@ func ProgramChain(c *ChainInfo, bridgeName string, hairpinMode bool) error {
 		link := []string{
 			"-o", bridgeName,
 			"-j", c.Name}
-		if !Exists(Filter, "FORWARD", link...) {
+		if !Exists(Filter, "FORWARD", link...) && enable {
 			insert := append([]string{string(Insert), "FORWARD"}, link...)
 			if output, err := Raw(insert...); err != nil {
 				return err
 			} else if len(output) != 0 {
 				return fmt.Errorf("Could not create linking rule to %s/%s: %s", c.Table, c.Name, output)
 			}
+		} else if Exists(Filter, "FORWARD", link...) && !enable {
+			del := append([]string{string(Delete), "FORWARD"}, link...)
+			if output, err := Raw(del...); err != nil {
+				return err
+			} else if len(output) != 0 {
+				return fmt.Errorf("Could not delete linking rule from %s/%s: %s", c.Table, c.Name, output)
+			}
+
 		}
 	}
 	return nil

@@ -3,9 +3,31 @@
 package archive
 
 import (
+	"io/ioutil"
 	"os"
+	"path/filepath"
 	"testing"
 )
+
+func TestCopyFileWithInvalidDest(t *testing.T) {
+	folder, err := ioutil.TempDir("", "docker-archive-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(folder)
+	dest := "c:dest"
+	srcFolder := filepath.Join(folder, "src")
+	src := filepath.Join(folder, "src", "src")
+	err = os.MkdirAll(srcFolder, 0740)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ioutil.WriteFile(src, []byte("content"), 0777)
+	err = CopyWithTar(src, dest)
+	if err == nil {
+		t.Fatalf("archiver.CopyWithTar should throw an error on invalid dest.")
+	}
+}
 
 func TestCanonicalTarNameForPath(t *testing.T) {
 	cases := []struct {

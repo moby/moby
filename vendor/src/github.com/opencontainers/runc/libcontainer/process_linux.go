@@ -47,6 +47,7 @@ type setnsProcess struct {
 	cgroupPaths map[string]string
 	config      *initConfig
 	fds         []string
+	process     *Process
 }
 
 func (p *setnsProcess) startTime() (string, error) {
@@ -87,7 +88,6 @@ func (p *setnsProcess) start() (err error) {
 		p.wait()
 		return newSystemError(ierr)
 	}
-
 	return nil
 }
 
@@ -115,13 +115,12 @@ func (p *setnsProcess) execSetns() error {
 		p.cmd.Wait()
 		return newSystemError(err)
 	}
-
 	process, err := os.FindProcess(pid.Pid)
 	if err != nil {
 		return err
 	}
-
 	p.cmd.Process = process
+	p.process.ops = p
 	return nil
 }
 
@@ -165,6 +164,7 @@ type initProcess struct {
 	manager    cgroups.Manager
 	container  *linuxContainer
 	fds        []string
+	process    *Process
 }
 
 func (p *initProcess) pid() int {
@@ -178,8 +178,10 @@ func (p *initProcess) externalDescriptors() []string {
 func (p *initProcess) start() (err error) {
 	defer p.parentPipe.Close()
 	err = p.cmd.Start()
+	p.process.ops = p
 	p.childPipe.Close()
 	if err != nil {
+		p.process.ops = nil
 		return newSystemError(err)
 	}
 	// Save the standard descriptor names before the container process

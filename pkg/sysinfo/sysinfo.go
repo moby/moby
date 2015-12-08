@@ -60,6 +60,15 @@ type cgroupCPUInfo struct {
 type cgroupBlkioInfo struct {
 	// Whether Block IO weight is supported or not
 	BlkioWeight bool
+
+	// Whether Block IO weight_device is supported or not
+	BlkioWeightDevice bool
+
+	// Whether Block IO read limit in bytes per second is supported or not
+	BlkioReadBpsDevice bool
+
+	// Whether Block IO write limit in bytes per second is supported or not
+	BlkioWriteBpsDevice bool
 }
 
 type cgroupCpusetInfo struct {

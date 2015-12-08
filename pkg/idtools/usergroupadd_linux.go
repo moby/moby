@@ -2,13 +2,10 @@ package idtools
 
 import (
 	"fmt"
-	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"syscall"
-
-	"github.com/docker/docker/pkg/system"
 )
 
 // add a user and/or group to Linux /etc/passwd, /etc/group using standard
@@ -155,21 +152,4 @@ func findUnused(file string, id int) (int, error) {
 			return -1, fmt.Errorf("Maximum id in %q reached with finding unused numeric ID", file)
 		}
 	}
-}
-
-func mkdirAs(path string, mode os.FileMode, ownerUID, ownerGID int, mkAll bool) error {
-	if mkAll {
-		if err := system.MkdirAll(path, mode); err != nil && !os.IsExist(err) {
-			return err
-		}
-	} else {
-		if err := os.Mkdir(path, mode); err != nil && !os.IsExist(err) {
-			return err
-		}
-	}
-	// even if it existed, we will chown to change ownership as requested
-	if err := os.Chown(path, ownerUID, ownerGID); err != nil {
-		return err
-	}
-	return nil
 }

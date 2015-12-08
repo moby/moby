@@ -20,6 +20,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/idtools"
+	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/pools"
 	"github.com/docker/docker/pkg/promise"
 	"github.com/docker/docker/pkg/system"
@@ -77,6 +78,11 @@ var (
 )
 
 const (
+	// HeaderSize is the size in bytes of a tar header
+	HeaderSize = 512
+)
+
+const (
 	// Uncompressed represents the uncompressed.
 	Uncompressed Compression = iota
 	// Bzip2 is bzip2 compression algorithm.
@@ -87,7 +93,8 @@ const (
 	Xz
 )
 
-// IsArchive checks if it is a archive by the header.
+// IsArchive checks for the magic bytes of a tar or any supported compression
+// algorithm.
 func IsArchive(header []byte) bool {
 	compression := DetectCompression(header)
 	if compression != Uncompressed {
@@ -95,6 +102,23 @@ func IsArchive(header []byte) bool {
 	}
 	r := tar.NewReader(bytes.NewBuffer(header))
 	_, err := r.Next()
+	return err == nil
+}
+
+// IsArchivePath checks if the (possibly compressed) file at the given path
+// starts with a tar file header.
+func IsArchivePath(path string) bool {
+	file, err := os.Open(path)
+	if err != nil {
+		return false
+	}
+	defer file.Close()
+	rdr, err := DecompressStream(file)
+	if err != nil {
+		return false
+	}
+	r := tar.NewReader(rdr)
+	_, err = r.Next()
 	return err == nil
 }
 
@@ -116,10 +140,10 @@ func DetectCompression(source []byte) Compression {
 	return Uncompressed
 }
 
-func xzDecompress(archive io.Reader) (io.ReadCloser, error) {
+func xzDecompress(archive io.Reader) (io.ReadCloser, <-chan struct{}, error) {
 	args := []string{"xz", "-d", "-c", "-q"}
 
-	return CmdStream(exec.Command(args[0], args[1:]...), archive)
+	return cmdStream(exec.Command(args[0], args[1:]...), archive)
 }
 
 // DecompressStream decompress the archive and returns a ReaderCloser with the decompressed archive.
@@ -127,7 +151,13 @@ func DecompressStream(archive io.Reader) (io.ReadCloser, error) {
 	p := pools.BufioReader32KPool
 	buf := p.Get(archive)
 	bs, err := buf.Peek(10)
-	if err != nil {
+	if err != nil && err != io.EOF {
+		// Note: we'll ignore any io.EOF error because there are some odd
+		// cases where the layer.tar file will be empty (zero bytes) and
+		// that results in an io.EOF from the Peek() call. So, in those
+		// cases we'll just treat it as a non-compressed stream and
+		// that means just create an empty layer.
+		// See Issue 18170
 		return nil, err
 	}
 
@@ -148,12 +178,15 @@ func DecompressStream(archive io.Reader) (io.ReadCloser, error) {
 		readBufWrapper := p.NewReadCloserWrapper(buf, bz2Reader)
 		return readBufWrapper, nil
 	case Xz:
-		xzReader, err := xzDecompress(buf)
+		xzReader, chdone, err := xzDecompress(buf)
 		if err != nil {
 			return nil, err
 		}
 		readBufWrapper := p.NewReadCloserWrapper(buf, xzReader)
-		return readBufWrapper, nil
+		return ioutils.NewReadCloserWrapper(readBufWrapper, func() error {
+			<-chdone
+			return readBufWrapper.Close()
+		}), nil
 	default:
 		return nil, fmt.Errorf("Unsupported compression format %s", (&compression).Extension())
 	}
@@ -245,14 +278,14 @@ func (ta *tarAppender) addTarFile(path, name string) error {
 	}
 	hdr.Name = name
 
-	nlink, inode, err := setHeaderForSpecialDevice(hdr, ta, name, fi.Sys())
+	inode, err := setHeaderForSpecialDevice(hdr, ta, name, fi.Sys())
 	if err != nil {
 		return err
 	}
 
-	// if it's a regular file and has more than 1 link,
+	// if it's not a directory and has more than 1 link,
 	// it's hardlinked, so set the type flag accordingly
-	if fi.Mode().IsRegular() && nlink > 1 {
+	if !fi.IsDir() && hasHardlinks(fi) {
 		// a link should have a name that it links too
 		// and that linked name should be first in the tar archive
 		if oldpath, ok := ta.SeenFiles[inode]; ok {
@@ -403,19 +436,25 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, L
 		return err
 	}
 
+	aTime := hdr.AccessTime
+	if aTime.Before(hdr.ModTime) {
+		// Last access time should never be before last modified time.
+		aTime = hdr.ModTime
+	}
+
 	// system.Chtimes doesn't support a NOFOLLOW flag atm
 	if hdr.Typeflag == tar.TypeLink {
 		if fi, err := os.Lstat(hdr.Linkname); err == nil && (fi.Mode()&os.ModeSymlink == 0) {
-			if err := system.Chtimes(path, hdr.AccessTime, hdr.ModTime); err != nil {
+			if err := system.Chtimes(path, aTime, hdr.ModTime); err != nil {
 				return err
 			}
 		}
 	} else if hdr.Typeflag != tar.TypeSymlink {
-		if err := system.Chtimes(path, hdr.AccessTime, hdr.ModTime); err != nil {
+		if err := system.Chtimes(path, aTime, hdr.ModTime); err != nil {
 			return err
 		}
 	} else {
-		ts := []syscall.Timespec{timeToTimespec(hdr.AccessTime), timeToTimespec(hdr.ModTime)}
+		ts := []syscall.Timespec{timeToTimespec(aTime), timeToTimespec(hdr.ModTime)}
 		if err := system.LUtimesNano(path, ts); err != nil && err != system.ErrNotSupportedPlatform {
 			return err
 		}
@@ -790,10 +829,7 @@ func (archiver *Archiver) UntarPath(src, dst string) error {
 			GIDMaps: archiver.GIDMaps,
 		}
 	}
-	if err := archiver.Untar(archive, dst, options); err != nil {
-		return err
-	}
-	return nil
+	return archiver.Untar(archive, dst, options)
 }
 
 // UntarPath is a convenience function which looks for an archive
@@ -910,7 +946,11 @@ func (archiver *Archiver) CopyFileWithTar(src, dst string) (err error) {
 		}
 	}()
 
-	return archiver.Untar(r, filepath.Dir(dst), nil)
+	err = archiver.Untar(r, filepath.Dir(dst), nil)
+	if err != nil {
+		r.CloseWithError(err)
+	}
+	return err
 }
 
 // CopyFileWithTar emulates the behavior of the 'cp' command-line
@@ -925,57 +965,33 @@ func CopyFileWithTar(src, dst string) (err error) {
 	return defaultArchiver.CopyFileWithTar(src, dst)
 }
 
-// CmdStream executes a command, and returns its stdout as a stream.
+// cmdStream executes a command, and returns its stdout as a stream.
 // If the command fails to run or doesn't complete successfully, an error
 // will be returned, including anything written on stderr.
-func CmdStream(cmd *exec.Cmd, input io.Reader) (io.ReadCloser, error) {
-	if input != nil {
-		stdin, err := cmd.StdinPipe()
-		if err != nil {
-			return nil, err
-		}
-		// Write stdin if any
-		go func() {
-			io.Copy(stdin, input)
-			stdin.Close()
-		}()
-	}
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		return nil, err
-	}
-	stderr, err := cmd.StderrPipe()
-	if err != nil {
-		return nil, err
-	}
+func cmdStream(cmd *exec.Cmd, input io.Reader) (io.ReadCloser, <-chan struct{}, error) {
+	chdone := make(chan struct{})
+	cmd.Stdin = input
 	pipeR, pipeW := io.Pipe()
-	errChan := make(chan []byte)
-	// Collect stderr, we will use it in case of an error
-	go func() {
-		errText, e := ioutil.ReadAll(stderr)
-		if e != nil {
-			errText = []byte("(...couldn't fetch stderr: " + e.Error() + ")")
-		}
-		errChan <- errText
-	}()
+	cmd.Stdout = pipeW
+	var errBuf bytes.Buffer
+	cmd.Stderr = &errBuf
+
+	// Run the command and return the pipe
+	if err := cmd.Start(); err != nil {
+		return nil, nil, err
+	}
+
 	// Copy stdout to the returned pipe
 	go func() {
-		_, err := io.Copy(pipeW, stdout)
-		if err != nil {
-			pipeW.CloseWithError(err)
-		}
-		errText := <-errChan
 		if err := cmd.Wait(); err != nil {
-			pipeW.CloseWithError(fmt.Errorf("%s: %s", err, errText))
+			pipeW.CloseWithError(fmt.Errorf("%s: %s", err, errBuf.String()))
 		} else {
 			pipeW.Close()
 		}
+		close(chdone)
 	}()
-	// Run the command and return the pipe
-	if err := cmd.Start(); err != nil {
-		return nil, err
-	}
-	return pipeR, nil
+
+	return pipeR, chdone, nil
 }
 
 // NewTempArchive reads the content of src into a temporary file, and returns the contents

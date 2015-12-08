@@ -12,6 +12,30 @@ parent = "mn_use_docker"
 
 The following list of features are deprecated.
 
+### `-f` flag on `docker tag`
+**Deprecated In Release: v1.10**
+
+**Target For Removal In Release: v1.12**
+
+To make tagging consistent across the various `docker` commands, the `-f` flag on the `docker tag` command is deprecated. It is not longer necessary to specify `-f` to move a tag from one image to another. Nor will `docker` generate an error if the `-f` flag is missing and the specified tag is already in use.
+
+### HostConfig at API container start
+**Deprecated In Release: v1.10**
+
+**Target For Removal In Release: v1.12**
+
+Passing an `HostConfig` to `POST /containers/{name}/start` is deprecated in favor of
+defining it at container creation (`POST /containers/create`).
+
+### Docker ps 'before' and 'since' options
+
+**Deprecated In Release: [v1.10.0](https://github.com/docker/docker/releases/tag/v1.10.0)**
+
+**Target For Removal In Release: v1.12**
+
+The `docker ps --before` and `docker ps --since` options are deprecated.
+Use `docker ps --filter=before=...` and `docker ps --filter=since=...` instead.
+
 ### Command line short variant options
 **Deprecated In Release: v1.9**
 
@@ -21,6 +45,8 @@ The following short variant options are deprecated in favor of their long
 variants:
 
     docker run -c (--cpu-shares)
+    docker build -c (--cpu-shares)
+    docker create -c (--cpu-shares)
 
 ### Driver Specific Log Tags
 **Deprecated In Release: v1.9**
@@ -42,7 +68,7 @@ The built-in LXC execution driver is deprecated for an external implementation.
 The lxc-conf flag and API fields will also be removed.
 
 ### Old Command Line Options
-**Deprecated In Release: [v1.8.0](../release-notes.md#docker-engine-1-8-0)**
+**Deprecated In Release: [v1.8.0](https://github.com/docker/docker/releases/tag/v1.8.0)**
 
 **Target For Removal In Release: v1.10**
 
@@ -68,7 +94,6 @@ are deprecated and replaced with double-dash options (`--opt`):
     docker ps -sinceId
     docker rm -link
     docker run -cidfile
-    docker run -cpuset
     docker run -dns
     docker run -entrypoint
     docker run -expose
@@ -85,13 +110,14 @@ are deprecated and replaced with double-dash options (`--opt`):
 
 The following double-dash options are deprecated and have no replacement:
 
+    docker run --cpuset
     docker run --networking
     docker ps --since-id
     docker ps --before-id
     docker search --trusted
 
 ### Auto-creating missing host paths for bind mounts
-**Deprected in Release: v1.9**
+**Deprecated in Release: v1.9**
 
 **Target for Removal in Release: 1.11**
 

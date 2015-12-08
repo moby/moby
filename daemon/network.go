@@ -17,6 +17,12 @@ const (
 	NetworkByName
 )
 
+// NetworkControllerEnabled checks if the networking stack is enabled.
+// This feature depends on OS primitives and it's dissabled in systems like Windows.
+func (daemon *Daemon) NetworkControllerEnabled() bool {
+	return daemon.netController != nil
+}
+
 // FindNetwork function finds a network for a given string that can represent network name or id
 func (daemon *Daemon) FindNetwork(idName string) (libnetwork.Network, error) {
 	// Find by Name
@@ -80,7 +86,7 @@ func (daemon *Daemon) GetNetworksByID(partialID string) []libnetwork.Network {
 }
 
 // CreateNetwork creates a network with the given name, driver and other optional parameters
-func (daemon *Daemon) CreateNetwork(name, driver string, ipam network.IPAM) (libnetwork.Network, error) {
+func (daemon *Daemon) CreateNetwork(name, driver string, ipam network.IPAM, options map[string]string) (libnetwork.Network, error) {
 	c := daemon.netController
 	if driver == "" {
 		driver = c.Config().Daemon.DefaultDriver
@@ -93,9 +99,8 @@ func (daemon *Daemon) CreateNetwork(name, driver string, ipam network.IPAM) (lib
 		return nil, err
 	}
 
-	if len(ipam.Config) > 0 {
-		nwOptions = append(nwOptions, libnetwork.NetworkOptionIpam(ipam.Driver, "", v4Conf, v6Conf))
-	}
+	nwOptions = append(nwOptions, libnetwork.NetworkOptionIpam(ipam.Driver, "", v4Conf, v6Conf))
+	nwOptions = append(nwOptions, libnetwork.NetworkOptionDriverOpts(options))
 	return c.NewNetwork(driver, name, nwOptions...)
 }
 
@@ -119,4 +124,44 @@ func getIpamConfig(data []network.IPAMConfig) ([]*libnetwork.IpamConf, []*libnet
 		}
 	}
 	return ipamV4Cfg, ipamV6Cfg, nil
+}
+
+// ConnectContainerToNetwork connects the given container to the given
+// network. If either cannot be found, an err is returned. If the
+// network cannot be set up, an err is returned.
+func (daemon *Daemon) ConnectContainerToNetwork(containerName, networkName string) error {
+	container, err := daemon.Get(containerName)
+	if err != nil {
+		return err
+	}
+	return daemon.ConnectToNetwork(container, networkName)
+}
+
+// DisconnectContainerFromNetwork disconnects the given container from
+// the given network. If either cannot be found, an err is returned.
+func (daemon *Daemon) DisconnectContainerFromNetwork(containerName string, network libnetwork.Network) error {
+	container, err := daemon.Get(containerName)
+	if err != nil {
+		return err
+	}
+	return daemon.DisconnectFromNetwork(container, network)
+}
+
+// GetNetworkDriverList returns the list of plugins drivers
+// registered for network.
+func (daemon *Daemon) GetNetworkDriverList() map[string]bool {
+	pluginList := make(map[string]bool)
+
+	if !daemon.NetworkControllerEnabled() {
+		return nil
+	}
+	c := daemon.netController
+	networks := c.Networks()
+
+	for _, network := range networks {
+		driver := network.Type()
+		pluginList[driver] = true
+	}
+
+	return pluginList
 }

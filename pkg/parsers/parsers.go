@@ -5,6 +5,7 @@ package parsers
 
 import (
 	"fmt"
+	"net"
 	"net/url"
 	"path"
 	"runtime"
@@ -16,9 +17,12 @@ import (
 // Depending of the address specified, will use the defaultTCPAddr or defaultUnixAddr
 // defaultUnixAddr must be a absolute file path (no `unix://` prefix)
 // defaultTCPAddr must be the full `tcp://host:port` form
-func ParseDockerDaemonHost(defaultTCPAddr, defaultUnixAddr, addr string) (string, error) {
+func ParseDockerDaemonHost(defaultTCPAddr, defaultTLSHost, defaultUnixAddr, defaultAddr, addr string) (string, error) {
 	addr = strings.TrimSpace(addr)
 	if addr == "" {
+		if defaultAddr == defaultTLSHost {
+			return defaultTLSHost, nil
+		}
 		if runtime.GOOS != "windows" {
 			return fmt.Sprintf("unix://%s", defaultUnixAddr), nil
 		}
@@ -70,51 +74,40 @@ func ParseTCPAddr(tryAddr string, defaultAddr string) (string, error) {
 		return "", fmt.Errorf("Invalid proto, expected tcp: %s", tryAddr)
 	}
 
+	defaultAddr = strings.TrimPrefix(defaultAddr, "tcp://")
+	defaultHost, defaultPort, err := net.SplitHostPort(defaultAddr)
+	if err != nil {
+		return "", err
+	}
+	// url.Parse fails for trailing colon on IPv6 brackets on Go 1.5, but
+	// not 1.4. See https://github.com/golang/go/issues/12200 and
+	// https://github.com/golang/go/issues/6530.
+	if strings.HasSuffix(addr, "]:") {
+		addr += defaultPort
+	}
+
 	u, err := url.Parse("tcp://" + addr)
 	if err != nil {
 		return "", err
 	}
-	hostParts := strings.Split(u.Host, ":")
-	if len(hostParts) != 2 {
+
+	host, port, err := net.SplitHostPort(u.Host)
+	if err != nil {
 		return "", fmt.Errorf("Invalid bind address format: %s", tryAddr)
 	}
-	defaults := strings.Split(defaultAddr, ":")
-	if len(defaults) != 3 {
-		return "", fmt.Errorf("Invalid defaults address format: %s", defaultAddr)
-	}
 
-	host := hostParts[0]
 	if host == "" {
-		host = strings.TrimPrefix(defaults[1], "//")
+		host = defaultHost
 	}
-	if hostParts[1] == "" {
-		hostParts[1] = defaults[2]
+	if port == "" {
+		port = defaultPort
 	}
-	p, err := strconv.Atoi(hostParts[1])
+	p, err := strconv.Atoi(port)
 	if err != nil && p == 0 {
 		return "", fmt.Errorf("Invalid bind address format: %s", tryAddr)
 	}
-	return fmt.Sprintf("tcp://%s:%d%s", host, p, u.Path), nil
-}
 
-// ParseRepositoryTag gets a repos name and returns the right reposName + tag|digest
-// The tag can be confusing because of a port in a repository name.
-//     Ex: localhost.localdomain:5000/samalba/hipache:latest
-//     Digest ex: localhost:5000/foo/bar@sha256:bc8813ea7b3603864987522f02a76101c17ad122e1c46d790efc0fca78ca7bfb
-func ParseRepositoryTag(repos string) (string, string) {
-	n := strings.Index(repos, "@")
-	if n >= 0 {
-		parts := strings.Split(repos, "@")
-		return parts[0], parts[1]
-	}
-	n = strings.LastIndex(repos, ":")
-	if n < 0 {
-		return repos, ""
-	}
-	if tag := repos[n+1:]; !strings.Contains(tag, "/") {
-		return repos[:n], tag
-	}
-	return repos, ""
+	return fmt.Sprintf("tcp://%s%s", net.JoinHostPort(host, port), u.Path), nil
 }
 
 // PartParser parses and validates the specified string (data) using the specified template

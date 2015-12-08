@@ -5,10 +5,18 @@ PROJECT=github.com/docker/docker
 # Downloads dependencies into vendor/ directory
 mkdir -p vendor
 
-rm -rf .gopath
-mkdir -p .gopath/src/github.com/docker
-ln -sf ../../../.. .gopath/src/${PROJECT}
-export GOPATH="${PWD}/.gopath:${PWD}/vendor"
+if ! go list github.com/docker/docker/docker &> /dev/null; then
+	rm -rf .gopath
+	mkdir -p .gopath/src/github.com/docker
+	ln -sf ../../../.. .gopath/src/${PROJECT}
+	export GOPATH="${PWD}/.gopath:${PWD}/vendor"
+fi
+export GOPATH="$GOPATH:${PWD}/vendor"
+
+find='find'
+if [ "$(go env GOHOSTOS)" = 'windows' ]; then
+	find='/usr/bin/find'
+fi
 
 clone() {
 	local vcs="$1"
@@ -62,7 +70,7 @@ _dockerfile_env() {
 			print;
 			exit;
 		}
-	' Dockerfile
+	' ${DOCKER_FILE:="Dockerfile"}
 }
 
 clean() {
@@ -71,17 +79,25 @@ clean() {
 		"${PROJECT}/dockerinit" # package main
 		"${PROJECT}/integration-cli" # external tests
 	)
-	local dockerPlatforms=( linux/amd64 $(_dockerfile_env DOCKER_CROSSPLATFORMS) )
+	local dockerPlatforms=( ${DOCKER_ENGINE_OSARCH:="linux/amd64"} $(_dockerfile_env DOCKER_CROSSPLATFORMS) )
 	local dockerBuildTags="$(_dockerfile_env DOCKER_BUILDTAGS)"
 	local buildTagCombos=(
 		''
 		'experimental'
+		'pkcs11'
+		'seccomp'
 		"$dockerBuildTags"
 		"daemon $dockerBuildTags"
 		"daemon cgo $dockerBuildTags"
 		"experimental $dockerBuildTags"
 		"experimental daemon $dockerBuildTags"
 		"experimental daemon cgo $dockerBuildTags"
+		"pkcs11 $dockerBuildTags"
+		"pkcs11 daemon $dockerBuildTags"
+		"pkcs11 daemon cgo $dockerBuildTags"
+		"seccomp $dockerBuildTags"
+		"seccomp daemon $dockerBuildTags"
+		"seccomp daemon cgo $dockerBuildTags"
 	)
 
 	echo
@@ -116,15 +132,15 @@ clean() {
 		findArgs+=( -path "vendor/src/$import" )
 	done
 	local IFS=$'\n'
-	local prune=( $(find vendor -depth -type d -not '(' "${findArgs[@]}" ')') )
+	local prune=( $($find vendor -depth -type d -not '(' "${findArgs[@]}" ')') )
 	unset IFS
 	for dir in "${prune[@]}"; do
-		find "$dir" -maxdepth 1 -not -type d -not -name 'LICENSE*' -not -name 'COPYING*' -exec rm -v -f '{}' +
+		$find "$dir" -maxdepth 1 -not -type d -not -name 'LICENSE*' -not -name 'COPYING*' -exec rm -v -f '{}' ';'
 		rmdir "$dir" 2>/dev/null || true
 	done
 
 	echo -n 'pruning unused files, '
-	find vendor -type f -name '*_test.go' -exec rm -v '{}' +
+	$find vendor -type f -name '*_test.go' -exec rm -v '{}' ';'
 
 	echo done
 }
@@ -136,5 +152,5 @@ fix_rewritten_imports () {
        local target="vendor/src/$pkg"
 
        echo "$pkg: fixing rewritten imports"
-       find "$target" -name \*.go -exec sed -i -e "s|\"${remove}|\"|g" {} \;
+       $find "$target" -name \*.go -exec sed -i -e "s|\"${remove}|\"|g" {} \;
 }

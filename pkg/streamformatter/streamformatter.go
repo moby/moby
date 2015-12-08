@@ -83,7 +83,7 @@ func (sf *StreamFormatter) FormatProgress(id, action string, progress *jsonmessa
 		if err != nil {
 			return nil
 		}
-		return b
+		return append(b, streamNewlineBytes...)
 	}
 	endl := "\r"
 	if progress.String() == "" {

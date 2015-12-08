@@ -8,8 +8,8 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/docker/distribution/registry/api/v2"
-	"github.com/docker/docker/image"
+	"github.com/docker/distribution/reference"
+	"github.com/docker/docker/image/v1"
 	"github.com/docker/docker/opts"
 	flag "github.com/docker/docker/pkg/mflag"
 )
@@ -216,17 +216,15 @@ func ValidateIndexName(val string) (string, error) {
 	return val, nil
 }
 
-func validateRemoteName(remoteName string) error {
-
-	if !strings.Contains(remoteName, "/") {
-
+func validateRemoteName(remoteName reference.Named) error {
+	remoteNameStr := remoteName.Name()
+	if !strings.Contains(remoteNameStr, "/") {
 		// the repository name must not be a valid image ID
-		if err := image.ValidateID(remoteName); err == nil {
+		if err := v1.ValidateID(remoteNameStr); err == nil {
 			return fmt.Errorf("Invalid repository name (%s), cannot specify 64-byte hexadecimal strings", remoteName)
 		}
 	}
-
-	return v2.ValidateRepositoryName(remoteName)
+	return nil
 }
 
 func validateNoSchema(reposName string) error {
@@ -238,16 +236,26 @@ func validateNoSchema(reposName string) error {
 }
 
 // ValidateRepositoryName validates a repository name
-func ValidateRepositoryName(reposName string) error {
-	var err error
-	if err = validateNoSchema(reposName); err != nil {
-		return err
+func ValidateRepositoryName(reposName reference.Named) error {
+	_, _, err := loadRepositoryName(reposName)
+	return err
+}
+
+// loadRepositoryName returns the repo name splitted into index name
+// and remote repo name. It returns an error if the name is not valid.
+func loadRepositoryName(reposName reference.Named) (string, reference.Named, error) {
+	if err := validateNoSchema(reposName.Name()); err != nil {
+		return "", nil, err
 	}
-	indexName, remoteName := splitReposName(reposName)
-	if _, err = ValidateIndexName(indexName); err != nil {
-		return err
+	indexName, remoteName, err := splitReposName(reposName)
+
+	if indexName, err = ValidateIndexName(indexName); err != nil {
+		return "", nil, err
 	}
-	return validateRemoteName(remoteName)
+	if err = validateRemoteName(remoteName); err != nil {
+		return "", nil, err
+	}
+	return indexName, remoteName, nil
 }
 
 // NewIndexInfo returns IndexInfo configuration from indexName
@@ -283,91 +291,85 @@ func (index *IndexInfo) GetAuthConfigKey() string {
 }
 
 // splitReposName breaks a reposName into an index name and remote name
-func splitReposName(reposName string) (string, string) {
-	nameParts := strings.SplitN(reposName, "/", 2)
-	var indexName, remoteName string
-	if len(nameParts) == 1 || (!strings.Contains(nameParts[0], ".") &&
-		!strings.Contains(nameParts[0], ":") && nameParts[0] != "localhost") {
+func splitReposName(reposName reference.Named) (indexName string, remoteName reference.Named, err error) {
+	var remoteNameStr string
+	indexName, remoteNameStr = reference.SplitHostname(reposName)
+	if indexName == "" || (!strings.Contains(indexName, ".") &&
+		!strings.Contains(indexName, ":") && indexName != "localhost") {
 		// This is a Docker Index repos (ex: samalba/hipache or ubuntu)
 		// 'docker.io'
 		indexName = IndexName
 		remoteName = reposName
 	} else {
-		indexName = nameParts[0]
-		remoteName = nameParts[1]
+		remoteName, err = reference.WithName(remoteNameStr)
 	}
-	return indexName, remoteName
+	return
 }
 
 // NewRepositoryInfo validates and breaks down a repository name into a RepositoryInfo
-func (config *ServiceConfig) NewRepositoryInfo(reposName string, bySearch bool) (*RepositoryInfo, error) {
-	if err := validateNoSchema(reposName); err != nil {
+func (config *ServiceConfig) NewRepositoryInfo(reposName reference.Named) (*RepositoryInfo, error) {
+	if err := validateNoSchema(reposName.Name()); err != nil {
 		return nil, err
 	}
 
-	indexName, remoteName := splitReposName(reposName)
+	repoInfo := &RepositoryInfo{}
+	var (
+		indexName string
+		err       error
+	)
 
-	if !bySearch {
-		if err := validateRemoteName(remoteName); err != nil {
-			return nil, err
-		}
+	indexName, repoInfo.RemoteName, err = loadRepositoryName(reposName)
+	if err != nil {
+		return nil, err
 	}
 
-	repoInfo := &RepositoryInfo{
-		RemoteName: remoteName,
-	}
-
-	var err error
 	repoInfo.Index, err = config.NewIndexInfo(indexName)
 	if err != nil {
 		return nil, err
 	}
 
 	if repoInfo.Index.Official {
-		normalizedName := repoInfo.RemoteName
-		if strings.HasPrefix(normalizedName, "library/") {
-			// If pull "library/foo", it's stored locally under "foo"
-			normalizedName = strings.SplitN(normalizedName, "/", 2)[1]
+		repoInfo.LocalName, err = normalizeLibraryRepoName(repoInfo.RemoteName)
+		if err != nil {
+			return nil, err
 		}
+		repoInfo.RemoteName = repoInfo.LocalName
 
-		repoInfo.LocalName = normalizedName
-		repoInfo.RemoteName = normalizedName
 		// If the normalized name does not contain a '/' (e.g. "foo")
 		// then it is an official repo.
-		if strings.IndexRune(normalizedName, '/') == -1 {
+		if strings.IndexRune(repoInfo.RemoteName.Name(), '/') == -1 {
 			repoInfo.Official = true
 			// Fix up remote name for official repos.
-			repoInfo.RemoteName = "library/" + normalizedName
+			repoInfo.RemoteName, err = reference.WithName("library/" + repoInfo.RemoteName.Name())
+			if err != nil {
+				return nil, err
+			}
 		}
 
-		repoInfo.CanonicalName = "docker.io/" + repoInfo.RemoteName
+		repoInfo.CanonicalName, err = reference.WithName("docker.io/" + repoInfo.RemoteName.Name())
+		if err != nil {
+			return nil, err
+		}
 	} else {
-		repoInfo.LocalName = repoInfo.Index.Name + "/" + repoInfo.RemoteName
+		repoInfo.LocalName, err = localNameFromRemote(repoInfo.Index.Name, repoInfo.RemoteName)
+		if err != nil {
+			return nil, err
+		}
 		repoInfo.CanonicalName = repoInfo.LocalName
-
 	}
 
 	return repoInfo, nil
 }
 
-// GetSearchTerm special-cases using local name for official index, and
-// remote name for private indexes.
-func (repoInfo *RepositoryInfo) GetSearchTerm() string {
-	if repoInfo.Index.Official {
-		return repoInfo.LocalName
-	}
-	return repoInfo.RemoteName
-}
-
 // ParseRepositoryInfo performs the breakdown of a repository name into a RepositoryInfo, but
 // lacks registry configuration.
-func ParseRepositoryInfo(reposName string) (*RepositoryInfo, error) {
-	return emptyServiceConfig.NewRepositoryInfo(reposName, false)
+func ParseRepositoryInfo(reposName reference.Named) (*RepositoryInfo, error) {
+	return emptyServiceConfig.NewRepositoryInfo(reposName)
 }
 
-// ParseIndexInfo will use repository name to get back an indexInfo.
-func ParseIndexInfo(reposName string) (*IndexInfo, error) {
-	indexName, _ := splitReposName(reposName)
+// ParseSearchIndexInfo will use repository name to get back an indexInfo.
+func ParseSearchIndexInfo(reposName string) (*IndexInfo, error) {
+	indexName, _ := splitReposSearchTerm(reposName)
 
 	indexInfo, err := emptyServiceConfig.NewIndexInfo(indexName)
 	if err != nil {
@@ -376,12 +378,69 @@ func ParseIndexInfo(reposName string) (*IndexInfo, error) {
 	return indexInfo, nil
 }
 
-// NormalizeLocalName transforms a repository name into a normalize LocalName
+// NormalizeLocalName transforms a repository name into a normalized LocalName
 // Passes through the name without transformation on error (image id, etc)
-func NormalizeLocalName(name string) string {
-	repoInfo, err := ParseRepositoryInfo(name)
+// It does not use the repository info because we don't want to load
+// the repository index and do request over the network.
+func NormalizeLocalName(name reference.Named) reference.Named {
+	indexName, remoteName, err := loadRepositoryName(name)
 	if err != nil {
 		return name
 	}
-	return repoInfo.LocalName
+
+	var officialIndex bool
+	// Return any configured index info, first.
+	if index, ok := emptyServiceConfig.IndexConfigs[indexName]; ok {
+		officialIndex = index.Official
+	}
+
+	if officialIndex {
+		localName, err := normalizeLibraryRepoName(remoteName)
+		if err != nil {
+			return name
+		}
+		return localName
+	}
+	localName, err := localNameFromRemote(indexName, remoteName)
+	if err != nil {
+		return name
+	}
+	return localName
+}
+
+// normalizeLibraryRepoName removes the library prefix from
+// the repository name for official repos.
+func normalizeLibraryRepoName(name reference.Named) (reference.Named, error) {
+	if strings.HasPrefix(name.Name(), "library/") {
+		// If pull "library/foo", it's stored locally under "foo"
+		return reference.WithName(strings.SplitN(name.Name(), "/", 2)[1])
+	}
+	return name, nil
+}
+
+// localNameFromRemote combines the index name and the repo remote name
+// to generate a repo local name.
+func localNameFromRemote(indexName string, remoteName reference.Named) (reference.Named, error) {
+	return reference.WithName(indexName + "/" + remoteName.Name())
+}
+
+// NormalizeLocalReference transforms a reference to use a normalized LocalName
+// for the name poriton. Passes through the reference without transformation on
+// error.
+func NormalizeLocalReference(ref reference.Named) reference.Named {
+	localName := NormalizeLocalName(ref)
+	if tagged, isTagged := ref.(reference.Tagged); isTagged {
+		newRef, err := reference.WithTag(localName, tagged.Tag())
+		if err != nil {
+			return ref
+		}
+		return newRef
+	} else if digested, isDigested := ref.(reference.Digested); isDigested {
+		newRef, err := reference.WithDigest(localName, digested.Digest())
+		if err != nil {
+			return ref
+		}
+		return newRef
+	}
+	return localName
 }

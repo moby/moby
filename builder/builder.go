@@ -8,8 +8,8 @@ import (
 	"io"
 	"os"
 
-	// TODO: remove dependency on daemon
-	"github.com/docker/docker/daemon"
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/container"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/runconfig"
 )
@@ -33,7 +33,8 @@ type Context interface {
 	Close() error
 	// Stat returns an entry corresponding to path if any.
 	// It is recommended to return an error if path was not found.
-	Stat(path string) (FileInfo, error)
+	// If path is a symlink it also returns the path to the target file.
+	Stat(path string) (string, FileInfo, error)
 	// Open opens path from the context and returns a readable stream of it.
 	Open(path string) (io.ReadCloser, error)
 	// Walk walks the tree of the context with the function passed to it.
@@ -64,11 +65,21 @@ type PathFileInfo struct {
 	os.FileInfo
 	// FilePath holds the absolute path to the file.
 	FilePath string
+	// Name holds the basename for the file.
+	FileName string
 }
 
 // Path returns the absolute path to the file.
 func (fi PathFileInfo) Path() string {
 	return fi.FilePath
+}
+
+// Name returns the basename of the file.
+func (fi PathFileInfo) Name() string {
+	if fi.FileName != "" {
+		return fi.FileName
+	}
+	return fi.FileInfo.Name()
 }
 
 // Hashed defines an extra method intended for implementations of os.FileInfo.
@@ -104,23 +115,21 @@ type Docker interface {
 	// Pull tells Docker to pull image referenced by `name`.
 	Pull(name string) (*image.Image, error)
 
-	// TODO: move daemon.Container to its own package
-
 	// Container looks up a Docker container referenced by `id`.
-	Container(id string) (*daemon.Container, error)
+	Container(id string) (*container.Container, error)
 	// Create creates a new Docker container and returns potential warnings
 	// TODO: put warnings in the error
-	Create(*runconfig.Config, *runconfig.HostConfig) (*daemon.Container, []string, error)
+	Create(*runconfig.Config, *runconfig.HostConfig) (*container.Container, []string, error)
 	// Remove removes a container specified by `id`.
-	Remove(id string, cfg *daemon.ContainerRmConfig) error
+	Remove(id string, cfg *types.ContainerRmConfig) error
 	// Commit creates a new Docker image from an existing Docker container.
-	Commit(*daemon.Container, *daemon.ContainerCommitConfig) (*image.Image, error)
+	Commit(string, *types.ContainerCommitConfig) (string, error)
 	// Copy copies/extracts a source FileInfo to a destination path inside a container
 	// specified by a container object.
 	// TODO: make an Extract method instead of passing `decompress`
 	// TODO: do not pass a FileInfo, instead refactor the archive package to export a Walk function that can be used
 	// with Context.Walk
-	Copy(c *daemon.Container, destPath string, src FileInfo, decompress bool) error
+	Copy(c *container.Container, destPath string, src FileInfo, decompress bool) error
 
 	// Retain retains an image avoiding it to be removed or overwritten until a corresponding Release() call.
 	// TODO: remove
@@ -128,6 +137,14 @@ type Docker interface {
 	// Release releases a list of images that were retained for the time of a build.
 	// TODO: remove
 	Release(sessionID string, activeImages []string)
+	// Kill stops the container execution abruptly.
+	Kill(c *container.Container) error
+	// Mount mounts the root filesystem for the container.
+	Mount(c *container.Container) error
+	// Unmount unmounts the root filesystem for the container.
+	Unmount(c *container.Container) error
+	// Start starts a new container
+	Start(c *container.Container) error
 }
 
 // ImageCache abstracts an image cache store.

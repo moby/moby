@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/go-check/check"
 )
 
@@ -16,23 +17,19 @@ func (s *DockerSuite) TestInspectApiCpusetInConfigPre120(c *check.C) {
 	testRequires(c, cgroupCpuset)
 
 	name := "cpusetinconfig-pre120"
-	dockerCmd(c, "run", "--name", name, "--cpuset", "0-1", "busybox", "true")
+	dockerCmd(c, "run", "--name", name, "--cpuset-cpus", "0", "busybox", "true")
 
 	status, body, err := sockRequest("GET", fmt.Sprintf("/v1.19/containers/%s/json", name), nil)
 	c.Assert(status, check.Equals, http.StatusOK)
 	c.Assert(err, check.IsNil)
 
 	var inspectJSON map[string]interface{}
-	if err = json.Unmarshal(body, &inspectJSON); err != nil {
-		c.Fatalf("unable to unmarshal body for version 1.19: %v", err)
-	}
+	err = json.Unmarshal(body, &inspectJSON)
+	c.Assert(err, checker.IsNil, check.Commentf("unable to unmarshal body for version 1.19"))
 
 	config, ok := inspectJSON["Config"]
-	if !ok {
-		c.Fatal("Unable to find 'Config'")
-	}
+	c.Assert(ok, checker.True, check.Commentf("Unable to find 'Config'"))
 	cfg := config.(map[string]interface{})
-	if _, ok := cfg["Cpuset"]; !ok {
-		c.Fatal("Api version 1.19 expected to include Cpuset in 'Config'")
-	}
+	_, ok = cfg["Cpuset"]
+	c.Assert(ok, checker.True, check.Commentf("Api version 1.19 expected to include Cpuset in 'Config'"))
 }

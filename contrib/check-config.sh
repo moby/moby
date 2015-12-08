@@ -184,6 +184,9 @@ echo 'Optional Features:'
 	check_flags USER_NS
 }
 {
+	check_flags SECCOMP
+}
+{
 	check_flags MEMCG_KMEM MEMCG_SWAP MEMCG_SWAP_ENABLED
 	if  is_set MEMCG_SWAP && ! is_set MEMCG_SWAP_ENABLED; then
 		echo "    $(wrap_color '(note that cgroup swap accounting is not enabled in your kernel config, you can enable it by setting boot option "swapaccount=1")' bold black)"

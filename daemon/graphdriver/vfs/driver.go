@@ -1,5 +1,3 @@
-// +build daemon
-
 package vfs
 
 import (
@@ -12,6 +10,11 @@ import (
 	"github.com/docker/docker/pkg/idtools"
 
 	"github.com/opencontainers/runc/libcontainer/label"
+)
+
+var (
+	// CopyWithTar defines the copy method to use.
+	CopyWithTar = chrootarchive.CopyWithTar
 )
 
 func init() {
@@ -66,7 +69,7 @@ func (d *Driver) Cleanup() error {
 }
 
 // Create prepares the filesystem for the VFS driver and copies the directory for the given id under the parent.
-func (d *Driver) Create(id, parent string) error {
+func (d *Driver) Create(id, parent, mountLabel string) error {
 	dir := d.dir(id)
 	rootUID, rootGID, err := idtools.GetRootUIDGID(d.uidMaps, d.gidMaps)
 	if err != nil {
@@ -89,7 +92,7 @@ func (d *Driver) Create(id, parent string) error {
 	if err != nil {
 		return fmt.Errorf("%s: %s", parent, err)
 	}
-	if err := chrootarchive.CopyWithTar(parentDir, dir); err != nil {
+	if err := CopyWithTar(parentDir, dir); err != nil {
 		return err
 	}
 	return nil

@@ -16,12 +16,16 @@ import (
 type CpusetGroup struct {
 }
 
-func (s *CpusetGroup) Apply(d *data) error {
+func (s *CpusetGroup) Name() string {
+	return "cpuset"
+}
+
+func (s *CpusetGroup) Apply(d *cgroupData) error {
 	dir, err := d.path("cpuset")
 	if err != nil && !cgroups.IsNotFound(err) {
 		return err
 	}
-	return s.ApplyDir(dir, d.c, d.pid)
+	return s.ApplyDir(dir, d.config, d.pid)
 }
 
 func (s *CpusetGroup) Set(path string, cgroup *configs.Cgroup) error {
@@ -38,7 +42,7 @@ func (s *CpusetGroup) Set(path string, cgroup *configs.Cgroup) error {
 	return nil
 }
 
-func (s *CpusetGroup) Remove(d *data) error {
+func (s *CpusetGroup) Remove(d *cgroupData) error {
 	return removePath(d.path("cpuset"))
 }
 
@@ -59,15 +63,14 @@ func (s *CpusetGroup) ApplyDir(dir string, cgroup *configs.Cgroup, pid int) erro
 	if err := s.ensureParent(dir, root); err != nil {
 		return err
 	}
-	// because we are not using d.join we need to place the pid into the procs file
-	// unlike the other subsystems
-	if err := writeFile(dir, "cgroup.procs", strconv.Itoa(pid)); err != nil {
-		return err
-	}
-
 	// the default values inherit from parent cgroup are already set in
 	// s.ensureParent, cover these if we have our own
 	if err := s.Set(dir, cgroup); err != nil {
+		return err
+	}
+	// because we are not using d.join we need to place the pid into the procs file
+	// unlike the other subsystems
+	if err := writeFile(dir, "cgroup.procs", strconv.Itoa(pid)); err != nil {
 		return err
 	}
 

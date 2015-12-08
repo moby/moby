@@ -26,10 +26,10 @@ each result.
 **-f**, **--format**=""
     Format the output using the given Go template.
 
-**-s**, **--size**=false
+**-s**, **--size**=*false*
     Display total file sizes if the type is container.
 
-**--type**=*container*|*image*
+**--type**="*container*|*image*"
     Return JSON for specified type, permissible values are "image" or "container"
 
 # EXAMPLES
@@ -111,7 +111,6 @@ To get information on a container use its ID or instance name:
     "HostConfig": {
         "Binds": null,
         "ContainerIDFile": "",
-        "LxcConf": [],
         "Memory": 0,
         "MemorySwap": 0,
         "CpuShares": 0,
@@ -194,7 +193,7 @@ To get information on a container use its ID or instance name:
 
 To get the IP address of a container use:
 
-    $ docker inspect --format='{{.NetworkSettings.IPAddress}}' d2cc496561d6
+    $ docker inspect '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' d2cc496561d6
     172.17.0.2
 
 ## Listing all port bindings

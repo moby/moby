@@ -10,6 +10,7 @@ source "${MAKEDIR}/.go-autogen"
 if [[ "${BUILDFLAGS[@]}" =~ 'netgo ' ]]; then
 	EXTLDFLAGS_STATIC+=' -lnetgo'
 fi
+# gccgo require explicit flag -pthread to allow goroutines to work.
 go build -compiler=gccgo \
 	-o "$DEST/$BINARY_FULLNAME" \
 	"${BUILDFLAGS[@]}" \
@@ -18,6 +19,7 @@ go build -compiler=gccgo \
 		$EXTLDFLAGS_STATIC
 		-Wl,--no-export-dynamic
 		-ldl
+		-pthread
 	" \
 	./docker
 

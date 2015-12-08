@@ -1,9 +1,7 @@
 package main
 
 import (
-	"os/exec"
-	"strings"
-
+	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/docker/docker/runconfig"
 	"github.com/go-check/check"
 )
@@ -14,152 +12,80 @@ import (
 // the command executed in a container did really run PS correctly.
 const stringCheckPS = "PID   USER"
 
-// checkContains is a helper function that validates a command output did
-// contain what was expected.
-func checkContains(expected string, out string, c *check.C) {
-	if !strings.Contains(out, expected) {
-		c.Fatalf("Expected '%s', got '%s'", expected, out)
-	}
+// DockerCmdWithFail executes a docker command that is supposed to fail and returns
+// the output, the exit code. If the command returns an Nil error, it will fail and
+// stop the tests.
+func dockerCmdWithFail(c *check.C, args ...string) (string, int) {
+	out, status, err := dockerCmdWithError(args...)
+	c.Assert(err, check.NotNil, check.Commentf("%v", out))
+	return out, status
 }
 
 func (s *DockerSuite) TestNetHostname(c *check.C) {
 	testRequires(c, DaemonIsLinux, NotUserNamespace)
 
-	var (
-		out    string
-		err    error
-		runCmd *exec.Cmd
-	)
+	out, _ := dockerCmd(c, "run", "-h=name", "busybox", "ps")
+	c.Assert(out, checker.Contains, stringCheckPS)
 
-	runCmd = exec.Command(dockerBinary, "run", "-h=name", "busybox", "ps")
-	if out, _, err = runCommandWithOutput(runCmd); err != nil {
-		c.Fatalf(out, err)
-	}
-	checkContains(stringCheckPS, out, c)
+	out, _ = dockerCmd(c, "run", "--net=host", "busybox", "ps")
+	c.Assert(out, checker.Contains, stringCheckPS)
 
-	runCmd = exec.Command(dockerBinary, "run", "--net=host", "busybox", "ps")
-	if out, _, err = runCommandWithOutput(runCmd); err != nil {
-		c.Fatalf(out, err)
-	}
-	checkContains(stringCheckPS, out, c)
+	out, _ = dockerCmd(c, "run", "-h=name", "--net=bridge", "busybox", "ps")
+	c.Assert(out, checker.Contains, stringCheckPS)
 
-	runCmd = exec.Command(dockerBinary, "run", "-h=name", "--net=bridge", "busybox", "ps")
-	if out, _, err = runCommandWithOutput(runCmd); err != nil {
-		c.Fatalf(out, err)
-	}
-	checkContains(stringCheckPS, out, c)
+	out, _ = dockerCmd(c, "run", "-h=name", "--net=none", "busybox", "ps")
+	c.Assert(out, checker.Contains, stringCheckPS)
 
-	runCmd = exec.Command(dockerBinary, "run", "-h=name", "--net=none", "busybox", "ps")
-	if out, _, err = runCommandWithOutput(runCmd); err != nil {
-		c.Fatalf(out, err)
-	}
-	checkContains(stringCheckPS, out, c)
+	out, _ = dockerCmdWithFail(c, "run", "-h=name", "--net=host", "busybox", "ps")
+	c.Assert(out, checker.Contains, runconfig.ErrConflictNetworkHostname.Error())
 
-	runCmd = exec.Command(dockerBinary, "run", "-h=name", "--net=host", "busybox", "ps")
-	if out, _, err = runCommandWithOutput(runCmd); err == nil {
-		c.Fatalf(out, err)
-	}
-	checkContains(runconfig.ErrConflictNetworkHostname.Error(), out, c)
+	out, _ = dockerCmdWithFail(c, "run", "-h=name", "--net=container:other", "busybox", "ps")
+	c.Assert(out, checker.Contains, runconfig.ErrConflictNetworkHostname.Error())
 
-	runCmd = exec.Command(dockerBinary, "run", "-h=name", "--net=container:other", "busybox", "ps")
-	if out, _, err = runCommandWithOutput(runCmd); err == nil {
-		c.Fatalf(out, err, c)
-	}
-	checkContains(runconfig.ErrConflictNetworkHostname.Error(), out, c)
+	out, _ = dockerCmdWithFail(c, "run", "--net=container", "busybox", "ps")
+	c.Assert(out, checker.Contains, "--net: invalid net mode: invalid container format container:<name|id>")
 
-	runCmd = exec.Command(dockerBinary, "run", "--net=container", "busybox", "ps")
-	if out, _, err = runCommandWithOutput(runCmd); err == nil {
-		c.Fatalf(out, err, c)
-	}
-	checkContains("--net: invalid net mode: invalid container format container:<name|id>", out, c)
-
-	runCmd = exec.Command(dockerBinary, "run", "--net=weird", "busybox", "ps")
-	if out, _, err = runCommandWithOutput(runCmd); err == nil {
-		c.Fatalf(out, err)
-	}
-	checkContains("network weird not found", out, c)
+	out, _ = dockerCmdWithFail(c, "run", "--net=weird", "busybox", "ps")
+	c.Assert(out, checker.Contains, "network weird not found")
 }
 
 func (s *DockerSuite) TestConflictContainerNetworkAndLinks(c *check.C) {
 	testRequires(c, DaemonIsLinux, NotUserNamespace)
-	var (
-		out    string
-		err    error
-		runCmd *exec.Cmd
-	)
 
-	runCmd = exec.Command(dockerBinary, "run", "--net=container:other", "--link=zip:zap", "busybox", "ps")
-	if out, _, err = runCommandWithOutput(runCmd); err == nil {
-		c.Fatalf(out, err)
-	}
-	checkContains(runconfig.ErrConflictContainerNetworkAndLinks.Error(), out, c)
+	out, _ := dockerCmdWithFail(c, "run", "--net=container:other", "--link=zip:zap", "busybox", "ps")
+	c.Assert(out, checker.Contains, runconfig.ErrConflictContainerNetworkAndLinks.Error())
 
-	runCmd = exec.Command(dockerBinary, "run", "--net=host", "--link=zip:zap", "busybox", "ps")
-	if out, _, err = runCommandWithOutput(runCmd); err == nil {
-		c.Fatalf(out, err)
-	}
-	checkContains(runconfig.ErrConflictHostNetworkAndLinks.Error(), out, c)
+	out, _ = dockerCmdWithFail(c, "run", "--net=host", "--link=zip:zap", "busybox", "ps")
+	c.Assert(out, checker.Contains, runconfig.ErrConflictHostNetworkAndLinks.Error())
 }
 
 func (s *DockerSuite) TestConflictNetworkModeAndOptions(c *check.C) {
 	testRequires(c, DaemonIsLinux, NotUserNamespace)
-	var (
-		out    string
-		err    error
-		runCmd *exec.Cmd
-	)
 
-	runCmd = exec.Command(dockerBinary, "run", "--net=host", "--dns=8.8.8.8", "busybox", "ps")
-	if out, _, err = runCommandWithOutput(runCmd); err == nil {
-		c.Fatalf(out, err)
-	}
-	checkContains(runconfig.ErrConflictNetworkAndDNS.Error(), out, c)
+	out, _ := dockerCmdWithFail(c, "run", "--net=host", "--dns=8.8.8.8", "busybox", "ps")
+	c.Assert(out, checker.Contains, runconfig.ErrConflictNetworkAndDNS.Error())
 
-	runCmd = exec.Command(dockerBinary, "run", "--net=container:other", "--dns=8.8.8.8", "busybox", "ps")
-	if out, _, err = runCommandWithOutput(runCmd); err == nil {
-		c.Fatalf(out, err)
-	}
-	checkContains(runconfig.ErrConflictNetworkAndDNS.Error(), out, c)
+	out, _ = dockerCmdWithFail(c, "run", "--net=container:other", "--dns=8.8.8.8", "busybox", "ps")
+	c.Assert(out, checker.Contains, runconfig.ErrConflictNetworkAndDNS.Error())
 
-	runCmd = exec.Command(dockerBinary, "run", "--net=host", "--add-host=name:8.8.8.8", "busybox", "ps")
-	if out, _, err = runCommandWithOutput(runCmd); err == nil {
-		c.Fatalf(out, err)
-	}
-	checkContains(runconfig.ErrConflictNetworkHosts.Error(), out, c)
+	out, _ = dockerCmdWithFail(c, "run", "--net=host", "--add-host=name:8.8.8.8", "busybox", "ps")
+	c.Assert(out, checker.Contains, runconfig.ErrConflictNetworkHosts.Error())
 
-	runCmd = exec.Command(dockerBinary, "run", "--net=container:other", "--add-host=name:8.8.8.8", "busybox", "ps")
-	if out, _, err = runCommandWithOutput(runCmd); err == nil {
-		c.Fatalf(out, err)
-	}
-	checkContains(runconfig.ErrConflictNetworkHosts.Error(), out, c)
+	out, _ = dockerCmdWithFail(c, "run", "--net=container:other", "--add-host=name:8.8.8.8", "busybox", "ps")
+	c.Assert(out, checker.Contains, runconfig.ErrConflictNetworkHosts.Error())
 
-	runCmd = exec.Command(dockerBinary, "run", "--net=host", "--mac-address=92:d0:c6:0a:29:33", "busybox", "ps")
-	if out, _, err = runCommandWithOutput(runCmd); err == nil {
-		c.Fatalf(out, err)
-	}
-	checkContains(runconfig.ErrConflictContainerNetworkAndMac.Error(), out, c)
+	out, _ = dockerCmdWithFail(c, "run", "--net=host", "--mac-address=92:d0:c6:0a:29:33", "busybox", "ps")
+	c.Assert(out, checker.Contains, runconfig.ErrConflictContainerNetworkAndMac.Error())
 
-	runCmd = exec.Command(dockerBinary, "run", "--net=container:other", "--mac-address=92:d0:c6:0a:29:33", "busybox", "ps")
-	if out, _, err = runCommandWithOutput(runCmd); err == nil {
-		c.Fatalf(out, err)
-	}
-	checkContains(runconfig.ErrConflictContainerNetworkAndMac.Error(), out, c)
+	out, _ = dockerCmdWithFail(c, "run", "--net=container:other", "--mac-address=92:d0:c6:0a:29:33", "busybox", "ps")
+	c.Assert(out, checker.Contains, runconfig.ErrConflictContainerNetworkAndMac.Error())
 
-	runCmd = exec.Command(dockerBinary, "run", "--net=container:other", "-P", "busybox", "ps")
-	if out, _, err = runCommandWithOutput(runCmd); err == nil {
-		c.Fatalf(out, err)
-	}
-	checkContains(runconfig.ErrConflictNetworkPublishPorts.Error(), out, c)
+	out, _ = dockerCmdWithFail(c, "run", "--net=container:other", "-P", "busybox", "ps")
+	c.Assert(out, checker.Contains, runconfig.ErrConflictNetworkPublishPorts.Error())
 
-	runCmd = exec.Command(dockerBinary, "run", "--net=container:other", "-p", "8080", "busybox", "ps")
-	if out, _, err = runCommandWithOutput(runCmd); err == nil {
-		c.Fatalf(out, err)
-	}
-	checkContains(runconfig.ErrConflictNetworkPublishPorts.Error(), out, c)
+	out, _ = dockerCmdWithFail(c, "run", "--net=container:other", "-p", "8080", "busybox", "ps")
+	c.Assert(out, checker.Contains, runconfig.ErrConflictNetworkPublishPorts.Error())
 
-	runCmd = exec.Command(dockerBinary, "run", "--net=container:other", "--expose", "8000-9000", "busybox", "ps")
-	if out, _, err = runCommandWithOutput(runCmd); err == nil {
-		c.Fatalf(out, err)
-	}
-	checkContains(runconfig.ErrConflictNetworkExposePorts.Error(), out, c)
+	out, _ = dockerCmdWithFail(c, "run", "--net=container:other", "--expose", "8000-9000", "busybox", "ps")
+	c.Assert(out, checker.Contains, runconfig.ErrConflictNetworkExposePorts.Error())
 }

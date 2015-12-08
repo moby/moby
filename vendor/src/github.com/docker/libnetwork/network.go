@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"strconv"
+	"strings"
 	"sync"
 
 	log "github.com/Sirupsen/logrus"
@@ -33,7 +34,6 @@ type Network interface {
 
 	// Create a new endpoint to this network symbolically identified by the
 	// specified unique name. The options parameter carry driver specific options.
-	// Labels support will be added in the near future.
 	CreateEndpoint(name string, options ...EndpointOption) (Endpoint, error)
 
 	// Delete the network.
@@ -58,7 +58,7 @@ type Network interface {
 // NetworkInfo returns some configuration and operational information about the network
 type NetworkInfo interface {
 	IpamConfig() (string, []*IpamConf, []*IpamConf)
-	Labels() map[string]string
+	DriverOptions() map[string]string
 	Scope() string
 }
 
@@ -152,6 +152,7 @@ type network struct {
 	ipamV4Info   []*IpamInfo
 	ipamV6Info   []*IpamInfo
 	enableIPv6   bool
+	postIPv6     bool
 	epCnt        *endpointCnt
 	generic      options.Generic
 	dbIndex      uint64
@@ -298,6 +299,7 @@ func (n *network) CopyTo(o datastore.KVObject) error {
 	dstN.ipamType = n.ipamType
 	dstN.enableIPv6 = n.enableIPv6
 	dstN.persist = n.persist
+	dstN.postIPv6 = n.postIPv6
 	dstN.dbIndex = n.dbIndex
 	dstN.dbExists = n.dbExists
 	dstN.drvOnce = n.drvOnce
@@ -358,6 +360,7 @@ func (n *network) MarshalJSON() ([]byte, error) {
 		netMap["generic"] = n.generic
 	}
 	netMap["persist"] = n.persist
+	netMap["postIPv6"] = n.postIPv6
 	if len(n.ipamV4Config) > 0 {
 		ics, err := json.Marshal(n.ipamV4Config)
 		if err != nil {
@@ -402,7 +405,7 @@ func (n *network) UnmarshalJSON(b []byte) (err error) {
 
 	if v, ok := netMap["generic"]; ok {
 		n.generic = v.(map[string]interface{})
-		// Restore labels in their map[string]string form
+		// Restore opts in their map[string]string form
 		if v, ok := n.generic[netlabel.GenericData]; ok {
 			var lmap map[string]string
 			ba, err := json.Marshal(v)
@@ -417,6 +420,9 @@ func (n *network) UnmarshalJSON(b []byte) (err error) {
 	}
 	if v, ok := netMap["persist"]; ok {
 		n.persist = v.(bool)
+	}
+	if v, ok := netMap["postIPv6"]; ok {
+		n.postIPv6 = v.(bool)
 	}
 	if v, ok := netMap["ipamType"]; ok {
 		n.ipamType = v.(string)
@@ -484,24 +490,34 @@ func NetworkOptionIpam(ipamDriver string, addrSpace string, ipV4 []*IpamConf, ip
 	}
 }
 
-// NetworkOptionLabels function returns an option setter for any parameter described by a map
-func NetworkOptionLabels(labels map[string]string) NetworkOption {
+// NetworkOptionDriverOpts function returns an option setter for any parameter described by a map
+func NetworkOptionDriverOpts(opts map[string]string) NetworkOption {
 	return func(n *network) {
 		if n.generic == nil {
 			n.generic = make(map[string]interface{})
 		}
-		if labels == nil {
-			labels = make(map[string]string)
+		if opts == nil {
+			opts = make(map[string]string)
 		}
 		// Store the options
-		n.generic[netlabel.GenericData] = labels
+		n.generic[netlabel.GenericData] = opts
 		// Decode and store the endpoint options of libnetwork interest
-		if val, ok := labels[netlabel.EnableIPv6]; ok {
+		if val, ok := opts[netlabel.EnableIPv6]; ok {
 			var err error
 			if n.enableIPv6, err = strconv.ParseBool(val); err != nil {
 				log.Warnf("Failed to parse %s' value: %s (%s)", netlabel.EnableIPv6, val, err.Error())
 			}
 		}
+	}
+}
+
+// NetworkOptionDeferIPv6Alloc instructs the network to defer the IPV6 address allocation until after the endpoint has been created
+// It is being provided to support the specific docker daemon flags where user can deterministically assign an IPv6 address
+// to a container as combination of fixed-cidr-v6 + mac-address
+// TODO: Remove this option setter once we support endpoint ipam options
+func NetworkOptionDeferIPv6Alloc(enable bool) NetworkOption {
+	return func(n *network) {
+		n.postIPv6 = enable
 	}
 }
 
@@ -655,7 +671,13 @@ func (n *network) CreateEndpoint(name string, options ...EndpointOption) (Endpoi
 
 	ep.processOptions(options...)
 
-	if err = ep.assignAddress(); err != nil {
+	if opt, ok := ep.generic[netlabel.MacAddress]; ok {
+		if mac, ok := opt.(net.HardwareAddr); ok {
+			ep.iface.mac = mac
+		}
+	}
+
+	if err = ep.assignAddress(true, !n.postIPv6); err != nil {
 		return nil, err
 	}
 	defer func() {
@@ -675,6 +697,10 @@ func (n *network) CreateEndpoint(name string, options ...EndpointOption) (Endpoi
 		}
 	}()
 
+	if err = ep.assignAddress(false, n.postIPv6); err != nil {
+		return nil, err
+	}
+
 	if err = n.getController().updateToStore(ep); err != nil {
 		return nil, err
 	}
@@ -683,6 +709,14 @@ func (n *network) CreateEndpoint(name string, options ...EndpointOption) (Endpoi
 			if e := n.getController().deleteFromStore(ep); e != nil {
 				log.Warnf("error rolling back endpoint %s from store: %v", name, e)
 			}
+		}
+	}()
+
+	// Watch for service records
+	n.getController().watchSvcRecord(ep)
+	defer func() {
+		if err != nil {
+			n.getController().unWatchSvcRecord(ep)
 		}
 	}()
 
@@ -754,6 +788,10 @@ func (n *network) EndpointByID(id string) (Endpoint, error) {
 }
 
 func (n *network) updateSvcRecord(ep *endpoint, localEps []*endpoint, isAdd bool) {
+	if ep.isAnonymous() {
+		return
+	}
+
 	c := n.getController()
 	sr, ok := c.svcDb[n.ID()]
 	if !ok {
@@ -765,6 +803,12 @@ func (n *network) updateSvcRecord(ep *endpoint, localEps []*endpoint, isAdd bool
 	var recs []etchosts.Record
 	if iface := ep.Iface(); iface.Address() != nil {
 		if isAdd {
+			// If we already have this endpoint in service db just return
+			if _, ok := sr[ep.Name()]; ok {
+				n.Unlock()
+				return
+			}
+
 			sr[ep.Name()] = iface.Address().IP
 			sr[ep.Name()+"."+n.name] = iface.Address().IP
 		} else {
@@ -790,8 +834,12 @@ func (n *network) updateSvcRecord(ep *endpoint, localEps []*endpoint, isAdd bool
 	}
 
 	var sbList []*sandbox
-	for _, ep := range localEps {
-		if sb, hasSandbox := ep.getSandbox(); hasSandbox {
+	for _, lEp := range localEps {
+		if ep.ID() == lEp.ID() {
+			continue
+		}
+
+		if sb, hasSandbox := lEp.getSandbox(); hasSandbox {
 			sbList = append(sbList, sb)
 		}
 	}
@@ -805,7 +853,7 @@ func (n *network) updateSvcRecord(ep *endpoint, localEps []*endpoint, isAdd bool
 	}
 }
 
-func (n *network) getSvcRecords() []etchosts.Record {
+func (n *network) getSvcRecords(ep *endpoint) []etchosts.Record {
 	n.Lock()
 	defer n.Unlock()
 
@@ -813,6 +861,10 @@ func (n *network) getSvcRecords() []etchosts.Record {
 	sr, _ := n.ctrlr.svcDb[n.id]
 
 	for h, ip := range sr {
+		if ep != nil && strings.Split(h, ".")[0] == ep.Name() {
+			continue
+		}
+
 		recs = append(recs, etchosts.Record{
 			Hosts: h,
 			IP:    ip.String(),
@@ -1056,7 +1108,7 @@ func (n *network) Info() NetworkInfo {
 	return n
 }
 
-func (n *network) Labels() map[string]string {
+func (n *network) DriverOptions() map[string]string {
 	n.Lock()
 	defer n.Unlock()
 	if n.generic != nil {

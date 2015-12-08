@@ -21,7 +21,7 @@ and Command Line Tools](http://docs.aws.amazon.com/cli/latest/reference/logs/ind
 You can configure the default logging driver by passing the `--log-driver`
 option to the Docker daemon:
 
-    docker --log-driver=awslogs
+    docker daemon --log-driver=awslogs
 
 You can set the logging driver for a specific container by using the
 `--log-driver` option to `docker run`:
@@ -34,9 +34,10 @@ You can use the `--log-opt NAME=VALUE` flag to specify Amazon CloudWatch Logs lo
 
 ### awslogs-region
 
-You must specify a region for the `awslogs` logging driver. You can specify the
-region with either the `awslogs-region` log option or `AWS_REGION` environment
-variable:
+The `awslogs` logging driver sends your Docker logs to a specific region. Use
+the `awslogs-region` log option or the `AWS_REGION` environment variable to set
+the region.  By default, if your Docker daemon is running on an EC2 instance
+and no region is set, the driver uses the instance's region.
 
     docker run --log-driver=awslogs --log-opt awslogs-region=us-east-1 ...
 

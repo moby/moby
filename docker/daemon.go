@@ -14,11 +14,11 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/uuid"
 	apiserver "github.com/docker/docker/api/server"
-	"github.com/docker/docker/autogen/dockerversion"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/daemon/logger"
+	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/opts"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/pidfile"
@@ -33,33 +33,8 @@ import (
 const daemonUsage = "       docker daemon [ --help | ... ]\n"
 
 var (
-	flDaemon              = flag.Bool([]string{"#d", "#-daemon"}, false, "Enable daemon mode (deprecated; use docker daemon)")
 	daemonCli cli.Handler = NewDaemonCli()
 )
-
-// TODO: remove once `-d` is retired
-func handleGlobalDaemonFlag() {
-	// This block makes sure that if the deprecated daemon flag `--daemon` is absent,
-	// then all daemon-specific flags are absent as well.
-	if !*flDaemon && daemonFlags != nil {
-		flag.CommandLine.Visit(func(fl *flag.Flag) {
-			for _, name := range fl.Names {
-				name := strings.TrimPrefix(name, "#")
-				if daemonFlags.Lookup(name) != nil {
-					// daemon flag was NOT specified, but daemon-specific flags were
-					// so let's error out
-					fmt.Fprintf(os.Stderr, "docker: the daemon flag '-%s' must follow the 'docker daemon' command.\n", name)
-					os.Exit(1)
-				}
-			}
-		})
-	}
-
-	if *flDaemon {
-		daemonCli.(*DaemonCli).CmdDaemon(flag.Args()...)
-		os.Exit(0)
-	}
-}
 
 func presentInHelp(usage string) string { return usage }
 func absentFromHelp(string) string      { return "" }
@@ -154,10 +129,7 @@ func (cli *DaemonCli) CmdDaemon(args ...string) error {
 	// warn from uuid package when running the daemon
 	uuid.Loggerf = logrus.Warnf
 
-	if *flDaemon {
-		// allow legacy forms `docker -D -d` and `docker -d -D`
-		logrus.Warn("please use 'docker daemon' instead.")
-	} else if !commonFlags.FlagSet.IsEmpty() || !clientFlags.FlagSet.IsEmpty() {
+	if !commonFlags.FlagSet.IsEmpty() || !clientFlags.FlagSet.IsEmpty() {
 		// deny `docker -D daemon`
 		illegalFlag := getGlobalFlag()
 		fmt.Fprintf(os.Stderr, "invalid flag '-%s'.\nSee 'docker daemon --help'.\n", illegalFlag.Names[0])
@@ -206,10 +178,11 @@ func (cli *DaemonCli) CmdDaemon(args ...string) error {
 
 	serverConfig := &apiserver.Config{
 		Logging: true,
-		Version: dockerversion.VERSION,
+		Version: dockerversion.Version,
 	}
 	serverConfig = setPlatformServerConfig(serverConfig, cli.Config)
 
+	defaultHost := opts.DefaultHost
 	if commonFlags.TLSOptions != nil {
 		if !commonFlags.TLSOptions.InsecureSkipVerify {
 			// server requires and verifies client's certificate
@@ -220,6 +193,7 @@ func (cli *DaemonCli) CmdDaemon(args ...string) error {
 			logrus.Fatal(err)
 		}
 		serverConfig.TLSConfig = tlsConfig
+		defaultHost = opts.DefaultTLSHost
 	}
 
 	if len(commonFlags.Hosts) == 0 {
@@ -227,7 +201,7 @@ func (cli *DaemonCli) CmdDaemon(args ...string) error {
 	}
 	for i := 0; i < len(commonFlags.Hosts); i++ {
 		var err error
-		if commonFlags.Hosts[i], err = opts.ParseHost(commonFlags.Hosts[i]); err != nil {
+		if commonFlags.Hosts[i], err = opts.ParseHost(defaultHost, commonFlags.Hosts[i]); err != nil {
 			logrus.Fatalf("error parsing -H %s : %v", commonFlags.Hosts[i], err)
 		}
 	}
@@ -242,21 +216,6 @@ func (cli *DaemonCli) CmdDaemon(args ...string) error {
 	if err != nil {
 		logrus.Fatal(err)
 	}
-
-	// The serve API routine never exits unless an error occurs
-	// We need to start it as a goroutine and wait on it so
-	// daemon doesn't exit
-	// All servers must be protected with some mechanism (systemd socket, listenbuffer)
-	// which prevents real handling of request until routes will be set.
-	serveAPIWait := make(chan error)
-	go func() {
-		if err := api.ServeAPI(); err != nil {
-			logrus.Errorf("ServeAPI error: %v", err)
-			serveAPIWait <- err
-			return
-		}
-		serveAPIWait <- nil
-	}()
 
 	if err := migrateKey(); err != nil {
 		logrus.Fatal(err)
@@ -277,13 +236,26 @@ func (cli *DaemonCli) CmdDaemon(args ...string) error {
 	logrus.Info("Daemon has completed initialization")
 
 	logrus.WithFields(logrus.Fields{
-		"version":     dockerversion.VERSION,
-		"commit":      dockerversion.GITCOMMIT,
+		"version":     dockerversion.Version,
+		"commit":      dockerversion.GitCommit,
 		"execdriver":  d.ExecutionDriver().Name(),
 		"graphdriver": d.GraphDriver().String(),
 	}).Info("Docker daemon")
 
 	api.InitRouters(d)
+
+	// The serve API routine never exits unless an error occurs
+	// We need to start it as a goroutine and wait on it so
+	// daemon doesn't exit
+	serveAPIWait := make(chan error)
+	go func() {
+		if err := api.ServeAPI(); err != nil {
+			logrus.Errorf("ServeAPI error: %v", err)
+			serveAPIWait <- err
+			return
+		}
+		serveAPIWait <- nil
+	}()
 
 	signal.Trap(func() {
 		api.Close()
@@ -296,10 +268,8 @@ func (cli *DaemonCli) CmdDaemon(args ...string) error {
 		}
 	})
 
-	// after the daemon is done setting up we can tell the api to start
-	// accepting connections with specified daemon
+	// after the daemon is done setting up we can notify systemd api
 	notifySystem()
-	api.AcceptConnections()
 
 	// Daemon is fully initialized and handling API traffic
 	// Wait for serve API to complete

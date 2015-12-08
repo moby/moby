@@ -3,6 +3,8 @@ package v1p19
 
 import (
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/versions/v1p20"
+	"github.com/docker/docker/pkg/nat"
 	"github.com/docker/docker/runconfig"
 )
 
@@ -10,14 +12,19 @@ import (
 // Note this is not used by the Windows daemon.
 type ContainerJSON struct {
 	*types.ContainerJSONBase
-	Volumes   map[string]string
-	VolumesRW map[string]bool
-	Config    *ContainerConfig
+	Volumes         map[string]string
+	VolumesRW       map[string]bool
+	Config          *ContainerConfig
+	NetworkSettings *v1p20.NetworkSettings
 }
 
 // ContainerConfig is a backcompatibility struct for APIs prior to 1.20.
 type ContainerConfig struct {
 	*runconfig.Config
+
+	MacAddress      string
+	NetworkDisabled bool
+	ExposedPorts    map[nat.Port]struct{}
 
 	// backward compatibility, they now live in HostConfig
 	VolumeDriver string

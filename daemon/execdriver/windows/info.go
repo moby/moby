@@ -2,18 +2,23 @@
 
 package windows
 
-import "github.com/docker/docker/daemon/execdriver"
+import (
+	"github.com/docker/docker/daemon/execdriver"
+	"github.com/docker/docker/runconfig"
+)
 
 type info struct {
-	ID     string
-	driver *Driver
+	ID        string
+	driver    *Driver
+	isolation runconfig.IsolationLevel
 }
 
 // Info implements the exec driver Driver interface.
 func (d *Driver) Info(id string) execdriver.Info {
 	return &info{
-		ID:     id,
-		driver: d,
+		ID:        id,
+		driver:    d,
+		isolation: defaultIsolation,
 	}
 }
 

@@ -2,8 +2,8 @@ package main
 
 import (
 	"net/http"
-	"strings"
 
+	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/go-check/check"
 )
 
@@ -11,8 +11,8 @@ func (s *DockerSuite) TestInfoApi(c *check.C) {
 	endpoint := "/info"
 
 	status, body, err := sockRequest("GET", endpoint, nil)
-	c.Assert(status, check.Equals, http.StatusOK)
-	c.Assert(err, check.IsNil)
+	c.Assert(status, checker.Equals, http.StatusOK)
+	c.Assert(err, checker.IsNil)
 
 	// always shown fields
 	stringsToCheck := []string{
@@ -23,6 +23,8 @@ func (s *DockerSuite) TestInfoApi(c *check.C) {
 		"LoggingDriver",
 		"OperatingSystem",
 		"NCPU",
+		"OSType",
+		"Architecture",
 		"MemTotal",
 		"KernelVersion",
 		"Driver",
@@ -30,8 +32,6 @@ func (s *DockerSuite) TestInfoApi(c *check.C) {
 
 	out := string(body)
 	for _, linePrefix := range stringsToCheck {
-		if !strings.Contains(out, linePrefix) {
-			c.Errorf("couldn't find string %v in output", linePrefix)
-		}
+		c.Assert(out, checker.Contains, linePrefix)
 	}
 }

@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/pkg/httputils"
 	"github.com/docker/docker/pkg/ioutils"
@@ -320,7 +321,9 @@ func (r *Session) GetRemoteImageLayer(imgID, registry string, imgSize int64) (io
 // repository. It queries each of the registries supplied in the registries
 // argument, and returns data from the first one that answers the query
 // successfully.
-func (r *Session) GetRemoteTag(registries []string, repository string, askedTag string) (string, error) {
+func (r *Session) GetRemoteTag(registries []string, repositoryRef reference.Named, askedTag string) (string, error) {
+	repository := repositoryRef.Name()
+
 	if strings.Count(repository, "/") == 0 {
 		// This will be removed once the registry supports auto-resolution on
 		// the "library" namespace
@@ -356,7 +359,9 @@ func (r *Session) GetRemoteTag(registries []string, repository string, askedTag 
 // of the registries supplied in the registries argument, and returns data from
 // the first one that answers the query successfully. It returns a map with
 // tag names as the keys and image IDs as the values.
-func (r *Session) GetRemoteTags(registries []string, repository string) (map[string]string, error) {
+func (r *Session) GetRemoteTags(registries []string, repositoryRef reference.Named) (map[string]string, error) {
+	repository := repositoryRef.Name()
+
 	if strings.Count(repository, "/") == 0 {
 		// This will be removed once the registry supports auto-resolution on
 		// the "library" namespace
@@ -408,8 +413,8 @@ func buildEndpointsList(headers []string, indexEp string) ([]string, error) {
 }
 
 // GetRepositoryData returns lists of images and endpoints for the repository
-func (r *Session) GetRepositoryData(remote string) (*RepositoryData, error) {
-	repositoryTarget := fmt.Sprintf("%srepositories/%s/images", r.indexEndpoint.VersionString(1), remote)
+func (r *Session) GetRepositoryData(remote reference.Named) (*RepositoryData, error) {
+	repositoryTarget := fmt.Sprintf("%srepositories/%s/images", r.indexEndpoint.VersionString(1), remote.Name())
 
 	logrus.Debugf("[registry] Calling GET %s", repositoryTarget)
 
@@ -443,7 +448,7 @@ func (r *Session) GetRepositoryData(remote string) (*RepositoryData, error) {
 		if err != nil {
 			logrus.Debugf("Error reading response body: %s", err)
 		}
-		return nil, httputils.NewHTTPRequestError(fmt.Sprintf("Error: Status %d trying to pull repository %s: %q", res.StatusCode, remote, errBody), res)
+		return nil, httputils.NewHTTPRequestError(fmt.Sprintf("Error: Status %d trying to pull repository %s: %q", res.StatusCode, remote.Name(), errBody), res)
 	}
 
 	var endpoints []string
@@ -595,10 +600,10 @@ func (r *Session) PushImageLayerRegistry(imgID string, layer io.Reader, registry
 
 // PushRegistryTag pushes a tag on the registry.
 // Remote has the format '<user>/<repo>
-func (r *Session) PushRegistryTag(remote, revision, tag, registry string) error {
+func (r *Session) PushRegistryTag(remote reference.Named, revision, tag, registry string) error {
 	// "jsonify" the string
 	revision = "\"" + revision + "\""
-	path := fmt.Sprintf("repositories/%s/tags/%s", remote, tag)
+	path := fmt.Sprintf("repositories/%s/tags/%s", remote.Name(), tag)
 
 	req, err := http.NewRequest("PUT", registry+path, strings.NewReader(revision))
 	if err != nil {
@@ -612,13 +617,13 @@ func (r *Session) PushRegistryTag(remote, revision, tag, registry string) error 
 	}
 	res.Body.Close()
 	if res.StatusCode != 200 && res.StatusCode != 201 {
-		return httputils.NewHTTPRequestError(fmt.Sprintf("Internal server error: %d trying to push tag %s on %s", res.StatusCode, tag, remote), res)
+		return httputils.NewHTTPRequestError(fmt.Sprintf("Internal server error: %d trying to push tag %s on %s", res.StatusCode, tag, remote.Name()), res)
 	}
 	return nil
 }
 
 // PushImageJSONIndex uploads an image list to the repository
-func (r *Session) PushImageJSONIndex(remote string, imgList []*ImgData, validate bool, regs []string) (*RepositoryData, error) {
+func (r *Session) PushImageJSONIndex(remote reference.Named, imgList []*ImgData, validate bool, regs []string) (*RepositoryData, error) {
 	cleanImgList := []*ImgData{}
 	if validate {
 		for _, elem := range imgList {
@@ -638,7 +643,7 @@ func (r *Session) PushImageJSONIndex(remote string, imgList []*ImgData, validate
 	if validate {
 		suffix = "images"
 	}
-	u := fmt.Sprintf("%srepositories/%s/%s", r.indexEndpoint.VersionString(1), remote, suffix)
+	u := fmt.Sprintf("%srepositories/%s/%s", r.indexEndpoint.VersionString(1), remote.Name(), suffix)
 	logrus.Debugf("[registry] PUT %s", u)
 	logrus.Debugf("Image list pushed to index:\n%s", imgListJSON)
 	headers := map[string][]string{
@@ -676,7 +681,7 @@ func (r *Session) PushImageJSONIndex(remote string, imgList []*ImgData, validate
 			if err != nil {
 				logrus.Debugf("Error reading response body: %s", err)
 			}
-			return nil, httputils.NewHTTPRequestError(fmt.Sprintf("Error: Status %d trying to push repository %s: %q", res.StatusCode, remote, errBody), res)
+			return nil, httputils.NewHTTPRequestError(fmt.Sprintf("Error: Status %d trying to push repository %s: %q", res.StatusCode, remote.Name(), errBody), res)
 		}
 		tokens = res.Header["X-Docker-Token"]
 		logrus.Debugf("Auth token: %v", tokens)
@@ -694,7 +699,7 @@ func (r *Session) PushImageJSONIndex(remote string, imgList []*ImgData, validate
 			if err != nil {
 				logrus.Debugf("Error reading response body: %s", err)
 			}
-			return nil, httputils.NewHTTPRequestError(fmt.Sprintf("Error: Status %d trying to push checksums %s: %q", res.StatusCode, remote, errBody), res)
+			return nil, httputils.NewHTTPRequestError(fmt.Sprintf("Error: Status %d trying to push checksums %s: %q", res.StatusCode, remote.Name(), errBody), res)
 		}
 	}
 

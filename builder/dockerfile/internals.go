@@ -20,9 +20,10 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api"
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builder/dockerfile/parser"
-	"github.com/docker/docker/daemon"
+	"github.com/docker/docker/container"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/httputils"
@@ -60,42 +61,36 @@ func (b *Builder) commit(id string, autoCmd *stringutils.StrSlice, comment strin
 		} else if hit {
 			return nil
 		}
-
 		container, err := b.create()
 		if err != nil {
 			return err
 		}
 		id = container.ID
 
-		if err := container.Mount(); err != nil {
+		if err := b.docker.Mount(container); err != nil {
 			return err
 		}
-		defer container.Unmount()
-	}
-
-	container, err := b.docker.Container(id)
-	if err != nil {
-		return err
+		defer b.docker.Unmount(container)
 	}
 
 	// Note: Actually copy the struct
 	autoConfig := *b.runConfig
 	autoConfig.Cmd = autoCmd
 
-	commitCfg := &daemon.ContainerCommitConfig{
+	commitCfg := &types.ContainerCommitConfig{
 		Author: b.maintainer,
 		Pause:  true,
 		Config: &autoConfig,
 	}
 
 	// Commit the container
-	image, err := b.docker.Commit(container, commitCfg)
+	imageID, err := b.docker.Commit(id, commitCfg)
 	if err != nil {
 		return err
 	}
-	b.docker.Retain(b.id, image.ID)
-	b.activeImages = append(b.activeImages, image.ID)
-	b.image = image.ID
+	b.docker.Retain(b.id, imageID)
+	b.activeImages = append(b.activeImages, imageID)
+	b.image = imageID
 	return nil
 }
 
@@ -187,7 +182,7 @@ func (b *Builder) runContextCommand(args []string, allowRemote bool, allowLocalD
 	if runtime.GOOS != "windows" {
 		b.runConfig.Cmd = stringutils.NewStrSlice("/bin/sh", "-c", fmt.Sprintf("#(nop) %s %s in %s", cmdName, srcHash, dest))
 	} else {
-		b.runConfig.Cmd = stringutils.NewStrSlice("cmd", "/S /C", fmt.Sprintf("REM (nop) %s %s in %s", cmdName, srcHash, dest))
+		b.runConfig.Cmd = stringutils.NewStrSlice("cmd", "/S", "/C", fmt.Sprintf("REM (nop) %s %s in %s", cmdName, srcHash, dest))
 	}
 	defer func(cmd *stringutils.StrSlice) { b.runConfig.Cmd = cmd }(cmd)
 
@@ -201,7 +196,7 @@ func (b *Builder) runContextCommand(args []string, allowRemote bool, allowLocalD
 	if err != nil {
 		return err
 	}
-	defer container.Unmount()
+	defer b.docker.Unmount(container)
 	b.tmpContainers[container.ID] = struct{}{}
 
 	comment := fmt.Sprintf("%s %s in %s", cmdName, origPaths, dest)
@@ -304,7 +299,7 @@ func (b *Builder) download(srcURL string) (fi builder.FileInfo, err error) {
 		}
 	}
 
-	if err = system.Chtimes(tmpFileName, time.Time{}, mTime); err != nil {
+	if err = system.Chtimes(tmpFileName, mTime, mTime); err != nil {
 		return
 	}
 
@@ -366,7 +361,7 @@ func (b *Builder) calcCopyInfo(cmdName, origPath string, allowLocalDecompression
 
 	// Must be a dir or a file
 
-	fi, err := b.context.Stat(origPath)
+	statPath, fi, err := b.context.Stat(origPath)
 	if err != nil {
 		return nil, err
 	}
@@ -383,11 +378,9 @@ func (b *Builder) calcCopyInfo(cmdName, origPath string, allowLocalDecompression
 		hfi.SetHash("file:" + hfi.Hash())
 		return copyInfos, nil
 	}
-
 	// Must be a dir
-
 	var subfiles []string
-	b.context.Walk(origPath, func(path string, info builder.FileInfo, err error) error {
+	err = b.context.Walk(statPath, func(path string, info builder.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
@@ -395,6 +388,9 @@ func (b *Builder) calcCopyInfo(cmdName, origPath string, allowLocalDecompression
 		subfiles = append(subfiles, info.(builder.Hashed).Hash())
 		return nil
 	})
+	if err != nil {
+		return nil, err
+	}
 
 	sort.Strings(subfiles)
 	hasher := sha256.New()
@@ -417,15 +413,15 @@ func containsWildcards(name string) bool {
 }
 
 func (b *Builder) processImageFrom(img *image.Image) error {
-	b.image = img.ID
+	b.image = img.ID().String()
 
 	if img.Config != nil {
 		b.runConfig = img.Config
 	}
 
 	// The default path will be blank on Windows (set by HCS)
-	if len(b.runConfig.Env) == 0 && daemon.DefaultPathEnv != "" {
-		b.runConfig.Env = append(b.runConfig.Env, "PATH="+daemon.DefaultPathEnv)
+	if len(b.runConfig.Env) == 0 && container.DefaultPathEnv != "" {
+		b.runConfig.Env = append(b.runConfig.Env, "PATH="+container.DefaultPathEnv)
 	}
 
 	// Process ONBUILD triggers if they exist
@@ -497,23 +493,29 @@ func (b *Builder) probeCache() (bool, error) {
 	return true, nil
 }
 
-func (b *Builder) create() (*daemon.Container, error) {
+func (b *Builder) create() (*container.Container, error) {
 	if b.image == "" && !b.noBaseImage {
 		return nil, fmt.Errorf("Please provide a source image with `from` prior to run")
 	}
 	b.runConfig.Image = b.image
 
-	// TODO: why not embed a hostconfig in builder?
-	hostConfig := &runconfig.HostConfig{
+	resources := runconfig.Resources{
+		CgroupParent: b.CgroupParent,
 		CPUShares:    b.CPUShares,
 		CPUPeriod:    b.CPUPeriod,
 		CPUQuota:     b.CPUQuota,
 		CpusetCpus:   b.CPUSetCpus,
 		CpusetMems:   b.CPUSetMems,
-		CgroupParent: b.CgroupParent,
 		Memory:       b.Memory,
 		MemorySwap:   b.MemorySwap,
 		Ulimits:      b.Ulimits,
+	}
+
+	// TODO: why not embed a hostconfig in builder?
+	hostConfig := &runconfig.HostConfig{
+		Isolation: b.Isolation,
+		ShmSize:   b.ShmSize,
+		Resources: resources,
 	}
 
 	config := *b.runConfig
@@ -523,7 +525,7 @@ func (b *Builder) create() (*daemon.Container, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer c.Unmount()
+	defer b.docker.Unmount(c)
 	for _, warning := range warnings {
 		fmt.Fprintf(b.Stdout, " ---> [Warning] %s\n", warning)
 	}
@@ -541,14 +543,14 @@ func (b *Builder) create() (*daemon.Container, error) {
 	return c, nil
 }
 
-func (b *Builder) run(c *daemon.Container) error {
+func (b *Builder) run(c *container.Container) error {
 	var errCh chan error
 	if b.Verbose {
 		errCh = c.Attach(nil, b.Stdout, b.Stderr)
 	}
 
 	//start the container
-	if err := c.Start(); err != nil {
+	if err := b.docker.Start(c); err != nil {
 		return err
 	}
 
@@ -557,8 +559,9 @@ func (b *Builder) run(c *daemon.Container) error {
 	go func() {
 		select {
 		case <-b.cancelled:
-			logrus.Debugln("Build cancelled, killing container:", c.ID)
-			c.Kill()
+			logrus.Debugln("Build cancelled, killing and removing container:", c.ID)
+			b.docker.Kill(c)
+			b.removeContainer(c.ID)
 		case <-finished:
 		}
 	}()
@@ -582,14 +585,21 @@ func (b *Builder) run(c *daemon.Container) error {
 	return nil
 }
 
+func (b *Builder) removeContainer(c string) error {
+	rmConfig := &types.ContainerRmConfig{
+		ForceRemove:  true,
+		RemoveVolume: true,
+	}
+	if err := b.docker.Remove(c, rmConfig); err != nil {
+		fmt.Fprintf(b.Stdout, "Error removing intermediate container %s: %v\n", stringid.TruncateID(c), err)
+		return err
+	}
+	return nil
+}
+
 func (b *Builder) clearTmp() {
 	for c := range b.tmpContainers {
-		rmConfig := &daemon.ContainerRmConfig{
-			ForceRemove:  true,
-			RemoveVolume: true,
-		}
-		if err := b.docker.Remove(c, rmConfig); err != nil {
-			fmt.Fprintf(b.Stdout, "Error removing intermediate container %s: %v\n", stringid.TruncateID(c), err)
+		if err := b.removeContainer(c); err != nil {
 			return
 		}
 		delete(b.tmpContainers, c)
@@ -604,9 +614,9 @@ func (b *Builder) readDockerfile() error {
 	// back to 'Dockerfile' and use that in the error message.
 	if b.DockerfileName == "" {
 		b.DockerfileName = api.DefaultDockerfileName
-		if _, err := b.context.Stat(b.DockerfileName); os.IsNotExist(err) {
+		if _, _, err := b.context.Stat(b.DockerfileName); os.IsNotExist(err) {
 			lowercase := strings.ToLower(b.DockerfileName)
-			if _, err := b.context.Stat(lowercase); err == nil {
+			if _, _, err := b.context.Stat(lowercase); err == nil {
 				b.DockerfileName = lowercase
 			}
 		}

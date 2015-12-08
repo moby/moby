@@ -92,7 +92,7 @@ func (cli *DockerCli) CmdExec(args ...string) error {
 		}
 	}
 	errCh = promise.Go(func() error {
-		return cli.hijack("POST", "/exec/"+execID+"/start", execConfig.Tty, in, out, stderr, hijacked, execConfig)
+		return cli.hijackWithContentType("POST", "/exec/"+execID+"/start", "application/json", execConfig.Tty, in, out, stderr, hijacked, execConfig)
 	})
 
 	// Acknowledge the hijack before starting

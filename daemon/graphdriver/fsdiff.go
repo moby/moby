@@ -1,5 +1,3 @@
-// +build daemon
-
 package graphdriver
 
 import (
@@ -11,6 +9,12 @@ import (
 	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/ioutils"
+)
+
+var (
+	// ApplyUncompressedLayer defines the unpack method used by the graph
+	// driver.
+	ApplyUncompressedLayer = chrootarchive.ApplyUncompressedLayer
 )
 
 // NaiveDiffDriver takes a ProtoDriver and adds the
@@ -129,7 +133,7 @@ func (gdw *NaiveDiffDriver) ApplyDiff(id, parent string, diff archive.Reader) (s
 		GIDMaps: gdw.gidMaps}
 	start := time.Now().UTC()
 	logrus.Debugf("Start untar layer")
-	if size, err = chrootarchive.ApplyUncompressedLayer(layerFs, diff, options); err != nil {
+	if size, err = ApplyUncompressedLayer(layerFs, diff, options); err != nil {
 		return
 	}
 	logrus.Debugf("Untar time: %vs", time.Now().UTC().Sub(start).Seconds())

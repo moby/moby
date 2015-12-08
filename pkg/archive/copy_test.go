@@ -120,9 +120,15 @@ func logDirContents(t *testing.T, dirPath string) {
 }
 
 func testCopyHelper(t *testing.T, srcPath, dstPath string) (err error) {
-	t.Logf("copying from %q to %q", srcPath, dstPath)
+	t.Logf("copying from %q to %q (not follow symbol link)", srcPath, dstPath)
 
-	return CopyResource(srcPath, dstPath)
+	return CopyResource(srcPath, dstPath, false)
+}
+
+func testCopyHelperFSym(t *testing.T, srcPath, dstPath string) (err error) {
+	t.Logf("copying from %q to %q (follow symbol link)", srcPath, dstPath)
+
+	return CopyResource(srcPath, dstPath, true)
 }
 
 // Basic assumptions about SRC and DST:
@@ -138,7 +144,7 @@ func TestCopyErrSrcNotExists(t *testing.T) {
 	tmpDirA, tmpDirB := getTestTempDirs(t)
 	defer removeAllPaths(tmpDirA, tmpDirB)
 
-	if _, err := CopyInfoSourcePath(filepath.Join(tmpDirA, "file1")); !os.IsNotExist(err) {
+	if _, err := CopyInfoSourcePath(filepath.Join(tmpDirA, "file1"), false); !os.IsNotExist(err) {
 		t.Fatalf("expected IsNotExist error, but got %T: %s", err, err)
 	}
 }
@@ -152,7 +158,7 @@ func TestCopyErrSrcNotDir(t *testing.T) {
 	// Load A with some sample files and directories.
 	createSampleDir(t, tmpDirA)
 
-	if _, err := CopyInfoSourcePath(joinTrailingSep(tmpDirA, "file1")); !isNotDir(err) {
+	if _, err := CopyInfoSourcePath(joinTrailingSep(tmpDirA, "file1"), false); !isNotDir(err) {
 		t.Fatalf("expected IsNotDir error, but got %T: %s", err, err)
 	}
 }
@@ -286,6 +292,27 @@ func TestCopyCaseA(t *testing.T) {
 	if err = fileContentsEqual(t, srcPath, dstPath); err != nil {
 		t.Fatal(err)
 	}
+	os.Remove(dstPath)
+
+	symlinkPath := filepath.Join(tmpDirA, "symlink3")
+	symlinkPath1 := filepath.Join(tmpDirA, "symlink4")
+	linkTarget := filepath.Join(tmpDirA, "file1")
+
+	if err = testCopyHelperFSym(t, symlinkPath, dstPath); err != nil {
+		t.Fatalf("unexpected error %T: %s", err, err)
+	}
+
+	if err = fileContentsEqual(t, linkTarget, dstPath); err != nil {
+		t.Fatal(err)
+	}
+	os.Remove(dstPath)
+	if err = testCopyHelperFSym(t, symlinkPath1, dstPath); err != nil {
+		t.Fatalf("unexpected error %T: %s", err, err)
+	}
+
+	if err = fileContentsEqual(t, linkTarget, dstPath); err != nil {
+		t.Fatal(err)
+	}
 }
 
 // B. SRC specifies a file and DST (with trailing path separator) doesn't
@@ -310,6 +337,16 @@ func TestCopyCaseB(t *testing.T) {
 	if err != ErrDirNotExists {
 		t.Fatalf("expected ErrDirNotExists error, but got %T: %s", err, err)
 	}
+
+	symlinkPath := filepath.Join(tmpDirA, "symlink3")
+
+	if err = testCopyHelperFSym(t, symlinkPath, dstDir); err == nil {
+		t.Fatal("expected ErrDirNotExists error, but got nil instead")
+	}
+	if err != ErrDirNotExists {
+		t.Fatalf("expected ErrDirNotExists error, but got %T: %s", err, err)
+	}
+
 }
 
 // C. SRC specifies a file and DST exists as a file. This should overwrite
@@ -337,6 +374,44 @@ func TestCopyCaseC(t *testing.T) {
 	}
 
 	if err = fileContentsEqual(t, srcPath, dstPath); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// C. Symbol link following version:
+//    SRC specifies a file and DST exists as a file. This should overwrite
+//    the file at DST with the contents of the source file.
+func TestCopyCaseCFSym(t *testing.T) {
+	tmpDirA, tmpDirB := getTestTempDirs(t)
+	defer removeAllPaths(tmpDirA, tmpDirB)
+
+	// Load A and B with some sample files and directories.
+	createSampleDir(t, tmpDirA)
+	createSampleDir(t, tmpDirB)
+
+	symlinkPathBad := filepath.Join(tmpDirA, "symlink1")
+	symlinkPath := filepath.Join(tmpDirA, "symlink3")
+	linkTarget := filepath.Join(tmpDirA, "file1")
+	dstPath := filepath.Join(tmpDirB, "file2")
+
+	var err error
+
+	// first to test broken link
+	if err = testCopyHelperFSym(t, symlinkPathBad, dstPath); err == nil {
+		t.Fatalf("unexpected error %T: %s", err, err)
+	}
+
+	// test symbol link -> symbol link -> target
+	// Ensure they start out different.
+	if err = fileContentsEqual(t, linkTarget, dstPath); err == nil {
+		t.Fatal("expected different file contents")
+	}
+
+	if err = testCopyHelperFSym(t, symlinkPath, dstPath); err != nil {
+		t.Fatalf("unexpected error %T: %s", err, err)
+	}
+
+	if err = fileContentsEqual(t, linkTarget, dstPath); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -392,6 +467,59 @@ func TestCopyCaseD(t *testing.T) {
 	}
 }
 
+// D. Symbol link following version:
+//    SRC specifies a file and DST exists as a directory. This should place
+//    a copy of the source file inside it using the basename from SRC. Ensure
+//    this works whether DST has a trailing path separator or not.
+func TestCopyCaseDFSym(t *testing.T) {
+	tmpDirA, tmpDirB := getTestTempDirs(t)
+	defer removeAllPaths(tmpDirA, tmpDirB)
+
+	// Load A and B with some sample files and directories.
+	createSampleDir(t, tmpDirA)
+	createSampleDir(t, tmpDirB)
+
+	srcPath := filepath.Join(tmpDirA, "symlink4")
+	linkTarget := filepath.Join(tmpDirA, "file1")
+	dstDir := filepath.Join(tmpDirB, "dir1")
+	dstPath := filepath.Join(dstDir, "symlink4")
+
+	var err error
+
+	// Ensure that dstPath doesn't exist.
+	if _, err = os.Stat(dstPath); !os.IsNotExist(err) {
+		t.Fatalf("did not expect dstPath %q to exist", dstPath)
+	}
+
+	if err = testCopyHelperFSym(t, srcPath, dstDir); err != nil {
+		t.Fatalf("unexpected error %T: %s", err, err)
+	}
+
+	if err = fileContentsEqual(t, linkTarget, dstPath); err != nil {
+		t.Fatal(err)
+	}
+
+	// Now try again but using a trailing path separator for dstDir.
+
+	if err = os.RemoveAll(dstDir); err != nil {
+		t.Fatalf("unable to remove dstDir: %s", err)
+	}
+
+	if err = os.MkdirAll(dstDir, os.FileMode(0755)); err != nil {
+		t.Fatalf("unable to make dstDir: %s", err)
+	}
+
+	dstDir = joinTrailingSep(tmpDirB, "dir1")
+
+	if err = testCopyHelperFSym(t, srcPath, dstDir); err != nil {
+		t.Fatalf("unexpected error %T: %s", err, err)
+	}
+
+	if err = fileContentsEqual(t, linkTarget, dstPath); err != nil {
+		t.Fatal(err)
+	}
+}
+
 // E. SRC specifies a directory and DST does not exist. This should create a
 //    directory at DST and copy the contents of the SRC directory into the DST
 //    directory. Ensure this works whether DST has a trailing path separator or
@@ -436,6 +564,52 @@ func TestCopyCaseE(t *testing.T) {
 	}
 }
 
+// E. Symbol link following version:
+//    SRC specifies a directory and DST does not exist. This should create a
+//    directory at DST and copy the contents of the SRC directory into the DST
+//    directory. Ensure this works whether DST has a trailing path separator or
+//    not.
+func TestCopyCaseEFSym(t *testing.T) {
+	tmpDirA, tmpDirB := getTestTempDirs(t)
+	defer removeAllPaths(tmpDirA, tmpDirB)
+
+	// Load A with some sample files and directories.
+	createSampleDir(t, tmpDirA)
+
+	srcDir := filepath.Join(tmpDirA, "dirSymlink")
+	linkTarget := filepath.Join(tmpDirA, "dir1")
+	dstDir := filepath.Join(tmpDirB, "testDir")
+
+	var err error
+
+	if err = testCopyHelperFSym(t, srcDir, dstDir); err != nil {
+		t.Fatalf("unexpected error %T: %s", err, err)
+	}
+
+	if err = dirContentsEqual(t, dstDir, linkTarget); err != nil {
+		t.Log("dir contents not equal")
+		logDirContents(t, tmpDirA)
+		logDirContents(t, tmpDirB)
+		t.Fatal(err)
+	}
+
+	// Now try again but using a trailing path separator for dstDir.
+
+	if err = os.RemoveAll(dstDir); err != nil {
+		t.Fatalf("unable to remove dstDir: %s", err)
+	}
+
+	dstDir = joinTrailingSep(tmpDirB, "testDir")
+
+	if err = testCopyHelperFSym(t, srcDir, dstDir); err != nil {
+		t.Fatalf("unexpected error %T: %s", err, err)
+	}
+
+	if err = dirContentsEqual(t, dstDir, linkTarget); err != nil {
+		t.Fatal(err)
+	}
+}
+
 // F. SRC specifies a directory and DST exists as a file. This should cause an
 //    error as it is not possible to overwrite a file with a directory.
 func TestCopyCaseF(t *testing.T) {
@@ -447,11 +621,21 @@ func TestCopyCaseF(t *testing.T) {
 	createSampleDir(t, tmpDirB)
 
 	srcDir := filepath.Join(tmpDirA, "dir1")
+	symSrcDir := filepath.Join(tmpDirA, "dirSymlink")
 	dstFile := filepath.Join(tmpDirB, "file1")
 
 	var err error
 
 	if err = testCopyHelper(t, srcDir, dstFile); err == nil {
+		t.Fatal("expected ErrCannotCopyDir error, but got nil instead")
+	}
+
+	if err != ErrCannotCopyDir {
+		t.Fatalf("expected ErrCannotCopyDir error, but got %T: %s", err, err)
+	}
+
+	// now test with symbol link
+	if err = testCopyHelperFSym(t, symSrcDir, dstFile); err == nil {
 		t.Fatal("expected ErrCannotCopyDir error, but got nil instead")
 	}
 
@@ -506,6 +690,54 @@ func TestCopyCaseG(t *testing.T) {
 	}
 }
 
+// G. Symbol link version:
+//    SRC specifies a directory and DST exists as a directory. This should copy
+//    the SRC directory and all its contents to the DST directory. Ensure this
+//    works whether DST has a trailing path separator or not.
+func TestCopyCaseGFSym(t *testing.T) {
+	tmpDirA, tmpDirB := getTestTempDirs(t)
+	defer removeAllPaths(tmpDirA, tmpDirB)
+
+	// Load A and B with some sample files and directories.
+	createSampleDir(t, tmpDirA)
+	createSampleDir(t, tmpDirB)
+
+	srcDir := filepath.Join(tmpDirA, "dirSymlink")
+	linkTarget := filepath.Join(tmpDirA, "dir1")
+	dstDir := filepath.Join(tmpDirB, "dir2")
+	resultDir := filepath.Join(dstDir, "dirSymlink")
+
+	var err error
+
+	if err = testCopyHelperFSym(t, srcDir, dstDir); err != nil {
+		t.Fatalf("unexpected error %T: %s", err, err)
+	}
+
+	if err = dirContentsEqual(t, resultDir, linkTarget); err != nil {
+		t.Fatal(err)
+	}
+
+	// Now try again but using a trailing path separator for dstDir.
+
+	if err = os.RemoveAll(dstDir); err != nil {
+		t.Fatalf("unable to remove dstDir: %s", err)
+	}
+
+	if err = os.MkdirAll(dstDir, os.FileMode(0755)); err != nil {
+		t.Fatalf("unable to make dstDir: %s", err)
+	}
+
+	dstDir = joinTrailingSep(tmpDirB, "dir2")
+
+	if err = testCopyHelperFSym(t, srcDir, dstDir); err != nil {
+		t.Fatalf("unexpected error %T: %s", err, err)
+	}
+
+	if err = dirContentsEqual(t, resultDir, linkTarget); err != nil {
+		t.Fatal(err)
+	}
+}
+
 // H. SRC specifies a directory's contents only and DST does not exist. This
 //    should create a directory at DST and copy the contents of the SRC
 //    directory (but not the directory itself) into the DST directory. Ensure
@@ -553,6 +785,55 @@ func TestCopyCaseH(t *testing.T) {
 	}
 }
 
+// H. Symbol link following version:
+//    SRC specifies a directory's contents only and DST does not exist. This
+//    should create a directory at DST and copy the contents of the SRC
+//    directory (but not the directory itself) into the DST directory. Ensure
+//    this works whether DST has a trailing path separator or not.
+func TestCopyCaseHFSym(t *testing.T) {
+	tmpDirA, tmpDirB := getTestTempDirs(t)
+	defer removeAllPaths(tmpDirA, tmpDirB)
+
+	// Load A with some sample files and directories.
+	createSampleDir(t, tmpDirA)
+
+	srcDir := joinTrailingSep(tmpDirA, "dirSymlink") + "."
+	linkTarget := filepath.Join(tmpDirA, "dir1")
+	dstDir := filepath.Join(tmpDirB, "testDir")
+
+	var err error
+
+	if err = testCopyHelperFSym(t, srcDir, dstDir); err != nil {
+		t.Fatalf("unexpected error %T: %s", err, err)
+	}
+
+	if err = dirContentsEqual(t, dstDir, linkTarget); err != nil {
+		t.Log("dir contents not equal")
+		logDirContents(t, tmpDirA)
+		logDirContents(t, tmpDirB)
+		t.Fatal(err)
+	}
+
+	// Now try again but using a trailing path separator for dstDir.
+
+	if err = os.RemoveAll(dstDir); err != nil {
+		t.Fatalf("unable to remove dstDir: %s", err)
+	}
+
+	dstDir = joinTrailingSep(tmpDirB, "testDir")
+
+	if err = testCopyHelperFSym(t, srcDir, dstDir); err != nil {
+		t.Fatalf("unexpected error %T: %s", err, err)
+	}
+
+	if err = dirContentsEqual(t, dstDir, linkTarget); err != nil {
+		t.Log("dir contents not equal")
+		logDirContents(t, tmpDirA)
+		logDirContents(t, tmpDirB)
+		t.Fatal(err)
+	}
+}
+
 // I. SRC specifies a directory's contents only and DST exists as a file. This
 //    should cause an error as it is not possible to overwrite a file with a
 //    directory.
@@ -565,11 +846,21 @@ func TestCopyCaseI(t *testing.T) {
 	createSampleDir(t, tmpDirB)
 
 	srcDir := joinTrailingSep(tmpDirA, "dir1") + "."
+	symSrcDir := filepath.Join(tmpDirB, "dirSymlink")
 	dstFile := filepath.Join(tmpDirB, "file1")
 
 	var err error
 
 	if err = testCopyHelper(t, srcDir, dstFile); err == nil {
+		t.Fatal("expected ErrCannotCopyDir error, but got nil instead")
+	}
+
+	if err != ErrCannotCopyDir {
+		t.Fatalf("expected ErrCannotCopyDir error, but got %T: %s", err, err)
+	}
+
+	// now try with symbol link of dir
+	if err = testCopyHelperFSym(t, symSrcDir, dstFile); err == nil {
 		t.Fatal("expected ErrCannotCopyDir error, but got nil instead")
 	}
 
@@ -594,6 +885,11 @@ func TestCopyCaseJ(t *testing.T) {
 	dstDir := filepath.Join(tmpDirB, "dir5")
 
 	var err error
+
+	// first to create an empty dir
+	if err = os.MkdirAll(dstDir, os.FileMode(0755)); err != nil {
+		t.Fatalf("unable to make dstDir: %s", err)
+	}
 
 	if err = testCopyHelper(t, srcDir, dstDir); err != nil {
 		t.Fatalf("unexpected error %T: %s", err, err)
@@ -620,6 +916,59 @@ func TestCopyCaseJ(t *testing.T) {
 	}
 
 	if err = dirContentsEqual(t, dstDir, srcDir); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// J. Symbol link following version:
+//    SRC specifies a directory's contents only and DST exists as a directory.
+//    This should copy the contents of the SRC directory (but not the directory
+//    itself) into the DST directory. Ensure this works whether DST has a
+//    trailing path separator or not.
+func TestCopyCaseJFSym(t *testing.T) {
+	tmpDirA, tmpDirB := getTestTempDirs(t)
+	defer removeAllPaths(tmpDirA, tmpDirB)
+
+	// Load A and B with some sample files and directories.
+	createSampleDir(t, tmpDirA)
+	createSampleDir(t, tmpDirB)
+
+	srcDir := joinTrailingSep(tmpDirA, "dirSymlink") + "."
+	linkTarget := filepath.Join(tmpDirA, "dir1")
+	dstDir := filepath.Join(tmpDirB, "dir5")
+
+	var err error
+
+	// first to create an empty dir
+	if err = os.MkdirAll(dstDir, os.FileMode(0755)); err != nil {
+		t.Fatalf("unable to make dstDir: %s", err)
+	}
+
+	if err = testCopyHelperFSym(t, srcDir, dstDir); err != nil {
+		t.Fatalf("unexpected error %T: %s", err, err)
+	}
+
+	if err = dirContentsEqual(t, dstDir, linkTarget); err != nil {
+		t.Fatal(err)
+	}
+
+	// Now try again but using a trailing path separator for dstDir.
+
+	if err = os.RemoveAll(dstDir); err != nil {
+		t.Fatalf("unable to remove dstDir: %s", err)
+	}
+
+	if err = os.MkdirAll(dstDir, os.FileMode(0755)); err != nil {
+		t.Fatalf("unable to make dstDir: %s", err)
+	}
+
+	dstDir = joinTrailingSep(tmpDirB, "dir5")
+
+	if err = testCopyHelperFSym(t, srcDir, dstDir); err != nil {
+		t.Fatalf("unexpected error %T: %s", err, err)
+	}
+
+	if err = dirContentsEqual(t, dstDir, linkTarget); err != nil {
 		t.Fatal(err)
 	}
 }

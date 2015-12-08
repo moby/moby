@@ -1,3 +1,5 @@
+// +build linux
+
 package fs
 
 import (
@@ -8,13 +10,17 @@ import (
 type NetClsGroup struct {
 }
 
-func (s *NetClsGroup) Apply(d *data) error {
+func (s *NetClsGroup) Name() string {
+	return "net_cls"
+}
+
+func (s *NetClsGroup) Apply(d *cgroupData) error {
 	dir, err := d.join("net_cls")
 	if err != nil && !cgroups.IsNotFound(err) {
 		return err
 	}
 
-	if err := s.Set(dir, d.c); err != nil {
+	if err := s.Set(dir, d.config); err != nil {
 		return err
 	}
 
@@ -31,7 +37,7 @@ func (s *NetClsGroup) Set(path string, cgroup *configs.Cgroup) error {
 	return nil
 }
 
-func (s *NetClsGroup) Remove(d *data) error {
+func (s *NetClsGroup) Remove(d *cgroupData) error {
 	return removePath(d.path("net_cls"))
 }
 

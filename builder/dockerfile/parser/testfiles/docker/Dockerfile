@@ -40,7 +40,6 @@ RUN	apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -yq \
 	libapparmor-dev \
 	libcap-dev \
 	libsqlite3-dev \
-	lxc=1.0* \
 	mercurial \
 	pandoc \
 	parallel \

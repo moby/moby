@@ -181,6 +181,11 @@ func Validate(label string) error {
 	return nil
 }
 
+// RelabelNeeded checks whether the user requested a relabel
+func RelabelNeeded(label string) bool {
+	return strings.Contains(label, "z") || strings.Contains(label, "Z")
+}
+
 // IsShared checks that the label includes a "shared" mark
 func IsShared(label string) bool {
 	return strings.Contains(label, "z")

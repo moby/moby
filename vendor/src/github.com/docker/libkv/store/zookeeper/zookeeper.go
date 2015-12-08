@@ -347,9 +347,15 @@ func (s *Zookeeper) AtomicDelete(key string, previous *store.KVPair) (bool, erro
 
 	err := s.client.Delete(s.normalize(key), int32(previous.LastIndex))
 	if err != nil {
+		// Key not found
+		if err == zk.ErrNoNode {
+			return false, store.ErrKeyNotFound
+		}
+		// Compare failed
 		if err == zk.ErrBadVersion {
 			return false, store.ErrKeyModified
 		}
+		// General store error
 		return false, err
 	}
 	return true, nil

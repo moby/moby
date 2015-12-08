@@ -4,7 +4,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"io"
-	"sync"
 )
 
 type readCloserWrapper struct {
@@ -43,92 +42,6 @@ func NewReaderErrWrapper(r io.Reader, closer func()) io.Reader {
 		reader: r,
 		closer: closer,
 	}
-}
-
-// bufReader allows the underlying reader to continue to produce
-// output by pre-emptively reading from the wrapped reader.
-// This is achieved by buffering this data in bufReader's
-// expanding buffer.
-type bufReader struct {
-	sync.Mutex
-	buf      io.ReadWriter
-	reader   io.Reader
-	err      error
-	wait     sync.Cond
-	drainBuf []byte
-}
-
-// NewBufReader returns a new bufReader.
-func NewBufReader(r io.Reader) io.ReadCloser {
-	reader := &bufReader{
-		buf:      NewBytesPipe(nil),
-		reader:   r,
-		drainBuf: make([]byte, 1024),
-	}
-	reader.wait.L = &reader.Mutex
-	go reader.drain()
-	return reader
-}
-
-// NewBufReaderWithDrainbufAndBuffer returns a BufReader with drainBuffer and buffer.
-func NewBufReaderWithDrainbufAndBuffer(r io.Reader, drainBuffer []byte, buffer io.ReadWriter) io.ReadCloser {
-	reader := &bufReader{
-		buf:      buffer,
-		drainBuf: drainBuffer,
-		reader:   r,
-	}
-	reader.wait.L = &reader.Mutex
-	go reader.drain()
-	return reader
-}
-
-func (r *bufReader) drain() {
-	for {
-		//Call to scheduler is made to yield from this goroutine.
-		//This avoids goroutine looping here when n=0,err=nil, fixes code hangs when run with GCC Go.
-		callSchedulerIfNecessary()
-		n, err := r.reader.Read(r.drainBuf)
-		r.Lock()
-		if err != nil {
-			r.err = err
-		} else {
-			if n == 0 {
-				// nothing written, no need to signal
-				r.Unlock()
-				continue
-			}
-			r.buf.Write(r.drainBuf[:n])
-		}
-		r.wait.Signal()
-		r.Unlock()
-		if err != nil {
-			break
-		}
-	}
-}
-
-func (r *bufReader) Read(p []byte) (n int, err error) {
-	r.Lock()
-	defer r.Unlock()
-	for {
-		n, err = r.buf.Read(p)
-		if n > 0 {
-			return n, err
-		}
-		if r.err != nil {
-			return 0, r.err
-		}
-		r.wait.Wait()
-	}
-}
-
-// Close closes the bufReader
-func (r *bufReader) Close() error {
-	closer, ok := r.reader.(io.ReadCloser)
-	if !ok {
-		return nil
-	}
-	return closer.Close()
 }
 
 // HashData returns the sha256 sum of src.

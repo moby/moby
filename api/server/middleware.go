@@ -1,6 +1,9 @@
 package server
 
 import (
+	"bytes"
+	"encoding/json"
+	"io/ioutil"
 	"net/http"
 	"runtime"
 	"strings"
@@ -8,7 +11,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/server/httputils"
-	"github.com/docker/docker/autogen/dockerversion"
+	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/version"
 	"golang.org/x/net/context"
@@ -18,12 +21,28 @@ import (
 // Any function that has the appropriate signature can be register as a middleware.
 type middleware func(handler httputils.APIFunc) httputils.APIFunc
 
-// loggingMiddleware logs each request when logging is enabled.
-func (s *Server) loggingMiddleware(handler httputils.APIFunc) httputils.APIFunc {
+// debugRequestMiddleware dumps the request to logger
+func debugRequestMiddleware(handler httputils.APIFunc) httputils.APIFunc {
 	return func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-		if s.cfg.Logging {
-			logrus.Infof("%s %s", r.Method, r.RequestURI)
+		logrus.Debugf("%s %s", r.Method, r.RequestURI)
+
+		if r.Method == "POST" {
+			if err := httputils.CheckForJSON(r); err == nil {
+				var buf bytes.Buffer
+				if _, err := buf.ReadFrom(r.Body); err == nil {
+					r.Body.Close()
+					r.Body = ioutil.NopCloser(&buf)
+					var postForm map[string]interface{}
+					if err := json.Unmarshal(buf.Bytes(), &postForm); err == nil {
+						if _, exists := postForm["password"]; exists {
+							postForm["password"] = "*****"
+						}
+						logrus.Debugf("form data: %q", postForm)
+					}
+				}
+			}
 		}
+
 		return handler(ctx, w, r, vars)
 	}
 }
@@ -82,7 +101,7 @@ func versionMiddleware(handler httputils.APIFunc) httputils.APIFunc {
 			return errors.ErrorCodeOldClientVersion.WithArgs(apiVersion, api.Version)
 		}
 
-		w.Header().Set("Server", "Docker/"+dockerversion.VERSION+" ("+runtime.GOOS+")")
+		w.Header().Set("Server", "Docker/"+dockerversion.Version+" ("+runtime.GOOS+")")
 		ctx = context.WithValue(ctx, httputils.APIVersionKey, apiVersion)
 		return handler(ctx, w, r, vars)
 	}
@@ -107,7 +126,11 @@ func (s *Server) handleWithGlobalMiddlewares(handler httputils.APIFunc) httputil
 		versionMiddleware,
 		s.corsMiddleware,
 		s.userAgentMiddleware,
-		s.loggingMiddleware,
+	}
+
+	// Only want this on debug level
+	if s.cfg.Logging && logrus.GetLevel() == logrus.DebugLevel {
+		middlewares = append(middlewares, debugRequestMiddleware)
 	}
 
 	h := handler

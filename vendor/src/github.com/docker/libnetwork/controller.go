@@ -74,7 +74,6 @@ type NetworkController interface {
 	Config() config.Config
 
 	// Create a new network. The options parameter carries network specific options.
-	// Labels support will be added in the near future.
 	NewNetwork(networkType, name string, options ...NetworkOption) (Network, error)
 
 	// Networks returns the list of Network(s) managed by this controller.
@@ -101,6 +100,9 @@ type NetworkController interface {
 	// SandboxByID returns the Sandbox which has the passed id. If not found, a types.NotFoundError is returned.
 	SandboxByID(id string) (Sandbox, error)
 
+	// SandboxDestroy destroys a sandbox given a container ID
+	SandboxDestroy(id string) error
+
 	// Stop network controller
 	Stop()
 }
@@ -126,14 +128,11 @@ type ipamData struct {
 
 type driverTable map[string]*driverData
 
-//type networkTable map[string]*network
-//type endpointTable map[string]*endpoint
 type ipamTable map[string]*ipamData
 type sandboxTable map[string]*sandbox
 
 type controller struct {
-	id string
-	//networks       networkTable
+	id             string
 	drivers        driverTable
 	ipamDrivers    ipamTable
 	sandboxes      sandboxTable
@@ -144,6 +143,9 @@ type controller struct {
 	watchCh        chan *endpoint
 	unWatchCh      chan *endpoint
 	svcDb          map[string]svcMap
+	nmap           map[string]*netWatch
+	defOsSbox      osl.Sandbox
+	sboxOnce       sync.Once
 	sync.Mutex
 }
 
@@ -179,7 +181,7 @@ func New(cfgOptions ...config.Option) (NetworkController, error) {
 		if err := c.initDiscovery(cfg.Cluster.Watcher); err != nil {
 			// Failing to initalize discovery is a bad situation to be in.
 			// But it cannot fail creating the Controller
-			log.Debugf("Failed to Initialize Discovery : %v", err)
+			log.Errorf("Failed to Initialize Discovery : %v", err)
 		}
 	}
 
@@ -193,6 +195,7 @@ func New(cfgOptions ...config.Option) (NetworkController, error) {
 	}
 
 	c.sandboxCleanup()
+	c.cleanupLocalEndpoints()
 
 	if err := c.startExternalKeyListener(); err != nil {
 		return nil, err
@@ -218,7 +221,14 @@ func (c *controller) initDiscovery(watcher discovery.Watcher) error {
 	}
 
 	c.discovery = hostdiscovery.NewHostDiscovery(watcher)
-	return c.discovery.Watch(c.hostJoinCallback, c.hostLeaveCallback)
+	return c.discovery.Watch(c.activeCallback, c.hostJoinCallback, c.hostLeaveCallback)
+}
+
+func (c *controller) activeCallback() {
+	ds := c.getStore(datastore.GlobalScope)
+	if ds != nil && !ds.Active() {
+		ds.RestartWatch()
+	}
 }
 
 func (c *controller) hostJoinCallback(nodes []net.IP) {
@@ -357,7 +367,7 @@ func (c *controller) NewNetwork(networkType, name string, options ...NetworkOpti
 		}
 	}()
 
-	if err := c.addNetwork(network); err != nil {
+	if err = c.addNetwork(network); err != nil {
 		return nil, err
 	}
 	defer func() {
@@ -468,27 +478,37 @@ func (c *controller) NewSandbox(containerID string, options ...SandboxOption) (S
 		return nil, types.BadRequestErrorf("invalid container ID")
 	}
 
-	var existing Sandbox
-	look := SandboxContainerWalker(&existing, containerID)
-	c.WalkSandboxes(look)
-	if existing != nil {
-		return nil, types.BadRequestErrorf("container %s is already present: %v", containerID, existing)
+	var sb *sandbox
+	c.Lock()
+	for _, s := range c.sandboxes {
+		if s.containerID == containerID {
+			// If not a stub, then we already have a complete sandbox.
+			if !s.isStub {
+				c.Unlock()
+				return nil, types.BadRequestErrorf("container %s is already present: %v", containerID, s)
+			}
+
+			// We already have a stub sandbox from the
+			// store. Make use of it so that we don't lose
+			// the endpoints from store but reset the
+			// isStub flag.
+			sb = s
+			sb.isStub = false
+			break
+		}
 	}
+	c.Unlock()
 
 	// Create sandbox and process options first. Key generation depends on an option
-	sb := &sandbox{
-		id:          stringid.GenerateRandomID(),
-		containerID: containerID,
-		endpoints:   epHeap{},
-		epPriority:  map[string]int{},
-		config:      containerConfig{},
-		controller:  c,
-	}
-	// This sandbox may be using an existing osl sandbox, sharing it with another sandbox
-	var peerSb Sandbox
-	c.WalkSandboxes(SandboxKeyWalker(&peerSb, sb.Key()))
-	if peerSb != nil {
-		sb.osSbox = peerSb.(*sandbox).osSbox
+	if sb == nil {
+		sb = &sandbox{
+			id:          stringid.GenerateRandomID(),
+			containerID: containerID,
+			endpoints:   epHeap{},
+			epPriority:  map[string]int{},
+			config:      containerConfig{},
+			controller:  c,
+		}
 	}
 
 	heap.Init(&sb.endpoints)
@@ -497,6 +517,19 @@ func (c *controller) NewSandbox(containerID string, options ...SandboxOption) (S
 
 	if err = sb.setupResolutionFiles(); err != nil {
 		return nil, err
+	}
+
+	if sb.config.useDefaultSandBox {
+		c.sboxOnce.Do(func() {
+			c.defOsSbox, err = osl.NewSandbox(sb.Key(), false)
+		})
+
+		if err != nil {
+			c.sboxOnce = sync.Once{}
+			return nil, fmt.Errorf("failed to create default sandbox: %v", err)
+		}
+
+		sb.osSbox = c.defOsSbox
 	}
 
 	if sb.osSbox == nil && !sb.config.useExternalKey {
@@ -530,6 +563,11 @@ func (c *controller) Sandboxes() []Sandbox {
 
 	list := make([]Sandbox, 0, len(c.sandboxes))
 	for _, s := range c.sandboxes {
+		// Hide stub sandboxes from libnetwork users
+		if s.isStub {
+			continue
+		}
+
 		list = append(list, s)
 	}
 
@@ -555,6 +593,26 @@ func (c *controller) SandboxByID(id string) (Sandbox, error) {
 		return nil, types.NotFoundErrorf("sandbox %s not found", id)
 	}
 	return s, nil
+}
+
+// SandboxDestroy destroys a sandbox given a container ID
+func (c *controller) SandboxDestroy(id string) error {
+	var sb *sandbox
+	c.Lock()
+	for _, s := range c.sandboxes {
+		if s.containerID == id {
+			sb = s
+			break
+		}
+	}
+	c.Unlock()
+
+	// It is not an error if sandbox is not available
+	if sb == nil {
+		return nil
+	}
+
+	return sb.Delete()
 }
 
 // SandboxContainerWalker returns a Sandbox Walker function which looks for an existing Sandbox with the passed containerID

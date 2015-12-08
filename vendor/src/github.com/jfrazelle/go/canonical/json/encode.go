@@ -7,7 +7,7 @@
 // in the documentation for the Marshal and Unmarshal functions.
 //
 // See "JSON and Go" for an introduction to this package:
-// http://golang.org/doc/articles/json_and_go.html
+// https://golang.org/doc/articles/json_and_go.html
 package json
 
 import (
@@ -79,8 +79,8 @@ import (
 //
 // The "string" option signals that a field is stored as JSON inside a
 // JSON-encoded string. It applies only to fields of string, floating point,
-// or integer types. This extra level of encoding is sometimes used when
-// communicating with JavaScript programs:
+// integer, or boolean types. This extra level of encoding is sometimes used
+// when communicating with JavaScript programs:
 //
 //    Int64String int64 `json:",string"`
 //
@@ -113,8 +113,8 @@ import (
 // a JSON tag of "-".
 //
 // Map values encode as JSON objects.
-// The map's key type must be string; the object keys are used directly
-// as map keys.
+// The map's key type must be string; the map keys are used as JSON object
+// keys, subject to the UTF-8 coercion described for string values above.
 //
 // Pointer values encode as the value pointed to.
 // A nil pointer encodes as the null JSON object.
@@ -286,8 +286,6 @@ func (e *encodeState) marshal(v interface{}) (err error) {
 func (e *encodeState) error(err error) {
 	panic(err)
 }
-
-var byteSliceType = reflect.TypeOf([]byte(nil))
 
 func isEmptyValue(v reflect.Value) bool {
 	switch v.Kind() {
@@ -1075,6 +1073,19 @@ func typeFields(t reflect.Type) []field {
 					ft = ft.Elem()
 				}
 
+				// Only strings, floats, integers, and booleans can be quoted.
+				quoted := false
+				if opts.Contains("string") {
+					switch ft.Kind() {
+					case reflect.Bool,
+						reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+						reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
+						reflect.Float32, reflect.Float64,
+						reflect.String:
+						quoted = true
+					}
+				}
+
 				// Record found field and index sequence.
 				if name != "" || !sf.Anonymous || ft.Kind() != reflect.Struct {
 					tagged := name != ""
@@ -1087,7 +1098,7 @@ func typeFields(t reflect.Type) []field {
 						index:     index,
 						typ:       ft,
 						omitEmpty: opts.Contains("omitempty"),
-						quoted:    opts.Contains("string"),
+						quoted:    quoted,
 					}))
 					if count[f.typ] > 1 {
 						// If there were multiple instances, add a second,

@@ -4,10 +4,13 @@ package native
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 	"syscall"
 
 	"github.com/docker/docker/daemon/execdriver"
+	derr "github.com/docker/docker/errors"
+	"github.com/docker/docker/pkg/mount"
 
 	"github.com/opencontainers/runc/libcontainer/apparmor"
 	"github.com/opencontainers/runc/libcontainer/configs"
@@ -16,8 +19,8 @@ import (
 
 // createContainer populates and configures the container type with the
 // data provided by the execdriver.Command
-func (d *Driver) createContainer(c *execdriver.Command, hooks execdriver.Hooks) (*configs.Config, error) {
-	container := execdriver.InitContainer(c)
+func (d *Driver) createContainer(c *execdriver.Command, hooks execdriver.Hooks) (container *configs.Config, err error) {
+	container = execdriver.InitContainer(c)
 
 	if err := d.createIpc(container, c); err != nil {
 		return nil, err
@@ -79,9 +82,17 @@ func (d *Driver) createContainer(c *execdriver.Command, hooks execdriver.Hooks) 
 		container.AppArmorProfile = c.AppArmorProfile
 	}
 
+	if c.SeccompProfile != "" {
+		container.Seccomp, err = loadSeccompProfile(c.SeccompProfile)
+		if err != nil {
+			return nil, err
+		}
+	}
 	if err := execdriver.SetupCgroups(container, c); err != nil {
 		return nil, err
 	}
+
+	container.OomScoreAdj = c.OomScoreAdj
 
 	if container.Readonlyfs {
 		for i := range container.Mounts {
@@ -279,6 +290,7 @@ func (d *Driver) setupMounts(container *configs.Config, c *execdriver.Command) e
 	for _, m := range container.Mounts {
 		if _, ok := userMounts[m.Destination]; !ok {
 			if mountDev && strings.HasPrefix(m.Destination, "/dev/") {
+				container.Devices = nil
 				continue
 			}
 			defaultMounts = append(defaultMounts, m)
@@ -287,6 +299,36 @@ func (d *Driver) setupMounts(container *configs.Config, c *execdriver.Command) e
 	container.Mounts = defaultMounts
 
 	for _, m := range c.Mounts {
+		for _, cm := range container.Mounts {
+			if cm.Destination == m.Destination {
+				return derr.ErrorCodeMountDup.WithArgs(m.Destination)
+			}
+		}
+
+		if m.Source == "tmpfs" {
+			var (
+				data  = "size=65536k"
+				flags = syscall.MS_NOEXEC | syscall.MS_NOSUID | syscall.MS_NODEV
+				err   error
+			)
+			fulldest := filepath.Join(c.Rootfs, m.Destination)
+			if m.Data != "" {
+				flags, data, err = mount.ParseTmpfsOptions(m.Data)
+				if err != nil {
+					return err
+				}
+			}
+			container.Mounts = append(container.Mounts, &configs.Mount{
+				Source:        m.Source,
+				Destination:   m.Destination,
+				Data:          data,
+				Device:        "tmpfs",
+				Flags:         flags,
+				PremountCmds:  genTmpfsPremountCmd(c.TmpDir, fulldest, m.Destination),
+				PostmountCmds: genTmpfsPostmountCmd(c.TmpDir, fulldest, m.Destination),
+			})
+			continue
+		}
 		flags := syscall.MS_BIND | syscall.MS_REC
 		if !m.Writable {
 			flags |= syscall.MS_RDONLY

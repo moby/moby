@@ -3,6 +3,7 @@
 package systemd
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -27,25 +28,40 @@ type Manager struct {
 }
 
 type subsystem interface {
+	// Name returns the name of the subsystem.
+	Name() string
 	// Returns the stats, as 'stats', corresponding to the cgroup under 'path'.
 	GetStats(path string, stats *cgroups.Stats) error
 	// Set the cgroup represented by cgroup.
 	Set(path string, cgroup *configs.Cgroup) error
 }
 
-var subsystems = map[string]subsystem{
-	"devices":      &fs.DevicesGroup{},
-	"memory":       &fs.MemoryGroup{},
-	"cpu":          &fs.CpuGroup{},
-	"cpuset":       &fs.CpusetGroup{},
-	"cpuacct":      &fs.CpuacctGroup{},
-	"blkio":        &fs.BlkioGroup{},
-	"hugetlb":      &fs.HugetlbGroup{},
-	"perf_event":   &fs.PerfEventGroup{},
-	"freezer":      &fs.FreezerGroup{},
-	"net_prio":     &fs.NetPrioGroup{},
-	"net_cls":      &fs.NetClsGroup{},
-	"name=systemd": &fs.NameGroup{},
+var errSubsystemDoesNotExist = errors.New("cgroup: subsystem does not exist")
+
+type subsystemSet []subsystem
+
+func (s subsystemSet) Get(name string) (subsystem, error) {
+	for _, ss := range s {
+		if ss.Name() == name {
+			return ss, nil
+		}
+	}
+	return nil, errSubsystemDoesNotExist
+}
+
+var subsystems = subsystemSet{
+	&fs.CpusetGroup{},
+	&fs.DevicesGroup{},
+	&fs.MemoryGroup{},
+	&fs.CpuGroup{},
+	&fs.CpuacctGroup{},
+	&fs.BlkioGroup{},
+	&fs.HugetlbGroup{},
+	&fs.PerfEventGroup{},
+	&fs.FreezerGroup{},
+	&fs.NetPrioGroup{},
+	&fs.NetClsGroup{},
+	&fs.NameGroup{GroupName: "name=systemd"},
 }
 
 const (
@@ -249,8 +265,8 @@ func (m *Manager) Apply(pid int) error {
 	}
 
 	paths := make(map[string]string)
-	for sysname := range subsystems {
-		subsystemPath, err := getSubsystemPath(m.Cgroups, sysname)
+	for _, s := range subsystems {
+		subsystemPath, err := getSubsystemPath(m.Cgroups, s.Name())
 		if err != nil {
 			// Don't fail if a cgroup hierarchy was not found, just skip this subsystem
 			if cgroups.IsNotFound(err) {
@@ -258,7 +274,7 @@ func (m *Manager) Apply(pid int) error {
 			}
 			return err
 		}
-		paths[sysname] = subsystemPath
+		paths[s.Name()] = subsystemPath
 	}
 	m.Paths = paths
 
@@ -347,8 +363,10 @@ func joinFreezer(c *configs.Cgroup, pid int) error {
 	if err != nil && !cgroups.IsNotFound(err) {
 		return err
 	}
-
-	freezer := subsystems["freezer"]
+	freezer, err := subsystems.Get("freezer")
+	if err != nil {
+		return err
+	}
 	return freezer.Set(path, c)
 }
 
@@ -357,8 +375,10 @@ func joinNetPrio(c *configs.Cgroup, pid int) error {
 	if err != nil && !cgroups.IsNotFound(err) {
 		return err
 	}
-	netPrio := subsystems["net_prio"]
-
+	netPrio, err := subsystems.Get("net_prio")
+	if err != nil {
+		return err
+	}
 	return netPrio.Set(path, c)
 }
 
@@ -367,8 +387,10 @@ func joinNetCls(c *configs.Cgroup, pid int) error {
 	if err != nil && !cgroups.IsNotFound(err) {
 		return err
 	}
-	netcls := subsystems["net_cls"]
-
+	netcls, err := subsystems.Get("net_cls")
+	if err != nil {
+		return err
+	}
 	return netcls.Set(path, c)
 }
 
@@ -396,17 +418,17 @@ func (m *Manager) Freeze(state configs.FreezerState) error {
 	if err != nil {
 		return err
 	}
-
 	prevState := m.Cgroups.Freezer
 	m.Cgroups.Freezer = state
-
-	freezer := subsystems["freezer"]
+	freezer, err := subsystems.Get("freezer")
+	if err != nil {
+		return err
+	}
 	err = freezer.Set(path, m.Cgroups)
 	if err != nil {
 		m.Cgroups.Freezer = prevState
 		return err
 	}
-
 	return nil
 }
 
@@ -423,8 +445,8 @@ func (m *Manager) GetStats() (*cgroups.Stats, error) {
 	defer m.mu.Unlock()
 	stats := cgroups.NewStats()
 	for name, path := range m.Paths {
-		sys, ok := subsystems[name]
-		if !ok || !cgroups.PathExists(path) {
+		sys, err := subsystems.Get(name)
+		if err == errSubsystemDoesNotExist || !cgroups.PathExists(path) {
 			continue
 		}
 		if err := sys.GetStats(path, stats); err != nil {
@@ -437,8 +459,8 @@ func (m *Manager) GetStats() (*cgroups.Stats, error) {
 
 func (m *Manager) Set(container *configs.Config) error {
 	for name, path := range m.Paths {
-		sys, ok := subsystems[name]
-		if !ok || !cgroups.PathExists(path) {
+		sys, err := subsystems.Get(name)
+		if err == errSubsystemDoesNotExist || !cgroups.PathExists(path) {
 			continue
 		}
 		if err := sys.Set(path, container.Cgroups); err != nil {
@@ -471,8 +493,10 @@ func joinDevices(c *configs.Cgroup, pid int) error {
 	if err != nil {
 		return err
 	}
-
-	devices := subsystems["devices"]
+	devices, err := subsystems.Get("devices")
+	if err != nil {
+		return err
+	}
 	return devices.Set(path, c)
 }
 
@@ -600,8 +624,10 @@ func joinHugetlb(c *configs.Cgroup, pid int) error {
 	if err != nil && !cgroups.IsNotFound(err) {
 		return err
 	}
-
-	hugetlb := subsystems["hugetlb"]
+	hugetlb, err := subsystems.Get("hugetlb")
+	if err != nil {
+		return err
+	}
 	return hugetlb.Set(path, c)
 }
 
@@ -610,7 +636,9 @@ func joinPerfEvent(c *configs.Cgroup, pid int) error {
 	if err != nil && !cgroups.IsNotFound(err) {
 		return err
 	}
-
-	perfEvent := subsystems["perf_event"]
+	perfEvent, err := subsystems.Get("perf_event")
+	if err != nil {
+		return err
+	}
 	return perfEvent.Set(path, c)
 }

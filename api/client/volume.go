@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 	"net/url"
 	"text/tabwriter"
 	"text/template"
@@ -54,7 +55,7 @@ func (cli *DockerCli) CmdVolumeLs(args ...string) error {
 	cmd.Require(flag.Exact, 0)
 	cmd.ParseFlags(args, true)
 
-	volFilterArgs := filters.Args{}
+	volFilterArgs := filters.NewArgs()
 	for _, f := range flFilter.GetAll() {
 		var err error
 		volFilterArgs, err = filters.ParseFlag(f, volFilterArgs)
@@ -64,7 +65,7 @@ func (cli *DockerCli) CmdVolumeLs(args ...string) error {
 	}
 
 	v := url.Values{}
-	if len(volFilterArgs) > 0 {
+	if volFilterArgs.Len() > 0 {
 		filterJSON, err := filters.ToParam(volFilterArgs)
 		if err != nil {
 			return err
@@ -124,17 +125,23 @@ func (cli *DockerCli) CmdVolumeInspect(args ...string) error {
 
 	var status = 0
 	var volumes []*types.Volume
+
 	for _, name := range cmd.Args() {
 		resp, err := cli.call("GET", "/volumes/"+name, nil, nil)
 		if err != nil {
-			return err
+			if resp.statusCode != http.StatusNotFound {
+				return err
+			}
+			status = 1
+			fmt.Fprintf(cli.err, "Error: No such volume: %s\n", name)
+			continue
 		}
 
 		var volume types.Volume
 		if err := json.NewDecoder(resp.body).Decode(&volume); err != nil {
-			fmt.Fprintf(cli.err, "%s\n", err)
+			fmt.Fprintf(cli.err, "Unable to read inspect data: %v\n", err)
 			status = 1
-			continue
+			break
 		}
 
 		if tmpl == nil {
@@ -142,29 +149,28 @@ func (cli *DockerCli) CmdVolumeInspect(args ...string) error {
 			continue
 		}
 
-		if err := tmpl.Execute(cli.out, &volume); err != nil {
-			if err := tmpl.Execute(cli.out, &volume); err != nil {
-				fmt.Fprintf(cli.err, "%s\n", err)
-				status = 1
-				continue
-			}
+		buf := bytes.NewBufferString("")
+		if err := tmpl.Execute(buf, &volume); err != nil {
+			fmt.Fprintf(cli.err, "Template parsing error: %v\n", err)
+			status = 1
+			break
+		}
+
+		cli.out.Write(buf.Bytes())
+		cli.out.Write([]byte{'\n'})
+	}
+
+	if tmpl == nil {
+		b, err := json.MarshalIndent(volumes, "", "    ")
+		if err != nil {
+			return err
+		}
+		_, err = io.Copy(cli.out, bytes.NewReader(b))
+		if err != nil {
+			return err
 		}
 		io.WriteString(cli.out, "\n")
 	}
-
-	if tmpl != nil {
-		return nil
-	}
-
-	b, err := json.MarshalIndent(volumes, "", "    ")
-	if err != nil {
-		return err
-	}
-	_, err = io.Copy(cli.out, bytes.NewReader(b))
-	if err != nil {
-		return err
-	}
-	io.WriteString(cli.out, "\n")
 
 	if status != 0 {
 		return Cli.StatusError{StatusCode: status}
@@ -195,7 +201,7 @@ func (cli *DockerCli) CmdVolumeCreate(args ...string) error {
 		volReq.Name = *flName
 	}
 
-	resp, err := cli.call("POST", "/volumes", volReq, nil)
+	resp, err := cli.call("POST", "/volumes/create", volReq, nil)
 	if err != nil {
 		return err
 	}

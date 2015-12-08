@@ -109,7 +109,6 @@ running a Docker daemon with experimental user namespaces enabled:
  - A `--readonly` container filesystem (a Linux kernel restriction on remount with new flags of a currently mounted filesystem when inside a user namespace)
  - external (volume/graph) drivers which are unaware/incapable of using daemon user mappings
  - Using `--privileged` mode containers
- - Using the lxc execdriver (only the `native` execdriver is enabled to use user namespaces)
  - volume use without pre-arranging proper file ownership in mounted volumes
 
 Additionally, while the `root` user inside a user namespaced container

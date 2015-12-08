@@ -10,8 +10,11 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/server/router"
+	"github.com/docker/docker/api/server/router/container"
 	"github.com/docker/docker/api/server/router/local"
 	"github.com/docker/docker/api/server/router/network"
+	"github.com/docker/docker/api/server/router/system"
+	"github.com/docker/docker/api/server/router/volume"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/pkg/sockets"
 	"github.com/docker/docker/utils"
@@ -37,7 +40,6 @@ type Config struct {
 // Server contains instance details for the server
 type Server struct {
 	cfg     *Config
-	start   chan struct{}
 	servers []*HTTPServer
 	routers []router.Router
 }
@@ -52,8 +54,7 @@ type Addr struct {
 // It allocates resources which will be needed for ServeAPI(ports, unix-sockets).
 func New(cfg *Config) (*Server, error) {
 	s := &Server{
-		cfg:   cfg,
-		start: make(chan struct{}),
+		cfg: cfg,
 	}
 	for _, addr := range cfg.Addrs {
 		srv, err := s.newServer(addr.Proto, addr.Addr)
@@ -76,10 +77,11 @@ func (s *Server) Close() {
 }
 
 // ServeAPI loops through all initialized servers and spawns goroutine
-// with Serve() method for each.
+// with Server method for each. It sets CreateMux() as Handler also.
 func (s *Server) ServeAPI() error {
 	var chErrors = make(chan error, len(s.servers))
 	for _, srv := range s.servers {
+		srv.srv.Handler = s.CreateMux()
 		go func(srv *HTTPServer) {
 			var err error
 			logrus.Infof("API listen on %s", srv.l.Addr())
@@ -129,7 +131,7 @@ func (s *Server) initTCPSocket(addr string) (l net.Listener, err error) {
 	if s.cfg.TLSConfig == nil || s.cfg.TLSConfig.ClientAuth != tls.RequireAndVerifyClientCert {
 		logrus.Warn("/!\\ DON'T BIND ON ANY IP ADDRESS WITHOUT setting -tlsverify IF YOU DON'T KNOW WHAT YOU'RE DOING /!\\")
 	}
-	if l, err = sockets.NewTCPSocket(addr, s.cfg.TLSConfig, s.start); err != nil {
+	if l, err = sockets.NewTCPSocket(addr, s.cfg.TLSConfig); err != nil {
 		return nil, err
 	}
 	if err := allocateDaemonPort(addr); err != nil {
@@ -153,7 +155,12 @@ func (s *Server) makeHTTPHandler(handler httputils.APIFunc) http.HandlerFunc {
 		ctx := context.Background()
 		handlerFunc := s.handleWithGlobalMiddlewares(handler)
 
-		if err := handlerFunc(ctx, w, r, mux.Vars(r)); err != nil {
+		vars := mux.Vars(r)
+		if vars == nil {
+			vars = make(map[string]string)
+		}
+
+		if err := handlerFunc(ctx, w, r, vars); err != nil {
 			logrus.Errorf("Handler for %s %s returned error: %s", r.Method, r.URL.Path, utils.GetErrorMessage(err))
 			httputils.WriteError(w, err)
 		}
@@ -161,13 +168,12 @@ func (s *Server) makeHTTPHandler(handler httputils.APIFunc) http.HandlerFunc {
 }
 
 // InitRouters initializes a list of routers for the server.
-// Sets those routers as Handler for each server.
 func (s *Server) InitRouters(d *daemon.Daemon) {
+	s.addRouter(container.NewRouter(d))
 	s.addRouter(local.NewRouter(d))
 	s.addRouter(network.NewRouter(d))
-	for _, srv := range s.servers {
-		srv.srv.Handler = s.CreateMux()
-	}
+	s.addRouter(system.NewRouter(d))
+	s.addRouter(volume.NewRouter(d))
 }
 
 // addRouter adds a new router to the server.
@@ -195,16 +201,4 @@ func (s *Server) CreateMux() *mux.Router {
 	}
 
 	return m
-}
-
-// AcceptConnections allows clients to connect to the API server.
-// Referenced Daemon is notified about this server, and waits for the
-// daemon acknowledgement before the incoming connections are accepted.
-func (s *Server) AcceptConnections() {
-	// close the lock so the listeners start accepting connections
-	select {
-	case <-s.start:
-	default:
-		close(s.start)
-	}
 }

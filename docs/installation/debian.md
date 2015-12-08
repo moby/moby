@@ -51,7 +51,7 @@ from the new repository:
 
  4. Add the new `gpg` key.
 
-         $ apt-key adv --keyserver hkp://pgp.mit.edu:80 --recv-keys 58118E89F3A912897C070ADBF76221572C52609D
+         $ apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys 58118E89F3A912897C070ADBF76221572C52609D
 
  5. Open the `/etc/apt/sources.list.d/docker.list` file in your favorite editor.
 
@@ -63,12 +63,22 @@ from the new repository:
 
      The possible entries are:
 
-         # Debian Wheezy
-        deb https://apt.dockerproject.org/repo debian-wheezy main
-        # Debian Jessie
-        deb https://apt.dockerproject.org/repo debian-jessie main
-        # Debian Stretch/Sid
-        deb https://apt.dockerproject.org/repo debian-stretch main
+    - On Debian Wheezy
+
+            deb https://apt.dockerproject.org/repo debian-wheezy main
+
+    - On Debian Jessie
+
+            deb https://apt.dockerproject.org/repo debian-jessie main
+
+    - On Debian Stretch/Sid
+
+            deb https://apt.dockerproject.org/repo debian-stretch main
+
+    > **Note**: Docker does not provide packages for all architectures. To install docker on
+    > a multi-architecture system, add an `[arch=...]` clause to the entry. Refer to the
+    > [Debian Multiarch wiki](https://wiki.debian.org/Multiarch/HOWTO#Setting_up_apt_sources)
+    > for details.
 
  8. Save and close the file.
 
@@ -165,4 +175,4 @@ You must delete the user created configuration files manually.
 
 ## What next?
 
-Continue with the [User Guide](../userguide/).
+Continue with the [User Guide](../userguide/index.md).

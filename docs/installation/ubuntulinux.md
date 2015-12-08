@@ -49,13 +49,13 @@ your `apt` sources to the new Docker repository.
 Docker's `apt` repository contains Docker 1.7.1 and higher. To set `apt` to use
 packages from the new repository:
 
-1. If you haven't already done so, log into your Ubuntu instance.
+1. If you haven't already done so, log into your Ubuntu instance as a privileged user.
 
 2. Open a terminal window.
 
 3. Add the new `gpg` key.
 
-        $ apt-key adv --keyserver hkp://pgp.mit.edu:80 --recv-keys 58118E89F3A912897C070ADBF76221572C52609D
+        $ sudo apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys 58118E89F3A912897C070ADBF76221572C52609D
 
 4. Open the `/etc/apt/sources.list.d/docker.list` file in your favorite editor.
 
@@ -67,14 +67,26 @@ packages from the new repository:
 
     The possible entries are:
 
-        # Ubuntu Precise
-        deb https://apt.dockerproject.org/repo ubuntu-precise main
-        # Ubuntu Trusty
-        deb https://apt.dockerproject.org/repo ubuntu-trusty main
-        # Ubuntu Vivid
-        deb https://apt.dockerproject.org/repo ubuntu-vivid main
-        # Ubuntu Wily
-        deb https://apt.dockerproject.org/repo ubuntu-wily main
+    - On Ubuntu Precise 12.04 (LTS)
+
+            deb https://apt.dockerproject.org/repo ubuntu-precise main
+
+    - On Ubuntu Trusty 14.04 (LTS)
+
+            deb https://apt.dockerproject.org/repo ubuntu-trusty main
+
+    - On Ubuntu Vivid 15.04
+
+            deb https://apt.dockerproject.org/repo ubuntu-vivid main
+
+    - Ubuntu Wily 15.10
+
+            deb https://apt.dockerproject.org/repo ubuntu-wily main
+
+    > **Note**: Docker does not provide packages for all architectures. To install docker on
+    > a multi-architecture system, add an `[arch=...]` clause to the entry. Refer to the
+    > [Debian Multiarch wiki](https://wiki.debian.org/Multiarch/HOWTO#Setting_up_apt_sources)
+    > for details.
 
 7. Save and close the `/etc/apt/sources.list.d/docker.list` file.
 
@@ -84,7 +96,7 @@ packages from the new repository:
 
 9. Purge the old repo if it exists.
 
-        $ apt-get purge lxc-docker*
+        $ apt-get purge lxc-docker
 
 10. Verify that `apt` is pulling from the right repository.
 
@@ -94,11 +106,31 @@ packages from the new repository:
 
 ### Prerequisites by Ubuntu Version
 
-The following Ubuntu versions have no additional prerequisites:
-
 - Ubuntu Wily 15.10
 - Ubuntu Vivid 15.04
 - Ubuntu Trusty 14.04 (LTS)
+
+For Ubuntu Trusty, Vivid, and Wily, it's recommended to install the
+`linux-image-extra` kernel package. The `linux-image-extra` package
+allows you use the `aufs` storage driver.
+
+To install the `linux-image-extra` package for your kernel version:
+
+1. Open a terminal on your Ubuntu host.
+
+2. Update your package manager.
+
+        $ sudo apt-get update
+
+3. Install the recommended package.
+
+        $ sudo apt-get install linux-image-extra-$(uname -r)
+
+4. Go ahead and install Docker.
+
+If you are installing on Ubuntu 14.04 or 12.04, `apparmor` is required.  You can install it using: `apt-get install apparmor`
+
+#### Ubuntu Precise 12.04 (LTS)
 
 For Ubuntu Precise, Docker requires the 3.13 kernel version. If your kernel
 version is older than 3.13, you must upgrade it. Refer to this table to see
@@ -146,11 +178,11 @@ To upgrade your kernel and install the additional packages, do the following:
 
 5. After your system reboots, go ahead and install Docker.
 
-
-
 ## Install
 
-Make sure you have installed the prerequisites for your Ubuntu version. Then,
+Make sure you have installed the prerequisites for your Ubuntu version.
+
+Then,
 install Docker using the following:
 
 1. Log into your Ubuntu installation as a user with `sudo` privileges.
@@ -316,6 +348,12 @@ Instead, Docker defaults to using an external nameserver.
 To avoid this warning, you can specify a DNS server for use by Docker
 containers. Or, you can disable `dnsmasq` in NetworkManager. Though, disabling
 `dnsmasq` might make DNS resolution slower on some networks.
+
+The instructions below describe how to configure the Docker daemon
+running on Ubuntu 14.10 or below. Ubuntu 15.04 and above use `systemd`
+as the boot and service manager. Refer to [control and configure Docker
+with systemd](../articles/systemd.md#custom-docker-daemon-options) to
+configure a daemon controlled by `systemd`.
 
 To specify a DNS server for use by Docker:
 

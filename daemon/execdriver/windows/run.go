@@ -2,17 +2,13 @@
 
 package windows
 
-// Note this is alpha code for the bring up of containers on Windows.
-
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
-	"syscall"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/execdriver"
@@ -60,18 +56,27 @@ type device struct {
 	Settings   interface{}
 }
 
+type mappedDir struct {
+	HostPath      string
+	ContainerPath string
+	ReadOnly      bool
+}
+
 type containerInit struct {
-	SystemType              string   // HCS requires this to be hard-coded to "Container"
-	Name                    string   // Name of the container. We use the docker ID.
-	Owner                   string   // The management platform that created this container
-	IsDummy                 bool     // Used for development purposes.
-	VolumePath              string   // Windows volume path for scratch space
-	Devices                 []device // Devices used by the container
-	IgnoreFlushesDuringBoot bool     // Optimisation hint for container startup in Windows
-	LayerFolderPath         string   // Where the layer folders are located
-	Layers                  []layer  // List of storage layers
-	ProcessorWeight         int64    // CPU Shares 1..9 on Windows; or 0 is platform default.
-	HostName                string   // Hostname
+	SystemType              string      // HCS requires this to be hard-coded to "Container"
+	Name                    string      // Name of the container. We use the docker ID.
+	Owner                   string      // The management platform that created this container
+	IsDummy                 bool        // Used for development purposes.
+	VolumePath              string      // Windows volume path for scratch space
+	Devices                 []device    // Devices used by the container
+	IgnoreFlushesDuringBoot bool        // Optimisation hint for container startup in Windows
+	LayerFolderPath         string      // Where the layer folders are located
+	Layers                  []layer     // List of storage layers
+	ProcessorWeight         int64       `json:",omitempty"` // CPU Shares 0..10000 on Windows; where 0 will be ommited and HCS will default.
+	HostName                string      // Hostname
+	MappedDirectories       []mappedDir // List of mapped directories (volumes/mounts)
+	SandboxPath             string      // Location of unmounted sandbox (used for Hyper-V containers, not Windows Server containers)
+	HvPartition             bool        // True if it a Hyper-V Container
 }
 
 // defaultOwner is a tag passed to HCS to allow it to differentiate between
@@ -87,12 +92,6 @@ func (d *Driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, hooks execd
 		err  error
 	)
 
-	// Make sure the client isn't asking for options which aren't supported
-	err = checkSupportedOptions(c)
-	if err != nil {
-		return execdriver.ExitStatus{ExitCode: -1}, err
-	}
-
 	cu := &containerInit{
 		SystemType:              "Container",
 		Name:                    c.ID,
@@ -105,17 +104,43 @@ func (d *Driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, hooks execd
 		HostName:                c.Hostname,
 	}
 
-	for i := 0; i < len(c.LayerPaths); i++ {
-		_, filename := filepath.Split(c.LayerPaths[i])
+	// Work out the isolation (whether it is a hypervisor partition)
+	if c.Isolation.IsDefault() {
+		// Not specified by caller. Take daemon default
+		cu.HvPartition = defaultIsolation.IsHyperV()
+	} else {
+		// Take value specified by caller
+		cu.HvPartition = c.Isolation.IsHyperV()
+	}
+
+	if cu.HvPartition {
+		cu.SandboxPath = filepath.Dir(c.LayerFolder)
+	} else {
+		cu.VolumePath = c.Rootfs
+		cu.LayerFolderPath = c.LayerFolder
+	}
+
+	for _, layerPath := range c.LayerPaths {
+		_, filename := filepath.Split(layerPath)
 		g, err := hcsshim.NameToGuid(filename)
 		if err != nil {
 			return execdriver.ExitStatus{ExitCode: -1}, err
 		}
 		cu.Layers = append(cu.Layers, layer{
 			ID:   g.ToString(),
-			Path: c.LayerPaths[i],
+			Path: layerPath,
 		})
 	}
+
+	// Add the mounts (volumes, bind mounts etc) to the structure
+	mds := make([]mappedDir, len(c.Mounts))
+	for i, mount := range c.Mounts {
+		mds[i] = mappedDir{
+			HostPath:      mount.Source,
+			ContainerPath: mount.Destination,
+			ReadOnly:      !mount.Writable}
+	}
+	cu.MappedDirectories = mds
 
 	// TODO Windows. At some point, when there is CLI on docker run to
 	// enable the IP Address of the container to be passed into docker run,
@@ -220,22 +245,19 @@ func (d *Driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, hooks execd
 	}
 	defer func() {
 		// Stop the container
-
-		if terminateMode {
-			logrus.Debugf("Terminating container %s", c.ID)
-			if err := hcsshim.TerminateComputeSystem(c.ID); err != nil {
-				// IMPORTANT: Don't fail if fails to change state. It could already
-				// have been stopped through kill().
-				// Otherwise, the docker daemon will hang in job wait()
-				logrus.Warnf("Ignoring error from TerminateComputeSystem %s", err)
+		if forceKill {
+			logrus.Debugf("Forcibly terminating container %s", c.ID)
+			if errno, err := hcsshim.TerminateComputeSystem(c.ID, hcsshim.TimeoutInfinite, "exec-run-defer"); err != nil {
+				logrus.Warnf("Ignoring error from TerminateComputeSystem 0x%X %s", errno, err)
 			}
 		} else {
 			logrus.Debugf("Shutting down container %s", c.ID)
-			if err := hcsshim.ShutdownComputeSystem(c.ID); err != nil {
-				// IMPORTANT: Don't fail if fails to change state. It could already
-				// have been stopped through kill().
-				// Otherwise, the docker daemon will hang in job wait()
-				logrus.Warnf("Ignoring error from ShutdownComputeSystem %s", err)
+			if errno, err := hcsshim.ShutdownComputeSystem(c.ID, hcsshim.TimeoutInfinite, "exec-run-defer"); err != nil {
+				if errno != hcsshim.Win32SystemShutdownIsInProgress &&
+					errno != hcsshim.Win32SpecifiedPathInvalid &&
+					errno != hcsshim.Win32SystemCannotFindThePathSpecified {
+					logrus.Warnf("Ignoring error from ShutdownComputeSystem 0x%X %s", errno, err)
+				}
 			}
 		}
 	}()
@@ -249,24 +271,14 @@ func (d *Driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, hooks execd
 	// Configure the environment for the process
 	createProcessParms.Environment = setupEnvironmentVariables(c.ProcessConfig.Env)
 
-	// This should get caught earlier, but just in case - validate that we
-	// have something to run
-	if c.ProcessConfig.Entrypoint == "" {
-		err = errors.New("No entrypoint specified")
-		logrus.Error(err)
+	createProcessParms.CommandLine, err = createCommandLine(&c.ProcessConfig, c.ArgsEscaped)
+
+	if err != nil {
 		return execdriver.ExitStatus{ExitCode: -1}, err
 	}
 
-	// Build the command line of the process
-	createProcessParms.CommandLine = c.ProcessConfig.Entrypoint
-	for _, arg := range c.ProcessConfig.Arguments {
-		logrus.Debugln("appending ", arg)
-		createProcessParms.CommandLine += " " + syscall.EscapeArg(arg)
-	}
-	logrus.Debugf("CommandLine: %s", createProcessParms.CommandLine)
-
 	// Start the command running in the container.
-	pid, stdin, stdout, stderr, err := hcsshim.CreateProcessInComputeSystem(c.ID, pipes.Stdin != nil, true, !c.ProcessConfig.Tty, createProcessParms)
+	pid, stdin, stdout, stderr, _, err := hcsshim.CreateProcessInComputeSystem(c.ID, pipes.Stdin != nil, true, !c.ProcessConfig.Tty, createProcessParms)
 	if err != nil {
 		logrus.Errorf("CreateProcessInComputeSystem() failed %s", err)
 		return execdriver.ExitStatus{ExitCode: -1}, err
@@ -303,11 +315,20 @@ func (d *Driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, hooks execd
 		hooks.Start(&c.ProcessConfig, int(pid), chOOM)
 	}
 
-	var exitCode int32
-	exitCode, err = hcsshim.WaitForProcessInComputeSystem(c.ID, pid)
+	var (
+		exitCode int32
+		errno    uint32
+	)
+	exitCode, errno, err = hcsshim.WaitForProcessInComputeSystem(c.ID, pid, hcsshim.TimeoutInfinite)
 	if err != nil {
-		logrus.Errorf("Failed to WaitForProcessInComputeSystem %s", err)
-		return execdriver.ExitStatus{ExitCode: -1}, err
+		if errno != hcsshim.Win32PipeHasBeenEnded {
+			logrus.Warnf("WaitForProcessInComputeSystem failed (container may have been killed): %s", err)
+		}
+		// Do NOT return err here as the container would have
+		// started, otherwise docker will deadlock. It's perfectly legitimate
+		// for WaitForProcessInComputeSystem to fail in situations such
+		// as the container being killed on another thread.
+		return execdriver.ExitStatus{ExitCode: hcsshim.WaitErrExecFailed}, nil
 	}
 
 	logrus.Debugf("Exiting Run() exitCode %d id=%s", exitCode, c.ID)

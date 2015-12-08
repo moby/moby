@@ -13,7 +13,6 @@ import (
 	"github.com/docker/distribution/registry/api/errcode"
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/pkg/version"
-	"github.com/docker/docker/utils"
 )
 
 // APIVersionKey is the client's requested API version.
@@ -155,7 +154,6 @@ func WriteError(w http.ResponseWriter, err error) {
 		statusCode = http.StatusInternalServerError
 	}
 
-	logrus.WithFields(logrus.Fields{"statusCode": statusCode, "err": utils.GetErrorMessage(err)}).Error("HTTP Error")
 	http.Error(w, errMsg, statusCode)
 }
 
