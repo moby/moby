@@ -2,7 +2,7 @@
 +++
 title = "Installation on Gentoo"
 description = "Installation instructions for Docker on Gentoo."
-keywords = ["gentoo linux, virtualization, docker, documentation,  installation"]
+keywords = ["gentoo linux, docker, documentation,  installation"]
 [menu.main]
 parent = "smn_linux"
 +++

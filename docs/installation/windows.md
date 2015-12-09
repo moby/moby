@@ -25,9 +25,9 @@ You install Docker using Docker Toolbox. Docker Toolbox includes the following D
 Because the Docker daemon uses Linux-specific kernel features, you can't run
 Docker natively in Windows. Instead, you must use `docker-machine` to create and attach to a Docker VM on your machine. This VM hosts Docker for you on your Windows system.
 
-The Docker VM is lightweight Linux virtual machine made specifically to run the
-Docker daemon on Windows. The VirtualBox VM runs completely from RAM, is a
-small ~24MB download, and boots in approximately 5s.
+The virtual machine runs a lightweight Linux distribution made specifically to
+run the Docker daemon. The VirtualBox VM runs completely from RAM, is a small
+~24MB download, and boots in approximately 5s.
 
 ## Requirements
 

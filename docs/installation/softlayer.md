@@ -2,7 +2,7 @@
 +++
 title = "Installation on IBM SoftLayer "
 description = "Installation instructions for Docker on IBM Softlayer."
-keywords = ["IBM SoftLayer, virtualization, cloud, docker, documentation,  installation"]
+keywords = ["IBM SoftLayer, cloud, docker, documentation,  installation"]
 [menu.main]
 parent = "smn_cloud"
 +++

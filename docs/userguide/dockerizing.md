@@ -2,7 +2,7 @@
 +++
 title = "Hello world in a container"
 description = "A simple 'Hello world' exercise that introduced you to Docker."
-keywords = ["docker guide, docker, docker platform, virtualization framework, how to, dockerize, dockerizing apps, dockerizing applications, container,  containers"]
+keywords = ["docker guide, docker, docker platform, how to, dockerize, dockerizing apps, dockerizing applications, container,  containers"]
 [menu.main]
 parent="smn_containers"
 weight=-6
