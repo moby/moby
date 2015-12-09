@@ -122,6 +122,7 @@ func customFormat(ctx Context, containers []types.Container) {
 			header = containerCtx.fullHeader()
 		}
 		buffer.WriteString("\n")
+		
 	}
 
 	if table {
