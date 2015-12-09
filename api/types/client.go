@@ -8,6 +8,7 @@ import (
 	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/pkg/parsers/filters"
 	"github.com/docker/docker/pkg/ulimit"
+	"github.com/docker/docker/runconfig"
 )
 
 // ContainerAttachOptions holds parameters to attach to a container.
@@ -28,7 +29,7 @@ type ContainerCommitOptions struct {
 	Author         string
 	Changes        []string
 	Pause          bool
-	JSONConfig     string
+	Config         *runconfig.Config
 }
 
 // ContainerExecInspect holds information returned by exec inspect.

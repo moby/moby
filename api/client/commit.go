@@ -1,6 +1,7 @@
 package client
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -10,6 +11,7 @@ import (
 	"github.com/docker/docker/opts"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/registry"
+	"github.com/docker/docker/runconfig"
 )
 
 // CmdCommit creates a new image from a container's changes.
@@ -56,6 +58,14 @@ func (cli *DockerCli) CmdCommit(args ...string) error {
 		}
 	}
 
+	var config *runconfig.Config
+	if *flConfig != "" {
+		config = &runconfig.Config{}
+		if err := json.Unmarshal([]byte(*flConfig), config); err != nil {
+			return err
+		}
+	}
+
 	options := types.ContainerCommitOptions{
 		ContainerID:    name,
 		RepositoryName: repositoryName,
@@ -64,7 +74,7 @@ func (cli *DockerCli) CmdCommit(args ...string) error {
 		Author:         *flAuthor,
 		Changes:        flChanges.GetAll(),
 		Pause:          *flPause,
-		JSONConfig:     *flConfig,
+		Config:         config,
 	}
 
 	response, err := cli.client.ContainerCommit(options)
