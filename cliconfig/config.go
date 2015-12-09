@@ -54,6 +54,15 @@ type AuthConfig struct {
 	RegistryToken string `json:"registrytoken,omitempty"`
 }
 
+// EncodeToBase64 serializes the auth configuration as JSON base64 payload
+func (a AuthConfig) EncodeToBase64() (string, error) {
+	buf, err := json.Marshal(a)
+	if err != nil {
+		return "", err
+	}
+	return base64.URLEncoding.EncodeToString(buf), nil
+}
+
 // ConfigFile ~/.docker/config.json file info
 type ConfigFile struct {
 	AuthConfigs map[string]AuthConfig `json:"auths"`
@@ -192,7 +201,14 @@ func Load(configDir string) (*ConfigFile, error) {
 	}
 	defer file.Close()
 	err = configFile.LegacyLoadFromReader(file)
-	return &configFile, err
+	if err != nil {
+		return &configFile, err
+	}
+
+	if configFile.HTTPHeaders == nil {
+		configFile.HTTPHeaders = map[string]string{}
+	}
+	return &configFile, nil
 }
 
 // SaveToWriter encodes and writes out all the authorization information to

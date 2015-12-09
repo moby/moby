@@ -1,15 +1,13 @@
 package client
 
 import (
-	"encoding/json"
 	"fmt"
-	"net/url"
-	"time"
+	"io"
 
 	"github.com/docker/docker/api/types"
 	Cli "github.com/docker/docker/cli"
 	flag "github.com/docker/docker/pkg/mflag"
-	"github.com/docker/docker/pkg/timeutils"
+	"github.com/docker/docker/pkg/stdcopy"
 )
 
 var validDrivers = map[string]bool{
@@ -32,13 +30,8 @@ func (cli *DockerCli) CmdLogs(args ...string) error {
 
 	name := cmd.Arg(0)
 
-	serverResp, err := cli.call("GET", "/containers/"+name+"/json", nil, nil)
+	c, err := cli.client.ContainerInspect(name)
 	if err != nil {
-		return err
-	}
-
-	var c types.ContainerJSON
-	if err := json.NewDecoder(serverResp.body).Decode(&c); err != nil {
 		return err
 	}
 
@@ -46,33 +39,25 @@ func (cli *DockerCli) CmdLogs(args ...string) error {
 		return fmt.Errorf("\"logs\" command is supported only for \"json-file\" and \"journald\" logging drivers (got: %s)", c.HostConfig.LogConfig.Type)
 	}
 
-	v := url.Values{}
-	v.Set("stdout", "1")
-	v.Set("stderr", "1")
-
-	if *since != "" {
-		ts, err := timeutils.GetTimestamp(*since, time.Now())
-		if err != nil {
-			return err
-		}
-		v.Set("since", ts)
+	options := types.ContainerLogsOptions{
+		ContainerID: name,
+		ShowStdout:  true,
+		ShowStderr:  true,
+		Since:       *since,
+		Timestamps:  *times,
+		Follow:      *follow,
+		Tail:        *tail,
 	}
-
-	if *times {
-		v.Set("timestamps", "1")
+	responseBody, err := cli.client.ContainerLogs(options)
+	if err != nil {
+		return err
 	}
+	defer responseBody.Close()
 
-	if *follow {
-		v.Set("follow", "1")
+	if c.Config.Tty {
+		_, err = io.Copy(cli.out, responseBody)
+	} else {
+		_, err = stdcopy.StdCopy(cli.out, cli.err, responseBody)
 	}
-	v.Set("tail", *tail)
-
-	sopts := &streamOpts{
-		rawTerminal: c.Config.Tty,
-		out:         cli.out,
-		err:         cli.err,
-	}
-
-	_, err = cli.stream("GET", "/containers/"+name+"/logs?"+v.Encode(), sopts)
 	return err
 }

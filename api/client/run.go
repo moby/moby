@@ -3,12 +3,12 @@ package client
 import (
 	"fmt"
 	"io"
-	"net/url"
 	"os"
 	"runtime"
 	"strings"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/api/types"
 	Cli "github.com/docker/docker/cli"
 	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/opts"
@@ -168,70 +168,57 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	if *flAutoRemove && (hostConfig.RestartPolicy.IsAlways() || hostConfig.RestartPolicy.IsOnFailure()) {
 		return ErrConflictRestartPolicyAndAutoRemove
 	}
-	// We need to instantiate the chan because the select needs it. It can
-	// be closed but can't be uninitialized.
-	hijacked := make(chan io.Closer)
-	// Block the return until the chan gets closed
-	defer func() {
-		logrus.Debugf("End of CmdRun(), Waiting for hijack to finish.")
-		if _, ok := <-hijacked; ok {
-			fmt.Fprintln(cli.err, "Hijack did not finish (chan still open)")
-		}
-	}()
+
 	if config.AttachStdin || config.AttachStdout || config.AttachStderr {
 		var (
 			out, stderr io.Writer
 			in          io.ReadCloser
-			v           = url.Values{}
 		)
-		v.Set("stream", "1")
 		if config.AttachStdin {
-			v.Set("stdin", "1")
 			in = cli.in
 		}
 		if config.AttachStdout {
-			v.Set("stdout", "1")
 			out = cli.out
 		}
 		if config.AttachStderr {
-			v.Set("stderr", "1")
 			if config.Tty {
 				stderr = cli.out
 			} else {
 				stderr = cli.err
 			}
 		}
-		errCh = promise.Go(func() error {
-			return cli.hijack("POST", "/containers/"+createResponse.ID+"/attach?"+v.Encode(), config.Tty, in, out, stderr, hijacked, nil)
-		})
-	} else {
-		close(hijacked)
-	}
-	// Acknowledge the hijack before starting
-	select {
-	case closer := <-hijacked:
-		// Make sure that the hijack gets closed when returning (results
-		// in closing the hijack chan and freeing server's goroutines)
-		if closer != nil {
-			defer closer.Close()
+
+		options := types.ContainerAttachOptions{
+			ContainerID: createResponse.ID,
+			Stream:      true,
+			Stdin:       config.AttachStdin,
+			Stdout:      config.AttachStdout,
+			Stderr:      config.AttachStderr,
 		}
-	case err := <-errCh:
+
+		resp, err := cli.client.ContainerAttach(options)
 		if err != nil {
-			logrus.Debugf("Error hijack: %s", err)
 			return err
 		}
+		errCh = promise.Go(func() error {
+			return cli.holdHijackedConnection(config.Tty, in, out, stderr, resp)
+		})
 	}
 
 	defer func() {
 		if *flAutoRemove {
-			if _, _, err = readBody(cli.call("DELETE", "/containers/"+createResponse.ID+"?v=1", nil, nil)); err != nil {
+			options := types.ContainerRemoveOptions{
+				ContainerID:   createResponse.ID,
+				RemoveVolumes: true,
+			}
+			if err := cli.client.ContainerRemove(options); err != nil {
 				fmt.Fprintf(cli.err, "Error deleting container: %s\n", err)
 			}
 		}
 	}()
 
 	//start the container
-	if _, _, err := readBody(cli.call("POST", "/containers/"+createResponse.ID+"/start", nil, nil)); err != nil {
+	if err := cli.client.ContainerStart(createResponse.ID); err != nil {
 		cmd.ReportError(err.Error(), false)
 		return runStartContainerErr(err)
 	}
@@ -262,7 +249,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	if *flAutoRemove {
 		// Autoremove: wait for the container to finish, retrieve
 		// the exit code and remove the container
-		if _, _, err := readBody(cli.call("POST", "/containers/"+createResponse.ID+"/wait", nil, nil)); err != nil {
+		if status, err = cli.client.ContainerWait(createResponse.ID); err != nil {
 			return runStartContainerErr(err)
 		}
 		if _, status, err = getExitCode(cli, createResponse.ID); err != nil {
@@ -272,7 +259,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		// No Autoremove: Simply retrieve the exit code
 		if !config.Tty {
 			// In non-TTY mode, we can't detach, so we must wait for container exit
-			if status, err = waitForExit(cli, createResponse.ID); err != nil {
+			if status, err = cli.client.ContainerWait(createResponse.ID); err != nil {
 				return err
 			}
 		} else {

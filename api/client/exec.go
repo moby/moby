@@ -1,7 +1,6 @@
 package client
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 
@@ -24,37 +23,29 @@ func (cli *DockerCli) CmdExec(args ...string) error {
 		return Cli.StatusError{StatusCode: 1}
 	}
 
-	serverResp, err := cli.call("POST", "/containers/"+execConfig.Container+"/exec", execConfig, nil)
+	response, err := cli.client.ContainerExecCreate(*execConfig)
 	if err != nil {
 		return err
 	}
 
-	defer serverResp.body.Close()
-
-	var response types.ContainerExecCreateResponse
-	if err := json.NewDecoder(serverResp.body).Decode(&response); err != nil {
-		return err
-	}
-
 	execID := response.ID
-
 	if execID == "" {
 		fmt.Fprintf(cli.out, "exec ID empty")
 		return nil
 	}
 
 	//Temp struct for execStart so that we don't need to transfer all the execConfig
-	execStartCheck := &types.ExecStartCheck{
-		Detach: execConfig.Detach,
-		Tty:    execConfig.Tty,
-	}
-
 	if !execConfig.Detach {
 		if err := cli.CheckTtyInput(execConfig.AttachStdin, execConfig.Tty); err != nil {
 			return err
 		}
 	} else {
-		if _, _, err := readBody(cli.call("POST", "/exec/"+execID+"/start", execStartCheck, nil)); err != nil {
+		execStartCheck := types.ExecStartCheck{
+			Detach: execConfig.Detach,
+			Tty:    execConfig.Tty,
+		}
+
+		if err := cli.client.ContainerExecStart(execID, execStartCheck); err != nil {
 			return err
 		}
 		// For now don't print this - wait for when we support exec wait()
@@ -66,17 +57,8 @@ func (cli *DockerCli) CmdExec(args ...string) error {
 	var (
 		out, stderr io.Writer
 		in          io.ReadCloser
-		hijacked    = make(chan io.Closer)
 		errCh       chan error
 	)
-
-	// Block the return until the chan gets closed
-	defer func() {
-		logrus.Debugf("End of CmdExec(), Waiting for hijack to finish.")
-		if _, ok := <-hijacked; ok {
-			fmt.Fprintln(cli.err, "Hijack did not finish (chan still open)")
-		}
-	}()
 
 	if execConfig.AttachStdin {
 		in = cli.in
@@ -91,24 +73,15 @@ func (cli *DockerCli) CmdExec(args ...string) error {
 			stderr = cli.err
 		}
 	}
-	errCh = promise.Go(func() error {
-		return cli.hijackWithContentType("POST", "/exec/"+execID+"/start", "application/json", execConfig.Tty, in, out, stderr, hijacked, execConfig)
-	})
 
-	// Acknowledge the hijack before starting
-	select {
-	case closer := <-hijacked:
-		// Make sure that hijack gets closed when returning. (result
-		// in closing hijack chan and freeing server's goroutines.
-		if closer != nil {
-			defer closer.Close()
-		}
-	case err := <-errCh:
-		if err != nil {
-			logrus.Debugf("Error hijack: %s", err)
-			return err
-		}
+	resp, err := cli.client.ContainerExecAttach(execID, *execConfig)
+	if err != nil {
+		return err
 	}
+	defer resp.Close()
+	errCh = promise.Go(func() error {
+		return cli.holdHijackedConnection(execConfig.Tty, in, out, stderr, resp)
+	})
 
 	if execConfig.Tty && cli.isTerminalIn {
 		if err := cli.monitorTtySize(execID, true); err != nil {

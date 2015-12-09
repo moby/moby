@@ -3,10 +3,14 @@ package client
 import (
 	"errors"
 	"fmt"
-	"net/url"
+	"io"
 
 	"github.com/docker/distribution/reference"
+	"github.com/docker/docker/api/client/lib"
+	"github.com/docker/docker/api/types"
 	Cli "github.com/docker/docker/cli"
+	"github.com/docker/docker/cliconfig"
+	"github.com/docker/docker/pkg/jsonmessage"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/registry"
 )
@@ -53,13 +57,30 @@ func (cli *DockerCli) CmdPush(args ...string) error {
 		return fmt.Errorf("You cannot push a \"root\" repository. Please rename your repository to <user>/<repo> (ex: %s/%s)", username, repoInfo.LocalName)
 	}
 
+	requestPrivilege := cli.registryAuthenticationPrivilegedFunc(repoInfo.Index, "push")
 	if isTrusted() {
-		return cli.trustedPush(repoInfo, tag, authConfig)
+		return cli.trustedPush(repoInfo, tag, authConfig, requestPrivilege)
 	}
 
-	v := url.Values{}
-	v.Set("tag", tag)
+	return cli.imagePushPrivileged(authConfig, ref.Name(), tag, cli.out, requestPrivilege)
+}
 
-	_, _, err = cli.clientRequestAttemptLogin("POST", "/images/"+ref.Name()+"/push?"+v.Encode(), nil, cli.out, repoInfo.Index, "push")
-	return err
+func (cli *DockerCli) imagePushPrivileged(authConfig cliconfig.AuthConfig, imageID, tag string, outputStream io.Writer, requestPrivilege lib.RequestPrivilegeFunc) error {
+	encodedAuth, err := authConfig.EncodeToBase64()
+	if err != nil {
+		return err
+	}
+	options := types.ImagePushOptions{
+		ImageID:      imageID,
+		Tag:          tag,
+		RegistryAuth: encodedAuth,
+	}
+
+	responseBody, err := cli.client.ImagePush(options, requestPrivilege)
+	if err != nil {
+		return err
+	}
+	defer responseBody.Close()
+
+	return jsonmessage.DisplayJSONMessagesStream(responseBody, outputStream, cli.outFd, cli.isTerminalOut)
 }

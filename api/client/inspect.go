@@ -1,16 +1,12 @@
 package client
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
-	"net/url"
-	"strings"
 	"text/template"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/client/inspect"
+	"github.com/docker/docker/api/client/lib"
 	Cli "github.com/docker/docker/cli"
 	flag "github.com/docker/docker/pkg/mflag"
 )
@@ -34,172 +30,104 @@ func (cli *DockerCli) CmdInspect(args ...string) error {
 
 	cmd.ParseFlags(args, true)
 
-	var tmpl *template.Template
-	var err error
-	var obj []byte
-	var statusCode int
-
-	if *tmplStr != "" {
-		if tmpl, err = template.New("").Funcs(funcMap).Parse(*tmplStr); err != nil {
-			return Cli.StatusError{StatusCode: 64,
-				Status: "Template parsing error: " + err.Error()}
-		}
-	}
-
 	if *inspectType != "" && *inspectType != "container" && *inspectType != "image" {
 		return fmt.Errorf("%q is not a valid value for --type", *inspectType)
 	}
 
-	indented := new(bytes.Buffer)
-	indented.WriteString("[\n")
-	status := 0
-	isImage := false
-
-	v := url.Values{}
-	if *size {
-		v.Set("size", "1")
+	var elementSearcher inspectSearcher
+	switch *inspectType {
+	case "container":
+		elementSearcher = cli.inspectContainers(*size)
+	case "image":
+		elementSearcher = cli.inspectImages(*size)
+	default:
+		elementSearcher = cli.inspectAll(*size)
 	}
 
-	for _, name := range cmd.Args() {
-		if *inspectType == "" || *inspectType == "container" {
-			obj, statusCode, err = readBody(cli.call("GET", "/containers/"+name+"/json?"+v.Encode(), nil, nil))
-			if err != nil {
-				if err == errConnectionFailed {
-					return err
-				}
-				if *inspectType == "container" {
-					if statusCode == http.StatusNotFound {
-						fmt.Fprintf(cli.err, "Error: No such container: %s\n", name)
-					} else {
-						fmt.Fprintf(cli.err, "%s", err)
+	return cli.inspectElements(*tmplStr, cmd.Args(), elementSearcher)
+}
+
+func (cli *DockerCli) inspectContainers(getSize bool) inspectSearcher {
+	return func(ref string) (interface{}, []byte, error) {
+		return cli.client.ContainerInspectWithRaw(ref, getSize)
+	}
+}
+
+func (cli *DockerCli) inspectImages(getSize bool) inspectSearcher {
+	return func(ref string) (interface{}, []byte, error) {
+		return cli.client.ImageInspectWithRaw(ref, getSize)
+	}
+}
+
+func (cli *DockerCli) inspectAll(getSize bool) inspectSearcher {
+	return func(ref string) (interface{}, []byte, error) {
+		c, rawContainer, err := cli.client.ContainerInspectWithRaw(ref, getSize)
+		if err != nil {
+			// Search for image with that id if a container doesn't exist.
+			if lib.IsErrContainerNotFound(err) {
+				i, rawImage, err := cli.client.ImageInspectWithRaw(ref, getSize)
+				if err != nil {
+					if lib.IsErrImageNotFound(err) {
+						return nil, nil, fmt.Errorf("Error: No such image or container: %s", ref)
 					}
-					status = 1
-					continue
+					return nil, nil, err
 				}
+				return i, rawImage, err
 			}
+			return nil, nil, err
 		}
+		return c, rawContainer, err
+	}
+}
 
-		if obj == nil && (*inspectType == "" || *inspectType == "image") {
-			obj, statusCode, err = readBody(cli.call("GET", "/images/"+name+"/json", nil, nil))
-			isImage = true
-			if err != nil {
-				if err == errConnectionFailed {
-					return err
-				}
-				if statusCode == http.StatusNotFound {
-					if *inspectType == "" {
-						fmt.Fprintf(cli.err, "Error: No such image or container: %s\n", name)
-					} else {
-						fmt.Fprintf(cli.err, "Error: No such image: %s\n", name)
-					}
-				} else {
-					fmt.Fprintf(cli.err, "%s", err)
-				}
-				status = 1
-				continue
-			}
-		}
+type inspectSearcher func(ref string) (interface{}, []byte, error)
 
-		if tmpl == nil {
-			if err := json.Indent(indented, obj, "", "    "); err != nil {
-				fmt.Fprintf(cli.err, "%s\n", err)
-				status = 1
-				continue
-			}
-		} else {
-			rdr := bytes.NewReader(obj)
-			dec := json.NewDecoder(rdr)
-			buf := bytes.NewBufferString("")
-
-			if isImage {
-				inspPtr := types.ImageInspect{}
-				if err := dec.Decode(&inspPtr); err != nil {
-					fmt.Fprintf(cli.err, "Unable to read inspect data: %v\n", err)
-					status = 1
-					break
-				}
-				if err := tmpl.Execute(buf, inspPtr); err != nil {
-					rdr.Seek(0, 0)
-					var ok bool
-
-					if buf, ok = cli.decodeRawInspect(tmpl, dec); !ok {
-						fmt.Fprintf(cli.err, "Template parsing error: %v\n", err)
-						status = 1
-						break
-					}
-				}
-			} else {
-				inspPtr := types.ContainerJSON{}
-				if err := dec.Decode(&inspPtr); err != nil {
-					fmt.Fprintf(cli.err, "Unable to read inspect data: %v\n", err)
-					status = 1
-					break
-				}
-				if err := tmpl.Execute(buf, inspPtr); err != nil {
-					rdr.Seek(0, 0)
-					var ok bool
-
-					if buf, ok = cli.decodeRawInspect(tmpl, dec); !ok {
-						fmt.Fprintf(cli.err, "Template parsing error: %v\n", err)
-						status = 1
-						break
-					}
-				}
-			}
-
-			cli.out.Write(buf.Bytes())
-			cli.out.Write([]byte{'\n'})
-		}
-		indented.WriteString(",")
+func (cli *DockerCli) inspectElements(tmplStr string, references []string, searchByReference inspectSearcher) error {
+	elementInspector, err := cli.newInspectorWithTemplate(tmplStr)
+	if err != nil {
+		return Cli.StatusError{StatusCode: 64, Status: err.Error()}
 	}
 
-	if indented.Len() > 1 {
-		// Remove trailing ','
-		indented.Truncate(indented.Len() - 1)
-	}
-	indented.WriteString("]\n")
+	var inspectErr error
+	for _, ref := range references {
+		element, raw, err := searchByReference(ref)
+		if err != nil {
+			inspectErr = err
+			break
+		}
 
-	if tmpl == nil {
-		// Note that we will always write "[]" when "-f" isn't specified,
-		// to make sure the output would always be array, see
-		// https://github.com/docker/docker/pull/9500#issuecomment-65846734
-		if _, err := io.Copy(cli.out, indented); err != nil {
-			return err
+		if err := elementInspector.Inspect(element, raw); err != nil {
+			inspectErr = err
+			break
 		}
 	}
 
-	if status != 0 {
+	if err := elementInspector.Flush(); err != nil {
+		cli.inspectErrorStatus(err)
+	}
+
+	if status := cli.inspectErrorStatus(inspectErr); status != 0 {
 		return Cli.StatusError{StatusCode: status}
 	}
 	return nil
 }
 
-// decodeRawInspect executes the inspect template with a raw interface.
-// This allows docker cli to parse inspect structs injected with Swarm fields.
-// Unfortunately, go 1.4 doesn't fail executing invalid templates when the input is an interface.
-// It doesn't allow to modify this behavior either, sending <no value> messages to the output.
-// We assume that the template is invalid when there is a <no value>, if the template was valid
-// we'd get <nil> or "" values. In that case we fail with the original error raised executing the
-// template with the typed input.
-//
-// TODO: Go 1.5 allows to customize the error behavior, we can probably get rid of this as soon as
-// we build Docker with that version:
-// https://golang.org/pkg/text/template/#Template.Option
-func (cli *DockerCli) decodeRawInspect(tmpl *template.Template, dec *json.Decoder) (*bytes.Buffer, bool) {
-	var raw interface{}
-	buf := bytes.NewBufferString("")
-
-	if rawErr := dec.Decode(&raw); rawErr != nil {
-		fmt.Fprintf(cli.err, "Unable to read inspect data: %v\n", rawErr)
-		return buf, false
+func (cli *DockerCli) inspectErrorStatus(err error) (status int) {
+	if err != nil {
+		fmt.Fprintf(cli.err, "%s\n", err)
+		status = 1
 	}
+	return
+}
 
-	if rawErr := tmpl.Execute(buf, raw); rawErr != nil {
-		return buf, false
+func (cli *DockerCli) newInspectorWithTemplate(tmplStr string) (inspect.Inspector, error) {
+	elementInspector := inspect.NewIndentedInspector(cli.out)
+	if tmplStr != "" {
+		tmpl, err := template.New("").Funcs(funcMap).Parse(tmplStr)
+		if err != nil {
+			return nil, fmt.Errorf("Template parsing error: %s", err)
+		}
+		elementInspector = inspect.NewTemplateInspector(cli.out, tmpl)
 	}
-
-	if strings.Contains(buf.String(), "<no value>") {
-		return buf, false
-	}
-	return buf, true
+	return elementInspector, nil
 }

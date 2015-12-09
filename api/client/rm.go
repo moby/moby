@@ -2,9 +2,9 @@ package client
 
 import (
 	"fmt"
-	"net/url"
 	"strings"
 
+	"github.com/docker/docker/api/types"
 	Cli "github.com/docker/docker/cli"
 	flag "github.com/docker/docker/pkg/mflag"
 )
@@ -21,18 +21,6 @@ func (cli *DockerCli) CmdRm(args ...string) error {
 
 	cmd.ParseFlags(args, true)
 
-	val := url.Values{}
-	if *v {
-		val.Set("v", "1")
-	}
-	if *link {
-		val.Set("link", "1")
-	}
-
-	if *force {
-		val.Set("force", "1")
-	}
-
 	var errNames []string
 	for _, name := range cmd.Args() {
 		if name == "" {
@@ -40,8 +28,14 @@ func (cli *DockerCli) CmdRm(args ...string) error {
 		}
 		name = strings.Trim(name, "/")
 
-		_, _, err := readBody(cli.call("DELETE", "/containers/"+name+"?"+val.Encode(), nil, nil))
-		if err != nil {
+		options := types.ContainerRemoveOptions{
+			ContainerID:   name,
+			RemoveVolumes: *v,
+			RemoveLinks:   *link,
+			Force:         *force,
+		}
+
+		if err := cli.client.ContainerRemove(options); err != nil {
 			fmt.Fprintf(cli.err, "%s\n", err)
 			errNames = append(errNames, name)
 		} else {

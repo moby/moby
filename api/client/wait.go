@@ -20,7 +20,7 @@ func (cli *DockerCli) CmdWait(args ...string) error {
 
 	var errNames []string
 	for _, name := range cmd.Args() {
-		status, err := waitForExit(cli, name)
+		status, err := cli.client.ContainerWait(name)
 		if err != nil {
 			fmt.Fprintf(cli.err, "%s\n", err)
 			errNames = append(errNames, name)

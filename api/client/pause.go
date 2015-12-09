@@ -18,7 +18,7 @@ func (cli *DockerCli) CmdPause(args ...string) error {
 
 	var errNames []string
 	for _, name := range cmd.Args() {
-		if _, _, err := readBody(cli.call("POST", fmt.Sprintf("/containers/%s/pause", name), nil, nil)); err != nil {
+		if err := cli.client.ContainerPause(name); err != nil {
 			fmt.Fprintf(cli.err, "%s\n", err)
 			errNames = append(errNames, name)
 		} else {

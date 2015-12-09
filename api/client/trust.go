@@ -22,6 +22,8 @@ import (
 	"github.com/docker/distribution/reference"
 	"github.com/docker/distribution/registry/client/auth"
 	"github.com/docker/distribution/registry/client/transport"
+	"github.com/docker/docker/api/client/lib"
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/pkg/ansiescape"
 	"github.com/docker/docker/pkg/ioutils"
@@ -250,16 +252,15 @@ func (cli *DockerCli) trustedReference(ref reference.NamedTagged) (reference.Can
 
 func (cli *DockerCli) tagTrusted(trustedRef reference.Canonical, ref reference.NamedTagged) error {
 	fmt.Fprintf(cli.out, "Tagging %s as %s\n", trustedRef.String(), ref.String())
-	tv := url.Values{}
-	tv.Set("repo", trustedRef.Name())
-	tv.Set("tag", ref.Tag())
-	tv.Set("force", "1")
 
-	if _, _, err := readBody(cli.call("POST", "/images/"+trustedRef.String()+"/tag?"+tv.Encode(), nil, nil)); err != nil {
-		return err
+	options := types.ImageTagOptions{
+		ImageID:        trustedRef.String(),
+		RepositoryName: trustedRef.Name(),
+		Tag:            ref.Tag(),
+		Force:          true,
 	}
 
-	return nil
+	return cli.client.ImageTag(options)
 }
 
 func notaryError(err error) error {
@@ -278,11 +279,8 @@ func notaryError(err error) error {
 	return err
 }
 
-func (cli *DockerCli) trustedPull(repoInfo *registry.RepositoryInfo, ref registry.Reference, authConfig cliconfig.AuthConfig) error {
-	var (
-		v    = url.Values{}
-		refs = []target{}
-	)
+func (cli *DockerCli) trustedPull(repoInfo *registry.RepositoryInfo, ref registry.Reference, authConfig cliconfig.AuthConfig, requestPrivilege lib.RequestPrivilegeFunc) error {
+	var refs []target
 
 	notaryRepo, err := cli.getNotaryRepository(repoInfo, authConfig)
 	if err != nil {
@@ -317,17 +315,14 @@ func (cli *DockerCli) trustedPull(repoInfo *registry.RepositoryInfo, ref registr
 		refs = append(refs, r)
 	}
 
-	v.Set("fromImage", repoInfo.LocalName.Name())
 	for i, r := range refs {
 		displayTag := r.reference.String()
 		if displayTag != "" {
 			displayTag = ":" + displayTag
 		}
 		fmt.Fprintf(cli.out, "Pull (%d of %d): %s%s@%s\n", i+1, len(refs), repoInfo.LocalName, displayTag, r.digest)
-		v.Set("tag", r.digest.String())
 
-		_, _, err = cli.clientRequestAttemptLogin("POST", "/images/create?"+v.Encode(), nil, cli.out, repoInfo.Index, "pull")
-		if err != nil {
+		if err := cli.imagePullPrivileged(authConfig, repoInfo.LocalName.Name(), r.digest.String(), requestPrivilege); err != nil {
 			return err
 		}
 
@@ -385,20 +380,18 @@ func targetStream(in io.Writer) (io.WriteCloser, <-chan []target) {
 	return ioutils.NewWriteCloserWrapper(out, w.Close), targetChan
 }
 
-func (cli *DockerCli) trustedPush(repoInfo *registry.RepositoryInfo, tag string, authConfig cliconfig.AuthConfig) error {
+func (cli *DockerCli) trustedPush(repoInfo *registry.RepositoryInfo, tag string, authConfig cliconfig.AuthConfig, requestPrivilege lib.RequestPrivilegeFunc) error {
 	streamOut, targetChan := targetStream(cli.out)
 
-	v := url.Values{}
-	v.Set("tag", tag)
+	reqError := cli.imagePushPrivileged(authConfig, repoInfo.LocalName.Name(), tag, streamOut, requestPrivilege)
 
-	_, _, err := cli.clientRequestAttemptLogin("POST", "/images/"+repoInfo.LocalName.Name()+"/push?"+v.Encode(), nil, streamOut, repoInfo.Index, "push")
 	// Close stream channel to finish target parsing
 	if err := streamOut.Close(); err != nil {
 		return err
 	}
 	// Check error from request
-	if err != nil {
-		return err
+	if reqError != nil {
+		return reqError
 	}
 
 	// Get target results
