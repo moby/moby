@@ -33,7 +33,7 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 		before   = cmd.String([]string{"#-before"}, "", "Only show containers created before Id or Name")
 		last     = cmd.Int([]string{"n"}, -1, "Show n last created containers (includes all states)")
 		format   = cmd.String([]string{"-format"}, "", "Pretty-print containers using a Go template")
-		volume  = cmd.Bool([]string{"-volume"}, false, "Only displays containers with volumes")
+		noVolume  = cmd.Bool([]string{"-volume"}, false, "Only displays containers with volumes")
 		flFilter = opts.NewListOpts(nil)
 	)
 	cmd.Require(flag.Exact, 0)
@@ -109,7 +109,7 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 		Quiet:  *quiet,
 		Size:   *size,
 		Trunc:  !*noTrunc,
-		WithVolume: *volume,
+		WithNoVolume: *noVolume,
 	}
 
 	ps.Format(psCtx, containers)
