@@ -33,7 +33,7 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 		before   = cmd.String([]string{"#-before"}, "", "Only show containers created before Id or Name")
 		last     = cmd.Int([]string{"n"}, -1, "Show n last created containers (includes all states)")
 		format   = cmd.String([]string{"-format"}, "", "Pretty-print containers using a Go template")
-		noVolume  = cmd.Bool([]string{"-novolume"}, false, "Only displays containers with volumes")
+		noVolume  = cmd.Bool([]string{"-novolume"}, false, "Only displays containers without volumes")
 		flFilter = opts.NewListOpts(nil)
 	)
 	cmd.Require(flag.Exact, 0)
