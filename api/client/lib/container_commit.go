@@ -5,7 +5,6 @@ import (
 	"net/url"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/runconfig"
 )
 
 // ContainerCommit applies changes into a container and creates a new tagged image.
@@ -23,19 +22,8 @@ func (cli *Client) ContainerCommit(options types.ContainerCommitOptions) (types.
 		query.Set("pause", "0")
 	}
 
-	var (
-		config   *runconfig.Config
-		response types.ContainerCommitResponse
-	)
-
-	if options.JSONConfig != "" {
-		config = &runconfig.Config{}
-		if err := json.Unmarshal([]byte(options.JSONConfig), config); err != nil {
-			return response, err
-		}
-	}
-
-	resp, err := cli.post("/commit", query, config, nil)
+	var response types.ContainerCommitResponse
+	resp, err := cli.post("/commit", query, options.Config, nil)
 	if err != nil {
 		return response, err
 	}
