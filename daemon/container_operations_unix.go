@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	networktypes "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/daemon/links"
@@ -444,7 +445,7 @@ func (daemon *Daemon) buildSandboxOptions(container *container.Container, n libn
 
 func (daemon *Daemon) updateNetworkSettings(container *container.Container, n libnetwork.Network) error {
 	if container.NetworkSettings == nil {
-		container.NetworkSettings = &network.Settings{Networks: make(map[string]*network.EndpointSettings)}
+		container.NetworkSettings = &network.Settings{Networks: make(map[string]*networktypes.EndpointSettings)}
 	}
 
 	if !container.HostConfig.NetworkMode.IsHost() && runconfig.NetworkMode(n.Type()).IsHost() {
@@ -470,7 +471,7 @@ func (daemon *Daemon) updateNetworkSettings(container *container.Container, n li
 			return runconfig.ErrConflictNoNetwork
 		}
 	}
-	container.NetworkSettings.Networks[n.Name()] = new(network.EndpointSettings)
+	container.NetworkSettings.Networks[n.Name()] = new(networktypes.EndpointSettings)
 
 	return nil
 }
@@ -554,8 +555,8 @@ func (daemon *Daemon) allocateNetwork(container *container.Container) error {
 			}
 			networkName = n.Name()
 		}
-		container.NetworkSettings.Networks = make(map[string]*network.EndpointSettings)
-		container.NetworkSettings.Networks[networkName] = new(network.EndpointSettings)
+		container.NetworkSettings.Networks = make(map[string]*networktypes.EndpointSettings)
+		container.NetworkSettings.Networks[networkName] = new(networktypes.EndpointSettings)
 		updateSettings = true
 	}
 
@@ -816,7 +817,7 @@ func (daemon *Daemon) releaseNetwork(container *container.Container) {
 	sid := container.NetworkSettings.SandboxID
 	networks := container.NetworkSettings.Networks
 	for n := range networks {
-		networks[n] = &network.EndpointSettings{}
+		networks[n] = &networktypes.EndpointSettings{}
 	}
 
 	container.NetworkSettings = &network.Settings{Networks: networks}

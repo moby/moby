@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/daemon/network"
+	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/docker/docker/pkg/parsers/filters"
 	"github.com/go-check/check"
