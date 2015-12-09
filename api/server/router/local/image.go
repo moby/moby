@@ -54,21 +54,26 @@ func (s *router) postCommit(ctx context.Context, w http.ResponseWriter, r *http.
 		return err
 	}
 
-	commitCfg := &dockerfile.CommitConfig{
-		Pause:   pause,
-		Repo:    r.Form.Get("repo"),
-		Tag:     r.Form.Get("tag"),
-		Author:  r.Form.Get("author"),
-		Comment: r.Form.Get("comment"),
-		Changes: r.Form["changes"],
-		Config:  c,
-	}
-
 	if !s.daemon.Exists(cname) {
 		return derr.ErrorCodeNoSuchContainer.WithArgs(cname)
 	}
 
-	imgID, err := dockerfile.Commit(cname, s.daemon, commitCfg)
+	newConfig, err := dockerfile.BuildFromConfig(c, r.Form["changes"])
+	if err != nil {
+		return err
+	}
+
+	commitCfg := &types.ContainerCommitConfig{
+		Pause:        pause,
+		Repo:         r.Form.Get("repo"),
+		Tag:          r.Form.Get("tag"),
+		Author:       r.Form.Get("author"),
+		Comment:      r.Form.Get("comment"),
+		Config:       newConfig,
+		MergeConfigs: true,
+	}
+
+	imgID, err := s.daemon.Commit(cname, commitCfg)
 	if err != nil {
 		return err
 	}
