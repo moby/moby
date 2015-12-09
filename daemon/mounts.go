@@ -8,20 +8,6 @@ import (
 	volumestore "github.com/docker/docker/volume/store"
 )
 
-func (daemon *Daemon) prepareMountPoints(container *container.Container) error {
-	for _, config := range container.MountPoints {
-		if len(config.Driver) > 0 {
-			v, err := daemon.volumes.GetWithRef(config.Name, config.Driver, container.ID)
-			if err != nil {
-				return err
-			}
-
-			config.Volume = v
-		}
-	}
-	return nil
-}
-
 func (daemon *Daemon) removeMountPoints(container *container.Container, rm bool) error {
 	var rmErrors []string
 	for _, m := range container.MountPoints {
