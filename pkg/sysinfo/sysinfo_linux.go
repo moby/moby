@@ -126,9 +126,21 @@ func checkCgroupBlkioInfo(quiet bool) cgroupBlkioInfo {
 	if !quiet && !weightDevice {
 		logrus.Warn("Your kernel does not support cgroup blkio weight_device")
 	}
+
+	readBpsDevice := cgroupEnabled(mountPoint, "blkio.throttle.read_bps_device")
+	if !quiet && !readBpsDevice {
+		logrus.Warn("Your kernel does not support cgroup blkio throttle.read_bps_device")
+	}
+
+	writeBpsDevice := cgroupEnabled(mountPoint, "blkio.throttle.write_bps_device")
+	if !quiet && !writeBpsDevice {
+		logrus.Warn("Your kernel does not support cgroup blkio throttle.write_bps_device")
+	}
 	return cgroupBlkioInfo{
-		BlkioWeight:       weight,
-		BlkioWeightDevice: weightDevice,
+		BlkioWeight:         weight,
+		BlkioWeightDevice:   weightDevice,
+		BlkioReadBpsDevice:  readBpsDevice,
+		BlkioWriteBpsDevice: writeBpsDevice,
 	}
 }
 

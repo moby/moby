@@ -21,6 +21,8 @@ docker-run - Run a command in a new container
 [**--cpuset-mems**[=*CPUSET-MEMS*]]
 [**-d**|**--detach**[=*false*]]
 [**--device**[=*[]*]]
+[**--device-read-bps**[=*[]*]]
+[**--device-write-bps**[=*[]*]]
 [**--dns**[=*[]*]]
 [**--dns-opt**[=*[]*]]
 [**--dns-search**[=*[]*]]
@@ -33,6 +35,7 @@ docker-run - Run a command in a new container
 [**--help**]
 [**-i**|**--interactive**[=*false*]]
 [**--ipc**[=*IPC*]]
+[**--isolation**[=*default*]]
 [**--kernel-memory**[=*KERNEL-MEMORY*]]
 [**-l**|**--label**[=*[]*]]
 [**--label-file**[=*[]*]]
@@ -47,6 +50,7 @@ docker-run - Run a command in a new container
 [**--name**[=*NAME*]]
 [**--net**[=*"bridge"*]]
 [**--oom-kill-disable**[=*false*]]
+[**--oom-score-adj**[=*0*]]
 [**-P**|**--publish-all**[=*false*]]
 [**-p**|**--publish**[=*[]*]]
 [**--pid**[=*[]*]]
@@ -59,10 +63,12 @@ docker-run - Run a command in a new container
 [**--shm-size**[=*[]*]]
 [**--sig-proxy**[=*true*]]
 [**-t**|**--tty**[=*false*]]
+[**--tmpfs**[=*[CONTAINER-DIR[:<OPTIONS>]*]]
 [**-u**|**--user**[=*USER*]]
-[**-v**|**--volume**[=*[]*]]
 [**--ulimit**[=*[]*]]
 [**--uts**[=*[]*]]
+[**-v**|**--volume**[=*[]*]]
+[**--volume-driver**[=*DRIVER*]]
 [**--volumes-from**[=*[]*]]
 [**-w**|**--workdir**[=*WORKDIR*]]
 IMAGE [COMMAND] [ARG...]
@@ -188,6 +194,12 @@ stopping the process by pressing the keys CTRL-P CTRL-Q.
 **--device**=[]
    Add a host device to the container (e.g. --device=/dev/sdc:/dev/xvdc:rwm)
 
+**--device-read-bps**=[]
+   Limit read rate from a device (e.g. --device-read-bps=/dev/sda:1mb)
+
+**--device-write-bps**=[]
+   Limit write rate to a device (e.g. --device-write-bps=/dev/sda:1mb)
+
 **--dns-search**=[]
    Set custom DNS search domains (Use --dns-search=. if you don't wish to set the search domain)
 
@@ -252,6 +264,9 @@ redirection on the host system.
    Default is to create a private IPC namespace (POSIX SysV IPC) for the container
                                'container:<name|id>': reuses another container shared memory, semaphores and message queues
                                'host': use the host shared memory,semaphores and message queues inside the container.  Note: the host mode gives the container full access to local shared memory and is therefore considered insecure.
+
+**--isolation**="*default*"
+   Isolation specifies the type of isolation technology used by containers.
 
 **-l**, **--label**=[]
    Set metadata on the container (e.g., --label com.example.key=value)
@@ -333,13 +348,17 @@ and foreground Docker containers.
 
 **--net**="*bridge*"
    Set the Network mode for the container
-                               'bridge': creates a new network stack for the container on the docker bridge
-                               'none': no networking for this container
-                               'container:<name|id>': reuses another container network stack
-                               'host': use the host network stack inside the container.  Note: the host mode gives the container full access to local system services such as D-bus and is therefore considered insecure.
+                               'bridge': create a network stack on the default Docker bridge
+                               'none': no networking
+                               'container:<name|id>': reuse another container's network stack
+                               'host': use the Docker host network stack. Note: the host mode gives the container full access to local system services such as D-bus and is therefore considered insecure.
+                               '<network-name>|<network-id>': connect to a user-defined network
 
 **--oom-kill-disable**=*true*|*false*
    Whether to disable OOM Killer for the container or not.
+
+**--oom-score-adj**=""
+   Tune the host's OOM preferences for containers (accepts -1000 to 1000)
 
 **-P**, **--publish-all**=*true*|*false*
    Publish all exposed ports to random ports on the host interfaces. The default is *false*.
@@ -432,6 +451,20 @@ interactive shell. The default is false.
 The **-t** option is incompatible with a redirection of the docker client
 standard input.
 
+**--tmpfs**=[] Create a tmpfs mount
+
+   Mount a temporary filesystem (`tmpfs`) mount into a container, for example:
+
+   $ docker run -d --tmpfs /tmp:rw,size=787448k,mode=1777 my_image
+
+   This command mounts a `tmpfs` at `/tmp` within the container. The mount copies
+the underlying content of `my_image` into `/tmp`. For example if there was a
+directory `/tmp/content` in the base image, docker will copy this directory and
+all of its content on top of the tmpfs mounted on `/tmp`.  The supported mount
+options are the same as the Linux default `mount` flags. If you do not specify
+any options, the systems uses the following options:
+`rw,noexec,nosuid,nodev,size=65536k`.
+
 **-u**, **--user**=""
    Sets the username or UID used and optionally the groupname or GID for the specified command.
 
@@ -487,6 +520,11 @@ An absolute path starts with a `/` (forward slash).
 For example, you can specify either `/foo` or `foo` for a `host-dir` value.
 If you supply the `/foo` value, Docker creates a bind-mount. If you supply
 the `foo` specification, Docker creates a named volume.
+
+**--volume-driver**=""
+   Container's volume driver. This driver creates volumes specified either from
+   a Dockerfile's `VOLUME` instruction or from the `docker run -v` flag.
+   See **docker-volume-create(1)** for full details.
 
 **--volumes-from**=[]
    Mount volumes from the specified container(s)
@@ -547,6 +585,19 @@ the exit codes follow the `chroot` standard, see below:
     # 3
 
 # EXAMPLES
+
+## Running container in read-only mode
+
+During container image development, containers often need to write to the image
+content.  Installing packages into /usr, for example.  In production,
+applications seldom need to write to the image.  Container applications write
+to volumes if they need to write to file systems at all.  Applications can be
+made more secure by running them in read-only mode using the --read-only switch.
+This protects the containers image from modification. Read only containers may
+still need to write temporary data.  The best way to handle this is to mount
+tmpfs directories on /run and /tmp.
+
+    # docker run --read-only --tmpfs /run --tmpfs /tmp -i -t fedora /bin/bash
 
 ## Exposing log messages from the container to the host's log
 
@@ -771,6 +822,38 @@ If you want to set `/dev/sda` device weight to `200`, you can specify the device
 weight by `--blkio-weight-device` flag. Use the following command:
 
    # docker run -it --blkio-weight-device "/dev/sda:200" ubuntu
+
+## Specify isolation technology for container (--isolation)
+
+This option is useful in situations where you are running Docker containers on
+Microsoft Windows. The `--isolation <value>` option sets a container's isolation
+technology. On Linux, the only supported is the `default` option which uses
+Linux namespaces. These two commands are equivalent on Linux:
+
+```
+$ docker run -d busybox top
+$ docker run -d --isolation default busybox top
+```
+
+On Microsoft Windows, can take any of these values:
+
+* `default`: Use the value specified by the Docker daemon's `--exec-opt` . If the `daemon` does not specify an isolation technology, Microsoft Windows uses `process` as its default value.
+* `process`: Namespace isolation only.
+* `hyperv`: Hyper-V hypervisor partition-based isolation.
+
+In practice, when running on Microsoft Windows without a `daemon` option set,  these two commands are equivalent:
+
+```
+$ docker run -d --isolation default busybox top
+$ docker run -d --isolation process busybox top
+```
+
+If you have set the `--exec-opt isolation=hyperv` option on the Docker `daemon`, any of these commands also result in `hyperv` isolation:
+
+```
+$ docker run -d --isolation default busybox top
+$ docker run -d --isolation hyperv busybox top
+```
 
 # HISTORY
 April 2014, Originally compiled by William Henry (whenry at redhat dot com)

@@ -139,7 +139,17 @@ PRETTY_NAME="Source Mage"`,
 
 func TestIsContainerized(t *testing.T) {
 	var (
-		backup                      = proc1Cgroup
+		backup                                = proc1Cgroup
+		nonContainerizedProc1Cgroupsystemd226 = []byte(`9:memory:/init.scope
+8:net_cls,net_prio:/
+7:cpuset:/
+6:freezer:/
+5:devices:/init.scope
+4:blkio:/init.scope
+3:cpu,cpuacct:/init.scope
+2:perf_event:/
+1:name=systemd:/init.scope
+`)
 		nonContainerizedProc1Cgroup = []byte(`14:name=systemd:/
 13:hugetlb:/
 12:net_prio:/
@@ -182,6 +192,17 @@ func TestIsContainerized(t *testing.T) {
 	}
 	if inContainer {
 		t.Fatal("Wrongly assuming containerized")
+	}
+
+	if err := ioutil.WriteFile(proc1Cgroup, nonContainerizedProc1Cgroupsystemd226, 0600); err != nil {
+		t.Fatalf("failed to write to %s: %v", proc1Cgroup, err)
+	}
+	inContainer, err = IsContainerized()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if inContainer {
+		t.Fatal("Wrongly assuming containerized for systemd /init.scope cgroup layout")
 	}
 
 	if err := ioutil.WriteFile(proc1Cgroup, containerizedProc1Cgroup, 0600); err != nil {

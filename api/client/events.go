@@ -26,7 +26,7 @@ func (cli *DockerCli) CmdEvents(args ...string) error {
 
 	var (
 		v               = url.Values{}
-		eventFilterArgs = filters.Args{}
+		eventFilterArgs = filters.NewArgs()
 	)
 
 	// Consolidate all filter flags, and sanity check them early.
@@ -53,7 +53,7 @@ func (cli *DockerCli) CmdEvents(args ...string) error {
 		}
 		v.Set("until", ts)
 	}
-	if len(eventFilterArgs) > 0 {
+	if eventFilterArgs.Len() > 0 {
 		filterJSON, err := filters.ToParam(eventFilterArgs)
 		if err != nil {
 			return err

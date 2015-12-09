@@ -36,7 +36,7 @@ func (s *Server) newServer(proto, addr string) ([]*HTTPServer, error) {
 		}
 		ls = append(ls, l)
 	case "unix":
-		l, err := sockets.NewUnixSocket(addr, s.cfg.SocketGroup, s.start)
+		l, err := sockets.NewUnixSocket(addr, s.cfg.SocketGroup)
 		if err != nil {
 			return nil, err
 		}

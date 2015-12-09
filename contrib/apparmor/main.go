@@ -4,11 +4,10 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"os/exec"
 	"path"
-	"strconv"
-	"strings"
 	"text/template"
+
+	"github.com/docker/docker/pkg/aaparser"
 )
 
 type profileData struct {
@@ -24,33 +23,7 @@ func main() {
 	// parse the arg
 	apparmorProfilePath := os.Args[1]
 
-	// get the apparmor_version version
-	cmd := exec.Command("/sbin/apparmor_parser", "--version")
-
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		log.Fatalf("getting apparmor_parser version failed: %s (%s)", err, output)
-	}
-
-	// parse the version from the output
-	// output is in the form of the following:
-	// AppArmor parser version 2.9.1
-	// Copyright (C) 1999-2008 Novell Inc.
-	// Copyright 2009-2012 Canonical Ltd.
-	lines := strings.SplitN(string(output), "\n", 2)
-	words := strings.Split(lines[0], " ")
-	version := words[len(words)-1]
-	// split by major minor version
-	v := strings.Split(version, ".")
-	if len(v) < 2 {
-		log.Fatalf("parsing major minor version failed for %q", version)
-	}
-
-	majorVersion, err := strconv.Atoi(v[0])
-	if err != nil {
-		log.Fatal(err)
-	}
-	minorVersion, err := strconv.Atoi(v[1])
+	majorVersion, minorVersion, err := aaparser.GetVersion()
 	if err != nil {
 		log.Fatal(err)
 	}

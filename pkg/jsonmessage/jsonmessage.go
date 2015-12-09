@@ -150,11 +150,11 @@ func (jm *JSONMessage) Display(out io.Writer, isTerminal bool) error {
 // each line and move the cursor while displaying.
 func DisplayJSONMessagesStream(in io.Reader, out io.Writer, terminalFd uintptr, isTerminal bool) error {
 	var (
-		dec  = json.NewDecoder(in)
-		ids  = make(map[string]int)
-		diff = 0
+		dec = json.NewDecoder(in)
+		ids = make(map[string]int)
 	)
 	for {
+		diff := 0
 		var jm JSONMessage
 		if err := dec.Decode(&jm); err != nil {
 			if err == io.EOF {
@@ -169,22 +169,38 @@ func DisplayJSONMessagesStream(in io.Reader, out io.Writer, terminalFd uintptr, 
 		if jm.ID != "" && (jm.Progress != nil || jm.ProgressMessage != "") {
 			line, ok := ids[jm.ID]
 			if !ok {
+				// NOTE: This approach of using len(id) to
+				// figure out the number of lines of history
+				// only works as long as we clear the history
+				// when we output something that's not
+				// accounted for in the map, such as a line
+				// with no ID.
 				line = len(ids)
 				ids[jm.ID] = line
 				if isTerminal {
 					fmt.Fprintf(out, "\n")
 				}
-				diff = 0
 			} else {
 				diff = len(ids) - line
 			}
 			if jm.ID != "" && isTerminal {
+				// NOTE: this appears to be necessary even if
+				// diff == 0.
 				// <ESC>[{diff}A = move cursor up diff rows
 				fmt.Fprintf(out, "%c[%dA", 27, diff)
 			}
+		} else {
+			// When outputting something that isn't progress
+			// output, clear the history of previous lines. We
+			// don't want progress entries from some previous
+			// operation to be updated (for example, pull -a
+			// with multiple tags).
+			ids = make(map[string]int)
 		}
 		err := jm.Display(out, isTerminal)
 		if jm.ID != "" && isTerminal {
+			// NOTE: this appears to be necessary even if
+			// diff == 0.
 			// <ESC>[{diff}B = move cursor down diff rows
 			fmt.Fprintf(out, "%c[%dB", 27, diff)
 		}

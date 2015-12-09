@@ -627,8 +627,10 @@ func deleteAllContainers() error {
 		return err
 	}
 
-	if err = deleteContainer(containers); err != nil {
-		return err
+	if containers != "" {
+		if err = deleteContainer(containers); err != nil {
+			return err
+		}
 	}
 	return nil
 }

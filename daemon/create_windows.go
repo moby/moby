@@ -3,6 +3,7 @@ package daemon
 import (
 	"fmt"
 
+	"github.com/docker/docker/container"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/runconfig"
@@ -10,7 +11,7 @@ import (
 )
 
 // createContainerPlatformSpecificSettings performs platform specific container create functionality
-func (daemon *Daemon) createContainerPlatformSpecificSettings(container *Container, config *runconfig.Config, hostConfig *runconfig.HostConfig, img *image.Image) error {
+func (daemon *Daemon) createContainerPlatformSpecificSettings(container *container.Container, config *runconfig.Config, hostConfig *runconfig.HostConfig, img *image.Image) error {
 	for spec := range config.Volumes {
 
 		mp, err := volume.ParseMountSpec(spec, hostConfig.VolumeDriver)
@@ -25,7 +26,7 @@ func (daemon *Daemon) createContainerPlatformSpecificSettings(container *Contain
 
 		// Skip volumes for which we already have something mounted on that
 		// destination because of a --volume-from.
-		if container.isDestinationMounted(mp.Destination) {
+		if container.IsDestinationMounted(mp.Destination) {
 			continue
 		}
 
@@ -71,13 +72,13 @@ func (daemon *Daemon) createContainerPlatformSpecificSettings(container *Contain
 		//
 		//	// never attempt to copy existing content in a container FS to a shared volume
 		//	if v.DriverName() == volume.DefaultDriverName {
-		//		if err := container.copyImagePathContent(v, mp.Destination); err != nil {
+		//		if err := container.CopyImagePathContent(v, mp.Destination); err != nil {
 		//			return err
 		//		}
 		//	}
 
 		// Add it to container.MountPoints
-		container.addMountPointWithVolume(mp.Destination, v, mp.RW)
+		container.AddMountPointWithVolume(mp.Destination, v, mp.RW)
 	}
 	return nil
 }

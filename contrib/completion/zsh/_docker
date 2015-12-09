@@ -278,7 +278,7 @@ __docker_network_commands() {
         "disconnect:Disconnects a container from a network"
         "inspect:Displays detailed information on a network"
         "ls:Lists all the networks created by the user"
-        "rm:Deletes a network"
+        "rm:Deletes one or more networks"
     )
     _describe -t docker-network-commands "docker network command" _docker_network_subcommands
 }
@@ -309,9 +309,10 @@ __docker_network_subcommand() {
                 "($help)*"{-o=,--opt=}"[Set driver specific options]:key=value: " \
                 "($help -)1:Network Name: " && ret=0
             ;;
-        (inspect|rm)
+        (inspect)
             _arguments $(__docker_arguments) \
                 $opts_help \
+                "($help -f --format)"{-f=,--format=}"[Format the output using the given go template]:template: " \
                 "($help -)*:network:__docker_networks" && ret=0
             ;;
         (ls)
@@ -319,6 +320,11 @@ __docker_network_subcommand() {
                 $opts_help \
                 "($help)--no-trunc[Do not truncate the output]" \
                 "($help -q --quiet)"{-q,--quiet}"[Only display numeric IDs]" && ret=0
+            ;;
+        (rm)
+            _arguments $(__docker_arguments) \
+                $opts_help \
+                "($help -)*:network:__docker_networks" && ret=0
             ;;
         (help)
             _arguments $(__docker_arguments) ":subcommand:__docker_network_commands" && ret=0
@@ -457,11 +463,13 @@ __docker_subcommand() {
         "($help -a --attach)"{-a=,--attach=}"[Attach to stdin, stdout or stderr]:device:(STDIN STDOUT STDERR)"
         "($help)*--add-host=[Add a custom host-to-IP mapping]:host\:ip mapping: "
         "($help)--blkio-weight=[Block IO (relative weight), between 10 and 1000]:Block IO weight:(10 100 500 1000)"
-        "($help)--blkio-weight-device=-[Block IO (relative device weight)]:device:Block IO weight: "
+        "($help)*--blkio-weight-device=[Block IO (relative device weight)]:device:Block IO weight: "
         "($help)*--cap-add=[Add Linux capabilities]:capability: "
         "($help)*--cap-drop=[Drop Linux capabilities]:capability: "
         "($help)--cidfile=[Write the container ID to the file]:CID file:_files"
         "($help)*--device=[Add a host device to the container]:device:_files"
+        "($help)*--device-read-bps=[Limit the read rate (bytes per second) from a device]:device:IO rate: "
+        "($help)*--device-write-bps=[Limit the write rate (bytes per second) to a device]:device:IO rate: "
         "($help)*--dns=[Set custom DNS servers]:DNS server: "
         "($help)*--dns-opt=[Set custom DNS options]:DNS option: "
         "($help)*--dns-search=[Set custom DNS search domains]:DNS domains: "
@@ -482,6 +490,7 @@ __docker_subcommand() {
         "($help)--name=[Container name]:name: "
         "($help)--net=[Connect a container to a network]:network mode:(bridge none container host)"
         "($help)--oom-kill-disable[Disable OOM Killer]"
+        "($help)--oom-score-adj[Tune the host's OOM preferences for containers (accepts -1000 to 1000)]"
         "($help -P --publish-all)"{-P,--publish-all}"[Publish all exposed ports]"
         "($help)*"{-p=,--publish=}"[Expose a container's port to the host]:port:_ports"
         "($help)--pid=[PID namespace to use]:PID: "
@@ -491,6 +500,7 @@ __docker_subcommand() {
         "($help)*--security-opt=[Security options]:security option: "
         "($help -t --tty)"{-t,--tty}"[Allocate a pseudo-tty]"
         "($help -u --user)"{-u=,--user=}"[Username or UID]:user:_users"
+        "($help)--tmpfs[mount tmpfs] "
         "($help)*-v[Bind mount a volume]:volume: "
         "($help)--volume-driver=[Optional volume driver for the container]:volume driver:(local)"
         "($help)*--volumes-from=[Mount volumes from the specified container]:volume: "

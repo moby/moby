@@ -17,13 +17,17 @@ import (
 type BlkioGroup struct {
 }
 
-func (s *BlkioGroup) Apply(d *data) error {
+func (s *BlkioGroup) Name() string {
+	return "blkio"
+}
+
+func (s *BlkioGroup) Apply(d *cgroupData) error {
 	dir, err := d.join("blkio")
 	if err != nil && !cgroups.IsNotFound(err) {
 		return err
 	}
 
-	if err := s.Set(dir, d.c); err != nil {
+	if err := s.Set(dir, d.config); err != nil {
 		return err
 	}
 
@@ -74,7 +78,7 @@ func (s *BlkioGroup) Set(path string, cgroup *configs.Cgroup) error {
 	return nil
 }
 
-func (s *BlkioGroup) Remove(d *data) error {
+func (s *BlkioGroup) Remove(d *cgroupData) error {
 	return removePath(d.path("blkio"))
 }
 

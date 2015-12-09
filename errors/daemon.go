@@ -14,7 +14,7 @@ var (
 	// name or ID and we can't find it.
 	ErrorCodeNoSuchContainer = errcode.Register(errGroup, errcode.ErrorDescriptor{
 		Value:          "NOSUCHCONTAINER",
-		Message:        "no such id: %s",
+		Message:        "No such container: %s",
 		Description:    "The specified container can not be found",
 		HTTPStatusCode: http.StatusNotFound,
 	})
@@ -444,12 +444,12 @@ var (
 		HTTPStatusCode: http.StatusInternalServerError,
 	})
 
-	// ErrorCodeVolumeDup is generated when we try to mount two volumes
+	// ErrorCodeMountDup is generated when we try to mount two mounts points
 	// to the same path.
-	ErrorCodeVolumeDup = errcode.Register(errGroup, errcode.ErrorDescriptor{
-		Value:          "VOLUMEDUP",
-		Message:        "Duplicate bind mount '%s'",
-		Description:    "An attempt was made to mount a volume but the specified destination location is already used in a previous mount",
+	ErrorCodeMountDup = errcode.Register(errGroup, errcode.ErrorDescriptor{
+		Value:          "MOUNTDUP",
+		Message:        "Duplicate mount point '%s'",
+		Description:    "An attempt was made to mount a content but the specified destination location is already used in a previous mount",
 		HTTPStatusCode: http.StatusInternalServerError,
 	})
 

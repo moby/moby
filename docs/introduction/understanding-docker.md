@@ -18,8 +18,8 @@ infrastructure like a managed application. Docker helps you ship code faster,
 test faster, deploy faster, and shorten the cycle between writing code and
 running code.
 
-Docker does this by combining a lightweight container virtualization platform
-with workflows and tooling that help you manage and deploy your applications.
+Docker does this by combining kernel containerization features with workflows
+and tooling that help you manage and deploy your applications.
 
 At its core, Docker provides a way to run almost any application securely
 isolated in a container. The isolation and security allow you to run many
@@ -27,8 +27,8 @@ containers simultaneously on your host. The lightweight nature of containers,
 which run without the extra load of a hypervisor, means you can get more out of
 your hardware.
 
-Surrounding the container virtualization are tooling and a platform which can
-help you in several ways:
+Surrounding the container is tooling and a platform which can help you in
+several ways:
 
 * getting your applications (and supporting components) into Docker containers
 * distributing and shipping those containers to your teams for further development
@@ -73,7 +73,7 @@ out of the resources you have.
 Docker has two major components:
 
 
-* Docker: the open source container virtualization platform.
+* Docker: the open source containerization platform.
 * [Docker Hub](https://hub.docker.com): our Software-as-a-Service
   platform for sharing and managing Docker containers.
 

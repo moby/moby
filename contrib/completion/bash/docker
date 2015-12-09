@@ -157,6 +157,11 @@ __docker_networks() {
 	COMPREPLY=( $(compgen -W "$networks" -- "$cur") )
 }
 
+__docker_containers_in_network() {
+	local containers=$(__docker_q network inspect -f '{{range $i, $c := .Containers}}{{$i}} {{$c.Name}} {{end}}' "$1")
+	COMPREPLY=( $(compgen -W "$containers" -- "$cur") )
+}
+
 __docker_volumes() {
 	COMPREPLY=( $(compgen -W "$(__docker_q volume ls -q)" -- "$cur") )
 }
@@ -1092,7 +1097,7 @@ _docker_network_connect() {
 			COMPREPLY=( $( compgen -W "--help" -- "$cur" ) )
 			;;
 		*)
-			local counter=$(__docker_pos_first_nonflag '--tail')
+			local counter=$(__docker_pos_first_nonflag)
 			if [ $cword -eq $counter ]; then
 				__docker_networks
 			elif [ $cword -eq $(($counter + 1)) ]; then
@@ -1127,15 +1132,31 @@ _docker_network_create() {
 }
 
 _docker_network_disconnect() {
-	# TODO disconnect should only complete running containers connected
-	# to the specified network.
-	_docker_network_connect
-}
-
-_docker_network_inspect() {
 	case "$cur" in
 		-*)
 			COMPREPLY=( $( compgen -W "--help" -- "$cur" ) )
+			;;
+		*)
+			local counter=$(__docker_pos_first_nonflag)
+			if [ $cword -eq $counter ]; then
+				__docker_networks
+			elif [ $cword -eq $(($counter + 1)) ]; then
+				__docker_containers_in_network "$prev"
+			fi
+			;;
+	esac
+}
+
+_docker_network_inspect() {
+	case "$prev" in
+		--format|-f)
+			return
+			;;
+	esac
+
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--format -f --help" -- "$cur" ) )
 			;;
 		*)
 			__docker_networks
@@ -1366,6 +1387,8 @@ _docker_run() {
 		--cpuset-mems
 		--cpu-shares
 		--device
+		--device-read-bps
+		--device-write-bps
 		--dns
 		--dns-opt
 		--dns-search
@@ -1389,11 +1412,13 @@ _docker_run() {
 		--memory-reservation
 		--name
 		--net
+		--oom-score-adj
 		--pid
 		--publish -p
 		--restart
 		--security-opt
 		--stop-signal
+		--tmpfs
 		--ulimit
 		--user -u
 		--uts
@@ -1443,7 +1468,7 @@ _docker_run() {
 			_filedir
 			return
 			;;
-		--device|--volume|-v)
+		--device|--tmpfs|--volume|-v)
 			case "$cur" in
 				*:*)
 					# TODO somehow do _filedir for stuff inside the image, if it's already specified (which is also somewhat difficult to determine)
@@ -1536,7 +1561,7 @@ _docker_run() {
 					fi
 					;;
 				*)
-					COMPREPLY=( $( compgen -W "label apparmor" -S ":" -- "$cur") )
+					COMPREPLY=( $( compgen -W "label apparmor seccomp" -S ":" -- "$cur") )
 					__docker_nospace
 					;;
 			esac

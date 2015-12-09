@@ -6,6 +6,7 @@ docker-network-inspect - inspect a network
 
 # SYNOPSIS
 **docker network inspect**
+[**-f**|**--format**[=*FORMAT*]]
 [**--help**]
 NETWORK [NETWORK...]
 
@@ -21,7 +22,11 @@ $ sudo docker run -itd --name=container2 busybox
 bda12f8922785d1f160be70736f26c1e331ab8aaf8ed8d56728508f2e2fd4727
 ```
 
-The `network inspect` command shows the containers, by id, in its results.
+The `network inspect` command shows the containers, by id, in its
+results. You can specify an alternate format to execute a given
+template for each result. Go's
+[text/template](http://golang.org/pkg/text/template/) package
+describes all the details of the format.
 
 ```bash
 $ sudo docker network inspect bridge
@@ -69,6 +74,8 @@ $ sudo docker network inspect bridge
 ```
 
 # OPTIONS
+**-f**, **--format**=""
+  Format the output using the given go template.
 
 **--help**
   Print usage statement

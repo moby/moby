@@ -62,7 +62,7 @@ func newTLSConfig(hostname string, isSecure bool) (*tls.Config, error) {
 
 	tlsConfig.InsecureSkipVerify = !isSecure
 
-	if isSecure {
+	if isSecure && CertsDir != "" {
 		hostDir := filepath.Join(CertsDir, cleanPath(hostname))
 		logrus.Debugf("hostDir: %s", hostDir)
 		if err := ReadCertsDirectory(&tlsConfig, hostDir); err != nil {
@@ -213,6 +213,9 @@ func (e ErrNoSupport) Error() string {
 func ContinueOnError(err error) bool {
 	switch v := err.(type) {
 	case errcode.Errors:
+		if len(v) == 0 {
+			return true
+		}
 		return ContinueOnError(v[0])
 	case ErrNoSupport:
 		return ContinueOnError(v.Err)

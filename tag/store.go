@@ -7,8 +7,10 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"sort"
 	"sync"
 
+	"github.com/docker/distribution/digest"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/image"
 )
@@ -32,7 +34,8 @@ type Association struct {
 type Store interface {
 	References(id image.ID) []reference.Named
 	ReferencesByName(ref reference.Named) []Association
-	Add(ref reference.Named, id image.ID, force bool) error
+	AddTag(ref reference.Named, id image.ID, force bool) error
+	AddDigest(ref reference.Canonical, id image.ID, force bool) error
 	Delete(ref reference.Named) (bool, error)
 	Get(ref reference.Named) (image.ID, error)
 }
@@ -52,6 +55,18 @@ type store struct {
 // Repository maps tags to image IDs. The key is a a stringified Reference,
 // including the repository name.
 type repository map[string]image.ID
+
+type lexicalRefs []reference.Named
+
+func (a lexicalRefs) Len() int           { return len(a) }
+func (a lexicalRefs) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a lexicalRefs) Less(i, j int) bool { return a[i].String() < a[j].String() }
+
+type lexicalAssociations []Association
+
+func (a lexicalAssociations) Len() int           { return len(a) }
+func (a lexicalAssociations) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a lexicalAssociations) Less(i, j int) bool { return a[i].Ref.String() < a[j].Ref.String() }
 
 func defaultTagIfNameOnly(ref reference.Named) reference.Named {
 	switch ref.(type) {
@@ -90,10 +105,24 @@ func NewTagStore(jsonPath string) (Store, error) {
 	return store, nil
 }
 
-// Add adds a tag or digest to the store. If force is set to true, existing
+// Add adds a tag to the store. If force is set to true, existing
 // references can be overwritten. This only works for tags, not digests.
-func (store *store) Add(ref reference.Named, id image.ID, force bool) error {
-	ref = defaultTagIfNameOnly(ref)
+func (store *store) AddTag(ref reference.Named, id image.ID, force bool) error {
+	if _, isDigested := ref.(reference.Digested); isDigested {
+		return errors.New("refusing to create a tag with a digest reference")
+	}
+	return store.addReference(defaultTagIfNameOnly(ref), id, force)
+}
+
+// Add adds a digest reference to the store.
+func (store *store) AddDigest(ref reference.Canonical, id image.ID, force bool) error {
+	return store.addReference(ref, id, force)
+}
+
+func (store *store) addReference(ref reference.Named, id image.ID, force bool) error {
+	if ref.Name() == string(digest.Canonical) {
+		return errors.New("refusing to create an ambiguous tag using digest algorithm as name")
+	}
 
 	store.mu.Lock()
 	defer store.mu.Unlock()
@@ -202,6 +231,8 @@ func (store *store) References(id image.ID) []reference.Named {
 		references = append(references, ref)
 	}
 
+	sort.Sort(lexicalRefs(references))
+
 	return references
 }
 
@@ -230,6 +261,8 @@ func (store *store) ReferencesByName(ref reference.Named) []Association {
 				ImageID: refID,
 			})
 	}
+
+	sort.Sort(lexicalAssociations(associations))
 
 	return associations
 }

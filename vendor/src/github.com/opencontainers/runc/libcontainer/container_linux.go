@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"sync"
 	"syscall"
@@ -32,6 +33,73 @@ type linuxContainer struct {
 	initProcess   parentProcess
 	criuPath      string
 	m             sync.Mutex
+	criuVersion   int
+}
+
+// State represents a running container's state
+type State struct {
+	BaseState
+
+	// Platform specific fields below here
+
+	// Path to all the cgroups setup for a container. Key is cgroup subsystem name
+	// with the value as the path.
+	CgroupPaths map[string]string `json:"cgroup_paths"`
+
+	// NamespacePaths are filepaths to the container's namespaces. Key is the namespace type
+	// with the value as the path.
+	NamespacePaths map[configs.NamespaceType]string `json:"namespace_paths"`
+
+	// Container's standard descriptors (std{in,out,err}), needed for checkpoint and restore
+	ExternalDescriptors []string `json:"external_descriptors,omitempty"`
+}
+
+// A libcontainer container object.
+//
+// Each container is thread-safe within the same process. Since a container can
+// be destroyed by a separate process, any function may return that the container
+// was not found.
+type Container interface {
+	BaseContainer
+
+	// Methods below here are platform specific
+
+	// Checkpoint checkpoints the running container's state to disk using the criu(8) utility.
+	//
+	// errors:
+	// Systemerror - System error.
+	Checkpoint(criuOpts *CriuOpts) error
+
+	// Restore restores the checkpointed container to a running state using the criu(8) utiity.
+	//
+	// errors:
+	// Systemerror - System error.
+	Restore(process *Process, criuOpts *CriuOpts) error
+
+	// If the Container state is RUNNING or PAUSING, sets the Container state to PAUSING and pauses
+	// the execution of any user processes. Asynchronously, when the container finished being paused the
+	// state is changed to PAUSED.
+	// If the Container state is PAUSED, do nothing.
+	//
+	// errors:
+	// ContainerDestroyed - Container no longer exists,
+	// Systemerror - System error.
+	Pause() error
+
+	// If the Container state is PAUSED, resumes the execution of any user processes in the
+	// Container before setting the Container state to RUNNING.
+	// If the Container state is RUNNING, do nothing.
+	//
+	// errors:
+	// ContainerDestroyed - Container no longer exists,
+	// Systemerror - System error.
+	Resume() error
+
+	// NotifyOOM returns a read-only channel signaling when the container receives an OOM notification.
+	//
+	// errors:
+	// Systemerror - System error.
+	NotifyOOM() (<-chan struct{}, error)
 }
 
 // ID returns the container's unique ID
@@ -111,9 +179,24 @@ func (c *linuxContainer) Start(process *Process) error {
 		}
 		return newSystemError(err)
 	}
-	process.ops = parent
 	if doInit {
 		c.updateState(parent)
+	}
+	if c.config.Hooks != nil {
+		s := configs.HookState{
+			Version: c.config.Version,
+			ID:      c.id,
+			Pid:     parent.pid(),
+			Root:    c.config.Rootfs,
+		}
+		for _, hook := range c.config.Hooks.Poststart {
+			if err := hook.Run(s); err != nil {
+				if err := parent.terminate(); err != nil {
+					logrus.Warn(err)
+				}
+				return newSystemError(err)
+			}
+		}
 	}
 	return nil
 }
@@ -186,6 +269,7 @@ func (c *linuxContainer) newInitProcess(p *Process, cmd *exec.Cmd, parentPipe, c
 		manager:    c.cgroupManager,
 		config:     c.newInitConfig(p),
 		container:  c,
+		process:    p,
 	}, nil
 }
 
@@ -204,6 +288,7 @@ func (c *linuxContainer) newSetnsProcess(p *Process, cmd *exec.Cmd, parentPipe, 
 		childPipe:   childPipe,
 		parentPipe:  parentPipe,
 		config:      c.newInitConfig(p),
+		process:     p,
 	}
 }
 
@@ -337,7 +422,9 @@ func (c *linuxContainer) checkCriuVersion(min_version string) error {
 		}
 	}
 
-	if x*10000+y*100+z < versionReq {
+	c.criuVersion = x*10000 + y*100 + z
+
+	if c.criuVersion < versionReq {
 		return fmt.Errorf("CRIU version must be %s or higher", min_version)
 	}
 
@@ -665,6 +752,8 @@ func (c *linuxContainer) criuSwrk(process *Process, req *criurpc.CriuReq, opts *
 	defer criuServer.Close()
 
 	args := []string{"swrk", "3"}
+	logrus.Debugf("Using CRIU %d at: %s", c.criuVersion, c.criuPath)
+	logrus.Debugf("Using CRIU with following args: %s", args)
 	cmd := exec.Command(c.criuPath, args...)
 	if process != nil {
 		cmd.Stdin = process.Stdin
@@ -701,6 +790,18 @@ func (c *linuxContainer) criuSwrk(process *Process, req *criurpc.CriuReq, opts *
 		}
 	}
 
+	logrus.Debugf("Using CRIU in %s mode", req.GetType().String())
+	val := reflect.ValueOf(req.GetOpts())
+	v := reflect.Indirect(val)
+	for i := 0; i < v.NumField(); i++ {
+		st := v.Type()
+		name := st.Field(i).Name
+		if strings.HasPrefix(name, "XXX_") {
+			continue
+		}
+		value := val.MethodByName("Get" + name).Call([]reflect.Value{})
+		logrus.Debugf("CRIU option %s with value %v", name, value[0])
+	}
 	data, err := proto.Marshal(req)
 	if err != nil {
 		return err
@@ -899,13 +1000,15 @@ func (c *linuxContainer) currentState() (*State, error) {
 		return nil, newSystemError(err)
 	}
 	state := &State{
-		ID:                   c.ID(),
-		Config:               *c.config,
-		InitProcessPid:       c.initProcess.pid(),
-		InitProcessStartTime: startTime,
-		CgroupPaths:          c.cgroupManager.GetPaths(),
-		NamespacePaths:       make(map[configs.NamespaceType]string),
-		ExternalDescriptors:  c.initProcess.externalDescriptors(),
+		BaseState: BaseState{
+			ID:                   c.ID(),
+			Config:               *c.config,
+			InitProcessPid:       c.initProcess.pid(),
+			InitProcessStartTime: startTime,
+		},
+		CgroupPaths:         c.cgroupManager.GetPaths(),
+		NamespacePaths:      make(map[configs.NamespaceType]string),
+		ExternalDescriptors: c.initProcess.externalDescriptors(),
 	}
 	for _, ns := range c.config.Namespaces {
 		state.NamespacePaths[ns.Type] = ns.GetPath(c.initProcess.pid())

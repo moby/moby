@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"bytes"
 	"io"
+	"io/ioutil"
 )
 
 // DigestSHA256EmptyTar is the canonical sha256 digest of empty tar file -
@@ -15,11 +16,11 @@ type emptyLayer struct{}
 // EmptyLayer is a layer that corresponds to empty tar.
 var EmptyLayer = &emptyLayer{}
 
-func (el *emptyLayer) TarStream() (io.Reader, error) {
+func (el *emptyLayer) TarStream() (io.ReadCloser, error) {
 	buf := new(bytes.Buffer)
 	tarWriter := tar.NewWriter(buf)
 	tarWriter.Close()
-	return buf, nil
+	return ioutil.NopCloser(buf), nil
 }
 
 func (el *emptyLayer) ChainID() ChainID {

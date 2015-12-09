@@ -1,3 +1,5 @@
+// +build linux
+
 package fs
 
 import (
@@ -6,9 +8,14 @@ import (
 )
 
 type NameGroup struct {
+	GroupName string
 }
 
-func (s *NameGroup) Apply(d *data) error {
+func (s *NameGroup) Name() string {
+	return s.GroupName
+}
+
+func (s *NameGroup) Apply(d *cgroupData) error {
 	return nil
 }
 
@@ -16,7 +23,7 @@ func (s *NameGroup) Set(path string, cgroup *configs.Cgroup) error {
 	return nil
 }
 
-func (s *NameGroup) Remove(d *data) error {
+func (s *NameGroup) Remove(d *cgroupData) error {
 	return nil
 }
 

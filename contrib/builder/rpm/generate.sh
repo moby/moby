@@ -38,6 +38,8 @@ for version in "${versions[@]}"; do
 
 	echo >> "$version/Dockerfile"
 
+	extraBuildTags=
+
 	case "$from" in
 		centos:*)
 			# get "Development Tools" packages dependencies
@@ -65,6 +67,7 @@ for version in "${versions[@]}"; do
 		btrfs-progs-devel # for "btrfs/ioctl.h" (and "version.h" if possible)
 		device-mapper-devel # for "libdevmapper.h"
 		glibc-static
+		libseccomp-devel # for "seccomp.h" & "libseccomp.so"
 		libselinux-devel # for "libselinux.so"
 		libtool-ltdl-devel # for pkcs11 "ltdl.h"
 		selinux-policy
@@ -77,6 +80,16 @@ for version in "${versions[@]}"; do
 		oraclelinux:7)
 			# Enable the optional repository
 			packages=( --enablerepo=ol7_optional_latest "${packages[*]}" )
+			;;
+	esac
+
+	# opensuse & oraclelinx:6 do not have the right libseccomp libs
+	case "$from" in
+		opensuse:*|oraclelinux:6)
+			packages=( "${packages[@]/libseccomp-devel}" )
+			;;
+		*)
+			extraBuildTags+=' seccomp'
 			;;
 	esac
 
@@ -93,6 +106,39 @@ for version in "${versions[@]}"; do
 
 	echo >> "$version/Dockerfile"
 
+	# centos, fedora, & oraclelinux:7 do not have a libseccomp.a for compiling static dockerinit
+	# ONLY install libseccomp.a from source, this can be removed once dockerinit is removed
+	# TODO remove this manual seccomp compilation once dockerinit is gone or no longer needs to be statically compiled
+	case "$from" in
+		opensuse:*|oraclelinux:6) ;;
+		*)
+			awk '$1 == "ENV" && $2 == "SECCOMP_VERSION" { print; exit }' ../../../Dockerfile >> "$version/Dockerfile"
+			cat <<-'EOF' >> "$version/Dockerfile"
+			RUN buildDeps=' \
+				automake \
+				libtool \
+			' \
+			&& set -x \
+			&& yum install -y $buildDeps \
+			&& export SECCOMP_PATH=$(mktemp -d) \
+			&& git clone -b "$SECCOMP_VERSION" --depth 1 https://github.com/seccomp/libseccomp.git "$SECCOMP_PATH" \
+			&& ( \
+				cd "$SECCOMP_PATH" \
+				&& ./autogen.sh \
+				&& ./configure --prefix=/usr \
+				&& make \
+				&& install -c src/.libs/libseccomp.a /usr/lib/libseccomp.a \
+				&& chmod 644 /usr/lib/libseccomp.a \
+				&& ranlib /usr/lib/libseccomp.a \
+				&& ldconfig -n /usr/lib \
+			) \
+			&& rm -rf "$SECCOMP_PATH"
+			EOF
+
+			echo >> "$version/Dockerfile"
+			;;
+	esac
+
 	awk '$1 == "ENV" && $2 == "GO_VERSION" { print; exit }' ../../../Dockerfile >> "$version/Dockerfile"
 	echo 'RUN curl -fSL "https://storage.googleapis.com/golang/go${GO_VERSION}.linux-amd64.tar.gz" | tar xzC /usr/local' >> "$version/Dockerfile"
 	echo 'ENV PATH $PATH:/usr/local/go/bin' >> "$version/Dockerfile"
@@ -101,5 +147,10 @@ for version in "${versions[@]}"; do
 
 	echo 'ENV AUTO_GOPATH 1' >> "$version/Dockerfile"
 
-	echo 'ENV DOCKER_BUILDTAGS selinux' >> "$version/Dockerfile"
+	echo >> "$version/Dockerfile"
+
+	# print build tags in alphabetical order
+	buildTags=$( echo "selinux $extraBuildTags" | xargs -n1 | sort -n | tr '\n' ' ' | sed -e 's/[[:space:]]*$//' )
+
+	echo "ENV DOCKER_BUILDTAGS $buildTags" >> "$version/Dockerfile"
 done

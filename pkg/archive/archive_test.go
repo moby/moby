@@ -49,6 +49,45 @@ func TestIsArchive7zip(t *testing.T) {
 	}
 }
 
+func TestIsArchivePathDir(t *testing.T) {
+	cmd := exec.Command("/bin/sh", "-c", "mkdir -p /tmp/archivedir")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("Fail to create an archive file for test : %s.", output)
+	}
+	if IsArchivePath("/tmp/archivedir") {
+		t.Fatalf("Incorrectly recognised directory as an archive")
+	}
+}
+
+func TestIsArchivePathInvalidFile(t *testing.T) {
+	cmd := exec.Command("/bin/sh", "-c", "dd if=/dev/zero bs=1K count=1 of=/tmp/archive && gzip --stdout /tmp/archive > /tmp/archive.gz")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("Fail to create an archive file for test : %s.", output)
+	}
+	if IsArchivePath("/tmp/archive") {
+		t.Fatalf("Incorrectly recognised invalid tar path as archive")
+	}
+	if IsArchivePath("/tmp/archive.gz") {
+		t.Fatalf("Incorrectly recognised invalid compressed tar path as archive")
+	}
+}
+
+func TestIsArchivePathTar(t *testing.T) {
+	cmd := exec.Command("/bin/sh", "-c", "touch /tmp/archivedata && tar -cf /tmp/archive /tmp/archivedata && gzip --stdout /tmp/archive > /tmp/archive.gz")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("Fail to create an archive file for test : %s.", output)
+	}
+	if !IsArchivePath("/tmp/archive") {
+		t.Fatalf("Did not recognise valid tar path as archive")
+	}
+	if !IsArchivePath("/tmp/archive.gz") {
+		t.Fatalf("Did not recognise valid compressed tar path as archive")
+	}
+}
+
 func TestDecompressStreamGzip(t *testing.T) {
 	cmd := exec.Command("/bin/sh", "-c", "touch /tmp/archive && gzip -f /tmp/archive")
 	output, err := cmd.CombinedOutput()
@@ -216,11 +255,16 @@ func TestUntarPathWithInvalidDest(t *testing.T) {
 	invalidDestFolder := path.Join(tempFolder, "invalidDest")
 	// Create a src file
 	srcFile := path.Join(tempFolder, "src")
-	_, err = os.Create(srcFile)
+	tarFile := path.Join(tempFolder, "src.tar")
+	os.Create(srcFile)
+	os.Create(invalidDestFolder) // being a file (not dir) should cause an error
+	cmd := exec.Command("/bin/sh", "-c", "tar cf "+tarFile+" "+srcFile)
+	_, err = cmd.CombinedOutput()
 	if err != nil {
-		t.Fatalf("Fail to create the source file")
+		t.Fatal(err)
 	}
-	err = UntarPath(srcFile, invalidDestFolder)
+
+	err = UntarPath(tarFile, invalidDestFolder)
 	if err == nil {
 		t.Fatalf("UntarPath with invalid destination path should throw an error.")
 	}

@@ -52,11 +52,6 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 	// that's more intuitive (the copied path is trivial to derive
 	// by hand given VERSION)
 	initPath := utils.DockerInitPath("")
-	if initPath == "" {
-		// if that fails, we'll just return the path from the daemon
-		initPath = daemon.systemInitPath()
-	}
-
 	sysInfo := sysinfo.New(true)
 
 	v := &types.Info{
@@ -86,12 +81,12 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 		InitPath:           initPath,
 		NCPU:               runtime.NumCPU(),
 		MemTotal:           meminfo.MemTotal,
-		DockerRootDir:      daemon.config().Root,
-		Labels:             daemon.config().Labels,
+		DockerRootDir:      daemon.configStore.Root,
+		Labels:             daemon.configStore.Labels,
 		ExperimentalBuild:  utils.ExperimentalBuild(),
 		ServerVersion:      dockerversion.Version,
-		ClusterStore:       daemon.config().ClusterStore,
-		ClusterAdvertise:   daemon.config().ClusterAdvertise,
+		ClusterStore:       daemon.configStore.ClusterStore,
+		ClusterAdvertise:   daemon.configStore.ClusterAdvertise,
 		HTTPProxy:          getProxyEnv("http_proxy"),
 		HTTPSProxy:         getProxyEnv("https_proxy"),
 		NoProxy:            getProxyEnv("no_proxy"),
@@ -116,6 +111,25 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 	}
 
 	return v, nil
+}
+
+// SystemVersion returns version information about the daemon.
+func (daemon *Daemon) SystemVersion() types.Version {
+	v := types.Version{
+		Version:      dockerversion.Version,
+		GitCommit:    dockerversion.GitCommit,
+		GoVersion:    runtime.Version(),
+		Os:           runtime.GOOS,
+		Arch:         runtime.GOARCH,
+		BuildTime:    dockerversion.BuildTime,
+		Experimental: utils.ExperimentalBuild(),
+	}
+
+	if kernelVersion, err := kernel.GetKernelVersion(); err == nil {
+		v.KernelVersion = kernelVersion.String()
+	}
+
+	return v
 }
 
 func (daemon *Daemon) showPluginsInfo() types.PluginsInfo {

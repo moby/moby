@@ -375,10 +375,10 @@ func (s *DockerSuite) TestRunNoDupVolumes(c *check.C) {
 	mountstr2 := path2 + someplace
 
 	if out, _, err := dockerCmdWithError("run", "-v", mountstr1, "-v", mountstr2, "busybox", "true"); err == nil {
-		c.Fatal("Expected error about duplicate volume definitions")
+		c.Fatal("Expected error about duplicate mount definitions")
 	} else {
-		if !strings.Contains(out, "Duplicate bind mount") {
-			c.Fatalf("Expected 'duplicate volume' error, got %v", out)
+		if !strings.Contains(out, "Duplicate mount point") {
+			c.Fatalf("Expected 'duplicate mount point' error, got %v", out)
 		}
 	}
 }
@@ -2858,18 +2858,18 @@ func (s *DockerSuite) TestRunUnshareProc(c *check.C) {
 
 	name := "acidburn"
 	if out, _, err := dockerCmdWithError("run", "--name", name, "jess/unshare", "unshare", "-p", "-m", "-f", "-r", "--mount-proc=/proc", "mount"); err == nil || !strings.Contains(out, "Permission denied") {
-		c.Fatalf("unshare should have failed with permission denied, got: %s, %v", out, err)
+		c.Fatalf("unshare with --mount-proc should have failed with permission denied, got: %s, %v", out, err)
 	}
 
 	name = "cereal"
 	if out, _, err := dockerCmdWithError("run", "--name", name, "jess/unshare", "unshare", "-p", "-m", "-f", "-r", "mount", "-t", "proc", "none", "/proc"); err == nil || !strings.Contains(out, "Permission denied") {
-		c.Fatalf("unshare should have failed with permission denied, got: %s, %v", out, err)
+		c.Fatalf("unshare and mount of /proc should have failed with permission denied, got: %s, %v", out, err)
 	}
 
 	/* Ensure still fails if running privileged with the default policy */
 	name = "crashoverride"
-	if out, _, err := dockerCmdWithError("run", "--privileged", "--security-opt", "apparmor:docker-default", "--name", name, "jess/unshare", "unshare", "-p", "-m", "-f", "-r", "mount", "-t", "proc", "none", "/proc"); err == nil || !(strings.Contains(out, "Permission denied") || strings.Contains(out, "Operation not permitted")) {
-		c.Fatalf("unshare should have failed with permission denied, got: %s, %v", out, err)
+	if out, _, err := dockerCmdWithError("run", "--privileged", "--security-opt", "apparmor:docker-default", "--name", name, "jess/unshare", "unshare", "-p", "-m", "-f", "-r", "mount", "-t", "proc", "none", "/proc"); err == nil || !(strings.Contains(strings.ToLower(out), "permission denied") || strings.Contains(strings.ToLower(out), "operation not permitted")) {
+		c.Fatalf("privileged unshare with apparmor should have failed with permission denied, got: %s, %v", out, err)
 	}
 }
 
@@ -3384,17 +3384,17 @@ func (s *DockerSuite) TestRunContainerNetModeWithDnsMacHosts(c *check.C) {
 	}
 
 	out, _, err = dockerCmdWithError("run", "--dns", "1.2.3.4", "--net=container:parent", "busybox")
-	if err == nil || !strings.Contains(out, "Conflicting options: --dns and the network mode") {
+	if err == nil || !strings.Contains(out, runconfig.ErrConflictNetworkAndDNS.Error()) {
 		c.Fatalf("run --net=container with --dns should error out")
 	}
 
 	out, _, err = dockerCmdWithError("run", "--mac-address", "92:d0:c6:0a:29:33", "--net=container:parent", "busybox")
-	if err == nil || !strings.Contains(out, "--mac-address and the network mode") {
+	if err == nil || !strings.Contains(out, runconfig.ErrConflictContainerNetworkAndMac.Error()) {
 		c.Fatalf("run --net=container with --mac-address should error out")
 	}
 
 	out, _, err = dockerCmdWithError("run", "--add-host", "test:192.168.2.109", "--net=container:parent", "busybox")
-	if err == nil || !strings.Contains(out, "--add-host and the network mode") {
+	if err == nil || !strings.Contains(out, runconfig.ErrConflictNetworkHosts.Error()) {
 		c.Fatalf("run --net=container with --add-host should error out")
 	}
 }
@@ -3405,17 +3405,17 @@ func (s *DockerSuite) TestRunContainerNetModeWithExposePort(c *check.C) {
 	dockerCmd(c, "run", "-d", "--name", "parent", "busybox", "top")
 
 	out, _, err := dockerCmdWithError("run", "-p", "5000:5000", "--net=container:parent", "busybox")
-	if err == nil || !strings.Contains(out, "Conflicting options: -p, -P, --publish-all, --publish and the network mode (--net)") {
+	if err == nil || !strings.Contains(out, runconfig.ErrConflictNetworkPublishPorts.Error()) {
 		c.Fatalf("run --net=container with -p should error out")
 	}
 
 	out, _, err = dockerCmdWithError("run", "-P", "--net=container:parent", "busybox")
-	if err == nil || !strings.Contains(out, "Conflicting options: -p, -P, --publish-all, --publish and the network mode (--net)") {
+	if err == nil || !strings.Contains(out, runconfig.ErrConflictNetworkPublishPorts.Error()) {
 		c.Fatalf("run --net=container with -P should error out")
 	}
 
 	out, _, err = dockerCmdWithError("run", "--expose", "5000", "--net=container:parent", "busybox")
-	if err == nil || !strings.Contains(out, "Conflicting options: --expose and the network mode (--net)") {
+	if err == nil || !strings.Contains(out, runconfig.ErrConflictNetworkExposePorts.Error()) {
 		c.Fatalf("run --net=container with --expose should error out")
 	}
 }
@@ -3759,5 +3759,56 @@ func (s *DockerSuite) TestRunInvalidReference(c *check.C) {
 
 	if !strings.Contains(out, "invalid reference format") {
 		c.Fatalf(`Expected "invalid reference format" in output; got: %s`, out)
+	}
+}
+
+// Test fix for issue #17854
+func (s *DockerSuite) TestRunInitLayerPathOwnership(c *check.C) {
+	// Not applicable on Windows as it does not support Linux uid/gid ownership
+	testRequires(c, DaemonIsLinux)
+	name := "testetcfileownership"
+	_, err := buildImage(name,
+		`FROM busybox
+		RUN echo 'dockerio:x:1001:1001::/bin:/bin/false' >> /etc/passwd
+		RUN echo 'dockerio:x:1001:' >> /etc/group
+		RUN chown dockerio:dockerio /etc`,
+		true)
+	if err != nil {
+		c.Fatal(err)
+	}
+
+	// Test that dockerio ownership of /etc is retained at runtime
+	out, _ := dockerCmd(c, "run", "--rm", name, "stat", "-c", "%U:%G", "/etc")
+	out = strings.TrimSpace(out)
+	if out != "dockerio:dockerio" {
+		c.Fatalf("Wrong /etc ownership: expected dockerio:dockerio, got %q", out)
+	}
+}
+
+func (s *DockerSuite) TestRunWithOomScoreAdj(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	expected := "642"
+	out, _ := dockerCmd(c, "run", "--oom-score-adj", expected, "busybox", "cat", "/proc/self/oom_score_adj")
+	oomScoreAdj := strings.TrimSpace(out)
+	if oomScoreAdj != "642" {
+		c.Fatalf("Expected oom_score_adj set to %q, got %q instead", expected, oomScoreAdj)
+	}
+}
+
+func (s *DockerSuite) TestRunWithOomScoreAdjInvalidRange(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	out, _, err := dockerCmdWithError("run", "--oom-score-adj", "1001", "busybox", "true")
+	c.Assert(err, check.NotNil)
+	expected := "Invalid value 1001, range for oom score adj is [-1000, 1000]."
+	if !strings.Contains(out, expected) {
+		c.Fatalf("Expected output to contain %q, got %q instead", expected, out)
+	}
+	out, _, err = dockerCmdWithError("run", "--oom-score-adj", "-1001", "busybox", "true")
+	c.Assert(err, check.NotNil)
+	expected = "Invalid value -1001, range for oom score adj is [-1000, 1000]."
+	if !strings.Contains(out, expected) {
+		c.Fatalf("Expected output to contain %q, got %q instead", expected, out)
 	}
 }

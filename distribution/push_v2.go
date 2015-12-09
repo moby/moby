@@ -365,6 +365,7 @@ func (p *v2Pusher) pushV2Layer(bs distribution.BlobService, l layer.Layer) (dige
 	if err != nil {
 		return "", err
 	}
+	defer arch.Close()
 
 	// Send the layer
 	layerUpload, err := bs.Create(context.Background())

@@ -67,7 +67,7 @@ func (diffID DiffID) String() string {
 type TarStreamer interface {
 	// TarStream returns a tar archive stream
 	// for the contents of a layer.
-	TarStream() (io.Reader, error)
+	TarStream() (io.ReadCloser, error)
 }
 
 // Layer represents a read only layer

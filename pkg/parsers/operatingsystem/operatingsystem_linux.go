@@ -69,7 +69,7 @@ func IsContainerized() (bool, error) {
 		return false, err
 	}
 	for _, line := range bytes.Split(b, []byte{'\n'}) {
-		if len(line) > 0 && !bytes.HasSuffix(line, []byte{'/'}) {
+		if len(line) > 0 && !bytes.HasSuffix(line, []byte{'/'}) && !bytes.HasSuffix(line, []byte("init.scope")) {
 			return true, nil
 		}
 	}

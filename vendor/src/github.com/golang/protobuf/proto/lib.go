@@ -607,26 +607,15 @@ func setDefaults(v reflect.Value, recur, zeros bool) {
 
 	for _, ni := range dm.nested {
 		f := v.Field(ni)
-		// f is *T or []*T or map[T]*T
-		switch f.Kind() {
-		case reflect.Ptr:
-			if f.IsNil() {
-				continue
-			}
+		if f.IsNil() {
+			continue
+		}
+		// f is *T or []*T
+		if f.Kind() == reflect.Ptr {
 			setDefaults(f, recur, zeros)
-
-		case reflect.Slice:
+		} else {
 			for i := 0; i < f.Len(); i++ {
 				e := f.Index(i)
-				if e.IsNil() {
-					continue
-				}
-				setDefaults(e, recur, zeros)
-			}
-
-		case reflect.Map:
-			for _, k := range f.MapKeys() {
-				e := f.MapIndex(k)
 				if e.IsNil() {
 					continue
 				}
@@ -657,6 +646,10 @@ type scalarField struct {
 	value interface{}  // the proto-declared default value, or nil
 }
 
+func ptrToStruct(t reflect.Type) bool {
+	return t.Kind() == reflect.Ptr && t.Elem().Kind() == reflect.Struct
+}
+
 // t is a struct type.
 func buildDefaultMessage(t reflect.Type) (dm defaultMessage) {
 	sprop := GetProperties(t)
@@ -668,33 +661,9 @@ func buildDefaultMessage(t reflect.Type) (dm defaultMessage) {
 		}
 		ft := t.Field(fi).Type
 
-		var canHaveDefault, nestedMessage bool
-		switch ft.Kind() {
-		case reflect.Ptr:
-			if ft.Elem().Kind() == reflect.Struct {
-				nestedMessage = true
-			} else {
-				canHaveDefault = true // proto2 scalar field
-			}
-
-		case reflect.Slice:
-			switch ft.Elem().Kind() {
-			case reflect.Ptr:
-				nestedMessage = true // repeated message
-			case reflect.Uint8:
-				canHaveDefault = true // bytes field
-			}
-
-		case reflect.Map:
-			if ft.Elem().Kind() == reflect.Ptr {
-				nestedMessage = true // map with message values
-			}
-		}
-
-		if !canHaveDefault {
-			if nestedMessage {
-				dm.nested = append(dm.nested, fi)
-			}
+		// nested messages
+		if ptrToStruct(ft) || (ft.Kind() == reflect.Slice && ptrToStruct(ft.Elem())) {
+			dm.nested = append(dm.nested, fi)
 			continue
 		}
 

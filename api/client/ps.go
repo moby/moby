@@ -20,7 +20,7 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 	var (
 		err error
 
-		psFilterArgs = filters.Args{}
+		psFilterArgs = filters.NewArgs()
 		v            = url.Values{}
 
 		cmd      = Cli.Subcmd("ps", nil, Cli.DockerCommands["ps"].Description, true)
@@ -72,7 +72,7 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 		}
 	}
 
-	if len(psFilterArgs) > 0 {
+	if psFilterArgs.Len() > 0 {
 		filterJSON, err := filters.ToParam(psFilterArgs)
 		if err != nil {
 			return err

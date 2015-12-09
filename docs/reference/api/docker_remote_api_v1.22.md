@@ -188,8 +188,11 @@ Create a container
              "CpusetMems": "0,1",
              "BlkioWeight": 300,
              "BlkioWeightDevice": [{}],
+             "BlkioDeviceReadBps": [{}],
+             "BlkioDeviceWriteBps": [{}],
              "MemorySwappiness": 60,
              "OomKillDisable": false,
+             "OomScoreAdj": 500,
              "PortBindings": { "22/tcp": [{ "HostPort": "11022" }] },
              "PublishAllPorts": false,
              "Privileged": false,
@@ -243,9 +246,14 @@ Json Parameters:
 -   **CpusetCpus** - String value containing the `cgroups CpusetCpus` to use.
 -   **CpusetMems** - Memory nodes (MEMs) in which to allow execution (0-3, 0,1). Only effective on NUMA systems.
 -   **BlkioWeight** - Block IO weight (relative weight) accepts a weight value between 10 and 1000.
- -   **BlkioWeightDevice** - Block IO weight (relative device weight) in the form of:        `"BlkioWeightDevice": [{"Path": "device_path", "Weight": weight}]`
+-   **BlkioWeightDevice** - Block IO weight (relative device weight) in the form of:        `"BlkioWeightDevice": [{"Path": "device_path", "Weight": weight}]`
+-   **BlkioDeviceReadBps** - Limit read rate from a device in form of:	`"BlkioDeviceReadBps": [{"Path": "device_path", "Rate": rate}]`, for example:
+	`"BlkioDeviceReadBps": [{"Path": "/dev/sda", "Rate": "1024"}]"`
+-   **BlkioDeviceWriteBps** - Limit write rate to a device in the form of:	`"BlkioDeviceWriteBps": [{"Path": "deivce_path", "Rate": rate}]`, for example:
+	`"BlkioDeviceWriteBps": [{"Path": "/dev/sda", "Rate": "1024"}]"`
 -   **MemorySwappiness** - Tune a container's memory swappiness behavior. Accepts an integer between 0 and 100.
 -   **OomKillDisable** - Boolean value, whether to disable OOM Killer for the container or not.
+-   **OomScoreAdj** - An integer value containing the score given to the container in order to tune OOM killer preferences.
 -   **AttachStdin** - Boolean value, attaches to `stdin`.
 -   **AttachStdout** - Boolean value, attaches to `stdout`.
 -   **AttachStderr** - Boolean value, attaches to `stderr`.
@@ -396,6 +404,8 @@ Return low-level information on the container `id`
 			"Binds": null,
 			"BlkioWeight": 0,
 			"BlkioWeightDevice": [{}],
+			"BlkioDeviceReadBps": [{}],
+			"BlkioDeviceWriteBps": [{}],
 			"CapAdd": null,
 			"CapDrop": null,
 			"ContainerIDFile": "",
@@ -416,6 +426,7 @@ Return low-level information on the container `id`
 			"MemoryReservation": 0,
 			"KernelMemory": 0,
 			"OomKillDisable": false,
+			"OomScoreAdj": 500,
 			"NetworkMode": "bridge",
 			"PortBindings": {},
 			"Privileged": false,
@@ -1529,7 +1540,24 @@ Query Parameters:
 
     Request Headers:
 
--   **X-Registry-Auth** – base64-encoded AuthConfig object
+-   **X-Registry-Auth** – base64-encoded AuthConfig object, containing either login information, or a token
+    - Credential based login:
+
+        ```
+    {
+            "username": "jdoe",
+            "password": "secret",
+            "email": "jdoe@acme.com",
+    }
+        ```
+
+    - Token based login:
+
+        ```
+    {
+            "registrytoken": "9cbaf023786cd7..."
+    }
+        ```
 
 Status Codes:
 
@@ -1738,8 +1766,24 @@ Query Parameters:
 
 Request Headers:
 
--   **X-Registry-Auth** – Include a base64-encoded AuthConfig.
-        object.
+-   **X-Registry-Auth** – base64-encoded AuthConfig object, containing either login information, or a token
+    - Credential based login:
+
+        ```
+    {
+            "username": "jdoe",
+            "password": "secret",
+            "email": "jdoe@acme.com",
+    }
+        ```
+
+    - Token based login:
+
+        ```
+    {
+            "registrytoken": "9cbaf023786cd7..."
+    }
+        ```
 
 Status Codes:
 
@@ -1907,6 +1951,7 @@ Display system-wide information
     Content-Type: application/json
 
     {
+        "Architecture": "x86_64",
         "Containers": 11,
         "CpuCfsPeriod": true,
         "CpuCfsQuota": true,
@@ -1915,16 +1960,16 @@ Display system-wide information
         "DockerRootDir": "/var/lib/docker",
         "Driver": "btrfs",
         "DriverStatus": [[""]],
-	"Plugins": {
-		"Volume": [
-			"local"
-		],
-		"Network": [
-			"null",
-			"host",
-			"bridge"
-		]
-	},
+        "Plugins": {
+            "Volume": [
+                "local"
+            ],
+            "Network": [
+                "null",
+                "host",
+                "bridge"
+            ]
+        },
         "ExecutionDriver": "native-0.1",
         "ExperimentalBuild": false,
         "HttpProxy": "http://test:test@localhost:8080",
@@ -1948,6 +1993,8 @@ Display system-wide information
         "Name": "prod-server-42",
         "NoProxy": "9.81.1.160",
         "OomKillDisable": true,
+        "OSType": "linux",
+        "OomScoreAdj": 500,
         "OperatingSystem": "Boot2Docker",
         "RegistryConfig": {
             "IndexConfigs": {
@@ -1988,14 +2035,15 @@ Show the docker version information
     Content-Type: application/json
 
     {
-         "Version": "1.5.0",
+         "Version": "1.10.0-dev",
          "Os": "linux",
-         "KernelVersion": "3.18.5-tinycore64",
-         "GoVersion": "go1.4.1",
-         "GitCommit": "a8a31ef",
+         "KernelVersion": "3.19.0-23-generic",
+         "GoVersion": "go1.4.2",
+         "GitCommit": "e75da4b",
          "Arch": "amd64",
-         "ApiVersion": "1.20",
-         "Experimental": false
+         "ApiVersion": "1.22",
+         "BuildTime": "2015-12-01T07:09:13.444803460+00:00",
+         "Experimental": true
     }
 
 Status Codes:

@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/docker/distribution/reference"
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/container"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
@@ -16,22 +18,9 @@ import (
 	"github.com/docker/docker/runconfig"
 )
 
-// ContainerCommitConfig contains build configs for commit operation,
-// and is used when making a commit with the current state of the container.
-type ContainerCommitConfig struct {
-	Pause   bool
-	Repo    string
-	Tag     string
-	Author  string
-	Comment string
-	// merge container config into commit config before commit
-	MergeConfigs bool
-	Config       *runconfig.Config
-}
-
 // Commit creates a new filesystem image from the current state of a container.
 // The image can optionally be tagged into a repository.
-func (daemon *Daemon) Commit(name string, c *ContainerCommitConfig) (string, error) {
+func (daemon *Daemon) Commit(name string, c *types.ContainerCommitConfig) (string, error) {
 	container, err := daemon.Get(name)
 	if err != nil {
 		return "", err
@@ -42,7 +31,7 @@ func (daemon *Daemon) Commit(name string, c *ContainerCommitConfig) (string, err
 		return "", fmt.Errorf("Windows does not support commit of a running container")
 	}
 
-	if c.Pause && !container.isPaused() {
+	if c.Pause && !container.IsPaused() {
 		daemon.containerPause(container)
 		defer daemon.containerUnpause(container)
 	}
@@ -136,7 +125,7 @@ func (daemon *Daemon) Commit(name string, c *ContainerCommitConfig) (string, err
 				return "", err
 			}
 		}
-		if err := daemon.TagImage(newTag, id.String(), true); err != nil {
+		if err := daemon.TagImage(newTag, id.String()); err != nil {
 			return "", err
 		}
 	}
@@ -145,16 +134,17 @@ func (daemon *Daemon) Commit(name string, c *ContainerCommitConfig) (string, err
 	return id.String(), nil
 }
 
-func (daemon *Daemon) exportContainerRw(container *Container) (archive.Archive, error) {
+func (daemon *Daemon) exportContainerRw(container *container.Container) (archive.Archive, error) {
 	if err := daemon.Mount(container); err != nil {
 		return nil, err
 	}
 
-	archive, err := container.rwlayer.TarStream()
+	archive, err := container.RWLayer.TarStream()
 	if err != nil {
 		return nil, err
 	}
 	return ioutils.NewReadCloserWrapper(archive, func() error {
+			archive.Close()
 			return daemon.layerStore.Unmount(container.ID)
 		}),
 		nil

@@ -339,6 +339,7 @@ complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l sig-proxy -d 'P
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l stop-signal -d 'Signal to kill a container'
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -s t -l tty -d 'Allocate a pseudo-TTY'
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -s u -l user -d 'Username or UID'
+complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l tmpfs -d 'Mount tmpfs on a directory'
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -s v -l volume -d 'Bind mount a volume (e.g., from the host: -v /host:/container, from Docker: -v /container)'
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -l volumes-from -d 'Mount volumes from the specified container(s)'
 complete -c docker -A -f -n '__fish_seen_subcommand_from run' -s w -l workdir -d 'Working directory inside the container'

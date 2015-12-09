@@ -1,7 +1,6 @@
 package storage
 
 import (
-	"bufio"
 	"encoding/json"
 	"errors"
 	"io"
@@ -33,31 +32,15 @@ type PackUnpacker interface {
 */
 
 type jsonUnpacker struct {
-	r     io.Reader
-	b     *bufio.Reader
-	isEOF bool
-	seen  seenNames
+	seen seenNames
+	dec  *json.Decoder
 }
 
 func (jup *jsonUnpacker) Next() (*Entry, error) {
 	var e Entry
-	if jup.isEOF {
-		// since ReadBytes() will return read bytes AND an EOF, we handle it this
-		// round-a-bout way so we can Unmarshal the tail with relevant errors, but
-		// still get an io.EOF when the stream is ended.
-		return nil, io.EOF
-	}
-	line, err := jup.b.ReadBytes('\n')
-	if err != nil && err != io.EOF {
+	err := jup.dec.Decode(&e)
+	if err != nil {
 		return nil, err
-	} else if err == io.EOF {
-		jup.isEOF = true
-	}
-
-	err = json.Unmarshal(line, &e)
-	if err != nil && jup.isEOF {
-		// if the remainder actually _wasn't_ a remaining json structure, then just EOF
-		return nil, io.EOF
 	}
 
 	// check for dup name
@@ -78,8 +61,7 @@ func (jup *jsonUnpacker) Next() (*Entry, error) {
 // Each Entry read are expected to be delimited by new line.
 func NewJSONUnpacker(r io.Reader) Unpacker {
 	return &jsonUnpacker{
-		r:    r,
-		b:    bufio.NewReader(r),
+		dec:  json.NewDecoder(r),
 		seen: seenNames{},
 	}
 }

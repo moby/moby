@@ -63,6 +63,10 @@ func TestEchoInputOutput(t *testing.T) {
 	if !reflect.DeepEqual(output, m) {
 		t.Fatalf("Expected %v, was %v\n", m, output)
 	}
+	err = c.Call("Test.Echo", nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestBackoff(t *testing.T) {

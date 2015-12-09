@@ -3,66 +3,27 @@
 package daemon
 
 import (
-	"io/ioutil"
 	"os"
 	"sort"
 
+	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/execdriver"
-	"github.com/docker/docker/pkg/chrootarchive"
-	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/volume"
 	volumedrivers "github.com/docker/docker/volume/drivers"
 	"github.com/docker/docker/volume/local"
 )
 
-// copyExistingContents copies from the source to the destination and
-// ensures the ownership is appropriately set.
-func copyExistingContents(source, destination string) error {
-	volList, err := ioutil.ReadDir(source)
-	if err != nil {
-		return err
-	}
-	if len(volList) > 0 {
-		srcList, err := ioutil.ReadDir(destination)
-		if err != nil {
-			return err
-		}
-		if len(srcList) == 0 {
-			// If the source volume is empty copy files from the root into the volume
-			if err := chrootarchive.CopyWithTar(source, destination); err != nil {
-				return err
-			}
-		}
-	}
-	return copyOwnership(source, destination)
-}
-
-// copyOwnership copies the permissions and uid:gid of the source file
-// to the destination file
-func copyOwnership(source, destination string) error {
-	stat, err := system.Stat(source)
-	if err != nil {
-		return err
-	}
-
-	if err := os.Chown(destination, int(stat.UID()), int(stat.GID())); err != nil {
-		return err
-	}
-
-	return os.Chmod(destination, os.FileMode(stat.Mode()))
-}
-
 // setupMounts iterates through each of the mount points for a container and
 // calls Setup() on each. It also looks to see if is a network mount such as
 // /etc/resolv.conf, and if it is not, appends it to the array of mounts.
-func (daemon *Daemon) setupMounts(container *Container) ([]execdriver.Mount, error) {
+func (daemon *Daemon) setupMounts(container *container.Container) ([]execdriver.Mount, error) {
 	var mounts []execdriver.Mount
 	for _, m := range container.MountPoints {
 		path, err := m.Setup()
 		if err != nil {
 			return nil, err
 		}
-		if !container.trySetNetworkMount(m.Destination, path) {
+		if !container.TrySetNetworkMount(m.Destination, path) {
 			mounts = append(mounts, execdriver.Mount{
 				Source:      path,
 				Destination: m.Destination,
@@ -72,7 +33,7 @@ func (daemon *Daemon) setupMounts(container *Container) ([]execdriver.Mount, err
 	}
 
 	mounts = sortMounts(mounts)
-	netMounts := container.networkMounts()
+	netMounts := container.NetworkMounts()
 	// if we are going to mount any of the network files from container
 	// metadata, the ownership must be set properly for potential container
 	// remapped root (user namespaces)

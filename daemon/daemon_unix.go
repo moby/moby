@@ -12,6 +12,7 @@ import (
 	"syscall"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/graphdriver"
 	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/image"
@@ -32,7 +33,6 @@ import (
 	"github.com/docker/libnetwork/types"
 	blkiodev "github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/opencontainers/runc/libcontainer/label"
-	"github.com/vishvananda/netlink"
 )
 
 const (
@@ -57,7 +57,7 @@ func getBlkioWeightDevices(config *runconfig.HostConfig) ([]*blkiodev.WeightDevi
 	return BlkioWeightDevices, nil
 }
 
-func parseSecurityOpt(container *Container, config *runconfig.HostConfig) error {
+func parseSecurityOpt(container *container.Container, config *runconfig.HostConfig) error {
 	var (
 		labelOpts []string
 		err       error
@@ -73,6 +73,8 @@ func parseSecurityOpt(container *Container, config *runconfig.HostConfig) error 
 			labelOpts = append(labelOpts, con[1])
 		case "apparmor":
 			container.AppArmorProfile = con[1]
+		case "seccomp":
+			container.SeccompProfile = con[1]
 		default:
 			return fmt.Errorf("Invalid --security-opt: %q", opt)
 		}
@@ -80,6 +82,36 @@ func parseSecurityOpt(container *Container, config *runconfig.HostConfig) error 
 
 	container.ProcessLabel, container.MountLabel, err = label.InitLabels(labelOpts)
 	return err
+}
+
+func getBlkioReadBpsDevices(config *runconfig.HostConfig) ([]*blkiodev.ThrottleDevice, error) {
+	var BlkioReadBpsDevice []*blkiodev.ThrottleDevice
+	var stat syscall.Stat_t
+
+	for _, bpsDevice := range config.BlkioDeviceReadBps {
+		if err := syscall.Stat(bpsDevice.Path, &stat); err != nil {
+			return nil, err
+		}
+		ReadBpsDevice := blkiodev.NewThrottleDevice(int64(stat.Rdev/256), int64(stat.Rdev%256), bpsDevice.Rate)
+		BlkioReadBpsDevice = append(BlkioReadBpsDevice, ReadBpsDevice)
+	}
+
+	return BlkioReadBpsDevice, nil
+}
+
+func getBlkioWriteBpsDevices(config *runconfig.HostConfig) ([]*blkiodev.ThrottleDevice, error) {
+	var BlkioWriteBpsDevice []*blkiodev.ThrottleDevice
+	var stat syscall.Stat_t
+
+	for _, bpsDevice := range config.BlkioDeviceWriteBps {
+		if err := syscall.Stat(bpsDevice.Path, &stat); err != nil {
+			return nil, err
+		}
+		WriteBpsDevice := blkiodev.NewThrottleDevice(int64(stat.Rdev/256), int64(stat.Rdev%256), bpsDevice.Rate)
+		BlkioWriteBpsDevice = append(BlkioWriteBpsDevice, WriteBpsDevice)
+	}
+
+	return BlkioWriteBpsDevice, nil
 }
 
 func checkKernelVersion(k, major, minor int) bool {
@@ -112,11 +144,7 @@ func checkKernel() error {
 
 // adaptContainerSettings is called during container creation to modify any
 // settings necessary in the HostConfig structure.
-func (daemon *Daemon) adaptContainerSettings(hostConfig *runconfig.HostConfig, adjustCPUShares bool) {
-	if hostConfig == nil {
-		return
-	}
-
+func (daemon *Daemon) adaptContainerSettings(hostConfig *runconfig.HostConfig, adjustCPUShares bool) error {
 	if adjustCPUShares && hostConfig.CPUShares > 0 {
 		// Handle unsupported CPUShares
 		if hostConfig.CPUShares < linuxMinCPUShares {
@@ -131,6 +159,23 @@ func (daemon *Daemon) adaptContainerSettings(hostConfig *runconfig.HostConfig, a
 		// By default, MemorySwap is set to twice the size of Memory.
 		hostConfig.MemorySwap = hostConfig.Memory * 2
 	}
+	if hostConfig.ShmSize == nil {
+		shmSize := container.DefaultSHMSize
+		hostConfig.ShmSize = &shmSize
+	}
+	var err error
+	if hostConfig.SecurityOpt == nil {
+		hostConfig.SecurityOpt, err = daemon.generateSecurityOpt(hostConfig.IpcMode, hostConfig.PidMode)
+		if err != nil {
+			return err
+		}
+	}
+	if hostConfig.MemorySwappiness == nil {
+		defaultSwappiness := int64(-1)
+		hostConfig.MemorySwappiness = &defaultSwappiness
+	}
+
+	return nil
 }
 
 // verifyPlatformContainerSettings performs platform-specific validation of the
@@ -142,6 +187,10 @@ func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *runconfig.HostC
 	warnings, err := daemon.verifyExperimentalContainerSettings(hostConfig, config)
 	if err != nil {
 		return warnings, err
+	}
+
+	if hostConfig.ShmSize != nil && *hostConfig.ShmSize <= 0 {
+		return warnings, fmt.Errorf("SHM size must be greater then 0")
 	}
 
 	// memory subsystem checks and adjustments
@@ -241,11 +290,24 @@ func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *runconfig.HostC
 		logrus.Warnf("Your kernel does not support Block I/O weight_device. Weight-device discarded.")
 		hostConfig.BlkioWeightDevice = []*pblkiodev.WeightDevice{}
 	}
+	if len(hostConfig.BlkioDeviceReadBps) > 0 && !sysInfo.BlkioReadBpsDevice {
+		warnings = append(warnings, "Your kernel does not support Block read limit in bytes per second.")
+		logrus.Warnf("Your kernel does not support Block I/O read limit in bytes per second. --device-read-bps discarded.")
+		hostConfig.BlkioDeviceReadBps = []*pblkiodev.ThrottleDevice{}
+	}
+	if len(hostConfig.BlkioDeviceWriteBps) > 0 && !sysInfo.BlkioWriteBpsDevice {
+		warnings = append(warnings, "Your kernel does not support Block write limit in bytes per second.")
+		logrus.Warnf("Your kernel does not support Block I/O write limit in bytes per second. --device-write-bps discarded.")
+		hostConfig.BlkioDeviceWriteBps = []*pblkiodev.ThrottleDevice{}
+	}
 	if hostConfig.OomKillDisable && !sysInfo.OomKillDisable {
 		hostConfig.OomKillDisable = false
 		return warnings, fmt.Errorf("Your kernel does not support oom kill disable.")
 	}
 
+	if hostConfig.OomScoreAdj < -1000 || hostConfig.OomScoreAdj > 1000 {
+		return warnings, fmt.Errorf("Invalid value %d, range for oom score adj is [-1000, 1000].", hostConfig.OomScoreAdj)
+	}
 	if sysInfo.IPv4ForwardingDisabled {
 		warnings = append(warnings, "IPv4 forwarding is disabled. Networking will not work.")
 		logrus.Warnf("IPv4 forwarding is disabled. Networking will not work")
@@ -524,12 +586,12 @@ func setupInitLayer(initLayer string, rootUID, rootGID int) error {
 
 		if _, err := os.Stat(filepath.Join(initLayer, pth)); err != nil {
 			if os.IsNotExist(err) {
-				if err := idtools.MkdirAllAs(filepath.Join(initLayer, filepath.Dir(pth)), 0755, rootUID, rootGID); err != nil {
+				if err := idtools.MkdirAllNewAs(filepath.Join(initLayer, filepath.Dir(pth)), 0755, rootUID, rootGID); err != nil {
 					return err
 				}
 				switch typ {
 				case "dir":
-					if err := idtools.MkdirAllAs(filepath.Join(initLayer, pth), 0755, rootUID, rootGID); err != nil {
+					if err := idtools.MkdirAllNewAs(filepath.Join(initLayer, pth), 0755, rootUID, rootGID); err != nil {
 						return err
 					}
 				case "file":
@@ -537,8 +599,8 @@ func setupInitLayer(initLayer string, rootUID, rootGID int) error {
 					if err != nil {
 						return err
 					}
-					f.Close()
 					f.Chown(rootUID, rootGID)
+					f.Close()
 				default:
 					if err := os.Symlink(typ, filepath.Join(initLayer, pth)); err != nil {
 						return err
@@ -555,7 +617,7 @@ func setupInitLayer(initLayer string, rootUID, rootGID int) error {
 }
 
 // registerLinks writes the links to a file.
-func (daemon *Daemon) registerLinks(container *Container, hostConfig *runconfig.HostConfig) error {
+func (daemon *Daemon) registerLinks(container *container.Container, hostConfig *runconfig.HostConfig) error {
 	if hostConfig == nil || hostConfig.Links == nil {
 		return nil
 	}
@@ -570,14 +632,14 @@ func (daemon *Daemon) registerLinks(container *Container, hostConfig *runconfig.
 			//An error from daemon.Get() means this name could not be found
 			return fmt.Errorf("Could not get container for %s", name)
 		}
-		for child.hostConfig.NetworkMode.IsContainer() {
-			parts := strings.SplitN(string(child.hostConfig.NetworkMode), ":", 2)
+		for child.HostConfig.NetworkMode.IsContainer() {
+			parts := strings.SplitN(string(child.HostConfig.NetworkMode), ":", 2)
 			child, err = daemon.Get(parts[1])
 			if err != nil {
 				return fmt.Errorf("Could not get container for %s", parts[1])
 			}
 		}
-		if child.hostConfig.NetworkMode.IsHost() {
+		if child.HostConfig.NetworkMode.IsHost() {
 			return runconfig.ErrConflictHostNetworkAndLinks
 		}
 		if err := daemon.registerLink(container, child, alias); err != nil {
@@ -588,7 +650,7 @@ func (daemon *Daemon) registerLinks(container *Container, hostConfig *runconfig.
 	// After we load all the links into the daemon
 	// set them to nil on the hostconfig
 	hostConfig.Links = nil
-	if err := container.writeHostConfig(); err != nil {
+	if err := container.WriteHostConfig(); err != nil {
 		return err
 	}
 
@@ -597,33 +659,14 @@ func (daemon *Daemon) registerLinks(container *Container, hostConfig *runconfig.
 
 // conditionalMountOnStart is a platform specific helper function during the
 // container start to call mount.
-func (daemon *Daemon) conditionalMountOnStart(container *Container) error {
+func (daemon *Daemon) conditionalMountOnStart(container *container.Container) error {
 	return daemon.Mount(container)
 }
 
 // conditionalUnmountOnCleanup is a platform specific helper function called
 // during the cleanup of a container to unmount.
-func (daemon *Daemon) conditionalUnmountOnCleanup(container *Container) {
+func (daemon *Daemon) conditionalUnmountOnCleanup(container *container.Container) {
 	daemon.Unmount(container)
-}
-
-// getDefaultRouteMtu returns the MTU for the default route's interface.
-func getDefaultRouteMtu() (int, error) {
-	routes, err := netlink.RouteList(nil, 0)
-	if err != nil {
-		return 0, err
-	}
-	for _, r := range routes {
-		// a nil Dst means that this is the default route.
-		if r.Dst == nil {
-			i, err := net.InterfaceByIndex(r.LinkIndex)
-			if err != nil {
-				continue
-			}
-			return i.MTU, nil
-		}
-	}
-	return 0, errNoDefaultRoute
 }
 
 func restoreCustomImage(driver graphdriver.Driver, is image.Store, ls layer.Store, ts tag.Store) error {

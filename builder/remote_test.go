@@ -2,7 +2,6 @@ package builder
 
 import (
 	"bytes"
-	"fmt"
 	"io/ioutil"
 	"testing"
 )
@@ -32,15 +31,13 @@ func TestSelectAcceptableMIME(t *testing.T) {
 
 	for _, m := range invalidMimeStrings {
 		if len(selectAcceptableMIME(m)) > 0 {
-			err := fmt.Errorf("Should not have accepted %q", m)
-			t.Fatal(err)
+			t.Fatalf("Should not have accepted %q", m)
 		}
 	}
 
 	for _, m := range validMimeStrings {
 		if str := selectAcceptableMIME(m); str == "" {
-			err := fmt.Errorf("Should have accepted %q", m)
-			t.Fatal(err)
+			t.Fatalf("Should have accepted %q", m)
 		}
 	}
 }

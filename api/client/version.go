@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"runtime"
 	"text/template"
+	"time"
 
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
@@ -72,6 +73,16 @@ func (cli *DockerCli) CmdVersion(args ...string) (err error) {
 	}
 
 	defer func() {
+		// first we need to make BuildTime more human friendly
+		t, errTime := time.Parse(time.RFC3339Nano, vd.Client.BuildTime)
+		if errTime == nil {
+			vd.Client.BuildTime = t.Format(time.ANSIC)
+		}
+		t, errTime = time.Parse(time.RFC3339Nano, vd.Server.BuildTime)
+		if errTime == nil {
+			vd.Server.BuildTime = t.Format(time.ANSIC)
+		}
+
 		if err2 := tmpl.Execute(cli.out, vd); err2 != nil && err == nil {
 			err = err2
 		}

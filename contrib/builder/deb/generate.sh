@@ -58,6 +58,7 @@ for version in "${versions[@]}"; do
 		libdevmapper-dev # for "libdevmapper.h"
 		libltdl-dev # for pkcs11 "ltdl.h"
 		libsqlite3-dev # for "sqlite3.h"
+		libseccomp-dev  # for "seccomp.h" & "libseccomp.so"
 	)
 	# packaging for "sd-journal.h" and libraries varies
 	case "$suite" in
@@ -65,6 +66,17 @@ for version in "${versions[@]}"; do
 		sid|stretch|wily) packages+=( libsystemd-dev );;
 		*) packages+=( libsystemd-journal-dev );;
 	esac
+
+	# debian wheezy & ubuntu precise do not have the right libseccomp libs
+	case "$suite" in
+		precise|wheezy)
+			packages=( "${packages[@]/libseccomp-dev}" )
+			;;
+		*)
+			extraBuildTags+=' seccomp'
+			;;
+	esac
+
 
 	if [ "$suite" = 'precise' ]; then
 		# precise has a few package issues
@@ -92,6 +104,41 @@ for version in "${versions[@]}"; do
 
 	echo >> "$version/Dockerfile"
 
+	# debian jessie & ubuntu trusty/vivid do not have a libseccomp.a for compiling static dockerinit
+	# ONLY install libseccomp.a from source, this can be removed once dockerinit is removed
+	# TODO remove this manual seccomp compilation once dockerinit is gone or no longer needs to be statically compiled
+	case "$suite" in
+		jessie|trusty|vivid)
+			awk '$1 == "ENV" && $2 == "SECCOMP_VERSION" { print; exit }' ../../../Dockerfile >> "$version/Dockerfile"
+			cat <<-'EOF' >> "$version/Dockerfile"
+			RUN buildDeps=' \
+				automake \
+				libtool \
+			' \
+			&& set -x \
+			&& apt-get update && apt-get install -y $buildDeps --no-install-recommends \
+			&& rm -rf /var/lib/apt/lists/* \
+			&& export SECCOMP_PATH=$(mktemp -d) \
+			&& git clone -b "$SECCOMP_VERSION" --depth 1 https://github.com/seccomp/libseccomp.git "$SECCOMP_PATH" \
+			&& ( \
+				cd "$SECCOMP_PATH" \
+				&& ./autogen.sh \
+				&& ./configure --prefix=/usr \
+				&& make \
+				&& install -c src/.libs/libseccomp.a /usr/lib/libseccomp.a \
+				&& chmod 644 /usr/lib/libseccomp.a \
+				&& ranlib /usr/lib/libseccomp.a \
+				&& ldconfig -n /usr/lib \
+			) \
+			&& rm -rf "$SECCOMP_PATH" \
+			&& apt-get purge -y --auto-remove $buildDeps
+			EOF
+
+			echo >> "$version/Dockerfile"
+			;;
+		*) ;;
+	esac
+
 	awk '$1 == "ENV" && $2 == "GO_VERSION" { print; exit }' ../../../Dockerfile >> "$version/Dockerfile"
 	echo 'RUN curl -fSL "https://storage.googleapis.com/golang/go${GO_VERSION}.linux-amd64.tar.gz" | tar xzC /usr/local' >> "$version/Dockerfile"
 	echo 'ENV PATH $PATH:/usr/local/go/bin' >> "$version/Dockerfile"
@@ -99,5 +146,11 @@ for version in "${versions[@]}"; do
 	echo >> "$version/Dockerfile"
 
 	echo 'ENV AUTO_GOPATH 1' >> "$version/Dockerfile"
-	awk '$1 == "ENV" && $2 == "DOCKER_BUILDTAGS" { print $0 "'"$extraBuildTags"'"; exit }' ../../../Dockerfile >> "$version/Dockerfile"
+
+	echo >> "$version/Dockerfile"
+
+	# print build tags in alphabetical order
+	buildTags=$( echo "apparmor selinux $extraBuildTags" | xargs -n1 | sort -n | tr '\n' ' ' | sed -e 's/[[:space:]]*$//' )
+
+	echo "ENV DOCKER_BUILDTAGS $buildTags" >> "$version/Dockerfile"
 done

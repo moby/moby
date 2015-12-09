@@ -49,11 +49,13 @@ RUN apt-get update && apt-get install -y \
 	gcc-mingw-w64 \
 	git \
 	iptables \
+	jq \
 	libapparmor-dev \
 	libcap-dev \
 	libltdl-dev \
 	libsqlite3-dev \
 	libsystemd-journal-dev \
+	libtool \
 	mercurial \
 	parallel \
 	pkg-config \
@@ -65,6 +67,7 @@ RUN apt-get update && apt-get install -y \
 	ubuntu-zfs \
 	xfsprogs \
 	libzfs-dev \
+	tar \
 	--no-install-recommends \
 	&& ln -snf /usr/bin/clang-3.8 /usr/local/bin/clang \
 	&& ln -snf /usr/bin/clang++-3.8 /usr/local/bin/clang++
@@ -81,7 +84,7 @@ RUN cd /usr/local/lvm2 \
 # see https://git.fedorahosted.org/cgit/lvm2.git/tree/INSTALL
 
 # Install Go
-ENV GO_VERSION 1.5.1
+ENV GO_VERSION 1.5.2
 RUN curl -sSL  "https://storage.googleapis.com/golang/go${GO_VERSION}.linux-amd64.tar.gz" | tar -v -C /usr/local -xz
 ENV PATH /go/bin:/usr/local/go/bin:$PATH
 ENV GOPATH /go:/go/src/github.com/docker/docker/vendor
@@ -122,6 +125,23 @@ RUN set -x \
 	&& curl -sSL https://s3.dockerproject.org/darwin/${OSX_SDK}.tar.xz -o "${OSXCROSS_PATH}/tarballs/${OSX_SDK}.tar.xz" \
 	&& UNATTENDED=yes OSX_VERSION_MIN=10.6 ${OSXCROSS_PATH}/build.sh
 ENV PATH /osxcross/target/bin:$PATH
+
+# install seccomp
+# this can be changed to the ubuntu package libseccomp-dev if dockerinit is removed,
+# we need libseccomp.a (which the package does not provide) for dockerinit
+ENV SECCOMP_VERSION v2.2.3
+RUN set -x \
+	&& export SECCOMP_PATH=$(mktemp -d) \
+	&& git clone https://github.com/seccomp/libseccomp.git "$SECCOMP_PATH" \
+	&& ( \
+		cd "$SECCOMP_PATH" \
+		&& git checkout "$SECCOMP_VERSION" \
+		&& ./autogen.sh \
+		&& ./configure --prefix=/usr \
+		&& make \
+		&& make install \
+	) \
+	&& rm -rf "$SECCOMP_PATH"
 
 # Install registry
 ENV REGISTRY_COMMIT ec87e9b6971d831f0eff752ddb54fb64693e51cd
@@ -166,7 +186,7 @@ RUN useradd --create-home --gid docker unprivilegeduser
 
 VOLUME /var/lib/docker
 WORKDIR /go/src/github.com/docker/docker
-ENV DOCKER_BUILDTAGS apparmor selinux
+ENV DOCKER_BUILDTAGS apparmor seccomp selinux
 
 # Let us use a .bashrc file
 RUN ln -sfv $PWD/.bashrc ~/.bashrc
@@ -175,18 +195,18 @@ RUN ln -sfv $PWD/.bashrc ~/.bashrc
 RUN ln -sv $PWD/contrib/completion/bash/docker /etc/bash_completion.d/docker
 
 # Get useful and necessary Hub images so we can "docker load" locally instead of pulling
-COPY contrib/download-frozen-image.sh /go/src/github.com/docker/docker/contrib/
-RUN ./contrib/download-frozen-image.sh /docker-frozen-images \
-	busybox:latest@d7057cb020844f245031d27b76cb18af05db1cc3a96a29fa7777af75f5ac91a3 \
-	hello-world:frozen@91c95931e552b11604fea91c2f537284149ec32fff0f700a4769cfd31d7696ae \
-	jess/unshare@5c9f6ea50341a2a8eb6677527f2bdedbf331ae894a41714fda770fb130f3314d
+COPY contrib/download-frozen-image-v2.sh /go/src/github.com/docker/docker/contrib/
+RUN ./contrib/download-frozen-image-v2.sh /docker-frozen-images \
+	busybox:latest@sha256:eb3c0d4680f9213ee5f348ea6d39489a1f85a318a2ae09e012c426f78252a6d2 \
+	hello-world:latest@sha256:8be990ef2aeb16dbcb9271ddfe2610fa6658d13f6dfb8bc72074cc1ca36966a7 \
+	jess/unshare:latest@sha256:2e3a8c0591c4690b82d4eba7e5ef8f49f2ddfe9f867f3e865198db9bd1436c5b
 # see also "hack/make/.ensure-frozen-images" (which needs to be updated any time this list is)
 
 # Download man page generator
 RUN set -x \
 	&& export GOPATH="$(mktemp -d)" \
-	&& git clone -b v1.0.3 https://github.com/cpuguy83/go-md2man.git "$GOPATH/src/github.com/cpuguy83/go-md2man" \
-	&& git clone -b v1.2 https://github.com/russross/blackfriday.git "$GOPATH/src/github.com/russross/blackfriday" \
+	&& git clone -b v1.0.4 https://github.com/cpuguy83/go-md2man.git "$GOPATH/src/github.com/cpuguy83/go-md2man" \
+	&& git clone -b v1.4 https://github.com/russross/blackfriday.git "$GOPATH/src/github.com/russross/blackfriday" \
 	&& go get -v -d github.com/cpuguy83/go-md2man \
 	&& go build -v -o /usr/local/bin/go-md2man github.com/cpuguy83/go-md2man \
 	&& rm -rf "$GOPATH"

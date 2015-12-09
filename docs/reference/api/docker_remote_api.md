@@ -30,8 +30,9 @@ as calling `/v1.22/info`. To call an older version of the API use
 
 Use the table below to find the API version for a Docker version:
 
-Docker version  | API version                                     | Changes
-----------------|-------------------------------------------------|-----------------------------
+Docker version  | API version                        | Changes
+----------------|------------------------------------|------------------------------------------------------
+1.10.x          | [1.22](docker_remote_api_v1.22.md) | [API changes](docker_remote_api.md#v1-22-api-changes)
 1.9.x           | [1.21](docker_remote_api_v1.21.md) | [API changes](docker_remote_api.md#v1-21-api-changes)
 1.8.x           | [1.20](docker_remote_api_v1.20.md) | [API changes](docker_remote_api.md#v1-20-api-changes)
 1.7.x           | [1.19](docker_remote_api_v1.19.md) | [API changes](docker_remote_api.md#v1-19-api-changes)
@@ -95,7 +96,12 @@ This section lists each version from latest to oldest.  Each listing includes a 
 [Docker Remote API v1.22](docker_remote_api_v1.22.md) documentation
 
 * `GET /containers/json` supports filter `isolation` on Windows.
+* `GET /info` Now returns `Architecture` and `OSType` fields, providing information
+  about the host architecture and operating system type that the daemon runs on.
 * `GET /networks/(name)` now returns a `Name` field for each container attached to the network.
+* `GET /version` now returns the `BuildTime` field in RFC3339Nano format to make it 
+  consistent with other date/time values returned by the API.
+* `AuthConfig` now supports a `registrytoken` for token based authentication
 
 ### v1.21 API changes
 
@@ -105,12 +111,11 @@ This section lists each version from latest to oldest.  Each listing includes a 
 * `POST /volumes/create` to create a volume.
 * `GET /volumes/(name)` get low-level information about a volume.
 * `DELETE /volumes/(name)`remove a volume with the specified name.
-* `VolumeDriver` has been moved from config to hostConfig to make the configuration portable.
-* `GET /images/(name)/json` now returns information about tags and digests of the image.
+* `VolumeDriver` was moved from `config` to `HostConfig` to make the configuration portable.
+* `GET /images/(name)/json` now returns information about an image's `RepoTags` and `RepoDigests`.
 * The `config` option now accepts the field `StopSignal`, which specifies the signal to use to kill a container.
 * `GET /containers/(id)/stats` will return networking information respectively for each interface.
-* The `hostConfig` option now accepts the field `DnsOptions`, which specifies a
-list of DNS options to be used in the container.
+* The `HostConfig` option now includes the `DnsOptions` field to configure the container's DNS options.
 * `POST /build` now optionally takes a serialized map of build-time variables.
 * `GET /events` now includes a `timenano` field, in addition to the existing `time` field.
 * `GET /events` now supports filtering by image and container labels.
@@ -128,6 +133,9 @@ list of DNS options to be used in the container.
   `NetworkSettings.Gateway`, `NetworkSettings.IPAddress`,
   `NetworkSettings.IPPrefixLen`, and `NetworkSettings.MacAddress` fields, which
   are still returned for backward-compatibility, but will be removed in a future version.
+* The `HostConfig` option now includes the `OomScoreAdj` field for adjusting the
+  badness heuristic. This heuristic selects which processes the OOM killer kills
+  under out-of-memory conditions.
 
 ### v1.20 API changes
 
@@ -215,7 +223,7 @@ container. Previously this was only available when starting a container.
 [Docker Remote API v1.14](docker_remote_api_v1.14.md) documentation
 
 * `DELETE /containers/(id)` when using `force`, the container will be immediately killed with SIGKILL.
-* `POST /containers/(id)/start` the `hostConfig` option accepts the field `CapAdd`, which specifies a list of capabilities
+* `POST /containers/(id)/start` the `HostConfig` option accepts the field `CapAdd`, which specifies a list of capabilities
 to add, and the field `CapDrop`, which specifies a list of capabilities to drop.
 * `POST /images/create` th `fromImage` and `repo` parameters support the
 `repo:tag` format. Consequently,  the `tag` parameter is now obsolete. Using the

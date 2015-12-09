@@ -11,8 +11,10 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api"
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/cliconfig"
+	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/archive"
@@ -80,12 +82,12 @@ func (d Docker) Pull(name string) (*image.Image, error) {
 }
 
 // Container looks up a Docker container referenced by `id`.
-func (d Docker) Container(id string) (*daemon.Container, error) {
+func (d Docker) Container(id string) (*container.Container, error) {
 	return d.Daemon.Get(id)
 }
 
 // Create creates a new Docker container and returns potential warnings
-func (d Docker) Create(cfg *runconfig.Config, hostCfg *runconfig.HostConfig) (*daemon.Container, []string, error) {
+func (d Docker) Create(cfg *runconfig.Config, hostCfg *runconfig.HostConfig) (*container.Container, []string, error) {
 	ccr, err := d.Daemon.ContainerCreate(&daemon.ContainerCreateConfig{
 		Name:            "",
 		Config:          cfg,
@@ -104,12 +106,12 @@ func (d Docker) Create(cfg *runconfig.Config, hostCfg *runconfig.HostConfig) (*d
 }
 
 // Remove removes a container specified by `id`.
-func (d Docker) Remove(id string, cfg *daemon.ContainerRmConfig) error {
+func (d Docker) Remove(id string, cfg *types.ContainerRmConfig) error {
 	return d.Daemon.ContainerRm(id, cfg)
 }
 
 // Commit creates a new Docker image from an existing Docker container.
-func (d Docker) Commit(name string, cfg *daemon.ContainerCommitConfig) (string, error) {
+func (d Docker) Commit(name string, cfg *types.ContainerCommitConfig) (string, error) {
 	return d.Daemon.Commit(name, cfg)
 }
 
@@ -129,7 +131,7 @@ func (d Docker) Release(sessionID string, activeImages []string) {
 // specified by a container object.
 // TODO: make sure callers don't unnecessarily convert destPath with filepath.FromSlash (Copy does it already).
 // Copy should take in abstract paths (with slashes) and the implementation should convert it to OS-specific paths.
-func (d Docker) Copy(c *daemon.Container, destPath string, src builder.FileInfo, decompress bool) error {
+func (d Docker) Copy(c *container.Container, destPath string, src builder.FileInfo, decompress bool) error {
 	srcPath := src.Path()
 	destExists := true
 	rootUID, rootGID := d.Daemon.GetRemappedUIDGID()
@@ -166,7 +168,7 @@ func (d Docker) Copy(c *daemon.Container, destPath string, src builder.FileInfo,
 		}
 		return fixPermissions(srcPath, destPath, rootUID, rootGID, destExists)
 	}
-	if decompress {
+	if decompress && archive.IsArchivePath(srcPath) {
 		// Only try to untar if it is a file and that we've been told to decompress (when ADD-ing a remote file)
 
 		// First try to unpack the source as an archive
@@ -179,11 +181,11 @@ func (d Docker) Copy(c *daemon.Container, destPath string, src builder.FileInfo,
 		}
 
 		// try to successfully untar the orig
-		if err := d.Archiver.UntarPath(srcPath, tarDest); err == nil {
-			return nil
-		} else if err != io.EOF {
-			logrus.Debugf("Couldn't untar to %s: %v", tarDest, err)
+		err := d.Archiver.UntarPath(srcPath, tarDest)
+		if err != nil {
+			logrus.Errorf("Couldn't untar to %s: %v", tarDest, err)
 		}
+		return err
 	}
 
 	// only needed for fixPermissions, but might as well put it before CopyFileWithTar
@@ -212,23 +214,23 @@ func (d Docker) GetCachedImage(imgID string, cfg *runconfig.Config) (string, err
 }
 
 // Kill stops the container execution abruptly.
-func (d Docker) Kill(container *daemon.Container) error {
+func (d Docker) Kill(container *container.Container) error {
 	return d.Daemon.Kill(container)
 }
 
 // Mount mounts the root filesystem for the container.
-func (d Docker) Mount(c *daemon.Container) error {
+func (d Docker) Mount(c *container.Container) error {
 	return d.Daemon.Mount(c)
 }
 
 // Unmount unmounts the root filesystem for the container.
-func (d Docker) Unmount(c *daemon.Container) error {
+func (d Docker) Unmount(c *container.Container) error {
 	d.Daemon.Unmount(c)
 	return nil
 }
 
 // Start starts a container
-func (d Docker) Start(c *daemon.Container) error {
+func (d Docker) Start(c *container.Container) error {
 	return d.Daemon.Start(c)
 }
 

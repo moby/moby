@@ -581,7 +581,7 @@ func (ls *layerStore) Changes(name string) ([]archive.Change, error) {
 	return ls.driver.Changes(m.mountID, pid)
 }
 
-func (ls *layerStore) assembleTar(graphID string, metadata io.ReadCloser, size *int64) (io.Reader, error) {
+func (ls *layerStore) assembleTar(graphID string, metadata io.ReadCloser, size *int64) (io.ReadCloser, error) {
 	type diffPathDriver interface {
 		DiffPath(string) (string, func() error, error)
 	}

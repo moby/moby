@@ -29,27 +29,23 @@ func (n *networkRouter) getNetworksList(ctx context.Context, w http.ResponseWrit
 	}
 
 	list := []*types.NetworkResource{}
-	var nameFilter, idFilter bool
-	var names, ids []string
-	if names, nameFilter = netFilters["name"]; nameFilter {
-		for _, name := range names {
-			if nw, err := n.backend.GetNetwork(name, daemon.NetworkByName); err == nil {
-				list = append(list, buildNetworkResource(nw))
-			} else {
-				logrus.Errorf("failed to get network for filter=%s : %v", name, err)
-			}
+	netFilters.WalkValues("name", func(name string) error {
+		if nw, err := n.backend.GetNetwork(name, daemon.NetworkByName); err == nil {
+			list = append(list, buildNetworkResource(nw))
+		} else {
+			logrus.Errorf("failed to get network for filter=%s : %v", name, err)
 		}
-	}
+		return nil
+	})
 
-	if ids, idFilter = netFilters["id"]; idFilter {
-		for _, id := range ids {
-			for _, nw := range n.backend.GetNetworksByID(id) {
-				list = append(list, buildNetworkResource(nw))
-			}
+	netFilters.WalkValues("id", func(id string) error {
+		for _, nw := range n.backend.GetNetworksByID(id) {
+			list = append(list, buildNetworkResource(nw))
 		}
-	}
+		return nil
+	})
 
-	if !nameFilter && !idFilter {
+	if !netFilters.Include("name") && !netFilters.Include("id") {
 		nwList := n.backend.GetNetworksByID("")
 		for _, nw := range nwList {
 			list = append(list, buildNetworkResource(nw))

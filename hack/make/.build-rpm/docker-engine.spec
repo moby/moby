@@ -130,7 +130,7 @@ install -p -m 755 bundles/%{_origversion}/dynbinary/dockerinit-%{_origversion} $
 
 # install udev rules
 install -d $RPM_BUILD_ROOT/%{_sysconfdir}/udev/rules.d
-install -p -m 755 contrib/udev/80-docker.rules $RPM_BUILD_ROOT/%{_sysconfdir}/udev/rules.d/80-docker.rules
+install -p -m 644 contrib/udev/80-docker.rules $RPM_BUILD_ROOT/%{_sysconfdir}/udev/rules.d/80-docker.rules
 
 # add init scripts
 install -d $RPM_BUILD_ROOT/etc/sysconfig

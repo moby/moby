@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/execdriver"
 	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/runconfig"
@@ -70,7 +71,7 @@ func (m mounts) parts(i int) int {
 // 2. Select the volumes mounted from another containers. Overrides previously configured mount point destination.
 // 3. Select the bind mounts set by the client. Overrides previously configured mount point destinations.
 // 4. Cleanup old volumes that are about to be reasigned.
-func (daemon *Daemon) registerMountPoints(container *Container, hostConfig *runconfig.HostConfig) error {
+func (daemon *Daemon) registerMountPoints(container *container.Container, hostConfig *runconfig.HostConfig) error {
 	binds := map[string]bool{}
 	mountPoints := map[string]*volume.MountPoint{}
 
@@ -121,7 +122,7 @@ func (daemon *Daemon) registerMountPoints(container *Container, hostConfig *runc
 		}
 
 		if binds[bind.Destination] {
-			return derr.ErrorCodeVolumeDup.WithArgs(bind.Destination)
+			return derr.ErrorCodeMountDup.WithArgs(bind.Destination)
 		}
 
 		if len(bind.Name) > 0 && len(bind.Driver) > 0 {

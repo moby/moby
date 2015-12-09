@@ -95,6 +95,7 @@ if [ $1 -eq 0 ]; then
 fi
 
 %files
+%doc LICENSE
 %defattr(-,root,root,0755)
 %attr(0644,root,root) %{_datadir}/selinux/packages/*.pp.bz2
 %attr(0644,root,root) %{_datadir}/selinux/devel/include/%{moduletype}/*.if

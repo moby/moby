@@ -5,6 +5,8 @@ import (
 	"os"
 	"testing"
 
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/container"
 	"github.com/docker/docker/runconfig"
 )
 
@@ -18,22 +20,25 @@ func TestContainerDoubleDelete(t *testing.T) {
 		repository: tmp,
 		root:       tmp,
 	}
+	daemon.containers = &contStore{s: make(map[string]*container.Container)}
 
-	container := &Container{
-		CommonContainer: CommonContainer{
-			State:  NewState(),
+	container := &container.Container{
+		CommonContainer: container.CommonContainer{
+			ID:     "test",
+			State:  container.NewState(),
 			Config: &runconfig.Config{},
 		},
 	}
+	daemon.containers.Add(container.ID, container)
 
 	// Mark the container as having a delete in progress
-	if err := container.setRemovalInProgress(); err != nil {
+	if err := container.SetRemovalInProgress(); err != nil {
 		t.Fatal(err)
 	}
 
 	// Try to remove the container when it's start is removalInProgress.
 	// It should ignore the container and not return an error.
-	if err := daemon.rm(container, true); err != nil {
+	if err := daemon.ContainerRm(container.ID, &types.ContainerRmConfig{ForceRemove: true}); err != nil {
 		t.Fatal(err)
 	}
 }

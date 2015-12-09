@@ -83,6 +83,11 @@ packages from the new repository:
 
             deb https://apt.dockerproject.org/repo ubuntu-wily main
 
+    > **Note**: Docker does not provide packages for all architectures. To install docker on
+    > a multi-architecture system, add an `[arch=...]` clause to the entry. Refer to the
+    > [Debian Multiarch wiki](https://wiki.debian.org/Multiarch/HOWTO#Setting_up_apt_sources)
+    > for details.
+
 7. Save and close the `/etc/apt/sources.list.d/docker.list` file.
 
 8. Update the `apt` package index.
@@ -123,6 +128,7 @@ To install the `linux-image-extra` package for your kernel version:
 
 4. Go ahead and install Docker.
 
+If you are installing on Ubuntu 14.04 or 12.04, `apparmor` is required.  You can install it using: `apt-get install apparmor`
 
 #### Ubuntu Precise 12.04 (LTS)
 
@@ -172,11 +178,11 @@ To upgrade your kernel and install the additional packages, do the following:
 
 5. After your system reboots, go ahead and install Docker.
 
-
-
 ## Install
 
-Make sure you have installed the prerequisites for your Ubuntu version. Then,
+Make sure you have installed the prerequisites for your Ubuntu version.
+
+Then,
 install Docker using the following:
 
 1. Log into your Ubuntu installation as a user with `sudo` privileges.
@@ -342,6 +348,12 @@ Instead, Docker defaults to using an external nameserver.
 To avoid this warning, you can specify a DNS server for use by Docker
 containers. Or, you can disable `dnsmasq` in NetworkManager. Though, disabling
 `dnsmasq` might make DNS resolution slower on some networks.
+
+The instructions below describe how to configure the Docker daemon
+running on Ubuntu 14.10 or below. Ubuntu 15.04 and above use `systemd`
+as the boot and service manager. Refer to [control and configure Docker
+with systemd](../articles/systemd.md#custom-docker-daemon-options) to
+configure a daemon controlled by `systemd`.
 
 To specify a DNS server for use by Docker:
 

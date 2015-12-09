@@ -574,7 +574,7 @@ func determineDefaultFS() string {
 	return "ext4"
 }
 
-func (devices *DeviceSet) createFilesystem(info *devInfo) error {
+func (devices *DeviceSet) createFilesystem(info *devInfo) (err error) {
 	devname := info.DevName()
 
 	args := []string{}
@@ -584,11 +584,18 @@ func (devices *DeviceSet) createFilesystem(info *devInfo) error {
 
 	args = append(args, devname)
 
-	var err error
-
 	if devices.filesystem == "" {
 		devices.filesystem = determineDefaultFS()
 	}
+
+	logrus.Infof("devmapper: Creating filesystem %s on device %s", devices.filesystem, info.Name())
+	defer func() {
+		if err != nil {
+			logrus.Infof("devmapper: Error while creating filesystem %s on device %s: %v", devices.filesystem, info.Name(), err)
+		} else {
+			logrus.Infof("devmapper: Successfully created filesystem %s on device %s", devices.filesystem, info.Name())
+		}
+	}()
 
 	switch devices.filesystem {
 	case "xfs":
@@ -605,11 +612,7 @@ func (devices *DeviceSet) createFilesystem(info *devInfo) error {
 	default:
 		err = fmt.Errorf("Unsupported filesystem type %s", devices.filesystem)
 	}
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return
 }
 
 func (devices *DeviceSet) migrateOldMetaData() error {
@@ -2112,7 +2115,7 @@ func (devices *DeviceSet) MountDevice(hash, path, mountLabel string) error {
 }
 
 // UnmountDevice unmounts the device and removes it from hash.
-func (devices *DeviceSet) UnmountDevice(hash string) error {
+func (devices *DeviceSet) UnmountDevice(hash, mountPath string) error {
 	logrus.Debugf("[devmapper] UnmountDevice(hash=%s)", hash)
 	defer logrus.Debugf("[devmapper] UnmountDevice(hash=%s) END", hash)
 
@@ -2127,17 +2130,22 @@ func (devices *DeviceSet) UnmountDevice(hash string) error {
 	devices.Lock()
 	defer devices.Unlock()
 
-	if info.mountCount == 0 {
-		return fmt.Errorf("UnmountDevice: device not-mounted id %s", hash)
-	}
+	// If there are running containers when daemon crashes, during daemon
+	// restarting, it will kill running contaienrs and will finally call
+	// Put() without calling Get(). So info.MountCount may become negative.
+	// if info.mountCount goes negative, we do the unmount and assign
+	// it to 0.
 
 	info.mountCount--
 	if info.mountCount > 0 {
 		return nil
+	} else if info.mountCount < 0 {
+		logrus.Warnf("[devmapper] Mount count of device went negative. Put() called without matching Get(). Resetting count to 0")
+		info.mountCount = 0
 	}
 
-	logrus.Debugf("[devmapper] Unmount(%s)", info.mountPath)
-	if err := syscall.Unmount(info.mountPath, syscall.MNT_DETACH); err != nil {
+	logrus.Debugf("[devmapper] Unmount(%s)", mountPath)
+	if err := syscall.Unmount(mountPath, syscall.MNT_DETACH); err != nil {
 		return err
 	}
 	logrus.Debugf("[devmapper] Unmount done")

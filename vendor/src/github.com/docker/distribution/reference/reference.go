@@ -7,7 +7,7 @@
 //
 //	// repository.go
 //	repository			:= hostname ['/' component]+
-//	hostname 			:= hostcomponent [':' port-number]
+//	hostname			:= hostcomponent [':' port-number]
 //	component			:= subcomponent [separator subcomponent]*
 //	subcomponent			:= alpha-numeric ['-'* alpha-numeric]*
 //	hostcomponent                   := [hostpart '.']* hostpart
@@ -24,7 +24,7 @@
 //	digest-algorithm                := digest-algorithm-component [ digest-algorithm-separator digest-algorithm-component ]
 //	digest-algorithm-separator      := /[+.-_]/
 //	digest-algorithm-component      := /[A-Za-z][A-Za-z0-9]*/
-//	digest-hex                      := /[0-9a-fA-F]{32,}/ ; Atleast 128 bit digest value
+//	digest-hex                      := /[0-9a-fA-F]{32,}/ ; At least 128 bit digest value
 package reference
 
 import (

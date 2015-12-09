@@ -14,7 +14,7 @@ type roLayer struct {
 	references     map[Layer]struct{}
 }
 
-func (rl *roLayer) TarStream() (io.Reader, error) {
+func (rl *roLayer) TarStream() (io.ReadCloser, error) {
 	r, err := rl.layerStore.store.TarSplitReader(rl.chainID)
 	if err != nil {
 		return nil, err

@@ -19,14 +19,14 @@ func NewFilter(filter filters.Args, getLabels func(id string) map[string]string)
 
 // Include returns true when the event ev is included by the filters
 func (ef *Filter) Include(ev *jsonmessage.JSONMessage) bool {
-	return isFieldIncluded(ev.Status, ef.filter["event"]) &&
-		isFieldIncluded(ev.ID, ef.filter["container"]) &&
+	return ef.filter.ExactMatch("event", ev.Status) &&
+		ef.filter.ExactMatch("container", ev.ID) &&
 		ef.isImageIncluded(ev.ID, ev.From) &&
 		ef.isLabelFieldIncluded(ev.ID)
 }
 
 func (ef *Filter) isLabelFieldIncluded(id string) bool {
-	if _, ok := ef.filter["label"]; !ok {
+	if !ef.filter.Include("label") {
 		return true
 	}
 	return ef.filter.MatchKVList("label", ef.getLabels(id))
@@ -37,31 +37,16 @@ func (ef *Filter) isLabelFieldIncluded(id string) bool {
 // from an image will be included in the image events. Also compare both
 // against the stripped repo name without any tags.
 func (ef *Filter) isImageIncluded(eventID string, eventFrom string) bool {
-	stripTag := func(image string) string {
-		ref, err := reference.ParseNamed(image)
-		if err != nil {
-			return image
-		}
-		return ref.Name()
-	}
-
-	return isFieldIncluded(eventID, ef.filter["image"]) ||
-		isFieldIncluded(eventFrom, ef.filter["image"]) ||
-		isFieldIncluded(stripTag(eventID), ef.filter["image"]) ||
-		isFieldIncluded(stripTag(eventFrom), ef.filter["image"])
+	return ef.filter.ExactMatch("image", eventID) ||
+		ef.filter.ExactMatch("image", eventFrom) ||
+		ef.filter.ExactMatch("image", stripTag(eventID)) ||
+		ef.filter.ExactMatch("image", stripTag(eventFrom))
 }
 
-func isFieldIncluded(field string, filter []string) bool {
-	if len(field) == 0 {
-		return true
+func stripTag(image string) string {
+	ref, err := reference.ParseNamed(image)
+	if err != nil {
+		return image
 	}
-	if len(filter) == 0 {
-		return true
-	}
-	for _, v := range filter {
-		if v == field {
-			return true
-		}
-	}
-	return false
+	return ref.Name()
 }

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/Sirupsen/logrus"
@@ -357,13 +358,20 @@ func (s *router) postBuild(ctx context.Context, w http.ResponseWriter, r *http.R
 	buildConfig.ForceRemove = httputils.BoolValue(r, "forcerm")
 	buildConfig.MemorySwap = httputils.Int64ValueOrZero(r, "memswap")
 	buildConfig.Memory = httputils.Int64ValueOrZero(r, "memory")
-	buildConfig.ShmSize = httputils.Int64ValueOrZero(r, "shmsize")
 	buildConfig.CPUShares = httputils.Int64ValueOrZero(r, "cpushares")
 	buildConfig.CPUPeriod = httputils.Int64ValueOrZero(r, "cpuperiod")
 	buildConfig.CPUQuota = httputils.Int64ValueOrZero(r, "cpuquota")
 	buildConfig.CPUSetCpus = r.FormValue("cpusetcpus")
 	buildConfig.CPUSetMems = r.FormValue("cpusetmems")
 	buildConfig.CgroupParent = r.FormValue("cgroupparent")
+
+	if r.Form.Get("shmsize") != "" {
+		shmSize, err := strconv.ParseInt(r.Form.Get("shmsize"), 10, 64)
+		if err != nil {
+			return errf(err)
+		}
+		buildConfig.ShmSize = &shmSize
+	}
 
 	if i := runconfig.IsolationLevel(r.FormValue("isolation")); i != "" {
 		if !runconfig.IsolationLevel.IsValid(i) {
@@ -462,7 +470,7 @@ func (s *router) postBuild(ctx context.Context, w http.ResponseWriter, r *http.R
 	}
 
 	for _, rt := range repoAndTags {
-		if err := s.daemon.TagImage(rt, imgID, true); err != nil {
+		if err := s.daemon.TagImage(rt, imgID); err != nil {
 			return errf(err)
 		}
 	}
@@ -546,8 +554,7 @@ func (s *router) postImagesTag(ctx context.Context, w http.ResponseWriter, r *ht
 			return err
 		}
 	}
-	force := httputils.BoolValue(r, "force")
-	if err := s.daemon.TagImage(newTag, vars["name"], force); err != nil {
+	if err := s.daemon.TagImage(newTag, vars["name"]); err != nil {
 		return err
 	}
 	w.WriteHeader(http.StatusCreated)

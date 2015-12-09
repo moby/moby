@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/container"
 	derr "github.com/docker/docker/errors"
 )
 
@@ -32,13 +33,13 @@ func (daemon *Daemon) ContainerStop(name string, seconds int) error {
 // process to exit. If a negative duration is given, Stop will wait
 // for the initial signal forever. If the container is not running Stop returns
 // immediately.
-func (daemon *Daemon) containerStop(container *Container, seconds int) error {
+func (daemon *Daemon) containerStop(container *container.Container, seconds int) error {
 	if !container.IsRunning() {
 		return nil
 	}
 
 	// 1. Send a SIGTERM
-	if err := daemon.killPossiblyDeadProcess(container, container.stopSignal()); err != nil {
+	if err := daemon.killPossiblyDeadProcess(container, container.StopSignal()); err != nil {
 		logrus.Infof("Failed to send SIGTERM to the process, force killing")
 		if err := daemon.killPossiblyDeadProcess(container, 9); err != nil {
 			return err

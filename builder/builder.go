@@ -8,8 +8,8 @@ import (
 	"io"
 	"os"
 
-	// TODO: remove dependency on daemon
-	"github.com/docker/docker/daemon"
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/container"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/runconfig"
 )
@@ -115,23 +115,21 @@ type Docker interface {
 	// Pull tells Docker to pull image referenced by `name`.
 	Pull(name string) (*image.Image, error)
 
-	// TODO: move daemon.Container to its own package
-
 	// Container looks up a Docker container referenced by `id`.
-	Container(id string) (*daemon.Container, error)
+	Container(id string) (*container.Container, error)
 	// Create creates a new Docker container and returns potential warnings
 	// TODO: put warnings in the error
-	Create(*runconfig.Config, *runconfig.HostConfig) (*daemon.Container, []string, error)
+	Create(*runconfig.Config, *runconfig.HostConfig) (*container.Container, []string, error)
 	// Remove removes a container specified by `id`.
-	Remove(id string, cfg *daemon.ContainerRmConfig) error
+	Remove(id string, cfg *types.ContainerRmConfig) error
 	// Commit creates a new Docker image from an existing Docker container.
-	Commit(string, *daemon.ContainerCommitConfig) (string, error)
+	Commit(string, *types.ContainerCommitConfig) (string, error)
 	// Copy copies/extracts a source FileInfo to a destination path inside a container
 	// specified by a container object.
 	// TODO: make an Extract method instead of passing `decompress`
 	// TODO: do not pass a FileInfo, instead refactor the archive package to export a Walk function that can be used
 	// with Context.Walk
-	Copy(c *daemon.Container, destPath string, src FileInfo, decompress bool) error
+	Copy(c *container.Container, destPath string, src FileInfo, decompress bool) error
 
 	// Retain retains an image avoiding it to be removed or overwritten until a corresponding Release() call.
 	// TODO: remove
@@ -140,13 +138,13 @@ type Docker interface {
 	// TODO: remove
 	Release(sessionID string, activeImages []string)
 	// Kill stops the container execution abruptly.
-	Kill(c *daemon.Container) error
+	Kill(c *container.Container) error
 	// Mount mounts the root filesystem for the container.
-	Mount(c *daemon.Container) error
+	Mount(c *container.Container) error
 	// Unmount unmounts the root filesystem for the container.
-	Unmount(c *daemon.Container) error
+	Unmount(c *container.Container) error
 	// Start starts a new container
-	Start(c *daemon.Container) error
+	Start(c *container.Container) error
 }
 
 // ImageCache abstracts an image cache store.

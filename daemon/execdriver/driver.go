@@ -137,4 +137,5 @@ type CommonCommand struct {
 	Resources     *Resources    `json:"resources"`
 	Rootfs        string        `json:"rootfs"` // root fs of the container
 	WorkingDir    string        `json:"working_dir"`
+	TmpDir        string        `json:"tmpdir"` // Directory used to store docker tmpdirs.
 }

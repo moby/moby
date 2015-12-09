@@ -291,3 +291,12 @@ func (s *DockerSuite) TestSaveDirectoryPermissions(c *check.C) {
 	c.Assert(found, checker.Equals, true, check.Commentf("failed to find the layer with the right content listing"))
 
 }
+
+// Test loading a weird image where one of the layers is of zero size.
+// The layer.tar file is actually zero bytes, no padding or anything else.
+// See issue: 18170
+func (s *DockerSuite) TestLoadZeroSizeLayer(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	dockerCmd(c, "load", "-i", "fixtures/load/emptyLayer.tar")
+}

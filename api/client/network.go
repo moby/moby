@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/http"
 	"strings"
 	"text/tabwriter"
+	"text/template"
 
 	"github.com/docker/docker/api/types"
 	Cli "github.com/docker/docker/cli"
@@ -203,18 +205,29 @@ func (cli *DockerCli) CmdNetworkLs(args ...string) error {
 // Usage: docker network inspect [OPTIONS] <NETWORK> [NETWORK...]
 func (cli *DockerCli) CmdNetworkInspect(args ...string) error {
 	cmd := Cli.Subcmd("network inspect", []string{"NETWORK [NETWORK...]"}, "Displays detailed information on one or more networks", false)
+	tmplStr := cmd.String([]string{"f", "-format"}, "", "Format the output using the given go template")
 	cmd.Require(flag.Min, 1)
-	err := cmd.ParseFlags(args, true)
-	if err != nil {
+
+	if err := cmd.ParseFlags(args, true); err != nil {
 		return err
 	}
 
-	status := 0
-	var networks []*types.NetworkResource
-	for _, name := range cmd.Args() {
-		obj, _, err := readBody(cli.call("GET", "/networks/"+name, nil, nil))
+	var tmpl *template.Template
+	if *tmplStr != "" {
+		var err error
+		tmpl, err = template.New("").Funcs(funcMap).Parse(*tmplStr)
 		if err != nil {
-			if strings.Contains(err.Error(), "not found") {
+			return err
+		}
+	}
+
+	status := 0
+	var networks []types.NetworkResource
+	buf := new(bytes.Buffer)
+	for _, name := range cmd.Args() {
+		obj, statusCode, err := readBody(cli.call("GET", "/networks/"+name, nil, nil))
+		if err != nil {
+			if statusCode == http.StatusNotFound {
 				fmt.Fprintf(cli.err, "Error: No such network: %s\n", name)
 			} else {
 				fmt.Fprintf(cli.err, "%s\n", err)
@@ -222,12 +235,34 @@ func (cli *DockerCli) CmdNetworkInspect(args ...string) error {
 			status = 1
 			continue
 		}
-		networkResource := types.NetworkResource{}
+		var networkResource types.NetworkResource
 		if err := json.NewDecoder(bytes.NewReader(obj)).Decode(&networkResource); err != nil {
 			return err
 		}
 
-		networks = append(networks, &networkResource)
+		if tmpl == nil {
+			networks = append(networks, networkResource)
+			continue
+		}
+
+		if err := tmpl.Execute(buf, &networkResource); err != nil {
+			if err := tmpl.Execute(buf, &networkResource); err != nil {
+				fmt.Fprintf(cli.err, "%s\n", err)
+				return Cli.StatusError{StatusCode: 1}
+			}
+		}
+		buf.WriteString("\n")
+	}
+
+	if tmpl != nil {
+		if _, err := io.Copy(cli.out, buf); err != nil {
+			return err
+		}
+		return nil
+	}
+
+	if len(networks) == 0 {
+		io.WriteString(cli.out, "[]")
 	}
 
 	b, err := json.MarshalIndent(networks, "", "    ")

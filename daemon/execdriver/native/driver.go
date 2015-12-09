@@ -5,6 +5,7 @@ package native
 import (
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -38,7 +39,6 @@ const (
 // it implements execdriver.Driver.
 type Driver struct {
 	root             string
-	initPath         string
 	activeContainers map[string]libcontainer.Container
 	machineMemory    int64
 	factory          libcontainer.Factory
@@ -46,7 +46,7 @@ type Driver struct {
 }
 
 // NewDriver returns a new native driver, called from NewDriver of execdriver.
-func NewDriver(root, initPath string, options []string) (*Driver, error) {
+func NewDriver(root string, options []string) (*Driver, error) {
 	meminfo, err := sysinfo.ReadMemInfo()
 	if err != nil {
 		return nil, err
@@ -114,7 +114,6 @@ func NewDriver(root, initPath string, options []string) (*Driver, error) {
 
 	return &Driver{
 		root:             root,
-		initPath:         initPath,
 		activeContainers: make(map[string]libcontainer.Container),
 		machineMemory:    meminfo.MemTotal,
 		factory:          f,
@@ -130,6 +129,13 @@ type execOutput struct {
 // it calls libcontainer APIs to run a container.
 func (d *Driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, hooks execdriver.Hooks) (execdriver.ExitStatus, error) {
 	destroyed := false
+	var err error
+	c.TmpDir, err = ioutil.TempDir("", c.ID)
+	if err != nil {
+		return execdriver.ExitStatus{ExitCode: -1}, err
+	}
+	defer os.RemoveAll(c.TmpDir)
+
 	// take the Command and populate the libcontainer.Config from it
 	container, err := d.createContainer(c, hooks)
 	if err != nil {

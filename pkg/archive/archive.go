@@ -78,6 +78,11 @@ var (
 )
 
 const (
+	// HeaderSize is the size in bytes of a tar header
+	HeaderSize = 512
+)
+
+const (
 	// Uncompressed represents the uncompressed.
 	Uncompressed Compression = iota
 	// Bzip2 is bzip2 compression algorithm.
@@ -88,7 +93,8 @@ const (
 	Xz
 )
 
-// IsArchive checks if it is a archive by the header.
+// IsArchive checks for the magic bytes of a tar or any supported compression
+// algorithm.
 func IsArchive(header []byte) bool {
 	compression := DetectCompression(header)
 	if compression != Uncompressed {
@@ -96,6 +102,23 @@ func IsArchive(header []byte) bool {
 	}
 	r := tar.NewReader(bytes.NewBuffer(header))
 	_, err := r.Next()
+	return err == nil
+}
+
+// IsArchivePath checks if the (possibly compressed) file at the given path
+// starts with a tar file header.
+func IsArchivePath(path string) bool {
+	file, err := os.Open(path)
+	if err != nil {
+		return false
+	}
+	defer file.Close()
+	rdr, err := DecompressStream(file)
+	if err != nil {
+		return false
+	}
+	r := tar.NewReader(rdr)
+	_, err = r.Next()
 	return err == nil
 }
 
@@ -128,7 +151,13 @@ func DecompressStream(archive io.Reader) (io.ReadCloser, error) {
 	p := pools.BufioReader32KPool
 	buf := p.Get(archive)
 	bs, err := buf.Peek(10)
-	if err != nil {
+	if err != nil && err != io.EOF {
+		// Note: we'll ignore any io.EOF error because there are some odd
+		// cases where the layer.tar file will be empty (zero bytes) and
+		// that results in an io.EOF from the Peek() call. So, in those
+		// cases we'll just treat it as a non-compressed stream and
+		// that means just create an empty layer.
+		// See Issue 18170
 		return nil, err
 	}
 
@@ -800,10 +829,7 @@ func (archiver *Archiver) UntarPath(src, dst string) error {
 			GIDMaps: archiver.GIDMaps,
 		}
 	}
-	if err := archiver.Untar(archive, dst, options); err != nil {
-		return err
-	}
-	return nil
+	return archiver.Untar(archive, dst, options)
 }
 
 // UntarPath is a convenience function which looks for an archive

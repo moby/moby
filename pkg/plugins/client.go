@@ -60,17 +60,21 @@ type Client struct {
 // It will retry for 30 seconds if a failure occurs when calling.
 func (c *Client) Call(serviceMethod string, args interface{}, ret interface{}) error {
 	var buf bytes.Buffer
-	if err := json.NewEncoder(&buf).Encode(args); err != nil {
-		return err
+	if args != nil {
+		if err := json.NewEncoder(&buf).Encode(args); err != nil {
+			return err
+		}
 	}
 	body, err := c.callWithRetry(serviceMethod, &buf, true)
 	if err != nil {
 		return err
 	}
 	defer body.Close()
-	if err := json.NewDecoder(body).Decode(&ret); err != nil {
-		logrus.Errorf("%s: error reading plugin resp: %v", serviceMethod, err)
-		return err
+	if ret != nil {
+		if err := json.NewDecoder(body).Decode(&ret); err != nil {
+			logrus.Errorf("%s: error reading plugin resp: %v", serviceMethod, err)
+			return err
+		}
 	}
 	return nil
 }

@@ -6,6 +6,7 @@ import (
 
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/container"
 	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/stringid"
@@ -133,7 +134,7 @@ func isImageIDPrefix(imageID, possiblePrefix string) bool {
 
 // getContainerUsingImage returns a container that was created using the given
 // imageID. Returns nil if there is no such container.
-func (daemon *Daemon) getContainerUsingImage(imageID image.ID) *Container {
+func (daemon *Daemon) getContainerUsingImage(imageID image.ID) *container.Container {
 	for _, container := range daemon.List() {
 		if container.ImageID == imageID {
 			return container
@@ -195,6 +196,7 @@ func (daemon *Daemon) removeAllReferencesToImageID(imgID image.ID, records *[]ty
 // Implements the error interface.
 type imageDeleteConflict struct {
 	hard    bool
+	used    bool
 	imgID   image.ID
 	message string
 }
@@ -225,8 +227,8 @@ func (daemon *Daemon) imageDeleteHelper(imgID image.ID, records *[]types.ImageDe
 	// First, determine if this image has any conflicts. Ignore soft conflicts
 	// if force is true.
 	if conflict := daemon.checkImageDeleteConflict(imgID, force); conflict != nil {
-		if quiet && !daemon.imageIsDangling(imgID) {
-			// Ignore conflicts UNLESS the image is "dangling" in
+		if quiet && (!daemon.imageIsDangling(imgID) || conflict.used) {
+			// Ignore conflicts UNLESS the image is "dangling" or not being used in
 			// which case we want the user to know.
 			return nil
 		}
@@ -312,6 +314,7 @@ func (daemon *Daemon) checkImageDeleteHardConflict(imgID image.ID) *imageDeleteC
 			return &imageDeleteConflict{
 				imgID:   imgID,
 				hard:    true,
+				used:    true,
 				message: fmt.Sprintf("image is being used by running container %s", stringid.TruncateID(container.ID)),
 			}
 		}
@@ -339,6 +342,7 @@ func (daemon *Daemon) checkImageDeleteSoftConflict(imgID image.ID) *imageDeleteC
 		if container.ImageID == imgID {
 			return &imageDeleteConflict{
 				imgID:   imgID,
+				used:    true,
 				message: fmt.Sprintf("image is being used by stopped container %s", stringid.TruncateID(container.ID)),
 			}
 		}

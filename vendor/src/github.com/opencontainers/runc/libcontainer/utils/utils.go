@@ -36,7 +36,7 @@ func ResolveRootfs(uncleanRootfs string) (string, error) {
 }
 
 // ExitStatus returns the correct exit status for a process based on if it
-// was signaled or existed cleanly.
+// was signaled or exited cleanly.
 func ExitStatus(status syscall.WaitStatus) int {
 	if status.Signaled() {
 		return exitSignalOffset + int(status.Signal())

@@ -14,10 +14,10 @@ func TestPollerAddRemove(t *testing.T) {
 	w := NewPollingWatcher()
 
 	if err := w.Add("no-such-file"); err == nil {
-		t.Fatal("should have gotten error when adding a non-existant file")
+		t.Fatal("should have gotten error when adding a non-existent file")
 	}
 	if err := w.Remove("no-such-file"); err == nil {
-		t.Fatal("should have gotten error when removing non-existant watch")
+		t.Fatal("should have gotten error when removing non-existent watch")
 	}
 
 	f, err := ioutil.TempFile("", "asdf")

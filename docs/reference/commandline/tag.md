@@ -14,7 +14,6 @@ parent = "smn_cli"
 
     Tag an image into a repository
 
-      -f, --force=false    Force the tagging even if there's a conflict
       --help=false         Print usage
 
 You can group your images together using names and tags, and then upload them

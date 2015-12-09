@@ -171,20 +171,22 @@ type Resources struct {
 	CPUShares int64 `json:"CpuShares"` // CPU shares (relative weight vs. other containers)
 
 	// Applicable to UNIX platforms
-	CgroupParent      string // Parent cgroup.
-	BlkioWeight       uint16 // Block IO weight (relative weight vs. other containers)
-	BlkioWeightDevice []*blkiodev.WeightDevice
-	CPUPeriod         int64            `json:"CpuPeriod"` // CPU CFS (Completely Fair Scheduler) period
-	CPUQuota          int64            `json:"CpuQuota"`  // CPU CFS (Completely Fair Scheduler) quota
-	CpusetCpus        string           // CpusetCpus 0-2, 0,1
-	CpusetMems        string           // CpusetMems 0-2, 0,1
-	Devices           []DeviceMapping  // List of devices to map inside the container
-	KernelMemory      int64            // Kernel memory limit (in bytes)
-	Memory            int64            // Memory limit (in bytes)
-	MemoryReservation int64            // Memory soft limit (in bytes)
-	MemorySwap        int64            // Total memory usage (memory + swap); set `-1` to disable swap
-	MemorySwappiness  *int64           // Tuning container memory swappiness behaviour
-	Ulimits           []*ulimit.Ulimit // List of ulimits to be set in the container
+	CgroupParent        string // Parent cgroup.
+	BlkioWeight         uint16 // Block IO weight (relative weight vs. other containers)
+	BlkioWeightDevice   []*blkiodev.WeightDevice
+	BlkioDeviceReadBps  []*blkiodev.ThrottleDevice
+	BlkioDeviceWriteBps []*blkiodev.ThrottleDevice
+	CPUPeriod           int64            `json:"CpuPeriod"` // CPU CFS (Completely Fair Scheduler) period
+	CPUQuota            int64            `json:"CpuQuota"`  // CPU CFS (Completely Fair Scheduler) quota
+	CpusetCpus          string           // CpusetCpus 0-2, 0,1
+	CpusetMems          string           // CpusetMems 0-2, 0,1
+	Devices             []DeviceMapping  // List of devices to map inside the container
+	KernelMemory        int64            // Kernel memory limit (in bytes)
+	Memory              int64            // Memory limit (in bytes)
+	MemoryReservation   int64            // Memory soft limit (in bytes)
+	MemorySwap          int64            // Total memory usage (memory + swap); set `-1` to disable swap
+	MemorySwappiness    *int64           // Tuning container memory swappiness behaviour
+	Ulimits             []*ulimit.Ulimit // List of ulimits to be set in the container
 }
 
 // HostConfig the non-portable Config structure of a container.
@@ -211,14 +213,16 @@ type HostConfig struct {
 	GroupAdd        []string              // List of additional groups that the container process will run as
 	IpcMode         IpcMode               // IPC namespace to use for the container
 	Links           []string              // List of links (in the name:alias form)
+	OomScoreAdj     int                   // Container preference for OOM-killing
 	OomKillDisable  bool                  // Whether to disable OOM Killer or not
 	PidMode         PidMode               // PID namespace to use for the container
 	Privileged      bool                  // Is the container in privileged mode
 	PublishAllPorts bool                  // Should docker publish all exposed port for the container
 	ReadonlyRootfs  bool                  // Is the container root filesystem in read-only
 	SecurityOpt     []string              // List of string values to customize labels for MLS systems, such as SELinux.
+	Tmpfs           map[string]string     `json:",omitempty"` // List of tmpfs (mounts) used for the container
 	UTSMode         UTSMode               // UTS namespace to use for the container
-	ShmSize         int64                 // Total shm memory usage
+	ShmSize         *int64                // Total shm memory usage
 
 	// Applicable to Windows
 	ConsoleSize [2]int         // Initial console size

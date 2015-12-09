@@ -19,7 +19,7 @@ Creates a new container.
       -a, --attach=[]               Attach to STDIN, STDOUT or STDERR
       --add-host=[]                 Add a custom host-to-IP mapping (host:ip)
       --blkio-weight=0              Block IO weight (relative weight)
-      --blkio-weight-device=""      Block IO weight (relative device weight, format: `DEVICE_NAME:WEIGHT`)
+      --blkio-weight-device=[]      Block IO weight (relative device weight, format: `DEVICE_NAME:WEIGHT`)
       --cpu-shares=0                CPU shares (relative weight)
       --cap-add=[]                  Add Linux capabilities
       --cap-drop=[]                 Drop Linux capabilities
@@ -30,6 +30,8 @@ Creates a new container.
       --cpuset-cpus=""              CPUs in which to allow execution (0-3, 0,1)
       --cpuset-mems=""              Memory nodes (MEMs) in which to allow execution (0-3, 0,1)
       --device=[]                   Add a host device to the container
+      --device-read-bps=[]          Limit read rate (bytes per second) from a device (e.g., --device-read-bps=/dev/sda:1mb)
+      --device-write-bps=[]         Limit write rate (bytes per second) to a device (e.g., --device-write-bps=/dev/sda:1mb)
       --disable-content-trust=true  Skip image verification
       --dns=[]                      Set custom DNS servers
       --dns-opt=[]                  Set custom DNS options
@@ -43,6 +45,7 @@ Creates a new container.
       --help=false                  Print usage
       -i, --interactive=false       Keep STDIN open even if not attached
       --ipc=""                      IPC namespace to use
+      --isolation=""                Container isolation technology
       --kernel-memory=""            Kernel memory limit
       -l, --label=[]                Set metadata on the container (e.g., --label=com.example.key=value)
       --label-file=[]               Read in a line delimited file of labels
@@ -55,8 +58,14 @@ Creates a new container.
       --memory-swap=""              Total memory (memory + swap), '-1' to disable swap
       --memory-swappiness=""        Tune a container's memory swappiness behavior. Accepts an integer between 0 and 100.
       --name=""                     Assign a name to the container
-      --net="default"               Set the Network mode for the container
+      --net="bridge"                Connect a container to a network
+                                    'bridge': create a network stack on the default Docker bridge
+                                    'none': no networking
+                                    'container:<name|id>': reuse another container's network stack
+                                    'host': use the Docker host network stack
+                                    '<network-name>|<network-id>': connect to a user-defined network
       --oom-kill-disable=false      Whether to disable OOM Killer for the container or not
+      --oom-score-adj=0             Tune the host's OOM preferences for containers (accepts -1000 to 1000)
       -P, --publish-all=false       Publish all exposed ports to random ports
       -p, --publish=[]              Publish a container's port(s) to the host
       --pid=""                      PID namespace to use
@@ -70,7 +79,13 @@ Creates a new container.
       -u, --user=""                 Username or UID
       --ulimit=[]                   Ulimit options
       --uts=""                      UTS namespace to use
-      -v, --volume=[]               Bind mount a volume
+      -v, --volume=[]               Bind mount a volume with: [host-src:]container-dest[:<options>], where
+                                    options are comma delimited and selected from [rw|ro] and [z|Z].
+                                    The 'host-src' can either be an absolute path or a name value.
+                                    If 'host-src' is missing, then docker creates a new volume.
+                                    If neither 'rw' or 'ro' is specified then the volume is mounted
+                                    in read-write mode.
+      --volume-driver=""            Container's volume driver
       --volumes-from=[]             Mount volumes from the specified container(s)
       -w, --workdir=""              Working directory inside the container
 
@@ -120,3 +135,19 @@ then be used from the subsequent container:
     -rw-r--r--  1 1000 staff  920 Nov 28 11:51 .profile
     drwx--S---  2 1000 staff  460 Dec  5 00:51 .ssh
     drwxr-xr-x 32 1000 staff 1140 Dec  5 04:01 docker
+
+### Specify isolation technology for container (--isolation)
+
+This option is useful in situations where you are running Docker containers on
+Windows. The `--isolation=<value>` option sets a container's isolation
+technology. On Linux, the only supported is the `default` option which uses
+Linux namespaces. On Microsoft Windows, you can specify these values:
+
+
+| Value     | Description                                                                                                                                                   |
+|-----------|---------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `default` | Use the value specified by the Docker daemon's `--exec-opt` . If the `daemon` does not specify an isolation technology, Microsoft Windows uses `process` as its default value.  |
+| `process` | Namespace isolation only.                                                                                                                                     |
+| `hyperv`   | Hyper-V hypervisor partition-based isolation.                                                                                                                  |
+
+Specifying the `--isolation` flag without a value is the same as setting `--isolation="default"`.

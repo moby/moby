@@ -186,7 +186,7 @@ func (d *Driver) Get(id, mountLabel string) (string, error) {
 
 	rootFs := path.Join(mp, "rootfs")
 	if err := idtools.MkdirAllAs(rootFs, 0755, uid, gid); err != nil && !os.IsExist(err) {
-		d.DeviceSet.UnmountDevice(id)
+		d.DeviceSet.UnmountDevice(id, mp)
 		return "", err
 	}
 
@@ -195,7 +195,7 @@ func (d *Driver) Get(id, mountLabel string) (string, error) {
 		// Create an "id" file with the container/image id in it to help reconscruct this in case
 		// of later problems
 		if err := ioutil.WriteFile(idFile, []byte(id), 0600); err != nil {
-			d.DeviceSet.UnmountDevice(id)
+			d.DeviceSet.UnmountDevice(id, mp)
 			return "", err
 		}
 	}
@@ -205,7 +205,8 @@ func (d *Driver) Get(id, mountLabel string) (string, error) {
 
 // Put unmounts a device and removes it.
 func (d *Driver) Put(id string) error {
-	err := d.DeviceSet.UnmountDevice(id)
+	mp := path.Join(d.home, "mnt", id)
+	err := d.DeviceSet.UnmountDevice(id, mp)
 	if err != nil {
 		logrus.Errorf("Error unmounting device %s: %s", id, err)
 	}

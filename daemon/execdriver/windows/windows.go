@@ -42,7 +42,6 @@ type activeContainer struct {
 // it implements execdriver.Driver
 type Driver struct {
 	root             string
-	initPath         string
 	activeContainers map[string]*activeContainer
 	sync.Mutex
 }
@@ -53,7 +52,7 @@ func (d *Driver) Name() string {
 }
 
 // NewDriver returns a new windows driver, called from NewDriver of execdriver.
-func NewDriver(root, initPath string, options []string) (*Driver, error) {
+func NewDriver(root string, options []string) (*Driver, error) {
 
 	for _, option := range options {
 		key, val, err := parsers.ParseKeyValueOpt(option)
@@ -92,7 +91,6 @@ func NewDriver(root, initPath string, options []string) (*Driver, error) {
 
 	return &Driver{
 		root:             root,
-		initPath:         initPath,
 		activeContainers: make(map[string]*activeContainer),
 	}, nil
 }
