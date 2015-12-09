@@ -26,7 +26,7 @@ type peerMap struct {
 }
 
 type peerNetworkMap struct {
-	mp map[string]peerMap
+	mp map[string]*peerMap
 	sync.Mutex
 }
 
@@ -138,7 +138,7 @@ func (d *driver) peerDbAdd(nid, eid string, peerIP net.IP, peerIPMask net.IPMask
 	d.peerDb.Lock()
 	pMap, ok := d.peerDb.mp[nid]
 	if !ok {
-		d.peerDb.mp[nid] = peerMap{
+		d.peerDb.mp[nid] = &peerMap{
 			mp: make(map[string]peerEntry),
 		}
 

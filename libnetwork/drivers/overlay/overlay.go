@@ -51,7 +51,7 @@ func Init(dc driverapi.DriverCallback, config map[string]interface{}) error {
 	d := &driver{
 		networks: networkTable{},
 		peerDb: peerNetworkMap{
-			mp: map[string]peerMap{},
+			mp: map[string]*peerMap{},
 		},
 		config: config,
 	}
