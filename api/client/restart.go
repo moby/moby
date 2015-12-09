@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/url"
 	"strconv"
+	"strings"
 
 	Cli "github.com/docker/docker/cli"
 	flag "github.com/docker/docker/pkg/mflag"
@@ -24,7 +25,8 @@ func (cli *DockerCli) CmdRestart(args ...string) error {
 
 	var errNames []string
 	for _, name := range cmd.Args() {
-		_, _, err := readBody(cli.call("POST", "/containers/"+name+"/restart?"+v.Encode(), nil, nil))
+		cleanName := strings.TrimPrefix(name, "/")
+		_, _, err := readBody(cli.call("POST", "/containers/"+cleanName+"/restart?"+v.Encode(), nil, nil))
 		if err != nil {
 			fmt.Fprintf(cli.err, "%s\n", err)
 			errNames = append(errNames, name)

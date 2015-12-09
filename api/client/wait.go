@@ -2,6 +2,7 @@ package client
 
 import (
 	"fmt"
+	"strings"
 
 	Cli "github.com/docker/docker/cli"
 	flag "github.com/docker/docker/pkg/mflag"
@@ -20,7 +21,8 @@ func (cli *DockerCli) CmdWait(args ...string) error {
 
 	var errNames []string
 	for _, name := range cmd.Args() {
-		status, err := waitForExit(cli, name)
+		cleanName := strings.TrimPrefix(name, "/")
+		status, err := waitForExit(cli, cleanName)
 		if err != nil {
 			fmt.Fprintf(cli.err, "%s\n", err)
 			errNames = append(errNames, name)

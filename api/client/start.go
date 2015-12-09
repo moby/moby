@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/url"
 	"os"
+	"strings"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
@@ -62,8 +63,8 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 		if cmd.NArg() > 1 {
 			return fmt.Errorf("You cannot start and attach multiple containers at once.")
 		}
-
-		serverResp, err := cli.call("GET", "/containers/"+cmd.Arg(0)+"/json", nil, nil)
+		name := strings.TrimPrefix(cmd.Arg(0), "/")
+		serverResp, err := cli.call("GET", "/containers/"+name+"/json", nil, nil)
 		if err != nil {
 			return err
 		}
@@ -78,7 +79,7 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 		tty = c.Config.Tty
 
 		if !tty {
-			sigc := cli.forwardAllSignals(cmd.Arg(0))
+			sigc := cli.forwardAllSignals(name)
 			defer signal.StopCatch(sigc)
 		}
 
@@ -105,7 +106,7 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 			cli.in.Close()
 		}()
 		cErr = promise.Go(func() error {
-			return cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?"+v.Encode(), tty, in, cli.out, cli.err, hijacked, nil)
+			return cli.hijack("POST", "/containers/"+name+"/attach?"+v.Encode(), tty, in, cli.out, cli.err, hijacked, nil)
 		})
 
 		// Acknowledge the hijack before starting
@@ -126,7 +127,8 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 	var encounteredError error
 	var errNames []string
 	for _, name := range cmd.Args() {
-		_, _, err := readBody(cli.call("POST", "/containers/"+name+"/start", nil, nil))
+		cleanName := strings.TrimPrefix(name, "/")
+		_, _, err := readBody(cli.call("POST", "/containers/"+cleanName+"/start", nil, nil))
 		if err != nil {
 			if !*attach && !*openStdin {
 				// attach and openStdin is false means it could be starting multiple containers
@@ -151,15 +153,16 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 	}
 
 	if *openStdin || *attach {
+		name := strings.TrimPrefix(cmd.Arg(0), "/")
 		if tty && cli.isTerminalOut {
-			if err := cli.monitorTtySize(cmd.Arg(0), false); err != nil {
+			if err := cli.monitorTtySize(name, false); err != nil {
 				fmt.Fprintf(cli.err, "Error monitoring TTY size: %s\n", err)
 			}
 		}
 		if attchErr := <-cErr; attchErr != nil {
 			return attchErr
 		}
-		_, status, err := getExitCode(cli, cmd.Arg(0))
+		_, status, err := getExitCode(cli, name)
 		if err != nil {
 			return err
 		}

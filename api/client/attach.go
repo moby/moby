@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/url"
+	"strings"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
@@ -24,8 +25,8 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 	cmd.Require(flag.Exact, 1)
 
 	cmd.ParseFlags(args, true)
-
-	serverResp, err := cli.call("GET", "/containers/"+cmd.Arg(0)+"/json", nil, nil)
+	cleanName := strings.TrimPrefix(cmd.Arg(0), "/")
+	serverResp, err := cli.call("GET", "/containers/"+cleanName+"/json", nil, nil)
 	if err != nil {
 		return err
 	}
@@ -50,7 +51,7 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 	}
 
 	if c.Config.Tty && cli.isTerminalOut {
-		if err := cli.monitorTtySize(cmd.Arg(0), false); err != nil {
+		if err := cli.monitorTtySize(cleanName, false); err != nil {
 			logrus.Debugf("Error monitoring TTY size: %s", err)
 		}
 	}
@@ -68,15 +69,15 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 	v.Set("stderr", "1")
 
 	if *proxy && !c.Config.Tty {
-		sigc := cli.forwardAllSignals(cmd.Arg(0))
+		sigc := cli.forwardAllSignals(cleanName)
 		defer signal.StopCatch(sigc)
 	}
 
-	if err := cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?"+v.Encode(), c.Config.Tty, in, cli.out, cli.err, nil, nil); err != nil {
+	if err := cli.hijack("POST", "/containers/"+cleanName+"/attach?"+v.Encode(), c.Config.Tty, in, cli.out, cli.err, nil, nil); err != nil {
 		return err
 	}
 
-	_, status, err := getExitCode(cli, cmd.Arg(0))
+	_, status, err := getExitCode(cli, cleanName)
 	if err != nil {
 		return err
 	}
