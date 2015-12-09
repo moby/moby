@@ -200,7 +200,11 @@ func (daemon *Daemon) populateCommand(c *container.Container, env []string) erro
 		BlkioThrottleReadBpsDevice:  readBpsDevice,
 		BlkioThrottleWriteBpsDevice: writeBpsDevice,
 		OomKillDisable:              c.HostConfig.OomKillDisable,
-		MemorySwappiness:            *c.HostConfig.MemorySwappiness,
+		MemorySwappiness:            -1,
+	}
+
+	if c.HostConfig.MemorySwappiness != nil {
+		resources.MemorySwappiness = *c.HostConfig.MemorySwappiness
 	}
 
 	processConfig := execdriver.ProcessConfig{
