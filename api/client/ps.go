@@ -25,6 +25,7 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 
 		cmd      = Cli.Subcmd("ps", nil, Cli.DockerCommands["ps"].Description, true)
 		quiet    = cmd.Bool([]string{"q", "-quiet"}, false, "Only display numeric IDs")
+		small	 = cmd.Bool([]string{"small", "-small"}, false, "Only display important columns")
 		size     = cmd.Bool([]string{"s", "-size"}, false, "Display total file sizes")
 		all      = cmd.Bool([]string{"a", "-all"}, false, "Show all containers (default shows just running)")
 		noTrunc  = cmd.Bool([]string{"-no-trunc"}, false, "Don't truncate output")
@@ -106,6 +107,7 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 		Output: cli.out,
 		Format: f,
 		Quiet:  *quiet,
+		Small: *small,
 		Size:   *size,
 		Trunc:  !*noTrunc,
 	}
