@@ -39,28 +39,8 @@ func (i *TemplateInspector) Inspect(typedElement interface{}, rawElement []byte)
 		if rawElement == nil {
 			return fmt.Errorf("Template parsing error: %v", err)
 		}
-		return i.tryRawInspectFallback(rawElement)
+		return i.tryRawInspectFallback(rawElement, err)
 	}
-	i.buffer.Write(buffer.Bytes())
-	i.buffer.WriteByte('\n')
-	return nil
-}
-
-func (i *TemplateInspector) tryRawInspectFallback(rawElement []byte) error {
-	var raw interface{}
-	buffer := new(bytes.Buffer)
-	rdr := bytes.NewReader(rawElement)
-	dec := json.NewDecoder(rdr)
-
-	if rawErr := dec.Decode(&raw); rawErr != nil {
-		return fmt.Errorf("unable to read inspect data: %v", rawErr)
-	}
-
-	tmplMissingKey := i.tmpl.Option("missingkey=error")
-	if rawErr := tmplMissingKey.Execute(buffer, raw); rawErr != nil {
-		return fmt.Errorf("Template parsing error: %v", rawErr)
-	}
-
 	i.buffer.Write(buffer.Bytes())
 	i.buffer.WriteByte('\n')
 	return nil
