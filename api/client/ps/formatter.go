@@ -112,6 +112,7 @@ func customFormat(ctx Context, containers []types.Container) {
 			trunc: ctx.Trunc,
 			c:     container,
 		}
+		if 
 		if err := tmpl.Execute(buffer, containerCtx); err != nil {
 			buffer = bytes.NewBufferString(fmt.Sprintf("Template parsing error: %v\n", err))
 			buffer.WriteTo(ctx.Output)

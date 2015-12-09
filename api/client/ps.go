@@ -109,7 +109,7 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 		Quiet:  *quiet,
 		Size:   *size,
 		Trunc:  !*noTrunc,
-		Volume: *volume,
+		WithVolume: *volume,
 	}
 
 	ps.Format(psCtx, containers)
