@@ -62,7 +62,7 @@ btrfs storage engine on both Oracle Linux 6 and 7.
 
 4. Install the Docker package.
 
-        $ sudo yum install docker
+        $ sudo yum install docker-engine
 
 5. Start the Docker daemon.
 
@@ -166,7 +166,7 @@ To enable btrfs support on Oracle Linux:
 
 To uninstall the Docker package:
 
-    $ sudo yum -y remove docker
+    $ sudo yum -y remove docker-engine
 
 The above command will not remove images, containers, volumes, or user created
 configuration files on your host. If you wish to delete all images, containers,
