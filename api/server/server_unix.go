@@ -38,7 +38,7 @@ func (s *Server) newServer(proto, addr string) ([]*HTTPServer, error) {
 	case "unix":
 		l, err := sockets.NewUnixSocket(addr, s.cfg.SocketGroup)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("can't create unix socket %s: %v", addr, err)
 		}
 		ls = append(ls, l)
 	default:
