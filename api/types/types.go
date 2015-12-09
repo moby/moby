@@ -4,7 +4,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/docker/docker/daemon/network"
+	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/pkg/nat"
 	"github.com/docker/docker/pkg/version"
 	"github.com/docker/docker/registry"

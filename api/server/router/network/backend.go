@@ -1,9 +1,7 @@
 package network
 
 import (
-	// TODO: network config needs to be refactored out to a
-	// different location
-	"github.com/docker/docker/daemon/network"
+	"github.com/docker/docker/api/types/network"
 
 	"github.com/docker/libnetwork"
 )
