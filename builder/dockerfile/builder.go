@@ -10,10 +10,8 @@ import (
 	"sync"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builder/dockerfile/parser"
-	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/ulimit"
 	"github.com/docker/docker/runconfig"
@@ -209,17 +207,6 @@ func (b *Builder) Cancel() {
 	})
 }
 
-// CommitConfig contains build configs for commit operation
-type CommitConfig struct {
-	Pause   bool
-	Repo    string
-	Tag     string
-	Author  string
-	Comment string
-	Changes []string
-	Config  *runconfig.Config
-}
-
 // BuildFromConfig will do build directly from parameter 'changes', which comes
 // from Dockerfile entries, it will:
 // - call parse.Parse() to get AST root from Dockerfile entries
@@ -254,33 +241,4 @@ func BuildFromConfig(config *runconfig.Config, changes []string) (*runconfig.Con
 	}
 
 	return b.runConfig, nil
-}
-
-// Commit will create a new image from a container's changes
-// TODO: remove daemon, make Commit a method on *Builder ?
-func Commit(containerName string, d *daemon.Daemon, c *CommitConfig) (string, error) {
-	if c.Config == nil {
-		c.Config = &runconfig.Config{}
-	}
-
-	newConfig, err := BuildFromConfig(c.Config, c.Changes)
-	if err != nil {
-		return "", err
-	}
-
-	commitCfg := &types.ContainerCommitConfig{
-		Pause:        c.Pause,
-		Repo:         c.Repo,
-		Tag:          c.Tag,
-		Author:       c.Author,
-		Comment:      c.Comment,
-		Config:       newConfig,
-		MergeConfigs: true,
-	}
-
-	imgID, err := d.Commit(containerName, commitCfg)
-	if err != nil {
-		return "", err
-	}
-	return imgID, nil
 }
