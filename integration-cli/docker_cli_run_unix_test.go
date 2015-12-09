@@ -169,10 +169,19 @@ func (s *DockerSuite) TestRunWithKernelMemory(c *check.C) {
 	out, err := inspectField("test1", "HostConfig.KernelMemory")
 	c.Assert(err, check.IsNil)
 	c.Assert(out, check.Equals, "52428800")
+}
+
+func (s *DockerSuite) TestRunWithInvalidKernelMemory(c *check.C) {
+	testRequires(c, kernelMemorySupport)
+
+	out, _, err := dockerCmdWithError("run", "--kernel-memory", "2M", "busybox", "true")
+	c.Assert(err, check.NotNil)
+	expected := "Minimum kernel memory limit allowed is 4MB"
+	c.Assert(out, checker.Contains, expected)
 
 	out, _, err = dockerCmdWithError("run", "--kernel-memory", "-16m", "--name", "test2", "busybox", "echo", "test")
-	expected := "invalid size"
 	c.Assert(err, check.NotNil)
+	expected = "invalid size"
 	c.Assert(out, checker.Contains, expected)
 }
 
