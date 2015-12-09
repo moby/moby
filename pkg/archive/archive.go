@@ -304,8 +304,9 @@ func (ta *tarAppender) addTarFile(path, name string) error {
 	}
 
 	//handle re-mapping container ID mappings back to host ID mappings before
-	//writing tar headers/files
-	if ta.UIDMaps != nil || ta.GIDMaps != nil {
+	//writing tar headers/files. We skip whiteout files because they were written
+	//by the kernel and already have proper ownership relative to the host
+	if !strings.HasPrefix(filepath.Base(hdr.Name), WhiteoutPrefix) && (ta.UIDMaps != nil || ta.GIDMaps != nil) {
 		uid, gid, err := getFileUIDGID(fi.Sys())
 		if err != nil {
 			return err
