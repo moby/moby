@@ -40,6 +40,8 @@ const (
 	linuxMinCPUShares = 2
 	linuxMaxCPUShares = 262144
 	platformSupported = true
+	// It's not kernel limit, we want this 4M limit to supply a reasonable functional container
+	linuxMinMemory = 4194304
 )
 
 func getBlkioWeightDevices(config *runconfig.HostConfig) ([]*blkiodev.WeightDevice, error) {
@@ -194,7 +196,7 @@ func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *runconfig.HostC
 	}
 
 	// memory subsystem checks and adjustments
-	if hostConfig.Memory != 0 && hostConfig.Memory < 4194304 {
+	if hostConfig.Memory != 0 && hostConfig.Memory < linuxMinMemory {
 		return warnings, fmt.Errorf("Minimum memory limit allowed is 4MB")
 	}
 	if hostConfig.Memory > 0 && !sysInfo.MemoryLimit {
@@ -237,6 +239,9 @@ func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *runconfig.HostC
 		warnings = append(warnings, "Your kernel does not support kernel memory limit capabilities. Limitation discarded.")
 		logrus.Warnf("Your kernel does not support kernel memory limit capabilities. Limitation discarded.")
 		hostConfig.KernelMemory = 0
+	}
+	if hostConfig.KernelMemory > 0 && hostConfig.KernelMemory < linuxMinMemory {
+		return warnings, fmt.Errorf("Minimum kernel memory limit allowed is 4MB")
 	}
 	if hostConfig.KernelMemory > 0 && !checkKernelVersion(4, 0, 0) {
 		warnings = append(warnings, "You specified a kernel memory limit on a kernel older than 4.0. Kernel memory limits are experimental on older kernels, it won't work as expected and can cause your system to be unstable.")
