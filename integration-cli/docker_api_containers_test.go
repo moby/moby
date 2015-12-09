@@ -867,7 +867,7 @@ func (s *DockerSuite) TestContainerApiRename(c *check.C) {
 	c.Assert(statusCode, checker.Equals, http.StatusNoContent)
 
 	name, err := inspectField(containerID, "Name")
-	c.Assert(name, checker.Equals, "/"+newName, check.Commentf("Failed to rename container"))
+	c.Assert(name, checker.Equals, newName, check.Commentf("Failed to rename container"))
 }
 
 func (s *DockerSuite) TestContainerApiKill(c *check.C) {

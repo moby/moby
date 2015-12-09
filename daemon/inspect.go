@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/docker/docker/api/types"
@@ -139,7 +140,7 @@ func (daemon *Daemon) getInspectData(container *container.Container, size bool) 
 		State:        containerState,
 		Image:        container.ImageID.String(),
 		LogPath:      container.LogPath,
-		Name:         container.Name,
+		Name:         strings.TrimLeft(container.Name, "/"),
 		RestartCount: container.RestartCount,
 		Driver:       container.Driver,
 		MountLabel:   container.MountLabel,
