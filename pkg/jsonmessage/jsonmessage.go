@@ -183,7 +183,7 @@ func DisplayJSONMessagesStream(in io.Reader, out io.Writer, terminalFd uintptr, 
 			} else {
 				diff = len(ids) - line
 			}
-			if jm.ID != "" && isTerminal {
+			if isTerminal {
 				// NOTE: this appears to be necessary even if
 				// diff == 0.
 				// <ESC>[{diff}A = move cursor up diff rows
