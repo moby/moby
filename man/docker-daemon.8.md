@@ -14,6 +14,7 @@ docker-daemon - Enable daemon mode
 [**--cluster-store**[=*[]*]]
 [**--cluster-advertise**[=*[]*]]
 [**--cluster-store-opt**[=*map[]*]]
+[**--config-file**[=*/etc/docker/daemon.json*]]
 [**-D**|**--debug**]
 [**--default-gateway**[=*DEFAULT-GATEWAY*]]
 [**--default-gateway-v6**[=*DEFAULT-GATEWAY-V6*]]
@@ -95,6 +96,9 @@ format.
 
 **--cluster-store-opt**=""
   Specifies options for the Key/Value store.
+
+**--config-file**="/etc/docker/daemon.json"
+  Specifies the JSON file path to load the configuration from.
 
 **-D**, **--debug**=*true*|*false*
   Enable debug mode. Default is false.

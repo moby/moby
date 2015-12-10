@@ -79,7 +79,7 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 		IPv4Forwarding:     !sysInfo.IPv4ForwardingDisabled,
 		BridgeNfIptables:   !sysInfo.BridgeNfCallIptablesDisabled,
 		BridgeNfIP6tables:  !sysInfo.BridgeNfCallIP6tablesDisabled,
-		Debug:              os.Getenv("DEBUG") != "",
+		Debug:              utils.IsDebugEnabled(),
 		NFd:                fileutils.GetTotalUsedFds(),
 		NGoroutines:        runtime.NumGoroutine(),
 		SystemTime:         time.Now().Format(time.RFC3339Nano),

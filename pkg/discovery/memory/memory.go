@@ -25,6 +25,7 @@ func Init() {
 // Initialize sets the heartbeat for the memory backend.
 func (s *Discovery) Initialize(_ string, heartbeat time.Duration, _ time.Duration, _ map[string]string) error {
 	s.heartbeat = heartbeat
+	s.values = make([]string, 0)
 	return nil
 }
 

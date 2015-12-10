@@ -1,9 +1,19 @@
 package daemon
 
 import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"io"
+	"io/ioutil"
+	"strings"
+	"sync"
+
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/opts"
+	"github.com/docker/docker/pkg/discovery"
 	flag "github.com/docker/docker/pkg/mflag"
-	"github.com/docker/engine-api/types/container"
+	"github.com/imdario/mergo"
 )
 
 const (
@@ -11,42 +21,69 @@ const (
 	disableNetworkBridge = "none"
 )
 
+// LogConfig represents the default log configuration.
+// It includes json tags to deserialize configuration from a file
+// using the same names that the flags in the command line uses.
+type LogConfig struct {
+	Type   string            `json:"log-driver,omitempty"`
+	Config map[string]string `json:"log-opts,omitempty"`
+}
+
+// CommonTLSOptions defines TLS configuration for the daemon server.
+// It includes json tags to deserialize configuration from a file
+// using the same names that the flags in the command line uses.
+type CommonTLSOptions struct {
+	CAFile   string `json:"tlscacert,omitempty"`
+	CertFile string `json:"tlscert,omitempty"`
+	KeyFile  string `json:"tlskey,omitempty"`
+}
+
 // CommonConfig defines the configuration of a docker daemon which are
 // common across platforms.
+// It includes json tags to deserialize configuration from a file
+// using the same names that the flags in the command line uses.
 type CommonConfig struct {
-	AuthorizationPlugins []string // AuthorizationPlugins holds list of authorization plugins
-	AutoRestart          bool
-	Bridge               bridgeConfig // Bridge holds bridge network specific configuration.
-	Context              map[string][]string
-	DisableBridge        bool
-	DNS                  []string
-	DNSOptions           []string
-	DNSSearch            []string
-	ExecOptions          []string
-	ExecRoot             string
-	GraphDriver          string
-	GraphOptions         []string
-	Labels               []string
-	LogConfig            container.LogConfig
-	Mtu                  int
-	Pidfile              string
-	RemappedRoot         string
-	Root                 string
-	TrustKeyPath         string
+	AuthorizationPlugins []string            `json:"authorization-plugins,omitempty"` // AuthorizationPlugins holds list of authorization plugins
+	AutoRestart          bool                `json:"-"`
+	Bridge               bridgeConfig        `json:"-"` // Bridge holds bridge network specific configuration.
+	Context              map[string][]string `json:"-"`
+	DisableBridge        bool                `json:"-"`
+	DNS                  []string            `json:"dns,omitempty"`
+	DNSOptions           []string            `json:"dns-opts,omitempty"`
+	DNSSearch            []string            `json:"dns-search,omitempty"`
+	ExecOptions          []string            `json:"exec-opts,omitempty"`
+	ExecRoot             string              `json:"exec-root,omitempty"`
+	GraphDriver          string              `json:"storage-driver,omitempty"`
+	GraphOptions         []string            `json:"storage-opts,omitempty"`
+	Labels               []string            `json:"labels,omitempty"`
+	LogConfig            LogConfig           `json:"log-config,omitempty"`
+	Mtu                  int                 `json:"mtu,omitempty"`
+	Pidfile              string              `json:"pidfile,omitempty"`
+	Root                 string              `json:"graph,omitempty"`
+	TrustKeyPath         string              `json:"-"`
 
 	// ClusterStore is the storage backend used for the cluster information. It is used by both
 	// multihost networking (to store networks and endpoints information) and by the node discovery
 	// mechanism.
-	ClusterStore string
+	ClusterStore string `json:"cluster-store,omitempty"`
 
 	// ClusterOpts is used to pass options to the discovery package for tuning libkv settings, such
 	// as TLS configuration settings.
-	ClusterOpts map[string]string
+	ClusterOpts map[string]string `json:"cluster-store-opts,omitempty"`
 
 	// ClusterAdvertise is the network endpoint that the Engine advertises for the purpose of node
 	// discovery. This should be a 'host:port' combination on which that daemon instance is
 	// reachable by other hosts.
-	ClusterAdvertise string
+	ClusterAdvertise string `json:"cluster-advertise,omitempty"`
+
+	Debug      bool             `json:"debug,omitempty"`
+	Hosts      []string         `json:"hosts,omitempty"`
+	LogLevel   string           `json:"log-level,omitempty"`
+	TLS        bool             `json:"tls,omitempty"`
+	TLSVerify  bool             `json:"tls-verify,omitempty"`
+	TLSOptions CommonTLSOptions `json:"tls-opts,omitempty"`
+
+	reloadLock sync.Mutex
 }
 
 // InstallCommonFlags adds command-line options to the top-level flag parser for
@@ -54,9 +91,9 @@ type CommonConfig struct {
 // Subsequent calls to `flag.Parse` will populate config with values parsed
 // from the command-line.
 func (config *Config) InstallCommonFlags(cmd *flag.FlagSet, usageFn func(string) string) {
-	cmd.Var(opts.NewListOptsRef(&config.GraphOptions, nil), []string{"-storage-opt"}, usageFn("Set storage driver options"))
-	cmd.Var(opts.NewListOptsRef(&config.AuthorizationPlugins, nil), []string{"-authorization-plugin"}, usageFn("List authorization plugins in order from first evaluator to last"))
-	cmd.Var(opts.NewListOptsRef(&config.ExecOptions, nil), []string{"-exec-opt"}, usageFn("Set exec driver options"))
+	cmd.Var(opts.NewNamedListOptsRef("storage-opts", &config.GraphOptions, nil), []string{"-storage-opt"}, usageFn("Set storage driver options"))
+	cmd.Var(opts.NewNamedListOptsRef("authorization-plugins", &config.AuthorizationPlugins, nil), []string{"-authorization-plugin"}, usageFn("List authorization plugins in order from first evaluator to last"))
+	cmd.Var(opts.NewNamedListOptsRef("exec-opts", &config.ExecOptions, nil), []string{"-exec-opt"}, usageFn("Set exec driver options"))
 	cmd.StringVar(&config.Pidfile, []string{"p", "-pidfile"}, defaultPidFile, usageFn("Path to use for daemon PID file"))
 	cmd.StringVar(&config.Root, []string{"g", "-graph"}, defaultGraph, usageFn("Root of the Docker runtime"))
 	cmd.StringVar(&config.ExecRoot, []string{"-exec-root"}, "/var/run/docker", usageFn("Root of the Docker execdriver"))
@@ -65,12 +102,131 @@ func (config *Config) InstallCommonFlags(cmd *flag.FlagSet, usageFn func(string)
 	cmd.IntVar(&config.Mtu, []string{"#mtu", "-mtu"}, 0, usageFn("Set the containers network MTU"))
 	// FIXME: why the inconsistency between "hosts" and "sockets"?
 	cmd.Var(opts.NewListOptsRef(&config.DNS, opts.ValidateIPAddress), []string{"#dns", "-dns"}, usageFn("DNS server to use"))
-	cmd.Var(opts.NewListOptsRef(&config.DNSOptions, nil), []string{"-dns-opt"}, usageFn("DNS options to use"))
+	cmd.Var(opts.NewNamedListOptsRef("dns-opts", &config.DNSOptions, nil), []string{"-dns-opt"}, usageFn("DNS options to use"))
 	cmd.Var(opts.NewListOptsRef(&config.DNSSearch, opts.ValidateDNSSearch), []string{"-dns-search"}, usageFn("DNS search domains to use"))
-	cmd.Var(opts.NewListOptsRef(&config.Labels, opts.ValidateLabel), []string{"-label"}, usageFn("Set key=value labels to the daemon"))
+	cmd.Var(opts.NewNamedListOptsRef("labels", &config.Labels, opts.ValidateLabel), []string{"-label"}, usageFn("Set key=value labels to the daemon"))
 	cmd.StringVar(&config.LogConfig.Type, []string{"-log-driver"}, "json-file", usageFn("Default driver for container logs"))
-	cmd.Var(opts.NewMapOpts(config.LogConfig.Config, nil), []string{"-log-opt"}, usageFn("Set log driver options"))
+	cmd.Var(opts.NewNamedMapOpts("log-opts", config.LogConfig.Config, nil), []string{"-log-opt"}, usageFn("Set log driver options"))
 	cmd.StringVar(&config.ClusterAdvertise, []string{"-cluster-advertise"}, "", usageFn("Address or interface name to advertise"))
 	cmd.StringVar(&config.ClusterStore, []string{"-cluster-store"}, "", usageFn("Set the cluster store"))
-	cmd.Var(opts.NewMapOpts(config.ClusterOpts, nil), []string{"-cluster-store-opt"}, usageFn("Set cluster store options"))
+	cmd.Var(opts.NewNamedMapOpts("cluster-store-opts", config.ClusterOpts, nil), []string{"-cluster-store-opt"}, usageFn("Set cluster store options"))
+}
+
+func parseClusterAdvertiseSettings(clusterStore, clusterAdvertise string) (string, error) {
+	if clusterAdvertise == "" {
+		return "", errDiscoveryDisabled
+	}
+	if clusterStore == "" {
+		return "", fmt.Errorf("invalid cluster configuration. --cluster-advertise must be accompanied by --cluster-store configuration")
+	}
+
+	advertise, err := discovery.ParseAdvertise(clusterAdvertise)
+	if err != nil {
+		return "", fmt.Errorf("discovery advertise parsing failed (%v)", err)
+	}
+	return advertise, nil
+}
+
+// ReloadConfiguration reads the configuration in the host and reloads the daemon and server.
+func ReloadConfiguration(configFile string, flags *flag.FlagSet, reload func(*Config)) {
+	logrus.Infof("Got signal to reload configuration, reloading from: %s", configFile)
+	newConfig, err := getConflictFreeConfiguration(configFile, flags)
+	if err != nil {
+		logrus.Error(err)
+	} else {
+		reload(newConfig)
+	}
+}
+
+// MergeDaemonConfigurations reads a configuration file,
+// loads the file configuration in an isolated structure,
+// and merges the configuration provided from flags on top
+// if there are no conflicts.
+func MergeDaemonConfigurations(flagsConfig *Config, flags *flag.FlagSet, configFile string) (*Config, error) {
+	fileConfig, err := getConflictFreeConfiguration(configFile, flags)
+	if err != nil {
+		return nil, err
+	}
+
+	// merge flags configuration on top of the file configuration
+	if err := mergo.Merge(fileConfig, flagsConfig); err != nil {
+		return nil, err
+	}
+
+	return fileConfig, nil
+}
+
+// getConflictFreeConfiguration loads the configuration from a JSON file.
+// It compares that configuration with the one provided by the flags,
+// and returns an error if there are conflicts.
+func getConflictFreeConfiguration(configFile string, flags *flag.FlagSet) (*Config, error) {
+	b, err := ioutil.ReadFile(configFile)
+	if err != nil {
+		return nil, err
+	}
+
+	var reader io.Reader
+	if flags != nil {
+		var jsonConfig map[string]interface{}
+		reader = bytes.NewReader(b)
+		if err := json.NewDecoder(reader).Decode(&jsonConfig); err != nil {
+			return nil, err
+		}
+
+		if err := findConfigurationConflicts(jsonConfig, flags); err != nil {
+			return nil, err
+		}
+	}
+
+	var config Config
+	reader = bytes.NewReader(b)
+	err = json.NewDecoder(reader).Decode(&config)
+	return &config, err
+}
+
+// findConfigurationConflicts iterates over the provided flags searching for
+// duplicated configurations. It returns an error with all the conflicts if
+// it finds any.
+func findConfigurationConflicts(config map[string]interface{}, flags *flag.FlagSet) error {
+	var conflicts []string
+	flatten := make(map[string]interface{})
+	for k, v := range config {
+		if m, ok := v.(map[string]interface{}); ok {
+			for km, vm := range m {
+				flatten[km] = vm
+			}
+		} else {
+			flatten[k] = v
+		}
+	}
+
+	printConflict := func(name string, flagValue, fileValue interface{}) string {
+		return fmt.Sprintf("%s: (from flag: %v, from file: %v)", name, flagValue, fileValue)
+	}
+
+	collectConflicts := func(f *flag.Flag) {
+		// search option name in the json configuration payload if the value is a named option
+		if namedOption, ok := f.Value.(opts.NamedOption); ok {
+			if optsValue, ok := flatten[namedOption.Name()]; ok {
+				conflicts = append(conflicts, printConflict(namedOption.Name(), f.Value.String(), optsValue))
+			}
+		} else {
+			// search flag name in the json configuration payload without trailing dashes
+			for _, name := range f.Names {
+				name = strings.TrimLeft(name, "-")
+
+				if value, ok := flatten[name]; ok {
+					conflicts = append(conflicts, printConflict(name, f.Value.String(), value))
+					break
+				}
+			}
+		}
+	}
+
+	flags.Visit(collectConflicts)
+
+	if len(conflicts) > 0 {
+		return fmt.Errorf("the following directives are specified both as a flag and in the configuration file: %s", strings.Join(conflicts, ", "))
+	}
+	return nil
 }
