@@ -27,6 +27,7 @@ weight = -1
       --cluster-store=""                     URL of the distributed storage backend
       --cluster-advertise=""                 Address of the daemon instance on the cluster
       --cluster-store-opt=map[]              Set cluster options
+      --config-file=/etc/docker/daemon.json  Daemon configuration file
       --dns=[]                               DNS server to use
       --dns-opt=[]                           DNS options to use
       --dns-search=[]                        DNS search domains to use
@@ -788,7 +789,7 @@ set like this:
     /usr/local/bin/docker daemon -D -g /var/lib/docker -H unix:// > /var/lib/docker-machine/docker.log 2>&1
 
 
-# Default cgroup parent
+## Default cgroup parent
 
 The `--cgroup-parent` option allows you to set the default cgroup parent
 to use for containers. If this option is not set, it defaults to `/docker` for
@@ -806,3 +807,79 @@ creates the cgroup in `/sys/fs/cgroup/memory/daemoncgroup/foobar`
 This setting can also be set per container, using the `--cgroup-parent`
 option on `docker create` and `docker run`, and takes precedence over
 the `--cgroup-parent` option on the daemon.
+
+## Daemon configuration file
+
+The `--config-file` option allows you to set any configuration option
+for the daemon in a JSON format. This file uses the same flag names as keys,
+except for flags that allow several entries, where it uses the plural
+of the flag name, e.g., `labels` for the `label` flag. By default,
+docker tries to load a configuration file from `/etc/docker/daemon.json`
+on Linux and `%programdata%\docker\config\daemon.json` on Windows.
+
+The options set in the configuration file must not conflict with options set
+via flags. The docker daemon fails to start if an option is duplicated between
+the file and the flags, regardless their value. We do this to avoid
+silently ignore changes introduced in configuration reloads.
+For example, the daemon fails to start if you set daemon labels
+in the configuration file and also set daemon labels via the `--label` flag.
+
+Options that are not present in the file are ignored when the daemon starts.
+This is a full example of the allowed configuration options in the file:
+
+```json
+{
+	"authorization-plugins": [],
+	"dns": [],
+	"dns-opts": [],
+	"dns-search": [],
+	"exec-opts": [],
+	"exec-root": "",
+	"storage-driver": "",
+	"storage-opts": "",
+	"labels": [],
+	"log-config": {
+		"log-driver": "",
+		"log-opts": []
+	},
+	"mtu": 0,
+	"pidfile": "",
+	"graph": "",
+	"cluster-store": "",
+	"cluster-store-opts": [],
+	"cluster-advertise": "",
+	"debug": true,
+	"hosts": [],
+	"log-level": "",
+	"tls": true,
+	"tls-verify": true,
+	"tls-opts": {
+		"tlscacert": "",
+		"tlscert": "",
+		"tlskey": ""
+	},
+	"api-cors-headers": "",
+	"selinux-enabled": false,
+	"userns-remap": "",
+	"group": "",
+	"cgroup-parent": "",
+	"default-ulimits": {}
+}
+```
+
+### Configuration reloading
+
+Some options can be reconfigured when the daemon is running without requiring
+to restart the process. We use the `SIGHUP` signal in Linux to reload, and a global event
+in Windows with the key `Global\docker-daemon-config-$PID`. The options can
+be modified in the configuration file but still will check for conflicts with
+the provided flags. The daemon fails to reconfigure itself
+if there are conflicts, but it won't stop execution.
+
+The list of currently supported options that can be reconfigured is this:
+
+- `debug`: it changes the daemon to debug mode when set to true.
+- `label`: it replaces the daemon labels with a new set of labels.
+- `cluster-store`: it reloads the discovery store with the new address.
+- `cluster-store-opts`: it uses the new options to reload the discovery store.
+- `cluster-advertise`: it modifies the address advertised after reloading.
