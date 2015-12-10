@@ -249,7 +249,7 @@ Json Parameters:
 -   **BlkioWeightDevice** - Block IO weight (relative device weight) in the form of:        `"BlkioWeightDevice": [{"Path": "device_path", "Weight": weight}]`
 -   **BlkioDeviceReadBps** - Limit read rate from a device in form of:	`"BlkioDeviceReadBps": [{"Path": "device_path", "Rate": rate}]`, for example:
 	`"BlkioDeviceReadBps": [{"Path": "/dev/sda", "Rate": "1024"}]"`
--   **BlkioDeviceWriteBps** - Limit write rate to a device in the form of:	`"BlkioDeviceWriteBps": [{"Path": "deivce_path", "Rate": rate}]`, for example:
+-   **BlkioDeviceWriteBps** - Limit write rate to a device in the form of:	`"BlkioDeviceWriteBps": [{"Path": "device_path", "Rate": rate}]`, for example:
 	`"BlkioDeviceWriteBps": [{"Path": "/dev/sda", "Rate": "1024"}]"`
 -   **MemorySwappiness** - Tune a container's memory swappiness behavior. Accepts an integer between 0 and 100.
 -   **OomKillDisable** - Boolean value, whether to disable OOM Killer for the container or not.
