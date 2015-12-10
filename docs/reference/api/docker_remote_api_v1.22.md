@@ -57,7 +57,21 @@ List containers
                          "com.example.version": "1.0"
                  },
                  "SizeRw": 12288,
-                 "SizeRootFs": 0
+                 "SizeRootFs": 0,
+                 "NetworkSettings": {
+                         "Networks": {
+                                 "bridge": {
+                                          "EndpointID": "2cdc4edb1ded3631c81f57966563e5c8525b81121bb3706a9a9a3ae102711f3f",
+                                          "Gateway": "172.17.0.1",
+                                          "IPAddress": "172.17.0.2",
+                                          "IPPrefixLen": 16,
+                                          "IPv6Gateway": "",
+                                          "GlobalIPv6Address": "",
+                                          "GlobalIPv6PrefixLen": 0,
+                                          "MacAddress": "02:42:ac:11:00:02"
+                                  }
+                         }
+                 }
          },
          {
                  "Id": "9cd87474be90",
@@ -70,7 +84,22 @@ List containers
                  "Ports": [],
                  "Labels": {},
                  "SizeRw": 12288,
-                 "SizeRootFs": 0
+                 "SizeRootFs": 0,
+                 "NetworkSettings": {
+                         "Networks": {
+                                 "bridge": {
+                                          "EndpointID": "88eaed7b37b38c2a3f0c4bc796494fdf51b270c2d22656412a2ca5d559a64d7a",
+                                          "Gateway": "172.17.0.1",
+                                          "IPAddress": "172.17.0.8",
+                                          "IPPrefixLen": 16,
+                                          "IPv6Gateway": "",
+                                          "GlobalIPv6Address": "",
+                                          "GlobalIPv6PrefixLen": 0,
+                                          "MacAddress": "02:42:ac:11:00:08"
+                                  }
+                         }
+                 }
+
          },
          {
                  "Id": "3176a2479c92",
@@ -83,7 +112,22 @@ List containers
                  "Ports":[],
                  "Labels": {},
                  "SizeRw":12288,
-                 "SizeRootFs":0
+                 "SizeRootFs":0,
+                 "NetworkSettings": {
+                         "Networks": {
+                                 "bridge": {
+                                          "EndpointID": "8b27c041c30326d59cd6e6f510d4f8d1d570a228466f956edf7815508f78e30d",
+                                          "Gateway": "172.17.0.1",
+                                          "IPAddress": "172.17.0.6",
+                                          "IPPrefixLen": 16,
+                                          "IPv6Gateway": "",
+                                          "GlobalIPv6Address": "",
+                                          "GlobalIPv6PrefixLen": 0,
+                                          "MacAddress": "02:42:ac:11:00:06"
+                                  }
+                         }
+                 }
+
          },
          {
                  "Id": "4cb07b47f9fb",
@@ -96,7 +140,22 @@ List containers
                  "Ports": [],
                  "Labels": {},
                  "SizeRw": 12288,
-                 "SizeRootFs": 0
+                 "SizeRootFs": 0,
+                 "NetworkSettings": {
+                         "Networks": {
+                                 "bridge": {
+                                          "EndpointID": "d91c7b2f0644403d7ef3095985ea0e2370325cd2332ff3a3225c4247328e66e9",
+                                          "Gateway": "172.17.0.1",
+                                          "IPAddress": "172.17.0.5",
+                                          "IPPrefixLen": 16,
+                                          "IPv6Gateway": "",
+                                          "GlobalIPv6Address": "",
+                                          "GlobalIPv6PrefixLen": 0,
+                                          "MacAddress": "02:42:ac:11:00:05"
+                                  }
+                         }
+                 }
+
          }
     ]
 

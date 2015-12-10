@@ -140,6 +140,7 @@ type Container struct {
 	HostConfig struct {
 		NetworkMode string `json:",omitempty"`
 	}
+	NetworkSettings *SummaryNetworkSettings
 }
 
 // CopyConfig contains request body of Remote API:
@@ -300,6 +301,12 @@ type ContainerJSON struct {
 type NetworkSettings struct {
 	NetworkSettingsBase
 	DefaultNetworkSettings
+	Networks map[string]*network.EndpointSettings
+}
+
+// SummaryNetworkSettings provides a summary of container's networks
+// in /containers/json
+type SummaryNetworkSettings struct {
 	Networks map[string]*network.EndpointSettings
 }
 
