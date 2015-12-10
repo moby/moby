@@ -22,11 +22,6 @@ func init() {
 	graphdriver.Register("devicemapper", Init)
 }
 
-// Placeholder interfaces, to be replaced
-// at integration.
-
-// End of placeholder interfaces.
-
 // Driver contains the device set mounted and the home directory
 type Driver struct {
 	*DeviceSet
@@ -35,18 +30,8 @@ type Driver struct {
 	gidMaps []idtools.IDMap
 }
 
-var backingFs = "<unknown>"
-
 // Init creates a driver with the given home and the set of options.
 func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (graphdriver.Driver, error) {
-	fsMagic, err := graphdriver.GetFSMagic(home)
-	if err != nil {
-		return nil, err
-	}
-	if fsName, ok := graphdriver.FsNames[fsMagic]; ok {
-		backingFs = fsName
-	}
-
 	deviceSet, err := NewDeviceSet(home, true, options, uidMaps, gidMaps)
 	if err != nil {
 		return nil, err
