@@ -215,7 +215,7 @@ func from(b *Builder, args []string, attributes map[string]bool, original string
 	)
 	// TODO: don't use `name`, instead resolve it to a digest
 	if !b.Pull {
-		image, err = b.docker.LookupImage(name)
+		image, err = b.docker.GetImage(name)
 		// TODO: shouldn't we error out if error is different from "not found" ?
 	}
 	if image == nil {
@@ -394,18 +394,12 @@ func run(b *Builder, args []string, attributes map[string]bool, original string)
 
 	logrus.Debugf("[BUILDER] Command to be executed: %v", b.runConfig.Cmd)
 
-	c, err := b.create()
+	cID, err := b.create()
 	if err != nil {
 		return err
 	}
 
-	// Ensure that we keep the container mounted until the commit
-	// to avoid unmounting and then mounting directly again
-	b.docker.Mount(c)
-	defer b.docker.Unmount(c)
-
-	err = b.run(c)
-	if err != nil {
+	if err := b.run(cID); err != nil {
 		return err
 	}
 
@@ -414,11 +408,7 @@ func run(b *Builder, args []string, attributes map[string]bool, original string)
 	// properly match it.
 	b.runConfig.Env = env
 	b.runConfig.Cmd = saveCmd
-	if err := b.commit(c.ID, cmd, "run"); err != nil {
-		return err
-	}
-
-	return nil
+	return b.commit(cID, cmd, "run")
 }
 
 // CMD foo

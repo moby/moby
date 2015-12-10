@@ -29,15 +29,8 @@ import (
 	"github.com/opencontainers/runc/libcontainer/label"
 )
 
-const (
-	// DefaultPathEnv is unix style list of directories to search for
-	// executables. Each directory is separated from the next by a colon
-	// ':' character .
-	DefaultPathEnv = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-
-	// DefaultSHMSize is the default size (64MB) of the SHM which will be mounted in the container
-	DefaultSHMSize int64 = 67108864
-)
+// DefaultSHMSize is the default size (64MB) of the SHM which will be mounted in the container
+const DefaultSHMSize int64 = 67108864
 
 // Container holds the fields specific to unixen implementations. See
 // CommonContainer for standard fields common to all containers.
@@ -66,7 +59,7 @@ func (container *Container) CreateDaemonEnvironment(linkedEnv []string) []string
 	}
 	// Setup environment
 	env := []string{
-		"PATH=" + DefaultPathEnv,
+		"PATH=" + system.DefaultPathEnv,
 		"HOSTNAME=" + fullHostname,
 		// Note: we don't set HOME here because it'll get autoset intelligently
 		// based on the value of USER inside dockerinit, but only if it isn't
