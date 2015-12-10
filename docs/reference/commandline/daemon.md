@@ -610,7 +610,7 @@ authorization plugins when you start the Docker `daemon` using the
 `--authz-plugins=PLUGIN_ID` option.
 
 ```bash
-docker daemon --authz-plugins=plugin1 --auth-plugins=plugin2,...
+docker daemon --authz-plugins=plugin1 --authz-plugins=plugin2,...
 ```
 
 The `PLUGIN_ID` value is either the plugin's name or a path to its specification
@@ -624,8 +624,7 @@ multiple plugins installed, at least one must allow the request for it to
 complete.
 
 For information about how to create an authorization plugin, see [authorization
-plugin](https://docs.docker.com/engine/extend/authorization/) section in the
-Docker extend section of this documentation.
+plugin](../../extend/authorization.md) section in the Docker extend section of this documentation.
 
 
 ## Miscellaneous options
