@@ -297,6 +297,9 @@ func (s *DockerSuite) TestPortExposeHostBinding(c *check.C) {
 func (s *DockerSuite) TestPortBindingOnSandbox(c *check.C) {
 	testRequires(c, DaemonIsLinux, NotUserNamespace)
 	dockerCmd(c, "network", "create", "--internal", "-d", "bridge", "internal-net")
+	nr := getNetworkResource(c, "internal-net")
+	c.Assert(nr.Internal, checker.Equals, true)
+
 	dockerCmd(c, "run", "--net", "internal-net", "-d", "--name", "c1",
 		"-p", "8080:8080", "busybox", "nc", "-l", "-p", "8080")
 	c.Assert(waitRun("c1"), check.IsNil)
