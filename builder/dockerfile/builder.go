@@ -77,7 +77,7 @@ type Builder struct {
 	Stdout io.Writer
 	Stderr io.Writer
 
-	docker  builder.Docker
+	docker  builder.Backend
 	context builder.Context
 
 	dockerfile       *parser.Node
@@ -102,7 +102,7 @@ type Builder struct {
 // NewBuilder creates a new Dockerfile builder from an optional dockerfile and a Config.
 // If dockerfile is nil, the Dockerfile specified by Config.DockerfileName,
 // will be read from the Context passed to Build().
-func NewBuilder(config *Config, docker builder.Docker, context builder.Context, dockerfile io.ReadCloser) (b *Builder, err error) {
+func NewBuilder(config *Config, docker builder.Backend, context builder.Context, dockerfile io.ReadCloser) (b *Builder, err error) {
 	if config == nil {
 		config = new(Config)
 	}
