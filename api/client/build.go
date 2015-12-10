@@ -29,7 +29,6 @@ import (
 	"github.com/docker/docker/pkg/ulimit"
 	"github.com/docker/docker/pkg/urlutil"
 	"github.com/docker/docker/reference"
-	"github.com/docker/docker/registry"
 	"github.com/docker/docker/utils"
 	"github.com/docker/go-units"
 )
@@ -477,7 +476,6 @@ func (td *trustedDockerfile) Close() error {
 // resolvedTag records the repository, tag, and resolved digest reference
 // from a Dockerfile rewrite.
 type resolvedTag struct {
-	repoInfo  *registry.RepositoryInfo
 	digestRef reference.Canonical
 	tagRef    reference.NamedTagged
 }
@@ -537,11 +535,6 @@ func rewriteDockerfileFrom(dockerfileName string, translator func(reference.Name
 				}
 			}
 
-			repoInfo, err := registry.ParseRepositoryInfo(ref)
-			if err != nil {
-				return nil, nil, fmt.Errorf("unable to parse repository info %q: %v", ref.String(), err)
-			}
-
 			if !digested && isTrusted() {
 				trustedRef, err := translator(ref.(reference.NamedTagged))
 				if err != nil {
@@ -550,7 +543,6 @@ func rewriteDockerfileFrom(dockerfileName string, translator func(reference.Name
 
 				line = dockerfileFromLinePattern.ReplaceAllLiteralString(line, fmt.Sprintf("FROM %s", trustedRef.String()))
 				resolvedTags = append(resolvedTags, &resolvedTag{
-					repoInfo:  repoInfo,
 					digestRef: trustedRef,
 					tagRef:    ref.(reference.NamedTagged),
 				})
