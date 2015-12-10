@@ -54,7 +54,7 @@ type Canonical interface {
 func ParseNamed(s string) (Named, error) {
 	named, err := distreference.ParseNamed(s)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Error parsing reference: %q is not a valid repository/tag", s)
 	}
 	r, err := WithName(named.Name())
 	if err != nil {
