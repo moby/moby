@@ -47,7 +47,7 @@ func (daemon *Daemon) ImportImage(src string, newRef reference.Named, msg string
 		if err != nil {
 			return err
 		}
-		progressOutput := sf.NewProgressOutput(outStream, true)
+		progressOutput := sf.NewProgressOutput(outStream, true, true)
 		archive = progress.NewProgressReader(resp.Body, progressOutput, resp.ContentLength, "", "Importing")
 	}
 

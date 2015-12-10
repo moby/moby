@@ -95,7 +95,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	case urlutil.IsGitURL(specifiedContext) && hasGit:
 		tempDir, relDockerfile, err = getContextFromGitURL(specifiedContext, *dockerfileName)
 	case urlutil.IsURL(specifiedContext):
-		tempDir, relDockerfile, err = getContextFromURL(cli.out, specifiedContext, *dockerfileName)
+		tempDir, relDockerfile, err = getContextFromURL(cli.out, cli.isTerminal(), specifiedContext, *dockerfileName)
 	default:
 		contextDir, relDockerfile, err = getContextFromLocalDir(specifiedContext, *dockerfileName)
 	}
@@ -169,7 +169,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	context = replaceDockerfileTarWrapper(context, newDockerfile, relDockerfile)
 
 	// Setup an upload progress bar
-	progressOutput := streamformatter.NewStreamFormatter().NewProgressOutput(cli.out, true)
+	progressOutput := streamformatter.NewStreamFormatter().NewProgressOutput(cli.out, true, cli.isTerminal())
 
 	var body io.Reader = progress.NewProgressReader(context, progressOutput, 0, "", "Sending build context to Docker daemon")
 
@@ -434,13 +434,13 @@ func getContextFromGitURL(gitURL, dockerfileName string) (absContextDir, relDock
 // Returns the absolute path to the temporary context directory, the relative
 // path of the dockerfile in that context directory, and a non-nil error on
 // success.
-func getContextFromURL(out io.Writer, remoteURL, dockerfileName string) (absContextDir, relDockerfile string, err error) {
+func getContextFromURL(out io.Writer, isTerminal bool, remoteURL, dockerfileName string) (absContextDir, relDockerfile string, err error) {
 	response, err := httputils.Download(remoteURL)
 	if err != nil {
 		return "", "", fmt.Errorf("unable to download remote context %s: %v", remoteURL, err)
 	}
 	defer response.Body.Close()
-	progressOutput := streamformatter.NewStreamFormatter().NewProgressOutput(out, true)
+	progressOutput := streamformatter.NewStreamFormatter().NewProgressOutput(out, true, isTerminal)
 
 	// Pass the response body through a progress reader.
 	progReader := progress.NewProgressReader(response.Body, progressOutput, response.ContentLength, "", fmt.Sprintf("Downloading build context from remote url: %s", remoteURL))

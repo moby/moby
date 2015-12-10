@@ -186,6 +186,8 @@ type ImagePullOptions struct {
 	Tag     string
 	// RegistryAuth is the base64 encoded credentials for this server
 	RegistryAuth string
+	// IsTerminal specifies if output for pull is tty
+	IsTerminal bool
 }
 
 //ImagePushOptions holds information to push images.

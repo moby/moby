@@ -1052,8 +1052,8 @@ func (daemon *Daemon) TagImage(newTag reference.Named, imageName string) error {
 	return nil
 }
 
-func writeDistributionProgress(cancelFunc func(), outStream io.Writer, progressChan <-chan progress.Progress) {
-	progressOutput := streamformatter.NewJSONStreamFormatter().NewProgressOutput(outStream, false)
+func writeDistributionProgress(cancelFunc func(), outStream io.Writer, progressChan <-chan progress.Progress, isTerminal bool) {
+	progressOutput := streamformatter.NewJSONStreamFormatter().NewProgressOutput(outStream, false, isTerminal)
 	operationCancelled := false
 
 	for prog := range progressChan {
@@ -1069,7 +1069,7 @@ func writeDistributionProgress(cancelFunc func(), outStream io.Writer, progressC
 
 // PullImage initiates a pull operation. image is the repository name to pull, and
 // tag may be either empty, or indicate a specific tag to pull.
-func (daemon *Daemon) PullImage(ref reference.Named, metaHeaders map[string][]string, authConfig *cliconfig.AuthConfig, outStream io.Writer) error {
+func (daemon *Daemon) PullImage(ref reference.Named, metaHeaders map[string][]string, authConfig *cliconfig.AuthConfig, outStream io.Writer, isTerminal bool) error {
 	// Include a buffer so that slow client connections don't affect
 	// transfer performance.
 	progressChan := make(chan progress.Progress, 100)
@@ -1079,7 +1079,7 @@ func (daemon *Daemon) PullImage(ref reference.Named, metaHeaders map[string][]st
 	ctx, cancelFunc := context.WithCancel(context.Background())
 
 	go func() {
-		writeDistributionProgress(cancelFunc, outStream, progressChan)
+		writeDistributionProgress(cancelFunc, outStream, progressChan, isTerminal)
 		close(writesDone)
 	}()
 
@@ -1122,7 +1122,7 @@ func (daemon *Daemon) PushImage(ref reference.Named, metaHeaders map[string][]st
 	ctx, cancelFunc := context.WithCancel(context.Background())
 
 	go func() {
-		writeDistributionProgress(cancelFunc, outStream, progressChan)
+		writeDistributionProgress(cancelFunc, outStream, progressChan, true)
 		close(writesDone)
 	}()
 

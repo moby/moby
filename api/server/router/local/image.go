@@ -85,10 +85,11 @@ func (s *router) postImagesCreate(ctx context.Context, w http.ResponseWriter, r 
 	}
 
 	var (
-		image   = r.Form.Get("fromImage")
-		repo    = r.Form.Get("repo")
-		tag     = r.Form.Get("tag")
-		message = r.Form.Get("message")
+		image      = r.Form.Get("fromImage")
+		repo       = r.Form.Get("repo")
+		tag        = r.Form.Get("tag")
+		message    = r.Form.Get("message")
+		isTerminal = httputils.BoolValue(r, "terminal")
 	)
 	authEncoded := r.Header.Get("X-Registry-Auth")
 	authConfig := &cliconfig.AuthConfig{}
@@ -136,7 +137,7 @@ func (s *router) postImagesCreate(ctx context.Context, w http.ResponseWriter, r 
 					}
 				}
 
-				err = s.daemon.PullImage(ref, metaHeaders, authConfig, output)
+				err = s.daemon.PullImage(ref, metaHeaders, authConfig, output, isTerminal)
 			}
 		}
 	} else { //import
@@ -403,7 +404,7 @@ func (s *router) postBuild(ctx context.Context, w http.ResponseWriter, r *http.R
 	// Currently, only used if context is from a remote url.
 	// Look at code in DetectContextFromRemoteURL for more information.
 	createProgressReader := func(in io.ReadCloser) io.ReadCloser {
-		progressOutput := sf.NewProgressOutput(output, true)
+		progressOutput := sf.NewProgressOutput(output, true, true)
 		return progress.NewProgressReader(in, progressOutput, r.ContentLength, "Downloading context", remoteURL)
 	}
 
