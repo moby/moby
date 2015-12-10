@@ -3758,8 +3758,8 @@ func (s *DockerSuite) TestRunInvalidReference(c *check.C) {
 		c.Fatalf("expected non-zero exist code; received %d", exit)
 	}
 
-	if !strings.Contains(out, "invalid reference format") {
-		c.Fatalf(`Expected "invalid reference format" in output; got: %s`, out)
+	if !strings.Contains(out, "Error parsing reference") {
+		c.Fatalf(`Expected "Error parsing reference" in output; got: %s`, out)
 	}
 }
 
