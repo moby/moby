@@ -525,7 +525,7 @@ func (devices *DeviceSet) activateDeviceIfNeeded(info *devInfo, ignoreDeleted bo
 	// Make sure deferred removal on device is canceled, if one was
 	// scheduled.
 	if err := devices.cancelDeferredRemoval(info); err != nil {
-		return fmt.Errorf("Deivce Deferred Removal Cancellation Failed: %s", err)
+		return fmt.Errorf("Device Deferred Removal Cancellation Failed: %s", err)
 	}
 
 	if devinfo, _ := devicemapper.GetInfo(info.Name()); devinfo != nil && devinfo.Exists != 0 {
