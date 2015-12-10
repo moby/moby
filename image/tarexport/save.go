@@ -81,21 +81,19 @@ func (l *tarexporter) parseNames(names []string) (map[image.ID]*imageDescriptor,
 			addAssoc(imgID, nil)
 			continue
 		}
-		if _, ok := ref.(reference.Canonical); !ok {
-			if _, ok := ref.(reference.NamedTagged); !ok {
-				assocs := l.rs.ReferencesByName(ref)
-				for _, assoc := range assocs {
-					addAssoc(assoc.ImageID, assoc.Ref)
-				}
-				if len(assocs) == 0 {
-					imgID, err := l.is.Search(name)
-					if err != nil {
-						return nil, err
-					}
-					addAssoc(imgID, nil)
-				}
-				continue
+		if reference.IsNameOnly(ref) {
+			assocs := l.rs.ReferencesByName(ref)
+			for _, assoc := range assocs {
+				addAssoc(assoc.ImageID, assoc.Ref)
 			}
+			if len(assocs) == 0 {
+				imgID, err := l.is.Search(name)
+				if err != nil {
+					return nil, err
+				}
+				addAssoc(imgID, nil)
+			}
+			continue
 		}
 		var imgID image.ID
 		if imgID, err = l.rs.Get(ref); err != nil {

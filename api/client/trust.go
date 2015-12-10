@@ -334,9 +334,11 @@ func (cli *DockerCli) trustedPull(repoInfo *registry.RepositoryInfo, ref registr
 				return err
 			}
 			trustedRef, err := reference.WithDigest(repoInfo, r.digest)
+			if err != nil {
+				return err
+			}
 			if err := cli.tagTrusted(trustedRef, tagged); err != nil {
 				return err
-
 			}
 		}
 	}

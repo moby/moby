@@ -41,15 +41,7 @@ func (d Docker) Pull(name string) (*image.Image, error) {
 	if err != nil {
 		return nil, err
 	}
-	switch ref.(type) {
-	case reference.NamedTagged:
-	case reference.Canonical:
-	default:
-		ref, err = reference.WithTag(ref, "latest")
-		if err != nil {
-			return nil, err
-		}
-	}
+	ref = reference.WithDefaultTag(ref)
 
 	pullRegistryAuth := &types.AuthConfig{}
 	if len(d.AuthConfigs) > 0 {

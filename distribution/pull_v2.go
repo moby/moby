@@ -54,10 +54,7 @@ func (p *v2Puller) Pull(ctx context.Context, ref reference.Named) (fallback bool
 
 func (p *v2Puller) pullV2Repository(ctx context.Context, ref reference.Named) (err error) {
 	var refs []reference.Named
-	taggedName := ref
-	if _, isTagged := ref.(reference.NamedTagged); isTagged {
-		refs = []reference.Named{ref}
-	} else if _, isCanonical := ref.(reference.Canonical); isCanonical {
+	if !reference.IsNameOnly(ref) {
 		refs = []reference.Named{ref}
 	} else {
 		manSvc, err := p.repo.Manifests(ctx)
@@ -92,7 +89,7 @@ func (p *v2Puller) pullV2Repository(ctx context.Context, ref reference.Named) (e
 		layersDownloaded = layersDownloaded || pulledNew
 	}
 
-	writeStatus(taggedName.String(), p.config.ProgressOutput, layersDownloaded)
+	writeStatus(ref.String(), p.config.ProgressOutput, layersDownloaded)
 
 	return nil
 }

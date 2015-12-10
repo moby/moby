@@ -59,7 +59,6 @@ func (cli *DockerCli) CmdImport(args ...string) error {
 		}
 		defer file.Close()
 		in = file
-
 	}
 
 	options := types.ImageImportOptions{
