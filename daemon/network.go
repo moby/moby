@@ -90,7 +90,7 @@ func (daemon *Daemon) GetAllNetworks() []libnetwork.Network {
 }
 
 // CreateNetwork creates a network with the given name, driver and other optional parameters
-func (daemon *Daemon) CreateNetwork(name, driver string, ipam network.IPAM, options map[string]string, internal bool) (libnetwork.Network, error) {
+func (daemon *Daemon) CreateNetwork(name, driver string, ipam network.IPAM, netOption map[string]string, internal bool, enableIPv6 bool) (libnetwork.Network, error) {
 	c := daemon.netController
 	if driver == "" {
 		driver = c.Config().Daemon.DefaultDriver
@@ -104,7 +104,8 @@ func (daemon *Daemon) CreateNetwork(name, driver string, ipam network.IPAM, opti
 	}
 
 	nwOptions = append(nwOptions, libnetwork.NetworkOptionIpam(ipam.Driver, "", v4Conf, v6Conf, ipam.Options))
-	nwOptions = append(nwOptions, libnetwork.NetworkOptionDriverOpts(options))
+	nwOptions = append(nwOptions, libnetwork.NetworkOptionEnableIPv6(enableIPv6))
+	nwOptions = append(nwOptions, libnetwork.NetworkOptionDriverOpts(netOption))
 	if internal {
 		nwOptions = append(nwOptions, libnetwork.NetworkOptionInternalNetwork())
 	}

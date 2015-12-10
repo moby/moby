@@ -694,10 +694,8 @@ func initBridgeDriver(controller libnetwork.NetworkController, config *Config) e
 	}
 	// Initialize default network on "bridge" with the same name
 	_, err = controller.NewNetwork("bridge", "bridge",
-		libnetwork.NetworkOptionGeneric(options.Generic{
-			netlabel.GenericData: netOption,
-			netlabel.EnableIPv6:  config.bridgeConfig.EnableIPv6,
-		}),
+		libnetwork.NetworkOptionEnableIPv6(config.bridgeConfig.EnableIPv6),
+		libnetwork.NetworkOptionDriverOpts(netOption),
 		libnetwork.NetworkOptionIpam("default", "", v4Conf, v6Conf, nil),
 		libnetwork.NetworkOptionDeferIPv6Alloc(deferIPv6Alloc))
 	if err != nil {
