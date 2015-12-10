@@ -9,6 +9,7 @@ import (
 	"syscall"
 
 	"github.com/docker/docker/daemon/execdriver"
+	"github.com/docker/docker/daemon/execdriver/dockerhooks"
 	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/mount"
 
@@ -143,26 +144,36 @@ func (d *Driver) createNetwork(container *configs.Config, c *execdriver.Command,
 		container.Namespaces.Add(configs.NEWNET, c.Network.NamespacePath)
 		return nil
 	}
+
+	container.Hooks = &configs.Hooks{}
+	container.Hooks.Prestart = append(container.Hooks.Prestart,
+		configs.NewFunctionHook(func(s configs.HookState) error {
+			return dockerhooks.Prestart(s, c.ContainerJSONPath)
+		}),
+	)
+	container.Hooks.Poststop = append(container.Hooks.Poststop,
+		configs.NewFunctionHook(func(s configs.HookState) error {
+			return dockerhooks.Poststop(s, c.ContainerJSONPath)
+		}),
+	)
+
 	// only set up prestart hook if the namespace path is not set (this should be
 	// all cases *except* for --net=host shared networking)
-	container.Hooks = &configs.Hooks{
-		Prestart: []configs.Hook{
-			configs.NewFunctionHook(func(s configs.HookState) error {
-				if len(hooks.PreStart) > 0 {
-					for _, fnHook := range hooks.PreStart {
-						// A closed channel for OOM is returned here as it will be
-						// non-blocking and return the correct result when read.
-						chOOM := make(chan struct{})
-						close(chOOM)
-						if err := fnHook(&c.ProcessConfig, s.Pid, chOOM); err != nil {
-							return err
-						}
+	container.Hooks.Prestart = append(container.Hooks.Prestart,
+		configs.NewFunctionHook(func(s configs.HookState) error {
+			if len(hooks.PreStart) > 0 {
+				for _, fnHook := range hooks.PreStart {
+					// A closed channel for OOM is returned here as it will be
+					// non-blocking and return the correct result when read.
+					chOOM := make(chan struct{})
+					close(chOOM)
+					if err := fnHook(&c.ProcessConfig, s.Pid, chOOM); err != nil {
+						return err
 					}
 				}
-				return nil
-			}),
-		},
-	}
+			}
+			return nil
+		}))
 	return nil
 }
 

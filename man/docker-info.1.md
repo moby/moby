@@ -46,6 +46,7 @@ Here is a sample output:
     Operating System: Ubuntu 14.04 LTS
     OSType: linux
     Architecture: x86_64
+    Number of Hooks: 2
     CPUs: 1
     Total Memory: 2 GiB
 
