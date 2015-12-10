@@ -13,7 +13,6 @@ import (
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/builder"
-	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/archive"
@@ -25,21 +24,16 @@ import (
 	"github.com/docker/docker/runconfig"
 )
 
-// Docker implements builder.Docker for the docker Daemon object.
+// Docker implements builder.Backend for the docker Daemon object.
 type Docker struct {
-	Daemon      *daemon.Daemon
+	*daemon.Daemon
 	OutOld      io.Writer
 	AuthConfigs map[string]types.AuthConfig
 	Archiver    *archive.Archiver
 }
 
-// ensure Docker implements builder.Docker
-var _ builder.Docker = Docker{}
-
-// LookupImage looks up a Docker image referenced by `name`.
-func (d Docker) LookupImage(name string) (*image.Image, error) {
-	return d.Daemon.GetImage(name)
-}
+// ensure Docker implements builder.Backend
+var _ builder.Backend = Docker{}
 
 // Pull tells Docker to pull image referenced by `name`.
 func (d Docker) Pull(name string) (*image.Image, error) {
@@ -79,38 +73,15 @@ func (d Docker) Pull(name string) (*image.Image, error) {
 	return d.Daemon.GetImage(name)
 }
 
-// Container looks up a Docker container referenced by `id`.
-func (d Docker) Container(id string) (*container.Container, error) {
-	return d.Daemon.GetContainer(id)
-}
-
-// Create creates a new Docker container and returns potential warnings
-func (d Docker) Create(cfg *runconfig.Config, hostCfg *runconfig.HostConfig) (*container.Container, []string, error) {
-	ccr, err := d.Daemon.ContainerCreate(&daemon.ContainerCreateConfig{
-		Name:            "",
-		Config:          cfg,
-		HostConfig:      hostCfg,
-		AdjustCPUShares: true,
-	})
+// ContainerUpdateCmd updates Path and Args for the container with ID cID.
+func (d Docker) ContainerUpdateCmd(cID string, cmd []string) error {
+	c, err := d.Daemon.GetContainer(cID)
 	if err != nil {
-		return nil, nil, err
+		return err
 	}
-	container, err := d.Container(ccr.ID)
-	if err != nil {
-		return nil, ccr.Warnings, err
-	}
-
-	return container, ccr.Warnings, d.Mount(container)
-}
-
-// Remove removes a container specified by `id`.
-func (d Docker) Remove(id string, cfg *types.ContainerRmConfig) error {
-	return d.Daemon.ContainerRm(id, cfg)
-}
-
-// Commit creates a new Docker image from an existing Docker container.
-func (d Docker) Commit(name string, cfg *types.ContainerCommitConfig) (string, error) {
-	return d.Daemon.Commit(name, cfg)
+	c.Path = cmd[0]
+	c.Args = cmd[1:]
+	return nil
 }
 
 // Retain retains an image avoiding it to be removed or overwritten until a corresponding Release() call.
@@ -125,11 +96,11 @@ func (d Docker) Release(sessionID string, activeImages []string) {
 	//d.Daemon.Graph().Release(sessionID, activeImages...)
 }
 
-// Copy copies/extracts a source FileInfo to a destination path inside a container
+// BuilderCopy copies/extracts a source FileInfo to a destination path inside a container
 // specified by a container object.
 // TODO: make sure callers don't unnecessarily convert destPath with filepath.FromSlash (Copy does it already).
-// Copy should take in abstract paths (with slashes) and the implementation should convert it to OS-specific paths.
-func (d Docker) Copy(c *container.Container, destPath string, src builder.FileInfo, decompress bool) error {
+// BuilderCopy should take in abstract paths (with slashes) and the implementation should convert it to OS-specific paths.
+func (d Docker) BuilderCopy(cID string, destPath string, src builder.FileInfo, decompress bool) error {
 	srcPath := src.Path()
 	destExists := true
 	rootUID, rootGID := d.Daemon.GetRemappedUIDGID()
@@ -137,6 +108,10 @@ func (d Docker) Copy(c *container.Container, destPath string, src builder.FileIn
 	// Work in daemon-local OS specific file paths
 	destPath = filepath.FromSlash(destPath)
 
+	c, err := d.Daemon.GetContainer(cID)
+	if err != nil {
+		return err
+	}
 	dest, err := c.GetResourcePath(destPath)
 	if err != nil {
 		return err
@@ -209,27 +184,6 @@ func (d Docker) GetCachedImage(imgID string, cfg *runconfig.Config) (string, err
 		return "", err
 	}
 	return cache.ID().String(), nil
-}
-
-// Kill stops the container execution abruptly.
-func (d Docker) Kill(container *container.Container) error {
-	return d.Daemon.Kill(container)
-}
-
-// Mount mounts the root filesystem for the container.
-func (d Docker) Mount(c *container.Container) error {
-	return d.Daemon.Mount(c)
-}
-
-// Unmount unmounts the root filesystem for the container.
-func (d Docker) Unmount(c *container.Container) error {
-	d.Daemon.Unmount(c)
-	return nil
-}
-
-// Start starts a container
-func (d Docker) Start(c *container.Container) error {
-	return d.Daemon.Start(c)
 }
 
 // Following is specific to builder contexts

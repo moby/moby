@@ -7,10 +7,6 @@ import (
 	"github.com/docker/docker/volume"
 )
 
-// DefaultPathEnv is deliberately empty on Windows as the default path will be set by
-// the container. Docker has no context of what the default path should be.
-const DefaultPathEnv = ""
-
 // Container holds fields specific to the Windows implementation. See
 // CommonContainer for standard fields common to all containers.
 type Container struct {

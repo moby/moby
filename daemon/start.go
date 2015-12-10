@@ -52,11 +52,7 @@ func (daemon *Daemon) ContainerStart(name string, hostConfig *runconfig.HostConf
 		return err
 	}
 
-	if err := daemon.containerStart(container); err != nil {
-		return err
-	}
-
-	return nil
+	return daemon.containerStart(container)
 }
 
 // Start starts a container
