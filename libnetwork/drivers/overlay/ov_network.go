@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"os"
 	"sync"
 	"syscall"
 
@@ -12,9 +13,15 @@ import (
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/netutils"
 	"github.com/docker/libnetwork/osl"
+	"github.com/docker/libnetwork/resolvconf"
 	"github.com/docker/libnetwork/types"
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netlink/nl"
+)
+
+var (
+	hostMode     bool
+	hostModeOnce sync.Once
 )
 
 type networkTable map[string]*network
@@ -87,22 +94,6 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}, ipV4Dat
 	return nil
 }
 
-/* func (d *driver) createNetworkfromStore(nid string) (*network, error) {
-	n := &network{
-		id:        nid,
-		driver:    d,
-		endpoints: endpointTable{},
-		once:      &sync.Once{},
-		subnets:   []*subnet{},
-	}
-
-	err := d.store.GetObject(datastore.Key(n.Key()...), n)
-	if err != nil {
-		return nil, fmt.Errorf("unable to get network %q from data store, %v", nid, err)
-	}
-	return n, nil
-}*/
-
 func (d *driver) DeleteNetwork(nid string) error {
 	if nid == "" {
 		return fmt.Errorf("invalid network id")
@@ -171,6 +162,12 @@ func (n *network) destroySandbox() {
 		}
 
 		for _, s := range n.subnets {
+			if hostMode {
+				if err := removeFilters(n.id[:12], s.brName); err != nil {
+					logrus.Warnf("Could not remove overlay filters: %v", err)
+				}
+			}
+
 			if s.vxlanName != "" {
 				err := deleteVxlan(s.vxlanName)
 				if err != nil {
@@ -178,17 +175,88 @@ func (n *network) destroySandbox() {
 				}
 			}
 		}
+
+		if hostMode {
+			if err := removeNetworkChain(n.id[:12]); err != nil {
+				logrus.Warnf("could not remove network chain: %v", err)
+			}
+		}
+
 		sbox.Destroy()
 		n.setSandbox(nil)
 	}
 }
 
-func (n *network) initSubnetSandbox(s *subnet) error {
-	// create a bridge and vxlan device for this subnet and move it to the sandbox
-	brName, err := netutils.GenerateIfaceName("bridge", 7)
-	if err != nil {
-		return err
+func setHostMode() {
+	if os.Getenv("_OVERLAY_HOST_MODE") != "" {
+		hostMode = true
+		return
 	}
+
+	err := createVxlan("testvxlan", 1)
+	if err != nil {
+		logrus.Errorf("Failed to create testvxlan interface: %v", err)
+		return
+	}
+
+	defer deleteVxlan("testvxlan")
+
+	path := "/proc/self/ns/net"
+	f, err := os.OpenFile(path, os.O_RDONLY, 0)
+	if err != nil {
+		logrus.Errorf("Failed to open path %s for network namespace for setting host mode: %v", path, err)
+		return
+	}
+	defer f.Close()
+
+	nsFD := f.Fd()
+
+	iface, err := netlink.LinkByName("testvxlan")
+	if err != nil {
+		logrus.Errorf("Failed to get link testvxlan: %v", err)
+		return
+	}
+
+	// If we are not able to move the vxlan interface to a namespace
+	// then fallback to host mode
+	if err := netlink.LinkSetNsFd(iface, int(nsFD)); err != nil {
+		hostMode = true
+	}
+}
+
+func (n *network) generateVxlanName(s *subnet) string {
+	return "vx-" + fmt.Sprintf("%06x", n.vxlanID(s)) + "-" + n.id[:5]
+}
+
+func (n *network) generateBridgeName(s *subnet) string {
+	return "ov-" + fmt.Sprintf("%06x", n.vxlanID(s)) + "-" + n.id[:5]
+}
+
+func isOverlap(nw *net.IPNet) bool {
+	var nameservers []string
+
+	if rc, err := resolvconf.Get(); err == nil {
+		nameservers = resolvconf.GetNameserversAsCIDR(rc.Content)
+	}
+
+	if err := netutils.CheckNameserverOverlaps(nameservers, nw); err != nil {
+		return true
+	}
+
+	if err := netutils.CheckRouteOverlaps(nw); err != nil {
+		return true
+	}
+
+	return false
+}
+
+func (n *network) initSubnetSandbox(s *subnet) error {
+	if hostMode && isOverlap(s.subnetIP) {
+		return fmt.Errorf("overlay subnet %s has conflicts in the host while running in host mode", s.subnetIP.String())
+	}
+
+	// create a bridge and vxlan device for this subnet and move it to the sandbox
+	brName := n.generateBridgeName(s)
 	sbox := n.sandbox()
 
 	if err := sbox.AddInterface(brName, "br",
@@ -197,7 +265,12 @@ func (n *network) initSubnetSandbox(s *subnet) error {
 		return fmt.Errorf("bridge creation in sandbox failed for subnet %q: %v", s.subnetIP.String(), err)
 	}
 
-	vxlanName, err := createVxlan(n.vxlanID(s))
+	vxlanName := n.generateVxlanName(s)
+
+	// Try to delete the vxlan interface if already present
+	deleteVxlan(vxlanName)
+
+	err := createVxlan(vxlanName, n.vxlanID(s))
 	if err != nil {
 		return err
 	}
@@ -205,6 +278,12 @@ func (n *network) initSubnetSandbox(s *subnet) error {
 	if err := sbox.AddInterface(vxlanName, "vxlan",
 		sbox.InterfaceOptions().Master(brName)); err != nil {
 		return fmt.Errorf("vxlan interface creation failed for subnet %q: %v", s.subnetIP.String(), err)
+	}
+
+	if hostMode {
+		if err := addFilters(n.id[:12], brName); err != nil {
+			return err
+		}
 	}
 
 	n.Lock()
@@ -220,8 +299,16 @@ func (n *network) initSandbox() error {
 	n.initEpoch++
 	n.Unlock()
 
+	hostModeOnce.Do(setHostMode)
+
+	if hostMode {
+		if err := addNetworkChain(n.id[:12]); err != nil {
+			return err
+		}
+	}
+
 	sbox, err := osl.NewSandbox(
-		osl.GenerateKey(fmt.Sprintf("%d-", n.initEpoch)+n.id), true)
+		osl.GenerateKey(fmt.Sprintf("%d-", n.initEpoch)+n.id), !hostMode)
 	if err != nil {
 		return fmt.Errorf("could not create network sandbox: %v", err)
 	}

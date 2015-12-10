@@ -163,6 +163,7 @@ EOF
 	   --name=${name}  \
 	   --privileged \
 	   -p ${hport}:${cport} \
+	   -e _OVERLAY_HOST_MODE \
 	   -v $(pwd)/:/go/src/github.com/docker/libnetwork \
 	   -v /tmp:/tmp \
 	   -v $(pwd)/${TMPC_ROOT}:/scratch \
@@ -212,6 +213,21 @@ function runc() {
     dnet_exec ${dnet} "mkdir -p /var/run/netns"
     dnet_exec ${dnet} "touch /var/run/netns/c && mount -o bind /var/run/docker/netns/${1} /var/run/netns/c"
     dnet_exec ${dnet} "ip netns exec c unshare -fmuip --mount-proc chroot \"/scratch/rootfs\" /bin/sh -c \"/bin/mount -t proc proc /proc && ${2}\""
+    dnet_exec ${dnet} "umount /var/run/netns/c && rm /var/run/netns/c"
+}
+
+function runc_nofail() {
+    local dnet
+
+    dnet=${1}
+    shift
+    dnet_exec ${dnet} "cp /var/lib/docker/network/files/${1}*/* /scratch/rootfs/etc"
+    dnet_exec ${dnet} "mkdir -p /var/run/netns"
+    dnet_exec ${dnet} "touch /var/run/netns/c && mount -o bind /var/run/docker/netns/${1} /var/run/netns/c"
+    set +e
+    dnet_exec ${dnet} "ip netns exec c unshare -fmuip --mount-proc chroot \"/scratch/rootfs\" /bin/sh -c \"/bin/mount -t proc proc /proc && ${2}\""
+    status="$?"
+    set -e
     dnet_exec ${dnet} "umount /var/run/netns/c && rm /var/run/netns/c"
 }
 
@@ -441,4 +457,84 @@ function test_overlay_singlehost() {
     done
 
     dnet_cmd $(inst_id2port 1) network rm multihost
+}
+
+function test_overlay_hostmode() {
+    dnet_suffix=$1
+    shift
+
+    echo $(docker ps)
+
+    start=1
+    end=2
+    # Setup overlay network and connect containers ot it
+    dnet_cmd $(inst_id2port 1) network create -d overlay multihost1
+    dnet_cmd $(inst_id2port 1) network create -d overlay multihost2
+    dnet_cmd $(inst_id2port 1) network ls
+
+    for i in `seq ${start} ${end}`;
+    do
+	dnet_cmd $(inst_id2port 1) container create mh1_${i}
+	net_connect 1 mh1_${i} multihost1
+    done
+
+    for i in `seq ${start} ${end}`;
+    do
+	dnet_cmd $(inst_id2port 1) container create mh2_${i}
+	net_connect 1 mh2_${i} multihost2
+    done
+
+    # Now test connectivity between all the containers using service names
+    for i in `seq ${start} ${end}`;
+    do
+	for j in `seq ${start} ${end}`;
+	do
+	    if [ "$i" -eq "$j" ]; then
+		continue
+	    fi
+
+	    # Find the IP addresses of the j containers on both networks
+	    hrun runc $(dnet_container_name 1 $dnet_suffix) $(get_sbox_id 1 mh1_${i}) "nslookup mh1_$j"
+	    mh1_j_ip=$(echo ${output} | awk '{print $11}')
+
+	    hrun runc $(dnet_container_name 1 $dnet_suffix) $(get_sbox_id 1 mh2_${i}) "nslookup mh2_$j"
+	    mh2_j_ip=$(echo ${output} | awk '{print $11}')
+
+	    # Ping the j containers in the same network and ensure they are successfull
+	    runc $(dnet_container_name 1 $dnet_suffix) $(get_sbox_id 1 mh1_${i}) \
+		 "ping -c 1 mh1_$j"
+	    runc $(dnet_container_name 1 $dnet_suffix) $(get_sbox_id 1 mh2_${i}) \
+		 "ping -c 1 mh2_$j"
+
+	    # Try pinging j container IPs from the container in the other network and make sure that they are not successfull
+	    runc_nofail $(dnet_container_name 1 $dnet_suffix) $(get_sbox_id 1 mh1_${i}) "ping -c 1 ${mh2_j_ip}"
+	    [ "${status}" -ne 0 ]
+
+	    runc_nofail $(dnet_container_name 1 $dnet_suffix) $(get_sbox_id 1 mh2_${i}) "ping -c 1 ${mh1_j_ip}"
+	    [ "${status}" -ne 0 ]
+
+	    # Try pinging the j container IPS from the host(dnet container in this case) and make syre that they are not successfull
+	    hrun docker exec -it $(dnet_container_name 1 $dnet_suffix) "ping -c 1 ${mh1_j_ip}"
+	    [ "${status}" -ne 0 ]
+
+	    hrun docker exec -it $(dnet_container_name 1 $dnet_suffix) "ping -c 1 ${mh2_j_ip}"
+	    [ "${status}" -ne 0 ]
+	done
+    done
+
+    # Teardown the container connections and the network
+    for i in `seq ${start} ${end}`;
+    do
+	net_disconnect 1 mh1_${i} multihost1
+	dnet_cmd $(inst_id2port 1) container rm mh1_${i}
+    done
+
+    for i in `seq ${start} ${end}`;
+    do
+	net_disconnect 1 mh2_${i} multihost2
+	dnet_cmd $(inst_id2port 1) container rm mh2_${i}
+    done
+
+    dnet_cmd $(inst_id2port 1) network rm multihost1
+    dnet_cmd $(inst_id2port 1) network rm multihost2
 }
