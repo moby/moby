@@ -13,16 +13,8 @@ import (
 	"github.com/opencontainers/runc/libcontainer/label"
 )
 
-// ContainerCreateConfig is the parameter set to ContainerCreate()
-type ContainerCreateConfig struct {
-	Name            string
-	Config          *runconfig.Config
-	HostConfig      *runconfig.HostConfig
-	AdjustCPUShares bool
-}
-
 // ContainerCreate takes configs and creates a container.
-func (daemon *Daemon) ContainerCreate(params *ContainerCreateConfig) (types.ContainerCreateResponse, error) {
+func (daemon *Daemon) ContainerCreate(params *types.ContainerCreateConfig) (types.ContainerCreateResponse, error) {
 	if params.Config == nil {
 		return types.ContainerCreateResponse{}, derr.ErrorCodeEmptyConfig
 	}
@@ -49,7 +41,7 @@ func (daemon *Daemon) ContainerCreate(params *ContainerCreateConfig) (types.Cont
 }
 
 // Create creates a new container from the given configuration with a given name.
-func (daemon *Daemon) create(params *ContainerCreateConfig) (retC *container.Container, retErr error) {
+func (daemon *Daemon) create(params *types.ContainerCreateConfig) (retC *container.Container, retErr error) {
 	var (
 		container *container.Container
 		img       *image.Image

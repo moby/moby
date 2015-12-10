@@ -1,4 +1,4 @@
-package local
+package image
 
 import (
 	"encoding/base64"
@@ -10,29 +10,21 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/digest"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builder/dockerfile"
 	"github.com/docker/docker/cliconfig"
-	"github.com/docker/docker/daemon/daemonbuilder"
-	derr "github.com/docker/docker/errors"
-	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/ioutils"
-	"github.com/docker/docker/pkg/progressreader"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/ulimit"
 	"github.com/docker/docker/runconfig"
 	tagpkg "github.com/docker/docker/tag"
-	"github.com/docker/docker/utils"
 	"golang.org/x/net/context"
 )
 
-func (s *router) postCommit(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (s *imageRouter) postCommit(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
@@ -54,21 +46,22 @@ func (s *router) postCommit(ctx context.Context, w http.ResponseWriter, r *http.
 		return err
 	}
 
-	commitCfg := &dockerfile.CommitConfig{
-		Pause:   pause,
-		Repo:    r.Form.Get("repo"),
-		Tag:     r.Form.Get("tag"),
-		Author:  r.Form.Get("author"),
-		Comment: r.Form.Get("comment"),
-		Changes: r.Form["changes"],
-		Config:  c,
+	newConfig, err := dockerfile.BuildFromConfig(c, r.Form["changes"])
+	if err != nil {
+		return err
 	}
 
-	if !s.daemon.Exists(cname) {
-		return derr.ErrorCodeNoSuchContainer.WithArgs(cname)
+	commitCfg := &types.ContainerCommitConfig{
+		Pause:        pause,
+		Repo:         r.Form.Get("repo"),
+		Tag:          r.Form.Get("tag"),
+		Author:       r.Form.Get("author"),
+		Comment:      r.Form.Get("comment"),
+		Config:       newConfig,
+		MergeConfigs: true,
 	}
 
-	imgID, err := dockerfile.Commit(cname, s.daemon, commitCfg)
+	imgID, err := s.backend.Commit(cname, commitCfg)
 	if err != nil {
 		return err
 	}
@@ -79,7 +72,7 @@ func (s *router) postCommit(ctx context.Context, w http.ResponseWriter, r *http.
 }
 
 // Creates an image from Pull or from Import
-func (s *router) postImagesCreate(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (s *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
@@ -136,7 +129,7 @@ func (s *router) postImagesCreate(ctx context.Context, w http.ResponseWriter, r 
 					}
 				}
 
-				err = s.daemon.PullImage(ref, metaHeaders, authConfig, output)
+				err = s.backend.PullImage(ref, metaHeaders, authConfig, output)
 			}
 		}
 	} else { //import
@@ -172,7 +165,7 @@ func (s *router) postImagesCreate(ctx context.Context, w http.ResponseWriter, r 
 			return err
 		}
 
-		err = s.daemon.ImportImage(src, newRef, message, r.Body, output, newConfig)
+		err = s.backend.ImportImage(src, newRef, message, r.Body, output, newConfig)
 	}
 	if err != nil {
 		if !output.Flushed() {
@@ -185,7 +178,7 @@ func (s *router) postImagesCreate(ctx context.Context, w http.ResponseWriter, r 
 	return nil
 }
 
-func (s *router) postImagesPush(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (s *imageRouter) postImagesPush(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	metaHeaders := map[string][]string{}
 	for k, v := range r.Header {
 		if strings.HasPrefix(k, "X-Meta-") {
@@ -230,7 +223,7 @@ func (s *router) postImagesPush(ctx context.Context, w http.ResponseWriter, r *h
 
 	w.Header().Set("Content-Type", "application/json")
 
-	if err := s.daemon.PushImage(ref, metaHeaders, authConfig, output); err != nil {
+	if err := s.backend.PushImage(ref, metaHeaders, authConfig, output); err != nil {
 		if !output.Flushed() {
 			return err
 		}
@@ -240,7 +233,7 @@ func (s *router) postImagesPush(ctx context.Context, w http.ResponseWriter, r *h
 	return nil
 }
 
-func (s *router) getImagesGet(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (s *imageRouter) getImagesGet(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
@@ -256,7 +249,7 @@ func (s *router) getImagesGet(ctx context.Context, w http.ResponseWriter, r *htt
 		names = r.Form["names"]
 	}
 
-	if err := s.daemon.ExportImage(names, output); err != nil {
+	if err := s.backend.ExportImage(names, output); err != nil {
 		if !output.Flushed() {
 			return err
 		}
@@ -266,11 +259,11 @@ func (s *router) getImagesGet(ctx context.Context, w http.ResponseWriter, r *htt
 	return nil
 }
 
-func (s *router) postImagesLoad(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	return s.daemon.LoadImage(r.Body, w)
+func (s *imageRouter) postImagesLoad(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	return s.backend.LoadImage(r.Body, w)
 }
 
-func (s *router) deleteImages(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (s *imageRouter) deleteImages(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
@@ -284,7 +277,7 @@ func (s *router) deleteImages(ctx context.Context, w http.ResponseWriter, r *htt
 	force := httputils.BoolValue(r, "force")
 	prune := !httputils.BoolValue(r, "noprune")
 
-	list, err := s.daemon.ImageDelete(name, force, prune)
+	list, err := s.backend.ImageDelete(name, force, prune)
 	if err != nil {
 		return err
 	}
@@ -292,8 +285,8 @@ func (s *router) deleteImages(ctx context.Context, w http.ResponseWriter, r *htt
 	return httputils.WriteJSON(w, http.StatusOK, list)
 }
 
-func (s *router) getImagesByName(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	imageInspect, err := s.daemon.LookupImage(vars["name"])
+func (s *imageRouter) getImagesByName(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	imageInspect, err := s.backend.LookupImage(vars["name"])
 	if err != nil {
 		return err
 	}
@@ -301,16 +294,15 @@ func (s *router) getImagesByName(ctx context.Context, w http.ResponseWriter, r *
 	return httputils.WriteJSON(w, http.StatusOK, imageInspect)
 }
 
-func (s *router) postBuild(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (s *imageRouter) postBuild(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	var (
-		authConfigs        = map[string]cliconfig.AuthConfig{}
 		authConfigsEncoded = r.Header.Get("X-Registry-Config")
 		buildConfig        = &dockerfile.Config{}
 	)
 
 	if authConfigsEncoded != "" {
 		authConfigsJSON := base64.NewDecoder(base64.URLEncoding, strings.NewReader(authConfigsEncoded))
-		if err := json.NewDecoder(authConfigsJSON).Decode(&authConfigs); err != nil {
+		if err := json.NewDecoder(authConfigsJSON).Decode(buildConfig.AuthConfigs); err != nil {
 			// for a pull it is not an error if no auth was given
 			// to increase compatibility with the existing api it is defaulting
 			// to be empty.
@@ -322,19 +314,6 @@ func (s *router) postBuild(ctx context.Context, w http.ResponseWriter, r *http.R
 	version := httputils.VersionFromContext(ctx)
 	output := ioutils.NewWriteFlusher(w)
 	defer output.Close()
-	sf := streamformatter.NewJSONStreamFormatter()
-	errf := func(err error) error {
-		// Do not write the error in the http output if it's still empty.
-		// This prevents from writing a 200(OK) when there is an interal error.
-		if !output.Flushed() {
-			return err
-		}
-		_, err = w.Write(sf.FormatError(errors.New(utils.GetErrorMessage(err))))
-		if err != nil {
-			logrus.Warnf("could not write error response: %v", err)
-		}
-		return nil
-	}
 
 	if httputils.BoolValue(r, "forcerm") && version.GreaterThanOrEqualTo("1.12") {
 		buildConfig.Remove = true
@@ -347,9 +326,9 @@ func (s *router) postBuild(ctx context.Context, w http.ResponseWriter, r *http.R
 		buildConfig.Pull = true
 	}
 
-	repoAndTags, err := sanitizeRepoAndTags(r.Form["t"])
+	reposAndTags, err := sanitizeReposAndTags(r.Form["t"])
 	if err != nil {
-		return errf(err)
+		return err
 	}
 
 	buildConfig.DockerfileName = r.FormValue("dockerfile")
@@ -368,14 +347,14 @@ func (s *router) postBuild(ctx context.Context, w http.ResponseWriter, r *http.R
 	if r.Form.Get("shmsize") != "" {
 		shmSize, err := strconv.ParseInt(r.Form.Get("shmsize"), 10, 64)
 		if err != nil {
-			return errf(err)
+			return err
 		}
 		buildConfig.ShmSize = &shmSize
 	}
 
 	if i := runconfig.IsolationLevel(r.FormValue("isolation")); i != "" {
 		if !runconfig.IsolationLevel.IsValid(i) {
-			return errf(fmt.Errorf("Unsupported isolation: %q", i))
+			return fmt.Errorf("Unsupported isolation: %q", i)
 		}
 		buildConfig.Isolation = i
 	}
@@ -384,7 +363,7 @@ func (s *router) postBuild(ctx context.Context, w http.ResponseWriter, r *http.R
 	ulimitsJSON := r.FormValue("ulimits")
 	if ulimitsJSON != "" {
 		if err := json.NewDecoder(strings.NewReader(ulimitsJSON)).Decode(&buildUlimits); err != nil {
-			return errf(err)
+			return err
 		}
 		buildConfig.Ulimits = buildUlimits
 	}
@@ -393,95 +372,22 @@ func (s *router) postBuild(ctx context.Context, w http.ResponseWriter, r *http.R
 	buildArgsJSON := r.FormValue("buildargs")
 	if buildArgsJSON != "" {
 		if err := json.NewDecoder(strings.NewReader(buildArgsJSON)).Decode(&buildArgs); err != nil {
-			return errf(err)
+			return err
 		}
 		buildConfig.BuildArgs = buildArgs
 	}
 
-	remoteURL := r.FormValue("remote")
+	buildConfig.RemoteURL = r.FormValue("remote")
+	buildConfig.Size = r.ContentLength
+	buildConfig.ReposAndTags = reposAndTags
 
-	// Currently, only used if context is from a remote url.
-	// The field `In` is set by DetectContextFromRemoteURL.
-	// Look at code in DetectContextFromRemoteURL for more information.
-	pReader := &progressreader.Config{
-		// TODO: make progressreader streamformatter-agnostic
-		Out:       output,
-		Formatter: sf,
-		Size:      r.ContentLength,
-		NewLines:  true,
-		ID:        "Downloading context",
-		Action:    remoteURL,
-	}
-
-	var (
-		context        builder.ModifiableContext
-		dockerfileName string
-	)
-	context, dockerfileName, err = daemonbuilder.DetectContextFromRemoteURL(r.Body, remoteURL, pReader)
-	if err != nil {
-		return errf(err)
-	}
-	defer func() {
-		if err := context.Close(); err != nil {
-			logrus.Debugf("[BUILDER] failed to remove temporary context: %v", err)
-		}
-	}()
-
-	uidMaps, gidMaps := s.daemon.GetUIDGIDMaps()
-	defaultArchiver := &archive.Archiver{
-		Untar:   chrootarchive.Untar,
-		UIDMaps: uidMaps,
-		GIDMaps: gidMaps,
-	}
-	docker := &daemonbuilder.Docker{
-		Daemon:      s.daemon,
-		OutOld:      output,
-		AuthConfigs: authConfigs,
-		Archiver:    defaultArchiver,
-	}
-
-	b, err := dockerfile.NewBuilder(buildConfig, docker, builder.DockerIgnoreContext{ModifiableContext: context}, nil)
-	if err != nil {
-		return errf(err)
-	}
-	b.Stdout = &streamformatter.StdoutFormatter{Writer: output, StreamFormatter: sf}
-	b.Stderr = &streamformatter.StderrFormatter{Writer: output, StreamFormatter: sf}
-
-	if closeNotifier, ok := w.(http.CloseNotifier); ok {
-		finished := make(chan struct{})
-		defer close(finished)
-		go func() {
-			select {
-			case <-finished:
-			case <-closeNotifier.CloseNotify():
-				logrus.Infof("Client disconnected, cancelling job: build")
-				b.Cancel()
-			}
-		}()
-	}
-
-	if len(dockerfileName) > 0 {
-		b.DockerfileName = dockerfileName
-	}
-
-	imgID, err := b.Build()
-	if err != nil {
-		return errf(err)
-	}
-
-	for _, rt := range repoAndTags {
-		if err := s.daemon.TagImage(rt, imgID); err != nil {
-			return errf(err)
-		}
-	}
-
-	return nil
+	return s.backend.ImageBuild(buildConfig, r.Body, output)
 }
 
-// sanitizeRepoAndTags parses the raw "t" parameter received from the client
+// sanitizeReposAndTags parses the raw "t" parameter received from the client
 // to a slice of repoAndTag.
 // It also validates each repoName and tag.
-func sanitizeRepoAndTags(names []string) ([]reference.Named, error) {
+func sanitizeReposAndTags(names []string) ([]reference.Named, error) {
 	var (
 		repoAndTags []reference.Named
 		// This map is used for deduplicating the "-t" paramter.
@@ -515,13 +421,13 @@ func sanitizeRepoAndTags(names []string) ([]reference.Named, error) {
 	return repoAndTags, nil
 }
 
-func (s *router) getImagesJSON(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (s *imageRouter) getImagesJSON(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
 
 	// FIXME: The filter parameter could just be a match filter
-	images, err := s.daemon.Images(r.Form.Get("filters"), r.Form.Get("filter"), httputils.BoolValue(r, "all"))
+	images, err := s.backend.Images(r.Form.Get("filters"), r.Form.Get("filter"), httputils.BoolValue(r, "all"))
 	if err != nil {
 		return err
 	}
@@ -529,9 +435,9 @@ func (s *router) getImagesJSON(ctx context.Context, w http.ResponseWriter, r *ht
 	return httputils.WriteJSON(w, http.StatusOK, images)
 }
 
-func (s *router) getImagesHistory(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (s *imageRouter) getImagesHistory(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	name := vars["name"]
-	history, err := s.daemon.ImageHistory(name)
+	history, err := s.backend.ImageHistory(name)
 	if err != nil {
 		return err
 	}
@@ -539,7 +445,7 @@ func (s *router) getImagesHistory(ctx context.Context, w http.ResponseWriter, r 
 	return httputils.WriteJSON(w, http.StatusOK, history)
 }
 
-func (s *router) postImagesTag(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (s *imageRouter) postImagesTag(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
@@ -554,14 +460,14 @@ func (s *router) postImagesTag(ctx context.Context, w http.ResponseWriter, r *ht
 			return err
 		}
 	}
-	if err := s.daemon.TagImage(newTag, vars["name"]); err != nil {
+	if err := s.backend.TagImage(newTag, vars["name"]); err != nil {
 		return err
 	}
 	w.WriteHeader(http.StatusCreated)
 	return nil
 }
 
-func (s *router) getImagesSearch(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (s *imageRouter) getImagesSearch(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
@@ -584,7 +490,7 @@ func (s *router) getImagesSearch(ctx context.Context, w http.ResponseWriter, r *
 			headers[k] = v
 		}
 	}
-	query, err := s.daemon.SearchRegistryForImages(r.Form.Get("term"), config, headers)
+	query, err := s.backend.SearchRegistryForImages(r.Form.Get("term"), config, headers)
 	if err != nil {
 		return err
 	}

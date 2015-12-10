@@ -136,7 +136,7 @@ type Daemon struct {
 	execDriver                execdriver.Driver
 	statsCollector            *statsCollector
 	defaultLogConfig          runconfig.LogConfig
-	RegistryService           *registry.Service
+	registryService           *registry.Service
 	EventsService             *events.Events
 	netController             libnetwork.NetworkController
 	volumes                   *store.VolumeStore
@@ -842,7 +842,7 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 	d.execDriver = ed
 	d.statsCollector = d.newStatsCollector(1 * time.Second)
 	d.defaultLogConfig = config.LogConfig
-	d.RegistryService = registryService
+	d.registryService = registryService
 	d.EventsService = eventsService
 	d.volumes = volStore
 	d.root = config.Root
@@ -1045,7 +1045,7 @@ func (daemon *Daemon) PullImage(ref reference.Named, metaHeaders map[string][]st
 		MetaHeaders:     metaHeaders,
 		AuthConfig:      authConfig,
 		OutStream:       outStream,
-		RegistryService: daemon.RegistryService,
+		RegistryService: daemon.registryService,
 		EventsService:   daemon.EventsService,
 		MetadataStore:   daemon.distributionMetadataStore,
 		LayerStore:      daemon.layerStore,
@@ -1073,7 +1073,7 @@ func (daemon *Daemon) PushImage(ref reference.Named, metaHeaders map[string][]st
 		MetaHeaders:     metaHeaders,
 		AuthConfig:      authConfig,
 		OutStream:       outStream,
-		RegistryService: daemon.RegistryService,
+		RegistryService: daemon.registryService,
 		EventsService:   daemon.EventsService,
 		MetadataStore:   daemon.distributionMetadataStore,
 		LayerStore:      daemon.layerStore,
@@ -1441,7 +1441,7 @@ func configureVolumes(config *Config, rootUID, rootGID int) (*store.VolumeStore,
 
 // AuthenticateToRegistry checks the validity of credentials in authConfig
 func (daemon *Daemon) AuthenticateToRegistry(authConfig *cliconfig.AuthConfig) (string, error) {
-	return daemon.RegistryService.Auth(authConfig)
+	return daemon.registryService.Auth(authConfig)
 }
 
 // SearchRegistryForImages queries the registry for images matching
@@ -1449,7 +1449,7 @@ func (daemon *Daemon) AuthenticateToRegistry(authConfig *cliconfig.AuthConfig) (
 func (daemon *Daemon) SearchRegistryForImages(term string,
 	authConfig *cliconfig.AuthConfig,
 	headers map[string][]string) (*registry.SearchResults, error) {
-	return daemon.RegistryService.Search(term, authConfig, headers)
+	return daemon.registryService.Search(term, authConfig, headers)
 }
 
 // IsShuttingDown tells whether the daemon is shutting down or not
@@ -1501,6 +1501,15 @@ func (daemon *Daemon) newBaseContainer(id string) *container.Container {
 	return container.NewBaseContainer(id, daemon.containerRoot(id))
 }
 
+// ResolveRepository gets the repository information from a registry service.
+func (daemon *Daemon) ResolveRepository(ref reference.Named) (*registry.RepositoryInfo, error) {
+	return daemon.registryService.ResolveRepository(ref)
+}
+
+// GetContainer returns a container identified by a reference.
+func (daemon *Daemon) GetContainer(ref string) (*container.Container, error) {
+	return daemon.Get(ref)
+}
 func convertLnNetworkStats(name string, stats *lntypes.InterfaceStatistics) *libcontainer.NetworkInterface {
 	n := &libcontainer.NetworkInterface{Name: name}
 	n.RxBytes = stats.RxBytes
