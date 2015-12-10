@@ -132,6 +132,25 @@ func (r *canonicalRef) Digest() digest.Digest {
 	return r.namedRef.Named.(distreference.Canonical).Digest()
 }
 
+// WithDefaultTag adds a default tag to a reference if it only has a repo name.
+func WithDefaultTag(ref Named) Named {
+	if IsNameOnly(ref) {
+		ref, _ = WithTag(ref, DefaultTag)
+	}
+	return ref
+}
+
+// IsNameOnly returns true if reference only contains a repo name.
+func IsNameOnly(ref Named) bool {
+	if _, ok := ref.(NamedTagged); ok {
+		return false
+	}
+	if _, ok := ref.(Canonical); ok {
+		return false
+	}
+	return true
+}
+
 // splitHostname splits a repository name to hostname and remotename string.
 // If no valid hostname is found, the default hostname is used. Repository name
 // needs to be already validated before.

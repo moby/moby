@@ -28,9 +28,8 @@ func (cli *DockerCli) CmdTag(args ...string) error {
 		return errors.New("refusing to create a tag with a digest reference")
 	}
 
-	tag := ""
-	tagged, isTagged := ref.(reference.NamedTagged)
-	if isTagged {
+	var tag string
+	if tagged, isTagged := ref.(reference.NamedTagged); isTagged {
 		tag = tagged.Tag()
 	}
 
