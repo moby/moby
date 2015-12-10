@@ -43,7 +43,7 @@ func (cli *DockerCli) resizeTty(id string, isExec bool) {
 	}
 
 	var err error
-	if !isExec {
+	if isExec {
 		err = cli.client.ContainerExecResize(options)
 	} else {
 		err = cli.client.ContainerResize(options)
