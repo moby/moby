@@ -30,7 +30,13 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 	if info.DriverStatus != nil {
 		for _, pair := range info.DriverStatus {
 			fmt.Fprintf(cli.out, " %s: %s\n", pair[0], pair[1])
+
+			// print a warning if devicemapper is using a loopback file
+			if pair[0] == "Data loop file" {
+				fmt.Fprintf(cli.err, " WARNING: Usage of loopback devices is strongly discouraged for production use. Either use `--storage-opt dm.thinpooldev` or use `--storage-opt dm.no_warn_on_loop_devices=true` to suppress this warning.")
+			}
 		}
+
 	}
 	ioutils.FprintfIfNotEmpty(cli.out, "Execution Driver: %s\n", info.ExecutionDriver)
 	ioutils.FprintfIfNotEmpty(cli.out, "Logging Driver: %s\n", info.LoggingDriver)
