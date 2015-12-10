@@ -68,6 +68,7 @@ func (s *DockerSuite) TestContainerApiGetJSONNoFieldsOmitted(c *check.C) {
 		"Ports",
 		"Labels",
 		"Status",
+		"NetworkSettings",
 	}
 
 	// decoding into types.Container do not work since it eventually unmarshal
