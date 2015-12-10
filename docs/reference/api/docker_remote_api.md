@@ -103,6 +103,9 @@ This section lists each version from latest to oldest.  Each listing includes a 
   consistent with other date/time values returned by the API.
 * `AuthConfig` now supports a `registrytoken` for token based authentication
 * `POST /containers/create` now has a 4M minimum value limit for `HostConfig.KernelMemory`
+* Pushes initated with `POST /images/(name)/push` and pulls initiated with `POST /images/create`
+  will be cancelled if the HTTP connection making the API request is closed before
+  the push or pull completes.
 
 ### v1.21 API changes
 

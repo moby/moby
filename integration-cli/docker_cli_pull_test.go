@@ -140,7 +140,7 @@ func (s *DockerHubPullSuite) TestPullAllTagsFromCentralRegistry(c *check.C) {
 }
 
 // TestPullClientDisconnect kills the client during a pull operation and verifies that the operation
-// still succesfully completes on the daemon side.
+// gets cancelled.
 //
 // Ref: docker/docker#15589
 func (s *DockerHubPullSuite) TestPullClientDisconnect(c *check.C) {
@@ -161,14 +161,8 @@ func (s *DockerHubPullSuite) TestPullClientDisconnect(c *check.C) {
 	err = pullCmd.Process.Kill()
 	c.Assert(err, checker.IsNil)
 
-	maxAttempts := 20
-	for i := 0; ; i++ {
-		if _, err := s.CmdWithError("inspect", repoName); err == nil {
-			break
-		}
-		if i >= maxAttempts {
-			c.Fatal("timeout reached: image was not pulled after client disconnected")
-		}
-		time.Sleep(500 * time.Millisecond)
+	time.Sleep(2 * time.Second)
+	if _, err := s.CmdWithError("inspect", repoName); err == nil {
+		c.Fatal("image was pulled after client disconnected")
 	}
 }

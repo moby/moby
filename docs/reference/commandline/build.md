@@ -98,12 +98,9 @@ adding a `.dockerignore` file to that directory as well. For information on
 creating one, see the [.dockerignore file](../builder.md#dockerignore-file).
 
 If the Docker client loses connection to the daemon, the build is canceled.
-This happens if you interrupt the Docker client with `ctrl-c` or if the Docker
-client is killed for any reason.
-
-> **Note:**
-> Currently only the "run" phase of the build can be canceled until pull
-> cancellation is implemented).
+This happens if you interrupt the Docker client with `CTRL-c` or if the Docker
+client is killed for any reason. If the build initiated a pull which is still
+running at the time the build is cancelled, the pull is cancelled as well.
 
 ## Return code
 

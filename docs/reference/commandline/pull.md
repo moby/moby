@@ -49,3 +49,6 @@ use `docker pull`:
     # manually specifies the path to the default Docker registry. This could
     # be replaced with the path to a local registry to pull from another source.
     # sudo docker pull myhub.com:8080/test-image
+
+Killing the `docker pull` process, for example by pressing `CTRL-c` while it is
+running in a terminal, will terminate the pull operation.
