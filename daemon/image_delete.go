@@ -149,17 +149,7 @@ func (daemon *Daemon) getContainerUsingImage(imageID image.ID) *container.Contai
 // optional tag or digest reference. If tag or digest is omitted, the default
 // tag is used. Returns the resolved image reference and an error.
 func (daemon *Daemon) removeImageRef(ref reference.Named) (reference.Named, error) {
-	switch ref.(type) {
-	case reference.NamedTagged:
-	case reference.Canonical:
-	default:
-		var err error
-		ref, err = reference.WithTag(ref, reference.DefaultTag)
-		if err != nil {
-			return nil, err
-		}
-	}
-
+	ref = reference.WithDefaultTag(ref)
 	// Ignore the boolean value returned, as far as we're concerned, this
 	// is an idempotent operation and it's okay if the reference didn't
 	// exist in the first place.

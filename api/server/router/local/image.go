@@ -154,8 +154,7 @@ func (s *router) postImagesCreate(ctx context.Context, w http.ResponseWriter, r 
 				return err
 			}
 
-			switch newRef.(type) {
-			case reference.Canonical:
+			if _, isCanonical := newRef.(reference.Canonical); isCanonical {
 				return errors.New("cannot import digest reference")
 			}
 
@@ -496,13 +495,10 @@ func sanitizeRepoAndTags(names []string) ([]reference.Named, error) {
 		if err != nil {
 			return nil, err
 		}
+		ref = reference.WithDefaultTag(ref)
 
 		if _, isCanonical := ref.(reference.Canonical); isCanonical {
 			return nil, errors.New("build tag cannot contain a digest")
-		}
-
-		if _, isTagged := ref.(reference.NamedTagged); !isTagged {
-			ref, err = reference.WithTag(ref, reference.DefaultTag)
 		}
 
 		nameWithTag := ref.String()

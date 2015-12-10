@@ -522,21 +522,9 @@ func rewriteDockerfileFrom(dockerfileName string, translator func(reference.Name
 			if err != nil {
 				return nil, nil, err
 			}
-
-			digested := false
-			switch ref.(type) {
-			case reference.NamedTagged:
-			case reference.Canonical:
-				digested = true
-			default:
-				ref, err = reference.WithTag(ref, reference.DefaultTag)
-				if err != nil {
-					return nil, nil, err
-				}
-			}
-
-			if !digested && isTrusted() {
-				trustedRef, err := translator(ref.(reference.NamedTagged))
+			ref = reference.WithDefaultTag(ref)
+			if ref, ok := ref.(reference.NamedTagged); ok && isTrusted() {
+				trustedRef, err := translator(ref)
 				if err != nil {
 					return nil, nil, err
 				}
@@ -544,7 +532,7 @@ func rewriteDockerfileFrom(dockerfileName string, translator func(reference.Name
 				line = dockerfileFromLinePattern.ReplaceAllLiteralString(line, fmt.Sprintf("FROM %s", trustedRef.String()))
 				resolvedTags = append(resolvedTags, &resolvedTag{
 					digestRef: trustedRef,
-					tagRef:    ref.(reference.NamedTagged),
+					tagRef:    ref,
 				})
 			}
 		}

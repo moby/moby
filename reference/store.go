@@ -64,19 +64,6 @@ func (a lexicalAssociations) Len() int           { return len(a) }
 func (a lexicalAssociations) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a lexicalAssociations) Less(i, j int) bool { return a[i].Ref.String() < a[j].Ref.String() }
 
-func defaultTagIfNameOnly(ref Named) Named {
-	switch ref.(type) {
-	case NamedTagged:
-		return ref
-	case Canonical:
-		return ref
-	default:
-		// Should never fail
-		ref, _ = WithTag(ref, DefaultTag)
-		return ref
-	}
-}
-
 // NewReferenceStore creates a new reference store, tied to a file path where
 // the set of references are serialized in JSON format.
 func NewReferenceStore(jsonPath string) (Store, error) {
@@ -107,7 +94,7 @@ func (store *store) AddTag(ref Named, id image.ID, force bool) error {
 	if _, isCanonical := ref.(Canonical); isCanonical {
 		return errors.New("refusing to create a tag with a digest reference")
 	}
-	return store.addReference(defaultTagIfNameOnly(ref), id, force)
+	return store.addReference(WithDefaultTag(ref), id, force)
 }
 
 // AddDigest adds a digest reference to the store.
@@ -162,7 +149,7 @@ func (store *store) addReference(ref Named, id image.ID, force bool) error {
 // Delete deletes a reference from the store. It returns true if a deletion
 // happened, or false otherwise.
 func (store *store) Delete(ref Named) (bool, error) {
-	ref = defaultTagIfNameOnly(ref)
+	ref = WithDefaultTag(ref)
 
 	store.mu.Lock()
 	defer store.mu.Unlock()
@@ -194,7 +181,7 @@ func (store *store) Delete(ref Named) (bool, error) {
 
 // Get retrieves an item from the store by
 func (store *store) Get(ref Named) (image.ID, error) {
-	ref = defaultTagIfNameOnly(ref)
+	ref = WithDefaultTag(ref)
 
 	store.mu.RLock()
 	defer store.mu.RUnlock()

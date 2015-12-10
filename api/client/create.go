@@ -25,14 +25,11 @@ func (cli *DockerCli) pullImageCustomOut(image string, out io.Writer) error {
 	}
 
 	var tag string
-	switch x := ref.(type) {
+	switch x := reference.WithDefaultTag(ref).(type) {
 	case reference.Canonical:
 		tag = x.Digest().String()
 	case reference.NamedTagged:
 		tag = x.Tag()
-	default:
-		// pull only the image tagged 'latest' if no tag was specified
-		tag = reference.DefaultTag
 	}
 
 	// Resolve the Repository name from fqn to RepositoryInfo
@@ -97,24 +94,13 @@ func (cli *DockerCli) createContainer(config *runconfig.Config, hostConfig *runc
 	if err != nil {
 		return nil, err
 	}
-
-	isCanonical := false
-	switch ref.(type) {
-	case reference.NamedTagged:
-	case reference.Canonical:
-		isCanonical = true
-	default:
-		ref, err = reference.WithTag(ref, reference.DefaultTag)
-		if err != nil {
-			return nil, err
-		}
-	}
+	ref = reference.WithDefaultTag(ref)
 
 	var trustedRef reference.Canonical
 
-	if isTrusted() && !isCanonical {
+	if ref, ok := ref.(reference.NamedTagged); ok && isTrusted() {
 		var err error
-		trustedRef, err = cli.trustedReference(ref.(reference.NamedTagged))
+		trustedRef, err = cli.trustedReference(ref)
 		if err != nil {
 			return nil, err
 		}
@@ -132,8 +118,8 @@ func (cli *DockerCli) createContainer(config *runconfig.Config, hostConfig *runc
 			if err = cli.pullImageCustomOut(config.Image, cli.err); err != nil {
 				return nil, err
 			}
-			if trustedRef != nil && !isCanonical {
-				if err := cli.tagTrusted(trustedRef, ref.(reference.NamedTagged)); err != nil {
+			if ref, ok := ref.(reference.NamedTagged); ok && trustedRef != nil {
+				if err := cli.tagTrusted(trustedRef, ref); err != nil {
 					return nil, err
 				}
 			}
