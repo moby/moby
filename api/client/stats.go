@@ -62,7 +62,7 @@ func (s *containerStats) Collect(cli *DockerCli, streamStats bool) {
 			var memPercent = 0.0
 			var cpuPercent = 0.0
 
-			// MemoryStats.Limit will never be 0 unless the container is not running and we havn't
+			// MemoryStats.Limit will never be 0 unless the container is not running and we haven't
 			// got any data from cgroup
 			if v.MemoryStats.Limit != 0 {
 				memPercent = float64(v.MemoryStats.Usage) / float64(v.MemoryStats.Limit) * 100.0
@@ -287,7 +287,7 @@ func (cli *DockerCli) CmdStats(args ...string) error {
 			if ok {
 				if err != nil {
 					// this is suppressing "unexpected EOF" in the cli when the
-					// daemon restarts so it shudowns cleanly
+					// daemon restarts so it shutdowns cleanly
 					if err == io.ErrUnexpectedEOF {
 						return nil
 					}
