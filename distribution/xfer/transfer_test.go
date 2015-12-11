@@ -41,15 +41,6 @@ func TestTransfer(t *testing.T) {
 				if p.Current != 0 {
 					t.Fatalf("got unexpected progress value: %d (expected 0)", p.Current)
 				}
-			} else if p.Current == 10 {
-				// Special case: last progress output may be
-				// repeated because the transfer finishing
-				// causes the latest progress output to be
-				// written to the channel (in case the watcher
-				// missed it).
-				if p.Current != 9 && p.Current != 10 {
-					t.Fatalf("got unexpected progress value: %d (expected %d)", p.Current, val+1)
-				}
 			} else if p.Current != val+1 {
 				t.Fatalf("got unexpected progress value: %d (expected %d)", p.Current, val+1)
 			}

@@ -124,7 +124,6 @@ func (t *transfer) Broadcast(masterProgressChan <-chan progress.Progress) {
 				default:
 				}
 			}
-
 		} else {
 			t.broadcastDone = true
 		}
@@ -159,18 +158,23 @@ func (t *transfer) Watch(progressOutput progress.Output) *Watcher {
 		defer func() {
 			close(w.running)
 		}()
-		done := false
+		var (
+			done           bool
+			lastWritten    progress.Progress
+			hasLastWritten bool
+		)
 		for {
 			t.mu.Lock()
 			hasLastProgress := t.hasLastProgress
 			lastProgress := t.lastProgress
 			t.mu.Unlock()
 
-			// This might write the last progress item a
-			// second time (since channel closure also gets
-			// us here), but that's fine.
-			if hasLastProgress {
+			// Make sure we don't write the last progress item
+			// twice.
+			if hasLastProgress && (!done || !hasLastWritten || lastProgress != lastWritten) {
 				progressOutput.WriteProgress(lastProgress)
+				lastWritten = lastProgress
+				hasLastWritten = true
 			}
 
 			if done {
