@@ -545,6 +545,8 @@ func (container *Container) StopSignal() int {
 // See https://github.com/docker/docker/pull/17779
 // for a more detailed explanation on why we don't want that.
 func (container *Container) InitDNSHostConfig() {
+	container.Lock()
+	defer container.Unlock()
 	if container.HostConfig.DNS == nil {
 		container.HostConfig.DNS = make([]string, 0)
 	}
