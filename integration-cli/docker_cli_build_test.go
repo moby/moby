@@ -6449,7 +6449,7 @@ func (s *DockerSuite) TestBuildTagEvent(c *check.C) {
 	case ev := <-ch:
 		c.Assert(ev.Status, check.Equals, "tag")
 		c.Assert(ev.ID, check.Equals, "test:latest")
-	case <-time.After(time.Second):
+	case <-time.After(5 * time.Second):
 		c.Fatal("The 'tag' event not heard from the server")
 	}
 }
