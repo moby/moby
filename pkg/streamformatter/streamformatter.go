@@ -95,18 +95,20 @@ func (sf *StreamFormatter) FormatProgress(id, action string, progress *jsonmessa
 
 // NewProgressOutput returns a progress.Output object that can be passed to
 // progress.NewProgressReader.
-func (sf *StreamFormatter) NewProgressOutput(out io.Writer, newLines bool) progress.Output {
+func (sf *StreamFormatter) NewProgressOutput(out io.Writer, newLines, isTerminal bool) progress.Output {
 	return &progressOutput{
-		sf:       sf,
-		out:      out,
-		newLines: newLines,
+		sf:         sf,
+		out:        out,
+		newLines:   newLines,
+		isTerminal: isTerminal,
 	}
 }
 
 type progressOutput struct {
-	sf       *StreamFormatter
-	out      io.Writer
-	newLines bool
+	sf         *StreamFormatter
+	out        io.Writer
+	newLines   bool
+	isTerminal bool
 }
 
 // WriteProgress formats progress information from a ProgressReader.
@@ -115,6 +117,9 @@ func (out *progressOutput) WriteProgress(prog progress.Progress) error {
 	if prog.Message != "" {
 		formatted = out.sf.FormatStatus(prog.ID, prog.Message)
 	} else {
+		if out.isTerminal {
+			return nil
+		}
 		jsonProgress := jsonmessage.JSONProgress{Current: prog.Current, Total: prog.Total}
 		formatted = out.sf.FormatProgress(prog.ID, prog.Action, &jsonProgress)
 	}

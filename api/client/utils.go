@@ -126,3 +126,8 @@ func (cli *DockerCli) getTtySize() (int, int) {
 	}
 	return int(ws.Height), int(ws.Width)
 }
+
+func (cli *DockerCli) isTerminal() bool {
+	f, ok := cli.out.(*os.File)
+	return ok && term.IsTerminal(f.Fd())
+}

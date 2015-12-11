@@ -73,7 +73,7 @@ func (d Docker) Pull(name string) (*image.Image, error) {
 		pullRegistryAuth = &resolvedConfig
 	}
 
-	if err := d.Daemon.PullImage(ref, nil, pullRegistryAuth, ioutils.NopWriteCloser(d.OutOld)); err != nil {
+	if err := d.Daemon.PullImage(ref, nil, pullRegistryAuth, ioutils.NopWriteCloser(d.OutOld), true); err != nil {
 		return nil, err
 	}
 

@@ -265,7 +265,7 @@ func (b *Builder) download(srcURL string) (fi builder.FileInfo, err error) {
 	}
 
 	stdoutFormatter := b.Stdout.(*streamformatter.StdoutFormatter)
-	progressOutput := stdoutFormatter.StreamFormatter.NewProgressOutput(stdoutFormatter.Writer, true)
+	progressOutput := stdoutFormatter.StreamFormatter.NewProgressOutput(stdoutFormatter.Writer, true, true)
 	progressReader := progress.NewProgressReader(resp.Body, progressOutput, resp.ContentLength, "", "Downloading")
 	// Download and dump result to tmp file
 	if _, err = io.Copy(tmpFile, progressReader); err != nil {
