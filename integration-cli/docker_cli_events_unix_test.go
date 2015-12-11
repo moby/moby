@@ -114,3 +114,48 @@ func (s *DockerSuite) TestEventsOOMDisableTrue(c *check.C) {
 		c.Assert(strings.TrimSpace(out), checker.Equals, "running", check.Commentf("container should be still running"))
 	}
 }
+
+// #18453
+func (s *DockerSuite) TestEventsContainerFilter(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	out, _ := dockerCmd(c, "run", "--name=foo", "-d", "busybox", "top")
+	c1 := strings.TrimSpace(out)
+	waitRun(c1)
+	out, _ = dockerCmd(c, "run", "--name=bar", "-d", "busybox", "top")
+	c2 := strings.TrimSpace(out)
+	waitRun(c2)
+	out, _ = dockerCmd(c, "events", "-f", "container=foo", "--since=0", fmt.Sprintf("--until=%d", daemonTime(c).Unix()))
+	c.Assert(out, checker.Contains, c1, check.Commentf("Missing event of container (foo)"))
+	c.Assert(out, checker.Not(checker.Contains), c2, check.Commentf("Should not contain event of container (bar)"))
+}
+
+// #18453
+func (s *DockerSuite) TestEventsContainerFilterBeforeCreate(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	var (
+		out string
+		ch  chan struct{}
+	)
+	ch = make(chan struct{})
+
+	// calculate the time it takes to create and start a container and sleep 2 seconds
+	// this is to make sure the docker event will recevie the event of container
+	since := daemonTime(c).Unix()
+	id, _ := dockerCmd(c, "run", "-d", "busybox", "top")
+	cID := strings.TrimSpace(id)
+	waitRun(cID)
+	time.Sleep(2 * time.Second)
+	duration := daemonTime(c).Unix() - since
+
+	go func() {
+		out, _ = dockerCmd(c, "events", "-f", "container=foo", "--since=0", fmt.Sprintf("--until=%d", daemonTime(c).Unix()+2*duration))
+		close(ch)
+	}()
+	// Sleep 2 second to wait docker event to start
+	time.Sleep(2 * time.Second)
+	id, _ = dockerCmd(c, "run", "--name=foo", "-d", "busybox", "top")
+	cID = strings.TrimSpace(id)
+	waitRun(cID)
+	<-ch
+	c.Assert(out, checker.Contains, cID, check.Commentf("Missing event of container (foo)"))
+}

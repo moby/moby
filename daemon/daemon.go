@@ -547,18 +547,22 @@ func (daemon *Daemon) GetByName(name string) (*container.Container, error) {
 	return e, nil
 }
 
-// getEventFilter returns a filters.Filter for a set of filters
-func (daemon *Daemon) getEventFilter(filter filters.Args) *events.Filter {
+// UpdateFilter update the filter with container.ID
+func (daemon *Daemon) UpdateFilter(f *filters.Args) {
 	// incoming container filter can be name, id or partial id, convert to
 	// a full container id
-	for _, cn := range filter.Get("container") {
+	for _, cn := range f.Get("container") {
 		c, err := daemon.Get(cn)
-		filter.Del("container", cn)
 		if err == nil {
-			filter.Add("container", c.ID)
+			f.Del("container", cn)
+			f.Add("container", c.ID)
 		}
 	}
-	return events.NewFilter(filter, daemon.GetLabels)
+}
+
+// getEventFilter returns a filters.Filter for a set of filters
+func (daemon *Daemon) getEventFilter(filter filters.Args) *events.Filter {
+	return events.NewFilter(filter, daemon.GetLabels, daemon.UpdateFilter)
 }
 
 // SubscribeToEvents returns the currently record of events, a channel to stream new events from, and a function to cancel the stream of events.
