@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/distribution/digest"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/progress"
 	"golang.org/x/net/context"
@@ -30,7 +29,6 @@ type uploadTransfer struct {
 	Transfer
 
 	diffID layer.DiffID
-	digest digest.Digest
 	err    error
 }
 
@@ -43,16 +41,15 @@ type UploadDescriptor interface {
 	// DiffID should return the DiffID for this layer.
 	DiffID() layer.DiffID
 	// Upload is called to perform the Upload.
-	Upload(ctx context.Context, progressOutput progress.Output) (digest.Digest, error)
+	Upload(ctx context.Context, progressOutput progress.Output) error
 }
 
 // Upload is a blocking function which ensures the listed layers are present on
 // the remote registry. It uses the string returned by the Key method to
 // deduplicate uploads.
-func (lum *LayerUploadManager) Upload(ctx context.Context, layers []UploadDescriptor, progressOutput progress.Output) (map[layer.DiffID]digest.Digest, error) {
+func (lum *LayerUploadManager) Upload(ctx context.Context, layers []UploadDescriptor, progressOutput progress.Output) error {
 	var (
 		uploads          []*uploadTransfer
-		digests          = make(map[layer.DiffID]digest.Digest)
 		dedupDescriptors = make(map[string]struct{})
 	)
 
@@ -74,16 +71,15 @@ func (lum *LayerUploadManager) Upload(ctx context.Context, layers []UploadDescri
 	for _, upload := range uploads {
 		select {
 		case <-ctx.Done():
-			return nil, ctx.Err()
+			return ctx.Err()
 		case <-upload.Transfer.Done():
 			if upload.err != nil {
-				return nil, upload.err
+				return upload.err
 			}
-			digests[upload.diffID] = upload.digest
 		}
 	}
 
-	return digests, nil
+	return nil
 }
 
 func (lum *LayerUploadManager) makeUploadFunc(descriptor UploadDescriptor) DoFunc {
@@ -109,9 +105,8 @@ func (lum *LayerUploadManager) makeUploadFunc(descriptor UploadDescriptor) DoFun
 
 			retries := 0
 			for {
-				digest, err := descriptor.Upload(u.Transfer.Context(), progressOutput)
+				err := descriptor.Upload(u.Transfer.Context(), progressOutput)
 				if err == nil {
-					u.digest = digest
 					break
 				}
 
