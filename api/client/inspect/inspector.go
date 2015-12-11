@@ -48,6 +48,10 @@ func (i *TemplateInspector) Inspect(typedElement interface{}, rawElement []byte)
 
 // Flush write the result of inspecting all elements into the output stream.
 func (i *TemplateInspector) Flush() error {
+	if i.buffer.Len() == 0 {
+		_, err := io.WriteString(i.outputStream, "\n")
+		return err
+	}
 	_, err := io.Copy(i.outputStream, i.buffer)
 	return err
 }
