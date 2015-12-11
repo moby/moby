@@ -20,7 +20,7 @@ type ContainerAttachWithLogsConfig struct {
 
 // ContainerAttachWithLogs attaches to logs according to the config passed in. See ContainerAttachWithLogsConfig.
 func (daemon *Daemon) ContainerAttachWithLogs(prefixOrName string, c *ContainerAttachWithLogsConfig) error {
-	container, err := daemon.Get(prefixOrName)
+	container, err := daemon.GetContainer(prefixOrName)
 	if err != nil {
 		return err
 	}
@@ -60,7 +60,7 @@ type ContainerWsAttachWithLogsConfig struct {
 
 // ContainerWsAttachWithLogs websocket connection
 func (daemon *Daemon) ContainerWsAttachWithLogs(prefixOrName string, c *ContainerWsAttachWithLogsConfig) error {
-	container, err := daemon.Get(prefixOrName)
+	container, err := daemon.GetContainer(prefixOrName)
 	if err != nil {
 		return err
 	}

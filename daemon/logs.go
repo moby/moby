@@ -33,7 +33,7 @@ type ContainerLogsConfig struct {
 // ContainerLogs hooks up a container's stdout and stderr streams
 // configured with the given struct.
 func (daemon *Daemon) ContainerLogs(containerName string, config *ContainerLogsConfig) error {
-	container, err := daemon.Get(containerName)
+	container, err := daemon.GetContainer(containerName)
 	if err != nil {
 		return derr.ErrorCodeNoSuchContainer.WithArgs(containerName)
 	}

@@ -21,7 +21,7 @@ import (
 // Commit creates a new filesystem image from the current state of a container.
 // The image can optionally be tagged into a repository.
 func (daemon *Daemon) Commit(name string, c *types.ContainerCommitConfig) (string, error) {
-	container, err := daemon.Get(name)
+	container, err := daemon.GetContainer(name)
 	if err != nil {
 		return "", err
 	}

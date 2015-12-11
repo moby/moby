@@ -8,7 +8,7 @@ import "time"
 // timeout, an error is returned. If you want to wait forever, supply
 // a negative duration for the timeout.
 func (daemon *Daemon) ContainerWait(name string, timeout time.Duration) (int, error) {
-	container, err := daemon.Get(name)
+	container, err := daemon.GetContainer(name)
 	if err != nil {
 		return -1, err
 	}
