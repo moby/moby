@@ -377,11 +377,7 @@ func (bs *blobs) Stat(ctx context.Context, dgst digest.Digest) (distribution.Des
 }
 
 func (bs *blobs) Get(ctx context.Context, dgst digest.Digest) ([]byte, error) {
-	desc, err := bs.Stat(ctx, dgst)
-	if err != nil {
-		return nil, err
-	}
-	reader, err := bs.Open(ctx, desc.Digest)
+	reader, err := bs.Open(ctx, dgst)
 	if err != nil {
 		return nil, err
 	}
