@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -434,24 +435,27 @@ func (s *DockerSuite) TestEventsStreaming(c *check.C) {
 	c.Assert(eventsCmd.Start(), checker.IsNil, check.Commentf("failed to start 'docker events'"))
 	defer eventsCmd.Process.Kill()
 
+	buffer := new(bytes.Buffer)
 	go func() {
 		containerID := <-id
 
-		matchCreate := regexp.MustCompile(containerID + `: \(from busybox:latest\) create$`)
-		matchStart := regexp.MustCompile(containerID + `: \(from busybox:latest\) start$`)
-		matchDie := regexp.MustCompile(containerID + `: \(from busybox:latest\) die$`)
-		matchDestroy := regexp.MustCompile(containerID + `: \(from busybox:latest\) destroy$`)
+		matchCreate := regexp.MustCompile(containerID + `: \(from busybox:latest\) create\z`)
+		matchStart := regexp.MustCompile(containerID + `: \(from busybox:latest\) start\z`)
+		matchDie := regexp.MustCompile(containerID + `: \(from busybox:latest\) die\z`)
+		matchDestroy := regexp.MustCompile(containerID + `: \(from busybox:latest\) destroy\z`)
 
 		scanner := bufio.NewScanner(stdout)
 		for scanner.Scan() {
+			text := scanner.Text()
+			buffer.WriteString(text + "\n")
 			switch {
-			case matchCreate.MatchString(scanner.Text()):
+			case matchCreate.MatchString(text):
 				close(eventCreate)
-			case matchStart.MatchString(scanner.Text()):
+			case matchStart.MatchString(text):
 				close(eventStart)
-			case matchDie.MatchString(scanner.Text()):
+			case matchDie.MatchString(text):
 				close(eventDie)
-			case matchDestroy.MatchString(scanner.Text()):
+			case matchDestroy.MatchString(text):
 				close(eventDestroy)
 			}
 		}
@@ -463,21 +467,21 @@ func (s *DockerSuite) TestEventsStreaming(c *check.C) {
 
 	select {
 	case <-time.After(5 * time.Second):
-		c.Fatal("failed to observe container create in timely fashion")
+		c.Fatal("failed to observe container create in timely fashion", "\n", buffer.String())
 	case <-eventCreate:
 		// ignore, done
 	}
 
 	select {
 	case <-time.After(5 * time.Second):
-		c.Fatal("failed to observe container start in timely fashion")
+		c.Fatal("failed to observe container start in timely fashion", "\n", buffer.String())
 	case <-eventStart:
 		// ignore, done
 	}
 
 	select {
 	case <-time.After(5 * time.Second):
-		c.Fatal("failed to observe container die in timely fashion")
+		c.Fatal("failed to observe container die in timely fashion", "\n", buffer.String())
 	case <-eventDie:
 		// ignore, done
 	}
@@ -486,7 +490,7 @@ func (s *DockerSuite) TestEventsStreaming(c *check.C) {
 
 	select {
 	case <-time.After(5 * time.Second):
-		c.Fatal("failed to observe container destroy in timely fashion")
+		c.Fatal("failed to observe container destroy in timely fashion", "\n", buffer.String())
 	case <-eventDestroy:
 		// ignore, done
 	}
