@@ -87,16 +87,14 @@ func Pull(ctx context.Context, ref reference.Named, imagePullConfig *ImagePullCo
 	}
 
 	// makes sure name is not empty or `scratch`
-	if err := validateRepoName(repoInfo.LocalName.Name()); err != nil {
+	if err := validateRepoName(repoInfo.Name()); err != nil {
 		return err
 	}
 
-	endpoints, err := imagePullConfig.RegistryService.LookupPullEndpoints(repoInfo.CanonicalName)
+	endpoints, err := imagePullConfig.RegistryService.LookupPullEndpoints(repoInfo)
 	if err != nil {
 		return err
 	}
-
-	localName := registry.NormalizeLocalReference(ref)
 
 	var (
 		// use a slice to append the error strings and return a joined string to caller
@@ -112,7 +110,7 @@ func Pull(ctx context.Context, ref reference.Named, imagePullConfig *ImagePullCo
 		discardNoSupportErrors bool
 	)
 	for _, endpoint := range endpoints {
-		logrus.Debugf("Trying to pull %s from %s %s", repoInfo.LocalName, endpoint.URL, endpoint.Version)
+		logrus.Debugf("Trying to pull %s from %s %s", repoInfo.Name(), endpoint.URL, endpoint.Version)
 
 		puller, err := newPuller(endpoint, repoInfo, imagePullConfig)
 		if err != nil {
@@ -148,7 +146,7 @@ func Pull(ctx context.Context, ref reference.Named, imagePullConfig *ImagePullCo
 			}
 		}
 
-		imagePullConfig.EventsService.Log("pull", localName.String(), "")
+		imagePullConfig.EventsService.Log("pull", ref.String(), "")
 		return nil
 	}
 

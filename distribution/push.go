@@ -104,21 +104,21 @@ func Push(ctx context.Context, ref reference.Named, imagePushConfig *ImagePushCo
 		return err
 	}
 
-	endpoints, err := imagePushConfig.RegistryService.LookupPushEndpoints(repoInfo.CanonicalName)
+	endpoints, err := imagePushConfig.RegistryService.LookupPushEndpoints(repoInfo)
 	if err != nil {
 		return err
 	}
 
-	progress.Messagef(imagePushConfig.ProgressOutput, "", "The push refers to a repository [%s]", repoInfo.CanonicalName.String())
+	progress.Messagef(imagePushConfig.ProgressOutput, "", "The push refers to a repository [%s]", repoInfo.FullName())
 
-	associations := imagePushConfig.ReferenceStore.ReferencesByName(repoInfo.LocalName)
+	associations := imagePushConfig.ReferenceStore.ReferencesByName(repoInfo)
 	if len(associations) == 0 {
-		return fmt.Errorf("Repository does not exist: %s", repoInfo.LocalName)
+		return fmt.Errorf("Repository does not exist: %s", repoInfo.Name())
 	}
 
 	var lastErr error
 	for _, endpoint := range endpoints {
-		logrus.Debugf("Trying to push %s to %s %s", repoInfo.CanonicalName, endpoint.URL, endpoint.Version)
+		logrus.Debugf("Trying to push %s to %s %s", repoInfo.FullName(), endpoint.URL, endpoint.Version)
 
 		pusher, err := NewPusher(ref, endpoint, repoInfo, imagePushConfig)
 		if err != nil {
@@ -143,12 +143,12 @@ func Push(ctx context.Context, ref reference.Named, imagePushConfig *ImagePushCo
 
 		}
 
-		imagePushConfig.EventsService.Log("push", repoInfo.LocalName.Name(), "")
+		imagePushConfig.EventsService.Log("push", repoInfo.Name(), "")
 		return nil
 	}
 
 	if lastErr == nil {
-		lastErr = fmt.Errorf("no endpoints found for %s", repoInfo.CanonicalName)
+		lastErr = fmt.Errorf("no endpoints found for %s", repoInfo.FullName())
 	}
 	return lastErr
 }

@@ -15,7 +15,6 @@ import (
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/reference"
-	"github.com/docker/docker/registry"
 )
 
 type imageDescriptor struct {
@@ -74,7 +73,6 @@ func (l *tarexporter) parseNames(names []string) (map[image.ID]*imageDescriptor,
 		if err != nil {
 			return nil, err
 		}
-		ref = registry.NormalizeLocalReference(ref)
 		if ref.Name() == string(digest.Canonical) {
 			imgID, err := l.is.Search(name)
 			if err != nil {
