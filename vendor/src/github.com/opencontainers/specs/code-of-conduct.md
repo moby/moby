@@ -30,7 +30,7 @@ The OpenContainers team reserves the right to deny participation any individual 
 Project maintainers have the right and responsibility to remove, edit, or reject comments, commits, code, wiki edits, issues, and other contributions that are not aligned to this Code of Conduct.
 By adopting this Code of Conduct, project maintainers commit themselves to fairly and consistently applying these principles to every aspect of managing this project.
 
-## Thanks
+## Thanks 
 
 Thanks to the [Fedora Code of Conduct](https://getfedora.org/code-of-conduct) and [Contributor Covenant](http://contributor-covenant.org) for inspiration and ideas.
 

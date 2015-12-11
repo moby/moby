@@ -10,7 +10,7 @@ Topics listed in the roadmap do not mean that they will be implemented or added 
 
 ### Digest and Hashing
 
-A bundle is designed to be moved between hosts.
+A bundle is designed to be moved between hosts. 
 Although OCI doesn't define a transport method we should have a cryptographic digest of the on-disk bundle that can be used to verify that a bundle is not corrupted and in an expected configuration.
 
 *Owner:* philips
@@ -20,11 +20,11 @@ Although OCI doesn't define a transport method we should have a cryptographic di
 There are some discussions about having `runtime.json` being optional for containers and specifying defaults.
 Runtimes would use this standard set of defaults for containers and `runtime.json` would provide overrides for fine tuning of these extra host or platform specific settings.
 
-*Owner:*
+*Owner:*  
 
 ### Define Container Lifecycle
 
-Containers have a lifecycle and being able to identify and document the lifecycle of a container is very helpful for implementations of the spec.
+Containers have a lifecycle and being able to identify and document the lifecycle of a container is very helpful for implementations of the spec.  
 The lifecycle events of a container also help identify areas to implement hooks that are portable across various implementations and platforms.
 
 *Owner:* mrunalp
@@ -33,27 +33,27 @@ The lifecycle events of a container also help identify areas to implement hooks 
 
 Define what type of actions a runtime can perform on a container without imposing hardships on authors of platforms that do not support advanced options.
 
-*Owner:*
+*Owner:*  
 
 ### Clarify rootfs requirement in base spec
 
 Is the rootfs needed or should it just be expected in the bundle without having a field in the spec?
 
-*Owner:*
+*Owner:*  
 
 ### Container Definition
 
 Define what a software container is and its attributes in a cross platform way.
 
-*Owner:*
+*Owner:*  
 
 ### Live Container Updates
 
-Should we allow dynamic container updates to runtime options?
+Should we allow dynamic container updates to runtime options? 
 
 *Owner:* vishh
 
-### Protobuf Config
+### Protobuf Config 
 
 We currently have only one language binding for the spec and that is Go.
 If we change the specs format in the respository to be something like protobuf then the generation for multiple language bindings become effortless.
@@ -62,7 +62,7 @@ If we change the specs format in the respository to be something like protobuf t
 
 ### Validation Tooling
 
-Provide validation tooling for compliance with OCI spec and runtime environment.
+Provide validation tooling for compliance with OCI spec and runtime environment. 
 
 *Owner:* mrunalp
 
@@ -70,27 +70,27 @@ Provide validation tooling for compliance with OCI spec and runtime environment.
 
 Decide on a robust versioning schema for the spec as it evolves.
 
-*Owner:*
+*Owner:*  
 
 ### Printable/Compiled Spec
 
 Reguardless of how the spec is written, ensure that it is easy to read and follow for first time users.
 
-*Owner:* vbatts
+*Owner:* vbatts 
 
 ### Base Config Compatibility
 
 Ensure that the base configuration format is viable for various platforms.
 
-Systems:
+Systems: 
 
 * Solaris
-* Windows
+* Windows 
 * Linux
 
-*Owner:*
+*Owner:* 
 
 ### Full Lifecycle Hooks
 Ensure that we have lifecycle hooks in the correct places with full coverage over the container lifecycle.
 
-*Owner:*
+*Owner:*  
