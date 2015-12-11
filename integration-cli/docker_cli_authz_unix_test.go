@@ -156,7 +156,7 @@ func (s *DockerAuthzSuite) TearDownSuite(c *check.C) {
 
 func (s *DockerAuthzSuite) TestAuthZPluginAllowRequest(c *check.C) {
 
-	err := s.d.Start("--authz-plugins=" + testAuthZPlugin)
+	err := s.d.Start("--authz-plugin=" + testAuthZPlugin)
 	c.Assert(err, check.IsNil)
 	s.ctrl.reqRes.Allow = true
 	s.ctrl.resRes.Allow = true
@@ -180,7 +180,7 @@ func (s *DockerAuthzSuite) TestAuthZPluginAllowRequest(c *check.C) {
 
 func (s *DockerAuthzSuite) TestAuthZPluginDenyRequest(c *check.C) {
 
-	err := s.d.Start("--authz-plugins=" + testAuthZPlugin)
+	err := s.d.Start("--authz-plugin=" + testAuthZPlugin)
 	c.Assert(err, check.IsNil)
 	s.ctrl.reqRes.Allow = false
 	s.ctrl.reqRes.Msg = unauthorizedMessage
@@ -197,7 +197,7 @@ func (s *DockerAuthzSuite) TestAuthZPluginDenyRequest(c *check.C) {
 
 func (s *DockerAuthzSuite) TestAuthZPluginDenyResponse(c *check.C) {
 
-	err := s.d.Start("--authz-plugins=" + testAuthZPlugin)
+	err := s.d.Start("--authz-plugin=" + testAuthZPlugin)
 	c.Assert(err, check.IsNil)
 	s.ctrl.reqRes.Allow = true
 	s.ctrl.resRes.Allow = false
