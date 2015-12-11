@@ -123,7 +123,7 @@ func TestValidateManifest(t *testing.T) {
 		t.Fatal("error unmarshaling manifest:", err)
 	}
 
-	verifiedManifest, err := verifyManifest(&goodSignedManifest, expectedDigest)
+	verifiedManifest, err := verifySchema1Manifest(&goodSignedManifest, expectedDigest)
 	if err != nil {
 		t.Fatal("validateManifest failed:", err)
 	}
@@ -145,7 +145,7 @@ func TestValidateManifest(t *testing.T) {
 		t.Fatal("error unmarshaling manifest:", err)
 	}
 
-	verifiedManifest, err = verifyManifest(&extraDataSignedManifest, expectedDigest)
+	verifiedManifest, err = verifySchema1Manifest(&extraDataSignedManifest, expectedDigest)
 	if err != nil {
 		t.Fatal("validateManifest failed:", err)
 	}
@@ -167,7 +167,7 @@ func TestValidateManifest(t *testing.T) {
 		t.Fatal("error unmarshaling manifest:", err)
 	}
 
-	verifiedManifest, err = verifyManifest(&badSignedManifest, expectedDigest)
+	verifiedManifest, err = verifySchema1Manifest(&badSignedManifest, expectedDigest)
 	if err == nil || !strings.HasPrefix(err.Error(), "image verification failed for digest") {
 		t.Fatal("expected validateManifest to fail with digest error")
 	}
