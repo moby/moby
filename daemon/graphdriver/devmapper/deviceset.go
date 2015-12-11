@@ -114,8 +114,9 @@ type DeviceSet struct {
 	overrideUdevSyncCheck bool
 	deferredRemove        bool   // use deferred removal
 	deferredDelete        bool   // use deferred deletion
-	BaseDeviceUUID        string //save UUID of base device
-	nrDeletedDevices      uint   //number of deleted devices
+	BaseDeviceUUID        string // save UUID of base device
+	BaseDeviceFilesystem  string // save filesystem of base device
+	nrDeletedDevices      uint   // number of deleted devices
 	deletionWorkerTicker  *time.Ticker
 	uidMaps               []idtools.IDMap
 	gidMaps               []idtools.IDMap
@@ -587,6 +588,9 @@ func (devices *DeviceSet) createFilesystem(info *devInfo) (err error) {
 	if devices.filesystem == "" {
 		devices.filesystem = determineDefaultFS()
 	}
+	if err := devices.saveBaseDeviceFilesystem(devices.filesystem); err != nil {
+		return err
+	}
 
 	logrus.Infof("devmapper: Creating filesystem %s on device %s", devices.filesystem, info.Name())
 	defer func() {
@@ -894,7 +898,7 @@ func (devices *DeviceSet) getBaseDeviceSize() uint64 {
 }
 
 func (devices *DeviceSet) getBaseDeviceFS() string {
-	return devices.filesystem
+	return devices.BaseDeviceFilesystem
 }
 
 func (devices *DeviceSet) verifyBaseDeviceUUIDFS(baseInfo *devInfo) error {
@@ -904,7 +908,6 @@ func (devices *DeviceSet) verifyBaseDeviceUUIDFS(baseInfo *devInfo) error {
 	if err := devices.activateDeviceIfNeeded(baseInfo, false); err != nil {
 		return err
 	}
-
 	defer devices.deactivateDevice(baseInfo)
 
 	uuid, err := getDeviceUUID(baseInfo.DevName())
@@ -916,21 +919,29 @@ func (devices *DeviceSet) verifyBaseDeviceUUIDFS(baseInfo *devInfo) error {
 		return fmt.Errorf("devmapper: Current Base Device UUID:%s does not match with stored UUID:%s. Possibly using a different thin pool than last invocation", uuid, devices.BaseDeviceUUID)
 	}
 
-	// If user specified a filesystem using dm.fs option and current
-	// file system of base image is not same, warn user that dm.fs
-	// will be ignored.
-	if devices.filesystem != "" {
-		fs, err := ProbeFsType(baseInfo.DevName())
+	if devices.BaseDeviceFilesystem == "" {
+		fsType, err := ProbeFsType(baseInfo.DevName())
 		if err != nil {
 			return err
 		}
-
-		if fs != devices.filesystem {
-			logrus.Warnf("devmapper: Base device already exists and has filesystem %s on it. User specified filesystem %s will be ignored.", fs, devices.filesystem)
-			devices.filesystem = fs
+		if err := devices.saveBaseDeviceFilesystem(fsType); err != nil {
+			return err
 		}
 	}
+
+	// If user specified a filesystem using dm.fs option and current
+	// file system of base image is not same, warn user that dm.fs
+	// will be ignored.
+	if devices.BaseDeviceFilesystem != devices.filesystem {
+		logrus.Warnf("devmapper: Base device already exists and has filesystem %s on it. User specified filesystem %s will be ignored.", devices.BaseDeviceFilesystem, devices.filesystem)
+		devices.filesystem = devices.BaseDeviceFilesystem
+	}
 	return nil
+}
+
+func (devices *DeviceSet) saveBaseDeviceFilesystem(fs string) error {
+	devices.BaseDeviceFilesystem = fs
+	return devices.saveDeviceSetMetaData()
 }
 
 func (devices *DeviceSet) saveBaseDeviceUUID(baseInfo *devInfo) error {
@@ -940,7 +951,6 @@ func (devices *DeviceSet) saveBaseDeviceUUID(baseInfo *devInfo) error {
 	if err := devices.activateDeviceIfNeeded(baseInfo, false); err != nil {
 		return err
 	}
-
 	defer devices.deactivateDevice(baseInfo)
 
 	uuid, err := getDeviceUUID(baseInfo.DevName())
@@ -949,8 +959,7 @@ func (devices *DeviceSet) saveBaseDeviceUUID(baseInfo *devInfo) error {
 	}
 
 	devices.BaseDeviceUUID = uuid
-	devices.saveDeviceSetMetaData()
-	return nil
+	return devices.saveDeviceSetMetaData()
 }
 
 func (devices *DeviceSet) createBaseImage() error {
@@ -1058,10 +1067,12 @@ func (devices *DeviceSet) setupBaseImage() error {
 			if err := devices.setupVerifyBaseImageUUIDFS(oldInfo); err != nil {
 				return err
 			}
+
 			if devices.baseFsSize != defaultBaseFsSize && devices.baseFsSize != devices.getBaseDeviceSize() {
 				logrus.Warnf("devmapper: Base device is already initialized to size %s, new value of base device size %s will not take effect",
 					units.HumanSize(float64(devices.getBaseDeviceSize())), units.HumanSize(float64(devices.baseFsSize)))
 			}
+
 			return nil
 		}
 
