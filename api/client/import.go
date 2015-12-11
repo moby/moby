@@ -12,7 +12,6 @@ import (
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/urlutil"
 	"github.com/docker/docker/reference"
-	"github.com/docker/docker/registry"
 )
 
 // CmdImport creates an empty filesystem image, imports the contents of the tarball into the image, and optionally tags the image.
@@ -45,11 +44,7 @@ func (cli *DockerCli) CmdImport(args ...string) error {
 
 	if repository != "" {
 		//Check if the given image name can be resolved
-		ref, err := reference.ParseNamed(repository)
-		if err != nil {
-			return err
-		}
-		if err := registry.ValidateRepositoryName(ref); err != nil {
+		if _, err := reference.ParseNamed(repository); err != nil {
 			return err
 		}
 	}

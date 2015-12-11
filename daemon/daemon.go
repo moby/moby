@@ -1043,7 +1043,6 @@ func (daemon *Daemon) TagImage(newTag reference.Named, imageName string) error {
 	if err != nil {
 		return err
 	}
-	newTag = registry.NormalizeLocalReference(newTag)
 	if err := daemon.referenceStore.AddTag(newTag, imageID, true); err != nil {
 		return err
 	}
@@ -1301,7 +1300,6 @@ func (daemon *Daemon) GetImageID(refOrID string) (image.ID, error) {
 
 	// Treat it as a possible tag or digest reference
 	if ref, err := reference.ParseNamed(refOrID); err == nil {
-		ref = registry.NormalizeLocalReference(ref)
 		if id, err := daemon.referenceStore.Get(ref); err == nil {
 			return id, nil
 		}

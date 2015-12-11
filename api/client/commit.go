@@ -10,7 +10,6 @@ import (
 	"github.com/docker/docker/opts"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/reference"
-	"github.com/docker/docker/registry"
 	"github.com/docker/docker/runconfig"
 )
 
@@ -42,9 +41,6 @@ func (cli *DockerCli) CmdCommit(args ...string) error {
 	if repositoryAndTag != "" {
 		ref, err := reference.ParseNamed(repositoryAndTag)
 		if err != nil {
-			return err
-		}
-		if err := registry.ValidateRepositoryName(ref); err != nil {
 			return err
 		}
 

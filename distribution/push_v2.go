@@ -52,8 +52,6 @@ func (p *v2Pusher) Push(ctx context.Context) (fallback bool, err error) {
 		return true, err
 	}
 
-	localName := p.repoInfo.LocalName.Name()
-
 	var associations []reference.Association
 	if _, isTagged := p.ref.(reference.NamedTagged); isTagged {
 		imageID, err := p.config.ReferenceStore.Get(p.ref)
@@ -72,10 +70,10 @@ func (p *v2Pusher) Push(ctx context.Context) (fallback bool, err error) {
 		associations = p.config.ReferenceStore.ReferencesByName(p.ref)
 	}
 	if err != nil {
-		return false, fmt.Errorf("error getting tags for %s: %s", localName, err)
+		return false, fmt.Errorf("error getting tags for %s: %s", p.repoInfo.Name(), err)
 	}
 	if len(associations) == 0 {
-		return false, fmt.Errorf("no tags to push for %s", localName)
+		return false, fmt.Errorf("no tags to push for %s", p.repoInfo.Name())
 	}
 
 	for _, association := range associations {
@@ -159,7 +157,7 @@ func (p *v2Pusher) pushV2Tag(ctx context.Context, association reference.Associat
 		return err
 	}
 
-	manifestDigest, manifestSize, err := digestFromManifest(signed, p.repo.Name())
+	manifestDigest, manifestSize, err := digestFromManifest(signed, ref)
 	if err != nil {
 		return err
 	}

@@ -260,12 +260,8 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 
 // validateTag checks if the given image name can be resolved.
 func validateTag(rawRepo string) (string, error) {
-	ref, err := reference.ParseNamed(rawRepo)
+	_, err := reference.ParseNamed(rawRepo)
 	if err != nil {
-		return "", err
-	}
-
-	if err := registry.ValidateRepositoryName(ref); err != nil {
 		return "", err
 	}
 
