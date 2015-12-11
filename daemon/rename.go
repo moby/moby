@@ -21,7 +21,7 @@ func (daemon *Daemon) ContainerRename(oldName, newName string) error {
 		return derr.ErrorCodeEmptyRename
 	}
 
-	container, err := daemon.Get(oldName)
+	container, err := daemon.GetContainer(oldName)
 	if err != nil {
 		return err
 	}

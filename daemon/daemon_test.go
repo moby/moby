@@ -21,7 +21,7 @@ import (
 // https://github.com/docker/docker/issues/8069
 //
 
-func TestGet(t *testing.T) {
+func TestGetContainer(t *testing.T) {
 	c1 := &container.Container{
 		CommonContainer: container.CommonContainer{
 			ID:   "5a4ff6a163ad4533d22d69a2b8960bf7fafdcba06e72d2febdba229008b0bf57",
@@ -91,32 +91,32 @@ func TestGet(t *testing.T) {
 		containerGraphDB: graph,
 	}
 
-	if container, _ := daemon.Get("3cdbd1aa394fd68559fd1441d6eff2ab7c1e6363582c82febfaa8045df3bd8de"); container != c2 {
+	if container, _ := daemon.GetContainer("3cdbd1aa394fd68559fd1441d6eff2ab7c1e6363582c82febfaa8045df3bd8de"); container != c2 {
 		t.Fatal("Should explicitly match full container IDs")
 	}
 
-	if container, _ := daemon.Get("75fb0b8009"); container != c4 {
+	if container, _ := daemon.GetContainer("75fb0b8009"); container != c4 {
 		t.Fatal("Should match a partial ID")
 	}
 
-	if container, _ := daemon.Get("drunk_hawking"); container != c2 {
+	if container, _ := daemon.GetContainer("drunk_hawking"); container != c2 {
 		t.Fatal("Should match a full name")
 	}
 
 	// c3.Name is a partial match for both c3.ID and c2.ID
-	if c, _ := daemon.Get("3cdbd1aa"); c != c3 {
+	if c, _ := daemon.GetContainer("3cdbd1aa"); c != c3 {
 		t.Fatal("Should match a full name even though it collides with another container's ID")
 	}
 
-	if container, _ := daemon.Get("d22d69a2b896"); container != c5 {
+	if container, _ := daemon.GetContainer("d22d69a2b896"); container != c5 {
 		t.Fatal("Should match a container where the provided prefix is an exact match to the it's name, and is also a prefix for it's ID")
 	}
 
-	if _, err := daemon.Get("3cdbd1"); err == nil {
+	if _, err := daemon.GetContainer("3cdbd1"); err == nil {
 		t.Fatal("Should return an error when provided a prefix that partially matches multiple container ID's")
 	}
 
-	if _, err := daemon.Get("nothing"); err == nil {
+	if _, err := daemon.GetContainer("nothing"); err == nil {
 		t.Fatal("Should return an error when provided a prefix that is neither a name or a partial match to an ID")
 	}
 

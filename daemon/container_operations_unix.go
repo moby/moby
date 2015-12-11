@@ -417,7 +417,7 @@ func (daemon *Daemon) buildSandboxOptions(container *container.Container, n libn
 			continue
 		}
 
-		c, err := daemon.Get(ref.ParentID)
+		c, err := daemon.GetContainer(ref.ParentID)
 		if err != nil {
 			logrus.Error(err)
 		}
@@ -785,7 +785,7 @@ func (daemon *Daemon) setNetworkNamespaceKey(containerID string, pid int) error 
 
 func (daemon *Daemon) getIpcContainer(container *container.Container) (*container.Container, error) {
 	containerID := container.HostConfig.IpcMode.Container()
-	c, err := daemon.Get(containerID)
+	c, err := daemon.GetContainer(containerID)
 	if err != nil {
 		return nil, err
 	}
@@ -796,7 +796,7 @@ func (daemon *Daemon) getIpcContainer(container *container.Container) (*containe
 }
 
 func (daemon *Daemon) getNetworkedContainer(containerID, connectedContainerID string) (*container.Container, error) {
-	nc, err := daemon.Get(connectedContainerID)
+	nc, err := daemon.GetContainer(connectedContainerID)
 	if err != nil {
 		return nil, err
 	}

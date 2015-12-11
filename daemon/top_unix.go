@@ -21,7 +21,7 @@ func (daemon *Daemon) ContainerTop(name string, psArgs string) (*types.Container
 		psArgs = "-ef"
 	}
 
-	container, err := daemon.Get(name)
+	container, err := daemon.GetContainer(name)
 	if err != nil {
 		return nil, err
 	}
