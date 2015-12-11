@@ -87,7 +87,7 @@ func (daemon *Daemon) registerMountPoints(container *container.Container, hostCo
 			return err
 		}
 
-		c, err := daemon.Get(containerID)
+		c, err := daemon.GetContainer(containerID)
 		if err != nil {
 			return err
 		}

@@ -15,7 +15,7 @@ import (
 // container is not found, is already stopped, or if there is a
 // problem stopping the container.
 func (daemon *Daemon) ContainerStop(name string, seconds int) error {
-	container, err := daemon.Get(name)
+	container, err := daemon.GetContainer(name)
 	if err != nil {
 		return err
 	}

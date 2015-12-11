@@ -28,7 +28,7 @@ func (daemon *Daemon) ContainerInspect(name string, size bool, version version.V
 }
 
 func (daemon *Daemon) containerInspectCurrent(name string, size bool) (*types.ContainerJSON, error) {
-	container, err := daemon.Get(name)
+	container, err := daemon.GetContainer(name)
 	if err != nil {
 		return nil, err
 	}
@@ -68,7 +68,7 @@ func (daemon *Daemon) containerInspectCurrent(name string, size bool) (*types.Co
 
 // containerInspect120 serializes the master version of a container into a json type.
 func (daemon *Daemon) containerInspect120(name string) (*v1p20.ContainerJSON, error) {
-	container, err := daemon.Get(name)
+	container, err := daemon.GetContainer(name)
 	if err != nil {
 		return nil, err
 	}

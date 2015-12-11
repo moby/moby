@@ -64,7 +64,7 @@ func (d *Daemon) unregisterExecCommand(container *container.Container, execConfi
 }
 
 func (d *Daemon) getActiveContainer(name string) (*container.Container, error) {
-	container, err := d.Get(name)
+	container, err := d.GetContainer(name)
 	if err != nil {
 		return nil, err
 	}

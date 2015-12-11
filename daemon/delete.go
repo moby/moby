@@ -17,7 +17,7 @@ import (
 // fails. If the remove succeeds, the container name is released, and
 // network links are removed.
 func (daemon *Daemon) ContainerRm(name string, config *types.ContainerRmConfig) error {
-	container, err := daemon.Get(name)
+	container, err := daemon.GetContainer(name)
 	if err != nil {
 		return err
 	}
@@ -72,7 +72,7 @@ func (daemon *Daemon) rmLink(name string) error {
 		return err
 	}
 
-	parentContainer, _ := daemon.Get(pe.ID())
+	parentContainer, _ := daemon.GetContainer(pe.ID())
 	if parentContainer != nil {
 		if err := daemon.updateNetwork(parentContainer); err != nil {
 			logrus.Debugf("Could not update network to remove link %s: %v", n, err)

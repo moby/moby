@@ -12,7 +12,7 @@ import (
 // ContainerExport writes the contents of the container to the given
 // writer. An error is returned if the container cannot be found.
 func (daemon *Daemon) ContainerExport(name string, out io.Writer) error {
-	container, err := daemon.Get(name)
+	container, err := daemon.GetContainer(name)
 	if err != nil {
 		return err
 	}

@@ -82,7 +82,7 @@ func (d Docker) Pull(name string) (*image.Image, error) {
 
 // Container looks up a Docker container referenced by `id`.
 func (d Docker) Container(id string) (*container.Container, error) {
-	return d.Daemon.Get(id)
+	return d.Daemon.GetContainer(id)
 }
 
 // Create creates a new Docker container and returns potential warnings
@@ -96,7 +96,7 @@ func (d Docker) Create(cfg *runconfig.Config, hostCfg *runconfig.HostConfig) (*c
 	if err != nil {
 		return nil, nil, err
 	}
-	container, err := d.Daemon.Get(ccr.ID)
+	container, err := d.Container(ccr.ID)
 	if err != nil {
 		return nil, ccr.Warnings, err
 	}
