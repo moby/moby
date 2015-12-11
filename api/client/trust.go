@@ -167,12 +167,12 @@ func (cli *DockerCli) getNotaryRepository(repoInfo *registry.RepositoryInfo, aut
 	}
 
 	creds := simpleCredentialStore{auth: authConfig}
-	tokenHandler := auth.NewTokenHandler(authTransport, creds, repoInfo.CanonicalName.Name(), "push", "pull")
+	tokenHandler := auth.NewTokenHandler(authTransport, creds, repoInfo.FullName(), "push", "pull")
 	basicHandler := auth.NewBasicHandler(creds)
 	modifiers = append(modifiers, transport.RequestModifier(auth.NewAuthorizer(challengeManager, tokenHandler, basicHandler)))
 	tr := transport.NewTransport(base, modifiers...)
 
-	return client.NewNotaryRepository(cli.trustDirectory(), repoInfo.CanonicalName.Name(), server, tr, cli.getPassphraseRetriever())
+	return client.NewNotaryRepository(cli.trustDirectory(), repoInfo.FullName(), server, tr, cli.getPassphraseRetriever())
 }
 
 func convertTarget(t client.Target) (target, error) {
@@ -298,7 +298,7 @@ func (cli *DockerCli) trustedPull(repoInfo *registry.RepositoryInfo, ref registr
 		for _, tgt := range targets {
 			t, err := convertTarget(*tgt)
 			if err != nil {
-				fmt.Fprintf(cli.out, "Skipping target for %q\n", repoInfo.LocalName)
+				fmt.Fprintf(cli.out, "Skipping target for %q\n", repoInfo.Name())
 				continue
 			}
 			refs = append(refs, t)
@@ -321,19 +321,19 @@ func (cli *DockerCli) trustedPull(repoInfo *registry.RepositoryInfo, ref registr
 		if displayTag != "" {
 			displayTag = ":" + displayTag
 		}
-		fmt.Fprintf(cli.out, "Pull (%d of %d): %s%s@%s\n", i+1, len(refs), repoInfo.LocalName, displayTag, r.digest)
+		fmt.Fprintf(cli.out, "Pull (%d of %d): %s%s@%s\n", i+1, len(refs), repoInfo.Name(), displayTag, r.digest)
 
-		if err := cli.imagePullPrivileged(authConfig, repoInfo.LocalName.Name(), r.digest.String(), requestPrivilege); err != nil {
+		if err := cli.imagePullPrivileged(authConfig, repoInfo.Name(), r.digest.String(), requestPrivilege); err != nil {
 			return err
 		}
 
 		// If reference is not trusted, tag by trusted reference
 		if !r.reference.HasDigest() {
-			tagged, err := reference.WithTag(repoInfo.LocalName, r.reference.String())
+			tagged, err := reference.WithTag(repoInfo, r.reference.String())
 			if err != nil {
 				return err
 			}
-			trustedRef, err := reference.WithDigest(repoInfo.LocalName, r.digest)
+			trustedRef, err := reference.WithDigest(repoInfo, r.digest)
 			if err := cli.tagTrusted(trustedRef, tagged); err != nil {
 				return err
 
@@ -384,7 +384,7 @@ func targetStream(in io.Writer) (io.WriteCloser, <-chan []target) {
 func (cli *DockerCli) trustedPush(repoInfo *registry.RepositoryInfo, tag string, authConfig types.AuthConfig, requestPrivilege lib.RequestPrivilegeFunc) error {
 	streamOut, targetChan := targetStream(cli.out)
 
-	reqError := cli.imagePushPrivileged(authConfig, repoInfo.LocalName.Name(), tag, streamOut, requestPrivilege)
+	reqError := cli.imagePushPrivileged(authConfig, repoInfo.Name(), tag, streamOut, requestPrivilege)
 
 	// Close stream channel to finish target parsing
 	if err := streamOut.Close(); err != nil {
@@ -455,7 +455,7 @@ func (cli *DockerCli) trustedPush(repoInfo *registry.RepositoryInfo, tag string,
 	if err := repo.Initialize(rootKeyID); err != nil {
 		return notaryError(err)
 	}
-	fmt.Fprintf(cli.out, "Finished initializing %q\n", repoInfo.CanonicalName)
+	fmt.Fprintf(cli.out, "Finished initializing %q\n", repoInfo.FullName())
 
 	return notaryError(repo.Publish())
 }

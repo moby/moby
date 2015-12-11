@@ -14,9 +14,6 @@ import (
 	"github.com/docker/docker/image"
 )
 
-// DefaultTag defines the default tag used when performing images related actions and no tag string is specified
-const DefaultTag = "latest"
-
 var (
 	// ErrDoesNotExist is returned if a reference is not found in the
 	// store.

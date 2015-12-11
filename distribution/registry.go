@@ -19,6 +19,7 @@ import (
 	"github.com/docker/distribution/registry/client/transport"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/distribution/xfer"
+	"github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
 	"golang.org/x/net/context"
 )
@@ -37,10 +38,10 @@ func (dcs dumbCredentialStore) Basic(*url.URL) (string, string) {
 func NewV2Repository(repoInfo *registry.RepositoryInfo, endpoint registry.APIEndpoint, metaHeaders http.Header, authConfig *types.AuthConfig, actions ...string) (distribution.Repository, error) {
 	ctx := context.Background()
 
-	repoName := repoInfo.CanonicalName
+	repoName := repoInfo.FullName()
 	// If endpoint does not support CanonicalName, use the RemoteName instead
 	if endpoint.TrimHostname {
-		repoName = repoInfo.RemoteName
+		repoName = repoInfo.RemoteName()
 	}
 
 	// TODO(dmcgowan): Call close idle connections when complete, use keep alive
@@ -99,16 +100,16 @@ func NewV2Repository(repoInfo *registry.RepositoryInfo, endpoint registry.APIEnd
 		modifiers = append(modifiers, auth.NewAuthorizer(challengeManager, passThruTokenHandler))
 	} else {
 		creds := dumbCredentialStore{auth: authConfig}
-		tokenHandler := auth.NewTokenHandler(authTransport, creds, repoName.Name(), actions...)
+		tokenHandler := auth.NewTokenHandler(authTransport, creds, repoName, actions...)
 		basicHandler := auth.NewBasicHandler(creds)
 		modifiers = append(modifiers, auth.NewAuthorizer(challengeManager, tokenHandler, basicHandler))
 	}
 	tr := transport.NewTransport(base, modifiers...)
 
-	return client.NewRepository(ctx, repoName.Name(), endpoint.URL, tr)
+	return client.NewRepository(ctx, repoName, endpoint.URL, tr)
 }
 
-func digestFromManifest(m *schema1.SignedManifest, localName string) (digest.Digest, int, error) {
+func digestFromManifest(m *schema1.SignedManifest, name reference.Named) (digest.Digest, int, error) {
 	payload, err := m.Payload()
 	if err != nil {
 		// If this failed, the signatures section was corrupted
@@ -117,7 +118,7 @@ func digestFromManifest(m *schema1.SignedManifest, localName string) (digest.Dig
 	}
 	manifestDigest, err := digest.FromBytes(payload)
 	if err != nil {
-		logrus.Infof("Could not compute manifest digest for %s:%s : %v", localName, m.Tag, err)
+		logrus.Infof("Could not compute manifest digest for %s:%s : %v", name.Name(), m.Tag, err)
 	}
 	return manifestDigest, len(payload), nil
 }

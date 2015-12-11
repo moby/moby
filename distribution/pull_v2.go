@@ -54,19 +54,11 @@ func (p *v2Puller) Pull(ctx context.Context, ref reference.Named) (fallback bool
 
 func (p *v2Puller) pullV2Repository(ctx context.Context, ref reference.Named) (err error) {
 	var refs []reference.Named
-	taggedName := p.repoInfo.LocalName
-	if tagged, isTagged := ref.(reference.NamedTagged); isTagged {
-		taggedName, err = reference.WithTag(p.repoInfo.LocalName, tagged.Tag())
-		if err != nil {
-			return err
-		}
-		refs = []reference.Named{taggedName}
-	} else if digested, isCanonical := ref.(reference.Canonical); isCanonical {
-		taggedName, err = reference.WithDigest(p.repoInfo.LocalName, digested.Digest())
-		if err != nil {
-			return err
-		}
-		refs = []reference.Named{taggedName}
+	taggedName := ref
+	if _, isTagged := ref.(reference.NamedTagged); isTagged {
+		refs = []reference.Named{ref}
+	} else if _, isCanonical := ref.(reference.Canonical); isCanonical {
+		refs = []reference.Named{ref}
 	} else {
 		manSvc, err := p.repo.Manifests(ctx)
 		if err != nil {
@@ -81,7 +73,7 @@ func (p *v2Puller) pullV2Repository(ctx context.Context, ref reference.Named) (e
 		// This probably becomes a lot nicer after the manifest
 		// refactor...
 		for _, tag := range tags {
-			tagRef, err := reference.WithTag(p.repoInfo.LocalName, tag)
+			tagRef, err := reference.WithTag(ref, tag)
 			if err != nil {
 				return err
 			}
@@ -291,7 +283,7 @@ func (p *v2Puller) pullV2Tag(ctx context.Context, ref reference.Named) (tagUpdat
 		return false, err
 	}
 
-	manifestDigest, _, err := digestFromManifest(unverifiedManifest, p.repoInfo.LocalName.Name())
+	manifestDigest, _, err := digestFromManifest(unverifiedManifest, p.repoInfo)
 	if err != nil {
 		return false, err
 	}

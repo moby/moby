@@ -7,7 +7,6 @@ import (
 	Cli "github.com/docker/docker/cli"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/reference"
-	"github.com/docker/docker/registry"
 )
 
 // CmdTag tags an image into a repository.
@@ -33,11 +32,6 @@ func (cli *DockerCli) CmdTag(args ...string) error {
 	tagged, isTagged := ref.(reference.NamedTagged)
 	if isTagged {
 		tag = tagged.Tag()
-	}
-
-	//Check if the given image name can be resolved
-	if err := registry.ValidateRepositoryName(ref); err != nil {
-		return err
 	}
 
 	options := types.ImageTagOptions{

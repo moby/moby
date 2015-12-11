@@ -356,7 +356,6 @@ func handlerGetDeleteTags(w http.ResponseWriter, r *http.Request) {
 		apiError(w, "Could not parse repository", 400)
 		return
 	}
-	repositoryName = NormalizeLocalName(repositoryName)
 	tags, exists := testRepositories[repositoryName.String()]
 	if !exists {
 		apiError(w, "Repository not found", 404)
@@ -380,7 +379,6 @@ func handlerGetTag(w http.ResponseWriter, r *http.Request) {
 		apiError(w, "Could not parse repository", 400)
 		return
 	}
-	repositoryName = NormalizeLocalName(repositoryName)
 	tagName := vars["tag"]
 	tags, exists := testRepositories[repositoryName.String()]
 	if !exists {
@@ -405,7 +403,6 @@ func handlerPutTag(w http.ResponseWriter, r *http.Request) {
 		apiError(w, "Could not parse repository", 400)
 		return
 	}
-	repositoryName = NormalizeLocalName(repositoryName)
 	tagName := vars["tag"]
 	tags, exists := testRepositories[repositoryName.String()]
 	if !exists {
