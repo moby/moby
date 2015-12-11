@@ -41,13 +41,14 @@ type parentProcess interface {
 }
 
 type setnsProcess struct {
-	cmd         *exec.Cmd
-	parentPipe  *os.File
-	childPipe   *os.File
-	cgroupPaths map[string]string
-	config      *initConfig
-	fds         []string
-	process     *Process
+	cmd           *exec.Cmd
+	parentPipe    *os.File
+	childPipe     *os.File
+	cgroupPaths   map[string]string
+	config        *initConfig
+	fds           []string
+	process       *Process
+	bootstrapData io.Reader
 }
 
 func (p *setnsProcess) startTime() (string, error) {
@@ -64,6 +65,16 @@ func (p *setnsProcess) signal(sig os.Signal) error {
 
 func (p *setnsProcess) start() (err error) {
 	defer p.parentPipe.Close()
+	err = p.cmd.Start()
+	p.childPipe.Close()
+	if err != nil {
+		return newSystemError(err)
+	}
+	if p.bootstrapData != nil {
+		if _, err := io.Copy(p.parentPipe, p.bootstrapData); err != nil {
+			return newSystemError(err)
+		}
+	}
 	if err = p.execSetns(); err != nil {
 		return newSystemError(err)
 	}
@@ -96,11 +107,6 @@ func (p *setnsProcess) start() (err error) {
 // before the go runtime boots, we wait on the process to die and receive the child's pid
 // over the provided pipe.
 func (p *setnsProcess) execSetns() error {
-	err := p.cmd.Start()
-	p.childPipe.Close()
-	if err != nil {
-		return newSystemError(err)
-	}
 	status, err := p.cmd.Process.Wait()
 	if err != nil {
 		p.cmd.Wait()
