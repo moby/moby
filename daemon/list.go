@@ -162,7 +162,7 @@ func (daemon *Daemon) foldFilter(config *ContainersConfig) (*listContext, error)
 
 	var beforeContFilter, sinceContFilter *container.Container
 	err = psFilters.WalkValues("before", func(value string) error {
-		beforeContFilter, err = daemon.Get(value)
+		beforeContFilter, err = daemon.GetContainer(value)
 		return err
 	})
 	if err != nil {
@@ -170,7 +170,7 @@ func (daemon *Daemon) foldFilter(config *ContainersConfig) (*listContext, error)
 	}
 
 	err = psFilters.WalkValues("since", func(value string) error {
-		sinceContFilter, err = daemon.Get(value)
+		sinceContFilter, err = daemon.GetContainer(value)
 		return err
 	})
 	if err != nil {
@@ -204,14 +204,14 @@ func (daemon *Daemon) foldFilter(config *ContainersConfig) (*listContext, error)
 	}, 1)
 
 	if config.Before != "" && beforeContFilter == nil {
-		beforeContFilter, err = daemon.Get(config.Before)
+		beforeContFilter, err = daemon.GetContainer(config.Before)
 		if err != nil {
 			return nil, err
 		}
 	}
 
 	if config.Since != "" && sinceContFilter == nil {
-		sinceContFilter, err = daemon.Get(config.Since)
+		sinceContFilter, err = daemon.GetContainer(config.Since)
 		if err != nil {
 			return nil, err
 		}

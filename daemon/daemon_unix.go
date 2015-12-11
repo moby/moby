@@ -632,14 +632,14 @@ func (daemon *Daemon) registerLinks(container *container.Container, hostConfig *
 		if err != nil {
 			return err
 		}
-		child, err := daemon.Get(name)
+		child, err := daemon.GetContainer(name)
 		if err != nil {
-			//An error from daemon.Get() means this name could not be found
+			//An error from daemon.GetContainer() means this name could not be found
 			return fmt.Errorf("Could not get container for %s", name)
 		}
 		for child.HostConfig.NetworkMode.IsContainer() {
 			parts := strings.SplitN(string(child.HostConfig.NetworkMode), ":", 2)
-			child, err = daemon.Get(parts[1])
+			child, err = daemon.GetContainer(parts[1])
 			if err != nil {
 				return fmt.Errorf("Could not get container for %s", parts[1])
 			}

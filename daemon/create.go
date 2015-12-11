@@ -119,7 +119,7 @@ func (daemon *Daemon) generateSecurityOpt(ipcMode runconfig.IpcMode, pidMode run
 		return label.DisableSecOpt(), nil
 	}
 	if ipcContainer := ipcMode.Container(); ipcContainer != "" {
-		c, err := daemon.Get(ipcContainer)
+		c, err := daemon.GetContainer(ipcContainer)
 		if err != nil {
 			return nil, err
 		}

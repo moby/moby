@@ -7,7 +7,7 @@ import (
 
 // ContainerUnpause unpauses a container
 func (daemon *Daemon) ContainerUnpause(name string) error {
-	container, err := daemon.Get(name)
+	container, err := daemon.GetContainer(name)
 	if err != nil {
 		return err
 	}

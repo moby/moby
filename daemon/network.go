@@ -130,7 +130,7 @@ func getIpamConfig(data []network.IPAMConfig) ([]*libnetwork.IpamConf, []*libnet
 // network. If either cannot be found, an err is returned. If the
 // network cannot be set up, an err is returned.
 func (daemon *Daemon) ConnectContainerToNetwork(containerName, networkName string) error {
-	container, err := daemon.Get(containerName)
+	container, err := daemon.GetContainer(containerName)
 	if err != nil {
 		return err
 	}
@@ -140,7 +140,7 @@ func (daemon *Daemon) ConnectContainerToNetwork(containerName, networkName strin
 // DisconnectContainerFromNetwork disconnects the given container from
 // the given network. If either cannot be found, an err is returned.
 func (daemon *Daemon) DisconnectContainerFromNetwork(containerName string, network libnetwork.Network) error {
-	container, err := daemon.Get(containerName)
+	container, err := daemon.GetContainer(containerName)
 	if err != nil {
 		return err
 	}
