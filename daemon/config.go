@@ -55,7 +55,7 @@ type CommonConfig struct {
 // from the command-line.
 func (config *Config) InstallCommonFlags(cmd *flag.FlagSet, usageFn func(string) string) {
 	cmd.Var(opts.NewListOptsRef(&config.GraphOptions, nil), []string{"-storage-opt"}, usageFn("Set storage driver options"))
-	cmd.Var(opts.NewListOptsRef(&config.AuthZPlugins, nil), []string{"-authz-plugins"}, usageFn("List authorization plugins in order from first evaluator to last"))
+	cmd.Var(opts.NewListOptsRef(&config.AuthZPlugins, nil), []string{"-authz-plugin"}, usageFn("List authorization plugins in order from first evaluator to last"))
 	cmd.Var(opts.NewListOptsRef(&config.ExecOptions, nil), []string{"-exec-opt"}, usageFn("Set exec driver options"))
 	cmd.StringVar(&config.Pidfile, []string{"p", "-pidfile"}, defaultPidFile, usageFn("Path to use for daemon PID file"))
 	cmd.StringVar(&config.Root, []string{"g", "-graph"}, defaultGraph, usageFn("Root of the Docker runtime"))
