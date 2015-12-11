@@ -7,7 +7,6 @@ import (
 	"io"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/distribution/digest"
 	"github.com/docker/docker/distribution/metadata"
 	"github.com/docker/docker/distribution/xfer"
 	"github.com/docker/docker/image"
@@ -77,7 +76,6 @@ func NewPusher(ref reference.Named, endpoint registry.APIEndpoint, repoInfo *reg
 			endpoint:       endpoint,
 			repoInfo:       repoInfo,
 			config:         imagePushConfig,
-			layersPushed:   pushMap{layersPushed: make(map[digest.Digest]bool)},
 		}, nil
 	case registry.APIVersion1:
 		return &v1Pusher{
