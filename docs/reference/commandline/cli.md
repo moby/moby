@@ -51,6 +51,10 @@ by the `docker` command line:
 * `DOCKER_CONTENT_TRUST_SERVER` The URL of the Notary server to use. This defaults
   to the same URL as the registry.
 * `DOCKER_TMPDIR` Location for temporary Docker files.
+* `DOCKER_AUTHN_USERID` A user name to use when authenticating to the docker daemon.
+  This is typically expected to be set only when testing.
+* `DOCKER_AUTHN_PASSWORD` A password to use when authenticating to the docker daemon using the Basic authentication scheme.
+  This is typically expected to be set only when testing.
 
 Because Docker is developed using 'Go', you can also use any environment
 variables used by the 'Go' runtime. In particular, you may find these useful:
@@ -119,6 +123,58 @@ Certificate Authority, you need to place the certificate at
 
 Alternatively you can trust the certificate globally by adding it to your system's
 list of root Certificate Authorities.
+
+## Authentication
+
+If the docker daemon requires clients to authenticate to it before it will
+service their requests, a client may need to prompt for credentials to use.  If
+the docker client has a controlling TTY, it will prompt for credentials.  To
+avoid the prompts, the `--authn-opts` option can be used to pass in specific
+prompted-for values in the form of `key`=`value` ahead of time, or the
+`--authn-opts interactive=false` option can be used to treat any attempts to
+prompt for information as having failed, in much the same way that prompting
+for them would fail without a controlling TTY.
+
+### Authentication Options
+
+When a docker client is informed by a docker daemon that it needs to
+authenticate, these options affect its behavior.
+
+#### basic.username
+
+When Basic authentication is offered, this value will be supplied by the client
+as its user name.  If no value is set, the value of the `DOCKER_AUTHN_USERID`
+environment variable is used.  If it, too, is not set, the docker client will
+attempt to prompt for the user name.
+
+    $ docker run --authn-opt basic.username=testuser
+
+#### basic.password
+
+When Basic authentication is offered, this value will be supplied by the client
+as the password.  If no value is set, the value of the `DOCKER_AUTHN_PASSWORD`
+environment variable is used.  If it, too, is not set, the docker client will
+attempt to prompt for the user name.
+
+    $ docker run --authn-opt basic.password=this-is-not-a-good-password
+
+#### bearer.token
+
+When Bearer authentication is offered, this value will be supplied by the
+client as the token.
+
+    $ docker run --authn-opt bearer.token=WUVTLUktQU0tQS1CRUFS
+
+#### interactive
+
+When the docker client needs authentication information, by default it will
+prompt for that information if its standard input is connected to a terminal.
+If standard input is not connected to a terminal, it behave as if the attempt
+to prompt for information failed.  The `interactive` option can override this
+behavior, either preventing prompting when it would normally be used, or
+forcing prompting when it would normally not be attempted.
+
+    $ docker run --authn-opt interactive=false
 
 ## Help
 
