@@ -97,14 +97,14 @@ func trustServer(index *registry.IndexInfo) (string, error) {
 }
 
 type simpleCredentialStore struct {
-	auth cliconfig.AuthConfig
+	auth types.AuthConfig
 }
 
 func (scs simpleCredentialStore) Basic(u *url.URL) (string, string) {
 	return scs.auth.Username, scs.auth.Password
 }
 
-func (cli *DockerCli) getNotaryRepository(repoInfo *registry.RepositoryInfo, authConfig cliconfig.AuthConfig) (*client.NotaryRepository, error) {
+func (cli *DockerCli) getNotaryRepository(repoInfo *registry.RepositoryInfo, authConfig types.AuthConfig) (*client.NotaryRepository, error) {
 	server, err := trustServer(repoInfo.Index)
 	if err != nil {
 		return nil, err
@@ -279,7 +279,7 @@ func notaryError(err error) error {
 	return err
 }
 
-func (cli *DockerCli) trustedPull(repoInfo *registry.RepositoryInfo, ref registry.Reference, authConfig cliconfig.AuthConfig, requestPrivilege lib.RequestPrivilegeFunc) error {
+func (cli *DockerCli) trustedPull(repoInfo *registry.RepositoryInfo, ref registry.Reference, authConfig types.AuthConfig, requestPrivilege lib.RequestPrivilegeFunc) error {
 	var refs []target
 
 	notaryRepo, err := cli.getNotaryRepository(repoInfo, authConfig)
@@ -380,7 +380,7 @@ func targetStream(in io.Writer) (io.WriteCloser, <-chan []target) {
 	return ioutils.NewWriteCloserWrapper(out, w.Close), targetChan
 }
 
-func (cli *DockerCli) trustedPush(repoInfo *registry.RepositoryInfo, tag string, authConfig cliconfig.AuthConfig, requestPrivilege lib.RequestPrivilegeFunc) error {
+func (cli *DockerCli) trustedPush(repoInfo *registry.RepositoryInfo, tag string, authConfig types.AuthConfig, requestPrivilege lib.RequestPrivilegeFunc) error {
 	streamOut, targetChan := targetStream(cli.out)
 
 	reqError := cli.imagePushPrivileged(authConfig, repoInfo.LocalName.Name(), tag, streamOut, requestPrivilege)

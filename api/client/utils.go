@@ -1,6 +1,8 @@
 package client
 
 import (
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"os"
 	gosignal "os/signal"
@@ -15,9 +17,18 @@ import (
 	"github.com/docker/docker/registry"
 )
 
+// encodeAuthToBase64 serializes the auth configuration as JSON base64 payload
+func encodeAuthToBase64(authConfig AuthConfig) (string, error) {
+	buf, err := json.Marshal(authConfig)
+	if err != nil {
+		return "", err
+	}
+	return base64.URLEncoding.EncodeToString(buf), nil
+}
+
 func (cli *DockerCli) encodeRegistryAuth(index *registry.IndexInfo) (string, error) {
 	authConfig := registry.ResolveAuthConfig(cli.configFile.AuthConfigs, index)
-	return authConfig.EncodeToBase64()
+	return cliconfig.EncodeAuthToBase64(authConfig)
 }
 
 func (cli *DockerCli) registryAuthenticationPrivilegedFunc(index *registry.IndexInfo, cmdName string) lib.RequestPrivilegeFunc {
