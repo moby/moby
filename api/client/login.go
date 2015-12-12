@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/docker/docker/api/client/lib"
+	"github.com/docker/docker/api/types"
 	Cli "github.com/docker/docker/cli"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/term"

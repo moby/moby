@@ -17,6 +17,7 @@ import (
 	"github.com/docker/distribution/registry/client"
 	"github.com/docker/distribution/registry/client/auth"
 	"github.com/docker/distribution/registry/client/transport"
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/distribution/xfer"
 	"github.com/docker/docker/registry"
 	"golang.org/x/net/context"

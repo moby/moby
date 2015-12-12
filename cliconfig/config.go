@@ -45,15 +45,6 @@ func SetConfigDir(dir string) {
 	configDir = dir
 }
 
-// EncodeAuthToBase64 serializes the auth configuration as JSON base64 payload
-func EncodeAuthToBase64(authConfig AuthConfig) (string, error) {
-	buf, err := json.Marshal(authConfig)
-	if err != nil {
-		return "", err
-	}
-	return base64.URLEncoding.EncodeToString(buf), nil
-}
-
 // ConfigFile ~/.docker/config.json file info
 type ConfigFile struct {
 	AuthConfigs map[string]types.AuthConfig `json:"auths"`

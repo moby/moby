@@ -3,6 +3,8 @@ package registry
 import (
 	"testing"
 
+	"github.com/docker/docker/api/types"
+	registrytypes "github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/cliconfig"
 )
 
@@ -26,8 +28,8 @@ func TestEncodeAuth(t *testing.T) {
 	}
 }
 
-func buildAuthConfigs() map[string]cliconfig.AuthConfig {
-	authConfigs := map[string]cliconfig.AuthConfig{}
+func buildAuthConfigs() map[string]types.AuthConfig {
+	authConfigs := map[string]types.AuthConfig{}
 
 	for _, registry := range []string{"testIndex", IndexServer} {
 		authConfigs[registry] = types.AuthConfig{
@@ -61,10 +63,10 @@ func TestResolveAuthConfigIndexServer(t *testing.T) {
 	authConfigs := buildAuthConfigs()
 	indexConfig := authConfigs[IndexServer]
 
-	officialIndex := &IndexInfo{
+	officialIndex := &registrytypes.IndexInfo{
 		Official: true,
 	}
-	privateIndex := &IndexInfo{
+	privateIndex := &registrytypes.IndexInfo{
 		Official: false,
 	}
 
@@ -127,7 +129,7 @@ func TestResolveAuthConfigFullURL(t *testing.T) {
 		if !ok || configured.Email == "" {
 			t.Fail()
 		}
-		index := &IndexInfo{
+		index := &registrytypes.IndexInfo{
 			Name: configKey,
 		}
 		for _, registry := range registries {

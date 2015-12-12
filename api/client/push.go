@@ -9,7 +9,6 @@ import (
 	"github.com/docker/docker/api/client/lib"
 	"github.com/docker/docker/api/types"
 	Cli "github.com/docker/docker/cli"
-	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/pkg/jsonmessage"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/registry"
@@ -66,7 +65,7 @@ func (cli *DockerCli) CmdPush(args ...string) error {
 }
 
 func (cli *DockerCli) imagePushPrivileged(authConfig types.AuthConfig, imageID, tag string, outputStream io.Writer, requestPrivilege lib.RequestPrivilegeFunc) error {
-	encodedAuth, err := cliconfig.EncodeAuthToBase64(authConfig)
+	encodedAuth, err := encodeAuthToBase64(authConfig)
 	if err != nil {
 		return err
 	}

@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/docker/distribution/reference"
+	registrytypes "github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/opts"
 	"github.com/gorilla/mux"
 
@@ -150,22 +151,22 @@ func makeHTTPSURL(req string) string {
 	return testHTTPSServer.URL + req
 }
 
-func makeIndex(req string) *IndexInfo {
-	index := &IndexInfo{
+func makeIndex(req string) *registrytypes.IndexInfo {
+	index := &registrytypes.IndexInfo{
 		Name: makeURL(req),
 	}
 	return index
 }
 
-func makeHTTPSIndex(req string) *IndexInfo {
-	index := &IndexInfo{
+func makeHTTPSIndex(req string) *registrytypes.IndexInfo {
+	index := &registrytypes.IndexInfo{
 		Name: makeHTTPSURL(req),
 	}
 	return index
 }
 
-func makePublicIndex() *IndexInfo {
-	index := &IndexInfo{
+func makePublicIndex() *registrytypes.IndexInfo {
+	index := &registrytypes.IndexInfo{
 		Name:     IndexServer,
 		Secure:   true,
 		Official: true,
@@ -173,7 +174,7 @@ func makePublicIndex() *IndexInfo {
 	return index
 }
 
-func makeServiceConfig(mirrors []string, insecureRegistries []string) *ServiceConfig {
+func makeServiceConfig(mirrors []string, insecureRegistries []string) *registrytypes.ServiceConfig {
 	options := &Options{
 		Mirrors:            opts.NewListOpts(nil),
 		InsecureRegistries: opts.NewListOpts(nil),
