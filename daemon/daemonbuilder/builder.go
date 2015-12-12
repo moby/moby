@@ -67,7 +67,7 @@ func (d Docker) Pull(name string) (*image.Image, error) {
 		}
 
 		resolvedConfig := registry.ResolveAuthConfig(
-			&cliconfig.ConfigFile{AuthConfigs: d.AuthConfigs},
+			d.AuthConfigs,
 			repoInfo.Index,
 		)
 		pullRegistryAuth = &resolvedConfig
