@@ -10,14 +10,13 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/distribution/registry/client/auth"
-	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/utils"
 	"golang.org/x/net/context"
 )
 
 func TestTokenPassThru(t *testing.T) {
-	authConfig := &cliconfig.AuthConfig{
+	authConfig := &types.AuthConfig{
 		RegistryToken: "mysecrettoken",
 	}
 	gotToken := false

@@ -9,7 +9,6 @@ import (
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/pkg/parsers/filters"
@@ -116,7 +115,7 @@ func (s *systemRouter) getEvents(ctx context.Context, w http.ResponseWriter, r *
 }
 
 func (s *systemRouter) postAuth(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	var config *cliconfig.AuthConfig
+	var config *types.AuthConfig
 	err := json.NewDecoder(r.Body).Decode(&config)
 	r.Body.Close()
 	if err != nil {

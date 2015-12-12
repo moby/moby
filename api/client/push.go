@@ -65,8 +65,8 @@ func (cli *DockerCli) CmdPush(args ...string) error {
 	return cli.imagePushPrivileged(authConfig, ref.Name(), tag, cli.out, requestPrivilege)
 }
 
-func (cli *DockerCli) imagePushPrivileged(authConfig cliconfig.AuthConfig, imageID, tag string, outputStream io.Writer, requestPrivilege lib.RequestPrivilegeFunc) error {
-	encodedAuth, err := authConfig.EncodeToBase64()
+func (cli *DockerCli) imagePushPrivileged(authConfig types.AuthConfig, imageID, tag string, outputStream io.Writer, requestPrivilege lib.RequestPrivilegeFunc) error {
+	encodedAuth, err := cliconfig.EncodeAuthToBase64(authConfig)
 	if err != nil {
 		return err
 	}
