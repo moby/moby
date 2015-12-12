@@ -16,7 +16,7 @@ import (
 )
 
 func (cli *DockerCli) encodeRegistryAuth(index *registry.IndexInfo) (string, error) {
-	authConfig := registry.ResolveAuthConfig(cli.configFile, index)
+	authConfig := registry.ResolveAuthConfig(cli.configFile.AuthConfigs, index)
 	return authConfig.EncodeToBase64()
 }
 
