@@ -180,6 +180,130 @@ func (daemon *Daemon) adaptContainerSettings(hostConfig *runconfig.HostConfig, a
 	return nil
 }
 
+func verifyContainerResources(resources *runconfig.Resources) ([]string, error) {
+	warnings := []string{}
+	sysInfo := sysinfo.New(true)
+
+	// memory subsystem checks and adjustments
+	if resources.Memory != 0 && resources.Memory < linuxMinMemory {
+		return warnings, fmt.Errorf("Minimum memory limit allowed is 4MB")
+	}
+	if resources.Memory > 0 && !sysInfo.MemoryLimit {
+		warnings = append(warnings, "Your kernel does not support memory limit capabilities. Limitation discarded.")
+		logrus.Warnf("Your kernel does not support memory limit capabilities. Limitation discarded.")
+		resources.Memory = 0
+		resources.MemorySwap = -1
+	}
+	if resources.Memory > 0 && resources.MemorySwap != -1 && !sysInfo.SwapLimit {
+		warnings = append(warnings, "Your kernel does not support swap limit capabilities, memory limited without swap.")
+		logrus.Warnf("Your kernel does not support swap limit capabilities, memory limited without swap.")
+		resources.MemorySwap = -1
+	}
+	if resources.Memory > 0 && resources.MemorySwap > 0 && resources.MemorySwap < resources.Memory {
+		return warnings, fmt.Errorf("Minimum memoryswap limit should be larger than memory limit, see usage.")
+	}
+	if resources.Memory == 0 && resources.MemorySwap > 0 {
+		return warnings, fmt.Errorf("You should always set the Memory limit when using Memoryswap limit, see usage.")
+	}
+	if resources.MemorySwappiness != nil && *resources.MemorySwappiness != -1 && !sysInfo.MemorySwappiness {
+		warnings = append(warnings, "Your kernel does not support memory swappiness capabilities, memory swappiness discarded.")
+		logrus.Warnf("Your kernel does not support memory swappiness capabilities, memory swappiness discarded.")
+		resources.MemorySwappiness = nil
+	}
+	if resources.MemorySwappiness != nil {
+		swappiness := *resources.MemorySwappiness
+		if swappiness < -1 || swappiness > 100 {
+			return warnings, fmt.Errorf("Invalid value: %v, valid memory swappiness range is 0-100.", swappiness)
+		}
+	}
+	if resources.MemoryReservation > 0 && !sysInfo.MemoryReservation {
+		warnings = append(warnings, "Your kernel does not support memory soft limit capabilities. Limitation discarded.")
+		logrus.Warnf("Your kernel does not support memory soft limit capabilities. Limitation discarded.")
+		resources.MemoryReservation = 0
+	}
+	if resources.Memory > 0 && resources.MemoryReservation > 0 && resources.Memory < resources.MemoryReservation {
+		return warnings, fmt.Errorf("Minimum memory limit should be larger than memory reservation limit, see usage.")
+	}
+	if resources.KernelMemory > 0 && !sysInfo.KernelMemory {
+		warnings = append(warnings, "Your kernel does not support kernel memory limit capabilities. Limitation discarded.")
+		logrus.Warnf("Your kernel does not support kernel memory limit capabilities. Limitation discarded.")
+		resources.KernelMemory = 0
+	}
+	if resources.KernelMemory > 0 && resources.KernelMemory < linuxMinMemory {
+		return warnings, fmt.Errorf("Minimum kernel memory limit allowed is 4MB")
+	}
+	if resources.KernelMemory > 0 && !checkKernelVersion(4, 0, 0) {
+		warnings = append(warnings, "You specified a kernel memory limit on a kernel older than 4.0. Kernel memory limits are experimental on older kernels, it won't work as expected and can cause your system to be unstable.")
+		logrus.Warnf("You specified a kernel memory limit on a kernel older than 4.0. Kernel memory limits are experimental on older kernels, it won't work as expected and can cause your system to be unstable.")
+	}
+
+	// cpu subsystem checks and adjustments
+	if resources.CPUShares > 0 && !sysInfo.CPUShares {
+		warnings = append(warnings, "Your kernel does not support CPU shares. Shares discarded.")
+		logrus.Warnf("Your kernel does not support CPU shares. Shares discarded.")
+		resources.CPUShares = 0
+	}
+	if resources.CPUPeriod > 0 && !sysInfo.CPUCfsPeriod {
+		warnings = append(warnings, "Your kernel does not support CPU cfs period. Period discarded.")
+		logrus.Warnf("Your kernel does not support CPU cfs period. Period discarded.")
+		resources.CPUPeriod = 0
+	}
+	if resources.CPUQuota > 0 && !sysInfo.CPUCfsQuota {
+		warnings = append(warnings, "Your kernel does not support CPU cfs quota. Quota discarded.")
+		logrus.Warnf("Your kernel does not support CPU cfs quota. Quota discarded.")
+		resources.CPUQuota = 0
+	}
+
+	// cpuset subsystem checks and adjustments
+	if (resources.CpusetCpus != "" || resources.CpusetMems != "") && !sysInfo.Cpuset {
+		warnings = append(warnings, "Your kernel does not support cpuset. Cpuset discarded.")
+		logrus.Warnf("Your kernel does not support cpuset. Cpuset discarded.")
+		resources.CpusetCpus = ""
+		resources.CpusetMems = ""
+	}
+	cpusAvailable, err := sysInfo.IsCpusetCpusAvailable(resources.CpusetCpus)
+	if err != nil {
+		return warnings, derr.ErrorCodeInvalidCpusetCpus.WithArgs(resources.CpusetCpus)
+	}
+	if !cpusAvailable {
+		return warnings, derr.ErrorCodeNotAvailableCpusetCpus.WithArgs(resources.CpusetCpus, sysInfo.Cpus)
+	}
+	memsAvailable, err := sysInfo.IsCpusetMemsAvailable(resources.CpusetMems)
+	if err != nil {
+		return warnings, derr.ErrorCodeInvalidCpusetMems.WithArgs(resources.CpusetMems)
+	}
+	if !memsAvailable {
+		return warnings, derr.ErrorCodeNotAvailableCpusetMems.WithArgs(resources.CpusetMems, sysInfo.Mems)
+	}
+
+	// blkio subsystem checks and adjustments
+	if resources.BlkioWeight > 0 && !sysInfo.BlkioWeight {
+		warnings = append(warnings, "Your kernel does not support Block I/O weight. Weight discarded.")
+		logrus.Warnf("Your kernel does not support Block I/O weight. Weight discarded.")
+		resources.BlkioWeight = 0
+	}
+	if resources.BlkioWeight > 0 && (resources.BlkioWeight < 10 || resources.BlkioWeight > 1000) {
+		return warnings, fmt.Errorf("Range of blkio weight is from 10 to 1000.")
+	}
+	if len(resources.BlkioWeightDevice) > 0 && !sysInfo.BlkioWeightDevice {
+		warnings = append(warnings, "Your kernel does not support Block I/O weight_device.")
+		logrus.Warnf("Your kernel does not support Block I/O weight_device. Weight-device discarded.")
+		resources.BlkioWeightDevice = []*pblkiodev.WeightDevice{}
+	}
+	if len(resources.BlkioDeviceReadBps) > 0 && !sysInfo.BlkioReadBpsDevice {
+		warnings = append(warnings, "Your kernel does not support Block read limit in bytes per second.")
+		logrus.Warnf("Your kernel does not support Block I/O read limit in bytes per second. --device-read-bps discarded.")
+		resources.BlkioDeviceReadBps = []*pblkiodev.ThrottleDevice{}
+	}
+	if len(resources.BlkioDeviceWriteBps) > 0 && !sysInfo.BlkioWriteBpsDevice {
+		warnings = append(warnings, "Your kernel does not support Block write limit in bytes per second.")
+		logrus.Warnf("Your kernel does not support Block I/O write limit in bytes per second. --device-write-bps discarded.")
+		resources.BlkioDeviceWriteBps = []*pblkiodev.ThrottleDevice{}
+	}
+
+	return warnings, nil
+}
+
 // verifyPlatformContainerSettings performs platform-specific validation of the
 // hostconfig and config structures.
 func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *runconfig.HostConfig, config *runconfig.Config) ([]string, error) {
@@ -191,120 +315,16 @@ func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *runconfig.HostC
 		return warnings, err
 	}
 
+	w, err := verifyContainerResources(&hostConfig.Resources)
+	if err != nil {
+		return warnings, err
+	}
+	warnings = append(warnings, w...)
+
 	if hostConfig.ShmSize != nil && *hostConfig.ShmSize <= 0 {
 		return warnings, fmt.Errorf("SHM size must be greater then 0")
 	}
 
-	// memory subsystem checks and adjustments
-	if hostConfig.Memory != 0 && hostConfig.Memory < linuxMinMemory {
-		return warnings, fmt.Errorf("Minimum memory limit allowed is 4MB")
-	}
-	if hostConfig.Memory > 0 && !sysInfo.MemoryLimit {
-		warnings = append(warnings, "Your kernel does not support memory limit capabilities. Limitation discarded.")
-		logrus.Warnf("Your kernel does not support memory limit capabilities. Limitation discarded.")
-		hostConfig.Memory = 0
-		hostConfig.MemorySwap = -1
-	}
-	if hostConfig.Memory > 0 && hostConfig.MemorySwap != -1 && !sysInfo.SwapLimit {
-		warnings = append(warnings, "Your kernel does not support swap limit capabilities, memory limited without swap.")
-		logrus.Warnf("Your kernel does not support swap limit capabilities, memory limited without swap.")
-		hostConfig.MemorySwap = -1
-	}
-	if hostConfig.Memory > 0 && hostConfig.MemorySwap > 0 && hostConfig.MemorySwap < hostConfig.Memory {
-		return warnings, fmt.Errorf("Minimum memoryswap limit should be larger than memory limit, see usage.")
-	}
-	if hostConfig.Memory == 0 && hostConfig.MemorySwap > 0 {
-		return warnings, fmt.Errorf("You should always set the Memory limit when using Memoryswap limit, see usage.")
-	}
-	if hostConfig.MemorySwappiness != nil && *hostConfig.MemorySwappiness != -1 && !sysInfo.MemorySwappiness {
-		warnings = append(warnings, "Your kernel does not support memory swappiness capabilities, memory swappiness discarded.")
-		logrus.Warnf("Your kernel does not support memory swappiness capabilities, memory swappiness discarded.")
-		hostConfig.MemorySwappiness = nil
-	}
-	if hostConfig.MemorySwappiness != nil {
-		swappiness := *hostConfig.MemorySwappiness
-		if swappiness < -1 || swappiness > 100 {
-			return warnings, fmt.Errorf("Invalid value: %v, valid memory swappiness range is 0-100.", swappiness)
-		}
-	}
-	if hostConfig.MemoryReservation > 0 && !sysInfo.MemoryReservation {
-		warnings = append(warnings, "Your kernel does not support memory soft limit capabilities. Limitation discarded.")
-		logrus.Warnf("Your kernel does not support memory soft limit capabilities. Limitation discarded.")
-		hostConfig.MemoryReservation = 0
-	}
-	if hostConfig.Memory > 0 && hostConfig.MemoryReservation > 0 && hostConfig.Memory < hostConfig.MemoryReservation {
-		return warnings, fmt.Errorf("Minimum memory limit should be larger than memory reservation limit, see usage.")
-	}
-	if hostConfig.KernelMemory > 0 && !sysInfo.KernelMemory {
-		warnings = append(warnings, "Your kernel does not support kernel memory limit capabilities. Limitation discarded.")
-		logrus.Warnf("Your kernel does not support kernel memory limit capabilities. Limitation discarded.")
-		hostConfig.KernelMemory = 0
-	}
-	if hostConfig.KernelMemory > 0 && hostConfig.KernelMemory < linuxMinMemory {
-		return warnings, fmt.Errorf("Minimum kernel memory limit allowed is 4MB")
-	}
-	if hostConfig.KernelMemory > 0 && !checkKernelVersion(4, 0, 0) {
-		warnings = append(warnings, "You specified a kernel memory limit on a kernel older than 4.0. Kernel memory limits are experimental on older kernels, it won't work as expected and can cause your system to be unstable.")
-		logrus.Warnf("You specified a kernel memory limit on a kernel older than 4.0. Kernel memory limits are experimental on older kernels, it won't work as expected and can cause your system to be unstable.")
-	}
-	if hostConfig.CPUShares > 0 && !sysInfo.CPUShares {
-		warnings = append(warnings, "Your kernel does not support CPU shares. Shares discarded.")
-		logrus.Warnf("Your kernel does not support CPU shares. Shares discarded.")
-		hostConfig.CPUShares = 0
-	}
-	if hostConfig.CPUPeriod > 0 && !sysInfo.CPUCfsPeriod {
-		warnings = append(warnings, "Your kernel does not support CPU cfs period. Period discarded.")
-		logrus.Warnf("Your kernel does not support CPU cfs period. Period discarded.")
-		hostConfig.CPUPeriod = 0
-	}
-	if hostConfig.CPUQuota > 0 && !sysInfo.CPUCfsQuota {
-		warnings = append(warnings, "Your kernel does not support CPU cfs quota. Quota discarded.")
-		logrus.Warnf("Your kernel does not support CPU cfs quota. Quota discarded.")
-		hostConfig.CPUQuota = 0
-	}
-	if (hostConfig.CpusetCpus != "" || hostConfig.CpusetMems != "") && !sysInfo.Cpuset {
-		warnings = append(warnings, "Your kernel does not support cpuset. Cpuset discarded.")
-		logrus.Warnf("Your kernel does not support cpuset. Cpuset discarded.")
-		hostConfig.CpusetCpus = ""
-		hostConfig.CpusetMems = ""
-	}
-	cpusAvailable, err := sysInfo.IsCpusetCpusAvailable(hostConfig.CpusetCpus)
-	if err != nil {
-		return warnings, derr.ErrorCodeInvalidCpusetCpus.WithArgs(hostConfig.CpusetCpus)
-	}
-	if !cpusAvailable {
-		return warnings, derr.ErrorCodeNotAvailableCpusetCpus.WithArgs(hostConfig.CpusetCpus, sysInfo.Cpus)
-	}
-	memsAvailable, err := sysInfo.IsCpusetMemsAvailable(hostConfig.CpusetMems)
-	if err != nil {
-		return warnings, derr.ErrorCodeInvalidCpusetMems.WithArgs(hostConfig.CpusetMems)
-	}
-	if !memsAvailable {
-		return warnings, derr.ErrorCodeNotAvailableCpusetMems.WithArgs(hostConfig.CpusetMems, sysInfo.Mems)
-	}
-	if hostConfig.BlkioWeight > 0 && !sysInfo.BlkioWeight {
-		warnings = append(warnings, "Your kernel does not support Block I/O weight. Weight discarded.")
-		logrus.Warnf("Your kernel does not support Block I/O weight. Weight discarded.")
-		hostConfig.BlkioWeight = 0
-	}
-	if hostConfig.BlkioWeight > 0 && (hostConfig.BlkioWeight < 10 || hostConfig.BlkioWeight > 1000) {
-		return warnings, fmt.Errorf("Range of blkio weight is from 10 to 1000.")
-	}
-	if len(hostConfig.BlkioWeightDevice) > 0 && !sysInfo.BlkioWeightDevice {
-		warnings = append(warnings, "Your kernel does not support Block I/O weight_device.")
-		logrus.Warnf("Your kernel does not support Block I/O weight_device. Weight-device discarded.")
-		hostConfig.BlkioWeightDevice = []*pblkiodev.WeightDevice{}
-	}
-	if len(hostConfig.BlkioDeviceReadBps) > 0 && !sysInfo.BlkioReadBpsDevice {
-		warnings = append(warnings, "Your kernel does not support Block read limit in bytes per second.")
-		logrus.Warnf("Your kernel does not support Block I/O read limit in bytes per second. --device-read-bps discarded.")
-		hostConfig.BlkioDeviceReadBps = []*pblkiodev.ThrottleDevice{}
-	}
-	if len(hostConfig.BlkioDeviceWriteBps) > 0 && !sysInfo.BlkioWriteBpsDevice {
-		warnings = append(warnings, "Your kernel does not support Block write limit in bytes per second.")
-		logrus.Warnf("Your kernel does not support Block I/O write limit in bytes per second. --device-write-bps discarded.")
-		hostConfig.BlkioDeviceWriteBps = []*pblkiodev.ThrottleDevice{}
-	}
 	if hostConfig.OomKillDisable && !sysInfo.OomKillDisable {
 		hostConfig.OomKillDisable = false
 		return warnings, fmt.Errorf("Your kernel does not support oom kill disable.")
