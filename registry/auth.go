@@ -221,10 +221,10 @@ func tryV2TokenAuthLogin(authConfig *cliconfig.AuthConfig, params map[string]str
 }
 
 // ResolveAuthConfig matches an auth configuration to a server address or a URL
-func ResolveAuthConfig(config *cliconfig.ConfigFile, index *IndexInfo) cliconfig.AuthConfig {
+func ResolveAuthConfig(authConfigs map[string]cliconfig.AuthConfig, index *IndexInfo) cliconfig.AuthConfig {
 	configKey := index.GetAuthConfigKey()
 	// First try the happy case
-	if c, found := config.AuthConfigs[configKey]; found || index.Official {
+	if c, found := authConfigs[configKey]; found || index.Official {
 		return c
 	}
 
@@ -243,7 +243,7 @@ func ResolveAuthConfig(config *cliconfig.ConfigFile, index *IndexInfo) cliconfig
 
 	// Maybe they have a legacy config file, we will iterate the keys converting
 	// them to the new format and testing
-	for registry, ac := range config.AuthConfigs {
+	for registry, ac := range authConfigs {
 		if configKey == convertToHostname(registry) {
 			return ac
 		}
