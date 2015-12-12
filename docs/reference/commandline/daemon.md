@@ -17,6 +17,7 @@ weight = -1
 
     Options:
       --api-cors-header=""                   Set CORS headers in the remote API
+      --authz-plugin=[]                     Set authorization plugins to load
       -b, --bridge=""                        Attach containers to a network bridge
       --bip=""                               Specify network bridge IP
       -D, --debug=false                      Enable debug mode
@@ -601,6 +602,30 @@ The currently supported cluster store options are:
     private key is used as the client key for communication with the
     Key/Value store.
 
+## Access authorization
+
+Docker's access authorization can be extended by authorization plugins that your
+organization can purchase or build themselves. You can install one or more
+authorization plugins when you start the Docker `daemon` using the
+`--authz-plugin=PLUGIN_ID` option.
+
+```bash
+docker daemon --authz-plugin=plugin1 --authz-plugin=plugin2,...
+```
+
+The `PLUGIN_ID` value is either the plugin's name or a path to its specification
+file. The plugin's implementation determines whether you can specify a name or
+path. Consult with your Docker administrator to get information about the
+plugins available to you.
+
+Once a plugin is installed, requests made to the `daemon` through the command
+line or Docker's remote API are allowed or denied by the plugin.  If you have
+multiple plugins installed, at least one must allow the request for it to
+complete.
+
+For information about how to create an authorization plugin, see [authorization
+plugin](../../extend/authorization.md) section in the Docker extend section of this documentation.
+
 
 ## Miscellaneous options
 
@@ -616,3 +641,6 @@ set like this:
     # or
     export DOCKER_TMPDIR=/mnt/disk2/tmp
     /usr/local/bin/docker daemon -D -g /var/lib/docker -H unix:// > /var/lib/docker-machine/docker.log 2>&1
+
+
+

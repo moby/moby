@@ -7,6 +7,7 @@ docker-daemon - Enable daemon mode
 # SYNOPSIS
 **docker daemon**
 [**--api-cors-header**=[=*API-CORS-HEADER*]]
+[**--authz-plugin**[=*[]*]]
 [**-b**|**--bridge**[=*BRIDGE*]]
 [**--bip**[=*BIP*]]
 [**--cluster-store**[=*[]*]]
@@ -69,6 +70,9 @@ format.
 
 **--api-cors-header**=""
   Set CORS headers in the remote API. Default is cors disabled. Give urls like "http://foo, http://bar, ...". Give "*" to allow all.
+
+**--authz-plugin**=""
+  Set authorization plugins to load
 
 **-b**, **--bridge**=""
   Attach containers to a pre\-existing network bridge; use 'none' to disable container networking
@@ -455,6 +459,31 @@ Key/Value store.
 Specifies the path to a local file with a PEM encoded private key.  This
 private key is used as the client key for communication with the
 Key/Value store.
+
+# Access authorization
+
+Docker's access authorization can be extended by authorization plugins that your
+organization can purchase or build themselves. You can install one or more
+authorization plugins when you start the Docker `daemon` using the
+`--authz-plugin=PLUGIN_ID` option.
+
+```bash
+docker daemon --authz-plugin=plugin1 --authz-plugin=plugin2,...
+```
+
+The `PLUGIN_ID` value is either the plugin's name or a path to its specification
+file. The plugin's implementation determines whether you can specify a name or
+path. Consult with your Docker administrator to get information about the
+plugins available to you.
+
+Once a plugin is installed, requests made to the `daemon` through the command
+line or Docker's remote API are allowed or denied by the plugin.  If you have
+multiple plugins installed, at least one must allow the request for it to
+complete.
+
+For information about how to create an authorization plugin, see [authorization
+plugin](https://docs.docker.com/engine/extend/authorization.md) section in the
+Docker extend section of this documentation.
 
 
 # HISTORY
