@@ -134,7 +134,7 @@ type ImageBuildOptions struct {
 	Dockerfile     string
 	Ulimits        []*ulimit.Ulimit
 	BuildArgs      []string
-	AuthConfigs    map[string]types.AuthConfig
+	AuthConfigs    map[string]AuthConfig
 	Context        io.Reader
 }
 
