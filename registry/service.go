@@ -8,12 +8,14 @@ import (
 
 	"github.com/docker/distribution/reference"
 	"github.com/docker/distribution/registry/client/auth"
+	"github.com/docker/docker/api/types"
+	registrytypes "github.com/docker/docker/api/types/registry"
 )
 
 // Service is a registry service. It tracks configuration data such as a list
 // of mirrors.
 type Service struct {
-	Config *ServiceConfig
+	Config *registrytypes.ServiceConfig
 }
 
 // NewService returns a new instance of Service ready to be
@@ -78,7 +80,7 @@ func (s *Service) Search(term string, authConfig *types.AuthConfig, headers map[
 
 	indexName, remoteName := splitReposSearchTerm(term)
 
-	index, err := s.Config.NewIndexInfo(indexName)
+	index, err := newIndexInfo(s.Config, indexName)
 	if err != nil {
 		return nil, err
 	}
@@ -109,12 +111,12 @@ func (s *Service) Search(term string, authConfig *types.AuthConfig, headers map[
 // ResolveRepository splits a repository name into its components
 // and configuration of the associated registry.
 func (s *Service) ResolveRepository(name reference.Named) (*RepositoryInfo, error) {
-	return s.Config.NewRepositoryInfo(name)
+	return newRepositoryInfo(s.Config, name)
 }
 
 // ResolveIndex takes indexName and returns index info
-func (s *Service) ResolveIndex(name string) (*IndexInfo, error) {
-	return s.Config.NewIndexInfo(name)
+func (s *Service) ResolveIndex(name string) (*registrytypes.IndexInfo, error) {
+	return newIndexInfo(s.Config, name)
 }
 
 // APIEndpoint represents a remote API endpoint
@@ -136,7 +138,7 @@ func (e APIEndpoint) ToV1Endpoint(metaHeaders http.Header) (*Endpoint, error) {
 
 // TLSConfig constructs a client TLS configuration based on server defaults
 func (s *Service) TLSConfig(hostname string) (*tls.Config, error) {
-	return newTLSConfig(hostname, s.Config.isSecureIndex(hostname))
+	return newTLSConfig(hostname, isSecureIndex(s.Config, hostname))
 }
 
 func (s *Service) tlsConfigForMirror(mirror string) (*tls.Config, error) {
