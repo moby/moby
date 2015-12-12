@@ -8,7 +8,6 @@ import (
 
 	"github.com/docker/distribution/reference"
 	"github.com/docker/distribution/registry/client/auth"
-	"github.com/docker/docker/cliconfig"
 )
 
 // Service is a registry service. It tracks configuration data such as a list
@@ -28,7 +27,7 @@ func NewService(options *Options) *Service {
 // Auth contacts the public registry with the provided credentials,
 // and returns OK if authentication was successful.
 // It can be used to verify the validity of a client's credentials.
-func (s *Service) Auth(authConfig *cliconfig.AuthConfig) (string, error) {
+func (s *Service) Auth(authConfig *types.AuthConfig) (string, error) {
 	addr := authConfig.ServerAddress
 	if addr == "" {
 		// Use the official registry address if not specified.
@@ -72,7 +71,7 @@ func splitReposSearchTerm(reposName string) (string, string) {
 
 // Search queries the public registry for images matching the specified
 // search terms, and returns the results.
-func (s *Service) Search(term string, authConfig *cliconfig.AuthConfig, headers map[string][]string) (*SearchResults, error) {
+func (s *Service) Search(term string, authConfig *types.AuthConfig, headers map[string][]string) (*SearchResults, error) {
 	if err := validateNoSchema(term); err != nil {
 		return nil, err
 	}

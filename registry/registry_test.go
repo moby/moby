@@ -10,7 +10,6 @@ import (
 
 	"github.com/docker/distribution/reference"
 	"github.com/docker/distribution/registry/client/transport"
-	"github.com/docker/docker/cliconfig"
 )
 
 var (
@@ -23,7 +22,7 @@ const (
 )
 
 func spawnTestRegistrySession(t *testing.T) *Session {
-	authConfig := &cliconfig.AuthConfig{}
+	authConfig := &types.AuthConfig{}
 	endpoint, err := NewEndpoint(makeIndex("/v1/"), nil, APIVersionUnknown)
 	if err != nil {
 		t.Fatal(err)

@@ -76,9 +76,9 @@ func (cli *DockerCli) CmdPull(args ...string) error {
 	return cli.imagePullPrivileged(authConfig, distributionRef.String(), "", requestPrivilege)
 }
 
-func (cli *DockerCli) imagePullPrivileged(authConfig cliconfig.AuthConfig, imageID, tag string, requestPrivilege lib.RequestPrivilegeFunc) error {
+func (cli *DockerCli) imagePullPrivileged(authConfig types.AuthConfig, imageID, tag string, requestPrivilege lib.RequestPrivilegeFunc) error {
 
-	encodedAuth, err := authConfig.EncodeToBase64()
+	encodedAuth, err := cliconfig.EncodeAuthToBase64(authConfig)
 	if err != nil {
 		return err
 	}

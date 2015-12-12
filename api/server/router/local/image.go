@@ -17,7 +17,6 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builder/dockerfile"
-	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/daemon/daemonbuilder"
 	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/archive"
@@ -91,13 +90,13 @@ func (s *router) postImagesCreate(ctx context.Context, w http.ResponseWriter, r 
 		message = r.Form.Get("message")
 	)
 	authEncoded := r.Header.Get("X-Registry-Auth")
-	authConfig := &cliconfig.AuthConfig{}
+	authConfig := &types.AuthConfig{}
 	if authEncoded != "" {
 		authJSON := base64.NewDecoder(base64.URLEncoding, strings.NewReader(authEncoded))
 		if err := json.NewDecoder(authJSON).Decode(authConfig); err != nil {
 			// for a pull it is not an error if no auth was given
 			// to increase compatibility with the existing api it is defaulting to be empty
-			authConfig = &cliconfig.AuthConfig{}
+			authConfig = &types.AuthConfig{}
 		}
 	}
 
@@ -195,7 +194,7 @@ func (s *router) postImagesPush(ctx context.Context, w http.ResponseWriter, r *h
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
-	authConfig := &cliconfig.AuthConfig{}
+	authConfig := &types.AuthConfig{}
 
 	authEncoded := r.Header.Get("X-Registry-Auth")
 	if authEncoded != "" {
@@ -203,7 +202,7 @@ func (s *router) postImagesPush(ctx context.Context, w http.ResponseWriter, r *h
 		authJSON := base64.NewDecoder(base64.URLEncoding, strings.NewReader(authEncoded))
 		if err := json.NewDecoder(authJSON).Decode(authConfig); err != nil {
 			// to increase compatibility to existing api it is defaulting to be empty
-			authConfig = &cliconfig.AuthConfig{}
+			authConfig = &types.AuthConfig{}
 		}
 	} else {
 		// the old format is supported for compatibility if there was no authConfig header
@@ -303,7 +302,7 @@ func (s *router) getImagesByName(ctx context.Context, w http.ResponseWriter, r *
 
 func (s *router) postBuild(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	var (
-		authConfigs        = map[string]cliconfig.AuthConfig{}
+		authConfigs        = map[string]types.AuthConfig{}
 		authConfigsEncoded = r.Header.Get("X-Registry-Config")
 		buildConfig        = &dockerfile.Config{}
 	)
@@ -560,7 +559,7 @@ func (s *router) getImagesSearch(ctx context.Context, w http.ResponseWriter, r *
 		return err
 	}
 	var (
-		config      *cliconfig.AuthConfig
+		config      *types.AuthConfig
 		authEncoded = r.Header.Get("X-Registry-Auth")
 		headers     = map[string][]string{}
 	)
@@ -570,7 +569,7 @@ func (s *router) getImagesSearch(ctx context.Context, w http.ResponseWriter, r *
 		if err := json.NewDecoder(authJSON).Decode(&config); err != nil {
 			// for a search it is not an error if no auth was given
 			// to increase compatibility with the existing api it is defaulting to be empty
-			config = &cliconfig.AuthConfig{}
+			config = &types.AuthConfig{}
 		}
 	}
 	for k, v := range r.Header {

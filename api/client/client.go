@@ -9,7 +9,6 @@ import (
 
 	"github.com/docker/docker/api/client/lib"
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/pkg/parsers/filters"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/runconfig"
@@ -67,7 +66,7 @@ type apiClient interface {
 	NetworkInspect(networkID string) (types.NetworkResource, error)
 	NetworkList() ([]types.NetworkResource, error)
 	NetworkRemove(networkID string) error
-	RegistryLogin(auth cliconfig.AuthConfig) (types.AuthResponse, error)
+	RegistryLogin(auth types.AuthConfig) (types.AuthResponse, error)
 	ServerVersion() (types.Version, error)
 	VolumeCreate(options types.VolumeCreateRequest) (types.Volume, error)
 	VolumeInspect(volumeID string) (types.Volume, error)
