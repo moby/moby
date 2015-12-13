@@ -143,14 +143,13 @@ as they can be built by running a Unix command in a container.
 Getting started
 ===============
 
-Docker can be installed on your local machine as well as servers - both
-bare metal and virtualized.  It is available as a binary on most modern
-Linux systems, or as a VM on Windows, Mac and other systems.
+Docker can be installed either on your computer for building applications or
+on servers for running them. To get started, [check out the installation
+instructions in the
+documentation](https://docs.docker.com/engine/installation/).
 
 We also offer an [interactive tutorial](https://www.docker.com/tryit/)
 for quickly learning the basics of using Docker.
-
-For up-to-date install instructions, see the [Docs](https://docs.docker.com).
 
 Usage examples
 ==============
