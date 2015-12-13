@@ -225,7 +225,7 @@ release_build() {
 			;;
 		arm)
 			s3Arch=armel
-			# someday, we might potentially support mutliple GOARM values, in which case we might get armhf here too
+			# someday, we might potentially support multiple GOARM values, in which case we might get armhf here too
 			;;
 		*)
 			echo >&2 "error: can't convert $s3Arch to an appropriate value for 'uname -m'"

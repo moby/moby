@@ -20,7 +20,7 @@ import (
 var ErrExtractPointNotDirectory = errors.New("extraction point is not a directory")
 
 // ContainerCopy performs a deprecated operation of archiving the resource at
-// the specified path in the conatiner identified by the given name.
+// the specified path in the container identified by the given name.
 func (daemon *Daemon) ContainerCopy(name string, res string) (io.ReadCloser, error) {
 	container, err := daemon.GetContainer(name)
 	if err != nil {

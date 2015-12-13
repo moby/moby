@@ -101,7 +101,7 @@ ID 260 gen 11 top level 5 path btrfs/subvolumes/3c9a9d7cc6a235eb2de58ca9ef3551c6
 ID 261 gen 12 top level 5 path btrfs/subvolumes/0a17decee4139b0de68478f149cc16346f5e711c5ae3bb969895f22dd6723751
 ```
 
-Under the `/var/lib/docker/btrfs/subvolumes` directoy, each of these subvolumes and snapshots are visible as a normal Unix directory:
+Under the `/var/lib/docker/btrfs/subvolumes` directory, each of these subvolumes and snapshots are visible as a normal Unix directory:
 
 ```bash
 $ ls -l /var/lib/docker/btrfs/subvolumes/

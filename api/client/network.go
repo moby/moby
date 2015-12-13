@@ -130,7 +130,7 @@ func (cli *DockerCli) CmdNetworkDisconnect(args ...string) error {
 	return cli.client.NetworkDisconnect(cmd.Arg(0), cmd.Arg(1))
 }
 
-// CmdNetworkLs lists all the netorks managed by docker daemon
+// CmdNetworkLs lists all the networks managed by docker daemon
 //
 // Usage: docker network ls [OPTIONS]
 func (cli *DockerCli) CmdNetworkLs(args ...string) error {
@@ -198,8 +198,8 @@ func (cli *DockerCli) CmdNetworkInspect(args ...string) error {
 
 // Consolidates the ipam configuration as a group from different related configurations
 // user can configure network with multiple non-overlapping subnets and hence it is
-// possible to corelate the various related parameters and consolidate them.
-// consoidateIpam consolidates subnets, ip-ranges, gateways and auxilary addresses into
+// possible to correlate the various related parameters and consolidate them.
+// consoidateIpam consolidates subnets, ip-ranges, gateways and auxiliary addresses into
 // structured ipam data.
 func consolidateIpam(subnets, ranges, gateways []string, auxaddrs map[string]string) ([]network.IPAMConfig, error) {
 	if len(subnets) < len(ranges) || len(subnets) < len(gateways) {

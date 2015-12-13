@@ -35,7 +35,7 @@ func (s *DockerSuite) TestAttachClosedOnContainerStop(c *check.C) {
 	errChan := make(chan error)
 	go func() {
 		defer close(errChan)
-		// Container is wating for us to signal it to stop
+		// Container is waiting for us to signal it to stop
 		dockerCmd(c, "stop", id)
 		// And wait for the attach command to end
 		errChan <- attachCmd.Wait()

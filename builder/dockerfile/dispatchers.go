@@ -640,7 +640,7 @@ func arg(b *Builder, args []string, attributes map[string]bool, original string)
 
 	// If there is a default value associated with this arg then add it to the
 	// b.buildArgs if one is not already passed to the builder. The args passed
-	// to builder override the defaut value of 'arg'.
+	// to builder override the default value of 'arg'.
 	if _, ok := b.BuildArgs[name]; !ok && hasDefault {
 		b.BuildArgs[name] = value
 	}

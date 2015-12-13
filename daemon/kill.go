@@ -105,7 +105,7 @@ func (daemon *Daemon) Kill(container *container.Container) error {
 	return nil
 }
 
-// killPossibleDeadProcess is a wrapper aroung killSig() suppressing "no such process" error.
+// killPossibleDeadProcess is a wrapper around killSig() suppressing "no such process" error.
 func (daemon *Daemon) killPossiblyDeadProcess(container *container.Container, sig int) error {
 	err := daemon.killWithSignal(container, sig)
 	if err == syscall.ESRCH {

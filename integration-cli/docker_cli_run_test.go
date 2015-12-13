@@ -754,7 +754,7 @@ func (s *DockerSuite) TestRunContainerNetwork(c *check.C) {
 
 func (s *DockerSuite) TestRunNetHostNotAllowedWithLinks(c *check.C) {
 	// TODO Windows: This is Linux specific as --link is not supported and
-	// this will be deprecated in favour of container networking model.
+	// this will be deprecated in favor of container networking model.
 	testRequires(c, DaemonIsLinux, NotUserNamespace)
 	dockerCmd(c, "run", "--name", "linked", "busybox", "true")
 

@@ -17,14 +17,14 @@ import (
 type FsMagic uint32
 
 const (
-	// FsMagicUnsupported is a predifined contant value other than a valid filesystem id.
+	// FsMagicUnsupported is a predefined constant value other than a valid filesystem id.
 	FsMagicUnsupported = FsMagic(0x00000000)
 )
 
 var (
 	// DefaultDriver if a storage driver is not specified.
 	DefaultDriver string
-	// All registred drivers
+	// All registered drivers
 	drivers map[string]InitFunc
 
 	// ErrNotSupported returned when driver is not supported.
@@ -120,7 +120,7 @@ func GetDriver(name, home string, options []string, uidMaps, gidMaps []idtools.I
 	return nil, ErrNotSupported
 }
 
-// getBuiltinDriver initalizes and returns the registered driver, but does not try to load from plugins
+// getBuiltinDriver initializes and returns the registered driver, but does not try to load from plugins
 func getBuiltinDriver(name, home string, options []string, uidMaps, gidMaps []idtools.IDMap) (Driver, error) {
 	if initFunc, exists := drivers[name]; exists {
 		return initFunc(filepath.Join(home, name), options, uidMaps, gidMaps)

@@ -35,7 +35,7 @@ func (l localRoute) Path() string {
 	return l.path
 }
 
-// NewRoute initialies a new local route for the reouter
+// NewRoute initializes a new local router for the reouter
 func NewRoute(method, path string, handler httputils.APIFunc) dkrouter.Route {
 	return localRoute{method, path, handler}
 }

@@ -70,7 +70,7 @@ func TestTestData(t *testing.T) {
 		}
 
 		if runtime.GOOS == "windows" {
-			// CRLF --> CR to match Unix behaviour
+			// CRLF --> CR to match Unix behavior
 			content = bytes.Replace(content, []byte{'\x0d', '\x0a'}, []byte{'\x0a'}, -1)
 		}
 

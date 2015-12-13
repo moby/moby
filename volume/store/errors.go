@@ -22,7 +22,7 @@ type OpErr struct {
 	Name string
 }
 
-// Error satifies the built-in error interface type.
+// Error satisfies the built-in error interface type.
 func (e *OpErr) Error() string {
 	if e == nil {
 		return "<nil>"

@@ -266,7 +266,7 @@ func includeContainerInList(container *container.Container, ctx *listContext) it
 		return excludeContainer
 	}
 
-	// Stop interation when the container arrives to the filter container
+	// Stop iteration when the container arrives to the filter container
 	if ctx.sinceFilter != nil {
 		if container.ID == ctx.sinceFilter.ID {
 			return stopIteration

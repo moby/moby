@@ -309,7 +309,7 @@ func TestCompareDirectoryEntries(t *testing.T) {
 	}
 }
 
-// FIXME make an "unhappy path" test for ListTar without "panicing" :-)
+// FIXME make an "unhappy path" test for ListTar without "panicking" :-)
 func TestListTar(t *testing.T) {
 	tmpFolder, err := ioutil.TempDir("", "integration-cli-utils-list-tar")
 	if err != nil {

@@ -343,7 +343,7 @@ func setupPlatformVolume(u []string, w []string) ([]string, string) {
 	return a, s
 }
 
-// Simple parse with MacAddress validatation
+// Simple parse with MacAddress validation
 func TestParseWithMacAddress(t *testing.T) {
 	invalidMacAddress := "--mac-address=invalidMacAddress"
 	validMacAddress := "--mac-address=92:d0:c6:0a:29:33"

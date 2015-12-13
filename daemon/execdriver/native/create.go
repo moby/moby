@@ -284,7 +284,7 @@ func (d *Driver) setupMounts(container *configs.Config, c *execdriver.Command) e
 		userMounts[m.Destination] = struct{}{}
 	}
 
-	// Filter out mounts that are overriden by user supplied mounts
+	// Filter out mounts that are overridden by user supplied mounts
 	var defaultMounts []*configs.Mount
 	_, mountDev := userMounts["/dev"]
 	for _, m := range container.Mounts {

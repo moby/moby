@@ -121,7 +121,7 @@ func (m *containerMonitor) ExitOnNext() {
 }
 
 // Close closes the container's resources such as networking allocations and
-// unmounts the contatiner's root filesystem
+// unmounts the container's root filesystem
 func (m *containerMonitor) Close() error {
 	// Cleanup networking and mounts
 	m.supervisor.Cleanup(m.container)

@@ -45,7 +45,7 @@ const (
 	// RXReservedNames are reserved names not possible on Windows
 	RXReservedNames = `(con)|(prn)|(nul)|(aux)|(com[1-9])|(lpt[1-9])`
 
-	// RXSource is the combined possiblities for a source
+	// RXSource is the combined possibilities for a source
 	RXSource = `((?P<source>((` + RXHostDir + `)|(` + RXName + `))):)?`
 
 	// Source. Can be either a host directory, a name, or omitted:

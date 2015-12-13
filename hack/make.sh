@@ -12,7 +12,7 @@ set -e
 #   will be used as Docker binary version and package version.
 # - The hash of the git commit will also be included in the Docker binary,
 #   with the suffix -dirty if the repository isn't clean.
-# - The script is intented to be run inside the docker container specified
+# - The script is intended to be run inside the docker container specified
 #   in the Dockerfile at the root of the source. In other words:
 #   DO NOT CALL THIS SCRIPT DIRECTLY.
 # - The right way to call this script is to invoke "make" from
