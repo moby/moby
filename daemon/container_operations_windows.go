@@ -16,6 +16,11 @@ func (daemon *Daemon) setupLinkedContainers(container *container.Container) ([]s
 	return nil, nil
 }
 
+// updateContainerNetworkSettings update the network settings
+func (daemon *Daemon) updateContainerNetworkSettings(container *container.Container) error {
+	return nil
+}
+
 func (daemon *Daemon) initializeNetworking(container *container.Container) error {
 	return nil
 }

@@ -106,6 +106,10 @@ func (daemon *Daemon) create(params *ContainerCreateConfig) (retC *container.Con
 		return nil, err
 	}
 
+	if err := daemon.updateContainerNetworkSettings(container); err != nil {
+		return nil, err
+	}
+
 	if err := container.ToDiskLocking(); err != nil {
 		logrus.Errorf("Error saving new container to disk: %v", err)
 		return nil, err
