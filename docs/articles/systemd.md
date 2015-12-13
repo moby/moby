@@ -12,7 +12,7 @@ weight = 7
 # Control and configure Docker with systemd
 
 Many Linux distributions use systemd to start the Docker daemon. This document
-shows a few examples of how to customise Docker's settings.
+shows a few examples of how to customize Docker's settings.
 
 ## Starting the Docker daemon
 

@@ -44,7 +44,7 @@ func GetTimestamp(value string, reference time.Time) (string, error) {
 		// we want the number of colons in the T portion of the timestamp
 		tcolons := strings.Count(value, ":")
 		// if parseInLocation is off and we have a +/- zone offset (not Z) then
-		// there will be an extra colon in the input for the tz offset subract that
+		// there will be an extra colon in the input for the tz offset subtract that
 		// colon from the tcolons count
 		if !parseInLocation && !strings.ContainsAny(value, "zZ") && tcolons > 0 {
 			tcolons--

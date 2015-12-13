@@ -54,7 +54,7 @@ func (sf *StreamFormatter) FormatStatus(id, format string, a ...interface{}) []b
 	return []byte(str + streamNewline)
 }
 
-// FormatError formats the specifed error.
+// FormatError formats the specified error.
 func (sf *StreamFormatter) FormatError(err error) []byte {
 	if sf.json {
 		jsonError, ok := err.(*jsonmessage.JSONError)

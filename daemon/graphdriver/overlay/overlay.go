@@ -30,7 +30,7 @@ var (
 	ErrApplyDiffFallback = fmt.Errorf("Fall back to normal ApplyDiff")
 )
 
-// ApplyDiffProtoDriver wraps the ProtoDriver by extending the inteface with ApplyDiff method.
+// ApplyDiffProtoDriver wraps the ProtoDriver by extending the interface with ApplyDiff method.
 type ApplyDiffProtoDriver interface {
 	graphdriver.ProtoDriver
 	// ApplyDiff writes the diff to the archive for the given id and parent id.

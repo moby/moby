@@ -100,7 +100,7 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 			return err
 		}
 
-		// 4. Wait for attachement to break.
+		// 4. Wait for attachment to break.
 		if c.Config.Tty && cli.isTerminalOut {
 			if err := cli.monitorTtySize(containerID, false); err != nil {
 				fmt.Fprintf(cli.err, "Error monitoring TTY size: %s\n", err)

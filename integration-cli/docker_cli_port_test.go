@@ -223,7 +223,7 @@ func (s *DockerSuite) TestUnpublishedPortsInPsOutput(c *check.C) {
 	// Cannot find expected port binding (expBnd2) in docker ps output
 	c.Assert(out, checker.Contains, expBnd2)
 
-	// Remove container now otherwise it will interfeer with next test
+	// Remove container now otherwise it will interfere with next test
 	stopRemoveContainer(id, c)
 
 	// Run the container with explicit port bindings and no exposed ports
@@ -236,7 +236,7 @@ func (s *DockerSuite) TestUnpublishedPortsInPsOutput(c *check.C) {
 	c.Assert(out, checker.Contains, expBnd1)
 	// Cannot find expected port binding (expBnd2) in docker ps output
 	c.Assert(out, checker.Contains, expBnd2)
-	// Remove container now otherwise it will interfeer with next test
+	// Remove container now otherwise it will interfere with next test
 	stopRemoveContainer(id, c)
 
 	// Run the container with one unpublished exposed port and one explicit port binding

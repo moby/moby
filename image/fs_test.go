@@ -268,7 +268,7 @@ func testGetSet(t *testing.T, store StoreBackend) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// skipping use of digest pkg because its used by the imlementation
+	// skipping use of digest pkg because its used by the implementation
 	h := sha256.New()
 	_, err = h.Write(randomInput)
 	if err != nil {

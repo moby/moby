@@ -55,7 +55,7 @@ The `boot2docker` command reads its configuration from the `$BOOT2DOCKER_PROFILE
   The configuration shows you where `boot2docker` is looking for the `profile` file. It also output the settings that are in use.
 
 
-2. Initialise a default file to customize using `boot2docker config > ~/.boot2docker/profile` command.
+2. Initialize a default file to customize using `boot2docker config > ~/.boot2docker/profile` command.
 
 3. Add the following lines to `$HOME/.boot2docker/profile`:
 

@@ -295,7 +295,7 @@ func ConsumeWithSpeed(reader io.Reader, chunkSize int, interval time.Duration, s
 	}
 }
 
-// ParseCgroupPaths arses 'procCgroupData', which is output of '/proc/<pid>/cgroup', and returns
+// ParseCgroupPaths parses 'procCgroupData', which is output of '/proc/<pid>/cgroup', and returns
 // a map which cgroup name as key and path as value.
 func ParseCgroupPaths(procCgroupData string) map[string]string {
 	cgroupPaths := map[string]string{}
@@ -337,7 +337,7 @@ func (c *ChannelBuffer) ReadTimeout(p []byte, n time.Duration) (int, error) {
 	}
 }
 
-// RunAtDifferentDate runs the specifed function with the given time.
+// RunAtDifferentDate runs the specified function with the given time.
 // It changes the date of the system, which can led to weird behaviors.
 func RunAtDifferentDate(date time.Time, block func()) {
 	// Layout for date. MMDDhhmmYYYY

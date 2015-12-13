@@ -139,7 +139,7 @@ func versionMiddleware(handler httputils.APIFunc) httputils.APIFunc {
 
 // handleWithGlobalMiddlwares wraps the handler function for a request with
 // the server's global middlewares. The order of the middlewares is backwards,
-// meaning that the first in the list will be evaludated last.
+// meaning that the first in the list will be evaluated last.
 //
 // Example: handleWithGlobalMiddlewares(s.getContainersName)
 //

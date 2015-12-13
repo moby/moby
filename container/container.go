@@ -518,7 +518,7 @@ func (container *Container) AddMountPointWithVolume(destination string, vol volu
 	}
 }
 
-// IsDestinationMounted checkes whether a path is mounted on the container or not.
+// IsDestinationMounted checks whether a path is mounted on the container or not.
 func (container *Container) IsDestinationMounted(destination string) bool {
 	return container.MountPoints[destination] != nil
 }

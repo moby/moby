@@ -204,7 +204,7 @@ Respond with a string error if an error occurred.
 {}
 ```
 
-Perform neccessary tasks to release resources help by the plugin, for example
+Perform necessary tasks to release resources help by the plugin, for example
 unmounting all the layered file systems.
 
 **Response**:

@@ -4612,7 +4612,7 @@ func (s *DockerSuite) TestBuildInvalidTag(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	name := "abcd:" + stringutils.GenerateRandomAlphaOnlyString(200)
 	_, out, err := buildImageWithOut(name, "FROM scratch\nMAINTAINER quux\n", true)
-	// if the error doesnt check for illegal tag name, or the image is built
+	// if the error doesn't check for illegal tag name, or the image is built
 	// then this should fail
 	if !strings.Contains(out, "invalid reference format") || strings.Contains(out, "Sending build context to Docker daemon") {
 		c.Fatalf("failed to stop before building. Error: %s, Output: %s", err, out)
@@ -4817,7 +4817,7 @@ func (s *DockerSuite) TestBuildVerifySingleQuoteFails(c *check.C) {
 	// This testcase is supposed to generate an error because the
 	// JSON array we're passing in on the CMD uses single quotes instead
 	// of double quotes (per the JSON spec). This means we interpret it
-	// as a "string" insead of "JSON array" and pass it on to "sh -c" and
+	// as a "string" instead of "JSON array" and pass it on to "sh -c" and
 	// it should barf on it.
 	name := "testbuildsinglequotefails"
 

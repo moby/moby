@@ -177,7 +177,7 @@ func (d *Driver) Get(id, mountLabel string) (string, error) {
 
 	idFile := path.Join(mp, "id")
 	if _, err := os.Stat(idFile); err != nil && os.IsNotExist(err) {
-		// Create an "id" file with the container/image id in it to help reconscruct this in case
+		// Create an "id" file with the container/image id in it to help reconstruct this in case
 		// of later problems
 		if err := ioutil.WriteFile(idFile, []byte(id), 0600); err != nil {
 			d.DeviceSet.UnmountDevice(id, mp)

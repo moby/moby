@@ -38,7 +38,7 @@ func loginV1(authConfig *cliconfig.AuthConfig, registryEndpoint *Endpoint) (stri
 
 	loginAgainstOfficialIndex := serverAddress == IndexServer
 
-	// to avoid sending the server address to the server it should be removed before being marshalled
+	// to avoid sending the server address to the server it should be removed before being marshaled
 	authCopy := *authConfig
 	authCopy.ServerAddress = ""
 

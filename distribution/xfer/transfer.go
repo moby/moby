@@ -61,7 +61,7 @@ type transfer struct {
 
 	// running remains open as long as the transfer is in progress.
 	running chan struct{}
-	// hasWatchers stays open until all watchers release the trasnfer.
+	// hasWatchers stays open until all watchers release the transfer.
 	hasWatchers chan struct{}
 
 	// broadcastDone is true if the master progress channel has closed.
@@ -240,9 +240,9 @@ func (t *transfer) Cancel() {
 
 // DoFunc is a function called by the transfer manager to actually perform
 // a transfer. It should be non-blocking. It should wait until the start channel
-// is closed before transfering any data. If the function closes inactive, that
+// is closed before transferring any data. If the function closes inactive, that
 // signals to the transfer manager that the job is no longer actively moving
-// data - for example, it may be waiting for a dependent tranfer to finish.
+// data - for example, it may be waiting for a dependent transfer to finish.
 // This prevents it from taking up a slot.
 type DoFunc func(progressChan chan<- progress.Progress, start <-chan struct{}, inactive chan<- struct{}) Transfer
 

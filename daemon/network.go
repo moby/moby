@@ -18,7 +18,7 @@ const (
 )
 
 // NetworkControllerEnabled checks if the networking stack is enabled.
-// This feature depends on OS primitives and it's dissabled in systems like Windows.
+// This feature depends on OS primitives and it's disabled in systems like Windows.
 func (daemon *Daemon) NetworkControllerEnabled() bool {
 	return daemon.netController != nil
 }

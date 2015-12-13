@@ -63,7 +63,7 @@ type BlkioStatEntry struct {
 // BlkioStats stores All IO service stats for data read and write
 // TODO Windows: This can be factored out
 type BlkioStats struct {
-	// number of bytes tranferred to and from the block device
+	// number of bytes transferred to and from the block device
 	IoServiceBytesRecursive []BlkioStatEntry `json:"io_service_bytes_recursive"`
 	IoServicedRecursive     []BlkioStatEntry `json:"io_serviced_recursive"`
 	IoQueuedRecursive       []BlkioStatEntry `json:"io_queue_recursive"`

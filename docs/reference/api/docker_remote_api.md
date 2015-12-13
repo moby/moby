@@ -99,11 +99,11 @@ This section lists each version from latest to oldest.  Each listing includes a 
 * `GET /info` Now returns `Architecture` and `OSType` fields, providing information
   about the host architecture and operating system type that the daemon runs on.
 * `GET /networks/(name)` now returns a `Name` field for each container attached to the network.
-* `GET /version` now returns the `BuildTime` field in RFC3339Nano format to make it 
+* `GET /version` now returns the `BuildTime` field in RFC3339Nano format to make it
   consistent with other date/time values returned by the API.
 * `AuthConfig` now supports a `registrytoken` for token based authentication
 * `POST /containers/create` now has a 4M minimum value limit for `HostConfig.KernelMemory`
-* Pushes initated with `POST /images/(name)/push` and pulls initiated with `POST /images/create`
+* Pushes initiated with `POST /images/(name)/push` and pulls initiated with `POST /images/create`
   will be cancelled if the HTTP connection making the API request is closed before
   the push or pull completes.
 

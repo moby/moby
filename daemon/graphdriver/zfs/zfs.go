@@ -31,7 +31,7 @@ func init() {
 	graphdriver.Register("zfs", Init)
 }
 
-// Logger returns a zfs logger implmentation.
+// Logger returns a zfs logger implementation.
 type Logger struct{}
 
 // Log wraps log message from ZFS driver with a prefix '[zfs]'.
