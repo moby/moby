@@ -13,7 +13,7 @@ import (
 func setupDumpStackTrap() {
 	// Windows does not support signals like *nix systems. So instead of
 	// trapping on SIGUSR1 to dump stacks, we wait on a Win32 event to be
-	// signalled.
+	// signaled.
 	go func() {
 		sa := syscall.SecurityAttributes{
 			Length: 0,

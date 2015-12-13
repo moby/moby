@@ -41,7 +41,7 @@ func naiveSelf() string {
 	if absName, err := filepath.Abs(name); err == nil {
 		return absName
 	}
-	// if we coudn't get absolute name, return original
+	// if we couldn't get absolute name, return original
 	// (NOTE: Go only errors on Abs() if os.Getwd fails)
 	return name
 }

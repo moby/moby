@@ -1228,7 +1228,7 @@ func (v mergeVal) IsBoolFlag() bool {
 
 // Merge is an helper function that merges n FlagSets into a single dest FlagSet
 // In case of name collision between the flagsets it will apply
-// the destination FlagSet's errorHandling behaviour.
+// the destination FlagSet's errorHandling behavior.
 func Merge(dest *FlagSet, flagsets ...*FlagSet) error {
 	for _, fset := range flagsets {
 		for k, f := range fset.formal {

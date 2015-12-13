@@ -290,7 +290,7 @@ func (s *FakeStore) Watch(key string, stopCh <-chan struct{}) (<-chan *store.KVP
 }
 
 // WatchTree will fail the first time, and return the mockKVchan afterwards.
-// This is the behaviour we need for testing.. If we need 'moar', should update this.
+// This is the behavior we need for testing.. If we need 'moar', should update this.
 func (s *FakeStore) WatchTree(directory string, stopCh <-chan struct{}) (<-chan []*store.KVPair, error) {
 	if s.watchTreeCallCount == 0 {
 		s.watchTreeCallCount = 1

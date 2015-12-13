@@ -31,7 +31,7 @@ type (
 	Archive io.ReadCloser
 	// Reader is a type of io.Reader.
 	Reader io.Reader
-	// Compression is the state represtents if compressed or not.
+	// Compression is the state represents if compressed or not.
 	Compression int
 	// TarChownOptions wraps the chown options UID and GID.
 	TarChownOptions struct {

@@ -87,7 +87,7 @@ func openNextAvailableLoopback(index int, sparseFile *os.File) (loopFile *os.Fil
 func AttachLoopDevice(sparseName string) (loop *os.File, err error) {
 
 	// Try to retrieve the next available loopback device via syscall.
-	// If it fails, we discard error and start loopking for a
+	// If it fails, we discard error and start looping for a
 	// loopback from index 0.
 	startIndex, err := getNextFreeLoopbackIndex()
 	if err != nil {

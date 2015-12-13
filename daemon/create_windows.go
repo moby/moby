@@ -49,9 +49,9 @@ func (daemon *Daemon) createContainerPlatformSpecificSettings(container *contain
 
 		// FIXME Windows: This code block is present in the Linux version and
 		// allows the contents to be copied to the container FS prior to it
-		// being started. However, the function utilises the FollowSymLinkInScope
+		// being started. However, the function utilizes the FollowSymLinkInScope
 		// path which does not cope with Windows volume-style file paths. There
-		// is a seperate effort to resolve this (@swernli), so this processing
+		// is a separate effort to resolve this (@swernli), so this processing
 		// is deferred for now. A case where this would be useful is when
 		// a dockerfile includes a VOLUME statement, but something is created
 		// in that directory during the dockerfile processing. What this means

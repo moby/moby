@@ -71,7 +71,7 @@ type ConfigFile struct {
 	filename    string                // Note: not serialized - for internal use only
 }
 
-// NewConfigFile initilizes an empty configuration file for the given filename 'fn'
+// NewConfigFile initializes an empty configuration file for the given filename 'fn'
 func NewConfigFile(fn string) *ConfigFile {
 	return &ConfigFile{
 		AuthConfigs: make(map[string]AuthConfig),

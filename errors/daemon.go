@@ -81,7 +81,7 @@ var (
 		HTTPStatusCode: http.StatusInternalServerError,
 	})
 
-	// ErrorCodeEmptyID is generated when an ID is the emptry string.
+	// ErrorCodeEmptyID is generated when an ID is the empty string.
 	ErrorCodeEmptyID = errcode.Register(errGroup, errcode.ErrorDescriptor{
 		Value:          "EMPTYID",
 		Message:        "Invalid empty id",

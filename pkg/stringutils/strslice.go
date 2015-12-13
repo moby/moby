@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-// StrSlice representes a string or an array of strings.
+// StrSlice represents a string or an array of strings.
 // We need to override the json decoder to accept both options.
 type StrSlice struct {
 	parts []string

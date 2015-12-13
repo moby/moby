@@ -229,7 +229,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		}
 	}
 
-	// Can't evalute options passed into --tmpfs until we actually mount
+	// Can't evaluate options passed into --tmpfs until we actually mount
 	tmpfs := make(map[string]string)
 	for _, t := range flTmpfs.GetAll() {
 		if arr := strings.SplitN(t, ":", 2); len(arr) > 1 {

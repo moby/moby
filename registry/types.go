@@ -26,7 +26,7 @@ type SearchResults struct {
 	Query string `json:"query"`
 	// NumResults indicates the number of results the query returned
 	NumResults int `json:"num_results"`
-	// Results is a slice containing the acutal results for the search
+	// Results is a slice containing the actual results for the search
 	Results []SearchResult `json:"results"`
 }
 

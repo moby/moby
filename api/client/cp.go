@@ -231,7 +231,7 @@ func (cli *DockerCli) copyToContainer(srcPath, dstContainer, dstPath string, cpP
 	// Ignore any error and assume that the parent directory of the destination
 	// path exists, in which case the copy may still succeed. If there is any
 	// type of conflict (e.g., non-directory overwriting an existing directory
-	// or vice versia) the extraction will fail. If the destination simply did
+	// or vice versa) the extraction will fail. If the destination simply did
 	// not exist, but the parent directory does, the extraction will still
 	// succeed.
 	if err == nil {
@@ -266,7 +266,7 @@ func (cli *DockerCli) copyToContainer(srcPath, dstContainer, dstPath string, cpP
 		// With the stat info about the local source as well as the
 		// destination, we have enough information to know whether we need to
 		// alter the archive that we upload so that when the server extracts
-		// it to the specified directory in the container we get the disired
+		// it to the specified directory in the container we get the desired
 		// copy behavior.
 
 		// See comments in the implementation of `archive.PrepareArchiveCopy`

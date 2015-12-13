@@ -10,7 +10,7 @@ parent = "smn_linux"
 
 # openSUSE and SUSE Linux Enterprise
 
-This page provides instructions for installing and configuring the lastest
+This page provides instructions for installing and configuring the latest
 Docker Engine software on openSUSE and SUSE systems.
 
 >**Note:** You can also find bleeding edge Docker versions inside of the repositories maintained by the [Virtualization:containers project](https://build.opensuse.org/project/show/Virtualization:containers) on the [Open Build Service](https://build.opensuse.org/). This project delivers also other packages that are related with the Docker ecosystem (for example, Docker Compose).

@@ -128,7 +128,7 @@ func (filters Args) Len() int {
 	return len(filters.fields)
 }
 
-// MatchKVList returns true if the values for the specified field maches the ones
+// MatchKVList returns true if the values for the specified field matches the ones
 // from the sources.
 // e.g. given Args are {'label': {'label1=1','label2=1'}, 'image.name', {'ubuntu'}},
 //      field is 'label' and sources are {'label1': '1', 'label2': '2'}

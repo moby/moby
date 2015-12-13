@@ -100,8 +100,8 @@ func (tr *authTransport) RoundTrip(orig *http.Request) (*http.Response, error) {
 	// Authorization should not be set on 302 redirect for untrusted locations.
 	// This logic mirrors the behavior in addRequiredHeadersToRedirectedRequests.
 	// As the authorization logic is currently implemented in RoundTrip,
-	// a 302 redirect is detected by looking at the Referer header as go http package adds said header.
-	// This is safe as Docker doesn't set Referer in other scenarios.
+	// a 302 redirect is detected by looking at the Referrer header as go http package adds said header.
+	// This is safe as Docker doesn't set Referrer in other scenarios.
 	if orig.Header.Get("Referer") != "" && !trustedLocation(orig) {
 		return tr.RoundTripper.RoundTrip(orig)
 	}

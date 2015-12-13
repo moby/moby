@@ -125,7 +125,7 @@ type Endpoint struct {
 	URLBuilder     *v2.URLBuilder
 }
 
-// Get the formated URL for the root of this registry Endpoint
+// Get the formatted URL for the root of this registry Endpoint
 func (e *Endpoint) String() string {
 	return fmt.Sprintf("%s/v%d/", e.URL, e.Version)
 }
