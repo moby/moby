@@ -1,10 +1,40 @@
 package bitseq
 
 import (
+	"fmt"
+	"io/ioutil"
+	"math/rand"
 	"testing"
+	"time"
 
+	"github.com/docker/libkv/store"
+	"github.com/docker/libnetwork/datastore"
 	_ "github.com/docker/libnetwork/testutils"
 )
+
+const (
+	defaultPrefix = "/tmp/libnetwork/test/bitseq"
+)
+
+func randomLocalStore() (datastore.DataStore, error) {
+	tmp, err := ioutil.TempFile("", "libnetwork-")
+	if err != nil {
+		return nil, fmt.Errorf("Error creating temp file: %v", err)
+	}
+	if err := tmp.Close(); err != nil {
+		return nil, fmt.Errorf("Error closing temp file: %v", err)
+	}
+	return datastore.NewDataStore(datastore.LocalScope, &datastore.ScopeCfg{
+		Client: datastore.ScopeClientCfg{
+			Provider: "boltdb",
+			Address:  defaultPrefix + tmp.Name(),
+			Config: &store.Config{
+				Bucket:            "libnetwork",
+				ConnectionTimeout: 3 * time.Second,
+			},
+		},
+	})
+}
 
 func TestSequenceGetAvailableBit(t *testing.T) {
 	input := []struct {
@@ -553,16 +583,33 @@ func TestSet(t *testing.T) {
 }
 
 func TestSetUnset(t *testing.T) {
-	numBits := uint64(64 * 1024)
+	numBits := uint64(32 * blockLen)
 	hnd, err := NewHandle("", nil, "", numBits)
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	if err := hnd.Set(uint64(32 * blockLen)); err == nil {
+		t.Fatalf("Expected failure, but succeeded")
+	}
+	if err := hnd.Unset(uint64(32 * blockLen)); err == nil {
+		t.Fatalf("Expected failure, but succeeded")
+	}
+
 	// set and unset all one by one
 	for hnd.Unselected() > 0 {
 		if _, err := hnd.SetAny(); err != nil {
 			t.Fatal(err)
 		}
+	}
+	if _, err := hnd.SetAny(); err != ErrNoBitAvailable {
+		t.Fatalf("Expected error. Got success")
+	}
+	if _, err := hnd.SetAnyInRange(10, 20); err != ErrNoBitAvailable {
+		t.Fatalf("Expected error. Got success")
+	}
+	if err := hnd.Set(50); err != ErrBitAllocated {
+		t.Fatalf("Expected error. Got %v: %s", err, hnd)
 	}
 	i := uint64(0)
 	for hnd.Unselected() < numBits {
@@ -744,5 +791,192 @@ func TestSetAnyInRange(t *testing.T) {
 	}
 	if o != 247 {
 		t.Fatalf("Unexpected ordinal: %d", o)
+	}
+}
+
+func TestMethods(t *testing.T) {
+	numBits := uint64(256 * blockLen)
+	hnd, err := NewHandle("path/to/data", nil, "sequence1", uint64(numBits))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if hnd.Bits() != numBits {
+		t.Fatalf("Unexpected bit number: %d", hnd.Bits())
+	}
+
+	if hnd.Unselected() != numBits {
+		t.Fatalf("Unexpected bit number: %d", hnd.Unselected())
+	}
+
+	exp := "(0x0, 256)->end"
+	if hnd.head.toString() != exp {
+		t.Fatalf("Unexpected sequence string: %s", hnd.head.toString())
+	}
+
+	for i := 0; i < 192; i++ {
+		_, err := hnd.SetAny()
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	exp = "(0xffffffff, 6)->(0x0, 250)->end"
+	if hnd.head.toString() != exp {
+		t.Fatalf("Unexpected sequence string: %s", hnd.head.toString())
+	}
+}
+
+func TestRandomAllocateDeallocate(t *testing.T) {
+	ds, err := randomLocalStore()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	numBits := int(16 * blockLen)
+	hnd, err := NewHandle("bitseq-test/data/", ds, "test1", uint64(numBits))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	seed := time.Now().Unix()
+	rand.Seed(seed)
+
+	// Allocate all bits using a random pattern
+	pattern := rand.Perm(numBits)
+	for _, bit := range pattern {
+		err := hnd.Set(uint64(bit))
+		if err != nil {
+			t.Fatalf("Unexpected failure on allocation of %d: %v.\nSeed: %d.\n%s", bit, err, seed, hnd)
+		}
+	}
+	if hnd.Unselected() != 0 {
+		t.Fatalf("Expected full sequence. Instead found %d free bits. Seed: %d.\n%s", hnd.unselected, seed, hnd)
+	}
+	if hnd.head.toString() != "(0xffffffff, 16)->end" {
+		t.Fatalf("Unexpected db: %s", hnd.head.toString())
+	}
+
+	// Deallocate all bits using a random pattern
+	pattern = rand.Perm(numBits)
+	for _, bit := range pattern {
+		err := hnd.Unset(uint64(bit))
+		if err != nil {
+			t.Fatalf("Unexpected failure on deallocation of %d: %v.\nSeed: %d.\n%s", bit, err, seed, hnd)
+		}
+	}
+	if hnd.Unselected() != uint64(numBits) {
+		t.Fatalf("Expected full sequence. Instead found %d free bits. Seed: %d.\n%s", hnd.unselected, seed, hnd)
+	}
+	if hnd.head.toString() != "(0x0, 16)->end" {
+		t.Fatalf("Unexpected db: %s", hnd.head.toString())
+	}
+
+	err = hnd.Destroy()
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestAllocateRandomDeallocate(t *testing.T) {
+	ds, err := randomLocalStore()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	numBlocks := uint32(8)
+	numBits := int(numBlocks * blockLen)
+	hnd, err := NewHandle("bitseq-test/data/", ds, "test1", uint64(numBits))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expected := &sequence{block: 0xffffffff, count: uint64(numBlocks / 2), next: &sequence{block: 0x0, count: uint64(numBlocks / 2)}}
+
+	// Allocate first half of the bits
+	for i := 0; i < numBits/2; i++ {
+		_, err := hnd.SetAny()
+		if err != nil {
+			t.Fatalf("Unexpected failure on allocation %d: %v\n%s", i, err, hnd)
+		}
+	}
+	if hnd.Unselected() != uint64(numBits/2) {
+		t.Fatalf("Expected full sequence. Instead found %d free bits. %s", hnd.unselected, hnd)
+	}
+	if !hnd.head.equal(expected) {
+		t.Fatalf("Unexpected sequence. Got:\n%s", hnd)
+	}
+
+	seed := time.Now().Unix()
+	rand.Seed(seed)
+
+	// Deallocate half of the allocated bits following a random pattern
+	pattern := rand.Perm(numBits / 2)
+	for i := 0; i < numBits/4; i++ {
+		bit := pattern[i]
+		err := hnd.Unset(uint64(bit))
+		if err != nil {
+			t.Fatalf("Unexpected failure on deallocation of %d: %v.\nSeed: %d.\n%s", bit, err, seed, hnd)
+		}
+	}
+	if hnd.Unselected() != uint64(3*numBits/4) {
+		t.Fatalf("Expected full sequence. Instead found %d free bits.\nSeed: %d.\n%s", hnd.unselected, seed, hnd)
+	}
+
+	// Request a quarter of bits
+	for i := 0; i < numBits/4; i++ {
+		_, err := hnd.SetAny()
+		if err != nil {
+			t.Fatalf("Unexpected failure on allocation %d: %v\nSeed: %d\n%s", i, err, seed, hnd)
+		}
+	}
+	if hnd.Unselected() != uint64(numBits/2) {
+		t.Fatalf("Expected half sequence. Instead found %d free bits.\nSeed: %d\n%s", hnd.unselected, seed, hnd)
+	}
+	if !hnd.head.equal(expected) {
+		t.Fatalf("Unexpected sequence. Got:\n%s", hnd)
+	}
+
+	err = hnd.Destroy()
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestRetrieveFromStore(t *testing.T) {
+	ds, err := randomLocalStore()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	numBits := int(8 * blockLen)
+	hnd, err := NewHandle("bitseq-test/data/", ds, "test1", uint64(numBits))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Allocate first half of the bits
+	for i := 0; i < numBits/2; i++ {
+		_, err := hnd.SetAny()
+		if err != nil {
+			t.Fatalf("Unexpected failure on allocation %d: %v\n%s", i, err, hnd)
+		}
+	}
+	hnd0 := hnd.String()
+
+	// Retrieve same handle
+	hnd, err = NewHandle("bitseq-test/data/", ds, "test1", uint64(numBits))
+	if err != nil {
+		t.Fatal(err)
+	}
+	hnd1 := hnd.String()
+
+	if hnd1 != hnd0 {
+		t.Fatalf("%v\n%v", hnd0, hnd1)
+	}
+
+	err = hnd.Destroy()
+	if err != nil {
+		t.Fatal(err)
 	}
 }
