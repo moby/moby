@@ -171,7 +171,7 @@ func (s *DockerSuite) TestImagesEnsureDanglingImageOnlyListedOnce(c *check.C) {
 	dockerCmd(c, "tag", "-f", "busybox", "foobox")
 
 	out, _ = dockerCmd(c, "images", "-q", "-f", "dangling=true")
-	// Exect one dangling image
+	// Expect one dangling image
 	c.Assert(strings.Count(out, imageID), checker.Equals, 1)
 }
 

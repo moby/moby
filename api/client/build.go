@@ -145,7 +145,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	// then make sure we send both files over to the daemon
 	// because Dockerfile is, obviously, needed no matter what, and
 	// .dockerignore is needed to know if either one needs to be
-	// removed.  The deamon will remove them for us, if needed, after it
+	// removed. The daemon will remove them for us, if needed, after it
 	// parses the Dockerfile. Ignore errors here, as they will have been
 	// caught by ValidateContextDirectory above.
 	var includes = []string{"."}

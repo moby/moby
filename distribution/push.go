@@ -41,7 +41,7 @@ type ImagePushConfig struct {
 	// MetadataStore is the storage backend for distribution-specific
 	// metadata.
 	MetadataStore metadata.Store
-	// LayerStore manges layers.
+	// LayerStore manages layers.
 	LayerStore layer.Store
 	// ImageStore manages images.
 	ImageStore image.Store

@@ -170,7 +170,7 @@ func (s *DockerNetworkSuite) SetUpSuite(c *check.C) {
 			return
 		}
 		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
-		// make sure libnetwork is now asking to release the expected address fro mthe expected poolid
+		// make sure libnetwork is now asking to release the expected address from the expected poolid
 		if addressRequest.PoolID != poolID {
 			fmt.Fprintf(w, `{"Error":"unknown pool id"}`)
 		} else if addressReleaseReq.Address != gw {
@@ -429,7 +429,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkIpamMultipleNetworks(c *check.C) {
 	assertNwIsAvailable(c, "test5")
 
 	// test network with multiple subnets
-	// bridge network doesnt support multiple subnets. hence, use a dummy driver that supports
+	// bridge network doesn't support multiple subnets. hence, use a dummy driver that supports
 
 	dockerCmd(c, "network", "create", "-d", dummyNetworkDriver, "--subnet=192.168.0.0/16", "--subnet=192.170.0.0/16", "test6")
 	assertNwIsAvailable(c, "test6")
@@ -491,7 +491,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkIpamInvalidCombinations(c *check.C
 	_, _, err = dockerCmdWithError("network", "create", "--subnet=192.168.0.0/16", "--gateway=192.168.0.1", "--gateway=192.168.0.2", "test")
 	c.Assert(err, check.NotNil)
 
-	// Multiple overlaping subnets in the same network must fail
+	// Multiple overlapping subnets in the same network must fail
 	_, _, err = dockerCmdWithError("network", "create", "--subnet=192.168.0.0/16", "--subnet=192.168.1.0/16", "test")
 	c.Assert(err, check.NotNil)
 

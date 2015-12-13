@@ -137,7 +137,7 @@ func (s *DockerSuite) TestPostContainersAttach(c *check.C) {
 	// Since the container only emits stdout, attaching to stderr should return nothing.
 	expectTimeout(conn, br, "stdout")
 
-	// Test the simlar functions of the stderr stream.
+	// Test the similar functions of the stderr stream.
 	cid, _ = dockerCmd(c, "run", "-di", "busybox", "/bin/sh", "-c", "cat >&2")
 	cid = strings.TrimSpace(cid)
 	conn, br, err = sockRequestHijack("POST", "/containers/"+cid+"/attach?stream=1&stdin=1&stderr=1", nil, "text/plain")

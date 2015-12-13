@@ -766,7 +766,7 @@ func (devices *DeviceSet) createRegisterDevice(hash string) (*devInfo, error) {
 		if err := devicemapper.CreateDevice(devices.getPoolDevName(), deviceID); err != nil {
 			if devicemapper.DeviceIDExists(err) {
 				// Device ID already exists. This should not
-				// happen. Now we have a mechianism to find
+				// happen. Now we have a mechanism to find
 				// a free device ID. So something is not right.
 				// Give a warning and continue.
 				logrus.Errorf("Device ID %d exists in pool but it is supposed to be unused", deviceID)
@@ -818,7 +818,7 @@ func (devices *DeviceSet) createRegisterSnapDevice(hash string, baseInfo *devInf
 		if err := devicemapper.CreateSnapDevice(devices.getPoolDevName(), deviceID, baseInfo.Name(), baseInfo.DeviceID); err != nil {
 			if devicemapper.DeviceIDExists(err) {
 				// Device ID already exists. This should not
-				// happen. Now we have a mechianism to find
+				// happen. Now we have a mechanism to find
 				// a free device ID. So something is not right.
 				// Give a warning and continue.
 				logrus.Errorf("Device ID %d exists in pool but it is supposed to be unused", deviceID)
@@ -1749,7 +1749,7 @@ func (devices *DeviceSet) markForDeferredDeletion(info *devInfo) error {
 
 	info.Deleted = true
 
-	// save device metadata to refelect deleted state.
+	// save device metadata to reflect deleted state.
 	if err := devices.saveMetadata(info); err != nil {
 		info.Deleted = false
 		return err
@@ -1759,7 +1759,7 @@ func (devices *DeviceSet) markForDeferredDeletion(info *devInfo) error {
 	return nil
 }
 
-// Should be caled with devices.Lock() held.
+// Should be called with devices.Lock() held.
 func (devices *DeviceSet) deleteTransaction(info *devInfo, syncDelete bool) error {
 	if err := devices.openTransaction(info.Hash, info.DeviceID); err != nil {
 		logrus.Debugf("Error opening transaction hash = %s deviceId = %d", "", info.DeviceID)
@@ -1805,7 +1805,7 @@ func (devices *DeviceSet) issueDiscard(info *devInfo) error {
 	// This is a workaround for the kernel not discarding block so
 	// on the thin pool when we remove a thinp device, so we do it
 	// manually.
-	// Even if device is deferred deleted, activate it and isue
+	// Even if device is deferred deleted, activate it and issue
 	// discards.
 	if err := devices.activateDeviceIfNeeded(info, true); err != nil {
 		return err
@@ -2131,7 +2131,7 @@ func (devices *DeviceSet) UnmountDevice(hash, mountPath string) error {
 	defer devices.Unlock()
 
 	// If there are running containers when daemon crashes, during daemon
-	// restarting, it will kill running contaienrs and will finally call
+	// restarting, it will kill running containers and will finally call
 	// Put() without calling Get(). So info.MountCount may become negative.
 	// if info.mountCount goes negative, we do the unmount and assign
 	// it to 0.

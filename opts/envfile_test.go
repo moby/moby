@@ -106,7 +106,7 @@ func TestParseEnvFileBadlyFormattedFile(t *testing.T) {
 	}
 }
 
-// Test ParseEnvFile for a file with a line exeeding bufio.MaxScanTokenSize
+// Test ParseEnvFile for a file with a line exceeding bufio.MaxScanTokenSize
 func TestParseEnvFileLineTooLongFile(t *testing.T) {
 	content := strings.Repeat("a", bufio.MaxScanTokenSize+42)
 	content = fmt.Sprint("foo=", content)

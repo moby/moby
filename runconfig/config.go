@@ -59,7 +59,7 @@ func DecodeContainerConfig(src io.Reader) (*Config, *HostConfig, error) {
 	// Perform platform-specific processing of Volumes and Binds.
 	if w.Config != nil && hc != nil {
 
-		// Initialise the volumes map if currently nil
+		// Initialize the volumes map if currently nil
 		if w.Config.Volumes == nil {
 			w.Config.Volumes = make(map[string]struct{})
 		}

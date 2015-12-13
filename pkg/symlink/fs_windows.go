@@ -91,7 +91,7 @@ func walkSymlinks(path string) (string, error) {
 			return "", errors.New("EvalSymlinks: too many links in " + originalPath)
 		}
 
-		// A path beginnging with `\\?\` represents the root, so automatically
+		// A path beginning with `\\?\` represents the root, so automatically
 		// skip that part and begin processing the next segment.
 		if strings.HasPrefix(path, longpath.Prefix) {
 			b.WriteString(longpath.Prefix)

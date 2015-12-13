@@ -478,7 +478,7 @@ func (s *router) postBuild(ctx context.Context, w http.ResponseWriter, r *http.R
 func sanitizeRepoAndTags(names []string) ([]reference.Named, error) {
 	var (
 		repoAndTags []reference.Named
-		// This map is used for deduplicating the "-t" paramter.
+		// This map is used for deduplicating the "-t" parameter.
 		uniqNames = make(map[string]struct{})
 	)
 	for _, repo := range names {

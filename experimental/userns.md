@@ -12,13 +12,13 @@ In this experimental phase, the Docker daemon creates a single daemon-wide mappi
 for all containers running on the same engine instance. The mappings will
 utilize the existing subordinate user and group ID feature available on all modern
 Linux distributions.
-The [`/etc/subuid`](http://man7.org/linux/man-pages/man5/subuid.5.html) and 
+The [`/etc/subuid`](http://man7.org/linux/man-pages/man5/subuid.5.html) and
 [`/etc/subgid`](http://man7.org/linux/man-pages/man5/subgid.5.html) files will be
-read for the user, and optional group, specified to the `--userns-remap` 
-parameter.  If you do not wish to specify your own user and/or group, you can 
+read for the user, and optional group, specified to the `--userns-remap`
+parameter.  If you do not wish to specify your own user and/or group, you can
 provide `default` as the value to this flag, and a user will be created on your behalf
 and provided subordinate uid and gid ranges. This default user will be named
-`dockremap`, and entries will be created for it in `/etc/passwd` and 
+`dockremap`, and entries will be created for it in `/etc/passwd` and
 `/etc/group` using your distro's standard user and group creation tools.
 
 > **Note**: The single mapping per-daemon restriction exists for this experimental
@@ -43,7 +43,7 @@ values in the following formats:
 If numeric IDs are provided, translation back to valid user or group names
 will occur so that the subordinate uid and gid information can be read, given
 these resources are name-based, not id-based.  If the numeric ID information
-provided does not exist as entries in `/etc/passwd` or `/etc/group`, dameon
+provided does not exist as entries in `/etc/passwd` or `/etc/group`, daemon
 startup will fail with an error message.
 
 *An example: starting with default Docker user management:*
@@ -67,7 +67,7 @@ create the following range, based on an existing user already having the first
 
 > **Note:** On a fresh Fedora install, we found that we had to `touch` the
 > `/etc/subuid` and `/etc/subgid` files to have ranges assigned when users
-> were created.  Once these files existed, range assigment on user creation
+> were created.  Once these files existed, range assignment on user creation
 > worked properly.
 
 If you have a preferred/self-managed user with subordinate ID mappings already
@@ -84,7 +84,7 @@ current experimental user namespace support.
 
 The simplest case exists where only one contiguous range is defined for the
 provided user or group. In this case, Docker will use that entire contiguous
-range for the mapping of host uids and gids to the container process.  This 
+range for the mapping of host uids and gids to the container process.  This
 means that the first ID in the range will be the remapped root user, and the
 IDs above that initial ID will map host ID 1 through the end of the range.
 

@@ -96,7 +96,7 @@ type History struct {
 	Author string `json:"author,omitempty"`
 	// CreatedBy keeps the Dockerfile command used while building image.
 	CreatedBy string `json:"created_by,omitempty"`
-	// Comment is custom mesage set by the user when creating the image.
+	// Comment is custom message set by the user when creating the image.
 	Comment string `json:"comment,omitempty"`
 	// EmptyLayer is set to true if this history item did not generate a
 	// layer. Otherwise, the history item is associated with the next

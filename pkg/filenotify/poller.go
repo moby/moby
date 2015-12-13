@@ -24,7 +24,7 @@ const watchWaitTime = 200 * time.Millisecond
 
 // filePoller is used to poll files for changes, especially in cases where fsnotify
 // can't be run (e.g. when inotify handles are exhausted)
-// filePoller satifies the FileWatcher interface
+// filePoller satisfies the FileWatcher interface
 type filePoller struct {
 	// watches is the list of files currently being polled, close the associated channel to stop the watch
 	watches map[string]chan struct{}

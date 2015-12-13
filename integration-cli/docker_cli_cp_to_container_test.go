@@ -87,7 +87,7 @@ func (s *DockerSuite) TestCpToErrDstParentNotExists(c *check.C) {
 }
 
 // Test for error when DST ends in a trailing path separator but exists as a
-// file. Also test that we cannot overwirite an existing directory with a
+// file. Also test that we cannot overwrite an existing directory with a
 // non-directory and cannot overwrite an existing
 func (s *DockerSuite) TestCpToErrDstNotDir(c *check.C) {
 	testRequires(c, DaemonIsLinux)

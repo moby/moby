@@ -60,7 +60,7 @@ func (p *JSONProgress) String() string {
 		percentage = 50
 	}
 	if width > 110 {
-		// this number can't be negetive gh#7136
+		// this number can't be negative gh#7136
 		numSpaces := 0
 		if 50-percentage > 0 {
 			numSpaces = 50 - percentage
@@ -106,7 +106,7 @@ type JSONMessage struct {
 
 // Display displays the JSONMessage to `out`. `isTerminal` describes if `out`
 // is a terminal. If this is the case, it will erase the entire current line
-// when dislaying the progressbar.
+// when displaying the progressbar.
 func (jm *JSONMessage) Display(out io.Writer, isTerminal bool) error {
 	if jm.Error != nil {
 		if jm.Error.Code == 401 {

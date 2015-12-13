@@ -41,7 +41,7 @@ func (container *Container) IpcMounts() []execdriver.Mount {
 	return nil
 }
 
-// UnmountVolumes explicitely unmounts volumes from the container.
+// UnmountVolumes explicitly unmounts volumes from the container.
 func (container *Container) UnmountVolumes(forceSyscall bool) error {
 	return nil
 }

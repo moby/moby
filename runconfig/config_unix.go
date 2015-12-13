@@ -46,7 +46,7 @@ func (w *ContainerConfigWrapper) getHostConfig() *HostConfig {
 	}
 
 	// Make sure NetworkMode has an acceptable value. We do this to ensure
-	// backwards compatible API behaviour.
+	// backwards compatible API behavior.
 	hc = SetDefaultNetModeIfBlank(hc)
 
 	return hc
