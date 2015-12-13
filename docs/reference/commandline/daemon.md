@@ -54,6 +54,7 @@ weight = -1
       --mtu=0                                Set the containers network MTU
       --disable-legacy-registry              Do not contact legacy registries
       -p, --pidfile="/var/run/docker.pid"    Path to use for daemon PID file
+      --raw-logs                             Full timestamps without ANSI coloring
       --registry-mirror=[]                   Preferred Docker registry mirror
       -s, --storage-driver=""                Storage driver to use
       --selinux-enabled                      Enable selinux support
@@ -860,19 +861,20 @@ This is a full example of the allowed configuration options in the file:
 	"group": "",
 	"cgroup-parent": "",
 	"default-ulimits": {},
-       "ipv6": false,
-       "iptables": false,
-       "ip-forward": false,
-       "ip-mask": false,
-       "userland-proxy": false,
-       "ip": "0.0.0.0",
-       "bridge": "",
-       "bip": "",
-       "fixed-cidr": "",
-       "fixed-cidr-v6": "",
-       "default-gateway": "",
-       "default-gateway-v6": "",
-       "icc": false
+	"ipv6": false,
+	"iptables": false,
+	"ip-forward": false,
+	"ip-mask": false,
+	"userland-proxy": false,
+	"ip": "0.0.0.0",
+	"bridge": "",
+	"bip": "",
+	"fixed-cidr": "",
+	"fixed-cidr-v6": "",
+	"default-gateway": "",
+	"default-gateway-v6": "",
+	"icc": false,
+	"raw-logs": false
 }
 ```
 
