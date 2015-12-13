@@ -423,7 +423,7 @@ func (ls *layerStore) initMount(graphID, parent, mountLabel string, initFunc Mou
 	initID := fmt.Sprintf("%s-init", graphID)
 
 	if err := ls.driver.Create(initID, parent, mountLabel); err != nil {
-
+		return "", err
 	}
 	p, err := ls.driver.Get(initID, "")
 	if err != nil {
