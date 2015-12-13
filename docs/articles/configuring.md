@@ -170,34 +170,42 @@ If you want Docker to start at boot, you should also:
 
 ### Configuring Docker
 
-You configure the `docker` daemon in the `/etc/sysconfig/docker` file on your
-host. You do this by specifying values in a variable. For CentOS 7.x and RHEL 7.x, the name
-of the variable is `OPTIONS` and for CentOS 6.x and RHEL 6.x, the name of the variable is
-`other_args`. For this section, we will use CentOS 7.x as an example to configure the `docker`
-daemon.
+For CentOS 7.x and RHEL 7.x you can [control and configure Docker with systemd](systemd.md).
 
-By default, systemd services are located either in `/etc/systemd/service`, `/lib/systemd/system`
-or `/usr/lib/systemd/system`. The `docker.service` file can be found in either of these three
-directories depending on your host.
+Previously, for CentOS 6.x and RHEL 6.x you would configure the `docker` daemon in 
+the `/etc/sysconfig/docker` file on your system. You would do this by specifying 
+values in a `other_args` variable. For a short time in CentOS 7.x and RHEL 7.x you 
+would specify values in a `OPTIONS` variable. This is no longer recommended in favor 
+of using systemd directly. 
+
+For this section, we will use CentOS 7.x as an example to configure the `docker` daemon. 
 
 To configure Docker options:
 
 1. Log into your host as a user with `sudo` or `root` privileges.
 
-2. If you don't have one, create the `/etc/sysconfig/docker` file on your host. Depending on how
-you installed Docker, you may already have this file.
-
-3. Open the file with your favorite editor.
+2. Create the `/etc/systemd/system/docker.service.d` directory.
 
     ```
-    $ sudo vi /etc/sysconfig/docker
+    $ sudo mkdir /etc/systemd/system/docker.service.d
     ```
 
-4. Add a `OPTIONS` variable with the following options. These options are appended to the
-command that starts the `docker` daemon.
+3. Create a  `/etc/systemd/system/docker.service.d/docker.conf` file.
+
+4. Open the file with your favorite editor.
+
+    ```
+    $ sudo vi /etc/systemd/system/docker.service.d/docker.conf
+    ```
+
+5. Override the `ExecStart` configuration from your `docker.service` file to customize 
+the `docker` daemon. To modify the `ExecStart` configuration you have to specify 
+an empty configuration followed by a new one as follows:
 
 ```
-    OPTIONS="-D --tls=true --tlscert=/var/docker/server.pem --tlskey=/var/docker/serverkey.pem -H tcp://192.168.59.3:2376"
+[Service]
+ExecStart=
+ExecStart=/usr/bin/docker daemon -H fd:// -D --tls=true --tlscert=/var/docker/server.pem --tlskey=/var/docker/serverkey.pem -H tcp://192.168.59.3:2376
 ```
 
 These options :
@@ -209,15 +217,21 @@ These options :
 The command line reference has the [complete list of daemon flags](../reference/commandline/daemon.md)
 with explanations.
 
-5. Save and close the file.
+6. Save and close the file.
 
-6. Restart the `docker` daemon.
+7. Flush changes.
+
+    ```
+    $ sudo systemctl daemon-reload
+    ```
+
+8. Restart the `docker` daemon.
 
     ```
     $ sudo systemctl restart docker
     ```
 
-7. Verify that the `docker` daemon is running as specified with the `ps` command.
+9. Verify that the `docker` daemon is running as specified with the `ps` command.
 
     ```
     $ ps aux | grep docker | grep -v grep
