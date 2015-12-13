@@ -529,6 +529,29 @@ func (daemon *Daemon) updateNetwork(container *container.Container) error {
 	return nil
 }
 
+// updateContainerNetworkSettings update the network settings
+func (daemon *Daemon) updateContainerNetworkSettings(container *container.Container) error {
+	mode := container.HostConfig.NetworkMode
+	if container.Config.NetworkDisabled || mode.IsContainer() {
+		return nil
+	}
+
+	networkName := mode.NetworkName()
+	if mode.IsDefault() {
+		networkName = daemon.netController.Config().Daemon.DefaultNetwork
+	}
+	if mode.IsUserDefined() {
+		n, err := daemon.FindNetwork(networkName)
+		if err != nil {
+			return err
+		}
+		networkName = n.Name()
+	}
+	container.NetworkSettings.Networks = make(map[string]*networktypes.EndpointSettings)
+	container.NetworkSettings.Networks[networkName] = new(networktypes.EndpointSettings)
+	return nil
+}
+
 func (daemon *Daemon) allocateNetwork(container *container.Container) error {
 	controller := daemon.netController
 
@@ -539,24 +562,14 @@ func (daemon *Daemon) allocateNetwork(container *container.Container) error {
 
 	updateSettings := false
 	if len(container.NetworkSettings.Networks) == 0 {
-		mode := container.HostConfig.NetworkMode
-		if container.Config.NetworkDisabled || mode.IsContainer() {
+		if container.Config.NetworkDisabled || container.HostConfig.NetworkMode.IsContainer() {
 			return nil
 		}
 
-		networkName := mode.NetworkName()
-		if mode.IsDefault() {
-			networkName = controller.Config().Daemon.DefaultNetwork
+		err := daemon.updateContainerNetworkSettings(container)
+		if err != nil {
+			return err
 		}
-		if mode.IsUserDefined() {
-			n, err := daemon.FindNetwork(networkName)
-			if err != nil {
-				return err
-			}
-			networkName = n.Name()
-		}
-		container.NetworkSettings.Networks = make(map[string]*networktypes.EndpointSettings)
-		container.NetworkSettings.Networks[networkName] = new(networktypes.EndpointSettings)
 		updateSettings = true
 	}
 
