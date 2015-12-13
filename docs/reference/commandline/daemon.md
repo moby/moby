@@ -54,6 +54,7 @@ weight = -1
       --mtu=0                                Set the containers network MTU
       --disable-legacy-registry              Do not contact legacy registries
       -p, --pidfile="/var/run/docker.pid"    Path to use for daemon PID file
+      --raw-logs                             Output logs with timestamps and no coloring
       --registry-mirror=[]                   Preferred Docker registry mirror
       -s, --storage-driver=""                Storage driver to use
       --selinux-enabled                      Enable selinux support

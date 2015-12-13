@@ -168,7 +168,10 @@ func (cli *DaemonCli) CmdDaemon(args ...string) error {
 		logrus.Warn("Running experimental build")
 	}
 
-	logrus.SetFormatter(&logrus.TextFormatter{TimestampFormat: jsonlog.RFC3339NanoFixed})
+	logrus.SetFormatter(&logrus.TextFormatter{
+		TimestampFormat: jsonlog.RFC3339NanoFixed,
+		DisableColors:   cli.Config.RawLogs,
+	})
 
 	if err := setDefaultUmask(); err != nil {
 		logrus.Fatalf("Failed to set umask: %v", err)
