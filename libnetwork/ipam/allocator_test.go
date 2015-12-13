@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"math/rand"
 	"net"
-	"os"
 	"testing"
 	"time"
 
@@ -41,16 +41,6 @@ func randomLocalStore() (datastore.DataStore, error) {
 			},
 		},
 	})
-}
-
-// enable w/ upper case
-func TestMain(m *testing.M) {
-	var err error
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	os.Exit(m.Run())
 }
 
 func getAllocator() (*Allocator, error) {
@@ -1000,4 +990,181 @@ func BenchmarkRequest_16(b *testing.B) {
 func BenchmarkRequest_8(b *testing.B) {
 	a, _ := getAllocator()
 	benchmarkRequest(b, a, "10.0.0.0/8")
+}
+
+func TestAllocateRandomDeallocate(t *testing.T) {
+	testAllocateRandomDeallocate(t, "172.25.0.0/16", "", 384)
+	testAllocateRandomDeallocate(t, "172.25.0.0/16", "172.25.252.0/22", 384)
+}
+
+func testAllocateRandomDeallocate(t *testing.T, pool, subPool string, num int) {
+	ds, err := randomLocalStore()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	a, err := NewAllocator(ds, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	pid, _, _, err := a.RequestPool(localAddressSpace, pool, subPool, nil, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Allocate num ip addresses
+	indices := make(map[int]*net.IPNet, num)
+	allocated := make(map[string]bool, num)
+	for i := 0; i < num; i++ {
+		ip, _, err := a.RequestAddress(pid, nil, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		ips := ip.String()
+		if _, ok := allocated[ips]; ok {
+			t.Fatalf("Address %s is already allocated", ips)
+		}
+		allocated[ips] = true
+		indices[i] = ip
+	}
+	if len(indices) != len(allocated) || len(indices) != num {
+		t.Fatalf("Unexpected number of allocated addresses: (%d,%d).", len(indices), len(allocated))
+	}
+
+	seed := time.Now().Unix()
+	rand.Seed(seed)
+
+	// Deallocate half of the allocated addresses following a random pattern
+	pattern := rand.Perm(num)
+	for i := 0; i < num/2; i++ {
+		idx := pattern[i]
+		ip := indices[idx]
+		err := a.ReleaseAddress(pid, ip.IP)
+		if err != nil {
+			t.Fatalf("Unexpected failure on deallocation of %s: %v.\nSeed: %d.", ip, err, seed)
+		}
+		delete(indices, idx)
+		delete(allocated, ip.String())
+	}
+
+	// Request a quarter of addresses
+	for i := 0; i < num/2; i++ {
+		ip, _, err := a.RequestAddress(pid, nil, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		ips := ip.String()
+		if _, ok := allocated[ips]; ok {
+			t.Fatalf("\nAddress %s is already allocated.\nSeed: %d.", ips, seed)
+		}
+		allocated[ips] = true
+	}
+	if len(allocated) != num {
+		t.Fatalf("Unexpected number of allocated addresses: %d.\nSeed: %d.", len(allocated), seed)
+	}
+}
+
+func TestRetrieveFromStore(t *testing.T) {
+	num := 200
+	ds, err := randomLocalStore()
+	if err != nil {
+		t.Fatal(err)
+	}
+	a, err := NewAllocator(ds, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pid, _, _, err := a.RequestPool(localAddressSpace, "172.25.0.0/16", "", nil, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < num; i++ {
+		if _, _, err := a.RequestAddress(pid, nil, nil); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// Restore
+	a1, err := NewAllocator(ds, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	a1.refresh(localAddressSpace)
+	db := a.DumpDatabase()
+	db1 := a1.DumpDatabase()
+	if db != db1 {
+		t.Fatalf("Unexpected db change.\nExpected:%s\nGot:%s", db, db1)
+	}
+	checkDBEquality(a, a1, t)
+	pid, _, _, err = a1.RequestPool(localAddressSpace, "172.25.0.0/16", "172.25.1.0/24", nil, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < num/2; i++ {
+		if _, _, err := a1.RequestAddress(pid, nil, nil); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// Restore
+	a2, err := NewAllocator(ds, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	a2.refresh(localAddressSpace)
+	checkDBEquality(a1, a2, t)
+	pid, _, _, err = a2.RequestPool(localAddressSpace, "172.25.0.0/16", "172.25.2.0/24", nil, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < num/2; i++ {
+		if _, _, err := a2.RequestAddress(pid, nil, nil); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// Restore
+	a3, err := NewAllocator(ds, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	a3.refresh(localAddressSpace)
+	checkDBEquality(a2, a3, t)
+	pid, _, _, err = a3.RequestPool(localAddressSpace, "172.26.0.0/16", "", nil, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < num/2; i++ {
+		if _, _, err := a3.RequestAddress(pid, nil, nil); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// Restore
+	a4, err := NewAllocator(ds, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	a4.refresh(localAddressSpace)
+	checkDBEquality(a3, a4, t)
+}
+
+func checkDBEquality(a1, a2 *Allocator, t *testing.T) {
+	for k, cnf1 := range a1.addrSpaces[localAddressSpace].subnets {
+		cnf2 := a2.addrSpaces[localAddressSpace].subnets[k]
+		if cnf1.String() != cnf2.String() {
+			t.Fatalf("%s\n%s", cnf1, cnf2)
+		}
+		if cnf1.Range == nil {
+			a2.retrieveBitmask(k, cnf1.Pool)
+		}
+	}
+
+	for k, bm1 := range a1.addresses {
+		bm2 := a2.addresses[k]
+		if bm1.String() != bm2.String() {
+			t.Fatalf("%s\n%s", bm1, bm2)
+		}
+	}
 }
