@@ -748,6 +748,7 @@ _docker_daemon() {
 		--ip-masq=false
 		--iptables=false
 		--ipv6
+		--raw-logs
 		--selinux-enabled
 		--userland-proxy=false
 	"
