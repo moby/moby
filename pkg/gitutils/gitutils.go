@@ -1,4 +1,4 @@
-package utils
+package gitutils
 
 import (
 	"fmt"
@@ -14,9 +14,9 @@ import (
 	"github.com/docker/docker/pkg/urlutil"
 )
 
-// GitClone clones a repository into a newly created directory which
+// Clone clones a repository into a newly created directory which
 // will be under "docker-build-git"
-func GitClone(remoteURL string) (string, error) {
+func Clone(remoteURL string) (string, error) {
 	if !urlutil.IsGitTransport(remoteURL) {
 		remoteURL = "https://" + remoteURL
 	}
