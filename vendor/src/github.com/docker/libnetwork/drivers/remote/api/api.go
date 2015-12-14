@@ -134,10 +134,11 @@ type StaticRoute struct {
 // JoinResponse is the response to a JoinRequest.
 type JoinResponse struct {
 	Response
-	InterfaceName *InterfaceName
-	Gateway       string
-	GatewayIPv6   string
-	StaticRoutes  []StaticRoute
+	InterfaceName         *InterfaceName
+	Gateway               string
+	GatewayIPv6           string
+	StaticRoutes          []StaticRoute
+	DisableGatewayService bool
 }
 
 // LeaveRequest describes the API for detaching an endpoint from a sandbox.

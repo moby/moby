@@ -1,6 +1,7 @@
 package etchosts
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
 	"io"
@@ -138,19 +139,36 @@ func Delete(path string, recs []Record) error {
 	if len(recs) == 0 {
 		return nil
 	}
-
-	old, err := ioutil.ReadFile(path)
+	old, err := os.Open(path)
 	if err != nil {
 		return err
 	}
 
-	regexpStr := fmt.Sprintf("\\S*\\t%s\\n", regexp.QuoteMeta(recs[0].Hosts))
-	for _, r := range recs[1:] {
-		regexpStr = regexpStr + "|" + fmt.Sprintf("\\S*\\t%s\\n", regexp.QuoteMeta(r.Hosts))
-	}
+	var buf bytes.Buffer
 
-	var re = regexp.MustCompile(regexpStr)
-	return ioutil.WriteFile(path, re.ReplaceAll(old, []byte("")), 0644)
+	s := bufio.NewScanner(old)
+	eol := []byte{'\n'}
+loop:
+	for s.Scan() {
+		b := s.Bytes()
+		if b[0] == '#' {
+			buf.Write(b)
+			buf.Write(eol)
+			continue
+		}
+		for _, r := range recs {
+			if bytes.HasSuffix(b, []byte("\t"+r.Hosts)) {
+				continue loop
+			}
+		}
+		buf.Write(b)
+		buf.Write(eol)
+	}
+	old.Close()
+	if err := s.Err(); err != nil {
+		return err
+	}
+	return ioutil.WriteFile(path, buf.Bytes(), 0644)
 }
 
 // Update all IP addresses where hostname matches.

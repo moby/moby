@@ -5,7 +5,9 @@ import (
 	"encoding/binary"
 	"fmt"
 	"net"
+	"os"
 	"syscall"
+	"unsafe"
 
 	"github.com/vishvananda/netlink/nl"
 )
@@ -285,6 +287,44 @@ func LinkAdd(link Link) error {
 		return fmt.Errorf("LinkAttrs.Name cannot be empty!")
 	}
 
+	if tuntap, ok := link.(*Tuntap); ok {
+		// TODO: support user
+		// TODO: support group
+		// TODO: support non- one_queue
+		// TODO: support pi | vnet_hdr | multi_queue
+		// TODO: support non- exclusive
+		// TODO: support non- persistent
+		if tuntap.Mode < syscall.IFF_TUN || tuntap.Mode > syscall.IFF_TAP {
+			return fmt.Errorf("Tuntap.Mode %v unknown!", tuntap.Mode)
+		}
+		file, err := os.OpenFile("/dev/net/tun", os.O_RDWR, 0)
+		if err != nil {
+			return err
+		}
+		defer file.Close()
+		var req ifReq
+		req.Flags |= syscall.IFF_ONE_QUEUE
+		req.Flags |= syscall.IFF_TUN_EXCL
+		copy(req.Name[:15], base.Name)
+		req.Flags |= uint16(tuntap.Mode)
+		_, _, errno := syscall.Syscall(syscall.SYS_IOCTL, file.Fd(), uintptr(syscall.TUNSETIFF), uintptr(unsafe.Pointer(&req)))
+		if errno != 0 {
+			return fmt.Errorf("Tuntap IOCTL TUNSETIFF failed, errno %v", errno)
+		}
+		_, _, errno = syscall.Syscall(syscall.SYS_IOCTL, file.Fd(), uintptr(syscall.TUNSETPERSIST), 1)
+		if errno != 0 {
+			return fmt.Errorf("Tuntap IOCTL TUNSETPERSIST failed, errno %v", errno)
+		}
+		ensureIndex(base)
+
+		// can't set master during create, so set it afterwards
+		if base.MasterIndex != 0 {
+			// TODO: verify MasterIndex is actually a bridge?
+			return LinkSetMasterByIndex(link, base.MasterIndex)
+		}
+		return nil
+	}
+
 	req := nl.NewNetlinkRequest(syscall.RTM_NEWLINK, syscall.NLM_F_CREATE|syscall.NLM_F_EXCL|syscall.NLM_F_ACK)
 
 	msg := nl.NewIfInfomsg(syscall.AF_UNSPEC)
@@ -493,6 +533,8 @@ func linkDeserialize(m []byte) (Link, error) {
 					switch linkType {
 					case "dummy":
 						link = &Dummy{}
+					case "ifb":
+						link = &Ifb{}
 					case "bridge":
 						link = &Bridge{}
 					case "vlan":
@@ -505,8 +547,10 @@ func linkDeserialize(m []byte) (Link, error) {
 						link = &IPVlan{}
 					case "macvlan":
 						link = &Macvlan{}
+					case "macvtap":
+						link = &Macvtap{}
 					default:
-						link = &Generic{LinkType: linkType}
+						link = &GenericLink{LinkType: linkType}
 					}
 				case nl.IFLA_INFO_DATA:
 					data, err := nl.ParseRouteAttr(info.Value)
@@ -522,6 +566,8 @@ func linkDeserialize(m []byte) (Link, error) {
 						parseIPVlanData(link, data)
 					case "macvlan":
 						parseMacvlanData(link, data)
+					case "macvtap":
+						parseMacvtapData(link, data)
 					}
 				}
 			}
@@ -581,6 +627,46 @@ func LinkList() ([]Link, error) {
 	}
 
 	return res, nil
+}
+
+// LinkUpdate is used to pass information back from LinkSubscribe()
+type LinkUpdate struct {
+	nl.IfInfomsg
+	Link
+}
+
+// LinkSubscribe takes a chan down which notifications will be sent
+// when links change.  Close the 'done' chan to stop subscription.
+func LinkSubscribe(ch chan<- LinkUpdate, done <-chan struct{}) error {
+	s, err := nl.Subscribe(syscall.NETLINK_ROUTE, syscall.RTNLGRP_LINK)
+	if err != nil {
+		return err
+	}
+	if done != nil {
+		go func() {
+			<-done
+			s.Close()
+		}()
+	}
+	go func() {
+		defer close(ch)
+		for {
+			msgs, err := s.Receive()
+			if err != nil {
+				return
+			}
+			for _, m := range msgs {
+				ifmsg := nl.DeserializeIfInfomsg(m.Data)
+				link, err := linkDeserialize(m.Data)
+				if err != nil {
+					return
+				}
+				ch <- LinkUpdate{IfInfomsg: *ifmsg, Link: link}
+			}
+		}
+	}()
+
+	return nil
 }
 
 func LinkSetHairpin(link Link, mode bool) error {
@@ -694,6 +780,11 @@ func parseIPVlanData(link Link, data []syscall.NetlinkRouteAttr) {
 			return
 		}
 	}
+}
+
+func parseMacvtapData(link Link, data []syscall.NetlinkRouteAttr) {
+	macv := link.(*Macvtap)
+	parseMacvlanData(&macv.Macvlan, data)
 }
 
 func parseMacvlanData(link Link, data []syscall.NetlinkRouteAttr) {

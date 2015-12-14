@@ -6,8 +6,6 @@ Libnetwork provides a native Go implementation for connecting containers
 
 The goal of libnetwork is to deliver a robust Container Network Model that provides a consistent programming interface and the required network abstractions for applications.
 
-**NOTE**: libnetwork project is under heavy development and is not ready for general use.
-
 #### Design
 Please refer to the [design](docs/design.md) for more information.
 
@@ -67,10 +65,6 @@ There are many networking solutions available to suit a broad range of use-cases
 		}
 	}
 ```
-#### Current Status
-Please watch this space for updates on the progress.
-
-Currently libnetwork is nothing more than an attempt to modularize the Docker platform's networking subsystem by moving it into libnetwork as a library.
 
 ## Future
 Please refer to [roadmap](ROADMAP.md) for more information.
