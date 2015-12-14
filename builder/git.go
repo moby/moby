@@ -4,12 +4,12 @@ import (
 	"os"
 
 	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/utils"
+	"github.com/docker/docker/pkg/gitutils"
 )
 
 // MakeGitContext returns a Context from gitURL that is cloned in a temporary directory.
 func MakeGitContext(gitURL string) (ModifiableContext, error) {
-	root, err := utils.GitClone(gitURL)
+	root, err := gitutils.Clone(gitURL)
 	if err != nil {
 		return nil, err
 	}

@@ -16,10 +16,12 @@ import (
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/builder/dockerignore"
 	Cli "github.com/docker/docker/cli"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/fileutils"
+	"github.com/docker/docker/pkg/gitutils"
 	"github.com/docker/docker/pkg/httputils"
 	"github.com/docker/docker/pkg/jsonmessage"
 	flag "github.com/docker/docker/pkg/mflag"
@@ -131,7 +133,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 
 	var excludes []string
 	if err == nil {
-		excludes, err = utils.ReadDockerIgnore(f)
+		excludes, err = dockerignore.ReadAll(f)
 		if err != nil {
 			return err
 		}
@@ -421,7 +423,7 @@ func getContextFromReader(r io.Reader, dockerfileName string) (absContextDir, re
 // path of the dockerfile in that context directory, and a non-nil error on
 // success.
 func getContextFromGitURL(gitURL, dockerfileName string) (absContextDir, relDockerfile string, err error) {
-	if absContextDir, err = utils.GitClone(gitURL); err != nil {
+	if absContextDir, err = gitutils.Clone(gitURL); err != nil {
 		return "", "", fmt.Errorf("unable to 'git clone' to temporary context directory: %v", err)
 	}
 
