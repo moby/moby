@@ -25,7 +25,6 @@ import (
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/tarsum"
-	"github.com/docker/docker/utils"
 )
 
 var (
@@ -420,7 +419,7 @@ func (r *Session) GetRepositoryData(remote reference.Named) (*RepositoryData, er
 		// and return a non-obtuse error message for users
 		// "Get https://index.docker.io/v1/repositories/library/busybox/images: i/o timeout"
 		// was a top search on the docker user forum
-		if utils.IsTimeout(err) {
+		if isTimeout(err) {
 			return nil, fmt.Errorf("Network timed out while trying to connect to %s. You may want to check your internet connection or if you are behind a proxy.", repositoryTarget)
 		}
 		return nil, fmt.Errorf("Error while pulling image: %v", err)
@@ -753,4 +752,17 @@ func (r *Session) GetAuthConfig(withPasswd bool) *types.AuthConfig {
 		Password: password,
 		Email:    r.authConfig.Email,
 	}
+}
+
+func isTimeout(err error) bool {
+	type timeout interface {
+		Timeout() bool
+	}
+	e := err
+	switch urlErr := err.(type) {
+	case *url.Error:
+		e = urlErr.Err
+	}
+	t, ok := e.(timeout)
+	return ok && t.Timeout()
 }

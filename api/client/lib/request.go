@@ -9,8 +9,6 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-
-	"github.com/docker/docker/utils"
 )
 
 // serverResponse is a wrapper for http API responses.
@@ -96,7 +94,7 @@ func (cli *Client) sendClientRequest(method, path string, query url.Values, body
 	}
 
 	if err != nil {
-		if utils.IsTimeout(err) || strings.Contains(err.Error(), "connection refused") || strings.Contains(err.Error(), "dial unix") {
+		if isTimeout(err) || strings.Contains(err.Error(), "connection refused") || strings.Contains(err.Error(), "dial unix") {
 			return serverResp, ErrConnectionFailed
 		}
 
@@ -162,4 +160,17 @@ func ensureReaderClosed(response *serverResponse) {
 	if response != nil && response.body != nil {
 		response.body.Close()
 	}
+}
+
+func isTimeout(err error) bool {
+	type timeout interface {
+		Timeout() bool
+	}
+	e := err
+	switch urlErr := err.(type) {
+	case *url.Error:
+		e = urlErr.Err
+	}
+	t, ok := e.(timeout)
+	return ok && t.Timeout()
 }
