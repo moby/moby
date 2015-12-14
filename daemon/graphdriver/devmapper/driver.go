@@ -94,7 +94,6 @@ func (d *Driver) Status() [][2]string {
 // GetMetadata returns a map of information about the device.
 func (d *Driver) GetMetadata(id string) (map[string]string, error) {
 	m, err := d.DeviceSet.exportDeviceMetadata(id)
-
 	if err != nil {
 		return nil, err
 	}
