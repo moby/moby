@@ -49,15 +49,15 @@ import (
 )
 
 const (
-	MntPath    = "mnt"
-	DiffPath   = "diff"
-	LayersPath = "layers"
-	WorkPath   = "work"
+	mntPath    = "mnt"
+	diffPath   = "diff"
+	layersPath = "layers"
+	workPath   = "work"
 )
 
 var (
-	allPaths    = []string{MntPath, DiffPath, LayersPath, WorkPath}
-	allDirPaths = []string{MntPath, DiffPath, WorkPath} // All paths that contain directories for the given ID (as opposed to files)
+	allPaths    = []string{mntPath, diffPath, layersPath, workPath}
+	allDirPaths = []string{mntPath, diffPath, workPath} // All paths that contain directories for the given ID (as opposed to files)
 )
 
 const driverName = "overlay2"
@@ -173,7 +173,7 @@ func (d *Driver) GetMetadata(id string) (map[string]string, error) {
 // If there are no lines in the file then the id has no parent
 // and an empty slice is returned.
 func (d *Driver) getParentIds(id string) ([]string, error) {
-	f, err := os.Open(d.dir(LayersPath, id))
+	f, err := os.Open(d.dir(layersPath, id))
 	if err != nil {
 		return nil, err
 	}
@@ -198,7 +198,7 @@ func (d *Driver) Create(id, parent string) error {
 		return err
 	}
 	// Write the layers metadata (the stack of parents)
-	f, err := os.Create(d.dir(LayersPath, id))
+	f, err := os.Create(d.dir(layersPath, id))
 	if err != nil {
 		return err
 	}
@@ -257,9 +257,9 @@ func (d *Driver) Remove(id string) error {
 		}
 	}
 	tmpDirs := []string{
-		MntPath,
-		DiffPath,
-		WorkPath,
+		mntPath,
+		diffPath,
+		workPath,
 	}
 
 	// XXX: why? maybe we should just remove things and not care like the overlay driver does
@@ -275,7 +275,7 @@ func (d *Driver) Remove(id string) error {
 		defer os.RemoveAll(tmpPath)
 	}
 	// Remove the layers file for the id
-	if err := os.Remove(d.dir(LayersPath, id)); err != nil && !os.IsNotExist(err) {
+	if err := os.Remove(d.dir(layersPath, id)); err != nil && !os.IsNotExist(err) {
 		return err
 	}
 	return nil
@@ -289,7 +289,7 @@ func (d *Driver) Changes(id, parent string) ([]archive.Change, error) {
 	if err != nil {
 		return nil, err
 	}
-	return archive.Changes(layers, d.dir(DiffPath, id))
+	return archive.Changes(layers, d.dir(diffPath, id))
 }
 
 // Get creates and mounts the required file system for the given id and returns the mount path.
@@ -314,9 +314,9 @@ func (d *Driver) Get(id string, mountLabel string) (string, error) {
 
 	// If a dir does not have a parent ( no layers )do not try to mount
 	// just return the diff path to the data
-	m.path = d.dir(DiffPath, id)
+	m.path = d.dir(diffPath, id)
 	if len(ids) > 0 {
-		m.path = d.dir(MntPath, id)
+		m.path = d.dir(mntPath, id)
 		if m.referenceCount == 0 {
 			if err := d.mount(id, m, mountLabel); err != nil {
 				return "", err
@@ -339,9 +339,9 @@ func (d *Driver) mount(id string, m *ActiveMount, mountLabel string) error {
 		return err
 	}
 
-	upperDir := d.dir(DiffPath, id)
-	workDir := d.dir(WorkPath, id)
-	mergedDir := d.dir(MntPath, id)
+	upperDir := d.dir(diffPath, id)
+	workDir := d.dir(workPath, id)
+	mergedDir := d.dir(mntPath, id)
 
 	// the lowerdirs are in order from highest to lowest
 	lowerDirs := strings.Join(layers, ":")
@@ -372,7 +372,7 @@ func (d *Driver) Put(id string) error {
 	if m == nil {
 		// but it might be still here
 		if d.Exists(id) {
-			err := syscall.Unmount(d.dir(MntPath, id), 0)
+			err := syscall.Unmount(d.dir(mntPath, id), 0)
 			if err != nil {
 				logrus.Debugf("Failed to unmount %s overlay: %v", id, err)
 			}
@@ -401,7 +401,7 @@ func (d *Driver) getParentLayerPaths(id string) ([]string, error) {
 
 	// Get the diff paths for all the parent ids
 	for i, p := range parentIds {
-		layers[i] = d.dir(DiffPath, p)
+		layers[i] = d.dir(diffPath, p)
 	}
 	return layers, nil
 }
@@ -422,7 +422,7 @@ func (d *Driver) mounted(m *ActiveMount) (bool, error) {
 
 // Status returns current information about the filesystem such as root directory, number of directories mounted, etc.
 func (d *Driver) Status() [][2]string {
-	ids, _ := loadIds(path.Join(d.root, LayersPath))
+	ids, _ := loadIds(path.Join(d.root, layersPath))
 	return [][2]string{
 		{"Root Dir", d.root},
 		{"Backing Filesystem", backingFs},
@@ -434,7 +434,7 @@ func (d *Driver) Status() [][2]string {
 // layer and its parent layer which may be "".
 func (d *Driver) Diff(id, parent string) (archive.Archive, error) {
 	// overlay2 doesn't need the parent layer to produce a diff.
-	return archive.TarWithOptions(d.dir(DiffPath, id), &archive.TarOptions{
+	return archive.TarWithOptions(d.dir(diffPath, id), &archive.TarOptions{
 		Compression:   archive.Uncompressed,
 		UIDMaps:       d.uidMaps,
 		GIDMaps:       d.gidMaps,
@@ -454,7 +454,7 @@ func (d *Driver) Cleanup() error {
 // relative to its base filesystem directory.
 func (d *Driver) DiffSize(id, parent string) (size int64, err error) {
 	// overlay doesn't need the parent layer to calculate the diff size.
-	return directory.Size(d.dir(DiffPath, id))
+	return directory.Size(d.dir(diffPath, id))
 }
 
 // ApplyDiff extracts the changeset from the given diff into the
@@ -462,7 +462,7 @@ func (d *Driver) DiffSize(id, parent string) (size int64, err error) {
 // new layer in bytes.
 func (d *Driver) ApplyDiff(id, parent string, diff archive.Reader) (size int64, err error) {
 	// overlay doesn't need the parent id to apply the diff.
-	if err := chrootarchive.UntarUncompressed(diff, d.dir(DiffPath, id), &archive.TarOptions{
+	if err := chrootarchive.UntarUncompressed(diff, d.dir(diffPath, id), &archive.TarOptions{
 		UIDMaps:       d.uidMaps,
 		GIDMaps:       d.gidMaps,
 		OverlayFormat: true,
@@ -476,14 +476,14 @@ func (d *Driver) ApplyDiff(id, parent string, diff archive.Reader) (size int64, 
 // Exists returns true if the given id is registered with
 // this driver
 func (d *Driver) Exists(id string) bool {
-	if _, err := os.Lstat(d.dir(LayersPath, id)); err != nil {
+	if _, err := os.Lstat(d.dir(layersPath, id)); err != nil {
 		return false
 	}
 	return true
 }
 
 // dir returns the directory for the given kind of path for the given container id
-// kind can be one of LayersPath, DiffPath, MntPath, WorkPath
+// kind can be one of layersPath, diffPath, mntPath, workPath
 func (d *Driver) dir(kind, id string) string {
 	return path.Join(d.root, kind, id)
 }
