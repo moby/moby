@@ -24,6 +24,7 @@ import (
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/devicemapper"
 	"github.com/docker/docker/pkg/idtools"
+	"github.com/docker/docker/pkg/loopback"
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/go-units"
@@ -1170,7 +1171,7 @@ func (devices *DeviceSet) ResizePool(size int64) error {
 		return fmt.Errorf("devmapper: Can't shrink file")
 	}
 
-	dataloopback := devicemapper.FindLoopDeviceFor(datafile)
+	dataloopback := loopback.FindLoopDeviceFor(datafile)
 	if dataloopback == nil {
 		return fmt.Errorf("devmapper: Unable to find loopback mount for: %s", datafilename)
 	}
@@ -1182,7 +1183,7 @@ func (devices *DeviceSet) ResizePool(size int64) error {
 	}
 	defer metadatafile.Close()
 
-	metadataloopback := devicemapper.FindLoopDeviceFor(metadatafile)
+	metadataloopback := loopback.FindLoopDeviceFor(metadatafile)
 	if metadataloopback == nil {
 		return fmt.Errorf("devmapper: Unable to find loopback mount for: %s", metadatafilename)
 	}
@@ -1194,8 +1195,8 @@ func (devices *DeviceSet) ResizePool(size int64) error {
 	}
 
 	// Reload size for loopback device
-	if err := devicemapper.LoopbackSetCapacity(dataloopback); err != nil {
-		return fmt.Errorf("devmapper: Unable to update loopback capacity: %s", err)
+	if err := loopback.SetCapacity(dataloopback); err != nil {
+		return fmt.Errorf("Unable to update loopback capacity: %s", err)
 	}
 
 	// Suspend the pool
@@ -1414,7 +1415,7 @@ func getLoopFileDeviceMajMin(filename string) (string, uint64, uint64, error) {
 	}
 
 	defer file.Close()
-	loopbackDevice := devicemapper.FindLoopDeviceFor(file)
+	loopbackDevice := loopback.FindLoopDeviceFor(file)
 	if loopbackDevice == nil {
 		return "", 0, 0, fmt.Errorf("devmapper: Unable to find loopback mount for: %s", filename)
 	}
@@ -1622,7 +1623,7 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 				return err
 			}
 
-			dataFile, err = devicemapper.AttachLoopDevice(data)
+			dataFile, err = loopback.AttachLoopDevice(data)
 			if err != nil {
 				return err
 			}
@@ -1655,7 +1656,7 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 				return err
 			}
 
-			metadataFile, err = devicemapper.AttachLoopDevice(metadata)
+			metadataFile, err = loopback.AttachLoopDevice(metadata)
 			if err != nil {
 				return err
 			}
