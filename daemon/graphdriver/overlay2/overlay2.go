@@ -48,16 +48,6 @@ import (
 	"github.com/opencontainers/runc/libcontainer/label"
 )
 
-/*
-TODO:
-
-* detect if overlay is supported by the kernel and it's new enough to support multiple RO layers
-* detect if overlay is supported on the underlying fs
-* make sure we support user namespaces correctly
-
-
-*/
-
 const (
 	MntPath    = "mnt"
 	DiffPath   = "diff"
@@ -66,11 +56,11 @@ const (
 )
 
 var (
-	AllPaths    = []string{MntPath, DiffPath, LayersPath, WorkPath}
-	AllDirPaths = []string{MntPath, DiffPath, WorkPath} // All paths that contain directories for the given ID (as opposed to files)
+	allPaths    = []string{MntPath, DiffPath, LayersPath, WorkPath}
+	allDirPaths = []string{MntPath, DiffPath, WorkPath} // All paths that contain directories for the given ID (as opposed to files)
 )
 
-const DriverName = "overlay2"
+const driverName = "overlay2"
 
 var backingFs = "<unknown>"
 
@@ -91,9 +81,10 @@ type Driver struct {
 }
 
 func init() {
-	graphdriver.Register(DriverName, Init)
+	graphdriver.Register(driverName, Init)
 }
 
+// Init checks for compatibility and creates an instance of the driver
 func Init(root string, options []string, uidMaps, gidMaps []idtools.IDMap) (graphdriver.Driver, error) {
 
 	if err := supportsOverlay(); err != nil {
@@ -130,7 +121,7 @@ func Init(root string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 	// XXX: do we need MakePrivate?
 
 	// Populate the dir structure
-	for _, p := range AllPaths {
+	for _, p := range allPaths {
 		if err := idtools.MkdirAllAs(path.Join(root, p), 0755, rootUID, rootGID); err != nil {
 			return nil, err
 		}
@@ -144,7 +135,6 @@ func Init(root string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 	}, nil
 }
 
-// XXX: copied from overlay driver
 func supportsOverlay() error {
 	// We can try to modprobe overlay first before looking at
 	// proc/filesystems for when overlay is supported
@@ -166,60 +156,14 @@ func supportsOverlay() error {
 	return graphdriver.ErrNotSupported
 }
 
-// XXX: to implement:
-/*
-type ProtoDriver interface {
-	// String returns a string representation of this driver.
-	. String() string
-	// Create creates a new, empty, filesystem layer with the
-	// specified id and parent. Parent may be "".
-	. Create(id, parent string) error
-	// Remove attempts to remove the filesystem layer with this id.
-	. Remove(id string) error
-	// Get returns the mountpoint for the layered filesystem referred
-	// to by this id. You can optionally specify a mountLabel or "".
-	// Returns the absolute path to the mounted layered filesystem.
-	. Get(id, mountLabel string) (dir string, err error)
-	// Put releases the system resources for the specified id,
-	// e.g, unmounting layered filesystem.
-	. Put(id string) error
-	// Exists returns whether a filesystem layer with the specified
-	// ID exists on this driver.
-	. Exists(id string) bool
-	// Status returns a set of key-value pairs which give low
-	// level diagnostic status about this driver.
-	. Status() [][2]string
-	// Returns a set of key-value pairs which give low level information
-	// about the image/container driver is managing.
-	. GetMetadata(id string) (map[string]string, error)
-	// Cleanup performs necessary tasks to release resources
-	// held by the driver, e.g., unmounting all layered filesystems
-	// known to this driver.
-	. Cleanup() error
-	// Diff produces an archive of the changes between the specified
-	// layer and its parent layer which may be "".
-	. Diff(id, parent string) (archive.Archive, error)
-	// Changes produces a list of changes between the specified layer
-	// and its parent layer. If parent is "", then all changes will be ADD changes.
-	. Changes(id, parent string) ([]archive.Change, error)
-	// ApplyDiff extracts the changeset from the given diff into the
-	// layer with the specified id and parent, returning the size of the
-	// new layer in bytes.
-	. ApplyDiff(id, parent string, diff archive.ArchiveReader) (size int64, err error)
-	// DiffSize calculates the changes between the specified id
-	// and its parent and returns the size in bytes of the changes
-	// relative to its base filesystem directory.
-	. DiffSize(id, parent string) (size int64, err error)
-}
-*/
-
+// String returns a string representation of this driver.
 func (d *Driver) String() string {
-	return DriverName
+	return driverName
 }
 
-// TODO: implement this similarly to the overlay driver
-// GetMetadata not implemented
-func (a *Driver) GetMetadata(id string) (map[string]string, error) {
+// GetMetadata returns a set of key-value pairs which give low level information
+// about the image/container driver is managing.
+func (d *Driver) GetMetadata(id string) (map[string]string, error) {
 	return nil, nil
 }
 
@@ -246,8 +190,7 @@ func (d *Driver) getParentIds(id string) ([]string, error) {
 	return out, s.Err()
 }
 
-// XXX: copied + modified from AUFS
-// Create 4 dirs for each id: mnt, layers, work and diff
+// Create creates 4 dirs for each id: mnt, layers, work and diff
 // mnt and work are not used until Get is called, but we create them here anyway to
 // avoid having to create them multiple times
 func (d *Driver) Create(id, parent string) error {
@@ -255,7 +198,6 @@ func (d *Driver) Create(id, parent string) error {
 		return err
 	}
 	// Write the layers metadata (the stack of parents)
-	// XXX: Should this use the uid/gid maps? (same with the aufs driver)
 	f, err := os.Create(d.dir(LayersPath, id))
 	if err != nil {
 		return err
@@ -287,7 +229,7 @@ func (d *Driver) createDirsFor(id string) error {
 	if err != nil {
 		return err
 	}
-	for _, p := range AllDirPaths {
+	for _, p := range allDirPaths {
 		if err := idtools.MkdirAllAs(d.dir(p, id), 0755, rootUID, rootGID); err != nil {
 			return err
 		}
@@ -295,8 +237,9 @@ func (d *Driver) createDirsFor(id string) error {
 	return nil
 }
 
-// XXX: copied from AUFS driver
 // Remove will unmount and remove the given id.
+// XXX: can this be called even though there are active Get requests?
+// What should it do in that case?
 func (d *Driver) Remove(id string) error {
 	// Protect the d.active from concurrent access
 	d.Lock()
@@ -338,12 +281,10 @@ func (d *Driver) Remove(id string) error {
 	return nil
 }
 
-// XXX: should we do like the naive diff driver and "Get" the current layer and its direct parent and then diff them???
 // Changes produces a list of changes between the specified layer
 // and its parent layer. If parent is "", then all changes will be ADD changes.
 func (d *Driver) Changes(id, parent string) ([]archive.Change, error) {
-	// AUFS doesn't have snapshots, so we need to get changes from all parent
-	// layers.
+	// TODO: implement this correctly
 	layers, err := d.getParentLayerPaths(id)
 	if err != nil {
 		return nil, err
@@ -351,9 +292,6 @@ func (d *Driver) Changes(id, parent string) ([]archive.Change, error) {
 	return archive.Changes(layers, d.dir(DiffPath, id))
 }
 
-// XXX: copied from the overlay driver
-// XXX: how does this handle a large number of ro dirs? Do we have to find a way to do a similar hack to the AUFS driver
-// to make it work with a large number of dirs? Do we have to do intermediate mounts? Where will metadata about that be stored?
 // Get creates and mounts the required file system for the given id and returns the mount path.
 func (d *Driver) Get(id string, mountLabel string) (string, error) {
 	ids, err := d.getParentIds(id)
@@ -424,7 +362,6 @@ func (d *Driver) mount(id string, m *ActiveMount, mountLabel string) error {
 	return nil
 }
 
-// XXX: copied from AUFS
 // Put unmounts and updates list of active mounts.
 func (d *Driver) Put(id string) error {
 	// Protect the d.active from concurrent access
@@ -433,8 +370,13 @@ func (d *Driver) Put(id string) error {
 
 	m := d.active[id]
 	if m == nil {
-		// TODO: we need to make sure that if we Put an id that has not been Get we try to make sure it's unmounted
-		// https://github.com/docker/docker/commit/3916561619d45a3d8ca17dfa467149824111023a
+		// but it might be still here
+		if d.Exists(id) {
+			err := syscall.Unmount(d.dir(MntPath, id), 0)
+			if err != nil {
+				logrus.Debugf("Failed to unmount %s overlay: %v", id, err)
+			}
+		}
 		return nil
 	}
 	if count := m.referenceCount; count > 1 {
@@ -478,7 +420,6 @@ func (d *Driver) mounted(m *ActiveMount) (bool, error) {
 	return mountpk.Mounted(m.path)
 }
 
-// XXX: copied + modified from AUFS
 // Status returns current information about the filesystem such as root directory, number of directories mounted, etc.
 func (d *Driver) Status() [][2]string {
 	ids, _ := loadIds(path.Join(d.root, LayersPath))
@@ -501,6 +442,9 @@ func (d *Driver) Diff(id, parent string) (archive.Archive, error) {
 	})
 }
 
+// Cleanup performs necessary tasks to release resources
+// held by the driver, e.g., unmounting all layered filesystems
+// known to this driver.
 func (d *Driver) Cleanup() error {
 	return nil
 }
@@ -509,8 +453,7 @@ func (d *Driver) Cleanup() error {
 // and its parent and returns the size in bytes of the changes
 // relative to its base filesystem directory.
 func (d *Driver) DiffSize(id, parent string) (size int64, err error) {
-	// AUFS doesn't need the parent layer to calculate the diff size.
-	// XXX: is this the size on disk or the size that will be in the tar?
+	// overlay doesn't need the parent layer to calculate the diff size.
 	return directory.Size(d.dir(DiffPath, id))
 }
 
@@ -518,7 +461,7 @@ func (d *Driver) DiffSize(id, parent string) (size int64, err error) {
 // layer with the specified id and parent, returning the size of the
 // new layer in bytes.
 func (d *Driver) ApplyDiff(id, parent string, diff archive.Reader) (size int64, err error) {
-	// AUFS doesn't need the parent id to apply the diff.
+	// overlay doesn't need the parent id to apply the diff.
 	if err := chrootarchive.UntarUncompressed(diff, d.dir(DiffPath, id), &archive.TarOptions{
 		UIDMaps:       d.uidMaps,
 		GIDMaps:       d.gidMaps,
@@ -530,7 +473,6 @@ func (d *Driver) ApplyDiff(id, parent string, diff archive.Reader) (size int64, 
 	return d.DiffSize(id, parent)
 }
 
-// XXX: copied from aufs
 // Exists returns true if the given id is registered with
 // this driver
 func (d *Driver) Exists(id string) bool {
@@ -546,7 +488,6 @@ func (d *Driver) dir(kind, id string) string {
 	return path.Join(d.root, kind, id)
 }
 
-// XXX: copied from aufs
 // return the list of ids in the file at this path
 func loadIds(root string) ([]string, error) {
 	dirs, err := ioutil.ReadDir(root)
@@ -561,12 +502,3 @@ func loadIds(root string) ([]string, error) {
 	}
 	return out, nil
 }
-
-// Differences between Overlay and AUFS drivers
-
-// the overlay driver uses "mounted" to indicated whether or not the filesystem was ever mounted. If it was never mounted, it doesn't try to unmount it
-// aufs unmounts only if the dir is mounted
-
-// overlay uses Stat in Exists but aufs uses lstat
-
-// overlay does nothing in Cleanup, but aufs actually unmounts everything - why? what should we do?

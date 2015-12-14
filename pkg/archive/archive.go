@@ -741,7 +741,7 @@ loop:
 		if options.OverlayFormat {
 			// if a directory is marked as opaque by the AUFS special file, we need to translate that to overlay
 			if base == WhiteoutOpaqueDir {
-				if err := syscall.Setxattr(dir, "trusted.overlay.opaque", []byte{'y'}, 0); err != nil {
+				if err := system.Lsetxattr(path, "trusted.overlay.opaque", []byte{'y'}, 0); err != nil {
 					return err
 				}
 
@@ -754,7 +754,7 @@ loop:
 				originalBase := base[len(WhiteoutPrefix):]
 				originalPath := filepath.Join(dir, originalBase)
 
-				if err := syscall.Mknod(originalPath, syscall.S_IFCHR, 0); err != nil {
+				if err := system.Mknod(originalPath, syscall.S_IFCHR, 0); err != nil {
 					return err
 				}
 				if err := os.Chown(originalPath, hdr.Uid, hdr.Gid); err != nil {
