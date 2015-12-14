@@ -2,7 +2,10 @@ package srslog
 
 import (
 	"errors"
+	"fmt"
 	"net"
+	"os"
+	"time"
 )
 
 // unixSyslog opens a connection to the syslog daemon running on the
@@ -17,9 +20,28 @@ func unixSyslog() (conn serverConn, err error) {
 			if err != nil {
 				continue
 			} else {
-				return &netConn{conn: conn, local: true}, nil
+				return &localConn{conn: conn}, nil
 			}
 		}
 	}
 	return nil, errors.New("Unix syslog delivery error")
+}
+
+type localConn struct {
+	conn net.Conn
+}
+
+func (n *localConn) writeString(p Priority, hostname, tag, msg string) error {
+	// Compared to the network form at srslog.netConn, the changes are:
+	//	1. Use time.Stamp instead of time.RFC3339.
+	//	2. Drop the hostname field from the Fprintf.
+	timestamp := time.Now().Format(time.Stamp)
+	_, err := fmt.Fprintf(n.conn, "<%d>%s %s[%d]: %s",
+		p, timestamp,
+		tag, os.Getpid(), msg)
+	return err
+}
+
+func (n *localConn) close() error {
+	return n.conn.Close()
 }

@@ -94,8 +94,7 @@ type serverConn interface {
 }
 
 type netConn struct {
-	local bool
-	conn  net.Conn
+	conn net.Conn
 }
 
 // New establishes a new connection to the system log daemon.  Each
@@ -157,6 +156,53 @@ func DialWithTLSConfig(network, raddr string, priority Priority, tag string, tls
 	return w, err
 }
 
+func (w Writer) emptyDialer() (serverConn, string, error) {
+	sc, err := unixSyslog()
+	hostname := w.hostname
+	if hostname == "" {
+		hostname = "localhost"
+	}
+	return sc, hostname, err
+}
+
+func (w Writer) tlsDialer() (serverConn, string, error) {
+	c, err := tls.Dial("tcp", w.raddr, w.tlsConfig)
+	var sc serverConn
+	hostname := w.hostname
+	if err == nil {
+		sc = &netConn{conn: c}
+		if hostname == "" {
+			hostname = c.LocalAddr().String()
+		}
+	}
+	return sc, hostname, err
+}
+
+func (w Writer) basicDialer() (serverConn, string, error) {
+	c, err := net.Dial(w.network, w.raddr)
+	var sc serverConn
+	hostname := w.hostname
+	if err == nil {
+		sc = &netConn{conn: c}
+		if hostname == "" {
+			hostname = c.LocalAddr().String()
+		}
+	}
+	return sc, hostname, err
+}
+
+func (w Writer) getDialer() func() (serverConn, string, error) {
+	dialers := map[string]func() (serverConn, string, error){
+		"":        w.emptyDialer,
+		"tcp+tls": w.tlsDialer,
+	}
+	dialer, ok := dialers[w.network]
+	if !ok {
+		dialer = w.basicDialer
+	}
+	return dialer
+}
+
 // connect makes a connection to the syslog server.
 // It must be called with w.mu held.
 func (w *Writer) connect() (err error) {
@@ -166,30 +212,15 @@ func (w *Writer) connect() (err error) {
 		w.conn = nil
 	}
 
-	if w.network == "" {
-		w.conn, err = unixSyslog()
-		if w.hostname == "" {
-			w.hostname = "localhost"
-		}
-	} else if w.network == "tcp+tls" {
-		var c *tls.Conn
-		c, err = tls.Dial("tcp", w.raddr, w.tlsConfig)
-		if err == nil {
-			w.conn = &netConn{conn: c}
-			if w.hostname == "" {
-				w.hostname = c.LocalAddr().String()
-			}
-		}
-	} else {
-		var c net.Conn
-		c, err = net.Dial(w.network, w.raddr)
-		if err == nil {
-			w.conn = &netConn{conn: c}
-			if w.hostname == "" {
-				w.hostname = c.LocalAddr().String()
-			}
-		}
+	var conn serverConn
+	var hostname string
+	dialer := w.getDialer()
+	conn, hostname, err = dialer()
+	if err == nil {
+		w.conn = conn
+		w.hostname = hostname
 	}
+
 	return
 }
 
@@ -303,16 +334,6 @@ func (w *Writer) write(p Priority, msg string) (int, error) {
 }
 
 func (n *netConn) writeString(p Priority, hostname, tag, msg string) error {
-	if n.local {
-		// Compared to the network form below, the changes are:
-		//	1. Use time.Stamp instead of time.RFC3339.
-		//	2. Drop the hostname field from the Fprintf.
-		timestamp := time.Now().Format(time.Stamp)
-		_, err := fmt.Fprintf(n.conn, "<%d>%s %s[%d]: %s",
-			p, timestamp,
-			tag, os.Getpid(), msg)
-		return err
-	}
 	timestamp := time.Now().Format(time.RFC3339)
 	_, err := fmt.Fprintf(n.conn, "<%d>%s %s %s[%d]: %s",
 		p, timestamp, hostname,
