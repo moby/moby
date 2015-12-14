@@ -478,22 +478,11 @@ func (d *Driver) Status() [][2]string {
 // layer and its parent layer which may be "".
 func (d *Driver) Diff(id, parent string) (archive.Archive, error) {
 	// overlay2 doesn't need the parent layer to produce a diff.
-
-	// TODO: change format of whiteout files from char devices to the AUFS prefix?
-	// -> .wh..wh..opq .wh..wh
-	// XXX: if aufs excludes whiteout files, how can it restore the diff correctly???
-
-	// How should this work?
-	// We automatically get compatibility with overlay2 without doing anything because xattrs and char devices are preserved by tar
-	// Before this is prod ready we need to
-	// 1. convert char device whiteout files to aufs whiteout files maybe (Why does AUFS exclude the whiteout files?????)
-	// 2. remove xattrs and put an AUFS-style opaque dir file into the dir
-
 	return archive.TarWithOptions(d.dir(DiffPath, id), &archive.TarOptions{
-		Compression: archive.Uncompressed,
-		//ExcludePatterns: []string{archive.WhiteoutMetaPrefix + "*", "!" + archive.WhiteoutOpaqueDir},
-		UIDMaps: d.uidMaps,
-		GIDMaps: d.gidMaps,
+		Compression:   archive.Uncompressed,
+		UIDMaps:       d.uidMaps,
+		GIDMaps:       d.gidMaps,
+		OverlayFormat: true,
 	})
 }
 
@@ -506,7 +495,7 @@ func (d *Driver) Cleanup() error {
 // relative to its base filesystem directory.
 func (d *Driver) DiffSize(id, parent string) (size int64, err error) {
 	// AUFS doesn't need the parent layer to calculate the diff size.
-	// XXX: account for char device whiteout files and opaque directories?
+	// XXX: is this the size on disk or the size that will be in the tar?
 	return directory.Size(d.dir(DiffPath, id))
 }
 
@@ -515,24 +504,15 @@ func (d *Driver) DiffSize(id, parent string) (size int64, err error) {
 // new layer in bytes.
 func (d *Driver) ApplyDiff(id, parent string, diff archive.Reader) (size int64, err error) {
 	// AUFS doesn't need the parent id to apply the diff.
-	if err = d.applyDiff(id, diff); err != nil {
-		return
+	if err := chrootarchive.UntarUncompressed(diff, d.dir(DiffPath, id), &archive.TarOptions{
+		UIDMaps:       d.uidMaps,
+		GIDMaps:       d.gidMaps,
+		OverlayFormat: true,
+	}); err != nil {
+		return 0, err
 	}
 
 	return d.DiffSize(id, parent)
-}
-
-// applyDiff applies the new layer on top of the root, if parent does not exist with will return a ErrApplyDiffFallback error.
-func (d *Driver) applyDiff(id string, diff archive.Reader) error {
-	// TODO: don't use chrootarchive.ApplyUncompressedLayer but implement my own that converts whiteouts and opaques from AUFS format to overlay format
-	dir := d.dir(DiffPath, id)
-	if err := chrootarchive.UntarUncompressed(diff, dir, &archive.TarOptions{
-		UIDMaps: d.uidMaps,
-		GIDMaps: d.gidMaps,
-	}); err != nil {
-		return err
-	}
-	return nil
 }
 
 // XXX: copied from aufs
