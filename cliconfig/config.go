@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/homedir"
 )
 
@@ -44,37 +45,18 @@ func SetConfigDir(dir string) {
 	configDir = dir
 }
 
-// AuthConfig contains authorization information for connecting to a Registry
-type AuthConfig struct {
-	Username      string `json:"username,omitempty"`
-	Password      string `json:"password,omitempty"`
-	Auth          string `json:"auth"`
-	Email         string `json:"email"`
-	ServerAddress string `json:"serveraddress,omitempty"`
-	RegistryToken string `json:"registrytoken,omitempty"`
-}
-
-// EncodeToBase64 serializes the auth configuration as JSON base64 payload
-func (a AuthConfig) EncodeToBase64() (string, error) {
-	buf, err := json.Marshal(a)
-	if err != nil {
-		return "", err
-	}
-	return base64.URLEncoding.EncodeToString(buf), nil
-}
-
 // ConfigFile ~/.docker/config.json file info
 type ConfigFile struct {
-	AuthConfigs map[string]AuthConfig `json:"auths"`
-	HTTPHeaders map[string]string     `json:"HttpHeaders,omitempty"`
-	PsFormat    string                `json:"psFormat,omitempty"`
-	filename    string                // Note: not serialized - for internal use only
+	AuthConfigs map[string]types.AuthConfig `json:"auths"`
+	HTTPHeaders map[string]string           `json:"HttpHeaders,omitempty"`
+	PsFormat    string                      `json:"psFormat,omitempty"`
+	filename    string                      // Note: not serialized - for internal use only
 }
 
 // NewConfigFile initializes an empty configuration file for the given filename 'fn'
 func NewConfigFile(fn string) *ConfigFile {
 	return &ConfigFile{
-		AuthConfigs: make(map[string]AuthConfig),
+		AuthConfigs: make(map[string]types.AuthConfig),
 		HTTPHeaders: make(map[string]string),
 		filename:    fn,
 	}
@@ -93,7 +75,7 @@ func (configFile *ConfigFile) LegacyLoadFromReader(configData io.Reader) error {
 		if len(arr) < 2 {
 			return fmt.Errorf("The Auth config file is empty")
 		}
-		authConfig := AuthConfig{}
+		authConfig := types.AuthConfig{}
 		origAuth := strings.Split(arr[0], " = ")
 		if len(origAuth) != 2 {
 			return fmt.Errorf("Invalid Auth config file")
@@ -146,7 +128,7 @@ func (configFile *ConfigFile) LoadFromReader(configData io.Reader) error {
 // a non-nested reader
 func LegacyLoadFromReader(configData io.Reader) (*ConfigFile, error) {
 	configFile := ConfigFile{
-		AuthConfigs: make(map[string]AuthConfig),
+		AuthConfigs: make(map[string]types.AuthConfig),
 	}
 	err := configFile.LegacyLoadFromReader(configData)
 	return &configFile, err
@@ -156,7 +138,7 @@ func LegacyLoadFromReader(configData io.Reader) (*ConfigFile, error) {
 // a reader
 func LoadFromReader(configData io.Reader) (*ConfigFile, error) {
 	configFile := ConfigFile{
-		AuthConfigs: make(map[string]AuthConfig),
+		AuthConfigs: make(map[string]types.AuthConfig),
 	}
 	err := configFile.LoadFromReader(configData)
 	return &configFile, err
@@ -171,7 +153,7 @@ func Load(configDir string) (*ConfigFile, error) {
 	}
 
 	configFile := ConfigFile{
-		AuthConfigs: make(map[string]AuthConfig),
+		AuthConfigs: make(map[string]types.AuthConfig),
 		filename:    filepath.Join(configDir, ConfigFileName),
 	}
 
@@ -215,7 +197,7 @@ func Load(configDir string) (*ConfigFile, error) {
 // the given writer
 func (configFile *ConfigFile) SaveToWriter(writer io.Writer) error {
 	// Encode sensitive data into a new/temp struct
-	tmpAuthConfigs := make(map[string]AuthConfig, len(configFile.AuthConfigs))
+	tmpAuthConfigs := make(map[string]types.AuthConfig, len(configFile.AuthConfigs))
 	for k, authConfig := range configFile.AuthConfigs {
 		authCopy := authConfig
 		// encode and save the authstring, while blanking out the original fields
@@ -261,7 +243,7 @@ func (configFile *ConfigFile) Filename() string {
 }
 
 // EncodeAuth creates a base64 encoded string to containing authorization information
-func EncodeAuth(authConfig *AuthConfig) string {
+func EncodeAuth(authConfig *types.AuthConfig) string {
 	authStr := authConfig.Username + ":" + authConfig.Password
 	msg := []byte(authStr)
 	encoded := make([]byte, base64.StdEncoding.EncodedLen(len(msg)))

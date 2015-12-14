@@ -2,6 +2,7 @@ package registry
 
 import (
 	"github.com/docker/distribution/reference"
+	registrytypes "github.com/docker/docker/api/types/registry"
 )
 
 // SearchResult describes a search result returned from a registry
@@ -83,51 +84,10 @@ const (
 	APIVersion2
 )
 
-// IndexInfo contains information about a registry
-//
-// RepositoryInfo Examples:
-// {
-//   "Index" : {
-//     "Name" : "docker.io",
-//     "Mirrors" : ["https://registry-2.docker.io/v1/", "https://registry-3.docker.io/v1/"],
-//     "Secure" : true,
-//     "Official" : true,
-//   },
-//   "RemoteName" : "library/debian",
-//   "LocalName" : "debian",
-//   "CanonicalName" : "docker.io/debian"
-//   "Official" : true,
-// }
-//
-// {
-//   "Index" : {
-//     "Name" : "127.0.0.1:5000",
-//     "Mirrors" : [],
-//     "Secure" : false,
-//     "Official" : false,
-//   },
-//   "RemoteName" : "user/repo",
-//   "LocalName" : "127.0.0.1:5000/user/repo",
-//   "CanonicalName" : "127.0.0.1:5000/user/repo",
-//   "Official" : false,
-// }
-type IndexInfo struct {
-	// Name is the name of the registry, such as "docker.io"
-	Name string
-	// Mirrors is a list of mirrors, expressed as URIs
-	Mirrors []string
-	// Secure is set to false if the registry is part of the list of
-	// insecure registries. Insecure registries accept HTTP and/or accept
-	// HTTPS with certificates from unknown CAs.
-	Secure bool
-	// Official indicates whether this is an official registry
-	Official bool
-}
-
 // RepositoryInfo describes a repository
 type RepositoryInfo struct {
 	// Index points to registry information
-	Index *IndexInfo
+	Index *registrytypes.IndexInfo
 	// RemoteName is the remote name of the repository, such as
 	// "library/ubuntu-12.04-base"
 	RemoteName reference.Named

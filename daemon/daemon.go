@@ -22,7 +22,6 @@ import (
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/events"
 	"github.com/docker/docker/daemon/exec"
@@ -1069,7 +1068,7 @@ func writeDistributionProgress(cancelFunc func(), outStream io.Writer, progressC
 
 // PullImage initiates a pull operation. image is the repository name to pull, and
 // tag may be either empty, or indicate a specific tag to pull.
-func (daemon *Daemon) PullImage(ref reference.Named, metaHeaders map[string][]string, authConfig *cliconfig.AuthConfig, outStream io.Writer) error {
+func (daemon *Daemon) PullImage(ref reference.Named, metaHeaders map[string][]string, authConfig *types.AuthConfig, outStream io.Writer) error {
 	// Include a buffer so that slow client connections don't affect
 	// transfer performance.
 	progressChan := make(chan progress.Progress, 100)
@@ -1112,7 +1111,7 @@ func (daemon *Daemon) ExportImage(names []string, outStream io.Writer) error {
 }
 
 // PushImage initiates a push operation on the repository named localName.
-func (daemon *Daemon) PushImage(ref reference.Named, metaHeaders map[string][]string, authConfig *cliconfig.AuthConfig, outStream io.Writer) error {
+func (daemon *Daemon) PushImage(ref reference.Named, metaHeaders map[string][]string, authConfig *types.AuthConfig, outStream io.Writer) error {
 	// Include a buffer so that slow client connections don't affect
 	// transfer performance.
 	progressChan := make(chan progress.Progress, 100)
@@ -1501,14 +1500,14 @@ func configureVolumes(config *Config, rootUID, rootGID int) (*store.VolumeStore,
 }
 
 // AuthenticateToRegistry checks the validity of credentials in authConfig
-func (daemon *Daemon) AuthenticateToRegistry(authConfig *cliconfig.AuthConfig) (string, error) {
+func (daemon *Daemon) AuthenticateToRegistry(authConfig *types.AuthConfig) (string, error) {
 	return daemon.RegistryService.Auth(authConfig)
 }
 
 // SearchRegistryForImages queries the registry for images matching
 // term. authConfig is used to login.
 func (daemon *Daemon) SearchRegistryForImages(term string,
-	authConfig *cliconfig.AuthConfig,
+	authConfig *types.AuthConfig,
 	headers map[string][]string) (*registry.SearchResults, error) {
 	return daemon.RegistryService.Search(term, authConfig, headers)
 }

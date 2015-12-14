@@ -8,11 +8,12 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/cliconfig"
+	"github.com/docker/docker/api/types"
+	registrytypes "github.com/docker/docker/api/types/registry"
 )
 
 // Login tries to register/login to the registry server.
-func Login(authConfig *cliconfig.AuthConfig, registryEndpoint *Endpoint) (string, error) {
+func Login(authConfig *types.AuthConfig, registryEndpoint *Endpoint) (string, error) {
 	// Separates the v2 registry login logic from the v1 logic.
 	if registryEndpoint.Version == APIVersion2 {
 		return loginV2(authConfig, registryEndpoint, "" /* scope */)
@@ -21,7 +22,7 @@ func Login(authConfig *cliconfig.AuthConfig, registryEndpoint *Endpoint) (string
 }
 
 // loginV1 tries to register/login to the v1 registry server.
-func loginV1(authConfig *cliconfig.AuthConfig, registryEndpoint *Endpoint) (string, error) {
+func loginV1(authConfig *types.AuthConfig, registryEndpoint *Endpoint) (string, error) {
 	var (
 		status         string
 		respBody       []byte
@@ -136,7 +137,7 @@ func loginV1(authConfig *cliconfig.AuthConfig, registryEndpoint *Endpoint) (stri
 // now, users should create their account through other means like directly from a web page
 // served by the v2 registry service provider. Whether this will be supported in the future
 // is to be determined.
-func loginV2(authConfig *cliconfig.AuthConfig, registryEndpoint *Endpoint, scope string) (string, error) {
+func loginV2(authConfig *types.AuthConfig, registryEndpoint *Endpoint, scope string) (string, error) {
 	logrus.Debugf("attempting v2 login to registry endpoint %s", registryEndpoint)
 	var (
 		err       error
@@ -173,7 +174,7 @@ func loginV2(authConfig *cliconfig.AuthConfig, registryEndpoint *Endpoint, scope
 	return "", fmt.Errorf("no successful auth challenge for %s - errors: %s", registryEndpoint, allErrors)
 }
 
-func tryV2BasicAuthLogin(authConfig *cliconfig.AuthConfig, params map[string]string, registryEndpoint *Endpoint) error {
+func tryV2BasicAuthLogin(authConfig *types.AuthConfig, params map[string]string, registryEndpoint *Endpoint) error {
 	req, err := http.NewRequest("GET", registryEndpoint.Path(""), nil)
 	if err != nil {
 		return err
@@ -194,7 +195,7 @@ func tryV2BasicAuthLogin(authConfig *cliconfig.AuthConfig, params map[string]str
 	return nil
 }
 
-func tryV2TokenAuthLogin(authConfig *cliconfig.AuthConfig, params map[string]string, registryEndpoint *Endpoint) error {
+func tryV2TokenAuthLogin(authConfig *types.AuthConfig, params map[string]string, registryEndpoint *Endpoint) error {
 	token, err := getToken(authConfig.Username, authConfig.Password, params, registryEndpoint)
 	if err != nil {
 		return err
@@ -221,8 +222,8 @@ func tryV2TokenAuthLogin(authConfig *cliconfig.AuthConfig, params map[string]str
 }
 
 // ResolveAuthConfig matches an auth configuration to a server address or a URL
-func ResolveAuthConfig(authConfigs map[string]cliconfig.AuthConfig, index *IndexInfo) cliconfig.AuthConfig {
-	configKey := index.GetAuthConfigKey()
+func ResolveAuthConfig(authConfigs map[string]types.AuthConfig, index *registrytypes.IndexInfo) types.AuthConfig {
+	configKey := GetAuthConfigKey(index)
 	// First try the happy case
 	if c, found := authConfigs[configKey]; found || index.Official {
 		return c
@@ -250,5 +251,5 @@ func ResolveAuthConfig(authConfigs map[string]cliconfig.AuthConfig, index *Index
 	}
 
 	// When all else fails, return an empty auth config
-	return cliconfig.AuthConfig{}
+	return types.AuthConfig{}
 }

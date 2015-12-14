@@ -20,7 +20,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/reference"
-	"github.com/docker/docker/cliconfig"
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/httputils"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/stringid"
@@ -39,13 +39,13 @@ type Session struct {
 	indexEndpoint *Endpoint
 	client        *http.Client
 	// TODO(tiborvass): remove authConfig
-	authConfig *cliconfig.AuthConfig
+	authConfig *types.AuthConfig
 	id         string
 }
 
 type authTransport struct {
 	http.RoundTripper
-	*cliconfig.AuthConfig
+	*types.AuthConfig
 
 	alwaysSetBasicAuth bool
 	token              []string
@@ -67,7 +67,7 @@ type authTransport struct {
 // If the server sends a token without the client having requested it, it is ignored.
 //
 // This RoundTripper also has a CancelRequest method important for correct timeout handling.
-func AuthTransport(base http.RoundTripper, authConfig *cliconfig.AuthConfig, alwaysSetBasicAuth bool) http.RoundTripper {
+func AuthTransport(base http.RoundTripper, authConfig *types.AuthConfig, alwaysSetBasicAuth bool) http.RoundTripper {
 	if base == nil {
 		base = http.DefaultTransport
 	}
@@ -162,7 +162,7 @@ func (tr *authTransport) CancelRequest(req *http.Request) {
 
 // NewSession creates a new session
 // TODO(tiborvass): remove authConfig param once registry client v2 is vendored
-func NewSession(client *http.Client, authConfig *cliconfig.AuthConfig, endpoint *Endpoint) (r *Session, err error) {
+func NewSession(client *http.Client, authConfig *types.AuthConfig, endpoint *Endpoint) (r *Session, err error) {
 	r = &Session{
 		authConfig:    authConfig,
 		client:        client,
@@ -743,12 +743,12 @@ func (r *Session) SearchRepositories(term string) (*SearchResults, error) {
 
 // GetAuthConfig returns the authentication settings for a session
 // TODO(tiborvass): remove this once registry client v2 is vendored
-func (r *Session) GetAuthConfig(withPasswd bool) *cliconfig.AuthConfig {
+func (r *Session) GetAuthConfig(withPasswd bool) *types.AuthConfig {
 	password := ""
 	if withPasswd {
 		password = r.authConfig.Password
 	}
-	return &cliconfig.AuthConfig{
+	return &types.AuthConfig{
 		Username: r.authConfig.Username,
 		Password: password,
 		Email:    r.authConfig.Email,

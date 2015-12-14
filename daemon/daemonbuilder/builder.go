@@ -13,7 +13,6 @@ import (
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/builder"
-	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/image"
@@ -30,7 +29,7 @@ import (
 type Docker struct {
 	Daemon      *daemon.Daemon
 	OutOld      io.Writer
-	AuthConfigs map[string]cliconfig.AuthConfig
+	AuthConfigs map[string]types.AuthConfig
 	Archiver    *archive.Archiver
 }
 
@@ -58,7 +57,7 @@ func (d Docker) Pull(name string) (*image.Image, error) {
 		}
 	}
 
-	pullRegistryAuth := &cliconfig.AuthConfig{}
+	pullRegistryAuth := &types.AuthConfig{}
 	if len(d.AuthConfigs) > 0 {
 		// The request came with a full auth config file, we prefer to use that
 		repoInfo, err := d.Daemon.RegistryService.ResolveRepository(ref)

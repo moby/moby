@@ -17,14 +17,14 @@ import (
 	"github.com/docker/distribution/registry/client"
 	"github.com/docker/distribution/registry/client/auth"
 	"github.com/docker/distribution/registry/client/transport"
-	"github.com/docker/docker/cliconfig"
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/distribution/xfer"
 	"github.com/docker/docker/registry"
 	"golang.org/x/net/context"
 )
 
 type dumbCredentialStore struct {
-	auth *cliconfig.AuthConfig
+	auth *types.AuthConfig
 }
 
 func (dcs dumbCredentialStore) Basic(*url.URL) (string, string) {
@@ -34,7 +34,7 @@ func (dcs dumbCredentialStore) Basic(*url.URL) (string, string) {
 // NewV2Repository returns a repository (v2 only). It creates a HTTP transport
 // providing timeout settings and authentication support, and also verifies the
 // remote API version.
-func NewV2Repository(repoInfo *registry.RepositoryInfo, endpoint registry.APIEndpoint, metaHeaders http.Header, authConfig *cliconfig.AuthConfig, actions ...string) (distribution.Repository, error) {
+func NewV2Repository(repoInfo *registry.RepositoryInfo, endpoint registry.APIEndpoint, metaHeaders http.Header, authConfig *types.AuthConfig, actions ...string) (distribution.Repository, error) {
 	ctx := context.Background()
 
 	repoName := repoInfo.CanonicalName

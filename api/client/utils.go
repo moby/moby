@@ -1,6 +1,8 @@
 package client
 
 import (
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"os"
 	gosignal "os/signal"
@@ -10,20 +12,30 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/client/lib"
 	"github.com/docker/docker/api/types"
+	registrytypes "github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/term"
 	"github.com/docker/docker/registry"
 )
 
-func (cli *DockerCli) encodeRegistryAuth(index *registry.IndexInfo) (string, error) {
-	authConfig := registry.ResolveAuthConfig(cli.configFile.AuthConfigs, index)
-	return authConfig.EncodeToBase64()
+// encodeAuthToBase64 serializes the auth configuration as JSON base64 payload
+func encodeAuthToBase64(authConfig types.AuthConfig) (string, error) {
+	buf, err := json.Marshal(authConfig)
+	if err != nil {
+		return "", err
+	}
+	return base64.URLEncoding.EncodeToString(buf), nil
 }
 
-func (cli *DockerCli) registryAuthenticationPrivilegedFunc(index *registry.IndexInfo, cmdName string) lib.RequestPrivilegeFunc {
+func (cli *DockerCli) encodeRegistryAuth(index *registrytypes.IndexInfo) (string, error) {
+	authConfig := registry.ResolveAuthConfig(cli.configFile.AuthConfigs, index)
+	return encodeAuthToBase64(authConfig)
+}
+
+func (cli *DockerCli) registryAuthenticationPrivilegedFunc(index *registrytypes.IndexInfo, cmdName string) lib.RequestPrivilegeFunc {
 	return func() (string, error) {
 		fmt.Fprintf(cli.out, "\nPlease login prior to %s:\n", cmdName)
-		if err := cli.CmdLogin(index.GetAuthConfigKey()); err != nil {
+		if err := cli.CmdLogin(registry.GetAuthConfigKey(index)); err != nil {
 			return "", err
 		}
 		return cli.encodeRegistryAuth(index)

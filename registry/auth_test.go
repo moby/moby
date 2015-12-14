@@ -3,13 +3,15 @@ package registry
 import (
 	"testing"
 
+	"github.com/docker/docker/api/types"
+	registrytypes "github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/cliconfig"
 )
 
 func TestEncodeAuth(t *testing.T) {
-	newAuthConfig := &cliconfig.AuthConfig{Username: "ken", Password: "test", Email: "test@example.com"}
+	newAuthConfig := &types.AuthConfig{Username: "ken", Password: "test", Email: "test@example.com"}
 	authStr := cliconfig.EncodeAuth(newAuthConfig)
-	decAuthConfig := &cliconfig.AuthConfig{}
+	decAuthConfig := &types.AuthConfig{}
 	var err error
 	decAuthConfig.Username, decAuthConfig.Password, err = cliconfig.DecodeAuth(authStr)
 	if err != nil {
@@ -26,11 +28,11 @@ func TestEncodeAuth(t *testing.T) {
 	}
 }
 
-func buildAuthConfigs() map[string]cliconfig.AuthConfig {
-	authConfigs := map[string]cliconfig.AuthConfig{}
+func buildAuthConfigs() map[string]types.AuthConfig {
+	authConfigs := map[string]types.AuthConfig{}
 
 	for _, registry := range []string{"testIndex", IndexServer} {
-		authConfigs[registry] = cliconfig.AuthConfig{
+		authConfigs[registry] = types.AuthConfig{
 			Username: "docker-user",
 			Password: "docker-pass",
 			Email:    "docker@docker.io",
@@ -61,10 +63,10 @@ func TestResolveAuthConfigIndexServer(t *testing.T) {
 	authConfigs := buildAuthConfigs()
 	indexConfig := authConfigs[IndexServer]
 
-	officialIndex := &IndexInfo{
+	officialIndex := &registrytypes.IndexInfo{
 		Official: true,
 	}
-	privateIndex := &IndexInfo{
+	privateIndex := &registrytypes.IndexInfo{
 		Official: false,
 	}
 
@@ -78,24 +80,24 @@ func TestResolveAuthConfigIndexServer(t *testing.T) {
 func TestResolveAuthConfigFullURL(t *testing.T) {
 	authConfigs := buildAuthConfigs()
 
-	registryAuth := cliconfig.AuthConfig{
+	registryAuth := types.AuthConfig{
 		Username: "foo-user",
 		Password: "foo-pass",
 		Email:    "foo@example.com",
 	}
-	localAuth := cliconfig.AuthConfig{
+	localAuth := types.AuthConfig{
 		Username: "bar-user",
 		Password: "bar-pass",
 		Email:    "bar@example.com",
 	}
-	officialAuth := cliconfig.AuthConfig{
+	officialAuth := types.AuthConfig{
 		Username: "baz-user",
 		Password: "baz-pass",
 		Email:    "baz@example.com",
 	}
 	authConfigs[IndexServer] = officialAuth
 
-	expectedAuths := map[string]cliconfig.AuthConfig{
+	expectedAuths := map[string]types.AuthConfig{
 		"registry.example.com": registryAuth,
 		"localhost:8000":       localAuth,
 		"registry.com":         localAuth,
@@ -127,7 +129,7 @@ func TestResolveAuthConfigFullURL(t *testing.T) {
 		if !ok || configured.Email == "" {
 			t.Fail()
 		}
-		index := &IndexInfo{
+		index := &registrytypes.IndexInfo{
 			Name: configKey,
 		}
 		for _, registry := range registries {
