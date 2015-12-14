@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/pkg/integration/checker"
+	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/nat"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/libnetwork/resolvconf"
@@ -3811,4 +3812,115 @@ func (s *DockerSuite) TestRunWithOomScoreAdjInvalidRange(c *check.C) {
 	if !strings.Contains(out, expected) {
 		c.Fatalf("Expected output to contain %q, got %q instead", expected, out)
 	}
+}
+
+func (s *DockerSuite) TestRunVolumesMountedAsShared(c *check.C) {
+	// Volume propagation is linux only. Also it creates directories for
+	// bind mounting, so needs to be same host.
+	testRequires(c, DaemonIsLinux, SameHostDaemon, NotUserNamespace)
+
+	// Prepare a source directory to bind mount
+	tmpDir, err := ioutil.TempDir("", "volume-source")
+	if err != nil {
+		c.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	if err := os.Mkdir(path.Join(tmpDir, "mnt1"), 0755); err != nil {
+		c.Fatal(err)
+	}
+
+	// Convert this directory into a shared mount point so that we do
+	// not rely on propagation properties of parent mount.
+	cmd := exec.Command("mount", "--bind", tmpDir, tmpDir)
+	if _, err = runCommand(cmd); err != nil {
+		c.Fatal(err)
+	}
+
+	cmd = exec.Command("mount", "--make-private", "--make-shared", tmpDir)
+	if _, err = runCommand(cmd); err != nil {
+		c.Fatal(err)
+	}
+
+	dockerCmd(c, "run", "--privileged", "-v", fmt.Sprintf("%s:/volume-dest:shared", tmpDir), "busybox", "mount", "--bind", "/volume-dest/mnt1", "/volume-dest/mnt1")
+
+	// Make sure a bind mount under a shared volume propagated to host.
+	if mounted, _ := mount.Mounted(path.Join(tmpDir, "mnt1")); !mounted {
+		c.Fatalf("Bind mount under shared volume did not propagate to host")
+	}
+
+	mount.Unmount(path.Join(tmpDir, "mnt1"))
+}
+
+func (s *DockerSuite) TestRunVolumesMountedAsSlave(c *check.C) {
+	// Volume propagation is linux only. Also it creates directories for
+	// bind mounting, so needs to be same host.
+	testRequires(c, DaemonIsLinux, SameHostDaemon, NotUserNamespace)
+
+	// Prepare a source directory to bind mount
+	tmpDir, err := ioutil.TempDir("", "volume-source")
+	if err != nil {
+		c.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	if err := os.Mkdir(path.Join(tmpDir, "mnt1"), 0755); err != nil {
+		c.Fatal(err)
+	}
+
+	// Prepare a source directory with file in it. We will bind mount this
+	// direcotry and see if file shows up.
+	tmpDir2, err := ioutil.TempDir("", "volume-source2")
+	if err != nil {
+		c.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir2)
+
+	if err := ioutil.WriteFile(path.Join(tmpDir2, "slave-testfile"), []byte("Test"), 0644); err != nil {
+		c.Fatal(err)
+	}
+
+	// Convert this directory into a shared mount point so that we do
+	// not rely on propagation properties of parent mount.
+	cmd := exec.Command("mount", "--bind", tmpDir, tmpDir)
+	if _, err = runCommand(cmd); err != nil {
+		c.Fatal(err)
+	}
+
+	cmd = exec.Command("mount", "--make-private", "--make-shared", tmpDir)
+	if _, err = runCommand(cmd); err != nil {
+		c.Fatal(err)
+	}
+
+	dockerCmd(c, "run", "-i", "-d", "--name", "parent", "-v", fmt.Sprintf("%s:/volume-dest:slave", tmpDir), "busybox", "top")
+
+	// Bind mount tmpDir2/ onto tmpDir/mnt1. If mount propagates inside
+	// container then contents of tmpDir2/slave-testfile should become
+	// visible at "/volume-dest/mnt1/slave-testfile"
+	cmd = exec.Command("mount", "--bind", tmpDir2, path.Join(tmpDir, "mnt1"))
+	if _, err = runCommand(cmd); err != nil {
+		c.Fatal(err)
+	}
+
+	out, _ := dockerCmd(c, "exec", "parent", "cat", "/volume-dest/mnt1/slave-testfile")
+
+	mount.Unmount(path.Join(tmpDir, "mnt1"))
+
+	if out != "Test" {
+		c.Fatalf("Bind mount under slave volume did not propagate to container")
+	}
+}
+
+func (s *DockerSuite) TestRunNamedVolumesMountedAsShared(c *check.C) {
+	testRequires(c, DaemonIsLinux, NotUserNamespace)
+	out, exitcode, _ := dockerCmdWithError("run", "-v", "foo:/test:shared", "busybox", "touch", "/test/somefile")
+
+	if exitcode == 0 {
+		c.Fatalf("expected non-zero exit code; received %d", exitcode)
+	}
+
+	if expected := "Invalid volume specification"; !strings.Contains(out, expected) {
+		c.Fatalf(`Expected %q in output; got: %s`, expected, out)
+	}
+
 }
