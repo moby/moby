@@ -7,10 +7,8 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/docker/docker/api"
 	"github.com/docker/docker/pkg/sockets"
 	"github.com/docker/docker/pkg/tlsconfig"
-	"github.com/docker/docker/pkg/version"
 )
 
 // Client is the API client that performs all operations
@@ -29,24 +27,16 @@ type Client struct {
 	// httpClient holds the client transport instance. Exported to keep the old code running.
 	httpClient *http.Client
 	// version of the server to talk to.
-	version version.Version
+	version string
 	// custom http headers configured by users
 	customHTTPHeaders map[string]string
 }
 
-// NewClient initializes a new API client
-// for the given host. It uses the tlsOptions
-// to decide whether to use a secure connection or not.
+// NewClient initializes a new API client for the given host and API version.
+// It won't send any version information if the version number is empty.
+// It uses the tlsOptions to decide whether to use a secure connection or not.
 // It also initializes the custom http headers to add to each request.
-func NewClient(host string, tlsOptions *tlsconfig.Options, httpHeaders map[string]string) (*Client, error) {
-	return NewClientWithVersion(host, api.Version, tlsOptions, httpHeaders)
-}
-
-// NewClientWithVersion initializes a new API client
-// for the given host and API version. It uses the tlsOptions
-// to decide whether to use a secure connection or not.
-// It also initializes the custom http headers to add to each request.
-func NewClientWithVersion(host string, version version.Version, tlsOptions *tlsconfig.Options, httpHeaders map[string]string) (*Client, error) {
+func NewClient(host string, version string, tlsOptions *tlsconfig.Options, httpHeaders map[string]string) (*Client, error) {
 	var (
 		basePath       string
 		tlsConfig      *tls.Config
@@ -94,7 +84,13 @@ func NewClientWithVersion(host string, version version.Version, tlsOptions *tlsc
 // getAPIPath returns the versioned request path to call the api.
 // It appends the query parameters to the path if they are not empty.
 func (cli *Client) getAPIPath(p string, query url.Values) string {
-	apiPath := fmt.Sprintf("%s/v%s%s", cli.basePath, cli.version, p)
+	var apiPath string
+	if cli.version != "" {
+		v := strings.TrimPrefix(cli.version, "v")
+		apiPath = fmt.Sprintf("%s/v%s%s", cli.basePath, v, p)
+	} else {
+		apiPath = fmt.Sprintf("%s%s", cli.basePath, p)
+	}
 	if len(query) > 0 {
 		apiPath += "?" + query.Encode()
 	}
