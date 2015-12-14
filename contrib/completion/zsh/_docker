@@ -578,6 +578,7 @@ __docker_subcommand() {
             _arguments $(__docker_arguments) \
                 $opts_help \
                 "($help)--api-cors-header=[Set CORS headers in the remote API]:CORS headers: " \
+                "($help)*--authz-plugin=[Set authorization plugins to load]" \
                 "($help -b --bridge)"{-b=,--bridge=}"[Attach containers to a network bridge]:bridge:_net_interfaces" \
                 "($help)--bip=[Specify network bridge IP]" \
                 "($help -D --debug)"{-D,--debug}"[Enable debug mode]" \
@@ -585,7 +586,7 @@ __docker_subcommand() {
                 "($help)--default-gateway-v6[Container default gateway IPv6 address]:IPv6 address: " \
                 "($help)--cluster-store=[URL of the distributed storage backend]:Cluster Store:->cluster-store" \
                 "($help)--cluster-advertise=[Address of the daemon instance to advertise]:Instance to advertise (host\:port): " \
-                "($help)*--cluster-store-opt[Set cluster options]:Cluster options:->cluster-store-options" \
+                "($help)*--cluster-store-opt=[Set cluster options]:Cluster options:->cluster-store-options" \
                 "($help)*--dns=[DNS server to use]:DNS: " \
                 "($help)*--dns-search=[DNS search domains to use]:DNS search: " \
                 "($help)*--dns-opt=[DNS options to use]:DNS option: " \
