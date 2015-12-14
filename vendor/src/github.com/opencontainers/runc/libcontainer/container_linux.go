@@ -3,8 +3,10 @@
 package libcontainer
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -19,6 +21,7 @@ import (
 	"github.com/opencontainers/runc/libcontainer/cgroups"
 	"github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/opencontainers/runc/libcontainer/criurpc"
+	"github.com/vishvananda/netlink/nl"
 )
 
 const stdioFdCount = 3
@@ -218,7 +221,7 @@ func (c *linuxContainer) newParentProcess(p *Process, doInit bool) (parentProces
 		return nil, newSystemError(err)
 	}
 	if !doInit {
-		return c.newSetnsProcess(p, cmd, parentPipe, childPipe), nil
+		return c.newSetnsProcess(p, cmd, parentPipe, childPipe)
 	}
 	return c.newInitProcess(p, cmd, parentPipe, childPipe)
 }
@@ -273,23 +276,24 @@ func (c *linuxContainer) newInitProcess(p *Process, cmd *exec.Cmd, parentPipe, c
 	}, nil
 }
 
-func (c *linuxContainer) newSetnsProcess(p *Process, cmd *exec.Cmd, parentPipe, childPipe *os.File) *setnsProcess {
-	cmd.Env = append(cmd.Env,
-		fmt.Sprintf("_LIBCONTAINER_INITPID=%d", c.initProcess.pid()),
-		"_LIBCONTAINER_INITTYPE=setns",
-	)
-	if p.consolePath != "" {
-		cmd.Env = append(cmd.Env, "_LIBCONTAINER_CONSOLE_PATH="+p.consolePath)
+func (c *linuxContainer) newSetnsProcess(p *Process, cmd *exec.Cmd, parentPipe, childPipe *os.File) (*setnsProcess, error) {
+	cmd.Env = append(cmd.Env, "_LIBCONTAINER_INITTYPE=setns")
+	// for setns process, we dont have to set cloneflags as the process namespaces
+	// will only be set via setns syscall
+	data, err := c.bootstrapData(0, c.initProcess.pid(), p.consolePath)
+	if err != nil {
+		return nil, err
 	}
 	// TODO: set on container for process management
 	return &setnsProcess{
-		cmd:         cmd,
-		cgroupPaths: c.cgroupManager.GetPaths(),
-		childPipe:   childPipe,
-		parentPipe:  parentPipe,
-		config:      c.newInitConfig(p),
-		process:     p,
-	}
+		cmd:           cmd,
+		cgroupPaths:   c.cgroupManager.GetPaths(),
+		childPipe:     childPipe,
+		parentPipe:    parentPipe,
+		config:        c.newInitConfig(p),
+		process:       p,
+		bootstrapData: data,
+	}, nil
 }
 
 func (c *linuxContainer) newInitConfig(process *Process) *initConfig {
@@ -1020,4 +1024,26 @@ func (c *linuxContainer) currentState() (*State, error) {
 		}
 	}
 	return state, nil
+}
+
+// bootstrapData encodes the necessary data in netlink binary format as a io.Reader.
+// Consumer can write the data to a bootstrap program such as one that uses
+// nsenter package to bootstrap the container's init process correctly, i.e. with
+// correct namespaces, uid/gid mapping etc.
+func (c *linuxContainer) bootstrapData(cloneFlags uintptr, pid int, consolePath string) (io.Reader, error) {
+	// create the netlink message
+	r := nl.NewNetlinkRequest(int(InitMsg), 0)
+	// write pid
+	r.AddData(&Int32msg{
+		Type:  PidAttr,
+		Value: uint32(pid),
+	})
+	// write console path
+	if consolePath != "" {
+		r.AddData(&Bytemsg{
+			Type:  ConsolePathAttr,
+			Value: []byte(consolePath),
+		})
+	}
+	return bytes.NewReader(r.Serialize()), nil
 }

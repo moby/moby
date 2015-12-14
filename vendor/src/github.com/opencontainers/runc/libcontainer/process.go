@@ -80,10 +80,19 @@ func (p Process) Signal(sig os.Signal) error {
 
 // NewConsole creates new console for process and returns it
 func (p *Process) NewConsole(rootuid int) (Console, error) {
-	console, err := newConsole(rootuid, rootuid)
+	console, err := NewConsole(rootuid, rootuid)
 	if err != nil {
 		return nil, err
 	}
 	p.consolePath = console.Path()
 	return console, nil
+}
+
+// ConsoleFromPath sets the process's console with the path provided
+func (p *Process) ConsoleFromPath(path string) error {
+	if p.consolePath != "" {
+		return newGenericError(fmt.Errorf("console path already exists for process"), ConsoleExists)
+	}
+	p.consolePath = path
+	return nil
 }
