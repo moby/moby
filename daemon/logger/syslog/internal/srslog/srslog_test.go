@@ -285,7 +285,7 @@ func check(t *testing.T, in, out string) {
 
 func TestWrite(t *testing.T) {
 	tests := []struct {
-		pri Priority
+		pri priority
 		pre string
 		msg string
 		exp string
@@ -326,7 +326,7 @@ func TestWrite(t *testing.T) {
 
 func TestTLSWrite(t *testing.T) {
 	tests := []struct {
-		pri Priority
+		pri priority
 		pre string
 		msg string
 		exp string

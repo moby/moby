@@ -7,20 +7,21 @@ import (
 	"sync"
 )
 
-// A Writer is a connection to a syslog server.
-type Writer struct {
-	priority  Priority
+// A writer is a connection to a syslog server.
+type writer struct {
+	sync.Mutex // guards conn
+
+	priority  priority
 	tag       string
 	hostname  string
 	network   string
 	raddr     string
 	tlsConfig *tls.Config
 
-	mu   sync.Mutex // guards conn
 	conn serverConn
 }
 
-func (w Writer) emptyDialer() (serverConn, string, error) {
+func (w writer) emptyDialer() (serverConn, string, error) {
 	sc, err := unixSyslog()
 	hostname := w.hostname
 	if hostname == "" {
@@ -29,7 +30,7 @@ func (w Writer) emptyDialer() (serverConn, string, error) {
 	return sc, hostname, err
 }
 
-func (w Writer) tlsDialer() (serverConn, string, error) {
+func (w writer) tlsDialer() (serverConn, string, error) {
 	c, err := tls.Dial("tcp", w.raddr, w.tlsConfig)
 	var sc serverConn
 	hostname := w.hostname
@@ -42,7 +43,7 @@ func (w Writer) tlsDialer() (serverConn, string, error) {
 	return sc, hostname, err
 }
 
-func (w Writer) basicDialer() (serverConn, string, error) {
+func (w writer) basicDialer() (serverConn, string, error) {
 	c, err := net.Dial(w.network, w.raddr)
 	var sc serverConn
 	hostname := w.hostname
@@ -55,7 +56,7 @@ func (w Writer) basicDialer() (serverConn, string, error) {
 	return sc, hostname, err
 }
 
-func (w Writer) getDialer() func() (serverConn, string, error) {
+func (w writer) getDialer() func() (serverConn, string, error) {
 	dialers := map[string]func() (serverConn, string, error){
 		"":        w.emptyDialer,
 		"tcp+tls": w.tlsDialer,
@@ -69,7 +70,7 @@ func (w Writer) getDialer() func() (serverConn, string, error) {
 
 // connect makes a connection to the syslog server.
 // It must be called with w.mu held.
-func (w *Writer) connect() (err error) {
+func (w *writer) connect() (err error) {
 	if w.conn != nil {
 		// ignore err from close, it makes sense to continue anyway
 		w.conn.close()
@@ -89,14 +90,14 @@ func (w *Writer) connect() (err error) {
 }
 
 // Write sends a log message to the syslog daemon.
-func (w *Writer) Write(b []byte) (int, error) {
+func (w *writer) Write(b []byte) (int, error) {
 	return w.writeAndRetry(w.priority, string(b))
 }
 
 // Close closes a connection to the syslog daemon.
-func (w *Writer) Close() error {
-	w.mu.Lock()
-	defer w.mu.Unlock()
+func (w *writer) Close() error {
+	w.Lock()
+	defer w.Unlock()
 
 	if w.conn != nil {
 		err := w.conn.close()
@@ -108,65 +109,65 @@ func (w *Writer) Close() error {
 
 // Emerg logs a message with severity LOG_EMERG, ignoring the severity
 // passed to New.
-func (w *Writer) Emerg(m string) (err error) {
+func (w *writer) Emerg(m string) (err error) {
 	_, err = w.writeAndRetry(LOG_EMERG, m)
 	return err
 }
 
 // Alert logs a message with severity LOG_ALERT, ignoring the severity
 // passed to New.
-func (w *Writer) Alert(m string) (err error) {
+func (w *writer) Alert(m string) (err error) {
 	_, err = w.writeAndRetry(LOG_ALERT, m)
 	return err
 }
 
 // Crit logs a message with severity LOG_CRIT, ignoring the severity
 // passed to New.
-func (w *Writer) Crit(m string) (err error) {
+func (w *writer) Crit(m string) (err error) {
 	_, err = w.writeAndRetry(LOG_CRIT, m)
 	return err
 }
 
 // Err logs a message with severity LOG_ERR, ignoring the severity
 // passed to New.
-func (w *Writer) Err(m string) (err error) {
+func (w *writer) Err(m string) (err error) {
 	_, err = w.writeAndRetry(LOG_ERR, m)
 	return err
 }
 
 // Warning logs a message with severity LOG_WARNING, ignoring the
 // severity passed to New.
-func (w *Writer) Warning(m string) (err error) {
+func (w *writer) Warning(m string) (err error) {
 	_, err = w.writeAndRetry(LOG_WARNING, m)
 	return err
 }
 
 // Notice logs a message with severity LOG_NOTICE, ignoring the
 // severity passed to New.
-func (w *Writer) Notice(m string) (err error) {
+func (w *writer) Notice(m string) (err error) {
 	_, err = w.writeAndRetry(LOG_NOTICE, m)
 	return err
 }
 
 // Info logs a message with severity LOG_INFO, ignoring the severity
 // passed to New.
-func (w *Writer) Info(m string) (err error) {
+func (w *writer) Info(m string) (err error) {
 	_, err = w.writeAndRetry(LOG_INFO, m)
 	return err
 }
 
 // Debug logs a message with severity LOG_DEBUG, ignoring the severity
 // passed to New.
-func (w *Writer) Debug(m string) (err error) {
+func (w *writer) Debug(m string) (err error) {
 	_, err = w.writeAndRetry(LOG_DEBUG, m)
 	return err
 }
 
-func (w *Writer) writeAndRetry(p Priority, s string) (int, error) {
+func (w *writer) writeAndRetry(p priority, s string) (int, error) {
 	pr := (w.priority & facilityMask) | (p & severityMask)
 
-	w.mu.Lock()
-	defer w.mu.Unlock()
+	w.Lock()
+	defer w.Unlock()
 
 	if w.conn != nil {
 		if n, err := w.write(pr, s); err == nil {
@@ -181,7 +182,7 @@ func (w *Writer) writeAndRetry(p Priority, s string) (int, error) {
 
 // write generates and writes a syslog formatted string. The
 // format is as follows: <PRI>TIMESTAMP HOSTNAME TAG[PID]: MSG
-func (w *Writer) write(p Priority, msg string) (int, error) {
+func (w *writer) write(p priority, msg string) (int, error) {
 	// ensure it ends in a \n
 	if !strings.HasSuffix(msg, "\n") {
 		msg += "\n"

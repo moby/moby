@@ -31,7 +31,7 @@ type localConn struct {
 	conn net.Conn
 }
 
-func (n *localConn) writeString(p Priority, hostname, tag, msg string) error {
+func (n *localConn) writeString(p priority, hostname, tag, msg string) error {
 	// Compared to the network form at srslog.netConn, the changes are:
 	//	1. Use time.Stamp instead of time.RFC3339.
 	//	2. Drop the hostname field from the Fprintf.

@@ -9,11 +9,11 @@ import (
 	"os"
 )
 
-// The Priority is a combination of the syslog facility and
+// The priority is a combination of the syslog facility and
 // severity. For example, LOG_ALERT | LOG_FTP sends an alert severity
 // message from the FTP facility. The default severity is LOG_EMERG;
 // the default facility is LOG_KERN.
-type Priority int
+type priority int
 
 const severityMask = 0x07
 const facilityMask = 0xf8
@@ -23,7 +23,7 @@ const (
 
 	// From /usr/include/sys/syslog.h.
 	// These are the same on Linux, BSD, and OS X.
-	LOG_EMERG Priority = iota
+	LOG_EMERG priority = iota
 	LOG_ALERT
 	LOG_CRIT
 	LOG_ERR
@@ -38,7 +38,7 @@ const (
 
 	// From /usr/include/sys/syslog.h.
 	// These are the same up to LOG_FTP on Linux, BSD, and OS X.
-	LOG_KERN Priority = iota << 3
+	LOG_KERN priority = iota << 3
 	LOG_USER
 	LOG_MAIL
 	LOG_DAEMON
@@ -71,14 +71,14 @@ const (
 // return a type that satisfies this interface and simply calls the C
 // library syslog function.
 type serverConn interface {
-	writeString(p Priority, hostname, tag, s string) error
+	writeString(p priority, hostname, tag, s string) error
 	close() error
 }
 
 // New establishes a new connection to the system log daemon.  Each
 // write to the returned writer sends a log message with the given
 // priority and prefix.
-func New(priority Priority, tag string) (w *Writer, err error) {
+func New(priority priority, tag string) (w *writer, err error) {
 	return Dial("", "", priority, tag)
 }
 
@@ -87,11 +87,11 @@ func New(priority Priority, tag string) (w *Writer, err error) {
 // writer sends a log message with the given facility, severity and
 // tag.
 // If network is empty, Dial will connect to the local syslog server.
-func Dial(network, raddr string, priority Priority, tag string) (*Writer, error) {
+func Dial(network, raddr string, priority priority, tag string) (*writer, error) {
 	return DialWithTLSConfig(network, raddr, priority, tag, nil)
 }
 
-func DialWithTLSCertPath(network, raddr string, priority Priority, tag, certPath string) (*Writer, error) {
+func DialWithTLSCertPath(network, raddr string, priority priority, tag, certPath string) (*writer, error) {
 	pool := x509.NewCertPool()
 	serverCert, err := ioutil.ReadFile(certPath)
 	if err != nil {
@@ -105,7 +105,7 @@ func DialWithTLSCertPath(network, raddr string, priority Priority, tag, certPath
 	return DialWithTLSConfig(network, raddr, priority, tag, &config)
 }
 
-func DialWithTLSConfig(network, raddr string, priority Priority, tag string, tlsConfig *tls.Config) (*Writer, error) {
+func DialWithTLSConfig(network, raddr string, priority priority, tag string, tlsConfig *tls.Config) (*writer, error) {
 	if priority < 0 || priority > LOG_LOCAL7|LOG_DEBUG {
 		return nil, errors.New("log/syslog: invalid priority")
 	}
@@ -115,7 +115,7 @@ func DialWithTLSConfig(network, raddr string, priority Priority, tag string, tls
 	}
 	hostname, _ := os.Hostname()
 
-	w := &Writer{
+	w := &writer{
 		priority:  priority,
 		tag:       tag,
 		hostname:  hostname,
@@ -124,8 +124,8 @@ func DialWithTLSConfig(network, raddr string, priority Priority, tag string, tls
 		tlsConfig: tlsConfig,
 	}
 
-	w.mu.Lock()
-	defer w.mu.Unlock()
+	w.Lock()
+	defer w.Unlock()
 
 	err := w.connect()
 	if err != nil {
@@ -138,7 +138,7 @@ func DialWithTLSConfig(network, raddr string, priority Priority, tag string, tls
 // the system log service with the specified priority. The logFlag
 // argument is the flag set passed through to log.New to create
 // the Logger.
-func NewLogger(p Priority, logFlag int) (*log.Logger, error) {
+func NewLogger(p priority, logFlag int) (*log.Logger, error) {
 	s, err := New(p, "")
 	if err != nil {
 		return nil, err
