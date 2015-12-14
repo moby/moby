@@ -46,8 +46,7 @@ import (
 type (
 	cdmTask C.struct_dm_task
 
-	cLoopInfo64 C.struct_loop_info64
-	loopInfo64  struct {
+	loopInfo64 struct {
 		loDevice         uint64 /* ioctl r/o */
 		loInode          uint64 /* ioctl r/o */
 		loRdevice        uint64 /* ioctl r/o */
