@@ -38,12 +38,7 @@ func newRandomBlob(size int) (digest.Digest, []byte) {
 		panic("unable to read enough bytes")
 	}
 
-	dgst, err := digest.FromBytes(b)
-	if err != nil {
-		panic(err)
-	}
-
-	return dgst, b
+	return digest.FromBytes(b), b
 }
 
 func addTestFetch(repo string, dgst digest.Digest, content []byte, m *testutil.RequestResponseMap) {
@@ -509,16 +504,11 @@ func newRandomSchemaV1Manifest(name, tag string, blobCount int) (*schema1.Signed
 		panic(err)
 	}
 
-	dgst, err := digest.FromBytes(p)
-	if err != nil {
-		panic(err)
-	}
-
-	return sm, dgst, p
+	return sm, digest.FromBytes(p), p
 }
 
 func addTestManifestWithEtag(repo, reference string, content []byte, m *testutil.RequestResponseMap, dgst string) {
-	actualDigest, _ := digest.FromBytes(content)
+	actualDigest := digest.FromBytes(content)
 	getReqWithEtag := testutil.Request{
 		Method: "GET",
 		Route:  "/v2/" + repo + "/manifests/" + reference,
