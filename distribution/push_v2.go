@@ -1,6 +1,7 @@
 package distribution
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"sync"
@@ -13,6 +14,7 @@ import (
 	"github.com/docker/distribution/registry/client"
 	"github.com/docker/docker/distribution/metadata"
 	"github.com/docker/docker/distribution/xfer"
+	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/progress"
@@ -73,44 +75,41 @@ func (p *v2Pusher) Push(ctx context.Context) (err error) {
 }
 
 func (p *v2Pusher) pushV2Repository(ctx context.Context) (err error) {
-	var associations []reference.Association
-	if _, isTagged := p.ref.(reference.NamedTagged); isTagged {
+	if namedTagged, isNamedTagged := p.ref.(reference.NamedTagged); isNamedTagged {
 		imageID, err := p.config.ReferenceStore.Get(p.ref)
 		if err != nil {
 			return fmt.Errorf("tag does not exist: %s", p.ref.String())
 		}
 
-		associations = []reference.Association{
-			{
-				Ref:     p.ref,
-				ImageID: imageID,
-			},
-		}
-	} else {
-		// Pull all tags
-		associations = p.config.ReferenceStore.ReferencesByName(p.ref)
-	}
-	if err != nil {
-		return fmt.Errorf("error getting tags for %s: %s", p.repoInfo.Name(), err)
-	}
-	if len(associations) == 0 {
-		return fmt.Errorf("no tags to push for %s", p.repoInfo.Name())
+		return p.pushV2Tag(ctx, namedTagged, imageID)
 	}
 
-	for _, association := range associations {
-		if err := p.pushV2Tag(ctx, association); err != nil {
-			return err
+	if !reference.IsNameOnly(p.ref) {
+		return errors.New("cannot push a digest reference")
+	}
+
+	// Pull all tags
+	pushed := 0
+	for _, association := range p.config.ReferenceStore.ReferencesByName(p.ref) {
+		if namedTagged, isNamedTagged := association.Ref.(reference.NamedTagged); isNamedTagged {
+			pushed++
+			if err := p.pushV2Tag(ctx, namedTagged, association.ImageID); err != nil {
+				return err
+			}
 		}
+	}
+
+	if pushed == 0 {
+		return fmt.Errorf("no tags to push for %s", p.repoInfo.Name())
 	}
 
 	return nil
 }
 
-func (p *v2Pusher) pushV2Tag(ctx context.Context, association reference.Association) error {
-	ref := association.Ref
+func (p *v2Pusher) pushV2Tag(ctx context.Context, ref reference.NamedTagged, imageID image.ID) error {
 	logrus.Debugf("Pushing repository: %s", ref.String())
 
-	img, err := p.config.ImageStore.Get(association.ImageID)
+	img, err := p.config.ImageStore.Get(imageID)
 	if err != nil {
 		return fmt.Errorf("could not find image from tag %s: %v", ref.String(), err)
 	}
@@ -149,36 +148,11 @@ func (p *v2Pusher) pushV2Tag(ctx context.Context, association reference.Associat
 		return err
 	}
 
-	var tag string
-	if tagged, isTagged := ref.(reference.NamedTagged); isTagged {
-		tag = tagged.Tag()
-	}
-	builder := schema1.NewConfigManifestBuilder(p.repo.Blobs(ctx), p.config.TrustKey, p.repo.Name(), tag, img.RawJSON())
-
-	// descriptors is in reverse order; iterate backwards to get references
-	// appended in the right order.
-	for i := len(descriptors) - 1; i >= 0; i-- {
-		if err := builder.AppendReference(descriptors[i].(*v2PushDescriptor)); err != nil {
-			return err
-		}
-	}
-
-	manifest, err := builder.Build(ctx)
+	// Try schema2 first
+	builder := schema2.NewManifestBuilder(p.repo.Blobs(ctx), img.RawJSON())
+	manifest, err := manifestFromBuilder(ctx, builder, descriptors)
 	if err != nil {
 		return err
-	}
-
-	manifestDigest, manifestSize, err := digestFromManifest(manifest.(*schema1.SignedManifest), ref)
-	if err != nil {
-		return err
-	}
-	if manifestDigest != "" {
-		if tagged, isTagged := ref.(reference.NamedTagged); isTagged {
-			progress.Messagef(p.config.ProgressOutput, "", "%s: digest: %s size: %d", tagged.Tag(), manifestDigest, manifestSize)
-			// Signal digest to the trust client so it can sign the
-			// push, if appropriate.
-			progress.Aux(p.config.ProgressOutput, PushResult{Tag: tagged.Tag(), Digest: manifestDigest, Size: manifestSize})
-		}
 	}
 
 	manSvc, err := p.repo.Manifests(ctx)
@@ -186,13 +160,52 @@ func (p *v2Pusher) pushV2Tag(ctx context.Context, association reference.Associat
 		return err
 	}
 
-	if tagged, isTagged := ref.(reference.NamedTagged); isTagged {
-		_, err = manSvc.Put(ctx, manifest, client.WithTag(tagged.Tag()))
-	} else {
-		_, err = manSvc.Put(ctx, manifest)
+	putOptions := []distribution.ManifestServiceOption{client.WithTag(ref.Tag())}
+	if _, err = manSvc.Put(ctx, manifest, putOptions...); err != nil {
+		logrus.Warnf("failed to upload schema2 manifest: %v - falling back to schema1", err)
+
+		builder = schema1.NewConfigManifestBuilder(p.repo.Blobs(ctx), p.config.TrustKey, p.repo.Name(), ref.Tag(), img.RawJSON())
+		manifest, err = manifestFromBuilder(ctx, builder, descriptors)
+		if err != nil {
+			return err
+		}
+
+		if _, err = manSvc.Put(ctx, manifest, putOptions...); err != nil {
+			return err
+		}
 	}
-	// FIXME create a tag
-	return err
+
+	var canonicalManifest []byte
+
+	switch v := manifest.(type) {
+	case *schema1.SignedManifest:
+		canonicalManifest = v.Canonical
+	case *schema2.DeserializedManifest:
+		_, canonicalManifest, err = v.Payload()
+		if err != nil {
+			return err
+		}
+	}
+
+	manifestDigest := digest.FromBytes(canonicalManifest)
+	progress.Messagef(p.config.ProgressOutput, "", "%s: digest: %s size: %d", ref.Tag(), manifestDigest, len(canonicalManifest))
+	// Signal digest to the trust client so it can sign the
+	// push, if appropriate.
+	progress.Aux(p.config.ProgressOutput, PushResult{Tag: ref.Tag(), Digest: manifestDigest, Size: len(canonicalManifest)})
+
+	return nil
+}
+
+func manifestFromBuilder(ctx context.Context, builder distribution.ManifestBuilder, descriptors []xfer.UploadDescriptor) (distribution.Manifest, error) {
+	// descriptors is in reverse order; iterate backwards to get references
+	// appended in the right order.
+	for i := len(descriptors) - 1; i >= 0; i-- {
+		if err := builder.AppendReference(descriptors[i].(*v2PushDescriptor)); err != nil {
+			return nil, err
+		}
+	}
+
+	return builder.Build(ctx)
 }
 
 type v2PushDescriptor struct {

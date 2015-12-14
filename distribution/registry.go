@@ -9,14 +9,11 @@ import (
 	"time"
 
 	"github.com/docker/distribution"
-	"github.com/docker/distribution/digest"
-	"github.com/docker/distribution/manifest/schema1"
 	"github.com/docker/distribution/registry/api/errcode"
 	"github.com/docker/distribution/registry/client"
 	"github.com/docker/distribution/registry/client/auth"
 	"github.com/docker/distribution/registry/client/transport"
 	"github.com/docker/docker/distribution/xfer"
-	"github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
 	"github.com/docker/engine-api/types"
 	"golang.org/x/net/context"
@@ -122,10 +119,6 @@ func NewV2Repository(ctx context.Context, repoInfo *registry.RepositoryInfo, end
 
 	repo, err = client.NewRepository(ctx, repoName, endpoint.URL, tr)
 	return repo, foundVersion, err
-}
-
-func digestFromManifest(m *schema1.SignedManifest, name reference.Named) (digest.Digest, int, error) {
-	return digest.FromBytes(m.Canonical), len(m.Canonical), nil
 }
 
 type existingTokenHandler struct {
