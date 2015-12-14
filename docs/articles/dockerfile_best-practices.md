@@ -217,7 +217,6 @@ recommendations.
         ruby1.9.1 \
         ruby1.9.1-dev \
         s3cmd=1.1.* \
-     && apt-get clean \
      && rm -rf /var/lib/apt/lists/*
 
 The `s3cmd` instructions specifies a version `1.1.0*`. If the image previously
@@ -229,6 +228,9 @@ In addition, cleaning up the apt cache and removing `/var/lib/apt/lists` helps
 keep the image size down. Since the `RUN` statement starts with
 `apt-get update`, the package cache will always be refreshed prior to
 `apt-get install`.
+
+> **Note**: The official Debian and Ubuntu images [automatically run `apt-get clean`](https://github.com/docker/docker/blob/03e2923e42446dbb830c654d0eec323a0b4ef02a/contrib/mkimage/debootstrap#L82-L105),
+> so explicit invocation is not required.
 
 ### CMD
 
