@@ -78,6 +78,25 @@ func (daemon *Daemon) containerStart(container *container.Container) (err error)
 		return derr.ErrorCodeContainerBeingRemoved
 	}
 
+	if daemon.configStore.NoVolumes {
+		// when --no-volumes is set do not allow volumes from images
+		if container.ImageID != "" { // not FROM scratch
+			img, err := daemon.imageStore.Get(container.ImageID)
+			if err != nil {
+				return err
+			}
+			if len(img.Config.Volumes) > 0 {
+				return derr.ErrorCodeCantStart.WithArgs(container.ID, "volumes are not allowed")
+			}
+		}
+		// when --no-volumes is set do not allow container run with -v unless it's a bind
+		for _, m := range container.MountPoints {
+			if m.Driver != "" {
+				return derr.ErrorCodeCantStart.WithArgs(container.ID, "volumes are not allowed")
+			}
+		}
+	}
+
 	// if we encounter an error during start we need to ensure that any other
 	// setup has been cleaned up properly
 	defer func() {

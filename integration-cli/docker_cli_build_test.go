@@ -1861,7 +1861,6 @@ func (s *DockerSuite) TestBuildForceRm(c *check.C) {
 	if containerCountBefore != containerCountAfter {
 		c.Fatalf("--force-rm shouldn't have left containers behind")
 	}
-
 }
 
 // Test that an infinite sleep during a build is killed if the client disconnects.

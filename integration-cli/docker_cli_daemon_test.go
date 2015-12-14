@@ -1878,3 +1878,85 @@ func (s *DockerDaemonSuite) TestDaemonNoSpaceleftOnDeviceError(c *check.C) {
 	out, err := s.d.Cmd("pull", "registry:2")
 	c.Assert(out, check.Not(check.Equals), 1, check.Commentf("no space left on device"))
 }
+
+func (s *DockerDaemonSuite) TestDaemonStartWithNoVolumes(c *check.C) {
+	c.Assert(s.d.StartWithBusybox("--no-volumes"), checker.IsNil)
+
+	dockerfile, cleanup, err := makefile("FROM busybox\nVOLUME novolume")
+	c.Assert(err, check.IsNil, check.Commentf("Unable to create test dockerfile"))
+	defer cleanup()
+	imgName := "novolume"
+	_, err = s.d.Cmd("build", "-t", imgName, "--file", dockerfile, ".")
+	c.Assert(err, checker.IsNil)
+
+	out, err := s.d.Cmd("run", imgName)
+	c.Assert(err, checker.NotNil)
+	c.Assert(out, checker.Contains, "volumes are not allowed")
+
+	testCommitName := "commit-with-volume"
+	_, err = s.d.Cmd("run", "--name", testCommitName, "busybox", "true")
+	c.Assert(err, check.IsNil)
+	out, err = s.d.Cmd("commit", "--change", "VOLUME test", testCommitName, testCommitName+"-commit")
+	c.Assert(err, check.IsNil)
+
+	out, err = s.d.Cmd("run", testCommitName+"-commit")
+	c.Assert(err, checker.NotNil)
+	c.Assert(out, checker.Contains, "volumes are not allowed")
+}
+
+func (s *DockerDaemonSuite) TestDaemonStartWithNoVolumesFalse(c *check.C) {
+	c.Assert(s.d.StartWithBusybox("--no-volumes=false"), checker.IsNil)
+
+	dockerfile, cleanup, err := makefile("FROM busybox\nVOLUME test")
+	c.Assert(err, check.IsNil, check.Commentf("Unable to create test dockerfile"))
+	defer cleanup()
+	imgName := "volume"
+	_, err = s.d.Cmd("build", "-t", imgName, "--file", dockerfile, ".")
+	c.Assert(err, checker.IsNil)
+
+	out, err := s.d.Cmd("run", imgName)
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(out, checker.Not(checker.Contains), "volumes are not allowed")
+
+	testCommitName := "commit-with-volume"
+	_, err = s.d.Cmd("run", "--name", testCommitName, "busybox", "true")
+	c.Assert(err, check.IsNil)
+	_, err = s.d.Cmd("commit", "--change", "VOLUME volume", testCommitName, testCommitName+"-commit")
+	c.Assert(err, check.IsNil)
+
+	out, err = s.d.Cmd("run", testCommitName+"-commit")
+	c.Assert(err, checker.IsNil)
+}
+
+// create, as build, will continue to work, we error out on run only
+func (s *DockerDaemonSuite) TestDaemonStartWithNoVolumesNoRunVolumes(c *check.C) {
+	c.Assert(s.d.StartWithBusybox("--no-volumes"), checker.IsNil)
+
+	out, err := s.d.Cmd("run", "-v", "/test", "busybox", "true")
+	c.Assert(err, checker.NotNil)
+	c.Assert(out, checker.Contains, "volumes are not allowed")
+
+	out, err = s.d.Cmd("create", "-v", "/test", "busybox", "true")
+	c.Assert(err, checker.IsNil)
+
+	volName := "avolume"
+	_, err = s.d.Cmd("volume", "create", "--name", volName)
+	c.Assert(err, checker.IsNil)
+	out, err = s.d.Cmd("run", "-v", volName+":/test", "busybox", "true")
+	c.Assert(err, checker.NotNil)
+	c.Assert(out, checker.Contains, "volumes are not allowed")
+
+	out, err = s.d.Cmd("run", "-v", "will-be-created:/test", "busybox", "true")
+	c.Assert(err, checker.NotNil)
+	c.Assert(out, checker.Contains, "volumes are not allowed")
+
+	tmpDir, err := ioutil.TempDir("", "test")
+	c.Assert(err, check.IsNil)
+	f := filepath.Join(tmpDir, "file")
+	c.Assert(ioutil.WriteFile(f, []byte("foobar"), 0644), check.IsNil)
+
+	out, err = s.d.Cmd("run", "-v", tmpDir+":/test/", "busybox", "cat", "/test/file")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(out, checker.Not(checker.Contains), "volumes are not allowed")
+	c.Assert(out, checker.Contains, "foobar")
+}
