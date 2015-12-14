@@ -7,6 +7,7 @@ import (
 	"os"
 	"runtime"
 
+	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/client/lib"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cliconfig"
@@ -102,7 +103,7 @@ func NewDockerCli(in io.ReadCloser, out, err io.Writer, clientFlags *cli.ClientF
 		}
 		customHeaders["User-Agent"] = "Docker-Client/" + dockerversion.Version + " (" + runtime.GOOS + ")"
 
-		client, err := lib.NewClient(host, clientFlags.Common.TLSOptions, customHeaders)
+		client, err := lib.NewClient(host, string(api.Version), clientFlags.Common.TLSOptions, customHeaders)
 		if err != nil {
 			return err
 		}
