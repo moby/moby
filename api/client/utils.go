@@ -4,8 +4,11 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"os"
 	gosignal "os/signal"
+	"path/filepath"
 	"runtime"
 	"time"
 
@@ -137,4 +140,28 @@ func (cli *DockerCli) getTtySize() (int, int) {
 		}
 	}
 	return int(ws.Height), int(ws.Width)
+}
+
+func copyToFile(outfile string, r io.Reader) error {
+	tmpFile, err := ioutil.TempFile(filepath.Dir(outfile), ".docker_temp_")
+	if err != nil {
+		return err
+	}
+
+	tmpPath := tmpFile.Name()
+
+	_, err = io.Copy(tmpFile, r)
+	tmpFile.Close()
+
+	if err != nil {
+		os.Remove(tmpPath)
+		return err
+	}
+
+	if err = os.Rename(tmpPath, outfile); err != nil {
+		os.Remove(tmpPath)
+		return err
+	}
+
+	return nil
 }
