@@ -78,7 +78,7 @@ check_forked() {
 			Upstream release is '$lsb_dist' version '$dist_version'.
 			EOF
 		else
-			if [ -r /etc/debian_version ]; then
+			if [ -r /etc/debian_version ] && [ "$lsb_dist" != "ubuntu" ]; then
 				# We're Debian and don't even know it!
 				lsb_dist=debian
 				dist_version="$(cat /etc/debian_version | sed 's/\/.*//' | sed 's/\..*//')"
