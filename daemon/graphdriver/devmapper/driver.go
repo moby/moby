@@ -193,7 +193,7 @@ func (d *Driver) Put(id string) error {
 	mp := path.Join(d.home, "mnt", id)
 	err := d.DeviceSet.UnmountDevice(id, mp)
 	if err != nil {
-		logrus.Errorf("Error unmounting device %s: %s", id, err)
+		logrus.Errorf("devmapper: Error unmounting device %s: %s", id, err)
 	}
 	return err
 }
