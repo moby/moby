@@ -47,6 +47,9 @@ type (
 		GIDMaps          []idtools.IDMap
 		ChownOpts        *TarChownOptions
 		IncludeSourceDir bool
+		// When unpacking convert whiteouts and opaque dirs from aufs format to overlayfs format
+		// When packing convert whiteouts and opaque dirs from overlayfs format to aufs format
+		OverlayFormat bool
 		// When unpacking, specifies whether overwriting a directory with a
 		// non-directory is allowed and vice versa.
 		NoOverwriteDirNonDir bool
@@ -236,6 +239,11 @@ type tarAppender struct {
 	SeenFiles map[uint64]string
 	UIDMaps   []idtools.IDMap
 	GIDMaps   []idtools.IDMap
+
+	// `overlayFormat` controls whether to interpret character devices with numbers 0,0
+	// and directories with the attribute `trusted.overlay.opaque` using their overlayfs
+	// meanings and remap them to AUFS format
+	OverlayFormat bool
 }
 
 // canonicalTarName provides a platform-independent and consistent posix-style
@@ -253,6 +261,7 @@ func canonicalTarName(name string, isDir bool) (string, error) {
 	return name, nil
 }
 
+// addTarFile adds to the tar archive a file from `path` as `name`
 func (ta *tarAppender) addTarFile(path, name string) error {
 	fi, err := os.Lstat(path)
 	if err != nil {
@@ -323,6 +332,16 @@ func (ta *tarAppender) addTarFile(path, name string) error {
 		hdr.Gid = xGID
 	}
 
+	if ta.OverlayFormat {
+		// convert whiteouts to AUFS format
+		if fi.Mode()&os.ModeCharDevice != 0 && hdr.Devmajor == 0 && hdr.Devminor == 0 {
+			// we just rename the file and make it normal
+			hdr.Name = WhiteoutPrefix + hdr.Name
+			hdr.Mode = 0600
+			hdr.Typeflag = tar.TypeReg
+		}
+	}
+
 	if err := ta.TarWriter.WriteHeader(hdr); err != nil {
 		return err
 	}
@@ -343,6 +362,30 @@ func (ta *tarAppender) addTarFile(path, name string) error {
 		err = ta.Buffer.Flush()
 		if err != nil {
 			return err
+		}
+	}
+
+	if ta.OverlayFormat {
+		// convert opaque dirs to AUFS format by writing an empty file with the prefix
+		opaque, _ := system.Lgetxattr(path, "trusted.overlay.opaque")
+		if opaque != nil && len(opaque) == 1 && opaque[0] == 'y' {
+			// create a header for the whiteout file
+			// it should inherit some properties from the parent, but be a regular file
+			whHdr := &tar.Header{
+				Typeflag:   tar.TypeReg,
+				Mode:       hdr.Mode & int64(os.ModePerm),
+				Name:       filepath.Join(name, WhiteoutOpaqueDir),
+				Size:       0,
+				Uid:        hdr.Uid,
+				Uname:      hdr.Uname,
+				Gid:        hdr.Gid,
+				Gname:      hdr.Gname,
+				AccessTime: hdr.AccessTime,
+				ChangeTime: hdr.ChangeTime,
+			}
+			if err := ta.TarWriter.WriteHeader(whHdr); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -501,11 +544,12 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 
 	go func() {
 		ta := &tarAppender{
-			TarWriter: tar.NewWriter(compressWriter),
-			Buffer:    pools.BufioWriter32KPool.Get(nil),
-			SeenFiles: make(map[uint64]string),
-			UIDMaps:   options.UIDMaps,
-			GIDMaps:   options.GIDMaps,
+			TarWriter:     tar.NewWriter(compressWriter),
+			Buffer:        pools.BufioWriter32KPool.Get(nil),
+			SeenFiles:     make(map[uint64]string),
+			UIDMaps:       options.UIDMaps,
+			GIDMaps:       options.GIDMaps,
+			OverlayFormat: options.OverlayFormat,
 		}
 
 		defer func() {
@@ -764,6 +808,37 @@ loop:
 				return err
 			}
 			hdr.Gid = xGID
+		}
+
+		base := filepath.Base(path)
+		dir := filepath.Dir(path)
+
+		if options.OverlayFormat {
+			// if a directory is marked as opaque by the AUFS special file, we need to translate that to overlay
+			if base == WhiteoutOpaqueDir {
+				if err := syscall.Setxattr(dir, "trusted.overlay.opaque", []byte{'y'}, 0); err != nil {
+					return err
+				}
+
+				// don't write the file itself
+				continue
+			}
+
+			// if a file was deleted and we are using overlay, we need to create a character device
+			if strings.HasPrefix(base, WhiteoutPrefix) {
+				originalBase := base[len(WhiteoutPrefix):]
+				originalPath := filepath.Join(dir, originalBase)
+
+				if err := syscall.Mknod(originalPath, syscall.S_IFCHR, 0); err != nil {
+					return err
+				}
+				if err := os.Chown(originalPath, hdr.Uid, hdr.Gid); err != nil {
+					return err
+				}
+
+				// don't write the file itself
+				continue
+			}
 		}
 
 		if err := createTarFile(path, dest, hdr, trBuf, !options.NoLchown, options.ChownOpts); err != nil {
