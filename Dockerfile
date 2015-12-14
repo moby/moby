@@ -37,9 +37,11 @@ RUN	echo deb http://llvm.org/apt/trusty/ llvm-toolchain-trusty main > /etc/apt/s
 # Packaged dependencies
 RUN apt-get update && apt-get install -y \
 	apparmor \
+	asciidoc \
 	aufs-tools \
 	automake \
 	bash-completion \
+	bsdmainutils \
 	btrfs-tools \
 	build-essential \
 	clang-3.8 \
@@ -50,21 +52,29 @@ RUN apt-get update && apt-get install -y \
 	git \
 	iptables \
 	jq \
+	libaio-dev \
 	libapparmor-dev \
 	libcap-dev \
 	libltdl-dev \
+	libprotobuf-c0-dev \
+	libprotobuf-dev	\
 	libsqlite3-dev \
 	libsystemd-journal-dev \
 	libtool \
 	mercurial \
 	pkg-config \
+	protobuf-compiler \
+	protobuf-c-compiler \
 	python-dev \
+	python-minimal \
 	python-mock \
 	python-pip \
+	python-protobuf \
 	python-websocket \
 	s3cmd=1.1.0* \
 	ubuntu-zfs \
 	xfsprogs \
+	xmlto \
 	libzfs-dev \
 	tar \
 	--no-install-recommends \
@@ -81,6 +91,14 @@ RUN cd /usr/local/lvm2 \
 	&& make device-mapper \
 	&& make install_device-mapper
 # see https://git.fedorahosted.org/cgit/lvm2.git/tree/INSTALL
+
+# Install Criu
+ENV CRIU_VERSION 1.6
+RUN mkdir -p /usr/src/criu \
+	&& curl -sSL https://github.com/xemul/criu/archive/v${CRIU_VERSION}.tar.gz | tar -v -C /usr/src/criu/ -xz --strip-components=1 \
+	&& cd /usr/src/criu \
+	&& make \
+	&& make install
 
 # Install Go
 ENV GO_VERSION 1.5.2

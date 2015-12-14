@@ -18,6 +18,7 @@ import (
 type apiClient interface {
 	ClientVersion() string
 	ContainerAttach(options types.ContainerAttachOptions) (types.HijackedResponse, error)
+	ContainerCheckpoint(containerID string, options runconfig.CriuConfig) error
 	ContainerCommit(options types.ContainerCommitOptions) (types.ContainerCommitResponse, error)
 	ContainerCreate(config *container.Config, hostConfig *container.HostConfig, containerName string) (types.ContainerCreateResponse, error)
 	ContainerDiff(containerID string) ([]types.ContainerChange, error)
@@ -37,6 +38,7 @@ type apiClient interface {
 	ContainerRename(containerID, newContainerName string) error
 	ContainerResize(options types.ResizeOptions) error
 	ContainerRestart(containerID string, timeout int) error
+	ContainerRestore(containerID string, options runconfig.CriuConfig, forceRestore bool) error
 	ContainerStatPath(containerID, path string) (types.ContainerPathStat, error)
 	ContainerStats(containerID string, stream bool) (io.ReadCloser, error)
 	ContainerStart(containerID string) error

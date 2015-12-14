@@ -565,7 +565,7 @@ func (daemon *Daemon) updateContainerNetworkSettings(container *container.Contai
 	return nil
 }
 
-func (daemon *Daemon) allocateNetwork(container *container.Container) error {
+func (daemon *Daemon) allocateNetwork(container *container.Container, isRestoring bool) error {
 	controller := daemon.netController
 
 	// Cleanup any stale sandbox left over due to ungraceful daemon shutdown
@@ -587,7 +587,7 @@ func (daemon *Daemon) allocateNetwork(container *container.Container) error {
 	}
 
 	for n := range container.NetworkSettings.Networks {
-		if err := daemon.connectToNetwork(container, n, updateSettings); err != nil {
+		if err := daemon.connectToNetwork(container, n, updateSettings, isRestoring); err != nil {
 			return err
 		}
 	}
@@ -612,7 +612,7 @@ func (daemon *Daemon) ConnectToNetwork(container *container.Container, idOrName 
 	if !container.Running {
 		return derr.ErrorCodeNotRunning.WithArgs(container.ID)
 	}
-	if err := daemon.connectToNetwork(container, idOrName, true); err != nil {
+	if err := daemon.connectToNetwork(container, idOrName, true, false); err != nil {
 		return err
 	}
 	if err := container.ToDiskLocking(); err != nil {
@@ -621,7 +621,7 @@ func (daemon *Daemon) ConnectToNetwork(container *container.Container, idOrName 
 	return nil
 }
 
-func (daemon *Daemon) connectToNetwork(container *container.Container, idOrName string, updateSettings bool) (err error) {
+func (daemon *Daemon) connectToNetwork(container *container.Container, idOrName string, updateSettings bool, isRestoring bool) (err error) {
 	if container.HostConfig.NetworkMode.IsContainer() {
 		return runconfig.ErrConflictSharedNetwork
 	}
@@ -654,7 +654,7 @@ func (daemon *Daemon) connectToNetwork(container *container.Container, idOrName 
 		return err
 	}
 
-	createOptions, err := container.BuildCreateEndpointOptions(n)
+	createOptions, err := container.BuildCreateEndpointOptions(n, isRestoring)
 	if err != nil {
 		return err
 	}
@@ -759,7 +759,7 @@ func disconnectFromNetwork(container *container.Container, n libnetwork.Network)
 	return nil
 }
 
-func (daemon *Daemon) initializeNetworking(container *container.Container) error {
+func (daemon *Daemon) initializeNetworking(container *container.Container, isRestoring bool) error {
 	var err error
 
 	if container.HostConfig.NetworkMode.IsContainer() {
@@ -790,7 +790,7 @@ func (daemon *Daemon) initializeNetworking(container *container.Container) error
 
 	}
 
-	if err := daemon.allocateNetwork(container); err != nil {
+	if err := daemon.allocateNetwork(container, isRestoring); err != nil {
 		return err
 	}
 

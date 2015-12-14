@@ -1,55 +1,51 @@
 package daemon
 
 import (
-	"github.com/docker/docker/engine"
+	"fmt"
+	"os"
+	"path/filepath"
+
+	"github.com/docker/docker/runconfig"
 )
 
-// Checkpoint a running container.
-func (daemon *Daemon) ContainerCheckpoint(job *engine.Job) engine.Status {
-	if len(job.Args) != 1 {
-		return job.Errorf("Usage: %s CONTAINER\n", job.Name)
-	}
-
-	name := job.Args[0]
-	container, err := daemon.Get(name)
+// ContainerCheckpoint checkpoints the process running in a container with CRIU
+func (daemon *Daemon) ContainerCheckpoint(name string, opts *runconfig.CriuConfig) error {
+	container, err := daemon.GetContainer(name)
 	if err != nil {
-		return job.Error(err)
+		return err
 	}
 	if !container.IsRunning() {
-		return job.Errorf("Container %s not running", name)
+		return fmt.Errorf("Container %s not running", name)
 	}
 
-	if err := container.Checkpoint(); err != nil {
-		return job.Errorf("Cannot checkpoint container %s: %s", name, err)
+	if opts.ImagesDirectory == "" {
+		opts.ImagesDirectory = filepath.Join(container.Root, "criu.image")
+		if err := os.MkdirAll(opts.ImagesDirectory, 0755); err != nil && !os.IsExist(err) {
+			return err
+		}
 	}
 
-	container.LogEvent("checkpoint")
-	return engine.StatusOK
-}
-
-// Restore a checkpointed container.
-func (daemon *Daemon) ContainerRestore(job *engine.Job) engine.Status {
-	if len(job.Args) != 1 {
-		return job.Errorf("Usage: %s CONTAINER\n", job.Name)
+	if opts.WorkDirectory == "" {
+		opts.WorkDirectory = filepath.Join(container.Root, "criu.work")
+		if err := os.MkdirAll(opts.WorkDirectory, 0755); err != nil && !os.IsExist(err) {
+			return err
+		}
 	}
 
-	name := job.Args[0]
-	container, err := daemon.Get(name)
-	if err != nil {
-		return job.Error(err)
-	}
-	if container.IsRunning() {
-		return job.Errorf("Container %s already running", name)
-	}
-	if !container.State.IsCheckpointed() {
-		return job.Errorf("Container %s is not checkpointed", name)
+	if err := daemon.Checkpoint(container, opts); err != nil {
+		return fmt.Errorf("Cannot checkpoint container %s: %s", name, err)
 	}
 
-	if err := container.Restore(); err != nil {
-		container.LogEvent("die")
-		return job.Errorf("Cannot restore container %s: %s", name, err)
+	container.SetCheckpointed(opts.LeaveRunning)
+	daemon.LogContainerEvent(container, "checkpoint")
+
+	if opts.LeaveRunning == false {
+		daemon.Cleanup(container)
 	}
 
-	container.LogEvent("restore")
-	return engine.StatusOK
+	if err := container.ToDisk(); err != nil {
+		return fmt.Errorf("Cannot update config for container: %s", err)
+	}
+
+	return nil
 }

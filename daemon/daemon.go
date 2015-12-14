@@ -333,10 +333,10 @@ func (daemon *Daemon) restore() error {
 
 			containers[container.ID] = &cr{container: container}
 
-			// If the container was checkpointed, we need to reserve
-			// the IP address that it was using.
+			// FIXME: If the container was checkpointed, we need to reserve the original IP address.
+			// This code is no longer compatible with libnetwork
 			//
-			// XXX We should also reserve host ports (if any).
+			// FIXME: We should also reserve host ports (if any).
 			if container.IsCheckpointed() {
 				/*err = bridge.ReserveIP(container.ID, container.NetworkSettings.IPAddress)
 				if err != nil {
@@ -1019,22 +1019,18 @@ func (daemon *Daemon) Run(c *container.Container, pipes *execdriver.Pipes, start
 	return daemon.execDriver.Run(c.Command, pipes, hooks)
 }
 
-func (daemon *Daemon) Checkpoint(c *Container) error {
-	if err := daemon.execDriver.Checkpoint(c.command); err != nil {
-		return err
-	}
-	c.SetCheckpointed()
-	return nil
+// Checkpoint the container
+func (daemon *Daemon) Checkpoint(c *container.Container, opts *runconfig.CriuConfig) error {
+	return daemon.execDriver.Checkpoint(c.Command, opts)
 }
 
-func (daemon *Daemon) Restore(c *Container, pipes *execdriver.Pipes, restoreCallback execdriver.RestoreCallback) (int, error) {
-	// Mount the container's filesystem (daemon/graphdriver/aufs/aufs.go).
-	_, err := daemon.driver.Get(c.ID, c.GetMountLabel())
-	if err != nil {
-		return 0, err
+// Restore the container
+func (daemon *Daemon) Restore(c *container.Container, pipes *execdriver.Pipes, restoreCallback execdriver.DriverCallback, opts *runconfig.CriuConfig, forceRestore bool) (execdriver.ExitStatus, error) {
+	hooks := execdriver.Hooks{
+		Restore: restoreCallback,
 	}
 
-	exitCode, err := daemon.execDriver.Restore(c.command, pipes, restoreCallback)
+	exitCode, err := daemon.execDriver.Restore(c.Command, pipes, hooks, opts, forceRestore)
 	return exitCode, err
 }
 

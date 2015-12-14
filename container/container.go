@@ -255,41 +255,6 @@ func validateID(id string) error {
 	return nil
 }
 
-func (container *Container) Checkpoint() error {
-	return container.daemon.Checkpoint(container)
-}
-
-func (container *Container) Restore() error {
-	var err error
-
-	container.Lock()
-	defer container.Unlock()
-
-	defer func() {
-		if err != nil {
-			container.cleanup()
-		}
-	}()
-
-	if err = container.initializeNetworking(); err != nil {
-		return err
-	}
-
-	linkedEnv, err := container.setupLinkedContainers()
-	if err != nil {
-		return err
-	}
-	if err = container.setupWorkingDirectory(); err != nil {
-		return err
-	}
-	env := container.createDaemonEnvironment(linkedEnv)
-	if err = populateCommandRestore(container, env); err != nil {
-		return err
-	}
-
-	return container.waitForRestore()
-}
-
 // Returns true if the container exposes a certain port
 func (container *Container) exposes(p nat.Port) bool {
 	_, exists := container.Config.ExposedPorts[p]
@@ -336,29 +301,6 @@ func (container *Container) StartLogger(cfg containertypes.LogConfig) (logger.Lo
 		}
 	}
 	return c(ctx)
-}
-
-// Like waitForStart() but for restoring a container.
-//
-// XXX Does RestartPolicy apply here?
-func (container *Container) waitForRestore() error {
-	container.monitor = newContainerMonitor(container, container.hostConfig.RestartPolicy)
-
-	// After calling promise.Go() we'll have two goroutines:
-	// - The current goroutine that will block in the select
-	//   below until restore is done.
-	// - A new goroutine that will restore the container and
-	//   wait for it to exit.
-	select {
-	case <-container.monitor.restoreSignal:
-		if container.ExitCode != 0 {
-			return fmt.Errorf("restore process failed")
-		}
-	case err := <-promise.Go(container.monitor.Restore):
-		return err
-	}
-
-	return nil
 }
 
 // GetProcessLabel returns the process label for the container.

@@ -2,7 +2,7 @@
 
 This page contains a list of features in the Docker engine which are
 experimental. Experimental features are **not** ready for production. They are
-provided for test and evaluation in your sandbox environments.  
+provided for test and evaluation in your sandbox environments.
 
 The information below describes each feature and the GitHub pull requests and
 issues associated with it. If necessary, links are provided to additional
@@ -73,9 +73,10 @@ to build a Docker binary with the experimental features enabled:
 
  * [External graphdriver plugins](plugins_graphdriver.md)
  * [User namespaces](userns.md)
+ * [Checkpoint & Restore](checkpoint_restore.md)
 
 ## How to comment on an experimental feature
 
-Each feature's documentation includes a list of proposal pull requests or PRs associated with the feature. If you want to comment on or suggest a change to a feature, please add it to the existing feature PR.  
+Each feature's documentation includes a list of proposal pull requests or PRs associated with the feature. If you want to comment on or suggest a change to a feature, please add it to the existing feature PR.
 
-Issues or problems with a feature? Inquire for help on the `#docker` IRC channel or in on the [Docker Google group](https://groups.google.com/forum/#!forum/docker-user).  
+Issues or problems with a feature? Inquire for help on the `#docker` IRC channel or in on the [Docker Google group](https://groups.google.com/forum/#!forum/docker-user).
