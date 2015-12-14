@@ -15,7 +15,7 @@ func TestJSONLogsMarshalJSONBuf(t *testing.T) {
 		&JSONLogs{Log: []byte("A log line with utf8 : 🚀 ψ ω β")}: `^{\"log\":\"A log line with utf8 : 🚀 ψ ω β\",\"time\":}$`,
 		&JSONLogs{Stream: "stdout"}:                              `^{\"stream\":\"stdout\",\"time\":}$`,
 		&JSONLogs{Stream: "stdout", Log: []byte("A log line")}:   `^{\"log\":\"A log line\",\"stream\":\"stdout\",\"time\":}$`,
-		&JSONLogs{Created: "time"}:                               `^{\"time\":time}$`,
+		&JSONLogs{Created: []byte("time")}:                       `^{\"time\":time}$`,
 		&JSONLogs{}:                                              `^{\"time\":}$`,
 		// These ones are a little weird
 		&JSONLogs{Log: []byte("\u2028 \u2029")}: `^{\"log\":\"\\u2028 \\u2029\",\"time\":}$`,

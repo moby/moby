@@ -172,7 +172,7 @@ func TestJSONFileLoggerWithLabelsEnv(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer l.Close()
-	if err := l.Log(&logger.Message{ContainerID: cid, Line: []byte("line"), Source: "src1"}); err != nil {
+	if err := l.Log(&logger.Message{ContainerID: cid, Line: []byte("line"), Source: "src1", Timestamp: time.Now().UTC()}); err != nil {
 		t.Fatal(err)
 	}
 	res, err := ioutil.ReadFile(filename)
