@@ -47,32 +47,29 @@ const (
 
 // List of errors returned when using devicemapper.
 var (
-	ErrTaskRun                = errors.New("dm_task_run failed")
-	ErrTaskSetName            = errors.New("dm_task_set_name failed")
-	ErrTaskSetMessage         = errors.New("dm_task_set_message failed")
-	ErrTaskSetAddNode         = errors.New("dm_task_set_add_node failed")
-	ErrTaskSetRo              = errors.New("dm_task_set_ro failed")
-	ErrTaskAddTarget          = errors.New("dm_task_add_target failed")
-	ErrTaskSetSector          = errors.New("dm_task_set_sector failed")
-	ErrTaskGetDeps            = errors.New("dm_task_get_deps failed")
-	ErrTaskGetInfo            = errors.New("dm_task_get_info failed")
-	ErrTaskGetDriverVersion   = errors.New("dm_task_get_driver_version failed")
-	ErrTaskDeferredRemove     = errors.New("dm_task_deferred_remove failed")
-	ErrTaskSetCookie          = errors.New("dm_task_set_cookie failed")
-	ErrNilCookie              = errors.New("cookie ptr can't be nil")
-	ErrAttachLoopbackDevice   = errors.New("loopback mounting failed")
-	ErrGetBlockSize           = errors.New("Can't get block size")
-	ErrUdevWait               = errors.New("wait on udev cookie failed")
-	ErrSetDevDir              = errors.New("dm_set_dev_dir failed")
-	ErrGetLibraryVersion      = errors.New("dm_get_library_version failed")
-	ErrCreateRemoveTask       = errors.New("Can't create task of type deviceRemove")
-	ErrRunRemoveDevice        = errors.New("running RemoveDevice failed")
-	ErrInvalidAddNode         = errors.New("Invalid AddNode type")
-	ErrGetLoopbackBackingFile = errors.New("Unable to get loopback backing file")
-	ErrLoopbackSetCapacity    = errors.New("Unable set loopback capacity")
-	ErrBusy                   = errors.New("Device is Busy")
-	ErrDeviceIDExists         = errors.New("Device Id Exists")
-	ErrEnxio                  = errors.New("No such device or address")
+	ErrTaskRun              = errors.New("dm_task_run failed")
+	ErrTaskSetName          = errors.New("dm_task_set_name failed")
+	ErrTaskSetMessage       = errors.New("dm_task_set_message failed")
+	ErrTaskSetAddNode       = errors.New("dm_task_set_add_node failed")
+	ErrTaskSetRo            = errors.New("dm_task_set_ro failed")
+	ErrTaskAddTarget        = errors.New("dm_task_add_target failed")
+	ErrTaskSetSector        = errors.New("dm_task_set_sector failed")
+	ErrTaskGetDeps          = errors.New("dm_task_get_deps failed")
+	ErrTaskGetInfo          = errors.New("dm_task_get_info failed")
+	ErrTaskGetDriverVersion = errors.New("dm_task_get_driver_version failed")
+	ErrTaskDeferredRemove   = errors.New("dm_task_deferred_remove failed")
+	ErrTaskSetCookie        = errors.New("dm_task_set_cookie failed")
+	ErrNilCookie            = errors.New("cookie ptr can't be nil")
+	ErrGetBlockSize         = errors.New("Can't get block size")
+	ErrUdevWait             = errors.New("wait on udev cookie failed")
+	ErrSetDevDir            = errors.New("dm_set_dev_dir failed")
+	ErrGetLibraryVersion    = errors.New("dm_get_library_version failed")
+	ErrCreateRemoveTask     = errors.New("Can't create task of type deviceRemove")
+	ErrRunRemoveDevice      = errors.New("running RemoveDevice failed")
+	ErrInvalidAddNode       = errors.New("Invalid AddNode type")
+	ErrBusy                 = errors.New("Device is Busy")
+	ErrDeviceIDExists       = errors.New("Device Id Exists")
+	ErrEnxio                = errors.New("No such device or address")
 )
 
 var (
@@ -255,58 +252,6 @@ func (t *Task) getNextTarget(next unsafe.Pointer) (nextPtr unsafe.Pointer, start
 	return DmGetNextTarget(t.unmanaged, next, &start, &length,
 			&targetType, &params),
 		start, length, targetType, params
-}
-
-func getLoopbackBackingFile(file *os.File) (uint64, uint64, error) {
-	loopInfo, err := ioctlLoopGetStatus64(file.Fd())
-	if err != nil {
-		logrus.Errorf("devicemapper: Error get loopback backing file: %s", err)
-		return 0, 0, ErrGetLoopbackBackingFile
-	}
-	return loopInfo.loDevice, loopInfo.loInode, nil
-}
-
-// LoopbackSetCapacity reloads the size for the loopback device.
-func LoopbackSetCapacity(file *os.File) error {
-	if err := ioctlLoopSetCapacity(file.Fd(), 0); err != nil {
-		logrus.Errorf("devicemapper: Error loopbackSetCapacity: %s", err)
-		return ErrLoopbackSetCapacity
-	}
-	return nil
-}
-
-// FindLoopDeviceFor returns a loopback device file for the specified file which
-// is backing file of a loop back device.
-func FindLoopDeviceFor(file *os.File) *os.File {
-	stat, err := file.Stat()
-	if err != nil {
-		return nil
-	}
-	targetInode := stat.Sys().(*syscall.Stat_t).Ino
-	targetDevice := stat.Sys().(*syscall.Stat_t).Dev
-
-	for i := 0; true; i++ {
-		path := fmt.Sprintf("/dev/loop%d", i)
-
-		file, err := os.OpenFile(path, os.O_RDWR, 0)
-		if err != nil {
-			if os.IsNotExist(err) {
-				return nil
-			}
-
-			// Ignore all errors until the first not-exist
-			// we want to continue looking for the file
-			continue
-		}
-
-		dev, inode, err := getLoopbackBackingFile(file)
-		if err == nil && dev == targetDevice && inode == targetInode {
-			return file
-		}
-		file.Close()
-	}
-
-	return nil
 }
 
 // UdevWait waits for any processes that are waiting for udev to complete the specified cookie.

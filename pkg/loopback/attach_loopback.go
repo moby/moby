@@ -1,13 +1,21 @@
 // +build linux
 
-package devicemapper
+package loopback
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"syscall"
 
 	"github.com/Sirupsen/logrus"
+)
+
+// Loopback related errors
+var (
+	ErrAttachLoopbackDevice   = errors.New("loopback attach failed")
+	ErrGetLoopbackBackingFile = errors.New("Unable to get loopback backing file")
+	ErrSetCapacity            = errors.New("Unable set loopback capacity")
 )
 
 func stringToLoopName(src string) [LoNameSize]uint8 {
