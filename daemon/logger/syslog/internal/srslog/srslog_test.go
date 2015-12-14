@@ -260,6 +260,16 @@ func TestDial(t *testing.T) {
 	l.Close()
 }
 
+func TestDialFails(t *testing.T) {
+	w, err := Dial("udp", "fakehost", LOG_ERR, "tag")
+	if err == nil {
+		t.Errorf("should fail to dial")
+	}
+	if w != nil {
+		t.Errorf("should not get a writer")
+	}
+}
+
 func TestDialTLSFails(t *testing.T) {
 	w, err := DialWithTLSCertPath("tcp+tls", "127.0.0.1:0", LOG_ERR, "syslog_test", "test/nocertfound.pem")
 	if w != nil {
@@ -271,15 +281,21 @@ func TestDialTLSFails(t *testing.T) {
 }
 
 func check(t *testing.T, in, out string) {
-	tmpl := fmt.Sprintf("<%d>%%s %%s syslog_test[%%d]: %s\n", LOG_USER+LOG_INFO, in)
 	if hostname, err := os.Hostname(); err != nil {
 		t.Error("Error retrieving hostname")
 	} else {
-		var parsedHostname, timestamp string
-		var pid int
-		if n, err := fmt.Sscanf(out, tmpl, &timestamp, &parsedHostname, &pid); n != 3 || err != nil || hostname != parsedHostname {
-			t.Errorf("Got %q, does not match template %q (%d %s)", out, tmpl, n, err)
-		}
+		checkWithPriorityAndTag(t, LOG_USER+LOG_INFO, "syslog_test", hostname, in, out)
+	}
+}
+
+func checkWithPriorityAndTag(t *testing.T, p priority, tag, hostname, in, out string) {
+	tmpl := fmt.Sprintf("<%d>%%s %%s %s[%%d]: %s\n", p, tag, in)
+	var parsedHostname, timestamp string
+	var pid int
+	if n, err := fmt.Sscanf(out, tmpl, &timestamp, &parsedHostname, &pid); n != 3 || err != nil {
+		t.Errorf("Got %q, does not match template %q (%d %s)", out, tmpl, n, err)
+	} else if hostname != parsedHostname {
+		t.Errorf("hostname expected %v, got %v", hostname, parsedHostname)
 	}
 }
 
