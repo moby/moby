@@ -68,7 +68,7 @@ type apiClient interface {
 	NetworkList() ([]types.NetworkResource, error)
 	NetworkRemove(networkID string) error
 	RegistryLogin(auth cliconfig.AuthConfig) (types.AuthResponse, error)
-	SystemVersion() (types.VersionResponse, error)
+	ServerVersion() (types.Version, error)
 	VolumeCreate(options types.VolumeCreateRequest) (types.Volume, error)
 	VolumeInspect(volumeID string) (types.Volume, error)
 	VolumeList(filter filters.Args) (types.VolumesListResponse, error)
