@@ -29,6 +29,7 @@ package overlay2
 import (
 	"bufio"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
@@ -43,6 +44,7 @@ import (
 	"github.com/docker/docker/pkg/directory"
 	"github.com/docker/docker/pkg/idtools"
 	mountpk "github.com/docker/docker/pkg/mount"
+	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/opencontainers/runc/libcontainer/label"
 )
 
@@ -95,6 +97,16 @@ func init() {
 func Init(root string, options []string, uidMaps, gidMaps []idtools.IDMap) (graphdriver.Driver, error) {
 
 	if err := supportsOverlay(); err != nil {
+		return nil, graphdriver.ErrNotSupported
+	}
+
+	version, err := kernel.GetKernelVersion()
+	if err != nil {
+		return nil, err
+	}
+
+	// require a version of overlay that supports multiple ro layers
+	if kernel.CompareKernelVersion(*version, kernel.VersionInfo{3, 19, 0, ""}) == -1 {
 		return nil, graphdriver.ErrNotSupported
 	}
 
@@ -456,7 +468,10 @@ func (d *Driver) unmount(m *ActiveMount) error {
 	if mounted, err := d.mounted(m); err != nil || !mounted {
 		return err
 	}
-	return Unmount(m.path)
+	if err := syscall.Unmount(m.path, 0); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (d *Driver) mounted(m *ActiveMount) (bool, error) {
@@ -529,6 +544,22 @@ func (d *Driver) Exists(id string) bool {
 // kind can be one of LayersPath, DiffPath, MntPath, WorkPath
 func (d *Driver) dir(kind, id string) string {
 	return path.Join(d.root, kind, id)
+}
+
+// XXX: copied from aufs
+// return the list of ids in the file at this path
+func loadIds(root string) ([]string, error) {
+	dirs, err := ioutil.ReadDir(root)
+	if err != nil {
+		return nil, err
+	}
+	out := []string{}
+	for _, d := range dirs {
+		if !d.IsDir() {
+			out = append(out, d.Name())
+		}
+	}
+	return out, nil
 }
 
 // Differences between Overlay and AUFS drivers
