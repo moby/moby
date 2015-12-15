@@ -2,18 +2,17 @@
 % Docker Community
 % JUNE 2014
 # NAME
-docker-login - Register or log in to a Docker registry. 
+docker-login - Log in to a Docker registry.
 
 # SYNOPSIS
 **docker login**
-[**-e**|**--email**[=*EMAIL*]]
 [**--help**]
 [**-p**|**--password**[=*PASSWORD*]]
 [**-u**|**--username**[=*USERNAME*]]
 [SERVER]
 
 # DESCRIPTION
-Register or log in to a Docker Registry located on the specified
+Log in to a Docker Registry located on the specified
 `SERVER`.  You can specify a URL or a `hostname` for the `SERVER` value. If you
 do not specify a `SERVER`, the command uses Docker's public registry located at
 `https://registry-1.docker.io/` by default.  To get a username/password for Docker's public registry, create an account on Docker Hub.
@@ -31,9 +30,6 @@ credentials.  When you log in, the command stores encoded credentials in
 >
 
 # OPTIONS
-**-e**, **--email**=""
-   Email
-
 **--help**
   Print usage statement
 

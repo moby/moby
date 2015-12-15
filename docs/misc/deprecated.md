@@ -110,6 +110,7 @@ are deprecated and replaced with double-dash options (`--opt`):
 
 The following double-dash options are deprecated and have no replacement:
 
+    docker login --email
     docker run --cpuset
     docker run --networking
     docker ps --since-id

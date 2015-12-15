@@ -750,7 +750,6 @@ func (r *Session) GetAuthConfig(withPasswd bool) *types.AuthConfig {
 	return &types.AuthConfig{
 		Username: r.authConfig.Username,
 		Password: password,
-		Email:    r.authConfig.Email,
 	}
 }
 

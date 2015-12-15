@@ -174,7 +174,7 @@ email = user@example.com`
 
 	// defaultIndexserver is https://index.docker.io/v1/
 	ac := config.AuthConfigs["https://index.docker.io/v1/"]
-	if ac.Email != "user@example.com" || ac.Username != "joejoe" || ac.Password != "hello" {
+	if ac.Username != "joejoe" || ac.Password != "hello" {
 		t.Fatalf("Missing data from parsing:\n%q", config)
 	}
 
@@ -184,8 +184,7 @@ email = user@example.com`
 	if configStr != `{
 	"auths": {
 		"https://index.docker.io/v1/": {
-			"auth": "am9lam9lOmhlbGxv",
-			"email": "user@example.com"
+			"auth": "am9lam9lOmhlbGxv"
 		}
 	}
 }` {
@@ -243,7 +242,7 @@ func TestOldJson(t *testing.T) {
 	}
 
 	ac := config.AuthConfigs["https://index.docker.io/v1/"]
-	if ac.Email != "user@example.com" || ac.Username != "joejoe" || ac.Password != "hello" {
+	if ac.Username != "joejoe" || ac.Password != "hello" {
 		t.Fatalf("Missing data from parsing:\n%q", config)
 	}
 
@@ -253,8 +252,7 @@ func TestOldJson(t *testing.T) {
 	if configStr != `{
 	"auths": {
 		"https://index.docker.io/v1/": {
-			"auth": "am9lam9lOmhlbGxv",
-			"email": "user@example.com"
+			"auth": "am9lam9lOmhlbGxv"
 		}
 	}
 }` {
@@ -281,7 +279,7 @@ func TestNewJson(t *testing.T) {
 	}
 
 	ac := config.AuthConfigs["https://index.docker.io/v1/"]
-	if ac.Email != "user@example.com" || ac.Username != "joejoe" || ac.Password != "hello" {
+	if ac.Username != "joejoe" || ac.Password != "hello" {
 		t.Fatalf("Missing data from parsing:\n%q", config)
 	}
 
@@ -291,8 +289,7 @@ func TestNewJson(t *testing.T) {
 	if configStr != `{
 	"auths": {
 		"https://index.docker.io/v1/": {
-			"auth": "am9lam9lOmhlbGxv",
-			"email": "user@example.com"
+			"auth": "am9lam9lOmhlbGxv"
 		}
 	}
 }` {
@@ -384,7 +381,7 @@ func TestJsonReaderNoFile(t *testing.T) {
 	}
 
 	ac := config.AuthConfigs["https://index.docker.io/v1/"]
-	if ac.Email != "user@example.com" || ac.Username != "joejoe" || ac.Password != "hello" {
+	if ac.Username != "joejoe" || ac.Password != "hello" {
 		t.Fatalf("Missing data from parsing:\n%q", config)
 	}
 
@@ -399,7 +396,7 @@ func TestOldJsonReaderNoFile(t *testing.T) {
 	}
 
 	ac := config.AuthConfigs["https://index.docker.io/v1/"]
-	if ac.Email != "user@example.com" || ac.Username != "joejoe" || ac.Password != "hello" {
+	if ac.Username != "joejoe" || ac.Password != "hello" {
 		t.Fatalf("Missing data from parsing:\n%q", config)
 	}
 }
@@ -447,8 +444,7 @@ func TestJsonSaveWithNoFile(t *testing.T) {
 	if string(buf) != `{
 	"auths": {
 		"https://index.docker.io/v1/": {
-			"auth": "am9lam9lOmhlbGxv",
-			"email": "user@example.com"
+			"auth": "am9lam9lOmhlbGxv"
 		}
 	},
 	"psFormat": "table {{.ID}}\\t{{.Label \"com.docker.label.cpu\"}}"
@@ -482,8 +478,7 @@ func TestLegacyJsonSaveWithNoFile(t *testing.T) {
 	if string(buf) != `{
 	"auths": {
 		"https://index.docker.io/v1/": {
-			"auth": "am9lam9lOmhlbGxv",
-			"email": "user@example.com"
+			"auth": "am9lam9lOmhlbGxv"
 		}
 	}
 }` {
