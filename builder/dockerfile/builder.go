@@ -95,8 +95,7 @@ type Builder struct {
 	allowedBuildArgs map[string]bool // list of build-time args that are allowed for expansion/substitution and passing to commands in 'run'.
 
 	// TODO: remove once docker.Commit can receive a tag
-	id           string
-	activeImages []string
+	id string
 }
 
 // NewBuilder creates a new Dockerfile builder from an optional dockerfile and a Config.
@@ -145,11 +144,6 @@ func NewBuilder(config *Config, docker builder.Backend, context builder.Context,
 // * NOT tag the image, that is responsibility of the caller.
 //
 func (b *Builder) Build() (string, error) {
-	// TODO: remove once b.docker.Commit can take a tag parameter.
-	defer func() {
-		b.docker.Release(b.id, b.activeImages)
-	}()
-
 	// If Dockerfile was not parsed yet, extract it from the Context
 	if b.dockerfile == nil {
 		if err := b.readDockerfile(); err != nil {

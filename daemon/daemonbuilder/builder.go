@@ -176,6 +176,25 @@ func (d Docker) BuilderCopy(cID string, destPath string, src builder.FileInfo, d
 	return fixPermissions(srcPath, destPath, rootUID, rootGID, destExists)
 }
 
+// Mount mounts the root filesystem for the container.
+func (d Docker) Mount(cID string) error {
+	c, err := d.Daemon.GetContainer(cID)
+	if err != nil {
+		return err
+	}
+	return d.Daemon.Mount(c)
+}
+
+// Unmount unmounts the root filesystem for the container.
+func (d Docker) Unmount(cID string) error {
+	c, err := d.Daemon.GetContainer(cID)
+	if err != nil {
+		return err
+	}
+	d.Daemon.Unmount(c)
+	return nil
+}
+
 // GetCachedImage returns a reference to a cached image whose parent equals `parent`
 // and runconfig equals `cfg`. A cache miss is expected to return an empty ID and a nil error.
 func (d Docker) GetCachedImage(imgID string, cfg *runconfig.Config) (string, error) {

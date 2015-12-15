@@ -66,6 +66,10 @@ func (b *Builder) commit(id string, autoCmd *stringutils.StrSlice, comment strin
 		if err != nil {
 			return err
 		}
+		if err := b.docker.Mount(id); err != nil {
+			return err
+		}
+		defer b.docker.Unmount(id)
 	}
 
 	// Note: Actually copy the struct
@@ -83,8 +87,6 @@ func (b *Builder) commit(id string, autoCmd *stringutils.StrSlice, comment strin
 	if err != nil {
 		return err
 	}
-	b.docker.Retain(b.id, imageID)
-	b.activeImages = append(b.activeImages, imageID)
 	b.image = imageID
 	return nil
 }
@@ -191,6 +193,10 @@ func (b *Builder) runContextCommand(args []string, allowRemote bool, allowLocalD
 	if err != nil {
 		return err
 	}
+	if err := b.docker.Mount(container.ID); err != nil {
+		return err
+	}
+	defer b.docker.Unmount(container.ID)
 	b.tmpContainers[container.ID] = struct{}{}
 
 	comment := fmt.Sprintf("%s %s in %s", cmdName, origPaths, dest)
@@ -470,10 +476,6 @@ func (b *Builder) probeCache() (bool, error) {
 	fmt.Fprintf(b.Stdout, " ---> Using cache\n")
 	logrus.Debugf("[BUILDER] Use cached version: %s", b.runConfig.Cmd)
 	b.image = string(cache)
-
-	// TODO: remove once Commit can take a tag parameter.
-	b.docker.Retain(b.id, b.image)
-	b.activeImages = append(b.activeImages, b.image)
 
 	return true, nil
 }
