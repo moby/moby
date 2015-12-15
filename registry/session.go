@@ -21,6 +21,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
+	registrytypes "github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/pkg/httputils"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/stringid"
@@ -718,7 +719,7 @@ func shouldRedirect(response *http.Response) bool {
 }
 
 // SearchRepositories performs a search against the remote repository
-func (r *Session) SearchRepositories(term string) (*SearchResults, error) {
+func (r *Session) SearchRepositories(term string) (*registrytypes.SearchResults, error) {
 	logrus.Debugf("Index server: %s", r.indexEndpoint)
 	u := r.indexEndpoint.VersionString(1) + "search?q=" + url.QueryEscape(term)
 
@@ -736,7 +737,7 @@ func (r *Session) SearchRepositories(term string) (*SearchResults, error) {
 	if res.StatusCode != 200 {
 		return nil, httputils.NewHTTPRequestError(fmt.Sprintf("Unexpected status code %d", res.StatusCode), res)
 	}
-	result := new(SearchResults)
+	result := new(registrytypes.SearchResults)
 	return result, json.NewDecoder(res.Body).Decode(result)
 }
 
