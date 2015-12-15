@@ -73,7 +73,7 @@ func splitReposSearchTerm(reposName string) (string, string) {
 
 // Search queries the public registry for images matching the specified
 // search terms, and returns the results.
-func (s *Service) Search(term string, authConfig *types.AuthConfig, headers map[string][]string) (*SearchResults, error) {
+func (s *Service) Search(term string, authConfig *types.AuthConfig, headers map[string][]string) (*registrytypes.SearchResults, error) {
 	if err := validateNoSchema(term); err != nil {
 		return nil, err
 	}

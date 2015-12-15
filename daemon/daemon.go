@@ -22,6 +22,7 @@ import (
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
+	registrytypes "github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/events"
 	"github.com/docker/docker/daemon/exec"
@@ -1508,7 +1509,7 @@ func (daemon *Daemon) AuthenticateToRegistry(authConfig *types.AuthConfig) (stri
 // term. authConfig is used to login.
 func (daemon *Daemon) SearchRegistryForImages(term string,
 	authConfig *types.AuthConfig,
-	headers map[string][]string) (*registry.SearchResults, error) {
+	headers map[string][]string) (*registrytypes.SearchResults, error) {
 	return daemon.RegistryService.Search(term, authConfig, headers)
 }
 

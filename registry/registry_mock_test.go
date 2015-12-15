@@ -460,10 +460,10 @@ func handlerAuth(w http.ResponseWriter, r *http.Request) {
 }
 
 func handlerSearch(w http.ResponseWriter, r *http.Request) {
-	result := &SearchResults{
+	result := &registrytypes.SearchResults{
 		Query:      "fakequery",
 		NumResults: 1,
-		Results:    []SearchResult{{Name: "fakeimage", StarCount: 42}},
+		Results:    []registrytypes.SearchResult{{Name: "fakeimage", StarCount: 42}},
 	}
 	writeResponse(w, result, 200)
 }
