@@ -12,7 +12,7 @@ checkpoint and restore in Docker is available in this
 ## Installing CRIU
 
 If you use a Debian system, you can add the CRIU PPA and install with apt-get
-https://launchpad.net/~criu/+archive/ubuntu/ppa.
+[from the criu launchpad](https://launchpad.net/~criu/+archive/ubuntu/ppa).
 
 Alternatively, you can [build CRIU from source](http://criu.org/Installation).
 

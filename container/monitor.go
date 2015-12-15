@@ -187,7 +187,7 @@ func (m *containerMonitor) Restore(restoreOpts *runconfig.CriuConfig, forceResto
 	return m.startOrRestore(restoreOpts, forceRestore)
 }
 
-// Internal method to start or restore a container and monitor it
+// startOrRestore is an Internal method to start or restore a container and monitor it
 func (m *containerMonitor) startOrRestore(restoreOpts *runconfig.CriuConfig, forceRestore bool) error {
 	var (
 		err        error
@@ -401,7 +401,7 @@ func (m *containerMonitor) callback(processConfig *execdriver.ProcessConfig, pid
 	return nil
 }
 
-// Like callback() but for restoring a container.
+// restoreCallback is like callback(), but for restoring a container.
 func (m *containerMonitor) restoreCallback(processConfig *execdriver.ProcessConfig, restorePid int, chOOM <-chan struct{}) error {
 	go func() {
 		_, ok := <-chOOM

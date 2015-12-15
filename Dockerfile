@@ -37,7 +37,6 @@ RUN	echo deb http://llvm.org/apt/trusty/ llvm-toolchain-trusty main > /etc/apt/s
 # Packaged dependencies
 RUN apt-get update && apt-get install -y \
 	apparmor \
-	asciidoc \
 	aufs-tools \
 	automake \
 	bash-completion \
@@ -52,7 +51,6 @@ RUN apt-get update && apt-get install -y \
 	git \
 	iptables \
 	jq \
-	libaio-dev \
 	libapparmor-dev \
 	libcap-dev \
 	libltdl-dev \
@@ -66,15 +64,12 @@ RUN apt-get update && apt-get install -y \
 	protobuf-compiler \
 	protobuf-c-compiler \
 	python-dev \
-	python-minimal \
 	python-mock \
 	python-pip \
-	python-protobuf \
 	python-websocket \
 	s3cmd=1.1.0* \
 	ubuntu-zfs \
 	xfsprogs \
-	xmlto \
 	libzfs-dev \
 	tar \
 	--no-install-recommends \
@@ -93,12 +88,12 @@ RUN cd /usr/local/lvm2 \
 # see https://git.fedorahosted.org/cgit/lvm2.git/tree/INSTALL
 
 # Install Criu
-ENV CRIU_VERSION 1.6
+ENV CRIU_VERSION 1.7
 RUN mkdir -p /usr/src/criu \
 	&& curl -sSL https://github.com/xemul/criu/archive/v${CRIU_VERSION}.tar.gz | tar -v -C /usr/src/criu/ -xz --strip-components=1 \
 	&& cd /usr/src/criu \
 	&& make \
-	&& make install
+	&& make install-criu
 
 # Install Go
 ENV GO_VERSION 1.5.2
