@@ -897,3 +897,22 @@ func (s *DockerNetworkSuite) TestDockerNetworkConnectWithMac(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	c.Assert(strings.TrimSpace(mac2), checker.Not(checker.Equals), strings.TrimSpace(mac1))
 }
+
+func (s *DockerNetworkSuite) TestDockerNetworkInspectCreatedContainer(c *check.C) {
+	dockerCmd(c, "create", "--name", "test", "busybox")
+	networks, err := inspectField("test", "NetworkSettings.Networks")
+	c.Assert(err, checker.IsNil)
+	c.Assert(networks, checker.Contains, "bridge", check.Commentf("Should return 'bridge' network"))
+}
+
+func (s *DockerNetworkSuite) TestDockerNetworkRestartWithMulipleNetworks(c *check.C) {
+	dockerCmd(c, "network", "create", "test")
+	dockerCmd(c, "run", "--name=foo", "-d", "busybox", "top")
+	c.Assert(waitRun("foo"), checker.IsNil)
+	dockerCmd(c, "network", "connect", "test", "foo")
+	dockerCmd(c, "restart", "foo")
+	networks, err := inspectField("foo", "NetworkSettings.Networks")
+	c.Assert(err, checker.IsNil)
+	c.Assert(networks, checker.Contains, "bridge", check.Commentf("Should contain 'bridge' network"))
+	c.Assert(networks, checker.Contains, "test", check.Commentf("Should contain 'test' netwokr"))
+}
