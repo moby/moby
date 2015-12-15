@@ -41,7 +41,8 @@ func (w *writer) connect() (err error) {
 	return
 }
 
-// Write sends a log message to the syslog daemon.
+// Write sends a log message to the syslog daemon using the default priority
+// passed into `srslog.New` or the `srslog.Dial*` functions.
 func (w *writer) Write(b []byte) (int, error) {
 	return w.writeAndRetry(w.priority, string(b))
 }
@@ -59,57 +60,57 @@ func (w *writer) Close() error {
 	return nil
 }
 
-// Emerg logs a message with severity LOG_EMERG, ignoring the severity
-// passed to New.
+// Emerg logs a message with severity LOG_EMERG; this overrides the default
+// priority passed to `srslog.New` and the `srslog.Dial*` functions.
 func (w *writer) Emerg(m string) (err error) {
 	_, err = w.writeAndRetry(LOG_EMERG, m)
 	return err
 }
 
-// Alert logs a message with severity LOG_ALERT, ignoring the severity
-// passed to New.
+// Alert logs a message with severity LOG_ALERT; this overrides the default
+// priority passed to `srslog.New` and the `srslog.Dial*` functions.
 func (w *writer) Alert(m string) (err error) {
 	_, err = w.writeAndRetry(LOG_ALERT, m)
 	return err
 }
 
-// Crit logs a message with severity LOG_CRIT, ignoring the severity
-// passed to New.
+// Crit logs a message with severity LOG_CRIT; this overrides the default
+// priority passed to `srslog.New` and the `srslog.Dial*` functions.
 func (w *writer) Crit(m string) (err error) {
 	_, err = w.writeAndRetry(LOG_CRIT, m)
 	return err
 }
 
-// Err logs a message with severity LOG_ERR, ignoring the severity
-// passed to New.
+// Err logs a message with severity LOG_ERR; this overrides the default
+// priority passed to `srslog.New` and the `srslog.Dial*` functions.
 func (w *writer) Err(m string) (err error) {
 	_, err = w.writeAndRetry(LOG_ERR, m)
 	return err
 }
 
-// Warning logs a message with severity LOG_WARNING, ignoring the
-// severity passed to New.
+// Warning logs a message with severity LOG_WARNING; this overrides the default
+// priority passed to `srslog.New` and the `srslog.Dial*` functions.
 func (w *writer) Warning(m string) (err error) {
 	_, err = w.writeAndRetry(LOG_WARNING, m)
 	return err
 }
 
-// Notice logs a message with severity LOG_NOTICE, ignoring the
-// severity passed to New.
+// Notice logs a message with severity LOG_NOTICE; this overrides the default
+// priority passed to `srslog.New` and the `srslog.Dial*` functions.
 func (w *writer) Notice(m string) (err error) {
 	_, err = w.writeAndRetry(LOG_NOTICE, m)
 	return err
 }
 
-// Info logs a message with severity LOG_INFO, ignoring the severity
-// passed to New.
+// Info logs a message with severity LOG_INFO; this overrides the default
+// priority passed to `srslog.New` and the `srslog.Dial*` functions.
 func (w *writer) Info(m string) (err error) {
 	_, err = w.writeAndRetry(LOG_INFO, m)
 	return err
 }
 
-// Debug logs a message with severity LOG_DEBUG, ignoring the severity
-// passed to New.
+// Debug logs a message with severity LOG_DEBUG; this overrides the default
+// priority passed to `srslog.New` and the `srslog.Dial*` functions.
 func (w *writer) Debug(m string) (err error) {
 	_, err = w.writeAndRetry(LOG_DEBUG, m)
 	return err
