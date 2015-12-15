@@ -146,41 +146,59 @@ func parseNameVal(rest string, key string) (*Node, map[string]bool, error) {
 
 	var rootnode *Node
 
-	// Old format (KEY name value)
-	if !strings.Contains(words[0], "=") {
-		node := &Node{}
-		rootnode = node
+	if !strings.Contains(words[0], "=") && key != "LABEL" {
 		strs := tokenWhitespace.Split(rest, 2)
 
+		// Old format (KEY name value)
 		if len(strs) < 2 {
 			return nil, nil, fmt.Errorf(key + " must have two arguments")
 		}
 
+		node := &Node{}
+		rootnode = node
 		node.Value = strs[0]
 		node.Next = &Node{}
 		node.Next.Value = strs[1]
-	} else {
-		var prevNode *Node
-		for i, word := range words {
-			if !strings.Contains(word, "=") {
-				return nil, nil, fmt.Errorf("Syntax error - can't find = in %q. Must be of the form: name=value", word)
+
+		return rootnode, nil, nil
+	}
+
+	var prevNode *Node
+	for i, word := range words {
+		if !strings.Contains(word, "=") {
+			if key == "LABEL" {
+				name := &Node{}
+				value := &Node{}
+				name.Next = value
+				name.Value = rest
+				value.Value = ""
+
+				if i == 0 {
+					rootnode = name
+				} else {
+					prevNode.Next = name
+				}
+				prevNode = value
+
+				continue
 			}
-			parts := strings.SplitN(word, "=", 2)
-
-			name := &Node{}
-			value := &Node{}
-
-			name.Next = value
-			name.Value = parts[0]
-			value.Value = parts[1]
-
-			if i == 0 {
-				rootnode = name
-			} else {
-				prevNode.Next = name
-			}
-			prevNode = value
+			return nil, nil, fmt.Errorf("Syntax error - can't find = in %q. Must be of the form: name=value", word)
 		}
+		parts := strings.SplitN(word, "=", 2)
+
+		name := &Node{}
+		value := &Node{}
+
+		name.Next = value
+		name.Value = parts[0]
+		value.Value = parts[1]
+
+		if i == 0 {
+			rootnode = name
+		} else {
+			prevNode.Next = name
+		}
+		prevNode = value
 	}
 
 	return rootnode, nil, nil

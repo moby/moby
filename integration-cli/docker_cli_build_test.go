@@ -6623,3 +6623,92 @@ func (s *DockerSuite) TestBuildCacheRootSource(c *check.C) {
 
 	c.Assert(out, checker.Not(checker.Contains), "Using cache")
 }
+
+func (s *DockerSuite) TestBuildLABELNameOnly(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	name := "label-nane-only"
+	_, err := buildImage(name, `
+  FROM busybox
+  LABEL nameonly1 nameonly2
+  `, false)
+	c.Assert(err, check.IsNil)
+
+	nameonly1, err := inspectFieldMap(name, "Config.Labels", "nameonly1")
+	c.Assert(err, check.IsNil)
+	c.Assert(nameonly1, check.Equals, "")
+	nameonly2, err := inspectFieldMap(name, "Config.Labels", "nameonly2")
+	c.Assert(err, check.IsNil)
+	c.Assert(nameonly2, check.Equals, "")
+}
+
+func (s *DockerSuite) TestBuildLABELSingleNameOnly(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	name := "label-nane-only"
+	_, err := buildImage(name, `
+  FROM busybox
+  LABEL nameonly
+  `, false)
+	c.Assert(err, check.IsNil)
+
+	nameonly, err := inspectFieldMap(name, "Config.Labels", "nameonly")
+	c.Assert(err, check.IsNil)
+	c.Assert(nameonly, check.Equals, "")
+}
+
+func (s *DockerSuite) TestBuildLABEL(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	name := "multi-label"
+	_, err := buildImage(name, `
+  FROM busybox
+  LABEL key1=value1 key2=value2
+  `, false)
+	c.Assert(err, check.IsNil)
+
+	nameonly, err := inspectFieldMap(name, "Config.Labels", "key1")
+	c.Assert(err, check.IsNil)
+	c.Assert(nameonly, check.Equals, "value1")
+	nameonly, err = inspectFieldMap(name, "Config.Labels", "key2")
+	c.Assert(err, check.IsNil)
+	c.Assert(nameonly, check.Equals, "value2")
+}
+
+func (s *DockerSuite) TestBuildLABELWithoutValue(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	name := "multi-label-rest"
+	_, err := buildImage(name, `
+  FROM busybox
+  LABEL key1=value1 key2 key3=value3
+  `, false)
+	c.Assert(err, check.IsNil)
+
+	kv1, err := inspectFieldMap(name, "Config.Labels", "key1")
+	c.Assert(err, check.IsNil)
+	c.Assert(kv1, check.Equals, "value1")
+	kv2, err := inspectFieldMap(name, "Config.Labels", "key2")
+	c.Assert(err, check.IsNil)
+	c.Assert(kv2, check.Equals, "")
+	kv3, err := inspectFieldMap(name, "Config.Labels", "key3")
+	c.Assert(err, check.IsNil)
+	c.Assert(kv3, check.Equals, "value3")
+}
+
+func (s *DockerSuite) TestBuildLABELOldKVIgnored(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	name := "multi-label-first"
+	_, err := buildImage(name, `
+  FROM busybox
+  LABEL key1 key2=value
+	`, false)
+	c.Assert(err, check.IsNil)
+
+	kv1, err := inspectFieldMap(name, "Config.Labels", "key1")
+	c.Assert(err, check.IsNil)
+	c.Assert(kv1, check.Equals, "")
+	kv2, err := inspectFieldMap(name, "Config.Labels", "key2")
+	c.Assert(kv2, check.Equals, "value")
+}
