@@ -209,8 +209,13 @@ func (s *DockerSuite) TestInspectContainerGraphDriver(c *check.C) {
 		return
 	}
 
+	imageDeviceID, err := inspectField("busybox", "GraphDriver.Data.DeviceId")
+	c.Assert(err, checker.IsNil)
+
 	deviceID, err := inspectField(out, "GraphDriver.Data.DeviceId")
 	c.Assert(err, checker.IsNil)
+
+	c.Assert(imageDeviceID, checker.Not(checker.Equals), deviceID)
 
 	_, err = strconv.Atoi(deviceID)
 	c.Assert(err, checker.IsNil, check.Commentf("failed to inspect DeviceId of the image: %s, %v", deviceID, err))
