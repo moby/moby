@@ -151,6 +151,7 @@ type Store interface {
 	Unmount(id string) error
 	DeleteMount(id string) ([]Metadata, error)
 	Changes(id string) ([]archive.Change, error)
+	Metadata(id string) (map[string]string, error)
 }
 
 // MetadataTransaction represents functions for setting layer metadata
