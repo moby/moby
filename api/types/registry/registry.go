@@ -73,3 +73,29 @@ type IndexInfo struct {
 	// Official indicates whether this is an official registry
 	Official bool
 }
+
+// SearchResult describes a search result returned from a registry
+type SearchResult struct {
+	// StarCount indicates the number of stars this repository has
+	StarCount int `json:"star_count"`
+	// IsOfficial indicates whether the result is an official repository or not
+	IsOfficial bool `json:"is_official"`
+	// Name is the name of the repository
+	Name string `json:"name"`
+	// IsOfficial indicates whether the result is trusted
+	IsTrusted bool `json:"is_trusted"`
+	// IsAutomated indicates whether the result is automated
+	IsAutomated bool `json:"is_automated"`
+	// Description is a textual description of the repository
+	Description string `json:"description"`
+}
+
+// SearchResults lists a collection search results returned from a registry
+type SearchResults struct {
+	// Query contains the query string that generated the search results
+	Query string `json:"query"`
+	// NumResults indicates the number of results the query returned
+	NumResults int `json:"num_results"`
+	// Results is a slice containing the actual results for the search
+	Results []SearchResult `json:"results"`
+}
