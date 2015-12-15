@@ -83,7 +83,7 @@ check_forked() {
 				lsb_dist=debian
 				dist_version="$(cat /etc/debian_version | sed 's/\/.*//' | sed 's/\..*//')"
 				case "$dist_version" in
-					8)
+					8|'Kali Linux 2')
 						dist_version="jessie"
 					;;
 					7)
