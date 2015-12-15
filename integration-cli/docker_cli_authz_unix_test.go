@@ -17,9 +17,12 @@ import (
 	"github.com/go-check/check"
 )
 
-const testAuthZPlugin = "authzplugin"
-const unauthorizedMessage = "User unauthorized authz plugin"
-const containerListAPI = "/containers/json"
+const (
+	testAuthZPlugin     = "authzplugin"
+	unauthorizedMessage = "User unauthorized authz plugin"
+	errorMessage        = "something went wrong..."
+	containerListAPI    = "/containers/json"
+)
 
 func init() {
 	check.Suite(&DockerAuthzSuite{
@@ -66,9 +69,12 @@ func (s *DockerAuthzSuite) SetUpSuite(c *check.C) {
 	})
 
 	mux.HandleFunc("/AuthZPlugin.AuthZReq", func(w http.ResponseWriter, r *http.Request) {
+		if s.ctrl.reqRes.Err != "" {
+			w.WriteHeader(http.StatusInternalServerError)
+		}
 		b, err := json.Marshal(s.ctrl.reqRes)
-		w.Write(b)
 		c.Assert(err, check.IsNil)
+		w.Write(b)
 		defer r.Body.Close()
 		body, err := ioutil.ReadAll(r.Body)
 		c.Assert(err, check.IsNil)
@@ -88,6 +94,9 @@ func (s *DockerAuthzSuite) SetUpSuite(c *check.C) {
 	})
 
 	mux.HandleFunc("/AuthZPlugin.AuthZRes", func(w http.ResponseWriter, r *http.Request) {
+		if s.ctrl.resRes.Err != "" {
+			w.WriteHeader(http.StatusInternalServerError)
+		}
 		b, err := json.Marshal(s.ctrl.resRes)
 		c.Assert(err, check.IsNil)
 		w.Write(b)
@@ -212,6 +221,31 @@ func (s *DockerAuthzSuite) TestAuthZPluginDenyResponse(c *check.C) {
 
 	// Ensure unauthorized message appears in response
 	c.Assert(res, check.Equals, fmt.Sprintf("Error response from daemon: %s\n", unauthorizedMessage))
+}
+
+func (s *DockerAuthzSuite) TestAuthZPluginErrorResponse(c *check.C) {
+	err := s.d.Start("--authz-plugin=" + testAuthZPlugin)
+	c.Assert(err, check.IsNil)
+	s.ctrl.reqRes.Allow = true
+	s.ctrl.resRes.Err = errorMessage
+
+	// Ensure command is blocked
+	res, err := s.d.Cmd("ps")
+	c.Assert(err, check.NotNil)
+
+	c.Assert(res, check.Equals, fmt.Sprintf("Error response from daemon: Plugin Error: %s, %s\n", errorMessage, authorization.AuthZApiResponse))
+}
+
+func (s *DockerAuthzSuite) TestAuthZPluginErrorRequest(c *check.C) {
+	err := s.d.Start("--authz-plugin=" + testAuthZPlugin)
+	c.Assert(err, check.IsNil)
+	s.ctrl.reqRes.Err = errorMessage
+
+	// Ensure command is blocked
+	res, err := s.d.Cmd("ps")
+	c.Assert(err, check.NotNil)
+
+	c.Assert(res, check.Equals, fmt.Sprintf("Error response from daemon: Plugin Error: %s, %s\n", errorMessage, authorization.AuthZApiRequest))
 }
 
 // assertURIRecorded verifies that the given URI was sent and recorded in the authz plugin

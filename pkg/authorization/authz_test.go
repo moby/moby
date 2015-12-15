@@ -19,6 +19,37 @@ import (
 
 const pluginAddress = "authzplugin.sock"
 
+func TestAuthZRequestPluginError(t *testing.T) {
+	server := authZPluginTestServer{t: t}
+	go server.start()
+	defer server.stop()
+
+	authZPlugin := createTestPlugin(t)
+
+	request := Request{
+		User:           "user",
+		RequestBody:    []byte("sample body"),
+		RequestURI:     "www.authz.com",
+		RequestMethod:  "GET",
+		RequestHeaders: map[string]string{"header": "value"},
+	}
+	server.replayResponse = Response{
+		Err: "an error",
+	}
+
+	actualResponse, err := authZPlugin.AuthZRequest(&request)
+	if err != nil {
+		t.Fatalf("Failed to authorize request %v", err)
+	}
+
+	if !reflect.DeepEqual(server.replayResponse, *actualResponse) {
+		t.Fatalf("Response must be equal")
+	}
+	if !reflect.DeepEqual(request, server.recordedRequest) {
+		t.Fatalf("Requests must be equal")
+	}
+}
+
 func TestAuthZRequestPlugin(t *testing.T) {
 	server := authZPluginTestServer{t: t}
 	go server.start()
