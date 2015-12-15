@@ -14,7 +14,6 @@ import (
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/logger/loggerutils"
 	"github.com/docker/docker/pkg/jsonlog"
-	"github.com/docker/docker/pkg/timeutils"
 	"github.com/docker/docker/pkg/units"
 )
 
@@ -87,8 +86,7 @@ func New(ctx logger.Context) (logger.Logger, error) {
 
 // Log converts logger.Message to jsonlog.JSONLog and serializes it to file.
 func (l *JSONFileLogger) Log(msg *logger.Message) error {
-
-	timestamp, err := timeutils.FastMarshalJSON(msg.Timestamp)
+	timestamp, err := jsonlog.FastTimeMarshalJSON(msg.Timestamp)
 	if err != nil {
 		return err
 	}
