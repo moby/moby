@@ -10,10 +10,8 @@ import (
 	"sync"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builder/dockerfile/parser"
-	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/ulimit"
 	"github.com/docker/docker/runconfig"
@@ -79,7 +77,7 @@ type Builder struct {
 	Stdout io.Writer
 	Stderr io.Writer
 
-	docker  builder.Docker
+	docker  builder.Backend
 	context builder.Context
 
 	dockerfile       *parser.Node
@@ -97,14 +95,13 @@ type Builder struct {
 	allowedBuildArgs map[string]bool // list of build-time args that are allowed for expansion/substitution and passing to commands in 'run'.
 
 	// TODO: remove once docker.Commit can receive a tag
-	id           string
-	activeImages []string
+	id string
 }
 
 // NewBuilder creates a new Dockerfile builder from an optional dockerfile and a Config.
 // If dockerfile is nil, the Dockerfile specified by Config.DockerfileName,
 // will be read from the Context passed to Build().
-func NewBuilder(config *Config, docker builder.Docker, context builder.Context, dockerfile io.ReadCloser) (b *Builder, err error) {
+func NewBuilder(config *Config, docker builder.Backend, context builder.Context, dockerfile io.ReadCloser) (b *Builder, err error) {
 	if config == nil {
 		config = new(Config)
 	}
@@ -147,11 +144,6 @@ func NewBuilder(config *Config, docker builder.Docker, context builder.Context, 
 // * NOT tag the image, that is responsibility of the caller.
 //
 func (b *Builder) Build() (string, error) {
-	// TODO: remove once b.docker.Commit can take a tag parameter.
-	defer func() {
-		b.docker.Release(b.id, b.activeImages)
-	}()
-
 	// If Dockerfile was not parsed yet, extract it from the Context
 	if b.dockerfile == nil {
 		if err := b.readDockerfile(); err != nil {
@@ -209,17 +201,6 @@ func (b *Builder) Cancel() {
 	})
 }
 
-// CommitConfig contains build configs for commit operation
-type CommitConfig struct {
-	Pause   bool
-	Repo    string
-	Tag     string
-	Author  string
-	Comment string
-	Changes []string
-	Config  *runconfig.Config
-}
-
 // BuildFromConfig will do build directly from parameter 'changes', which comes
 // from Dockerfile entries, it will:
 // - call parse.Parse() to get AST root from Dockerfile entries
@@ -254,33 +235,4 @@ func BuildFromConfig(config *runconfig.Config, changes []string) (*runconfig.Con
 	}
 
 	return b.runConfig, nil
-}
-
-// Commit will create a new image from a container's changes
-// TODO: remove daemon, make Commit a method on *Builder ?
-func Commit(containerName string, d *daemon.Daemon, c *CommitConfig) (string, error) {
-	if c.Config == nil {
-		c.Config = &runconfig.Config{}
-	}
-
-	newConfig, err := BuildFromConfig(c.Config, c.Changes)
-	if err != nil {
-		return "", err
-	}
-
-	commitCfg := &types.ContainerCommitConfig{
-		Pause:        c.Pause,
-		Repo:         c.Repo,
-		Tag:          c.Tag,
-		Author:       c.Author,
-		Comment:      c.Comment,
-		Config:       newConfig,
-		MergeConfigs: true,
-	}
-
-	imgID, err := d.Commit(containerName, commitCfg)
-	if err != nil {
-		return "", err
-	}
-	return imgID, nil
 }

@@ -7,9 +7,10 @@ package builder
 import (
 	"io"
 	"os"
+	"time"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/container"
+	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/runconfig"
 )
@@ -106,45 +107,46 @@ func (fi *HashedFileInfo) SetHash(h string) {
 	fi.FileHash = h
 }
 
-// Docker abstracts calls to a Docker Daemon.
-type Docker interface {
+// Backend abstracts calls to a Docker Daemon.
+type Backend interface {
 	// TODO: use digest reference instead of name
 
-	// LookupImage looks up a Docker image referenced by `name`.
-	LookupImage(name string) (*image.Image, error)
+	// GetImage looks up a Docker image referenced by `name`.
+	GetImage(name string) (*image.Image, error)
 	// Pull tells Docker to pull image referenced by `name`.
 	Pull(name string) (*image.Image, error)
-
-	// Container looks up a Docker container referenced by `id`.
-	Container(id string) (*container.Container, error)
-	// Create creates a new Docker container and returns potential warnings
-	// TODO: put warnings in the error
-	Create(*runconfig.Config, *runconfig.HostConfig) (*container.Container, []string, error)
-	// Remove removes a container specified by `id`.
-	Remove(id string, cfg *types.ContainerRmConfig) error
+	// ContainerWsAttachWithLogs attaches to container.
+	ContainerWsAttachWithLogs(name string, cfg *daemon.ContainerWsAttachWithLogsConfig) error
+	// ContainerCreate creates a new Docker container and returns potential warnings
+	ContainerCreate(params *daemon.ContainerCreateConfig) (types.ContainerCreateResponse, error)
+	// ContainerRm removes a container specified by `id`.
+	ContainerRm(name string, config *types.ContainerRmConfig) error
 	// Commit creates a new Docker image from an existing Docker container.
 	Commit(string, *types.ContainerCommitConfig) (string, error)
-	// Copy copies/extracts a source FileInfo to a destination path inside a container
+	// Kill stops the container execution abruptly.
+	ContainerKill(containerID string, sig uint64) error
+	// Start starts a new container
+	ContainerStart(containerID string, hostConfig *runconfig.HostConfig) error
+	// ContainerWait stops processing until the given container is stopped.
+	ContainerWait(containerID string, timeout time.Duration) (int, error)
+
+	// ContainerUpdateCmd updates container.Path and container.Args
+	ContainerUpdateCmd(containerID string, cmd []string) error
+
+	// ContainerCopy copies/extracts a source FileInfo to a destination path inside a container
 	// specified by a container object.
 	// TODO: make an Extract method instead of passing `decompress`
 	// TODO: do not pass a FileInfo, instead refactor the archive package to export a Walk function that can be used
 	// with Context.Walk
-	Copy(c *container.Container, destPath string, src FileInfo, decompress bool) error
+	//ContainerCopy(name string, res string) (io.ReadCloser, error)
+	// TODO: use copyBackend api
+	BuilderCopy(containerID string, destPath string, src FileInfo, decompress bool) error
 
-	// Retain retains an image avoiding it to be removed or overwritten until a corresponding Release() call.
 	// TODO: remove
-	Retain(sessionID, imgID string)
-	// Release releases a list of images that were retained for the time of a build.
-	// TODO: remove
-	Release(sessionID string, activeImages []string)
-	// Kill stops the container execution abruptly.
-	Kill(c *container.Container) error
 	// Mount mounts the root filesystem for the container.
-	Mount(c *container.Container) error
+	Mount(containerID string) error
 	// Unmount unmounts the root filesystem for the container.
-	Unmount(c *container.Container) error
-	// Start starts a new container
-	Start(c *container.Container) error
+	Unmount(containerID string) error
 }
 
 // ImageCache abstracts an image cache store.
