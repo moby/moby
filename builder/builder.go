@@ -111,7 +111,7 @@ func (fi *HashedFileInfo) SetHash(h string) {
 type Backend interface {
 	// TODO: use digest reference instead of name
 
-	// LookupImage looks up a Docker image referenced by `name`.
+	// GetImage looks up a Docker image referenced by `name`.
 	GetImage(name string) (*image.Image, error)
 	// Pull tells Docker to pull image referenced by `name`.
 	Pull(name string) (*image.Image, error)
@@ -142,12 +142,11 @@ type Backend interface {
 	// TODO: use copyBackend api
 	BuilderCopy(containerID string, destPath string, src FileInfo, decompress bool) error
 
-	// Retain retains an image avoiding it to be removed or overwritten until a corresponding Release() call.
 	// TODO: remove
-	Retain(sessionID, imgID string)
-	// Release releases a list of images that were retained for the time of a build.
-	// TODO: remove
-	Release(sessionID string, activeImages []string)
+	// Mount mounts the root filesystem for the container.
+	Mount(containerID string) error
+	// Unmount unmounts the root filesystem for the container.
+	Unmount(containerID string) error
 }
 
 // ImageCache abstracts an image cache store.
