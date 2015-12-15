@@ -26,9 +26,8 @@ type Mount struct {
 	Source      string `json:"source"`
 	Destination string `json:"destination"`
 	Writable    bool   `json:"writable"`
-	Private     bool   `json:"private"`
-	Slave       bool   `json:"slave"`
 	Data        string `json:"data"`
+	Propagation string `json:"mountpropagation"`
 }
 
 // Resources contains all resource configs for a driver.
@@ -125,6 +124,11 @@ type Command struct {
 	UTS                *UTS              `json:"uts"`
 }
 
+// SetRootPropagation sets the root mount propagation mode.
+func SetRootPropagation(config *configs.Config, propagation int) {
+	config.RootPropagation = propagation
+}
+
 // InitContainer is the initialization of a container config.
 // It returns the initial configs for a container. It's mostly
 // defined by the default template.
@@ -137,7 +141,9 @@ func InitContainer(c *Command) *configs.Config {
 	container.Devices = c.AutoCreatedDevices
 	container.Rootfs = c.Rootfs
 	container.Readonlyfs = c.ReadonlyRootfs
-	container.RootPropagation = mount.RPRIVATE
+	// This can be overridden later by driver during mount setup based
+	// on volume options
+	SetRootPropagation(container, mount.RPRIVATE)
 
 	// check to see if we are running in ramdisk to disable pivot root
 	container.NoPivotRoot = os.Getenv("DOCKER_RAMDISK") != ""

@@ -403,7 +403,7 @@ func (container *Container) NetworkMounts() []execdriver.Mount {
 				Source:      container.ResolvConfPath,
 				Destination: "/etc/resolv.conf",
 				Writable:    writable,
-				Private:     true,
+				Propagation: volume.DefaultPropagationMode,
 			})
 		}
 	}
@@ -420,7 +420,7 @@ func (container *Container) NetworkMounts() []execdriver.Mount {
 				Source:      container.HostnamePath,
 				Destination: "/etc/hostname",
 				Writable:    writable,
-				Private:     true,
+				Propagation: volume.DefaultPropagationMode,
 			})
 		}
 	}
@@ -437,7 +437,7 @@ func (container *Container) NetworkMounts() []execdriver.Mount {
 				Source:      container.HostsPath,
 				Destination: "/etc/hosts",
 				Writable:    writable,
-				Private:     true,
+				Propagation: volume.DefaultPropagationMode,
 			})
 		}
 	}
@@ -534,7 +534,7 @@ func (container *Container) IpcMounts() []execdriver.Mount {
 			Source:      container.ShmPath,
 			Destination: "/dev/shm",
 			Writable:    true,
-			Private:     true,
+			Propagation: volume.DefaultPropagationMode,
 		})
 	}
 
@@ -544,7 +544,7 @@ func (container *Container) IpcMounts() []execdriver.Mount {
 			Source:      container.MqueuePath,
 			Destination: "/dev/mqueue",
 			Writable:    true,
-			Private:     true,
+			Propagation: volume.DefaultPropagationMode,
 		})
 	}
 	return mounts
