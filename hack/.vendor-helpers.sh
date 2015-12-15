@@ -85,7 +85,6 @@ clean() {
 		''
 		'experimental'
 		'pkcs11'
-		'seccomp'
 		"$dockerBuildTags"
 		"daemon $dockerBuildTags"
 		"daemon cgo $dockerBuildTags"
@@ -95,9 +94,6 @@ clean() {
 		"pkcs11 $dockerBuildTags"
 		"pkcs11 daemon $dockerBuildTags"
 		"pkcs11 daemon cgo $dockerBuildTags"
-		"seccomp $dockerBuildTags"
-		"seccomp daemon $dockerBuildTags"
-		"seccomp daemon cgo $dockerBuildTags"
 	)
 
 	echo
