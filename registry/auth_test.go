@@ -5,28 +5,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	registrytypes "github.com/docker/docker/api/types/registry"
-	"github.com/docker/docker/cliconfig"
 )
-
-func TestEncodeAuth(t *testing.T) {
-	newAuthConfig := &types.AuthConfig{Username: "ken", Password: "test", Email: "test@example.com"}
-	authStr := cliconfig.EncodeAuth(newAuthConfig)
-	decAuthConfig := &types.AuthConfig{}
-	var err error
-	decAuthConfig.Username, decAuthConfig.Password, err = cliconfig.DecodeAuth(authStr)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if newAuthConfig.Username != decAuthConfig.Username {
-		t.Fatal("Encode Username doesn't match decoded Username")
-	}
-	if newAuthConfig.Password != decAuthConfig.Password {
-		t.Fatal("Encode Password doesn't match decoded Password")
-	}
-	if authStr != "a2VuOnRlc3Q=" {
-		t.Fatal("AuthString encoding isn't correct.")
-	}
-}
 
 func buildAuthConfigs() map[string]types.AuthConfig {
 	authConfigs := map[string]types.AuthConfig{}
