@@ -46,17 +46,17 @@ const (
 
 func getBlkioWeightDevices(config *runconfig.HostConfig) ([]*blkiodev.WeightDevice, error) {
 	var stat syscall.Stat_t
-	var BlkioWeightDevices []*blkiodev.WeightDevice
+	var blkioWeightDevices []*blkiodev.WeightDevice
 
 	for _, weightDevice := range config.BlkioWeightDevice {
 		if err := syscall.Stat(weightDevice.Path, &stat); err != nil {
 			return nil, err
 		}
-		WeightDevice := blkiodev.NewWeightDevice(int64(stat.Rdev/256), int64(stat.Rdev%256), weightDevice.Weight, 0)
-		BlkioWeightDevices = append(BlkioWeightDevices, WeightDevice)
+		weightDevice := blkiodev.NewWeightDevice(int64(stat.Rdev/256), int64(stat.Rdev%256), weightDevice.Weight, 0)
+		blkioWeightDevices = append(blkioWeightDevices, weightDevice)
 	}
 
-	return BlkioWeightDevices, nil
+	return blkioWeightDevices, nil
 }
 
 func parseSecurityOpt(container *container.Container, config *runconfig.HostConfig) error {
@@ -87,33 +87,33 @@ func parseSecurityOpt(container *container.Container, config *runconfig.HostConf
 }
 
 func getBlkioReadBpsDevices(config *runconfig.HostConfig) ([]*blkiodev.ThrottleDevice, error) {
-	var BlkioReadBpsDevice []*blkiodev.ThrottleDevice
+	var blkioReadBpsDevice []*blkiodev.ThrottleDevice
 	var stat syscall.Stat_t
 
 	for _, bpsDevice := range config.BlkioDeviceReadBps {
 		if err := syscall.Stat(bpsDevice.Path, &stat); err != nil {
 			return nil, err
 		}
-		ReadBpsDevice := blkiodev.NewThrottleDevice(int64(stat.Rdev/256), int64(stat.Rdev%256), bpsDevice.Rate)
-		BlkioReadBpsDevice = append(BlkioReadBpsDevice, ReadBpsDevice)
+		readBpsDevice := blkiodev.NewThrottleDevice(int64(stat.Rdev/256), int64(stat.Rdev%256), bpsDevice.Rate)
+		blkioReadBpsDevice = append(blkioReadBpsDevice, readBpsDevice)
 	}
 
-	return BlkioReadBpsDevice, nil
+	return blkioReadBpsDevice, nil
 }
 
 func getBlkioWriteBpsDevices(config *runconfig.HostConfig) ([]*blkiodev.ThrottleDevice, error) {
-	var BlkioWriteBpsDevice []*blkiodev.ThrottleDevice
+	var blkioWriteBpsDevice []*blkiodev.ThrottleDevice
 	var stat syscall.Stat_t
 
 	for _, bpsDevice := range config.BlkioDeviceWriteBps {
 		if err := syscall.Stat(bpsDevice.Path, &stat); err != nil {
 			return nil, err
 		}
-		WriteBpsDevice := blkiodev.NewThrottleDevice(int64(stat.Rdev/256), int64(stat.Rdev%256), bpsDevice.Rate)
-		BlkioWriteBpsDevice = append(BlkioWriteBpsDevice, WriteBpsDevice)
+		writeBpsDevice := blkiodev.NewThrottleDevice(int64(stat.Rdev/256), int64(stat.Rdev%256), bpsDevice.Rate)
+		blkioWriteBpsDevice = append(blkioWriteBpsDevice, writeBpsDevice)
 	}
 
-	return BlkioWriteBpsDevice, nil
+	return blkioWriteBpsDevice, nil
 }
 
 func checkKernelVersion(k, major, minor int) bool {
