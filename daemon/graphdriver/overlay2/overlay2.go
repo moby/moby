@@ -308,12 +308,23 @@ func (d *Driver) Remove(id string) error {
 // Changes produces a list of changes between the specified layer
 // and its parent layer. If parent is "", then all changes will be ADD changes.
 func (d *Driver) Changes(id, parent string) ([]archive.Change, error) {
-	// TODO: implement this correctly
-	layers, err := d.getParentLayerPaths(id)
+	layerFs, err := d.Get(id, "")
 	if err != nil {
 		return nil, err
 	}
-	return archive.Changes(layers, d.dir(diffPath, id))
+	defer d.Put(id)
+
+	parentFs := ""
+
+	if parent != "" {
+		parentFs, err = d.Get(parent, "")
+		if err != nil {
+			return nil, err
+		}
+		defer d.Put(parent)
+	}
+
+	return archive.ChangesDirs(layerFs, parentFs)
 }
 
 // Get creates and mounts the required file system for the given id and returns the mount path.
