@@ -131,11 +131,26 @@ func (c *Client) callWithRetry(serviceMethod string, data io.Reader, retry bool)
 		}
 
 		if resp.StatusCode != http.StatusOK {
-			remoteErr, err := ioutil.ReadAll(resp.Body)
+			b, err := ioutil.ReadAll(resp.Body)
 			if err != nil {
-				return nil, &remoteError{err.Error(), serviceMethod}
+				return nil, &remoteError{method: serviceMethod, err: err.Error()}
 			}
-			return nil, &remoteError{string(remoteErr), serviceMethod}
+
+			// Plugins' Response(s) should have an Err field indicating what went
+			// wrong. Try to unmarshal into ResponseErr. Otherwise fallback to just
+			// return the string(body)
+			type responseErr struct {
+				Err string
+			}
+			remoteErr := responseErr{}
+			if err := json.Unmarshal(b, &remoteErr); err != nil {
+				return nil, &remoteError{method: serviceMethod, err: err.Error()}
+			}
+			if remoteErr.Err != "" {
+				return nil, &remoteError{method: serviceMethod, err: remoteErr.Err}
+			}
+			// old way...
+			return nil, &remoteError{method: serviceMethod, err: string(b)}
 		}
 		return resp.Body, nil
 	}
