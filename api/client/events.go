@@ -2,11 +2,11 @@ package client
 
 import (
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/filters"
 	Cli "github.com/docker/docker/cli"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/jsonmessage"
 	flag "github.com/docker/docker/pkg/mflag"
-	"github.com/docker/docker/pkg/parsers/filters"
 )
 
 // CmdEvents prints a live stream of real time events from the server.

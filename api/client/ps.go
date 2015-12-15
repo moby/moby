@@ -3,10 +3,10 @@ package client
 import (
 	"github.com/docker/docker/api/client/ps"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/filters"
 	Cli "github.com/docker/docker/cli"
 	"github.com/docker/docker/opts"
 	flag "github.com/docker/docker/pkg/mflag"
-	"github.com/docker/docker/pkg/parsers/filters"
 )
 
 // CmdPs outputs a list of Docker containers.
