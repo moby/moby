@@ -21,6 +21,10 @@ type testRequirement struct {
 
 // List test requirements
 var (
+	CGo = testRequirement{
+		hasCGo,
+		"Test requires building with cgo enabled",
+	}
 	DaemonIsWindows = testRequirement{
 		func() bool { return daemonPlatform == "windows" },
 		"Test requires a Windows daemon",
@@ -149,6 +153,24 @@ var (
 			return true
 		},
 		"Test cannot be run when remapping root",
+	}
+	NeedsGSSAPI = testRequirement{
+		func() bool {
+			if usesGSSAPI, err := hasUnresolvedSymbol(dockerBinary, "gss_accept_sec_context"); !usesGSSAPI || err != nil {
+				return false
+			}
+			return true
+		},
+		"Docker daemon is not built with GSSAPI support",
+	}
+	NeedsLibSASL = testRequirement{
+		func() bool {
+			if usesLibSASL, err := hasUnresolvedSymbol(dockerBinary, "sasl_server_new"); !usesLibSASL || err != nil {
+				return false
+			}
+			return true
+		},
+		"Docker daemon is not built with libsasl2 support",
 	}
 )
 

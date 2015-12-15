@@ -394,6 +394,8 @@ func (s *DockerAuthnSuite) TestBasicAuthnBadHTPASSWD2(c *check.C) {
 }
 
 func (s *DockerAuthnSuite) TestExternalUnixAuthnGood1(c *check.C) {
+	testRequires(c, CGo, NotGCCGO)
+
 	s.krb5.Start(c)
 	setUpBasicPrincipals(c, s.krb5)
 	defer tearDownBasicPrincipals(c, s.krb5)
@@ -409,6 +411,8 @@ func (s *DockerAuthnSuite) TestExternalUnixAuthnGood1(c *check.C) {
 }
 
 func (s *DockerAuthnSuite) TestExternalUnixAuthnGood2(c *check.C) {
+	testRequires(c, CGo, NotGCCGO)
+
 	s.krb5.Start(c)
 	setUpNegotiatePrincipals(c, s.krb5)
 	defer tearDownNegotiatePrincipals(c, s.krb5)
@@ -424,6 +428,8 @@ func (s *DockerAuthnSuite) TestExternalUnixAuthnGood2(c *check.C) {
 }
 
 func (s *DockerAuthnSuite) TestExternalUnixAuthnBad1(c *check.C) {
+	testRequires(c, CGo, NotGCCGO)
+
 	s.krb5.Start(c)
 	setUpBasicPrincipals(c, s.krb5)
 	defer tearDownBasicPrincipals(c, s.krb5)
@@ -441,6 +447,8 @@ func (s *DockerAuthnSuite) TestExternalUnixAuthnBad1(c *check.C) {
 }
 
 func (s *DockerAuthnSuite) TestExternalUnixAuthnBad2(c *check.C) {
+	testRequires(c, CGo, NotGCCGO)
+
 	s.krb5.Start(c)
 	setUpNegotiatePrincipals(c, s.krb5)
 	defer tearDownNegotiatePrincipals(c, s.krb5)

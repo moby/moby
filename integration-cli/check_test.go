@@ -1,7 +1,6 @@
 package main
 
 import (
-	"debug/elf"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -199,17 +198,7 @@ type DockerAuthnSuite struct {
 }
 
 func (s *DockerAuthnSuite) SetUpSuite(c *check.C) {
-	binary, err := elf.Open(dockerBinary)
-	if err != nil {
-		c.Fatalf("Failed to open dockerBinary %s, err %v", dockerBinary, err)
-	}
-	defer binary.Close()
-
-	if _, err = binary.DynamicSymbols(); err != nil {
-		c.Assert(err, check.ErrorMatches, "no symbol section")
-		c.Skip("Docker binary was linked statically, skipping authentication tests")
-	}
-
+	testRequires(c, UnixCli, SameHostDaemon, NeedsGSSAPI, NeedsLibSASL)
 	mux := http.NewServeMux()
 	s.server = httptest.NewServer(mux)
 	mux.HandleFunc("/Plugin.Activate", func(w http.ResponseWriter, r *http.Request) {
