@@ -153,8 +153,11 @@ __docker_networks() {
 	# Set DOCKER_COMPLETION_SHOW_NETWORK_IDS=yes to also complete network IDs.
 	local fields='$2'
 	[ "${DOCKER_COMPLETION_SHOW_NETWORK_IDS}" = yes ] && fields='$1,$2'
-	local networks=$(__docker_q network ls --no-trunc | awk "NR>1 {print $fields}")
-	COMPREPLY=( $(compgen -W "$networks" -- "$cur") )
+	__docker_q network ls --no-trunc | awk "NR>1 {print $fields}"
+}
+
+__docker_complete_networks() {
+	COMPREPLY=( $(compgen -W "$(__docker_complete_networks)" -- "$cur") )
 }
 
 __docker_containers_in_network() {
@@ -164,6 +167,14 @@ __docker_containers_in_network() {
 
 __docker_volumes() {
 	COMPREPLY=( $(compgen -W "$(__docker_q volume ls -q)" -- "$cur") )
+}
+
+__docker_plugins() {
+	__docker_q info | sed -n "/^Plugins/,/^[^ ]/s/ $1: //p"
+}
+
+__docker_complete_plugins() {
+	COMPREPLY=( $(compgen -W "$(__docker_plugins $1)" -- "$cur") )
 }
 
 # Finds the position of the first word that is neither option nor an option's argument.
@@ -1100,7 +1111,7 @@ _docker_network_connect() {
 		*)
 			local counter=$(__docker_pos_first_nonflag)
 			if [ $cword -eq $counter ]; then
-				__docker_networks
+				__docker_complete_networks
 			elif [ $cword -eq $(($counter + 1)) ]; then
 				__docker_containers_running
 			fi
@@ -1118,9 +1129,11 @@ _docker_network_create() {
 			return
 			;;
 		--driver|-d)
-			# no need to suggest drivers that allow one instance only
-			# (host, null)
-			COMPREPLY=( $( compgen -W "bridge overlay" -- "$cur" ) )
+			local plugins=" $(__docker_plugins Network) "
+			# remove drivers that allow one instance only
+			plugins=${plugins/ host / }
+			plugins=${plugins/ null / }
+			COMPREPLY=( $(compgen -W "$plugins" -- "$cur") )
 			return
 			;;
 	esac
@@ -1140,7 +1153,7 @@ _docker_network_disconnect() {
 		*)
 			local counter=$(__docker_pos_first_nonflag)
 			if [ $cword -eq $counter ]; then
-				__docker_networks
+				__docker_complete_networks
 			elif [ $cword -eq $(($counter + 1)) ]; then
 				__docker_containers_in_network "$prev"
 			fi
@@ -1160,7 +1173,7 @@ _docker_network_inspect() {
 			COMPREPLY=( $( compgen -W "--format -f --help" -- "$cur" ) )
 			;;
 		*)
-			__docker_networks
+			__docker_complete_networks
 	esac
 }
 
@@ -1532,7 +1545,7 @@ _docker_run() {
 					__docker_containers_all
 					;;
 				*)
-					COMPREPLY=( $( compgen -W "bridge none container: host" -- "$cur") )
+					COMPREPLY=( $( compgen -W "$(__docker_plugins Network) $(__docker_networks) container:" -- "$cur") )
 					if [ "${COMPREPLY[*]}" = "container:" ] ; then
 						__docker_nospace
 					fi
@@ -1569,7 +1582,7 @@ _docker_run() {
 			return
 			;;
 		--volume-driver)
-			COMPREPLY=( $( compgen -W "local" -- "$cur" ) )
+			__docker_complete_plugins Volume
 			return
 			;;
 		--volumes-from)
@@ -1728,7 +1741,7 @@ _docker_version() {
 _docker_volume_create() {
 	case "$prev" in
 		--driver|-d)
-			COMPREPLY=( $( compgen -W "local" -- "$cur" ) )
+			__docker_complete_plugins Volume
 			return
 			;;
 		--name|--opt|-o)
