@@ -65,11 +65,11 @@ the `HostPort` field to get the public address.
 
     $ docker inspect --format='{{(index (index .NetworkSettings.Ports "8787/tcp") 0).HostPort}}' $INSTANCE_ID
 
-**Get config:**
+**Get a subsection in JSON format:**
 
-The `.Field` syntax doesn't work when the field contains JSON data, but
-the template language's custom `json` function does. The `.config`
-section contains complex JSON object, so to grab it as JSON, you use
-`json` to convert the configuration object into JSON.
+If you request a field which is itself a structure containing other
+fields, by default you get a Go-style dump of the inner values.
+Docker adds a template function, `json`, which can be applied to get
+results in JSON format.
 
-    $ docker inspect --format='{{json .config}}' $INSTANCE_ID
+    $ docker inspect --format='{{json .Config}}' $INSTANCE_ID
