@@ -188,20 +188,29 @@ func subvolDelete(dirpath, name string) error {
 		return err
 	}
 	defer closeDir(dir)
+	fullPath := path.Join(dirpath, name)
 
 	var args C.struct_btrfs_ioctl_vol_args
 
 	// walk the btrfs subvolumes
 	walkSubvolumes := func(p string, f os.FileInfo, err error) error {
+		if err != nil {
+			if os.IsNotExist(err) && p != fullPath {
+				// missing most likely because the path was a subvolume that got removed in the previous iteration
+				// since it's gone anyway, we don't care
+				return nil
+			}
+			return fmt.Errorf("error walking subvolumes: %v", err)
+		}
 		// we want to check children only so skip itself
 		// it will be removed after the filepath walk anyways
-		if f.IsDir() && p != path.Join(dirpath, name) {
+		if f.IsDir() && p != fullPath {
 			sv, err := isSubvolume(p)
 			if err != nil {
 				return fmt.Errorf("Failed to test if %s is a btrfs subvolume: %v", p, err)
 			}
 			if sv {
-				if err := subvolDelete(p, f.Name()); err != nil {
+				if err := subvolDelete(path.Dir(p), f.Name()); err != nil {
 					return fmt.Errorf("Failed to destroy btrfs child subvolume (%s) of parent (%s): %v", p, dirpath, err)
 				}
 			}
