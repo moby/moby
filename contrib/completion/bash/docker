@@ -1052,14 +1052,14 @@ _docker_load() {
 
 _docker_login() {
 	case "$prev" in
-		--email|-e|--password|-p|--username|-u)
+		--password|-p|--username|-u)
 			return
 			;;
 	esac
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--email -e --help --password -p --username -u" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--help --password -p --username -u" -- "$cur" ) )
 			;;
 	esac
 }

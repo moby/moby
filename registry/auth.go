@@ -12,7 +12,7 @@ import (
 	registrytypes "github.com/docker/docker/api/types/registry"
 )
 
-// Login tries to register/login to the registry server.
+// Login tries to login to the registry server.
 func Login(authConfig *types.AuthConfig, registryEndpoint *Endpoint) (string, error) {
 	// Separates the v2 registry login logic from the v1 logic.
 	if registryEndpoint.Version == APIVersion2 {
@@ -21,7 +21,7 @@ func Login(authConfig *types.AuthConfig, registryEndpoint *Endpoint) (string, er
 	return loginV1(authConfig, registryEndpoint)
 }
 
-// loginV1 tries to register/login to the v1 registry server.
+// loginV1 tries to login to the v1 registry server.
 func loginV1(authConfig *types.AuthConfig, registryEndpoint *Endpoint) (string, error) {
 	var (
 		status         string
@@ -61,15 +61,7 @@ func loginV1(authConfig *types.AuthConfig, registryEndpoint *Endpoint) (string, 
 		return "", fmt.Errorf("Server Error: [%#v] %s", respStatusCode, err)
 	}
 
-	if respStatusCode == 201 {
-		if loginAgainstOfficialIndex {
-			status = "Account created. Please use the confirmation link we sent" +
-				" to your e-mail to activate it."
-		} else {
-			// *TODO: Use registry configuration to determine what this says, if anything?
-			status = "Account created. Please see the documentation of the registry " + serverAddress + " for instructions how to activate it."
-		}
-	} else if respStatusCode == 400 {
+	if respStatusCode == 400 {
 		if string(respBody) == "\"Username or email already exists\"" {
 			req, err := http.NewRequest("GET", serverAddress+"users/", nil)
 			req.SetBasicAuth(authConfig.Username, authConfig.Password)

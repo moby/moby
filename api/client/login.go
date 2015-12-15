@@ -16,20 +16,19 @@ import (
 	"github.com/docker/docker/registry"
 )
 
-// CmdLogin logs in or registers a user to a Docker registry service.
+// CmdLogin logs in a user to a Docker registry service.
 //
-// If no server is specified, the user will be logged into or registered to the registry's index server.
+// If no server is specified, the user will be logged into the registry's index server.
 //
 // Usage: docker login SERVER
 func (cli *DockerCli) CmdLogin(args ...string) error {
 	cmd := Cli.Subcmd("login", []string{"[SERVER]"}, Cli.DockerCommands["login"].Description+".\nIf no server is specified \""+registry.IndexServer+"\" is the default.", true)
 	cmd.Require(flag.Max, 1)
 
-	var username, password, email string
+	var username, password string
 
 	cmd.StringVar(&username, []string{"u", "-username"}, "", "Username")
 	cmd.StringVar(&password, []string{"p", "-password"}, "", "Password")
-	cmd.StringVar(&email, []string{"e", "-email"}, "", "Email")
 
 	cmd.ParseFlags(args, true)
 
@@ -75,7 +74,7 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 		}
 	}
 	// Assume that a different username means they may not want to use
-	// the password or email from the config file, so prompt them
+	// the password from the config file, so prompt them
 	if username != authconfig.Username {
 		if password == "" {
 			oldState, err := term.SaveState(cli.inFd)
@@ -93,29 +92,17 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 				return fmt.Errorf("Error : Password Required")
 			}
 		}
-
-		if email == "" {
-			promptDefault("Email", authconfig.Email)
-			email = readInput(cli.in, cli.out)
-			if email == "" {
-				email = authconfig.Email
-			}
-		}
 	} else {
 		// However, if they don't override the username use the
-		// password or email from the cmd line if specified. IOW, allow
+		// password from the cmd line if specified. IOW, allow
 		// then to change/override them.  And if not specified, just
 		// use what's in the config file
 		if password == "" {
 			password = authconfig.Password
 		}
-		if email == "" {
-			email = authconfig.Email
-		}
 	}
 	authconfig.Username = username
 	authconfig.Password = password
-	authconfig.Email = email
 	authconfig.ServerAddress = serverAddress
 	cli.configFile.AuthConfigs[serverAddress] = authconfig
 
