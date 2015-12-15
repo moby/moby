@@ -198,6 +198,7 @@ func (daemon *Daemon) populateCommand(c *container.Container, env []string) erro
 		BlkioThrottleWriteBpsDevice:  writeBpsDevice,
 		BlkioThrottleReadIOpsDevice:  readIOpsDevice,
 		BlkioThrottleWriteIOpsDevice: writeIOpsDevice,
+		PidsLimit:                    c.HostConfig.PidsLimit,
 		MemorySwappiness:             -1,
 	}
 

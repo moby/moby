@@ -33,6 +33,12 @@ var (
 		},
 		"Test requires Oom control enabled.",
 	}
+	pidsLimit = testRequirement{
+		func() bool {
+			return SysInfo.PidsLimit
+		},
+		"Test requires pids limit enabled.",
+	}
 	kernelMemorySupport = testRequirement{
 		func() bool {
 			return SysInfo.KernelMemory

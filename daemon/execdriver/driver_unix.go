@@ -50,6 +50,7 @@ type Resources struct {
 	CPUPeriod                    int64                      `json:"cpu_period"`
 	Rlimits                      []*units.Rlimit            `json:"rlimits"`
 	OomKillDisable               bool                       `json:"oom_kill_disable"`
+	PidsLimit                    int64                      `json:"pids_limit"`
 	MemorySwappiness             int64                      `json:"memory_swappiness"`
 }
 
@@ -202,6 +203,7 @@ func SetupCgroups(container *configs.Config, c *Command) error {
 		container.Cgroups.Resources.BlkioThrottleReadIOPSDevice = c.Resources.BlkioThrottleReadIOpsDevice
 		container.Cgroups.Resources.BlkioThrottleWriteIOPSDevice = c.Resources.BlkioThrottleWriteIOpsDevice
 		container.Cgroups.Resources.OomKillDisable = c.Resources.OomKillDisable
+		container.Cgroups.Resources.PidsLimit = c.Resources.PidsLimit
 		container.Cgroups.Resources.MemorySwappiness = c.Resources.MemorySwappiness
 	}
 
