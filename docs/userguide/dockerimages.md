@@ -473,7 +473,7 @@ You can then create a container from our new image.
 > those instructions in later sections of the Guide or you can refer to the
 > [`Dockerfile`](../reference/builder.md) reference for a
 > detailed description and examples of every instruction.
-> To help you write a clear, readable, maintainable `Dockerfile`, you've also
+> To help you write a clear, readable, maintainable `Dockerfile`, we've also
 > written a [`Dockerfile` Best Practices guide](../articles/dockerfile_best-practices.md).
 
 
