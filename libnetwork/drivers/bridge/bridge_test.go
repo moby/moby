@@ -275,7 +275,7 @@ func TestCreateMultipleNetworks(t *testing.T) {
 	}
 
 	// Verify the network isolation rules are installed, each network subnet should appear 4 times
-	verifyV4INCEntries(d.networks, 4, t)
+	verifyV4INCEntries(d.networks, 6, t)
 
 	config4 := &networkConfiguration{BridgeName: "net_test_4"}
 	genericOption[netlabel.GenericData] = config4
@@ -284,10 +284,10 @@ func TestCreateMultipleNetworks(t *testing.T) {
 	}
 
 	// Now 6 times
-	verifyV4INCEntries(d.networks, 6, t)
+	verifyV4INCEntries(d.networks, 12, t)
 
 	d.DeleteNetwork("1")
-	verifyV4INCEntries(d.networks, 4, t)
+	verifyV4INCEntries(d.networks, 6, t)
 
 	d.DeleteNetwork("2")
 	verifyV4INCEntries(d.networks, 2, t)
@@ -300,18 +300,28 @@ func TestCreateMultipleNetworks(t *testing.T) {
 }
 
 func verifyV4INCEntries(networks map[string]*bridgeNetwork, numEntries int, t *testing.T) {
-	out, err := iptables.Raw("-L", "FORWARD")
+	out, err := iptables.Raw("-nvL", IsolationChain)
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, nw := range networks {
-		nt := types.GetIPNetCopy(nw.bridge.bridgeIPv4)
-		nt.IP = nt.IP.Mask(nt.Mask)
-		re := regexp.MustCompile(nt.String())
-		matches := re.FindAllString(string(out[:]), -1)
-		if len(matches) != numEntries {
-			t.Fatalf("Cannot find expected inter-network isolation rules in IP Tables:\n%s", string(out[:]))
+
+	found := 0
+	for _, x := range networks {
+		for _, y := range networks {
+			if x == y {
+				continue
+			}
+			re := regexp.MustCompile(fmt.Sprintf("%s %s", x.config.BridgeName, y.config.BridgeName))
+			matches := re.FindAllString(string(out[:]), -1)
+			if len(matches) != 1 {
+				t.Fatalf("Cannot find expected inter-network isolation rules in IP Tables:\n%s", string(out[:]))
+			}
+			found++
 		}
+	}
+
+	if found != numEntries {
+		t.Fatalf("Cannot find expected number (%d) of inter-network isolation rules in IP Tables:\n%s\nFound %d", numEntries, string(out[:]), found)
 	}
 }
 
