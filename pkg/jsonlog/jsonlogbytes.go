@@ -12,7 +12,7 @@ import (
 type JSONLogs struct {
 	Log     []byte `json:"log,omitempty"`
 	Stream  string `json:"stream,omitempty"`
-	Created string `json:"time"`
+	Created []byte `json:"time"`
 
 	// json-encoded bytes
 	RawAttrs json.RawMessage `json:"attrs,omitempty"`
@@ -53,7 +53,7 @@ func (mj *JSONLogs) MarshalJSONBuf(buf *bytes.Buffer) error {
 		buf.WriteString(`,`)
 	}
 	buf.WriteString(`"time":`)
-	buf.WriteString(mj.Created)
+	buf.Write(mj.Created)
 	buf.WriteString(`}`)
 	return nil
 }

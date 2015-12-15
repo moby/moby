@@ -11,6 +11,10 @@ import (
 // These are additional predefined layouts for use in Time.Format and Time.Parse
 // with --since and --until parameters for `docker logs` and `docker events`
 const (
+	// RFC3339NanoFixed is our own version of RFC339Nano because we want one
+	// that pads the nano seconds part with zeros to ensure
+	// the timestamps are aligned in the logs.
+	RFC3339NanoFixed = "2006-01-02T15:04:05.000000000Z07:00"
 	rFC3339Local     = "2006-01-02T15:04:05"           // RFC3339 with local timezone
 	rFC3339NanoLocal = "2006-01-02T15:04:05.999999999" // RFC3339Nano with local timezone
 	dateWithZone     = "2006-01-02Z07:00"              // RFC3339 with time at 00:00:00

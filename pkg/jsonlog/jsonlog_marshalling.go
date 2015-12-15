@@ -4,73 +4,12 @@
 // $ make BIND_DIR=. shell
 // $ ffjson pkg/jsonlog/jsonlog.go
 // $ mv pkg/jsonglog/jsonlog_ffjson.go pkg/jsonlog/jsonlog_marshalling.go
-//
-// It has been modified to improve the performance of time marshalling to JSON
-// and to clean it up.
-// Should this code need to be regenerated when the JSONLog struct is changed,
-// the relevant changes which have been made are:
-// import (
-//        "bytes"
-//-
-//        "unicode/utf8"
-//+
-//+       "github.com/docker/docker/pkg/timeutils"
-// )
-//
-// func (mj *JSONLog) MarshalJSON() ([]byte, error) {
-//@@ -20,13 +16,13 @@ func (mj *JSONLog) MarshalJSON() ([]byte, error) {
-//        }
-//        return buf.Bytes(), nil
-// }
-//+
-// func (mj *JSONLog) MarshalJSONBuf(buf *bytes.Buffer) error {
-//-       var err error
-//-       var obj []byte
-//-       var first bool = true
-//-       _ = obj
-//-       _ = err
-//-       _ = first
-//+       var (
-//+               err       error
-//+               timestamp string
-//+               first     bool = true
-//+       )
-//        buf.WriteString(`{`)
-//        if len(mj.Log) != 0 {
-//                if first == true {
-//@@ -52,11 +48,11 @@ func (mj *JSONLog) MarshalJSONBuf(buf *bytes.Buffer) error {
-//                buf.WriteString(`,`)
-//        }
-//        buf.WriteString(`"time":`)
-//-       obj, err = mj.Created.MarshalJSON()
-//+       timestamp, err = timeutils.FastMarshalJSON(mj.Created)
-//        if err != nil {
-//                return err
-//        }
-//-       buf.Write(obj)
-//+       buf.WriteString(timestamp)
-//        buf.WriteString(`}`)
-//        return nil
-// }
-// @@ -81,9 +81,10 @@ func (mj *JSONLog) MarshalJSONBuf(buf *bytes.Buffer) error {
-//         if len(mj.Log) != 0 {
-// -                if first == true {
-// -                       first = false
-// -               } else {
-// -                       buf.WriteString(`,`)
-// -               }
-// +               first = false
-//                 buf.WriteString(`"log":`)
-//                 ffjsonWriteJSONString(buf, mj.Log)
-//         }
 
 package jsonlog
 
 import (
 	"bytes"
 	"unicode/utf8"
-
-	"github.com/docker/docker/pkg/timeutils"
 )
 
 // MarshalJSON marshals the JSONLog.
@@ -85,11 +24,11 @@ func (mj *JSONLog) MarshalJSON() ([]byte, error) {
 
 // MarshalJSONBuf marshals the JSONLog and stores the result to a bytes.Buffer.
 func (mj *JSONLog) MarshalJSONBuf(buf *bytes.Buffer) error {
-	var (
-		err       error
-		timestamp string
-		first     = true
-	)
+	first := true
+	timestamp, err := mj.Created.MarshalJSON()
+	if err != nil {
+		return err
+	}
 	buf.WriteString(`{`)
 	if len(mj.Log) != 0 {
 		first = false
@@ -111,11 +50,7 @@ func (mj *JSONLog) MarshalJSONBuf(buf *bytes.Buffer) error {
 		buf.WriteString(`,`)
 	}
 	buf.WriteString(`"time":`)
-	timestamp, err = timeutils.FastMarshalJSON(mj.Created)
-	if err != nil {
-		return err
-	}
-	buf.WriteString(timestamp)
+	buf.Write(timestamp)
 	buf.WriteString(`}`)
 	return nil
 }
