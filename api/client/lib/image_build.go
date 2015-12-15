@@ -5,13 +5,15 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strconv"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/pkg/httputils"
 	"github.com/docker/docker/pkg/units"
 	"github.com/docker/docker/runconfig"
 )
+
+var headerRegexp = regexp.MustCompile(`\ADocker/.+\s\((.+)\)\z`)
 
 // ImageBuild sends request to the daemon to build images.
 // The Body in the response implement an io.ReadCloser and it's up to the caller to
@@ -35,10 +37,7 @@ func (cli *Client) ImageBuild(options types.ImageBuildOptions) (types.ImageBuild
 		return types.ImageBuildResponse{}, err
 	}
 
-	var osType string
-	if h, err := httputils.ParseServerHeader(serverResp.header.Get("Server")); err == nil {
-		osType = h.OS
-	}
+	osType := getDockerOS(serverResp.header.Get("Server"))
 
 	return types.ImageBuildResponse{
 		Body:   serverResp.body,
@@ -110,4 +109,13 @@ func imageBuildOptionsToQuery(options types.ImageBuildOptions) (url.Values, erro
 	query.Set("buildargs", string(buildArgsJSON))
 
 	return query, nil
+}
+
+func getDockerOS(serverHeader string) string {
+	var osType string
+	matches := headerRegexp.FindStringSubmatch(serverHeader)
+	if len(matches) > 0 {
+		osType = matches[1]
+	}
+	return osType
 }
