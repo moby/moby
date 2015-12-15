@@ -61,6 +61,10 @@ func convertStatsToAPITypes(ls *libcontainer.Stats) *types.StatsJSON {
 			Stats:    mem.Stats,
 			Failcnt:  mem.Usage.Failcnt,
 		}
+		pids := cs.PidsStats
+		s.PidsStats = types.PidsStats{
+			Current: pids.Current,
+		}
 	}
 
 	return s

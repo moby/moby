@@ -24,6 +24,7 @@ type containerStats struct {
 	NetworkTx        float64
 	BlockRead        float64
 	BlockWrite       float64
+	PidsCurrent      uint64
 	mu               sync.RWMutex
 	err              error
 }
@@ -167,13 +168,14 @@ func (s *containerStats) Display(w io.Writer) error {
 	if s.err != nil {
 		return s.err
 	}
-	fmt.Fprintf(w, "%s\t%.2f%%\t%s / %s\t%.2f%%\t%s / %s\t%s / %s\n",
+	fmt.Fprintf(w, "%s\t%.2f%%\t%s / %s\t%.2f%%\t%s / %s\t%s / %s\t%d\n",
 		s.Name,
 		s.CPUPercentage,
 		units.HumanSize(s.Memory), units.HumanSize(s.MemoryLimit),
 		s.MemoryPercentage,
 		units.HumanSize(s.NetworkRx), units.HumanSize(s.NetworkTx),
-		units.HumanSize(s.BlockRead), units.HumanSize(s.BlockWrite))
+		units.HumanSize(s.BlockRead), units.HumanSize(s.BlockWrite),
+		s.PidsCurrent)
 	return nil
 }
 

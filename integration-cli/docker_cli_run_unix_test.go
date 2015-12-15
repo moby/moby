@@ -956,3 +956,15 @@ func (s *DockerSuite) TestRunDeviceSymlink(c *check.C) {
 	c.Assert(err, check.NotNil)
 	c.Assert(strings.Trim(out, "\r\n"), checker.Contains, "not a device node", check.Commentf("expected output 'not a device node'"))
 }
+
+// TestRunPidsLimit makes sure the pids cgroup is set with --pids-limit
+func (s *DockerSuite) TestRunPidsLimit(c *check.C) {
+	testRequires(c, pidsLimit)
+
+	file := "/sys/fs/cgroup/pids/pids.max"
+	out, _ := dockerCmd(c, "run", "--name", "skittles", "--pids-limit", "2", "busybox", "cat", file)
+	c.Assert(strings.TrimSpace(out), checker.Equals, "2")
+
+	out = inspectField(c, "skittles", "HostConfig.PidsLimit")
+	c.Assert(out, checker.Equals, "2", check.Commentf("setting the pids limit failed"))
+}

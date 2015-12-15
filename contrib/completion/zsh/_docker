@@ -534,6 +534,7 @@ __docker_subcommand() {
         "($help)*--net-alias=[Add network-scoped alias for the container]:alias: "
         "($help)--oom-kill-disable[Disable OOM Killer]"
         "($help)--oom-score-adj[Tune the host's OOM preferences for containers (accepts -1000 to 1000)]"
+        "($help)--pids-limit[Tune container pids limit (set -1 for unlimited)]"
         "($help -P --publish-all)"{-P,--publish-all}"[Publish all exposed ports]"
         "($help)*"{-p=,--publish=}"[Expose a container's port to the host]:port:_ports"
         "($help)--pid=[PID namespace to use]:PID: "

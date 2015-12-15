@@ -1637,6 +1637,7 @@ _docker_run() {
 		--net-alias
 		--oom-score-adj
 		--pid
+		--pids-limit
 		--publish -p
 		--restart
 		--security-opt

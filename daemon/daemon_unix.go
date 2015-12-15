@@ -285,6 +285,12 @@ func verifyContainerResources(resources *containertypes.Resources, sysInfo *sysi
 		resources.OomKillDisable = nil
 	}
 
+	if resources.PidsLimit != 0 && !sysInfo.PidsLimit {
+		warnings = append(warnings, "Your kernel does not support pids limit capabilities, pids limit discarded.")
+		logrus.Warnf("Your kernel does not support pids limit capabilities, pids limit discarded.")
+		resources.PidsLimit = 0
+	}
+
 	// cpu subsystem checks and adjustments
 	if resources.CPUShares > 0 && !sysInfo.CPUShares {
 		warnings = append(warnings, "Your kernel does not support CPU shares. Shares discarded.")
