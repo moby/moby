@@ -175,7 +175,20 @@ func (d *Driver) String() string {
 // GetMetadata returns a set of key-value pairs which give low level information
 // about the image/container driver is managing.
 func (d *Driver) GetMetadata(id string) (map[string]string, error) {
-	return nil, nil
+	metadata := make(map[string]string)
+
+	metadata["mntPath"] = d.dir(mntPath, id)
+	metadata["diffPath"] = d.dir(diffPath, id)
+	metadata["layersPath"] = d.dir(layersPath, id)
+	metadata["workPath"] = d.dir(workPath, id)
+	ids, _ := d.getParentIds(id)
+	metadata["layers"] = strings.Join(ids, ",")
+	active, mounted := d.active[id]
+	if mounted {
+		metadata["referenceCount"] = fmt.Sprintf("%d", active.referenceCount)
+	}
+
+	return metadata, nil
 }
 
 // Read the layers file for the current id and return all the
