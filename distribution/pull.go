@@ -97,7 +97,7 @@ func Pull(ctx context.Context, ref reference.Named, imagePullConfig *ImagePullCo
 		return err
 	}
 
-	logName := registry.NormalizeLocalReference(ref)
+	localName := registry.NormalizeLocalReference(ref)
 
 	var (
 		// use a slice to append the error strings and return a joined string to caller
@@ -149,7 +149,7 @@ func Pull(ctx context.Context, ref reference.Named, imagePullConfig *ImagePullCo
 			}
 		}
 
-		imagePullConfig.EventsService.Log("pull", logName.String(), "")
+		imagePullConfig.EventsService.Log("pull", localName.String(), "")
 		return nil
 	}
 
