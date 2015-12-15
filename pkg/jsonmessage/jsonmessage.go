@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/docker/docker/pkg/jsonlog"
 	"github.com/docker/docker/pkg/term"
-	"github.com/docker/docker/pkg/timeutils"
 	"github.com/docker/docker/pkg/units"
 )
 
@@ -123,9 +123,9 @@ func (jm *JSONMessage) Display(out io.Writer, isTerminal bool) error {
 		return nil
 	}
 	if jm.TimeNano != 0 {
-		fmt.Fprintf(out, "%s ", time.Unix(0, jm.TimeNano).Format(timeutils.RFC3339NanoFixed))
+		fmt.Fprintf(out, "%s ", time.Unix(0, jm.TimeNano).Format(jsonlog.RFC3339NanoFixed))
 	} else if jm.Time != 0 {
-		fmt.Fprintf(out, "%s ", time.Unix(jm.Time, 0).Format(timeutils.RFC3339NanoFixed))
+		fmt.Fprintf(out, "%s ", time.Unix(jm.Time, 0).Format(jsonlog.RFC3339NanoFixed))
 	}
 	if jm.ID != "" {
 		fmt.Fprintf(out, "%s: ", jm.ID)
