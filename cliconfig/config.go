@@ -80,7 +80,7 @@ func (configFile *ConfigFile) LegacyLoadFromReader(configData io.Reader) error {
 		if len(origAuth) != 2 {
 			return fmt.Errorf("Invalid Auth config file")
 		}
-		authConfig.Username, authConfig.Password, err = DecodeAuth(origAuth[1])
+		authConfig.Username, authConfig.Password, err = decodeAuth(origAuth[1])
 		if err != nil {
 			return err
 		}
@@ -93,7 +93,7 @@ func (configFile *ConfigFile) LegacyLoadFromReader(configData io.Reader) error {
 		configFile.AuthConfigs[defaultIndexserver] = authConfig
 	} else {
 		for k, authConfig := range configFile.AuthConfigs {
-			authConfig.Username, authConfig.Password, err = DecodeAuth(authConfig.Auth)
+			authConfig.Username, authConfig.Password, err = decodeAuth(authConfig.Auth)
 			if err != nil {
 				return err
 			}
@@ -113,7 +113,7 @@ func (configFile *ConfigFile) LoadFromReader(configData io.Reader) error {
 	}
 	var err error
 	for addr, ac := range configFile.AuthConfigs {
-		ac.Username, ac.Password, err = DecodeAuth(ac.Auth)
+		ac.Username, ac.Password, err = decodeAuth(ac.Auth)
 		if err != nil {
 			return err
 		}
@@ -201,7 +201,7 @@ func (configFile *ConfigFile) SaveToWriter(writer io.Writer) error {
 	for k, authConfig := range configFile.AuthConfigs {
 		authCopy := authConfig
 		// encode and save the authstring, while blanking out the original fields
-		authCopy.Auth = EncodeAuth(&authCopy)
+		authCopy.Auth = encodeAuth(&authCopy)
 		authCopy.Username = ""
 		authCopy.Password = ""
 		authCopy.ServerAddress = ""
@@ -242,8 +242,8 @@ func (configFile *ConfigFile) Filename() string {
 	return configFile.filename
 }
 
-// EncodeAuth creates a base64 encoded string to containing authorization information
-func EncodeAuth(authConfig *types.AuthConfig) string {
+// encodeAuth creates a base64 encoded string to containing authorization information
+func encodeAuth(authConfig *types.AuthConfig) string {
 	authStr := authConfig.Username + ":" + authConfig.Password
 	msg := []byte(authStr)
 	encoded := make([]byte, base64.StdEncoding.EncodedLen(len(msg)))
@@ -251,8 +251,8 @@ func EncodeAuth(authConfig *types.AuthConfig) string {
 	return string(encoded)
 }
 
-// DecodeAuth decodes a base64 encoded string and returns username and password
-func DecodeAuth(authStr string) (string, string, error) {
+// decodeAuth decodes a base64 encoded string and returns username and password
+func decodeAuth(authStr string) (string, string, error) {
 	decLen := base64.StdEncoding.DecodedLen(len(authStr))
 	decoded := make([]byte, decLen)
 	authByte := []byte(authStr)
