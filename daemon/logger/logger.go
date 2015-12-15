@@ -11,7 +11,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/docker/docker/pkg/timeutils"
+	"github.com/docker/docker/pkg/jsonlog"
 )
 
 // ErrReadLogsNotSupported is returned when the logger does not support reading logs.
@@ -19,7 +19,7 @@ var ErrReadLogsNotSupported = errors.New("configured logging reader does not sup
 
 const (
 	// TimeFormat is the time format used for timestamps sent to log readers.
-	TimeFormat           = timeutils.RFC3339NanoFixed
+	TimeFormat           = jsonlog.RFC3339NanoFixed
 	logWatcherBufferSize = 4096
 )
 

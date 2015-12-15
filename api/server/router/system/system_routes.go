@@ -9,10 +9,10 @@ import (
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types"
+	timetypes "github.com/docker/docker/api/types/time"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/pkg/parsers/filters"
-	"github.com/docker/docker/pkg/timeutils"
 	"golang.org/x/net/context"
 )
 
@@ -46,11 +46,11 @@ func (s *systemRouter) getEvents(ctx context.Context, w http.ResponseWriter, r *
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
-	since, sinceNano, err := timeutils.ParseTimestamps(r.Form.Get("since"), -1)
+	since, sinceNano, err := timetypes.ParseTimestamps(r.Form.Get("since"), -1)
 	if err != nil {
 		return err
 	}
-	until, untilNano, err := timeutils.ParseTimestamps(r.Form.Get("until"), -1)
+	until, untilNano, err := timetypes.ParseTimestamps(r.Form.Get("until"), -1)
 	if err != nil {
 		return err
 	}
