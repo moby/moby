@@ -1,4 +1,4 @@
-package timeutils
+package jsonlog
 
 import (
 	"testing"
@@ -6,23 +6,23 @@ import (
 )
 
 // Testing to ensure 'year' fields is between 0 and 9999
-func TestFastMarshalJSONWithInvalidDate(t *testing.T) {
+func TestFastTimeMarshalJSONWithInvalidDate(t *testing.T) {
 	aTime := time.Date(-1, 1, 1, 0, 0, 0, 0, time.Local)
-	json, err := FastMarshalJSON(aTime)
+	json, err := FastTimeMarshalJSON(aTime)
 	if err == nil {
-		t.Fatalf("FastMarshalJSON should throw an error, but was '%v'", json)
+		t.Fatalf("FastTimeMarshalJSON should throw an error, but was '%v'", json)
 	}
 	anotherTime := time.Date(10000, 1, 1, 0, 0, 0, 0, time.Local)
-	json, err = FastMarshalJSON(anotherTime)
+	json, err = FastTimeMarshalJSON(anotherTime)
 	if err == nil {
-		t.Fatalf("FastMarshalJSON should throw an error, but was '%v'", json)
+		t.Fatalf("FastTimeMarshalJSON should throw an error, but was '%v'", json)
 	}
 
 }
 
-func TestFastMarshalJSON(t *testing.T) {
+func TestFastTimeMarshalJSON(t *testing.T) {
 	aTime := time.Date(2015, 5, 29, 11, 1, 2, 3, time.UTC)
-	json, err := FastMarshalJSON(aTime)
+	json, err := FastTimeMarshalJSON(aTime)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -36,7 +36,7 @@ func TestFastMarshalJSON(t *testing.T) {
 		t.Fatal(err)
 	}
 	aTime = time.Date(2015, 5, 29, 11, 1, 2, 3, location)
-	json, err = FastMarshalJSON(aTime)
+	json, err = FastTimeMarshalJSON(aTime)
 	if err != nil {
 		t.Fatal(err)
 	}
