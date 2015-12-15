@@ -621,6 +621,17 @@ func (ls *layerStore) assembleTar(graphID string, metadata io.ReadCloser, size *
 	return pR, nil
 }
 
+// Metadata returns the low level metadata from the mount with the given name
+func (ls *layerStore) Metadata(name string) (map[string]string, error) {
+	ls.mountL.Lock()
+	m := ls.mounts[name]
+	ls.mountL.Unlock()
+	if m == nil {
+		return nil, ErrMountDoesNotExist
+	}
+	return ls.driver.GetMetadata(m.mountID)
+}
+
 type naiveDiffPathDriver struct {
 	graphdriver.Driver
 }

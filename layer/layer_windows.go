@@ -34,24 +34,6 @@ func GetLayerPath(s Store, layer ChainID) (string, error) {
 	return path, nil
 }
 
-// RWLayerMetadata returns the graph metadata for the provided
-// mount name.
-func RWLayerMetadata(s Store, name string) (map[string]string, error) {
-	ls, ok := s.(*layerStore)
-	if !ok {
-		return nil, errors.New("unsupported layer store")
-	}
-	ls.mountL.Lock()
-	defer ls.mountL.Unlock()
-
-	ml, ok := ls.mounts[name]
-	if !ok {
-		return nil, errors.New("mount does not exist")
-	}
-
-	return ls.driver.GetMetadata(ml.mountID)
-}
-
 func (ls *layerStore) RegisterDiffID(graphID string, size int64) (Layer, error) {
 	var err error // this is used for cleanup in existingLayer case
 	diffID, err := digest.FromBytes([]byte(graphID))

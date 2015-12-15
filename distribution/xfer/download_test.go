@@ -132,6 +132,10 @@ func (ls *mockLayerStore) Changes(id string) ([]archive.Change, error) {
 	return nil, errors.New("not implemented")
 }
 
+func (ls *mockLayerStore) Metadata(id string) (map[string]string, error) {
+	return nil, errors.New("not implemented")
+}
+
 type mockDownloadDescriptor struct {
 	currentDownloads *int32
 	id               string
