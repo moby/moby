@@ -98,11 +98,11 @@ func addTestCatalog(route string, content []byte, link string, m *testutil.Reque
 func TestBlobDelete(t *testing.T) {
 	dgst, _ := newRandomBlob(1024)
 	var m testutil.RequestResponseMap
-	repo := "test.example.com/repo1"
+	repo, _ := reference.ParseNamed("test.example.com/repo1")
 	m = append(m, testutil.RequestResponseMapping{
 		Request: testutil.Request{
 			Method: "DELETE",
-			Route:  "/v2/" + repo + "/blobs/" + dgst.String(),
+			Route:  "/v2/" + repo.Name() + "/blobs/" + dgst.String(),
 		},
 		Response: testutil.Response{
 			StatusCode: http.StatusAccepted,
@@ -137,7 +137,8 @@ func TestBlobFetch(t *testing.T) {
 	defer c()
 
 	ctx := context.Background()
-	r, err := NewRepository(ctx, "test.example.com/repo1", e, nil)
+	repo, _ := reference.ParseNamed("test.example.com/repo1")
+	r, err := NewRepository(ctx, repo, e, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -157,12 +158,12 @@ func TestBlobFetch(t *testing.T) {
 func TestBlobExistsNoContentLength(t *testing.T) {
 	var m testutil.RequestResponseMap
 
-	repo := "biff"
+	repo, _ := reference.ParseNamed("biff")
 	dgst, content := newRandomBlob(1024)
 	m = append(m, testutil.RequestResponseMapping{
 		Request: testutil.Request{
 			Method: "GET",
-			Route:  "/v2/" + repo + "/blobs/" + dgst.String(),
+			Route:  "/v2/" + repo.Name() + "/blobs/" + dgst.String(),
 		},
 		Response: testutil.Response{
 			StatusCode: http.StatusOK,
@@ -177,7 +178,7 @@ func TestBlobExistsNoContentLength(t *testing.T) {
 	m = append(m, testutil.RequestResponseMapping{
 		Request: testutil.Request{
 			Method: "HEAD",
-			Route:  "/v2/" + repo + "/blobs/" + dgst.String(),
+			Route:  "/v2/" + repo.Name() + "/blobs/" + dgst.String(),
 		},
 		Response: testutil.Response{
 			StatusCode: http.StatusOK,
@@ -216,7 +217,8 @@ func TestBlobExists(t *testing.T) {
 	defer c()
 
 	ctx := context.Background()
-	r, err := NewRepository(ctx, "test.example.com/repo1", e, nil)
+	repo, _ := reference.ParseNamed("test.example.com/repo1")
+	r, err := NewRepository(ctx, repo, e, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -247,18 +249,18 @@ func TestBlobUploadChunked(t *testing.T) {
 		b1[512:513],
 		b1[513:1024],
 	}
-	repo := "test.example.com/uploadrepo"
+	repo, _ := reference.ParseNamed("test.example.com/uploadrepo")
 	uuids := []string{uuid.Generate().String()}
 	m = append(m, testutil.RequestResponseMapping{
 		Request: testutil.Request{
 			Method: "POST",
-			Route:  "/v2/" + repo + "/blobs/uploads/",
+			Route:  "/v2/" + repo.Name() + "/blobs/uploads/",
 		},
 		Response: testutil.Response{
 			StatusCode: http.StatusAccepted,
 			Headers: http.Header(map[string][]string{
 				"Content-Length":     {"0"},
-				"Location":           {"/v2/" + repo + "/blobs/uploads/" + uuids[0]},
+				"Location":           {"/v2/" + repo.Name() + "/blobs/uploads/" + uuids[0]},
 				"Docker-Upload-UUID": {uuids[0]},
 				"Range":              {"0-0"},
 			}),
@@ -271,14 +273,14 @@ func TestBlobUploadChunked(t *testing.T) {
 		m = append(m, testutil.RequestResponseMapping{
 			Request: testutil.Request{
 				Method: "PATCH",
-				Route:  "/v2/" + repo + "/blobs/uploads/" + uuids[i],
+				Route:  "/v2/" + repo.Name() + "/blobs/uploads/" + uuids[i],
 				Body:   chunk,
 			},
 			Response: testutil.Response{
 				StatusCode: http.StatusAccepted,
 				Headers: http.Header(map[string][]string{
 					"Content-Length":     {"0"},
-					"Location":           {"/v2/" + repo + "/blobs/uploads/" + uuids[i+1]},
+					"Location":           {"/v2/" + repo.Name() + "/blobs/uploads/" + uuids[i+1]},
 					"Docker-Upload-UUID": {uuids[i+1]},
 					"Range":              {fmt.Sprintf("%d-%d", offset, newOffset-1)},
 				}),
@@ -289,7 +291,7 @@ func TestBlobUploadChunked(t *testing.T) {
 	m = append(m, testutil.RequestResponseMapping{
 		Request: testutil.Request{
 			Method: "PUT",
-			Route:  "/v2/" + repo + "/blobs/uploads/" + uuids[len(uuids)-1],
+			Route:  "/v2/" + repo.Name() + "/blobs/uploads/" + uuids[len(uuids)-1],
 			QueryParams: map[string][]string{
 				"digest": {dgst.String()},
 			},
@@ -306,7 +308,7 @@ func TestBlobUploadChunked(t *testing.T) {
 	m = append(m, testutil.RequestResponseMapping{
 		Request: testutil.Request{
 			Method: "HEAD",
-			Route:  "/v2/" + repo + "/blobs/" + dgst.String(),
+			Route:  "/v2/" + repo.Name() + "/blobs/" + dgst.String(),
 		},
 		Response: testutil.Response{
 			StatusCode: http.StatusOK,
@@ -362,18 +364,18 @@ func TestBlobUploadChunked(t *testing.T) {
 func TestBlobUploadMonolithic(t *testing.T) {
 	dgst, b1 := newRandomBlob(1024)
 	var m testutil.RequestResponseMap
-	repo := "test.example.com/uploadrepo"
+	repo, _ := reference.ParseNamed("test.example.com/uploadrepo")
 	uploadID := uuid.Generate().String()
 	m = append(m, testutil.RequestResponseMapping{
 		Request: testutil.Request{
 			Method: "POST",
-			Route:  "/v2/" + repo + "/blobs/uploads/",
+			Route:  "/v2/" + repo.Name() + "/blobs/uploads/",
 		},
 		Response: testutil.Response{
 			StatusCode: http.StatusAccepted,
 			Headers: http.Header(map[string][]string{
 				"Content-Length":     {"0"},
-				"Location":           {"/v2/" + repo + "/blobs/uploads/" + uploadID},
+				"Location":           {"/v2/" + repo.Name() + "/blobs/uploads/" + uploadID},
 				"Docker-Upload-UUID": {uploadID},
 				"Range":              {"0-0"},
 			}),
@@ -382,13 +384,13 @@ func TestBlobUploadMonolithic(t *testing.T) {
 	m = append(m, testutil.RequestResponseMapping{
 		Request: testutil.Request{
 			Method: "PATCH",
-			Route:  "/v2/" + repo + "/blobs/uploads/" + uploadID,
+			Route:  "/v2/" + repo.Name() + "/blobs/uploads/" + uploadID,
 			Body:   b1,
 		},
 		Response: testutil.Response{
 			StatusCode: http.StatusAccepted,
 			Headers: http.Header(map[string][]string{
-				"Location":              {"/v2/" + repo + "/blobs/uploads/" + uploadID},
+				"Location":              {"/v2/" + repo.Name() + "/blobs/uploads/" + uploadID},
 				"Docker-Upload-UUID":    {uploadID},
 				"Content-Length":        {"0"},
 				"Docker-Content-Digest": {dgst.String()},
@@ -399,7 +401,7 @@ func TestBlobUploadMonolithic(t *testing.T) {
 	m = append(m, testutil.RequestResponseMapping{
 		Request: testutil.Request{
 			Method: "PUT",
-			Route:  "/v2/" + repo + "/blobs/uploads/" + uploadID,
+			Route:  "/v2/" + repo.Name() + "/blobs/uploads/" + uploadID,
 			QueryParams: map[string][]string{
 				"digest": {dgst.String()},
 			},
@@ -416,7 +418,7 @@ func TestBlobUploadMonolithic(t *testing.T) {
 	m = append(m, testutil.RequestResponseMapping{
 		Request: testutil.Request{
 			Method: "HEAD",
-			Route:  "/v2/" + repo + "/blobs/" + dgst.String(),
+			Route:  "/v2/" + repo.Name() + "/blobs/" + dgst.String(),
 		},
 		Response: testutil.Response{
 			StatusCode: http.StatusOK,
@@ -470,29 +472,22 @@ func TestBlobUploadMonolithic(t *testing.T) {
 func TestBlobMount(t *testing.T) {
 	dgst, content := newRandomBlob(1024)
 	var m testutil.RequestResponseMap
-	repo := "test.example.com/uploadrepo"
-	sourceRepo := "test.example.com/sourcerepo"
+	repo, _ := reference.ParseNamed("test.example.com/uploadrepo")
 
-	namedRef, err := reference.ParseNamed(sourceRepo)
-	if err != nil {
-		t.Fatal(err)
-	}
-	canonicalRef, err := reference.WithDigest(namedRef, dgst)
-	if err != nil {
-		t.Fatal(err)
-	}
+	sourceRepo, _ := reference.ParseNamed("test.example.com/sourcerepo")
+	canonicalRef, _ := reference.WithDigest(sourceRepo, dgst)
 
 	m = append(m, testutil.RequestResponseMapping{
 		Request: testutil.Request{
 			Method:      "POST",
-			Route:       "/v2/" + repo + "/blobs/uploads/",
-			QueryParams: map[string][]string{"from": {sourceRepo}, "mount": {dgst.String()}},
+			Route:       "/v2/" + repo.Name() + "/blobs/uploads/",
+			QueryParams: map[string][]string{"from": {sourceRepo.Name()}, "mount": {dgst.String()}},
 		},
 		Response: testutil.Response{
 			StatusCode: http.StatusCreated,
 			Headers: http.Header(map[string][]string{
 				"Content-Length":        {"0"},
-				"Location":              {"/v2/" + repo + "/blobs/" + dgst.String()},
+				"Location":              {"/v2/" + repo.Name() + "/blobs/" + dgst.String()},
 				"Docker-Content-Digest": {dgst.String()},
 			}),
 		},
@@ -500,7 +495,7 @@ func TestBlobMount(t *testing.T) {
 	m = append(m, testutil.RequestResponseMapping{
 		Request: testutil.Request{
 			Method: "HEAD",
-			Route:  "/v2/" + repo + "/blobs/" + dgst.String(),
+			Route:  "/v2/" + repo.Name() + "/blobs/" + dgst.String(),
 		},
 		Response: testutil.Response{
 			StatusCode: http.StatusOK,
@@ -531,7 +526,7 @@ func TestBlobMount(t *testing.T) {
 		if ebm.From.Digest() != dgst {
 			t.Fatalf("Unexpected digest: %s, expected %s", ebm.From.Digest(), dgst)
 		}
-		if ebm.From.Name() != sourceRepo {
+		if ebm.From.Name() != sourceRepo.Name() {
 			t.Fatalf("Unexpected from: %s, expected %s", ebm.From.Name(), sourceRepo)
 		}
 	} else {
@@ -539,7 +534,7 @@ func TestBlobMount(t *testing.T) {
 	}
 }
 
-func newRandomSchemaV1Manifest(name, tag string, blobCount int) (*schema1.SignedManifest, digest.Digest, []byte) {
+func newRandomSchemaV1Manifest(name reference.Named, tag string, blobCount int) (*schema1.SignedManifest, digest.Digest, []byte) {
 	blobs := make([]schema1.FSLayer, blobCount)
 	history := make([]schema1.History, blobCount)
 
@@ -551,7 +546,7 @@ func newRandomSchemaV1Manifest(name, tag string, blobCount int) (*schema1.Signed
 	}
 
 	m := schema1.Manifest{
-		Name:         name,
+		Name:         name.String(),
 		Tag:          tag,
 		Architecture: "x86",
 		FSLayers:     blobs,
@@ -574,11 +569,11 @@ func newRandomSchemaV1Manifest(name, tag string, blobCount int) (*schema1.Signed
 	return sm, digest.FromBytes(sm.Canonical), sm.Canonical
 }
 
-func addTestManifestWithEtag(repo, reference string, content []byte, m *testutil.RequestResponseMap, dgst string) {
+func addTestManifestWithEtag(repo reference.Named, reference string, content []byte, m *testutil.RequestResponseMap, dgst string) {
 	actualDigest := digest.FromBytes(content)
 	getReqWithEtag := testutil.Request{
 		Method: "GET",
-		Route:  "/v2/" + repo + "/manifests/" + reference,
+		Route:  "/v2/" + repo.Name() + "/manifests/" + reference,
 		Headers: http.Header(map[string][]string{
 			"If-None-Match": {fmt.Sprintf(`"%s"`, dgst)},
 		}),
@@ -610,11 +605,11 @@ func addTestManifestWithEtag(repo, reference string, content []byte, m *testutil
 	*m = append(*m, testutil.RequestResponseMapping{Request: getReqWithEtag, Response: getRespWithEtag})
 }
 
-func addTestManifest(repo, reference string, mediatype string, content []byte, m *testutil.RequestResponseMap) {
+func addTestManifest(repo reference.Named, reference string, mediatype string, content []byte, m *testutil.RequestResponseMap) {
 	*m = append(*m, testutil.RequestResponseMapping{
 		Request: testutil.Request{
 			Method: "GET",
-			Route:  "/v2/" + repo + "/manifests/" + reference,
+			Route:  "/v2/" + repo.Name() + "/manifests/" + reference,
 		},
 		Response: testutil.Response{
 			StatusCode: http.StatusOK,
@@ -629,7 +624,7 @@ func addTestManifest(repo, reference string, mediatype string, content []byte, m
 	*m = append(*m, testutil.RequestResponseMapping{
 		Request: testutil.Request{
 			Method: "HEAD",
-			Route:  "/v2/" + repo + "/manifests/" + reference,
+			Route:  "/v2/" + repo.Name() + "/manifests/" + reference,
 		},
 		Response: testutil.Response{
 			StatusCode: http.StatusOK,
@@ -671,7 +666,7 @@ func checkEqualManifest(m1, m2 *schema1.SignedManifest) error {
 
 func TestV1ManifestFetch(t *testing.T) {
 	ctx := context.Background()
-	repo := "test.example.com/repo"
+	repo, _ := reference.ParseNamed("test.example.com/repo")
 	m1, dgst, _ := newRandomSchemaV1Manifest(repo, "latest", 6)
 	var m testutil.RequestResponseMap
 	_, pl, err := m1.Payload()
@@ -743,7 +738,7 @@ func TestV1ManifestFetch(t *testing.T) {
 }
 
 func TestManifestFetchWithEtag(t *testing.T) {
-	repo := "test.example.com/repo/by/tag"
+	repo, _ := reference.ParseNamed("test.example.com/repo/by/tag")
 	_, d1, p1 := newRandomSchemaV1Manifest(repo, "latest", 6)
 	var m testutil.RequestResponseMap
 	addTestManifestWithEtag(repo, "latest", p1, &m, d1.String())
@@ -773,14 +768,14 @@ func TestManifestFetchWithEtag(t *testing.T) {
 }
 
 func TestManifestDelete(t *testing.T) {
-	repo := "test.example.com/repo/delete"
+	repo, _ := reference.ParseNamed("test.example.com/repo/delete")
 	_, dgst1, _ := newRandomSchemaV1Manifest(repo, "latest", 6)
 	_, dgst2, _ := newRandomSchemaV1Manifest(repo, "latest", 6)
 	var m testutil.RequestResponseMap
 	m = append(m, testutil.RequestResponseMapping{
 		Request: testutil.Request{
 			Method: "DELETE",
-			Route:  "/v2/" + repo + "/manifests/" + dgst1.String(),
+			Route:  "/v2/" + repo.Name() + "/manifests/" + dgst1.String(),
 		},
 		Response: testutil.Response{
 			StatusCode: http.StatusAccepted,
@@ -813,7 +808,7 @@ func TestManifestDelete(t *testing.T) {
 }
 
 func TestManifestPut(t *testing.T) {
-	repo := "test.example.com/repo/delete"
+	repo, _ := reference.ParseNamed("test.example.com/repo/delete")
 	m1, dgst, _ := newRandomSchemaV1Manifest(repo, "other", 6)
 
 	_, payload, err := m1.Payload()
@@ -824,7 +819,7 @@ func TestManifestPut(t *testing.T) {
 	m = append(m, testutil.RequestResponseMapping{
 		Request: testutil.Request{
 			Method: "PUT",
-			Route:  "/v2/" + repo + "/manifests/other",
+			Route:  "/v2/" + repo.Name() + "/manifests/other",
 			Body:   payload,
 		},
 		Response: testutil.Response{
@@ -857,7 +852,7 @@ func TestManifestPut(t *testing.T) {
 }
 
 func TestManifestTags(t *testing.T) {
-	repo := "test.example.com/repo/tags/list"
+	repo, _ := reference.ParseNamed("test.example.com/repo/tags/list")
 	tagsList := []byte(strings.TrimSpace(`
 {
 	"name": "test.example.com/repo/tags/list",
@@ -873,7 +868,7 @@ func TestManifestTags(t *testing.T) {
 		m = append(m, testutil.RequestResponseMapping{
 			Request: testutil.Request{
 				Method: "GET",
-				Route:  "/v2/" + repo + "/tags/list",
+				Route:  "/v2/" + repo.Name() + "/tags/list",
 			},
 			Response: testutil.Response{
 				StatusCode: http.StatusOK,
@@ -919,14 +914,14 @@ func TestManifestTags(t *testing.T) {
 }
 
 func TestManifestUnauthorized(t *testing.T) {
-	repo := "test.example.com/repo"
+	repo, _ := reference.ParseNamed("test.example.com/repo")
 	_, dgst, _ := newRandomSchemaV1Manifest(repo, "latest", 6)
 	var m testutil.RequestResponseMap
 
 	m = append(m, testutil.RequestResponseMapping{
 		Request: testutil.Request{
 			Method: "GET",
-			Route:  "/v2/" + repo + "/manifests/" + dgst.String(),
+			Route:  "/v2/" + repo.Name() + "/manifests/" + dgst.String(),
 		},
 		Response: testutil.Response{
 			StatusCode: http.StatusUnauthorized,
