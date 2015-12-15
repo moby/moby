@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	Cli "github.com/docker/docker/cli"
+	"github.com/docker/docker/daemon/execdriver/dockerhooks"
 	"github.com/docker/docker/pkg/ioutils"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/units"
@@ -57,6 +58,7 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 	ioutils.FprintfIfNotEmpty(cli.out, "Operating System: %s\n", info.OperatingSystem)
 	ioutils.FprintfIfNotEmpty(cli.out, "OSType: %s\n", info.OSType)
 	ioutils.FprintfIfNotEmpty(cli.out, "Architecture: %s\n", info.Architecture)
+	fmt.Fprintf(cli.out, "Number of Docker Hooks: %d\n", dockerhooks.TotalHooks())
 	fmt.Fprintf(cli.out, "CPUs: %d\n", info.NCPU)
 	fmt.Fprintf(cli.out, "Total Memory: %s\n", units.BytesSize(float64(info.MemTotal)))
 	ioutils.FprintfIfNotEmpty(cli.out, "Name: %s\n", info.Name)

@@ -37,6 +37,7 @@ For example:
     OSType: linux
     Architecture: x86_64
     Operating System: Ubuntu 15.04
+    Number of Hooks: 2
     CPUs: 24
     Total Memory: 62.86 GiB
     Name: docker
