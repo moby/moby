@@ -8,9 +8,11 @@ import (
 	"time"
 
 	"github.com/docker/distribution/reference"
+	"github.com/docker/distribution/registry/api/errcode"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/dockerversion"
+	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/archive"
@@ -32,7 +34,18 @@ func (daemon *Daemon) Commit(name string, c *types.ContainerCommitConfig) (strin
 	}
 
 	if c.Pause && !container.IsPaused() {
-		daemon.containerPause(container)
+		if err := daemon.containerPause(container); err != nil {
+			switch err.(type) {
+			case errcode.Error:
+				daError, _ := err.(errcode.Error)
+				if daError.ErrorCode() != derr.ErrorCodeNotRunning && daError.ErrorCode() != derr.ErrorCodeAlreadyPaused {
+					return "", err
+				}
+			default:
+				return "", err
+			}
+		}
+
 		defer daemon.containerUnpause(container)
 	}
 
