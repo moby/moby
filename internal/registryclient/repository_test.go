@@ -466,6 +466,61 @@ func TestBlobUploadMonolithic(t *testing.T) {
 	}
 }
 
+func TestBlobMount(t *testing.T) {
+	dgst, content := newRandomBlob(1024)
+	var m testutil.RequestResponseMap
+	repo := "test.example.com/uploadrepo"
+	sourceRepo := "test.example.com/sourcerepo"
+	m = append(m, testutil.RequestResponseMapping{
+		Request: testutil.Request{
+			Method:      "POST",
+			Route:       "/v2/" + repo + "/blobs/uploads/",
+			QueryParams: map[string][]string{"from": {sourceRepo}, "mount": {dgst.String()}},
+		},
+		Response: testutil.Response{
+			StatusCode: http.StatusCreated,
+			Headers: http.Header(map[string][]string{
+				"Content-Length":        {"0"},
+				"Location":              {"/v2/" + repo + "/blobs/" + dgst.String()},
+				"Docker-Content-Digest": {dgst.String()},
+			}),
+		},
+	})
+	m = append(m, testutil.RequestResponseMapping{
+		Request: testutil.Request{
+			Method: "HEAD",
+			Route:  "/v2/" + repo + "/blobs/" + dgst.String(),
+		},
+		Response: testutil.Response{
+			StatusCode: http.StatusOK,
+			Headers: http.Header(map[string][]string{
+				"Content-Length": {fmt.Sprint(len(content))},
+				"Last-Modified":  {time.Now().Add(-1 * time.Second).Format(time.ANSIC)},
+			}),
+		},
+	})
+
+	e, c := testServer(m)
+	defer c()
+
+	ctx := context.Background()
+	r, err := NewRepository(ctx, repo, e, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	l := r.Blobs(ctx)
+
+	stat, err := l.Mount(ctx, sourceRepo, dgst)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stat.Digest != dgst {
+		t.Fatalf("Unexpected digest: %s, expected %s", stat.Digest, dgst)
+	}
+}
+
 func newRandomSchemaV1Manifest(name, tag string, blobCount int) (*schema1.SignedManifest, digest.Digest, []byte) {
 	blobs := make([]schema1.FSLayer, blobCount)
 	history := make([]schema1.History, blobCount)
