@@ -84,6 +84,10 @@ func (a *Ctx) AuthZRequest(w http.ResponseWriter, r *http.Request) error {
 			return err
 		}
 
+		if authRes.Err != "" {
+			return fmt.Errorf(authRes.Err)
+		}
+
 		if !authRes.Allow {
 			return fmt.Errorf(authRes.Msg)
 		}
@@ -105,6 +109,10 @@ func (a *Ctx) AuthZResponse(rm ResponseModifier, r *http.Request) error {
 		authRes, err := plugin.AuthZResponse(a.authReq)
 		if err != nil {
 			return err
+		}
+
+		if authRes.Err != "" {
+			return fmt.Errorf(authRes.Err)
 		}
 
 		if !authRes.Allow {

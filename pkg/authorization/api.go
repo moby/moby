@@ -43,10 +43,12 @@ type Request struct {
 
 // Response represents authZ plugin response
 type Response struct {
-
 	// Allow indicating whether the user is allowed or not
 	Allow bool `json:"Allow"`
 
 	// Msg stores the authorization message
 	Msg string `json:"Msg,omitempty"`
+
+	// Err stores a message in case there's an error
+	Err string `json:"Err,omitempty"`
 }
