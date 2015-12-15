@@ -109,6 +109,19 @@ func Init(root string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 		backingFs = fsName
 	}
 
+	// check if they are running over btrfs or aufs
+	switch fsMagic {
+	case graphdriver.FsMagicBtrfs:
+		logrus.Error("'overlay' is not supported over btrfs.")
+		return nil, graphdriver.ErrIncompatibleFS
+	case graphdriver.FsMagicAufs:
+		logrus.Error("'overlay' is not supported over aufs.")
+		return nil, graphdriver.ErrIncompatibleFS
+	case graphdriver.FsMagicZfs:
+		logrus.Error("'overlay' is not supported over zfs.")
+		return nil, graphdriver.ErrIncompatibleFS
+	}
+
 	rootUID, rootGID, err := idtools.GetRootUIDGID(uidMaps, gidMaps)
 	if err != nil {
 		return nil, err
@@ -117,8 +130,6 @@ func Init(root string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 	if err := idtools.MkdirAllAs(root, 0755, rootUID, rootGID); err != nil && !os.IsExist(err) {
 		return nil, err
 	}
-
-	// XXX: do we need MakePrivate?
 
 	// Populate the dir structure
 	for _, p := range allPaths {
