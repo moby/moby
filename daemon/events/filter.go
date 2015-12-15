@@ -2,8 +2,8 @@ package events
 
 import (
 	"github.com/docker/distribution/reference"
+	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/pkg/jsonmessage"
-	"github.com/docker/docker/pkg/parsers/filters"
 )
 
 // Filter can filter out docker events from a stream

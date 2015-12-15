@@ -10,9 +10,9 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/daemon"
-	"github.com/docker/docker/pkg/parsers/filters"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/libnetwork"
 )
