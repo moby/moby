@@ -58,6 +58,7 @@ type Network interface {
 // NetworkInfo returns some configuration and operational information about the network
 type NetworkInfo interface {
 	IpamConfig() (string, []*IpamConf, []*IpamConf)
+	IpamInfo() ([]*IpamInfo, []*IpamInfo)
 	DriverOptions() map[string]string
 	Scope() string
 }
@@ -1147,4 +1148,26 @@ func (n *network) IpamConfig() (string, []*IpamConf, []*IpamConf) {
 	}
 
 	return n.ipamType, v4L, v6L
+}
+
+func (n *network) IpamInfo() ([]*IpamInfo, []*IpamInfo) {
+	n.Lock()
+	defer n.Unlock()
+
+	v4Info := make([]*IpamInfo, len(n.ipamV4Info))
+	v6Info := make([]*IpamInfo, len(n.ipamV6Info))
+
+	for i, info := range n.ipamV4Info {
+		ic := &IpamInfo{}
+		info.CopyTo(ic)
+		v4Info[i] = ic
+	}
+
+	for i, info := range n.ipamV6Info {
+		ic := &IpamInfo{}
+		info.CopyTo(ic)
+		v6Info[i] = ic
+	}
+
+	return v4Info, v6Info
 }
