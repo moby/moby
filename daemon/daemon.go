@@ -323,6 +323,13 @@ func (daemon *Daemon) restore() error {
 			continue
 		}
 
+		rwlayer, err := daemon.layerStore.GetRWLayer(container.ID)
+		if err != nil {
+			logrus.Errorf("Failed to load container mount %v: %v", id, err)
+			continue
+		}
+		container.RWLayer = rwlayer
+
 		// Ignore the container if it does not support the current driver being used by the graph
 		if (container.Driver == "" && currentDriver == "aufs") || container.Driver == currentDriver {
 			logrus.Debugf("Loaded container %v", container.ID)
@@ -961,19 +968,7 @@ func (daemon *Daemon) Shutdown() error {
 // Mount sets container.BaseFS
 // (is it not set coming in? why is it unset?)
 func (daemon *Daemon) Mount(container *container.Container) error {
-	var layerID layer.ChainID
-	if container.ImageID != "" {
-		img, err := daemon.imageStore.Get(container.ImageID)
-		if err != nil {
-			return err
-		}
-		layerID = img.RootFS.ChainID()
-	}
-	rwlayer, err := daemon.layerStore.Mount(container.ID, layerID, container.GetMountLabel(), daemon.setupInitLayer)
-	if err != nil {
-		return err
-	}
-	dir, err := rwlayer.Path()
+	dir, err := container.RWLayer.Mount(container.GetMountLabel())
 	if err != nil {
 		return err
 	}
@@ -990,13 +985,12 @@ func (daemon *Daemon) Mount(container *container.Container) error {
 		}
 	}
 	container.BaseFS = dir // TODO: combine these fields
-	container.RWLayer = rwlayer
 	return nil
 }
 
 // Unmount unsets the container base filesystem
 func (daemon *Daemon) Unmount(container *container.Container) {
-	if err := daemon.layerStore.Unmount(container.ID); err != nil {
+	if err := container.RWLayer.Unmount(); err != nil {
 		logrus.Errorf("Error unmounting container %s: %s", container.ID, err)
 	}
 }
@@ -1029,7 +1023,7 @@ func (daemon *Daemon) unsubscribeToContainerStats(c *container.Container, ch cha
 }
 
 func (daemon *Daemon) changes(container *container.Container) ([]archive.Change, error) {
-	return daemon.layerStore.Changes(container.ID)
+	return container.RWLayer.Changes()
 }
 
 // TagImage creates a tag in the repository reponame, pointing to the image named

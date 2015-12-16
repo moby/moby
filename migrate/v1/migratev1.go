@@ -24,8 +24,7 @@ type graphIDRegistrar interface {
 }
 
 type graphIDMounter interface {
-	MountByGraphID(string, string, layer.ChainID) (layer.RWLayer, error)
-	Unmount(string) error
+	CreateRWLayerByGraphID(string, string, layer.ChainID) error
 }
 
 const (
@@ -172,13 +171,7 @@ func migrateContainers(root string, ls graphIDMounter, is image.Store, imageMapp
 			return err
 		}
 
-		_, err = ls.MountByGraphID(id, id, img.RootFS.ChainID())
-		if err != nil {
-			return err
-		}
-
-		err = ls.Unmount(id)
-		if err != nil {
+		if err := ls.CreateRWLayerByGraphID(id, id, img.RootFS.ChainID()); err != nil {
 			return err
 		}
 
