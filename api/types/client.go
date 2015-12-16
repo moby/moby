@@ -5,7 +5,7 @@ import (
 	"io"
 	"net"
 
-	"github.com/docker/docker/pkg/parsers/filters"
+	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/pkg/ulimit"
 	"github.com/docker/docker/runconfig"
 )

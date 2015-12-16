@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/filters"
 	timetypes "github.com/docker/docker/api/types/time"
-	"github.com/docker/docker/pkg/parsers/filters"
 )
 
 // Events returns a stream of events in the daemon in a ReadCloser.
