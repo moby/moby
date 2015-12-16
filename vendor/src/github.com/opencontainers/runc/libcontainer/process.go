@@ -78,6 +78,13 @@ func (p Process) Signal(sig os.Signal) error {
 	return p.ops.signal(sig)
 }
 
+// IO holds the process's STDIO
+type IO struct {
+	Stdin  io.WriteCloser
+	Stdout io.ReadCloser
+	Stderr io.ReadCloser
+}
+
 // NewConsole creates new console for process and returns it
 func (p *Process) NewConsole(rootuid int) (Console, error) {
 	console, err := NewConsole(rootuid, rootuid)
