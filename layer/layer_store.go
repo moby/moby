@@ -11,6 +11,7 @@ import (
 	"github.com/docker/distribution/digest"
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/vbatts/tar-split/tar/asm"
 	"github.com/vbatts/tar-split/tar/storage"
@@ -34,11 +35,41 @@ type layerStore struct {
 	mountL sync.Mutex
 }
 
-// NewStore creates a new Store instance using
-// the provided metadata store and graph driver.
-// The metadata store will be used to restore
+// StoreOptions are the options used to create a new Store instance
+type StoreOptions struct {
+	StorePath                 string
+	MetadataStorePathTemplate string
+	GraphDriver               string
+	GraphDriverOptions        []string
+	UIDMaps                   []idtools.IDMap
+	GIDMaps                   []idtools.IDMap
+}
+
+// NewStoreFromOptions creates a new Store instance
+func NewStoreFromOptions(options StoreOptions) (Store, error) {
+	driver, err := graphdriver.New(
+		options.StorePath,
+		options.GraphDriver,
+		options.GraphDriverOptions,
+		options.UIDMaps,
+		options.GIDMaps)
+	if err != nil {
+		return nil, fmt.Errorf("error initializing graphdriver: %v", err)
+	}
+	logrus.Debugf("Using graph driver %s", driver)
+
+	fms, err := NewFSMetadataStore(fmt.Sprintf(options.MetadataStorePathTemplate, driver))
+	if err != nil {
+		return nil, err
+	}
+
+	return NewStoreFromGraphDriver(fms, driver)
+}
+
+// NewStoreFromGraphDriver creates a new Store instance using the provided
+// metadata store and graph driver. The metadata store will be used to restore
 // the Store.
-func NewStore(store MetadataStore, driver graphdriver.Driver) (Store, error) {
+func NewStoreFromGraphDriver(store MetadataStore, driver graphdriver.Driver) (Store, error) {
 	ls := &layerStore{
 		store:    store,
 		driver:   driver,
@@ -579,6 +610,18 @@ func (ls *layerStore) assembleTar(graphID string, metadata io.ReadCloser, size *
 		pW.Close()
 	}()
 	return pR, nil
+}
+
+func (ls *layerStore) Cleanup() error {
+	return ls.driver.Cleanup()
+}
+
+func (ls *layerStore) DriverStatus() [][2]string {
+	return ls.driver.Status()
+}
+
+func (ls *layerStore) DriverName() string {
+	return ls.driver.String()
 }
 
 type naiveDiffPathDriver struct {

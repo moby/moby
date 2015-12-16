@@ -289,7 +289,8 @@ func (daemon *Daemon) getSize(container *container.Container) (int64, int64) {
 
 	sizeRw, err = container.RWLayer.Size()
 	if err != nil {
-		logrus.Errorf("Driver %s couldn't return diff size of container %s: %s", daemon.driver, container.ID, err)
+		logrus.Errorf("Driver %s couldn't return diff size of container %s: %s",
+			daemon.GraphDriverName(), container.ID, err)
 		// FIXME: GetSize should return an error. Not changing it now in case
 		// there is a side-effect.
 		sizeRw = -1
