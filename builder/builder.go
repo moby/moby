@@ -11,7 +11,6 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/daemon"
-	"github.com/docker/docker/image"
 	"github.com/docker/docker/runconfig"
 )
 
@@ -112,9 +111,9 @@ type Backend interface {
 	// TODO: use digest reference instead of name
 
 	// GetImage looks up a Docker image referenced by `name`.
-	GetImage(name string) (*image.Image, error)
+	GetImage(name string) (Image, error)
 	// Pull tells Docker to pull image referenced by `name`.
-	Pull(name string) (*image.Image, error)
+	Pull(name string) (Image, error)
 	// ContainerWsAttachWithLogs attaches to container.
 	ContainerWsAttachWithLogs(name string, cfg *daemon.ContainerWsAttachWithLogsConfig) error
 	// ContainerCreate creates a new Docker container and returns potential warnings
