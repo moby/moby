@@ -11,7 +11,7 @@ import (
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/stringutils"
-	"github.com/docker/docker/pkg/units"
+	"github.com/docker/go-units"
 )
 
 // CmdHistory shows the history of an image.

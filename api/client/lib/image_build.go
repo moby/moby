@@ -9,8 +9,8 @@ import (
 	"strconv"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/pkg/units"
 	"github.com/docker/docker/runconfig"
+	"github.com/docker/go-units"
 )
 
 var headerRegexp = regexp.MustCompile(`\ADocker/.+\s\((.+)\)\z`)

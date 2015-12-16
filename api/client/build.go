@@ -28,11 +28,11 @@ import (
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/ulimit"
-	"github.com/docker/docker/pkg/units"
 	"github.com/docker/docker/pkg/urlutil"
 	"github.com/docker/docker/registry"
 	tagpkg "github.com/docker/docker/tag"
 	"github.com/docker/docker/utils"
+	"github.com/docker/go-units"
 )
 
 // CmdBuild builds a new image from the source code at a given path.
