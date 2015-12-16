@@ -29,7 +29,7 @@ func (cli *Client) NetworkRemove(networkID string) error {
 
 // NetworkConnect connects a container to an existent network in the docker host.
 func (cli *Client) NetworkConnect(networkID, containerID string) error {
-	nc := types.NetworkConnect{containerID}
+	nc := types.NetworkConnect{Container: containerID}
 	resp, err := cli.post("/networks/"+networkID+"/connect", nil, nc, nil)
 	ensureReaderClosed(resp)
 	return err
@@ -37,7 +37,7 @@ func (cli *Client) NetworkConnect(networkID, containerID string) error {
 
 // NetworkDisconnect disconnects a container from an existent network in the docker host.
 func (cli *Client) NetworkDisconnect(networkID, containerID string) error {
-	nc := types.NetworkConnect{containerID}
+	nc := types.NetworkConnect{Container: containerID}
 	resp, err := cli.post("/networks/"+networkID+"/disconnect", nil, nc, nil)
 	ensureReaderClosed(resp)
 	return err
