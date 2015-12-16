@@ -2,10 +2,6 @@ package authorization
 
 import (
 	"encoding/json"
-	"fmt"
-	"github.com/docker/docker/pkg/plugins"
-	"github.com/docker/docker/pkg/tlsconfig"
-	"github.com/gorilla/mux"
 	"io/ioutil"
 	"log"
 	"net"
@@ -15,12 +11,15 @@ import (
 	"path"
 	"reflect"
 	"testing"
+
+	"github.com/docker/docker/pkg/plugins"
+	"github.com/docker/docker/pkg/tlsconfig"
+	"github.com/gorilla/mux"
 )
 
 const pluginAddress = "authzplugin.sock"
 
 func TestAuthZRequestPlugin(t *testing.T) {
-
 	server := authZPluginTestServer{t: t}
 	go server.start()
 	defer server.stop()
@@ -40,7 +39,6 @@ func TestAuthZRequestPlugin(t *testing.T) {
 	}
 
 	actualResponse, err := authZPlugin.AuthZRequest(&request)
-
 	if err != nil {
 		t.Fatalf("Failed to authorize request %v", err)
 	}
@@ -54,7 +52,6 @@ func TestAuthZRequestPlugin(t *testing.T) {
 }
 
 func TestAuthZResponsePlugin(t *testing.T) {
-
 	server := authZPluginTestServer{t: t}
 	go server.start()
 	defer server.stop()
@@ -71,7 +68,6 @@ func TestAuthZResponsePlugin(t *testing.T) {
 	}
 
 	actualResponse, err := authZPlugin.AuthZResponse(&request)
-
 	if err != nil {
 		t.Fatalf("Failed to authorize request %v", err)
 	}
@@ -85,7 +81,6 @@ func TestAuthZResponsePlugin(t *testing.T) {
 }
 
 func TestResponseModifier(t *testing.T) {
-
 	r := httptest.NewRecorder()
 	m := NewResponseModifier(r)
 	m.Header().Set("h1", "v1")
@@ -105,7 +100,6 @@ func TestResponseModifier(t *testing.T) {
 }
 
 func TestResponseModifierOverride(t *testing.T) {
-
 	r := httptest.NewRecorder()
 	m := NewResponseModifier(r)
 	m.Header().Set("h1", "v1")
@@ -137,18 +131,12 @@ func TestResponseModifierOverride(t *testing.T) {
 // createTestPlugin creates a new sample authorization plugin
 func createTestPlugin(t *testing.T) *authorizationPlugin {
 	plugin := &plugins.Plugin{Name: "authz"}
-	var err error
 	pwd, err := os.Getwd()
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	plugin.Client, err = plugins.NewClient("unix:///"+path.Join(pwd, pluginAddress), tlsconfig.Options{InsecureSkipVerify: true})
-
 	if err != nil {
 		t.Fatalf("Failed to create client %v", err)
 	}
@@ -186,9 +174,7 @@ func (t *authZPluginTestServer) start() {
 
 // stop stops the test server that implements the plugin
 func (t *authZPluginTestServer) stop() {
-
 	os.Remove(pluginAddress)
-
 	if t.listener != nil {
 		t.listener.Close()
 	}
@@ -196,9 +182,7 @@ func (t *authZPluginTestServer) stop() {
 
 // auth is a used to record/replay the authentication api messages
 func (t *authZPluginTestServer) auth(w http.ResponseWriter, r *http.Request) {
-
 	t.recordedRequest = Request{}
-
 	defer r.Body.Close()
 	body, err := ioutil.ReadAll(r.Body)
 	json.Unmarshal(body, &t.recordedRequest)
@@ -207,11 +191,9 @@ func (t *authZPluginTestServer) auth(w http.ResponseWriter, r *http.Request) {
 		log.Fatal(err)
 	}
 	w.Write(b)
-
 }
 
 func (t *authZPluginTestServer) activate(w http.ResponseWriter, r *http.Request) {
-
 	b, err := json.Marshal(plugins.Manifest{Implements: []string{AuthZApiImplements}})
 	if err != nil {
 		log.Fatal(err)
