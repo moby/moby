@@ -4,13 +4,11 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"path"
 	"regexp"
 	"strconv"
 	"strings"
 
 	"github.com/docker/docker/pkg/blkiodev"
-	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/go-units"
 )
 
@@ -219,82 +217,6 @@ func ValidateThrottleBpsDevice(val string) (*blkiodev.ThrottleDevice, error) {
 		Path: split[0],
 		Rate: uint64(rate),
 	}, nil
-}
-
-// ValidateLink validates that the specified string has a valid link format (containerName:alias).
-func ValidateLink(val string) (string, error) {
-	if _, _, err := parsers.ParseLink(val); err != nil {
-		return val, err
-	}
-	return val, nil
-}
-
-// ValidDeviceMode checks if the mode for device is valid or not.
-// Valid mode is a composition of r (read), w (write), and m (mknod).
-func ValidDeviceMode(mode string) bool {
-	var legalDeviceMode = map[rune]bool{
-		'r': true,
-		'w': true,
-		'm': true,
-	}
-	if mode == "" {
-		return false
-	}
-	for _, c := range mode {
-		if !legalDeviceMode[c] {
-			return false
-		}
-		legalDeviceMode[c] = false
-	}
-	return true
-}
-
-// ValidateDevice validates a path for devices
-// It will make sure 'val' is in the form:
-//    [host-dir:]container-path[:mode]
-// It also validates the device mode.
-func ValidateDevice(val string) (string, error) {
-	return validatePath(val, ValidDeviceMode)
-}
-
-func validatePath(val string, validator func(string) bool) (string, error) {
-	var containerPath string
-	var mode string
-
-	if strings.Count(val, ":") > 2 {
-		return val, fmt.Errorf("bad format for path: %s", val)
-	}
-
-	split := strings.SplitN(val, ":", 3)
-	if split[0] == "" {
-		return val, fmt.Errorf("bad format for path: %s", val)
-	}
-	switch len(split) {
-	case 1:
-		containerPath = split[0]
-		val = path.Clean(containerPath)
-	case 2:
-		if isValid := validator(split[1]); isValid {
-			containerPath = split[0]
-			mode = split[1]
-			val = fmt.Sprintf("%s:%s", path.Clean(containerPath), mode)
-		} else {
-			containerPath = split[1]
-			val = fmt.Sprintf("%s:%s", split[0], path.Clean(containerPath))
-		}
-	case 3:
-		containerPath = split[1]
-		mode = split[2]
-		if isValid := validator(split[2]); !isValid {
-			return val, fmt.Errorf("bad mode specified: %s", mode)
-		}
-		val = fmt.Sprintf("%s:%s:%s", split[0], containerPath, mode)
-	}
-
-	if !path.IsAbs(containerPath) {
-		return val, fmt.Errorf("%s is not an absolute path", containerPath)
-	}
-	return val, nil
 }
 
 // ValidateEnv validates an environment variable and returns it.
