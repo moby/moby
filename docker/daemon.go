@@ -240,7 +240,7 @@ func (cli *DaemonCli) CmdDaemon(args ...string) error {
 		"version":     dockerversion.Version,
 		"commit":      dockerversion.GitCommit,
 		"execdriver":  d.ExecutionDriver().Name(),
-		"graphdriver": d.GraphDriver().String(),
+		"graphdriver": d.GraphDriverName(),
 	}).Info("Docker daemon")
 
 	api.InitRouters(d)

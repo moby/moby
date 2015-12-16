@@ -30,7 +30,6 @@ import (
 	"github.com/docker/docker/daemon/exec"
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/daemon/execdriver/execdrivers"
-	"github.com/docker/docker/daemon/graphdriver"
 	_ "github.com/docker/docker/daemon/graphdriver/vfs" // register vfs
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/network"
@@ -146,7 +145,6 @@ type Daemon struct {
 	idIndex                   *truncindex.TruncIndex
 	configStore               *Config
 	containerGraphDB          *graphdb.Database
-	driver                    graphdriver.Driver
 	execDriver                execdriver.Driver
 	statsCollector            *statsCollector
 	defaultLogConfig          containertypes.LogConfig
@@ -297,7 +295,7 @@ func (daemon *Daemon) restore() error {
 
 	var (
 		debug         = os.Getenv("DEBUG") != ""
-		currentDriver = daemon.driver.String()
+		currentDriver = daemon.GraphDriverName()
 		containers    = make(map[string]*cr)
 	)
 
@@ -520,7 +518,7 @@ func (daemon *Daemon) newContainer(name string, config *containertypes.Config, i
 	base.ImageID = imgID
 	base.NetworkSettings = &network.Settings{IsAnonymousEndpoint: noExplicitName}
 	base.Name = name
-	base.Driver = daemon.driver.String()
+	base.Driver = daemon.GraphDriverName()
 
 	return base, err
 }
@@ -703,20 +701,9 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 	}
 	os.Setenv("TMPDIR", realTmp)
 
-	// Set the default driver
-	graphdriver.DefaultDriver = config.GraphDriver
-
-	// Load storage driver
-	driver, err := graphdriver.New(config.Root, config.GraphOptions, uidMaps, gidMaps)
-	if err != nil {
-		return nil, fmt.Errorf("error initializing graphdriver: %v", err)
-	}
-	logrus.Debugf("Using graph driver %s", driver)
-
 	d := &Daemon{}
-	d.driver = driver
-
-	// Ensure the graph driver is shutdown at a later point
+	// Ensure the daemon is properly shutdown if there is a failure during
+	// initialization
 	defer func() {
 		if err != nil {
 			if err := d.Shutdown(); err != nil {
@@ -733,25 +720,32 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 	}
 	logrus.Debugf("Using default logging driver %s", config.LogConfig.Type)
 
-	// Configure and validate the kernels security support
-	if err := configureKernelSecuritySupport(config, d.driver.String()); err != nil {
-		return nil, err
-	}
-
 	daemonRepo := filepath.Join(config.Root, "containers")
-
 	if err := idtools.MkdirAllAs(daemonRepo, 0700, rootUID, rootGID); err != nil && !os.IsExist(err) {
 		return nil, err
 	}
 
-	imageRoot := filepath.Join(config.Root, "image", d.driver.String())
-	fms, err := layer.NewFSMetadataStore(filepath.Join(imageRoot, "layerdb"))
+	driverName := os.Getenv("DOCKER_DRIVER")
+	if driverName == "" {
+		driverName = config.GraphDriver
+	}
+	d.layerStore, err = layer.NewStoreFromOptions(layer.StoreOptions{
+		StorePath:                 config.Root,
+		MetadataStorePathTemplate: filepath.Join(config.Root, "image", "%s"),
+		GraphDriver:               driverName,
+		GraphDriverOptions:        config.GraphOptions,
+		UIDMaps:                   uidMaps,
+		GIDMaps:                   gidMaps,
+	})
 	if err != nil {
 		return nil, err
 	}
 
-	d.layerStore, err = layer.NewStore(fms, d.driver)
-	if err != nil {
+	graphDriver := d.layerStore.DriverName()
+	imageRoot := filepath.Join(config.Root, "image", graphDriver)
+
+	// Configure and validate the kernels security support
+	if err := configureKernelSecuritySupport(config, graphDriver); err != nil {
 		return nil, err
 	}
 
@@ -797,11 +791,11 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 		return nil, fmt.Errorf("Couldn't create Tag store repositories: %s", err)
 	}
 
-	if err := restoreCustomImage(d.driver, d.imageStore, d.layerStore, referenceStore); err != nil {
+	if err := restoreCustomImage(d.imageStore, d.layerStore, referenceStore); err != nil {
 		return nil, fmt.Errorf("Couldn't restore custom images: %s", err)
 	}
 
-	if err := v1.Migrate(config.Root, d.driver.String(), d.layerStore, d.imageStore, referenceStore, distributionMetadataStore); err != nil {
+	if err := v1.Migrate(config.Root, graphDriver, d.layerStore, d.imageStore, referenceStore, distributionMetadataStore); err != nil {
 		return nil, err
 	}
 
@@ -953,9 +947,9 @@ func (daemon *Daemon) Shutdown() error {
 		}
 	}
 
-	if daemon.driver != nil {
-		if err := daemon.driver.Cleanup(); err != nil {
-			logrus.Errorf("Error during graph storage driver.Cleanup(): %v", err)
+	if daemon.layerStore != nil {
+		if err := daemon.layerStore.Cleanup(); err != nil {
+			logrus.Errorf("Error during layer Store.Cleanup(): %v", err)
 		}
 	}
 
@@ -982,7 +976,7 @@ func (daemon *Daemon) Mount(container *container.Container) error {
 		if container.BaseFS != "" && runtime.GOOS != "windows" {
 			daemon.Unmount(container)
 			return fmt.Errorf("Error: driver %s is returning inconsistent paths for container %s ('%s' then '%s')",
-				daemon.driver, container.ID, container.BaseFS, dir)
+				daemon.GraphDriverName(), container.ID, container.BaseFS, dir)
 		}
 	}
 	container.BaseFS = dir // TODO: combine these fields
@@ -1193,7 +1187,7 @@ func (daemon *Daemon) LookupImage(name string) (*types.ImageInspect, error) {
 		VirtualSize:     size, // TODO: field unused, deprecate
 	}
 
-	imageInspect.GraphDriver.Name = daemon.driver.String()
+	imageInspect.GraphDriver.Name = daemon.GraphDriverName()
 
 	imageInspect.GraphDriver.Data = layerMetadata
 
@@ -1322,10 +1316,9 @@ func (daemon *Daemon) GetImage(refOrID string) (*image.Image, error) {
 	return daemon.imageStore.Get(imgID)
 }
 
-// GraphDriver returns the currently used driver for processing
-// container layers.
-func (daemon *Daemon) GraphDriver() graphdriver.Driver {
-	return daemon.driver
+// GraphDriverName returns the name of the graph driver used by the layer.Store
+func (daemon *Daemon) GraphDriverName() string {
+	return daemon.layerStore.DriverName()
 }
 
 // ExecutionDriver returns the currently used driver for creating and

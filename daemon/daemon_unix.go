@@ -15,7 +15,6 @@ import (
 	pblkiodev "github.com/docker/docker/api/types/blkiodev"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
-	"github.com/docker/docker/daemon/graphdriver"
 	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
@@ -728,7 +727,7 @@ func (daemon *Daemon) conditionalUnmountOnCleanup(container *container.Container
 	daemon.Unmount(container)
 }
 
-func restoreCustomImage(driver graphdriver.Driver, is image.Store, ls layer.Store, rs reference.Store) error {
+func restoreCustomImage(is image.Store, ls layer.Store, rs reference.Store) error {
 	// Unix has no custom images to register
 	return nil
 }
