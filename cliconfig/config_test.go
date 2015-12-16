@@ -138,8 +138,9 @@ email`: "Invalid Auth config file",
 		}
 
 		config, err := Load(tmpHome)
-		if err == nil || err.Error() != expectedError {
-			t.Fatalf("Should have failed, got: %q, %q", config, err)
+		// Use Contains instead of == since the file name will change each time
+		if err == nil || !strings.Contains(err.Error(), expectedError) {
+			t.Fatalf("Should have failed\nConfig: %v\nGot: %v\nExpected: %v", config, err, expectedError)
 		}
 
 	}
@@ -207,7 +208,8 @@ func TestOldJsonInvalid(t *testing.T) {
 	}
 
 	config, err := Load(tmpHome)
-	if err == nil || err.Error() != "Invalid auth configuration file" {
+	// Use Contains instead of == since the file name will change each time
+	if err == nil || !strings.Contains(err.Error(), "Invalid auth configuration file") {
 		t.Fatalf("Expected an error got : %v, %v", config, err)
 	}
 }
