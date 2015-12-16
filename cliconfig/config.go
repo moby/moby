@@ -161,15 +161,18 @@ func Load(configDir string) (*ConfigFile, error) {
 	if _, err := os.Stat(configFile.filename); err == nil {
 		file, err := os.Open(configFile.filename)
 		if err != nil {
-			return &configFile, err
+			return &configFile, fmt.Errorf("%s - %v", configFile.filename, err)
 		}
 		defer file.Close()
 		err = configFile.LoadFromReader(file)
+		if err != nil {
+			err = fmt.Errorf("%s - %v", configFile.filename, err)
+		}
 		return &configFile, err
 	} else if !os.IsNotExist(err) {
 		// if file is there but we can't stat it for any reason other
 		// than it doesn't exist then stop
-		return &configFile, err
+		return &configFile, fmt.Errorf("%s - %v", configFile.filename, err)
 	}
 
 	// Can't find latest config file so check for the old one
@@ -179,12 +182,12 @@ func Load(configDir string) (*ConfigFile, error) {
 	}
 	file, err := os.Open(confFile)
 	if err != nil {
-		return &configFile, err
+		return &configFile, fmt.Errorf("%s - %v", confFile, err)
 	}
 	defer file.Close()
 	err = configFile.LegacyLoadFromReader(file)
 	if err != nil {
-		return &configFile, err
+		return &configFile, fmt.Errorf("%s - %v", confFile, err)
 	}
 
 	if configFile.HTTPHeaders == nil {
