@@ -534,11 +534,7 @@ func (b *Builder) run(cID string) (err error) {
 	errCh := make(chan error)
 	if b.Verbose {
 		go func() {
-			errCh <- b.docker.ContainerWsAttachWithLogs(cID, &daemon.ContainerWsAttachWithLogsConfig{
-				OutStream: b.Stdout,
-				ErrStream: b.Stderr,
-				Stream:    true,
-			})
+			errCh <- b.docker.ContainerAttach(cID, nil, b.Stdout, b.Stderr, true)
 		}()
 	}
 

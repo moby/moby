@@ -92,6 +92,16 @@ func (d Docker) ContainerUpdateCmd(cID string, cmd []string) error {
 	return nil
 }
 
+// ContainerAttach attaches streams to the container cID. If stream is true, it streams the output.
+func (d Docker) ContainerAttach(cID string, stdin io.ReadCloser, stdout, stderr io.Writer, stream bool) error {
+	return d.Daemon.ContainerWsAttachWithLogs(cID, &daemon.ContainerWsAttachWithLogsConfig{
+		InStream:  stdin,
+		OutStream: stdout,
+		ErrStream: stderr,
+		Stream:    stream,
+	})
+}
+
 // BuilderCopy copies/extracts a source FileInfo to a destination path inside a container
 // specified by a container object.
 // TODO: make sure callers don't unnecessarily convert destPath with filepath.FromSlash (Copy does it already).
