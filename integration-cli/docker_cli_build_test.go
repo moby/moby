@@ -6623,3 +6623,26 @@ func (s *DockerSuite) TestBuildCacheRootSource(c *check.C) {
 
 	c.Assert(out, checker.Not(checker.Contains), "Using cache")
 }
+
+func (s *DockerSuite) TestBuildBuildTimeArgNotInHistory(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	imgName := "test"
+	envKey := "http_proxy"
+	envVal := "http://accout:pasword@server:port"
+	args := []string{
+		"--build-arg", fmt.Sprintf("%s=%s", envKey, envVal),
+	}
+	dockerfile := fmt.Sprintf(`
+	FROM busybox 
+	RUN echo "Hello world"`)
+
+	if _, _, err := buildImageWithOut(imgName, dockerfile, true, args...); err != nil {
+		c.Fatal("failed to build image with build-arg")
+	}
+
+	out, _ := dockerCmd(c, "history", "--no-trunc", imgName)
+	outputTabs := strings.Split(out, "\n")[1]
+	if strings.Contains(outputTabs, envVal) {
+		c.Fatal("build time arg should not show in history")
+	}
+}
