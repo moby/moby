@@ -26,7 +26,13 @@ import (
 // For response manipulation, the response from each plugin is piped between plugins. Plugin execution order
 // is determined according to daemon parameters
 func NewCtx(authZPlugins []Plugin, user, userAuthNMethod, requestMethod, requestURI string) *Ctx {
-	return &Ctx{plugins: authZPlugins, user: user, userAuthNMethod: userAuthNMethod, requestMethod: requestMethod, requestURI: requestURI}
+	return &Ctx{
+		plugins:         authZPlugins,
+		user:            user,
+		userAuthNMethod: userAuthNMethod,
+		requestMethod:   requestMethod,
+		requestURI:      requestURI,
+	}
 }
 
 // Ctx stores a a single request-response interaction context
@@ -41,27 +47,26 @@ type Ctx struct {
 }
 
 // AuthZRequest authorized the request to the docker daemon using authZ plugins
-func (a *Ctx) AuthZRequest(w http.ResponseWriter, r *http.Request) (err error) {
-
+func (a *Ctx) AuthZRequest(w http.ResponseWriter, r *http.Request) error {
 	var body []byte
 	if sendBody(a.requestURI, r.Header) {
-		var drainedBody io.ReadCloser
+		var (
+			err         error
+			drainedBody io.ReadCloser
+		)
 		drainedBody, r.Body, err = drainBody(r.Body)
 		if err != nil {
 			return err
 		}
-		body, err = ioutil.ReadAll(drainedBody)
 		defer drainedBody.Close()
-
+		body, err = ioutil.ReadAll(drainedBody)
 		if err != nil {
 			return err
 		}
 	}
 
 	var h bytes.Buffer
-	err = r.Header.Write(&h)
-
-	if err != nil {
+	if err := r.Header.Write(&h); err != nil {
 		return err
 	}
 
@@ -74,9 +79,7 @@ func (a *Ctx) AuthZRequest(w http.ResponseWriter, r *http.Request) (err error) {
 		RequestHeaders:  headers(r.Header)}
 
 	for _, plugin := range a.plugins {
-
 		authRes, err := plugin.AuthZRequest(a.authReq)
-
 		if err != nil {
 			return err
 		}
@@ -91,7 +94,6 @@ func (a *Ctx) AuthZRequest(w http.ResponseWriter, r *http.Request) (err error) {
 
 // AuthZResponse authorized and manipulates the response from docker daemon using authZ plugins
 func (a *Ctx) AuthZResponse(rm ResponseModifier, r *http.Request) error {
-
 	a.authReq.ResponseStatusCode = rm.StatusCode()
 	a.authReq.ResponseHeaders = headers(rm.Header())
 
@@ -100,9 +102,7 @@ func (a *Ctx) AuthZResponse(rm ResponseModifier, r *http.Request) error {
 	}
 
 	for _, plugin := range a.plugins {
-
 		authRes, err := plugin.AuthZResponse(a.authReq)
-
 		if err != nil {
 			return err
 		}
@@ -119,12 +119,12 @@ func (a *Ctx) AuthZResponse(rm ResponseModifier, r *http.Request) error {
 
 // drainBody dump the body, it reads the body data into memory and
 // see go sources /go/src/net/http/httputil/dump.go
-func drainBody(b io.ReadCloser) (r1, r2 io.ReadCloser, err error) {
+func drainBody(b io.ReadCloser) (io.ReadCloser, io.ReadCloser, error) {
 	var buf bytes.Buffer
-	if _, err = buf.ReadFrom(b); err != nil {
+	if _, err := buf.ReadFrom(b); err != nil {
 		return nil, nil, err
 	}
-	if err = b.Close(); err != nil {
+	if err := b.Close(); err != nil {
 		return nil, nil, err
 	}
 	return ioutil.NopCloser(&buf), ioutil.NopCloser(bytes.NewReader(buf.Bytes())), nil
@@ -132,7 +132,6 @@ func drainBody(b io.ReadCloser) (r1, r2 io.ReadCloser, err error) {
 
 // sendBody returns true when request/response body should be sent to AuthZPlugin
 func sendBody(url string, header http.Header) bool {
-
 	// Skip body for auth endpoint
 	if strings.HasSuffix(url, "/auth") {
 		return false
