@@ -5,7 +5,6 @@ package parsers
 
 import (
 	"fmt"
-	"path"
 	"strconv"
 	"strings"
 )
@@ -66,28 +65,6 @@ func ParsePortRange(ports string) (uint64, uint64, error) {
 		return 0, 0, fmt.Errorf("Invalid range specified for the Port: %s", ports)
 	}
 	return start, end, nil
-}
-
-// ParseLink parses and validates the specified string as a link format (name:alias)
-func ParseLink(val string) (string, string, error) {
-	if val == "" {
-		return "", "", fmt.Errorf("empty string specified for links")
-	}
-	arr := strings.Split(val, ":")
-	if len(arr) > 2 {
-		return "", "", fmt.Errorf("bad format for links: %s", val)
-	}
-	if len(arr) == 1 {
-		return val, val, nil
-	}
-	// This is kept because we can actually get an HostConfig with links
-	// from an already created container and the format is not `foo:bar`
-	// but `/foo:/c1/bar`
-	if strings.HasPrefix(arr[0], "/") {
-		_, alias := path.Split(arr[1])
-		return arr[0][1:], alias, nil
-	}
-	return arr[0], arr[1], nil
 }
 
 // ParseUintList parses and validates the specified string as the value
