@@ -13,23 +13,15 @@ import (
 	"github.com/opencontainers/runc/libcontainer/label"
 )
 
-// ContainerCreateConfig is the parameter set to ContainerCreate()
-type ContainerCreateConfig struct {
-	Name            string
-	Config          *runconfig.Config
-	HostConfig      *runconfig.HostConfig
-	AdjustCPUShares bool
-}
-
-// ContainerCreate takes configs and creates a container.
-func (daemon *Daemon) ContainerCreate(params *ContainerCreateConfig) (types.ContainerCreateResponse, error) {
+// ContainerCreate creates a container.
+func (daemon *Daemon) ContainerCreate(params types.ContainerCreateConfig) (types.ContainerCreateResponse, error) {
 	if params.Config == nil {
 		return types.ContainerCreateResponse{}, derr.ErrorCodeEmptyConfig
 	}
 
 	warnings, err := daemon.verifyContainerSettings(params.HostConfig, params.Config)
 	if err != nil {
-		return types.ContainerCreateResponse{ID: "", Warnings: warnings}, err
+		return types.ContainerCreateResponse{Warnings: warnings}, err
 	}
 
 	if params.HostConfig == nil {
@@ -37,24 +29,25 @@ func (daemon *Daemon) ContainerCreate(params *ContainerCreateConfig) (types.Cont
 	}
 	err = daemon.adaptContainerSettings(params.HostConfig, params.AdjustCPUShares)
 	if err != nil {
-		return types.ContainerCreateResponse{ID: "", Warnings: warnings}, err
+		return types.ContainerCreateResponse{Warnings: warnings}, err
 	}
 
 	container, err := daemon.create(params)
 	if err != nil {
-		return types.ContainerCreateResponse{ID: "", Warnings: warnings}, daemon.imageNotExistToErrcode(err)
+		return types.ContainerCreateResponse{Warnings: warnings}, daemon.imageNotExistToErrcode(err)
 	}
 
 	return types.ContainerCreateResponse{ID: container.ID, Warnings: warnings}, nil
 }
 
 // Create creates a new container from the given configuration with a given name.
-func (daemon *Daemon) create(params *ContainerCreateConfig) (retC *container.Container, retErr error) {
+func (daemon *Daemon) create(params types.ContainerCreateConfig) (*container.Container, error) {
 	var (
 		container *container.Container
 		img       *image.Image
 		imgID     image.ID
 		err       error
+		retErr    error
 	)
 
 	if params.Config.Image != "" {

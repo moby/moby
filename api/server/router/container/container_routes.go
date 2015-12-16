@@ -339,7 +339,7 @@ func (s *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 	version := httputils.VersionFromContext(ctx)
 	adjustCPUShares := version.LessThan("1.19")
 
-	ccr, err := s.backend.ContainerCreate(&daemon.ContainerCreateConfig{
+	ccr, err := s.backend.ContainerCreate(types.ContainerCreateConfig{
 		Name:            name,
 		Config:          config,
 		HostConfig:      hostConfig,
