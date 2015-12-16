@@ -113,8 +113,8 @@ type Backend interface {
 	GetImage(name string) (Image, error)
 	// Pull tells Docker to pull image referenced by `name`.
 	Pull(name string) (Image, error)
-	// ContainerWsAttachWithLogs attaches to container.
-	ContainerWsAttachWithLogs(name string, cfg *daemon.ContainerWsAttachWithLogsConfig) error
+	// ContainerAttach attaches to container.
+	ContainerAttach(cID string, stdin io.ReadCloser, stdout, stderr io.Writer, stream bool) error
 	// ContainerCreate creates a new Docker container and returns potential warnings
 	ContainerCreate(types.ContainerCreateConfig) (types.ContainerCreateResponse, error)
 	// ContainerRm removes a container specified by `id`.
