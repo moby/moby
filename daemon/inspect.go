@@ -163,7 +163,7 @@ func (daemon *Daemon) getInspectData(container *container.Container, size bool) 
 
 	contJSONBase.GraphDriver.Name = container.Driver
 
-	graphDriverData, err := daemon.layerStore.Metadata(container.ID)
+	graphDriverData, err := container.RWLayer.Metadata()
 	if err != nil {
 		return nil, err
 	}

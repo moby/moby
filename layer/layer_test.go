@@ -82,12 +82,12 @@ type layerInit func(root string) error
 
 func createLayer(ls Store, parent ChainID, layerFunc layerInit) (Layer, error) {
 	containerID := stringid.GenerateRandomID()
-	mount, err := ls.Mount(containerID, parent, "", nil)
+	mount, err := ls.CreateRWLayer(containerID, parent, "", nil)
 	if err != nil {
 		return nil, err
 	}
 
-	path, err := mount.Path()
+	path, err := mount.Mount("")
 	if err != nil {
 		return nil, err
 	}
@@ -107,11 +107,11 @@ func createLayer(ls Store, parent ChainID, layerFunc layerInit) (Layer, error) {
 		return nil, err
 	}
 
-	if err := ls.Unmount(containerID); err != nil {
+	if err := mount.Unmount(); err != nil {
 		return nil, err
 	}
 
-	if _, err := ls.DeleteMount(containerID); err != nil {
+	if _, err := ls.ReleaseRWLayer(mount); err != nil {
 		return nil, err
 	}
 
@@ -169,6 +169,13 @@ func getCachedLayer(l Layer) *roLayer {
 		return rl.roLayer
 	}
 	return l.(*roLayer)
+}
+
+func getMountLayer(l RWLayer) *mountedLayer {
+	if rl, ok := l.(*referencedRWLayer); ok {
+		return rl.mountedLayer
+	}
+	return l.(*mountedLayer)
 }
 
 func createMetadata(layers ...Layer) []Metadata {
@@ -270,12 +277,12 @@ func TestMountAndRegister(t *testing.T) {
 	size, _ := layer.Size()
 	t.Logf("Layer size: %d", size)
 
-	mount2, err := ls.Mount("new-test-mount", layer.ChainID(), "", nil)
+	mount2, err := ls.CreateRWLayer("new-test-mount", layer.ChainID(), "", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	path2, err := mount2.Path()
+	path2, err := mount2.Mount("")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -289,11 +296,11 @@ func TestMountAndRegister(t *testing.T) {
 		t.Fatalf("Wrong file data, expected %q, got %q", expected, string(b))
 	}
 
-	if err := ls.Unmount("new-test-mount"); err != nil {
+	if err := mount2.Unmount(); err != nil {
 		t.Fatal(err)
 	}
 
-	if _, err := ls.DeleteMount("new-test-mount"); err != nil {
+	if _, err := ls.ReleaseRWLayer(mount2); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -370,12 +377,12 @@ func TestStoreRestore(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	m, err := ls.Mount("some-mount_name", layer3.ChainID(), "", nil)
+	m, err := ls.CreateRWLayer("some-mount_name", layer3.ChainID(), "", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	path, err := m.Path()
+	path, err := m.Mount("")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -383,10 +390,13 @@ func TestStoreRestore(t *testing.T) {
 	if err := ioutil.WriteFile(filepath.Join(path, "testfile.txt"), []byte("nothing here"), 0644); err != nil {
 		t.Fatal(err)
 	}
+	assertActivityCount(t, m, 1)
 
-	if err := ls.Unmount("some-mount_name"); err != nil {
+	if err := m.Unmount(); err != nil {
 		t.Fatal(err)
 	}
+
+	assertActivityCount(t, m, 0)
 
 	ls2, err := NewStore(ls.(*layerStore).store, ls.(*layerStore).driver)
 	if err != nil {
@@ -400,18 +410,39 @@ func TestStoreRestore(t *testing.T) {
 
 	assertLayerEqual(t, layer3b, layer3)
 
-	// Mount again with same name, should already be loaded
-	m2, err := ls2.Mount("some-mount_name", layer3b.ChainID(), "", nil)
+	// Create again with same name, should return error
+	if _, err := ls2.CreateRWLayer("some-mount_name", layer3b.ChainID(), "", nil); err == nil {
+		t.Fatal("Expected error creating mount with same name")
+	} else if err != ErrMountNameConflict {
+		t.Fatal(err)
+	}
+
+	m2, err := ls2.GetRWLayer("some-mount_name")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	path2, err := m2.Path()
-	if err != nil {
+	if mountPath, err := m2.Mount(""); err != nil {
+		t.Fatal(err)
+	} else if path != mountPath {
+		t.Fatalf("Unexpected path %s, expected %s", mountPath, path)
+	}
+
+	assertActivityCount(t, m2, 1)
+
+	if mountPath, err := m2.Mount(""); err != nil {
+		t.Fatal(err)
+	} else if path != mountPath {
+		t.Fatalf("Unexpected path %s, expected %s", mountPath, path)
+	}
+	assertActivityCount(t, m2, 2)
+	if err := m2.Unmount(); err != nil {
 		t.Fatal(err)
 	}
 
-	b, err := ioutil.ReadFile(filepath.Join(path2, "testfile.txt"))
+	assertActivityCount(t, m2, 1)
+
+	b, err := ioutil.ReadFile(filepath.Join(path, "testfile.txt"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -419,11 +450,19 @@ func TestStoreRestore(t *testing.T) {
 		t.Fatalf("Unexpected content %q, expected %q", string(b), expected)
 	}
 
-	if err := ls2.Unmount("some-mount_name"); err != nil {
+	if err := m2.Unmount(); err != nil {
 		t.Fatal(err)
 	}
 
-	if metadata, err := ls2.DeleteMount("some-mount_name"); err != nil {
+	assertActivityCount(t, m2, 0)
+
+	if metadata, err := ls2.ReleaseRWLayer(m2); err != nil {
+		t.Fatal(err)
+	} else if len(metadata) != 0 {
+		t.Fatalf("Unexpectedly deleted layers: %#v", metadata)
+	}
+
+	if metadata, err := ls2.ReleaseRWLayer(m2); err != nil {
 		t.Fatal(err)
 	} else if len(metadata) != 0 {
 		t.Fatalf("Unexpectedly deleted layers: %#v", metadata)
@@ -624,6 +663,13 @@ func assertReferences(t *testing.T, references ...Layer) {
 	}
 	if rc := len(base.references); rc != len(references) {
 		t.Fatalf("Unexpected number of references %d, expecting %d", rc, len(references))
+	}
+}
+
+func assertActivityCount(t *testing.T, l RWLayer, expected int) {
+	rl := l.(*referencedRWLayer)
+	if rl.activityCount != expected {
+		t.Fatalf("Unexpected activity count %d, expected %d", rl.activityCount, expected)
 	}
 }
 
