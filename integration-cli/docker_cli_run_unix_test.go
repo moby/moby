@@ -257,13 +257,13 @@ func (s *DockerSuite) TestRunWithBlkioInvalidWeightDevice(c *check.C) {
 
 func (s *DockerSuite) TestRunWithBlkioInvalidDeviceReadBps(c *check.C) {
 	testRequires(c, blkioWeight)
-	out, _, err := dockerCmdWithError("run", "--device-read-bps", "/dev/sda:500", "busybox", "true")
+	out, _, err := dockerCmdWithError("run", "--device-read-bps", "/dev/sdX:500", "busybox", "true")
 	c.Assert(err, check.NotNil, check.Commentf(out))
 }
 
 func (s *DockerSuite) TestRunWithBlkioInvalidDeviceWriteBps(c *check.C) {
 	testRequires(c, blkioWeight)
-	out, _, err := dockerCmdWithError("run", "--device-write-bps", "/dev/sda:500", "busybox", "true")
+	out, _, err := dockerCmdWithError("run", "--device-write-bps", "/dev/sdX:500", "busybox", "true")
 	c.Assert(err, check.NotNil, check.Commentf(out))
 }
 
