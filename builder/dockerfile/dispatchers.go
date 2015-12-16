@@ -399,9 +399,6 @@ func run(b *Builder, args []string, attributes map[string]bool, original string)
 		return err
 	}
 
-	b.docker.Mount(cID)
-	defer b.docker.Unmount(cID)
-
 	if err := b.run(cID); err != nil {
 		return err
 	}
