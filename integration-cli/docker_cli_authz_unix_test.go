@@ -5,15 +5,16 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/docker/docker/pkg/authorization"
-	"github.com/docker/docker/pkg/integration/checker"
-	"github.com/docker/docker/pkg/plugins"
-	"github.com/go-check/check"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"strings"
+
+	"github.com/docker/docker/pkg/authorization"
+	"github.com/docker/docker/pkg/integration/checker"
+	"github.com/docker/docker/pkg/plugins"
+	"github.com/go-check/check"
 )
 
 const testAuthZPlugin = "authzplugin"
