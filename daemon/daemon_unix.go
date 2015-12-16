@@ -19,7 +19,6 @@ import (
 	"github.com/docker/docker/layer"
 	pblkiodev "github.com/docker/docker/pkg/blkiodev"
 	"github.com/docker/docker/pkg/idtools"
-	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/runconfig"
@@ -648,7 +647,7 @@ func (daemon *Daemon) registerLinks(container *container.Container, hostConfig *
 	}
 
 	for _, l := range hostConfig.Links {
-		name, alias, err := parsers.ParseLink(l)
+		name, alias, err := runconfig.ParseLink(l)
 		if err != nil {
 			return err
 		}

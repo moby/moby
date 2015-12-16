@@ -2,6 +2,7 @@ package runconfig
 
 import (
 	"fmt"
+	"path"
 	"strconv"
 	"strings"
 
@@ -55,10 +56,10 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		flBlkioWeightDevice = opts.NewWeightdeviceOpt(opts.ValidateWeightDevice)
 		flDeviceReadBps     = opts.NewThrottledeviceOpt(opts.ValidateThrottleBpsDevice)
 		flDeviceWriteBps    = opts.NewThrottledeviceOpt(opts.ValidateThrottleBpsDevice)
-		flLinks             = opts.NewListOpts(opts.ValidateLink)
+		flLinks             = opts.NewListOpts(ValidateLink)
 		flEnv               = opts.NewListOpts(opts.ValidateEnv)
 		flLabels            = opts.NewListOpts(opts.ValidateEnv)
-		flDevices           = opts.NewListOpts(opts.ValidateDevice)
+		flDevices           = opts.NewListOpts(ValidateDevice)
 
 		flUlimits = opts.NewUlimitOpt(nil)
 
@@ -532,7 +533,7 @@ func ParseDevice(device string) (DeviceMapping, error) {
 		permissions = arr[2]
 		fallthrough
 	case 2:
-		if opts.ValidDeviceMode(arr[1]) {
+		if ValidDeviceMode(arr[1]) {
 			permissions = arr[1]
 		} else {
 			dst = arr[1]
@@ -554,4 +555,102 @@ func ParseDevice(device string) (DeviceMapping, error) {
 		CgroupPermissions: permissions,
 	}
 	return deviceMapping, nil
+}
+
+// ParseLink parses and validates the specified string as a link format (name:alias)
+func ParseLink(val string) (string, string, error) {
+	if val == "" {
+		return "", "", fmt.Errorf("empty string specified for links")
+	}
+	arr := strings.Split(val, ":")
+	if len(arr) > 2 {
+		return "", "", fmt.Errorf("bad format for links: %s", val)
+	}
+	if len(arr) == 1 {
+		return val, val, nil
+	}
+	// This is kept because we can actually get an HostConfig with links
+	// from an already created container and the format is not `foo:bar`
+	// but `/foo:/c1/bar`
+	if strings.HasPrefix(arr[0], "/") {
+		_, alias := path.Split(arr[1])
+		return arr[0][1:], alias, nil
+	}
+	return arr[0], arr[1], nil
+}
+
+// ValidateLink validates that the specified string has a valid link format (containerName:alias).
+func ValidateLink(val string) (string, error) {
+	if _, _, err := ParseLink(val); err != nil {
+		return val, err
+	}
+	return val, nil
+}
+
+// ValidDeviceMode checks if the mode for device is valid or not.
+// Valid mode is a composition of r (read), w (write), and m (mknod).
+func ValidDeviceMode(mode string) bool {
+	var legalDeviceMode = map[rune]bool{
+		'r': true,
+		'w': true,
+		'm': true,
+	}
+	if mode == "" {
+		return false
+	}
+	for _, c := range mode {
+		if !legalDeviceMode[c] {
+			return false
+		}
+		legalDeviceMode[c] = false
+	}
+	return true
+}
+
+// ValidateDevice validates a path for devices
+// It will make sure 'val' is in the form:
+//    [host-dir:]container-path[:mode]
+// It also validates the device mode.
+func ValidateDevice(val string) (string, error) {
+	return validatePath(val, ValidDeviceMode)
+}
+
+func validatePath(val string, validator func(string) bool) (string, error) {
+	var containerPath string
+	var mode string
+
+	if strings.Count(val, ":") > 2 {
+		return val, fmt.Errorf("bad format for path: %s", val)
+	}
+
+	split := strings.SplitN(val, ":", 3)
+	if split[0] == "" {
+		return val, fmt.Errorf("bad format for path: %s", val)
+	}
+	switch len(split) {
+	case 1:
+		containerPath = split[0]
+		val = path.Clean(containerPath)
+	case 2:
+		if isValid := validator(split[1]); isValid {
+			containerPath = split[0]
+			mode = split[1]
+			val = fmt.Sprintf("%s:%s", path.Clean(containerPath), mode)
+		} else {
+			containerPath = split[1]
+			val = fmt.Sprintf("%s:%s", split[0], path.Clean(containerPath))
+		}
+	case 3:
+		containerPath = split[1]
+		mode = split[2]
+		if isValid := validator(split[2]); !isValid {
+			return val, fmt.Errorf("bad mode specified: %s", mode)
+		}
+		val = fmt.Sprintf("%s:%s:%s", split[0], containerPath, mode)
+	}
+
+	if !path.IsAbs(containerPath) {
+		return val, fmt.Errorf("%s is not an absolute path", containerPath)
+	}
+	return val, nil
 }
