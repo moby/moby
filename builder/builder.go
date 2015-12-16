@@ -141,12 +141,6 @@ type Backend interface {
 	//ContainerCopy(name string, res string) (io.ReadCloser, error)
 	// TODO: use copyBackend api
 	BuilderCopy(containerID string, destPath string, src FileInfo, decompress bool) error
-
-	// TODO: remove
-	// Mount mounts the root filesystem for the container.
-	Mount(containerID string) error
-	// Unmount unmounts the root filesystem for the container.
-	Unmount(containerID string) error
 }
 
 // ImageCache abstracts an image cache store.

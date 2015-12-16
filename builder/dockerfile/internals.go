@@ -66,10 +66,6 @@ func (b *Builder) commit(id string, autoCmd *stringutils.StrSlice, comment strin
 		if err != nil {
 			return err
 		}
-		if err := b.docker.Mount(id); err != nil {
-			return err
-		}
-		defer b.docker.Unmount(id)
 	}
 
 	// Note: Actually copy the struct
@@ -193,10 +189,6 @@ func (b *Builder) runContextCommand(args []string, allowRemote bool, allowLocalD
 	if err != nil {
 		return err
 	}
-	if err := b.docker.Mount(container.ID); err != nil {
-		return err
-	}
-	defer b.docker.Unmount(container.ID)
 	b.tmpContainers[container.ID] = struct{}{}
 
 	comment := fmt.Sprintf("%s %s in %s", cmdName, origPaths, dest)
