@@ -12,7 +12,6 @@ import (
 	"github.com/docker/distribution/digest"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
-	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/progress"
 	"golang.org/x/net/context"
 )
@@ -115,25 +114,18 @@ func (ls *mockLayerStore) Get(chainID layer.ChainID) (layer.Layer, error) {
 func (ls *mockLayerStore) Release(l layer.Layer) ([]layer.Metadata, error) {
 	return []layer.Metadata{}, nil
 }
-
-func (ls *mockLayerStore) Mount(id string, parent layer.ChainID, label string, init layer.MountInit) (layer.RWLayer, error) {
+func (ls *mockLayerStore) CreateRWLayer(string, layer.ChainID, string, layer.MountInit) (layer.RWLayer, error) {
 	return nil, errors.New("not implemented")
 }
 
-func (ls *mockLayerStore) Unmount(id string) error {
-	return errors.New("not implemented")
+func (ls *mockLayerStore) GetRWLayer(string) (layer.RWLayer, error) {
+	return nil, errors.New("not implemented")
+
 }
 
-func (ls *mockLayerStore) DeleteMount(id string) ([]layer.Metadata, error) {
+func (ls *mockLayerStore) ReleaseRWLayer(layer.RWLayer) ([]layer.Metadata, error) {
 	return nil, errors.New("not implemented")
-}
 
-func (ls *mockLayerStore) Changes(id string) ([]archive.Change, error) {
-	return nil, errors.New("not implemented")
-}
-
-func (ls *mockLayerStore) Metadata(id string) (map[string]string, error) {
-	return nil, errors.New("not implemented")
 }
 
 type mockDownloadDescriptor struct {
