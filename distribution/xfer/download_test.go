@@ -128,6 +128,18 @@ func (ls *mockLayerStore) ReleaseRWLayer(layer.RWLayer) ([]layer.Metadata, error
 
 }
 
+func (ls *mockLayerStore) Cleanup() error {
+	return nil
+}
+
+func (ls *mockLayerStore) DriverStatus() [][2]string {
+	return [][2]string{}
+}
+
+func (ls *mockLayerStore) DriverName() string {
+	return "mock"
+}
+
 type mockDownloadDescriptor struct {
 	currentDownloads *int32
 	id               string

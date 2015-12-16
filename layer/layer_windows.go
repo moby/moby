@@ -6,6 +6,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/digest"
+	"github.com/docker/docker/daemon/graphdriver"
 )
 
 // GetLayerPath returns the path to a layer
@@ -93,4 +94,8 @@ func (ls *layerStore) RegisterDiffID(graphID string, size int64) (Layer, error) 
 func (ls *layerStore) mountID(name string) string {
 	// windows has issues if container ID doesn't match mount ID
 	return name
+}
+
+func (ls *layerStore) GraphDriver() graphdriver.Driver {
+	return ls.driver
 }

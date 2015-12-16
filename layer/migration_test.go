@@ -89,7 +89,7 @@ func TestLayerMigration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ls, err := NewStore(fms, graph)
+	ls, err := NewStoreFromGraphDriver(fms, graph)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -205,7 +205,7 @@ func TestLayerMigrationNoTarsplit(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ls, err := NewStore(fms, graph)
+	ls, err := NewStoreFromGraphDriver(fms, graph)
 	if err != nil {
 		t.Fatal(err)
 	}
