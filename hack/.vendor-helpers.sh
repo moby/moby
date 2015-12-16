@@ -105,11 +105,8 @@ clean() {
 			export GOOS="${platform%/*}";
 			export GOARCH="${platform##*/}";
 			for buildTags in "${buildTagCombos[@]}"; do
-				pkgs=( $(go list -e -tags "$buildTags" -f '{{join .Deps "\n"}}' "${packages[@]}" | grep -E "^${PROJECT}" | grep -vE "^${PROJECT}/vendor" | sort -u) )
-				pkgs+=( ${packages[@]} )
-				testImports=( $(go list -e -tags "$buildTags" -f '{{join .TestImports "\n"}}' "${pkgs[@]}" | sort -u) )
-				printf '%s\n' "${testImports[@]}"
-				go list -e -tags "$buildTags" -f '{{join .Deps "\n"}}' "${packages[@]} ${testImports[@]}"
+				go list -e -tags "$buildTags" -f '{{join .Deps "\n"}}' "${packages[@]}"
+				go list -e -tags "$buildTags" -f '{{join .TestImports "\n"}}' "${packages[@]}"
 			done
 		done | grep -vE "^${PROJECT}" | sort -u
 	) )
@@ -120,8 +117,6 @@ clean() {
 	findArgs=(
 		# This directory contains only .c and .h files which are necessary
 		-path vendor/src/github.com/mattn/go-sqlite3/code
-		# This directory is needed for compiling the unit tests
-		-o -path vendor/src/github.com/stretchr/objx
 	)
 	for import in "${imports[@]}"; do
 		[ "${#findArgs[@]}" -eq 0 ] || findArgs+=( -or )
