@@ -7,7 +7,7 @@ import (
 
 	"github.com/docker/docker/daemon/execdriver"
 	derr "github.com/docker/docker/errors"
-	"github.com/docker/docker/pkg/units"
+	"github.com/docker/go-units"
 )
 
 // State holds the current container state, and has methods to get and

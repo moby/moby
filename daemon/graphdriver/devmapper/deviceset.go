@@ -26,7 +26,7 @@ import (
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/parsers"
-	"github.com/docker/docker/pkg/units"
+	"github.com/docker/go-units"
 
 	"github.com/opencontainers/runc/libcontainer/label"
 )

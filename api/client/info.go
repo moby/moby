@@ -6,7 +6,7 @@ import (
 	Cli "github.com/docker/docker/cli"
 	"github.com/docker/docker/pkg/ioutils"
 	flag "github.com/docker/docker/pkg/mflag"
-	"github.com/docker/docker/pkg/units"
+	"github.com/docker/go-units"
 )
 
 // CmdInfo displays system-wide information.
