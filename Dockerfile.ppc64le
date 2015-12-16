@@ -6,7 +6,7 @@
 # docker build -t docker -f Dockerfile.ppc64le .
 #
 
-FROM ppc64le/gcc:5.2
+FROM ppc64le/gcc:5.3
 
 # Packaged dependencies
 RUN apt-get update && apt-get install -y \
