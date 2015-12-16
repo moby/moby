@@ -13,7 +13,7 @@ import (
 	"github.com/docker/docker/api/types"
 	Cli "github.com/docker/docker/cli"
 	"github.com/docker/docker/pkg/jsonmessage"
-	"github.com/docker/docker/pkg/units"
+	"github.com/docker/go-units"
 )
 
 type containerStats struct {
