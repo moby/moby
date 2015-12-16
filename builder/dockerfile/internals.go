@@ -24,7 +24,6 @@ import (
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builder/dockerfile/parser"
 	"github.com/docker/docker/daemon"
-	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/httputils"
 	"github.com/docker/docker/pkg/ioutils"
@@ -403,11 +402,11 @@ func containsWildcards(name string) bool {
 	return false
 }
 
-func (b *Builder) processImageFrom(img *image.Image) error {
-	b.image = img.ID().String()
+func (b *Builder) processImageFrom(img builder.Image) error {
+	b.image = img.ID()
 
 	if img.Config != nil {
-		b.runConfig = img.Config
+		b.runConfig = img.Config()
 	}
 
 	// The default path will be blank on Windows (set by HCS)
