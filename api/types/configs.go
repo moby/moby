@@ -8,6 +8,14 @@ import (
 	"github.com/docker/docker/runconfig"
 )
 
+// ContainerCreateConfig is the parameter set to ContainerCreate()
+type ContainerCreateConfig struct {
+	Name            string
+	Config          *runconfig.Config
+	HostConfig      *runconfig.HostConfig
+	AdjustCPUShares bool
+}
+
 // ContainerRmConfig holds arguments for the container remove
 // operation. This struct is used to tell the backend what operations
 // to perform.
