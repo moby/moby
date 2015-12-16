@@ -73,9 +73,14 @@ func (l *tarexporter) Load(inTar io.ReadCloser, outStream io.Writer) error {
 			if err != nil {
 				return err
 			}
-			newLayer, err := l.loadLayer(layerPath, rootFS)
+			r := rootFS
+			r.Append(diffID)
+			newLayer, err := l.ls.Get(r.ChainID())
 			if err != nil {
-				return err
+				newLayer, err = l.loadLayer(layerPath, rootFS)
+				if err != nil {
+					return err
+				}
 			}
 			defer layer.ReleaseAndLog(l.ls, newLayer)
 			if expected, actual := diffID, newLayer.DiffID(); expected != actual {
