@@ -4,12 +4,12 @@ import (
 	"errors"
 	"io"
 
-	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/client/lib"
 	"github.com/docker/docker/api/types"
 	Cli "github.com/docker/docker/cli"
 	"github.com/docker/docker/pkg/jsonmessage"
 	flag "github.com/docker/docker/pkg/mflag"
+	"github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
 )
 
@@ -30,9 +30,9 @@ func (cli *DockerCli) CmdPush(args ...string) error {
 
 	var tag string
 	switch x := ref.(type) {
-	case reference.Digested:
+	case reference.Canonical:
 		return errors.New("cannot push a digest reference")
-	case reference.Tagged:
+	case reference.NamedTagged:
 		tag = x.Tag()
 	}
 

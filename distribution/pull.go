@@ -6,15 +6,14 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/daemon/events"
 	"github.com/docker/docker/distribution/metadata"
 	"github.com/docker/docker/distribution/xfer"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/progress"
+	"github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
-	"github.com/docker/docker/tag"
 	"golang.org/x/net/context"
 )
 
@@ -39,8 +38,8 @@ type ImagePullConfig struct {
 	MetadataStore metadata.Store
 	// ImageStore manages images.
 	ImageStore image.Store
-	// TagStore manages tags.
-	TagStore tag.Store
+	// ReferenceStore manages tags.
+	ReferenceStore reference.Store
 	// DownloadManager manages concurrent pulls.
 	DownloadManager *xfer.LayerDownloadManager
 }
@@ -88,16 +87,14 @@ func Pull(ctx context.Context, ref reference.Named, imagePullConfig *ImagePullCo
 	}
 
 	// makes sure name is not empty or `scratch`
-	if err := validateRepoName(repoInfo.LocalName.Name()); err != nil {
+	if err := validateRepoName(repoInfo.Name()); err != nil {
 		return err
 	}
 
-	endpoints, err := imagePullConfig.RegistryService.LookupPullEndpoints(repoInfo.CanonicalName)
+	endpoints, err := imagePullConfig.RegistryService.LookupPullEndpoints(repoInfo)
 	if err != nil {
 		return err
 	}
-
-	localName := registry.NormalizeLocalReference(ref)
 
 	var (
 		// use a slice to append the error strings and return a joined string to caller
@@ -113,7 +110,7 @@ func Pull(ctx context.Context, ref reference.Named, imagePullConfig *ImagePullCo
 		discardNoSupportErrors bool
 	)
 	for _, endpoint := range endpoints {
-		logrus.Debugf("Trying to pull %s from %s %s", repoInfo.LocalName, endpoint.URL, endpoint.Version)
+		logrus.Debugf("Trying to pull %s from %s %s", repoInfo.Name(), endpoint.URL, endpoint.Version)
 
 		puller, err := newPuller(endpoint, repoInfo, imagePullConfig)
 		if err != nil {
@@ -149,7 +146,7 @@ func Pull(ctx context.Context, ref reference.Named, imagePullConfig *ImagePullCo
 			}
 		}
 
-		imagePullConfig.EventsService.Log("pull", localName.String(), "")
+		imagePullConfig.EventsService.Log("pull", ref.String(), "")
 		return nil
 	}
 

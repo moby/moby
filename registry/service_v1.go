@@ -4,14 +4,14 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/pkg/tlsconfig"
+	"github.com/docker/docker/reference"
 )
 
 func (s *Service) lookupV1Endpoints(repoName reference.Named) (endpoints []APIEndpoint, err error) {
 	var cfg = tlsconfig.ServerDefault
 	tlsConfig := &cfg
-	nameString := repoName.Name()
+	nameString := repoName.FullName()
 	if strings.HasPrefix(nameString, DefaultNamespace+"/") {
 		endpoints = append(endpoints, APIEndpoint{
 			URL:          DefaultV1Registry,

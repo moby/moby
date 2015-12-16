@@ -3,11 +3,10 @@ package client
 import (
 	"errors"
 
-	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	Cli "github.com/docker/docker/cli"
 	flag "github.com/docker/docker/pkg/mflag"
-	"github.com/docker/docker/registry"
+	"github.com/docker/docker/reference"
 )
 
 // CmdTag tags an image into a repository.
@@ -25,20 +24,13 @@ func (cli *DockerCli) CmdTag(args ...string) error {
 		return err
 	}
 
-	_, isDigested := ref.(reference.Digested)
-	if isDigested {
+	if _, isCanonical := ref.(reference.Canonical); isCanonical {
 		return errors.New("refusing to create a tag with a digest reference")
 	}
 
-	tag := ""
-	tagged, isTagged := ref.(reference.Tagged)
-	if isTagged {
+	var tag string
+	if tagged, isTagged := ref.(reference.NamedTagged); isTagged {
 		tag = tagged.Tag()
-	}
-
-	//Check if the given image name can be resolved
-	if err := registry.ValidateRepositoryName(ref); err != nil {
-		return err
 	}
 
 	options := types.ImageTagOptions{

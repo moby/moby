@@ -8,10 +8,10 @@ import (
 	"testing"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/distribution/reference"
 	"github.com/docker/distribution/registry/client/auth"
 	"github.com/docker/docker/api/types"
 	registrytypes "github.com/docker/docker/api/types/registry"
+	"github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/utils"
 	"golang.org/x/net/context"
@@ -58,16 +58,14 @@ func TestTokenPassThru(t *testing.T) {
 	}
 	n, _ := reference.ParseNamed("testremotename")
 	repoInfo := &registry.RepositoryInfo{
+		Named: n,
 		Index: &registrytypes.IndexInfo{
 			Name:     "testrepo",
 			Mirrors:  nil,
 			Secure:   false,
 			Official: false,
 		},
-		RemoteName:    n,
-		LocalName:     n,
-		CanonicalName: n,
-		Official:      false,
+		Official: false,
 	}
 	imagePullConfig := &ImagePullConfig{
 		MetaHeaders: http.Header{},

@@ -1,8 +1,8 @@
 package registry
 
 import (
-	"github.com/docker/distribution/reference"
 	registrytypes "github.com/docker/docker/api/types/registry"
+	"github.com/docker/docker/reference"
 )
 
 // RepositoryData tracks the image list, list of endpoints, and list of tokens
@@ -60,17 +60,9 @@ const (
 
 // RepositoryInfo describes a repository
 type RepositoryInfo struct {
+	reference.Named
 	// Index points to registry information
 	Index *registrytypes.IndexInfo
-	// RemoteName is the remote name of the repository, such as
-	// "library/ubuntu-12.04-base"
-	RemoteName reference.Named
-	// LocalName is the local name of the repository, such as
-	// "ubuntu-12.04-base"
-	LocalName reference.Named
-	// CanonicalName is the canonical name of the repository, such as
-	// "docker.io/library/ubuntu-12.04-base"
-	CanonicalName reference.Named
 	// Official indicates whether the repository is considered official.
 	// If the registry is official, and the normalized name does not
 	// contain a '/' (e.g. "foo"), then it is considered an official repo.

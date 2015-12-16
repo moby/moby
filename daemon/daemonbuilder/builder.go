@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/builder"
@@ -20,6 +19,7 @@ import (
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/urlutil"
+	"github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/runconfig"
 )
@@ -41,15 +41,7 @@ func (d Docker) Pull(name string) (*image.Image, error) {
 	if err != nil {
 		return nil, err
 	}
-	switch ref.(type) {
-	case reference.Tagged:
-	case reference.Digested:
-	default:
-		ref, err = reference.WithTag(ref, "latest")
-		if err != nil {
-			return nil, err
-		}
-	}
+	ref = reference.WithDefaultTag(ref)
 
 	pullRegistryAuth := &types.AuthConfig{}
 	if len(d.AuthConfigs) > 0 {

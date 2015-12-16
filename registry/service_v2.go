@@ -4,15 +4,15 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/docker/distribution/reference"
 	"github.com/docker/distribution/registry/client/auth"
 	"github.com/docker/docker/pkg/tlsconfig"
+	"github.com/docker/docker/reference"
 )
 
 func (s *Service) lookupV2Endpoints(repoName reference.Named) (endpoints []APIEndpoint, err error) {
 	var cfg = tlsconfig.ServerDefault
 	tlsConfig := &cfg
-	nameString := repoName.Name()
+	nameString := repoName.FullName()
 	if strings.HasPrefix(nameString, DefaultNamespace+"/") {
 		// v2 mirrors
 		for _, mirror := range s.Config.Mirrors {
