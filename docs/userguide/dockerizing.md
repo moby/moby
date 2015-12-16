@@ -25,7 +25,7 @@ Running an application inside a container takes a single command: `docker run`.
 
 Let's try it now.
 
-    $ docker run ubuntu:14.04 /bin/echo 'Hello world'
+    $ docker run ubuntu /bin/echo 'Hello world'
     Hello world
 
 And you just launched your first container!
@@ -36,8 +36,8 @@ did.
 First we specified the `docker` binary and the command we wanted to
 execute, `run`. The `docker run` combination *runs* containers.
 
-Next we specified an image: `ubuntu:14.04`. This is the source of the container
-we ran. Docker calls this an image. In this case we used an Ubuntu 14.04
+Next we specified an image: `ubuntu`. This is the source of the container
+we ran. Docker calls this an image. In this case we used the Ubuntu
 operating system image.
 
 When you specify an image, Docker looks first for the image on your
@@ -48,7 +48,7 @@ Next we told Docker what command to run inside our new container:
 
     /bin/echo 'Hello world'
 
-When our container was launched Docker created a new Ubuntu 14.04
+When our container was launched Docker created a new Ubuntu
 environment and then executed the `/bin/echo` command inside it. We saw
 the result on the command line:
 
@@ -63,11 +63,11 @@ only run as long as the command you specify is active. Here, as soon as
 Let's try the `docker run` command again, this time specifying a new
 command to run in our container.
 
-    $ docker run -t -i ubuntu:14.04 /bin/bash
+    $ docker run -t -i ubuntu /bin/bash
     root@af8bae53bdd3:/#
 
 Here we've again specified the `docker run` command and launched an
-`ubuntu:14.04` image. But we've also passed in two flags: `-t` and `-i`.
+`ubuntu` image. But we've also passed in two flags: `-t` and `-i`.
 The `-t` flag assigns a pseudo-tty or terminal inside our new container
 and the `-i` flag allows us to make an interactive connection by
 grabbing the standard in (`STDIN`) of the container.
@@ -108,7 +108,7 @@ like most of the applications we're probably going to run with Docker.
 
 Again we can do this with the `docker run` command:
 
-    $ docker run -d ubuntu:14.04 /bin/sh -c "while true; do echo hello world; sleep 1; done"
+    $ docker run -d ubuntu /bin/sh -c "while true; do echo hello world; sleep 1; done"
     1e5535038e285177d5214659a068137486f96ee5c2e85a4ac52dc83f2ebe4147
 
 Wait, what? Where's our "hello world" output? Let's look at what we've run here.
@@ -116,7 +116,7 @@ It should look pretty familiar. We ran `docker run` but this time we
 specified a flag: `-d`. The `-d` flag tells Docker to run the container
 and put it in the background, to daemonize it.
 
-We also specified the same image: `ubuntu:14.04`.
+We also specified the same image: `ubuntu`.
 
 Finally, we specified a command to run:
 
@@ -147,13 +147,13 @@ about.
 
     $ docker ps
     CONTAINER ID  IMAGE         COMMAND               CREATED        STATUS       PORTS NAMES
-    1e5535038e28  ubuntu:14.04  /bin/sh -c 'while tr  2 minutes ago  Up 1 minute        insane_babbage
+    1e5535038e28  ubuntu  /bin/sh -c 'while tr  2 minutes ago  Up 1 minute        insane_babbage
 
 Here we can see our daemonized container. The `docker ps` has returned some useful
 information about it, starting with a shorter variant of its container ID:
 `1e5535038e28`.
 
-We can also see the image we used to build it, `ubuntu:14.04`, the command it
+We can also see the image we used to build it, `ubuntu`, the command it
 is running, its status and an automatically assigned name,
 `insane_babbage`.
 
