@@ -425,29 +425,11 @@ func (s *containerRouter) postContainersAttach(ctx context.Context, w http.Respo
 	}
 	containerName := vars["name"]
 
-	if !s.backend.Exists(containerName) {
-		return derr.ErrorCodeNoSuchContainer.WithArgs(containerName)
-	}
-
-	if s.backend.IsPaused(containerName) {
-		return derr.ErrorCodePausedContainer.WithArgs(containerName)
-	}
-
-	inStream, outStream, err := httputils.HijackConnection(w)
-	if err != nil {
-		return err
-	}
-	defer httputils.CloseStreams(inStream, outStream)
-
-	if _, ok := r.Header["Upgrade"]; ok {
-		fmt.Fprintf(outStream, "HTTP/1.1 101 UPGRADED\r\nContent-Type: application/vnd.docker.raw-stream\r\nConnection: Upgrade\r\nUpgrade: tcp\r\n\r\n")
-	} else {
-		fmt.Fprintf(outStream, "HTTP/1.1 200 OK\r\nContent-Type: application/vnd.docker.raw-stream\r\n\r\n")
-	}
+	_, upgrade := r.Header["Upgrade"]
 
 	attachWithLogsConfig := &daemon.ContainerAttachWithLogsConfig{
-		InStream:  inStream,
-		OutStream: outStream,
+		Hijacker:  w.(http.Hijacker),
+		Upgrade:   upgrade,
 		UseStdin:  httputils.BoolValue(r, "stdin"),
 		UseStdout: httputils.BoolValue(r, "stdout"),
 		UseStderr: httputils.BoolValue(r, "stderr"),
@@ -455,11 +437,7 @@ func (s *containerRouter) postContainersAttach(ctx context.Context, w http.Respo
 		Stream:    httputils.BoolValue(r, "stream"),
 	}
 
-	if err := s.backend.ContainerAttachWithLogs(containerName, attachWithLogsConfig); err != nil {
-		fmt.Fprintf(outStream, "Error attaching: %s\n", err)
-	}
-
-	return nil
+	return s.backend.ContainerAttachWithLogs(containerName, attachWithLogsConfig)
 }
 
 func (s *containerRouter) wsContainersAttach(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
