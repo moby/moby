@@ -6,7 +6,7 @@
 # docker build -t docker -f Dockerfile.gccgo .
 #
 
-FROM gcc:5.2
+FROM gcc:5.3
 
 # Packaged dependencies
 RUN apt-get update && apt-get install -y \
