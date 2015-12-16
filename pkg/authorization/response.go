@@ -81,9 +81,7 @@ func (rm *responseModifier) OverrideStatusCode(statusCode int) {
 // Override replace the headers of the HTTP reply
 func (rm *responseModifier) OverrideHeader(b []byte) error {
 	header := http.Header{}
-	err := json.Unmarshal(b, &header)
-
-	if err != nil {
+	if err := json.Unmarshal(b, &header); err != nil {
 		return err
 	}
 	rm.header = header
@@ -103,8 +101,7 @@ func (rm *responseModifier) RawBody() []byte {
 
 func (rm *responseModifier) RawHeaders() ([]byte, error) {
 	var b bytes.Buffer
-	err := rm.header.Write(&b)
-	if err != nil {
+	if err := rm.header.Write(&b); err != nil {
 		return nil, err
 	}
 	return b.Bytes(), nil
@@ -121,7 +118,6 @@ func (rm *responseModifier) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 
 // Flush flushes all data to the HTTP response
 func (rm *responseModifier) Flush() error {
-
 	// Copy the status code
 	if rm.statusCode > 0 {
 		rm.rw.WriteHeader(rm.statusCode)
