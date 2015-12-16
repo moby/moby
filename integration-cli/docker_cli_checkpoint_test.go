@@ -11,6 +11,7 @@ import (
 
 func (s *DockerSuite) TestCheckpointAndRestore(c *check.C) {
 	defer unpauseAllContainers()
+	testRequires(c, DaemonIsLinux, NotUserNamespace)
 
 	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "top")
 	out, _, err := runCommandWithOutput(runCmd)
