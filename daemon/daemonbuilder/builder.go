@@ -36,7 +36,7 @@ type Docker struct {
 var _ builder.Backend = Docker{}
 
 // Pull tells Docker to pull image referenced by `name`.
-func (d Docker) Pull(name string) (*image.Image, error) {
+func (d Docker) Pull(name string) (builder.Image, error) {
 	ref, err := reference.ParseNamed(name)
 	if err != nil {
 		return nil, err
@@ -69,8 +69,16 @@ func (d Docker) Pull(name string) (*image.Image, error) {
 	if err := d.Daemon.PullImage(ref, nil, pullRegistryAuth, ioutils.NopWriteCloser(d.OutOld)); err != nil {
 		return nil, err
 	}
+	return d.GetImage(name)
+}
 
-	return d.Daemon.GetImage(name)
+// GetImage looks up a Docker image referenced by `name`.
+func (d Docker) GetImage(name string) (builder.Image, error) {
+	img, err := d.Daemon.GetImage(name)
+	if err != nil {
+		return nil, err
+	}
+	return imgWrap{img}, nil
 }
 
 // ContainerUpdateCmd updates Path and Args for the container with ID cID.
@@ -82,18 +90,6 @@ func (d Docker) ContainerUpdateCmd(cID string, cmd []string) error {
 	c.Path = cmd[0]
 	c.Args = cmd[1:]
 	return nil
-}
-
-// Retain retains an image avoiding it to be removed or overwritten until a corresponding Release() call.
-func (d Docker) Retain(sessionID, imgID string) {
-	// FIXME: This will be solved with tags in client-side builder
-	//d.Daemon.Graph().Retain(sessionID, imgID)
-}
-
-// Release releases a list of images that were retained for the time of a build.
-func (d Docker) Release(sessionID string, activeImages []string) {
-	// FIXME: This will be solved with tags in client-side builder
-	//d.Daemon.Graph().Release(sessionID, activeImages...)
 }
 
 // BuilderCopy copies/extracts a source FileInfo to a destination path inside a container
