@@ -70,7 +70,7 @@ func (cli *Client) postHijacked(path string, query url.Values, body interface{},
 
 	rwc, br := clientconn.Hijack()
 
-	return types.HijackedResponse{rwc, br}, nil
+	return types.HijackedResponse{Conn: rwc, Reader: br}, nil
 }
 
 func tlsDial(network, addr string, config *tls.Config) (net.Conn, error) {
