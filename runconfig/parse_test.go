@@ -649,3 +649,115 @@ func TestParseEntryPoint(t *testing.T) {
 		t.Fatalf("Expected entrypoint 'anything', got %v", config.Entrypoint)
 	}
 }
+
+func TestValidateLink(t *testing.T) {
+	valid := []string{
+		"name",
+		"dcdfbe62ecd0:alias",
+		"7a67485460b7642516a4ad82ecefe7f57d0c4916f530561b71a50a3f9c4e33da",
+		"angry_torvalds:linus",
+	}
+	invalid := map[string]string{
+		"":               "empty string specified for links",
+		"too:much:of:it": "bad format for links: too:much:of:it",
+	}
+
+	for _, link := range valid {
+		if _, err := ValidateLink(link); err != nil {
+			t.Fatalf("ValidateLink(`%q`) should succeed: error %q", link, err)
+		}
+	}
+
+	for link, expectedError := range invalid {
+		if _, err := ValidateLink(link); err == nil {
+			t.Fatalf("ValidateLink(`%q`) should have failed validation", link)
+		} else {
+			if !strings.Contains(err.Error(), expectedError) {
+				t.Fatalf("ValidateLink(`%q`) error should contain %q", link, expectedError)
+			}
+		}
+	}
+}
+
+func TestParseLink(t *testing.T) {
+	name, alias, err := ParseLink("name:alias")
+	if err != nil {
+		t.Fatalf("Expected not to error out on a valid name:alias format but got: %v", err)
+	}
+	if name != "name" {
+		t.Fatalf("Link name should have been name, got %s instead", name)
+	}
+	if alias != "alias" {
+		t.Fatalf("Link alias should have been alias, got %s instead", alias)
+	}
+	// short format definition
+	name, alias, err = ParseLink("name")
+	if err != nil {
+		t.Fatalf("Expected not to error out on a valid name only format but got: %v", err)
+	}
+	if name != "name" {
+		t.Fatalf("Link name should have been name, got %s instead", name)
+	}
+	if alias != "name" {
+		t.Fatalf("Link alias should have been name, got %s instead", alias)
+	}
+	// empty string link definition is not allowed
+	if _, _, err := ParseLink(""); err == nil || !strings.Contains(err.Error(), "empty string specified for links") {
+		t.Fatalf("Expected error 'empty string specified for links' but got: %v", err)
+	}
+	// more than two colons are not allowed
+	if _, _, err := ParseLink("link:alias:wrong"); err == nil || !strings.Contains(err.Error(), "bad format for links: link:alias:wrong") {
+		t.Fatalf("Expected error 'bad format for links: link:alias:wrong' but got: %v", err)
+	}
+}
+
+func TestValidateDevice(t *testing.T) {
+	valid := []string{
+		"/home",
+		"/home:/home",
+		"/home:/something/else",
+		"/with space",
+		"/home:/with space",
+		"relative:/absolute-path",
+		"hostPath:/containerPath:r",
+		"/hostPath:/containerPath:rw",
+		"/hostPath:/containerPath:mrw",
+	}
+	invalid := map[string]string{
+		"":        "bad format for path: ",
+		"./":      "./ is not an absolute path",
+		"../":     "../ is not an absolute path",
+		"/:../":   "../ is not an absolute path",
+		"/:path":  "path is not an absolute path",
+		":":       "bad format for path: :",
+		"/tmp:":   " is not an absolute path",
+		":test":   "bad format for path: :test",
+		":/test":  "bad format for path: :/test",
+		"tmp:":    " is not an absolute path",
+		":test:":  "bad format for path: :test:",
+		"::":      "bad format for path: ::",
+		":::":     "bad format for path: :::",
+		"/tmp:::": "bad format for path: /tmp:::",
+		":/tmp::": "bad format for path: :/tmp::",
+		"path:ro": "ro is not an absolute path",
+		"path:rr": "rr is not an absolute path",
+		"a:/b:ro": "bad mode specified: ro",
+		"a:/b:rr": "bad mode specified: rr",
+	}
+
+	for _, path := range valid {
+		if _, err := ValidateDevice(path); err != nil {
+			t.Fatalf("ValidateDevice(`%q`) should succeed: error %q", path, err)
+		}
+	}
+
+	for path, expectedError := range invalid {
+		if _, err := ValidateDevice(path); err == nil {
+			t.Fatalf("ValidateDevice(`%q`) should have failed validation", path)
+		} else {
+			if err.Error() != expectedError {
+				t.Fatalf("ValidateDevice(`%q`) error should contain %q, got %q", path, expectedError, err.Error())
+			}
+		}
+	}
+}
