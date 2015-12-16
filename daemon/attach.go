@@ -1,53 +1,84 @@
 package daemon
 
 import (
+	"fmt"
 	"io"
+	"net/http"
 	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/logger"
+	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/stdcopy"
 )
 
 // ContainerAttachWithLogsConfig holds the streams to use when connecting to a container to view logs.
 type ContainerAttachWithLogsConfig struct {
-	InStream                       io.ReadCloser
-	OutStream                      io.Writer
-	UseStdin, UseStdout, UseStderr bool
-	Logs, Stream                   bool
+	Hijacker  http.Hijacker
+	Upgrade   bool
+	UseStdin  bool
+	UseStdout bool
+	UseStderr bool
+	Logs      bool
+	Stream    bool
 }
 
 // ContainerAttachWithLogs attaches to logs according to the config passed in. See ContainerAttachWithLogsConfig.
 func (daemon *Daemon) ContainerAttachWithLogs(prefixOrName string, c *ContainerAttachWithLogsConfig) error {
+	if c.Hijacker == nil {
+		return derr.ErrorCodeNoHijackConnection.WithArgs(prefixOrName)
+	}
 	container, err := daemon.GetContainer(prefixOrName)
 	if err != nil {
+		return derr.ErrorCodeNoSuchContainer.WithArgs(prefixOrName)
+	}
+	if container.IsPaused() {
+		return derr.ErrorCodePausedContainer.WithArgs(prefixOrName)
+	}
+
+	conn, _, err := c.Hijacker.Hijack()
+	if err != nil {
 		return err
+	}
+	defer conn.Close()
+	// Flush the options to make sure the client sets the raw mode
+	conn.Write([]byte{})
+	inStream := conn.(io.ReadCloser)
+	outStream := conn.(io.Writer)
+
+	if c.Upgrade {
+		fmt.Fprintf(outStream, "HTTP/1.1 101 UPGRADED\r\nContent-Type: application/vnd.docker.raw-stream\r\nConnection: Upgrade\r\nUpgrade: tcp\r\n\r\n")
+	} else {
+		fmt.Fprintf(outStream, "HTTP/1.1 200 OK\r\nContent-Type: application/vnd.docker.raw-stream\r\n\r\n")
 	}
 
 	var errStream io.Writer
 
 	if !container.Config.Tty {
-		errStream = stdcopy.NewStdWriter(c.OutStream, stdcopy.Stderr)
-		c.OutStream = stdcopy.NewStdWriter(c.OutStream, stdcopy.Stdout)
+		errStream = stdcopy.NewStdWriter(outStream, stdcopy.Stderr)
+		outStream = stdcopy.NewStdWriter(outStream, stdcopy.Stdout)
 	} else {
-		errStream = c.OutStream
+		errStream = outStream
 	}
 
 	var stdin io.ReadCloser
 	var stdout, stderr io.Writer
 
 	if c.UseStdin {
-		stdin = c.InStream
+		stdin = inStream
 	}
 	if c.UseStdout {
-		stdout = c.OutStream
+		stdout = outStream
 	}
 	if c.UseStderr {
 		stderr = errStream
 	}
 
-	return daemon.attachWithLogs(container, stdin, stdout, stderr, c.Logs, c.Stream)
+	if err := daemon.attachWithLogs(container, stdin, stdout, stderr, c.Logs, c.Stream); err != nil {
+		fmt.Fprintf(outStream, "Error attaching: %s\n", err)
+	}
+	return nil
 }
 
 // ContainerWsAttachWithLogsConfig attach with websockets, since all

@@ -44,7 +44,6 @@ type stateBackend interface {
 	ContainerUnpause(name string) error
 	ContainerWait(name string, timeout time.Duration) (int, error)
 	Exists(id string) bool
-	IsPaused(id string) bool
 }
 
 // monitorBackend includes functions to implement to provide containers monitoring functionality.
