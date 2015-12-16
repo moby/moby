@@ -95,14 +95,17 @@ nested properties, the tool itself needs to implement this functionality.
 To add labels to an image, use the `LABEL` instruction in your Dockerfile:
 
 
-    LABEL [<namespace>.]<key>[=<value>] ...
+    LABEL [<namespace>.]<key>=<value> ...
 
-The `LABEL` instruction adds a label to your image, optionally with a value.
+The `LABEL` instruction adds a label to your image. A `LABEL` consists of a `<key>`
+and a `<value>`.
+Use an empty string for labels  that don't have a `<value>`,
 Use surrounding quotes or backslashes for labels that contain
 white space characters in the `<value>`:
 
     LABEL vendor=ACME\ Incorporated
-    LABEL com.example.version.is-beta
+    LABEL com.example.version.is-beta=
+    LABEL com.example.version.is-production=""
     LABEL com.example.version="0.0.1-beta"
     LABEL com.example.release-date="2015-02-12"
 
@@ -114,7 +117,8 @@ in a single instruction:
 Long lines can be split up by using a backslash (`\`) as continuation marker:
 
     LABEL vendor=ACME\ Incorporated \
-          com.example.is-beta \
+          com.example.is-beta= \
+          com.example.is-production="" \
           com.example.version="0.0.1-beta" \
           com.example.release-date="2015-02-12"
 
@@ -130,6 +134,7 @@ You can view the labels via the `docker inspect` command:
     "Labels": {
         "vendor": "ACME Incorporated",
         "com.example.is-beta": "",
+        "com.example.is-production": "",
         "com.example.version": "0.0.1-beta",
         "com.example.release-date": "2015-02-12"
     }
@@ -138,7 +143,7 @@ You can view the labels via the `docker inspect` command:
     # Inspect labels on container
     $ docker inspect -f "{{json .Config.Labels }}" 4fa6e0f0c678
 
-    {"Vendor":"ACME Incorporated","com.example.is-beta":"","com.example.version":"0.0.1-beta","com.example.release-date":"2015-02-12"}
+    {"Vendor":"ACME Incorporated","com.example.is-beta":"", "com.example.is-production":"", "com.example.version":"0.0.1-beta","com.example.release-date":"2015-02-12"}
 
     # Inspect labels on images
     $ docker inspect -f "{{json .ContainerConfig.Labels }}" myimage
