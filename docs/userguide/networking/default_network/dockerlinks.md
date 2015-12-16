@@ -22,7 +22,7 @@ in your network stack as `docker0`.
 
 This section briefly discuss connecting via a network port and then goes into
 detail on container linking. While links are still supported on Docker's default
-network (`bridge bridge`), you should avoid them in preference of the Docker
+network (`bridge`), you should avoid them in preference of the Docker
 networks feature. Linking is expected to be deprecated and removed in a future
 release.
 
