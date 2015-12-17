@@ -2,11 +2,6 @@
 
 # get OS/Arch of docker engine
 DOCKER_ENGINE_OSARCH = $(shell docker version | grep 'OS/Arch' | tail -1 | cut -d':' -f2 | tr -d '[[:space:]]')
-DOCKER_ENGINE_GOOS = $(word 1, $(subst /, ,$(DOCKER_ENGINE_OSARCH)))
-DOCKER_ENGINE_GOARCH = $(word 2, $(subst /, ,$(DOCKER_ENGINE_OSARCH)))
-export DOCKER_ENGINE_OSARCH
-export DOCKER_ENGINE_GOOS
-export DOCKER_ENGINE_GOARCH
 # default for linux/amd64 and others
 DOCKER_FILE = Dockerfile
 # switch to different Dockerfile for linux/arm
@@ -22,9 +17,6 @@ DOCKER_ENVS := \
 	-e BUILDFLAGS \
 	-e DOCKER_CLIENTONLY \
 	-e DOCKER_DEBUG \
-	-e DOCKER_ENGINE_GOARCH \
-	-e DOCKER_ENGINE_GOOS \
-	-e DOCKER_ENGINE_OSARCH \
 	-e DOCKER_EXPERIMENTAL \
 	-e DOCKER_FILE \
 	-e DOCKER_GRAPHDRIVER \
