@@ -1,4 +1,4 @@
-package stringutils
+package strslice
 
 import (
 	"encoding/json"
@@ -93,9 +93,9 @@ func TestStrSliceUnmarshalSlice(t *testing.T) {
 
 func TestStrSliceToString(t *testing.T) {
 	slices := map[*StrSlice]string{
-		NewStrSlice(""):           "",
-		NewStrSlice("one"):        "one",
-		NewStrSlice("one", "two"): "one two",
+		New(""):           "",
+		New("one"):        "one",
+		New("one", "two"): "one two",
 	}
 	for s, expected := range slices {
 		toString := s.ToString()
@@ -108,10 +108,10 @@ func TestStrSliceToString(t *testing.T) {
 func TestStrSliceLen(t *testing.T) {
 	var emptyStrSlice *StrSlice
 	slices := map[*StrSlice]int{
-		NewStrSlice(""):           1,
-		NewStrSlice("one"):        1,
-		NewStrSlice("one", "two"): 2,
-		emptyStrSlice:             0,
+		New(""):           1,
+		New("one"):        1,
+		New("one", "two"): 2,
+		emptyStrSlice:     0,
 	}
 	for s, expected := range slices {
 		if s.Len() != expected {
@@ -123,9 +123,9 @@ func TestStrSliceLen(t *testing.T) {
 func TestStrSliceSlice(t *testing.T) {
 	var emptyStrSlice *StrSlice
 	slices := map[*StrSlice][]string{
-		NewStrSlice("one"):        {"one"},
-		NewStrSlice("one", "two"): {"one", "two"},
-		emptyStrSlice:             nil,
+		New("one"):        {"one"},
+		New("one", "two"): {"one", "two"},
+		emptyStrSlice:     nil,
 	}
 	for s, expected := range slices {
 		if !reflect.DeepEqual(s.Slice(), expected) {
