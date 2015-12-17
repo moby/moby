@@ -2893,13 +2893,13 @@ Content-Type: application/json
 Status Codes:
 
 - **201** - no error
-- **404** - driver not found
+- **404** - plugin not found
 - **500** - server error
 
 JSON Parameters:
 
 - **Name** - The new network's name. this is a mandatory field
-- **Driver** - Name of the network driver to use. Defaults to `bridge` driver
+- **Driver** - Name of the network driver plugin to use. Defaults to `bridge` driver
 - **IPAM** - Optional custom IP scheme for the network
 - **Options** - Network specific options to be used by the drivers
 - **CheckDuplicate** - Requests daemon to check for networks with same name
