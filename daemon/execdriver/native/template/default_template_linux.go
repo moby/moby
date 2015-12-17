@@ -40,7 +40,7 @@ func New() *configs.Config {
 			{Type: "NEWUSER"},
 		}),
 		Cgroups: &configs.Cgroup{
-			Parent:           "docker",
+			Parent:           "/docker",
 			AllowAllDevices:  false,
 			MemorySwappiness: -1,
 		},
