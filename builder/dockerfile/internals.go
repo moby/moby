@@ -21,6 +21,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builder/dockerfile/parser"
 	"github.com/docker/docker/pkg/archive"
@@ -30,14 +31,13 @@ import (
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/docker/docker/pkg/stringutils"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/pkg/tarsum"
 	"github.com/docker/docker/pkg/urlutil"
 	"github.com/docker/docker/runconfig"
 )
 
-func (b *Builder) commit(id string, autoCmd *stringutils.StrSlice, comment string) error {
+func (b *Builder) commit(id string, autoCmd *strslice.StrSlice, comment string) error {
 	if b.disableCommit {
 		return nil
 	}
@@ -48,11 +48,11 @@ func (b *Builder) commit(id string, autoCmd *stringutils.StrSlice, comment strin
 	if id == "" {
 		cmd := b.runConfig.Cmd
 		if runtime.GOOS != "windows" {
-			b.runConfig.Cmd = stringutils.NewStrSlice("/bin/sh", "-c", "#(nop) "+comment)
+			b.runConfig.Cmd = strslice.New("/bin/sh", "-c", "#(nop) "+comment)
 		} else {
-			b.runConfig.Cmd = stringutils.NewStrSlice("cmd", "/S /C", "REM (nop) "+comment)
+			b.runConfig.Cmd = strslice.New("cmd", "/S /C", "REM (nop) "+comment)
 		}
-		defer func(cmd *stringutils.StrSlice) { b.runConfig.Cmd = cmd }(cmd)
+		defer func(cmd *strslice.StrSlice) { b.runConfig.Cmd = cmd }(cmd)
 
 		hit, err := b.probeCache()
 		if err != nil {
@@ -171,11 +171,11 @@ func (b *Builder) runContextCommand(args []string, allowRemote bool, allowLocalD
 
 	cmd := b.runConfig.Cmd
 	if runtime.GOOS != "windows" {
-		b.runConfig.Cmd = stringutils.NewStrSlice("/bin/sh", "-c", fmt.Sprintf("#(nop) %s %s in %s", cmdName, srcHash, dest))
+		b.runConfig.Cmd = strslice.New("/bin/sh", "-c", fmt.Sprintf("#(nop) %s %s in %s", cmdName, srcHash, dest))
 	} else {
-		b.runConfig.Cmd = stringutils.NewStrSlice("cmd", "/S", "/C", fmt.Sprintf("REM (nop) %s %s in %s", cmdName, srcHash, dest))
+		b.runConfig.Cmd = strslice.New("cmd", "/S", "/C", fmt.Sprintf("REM (nop) %s %s in %s", cmdName, srcHash, dest))
 	}
-	defer func(cmd *stringutils.StrSlice) { b.runConfig.Cmd = cmd }(cmd)
+	defer func(cmd *strslice.StrSlice) { b.runConfig.Cmd = cmd }(cmd)
 
 	if hit, err := b.probeCache(); err != nil {
 		return err

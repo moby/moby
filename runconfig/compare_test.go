@@ -3,8 +3,8 @@ package runconfig
 import (
 	"testing"
 
+	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/pkg/nat"
-	"github.com/docker/docker/pkg/stringutils"
 )
 
 // Just to make life easier
@@ -33,12 +33,12 @@ func TestCompare(t *testing.T) {
 	volumes3["/test3"] = struct{}{}
 	envs1 := []string{"ENV1=value1", "ENV2=value2"}
 	envs2 := []string{"ENV1=value1", "ENV3=value3"}
-	entrypoint1 := stringutils.NewStrSlice("/bin/sh", "-c")
-	entrypoint2 := stringutils.NewStrSlice("/bin/sh", "-d")
-	entrypoint3 := stringutils.NewStrSlice("/bin/sh", "-c", "echo")
-	cmd1 := stringutils.NewStrSlice("/bin/sh", "-c")
-	cmd2 := stringutils.NewStrSlice("/bin/sh", "-d")
-	cmd3 := stringutils.NewStrSlice("/bin/sh", "-c", "echo")
+	entrypoint1 := strslice.New("/bin/sh", "-c")
+	entrypoint2 := strslice.New("/bin/sh", "-d")
+	entrypoint3 := strslice.New("/bin/sh", "-c", "echo")
+	cmd1 := strslice.New("/bin/sh", "-c")
+	cmd2 := strslice.New("/bin/sh", "-d")
+	cmd3 := strslice.New("/bin/sh", "-c", "echo")
 	labels1 := map[string]string{"LABEL1": "value1", "LABEL2": "value2"}
 	labels2 := map[string]string{"LABEL1": "value1", "LABEL2": "value3"}
 	labels3 := map[string]string{"LABEL1": "value1", "LABEL2": "value2", "LABEL3": "value3"}

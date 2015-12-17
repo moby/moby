@@ -1,4 +1,4 @@
-package stringutils
+package strslice
 
 import (
 	"encoding/json"
@@ -65,7 +65,7 @@ func (e *StrSlice) ToString() string {
 	return strings.Join(s, " ")
 }
 
-// NewStrSlice creates an StrSlice based on the specified parts (as strings).
-func NewStrSlice(parts ...string) *StrSlice {
+// New creates an StrSlice based on the specified parts (as strings).
+func New(parts ...string) *StrSlice {
 	return &StrSlice{parts}
 }
