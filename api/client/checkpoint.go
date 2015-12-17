@@ -14,7 +14,7 @@ import (
 //
 // Usage: docker checkpoint CONTAINER
 func (cli *DockerCli) CmdCheckpoint(args ...string) error {
-	cmd := Cli.Subcmd("checkpoint", []string{"CONTAINER [CONTAINER...]"}, "Checkpoint one or more running containers", true)
+	cmd := Cli.Subcmd("checkpoint", []string{"CONTAINER"}, Cli.DockerCommands["checkpoint"].Description, true)
 	cmd.Require(flag.Min, 1)
 
 	var (

@@ -260,7 +260,7 @@ type ContainerState struct {
 	Status         string
 	Running        bool
 	Paused         bool
-	Checkpointed   bool
+	Checkpointed   bool `json:"-"`
 	Restarting     bool
 	OOMKilled      bool
 	Dead           bool

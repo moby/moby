@@ -133,6 +133,10 @@ func (daemon *Daemon) getInspectData(container *container.Container, size bool) 
 		CheckpointedAt: container.State.CheckpointedAt.Format(time.RFC3339Nano),
 	}
 
+	if container.State.CheckpointedAt.IsZero() {
+		containerState.CheckpointedAt = ""
+	}
+
 	contJSONBase := &types.ContainerJSONBase{
 		ID:           container.ID,
 		Created:      container.Created.Format(time.RFC3339Nano),

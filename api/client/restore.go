@@ -14,7 +14,7 @@ import (
 //
 // Usage: docker restore CONTAINER
 func (cli *DockerCli) CmdRestore(args ...string) error {
-	cmd := Cli.Subcmd("restore", []string{"CONTAINER [CONTAINER...]"}, "Restore one or more checkpointed containers", true)
+	cmd := Cli.Subcmd("restore", []string{"CONTAINER"}, Cli.DockerCommands["restore"].Description, true)
 	cmd.Require(flag.Min, 1)
 
 	var (

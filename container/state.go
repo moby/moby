@@ -299,10 +299,13 @@ func (s *State) SetCheckpointed(leaveRunning bool) {
 
 // HasBeenCheckpointed indicates whether the container has ever been checkpointed
 func (s *State) HasBeenCheckpointed() bool {
-	return s.CheckpointedAt != time.Time{}
+	return !s.CheckpointedAt.IsZero()
 }
 
 // IsCheckpointed indicates whether the container is currently checkpointed
 func (s *State) IsCheckpointed() bool {
-	return s.Checkpointed
+	s.Lock()
+	res := s.Checkpointed
+	s.Unlock()
+	return res
 }
