@@ -9,12 +9,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/pkg/stringutils"
+	"github.com/docker/docker/api/types/strslice"
 )
 
 type f struct {
 	file       string
-	entrypoint *stringutils.StrSlice
+	entrypoint *strslice.StrSlice
 }
 
 func TestDecodeContainerConfig(t *testing.T) {
@@ -27,14 +27,14 @@ func TestDecodeContainerConfig(t *testing.T) {
 	if runtime.GOOS != "windows" {
 		image = "ubuntu"
 		fixtures = []f{
-			{"fixtures/unix/container_config_1_14.json", stringutils.NewStrSlice()},
-			{"fixtures/unix/container_config_1_17.json", stringutils.NewStrSlice("bash")},
-			{"fixtures/unix/container_config_1_19.json", stringutils.NewStrSlice("bash")},
+			{"fixtures/unix/container_config_1_14.json", strslice.New()},
+			{"fixtures/unix/container_config_1_17.json", strslice.New("bash")},
+			{"fixtures/unix/container_config_1_19.json", strslice.New("bash")},
 		}
 	} else {
 		image = "windows"
 		fixtures = []f{
-			{"fixtures/windows/container_config_1_19.json", stringutils.NewStrSlice("cmd")},
+			{"fixtures/windows/container_config_1_19.json", strslice.New("cmd")},
 		}
 	}
 

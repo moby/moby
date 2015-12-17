@@ -6,13 +6,13 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/opts"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/nat"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/signal"
-	"github.com/docker/docker/pkg/stringutils"
 	"github.com/docker/docker/volume"
 	"github.com/docker/go-units"
 )
@@ -249,15 +249,15 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 
 	var (
 		parsedArgs = cmd.Args()
-		runCmd     *stringutils.StrSlice
-		entrypoint *stringutils.StrSlice
+		runCmd     *strslice.StrSlice
+		entrypoint *strslice.StrSlice
 		image      = cmd.Arg(0)
 	)
 	if len(parsedArgs) > 1 {
-		runCmd = stringutils.NewStrSlice(parsedArgs[1:]...)
+		runCmd = strslice.New(parsedArgs[1:]...)
 	}
 	if *flEntrypoint != "" {
-		entrypoint = stringutils.NewStrSlice(*flEntrypoint)
+		entrypoint = strslice.New(*flEntrypoint)
 	}
 
 	var (
@@ -416,8 +416,8 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		IpcMode:        ipcMode,
 		PidMode:        pidMode,
 		UTSMode:        utsMode,
-		CapAdd:         stringutils.NewStrSlice(flCapAdd.GetAll()...),
-		CapDrop:        stringutils.NewStrSlice(flCapDrop.GetAll()...),
+		CapAdd:         strslice.New(flCapAdd.GetAll()...),
+		CapDrop:        strslice.New(flCapDrop.GetAll()...),
 		GroupAdd:       flGroupAdd.GetAll(),
 		RestartPolicy:  restartPolicy,
 		SecurityOpt:    flSecurityOpt.GetAll(),
