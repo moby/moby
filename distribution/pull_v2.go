@@ -12,6 +12,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/digest"
+	"github.com/docker/distribution/manifest/manifestlist"
 	"github.com/docker/distribution/manifest/schema1"
 	"github.com/docker/distribution/manifest/schema2"
 	"github.com/docker/distribution/registry/api/errcode"
@@ -254,6 +255,11 @@ func (p *v2Puller) pullV2Tag(ctx context.Context, ref reference.Named) (tagUpdat
 		if err != nil {
 			return false, err
 		}
+	case *manifestlist.DeserializedManifestList:
+		imageID, manifestDigest, err = p.pullManifestList(ctx, ref, v)
+		if err != nil {
+			return false, err
+		}
 	default:
 		return false, errors.New("unsupported manifest format")
 	}
@@ -357,28 +363,9 @@ func (p *v2Puller) pullSchema1(ctx context.Context, ref reference.Named, unverif
 }
 
 func (p *v2Puller) pullSchema2(ctx context.Context, ref reference.Named, mfst *schema2.DeserializedManifest) (imageID image.ID, manifestDigest digest.Digest, err error) {
-	_, canonical, err := mfst.Payload()
+	manifestDigest, err = schema2ManifestDigest(ref, mfst)
 	if err != nil {
 		return "", "", err
-	}
-
-	// If pull by digest, then verify the manifest digest.
-	if digested, isDigested := ref.(reference.Canonical); isDigested {
-		verifier, err := digest.NewDigestVerifier(digested.Digest())
-		if err != nil {
-			return "", "", err
-		}
-		if _, err := verifier.Write(canonical); err != nil {
-			return "", "", err
-		}
-		if !verifier.Verified() {
-			err := fmt.Errorf("manifest verification failed for digest %s", digested.Digest())
-			logrus.Error(err)
-			return "", "", err
-		}
-		manifestDigest = digested.Digest()
-	} else {
-		manifestDigest = digest.FromBytes(canonical)
 	}
 
 	target := mfst.Target()
@@ -470,6 +457,62 @@ func (p *v2Puller) pullSchema2(ctx context.Context, ref reference.Named, mfst *s
 	return imageID, manifestDigest, nil
 }
 
+// pullManifestList handles "manifest lists" which point to various
+// platform-specifc manifests.
+func (p *v2Puller) pullManifestList(ctx context.Context, ref reference.Named, mfstList *manifestlist.DeserializedManifestList) (imageID image.ID, manifestListDigest digest.Digest, err error) {
+	manifestListDigest, err = schema2ManifestDigest(ref, mfstList)
+	if err != nil {
+		return "", "", err
+	}
+
+	var manifestDigest digest.Digest
+	for _, manifestDescriptor := range mfstList.Manifests {
+		// TODO(aaronl): The manifest list spec supports optional
+		// "features" and "variant" fields. These are not yet used.
+		// Once they are, their values should be interpreted here.
+		if manifestDescriptor.Platform.Architecture == runtime.GOARCH && manifestDescriptor.Platform.OS == runtime.GOOS {
+			manifestDigest = manifestDescriptor.Digest
+			break
+		}
+	}
+
+	if manifestDigest == "" {
+		return "", "", errors.New("no supported platform found in manifest list")
+	}
+
+	manSvc, err := p.repo.Manifests(ctx)
+	if err != nil {
+		return "", "", err
+	}
+
+	manifest, err := manSvc.Get(ctx, manifestDigest)
+	if err != nil {
+		return "", "", err
+	}
+
+	manifestRef, err := reference.WithDigest(ref, manifestDigest)
+	if err != nil {
+		return "", "", err
+	}
+
+	switch v := manifest.(type) {
+	case *schema1.SignedManifest:
+		imageID, _, err = p.pullSchema1(ctx, manifestRef, v)
+		if err != nil {
+			return "", "", err
+		}
+	case *schema2.DeserializedManifest:
+		imageID, _, err = p.pullSchema2(ctx, manifestRef, v)
+		if err != nil {
+			return "", "", err
+		}
+	default:
+		return "", "", errors.New("unsupported manifest format")
+	}
+
+	return imageID, manifestListDigest, err
+}
+
 func (p *v2Puller) pullSchema2ImageConfig(ctx context.Context, dgst digest.Digest) (configJSON []byte, err error) {
 	blobs := p.repo.Blobs(ctx)
 	configJSON, err = blobs.Get(ctx, dgst)
@@ -492,6 +535,34 @@ func (p *v2Puller) pullSchema2ImageConfig(ctx context.Context, dgst digest.Diges
 	}
 
 	return configJSON, nil
+}
+
+// schema2ManifestDigest computes the manifest digest, and, if pulling by
+// digest, ensures that it matches the requested digest.
+func schema2ManifestDigest(ref reference.Named, mfst distribution.Manifest) (digest.Digest, error) {
+	_, canonical, err := mfst.Payload()
+	if err != nil {
+		return "", err
+	}
+
+	// If pull by digest, then verify the manifest digest.
+	if digested, isDigested := ref.(reference.Canonical); isDigested {
+		verifier, err := digest.NewDigestVerifier(digested.Digest())
+		if err != nil {
+			return "", err
+		}
+		if _, err := verifier.Write(canonical); err != nil {
+			return "", err
+		}
+		if !verifier.Verified() {
+			err := fmt.Errorf("manifest verification failed for digest %s", digested.Digest())
+			logrus.Error(err)
+			return "", err
+		}
+		return digested.Digest(), nil
+	}
+
+	return digest.FromBytes(canonical), nil
 }
 
 // allowV1Fallback checks if the error is a possible reason to fallback to v1
