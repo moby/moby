@@ -37,6 +37,11 @@ func (v Version) compareTo(other Version) int {
 	return 0
 }
 
+// String returns the version string
+func (v Version) String() string {
+	return string(v)
+}
+
 // LessThan checks if a version is less than another
 func (v Version) LessThan(other Version) bool {
 	return v.compareTo(other) == -1
