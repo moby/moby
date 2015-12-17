@@ -47,13 +47,8 @@ func createVethPair() (string, string, error) {
 	return name1, name2, nil
 }
 
-func createVxlan(vni uint32) (string, error) {
+func createVxlan(name string, vni uint32) error {
 	defer osl.InitOSContext()()
-
-	name, err := netutils.GenerateIfaceName("vxlan", 7)
-	if err != nil {
-		return "", fmt.Errorf("error generating vxlan name: %v", err)
-	}
 
 	vxlan := &netlink.Vxlan{
 		LinkAttrs: netlink.LinkAttrs{Name: name},
@@ -66,10 +61,10 @@ func createVxlan(vni uint32) (string, error) {
 	}
 
 	if err := netlink.LinkAdd(vxlan); err != nil {
-		return "", fmt.Errorf("error creating vxlan interface: %v", err)
+		return fmt.Errorf("error creating vxlan interface: %v", err)
 	}
 
-	return name, nil
+	return nil
 }
 
 func deleteVxlan(name string) error {

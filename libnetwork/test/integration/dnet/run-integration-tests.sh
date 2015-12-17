@@ -56,6 +56,21 @@ function run_overlay_consul_tests() {
     unset cmap[dnet-3-consul]
 }
 
+function run_overlay_consul_host_tests() {
+    export _OVERLAY_HOST_MODE="true"
+    ## Setup
+    start_dnet 1 consul 1>>${INTEGRATION_ROOT}/test.log 2>&1
+    cmap[dnet-1-consul]=dnet-1-consul
+
+    ## Run the test cases
+    ./integration-tmp/bin/bats ./test/integration/dnet/overlay-consul-host.bats
+
+    ## Teardown
+    stop_dnet 1 consul 1>>${INTEGRATION_ROOT}/test.log 2>&1
+    unset cmap[dnet-1-consul]
+    unset _OVERLAY_HOST_MODE
+}
+
 function run_overlay_zk_tests() {
     ## Test overlay network with zookeeper
     start_dnet 1 zookeeper 1>>${INTEGRATION_ROOT}/test.log 2>&1
@@ -207,7 +222,7 @@ if [ -z "$SUITES" ]; then
 	# old kernel and limited docker environment.
 	suites="dnet simple_consul multi_consul multi_zk multi_etcd"
     else
-	suites="dnet simple_consul multi_consul multi_zk multi_etcd  bridge overlay_consul overlay_zk overlay_etcd"
+	suites="dnet simple_consul multi_consul multi_zk multi_etcd  bridge overlay_consul overlay_consul_host overlay_zk overlay_etcd"
     fi
 else
     suites="$SUITES"
