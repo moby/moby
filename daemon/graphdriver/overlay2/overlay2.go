@@ -36,6 +36,7 @@ import (
 	"strings"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/graphdriver"
@@ -262,8 +263,7 @@ func (d *Driver) createDirsFor(id string) error {
 }
 
 // Remove will unmount and remove the given id.
-// XXX: can this be called even though there are active Get requests?
-// What should it do in that case?
+// XXX: can this be called even though there are active Get requests? If so, we need to properly Put it first. (to remove intermediate mounts)
 func (d *Driver) Remove(id string) error {
 	// Protect the d.active from concurrent access
 	d.Lock()
@@ -276,7 +276,7 @@ func (d *Driver) Remove(id string) error {
 			return nil
 		}
 		// Make sure the dir is umounted first
-		if err := d.unmount(m); err != nil {
+		if err := d.unmount(m.path); err != nil {
 			return err
 		}
 	}
@@ -353,7 +353,7 @@ func (d *Driver) Get(id string, mountLabel string) (string, error) {
 	if len(ids) > 0 {
 		m.path = d.dir(mntPath, id)
 		if m.referenceCount == 0 {
-			if err := d.mount(id, m, mountLabel); err != nil {
+			if err := d.mountID(id, mountLabel); err != nil {
 				return "", err
 			}
 		}
@@ -362,39 +362,171 @@ func (d *Driver) Get(id string, mountLabel string) (string, error) {
 	return m.path, nil
 }
 
-// XXX: TODO: handle an unlimited number of parents
-func (d *Driver) mount(id string, m *ActiveMount, mountLabel string) error {
-	// If the id is mounted or we get an error return
-	if mounted, err := d.mounted(m); err != nil || mounted {
+// maxStack comes from OVL_MAX_STACK in the linux kernel's overlayfs implementation
+// It's the maximum number of levels in one overlay mount
+const maxStack = 500
+
+// Max length of mount options in system call to mount
+// This is equal to one page. The page size is always 4KB (XXX: I think?)
+// There is a null terminator at the end, so we subtract one
+const maxMountOptsLen = 4095
+
+func (d *Driver) mountro(mountPath string, layers []string, mountLabel string) error {
+	logrus.Debugf("mounting ro %v %v %v", mountPath, layers, mountLabel)
+	mntOpts := label.FormatMountLabel(fmt.Sprintf("lowerdir=%s", strings.Join(layers, ":")), mountLabel)
+	logrus.Debugf("mount opts length %d", len(mntOpts))
+	if len(mntOpts) > maxMountOptsLen {
+		logrus.Debugf("mount opts too long %d", len(mntOpts))
+		return mountOptsTooLong(fmt.Sprintf("can't mount overlay: mount opts too long: %d", len(mntOpts)))
+	}
+	if err := syscall.Mount("overlay", mountPath, "overlay", 0, mntOpts); err != nil {
+		return fmt.Errorf("error creating overlay mount to %s: %v", mountPath, err)
+	}
+	return nil
+}
+
+// this returns the path to intermediate mount `i` for id `id`
+func (d *Driver) formatIntermediateMountPath(id string, i int) string {
+	return d.dir(mntPath, fmt.Sprintf("%s-%02d", id, i))
+}
+
+func (d *Driver) mountPartMaxLength(id, mountLabel string) int {
+	upperDir := d.dir(diffPath, id)
+	workDir := d.dir(workPath, id)
+
+	extraStringsLength := len(label.FormatMountLabel(fmt.Sprintf("lowerdir=%s:,upperdir=%s,workdir=%s", d.formatIntermediateMountPath(id, 0), upperDir, workDir), mountLabel))
+
+	return maxMountOptsLen - extraStringsLength
+}
+
+type mountOptsTooLong string
+
+func (m mountOptsTooLong) Error() string {
+	return string(m)
+}
+
+var count = 0
+
+func (d *Driver) mountrw(id string, layers []string, mountLabel string) error {
+	logrus.Debugf("mounting rw %v %v %v", id, layers, mountLabel)
+	upperDir := d.dir(diffPath, id)
+	workDir := d.dir(workPath, id)
+	mergedDir := d.dir(mntPath, id)
+	lowerDirs := strings.Join(layers, ":")
+
+	mntOpts := label.FormatMountLabel(fmt.Sprintf("lowerdir=%s,upperdir=%s,workdir=%s", lowerDirs, upperDir, workDir), mountLabel)
+	logrus.Debugf("mount opt length %d", len(mntOpts))
+	if len(mntOpts) > maxMountOptsLen {
+		logrus.Debugf("mount opts too long %d", len(mntOpts))
+		return mountOptsTooLong(fmt.Sprintf("can't mount overlay: mount opts too long: %d", len(mntOpts)))
+	}
+
+	if err := syscall.Mount("overlay", mergedDir, "overlay", 0, mntOpts); err != nil {
+		logrus.Debugf("error creating overlay mount %v", err)
+		return fmt.Errorf("error creating overlay mount to %s: %v", mergedDir, err)
+	}
+
+	rootUID, rootGID, err := idtools.GetRootUIDGID(d.uidMaps, d.gidMaps)
+	if err != nil {
 		return err
 	}
 
+	// chown "workdir/work" to the remapped root UID/GID. Overlay fs inside a
+	// user namespace requires this to move a directory from lower to upper.
+	if err := os.Chown(workDir, rootUID, rootGID); err != nil {
+		return err
+	}
+	logrus.Debugf("success %s", mergedDir)
+	if len(mntOpts) == 1362 {
+		count++
+		if count == 2 {
+			time.Sleep(10 * time.Minute)
+		}
+	}
+	return nil
+}
+
+// Warning: we are limited to 100 intermediate mount points. This should allow for
+// a very large number of layers (10000+ depending on filename length), but not infinite
+// this limit is because we assume that intermediate mounts have fixed length paths for
+// simplicity. The intermediate mount numbers are limited to 2 digits.
+func (d *Driver) mountID(id string, mountLabel string) error {
+	mergedDir := d.dir(mntPath, id)
+
+	// If the id is mounted or we get an error return
+	if mounted, err := mountpk.Mounted(mergedDir); err != nil || mounted {
+		return err
+	}
+
+	// the layers are in order from highest to lowest; same as the overlay options order
 	layers, err := d.getParentLayerPaths(id)
 	if err != nil {
 		return err
 	}
 
-	upperDir := d.dir(diffPath, id)
-	workDir := d.dir(workPath, id)
-	mergedDir := d.dir(mntPath, id)
+	return d.tryMountRW(id, layers, mountLabel, 0)
+}
 
-	// the lowerdirs are in order from highest to lowest
-	lowerDirs := strings.Join(layers, ":")
-
-	opts := fmt.Sprintf("lowerdir=%s,upperdir=%s,workdir=%s", lowerDirs, upperDir, workDir)
-	// XXX: If the options are longer than the page size (usually 4 KB - 1 for the null terminator), we need to break up the lower layers into multiple mounts and keep intermediate mount info somewhere (so that we can unmount correctly)
-	if err := syscall.Mount("overlay", mergedDir, "overlay", 0, label.FormatMountLabel(opts, mountLabel)); err != nil {
-		return fmt.Errorf("error creating overlay mount to %s: %v", mergedDir, err)
+func (d *Driver) tryMountRW(id string, layers []string, mountLabel string, level int) error {
+	logrus.Debugf("mounting level %d", level)
+	// first we try to fit the mount options in a single page
+	err := d.mountrw(id, layers, mountLabel)
+	// if this worked, we are done
+	if err == nil {
+		return nil
 	}
-	// chown "workdir/work" to the remapped root UID/GID. Overlay fs inside a
-	// user namespace requires this to move a directory from lower to upper.
-	rootUID, rootGID, err := idtools.GetRootUIDGID(d.uidMaps, d.gidMaps)
-	if err := os.Chown(workDir, rootUID, rootGID); err != nil {
+	// if there was an error that was not because the mountOpts were too long, we failed
+	if _, ok := err.(mountOptsTooLong); !ok {
 		return err
 	}
-	// XXX: make sure that m.path == mergedDir, maybe change the signature of this function?
 
-	return nil
+	// in this case we can't fit all directories in one mount, so we split it into two parts
+	// one that we can mount as read-only and one that we'll try to mount as read-write again
+
+	// pick as many layers as we can to put in the RO mount
+	maxLen := d.mountPartMaxLength(id, mountLabel)
+	lenSum := 0
+	numROLayers := 0
+	for i := len(layers) - 1; i >= 0; i-- {
+		curr := layers[i]
+		// count the : separator only after the first layer
+		if lenSum != 0 {
+			lenSum++
+		}
+		lenSum += len(curr)
+		// if we exceed the length, stop adding layers
+		if lenSum > maxLen {
+			break
+		}
+		// there is a maximum number of layers defined by overlayfs
+		if numROLayers > maxStack {
+			break
+		}
+		numROLayers++
+	}
+	firstROLayerI := len(layers) - 1 - numROLayers
+	roLayers := layers[firstROLayerI:]
+
+	// mount the RO mount
+
+	rootUID, rootGID, err := idtools.GetRootUIDGID(d.uidMaps, d.gidMaps)
+	if err != nil {
+		return err
+	}
+
+	// first we need to create this directory
+	mountPath := d.formatIntermediateMountPath(id, level)
+	if err := idtools.MkdirAllAs(mountPath, 0755, rootUID, rootGID); err != nil {
+		return err
+	}
+
+	if err := d.mountro(mountPath, roLayers, mountLabel); err != nil {
+		return err
+	}
+
+	// now we can try to create the RW mount again with this mount at the bottom of the stack
+	rwLayers := append(layers[:firstROLayerI], d.formatIntermediateMountPath(id, level))
+	return d.tryMountRW(id, rwLayers, mountLabel, level+1)
 }
 
 // Put unmounts and updates list of active mounts.
@@ -407,8 +539,7 @@ func (d *Driver) Put(id string) error {
 	if m == nil {
 		// but it might be still here
 		if d.Exists(id) {
-			err := syscall.Unmount(d.dir(mntPath, id), 0)
-			if err != nil {
+			if err := d.unmount(id); err != nil {
 				logrus.Debugf("Failed to unmount %s overlay: %v", id, err)
 			}
 		}
@@ -420,7 +551,7 @@ func (d *Driver) Put(id string) error {
 		ids, _ := d.getParentIds(id)
 		// We only mounted if there are any parents
 		if ids != nil && len(ids) > 0 {
-			d.unmount(m)
+			d.unmount(id)
 		}
 		delete(d.active, id)
 	}
@@ -441,18 +572,37 @@ func (d *Driver) getParentLayerPaths(id string) ([]string, error) {
 	return layers, nil
 }
 
-func (d *Driver) unmount(m *ActiveMount) error {
-	if mounted, err := d.mounted(m); err != nil || !mounted {
+func (d *Driver) unmount(id string) error {
+	logrus.Debugf("unmount %s", id)
+	// first unmount the top mount
+	if err := d.unmountPath(d.dir(mntPath, id)); err != nil {
 		return err
 	}
-	if err := syscall.Unmount(m.path, 0); err != nil {
-		return err
+
+	// we need to figure out what intermediate mounts exist and unmount them as well
+	// we do this by guessing until we reach one that doesn't exist
+	for i := 0; true; i++ {
+		dir := d.formatIntermediateMountPath(id, i)
+		if _, err := os.Lstat(dir); err != nil {
+			break
+		}
+		logrus.Debugf("unmount and remove intermediate %s", dir)
+		d.unmountPath(dir)
+		// we don't want to keep around intermediate dirs
+		os.Remove(dir)
 	}
+
 	return nil
 }
 
-func (d *Driver) mounted(m *ActiveMount) (bool, error) {
-	return mountpk.Mounted(m.path)
+func (d *Driver) unmountPath(path string) error {
+	if mounted, err := mountpk.Mounted(path); err != nil || !mounted {
+		return err
+	}
+	if err := syscall.Unmount(path, 0); err != nil {
+		return err
+	}
+	return nil
 }
 
 // Status returns current information about the filesystem such as root directory, number of directories mounted, etc.
