@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"runtime"
 
@@ -108,7 +109,12 @@ func NewDockerCli(in io.ReadCloser, out, err io.Writer, clientFlags *cli.ClientF
 			verStr = tmpStr
 		}
 
-		client, err := lib.NewClient(host, verStr, clientFlags.Common.TLSOptions, customHeaders)
+		clientTransport, err := newClientTransport(clientFlags.Common.TLSOptions)
+		if err != nil {
+			return err
+		}
+
+		client, err := lib.NewClient(host, verStr, clientTransport, customHeaders)
 		if err != nil {
 			return err
 		}
@@ -144,4 +150,18 @@ func getServerHost(hosts []string, tlsOptions *tlsconfig.Options) (host string, 
 
 	host, err = opts.ParseHost(defaultHost, host)
 	return
+}
+
+func newClientTransport(tlsOptions *tlsconfig.Options) (*http.Transport, error) {
+	if tlsOptions == nil {
+		return &http.Transport{}, nil
+	}
+
+	config, err := tlsconfig.Client(*tlsOptions)
+	if err != nil {
+		return nil, err
+	}
+	return &http.Transport{
+		TLSClientConfig: config,
+	}, nil
 }
