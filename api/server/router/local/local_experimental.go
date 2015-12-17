@@ -4,7 +4,6 @@ package local
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 
 	"github.com/docker/docker/api/server/httputils"
@@ -23,9 +22,6 @@ func addExperimentalRoutes(r *router) {
 }
 
 func (s *router) postContainersCheckpoint(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if vars == nil {
-		return fmt.Errorf("Missing parameter")
-	}
 	if err := httputils.CheckForJSON(r); err != nil {
 		return err
 	}
@@ -44,9 +40,6 @@ func (s *router) postContainersCheckpoint(ctx context.Context, w http.ResponseWr
 }
 
 func (s *router) postContainersRestore(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if vars == nil {
-		return fmt.Errorf("Missing parameter")
-	}
 	if err := httputils.CheckForJSON(r); err != nil {
 		return err
 	}
