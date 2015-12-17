@@ -59,7 +59,7 @@ type Pusher interface {
 	// Push returns an error if any, as well as a boolean that determines whether to retry Push on the next configured endpoint.
 	//
 	// TODO(tiborvass): have Push() take a reference to repository + tag, so that the pusher itself is repository-agnostic.
-	Push(ctx context.Context) (fallback bool, err error)
+	Push(ctx context.Context) error
 }
 
 const compressionBufSize = 32768
@@ -116,8 +116,21 @@ func Push(ctx context.Context, ref reference.Named, imagePushConfig *ImagePushCo
 		return fmt.Errorf("Repository does not exist: %s", repoInfo.Name())
 	}
 
-	var lastErr error
+	var (
+		lastErr error
+
+		// confirmedV2 is set to true if a push attempt managed to
+		// confirm that it was talking to a v2 registry. This will
+		// prevent fallback to the v1 protocol.
+		confirmedV2 bool
+	)
+
 	for _, endpoint := range endpoints {
+		if confirmedV2 && endpoint.Version == registry.APIVersion1 {
+			logrus.Debugf("Skipping v1 endpoint %s because v2 registry was detected", endpoint.URL)
+			continue
+		}
+
 		logrus.Debugf("Trying to push %s to %s %s", repoInfo.FullName(), endpoint.URL, endpoint.Version)
 
 		pusher, err := NewPusher(ref, endpoint, repoInfo, imagePushConfig)
@@ -125,22 +138,22 @@ func Push(ctx context.Context, ref reference.Named, imagePushConfig *ImagePushCo
 			lastErr = err
 			continue
 		}
-		if fallback, err := pusher.Push(ctx); err != nil {
+		if err := pusher.Push(ctx); err != nil {
 			// Was this push cancelled? If so, don't try to fall
 			// back.
 			select {
 			case <-ctx.Done():
-				fallback = false
 			default:
+				if fallbackErr, ok := err.(fallbackError); ok {
+					confirmedV2 = confirmedV2 || fallbackErr.confirmedV2
+					err = fallbackErr.err
+					lastErr = err
+					continue
+				}
 			}
 
-			if fallback {
-				lastErr = err
-				continue
-			}
 			logrus.Debugf("Not continuing with error: %v", err)
 			return err
-
 		}
 
 		imagePushConfig.EventsService.Log("push", repoInfo.Name(), "")

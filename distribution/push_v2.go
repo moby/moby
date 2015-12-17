@@ -34,6 +34,10 @@ type v2Pusher struct {
 	config         *ImagePushConfig
 	repo           distribution.Repository
 
+	// confirmedV2 is set to true if we confirm we're talking to a v2
+	// registry. This is used to limit fallbacks to the v1 protocol.
+	confirmedV2 bool
+
 	// layersPushed is the set of layers known to exist on the remote side.
 	// This avoids redundant queries when pushing multiple tags that
 	// involve the same layers.
@@ -45,18 +49,27 @@ type pushMap struct {
 	layersPushed map[digest.Digest]bool
 }
 
-func (p *v2Pusher) Push(ctx context.Context) (fallback bool, err error) {
-	p.repo, err = NewV2Repository(p.repoInfo, p.endpoint, p.config.MetaHeaders, p.config.AuthConfig, "push", "pull")
+func (p *v2Pusher) Push(ctx context.Context) (err error) {
+	p.repo, p.confirmedV2, err = NewV2Repository(ctx, p.repoInfo, p.endpoint, p.config.MetaHeaders, p.config.AuthConfig, "push", "pull")
 	if err != nil {
 		logrus.Debugf("Error getting v2 registry: %v", err)
-		return true, err
+		return fallbackError{err: err, confirmedV2: p.confirmedV2}
 	}
 
+	if err = p.pushV2Repository(ctx); err != nil {
+		if registry.ContinueOnError(err) {
+			return fallbackError{err: err, confirmedV2: p.confirmedV2}
+		}
+	}
+	return err
+}
+
+func (p *v2Pusher) pushV2Repository(ctx context.Context) (err error) {
 	var associations []reference.Association
 	if _, isTagged := p.ref.(reference.NamedTagged); isTagged {
 		imageID, err := p.config.ReferenceStore.Get(p.ref)
 		if err != nil {
-			return false, fmt.Errorf("tag does not exist: %s", p.ref.String())
+			return fmt.Errorf("tag does not exist: %s", p.ref.String())
 		}
 
 		associations = []reference.Association{
@@ -70,19 +83,19 @@ func (p *v2Pusher) Push(ctx context.Context) (fallback bool, err error) {
 		associations = p.config.ReferenceStore.ReferencesByName(p.ref)
 	}
 	if err != nil {
-		return false, fmt.Errorf("error getting tags for %s: %s", p.repoInfo.Name(), err)
+		return fmt.Errorf("error getting tags for %s: %s", p.repoInfo.Name(), err)
 	}
 	if len(associations) == 0 {
-		return false, fmt.Errorf("no tags to push for %s", p.repoInfo.Name())
+		return fmt.Errorf("no tags to push for %s", p.repoInfo.Name())
 	}
 
 	for _, association := range associations {
 		if err := p.pushV2Tag(ctx, association); err != nil {
-			return false, err
+			return err
 		}
 	}
 
-	return false, nil
+	return nil
 }
 
 func (p *v2Pusher) pushV2Tag(ctx context.Context, association reference.Association) error {
@@ -109,30 +122,28 @@ func (p *v2Pusher) pushV2Tag(ctx context.Context, association reference.Associat
 
 	var descriptors []xfer.UploadDescriptor
 
+	descriptorTemplate := v2PushDescriptor{
+		blobSumService: p.blobSumService,
+		repo:           p.repo,
+		layersPushed:   &p.layersPushed,
+		confirmedV2:    &p.confirmedV2,
+	}
+
 	// Push empty layer if necessary
 	for _, h := range img.History {
 		if h.EmptyLayer {
-			descriptors = []xfer.UploadDescriptor{
-				&v2PushDescriptor{
-					layer:          layer.EmptyLayer,
-					blobSumService: p.blobSumService,
-					repo:           p.repo,
-					layersPushed:   &p.layersPushed,
-				},
-			}
+			descriptor := descriptorTemplate
+			descriptor.layer = layer.EmptyLayer
+			descriptors = []xfer.UploadDescriptor{&descriptor}
 			break
 		}
 	}
 
 	// Loop bounds condition is to avoid pushing the base layer on Windows.
 	for i := 0; i < len(img.RootFS.DiffIDs); i++ {
-		descriptor := &v2PushDescriptor{
-			layer:          l,
-			blobSumService: p.blobSumService,
-			repo:           p.repo,
-			layersPushed:   &p.layersPushed,
-		}
-		descriptors = append(descriptors, descriptor)
+		descriptor := descriptorTemplate
+		descriptor.layer = l
+		descriptors = append(descriptors, &descriptor)
 
 		l = l.Parent()
 	}
@@ -181,6 +192,7 @@ type v2PushDescriptor struct {
 	blobSumService *metadata.BlobSumService
 	repo           distribution.Repository
 	layersPushed   *pushMap
+	confirmedV2    *bool
 }
 
 func (pd *v2PushDescriptor) Key() string {
@@ -250,6 +262,10 @@ func (pd *v2PushDescriptor) Upload(ctx context.Context, progressOutput progress.
 	if _, err := layerUpload.Commit(ctx, distribution.Descriptor{Digest: pushDigest}); err != nil {
 		return "", retryOnError(err)
 	}
+
+	// If Commit succeded, that's an indication that the remote registry
+	// speaks the v2 protocol.
+	*pd.confirmedV2 = true
 
 	logrus.Debugf("uploaded layer %s (%s), %d bytes", diffID, pushDigest, nn)
 	progress.Update(progressOutput, pd.ID(), "Pushed")
