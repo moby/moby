@@ -34,6 +34,10 @@ import (
 	"github.com/docker/go-units"
 )
 
+const (
+	ignoreFileDefault = ".dockerignore"
+)
+
 // CmdBuild builds a new image from the source code at a given path.
 //
 // If '-' is provided instead of a path or URL, Docker will build an image from either a Dockerfile or tar archive read from STDIN.
@@ -61,6 +65,9 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	flBuildArg := opts.NewListOpts(opts.ValidateEnv)
 	cmd.Var(&flBuildArg, []string{"-build-arg"}, "Set build-time variables")
 	isolation := cmd.String([]string{"-isolation"}, "", "Container isolation level")
+	ignoreFile := cmd.String([]string{"-ignore-file"}, ignoreFileDefault, "List of rules to exclude matching files from context (relative path in the context)")
+	flIgnore := opts.NewListOpts(func(val string) (string, error) { return val, nil })
+	cmd.Var(&flIgnore, []string{"-ignore"}, "Excludes matching files from context")
 
 	ulimits := make(map[string]*units.Ulimit)
 	flUlimits := runconfigopts.NewUlimitOpt(&ulimits)
@@ -137,8 +144,8 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		return fmt.Errorf("cannot canonicalize dockerfile path %s: %v", relDockerfile, err)
 	}
 
-	f, err := os.Open(filepath.Join(contextDir, ".dockerignore"))
-	if err != nil && !os.IsNotExist(err) {
+	f, err := os.Open(filepath.Join(contextDir, *ignoreFile))
+	if err != nil && (!os.IsNotExist(err) || *ignoreFile != ignoreFileDefault) {
 		return err
 	}
 
@@ -149,23 +156,15 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 			return err
 		}
 	}
+	excludes = append(excludes, flIgnore.GetAllOrEmpty()...)
 
 	if err := validateContextDirectory(contextDir, excludes); err != nil {
 		return fmt.Errorf("Error checking context: '%s'.", err)
 	}
 
-	// If .dockerignore mentions .dockerignore or the Dockerfile
-	// then make sure we send both files over to the daemon
-	// because Dockerfile is, obviously, needed no matter what, and
-	// .dockerignore is needed to know if either one needs to be
-	// removed. The daemon will remove them for us, if needed, after it
-	// parses the Dockerfile. Ignore errors here, as they will have been
-	// caught by validateContextDirectory above.
 	var includes = []string{"."}
-	keepThem1, _ := fileutils.Matches(".dockerignore", excludes)
-	keepThem2, _ := fileutils.Matches(relDockerfile, excludes)
-	if keepThem1 || keepThem2 {
-		includes = append(includes, ".dockerignore", relDockerfile)
+	if keep, _ := fileutils.Matches(relDockerfile, excludes); keep {
+		includes = append(includes, relDockerfile)
 	}
 
 	context, err = archive.TarWithOptions(contextDir, &archive.TarOptions{
@@ -244,6 +243,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		Ulimits:        flUlimits.GetList(),
 		BuildArgs:      runconfigopts.ConvertKVStringsToMap(flBuildArg.GetAll()),
 		AuthConfigs:    cli.configFile.AuthConfigs,
+		IgnoreRules:    excludes,
 	}
 
 	response, err := cli.client.ImageBuild(options)
