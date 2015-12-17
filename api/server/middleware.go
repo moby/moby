@@ -38,7 +38,12 @@ func debugRequestMiddleware(handler httputils.APIFunc) httputils.APIFunc {
 						if _, exists := postForm["password"]; exists {
 							postForm["password"] = "*****"
 						}
-						logrus.Debugf("form data: %q", postForm)
+						formStr, errMarshal := json.Marshal(postForm)
+						if errMarshal == nil {
+							logrus.Debugf("form data: %s", string(formStr))
+						} else {
+							logrus.Debugf("form data: %q", postForm)
+						}
 					}
 				}
 			}
