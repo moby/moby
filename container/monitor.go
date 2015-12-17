@@ -80,6 +80,7 @@ type containerMonitor struct {
 // StartMonitor initializes a containerMonitor for this container with the provided supervisor and restart policy
 // and starts the container's process.
 func (container *Container) StartMonitor(s supervisor, policy container.RestartPolicy) error {
+	container.Lock()
 	container.monitor = &containerMonitor{
 		supervisor:    s,
 		container:     container,
@@ -88,6 +89,7 @@ func (container *Container) StartMonitor(s supervisor, policy container.RestartP
 		stopChan:      make(chan struct{}),
 		startSignal:   make(chan struct{}),
 	}
+	container.Unlock()
 
 	return container.monitor.wait()
 }
@@ -157,6 +159,8 @@ func (m *containerMonitor) start() error {
 		}
 		m.Close()
 	}()
+
+	m.container.Lock()
 	// reset stopped flag
 	if m.container.HasBeenManuallyStopped {
 		m.container.HasBeenManuallyStopped = false
@@ -171,16 +175,20 @@ func (m *containerMonitor) start() error {
 		if err := m.supervisor.StartLogging(m.container); err != nil {
 			m.resetContainer(false)
 
+			m.container.Unlock()
 			return err
 		}
 
 		pipes := execdriver.NewPipes(m.container.Stdin(), m.container.Stdout(), m.container.Stderr(), m.container.Config.OpenStdin)
+		m.container.Unlock()
 
 		m.logEvent("start")
 
 		m.lastStartTime = time.Now()
 
+		// don't lock Run because m.callback has own lock
 		if exitStatus, err = m.supervisor.Run(m.container, pipes, m.callback); err != nil {
+			m.container.Lock()
 			// if we receive an internal error from the initial start of a container then lets
 			// return it instead of entering the restart loop
 			// set to 127 for container cmd not found/does not exist)
@@ -190,6 +198,7 @@ func (m *containerMonitor) start() error {
 				if m.container.RestartCount == 0 {
 					m.container.ExitCode = 127
 					m.resetContainer(false)
+					m.container.Unlock()
 					return derr.ErrorCodeCmdNotFound
 				}
 			}
@@ -198,6 +207,7 @@ func (m *containerMonitor) start() error {
 				if m.container.RestartCount == 0 {
 					m.container.ExitCode = 126
 					m.resetContainer(false)
+					m.container.Unlock()
 					return derr.ErrorCodeCmdCouldNotBeInvoked
 				}
 			}
@@ -206,11 +216,13 @@ func (m *containerMonitor) start() error {
 				m.container.ExitCode = -1
 				m.resetContainer(false)
 
+				m.container.Unlock()
 				return derr.ErrorCodeCantStart.WithArgs(m.container.ID, utils.GetErrorMessage(err))
 			}
 
+			m.container.Unlock()
 			logrus.Errorf("Error running container: %s", err)
-		}
+		} // end if
 
 		// here container.Lock is already lost
 		afterRun = true
@@ -231,13 +243,14 @@ func (m *containerMonitor) start() error {
 			if m.shouldStop {
 				return err
 			}
+			m.container.Lock()
 			continue
 		}
 
 		m.logEvent("die")
 		m.resetContainer(true)
 		return err
-	}
+	} // end for
 }
 
 // resetMonitor resets the stateful fields on the containerMonitor based on the
@@ -319,7 +332,7 @@ func (m *containerMonitor) callback(processConfig *execdriver.ProcessConfig, pid
 		}
 	}
 
-	m.container.SetRunning(pid)
+	m.container.SetRunningLocking(pid)
 
 	// signal that the process has started
 	// close channel only if not closed
