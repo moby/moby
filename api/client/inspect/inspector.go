@@ -60,6 +60,7 @@ func (i *TemplateInspector) Flush() error {
 type IndentedInspector struct {
 	outputStream io.Writer
 	elements     []interface{}
+	rawElements  [][]byte
 }
 
 // NewIndentedInspector generates a new IndentedInspector.
@@ -70,26 +71,49 @@ func NewIndentedInspector(outputStream io.Writer) Inspector {
 }
 
 // Inspect writes the raw element with an indented json format.
-func (i *IndentedInspector) Inspect(typedElement interface{}, _ []byte) error {
-	i.elements = append(i.elements, typedElement)
+func (i *IndentedInspector) Inspect(typedElement interface{}, rawElement []byte) error {
+	if rawElement != nil {
+		i.rawElements = append(i.rawElements, rawElement)
+	} else {
+		i.elements = append(i.elements, typedElement)
+	}
 	return nil
 }
 
 // Flush write the result of inspecting all elements into the output stream.
 func (i *IndentedInspector) Flush() error {
-	if len(i.elements) == 0 {
+	if len(i.elements) == 0 && len(i.rawElements) == 0 {
 		_, err := io.WriteString(i.outputStream, "[]\n")
 		return err
 	}
 
-	buffer, err := json.MarshalIndent(i.elements, "", "    ")
-	if err != nil {
-		return err
+	var buffer io.Reader
+	if len(i.rawElements) > 0 {
+		bytesBuffer := new(bytes.Buffer)
+		bytesBuffer.WriteString("[")
+		for idx, r := range i.rawElements {
+			bytesBuffer.Write(r)
+			if idx < len(i.rawElements)-1 {
+				bytesBuffer.WriteString(",")
+			}
+		}
+		bytesBuffer.WriteString("]")
+		indented := new(bytes.Buffer)
+		if err := json.Indent(indented, bytesBuffer.Bytes(), "", "    "); err != nil {
+			return err
+		}
+		buffer = indented
+	} else {
+		b, err := json.MarshalIndent(i.elements, "", "    ")
+		if err != nil {
+			return err
+		}
+		buffer = bytes.NewReader(b)
 	}
 
-	if _, err := io.Copy(i.outputStream, bytes.NewReader(buffer)); err != nil {
+	if _, err := io.Copy(i.outputStream, buffer); err != nil {
 		return err
 	}
-	_, err = io.WriteString(i.outputStream, "\n")
+	_, err := io.WriteString(i.outputStream, "\n")
 	return err
 }

@@ -187,3 +187,34 @@ func TestIndentedInspectorEmpty(t *testing.T) {
 		t.Fatalf("Expected `%s`, got `%s`", expected, b.String())
 	}
 }
+
+func TestIndentedInspectorRawElements(t *testing.T) {
+	b := new(bytes.Buffer)
+	i := NewIndentedInspector(b)
+	if err := i.Inspect(testElement{"0.0.0.0"}, []byte(`{"Dns": "0.0.0.0", "Node": "0"}`)); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := i.Inspect(testElement{"1.1.1.1"}, []byte(`{"Dns": "1.1.1.1", "Node": "1"}`)); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := i.Flush(); err != nil {
+		t.Fatal(err)
+	}
+
+	expected := `[
+    {
+        "Dns": "0.0.0.0",
+        "Node": "0"
+    },
+    {
+        "Dns": "1.1.1.1",
+        "Node": "1"
+    }
+]
+`
+	if b.String() != expected {
+		t.Fatalf("Expected `%s`, got `%s`", expected, b.String())
+	}
+}
