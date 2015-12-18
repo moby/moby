@@ -16,10 +16,10 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
+	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/pkg/integration"
 	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/docker/docker/runconfig"
 	"github.com/go-check/check"
 )
 
@@ -678,7 +678,7 @@ func UtilCreateNetworkMode(c *check.C, networkMode string) {
 
 	var containerJSON types.ContainerJSON
 	c.Assert(json.Unmarshal(body, &containerJSON), checker.IsNil)
-	c.Assert(containerJSON.HostConfig.NetworkMode, checker.Equals, runconfig.NetworkMode(networkMode), check.Commentf("Mismatched NetworkMode"))
+	c.Assert(containerJSON.HostConfig.NetworkMode, checker.Equals, containertypes.NetworkMode(networkMode), check.Commentf("Mismatched NetworkMode"))
 }
 
 func (s *DockerSuite) TestContainerApiCreateWithCpuSharesCpuset(c *check.C) {

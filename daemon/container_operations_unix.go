@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	containertypes "github.com/docker/docker/api/types/container"
 	networktypes "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/execdriver"
@@ -460,7 +461,7 @@ func (daemon *Daemon) updateNetworkSettings(container *container.Container, n li
 		container.NetworkSettings = &network.Settings{Networks: make(map[string]*networktypes.EndpointSettings)}
 	}
 
-	if !container.HostConfig.NetworkMode.IsHost() && runconfig.NetworkMode(n.Type()).IsHost() {
+	if !container.HostConfig.NetworkMode.IsHost() && containertypes.NetworkMode(n.Type()).IsHost() {
 		return runconfig.ErrConflictHostNetwork
 	}
 
@@ -474,12 +475,12 @@ func (daemon *Daemon) updateNetworkSettings(container *container.Container, n li
 			// Avoid duplicate config
 			return nil
 		}
-		if !runconfig.NetworkMode(sn.Type()).IsPrivate() ||
-			!runconfig.NetworkMode(n.Type()).IsPrivate() {
+		if !containertypes.NetworkMode(sn.Type()).IsPrivate() ||
+			!containertypes.NetworkMode(n.Type()).IsPrivate() {
 			return runconfig.ErrConflictSharedNetwork
 		}
-		if runconfig.NetworkMode(sn.Name()).IsNone() ||
-			runconfig.NetworkMode(n.Name()).IsNone() {
+		if containertypes.NetworkMode(sn.Name()).IsNone() ||
+			containertypes.NetworkMode(n.Name()).IsNone() {
 			return runconfig.ErrConflictNoNetwork
 		}
 	}
@@ -493,7 +494,7 @@ func (daemon *Daemon) updateEndpointNetworkSettings(container *container.Contain
 		return err
 	}
 
-	if container.HostConfig.NetworkMode == runconfig.NetworkMode("bridge") {
+	if container.HostConfig.NetworkMode == containertypes.NetworkMode("bridge") {
 		container.NetworkSettings.Bridge = daemon.configStore.Bridge.Iface
 	}
 
@@ -625,7 +626,7 @@ func (daemon *Daemon) connectToNetwork(container *container.Container, idOrName 
 		return runconfig.ErrConflictSharedNetwork
 	}
 
-	if runconfig.NetworkMode(idOrName).IsBridge() &&
+	if containertypes.NetworkMode(idOrName).IsBridge() &&
 		daemon.configStore.DisableBridge {
 		container.Config.NetworkDisabled = true
 		return nil
@@ -706,7 +707,7 @@ func (daemon *Daemon) DisconnectFromNetwork(container *container.Container, n li
 		return derr.ErrorCodeNotRunning.WithArgs(container.ID)
 	}
 
-	if container.HostConfig.NetworkMode.IsHost() && runconfig.NetworkMode(n.Type()).IsHost() {
+	if container.HostConfig.NetworkMode.IsHost() && containertypes.NetworkMode(n.Type()).IsHost() {
 		return runconfig.ErrConflictHostNetwork
 	}
 
@@ -955,7 +956,7 @@ func killProcessDirectly(container *container.Container) error {
 	return nil
 }
 
-func getDevicesFromPath(deviceMapping runconfig.DeviceMapping) (devs []*configs.Device, err error) {
+func getDevicesFromPath(deviceMapping containertypes.DeviceMapping) (devs []*configs.Device, err error) {
 	device, err := devices.DeviceFromPath(deviceMapping.PathOnHost, deviceMapping.CgroupPermissions)
 	// if there was no error, return the device
 	if err == nil {
