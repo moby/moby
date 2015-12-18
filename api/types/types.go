@@ -6,9 +6,9 @@ import (
 
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/registry"
-	"github.com/docker/docker/pkg/nat"
 	"github.com/docker/docker/pkg/version"
 	"github.com/docker/docker/runconfig"
+	"github.com/docker/go-connections/nat"
 )
 
 // ContainerCreateResponse contains the information returned to a client on the
