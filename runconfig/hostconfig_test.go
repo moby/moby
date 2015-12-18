@@ -7,11 +7,13 @@ import (
 	"fmt"
 	"io/ioutil"
 	"testing"
+
+	"github.com/docker/docker/api/types/container"
 )
 
 // TODO Windows: This will need addressing for a Windows daemon.
 func TestNetworkModeTest(t *testing.T) {
-	networkModes := map[NetworkMode][]bool{
+	networkModes := map[container.NetworkMode][]bool{
 		// private, bridge, host, container, none, default
 		"":                         {true, false, false, false, false, false},
 		"something:weird":          {true, false, false, false, false, false},
@@ -22,7 +24,7 @@ func TestNetworkModeTest(t *testing.T) {
 		"none":           {true, false, false, false, true, false},
 		"default":        {true, false, false, false, false, true},
 	}
-	networkModeNames := map[NetworkMode]string{
+	networkModeNames := map[container.NetworkMode]string{
 		"":                         "",
 		"something:weird":          "something:weird",
 		"bridge":                   "bridge",
@@ -58,7 +60,7 @@ func TestNetworkModeTest(t *testing.T) {
 }
 
 func TestIpcModeTest(t *testing.T) {
-	ipcModes := map[IpcMode][]bool{
+	ipcModes := map[container.IpcMode][]bool{
 		// private, host, container, valid
 		"":                         {true, false, false, true},
 		"something:weird":          {true, false, false, false},
@@ -82,7 +84,7 @@ func TestIpcModeTest(t *testing.T) {
 			t.Fatalf("IpcMode.Valid for %v should have been %v but was %v", ipcMode, state[3], ipcMode.Valid())
 		}
 	}
-	containerIpcModes := map[IpcMode]string{
+	containerIpcModes := map[container.IpcMode]string{
 		"":                      "",
 		"something":             "",
 		"something:weird":       "weird",
@@ -99,7 +101,7 @@ func TestIpcModeTest(t *testing.T) {
 }
 
 func TestUTSModeTest(t *testing.T) {
-	utsModes := map[UTSMode][]bool{
+	utsModes := map[container.UTSMode][]bool{
 		// private, host, valid
 		"":                {true, false, true},
 		"something:weird": {true, false, false},
@@ -120,7 +122,7 @@ func TestUTSModeTest(t *testing.T) {
 }
 
 func TestPidModeTest(t *testing.T) {
-	pidModes := map[PidMode][]bool{
+	pidModes := map[container.PidMode][]bool{
 		// private, host, valid
 		"":                {true, false, true},
 		"something:weird": {true, false, false},
@@ -141,13 +143,13 @@ func TestPidModeTest(t *testing.T) {
 }
 
 func TestRestartPolicy(t *testing.T) {
-	restartPolicies := map[RestartPolicy][]bool{
+	restartPolicies := map[container.RestartPolicy][]bool{
 		// none, always, failure
-		RestartPolicy{}:                {false, false, false},
-		RestartPolicy{"something", 0}:  {false, false, false},
-		RestartPolicy{"no", 0}:         {true, false, false},
-		RestartPolicy{"always", 0}:     {false, true, false},
-		RestartPolicy{"on-failure", 0}: {false, false, true},
+		container.RestartPolicy{}:                {false, false, false},
+		container.RestartPolicy{"something", 0}:  {false, false, false},
+		container.RestartPolicy{"no", 0}:         {true, false, false},
+		container.RestartPolicy{"always", 0}:     {false, true, false},
+		container.RestartPolicy{"on-failure", 0}: {false, false, true},
 	}
 	for restartPolicy, state := range restartPolicies {
 		if restartPolicy.IsNone() != state[0] {
@@ -161,28 +163,6 @@ func TestRestartPolicy(t *testing.T) {
 		}
 	}
 }
-
-func TestMergeConfigs(t *testing.T) {
-	expectedHostname := "hostname"
-	expectedContainerIDFile := "containerIdFile"
-	config := &Config{
-		Hostname: expectedHostname,
-	}
-	hostConfig := &HostConfig{
-		ContainerIDFile: expectedContainerIDFile,
-	}
-	containerConfigWrapper := MergeConfigs(config, hostConfig)
-	if containerConfigWrapper.Config.Hostname != expectedHostname {
-		t.Fatalf("containerConfigWrapper config hostname expected %v got %v", expectedHostname, containerConfigWrapper.Config.Hostname)
-	}
-	if containerConfigWrapper.InnerHostConfig.ContainerIDFile != expectedContainerIDFile {
-		t.Fatalf("containerConfigWrapper hostconfig containerIdfile expected %v got %v", expectedContainerIDFile, containerConfigWrapper.InnerHostConfig.ContainerIDFile)
-	}
-	if containerConfigWrapper.Cpuset != "" {
-		t.Fatalf("Expected empty Cpuset, got %v", containerConfigWrapper.Cpuset)
-	}
-}
-
 func TestDecodeHostConfig(t *testing.T) {
 	fixtures := []struct {
 		file string

@@ -13,6 +13,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	pblkiodev "github.com/docker/docker/api/types/blkiodev"
+	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/graphdriver"
 	derr "github.com/docker/docker/errors"
@@ -43,7 +44,7 @@ const (
 	linuxMinMemory = 4194304
 )
 
-func getBlkioWeightDevices(config *runconfig.HostConfig) ([]*blkiodev.WeightDevice, error) {
+func getBlkioWeightDevices(config *containertypes.HostConfig) ([]*blkiodev.WeightDevice, error) {
 	var stat syscall.Stat_t
 	var blkioWeightDevices []*blkiodev.WeightDevice
 
@@ -58,7 +59,7 @@ func getBlkioWeightDevices(config *runconfig.HostConfig) ([]*blkiodev.WeightDevi
 	return blkioWeightDevices, nil
 }
 
-func parseSecurityOpt(container *container.Container, config *runconfig.HostConfig) error {
+func parseSecurityOpt(container *container.Container, config *containertypes.HostConfig) error {
 	var (
 		labelOpts []string
 		err       error
@@ -85,7 +86,7 @@ func parseSecurityOpt(container *container.Container, config *runconfig.HostConf
 	return err
 }
 
-func getBlkioReadIOpsDevices(config *runconfig.HostConfig) ([]*blkiodev.ThrottleDevice, error) {
+func getBlkioReadIOpsDevices(config *containertypes.HostConfig) ([]*blkiodev.ThrottleDevice, error) {
 	var blkioReadIOpsDevice []*blkiodev.ThrottleDevice
 	var stat syscall.Stat_t
 
@@ -100,7 +101,7 @@ func getBlkioReadIOpsDevices(config *runconfig.HostConfig) ([]*blkiodev.Throttle
 	return blkioReadIOpsDevice, nil
 }
 
-func getBlkioWriteIOpsDevices(config *runconfig.HostConfig) ([]*blkiodev.ThrottleDevice, error) {
+func getBlkioWriteIOpsDevices(config *containertypes.HostConfig) ([]*blkiodev.ThrottleDevice, error) {
 	var blkioWriteIOpsDevice []*blkiodev.ThrottleDevice
 	var stat syscall.Stat_t
 
@@ -115,7 +116,7 @@ func getBlkioWriteIOpsDevices(config *runconfig.HostConfig) ([]*blkiodev.Throttl
 	return blkioWriteIOpsDevice, nil
 }
 
-func getBlkioReadBpsDevices(config *runconfig.HostConfig) ([]*blkiodev.ThrottleDevice, error) {
+func getBlkioReadBpsDevices(config *containertypes.HostConfig) ([]*blkiodev.ThrottleDevice, error) {
 	var blkioReadBpsDevice []*blkiodev.ThrottleDevice
 	var stat syscall.Stat_t
 
@@ -130,7 +131,7 @@ func getBlkioReadBpsDevices(config *runconfig.HostConfig) ([]*blkiodev.ThrottleD
 	return blkioReadBpsDevice, nil
 }
 
-func getBlkioWriteBpsDevices(config *runconfig.HostConfig) ([]*blkiodev.ThrottleDevice, error) {
+func getBlkioWriteBpsDevices(config *containertypes.HostConfig) ([]*blkiodev.ThrottleDevice, error) {
 	var blkioWriteBpsDevice []*blkiodev.ThrottleDevice
 	var stat syscall.Stat_t
 
@@ -175,7 +176,7 @@ func checkKernel() error {
 
 // adaptContainerSettings is called during container creation to modify any
 // settings necessary in the HostConfig structure.
-func (daemon *Daemon) adaptContainerSettings(hostConfig *runconfig.HostConfig, adjustCPUShares bool) error {
+func (daemon *Daemon) adaptContainerSettings(hostConfig *containertypes.HostConfig, adjustCPUShares bool) error {
 	if adjustCPUShares && hostConfig.CPUShares > 0 {
 		// Handle unsupported CPUShares
 		if hostConfig.CPUShares < linuxMinCPUShares {
@@ -209,7 +210,7 @@ func (daemon *Daemon) adaptContainerSettings(hostConfig *runconfig.HostConfig, a
 	return nil
 }
 
-func verifyContainerResources(resources *runconfig.Resources) ([]string, error) {
+func verifyContainerResources(resources *containertypes.Resources) ([]string, error) {
 	warnings := []string{}
 	sysInfo := sysinfo.New(true)
 
@@ -349,7 +350,7 @@ func verifyContainerResources(resources *runconfig.Resources) ([]string, error) 
 
 // verifyPlatformContainerSettings performs platform-specific validation of the
 // hostconfig and config structures.
-func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *runconfig.HostConfig, config *runconfig.Config) ([]string, error) {
+func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.HostConfig, config *containertypes.Config) ([]string, error) {
 	warnings := []string{}
 	sysInfo := sysinfo.New(true)
 
@@ -680,7 +681,7 @@ func setupInitLayer(initLayer string, rootUID, rootGID int) error {
 }
 
 // registerLinks writes the links to a file.
-func (daemon *Daemon) registerLinks(container *container.Container, hostConfig *runconfig.HostConfig) error {
+func (daemon *Daemon) registerLinks(container *container.Container, hostConfig *containertypes.HostConfig) error {
 	if hostConfig == nil || hostConfig.Links == nil {
 		return nil
 	}

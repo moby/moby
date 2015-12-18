@@ -3,6 +3,7 @@ package runconfig
 import (
 	"testing"
 
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/go-connections/nat"
 )
 
@@ -13,7 +14,7 @@ func TestMerge(t *testing.T) {
 	portsImage := make(nat.PortSet)
 	portsImage[newPortNoError("tcp", "1111")] = struct{}{}
 	portsImage[newPortNoError("tcp", "2222")] = struct{}{}
-	configImage := &Config{
+	configImage := &container.Config{
 		ExposedPorts: portsImage,
 		Env:          []string{"VAR1=1", "VAR2=2"},
 		Volumes:      volumesImage,
@@ -24,7 +25,7 @@ func TestMerge(t *testing.T) {
 	portsUser[newPortNoError("tcp", "3333")] = struct{}{}
 	volumesUser := make(map[string]struct{})
 	volumesUser["/test3"] = struct{}{}
-	configUser := &Config{
+	configUser := &container.Config{
 		ExposedPorts: portsUser,
 		Env:          []string{"VAR2=3", "VAR3=3"},
 		Volumes:      volumesUser,
@@ -64,7 +65,7 @@ func TestMerge(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	configImage2 := &Config{
+	configImage2 := &container.Config{
 		ExposedPorts: ports,
 	}
 

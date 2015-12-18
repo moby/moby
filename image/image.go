@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/docker/distribution/digest"
-	"github.com/docker/docker/runconfig"
+	"github.com/docker/docker/api/types/container"
 )
 
 // ID is the content-addressable ID of an image.
@@ -30,13 +30,13 @@ type V1Image struct {
 	// Container is the id of the container used to commit
 	Container string `json:"container,omitempty"`
 	// ContainerConfig  is the configuration of the container that is committed into the image
-	ContainerConfig runconfig.Config `json:"container_config,omitempty"`
+	ContainerConfig container.Config `json:"container_config,omitempty"`
 	// DockerVersion specifies version on which image is built
 	DockerVersion string `json:"docker_version,omitempty"`
 	// Author of the image
 	Author string `json:"author,omitempty"`
 	// Config is the configuration of the container received from the client
-	Config *runconfig.Config `json:"config,omitempty"`
+	Config *container.Config `json:"config,omitempty"`
 	// Architecture is the hardware that the image is build and runs on
 	Architecture string `json:"architecture,omitempty"`
 	// OS is the operating system used to build and run the image

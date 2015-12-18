@@ -8,10 +8,10 @@ import (
 	"sync"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/pkg/parsers"
-	"github.com/docker/docker/runconfig"
 )
 
 // This is a daemon development variable only and should not be
@@ -22,11 +22,11 @@ var dummyMode bool
 // This allows the daemon to force kill (HCS terminate) rather than shutdown
 var forceKill bool
 
-// defaultIsolation allows users to specify a default isolation mode for
+// DefaultIsolation allows users to specify a default isolation mode for
 // when running a container on Windows. For example docker daemon -D
 // --exec-opt isolation=hyperv will cause Windows to always run containers
 // as Hyper-V containers unless otherwise specified.
-var defaultIsolation runconfig.IsolationLevel = "process"
+var DefaultIsolation container.IsolationLevel = "process"
 
 // Define name and version for windows
 var (
@@ -48,7 +48,7 @@ type Driver struct {
 
 // Name implements the exec driver Driver interface.
 func (d *Driver) Name() string {
-	return fmt.Sprintf("\n Name: %s\n Build: %s \n Default Isolation: %s", DriverName, Version, defaultIsolation)
+	return fmt.Sprintf("\n Name: %s\n Build: %s \n Default Isolation: %s", DriverName, Version, DefaultIsolation)
 }
 
 // NewDriver returns a new windows driver, called from NewDriver of execdriver.
@@ -77,11 +77,11 @@ func NewDriver(root string, options []string) (*Driver, error) {
 			}
 
 		case "isolation":
-			if !runconfig.IsolationLevel(val).IsValid() {
+			if !container.IsolationLevel(val).IsValid() {
 				return nil, fmt.Errorf("Unrecognised exec driver option 'isolation':'%s'", val)
 			}
-			if runconfig.IsolationLevel(val).IsHyperV() {
-				defaultIsolation = "hyperv"
+			if container.IsolationLevel(val).IsHyperV() {
+				DefaultIsolation = "hyperv"
 			}
 			logrus.Infof("Windows default isolation level: '%s'", val)
 		default:

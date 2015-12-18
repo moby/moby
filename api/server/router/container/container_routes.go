@@ -13,6 +13,7 @@ import (
 	"github.com/docker/distribution/registry/api/errcode"
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	timetypes "github.com/docker/docker/api/types/time"
 	"github.com/docker/docker/daemon"
 	derr "github.com/docker/docker/errors"
@@ -162,7 +163,7 @@ func (s *containerRouter) postContainersStart(ctx context.Context, w http.Respon
 	// net/http otherwise seems to swallow any headers related to chunked encoding
 	// including r.TransferEncoding
 	// allow a nil body for backwards compatibility
-	var hostConfig *runconfig.HostConfig
+	var hostConfig *container.HostConfig
 	if r.Body != nil && (r.ContentLength > 0 || r.ContentLength == -1) {
 		if err := httputils.CheckForJSON(r); err != nil {
 			return err

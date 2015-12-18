@@ -7,10 +7,10 @@ import (
 	"path/filepath"
 	"testing"
 
+	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/pkg/graphdb"
 	"github.com/docker/docker/pkg/truncindex"
-	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/volume"
 	volumedrivers "github.com/docker/docker/volume/drivers"
 	"github.com/docker/docker/volume/local"
@@ -141,7 +141,7 @@ func initDaemonWithVolumeStore(tmp string) (*Daemon, error) {
 
 func TestParseSecurityOpt(t *testing.T) {
 	container := &container.Container{}
-	config := &runconfig.HostConfig{}
+	config := &containertypes.HostConfig{}
 
 	// test apparmor
 	config.SecurityOpt = []string{"apparmor:test_profile"}

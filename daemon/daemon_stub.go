@@ -5,9 +5,9 @@ package daemon
 import (
 	"os"
 
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/system"
-	"github.com/docker/docker/runconfig"
 )
 
 func setupRemappedRoot(config *Config) ([]idtools.IDMap, []idtools.IDMap, error) {
@@ -23,6 +23,6 @@ func setupDaemonRoot(config *Config, rootDir string, rootUID, rootGID int) error
 	return nil
 }
 
-func (daemon *Daemon) verifyExperimentalContainerSettings(hostConfig *runconfig.HostConfig, config *runconfig.Config) ([]string, error) {
+func (daemon *Daemon) verifyExperimentalContainerSettings(hostConfig *container.HostConfig, config *container.Config) ([]string, error) {
 	return nil, nil
 }
