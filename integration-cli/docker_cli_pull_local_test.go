@@ -9,11 +9,11 @@ import (
 	"github.com/go-check/check"
 )
 
-// TestPullImageWithAliases pulls a specific image tag and verifies that any aliases (i.e., other
+// testPullImageWithAliases pulls a specific image tag and verifies that any aliases (i.e., other
 // tags for the same image) are not also pulled down.
 //
 // Ref: docker/docker#8141
-func (s *DockerRegistrySuite) TestPullImageWithAliases(c *check.C) {
+func testPullImageWithAliases(c *check.C) {
 	repoName := fmt.Sprintf("%v/dockercli/busybox", privateRegistryURL)
 
 	repos := []string{}
@@ -40,8 +40,16 @@ func (s *DockerRegistrySuite) TestPullImageWithAliases(c *check.C) {
 	}
 }
 
-// TestConcurrentPullWholeRepo pulls the same repo concurrently.
-func (s *DockerRegistrySuite) TestConcurrentPullWholeRepo(c *check.C) {
+func (s *DockerRegistrySuite) TestPullImageWithAliases(c *check.C) {
+	testPullImageWithAliases(c)
+}
+
+func (s *DockerSchema1RegistrySuite) TestPullImageWithAliases(c *check.C) {
+	testPullImageWithAliases(c)
+}
+
+// testConcurrentPullWholeRepo pulls the same repo concurrently.
+func testConcurrentPullWholeRepo(c *check.C) {
 	repoName := fmt.Sprintf("%v/dockercli/busybox", privateRegistryURL)
 
 	repos := []string{}
@@ -89,8 +97,16 @@ func (s *DockerRegistrySuite) TestConcurrentPullWholeRepo(c *check.C) {
 	}
 }
 
-// TestConcurrentFailingPull tries a concurrent pull that doesn't succeed.
-func (s *DockerRegistrySuite) TestConcurrentFailingPull(c *check.C) {
+func (s *DockerRegistrySuite) testConcurrentPullWholeRepo(c *check.C) {
+	testConcurrentPullWholeRepo(c)
+}
+
+func (s *DockerSchema1RegistrySuite) testConcurrentPullWholeRepo(c *check.C) {
+	testConcurrentPullWholeRepo(c)
+}
+
+// testConcurrentFailingPull tries a concurrent pull that doesn't succeed.
+func testConcurrentFailingPull(c *check.C) {
 	repoName := fmt.Sprintf("%v/dockercli/busybox", privateRegistryURL)
 
 	// Run multiple pulls concurrently
@@ -112,9 +128,17 @@ func (s *DockerRegistrySuite) TestConcurrentFailingPull(c *check.C) {
 	}
 }
 
-// TestConcurrentPullMultipleTags pulls multiple tags from the same repo
+func (s *DockerRegistrySuite) testConcurrentFailingPull(c *check.C) {
+	testConcurrentFailingPull(c)
+}
+
+func (s *DockerSchema1RegistrySuite) testConcurrentFailingPull(c *check.C) {
+	testConcurrentFailingPull(c)
+}
+
+// testConcurrentPullMultipleTags pulls multiple tags from the same repo
 // concurrently.
-func (s *DockerRegistrySuite) TestConcurrentPullMultipleTags(c *check.C) {
+func testConcurrentPullMultipleTags(c *check.C) {
 	repoName := fmt.Sprintf("%v/dockercli/busybox", privateRegistryURL)
 
 	repos := []string{}
@@ -161,9 +185,17 @@ func (s *DockerRegistrySuite) TestConcurrentPullMultipleTags(c *check.C) {
 	}
 }
 
-// TestPullIDStability verifies that pushing an image and pulling it back
+func (s *DockerRegistrySuite) TestConcurrentPullMultipleTags(c *check.C) {
+	testConcurrentPullMultipleTags(c)
+}
+
+func (s *DockerSchema1RegistrySuite) TestConcurrentPullMultipleTags(c *check.C) {
+	testConcurrentPullMultipleTags(c)
+}
+
+// testPullIDStability verifies that pushing an image and pulling it back
 // preserves the image ID.
-func (s *DockerRegistrySuite) TestPullIDStability(c *check.C) {
+func testPullIDStability(c *check.C) {
 	derivedImage := privateRegistryURL + "/dockercli/id-stability"
 	baseImage := "busybox"
 
@@ -227,6 +259,14 @@ func (s *DockerRegistrySuite) TestPullIDStability(c *check.C) {
 	if strings.TrimSpace(out) != derivedImage {
 		c.Fatalf("expected %s; got %s", derivedImage, out)
 	}
+}
+
+func (s *DockerRegistrySuite) TestPullIDStability(c *check.C) {
+	testPullIDStability(c)
+}
+
+func (s *DockerSchema1RegistrySuite) TestPullIDStability(c *check.C) {
+	testPullIDStability(c)
 }
 
 // TestPullFallbackOn404 tries to pull a nonexistent manifest and confirms that
