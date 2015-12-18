@@ -201,6 +201,7 @@ __docker_get_log_options() {
 
     awslogs_options=("awslogs-region" "awslogs-group" "awslogs-stream")
     fluentd_options=("env" "fluentd-address" "labels" "tag")
+    gcplogs_options=("env" "gcp-log-cmd" "gcp-project" "labels")
     gelf_options=("env" "gelf-address" "labels" "tag")
     journald_options=("env" "labels")
     json_file_options=("env" "labels" "max-file" "max-size")
@@ -209,6 +210,7 @@ __docker_get_log_options() {
 
     [[ $log_driver = (awslogs|all) ]] && _describe -t awslogs-options "awslogs options" awslogs_options "$@" && ret=0
     [[ $log_driver = (fluentd|all) ]] && _describe -t fluentd-options "fluentd options" fluentd_options "$@" && ret=0
+    [[ $log_driver = (gcplogs|all) ]] && _describe -t gcplogs-options "gcplogs options" gcplogs_options "$@" && ret=0
     [[ $log_driver = (gelf|all) ]] && _describe -t gelf-options "gelf options" gelf_options "$@" && ret=0
     [[ $log_driver = (journald|all) ]] && _describe -t journald-options "journald options" journald_options "$@" && ret=0
     [[ $log_driver = (json-file|all) ]] && _describe -t json-file-options "json-file options" json_file_options "$@" && ret=0
