@@ -7,8 +7,8 @@ import (
 
 	"github.com/docker/docker/api/types/blkiodev"
 	"github.com/docker/docker/api/types/strslice"
-	"github.com/docker/docker/pkg/nat"
 	"github.com/docker/docker/pkg/ulimit"
+	"github.com/docker/go-connections/nat"
 )
 
 // KeyValuePair is a structure that hold a value for a key.

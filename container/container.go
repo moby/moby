@@ -19,12 +19,12 @@ import (
 	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
-	"github.com/docker/docker/pkg/nat"
 	"github.com/docker/docker/pkg/promise"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/symlink"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/volume"
+	"github.com/docker/go-connections/nat"
 	"github.com/opencontainers/runc/libcontainer/label"
 )
 

@@ -1,8 +1,8 @@
 package execdriver
 
 import (
-	"github.com/docker/docker/pkg/nat"
 	"github.com/docker/docker/runconfig"
+	"github.com/docker/go-connections/nat"
 )
 
 // Mount contains information for a mount operation.
