@@ -7,6 +7,8 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strings"
+
+	"github.com/Sirupsen/logrus"
 )
 
 // NewCtx creates new authZ context, it is used to store authorization information related to a specific docker
@@ -47,9 +49,9 @@ type Ctx struct {
 }
 
 // AuthZRequest authorized the request to the docker daemon using authZ plugins
-func (a *Ctx) AuthZRequest(w http.ResponseWriter, r *http.Request) error {
+func (ctx *Ctx) AuthZRequest(w http.ResponseWriter, r *http.Request) error {
 	var body []byte
-	if sendBody(a.requestURI, r.Header) {
+	if sendBody(ctx.requestURI, r.Header) {
 		var (
 			err         error
 			drainedBody io.ReadCloser
@@ -70,26 +72,25 @@ func (a *Ctx) AuthZRequest(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	a.authReq = &Request{
-		User:            a.user,
-		UserAuthNMethod: a.userAuthNMethod,
-		RequestMethod:   a.requestMethod,
-		RequestURI:      a.requestURI,
+	ctx.authReq = &Request{
+		User:            ctx.user,
+		UserAuthNMethod: ctx.userAuthNMethod,
+		RequestMethod:   ctx.requestMethod,
+		RequestURI:      ctx.requestURI,
 		RequestBody:     body,
-		RequestHeaders:  headers(r.Header)}
+		RequestHeaders:  headers(r.Header),
+	}
 
-	for _, plugin := range a.plugins {
-		authRes, err := plugin.AuthZRequest(a.authReq)
+	for _, plugin := range ctx.plugins {
+		logrus.Debugf("AuthZ request using plugin %s", plugin.Name())
+
+		authRes, err := plugin.AuthZRequest(ctx.authReq)
 		if err != nil {
-			return err
-		}
-
-		if authRes.Err != "" {
-			return fmt.Errorf(authRes.Err)
+			return fmt.Errorf("plugin %s failed with error: %s", plugin.Name(), err)
 		}
 
 		if !authRes.Allow {
-			return fmt.Errorf(authRes.Msg)
+			return fmt.Errorf("authorization denied by plugin %s: %s", plugin.Name(), authRes.Msg)
 		}
 	}
 
@@ -97,26 +98,24 @@ func (a *Ctx) AuthZRequest(w http.ResponseWriter, r *http.Request) error {
 }
 
 // AuthZResponse authorized and manipulates the response from docker daemon using authZ plugins
-func (a *Ctx) AuthZResponse(rm ResponseModifier, r *http.Request) error {
-	a.authReq.ResponseStatusCode = rm.StatusCode()
-	a.authReq.ResponseHeaders = headers(rm.Header())
+func (ctx *Ctx) AuthZResponse(rm ResponseModifier, r *http.Request) error {
+	ctx.authReq.ResponseStatusCode = rm.StatusCode()
+	ctx.authReq.ResponseHeaders = headers(rm.Header())
 
-	if sendBody(a.requestURI, rm.Header()) {
-		a.authReq.ResponseBody = rm.RawBody()
+	if sendBody(ctx.requestURI, rm.Header()) {
+		ctx.authReq.ResponseBody = rm.RawBody()
 	}
 
-	for _, plugin := range a.plugins {
-		authRes, err := plugin.AuthZResponse(a.authReq)
-		if err != nil {
-			return err
-		}
+	for _, plugin := range ctx.plugins {
+		logrus.Debugf("AuthZ response using plugin %s", plugin.Name())
 
-		if authRes.Err != "" {
-			return fmt.Errorf(authRes.Err)
+		authRes, err := plugin.AuthZResponse(ctx.authReq)
+		if err != nil {
+			return fmt.Errorf("plugin %s failed with error: %s", plugin.Name(), err)
 		}
 
 		if !authRes.Allow {
-			return fmt.Errorf(authRes.Msg)
+			return fmt.Errorf("authorization denied by plugin %s: %s", plugin.Name(), authRes.Msg)
 		}
 	}
 
