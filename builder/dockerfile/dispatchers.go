@@ -18,8 +18,8 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/builder"
 	derr "github.com/docker/docker/errors"
-	"github.com/docker/docker/image"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/nat"
 	"github.com/docker/docker/pkg/signal"
@@ -210,7 +210,7 @@ func from(b *Builder, args []string, attributes map[string]bool, original string
 	}
 
 	var (
-		image *image.Image
+		image builder.Image
 		err   error
 	)
 	// TODO: don't use `name`, instead resolve it to a digest

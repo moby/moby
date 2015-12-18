@@ -10,8 +10,6 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/daemon"
-	"github.com/docker/docker/image"
 	"github.com/docker/docker/runconfig"
 )
 
@@ -112,13 +110,13 @@ type Backend interface {
 	// TODO: use digest reference instead of name
 
 	// GetImage looks up a Docker image referenced by `name`.
-	GetImage(name string) (*image.Image, error)
+	GetImage(name string) (Image, error)
 	// Pull tells Docker to pull image referenced by `name`.
-	Pull(name string) (*image.Image, error)
-	// ContainerWsAttachWithLogs attaches to container.
-	ContainerWsAttachWithLogs(name string, cfg *daemon.ContainerWsAttachWithLogsConfig) error
+	Pull(name string) (Image, error)
+	// ContainerAttach attaches to container.
+	ContainerAttach(cID string, stdin io.ReadCloser, stdout, stderr io.Writer, stream bool) error
 	// ContainerCreate creates a new Docker container and returns potential warnings
-	ContainerCreate(params *daemon.ContainerCreateConfig) (types.ContainerCreateResponse, error)
+	ContainerCreate(types.ContainerCreateConfig) (types.ContainerCreateResponse, error)
 	// ContainerRm removes a container specified by `id`.
 	ContainerRm(name string, config *types.ContainerRmConfig) error
 	// Commit creates a new Docker image from an existing Docker container.
