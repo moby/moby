@@ -82,4 +82,9 @@ clone git gopkg.in/fsnotify.v1 v1.2.0
 clone git github.com/aws/aws-sdk-go v0.9.9
 clone git github.com/vaughan0/go-ini a98ad7ee00ec53921f08832bc06ecf7fd600e6a1
 
+# gcplogs deps
+clone git golang.org/x/oauth2 2baa8a1b9338cf13d9eeb27696d761155fa480be https://github.com/golang/oauth2.git
+clone git google.golang.org/api dc6d2353af16e2a2b0ff6986af051d473a4ed468 https://code.googlesource.com/google-api-go-client
+clone git google.golang.org/cloud dae7e3d993bc3812a2185af60552bb6b847e52a0 https://code.googlesource.com/gocloud
+
 clean
