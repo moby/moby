@@ -189,7 +189,7 @@ If you inspect your `my-bridge-network` you'll see it has a container attached.
 You can also inspect your container to see where it is connected:
 
     $ docker inspect --format='{{json .NetworkSettings.Networks}}'  db
-    {"bridge":{"EndpointID":"508b170d56b2ac9e4ef86694b0a76a22dd3df1983404f7321da5649645bf7043","Gateway":"172.17.0.1","IPAddress":"172.17.0.3","IPPrefixLen":16,"IPv6Gateway":"","GlobalIPv6Address":"","GlobalIPv6PrefixLen":0,"MacAddress":"02:42:ac:11:00:02"}}
+    {"bridge":{"EndpointID":"508b170d56b2ac9e4ef86694b0a76a22dd3df1983404f7321da5649645bf7043","Gateway":"172.18.0.1","IPAddress":"172.18.0.2","IPPrefixLen":16,"IPv6Gateway":"","GlobalIPv6Address":"","GlobalIPv6PrefixLen":0,"MacAddress":"02:42:ac:11:00:02"}}
 
 Now, go ahead and start your by now familiar web application. This time leave off the `-P` flag and also don't specify a network.
 
@@ -198,7 +198,7 @@ Now, go ahead and start your by now familiar web application. This time leave of
 Which network is your `web` application running under? Inspect the application and you'll find it is running in the default `bridge` network.
 
     $ docker inspect --format='{{json .NetworkSettings.Networks}}'  web
-    {"bridge":{"EndpointID":"508b170d56b2ac9e4ef86694b0a76a22dd3df1983404f7321da5649645bf7043","Gateway":"172.17.0.1","IPAddress":"172.17.0.3","IPPrefixLen":16,"IPv6Gateway":"","GlobalIPv6Address":"","GlobalIPv6PrefixLen":0,"MacAddress":"02:42:ac:11:00:02"}}
+    {"bridge":{"EndpointID":"508b170d56b2ac9e4ef86694b0a76a22dd3df1983404f7321da5649645bf7043","Gateway":"172.17.0.1","IPAddress":"172.17.0.2","IPPrefixLen":16,"IPv6Gateway":"","GlobalIPv6Address":"","GlobalIPv6PrefixLen":0,"MacAddress":"02:42:ac:11:00:02"}}
 
 Then, get the IP address of your `web`
 
@@ -225,10 +225,10 @@ Open a shell into the `db` application again and try the ping command. This time
 
     $ docker exec -it db bash
     root@a205f0dd33b2:/# ping web
-    PING web (172.19.0.3) 56(84) bytes of data.
-    64 bytes from web (172.19.0.3): icmp_seq=1 ttl=64 time=0.095 ms
-    64 bytes from web (172.19.0.3): icmp_seq=2 ttl=64 time=0.060 ms
-    64 bytes from web (172.19.0.3): icmp_seq=3 ttl=64 time=0.066 ms
+    PING web (172.18.0.3) 56(84) bytes of data.
+    64 bytes from web (172.18.0.3): icmp_seq=1 ttl=64 time=0.095 ms
+    64 bytes from web (172.18.0.3): icmp_seq=2 ttl=64 time=0.060 ms
+    64 bytes from web (172.18.0.3): icmp_seq=3 ttl=64 time=0.066 ms
     ^C
     --- web ping statistics ---
     3 packets transmitted, 3 received, 0% packet loss, time 2000ms
