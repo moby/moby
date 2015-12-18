@@ -1,13 +1,13 @@
 package authorization
 
-import (
-	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/pkg/plugins"
-)
+import "github.com/docker/docker/pkg/plugins"
 
 // Plugin allows third party plugins to authorize requests and responses
 // in the context of docker API
 type Plugin interface {
+	// Name returns the registered plugin name
+	Name() string
+
 	// AuthZRequest authorize the request from the client to the daemon
 	AuthZRequest(*Request) (*Response, error)
 
@@ -34,9 +34,11 @@ func newAuthorizationPlugin(name string) Plugin {
 	return &authorizationPlugin{name: name}
 }
 
-func (a *authorizationPlugin) AuthZRequest(authReq *Request) (*Response, error) {
-	logrus.Debugf("AuthZ requset using plugins %s", a.name)
+func (a *authorizationPlugin) Name() string {
+	return a.name
+}
 
+func (a *authorizationPlugin) AuthZRequest(authReq *Request) (*Response, error) {
 	if err := a.initPlugin(); err != nil {
 		return nil, err
 	}
@@ -50,8 +52,6 @@ func (a *authorizationPlugin) AuthZRequest(authReq *Request) (*Response, error) 
 }
 
 func (a *authorizationPlugin) AuthZResponse(authReq *Request) (*Response, error) {
-	logrus.Debugf("AuthZ response using plugins %s", a.name)
-
 	if err := a.initPlugin(); err != nil {
 		return nil, err
 	}
