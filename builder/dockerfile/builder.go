@@ -70,7 +70,7 @@ type Config struct {
 }
 
 // Builder is a Dockerfile builder
-// It implements the builder.Builder interface.
+// It implements the builder.Backend interface.
 type Builder struct {
 	*Config
 
