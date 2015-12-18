@@ -109,6 +109,7 @@ func (i *nwIface) Remove() error {
 
 	n.Lock()
 	path := n.path
+	isDefault := n.isDefault
 	n.Unlock()
 
 	return nsInvoke(path, func(nsFD int) error { return nil }, func(callerFD int) error {
@@ -134,7 +135,7 @@ func (i *nwIface) Remove() error {
 			if err := netlink.LinkDel(iface); err != nil {
 				return fmt.Errorf("failed deleting bridge %q: %v", i.SrcName(), err)
 			}
-		} else {
+		} else if !isDefault {
 			// Move the network interface to caller namespace.
 			if err := netlink.LinkSetNsFd(iface, callerFD); err != nil {
 				fmt.Println("LinkSetNsPid failed: ", err)
@@ -213,9 +214,15 @@ func (n *networkNamespace) AddInterface(srcName, dstPrefix string, options ...If
 	}
 
 	n.Lock()
-	i.dstName = fmt.Sprintf("%s%d", i.dstName, n.nextIfIndex)
-	n.nextIfIndex++
+	if n.isDefault {
+		i.dstName = i.srcName
+	} else {
+		i.dstName = fmt.Sprintf("%s%d", i.dstName, n.nextIfIndex)
+		n.nextIfIndex++
+	}
+
 	path := n.path
+	isDefault := n.isDefault
 	n.Unlock()
 
 	return nsInvoke(path, func(nsFD int) error {
@@ -231,9 +238,13 @@ func (n *networkNamespace) AddInterface(srcName, dstPrefix string, options ...If
 			return fmt.Errorf("failed to get link by name %q: %v", i.srcName, err)
 		}
 
-		// Move the network interface to the destination namespace.
-		if err := netlink.LinkSetNsFd(iface, nsFD); err != nil {
-			return fmt.Errorf("failed to set namespace on link %q: %v", i.srcName, err)
+		// Move the network interface to the destination
+		// namespace only if the namespace is not a default
+		// type
+		if !isDefault {
+			if err := netlink.LinkSetNsFd(iface, nsFD); err != nil {
+				return fmt.Errorf("failed to set namespace on link %q: %v", i.srcName, err)
+			}
 		}
 
 		return nil
