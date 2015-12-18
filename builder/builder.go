@@ -13,17 +13,6 @@ import (
 	"github.com/docker/docker/runconfig"
 )
 
-// Builder abstracts a Docker builder whose only purpose is to build a Docker image referenced by an imageID.
-type Builder interface {
-	// Build builds a Docker image referenced by an imageID string.
-	//
-	// Note: Tagging an image should not be done by a Builder, it should instead be done
-	// by the caller.
-	//
-	// TODO: make this return a reference instead of string
-	Build() (imageID string)
-}
-
 // Context represents a file system tree.
 type Context interface {
 	// Close allows to signal that the filesystem tree won't be used anymore.

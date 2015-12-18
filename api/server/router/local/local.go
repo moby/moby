@@ -97,7 +97,6 @@ func (r *router) initRoutes() {
 		NewGetRoute("/images/{name:.*}/json", r.getImagesByName),
 		// POST
 		NewPostRoute("/commit", r.postCommit),
-		NewPostRoute("/build", r.postBuild),
 		NewPostRoute("/images/create", r.postImagesCreate),
 		NewPostRoute("/images/load", r.postImagesLoad),
 		NewPostRoute("/images/{name:.*}/push", r.postImagesPush),
