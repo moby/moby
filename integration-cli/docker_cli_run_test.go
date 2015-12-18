@@ -20,8 +20,8 @@ import (
 
 	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/docker/docker/pkg/mount"
-	"github.com/docker/docker/pkg/nat"
 	"github.com/docker/docker/runconfig"
+	"github.com/docker/go-connections/nat"
 	"github.com/docker/libnetwork/resolvconf"
 	"github.com/go-check/check"
 )

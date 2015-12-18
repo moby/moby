@@ -11,7 +11,7 @@ import (
 	"testing"
 
 	flag "github.com/docker/docker/pkg/mflag"
-	"github.com/docker/docker/pkg/nat"
+	"github.com/docker/go-connections/nat"
 )
 
 func parseRun(args []string) (*Config, *HostConfig, *flag.FlagSet, error) {

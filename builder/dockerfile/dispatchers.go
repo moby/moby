@@ -22,10 +22,10 @@ import (
 	"github.com/docker/docker/builder"
 	derr "github.com/docker/docker/errors"
 	flag "github.com/docker/docker/pkg/mflag"
-	"github.com/docker/docker/pkg/nat"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/runconfig"
+	"github.com/docker/go-connections/nat"
 )
 
 const (

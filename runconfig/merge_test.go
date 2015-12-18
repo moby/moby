@@ -3,7 +3,7 @@ package runconfig
 import (
 	"testing"
 
-	"github.com/docker/docker/pkg/nat"
+	"github.com/docker/go-connections/nat"
 )
 
 func TestMerge(t *testing.T) {

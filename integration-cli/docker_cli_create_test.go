@@ -13,8 +13,8 @@ import (
 	"io/ioutil"
 
 	"github.com/docker/docker/pkg/integration/checker"
-	"github.com/docker/docker/pkg/nat"
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/go-connections/nat"
 	"github.com/go-check/check"
 )
 
