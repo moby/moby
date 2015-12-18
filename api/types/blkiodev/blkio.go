@@ -1,8 +1,6 @@
 package blkiodev
 
-import (
-	"fmt"
-)
+import "fmt"
 
 // WeightDevice is a structure that hold device:weight pair
 type WeightDevice struct {

@@ -5,8 +5,8 @@ import (
 	"io"
 	"strings"
 
+	"github.com/docker/docker/api/types/blkiodev"
 	"github.com/docker/docker/api/types/strslice"
-	"github.com/docker/docker/pkg/blkiodev"
 	"github.com/docker/docker/pkg/nat"
 	"github.com/docker/docker/pkg/ulimit"
 )
