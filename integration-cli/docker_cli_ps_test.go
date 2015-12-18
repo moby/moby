@@ -568,7 +568,7 @@ func (s *DockerSuite) TestPsFormatHeaders(c *check.C) {
 func (s *DockerSuite) TestPsDefaultFormatAndQuiet(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	config := `{
-		"psFormat": "{{ .ID }} default"
+		"psFormat": "default {{ .ID }}"
 }`
 	d, err := ioutil.TempDir("", "integration-cli-")
 	c.Assert(err, checker.IsNil)
