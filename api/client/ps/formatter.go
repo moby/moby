@@ -31,6 +31,8 @@ type Context struct {
 	Quiet bool
 	// Trunc when set to true will truncate the output of certain fields such as Container ID.
 	Trunc bool
+	// WithVolume when set to true will only show containers with volumes
+	WithVolume bool
 }
 
 // Format helps to format the output using the parameters set in the Context.
@@ -106,19 +108,22 @@ func customFormat(ctx Context, containers []types.Container) {
 	}
 
 	for _, container := range containers {
-		containerCtx := &containerContext{
-			trunc: ctx.Trunc,
-			c:     container,
+		if(ctx.WithNoVolume && len(container.MountPoints)>0){ // Do not write to buffer when there is WithNoVolume is set and container doesnt contain a volume
+			containerCtx := &containerContext{
+				trunc: ctx.Trunc,
+				c:     container,
+			}
+			if err := tmpl.Execute(buffer, containerCtx); err != nil {
+				buffer = bytes.NewBufferString(fmt.Sprintf("Template parsing error: %v\n", err))
+				buffer.WriteTo(ctx.Output)
+				return
+			}
+			if table && len(header) == 0 {
+				header = containerCtx.fullHeader()
+			}
+			buffer.WriteString("\n")
 		}
-		if err := tmpl.Execute(buffer, containerCtx); err != nil {
-			buffer = bytes.NewBufferString(fmt.Sprintf("Template parsing error: %v\n", err))
-			buffer.WriteTo(ctx.Output)
-			return
-		}
-		if table && len(header) == 0 {
-			header = containerCtx.fullHeader()
-		}
-		buffer.WriteString("\n")
+
 	}
 
 	if table {
