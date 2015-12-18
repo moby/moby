@@ -304,8 +304,8 @@ func (s *State) HasBeenCheckpointed() bool {
 
 // IsCheckpointed indicates whether the container is currently checkpointed
 func (s *State) IsCheckpointed() bool {
-	s.Lock()
+	//s.Lock()
 	res := s.Checkpointed
-	s.Unlock()
+	//s.Unlock()
 	return res
 }
