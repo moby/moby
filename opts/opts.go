@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/docker/docker/pkg/blkiodev"
+	"github.com/docker/docker/api/types/blkiodev"
 	"github.com/docker/go-units"
 )
 
