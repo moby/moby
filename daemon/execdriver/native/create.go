@@ -69,6 +69,10 @@ func (d *Driver) createContainer(c *execdriver.Command, hooks execdriver.Hooks) 
 		if err := d.setCapabilities(container, c); err != nil {
 			return nil, err
 		}
+
+		if c.SeccompProfile == "" {
+			container.Seccomp = getDefaultSeccompProfile()
+		}
 	}
 	// add CAP_ prefix to all caps for new libcontainer update to match
 	// the spec format.
@@ -89,6 +93,7 @@ func (d *Driver) createContainer(c *execdriver.Command, hooks execdriver.Hooks) 
 			return nil, err
 		}
 	}
+
 	if err := execdriver.SetupCgroups(container, c); err != nil {
 		return nil, err
 	}
