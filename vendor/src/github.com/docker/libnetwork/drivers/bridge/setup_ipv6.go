@@ -62,6 +62,13 @@ func setupBridgeIPv6(config *networkConfiguration, i *bridgeInterface) error {
 		return nil
 	}
 
+	// Store and program user specified bridge network and network gateway
+	i.bridgeIPv6 = config.AddressIPv6
+	i.gatewayIPv6 = config.AddressIPv6.IP
+	if err := netlink.AddrAdd(i.Link, &netlink.Addr{IPNet: i.bridgeIPv6}); err != nil {
+		return &IPv6AddrAddError{IP: i.bridgeIPv6, Err: err}
+	}
+
 	// Setting route to global IPv6 subnet
 	logrus.Debugf("Adding route to IPv6 network %s via device %s", config.AddressIPv6.String(), config.BridgeName)
 	err = netlink.RouteAdd(&netlink.Route{

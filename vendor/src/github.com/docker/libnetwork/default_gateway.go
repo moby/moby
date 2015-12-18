@@ -103,6 +103,9 @@ func (sb *sandbox) needDefaultGW() bool {
 		if ep.getNetwork().Type() == "null" || ep.getNetwork().Type() == "host" {
 			continue
 		}
+		if ep.getNetwork().Internal() {
+			return false
+		}
 		if ep.joinInfo.disableGatewayService {
 			return false
 		}

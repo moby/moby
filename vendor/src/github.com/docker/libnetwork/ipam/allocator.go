@@ -486,21 +486,28 @@ func (a *Allocator) getAddress(nw *net.IPNet, bitmask *bitseq.Handle, prefAddres
 // DumpDatabase dumps the internal info
 func (a *Allocator) DumpDatabase() string {
 	a.Lock()
-	defer a.Unlock()
+	aspaces := make(map[string]*addrSpace, len(a.addrSpaces))
+	for as, aSpace := range a.addrSpaces {
+		aspaces[as] = aSpace
+	}
+	a.Unlock()
 
 	var s string
-	for as, aSpace := range a.addrSpaces {
+	for as, aSpace := range aspaces {
 		s = fmt.Sprintf("\n\n%s Config", as)
 		aSpace.Lock()
 		for k, config := range aSpace.subnets {
 			s = fmt.Sprintf("%s%s", s, fmt.Sprintf("\n%v: %v", k, config))
+			if config.Range == nil {
+				a.retrieveBitmask(k, config.Pool)
+			}
 		}
 		aSpace.Unlock()
 	}
 
 	s = fmt.Sprintf("%s\n\nBitmasks", s)
 	for k, bm := range a.addresses {
-		s = fmt.Sprintf("%s%s", s, fmt.Sprintf("\n\t%s: %s\n\t%d", k, bm, bm.Unselected()))
+		s = fmt.Sprintf("%s%s", s, fmt.Sprintf("\n%s: %s", k, bm))
 	}
 
 	return s
