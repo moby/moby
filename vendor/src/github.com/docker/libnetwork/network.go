@@ -16,6 +16,7 @@ import (
 	"github.com/docker/libnetwork/etchosts"
 	"github.com/docker/libnetwork/ipamapi"
 	"github.com/docker/libnetwork/netlabel"
+	"github.com/docker/libnetwork/netutils"
 	"github.com/docker/libnetwork/options"
 	"github.com/docker/libnetwork/types"
 )
@@ -58,6 +59,7 @@ type Network interface {
 // NetworkInfo returns some configuration and operational information about the network
 type NetworkInfo interface {
 	IpamConfig() (string, []*IpamConf, []*IpamConf)
+	IpamInfo() ([]*IpamInfo, []*IpamInfo)
 	DriverOptions() map[string]string
 	Scope() string
 }
@@ -161,6 +163,7 @@ type network struct {
 	persist      bool
 	stopWatchCh  chan struct{}
 	drvOnce      *sync.Once
+	internal     bool
 	sync.Mutex
 }
 
@@ -303,6 +306,7 @@ func (n *network) CopyTo(o datastore.KVObject) error {
 	dstN.dbIndex = n.dbIndex
 	dstN.dbExists = n.dbExists
 	dstN.drvOnce = n.drvOnce
+	dstN.internal = n.internal
 
 	for _, v4conf := range n.ipamV4Config {
 		dstV4Conf := &IpamConf{}
@@ -389,6 +393,7 @@ func (n *network) MarshalJSON() ([]byte, error) {
 		}
 		netMap["ipamV6Info"] = string(iis)
 	}
+	netMap["internal"] = n.internal
 	return json.Marshal(netMap)
 }
 
@@ -452,6 +457,9 @@ func (n *network) UnmarshalJSON(b []byte) (err error) {
 			return err
 		}
 	}
+	if v, ok := netMap["internal"]; ok {
+		n.internal = v.(bool)
+	}
 	return nil
 }
 
@@ -475,6 +483,18 @@ func NetworkOptionGeneric(generic map[string]interface{}) NetworkOption {
 func NetworkOptionPersist(persist bool) NetworkOption {
 	return func(n *network) {
 		n.persist = persist
+	}
+}
+
+// NetworkOptionInternalNetwork returns an option setter to config the network
+// to be internal which disables default gateway service
+func NetworkOptionInternalNetwork() NetworkOption {
+	return func(n *network) {
+		n.internal = true
+		if n.generic == nil {
+			n.generic = make(map[string]interface{})
+		}
+		n.generic[netlabel.Internal] = true
 	}
 }
 
@@ -678,7 +698,22 @@ func (n *network) CreateEndpoint(name string, options ...EndpointOption) (Endpoi
 		}
 	}
 
-	if err = ep.assignAddress(true, !n.postIPv6); err != nil {
+	ipam, err := n.getController().getIPAM(n.ipamType)
+	if err != nil {
+		return nil, err
+	}
+
+	if ipam.capability.RequiresMACAddress {
+		if ep.iface.mac == nil {
+			ep.iface.mac = netutils.GenerateRandomMAC()
+		}
+		if ep.ipamOptions == nil {
+			ep.ipamOptions = make(map[string]string)
+		}
+		ep.ipamOptions[netlabel.MacAddress] = ep.iface.mac.String()
+	}
+
+	if err = ep.assignAddress(ipam.driver, true, !n.postIPv6); err != nil {
 		return nil, err
 	}
 	defer func() {
@@ -698,7 +733,7 @@ func (n *network) CreateEndpoint(name string, options ...EndpointOption) (Endpoi
 		}
 	}()
 
-	if err = ep.assignAddress(false, n.postIPv6); err != nil {
+	if err = ep.assignAddress(ipam.driver, false, n.postIPv6); err != nil {
 		return nil, err
 	}
 
@@ -1147,4 +1182,33 @@ func (n *network) IpamConfig() (string, []*IpamConf, []*IpamConf) {
 	}
 
 	return n.ipamType, v4L, v6L
+}
+
+func (n *network) IpamInfo() ([]*IpamInfo, []*IpamInfo) {
+	n.Lock()
+	defer n.Unlock()
+
+	v4Info := make([]*IpamInfo, len(n.ipamV4Info))
+	v6Info := make([]*IpamInfo, len(n.ipamV6Info))
+
+	for i, info := range n.ipamV4Info {
+		ic := &IpamInfo{}
+		info.CopyTo(ic)
+		v4Info[i] = ic
+	}
+
+	for i, info := range n.ipamV6Info {
+		ic := &IpamInfo{}
+		info.CopyTo(ic)
+		v6Info[i] = ic
+	}
+
+	return v4Info, v6Info
+}
+
+func (n *network) Internal() bool {
+	n.Lock()
+	defer n.Unlock()
+
+	return n.internal
 }

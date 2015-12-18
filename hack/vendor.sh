@@ -24,7 +24,7 @@ clone git github.com/docker/go-units v0.2.0
 clone git github.com/docker/go-connections 96cdf8190a45946d0f19576732e2a410c6f84a31
 
 #get libnetwork packages
-clone git github.com/docker/libnetwork bbd6e6d8ca1e7c9b42f6f53277b0bde72847ff90
+clone git github.com/docker/libnetwork 9f0563ea8f430d8828553aac97161cbff4056436
 clone git github.com/armon/go-metrics eb0af217e5e9747e41dd5303755356b62d28e3ec
 clone git github.com/hashicorp/go-msgpack 71c2886f5a673a35f909803f38ece5810165097b
 clone git github.com/hashicorp/memberlist 9a1e242e454d2443df330bdd51a436d5a9058fc4
