@@ -3,7 +3,7 @@ package v1p20
 
 import (
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/runconfig"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/go-connections/nat"
 )
 
@@ -17,7 +17,7 @@ type ContainerJSON struct {
 
 // ContainerConfig is a backcompatibility struct used in ContainerJSON for the API 1.20
 type ContainerConfig struct {
-	*runconfig.Config
+	*container.Config
 
 	MacAddress      string
 	NetworkDisabled bool

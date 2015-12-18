@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
+	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/dockerversion"
@@ -18,7 +19,6 @@ import (
 	// register the windows graph driver
 	"github.com/docker/docker/daemon/graphdriver/windows"
 	"github.com/docker/docker/pkg/system"
-	"github.com/docker/docker/runconfig"
 	"github.com/docker/libnetwork"
 	blkiodev "github.com/opencontainers/runc/libcontainer/configs"
 )
@@ -30,27 +30,27 @@ const (
 	windowsMaxCPUShares  = 10000
 )
 
-func getBlkioWeightDevices(config *runconfig.HostConfig) ([]*blkiodev.WeightDevice, error) {
+func getBlkioWeightDevices(config *containertypes.HostConfig) ([]*blkiodev.WeightDevice, error) {
 	return nil, nil
 }
 
-func parseSecurityOpt(container *container.Container, config *runconfig.HostConfig) error {
+func parseSecurityOpt(container *container.Container, config *containertypes.HostConfig) error {
 	return nil
 }
 
-func getBlkioReadIOpsDevices(config *runconfig.HostConfig) ([]*blkiodev.ThrottleDevice, error) {
+func getBlkioReadIOpsDevices(config *containertypes.HostConfig) ([]*blkiodev.ThrottleDevice, error) {
 	return nil, nil
 }
 
-func getBlkioWriteIOpsDevices(config *runconfig.HostConfig) ([]*blkiodev.ThrottleDevice, error) {
+func getBlkioWriteIOpsDevices(config *containertypes.HostConfig) ([]*blkiodev.ThrottleDevice, error) {
 	return nil, nil
 }
 
-func getBlkioReadBpsDevices(config *runconfig.HostConfig) ([]*blkiodev.ThrottleDevice, error) {
+func getBlkioReadBpsDevices(config *containertypes.HostConfig) ([]*blkiodev.ThrottleDevice, error) {
 	return nil, nil
 }
 
-func getBlkioWriteBpsDevices(config *runconfig.HostConfig) ([]*blkiodev.ThrottleDevice, error) {
+func getBlkioWriteBpsDevices(config *containertypes.HostConfig) ([]*blkiodev.ThrottleDevice, error) {
 	return nil, nil
 }
 
@@ -64,7 +64,7 @@ func checkKernel() error {
 
 // adaptContainerSettings is called during container creation to modify any
 // settings necessary in the HostConfig structure.
-func (daemon *Daemon) adaptContainerSettings(hostConfig *runconfig.HostConfig, adjustCPUShares bool) error {
+func (daemon *Daemon) adaptContainerSettings(hostConfig *containertypes.HostConfig, adjustCPUShares bool) error {
 	if hostConfig == nil {
 		return nil
 	}
@@ -82,7 +82,7 @@ func (daemon *Daemon) adaptContainerSettings(hostConfig *runconfig.HostConfig, a
 
 // verifyPlatformContainerSettings performs platform-specific validation of the
 // hostconfig and config structures.
-func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *runconfig.HostConfig, config *runconfig.Config) ([]string, error) {
+func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.HostConfig, config *containertypes.Config) ([]string, error) {
 	return nil, nil
 }
 
@@ -131,7 +131,7 @@ func (daemon *Daemon) initNetworkController(config *Config) (libnetwork.NetworkC
 
 // registerLinks sets up links between containers and writes the
 // configuration out for persistence. As of Windows TP4, links are not supported.
-func (daemon *Daemon) registerLinks(container *container.Container, hostConfig *runconfig.HostConfig) error {
+func (daemon *Daemon) registerLinks(container *container.Container, hostConfig *containertypes.HostConfig) error {
 	return nil
 }
 

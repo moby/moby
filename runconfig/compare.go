@@ -1,8 +1,10 @@
 package runconfig
 
+import "github.com/docker/docker/api/types/container"
+
 // Compare two Config struct. Do not compare the "Image" nor "Hostname" fields
 // If OpenStdin is set, then it differs
-func Compare(a, b *Config) bool {
+func Compare(a, b *container.Config) bool {
 	if a == nil || b == nil ||
 		a.OpenStdin || b.OpenStdin {
 		return false

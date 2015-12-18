@@ -6,19 +6,29 @@ import (
 	"strings"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/runconfig"
+	"github.com/docker/docker/api/types/container"
 )
+
+type configWrapper struct {
+	*container.Config
+	HostConfig *container.HostConfig
+}
 
 // ContainerCreate creates a new container based in the given configuration.
 // It can be associated with a name, but it's not mandatory.
-func (cli *Client) ContainerCreate(config *runconfig.ContainerConfigWrapper, containerName string) (types.ContainerCreateResponse, error) {
+func (cli *Client) ContainerCreate(config *container.Config, hostConfig *container.HostConfig, containerName string) (types.ContainerCreateResponse, error) {
 	var response types.ContainerCreateResponse
 	query := url.Values{}
 	if containerName != "" {
 		query.Set("name", containerName)
 	}
 
-	serverResp, err := cli.post("/containers/create", query, config, nil)
+	body := configWrapper{
+		Config:     config,
+		HostConfig: hostConfig,
+	}
+
+	serverResp, err := cli.post("/containers/create", query, body, nil)
 	if err != nil {
 		if serverResp != nil && serverResp.statusCode == 404 && strings.Contains(err.Error(), config.Image) {
 			return response, imageNotFoundError{config.Image}

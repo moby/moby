@@ -5,9 +5,9 @@ import (
 	"io"
 	"net"
 
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/pkg/ulimit"
-	"github.com/docker/docker/runconfig"
 )
 
 // ContainerAttachOptions holds parameters to attach to a container.
@@ -28,7 +28,7 @@ type ContainerCommitOptions struct {
 	Author         string
 	Changes        []string
 	Pause          bool
-	Config         *runconfig.Config
+	Config         *container.Config
 }
 
 // ContainerExecInspect holds information returned by exec inspect.

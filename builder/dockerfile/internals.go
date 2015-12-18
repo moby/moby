@@ -21,6 +21,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builder/dockerfile/parser"
@@ -34,7 +35,6 @@ import (
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/pkg/tarsum"
 	"github.com/docker/docker/pkg/urlutil"
-	"github.com/docker/docker/runconfig"
 )
 
 func (b *Builder) commit(id string, autoCmd *strslice.StrSlice, comment string) error {
@@ -476,7 +476,7 @@ func (b *Builder) create() (string, error) {
 	}
 	b.runConfig.Image = b.image
 
-	resources := runconfig.Resources{
+	resources := container.Resources{
 		CgroupParent: b.CgroupParent,
 		CPUShares:    b.CPUShares,
 		CPUPeriod:    b.CPUPeriod,
@@ -489,7 +489,7 @@ func (b *Builder) create() (string, error) {
 	}
 
 	// TODO: why not embed a hostconfig in builder?
-	hostConfig := &runconfig.HostConfig{
+	hostConfig := &container.HostConfig{
 		Isolation: b.Isolation,
 		ShmSize:   b.ShmSize,
 		Resources: resources,

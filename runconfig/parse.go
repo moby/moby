@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/opts"
 	flag "github.com/docker/docker/pkg/mflag"
@@ -47,7 +48,7 @@ var (
 // Parse parses the specified args for the specified command and generates a Config,
 // a HostConfig and returns them with the specified command.
 // If the specified args are not valid, it will return an error.
-func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSet, error) {
+func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.HostConfig, *flag.FlagSet, error) {
 	var (
 		// FIXME: use utils.ListOpts for attach and volumes?
 		flAttach            = opts.NewListOpts(opts.ValidateAttach)
@@ -300,7 +301,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 	}
 
 	// parse device mappings
-	deviceMappings := []DeviceMapping{}
+	deviceMappings := []container.DeviceMapping{}
 	for _, device := range flDevices.GetAll() {
 		deviceMapping, err := ParseDevice(device)
 		if err != nil {
@@ -321,17 +322,17 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		return nil, nil, cmd, err
 	}
 
-	ipcMode := IpcMode(*flIpcMode)
+	ipcMode := container.IpcMode(*flIpcMode)
 	if !ipcMode.Valid() {
 		return nil, nil, cmd, fmt.Errorf("--ipc: invalid IPC mode")
 	}
 
-	pidMode := PidMode(*flPidMode)
+	pidMode := container.PidMode(*flPidMode)
 	if !pidMode.Valid() {
 		return nil, nil, cmd, fmt.Errorf("--pid: invalid PID mode")
 	}
 
-	utsMode := UTSMode(*flUTSMode)
+	utsMode := container.UTSMode(*flUTSMode)
 	if !utsMode.Valid() {
 		return nil, nil, cmd, fmt.Errorf("--uts: invalid UTS mode")
 	}
@@ -346,7 +347,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		return nil, nil, cmd, err
 	}
 
-	resources := Resources{
+	resources := container.Resources{
 		CgroupParent:         *flCgroupParent,
 		Memory:               flMemory,
 		MemoryReservation:    MemoryReservation,
@@ -369,7 +370,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		Devices:              deviceMappings,
 	}
 
-	config := &Config{
+	config := &container.Config{
 		Hostname:     hostname,
 		Domainname:   domainname,
 		ExposedPorts: ports,
@@ -394,7 +395,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		StopSignal:      *flStopSignal,
 	}
 
-	hostConfig := &HostConfig{
+	hostConfig := &container.HostConfig{
 		Binds:           binds,
 		ContainerIDFile: *flContainerIDFile,
 		OomScoreAdj:     *flOomScoreAdj,
@@ -412,7 +413,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		DNSOptions:     flDNSOptions.GetAllOrEmpty(),
 		ExtraHosts:     flExtraHosts.GetAll(),
 		VolumesFrom:    flVolumesFrom.GetAll(),
-		NetworkMode:    NetworkMode(*flNetMode),
+		NetworkMode:    container.NetworkMode(*flNetMode),
 		IpcMode:        ipcMode,
 		PidMode:        pidMode,
 		UTSMode:        utsMode,
@@ -422,9 +423,9 @@ func Parse(cmd *flag.FlagSet, args []string) (*Config, *HostConfig, *flag.FlagSe
 		RestartPolicy:  restartPolicy,
 		SecurityOpt:    flSecurityOpt.GetAll(),
 		ReadonlyRootfs: *flReadonlyRootfs,
-		LogConfig:      LogConfig{Type: *flLoggingDriver, Config: loggingOpts},
+		LogConfig:      container.LogConfig{Type: *flLoggingDriver, Config: loggingOpts},
 		VolumeDriver:   *flVolumeDriver,
-		Isolation:      IsolationLevel(*flIsolation),
+		Isolation:      container.IsolationLevel(*flIsolation),
 		ShmSize:        parsedShm,
 		Resources:      resources,
 		Tmpfs:          tmpfs,
@@ -477,8 +478,8 @@ func parseLoggingOpts(loggingDriver string, loggingOpts []string) (map[string]st
 }
 
 // ParseRestartPolicy returns the parsed policy or an error indicating what is incorrect
-func ParseRestartPolicy(policy string) (RestartPolicy, error) {
-	p := RestartPolicy{}
+func ParseRestartPolicy(policy string) (container.RestartPolicy, error) {
+	p := container.RestartPolicy{}
 
 	if policy == "" {
 		return p, nil
@@ -516,20 +517,8 @@ func ParseRestartPolicy(policy string) (RestartPolicy, error) {
 	return p, nil
 }
 
-func parseKeyValueOpts(opts opts.ListOpts) ([]KeyValuePair, error) {
-	out := make([]KeyValuePair, opts.Len())
-	for i, o := range opts.GetAll() {
-		k, v, err := parsers.ParseKeyValueOpt(o)
-		if err != nil {
-			return nil, err
-		}
-		out[i] = KeyValuePair{Key: k, Value: v}
-	}
-	return out, nil
-}
-
-// ParseDevice parses a device mapping string to a DeviceMapping struct
-func ParseDevice(device string) (DeviceMapping, error) {
+// ParseDevice parses a device mapping string to a container.DeviceMapping struct
+func ParseDevice(device string) (container.DeviceMapping, error) {
 	src := ""
 	dst := ""
 	permissions := "rwm"
@@ -548,14 +537,14 @@ func ParseDevice(device string) (DeviceMapping, error) {
 	case 1:
 		src = arr[0]
 	default:
-		return DeviceMapping{}, fmt.Errorf("Invalid device specification: %s", device)
+		return container.DeviceMapping{}, fmt.Errorf("Invalid device specification: %s", device)
 	}
 
 	if dst == "" {
 		dst = src
 	}
 
-	deviceMapping := DeviceMapping{
+	deviceMapping := container.DeviceMapping{
 		PathOnHost:        src,
 		PathInContainer:   dst,
 		CgroupPermissions: permissions,

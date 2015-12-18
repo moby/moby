@@ -7,7 +7,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/docker/docker/runconfig"
+	"github.com/docker/docker/api/types/container"
 )
 
 func TestAdjustCPUShares(t *testing.T) {
@@ -21,8 +21,8 @@ func TestAdjustCPUShares(t *testing.T) {
 		root:       tmp,
 	}
 
-	hostConfig := &runconfig.HostConfig{
-		Resources: runconfig.Resources{CPUShares: linuxMinCPUShares - 1},
+	hostConfig := &container.HostConfig{
+		Resources: container.Resources{CPUShares: linuxMinCPUShares - 1},
 	}
 	daemon.adaptContainerSettings(hostConfig, true)
 	if hostConfig.CPUShares != linuxMinCPUShares {
@@ -59,8 +59,8 @@ func TestAdjustCPUSharesNoAdjustment(t *testing.T) {
 		root:       tmp,
 	}
 
-	hostConfig := &runconfig.HostConfig{
-		Resources: runconfig.Resources{CPUShares: linuxMinCPUShares - 1},
+	hostConfig := &container.HostConfig{
+		Resources: container.Resources{CPUShares: linuxMinCPUShares - 1},
 	}
 	daemon.adaptContainerSettings(hostConfig, false)
 	if hostConfig.CPUShares != linuxMinCPUShares-1 {

@@ -10,11 +10,11 @@ import (
 	"sync"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builder/dockerfile/parser"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/ulimit"
-	"github.com/docker/docker/runconfig"
 )
 
 var validCommitCommands = map[string]bool{
@@ -52,7 +52,7 @@ type Config struct {
 	ForceRemove bool
 	Pull        bool
 	BuildArgs   map[string]string // build-time args received in build context for expansion/substitution and commands in 'run'.
-	Isolation   runconfig.IsolationLevel
+	Isolation   container.IsolationLevel
 
 	// resource constraints
 	// TODO: factor out to be reused with Run ?
@@ -81,7 +81,7 @@ type Builder struct {
 	context builder.Context
 
 	dockerfile       *parser.Node
-	runConfig        *runconfig.Config // runconfig for cmd, run, entrypoint etc.
+	runConfig        *container.Config // runconfig for cmd, run, entrypoint etc.
 	flags            *BFlags
 	tmpContainers    map[string]struct{}
 	image            string // imageID
@@ -114,7 +114,7 @@ func NewBuilder(config *Config, docker builder.Backend, context builder.Context,
 		Stderr:           os.Stderr,
 		docker:           docker,
 		context:          context,
-		runConfig:        new(runconfig.Config),
+		runConfig:        new(container.Config),
 		tmpContainers:    map[string]struct{}{},
 		cancelled:        make(chan struct{}),
 		id:               stringid.GenerateNonCryptoID(),
@@ -206,7 +206,7 @@ func (b *Builder) Cancel() {
 // - call parse.Parse() to get AST root from Dockerfile entries
 // - do build by calling builder.dispatch() to call all entries' handling routines
 // TODO: remove?
-func BuildFromConfig(config *runconfig.Config, changes []string) (*runconfig.Config, error) {
+func BuildFromConfig(config *container.Config, changes []string) (*container.Config, error) {
 	ast, err := parser.Parse(bytes.NewBufferString(strings.Join(changes, "\n")))
 	if err != nil {
 		return nil, err

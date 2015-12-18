@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/strslice"
 )
 
@@ -101,16 +102,16 @@ func TestDecodeContainerConfigIsolation(t *testing.T) {
 
 // callDecodeContainerConfigIsolation is a utility function to call
 // DecodeContainerConfig for validating isolation levels
-func callDecodeContainerConfigIsolation(isolation string) (*Config, *HostConfig, error) {
+func callDecodeContainerConfigIsolation(isolation string) (*container.Config, *container.HostConfig, error) {
 	var (
 		b   []byte
 		err error
 	)
 	w := ContainerConfigWrapper{
-		Config: &Config{},
-		HostConfig: &HostConfig{
+		Config: &container.Config{},
+		HostConfig: &container.HostConfig{
 			NetworkMode: "none",
-			Isolation:   IsolationLevel(isolation)},
+			Isolation:   container.IsolationLevel(isolation)},
 	}
 	if b, err = json.Marshal(w); err != nil {
 		return nil, nil, fmt.Errorf("Error on marshal %s", err.Error())
