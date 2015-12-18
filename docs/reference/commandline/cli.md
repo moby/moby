@@ -103,6 +103,12 @@ Docker's client uses this property. If this property is not set, the client
 falls back to the default table format. For a list of supported formatting
 directives, see the [**Formatting** section in the `docker ps` documentation](ps.md)
 
+The property `imagesFormat` specifies the default format for `docker images` output.
+When the `--format` flag is not provided with the `docker images` command,
+Docker's client uses this property. If this property is not set, the client
+falls back to the default table format. For a list of supported formatting
+directives, see the [**Formatting** section in the `docker images` documentation](images.md)
+
 Following is a sample `config.json` file:
 
     {
@@ -110,6 +116,7 @@ Following is a sample `config.json` file:
         "MyHeader": "MyValue"
       },
       "psFormat": "table {{.ID}}\\t{{.Image}}\\t{{.Command}}\\t{{.Labels}}"
+      "imagesFormat": "table {{.ID}}\\t{{.Repository}}\\t{{.Tag}}\\t{{.CreatedAt}}"
     }
 
 ### Notary

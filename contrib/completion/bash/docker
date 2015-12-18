@@ -927,6 +927,9 @@ _docker_images() {
 			fi
 			return
 			;;
+                --format)
+			return
+			;;
 	esac
 
 	case "${words[$cword-2]}$prev=" in
@@ -941,7 +944,7 @@ _docker_images() {
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--all -a --digests --filter -f --help --no-trunc --quiet -q" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--all -a --digests --filter -f --format --help --no-trunc --quiet -q" -- "$cur" ) )
 			;;
 		=)
 			return
