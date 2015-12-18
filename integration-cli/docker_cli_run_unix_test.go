@@ -548,3 +548,39 @@ func (s *DockerSuite) TestRunSeccompProfileDenyChmod(c *check.C) {
 		c.Fatalf("expected chmod with seccomp profile denied to fail, got %s", out)
 	}
 }
+
+// TestRunSeccompProfileDenyUserns checks that 'docker run jess/unshare unshare --map-root-user --user sh -c whoami' exits with operation not permitted.
+func (s *DockerSuite) TestRunSeccompProfileDenyUserns(c *check.C) {
+	testRequires(c, SameHostDaemon, seccompEnabled)
+	// from sched.h
+	jsonData := fmt.Sprintf(`{
+	"defaultAction": "SCMP_ACT_ALLOW",
+	"syscalls": [
+		{
+			"name": "unshare",
+			"action": "SCMP_ACT_ERRNO",
+			"args": [
+				{
+					"index": 0,
+					"value": %d,
+					"op": "SCMP_CMP_EQ"
+				}
+			]
+		}
+	]
+}`, uint64(0x10000000))
+	tmpFile, err := ioutil.TempFile("", "profile.json")
+	defer tmpFile.Close()
+	if err != nil {
+		c.Fatal(err)
+	}
+
+	if _, err := tmpFile.Write([]byte(jsonData)); err != nil {
+		c.Fatal(err)
+	}
+	runCmd := exec.Command(dockerBinary, "run", "--security-opt", "seccomp:"+tmpFile.Name(), "jess/unshare", "unshare", "--map-root-user", "--user", "sh", "-c", "whoami")
+	out, _, _ := runCommandWithOutput(runCmd)
+	if !strings.Contains(out, "Operation not permitted") {
+		c.Fatalf("expected unshare userns with seccomp profile denied to fail, got %s", out)
+	}
+}
