@@ -43,7 +43,6 @@ type authorizationController struct {
 	psRequestCnt  int                    // psRequestCnt counts the number of calls to list container request api
 	psResponseCnt int                    // psResponseCnt counts the number of calls to list containers response API
 	requestsURIs  []string               // requestsURIs stores all request URIs that are sent to the authorization controller
-
 }
 
 func (s *DockerAuthzSuite) SetUpTest(c *check.C) {
@@ -165,7 +164,6 @@ func (s *DockerAuthzSuite) TearDownSuite(c *check.C) {
 }
 
 func (s *DockerAuthzSuite) TestAuthZPluginAllowRequest(c *check.C) {
-
 	err := s.d.Start("--authz-plugin=" + testAuthZPlugin)
 	c.Assert(err, check.IsNil)
 	s.ctrl.reqRes.Allow = true
@@ -189,7 +187,6 @@ func (s *DockerAuthzSuite) TestAuthZPluginAllowRequest(c *check.C) {
 }
 
 func (s *DockerAuthzSuite) TestAuthZPluginDenyRequest(c *check.C) {
-
 	err := s.d.Start("--authz-plugin=" + testAuthZPlugin)
 	c.Assert(err, check.IsNil)
 	s.ctrl.reqRes.Allow = false
@@ -202,11 +199,10 @@ func (s *DockerAuthzSuite) TestAuthZPluginDenyRequest(c *check.C) {
 	c.Assert(s.ctrl.psResponseCnt, check.Equals, 0)
 
 	// Ensure unauthorized message appears in response
-	c.Assert(res, check.Equals, fmt.Sprintf("Error response from daemon: %s\n", unauthorizedMessage))
+	c.Assert(res, check.Equals, fmt.Sprintf("Error response from daemon: authorization denied by plugin %s: %s\n", testAuthZPlugin, unauthorizedMessage))
 }
 
 func (s *DockerAuthzSuite) TestAuthZPluginDenyResponse(c *check.C) {
-
 	err := s.d.Start("--authz-plugin=" + testAuthZPlugin)
 	c.Assert(err, check.IsNil)
 	s.ctrl.reqRes.Allow = true
@@ -220,7 +216,7 @@ func (s *DockerAuthzSuite) TestAuthZPluginDenyResponse(c *check.C) {
 	c.Assert(s.ctrl.psResponseCnt, check.Equals, 1)
 
 	// Ensure unauthorized message appears in response
-	c.Assert(res, check.Equals, fmt.Sprintf("Error response from daemon: %s\n", unauthorizedMessage))
+	c.Assert(res, check.Equals, fmt.Sprintf("Error response from daemon: authorization denied by plugin %s: %s\n", testAuthZPlugin, unauthorizedMessage))
 }
 
 func (s *DockerAuthzSuite) TestAuthZPluginErrorResponse(c *check.C) {
@@ -233,7 +229,7 @@ func (s *DockerAuthzSuite) TestAuthZPluginErrorResponse(c *check.C) {
 	res, err := s.d.Cmd("ps")
 	c.Assert(err, check.NotNil)
 
-	c.Assert(res, check.Equals, fmt.Sprintf("Error response from daemon: Plugin Error: %s, %s\n", errorMessage, authorization.AuthZApiResponse))
+	c.Assert(res, check.Equals, fmt.Sprintf("Error response from daemon: plugin %s failed with error: %s: %s\n", testAuthZPlugin, authorization.AuthZApiResponse, errorMessage))
 }
 
 func (s *DockerAuthzSuite) TestAuthZPluginErrorRequest(c *check.C) {
@@ -245,7 +241,7 @@ func (s *DockerAuthzSuite) TestAuthZPluginErrorRequest(c *check.C) {
 	res, err := s.d.Cmd("ps")
 	c.Assert(err, check.NotNil)
 
-	c.Assert(res, check.Equals, fmt.Sprintf("Error response from daemon: Plugin Error: %s, %s\n", errorMessage, authorization.AuthZApiRequest))
+	c.Assert(res, check.Equals, fmt.Sprintf("Error response from daemon: plugin %s failed with error: %s: %s\n", testAuthZPlugin, authorization.AuthZApiRequest, errorMessage))
 }
 
 // assertURIRecorded verifies that the given URI was sent and recorded in the authz plugin
