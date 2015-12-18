@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"testing"
 
+	"github.com/docker/docker/api/types"
 	flag "github.com/docker/docker/pkg/mflag"
 )
 
@@ -18,7 +19,7 @@ func TestParseExec(t *testing.T) {
 		&arguments{[]string{"-u"}}:       fmt.Errorf("flag needs an argument: -u"),
 		&arguments{[]string{"--user"}}:   fmt.Errorf("flag needs an argument: --user"),
 	}
-	valids := map[*arguments]*ExecConfig{
+	valids := map[*arguments]*types.ExecConfig{
 		&arguments{
 			[]string{"container", "command"},
 		}: {
@@ -92,7 +93,7 @@ func TestParseExec(t *testing.T) {
 	}
 }
 
-func compareExecConfig(config1 *ExecConfig, config2 *ExecConfig) bool {
+func compareExecConfig(config1 *types.ExecConfig, config2 *types.ExecConfig) bool {
 	if config1.AttachStderr != config2.AttachStderr {
 		return false
 	}
