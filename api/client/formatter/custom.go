@@ -1,4 +1,4 @@
-package ps
+package formatter
 
 import (
 	"fmt"
@@ -16,26 +16,31 @@ import (
 const (
 	tableKey = "table"
 
-	idHeader         = "CONTAINER ID"
-	imageHeader      = "IMAGE"
-	namesHeader      = "NAMES"
-	commandHeader    = "COMMAND"
-	createdAtHeader  = "CREATED AT"
-	runningForHeader = "CREATED"
-	statusHeader     = "STATUS"
-	portsHeader      = "PORTS"
-	sizeHeader       = "SIZE"
-	labelsHeader     = "LABELS"
+	containerIDHeader  = "CONTAINER ID"
+	imageHeader        = "IMAGE"
+	namesHeader        = "NAMES"
+	commandHeader      = "COMMAND"
+	createdSinceHeader = "CREATED"
+	createdAtHeader    = "CREATED AT"
+	runningForHeader   = "CREATED"
+	statusHeader       = "STATUS"
+	portsHeader        = "PORTS"
+	sizeHeader         = "SIZE"
+	labelsHeader       = "LABELS"
+	imageIDHeader      = "IMAGE ID"
+	repositoryHeader   = "REPOSITORY"
+	tagHeader          = "TAG"
+	digestHeader       = "DIGEST"
 )
 
 type containerContext struct {
-	trunc  bool
-	header []string
-	c      types.Container
+	baseSubContext
+	trunc bool
+	c     types.Container
 }
 
 func (c *containerContext) ID() string {
-	c.addHeader(idHeader)
+	c.addHeader(containerIDHeader)
 	if c.trunc {
 		return stringid.TruncateID(c.c.ID)
 	}
@@ -137,14 +142,71 @@ func (c *containerContext) Label(name string) string {
 	return c.c.Labels[name]
 }
 
-func (c *containerContext) fullHeader() string {
+type imageContext struct {
+	baseSubContext
+	trunc  bool
+	i      types.Image
+	repo   string
+	tag    string
+	digest string
+}
+
+func (c *imageContext) ID() string {
+	c.addHeader(imageIDHeader)
+	if c.trunc {
+		return stringid.TruncateID(c.i.ID)
+	}
+	return c.i.ID
+}
+
+func (c *imageContext) Repository() string {
+	c.addHeader(repositoryHeader)
+	return c.repo
+}
+
+func (c *imageContext) Tag() string {
+	c.addHeader(tagHeader)
+	return c.tag
+}
+
+func (c *imageContext) Digest() string {
+	c.addHeader(digestHeader)
+	return c.digest
+}
+
+func (c *imageContext) CreatedSince() string {
+	c.addHeader(createdSinceHeader)
+	createdAt := time.Unix(int64(c.i.Created), 0)
+	return units.HumanDuration(time.Now().UTC().Sub(createdAt))
+}
+
+func (c *imageContext) CreatedAt() string {
+	c.addHeader(createdAtHeader)
+	return time.Unix(int64(c.i.Created), 0).String()
+}
+
+func (c *imageContext) Size() string {
+	c.addHeader(sizeHeader)
+	return units.HumanSize(float64(c.i.Size))
+}
+
+type subContext interface {
+	fullHeader() string
+	addHeader(header string)
+}
+
+type baseSubContext struct {
+	header []string
+}
+
+func (c *baseSubContext) fullHeader() string {
 	if c.header == nil {
 		return ""
 	}
 	return strings.Join(c.header, "\t")
 }
 
-func (c *containerContext) addHeader(header string) {
+func (c *baseSubContext) addHeader(header string) {
 	if c.header == nil {
 		c.header = []string{}
 	}

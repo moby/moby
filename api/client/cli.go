@@ -68,9 +68,15 @@ func (cli *DockerCli) CheckTtyInput(attachStdin, ttyMode bool) error {
 }
 
 // PsFormat returns the format string specified in the configuration.
-// String contains columns and format specification, for example {{ID}\t{{Name}}.
+// String contains columns and format specification, for example {{ID}}\t{{Name}}.
 func (cli *DockerCli) PsFormat() string {
 	return cli.configFile.PsFormat
+}
+
+// ImagesFormat returns the format string specified in the configuration.
+// String contains columns and format specification, for example {{ID}}\t{{Name}}.
+func (cli *DockerCli) ImagesFormat() string {
+	return cli.configFile.ImagesFormat
 }
 
 // NewDockerCli returns a DockerCli instance with IO output and error streams set by in, out and err.
