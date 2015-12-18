@@ -35,3 +35,17 @@ type ContainerCommitConfig struct {
 	MergeConfigs bool
 	Config       *runconfig.Config
 }
+
+// ExecConfig is a small subset of the Config struct that hold the configuration
+// for the exec feature of docker.
+type ExecConfig struct {
+	User         string   // User that will run the command
+	Privileged   bool     // Is the container in privileged mode
+	Tty          bool     // Attach standard streams to a tty.
+	Container    string   // Name of the container (to execute in)
+	AttachStdin  bool     // Attach the standard input, makes possible user interaction
+	AttachStderr bool     // Attach the standard output
+	AttachStdout bool     // Attach the standard error
+	Detach       bool     // Execute in detach mode
+	Cmd          []string // Execution commands and args
+}

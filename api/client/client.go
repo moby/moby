@@ -21,8 +21,8 @@ type apiClient interface {
 	ContainerCommit(options types.ContainerCommitOptions) (types.ContainerCommitResponse, error)
 	ContainerCreate(config *runconfig.ContainerConfigWrapper, containerName string) (types.ContainerCreateResponse, error)
 	ContainerDiff(containerID string) ([]types.ContainerChange, error)
-	ContainerExecAttach(execID string, config runconfig.ExecConfig) (types.HijackedResponse, error)
-	ContainerExecCreate(config runconfig.ExecConfig) (types.ContainerExecCreateResponse, error)
+	ContainerExecAttach(execID string, config types.ExecConfig) (types.HijackedResponse, error)
+	ContainerExecCreate(config types.ExecConfig) (types.ContainerExecCreateResponse, error)
 	ContainerExecInspect(execID string) (types.ContainerExecInspect, error)
 	ContainerExecResize(options types.ResizeOptions) error
 	ContainerExecStart(execID string, config types.ExecStartCheck) error
