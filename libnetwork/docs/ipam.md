@@ -15,7 +15,7 @@ Communication protocol is the same as the remote network driver.
 
 ## Handshake
 
-During driver registration, libnetwork will query the remote driver about the default local and global address spaces strings.
+During driver registration, libnetwork will query the remote driver about the default local and global address spaces strings, and about the driver capabilities.
 More detailed information can be found in the respective section in this document.
 
 ## Datastore Requirements
@@ -249,3 +249,27 @@ Where:
 * `PoolID` is the pool identifier
 * `Address` is the IP address to release
 
+
+
+### GetCapabilities
+
+During the driver registration, libnetwork will query the driver about its capabilities. It is not mandatory for the driver to support this URL endpoint. If driver does not support it, registration will succeed with empty capabilities automatically added to the internal driver handle.
+
+During registration, the remote driver will receive a POST message to the URL `/IpamDriver.GetCapabilities` with no payload. The driver's response should have the form:
+
+
+	{
+		"RequiresMACAddress": bool
+	}
+	
+	
+	
+## Capabilities
+
+Capabilities are requirements, features the remote ipam driver can express during registration with libnetwork.
+As of now libnetwork accepts the following capabilities:
+
+### RequiresMACAddress
+
+It is a boolean value which tells libnetwork whether the ipam driver needs to know the interface MAC address in order to properly process the `RequestAddress()` call.
+If true, on `CreateEndpoint()` request, libnetwork will generate a random MAC address for the endpoint (if an explicit MAC address was not already provided by the user) and pass it to `RequestAddress()` when requesting the IP address inside the options map. The key will be the `netlabel.MacAddress` constant: `"com.docker.network.endpoint.macaddress"`.

@@ -34,6 +34,30 @@ func TestDriverRegistration(t *testing.T) {
 	}
 }
 
+func TestIpamDriverRegistration(t *testing.T) {
+	c, err := New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Stop()
+
+	err = c.(*controller).RegisterIpamDriver("", nil)
+	if err == nil {
+		t.Fatalf("Expected failure, but suceeded")
+	}
+	if _, ok := err.(types.BadRequestError); !ok {
+		t.Fatalf("Failed for unexpected reason: %v", err)
+	}
+
+	err = c.(*controller).RegisterIpamDriver(ipamapi.DefaultIPAM, nil)
+	if err == nil {
+		t.Fatalf("Expected failure, but suceeded")
+	}
+	if _, ok := err.(types.ForbiddenError); !ok {
+		t.Fatalf("Failed for unexpected reason: %v", err)
+	}
+}
+
 func TestNetworkMarshalling(t *testing.T) {
 	n := &network{
 		name:        "Miao",

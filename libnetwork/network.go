@@ -16,6 +16,7 @@ import (
 	"github.com/docker/libnetwork/etchosts"
 	"github.com/docker/libnetwork/ipamapi"
 	"github.com/docker/libnetwork/netlabel"
+	"github.com/docker/libnetwork/netutils"
 	"github.com/docker/libnetwork/options"
 	"github.com/docker/libnetwork/types"
 )
@@ -678,7 +679,22 @@ func (n *network) CreateEndpoint(name string, options ...EndpointOption) (Endpoi
 		}
 	}
 
-	if err = ep.assignAddress(true, !n.postIPv6); err != nil {
+	ipam, err := n.getController().getIPAM(n.ipamType)
+	if err != nil {
+		return nil, err
+	}
+
+	if ipam.capability.RequiresMACAddress {
+		if ep.iface.mac == nil {
+			ep.iface.mac = netutils.GenerateRandomMAC()
+		}
+		if ep.ipamOptions == nil {
+			ep.ipamOptions = make(map[string]string)
+		}
+		ep.ipamOptions[netlabel.MacAddress] = ep.iface.mac.String()
+	}
+
+	if err = ep.assignAddress(ipam.driver, true, !n.postIPv6); err != nil {
 		return nil, err
 	}
 	defer func() {
@@ -698,7 +714,7 @@ func (n *network) CreateEndpoint(name string, options ...EndpointOption) (Endpoi
 		}
 	}()
 
-	if err = ep.assignAddress(false, n.postIPv6); err != nil {
+	if err = ep.assignAddress(ipam.driver, false, n.postIPv6); err != nil {
 		return nil, err
 	}
 

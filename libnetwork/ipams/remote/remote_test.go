@@ -61,6 +61,53 @@ func setupPlugin(t *testing.T, name string, mux *http.ServeMux) func() {
 	}
 }
 
+func TestGetCapabilities(t *testing.T) {
+	var plugin = "test-ipam-driver-capabilities"
+
+	mux := http.NewServeMux()
+	defer setupPlugin(t, plugin, mux)()
+
+	handle(t, mux, "GetCapabilities", func(msg map[string]interface{}) interface{} {
+		return map[string]interface{}{
+			"RequiresMACAddress": true,
+		}
+	})
+
+	p, err := plugins.Get(plugin, ipamapi.PluginEndpointType)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	d := newAllocator(plugin, p.Client)
+
+	caps, err := d.(*allocator).getCapabilities()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !caps.RequiresMACAddress {
+		t.Fatalf("Unexpected capability: %v", caps)
+	}
+}
+
+func TestGetCapabilitiesFromLegacyDriver(t *testing.T) {
+	var plugin = "test-ipam-legacy-driver"
+
+	mux := http.NewServeMux()
+	defer setupPlugin(t, plugin, mux)()
+
+	p, err := plugins.Get(plugin, ipamapi.PluginEndpointType)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	d := newAllocator(plugin, p.Client)
+
+	if _, err := d.(*allocator).getCapabilities(); err == nil {
+		t.Fatalf("Expected error, but got Success %v", err)
+	}
+}
+
 func TestGetDefaultAddressSpaces(t *testing.T) {
 	var plugin = "test-ipam-driver-addr-spaces"
 
