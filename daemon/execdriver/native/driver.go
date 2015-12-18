@@ -15,6 +15,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/execdriver"
+	"github.com/docker/docker/daemon/execdriver/native/template"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/pools"
 	"github.com/docker/docker/pkg/reexec"
@@ -76,6 +77,7 @@ func NewDriver(root, initPath string, options []string) (*Driver, error) {
 	cgm := libcontainer.Cgroupfs
 	if systemd.UseSystemd() {
 		cgm = libcontainer.SystemdCgroups
+		template.SystemdCgroups = true
 	}
 
 	// parse the options
