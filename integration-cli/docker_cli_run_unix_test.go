@@ -241,7 +241,7 @@ func (s *DockerSuite) TestRunWithBlkioWeight(c *check.C) {
 	c.Assert(out, check.Equals, "300")
 }
 
-func (s *DockerSuite) TestRunWithBlkioInvalidWeight(c *check.C) {
+func (s *DockerSuite) TestRunWithInvalidBlkioWeight(c *check.C) {
 	testRequires(c, blkioWeight)
 	out, _, err := dockerCmdWithError("run", "--blkio-weight", "5", "busybox", "true")
 	c.Assert(err, check.NotNil, check.Commentf(out))
@@ -249,31 +249,31 @@ func (s *DockerSuite) TestRunWithBlkioInvalidWeight(c *check.C) {
 	c.Assert(out, checker.Contains, expected)
 }
 
-func (s *DockerSuite) TestRunWithBlkioInvalidWeightDevice(c *check.C) {
+func (s *DockerSuite) TestRunWithInvalidPathforBlkioWeightDevice(c *check.C) {
 	testRequires(c, blkioWeight)
-	out, _, err := dockerCmdWithError("run", "--blkio-weight-device", "/dev/sda:5", "busybox", "true")
+	out, _, err := dockerCmdWithError("run", "--blkio-weight-device", "/dev/sdX:100", "busybox", "true")
 	c.Assert(err, check.NotNil, check.Commentf(out))
 }
 
-func (s *DockerSuite) TestRunWithBlkioInvalidDeviceReadBps(c *check.C) {
+func (s *DockerSuite) TestRunWithInvalidPathforBlkioDeviceReadBps(c *check.C) {
 	testRequires(c, blkioWeight)
 	out, _, err := dockerCmdWithError("run", "--device-read-bps", "/dev/sdX:500", "busybox", "true")
 	c.Assert(err, check.NotNil, check.Commentf(out))
 }
 
-func (s *DockerSuite) TestRunWithBlkioInvalidDeviceWriteBps(c *check.C) {
+func (s *DockerSuite) TestRunWithInvalidPathforBlkioDeviceWriteBps(c *check.C) {
 	testRequires(c, blkioWeight)
 	out, _, err := dockerCmdWithError("run", "--device-write-bps", "/dev/sdX:500", "busybox", "true")
 	c.Assert(err, check.NotNil, check.Commentf(out))
 }
 
-func (s *DockerSuite) TestRunWithBlkioInvalidReadiopsDevice(c *check.C) {
+func (s *DockerSuite) TestRunWithInvalidPathforBlkioDeviceReadIOps(c *check.C) {
 	testRequires(c, blkioWeight)
 	out, _, err := dockerCmdWithError("run", "--device-read-iops", "/dev/sdX:500", "busybox", "true")
 	c.Assert(err, check.NotNil, check.Commentf(out))
 }
 
-func (s *DockerSuite) TestRunWithBlkioInvalidWriteiopsDevice(c *check.C) {
+func (s *DockerSuite) TestRunWithInvalidPathforBlkioDeviceWriteIOps(c *check.C) {
 	testRequires(c, blkioWeight)
 	out, _, err := dockerCmdWithError("run", "--device-write-iops", "/dev/sdX:500", "busybox", "true")
 	c.Assert(err, check.NotNil, check.Commentf(out))
