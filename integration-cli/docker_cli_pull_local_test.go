@@ -1,10 +1,20 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"os"
 	"os/exec"
+	"path/filepath"
+	"runtime"
 	"strings"
 
+	"github.com/docker/distribution"
+	"github.com/docker/distribution/digest"
+	"github.com/docker/distribution/manifest"
+	"github.com/docker/distribution/manifest/manifestlist"
+	"github.com/docker/distribution/manifest/schema2"
 	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/go-check/check"
 )
@@ -279,4 +289,86 @@ func (s *DockerRegistrySuite) TestPullFallbackOn404(c *check.C) {
 	out, _, _ := dockerCmdWithError("pull", repoName)
 
 	c.Assert(out, checker.Contains, "v1 ping attempt")
+}
+
+func (s *DockerRegistrySuite) TestPullManifestList(c *check.C) {
+	pushDigest, err := setupImage(c)
+	c.Assert(err, checker.IsNil, check.Commentf("error setting up image"))
+
+	// Inject a manifest list into the registry
+	manifestList := &manifestlist.ManifestList{
+		Versioned: manifest.Versioned{
+			SchemaVersion: 2,
+			MediaType:     manifestlist.MediaTypeManifestList,
+		},
+		Manifests: []manifestlist.ManifestDescriptor{
+			{
+				Descriptor: distribution.Descriptor{
+					Digest:    "sha256:1a9ec845ee94c202b2d5da74a24f0ed2058318bfa9879fa541efaecba272e86b",
+					Size:      3253,
+					MediaType: schema2.MediaTypeManifest,
+				},
+				Platform: manifestlist.PlatformSpec{
+					Architecture: "bogus_arch",
+					OS:           "bogus_os",
+				},
+			},
+			{
+				Descriptor: distribution.Descriptor{
+					Digest:    pushDigest,
+					Size:      3253,
+					MediaType: schema2.MediaTypeManifest,
+				},
+				Platform: manifestlist.PlatformSpec{
+					Architecture: runtime.GOARCH,
+					OS:           runtime.GOOS,
+				},
+			},
+		},
+	}
+
+	manifestListJSON, err := json.MarshalIndent(manifestList, "", "   ")
+	c.Assert(err, checker.IsNil, check.Commentf("error marshalling manifest list"))
+
+	manifestListDigest := digest.FromBytes(manifestListJSON)
+	hexDigest := manifestListDigest.Hex()
+
+	registryV2Path := filepath.Join(s.reg.dir, "docker", "registry", "v2")
+
+	// Write manifest list to blob store
+	blobDir := filepath.Join(registryV2Path, "blobs", "sha256", hexDigest[:2], hexDigest)
+	err = os.MkdirAll(blobDir, 0755)
+	c.Assert(err, checker.IsNil, check.Commentf("error creating blob dir"))
+	blobPath := filepath.Join(blobDir, "data")
+	err = ioutil.WriteFile(blobPath, []byte(manifestListJSON), 0644)
+	c.Assert(err, checker.IsNil, check.Commentf("error writing manifest list"))
+
+	// Add to revision store
+	revisionDir := filepath.Join(registryV2Path, "repositories", remoteRepoName, "_manifests", "revisions", "sha256", hexDigest)
+	err = os.Mkdir(revisionDir, 0755)
+	c.Assert(err, checker.IsNil, check.Commentf("error creating revision dir"))
+	revisionPath := filepath.Join(revisionDir, "link")
+	err = ioutil.WriteFile(revisionPath, []byte(manifestListDigest.String()), 0644)
+	c.Assert(err, checker.IsNil, check.Commentf("error writing revision link"))
+
+	// Update tag
+	tagPath := filepath.Join(registryV2Path, "repositories", remoteRepoName, "_manifests", "tags", "latest", "current", "link")
+	err = ioutil.WriteFile(tagPath, []byte(manifestListDigest.String()), 0644)
+	c.Assert(err, checker.IsNil, check.Commentf("error writing tag link"))
+
+	// Verify that the image can be pulled through the manifest list.
+	out, _ := dockerCmd(c, "pull", repoName)
+
+	// The pull output includes "Digest: <digest>", so find that
+	matches := digestRegex.FindStringSubmatch(out)
+	c.Assert(matches, checker.HasLen, 2, check.Commentf("unable to parse digest from pull output: %s", out))
+	pullDigest := matches[1]
+
+	// Make sure the pushed and pull digests match
+	c.Assert(manifestListDigest.String(), checker.Equals, pullDigest)
+
+	// Was the image actually created?
+	dockerCmd(c, "inspect", repoName)
+
+	dockerCmd(c, "rmi", repoName)
 }
