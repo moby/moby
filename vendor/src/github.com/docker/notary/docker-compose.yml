@@ -8,7 +8,8 @@ notaryserver:
    - "8080"
    - "4443:4443"
   environment:
-    SERVICE_NAME: notary
+   - SERVICE_NAME=notary
+  command: -config=fixtures/server-config.json
 notarysigner:
   volumes:
    - /dev/bus/usb/003/010:/dev/bus/usb/002/010
@@ -17,7 +18,10 @@ notarysigner:
   dockerfile: Dockerfile.signer
   links:
    - notarymysql
+  command: -config=fixtures/signer-config.json
 notarymysql:
+  volumes:
+    - notarymysql:/var/lib/mysql
   build: ./notarymysql/
   ports:
     - "3306:3306"

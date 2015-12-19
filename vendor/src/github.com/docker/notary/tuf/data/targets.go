@@ -3,6 +3,7 @@ package data
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 
 	"github.com/jfrazelle/go/canonical/json"
 )
@@ -88,7 +89,7 @@ func (t *SignedTargets) AddTarget(path string, meta FileMeta) {
 // ensuring the keys either already exist, or are added to the map
 // of delegation keys
 func (t *SignedTargets) AddDelegation(role *Role, keys []*PublicKey) error {
-	return nil
+	return errors.New("Not Implemented")
 }
 
 // ToSigned partially serializes a SignedTargets for further signing

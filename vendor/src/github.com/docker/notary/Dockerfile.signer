@@ -38,4 +38,4 @@ RUN go install \
 
 
 ENTRYPOINT [ "notary-signer" ]
-CMD [ "-config=cmd/notary-signer/config.json" ]
+CMD [ "-config=fixtures/signer-config-local.json" ]

@@ -153,7 +153,7 @@ RUN set -x \
 	&& rm -rf "$GOPATH"
 
 # Install notary server
-ENV NOTARY_COMMIT 8e8122eb5528f621afcd4e2854c47302f17392f7
+ENV NOTARY_COMMIT 30c488b3b4c62fdbc2c1eae7cf3b62ca73f95fad
 RUN set -x \
 	&& export GOPATH="$(mktemp -d)" \
 	&& git clone https://github.com/docker/notary.git "$GOPATH/src/github.com/docker/notary" \

@@ -88,6 +88,15 @@ func (sp *SignedSnapshot) AddMeta(role string, meta FileMeta) {
 	sp.Dirty = true
 }
 
+// DeleteMeta removes a role from the snapshot. If the role doesn't
+// exist in the snapshot, it's a noop.
+func (sp *SignedSnapshot) DeleteMeta(role string) {
+	if _, ok := sp.Signed.Meta[role]; ok {
+		delete(sp.Signed.Meta, role)
+		sp.Dirty = true
+	}
+}
+
 // SnapshotFromSigned fully unpacks a Signed object into a SignedSnapshot
 func SnapshotFromSigned(s *Signed) (*SignedSnapshot, error) {
 	sp := Snapshot{}
