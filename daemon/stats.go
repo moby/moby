@@ -7,6 +7,7 @@ import (
 
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/daemon/execdriver"
+	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/version"
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/versions/v1p20"
@@ -31,11 +32,12 @@ func (daemon *Daemon) ContainerStats(prefixOrName string, config *backend.Contai
 		return json.NewEncoder(config.OutStream).Encode(&types.Stats{})
 	}
 
+	outStream := config.OutStream
 	if config.Stream {
-		// Write an empty chunk of data.
-		// This is to ensure that the HTTP status code is sent immediately,
-		// even if the container has not yet produced any data.
-		config.OutStream.Write(nil)
+		wf := ioutils.NewWriteFlusher(outStream)
+		defer wf.Close()
+		wf.Flush()
+		outStream = wf
 	}
 
 	var preCPUStats types.CPUStats
@@ -50,7 +52,7 @@ func (daemon *Daemon) ContainerStats(prefixOrName string, config *backend.Contai
 		return ss
 	}
 
-	enc := json.NewEncoder(config.OutStream)
+	enc := json.NewEncoder(outStream)
 
 	updates := daemon.subscribeToContainerStats(container)
 	defer daemon.unsubscribeToContainerStats(container, updates)
