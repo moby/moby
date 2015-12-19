@@ -32,7 +32,7 @@ _space := $(empty) $(empty)
 
 # go cover test variables
 COVERDIR=.cover
-COVERPROFILE=$(COVERDIR)/cover.out
+COVERPROFILE?=$(COVERDIR)/cover.out
 COVERMODE=count
 PKGS = $(shell go list ./... | tr '\n' ' ')
 
@@ -43,8 +43,8 @@ GO_VERSION = $(shell go version | awk '{print $$3}')
 .DEFAULT: default
 
 go_version:
-ifneq ("$(GO_VERSION)", "go1.5.1")
-	$(error Requires go version 1.5.1 - found $(GO_VERSION))
+ifeq (,$(findstring go1.5.,$(GO_VERSION)))
+	$(error Requires go version 1.5.x - found $(GO_VERSION))
 else
 	@echo
 endif
@@ -73,6 +73,11 @@ ${PREFIX}/bin/notary-signer: NOTARY_VERSION $(shell find . -type f -name '*.go')
 
 vet: go_version
 	@echo "+ $@"
+ifeq ($(shell uname -s), Darwin)
+	@test -z "$(shell find . -iname *test*.go | grep -v _test.go | grep -v Godeps | xargs echo "This file should end with '_test':"  | tee /dev/stderr)"
+else
+	@test -z "$(shell find . -iname *test*.go | grep -v _test.go | grep -v Godeps | xargs -r echo "This file should end with '_test':"  | tee /dev/stderr)"
+endif
 	@test -z "$$(go tool vet -printf=false . 2>&1 | grep -v Godeps/_workspace/src/ | tee /dev/stderr)"
 
 fmt:

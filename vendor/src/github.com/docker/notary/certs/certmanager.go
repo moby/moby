@@ -1,12 +1,10 @@
-package keystoremanager
+package certs
 
 import (
-	"crypto/rand"
 	"crypto/x509"
 	"errors"
 	"fmt"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -15,18 +13,13 @@ import (
 	"github.com/docker/notary/tuf/signed"
 )
 
-// KeyStoreManager is an abstraction around the root and non-root key stores,
-// and related CA stores
-type KeyStoreManager struct {
-	KeyStore                *trustmanager.KeyFileStore
+// Manager is an abstraction around trusted root CA stores
+type Manager struct {
 	trustedCAStore          trustmanager.X509Store
 	trustedCertificateStore trustmanager.X509Store
 }
 
-const (
-	trustDir       = "trusted_certificates"
-	rsaRootKeySize = 4096 // Used for new root keys
-)
+const trustDir = "trusted_certificates"
 
 // ErrValidationFail is returned when there is no valid trusted certificates
 // being served inside of the roots.json
@@ -52,9 +45,9 @@ func (err ErrRootRotationFail) Error() string {
 	return fmt.Sprintf("could not rotate trust to a new trusted root: %s", err.Reason)
 }
 
-// NewKeyStoreManager returns an initialized KeyStoreManager, or an error
-// if it fails to create the KeyFileStores or load certificates
-func NewKeyStoreManager(baseDir string, keyStore *trustmanager.KeyFileStore) (*KeyStoreManager, error) {
+// NewManager returns an initialized Manager, or an error
+// if it fails to load certificates
+func NewManager(baseDir string) (*Manager, error) {
 	trustPath := filepath.Join(baseDir, trustDir)
 
 	// Load all CAs that aren't expired and don't use SHA1
@@ -81,60 +74,32 @@ func NewKeyStoreManager(baseDir string, keyStore *trustmanager.KeyFileStore) (*K
 		return nil, err
 	}
 
-	return &KeyStoreManager{
-		KeyStore:                keyStore,
+	return &Manager{
 		trustedCAStore:          trustedCAStore,
 		trustedCertificateStore: trustedCertificateStore,
 	}, nil
 }
 
 // TrustedCertificateStore returns the trusted certificate store being managed
-// by this KeyStoreManager
-func (km *KeyStoreManager) TrustedCertificateStore() trustmanager.X509Store {
-	return km.trustedCertificateStore
+// by this Manager
+func (m *Manager) TrustedCertificateStore() trustmanager.X509Store {
+	return m.trustedCertificateStore
 }
 
-// TrustedCAStore returns the CA store being managed by this KeyStoreManager
-func (km *KeyStoreManager) TrustedCAStore() trustmanager.X509Store {
-	return km.trustedCAStore
+// TrustedCAStore returns the CA store being managed by this Manager
+func (m *Manager) TrustedCAStore() trustmanager.X509Store {
+	return m.trustedCAStore
 }
 
 // AddTrustedCert adds a cert to the trusted certificate store (not the CA
 // store)
-func (km *KeyStoreManager) AddTrustedCert(cert *x509.Certificate) {
-	km.trustedCertificateStore.AddCert(cert)
+func (m *Manager) AddTrustedCert(cert *x509.Certificate) {
+	m.trustedCertificateStore.AddCert(cert)
 }
 
 // AddTrustedCACert adds a cert to the trusted CA certificate store
-func (km *KeyStoreManager) AddTrustedCACert(cert *x509.Certificate) {
-	km.trustedCAStore.AddCert(cert)
-}
-
-// GenRootKey generates a new root key
-func (km *KeyStoreManager) GenRootKey(algorithm string) (string, error) {
-	var err error
-	var privKey data.PrivateKey
-
-	// We don't want external API callers to rely on internal TUF data types, so
-	// the API here should continue to receive a string algorithm, and ensure
-	// that it is downcased
-	switch strings.ToLower(algorithm) {
-	case data.RSAKey:
-		privKey, err = trustmanager.GenerateRSAKey(rand.Reader, rsaRootKeySize)
-	case data.ECDSAKey:
-		privKey, err = trustmanager.GenerateECDSAKey(rand.Reader)
-	default:
-		return "", fmt.Errorf("only RSA or ECDSA keys are currently supported. Found: %s", algorithm)
-
-	}
-	if err != nil {
-		return "", fmt.Errorf("failed to generate private key: %v", err)
-	}
-
-	// Changing the root
-	km.KeyStore.AddKey(privKey.ID(), "root", privKey)
-
-	return privKey.ID(), nil
+func (m *Manager) AddTrustedCACert(cert *x509.Certificate) {
+	m.trustedCAStore.AddCert(cert)
 }
 
 /*
@@ -164,7 +129,7 @@ we are using the current public PKI to validate the first download of the certif
 adding an extra layer of security over the normal (SSH style) trust model.
 We shall call this: TOFUS.
 */
-func (km *KeyStoreManager) ValidateRoot(root *data.Signed, gun string) error {
+func (m *Manager) ValidateRoot(root *data.Signed, gun string) error {
 	logrus.Debugf("entered ValidateRoot with dns: %s", gun)
 	signedRoot, err := data.RootFromSigned(root)
 	if err != nil {
@@ -179,7 +144,7 @@ func (km *KeyStoreManager) ValidateRoot(root *data.Signed, gun string) error {
 	}
 
 	// Retrieve all the trusted certificates that match this gun
-	certsForCN, err := km.trustedCertificateStore.GetCertificatesByCN(gun)
+	certsForCN, err := m.trustedCertificateStore.GetCertificatesByCN(gun)
 	if err != nil {
 		// If the error that we get back is different than ErrNoCertificatesFound
 		// we couldn't check if there are any certificates with this CN already
@@ -218,7 +183,7 @@ func (km *KeyStoreManager) ValidateRoot(root *data.Signed, gun string) error {
 	// Do root certificate rotation: we trust only the certs present in the new root
 	// First we add all the new certificates (even if they already exist)
 	for _, cert := range allValidCerts {
-		err := km.trustedCertificateStore.AddCert(cert)
+		err := m.trustedCertificateStore.AddCert(cert)
 		if err != nil {
 			// If the error is already exists we don't fail the rotation
 			if _, ok := err.(*trustmanager.ErrCertExists); ok {
@@ -232,7 +197,7 @@ func (km *KeyStoreManager) ValidateRoot(root *data.Signed, gun string) error {
 	// Now we delete old certificates that aren't present in the new root
 	for certID, cert := range certsToRemove(certsForCN, allValidCerts) {
 		logrus.Debugf("removing certificate with certID: %s", certID)
-		err = km.trustedCertificateStore.RemoveCert(cert)
+		err = m.trustedCertificateStore.RemoveCert(cert)
 		if err != nil {
 			logrus.Debugf("failed to remove trusted certificate with keyID: %s, %v", certID, err)
 			return &ErrRootRotationFail{Reason: "failed to rotate root keys"}
