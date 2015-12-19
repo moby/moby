@@ -77,6 +77,15 @@ func (ks *KeyList) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// IDs generates a list of the hex encoded key IDs in the KeyList
+func (ks KeyList) IDs() []string {
+	keyIDs := make([]string, 0, len(ks))
+	for _, k := range ks {
+		keyIDs = append(keyIDs, k.ID())
+	}
+	return keyIDs
+}
+
 func typedPublicKey(tk tufKey) PublicKey {
 	switch tk.Algorithm() {
 	case ECDSAKey:

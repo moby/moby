@@ -28,9 +28,9 @@ const notaryURL = "https://" + notaryHost
 func newTestNotary(c *check.C) (*testNotary, error) {
 	template := `{
 	"server": {
-		"addr": "%s",
-		"tls_key_file": "fixtures/notary/localhost.key",
-		"tls_cert_file": "fixtures/notary/localhost.cert"
+		"http_addr": "%s",
+		"tls_key_file": "%s",
+		"tls_cert_file": "%s"
 	},
 	"trust_service": {
 		"type": "local",
@@ -39,8 +39,11 @@ func newTestNotary(c *check.C) (*testNotary, error) {
 		"key_algorithm": "ed25519"
 	},
 	"logging": {
-		"level": 5
-	}
+		"level": "debug"
+	},
+	"storage": {
+        "backend": "memory"
+    }
 }`
 	tmp, err := ioutil.TempDir("", "notary-test-")
 	if err != nil {
@@ -51,7 +54,12 @@ func newTestNotary(c *check.C) (*testNotary, error) {
 	if err != nil {
 		return nil, err
 	}
-	if _, err := fmt.Fprintf(config, template, notaryHost); err != nil {
+
+	workingDir, err := os.Getwd()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := fmt.Fprintf(config, template, notaryHost, filepath.Join(workingDir, "fixtures/notary/localhost.key"), filepath.Join(workingDir, "fixtures/notary/localhost.cert")); err != nil {
 		os.RemoveAll(tmp)
 		return nil, err
 	}
