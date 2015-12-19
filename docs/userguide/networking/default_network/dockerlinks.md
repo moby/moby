@@ -20,7 +20,7 @@ introduction of the Docker networks feature, you can still create links but they
 are only supported on the default `bridge` network named `bridge` and appearing
 in your network stack as `docker0`.
 
-This section briefly discuss connecting via a network port and then goes into
+This section briefly discusses connecting via a network port and then goes into
 detail on container linking. While links are still supported on Docker's default
 network (`bridge`), you should avoid them in preference of the Docker
 networks feature. Linking is expected to be deprecated and removed in a future
