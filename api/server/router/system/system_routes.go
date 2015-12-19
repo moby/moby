@@ -68,16 +68,9 @@ func (s *systemRouter) getEvents(ctx context.Context, w http.ResponseWriter, r *
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-
-	// This is to ensure that the HTTP status code is sent immediately,
-	// so that it will not block the receiver.
-	w.WriteHeader(http.StatusOK)
-	if flusher, ok := w.(http.Flusher); ok {
-		flusher.Flush()
-	}
-
 	output := ioutils.NewWriteFlusher(w)
 	defer output.Close()
+	output.Flush()
 
 	enc := json.NewEncoder(output)
 

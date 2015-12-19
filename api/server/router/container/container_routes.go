@@ -3,7 +3,6 @@ package container
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -15,7 +14,6 @@ import (
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types/backend"
 	derr "github.com/docker/docker/errors"
-	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/term"
 	"github.com/docker/docker/runconfig"
@@ -66,14 +64,8 @@ func (s *containerRouter) getContainersStats(ctx context.Context, w http.Respons
 	}
 
 	stream := httputils.BoolValueOrDefault(r, "stream", true)
-	var out io.Writer
 	if !stream {
 		w.Header().Set("Content-Type", "application/json")
-		out = w
-	} else {
-		wf := ioutils.NewWriteFlusher(w)
-		out = wf
-		defer wf.Close()
 	}
 
 	var closeNotifier <-chan bool
@@ -83,7 +75,7 @@ func (s *containerRouter) getContainersStats(ctx context.Context, w http.Respons
 
 	config := &backend.ContainerStatsConfig{
 		Stream:    stream,
-		OutStream: out,
+		OutStream: w,
 		Stop:      closeNotifier,
 		Version:   string(httputils.VersionFromContext(ctx)),
 	}
@@ -112,22 +104,6 @@ func (s *containerRouter) getContainersLogs(ctx context.Context, w http.Response
 	}
 
 	containerName := vars["name"]
-
-	if !s.backend.Exists(containerName) {
-		return derr.ErrorCodeNoSuchContainer.WithArgs(containerName)
-	}
-
-	// write an empty chunk of data (this is to ensure that the
-	// HTTP Response is sent immediately, even if the container has
-	// not yet produced any data)
-	w.WriteHeader(http.StatusOK)
-	if flusher, ok := w.(http.Flusher); ok {
-		flusher.Flush()
-	}
-
-	output := ioutils.NewWriteFlusher(w)
-	defer output.Close()
-
 	logsConfig := &backend.ContainerLogsConfig{
 		ContainerLogsOptions: types.ContainerLogsOptions{
 			Follow:     httputils.BoolValue(r, "follow"),
@@ -137,15 +113,21 @@ func (s *containerRouter) getContainersLogs(ctx context.Context, w http.Response
 			ShowStdout: stdout,
 			ShowStderr: stderr,
 		},
-		OutStream: output,
+		OutStream: w,
 		Stop:      closeNotifier,
 	}
 
-	if err := s.backend.ContainerLogs(containerName, logsConfig); err != nil {
-		// The client may be expecting all of the data we're sending to
-		// be multiplexed, so send it through OutStream, which will
-		// have been set up to handle that if needed.
-		fmt.Fprintf(logsConfig.OutStream, "Error running logs job: %s\n", utils.GetErrorMessage(err))
+	chStarted := make(chan struct{})
+	if err := s.backend.ContainerLogs(containerName, logsConfig, chStarted); err != nil {
+		select {
+		case <-chStarted:
+			// The client may be expecting all of the data we're sending to
+			// be multiplexed, so send it through OutStream, which will
+			// have been set up to handle that if needed.
+			fmt.Fprintf(logsConfig.OutStream, "Error running logs job: %s\n", utils.GetErrorMessage(err))
+		default:
+			return err
+		}
 	}
 
 	return nil
@@ -462,10 +444,6 @@ func (s *containerRouter) wsContainersAttach(ctx context.Context, w http.Respons
 		return err
 	}
 	containerName := vars["name"]
-
-	if !s.backend.Exists(containerName) {
-		return derr.ErrorCodeNoSuchContainer.WithArgs(containerName)
-	}
 
 	var keys []byte
 	var err error
