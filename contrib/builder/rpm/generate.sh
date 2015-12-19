@@ -5,7 +5,7 @@ set -e
 #    ie: ./generate.sh
 #        to update all Dockerfiles in this directory
 #    or: ./generate.sh
-#        to only update fedora-20/Dockerfile
+#        to only update fedora-23/Dockerfile
 #    or: ./generate.sh fedora-newversion
 #        to create a new folder and a Dockerfile within it
 
@@ -22,7 +22,7 @@ for version in "${versions[@]}"; do
 	suite="${version##*-}"
 	from="${distro}:${suite}"
 	installer=yum
-	if [[ "$distro" == "fedora" ]] && [[ "$suite" -ge "22" ]]; then
+	if [[ "$distro" == "fedora" ]]; then
 		installer=dnf
 	fi
 
