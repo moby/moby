@@ -33,12 +33,31 @@ func (s *DockerSuite) TestApiNetworkCreateDelete(c *check.C) {
 	id := createNetwork(c, config, true)
 	c.Assert(isNetworkAvailable(c, name), checker.Equals, true)
 
-	// POST another network with same name and CheckDuplicate must fail
-	createNetwork(c, config, false)
-
 	// delete the network and make sure it is deleted
 	deleteNetwork(c, id, true)
 	c.Assert(isNetworkAvailable(c, name), checker.Equals, false)
+}
+
+func (s *DockerSuite) TestApiNetworkCreateCheckDuplicate(c *check.C) {
+	name := "testcheckduplicate"
+	configOnCheck := types.NetworkCreate{
+		Name:           name,
+		CheckDuplicate: true,
+	}
+	configNotCheck := types.NetworkCreate{
+		Name:           name,
+		CheckDuplicate: false,
+	}
+
+	// Creating a new network first
+	createNetwork(c, configOnCheck, true)
+	c.Assert(isNetworkAvailable(c, name), checker.Equals, true)
+
+	// Creating another network with same name and CheckDuplicate must fail
+	createNetwork(c, configOnCheck, false)
+
+	// Creating another network with same name and not CheckDuplicate must succeed
+	createNetwork(c, configNotCheck, true)
 }
 
 func (s *DockerSuite) TestApiNetworkFilter(c *check.C) {
