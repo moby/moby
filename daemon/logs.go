@@ -11,13 +11,14 @@ import (
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/logger/jsonfilelog"
 	derr "github.com/docker/docker/errors"
+	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/stdcopy"
 	timetypes "github.com/docker/engine-api/types/time"
 )
 
 // ContainerLogs hooks up a container's stdout and stderr streams
 // configured with the given struct.
-func (daemon *Daemon) ContainerLogs(containerName string, config *backend.ContainerLogsConfig) error {
+func (daemon *Daemon) ContainerLogs(containerName string, config *backend.ContainerLogsConfig, started chan struct{}) error {
 	container, err := daemon.GetContainer(containerName)
 	if err != nil {
 		return derr.ErrorCodeNoSuchContainer.WithArgs(containerName)
@@ -26,14 +27,6 @@ func (daemon *Daemon) ContainerLogs(containerName string, config *backend.Contai
 	if !(config.ShowStdout || config.ShowStderr) {
 		return derr.ErrorCodeNeedStream
 	}
-
-	outStream := config.OutStream
-	errStream := outStream
-	if !container.Config.Tty {
-		errStream = stdcopy.NewStdWriter(outStream, stdcopy.Stderr)
-		outStream = stdcopy.NewStdWriter(outStream, stdcopy.Stdout)
-	}
-	config.OutStream = outStream
 
 	cLog, err := daemon.getLogger(container)
 	if err != nil {
@@ -66,6 +59,18 @@ func (daemon *Daemon) ContainerLogs(containerName string, config *backend.Contai
 		Follow: follow,
 	}
 	logs := logReader.ReadLogs(readConfig)
+
+	wf := ioutils.NewWriteFlusher(config.OutStream)
+	defer wf.Close()
+	close(started)
+	wf.Flush()
+
+	var outStream io.Writer = wf
+	errStream := outStream
+	if !container.Config.Tty {
+		errStream = stdcopy.NewStdWriter(outStream, stdcopy.Stderr)
+		outStream = stdcopy.NewStdWriter(outStream, stdcopy.Stdout)
+	}
 
 	for {
 		select {
