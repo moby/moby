@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/docker/distribution/digest"
@@ -103,6 +104,12 @@ func (s *router) postImagesCreate(ctx context.Context, w http.ResponseWriter, r 
 		output = ioutils.NewWriteFlusher(w)
 	)
 	defer output.Close()
+
+	// Handles the unescape characters.
+	uTag, err := url.QueryUnescape(tag)
+	if err == nil {
+		tag = uTag
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 
