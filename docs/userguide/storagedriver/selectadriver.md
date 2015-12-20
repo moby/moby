@@ -27,7 +27,7 @@ Once you decide which driver is best, you set this driver on the Docker daemon a
 |OverlayFS     |`overlay`            |
 |AUFS          |`aufs`               |
 |Btrfs         |`btrfs`              |
-|Device Maper  |`devicemapper`       |
+|Device Mapper  |`devicemapper`       |
 |VFS*          |`vfs`                |
 |ZFS           |`zfs`                |
 
