@@ -7,8 +7,8 @@ set -e
 # 	deb http://apt.dockerproject.org/repo $distro-$release $version
 #
 # For example:
-#	deb http://apt.dockerproject.org/repo ubuntu-trusy main
-#	deb http://apt.dockerproject.org/repo ubuntu-vivid testing
+#	deb http://apt.dockerproject.org/repo ubuntu-trusty main
+#	deb http://apt.dockerproject.org/repo ubuntu-trusty testing
 #	deb http://apt.dockerproject.org/repo debian-wheezy experimental
 #	deb http://apt.dockerproject.org/repo debian-jessie main
 #
