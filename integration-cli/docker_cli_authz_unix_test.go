@@ -244,13 +244,27 @@ func (s *DockerAuthzSuite) TestAuthZPluginErrorRequest(c *check.C) {
 	c.Assert(res, check.Equals, fmt.Sprintf("Error response from daemon: plugin %s failed with error: %s: %s\n", testAuthZPlugin, authorization.AuthZApiRequest, errorMessage))
 }
 
+func (s *DockerAuthzSuite) TestAuthZPluginEnsureNoDuplicatePluginRegistration(c *check.C) {
+	c.Assert(s.d.Start("--authz-plugin="+testAuthZPlugin, "--authz-plugin="+testAuthZPlugin), check.IsNil)
+
+	s.ctrl.reqRes.Allow = true
+	s.ctrl.resRes.Allow = true
+
+	out, err := s.d.Cmd("ps")
+	c.Assert(err, check.IsNil, check.Commentf(out))
+
+	// assert plugin is only called once..
+	c.Assert(s.ctrl.psRequestCnt, check.Equals, 1)
+	c.Assert(s.ctrl.psResponseCnt, check.Equals, 1)
+}
+
 // assertURIRecorded verifies that the given URI was sent and recorded in the authz plugin
 func assertURIRecorded(c *check.C, uris []string, uri string) {
-
-	found := false
+	var found bool
 	for _, u := range uris {
 		if strings.Contains(u, uri) {
 			found = true
+			break
 		}
 	}
 	if !found {
