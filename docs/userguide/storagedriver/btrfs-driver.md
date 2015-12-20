@@ -165,7 +165,7 @@ Stop the Docker daemon. Then, ensure that you have a spare block device at `/dev
 The procedure also assumes your kernel has the appropriate Btrfs modules loaded. To verify this, use the following command:
 
 ```bash
-$ cat /proc/filesystems | grep btrfs`
+$ cat /proc/filesystems | grep btrfs
 ```
 
 ### Configure Btrfs on Ubuntu 14.04 LTS
