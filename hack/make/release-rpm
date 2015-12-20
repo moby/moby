@@ -7,9 +7,9 @@ set -e
 # 	http://yum.dockerproject.org/repo/$release/$distro/$distro-version
 #
 # For example:
-# 	http://yum.dockerproject.org/repo/main/fedora/22
-# 	http://yum.dockerproject.org/repo/testing/centos/6
-# 	http://yum.dockerproject.org/repo/experimental/fedora/21
+# 	http://yum.dockerproject.org/repo/main/fedora/23
+# 	http://yum.dockerproject.org/repo/testing/centos/7
+# 	http://yum.dockerproject.org/repo/experimental/fedora/23
 # 	http://yum.dockerproject.org/repo/main/centos/7
 #
 # ... and so on and so forth for the builds created by hack/make/build-rpm
