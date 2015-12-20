@@ -10,8 +10,12 @@ usage() {
     cat <<EOOPTS
 $(basename $0) [OPTIONS] <name>
 OPTIONS:
-  -y <yumconf>  The path to the yum config to install packages from. The
-                default is /etc/yum.conf for Centos/RHEL and /etc/dnf/dnf.conf for Fedora
+  -p "<packages>"  The list of packages to install in the container.
+                   The default is blank.
+  -g "<groups>"    The groups of packages to install in the container.
+                   The default is "Core".
+  -y <yumconf>     The path to the yum config to install packages from. The
+                   default is /etc/yum.conf for Centos/RHEL and /etc/dnf/dnf.conf for Fedora
 EOOPTS
     exit 1
 }
@@ -21,14 +25,21 @@ yum_config=/etc/yum.conf
 if [ -f /etc/dnf/dnf.conf ] && command -v dnf &> /dev/null; then
 	yum_config=/etc/dnf/dnf.conf
 	alias yum=dnf
-fi 
-while getopts ":y:h" opt; do
+fi
+install_groups="Core"
+while getopts ":y:p:g:h" opt; do
     case $opt in
         y)
             yum_config=$OPTARG
             ;;
         h)
             usage
+            ;;
+        p)
+            install_packages="$OPTARG"
+            ;;
+        g)
+            install_groups="$OPTARG"
             ;;
         \?)
             echo "Invalid option: -$OPTARG"
@@ -65,8 +76,18 @@ if [ -d /etc/yum/vars ]; then
 	cp -a /etc/yum/vars "$target"/etc/yum/
 fi
 
-yum -c "$yum_config" --installroot="$target" --releasever=/ --setopt=tsflags=nodocs \
-    --setopt=group_package_types=mandatory -y groupinstall Core
+if [[ -n "$install_groups" ]];
+then
+    yum -c "$yum_config" --installroot="$target" --releasever=/ --setopt=tsflags=nodocs \
+        --setopt=group_package_types=mandatory -y groupinstall $install_groups
+fi
+
+if [[ -n "$install_packages" ]];
+then
+    yum -c "$yum_config" --installroot="$target" --releasever=/ --setopt=tsflags=nodocs \
+        --setopt=group_package_types=mandatory -y install $install_packages
+fi
+
 yum -c "$yum_config" --installroot="$target" -y clean all
 
 cat > "$target"/etc/sysconfig/network <<EOF
@@ -108,6 +129,6 @@ fi
 
 tar --numeric-owner -c -C "$target" . | docker import - $name:$version
 
-docker run -i -t $name:$version echo success
+docker run -i -t --rm $name:$version /bin/bash -c 'echo success'
 
 rm -rf "$target"
