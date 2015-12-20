@@ -96,7 +96,6 @@ func (p *Plugin) activateWithLock() error {
 		return err
 	}
 
-	logrus.Debugf("%s's manifest: %v", p.Name, m)
 	p.Manifest = m
 
 	for _, iface := range m.Implements {
