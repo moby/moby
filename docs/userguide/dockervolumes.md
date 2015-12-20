@@ -58,7 +58,7 @@ This will create a new volume inside a container at `/webapp`.
 
 ### Locating a volume
 
-You can locate the volume on the host by utilizing the 'docker inspect' command.
+You can locate the volume on the host by utilizing the `docker inspect` command.
 
     $ docker inspect web
 
@@ -78,8 +78,8 @@ volumes. The output should look something similar to the following:
     ]
     ...
 
-You will notice in the above 'Source' is specifying the location on the host and
-'Destination' is specifying the volume location inside the container. `RW` shows
+You will notice in the above `Source` is specifying the location on the host and
+`Destination` is specifying the volume location inside the container. `RW` shows
 if the volume is read/write.
 
 ### Mount a host directory as a data volume
@@ -102,7 +102,7 @@ The `host-dir` can either be an absolute path or a `name` value. If you
 supply an absolute path for the `host-dir`, Docker bind-mounts to the path
 you specify. If you supply a `name`, Docker creates a named volume by that `name`.
 
-A `name` value must start with start with an alphanumeric character,
+A `name` value must start with an alphanumeric character,
 followed by `a-z0-9`, `_` (underscore), `.` (period) or `-` (hyphen).
 An absolute path starts with a `/` (forward slash).
 
