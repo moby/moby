@@ -14,7 +14,7 @@ import (
 	"github.com/docker/docker/daemon/execdriver/native/template"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/mount"
-	"github.com/docker/docker/pkg/ulimit"
+	"github.com/docker/go-units"
 	"github.com/opencontainers/runc/libcontainer"
 	"github.com/opencontainers/runc/libcontainer/cgroups/fs"
 	"github.com/opencontainers/runc/libcontainer/configs"
@@ -48,7 +48,7 @@ type Resources struct {
 	CpusetCpus                   string                     `json:"cpuset_cpus"`
 	CpusetMems                   string                     `json:"cpuset_mems"`
 	CPUPeriod                    int64                      `json:"cpu_period"`
-	Rlimits                      []*ulimit.Rlimit           `json:"rlimits"`
+	Rlimits                      []*units.Rlimit            `json:"rlimits"`
 	OomKillDisable               bool                       `json:"oom_kill_disable"`
 	MemorySwappiness             int64                      `json:"memory_swappiness"`
 }

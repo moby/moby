@@ -14,7 +14,7 @@ import (
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builder/dockerfile/parser"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/docker/docker/pkg/ulimit"
+	"github.com/docker/go-units"
 )
 
 var validCommitCommands = map[string]bool{
@@ -66,7 +66,7 @@ type Config struct {
 	CPUSetCpus   string
 	CPUSetMems   string
 	CgroupParent string
-	Ulimits      []*ulimit.Ulimit
+	Ulimits      []*units.Ulimit
 }
 
 // Builder is a Dockerfile builder
