@@ -7,8 +7,8 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
 	Cli "github.com/docker/docker/cli"
+	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/promise"
-	"github.com/docker/docker/runconfig"
 )
 
 // CmdExec runs a command in a running container.
@@ -18,7 +18,7 @@ func (cli *DockerCli) CmdExec(args ...string) error {
 	cmd := Cli.Subcmd("exec", []string{"CONTAINER COMMAND [ARG...]"}, Cli.DockerCommands["exec"].Description, true)
 	detachKeys := cmd.String([]string{"-detach-keys"}, "", "Override the key sequence for detaching a container")
 
-	execConfig, err := runconfig.ParseExec(cmd, args)
+	execConfig, err := ParseExec(cmd, args)
 	// just in case the ParseExec does not exit
 	if execConfig.Container == "" || err != nil {
 		return Cli.StatusError{StatusCode: 1}
@@ -112,4 +112,47 @@ func (cli *DockerCli) CmdExec(args ...string) error {
 	}
 
 	return nil
+}
+
+// ParseExec parses the specified args for the specified command and generates
+// an ExecConfig from it.
+// If the minimal number of specified args is not right or if specified args are
+// not valid, it will return an error.
+func ParseExec(cmd *flag.FlagSet, args []string) (*types.ExecConfig, error) {
+	var (
+		flStdin      = cmd.Bool([]string{"i", "-interactive"}, false, "Keep STDIN open even if not attached")
+		flTty        = cmd.Bool([]string{"t", "-tty"}, false, "Allocate a pseudo-TTY")
+		flDetach     = cmd.Bool([]string{"d", "-detach"}, false, "Detached mode: run command in the background")
+		flUser       = cmd.String([]string{"u", "-user"}, "", "Username or UID (format: <name|uid>[:<group|gid>])")
+		flPrivileged = cmd.Bool([]string{"-privileged"}, false, "Give extended privileges to the command")
+		execCmd      []string
+		container    string
+	)
+	cmd.Require(flag.Min, 2)
+	if err := cmd.ParseFlags(args, true); err != nil {
+		return nil, err
+	}
+	container = cmd.Arg(0)
+	parsedArgs := cmd.Args()
+	execCmd = parsedArgs[1:]
+
+	execConfig := &types.ExecConfig{
+		User:       *flUser,
+		Privileged: *flPrivileged,
+		Tty:        *flTty,
+		Cmd:        execCmd,
+		Container:  container,
+		Detach:     *flDetach,
+	}
+
+	// If -d is not set, attach to everything by default
+	if !*flDetach {
+		execConfig.AttachStdout = true
+		execConfig.AttachStderr = true
+		if *flStdin {
+			execConfig.AttachStdin = true
+		}
+	}
+
+	return execConfig, nil
 }

@@ -1,4 +1,4 @@
-package runconfig
+package client
 
 import (
 	"fmt"
