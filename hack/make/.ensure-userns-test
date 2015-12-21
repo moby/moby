@@ -1,0 +1,18 @@
+#!/bin/bash
+set -e
+
+# Build a C binary for cloning a userns for seccomp tests
+# and compile it for target daemon
+
+dir="$DEST/userns-test"
+mkdir -p "$dir"
+(
+	GOOS=${DOCKER_ENGINE_GOOS:="linux"}
+	if [ "$GOOS" = "linux" ]; then
+		cd "$dir"
+		gcc -g -Wall -static ../../../../contrib/userns-test/main.c -o ./userns-test
+		cp ../../../../contrib/userns-test/Dockerfile .
+		docker build -qt userns-test . > /dev/null
+	fi
+)
+rm -rf "$dir"
