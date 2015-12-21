@@ -14,7 +14,6 @@ weight = -6
 Docker is supported on these Ubuntu operating systems:
 
 - Ubuntu Wily 15.10
-- Ubuntu Vivid 15.04
 - Ubuntu Trusty 14.04 (LTS)
 - Ubuntu Precise 12.04 (LTS)
 
@@ -23,7 +22,8 @@ installation mechanisms. Using these packages ensures you get the latest release
 of Docker. If you wish to install using Ubuntu-managed packages, consult your
 Ubuntu documentation.
 
->**Note**: Ubuntu Utopic 14.10 exists in Docker's `apt` repository but it is no longer officially supported.
+>**Note**: Ubuntu Utopic 14.10 and 15.04 exist in Docker's `apt` repository but
+> are no longer officially supported.
 
 ## Prerequisites
 
@@ -74,10 +74,6 @@ packages from the new repository:
     - On Ubuntu Trusty 14.04 (LTS)
 
             deb https://apt.dockerproject.org/repo ubuntu-trusty main
-
-    - On Ubuntu Vivid 15.04
-
-            deb https://apt.dockerproject.org/repo ubuntu-vivid main
 
     - Ubuntu Wily 15.10
 

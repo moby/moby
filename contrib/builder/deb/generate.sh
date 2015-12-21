@@ -104,11 +104,11 @@ for version in "${versions[@]}"; do
 
 	echo >> "$version/Dockerfile"
 
-	# debian jessie & ubuntu trusty/vivid do not have a libseccomp.a for compiling static dockerinit
+	# debian jessie & ubuntu trusty do not have a libseccomp.a for compiling static dockerinit
 	# ONLY install libseccomp.a from source, this can be removed once dockerinit is removed
 	# TODO remove this manual seccomp compilation once dockerinit is gone or no longer needs to be statically compiled
 	case "$suite" in
-		jessie|trusty|vivid)
+		jessie|trusty)
 			awk '$1 == "ENV" && $2 == "SECCOMP_VERSION" { print; exit }' ../../../Dockerfile >> "$version/Dockerfile"
 			cat <<-'EOF' >> "$version/Dockerfile"
 			RUN buildDeps=' \
