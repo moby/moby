@@ -267,8 +267,8 @@ func (n *network) initSubnetSandbox(s *subnet) error {
 
 	vxlanName := n.generateVxlanName(s)
 
-	// Try to delete the vxlan interface if already present
-	deleteVxlan(vxlanName)
+	// Try to delete the vxlan interface by vni if already present
+	deleteVxlanByVNI(n.vxlanID(s))
 
 	err := createVxlan(vxlanName, n.vxlanID(s))
 	if err != nil {
