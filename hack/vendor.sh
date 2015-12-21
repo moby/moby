@@ -20,7 +20,7 @@ clone git github.com/mistifyio/go-zfs v2.1.1
 clone git github.com/tchap/go-patricia v2.1.0
 clone git github.com/vdemeester/shakers 3c10293ce22b900c27acad7b28656196fcc2f73b
 clone git golang.org/x/net 47990a1ba55743e6ef1affd3a14e5bac8553615d https://github.com/golang/net.git
-clone git github.com/docker/go-units v0.2.0
+clone git github.com/docker/go-units 651fc226e7441360384da338d0fd37f2440ffbe3
 clone git github.com/docker/go-connections 4e42727957c146776e5de9cec8c39e4059ed9f20
 
 #get libnetwork packages
