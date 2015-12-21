@@ -692,8 +692,9 @@ __docker_subcommand() {
             _arguments $(__docker_arguments) \
                 $opts_help \
                 "($help -a --all)"{-a,--all}"[Show all images]" \
-                "($help)--digest[Show digests]" \
+                "($help)--digests[Show digests]" \
                 "($help)*"{-f=,--filter=}"[Filter values]:filter: " \
+                "($help)--format[Pretty-print containers using a Go template]:format: " \
                 "($help)--no-trunc[Do not truncate output]" \
                 "($help -q --quiet)"{-q,--quiet}"[Only show numeric IDs]" \
                 "($help -): :__docker_repositories" && ret=0
