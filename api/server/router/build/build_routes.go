@@ -1,6 +1,7 @@
 package build
 
 import (
+	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -72,6 +73,7 @@ func (br *buildRouter) postBuild(ctx context.Context, w http.ResponseWriter, r *
 		authConfigs        = map[string]types.AuthConfig{}
 		authConfigsEncoded = r.Header.Get("X-Registry-Config")
 		buildConfig        = &dockerfile.Config{}
+		notVerboseBuffer   = bytes.NewBuffer(nil)
 	)
 
 	if authConfigsEncoded != "" {
@@ -90,6 +92,9 @@ func (br *buildRouter) postBuild(ctx context.Context, w http.ResponseWriter, r *
 	defer output.Close()
 	sf := streamformatter.NewJSONStreamFormatter()
 	errf := func(err error) error {
+		if !buildConfig.Verbose && notVerboseBuffer.Len() > 0 {
+			output.Write(notVerboseBuffer.Bytes())
+		}
 		// Do not write the error in the http output if it's still empty.
 		// This prevents from writing a 200(OK) when there is an internal error.
 		if !output.Flushed() {
@@ -170,6 +175,9 @@ func (br *buildRouter) postBuild(ctx context.Context, w http.ResponseWriter, r *
 	// Look at code in DetectContextFromRemoteURL for more information.
 	createProgressReader := func(in io.ReadCloser) io.ReadCloser {
 		progressOutput := sf.NewProgressOutput(output, true)
+		if !buildConfig.Verbose {
+			progressOutput = sf.NewProgressOutput(notVerboseBuffer, true)
+		}
 		return progress.NewProgressReader(in, progressOutput, r.ContentLength, "Downloading context", remoteURL)
 	}
 
@@ -199,6 +207,9 @@ func (br *buildRouter) postBuild(ctx context.Context, w http.ResponseWriter, r *
 		AuthConfigs: authConfigs,
 		Archiver:    defaultArchiver,
 	}
+	if !buildConfig.Verbose {
+		docker.OutOld = notVerboseBuffer
+	}
 
 	b, err := dockerfile.NewBuilder(buildConfig, docker, builder.DockerIgnoreContext{ModifiableContext: context}, nil)
 	if err != nil {
@@ -206,6 +217,10 @@ func (br *buildRouter) postBuild(ctx context.Context, w http.ResponseWriter, r *
 	}
 	b.Stdout = &streamformatter.StdoutFormatter{Writer: output, StreamFormatter: sf}
 	b.Stderr = &streamformatter.StderrFormatter{Writer: output, StreamFormatter: sf}
+	if !buildConfig.Verbose {
+		b.Stdout = &streamformatter.StdoutFormatter{Writer: notVerboseBuffer, StreamFormatter: sf}
+		b.Stderr = &streamformatter.StderrFormatter{Writer: notVerboseBuffer, StreamFormatter: sf}
+	}
 
 	if closeNotifier, ok := w.(http.CloseNotifier); ok {
 		finished := make(chan struct{})
@@ -233,6 +248,13 @@ func (br *buildRouter) postBuild(ctx context.Context, w http.ResponseWriter, r *
 		if err := br.backend.TagImage(rt, imgID); err != nil {
 			return errf(err)
 		}
+	}
+
+	// Everything worked so if -q was provided the output from the daemon
+	// should be just the image ID and we'll print that to stdout.
+	if !buildConfig.Verbose {
+		stdout := &streamformatter.StdoutFormatter{Writer: output, StreamFormatter: sf}
+		fmt.Fprintf(stdout, "%s\n", string(imgID))
 	}
 
 	return nil
