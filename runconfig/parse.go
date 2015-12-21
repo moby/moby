@@ -12,6 +12,7 @@ import (
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/signal"
+	runconfigopts "github.com/docker/docker/runconfig/opts"
 	"github.com/docker/docker/volume"
 	"github.com/docker/go-connections/nat"
 	"github.com/docker/go-units"
@@ -53,12 +54,12 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 		flAttach            = opts.NewListOpts(opts.ValidateAttach)
 		flVolumes           = opts.NewListOpts(nil)
 		flTmpfs             = opts.NewListOpts(nil)
-		flBlkioWeightDevice = opts.NewWeightdeviceOpt(opts.ValidateWeightDevice)
-		flDeviceReadBps     = opts.NewThrottledeviceOpt(opts.ValidateThrottleBpsDevice)
-		flDeviceWriteBps    = opts.NewThrottledeviceOpt(opts.ValidateThrottleBpsDevice)
+		flBlkioWeightDevice = runconfigopts.NewWeightdeviceOpt(runconfigopts.ValidateWeightDevice)
+		flDeviceReadBps     = runconfigopts.NewThrottledeviceOpt(runconfigopts.ValidateThrottleBpsDevice)
+		flDeviceWriteBps    = runconfigopts.NewThrottledeviceOpt(runconfigopts.ValidateThrottleBpsDevice)
 		flLinks             = opts.NewListOpts(ValidateLink)
-		flDeviceReadIOps    = opts.NewThrottledeviceOpt(opts.ValidateThrottleIOpsDevice)
-		flDeviceWriteIOps   = opts.NewThrottledeviceOpt(opts.ValidateThrottleIOpsDevice)
+		flDeviceReadIOps    = runconfigopts.NewThrottledeviceOpt(runconfigopts.ValidateThrottleIOpsDevice)
+		flDeviceWriteIOps   = runconfigopts.NewThrottledeviceOpt(runconfigopts.ValidateThrottleIOpsDevice)
 		flEnv               = opts.NewListOpts(opts.ValidateEnv)
 		flLabels            = opts.NewListOpts(opts.ValidateEnv)
 		flDevices           = opts.NewListOpts(ValidateDevice)
