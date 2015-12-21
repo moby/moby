@@ -7,7 +7,8 @@ import (
 
 	"github.com/docker/docker/opts"
 	flag "github.com/docker/docker/pkg/mflag"
-	"github.com/docker/docker/pkg/ulimit"
+	runconfigopts "github.com/docker/docker/runconfig/opts"
+	"github.com/docker/go-units"
 )
 
 var (
@@ -27,7 +28,7 @@ type Config struct {
 	EnableSelinuxSupport bool
 	RemappedRoot         string
 	SocketGroup          string
-	Ulimits              map[string]*ulimit.Ulimit
+	Ulimits              map[string]*units.Ulimit
 }
 
 // bridgeConfig stores all the bridge driver specific
@@ -59,8 +60,8 @@ func (config *Config) InstallFlags(cmd *flag.FlagSet, usageFn func(string) strin
 	// Then platform-specific install flags
 	cmd.BoolVar(&config.EnableSelinuxSupport, []string{"-selinux-enabled"}, false, usageFn("Enable selinux support"))
 	cmd.StringVar(&config.SocketGroup, []string{"G", "-group"}, "docker", usageFn("Group for the unix socket"))
-	config.Ulimits = make(map[string]*ulimit.Ulimit)
-	cmd.Var(opts.NewUlimitOpt(&config.Ulimits), []string{"-default-ulimit"}, usageFn("Set default ulimits for containers"))
+	config.Ulimits = make(map[string]*units.Ulimit)
+	cmd.Var(runconfigopts.NewUlimitOpt(&config.Ulimits), []string{"-default-ulimit"}, usageFn("Set default ulimits for containers"))
 	cmd.BoolVar(&config.Bridge.EnableIPTables, []string{"#iptables", "-iptables"}, true, usageFn("Enable addition of iptables rules"))
 	cmd.BoolVar(&config.Bridge.EnableIPForward, []string{"#ip-forward", "-ip-forward"}, true, usageFn("Enable net.ipv4.ip_forward"))
 	cmd.BoolVar(&config.Bridge.EnableIPMasq, []string{"-ip-masq"}, true, usageFn("Enable IP masquerading"))

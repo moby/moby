@@ -64,7 +64,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 		flLabels            = opts.NewListOpts(opts.ValidateEnv)
 		flDevices           = opts.NewListOpts(ValidateDevice)
 
-		flUlimits = opts.NewUlimitOpt(nil)
+		flUlimits = runconfigopts.NewUlimitOpt(nil)
 
 		flPublish           = opts.NewListOpts(nil)
 		flExpose            = opts.NewListOpts(nil)
