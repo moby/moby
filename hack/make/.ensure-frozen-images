@@ -27,6 +27,7 @@ case "$DOCKER_ENGINE_OSARCH" in
 	*)
 		images=(
 			busybox:latest
+			debian:jessie
 			hello-world:latest
 			jess/unshare:latest
 		)
