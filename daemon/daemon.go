@@ -226,18 +226,30 @@ func (daemon *Daemon) load(id string) (*container.Container, error) {
 	return container, nil
 }
 
-// Register makes a container object usable by the daemon as <container.ID>
-func (daemon *Daemon) Register(container *container.Container) error {
+func (daemon *Daemon) registerName(container *container.Container) error {
 	if daemon.Exists(container.ID) {
 		return fmt.Errorf("Container is already loaded")
 	}
 	if err := validateID(container.ID); err != nil {
 		return err
 	}
-	if err := daemon.ensureName(container); err != nil {
-		return err
+	if container.Name == "" {
+		name, err := daemon.generateNewName(container.ID)
+		if err != nil {
+			return err
+		}
+		container.Name = name
+
+		if err := container.ToDiskLocking(); err != nil {
+			logrus.Errorf("Error saving container name to disk: %v", err)
+		}
 	}
 
+	return nil
+}
+
+// Register makes a container object usable by the daemon as <container.ID>
+func (daemon *Daemon) Register(container *container.Container) error {
 	// Attach to stdout and stderr
 	if container.Config.OpenStdin {
 		container.NewInputPipes()
@@ -274,21 +286,6 @@ func (daemon *Daemon) Register(container *container.Container) error {
 		return err
 	}
 
-	return nil
-}
-
-func (daemon *Daemon) ensureName(container *container.Container) error {
-	if container.Name == "" {
-		name, err := daemon.generateNewName(container.ID)
-		if err != nil {
-			return err
-		}
-		container.Name = name
-
-		if err := container.ToDiskLocking(); err != nil {
-			logrus.Errorf("Error saving container name to disk: %v", err)
-		}
-	}
 	return nil
 }
 
@@ -367,6 +364,10 @@ func (daemon *Daemon) restore() error {
 				if err != nil {
 					logrus.Debugf("Setting default id - %s", err)
 				}
+			}
+			if err := daemon.registerName(container); err != nil {
+				logrus.Errorf("Failed to register container %s: %s", container.ID, err)
+				return
 			}
 
 			if err := daemon.Register(container); err != nil {
@@ -1392,14 +1393,13 @@ func tempDir(rootDir string, rootUID, rootGID int) (string, error) {
 	return tmpDir, idtools.MkdirAllAs(tmpDir, 0700, rootUID, rootGID)
 }
 
-func (daemon *Daemon) setHostConfig(container *container.Container, hostConfig *containertypes.HostConfig) error {
+func (daemon *Daemon) setSecurityOptions(container *container.Container, hostConfig *containertypes.HostConfig) error {
 	container.Lock()
-	if err := parseSecurityOpt(container, hostConfig); err != nil {
-		container.Unlock()
-		return err
-	}
-	container.Unlock()
+	defer container.Unlock()
+	return parseSecurityOpt(container, hostConfig)
+}
 
+func (daemon *Daemon) setHostConfig(container *container.Container, hostConfig *containertypes.HostConfig) error {
 	// Do not lock while creating volumes since this could be calling out to external plugins
 	// Don't want to block other actions, like `docker ps` because we're waiting on an external plugin
 	if err := daemon.registerMountPoints(container, hostConfig); err != nil {

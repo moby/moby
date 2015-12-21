@@ -74,6 +74,15 @@ func (daemon *Daemon) create(params types.ContainerCreateConfig) (*container.Con
 		}
 	}()
 
+	if err := daemon.setSecurityOptions(container, params.HostConfig); err != nil {
+		return nil, err
+	}
+
+	// Set RWLayer for container after mount labels have been set
+	if err := daemon.setRWLayer(container); err != nil {
+		return nil, err
+	}
+
 	if err := daemon.Register(container); err != nil {
 		return nil, err
 	}
@@ -95,11 +104,6 @@ func (daemon *Daemon) create(params types.ContainerCreateConfig) (*container.Con
 			}
 		}
 	}()
-
-	// Set RWLayer for container after mount labels have been set
-	if err := daemon.setRWLayer(container); err != nil {
-		return nil, err
-	}
 
 	if err := daemon.createContainerPlatformSpecificSettings(container, params.Config, params.HostConfig, img); err != nil {
 		return nil, err
