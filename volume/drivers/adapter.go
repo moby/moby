@@ -55,8 +55,7 @@ func (a *volumeAdapter) Path() string {
 }
 
 func (a *volumeAdapter) Mount() (string, error) {
-	var err error
-	a.eMount, err = a.proxy.Mount(a.name)
+	a.eMount, err := a.proxy.Mount(a.name)
 	return a.eMount, err
 }
 
