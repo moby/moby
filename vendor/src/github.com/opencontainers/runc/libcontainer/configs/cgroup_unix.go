@@ -16,6 +16,14 @@ type Cgroup struct {
 	// name of parent cgroup or slice
 	Parent string `json:"parent"`
 
+	// ScopePrefix decribes prefix for the scope name
+	ScopePrefix string `json:"scope_prefix"`
+
+	// Resources contains various cgroups settings to apply
+	Resources *Resources `json:"resources"`
+}
+
+type Resources struct {
 	// If this is true allow access to any kind of device within the container.  If false, allow access only to devices explicitly listed in the allowed_devices list.
 	AllowAllDevices bool `json:"allow_all_devices"`
 
@@ -56,6 +64,9 @@ type Cgroup struct {
 	// MEM to use
 	CpusetMems string `json:"cpuset_mems"`
 
+	// Process limit; set <= `0' to disable limit.
+	PidsLimit int64 `json:"pids_limit"`
+
 	// Specifies per cgroup weight, range is from 10 to 1000.
 	BlkioWeight uint16 `json:"blkio_weight"`
 
@@ -82,9 +93,6 @@ type Cgroup struct {
 
 	// Hugetlb limit (in bytes)
 	HugetlbLimit []*HugepageLimit `json:"hugetlb_limit"`
-
-	// ScopePrefix decribes prefix for the scope name
-	ScopePrefix string `json:"scope_prefix"`
 
 	// Whether to disable OOM Killer
 	OomKillDisable bool `json:"oom_kill_disable"`
