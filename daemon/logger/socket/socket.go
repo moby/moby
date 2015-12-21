@@ -26,7 +26,7 @@ type SocketLogger struct {
 type LogstashMessage struct {
 	Timestamp   time.Time `json:"@timestamp"`
 	Version     int       `json:"@version"`
-	Hostname	string    `json:"hostname"`
+	Hostname    string    `json:"hostname"`
 	ContainerID string    `json:"containerID"`
 	Message     string    `json:"message"`
 	Source      string    `json:"source"`
