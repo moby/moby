@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/docker/docker/pkg/integration/checker"
-	"github.com/docker/docker/pkg/ulimit"
+	"github.com/docker/go-units"
 	"github.com/go-check/check"
 )
 
@@ -33,7 +33,7 @@ func (s *DockerSuite) TestBuildResourceConstraintsAreUsed(c *check.C) {
 		CpusetMems string
 		CPUShares  int64
 		CPUQuota   int64
-		Ulimits    []*ulimit.Ulimit
+		Ulimits    []*units.Ulimit
 	}
 
 	cfg, err := inspectFieldJSON(cID, "HostConfig")

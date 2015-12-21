@@ -5,8 +5,8 @@ import (
 
 	"github.com/docker/docker/api/types/blkiodev"
 	"github.com/docker/docker/api/types/strslice"
-	"github.com/docker/docker/pkg/ulimit"
 	"github.com/docker/go-connections/nat"
+	"github.com/docker/go-units"
 )
 
 // NetworkMode represents the container network stack.
@@ -170,18 +170,18 @@ type Resources struct {
 	BlkioDeviceWriteBps  []*blkiodev.ThrottleDevice
 	BlkioDeviceReadIOps  []*blkiodev.ThrottleDevice
 	BlkioDeviceWriteIOps []*blkiodev.ThrottleDevice
-	CPUPeriod            int64            `json:"CpuPeriod"` // CPU CFS (Completely Fair Scheduler) period
-	CPUQuota             int64            `json:"CpuQuota"`  // CPU CFS (Completely Fair Scheduler) quota
-	CpusetCpus           string           // CpusetCpus 0-2, 0,1
-	CpusetMems           string           // CpusetMems 0-2, 0,1
-	Devices              []DeviceMapping  // List of devices to map inside the container
-	KernelMemory         int64            // Kernel memory limit (in bytes)
-	Memory               int64            // Memory limit (in bytes)
-	MemoryReservation    int64            // Memory soft limit (in bytes)
-	MemorySwap           int64            // Total memory usage (memory + swap); set `-1` to disable swap
-	MemorySwappiness     *int64           // Tuning container memory swappiness behaviour
-	OomKillDisable       bool             // Whether to disable OOM Killer or not
-	Ulimits              []*ulimit.Ulimit // List of ulimits to be set in the container
+	CPUPeriod            int64           `json:"CpuPeriod"` // CPU CFS (Completely Fair Scheduler) period
+	CPUQuota             int64           `json:"CpuQuota"`  // CPU CFS (Completely Fair Scheduler) quota
+	CpusetCpus           string          // CpusetCpus 0-2, 0,1
+	CpusetMems           string          // CpusetMems 0-2, 0,1
+	Devices              []DeviceMapping // List of devices to map inside the container
+	KernelMemory         int64           // Kernel memory limit (in bytes)
+	Memory               int64           // Memory limit (in bytes)
+	MemoryReservation    int64           // Memory soft limit (in bytes)
+	MemorySwap           int64           // Total memory usage (memory + swap); set `-1` to disable swap
+	MemorySwappiness     *int64          // Tuning container memory swappiness behaviour
+	OomKillDisable       bool            // Whether to disable OOM Killer or not
+	Ulimits              []*units.Ulimit // List of ulimits to be set in the container
 }
 
 // HostConfig the non-portable Config structure of a container.
