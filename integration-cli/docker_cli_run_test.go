@@ -2858,7 +2858,7 @@ func (s *DockerSuite) TestRunUnshareProc(c *check.C) {
 	testRequires(c, Apparmor, DaemonIsLinux, NotUserNamespace)
 
 	name := "acidburn"
-	out, _, err := dockerCmdWithError("run", "--name", name, "jess/unshare", "unshare", "-p", "-m", "-f", "-r", "--mount-proc=/proc", "mount")
+	out, _, err := dockerCmdWithError("run", "--name", name, "--security-opt", "seccomp:unconfined", "jess/unshare", "unshare", "-p", "-m", "-f", "-r", "--mount-proc=/proc", "mount")
 	if err == nil ||
 		!(strings.Contains(strings.ToLower(out), "permission denied") ||
 			strings.Contains(strings.ToLower(out), "operation not permitted")) {
@@ -2866,7 +2866,7 @@ func (s *DockerSuite) TestRunUnshareProc(c *check.C) {
 	}
 
 	name = "cereal"
-	out, _, err = dockerCmdWithError("run", "--name", name, "jess/unshare", "unshare", "-p", "-m", "-f", "-r", "mount", "-t", "proc", "none", "/proc")
+	out, _, err = dockerCmdWithError("run", "--name", name, "--security-opt", "seccomp:unconfined", "jess/unshare", "unshare", "-p", "-m", "-f", "-r", "mount", "-t", "proc", "none", "/proc")
 	if err == nil ||
 		!(strings.Contains(strings.ToLower(out), "permission denied") ||
 			strings.Contains(strings.ToLower(out), "operation not permitted")) {
@@ -2875,7 +2875,7 @@ func (s *DockerSuite) TestRunUnshareProc(c *check.C) {
 
 	/* Ensure still fails if running privileged with the default policy */
 	name = "crashoverride"
-	out, _, err = dockerCmdWithError("run", "--privileged", "--security-opt", "apparmor:docker-default", "--name", name, "jess/unshare", "unshare", "-p", "-m", "-f", "-r", "mount", "-t", "proc", "none", "/proc")
+	out, _, err = dockerCmdWithError("run", "--privileged", "--security-opt", "seccomp:unconfined", "--security-opt", "apparmor:docker-default", "--name", name, "jess/unshare", "unshare", "-p", "-m", "-f", "-r", "mount", "-t", "proc", "none", "/proc")
 	if err == nil || !(strings.Contains(strings.ToLower(out), "permission denied") || strings.Contains(strings.ToLower(out), "operation not permitted")) {
 		c.Fatalf("privileged unshare with apparmor should have failed with permission denied, got: %s, %v", out, err)
 	}

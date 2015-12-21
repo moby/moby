@@ -514,7 +514,7 @@ func (s *DockerSuite) TestRunSeccompProfileDenyUnshare(c *check.C) {
 	if _, err := tmpFile.Write([]byte(jsonData)); err != nil {
 		c.Fatal(err)
 	}
-	runCmd := exec.Command(dockerBinary, "run", "--security-opt", "seccomp:"+tmpFile.Name(), "jess/unshare", "unshare", "-p", "-m", "-f", "-r", "mount", "-t", "proc", "none", "/proc")
+	runCmd := exec.Command(dockerBinary, "run", "--security-opt", "apparmor:unconfined", "--security-opt", "seccomp:"+tmpFile.Name(), "debian:jessie", "unshare", "-p", "-m", "-f", "-r", "mount", "-t", "proc", "none", "/proc")
 	out, _, _ := runCommandWithOutput(runCmd)
 	if !strings.Contains(out, "Operation not permitted") {
 		c.Fatalf("expected unshare with seccomp profile denied to fail, got %s", out)
@@ -549,8 +549,9 @@ func (s *DockerSuite) TestRunSeccompProfileDenyChmod(c *check.C) {
 	}
 }
 
-// TestRunSeccompProfileDenyUserns checks that 'docker run jess/unshare unshare --map-root-user --user sh -c whoami' exits with operation not permitted.
-func (s *DockerSuite) TestRunSeccompProfileDenyUserns(c *check.C) {
+// TestRunSeccompProfileDenyUnshareUserns checks that 'docker run jess/unshare unshare --map-root-user --user sh -c whoami' with a specific profile to
+// deny unhare of a userns exits with operation not permitted.
+func (s *DockerSuite) TestRunSeccompProfileDenyUnshareUserns(c *check.C) {
 	testRequires(c, SameHostDaemon, seccompEnabled)
 	// from sched.h
 	jsonData := fmt.Sprintf(`{
@@ -578,9 +579,44 @@ func (s *DockerSuite) TestRunSeccompProfileDenyUserns(c *check.C) {
 	if _, err := tmpFile.Write([]byte(jsonData)); err != nil {
 		c.Fatal(err)
 	}
-	runCmd := exec.Command(dockerBinary, "run", "--security-opt", "seccomp:"+tmpFile.Name(), "jess/unshare", "unshare", "--map-root-user", "--user", "sh", "-c", "whoami")
+	runCmd := exec.Command(dockerBinary, "run", "--security-opt", "apparmor:unconfined", "--security-opt", "seccomp:"+tmpFile.Name(), "debian:jessie", "unshare", "--map-root-user", "--user", "sh", "-c", "whoami")
 	out, _, _ := runCommandWithOutput(runCmd)
 	if !strings.Contains(out, "Operation not permitted") {
 		c.Fatalf("expected unshare userns with seccomp profile denied to fail, got %s", out)
+	}
+}
+
+// TestRunSeccompProfileDenyCloneUserns checks that 'docker run userns-test'
+// with a the default seccomp profile exits with operation not permitted.
+func (s *DockerSuite) TestRunSeccompProfileDenyCloneUserns(c *check.C) {
+	testRequires(c, SameHostDaemon, seccompEnabled)
+
+	runCmd := exec.Command(dockerBinary, "run", "userns-test", "id")
+	out, _, err := runCommandWithOutput(runCmd)
+	if err == nil || !strings.Contains(out, "clone failed: Operation not permitted") {
+		c.Fatalf("expected clone userns with default seccomp profile denied to fail, got %s: %v", out, err)
+	}
+}
+
+// TestRunSeccompAllowPrivCloneUserns checks that 'docker run userns-test'
+// with a the default seccomp profile exits with operation not permitted.
+func (s *DockerSuite) TestRunSeccompAllowPrivCloneUserns(c *check.C) {
+	testRequires(c, SameHostDaemon, seccompEnabled, NotUserNamespace)
+
+	// make sure running w privileged is ok
+	runCmd := exec.Command(dockerBinary, "run", "--privileged", "userns-test", "id")
+	if out, _, err := runCommandWithOutput(runCmd); err != nil || !strings.Contains(out, "nobody") {
+		c.Fatalf("expected clone userns with --privileged to succeed, got %s: %v", out, err)
+	}
+}
+
+// TestRunSeccompAllowAptKey checks that 'docker run debian:jessie apt-key' succeeds.
+func (s *DockerSuite) TestRunSeccompAllowAptKey(c *check.C) {
+	testRequires(c, SameHostDaemon, seccompEnabled)
+
+	// apt-key uses setrlimit & getrlimit, so we want to make sure we don't break it
+	runCmd := exec.Command(dockerBinary, "run", "debian:jessie", "apt-key", "adv", "--keyserver", "hkp://p80.pool.sks-keyservers.net:80", "--recv-keys", "E871F18B51E0147C77796AC81196BA81F6B0FC61")
+	if out, _, err := runCommandWithOutput(runCmd); err != nil {
+		c.Fatalf("expected apt-key with seccomp to succeed, got %s: %v", out, err)
 	}
 }
