@@ -65,18 +65,14 @@ func (s *DockerSuite) TestEventsOOMDisableFalse(c *check.C) {
 
 	out, _ := dockerCmd(c, "events", "--since=0", "-f", "container=oomFalse", fmt.Sprintf("--until=%d", daemonTime(c).Unix()))
 	events := strings.Split(strings.TrimSuffix(out, "\n"), "\n")
-	c.Assert(len(events), checker.GreaterOrEqualThan, 5) //Missing expected event
+	nEvents := len(events)
 
-	createEvent := strings.Fields(events[len(events)-5])
-	attachEvent := strings.Fields(events[len(events)-4])
-	startEvent := strings.Fields(events[len(events)-3])
-	oomEvent := strings.Fields(events[len(events)-2])
-	dieEvent := strings.Fields(events[len(events)-1])
-	c.Assert(createEvent[len(createEvent)-1], checker.Equals, "create", check.Commentf("event should be create, not %#v", createEvent))
-	c.Assert(attachEvent[len(attachEvent)-1], checker.Equals, "attach", check.Commentf("event should be attach, not %#v", attachEvent))
-	c.Assert(startEvent[len(startEvent)-1], checker.Equals, "start", check.Commentf("event should be start, not %#v", startEvent))
-	c.Assert(oomEvent[len(oomEvent)-1], checker.Equals, "oom", check.Commentf("event should be oom, not %#v", oomEvent))
-	c.Assert(dieEvent[len(dieEvent)-1], checker.Equals, "die", check.Commentf("event should be die, not %#v", dieEvent))
+	c.Assert(nEvents, checker.GreaterOrEqualThan, 5) //Missing expected event
+	c.Assert(parseEventAction(c, events[nEvents-5]), checker.Equals, "create")
+	c.Assert(parseEventAction(c, events[nEvents-4]), checker.Equals, "attach")
+	c.Assert(parseEventAction(c, events[nEvents-3]), checker.Equals, "start")
+	c.Assert(parseEventAction(c, events[nEvents-2]), checker.Equals, "oom")
+	c.Assert(parseEventAction(c, events[nEvents-1]), checker.Equals, "die")
 }
 
 func (s *DockerSuite) TestEventsOOMDisableTrue(c *check.C) {
@@ -98,17 +94,13 @@ func (s *DockerSuite) TestEventsOOMDisableTrue(c *check.C) {
 
 		out, _ := dockerCmd(c, "events", "--since=0", "-f", "container=oomTrue", fmt.Sprintf("--until=%d", daemonTime(c).Unix()))
 		events := strings.Split(strings.TrimSuffix(out, "\n"), "\n")
-		c.Assert(len(events), checker.GreaterOrEqualThan, 4) //Missing expected event
+		nEvents := len(events)
+		c.Assert(nEvents, checker.GreaterOrEqualThan, 4) //Missing expected event
 
-		createEvent := strings.Fields(events[len(events)-4])
-		attachEvent := strings.Fields(events[len(events)-3])
-		startEvent := strings.Fields(events[len(events)-2])
-		oomEvent := strings.Fields(events[len(events)-1])
-
-		c.Assert(createEvent[len(createEvent)-1], checker.Equals, "create", check.Commentf("event should be create, not %#v", createEvent))
-		c.Assert(attachEvent[len(attachEvent)-1], checker.Equals, "attach", check.Commentf("event should be attach, not %#v", attachEvent))
-		c.Assert(startEvent[len(startEvent)-1], checker.Equals, "start", check.Commentf("event should be start, not %#v", startEvent))
-		c.Assert(oomEvent[len(oomEvent)-1], checker.Equals, "oom", check.Commentf("event should be oom, not %#v", oomEvent))
+		c.Assert(parseEventAction(c, events[nEvents-4]), checker.Equals, "create")
+		c.Assert(parseEventAction(c, events[nEvents-3]), checker.Equals, "attach")
+		c.Assert(parseEventAction(c, events[nEvents-2]), checker.Equals, "start")
+		c.Assert(parseEventAction(c, events[nEvents-1]), checker.Equals, "oom")
 
 		out, _ = dockerCmd(c, "inspect", "-f", "{{.State.Status}}", "oomTrue")
 		c.Assert(strings.TrimSpace(out), checker.Equals, "running", check.Commentf("container should be still running"))
@@ -116,17 +108,17 @@ func (s *DockerSuite) TestEventsOOMDisableTrue(c *check.C) {
 }
 
 // #18453
-func (s *DockerSuite) TestEventsContainerFilter(c *check.C) {
+func (s *DockerSuite) TestEventsContainerFilterByName(c *check.C) {
 	testRequires(c, DaemonIsLinux)
-	out, _ := dockerCmd(c, "run", "--name=foo", "-d", "busybox", "top")
-	c1 := strings.TrimSpace(out)
-	waitRun(c1)
-	out, _ = dockerCmd(c, "run", "--name=bar", "-d", "busybox", "top")
-	c2 := strings.TrimSpace(out)
-	waitRun(c2)
-	out, _ = dockerCmd(c, "events", "-f", "container=foo", "--since=0", fmt.Sprintf("--until=%d", daemonTime(c).Unix()))
-	c.Assert(out, checker.Contains, c1, check.Commentf("Missing event of container (foo)"))
-	c.Assert(out, checker.Not(checker.Contains), c2, check.Commentf("Should not contain event of container (bar)"))
+	cOut, _ := dockerCmd(c, "run", "--name=foo", "-d", "busybox", "top")
+	c1 := strings.TrimSpace(cOut)
+	waitRun("foo")
+	cOut, _ = dockerCmd(c, "run", "--name=bar", "-d", "busybox", "top")
+	c2 := strings.TrimSpace(cOut)
+	waitRun("bar")
+	out, _ := dockerCmd(c, "events", "-f", "container=foo", "--since=0", fmt.Sprintf("--until=%d", daemonTime(c).Unix()))
+	c.Assert(out, checker.Contains, c1, check.Commentf(out))
+	c.Assert(out, checker.Not(checker.Contains), c2, check.Commentf(out))
 }
 
 // #18453
