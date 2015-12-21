@@ -36,7 +36,6 @@ func NewPlugins(names []string) ([]Plugin, error) {
 // authorizationPlugin is an internal adapter to docker plugin system
 type authorizationPlugin struct {
 	plugin *plugins.Plugin
-	name   string
 }
 
 func newAuthorizationPlugin(name string) (Plugin, error) {
@@ -44,11 +43,11 @@ func newAuthorizationPlugin(name string) (Plugin, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &authorizationPlugin{name: name, plugin: plugin}, nil
+	return &authorizationPlugin{plugin: plugin}, nil
 }
 
 func (a *authorizationPlugin) Name() string {
-	return a.name
+	return a.plugin.Name
 }
 
 func (a *authorizationPlugin) AuthZRequest(authReq *Request) (*Response, error) {
