@@ -1874,21 +1874,18 @@ func (s *DockerSuite) TestBuildCancellationKillsSleep(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	name := "testbuildcancellation"
 
+	observer, err := newEventObserver(c)
+	c.Assert(err, checker.IsNil)
+	err = observer.Start()
+	c.Assert(err, checker.IsNil)
+	defer observer.Stop()
+
 	// (Note: one year, will never finish)
 	ctx, err := fakeContext("FROM busybox\nRUN sleep 31536000", nil)
 	if err != nil {
 		c.Fatal(err)
 	}
 	defer ctx.Close()
-
-	eventStart := make(chan struct{})
-	eventDie := make(chan struct{})
-
-	observer, err := newEventObserver(c)
-	c.Assert(err, checker.IsNil)
-	err = observer.Start()
-	c.Assert(err, checker.IsNil)
-	defer observer.Stop()
 
 	buildCmd := exec.Command(dockerBinary, "build", "-t", name, ".")
 	buildCmd.Dir = ctx.Dir
@@ -1917,26 +1914,18 @@ func (s *DockerSuite) TestBuildCancellationKillsSleep(c *check.C) {
 		c.Fatalf("Unable to find build container id in build output:\n%s", outputBuffer.String())
 	}
 
-	matchStart := regexp.MustCompile(buildID + `.* start\z`)
-	matchDie := regexp.MustCompile(buildID + `.* die\z`)
-
-	matcher := func(text string) {
-		switch {
-		case matchStart.MatchString(text):
-			close(eventStart)
-		case matchDie.MatchString(text):
-			close(eventDie)
-		}
+	testActions := map[string]chan bool{
+		"start": make(chan bool),
+		"die":   make(chan bool),
 	}
-	go observer.Match(matcher)
+
+	go observer.Match(matchEventLine(buildID, "container", testActions))
 
 	select {
 	case <-time.After(10 * time.Second):
 		c.Fatal(observer.TimeoutError(buildID, "start"))
-	case <-eventStart:
-		// Proceeds from here when we see the container fly past in the
-		// output of "docker events".
-		// Now we know the container is running.
+	case <-testActions["start"]:
+		// ignore, done
 	}
 
 	// Send a kill to the `docker build` command.
@@ -1952,13 +1941,10 @@ func (s *DockerSuite) TestBuildCancellationKillsSleep(c *check.C) {
 
 	select {
 	case <-time.After(10 * time.Second):
-		// If we don't get here in a timely fashion, it wasn't killed.
 		c.Fatal(observer.TimeoutError(buildID, "die"))
-	case <-eventDie:
-		// We saw the container shut down in the `docker events` stream,
-		// as expected.
+	case <-testActions["die"]:
+		// ignore, done
 	}
-
 }
 
 func (s *DockerSuite) TestBuildRm(c *check.C) {
@@ -6489,33 +6475,26 @@ func (s *DockerSuite) TestBuildNoNamedVolume(c *check.C) {
 func (s *DockerSuite) TestBuildTagEvent(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 
-	observer, err := newEventObserver(c, "--filter", "event=tag")
-	c.Assert(err, check.IsNil)
-	err = observer.Start()
-	c.Assert(err, check.IsNil)
-	defer observer.Stop()
+	since := daemonTime(c).Unix()
 
 	dockerFile := `FROM busybox
 	RUN echo events
 	`
-	_, err = buildImage("test", dockerFile, false)
+	_, err := buildImage("test", dockerFile, false)
 	c.Assert(err, check.IsNil)
 
-	matchTag := regexp.MustCompile("test:latest")
-	eventTag := make(chan bool)
-	matcher := func(text string) {
-		if matchTag.MatchString(text) {
-			close(eventTag)
+	out, _ := dockerCmd(c, "events", fmt.Sprintf("--since=%d", since), fmt.Sprintf("--until=%d", daemonTime(c).Unix()), "--filter", "type=image")
+	events := strings.Split(strings.TrimSpace(out), "\n")
+	actions := eventActionsByIDAndType(c, events, "test:latest", "image")
+	var foundTag bool
+	for _, a := range actions {
+		if a == "tag" {
+			foundTag = true
+			break
 		}
 	}
-	go observer.Match(matcher)
 
-	select {
-	case <-time.After(10 * time.Second):
-		c.Fatal(observer.TimeoutError("test:latest", "tag"))
-	case <-eventTag:
-		// We saw the tag event as expected.
-	}
+	c.Assert(foundTag, checker.True, check.Commentf("No tag event found:\n%s", out))
 }
 
 // #15780

@@ -54,5 +54,7 @@ func (daemon *Daemon) update(name string, hostConfig *container.HostConfig) erro
 		}
 	}
 
+	daemon.LogContainerEvent(container, "update")
+
 	return nil
 }

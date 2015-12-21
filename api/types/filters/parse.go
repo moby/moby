@@ -197,6 +197,22 @@ func (filters Args) ExactMatch(field, source string) bool {
 	return false
 }
 
+// FuzzyMatch returns true if the source matches exactly one of the filters,
+// or the source has one of the filters as a prefix.
+func (filters Args) FuzzyMatch(field, source string) bool {
+	if filters.ExactMatch(field, source) {
+		return true
+	}
+
+	fieldValues := filters.fields[field]
+	for prefix := range fieldValues {
+		if strings.HasPrefix(source, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
 // Include returns true if the name of the field to filter is in the filters.
 func (filters Args) Include(field string) bool {
 	_, ok := filters.fields[field]

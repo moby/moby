@@ -97,7 +97,7 @@ func (daemon *Daemon) ImportImage(src string, newRef reference.Named, msg string
 		}
 	}
 
-	daemon.EventsService.Log("import", id.String(), "")
+	daemon.LogImageEvent(id.String(), id.String(), "import")
 	outStream.Write(sf.FormatStatus("", id.String()))
 	return nil
 }
