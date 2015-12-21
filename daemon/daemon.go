@@ -22,6 +22,7 @@ import (
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
+	eventtypes "github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
 	registrytypes "github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/api/types/strslice"
@@ -47,7 +48,6 @@ import (
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/graphdb"
 	"github.com/docker/docker/pkg/idtools"
-	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/namesgenerator"
 	"github.com/docker/docker/pkg/progress"
@@ -554,23 +554,9 @@ func (daemon *Daemon) GetByName(name string) (*container.Container, error) {
 	return e, nil
 }
 
-// getEventFilter returns a filters.Filter for a set of filters
-func (daemon *Daemon) getEventFilter(filter filters.Args) *events.Filter {
-	// incoming container filter can be name, id or partial id, convert to
-	// a full container id
-	for _, cn := range filter.Get("container") {
-		c, err := daemon.GetContainer(cn)
-		filter.Del("container", cn)
-		if err == nil {
-			filter.Add("container", c.ID)
-		}
-	}
-	return events.NewFilter(filter, daemon.GetLabels)
-}
-
 // SubscribeToEvents returns the currently record of events, a channel to stream new events from, and a function to cancel the stream of events.
-func (daemon *Daemon) SubscribeToEvents(since, sinceNano int64, filter filters.Args) ([]*jsonmessage.JSONMessage, chan interface{}) {
-	ef := daemon.getEventFilter(filter)
+func (daemon *Daemon) SubscribeToEvents(since, sinceNano int64, filter filters.Args) ([]eventtypes.Message, chan interface{}) {
+	ef := events.NewFilter(filter)
 	return daemon.EventsService.SubscribeTopic(since, sinceNano, ef)
 }
 
@@ -578,21 +564,6 @@ func (daemon *Daemon) SubscribeToEvents(since, sinceNano int64, filter filters.A
 // channel where the daemon sends events to.
 func (daemon *Daemon) UnsubscribeFromEvents(listener chan interface{}) {
 	daemon.EventsService.Evict(listener)
-}
-
-// GetLabels for a container or image id
-func (daemon *Daemon) GetLabels(id string) map[string]string {
-	// TODO: TestCase
-	container := daemon.containers.Get(id)
-	if container != nil {
-		return container.Config.Labels
-	}
-
-	img, err := daemon.GetImage(id)
-	if err == nil {
-		return img.ContainerConfig.Labels
-	}
-	return nil
 }
 
 // children returns all child containers of the container with the
@@ -1032,7 +1003,8 @@ func (daemon *Daemon) TagImage(newTag reference.Named, imageName string) error {
 	if err := daemon.referenceStore.AddTag(newTag, imageID, true); err != nil {
 		return err
 	}
-	daemon.EventsService.Log("tag", newTag.String(), "")
+
+	daemon.LogImageEvent(imageID.String(), newTag.String(), "tag")
 	return nil
 }
 
@@ -1068,15 +1040,15 @@ func (daemon *Daemon) PullImage(ref reference.Named, metaHeaders map[string][]st
 	}()
 
 	imagePullConfig := &distribution.ImagePullConfig{
-		MetaHeaders:     metaHeaders,
-		AuthConfig:      authConfig,
-		ProgressOutput:  progress.ChanOutput(progressChan),
-		RegistryService: daemon.RegistryService,
-		EventsService:   daemon.EventsService,
-		MetadataStore:   daemon.distributionMetadataStore,
-		ImageStore:      daemon.imageStore,
-		ReferenceStore:  daemon.referenceStore,
-		DownloadManager: daemon.downloadManager,
+		MetaHeaders:      metaHeaders,
+		AuthConfig:       authConfig,
+		ProgressOutput:   progress.ChanOutput(progressChan),
+		RegistryService:  daemon.RegistryService,
+		ImageEventLogger: daemon.LogImageEvent,
+		MetadataStore:    daemon.distributionMetadataStore,
+		ImageStore:       daemon.imageStore,
+		ReferenceStore:   daemon.referenceStore,
+		DownloadManager:  daemon.downloadManager,
 	}
 
 	err := distribution.Pull(ctx, ref, imagePullConfig)
@@ -1111,17 +1083,17 @@ func (daemon *Daemon) PushImage(ref reference.Named, metaHeaders map[string][]st
 	}()
 
 	imagePushConfig := &distribution.ImagePushConfig{
-		MetaHeaders:     metaHeaders,
-		AuthConfig:      authConfig,
-		ProgressOutput:  progress.ChanOutput(progressChan),
-		RegistryService: daemon.RegistryService,
-		EventsService:   daemon.EventsService,
-		MetadataStore:   daemon.distributionMetadataStore,
-		LayerStore:      daemon.layerStore,
-		ImageStore:      daemon.imageStore,
-		ReferenceStore:  daemon.referenceStore,
-		TrustKey:        daemon.trustKey,
-		UploadManager:   daemon.uploadManager,
+		MetaHeaders:      metaHeaders,
+		AuthConfig:       authConfig,
+		ProgressOutput:   progress.ChanOutput(progressChan),
+		RegistryService:  daemon.RegistryService,
+		ImageEventLogger: daemon.LogImageEvent,
+		MetadataStore:    daemon.distributionMetadataStore,
+		LayerStore:       daemon.layerStore,
+		ImageStore:       daemon.imageStore,
+		ReferenceStore:   daemon.referenceStore,
+		TrustKey:         daemon.trustKey,
+		UploadManager:    daemon.uploadManager,
 	}
 
 	err := distribution.Push(ctx, ref, imagePushConfig)
