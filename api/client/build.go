@@ -30,7 +30,6 @@ import (
 	"github.com/docker/docker/pkg/urlutil"
 	"github.com/docker/docker/reference"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
-	"github.com/docker/docker/utils"
 	"github.com/docker/go-units"
 )
 
@@ -150,7 +149,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		}
 	}
 
-	if err := utils.ValidateContextDirectory(contextDir, excludes); err != nil {
+	if err := validateContextDirectory(contextDir, excludes); err != nil {
 		return fmt.Errorf("Error checking context: '%s'.", err)
 	}
 
@@ -160,7 +159,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	// .dockerignore is needed to know if either one needs to be
 	// removed. The daemon will remove them for us, if needed, after it
 	// parses the Dockerfile. Ignore errors here, as they will have been
-	// caught by ValidateContextDirectory above.
+	// caught by validateContextDirectory above.
 	var includes = []string{"."}
 	keepThem1, _ := fileutils.Matches(".dockerignore", excludes)
 	keepThem2, _ := fileutils.Matches(relDockerfile, excludes)
@@ -276,6 +275,54 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	}
 
 	return nil
+}
+
+// validateContextDirectory checks if all the contents of the directory
+// can be read and returns an error if some files can't be read
+// symlinks which point to non-existing files don't trigger an error
+func validateContextDirectory(srcPath string, excludes []string) error {
+	contextRoot, err := getContextRoot(srcPath)
+	if err != nil {
+		return err
+	}
+	return filepath.Walk(contextRoot, func(filePath string, f os.FileInfo, err error) error {
+		// skip this directory/file if it's not in the path, it won't get added to the context
+		if relFilePath, err := filepath.Rel(contextRoot, filePath); err != nil {
+			return err
+		} else if skip, err := fileutils.Matches(relFilePath, excludes); err != nil {
+			return err
+		} else if skip {
+			if f.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+
+		if err != nil {
+			if os.IsPermission(err) {
+				return fmt.Errorf("can't stat '%s'", filePath)
+			}
+			if os.IsNotExist(err) {
+				return nil
+			}
+			return err
+		}
+
+		// skip checking if symlinks point to non-existing files, such symlinks can be useful
+		// also skip named pipes, because they hanging on open
+		if f.Mode()&(os.ModeSymlink|os.ModeNamedPipe) != 0 {
+			return nil
+		}
+
+		if !f.IsDir() {
+			currentFile, err := os.Open(filePath)
+			if err != nil && os.IsPermission(err) {
+				return fmt.Errorf("no permission to read from '%s'", filePath)
+			}
+			currentFile.Close()
+		}
+		return nil
+	})
 }
 
 // validateTag checks if the given image name can be resolved.
