@@ -7,7 +7,7 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/pkg/ulimit"
+	"github.com/docker/go-units"
 )
 
 // ContainerAttachOptions holds parameters to attach to a container.
@@ -137,7 +137,7 @@ type ImageBuildOptions struct {
 	CgroupParent   string
 	ShmSize        string
 	Dockerfile     string
-	Ulimits        []*ulimit.Ulimit
+	Ulimits        []*units.Ulimit
 	BuildArgs      []string
 	AuthConfigs    map[string]AuthConfig
 	Context        io.Reader
