@@ -1,19 +1,16 @@
 package client
 
 import (
-	"bufio"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net"
 	"net/http"
 	"net/url"
 	"os"
 	"path"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"strconv"
 	"time"
@@ -23,8 +20,8 @@ import (
 	"github.com/docker/distribution/registry/client/auth"
 	"github.com/docker/distribution/registry/client/transport"
 	"github.com/docker/docker/cliconfig"
-	"github.com/docker/docker/pkg/ansiescape"
-	"github.com/docker/docker/pkg/ioutils"
+	"github.com/docker/docker/distribution"
+	"github.com/docker/docker/pkg/jsonmessage"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
@@ -63,8 +60,6 @@ func addTrustedFlags(fs *flag.FlagSet, verify bool) {
 func isTrusted() bool {
 	return !untrusted
 }
-
-var targetRegexp = regexp.MustCompile(`([\S]+): digest: ([\S]+) size: ([\d]+)`)
 
 type target struct {
 	reference registry.Reference
@@ -366,60 +361,31 @@ func (cli *DockerCli) trustedPull(repoInfo *registry.RepositoryInfo, ref registr
 	return nil
 }
 
-func targetStream(in io.Writer) (io.WriteCloser, <-chan []target) {
-	r, w := io.Pipe()
-	out := io.MultiWriter(in, w)
-	targetChan := make(chan []target)
-
-	go func() {
-		targets := []target{}
-		scanner := bufio.NewScanner(r)
-		scanner.Split(ansiescape.ScanANSILines)
-		for scanner.Scan() {
-			line := scanner.Bytes()
-			if matches := targetRegexp.FindSubmatch(line); len(matches) == 4 {
-				dgst, err := digest.ParseDigest(string(matches[2]))
-				if err != nil {
-					// Line does match what is expected, continue looking for valid lines
-					logrus.Debugf("Bad digest value %q in matched line, ignoring\n", string(matches[2]))
-					continue
-				}
-				s, err := strconv.ParseInt(string(matches[3]), 10, 64)
-				if err != nil {
-					// Line does match what is expected, continue looking for valid lines
-					logrus.Debugf("Bad size value %q in matched line, ignoring\n", string(matches[3]))
-					continue
-				}
-
-				targets = append(targets, target{
-					reference: registry.ParseReference(string(matches[1])),
-					digest:    dgst,
-					size:      s,
-				})
-			}
-		}
-		targetChan <- targets
-	}()
-
-	return ioutils.NewWriteCloserWrapper(out, w.Close), targetChan
-}
-
 func (cli *DockerCli) trustedPush(repoInfo *registry.RepositoryInfo, tag string, authConfig types.AuthConfig, requestPrivilege apiclient.RequestPrivilegeFunc) error {
-	streamOut, targetChan := targetStream(cli.out)
-
-	reqError := cli.imagePushPrivileged(authConfig, repoInfo.Name(), tag, streamOut, requestPrivilege)
-
-	// Close stream channel to finish target parsing
-	if err := streamOut.Close(); err != nil {
+	responseBody, err := cli.imagePushPrivileged(authConfig, repoInfo.Name(), tag, requestPrivilege)
+	if err != nil {
 		return err
 	}
-	// Check error from request
-	if reqError != nil {
-		return reqError
+
+	defer responseBody.Close()
+
+	targets := []target{}
+	handleTarget := func(aux *json.RawMessage) {
+		var pushResult distribution.PushResult
+		err := json.Unmarshal(*aux, &pushResult)
+		if err == nil && pushResult.Tag != "" && pushResult.Digest.Validate() == nil {
+			targets = append(targets, target{
+				reference: registry.ParseReference(pushResult.Tag),
+				digest:    pushResult.Digest,
+				size:      int64(pushResult.Size),
+			})
+		}
 	}
 
-	// Get target results
-	targets := <-targetChan
+	err = jsonmessage.DisplayJSONMessagesStream(responseBody, cli.out, cli.outFd, cli.isTerminalOut, handleTarget)
+	if err != nil {
+		return err
+	}
 
 	if tag == "" {
 		fmt.Fprintf(cli.out, "No tag specified, skipping trust metadata push\n")

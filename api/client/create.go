@@ -57,7 +57,7 @@ func (cli *DockerCli) pullImageCustomOut(image string, out io.Writer) error {
 	}
 	defer responseBody.Close()
 
-	return jsonmessage.DisplayJSONMessagesStream(responseBody, out, cli.outFd, cli.isTerminalOut)
+	return jsonmessage.DisplayJSONMessagesStream(responseBody, out, cli.outFd, cli.isTerminalOut, nil)
 }
 
 type cidFile struct {
