@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"bytes"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -216,27 +215,13 @@ func (s *DockerSuite) TestEventsImagePull(c *check.C) {
 
 func (s *DockerSuite) TestEventsImageImport(c *check.C) {
 	testRequires(c, DaemonIsLinux)
-	since := daemonTime(c).Unix()
 
-	id := make(chan string)
-	eventImport := make(chan struct{})
-	eventsCmd := exec.Command(dockerBinary, "events", "--since", strconv.FormatInt(since, 10))
-	stdout, err := eventsCmd.StdoutPipe()
+	observer, err := newEventObserver(c)
 	c.Assert(err, checker.IsNil)
-	c.Assert(eventsCmd.Start(), checker.IsNil)
-	defer eventsCmd.Process.Kill()
 
-	go func() {
-		containerID := <-id
-
-		matchImport := regexp.MustCompile(containerID + `: import$`)
-		scanner := bufio.NewScanner(stdout)
-		for scanner.Scan() {
-			if matchImport.MatchString(scanner.Text()) {
-				close(eventImport)
-			}
-		}
-	}()
+	err = observer.Start()
+	c.Assert(err, checker.IsNil)
+	defer observer.Stop()
 
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "true")
 	cleanedContainerID := strings.TrimSpace(out)
@@ -246,12 +231,20 @@ func (s *DockerSuite) TestEventsImageImport(c *check.C) {
 		exec.Command(dockerBinary, "import", "-"),
 	)
 	c.Assert(err, checker.IsNil, check.Commentf("import failed with output: %q", out))
-	newContainerID := strings.TrimSpace(out)
-	id <- newContainerID
+	imageRef := strings.TrimSpace(out)
+
+	eventImport := make(chan bool)
+	matchImport := regexp.MustCompile(imageRef + `: import\z`)
+	matcher := func(text string) {
+		if matchImport.MatchString(text) {
+			close(eventImport)
+		}
+	}
+	go observer.Match(matcher)
 
 	select {
 	case <-time.After(5 * time.Second):
-		c.Fatal("failed to observe image import in timely fashion")
+		c.Fatal(observer.TimeoutError(imageRef, "import"))
 	case <-eventImport:
 		// ignore, done
 	}
@@ -421,76 +414,65 @@ func (s *DockerSuite) TestEventsFilterContainer(c *check.C) {
 
 func (s *DockerSuite) TestEventsStreaming(c *check.C) {
 	testRequires(c, DaemonIsLinux)
-	start := daemonTime(c).Unix()
 
-	id := make(chan string)
 	eventCreate := make(chan struct{})
 	eventStart := make(chan struct{})
 	eventDie := make(chan struct{})
 	eventDestroy := make(chan struct{})
 
-	eventsCmd := exec.Command(dockerBinary, "events", "--since", strconv.FormatInt(start, 10))
-	stdout, err := eventsCmd.StdoutPipe()
+	observer, err := newEventObserver(c)
 	c.Assert(err, checker.IsNil)
-	c.Assert(eventsCmd.Start(), checker.IsNil, check.Commentf("failed to start 'docker events'"))
-	defer eventsCmd.Process.Kill()
-
-	buffer := new(bytes.Buffer)
-	go func() {
-		containerID := <-id
-
-		matchCreate := regexp.MustCompile(containerID + `: \(from busybox:latest\) create\z`)
-		matchStart := regexp.MustCompile(containerID + `: \(from busybox:latest\) start\z`)
-		matchDie := regexp.MustCompile(containerID + `: \(from busybox:latest\) die\z`)
-		matchDestroy := regexp.MustCompile(containerID + `: \(from busybox:latest\) destroy\z`)
-
-		scanner := bufio.NewScanner(stdout)
-		for scanner.Scan() {
-			text := scanner.Text()
-			buffer.WriteString(text + "\n")
-			switch {
-			case matchCreate.MatchString(text):
-				close(eventCreate)
-			case matchStart.MatchString(text):
-				close(eventStart)
-			case matchDie.MatchString(text):
-				close(eventDie)
-			case matchDestroy.MatchString(text):
-				close(eventDestroy)
-			}
-		}
-	}()
+	err = observer.Start()
+	c.Assert(err, checker.IsNil)
+	defer observer.Stop()
 
 	out, _ := dockerCmd(c, "run", "-d", "busybox:latest", "true")
-	cleanedContainerID := strings.TrimSpace(out)
-	id <- cleanedContainerID
+	containerID := strings.TrimSpace(out)
+	matchCreate := regexp.MustCompile(containerID + `: \(from busybox:latest\) create\z`)
+	matchStart := regexp.MustCompile(containerID + `: \(from busybox:latest\) start\z`)
+	matchDie := regexp.MustCompile(containerID + `: \(from busybox:latest\) die\z`)
+	matchDestroy := regexp.MustCompile(containerID + `: \(from busybox:latest\) destroy\z`)
+
+	matcher := func(text string) {
+		switch {
+		case matchCreate.MatchString(text):
+			close(eventCreate)
+		case matchStart.MatchString(text):
+			close(eventStart)
+		case matchDie.MatchString(text):
+			close(eventDie)
+		case matchDestroy.MatchString(text):
+			close(eventDestroy)
+		}
+	}
+	go observer.Match(matcher)
 
 	select {
 	case <-time.After(5 * time.Second):
-		c.Fatal("failed to observe container create in timely fashion", "\n", buffer.String())
+		c.Fatal(observer.TimeoutError(containerID, "create"))
 	case <-eventCreate:
 		// ignore, done
 	}
 
 	select {
 	case <-time.After(5 * time.Second):
-		c.Fatal("failed to observe container start in timely fashion", "\n", buffer.String())
+		c.Fatal(observer.TimeoutError(containerID, "start"))
 	case <-eventStart:
 		// ignore, done
 	}
 
 	select {
 	case <-time.After(5 * time.Second):
-		c.Fatal("failed to observe container die in timely fashion", "\n", buffer.String())
+		c.Fatal(observer.TimeoutError(containerID, "die"))
 	case <-eventDie:
 		// ignore, done
 	}
 
-	dockerCmd(c, "rm", cleanedContainerID)
+	dockerCmd(c, "rm", containerID)
 
 	select {
 	case <-time.After(5 * time.Second):
-		c.Fatal("failed to observe container destroy in timely fashion", "\n", buffer.String())
+		c.Fatal(observer.TimeoutError(containerID, "destroy"))
 	case <-eventDestroy:
 		// ignore, done
 	}
