@@ -76,5 +76,5 @@ func (cli *DockerCli) CmdImport(args ...string) error {
 	}
 	defer responseBody.Close()
 
-	return jsonmessage.DisplayJSONMessagesStream(responseBody, cli.out, cli.outFd, cli.isTerminalOut)
+	return jsonmessage.DisplayJSONMessagesStream(responseBody, cli.out, cli.outFd, cli.isTerminalOut, nil)
 }

@@ -26,6 +26,15 @@ import (
 	"golang.org/x/net/context"
 )
 
+// PushResult contains the tag, manifest digest, and manifest size from the
+// push. It's used to signal this information to the trust code in the client
+// so it can sign the manifest if necessary.
+type PushResult struct {
+	Tag    string
+	Digest digest.Digest
+	Size   int
+}
+
 type v2Pusher struct {
 	blobSumService *metadata.BlobSumService
 	ref            reference.Named
@@ -174,9 +183,10 @@ func (p *v2Pusher) pushV2Tag(ctx context.Context, association reference.Associat
 	}
 	if manifestDigest != "" {
 		if tagged, isTagged := ref.(reference.NamedTagged); isTagged {
-			// NOTE: do not change this format without first changing the trust client
-			// code. This information is used to determine what was pushed and should be signed.
 			progress.Messagef(p.config.ProgressOutput, "", "%s: digest: %s size: %d", tagged.Tag(), manifestDigest, manifestSize)
+			// Signal digest to the trust client so it can sign the
+			// push, if appropriate.
+			progress.Aux(p.config.ProgressOutput, PushResult{Tag: tagged.Tag(), Digest: manifestDigest, Size: manifestSize})
 		}
 	}
 
