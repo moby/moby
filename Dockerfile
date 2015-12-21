@@ -91,7 +91,7 @@ ENV GOPATH /go:/go/src/github.com/docker/docker/vendor
 # Compile Go for cross compilation
 ENV DOCKER_CROSSPLATFORMS \
 	linux/386 linux/arm \
-	darwin/amd64 darwin/386 \
+	darwin/amd64 \
 	freebsd/amd64 freebsd/386 freebsd/arm \
 	windows/amd64 windows/386
 

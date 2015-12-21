@@ -121,9 +121,9 @@ following URL patterns:
 
 For example:
 
-    https://get.docker.com/builds/Linux/i386/docker-1.6.0
+    https://get.docker.com/builds/Linux/i386/docker-1.9.1
 
-    https://get.docker.com/builds/Linux/x86_64/docker-1.6.0
+    https://get.docker.com/builds/Linux/x86_64/docker-1.9.1
 
 
 ### Get the Mac OS X binary
@@ -131,26 +131,20 @@ For example:
 The Mac OS X binary is only a client. You cannot use it to run the `docker`
 daemon. To download the latest version for Mac OS X, use the following URLs:
 
-    https://get.docker.com/builds/Darwin/i386/docker-latest
-    
     https://get.docker.com/builds/Darwin/x86_64/docker-latest
 
 To download a specific version for Mac OS X, use the
 following URL patterns:
 
-    https://get.docker.com/builds/Darwin/i386/docker-<version>
-    
     https://get.docker.com/builds/Darwin/x86_64/docker-<version>
 
 For example:
 
-    https://get.docker.com/builds/Darwin/i386/docker-1.6.0
-
-    https://get.docker.com/builds/Darwin/x86_64/docker-1.6.0
+    https://get.docker.com/builds/Darwin/x86_64/docker-1.9.1
 
 ### Get the Windows binary
  
-You can only download the Windows client binary for version `1.6.0` onwards.
+You can only download the Windows client binary for version `1.9.1` onwards.
 Moreover, the binary is only a client, you cannot use it to run the `docker` daemon.
 To download the latest version for Windows, use the following URLs:
 
@@ -166,9 +160,9 @@ To download a specific version for Windows, use the following URL pattern:
 
 For example:
 
-    https://get.docker.com/builds/Windows/i386/docker-1.6.0.exe
+    https://get.docker.com/builds/Windows/i386/docker-1.9.1.exe
 
-    https://get.docker.com/builds/Windows/x86_64/docker-1.6.0.exe
+    https://get.docker.com/builds/Windows/x86_64/docker-1.9.1.exe
 
 
 ## Run the Docker daemon
