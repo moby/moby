@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"regexp"
 	"strings"
 	"time"
@@ -53,8 +54,10 @@ func (s *DockerHubPullSuite) TestPullNonExistingImage(c *check.C) {
 	} {
 		out, err := s.CmdWithError("pull", e.Alias)
 		c.Assert(err, checker.NotNil, check.Commentf("expected non-zero exit status when pulling non-existing image: %s", out))
-		// Hub returns 401 rather than 404 for nonexistent library/ repos.
-		c.Assert(out, checker.Contains, "unauthorized: access to the requested resource is not authorized", check.Commentf("expected unauthorized error message"))
+		// Hub returns 401 rather than 404 for nonexistent repos over
+		// the v2 protocol - but we should end up falling back to v1,
+		// which does return a 404.
+		c.Assert(out, checker.Contains, fmt.Sprintf("Error: image %s not found", e.Repo), check.Commentf("expected image not found error messages"))
 	}
 }
 
