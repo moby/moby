@@ -2,12 +2,17 @@ package ps
 
 import (
 	"bytes"
+	"fmt"
 	"testing"
+	"time"
 
 	"github.com/docker/docker/api/types"
 )
 
 func TestFormat(t *testing.T) {
+	unixTime := time.Now().Add(-50 * time.Hour).Unix()
+	expectedTime := time.Unix(unixTime, 0).String()
+
 	contexts := []struct {
 		context  Context
 		expected string
@@ -33,8 +38,8 @@ func TestFormat(t *testing.T) {
 				Format: "table",
 			},
 			`CONTAINER ID        IMAGE               COMMAND             CREATED             STATUS              PORTS               NAMES
-containerID1        ubuntu              ""                  45 years ago                                                foobar_baz
-containerID2        ubuntu              ""                  45 years ago                                                foobar_bar
+containerID1        ubuntu              ""                  2 days ago                                                  foobar_baz
+containerID2        ubuntu              ""                  2 days ago                                                  foobar_bar
 `,
 		},
 		{
@@ -69,10 +74,10 @@ containerID2        ubuntu              ""                  45 years ago        
 			Context{
 				Format: "raw",
 			},
-			`container_id: containerID1
+			fmt.Sprintf(`container_id: containerID1
 image: ubuntu
 command: ""
-created_at: 1970-01-01 00:00:00 +0000 UTC
+created_at: %s
 status: 
 names: foobar_baz
 labels: 
@@ -81,23 +86,23 @@ ports:
 container_id: containerID2
 image: ubuntu
 command: ""
-created_at: 1970-01-01 00:00:00 +0000 UTC
+created_at: %s
 status: 
 names: foobar_bar
 labels: 
 ports: 
 
-`,
+`, expectedTime, expectedTime),
 		},
 		{
 			Context{
 				Format: "raw",
 				Size:   true,
 			},
-			`container_id: containerID1
+			fmt.Sprintf(`container_id: containerID1
 image: ubuntu
 command: ""
-created_at: 1970-01-01 00:00:00 +0000 UTC
+created_at: %s
 status: 
 names: foobar_baz
 labels: 
@@ -107,14 +112,14 @@ size: 0 B
 container_id: containerID2
 image: ubuntu
 command: ""
-created_at: 1970-01-01 00:00:00 +0000 UTC
+created_at: %s
 status: 
 names: foobar_bar
 labels: 
 ports: 
 size: 0 B
 
-`,
+`, expectedTime, expectedTime),
 		},
 		{
 			Context{
@@ -141,8 +146,8 @@ size: 0 B
 
 	for _, context := range contexts {
 		containers := []types.Container{
-			{ID: "containerID1", Names: []string{"/foobar_baz"}, Image: "ubuntu"},
-			{ID: "containerID2", Names: []string{"/foobar_bar"}, Image: "ubuntu"},
+			{ID: "containerID1", Names: []string{"/foobar_baz"}, Image: "ubuntu", Created: unixTime},
+			{ID: "containerID2", Names: []string{"/foobar_bar"}, Image: "ubuntu", Created: unixTime},
 		}
 		out := bytes.NewBufferString("")
 		context.context.Output = out
