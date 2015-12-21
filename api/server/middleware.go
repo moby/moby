@@ -157,7 +157,7 @@ func versionMiddleware(handler httputils.APIFunc) httputils.APIFunc {
 //		)
 //	)
 // )
-func (s *Server) handleWithGlobalMiddlewares(handler httputils.APIFunc) httputils.APIFunc {
+func (s *Server) handleWithGlobalMiddlewares(handler httputils.APIFunc) (httputils.APIFunc, error) {
 	middlewares := []middleware{
 		versionMiddleware,
 		s.corsMiddleware,
@@ -170,7 +170,11 @@ func (s *Server) handleWithGlobalMiddlewares(handler httputils.APIFunc) httputil
 	}
 
 	if len(s.cfg.AuthZPluginNames) > 0 {
-		s.authZPlugins = authorization.NewPlugins(s.cfg.AuthZPluginNames)
+		var err error
+		s.authZPlugins, err = authorization.NewPlugins(s.cfg.AuthZPluginNames)
+		if err != nil {
+			return nil, err
+		}
 		middlewares = append(middlewares, s.authorizationMiddleware)
 	}
 
@@ -178,5 +182,5 @@ func (s *Server) handleWithGlobalMiddlewares(handler httputils.APIFunc) httputil
 	for _, m := range middlewares {
 		h = m(h)
 	}
-	return h
+	return h, nil
 }

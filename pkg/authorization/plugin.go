@@ -16,7 +16,7 @@ type Plugin interface {
 }
 
 // NewPlugins constructs and initialize the authorization plugins based on plugin names
-func NewPlugins(names []string) []Plugin {
+func NewPlugins(names []string) ([]Plugin, error) {
 	plugins := []Plugin{}
 	pluginsMap := make(map[string]struct{})
 	for _, name := range names {
@@ -24,9 +24,13 @@ func NewPlugins(names []string) []Plugin {
 			continue
 		}
 		pluginsMap[name] = struct{}{}
-		plugins = append(plugins, newAuthorizationPlugin(name))
+		plugin, err := newAuthorizationPlugin(name)
+		if err != nil {
+			return nil, err
+		}
+		plugins = append(plugins, plugin)
 	}
-	return plugins
+	return plugins, nil
 }
 
 // authorizationPlugin is an internal adapter to docker plugin system
@@ -35,8 +39,12 @@ type authorizationPlugin struct {
 	name   string
 }
 
-func newAuthorizationPlugin(name string) Plugin {
-	return &authorizationPlugin{name: name}
+func newAuthorizationPlugin(name string) (Plugin, error) {
+	plugin, err := plugins.Get(name, AuthZApiImplements)
+	if err != nil {
+		return nil, err
+	}
+	return &authorizationPlugin{name: name, plugin: plugin}, nil
 }
 
 func (a *authorizationPlugin) Name() string {
@@ -44,40 +52,17 @@ func (a *authorizationPlugin) Name() string {
 }
 
 func (a *authorizationPlugin) AuthZRequest(authReq *Request) (*Response, error) {
-	if err := a.initPlugin(); err != nil {
-		return nil, err
-	}
-
 	authRes := &Response{}
 	if err := a.plugin.Client.Call(AuthZApiRequest, authReq, authRes); err != nil {
 		return nil, err
 	}
-
 	return authRes, nil
 }
 
 func (a *authorizationPlugin) AuthZResponse(authReq *Request) (*Response, error) {
-	if err := a.initPlugin(); err != nil {
-		return nil, err
-	}
-
 	authRes := &Response{}
 	if err := a.plugin.Client.Call(AuthZApiResponse, authReq, authRes); err != nil {
 		return nil, err
 	}
-
 	return authRes, nil
-}
-
-// initPlugin initialize the authorization plugin if needed
-func (a *authorizationPlugin) initPlugin() error {
-	// Lazy loading of plugins
-	if a.plugin == nil {
-		var err error
-		a.plugin, err = plugins.Get(a.name, AuthZApiImplements)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
 }

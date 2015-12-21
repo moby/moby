@@ -157,7 +157,10 @@ func (s *Server) makeHTTPHandler(handler httputils.APIFunc) http.HandlerFunc {
 		// immediate function being called should still be passed
 		// as 'args' on the function call.
 		ctx := context.Background()
-		handlerFunc := s.handleWithGlobalMiddlewares(handler)
+		handlerFunc, err := s.handleWithGlobalMiddlewares(handler)
+		if err != nil {
+			httputils.WriteError(w, err)
+		}
 
 		vars := mux.Vars(r)
 		if vars == nil {
