@@ -17,15 +17,14 @@ import (
 
 const name = "socket"
 
-type SocketLogger struct {
+type socketLogger struct {
 	destination url.URL
 	connection  net.Conn
 	mutex       sync.Mutex
 }
 
-type LogstashMessage struct {
-	Timestamp   time.Time `json:"@timestamp"`
-	Version     int       `json:"@version"`
+type message struct {
+	Timestamp   time.Time `json:"timestamp"`
 	Hostname    string    `json:"hostname"`
 	ContainerID string    `json:"containerID"`
 	Message     string    `json:"message"`
@@ -41,7 +40,7 @@ func init() {
 	}
 }
 
-func connect(s *SocketLogger) error {
+func connect(s *socketLogger) error {
 	switch s.destination.Scheme {
 	case "unix":
 		conn, err := net.Dial("unix", s.destination.Path)
@@ -61,13 +60,14 @@ func connect(s *SocketLogger) error {
 	return nil
 }
 
+// New creates socket logger driver using configuration passed in context
 func New(ctx logger.Context) (logger.Logger, error) {
 	u, err := url.Parse(ctx.Config["destination"])
 	if err != nil {
 		return nil, err
 	}
 
-	s := &SocketLogger{
+	s := &socketLogger{
 		destination: *u,
 		connection:  nil,
 		mutex:       sync.Mutex{},
@@ -80,10 +80,9 @@ func New(ctx logger.Context) (logger.Logger, error) {
 	return s, nil
 }
 
-func (s *SocketLogger) Log(msg *logger.Message) error {
-	res := LogstashMessage{
+func (s *socketLogger) Log(msg *logger.Message) error {
+	res := message{
 		Timestamp:   msg.Timestamp,
-		Version:     1,
 		Hostname:    "",
 		ContainerID: msg.ContainerID,
 		Message:     string(msg.Line),
@@ -104,22 +103,21 @@ func (s *SocketLogger) Log(msg *logger.Message) error {
 	if err != nil {
 		if err := connect(s); err != nil {
 			return err
-		} else {
-			_, err = s.connection.Write([]byte(json))
-			if err != nil {
-				return err
-			}
+		}
+		_, err = s.connection.Write([]byte(json))
+		if err != nil {
+			return err
 		}
 	}
 
 	return nil
 }
 
-func (s *SocketLogger) Name() string {
+func (s *socketLogger) Name() string {
 	return name
 }
 
-func (s *SocketLogger) Close() error {
+func (s *socketLogger) Close() error {
 	if s.connection != nil {
 		err := s.connection.Close()
 		if err != nil {
