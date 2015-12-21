@@ -20,14 +20,14 @@ The material on this page is intended for readers who already have an [understan
 
 The Docker has a pluggable storage driver architecture.  This gives you the flexibility to "plug in" the storage driver is best for your environment and use-case. Each Docker storage driver is based on a Linux filesystem or volume manager. Further, each storage driver is free to implement the management of image layers and the container layer in it's own unique way. This means some storage drivers perform better than others in different circumstances.
 
-Once you decide which driver is best, you set this driver on the Docker daemon at start time. As a result, the Docker daemon can only run one storage driver, and all containers created by that daemon instance use the same storage driver. The table below shows the supported storage driver technologies and the driver names:
+Once you decide which driver is best, you set this driver on the Docker daemon at start time. As a result, the Docker daemon can only run one storage driver, and all containers created by that daemon instance use the same storage driver. The table below shows the supported storage driver technologies and their driver names:
 
 |Technology    |Storage driver name  |
 |--------------|---------------------|
 |OverlayFS     |`overlay`            |
 |AUFS          |`aufs`               |
 |Btrfs         |`btrfs`              |
-|Device Maper  |`devicemapper`       |
+|Device Mapper |`devicemapper`       |
 |VFS*          |`vfs`                |
 |ZFS           |`zfs`                |
 
@@ -58,7 +58,7 @@ Which storage driver you use, in part, depends on the backing filesystem you pla
     |zfs            |Yes                           |
 
 
-You pass the `--storage-driver=<name>` option to the `docker daemon` command line or by setting the option on the `DOCKER_OPTS` line in `/etc/defaults/docker` file.
+You can set the storage driver by passing the `--storage-driver=<name>` option to the `docker daemon` command line or by setting the option on the `DOCKER_OPTS` line in `/etc/defaults/docker` file.
 
 The following command shows how to start the Docker daemon with the `devicemapper` storage driver using the `docker daemon` command:
 
