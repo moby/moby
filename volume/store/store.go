@@ -67,7 +67,6 @@ func (s *VolumeStore) Create(name, driverName string, opts map[string]string) (v
 		v := vc.Volume
 		return v, nil
 	}
-	logrus.Debugf("Registering new volume reference: driver %s, name %s", driverName, name)
 
 	vd, err := volumedrivers.GetDriver(driverName)
 	if err != nil {
