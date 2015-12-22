@@ -169,5 +169,10 @@ func (daemon *Daemon) VolumeCreate(name, driverName string, opts map[string]stri
 	if (driverName != "" && v.DriverName() != driverName) || (driverName == "" && v.DriverName() != volume.DefaultDriverName) {
 		return nil, derr.ErrorVolumeNameTaken.WithArgs(name, v.DriverName())
 	}
+
+	if driverName == "" {
+		driverName = volume.DefaultDriverName
+	}
+	daemon.LogVolumeEvent(name, "create", map[string]string{"driver": driverName})
 	return volumeToAPIType(v), nil
 }
