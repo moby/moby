@@ -255,8 +255,9 @@ way to get some useful links for sharing:
 echo "Ubuntu/Debian: curl -sSL https://test.docker.com/ | sh"
 echo "Linux 64bit binary: https://test.docker.com/builds/Linux/x86_64/docker-${VERSION#v}"
 echo "Darwin/OSX 64bit client binary: https://test.docker.com/builds/Darwin/x86_64/docker-${VERSION#v}"
-echo "Darwin/OSX 32bit client binary: https://test.docker.com/builds/Darwin/i386/docker-${VERSION#v}"
 echo "Linux 64bit tgz: https://test.docker.com/builds/Linux/x86_64/docker-${VERSION#v}.tgz"
+echo "Windows 64bit client binary: https://test.docker.com/builds/Windows/x86_64/docker-${VERSION#v}.exe"
+echo "Windows 32bit client binary: https://test.docker.com/builds/Windows/i386/docker-${VERSION#v}.exe"
 ```
 
 We recommend announcing the release candidate on:
