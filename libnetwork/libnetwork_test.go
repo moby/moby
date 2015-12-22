@@ -2327,3 +2327,10 @@ func TestParallel2(t *testing.T) {
 func TestParallel3(t *testing.T) {
 	runParallelTests(t, 3)
 }
+
+func TestNetworkInternal(t *testing.T) {
+	_, err := controller.NewNetwork(bridgeNetType, "testnetworkinternal", libnetwork.NetworkOptionInternalNetwork())
+	if err == nil || err.Error() != (&driverapi.ErrNotImplemented{}).Error() {
+		t.Fatal("bridge network can't be internal")
+	}
+}
