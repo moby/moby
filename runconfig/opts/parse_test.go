@@ -1,4 +1,4 @@
-package runconfig
+package opts
 
 import (
 	"bytes"
@@ -12,6 +12,7 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 	flag "github.com/docker/docker/pkg/mflag"
+	"github.com/docker/docker/runconfig"
 	"github.com/docker/go-connections/nat"
 )
 
@@ -288,7 +289,7 @@ func callDecodeContainerConfig(volumes []string, binds []string) (*container.Con
 		c   *container.Config
 		h   *container.HostConfig
 	)
-	w := ContainerConfigWrapper{
+	w := runconfig.ContainerConfigWrapper{
 		Config: &container.Config{
 			Volumes: map[string]struct{}{},
 		},
@@ -303,7 +304,7 @@ func callDecodeContainerConfig(volumes []string, binds []string) (*container.Con
 	if b, err = json.Marshal(w); err != nil {
 		return nil, nil, fmt.Errorf("Error on marshal %s", err.Error())
 	}
-	c, h, err = DecodeContainerConfig(bytes.NewReader(b))
+	c, h, err = runconfig.DecodeContainerConfig(bytes.NewReader(b))
 	if err != nil {
 		return nil, nil, fmt.Errorf("Error parsing %s: %v", string(b), err)
 	}
