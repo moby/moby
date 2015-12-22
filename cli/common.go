@@ -62,6 +62,7 @@ var dockerCommands = []Command{
 	{"stats", "Display a live stream of container(s) resource usage statistics"},
 	{"stop", "Stop a running container"},
 	{"tag", "Tag an image into a repository"},
+	{"tagmani", "Tag an image manifest only"},
 	{"top", "Display the running processes of a container"},
 	{"unpause", "Unpause all processes within a container"},
 	{"version", "Show the Docker version information"},

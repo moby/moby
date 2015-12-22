@@ -493,6 +493,28 @@ func (s *router) postImagesTag(ctx context.Context, w http.ResponseWriter, r *ht
 	return nil
 }
 
+func (s *router) postImagesTagManifest(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if err := httputils.ParseForm(r); err != nil {
+		return err
+	}
+	if vars == nil {
+		return fmt.Errorf("Missing parameter")
+	}
+	fmt.Printf("Form: %s\n", r.Form)
+	fmt.Printf("Vars: %s\n", vars)
+
+	repo := r.Form.Get("repo")
+	tag := r.Form.Get("tag")
+	// name := vars["name"]
+
+	/* if err := s.daemon.TagImageManifest(repo, tag, name); err != nil {
+		return err
+	}*/
+	s.daemon.EventsService.Log("tagManifest", utils.ImageReference(repo, tag), "")
+	w.WriteHeader(http.StatusCreated)
+	return nil
+}
+
 func (s *router) getImagesSearch(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
