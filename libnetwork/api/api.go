@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/docker/libnetwork"
+	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/types"
 	"github.com/gorilla/mux"
 )
@@ -279,6 +280,11 @@ func procCreateNetwork(c libnetwork.NetworkController, vars map[string]string, b
 	processCreateDefaults(c, &create)
 
 	options := []libnetwork.NetworkOption{}
+	if len(create.NetworkOpts) > 0 {
+		if _, ok := create.NetworkOpts[netlabel.Internal]; ok {
+			options = append(options, libnetwork.NetworkOptionInternalNetwork())
+		}
+	}
 	if len(create.DriverOpts) > 0 {
 		options = append(options, libnetwork.NetworkOptionDriverOpts(create.DriverOpts))
 	}
