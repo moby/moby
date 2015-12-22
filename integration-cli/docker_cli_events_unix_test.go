@@ -177,3 +177,29 @@ func (s *DockerSuite) TestVolumeEvents(c *check.C) {
 	c.Assert(volumeEvents[2], checker.Equals, "unmount")
 	c.Assert(volumeEvents[3], checker.Equals, "destroy")
 }
+
+func (s *DockerSuite) TestNetworkEvents(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	since := daemonTime(c).Unix()
+
+	// Observe create/connect network actions
+	dockerCmd(c, "network", "create", "test-event-network-local")
+	dockerCmd(c, "run", "--name", "test-network-container", "--net", "test-event-network-local", "-d", "busybox", "true")
+	waitRun("test-network-container")
+
+	// Observe disconnect/destroy network actions
+	dockerCmd(c, "rm", "-f", "test-network-container")
+	dockerCmd(c, "network", "rm", "test-event-network-local")
+
+	out, _ := dockerCmd(c, "events", fmt.Sprintf("--since=%d", since), fmt.Sprintf("--until=%d", daemonTime(c).Unix()))
+	events := strings.Split(strings.TrimSpace(out), "\n")
+	c.Assert(len(events), checker.GreaterThan, 4)
+
+	netEvents := eventActionsByIDAndType(c, events, "test-event-network-local", "network")
+	c.Assert(netEvents, checker.HasLen, 4)
+	c.Assert(netEvents[0], checker.Equals, "create")
+	c.Assert(netEvents[1], checker.Equals, "connect")
+	c.Assert(netEvents[2], checker.Equals, "disconnect")
+	c.Assert(netEvents[3], checker.Equals, "destroy")
+}

@@ -699,6 +699,7 @@ func (daemon *Daemon) connectToNetwork(container *container.Container, idOrName 
 		return derr.ErrorCodeJoinInfo.WithArgs(err)
 	}
 
+	daemon.LogNetworkEventWithAttributes(n, "connect", map[string]string{"container": container.ID})
 	return nil
 }
 
@@ -850,11 +851,15 @@ func (daemon *Daemon) releaseNetwork(container *container.Container) {
 
 	sid := container.NetworkSettings.SandboxID
 	settings := container.NetworkSettings.Networks
+	var networks []libnetwork.Network
 	for n := range settings {
+		if nw, err := daemon.FindNetwork(n); err == nil {
+			networks = append(networks, nw)
+		}
 		settings[n] = &networktypes.EndpointSettings{}
 	}
 
-	container.NetworkSettings = &network.Settings{Networks: networks}
+	container.NetworkSettings = &network.Settings{Networks: settings}
 
 	if sid == "" || len(settings) == 0 {
 		return
@@ -873,8 +878,8 @@ func (daemon *Daemon) releaseNetwork(container *container.Container) {
 	attributes := map[string]string{
 		"container": container.ID,
 	}
-	for nwID := range settings {
-		daemon.logNetworkEventWithID(nwID, "disconnect", attributes)
+	for _, nw := range networks {
+		daemon.LogNetworkEventWithAttributes(nw, "disconnect", attributes)
 	}
 }
 
