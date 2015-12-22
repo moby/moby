@@ -258,7 +258,7 @@ func (daemon *Daemon) populateCommand(c *container.Container, env []string) erro
 		AutoCreatedDevices: autoCreatedDevices,
 		CapAdd:             c.HostConfig.CapAdd.Slice(),
 		CapDrop:            c.HostConfig.CapDrop.Slice(),
-		CgroupParent:       c.HostConfig.CgroupParent,
+		CgroupParent:       daemon.configStore.CgroupParent,
 		GIDMapping:         gidMap,
 		GroupAdd:           c.HostConfig.GroupAdd,
 		Ipc:                ipc,
@@ -269,6 +269,9 @@ func (daemon *Daemon) populateCommand(c *container.Container, env []string) erro
 		SeccompProfile:     c.SeccompProfile,
 		UIDMapping:         uidMap,
 		UTS:                uts,
+	}
+	if c.HostConfig.CgroupParent != "" {
+		c.Command.CgroupParent = c.HostConfig.CgroupParent
 	}
 
 	return nil
