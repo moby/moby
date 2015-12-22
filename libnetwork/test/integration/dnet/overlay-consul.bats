@@ -29,3 +29,8 @@ load helpers
     wait_for_dnet $(inst_id2port 3) dnet-3-consul
     test_overlay consul skip_add
 }
+
+@test "Test overlay network internal network with consul" {
+    skip_for_circleci
+    test_overlay consul internal
+}

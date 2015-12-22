@@ -280,7 +280,11 @@ function test_overlay() {
     end=3
     # Setup overlay network and connect containers ot it
     if [ -z "${2}" -o "${2}" != "skip_add" ]; then
-	dnet_cmd $(inst_id2port 1) network create -d overlay multihost
+        if [ -z "${2}" -o "${2}" != "internal" ]; then
+	    dnet_cmd $(inst_id2port 1) network create -d overlay multihost
+	else
+	    dnet_cmd $(inst_id2port 1) network create -d overlay --internal multihost
+	fi
     fi
 
     for i in `seq ${start} ${end}`;
@@ -292,8 +296,13 @@ function test_overlay() {
     # Now test connectivity between all the containers using service names
     for i in `seq ${start} ${end}`;
     do
-	runc $(dnet_container_name $i $dnet_suffix) $(get_sbox_id ${i} container_${i}) \
-	     "ping -c 1 www.google.com"
+	if [ -z "${2}" -o "${2}" != "internal" ]; then
+	    runc $(dnet_container_name $i $dnet_suffix) $(get_sbox_id ${i} container_${i}) \
+	        "ping -c 1 www.google.com"
+	else
+	    default_route=`runc $(dnet_container_name $i $dnet_suffix) $(get_sbox_id ${i} container_${i}) "ip route | grep default"`
+	    [ "$default_route" = "" ]
+	fi
 	for j in `seq ${start} ${end}`;
 	do
 	    if [ "$i" -eq "$j" ]; then

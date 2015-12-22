@@ -37,6 +37,7 @@ type networkCreate struct {
 	Name        string            `json:"name"`
 	NetworkType string            `json:"network_type"`
 	DriverOpts  map[string]string `json:"driver_opts"`
+	NetworkOpts map[string]string `json:"network_opts"`
 }
 
 // endpointCreate represents the body of the "create endpoint" http request message
