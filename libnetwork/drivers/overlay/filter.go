@@ -23,7 +23,7 @@ func rawIPTables(args ...string) error {
 }
 
 func chainExists(cname string) bool {
-	if err := rawIPTables("-L", cname); err != nil {
+	if _, err := iptables.Raw("-L", cname); err != nil {
 		return false
 	}
 
