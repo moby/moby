@@ -402,11 +402,6 @@ func (s *DockerSuite) TestEventsFilterContainer(c *check.C) {
 func (s *DockerSuite) TestEventsStreaming(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 
-	eventCreate := make(chan struct{})
-	eventStart := make(chan struct{})
-	eventDie := make(chan struct{})
-	eventDestroy := make(chan struct{})
-
 	observer, err := newEventObserver(c)
 	c.Assert(err, checker.IsNil)
 	err = observer.Start()
@@ -415,42 +410,21 @@ func (s *DockerSuite) TestEventsStreaming(c *check.C) {
 
 	out, _ := dockerCmd(c, "run", "-d", "busybox:latest", "true")
 	containerID := strings.TrimSpace(out)
-	matchCreate := regexp.MustCompile(containerID + `: \(from busybox:latest\) create\z`)
-	matchStart := regexp.MustCompile(containerID + `: \(from busybox:latest\) start\z`)
-	matchDie := regexp.MustCompile(containerID + `: \(from busybox:latest\) die\z`)
-	matchDestroy := regexp.MustCompile(containerID + `: \(from busybox:latest\) destroy\z`)
 
-	matcher := func(text string) {
-		switch {
-		case matchCreate.MatchString(text):
-			close(eventCreate)
-		case matchStart.MatchString(text):
-			close(eventStart)
-		case matchDie.MatchString(text):
-			close(eventDie)
-		case matchDestroy.MatchString(text):
-			close(eventDestroy)
-		}
+	testActions := map[string]chan bool{
+		"create":  make(chan bool),
+		"start":   make(chan bool),
+		"die":     make(chan bool),
+		"destroy": make(chan bool),
 	}
-	go observer.Match(matcher)
+
+	go observer.Match(matchEventLine(containerID, "container", testActions))
 
 	select {
 	case <-time.After(5 * time.Second):
-		c.Fatal(observer.TimeoutError(containerID, "create"))
+		c.Fatal(observer.TimeoutError(containerID, "create/start/die"))
 	case <-testActions["create"]:
-		// ignore, done
-	}
-
-	select {
-	case <-time.After(5 * time.Second):
-		c.Fatal(observer.TimeoutError(containerID, "start"))
 	case <-testActions["start"]:
-		// ignore, done
-	}
-
-	select {
-	case <-time.After(5 * time.Second):
-		c.Fatal(observer.TimeoutError(containerID, "die"))
 	case <-testActions["die"]:
 		// ignore, done
 	}
@@ -460,7 +434,7 @@ func (s *DockerSuite) TestEventsStreaming(c *check.C) {
 	select {
 	case <-time.After(5 * time.Second):
 		c.Fatal(observer.TimeoutError(containerID, "destroy"))
-	case <-eventDestroy:
+	case <-testActions["destroy"]:
 		// ignore, done
 	}
 }

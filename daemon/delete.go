@@ -157,5 +157,6 @@ func (daemon *Daemon) VolumeRm(name string) error {
 		}
 		return derr.ErrorCodeRmVolume.WithArgs(name, err)
 	}
+	daemon.LogVolumeEvent(v.Name(), "destroy", map[string]string{"driver": v.DriverName()})
 	return nil
 }
