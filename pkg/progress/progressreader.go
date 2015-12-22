@@ -37,7 +37,7 @@ func (p *Reader) Read(buf []byte) (n int, err error) {
 		}
 	}
 	if p.current-p.lastUpdate > updateEvery || err != nil {
-		p.updateProgress(err != nil && read == 0)
+		p.updateProgress(err != nil)
 		p.lastUpdate = p.current
 	}
 
