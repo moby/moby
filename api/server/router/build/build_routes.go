@@ -14,6 +14,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builder/dockerfile"
 	"github.com/docker/docker/daemon/daemonbuilder"
@@ -24,7 +25,6 @@ import (
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/ulimit"
 	"github.com/docker/docker/reference"
-	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
 	"golang.org/x/net/context"
 )
@@ -144,8 +144,8 @@ func (br *buildRouter) postBuild(ctx context.Context, w http.ResponseWriter, r *
 		buildConfig.ShmSize = &shmSize
 	}
 
-	if i := runconfig.IsolationLevel(r.FormValue("isolation")); i != "" {
-		if !runconfig.IsolationLevel.IsValid(i) {
+	if i := container.IsolationLevel(r.FormValue("isolation")); i != "" {
+		if !container.IsolationLevel.IsValid(i) {
 			return errf(fmt.Errorf("Unsupported isolation: %q", i))
 		}
 		buildConfig.Isolation = i

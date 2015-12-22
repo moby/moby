@@ -6,14 +6,14 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/exec"
 	"github.com/docker/docker/daemon/execdriver"
 	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/pools"
 	"github.com/docker/docker/pkg/promise"
-	"github.com/docker/docker/pkg/stringutils"
-	"github.com/docker/docker/runconfig"
 )
 
 func (d *Daemon) registerExecCommand(container *container.Container, config *exec.Config) {
@@ -79,14 +79,14 @@ func (d *Daemon) getActiveContainer(name string) (*container.Container, error) {
 }
 
 // ContainerExecCreate sets up an exec in a running container.
-func (d *Daemon) ContainerExecCreate(config *runconfig.ExecConfig) (string, error) {
+func (d *Daemon) ContainerExecCreate(config *types.ExecConfig) (string, error) {
 	container, err := d.getActiveContainer(config.Container)
 	if err != nil {
 		return "", err
 	}
 
-	cmd := stringutils.NewStrSlice(config.Cmd...)
-	entrypoint, args := d.getEntrypointAndArgs(stringutils.NewStrSlice(), cmd)
+	cmd := strslice.New(config.Cmd...)
+	entrypoint, args := d.getEntrypointAndArgs(strslice.New(), cmd)
 
 	processConfig := &execdriver.ProcessConfig{
 		CommonProcessConfig: execdriver.CommonProcessConfig{

@@ -1,7 +1,5 @@
+// Package nat is a convenience package for manipulation of strings describing network ports.
 package nat
-
-// nat is a convenience package for docker's manipulation of strings describing
-// network ports.
 
 import (
 	"fmt"

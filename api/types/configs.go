@@ -1,18 +1,16 @@
 package types
 
+import "github.com/docker/docker/api/types/container"
+
 // configs holds structs used for internal communication between the
 // frontend (such as an http server) and the backend (such as the
 // docker daemon).
 
-import (
-	"github.com/docker/docker/runconfig"
-)
-
 // ContainerCreateConfig is the parameter set to ContainerCreate()
 type ContainerCreateConfig struct {
 	Name            string
-	Config          *runconfig.Config
-	HostConfig      *runconfig.HostConfig
+	Config          *container.Config
+	HostConfig      *container.HostConfig
 	AdjustCPUShares bool
 }
 
@@ -33,5 +31,19 @@ type ContainerCommitConfig struct {
 	Comment string
 	// merge container config into commit config before commit
 	MergeConfigs bool
-	Config       *runconfig.Config
+	Config       *container.Config
+}
+
+// ExecConfig is a small subset of the Config struct that hold the configuration
+// for the exec feature of docker.
+type ExecConfig struct {
+	User         string   // User that will run the command
+	Privileged   bool     // Is the container in privileged mode
+	Tty          bool     // Attach standard streams to a tty.
+	Container    string   // Name of the container (to execute in)
+	AttachStdin  bool     // Attach the standard input, makes possible user interaction
+	AttachStderr bool     // Attach the standard output
+	AttachStdout bool     // Attach the standard error
+	Detach       bool     // Execute in detach mode
+	Cmd          []string // Execution commands and args
 }

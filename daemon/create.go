@@ -3,12 +3,12 @@ package daemon
 import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
+	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
 	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/volume"
 	"github.com/opencontainers/runc/libcontainer/label"
 )
@@ -25,7 +25,7 @@ func (daemon *Daemon) ContainerCreate(params types.ContainerCreateConfig) (types
 	}
 
 	if params.HostConfig == nil {
-		params.HostConfig = &runconfig.HostConfig{}
+		params.HostConfig = &containertypes.HostConfig{}
 	}
 	err = daemon.adaptContainerSettings(params.HostConfig, params.AdjustCPUShares)
 	if err != nil {
@@ -111,7 +111,7 @@ func (daemon *Daemon) create(params types.ContainerCreateConfig) (*container.Con
 	return container, nil
 }
 
-func (daemon *Daemon) generateSecurityOpt(ipcMode runconfig.IpcMode, pidMode runconfig.PidMode) ([]string, error) {
+func (daemon *Daemon) generateSecurityOpt(ipcMode containertypes.IpcMode, pidMode containertypes.PidMode) ([]string, error) {
 	if ipcMode.IsHost() || pidMode.IsHost() {
 		return label.DisableSecOpt(), nil
 	}

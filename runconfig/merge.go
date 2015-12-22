@@ -3,7 +3,8 @@ package runconfig
 import (
 	"strings"
 
-	"github.com/docker/docker/pkg/nat"
+	"github.com/docker/docker/api/types/container"
+	"github.com/docker/go-connections/nat"
 )
 
 // Merge merges two Config, the image container configuration (defaults values),
@@ -11,7 +12,7 @@ import (
 // by the cli.
 // It will mutate the specified user configuration (userConf) with the image
 // configuration where the user configuration is incomplete.
-func Merge(userConf, imageConf *Config) error {
+func Merge(userConf, imageConf *container.Config) error {
 	if userConf.User == "" {
 		userConf.User = imageConf.User
 	}

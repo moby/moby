@@ -18,14 +18,14 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/builder"
 	derr "github.com/docker/docker/errors"
 	flag "github.com/docker/docker/pkg/mflag"
-	"github.com/docker/docker/pkg/nat"
 	"github.com/docker/docker/pkg/signal"
-	"github.com/docker/docker/pkg/stringutils"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/runconfig"
+	"github.com/docker/go-connections/nat"
 )
 
 const (
@@ -330,7 +330,7 @@ func run(b *Builder, args []string, attributes map[string]bool, original string)
 	// stash the config environment
 	env := b.runConfig.Env
 
-	defer func(cmd *stringutils.StrSlice) { b.runConfig.Cmd = cmd }(cmd)
+	defer func(cmd *strslice.StrSlice) { b.runConfig.Cmd = cmd }(cmd)
 	defer func(env []string) { b.runConfig.Env = env }(env)
 
 	// derive the net build-time environment for this run. We let config
@@ -373,7 +373,7 @@ func run(b *Builder, args []string, attributes map[string]bool, original string)
 	if len(cmdBuildEnv) > 0 {
 		sort.Strings(cmdBuildEnv)
 		tmpEnv := append([]string{fmt.Sprintf("|%d", len(cmdBuildEnv))}, cmdBuildEnv...)
-		saveCmd = stringutils.NewStrSlice(append(tmpEnv, saveCmd.Slice()...)...)
+		saveCmd = strslice.New(append(tmpEnv, saveCmd.Slice()...)...)
 	}
 
 	b.runConfig.Cmd = saveCmd
@@ -431,7 +431,7 @@ func cmd(b *Builder, args []string, attributes map[string]bool, original string)
 		}
 	}
 
-	b.runConfig.Cmd = stringutils.NewStrSlice(cmdSlice...)
+	b.runConfig.Cmd = strslice.New(cmdSlice...)
 
 	if err := b.commit("", b.runConfig.Cmd, fmt.Sprintf("CMD %q", cmdSlice)); err != nil {
 		return err
@@ -462,16 +462,16 @@ func entrypoint(b *Builder, args []string, attributes map[string]bool, original 
 	switch {
 	case attributes["json"]:
 		// ENTRYPOINT ["echo", "hi"]
-		b.runConfig.Entrypoint = stringutils.NewStrSlice(parsed...)
+		b.runConfig.Entrypoint = strslice.New(parsed...)
 	case len(parsed) == 0:
 		// ENTRYPOINT []
 		b.runConfig.Entrypoint = nil
 	default:
 		// ENTRYPOINT echo hi
 		if runtime.GOOS != "windows" {
-			b.runConfig.Entrypoint = stringutils.NewStrSlice("/bin/sh", "-c", parsed[0])
+			b.runConfig.Entrypoint = strslice.New("/bin/sh", "-c", parsed[0])
 		} else {
-			b.runConfig.Entrypoint = stringutils.NewStrSlice("cmd", "/S", "/C", parsed[0])
+			b.runConfig.Entrypoint = strslice.New("cmd", "/S", "/C", parsed[0])
 		}
 	}
 

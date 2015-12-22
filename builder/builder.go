@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/runconfig"
+	"github.com/docker/docker/api/types/container"
 )
 
 // Context represents a file system tree.
@@ -113,7 +113,7 @@ type Backend interface {
 	// Kill stops the container execution abruptly.
 	ContainerKill(containerID string, sig uint64) error
 	// Start starts a new container
-	ContainerStart(containerID string, hostConfig *runconfig.HostConfig) error
+	ContainerStart(containerID string, hostConfig *container.HostConfig) error
 	// ContainerWait stops processing until the given container is stopped.
 	ContainerWait(containerID string, timeout time.Duration) (int, error)
 
@@ -135,5 +135,5 @@ type Backend interface {
 type ImageCache interface {
 	// GetCachedImage returns a reference to a cached image whose parent equals `parent`
 	// and runconfig equals `cfg`. A cache miss is expected to return an empty ID and a nil error.
-	GetCachedImage(parentID string, cfg *runconfig.Config) (imageID string, err error)
+	GetCachedImage(parentID string, cfg *container.Config) (imageID string, err error)
 }

@@ -11,7 +11,6 @@ import (
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/stdcopy"
-	"github.com/docker/docker/runconfig"
 	"golang.org/x/net/context"
 )
 
@@ -33,7 +32,7 @@ func (s *containerRouter) postContainerExecCreate(ctx context.Context, w http.Re
 	}
 	name := vars["name"]
 
-	execConfig := &runconfig.ExecConfig{}
+	execConfig := &types.ExecConfig{}
 	if err := json.NewDecoder(r.Body).Decode(execConfig); err != nil {
 		return err
 	}

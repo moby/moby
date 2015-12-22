@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/pkg/integration/checker"
-	"github.com/docker/docker/runconfig"
 	"github.com/go-check/check"
 )
 
@@ -281,7 +281,7 @@ func (s *DockerSuite) TestInspectTimesAsRFC3339Nano(c *check.C) {
 func (s *DockerSuite) TestInspectLogConfigNoType(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "create", "--name=test", "--log-opt", "max-file=42", "busybox")
-	var logConfig runconfig.LogConfig
+	var logConfig container.LogConfig
 
 	out, err := inspectFieldJSON("test", "HostConfig.LogConfig")
 	c.Assert(err, checker.IsNil, check.Commentf("%v", out))

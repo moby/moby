@@ -4,11 +4,10 @@ import (
 	"encoding/json"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/runconfig"
 )
 
 // ContainerExecCreate creates a new exec configuration to run an exec process.
-func (cli *Client) ContainerExecCreate(config runconfig.ExecConfig) (types.ContainerExecCreateResponse, error) {
+func (cli *Client) ContainerExecCreate(config types.ExecConfig) (types.ContainerExecCreateResponse, error) {
 	var response types.ContainerExecCreateResponse
 	resp, err := cli.post("/containers/"+config.Container+"/exec", nil, config, nil)
 	if err != nil {
@@ -30,7 +29,7 @@ func (cli *Client) ContainerExecStart(execID string, config types.ExecStartCheck
 // It returns a types.HijackedConnection with the hijacked connection
 // and the a reader to get output. It's up to the called to close
 // the hijacked connection by calling types.HijackedResponse.Close.
-func (cli *Client) ContainerExecAttach(execID string, config runconfig.ExecConfig) (types.HijackedResponse, error) {
+func (cli *Client) ContainerExecAttach(execID string, config types.ExecConfig) (types.HijackedResponse, error) {
 	headers := map[string][]string{"Content-Type": {"application/json"}}
 	return cli.postHijacked("/exec/"+execID+"/start", nil, config, headers)
 }

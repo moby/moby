@@ -3,15 +3,15 @@ package daemon
 import (
 	"fmt"
 
+	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/volume"
 )
 
 // createContainerPlatformSpecificSettings performs platform specific container create functionality
-func (daemon *Daemon) createContainerPlatformSpecificSettings(container *container.Container, config *runconfig.Config, hostConfig *runconfig.HostConfig, img *image.Image) error {
+func (daemon *Daemon) createContainerPlatformSpecificSettings(container *container.Container, config *containertypes.Config, hostConfig *containertypes.HostConfig, img *image.Image) error {
 	for spec := range config.Volumes {
 
 		mp, err := volume.ParseMountSpec(spec, hostConfig.VolumeDriver)

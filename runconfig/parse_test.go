@@ -10,23 +10,24 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/api/types/container"
 	flag "github.com/docker/docker/pkg/mflag"
-	"github.com/docker/docker/pkg/nat"
+	"github.com/docker/go-connections/nat"
 )
 
-func parseRun(args []string) (*Config, *HostConfig, *flag.FlagSet, error) {
+func parseRun(args []string) (*container.Config, *container.HostConfig, *flag.FlagSet, error) {
 	cmd := flag.NewFlagSet("run", flag.ContinueOnError)
 	cmd.SetOutput(ioutil.Discard)
 	cmd.Usage = nil
 	return Parse(cmd, args)
 }
 
-func parse(t *testing.T, args string) (*Config, *HostConfig, error) {
+func parse(t *testing.T, args string) (*container.Config, *container.HostConfig, error) {
 	config, hostConfig, _, err := parseRun(strings.Split(args+" ubuntu bash", " "))
 	return config, hostConfig, err
 }
 
-func mustParse(t *testing.T, args string) (*Config, *HostConfig) {
+func mustParse(t *testing.T, args string) (*container.Config, *container.HostConfig) {
 	config, hostConfig, err := parse(t, args)
 	if err != nil {
 		t.Fatal(err)
@@ -280,18 +281,18 @@ func TestDecodeContainerConfigVolumes(t *testing.T) {
 // passed into it. It returns a config and a hostconfig which can be
 // validated to ensure DecodeContainerConfig has manipulated the structures
 // correctly.
-func callDecodeContainerConfig(volumes []string, binds []string) (*Config, *HostConfig, error) {
+func callDecodeContainerConfig(volumes []string, binds []string) (*container.Config, *container.HostConfig, error) {
 	var (
 		b   []byte
 		err error
-		c   *Config
-		h   *HostConfig
+		c   *container.Config
+		h   *container.HostConfig
 	)
 	w := ContainerConfigWrapper{
-		Config: &Config{
+		Config: &container.Config{
 			Volumes: map[string]struct{}{},
 		},
-		HostConfig: &HostConfig{
+		HostConfig: &container.HostConfig{
 			NetworkMode: "none",
 			Binds:       binds,
 		},
@@ -450,7 +451,7 @@ func TestParseWithExpose(t *testing.T) {
 }
 
 func TestParseDevice(t *testing.T) {
-	valids := map[string]DeviceMapping{
+	valids := map[string]container.DeviceMapping{
 		"/dev/snd": {
 			PathOnHost:        "/dev/snd",
 			PathInContainer:   "/dev/snd",
@@ -546,7 +547,7 @@ func TestParseRestartPolicy(t *testing.T) {
 		"on-failure:invalid": `strconv.ParseInt: parsing "invalid": invalid syntax`,
 		"on-failure:2:5":     "restart count format is not valid, usage: 'on-failure:N' or 'on-failure'",
 	}
-	valids := map[string]RestartPolicy{
+	valids := map[string]container.RestartPolicy{
 		"": {},
 		"always": {
 			Name:              "always",

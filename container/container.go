@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/daemon/exec"
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/daemon/logger"
@@ -19,12 +20,12 @@ import (
 	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
-	"github.com/docker/docker/pkg/nat"
 	"github.com/docker/docker/pkg/promise"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/symlink"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/volume"
+	"github.com/docker/go-connections/nat"
 	"github.com/opencontainers/runc/libcontainer/label"
 )
 
@@ -43,7 +44,7 @@ type CommonContainer struct {
 	Created         time.Time
 	Path            string
 	Args            []string
-	Config          *runconfig.Config
+	Config          *containertypes.Config
 	ImageID         image.ID `json:"Image"`
 	NetworkSettings *network.Settings
 	LogPath         string
@@ -56,8 +57,8 @@ type CommonContainer struct {
 	HasBeenStartedBefore   bool
 	HasBeenManuallyStopped bool // used for unless-stopped restart policy
 	MountPoints            map[string]*volume.MountPoint
-	HostConfig             *runconfig.HostConfig `json:"-"` // do not serialize the host config in the json, otherwise we'll make the container unportable
-	Command                *execdriver.Command   `json:"-"`
+	HostConfig             *containertypes.HostConfig `json:"-"` // do not serialize the host config in the json, otherwise we'll make the container unportable
+	Command                *execdriver.Command        `json:"-"`
 	monitor                *containerMonitor
 	ExecCommands           *exec.Store `json:"-"`
 	// logDriver for closing
@@ -139,7 +140,7 @@ func (container *Container) ToDiskLocking() error {
 
 // readHostConfig reads the host configuration from disk for the container.
 func (container *Container) readHostConfig() error {
-	container.HostConfig = &runconfig.HostConfig{}
+	container.HostConfig = &containertypes.HostConfig{}
 	// If the hostconfig file does not exist, do not read it.
 	// (We still have to initialize container.HostConfig,
 	// but that's OK, since we just did that above.)
@@ -261,7 +262,7 @@ func (container *Container) exposes(p nat.Port) bool {
 }
 
 // GetLogConfig returns the log configuration for the container.
-func (container *Container) GetLogConfig(defaultConfig runconfig.LogConfig) runconfig.LogConfig {
+func (container *Container) GetLogConfig(defaultConfig containertypes.LogConfig) containertypes.LogConfig {
 	cfg := container.HostConfig.LogConfig
 	if cfg.Type != "" || len(cfg.Config) > 0 { // container has log driver configured
 		if cfg.Type == "" {
@@ -274,7 +275,7 @@ func (container *Container) GetLogConfig(defaultConfig runconfig.LogConfig) runc
 }
 
 // StartLogger starts a new logger driver for the container.
-func (container *Container) StartLogger(cfg runconfig.LogConfig) (logger.Logger, error) {
+func (container *Container) StartLogger(cfg containertypes.LogConfig) (logger.Logger, error) {
 	c, err := logger.GetLogDriver(cfg.Type)
 	if err != nil {
 		return nil, derr.ErrorCodeLoggingFactory.WithArgs(err)

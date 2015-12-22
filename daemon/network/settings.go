@@ -2,7 +2,7 @@ package network
 
 import (
 	networktypes "github.com/docker/docker/api/types/network"
-	"github.com/docker/docker/pkg/nat"
+	"github.com/docker/go-connections/nat"
 )
 
 // Settings stores configuration details about the daemon network config
