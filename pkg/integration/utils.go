@@ -191,12 +191,19 @@ func RunCommandPipelineWithOutput(cmds ...*exec.Cmd) (output string, exitCode in
 		}
 	}
 
+	var pipelineError error
 	defer func() {
 		// wait all cmds except the last to release their resources
 		for _, cmd := range cmds[:len(cmds)-1] {
-			cmd.Wait()
+			if err := cmd.Wait(); err != nil {
+				pipelineError = fmt.Errorf("command %s failed with error: %v", cmd.Path, err)
+				break
+			}
 		}
 	}()
+	if pipelineError != nil {
+		return "", 0, pipelineError
+	}
 
 	// wait on last cmd
 	return RunCommandWithOutput(cmds[len(cmds)-1])
