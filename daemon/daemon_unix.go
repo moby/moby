@@ -419,11 +419,6 @@ func configureKernelSecuritySupport(config *Config, driverName string) error {
 	return nil
 }
 
-// MigrateIfDownlevel is a wrapper for AUFS migration for downlevel
-func migrateIfDownlevel(driver graphdriver.Driver, root string) error {
-	return migrateIfAufs(driver, root)
-}
-
 func isBridgeNetworkDisabled(config *Config) bool {
 	return config.Bridge.Iface == disableNetworkBridge
 }

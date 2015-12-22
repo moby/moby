@@ -735,11 +735,6 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 		return nil, err
 	}
 
-	// Migrate the container if it is aufs and aufs is enabled
-	if err := migrateIfDownlevel(d.driver, config.Root); err != nil {
-		return nil, err
-	}
-
 	imageRoot := filepath.Join(config.Root, "image", d.driver.String())
 	fms, err := layer.NewFSMetadataStore(filepath.Join(imageRoot, "layerdb"))
 	if err != nil {
