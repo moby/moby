@@ -87,7 +87,7 @@ func (d *Driver) createContainer(c *execdriver.Command, hooks execdriver.Hooks) 
 		container.AppArmorProfile = c.AppArmorProfile
 	}
 
-	if c.SeccompProfile != "" {
+	if c.SeccompProfile != "" && c.SeccompProfile != "unconfined" {
 		container.Seccomp, err = loadSeccompProfile(c.SeccompProfile)
 		if err != nil {
 			return nil, err
