@@ -311,25 +311,14 @@ format right away, but please do adjust your processes for future contributions.
 
 ### How can I become a maintainer?
 
-* Step 1: Learn the component inside out
-* Step 2: Make yourself useful by contributing code, bug fixes, support etc.
-* Step 3: Volunteer on the IRC channel (#docker at Freenode)
-* Step 4: Propose yourself at a scheduled docker meeting in #docker-dev
+The procedures for adding new maintainers are explained in the 
+global [MAINTAINERS](https://github.com/docker/opensource/blob/master/MAINTAINERS)
+file in the [https://github.com/docker/opensource/](https://github.com/docker/opensource/)
+repository.
 
 Don't forget: being a maintainer is a time investment. Make sure you
 will have time to make yourself available. You don't have to be a
 maintainer to make a difference on the project!
-
-### IRC meetings
-
-There are two monthly meetings taking place on #docker-dev IRC to accommodate all
-timezones. Anybody can propose a topic for discussion prior to the meeting.
-
-If you feel the conversation is going off-topic, feel free to point it out.
-
-For the exact dates and times, have a look at [the irc-minutes
-repo](https://github.com/docker/irc-minutes). The minutes also contain all the
-notes from previous meetings.
 
 ## Docker community guidelines
 
