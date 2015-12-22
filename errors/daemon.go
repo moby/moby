@@ -939,4 +939,13 @@ var (
 		Description:    "There was an error while trying to start a container",
 		HTTPStatusCode: http.StatusInternalServerError,
 	})
+
+	// ErrorCodeCantDeletePredefinedNetwork is generated when one of the predefined networks
+	// is attempted to be deleted.
+	ErrorCodeCantDeletePredefinedNetwork = errcode.Register(errGroup, errcode.ErrorDescriptor{
+		Value:          "CANT_DELETE_PREDEFINED_NETWORK",
+		Message:        "%s is a pre-defined network and cannot be removed",
+		Description:    "Engine's predefined networks cannot be deleted",
+		HTTPStatusCode: http.StatusForbidden,
+	})
 )

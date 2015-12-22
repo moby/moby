@@ -61,12 +61,8 @@ func (daemon *Daemon) LogNetworkEvent(nw libnetwork.Network, action string) {
 func (daemon *Daemon) LogNetworkEventWithAttributes(nw libnetwork.Network, action string, attributes map[string]string) {
 	attributes["name"] = nw.Name()
 	attributes["type"] = nw.Type()
-	daemon.logNetworkEventWithID(nw.ID(), action, attributes)
-}
-
-func (daemon *Daemon) logNetworkEventWithID(id, action string, attributes map[string]string) {
 	actor := events.Actor{
-		ID:         id,
+		ID:         nw.ID(),
 		Attributes: attributes,
 	}
 	daemon.EventsService.Log(action, events.NetworkEventType, actor)
