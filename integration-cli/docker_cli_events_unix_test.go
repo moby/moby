@@ -151,3 +151,29 @@ func (s *DockerSuite) TestEventsContainerFilterBeforeCreate(c *check.C) {
 	<-ch
 	c.Assert(out, checker.Contains, cID, check.Commentf("Missing event of container (foo)"))
 }
+
+func (s *DockerSuite) TestVolumeEvents(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	since := daemonTime(c).Unix()
+
+	// Observe create/mount volume actions
+	dockerCmd(c, "volume", "create", "--name", "test-event-volume-local")
+	dockerCmd(c, "run", "--name", "test-volume-container", "--volume", "test-event-volume-local:/foo", "-d", "busybox", "true")
+	waitRun("test-volume-container")
+
+	// Observe unmount/destroy volume actions
+	dockerCmd(c, "rm", "-f", "test-volume-container")
+	dockerCmd(c, "volume", "rm", "test-event-volume-local")
+
+	out, _ := dockerCmd(c, "events", fmt.Sprintf("--since=%d", since), fmt.Sprintf("--until=%d", daemonTime(c).Unix()))
+	events := strings.Split(strings.TrimSpace(out), "\n")
+	c.Assert(len(events), checker.GreaterThan, 4)
+
+	volumeEvents := eventActionsByIDAndType(c, events, "test-event-volume-local", "volume")
+	c.Assert(volumeEvents, checker.HasLen, 4)
+	c.Assert(volumeEvents[0], checker.Equals, "create")
+	c.Assert(volumeEvents[1], checker.Equals, "mount")
+	c.Assert(volumeEvents[2], checker.Equals, "unmount")
+	c.Assert(volumeEvents[3], checker.Equals, "destroy")
+}

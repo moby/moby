@@ -618,7 +618,7 @@ func detachMounted(path string) error {
 }
 
 // UnmountVolumes unmounts all volumes
-func (container *Container) UnmountVolumes(forceSyscall bool) error {
+func (container *Container) UnmountVolumes(forceSyscall bool, volumeEventLog func(name, action string, attributes map[string]string)) error {
 	var (
 		volumeMounts []volume.MountPoint
 		err          error
@@ -649,6 +649,12 @@ func (container *Container) UnmountVolumes(forceSyscall bool) error {
 			if err := volumeMount.Volume.Unmount(); err != nil {
 				return err
 			}
+
+			attributes := map[string]string{
+				"driver":    volumeMount.Volume.DriverName(),
+				"container": container.ID,
+			}
+			volumeEventLog(volumeMount.Volume.Name(), "unmount", attributes)
 		}
 	}
 

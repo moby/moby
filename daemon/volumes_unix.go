@@ -5,6 +5,7 @@ package daemon
 import (
 	"os"
 	"sort"
+	"strconv"
 
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/execdriver"
@@ -29,6 +30,16 @@ func (daemon *Daemon) setupMounts(container *container.Container) ([]execdriver.
 				Destination: m.Destination,
 				Writable:    m.RW,
 				Propagation: m.Propagation,
+			}
+			if m.Volume != nil {
+				attributes := map[string]string{
+					"driver":      m.Volume.DriverName(),
+					"container":   container.ID,
+					"destination": m.Destination,
+					"read/write":  strconv.FormatBool(m.RW),
+					"propagation": m.Propagation,
+				}
+				daemon.LogVolumeEvent(m.Volume.Name(), "mount", attributes)
 			}
 			mounts = append(mounts, mnt)
 		}
