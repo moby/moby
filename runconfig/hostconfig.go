@@ -188,6 +188,7 @@ type Resources struct {
 	MemoryReservation    int64            // Memory soft limit (in bytes)
 	MemorySwap           int64            // Total memory usage (memory + swap); set `-1` to disable swap
 	MemorySwappiness     *int64           // Tuning container memory swappiness behaviour
+	OomKillDisable       bool             // Whether to disable OOM Killer or not
 	Ulimits              []*ulimit.Ulimit // List of ulimits to be set in the container
 }
 
@@ -216,7 +217,6 @@ type HostConfig struct {
 	IpcMode         IpcMode               // IPC namespace to use for the container
 	Links           []string              // List of links (in the name:alias form)
 	OomScoreAdj     int                   // Container preference for OOM-killing
-	OomKillDisable  bool                  // Whether to disable OOM Killer or not
 	PidMode         PidMode               // PID namespace to use for the container
 	Privileged      bool                  // Is the container in privileged mode
 	PublishAllPorts bool                  // Should docker publish all exposed port for the container
