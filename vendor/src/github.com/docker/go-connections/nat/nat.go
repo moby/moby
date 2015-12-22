@@ -6,8 +6,6 @@ import (
 	"net"
 	"strconv"
 	"strings"
-
-	"github.com/docker/docker/pkg/parsers"
 )
 
 const (
@@ -37,7 +35,7 @@ func NewPort(proto, port string) (Port, error) {
 	// Check for parsing issues on "port" now so we can avoid having
 	// to check it later on.
 
-	portStartInt, portEndInt, err := ParsePortRange(port)
+	portStartInt, portEndInt, err := ParsePortRangeToInt(port)
 	if err != nil {
 		return "", err
 	}
@@ -60,12 +58,12 @@ func ParsePort(rawPort string) (int, error) {
 	return int(port), nil
 }
 
-// ParsePortRange parses the port range string and returns start/end ints
-func ParsePortRange(rawPort string) (int, int, error) {
+// ParsePortRangeToInt parses the port range string and returns start/end ints
+func ParsePortRangeToInt(rawPort string) (int, int, error) {
 	if len(rawPort) == 0 {
 		return 0, 0, nil
 	}
-	start, end, err := parsers.ParsePortRange(rawPort)
+	start, end, err := ParsePortRange(rawPort)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -99,7 +97,7 @@ func (p Port) Int() int {
 
 // Range returns the start/end port numbers of a Port range as ints
 func (p Port) Range() (int, int, error) {
-	return ParsePortRange(p.Port())
+	return ParsePortRangeToInt(p.Port())
 }
 
 // SplitProtoPort splits a port in the format of proto/port
@@ -148,7 +146,7 @@ func ParsePortSpecs(ports []string) (map[Port]struct{}, map[Port][]PortBinding, 
 			rawPort = fmt.Sprintf(":%s", rawPort)
 		}
 
-		parts, err := parsers.PartParser(portSpecTemplate, rawPort)
+		parts, err := PartParser(portSpecTemplate, rawPort)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -166,14 +164,14 @@ func ParsePortSpecs(ports []string) (map[Port]struct{}, map[Port][]PortBinding, 
 			return nil, nil, fmt.Errorf("No port specified: %s<empty>", rawPort)
 		}
 
-		startPort, endPort, err := parsers.ParsePortRange(containerPort)
+		startPort, endPort, err := ParsePortRange(containerPort)
 		if err != nil {
 			return nil, nil, fmt.Errorf("Invalid containerPort: %s", containerPort)
 		}
 
 		var startHostPort, endHostPort uint64 = 0, 0
 		if len(hostPort) > 0 {
-			startHostPort, endHostPort, err = parsers.ParsePortRange(hostPort)
+			startHostPort, endHostPort, err = ParsePortRange(hostPort)
 			if err != nil {
 				return nil, nil, fmt.Errorf("Invalid hostPort: %s", hostPort)
 			}
