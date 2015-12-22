@@ -31,11 +31,16 @@ Let's start with an example that shows the sessions API in a nutshell:
 	func MyHandler(w http.ResponseWriter, r *http.Request) {
 		// Get a session. We're ignoring the error resulted from decoding an
 		// existing session: Get() always returns a session, even if empty.
-		session, _ := store.Get(r, "session-name")
+		session, err := store.Get(r, "session-name")
+		if err != nil {
+			http.Error(w, err.Error(), 500)
+			return
+		}
+
 		// Set some session values.
 		session.Values["foo"] = "bar"
 		session.Values[42] = 43
-		// Save it.
+		// Save it before we write to the response/return from the handler.
 		session.Save(r, w)
 	}
 
@@ -47,6 +52,9 @@ And finally we call session.Save() to save the session in the response.
 
 Note that in production code, we should check for errors when calling
 session.Save(r, w), and either display an error message or otherwise handle it.
+
+Save must be called before writing to the response, otherwise the session
+cookie will not be sent to the client.
 
 Important Note: If you aren't using gorilla/mux, you need to wrap your handlers
 with context.ClearHandler as or else you will leak memory! An easy way to do this
@@ -66,15 +74,18 @@ flashes, call session.Flashes(). Here is an example:
 
 	func MyHandler(w http.ResponseWriter, r *http.Request) {
 		// Get a session.
-		session, _ := store.Get(r, "session-name")
+		session, err := store.Get(r, "session-name")
+		if err != nil {
+			http.Error(w, err.Error(), 500)
+			return
+		}
+
 		// Get the previously flashes, if any.
 		if flashes := session.Flashes(); len(flashes) > 0 {
-			// Just print the flash values.
-			fmt.Fprint(w, "%v", flashes)
+			// Use the flash values.
 		} else {
 			// Set a new flash.
 			session.AddFlash("Hello, flash messages world!")
-			fmt.Fprint(w, "No flashes found.")
 		}
 		session.Save(r, w)
 	}
@@ -111,6 +122,26 @@ relies on us passing it an empty pointer to the type as a parameter. In the exam
 above we've passed it a pointer to a struct and a pointer to a custom type
 representing a map[string]interface. This will then allow us to serialise/deserialise
 values of those types to and from our sessions.
+
+Note that because session values are stored in a map[string]interface{}, there's
+a need to type-assert data when retrieving it. We'll use the Person struct we registered above:
+
+	func MyHandler(w http.ResponseWriter, r *http.Request) {
+		session, err := store.Get(r, "session-name")
+		if err != nil {
+			http.Error(w, err.Error(), 500)
+			return
+		}
+
+		// Retrieve our struct and type-assert it
+		val := session.Values["person"]
+		var person = &Person{}
+		if person, ok := val.(*Person); !ok {
+			// Handle the case that it's not an expected type
+		}
+
+		// Now we can use our person object
+	}
 
 By default, session cookies last for a month. This is probably too long for
 some cases, but it is easy to change this and other attributes during

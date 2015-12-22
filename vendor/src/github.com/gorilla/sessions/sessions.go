@@ -88,7 +88,8 @@ func (s *Session) AddFlash(value interface{}, vars ...string) {
 }
 
 // Save is a convenience method to save this session. It is the same as calling
-// store.Save(request, response, session)
+// store.Save(request, response, session). You should call Save before writing to
+// the response or returning from the handler.
 func (s *Session) Save(r *http.Request, w http.ResponseWriter) error {
 	return s.store.Save(r, w, s)
 }
