@@ -1195,7 +1195,13 @@ _docker_network_ls() {
 }
 
 _docker_network_rm() {
-	_docker_network_inspect
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "--help" -- "$cur" ) )
+			;;
+		*)
+			__docker_complete_networks
+	esac
 }
 
 _docker_network() {
