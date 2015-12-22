@@ -265,6 +265,10 @@ func verifyContainerResources(resources *runconfig.Resources) ([]string, error) 
 		warnings = append(warnings, "You specified a kernel memory limit on a kernel older than 4.0. Kernel memory limits are experimental on older kernels, it won't work as expected and can cause your system to be unstable.")
 		logrus.Warnf("You specified a kernel memory limit on a kernel older than 4.0. Kernel memory limits are experimental on older kernels, it won't work as expected and can cause your system to be unstable.")
 	}
+	if resources.OomKillDisable && !sysInfo.OomKillDisable {
+		resources.OomKillDisable = false
+		return warnings, fmt.Errorf("Your kernel does not support oom kill disable.")
+	}
 
 	// cpu subsystem checks and adjustments
 	if resources.CPUShares > 0 && !sysInfo.CPUShares {
@@ -364,10 +368,6 @@ func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *runconfig.HostC
 		return warnings, fmt.Errorf("SHM size must be greater then 0")
 	}
 
-	if hostConfig.OomKillDisable && !sysInfo.OomKillDisable {
-		hostConfig.OomKillDisable = false
-		return warnings, fmt.Errorf("Your kernel does not support oom kill disable.")
-	}
 	if hostConfig.OomScoreAdj < -1000 || hostConfig.OomScoreAdj > 1000 {
 		return warnings, fmt.Errorf("Invalid value %d, range for oom score adj is [-1000, 1000].", hostConfig.OomScoreAdj)
 	}
