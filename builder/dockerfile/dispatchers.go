@@ -25,6 +25,7 @@ import (
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/runconfig"
+	runconfigopts "github.com/docker/docker/runconfig/opts"
 	"github.com/docker/go-connections/nat"
 )
 
@@ -337,7 +338,7 @@ func run(b *Builder, args []string, attributes map[string]bool, original string)
 	// of RUN, without leaking it to the final image. It also aids cache
 	// lookup for same image built with same build time environment.
 	cmdBuildEnv := []string{}
-	configEnv := runconfig.ConvertKVStringsToMap(b.runConfig.Env)
+	configEnv := runconfigopts.ConvertKVStringsToMap(b.runConfig.Env)
 	for key, val := range b.BuildArgs {
 		if !b.isBuildArgAllowed(key) {
 			// skip build-args that are not in allowed list, meaning they have
