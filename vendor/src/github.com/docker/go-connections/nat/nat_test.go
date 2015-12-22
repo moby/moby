@@ -41,7 +41,7 @@ func TestParsePort(t *testing.T) {
 	}
 }
 
-func TestParsePortRange(t *testing.T) {
+func TestParsePortRangeToInt(t *testing.T) {
 	var (
 		begin int
 		end   int
@@ -63,7 +63,7 @@ func TestParsePortRange(t *testing.T) {
 	}
 
 	for _, r := range validRanges {
-		begin, end, err = ParsePortRange(r.Range)
+		begin, end, err = ParsePortRangeToInt(r.Range)
 
 		if err != nil || begin != r.Begin {
 			t.Fatalf("Parsing port range '%s' did not succeed. Expected begin %d, got %d", r.Range, r.Begin, begin)
@@ -83,7 +83,7 @@ func TestParsePortRange(t *testing.T) {
 	}
 
 	for _, r := range invalidRanges {
-		begin, end, err = ParsePortRange(r)
+		begin, end, err = ParsePortRangeToInt(r)
 
 		if err == nil || begin != 0 || end != 0 {
 			t.Fatalf("Parsing port range '%s' succeeded", r)
