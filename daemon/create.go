@@ -42,13 +42,12 @@ func (daemon *Daemon) ContainerCreate(params types.ContainerCreateConfig) (types
 }
 
 // Create creates a new container from the given configuration with a given name.
-func (daemon *Daemon) create(params types.ContainerCreateConfig) (*container.Container, error) {
+func (daemon *Daemon) create(params types.ContainerCreateConfig) (retC *container.Container, retErr error) {
 	var (
 		container *container.Container
 		img       *image.Image
 		imgID     image.ID
 		err       error
-		retErr    error
 	)
 
 	if params.Config.Image != "" {
