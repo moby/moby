@@ -598,8 +598,20 @@ func (s *DockerSuite) TestRunSeccompProfileDenyCloneUserns(c *check.C) {
 	}
 }
 
-// TestRunSeccompAllowPrivCloneUserns checks that 'docker run userns-test'
-// with a the default seccomp profile exits with operation not permitted.
+// TestRunSeccompUnconfinedCloneUserns checks that
+// 'docker run --security-opt seccomp:unconfined userns-test' allows creating a userns.
+func (s *DockerSuite) TestRunSeccompUnconfinedCloneUserns(c *check.C) {
+	testRequires(c, SameHostDaemon, seccompEnabled, NotUserNamespace)
+
+	// make sure running w privileged is ok
+	runCmd := exec.Command(dockerBinary, "run", "--security-opt", "seccomp:unconfined", "userns-test", "id")
+	if out, _, err := runCommandWithOutput(runCmd); err != nil || !strings.Contains(out, "nobody") {
+		c.Fatalf("expected clone userns with --security-opt seccomp:unconfined to succeed, got %s: %v", out, err)
+	}
+}
+
+// TestRunSeccompAllowPrivCloneUserns checks that 'docker run --privileged userns-test'
+// allows creating a userns.
 func (s *DockerSuite) TestRunSeccompAllowPrivCloneUserns(c *check.C) {
 	testRequires(c, SameHostDaemon, seccompEnabled, NotUserNamespace)
 

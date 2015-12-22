@@ -7,8 +7,7 @@ set -e
 dir="$DEST/userns-test"
 mkdir -p "$dir"
 (
-	GOOS=${DOCKER_ENGINE_GOOS:="linux"}
-	if [ "$GOOS" = "linux" ]; then
+	if [ "$(go env GOOS)" = "linux" ]; then
 		cd "$dir"
 		gcc -g -Wall -static ../../../../contrib/userns-test/main.c -o ./userns-test
 		cp ../../../../contrib/userns-test/Dockerfile .
