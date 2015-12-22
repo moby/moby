@@ -41,7 +41,6 @@
 			"unclejack",
 			"vbatts",
 			"vdemeester",
-			"vieux",
 			"vishh"
 		]
 
@@ -72,6 +71,22 @@
 			"thajeztah"
 		]
 
+	[Org.Alumni]
+
+	# This list contains maintainers that are no longer active on the project.
+	# It is thanks to these people that the project has become what it is today.
+	# Thank you!
+
+		people = [
+			# Victor is one of the earliest contributors to Docker, having worked on the
+			# project when it was still "dotCloud" in April 2013. He's been responsible
+			# for multiple releases (https://github.com/docker/docker/pulls?q=is%3Apr+bump+in%3Atitle+author%3Avieux),
+			# and up until today (2015), our number 2 contributor. Although he's no longer
+			# a maintainer for the Docker "Engine", he's still actively involved in other
+			# Docker projects, and most likely can be found in the Docker Swarm repository,
+			# for which he's a core maintainer.
+			"vieux"
+		]
 
 [people]
 
