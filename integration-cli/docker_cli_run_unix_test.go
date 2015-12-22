@@ -479,6 +479,9 @@ func (s *DockerSuite) TestRunTmpfsMounts(c *check.C) {
 	if out, _, err := dockerCmdWithError("run", "--tmpfs", "/run", "busybox", "touch", "/run/somefile"); err != nil {
 		c.Fatalf("/run directory not mounted on tmpfs %q %s", err, out)
 	}
+	if out, _, err := dockerCmdWithError("run", "--tmpfs", "/run:noexec", "busybox", "touch", "/run/somefile"); err != nil {
+		c.Fatalf("/run directory not mounted on tmpfs %q %s", err, out)
+	}
 	if out, _, err := dockerCmdWithError("run", "--tmpfs", "/run:noexec,nosuid,rw,size=5k,mode=700", "busybox", "touch", "/run/somefile"); err != nil {
 		c.Fatalf("/run failed to mount on tmpfs with valid options %q %s", err, out)
 	}
