@@ -1005,11 +1005,19 @@ func TestEndpointJoin(t *testing.T) {
 	}
 
 	// Create network 1 and add 2 endpoint: ep11, ep12
-	n1, err := createTestNetwork(bridgeNetType, "testnetwork1", options.Generic{
+	netOption := options.Generic{
 		netlabel.GenericData: options.Generic{
-			"BridgeName": "testnetwork1",
+			"BridgeName":         "testnetwork1",
+			"EnableIPv6":         true,
+			"EnableICC":          true,
+			"EnableIPMasquerade": true,
 		},
-	}, nil, nil)
+	}
+	ipamV6ConfList := []*libnetwork.IpamConf{&libnetwork.IpamConf{PreferredPool: "fe90::/64", Gateway: "fe90::22"}}
+	n1, err := controller.NewNetwork(bridgeNetType, "testnetwork1",
+		libnetwork.NetworkOptionGeneric(netOption),
+		libnetwork.NetworkOptionIpam(ipamapi.DefaultIPAM, "", nil, ipamV6ConfList),
+		libnetwork.NetworkOptionDeferIPv6Alloc(true))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1035,9 +1043,15 @@ func TestEndpointJoin(t *testing.T) {
 	if iface.Address() != nil && iface.Address().IP.To4() == nil {
 		t.Fatalf("Invalid IP address returned: %v", iface.Address())
 	}
+	if iface.AddressIPv6() != nil && iface.AddressIPv6().IP == nil {
+		t.Fatalf("Invalid IPv6 address returned: %v", iface.Address())
+	}
 
-	if info.Gateway().To4() != nil {
+	if len(info.Gateway()) != 0 {
 		t.Fatalf("Expected empty gateway for an empty endpoint. Instead found a gateway: %v", info.Gateway())
+	}
+	if len(info.GatewayIPv6()) != 0 {
+		t.Fatalf("Expected empty gateway for an empty ipv6 endpoint. Instead found a gateway: %v", info.GatewayIPv6())
 	}
 
 	if info.Sandbox() != nil {
@@ -1090,8 +1104,11 @@ func TestEndpointJoin(t *testing.T) {
 
 	// Validate if ep.Info() only gives valid gateway and sandbox key after has container has joined.
 	info = ep1.Info()
-	if info.Gateway().To4() == nil {
+	if len(info.Gateway()) == 0 {
 		t.Fatalf("Expected a valid gateway for a joined endpoint. Instead found an invalid gateway: %v", info.Gateway())
+	}
+	if len(info.GatewayIPv6()) == 0 {
+		t.Fatalf("Expected a valid ipv6 gateway for a joined endpoint. Instead found an invalid gateway: %v", info.GatewayIPv6())
 	}
 
 	if info.Sandbox() == nil {
@@ -1699,7 +1716,7 @@ func TestEnableIPv6(t *testing.T) {
 			"BridgeName": "testnetwork",
 		},
 	}
-	ipamV6ConfList := []*libnetwork.IpamConf{&libnetwork.IpamConf{PreferredPool: "fe80::/64"}}
+	ipamV6ConfList := []*libnetwork.IpamConf{&libnetwork.IpamConf{PreferredPool: "fe99::/64", Gateway: "fe99::9"}}
 
 	n, err := createTestNetwork("bridge", "testnetwork", netOption, nil, ipamV6ConfList)
 	if err != nil {
