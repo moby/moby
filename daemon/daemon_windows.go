@@ -113,10 +113,6 @@ func configureKernelSecuritySupport(config *Config, driverName string) error {
 	return nil
 }
 
-func migrateIfDownlevel(driver graphdriver.Driver, root string) error {
-	return nil
-}
-
 func isBridgeNetworkDisabled(config *Config) bool {
 	return false
 }
