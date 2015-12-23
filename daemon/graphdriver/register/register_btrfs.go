@@ -1,6 +1,6 @@
 // +build !exclude_graphdriver_btrfs,linux
 
-package daemon
+package register
 
 import (
 	// register the btrfs graphdriver
