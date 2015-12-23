@@ -6,11 +6,11 @@ docker-exec - Run a command in a running container
 
 # SYNOPSIS
 **docker exec**
-[**-d**|**--detach**[=*false*]]
+[**-d**|**--detach**]
 [**--help**]
-[**-i**|**--interactive**[=*false*]]
-[**--privileged**[=*false*]]
-[**-t**|**--tty**[=*false*]]
+[**-i**|**--interactive**]
+[**--privileged**]
+[**-t**|**--tty**]
 [**-u**|**--user**[=*USER*]]
 CONTAINER COMMAND [ARG...]
 

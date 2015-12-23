@@ -14,9 +14,9 @@ parent = "smn_cli"
 
     Lists all the networks created by the user
       -f, --filter=[]       Filter output based on conditions provided
-      --help=false          Print usage
-      --no-trunc=false      Do not truncate the output
-      -q, --quiet=false     Only display numeric IDs
+      --help                Print usage
+      --no-trunc            Do not truncate the output
+      -q, --quiet           Only display numeric IDs
 
 Lists all the networks the Engine `daemon` knows about. This includes the
 networks that span across multiple hosts in a cluster, for example:

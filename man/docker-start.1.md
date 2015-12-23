@@ -6,9 +6,9 @@ docker-start - Start one or more containers
 
 # SYNOPSIS
 **docker start**
-[**-a**|**--attach**[=*false*]]
+[**-a**|**--attach**]
 [**--help**]
-[**-i**|**--interactive**[=*false*]]
+[**-i**|**--interactive**]
 CONTAINER [CONTAINER...]
 
 # DESCRIPTION

@@ -15,7 +15,7 @@ parent = "smn_cli"
     Get real time events from the server
 
       -f, --filter=[]    Filter output based on conditions provided
-      --help=false       Print usage
+      --help             Print usage
       --since=""         Show all events created since timestamp
       --until=""         Stream events until this timestamp
 

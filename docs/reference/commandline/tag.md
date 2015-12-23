@@ -14,7 +14,7 @@ parent = "smn_cli"
 
     Tag an image into a repository
 
-      --help=false         Print usage
+      --help               Print usage
 
 You can group your images together using names and tags, and then upload them
 to [*Share Images via Repositories*](../../userguide/dockerrepos.md#contributing-to-docker-hub).

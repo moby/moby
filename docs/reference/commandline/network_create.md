@@ -17,7 +17,7 @@ parent = "smn_cli"
     --aux-address=map[]      Auxiliary ipv4 or ipv6 addresses used by network driver
     -d --driver=DRIVER       Driver to manage the Network bridge or overlay. The default is bridge.
     --gateway=[]             ipv4 or ipv6 Gateway for the master subnet
-    --help=false             Print usage
+    --help                   Print usage
     --ip-range=[]            Allocate container ip from a sub-range
     --ipam-driver=default    IP Address Management Driver
     -o --opt=map[]           Set custom network plugin options
