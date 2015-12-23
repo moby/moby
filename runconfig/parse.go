@@ -11,7 +11,6 @@ import (
 	"github.com/docker/docker/opts"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/mount"
-	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/volume"
 	"github.com/docker/go-connections/nat"
@@ -285,7 +284,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 		proto, port := nat.SplitProtoPort(e)
 		//parse the start and end port and create a sequence of ports to expose
 		//if expose a port, the start and end port are the same
-		start, end, err := parsers.ParsePortRange(port)
+		start, end, err := nat.ParsePortRange(port)
 		if err != nil {
 			return nil, nil, cmd, fmt.Errorf("Invalid range format for --expose: %s, error: %s", e, err)
 		}
