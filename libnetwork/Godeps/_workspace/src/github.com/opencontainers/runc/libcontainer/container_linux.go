@@ -3,12 +3,15 @@
 package libcontainer
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"sync"
 	"syscall"
@@ -18,6 +21,7 @@ import (
 	"github.com/opencontainers/runc/libcontainer/cgroups"
 	"github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/opencontainers/runc/libcontainer/criurpc"
+	"github.com/vishvananda/netlink/nl"
 )
 
 const stdioFdCount = 3
@@ -32,6 +36,73 @@ type linuxContainer struct {
 	initProcess   parentProcess
 	criuPath      string
 	m             sync.Mutex
+	criuVersion   int
+}
+
+// State represents a running container's state
+type State struct {
+	BaseState
+
+	// Platform specific fields below here
+
+	// Path to all the cgroups setup for a container. Key is cgroup subsystem name
+	// with the value as the path.
+	CgroupPaths map[string]string `json:"cgroup_paths"`
+
+	// NamespacePaths are filepaths to the container's namespaces. Key is the namespace type
+	// with the value as the path.
+	NamespacePaths map[configs.NamespaceType]string `json:"namespace_paths"`
+
+	// Container's standard descriptors (std{in,out,err}), needed for checkpoint and restore
+	ExternalDescriptors []string `json:"external_descriptors,omitempty"`
+}
+
+// A libcontainer container object.
+//
+// Each container is thread-safe within the same process. Since a container can
+// be destroyed by a separate process, any function may return that the container
+// was not found.
+type Container interface {
+	BaseContainer
+
+	// Methods below here are platform specific
+
+	// Checkpoint checkpoints the running container's state to disk using the criu(8) utility.
+	//
+	// errors:
+	// Systemerror - System error.
+	Checkpoint(criuOpts *CriuOpts) error
+
+	// Restore restores the checkpointed container to a running state using the criu(8) utiity.
+	//
+	// errors:
+	// Systemerror - System error.
+	Restore(process *Process, criuOpts *CriuOpts) error
+
+	// If the Container state is RUNNING or PAUSING, sets the Container state to PAUSING and pauses
+	// the execution of any user processes. Asynchronously, when the container finished being paused the
+	// state is changed to PAUSED.
+	// If the Container state is PAUSED, do nothing.
+	//
+	// errors:
+	// ContainerDestroyed - Container no longer exists,
+	// Systemerror - System error.
+	Pause() error
+
+	// If the Container state is PAUSED, resumes the execution of any user processes in the
+	// Container before setting the Container state to RUNNING.
+	// If the Container state is RUNNING, do nothing.
+	//
+	// errors:
+	// ContainerDestroyed - Container no longer exists,
+	// Systemerror - System error.
+	Resume() error
+
+	// NotifyOOM returns a read-only channel signaling when the container receives an OOM notification.
+	//
+	// errors:
+	// Systemerror - System error.
+	NotifyOOM() (<-chan struct{}, error)
 }
 
 // ID returns the container's unique ID
@@ -111,9 +182,24 @@ func (c *linuxContainer) Start(process *Process) error {
 		}
 		return newSystemError(err)
 	}
-	process.ops = parent
 	if doInit {
 		c.updateState(parent)
+	}
+	if c.config.Hooks != nil {
+		s := configs.HookState{
+			Version: c.config.Version,
+			ID:      c.id,
+			Pid:     parent.pid(),
+			Root:    c.config.Rootfs,
+		}
+		for _, hook := range c.config.Hooks.Poststart {
+			if err := hook.Run(s); err != nil {
+				if err := parent.terminate(); err != nil {
+					logrus.Warn(err)
+				}
+				return newSystemError(err)
+			}
+		}
 	}
 	return nil
 }
@@ -135,7 +221,7 @@ func (c *linuxContainer) newParentProcess(p *Process, doInit bool) (parentProces
 		return nil, newSystemError(err)
 	}
 	if !doInit {
-		return c.newSetnsProcess(p, cmd, parentPipe, childPipe), nil
+		return c.newSetnsProcess(p, cmd, parentPipe, childPipe)
 	}
 	return c.newInitProcess(p, cmd, parentPipe, childPipe)
 }
@@ -185,25 +271,29 @@ func (c *linuxContainer) newInitProcess(p *Process, cmd *exec.Cmd, parentPipe, c
 		parentPipe: parentPipe,
 		manager:    c.cgroupManager,
 		config:     c.newInitConfig(p),
+		container:  c,
+		process:    p,
 	}, nil
 }
 
-func (c *linuxContainer) newSetnsProcess(p *Process, cmd *exec.Cmd, parentPipe, childPipe *os.File) *setnsProcess {
-	cmd.Env = append(cmd.Env,
-		fmt.Sprintf("_LIBCONTAINER_INITPID=%d", c.initProcess.pid()),
-		"_LIBCONTAINER_INITTYPE=setns",
-	)
-	if p.consolePath != "" {
-		cmd.Env = append(cmd.Env, "_LIBCONTAINER_CONSOLE_PATH="+p.consolePath)
+func (c *linuxContainer) newSetnsProcess(p *Process, cmd *exec.Cmd, parentPipe, childPipe *os.File) (*setnsProcess, error) {
+	cmd.Env = append(cmd.Env, "_LIBCONTAINER_INITTYPE=setns")
+	// for setns process, we dont have to set cloneflags as the process namespaces
+	// will only be set via setns syscall
+	data, err := c.bootstrapData(0, c.initProcess.pid(), p.consolePath)
+	if err != nil {
+		return nil, err
 	}
 	// TODO: set on container for process management
 	return &setnsProcess{
-		cmd:         cmd,
-		cgroupPaths: c.cgroupManager.GetPaths(),
-		childPipe:   childPipe,
-		parentPipe:  parentPipe,
-		config:      c.newInitConfig(p),
-	}
+		cmd:           cmd,
+		cgroupPaths:   c.cgroupManager.GetPaths(),
+		childPipe:     childPipe,
+		parentPipe:    parentPipe,
+		config:        c.newInitConfig(p),
+		process:       p,
+		bootstrapData: data,
+	}, nil
 }
 
 func (c *linuxContainer) newInitConfig(process *Process) *initConfig {
@@ -247,6 +337,18 @@ func (c *linuxContainer) Destroy() error {
 		err = rerr
 	}
 	c.initProcess = nil
+	if c.config.Hooks != nil {
+		s := configs.HookState{
+			Version: c.config.Version,
+			ID:      c.id,
+			Root:    c.config.Rootfs,
+		}
+		for _, hook := range c.config.Hooks.Poststop {
+			if err := hook.Run(s); err != nil {
+				return err
+			}
+		}
+	}
 	return err
 }
 
@@ -276,30 +378,64 @@ func addArgsFromEnv(evar string, args *[]string) {
 	fmt.Printf(">>> criu %v\n", *args)
 }
 
-func (c *linuxContainer) checkCriuVersion() error {
-	var x, y, z int
+// check Criu version greater than or equal to min_version
+func (c *linuxContainer) checkCriuVersion(min_version string) error {
+	var x, y, z, versionReq int
+
+	_, err := fmt.Sscanf(min_version, "%d.%d.%d\n", &x, &y, &z) // 1.5.2
+	if err != nil {
+		_, err = fmt.Sscanf(min_version, "Version: %d.%d\n", &x, &y) // 1.6
+	}
+	versionReq = x*10000 + y*100 + z
 
 	out, err := exec.Command(c.criuPath, "-V").Output()
 	if err != nil {
 		return fmt.Errorf("Unable to execute CRIU command: %s", c.criuPath)
 	}
 
-	n, err := fmt.Sscanf(string(out), "Version: %d.%d.%d\n", &x, &y, &z) // 1.5.2
-	if err != nil {
-		n, err = fmt.Sscanf(string(out), "Version: %d.%d\n", &x, &y) // 1.6
-	}
-	if n < 2 || err != nil {
-		return fmt.Errorf("Unable to parse the CRIU version: %s %d %s", out, n, err)
+	x = 0
+	y = 0
+	z = 0
+	if ep := strings.Index(string(out), "-"); ep >= 0 {
+		// criu Git version format
+		var version string
+		if sp := strings.Index(string(out), "GitID"); sp > 0 {
+			version = string(out)[sp:ep]
+		} else {
+			return fmt.Errorf("Unable to parse the CRIU version: %s", c.criuPath)
+		}
+
+		n, err := fmt.Sscanf(string(version), "GitID: v%d.%d.%d", &x, &y, &z) // 1.5.2
+		if err != nil {
+			n, err = fmt.Sscanf(string(version), "GitID: v%d.%d", &x, &y) // 1.6
+			y++
+		} else {
+			z++
+		}
+		if n < 2 || err != nil {
+			return fmt.Errorf("Unable to parse the CRIU version: %s %d %s", version, n, err)
+		}
+	} else {
+		// criu release version format
+		n, err := fmt.Sscanf(string(out), "Version: %d.%d.%d\n", &x, &y, &z) // 1.5.2
+		if err != nil {
+			n, err = fmt.Sscanf(string(out), "Version: %d.%d\n", &x, &y) // 1.6
+		}
+		if n < 2 || err != nil {
+			return fmt.Errorf("Unable to parse the CRIU version: %s %d %s", out, n, err)
+		}
 	}
 
-	if x*10000+y*100+z < 10502 {
-		return fmt.Errorf("CRIU version must be 1.5.2 or higher")
+	c.criuVersion = x*10000 + y*100 + z
+
+	if c.criuVersion < versionReq {
+		return fmt.Errorf("CRIU version must be %s or higher", min_version)
 	}
 
 	return nil
 }
 
-const descriptors_filename = "descriptors.json"
+const descriptorsFilename = "descriptors.json"
 
 func (c *linuxContainer) addCriuDumpMount(req *criurpc.CriuReq, m *configs.Mount) {
 	mountDest := m.Destination
@@ -318,7 +454,7 @@ func (c *linuxContainer) Checkpoint(criuOpts *CriuOpts) error {
 	c.m.Lock()
 	defer c.m.Unlock()
 
-	if err := c.checkCriuVersion(); err != nil {
+	if err := c.checkCriuVersion("1.5.2"); err != nil {
 		return err
 	}
 
@@ -376,6 +512,14 @@ func (c *linuxContainer) Checkpoint(criuOpts *CriuOpts) error {
 		}
 	}
 
+	// append optional manage cgroups mode
+	if criuOpts.ManageCgroupsMode != 0 {
+		if err := c.checkCriuVersion("1.7"); err != nil {
+			return err
+		}
+		rpcOpts.ManageCgroupsMode = proto.Uint32(uint32(criuOpts.ManageCgroupsMode))
+	}
+
 	t := criurpc.CriuReqType_DUMP
 	req := &criurpc.CriuReq{
 		Type: &t,
@@ -406,12 +550,12 @@ func (c *linuxContainer) Checkpoint(criuOpts *CriuOpts) error {
 		return err
 	}
 
-	err = ioutil.WriteFile(filepath.Join(criuOpts.ImagesDirectory, descriptors_filename), fdsJSON, 0655)
+	err = ioutil.WriteFile(filepath.Join(criuOpts.ImagesDirectory, descriptorsFilename), fdsJSON, 0655)
 	if err != nil {
 		return err
 	}
 
-	err = c.criuSwrk(nil, req, criuOpts)
+	err = c.criuSwrk(nil, req, criuOpts, false)
 	if err != nil {
 		return err
 	}
@@ -435,7 +579,7 @@ func (c *linuxContainer) Restore(process *Process, criuOpts *CriuOpts) error {
 	c.m.Lock()
 	defer c.m.Unlock()
 
-	if err := c.checkCriuVersion(); err != nil {
+	if err := c.checkCriuVersion("1.5.2"); err != nil {
 		return err
 	}
 
@@ -504,6 +648,7 @@ func (c *linuxContainer) Restore(process *Process, criuOpts *CriuOpts) error {
 			FileLocks:      proto.Bool(criuOpts.FileLocks),
 		},
 	}
+
 	for _, m := range c.config.Mounts {
 		switch m.Device {
 		case "bind":
@@ -532,13 +677,27 @@ func (c *linuxContainer) Restore(process *Process, criuOpts *CriuOpts) error {
 			break
 		}
 	}
+	for _, i := range criuOpts.VethPairs {
+		veth := new(criurpc.CriuVethPair)
+		veth.IfOut = proto.String(i.HostInterfaceName)
+		veth.IfIn = proto.String(i.ContainerInterfaceName)
+		req.Opts.Veths = append(req.Opts.Veths, veth)
+	}
+
+	// append optional manage cgroups mode
+	if criuOpts.ManageCgroupsMode != 0 {
+		if err := c.checkCriuVersion("1.7"); err != nil {
+			return err
+		}
+		req.Opts.ManageCgroupsMode = proto.Uint32(uint32(criuOpts.ManageCgroupsMode))
+	}
 
 	var (
 		fds    []string
 		fdJSON []byte
 	)
 
-	if fdJSON, err = ioutil.ReadFile(filepath.Join(criuOpts.ImagesDirectory, descriptors_filename)); err != nil {
+	if fdJSON, err = ioutil.ReadFile(filepath.Join(criuOpts.ImagesDirectory, descriptorsFilename)); err != nil {
 		return err
 	}
 
@@ -555,25 +714,50 @@ func (c *linuxContainer) Restore(process *Process, criuOpts *CriuOpts) error {
 		}
 	}
 
-	err = c.criuSwrk(process, req, criuOpts)
+	err = c.criuSwrk(process, req, criuOpts, true)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (c *linuxContainer) criuSwrk(process *Process, req *criurpc.CriuReq, opts *CriuOpts) error {
+func (c *linuxContainer) criuApplyCgroups(pid int, req *criurpc.CriuReq) error {
+	if err := c.cgroupManager.Apply(pid); err != nil {
+		return err
+	}
+
+	path := fmt.Sprintf("/proc/%d/cgroup", pid)
+	cgroupsPaths, err := cgroups.ParseCgroupFile(path)
+	if err != nil {
+		return err
+	}
+
+	for c, p := range cgroupsPaths {
+		cgroupRoot := &criurpc.CgroupRoot{
+			Ctrl: proto.String(c),
+			Path: proto.String(p),
+		}
+		req.Opts.CgRoot = append(req.Opts.CgRoot, cgroupRoot)
+	}
+
+	return nil
+}
+
+func (c *linuxContainer) criuSwrk(process *Process, req *criurpc.CriuReq, opts *CriuOpts, applyCgroups bool) error {
 	fds, err := syscall.Socketpair(syscall.AF_LOCAL, syscall.SOCK_SEQPACKET|syscall.SOCK_CLOEXEC, 0)
 	if err != nil {
 		return err
 	}
 
+	logPath := filepath.Join(opts.WorkDirectory, req.GetOpts().GetLogFile())
 	criuClient := os.NewFile(uintptr(fds[0]), "criu-transport-client")
 	criuServer := os.NewFile(uintptr(fds[1]), "criu-transport-server")
 	defer criuClient.Close()
 	defer criuServer.Close()
 
 	args := []string{"swrk", "3"}
+	logrus.Debugf("Using CRIU %d at: %s", c.criuVersion, c.criuPath)
+	logrus.Debugf("Using CRIU with following args: %s", args)
 	cmd := exec.Command(c.criuPath, args...)
 	if process != nil {
 		cmd.Stdin = process.Stdin
@@ -595,6 +779,13 @@ func (c *linuxContainer) criuSwrk(process *Process, req *criurpc.CriuReq, opts *
 		}
 	}()
 
+	if applyCgroups {
+		err := c.criuApplyCgroups(cmd.Process.Pid, req)
+		if err != nil {
+			return err
+		}
+	}
+
 	var extFds []string
 	if process != nil {
 		extFds, err = getPipeFds(cmd.Process.Pid)
@@ -603,6 +794,18 @@ func (c *linuxContainer) criuSwrk(process *Process, req *criurpc.CriuReq, opts *
 		}
 	}
 
+	logrus.Debugf("Using CRIU in %s mode", req.GetType().String())
+	val := reflect.ValueOf(req.GetOpts())
+	v := reflect.Indirect(val)
+	for i := 0; i < v.NumField(); i++ {
+		st := v.Type()
+		name := st.Field(i).Name
+		if strings.HasPrefix(name, "XXX_") {
+			continue
+		}
+		value := val.MethodByName("Get" + name).Call([]reflect.Value{})
+		logrus.Debugf("CRIU option %s with value %v", name, value[0])
+	}
 	data, err := proto.Marshal(req)
 	if err != nil {
 		return err
@@ -631,7 +834,8 @@ func (c *linuxContainer) criuSwrk(process *Process, req *criurpc.CriuReq, opts *
 			return err
 		}
 		if !resp.GetSuccess() {
-			return fmt.Errorf("criu failed: type %s errno %d", req.GetType().String(), resp.GetCrErrno())
+			typeString := req.GetType().String()
+			return fmt.Errorf("criu failed: type %s errno %d\nlog file: %s", typeString, resp.GetCrErrno(), logPath)
 		}
 
 		t := resp.GetType()
@@ -671,7 +875,7 @@ func (c *linuxContainer) criuSwrk(process *Process, req *criurpc.CriuReq, opts *
 		return err
 	}
 	if !st.Success() {
-		return fmt.Errorf("criu failed: %s", st.String())
+		return fmt.Errorf("criu failed: %s\nlog file: %s", st.String(), logPath)
 	}
 	return nil
 }
@@ -800,13 +1004,15 @@ func (c *linuxContainer) currentState() (*State, error) {
 		return nil, newSystemError(err)
 	}
 	state := &State{
-		ID:                   c.ID(),
-		Config:               *c.config,
-		InitProcessPid:       c.initProcess.pid(),
-		InitProcessStartTime: startTime,
-		CgroupPaths:          c.cgroupManager.GetPaths(),
-		NamespacePaths:       make(map[configs.NamespaceType]string),
-		ExternalDescriptors:  c.initProcess.externalDescriptors(),
+		BaseState: BaseState{
+			ID:                   c.ID(),
+			Config:               *c.config,
+			InitProcessPid:       c.initProcess.pid(),
+			InitProcessStartTime: startTime,
+		},
+		CgroupPaths:         c.cgroupManager.GetPaths(),
+		NamespacePaths:      make(map[configs.NamespaceType]string),
+		ExternalDescriptors: c.initProcess.externalDescriptors(),
 	}
 	for _, ns := range c.config.Namespaces {
 		state.NamespacePaths[ns.Type] = ns.GetPath(c.initProcess.pid())
@@ -818,4 +1024,26 @@ func (c *linuxContainer) currentState() (*State, error) {
 		}
 	}
 	return state, nil
+}
+
+// bootstrapData encodes the necessary data in netlink binary format as a io.Reader.
+// Consumer can write the data to a bootstrap program such as one that uses
+// nsenter package to bootstrap the container's init process correctly, i.e. with
+// correct namespaces, uid/gid mapping etc.
+func (c *linuxContainer) bootstrapData(cloneFlags uintptr, pid int, consolePath string) (io.Reader, error) {
+	// create the netlink message
+	r := nl.NewNetlinkRequest(int(InitMsg), 0)
+	// write pid
+	r.AddData(&Int32msg{
+		Type:  PidAttr,
+		Value: uint32(pid),
+	})
+	// write console path
+	if consolePath != "" {
+		r.AddData(&Bytemsg{
+			Type:  ConsolePathAttr,
+			Value: []byte(consolePath),
+		})
+	}
+	return bytes.NewReader(r.Serialize()), nil
 }

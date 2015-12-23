@@ -10,9 +10,9 @@ import (
 	"github.com/opencontainers/runc/libcontainer/label"
 )
 
-// newConsole returns an initalized console that can be used within a container by copying bytes
+// NewConsole returns an initalized console that can be used within a container by copying bytes
 // from the master side to the slave that is attached as the tty for the container's init process.
-func newConsole(uid, gid int) (Console, error) {
+func NewConsole(uid, gid int) (Console, error) {
 	master, err := os.OpenFile("/dev/ptmx", syscall.O_RDWR|syscall.O_NOCTTY|syscall.O_CLOEXEC, 0)
 	if err != nil {
 		return nil, err
@@ -75,7 +75,7 @@ func (c *linuxConsole) Close() error {
 
 // mount initializes the console inside the rootfs mounting with the specified mount label
 // and applying the correct ownership of the console.
-func (c *linuxConsole) mount(rootfs, mountLabel string, uid, gid int) error {
+func (c *linuxConsole) mount(rootfs, mountLabel string) error {
 	oldMask := syscall.Umask(0000)
 	defer syscall.Umask(oldMask)
 	if err := label.SetFileLabel(c.slavePath, mountLabel); err != nil {

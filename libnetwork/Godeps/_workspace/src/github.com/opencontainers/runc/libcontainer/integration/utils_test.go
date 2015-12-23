@@ -94,7 +94,7 @@ func copyBusybox(dest string) error {
 func newContainer(config *configs.Config) (libcontainer.Container, error) {
 	f := factory
 
-	if config.Cgroups != nil && config.Cgroups.Slice == "system.slice" {
+	if config.Cgroups != nil && config.Cgroups.Parent == "system.slice" {
 		f = systemdFactory
 	}
 

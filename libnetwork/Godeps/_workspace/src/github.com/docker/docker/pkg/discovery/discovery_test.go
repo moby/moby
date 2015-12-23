@@ -3,92 +3,103 @@ package discovery
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/go-check/check"
 )
 
-func TestNewEntry(t *testing.T) {
+// Hook up gocheck into the "go test" runner.
+func Test(t *testing.T) { check.TestingT(t) }
+
+type DiscoverySuite struct{}
+
+var _ = check.Suite(&DiscoverySuite{})
+
+func (s *DiscoverySuite) TestNewEntry(c *check.C) {
 	entry, err := NewEntry("127.0.0.1:2375")
-	assert.NoError(t, err)
-	assert.True(t, entry.Equals(&Entry{Host: "127.0.0.1", Port: "2375"}))
-	assert.Equal(t, entry.String(), "127.0.0.1:2375")
+	c.Assert(err, check.IsNil)
+	c.Assert(entry.Equals(&Entry{Host: "127.0.0.1", Port: "2375"}), check.Equals, true)
+	c.Assert(entry.String(), check.Equals, "127.0.0.1:2375")
 
 	_, err = NewEntry("127.0.0.1")
-	assert.Error(t, err)
+	c.Assert(err, check.NotNil)
 }
 
-func TestParse(t *testing.T) {
+func (s *DiscoverySuite) TestParse(c *check.C) {
 	scheme, uri := parse("127.0.0.1:2375")
-	assert.Equal(t, scheme, "nodes")
-	assert.Equal(t, uri, "127.0.0.1:2375")
+	c.Assert(scheme, check.Equals, "nodes")
+	c.Assert(uri, check.Equals, "127.0.0.1:2375")
 
 	scheme, uri = parse("localhost:2375")
-	assert.Equal(t, scheme, "nodes")
-	assert.Equal(t, uri, "localhost:2375")
+	c.Assert(scheme, check.Equals, "nodes")
+	c.Assert(uri, check.Equals, "localhost:2375")
 
 	scheme, uri = parse("scheme://127.0.0.1:2375")
-	assert.Equal(t, scheme, "scheme")
-	assert.Equal(t, uri, "127.0.0.1:2375")
+	c.Assert(scheme, check.Equals, "scheme")
+	c.Assert(uri, check.Equals, "127.0.0.1:2375")
 
 	scheme, uri = parse("scheme://localhost:2375")
-	assert.Equal(t, scheme, "scheme")
-	assert.Equal(t, uri, "localhost:2375")
+	c.Assert(scheme, check.Equals, "scheme")
+	c.Assert(uri, check.Equals, "localhost:2375")
 
 	scheme, uri = parse("")
-	assert.Equal(t, scheme, "nodes")
-	assert.Equal(t, uri, "")
+	c.Assert(scheme, check.Equals, "nodes")
+	c.Assert(uri, check.Equals, "")
 }
 
-func TestCreateEntries(t *testing.T) {
+func (s *DiscoverySuite) TestCreateEntries(c *check.C) {
 	entries, err := CreateEntries(nil)
-	assert.Equal(t, entries, Entries{})
-	assert.NoError(t, err)
+	c.Assert(entries, check.DeepEquals, Entries{})
+	c.Assert(err, check.IsNil)
 
 	entries, err = CreateEntries([]string{"127.0.0.1:2375", "127.0.0.2:2375", ""})
-	assert.NoError(t, err)
+	c.Assert(err, check.IsNil)
 	expected := Entries{
 		&Entry{Host: "127.0.0.1", Port: "2375"},
 		&Entry{Host: "127.0.0.2", Port: "2375"},
 	}
-	assert.True(t, entries.Equals(expected))
+	c.Assert(entries.Equals(expected), check.Equals, true)
 
 	_, err = CreateEntries([]string{"127.0.0.1", "127.0.0.2"})
-	assert.Error(t, err)
+	c.Assert(err, check.NotNil)
 }
 
-func TestContainsEntry(t *testing.T) {
+func (s *DiscoverySuite) TestContainsEntry(c *check.C) {
 	entries, err := CreateEntries([]string{"127.0.0.1:2375", "127.0.0.2:2375", ""})
-	assert.NoError(t, err)
-	assert.True(t, entries.Contains(&Entry{Host: "127.0.0.1", Port: "2375"}))
-	assert.False(t, entries.Contains(&Entry{Host: "127.0.0.3", Port: "2375"}))
+	c.Assert(err, check.IsNil)
+	c.Assert(entries.Contains(&Entry{Host: "127.0.0.1", Port: "2375"}), check.Equals, true)
+	c.Assert(entries.Contains(&Entry{Host: "127.0.0.3", Port: "2375"}), check.Equals, false)
 }
 
-func TestEntriesEquality(t *testing.T) {
+func (s *DiscoverySuite) TestEntriesEquality(c *check.C) {
 	entries := Entries{
 		&Entry{Host: "127.0.0.1", Port: "2375"},
 		&Entry{Host: "127.0.0.2", Port: "2375"},
 	}
 
 	// Same
-	assert.True(t, entries.Equals(Entries{
+	c.Assert(entries.Equals(Entries{
 		&Entry{Host: "127.0.0.1", Port: "2375"},
 		&Entry{Host: "127.0.0.2", Port: "2375"},
-	}))
+	}), check.
+		Equals, true)
 
 	// Different size
-	assert.False(t, entries.Equals(Entries{
+	c.Assert(entries.Equals(Entries{
 		&Entry{Host: "127.0.0.1", Port: "2375"},
 		&Entry{Host: "127.0.0.2", Port: "2375"},
 		&Entry{Host: "127.0.0.3", Port: "2375"},
-	}))
+	}), check.
+		Equals, false)
 
 	// Different content
-	assert.False(t, entries.Equals(Entries{
+	c.Assert(entries.Equals(Entries{
 		&Entry{Host: "127.0.0.1", Port: "2375"},
 		&Entry{Host: "127.0.0.42", Port: "2375"},
-	}))
+	}), check.
+		Equals, false)
+
 }
 
-func TestEntriesDiff(t *testing.T) {
+func (s *DiscoverySuite) TestEntriesDiff(c *check.C) {
 	entry1 := &Entry{Host: "1.1.1.1", Port: "1111"}
 	entry2 := &Entry{Host: "2.2.2.2", Port: "2222"}
 	entry3 := &Entry{Host: "3.3.3.3", Port: "3333"}
@@ -96,25 +107,25 @@ func TestEntriesDiff(t *testing.T) {
 
 	// No diff
 	added, removed := entries.Diff(Entries{entry2, entry1})
-	assert.Empty(t, added)
-	assert.Empty(t, removed)
+	c.Assert(added, check.HasLen, 0)
+	c.Assert(removed, check.HasLen, 0)
 
 	// Add
 	added, removed = entries.Diff(Entries{entry2, entry3, entry1})
-	assert.Len(t, added, 1)
-	assert.True(t, added.Contains(entry3))
-	assert.Empty(t, removed)
+	c.Assert(added, check.HasLen, 1)
+	c.Assert(added.Contains(entry3), check.Equals, true)
+	c.Assert(removed, check.HasLen, 0)
 
 	// Remove
 	added, removed = entries.Diff(Entries{entry2})
-	assert.Empty(t, added)
-	assert.Len(t, removed, 1)
-	assert.True(t, removed.Contains(entry1))
+	c.Assert(added, check.HasLen, 0)
+	c.Assert(removed, check.HasLen, 1)
+	c.Assert(removed.Contains(entry1), check.Equals, true)
 
 	// Add and remove
 	added, removed = entries.Diff(Entries{entry1, entry3})
-	assert.Len(t, added, 1)
-	assert.True(t, added.Contains(entry3))
-	assert.Len(t, removed, 1)
-	assert.True(t, removed.Contains(entry2))
+	c.Assert(added, check.HasLen, 1)
+	c.Assert(added.Contains(entry3), check.Equals, true)
+	c.Assert(removed, check.HasLen, 1)
+	c.Assert(removed.Contains(entry2), check.Equals, true)
 }

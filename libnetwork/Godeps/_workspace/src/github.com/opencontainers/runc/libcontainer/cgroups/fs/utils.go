@@ -44,7 +44,7 @@ func getCgroupParamKeyValue(t string) (string, uint64, error) {
 	case 2:
 		value, err := parseUint(parts[1], 10, 64)
 		if err != nil {
-			return "", 0, fmt.Errorf("Unable to convert param value (%q) to uint64: %v", parts[1], err)
+			return "", 0, fmt.Errorf("unable to convert param value (%q) to uint64: %v", parts[1], err)
 		}
 
 		return parts[0], value, nil
@@ -55,12 +55,17 @@ func getCgroupParamKeyValue(t string) (string, uint64, error) {
 
 // Gets a single uint64 value from the specified cgroup file.
 func getCgroupParamUint(cgroupPath, cgroupFile string) (uint64, error) {
-	contents, err := ioutil.ReadFile(filepath.Join(cgroupPath, cgroupFile))
+	fileName := filepath.Join(cgroupPath, cgroupFile)
+	contents, err := ioutil.ReadFile(fileName)
 	if err != nil {
 		return 0, err
 	}
 
-	return parseUint(strings.TrimSpace(string(contents)), 10, 64)
+	res, err := parseUint(strings.TrimSpace(string(contents)), 10, 64)
+	if err != nil {
+		return res, fmt.Errorf("unable to parse %q as a uint from Cgroup file %q", string(contents), fileName)
+	}
+	return res, nil
 }
 
 // Gets a string value from the specified cgroup file

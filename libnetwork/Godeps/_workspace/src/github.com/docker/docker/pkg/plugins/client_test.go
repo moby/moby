@@ -30,7 +30,7 @@ func teardownRemotePluginServer() {
 
 func TestFailedConnection(t *testing.T) {
 	c, _ := NewClient("tcp://127.0.0.1:1", tlsconfig.Options{InsecureSkipVerify: true})
-	err := c.callWithRetry("Service.Method", nil, nil, false)
+	_, err := c.callWithRetry("Service.Method", nil, false)
 	if err == nil {
 		t.Fatal("Unexpected successful connection")
 	}
@@ -62,6 +62,10 @@ func TestEchoInputOutput(t *testing.T) {
 
 	if !reflect.DeepEqual(output, m) {
 		t.Fatalf("Expected %v, was %v\n", m, output)
+	}
+	err = c.Call("Test.Echo", nil, nil)
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 

@@ -27,8 +27,8 @@ type Backend interface {
 	// Watcher must be provided by every backend.
 	Watcher
 
-	// Initialize the discovery with URIs, a heartbeat and a ttl.
-	Initialize(string, time.Duration, time.Duration) error
+	// Initialize the discovery with URIs, a heartbeat, a ttl and optional settings.
+	Initialize(string, time.Duration, time.Duration, map[string]string) error
 
 	// Register to the discovery.
 	Register(string) error

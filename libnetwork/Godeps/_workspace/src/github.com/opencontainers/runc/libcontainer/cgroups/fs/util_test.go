@@ -17,8 +17,8 @@ import (
 )
 
 type cgroupTestUtil struct {
-	// data to use in tests.
-	CgroupData *data
+	// cgroup data to use in tests.
+	CgroupData *cgroupData
 
 	// Path to the mock cgroup directory.
 	CgroupPath string
@@ -30,8 +30,8 @@ type cgroupTestUtil struct {
 
 // Creates a new test util for the specified subsystem
 func NewCgroupTestUtil(subsystem string, t *testing.T) *cgroupTestUtil {
-	d := &data{
-		c: &configs.Cgroup{},
+	d := &cgroupData{
+		config: &configs.Cgroup{},
 	}
 	tempDir, err := ioutil.TempDir("", "cgroup_test")
 	if err != nil {

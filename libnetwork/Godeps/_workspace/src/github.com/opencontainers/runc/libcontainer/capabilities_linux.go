@@ -5,57 +5,35 @@ package libcontainer
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/syndtr/gocapability/capability"
 )
 
 const allCapabilityTypes = capability.CAPS | capability.BOUNDS
 
-var capabilityList = map[string]capability.Cap{
-	"SETPCAP":          capability.CAP_SETPCAP,
-	"SYS_MODULE":       capability.CAP_SYS_MODULE,
-	"SYS_RAWIO":        capability.CAP_SYS_RAWIO,
-	"SYS_PACCT":        capability.CAP_SYS_PACCT,
-	"SYS_ADMIN":        capability.CAP_SYS_ADMIN,
-	"SYS_NICE":         capability.CAP_SYS_NICE,
-	"SYS_RESOURCE":     capability.CAP_SYS_RESOURCE,
-	"SYS_TIME":         capability.CAP_SYS_TIME,
-	"SYS_TTY_CONFIG":   capability.CAP_SYS_TTY_CONFIG,
-	"MKNOD":            capability.CAP_MKNOD,
-	"AUDIT_WRITE":      capability.CAP_AUDIT_WRITE,
-	"AUDIT_CONTROL":    capability.CAP_AUDIT_CONTROL,
-	"MAC_OVERRIDE":     capability.CAP_MAC_OVERRIDE,
-	"MAC_ADMIN":        capability.CAP_MAC_ADMIN,
-	"NET_ADMIN":        capability.CAP_NET_ADMIN,
-	"SYSLOG":           capability.CAP_SYSLOG,
-	"CHOWN":            capability.CAP_CHOWN,
-	"NET_RAW":          capability.CAP_NET_RAW,
-	"DAC_OVERRIDE":     capability.CAP_DAC_OVERRIDE,
-	"FOWNER":           capability.CAP_FOWNER,
-	"DAC_READ_SEARCH":  capability.CAP_DAC_READ_SEARCH,
-	"FSETID":           capability.CAP_FSETID,
-	"KILL":             capability.CAP_KILL,
-	"SETGID":           capability.CAP_SETGID,
-	"SETUID":           capability.CAP_SETUID,
-	"LINUX_IMMUTABLE":  capability.CAP_LINUX_IMMUTABLE,
-	"NET_BIND_SERVICE": capability.CAP_NET_BIND_SERVICE,
-	"NET_BROADCAST":    capability.CAP_NET_BROADCAST,
-	"IPC_LOCK":         capability.CAP_IPC_LOCK,
-	"IPC_OWNER":        capability.CAP_IPC_OWNER,
-	"SYS_CHROOT":       capability.CAP_SYS_CHROOT,
-	"SYS_PTRACE":       capability.CAP_SYS_PTRACE,
-	"SYS_BOOT":         capability.CAP_SYS_BOOT,
-	"LEASE":            capability.CAP_LEASE,
-	"SETFCAP":          capability.CAP_SETFCAP,
-	"WAKE_ALARM":       capability.CAP_WAKE_ALARM,
-	"BLOCK_SUSPEND":    capability.CAP_BLOCK_SUSPEND,
-	"AUDIT_READ":       capability.CAP_AUDIT_READ,
+var capabilityMap map[string]capability.Cap
+
+func init() {
+	capabilityMap = make(map[string]capability.Cap)
+	last := capability.CAP_LAST_CAP
+	// workaround for RHEL6 which has no /proc/sys/kernel/cap_last_cap
+	if last == capability.Cap(63) {
+		last = capability.CAP_BLOCK_SUSPEND
+	}
+	for _, cap := range capability.List() {
+		if cap > last {
+			continue
+		}
+		capKey := fmt.Sprintf("CAP_%s", strings.ToUpper(cap.String()))
+		capabilityMap[capKey] = cap
+	}
 }
 
 func newCapWhitelist(caps []string) (*whitelist, error) {
 	l := []capability.Cap{}
 	for _, c := range caps {
-		v, ok := capabilityList[c]
+		v, ok := capabilityMap[c]
 		if !ok {
 			return nil, fmt.Errorf("unknown capability %q", c)
 		}

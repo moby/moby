@@ -1,3 +1,5 @@
+// +build linux
+
 package fs
 
 import (
@@ -20,9 +22,9 @@ func TestNetPrioSetIfPrio(t *testing.T) {
 	helper := NewCgroupTestUtil("net_prio", t)
 	defer helper.cleanup()
 
-	helper.CgroupData.c.NetPrioIfpriomap = prioMap
+	helper.CgroupData.config.NetPrioIfpriomap = prioMap
 	netPrio := &NetPrioGroup{}
-	if err := netPrio.Set(helper.CgroupPath, helper.CgroupData.c); err != nil {
+	if err := netPrio.Set(helper.CgroupPath, helper.CgroupData.config); err != nil {
 		t.Fatal(err)
 	}
 

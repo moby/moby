@@ -5,5 +5,5 @@ type HugepageLimit struct {
 	Pagesize string `json:"page_size"`
 
 	// usage limit for hugepage.
-	Limit int `json:"limit"`
+	Limit uint64 `json:"limit"`
 }

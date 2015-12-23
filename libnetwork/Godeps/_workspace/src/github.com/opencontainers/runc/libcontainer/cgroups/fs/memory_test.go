@@ -33,10 +33,10 @@ func TestMemorySetMemory(t *testing.T) {
 		"memory.soft_limit_in_bytes": strconv.Itoa(reservationBefore),
 	})
 
-	helper.CgroupData.c.Memory = memoryAfter
-	helper.CgroupData.c.MemoryReservation = reservationAfter
+	helper.CgroupData.config.Memory = memoryAfter
+	helper.CgroupData.config.MemoryReservation = reservationAfter
 	memory := &MemoryGroup{}
-	if err := memory.Set(helper.CgroupPath, helper.CgroupData.c); err != nil {
+	if err := memory.Set(helper.CgroupPath, helper.CgroupData.config); err != nil {
 		t.Fatal(err)
 	}
 
@@ -70,9 +70,9 @@ func TestMemorySetMemoryswap(t *testing.T) {
 		"memory.memsw.limit_in_bytes": strconv.Itoa(memoryswapBefore),
 	})
 
-	helper.CgroupData.c.MemorySwap = memoryswapAfter
+	helper.CgroupData.config.MemorySwap = memoryswapAfter
 	memory := &MemoryGroup{}
-	if err := memory.Set(helper.CgroupPath, helper.CgroupData.c); err != nil {
+	if err := memory.Set(helper.CgroupPath, helper.CgroupData.config); err != nil {
 		t.Fatal(err)
 	}
 
@@ -98,9 +98,9 @@ func TestMemorySetKernelMemory(t *testing.T) {
 		"memory.kmem.limit_in_bytes": strconv.Itoa(kernelMemoryBefore),
 	})
 
-	helper.CgroupData.c.KernelMemory = kernelMemoryAfter
+	helper.CgroupData.config.KernelMemory = kernelMemoryAfter
 	memory := &MemoryGroup{}
-	if err := memory.Set(helper.CgroupPath, helper.CgroupData.c); err != nil {
+	if err := memory.Set(helper.CgroupPath, helper.CgroupData.config); err != nil {
 		t.Fatal(err)
 	}
 
@@ -126,9 +126,9 @@ func TestMemorySetMemorySwappinessDefault(t *testing.T) {
 		"memory.swappiness": strconv.Itoa(swappinessBefore),
 	})
 
-	helper.CgroupData.c.Memory = swappinessAfter
+	helper.CgroupData.config.Memory = swappinessAfter
 	memory := &MemoryGroup{}
-	if err := memory.Set(helper.CgroupPath, helper.CgroupData.c); err != nil {
+	if err := memory.Set(helper.CgroupPath, helper.CgroupData.config); err != nil {
 		t.Fatal(err)
 	}
 
@@ -279,7 +279,7 @@ func TestMemorySetOomControl(t *testing.T) {
 	})
 
 	memory := &MemoryGroup{}
-	if err := memory.Set(helper.CgroupPath, helper.CgroupData.c); err != nil {
+	if err := memory.Set(helper.CgroupPath, helper.CgroupData.config); err != nil {
 		t.Fatal(err)
 	}
 
