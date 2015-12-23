@@ -15,8 +15,8 @@ parent = "smn_cli"
 
     Copy files/folders between a container and the local filesystem
 
-      -L, --follow-link=false    Always follow symbol link in SRC_PATH
-      --help=false               Print usage
+      -L, --follow-link          Always follow symbol link in SRC_PATH
+      --help                     Print usage
 
 The `docker cp` utility copies the contents of `SRC_PATH` to the `DEST_PATH`.
 You can copy from the container's file system to the local machine or the

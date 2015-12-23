@@ -14,8 +14,8 @@ parent = "smn_cli"
 
     Attach to a running container
 
-      --help=false        Print usage
-      --no-stdin=false    Do not attach STDIN
+      --help              Print usage
+      --no-stdin          Do not attach STDIN
       --sig-proxy=true    Proxy all received signals to the process
 
 The `docker attach` command allows you to attach to a running container using

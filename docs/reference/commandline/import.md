@@ -17,7 +17,7 @@ parent = "smn_cli"
 	optionally tag it.
 
       -c, --change=[]     Apply specified Dockerfile instructions while importing the image
-      --help=false        Print usage
+      --help              Print usage
       -m, --message=      Set commit message for imported image
 
 You can specify a `URL` or `-` (dash) to take data directly from `STDIN`. The

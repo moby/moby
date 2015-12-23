@@ -14,15 +14,15 @@ parent = "smn_cli"
 
     List containers
 
-      -a, --all=false       Show all containers (default shows just running)
+      -a, --all             Show all containers (default shows just running)
       -f, --filter=[]       Filter output based on conditions provided
       --format=[]           Pretty-print containers using a Go template
-      --help=false          Print usage
-      -l, --latest=false    Show the latest created container (includes all states)
+      --help                Print usage
+      -l, --latest          Show the latest created container (includes all states)
       -n=-1                 Show n last created containers (includes all states)
-      --no-trunc=false      Don't truncate output
-      -q, --quiet=false     Only display numeric IDs
-      -s, --size=false      Display total file sizes
+      --no-trunc            Don't truncate output
+      -q, --quiet           Only display numeric IDs
+      -s, --size            Display total file sizes
 
 Running `docker ps --no-trunc` showing 2 linked containers.
 

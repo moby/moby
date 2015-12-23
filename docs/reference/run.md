@@ -123,9 +123,9 @@ pretend to be a TTY (this is what most command line executables expect)
 and pass along signals. All of that is configurable:
 
     -a=[]           : Attach to `STDIN`, `STDOUT` and/or `STDERR`
-    -t=false        : Allocate a pseudo-tty
+    -t              : Allocate a pseudo-tty
     --sig-proxy=true: Proxy all received signals to the process (non-TTY mode only)
-    -i=false        : Keep STDIN open even if not attached
+    -i              : Keep STDIN open even if not attached
 
 If you do not specify `-a` then Docker will [attach all standard
 streams]( https://github.com/docker/docker/blob/75a7f4d90cde0295bcfb7213004abce8d4779b75/commands.go#L1797).
@@ -1239,7 +1239,7 @@ The following `run` command options work with container networking:
 
     --expose=[]: Expose a port or a range of ports inside the container.
                  These are additional to those exposed by the `EXPOSE` instruction
-    -P=false   : Publish all exposed ports to the host interfaces
+    -P         : Publish all exposed ports to the host interfaces
     -p=[]      : Publish a container᾿s port or a range of ports to the host
                    format: ip:hostPort:containerPort | ip::containerPort | hostPort:containerPort | containerPort
                    Both hostPort and containerPort can be specified as a

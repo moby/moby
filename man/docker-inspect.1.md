@@ -8,7 +8,7 @@ docker-inspect - Return low-level information on a container or image
 **docker inspect**
 [**--help**]
 [**-f**|**--format**[=*FORMAT*]]
-[**-s**|**--size**[=*false*]]
+[**-s**|**--size**]
 [**--type**=*container*|*image*]
 CONTAINER|IMAGE [CONTAINER|IMAGE...]
 
@@ -26,7 +26,7 @@ each result.
 **-f**, **--format**=""
     Format the output using the given Go template.
 
-**-s**, **--size**=*false*
+**-s**, **--size**
     Display total file sizes if the type is container.
 
 **--type**="*container*|*image*"

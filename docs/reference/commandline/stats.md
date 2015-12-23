@@ -14,9 +14,9 @@ parent = "smn_cli"
 
     Display a live stream of one or more containers' resource usage statistics
 
-      -a, --all=false    Show all containers (default shows just running)
-      --help=false       Print usage
-      --no-stream=false  Disable streaming stats and only pull the first result
+      -a, --all          Show all containers (default shows just running)
+      --help             Print usage
+      --no-stream        Disable streaming stats and only pull the first result
 
 The `docker stats` command returns a live data stream for running containers. To limit data to one or more specific containers, specify a list of container names or ids separated by a space. You can specify a stopped container but stopped containers do not return any data.
 

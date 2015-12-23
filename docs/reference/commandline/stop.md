@@ -15,7 +15,7 @@ parent = "smn_cli"
     Stop a container by sending SIGTERM and then SIGKILL after a
     grace period
 
-      --help=false       Print usage
+      --help             Print usage
       -t, --time=10      Seconds to wait for stop before killing it
 
 The main process inside the container will receive `SIGTERM`, and after a grace
