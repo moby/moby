@@ -2728,7 +2728,7 @@ Status Codes
 
 **Example request**:
 
-    GET /networks HTTP/1.1
+    GET /networks?filters={"type":{"custom":true}} HTTP/1.1
 
 **Example response**:
 
@@ -2794,11 +2794,12 @@ Content-Type: application/json
 ]
 ```
 
-
-
 Query Parameters:
 
-- **filters** - JSON encoded value of the filters (a `map[string][]string`) to process on the networks list. Available filters: `name=[network-names]` , `id=[network-ids]`
+- **filters** - JSON encoded network list filter. The filter value is one of: 
+  -   `name=<network-name>` Matches all or part of a network name.
+  -   `id=<network-id>` Matches all or part of a network id.
+  -   `type=["custom"|"builtin"]` Filters networks by type. The `custom` keyword returns all user-defined networks.
 
 Status Codes:
 
