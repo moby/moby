@@ -21,7 +21,7 @@ clone git github.com/tchap/go-patricia v2.1.0
 clone git github.com/vdemeester/shakers 3c10293ce22b900c27acad7b28656196fcc2f73b
 clone git golang.org/x/net 47990a1ba55743e6ef1affd3a14e5bac8553615d https://github.com/golang/net.git
 clone git github.com/docker/go-units v0.2.0
-clone git github.com/docker/go-connections 96cdf8190a45946d0f19576732e2a410c6f84a31
+clone git github.com/docker/go-connections 4e42727957c146776e5de9cec8c39e4059ed9f20
 
 #get libnetwork packages
 clone git github.com/docker/libnetwork bbd6e6d8ca1e7c9b42f6f53277b0bde72847ff90
