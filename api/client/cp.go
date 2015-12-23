@@ -11,6 +11,8 @@ import (
 	Cli "github.com/docker/docker/cli"
 	"github.com/docker/docker/pkg/archive"
 	flag "github.com/docker/docker/pkg/mflag"
+	"github.com/docker/docker/pkg/progress"
+	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/system"
 )
 
@@ -191,10 +193,21 @@ func (cli *DockerCli) copyFromContainer(srcContainer, srcPath, dstPath string, c
 		_, srcBase := archive.SplitPathDirEntry(srcInfo.Path)
 		preArchive = archive.RebaseArchiveEntries(content, srcBase, srcInfo.RebaseName)
 	}
+
+	var reader io.ReadCloser
+	if cli.isTerminalOut {
+		sf := streamformatter.NewStreamFormatter()
+		progressOutput := sf.NewProgressOutput(cli.out, true)
+		reader = progress.NewProgressReader(preArchive, progressOutput, stat.Size, "", "Copying")
+	} else {
+		reader = preArchive
+	}
+	defer reader.Close()
+
 	// See comments in the implementation of `archive.CopyTo` for exactly what
 	// goes into deciding how and whether the source archive needs to be
 	// altered for the correct copy behavior.
-	return archive.CopyTo(preArchive, srcInfo, dstPath)
+	return archive.CopyTo(reader, srcInfo, dstPath)
 }
 
 func (cli *DockerCli) copyToContainer(srcPath, dstContainer, dstPath string, cpParam *cpConfig) (err error) {
@@ -239,7 +252,7 @@ func (cli *DockerCli) copyToContainer(srcPath, dstContainer, dstPath string, cpP
 	}
 
 	var (
-		content         io.Reader
+		content         io.ReadCloser
 		resolvedDstPath string
 	)
 
@@ -279,10 +292,14 @@ func (cli *DockerCli) copyToContainer(srcPath, dstContainer, dstPath string, cpP
 		if err != nil {
 			return err
 		}
-		defer preparedArchive.Close()
-
 		resolvedDstPath = dstDir
-		content = preparedArchive
+		if cli.isTerminalOut {
+			progressOutput := streamformatter.NewStreamFormatter().NewProgressOutput(cli.out, true)
+			content = progress.NewProgressReader(preparedArchive, progressOutput, srcInfo.Size, "", "Copying")
+		} else {
+			content = preparedArchive
+		}
+		defer content.Close()
 	}
 
 	options := types.CopyToContainerOptions{
