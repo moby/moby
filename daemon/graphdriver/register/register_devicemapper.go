@@ -1,6 +1,6 @@
 // +build !exclude_graphdriver_devicemapper,linux
 
-package daemon
+package register
 
 import (
 	// register the devmapper graphdriver

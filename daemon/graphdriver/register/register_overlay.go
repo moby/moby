@@ -1,6 +1,6 @@
 // +build !exclude_graphdriver_overlay,linux
 
-package daemon
+package register
 
 import (
 	// register the overlay graphdriver
