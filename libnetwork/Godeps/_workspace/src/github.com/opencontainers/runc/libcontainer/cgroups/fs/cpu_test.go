@@ -23,9 +23,9 @@ func TestCpuSetShares(t *testing.T) {
 		"cpu.shares": strconv.Itoa(sharesBefore),
 	})
 
-	helper.CgroupData.c.CpuShares = sharesAfter
+	helper.CgroupData.config.CpuShares = sharesAfter
 	cpu := &CpuGroup{}
-	if err := cpu.Set(helper.CgroupPath, helper.CgroupData.c); err != nil {
+	if err := cpu.Set(helper.CgroupPath, helper.CgroupData.config); err != nil {
 		t.Fatal(err)
 	}
 
@@ -61,12 +61,12 @@ func TestCpuSetBandWidth(t *testing.T) {
 		"cpu.rt_period_us":  strconv.Itoa(rtPeriodBefore),
 	})
 
-	helper.CgroupData.c.CpuQuota = quotaAfter
-	helper.CgroupData.c.CpuPeriod = periodAfter
-	helper.CgroupData.c.CpuRtRuntime = rtRuntimeAfter
-	helper.CgroupData.c.CpuRtPeriod = rtPeriodAfter
+	helper.CgroupData.config.CpuQuota = quotaAfter
+	helper.CgroupData.config.CpuPeriod = periodAfter
+	helper.CgroupData.config.CpuRtRuntime = rtRuntimeAfter
+	helper.CgroupData.config.CpuRtPeriod = rtPeriodAfter
 	cpu := &CpuGroup{}
-	if err := cpu.Set(helper.CgroupPath, helper.CgroupData.c); err != nil {
+	if err := cpu.Set(helper.CgroupPath, helper.CgroupData.config); err != nil {
 		t.Fatal(err)
 	}
 

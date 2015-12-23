@@ -5,18 +5,20 @@ package libcontainer
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"net"
 	"os"
+	"strconv"
 	"strings"
 	"syscall"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/opencontainers/runc/libcontainer/cgroups"
 	"github.com/opencontainers/runc/libcontainer/configs"
-	"github.com/opencontainers/runc/libcontainer/netlink"
-	"github.com/opencontainers/runc/libcontainer/seccomp"
 	"github.com/opencontainers/runc/libcontainer/system"
 	"github.com/opencontainers/runc/libcontainer/user"
 	"github.com/opencontainers/runc/libcontainer/utils"
+	"github.com/vishvananda/netlink"
 )
 
 type initType string
@@ -185,7 +187,11 @@ func setupUser(config *initConfig) error {
 			return err
 		}
 	}
-
+	// before we change to the container's user make sure that the processes STDIO
+	// is correctly owned by the user that we are switching to.
+	if err := fixStdioPermissions(execUser); err != nil {
+		return err
+	}
 	suppGroups := append(execUser.Sgids, addGroups...)
 	if err := syscall.Setgroups(suppGroups); err != nil {
 		return err
@@ -200,6 +206,34 @@ func setupUser(config *initConfig) error {
 	// if we didn't get HOME already, set it based on the user's HOME
 	if envHome := os.Getenv("HOME"); envHome == "" {
 		if err := os.Setenv("HOME", execUser.Home); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// fixStdioPermissions fixes the permissions of PID 1's STDIO within the container to the specified user.
+// The ownership needs to match because it is created outside of the container and needs to be
+// localized.
+func fixStdioPermissions(u *user.ExecUser) error {
+	var null syscall.Stat_t
+	if err := syscall.Stat("/dev/null", &null); err != nil {
+		return err
+	}
+	for _, fd := range []uintptr{
+		os.Stdin.Fd(),
+		os.Stderr.Fd(),
+		os.Stdout.Fd(),
+	} {
+		var s syscall.Stat_t
+		if err := syscall.Fstat(int(fd), &s); err != nil {
+			return err
+		}
+		// skip chown of /dev/null if it was used as one of the STDIO fds.
+		if s.Rdev == null.Rdev {
+			continue
+		}
+		if err := syscall.Fchown(int(fd), u.Uid, u.Gid); err != nil {
 			return err
 		}
 	}
@@ -222,7 +256,30 @@ func setupNetwork(config *initConfig) error {
 
 func setupRoute(config *configs.Config) error {
 	for _, config := range config.Routes {
-		if err := netlink.AddRoute(config.Destination, config.Source, config.Gateway, config.InterfaceName); err != nil {
+		_, dst, err := net.ParseCIDR(config.Destination)
+		if err != nil {
+			return err
+		}
+		src := net.ParseIP(config.Source)
+		if src == nil {
+			return fmt.Errorf("Invalid source for route: %s", config.Source)
+		}
+		gw := net.ParseIP(config.Gateway)
+		if gw == nil {
+			return fmt.Errorf("Invalid gateway for route: %s", config.Gateway)
+		}
+		l, err := netlink.LinkByName(config.InterfaceName)
+		if err != nil {
+			return err
+		}
+		route := &netlink.Route{
+			Scope:     netlink.SCOPE_UNIVERSE,
+			Dst:       dst,
+			Src:       src,
+			Gw:        gw,
+			LinkIndex: l.Attrs().Index,
+		}
+		if err := netlink.RouteAdd(route); err != nil {
 			return err
 		}
 	}
@@ -237,6 +294,11 @@ func setupRlimits(config *configs.Config) error {
 		}
 	}
 	return nil
+}
+
+func setOomScoreAdj(oomScoreAdj int) error {
+	path := "/proc/self/oom_score_adj"
+	return ioutil.WriteFile(path, []byte(strconv.Itoa(oomScoreAdj)), 0700)
 }
 
 // killCgroupProcesses freezes then iterates over all the processes inside the
@@ -269,62 +331,4 @@ func killCgroupProcesses(m cgroups.Manager) error {
 		}
 	}
 	return nil
-}
-
-func finalizeSeccomp(config *initConfig) error {
-	if config.Config.Seccomp == nil {
-		return nil
-	}
-	context := seccomp.New()
-	for _, s := range config.Config.Seccomp.Syscalls {
-		ss := &seccomp.Syscall{
-			Value:  uint32(s.Value),
-			Action: seccompAction(s.Action),
-		}
-		if len(s.Args) > 0 {
-			ss.Args = seccompArgs(s.Args)
-		}
-		context.Add(ss)
-	}
-	return context.Load()
-}
-
-func seccompAction(a configs.Action) seccomp.Action {
-	switch a {
-	case configs.Kill:
-		return seccomp.Kill
-	case configs.Trap:
-		return seccomp.Trap
-	case configs.Allow:
-		return seccomp.Allow
-	}
-	return seccomp.Error(syscall.Errno(int(a)))
-}
-
-func seccompArgs(args []*configs.Arg) seccomp.Args {
-	var sa []seccomp.Arg
-	for _, a := range args {
-		sa = append(sa, seccomp.Arg{
-			Index: uint32(a.Index),
-			Op:    seccompOperator(a.Op),
-			Value: uint(a.Value),
-		})
-	}
-	return seccomp.Args{sa}
-}
-
-func seccompOperator(o configs.Operator) seccomp.Operator {
-	switch o {
-	case configs.EqualTo:
-		return seccomp.EqualTo
-	case configs.NotEqualTo:
-		return seccomp.NotEqualTo
-	case configs.GreatherThan:
-		return seccomp.GreatherThan
-	case configs.LessThan:
-		return seccomp.LessThan
-	case configs.MaskEqualTo:
-		return seccomp.MaskEqualTo
-	}
-	return 0
 }

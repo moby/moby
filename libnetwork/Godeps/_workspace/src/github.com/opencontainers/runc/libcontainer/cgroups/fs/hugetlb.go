@@ -14,13 +14,17 @@ import (
 type HugetlbGroup struct {
 }
 
-func (s *HugetlbGroup) Apply(d *data) error {
+func (s *HugetlbGroup) Name() string {
+	return "hugetlb"
+}
+
+func (s *HugetlbGroup) Apply(d *cgroupData) error {
 	dir, err := d.join("hugetlb")
 	if err != nil && !cgroups.IsNotFound(err) {
 		return err
 	}
 
-	if err := s.Set(dir, d.c); err != nil {
+	if err := s.Set(dir, d.config); err != nil {
 		return err
 	}
 
@@ -29,7 +33,7 @@ func (s *HugetlbGroup) Apply(d *data) error {
 
 func (s *HugetlbGroup) Set(path string, cgroup *configs.Cgroup) error {
 	for _, hugetlb := range cgroup.HugetlbLimit {
-		if err := writeFile(path, strings.Join([]string{"hugetlb", hugetlb.Pagesize, "limit_in_bytes"}, "."), strconv.Itoa(hugetlb.Limit)); err != nil {
+		if err := writeFile(path, strings.Join([]string{"hugetlb", hugetlb.Pagesize, "limit_in_bytes"}, "."), strconv.FormatUint(hugetlb.Limit, 10)); err != nil {
 			return err
 		}
 	}
@@ -37,7 +41,7 @@ func (s *HugetlbGroup) Set(path string, cgroup *configs.Cgroup) error {
 	return nil
 }
 
-func (s *HugetlbGroup) Remove(d *data) error {
+func (s *HugetlbGroup) Remove(d *cgroupData) error {
 	return removePath(d.path("hugetlb"))
 }
 

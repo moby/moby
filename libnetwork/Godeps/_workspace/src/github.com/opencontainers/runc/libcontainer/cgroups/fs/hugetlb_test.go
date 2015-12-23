@@ -1,8 +1,10 @@
+// +build linux
+
 package fs
 
 import (
+	"fmt"
 	"strconv"
-	"strings"
 	"testing"
 
 	"github.com/opencontainers/runc/libcontainer/cgroups"
@@ -16,11 +18,10 @@ const (
 )
 
 var (
-	hugePageSize, _ = cgroups.GetHugePageSize()
-	usage           = strings.Join([]string{"hugetlb", hugePageSize[0], "usage_in_bytes"}, ".")
-	limit           = strings.Join([]string{"hugetlb", hugePageSize[0], "limit_in_bytes"}, ".")
-	maxUsage        = strings.Join([]string{"hugetlb", hugePageSize[0], "max_usage_in_bytes"}, ".")
-	failcnt         = strings.Join([]string{"hugetlb", hugePageSize[0], "failcnt"}, ".")
+	usage    = "hugetlb.%s.usage_in_bytes"
+	limit    = "hugetlb.%s.limit_in_bytes"
+	maxUsage = "hugetlb.%s.max_usage_in_bytes"
+	failcnt  = "hugetlb.%s.failcnt"
 )
 
 func TestHugetlbSetHugetlb(t *testing.T) {
@@ -32,38 +33,47 @@ func TestHugetlbSetHugetlb(t *testing.T) {
 		hugetlbAfter  = 512
 	)
 
-	helper.writeFileContents(map[string]string{
-		limit: strconv.Itoa(hugetlbBefore),
-	})
-
-	helper.CgroupData.c.HugetlbLimit = []*configs.HugepageLimit{
-		{
-			Pagesize: hugePageSize[0],
-			Limit:    hugetlbAfter,
-		},
-	}
-	hugetlb := &HugetlbGroup{}
-	if err := hugetlb.Set(helper.CgroupPath, helper.CgroupData.c); err != nil {
-		t.Fatal(err)
+	for _, pageSize := range HugePageSizes {
+		helper.writeFileContents(map[string]string{
+			fmt.Sprintf(limit, pageSize): strconv.Itoa(hugetlbBefore),
+		})
 	}
 
-	value, err := getCgroupParamUint(helper.CgroupPath, limit)
-	if err != nil {
-		t.Fatalf("Failed to parse %s - %s", limit, err)
+	for _, pageSize := range HugePageSizes {
+		helper.CgroupData.config.HugetlbLimit = []*configs.HugepageLimit{
+			{
+				Pagesize: pageSize,
+				Limit:    hugetlbAfter,
+			},
+		}
+		hugetlb := &HugetlbGroup{}
+		if err := hugetlb.Set(helper.CgroupPath, helper.CgroupData.config); err != nil {
+			t.Fatal(err)
+		}
 	}
-	if value != hugetlbAfter {
-		t.Fatalf("Set hugetlb.limit_in_bytes failed. Expected: %v, Got: %v", hugetlbAfter, value)
+
+	for _, pageSize := range HugePageSizes {
+		limit := fmt.Sprintf(limit, pageSize)
+		value, err := getCgroupParamUint(helper.CgroupPath, limit)
+		if err != nil {
+			t.Fatalf("Failed to parse %s - %s", limit, err)
+		}
+		if value != hugetlbAfter {
+			t.Fatalf("Set hugetlb.limit_in_bytes failed. Expected: %v, Got: %v", hugetlbAfter, value)
+		}
 	}
 }
 
 func TestHugetlbStats(t *testing.T) {
 	helper := NewCgroupTestUtil("hugetlb", t)
 	defer helper.cleanup()
-	helper.writeFileContents(map[string]string{
-		usage:    hugetlbUsageContents,
-		maxUsage: hugetlbMaxUsageContents,
-		failcnt:  hugetlbFailcnt,
-	})
+	for _, pageSize := range HugePageSizes {
+		helper.writeFileContents(map[string]string{
+			fmt.Sprintf(usage, pageSize):    hugetlbUsageContents,
+			fmt.Sprintf(maxUsage, pageSize): hugetlbMaxUsageContents,
+			fmt.Sprintf(failcnt, pageSize):  hugetlbFailcnt,
+		})
+	}
 
 	hugetlb := &HugetlbGroup{}
 	actualStats := *cgroups.NewStats()
@@ -72,7 +82,9 @@ func TestHugetlbStats(t *testing.T) {
 		t.Fatal(err)
 	}
 	expectedStats := cgroups.HugetlbStats{Usage: 128, MaxUsage: 256, Failcnt: 100}
-	expectHugetlbStatEquals(t, expectedStats, actualStats.HugetlbStats[hugePageSize[0]])
+	for _, pageSize := range HugePageSizes {
+		expectHugetlbStatEquals(t, expectedStats, actualStats.HugetlbStats[pageSize])
+	}
 }
 
 func TestHugetlbStatsNoUsageFile(t *testing.T) {
@@ -93,9 +105,11 @@ func TestHugetlbStatsNoUsageFile(t *testing.T) {
 func TestHugetlbStatsNoMaxUsageFile(t *testing.T) {
 	helper := NewCgroupTestUtil("hugetlb", t)
 	defer helper.cleanup()
-	helper.writeFileContents(map[string]string{
-		usage: hugetlbUsageContents,
-	})
+	for _, pageSize := range HugePageSizes {
+		helper.writeFileContents(map[string]string{
+			fmt.Sprintf(usage, pageSize): hugetlbUsageContents,
+		})
+	}
 
 	hugetlb := &HugetlbGroup{}
 	actualStats := *cgroups.NewStats()
@@ -108,10 +122,12 @@ func TestHugetlbStatsNoMaxUsageFile(t *testing.T) {
 func TestHugetlbStatsBadUsageFile(t *testing.T) {
 	helper := NewCgroupTestUtil("hugetlb", t)
 	defer helper.cleanup()
-	helper.writeFileContents(map[string]string{
-		usage:    "bad",
-		maxUsage: hugetlbMaxUsageContents,
-	})
+	for _, pageSize := range HugePageSizes {
+		helper.writeFileContents(map[string]string{
+			fmt.Sprintf(usage, pageSize): "bad",
+			maxUsage:                     hugetlbMaxUsageContents,
+		})
+	}
 
 	hugetlb := &HugetlbGroup{}
 	actualStats := *cgroups.NewStats()

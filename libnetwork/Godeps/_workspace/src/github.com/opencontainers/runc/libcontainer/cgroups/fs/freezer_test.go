@@ -1,3 +1,5 @@
+// +build linux
+
 package fs
 
 import (
@@ -14,9 +16,9 @@ func TestFreezerSetState(t *testing.T) {
 		"freezer.state": string(configs.Frozen),
 	})
 
-	helper.CgroupData.c.Freezer = configs.Thawed
+	helper.CgroupData.config.Freezer = configs.Thawed
 	freezer := &FreezerGroup{}
-	if err := freezer.Set(helper.CgroupPath, helper.CgroupData.c); err != nil {
+	if err := freezer.Set(helper.CgroupPath, helper.CgroupData.config); err != nil {
 		t.Fatal(err)
 	}
 
@@ -37,9 +39,9 @@ func TestFreezerSetInvalidState(t *testing.T) {
 		invalidArg configs.FreezerState = "Invalid"
 	)
 
-	helper.CgroupData.c.Freezer = invalidArg
+	helper.CgroupData.config.Freezer = invalidArg
 	freezer := &FreezerGroup{}
-	if err := freezer.Set(helper.CgroupPath, helper.CgroupData.c); err == nil {
+	if err := freezer.Set(helper.CgroupPath, helper.CgroupData.config); err == nil {
 		t.Fatal("Failed to return invalid argument error")
 	}
 }

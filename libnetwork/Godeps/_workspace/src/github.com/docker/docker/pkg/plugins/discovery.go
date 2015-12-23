@@ -18,23 +18,15 @@ var (
 	specsPaths  = []string{"/etc/docker/plugins", "/usr/lib/docker/plugins"}
 )
 
-// Registry defines behavior of a registry of plugins.
-type Registry interface {
-	// Plugins lists all plugins.
-	Plugins() ([]*Plugin, error)
-	// Plugin returns the plugin registered with the given name (or returns an error).
-	Plugin(name string) (*Plugin, error)
-}
+// localRegistry defines a registry that is local (using unix socket).
+type localRegistry struct{}
 
-// LocalRegistry defines a registry that is local (using unix socket).
-type LocalRegistry struct{}
-
-func newLocalRegistry() LocalRegistry {
-	return LocalRegistry{}
+func newLocalRegistry() localRegistry {
+	return localRegistry{}
 }
 
 // Plugin returns the plugin registered with the given name (or returns an error).
-func (l *LocalRegistry) Plugin(name string) (*Plugin, error) {
+func (l *localRegistry) Plugin(name string) (*Plugin, error) {
 	socketpaths := pluginPaths(socketsPath, name, ".sock")
 
 	for _, p := range socketpaths {

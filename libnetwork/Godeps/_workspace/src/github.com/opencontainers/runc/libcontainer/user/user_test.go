@@ -434,3 +434,39 @@ this is just some garbage data
 		}
 	}
 }
+
+func TestGetAdditionalGroupsNumeric(t *testing.T) {
+	tests := []struct {
+		groups   []string
+		expected []int
+		hasError bool
+	}{
+		{
+			// numeric groups only
+			groups:   []string{"1234", "5678"},
+			expected: []int{1234, 5678},
+		},
+		{
+			// numeric and alphabetic
+			groups:   []string{"1234", "fake"},
+			expected: nil,
+			hasError: true,
+		},
+	}
+
+	for _, test := range tests {
+		gids, err := GetAdditionalGroups(test.groups, nil)
+		if test.hasError && err == nil {
+			t.Errorf("Parse(%#v) expects error but has none", test)
+			continue
+		}
+		if !test.hasError && err != nil {
+			t.Errorf("Parse(%#v) has error %v", test, err)
+			continue
+		}
+		sort.Sort(sort.IntSlice(gids))
+		if !reflect.DeepEqual(gids, test.expected) {
+			t.Errorf("Gids(%v), expect %v from groups %v", gids, test.expected, test.groups)
+		}
+	}
+}

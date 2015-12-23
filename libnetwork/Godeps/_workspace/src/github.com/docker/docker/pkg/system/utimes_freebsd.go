@@ -20,9 +20,3 @@ func LUtimesNano(path string, ts []syscall.Timespec) error {
 
 	return nil
 }
-
-// UtimesNano is used to change access and modification time of the specified path.
-// It can't be used for symbol link file.
-func UtimesNano(path string, ts []syscall.Timespec) error {
-	return syscall.UtimesNano(path, ts)
-}

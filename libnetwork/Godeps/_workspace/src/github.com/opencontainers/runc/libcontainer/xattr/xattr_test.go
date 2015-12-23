@@ -9,12 +9,13 @@ import (
 	"github.com/opencontainers/runc/libcontainer/xattr"
 )
 
-func testXattr(t *testing.T) {
+func TestXattr(t *testing.T) {
 	tmp := "xattr_test"
-	out, err := os.OpenFile(tmp, os.O_WRONLY, 0)
+	out, err := os.OpenFile(tmp, os.O_WRONLY|os.O_CREATE, 0)
 	if err != nil {
 		t.Fatal("failed")
 	}
+	defer os.Remove(tmp)
 	attr := "user.test"
 	out.Close()
 

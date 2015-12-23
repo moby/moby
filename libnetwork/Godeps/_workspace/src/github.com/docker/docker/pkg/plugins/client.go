@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -18,15 +19,6 @@ const (
 	versionMimetype = "application/vnd.docker.plugins.v1.1+json"
 	defaultTimeOut  = 30
 )
-
-type remoteError struct {
-	method string
-	err    string
-}
-
-func (e *remoteError) Error() string {
-	return fmt.Sprintf("Plugin Error: %s, %s", e.err, e.method)
-}
 
 // NewClient creates a new plugin client (http).
 func NewClient(addr string, tlsConfig tlsconfig.Options) (*Client, error) {
@@ -58,18 +50,52 @@ type Client struct {
 // Call calls the specified method with the specified arguments for the plugin.
 // It will retry for 30 seconds if a failure occurs when calling.
 func (c *Client) Call(serviceMethod string, args interface{}, ret interface{}) error {
-	return c.callWithRetry(serviceMethod, args, ret, true)
-}
-
-func (c *Client) callWithRetry(serviceMethod string, args interface{}, ret interface{}, retry bool) error {
 	var buf bytes.Buffer
-	if err := json.NewEncoder(&buf).Encode(args); err != nil {
-		return err
+	if args != nil {
+		if err := json.NewEncoder(&buf).Encode(args); err != nil {
+			return err
+		}
 	}
-
-	req, err := http.NewRequest("POST", "/"+serviceMethod, &buf)
+	body, err := c.callWithRetry(serviceMethod, &buf, true)
 	if err != nil {
 		return err
+	}
+	defer body.Close()
+	if ret != nil {
+		if err := json.NewDecoder(body).Decode(&ret); err != nil {
+			logrus.Errorf("%s: error reading plugin resp: %v", serviceMethod, err)
+			return err
+		}
+	}
+	return nil
+}
+
+// Stream calls the specified method with the specified arguments for the plugin and returns the response body
+func (c *Client) Stream(serviceMethod string, args interface{}) (io.ReadCloser, error) {
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(args); err != nil {
+		return nil, err
+	}
+	return c.callWithRetry(serviceMethod, &buf, true)
+}
+
+// SendFile calls the specified method, and passes through the IO stream
+func (c *Client) SendFile(serviceMethod string, data io.Reader, ret interface{}) error {
+	body, err := c.callWithRetry(serviceMethod, data, true)
+	if err != nil {
+		return err
+	}
+	if err := json.NewDecoder(body).Decode(&ret); err != nil {
+		logrus.Errorf("%s: error reading plugin resp: %v", serviceMethod, err)
+		return err
+	}
+	return nil
+}
+
+func (c *Client) callWithRetry(serviceMethod string, data io.Reader, retry bool) (io.ReadCloser, error) {
+	req, err := http.NewRequest("POST", "/"+serviceMethod, data)
+	if err != nil {
+		return nil, err
 	}
 	req.Header.Add("Accept", versionMimetype)
 	req.URL.Scheme = c.scheme
@@ -82,12 +108,12 @@ func (c *Client) callWithRetry(serviceMethod string, args interface{}, ret inter
 		resp, err := c.http.Do(req)
 		if err != nil {
 			if !retry {
-				return err
+				return nil, err
 			}
 
 			timeOff := backoff(retries)
 			if abort(start, timeOff) {
-				return err
+				return nil, err
 			}
 			retries++
 			logrus.Warnf("Unable to connect to plugin: %s, retrying in %v", c.addr, timeOff)
@@ -95,16 +121,29 @@ func (c *Client) callWithRetry(serviceMethod string, args interface{}, ret inter
 			continue
 		}
 
-		defer resp.Body.Close()
 		if resp.StatusCode != http.StatusOK {
-			remoteErr, err := ioutil.ReadAll(resp.Body)
+			b, err := ioutil.ReadAll(resp.Body)
 			if err != nil {
-				return &remoteError{err.Error(), serviceMethod}
+				return nil, fmt.Errorf("%s: %s", serviceMethod, err)
 			}
-			return &remoteError{string(remoteErr), serviceMethod}
-		}
 
-		return json.NewDecoder(resp.Body).Decode(&ret)
+			// Plugins' Response(s) should have an Err field indicating what went
+			// wrong. Try to unmarshal into ResponseErr. Otherwise fallback to just
+			// return the string(body)
+			type responseErr struct {
+				Err string
+			}
+			remoteErr := responseErr{}
+			if err := json.Unmarshal(b, &remoteErr); err != nil {
+				return nil, fmt.Errorf("%s: %s", serviceMethod, err)
+			}
+			if remoteErr.Err != "" {
+				return nil, fmt.Errorf("%s: %s", serviceMethod, remoteErr.Err)
+			}
+			// old way...
+			return nil, fmt.Errorf("%s: %s", serviceMethod, string(b))
+		}
+		return resp.Body, nil
 	}
 }
 

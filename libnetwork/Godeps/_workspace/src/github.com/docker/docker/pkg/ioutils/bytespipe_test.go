@@ -3,7 +3,9 @@ package ioutils
 import (
 	"crypto/sha1"
 	"encoding/hex"
+	"math/rand"
 	"testing"
+	"time"
 )
 
 func TestBytesPipeRead(t *testing.T) {
@@ -86,25 +88,32 @@ func TestBytesPipeWriteRandomChunks(t *testing.T) {
 		// write/read through buffer
 		buf := NewBytesPipe(nil)
 		hash.Reset()
+
+		done := make(chan struct{})
+
+		go func() {
+			// random delay before read starts
+			<-time.After(time.Duration(rand.Intn(10)) * time.Millisecond)
+			for i := 0; ; i++ {
+				p := make([]byte, readChunks[(c.iterations*c.readsPerLoop+i)%len(readChunks)])
+				n, _ := buf.Read(p)
+				if n == 0 {
+					break
+				}
+				hash.Write(p[:n])
+			}
+
+			close(done)
+		}()
+
 		for i := 0; i < c.iterations; i++ {
 			for w := 0; w < c.writesPerLoop; w++ {
 				buf.Write(testMessage[:writeChunks[(i*c.writesPerLoop+w)%len(writeChunks)]])
 			}
-			for r := 0; r < c.readsPerLoop; r++ {
-				p := make([]byte, readChunks[(i*c.readsPerLoop+r)%len(readChunks)])
-				n, _ := buf.Read(p)
-				hash.Write(p[:n])
-			}
 		}
-		// read rest of the data from buffer
-		for i := 0; ; i++ {
-			p := make([]byte, readChunks[(c.iterations*c.readsPerLoop+i)%len(readChunks)])
-			n, _ := buf.Read(p)
-			if n == 0 {
-				break
-			}
-			hash.Write(p[:n])
-		}
+		buf.Close()
+		<-done
+
 		actual := hex.EncodeToString(hash.Sum(nil))
 
 		if expected != actual {
@@ -116,24 +125,32 @@ func TestBytesPipeWriteRandomChunks(t *testing.T) {
 
 func BenchmarkBytesPipeWrite(b *testing.B) {
 	for i := 0; i < b.N; i++ {
+		readBuf := make([]byte, 1024)
 		buf := NewBytesPipe(nil)
+		go func() {
+			var err error
+			for err == nil {
+				_, err = buf.Read(readBuf)
+			}
+		}()
 		for j := 0; j < 1000; j++ {
 			buf.Write([]byte("pretty short line, because why not?"))
 		}
+		buf.Close()
 	}
 }
 
 func BenchmarkBytesPipeRead(b *testing.B) {
-	rd := make([]byte, 1024)
+	rd := make([]byte, 512)
 	for i := 0; i < b.N; i++ {
 		b.StopTimer()
 		buf := NewBytesPipe(nil)
-		for j := 0; j < 1000; j++ {
+		for j := 0; j < 500; j++ {
 			buf.Write(make([]byte, 1024))
 		}
 		b.StartTimer()
 		for j := 0; j < 1000; j++ {
-			if n, _ := buf.Read(rd); n != 1024 {
+			if n, _ := buf.Read(rd); n != 512 {
 				b.Fatalf("Wrong number of bytes: %d", n)
 			}
 		}

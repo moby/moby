@@ -90,28 +90,50 @@ func TestDuplicateLabel(t *testing.T) {
 func TestRelabel(t *testing.T) {
 	testdir := "/tmp/test"
 	label := "system_u:system_r:svirt_sandbox_file_t:s0:c1,c2"
-	if err := Relabel(testdir, "", "z"); err != nil {
+	if err := Relabel(testdir, "", true); err != nil {
 		t.Fatal("Relabel with no label failed: %v", err)
 	}
-	if err := Relabel(testdir, label, ""); err != nil {
-		t.Fatal("Relabel with no relabel field failed: %v", err)
-	}
-	if err := Relabel(testdir, label, "z"); err != nil {
+	if err := Relabel(testdir, label, true); err != nil {
 		t.Fatal("Relabel shared failed: %v", err)
 	}
-	if err := Relabel(testdir, label, "Z"); err != nil {
+	if err := Relabel(testdir, label, false); err != nil {
 		t.Fatal("Relabel unshared failed: %v", err)
 	}
-	if err := Relabel(testdir, label, "zZ"); err == nil {
-		t.Fatal("Relabel with shared and unshared succeeded")
-	}
-	if err := Relabel("/etc", label, "zZ"); err == nil {
+	if err := Relabel("/etc", label, false); err == nil {
 		t.Fatal("Relabel /etc succeeded")
 	}
-	if err := Relabel("/", label, ""); err == nil {
+	if err := Relabel("/", label, false); err == nil {
 		t.Fatal("Relabel / succeeded")
 	}
-	if err := Relabel("/usr", label, "Z"); err == nil {
+	if err := Relabel("/usr", label, false); err == nil {
 		t.Fatal("Relabel /usr succeeded")
 	}
+}
+
+func TestValidate(t *testing.T) {
+	if err := Validate("zZ"); err != ErrIncompatibleLabel {
+		t.Fatalf("Expected incompatible error, got %v", err)
+	}
+	if err := Validate("Z"); err != nil {
+		t.Fatal(err)
+	}
+	if err := Validate("z"); err != nil {
+		t.Fatal(err)
+	}
+	if err := Validate(""); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestIsShared(t *testing.T) {
+	if shared := IsShared("Z"); shared {
+		t.Fatal("Expected label `Z` to not be shared, got %v", shared)
+	}
+	if shared := IsShared("z"); !shared {
+		t.Fatal("Expected label `z` to be shared, got %v", shared)
+	}
+	if shared := IsShared("Zz"); !shared {
+		t.Fatal("Expected label `Zz` to be shared, got %v", shared)
+	}
+
 }

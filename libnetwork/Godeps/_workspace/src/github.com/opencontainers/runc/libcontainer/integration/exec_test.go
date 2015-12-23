@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -336,7 +337,7 @@ func TestProcessCaps(t *testing.T) {
 	ok(t, err)
 	defer container.Destroy()
 
-	processCaps := append(config.Capabilities, "NET_ADMIN")
+	processCaps := append(config.Capabilities, "CAP_NET_ADMIN")
 
 	var stdout bytes.Buffer
 	pconfig := libcontainer.Process{
@@ -514,7 +515,7 @@ func testCpuShares(t *testing.T, systemd bool) {
 
 	config := newTemplateConfig(rootfs)
 	if systemd {
-		config.Cgroups.Slice = "system.slice"
+		config.Cgroups.Parent = "system.slice"
 	}
 	config.Cgroups.CpuShares = 1
 
@@ -545,7 +546,7 @@ func testRunWithKernelMemory(t *testing.T, systemd bool) {
 
 	config := newTemplateConfig(rootfs)
 	if systemd {
-		config.Cgroups.Slice = "system.slice"
+		config.Cgroups.Parent = "system.slice"
 	}
 	config.Cgroups.KernelMemory = 52428800
 
@@ -793,33 +794,6 @@ func TestSysctl(t *testing.T) {
 	}
 }
 
-func TestSeccompNoChown(t *testing.T) {
-	if testing.Short() {
-		return
-	}
-	rootfs, err := newRootfs()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer remove(rootfs)
-	config := newTemplateConfig(rootfs)
-	config.Seccomp = &configs.Seccomp{}
-	config.Seccomp.Syscalls = append(config.Seccomp.Syscalls, &configs.Syscall{
-		Value:  syscall.SYS_CHOWN,
-		Action: configs.Action(syscall.EPERM),
-	})
-	buffers, _, err := runContainer(config, "", "/bin/sh", "-c", "chown 1:1 /tmp")
-	if err == nil {
-		t.Fatal("running chown in a container should fail")
-	}
-	if buffers == nil {
-		t.Fatalf("Container wasn't even created: %v", err)
-	}
-	if s := buffers.String(); !strings.Contains(s, "not permitted") {
-		t.Fatalf("running chown should result in an EPERM but got %q", s)
-	}
-}
-
 func TestMountCgroupRO(t *testing.T) {
 	if testing.Short() {
 		return
@@ -846,7 +820,10 @@ func TestMountCgroupRO(t *testing.T) {
 	lines := strings.Split(mountInfo, "\n")
 	for _, l := range lines {
 		if strings.HasPrefix(l, "tmpfs on /sys/fs/cgroup") {
-			if !strings.Contains(l, "ro,nosuid,nodev,noexec") {
+			if !strings.Contains(l, "ro") ||
+				!strings.Contains(l, "nosuid") ||
+				!strings.Contains(l, "nodev") ||
+				!strings.Contains(l, "noexec") {
 				t.Fatalf("Mode expected to contain 'ro,nosuid,nodev,noexec': %s", l)
 			}
 			if !strings.Contains(l, "mode=755") {
@@ -857,7 +834,10 @@ func TestMountCgroupRO(t *testing.T) {
 		if !strings.HasPrefix(l, "cgroup") {
 			continue
 		}
-		if !strings.Contains(l, "ro,nosuid,nodev,noexec") {
+		if !strings.Contains(l, "ro") ||
+			!strings.Contains(l, "nosuid") ||
+			!strings.Contains(l, "nodev") ||
+			!strings.Contains(l, "noexec") {
 			t.Fatalf("Mode expected to contain 'ro,nosuid,nodev,noexec': %s", l)
 		}
 	}
@@ -889,7 +869,10 @@ func TestMountCgroupRW(t *testing.T) {
 	lines := strings.Split(mountInfo, "\n")
 	for _, l := range lines {
 		if strings.HasPrefix(l, "tmpfs on /sys/fs/cgroup") {
-			if !strings.Contains(l, "rw,nosuid,nodev,noexec") {
+			if !strings.Contains(l, "rw") ||
+				!strings.Contains(l, "nosuid") ||
+				!strings.Contains(l, "nodev") ||
+				!strings.Contains(l, "noexec") {
 				t.Fatalf("Mode expected to contain 'rw,nosuid,nodev,noexec': %s", l)
 			}
 			if !strings.Contains(l, "mode=755") {
@@ -900,8 +883,396 @@ func TestMountCgroupRW(t *testing.T) {
 		if !strings.HasPrefix(l, "cgroup") {
 			continue
 		}
-		if !strings.Contains(l, "rw,nosuid,nodev,noexec") {
+		if !strings.Contains(l, "rw") ||
+			!strings.Contains(l, "nosuid") ||
+			!strings.Contains(l, "nodev") ||
+			!strings.Contains(l, "noexec") {
 			t.Fatalf("Mode expected to contain 'rw,nosuid,nodev,noexec': %s", l)
 		}
+	}
+}
+
+func TestOomScoreAdj(t *testing.T) {
+	if testing.Short() {
+		return
+	}
+	root, err := newTestRoot()
+	ok(t, err)
+	defer os.RemoveAll(root)
+
+	rootfs, err := newRootfs()
+	ok(t, err)
+	defer remove(rootfs)
+
+	config := newTemplateConfig(rootfs)
+	config.OomScoreAdj = 200
+
+	factory, err := libcontainer.New(root, libcontainer.Cgroupfs)
+	ok(t, err)
+
+	container, err := factory.Create("test", config)
+	ok(t, err)
+	defer container.Destroy()
+
+	var stdout bytes.Buffer
+	pconfig := libcontainer.Process{
+		Args:   []string{"sh", "-c", "cat /proc/self/oom_score_adj"},
+		Env:    standardEnvironment,
+		Stdin:  nil,
+		Stdout: &stdout,
+	}
+	err = container.Start(&pconfig)
+	ok(t, err)
+
+	// Wait for process
+	waitProcess(&pconfig, t)
+	outputOomScoreAdj := strings.TrimSpace(string(stdout.Bytes()))
+
+	// Check that the oom_score_adj matches the value that was set as part of config.
+	if outputOomScoreAdj != strconv.Itoa(config.OomScoreAdj) {
+		t.Fatalf("Expected oom_score_adj %d; got %q", config.OomScoreAdj, outputOomScoreAdj)
+	}
+}
+
+func TestHook(t *testing.T) {
+	if testing.Short() {
+		return
+	}
+	root, err := newTestRoot()
+	ok(t, err)
+	defer os.RemoveAll(root)
+
+	rootfs, err := newRootfs()
+	ok(t, err)
+	defer remove(rootfs)
+
+	config := newTemplateConfig(rootfs)
+	config.Hooks = &configs.Hooks{
+		Prestart: []configs.Hook{
+			configs.NewFunctionHook(func(s configs.HookState) error {
+				f, err := os.Create(filepath.Join(s.Root, "test"))
+				if err != nil {
+					return err
+				}
+				return f.Close()
+			}),
+		},
+		Poststop: []configs.Hook{
+			configs.NewFunctionHook(func(s configs.HookState) error {
+				return os.RemoveAll(filepath.Join(s.Root, "test"))
+			}),
+		},
+	}
+	container, err := factory.Create("test", config)
+	ok(t, err)
+
+	var stdout bytes.Buffer
+	pconfig := libcontainer.Process{
+		Args:   []string{"sh", "-c", "ls /test"},
+		Env:    standardEnvironment,
+		Stdin:  nil,
+		Stdout: &stdout,
+	}
+	err = container.Start(&pconfig)
+	ok(t, err)
+
+	// Wait for process
+	waitProcess(&pconfig, t)
+
+	outputLs := string(stdout.Bytes())
+
+	// Check that the ls output has the expected file touched by the prestart hook
+	if !strings.Contains(outputLs, "/test") {
+		container.Destroy()
+		t.Fatalf("ls output doesn't have the expected file: %s", outputLs)
+	}
+
+	if err := container.Destroy(); err != nil {
+		t.Fatalf("container destory %s", err)
+	}
+	fi, err := os.Stat(filepath.Join(rootfs, "test"))
+	if err == nil || !os.IsNotExist(err) {
+		t.Fatalf("expected file to not exist, got %s", fi.Name())
+	}
+}
+
+func TestSTDIOPermissions(t *testing.T) {
+	if testing.Short() {
+		return
+	}
+
+	rootfs, err := newRootfs()
+	ok(t, err)
+	defer remove(rootfs)
+	config := newTemplateConfig(rootfs)
+	buffers, exitCode, err := runContainer(config, "", "sh", "-c", "echo hi > /dev/stderr")
+	ok(t, err)
+	if exitCode != 0 {
+		t.Fatalf("exit code not 0. code %d stderr %q", exitCode, buffers.Stderr)
+	}
+
+	if actual := strings.Trim(buffers.Stderr.String(), "\n"); actual != "hi" {
+		t.Fatalf("stderr should equal be equal %q %q", actual, "hi")
+	}
+}
+
+func unmountOp(path string) error {
+	if err := syscall.Unmount(path, syscall.MNT_DETACH); err != nil {
+		return err
+	}
+	return nil
+}
+
+// Launch container with rootfsPropagation in rslave mode. Also
+// bind mount a volume /mnt1host at /mnt1cont at the time of launch. Now do
+// another mount on host (/mnt1host/mnt2host) and this new mount should
+// propagate to container (/mnt1cont/mnt2host)
+func TestRootfsPropagationSlaveMount(t *testing.T) {
+	var mountPropagated bool
+	var dir1cont string
+	var dir2cont string
+
+	dir1cont = "/root/mnt1cont"
+
+	if testing.Short() {
+		return
+	}
+	rootfs, err := newRootfs()
+	ok(t, err)
+	defer remove(rootfs)
+	config := newTemplateConfig(rootfs)
+
+	config.RootPropagation = syscall.MS_SLAVE | syscall.MS_REC
+
+	// Bind mount a volume
+	dir1host, err := ioutil.TempDir("", "mnt1host")
+	ok(t, err)
+	defer os.RemoveAll(dir1host)
+
+	// Make this dir a "shared" mount point. This will make sure a
+	// slave relationship can be established in container.
+	err = syscall.Mount(dir1host, dir1host, "bind", syscall.MS_BIND|syscall.MS_REC, "")
+	ok(t, err)
+	err = syscall.Mount("", dir1host, "", syscall.MS_SHARED|syscall.MS_REC, "")
+	ok(t, err)
+	defer unmountOp(dir1host)
+
+	config.Mounts = append(config.Mounts, &configs.Mount{
+		Source:      dir1host,
+		Destination: dir1cont,
+		Device:      "bind",
+		Flags:       syscall.MS_BIND | syscall.MS_REC})
+
+	// TODO: systemd specific processing
+	f := factory
+
+	container, err := f.Create("testSlaveMount", config)
+	ok(t, err)
+	defer container.Destroy()
+
+	stdinR, stdinW, err := os.Pipe()
+	ok(t, err)
+
+	pconfig := &libcontainer.Process{
+		Args:  []string{"cat"},
+		Env:   standardEnvironment,
+		Stdin: stdinR,
+	}
+
+	err = container.Start(pconfig)
+	stdinR.Close()
+	defer stdinW.Close()
+	ok(t, err)
+
+	// Create mnt1host/mnt2host and bind mount itself on top of it. This
+	// should be visible in container.
+	dir2host, err := ioutil.TempDir(dir1host, "mnt2host")
+	ok(t, err)
+	defer os.RemoveAll(dir2host)
+
+	err = syscall.Mount(dir2host, dir2host, "bind", syscall.MS_BIND, "")
+	defer unmountOp(dir2host)
+	ok(t, err)
+
+	// Run "cat /proc/self/mountinfo" in container and look at mount points.
+	var stdout2 bytes.Buffer
+
+	stdinR2, stdinW2, err := os.Pipe()
+	ok(t, err)
+
+	pconfig2 := &libcontainer.Process{
+		Args:   []string{"cat", "/proc/self/mountinfo"},
+		Env:    standardEnvironment,
+		Stdin:  stdinR2,
+		Stdout: &stdout2,
+	}
+
+	err = container.Start(pconfig2)
+	stdinR2.Close()
+	defer stdinW2.Close()
+	ok(t, err)
+
+	// Wait for process
+	stdinW2.Close()
+	waitProcess(pconfig2, t)
+	stdinW.Close()
+	waitProcess(pconfig, t)
+
+	mountPropagated = false
+	dir2cont = filepath.Join(dir1cont, filepath.Base(dir2host))
+
+	propagationInfo := string(stdout2.Bytes())
+	lines := strings.Split(propagationInfo, "\n")
+	for _, l := range lines {
+		linefields := strings.Split(l, " ")
+		if len(linefields) < 5 {
+			continue
+		}
+
+		if linefields[4] == dir2cont {
+			mountPropagated = true
+			break
+		}
+	}
+
+	if mountPropagated != true {
+		t.Fatalf("Mount on host %s did not propagate in container at %s\n", dir2host, dir2cont)
+	}
+}
+
+// Launch container with rootfsPropagation 0 so no propagation flags are
+// applied. Also bind mount a volume /mnt1host at /mnt1cont at the time of
+// launch. Now do a mount in container (/mnt1cont/mnt2cont) and this new
+// mount should propagate to host (/mnt1host/mnt2cont)
+
+func TestRootfsPropagationSharedMount(t *testing.T) {
+	var dir1cont string
+	var dir2cont string
+
+	dir1cont = "/root/mnt1cont"
+
+	if testing.Short() {
+		return
+	}
+	rootfs, err := newRootfs()
+	ok(t, err)
+	defer remove(rootfs)
+	config := newTemplateConfig(rootfs)
+	config.RootPropagation = syscall.MS_PRIVATE
+
+	// Bind mount a volume
+	dir1host, err := ioutil.TempDir("", "mnt1host")
+	ok(t, err)
+	defer os.RemoveAll(dir1host)
+
+	// Make this dir a "shared" mount point. This will make sure a
+	// shared relationship can be established in container.
+	err = syscall.Mount(dir1host, dir1host, "bind", syscall.MS_BIND|syscall.MS_REC, "")
+	ok(t, err)
+	err = syscall.Mount("", dir1host, "", syscall.MS_SHARED|syscall.MS_REC, "")
+	ok(t, err)
+	defer unmountOp(dir1host)
+
+	config.Mounts = append(config.Mounts, &configs.Mount{
+		Source:      dir1host,
+		Destination: dir1cont,
+		Device:      "bind",
+		Flags:       syscall.MS_BIND | syscall.MS_REC})
+
+	// TODO: systemd specific processing
+	f := factory
+
+	container, err := f.Create("testSharedMount", config)
+	ok(t, err)
+	defer container.Destroy()
+
+	stdinR, stdinW, err := os.Pipe()
+	ok(t, err)
+
+	pconfig := &libcontainer.Process{
+		Args:  []string{"cat"},
+		Env:   standardEnvironment,
+		Stdin: stdinR,
+	}
+
+	err = container.Start(pconfig)
+	stdinR.Close()
+	defer stdinW.Close()
+	ok(t, err)
+
+	// Create mnt1host/mnt2cont.  This will become visible inside container
+	// at mnt1cont/mnt2cont. Bind mount itself on top of it. This
+	// should be visible on host now.
+	dir2host, err := ioutil.TempDir(dir1host, "mnt2cont")
+	ok(t, err)
+	defer os.RemoveAll(dir2host)
+
+	dir2cont = filepath.Join(dir1cont, filepath.Base(dir2host))
+
+	// Mount something in container and see if it is visible on host.
+	var stdout2 bytes.Buffer
+
+	stdinR2, stdinW2, err := os.Pipe()
+	ok(t, err)
+
+	// Provide CAP_SYS_ADMIN
+	processCaps := append(config.Capabilities, "CAP_SYS_ADMIN")
+
+	pconfig2 := &libcontainer.Process{
+		Args:         []string{"mount", "--bind", dir2cont, dir2cont},
+		Env:          standardEnvironment,
+		Stdin:        stdinR2,
+		Stdout:       &stdout2,
+		Capabilities: processCaps,
+	}
+
+	err = container.Start(pconfig2)
+	stdinR2.Close()
+	defer stdinW2.Close()
+	ok(t, err)
+
+	// Wait for process
+	stdinW2.Close()
+	waitProcess(pconfig2, t)
+	stdinW.Close()
+	waitProcess(pconfig, t)
+
+	defer unmountOp(dir2host)
+
+	// Check if mount is visible on host or not.
+	out, err := exec.Command("findmnt", "-n", "-f", "-oTARGET", dir2host).CombinedOutput()
+	outtrim := strings.TrimSpace(string(out))
+	if err != nil {
+		t.Logf("findmnt error %q: %q", err, outtrim)
+	}
+
+	if string(outtrim) != dir2host {
+		t.Fatalf("Mount in container on %s did not propagate to host on %s. finmnt output=%s", dir2cont, dir2host, outtrim)
+	}
+}
+
+func TestPIDHost(t *testing.T) {
+	if testing.Short() {
+		return
+	}
+
+	rootfs, err := newRootfs()
+	ok(t, err)
+	defer remove(rootfs)
+
+	l, err := os.Readlink("/proc/1/ns/pid")
+	ok(t, err)
+
+	config := newTemplateConfig(rootfs)
+	config.Namespaces.Remove(configs.NEWPID)
+	buffers, exitCode, err := runContainer(config, "", "readlink", "/proc/self/ns/pid")
+	ok(t, err)
+
+	if exitCode != 0 {
+		t.Fatalf("exit code not 0. code %d stderr %q", exitCode, buffers.Stderr)
+	}
+
+	if actual := strings.Trim(buffers.Stdout.String(), "\n"); actual != l {
+		t.Fatalf("ipc link not equal to host link %q %q", actual, l)
 	}
 }

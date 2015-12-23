@@ -1,13 +1,13 @@
 package ioutils
 
 import (
-	"bytes"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"strings"
 	"testing"
 	"time"
+
+	"golang.org/x/net/context"
 )
 
 // Implement io.Reader
@@ -58,101 +58,6 @@ func TestReaderErrWrapperRead(t *testing.T) {
 	}
 }
 
-func TestNewBufReaderWithDrainbufAndBuffer(t *testing.T) {
-	reader, writer := io.Pipe()
-
-	drainBuffer := make([]byte, 1024)
-	buffer := NewBytesPipe(nil)
-	bufreader := NewBufReaderWithDrainbufAndBuffer(reader, drainBuffer, buffer)
-
-	// Write everything down to a Pipe
-	// Usually, a pipe should block but because of the buffered reader,
-	// the writes will go through
-	done := make(chan bool)
-	go func() {
-		writer.Write([]byte("hello world"))
-		writer.Close()
-		done <- true
-	}()
-
-	// Drain the reader *after* everything has been written, just to verify
-	// it is indeed buffering
-	select {
-	case <-done:
-	case <-time.After(1 * time.Second):
-		t.Fatal("timeout")
-	}
-
-	output, err := ioutil.ReadAll(bufreader)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !bytes.Equal(output, []byte("hello world")) {
-		t.Error(string(output))
-	}
-}
-
-func TestBufReader(t *testing.T) {
-	reader, writer := io.Pipe()
-	bufreader := NewBufReader(reader)
-
-	// Write everything down to a Pipe
-	// Usually, a pipe should block but because of the buffered reader,
-	// the writes will go through
-	done := make(chan bool)
-	go func() {
-		writer.Write([]byte("hello world"))
-		writer.Close()
-		done <- true
-	}()
-
-	// Drain the reader *after* everything has been written, just to verify
-	// it is indeed buffering
-	<-done
-	output, err := ioutil.ReadAll(bufreader)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !bytes.Equal(output, []byte("hello world")) {
-		t.Error(string(output))
-	}
-}
-
-func TestBufReaderCloseWithNonReaderCloser(t *testing.T) {
-	reader := strings.NewReader("buffer")
-	bufreader := NewBufReader(reader)
-
-	if err := bufreader.Close(); err != nil {
-		t.Fatal(err)
-	}
-
-}
-
-// implements io.ReadCloser
-type simpleReaderCloser struct {
-	err error
-}
-
-func (r *simpleReaderCloser) Read(p []byte) (n int, err error) {
-	return 0, r.err
-}
-
-func (r *simpleReaderCloser) Close() error {
-	r.err = io.EOF
-	return nil
-}
-
-func TestBufReaderCloseWithReaderCloser(t *testing.T) {
-	reader := &simpleReaderCloser{}
-	bufreader := NewBufReader(reader)
-
-	err := bufreader.Close()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-}
-
 func TestHashData(t *testing.T) {
 	reader := strings.NewReader("hash-me")
 	actual, err := HashData(reader)
@@ -165,60 +70,25 @@ func TestHashData(t *testing.T) {
 	}
 }
 
-type repeatedReader struct {
-	readCount int
-	maxReads  int
-	data      []byte
-}
+type perpetualReader struct{}
 
-func newRepeatedReader(max int, data []byte) *repeatedReader {
-	return &repeatedReader{0, max, data}
-}
-
-func (r *repeatedReader) Read(p []byte) (int, error) {
-	if r.readCount >= r.maxReads {
-		return 0, io.EOF
+func (p *perpetualReader) Read(buf []byte) (n int, err error) {
+	for i := 0; i != len(buf); i++ {
+		buf[i] = 'a'
 	}
-	r.readCount++
-	n := copy(p, r.data)
-	return n, nil
+	return len(buf), nil
 }
 
-func testWithData(data []byte, reads int) {
-	reader := newRepeatedReader(reads, data)
-	bufReader := NewBufReader(reader)
-	io.Copy(ioutil.Discard, bufReader)
-}
-
-func Benchmark1M10BytesReads(b *testing.B) {
-	reads := 1000000
-	readSize := int64(10)
-	data := make([]byte, readSize)
-	b.SetBytes(readSize * int64(reads))
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		testWithData(data, reads)
-	}
-}
-
-func Benchmark1M1024BytesReads(b *testing.B) {
-	reads := 1000000
-	readSize := int64(1024)
-	data := make([]byte, readSize)
-	b.SetBytes(readSize * int64(reads))
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		testWithData(data, reads)
-	}
-}
-
-func Benchmark10k32KBytesReads(b *testing.B) {
-	reads := 10000
-	readSize := int64(32 * 1024)
-	data := make([]byte, readSize)
-	b.SetBytes(readSize * int64(reads))
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		testWithData(data, reads)
+func TestCancelReadCloser(t *testing.T) {
+	ctx, _ := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	cancelReadCloser := NewCancelReadCloser(ctx, ioutil.NopCloser(&perpetualReader{}))
+	for {
+		var buf [128]byte
+		_, err := cancelReadCloser.Read(buf[:])
+		if err == context.DeadlineExceeded {
+			break
+		} else if err != nil {
+			t.Fatalf("got unexpected error: %v", err)
+		}
 	}
 }

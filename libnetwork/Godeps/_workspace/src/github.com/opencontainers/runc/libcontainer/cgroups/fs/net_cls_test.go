@@ -1,3 +1,5 @@
+// +build linux
+
 package fs
 
 import (
@@ -17,9 +19,9 @@ func TestNetClsSetClassid(t *testing.T) {
 		"net_cls.classid": classidBefore,
 	})
 
-	helper.CgroupData.c.NetClsClassid = classidAfter
+	helper.CgroupData.config.NetClsClassid = classidAfter
 	netcls := &NetClsGroup{}
-	if err := netcls.Set(helper.CgroupPath, helper.CgroupData.c); err != nil {
+	if err := netcls.Set(helper.CgroupPath, helper.CgroupData.config); err != nil {
 		t.Fatal(err)
 	}
 

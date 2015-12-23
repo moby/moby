@@ -11,8 +11,8 @@ import (
 	"strings"
 
 	"github.com/opencontainers/runc/libcontainer/configs"
-	"github.com/opencontainers/runc/libcontainer/netlink"
 	"github.com/opencontainers/runc/libcontainer/utils"
+	"github.com/vishvananda/netlink"
 )
 
 var strategies = map[string]networkStrategy{
@@ -93,11 +93,7 @@ func (l *loopback) create(n *network, nspid int) error {
 }
 
 func (l *loopback) initialize(config *network) error {
-	iface, err := net.InterfaceByName("lo")
-	if err != nil {
-		return err
-	}
-	return netlink.NetworkLinkUp(iface)
+	return netlink.LinkSetUp(&netlink.Device{LinkAttrs: netlink.LinkAttrs{Name: "lo"}})
 }
 
 func (l *loopback) attach(n *configs.Network) (err error) {
@@ -115,42 +111,36 @@ type veth struct {
 }
 
 func (v *veth) detach(n *configs.Network) (err error) {
-	bridge, err := net.InterfaceByName(n.Bridge)
-	if err != nil {
-		return err
-	}
-	host, err := net.InterfaceByName(n.HostInterfaceName)
-	if err != nil {
-		return err
-	}
-	if err := netlink.DelFromBridge(host, bridge); err != nil {
-		return err
-	}
-	return nil
+	return netlink.LinkSetMaster(&netlink.Device{LinkAttrs: netlink.LinkAttrs{Name: n.HostInterfaceName}}, nil)
 }
 
 // attach a container network interface to an external network
 func (v *veth) attach(n *configs.Network) (err error) {
-	bridge, err := net.InterfaceByName(n.Bridge)
+	brl, err := netlink.LinkByName(n.Bridge)
 	if err != nil {
 		return err
 	}
-	host, err := net.InterfaceByName(n.HostInterfaceName)
+	br, ok := brl.(*netlink.Bridge)
+	if !ok {
+		return fmt.Errorf("Wrong device type %T", brl)
+	}
+	host, err := netlink.LinkByName(n.HostInterfaceName)
 	if err != nil {
 		return err
 	}
-	if err := netlink.AddToBridge(host, bridge); err != nil {
+
+	if err := netlink.LinkSetMaster(host, br); err != nil {
 		return err
 	}
-	if err := netlink.NetworkSetMTU(host, n.Mtu); err != nil {
+	if err := netlink.LinkSetMTU(host, n.Mtu); err != nil {
 		return err
 	}
 	if n.HairpinMode {
-		if err := netlink.SetHairpinMode(host, true); err != nil {
+		if err := netlink.LinkSetHairpin(host, true); err != nil {
 			return err
 		}
 	}
-	if err := netlink.NetworkLinkUp(host); err != nil {
+	if err := netlink.LinkSetUp(host); err != nil {
 		return err
 	}
 
@@ -163,26 +153,32 @@ func (v *veth) create(n *network, nspid int) (err error) {
 		return err
 	}
 	n.TempVethPeerName = tmpName
-	defer func() {
-		if err != nil {
-			netlink.NetworkLinkDel(n.HostInterfaceName)
-			netlink.NetworkLinkDel(n.TempVethPeerName)
-		}
-	}()
 	if n.Bridge == "" {
 		return fmt.Errorf("bridge is not specified")
 	}
-	if err := netlink.NetworkCreateVethPair(n.HostInterfaceName, n.TempVethPeerName, n.TxQueueLen); err != nil {
+	veth := &netlink.Veth{
+		LinkAttrs: netlink.LinkAttrs{
+			Name:   n.HostInterfaceName,
+			TxQLen: n.TxQueueLen,
+		},
+		PeerName: n.TempVethPeerName,
+	}
+	if err := netlink.LinkAdd(veth); err != nil {
 		return err
 	}
+	defer func() {
+		if err != nil {
+			netlink.LinkDel(veth)
+		}
+	}()
 	if err := v.attach(&n.Network); err != nil {
 		return err
 	}
-	child, err := net.InterfaceByName(n.TempVethPeerName)
+	child, err := netlink.LinkByName(n.TempVethPeerName)
 	if err != nil {
 		return err
 	}
-	return netlink.NetworkSetNsPid(child, nspid)
+	return netlink.LinkSetNsPid(child, nspid)
 }
 
 func (v *veth) generateTempPeerName() (string, error) {
@@ -194,53 +190,68 @@ func (v *veth) initialize(config *network) error {
 	if peer == "" {
 		return fmt.Errorf("peer is not specified")
 	}
-	child, err := net.InterfaceByName(peer)
+	child, err := netlink.LinkByName(peer)
 	if err != nil {
 		return err
 	}
-	if err := netlink.NetworkLinkDown(child); err != nil {
+	if err := netlink.LinkSetDown(child); err != nil {
 		return err
 	}
-	if err := netlink.NetworkChangeName(child, config.Name); err != nil {
+	if err := netlink.LinkSetName(child, config.Name); err != nil {
 		return err
 	}
 	// get the interface again after we changed the name as the index also changes.
-	if child, err = net.InterfaceByName(config.Name); err != nil {
+	if child, err = netlink.LinkByName(config.Name); err != nil {
 		return err
 	}
 	if config.MacAddress != "" {
-		if err := netlink.NetworkSetMacAddress(child, config.MacAddress); err != nil {
+		mac, err := net.ParseMAC(config.MacAddress)
+		if err != nil {
+			return err
+		}
+		if err := netlink.LinkSetHardwareAddr(child, mac); err != nil {
 			return err
 		}
 	}
-	ip, ipNet, err := net.ParseCIDR(config.Address)
+	ip, err := netlink.ParseAddr(config.Address)
 	if err != nil {
 		return err
 	}
-	if err := netlink.NetworkLinkAddIp(child, ip, ipNet); err != nil {
+	if err := netlink.AddrAdd(child, ip); err != nil {
 		return err
 	}
 	if config.IPv6Address != "" {
-		if ip, ipNet, err = net.ParseCIDR(config.IPv6Address); err != nil {
+		ip6, err := netlink.ParseAddr(config.IPv6Address)
+		if err != nil {
 			return err
 		}
-		if err := netlink.NetworkLinkAddIp(child, ip, ipNet); err != nil {
+		if err := netlink.AddrAdd(child, ip6); err != nil {
 			return err
 		}
 	}
-	if err := netlink.NetworkSetMTU(child, config.Mtu); err != nil {
+	if err := netlink.LinkSetMTU(child, config.Mtu); err != nil {
 		return err
 	}
-	if err := netlink.NetworkLinkUp(child); err != nil {
+	if err := netlink.LinkSetUp(child); err != nil {
 		return err
 	}
 	if config.Gateway != "" {
-		if err := netlink.AddDefaultGw(config.Gateway, config.Name); err != nil {
+		gw := net.ParseIP(config.Gateway)
+		if err := netlink.RouteAdd(&netlink.Route{
+			Scope:     netlink.SCOPE_UNIVERSE,
+			LinkIndex: child.Attrs().Index,
+			Gw:        gw,
+		}); err != nil {
 			return err
 		}
 	}
 	if config.IPv6Gateway != "" {
-		if err := netlink.AddDefaultGw(config.IPv6Gateway, config.Name); err != nil {
+		gw := net.ParseIP(config.IPv6Gateway)
+		if err := netlink.RouteAdd(&netlink.Route{
+			Scope:     netlink.SCOPE_UNIVERSE,
+			LinkIndex: child.Attrs().Index,
+			Gw:        gw,
+		}); err != nil {
 			return err
 		}
 	}

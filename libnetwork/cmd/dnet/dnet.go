@@ -17,8 +17,8 @@ import (
 	"time"
 
 	"github.com/codegangsta/cli"
+	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/discovery"
-	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/reexec"
 
 	"github.com/Sirupsen/logrus"
@@ -122,7 +122,7 @@ func startDiscovery(cfg *config.ClusterCfg) ([]config.Option, error) {
 		hb = defaultHeartbeat
 	}
 	logrus.Infof("discovery : %s $s", cfg.Discovery, hb.String())
-	d, err := discovery.New(cfg.Discovery, hb, ttlFactor*hb)
+	d, err := discovery.New(cfg.Discovery, hb, ttlFactor*hb, map[string]string{})
 	if err != nil {
 		return nil, err
 	}
@@ -344,7 +344,7 @@ func startTestDriver() error {
 }
 
 func newDnetConnection(val string) (*dnetConnection, error) {
-	url, err := parsers.ParseHost(DefaultHTTPHost, DefaultUnixSocket, val)
+	url, err := opts.ParseHost(DefaultHTTPHost, val)
 	if err != nil {
 		return nil, err
 	}
