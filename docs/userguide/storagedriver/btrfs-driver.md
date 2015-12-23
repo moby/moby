@@ -12,7 +12,7 @@ parent = "mn_storage_docker"
 
 Btrfs is a next generation copy-on-write filesystem that supports many advanced
 storage technologies that make it a good fit for Docker. Btrfs is included in
-the mainline Linux kernel and it's on-disk-format is now considered stable.
+the mainline Linux kernel and its on-disk-format is now considered stable.
 However, many of its features are still under heavy development and users should
 consider it a fast-moving target.
 
@@ -47,7 +47,7 @@ Snapshots are a point-in-time read-write copy of an entire subvolume. They exist
 
 Btfs allocates space to subvolumes and snapshots on demand from an underlying pool of storage. The unit of allocation is referred to as a *chunk* and *chunks* are normally ~1GB in size.
 
-Snapshots are first-class citizens in a Btrfs filesystem. This means that they look, feel, and operate just like regular subvolumes. The technology required to create them is built directly into the Btrfs filesystem thanks to its native copy-on-write design. This means that Btrfs snapshots are space efficient with little or no performance overhead. The diagram below shows a subvolume and it's snapshot sharing the same data.
+Snapshots are first-class citizens in a Btrfs filesystem. This means that they look, feel, and operate just like regular subvolumes. The technology required to create them is built directly into the Btrfs filesystem thanks to its native copy-on-write design. This means that Btrfs snapshots are space efficient with little or no performance overhead. The diagram below shows a subvolume and its snapshot sharing the same data.
 
 ![](images/btfs_pool.jpg)
 
@@ -91,7 +91,7 @@ ubuntu              latest              0a17decee413        2 weeks ago         
 <none>              <none>              f9a9f253f610        2 weeks ago         188.1 MB
 ```
 
-Each image layer exists as a Btrfs subvolume or snapshot with the same name as it's image ID as illustrated by the `btrfs subvolume list` command shown below:
+Each image layer exists as a Btrfs subvolume or snapshot with the same name as its image ID as illustrated by the `btrfs subvolume list` command shown below:
 
 ```bash
 $ sudo btrfs subvolume list /var/lib/docker
