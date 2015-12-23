@@ -3,11 +3,13 @@ package daemon
 import (
 	"encoding/json"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"runtime"
 	"time"
 
+	"github.com/docker/docker/api"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
@@ -49,6 +51,12 @@ func (daemon *Daemon) ImportImage(src string, newRef reference.Named, msg string
 		}
 		progressOutput := sf.NewProgressOutput(outStream, true)
 		archive = progress.NewProgressReader(resp.Body, progressOutput, resp.ContentLength, "", "Importing")
+		data, err := api.VerifyTarballNotImage(archive)
+		archive.Close()
+		if err != nil {
+			return err
+		}
+		archive = ioutil.NopCloser(data)
 	}
 
 	defer archive.Close()
