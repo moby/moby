@@ -1,6 +1,4 @@
-// Package ulimit provides structure and helper function to parse and represent
-// resource limits (Rlimit and Ulimit, its human friendly version).
-package ulimit
+package units
 
 import (
 	"fmt"
@@ -64,8 +62,8 @@ var ulimitNameMapping = map[string]int{
 	"stack":      rlimitStack,
 }
 
-// Parse parses and returns a Ulimit from the specified string.
-func Parse(val string) (*Ulimit, error) {
+// ParseUlimit parses and returns a Ulimit from the specified string.
+func ParseUlimit(val string) (*Ulimit, error) {
 	parts := strings.SplitN(val, "=", 2)
 	if len(parts) != 2 {
 		return nil, fmt.Errorf("invalid ulimit argument: %s", val)

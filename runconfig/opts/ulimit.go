@@ -3,25 +3,25 @@ package opts
 import (
 	"fmt"
 
-	"github.com/docker/docker/pkg/ulimit"
+	"github.com/docker/go-units"
 )
 
 // UlimitOpt defines a map of Ulimits
 type UlimitOpt struct {
-	values *map[string]*ulimit.Ulimit
+	values *map[string]*units.Ulimit
 }
 
 // NewUlimitOpt creates a new UlimitOpt
-func NewUlimitOpt(ref *map[string]*ulimit.Ulimit) *UlimitOpt {
+func NewUlimitOpt(ref *map[string]*units.Ulimit) *UlimitOpt {
 	if ref == nil {
-		ref = &map[string]*ulimit.Ulimit{}
+		ref = &map[string]*units.Ulimit{}
 	}
 	return &UlimitOpt{ref}
 }
 
 // Set validates a Ulimit and sets its name as a key in UlimitOpt
 func (o *UlimitOpt) Set(val string) error {
-	l, err := ulimit.Parse(val)
+	l, err := units.ParseUlimit(val)
 	if err != nil {
 		return err
 	}
@@ -42,8 +42,8 @@ func (o *UlimitOpt) String() string {
 }
 
 // GetList returns a slice of pointers to Ulimits.
-func (o *UlimitOpt) GetList() []*ulimit.Ulimit {
-	var ulimits []*ulimit.Ulimit
+func (o *UlimitOpt) GetList() []*units.Ulimit {
+	var ulimits []*units.Ulimit
 	for _, v := range *o.values {
 		ulimits = append(ulimits, v)
 	}
