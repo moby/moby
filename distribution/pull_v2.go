@@ -47,6 +47,9 @@ func (p *v2Puller) Pull(ctx context.Context, ref reference.Named) (err error) {
 	}
 
 	if err = p.pullV2Repository(ctx, ref); err != nil {
+		if _, ok := err.(fallbackError); ok {
+			return err
+		}
 		if registry.ContinueOnError(err) {
 			logrus.Debugf("Error trying v2 registry: %v", err)
 			return fallbackError{err: err, confirmedV2: p.confirmedV2}
@@ -56,9 +59,13 @@ func (p *v2Puller) Pull(ctx context.Context, ref reference.Named) (err error) {
 }
 
 func (p *v2Puller) pullV2Repository(ctx context.Context, ref reference.Named) (err error) {
-	var refs []reference.Named
+	var layersDownloaded bool
 	if !reference.IsNameOnly(ref) {
-		refs = []reference.Named{ref}
+		var err error
+		layersDownloaded, err = p.pullV2Tag(ctx, ref)
+		if err != nil {
+			return err
+		}
 	} else {
 		manSvc, err := p.repo.Manifests(ctx)
 		if err != nil {
@@ -67,11 +74,14 @@ func (p *v2Puller) pullV2Repository(ctx context.Context, ref reference.Named) (e
 
 		tags, err := manSvc.Tags()
 		if err != nil {
-			return err
+			// If this repository doesn't exist on V2, we should
+			// permit a fallback to V1.
+			return allowV1Fallback(err)
 		}
 
-		// If this call succeeded, we can be confident that the
-		// registry on the other side speaks the v2 protocol.
+		// The v2 registry knows about this repository, so we will not
+		// allow fallback to the v1 protocol even if we encounter an
+		// error later on.
 		p.confirmedV2 = true
 
 		// This probably becomes a lot nicer after the manifest
@@ -81,19 +91,20 @@ func (p *v2Puller) pullV2Repository(ctx context.Context, ref reference.Named) (e
 			if err != nil {
 				return err
 			}
-			refs = append(refs, tagRef)
+			pulledNew, err := p.pullV2Tag(ctx, tagRef)
+			if err != nil {
+				// Since this is the pull-all-tags case, don't
+				// allow an error pulling a particular tag to
+				// make the whole pull fall back to v1.
+				if fallbackErr, ok := err.(fallbackError); ok {
+					return fallbackErr.err
+				}
+				return err
+			}
+			// pulledNew is true if either new layers were downloaded OR if existing images were newly tagged
+			// TODO(tiborvass): should we change the name of `layersDownload`? What about message in WriteStatus?
+			layersDownloaded = layersDownloaded || pulledNew
 		}
-	}
-
-	var layersDownloaded bool
-	for _, pullRef := range refs {
-		// pulledNew is true if either new layers were downloaded OR if existing images were newly tagged
-		// TODO(tiborvass): should we change the name of `layersDownload`? What about message in WriteStatus?
-		pulledNew, err := p.pullV2Tag(ctx, pullRef)
-		if err != nil {
-			return err
-		}
-		layersDownloaded = layersDownloaded || pulledNew
 	}
 
 	writeStatus(ref.String(), p.config.ProgressOutput, layersDownloaded)
@@ -214,20 +225,7 @@ func (p *v2Puller) pullV2Tag(ctx context.Context, ref reference.Named) (tagUpdat
 		// fallback to the v1 protocol, because dual-version setups may
 		// not host all manifests with the v2 protocol. We may also get
 		// a "not authorized" error if the manifest doesn't exist.
-		switch v := err.(type) {
-		case errcode.Errors:
-			if len(v) != 0 {
-				if v0, ok := v[0].(errcode.Error); ok && registry.ShouldV2Fallback(v0) {
-					p.confirmedV2 = false
-				}
-			}
-		case errcode.Error:
-			if registry.ShouldV2Fallback(v) {
-				p.confirmedV2 = false
-			}
-		}
-
-		return false, err
+		return false, allowV1Fallback(err)
 	}
 	if unverifiedManifest == nil {
 		return false, fmt.Errorf("image manifest does not exist for tag or digest %q", tagOrDigest)
@@ -332,6 +330,27 @@ func (p *v2Puller) pullV2Tag(ctx context.Context, ref reference.Named) (tagUpdat
 	}
 
 	return true, nil
+}
+
+// allowV1Fallback checks if the error is a possible reason to fallback to v1
+// (even if confirmedV2 has been set already), and if so, wraps the error in
+// a fallbackError with confirmedV2 set to false. Otherwise, it returns the
+// error unmodified.
+func allowV1Fallback(err error) error {
+	switch v := err.(type) {
+	case errcode.Errors:
+		if len(v) != 0 {
+			if v0, ok := v[0].(errcode.Error); ok && registry.ShouldV2Fallback(v0) {
+				return fallbackError{err: err, confirmedV2: false}
+			}
+		}
+	case errcode.Error:
+		if registry.ShouldV2Fallback(v) {
+			return fallbackError{err: err, confirmedV2: false}
+		}
+	}
+
+	return err
 }
 
 func verifyManifest(signedManifest *schema1.SignedManifest, ref reference.Named) (m *schema1.Manifest, err error) {
