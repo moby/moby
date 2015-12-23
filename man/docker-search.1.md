@@ -6,9 +6,9 @@ docker-search - Search the Docker Hub for images
 
 # SYNOPSIS
 **docker search**
-[**--automated**[=*false*]]
+[**--automated**]
 [**--help**]
-[**--no-trunc**[=*false*]]
+[**--no-trunc**]
 [**-s**|**--stars**[=*0*]]
 TERM
 

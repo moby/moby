@@ -15,7 +15,7 @@ parent = "smn_cli"
     Inspect one or more volumes
 
       -f, --format=       Format the output using the given go template.
-      --help=false        Print usage
+      --help              Print usage
 
 Returns information about a volume. By default, this command renders all results
 in a JSON array. You can specify an alternate format to execute a

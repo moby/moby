@@ -6,15 +6,15 @@ docker-ps - List containers
 
 # SYNOPSIS
 **docker ps**
-[**-a**|**--all**[=*false*]]
+[**-a**|**--all**]
 [**-f**|**--filter**[=*[]*]]
 [**--format**=*"TEMPLATE"*]
 [**--help**]
-[**-l**|**--latest**[=*false*]]
+[**-l**|**--latest**]
 [**-n**[=*-1*]]
-[**--no-trunc**[=*false*]]
-[**-q**|**--quiet**[=*false*]]
-[**-s**|**--size**[=*false*]]
+[**--no-trunc**]
+[**-q**|**--quiet**]
+[**-s**|**--size**]
 
 # DESCRIPTION
 

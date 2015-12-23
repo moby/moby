@@ -15,7 +15,7 @@ parent = "smn_cli"
     Displays detailed information on a network
 
       -f, --format=       Format the output using the given go template.
-      --help=false       Print usage
+      --help             Print usage
 
 Returns information about one or more networks. By default, this command renders all results in a JSON object. For example, if you connect two containers to a network:
 

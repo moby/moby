@@ -44,8 +44,8 @@ Creates a new container.
       --expose=[]                   Expose a port or a range of ports
       --group-add=[]                Add additional groups to join
       -h, --hostname=""             Container host name
-      --help=false                  Print usage
-      -i, --interactive=false       Keep STDIN open even if not attached
+      --help                        Print usage
+      -i, --interactive             Keep STDIN open even if not attached
       --ipc=""                      IPC namespace to use
       --isolation=""                Container isolation technology
       --kernel-memory=""            Kernel memory limit
@@ -66,18 +66,18 @@ Creates a new container.
                                     'container:<name|id>': reuse another container's network stack
                                     'host': use the Docker host network stack
                                     '<network-name>|<network-id>': connect to a user-defined network
-      --oom-kill-disable=false      Whether to disable OOM Killer for the container or not
+      --oom-kill-disable            Whether to disable OOM Killer for the container or not
       --oom-score-adj=0             Tune the host's OOM preferences for containers (accepts -1000 to 1000)
-      -P, --publish-all=false       Publish all exposed ports to random ports
+      -P, --publish-all             Publish all exposed ports to random ports
       -p, --publish=[]              Publish a container's port(s) to the host
       --pid=""                      PID namespace to use
-      --privileged=false            Give extended privileges to this container
-      --read-only=false             Mount the container's root filesystem as read only
+      --privileged                  Give extended privileges to this container
+      --read-only                   Mount the container's root filesystem as read only
       --restart="no"                Restart policy (no, on-failure[:max-retry], always, unless-stopped)
       --security-opt=[]             Security options
       --stop-signal="SIGTERM"       Signal to stop a container
       --shm-size=[]                 Size of `/dev/shm`. The format is `<number><unit>`. `number` must be greater than `0`.  Unit is optional and can be `b` (bytes), `k` (kilobytes), `m` (megabytes), or `g` (gigabytes). If you omit the unit, the system uses bytes. If you omit the size entirely, the system uses `64m`.
-      -t, --tty=false               Allocate a pseudo-TTY
+      -t, --tty                     Allocate a pseudo-TTY
       -u, --user=""                 Username or UID
       --ulimit=[]                   Ulimit options
       --uts=""                      UTS namespace to use
