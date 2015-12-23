@@ -228,3 +228,15 @@ func (s *DockerRegistrySuite) TestPullIDStability(c *check.C) {
 		c.Fatalf("expected %s; got %s", derivedImage, out)
 	}
 }
+
+// TestPullFallbackOn404 tries to pull a nonexistent manifest and confirms that
+// the pull falls back to the v1 protocol.
+//
+// Ref: docker/docker#18832
+func (s *DockerRegistrySuite) TestPullFallbackOn404(c *check.C) {
+	repoName := fmt.Sprintf("%v/does/not/exist", privateRegistryURL)
+
+	out, _, _ := dockerCmdWithError("pull", repoName)
+
+	c.Assert(out, checker.Contains, "v1 ping attempt")
+}

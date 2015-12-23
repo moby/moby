@@ -13,6 +13,7 @@ import (
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/digest"
 	"github.com/docker/distribution/manifest/schema1"
+	"github.com/docker/distribution/registry/api/errcode"
 	"github.com/docker/docker/distribution/metadata"
 	"github.com/docker/docker/distribution/xfer"
 	"github.com/docker/docker/image"
@@ -209,6 +210,23 @@ func (p *v2Puller) pullV2Tag(ctx context.Context, ref reference.Named) (tagUpdat
 
 	unverifiedManifest, err := manSvc.GetByTag(tagOrDigest)
 	if err != nil {
+		// If this manifest did not exist, we should allow a possible
+		// fallback to the v1 protocol, because dual-version setups may
+		// not host all manifests with the v2 protocol. We may also get
+		// a "not authorized" error if the manifest doesn't exist.
+		switch v := err.(type) {
+		case errcode.Errors:
+			if len(v) != 0 {
+				if v0, ok := v[0].(errcode.Error); ok && registry.ShouldV2Fallback(v0) {
+					p.confirmedV2 = false
+				}
+			}
+		case errcode.Error:
+			if registry.ShouldV2Fallback(v) {
+				p.confirmedV2 = false
+			}
+		}
+
 		return false, err
 	}
 	if unverifiedManifest == nil {
