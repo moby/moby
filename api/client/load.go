@@ -5,6 +5,7 @@ import (
 	"os"
 
 	Cli "github.com/docker/docker/cli"
+	"github.com/docker/docker/pkg/jsonmessage"
 	flag "github.com/docker/docker/pkg/mflag"
 )
 
@@ -29,12 +30,16 @@ func (cli *DockerCli) CmdLoad(args ...string) error {
 		input = file
 	}
 
-	responseBody, err := cli.client.ImageLoad(input)
+	response, err := cli.client.ImageLoad(input)
 	if err != nil {
 		return err
 	}
-	defer responseBody.Close()
+	defer response.Body.Close()
 
-	_, err = io.Copy(cli.out, responseBody)
+	if response.JSON {
+		return jsonmessage.DisplayJSONMessagesStream(response.Body, cli.out, cli.outFd, cli.isTerminalOut)
+	}
+
+	_, err = io.Copy(cli.out, response.Body)
 	return err
 }
