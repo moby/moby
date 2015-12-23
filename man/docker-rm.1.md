@@ -6,9 +6,9 @@ docker-rm - Remove one or more containers
 
 # SYNOPSIS
 **docker rm**
-[**-f**|**--force**[=*false*]]
-[**-l**|**--link**[=*false*]]
-[**-v**|**--volumes**[=*false*]]
+[**-f**|**--force**]
+[**-l**|**--link**]
+[**-v**|**--volumes**]
 CONTAINER [CONTAINER...]
 
 # DESCRIPTION

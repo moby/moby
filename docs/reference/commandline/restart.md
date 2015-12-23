@@ -14,5 +14,5 @@ parent = "smn_cli"
 
     Restart a container
 
-      --help=false       Print usage
+      --help             Print usage
       -t, --time=10      Seconds to wait for stop before killing the container

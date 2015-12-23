@@ -15,7 +15,7 @@ parent = "smn_cli"
     List port mappings for the CONTAINER, or lookup the public-facing port that is
 	NAT-ed to the PRIVATE_PORT
 
-      --help=false    Print usage
+      --help          Print usage
 
 You can find out all the ports mapped by not specifying a `PRIVATE_PORT`, or
 just a specific mapping:

@@ -7,7 +7,7 @@ docker-attach - Attach to a running container
 # SYNOPSIS
 **docker attach**
 [**--help**]
-[**--no-stdin**[=*false*]]
+[**--no-stdin**]
 [**--sig-proxy**[=*true*]]
 CONTAINER
 

@@ -14,7 +14,7 @@ parent = "smn_cli"
 
     Pause all processes within a container
 
-      --help=false    Print usage
+      --help          Print usage
 
 The `docker pause` command uses the cgroups freezer to suspend all processes in
 a container. Traditionally, when suspending a process the `SIGSTOP` signal is

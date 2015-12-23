@@ -14,9 +14,9 @@ parent = "smn_cli"
 
     Search the Docker Hub for images
 
-      --automated=false    Only show automated builds
-      --help=false         Print usage
-      --no-trunc=false     Don't truncate output
+      --automated          Only show automated builds
+      --help               Print usage
+      --no-trunc           Don't truncate output
       -s, --stars=0        Only displays with at least x stars
 
 Search [Docker Hub](https://hub.docker.com) for images

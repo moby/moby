@@ -23,14 +23,14 @@ parent = "smn_cli"
       --cpuset-mems=""                MEMs in which to allow execution, e.g. `0-3`, `0,1`
       --disable-content-trust=true    Skip image verification
       -f, --file=""                   Name of the Dockerfile (Default is 'PATH/Dockerfile')
-      --force-rm=false                Always remove intermediate containers
-      --help=false                    Print usage
+      --force-rm                      Always remove intermediate containers
+      --help                          Print usage
       --isolation=""                  Container isolation technology
       -m, --memory=""                 Memory limit for all build containers
       --memory-swap=""                Total memory (memory + swap), `-1` to disable swap
-      --no-cache=false                Do not use cache when building the image
-      --pull=false                    Always attempt to pull a newer version of the image
-      -q, --quiet=false               Suppress the build output and print image ID on success
+      --no-cache                      Do not use cache when building the image
+      --pull                          Always attempt to pull a newer version of the image
+      -q, --quiet                     Suppress the build output and print image ID on success
       --rm=true                       Remove intermediate containers after a successful build
       --shm-size=[]                   Size of `/dev/shm`. The format is `<number><unit>`. `number` must be greater than `0`.  Unit is optional and can be `b` (bytes), `k` (kilobytes), `m` (megabytes), or `g` (gigabytes). If you omit the unit, the system uses bytes. If you omit the size entirely, the system uses `64m`.
       -t, --tag=[]                    Name and optionally a tag in the 'name:tag' format

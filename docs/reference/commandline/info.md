@@ -15,7 +15,7 @@ parent = "smn_cli"
 
     Display system-wide information
 
-      --help=false        Print usage
+      --help              Print usage
 
 For example:
 

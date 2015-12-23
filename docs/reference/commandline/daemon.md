@@ -20,7 +20,7 @@ weight = -1
       --authz-plugin=[]                     Set authorization plugins to load
       -b, --bridge=""                        Attach containers to a network bridge
       --bip=""                               Specify network bridge IP
-      -D, --debug=false                      Enable debug mode
+      -D, --debug                            Enable debug mode
       --default-gateway=""                   Container default gateway IPv4 address
       --default-gateway-v6=""                Container default gateway IPv6 address
       --cluster-store=""                     URL of the distributed storage backend
@@ -37,30 +37,30 @@ weight = -1
       -G, --group="docker"                   Group for the unix socket
       -g, --graph="/var/lib/docker"          Root of the Docker runtime
       -H, --host=[]                          Daemon socket(s) to connect to
-      --help=false                           Print usage
+      --help                                 Print usage
       --icc=true                             Enable inter-container communication
       --insecure-registry=[]                 Enable insecure registry communication
       --ip=0.0.0.0                           Default IP when binding container ports
       --ip-forward=true                      Enable net.ipv4.ip_forward
       --ip-masq=true                         Enable IP masquerading
       --iptables=true                        Enable addition of iptables rules
-      --ipv6=false                           Enable IPv6 networking
+      --ipv6                                 Enable IPv6 networking
       -l, --log-level="info"                 Set the logging level
       --label=[]                             Set key=value labels to the daemon
       --log-driver="json-file"               Default driver for container logs
       --log-opt=[]                           Log driver specific options
       --mtu=0                                Set the containers network MTU
-      --disable-legacy-registry=false        Do not contact legacy registries
+      --disable-legacy-registry              Do not contact legacy registries
       -p, --pidfile="/var/run/docker.pid"    Path to use for daemon PID file
       --registry-mirror=[]                   Preferred Docker registry mirror
       -s, --storage-driver=""                Storage driver to use
-      --selinux-enabled=false                Enable selinux support
+      --selinux-enabled                      Enable selinux support
       --storage-opt=[]                       Set storage driver options
-      --tls=false                            Use TLS; implied by --tlsverify
+      --tls                                  Use TLS; implied by --tlsverify
       --tlscacert="~/.docker/ca.pem"         Trust certs signed only by this CA
       --tlscert="~/.docker/cert.pem"         Path to TLS certificate file
       --tlskey="~/.docker/key.pem"           Path to TLS key file
-      --tlsverify=false                      Use TLS and verify the remote
+      --tlsverify                            Use TLS and verify the remote
       --userland-proxy=true                  Use userland proxy for loopback traffic
 
 Options with [] may be specified multiple times.
