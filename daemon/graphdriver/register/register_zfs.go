@@ -1,6 +1,6 @@
 // +build !exclude_graphdriver_zfs,linux !exclude_graphdriver_zfs,freebsd
 
-package daemon
+package register
 
 import (
 	// register the zfs driver
