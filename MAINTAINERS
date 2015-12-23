@@ -30,7 +30,6 @@
 			"cpuguy83",
 			"crosbymichael",
 			"duglin",
-			"erikh",
 			"estesp",
 			"icecrime",
 			"jfrazelle",
@@ -78,6 +77,14 @@
 	# Thank you!
 
 		people = [
+			# As a maintainer, Erik was responsible for the "builder", and 
+			# started the first designs for the new networking model in
+			# Docker. Erik is now working on all kinds of plugins for Docker
+			# (https://github.com/contiv) and various open source projects
+			# in his own repository https://github.com/erikh. You may
+			# still stumble into him in our issue tracker, or on IRC.
+			"erikh",
+
 			# Victor is one of the earliest contributors to Docker, having worked on the
 			# project when it was still "dotCloud" in April 2013. He's been responsible
 			# for multiple releases (https://github.com/docker/docker/pulls?q=is%3Apr+bump+in%3Atitle+author%3Avieux),
