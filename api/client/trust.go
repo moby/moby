@@ -195,15 +195,17 @@ func convertTarget(t client.Target) (target, error) {
 
 func (cli *DockerCli) getPassphraseRetriever() passphrase.Retriever {
 	aliasMap := map[string]string{
-		"root":     "root",
-		"snapshot": "repository",
-		"targets":  "repository",
+		"root":             "root",
+		"snapshot":         "repository",
+		"targets":          "repository",
+		"targets/releases": "repository",
 	}
 	baseRetriever := passphrase.PromptRetrieverWithInOut(cli.in, cli.out, aliasMap)
 	env := map[string]string{
-		"root":     os.Getenv("DOCKER_CONTENT_TRUST_ROOT_PASSPHRASE"),
-		"snapshot": os.Getenv("DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE"),
-		"targets":  os.Getenv("DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE"),
+		"root":             os.Getenv("DOCKER_CONTENT_TRUST_ROOT_PASSPHRASE"),
+		"snapshot":         os.Getenv("DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE"),
+		"targets":          os.Getenv("DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE"),
+		"targets/releases": os.Getenv("DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE"),
 	}
 
 	// Backwards compatibility with old env names. We should remove this in 1.10
@@ -213,10 +215,11 @@ func (cli *DockerCli) getPassphraseRetriever() passphrase.Retriever {
 			fmt.Fprintf(cli.err, "[DEPRECATED] The environment variable DOCKER_CONTENT_TRUST_OFFLINE_PASSPHRASE has been deprecated and will be removed in v1.10. Please use DOCKER_CONTENT_TRUST_ROOT_PASSPHRASE\n")
 		}
 	}
-	if env["snapshot"] == "" || env["targets"] == "" {
+	if env["snapshot"] == "" || env["targets"] == "" || env["targets/releases"] == "" {
 		if passphrase := os.Getenv("DOCKER_CONTENT_TRUST_TAGGING_PASSPHRASE"); passphrase != "" {
 			env["snapshot"] = passphrase
 			env["targets"] = passphrase
+			env["targets/releases"] = passphrase
 			fmt.Fprintf(cli.err, "[DEPRECATED] The environment variable DOCKER_CONTENT_TRUST_TAGGING_PASSPHRASE has been deprecated and will be removed in v1.10. Please use DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE\n")
 		}
 	}

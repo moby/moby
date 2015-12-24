@@ -6,9 +6,11 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/go-check/check"
 )
@@ -323,4 +325,36 @@ func (s *DockerTrustSuite) TestTrustedPushWithExpiredTimestamp(c *check.C) {
 		c.Assert(err, check.IsNil, check.Commentf("Error running trusted push: %s\n%s", err, out))
 		c.Assert(out, checker.Contains, "Signing and pushing trust metadata", check.Commentf("Missing expected output on trusted push with expired timestamp"))
 	})
+}
+
+func (s *DockerTrustSuite) TestTrustedPushWithReleasesDelegation(c *check.C) {
+	repoName := fmt.Sprintf("%v/dockerclireleasedelegation/trusted", privateRegistryURL)
+	targetName := fmt.Sprintf("%s:latest", repoName)
+	pwd := "12345678"
+	s.setupDelegations(c, repoName, pwd)
+
+	// tag the image and upload it to the private registry
+	dockerCmd(c, "tag", "busybox", targetName)
+
+	pushCmd := exec.Command(dockerBinary, "-D", "push", targetName)
+	s.trustedCmdWithPassphrases(pushCmd, pwd, pwd)
+	out, _, err := runCommandWithOutput(pushCmd)
+	c.Assert(err, check.IsNil, check.Commentf("trusted push failed: %s\n%s", err, out))
+	c.Assert(out, checker.Contains, "Signing and pushing trust metadata", check.Commentf("Missing expected output on trusted push with existing tag"))
+
+	// Try pull after push
+	pullCmd := exec.Command(dockerBinary, "pull", targetName)
+	s.trustedCmd(pullCmd)
+	out, _, err = runCommandWithOutput(pullCmd)
+	c.Assert(err, check.IsNil, check.Commentf(out))
+	c.Assert(string(out), checker.Contains, "Status: Downloaded", check.Commentf(out))
+
+	// check to make sure that the target has been added to targets/releases and not targets
+	contents, err := ioutil.ReadFile(filepath.Join(cliconfig.ConfigDir(), "trust/tuf", repoName, "metadata/targets.json"))
+	c.Assert(err, check.IsNil, check.Commentf("Unable to read targets metadata"))
+	c.Assert(strings.Contains(string(contents), `"latest"`), checker.False, check.Commentf(string(contents)))
+
+	contents, err = ioutil.ReadFile(filepath.Join(cliconfig.ConfigDir(), "trust/tuf", repoName, "metadata/targets/releases.json"))
+	c.Assert(err, check.IsNil, check.Commentf("Unable to read targets/releases metadata"))
+	c.Assert(string(contents), checker.Contains, `"latest"`, check.Commentf(string(contents)))
 }
