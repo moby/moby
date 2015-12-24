@@ -98,7 +98,7 @@ directory:
 
     [Service]
     ExecStart=
-    ExecStart=/usr/bin/docker daemon -H fd:// --graph /mnt/docker-data --storage-driver btrfs
+    ExecStart=/usr/bin/docker daemon -H fd:// --graph /mnt/docker-data --storage-driver=overlay
 
 You can also set other environment variables in this file, for example, the
 `HTTP_PROXY` environment variables described below.
