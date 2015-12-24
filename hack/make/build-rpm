@@ -26,7 +26,7 @@ set -e
 
 	DOCKER_GITCOMMIT=$(git rev-parse --short HEAD)
 	if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
-		DOCKER_GITCOMMIT="$DOCKER_GITCOMMIT-dirty"
+		DOCKER_GITCOMMIT="$DOCKER_GITCOMMIT-unsupported"
 	fi
 
 	# if we have a "-dev" suffix or have change in Git, let's make this package version more complex so it works better

@@ -11,7 +11,7 @@ set -e
 # - The VERSION file, at the root of the repository, should exist, and
 #   will be used as Docker binary version and package version.
 # - The hash of the git commit will also be included in the Docker binary,
-#   with the suffix -dirty if the repository isn't clean.
+#   with the suffix -unsupported if the repository isn't clean.
 # - The script is intended to be run inside the docker container specified
 #   in the Dockerfile at the root of the source. In other words:
 #   DO NOT CALL THIS SCRIPT DIRECTLY.
@@ -68,7 +68,7 @@ VERSION=$(< ./VERSION)
 if command -v git &> /dev/null && git rev-parse &> /dev/null; then
 	GITCOMMIT=$(git rev-parse --short HEAD)
 	if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
-		GITCOMMIT="$GITCOMMIT-dirty"
+		GITCOMMIT="$GITCOMMIT-unsupported"
 	fi
 	! BUILDTIME=$(date --rfc-3339 ns | sed -e 's/ /T/') &> /dev/null
 	if [ -z $BUILDTIME ]; then
