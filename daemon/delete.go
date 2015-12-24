@@ -130,7 +130,7 @@ func (daemon *Daemon) cleanupContainer(container *container.Container, forceRemo
 		return derr.ErrorCodeRmFS.WithArgs(container.ID, err)
 	}
 
-	metadata, err := daemon.layerStore.DeleteMount(container.ID)
+	metadata, err := daemon.layerStore.ReleaseRWLayer(container.RWLayer)
 	layer.LogReleaseMetadata(metadata)
 	if err != nil && err != layer.ErrMountDoesNotExist {
 		return derr.ErrorCodeRmDriverFS.WithArgs(daemon.driver, container.ID, err)

@@ -31,6 +31,9 @@ func (daemon *Daemon) ContainerStart(name string, hostConfig *containertypes.Hos
 		// creating a container, not during start.
 		if hostConfig != nil {
 			logrus.Warn("DEPRECATED: Setting host configuration options when the container starts is deprecated and will be removed in Docker 1.12")
+			if err := daemon.setSecurityOptions(container, hostConfig); err != nil {
+				return err
+			}
 			if err := daemon.setHostConfig(container, hostConfig); err != nil {
 				return err
 			}

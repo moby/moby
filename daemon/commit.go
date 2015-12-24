@@ -145,7 +145,7 @@ func (daemon *Daemon) exportContainerRw(container *container.Container) (archive
 	}
 	return ioutils.NewReadCloserWrapper(archive, func() error {
 			archive.Close()
-			return daemon.layerStore.Unmount(container.ID)
+			return container.RWLayer.Unmount()
 		}),
 		nil
 }

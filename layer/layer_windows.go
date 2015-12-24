@@ -89,3 +89,8 @@ func (ls *layerStore) RegisterDiffID(graphID string, size int64) (Layer, error) 
 
 	return layer.getReference(), nil
 }
+
+func (ls *layerStore) mountID(name string) string {
+	// windows has issues if container ID doesn't match mount ID
+	return name
+}

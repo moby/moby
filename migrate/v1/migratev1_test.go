@@ -338,10 +338,9 @@ type mockMounter struct {
 	count  int
 }
 
-func (r *mockMounter) MountByGraphID(name string, graphID string, parent layer.ChainID) (layer.RWLayer, error) {
+func (r *mockMounter) CreateRWLayerByGraphID(name string, graphID string, parent layer.ChainID) error {
 	r.mounts = append(r.mounts, mountInfo{name, graphID, string(parent)})
-	r.count++
-	return nil, nil
+	return nil
 }
 func (r *mockMounter) Unmount(string) error {
 	r.count--

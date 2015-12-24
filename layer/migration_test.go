@@ -303,12 +303,20 @@ func TestMountMigration(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	rwLayer1, err := ls.(*layerStore).MountByGraphID("migration-mount", containerID, layer1.ChainID())
+	if err := ls.(*layerStore).CreateRWLayerByGraphID("migration-mount", containerID, layer1.ChainID()); err != nil {
+		t.Fatal(err)
+	}
+
+	rwLayer1, err := ls.GetRWLayer("migration-mount")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	changes, err := ls.Changes("migration-mount")
+	if _, err := rwLayer1.Mount(""); err != nil {
+		t.Fatal(err)
+	}
+
+	changes, err := rwLayer1.Changes()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -341,22 +349,36 @@ func TestMountMigration(t *testing.T) {
 		Kind: archive.ChangeAdd,
 	})
 
-	if expectedCount := 1; rwLayer1.(*mountedLayer).activityCount != expectedCount {
-		t.Fatalf("Wrong activity count %d, expected %d", rwLayer1.(*mountedLayer).activityCount, expectedCount)
+	assertActivityCount(t, rwLayer1, 1)
+
+	if _, err := ls.CreateRWLayer("migration-mount", layer1.ChainID(), "", nil); err == nil {
+		t.Fatal("Expected error creating mount with same name")
+	} else if err != ErrMountNameConflict {
+		t.Fatal(err)
 	}
 
-	rwLayer2, err := ls.Mount("migration-mount", layer1.ChainID(), "", nil)
+	rwLayer2, err := ls.GetRWLayer("migration-mount")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if rwLayer1 != rwLayer2 {
-		t.Fatalf("Wrong rwlayer %v, expected %v", rwLayer2, rwLayer1)
+	if getMountLayer(rwLayer1) != getMountLayer(rwLayer2) {
+		t.Fatal("Expected same layer from get with same name as from migrate")
 	}
 
-	if expectedCount := 2; rwLayer2.(*mountedLayer).activityCount != expectedCount {
-		t.Fatalf("Wrong activity count %d, expected %d", rwLayer2.(*mountedLayer).activityCount, expectedCount)
+	if _, err := rwLayer2.Mount(""); err != nil {
+		t.Fatal(err)
 	}
+
+	assertActivityCount(t, rwLayer2, 1)
+	assertActivityCount(t, rwLayer1, 1)
+
+	if _, err := rwLayer2.Mount(""); err != nil {
+		t.Fatal(err)
+	}
+
+	assertActivityCount(t, rwLayer2, 2)
+	assertActivityCount(t, rwLayer1, 1)
 
 	if metadata, err := ls.Release(layer1); err != nil {
 		t.Fatal(err)
@@ -364,16 +386,26 @@ func TestMountMigration(t *testing.T) {
 		t.Fatalf("Expected no layers to be deleted, deleted %#v", metadata)
 	}
 
-	if err := ls.Unmount("migration-mount"); err != nil {
+	if err := rwLayer1.Unmount(); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := ls.DeleteMount("migration-mount"); err == nil {
+	assertActivityCount(t, rwLayer2, 2)
+	assertActivityCount(t, rwLayer1, 0)
+
+	if _, err := ls.ReleaseRWLayer(rwLayer1); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := rwLayer2.Unmount(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ls.ReleaseRWLayer(rwLayer2); err == nil {
 		t.Fatal("Expected error deleting active mount")
 	}
-	if err := ls.Unmount("migration-mount"); err != nil {
+	if err := rwLayer2.Unmount(); err != nil {
 		t.Fatal(err)
 	}
-	metadata, err := ls.DeleteMount("migration-mount")
+	metadata, err := ls.ReleaseRWLayer(rwLayer2)
 	if err != nil {
 		t.Fatal(err)
 	}
