@@ -136,7 +136,6 @@ func assertAuthHeaders(c *check.C, headers map[string]string) error {
 
 // assertBody asserts that body is removed for non text/json requests
 func assertBody(c *check.C, requestURI string, headers map[string]string, body []byte) {
-
 	if strings.Contains(strings.ToLower(requestURI), "auth") && len(body) > 0 {
 		//return fmt.Errorf("Body included for authentication endpoint %s", string(body))
 		c.Errorf("Body included for authentication endpoint %s", string(body))
@@ -164,18 +163,21 @@ func (s *DockerAuthzSuite) TearDownSuite(c *check.C) {
 }
 
 func (s *DockerAuthzSuite) TestAuthZPluginAllowRequest(c *check.C) {
-	err := s.d.Start("--authz-plugin=" + testAuthZPlugin)
-	c.Assert(err, check.IsNil)
+	// start the daemon and load busybox, --net=none build fails otherwise
+	// cause it needs to pull busybox
+	c.Assert(s.d.StartWithBusybox(), check.IsNil)
+	// restart the daemon and enable the plugin, otherwise busybox loading
+	// is blocked by the plugin itself
+	c.Assert(s.d.Restart("--authz-plugin="+testAuthZPlugin), check.IsNil)
+
 	s.ctrl.reqRes.Allow = true
 	s.ctrl.resRes.Allow = true
 
 	// Ensure command successful
-	out, err := s.d.Cmd("run", "-d", "--name", "container1", "busybox:latest", "top")
+	out, err := s.d.Cmd("run", "-d", "busybox", "top")
 	c.Assert(err, check.IsNil)
 
-	// Extract the id of the created container
-	res := strings.Split(strings.TrimSpace(out), "\n")
-	id := res[len(res)-1]
+	id := strings.TrimSpace(out)
 	assertURIRecorded(c, s.ctrl.requestsURIs, "/containers/create")
 	assertURIRecorded(c, s.ctrl.requestsURIs, fmt.Sprintf("/containers/%s/start", id))
 
