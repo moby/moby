@@ -50,21 +50,22 @@ type Endpoint interface {
 type EndpointOption func(ep *endpoint)
 
 type endpoint struct {
-	name          string
-	id            string
-	network       *network
-	iface         *endpointInterface
-	joinInfo      *endpointJoinInfo
-	sandboxID     string
-	exposedPorts  []types.TransportPort
-	anonymous     bool
-	generic       map[string]interface{}
-	joinLeaveDone chan struct{}
-	prefAddress   net.IP
-	prefAddressV6 net.IP
-	ipamOptions   map[string]string
-	dbIndex       uint64
-	dbExists      bool
+	name              string
+	id                string
+	network           *network
+	iface             *endpointInterface
+	joinInfo          *endpointJoinInfo
+	sandboxID         string
+	exposedPorts      []types.TransportPort
+	anonymous         bool
+	disableResolution bool
+	generic           map[string]interface{}
+	joinLeaveDone     chan struct{}
+	prefAddress       net.IP
+	prefAddressV6     net.IP
+	ipamOptions       map[string]string
+	dbIndex           uint64
+	dbExists          bool
 	sync.Mutex
 }
 
@@ -82,6 +83,7 @@ func (ep *endpoint) MarshalJSON() ([]byte, error) {
 	}
 	epMap["sandbox"] = ep.sandboxID
 	epMap["anonymous"] = ep.anonymous
+	epMap["disableResolution"] = ep.disableResolution
 	return json.Marshal(epMap)
 }
 
@@ -159,6 +161,9 @@ func (ep *endpoint) UnmarshalJSON(b []byte) (err error) {
 	if v, ok := epMap["anonymous"]; ok {
 		ep.anonymous = v.(bool)
 	}
+	if v, ok := epMap["disableResolution"]; ok {
+		ep.disableResolution = v.(bool)
+	}
 	return nil
 }
 
@@ -177,6 +182,7 @@ func (ep *endpoint) CopyTo(o datastore.KVObject) error {
 	dstEp.dbIndex = ep.dbIndex
 	dstEp.dbExists = ep.dbExists
 	dstEp.anonymous = ep.anonymous
+	dstEp.disableResolution = ep.disableResolution
 
 	if ep.iface != nil {
 		dstEp.iface = &endpointInterface{}
@@ -220,6 +226,12 @@ func (ep *endpoint) isAnonymous() bool {
 	ep.Lock()
 	defer ep.Unlock()
 	return ep.anonymous
+}
+
+func (ep *endpoint) needResolver() bool {
+	ep.Lock()
+	defer ep.Unlock()
+	return !ep.disableResolution
 }
 
 // endpoint Key structure : endpoint/network-id/endpoint-id
@@ -396,10 +408,9 @@ func (ep *endpoint) sbJoin(sbox Sandbox, options ...EndpointOption) error {
 	if ip := ep.getFirstInterfaceAddress(); ip != nil {
 		address = ip.String()
 	}
-	if err = sb.updateHostsFile(address, network.getSvcRecords(ep)); err != nil {
+	if err = sb.updateHostsFile(address); err != nil {
 		return err
 	}
-
 	if err = sb.updateDNS(network.enableIPv6); err != nil {
 		return err
 	}
@@ -726,6 +737,14 @@ func CreateOptionPortMapping(portBindings []types.PortBinding) EndpointOption {
 func CreateOptionAnonymous() EndpointOption {
 	return func(ep *endpoint) {
 		ep.anonymous = true
+	}
+}
+
+// CreateOptionDisableResolution function returns an option setter to indicate
+// this endpoint doesn't want embedded DNS server functionality
+func CreateOptionDisableResolution() EndpointOption {
+	return func(ep *endpoint) {
+		ep.disableResolution = true
 	}
 }
 

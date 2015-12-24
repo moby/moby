@@ -179,6 +179,23 @@ function test_single_network_connectivity() {
 	done
     done
 
+    svcs=(
+	0,0
+	2,3
+	1,3
+	1,2
+    )
+
+    echo "Test connectivity failure"
+    for i in `seq ${start} ${end}`;
+    do
+	IFS=, read a b <<<"${svcs[$i]}"
+	osvc="svc${a}${b}"
+	echo "pinging ${osvc}"
+	runc_nofail $(dnet_container_name 1 bridge) $(get_sbox_id 1 container_${i}) "ping -c 1 ${osvc}"
+	[ "${status}" -ne 0 ]
+    done
+
     for i in `seq ${start} ${end}`;
     do
 	for j in `seq ${start} ${end}`;

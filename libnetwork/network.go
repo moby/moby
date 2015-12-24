@@ -69,7 +69,10 @@ type NetworkInfo interface {
 // When the function returns true, the walk will stop.
 type EndpointWalker func(ep Endpoint) bool
 
-type svcMap map[string]net.IP
+type svcInfo struct {
+	svcMap map[string]net.IP
+	ipMap  map[string]string
+}
 
 // IpamConf contains all the ipam related configurations for a network
 type IpamConf struct {
@@ -159,7 +162,6 @@ type network struct {
 	epCnt        *endpointCnt
 	generic      options.Generic
 	dbIndex      uint64
-	svcRecords   svcMap
 	dbExists     bool
 	persist      bool
 	stopWatchCh  chan struct{}
@@ -832,62 +834,33 @@ func (n *network) updateSvcRecord(ep *endpoint, localEps []*endpoint, isAdd bool
 	c := n.getController()
 	sr, ok := c.svcDb[n.ID()]
 	if !ok {
-		c.svcDb[n.ID()] = svcMap{}
+		c.svcDb[n.ID()] = svcInfo{
+			svcMap: make(map[string]net.IP),
+			ipMap:  make(map[string]string),
+		}
 		sr = c.svcDb[n.ID()]
 	}
 
+	epName := ep.Name()
 	n.Lock()
-	var recs []etchosts.Record
 	if iface := ep.Iface(); iface.Address() != nil {
+
+		reverseIP := netutils.ReverseIP(iface.Address().IP.String())
 		if isAdd {
 			// If we already have this endpoint in service db just return
-			if _, ok := sr[ep.Name()]; ok {
+			if _, ok := sr.svcMap[epName]; ok {
 				n.Unlock()
 				return
 			}
 
-			sr[ep.Name()] = iface.Address().IP
-			sr[ep.Name()+"."+n.name] = iface.Address().IP
+			sr.svcMap[epName] = iface.Address().IP
+			sr.ipMap[reverseIP] = epName
 		} else {
-			delete(sr, ep.Name())
-			delete(sr, ep.Name()+"."+n.name)
+			delete(sr.svcMap, epName)
+			delete(sr.ipMap, reverseIP)
 		}
-
-		recs = append(recs, etchosts.Record{
-			Hosts: ep.Name(),
-			IP:    iface.Address().IP.String(),
-		})
-
-		recs = append(recs, etchosts.Record{
-			Hosts: ep.Name() + "." + n.name,
-			IP:    iface.Address().IP.String(),
-		})
 	}
 	n.Unlock()
-
-	// If there are no records to add or delete then simply return here
-	if len(recs) == 0 {
-		return
-	}
-
-	var sbList []*sandbox
-	for _, lEp := range localEps {
-		if ep.ID() == lEp.ID() {
-			continue
-		}
-
-		if sb, hasSandbox := lEp.getSandbox(); hasSandbox {
-			sbList = append(sbList, sb)
-		}
-	}
-
-	for _, sb := range sbList {
-		if isAdd {
-			sb.addHostsEntries(recs)
-		} else {
-			sb.deleteHostsEntries(recs)
-		}
-	}
 }
 
 func (n *network) getSvcRecords(ep *endpoint) []etchosts.Record {
@@ -897,7 +870,7 @@ func (n *network) getSvcRecords(ep *endpoint) []etchosts.Record {
 	var recs []etchosts.Record
 	sr, _ := n.ctrlr.svcDb[n.id]
 
-	for h, ip := range sr {
+	for h, ip := range sr.svcMap {
 		if ep != nil && strings.Split(h, ".")[0] == ep.Name() {
 			continue
 		}
