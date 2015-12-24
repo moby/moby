@@ -184,6 +184,12 @@ type ImageListOptions struct {
 	Filters   filters.Args
 }
 
+// ImageLoadResponse returns information to the client about a load process.
+type ImageLoadResponse struct {
+	Body io.ReadCloser
+	JSON bool
+}
+
 // ImagePullOptions holds information to pull images.
 type ImagePullOptions struct {
 	ImageID string
