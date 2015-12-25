@@ -93,7 +93,7 @@ set as the **URL**, the repository is cloned locally and then sent as the contex
   Memory limit
 
 **--memory-swap**=*MEMORY-SWAP*
-  Total memory (memory + swap), '-1' to disable swap.
+  Total memory (memory + swap), '-1' to disable swap limit (unlimited).
 
 **--shm-size**=*SHM-SIZE*
   Size of `/dev/shm`. The format is `<number><unit>`. `number` must be greater than `0`.

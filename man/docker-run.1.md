@@ -330,7 +330,7 @@ as memory limit.
 **--memory-swap**=""
    Total memory limit (memory + swap)
 
-   Set `-1` to disable swap (format: <number>[<unit>], where unit = b, k, m or g).
+   Set `-1` to disable swap limit (unlimited) (format: <number>[<unit>], where unit = b, k, m or g).
 This value should always larger than **-m**, so you should always use this with **-m**.
 
 **--mac-address**=""

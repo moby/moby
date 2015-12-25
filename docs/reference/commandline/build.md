@@ -27,7 +27,7 @@ parent = "smn_cli"
       --help                          Print usage
       --isolation=""                  Container isolation technology
       -m, --memory=""                 Memory limit for all build containers
-      --memory-swap=""                Total memory (memory + swap), `-1` to disable swap
+      --memory-swap=""                Total memory (memory + swap), `-1` to disable swap limit (unlimited)
       --no-cache                      Do not use cache when building the image
       --pull                          Always attempt to pull a newer version of the image
       -q, --quiet                     Suppress the build output and print image ID on success
