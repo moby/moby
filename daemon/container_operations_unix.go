@@ -711,15 +711,17 @@ func (daemon *Daemon) DisconnectFromNetwork(container *container.Container, n li
 		return runconfig.ErrConflictHostNetwork
 	}
 
-	return disconnectFromNetwork(container, n)
-}
-
-func disconnectFromNetwork(container *container.Container, n libnetwork.Network) error {
+	if err := disconnectFromNetwork(container, n); err != nil {
+		return err
+	}
 
 	if err := container.ToDiskLocking(); err != nil {
 		return fmt.Errorf("Error saving container to disk: %v", err)
 	}
+	return nil
+}
 
+func disconnectFromNetwork(container *container.Container, n libnetwork.Network) error {
 	var (
 		ep   libnetwork.Endpoint
 		sbox libnetwork.Sandbox
