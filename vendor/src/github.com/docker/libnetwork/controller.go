@@ -121,7 +121,8 @@ type driverData struct {
 }
 
 type ipamData struct {
-	driver ipamapi.Ipam
+	driver     ipamapi.Ipam
+	capability *ipamapi.Capability
 	// default address spaces are provided by ipam driver at registration time
 	defaultLocalAddressSpace, defaultGlobalAddressSpace string
 }
@@ -306,7 +307,7 @@ func (c *controller) RegisterDriver(networkType string, driver driverapi.Driver,
 	return nil
 }
 
-func (c *controller) RegisterIpamDriver(name string, driver ipamapi.Ipam) error {
+func (c *controller) registerIpamDriver(name string, driver ipamapi.Ipam, caps *ipamapi.Capability) error {
 	if !config.IsValidName(name) {
 		return ErrInvalidName(name)
 	}
@@ -322,12 +323,20 @@ func (c *controller) RegisterIpamDriver(name string, driver ipamapi.Ipam) error 
 		return types.InternalErrorf("ipam driver %q failed to return default address spaces: %v", name, err)
 	}
 	c.Lock()
-	c.ipamDrivers[name] = &ipamData{driver: driver, defaultLocalAddressSpace: locAS, defaultGlobalAddressSpace: glbAS}
+	c.ipamDrivers[name] = &ipamData{driver: driver, defaultLocalAddressSpace: locAS, defaultGlobalAddressSpace: glbAS, capability: caps}
 	c.Unlock()
 
 	log.Debugf("Registering ipam driver: %q", name)
 
 	return nil
+}
+
+func (c *controller) RegisterIpamDriver(name string, driver ipamapi.Ipam) error {
+	return c.registerIpamDriver(name, driver, &ipamapi.Capability{})
+}
+
+func (c *controller) RegisterIpamDriverWithCapabilities(name string, driver ipamapi.Ipam, caps *ipamapi.Capability) error {
+	return c.registerIpamDriver(name, driver, caps)
 }
 
 // NewNetwork creates a new network of the specified network type. The options
