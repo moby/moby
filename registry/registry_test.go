@@ -555,7 +555,7 @@ func TestNewIndexInfo(t *testing.T) {
 	}
 
 	config := NewServiceConfig(nil)
-	noMirrors := []string{}
+	noMirrors := map[string]string{}
 	expectedIndexInfos := map[string]*registrytypes.IndexInfo{
 		IndexName: {
 			Name:     IndexName,
@@ -584,7 +584,7 @@ func TestNewIndexInfo(t *testing.T) {
 	}
 	testIndexInfo(config, expectedIndexInfos)
 
-	publicMirrors := []string{"http://mirror1.local", "http://mirror2.local"}
+	publicMirrors := map[string]string{"http://mirror1.local": DefaultV1Registry, "http://mirror2.local": DefaultV1Registry}
 	config = makeServiceConfig(publicMirrors, []string{"example.com"})
 
 	expectedIndexInfos = map[string]*registrytypes.IndexInfo{
@@ -678,9 +678,9 @@ func TestMirrorEndpointLookup(t *testing.T) {
 		}
 		return false
 	}
-	s := Service{Config: makeServiceConfig([]string{"my.mirror"}, nil)}
+	s := Service{Config: makeServiceConfig(map[string]string{"my.mirror": "http://www.test.com"}, nil)}
 
-	imageName, err := reference.WithName(IndexName + "/test/image")
+	imageName, err := reference.WithName("www.test.com" + "/test/image")
 	if err != nil {
 		t.Error(err)
 	}
