@@ -6,6 +6,10 @@
 	],
 	"Deps": [
 		{
+			"ImportPath": "github.com/Azure/go-ansiterm",
+			"Rev": "70b2c90b260171e829f1ebd7c17f600c11858dbe"
+		},
+		{
 			"ImportPath": "github.com/BurntSushi/toml",
 			"Comment": "v0.1.0-16-gf706d00",
 			"Rev": "f706d00e3de6abe700c994cdd545a1a4915af060"
@@ -81,6 +85,11 @@
 		},
 		{
 			"ImportPath": "github.com/docker/docker/pkg/ioutils",
+			"Comment": "v1.4.1-8734-g577cf61",
+			"Rev": "577cf61afad695f0ba226cdf8a995a8c78883e51"
+		},
+		{
+			"ImportPath": "github.com/docker/docker/pkg/longpath",
 			"Comment": "v1.4.1-8734-g577cf61",
 			"Rev": "577cf61afad695f0ba226cdf8a995a8c78883e51"
 		},
@@ -204,6 +213,10 @@
 			"Rev": "7151adcef72687bf95f451a2e0ba15cb19412bf2"
 		},
 		{
+			"ImportPath": "github.com/miekg/dns",
+			"Rev": "d27455715200c7d3e321a1e5cadb27c9ee0b0f02"
+		},
+		{
 			"ImportPath": "github.com/opencontainers/runc/libcontainer",
 			"Comment": "v0.0.6-6-gba1568d",
 			"Rev": "ba1568de399395774ad84c2ace65937814c542ed"
@@ -211,6 +224,10 @@
 		{
 			"ImportPath": "github.com/samuel/go-zookeeper/zk",
 			"Rev": "d0e0d8e11f318e000a8cc434616d69e329edc374"
+		},
+		{
+			"ImportPath": "github.com/seccomp/libseccomp-golang",
+			"Rev": "1b506fc7c24eec5a3693cdcbed40d9c226cfc6a1"
 		},
 		{
 			"ImportPath": "github.com/stretchr/testify/assert",
