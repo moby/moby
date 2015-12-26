@@ -41,9 +41,6 @@ const (
 
 	// Gateway represents the gateway for the network
 	Gateway = Prefix + ".gateway"
-
-	// Internal constant represents that the network is internal which disables default gateway service
-	Internal = Prefix + ".internal"
 )
 
 var (

@@ -67,39 +67,17 @@ func createVxlan(name string, vni uint32) error {
 	return nil
 }
 
-func deleteInterface(name string) error {
+func deleteVxlan(name string) error {
 	defer osl.InitOSContext()()
 
 	link, err := netlink.LinkByName(name)
 	if err != nil {
-		return fmt.Errorf("failed to find interface with name %s: %v", name, err)
+		return fmt.Errorf("failed to find vxlan interface with name %s: %v", name, err)
 	}
 
 	if err := netlink.LinkDel(link); err != nil {
-		return fmt.Errorf("error deleting interface with name %s: %v", name, err)
+		return fmt.Errorf("error deleting vxlan interface: %v", err)
 	}
 
 	return nil
-}
-
-func deleteVxlanByVNI(vni uint32) error {
-	defer osl.InitOSContext()()
-
-	links, err := netlink.LinkList()
-	if err != nil {
-		return fmt.Errorf("failed to list interfaces while deleting vxlan interface by vni: %v", err)
-	}
-
-	for _, l := range links {
-		if l.Type() == "vxlan" && l.(*netlink.Vxlan).VxlanId == int(vni) {
-			err = netlink.LinkDel(l)
-			if err != nil {
-				return fmt.Errorf("error deleting vxlan interface with id %d: %v", vni, err)
-			}
-
-			return nil
-		}
-	}
-
-	return fmt.Errorf("could not find a vxlan interface to delete with id %d", vni)
 }

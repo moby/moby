@@ -169,7 +169,7 @@ func (n *network) destroySandbox() {
 			}
 
 			if s.vxlanName != "" {
-				err := deleteInterface(s.vxlanName)
+				err := deleteVxlan(s.vxlanName)
 				if err != nil {
 					logrus.Warnf("could not cleanup sandbox properly: %v", err)
 				}
@@ -199,7 +199,7 @@ func setHostMode() {
 		return
 	}
 
-	defer deleteInterface("testvxlan")
+	defer deleteVxlan("testvxlan")
 
 	path := "/proc/self/ns/net"
 	f, err := os.OpenFile(path, os.O_RDONLY, 0)
@@ -251,21 +251,12 @@ func isOverlap(nw *net.IPNet) bool {
 }
 
 func (n *network) initSubnetSandbox(s *subnet) error {
-	brName := n.generateBridgeName(s)
-	vxlanName := n.generateVxlanName(s)
-
-	if hostMode {
-		// Try to delete stale bridge interface if it exists
-		deleteInterface(brName)
-		// Try to delete the vxlan interface by vni if already present
-		deleteVxlanByVNI(n.vxlanID(s))
-
-		if isOverlap(s.subnetIP) {
-			return fmt.Errorf("overlay subnet %s has conflicts in the host while running in host mode", s.subnetIP.String())
-		}
+	if hostMode && isOverlap(s.subnetIP) {
+		return fmt.Errorf("overlay subnet %s has conflicts in the host while running in host mode", s.subnetIP.String())
 	}
 
 	// create a bridge and vxlan device for this subnet and move it to the sandbox
+	brName := n.generateBridgeName(s)
 	sbox := n.sandbox()
 
 	if err := sbox.AddInterface(brName, "br",
@@ -273,6 +264,11 @@ func (n *network) initSubnetSandbox(s *subnet) error {
 		sbox.InterfaceOptions().Bridge(true)); err != nil {
 		return fmt.Errorf("bridge creation in sandbox failed for subnet %q: %v", s.subnetIP.String(), err)
 	}
+
+	vxlanName := n.generateVxlanName(s)
+
+	// Try to delete the vxlan interface if already present
+	deleteVxlan(vxlanName)
 
 	err := createVxlan(vxlanName, n.vxlanID(s))
 	if err != nil {
