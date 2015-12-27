@@ -160,6 +160,14 @@ __docker_complete_networks() {
 	COMPREPLY=( $(compgen -W "$(__docker_networks)" -- "$cur") )
 }
 
+__docker_complete_network_ids() {
+	COMPREPLY=( $(compgen -W "$(__docker_q network ls -q --no-trunc)" -- "$cur") )
+}
+
+__docker_complete_network_names() {
+	COMPREPLY=( $(compgen -W "$(__docker_q network ls | awk 'NR>1 {print $2}')" -- "$cur") )
+}
+
 __docker_complete_containers_in_network() {
 	local containers=$(__docker_q network inspect -f '{{range $i, $c := .Containers}}{{$i}} {{$c.Name}} {{end}}' "$1")
 	COMPREPLY=( $(compgen -W "$containers" -- "$cur") )
@@ -1182,14 +1190,33 @@ _docker_network_inspect() {
 
 _docker_network_ls() {
 	case "$prev" in
-		-n)
+		--filter|-f)
+			COMPREPLY=( $( compgen -S = -W "id name type" -- "$cur" ) )
+			__docker_nospace
+			return
+			;;
+	esac
+
+	case "${words[$cword-2]}$prev=" in
+		*id=*)
+			cur="${cur#=}"
+			__docker_complete_network_ids
+			return
+			;;
+		*name=*)
+			cur="${cur#=}"
+			__docker_complete_network_names
+			return
+			;;
+		*type=*)
+			COMPREPLY=( $( compgen -W "builtin custom" -- "${cur#=}" ) )
 			return
 			;;
 	esac
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--help --no-trunc --quiet -q" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--filter -f --help --no-trunc --quiet -q" -- "$cur" ) )
 			;;
 	esac
 }
