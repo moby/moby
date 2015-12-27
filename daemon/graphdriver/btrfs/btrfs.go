@@ -278,7 +278,10 @@ func (d *Driver) Remove(id string) error {
 	if err := subvolDelete(d.subvolumesDir(), id); err != nil {
 		return err
 	}
-	return os.RemoveAll(dir)
+	if err := os.RemoveAll(dir); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	return nil
 }
 
 // Get the requested filesystem id.

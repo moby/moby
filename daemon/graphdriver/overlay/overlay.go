@@ -322,7 +322,10 @@ func (d *Driver) dir(id string) string {
 
 // Remove cleans the directories that are created for this id.
 func (d *Driver) Remove(id string) error {
-	return os.RemoveAll(d.dir(id))
+	if err := os.RemoveAll(d.dir(id)); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	return nil
 }
 
 // Get creates and mounts the required file system for the given id and returns the mount path.
