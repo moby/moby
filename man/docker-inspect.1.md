@@ -16,8 +16,9 @@ CONTAINER|IMAGE [CONTAINER|IMAGE...]
 
 This displays all the information available in Docker for a given
 container or image. By default, this will render all results in a JSON
-array. If a format is specified, the given template will be executed for
-each result.
+array. If the container and image have the same name, this will return 
+container JSON for unspecified type. If a format is specified, the given
+template will be executed for each result.
 
 # OPTIONS
 **--help**
