@@ -92,7 +92,7 @@ func (n *networkRouter) postNetworkCreate(ctx context.Context, w http.ResponseWr
 		warning = fmt.Sprintf("Network with name %s (id : %s) already exists", nw.Name(), nw.ID())
 	}
 
-	nw, err = n.backend.CreateNetwork(create.Name, create.Driver, create.IPAM, create.Options)
+	nw, err = n.backend.CreateNetwork(create.Name, create.Driver, create.IPAM, create.Options, create.Internal)
 	if err != nil {
 		return err
 	}
