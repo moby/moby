@@ -218,6 +218,12 @@ func ValidateContextDirectory(srcPath string, excludes []string) error {
 
 		if err != nil {
 			if os.IsPermission(err) {
+				// Fixes GH18120. Do not follow junction directories on Windows. Golang
+				// is not capable of following long-path (\\?\...) junctions on Windows.
+				// eg c:\users\username\documents\My Music
+				if runtime.GOOS == "windows" && f.IsDir() && f.Mode()|os.ModeSymlink != 0 {
+					return nil
+				}
 				return fmt.Errorf("can't stat '%s'", filePath)
 			}
 			if os.IsNotExist(err) {
