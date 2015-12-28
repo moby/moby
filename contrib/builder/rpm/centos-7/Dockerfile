@@ -23,6 +23,7 @@ cd "$SECCOMP_PATH" \
 && ./configure --prefix=/usr \
 && make \
 && install -c src/.libs/libseccomp.a /usr/lib/libseccomp.a \
+&& install -c include/seccomp.h /usr/include/seccomp.h \
 && chmod 644 /usr/lib/libseccomp.a \
 && ranlib /usr/lib/libseccomp.a \
 && ldconfig -n /usr/lib \
