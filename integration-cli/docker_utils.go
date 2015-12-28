@@ -321,11 +321,11 @@ func (d *Daemon) StartWithBusybox(arg ...string) error {
 		}
 	}
 	// loading busybox image to this daemon
-	if _, err := d.Cmd("load", "--input", bb); err != nil {
-		return fmt.Errorf("could not load busybox image: %v", err)
+	if out, err := d.Cmd("load", "--input", bb); err != nil {
+		return fmt.Errorf("could not load busybox image: %s", out)
 	}
 	if err := os.Remove(bb); err != nil {
-		d.c.Logf("Could not remove %s: %v", bb, err)
+		d.c.Logf("could not remove %s: %v", bb, err)
 	}
 	return nil
 }
