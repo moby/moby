@@ -28,6 +28,13 @@ type ContainerExecCreateResponse struct {
 	ID string `json:"Id"`
 }
 
+// ContainerUpdateResponse contains response of Remote API:
+// POST /containers/{name:.*}/update
+type ContainerUpdateResponse struct {
+	// Warnings are any warnings encountered during the updating of the container.
+	Warnings []string `json:"Warnings"`
+}
+
 // AuthResponse contains response of Remote API:
 // POST "/auth"
 type AuthResponse struct {
