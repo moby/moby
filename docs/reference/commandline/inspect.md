@@ -20,8 +20,9 @@ parent = "smn_cli"
                               values are "image" or "container"
       -s, --size              Display total file sizes if the type is container
 
-By default, this will render all results in a JSON array. If a format is
-specified, the given template will be executed for each result.
+By default, this will render all results in a JSON array. If the container and
+image have the same name, this will return container JSON for unspecified type.
+If a format is specified, the given template will be executed for each result.
 
 Go's [text/template](http://golang.org/pkg/text/template/) package
 describes all the details of the format.
