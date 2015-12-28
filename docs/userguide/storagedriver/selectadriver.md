@@ -58,7 +58,7 @@ Which storage driver you use, in part, depends on the backing filesystem you pla
     |zfs            |Yes                           |
 
 
-You can set the storage driver by passing the `--storage-driver=<name>` option to the `docker daemon` command line or by setting the option on the `DOCKER_OPTS` line in `/etc/defaults/docker` file.
+You can set the storage driver by passing the `--storage-driver=<name>` option to the `docker daemon` command line or by setting the option on the `DOCKER_OPTS` line in `/etc/default/docker` file.
 
 The following command shows how to start the Docker daemon with the `devicemapper` storage driver using the `docker daemon` command:
 
