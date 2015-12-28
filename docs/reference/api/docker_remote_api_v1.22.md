@@ -2263,16 +2263,23 @@ Status Codes:
 
 `GET /events`
 
-Get container events from docker, either in real time via streaming, or via
-polling (using since).
+Get container events from docker, either in real time via streaming, or via polling (using since).
 
 Docker containers report the following events:
 
-    attach, commit, copy, create, destroy, die, exec_create, exec_start, export, kill, oom, pause, rename, resize, restart, start, stop, top, unpause
+    attach, commit, copy, create, destroy, die, exec_create, exec_start, export, kill, oom, pause, rename, resize, restart, start, stop, top, unpause, update
 
-and Docker images report:
+Docker images report the following events:
 
     delete, import, pull, push, tag, untag
+
+Docker volumes report the following events:
+
+    create, mount, unmount, destroy
+
+Docker networks report the following events:
+
+    create, connect, disconnect, destroy
 
 **Example request**:
 
@@ -2283,10 +2290,48 @@ and Docker images report:
     HTTP/1.1 200 OK
     Content-Type: application/json
 
-    {"status":"pull","id":"busybox:latest","time":1442421700,"timeNano":1442421700598988358}
-    {"status":"create","id":"5745704abe9caa5","from":"busybox","time":1442421716,"timeNano":1442421716853979870}
-    {"status":"attach","id":"5745704abe9caa5","from":"busybox","time":1442421716,"timeNano":1442421716894759198}
-    {"status":"start","id":"5745704abe9caa5","from":"busybox","time":1442421716,"timeNano":1442421716983607193}
+    [
+	    {
+		"action": "pull",
+		"type": "image", 
+		"actor": {
+			"id": "busybox:latest",
+			"attributes": {}
+		}
+		"time": 1442421700,
+		"timeNano": 1442421700598988358
+	    },
+            {
+		"action": "create",
+		"type": "container",
+		"actor": {
+			"id": "5745704abe9caa5",
+			"attributes": {"image": "busybox"}
+		}
+		"time": 1442421716,
+		"timeNano": 1442421716853979870
+	    },
+            {
+		"action": "attach",
+		"type": "container",
+		"actor": {
+			"id": "5745704abe9caa5",
+			"attributes": {"image": "busybox"}
+		}
+		"time": 1442421716,
+		"timeNano": 1442421716894759198
+	    },
+            {
+		"action": "start",
+		"type": "container",
+		"actor": {
+			"id": "5745704abe9caa5",
+			"attributes": {"image": "busybox"}
+		}
+		"time": 1442421716,
+		"timeNano": 1442421716983607193
+	    }
+    ]
 
 Query Parameters:
 
@@ -2297,6 +2342,9 @@ Query Parameters:
   -   `event=<string>`; -- event to filter
   -   `image=<string>`; -- image to filter
   -   `label=<string>`; -- image and container label to filter
+  -   `type=<string>`; -- either `container` or `image` or `volume` or `network`
+  -   `volume=<string>`; -- volume to filter
+  -   `network=<string>`; -- network to filter
 
 Status Codes:
 

@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/go-check/check"
 )
@@ -27,13 +28,15 @@ var (
 )
 
 // eventMatcher is a function that tries to match an event input.
-type eventMatcher func(text string)
+type eventMatcher func(text string) bool
 
 // eventObserver runs an events commands and observes its output.
 type eventObserver struct {
-	buffer  *bytes.Buffer
-	command *exec.Cmd
-	stdout  io.Reader
+	buffer             *bytes.Buffer
+	command            *exec.Cmd
+	scanner            *bufio.Scanner
+	startTime          string
+	disconnectionError error
 }
 
 // newEventObserver creates the observer and initializes the command
@@ -45,7 +48,8 @@ func newEventObserver(c *check.C, args ...string) (*eventObserver, error) {
 
 // newEventObserverWithBacklog creates a new observer changing the start time of the backlog to return.
 func newEventObserverWithBacklog(c *check.C, since int64, args ...string) (*eventObserver, error) {
-	cmdArgs := []string{"events", "--since", strconv.FormatInt(since, 10)}
+	startTime := strconv.FormatInt(since, 10)
+	cmdArgs := []string{"events", "--since", startTime}
 	if len(args) > 0 {
 		cmdArgs = append(cmdArgs, args...)
 	}
@@ -56,9 +60,10 @@ func newEventObserverWithBacklog(c *check.C, since int64, args ...string) (*even
 	}
 
 	return &eventObserver{
-		buffer:  new(bytes.Buffer),
-		command: eventsCmd,
-		stdout:  stdout,
+		buffer:    new(bytes.Buffer),
+		command:   eventsCmd,
+		scanner:   bufio.NewScanner(stdout),
+		startTime: startTime,
 	}, nil
 }
 
@@ -75,43 +80,61 @@ func (e *eventObserver) Stop() {
 
 // Match tries to match the events output with a given matcher.
 func (e *eventObserver) Match(match eventMatcher) {
-	scanner := bufio.NewScanner(e.stdout)
-
-	for scanner.Scan() {
-		text := scanner.Text()
+	for e.scanner.Scan() {
+		text := e.scanner.Text()
 		e.buffer.WriteString(text)
 		e.buffer.WriteString("\n")
 
 		match(text)
 	}
+
+	err := e.scanner.Err()
+	if err == nil {
+		err = io.EOF
+	}
+
+	logrus.Debug("EventObserver scanner loop finished: %v", err)
+	e.disconnectionError = err
 }
 
-// TimeoutError generates an error for a given containerID and event type.
-// It attaches the events command output to the error.
-func (e *eventObserver) TimeoutError(id, event string) error {
-	return fmt.Errorf("failed to observe event `%s` for %s\n%v", event, id, e.output())
-}
+func (e *eventObserver) CheckEventError(c *check.C, id, event string, match eventMatcher) {
+	var foundEvent bool
+	scannerOut := e.buffer.String()
 
-// output returns the events command output read until now by the Match goroutine.
-func (e *eventObserver) output() string {
-	return e.buffer.String()
+	if e.disconnectionError != nil {
+		until := strconv.FormatInt(daemonTime(c).Unix(), 10)
+		out, _ := dockerCmd(c, "events", "--since", e.startTime, "--until", until)
+		events := strings.Split(strings.TrimSpace(out), "\n")
+		for _, e := range events {
+			if match(e) {
+				foundEvent = true
+				break
+			}
+		}
+		scannerOut = out
+	}
+	if !foundEvent {
+		c.Fatalf("failed to observe event `%s` for %s. Disconnection error: %v\nout:\n%v", event, id, e.disconnectionError, scannerOut)
+	}
 }
 
 // matchEventLine matches a text with the event regular expression.
 // It returns the action and true if the regular expression matches with the given id and event type.
 // It returns an empty string and false if there is no match.
 func matchEventLine(id, eventType string, actions map[string]chan bool) eventMatcher {
-	return func(text string) {
+	return func(text string) bool {
 		matches := parseEventText(text)
-		if matches == nil {
-			return
+		if len(matches) == 0 {
+			return false
 		}
 
 		if matchIDAndEventType(matches, id, eventType) {
 			if ch, ok := actions[matches["action"]]; ok {
 				close(ch)
+				return true
 			}
 		}
+		return false
 	}
 }
 
@@ -119,12 +142,12 @@ func matchEventLine(id, eventType string, actions map[string]chan bool) eventMat
 // the matchers in a map.
 func parseEventText(text string) map[string]string {
 	matches := eventCliRegexp.FindAllStringSubmatch(text, -1)
+	md := map[string]string{}
 	if len(matches) == 0 {
-		return nil
+		return md
 	}
 
 	names := eventCliRegexp.SubexpNames()
-	md := map[string]string{}
 	for i, n := range matches[0] {
 		md[names[i]] = n
 	}
@@ -135,7 +158,6 @@ func parseEventText(text string) map[string]string {
 // It fails if the text is not in the event format.
 func parseEventAction(c *check.C, text string) string {
 	matches := parseEventText(text)
-	c.Assert(matches, checker.Not(checker.IsNil))
 	return matches["action"]
 }
 
@@ -177,10 +199,9 @@ func parseEvents(c *check.C, out, match string) {
 	events := strings.Split(strings.TrimSpace(out), "\n")
 	for _, event := range events {
 		matches := parseEventText(event)
-		c.Assert(matches, checker.Not(checker.IsNil))
 		matched, err := regexp.MatchString(match, matches["action"])
 		c.Assert(err, checker.IsNil)
-		c.Assert(matched, checker.True)
+		c.Assert(matched, checker.True, check.Commentf("Matcher: %s did not match %s", match, matches["action"]))
 	}
 }
 
@@ -188,11 +209,10 @@ func parseEventsWithID(c *check.C, out, match, id string) {
 	events := strings.Split(strings.TrimSpace(out), "\n")
 	for _, event := range events {
 		matches := parseEventText(event)
-		c.Assert(matches, checker.Not(checker.IsNil))
 		c.Assert(matchEventID(matches, id), checker.True)
 
 		matched, err := regexp.MatchString(match, matches["action"])
 		c.Assert(err, checker.IsNil)
-		c.Assert(matched, checker.True)
+		c.Assert(matched, checker.True, check.Commentf("Matcher: %s did not match %s", match, matches["action"]))
 	}
 }
