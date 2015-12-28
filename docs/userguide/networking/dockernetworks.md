@@ -305,19 +305,22 @@ features and some old features that aren't available.
 
 ```
 $ docker network create --driver bridge isolated_nw
-c5ee82f76de30319c75554a57164c682e7372d2c694fec41e42ac3b77e570f6b
+1196a4c5af43a21ae38ef34515b6af19236a3fc48122cf585e3f3054d509679b
 
 $ docker network inspect isolated_nw
 [
     {
         "Name": "isolated_nw",
-        "Id": "c5ee82f76de30319c75554a57164c682e7372d2c694fec41e42ac3b77e570f6b",
+        "Id": "1196a4c5af43a21ae38ef34515b6af19236a3fc48122cf585e3f3054d509679b",
         "Scope": "local",
         "Driver": "bridge",
         "IPAM": {
             "Driver": "default",
             "Config": [
-                {}
+                {
+                    "Subnet": "172.21.0.0/16",
+                    "Gateway": "172.21.0.1/16"
+                }
             ]
         },
         "Containers": {},
@@ -338,13 +341,13 @@ After you create the network, you can launch containers on it using  the `docker
 
 ```
 $ docker run --net=isolated_nw -itd --name=container3 busybox
-885b7b4f792bae534416c95caa35ba272f201fa181e18e59beba0c80d7d77c1d
+8c1a0a5be480921d669a073393ade66a3fc49933f08bcc5515b37b8144f6d47c
 
 $ docker network inspect isolated_nw
 [
     {
         "Name": "isolated_nw",
-        "Id": "c5ee82f76de30319c75554a57164c682e7372d2c694fec41e42ac3b77e570f6b",
+        "Id": "1196a4c5af43a21ae38ef34515b6af19236a3fc48122cf585e3f3054d509679b",
         "Scope": "local",
         "Driver": "bridge",
         "IPAM": {
@@ -354,8 +357,8 @@ $ docker network inspect isolated_nw
             ]
         },
         "Containers": {
-            "885b7b4f792bae534416c95caa35ba272f201fa181e18e59beba0c80d7d77c1d": {
-                "EndpointID": "514e1b419074397ea92bcfaa6698d17feb62db49d1320a27393b853ec65319c3",
+            "8c1a0a5be480921d669a073393ade66a3fc49933f08bcc5515b37b8144f6d47c": {
+                "EndpointID": "93b2db4a9b9a997beb912d28bcfc117f7b0eb924ff91d48cfa251d473e6a9b08",
                 "MacAddress": "02:42:ac:15:00:02",
                 "IPv4Address": "172.21.0.2/16",
                 "IPv6Address": ""
