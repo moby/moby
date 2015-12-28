@@ -39,8 +39,7 @@
 			"tibor",
 			"unclejack",
 			"vbatts",
-			"vdemeester",
-			"vishh"
+			"vdemeester"
 		]
 
 	[Org."Docs maintainers"]
@@ -92,7 +91,13 @@
 			# a maintainer for the Docker "Engine", he's still actively involved in other
 			# Docker projects, and most likely can be found in the Docker Swarm repository,
 			# for which he's a core maintainer.
-			"vieux"
+			"vieux",
+
+			# Vishnu became a maintainer to help out on the daemon codebase and
+			# libcontainer integration. He's currently involved in the
+			# Open Containers Initiative, working on the specifications,
+			# besides his work on cAdvisor and Kubernetes for Google.
+			"vishh"
 		]
 
 [people]
