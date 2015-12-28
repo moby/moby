@@ -2,7 +2,6 @@ package main
 
 import (
 	"archive/tar"
-	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -1861,90 +1860,6 @@ func (s *DockerSuite) TestBuildForceRm(c *check.C) {
 		c.Fatalf("--force-rm shouldn't have left containers behind")
 	}
 
-}
-
-// Test that an infinite sleep during a build is killed if the client disconnects.
-// This test is fairly hairy because there are lots of ways to race.
-// Strategy:
-// * Monitor the output of docker events starting from before
-// * Run a 1-year-long sleep from a docker build.
-// * When docker events sees container start, close the "docker build" command
-// * Wait for docker events to emit a dying event.
-func (s *DockerSuite) TestBuildCancellationKillsSleep(c *check.C) {
-	testRequires(c, DaemonIsLinux)
-	name := "testbuildcancellation"
-
-	observer, err := newEventObserver(c)
-	c.Assert(err, checker.IsNil)
-	err = observer.Start()
-	c.Assert(err, checker.IsNil)
-	defer observer.Stop()
-
-	// (Note: one year, will never finish)
-	ctx, err := fakeContext("FROM busybox\nRUN sleep 31536000", nil)
-	if err != nil {
-		c.Fatal(err)
-	}
-	defer ctx.Close()
-
-	buildCmd := exec.Command(dockerBinary, "build", "-t", name, ".")
-	buildCmd.Dir = ctx.Dir
-
-	stdoutBuild, err := buildCmd.StdoutPipe()
-	if err := buildCmd.Start(); err != nil {
-		c.Fatalf("failed to run build: %s", err)
-	}
-
-	matchCID := regexp.MustCompile("Running in (.+)")
-	scanner := bufio.NewScanner(stdoutBuild)
-
-	outputBuffer := new(bytes.Buffer)
-	var buildID string
-	for scanner.Scan() {
-		line := scanner.Text()
-		outputBuffer.WriteString(line)
-		outputBuffer.WriteString("\n")
-		if matches := matchCID.FindStringSubmatch(line); len(matches) > 0 {
-			buildID = matches[1]
-			break
-		}
-	}
-
-	if buildID == "" {
-		c.Fatalf("Unable to find build container id in build output:\n%s", outputBuffer.String())
-	}
-
-	testActions := map[string]chan bool{
-		"start": make(chan bool),
-		"die":   make(chan bool),
-	}
-
-	go observer.Match(matchEventLine(buildID, "container", testActions))
-
-	select {
-	case <-time.After(10 * time.Second):
-		c.Fatal(observer.TimeoutError(buildID, "start"))
-	case <-testActions["start"]:
-		// ignore, done
-	}
-
-	// Send a kill to the `docker build` command.
-	// Causes the underlying build to be cancelled due to socket close.
-	if err := buildCmd.Process.Kill(); err != nil {
-		c.Fatalf("error killing build command: %s", err)
-	}
-
-	// Get the exit status of `docker build`, check it exited because killed.
-	if err := buildCmd.Wait(); err != nil && !isKilled(err) {
-		c.Fatalf("wait failed during build run: %T %s", err, err)
-	}
-
-	select {
-	case <-time.After(10 * time.Second):
-		c.Fatal(observer.TimeoutError(buildID, "die"))
-	case <-testActions["die"]:
-		// ignore, done
-	}
 }
 
 func (s *DockerSuite) TestBuildRm(c *check.C) {

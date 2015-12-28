@@ -58,16 +58,29 @@ func (cli *DockerCli) CmdEvents(args ...string) error {
 
 // streamEvents decodes prints the incoming events in the provided output.
 func streamEvents(input io.Reader, output io.Writer) error {
-	dec := json.NewDecoder(input)
-	for {
-		var event eventtypes.Message
-		if err := dec.Decode(&event); err != nil {
-			if err == io.EOF {
-				break
-			}
+	return decodeEvents(input, func(event eventtypes.Message, err error) error {
+		if err != nil {
 			return err
 		}
 		printOutput(event, output)
+		return nil
+	})
+}
+
+type eventProcessor func(event eventtypes.Message, err error) error
+
+func decodeEvents(input io.Reader, ep eventProcessor) error {
+	dec := json.NewDecoder(input)
+	for {
+		var event eventtypes.Message
+		err := dec.Decode(&event)
+		if err != nil && err == io.EOF {
+			break
+		}
+
+		if procErr := ep(event, err); procErr != nil {
+			return procErr
+		}
 	}
 	return nil
 }

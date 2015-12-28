@@ -203,3 +203,143 @@ func (s *DockerSuite) TestNetworkEvents(c *check.C) {
 	c.Assert(netEvents[2], checker.Equals, "disconnect")
 	c.Assert(netEvents[3], checker.Equals, "destroy")
 }
+
+func (s *DockerSuite) TestEventsStreaming(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	observer, err := newEventObserver(c)
+	c.Assert(err, checker.IsNil)
+	err = observer.Start()
+	c.Assert(err, checker.IsNil)
+	defer observer.Stop()
+
+	out, _ := dockerCmd(c, "run", "-d", "busybox:latest", "true")
+	containerID := strings.TrimSpace(out)
+
+	testActions := map[string]chan bool{
+		"create":  make(chan bool),
+		"start":   make(chan bool),
+		"die":     make(chan bool),
+		"destroy": make(chan bool),
+	}
+
+	matcher := matchEventLine(containerID, "container", testActions)
+	go observer.Match(matcher)
+
+	select {
+	case <-time.After(5 * time.Second):
+		observer.CheckEventError(c, containerID, "create", matcher)
+	case <-testActions["create"]:
+		// ignore, done
+	}
+
+	select {
+	case <-time.After(5 * time.Second):
+		observer.CheckEventError(c, containerID, "start", matcher)
+	case <-testActions["start"]:
+		// ignore, done
+	}
+
+	select {
+	case <-time.After(5 * time.Second):
+		observer.CheckEventError(c, containerID, "die", matcher)
+	case <-testActions["die"]:
+		// ignore, done
+	}
+
+	dockerCmd(c, "rm", containerID)
+
+	select {
+	case <-time.After(5 * time.Second):
+		observer.CheckEventError(c, containerID, "destroy", matcher)
+	case <-testActions["destroy"]:
+		// ignore, done
+	}
+}
+
+func (s *DockerSuite) TestEventsImageUntagDelete(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	observer, err := newEventObserver(c)
+	c.Assert(err, checker.IsNil)
+	err = observer.Start()
+	c.Assert(err, checker.IsNil)
+	defer observer.Stop()
+
+	name := "testimageevents"
+	imageID, err := buildImage(name,
+		`FROM scratch
+		MAINTAINER "docker"`,
+		true)
+	c.Assert(err, checker.IsNil)
+	c.Assert(deleteImages(name), checker.IsNil)
+
+	testActions := map[string]chan bool{
+		"untag":  make(chan bool),
+		"delete": make(chan bool),
+	}
+
+	matcher := matchEventLine(imageID, "image", testActions)
+	go observer.Match(matcher)
+
+	select {
+	case <-time.After(10 * time.Second):
+		observer.CheckEventError(c, imageID, "untag", matcher)
+	case <-testActions["untag"]:
+		// ignore, done
+	}
+
+	select {
+	case <-time.After(10 * time.Second):
+		observer.CheckEventError(c, imageID, "delete", matcher)
+	case <-testActions["delete"]:
+		// ignore, done
+	}
+}
+
+func (s *DockerSuite) TestEventsFilterVolumeAndNetworkType(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	since := daemonTime(c).Unix()
+
+	dockerCmd(c, "network", "create", "test-event-network-type")
+	dockerCmd(c, "volume", "create", "--name", "test-event-volume-type")
+
+	out, _ := dockerCmd(c, "events", "--filter", "type=volume", "--filter", "type=network", fmt.Sprintf("--since=%d", since), fmt.Sprintf("--until=%d", daemonTime(c).Unix()))
+	events := strings.Split(strings.TrimSpace(out), "\n")
+	c.Assert(len(events), checker.GreaterOrEqualThan, 2, check.Commentf(out))
+
+	networkActions := eventActionsByIDAndType(c, events, "test-event-network-type", "network")
+	volumeActions := eventActionsByIDAndType(c, events, "test-event-volume-type", "volume")
+
+	c.Assert(volumeActions[0], checker.Equals, "create")
+	c.Assert(networkActions[0], checker.Equals, "create")
+}
+
+func (s *DockerSuite) TestEventsFilterVolumeID(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	since := daemonTime(c).Unix()
+
+	dockerCmd(c, "volume", "create", "--name", "test-event-volume-id")
+	out, _ := dockerCmd(c, "events", "--filter", "volume=test-event-volume-id", fmt.Sprintf("--since=%d", since), fmt.Sprintf("--until=%d", daemonTime(c).Unix()))
+	events := strings.Split(strings.TrimSpace(out), "\n")
+	c.Assert(events, checker.HasLen, 1)
+
+	c.Assert(events[0], checker.Contains, "test-event-volume-id")
+	c.Assert(events[0], checker.Contains, "driver=local")
+}
+
+func (s *DockerSuite) TestEventsFilterNetworkID(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	since := daemonTime(c).Unix()
+
+	dockerCmd(c, "network", "create", "test-event-network-local")
+	out, _ := dockerCmd(c, "events", "--filter", "network=test-event-network-local", fmt.Sprintf("--since=%d", since), fmt.Sprintf("--until=%d", daemonTime(c).Unix()))
+	events := strings.Split(strings.TrimSpace(out), "\n")
+	c.Assert(events, checker.HasLen, 1)
+
+	c.Assert(events[0], checker.Contains, "test-event-network-local")
+	c.Assert(events[0], checker.Contains, "type=bridge")
+}
