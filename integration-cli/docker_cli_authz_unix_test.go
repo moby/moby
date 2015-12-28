@@ -170,8 +170,8 @@ func (s *DockerAuthzSuite) TestAuthZPluginAllowRequest(c *check.C) {
 	s.ctrl.resRes.Allow = true
 
 	// Ensure command successful
-	out, err := s.d.Cmd("run", "-d", "--name", "container1", "busybox:latest", "top")
-	c.Assert(err, check.IsNil)
+	out, err := s.d.Cmd("run", "-d", "busybox:latest", "top")
+	c.Assert(err, check.IsNil, check.Commentf(out))
 
 	// Extract the id of the created container
 	res := strings.Split(strings.TrimSpace(out), "\n")

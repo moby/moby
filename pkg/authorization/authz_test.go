@@ -172,7 +172,7 @@ func createTestPlugin(t *testing.T) *authorizationPlugin {
 		t.Fatalf("Failed to create client %v", err)
 	}
 
-	return &authorizationPlugin{name: "plugin", plugin: plugin}
+	return &authorizationPlugin{plugin: plugin}
 }
 
 // AuthZPluginTestServer is a simple server that implements the authZ plugin interface

@@ -27,7 +27,10 @@ func TestMiddlewares(t *testing.T) {
 		return nil
 	}
 
-	handlerFunc := srv.handleWithGlobalMiddlewares(localHandler)
+	handlerFunc, err := srv.handleWithGlobalMiddlewares(localHandler)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if err := handlerFunc(ctx, resp, req, map[string]string{}); err != nil {
 		t.Fatal(err)
 	}
