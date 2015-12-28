@@ -2937,7 +2937,7 @@ Status Codes:
 
 **Example request**:
 
-    GET /networks/f2de39df4171b0dc801e8002d1d999b77256983dfc63041c0f34030aa3977566 HTTP/1.1
+    GET /networks/7d86d31b1478e7cca9ebed7e73aa0fdeec46c5ca29497431d3007d2d9e15ed99 HTTP/1.1
 
 **Example response**:
 
@@ -2946,15 +2946,16 @@ HTTP/1.1 200 OK
 Content-Type: application/json
 
 {
-  "Name": "bridge",
-  "Id": "f2de39df4171b0dc801e8002d1d999b77256983dfc63041c0f34030aa3977566",
+  "Name": "net01",
+  "Id": "7d86d31b1478e7cca9ebed7e73aa0fdeec46c5ca29497431d3007d2d9e15ed99",
   "Scope": "local",
   "Driver": "bridge",
   "IPAM": {
     "Driver": "default",
     "Config": [
       {
-        "Subnet": "172.17.0.0/16"
+        "Subnet": "172.19.0.0/16",
+        "Gateway": "172.19.0.1/16"
       }
     ],
     "Options": {
@@ -2962,11 +2963,11 @@ Content-Type: application/json
     }
   },
   "Containers": {
-    "39b69226f9d79f5634485fb236a23b2fe4e96a0a94128390a7fbbcc167065867": {
-      "Name": "mad_mclean",
-      "EndpointID": "ed2419a97c1d9954d05b46e462e7002ea552f216e9b136b80a7db8d98b442eda",
-      "MacAddress": "02:42:ac:11:00:02",
-      "IPv4Address": "172.17.0.2/16",
+    "19a4d5d687db25203351ed79d478946f861258f018fe384f229f2efa4b23513c": {
+      "Name": "test",
+      "EndpointID": "628cadb8bcb92de107b2a1e516cbffe463e321f548feb37697cce00ad694f21a",
+      "MacAddress": "02:42:ac:13:00:02",
+      "IPv4Address": "172.19.0.2/16",
       "IPv6Address": ""
     }
   },

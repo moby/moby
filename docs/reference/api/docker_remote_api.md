@@ -121,6 +121,7 @@ This section lists each version from latest to oldest.  Each listing includes a 
   for custom IPAM plugins.
 * `GET /networks/{network-id}` Now returns IPAM config options for custom IPAM plugins if any
   are available.
+* `GET /networks/<network-id>` now returns subnets info for user-defined networks.
 
 ### v1.21 API changes
 

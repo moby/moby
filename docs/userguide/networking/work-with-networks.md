@@ -36,18 +36,21 @@ A `bridge` network resides on a single host running an instance of Docker Engine
 
 ```bash
 $ docker network create simple-network
-de792b8258895cf5dc3b43835e9d61a9803500b991654dacb1f4f0546b1c88f8
+69568e6336d8c96bbf57869030919f7c69524f71183b44d80948bd3927c87f6a
 $ docker network inspect simple-network
 [
     {
         "Name": "simple-network",
-        "Id": "de792b8258895cf5dc3b43835e9d61a9803500b991654dacb1f4f0546b1c88f8",
+        "Id": "69568e6336d8c96bbf57869030919f7c69524f71183b44d80948bd3927c87f6a",
         "Scope": "local",
         "Driver": "bridge",
         "IPAM": {
             "Driver": "default",
             "Config": [
-                {}
+                {
+                    "Subnet": "172.22.0.0/16",
+                    "Gateway": "172.22.0.1/16"
+                }
             ]
         },
         "Containers": {},
@@ -134,7 +137,8 @@ $ docker network inspect isolated_nw
             "Driver": "default",
             "Config": [
                 {
-                    "Subnet": "172.25.0.0/16"
+                    "Subnet": "172.21.0.0/16",
+                    "Gateway": "172.21.0.1/16"
                 }
             ]
         },
@@ -662,7 +666,8 @@ $ docker network inspect isolated_nw
             "Driver": "default",
             "Config": [
                 {
-                    "Subnet": "172.25.0.0/16"
+                    "Subnet": "172.21.0.0/16",
+                    "Gateway": "172.21.0.1/16"
                 }
             ]
         },
@@ -746,7 +751,8 @@ docker network inspect isolated_nw
             "Driver": "default",
             "Config": [
                 {
-                    "Subnet": "172.25.0.0/16"
+                    "Subnet": "172.21.0.0/16",
+                    "Gateway": "172.21.0.1/16"
                 }
             ]
         },
