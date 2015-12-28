@@ -59,6 +59,7 @@ You start the Docker daemon with the command line. How you start the daemon affe
 * [stop](stop.md)
 * [top](top.md)
 * [unpause](unpause.md)
+* [update](update.md)
 * [wait](wait.md)
 
 ### Hub and registry commands

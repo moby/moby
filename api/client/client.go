@@ -43,6 +43,7 @@ type apiClient interface {
 	ContainerStop(containerID string, timeout int) error
 	ContainerTop(containerID string, arguments []string) (types.ContainerProcessList, error)
 	ContainerUnpause(containerID string) error
+	ContainerUpdate(containerID string, hostConfig container.HostConfig) error
 	ContainerWait(containerID string) (int, error)
 	CopyFromContainer(containerID, srcPath string) (io.ReadCloser, types.ContainerPathStat, error)
 	CopyToContainer(options types.CopyToContainerOptions) error
