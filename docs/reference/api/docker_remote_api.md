@@ -114,6 +114,7 @@ This section lists each version from latest to oldest.  Each listing includes a 
 * `POST /containers/create` now allows you to set the static IPv4 and/or IPv6 address for the container.
 * `POST /networks/(id)/connect` now allows you to set the static IPv4 and/or IPv6 address for the container.
 * `GET /info` now includes the number of containers running, stopped, and paused.
+* `POST /networks/create` now supports restricting external access to the network by setting the `internal` field.
 
 ### v1.21 API changes
 
