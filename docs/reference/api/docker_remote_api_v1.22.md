@@ -1003,6 +1003,50 @@ Status Codes:
 -   **404** – no such container
 -   **500** – server error
 
+### Update a container
+
+`POST /containers/(id)/update`
+
+Update resource configs of one or more containers.
+
+**Example request**:
+
+       POST /containers/(id)/update HTTP/1.1
+       Content-Type: application/json
+
+       {
+           "HostConfig": {
+               "Resources": {
+                   "BlkioWeight": 300,
+                   "CpuShares": 512,
+                   "CpuPeriod": 100000,
+                   "CpuQuota": 50000,
+                   "CpusetCpus": "0,1",
+                   "CpusetMems": "0",
+                   "Memory": 314572800,
+                   "MemorySwap": 514288000,
+                   "MemoryReservation": 209715200,
+                   "KernelMemory": 52428800,
+               }
+           }
+       }
+
+**Example response**:
+
+       HTTP/1.1 200 OK
+       Content-Type: application/json
+
+       {
+           "Warnings": []
+       }
+
+Status Codes:
+
+-   **200** – no error
+-   **400** – bad parameter
+-   **404** – no such container
+-   **500** – server error
+
 ### Rename a container
 
 `POST /containers/(id)/rename`

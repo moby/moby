@@ -323,6 +323,30 @@ func (s *containerRouter) postContainerRename(ctx context.Context, w http.Respon
 	return nil
 }
 
+func (s *containerRouter) postContainerUpdate(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if err := httputils.ParseForm(r); err != nil {
+		return err
+	}
+	if err := httputils.CheckForJSON(r); err != nil {
+		return err
+	}
+
+	_, hostConfig, err := runconfig.DecodeContainerConfig(r.Body)
+	if err != nil {
+		return err
+	}
+
+	name := vars["name"]
+	warnings, err := s.backend.ContainerUpdate(name, hostConfig)
+	if err != nil {
+		return err
+	}
+
+	return httputils.WriteJSON(w, http.StatusOK, &types.ContainerUpdateResponse{
+		Warnings: warnings,
+	})
+}
+
 func (s *containerRouter) postContainersCreate(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
