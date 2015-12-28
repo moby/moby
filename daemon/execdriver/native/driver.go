@@ -398,6 +398,26 @@ func (d *Driver) Stats(id string) (*execdriver.ResourceStats, error) {
 	}, nil
 }
 
+// Update updates configs for a container
+func (d *Driver) Update(c *execdriver.Command) error {
+	d.Lock()
+	cont := d.activeContainers[c.ID]
+	d.Unlock()
+	if cont == nil {
+		return execdriver.ErrNotRunning
+	}
+	config := cont.Config()
+	if err := execdriver.SetupCgroups(&config, c); err != nil {
+		return err
+	}
+
+	if err := cont.Set(config); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // TtyConsole implements the exec driver Terminal interface.
 type TtyConsole struct {
 	console libcontainer.Console
