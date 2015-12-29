@@ -356,5 +356,17 @@ var defaultSeccompProfile = &configs.Seccomp{
 			Action: configs.Errno,
 			Args:   []*configs.Arg{},
 		},
+		{
+			// In kernel x86 real mode virtual machine
+			Name:   "vm86",
+			Action: configs.Errno,
+			Args:   []*configs.Arg{},
+		},
+		{
+			// In kernel x86 real mode virtual machine
+			Name:   "vm86old",
+			Action: configs.Errno,
+			Args:   []*configs.Arg{},
+		},
 	},
 }
