@@ -224,7 +224,7 @@ func (s *containerRouter) postContainersKill(ctx context.Context, w http.Respons
 		// to keep backwards compatibility.
 		version := httputils.VersionFromContext(ctx)
 		if version.GreaterThanOrEqualTo("1.20") || !isStopped {
-			return fmt.Errorf("Cannot kill container %s: %v", name, err)
+			return fmt.Errorf("Cannot kill container %s: %v", name, utils.GetErrorMessage(err))
 		}
 	}
 
@@ -462,7 +462,7 @@ func (s *containerRouter) wsContainersAttach(ctx context.Context, w http.Respons
 		}
 
 		if err := s.backend.ContainerWsAttachWithLogs(containerName, wsAttachWithLogsConfig); err != nil {
-			logrus.Errorf("Error attaching websocket: %s", err)
+			logrus.Errorf("Error attaching websocket: %s", utils.GetErrorMessage(err))
 		}
 	})
 	ws := websocket.Server{Handler: h, Handshake: nil}
