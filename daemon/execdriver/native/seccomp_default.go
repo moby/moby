@@ -86,12 +86,6 @@ var defaultSeccompProfile = &configs.Seccomp{
 			Args:   []*configs.Arg{},
 		},
 		{
-			// Deny getting the list of robust futexes
-			Name:   "get_robust_list",
-			Action: configs.Errno,
-			Args:   []*configs.Arg{},
-		},
-		{
 			// Deny manipulation and functions on kernel modules.
 			Name:   "init_module",
 			Action: configs.Errno,
@@ -264,12 +258,6 @@ var defaultSeccompProfile = &configs.Seccomp{
 		{
 			// deny associating a thread with a namespace
 			Name:   "setns",
-			Action: configs.Errno,
-			Args:   []*configs.Arg{},
-		},
-		{
-			// Deny setting the list of robust futexes
-			Name:   "set_robust_list",
 			Action: configs.Errno,
 			Args:   []*configs.Arg{},
 		},
