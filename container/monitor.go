@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/daemon/execdriver"
 	derr "github.com/docker/docker/errors"
@@ -34,7 +35,7 @@ type supervisor interface {
 	// Run starts a container
 	Run(c *Container, pipes *execdriver.Pipes, startCallback execdriver.DriverCallback) (execdriver.ExitStatus, error)
 	// Restore restores a container that was previously checkpointed
-	Restore(c *Container, pipes *execdriver.Pipes, restoreCallback execdriver.DriverCallback, opts *runconfig.CriuConfig, forceRestore bool) (execdriver.ExitStatus, error)
+	Restore(c *Container, pipes *execdriver.Pipes, restoreCallback execdriver.DriverCallback, opts *types.CriuConfig, forceRestore bool) (execdriver.ExitStatus, error)
 	// IsShuttingDown tells whether the supervisor is shutting down or not
 	IsShuttingDown() bool
 }
@@ -114,7 +115,7 @@ func (m *containerMonitor) wait() error {
 
 // RestoreMonitor initializes a containerMonitor for this container with the provided supervisor
 // and restart policy and restores the container's process.
-func (container *Container) RestoreMonitor(s supervisor, policy runconfig.RestartPolicy, opts *runconfig.CriuConfig, forceRestore bool) error {
+func (container *Container) RestoreMonitor(s supervisor, policy container.RestartPolicy, opts *types.CriuConfig, forceRestore bool) error {
 	container.monitor = &containerMonitor{
 		supervisor:    s,
 		container:     container,
@@ -131,7 +132,7 @@ func (container *Container) RestoreMonitor(s supervisor, policy runconfig.Restar
 // waitForRestore starts the container and wait until
 // we either receive an error from the restore process
 // or until the process is running in the container
-func (m *containerMonitor) waitForRestore(container *Container, opts *runconfig.CriuConfig, forceRestore bool) error {
+func (m *containerMonitor) waitForRestore(container *Container, opts *types.CriuConfig, forceRestore bool) error {
 	select {
 	case <-m.restoreSignal:
 		if container.ExitCode != 0 {
@@ -183,12 +184,12 @@ func (m *containerMonitor) start() error {
 }
 
 // Restore restores the containers from an image and monitors it according to the restart policy
-func (m *containerMonitor) Restore(restoreOpts *runconfig.CriuConfig, forceRestore bool) error {
+func (m *containerMonitor) Restore(restoreOpts *types.CriuConfig, forceRestore bool) error {
 	return m.startOrRestore(restoreOpts, forceRestore)
 }
 
 // startOrRestore is an Internal method to start or restore a container and monitor it
-func (m *containerMonitor) startOrRestore(restoreOpts *runconfig.CriuConfig, forceRestore bool) error {
+func (m *containerMonitor) startOrRestore(restoreOpts *types.CriuConfig, forceRestore bool) error {
 	var (
 		err        error
 		exitStatus execdriver.ExitStatus

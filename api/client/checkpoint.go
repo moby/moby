@@ -5,9 +5,9 @@ package client
 import (
 	"fmt"
 
+	"github.com/docker/docker/api/types"
 	Cli "github.com/docker/docker/cli"
 	flag "github.com/docker/docker/pkg/mflag"
-	"github.com/docker/docker/runconfig"
 )
 
 // CmdCheckpoint checkpoints the process running in a container
@@ -32,7 +32,7 @@ func (cli *DockerCli) CmdCheckpoint(args ...string) error {
 		return nil
 	}
 
-	criuOpts := runconfig.CriuConfig{
+	criuOpts := types.CriuConfig{
 		ImagesDirectory: *flImgDir,
 		WorkDirectory:   *flWorkDir,
 		LeaveRunning:    *flLeaveRunning,

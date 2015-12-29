@@ -4,6 +4,7 @@ import (
 	"runtime"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
 	derr "github.com/docker/docker/errors"
@@ -73,7 +74,7 @@ func (daemon *Daemon) containerStart(container *container.Container) (err error)
 }
 
 // containerStartOrRestore combines the log for start and restore in one place
-func (daemon *Daemon) containerStartOrRestore(container *container.Container, opts *runconfig.CriuConfig, forceRestore bool) (err error) {
+func (daemon *Daemon) containerStartOrRestore(container *container.Container, opts *types.CriuConfig, forceRestore bool) (err error) {
 	isRestoring := opts != nil
 
 	container.Lock()

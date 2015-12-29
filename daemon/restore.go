@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"path/filepath"
 
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/container"
-	"github.com/docker/docker/runconfig"
 )
 
 // ContainerRestore restores the process in a container with CRIU
-func (daemon *Daemon) ContainerRestore(name string, opts *runconfig.CriuConfig, forceRestore bool) error {
+func (daemon *Daemon) ContainerRestore(name string, opts *types.CriuConfig, forceRestore bool) error {
 	container, err := daemon.GetContainer(name)
 	if err != nil {
 		return err
@@ -50,10 +50,10 @@ func (daemon *Daemon) ContainerRestore(name string, opts *runconfig.CriuConfig, 
 // everything the container needs, just like containerStart, such as
 // storage and networking, as well as links between containers.
 // The container is left waiting for a signal that restore has finished
-func (daemon *Daemon) containerRestore(container *container.Container, opts *runconfig.CriuConfig, forceRestore bool) error {
+func (daemon *Daemon) containerRestore(container *container.Container, opts *types.CriuConfig, forceRestore bool) error {
 	return daemon.containerStartOrRestore(container, opts, forceRestore)
 }
 
-func (daemon *Daemon) waitForRestore(container *container.Container, opts *runconfig.CriuConfig, forceRestore bool) error {
+func (daemon *Daemon) waitForRestore(container *container.Container, opts *types.CriuConfig, forceRestore bool) error {
 	return container.RestoreMonitor(daemon, container.HostConfig.RestartPolicy, opts, forceRestore)
 }

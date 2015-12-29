@@ -8,7 +8,7 @@ import (
 
 	"github.com/docker/docker/api/server/httputils"
 	dkrouter "github.com/docker/docker/api/server/router"
-	"github.com/docker/docker/runconfig"
+	"github.com/docker/docker/api/types"
 	"golang.org/x/net/context"
 )
 
@@ -26,7 +26,7 @@ func (s *router) postContainersCheckpoint(ctx context.Context, w http.ResponseWr
 		return err
 	}
 
-	criuOpts := &runconfig.CriuConfig{}
+	criuOpts := &types.CriuConfig{}
 	if err := json.NewDecoder(r.Body).Decode(criuOpts); err != nil {
 		return err
 	}
@@ -47,7 +47,7 @@ func (s *router) postContainersRestore(ctx context.Context, w http.ResponseWrite
 		return err
 	}
 
-	criuOpts := &runconfig.CriuConfig{}
+	criuOpts := &types.CriuConfig{}
 	if err := json.NewDecoder(r.Body).Decode(&criuOpts); err != nil {
 		return err
 	}

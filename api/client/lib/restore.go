@@ -3,11 +3,11 @@ package lib
 import (
 	"net/url"
 
-	"github.com/docker/docker/runconfig"
+	"github.com/docker/docker/api/types"
 )
 
 // ContainerRestore restores a running container
-func (cli *Client) ContainerRestore(containerID string, options runconfig.CriuConfig, forceRestore bool) error {
+func (cli *Client) ContainerRestore(containerID string, options types.CriuConfig, forceRestore bool) error {
 	query := url.Values{}
 
 	if forceRestore {

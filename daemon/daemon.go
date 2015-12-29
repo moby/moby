@@ -1020,12 +1020,12 @@ func (daemon *Daemon) Run(c *container.Container, pipes *execdriver.Pipes, start
 }
 
 // Checkpoint the container
-func (daemon *Daemon) Checkpoint(c *container.Container, opts *runconfig.CriuConfig) error {
+func (daemon *Daemon) Checkpoint(c *container.Container, opts *types.CriuConfig) error {
 	return daemon.execDriver.Checkpoint(c.Command, opts)
 }
 
 // Restore the container
-func (daemon *Daemon) Restore(c *container.Container, pipes *execdriver.Pipes, restoreCallback execdriver.DriverCallback, opts *runconfig.CriuConfig, forceRestore bool) (execdriver.ExitStatus, error) {
+func (daemon *Daemon) Restore(c *container.Container, pipes *execdriver.Pipes, restoreCallback execdriver.DriverCallback, opts *types.CriuConfig, forceRestore bool) (execdriver.ExitStatus, error) {
 	hooks := execdriver.Hooks{
 		Restore: restoreCallback,
 	}

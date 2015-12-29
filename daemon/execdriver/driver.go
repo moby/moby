@@ -6,7 +6,7 @@ import (
 	"os/exec"
 	"time"
 
-	"github.com/docker/docker/runconfig"
+	"github.com/docker/docker/api/types"
 	"github.com/opencontainers/runc/libcontainer"
 )
 
@@ -76,10 +76,10 @@ type Driver interface {
 	Unpause(c *Command) error
 
 	// Checkpoints a container (with criu).
-	Checkpoint(c *Command, opts *runconfig.CriuConfig) error
+	Checkpoint(c *Command, opts *types.CriuConfig) error
 
 	// Restores a checkpoint image into a container (with criu).
-	Restore(c *Command, pipes *Pipes, hooks Hooks, opts *runconfig.CriuConfig, forceRestore bool) (ExitStatus, error)
+	Restore(c *Command, pipes *Pipes, hooks Hooks, opts *types.CriuConfig, forceRestore bool) (ExitStatus, error)
 
 	// Name returns the name of the driver.
 	Name() string

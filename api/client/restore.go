@@ -5,9 +5,9 @@ package client
 import (
 	"fmt"
 
+	"github.com/docker/docker/api/types"
 	Cli "github.com/docker/docker/cli"
 	flag "github.com/docker/docker/pkg/mflag"
-	"github.com/docker/docker/runconfig"
 )
 
 // CmdRestore restores the process in a checkpointed container
@@ -32,7 +32,7 @@ func (cli *DockerCli) CmdRestore(args ...string) error {
 		return nil
 	}
 
-	criuOpts := runconfig.CriuConfig{
+	criuOpts := types.CriuConfig{
 		ImagesDirectory: *flImgDir,
 		WorkDirectory:   *flWorkDir,
 	}

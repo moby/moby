@@ -5,11 +5,11 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/docker/docker/runconfig"
+	"github.com/docker/docker/api/types"
 )
 
 // ContainerCheckpoint checkpoints the process running in a container with CRIU
-func (daemon *Daemon) ContainerCheckpoint(name string, opts *runconfig.CriuConfig) error {
+func (daemon *Daemon) ContainerCheckpoint(name string, opts *types.CriuConfig) error {
 	container, err := daemon.GetContainer(name)
 	if err != nil {
 		return err
