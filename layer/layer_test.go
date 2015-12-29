@@ -67,7 +67,7 @@ func newTestStore(t *testing.T) (Store, func()) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ls, err := NewStore(fms, graph)
+	ls, err := NewStoreFromGraphDriver(fms, graph)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -398,7 +398,7 @@ func TestStoreRestore(t *testing.T) {
 
 	assertActivityCount(t, m, 0)
 
-	ls2, err := NewStore(ls.(*layerStore).store, ls.(*layerStore).driver)
+	ls2, err := NewStoreFromGraphDriver(ls.(*layerStore).store, ls.(*layerStore).driver)
 	if err != nil {
 		t.Fatal(err)
 	}
