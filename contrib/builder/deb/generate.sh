@@ -68,8 +68,9 @@ for version in "${versions[@]}"; do
 	esac
 
 	# debian wheezy & ubuntu precise do not have the right libseccomp libs
+	# debian jessie & ubuntu trusty have a libseccomp < 2.2.1 :(
 	case "$suite" in
-		precise|wheezy)
+		precise|wheezy|jessie|trusty)
 			packages=( "${packages[@]/libseccomp-dev}" )
 			;;
 		*)
@@ -103,41 +104,6 @@ for version in "${versions[@]}"; do
 	echo "RUN apt-get update && apt-get install -y ${packages[*]} --no-install-recommends && rm -rf /var/lib/apt/lists/*" >> "$version/Dockerfile"
 
 	echo >> "$version/Dockerfile"
-
-	# debian jessie & ubuntu trusty do not have a libseccomp.a for compiling static dockerinit
-	# ONLY install libseccomp.a from source, this can be removed once dockerinit is removed
-	# TODO remove this manual seccomp compilation once dockerinit is gone or no longer needs to be statically compiled
-	case "$suite" in
-		jessie|trusty)
-			awk '$1 == "ENV" && $2 == "SECCOMP_VERSION" { print; exit }' ../../../Dockerfile >> "$version/Dockerfile"
-			cat <<-'EOF' >> "$version/Dockerfile"
-			RUN buildDeps=' \
-				automake \
-				libtool \
-			' \
-			&& set -x \
-			&& apt-get update && apt-get install -y $buildDeps --no-install-recommends \
-			&& rm -rf /var/lib/apt/lists/* \
-			&& export SECCOMP_PATH=$(mktemp -d) \
-			&& git clone -b "$SECCOMP_VERSION" --depth 1 https://github.com/seccomp/libseccomp.git "$SECCOMP_PATH" \
-			&& ( \
-				cd "$SECCOMP_PATH" \
-				&& ./autogen.sh \
-				&& ./configure --prefix=/usr \
-				&& make \
-				&& install -c src/.libs/libseccomp.a /usr/lib/libseccomp.a \
-				&& chmod 644 /usr/lib/libseccomp.a \
-				&& ranlib /usr/lib/libseccomp.a \
-				&& ldconfig -n /usr/lib \
-			) \
-			&& rm -rf "$SECCOMP_PATH" \
-			&& apt-get purge -y --auto-remove $buildDeps
-			EOF
-
-			echo >> "$version/Dockerfile"
-			;;
-		*) ;;
-	esac
 
 	awk '$1 == "ENV" && $2 == "GO_VERSION" { print; exit }' ../../../Dockerfile >> "$version/Dockerfile"
 	echo 'RUN curl -fSL "https://storage.googleapis.com/golang/go${GO_VERSION}.linux-amd64.tar.gz" | tar xzC /usr/local' >> "$version/Dockerfile"
