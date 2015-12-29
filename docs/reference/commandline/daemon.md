@@ -157,7 +157,7 @@ The `btrfs` driver is very fast for `docker build` - but like `devicemapper`
 does not share executable memory between devices. Use
 `docker daemon -s btrfs -g /mnt/btrfs_partition`.
 
-The `zfs` driver is probably not fast as `btrfs` but has a longer track record
+The `zfs` driver is probably not as fast as `btrfs` but has a longer track record
 on stability. Thanks to `Single Copy ARC` shared blocks between clones will be
 cached only once. Use `docker daemon -s zfs`. To select a different zfs filesystem
 set `zfs.fsname` option as described in [Storage driver options](#storage-driver-options).
