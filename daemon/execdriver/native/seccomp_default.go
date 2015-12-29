@@ -300,6 +300,12 @@ var defaultSeccompProfile = &configs.Seccomp{
 		},
 		{
 			// Deny umount
+			Name:   "umount",
+			Action: configs.Errno,
+			Args:   []*configs.Arg{},
+		},
+		{
+			// Deny umount
 			Name:   "umount2",
 			Action: configs.Errno,
 			Args:   []*configs.Arg{},
