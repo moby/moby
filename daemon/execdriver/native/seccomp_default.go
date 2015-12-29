@@ -72,6 +72,12 @@ var defaultSeccompProfile = &configs.Seccomp{
 			Args:   []*configs.Arg{},
 		},
 		{
+			// Deny manipulation and functions on kernel modules.
+			Name:   "finit_module",
+			Action: configs.Errno,
+			Args:   []*configs.Arg{},
+		},
+		{
 			// Deny retrieval of exported kernel and module symbols
 			Name:   "get_kernel_syms",
 			Action: configs.Errno,
