@@ -209,7 +209,7 @@ func from(b *Builder, args []string, attributes map[string]bool, original string
 		err   error
 	)
 	// TODO: don't use `name`, instead resolve it to a digest
-	if !b.Pull {
+	if !b.options.PullParent {
 		image, err = b.docker.GetImage(name)
 		// TODO: shouldn't we error out if error is different from "not found" ?
 	}
@@ -339,7 +339,7 @@ func run(b *Builder, args []string, attributes map[string]bool, original string)
 	// lookup for same image built with same build time environment.
 	cmdBuildEnv := []string{}
 	configEnv := runconfigopts.ConvertKVStringsToMap(b.runConfig.Env)
-	for key, val := range b.BuildArgs {
+	for key, val := range b.options.BuildArgs {
 		if !b.isBuildArgAllowed(key) {
 			// skip build-args that are not in allowed list, meaning they have
 			// not been defined by an "ARG" Dockerfile command yet.
@@ -622,8 +622,8 @@ func arg(b *Builder, args []string, attributes map[string]bool, original string)
 	// If there is a default value associated with this arg then add it to the
 	// b.buildArgs if one is not already passed to the builder. The args passed
 	// to builder override the default value of 'arg'.
-	if _, ok := b.BuildArgs[name]; !ok && hasDefault {
-		b.BuildArgs[name] = value
+	if _, ok := b.options.BuildArgs[name]; !ok && hasDefault {
+		b.options.BuildArgs[name] = value
 	}
 
 	return b.commit("", b.runConfig.Cmd, fmt.Sprintf("ARG %s", arg))

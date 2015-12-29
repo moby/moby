@@ -127,7 +127,7 @@ type ImageBuildOptions struct {
 	Remove         bool
 	ForceRemove    bool
 	PullParent     bool
-	Isolation      string
+	IsolationLevel container.IsolationLevel
 	CPUSetCPUs     string
 	CPUSetMems     string
 	CPUShares      int64
@@ -136,10 +136,10 @@ type ImageBuildOptions struct {
 	Memory         int64
 	MemorySwap     int64
 	CgroupParent   string
-	ShmSize        string
+	ShmSize        int64
 	Dockerfile     string
 	Ulimits        []*units.Ulimit
-	BuildArgs      []string
+	BuildArgs      map[string]string
 	AuthConfigs    map[string]AuthConfig
 	Context        io.Reader
 }

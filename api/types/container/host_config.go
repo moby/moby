@@ -216,7 +216,7 @@ type HostConfig struct {
 	SecurityOpt     []string           // List of string values to customize labels for MLS systems, such as SELinux.
 	Tmpfs           map[string]string  `json:",omitempty"` // List of tmpfs (mounts) used for the container
 	UTSMode         UTSMode            // UTS namespace to use for the container
-	ShmSize         *int64             // Total shm memory usage
+	ShmSize         int64              // Total shm memory usage
 
 	// Applicable to Windows
 	ConsoleSize [2]int         // Initial console size

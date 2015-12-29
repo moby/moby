@@ -899,8 +899,8 @@ func (daemon *Daemon) setupIpcDirs(c *container.Container) error {
 		}
 
 		shmSize := container.DefaultSHMSize
-		if c.HostConfig.ShmSize != nil {
-			shmSize = *c.HostConfig.ShmSize
+		if c.HostConfig.ShmSize != 0 {
+			shmSize = c.HostConfig.ShmSize
 		}
 		shmproperty := "mode=1777,size=" + strconv.FormatInt(shmSize, 10)
 		if err := syscall.Mount("shm", shmPath, "tmpfs", uintptr(syscall.MS_NOEXEC|syscall.MS_NOSUID|syscall.MS_NODEV), label.FormatMountLabel(shmproperty, c.GetMountLabel())); err != nil {
