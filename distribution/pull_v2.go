@@ -201,7 +201,7 @@ func (p *v2Puller) pullV2Tag(ctx context.Context, ref reference.Named) (tagUpdat
 		return false, fmt.Errorf("internal error: reference has neither a tag nor a digest: %s", ref.String())
 	}
 
-	logrus.Debugf("Pulling ref from V2 registry: %q", tagOrDigest)
+	logrus.Debugf("Pulling ref from V2 registry: %s:%s", ref.FullName(), tagOrDigest)
 
 	manSvc, err := p.repo.Manifests(ctx)
 	if err != nil {
