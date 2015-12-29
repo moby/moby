@@ -141,6 +141,16 @@ func (daemon *Daemon) containerStart(container *container.Container) (err error)
 	mounts = append(mounts, container.IpcMounts()...)
 	mounts = append(mounts, container.TmpfsMounts()...)
 
+	m, err := container.SecretMount()
+	if err != nil {
+		return err
+	}
+	// SecretMount() returns m == nil && err == nil
+	// we check m before appending and dereferencing it
+	if m != nil {
+		mounts = append(mounts, *m)
+	}
+
 	container.Command.Mounts = mounts
 
 	jsonPath, err := container.ConfigPath()
