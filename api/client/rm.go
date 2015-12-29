@@ -21,7 +21,7 @@ func (cli *DockerCli) CmdRm(args ...string) error {
 
 	cmd.ParseFlags(args, true)
 
-	var errNames []string
+	var errs []string
 	for _, name := range cmd.Args() {
 		if name == "" {
 			return fmt.Errorf("Container name cannot be empty")
@@ -36,14 +36,13 @@ func (cli *DockerCli) CmdRm(args ...string) error {
 		}
 
 		if err := cli.client.ContainerRemove(options); err != nil {
-			fmt.Fprintf(cli.err, "%s\n", err)
-			errNames = append(errNames, name)
+			errs = append(errs, fmt.Sprintf("Failed to remove container (%s): %s", name, err))
 		} else {
 			fmt.Fprintf(cli.out, "%s\n", name)
 		}
 	}
-	if len(errNames) > 0 {
-		return fmt.Errorf("Error: failed to remove containers: %v", errNames)
+	if len(errs) > 0 {
+		return fmt.Errorf("%s", strings.Join(errs, "\n"))
 	}
 	return nil
 }
