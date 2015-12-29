@@ -62,3 +62,22 @@ Then you can run with:
 ```
 $ docker run --rm -it --security-opt seccomp:/path/to/seccomp/profile.json hello-world
 ```
+
+Default Profile
+---------------
+
+The default seccomp profile provides a sane default for running
+containers with seccomp. It is moderately protective while
+providing wide application compatibility.
+
+
+Overriding the default profile for a container
+----------------------------------------------
+
+You can pass `unconfined` to run a container without the default seccomp
+profile.
+
+```
+$ docker run --rm -it --security-opt seccomp:unconfined debian:jessie \
+    unshare --map-root-user --user sh -c whoami
+```

@@ -12,6 +12,10 @@ import (
 	"github.com/opencontainers/specs"
 )
 
+func getDefaultSeccompProfile() *configs.Seccomp {
+	return defaultSeccompProfile
+}
+
 func loadSeccompProfile(path string) (*configs.Seccomp, error) {
 	f, err := ioutil.ReadFile(path)
 	if err != nil {
