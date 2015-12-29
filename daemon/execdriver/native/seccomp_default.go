@@ -30,6 +30,12 @@ var defaultSeccompProfile = &configs.Seccomp{
 		},
 		{
 			// Time/Date is not namespaced
+			Name:   "clock_adjtime",
+			Action: configs.Errno,
+			Args:   []*configs.Arg{},
+		},
+		{
+			// Time/Date is not namespaced
 			Name:   "clock_settime",
 			Action: configs.Errno,
 			Args:   []*configs.Arg{},
