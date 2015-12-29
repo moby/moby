@@ -118,6 +118,13 @@ var defaultSeccompProfile = &configs.Seccomp{
 			Args:   []*configs.Arg{},
 		},
 		{
+			// Restrict process inspection capabilities
+			// Already blocked by dropping CAP_PTRACE
+			Name:   "kcmp",
+			Action: configs.Errno,
+			Args:   []*configs.Arg{},
+		},
+		{
 			// Sister syscall of kexec_load that does the same thing,
 			// slightly different arguments
 			Name:   "kexec_file_load",
@@ -212,6 +219,20 @@ var defaultSeccompProfile = &configs.Seccomp{
 		{
 			// Deny pivot_root
 			Name:   "pivot_root",
+			Action: configs.Errno,
+			Args:   []*configs.Arg{},
+		},
+		{
+			// Restrict process inspection capabilities
+			// Already blocked by dropping CAP_PTRACE
+			Name:   "process_vm_readv",
+			Action: configs.Errno,
+			Args:   []*configs.Arg{},
+		},
+		{
+			// Restrict process modification capabilities
+			// Already blocked by dropping CAP_PTRACE
+			Name:   "process_vm_writev",
 			Action: configs.Errno,
 			Args:   []*configs.Arg{},
 		},
