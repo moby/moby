@@ -3,6 +3,7 @@ package client
 import (
 	"fmt"
 	"net/url"
+	"strings"
 
 	Cli "github.com/docker/docker/cli"
 	flag "github.com/docker/docker/pkg/mflag"
@@ -28,7 +29,7 @@ func (cli *DockerCli) CmdRmi(args ...string) error {
 		v.Set("noprune", "1")
 	}
 
-	var errNames []string
+	var errs []string
 	for _, name := range cmd.Args() {
 		options := types.ImageRemoveOptions{
 			ImageID:       name,
@@ -38,8 +39,7 @@ func (cli *DockerCli) CmdRmi(args ...string) error {
 
 		dels, err := cli.client.ImageRemove(options)
 		if err != nil {
-			fmt.Fprintf(cli.err, "%s\n", err)
-			errNames = append(errNames, name)
+			errs = append(errs, fmt.Sprintf("Failed to remove image (%s): %s", name, err))
 		} else {
 			for _, del := range dels {
 				if del.Deleted != "" {
@@ -50,8 +50,8 @@ func (cli *DockerCli) CmdRmi(args ...string) error {
 			}
 		}
 	}
-	if len(errNames) > 0 {
-		return fmt.Errorf("Error: failed to remove images: %v", errNames)
+	if len(errs) > 0 {
+		return fmt.Errorf("%s", strings.Join(errs, "\n"))
 	}
 	return nil
 }
