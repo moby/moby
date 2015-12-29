@@ -22,7 +22,7 @@ import (
 func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.HostConfig, *flag.FlagSet, error) {
 	var (
 		// FIXME: use utils.ListOpts for attach and volumes?
-		flAttach            = opts.NewListOpts(opts.ValidateAttach)
+		flAttach            = opts.NewListOpts(ValidateAttach)
 		flVolumes           = opts.NewListOpts(nil)
 		flTmpfs             = opts.NewListOpts(nil)
 		flBlkioWeightDevice = NewWeightdeviceOpt(ValidateWeightDevice)
@@ -31,8 +31,8 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 		flLinks             = opts.NewListOpts(ValidateLink)
 		flDeviceReadIOps    = NewThrottledeviceOpt(ValidateThrottleIOpsDevice)
 		flDeviceWriteIOps   = NewThrottledeviceOpt(ValidateThrottleIOpsDevice)
-		flEnv               = opts.NewListOpts(opts.ValidateEnv)
-		flLabels            = opts.NewListOpts(opts.ValidateEnv)
+		flEnv               = opts.NewListOpts(ValidateEnv)
+		flLabels            = opts.NewListOpts(ValidateEnv)
 		flDevices           = opts.NewListOpts(ValidateDevice)
 
 		flUlimits = NewUlimitOpt(nil)
@@ -42,7 +42,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 		flDNS               = opts.NewListOpts(opts.ValidateIPAddress)
 		flDNSSearch         = opts.NewListOpts(opts.ValidateDNSSearch)
 		flDNSOptions        = opts.NewListOpts(nil)
-		flExtraHosts        = opts.NewListOpts(opts.ValidateExtraHost)
+		flExtraHosts        = opts.NewListOpts(ValidateExtraHost)
 		flVolumesFrom       = opts.NewListOpts(nil)
 		flEnvFile           = opts.NewListOpts(nil)
 		flCapAdd            = opts.NewListOpts(nil)
@@ -130,7 +130,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 
 	// Validate the input mac address
 	if *flMacAddress != "" {
-		if _, err := opts.ValidateMACAddress(*flMacAddress); err != nil {
+		if _, err := ValidateMACAddress(*flMacAddress); err != nil {
 			return nil, nil, cmd, fmt.Errorf("%s is not a valid mac address", *flMacAddress)
 		}
 	}
@@ -412,7 +412,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 func readKVStrings(files []string, override []string) ([]string, error) {
 	envVariables := []string{}
 	for _, ef := range files {
-		parsedVars, err := opts.ParseEnvFile(ef)
+		parsedVars, err := ParseEnvFile(ef)
 		if err != nil {
 			return nil, err
 		}
