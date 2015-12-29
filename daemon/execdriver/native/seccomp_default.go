@@ -72,6 +72,11 @@ var defaultSeccompProfile = &configs.Seccomp{
 			Args:   []*configs.Arg{},
 		},
 		{
+			Name:   "chown32",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
 			Name:   "chroot",
 			Action: configs.Allow,
 			Args:   []*configs.Arg{},
@@ -209,6 +214,11 @@ var defaultSeccompProfile = &configs.Seccomp{
 			Args:   []*configs.Arg{},
 		},
 		{
+			Name:   "fadvise64_64",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
 			Name:   "fallocate",
 			Action: configs.Allow,
 			Args:   []*configs.Arg{},
@@ -244,12 +254,22 @@ var defaultSeccompProfile = &configs.Seccomp{
 			Args:   []*configs.Arg{},
 		},
 		{
+			Name:   "fchown32",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
 			Name:   "fchownat",
 			Action: configs.Allow,
 			Args:   []*configs.Arg{},
 		},
 		{
 			Name:   "fcntl",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "fcntl64",
 			Action: configs.Allow,
 			Args:   []*configs.Arg{},
 		},
@@ -294,7 +314,22 @@ var defaultSeccompProfile = &configs.Seccomp{
 			Args:   []*configs.Arg{},
 		},
 		{
+			Name:   "fstat64",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "fstatat64",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
 			Name:   "fstatfs",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "fstatfs64",
 			Action: configs.Allow,
 			Args:   []*configs.Arg{},
 		},
@@ -305,6 +340,11 @@ var defaultSeccompProfile = &configs.Seccomp{
 		},
 		{
 			Name:   "ftruncate",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "ftruncate64",
 			Action: configs.Allow,
 			Args:   []*configs.Arg{},
 		},
@@ -344,7 +384,17 @@ var defaultSeccompProfile = &configs.Seccomp{
 			Args:   []*configs.Arg{},
 		},
 		{
+			Name:   "getegid32",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
 			Name:   "geteuid",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "geteuid32",
 			Action: configs.Allow,
 			Args:   []*configs.Arg{},
 		},
@@ -354,7 +404,17 @@ var defaultSeccompProfile = &configs.Seccomp{
 			Args:   []*configs.Arg{},
 		},
 		{
+			Name:   "getgid32",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
 			Name:   "getgroups",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "getgroups32",
 			Action: configs.Allow,
 			Args:   []*configs.Arg{},
 		},
@@ -404,7 +464,17 @@ var defaultSeccompProfile = &configs.Seccomp{
 			Args:   []*configs.Arg{},
 		},
 		{
+			Name:   "getresgid32",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
 			Name:   "getresuid",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "getresuid32",
 			Action: configs.Allow,
 			Args:   []*configs.Arg{},
 		},
@@ -455,6 +525,11 @@ var defaultSeccompProfile = &configs.Seccomp{
 		},
 		{
 			Name:   "getuid",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "getuid32",
 			Action: configs.Allow,
 			Args:   []*configs.Arg{},
 		},
@@ -534,6 +609,11 @@ var defaultSeccompProfile = &configs.Seccomp{
 			Args:   []*configs.Arg{},
 		},
 		{
+			Name:   "lchown32",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
 			Name:   "lgetxattr",
 			Action: configs.Allow,
 			Args:   []*configs.Arg{},
@@ -580,6 +660,11 @@ var defaultSeccompProfile = &configs.Seccomp{
 		},
 		{
 			Name:   "lstat",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "lstat64",
 			Action: configs.Allow,
 			Args:   []*configs.Arg{},
 		},
@@ -730,6 +815,11 @@ var defaultSeccompProfile = &configs.Seccomp{
 		},
 		{
 			Name:   "newfstatat",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "_newselect",
 			Action: configs.Allow,
 			Args:   []*configs.Arg{},
 		},
@@ -1009,6 +1099,11 @@ var defaultSeccompProfile = &configs.Seccomp{
 			Args:   []*configs.Arg{},
 		},
 		{
+			Name:   "sendfile64",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
 			Name:   "sendmmsg",
 			Action: configs.Allow,
 			Args:   []*configs.Arg{},
@@ -1034,7 +1129,17 @@ var defaultSeccompProfile = &configs.Seccomp{
 			Args:   []*configs.Arg{},
 		},
 		{
+			Name:   "setfsgid32",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
 			Name:   "setfsuid",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "setfsuid32",
 			Action: configs.Allow,
 			Args:   []*configs.Arg{},
 		},
@@ -1044,7 +1149,17 @@ var defaultSeccompProfile = &configs.Seccomp{
 			Args:   []*configs.Arg{},
 		},
 		{
+			Name:   "setgid32",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
 			Name:   "setgroups",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "setgroups32",
 			Action: configs.Allow,
 			Args:   []*configs.Arg{},
 		},
@@ -1074,7 +1189,17 @@ var defaultSeccompProfile = &configs.Seccomp{
 			Args:   []*configs.Arg{},
 		},
 		{
+			Name:   "setregid32",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
 			Name:   "setresgid",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "setresgid32",
 			Action: configs.Allow,
 			Args:   []*configs.Arg{},
 		},
@@ -1084,7 +1209,17 @@ var defaultSeccompProfile = &configs.Seccomp{
 			Args:   []*configs.Arg{},
 		},
 		{
+			Name:   "setresuid32",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
 			Name:   "setreuid",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "setreuid32",
 			Action: configs.Allow,
 			Args:   []*configs.Arg{},
 		},
@@ -1119,12 +1254,12 @@ var defaultSeccompProfile = &configs.Seccomp{
 			Args:   []*configs.Arg{},
 		},
 		{
-			Name:   "settimeofday",
+			Name:   "setuid",
 			Action: configs.Allow,
 			Args:   []*configs.Arg{},
 		},
 		{
-			Name:   "setuid",
+			Name:   "setuid32",
 			Action: configs.Allow,
 			Args:   []*configs.Arg{},
 		},
@@ -1194,7 +1329,17 @@ var defaultSeccompProfile = &configs.Seccomp{
 			Args:   []*configs.Arg{},
 		},
 		{
+			Name:   "stat64",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
 			Name:   "statfs",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "statfs64",
 			Action: configs.Allow,
 			Args:   []*configs.Arg{},
 		},
@@ -1305,6 +1450,16 @@ var defaultSeccompProfile = &configs.Seccomp{
 		},
 		{
 			Name:   "truncate",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "truncate64",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "ugetrlimit",
 			Action: configs.Allow,
 			Args:   []*configs.Arg{},
 		},
