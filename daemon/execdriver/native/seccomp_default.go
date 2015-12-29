@@ -2,364 +2,1385 @@
 
 package native
 
-import "github.com/opencontainers/runc/libcontainer/configs"
+import (
+	"syscall"
+
+	"github.com/opencontainers/runc/libcontainer/configs"
+)
 
 var defaultSeccompProfile = &configs.Seccomp{
-	DefaultAction: configs.Allow,
+	DefaultAction: configs.Errno,
 	Syscalls: []*configs.Syscall{
 		{
-			// Quota and Accounting syscalls which could let containers
-			// disable their own resource limits or process accounting
-			Name:   "acct",
-			Action: configs.Errno,
+			Name:   "accept",
+			Action: configs.Allow,
 			Args:   []*configs.Arg{},
 		},
 		{
-			// Prevent containers from using the kernel keyring,
-			// which is not namespaced
-			Name:   "add_key",
-			Action: configs.Errno,
+			Name:   "accept4",
+			Action: configs.Allow,
 			Args:   []*configs.Arg{},
 		},
 		{
-			// Similar to clock_settime and settimeofday
-			// Time/Date is not namespaced
-			Name:   "adjtimex",
-			Action: configs.Errno,
+			Name:   "access",
+			Action: configs.Allow,
 			Args:   []*configs.Arg{},
 		},
 		{
-			// Deny loading potentially persistent bpf programs into kernel
-			// already gated by CAP_SYS_ADMIN
-			Name:   "bpf",
-			Action: configs.Errno,
+			Name:   "alarm",
+			Action: configs.Allow,
 			Args:   []*configs.Arg{},
 		},
 		{
-			// Time/Date is not namespaced
-			Name:   "clock_adjtime",
-			Action: configs.Errno,
+			Name:   "arch_prctl",
+			Action: configs.Allow,
 			Args:   []*configs.Arg{},
 		},
 		{
-			// Time/Date is not namespaced
-			Name:   "clock_settime",
-			Action: configs.Errno,
+			Name:   "bind",
+			Action: configs.Allow,
 			Args:   []*configs.Arg{},
 		},
 		{
-			// Deny cloning new namespaces
+			Name:   "brk",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "capget",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "capset",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "chdir",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "chmod",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "chown",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "chroot",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "clock_getres",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "clock_gettime",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "clock_nanosleep",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
 			Name:   "clone",
-			Action: configs.Errno,
+			Action: configs.Allow,
 			Args: []*configs.Arg{
 				{
-					// flags from sched.h
-					// CLONE_NEWUTS		0x04000000
-					// CLONE_NEWIPC		0x08000000
-					// CLONE_NEWUSER	0x10000000
-					// CLONE_NEWPID		0x20000000
-					// CLONE_NEWNET		0x40000000
-					Index: 0,
-					Value: uint64(0x04000000),
-					Op:    configs.GreaterThanOrEqualTo,
-				},
-				{
-					// flags from sched.h
-					// CLONE_NEWNS		0x00020000
-					Index: 0,
-					Value: uint64(0x00020000),
-					Op:    configs.EqualTo,
+					Index:    0,
+					Value:    syscall.CLONE_NEWNS | syscall.CLONE_NEWUTS | syscall.CLONE_NEWIPC | syscall.CLONE_NEWUSER | syscall.CLONE_NEWPID | syscall.CLONE_NEWNET,
+					ValueTwo: 0,
+					Op:       configs.MaskEqualTo,
 				},
 			},
 		},
 		{
-			// Deny manipulation and functions on kernel modules.
-			Name:   "create_module",
-			Action: configs.Errno,
+			Name:   "close",
+			Action: configs.Allow,
 			Args:   []*configs.Arg{},
 		},
 		{
-			// Deny manipulation and functions on kernel modules.
-			Name:   "delete_module",
-			Action: configs.Errno,
+			Name:   "connect",
+			Action: configs.Allow,
 			Args:   []*configs.Arg{},
 		},
 		{
-			// Deny manipulation and functions on kernel modules.
-			Name:   "finit_module",
-			Action: configs.Errno,
+			Name:   "creat",
+			Action: configs.Allow,
 			Args:   []*configs.Arg{},
 		},
 		{
-			// Deny retrieval of exported kernel and module symbols
-			Name:   "get_kernel_syms",
-			Action: configs.Errno,
+			Name:   "dup",
+			Action: configs.Allow,
 			Args:   []*configs.Arg{},
 		},
 		{
-			// Terrifying syscalls that modify kernel memory and NUMA settings.
-			// They're gated by CAP_SYS_NICE,
-			// which we do not retain by default in containers.
-			Name:   "get_mempolicy",
-			Action: configs.Errno,
+			Name:   "dup2",
+			Action: configs.Allow,
 			Args:   []*configs.Arg{},
 		},
 		{
-			// Deny manipulation and functions on kernel modules.
-			Name:   "init_module",
-			Action: configs.Errno,
+			Name:   "dup3",
+			Action: configs.Allow,
 			Args:   []*configs.Arg{},
 		},
 		{
-			// Prevent containers from modifying kernel I/O privilege levels.
-			// Already restricted as containers drop CAP_SYS_RAWIO by default.
-			Name:   "ioperm",
-			Action: configs.Errno,
+			Name:   "epoll_create",
+			Action: configs.Allow,
 			Args:   []*configs.Arg{},
 		},
 		{
-			// Prevent containers from modifying kernel I/O privilege levels.
-			// Already restricted as containers drop CAP_SYS_RAWIO by default.
-			Name:   "iopl",
-			Action: configs.Errno,
+			Name:   "epoll_create1",
+			Action: configs.Allow,
 			Args:   []*configs.Arg{},
 		},
 		{
-			// Restrict process inspection capabilities
-			// Already blocked by dropping CAP_PTRACE
-			Name:   "kcmp",
-			Action: configs.Errno,
+			Name:   "epoll_ctl",
+			Action: configs.Allow,
 			Args:   []*configs.Arg{},
 		},
 		{
-			// Sister syscall of kexec_load that does the same thing,
-			// slightly different arguments
-			Name:   "kexec_file_load",
-			Action: configs.Errno,
+			Name:   "epoll_ctl_old",
+			Action: configs.Allow,
 			Args:   []*configs.Arg{},
 		},
 		{
-			// Deny loading a new kernel for later execution
-			Name:   "kexec_load",
-			Action: configs.Errno,
+			Name:   "epoll_pwait",
+			Action: configs.Allow,
 			Args:   []*configs.Arg{},
 		},
 		{
-			// Prevent containers from using the kernel keyring,
-			// which is not namespaced
-			Name:   "keyctl",
-			Action: configs.Errno,
+			Name:   "epoll_wait",
+			Action: configs.Allow,
 			Args:   []*configs.Arg{},
 		},
 		{
-			// Tracing/profiling syscalls,
-			// which could leak a lot of information on the host
-			Name:   "lookup_dcookie",
-			Action: configs.Errno,
+			Name:   "epoll_wait_old",
+			Action: configs.Allow,
 			Args:   []*configs.Arg{},
 		},
 		{
-			// Terrifying syscalls that modify kernel memory and NUMA settings.
-			// They're gated by CAP_SYS_NICE,
-			// which we do not retain by default in containers.
-			Name:   "mbind",
-			Action: configs.Errno,
+			Name:   "eventfd",
+			Action: configs.Allow,
 			Args:   []*configs.Arg{},
 		},
 		{
-			// Terrifying syscalls that modify kernel memory and NUMA settings.
-			// They're gated by CAP_SYS_NICE,
-			// which we do not retain by default in containers.
-			Name:   "migrate_pages",
-			Action: configs.Errno,
+			Name:   "eventfd2",
+			Action: configs.Allow,
 			Args:   []*configs.Arg{},
 		},
 		{
-			// Old syscall only used in 16-bit code,
-			// and a potential information leak
-			Name:   "modify_ldt",
-			Action: configs.Errno,
+			Name:   "execve",
+			Action: configs.Allow,
 			Args:   []*configs.Arg{},
 		},
 		{
-			// Deny mount
-			Name:   "mount",
-			Action: configs.Errno,
+			Name:   "execveat",
+			Action: configs.Allow,
 			Args:   []*configs.Arg{},
 		},
 		{
-			// Terrifying syscalls that modify kernel memory and NUMA settings.
-			// They're gated by CAP_SYS_NICE,
-			// which we do not retain by default in containers.
-			Name:   "move_pages",
-			Action: configs.Errno,
+			Name:   "exit",
+			Action: configs.Allow,
 			Args:   []*configs.Arg{},
 		},
 		{
-			// Deny interaction with the kernel nfs daemon
-			Name:   "nfsservctl",
-			Action: configs.Errno,
+			Name:   "exit_group",
+			Action: configs.Allow,
 			Args:   []*configs.Arg{},
 		},
 		{
-			// Cause of an old container breakout,
-			// might as well restrict it to be on the safe side
-			Name:   "open_by_handle_at",
-			Action: configs.Errno,
+			Name:   "faccessat",
+			Action: configs.Allow,
 			Args:   []*configs.Arg{},
 		},
 		{
-			// Tracing/profiling syscalls,
-			// which could leak a lot of information on the host
-			Name:   "perf_event_open",
-			Action: configs.Errno,
+			Name:   "fadvise64",
+			Action: configs.Allow,
 			Args:   []*configs.Arg{},
 		},
 		{
-			// Prevent container from enabling BSD emulation.
-			// Not inherently dangerous, but poorly tested,
-			// potential for a lot of kernel vulns in this.
-			Name:   "personality",
-			Action: configs.Errno,
+			Name:   "fallocate",
+			Action: configs.Allow,
 			Args:   []*configs.Arg{},
 		},
 		{
-			// Deny pivot_root
-			Name:   "pivot_root",
-			Action: configs.Errno,
+			Name:   "fanotify_init",
+			Action: configs.Allow,
 			Args:   []*configs.Arg{},
 		},
 		{
-			// Restrict process inspection capabilities
-			// Already blocked by dropping CAP_PTRACE
-			Name:   "process_vm_readv",
-			Action: configs.Errno,
+			Name:   "fanotify_mark",
+			Action: configs.Allow,
 			Args:   []*configs.Arg{},
 		},
 		{
-			// Restrict process modification capabilities
-			// Already blocked by dropping CAP_PTRACE
-			Name:   "process_vm_writev",
-			Action: configs.Errno,
+			Name:   "fchdir",
+			Action: configs.Allow,
 			Args:   []*configs.Arg{},
 		},
 		{
-			// Already blocked by dropping CAP_PTRACE
-			Name:   "ptrace",
-			Action: configs.Errno,
+			Name:   "fchmod",
+			Action: configs.Allow,
 			Args:   []*configs.Arg{},
 		},
 		{
-			// Deny manipulation and functions on kernel modules.
-			Name:   "query_module",
-			Action: configs.Errno,
+			Name:   "fchmodat",
+			Action: configs.Allow,
 			Args:   []*configs.Arg{},
 		},
 		{
-			// Quota and Accounting syscalls which could let containers
-			// disable their own resource limits or process accounting
-			Name:   "quotactl",
-			Action: configs.Errno,
+			Name:   "fchown",
+			Action: configs.Allow,
 			Args:   []*configs.Arg{},
 		},
 		{
-			// Probably a bad idea to let containers reboot the host
-			Name:   "reboot",
-			Action: configs.Errno,
+			Name:   "fchownat",
+			Action: configs.Allow,
 			Args:   []*configs.Arg{},
 		},
 		{
-			// Probably a bad idea to let containers restart a syscall.
-			// Possible seccomp bypass, see: https://code.google.com/p/chromium/issues/detail?id=408827.
-			Name:   "restart_syscall",
-			Action: configs.Errno,
+			Name:   "fcntl",
+			Action: configs.Allow,
 			Args:   []*configs.Arg{},
 		},
 		{
-			// Prevent containers from using the kernel keyring,
-			// which is not namespaced
-			Name:   "request_key",
-			Action: configs.Errno,
+			Name:   "fdatasync",
+			Action: configs.Allow,
 			Args:   []*configs.Arg{},
 		},
 		{
-			// Terrifying syscalls that modify kernel memory and NUMA settings.
-			// They're gated by CAP_SYS_NICE,
-			// which we do not retain by default in containers.
-			Name:   "set_mempolicy",
-			Action: configs.Errno,
+			Name:   "fgetxattr",
+			Action: configs.Allow,
 			Args:   []*configs.Arg{},
 		},
 		{
-			// deny associating a thread with a namespace
-			Name:   "setns",
-			Action: configs.Errno,
+			Name:   "flistxattr",
+			Action: configs.Allow,
 			Args:   []*configs.Arg{},
 		},
 		{
-			// Time/Date is not namespaced
+			Name:   "flock",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "fork",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "fremovexattr",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "fsetxattr",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "fstat",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "fstatfs",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "fsync",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "ftruncate",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "futex",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "futimesat",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "getcpu",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "getcwd",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "getdents",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "getdents64",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "getegid",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "geteuid",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "getgid",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "getgroups",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "getitimer",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "getpeername",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "getpgid",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "getpgrp",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "getpid",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "getppid",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "getpriority",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "getrandom",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "getresgid",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "getresuid",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "getrlimit",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "get_robust_list",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "getrusage",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "getsid",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "getsockname",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "getsockopt",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "get_thread_area",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "gettid",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "gettimeofday",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "getuid",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "getxattr",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "inotify_add_watch",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "inotify_init",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "inotify_init1",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "inotify_rm_watch",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "io_cancel",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "ioctl",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "io_destroy",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "io_getevents",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "ioprio_get",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "ioprio_set",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "io_setup",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "io_submit",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "kill",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "lchown",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "lgetxattr",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "link",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "linkat",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "listen",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "listxattr",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "llistxattr",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "lremovexattr",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "lseek",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "lsetxattr",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "lstat",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "madvise",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "memfd_create",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "mincore",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "mkdir",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "mkdirat",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "mknod",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "mknodat",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "mlock",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "mlockall",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "mmap",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "mmap2",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "mprotect",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "mq_getsetattr",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "mq_notify",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "mq_open",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "mq_timedreceive",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "mq_timedsend",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "mq_unlink",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "mremap",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "msgctl",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "msgget",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "msgrcv",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "msgsnd",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "msync",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "munlock",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "munlockall",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "munmap",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "name_to_handle_at",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "nanosleep",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "newfstatat",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "open",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "openat",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "pause",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "pipe",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "pipe2",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "poll",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "ppoll",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "prctl",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "pread64",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "preadv",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "prlimit64",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "pselect6",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "pwrite64",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "pwritev",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "read",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "readahead",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "readlink",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "readlinkat",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "readv",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "recvfrom",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "recvmmsg",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "recvmsg",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "remap_file_pages",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "removexattr",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "rename",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "renameat",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "renameat2",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "rmdir",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "rt_sigaction",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "rt_sigpending",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "rt_sigprocmask",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "rt_sigqueueinfo",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "rt_sigreturn",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "rt_sigsuspend",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "rt_sigtimedwait",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "rt_tgsigqueueinfo",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "sched_getaffinity",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "sched_getattr",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "sched_getparam",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "sched_get_priority_max",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "sched_get_priority_min",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "sched_getscheduler",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "sched_rr_get_interval",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "sched_setaffinity",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "sched_setattr",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "sched_setparam",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "sched_setscheduler",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "sched_yield",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "seccomp",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "select",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "semctl",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "semget",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "semop",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "semtimedop",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "sendfile",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "sendmmsg",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "sendmsg",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "sendto",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "setdomainname",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "setfsgid",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "setfsuid",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "setgid",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "setgroups",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "sethostname",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "setitimer",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "setpgid",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "setpriority",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "setregid",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "setresgid",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "setresuid",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "setreuid",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "setrlimit",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "set_robust_list",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "setsid",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "setsockopt",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "set_thread_area",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "set_tid_address",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
 			Name:   "settimeofday",
-			Action: configs.Errno,
+			Action: configs.Allow,
 			Args:   []*configs.Arg{},
 		},
 		{
-			// Time/Date is not namespaced
-			Name:   "stime",
-			Action: configs.Errno,
+			Name:   "setuid",
+			Action: configs.Allow,
 			Args:   []*configs.Arg{},
 		},
 		{
-			// Deny start/stop swapping to file/device
-			Name:   "swapon",
-			Action: configs.Errno,
+			Name:   "setxattr",
+			Action: configs.Allow,
 			Args:   []*configs.Arg{},
 		},
 		{
-			// Deny start/stop swapping to file/device
-			Name:   "swapoff",
-			Action: configs.Errno,
+			Name:   "shmat",
+			Action: configs.Allow,
 			Args:   []*configs.Arg{},
 		},
 		{
-			// Deny read/write system parameters
-			Name:   "_sysctl",
-			Action: configs.Errno,
+			Name:   "shmctl",
+			Action: configs.Allow,
 			Args:   []*configs.Arg{},
 		},
 		{
-			// Deny umount
-			Name:   "umount",
-			Action: configs.Errno,
+			Name:   "shmdt",
+			Action: configs.Allow,
 			Args:   []*configs.Arg{},
 		},
 		{
-			// Deny umount
-			Name:   "umount2",
-			Action: configs.Errno,
+			Name:   "shmget",
+			Action: configs.Allow,
 			Args:   []*configs.Arg{},
 		},
 		{
-			// Same as clone
-			Name:   "unshare",
-			Action: configs.Errno,
+			Name:   "shutdown",
+			Action: configs.Allow,
 			Args:   []*configs.Arg{},
 		},
 		{
-			// Older syscall related to shared libraries, unused for a long time
-			Name:   "uselib",
-			Action: configs.Errno,
+			Name:   "sigaltstack",
+			Action: configs.Allow,
 			Args:   []*configs.Arg{},
 		},
 		{
-			// In kernel x86 real mode virtual machine
-			Name:   "vm86",
-			Action: configs.Errno,
+			Name:   "signalfd",
+			Action: configs.Allow,
 			Args:   []*configs.Arg{},
 		},
 		{
-			// In kernel x86 real mode virtual machine
-			Name:   "vm86old",
-			Action: configs.Errno,
+			Name:   "signalfd4",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "socket",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "socketpair",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "splice",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "stat",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "statfs",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "symlink",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "symlinkat",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "sync",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "sync_file_range",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "syncfs",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "sysfs",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "sysinfo",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "syslog",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "tee",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "tgkill",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "time",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "timer_create",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "timer_delete",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "timerfd_create",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "timerfd_gettime",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "timerfd_settime",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "timer_getoverrun",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "timer_gettime",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "timer_settime",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "times",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "tkill",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "truncate",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "umask",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "uname",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "unlink",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "unlinkat",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "ustat",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "utime",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "utimensat",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "utimes",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "vfork",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "vhangup",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "vmsplice",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "wait4",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "waitid",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "write",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "writev",
+			Action: configs.Allow,
 			Args:   []*configs.Arg{},
 		},
 	},
