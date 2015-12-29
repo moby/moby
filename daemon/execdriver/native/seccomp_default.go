@@ -281,6 +281,12 @@ var defaultSeccompProfile = &configs.Seccomp{
 			Args:   []*configs.Arg{},
 		},
 		{
+			// Time/Date is not namespaced
+			Name:   "stime",
+			Action: configs.Errno,
+			Args:   []*configs.Arg{},
+		},
+		{
 			// Deny start/stop swapping to file/device
 			Name:   "swapon",
 			Action: configs.Errno,
