@@ -235,7 +235,8 @@ var defaultSeccompProfile = &configs.Seccomp{
 			Args:   []*configs.Arg{},
 		},
 		{
-			// Probably a bad idea to let containers restart
+			// Probably a bad idea to let containers restart a syscall.
+			// Possible seccomp bypass, see: https://code.google.com/p/chromium/issues/detail?id=408827.
 			Name:   "restart_syscall",
 			Action: configs.Errno,
 			Args:   []*configs.Arg{},
