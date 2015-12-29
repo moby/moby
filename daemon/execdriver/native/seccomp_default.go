@@ -29,6 +29,13 @@ var defaultSeccompProfile = &configs.Seccomp{
 			Args:   []*configs.Arg{},
 		},
 		{
+			// Deny loading potentially persistent bpf programs into kernel
+			// already gated by CAP_SYS_ADMIN
+			Name:   "bpf",
+			Action: configs.Errno,
+			Args:   []*configs.Arg{},
+		},
+		{
 			// Time/Date is not namespaced
 			Name:   "clock_adjtime",
 			Action: configs.Errno,
