@@ -347,6 +347,7 @@ func (daemon *Daemon) transformContainer(container *container.Container, ctx *li
 		newC.Command = container.Path
 	}
 	newC.Created = container.Created.Unix()
+	newC.State = container.State.StateString()
 	newC.Status = container.State.String()
 	newC.HostConfig.NetworkMode = string(container.HostConfig.NetworkMode)
 	// copy networks to avoid races

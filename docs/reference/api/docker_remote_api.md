@@ -96,6 +96,8 @@ This section lists each version from latest to oldest.  Each listing includes a 
 
 [Docker Remote API v1.23](docker_remote_api_v1.23.md) documentation
 
+* `GET /containers/json` returns the state of the container, one of `created`, `restarting`, `running`, `paused`, `exited` or `dead`.
+
 
 ### v1.22 API changes
 
