@@ -191,9 +191,8 @@ func (daemon *Daemon) adaptContainerSettings(hostConfig *containertypes.HostConf
 		// By default, MemorySwap is set to twice the size of Memory.
 		hostConfig.MemorySwap = hostConfig.Memory * 2
 	}
-	if hostConfig.ShmSize == nil {
-		shmSize := container.DefaultSHMSize
-		hostConfig.ShmSize = &shmSize
+	if hostConfig.ShmSize == 0 {
+		hostConfig.ShmSize = container.DefaultSHMSize
 	}
 	var err error
 	if hostConfig.SecurityOpt == nil {
@@ -365,7 +364,7 @@ func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.
 	}
 	warnings = append(warnings, w...)
 
-	if hostConfig.ShmSize != nil && *hostConfig.ShmSize <= 0 {
+	if hostConfig.ShmSize < 0 {
 		return warnings, fmt.Errorf("SHM size must be greater then 0")
 	}
 

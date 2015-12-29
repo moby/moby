@@ -186,13 +186,12 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 		return nil, nil, cmd, fmt.Errorf("Invalid value: %d. Valid memory swappiness range is 0-100", swappiness)
 	}
 
-	var parsedShm *int64
+	var shmSize int64
 	if *flShmSize != "" {
-		shmSize, err := units.RAMInBytes(*flShmSize)
+		shmSize, err = units.RAMInBytes(*flShmSize)
 		if err != nil {
 			return nil, nil, cmd, err
 		}
-		parsedShm = &shmSize
 	}
 
 	var binds []string
@@ -397,7 +396,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 		LogConfig:      container.LogConfig{Type: *flLoggingDriver, Config: loggingOpts},
 		VolumeDriver:   *flVolumeDriver,
 		Isolation:      container.IsolationLevel(*flIsolation),
-		ShmSize:        parsedShm,
+		ShmSize:        shmSize,
 		Resources:      resources,
 		Tmpfs:          tmpfs,
 	}

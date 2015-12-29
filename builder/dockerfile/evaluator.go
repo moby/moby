@@ -148,7 +148,7 @@ func (b *Builder) dispatch(stepN int, ast *parser.Node) error {
 	// a subsequent one. So, putting the buildArgs list after the Config.Env
 	// list, in 'envs', is safe.
 	envs := b.runConfig.Env
-	for key, val := range b.BuildArgs {
+	for key, val := range b.options.BuildArgs {
 		if !b.isBuildArgAllowed(key) {
 			// skip build-args that are not in allowed list, meaning they have
 			// not been defined by an "ARG" Dockerfile command yet.
