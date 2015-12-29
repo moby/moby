@@ -283,12 +283,6 @@ var defaultSeccompProfile = &configs.Seccomp{
 			Args:   []*configs.Arg{},
 		},
 		{
-			// meta, deny seccomp
-			Name:   "seccomp",
-			Action: configs.Errno,
-			Args:   []*configs.Arg{},
-		},
-		{
 			// Terrifying syscalls that modify kernel memory and NUMA settings.
 			// They're gated by CAP_SYS_NICE,
 			// which we do not retain by default in containers.
