@@ -15,14 +15,14 @@ import (
 // return a type that satisfies this interface and simply calls the C
 // library syslog function.
 type serverConn interface {
-	writeString(p priority, hostname, tag, s string) error
+	writeString(p Priority, hostname, tag, s string) error
 	close() error
 }
 
 // New establishes a new connection to the system log daemon.  Each
 // write to the returned Writer sends a log message with the given
 // priority and prefix.
-func New(priority priority, tag string) (w *Writer, err error) {
+func New(priority Priority, tag string) (w *Writer, err error) {
 	return Dial("", "", priority, tag)
 }
 
@@ -31,14 +31,14 @@ func New(priority priority, tag string) (w *Writer, err error) {
 // Writer sends a log message with the given facility, severity and
 // tag.
 // If network is empty, Dial will connect to the local syslog server.
-func Dial(network, raddr string, priority priority, tag string) (*Writer, error) {
+func Dial(network, raddr string, priority Priority, tag string) (*Writer, error) {
 	return DialWithTLSConfig(network, raddr, priority, tag, nil)
 }
 
 // DialWithTLSCertPath establishes a secure connection to a log daemon by connecting to
 // address raddr on the specified network. It uses certPath to load TLS certificates and configure
 // the secure connection.
-func DialWithTLSCertPath(network, raddr string, priority priority, tag, certPath string) (*Writer, error) {
+func DialWithTLSCertPath(network, raddr string, priority Priority, tag, certPath string) (*Writer, error) {
 	pool := x509.NewCertPool()
 	serverCert, err := ioutil.ReadFile(certPath)
 	if err != nil {
@@ -54,7 +54,7 @@ func DialWithTLSCertPath(network, raddr string, priority priority, tag, certPath
 
 // DialWithTLSConfig establishes a secure connection to a log daemon by connecting to
 // address raddr on the specified network. It uses tlsConfig to configure the secure connection.
-func DialWithTLSConfig(network, raddr string, priority priority, tag string, tlsConfig *tls.Config) (*Writer, error) {
+func DialWithTLSConfig(network, raddr string, priority Priority, tag string, tlsConfig *tls.Config) (*Writer, error) {
 	if err := validatePriority(priority); err != nil {
 		return nil, err
 	}
@@ -87,7 +87,7 @@ func DialWithTLSConfig(network, raddr string, priority priority, tag string, tls
 // the system log service with the specified priority. The logFlag
 // argument is the flag set passed through to log.New to create
 // the Logger.
-func NewLogger(p priority, logFlag int) (*log.Logger, error) {
+func NewLogger(p Priority, logFlag int) (*log.Logger, error) {
 	s, err := New(p, "")
 	if err != nil {
 		return nil, err

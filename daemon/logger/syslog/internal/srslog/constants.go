@@ -4,11 +4,11 @@ import (
 	"errors"
 )
 
-// The priority is a combination of the syslog facility and
+// Priority is a combination of the syslog facility and
 // severity. For example, LOG_ALERT | LOG_FTP sends an alert severity
 // message from the FTP facility. The default severity is LOG_EMERG;
 // the default facility is LOG_KERN.
-type priority int
+type Priority int
 
 const severityMask = 0x07
 const facilityMask = 0xf8
@@ -18,7 +18,7 @@ const (
 
 	// From /usr/include/sys/syslog.h.
 	// These are the same on Linux, BSD, and OS X.
-	LOG_EMERG priority = iota
+	LOG_EMERG Priority = iota
 	LOG_ALERT
 	LOG_CRIT
 	LOG_ERR
@@ -33,7 +33,7 @@ const (
 
 	// From /usr/include/sys/syslog.h.
 	// These are the same up to LOG_FTP on Linux, BSD, and OS X.
-	LOG_KERN priority = iota << 3
+	LOG_KERN Priority = iota << 3
 	LOG_USER
 	LOG_MAIL
 	LOG_DAEMON
@@ -59,7 +59,7 @@ const (
 	LOG_LOCAL7
 )
 
-func validatePriority(p priority) error {
+func validatePriority(p Priority) error {
 	if p < 0 || p > LOG_LOCAL7|LOG_DEBUG {
 		return errors.New("log/syslog: invalid priority")
 	} else {

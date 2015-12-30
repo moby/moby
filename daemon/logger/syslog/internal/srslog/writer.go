@@ -10,7 +10,7 @@ import (
 type Writer struct {
 	sync.Mutex // guards conn
 
-	priority  priority
+	priority  Priority
 	tag       string
 	hostname  string
 	network   string
@@ -116,7 +116,7 @@ func (w *Writer) Debug(m string) (err error) {
 	return err
 }
 
-func (w *Writer) writeAndRetry(p priority, s string) (int, error) {
+func (w *Writer) writeAndRetry(p Priority, s string) (int, error) {
 	pr := (w.priority & facilityMask) | (p & severityMask)
 
 	w.Lock()
@@ -135,7 +135,7 @@ func (w *Writer) writeAndRetry(p priority, s string) (int, error) {
 
 // write generates and writes a syslog formatted string. The
 // format is as follows: <PRI>TIMESTAMP HOSTNAME TAG[PID]: MSG
-func (w *Writer) write(p priority, msg string) (int, error) {
+func (w *Writer) write(p Priority, msg string) (int, error) {
 	// ensure it ends in a \n
 	if !strings.HasSuffix(msg, "\n") {
 		msg += "\n"

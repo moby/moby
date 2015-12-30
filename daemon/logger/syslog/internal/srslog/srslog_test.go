@@ -288,7 +288,7 @@ func check(t *testing.T, in, out string) {
 	}
 }
 
-func checkWithPriorityAndTag(t *testing.T, p priority, tag, hostname, in, out string) {
+func checkWithPriorityAndTag(t *testing.T, p Priority, tag, hostname, in, out string) {
 	tmpl := fmt.Sprintf("<%d>%%s %%s %s[%%d]: %s\n", p, tag, in)
 	var parsedHostname, timestamp string
 	var pid int
@@ -301,7 +301,7 @@ func checkWithPriorityAndTag(t *testing.T, p priority, tag, hostname, in, out st
 
 func TestWrite(t *testing.T) {
 	tests := []struct {
-		pri priority
+		pri Priority
 		pre string
 		msg string
 		exp string
@@ -342,7 +342,7 @@ func TestWrite(t *testing.T) {
 
 func TestTLSWrite(t *testing.T) {
 	tests := []struct {
-		pri priority
+		pri Priority
 		pre string
 		msg string
 		exp string
