@@ -223,10 +223,10 @@ RUN set -x \
 # Build/install the tool for embedding resources in Windows binaries
 ENV RSRC_COMMIT e48dbf1b7fc464a9e85fcec450dddf80816b76e0
 RUN set -x \
-    && git clone https://github.com/akavel/rsrc.git /go/src/github.com/akavel/rsrc \
-    && cd /go/src/github.com/akavel/rsrc \
-    && git checkout -q $RSRC_COMMIT \
-    && go install -v
+	&& git clone https://github.com/akavel/rsrc.git /go/src/github.com/akavel/rsrc \
+	&& cd /go/src/github.com/akavel/rsrc \
+	&& git checkout -q $RSRC_COMMIT \
+	&& go install -v
 
 # Wrap all commands in the "docker-in-docker" script to allow nested containers
 ENTRYPOINT ["hack/dind"]
