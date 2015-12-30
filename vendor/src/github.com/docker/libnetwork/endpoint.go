@@ -61,6 +61,7 @@ type endpoint struct {
 	generic       map[string]interface{}
 	joinLeaveDone chan struct{}
 	prefAddress   net.IP
+	prefAddressV6 net.IP
 	ipamOptions   map[string]string
 	dbIndex       uint64
 	dbExists      bool
@@ -688,9 +689,10 @@ func EndpointOptionGeneric(generic map[string]interface{}) EndpointOption {
 }
 
 // CreateOptionIpam function returns an option setter for the ipam configuration for this endpoint
-func CreateOptionIpam(prefAddress net.IP, ipamOptions map[string]string) EndpointOption {
+func CreateOptionIpam(ipV4, ipV6 net.IP, ipamOptions map[string]string) EndpointOption {
 	return func(ep *endpoint) {
-		ep.prefAddress = prefAddress
+		ep.prefAddress = ipV4
+		ep.prefAddressV6 = ipV6
 		ep.ipamOptions = ipamOptions
 	}
 }
@@ -775,6 +777,8 @@ func (ep *endpoint) assignAddressVersion(ipVer int, ipam ipamapi.Ipam) error {
 	var (
 		poolID  *string
 		address **net.IPNet
+		prefAdd net.IP
+		progAdd net.IP
 	)
 
 	n := ep.getNetwork()
@@ -782,9 +786,11 @@ func (ep *endpoint) assignAddressVersion(ipVer int, ipam ipamapi.Ipam) error {
 	case 4:
 		poolID = &ep.iface.v4PoolID
 		address = &ep.iface.addr
+		prefAdd = ep.prefAddress
 	case 6:
 		poolID = &ep.iface.v6PoolID
 		address = &ep.iface.addrv6
+		prefAdd = ep.prefAddressV6
 	default:
 		return types.InternalErrorf("incorrect ip version number passed: %d", ipVer)
 	}
@@ -796,12 +802,19 @@ func (ep *endpoint) assignAddressVersion(ipVer int, ipam ipamapi.Ipam) error {
 		return nil
 	}
 
+	// The address to program may be chosen by the user or by the network driver in one specific
+	// case to support backward compatibility with `docker daemon --fixed-cidrv6` use case
+	if prefAdd != nil {
+		progAdd = prefAdd
+	} else if *address != nil {
+		progAdd = (*address).IP
+	}
+
 	for _, d := range ipInfo {
-		var prefIP net.IP
-		if *address != nil {
-			prefIP = (*address).IP
+		if progAdd != nil && !d.Pool.Contains(progAdd) {
+			continue
 		}
-		addr, _, err := ipam.RequestAddress(d.PoolID, prefIP, ep.ipamOptions)
+		addr, _, err := ipam.RequestAddress(d.PoolID, progAdd, ep.ipamOptions)
 		if err == nil {
 			ep.Lock()
 			*address = addr
@@ -809,9 +822,12 @@ func (ep *endpoint) assignAddressVersion(ipVer int, ipam ipamapi.Ipam) error {
 			ep.Unlock()
 			return nil
 		}
-		if err != ipamapi.ErrNoAvailableIPs {
+		if err != ipamapi.ErrNoAvailableIPs || progAdd != nil {
 			return err
 		}
+	}
+	if progAdd != nil {
+		return types.BadRequestErrorf("Invalid preferred address %s: It does not belong to any of this network's subnets")
 	}
 	return fmt.Errorf("no available IPv%d addresses on this network's address pools: %s (%s)", ipVer, n.Name(), n.ID())
 }
