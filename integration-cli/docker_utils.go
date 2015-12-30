@@ -27,9 +27,9 @@ import (
 	"github.com/docker/docker/pkg/httputils"
 	"github.com/docker/docker/pkg/integration"
 	"github.com/docker/docker/pkg/ioutils"
-	"github.com/docker/docker/pkg/sockets"
 	"github.com/docker/docker/pkg/stringutils"
-	"github.com/docker/docker/pkg/tlsconfig"
+	"github.com/docker/go-connections/sockets"
+	"github.com/docker/go-connections/tlsconfig"
 	"github.com/go-check/check"
 )
 

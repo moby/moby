@@ -18,8 +18,8 @@ import (
 	"github.com/docker/docker/api/server/router/volume"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/pkg/authorization"
-	"github.com/docker/docker/pkg/sockets"
 	"github.com/docker/docker/utils"
+	"github.com/docker/go-connections/sockets"
 	"github.com/gorilla/mux"
 	"golang.org/x/net/context"
 )

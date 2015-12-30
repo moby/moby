@@ -15,7 +15,7 @@ import (
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/term"
-	"github.com/docker/docker/pkg/tlsconfig"
+	"github.com/docker/go-connections/tlsconfig"
 )
 
 // DockerCli represents the docker command line client.

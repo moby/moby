@@ -25,9 +25,9 @@ import (
 	"github.com/docker/docker/pkg/pidfile"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/system"
-	"github.com/docker/docker/pkg/tlsconfig"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/utils"
+	"github.com/docker/go-connections/tlsconfig"
 )
 
 const daemonUsage = "       docker daemon [ --help | ... ]\n"

@@ -23,8 +23,8 @@ import (
 	"github.com/docker/distribution/registry/client/transport"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/pkg/parsers/kernel"
-	"github.com/docker/docker/pkg/tlsconfig"
 	"github.com/docker/docker/pkg/useragent"
+	"github.com/docker/go-connections/tlsconfig"
 )
 
 var (
