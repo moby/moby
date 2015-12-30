@@ -732,7 +732,7 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 	}
 	d.layerStore, err = layer.NewStoreFromOptions(layer.StoreOptions{
 		StorePath:                 config.Root,
-		MetadataStorePathTemplate: filepath.Join(config.Root, "image", "%s"),
+		MetadataStorePathTemplate: filepath.Join(config.Root, "image", "%s", "layerdb"),
 		GraphDriver:               driverName,
 		GraphDriverOptions:        config.GraphOptions,
 		UIDMaps:                   uidMaps,
