@@ -104,7 +104,7 @@ func assertIPTableChainProgramming(rule iptRule, descr string, t *testing.T) {
 func assertChainConfig(d *driver, t *testing.T) {
 	var err error
 
-	d.natChain, d.filterChain, err = setupIPChains(d.config)
+	d.natChain, d.filterChain, d.isolationChain, err = setupIPChains(d.config)
 	if err != nil {
 		t.Fatal(err)
 	}
