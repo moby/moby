@@ -10,4 +10,4 @@ export DOCKER_ENGINE_GOARCH=$(echo $DOCKER_ENGINE_OSARCH | cut -d'/' -f2)
 bundle .ensure-emptyfs
 bundle .ensure-frozen-images
 bundle .ensure-httpserver
-bundle .ensure-userns-test
+bundle .ensure-syscall-test
