@@ -6,7 +6,6 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/daemon/exec"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/version"
 )
@@ -14,7 +13,7 @@ import (
 // execBackend includes functions to implement to provide exec functionality.
 type execBackend interface {
 	ContainerExecCreate(config *types.ExecConfig) (string, error)
-	ContainerExecInspect(id string) (*exec.Config, error)
+	ContainerExecInspect(id string) (interface{}, error)
 	ContainerExecResize(name string, height, width int) error
 	ContainerExecStart(name string, stdin io.ReadCloser, stdout io.Writer, stderr io.Writer) error
 	ExecExists(name string) (bool, error)
