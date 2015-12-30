@@ -3,8 +3,11 @@
 package main
 
 import (
+	"encoding/json"
+	"fmt"
 	"strings"
 
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/go-check/check"
 )
@@ -159,4 +162,35 @@ func (s *DockerSuite) TestUpdateKernelMemory(c *check.C) {
 	file := "/sys/fs/cgroup/memory/memory.kmem.limit_in_bytes"
 	out, _ = dockerCmd(c, "exec", name, "cat", file)
 	c.Assert(strings.TrimSpace(out), checker.Equals, "104857600")
+}
+
+func (s *DockerSuite) TestUpdateStats(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	testRequires(c, memoryLimitSupport)
+	testRequires(c, cpuCfsQuota)
+	name := "foo"
+	dockerCmd(c, "run", "-d", "-ti", "--name", name, "-m", "500m", "busybox")
+
+	c.Assert(waitRun(name), checker.IsNil)
+
+	getMemLimit := func(id string) uint64 {
+		resp, body, err := sockRequestRaw("GET", fmt.Sprintf("/containers/%s/stats?stream=false", id), nil, "")
+		c.Assert(err, checker.IsNil)
+		c.Assert(resp.Header.Get("Content-Type"), checker.Equals, "application/json")
+
+		var v *types.Stats
+		err = json.NewDecoder(body).Decode(&v)
+		c.Assert(err, checker.IsNil)
+		body.Close()
+
+		return v.MemoryStats.Limit
+	}
+	preMemLimit := getMemLimit(name)
+
+	dockerCmd(c, "update", "--cpu-quota", "2000", name)
+
+	curMemLimit := getMemLimit(name)
+
+	c.Assert(preMemLimit, checker.Equals, curMemLimit)
+
 }
