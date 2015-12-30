@@ -601,7 +601,7 @@ func (container *Container) UpdateContainer(hostConfig *container.HostConfig) er
 	// the command so we can update configs to the real world.
 	if container.IsRunning() {
 		container.Lock()
-		updateCommand(container.Command, resources)
+		updateCommand(container.Command, *cResources)
 		container.Unlock()
 	}
 
