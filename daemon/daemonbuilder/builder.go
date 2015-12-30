@@ -86,7 +86,7 @@ func (d Docker) ContainerUpdateCmd(cID string, cmd []string) error {
 
 // ContainerAttach attaches streams to the container cID. If stream is true, it streams the output.
 func (d Docker) ContainerAttach(cID string, stdin io.ReadCloser, stdout, stderr io.Writer, stream bool) error {
-	return d.Daemon.ContainerWsAttachWithLogs(cID, &daemon.ContainerWsAttachWithLogsConfig{
+	return d.Daemon.ContainerWsAttachWithLogs(cID, &types.ContainerWsAttachWithLogsConfig{
 		InStream:  stdin,
 		OutStream: stdout,
 		ErrStream: stderr,
