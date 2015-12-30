@@ -4,6 +4,10 @@ package main
 
 import (
 	"encoding/json"
+	"io/ioutil"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"github.com/docker/docker/pkg/integration/checker"
@@ -72,4 +76,44 @@ func (s *DockerSuite) TestBuildResourceConstraintsAreUsed(c *check.C) {
 	c.Assert(c2.CPUShares, check.Not(checker.Equals), int64(100), check.Commentf("resource leaked from build for CPUShares"))
 	c.Assert(c2.CPUQuota, check.Not(checker.Equals), int64(8000), check.Commentf("resource leaked from build for CPUQuota"))
 	c.Assert(c2.Ulimits, checker.IsNil, check.Commentf("resource leaked from build for Ulimits"))
+}
+
+func (s *DockerSuite) TestBuildAddChangeOwnership(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	name := "testbuildaddown"
+
+	ctx := func() *FakeContext {
+		dockerfile := `
+			FROM busybox
+			ADD foo /bar/
+			RUN [ $(stat -c %U:%G "/bar") = 'root:root' ]
+			RUN [ $(stat -c %U:%G "/bar/foo") = 'root:root' ]
+			`
+		tmpDir, err := ioutil.TempDir("", "fake-context")
+		c.Assert(err, check.IsNil)
+		testFile, err := os.Create(filepath.Join(tmpDir, "foo"))
+		if err != nil {
+			c.Fatalf("failed to create foo file: %v", err)
+		}
+		defer testFile.Close()
+
+		chownCmd := exec.Command("chown", "daemon:daemon", "foo")
+		chownCmd.Dir = tmpDir
+		out, _, err := runCommandWithOutput(chownCmd)
+		if err != nil {
+			c.Fatal(err, out)
+		}
+
+		if err := ioutil.WriteFile(filepath.Join(tmpDir, "Dockerfile"), []byte(dockerfile), 0644); err != nil {
+			c.Fatalf("failed to open destination dockerfile: %v", err)
+		}
+		return fakeContextFromDir(tmpDir)
+	}()
+
+	defer ctx.Close()
+
+	if _, err := buildImageFromContext(name, ctx, true); err != nil {
+		c.Fatalf("build failed to complete for TestBuildAddChangeOwnership: %v", err)
+	}
+
 }
