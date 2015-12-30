@@ -1170,12 +1170,17 @@ func (daemon *Daemon) LookupImage(name string) (*types.ImageInspect, error) {
 		}
 	}
 
+	comment := img.Comment
+	if len(comment) == 0 && len(img.History) > 0 {
+		comment = img.History[len(img.History)-1].Comment
+	}
+
 	imageInspect := &types.ImageInspect{
 		ID:              img.ID().String(),
 		RepoTags:        repoTags,
 		RepoDigests:     repoDigests,
 		Parent:          img.Parent.String(),
-		Comment:         img.Comment,
+		Comment:         comment,
 		Created:         img.Created.Format(time.RFC3339Nano),
 		Container:       img.Container,
 		ContainerConfig: &img.ContainerConfig,
