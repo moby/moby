@@ -13,7 +13,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/pkg/plugins"
-	"github.com/docker/docker/pkg/tlsconfig"
+	"github.com/docker/go-connections/tlsconfig"
 	"github.com/gorilla/mux"
 )
 
