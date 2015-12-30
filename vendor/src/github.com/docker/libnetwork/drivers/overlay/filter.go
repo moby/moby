@@ -12,16 +12,6 @@ const globalChain = "DOCKER-OVERLAY"
 
 var filterOnce sync.Once
 
-func rawIPTables(args ...string) error {
-	if output, err := iptables.Raw(args...); err != nil {
-		return fmt.Errorf("unable to add overlay filter: %v", err)
-	} else if len(output) != 0 {
-		return fmt.Errorf("unable to add overlay filter: %s", string(output))
-	}
-
-	return nil
-}
-
 func chainExists(cname string) bool {
 	if _, err := iptables.Raw("-L", cname); err != nil {
 		return false
@@ -31,12 +21,14 @@ func chainExists(cname string) bool {
 }
 
 func setupGlobalChain() {
-	if err := rawIPTables("-N", globalChain); err != nil {
-		logrus.Debugf("could not create global overlay chain: %v", err)
+	if err := iptables.RawCombinedOutput("-N", globalChain); err != nil {
+		logrus.Errorf("could not create global overlay chain: %v", err)
+		return
 	}
 
-	if err := rawIPTables("-A", globalChain, "-j", "RETURN"); err != nil {
-		logrus.Debugf("could not install default return chain in the overlay global chain: %v", err)
+	if err := iptables.RawCombinedOutput("-A", globalChain, "-j", "RETURN"); err != nil {
+		logrus.Errorf("could not install default return chain in the overlay global chain: %v", err)
+		return
 	}
 }
 
@@ -49,21 +41,21 @@ func setNetworkChain(cname string, remove bool) error {
 	opt := "-N"
 	// In case of remove, make sure to flush the rules in the chain
 	if remove && exists {
-		if err := rawIPTables("-F", cname); err != nil {
+		if err := iptables.RawCombinedOutput("-F", cname); err != nil {
 			return fmt.Errorf("failed to flush overlay network chain %s rules: %v", cname, err)
 		}
 		opt = "-X"
 	}
 
 	if (!remove && !exists) || (remove && exists) {
-		if err := rawIPTables(opt, cname); err != nil {
+		if err := iptables.RawCombinedOutput(opt, cname); err != nil {
 			return fmt.Errorf("failed network chain operation %q for chain %s: %v", opt, cname, err)
 		}
 	}
 
 	if !remove {
 		if !iptables.Exists(iptables.Filter, cname, "-j", "DROP") {
-			if err := rawIPTables("-A", cname, "-j", "DROP"); err != nil {
+			if err := iptables.RawCombinedOutput("-A", cname, "-j", "DROP"); err != nil {
 				return fmt.Errorf("failed adding default drop rule to overlay network chain %s: %v", cname, err)
 			}
 		}
@@ -91,12 +83,12 @@ func setFilters(cname, brName string, remove bool) error {
 		for _, chain := range []string{"OUTPUT", "FORWARD"} {
 			exists := iptables.Exists(iptables.Filter, chain, "-j", globalChain)
 			if exists {
-				if err := rawIPTables("-D", chain, "-j", globalChain); err != nil {
+				if err := iptables.RawCombinedOutput("-D", chain, "-j", globalChain); err != nil {
 					return fmt.Errorf("failed to delete overlay hook in chain %s while moving the hook: %v", chain, err)
 				}
 			}
 
-			if err := rawIPTables("-I", chain, "-j", globalChain); err != nil {
+			if err := iptables.RawCombinedOutput("-I", chain, "-j", globalChain); err != nil {
 				return fmt.Errorf("failed to insert overlay hook in chain %s: %v", chain, err)
 			}
 		}
@@ -105,7 +97,7 @@ func setFilters(cname, brName string, remove bool) error {
 	// Insert/Delete the rule to jump to per-bridge chain
 	exists := iptables.Exists(iptables.Filter, globalChain, "-o", brName, "-j", cname)
 	if (!remove && !exists) || (remove && exists) {
-		if err := rawIPTables(opt, globalChain, "-o", brName, "-j", cname); err != nil {
+		if err := iptables.RawCombinedOutput(opt, globalChain, "-o", brName, "-j", cname); err != nil {
 			return fmt.Errorf("failed to add per-bridge filter rule for bridge %s, network chain %s: %v", brName, cname, err)
 		}
 	}
@@ -115,7 +107,7 @@ func setFilters(cname, brName string, remove bool) error {
 		return nil
 	}
 
-	if err := rawIPTables(opt, cname, "-i", brName, "-j", "ACCEPT"); err != nil {
+	if err := iptables.RawCombinedOutput(opt, cname, "-i", brName, "-j", "ACCEPT"); err != nil {
 		return fmt.Errorf("failed to add overlay filter rile for network chain %s, bridge %s: %v", cname, brName, err)
 	}
 
