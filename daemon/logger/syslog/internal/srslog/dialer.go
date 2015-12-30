@@ -5,7 +5,7 @@ import (
 	"net"
 )
 
-func (w writer) getDialer() func() (serverConn, string, error) {
+func (w Writer) getDialer() func() (serverConn, string, error) {
 	dialers := map[string]func() (serverConn, string, error){
 		"":        w.unixDialer,
 		"tcp+tls": w.tlsDialer,
@@ -17,7 +17,7 @@ func (w writer) getDialer() func() (serverConn, string, error) {
 	return dialer
 }
 
-func (w writer) unixDialer() (serverConn, string, error) {
+func (w Writer) unixDialer() (serverConn, string, error) {
 	sc, err := unixSyslog()
 	hostname := w.hostname
 	if hostname == "" {
@@ -26,7 +26,7 @@ func (w writer) unixDialer() (serverConn, string, error) {
 	return sc, hostname, err
 }
 
-func (w writer) tlsDialer() (serverConn, string, error) {
+func (w Writer) tlsDialer() (serverConn, string, error) {
 	c, err := tls.Dial("tcp", w.raddr, w.tlsConfig)
 	var sc serverConn
 	hostname := w.hostname
@@ -39,7 +39,7 @@ func (w writer) tlsDialer() (serverConn, string, error) {
 	return sc, hostname, err
 }
 
-func (w writer) basicDialer() (serverConn, string, error) {
+func (w Writer) basicDialer() (serverConn, string, error) {
 	c, err := net.Dial(w.network, w.raddr)
 	var sc serverConn
 	hostname := w.hostname

@@ -5,7 +5,7 @@ import (
 )
 
 func TestCloseNonOpenWriter(t *testing.T) {
-	w := writer{}
+	w := Writer{}
 
 	err := w.Close()
 	if err != nil {
@@ -14,7 +14,7 @@ func TestCloseNonOpenWriter(t *testing.T) {
 }
 
 func TestWriteAndRetryFails(t *testing.T) {
-	w := writer{network: "udp", raddr: "fakehost"}
+	w := Writer{network: "udp", raddr: "fakehost"}
 
 	n, err := w.writeAndRetry(LOG_ERR, "nope")
 	if err == nil {
@@ -31,7 +31,7 @@ func TestDebug(t *testing.T) {
 	defer sock.Close()
 	defer srvWG.Wait()
 
-	w := writer{
+	w := Writer{
 		priority: LOG_ERR,
 		tag:      "tag",
 		hostname: "hostname",
@@ -62,7 +62,7 @@ func TestInfo(t *testing.T) {
 	defer sock.Close()
 	defer srvWG.Wait()
 
-	w := writer{
+	w := Writer{
 		priority: LOG_ERR,
 		tag:      "tag",
 		hostname: "hostname",
@@ -93,7 +93,7 @@ func TestNotice(t *testing.T) {
 	defer sock.Close()
 	defer srvWG.Wait()
 
-	w := writer{
+	w := Writer{
 		priority: LOG_ERR,
 		tag:      "tag",
 		hostname: "hostname",
@@ -124,7 +124,7 @@ func TestWarning(t *testing.T) {
 	defer sock.Close()
 	defer srvWG.Wait()
 
-	w := writer{
+	w := Writer{
 		priority: LOG_ERR,
 		tag:      "tag",
 		hostname: "hostname",
@@ -155,7 +155,7 @@ func TestErr(t *testing.T) {
 	defer sock.Close()
 	defer srvWG.Wait()
 
-	w := writer{
+	w := Writer{
 		priority: LOG_ERR,
 		tag:      "tag",
 		hostname: "hostname",
@@ -186,7 +186,7 @@ func TestCrit(t *testing.T) {
 	defer sock.Close()
 	defer srvWG.Wait()
 
-	w := writer{
+	w := Writer{
 		priority: LOG_ERR,
 		tag:      "tag",
 		hostname: "hostname",
@@ -217,7 +217,7 @@ func TestAlert(t *testing.T) {
 	defer sock.Close()
 	defer srvWG.Wait()
 
-	w := writer{
+	w := Writer{
 		priority: LOG_ERR,
 		tag:      "tag",
 		hostname: "hostname",
@@ -248,7 +248,7 @@ func TestEmerg(t *testing.T) {
 	defer sock.Close()
 	defer srvWG.Wait()
 
-	w := writer{
+	w := Writer{
 		priority: LOG_ERR,
 		tag:      "tag",
 		hostname: "hostname",
