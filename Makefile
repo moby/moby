@@ -6,7 +6,7 @@ DOCKER_ENGINE_OSARCH = $(shell docker version | grep 'OS/Arch' | tail -1 | cut -
 DOCKER_FILE = Dockerfile
 # switch to different Dockerfile for linux/arm
 ifeq ($(DOCKER_ENGINE_OSARCH),linux/arm)
-  DOCKER_FILE = Dockerfile.arm
+	DOCKER_FILE = Dockerfile.armhf
 endif
 export DOCKER_FILE
 
