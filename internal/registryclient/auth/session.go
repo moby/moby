@@ -241,7 +241,7 @@ func (th *tokenHandler) fetchToken(params map[string]string) (token *tokenRespon
 
 	if !client.SuccessStatus(resp.StatusCode) {
 		err := client.HandleErrorResponse(resp)
-		return nil, fmt.Errorf("token auth attempt for registry: %s request failed with status: %d %s: %q", req.URL, resp.StatusCode, http.StatusText(resp.StatusCode), err)
+		return nil, err
 	}
 
 	decoder := json.NewDecoder(resp.Body)
