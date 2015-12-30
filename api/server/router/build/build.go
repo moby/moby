@@ -1,9 +1,6 @@
 package build
 
-import (
-	"github.com/docker/docker/api/server/router"
-	"github.com/docker/docker/api/server/router/local"
-)
+import "github.com/docker/docker/api/server/router"
 
 // buildRouter is a router to talk with the build controller
 type buildRouter struct {
@@ -27,6 +24,6 @@ func (r *buildRouter) Routes() []router.Route {
 
 func (r *buildRouter) initRoutes() {
 	r.routes = []router.Route{
-		local.NewPostRoute("/build", r.postBuild),
+		router.NewPostRoute("/build", r.postBuild),
 	}
 }

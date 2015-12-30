@@ -10,6 +10,7 @@ import (
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/image"
 	"github.com/docker/engine-api/types"
+	"github.com/docker/engine-api/types/backend"
 	"github.com/docker/engine-api/types/filters"
 	networktypes "github.com/docker/engine-api/types/network"
 	"github.com/docker/go-connections/nat"
@@ -43,24 +44,8 @@ func (daemon *Daemon) List() []*container.Container {
 	return daemon.containers.List()
 }
 
-// ContainersConfig is the filtering specified by the user to iterate over containers.
-type ContainersConfig struct {
-	// if true show all containers, otherwise only running containers.
-	All bool
-	// show all containers created after this container id
-	Since string
-	// show all containers created before this container id
-	Before string
-	// number of containers to return at most
-	Limit int
-	// if true include the sizes of the containers
-	Size bool
-	// return only containers that match filters
-	Filters string
-}
-
 // listContext is the daemon generated filtering to iterate over containers.
-// This is created based on the user specification.
+// This is created based on the user specification from backend.ContainersConfig.
 type listContext struct {
 	// idx is the container iteration index for this context
 	idx int
@@ -81,16 +66,16 @@ type listContext struct {
 	// this is used for --filter=since= and --since=, the latter is deprecated.
 	sinceFilter *container.Container
 	// ContainersConfig is the filters set by the user
-	*ContainersConfig
+	*backend.ContainersConfig
 }
 
 // Containers returns the list of containers to show given the user's filtering.
-func (daemon *Daemon) Containers(config *ContainersConfig) ([]*types.Container, error) {
+func (daemon *Daemon) Containers(config *backend.ContainersConfig) ([]*types.Container, error) {
 	return daemon.reduceContainers(config, daemon.transformContainer)
 }
 
-// reduceContainer parses the user filtering and generates the list of containers to return based on a reducer.
-func (daemon *Daemon) reduceContainers(config *ContainersConfig, reducer containerReducer) ([]*types.Container, error) {
+// reduceContainers parses the user's filtering options and generates the list of containers to return based on a reducer.
+func (daemon *Daemon) reduceContainers(config *backend.ContainersConfig, reducer containerReducer) ([]*types.Container, error) {
 	containers := []*types.Container{}
 
 	ctx, err := daemon.foldFilter(config)
@@ -132,8 +117,8 @@ func (daemon *Daemon) reducePsContainer(container *container.Container, ctx *lis
 	return reducer(container, ctx)
 }
 
-// foldFilter generates the container filter based in the user's filtering options.
-func (daemon *Daemon) foldFilter(config *ContainersConfig) (*listContext, error) {
+// foldFilter generates the container filter based on the user's filtering options.
+func (daemon *Daemon) foldFilter(config *backend.ContainersConfig) (*listContext, error) {
 	psFilters, err := filters.FromParam(config.Filters)
 	if err != nil {
 		return nil, err
