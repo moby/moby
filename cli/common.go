@@ -2,7 +2,7 @@ package cli
 
 import (
 	flag "github.com/docker/docker/pkg/mflag"
-	"github.com/docker/docker/pkg/tlsconfig"
+	"github.com/docker/go-connections/tlsconfig"
 )
 
 // CommonFlags represents flags that are common to both the client and the daemon.
