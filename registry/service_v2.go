@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/tlsconfig"
 	"github.com/docker/docker/reference"
 )
@@ -12,22 +13,69 @@ func (s *Service) lookupV2Endpoints(repoName reference.Named) (endpoints []APIEn
 	var cfg = tlsconfig.ServerDefault
 	tlsConfig := &cfg
 	nameString := repoName.FullName()
-	if strings.HasPrefix(nameString, DefaultNamespace+"/") {
-		// v2 mirrors
-		for _, mirror := range s.Config.Mirrors {
+	logrus.Debugf("repoName is %s", nameString)
+	var Main string
+	//check mirror configuration
+	logrus.Debugf("There are %d mirror configuration", len(s.Config.Mirrors))
+	logrus.Debugf("Mirror map is %v", s.Config.Mirrors)
+	if len(s.Config.Mirrors) > 0 {
+		//get addr of main hub and mirror hub
+		for mirror, main := range s.Config.Mirrors {
 			mirrorTLSConfig, err := s.tlsConfigForMirror(mirror)
 			if err != nil {
 				return nil, err
 			}
-			endpoints = append(endpoints, APIEndpoint{
-				URL: mirror,
-				// guess mirrors are v2
-				Version:      APIVersion2,
-				Mirror:       true,
-				TrimHostname: true,
-				TLSConfig:    mirrorTLSConfig,
-			})
+			//compare repo prefix to main hub
+			logrus.Debugf("main is %s, and mirror is %s", main, mirror)
+			if tlsConfig.InsecureSkipVerify {
+				Main = strings.TrimLeft(main, "http://")
+			} else {
+				Main = strings.TrimLeft(main, "https://")
+			}
+			//get official image
+			if strings.HasPrefix(nameString, DefaultNamespace+"/") {
+				endpoints = append(endpoints, APIEndpoint{
+					URL:          mirror,
+					Version:      APIVersion2,
+					Official:     true,
+					TrimHostname: true,
+					TLSConfig:    tlsConfig,
+				})
+				endpoints = append(endpoints, APIEndpoint{
+					URL:          DefaultV2Registry,
+					Version:      APIVersion2,
+					Official:     true,
+					TrimHostname: true,
+					TLSConfig:    tlsConfig,
+				})
+			} else if strings.HasPrefix(nameString, Main+"/") { //get image from private registry
+				//add mirror endpoint
+				endpoints = append(endpoints, APIEndpoint{
+					URL:          mirror,
+					Version:      APIVersion2,
+					Mirror:       true,
+					TrimHostname: true,
+					TLSConfig:    mirrorTLSConfig,
+				})
+				//add main endpoint
+				endpoints = append(endpoints, APIEndpoint{
+					URL:          main,
+					Version:      APIVersion2,
+					TrimHostname: true,
+					TLSConfig:    tlsConfig,
+				})
+			}
 		}
+		logrus.Debugf("There are %d endpoints", len(endpoints))
+		if len(endpoints) > 0 {
+			for _, endpoint := range endpoints {
+				logrus.Debugf("endpoint is %s", endpoint.URL)
+			}
+			return endpoints, nil
+		}
+	}
+	//no mirror hub endpoint find
+	if strings.HasPrefix(nameString, DefaultNamespace+"/") {
 		// v2 registry
 		endpoints = append(endpoints, APIEndpoint{
 			URL:          DefaultV2Registry,
