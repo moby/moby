@@ -38,5 +38,8 @@ override_dh_install:
 	dh_install
 	dh_apparmor --profile-name=docker-engine -pdocker-engine
 
+override_dh_shlibdeps:
+	dh_shlibdeps --dpkg-shlibdeps-params=--ignore-missing-info
+
 %:
 	dh $@ --with=bash-completion $(shell command -v dh_systemd_enable > /dev/null 2>&1 && echo --with=systemd)
