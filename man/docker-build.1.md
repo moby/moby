@@ -19,7 +19,7 @@ docker-build - Build a new image from the source code at PATH
 [**--rm**[=*true*]]
 [**-t**|**--tag**[=*[]*]]
 [**-m**|**--memory**[=*MEMORY*]]
-[**--memory-swap**[=*MEMORY-SWAP*]]
+[**--memory-swap**[=*LIMIT*]]
 [**--shm-size**[=*SHM-SIZE*]]
 [**--cpu-period**[=*0*]]
 [**--cpu-quota**[=*0*]]
@@ -92,8 +92,14 @@ set as the **URL**, the repository is cloned locally and then sent as the contex
 **-m**, **--memory**=*MEMORY*
   Memory limit
 
-**--memory-swap**=*MEMORY-SWAP*
-  Total memory (memory + swap), '-1' to disable swap.
+**--memory-swap**=*LIMIT*
+   A limit value equal to memory plus swap. Must be used with the  **-m**
+(**--memory**) flag. The swap `LIMIT` should always be larger than **-m**
+(**--memory**) value.
+
+   The format of `LIMIT` is `<number>[<unit>]`. Unit can be `b` (bytes),
+`k` (kilobytes), `m` (megabytes), or `g` (gigabytes). If you don't specify a
+unit, `b` is used. Set LIMIT to `-1` to enable unlimited swap.
 
 **--shm-size**=*SHM-SIZE*
   Size of `/dev/shm`. The format is `<number><unit>`. `number` must be greater than `0`.

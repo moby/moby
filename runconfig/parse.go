@@ -93,7 +93,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 		flHostname          = cmd.String([]string{"h", "-hostname"}, "", "Container host name")
 		flMemoryString      = cmd.String([]string{"m", "-memory"}, "", "Memory limit")
 		flMemoryReservation = cmd.String([]string{"-memory-reservation"}, "", "Memory soft limit")
-		flMemorySwap        = cmd.String([]string{"-memory-swap"}, "", "Total memory (memory + swap), '-1' to disable swap")
+		flMemorySwap        = cmd.String([]string{"-memory-swap"}, "", "Swap limit equal to memory plus swap: '-1' to enable unlimited swap")
 		flKernelMemory      = cmd.String([]string{"-kernel-memory"}, "", "Kernel memory limit")
 		flUser              = cmd.String([]string{"u", "-user"}, "", "Username or UID (format: <name|uid>[:<group|gid>])")
 		flWorkingDir        = cmd.String([]string{"w", "-workdir"}, "", "Working directory inside the container")

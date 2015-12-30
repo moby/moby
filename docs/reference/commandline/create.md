@@ -57,7 +57,7 @@ Creates a new container.
       -m, --memory=""               Memory limit
       --mac-address=""              Container MAC address (e.g. 92:d0:c6:0a:29:33)
       --memory-reservation=""       Memory soft limit
-      --memory-swap=""              Total memory (memory + swap), '-1' to disable swap
+      --memory-swap=""              A positive integer equal to memory plus swap. Specify -1 to enable unlimited swap.
       --memory-swappiness=""        Tune a container's memory swappiness behavior. Accepts an integer between 0 and 100.
       --name=""                     Assign a name to the container
       --net="bridge"                Connect a container to a network
