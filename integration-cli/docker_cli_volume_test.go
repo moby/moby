@@ -19,6 +19,10 @@ func (s *DockerSuite) TestVolumeCliCreate(c *check.C) {
 	out, _ := dockerCmd(c, "volume", "create", "--name=test")
 	name := strings.TrimSpace(out)
 	c.Assert(name, check.Equals, "test")
+
+	out, _ = dockerCmd(c, "volume", "create", "volume-test")
+	name = strings.TrimSpace(out)
+	c.Assert(name, check.Equals, "volume-test")
 }
 
 func (s *DockerSuite) TestVolumeCliCreateOptionConflict(c *check.C) {

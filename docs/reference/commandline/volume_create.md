@@ -12,16 +12,16 @@ parent = "smn_cli"
 
     Usage: docker volume create [OPTIONS]
 
-    Create a volume
+    Create a volume [NAME]
 
       -d, --driver=local    Specify volume driver name
       --help                Print usage
-      --name=               Specify volume name
+      --name=               Specify volume name, overrides the command's first argument
       -o, --opt=map[]       Set driver specific options
 
 Creates a new volume that containers can consume and store data in. If a name is not specified, Docker generates a random name. You create a volume and then configure the container to use it, for example:
 
-    $ docker volume create --name hello
+    $ docker volume create hello
     hello
 
     $ docker run -d -v hello:/world busybox ls /world
