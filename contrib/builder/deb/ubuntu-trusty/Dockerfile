@@ -5,6 +5,25 @@
 FROM ubuntu:trusty
 
 RUN apt-get update && apt-get install -y apparmor bash-completion btrfs-tools build-essential curl ca-certificates debhelper dh-apparmor dh-systemd git libapparmor-dev libdevmapper-dev libltdl-dev libsqlite3-dev  libsystemd-journal-dev --no-install-recommends && rm -rf /var/lib/apt/lists/*
+ENV SECCOMP_VERSION v2.2.3
+RUN buildDeps=' \
+automake \
+libtool \
+' \
+&& set -x \
+&& apt-get update && apt-get install -y $buildDeps --no-install-recommends \
+&& rm -rf /var/lib/apt/lists/* \
+&& export SECCOMP_PATH=$(mktemp -d) \
+&& git clone -b "$SECCOMP_VERSION" --depth 1 https://github.com/seccomp/libseccomp.git "$SECCOMP_PATH" \
+&& ( \
+cd "$SECCOMP_PATH" \
+&& ./autogen.sh \
+&& ./configure --prefix=/usr \
+&& make \
+&& make install \
+) \
+&& rm -rf "$SECCOMP_PATH" \
+&& apt-get purge -y --auto-remove $buildDeps
 
 ENV GO_VERSION 1.5.2
 RUN curl -fSL "https://storage.googleapis.com/golang/go${GO_VERSION}.linux-amd64.tar.gz" | tar xzC /usr/local
@@ -12,4 +31,4 @@ ENV PATH $PATH:/usr/local/go/bin
 
 ENV AUTO_GOPATH 1
 
-ENV DOCKER_BUILDTAGS apparmor selinux
+ENV DOCKER_BUILDTAGS apparmor seccomp selinux
