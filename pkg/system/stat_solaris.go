@@ -1,4 +1,4 @@
-// +build !linux,!windows,!freebsd,!solaris
+// +build solaris
 
 package system
 
@@ -13,5 +13,5 @@ func fromStatT(s *syscall.Stat_t) (*StatT, error) {
 		uid:  s.Uid,
 		gid:  s.Gid,
 		rdev: uint64(s.Rdev),
-		mtim: s.Mtimespec}, nil
+		mtim: s.Mtim}, nil
 }
