@@ -1,7 +1,6 @@
 package daemon
 
 import (
-	"errors"
 	"fmt"
 	"net"
 	"strings"
@@ -10,13 +9,6 @@ import (
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/engine-api/types/network"
 	"github.com/docker/libnetwork"
-)
-
-const (
-	// NetworkByID represents a constant to find a network by its ID
-	NetworkByID = iota + 1
-	// NetworkByName represents a constant to find a network by its Name
-	NetworkByName
 )
 
 // NetworkControllerEnabled checks if the networking stack is enabled.
@@ -28,8 +20,8 @@ func (daemon *Daemon) NetworkControllerEnabled() bool {
 // FindNetwork function finds a network for a given string that can represent network name or id
 func (daemon *Daemon) FindNetwork(idName string) (libnetwork.Network, error) {
 	// Find by Name
-	n, err := daemon.GetNetwork(idName, NetworkByName)
-	if _, ok := err.(libnetwork.ErrNoSuchNetwork); err != nil && !ok {
+	n, err := daemon.GetNetworkByName(idName)
+	if err != nil && !isNoSuchNetworkError(err) {
 		return nil, err
 	}
 
@@ -38,38 +30,35 @@ func (daemon *Daemon) FindNetwork(idName string) (libnetwork.Network, error) {
 	}
 
 	// Find by id
-	n, err = daemon.GetNetwork(idName, NetworkByID)
-	if err != nil {
-		return nil, err
-	}
-
-	return n, nil
+	return daemon.GetNetworkByID(idName)
 }
 
-// GetNetwork function returns a network for a given string that represents the network and
-// a hint to indicate if the string is an Id or Name of the network
-func (daemon *Daemon) GetNetwork(idName string, by int) (libnetwork.Network, error) {
-	c := daemon.netController
-	switch by {
-	case NetworkByID:
-		list := daemon.GetNetworksByID(idName)
+func isNoSuchNetworkError(err error) bool {
+	_, ok := err.(libnetwork.ErrNoSuchNetwork)
+	return ok
+}
 
-		if len(list) == 0 {
-			return nil, libnetwork.ErrNoSuchNetwork(idName)
-		}
+// GetNetworkByID function returns a network whose ID begins with the given prefix.
+// It fails with an error if no matching, or more than one matching, networks are found.
+func (daemon *Daemon) GetNetworkByID(partialID string) (libnetwork.Network, error) {
+	list := daemon.GetNetworksByID(partialID)
 
-		if len(list) > 1 {
-			return nil, libnetwork.ErrInvalidID(idName)
-		}
-
-		return list[0], nil
-	case NetworkByName:
-		if idName == "" {
-			idName = c.Config().Daemon.DefaultNetwork
-		}
-		return c.NetworkByName(idName)
+	if len(list) == 0 {
+		return nil, libnetwork.ErrNoSuchNetwork(partialID)
 	}
-	return nil, errors.New("unexpected selector for GetNetwork")
+	if len(list) > 1 {
+		return nil, libnetwork.ErrInvalidID(partialID)
+	}
+	return list[0], nil
+}
+
+// GetNetworkByName function returns a network for a given network name.
+func (daemon *Daemon) GetNetworkByName(name string) (libnetwork.Network, error) {
+	c := daemon.netController
+	if name == "" {
+		name = c.Config().Daemon.DefaultNetwork
+	}
+	return c.NetworkByName(name)
 }
 
 // GetNetworksByID returns a list of networks whose ID partially matches zero or more networks

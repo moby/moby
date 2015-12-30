@@ -3,7 +3,6 @@ package daemon
 import (
 	"io"
 	"strconv"
-	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/container"
@@ -11,28 +10,12 @@ import (
 	"github.com/docker/docker/daemon/logger/jsonfilelog"
 	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/stdcopy"
+	"github.com/docker/engine-api/types/backend"
 )
-
-// ContainerLogsConfig holds configs for logging operations. Exists
-// for users of the daemon to to pass it a logging configuration.
-type ContainerLogsConfig struct {
-	// if true stream log output
-	Follow bool
-	// if true include timestamps for each line of log output
-	Timestamps bool
-	// return that many lines of log output from the end
-	Tail string
-	// filter logs by returning on those entries after this time
-	Since time.Time
-	// whether or not to show stdout and stderr as well as log entries.
-	UseStdout, UseStderr bool
-	OutStream            io.Writer
-	Stop                 <-chan bool
-}
 
 // ContainerLogs hooks up a container's stdout and stderr streams
 // configured with the given struct.
-func (daemon *Daemon) ContainerLogs(containerName string, config *ContainerLogsConfig) error {
+func (daemon *Daemon) ContainerLogs(containerName string, config *backend.ContainerLogsConfig) error {
 	container, err := daemon.GetContainer(containerName)
 	if err != nil {
 		return derr.ErrorCodeNoSuchContainer.WithArgs(containerName)
