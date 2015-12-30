@@ -255,7 +255,7 @@ func (p *v2Puller) pullV2Tag(ctx context.Context, ref reference.Named) (tagUpdat
 		return false, err
 	}
 
-	progress.Message(p.config.ProgressOutput, tagOrDigest, "Pulling from "+r.FullName())
+	progress.Message(p.config.ProgressOutput, tagOrDigest, "Pulling from "+ref.FullName())
 
 	var descriptors []xfer.DownloadDescriptor
 
