@@ -372,3 +372,12 @@ func (s *DockerSuite) TestInspectStopWhenNotFound(c *check.C) {
 	c.Assert(out, checker.Not(checker.Contains), "not-shown")
 	c.Assert(out, checker.Contains, "Error: No such container: missing")
 }
+
+func (s *DockerSuite) TestInspectHistory(c *check.C) {
+	dockerCmd(c, "run", "--name=testcont", "-d", "busybox", "top")
+	dockerCmd(c, "commit", "-m", "test comment", "testcont", "testimg")
+	out, _, err := dockerCmdWithError("inspect", "--format='{{.Comment}}'", "testimg")
+
+	c.Assert(err, check.IsNil)
+	c.Assert(out, checker.Contains, "test comment")
+}
