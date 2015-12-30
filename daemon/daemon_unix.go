@@ -584,14 +584,14 @@ func initBridgeDriver(controller libnetwork.NetworkController, config *Config) e
 		deferIPv6Alloc = ones <= 80
 
 		if ipamV6Conf == nil {
-			ipamV6Conf = &libnetwork.IpamConf{}
+			ipamV6Conf = &libnetwork.IpamConf{AuxAddresses: make(map[string]string)}
 		}
 		ipamV6Conf.PreferredPool = fCIDRv6.String()
 	}
 
 	if config.Bridge.DefaultGatewayIPv6 != nil {
 		if ipamV6Conf == nil {
-			ipamV6Conf = &libnetwork.IpamConf{}
+			ipamV6Conf = &libnetwork.IpamConf{AuxAddresses: make(map[string]string)}
 		}
 		ipamV6Conf.AuxAddresses["DefaultGatewayIPv6"] = config.Bridge.DefaultGatewayIPv6.String()
 	}

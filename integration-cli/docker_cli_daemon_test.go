@@ -334,15 +334,13 @@ func (s *DockerSuite) TestDaemonIPv6Enabled(c *check.C) {
 // TestDaemonIPv6FixedCIDR checks that when the daemon is started with --ipv6=true and a fixed CIDR
 // that running containers are given a link-local and global IPv6 address
 func (s *DockerSuite) TestDaemonIPv6FixedCIDR(c *check.C) {
-	testRequires(c, IPv6)
-
 	if err := setupV6(); err != nil {
 		c.Fatal("Could not set up host for IPv6 tests")
 	}
 
 	d := NewDaemon(c)
 
-	if err := d.StartWithBusybox("--ipv6", "--fixed-cidr-v6='2001:db8:1::/64'"); err != nil {
+	if err := d.StartWithBusybox("--ipv6", "--fixed-cidr-v6='2001:db8:2::/64'", "--default-gateway-v6='2001:db8:2::100'"); err != nil {
 		c.Fatalf("Could not start daemon with busybox: %v", err)
 	}
 	defer d.Stop()
@@ -351,18 +349,7 @@ func (s *DockerSuite) TestDaemonIPv6FixedCIDR(c *check.C) {
 		c.Fatalf("Could not run container: %s, %v", out, err)
 	}
 
-	out, err := d.Cmd("inspect", "--format", "'{{.NetworkSettings.Networks.bridge.LinkLocalIPv6Address}}'", "ipv6test")
-	out = strings.Trim(out, " \r\n'")
-
-	if err != nil {
-		c.Fatalf("Error inspecting container: %s, %v", out, err)
-	}
-
-	if ip := net.ParseIP(out); ip == nil {
-		c.Fatalf("Container should have a link-local IPv6 address")
-	}
-
-	out, err = d.Cmd("inspect", "--format", "'{{.NetworkSettings.Networks.bridge.GlobalIPv6Address}}'", "ipv6test")
+	out, err := d.Cmd("inspect", "--format", "'{{.NetworkSettings.Networks.bridge.GlobalIPv6Address}}'", "ipv6test")
 	out = strings.Trim(out, " \r\n'")
 
 	if err != nil {
@@ -372,6 +359,8 @@ func (s *DockerSuite) TestDaemonIPv6FixedCIDR(c *check.C) {
 	if ip := net.ParseIP(out); ip == nil {
 		c.Fatalf("Container should have a global IPv6 address")
 	}
+
+	// TODO: Check IPv6 def gateway in inspect o/p (once docker/docker 19001 is merged
 	if err := teardownV6(); err != nil {
 		c.Fatal("Could not perform teardown for IPv6 tests")
 	}
