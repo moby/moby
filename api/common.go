@@ -25,6 +25,10 @@ const (
 
 	// DefaultDockerfileName is the Default filename with Docker commands, read by docker build
 	DefaultDockerfileName string = "Dockerfile"
+
+	// NoBaseImageSpecifier is the symbol used by the FROM
+	// command to specify that no base image is to be used.
+	NoBaseImageSpecifier string = "scratch"
 )
 
 // byPortInfo is a temporary type used to sort types.Port by its fields

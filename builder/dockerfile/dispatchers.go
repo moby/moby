@@ -17,6 +17,7 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/builder"
@@ -25,12 +26,6 @@ import (
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/go-connections/nat"
-)
-
-const (
-	// NoBaseImageSpecifier is the symbol used by the FROM
-	// command to specify that no base image is to be used.
-	NoBaseImageSpecifier string = "scratch"
 )
 
 // dispatch with no layer / parsing. This is effectively not a command.
@@ -199,7 +194,7 @@ func from(b *Builder, args []string, attributes map[string]bool, original string
 	name := args[0]
 
 	// Windows cannot support a container with no base image.
-	if name == NoBaseImageSpecifier {
+	if name == api.NoBaseImageSpecifier {
 		if runtime.GOOS == "windows" {
 			return fmt.Errorf("Windows does not support FROM scratch")
 		}
