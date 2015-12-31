@@ -243,6 +243,8 @@ type PluginsInfo struct {
 	Volume []string
 	// List of Network plugins registered
 	Network []string
+	// List of Authorization plugins registered
+	Authorization []string
 }
 
 // ExecStartCheck is a temp struct used by execStart

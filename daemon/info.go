@@ -142,7 +142,15 @@ func (daemon *Daemon) showPluginsInfo() types.PluginsInfo {
 		pluginsInfo.Network = append(pluginsInfo.Network, nd)
 	}
 
+	pluginsInfo.Authorization = daemon.GetAuthorizationPluginsList()
+
 	return pluginsInfo
+}
+
+// GetAuthorizationPluginsList returns the list of plugins drivers
+// registered for authorization.
+func (daemon *Daemon) GetAuthorizationPluginsList() []string {
+	return daemon.configStore.AuthZPlugins
 }
 
 // The uppercase and the lowercase are available for the proxy settings.
