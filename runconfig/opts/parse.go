@@ -327,7 +327,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 		MemorySwap:           memorySwap,
 		MemorySwappiness:     flSwappiness,
 		KernelMemory:         KernelMemory,
-		OomKillDisable:       *flOomKillDisable,
+		OomKillDisable:       flOomKillDisable,
 		CPUShares:            *flCPUShares,
 		CPUPeriod:            *flCPUPeriod,
 		CpusetCpus:           *flCpusetCpus,

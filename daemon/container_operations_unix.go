@@ -209,7 +209,7 @@ func (daemon *Daemon) populateCommand(c *container.Container, env []string) erro
 		BlkioThrottleWriteBpsDevice:  writeBpsDevice,
 		BlkioThrottleReadIOpsDevice:  readIOpsDevice,
 		BlkioThrottleWriteIOpsDevice: writeIOpsDevice,
-		OomKillDisable:               c.HostConfig.OomKillDisable,
+		OomKillDisable:               *c.HostConfig.OomKillDisable,
 		MemorySwappiness:             -1,
 	}
 

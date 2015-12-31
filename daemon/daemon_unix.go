@@ -210,6 +210,10 @@ func (daemon *Daemon) adaptContainerSettings(hostConfig *containertypes.HostConf
 		defaultSwappiness := int64(-1)
 		hostConfig.MemorySwappiness = &defaultSwappiness
 	}
+	if hostConfig.OomKillDisable == nil {
+		defaultOomKillDisable := false
+		hostConfig.OomKillDisable = &defaultOomKillDisable
+	}
 
 	return nil
 }
@@ -270,8 +274,8 @@ func verifyContainerResources(resources *containertypes.Resources) ([]string, er
 		warnings = append(warnings, "You specified a kernel memory limit on a kernel older than 4.0. Kernel memory limits are experimental on older kernels, it won't work as expected and can cause your system to be unstable.")
 		logrus.Warnf("You specified a kernel memory limit on a kernel older than 4.0. Kernel memory limits are experimental on older kernels, it won't work as expected and can cause your system to be unstable.")
 	}
-	if resources.OomKillDisable && !sysInfo.OomKillDisable {
-		resources.OomKillDisable = false
+	if resources.OomKillDisable != nil && !sysInfo.OomKillDisable {
+		resources.OomKillDisable = nil
 		return warnings, fmt.Errorf("Your kernel does not support oom kill disable.")
 	}
 
