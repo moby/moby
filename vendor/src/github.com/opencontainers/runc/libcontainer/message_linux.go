@@ -14,6 +14,8 @@ const (
 	InitMsg         uint16 = 62000
 	PidAttr         uint16 = 27281
 	ConsolePathAttr uint16 = 27282
+	// When syscall.NLA_HDRLEN is in gccgo, take this out.
+	syscall_NLA_HDRLEN = (syscall.SizeofNlAttr + syscall.NLA_ALIGNTO - 1) & ^(syscall.NLA_ALIGNTO - 1)
 )
 
 type Int32msg struct {
@@ -34,7 +36,7 @@ func (msg *Int32msg) Serialize() []byte {
 }
 
 func (msg *Int32msg) Len() int {
-	return syscall.NLA_HDRLEN + 4
+	return syscall_NLA_HDRLEN + 4
 }
 
 // bytemsg has the following representation
@@ -56,5 +58,5 @@ func (msg *Bytemsg) Serialize() []byte {
 }
 
 func (msg *Bytemsg) Len() int {
-	return syscall.NLA_HDRLEN + len(msg.Value) + 1 // null-terminated
+	return syscall_NLA_HDRLEN + len(msg.Value) + 1 // null-terminated
 }

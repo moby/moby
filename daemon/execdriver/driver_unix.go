@@ -139,7 +139,7 @@ func InitContainer(c *Command) *configs.Config {
 
 	container.Hostname = getEnv("HOSTNAME", c.ProcessConfig.Env)
 	container.Cgroups.Name = c.ID
-	container.Cgroups.AllowedDevices = c.AllowedDevices
+	container.Cgroups.Resources.AllowedDevices = c.AllowedDevices
 	container.Devices = c.AutoCreatedDevices
 	container.Rootfs = c.Rootfs
 	container.Readonlyfs = c.ReadonlyRootfs
@@ -170,23 +170,23 @@ func getEnv(key string, env []string) string {
 // SetupCgroups setups cgroup resources for a container.
 func SetupCgroups(container *configs.Config, c *Command) error {
 	if c.Resources != nil {
-		container.Cgroups.CpuShares = c.Resources.CPUShares
-		container.Cgroups.Memory = c.Resources.Memory
-		container.Cgroups.MemoryReservation = c.Resources.MemoryReservation
-		container.Cgroups.MemorySwap = c.Resources.MemorySwap
-		container.Cgroups.KernelMemory = c.Resources.KernelMemory
-		container.Cgroups.CpusetCpus = c.Resources.CpusetCpus
-		container.Cgroups.CpusetMems = c.Resources.CpusetMems
-		container.Cgroups.CpuPeriod = c.Resources.CPUPeriod
-		container.Cgroups.CpuQuota = c.Resources.CPUQuota
-		container.Cgroups.BlkioWeight = c.Resources.BlkioWeight
-		container.Cgroups.BlkioWeightDevice = c.Resources.BlkioWeightDevice
-		container.Cgroups.BlkioThrottleReadBpsDevice = c.Resources.BlkioThrottleReadBpsDevice
-		container.Cgroups.BlkioThrottleWriteBpsDevice = c.Resources.BlkioThrottleWriteBpsDevice
-		container.Cgroups.BlkioThrottleReadIOPSDevice = c.Resources.BlkioThrottleReadIOpsDevice
-		container.Cgroups.BlkioThrottleWriteIOPSDevice = c.Resources.BlkioThrottleWriteIOpsDevice
-		container.Cgroups.OomKillDisable = c.Resources.OomKillDisable
-		container.Cgroups.MemorySwappiness = c.Resources.MemorySwappiness
+		container.Cgroups.Resources.CpuShares = c.Resources.CPUShares
+		container.Cgroups.Resources.Memory = c.Resources.Memory
+		container.Cgroups.Resources.MemoryReservation = c.Resources.MemoryReservation
+		container.Cgroups.Resources.MemorySwap = c.Resources.MemorySwap
+		container.Cgroups.Resources.KernelMemory = c.Resources.KernelMemory
+		container.Cgroups.Resources.CpusetCpus = c.Resources.CpusetCpus
+		container.Cgroups.Resources.CpusetMems = c.Resources.CpusetMems
+		container.Cgroups.Resources.CpuPeriod = c.Resources.CPUPeriod
+		container.Cgroups.Resources.CpuQuota = c.Resources.CPUQuota
+		container.Cgroups.Resources.BlkioWeight = c.Resources.BlkioWeight
+		container.Cgroups.Resources.BlkioWeightDevice = c.Resources.BlkioWeightDevice
+		container.Cgroups.Resources.BlkioThrottleReadBpsDevice = c.Resources.BlkioThrottleReadBpsDevice
+		container.Cgroups.Resources.BlkioThrottleWriteBpsDevice = c.Resources.BlkioThrottleWriteBpsDevice
+		container.Cgroups.Resources.BlkioThrottleReadIOPSDevice = c.Resources.BlkioThrottleReadIOpsDevice
+		container.Cgroups.Resources.BlkioThrottleWriteIOPSDevice = c.Resources.BlkioThrottleWriteIOpsDevice
+		container.Cgroups.Resources.OomKillDisable = c.Resources.OomKillDisable
+		container.Cgroups.Resources.MemorySwappiness = c.Resources.MemorySwappiness
 	}
 
 	return nil

@@ -251,7 +251,7 @@ func (d *Driver) setupRemappedRoot(container *configs.Config, c *execdriver.Comm
 
 func (d *Driver) setPrivileged(container *configs.Config) (err error) {
 	container.Capabilities = execdriver.GetAllCapabilities()
-	container.Cgroups.AllowAllDevices = true
+	container.Cgroups.Resources.AllowAllDevices = true
 
 	hostDevices, err := devices.HostDevices()
 	if err != nil {

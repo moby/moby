@@ -137,7 +137,7 @@ func (m *Manager) Apply(pid int) (err error) {
 	m.Paths = paths
 
 	if paths["cpu"] != "" {
-		if err := CheckCpushares(paths["cpu"], c.CpuShares); err != nil {
+		if err := CheckCpushares(paths["cpu"], c.Resources.CpuShares); err != nil {
 			return err
 		}
 	}
@@ -202,15 +202,15 @@ func (m *Manager) Freeze(state configs.FreezerState) error {
 	if err != nil {
 		return err
 	}
-	prevState := m.Cgroups.Freezer
-	m.Cgroups.Freezer = state
+	prevState := m.Cgroups.Resources.Freezer
+	m.Cgroups.Resources.Freezer = state
 	freezer, err := subsystems.Get("freezer")
 	if err != nil {
 		return err
 	}
 	err = freezer.Set(dir, m.Cgroups)
 	if err != nil {
-		m.Cgroups.Freezer = prevState
+		m.Cgroups.Resources.Freezer = prevState
 		return err
 	}
 	return nil
@@ -230,11 +230,24 @@ func (m *Manager) GetPids() ([]int, error) {
 	return cgroups.GetPids(dir)
 }
 
+// absClean cleans a path such that it can be safely appended to any path and
+// the resulting path will not escape the prefixed path. This is done entirely
+// lexically, with no filesystem calls. Thus, it does not account for symlinks
+// (which can cause security problems).
+func absClean(path string) string {
+	path = filepath.Clean(string(os.PathSeparator) + path)
+	path, _ = filepath.Rel(string(os.PathSeparator), path)
+	return path
+}
+
 func getCgroupData(c *configs.Cgroup, pid int) (*cgroupData, error) {
 	root, err := getCgroupRoot()
 	if err != nil {
 		return nil, err
 	}
+
+	// Clean the parent slice path, to avoid path vulnerabilities.
+	c.Parent = absClean(c.Parent)
 
 	return &cgroupData{
 		root:   root,
