@@ -90,7 +90,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		os.Exit(125)
 	}
 
-	if hostConfig.OomKillDisable && hostConfig.Memory == 0 {
+	if hostConfig.OomKillDisable != nil && *hostConfig.OomKillDisable && hostConfig.Memory == 0 {
 		fmt.Fprintf(cli.err, "WARNING: Dangerous only disable the OOM Killer on containers but not set the '-m/--memory' option\n")
 	}
 
