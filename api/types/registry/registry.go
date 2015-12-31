@@ -9,7 +9,7 @@ import (
 type ServiceConfig struct {
 	InsecureRegistryCIDRs []*NetIPNet           `json:"InsecureRegistryCIDRs"`
 	IndexConfigs          map[string]*IndexInfo `json:"IndexConfigs"`
-	Mirrors               []string
+	Mirrors               map[string]string
 }
 
 // NetIPNet is the net.IPNet type, which can be marshalled and
@@ -65,7 +65,7 @@ type IndexInfo struct {
 	// Name is the name of the registry, such as "docker.io"
 	Name string
 	// Mirrors is a list of mirrors, expressed as URIs
-	Mirrors []string
+	Mirrors map[string]string
 	// Secure is set to false if the registry is part of the list of
 	// insecure registries. Insecure registries accept HTTP and/or accept
 	// HTTPS with certificates from unknown CAs.

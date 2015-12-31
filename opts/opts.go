@@ -110,6 +110,7 @@ type MapOpts struct {
 // Set validates if needed the input value and add it to the
 // internal map, by splitting on '='.
 func (opts *MapOpts) Set(value string) error {
+	var vals []string
 	if opts.validator != nil {
 		v, err := opts.validator(value)
 		if err != nil {
@@ -117,7 +118,11 @@ func (opts *MapOpts) Set(value string) error {
 		}
 		value = v
 	}
-	vals := strings.SplitN(value, "=", 2)
+	if strings.Contains(value, "@") {
+		vals = strings.SplitN(value, "@", 2)
+	} else {
+		vals = strings.SplitN(value, "=", 2)
+	}
 	if len(vals) == 1 {
 		(opts.values)[vals[0]] = ""
 	} else {
