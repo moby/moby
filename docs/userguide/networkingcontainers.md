@@ -28,7 +28,7 @@ yourself. This naming provides two useful functions:
    container containing a web application `web`.
 
 *  Names provide Docker with a reference point that allows it to refer to other
-   containers. There are several commands that support this and you'll use one in a exercise later.
+   containers. There are several commands that support this and you'll use one in an exercise later.
 
 You name your container by using the `--name` flag, for example launch a new container called web:
 
