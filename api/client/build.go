@@ -584,7 +584,7 @@ func rewriteDockerfileFrom(dockerfileName string, translator func(reference.Name
 		line := scanner.Text()
 
 		matches := dockerfileFromLinePattern.FindStringSubmatch(line)
-		if matches != nil && matches[1] != "scratch" {
+		if matches != nil && matches[1] != api.NoBaseImageSpecifier {
 			// Replace the line with a resolved "FROM repo@digest"
 			ref, err := reference.ParseNamed(matches[1])
 			if err != nil {
