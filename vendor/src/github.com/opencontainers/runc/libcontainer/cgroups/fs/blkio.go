@@ -22,15 +22,10 @@ func (s *BlkioGroup) Name() string {
 }
 
 func (s *BlkioGroup) Apply(d *cgroupData) error {
-	dir, err := d.join("blkio")
+	_, err := d.join("blkio")
 	if err != nil && !cgroups.IsNotFound(err) {
 		return err
 	}
-
-	if err := s.Set(dir, d.config); err != nil {
-		return err
-	}
-
 	return nil
 }
 

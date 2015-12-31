@@ -32,7 +32,6 @@ func (s *MemoryGroup) Apply(d *cgroupData) (err error) {
 				return err
 			}
 		}
-
 		if err := s.Set(path, d.config); err != nil {
 			return err
 		}
