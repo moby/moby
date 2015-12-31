@@ -200,6 +200,7 @@ Create a container
              "VolumesFrom": ["parent", "other:ro"],
              "CapAdd": ["NET_ADMIN"],
              "CapDrop": ["MKNOD"],
+             "GroupAdd": ["newgroup"],
              "RestartPolicy": { "Name": "", "MaximumRetryCount": 0 },
              "NetworkMode": "bridge",
              "Devices": [],
@@ -293,6 +294,7 @@ Json Parameters:
           Specified in the form `<container name>[:<ro|rw>]`
     -   **CapAdd** - A list of kernel capabilities to add to the container.
     -   **Capdrop** - A list of kernel capabilities to drop from the container.
+    -   **GroupAdd** - A list of additional groups that the container process will run as
     -   **RestartPolicy** – The behavior to apply when the container exits.  The
             value is an object with a `Name` property of either `"always"` to
             always restart, `"unless-stopped"` to restart always except when
