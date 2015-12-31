@@ -188,6 +188,7 @@ Create a container
              "ReadonlyRootfs": false,
              "Dns": ["8.8.8.8"],
              "DnsSearch": [""],
+             "GroupAdd": ["newgroup"],
              "ExtraHosts": null,
              "VolumesFrom": ["parent", "other:ro"],
              "CapAdd": ["NET_ADMIN"],
@@ -272,6 +273,7 @@ Json Parameters:
           Specified as a boolean value.
     -   **Dns** - A list of DNS servers for the container to use.
     -   **DnsSearch** - A list of DNS search domains
+    -   **GroupAdd** - A list of additional groups that the container process will run as
     -   **ExtraHosts** - A list of hostnames/IP mappings to add to the
         container's `/etc/hosts` file. Specified in the form `["hostname:IP"]`.
     -   **VolumesFrom** - A list of volumes to inherit from another container.
