@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/daemon/events"
 	"github.com/docker/docker/distribution/metadata"
@@ -191,8 +192,8 @@ func validateRepoName(name string) error {
 	if name == "" {
 		return fmt.Errorf("Repository name can't be empty")
 	}
-	if name == "scratch" {
-		return fmt.Errorf("'scratch' is a reserved name")
+	if name == api.NoBaseImageSpecifier {
+		return fmt.Errorf("'%s' is a reserved name", api.NoBaseImageSpecifier)
 	}
 	return nil
 }
