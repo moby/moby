@@ -385,7 +385,7 @@ func (d *Driver) Stats(id string) (*execdriver.ResourceStats, error) {
 	if err != nil {
 		return nil, err
 	}
-	memoryLimit := c.Config().Cgroups.Memory
+	memoryLimit := c.Config().Cgroups.Resources.Memory
 	// if the container does not have any memory limit specified set the
 	// limit to the machines memory
 	if memoryLimit == 0 {
