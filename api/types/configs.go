@@ -45,5 +45,6 @@ type ExecConfig struct {
 	AttachStderr bool     // Attach the standard output
 	AttachStdout bool     // Attach the standard error
 	Detach       bool     // Execute in detach mode
+	DetachKeys   string   // Escape keys for detach
 	Cmd          []string // Execution commands and args
 }

@@ -15,6 +15,7 @@ parent = "smn_cli"
     Run a command in a running container
 
       -d, --detach               Detached mode: run command in the background
+      --detach-keys              Specify the escape key sequence used to detach a container
       --help                     Print usage
       -i, --interactive          Keep STDIN open even if not attached
       --privileged               Give extended Linux capabilities to the command

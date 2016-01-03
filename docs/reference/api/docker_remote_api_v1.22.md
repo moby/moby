@@ -862,10 +862,9 @@ This endpoint returns a live stream of a container's resource usage statistics.
                "total_usage" : 36488948,
                "usage_in_kernelmode" : 20000000
             },
-            "system_cpu_usage" : 20091722000000000,
+            "system_cpu_usage" : 20091722000000000,
             "throttling_data" : {}
-         }
-      }
+         }      }
 
 Query Parameters:
 
@@ -921,6 +920,12 @@ Start the container `id`
 **Example response**:
 
     HTTP/1.1 204 No Content
+
+Query Parameters:
+
+-   **detacheys** – Override the key sequence for detaching a
+        container. Format is a single character `[a-Z]` or `ctrl-<value>`
+        where `<value>` is one of: `a-z`, `@`, `^`, `[`, `,` or `_`.
 
 Status Codes:
 
@@ -1133,6 +1138,9 @@ Attach to the container `id`
 
 Query Parameters:
 
+-   **detacheys** – Override the key sequence for detaching a
+        container. Format is a single character `[a-Z]` or `ctrl-<value>`
+        where `<value>` is one of: `a-z`, `@`, `^`, `[`, `,` or `_`.
 -   **logs** – 1/True/true or 0/False/false, return logs. Default `false`.
 -   **stream** – 1/True/true or 0/False/false, return stream.
         Default `false`.
@@ -1213,6 +1221,9 @@ Implements websocket protocol handshake according to [RFC 6455](http://tools.iet
 
 Query Parameters:
 
+-   **detacheys** – Override the key sequence for detaching a
+        container. Format is a single character `[a-Z]` or `ctrl-<value>`
+        where `<value>` is one of: `a-z`, `@`, `^`, `[`, `,` or `_`.
 -   **logs** – 1/True/true or 0/False/false, return logs. Default `false`.
 -   **stream** – 1/True/true or 0/False/false, return stream.
         Default `false`.
@@ -2420,6 +2431,7 @@ Sets up an exec instance in a running container `id`
        "AttachStdin": false,
        "AttachStdout": true,
        "AttachStderr": true,
+       "DetachKeys": "ctrl-p,ctrl-q",
        "Tty": false,
        "Cmd": [
                      "date"
@@ -2441,6 +2453,9 @@ Json Parameters:
 -   **AttachStdin** - Boolean value, attaches to `stdin` of the `exec` command.
 -   **AttachStdout** - Boolean value, attaches to `stdout` of the `exec` command.
 -   **AttachStderr** - Boolean value, attaches to `stderr` of the `exec` command.
+-   **Detacheys** – Override the key sequence for detaching a
+        container. Format is a single character `[a-Z]` or `ctrl-<value>`
+        where `<value>` is one of: `a-z`, `@`, `^`, `[`, `,` or `_`.
 -   **Tty** - Boolean value to allocate a pseudo-TTY.
 -   **Cmd** - Command to run specified as a string or an array of strings.
 
