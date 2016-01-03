@@ -804,11 +804,6 @@ var defaultSeccompProfile = &configs.Seccomp{
 			Args:   []*configs.Arg{},
 		},
 		{
-			Name:   "name_to_handle_at",
-			Action: configs.Allow,
-			Args:   []*configs.Arg{},
-		},
-		{
 			Name:   "nanosleep",
 			Action: configs.Allow,
 			Args:   []*configs.Arg{},
