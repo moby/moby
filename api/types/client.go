@@ -17,6 +17,7 @@ type ContainerAttachOptions struct {
 	Stdin       bool
 	Stdout      bool
 	Stderr      bool
+	DetachKeys  string
 }
 
 // ContainerCommitOptions holds parameters to commit changes into a container.

@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/docker/docker/pkg/homedir"
 	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/parsers"
@@ -87,10 +88,13 @@ func (s *DockerSuite) TestRunDeviceDirectory(c *check.C) {
 	c.Assert(strings.Trim(out, "\r\n"), checker.Contains, "seq", check.Commentf("expected output /dev/othersnd/seq"))
 }
 
-// TestRunDetach checks attaching and detaching with the escape sequence.
+// TestRunDetach checks attaching and detaching with the default escape sequence.
 func (s *DockerSuite) TestRunAttachDetach(c *check.C) {
 	name := "attach-detach"
-	cmd := exec.Command(dockerBinary, "run", "--name", name, "-it", "busybox", "cat")
+
+	dockerCmd(c, "run", "--name", name, "-itd", "busybox", "cat")
+
+	cmd := exec.Command(dockerBinary, "attach", name)
 	stdout, err := cmd.StdoutPipe()
 	c.Assert(err, checker.IsNil)
 	cpty, tty, err := pty.Open()
@@ -120,21 +124,248 @@ func (s *DockerSuite) TestRunAttachDetach(c *check.C) {
 		ch <- struct{}{}
 	}()
 
+	select {
+	case <-ch:
+	case <-time.After(10 * time.Second):
+		c.Fatal("timed out waiting for container to exit")
+	}
+
 	running, err := inspectField(name, "State.Running")
 	c.Assert(err, checker.IsNil)
 	c.Assert(running, checker.Equals, "true", check.Commentf("expected container to still be running"))
+}
 
+// TestRunDetach checks attaching and detaching with the escape sequence specified via flags.
+func (s *DockerSuite) TestRunAttachDetachFromFlag(c *check.C) {
+	name := "attach-detach"
+	keyCtrlA := []byte{1}
+	keyA := []byte{97}
+
+	dockerCmd(c, "run", "--name", name, "-itd", "busybox", "cat")
+
+	cmd := exec.Command(dockerBinary, "attach", "--detach-keys='ctrl-a,a'", name)
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		c.Fatal(err)
+	}
+	cpty, tty, err := pty.Open()
+	if err != nil {
+		c.Fatal(err)
+	}
+	defer cpty.Close()
+	cmd.Stdin = tty
+	if err := cmd.Start(); err != nil {
+		c.Fatal(err)
+	}
+	c.Assert(waitRun(name), check.IsNil)
+
+	if _, err := cpty.Write([]byte("hello\n")); err != nil {
+		c.Fatal(err)
+	}
+
+	out, err := bufio.NewReader(stdout).ReadString('\n')
+	if err != nil {
+		c.Fatal(err)
+	}
+	if strings.TrimSpace(out) != "hello" {
+		c.Fatalf("expected 'hello', got %q", out)
+	}
+
+	// escape sequence
+	if _, err := cpty.Write(keyCtrlA); err != nil {
+		c.Fatal(err)
+	}
+	time.Sleep(100 * time.Millisecond)
+	if _, err := cpty.Write(keyA); err != nil {
+		c.Fatal(err)
+	}
+
+	ch := make(chan struct{})
 	go func() {
-		exec.Command(dockerBinary, "kill", name).Run()
+		cmd.Wait()
+		ch <- struct{}{}
 	}()
 
 	select {
 	case <-ch:
-	case <-time.After(10 * time.Millisecond):
+	case <-time.After(10 * time.Second):
 		c.Fatal("timed out waiting for container to exit")
 	}
+
+	running, err := inspectField(name, "State.Running")
+	c.Assert(err, checker.IsNil)
+	c.Assert(running, checker.Equals, "true", check.Commentf("expected container to still be running"))
 }
 
+// TestRunDetach checks attaching and detaching with the escape sequence specified via config file.
+func (s *DockerSuite) TestRunAttachDetachFromConfig(c *check.C) {
+	keyCtrlA := []byte{1}
+	keyA := []byte{97}
+
+	// Setup config
+	homeKey := homedir.Key()
+	homeVal := homedir.Get()
+	tmpDir, err := ioutil.TempDir("", "fake-home")
+	c.Assert(err, checker.IsNil)
+	defer os.RemoveAll(tmpDir)
+
+	dotDocker := filepath.Join(tmpDir, ".docker")
+	os.Mkdir(dotDocker, 0600)
+	tmpCfg := filepath.Join(dotDocker, "config.json")
+
+	defer func() { os.Setenv(homeKey, homeVal) }()
+	os.Setenv(homeKey, tmpDir)
+
+	data := `{
+		"detachKeys": "ctrl-a,a"
+	}`
+
+	err = ioutil.WriteFile(tmpCfg, []byte(data), 0600)
+	c.Assert(err, checker.IsNil)
+
+	// Then do the work
+	name := "attach-detach"
+	dockerCmd(c, "run", "--name", name, "-itd", "busybox", "cat")
+
+	cmd := exec.Command(dockerBinary, "attach", name)
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		c.Fatal(err)
+	}
+	cpty, tty, err := pty.Open()
+	if err != nil {
+		c.Fatal(err)
+	}
+	defer cpty.Close()
+	cmd.Stdin = tty
+	if err := cmd.Start(); err != nil {
+		c.Fatal(err)
+	}
+	c.Assert(waitRun(name), check.IsNil)
+
+	if _, err := cpty.Write([]byte("hello\n")); err != nil {
+		c.Fatal(err)
+	}
+
+	out, err := bufio.NewReader(stdout).ReadString('\n')
+	if err != nil {
+		c.Fatal(err)
+	}
+	if strings.TrimSpace(out) != "hello" {
+		c.Fatalf("expected 'hello', got %q", out)
+	}
+
+	// escape sequence
+	if _, err := cpty.Write(keyCtrlA); err != nil {
+		c.Fatal(err)
+	}
+	time.Sleep(100 * time.Millisecond)
+	if _, err := cpty.Write(keyA); err != nil {
+		c.Fatal(err)
+	}
+
+	ch := make(chan struct{})
+	go func() {
+		cmd.Wait()
+		ch <- struct{}{}
+	}()
+
+	select {
+	case <-ch:
+	case <-time.After(10 * time.Second):
+		c.Fatal("timed out waiting for container to exit")
+	}
+
+	running, err := inspectField(name, "State.Running")
+	c.Assert(err, checker.IsNil)
+	c.Assert(running, checker.Equals, "true", check.Commentf("expected container to still be running"))
+}
+
+// TestRunDetach checks attaching and detaching with the detach flags, making sure it overrides config file
+func (s *DockerSuite) TestRunAttachDetachKeysOverrideConfig(c *check.C) {
+	keyCtrlA := []byte{1}
+	keyA := []byte{97}
+
+	// Setup config
+	homeKey := homedir.Key()
+	homeVal := homedir.Get()
+	tmpDir, err := ioutil.TempDir("", "fake-home")
+	c.Assert(err, checker.IsNil)
+	defer os.RemoveAll(tmpDir)
+
+	dotDocker := filepath.Join(tmpDir, ".docker")
+	os.Mkdir(dotDocker, 0600)
+	tmpCfg := filepath.Join(dotDocker, "config.json")
+
+	defer func() { os.Setenv(homeKey, homeVal) }()
+	os.Setenv(homeKey, tmpDir)
+
+	data := `{
+		"detachKeys": "ctrl-e,e"
+	}`
+
+	err = ioutil.WriteFile(tmpCfg, []byte(data), 0600)
+	c.Assert(err, checker.IsNil)
+
+	// Then do the work
+	name := "attach-detach"
+	dockerCmd(c, "run", "--name", name, "-itd", "busybox", "cat")
+
+	cmd := exec.Command(dockerBinary, "attach", "--detach-keys='ctrl-a,a'", name)
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		c.Fatal(err)
+	}
+	cpty, tty, err := pty.Open()
+	if err != nil {
+		c.Fatal(err)
+	}
+	defer cpty.Close()
+	cmd.Stdin = tty
+	if err := cmd.Start(); err != nil {
+		c.Fatal(err)
+	}
+	c.Assert(waitRun(name), check.IsNil)
+
+	if _, err := cpty.Write([]byte("hello\n")); err != nil {
+		c.Fatal(err)
+	}
+
+	out, err := bufio.NewReader(stdout).ReadString('\n')
+	if err != nil {
+		c.Fatal(err)
+	}
+	if strings.TrimSpace(out) != "hello" {
+		c.Fatalf("expected 'hello', got %q", out)
+	}
+
+	// escape sequence
+	if _, err := cpty.Write(keyCtrlA); err != nil {
+		c.Fatal(err)
+	}
+	time.Sleep(100 * time.Millisecond)
+	if _, err := cpty.Write(keyA); err != nil {
+		c.Fatal(err)
+	}
+
+	ch := make(chan struct{})
+	go func() {
+		cmd.Wait()
+		ch <- struct{}{}
+	}()
+
+	select {
+	case <-ch:
+	case <-time.After(10 * time.Second):
+		c.Fatal("timed out waiting for container to exit")
+	}
+
+	running, err := inspectField(name, "State.Running")
+	c.Assert(err, checker.IsNil)
+	c.Assert(running, checker.Equals, "true", check.Commentf("expected container to still be running"))
+}
+
+// "test" should be printed
 func (s *DockerSuite) TestRunWithCPUQuota(c *check.C) {
 	testRequires(c, cpuCfsQuota)
 

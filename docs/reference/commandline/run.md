@@ -28,6 +28,7 @@ parent = "smn_cli"
       --cpuset-cpus=""              CPUs in which to allow execution (0-3, 0,1)
       --cpuset-mems=""              Memory nodes (MEMs) in which to allow execution (0-3, 0,1)
       -d, --detach                  Run container in background and print container ID
+      --detach-keys                 Specify the escape key sequence used to detach a container
       --device=[]                   Add a host device to the container
       --device-read-bps=[]          Limit read rate (bytes per second) from a device (e.g., --device-read-bps=/dev/sda:1mb)
       --device-read-iops=[]         Limit read rate (IO per second) from a device (e.g., --device-read-iops=/dev/sda:1000)

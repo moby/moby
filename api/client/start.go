@@ -49,6 +49,7 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 	cmd := Cli.Subcmd("start", []string{"CONTAINER [CONTAINER...]"}, Cli.DockerCommands["start"].Description, true)
 	attach := cmd.Bool([]string{"a", "-attach"}, false, "Attach STDOUT/STDERR and forward signals")
 	openStdin := cmd.Bool([]string{"i", "-interactive"}, false, "Attach container's STDIN")
+	detachKeys := cmd.String([]string{"-detach-keys"}, "", "Override the key sequence for detaching a container")
 	cmd.Require(flag.Min, 1)
 
 	cmd.ParseFlags(args, true)
@@ -72,12 +73,17 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 			defer signal.StopCatch(sigc)
 		}
 
+		if *detachKeys != "" {
+			cli.configFile.DetachKeys = *detachKeys
+		}
+
 		options := types.ContainerAttachOptions{
 			ContainerID: containerID,
 			Stream:      true,
 			Stdin:       *openStdin && c.Config.OpenStdin,
 			Stdout:      true,
 			Stderr:      true,
+			DetachKeys:  cli.configFile.DetachKeys,
 		}
 
 		var in io.ReadCloser

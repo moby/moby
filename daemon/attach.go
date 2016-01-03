@@ -15,13 +15,14 @@ import (
 
 // ContainerAttachWithLogsConfig holds the streams to use when connecting to a container to view logs.
 type ContainerAttachWithLogsConfig struct {
-	Hijacker  http.Hijacker
-	Upgrade   bool
-	UseStdin  bool
-	UseStdout bool
-	UseStderr bool
-	Logs      bool
-	Stream    bool
+	Hijacker   http.Hijacker
+	Upgrade    bool
+	UseStdin   bool
+	UseStdout  bool
+	UseStderr  bool
+	Logs       bool
+	Stream     bool
+	DetachKeys []byte
 }
 
 // ContainerAttachWithLogs attaches to logs according to the config passed in. See ContainerAttachWithLogsConfig.
@@ -75,7 +76,7 @@ func (daemon *Daemon) ContainerAttachWithLogs(prefixOrName string, c *ContainerA
 		stderr = errStream
 	}
 
-	if err := daemon.attachWithLogs(container, stdin, stdout, stderr, c.Logs, c.Stream); err != nil {
+	if err := daemon.attachWithLogs(container, stdin, stdout, stderr, c.Logs, c.Stream, c.DetachKeys); err != nil {
 		fmt.Fprintf(outStream, "Error attaching: %s\n", err)
 	}
 	return nil
@@ -87,6 +88,7 @@ type ContainerWsAttachWithLogsConfig struct {
 	InStream             io.ReadCloser
 	OutStream, ErrStream io.Writer
 	Logs, Stream         bool
+	DetachKeys           []byte
 }
 
 // ContainerWsAttachWithLogs websocket connection
@@ -95,10 +97,10 @@ func (daemon *Daemon) ContainerWsAttachWithLogs(prefixOrName string, c *Containe
 	if err != nil {
 		return err
 	}
-	return daemon.attachWithLogs(container, c.InStream, c.OutStream, c.ErrStream, c.Logs, c.Stream)
+	return daemon.attachWithLogs(container, c.InStream, c.OutStream, c.ErrStream, c.Logs, c.Stream, c.DetachKeys)
 }
 
-func (daemon *Daemon) attachWithLogs(container *container.Container, stdin io.ReadCloser, stdout, stderr io.Writer, logs, stream bool) error {
+func (daemon *Daemon) attachWithLogs(container *container.Container, stdin io.ReadCloser, stdout, stderr io.Writer, logs, stream bool, keys []byte) error {
 	if logs {
 		logDriver, err := daemon.getLogger(container)
 		if err != nil {
@@ -144,7 +146,7 @@ func (daemon *Daemon) attachWithLogs(container *container.Container, stdin io.Re
 			}()
 			stdinPipe = r
 		}
-		<-container.Attach(stdinPipe, stdout, stderr)
+		<-container.Attach(stdinPipe, stdout, stderr, keys)
 		// If we are in stdinonce mode, wait for the process to end
 		// otherwise, simply return
 		if container.Config.StdinOnce && !container.Config.Tty {

@@ -329,13 +329,13 @@ func (container *Container) GetExecIDs() []string {
 
 // Attach connects to the container's TTY, delegating to standard
 // streams or websockets depending on the configuration.
-func (container *Container) Attach(stdin io.ReadCloser, stdout io.Writer, stderr io.Writer) chan error {
-	return AttachStreams(container.StreamConfig, container.Config.OpenStdin, container.Config.StdinOnce, container.Config.Tty, stdin, stdout, stderr)
+func (container *Container) Attach(stdin io.ReadCloser, stdout io.Writer, stderr io.Writer, keys []byte) chan error {
+	return AttachStreams(container.StreamConfig, container.Config.OpenStdin, container.Config.StdinOnce, container.Config.Tty, stdin, stdout, stderr, keys)
 }
 
 // AttachStreams connects streams to a TTY.
 // Used by exec too. Should this move somewhere else?
-func AttachStreams(streamConfig *runconfig.StreamConfig, openStdin, stdinOnce, tty bool, stdin io.ReadCloser, stdout io.Writer, stderr io.Writer) chan error {
+func AttachStreams(streamConfig *runconfig.StreamConfig, openStdin, stdinOnce, tty bool, stdin io.ReadCloser, stdout io.Writer, stderr io.Writer, keys []byte) chan error {
 	var (
 		cStdout, cStderr io.ReadCloser
 		cStdin           io.WriteCloser
@@ -382,7 +382,7 @@ func AttachStreams(streamConfig *runconfig.StreamConfig, openStdin, stdinOnce, t
 
 		var err error
 		if tty {
-			_, err = copyEscapable(cStdin, stdin)
+			_, err = copyEscapable(cStdin, stdin, keys)
 		} else {
 			_, err = io.Copy(cStdin, stdin)
 
@@ -438,22 +438,27 @@ func AttachStreams(streamConfig *runconfig.StreamConfig, openStdin, stdinOnce, t
 }
 
 // Code c/c from io.Copy() modified to handle escape sequence
-func copyEscapable(dst io.Writer, src io.ReadCloser) (written int64, err error) {
+func copyEscapable(dst io.Writer, src io.ReadCloser, keys []byte) (written int64, err error) {
+	if len(keys) == 0 {
+		// Default keys : ctrl-p ctrl-q
+		keys = []byte{16, 17}
+	}
 	buf := make([]byte, 32*1024)
 	for {
 		nr, er := src.Read(buf)
 		if nr > 0 {
 			// ---- Docker addition
-			// char 16 is C-p
-			if nr == 1 && buf[0] == 16 {
-				nr, er = src.Read(buf)
-				// char 17 is C-q
-				if nr == 1 && buf[0] == 17 {
+			for i, key := range keys {
+				if nr != 1 || buf[0] != key {
+					break
+				}
+				if i == len(keys)-1 {
 					if err := src.Close(); err != nil {
 						return 0, err
 					}
 					return 0, nil
 				}
+				nr, er = src.Read(buf)
 			}
 			// ---- End of docker
 			nw, ew := dst.Write(buf[0:nr])
