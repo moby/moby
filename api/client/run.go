@@ -74,6 +74,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		flDetach     = cmd.Bool([]string{"d", "-detach"}, false, "Run container in background and print container ID")
 		flSigProxy   = cmd.Bool([]string{"-sig-proxy"}, true, "Proxy received signals to the process")
 		flName       = cmd.String([]string{"-name"}, "", "Assign a name to the container")
+		flDetachKeys = cmd.String([]string{"-detach-keys"}, "", "Override the key sequence for detaching a container")
 		flAttach     *opts.ListOpts
 
 		ErrConflictAttachDetach               = fmt.Errorf("Conflicting options: -a and -d")
@@ -188,12 +189,17 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 			}
 		}
 
+		if *flDetachKeys != "" {
+			cli.configFile.DetachKeys = *flDetachKeys
+		}
+
 		options := types.ContainerAttachOptions{
 			ContainerID: createResponse.ID,
 			Stream:      true,
 			Stdin:       config.AttachStdin,
 			Stdout:      config.AttachStdout,
 			Stderr:      config.AttachStderr,
+			DetachKeys:  cli.configFile.DetachKeys,
 		}
 
 		resp, err := cli.client.ContainerAttach(options)
