@@ -6,6 +6,7 @@ docker-attach - Attach to a running container
 
 # SYNOPSIS
 **docker attach**
+[**--detach-keys**[=*[]*]]
 [**--help**]
 [**--no-stdin**]
 [**--sig-proxy**[=*true*]]
@@ -18,15 +19,19 @@ interactively.  You can attach to the same contained process multiple times
 simultaneously, screen sharing style, or quickly view the progress of your
 detached process.
 
-You can detach from the container (and leave it running) with `CTRL-p CTRL-q`
-(for a quiet exit) or `CTRL-c` which will send a `SIGKILL` to the container.
-When you are attached to a container, and exit its main process, the process's
-exit code will be returned to the client.
+To stop a container, use `CTRL-c`. This key sequence sends `SIGKILL` to the
+container. You can detach from the container (and leave it running) using a
+configurable key sequence. The default sequence is `CTRL-p CTRL-q`. You
+configure the key sequence using the **--detach-keys** option or a configuration
+file. See **config-json(5)** for documentation on using a configuration file.
 
 It is forbidden to redirect the standard input of a `docker attach` command while
 attaching to a tty-enabled container (i.e.: launched with `-t`).
 
 # OPTIONS
+**--detach-keys**=""
+    Override the key sequence for detaching a container. Format is a single character `[a-Z]` or `ctrl-<value>` where `<value>` is one of: `a-z`, `@`, `^`, `[`, `,` or `_`.
+
 **--help**
   Print usage statement
 
@@ -35,6 +40,30 @@ attaching to a tty-enabled container (i.e.: launched with `-t`).
 
 **--sig-proxy**=*true*|*false*
    Proxy all received signals to the process (non-TTY mode only). SIGCHLD, SIGKILL, and SIGSTOP are not proxied. The default is *true*.
+
+# Override the detach sequence
+
+If you want, you can configure a override the Docker key sequence for detach.
+This is is useful if the Docker default sequence conflicts with key squence you
+use for other applications. There are two ways to defines a your own detach key
+sequence, as a per-container override or as a configuration property on  your
+entire configuration.
+
+To override the sequence for an individual container, use the
+`--detach-keys="<sequence>"` flag with the `docker attach` command. The format of
+the `<sequence>` is either a letter [a-Z], or the `ctrl-` combined with any of
+the following:
+
+* `a-z` (a single lowercase alpha character )
+* `@` (ampersand)
+* `[` (left bracket)
+* `\\` (two backward slashes)
+*  `_` (underscore)
+* `^` (caret)
+
+These `a`, `ctrl-a`, `X`, or `ctrl-\\` values are all examples of valid key
+sequences. To configure a different configuration default key sequence for all
+containers, see **docker(1)**.
 
 # EXAMPLES
 

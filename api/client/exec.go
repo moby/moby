@@ -16,12 +16,20 @@ import (
 // Usage: docker exec [OPTIONS] CONTAINER COMMAND [ARG...]
 func (cli *DockerCli) CmdExec(args ...string) error {
 	cmd := Cli.Subcmd("exec", []string{"CONTAINER COMMAND [ARG...]"}, Cli.DockerCommands["exec"].Description, true)
+	detachKeys := cmd.String([]string{"-detach-keys"}, "", "Override the key sequence for detaching a container")
 
 	execConfig, err := runconfig.ParseExec(cmd, args)
 	// just in case the ParseExec does not exit
 	if execConfig.Container == "" || err != nil {
 		return Cli.StatusError{StatusCode: 1}
 	}
+
+	if *detachKeys != "" {
+		cli.configFile.DetachKeys = *detachKeys
+	}
+
+	// Send client escape keys
+	execConfig.DetachKeys = cli.configFile.DetachKeys
 
 	response, err := cli.client.ContainerExecCreate(*execConfig)
 	if err != nil {
