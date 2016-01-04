@@ -8,12 +8,8 @@ import (
 	"os"
 )
 
-// This interface and the separate syslog_unix.go file exist for
-// Solaris support as implemented by gccgo.  On Solaris you can not
-// simply open a TCP connection to the syslog daemon.  The gccgo
-// sources have a syslog_solaris.go file that implements unixSyslog to
-// return a type that satisfies this interface and simply calls the C
-// library syslog function.
+// This interface allows us to work with both local and network connections,
+// and enables Solaris support (see syslog_unix.go).
 type serverConn interface {
 	writeString(p Priority, hostname, tag, s string) error
 	close() error
