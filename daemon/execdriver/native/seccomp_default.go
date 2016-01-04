@@ -1309,6 +1309,11 @@ var defaultSeccompProfile = &configs.Seccomp{
 			Args:   []*configs.Arg{},
 		},
 		{
+			Name:   "sigreturn",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
 			Name:   "socket",
 			Action: configs.Allow,
 			Args:   []*configs.Arg{},
