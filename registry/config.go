@@ -56,7 +56,7 @@ func (options *Options) InstallFlags(cmd *flag.FlagSet, usageFn func(string) str
 	cmd.Var(&options.Mirrors, []string{"-registry-mirror"}, usageFn("Preferred Docker registry mirror"))
 	options.InsecureRegistries = opts.NewListOpts(ValidateIndexName)
 	cmd.Var(&options.InsecureRegistries, []string{"-insecure-registry"}, usageFn("Enable insecure registry communication"))
-	cmd.BoolVar(&V2Only, []string{"-disable-legacy-registry"}, false, "Do not contact legacy registries")
+	cmd.BoolVar(&V2Only, []string{"-disable-legacy-registry"}, false, usageFn("Do not contact legacy registries"))
 }
 
 // NewServiceConfig returns a new instance of ServiceConfig
