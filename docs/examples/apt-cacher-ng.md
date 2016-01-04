@@ -30,8 +30,7 @@ Use the following Dockerfile:
     # and then you can run containers with:
     #   docker run -t -i --rm -e http_proxy http://dockerhost:3142/ debian bash
     #
-    # Here, `dockerhost` is the IP address or FQDN of a host running docker daemon
-    # which acts as an APT proxy server.
+    # Here, dockerhost is IP or FQDN of host running docker daemon
     FROM        ubuntu
     MAINTAINER  SvenDowideit@docker.com
 
@@ -64,7 +63,7 @@ which acts as an APT proxy server.
    `http_proxy=http://dockerhost:3142/`
 3. Change your `sources.list` entries to start with
    `http://dockerhost:3142/`
-4. Link Debian-based containers to the APT proxy container using `--link`
+4. Linking Debian-based containers with Proxy using `--links`
 
 **Option 1** injects the settings safely into your apt configuration in
 a local version of a common base:
@@ -87,6 +86,11 @@ too.
 **Option 4** is to link Debian-containers to proxy server using following command:
 
     $ docker run -i -t --link test_apt_cacher_ng:apt_proxy -e http_proxy=http://apt_proxy:3142/ debian bash
+
+Here, the value provided to the `--link` flag is source_container_name:container_alias_name,
+where test_apt_cacher_ng is source_container_name and apt_proxy is container_alias_name.
+test_apt_cacher_ng was the name of first container that we launched earlier. The container_alias_name
+could be any name of your choice.
 
 Apt-cacher-ng has some tools that allow you to manage the repository,
 and they can be used by leveraging the `VOLUME`
