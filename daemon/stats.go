@@ -2,26 +2,15 @@ package daemon
 
 import (
 	"encoding/json"
-	"io"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/versions/v1p20"
 	"github.com/docker/docker/daemon/execdriver"
-	"github.com/docker/docker/pkg/version"
 )
-
-// ContainerStatsConfig holds information for configuring the runtime
-// behavior of a daemon.ContainerStats() call.
-type ContainerStatsConfig struct {
-	Stream    bool
-	OutStream io.Writer
-	Stop      <-chan bool
-	Version   version.Version
-}
 
 // ContainerStats writes information about the container to the stream
 // given in the config object.
-func (daemon *Daemon) ContainerStats(prefixOrName string, config *ContainerStatsConfig) error {
+func (daemon *Daemon) ContainerStats(prefixOrName string, config *types.ContainerStatsConfig) error {
 	container, err := daemon.GetContainer(prefixOrName)
 	if err != nil {
 		return err
