@@ -1,7 +1,10 @@
 package opts
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"path"
 	"strconv"
 	"strings"
@@ -320,6 +323,11 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 		return nil, nil, nil, cmd, err
 	}
 
+	securityOpts, err := parseSecurityOpts(flSecurityOpt.GetAll())
+	if err != nil {
+		return nil, nil, nil, cmd, err
+	}
+
 	resources := container.Resources{
 		CgroupParent:         *flCgroupParent,
 		Memory:               flMemory,
@@ -394,7 +402,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 		CapDrop:        strslice.New(flCapDrop.GetAll()...),
 		GroupAdd:       flGroupAdd.GetAll(),
 		RestartPolicy:  restartPolicy,
-		SecurityOpt:    flSecurityOpt.GetAll(),
+		SecurityOpt:    securityOpts,
 		ReadonlyRootfs: *flReadonlyRootfs,
 		LogConfig:      container.LogConfig{Type: *flLoggingDriver, Config: loggingOpts},
 		VolumeDriver:   *flVolumeDriver,
@@ -462,6 +470,29 @@ func parseLoggingOpts(loggingDriver string, loggingOpts []string) (map[string]st
 		return map[string]string{}, fmt.Errorf("Invalid logging opts for driver %s", loggingDriver)
 	}
 	return loggingOptsMap, nil
+}
+
+// takes a local seccomp daemon, reads the file contents for sending to the daemon
+func parseSecurityOpts(securityOpts []string) ([]string, error) {
+	for key, opt := range securityOpts {
+		con := strings.SplitN(opt, ":", 2)
+		if len(con) == 1 {
+			return securityOpts, fmt.Errorf("Invalid --security-opt: %q", opt)
+		}
+		if con[0] == "seccomp" && con[1] != "unconfined" {
+			f, err := ioutil.ReadFile(con[1])
+			if err != nil {
+				return securityOpts, fmt.Errorf("Opening seccomp profile (%s) failed: %v", con[1], err)
+			}
+			b := bytes.NewBuffer(nil)
+			if err := json.Compact(b, f); err != nil {
+				return securityOpts, fmt.Errorf("Compacting json for seccomp profile (%s) failed: %v", con[1], err)
+			}
+			securityOpts[key] = fmt.Sprintf("seccomp:%s", b.Bytes())
+		}
+	}
+
+	return securityOpts, nil
 }
 
 // ParseRestartPolicy returns the parsed policy or an error indicating what is incorrect

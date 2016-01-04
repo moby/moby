@@ -5,32 +5,26 @@ package native
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 
+	"github.com/docker/engine-api/types"
 	"github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/opencontainers/runc/libcontainer/seccomp"
-	"github.com/opencontainers/specs"
 )
 
 func getDefaultSeccompProfile() *configs.Seccomp {
 	return defaultSeccompProfile
 }
 
-func loadSeccompProfile(path string) (*configs.Seccomp, error) {
-	f, err := ioutil.ReadFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("Opening seccomp profile failed: %v", err)
-	}
-
-	var config specs.Seccomp
-	if err := json.Unmarshal(f, &config); err != nil {
+func loadSeccompProfile(body string) (*configs.Seccomp, error) {
+	var config types.Seccomp
+	if err := json.Unmarshal([]byte(body), &config); err != nil {
 		return nil, fmt.Errorf("Decoding seccomp profile failed: %v", err)
 	}
 
 	return setupSeccomp(&config)
 }
 
-func setupSeccomp(config *specs.Seccomp) (newConfig *configs.Seccomp, err error) {
+func setupSeccomp(config *types.Seccomp) (newConfig *configs.Seccomp, err error) {
 	if config == nil {
 		return nil, nil
 	}
