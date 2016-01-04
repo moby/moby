@@ -117,7 +117,7 @@ This section lists each version from latest to oldest.  Each listing includes a 
 
 * `GET /containers/json` returns the state of the container, one of `created`, `restarting`, `running`, `paused`, `exited` or `dead`.
 * `GET /networks/(name)` now returns an `Internal` field showing whether the network is internal or not.
-
+* `POST /containers/(name)/update` now supports updating container's restart policy.
 
 ### v1.22 API changes
 

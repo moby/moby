@@ -79,11 +79,11 @@ type containerMonitor struct {
 
 // StartMonitor initializes a containerMonitor for this container with the provided supervisor and restart policy
 // and starts the container's process.
-func (container *Container) StartMonitor(s supervisor, policy container.RestartPolicy) error {
+func (container *Container) StartMonitor(s supervisor) error {
 	container.monitor = &containerMonitor{
 		supervisor:    s,
 		container:     container,
-		restartPolicy: policy,
+		restartPolicy: container.HostConfig.RestartPolicy,
 		timeIncrement: defaultTimeIncrement,
 		stopChan:      make(chan struct{}),
 		startSignal:   make(chan struct{}),

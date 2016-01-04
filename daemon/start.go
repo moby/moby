@@ -154,7 +154,7 @@ func (daemon *Daemon) containerStart(container *container.Container) (err error)
 }
 
 func (daemon *Daemon) waitForStart(container *container.Container) error {
-	return container.StartMonitor(daemon, container.HostConfig.RestartPolicy)
+	return container.StartMonitor(daemon)
 }
 
 // Cleanup releases any network resources allocated to the container along with any rules

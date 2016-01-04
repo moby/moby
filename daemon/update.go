@@ -2,12 +2,13 @@ package daemon
 
 import (
 	"fmt"
+	"time"
 
 	derr "github.com/docker/docker/errors"
 	"github.com/docker/engine-api/types/container"
 )
 
-// ContainerUpdate updates resources of the container
+// ContainerUpdate updates configuration of the container
 func (daemon *Daemon) ContainerUpdate(name string, hostConfig *container.HostConfig) ([]string, error) {
 	var warnings []string
 
@@ -58,11 +59,19 @@ func (daemon *Daemon) update(name string, hostConfig *container.HostConfig) erro
 		return derr.ErrorCodeCantUpdate.WithArgs(container.ID, err.Error())
 	}
 
+	// if Restart Policy changed, we need to update container monitor
+	container.UpdateMonitor(hostConfig.RestartPolicy)
+
+	// if container is restarting, wait 5 seconds until it's running
+	if container.IsRestarting() {
+		container.WaitRunning(5 * time.Second)
+	}
+
 	// If container is not running, update hostConfig struct is enough,
 	// resources will be updated when the container is started again.
 	// If container is running (including paused), we need to update configs
 	// to the real world.
-	if container.IsRunning() {
+	if container.IsRunning() && !container.IsRestarting() {
 		if err := daemon.execDriver.Update(container.Command); err != nil {
 			return derr.ErrorCodeCantUpdate.WithArgs(container.ID, err.Error())
 		}

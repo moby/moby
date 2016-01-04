@@ -322,7 +322,8 @@ func (s *containerRouter) postContainerUpdate(ctx context.Context, w http.Respon
 	}
 
 	hostConfig := &container.HostConfig{
-		Resources: updateConfig.Resources,
+		Resources:     updateConfig.Resources,
+		RestartPolicy: updateConfig.RestartPolicy,
 	}
 
 	name := vars["name"]

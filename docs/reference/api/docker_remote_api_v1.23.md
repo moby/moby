@@ -1031,7 +1031,7 @@ Status Codes:
 
 `POST /containers/(id)/update`
 
-Update resource configs of one or more containers.
+Update configuration of one or more containers.
 
 **Example request**:
 
@@ -1049,6 +1049,10 @@ Update resource configs of one or more containers.
          "MemorySwap": 514288000,
          "MemoryReservation": 209715200,
          "KernelMemory": 52428800,
+         "RestartPolicy": {
+           "MaximumRetryCount": 4,
+           "Name": "on-failure"
+         },
        }
 
 **Example response**:
