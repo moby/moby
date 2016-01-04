@@ -1,4 +1,4 @@
-package runconfig
+package opts
 
 import (
 	"fmt"
@@ -12,37 +12,8 @@ import (
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/signal"
-	runconfigopts "github.com/docker/docker/runconfig/opts"
-	"github.com/docker/docker/volume"
 	"github.com/docker/go-connections/nat"
 	"github.com/docker/go-units"
-)
-
-var (
-	// ErrConflictContainerNetworkAndLinks conflict between --net=container and links
-	ErrConflictContainerNetworkAndLinks = fmt.Errorf("Conflicting options: container type network can't be used with links. This would result in undefined behavior")
-	// ErrConflictUserDefinedNetworkAndLinks conflict between --net=<NETWORK> and links
-	ErrConflictUserDefinedNetworkAndLinks = fmt.Errorf("Conflicting options: networking can't be used with links. This would result in undefined behavior")
-	// ErrConflictSharedNetwork conflict between private and other networks
-	ErrConflictSharedNetwork = fmt.Errorf("Container sharing network namespace with another container or host cannot be connected to any other network")
-	// ErrConflictHostNetwork conflict from being disconnected from host network or connected to host network.
-	ErrConflictHostNetwork = fmt.Errorf("Container cannot be disconnected from host network or connected to host network")
-	// ErrConflictNoNetwork conflict between private and other networks
-	ErrConflictNoNetwork = fmt.Errorf("Container cannot be connected to multiple networks with one of the networks in private (none) mode")
-	// ErrConflictNetworkAndDNS conflict between --dns and the network mode
-	ErrConflictNetworkAndDNS = fmt.Errorf("Conflicting options: dns and the network mode")
-	// ErrConflictNetworkHostname conflict between the hostname and the network mode
-	ErrConflictNetworkHostname = fmt.Errorf("Conflicting options: hostname and the network mode")
-	// ErrConflictHostNetworkAndLinks conflict between --net=host and links
-	ErrConflictHostNetworkAndLinks = fmt.Errorf("Conflicting options: host type networking can't be used with links. This would result in undefined behavior")
-	// ErrConflictContainerNetworkAndMac conflict between the mac address and the network mode
-	ErrConflictContainerNetworkAndMac = fmt.Errorf("Conflicting options: mac-address and the network mode")
-	// ErrConflictNetworkHosts conflict between add-host and the network mode
-	ErrConflictNetworkHosts = fmt.Errorf("Conflicting options: custom host-to-IP mapping and the network mode")
-	// ErrConflictNetworkPublishPorts conflict between the publish options and the network mode
-	ErrConflictNetworkPublishPorts = fmt.Errorf("Conflicting options: port publishing and the container type network mode")
-	// ErrConflictNetworkExposePorts conflict between the expose option and the network mode
-	ErrConflictNetworkExposePorts = fmt.Errorf("Conflicting options: port exposing and the container type network mode")
 )
 
 // Parse parses the specified args for the specified command and generates a Config,
@@ -54,17 +25,17 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 		flAttach            = opts.NewListOpts(opts.ValidateAttach)
 		flVolumes           = opts.NewListOpts(nil)
 		flTmpfs             = opts.NewListOpts(nil)
-		flBlkioWeightDevice = runconfigopts.NewWeightdeviceOpt(runconfigopts.ValidateWeightDevice)
-		flDeviceReadBps     = runconfigopts.NewThrottledeviceOpt(runconfigopts.ValidateThrottleBpsDevice)
-		flDeviceWriteBps    = runconfigopts.NewThrottledeviceOpt(runconfigopts.ValidateThrottleBpsDevice)
+		flBlkioWeightDevice = NewWeightdeviceOpt(ValidateWeightDevice)
+		flDeviceReadBps     = NewThrottledeviceOpt(ValidateThrottleBpsDevice)
+		flDeviceWriteBps    = NewThrottledeviceOpt(ValidateThrottleBpsDevice)
 		flLinks             = opts.NewListOpts(ValidateLink)
-		flDeviceReadIOps    = runconfigopts.NewThrottledeviceOpt(runconfigopts.ValidateThrottleIOpsDevice)
-		flDeviceWriteIOps   = runconfigopts.NewThrottledeviceOpt(runconfigopts.ValidateThrottleIOpsDevice)
+		flDeviceReadIOps    = NewThrottledeviceOpt(ValidateThrottleIOpsDevice)
+		flDeviceWriteIOps   = NewThrottledeviceOpt(ValidateThrottleIOpsDevice)
 		flEnv               = opts.NewListOpts(opts.ValidateEnv)
 		flLabels            = opts.NewListOpts(opts.ValidateEnv)
 		flDevices           = opts.NewListOpts(ValidateDevice)
 
-		flUlimits = runconfigopts.NewUlimitOpt(nil)
+		flUlimits = NewUlimitOpt(nil)
 
 		flPublish           = opts.NewListOpts(nil)
 		flExpose            = opts.NewListOpts(nil)
@@ -227,7 +198,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 	var binds []string
 	// add any bind targets to the list of container volumes
 	for bind := range flVolumes.GetMap() {
-		if arr := volume.SplitN(bind, 2); len(arr) > 1 {
+		if arr := volumeSplitN(bind, 2); len(arr) > 1 {
 			// after creating the bind mount we want to delete it from the flVolumes values because
 			// we do not want bind mounts being committed to image configs
 			binds = append(binds, bind)
@@ -648,4 +619,60 @@ func validatePath(val string, validator func(string) bool) (string, error) {
 		return val, fmt.Errorf("%s is not an absolute path", containerPath)
 	}
 	return val, nil
+}
+
+// SplitN splits raw into a maximum of n parts, separated by a separator colon.
+// A separator colon is the last `:` character in the regex `[/:\\]?[a-zA-Z]:` (note `\\` is `\` escaped).
+// This allows to correctly split strings such as `C:\foo:D:\:rw`.
+func volumeSplitN(raw string, n int) []string {
+	var array []string
+	if len(raw) == 0 || raw[0] == ':' {
+		// invalid
+		return nil
+	}
+	// numberOfParts counts the number of parts separated by a separator colon
+	numberOfParts := 0
+	// left represents the left-most cursor in raw, updated at every `:` character considered as a separator.
+	left := 0
+	// right represents the right-most cursor in raw incremented with the loop. Note this
+	// starts at index 1 as index 0 is already handle above as a special case.
+	for right := 1; right < len(raw); right++ {
+		// stop parsing if reached maximum number of parts
+		if n >= 0 && numberOfParts >= n {
+			break
+		}
+		if raw[right] != ':' {
+			continue
+		}
+		potentialDriveLetter := raw[right-1]
+		if (potentialDriveLetter >= 'A' && potentialDriveLetter <= 'Z') || (potentialDriveLetter >= 'a' && potentialDriveLetter <= 'z') {
+			if right > 1 {
+				beforePotentialDriveLetter := raw[right-2]
+				if beforePotentialDriveLetter != ':' && beforePotentialDriveLetter != '/' && beforePotentialDriveLetter != '\\' {
+					// e.g. `C:` is not preceded by any delimiter, therefore it was not a drive letter but a path ending with `C:`.
+					array = append(array, raw[left:right])
+					left = right + 1
+					numberOfParts++
+				}
+				// else, `C:` is considered as a drive letter and not as a delimiter, so we continue parsing.
+			}
+			// if right == 1, then `C:` is the beginning of the raw string, therefore `:` is again not considered a delimiter and we continue parsing.
+		} else {
+			// if `:` is not preceded by a potential drive letter, then consider it as a delimiter.
+			array = append(array, raw[left:right])
+			left = right + 1
+			numberOfParts++
+		}
+	}
+	// need to take care of the last part
+	if left < len(raw) {
+		if n >= 0 && numberOfParts >= n {
+			// if the maximum number of parts is reached, just append the rest to the last part
+			// left-1 is at the last `:` that needs to be included since not considered a separator.
+			array[n-1] += raw[left-1:]
+		} else {
+			array = append(array, raw[left:])
+		}
+	}
+	return array
 }
