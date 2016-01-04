@@ -9,10 +9,10 @@ import (
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
 	timetypes "github.com/docker/docker/api/types/time"
 	"github.com/docker/docker/pkg/ioutils"
-	"github.com/docker/docker/pkg/jsonmessage"
 	"golang.org/x/net/context"
 )
 
@@ -98,8 +98,9 @@ func (s *systemRouter) getEvents(ctx context.Context, w http.ResponseWriter, r *
 	for {
 		select {
 		case ev := <-l:
-			jev, ok := ev.(*jsonmessage.JSONMessage)
+			jev, ok := ev.(events.Message)
 			if !ok {
+				logrus.Warnf("unexpected event message: %q", ev)
 				continue
 			}
 			if err := enc.Encode(jev); err != nil {

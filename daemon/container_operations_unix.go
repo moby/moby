@@ -699,6 +699,7 @@ func (daemon *Daemon) connectToNetwork(container *container.Container, idOrName 
 		return derr.ErrorCodeJoinInfo.WithArgs(err)
 	}
 
+	daemon.LogNetworkEventWithAttributes(n, "connect", map[string]string{"container": container.ID})
 	return nil
 }
 
@@ -719,6 +720,11 @@ func (daemon *Daemon) DisconnectFromNetwork(container *container.Container, n li
 	if err := container.ToDiskLocking(); err != nil {
 		return fmt.Errorf("Error saving container to disk: %v", err)
 	}
+
+	attributes := map[string]string{
+		"container": container.ID,
+	}
+	daemon.LogNetworkEventWithAttributes(n, "disconnect", attributes)
 	return nil
 }
 
@@ -844,14 +850,18 @@ func (daemon *Daemon) releaseNetwork(container *container.Container) {
 	}
 
 	sid := container.NetworkSettings.SandboxID
-	networks := container.NetworkSettings.Networks
-	for n := range networks {
-		networks[n] = &networktypes.EndpointSettings{}
+	settings := container.NetworkSettings.Networks
+	var networks []libnetwork.Network
+	for n := range settings {
+		if nw, err := daemon.FindNetwork(n); err == nil {
+			networks = append(networks, nw)
+		}
+		settings[n] = &networktypes.EndpointSettings{}
 	}
 
-	container.NetworkSettings = &network.Settings{Networks: networks}
+	container.NetworkSettings = &network.Settings{Networks: settings}
 
-	if sid == "" || len(networks) == 0 {
+	if sid == "" || len(settings) == 0 {
 		return
 	}
 
@@ -863,6 +873,13 @@ func (daemon *Daemon) releaseNetwork(container *container.Container) {
 
 	if err := sb.Delete(); err != nil {
 		logrus.Errorf("Error deleting sandbox id %s for container %s: %v", sid, container.ID, err)
+	}
+
+	attributes := map[string]string{
+		"container": container.ID,
+	}
+	for _, nw := range networks {
+		daemon.LogNetworkEventWithAttributes(nw, "disconnect", attributes)
 	}
 }
 

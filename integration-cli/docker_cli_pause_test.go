@@ -23,15 +23,11 @@ func (s *DockerSuite) TestPause(c *check.C) {
 	dockerCmd(c, "unpause", name)
 
 	out, _ := dockerCmd(c, "events", "--since=0", fmt.Sprintf("--until=%d", daemonTime(c).Unix()))
-	events := strings.Split(out, "\n")
-	c.Assert(len(events) > 1, checker.Equals, true)
+	events := strings.Split(strings.TrimSpace(out), "\n")
+	actions := eventActionsByIDAndType(c, events, name, "container")
 
-	pauseEvent := strings.Fields(events[len(events)-3])
-	unpauseEvent := strings.Fields(events[len(events)-2])
-
-	c.Assert(pauseEvent[len(pauseEvent)-1], checker.Equals, "pause")
-	c.Assert(unpauseEvent[len(unpauseEvent)-1], checker.Equals, "unpause")
-
+	c.Assert(actions[len(actions)-2], checker.Equals, "pause")
+	c.Assert(actions[len(actions)-1], checker.Equals, "unpause")
 }
 
 func (s *DockerSuite) TestPauseMultipleContainers(c *check.C) {
@@ -53,21 +49,12 @@ func (s *DockerSuite) TestPauseMultipleContainers(c *check.C) {
 	dockerCmd(c, append([]string{"unpause"}, containers...)...)
 
 	out, _ := dockerCmd(c, "events", "--since=0", fmt.Sprintf("--until=%d", daemonTime(c).Unix()))
-	events := strings.Split(out, "\n")
-	c.Assert(len(events) > len(containers)*3-2, checker.Equals, true)
+	events := strings.Split(strings.TrimSpace(out), "\n")
 
-	pauseEvents := make([][]string, len(containers))
-	unpauseEvents := make([][]string, len(containers))
-	for i := range containers {
-		pauseEvents[i] = strings.Fields(events[len(events)-len(containers)*2-1+i])
-		unpauseEvents[i] = strings.Fields(events[len(events)-len(containers)-1+i])
-	}
+	for _, name := range containers {
+		actions := eventActionsByIDAndType(c, events, name, "container")
 
-	for _, pauseEvent := range pauseEvents {
-		c.Assert(pauseEvent[len(pauseEvent)-1], checker.Equals, "pause")
+		c.Assert(actions[len(actions)-2], checker.Equals, "pause")
+		c.Assert(actions[len(actions)-1], checker.Equals, "unpause")
 	}
-	for _, unpauseEvent := range unpauseEvents {
-		c.Assert(unpauseEvent[len(unpauseEvent)-1], checker.Equals, "unpause")
-	}
-
 }

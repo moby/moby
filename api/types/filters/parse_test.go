@@ -349,3 +349,21 @@ func TestWalkValues(t *testing.T) {
 		t.Fatalf("Expected to not iterate when the field doesn't exist, got %v", err)
 	}
 }
+
+func TestFuzzyMatch(t *testing.T) {
+	f := NewArgs()
+	f.Add("container", "foo")
+
+	cases := map[string]bool{
+		"foo":    true,
+		"foobar": true,
+		"barfoo": false,
+		"bar":    false,
+	}
+	for source, match := range cases {
+		got := f.FuzzyMatch("container", source)
+		if got != match {
+			t.Fatalf("Expected %v, got %v: %s", match, got, source)
+		}
+	}
+}

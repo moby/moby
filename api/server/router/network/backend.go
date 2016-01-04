@@ -19,4 +19,5 @@ type Backend interface {
 	DisconnectContainerFromNetwork(containerName string,
 		network libnetwork.Network) error
 	NetworkControllerEnabled() bool
+	DeleteNetwork(name string) error
 }
