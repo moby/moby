@@ -14,6 +14,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/docker/docker/pkg/integration/checker"
@@ -1866,4 +1867,67 @@ func (s *DockerDaemonSuite) TestDaemonNoSpaceleftOnDeviceError(c *check.C) {
 	// pull a repository large enough to fill the mount point
 	out, err := s.d.Cmd("pull", "registry:2")
 	c.Assert(out, check.Not(check.Equals), 1, check.Commentf("no space left on device"))
+}
+
+// Test daemon restart with container links + auto restart
+func (s *DockerDaemonSuite) TestDaemonRestartContainerLinksRestart(c *check.C) {
+	d := NewDaemon(c)
+	err := d.StartWithBusybox()
+	c.Assert(err, checker.IsNil)
+
+	parent1Args := []string{}
+	parent2Args := []string{}
+	wg := sync.WaitGroup{}
+	maxChildren := 10
+	chErr := make(chan error, maxChildren)
+
+	for i := 0; i < maxChildren; i++ {
+		wg.Add(1)
+		name := fmt.Sprintf("test%d", i)
+
+		if i < maxChildren/2 {
+			parent1Args = append(parent1Args, []string{"--link", name}...)
+		} else {
+			parent2Args = append(parent2Args, []string{"--link", name}...)
+		}
+
+		go func() {
+			_, err = d.Cmd("run", "-d", "--name", name, "--restart=always", "busybox", "top")
+			chErr <- err
+			wg.Done()
+		}()
+	}
+
+	wg.Wait()
+	close(chErr)
+	for err := range chErr {
+		c.Assert(err, check.IsNil)
+	}
+
+	parent1Args = append([]string{"run", "-d"}, parent1Args...)
+	parent1Args = append(parent1Args, []string{"--name=parent1", "--restart=always", "busybox", "top"}...)
+	parent2Args = append([]string{"run", "-d"}, parent2Args...)
+	parent2Args = append(parent2Args, []string{"--name=parent2", "--restart=always", "busybox", "top"}...)
+
+	_, err = d.Cmd(parent1Args[0], parent1Args[1:]...)
+	c.Assert(err, check.IsNil)
+	_, err = d.Cmd(parent2Args[0], parent2Args[1:]...)
+	c.Assert(err, check.IsNil)
+
+	err = d.Stop()
+	c.Assert(err, check.IsNil)
+	// clear the log file -- we don't need any of it but may for the next part
+	// can ignore the error here, this is just a cleanup
+	os.Truncate(d.LogfileName(), 0)
+	err = d.Start()
+	c.Assert(err, check.IsNil)
+
+	for _, num := range []string{"1", "2"} {
+		out, err := d.Cmd("inspect", "-f", "{{ .State.Running }}", "parent"+num)
+		c.Assert(err, check.IsNil)
+		if strings.TrimSpace(out) != "true" {
+			log, _ := ioutil.ReadFile(d.LogfileName())
+			c.Fatalf("parent container is not running\n%s", string(log))
+		}
+	}
 }

@@ -350,41 +350,57 @@ func (daemon *Daemon) restore() error {
 		}
 	}
 
-	group := sync.WaitGroup{}
+	restartContainers := make(map[*container.Container]chan struct{})
 	for _, c := range containers {
+		if !c.registered {
+			// Try to set the default name for a container if it exists prior to links
+			c.container.Name, err = daemon.generateNewName(c.container.ID)
+			if err != nil {
+				logrus.Debugf("Setting default id - %s", err)
+			}
+			if err := daemon.registerName(c.container); err != nil {
+				logrus.Errorf("Failed to register container %s: %s", c.container.ID, err)
+				continue
+			}
+		}
+
+		if err := daemon.Register(c.container); err != nil {
+			logrus.Errorf("Failed to register container %s: %s", c.container.ID, err)
+			continue
+		}
+		// get list of containers we need to restart
+		if daemon.configStore.AutoRestart && c.container.ShouldRestart() {
+			restartContainers[c.container] = make(chan struct{})
+		}
+	}
+
+	group := sync.WaitGroup{}
+	for c, notifier := range restartContainers {
 		group.Add(1)
-
-		go func(container *container.Container, registered bool) {
+		go func(container *container.Container, chNotify chan struct{}) {
 			defer group.Done()
+			logrus.Debugf("Starting container %s", container.ID)
 
-			if !registered {
-				// Try to set the default name for a container if it exists prior to links
-				container.Name, err = daemon.generateNewName(container.ID)
-				if err != nil {
-					logrus.Debugf("Setting default id - %s", err)
+			// ignore errors here as this is a best effort to wait for children to be
+			//   running before we try to start the container
+			children, err := daemon.children(container.Name)
+			if err != nil {
+				logrus.Warnf("error getting children for %s: %v", container.Name, err)
+			}
+			timeout := time.After(5 * time.Second)
+			for _, child := range children {
+				if notifier, exists := restartContainers[child]; exists {
+					select {
+					case <-notifier:
+					case <-timeout:
+					}
 				}
 			}
-			if err := daemon.registerName(container); err != nil {
-				logrus.Errorf("Failed to register container %s: %s", container.ID, err)
-				return
+			if err := daemon.containerStart(container); err != nil {
+				logrus.Errorf("Failed to start container %s: %s", container.ID, err)
 			}
-
-			if err := daemon.Register(container); err != nil {
-				logrus.Errorf("Failed to register container %s: %s", container.ID, err)
-				// The container register failed should not be started.
-				return
-			}
-
-			// check the restart policy on the containers and restart any container with
-			// the restart policy of "always"
-			if daemon.configStore.AutoRestart && container.ShouldRestart() {
-				logrus.Debugf("Starting container %s", container.ID)
-
-				if err := daemon.containerStart(container); err != nil {
-					logrus.Errorf("Failed to start container %s: %s", container.ID, err)
-				}
-			}
-		}(c.container, c.registered)
+			close(chNotify)
+		}(c, notifier)
 	}
 	group.Wait()
 
