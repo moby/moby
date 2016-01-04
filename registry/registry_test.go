@@ -25,12 +25,13 @@ const (
 
 func spawnTestRegistrySession(t *testing.T) *Session {
 	authConfig := &types.AuthConfig{}
-	endpoint, err := NewEndpoint(makeIndex("/v1/"), nil, APIVersionUnknown)
+	endpoint, err := NewEndpoint(makeIndex("/v1/"), "", nil, APIVersionUnknown)
 	if err != nil {
 		t.Fatal(err)
 	}
+	userAgent := "docker test client"
 	var tr http.RoundTripper = debugTransport{NewTransport(nil), t.Log}
-	tr = transport.NewTransport(AuthTransport(tr, authConfig, false), DockerHeaders(nil)...)
+	tr = transport.NewTransport(AuthTransport(tr, authConfig, false), DockerHeaders(userAgent, nil)...)
 	client := HTTPClient(tr)
 	r, err := NewSession(client, authConfig, endpoint)
 	if err != nil {
@@ -52,7 +53,7 @@ func spawnTestRegistrySession(t *testing.T) *Session {
 
 func TestPingRegistryEndpoint(t *testing.T) {
 	testPing := func(index *registrytypes.IndexInfo, expectedStandalone bool, assertMessage string) {
-		ep, err := NewEndpoint(index, nil, APIVersionUnknown)
+		ep, err := NewEndpoint(index, "", nil, APIVersionUnknown)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -72,7 +73,7 @@ func TestPingRegistryEndpoint(t *testing.T) {
 func TestEndpoint(t *testing.T) {
 	// Simple wrapper to fail test if err != nil
 	expandEndpoint := func(index *registrytypes.IndexInfo) *Endpoint {
-		endpoint, err := NewEndpoint(index, nil, APIVersionUnknown)
+		endpoint, err := NewEndpoint(index, "", nil, APIVersionUnknown)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -81,7 +82,7 @@ func TestEndpoint(t *testing.T) {
 
 	assertInsecureIndex := func(index *registrytypes.IndexInfo) {
 		index.Secure = true
-		_, err := NewEndpoint(index, nil, APIVersionUnknown)
+		_, err := NewEndpoint(index, "", nil, APIVersionUnknown)
 		assertNotEqual(t, err, nil, index.Name+": Expected error for insecure index")
 		assertEqual(t, strings.Contains(err.Error(), "insecure-registry"), true, index.Name+": Expected insecure-registry  error for insecure index")
 		index.Secure = false
@@ -89,7 +90,7 @@ func TestEndpoint(t *testing.T) {
 
 	assertSecureIndex := func(index *registrytypes.IndexInfo) {
 		index.Secure = true
-		_, err := NewEndpoint(index, nil, APIVersionUnknown)
+		_, err := NewEndpoint(index, "", nil, APIVersionUnknown)
 		assertNotEqual(t, err, nil, index.Name+": Expected cert error for secure index")
 		assertEqual(t, strings.Contains(err.Error(), "certificate signed by unknown authority"), true, index.Name+": Expected cert error for secure index")
 		index.Secure = false
@@ -155,7 +156,7 @@ func TestEndpoint(t *testing.T) {
 	}
 	for _, address := range badEndpoints {
 		index.Name = address
-		_, err := NewEndpoint(index, nil, APIVersionUnknown)
+		_, err := NewEndpoint(index, "", nil, APIVersionUnknown)
 		checkNotEqual(t, err, nil, "Expected error while expanding bad endpoint")
 	}
 }

@@ -41,6 +41,7 @@ import (
 	"github.com/docker/docker/distribution"
 	dmetadata "github.com/docker/docker/distribution/metadata"
 	"github.com/docker/docker/distribution/xfer"
+	"github.com/docker/docker/dockerversion"
 	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/image/tarexport"
@@ -1444,7 +1445,7 @@ func configureVolumes(config *Config, rootUID, rootGID int) (*store.VolumeStore,
 
 // AuthenticateToRegistry checks the validity of credentials in authConfig
 func (daemon *Daemon) AuthenticateToRegistry(authConfig *types.AuthConfig) (string, error) {
-	return daemon.RegistryService.Auth(authConfig)
+	return daemon.RegistryService.Auth(authConfig, dockerversion.DockerUserAgent())
 }
 
 // SearchRegistryForImages queries the registry for images matching
@@ -1452,7 +1453,7 @@ func (daemon *Daemon) AuthenticateToRegistry(authConfig *types.AuthConfig) (stri
 func (daemon *Daemon) SearchRegistryForImages(term string,
 	authConfig *types.AuthConfig,
 	headers map[string][]string) (*registrytypes.SearchResults, error) {
-	return daemon.RegistryService.Search(term, authConfig, headers)
+	return daemon.RegistryService.Search(term, authConfig, dockerversion.DockerUserAgent(), headers)
 }
 
 // IsShuttingDown tells whether the daemon is shutting down or not

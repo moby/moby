@@ -14,6 +14,7 @@ import (
 	"github.com/docker/distribution/registry/client/transport"
 	"github.com/docker/docker/distribution/metadata"
 	"github.com/docker/docker/distribution/xfer"
+	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/image/v1"
 	"github.com/docker/docker/layer"
@@ -47,10 +48,10 @@ func (p *v1Puller) Pull(ctx context.Context, ref reference.Named) error {
 	tr := transport.NewTransport(
 		// TODO(tiborvass): was ReceiveTimeout
 		registry.NewTransport(tlsConfig),
-		registry.DockerHeaders(p.config.MetaHeaders)...,
+		registry.DockerHeaders(dockerversion.DockerUserAgent(), p.config.MetaHeaders)...,
 	)
 	client := registry.HTTPClient(tr)
-	v1Endpoint, err := p.endpoint.ToV1Endpoint(p.config.MetaHeaders)
+	v1Endpoint, err := p.endpoint.ToV1Endpoint(dockerversion.DockerUserAgent(), p.config.MetaHeaders)
 	if err != nil {
 		logrus.Debugf("Could not get v1 endpoint: %v", err)
 		return fallbackError{err: err}
