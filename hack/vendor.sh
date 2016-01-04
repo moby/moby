@@ -57,7 +57,6 @@ clone git github.com/jfrazelle/go v1.5.1-1
 clone git github.com/agl/ed25519 d2b94fd789ea21d12fac1a4443dd3a3f79cda72c
 
 clone git github.com/opencontainers/runc d97d5e8b007e4657316eed76ea30bc0f690230cf # libcontainer
-clone git github.com/opencontainers/specs 46d949ea81080c5f60dfb72ee91468b1e9fb2998 # specs
 clone git github.com/seccomp/libseccomp-golang 1b506fc7c24eec5a3693cdcbed40d9c226cfc6a1
 # libcontainer deps (see src/github.com/opencontainers/runc/Godeps/Godeps.json)
 clone git github.com/coreos/go-systemd v4
