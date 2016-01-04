@@ -15,6 +15,10 @@ import (
 	"github.com/docker/go-connections/nat"
 )
 
+var acceptedVolumeFilterTags = map[string]bool{
+	"dangling": true,
+}
+
 // iterationAction represents possible outcomes happening during the container iteration.
 type iterationAction int
 
@@ -410,20 +414,32 @@ func (daemon *Daemon) transformContainer(container *container.Container, ctx *li
 // Volumes lists known volumes, using the filter to restrict the range
 // of volumes returned.
 func (daemon *Daemon) Volumes(filter string) ([]*types.Volume, []string, error) {
-	var volumesOut []*types.Volume
+	var (
+		volumesOut   []*types.Volume
+		danglingOnly = false
+	)
 	volFilters, err := filters.FromParam(filter)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	filterUsed := volFilters.Include("dangling") &&
-		(volFilters.ExactMatch("dangling", "true") || volFilters.ExactMatch("dangling", "1"))
+	if err := volFilters.Validate(acceptedVolumeFilterTags); err != nil {
+		return nil, nil, err
+	}
+
+	if volFilters.Include("dangling") {
+		if volFilters.ExactMatch("dangling", "true") || volFilters.ExactMatch("dangling", "1") {
+			danglingOnly = true
+		} else if !volFilters.ExactMatch("dangling", "false") && !volFilters.ExactMatch("dangling", "0") {
+			return nil, nil, fmt.Errorf("Invalid filter 'dangling=%s'", volFilters.Get("dangling"))
+		}
+	}
 
 	volumes, warnings, err := daemon.volumes.List()
 	if err != nil {
 		return nil, nil, err
 	}
-	if filterUsed {
+	if danglingOnly {
 		volumes = daemon.volumes.FilterByUsed(volumes)
 	}
 	for _, v := range volumes {
