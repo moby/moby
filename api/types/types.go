@@ -7,7 +7,6 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/registry"
-	"github.com/docker/docker/pkg/version"
 	"github.com/docker/go-connections/nat"
 )
 
@@ -178,7 +177,7 @@ type ContainerProcessList struct {
 // GET "/version"
 type Version struct {
 	Version       string
-	APIVersion    version.Version `json:"ApiVersion"`
+	APIVersion    string `json:"ApiVersion"`
 	GitCommit     string
 	GoVersion     string
 	Os            string
