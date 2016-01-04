@@ -193,6 +193,11 @@ func from(b *Builder, args []string, attributes map[string]bool, original string
 
 	name := args[0]
 
+	var (
+		image builder.Image
+		err   error
+	)
+
 	// Windows cannot support a container with no base image.
 	if name == api.NoBaseImageSpecifier {
 		if runtime.GOOS == "windows" {
@@ -200,24 +205,20 @@ func from(b *Builder, args []string, attributes map[string]bool, original string
 		}
 		b.image = ""
 		b.noBaseImage = true
-		return nil
-	}
-
-	var (
-		image builder.Image
-		err   error
-	)
-	// TODO: don't use `name`, instead resolve it to a digest
-	if !b.options.PullParent {
-		image, err = b.docker.GetImage(name)
-		// TODO: shouldn't we error out if error is different from "not found" ?
-	}
-	if image == nil {
-		image, err = b.docker.Pull(name)
-		if err != nil {
-			return err
+	} else {
+		// TODO: don't use `name`, instead resolve it to a digest
+		if !b.options.PullParent {
+			image, err = b.docker.GetImage(name)
+			// TODO: shouldn't we error out if error is different from "not found" ?
+		}
+		if image == nil {
+			image, err = b.docker.Pull(name)
+			if err != nil {
+				return err
+			}
 		}
 	}
+
 	return b.processImageFrom(image)
 }
 

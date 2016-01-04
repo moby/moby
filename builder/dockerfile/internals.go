@@ -35,6 +35,7 @@ import (
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/pkg/tarsum"
 	"github.com/docker/docker/pkg/urlutil"
+	"github.com/docker/docker/runconfig/opts"
 )
 
 func (b *Builder) commit(id string, autoCmd *strslice.StrSlice, comment string) error {
@@ -394,15 +395,30 @@ func containsWildcards(name string) bool {
 }
 
 func (b *Builder) processImageFrom(img builder.Image) error {
-	b.image = img.ID()
+	if img != nil {
+		b.image = img.ID()
 
-	if img.Config() != nil {
-		b.runConfig = img.Config()
+		if img.Config() != nil {
+			b.runConfig = img.Config()
+		}
 	}
 
-	// The default path will be blank on Windows (set by HCS)
-	if len(b.runConfig.Env) == 0 && system.DefaultPathEnv != "" {
-		b.runConfig.Env = append(b.runConfig.Env, "PATH="+system.DefaultPathEnv)
+	// Check to see if we have a default PATH, note that windows won't
+	// have one as its set by HCS
+	if system.DefaultPathEnv != "" {
+		// Convert the slice of strings that represent the current list
+		// of env vars into a map so we can see if PATH is already set.
+		// If its not set then go ahead and give it our default value
+		configEnv := opts.ConvertKVStringsToMap(b.runConfig.Env)
+		if _, ok := configEnv["PATH"]; !ok {
+			b.runConfig.Env = append(b.runConfig.Env,
+				"PATH="+system.DefaultPathEnv)
+		}
+	}
+
+	if img == nil {
+		// Typically this means they used "FROM scratch"
+		return nil
 	}
 
 	// Process ONBUILD triggers if they exist
