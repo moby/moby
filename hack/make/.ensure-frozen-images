@@ -29,7 +29,6 @@ case "$DOCKER_ENGINE_OSARCH" in
 			busybox:latest
 			debian:jessie
 			hello-world:latest
-			jess/unshare:latest
 		)
 		;;
 esac
