@@ -424,11 +424,52 @@ func (sb *sandbox) ResolveName(name string) net.IP {
 	parts := strings.Split(name, ".")
 	log.Debugf("To resolve %v", parts)
 
-	for _, ep := range sb.getConnectedEndpoints() {
+	reqName := parts[0]
+	networkName := ""
+	if len(parts) > 1 {
+		networkName = parts[1]
+	}
+	epList := sb.getConnectedEndpoints()
+	// First check for local container alias
+	ip = sb.resolveName(reqName, networkName, epList, true)
+	if ip != nil {
+		return ip
+	}
+
+	// Resolve the actual container name
+	return sb.resolveName(reqName, networkName, epList, false)
+}
+
+func (sb *sandbox) resolveName(req string, networkName string, epList []*endpoint, alias bool) net.IP {
+	for _, ep := range epList {
+		name := req
 		n := ep.getNetwork()
 
-		if len(parts) > 1 && parts[1] != "" && parts[1] != n.Name() {
+		if networkName != "" && networkName != n.Name() {
 			continue
+		}
+
+		if alias {
+			if ep.aliases == nil {
+				continue
+			}
+
+			var ok bool
+			ep.Lock()
+			name, ok = ep.aliases[req]
+			ep.Unlock()
+			if !ok {
+				continue
+			}
+		} else {
+			// If it is a regular lookup and if the requested name is an alias
+			// dont perform a svc lookup for this endpoint.
+			ep.Lock()
+			if _, ok := ep.aliases[req]; ok {
+				ep.Unlock()
+				continue
+			}
+			ep.Unlock()
 		}
 
 		sr, ok := n.getController().svcDb[n.ID()]
@@ -437,13 +478,13 @@ func (sb *sandbox) ResolveName(name string) net.IP {
 		}
 
 		n.Lock()
-		ip, ok = sr.svcMap[parts[0]]
+		ip, ok := sr.svcMap[name]
 		n.Unlock()
 		if ok {
 			return ip
 		}
 	}
-	return ip
+	return nil
 }
 
 func (sb *sandbox) SetKey(basePath string) error {
