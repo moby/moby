@@ -644,6 +644,11 @@ var defaultSeccompProfile = &configs.Seccomp{
 			Args:   []*configs.Arg{},
 		},
 		{
+			Name:   "_llseek",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
 			Name:   "lremovexattr",
 			Action: configs.Allow,
 			Args:   []*configs.Arg{},
