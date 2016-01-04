@@ -85,6 +85,10 @@ You can start/stop/restart the `docker` daemon using
 
 ### Configuring Docker
 
+The instructions below depict configuring Docker on a system that uses `upstart`
+as the process manager. As of Ubuntu 15.04, Ubuntu uses `systemd` as its process
+manager. For Ubuntu 15.04 and higher, refer to [control and configure Docker with systemd](systemd.md).
+
 You configure the `docker` daemon in the `/etc/default/docker` file on your
 system. You do this by specifying values in a `DOCKER_OPTS` variable.
 
