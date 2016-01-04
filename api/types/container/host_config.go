@@ -180,7 +180,7 @@ type Resources struct {
 	MemoryReservation    int64           // Memory soft limit (in bytes)
 	MemorySwap           int64           // Total memory usage (memory + swap); set `-1` to disable swap
 	MemorySwappiness     *int64          // Tuning container memory swappiness behaviour
-	OomKillDisable       bool            // Whether to disable OOM Killer or not
+	OomKillDisable       *bool           // Whether to disable OOM Killer or not
 	Ulimits              []*units.Ulimit // List of ulimits to be set in the container
 }
 
