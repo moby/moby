@@ -397,6 +397,21 @@ func run(b *Builder, args []string, attributes map[string]bool, original string)
 	// have the build-time env vars in it (if any) so that future cache look-ups
 	// properly match it.
 	b.runConfig.Env = env
+
+	// remove build time arg form saveCmd
+	if len(cmdBuildEnv) > 0 {
+		var tmpSaveCmd []string
+		tmpSaveCmd = saveCmd.Slice()
+		tmpEnv := append([]string{fmt.Sprintf("|%d", len(cmdBuildEnv))}, cmdBuildEnv...)
+		for _, env := range tmpEnv {
+			for i, e := range tmpSaveCmd {
+				if env == e {
+					tmpSaveCmd = append(tmpSaveCmd[:i], tmpSaveCmd[i+1:]...)
+				}
+			}
+		}
+		saveCmd = stringutils.NewStrSlice(tmpSaveCmd...)
+	}
 	b.runConfig.Cmd = saveCmd
 	return b.commit(cID, cmd, "run")
 }
