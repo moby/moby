@@ -45,12 +45,12 @@ func scanForAPIVersion(address string) (string, APIVersion) {
 
 // NewEndpoint parses the given address to return a registry endpoint.  v can be used to
 // specify a specific endpoint version
-func NewEndpoint(index *registrytypes.IndexInfo, metaHeaders http.Header, v APIVersion) (*Endpoint, error) {
+func NewEndpoint(index *registrytypes.IndexInfo, userAgent string, metaHeaders http.Header, v APIVersion) (*Endpoint, error) {
 	tlsConfig, err := newTLSConfig(index.Name, index.Secure)
 	if err != nil {
 		return nil, err
 	}
-	endpoint, err := newEndpoint(GetAuthConfigKey(index), tlsConfig, metaHeaders)
+	endpoint, err := newEndpoint(GetAuthConfigKey(index), tlsConfig, userAgent, metaHeaders)
 	if err != nil {
 		return nil, err
 	}
@@ -91,7 +91,7 @@ func validateEndpoint(endpoint *Endpoint) error {
 	return nil
 }
 
-func newEndpoint(address string, tlsConfig *tls.Config, metaHeaders http.Header) (*Endpoint, error) {
+func newEndpoint(address string, tlsConfig *tls.Config, userAgent string, metaHeaders http.Header) (*Endpoint, error) {
 	var (
 		endpoint       = new(Endpoint)
 		trimmedAddress string
@@ -112,7 +112,7 @@ func newEndpoint(address string, tlsConfig *tls.Config, metaHeaders http.Header)
 
 	// TODO(tiborvass): make sure a ConnectTimeout transport is used
 	tr := NewTransport(tlsConfig)
-	endpoint.client = HTTPClient(transport.NewTransport(tr, DockerHeaders(metaHeaders)...))
+	endpoint.client = HTTPClient(transport.NewTransport(tr, DockerHeaders(userAgent, metaHeaders)...))
 	return endpoint, nil
 }
 

@@ -20,7 +20,6 @@ import (
 // ImagePullConfig stores pull configuration.
 type ImagePullConfig struct {
 	// MetaHeaders stores HTTP headers with metadata about the image
-	// (DockerHeaders with prefix X-Meta- in the request).
 	MetaHeaders map[string][]string
 	// AuthConfig holds authentication credentials for authenticating with
 	// the registry.

@@ -22,7 +22,6 @@ import (
 // ImagePushConfig stores push configuration.
 type ImagePushConfig struct {
 	// MetaHeaders store HTTP headers with metadata about the image
-	// (DockerHeaders with prefix X-Meta- in the request).
 	MetaHeaders map[string][]string
 	// AuthConfig holds authentication credentials for authenticating with
 	// the registry.

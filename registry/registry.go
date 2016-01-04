@@ -21,9 +21,6 @@ import (
 	"github.com/docker/distribution/registry/api/v2"
 	"github.com/docker/distribution/registry/client"
 	"github.com/docker/distribution/registry/client/transport"
-	"github.com/docker/docker/dockerversion"
-	"github.com/docker/docker/pkg/parsers/kernel"
-	"github.com/docker/docker/pkg/useragent"
 	"github.com/docker/go-connections/tlsconfig"
 )
 
@@ -34,23 +31,7 @@ var (
 	errLoginRequired = errors.New("Authentication is required.")
 )
 
-// dockerUserAgent is the User-Agent the Docker client uses to identify itself.
-// It is populated on init(), comprising version information of different components.
-var dockerUserAgent string
-
 func init() {
-	httpVersion := make([]useragent.VersionInfo, 0, 6)
-	httpVersion = append(httpVersion, useragent.VersionInfo{Name: "docker", Version: dockerversion.Version})
-	httpVersion = append(httpVersion, useragent.VersionInfo{Name: "go", Version: runtime.Version()})
-	httpVersion = append(httpVersion, useragent.VersionInfo{Name: "git-commit", Version: dockerversion.GitCommit})
-	if kernelVersion, err := kernel.GetKernelVersion(); err == nil {
-		httpVersion = append(httpVersion, useragent.VersionInfo{Name: "kernel", Version: kernelVersion.String()})
-	}
-	httpVersion = append(httpVersion, useragent.VersionInfo{Name: "os", Version: runtime.GOOS})
-	httpVersion = append(httpVersion, useragent.VersionInfo{Name: "arch", Version: runtime.GOARCH})
-
-	dockerUserAgent = useragent.AppendVersions("", httpVersion...)
-
 	if runtime.GOOS != "linux" {
 		V2Only = true
 	}
@@ -130,12 +111,13 @@ func ReadCertsDirectory(tlsConfig *tls.Config, directory string) error {
 	return nil
 }
 
-// DockerHeaders returns request modifiers that ensure requests have
-// the User-Agent header set to dockerUserAgent and that metaHeaders
-// are added.
-func DockerHeaders(metaHeaders http.Header) []transport.RequestModifier {
-	modifiers := []transport.RequestModifier{
-		transport.NewHeaderRequestModifier(http.Header{"User-Agent": []string{dockerUserAgent}}),
+// DockerHeaders returns request modifiers with a User-Agent and metaHeaders
+func DockerHeaders(userAgent string, metaHeaders http.Header) []transport.RequestModifier {
+	modifiers := []transport.RequestModifier{}
+	if userAgent != "" {
+		modifiers = append(modifiers, transport.NewHeaderRequestModifier(http.Header{
+			"User-Agent": []string{userAgent},
+		}))
 	}
 	if metaHeaders != nil {
 		modifiers = append(modifiers, transport.NewHeaderRequestModifier(metaHeaders))

@@ -14,6 +14,7 @@ import (
 	"github.com/docker/distribution/registry/client/auth"
 	"github.com/docker/distribution/registry/client/transport"
 	"github.com/docker/docker/distribution/xfer"
+	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/registry"
 	"github.com/docker/engine-api/types"
 	"golang.org/x/net/context"
@@ -67,7 +68,7 @@ func NewV2Repository(ctx context.Context, repoInfo *registry.RepositoryInfo, end
 		DisableKeepAlives: true,
 	}
 
-	modifiers := registry.DockerHeaders(metaHeaders)
+	modifiers := registry.DockerHeaders(dockerversion.DockerUserAgent(), metaHeaders)
 	authTransport := transport.NewTransport(base, modifiers...)
 	pingClient := &http.Client{
 		Transport: authTransport,
