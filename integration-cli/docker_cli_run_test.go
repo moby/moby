@@ -3465,6 +3465,84 @@ func (s *DockerSuite) TestRunContainerWithCgroupParentAbsPath(c *check.C) {
 	}
 }
 
+// TestRunInvalidCgroupParent checks that a specially-crafted cgroup parent doesn't cause Docker to crash or start modifying /.
+func (s *DockerSuite) TestRunInvalidCgroupParent(c *check.C) {
+	// Not applicable on Windows as uses Unix specific functionality
+	testRequires(c, DaemonIsLinux)
+
+	cgroupParent := "../../../../../../../../SHOULD_NOT_EXIST"
+	cleanCgroupParent := "SHOULD_NOT_EXIST"
+	name := "cgroup-invalid-test"
+
+	out, _, err := dockerCmdWithError("run", "--cgroup-parent", cgroupParent, "--name", name, "busybox", "cat", "/proc/self/cgroup")
+	if err != nil {
+		// XXX: This may include a daemon crash.
+		c.Fatalf("unexpected failure when running container with --cgroup-parent option - %s\n%v", string(out), err)
+	}
+
+	// We expect "/SHOULD_NOT_EXIST" to not exist. If not, we have a security issue.
+	if _, err := os.Stat("/SHOULD_NOT_EXIST"); err == nil || !os.IsNotExist(err) {
+		c.Fatalf("SECURITY: --cgroup-parent with ../../ relative paths cause files to be created in the host (this is bad) !!")
+	}
+
+	cgroupPaths := parseCgroupPaths(string(out))
+	if len(cgroupPaths) == 0 {
+		c.Fatalf("unexpected output - %q", string(out))
+	}
+	id, err := getIDByName(name)
+	c.Assert(err, check.IsNil)
+	expectedCgroup := path.Join(cleanCgroupParent, id)
+	found := false
+	for _, path := range cgroupPaths {
+		if strings.HasSuffix(path, expectedCgroup) {
+			found = true
+			break
+		}
+	}
+	if !found {
+		c.Fatalf("unexpected cgroup paths. Expected at least one cgroup path to have suffix %q. Cgroup Paths: %v", expectedCgroup, cgroupPaths)
+	}
+}
+
+// TestRunInvalidCgroupParent checks that a specially-crafted cgroup parent doesn't cause Docker to crash or start modifying /.
+func (s *DockerSuite) TestRunAbsoluteInvalidCgroupParent(c *check.C) {
+	// Not applicable on Windows as uses Unix specific functionality
+	testRequires(c, DaemonIsLinux)
+
+	cgroupParent := "/../../../../../../../../SHOULD_NOT_EXIST"
+	cleanCgroupParent := "/SHOULD_NOT_EXIST"
+	name := "cgroup-absolute-invalid-test"
+
+	out, _, err := dockerCmdWithError("run", "--cgroup-parent", cgroupParent, "--name", name, "busybox", "cat", "/proc/self/cgroup")
+	if err != nil {
+		// XXX: This may include a daemon crash.
+		c.Fatalf("unexpected failure when running container with --cgroup-parent option - %s\n%v", string(out), err)
+	}
+
+	// We expect "/SHOULD_NOT_EXIST" to not exist. If not, we have a security issue.
+	if _, err := os.Stat("/SHOULD_NOT_EXIST"); err == nil || !os.IsNotExist(err) {
+		c.Fatalf("SECURITY: --cgroup-parent with /../../ garbage paths cause files to be created in the host (this is bad) !!")
+	}
+
+	cgroupPaths := parseCgroupPaths(string(out))
+	if len(cgroupPaths) == 0 {
+		c.Fatalf("unexpected output - %q", string(out))
+	}
+	id, err := getIDByName(name)
+	c.Assert(err, check.IsNil)
+	expectedCgroup := path.Join(cleanCgroupParent, id)
+	found := false
+	for _, path := range cgroupPaths {
+		if strings.HasSuffix(path, expectedCgroup) {
+			found = true
+			break
+		}
+	}
+	if !found {
+		c.Fatalf("unexpected cgroup paths. Expected at least one cgroup path to have suffix %q. Cgroup Paths: %v", expectedCgroup, cgroupPaths)
+	}
+}
+
 func (s *DockerSuite) TestRunContainerWithCgroupMountRO(c *check.C) {
 	// Not applicable on Windows as uses Unix specific functionality
 	// --read-only + userns has remount issues
