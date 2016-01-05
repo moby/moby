@@ -19,6 +19,8 @@ func main() {
 		return
 	}
 
+	//NOOP Change JJH for debugging CI
+
 	// Set terminal emulation based on platform as required.
 	stdin, stdout, stderr := term.StdStreams()
 
