@@ -358,9 +358,10 @@ type MountPoint struct {
 
 // Volume represents the configuration of a volume for the remote API
 type Volume struct {
-	Name       string // Name is the name of the volume
-	Driver     string // Driver is the Driver name used to create the volume
-	Mountpoint string // Mountpoint is the location on disk of the volume
+	Name       string   // Name is the name of the volume
+	Driver     string   // Driver is the Driver name used to create the volume
+	Mountpoint string   // Mountpoint is the location on disk of the volume
+	Containers []string // List of containers that use the volume
 }
 
 // VolumesListResponse contains the response for the remote API:

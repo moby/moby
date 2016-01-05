@@ -66,6 +66,53 @@ func (s *DockerSuite) TestVolumeCliInspectMulti(c *check.C) {
 	c.Assert(out, checker.Not(checker.Contains), "not-shown")
 }
 
+func (s *DockerSuite) TestVolumeCliInspectListContainer(c *check.C) {
+	dockerCmd(c, "volume", "create", "--name", "test1")
+	dockerCmd(c, "volume", "create", "--name", "test2")
+
+	out, _ := dockerCmd(c, "run", "-d", "-v", "test1:/foo", "busybox", "true")
+	cid := strings.TrimSpace(out)
+
+	out, _ = dockerCmd(c, "volume", "inspect", "test1")
+
+	c.Assert(strings.Contains(out, "test1"), check.Equals, true)
+	c.Assert(strings.Contains(out, cid), check.Equals, true)
+}
+
+func (s *DockerSuite) TestVolumeCliInspectListMultiContainers(c *check.C) {
+	dockerCmd(c, "volume", "create", "--name", "test1")
+	dockerCmd(c, "volume", "create", "--name", "test2")
+
+	out, _ := dockerCmd(c, "run", "-d", "-v", "test1:/foo", "busybox", "true")
+	cid1 := strings.TrimSpace(out)
+	out, _ = dockerCmd(c, "run", "-d", "-v", "test1:/foo", "busybox", "true")
+	cid2 := strings.TrimSpace(out)
+
+	out, _ = dockerCmd(c, "volume", "inspect", "test1")
+
+	c.Assert(strings.Contains(out, "test1"), check.Equals, true)
+	c.Assert(strings.Contains(out, cid1), check.Equals, true)
+	c.Assert(strings.Contains(out, cid2), check.Equals, true)
+}
+
+func (s *DockerSuite) TestVolumeCliInspectFilterContainer(c *check.C) {
+	dockerCmd(c, "volume", "create", "--name", "test1")
+	dockerCmd(c, "volume", "create", "--name", "test2")
+
+	out, _ := dockerCmd(c, "run", "-d", "-v", "test1:/foo", "busybox", "true")
+	cid1 := strings.TrimSpace(out)
+	out, _ = dockerCmd(c, "run", "-d", "-v", "test1:/foo", "-v", "test2:/foo2", "busybox", "true")
+	cid2 := strings.TrimSpace(out)
+
+	out, _ = dockerCmd(c, "volume", "inspect", "--format='{{ .Containers }}'", "test1", "test2")
+
+	outArr := strings.Split(strings.TrimSpace(out), "\n")
+	c.Assert(len(outArr), check.Equals, 2, check.Commentf("\n%s", out))
+	c.Assert(strings.Contains(outArr[0], cid1), check.Equals, true)
+	c.Assert(strings.Contains(outArr[0], cid2), check.Equals, true)
+	c.Assert(strings.Contains(outArr[1], cid2), check.Equals, true)
+}
+
 func (s *DockerSuite) TestVolumeCliLs(c *check.C) {
 	prefix := ""
 	if daemonPlatform == "windows" {

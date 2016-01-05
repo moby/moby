@@ -33,12 +33,12 @@ func volumeToAPIType(v volume.Volume) *types.Volume {
 }
 
 // createVolume creates a volume.
-func (daemon *Daemon) createVolume(name, driverName string, opts map[string]string) (volume.Volume, error) {
+func (daemon *Daemon) createVolume(name, driverName string, opts map[string]string, ref string) (volume.Volume, error) {
 	v, err := daemon.volumes.Create(name, driverName, opts)
 	if err != nil {
 		return nil, err
 	}
-	daemon.volumes.Increment(v)
+	daemon.volumes.Increment(v, ref)
 	return v, nil
 }
 
@@ -103,7 +103,7 @@ func (daemon *Daemon) registerMountPoints(container *container.Container, hostCo
 			}
 
 			if len(cp.Source) == 0 {
-				v, err := daemon.createVolume(cp.Name, cp.Driver, nil)
+				v, err := daemon.createVolume(cp.Name, cp.Driver, nil, container.ID)
 				if err != nil {
 					return err
 				}
@@ -128,7 +128,7 @@ func (daemon *Daemon) registerMountPoints(container *container.Container, hostCo
 
 		if len(bind.Name) > 0 && len(bind.Driver) > 0 {
 			// create the volume
-			v, err := daemon.createVolume(bind.Name, bind.Driver, nil)
+			v, err := daemon.createVolume(bind.Name, bind.Driver, nil, container.ID)
 			if err != nil {
 				return err
 			}
@@ -153,7 +153,7 @@ func (daemon *Daemon) registerMountPoints(container *container.Container, hostCo
 	for _, m := range mountPoints {
 		if m.BackwardsCompatible() {
 			if mp, exists := container.MountPoints[m.Destination]; exists && mp.Volume != nil {
-				daemon.volumes.Decrement(mp.Volume)
+				daemon.volumes.Decrement(mp.Volume, container.ID)
 			}
 		}
 	}
