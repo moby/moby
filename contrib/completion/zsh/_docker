@@ -583,6 +583,7 @@ __docker_subcommand() {
                 "($help)*--authz-plugin=[Set authorization plugins to load]" \
                 "($help -b --bridge)"{-b=,--bridge=}"[Attach containers to a network bridge]:bridge:_net_interfaces" \
                 "($help)--bip=[Specify network bridge IP]" \
+                "($help)--cgroup-parent=[Set parent cgroup for all containers]:cgroup: " \
                 "($help -D --debug)"{-D,--debug}"[Enable debug mode]" \
                 "($help)--default-gateway[Container default gateway IPv4 address]:IPv4 address: " \
                 "($help)--default-gateway-v6[Container default gateway IPv6 address]:IPv6 address: " \
