@@ -312,7 +312,7 @@ specifically required files change.
 For example:
 
     COPY requirements.txt /tmp/
-    RUN pip install /tmp/requirements.txt
+    RUN pip install --requirement /tmp/requirements.txt
     COPY . /tmp/
 
 Results in fewer cache invalidations for the `RUN` step, than if you put the
