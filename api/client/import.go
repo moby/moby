@@ -5,13 +5,13 @@ import (
 	"io"
 	"os"
 
-	"github.com/docker/docker/api/types"
 	Cli "github.com/docker/docker/cli"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/jsonmessage"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/urlutil"
 	"github.com/docker/docker/reference"
+	"github.com/docker/engine-api/types"
 )
 
 // CmdImport creates an empty filesystem image, imports the contents of the tarball into the image, and optionally tags the image.

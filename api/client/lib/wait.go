@@ -3,7 +3,7 @@ package lib
 import (
 	"encoding/json"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/engine-api/types"
 )
 
 // ContainerWait pauses execution util a container is exits.

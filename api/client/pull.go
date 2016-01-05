@@ -4,13 +4,13 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/docker/docker/api/client/lib"
-	"github.com/docker/docker/api/types"
 	Cli "github.com/docker/docker/cli"
 	"github.com/docker/docker/pkg/jsonmessage"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
+	"github.com/docker/engine-api/client"
+	"github.com/docker/engine-api/types"
 )
 
 // CmdPull pulls an image or a repository from the registry.
@@ -65,7 +65,7 @@ func (cli *DockerCli) CmdPull(args ...string) error {
 	return cli.imagePullPrivileged(authConfig, distributionRef.String(), "", requestPrivilege)
 }
 
-func (cli *DockerCli) imagePullPrivileged(authConfig types.AuthConfig, imageID, tag string, requestPrivilege lib.RequestPrivilegeFunc) error {
+func (cli *DockerCli) imagePullPrivileged(authConfig types.AuthConfig, imageID, tag string, requestPrivilege client.RequestPrivilegeFunc) error {
 
 	encodedAuth, err := encodeAuthToBase64(authConfig)
 	if err != nil {

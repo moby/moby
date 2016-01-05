@@ -18,13 +18,13 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api"
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/builder"
 	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/system"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
+	"github.com/docker/engine-api/types/container"
+	"github.com/docker/engine-api/types/strslice"
 	"github.com/docker/go-connections/nat"
 )
 

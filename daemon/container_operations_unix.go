@@ -13,8 +13,6 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	containertypes "github.com/docker/docker/api/types/container"
-	networktypes "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/daemon/links"
@@ -25,6 +23,8 @@ import (
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/runconfig"
+	containertypes "github.com/docker/engine-api/types/container"
+	networktypes "github.com/docker/engine-api/types/network"
 	"github.com/docker/go-units"
 	"github.com/docker/libnetwork"
 	"github.com/docker/libnetwork/netlabel"

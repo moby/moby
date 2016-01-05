@@ -3,8 +3,8 @@ package daemon
 import (
 	"strings"
 
-	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/container"
+	"github.com/docker/engine-api/types/events"
 	"github.com/docker/libnetwork"
 )
 

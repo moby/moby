@@ -3,9 +3,9 @@
 package daemon
 
 import (
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/execdriver"
+	"github.com/docker/engine-api/types"
 )
 
 // setPlatformSpecificExecProcessConfig sets platform-specific fields in the

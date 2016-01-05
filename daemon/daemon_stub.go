@@ -5,9 +5,9 @@ package daemon
 import (
 	"os"
 
-	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/system"
+	"github.com/docker/engine-api/types/container"
 )
 
 func setupRemappedRoot(config *Config) ([]idtools.IDMap, []idtools.IDMap, error) {

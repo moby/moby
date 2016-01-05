@@ -11,14 +11,14 @@ import (
 
 	"github.com/docker/distribution/digest"
 	"github.com/docker/docker/api/server/httputils"
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/builder/dockerfile"
 	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/reference"
 	"github.com/docker/docker/runconfig"
+	"github.com/docker/engine-api/types"
+	"github.com/docker/engine-api/types/container"
 	"golang.org/x/net/context"
 )
 

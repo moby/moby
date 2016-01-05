@@ -1,8 +1,8 @@
 package daemonbuilder
 
 import (
-	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/image"
+	"github.com/docker/engine-api/types/container"
 )
 
 type imgWrap struct {

@@ -13,8 +13,6 @@ import (
 	"syscall"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/daemon/execdriver"
 	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/chrootarchive"
@@ -22,6 +20,8 @@ import (
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/utils"
 	"github.com/docker/docker/volume"
+	"github.com/docker/engine-api/types/container"
+	"github.com/docker/engine-api/types/network"
 	"github.com/docker/go-connections/nat"
 	"github.com/docker/libnetwork"
 	"github.com/docker/libnetwork/netlabel"

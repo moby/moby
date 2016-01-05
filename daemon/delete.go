@@ -5,11 +5,11 @@ import (
 	"path"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/container"
 	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/layer"
 	volumestore "github.com/docker/docker/volume/store"
+	"github.com/docker/engine-api/types"
 )
 
 // ContainerRm removes the container id from the filesystem. An error

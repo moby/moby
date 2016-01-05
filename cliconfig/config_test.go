@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/homedir"
+	"github.com/docker/engine-api/types"
 )
 
 func TestEmptyConfigDir(t *testing.T) {

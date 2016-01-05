@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/volume"
+	"github.com/docker/engine-api/types/container"
 )
 
 // DecodeContainerConfig decodes a json encoded config into a ContainerConfigWrapper
