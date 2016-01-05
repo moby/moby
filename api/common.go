@@ -9,9 +9,9 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/pkg/version"
+	"github.com/docker/engine-api/types"
 	"github.com/docker/libtrust"
 )
 

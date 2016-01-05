@@ -1,6 +1,6 @@
 package types
 
-import "github.com/docker/docker/api/types/container"
+import "github.com/docker/engine-api/types/container"
 
 // configs holds structs used for internal communication between the
 // frontend (such as an http server) and the backend (such as the

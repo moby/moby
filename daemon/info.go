@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/parsers/kernel"
@@ -18,6 +17,7 @@ import (
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/utils"
 	"github.com/docker/docker/volume/drivers"
+	"github.com/docker/engine-api/types"
 )
 
 // SystemInfo returns information about the host server the daemon is running on.

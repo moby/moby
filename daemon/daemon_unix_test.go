@@ -7,7 +7,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/docker/docker/api/types/container"
+	"github.com/docker/engine-api/types/container"
 )
 
 func TestAdjustCPUShares(t *testing.T) {

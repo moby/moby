@@ -12,8 +12,6 @@ import (
 	"syscall"
 
 	"github.com/Sirupsen/logrus"
-	pblkiodev "github.com/docker/docker/api/types/blkiodev"
-	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
 	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/image"
@@ -24,6 +22,8 @@ import (
 	"github.com/docker/docker/reference"
 	"github.com/docker/docker/runconfig"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
+	pblkiodev "github.com/docker/engine-api/types/blkiodev"
+	containertypes "github.com/docker/engine-api/types/container"
 	"github.com/docker/libnetwork"
 	nwconfig "github.com/docker/libnetwork/config"
 	"github.com/docker/libnetwork/drivers/bridge"

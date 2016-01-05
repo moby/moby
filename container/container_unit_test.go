@@ -3,8 +3,8 @@ package container
 import (
 	"testing"
 
-	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/pkg/signal"
+	"github.com/docker/engine-api/types/container"
 )
 
 func TestContainerStopSignal(t *testing.T) {

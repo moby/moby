@@ -5,8 +5,8 @@ import (
 	"io/ioutil"
 	"testing"
 
-	"github.com/docker/docker/api/types"
 	flag "github.com/docker/docker/pkg/mflag"
+	"github.com/docker/engine-api/types"
 )
 
 type arguments struct {

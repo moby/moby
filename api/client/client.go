@@ -7,11 +7,11 @@ package client
 import (
 	"io"
 
-	"github.com/docker/docker/api/client/lib"
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/api/types/registry"
+	"github.com/docker/engine-api/client"
+	"github.com/docker/engine-api/types"
+	"github.com/docker/engine-api/types/container"
+	"github.com/docker/engine-api/types/filters"
+	"github.com/docker/engine-api/types/registry"
 )
 
 // apiClient is an interface that clients that talk with a docker server must implement.
@@ -55,10 +55,10 @@ type apiClient interface {
 	ImageInspectWithRaw(imageID string, getSize bool) (types.ImageInspect, []byte, error)
 	ImageList(options types.ImageListOptions) ([]types.Image, error)
 	ImageLoad(input io.Reader) (types.ImageLoadResponse, error)
-	ImagePull(options types.ImagePullOptions, privilegeFunc lib.RequestPrivilegeFunc) (io.ReadCloser, error)
-	ImagePush(options types.ImagePushOptions, privilegeFunc lib.RequestPrivilegeFunc) (io.ReadCloser, error)
+	ImagePull(options types.ImagePullOptions, privilegeFunc client.RequestPrivilegeFunc) (io.ReadCloser, error)
+	ImagePush(options types.ImagePushOptions, privilegeFunc client.RequestPrivilegeFunc) (io.ReadCloser, error)
 	ImageRemove(options types.ImageRemoveOptions) ([]types.ImageDelete, error)
-	ImageSearch(options types.ImageSearchOptions, privilegeFunc lib.RequestPrivilegeFunc) ([]registry.SearchResult, error)
+	ImageSearch(options types.ImageSearchOptions, privilegeFunc client.RequestPrivilegeFunc) ([]registry.SearchResult, error)
 	ImageSave(imageIDs []string) (io.ReadCloser, error)
 	ImageTag(options types.ImageTagOptions) error
 	Info() (types.Info, error)

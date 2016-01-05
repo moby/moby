@@ -1,9 +1,9 @@
 package system
 
 import (
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/events"
-	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/engine-api/types"
+	"github.com/docker/engine-api/types/events"
+	"github.com/docker/engine-api/types/filters"
 )
 
 // Backend is the methods that need to be implemented to provide

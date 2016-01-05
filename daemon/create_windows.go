@@ -3,11 +3,11 @@ package daemon
 import (
 	"fmt"
 
-	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/volume"
+	containertypes "github.com/docker/engine-api/types/container"
 )
 
 // createContainerPlatformSpecificSettings performs platform specific container create functionality

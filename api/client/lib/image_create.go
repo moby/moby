@@ -4,7 +4,7 @@ import (
 	"io"
 	"net/url"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/engine-api/types"
 )
 
 // ImageCreate creates a new image based in the parent options.
