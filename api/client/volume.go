@@ -65,6 +65,9 @@ func (cli *DockerCli) CmdVolumeLs(args ...string) error {
 
 	w := tabwriter.NewWriter(cli.out, 20, 1, 3, ' ', 0)
 	if !*quiet {
+		for _, warn := range volumes.Warnings {
+			fmt.Fprintln(cli.err, warn)
+		}
 		fmt.Fprintf(w, "DRIVER \tVOLUME NAME")
 		fmt.Fprintf(w, "\n")
 	}
@@ -102,7 +105,7 @@ func (cli *DockerCli) CmdVolumeInspect(args ...string) error {
 	return cli.inspectElements(*tmplStr, cmd.Args(), inspectSearcher)
 }
 
-// CmdVolumeCreate creates a new container from a given image.
+// CmdVolumeCreate creates a new volume.
 //
 // Usage: docker volume create [OPTIONS]
 func (cli *DockerCli) CmdVolumeCreate(args ...string) error {
@@ -131,7 +134,7 @@ func (cli *DockerCli) CmdVolumeCreate(args ...string) error {
 	return nil
 }
 
-// CmdVolumeRm removes one or more containers.
+// CmdVolumeRm removes one or more volumes.
 //
 // Usage: docker volume rm VOLUME [VOLUME...]
 func (cli *DockerCli) CmdVolumeRm(args ...string) error {
@@ -140,6 +143,7 @@ func (cli *DockerCli) CmdVolumeRm(args ...string) error {
 	cmd.ParseFlags(args, true)
 
 	var status = 0
+
 	for _, name := range cmd.Args() {
 		if err := cli.client.VolumeRemove(name); err != nil {
 			fmt.Fprintf(cli.err, "%s\n", err)

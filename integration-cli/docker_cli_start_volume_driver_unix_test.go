@@ -32,6 +32,8 @@ type eventCounter struct {
 	mounts      int
 	unmounts    int
 	paths       int
+	lists       int
+	gets        int
 }
 
 type DockerExternalVolumeSuite struct {
@@ -64,6 +66,12 @@ func (s *DockerExternalVolumeSuite) SetUpSuite(c *check.C) {
 		Err        string `json:",omitempty"`
 	}
 
+	type vol struct {
+		Name       string
+		Mountpoint string
+	}
+	var volList []vol
+
 	read := func(b io.ReadCloser) (pluginRequest, error) {
 		defer b.Close()
 		var pr pluginRequest
@@ -93,29 +101,61 @@ func (s *DockerExternalVolumeSuite) SetUpSuite(c *check.C) {
 
 	mux.HandleFunc("/VolumeDriver.Create", func(w http.ResponseWriter, r *http.Request) {
 		s.ec.creations++
-
-		_, err := read(r.Body)
-		if err != nil {
-			send(w, err)
-			return
-		}
-
-		send(w, nil)
-	})
-
-	mux.HandleFunc("/VolumeDriver.Remove", func(w http.ResponseWriter, r *http.Request) {
-		s.ec.removals++
-
 		pr, err := read(r.Body)
 		if err != nil {
 			send(w, err)
 			return
 		}
+		volList = append(volList, vol{Name: pr.Name})
+		send(w, nil)
+	})
+
+	mux.HandleFunc("/VolumeDriver.List", func(w http.ResponseWriter, r *http.Request) {
+		s.ec.lists++
+		send(w, map[string][]vol{"Volumes": volList})
+	})
+
+	mux.HandleFunc("/VolumeDriver.Get", func(w http.ResponseWriter, r *http.Request) {
+		s.ec.gets++
+		pr, err := read(r.Body)
+		if err != nil {
+			send(w, err)
+			return
+		}
+
+		for _, v := range volList {
+			if v.Name == pr.Name {
+				v.Mountpoint = hostVolumePath(pr.Name)
+				send(w, map[string]vol{"Volume": v})
+				return
+			}
+		}
+		send(w, `{"Err": "no such volume"}`)
+	})
+
+	mux.HandleFunc("/VolumeDriver.Remove", func(w http.ResponseWriter, r *http.Request) {
+		s.ec.removals++
+		pr, err := read(r.Body)
+		if err != nil {
+			send(w, err)
+			return
+		}
+
 		if err := os.RemoveAll(hostVolumePath(pr.Name)); err != nil {
 			send(w, &pluginResp{Err: err.Error()})
 			return
 		}
 
+		for i, v := range volList {
+			if v.Name == pr.Name {
+				if err := os.RemoveAll(hostVolumePath(v.Name)); err != nil {
+					send(w, fmt.Sprintf(`{"Err": "%v"}`, err))
+					return
+				}
+				volList = append(volList[:i], volList[i+1:]...)
+				break
+			}
+		}
 		send(w, nil)
 	})
 
@@ -128,8 +168,7 @@ func (s *DockerExternalVolumeSuite) SetUpSuite(c *check.C) {
 			return
 		}
 		p := hostVolumePath(pr.Name)
-
-		fmt.Fprintln(w, fmt.Sprintf("{\"Mountpoint\": \"%s\"}", p))
+		send(w, &pluginResp{Mountpoint: p})
 	})
 
 	mux.HandleFunc("/VolumeDriver.Mount", func(w http.ResponseWriter, r *http.Request) {
@@ -164,7 +203,7 @@ func (s *DockerExternalVolumeSuite) SetUpSuite(c *check.C) {
 			return
 		}
 
-		fmt.Fprintln(w, nil)
+		send(w, nil)
 	})
 
 	err := os.MkdirAll("/etc/docker/plugins", 0755)
@@ -287,8 +326,8 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverNamedCheckBindLocalV
 // Make sure a request to use a down driver doesn't block other requests
 func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverLookupNotBlocked(c *check.C) {
 	specPath := "/etc/docker/plugins/down-driver.spec"
-	err := ioutil.WriteFile("/etc/docker/plugins/down-driver.spec", []byte("tcp://127.0.0.7:9999"), 0644)
-	c.Assert(err, checker.IsNil)
+	err := ioutil.WriteFile(specPath, []byte("tcp://127.0.0.7:9999"), 0644)
+	c.Assert(err, check.IsNil)
 	defer os.RemoveAll(specPath)
 
 	chCmd1 := make(chan struct{})
@@ -316,10 +355,11 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverLookupNotBlocked(c *
 	case err := <-chCmd2:
 		c.Assert(err, checker.IsNil)
 	case <-time.After(5 * time.Second):
-		c.Fatal("volume creates are blocked by previous create requests when previous driver is down")
 		cmd2.Process.Kill()
+		c.Fatal("volume creates are blocked by previous create requests when previous driver is down")
 	}
 }
+
 func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverRetryNotImmediatelyExists(c *check.C) {
 	err := s.d.StartWithBusybox()
 	c.Assert(err, checker.IsNil)
@@ -370,4 +410,25 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverBindExternalVolume(c
 	c.Assert(len(mounts), checker.Equals, 1, check.Commentf(out))
 	c.Assert(mounts[0].Name, checker.Equals, "foo")
 	c.Assert(mounts[0].Driver, checker.Equals, "test-external-volume-driver")
+}
+
+func (s *DockerExternalVolumeSuite) TestStartExternalVolumeDriverList(c *check.C) {
+	dockerCmd(c, "volume", "create", "-d", "test-external-volume-driver", "--name", "abc")
+	out, _ := dockerCmd(c, "volume", "ls")
+	ls := strings.Split(strings.TrimSpace(out), "\n")
+	c.Assert(len(ls), check.Equals, 2, check.Commentf("\n%s", out))
+
+	vol := strings.Fields(ls[len(ls)-1])
+	c.Assert(len(vol), check.Equals, 2, check.Commentf("%v", vol))
+	c.Assert(vol[0], check.Equals, "test-external-volume-driver")
+	c.Assert(vol[1], check.Equals, "abc")
+
+	c.Assert(s.ec.lists, check.Equals, 1)
+}
+
+func (s *DockerExternalVolumeSuite) TestStartExternalVolumeDriverGet(c *check.C) {
+	out, _, err := dockerCmdWithError("volume", "inspect", "dummy")
+	c.Assert(err, check.NotNil, check.Commentf(out))
+	c.Assert(s.ec.gets, check.Equals, 1)
+	c.Assert(out, checker.Contains, "No such volume")
 }

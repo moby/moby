@@ -15,6 +15,8 @@ import (
 
 var drivers = &driverExtpoint{extensions: make(map[string]volume.Driver)}
 
+const extName = "VolumeDriver"
+
 // NewVolumeDriver returns a driver has the given name mapped on the given client.
 func NewVolumeDriver(name string, c client) volume.Driver {
 	proxy := &volumeDriverProxy{c}
@@ -22,6 +24,7 @@ func NewVolumeDriver(name string, c client) volume.Driver {
 }
 
 type opts map[string]string
+type list []*proxyVolume
 
 // volumeDriver defines the available functions that volume plugins must implement.
 // This interface is only defined to generate the proxy objects.
@@ -37,6 +40,10 @@ type volumeDriver interface {
 	Mount(name string) (mountpoint string, err error)
 	// Unmount the given volume
 	Unmount(name string) (err error)
+	// List lists all the volumes known to the driver
+	List() (volumes list, err error)
+	// Get retreives the volume with the requested name
+	Get(name string) (volume *proxyVolume, err error)
 }
 
 type driverExtpoint struct {
@@ -82,7 +89,7 @@ func Lookup(name string) (volume.Driver, error) {
 	if ok {
 		return ext, nil
 	}
-	pl, err := plugins.Get(name, "VolumeDriver")
+	pl, err := plugins.Get(name, extName)
 	if err != nil {
 		return nil, fmt.Errorf("Error looking up volume plugin %s: %v", name, err)
 	}
@@ -115,4 +122,31 @@ func GetDriverList() []string {
 		driverList = append(driverList, driverName)
 	}
 	return driverList
+}
+
+// GetAllDrivers lists all the registered drivers
+func GetAllDrivers() ([]volume.Driver, error) {
+	plugins, err := plugins.GetAll(extName)
+	if err != nil {
+		return nil, err
+	}
+	var ds []volume.Driver
+
+	drivers.Lock()
+	defer drivers.Unlock()
+
+	for _, d := range drivers.extensions {
+		ds = append(ds, d)
+	}
+
+	for _, p := range plugins {
+		ext, ok := drivers.extensions[p.Name]
+		if ok {
+			continue
+		}
+		ext = NewVolumeDriver(p.Name, p.Client)
+		drivers.extensions[p.Name] = ext
+		ds = append(ds, ext)
+	}
+	return ds, nil
 }

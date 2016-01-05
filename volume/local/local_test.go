@@ -43,7 +43,7 @@ func TestRemove(t *testing.T) {
 		t.Fatal("volume dir not removed")
 	}
 
-	if len(r.List()) != 0 {
+	if l, _ := r.List(); len(l) != 0 {
 		t.Fatal("expected there to be no volumes")
 	}
 }
