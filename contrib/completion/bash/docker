@@ -687,6 +687,7 @@ _docker_daemon() {
 		--authz-plugin
 		--bip
 		--bridge -b
+		--cgroup-parent
 		--cluster-advertise
 		--cluster-store
 		--cluster-store-opt
