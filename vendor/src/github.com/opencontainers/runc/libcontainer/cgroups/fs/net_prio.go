@@ -28,7 +28,7 @@ func (s *NetPrioGroup) Apply(d *cgroupData) error {
 }
 
 func (s *NetPrioGroup) Set(path string, cgroup *configs.Cgroup) error {
-	for _, prioMap := range cgroup.NetPrioIfpriomap {
+	for _, prioMap := range cgroup.Resources.NetPrioIfpriomap {
 		if err := writeFile(path, "net_prio.ifpriomap", prioMap.CgroupString()); err != nil {
 			return err
 		}
