@@ -2797,8 +2797,9 @@ Content-Type: application/json
 
 Status Codes:
 
-- **201** - no error
+- **200** - no error
 - **404** - network or container is not found
+- **500** - Internal Server Error
 
 JSON Parameters:
 
@@ -2827,8 +2828,9 @@ Content-Type: application/json
 
 Status Codes:
 
-- **201** - no error
+- **200** - no error
 - **404** - network or container not found
+- **500** - Internal Server Error
 
 JSON Parameters:
 
@@ -2846,11 +2848,11 @@ Instruct the driver to remove the network (`id`).
 
 **Example response**:
 
-    HTTP/1.1 204 No Content
+    HTTP/1.1 200 OK
 
 Status Codes
 
--   **204** - no error
+-   **200** - no error
 -   **404** - no such network
 -   **500** - server error
 
