@@ -11,7 +11,6 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
-	"github.com/docker/go-units"
 )
 
 var headerRegexp = regexp.MustCompile(`\ADocker/.+\s\((.+)\)\z`)
@@ -73,8 +72,8 @@ func imageBuildOptionsToQuery(options types.ImageBuildOptions) (url.Values, erro
 		query.Set("pull", "1")
 	}
 
-	if !container.IsolationLevel.IsDefault(container.IsolationLevel(options.Isolation)) {
-		query.Set("isolation", options.Isolation)
+	if !container.IsolationLevel.IsDefault(options.IsolationLevel) {
+		query.Set("isolation", string(options.IsolationLevel))
 	}
 
 	query.Set("cpusetcpus", options.CPUSetCPUs)
@@ -85,15 +84,7 @@ func imageBuildOptionsToQuery(options types.ImageBuildOptions) (url.Values, erro
 	query.Set("memory", strconv.FormatInt(options.Memory, 10))
 	query.Set("memswap", strconv.FormatInt(options.MemorySwap, 10))
 	query.Set("cgroupparent", options.CgroupParent)
-
-	if options.ShmSize != "" {
-		parsedShmSize, err := units.RAMInBytes(options.ShmSize)
-		if err != nil {
-			return query, err
-		}
-		query.Set("shmsize", strconv.FormatInt(parsedShmSize, 10))
-	}
-
+	query.Set("shmsize", strconv.FormatInt(options.ShmSize, 10))
 	query.Set("dockerfile", options.Dockerfile)
 
 	ulimitsJSON, err := json.Marshal(options.Ulimits)
@@ -102,8 +93,7 @@ func imageBuildOptionsToQuery(options types.ImageBuildOptions) (url.Values, erro
 	}
 	query.Set("ulimits", string(ulimitsJSON))
 
-	buildArgs := convertKVStringsToMap(options.BuildArgs)
-	buildArgsJSON, err := json.Marshal(buildArgs)
+	buildArgsJSON, err := json.Marshal(options.BuildArgs)
 	if err != nil {
 		return query, err
 	}

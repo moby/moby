@@ -535,8 +535,8 @@ func TestParseModes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if *hostconfig.ShmSize != 134217728 {
-		t.Fatalf("Expected a valid ShmSize, got %d", *hostconfig.ShmSize)
+	if hostconfig.ShmSize != 134217728 {
+		t.Fatalf("Expected a valid ShmSize, got %d", hostconfig.ShmSize)
 	}
 }
 
