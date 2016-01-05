@@ -1550,6 +1550,11 @@ var defaultSeccompProfile = &configs.Seccomp{
 			Args:   []*configs.Arg{},
 		},
 		{
+			Name:   "waitpid",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
 			Name:   "write",
 			Action: configs.Allow,
 			Args:   []*configs.Arg{},
