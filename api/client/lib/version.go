@@ -3,7 +3,7 @@ package lib
 import (
 	"encoding/json"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/engine-api/types"
 )
 
 // ServerVersion returns information of the docker client and server host.

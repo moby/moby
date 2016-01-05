@@ -5,8 +5,8 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/runconfig"
+	"github.com/docker/engine-api/types/filters"
 	"github.com/docker/libnetwork"
 )
 

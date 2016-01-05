@@ -3,9 +3,9 @@ package daemon
 import (
 	"testing"
 
-	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/events"
+	containertypes "github.com/docker/engine-api/types/container"
 )
 
 func TestLogContainerCopyLabels(t *testing.T) {

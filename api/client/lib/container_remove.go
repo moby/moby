@@ -3,7 +3,7 @@ package lib
 import (
 	"net/url"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/engine-api/types"
 )
 
 // ContainerRemove kills and removes a container from the docker host.
