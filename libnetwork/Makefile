@@ -8,13 +8,13 @@ ciargs = -e "COVERALLS_TOKEN=$$COVERALLS_TOKEN" -e "INSIDECONTAINER=-incontainer
 cidocker = docker run ${dockerargs} ${ciargs} ${container_env} ${build_image}
 CROSS_PLATFORMS = linux/amd64 linux/386 linux/arm windows/amd64 windows/386
 
-${build_image}.created:
-	docker build -f Dockerfile.build -t ${build_image} .
-	touch ${build_image}.created
-
 all: ${build_image}.created build check integration-tests clean
 
 all-local: build-local check-local integration-tests-local clean
+
+${build_image}.created:
+	docker build -f Dockerfile.build -t ${build_image} .
+	touch ${build_image}.created
 
 build: ${build_image}.created
 	@echo "Building code... "
@@ -34,9 +34,9 @@ clean:
 cross: ${build_image}.created
 	@mkdir -p "bin"
 	@for platform in ${CROSS_PLATFORMS}; do \
-	        EXTRA_ARGS="-e GOOS=$${platform%/*} -e GOARCH=$${platform##*/}" ; \
+		EXTRA_ARGS="-e GOOS=$${platform%/*} -e GOARCH=$${platform##*/}" ; \
 		echo "$${platform}..." ; \
-	        ${docker} make cross-local ; \
+		${docker} make cross-local ; \
 	done
 
 cross-local:
@@ -91,9 +91,9 @@ coveralls:
 circle-ci-cross: ${build_image}.created
 	@mkdir -p "bin"
 	@for platform in ${CROSS_PLATFORMS}; do \
-	        EXTRA_ARGS="-e GOOS=$${platform%/*} -e GOARCH=$${platform##*/}" ; \
+		EXTRA_ARGS="-e GOOS=$${platform%/*} -e GOARCH=$${platform##*/}" ; \
 		echo "$${platform}..." ; \
-	        ${cidocker} make cross-local ; \
+		${cidocker} make cross-local ; \
 	done
 
 circle-ci-check: ${build_image}.created
