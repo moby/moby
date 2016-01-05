@@ -111,6 +111,7 @@ func (p *v2Puller) pullV2Repository(ctx context.Context, ref reference.Named) (e
 
 type v2LayerDescriptor struct {
 	digest         digest.Digest
+	repoInfo       *registry.RepositoryInfo
 	repo           distribution.Repository
 	blobSumService *metadata.BlobSumService
 }
@@ -124,7 +125,7 @@ func (ld *v2LayerDescriptor) ID() string {
 }
 
 func (ld *v2LayerDescriptor) DiffID() (layer.DiffID, error) {
-	return ld.blobSumService.GetDiffID(ld.digest)
+	return ld.blobSumService.GetDiffID(metadata.BlobSum{Digest: ld.digest, SourceRepository: ld.repoInfo.FullName()})
 }
 
 func (ld *v2LayerDescriptor) Download(ctx context.Context, progressOutput progress.Output) (io.ReadCloser, int64, error) {
@@ -196,7 +197,7 @@ func (ld *v2LayerDescriptor) Download(ctx context.Context, progressOutput progre
 
 func (ld *v2LayerDescriptor) Registered(diffID layer.DiffID) {
 	// Cache mapping from this layer's DiffID to the blobsum
-	ld.blobSumService.Add(diffID, ld.digest)
+	ld.blobSumService.Add(diffID, metadata.BlobSum{Digest: ld.digest, SourceRepository: ld.repoInfo.FullName()})
 }
 
 func (p *v2Puller) pullV2Tag(ctx context.Context, ref reference.Named) (tagUpdated bool, err error) {
@@ -334,6 +335,7 @@ func (p *v2Puller) pullSchema1(ctx context.Context, ref reference.Named, unverif
 
 		layerDescriptor := &v2LayerDescriptor{
 			digest:         blobSum,
+			repoInfo:       p.repoInfo,
 			repo:           p.repo,
 			blobSumService: p.blobSumService,
 		}
@@ -400,6 +402,7 @@ func (p *v2Puller) pullSchema2(ctx context.Context, ref reference.Named, mfst *s
 		layerDescriptor := &v2LayerDescriptor{
 			digest:         d.Digest,
 			repo:           p.repo,
+			repoInfo:       p.repoInfo,
 			blobSumService: p.blobSumService,
 		}
 

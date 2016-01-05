@@ -1,7 +1,9 @@
 package metadata
 
 import (
+	"encoding/hex"
 	"io/ioutil"
+	"math/rand"
 	"os"
 	"reflect"
 	"testing"
@@ -23,33 +25,32 @@ func TestBlobSumService(t *testing.T) {
 	}
 	blobSumService := NewBlobSumService(metadataStore)
 
+	tooManyBlobSums := make([]BlobSum, 100)
+	for i := range tooManyBlobSums {
+		randDigest := randomDigest()
+		tooManyBlobSums[i] = BlobSum{Digest: randDigest}
+	}
+
 	testVectors := []struct {
 		diffID   layer.DiffID
-		blobsums []digest.Digest
+		blobsums []BlobSum
 	}{
 		{
 			diffID: layer.DiffID("sha256:a3ed95caeb02ffe68cdd9fd84406680ae93d633cb16422d00e8a7c22955b46d4"),
-			blobsums: []digest.Digest{
-				digest.Digest("sha256:f0cd5ca10b07f35512fc2f1cbf9a6cefbdb5cba70ac6b0c9e5988f4497f71937"),
+			blobsums: []BlobSum{
+				{Digest: digest.Digest("sha256:f0cd5ca10b07f35512fc2f1cbf9a6cefbdb5cba70ac6b0c9e5988f4497f71937")},
 			},
 		},
 		{
 			diffID: layer.DiffID("sha256:86e0e091d0da6bde2456dbb48306f3956bbeb2eae1b5b9a43045843f69fe4aaa"),
-			blobsums: []digest.Digest{
-				digest.Digest("sha256:f0cd5ca10b07f35512fc2f1cbf9a6cefbdb5cba70ac6b0c9e5988f4497f71937"),
-				digest.Digest("sha256:9e3447ca24cb96d86ebd5960cb34d1299b07e0a0e03801d90b9969a2c187dd6e"),
+			blobsums: []BlobSum{
+				{Digest: digest.Digest("sha256:f0cd5ca10b07f35512fc2f1cbf9a6cefbdb5cba70ac6b0c9e5988f4497f71937")},
+				{Digest: digest.Digest("sha256:9e3447ca24cb96d86ebd5960cb34d1299b07e0a0e03801d90b9969a2c187dd6e")},
 			},
 		},
 		{
-			diffID: layer.DiffID("sha256:03f4658f8b782e12230c1783426bd3bacce651ce582a4ffb6fbbfa2079428ecb"),
-			blobsums: []digest.Digest{
-				digest.Digest("sha256:f0cd5ca10b07f35512fc2f1cbf9a6cefbdb5cba70ac6b0c9e5988f4497f71937"),
-				digest.Digest("sha256:9e3447ca24cb96d86ebd5960cb34d1299b07e0a0e03801d90b9969a2c187dd6e"),
-				digest.Digest("sha256:cbbf2f9a99b47fc460d422812b6a5adff7dfee951d8fa2e4a98caa0382cfbdbf"),
-				digest.Digest("sha256:8902a7ca89aabbb868835260912159026637634090dd8899eee969523252236e"),
-				digest.Digest("sha256:c84364306344ccc48532c52ff5209236273525231dddaaab53262322352883aa"),
-				digest.Digest("sha256:aa7583bbc87532a8352bbb72520a821b3623523523a8352523a52352aaa888fe"),
-			},
+			diffID:   layer.DiffID("sha256:03f4658f8b782e12230c1783426bd3bacce651ce582a4ffb6fbbfa2079428ecb"),
+			blobsums: tooManyBlobSums,
 		},
 	}
 
@@ -70,8 +71,8 @@ func TestBlobSumService(t *testing.T) {
 			t.Fatalf("error calling Get: %v", err)
 		}
 		expectedBlobsums := len(vec.blobsums)
-		if expectedBlobsums > 5 {
-			expectedBlobsums = 5
+		if expectedBlobsums > 50 {
+			expectedBlobsums = 50
 		}
 		if !reflect.DeepEqual(blobsums, vec.blobsums[len(vec.blobsums)-expectedBlobsums:len(vec.blobsums)]) {
 			t.Fatal("Get returned incorrect layer ID")
@@ -85,7 +86,7 @@ func TestBlobSumService(t *testing.T) {
 	}
 
 	// Test GetDiffID on a nonexistent entry
-	_, err = blobSumService.GetDiffID(digest.Digest("sha256:82379823067823853223359023576437723560923756b03560378f4497753917"))
+	_, err = blobSumService.GetDiffID(BlobSum{Digest: digest.Digest("sha256:82379823067823853223359023576437723560923756b03560378f4497753917")})
 	if err == nil {
 		t.Fatal("expected error looking up nonexistent entry")
 	}
@@ -102,4 +103,13 @@ func TestBlobSumService(t *testing.T) {
 	if diffID != testVectors[1].diffID {
 		t.Fatal("GetDiffID returned incorrect diffID")
 	}
+}
+
+func randomDigest() digest.Digest {
+	b := [32]byte{}
+	for i := 0; i < len(b); i++ {
+		b[i] = byte(rand.Intn(256))
+	}
+	d := hex.EncodeToString(b[:])
+	return digest.Digest("sha256:" + d)
 }

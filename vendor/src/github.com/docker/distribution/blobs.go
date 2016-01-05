@@ -155,6 +155,10 @@ type BlobIngester interface {
 
 	// Resume attempts to resume a write to a blob, identified by an id.
 	Resume(ctx context.Context, id string) (BlobWriter, error)
+
+	// Mount adds a blob to this service from another source repository,
+	// identified by a digest.
+	Mount(ctx context.Context, sourceRepo string, dgst digest.Digest) (Descriptor, error)
 }
 
 // BlobWriter provides a handle for inserting data into a blob store.

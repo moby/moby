@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/docker/distribution"
@@ -499,6 +500,9 @@ type blobs struct {
 
 	statter distribution.BlobDescriptorService
 	distribution.BlobDeleter
+
+	cacheLock        sync.Mutex
+	cachedBlobUpload distribution.BlobWriter
 }
 
 func sanitizeLocation(location, base string) (string, error) {
@@ -573,7 +577,20 @@ func (bs *blobs) Put(ctx context.Context, mediaType string, p []byte) (distribut
 }
 
 func (bs *blobs) Create(ctx context.Context) (distribution.BlobWriter, error) {
+	bs.cacheLock.Lock()
+	if bs.cachedBlobUpload != nil {
+		upload := bs.cachedBlobUpload
+		bs.cachedBlobUpload = nil
+		bs.cacheLock.Unlock()
+
+		return upload, nil
+	}
+	bs.cacheLock.Unlock()
+
 	u, err := bs.ub.BuildBlobUploadURL(bs.name)
+	if err != nil {
+		return nil, err
+	}
 
 	resp, err := bs.client.Post(u, "", nil)
 	if err != nil {
@@ -602,6 +619,45 @@ func (bs *blobs) Create(ctx context.Context) (distribution.BlobWriter, error) {
 
 func (bs *blobs) Resume(ctx context.Context, id string) (distribution.BlobWriter, error) {
 	panic("not implemented")
+}
+
+func (bs *blobs) Mount(ctx context.Context, sourceRepo string, dgst digest.Digest) (distribution.Descriptor, error) {
+	u, err := bs.ub.BuildBlobUploadURL(bs.name, url.Values{"from": {sourceRepo}, "mount": {dgst.String()}})
+	if err != nil {
+		return distribution.Descriptor{}, err
+	}
+
+	resp, err := bs.client.Post(u, "", nil)
+	if err != nil {
+		return distribution.Descriptor{}, err
+	}
+	defer resp.Body.Close()
+
+	switch resp.StatusCode {
+	case http.StatusCreated:
+		return bs.Stat(ctx, dgst)
+	case http.StatusAccepted:
+		// Triggered a blob upload (legacy behavior), so cache the creation info
+		uuid := resp.Header.Get("Docker-Upload-UUID")
+		location, err := sanitizeLocation(resp.Header.Get("Location"), u)
+		if err != nil {
+			return distribution.Descriptor{}, err
+		}
+
+		bs.cacheLock.Lock()
+		bs.cachedBlobUpload = &httpBlobUpload{
+			statter:   bs.statter,
+			client:    bs.client,
+			uuid:      uuid,
+			startedAt: time.Now(),
+			location:  location,
+		}
+		bs.cacheLock.Unlock()
+
+		return distribution.Descriptor{}, HandleErrorResponse(resp)
+	default:
+		return distribution.Descriptor{}, HandleErrorResponse(resp)
+	}
 }
 
 func (bs *blobs) Delete(ctx context.Context, dgst digest.Digest) error {
