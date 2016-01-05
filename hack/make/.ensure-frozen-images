@@ -97,5 +97,6 @@ case "$DOCKER_ENGINE_OSARCH" in
 		;;
 	*)
 		docker tag hello-world:latest hello-world:frozen
+		docker rmi hello-world:latest
 		;;
 esac
