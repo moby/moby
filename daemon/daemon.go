@@ -416,7 +416,7 @@ func (daemon *Daemon) restore() error {
 
 func (daemon *Daemon) mergeAndVerifyConfig(config *containertypes.Config, img *image.Image) error {
 	if img != nil && img.Config != nil {
-		if err := runconfig.Merge(config, img.Config); err != nil {
+		if err := merge(config, img.Config); err != nil {
 			return err
 		}
 	}
