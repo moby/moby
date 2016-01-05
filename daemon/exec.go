@@ -267,6 +267,10 @@ func (d *Daemon) containerExec(container *container.Container, ec *exec.Config) 
 
 	callback := func(processConfig *execdriver.ProcessConfig, pid int, chOOM <-chan struct{}) error {
 		if processConfig.Tty {
+			ec.Lock()
+			ec.PID = pid
+			ec.Unlock()
+
 			// The callback is called after the process Start()
 			// so we are in the parent process. In TTY mode, stdin/out/err is the PtySlave
 			// which we close here.
