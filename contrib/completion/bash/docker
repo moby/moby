@@ -340,6 +340,10 @@ __docker_complete_capabilities() {
 	" -- "$cur" ) )
 }
 
+__docker_complete_isolation() {
+	COMPREPLY=( $( compgen -W "default hyperv process" -- "$cur" ) )
+}
+
 __docker_complete_log_drivers() {
 	COMPREPLY=( $( compgen -W "
 		awslogs
@@ -532,6 +536,7 @@ _docker_build() {
 		--cpu-period
 		--cpu-quota
 		--file -f
+		--isolation
 		--memory -m
 		--memory-swap
 		--tag -t
@@ -558,6 +563,10 @@ _docker_build() {
 			;;
 		--file|-f)
 			_filedir
+			return
+			;;
+		--isolation)
+			__docker_complete_isolation
 			return
 			;;
 		--tag|-t)
@@ -1455,6 +1464,7 @@ _docker_run() {
 		--group-add
 		--hostname -h
 		--ipc
+		--isolation
 		--kernel-memory
 		--label-file
 		--label -l
@@ -1558,6 +1568,10 @@ _docker_run() {
 					fi
 					;;
 			esac
+			return
+			;;
+		--isolation)
+			__docker_complete_isolation
 			return
 			;;
 		--link)
