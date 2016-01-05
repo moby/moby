@@ -18,6 +18,14 @@ import (
 func (daemon *Daemon) setupMounts(container *container.Container) ([]execdriver.Mount, error) {
 	var mnts []execdriver.Mount
 	for _, mount := range container.MountPoints { // type is volume.MountPoint
+		// Lazy initialize m.Volume if needed.  This happens after a daemon restart
+		if len(m.Driver) > 0 && m.Volume == nil {
+			v, err := daemon.createVolume(m.Name, m.Driver, nil)
+			if err != nil {
+				return nil, err
+			}
+			m.Volume = v
+		}
 		// If there is no source, take it from the volume path
 		s := mount.Source
 		if s == "" && mount.Volume != nil {
