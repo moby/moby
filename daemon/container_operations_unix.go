@@ -828,7 +828,7 @@ func (daemon *Daemon) getIpcContainer(container *container.Container) (*containe
 		return nil, err
 	}
 	if !c.IsRunning() {
-		return nil, derr.ErrorCodeIPCRunning
+		return nil, derr.ErrorCodeIPCRunning.WithArgs(containerID)
 	}
 	return c, nil
 }
