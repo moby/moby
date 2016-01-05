@@ -124,3 +124,24 @@ func TestCreate(t *testing.T) {
 		}
 	}
 }
+
+func TestValidateName(t *testing.T) {
+	r := &Root{}
+	names := map[string]bool{
+		"/testvol":    false,
+		"thing.d":     true,
+		"hello-world": true,
+		"./hello":     false,
+		".hello":      false,
+	}
+
+	for vol, expected := range names {
+		err := r.validateName(vol)
+		if expected && err != nil {
+			t.Fatalf("expected %s to be valid got %v", vol, err)
+		}
+		if !expected && err == nil {
+			t.Fatalf("expected %s to be invalid", vol)
+		}
+	}
+}
