@@ -216,9 +216,9 @@ func TestMigrateImages(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	expectedBlobsums := []digest.Digest{
-		"sha256:55dc925c23d1ed82551fd018c27ac3ee731377b6bad3963a2a4e76e753d70e57",
-		"sha256:a3ed95caeb02ffe68cdd9fd84406680ae93d633cb16422d00e8a7c22955b46d4",
+	expectedBlobsums := []metadata.BlobSum{
+		{Digest: digest.Digest("sha256:55dc925c23d1ed82551fd018c27ac3ee731377b6bad3963a2a4e76e753d70e57")},
+		{Digest: digest.Digest("sha256:a3ed95caeb02ffe68cdd9fd84406680ae93d633cb16422d00e8a7c22955b46d4")},
 	}
 
 	if !reflect.DeepEqual(expectedBlobsums, blobsums) {

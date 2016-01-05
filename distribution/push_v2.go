@@ -131,6 +131,7 @@ func (p *v2Pusher) pushV2Tag(ctx context.Context, ref reference.NamedTagged, ima
 
 	descriptorTemplate := v2PushDescriptor{
 		blobSumService: p.blobSumService,
+		repoInfo:       p.repoInfo,
 		repo:           p.repo,
 		pushState:      &p.pushState,
 	}
@@ -211,6 +212,7 @@ func manifestFromBuilder(ctx context.Context, builder distribution.ManifestBuild
 type v2PushDescriptor struct {
 	layer          layer.Layer
 	blobSumService *metadata.BlobSumService
+	repoInfo       reference.Named
 	repo           distribution.Repository
 	pushState      *pushState
 }
@@ -243,7 +245,7 @@ func (pd *v2PushDescriptor) Upload(ctx context.Context, progressOutput progress.
 	// Do we have any blobsums associated with this layer's DiffID?
 	possibleBlobsums, err := pd.blobSumService.GetBlobSums(diffID)
 	if err == nil {
-		descriptor, exists, err := blobSumAlreadyExists(ctx, possibleBlobsums, pd.repo, pd.pushState)
+		descriptor, exists, err := blobSumAlreadyExists(ctx, possibleBlobsums, pd.repoInfo, pd.repo, pd.pushState)
 		if err != nil {
 			progress.Update(progressOutput, pd.ID(), "Image push failed")
 			return retryOnError(err)
@@ -262,6 +264,37 @@ func (pd *v2PushDescriptor) Upload(ctx context.Context, progressOutput progress.
 	// if digest was empty or not saved, or if blob does not exist on the remote repository,
 	// then push the blob.
 	bs := pd.repo.Blobs(ctx)
+
+	// Attempt to find another repository in the same registry to mount the layer from to avoid an unnecessary upload
+	for _, blobsum := range possibleBlobsums {
+		sourceRepo, err := reference.ParseNamed(blobsum.SourceRepository)
+		if err != nil {
+			continue
+		}
+		if pd.repoInfo.Hostname() == sourceRepo.Hostname() {
+			logrus.Debugf("attempting to mount layer %s (%s) from %s", diffID, blobsum.Digest, sourceRepo.FullName())
+
+			desc, err := bs.Mount(ctx, sourceRepo.RemoteName(), blobsum.Digest)
+			if err == nil {
+				progress.Updatef(progressOutput, pd.ID(), "Mounted from %s", sourceRepo.RemoteName())
+
+				pd.pushState.Lock()
+				pd.pushState.confirmedV2 = true
+				pd.pushState.remoteLayers[diffID] = desc
+				pd.pushState.Unlock()
+
+				// Cache mapping from this layer's DiffID to the blobsum
+				if err := pd.blobSumService.Add(diffID, metadata.BlobSum{Digest: blobsum.Digest, SourceRepository: pd.repoInfo.FullName()}); err != nil {
+					return xfer.DoNotRetry{Err: err}
+				}
+
+				return nil
+			}
+			// Unable to mount layer from this repository, so this source mapping is no longer valid
+			logrus.Debugf("unassociating layer %s (%s) with %s", diffID, blobsum.Digest, sourceRepo.FullName())
+			pd.blobSumService.Remove(blobsum)
+		}
+	}
 
 	// Send the layer
 	layerUpload, err := bs.Create(ctx)
@@ -300,7 +333,7 @@ func (pd *v2PushDescriptor) Upload(ctx context.Context, progressOutput progress.
 	progress.Update(progressOutput, pd.ID(), "Pushed")
 
 	// Cache mapping from this layer's DiffID to the blobsum
-	if err := pd.blobSumService.Add(diffID, pushDigest); err != nil {
+	if err := pd.blobSumService.Add(diffID, metadata.BlobSum{Digest: pushDigest, SourceRepository: pd.repoInfo.FullName()}); err != nil {
 		return xfer.DoNotRetry{Err: err}
 	}
 
@@ -332,9 +365,13 @@ func (pd *v2PushDescriptor) Descriptor() distribution.Descriptor {
 // blobSumAlreadyExists checks if the registry already know about any of the
 // blobsums passed in the "blobsums" slice. If it finds one that the registry
 // knows about, it returns the known digest and "true".
-func blobSumAlreadyExists(ctx context.Context, blobsums []digest.Digest, repo distribution.Repository, pushState *pushState) (distribution.Descriptor, bool, error) {
-	for _, dgst := range blobsums {
-		descriptor, err := repo.Blobs(ctx).Stat(ctx, dgst)
+func blobSumAlreadyExists(ctx context.Context, blobsums []metadata.BlobSum, repoInfo reference.Named, repo distribution.Repository, pushState *pushState) (distribution.Descriptor, bool, error) {
+	for _, blobSum := range blobsums {
+		// Only check blobsums that are known to this repository or have an unknown source
+		if blobSum.SourceRepository != "" && blobSum.SourceRepository != repoInfo.FullName() {
+			continue
+		}
+		descriptor, err := repo.Blobs(ctx).Stat(ctx, blobSum.Digest)
 		switch err {
 		case nil:
 			descriptor.MediaType = schema2.MediaTypeLayer

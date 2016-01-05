@@ -152,7 +152,7 @@ RUN set -x \
 # both. This allows integration-cli tests to cover push/pull with both schema1
 # and schema2 manifests.
 ENV REGISTRY_COMMIT_SCHEMA1 ec87e9b6971d831f0eff752ddb54fb64693e51cd
-ENV REGISTRY_COMMIT a7ae88da459b98b481a245e5b1750134724ac67d
+ENV REGISTRY_COMMIT 93d9070c8bb28414de9ec96fd38c89614acd8435
 RUN set -x \
 	&& export GOPATH="$(mktemp -d)" \
 	&& git clone https://github.com/docker/distribution.git "$GOPATH/src/github.com/docker/distribution" \

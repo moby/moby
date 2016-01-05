@@ -477,7 +477,7 @@ func migrateImage(id, root string, ls graphIDRegistrar, is image.Store, ms metad
 		dgst, err := digest.ParseDigest(string(checksum))
 		if err == nil {
 			blobSumService := metadata.NewBlobSumService(ms)
-			blobSumService.Add(layer.DiffID(), dgst)
+			blobSumService.Add(layer.DiffID(), metadata.BlobSum{Digest: dgst})
 		}
 	}
 	_, err = ls.Release(layer)
