@@ -123,7 +123,7 @@ func Init(root string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 	// Create the root aufs driver dir and return
 	// if it already exists
 	// If not populate the dir structure
-	if err := idtools.MkdirAllAs(root, 0755, rootUID, rootGID); err != nil {
+	if err := idtools.MkdirAllAs(root, 0700, rootUID, rootGID); err != nil {
 		if os.IsExist(err) {
 			return a, nil
 		}
@@ -136,7 +136,7 @@ func Init(root string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 
 	// Populate the dir structure
 	for _, p := range paths {
-		if err := idtools.MkdirAllAs(path.Join(root, p), 0755, rootUID, rootGID); err != nil {
+		if err := idtools.MkdirAllAs(path.Join(root, p), 0700, rootUID, rootGID); err != nil {
 			return nil, err
 		}
 	}
