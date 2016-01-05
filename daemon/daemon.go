@@ -1013,8 +1013,8 @@ func (daemon *Daemon) changes(container *container.Container) ([]archive.Change,
 	return container.RWLayer.Changes()
 }
 
-// TagImage creates a tag in the repository reponame, pointing to the image named
-// imageName.
+// TagImage creates a tag in the repository and with the name specified by newTag,
+// pointing to the image named imageName (alternatively, imageName can also be an image ID).
 func (daemon *Daemon) TagImage(newTag reference.Named, imageName string) error {
 	imageID, err := daemon.GetImageID(imageName)
 	if err != nil {

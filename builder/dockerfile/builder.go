@@ -173,11 +173,15 @@ func (b *Builder) Cancel() {
 	})
 }
 
-// BuildFromConfig will do build directly from parameter 'changes', which comes
-// from Dockerfile entries, it will:
-// - call parse.Parse() to get AST root from Dockerfile entries
-// - do build by calling builder.dispatch() to call all entries' handling routines
-// TODO: remove?
+// BuildFromConfig will do build directly from parameter 'changes',
+// which is treated like it is coming from a Dockerfile. It will:
+// - Call parse.Parse() to get an AST root for the concatenated Dockerfile entries.
+// - Do build by calling builder.dispatch() to call all entries' handling routines
+//
+// BuildFromConfig is used by the /commit endpoint, with the changes
+// coming from the query parameter of the same name.
+//
+// TODO: Remove?
 func BuildFromConfig(config *container.Config, changes []string) (*container.Config, error) {
 	ast, err := parser.Parse(bytes.NewBufferString(strings.Join(changes, "\n")))
 	if err != nil {
