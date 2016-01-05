@@ -13,11 +13,8 @@ import (
 	"github.com/docker/docker/pkg/stdcopy"
 )
 
-// ContainerAttachWithLogs attaches to logs according to the config passed in. See ContainerAttachWithLogsConfig.
-func (daemon *Daemon) ContainerAttachWithLogs(prefixOrName string, c *backend.ContainerAttachWithLogsConfig) error {
-	if c.Hijacker == nil {
-		return derr.ErrorCodeNoHijackConnection.WithArgs(prefixOrName)
-	}
+// ContainerAttach attaches to logs according to the config passed in. See ContainerAttachConfig.
+func (daemon *Daemon) ContainerAttach(prefixOrName string, c *backend.ContainerAttachConfig) error {
 	container, err := daemon.GetContainer(prefixOrName)
 	if err != nil {
 		return derr.ErrorCodeNoSuchContainer.WithArgs(prefixOrName)
@@ -26,29 +23,15 @@ func (daemon *Daemon) ContainerAttachWithLogs(prefixOrName string, c *backend.Co
 		return derr.ErrorCodePausedContainer.WithArgs(prefixOrName)
 	}
 
-	conn, _, err := c.Hijacker.Hijack()
+	inStream, outStream, errStream, err := c.GetStreams()
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
-	// Flush the options to make sure the client sets the raw mode
-	conn.Write([]byte{})
-	inStream := conn.(io.ReadCloser)
-	outStream := conn.(io.Writer)
+	defer inStream.Close()
 
-	if c.Upgrade {
-		fmt.Fprintf(outStream, "HTTP/1.1 101 UPGRADED\r\nContent-Type: application/vnd.docker.raw-stream\r\nConnection: Upgrade\r\nUpgrade: tcp\r\n\r\n")
-	} else {
-		fmt.Fprintf(outStream, "HTTP/1.1 200 OK\r\nContent-Type: application/vnd.docker.raw-stream\r\n\r\n")
-	}
-
-	var errStream io.Writer
-
-	if !container.Config.Tty {
-		errStream = stdcopy.NewStdWriter(outStream, stdcopy.Stderr)
+	if !container.Config.Tty && c.MuxStreams {
+		errStream = stdcopy.NewStdWriter(errStream, stdcopy.Stderr)
 		outStream = stdcopy.NewStdWriter(outStream, stdcopy.Stdout)
-	} else {
-		errStream = outStream
 	}
 
 	var stdin io.ReadCloser
@@ -64,32 +47,22 @@ func (daemon *Daemon) ContainerAttachWithLogs(prefixOrName string, c *backend.Co
 		stderr = errStream
 	}
 
-	if err := daemon.attachWithLogs(container, stdin, stdout, stderr, c.Logs, c.Stream, c.DetachKeys); err != nil {
+	if err := daemon.containerAttach(container, stdin, stdout, stderr, c.Logs, c.Stream, c.DetachKeys); err != nil {
 		fmt.Fprintf(outStream, "Error attaching: %s\n", err)
 	}
 	return nil
 }
 
-// ContainerWsAttachWithLogs websocket connection
-func (daemon *Daemon) ContainerWsAttachWithLogs(prefixOrName string, c *backend.ContainerWsAttachWithLogsConfig) error {
+// ContainerAttachRaw attaches the provided streams to the container's stdio
+func (daemon *Daemon) ContainerAttachRaw(prefixOrName string, stdin io.ReadCloser, stdout, stderr io.Writer, stream bool) error {
 	container, err := daemon.GetContainer(prefixOrName)
 	if err != nil {
 		return err
 	}
-	return daemon.attachWithLogs(container, c.InStream, c.OutStream, c.ErrStream, c.Logs, c.Stream, c.DetachKeys)
+	return daemon.containerAttach(container, stdin, stdout, stderr, false, stream, nil)
 }
 
-// ContainerAttachOnBuild attaches streams to the container cID. If stream is true, it streams the output.
-func (daemon *Daemon) ContainerAttachOnBuild(cID string, stdin io.ReadCloser, stdout, stderr io.Writer, stream bool) error {
-	return daemon.ContainerWsAttachWithLogs(cID, &backend.ContainerWsAttachWithLogsConfig{
-		InStream:  stdin,
-		OutStream: stdout,
-		ErrStream: stderr,
-		Stream:    stream,
-	})
-}
-
-func (daemon *Daemon) attachWithLogs(container *container.Container, stdin io.ReadCloser, stdout, stderr io.Writer, logs, stream bool, keys []byte) error {
+func (daemon *Daemon) containerAttach(container *container.Container, stdin io.ReadCloser, stdout, stderr io.Writer, logs, stream bool, keys []byte) error {
 	if logs {
 		logDriver, err := daemon.getLogger(container)
 		if err != nil {

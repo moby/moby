@@ -106,7 +106,7 @@ type Backend interface {
 	// Pull tells Docker to pull image referenced by `name`.
 	PullOnBuild(name string, authConfigs map[string]types.AuthConfig, output io.Writer) (Image, error)
 	// ContainerAttach attaches to container.
-	ContainerAttachOnBuild(cID string, stdin io.ReadCloser, stdout, stderr io.Writer, stream bool) error
+	ContainerAttachRaw(cID string, stdin io.ReadCloser, stdout, stderr io.Writer, stream bool) error
 	// ContainerCreate creates a new Docker container and returns potential warnings
 	ContainerCreate(types.ContainerCreateConfig) (types.ContainerCreateResponse, error)
 	// ContainerRm removes a container specified by `id`.
