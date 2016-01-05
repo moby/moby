@@ -94,7 +94,13 @@ func TestLayerMigration(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	layer1a, err := ls.(*layerStore).RegisterByGraphID(graphID1, "", tf1)
+	newTarDataPath := filepath.Join(td, ".migration-tardata")
+	diffID, size, err := ls.(*layerStore).ChecksumForGraphID(graphID1, "", tf1, newTarDataPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	layer1a, err := ls.(*layerStore).RegisterByGraphID(graphID1, "", diffID, newTarDataPath, size)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -105,7 +111,6 @@ func TestLayerMigration(t *testing.T) {
 	}
 
 	assertReferences(t, layer1a, layer1b)
-
 	// Attempt register, should be same
 	layer2a, err := ls.Register(bytes.NewReader(tar2), layer1a.ChainID())
 	if err != nil {
@@ -124,12 +129,15 @@ func TestLayerMigration(t *testing.T) {
 	if err := writeTarSplitFile(tf2, tar2); err != nil {
 		t.Fatal(err)
 	}
-
-	layer2b, err := ls.(*layerStore).RegisterByGraphID(graphID2, layer1a.ChainID(), tf2)
+	diffID, size, err = ls.(*layerStore).ChecksumForGraphID(graphID2, graphID1, tf2, newTarDataPath)
 	if err != nil {
 		t.Fatal(err)
 	}
 
+	layer2b, err := ls.(*layerStore).RegisterByGraphID(graphID2, layer1a.ChainID(), diffID, tf2, size)
+	if err != nil {
+		t.Fatal(err)
+	}
 	assertReferences(t, layer2a, layer2b)
 
 	if metadata, err := ls.Release(layer2a); err != nil {
@@ -210,7 +218,13 @@ func TestLayerMigrationNoTarsplit(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	layer1a, err := ls.(*layerStore).RegisterByGraphID(graphID1, "", "")
+	newTarDataPath := filepath.Join(td, ".migration-tardata")
+	diffID, size, err := ls.(*layerStore).ChecksumForGraphID(graphID1, "", "", newTarDataPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	layer1a, err := ls.(*layerStore).RegisterByGraphID(graphID1, "", diffID, newTarDataPath, size)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -228,11 +242,15 @@ func TestLayerMigrationNoTarsplit(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	layer2b, err := ls.(*layerStore).RegisterByGraphID(graphID2, layer1a.ChainID(), "")
+	diffID, size, err = ls.(*layerStore).ChecksumForGraphID(graphID2, graphID1, "", newTarDataPath)
 	if err != nil {
 		t.Fatal(err)
 	}
 
+	layer2b, err := ls.(*layerStore).RegisterByGraphID(graphID2, layer1a.ChainID(), diffID, newTarDataPath, size)
+	if err != nil {
+		t.Fatal(err)
+	}
 	assertReferences(t, layer2a, layer2b)
 
 	if metadata, err := ls.Release(layer2a); err != nil {
