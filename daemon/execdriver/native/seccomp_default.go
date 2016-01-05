@@ -6,10 +6,36 @@ import (
 	"syscall"
 
 	"github.com/opencontainers/runc/libcontainer/configs"
+	libseccomp "github.com/seccomp/libseccomp-golang"
 )
+
+func arches() []string {
+	var native, err = libseccomp.GetNativeArch()
+	if err != nil {
+		return []string{}
+	}
+	var a = native.String()
+	switch a {
+	case "amd64":
+		return []string{"amd64", "x86"}
+	case "arm64":
+		return []string{"arm64", "arm"}
+	case "mips64":
+		return []string{"mips64", "mips64n32", "mips"}
+	case "mips64n32":
+		return []string{"mips64", "mips64n32", "mips"}
+	case "mipsel64":
+		return []string{"mipsel64", "mipsel64n32", "mipsel"}
+	case "mipsel64n32":
+		return []string{"mipsel64", "mipsel64n32", "mipsel"}
+	default:
+		return []string{a}
+	}
+}
 
 var defaultSeccompProfile = &configs.Seccomp{
 	DefaultAction: configs.Errno,
+	Architectures: arches(),
 	Syscalls: []*configs.Syscall{
 		{
 			Name:   "accept",
