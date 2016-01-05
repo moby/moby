@@ -59,8 +59,7 @@ type monitorBackend interface {
 
 // attachBackend includes function to implement to provide container attaching functionality.
 type attachBackend interface {
-	ContainerAttachWithLogs(name string, c *backend.ContainerAttachWithLogsConfig) error
-	ContainerWsAttachWithLogs(name string, c *backend.ContainerWsAttachWithLogsConfig) error
+	ContainerAttach(name string, c *backend.ContainerAttachConfig) error
 }
 
 // Backend is all the methods that need to be implemented to provide container specific functionality.
