@@ -122,15 +122,6 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		contextDir = tempDir
 	}
 
-	// Resolve the FROM lines in the Dockerfile to trusted digest references
-	// using Notary. On a successful build, we must tag the resolved digests
-	// to the original name specified in the Dockerfile.
-	newDockerfile, resolvedTags, err := rewriteDockerfileFrom(filepath.Join(contextDir, relDockerfile), cli.trustedReference)
-	if err != nil {
-		return fmt.Errorf("unable to process Dockerfile: %v", err)
-	}
-	defer newDockerfile.Close()
-
 	// And canonicalize dockerfile name to a platform-independent one
 	relDockerfile, err = archive.CanonicalTarNameForPath(relDockerfile)
 	if err != nil {
@@ -177,9 +168,22 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		return err
 	}
 
-	// Wrap the tar archive to replace the Dockerfile entry with the rewritten
-	// Dockerfile which uses trusted pulls.
-	context = replaceDockerfileTarWrapper(context, newDockerfile, relDockerfile)
+	var resolvedTags []*resolvedTag
+	if isTrusted() {
+		// Resolve the FROM lines in the Dockerfile to trusted digest references
+		// using Notary. On a successful build, we must tag the resolved digests
+		// to the original name specified in the Dockerfile.
+		var newDockerfile *trustedDockerfile
+		newDockerfile, resolvedTags, err = rewriteDockerfileFrom(filepath.Join(contextDir, relDockerfile), cli.trustedReference)
+		if err != nil {
+			return fmt.Errorf("unable to process Dockerfile: %v", err)
+		}
+		defer newDockerfile.Close()
+
+		// Wrap the tar archive to replace the Dockerfile entry with the rewritten
+		// Dockerfile which uses trusted pulls.
+		context = replaceDockerfileTarWrapper(context, newDockerfile, relDockerfile)
+	}
 
 	// Setup an upload progress bar
 	progressOutput := streamformatter.NewStreamFormatter().NewProgressOutput(progBuff, true)
@@ -275,11 +279,14 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	if *suppressOutput {
 		fmt.Fprintf(cli.out, "%s", buildBuff)
 	}
-	// Since the build was successful, now we must tag any of the resolved
-	// images from the above Dockerfile rewrite.
-	for _, resolved := range resolvedTags {
-		if err := cli.tagTrusted(resolved.digestRef, resolved.tagRef); err != nil {
-			return err
+
+	if isTrusted() {
+		// Since the build was successful, now we must tag any of the resolved
+		// images from the above Dockerfile rewrite.
+		for _, resolved := range resolvedTags {
+			if err := cli.tagTrusted(resolved.digestRef, resolved.tagRef); err != nil {
+				return err
+			}
 		}
 	}
 
