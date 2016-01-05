@@ -924,7 +924,7 @@ Start the container `id`
 
 Query Parameters:
 
--   **detachKeys** – Override the key sequence for detaching a
+-   **detach-keys** – Override the key sequence for detaching a
         container. Format is a single character `[a-Z]` or `ctrl-<value>`
         where `<value>` is one of: `a-z`, `@`, `^`, `[`, `,` or `_`.
 
@@ -1139,7 +1139,7 @@ Attach to the container `id`
 
 Query Parameters:
 
--   **detachKeys** – Override the key sequence for detaching a
+-   **detach-keys** – Override the key sequence for detaching a
         container. Format is a single character `[a-Z]` or `ctrl-<value>`
         where `<value>` is one of: `a-z`, `@`, `^`, `[`, `,` or `_`.
 -   **logs** – 1/True/true or 0/False/false, return logs. Default `false`.
@@ -1222,7 +1222,7 @@ Implements websocket protocol handshake according to [RFC 6455](http://tools.iet
 
 Query Parameters:
 
--   **detachKeys** – Override the key sequence for detaching a
+-   **detach-keys** – Override the key sequence for detaching a
         container. Format is a single character `[a-Z]` or `ctrl-<value>`
         where `<value>` is one of: `a-z`, `@`, `^`, `[`, `,` or `_`.
 -   **logs** – 1/True/true or 0/False/false, return logs. Default `false`.

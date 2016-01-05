@@ -25,7 +25,7 @@ func (cli *Client) ContainerAttach(options types.ContainerAttachOptions) (types.
 		query.Set("stderr", "1")
 	}
 	if options.DetachKeys != "" {
-		query.Set("detachKeys", options.DetachKeys)
+		query.Set("detach-keys", options.DetachKeys)
 	}
 
 	headers := map[string][]string{"Content-Type": {"text/plain"}}

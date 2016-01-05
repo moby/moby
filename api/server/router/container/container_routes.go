@@ -430,7 +430,7 @@ func (s *containerRouter) postContainersAttach(ctx context.Context, w http.Respo
 	_, upgrade := r.Header["Upgrade"]
 
 	keys := []byte{}
-	detachKeys := r.FormValue("detachKeys")
+	detachKeys := r.FormValue("detach-keys")
 	if detachKeys != "" {
 		keys, err = term.ToBytes(detachKeys)
 		if err != nil {
@@ -464,7 +464,7 @@ func (s *containerRouter) wsContainersAttach(ctx context.Context, w http.Respons
 
 	var keys []byte
 	var err error
-	detachKeys := r.FormValue("detachKeys")
+	detachKeys := r.FormValue("detach-keys")
 	if detachKeys != "" {
 		keys, err = term.ToBytes(detachKeys)
 		if err != nil {
