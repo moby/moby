@@ -10,6 +10,7 @@ import (
 	"github.com/docker/docker/opts"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/stringid"
+	runconfigopts "github.com/docker/docker/runconfig/opts"
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/filters"
 	"github.com/docker/engine-api/types/network"
@@ -112,6 +113,8 @@ func (cli *DockerCli) CmdNetworkConnect(args ...string) error {
 	cmd := Cli.Subcmd("network connect", []string{"NETWORK CONTAINER"}, "Connects a container to a network", false)
 	flIPAddress := cmd.String([]string{"-ip"}, "", "IP Address")
 	flIPv6Address := cmd.String([]string{"-ip6"}, "", "IPv6 Address")
+	flLinks := opts.NewListOpts(runconfigopts.ValidateLink)
+	cmd.Var(&flLinks, []string{"-link"}, "Add link to another container")
 	cmd.Require(flag.Min, 2)
 	if err := cmd.ParseFlags(args, true); err != nil {
 		return err
@@ -121,6 +124,7 @@ func (cli *DockerCli) CmdNetworkConnect(args ...string) error {
 			IPv4Address: *flIPAddress,
 			IPv6Address: *flIPv6Address,
 		},
+		Links: flLinks.GetAll(),
 	}
 	return cli.client.NetworkConnect(cmd.Arg(0), cmd.Arg(1), epConfig)
 }
