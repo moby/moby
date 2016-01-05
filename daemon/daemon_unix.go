@@ -868,7 +868,7 @@ func setupDaemonRoot(config *Config, rootDir string, rootUID, rootGID int) error
 
 // registerLinks writes the links to a file.
 func (daemon *Daemon) registerLinks(container *container.Container, hostConfig *containertypes.HostConfig) error {
-	if hostConfig == nil {
+	if hostConfig == nil || hostConfig.NetworkMode.IsUserDefined() {
 		return nil
 	}
 
