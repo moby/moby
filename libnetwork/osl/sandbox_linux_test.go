@@ -5,12 +5,15 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"syscall"
 	"testing"
 	"time"
 
 	"github.com/docker/libnetwork/netutils"
+	"github.com/docker/libnetwork/testutils"
 	"github.com/docker/libnetwork/types"
 	"github.com/vishvananda/netlink"
+	"github.com/vishvananda/netlink/nl"
 	"github.com/vishvananda/netns"
 )
 
@@ -177,5 +180,45 @@ func TestScanStatistics(t *testing.T) {
 	}
 	if i.TxBytes != 9006 || i.TxPackets != 61 || i.RxBytes != 0 || i.RxPackets != 0 {
 		t.Fatalf("Error scanning the statistics")
+	}
+}
+
+func TestDisableIPv6DAD(t *testing.T) {
+	if testutils.RunningOnCircleCI() {
+		t.Skipf("Skipping as not supported on CIRCLE CI kernel")
+	}
+
+	defer testutils.SetupTestOSContext(t)()
+
+	ipv6, _ := types.ParseCIDR("2001:db8::44/64")
+	iface := &nwIface{addressIPv6: ipv6}
+
+	veth := &netlink.Veth{
+		LinkAttrs: netlink.LinkAttrs{Name: "sideA"},
+		PeerName:  "sideB",
+	}
+
+	err := netlink.LinkAdd(veth)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	link, err := netlink.LinkByName("sideA")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = setInterfaceIPv6(link, iface)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	addrList, err := netlink.AddrList(link, nl.FAMILY_V6)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if addrList[0].Flags&syscall.IFA_F_NODAD == 0 {
+		t.Fatalf("Unexpected interface flags: 0x%x. Expected to contain 0x%x", addrList[0].Flags, syscall.IFA_F_NODAD)
 	}
 }
