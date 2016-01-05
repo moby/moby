@@ -5585,7 +5585,7 @@ func (s *DockerSuite) TestBuildDotDotFile(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildRUNoneJSON(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	testRequires(c, Network, DaemonIsLinux)
 	name := "testbuildrunonejson"
 
 	ctx, err := fakeContext(`FROM hello-world:frozen
