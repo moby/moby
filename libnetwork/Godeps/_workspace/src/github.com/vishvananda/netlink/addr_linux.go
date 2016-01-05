@@ -9,6 +9,9 @@ import (
 	"github.com/vishvananda/netlink/nl"
 )
 
+// IFA_FLAGS is a u32 attribute.
+const IFA_FLAGS = 0x8
+
 // AddrAdd will add an IP address to a link device.
 // Equivalent to: `ip addr add $addr dev $link`
 func AddrAdd(link Link, addr *Addr) error {
@@ -35,6 +38,7 @@ func addrHandle(link Link, addr *Addr, req *nl.NetlinkRequest) error {
 
 	msg := nl.NewIfAddrmsg(family)
 	msg.Index = uint32(base.Index)
+	msg.Scope = uint8(addr.Scope)
 	prefixlen, _ := addr.Mask.Size()
 	msg.Prefixlen = uint8(prefixlen)
 	req.AddData(msg)
@@ -51,6 +55,13 @@ func addrHandle(link Link, addr *Addr, req *nl.NetlinkRequest) error {
 
 	addressData := nl.NewRtAttr(syscall.IFA_ADDRESS, addrData)
 	req.AddData(addressData)
+
+	if addr.Flags != 0 {
+		b := make([]byte, 4)
+		native.PutUint32(b, uint32(addr.Flags))
+		flagsData := nl.NewRtAttr(IFA_FLAGS, b)
+		req.AddData(flagsData)
+	}
 
 	if addr.Label != "" {
 		labelData := nl.NewRtAttr(syscall.IFA_LABEL, nl.ZeroTerminated(addr.Label))
@@ -111,6 +122,8 @@ func AddrList(link Link, family int) ([]Addr, error) {
 				}
 			case syscall.IFA_LABEL:
 				addr.Label = string(attr.Value[:len(attr.Value)-1])
+			case IFA_FLAGS:
+				addr.Flags = int(native.Uint32(attr.Value[0:4]))
 			}
 		}
 
@@ -120,6 +133,7 @@ func AddrList(link Link, family int) ([]Addr, error) {
 		} else {
 			addr.IPNet = dst
 		}
+		addr.Scope = int(msg.Scope)
 
 		res = append(res, addr)
 	}
