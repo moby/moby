@@ -409,17 +409,27 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 		config.StdinOnce = true
 	}
 
-	var networkingConfig *networktypes.NetworkingConfig
+	networkingConfig := &networktypes.NetworkingConfig{
+		EndpointsConfig: make(map[string]*networktypes.EndpointSettings),
+	}
+
 	if *flIPv4Address != "" || *flIPv6Address != "" {
-		networkingConfig = &networktypes.NetworkingConfig{
-			EndpointsConfig: make(map[string]*networktypes.EndpointSettings),
-		}
 		networkingConfig.EndpointsConfig[string(hostConfig.NetworkMode)] = &networktypes.EndpointSettings{
 			IPAMConfig: &networktypes.EndpointIPAMConfig{
 				IPv4Address: *flIPv4Address,
 				IPv6Address: *flIPv6Address,
 			},
 		}
+	}
+
+	if hostConfig.NetworkMode.IsUserDefined() && len(hostConfig.Links) > 0 {
+		epConfig := networkingConfig.EndpointsConfig[string(hostConfig.NetworkMode)]
+		if epConfig == nil {
+			epConfig = &networktypes.EndpointSettings{}
+		}
+		epConfig.Links = make([]string, len(hostConfig.Links))
+		copy(epConfig.Links, hostConfig.Links)
+		networkingConfig.EndpointsConfig[string(hostConfig.NetworkMode)] = epConfig
 	}
 
 	return config, hostConfig, networkingConfig, cmd, nil

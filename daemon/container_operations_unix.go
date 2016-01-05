@@ -586,7 +586,7 @@ func (daemon *Daemon) updateContainerNetworkSettings(container *container.Contai
 	if container.NetworkSettings == nil {
 		container.NetworkSettings = &network.Settings{}
 	}
-	if endpointsConfig != nil {
+	if len(endpointsConfig) > 0 {
 		container.NetworkSettings.Networks = endpointsConfig
 	}
 	if container.NetworkSettings.Networks == nil {
@@ -816,7 +816,12 @@ func (daemon *Daemon) connectToNetwork(container *container.Container, idOrName 
 		container.UpdateSandboxNetworkSettings(sb)
 	}
 
-	if err := ep.Join(sb); err != nil {
+	joinOptions, err := container.BuildJoinOptions(n)
+	if err != nil {
+		return err
+	}
+
+	if err := ep.Join(sb, joinOptions...); err != nil {
 		return err
 	}
 
