@@ -191,7 +191,7 @@ func addRequiredHeadersToRedirectedRequests(req *http.Request, via []*http.Reque
 // ShouldV2Fallback returns true if this error is a reason to fall back to v1.
 func ShouldV2Fallback(err errcode.Error) bool {
 	switch err.Code {
-	case errcode.ErrorCodeUnauthorized, v2.ErrorCodeManifestUnknown:
+	case errcode.ErrorCodeUnauthorized, v2.ErrorCodeManifestUnknown, v2.ErrorCodeNameUnknown:
 		return true
 	}
 	return false
