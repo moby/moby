@@ -10,11 +10,13 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -1032,13 +1034,28 @@ func writeDistributionProgress(cancelFunc func(), outStream io.Writer, progressC
 
 	for prog := range progressChan {
 		if err := progressOutput.WriteProgress(prog); err != nil && !operationCancelled {
-			logrus.Errorf("error writing progress to client: %v", err)
+			// don't log broken pipe errors as this is the normal case when a client aborts
+			if isBrokenPipe(err) {
+				logrus.Info("Pull session cancelled")
+			} else {
+				logrus.Errorf("error writing progress to client: %v", err)
+			}
 			cancelFunc()
 			operationCancelled = true
 			// Don't return, because we need to continue draining
 			// progressChan until it's closed to avoid a deadlock.
 		}
 	}
+}
+
+func isBrokenPipe(e error) bool {
+	if netErr, ok := e.(*net.OpError); ok {
+		e = netErr.Err
+		if sysErr, ok := netErr.Err.(*os.SyscallError); ok {
+			e = sysErr.Err
+		}
+	}
+	return e == syscall.EPIPE
 }
 
 // PullImage initiates a pull operation. image is the repository name to pull, and
