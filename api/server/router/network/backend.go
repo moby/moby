@@ -12,7 +12,7 @@ type Backend interface {
 	NetworkControllerEnabled() bool
 
 	FindNetwork(idName string) (libnetwork.Network, error)
-	GetNetwork(idName string, by int) (libnetwork.Network, error)
+	GetNetworkByName(idName string) (libnetwork.Network, error)
 	GetNetworksByID(partialID string) []libnetwork.Network
 	GetAllNetworks() []libnetwork.Network
 	CreateNetwork(name, driver string, ipam network.IPAM, options map[string]string) (libnetwork.Network, error)
