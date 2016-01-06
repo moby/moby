@@ -17,8 +17,8 @@ Docker is supported on the following versions of Debian:
  - [*Debian 8.0 Jessie (64-bit)*](#debian-jessie-80-64-bit)
  - [*Debian 7.7 Wheezy (64-bit)*](#debian-wheezy-stable-7-x-64-bit)
 
- >**Note**: If you previously installed Docker using `apt`, make sure you update
- your `apt` sources to the new `apt` repository.
+ >**Note**: If you previously installed Docker using `APT`, make sure you update
+ your `APT` sources to the new `APT` repository.
 
 ## Prerequisites
 
@@ -37,7 +37,7 @@ Docker is supported on the following versions of Debian:
 
 ### Update your apt repository
 
-Docker's `apt` repository contains Docker 1.7.1 and higher. To set `apt` to use
+Docker's `APT` repository contains Docker 1.7.1 and higher. To set `APT` to use
 from the new repository:
 
  1. If you haven't already done so, log into your machine as a user with `sudo` or `root` privileges.
@@ -49,17 +49,22 @@ from the new repository:
          $ apt-get purge lxc-docker*
          $ apt-get purge docker.io*
 
- 4. Add the new `gpg` key.
+ 4. Update package information, ensure that APT works with the `https` method, and that CA certificates are installed.
+
+         $ apt-get update
+         $ apt-get install apt-transport-https ca-certificates
+
+ 5. Add the new `GPG` key.
 
          $ apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys 58118E89F3A912897C070ADBF76221572C52609D
 
- 5. Open the `/etc/apt/sources.list.d/docker.list` file in your favorite editor.
+ 6. Open the `/etc/apt/sources.list.d/docker.list` file in your favorite editor.
 
      If the file doesn't exist, create it.
 
- 6. Remove any existing entries.
+ 7. Remove any existing entries.
 
- 7. Add an entry for your Debian operating system.
+ 8. Add an entry for your Debian operating system.
 
      The possible entries are:
 
@@ -80,23 +85,23 @@ from the new repository:
     > [Debian Multiarch wiki](https://wiki.debian.org/Multiarch/HOWTO#Setting_up_apt_sources)
     > for details.
 
- 8. Save and close the file.
+ 9. Save and close the file.
 
- 9. Update the `apt` package index.
+ 10. Update the `APT` package index.
 
          $ apt-get update
 
- 10. Verify that `apt` is pulling from the right repository.
+ 11. Verify that `APT` is pulling from the right repository.
 
          $ apt-cache policy docker-engine
 
-     From now on when you run `apt-get upgrade`, `apt` pulls from the new apt repository.  
+     From now on when you run `apt-get upgrade`, `APT` pulls from the new apt repository.
 
 ## Install Docker
 
-Before installing Docker, make sure you have set your `apt` repository correctly as described in the prerequisites.
+Before installing Docker, make sure you have set your `APT` repository correctly as described in the prerequisites.
 
-1. Update the `apt` package index.
+1. Update the `APT` package index.
 
         $ sudo apt-get update
 
