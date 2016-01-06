@@ -1773,6 +1773,42 @@ _docker_unpause() {
 	esac
 }
 
+_docker_update() {
+	local options_with_args="
+		--blkio-weight
+		--cpu-period
+		--cpu-quota
+		--cpuset-cpus
+		--cpuset-mems
+		--cpu-shares
+		--kernel-memory
+		--memory -m
+		--memory-reservation
+		--memory-swap
+	"
+
+	local boolean_options="
+		--help
+	"
+
+	local all_options="$options_with_args $boolean_options"
+
+	case "$prev" in
+		$(__docker_to_extglob "$options_with_args") )
+			return
+			;;
+	esac
+
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "$all_options" -- "$cur" ) )
+			;;
+		*)
+			__docker_complete_containers_all
+			;;
+	esac
+}
+
 _docker_top() {
 	case "$cur" in
 		-*)
@@ -1930,6 +1966,7 @@ _docker() {
 		tag
 		top
 		unpause
+		update
 		version
 		volume
 		wait
