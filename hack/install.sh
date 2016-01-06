@@ -23,7 +23,10 @@ set -e
 #     s3cmd put --acl-public -P hack/install.sh s3://get.docker.com/index
 #
 
-url='https://get.docker.com/'
+url="https://get.docker.com/"
+apt_url="https://apt.dockerproject.org"
+yum_url="https://yum.dockerproject.org"
+gpg_fingerprint="58118E89F3A912897C070ADBF76221572C52609D"
 
 command_exists() {
 	command -v "$@" > /dev/null 2>&1
@@ -161,11 +164,13 @@ do_install() {
 	fi
 
 	# check to see which repo they are trying to install from
-	repo='main'
-	if [ "https://test.docker.com/" = "$url" ]; then
-		repo='testing'
-	elif [ "https://experimental.docker.com/" = "$url" ]; then
-		repo='experimental'
+	if [ -z "$repo" ]; then
+		repo='main'
+		if [ "https://test.docker.com/" = "$url" ]; then
+			repo='testing'
+		elif [ "https://experimental.docker.com/" = "$url" ]; then
+			repo='experimental'
+		fi
 	fi
 
 	# perform some very rudimentary platform detection
@@ -370,9 +375,9 @@ do_install() {
 			fi
 			(
 			set -x
-			$sh_c "apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys 58118E89F3A912897C070ADBF76221572C52609D"
+			$sh_c "apt-key adv --keyserver hkp://pool.sks-keyservers.net:80 --recv-keys ${gpg_fingerprint}"
 			$sh_c "mkdir -p /etc/apt/sources.list.d"
-			$sh_c "echo deb [arch=$(dpkg --print-architecture)] https://apt.dockerproject.org/repo ${lsb_dist}-${dist_version} ${repo} > /etc/apt/sources.list.d/docker.list"
+			$sh_c "echo deb [arch=$(dpkg --print-architecture)] ${apt_url}/repo ${lsb_dist}-${dist_version} ${repo} > /etc/apt/sources.list.d/docker.list"
 			$sh_c 'sleep 3; apt-get update; apt-get install -y -q docker-engine'
 			)
 			echo_docker_as_nonroot
@@ -383,10 +388,10 @@ do_install() {
 			$sh_c "cat >/etc/yum.repos.d/docker-${repo}.repo" <<-EOF
 			[docker-${repo}-repo]
 			name=Docker ${repo} Repository
-			baseurl=https://yum.dockerproject.org/repo/${repo}/${lsb_dist}/${dist_version}
+			baseurl=${yum_url}/repo/${repo}/${lsb_dist}/${dist_version}
 			enabled=1
 			gpgcheck=1
-			gpgkey=https://yum.dockerproject.org/gpg
+			gpgkey=${yum_url}/gpg
 			EOF
 			if [ "$lsb_dist" = "fedora" ] && [ "$dist_version" -ge "22" ]; then
 				(
