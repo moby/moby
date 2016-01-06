@@ -3,6 +3,7 @@ set -e
 
 bundle_test_integration_cli() {
 	TESTFLAGS="$TESTFLAGS -check.v"
+	BUILDFLAGS=( "${BUILDFLAGS[@]/static_build /}" ) # we're not testing "static" binary cases here
 	go_test_dir ./integration-cli
 }
 
