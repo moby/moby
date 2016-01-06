@@ -82,37 +82,45 @@ func (n *bridgeNetwork) setupIPTables(config *networkConfiguration, i *bridgeInt
 		IP:   ipnet.IP.Mask(ipnet.Mask),
 		Mask: ipnet.Mask,
 	}
-	if err = setupIPTablesInternal(config.BridgeName, maskedAddrv4, config.EnableICC, config.EnableIPMasquerade, hairpinMode, true); err != nil {
-		return fmt.Errorf("Failed to Setup IP tables: %s", err.Error())
-	}
-	n.registerIptCleanFunc(func() error {
-		return setupIPTablesInternal(config.BridgeName, maskedAddrv4, config.EnableICC, config.EnableIPMasquerade, hairpinMode, false)
-	})
+	if config.Internal {
+		if err = setupInternalNetworkRules(config.BridgeName, maskedAddrv4, true); err != nil {
+			return fmt.Errorf("Failed to Setup IP tables: %s", err.Error())
+		}
+		n.registerIptCleanFunc(func() error {
+			return setupInternalNetworkRules(config.BridgeName, maskedAddrv4, false)
+		})
+	} else {
+		if err = setupIPTablesInternal(config.BridgeName, maskedAddrv4, config.EnableICC, config.EnableIPMasquerade, hairpinMode, true); err != nil {
+			return fmt.Errorf("Failed to Setup IP tables: %s", err.Error())
+		}
+		n.registerIptCleanFunc(func() error {
+			return setupIPTablesInternal(config.BridgeName, maskedAddrv4, config.EnableICC, config.EnableIPMasquerade, hairpinMode, false)
+		})
+		natChain, filterChain, _, err := n.getDriverChains()
+		if err != nil {
+			return fmt.Errorf("Failed to setup IP tables, cannot acquire chain info %s", err.Error())
+		}
 
-	natChain, filterChain, _, err := n.getDriverChains()
-	if err != nil {
-		return fmt.Errorf("Failed to setup IP tables, cannot acquire chain info %s", err.Error())
-	}
+		err = iptables.ProgramChain(natChain, config.BridgeName, hairpinMode, true)
+		if err != nil {
+			return fmt.Errorf("Failed to program NAT chain: %s", err.Error())
+		}
 
-	err = iptables.ProgramChain(natChain, config.BridgeName, hairpinMode, true)
-	if err != nil {
-		return fmt.Errorf("Failed to program NAT chain: %s", err.Error())
-	}
+		err = iptables.ProgramChain(filterChain, config.BridgeName, hairpinMode, true)
+		if err != nil {
+			return fmt.Errorf("Failed to program FILTER chain: %s", err.Error())
+		}
 
-	err = iptables.ProgramChain(filterChain, config.BridgeName, hairpinMode, true)
-	if err != nil {
-		return fmt.Errorf("Failed to program FILTER chain: %s", err.Error())
+		n.registerIptCleanFunc(func() error {
+			return iptables.ProgramChain(filterChain, config.BridgeName, hairpinMode, false)
+		})
+
+		n.portMapper.SetIptablesChain(filterChain, n.getNetworkBridgeName())
 	}
 
 	if err := ensureJumpRule("FORWARD", IsolationChain); err != nil {
 		return err
 	}
-
-	n.registerIptCleanFunc(func() error {
-		return iptables.ProgramChain(filterChain, config.BridgeName, hairpinMode, false)
-	})
-
-	n.portMapper.SetIptablesChain(filterChain, n.getNetworkBridgeName())
 
 	return nil
 }
@@ -312,12 +320,26 @@ func ensureJumpRule(fromChain, toChain string) error {
 
 func removeIPChains() {
 	for _, chainInfo := range []iptables.ChainInfo{
-		iptables.ChainInfo{Name: DockerChain, Table: iptables.Nat},
-		iptables.ChainInfo{Name: DockerChain, Table: iptables.Filter},
-		iptables.ChainInfo{Name: IsolationChain, Table: iptables.Filter},
+		{Name: DockerChain, Table: iptables.Nat},
+		{Name: DockerChain, Table: iptables.Filter},
+		{Name: IsolationChain, Table: iptables.Filter},
 	} {
 		if err := chainInfo.Remove(); err != nil {
 			logrus.Warnf("Failed to remove existing iptables entries in table %s chain %s : %v", chainInfo.Table, chainInfo.Name, err)
 		}
 	}
+}
+
+func setupInternalNetworkRules(bridgeIface string, addr net.Addr, insert bool) error {
+	var (
+		inDropRule  = iptRule{table: iptables.Filter, chain: IsolationChain, args: []string{"-i", bridgeIface, "!", "-d", addr.String(), "-j", "DROP"}}
+		outDropRule = iptRule{table: iptables.Filter, chain: IsolationChain, args: []string{"-o", bridgeIface, "!", "-s", addr.String(), "-j", "DROP"}}
+	)
+	if err := programChainRule(inDropRule, "DROP INCOMING", insert); err != nil {
+		return err
+	}
+	if err := programChainRule(outDropRule, "DROP OUTGOING", insert); err != nil {
+		return err
+	}
+	return nil
 }

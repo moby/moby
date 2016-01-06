@@ -20,8 +20,10 @@ function test_single_network_connectivity() {
     # Now test connectivity between all the containers using service names
     for i in `seq ${start} ${end}`;
     do
-	runc $(dnet_container_name 1 bridge) $(get_sbox_id 1 container_${i}) \
-	     "ping -c 1 www.google.com"
+    if [ "${nw_name}" != "internal" ]; then
+		runc $(dnet_container_name 1 bridge) $(get_sbox_id 1 container_${i}) \
+		     "ping -c 1 www.google.com"
+    fi
 	for j in `seq ${start} ${end}`;
 	do
 	    if [ "$i" -eq "$j" ]; then
@@ -250,6 +252,7 @@ function test_single_network_connectivity() {
     dnet_cmd $(inst_id2port 1) network rm br1
 }
 
+
 @test "Test bridge network global alias support" {
     skip_for_circleci
     dnet_cmd $(inst_id2port 1) network create -d bridge br1
@@ -278,4 +281,25 @@ function test_single_network_connectivity() {
     dnet_cmd $(inst_id2port 1) container rm container_3
 
     dnet_cmd $(inst_id2port 1) network rm br1
+}
+
+@test "Test bridge network internal network" {
+    skip_for_circleci
+
+    echo $(docker ps)
+    dnet_cmd $(inst_id2port 1) network create -d bridge --internal internal
+    dnet_cmd $(inst_id2port 1) container create container_1
+    # connects to internal network, confirm it can't conmunicate with outside world
+    net_connect 1 container_1 internal
+    run runc $(dnet_container_name 1 bridge) $(get_sbox_id 1 container_1) "ping -c 1 www.google.com"
+    [[ "$output" == *"1 packets transmitted, 0 packets received, 100% packet loss"* ]]
+    net_disconnect 1 container_1 internal
+    # connects to bridge network, confirm it can conmunicate with outside world
+    net_connect 1 container_1 bridge
+    runc $(dnet_container_name 1 bridge) $(get_sbox_id 1 container_1) "ping -c 1 www.google.com"
+    net_disconnect 1 container_1 bridge
+    dnet_cmd $(inst_id2port 1) container rm container_1
+    # test conmunications within internal network
+    test_single_network_connectivity internal 3
+    dnet_cmd $(inst_id2port 1) network rm internal
 }
