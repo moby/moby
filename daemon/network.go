@@ -1,7 +1,6 @@
 package daemon
 
 import (
-	"errors"
 	"fmt"
 	"net"
 	"strings"
@@ -10,13 +9,6 @@ import (
 	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/libnetwork"
-)
-
-const (
-	// NetworkByID represents a constant to find a network by its ID
-	NetworkByID = iota + 1
-	// NetworkByName represents a constant to find a network by its Name
-	NetworkByName
 )
 
 // NetworkControllerEnabled checks if the networking stack is enabled.
@@ -44,18 +36,6 @@ func (daemon *Daemon) FindNetwork(idName string) (libnetwork.Network, error) {
 func isNoSuchNetworkError(err error) bool {
 	_, ok := err.(libnetwork.ErrNoSuchNetwork)
 	return ok
-}
-
-// GetNetwork function returns a network for a given string that represents the
-// network and a hint to indicate if the string is an Id or Name of the network.
-func (daemon *Daemon) GetNetwork(idName string, by int) (libnetwork.Network, error) {
-	switch by {
-	case NetworkByID:
-		return daemon.GetNetworkByID(idName)
-	case NetworkByName:
-		return daemon.GetNetworkByName(idName)
-	}
-	return nil, errors.New("unexpected selector for GetNetwork")
 }
 
 // GetNetworkByID function returns a network whose ID begins with the given prefix.
