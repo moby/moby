@@ -232,6 +232,9 @@ func (container *Container) ExitOnNext() {
 // Resize changes the TTY of the process running inside the container
 // to the given height and width. The container must be running.
 func (container *Container) Resize(h, w int) error {
+	if container.Command.ProcessConfig.Terminal == nil {
+		return fmt.Errorf("Container %s does not have a terminal ready", container.ID)
+	}
 	if err := container.Command.ProcessConfig.Terminal.Resize(h, w); err != nil {
 		return err
 	}
