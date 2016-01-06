@@ -34,6 +34,7 @@
 			"icecrime",
 			"jfrazelle",
 			"lk4d4",
+			"mhbauer",
 			"runcom",
 			"tianon",
 			"tibor",
@@ -158,6 +159,11 @@
 	Name = "Alexander Morozov"
 	Email = "lk4d4@docker.com"
 	GitHub = "lk4d4"
+
+	[people.mhbauer]
+	Name = "Morgan Bauer"
+	Email = "mbauer@us.ibm.com"
+	GitHub = "mhbauer"
 
 	[people.moxiegirl]
 	Name = "Mary Anthony"
