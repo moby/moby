@@ -62,6 +62,7 @@ type NetworkInfo interface {
 	IpamInfo() ([]*IpamInfo, []*IpamInfo)
 	DriverOptions() map[string]string
 	Scope() string
+	Internal() bool
 }
 
 // EndpointWalker is a client provided function which will be used to walk the Endpoints.
