@@ -309,3 +309,15 @@ func ensureJumpRule(fromChain, toChain string) error {
 
 	return nil
 }
+
+func removeIPChains() {
+	for _, chainInfo := range []iptables.ChainInfo{
+		iptables.ChainInfo{Name: DockerChain, Table: iptables.Nat},
+		iptables.ChainInfo{Name: DockerChain, Table: iptables.Filter},
+		iptables.ChainInfo{Name: IsolationChain, Table: iptables.Filter},
+	} {
+		if err := chainInfo.Remove(); err != nil {
+			logrus.Warnf("Failed to remove existing iptables entries in table %s chain %s : %v", chainInfo.Table, chainInfo.Name, err)
+		}
+	}
+}
