@@ -10,17 +10,20 @@ set -e
 	# TODO consider using frozen images for the dockercore/builder-rpm tags
 
 	rpmName=docker-engine
-	rpmVersion="${VERSION%%-*}"
+	rpmVersion="$VERSION"
 	rpmRelease=1
 
 	# rpmRelease versioning is as follows
 	# Docker 1.7.0:  version=1.7.0, release=1
 	# Docker 1.7.0-rc1: version=1.7.0, release=0.1.rc1
+	# Docker 1.7.0-cs1: version=1.7.0.cs1, release=1
+	# Docker 1.7.0-cs1-rc1: version=1.7.0.cs1, release=0.1.rc1
 	# Docker 1.7.0-dev nightly: version=1.7.0, release=0.0.YYYYMMDD.HHMMSS.gitHASH
 
 	# if we have a "-rc*" suffix, set appropriate release
-	if [[ "$VERSION" == *-rc* ]]; then
-		rcVersion=${VERSION#*-rc}
+	if [[ "$rpmVersion" =~ .*-rc[0-9]+$ ]] ; then
+		rcVersion=${rpmVersion#*-rc}
+		rpmVersion=${rpmVersion%-rc*}
 		rpmRelease="0.${rcVersion}.rc${rcVersion}"
 	fi
 
@@ -30,14 +33,18 @@ set -e
 	fi
 
 	# if we have a "-dev" suffix or have change in Git, let's make this package version more complex so it works better
-	if [[ "$VERSION" == *-dev ]] || [ -n "$(git status --porcelain)" ]; then
+	if [[ "$rpmVersion" == *-dev ]] || [ -n "$(git status --porcelain)" ]; then
 		gitUnix="$(git log -1 --pretty='%at')"
 		gitDate="$(date --date "@$gitUnix" +'%Y%m%d.%H%M%S')"
 		gitCommit="$(git log -1 --pretty='%h')"
 		gitVersion="${gitDate}.git${gitCommit}"
 		# gitVersion is now something like '20150128.112847.17e840a'
+		rpmVersion="${rpmVersion%-dev}"
 		rpmRelease="0.0.$gitVersion"
 	fi
+
+	# Replace any other dashes with periods
+	rpmVersion="${rpmVersion/-/.}"
 
 	rpmPackager="$(awk -F ': ' '$1 == "Packager" { print $2; exit }' hack/make/.build-rpm/${rpmName}.spec)"
 	rpmDate="$(date +'%a %b %d %Y')"
