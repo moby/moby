@@ -37,6 +37,7 @@
 			"runcom",
 			"tianon",
 			"tibor",
+			"tonistiigi",
 			"unclejack",
 			"vbatts",
 			"vdemeester"
@@ -122,6 +123,7 @@
 	Name = "Michael Crosby"
 	Email = "crosbymichael@gmail.com"
 	GitHub = "crosbymichael"
+
 	[people.duglin]
 	Name = "Doug Davis"
 	Email = "dug@us.ibm.com"
@@ -196,6 +198,11 @@
 	Name = "Tibor Vass"
 	Email = "tibor@docker.com"
 	GitHub = "tiborvass"
+
+	[people.tonistiigi]
+	Name = "Tõnis Tiigi"
+	Email = "tonis@docker.com"
+	GitHub = "tonistiigi"
 
 	[people.unclejack]
 	Name = "Cristian Staretu"
