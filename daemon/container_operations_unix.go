@@ -21,6 +21,7 @@ import (
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/mount"
+	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/runconfig"
 	containertypes "github.com/docker/engine-api/types/container"
@@ -241,6 +242,20 @@ func (daemon *Daemon) populateCommand(c *container.Container, env []string) erro
 	}
 	uidMap, gidMap := daemon.GetUIDGIDMaps()
 
+	defaultCgroupParent := "/docker"
+	if daemon.configStore.CgroupParent != "" {
+		defaultCgroupParent = daemon.configStore.CgroupParent
+	} else {
+		for _, option := range daemon.configStore.ExecOptions {
+			key, val, err := parsers.ParseKeyValueOpt(option)
+			if err != nil || !strings.EqualFold(key, "native.cgroupdriver") {
+				continue
+			}
+			if val == "systemd" {
+				defaultCgroupParent = "system.slice"
+			}
+		}
+	}
 	c.Command = &execdriver.Command{
 		CommonCommand: execdriver.CommonCommand{
 			ID:            c.ID,
@@ -258,7 +273,7 @@ func (daemon *Daemon) populateCommand(c *container.Container, env []string) erro
 		AutoCreatedDevices: autoCreatedDevices,
 		CapAdd:             c.HostConfig.CapAdd.Slice(),
 		CapDrop:            c.HostConfig.CapDrop.Slice(),
-		CgroupParent:       daemon.configStore.CgroupParent,
+		CgroupParent:       defaultCgroupParent,
 		GIDMapping:         gidMap,
 		GroupAdd:           c.HostConfig.GroupAdd,
 		Ipc:                ipc,
