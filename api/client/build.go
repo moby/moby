@@ -65,9 +65,9 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	flBuildArg := opts.NewListOpts(opts.ValidateEnv)
 	cmd.Var(&flBuildArg, []string{"-build-arg"}, "Set build-time variables")
 	isolation := cmd.String([]string{"-isolation"}, "", "Container isolation level")
-	ignoreFile := cmd.String([]string{"-ignore-file"}, ignoreFileDefault, "List of rules to exclude matching files from context (relative path in the context)")
+	ignoreFile := cmd.String([]string{"-ignore-file"}, ignoreFileDefault, "List of rules for excluding files from context")
 	flIgnore := opts.NewListOpts(func(val string) (string, error) { return val, nil })
-	cmd.Var(&flIgnore, []string{"-ignore"}, "Excludes matching files from context")
+	cmd.Var(&flIgnore, []string{"-ignore"}, "Rule for excluding files from context")
 
 	ulimits := make(map[string]*units.Ulimit)
 	flUlimits := runconfigopts.NewUlimitOpt(&ulimits)
