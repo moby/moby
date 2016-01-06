@@ -1,18 +1,15 @@
 package image
 
-import (
-	"github.com/docker/docker/api/server/router"
-	"github.com/docker/docker/daemon"
-)
+import "github.com/docker/docker/api/server/router"
 
 // imageRouter is a router to talk with the image controller
 type imageRouter struct {
-	daemon *daemon.Daemon
+	daemon Backend
 	routes []router.Route
 }
 
 // NewRouter initializes a new image router
-func NewRouter(daemon *daemon.Daemon) router.Router {
+func NewRouter(daemon Backend) router.Router {
 	r := &imageRouter{
 		daemon: daemon,
 	}
