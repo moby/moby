@@ -104,7 +104,7 @@ You use the same installation procedure for all versions of CentOS.
 
 3. Run the Docker installation script.
 
-		$ curl -sSL https://get.docker.com/ | sh
+		$ curl -fsSL https://get.docker.com/ | sh
 
 4. Start the Docker daemon.
 

@@ -104,7 +104,7 @@ There are two ways to install Docker Engine.  You can install with the `dnf` pac
 
 3. Run the Docker installation script.
 
-		$ curl -sSL https://get.docker.com/ | sh
+		$ curl -fsSL https://get.docker.com/ | sh
 
 	This script adds the `docker.repo` repository and installs Docker.
 
