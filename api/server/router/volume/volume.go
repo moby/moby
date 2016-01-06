@@ -11,7 +11,7 @@ type volumeRouter struct {
 	routes  []router.Route
 }
 
-// NewRouter initializes a new volumeRouter
+// NewRouter initializes a new volume router
 func NewRouter(b Backend) router.Router {
 	r := &volumeRouter{
 		backend: b,
@@ -20,7 +20,7 @@ func NewRouter(b Backend) router.Router {
 	return r
 }
 
-//Routes returns the available routers to the volumes controller
+// Routes returns the available routes to the volumes controller
 func (r *volumeRouter) Routes() []router.Route {
 	return r.routes
 }

@@ -12,15 +12,15 @@ type router struct {
 	routes []dkrouter.Route
 }
 
-// localRoute defines an individual API route to connect with the docker daemon.
-// It implements router.Route.
+// localRoute defines an individual API route to connect
+// with the docker daemon. It implements router.Route.
 type localRoute struct {
 	method  string
 	path    string
 	handler httputils.APIFunc
 }
 
-// Handler returns the APIFunc to let the server wrap it in middlewares
+// Handler returns the APIFunc to let the server wrap it in middlewares.
 func (l localRoute) Handler() httputils.APIFunc {
 	return l.handler
 }
@@ -35,7 +35,7 @@ func (l localRoute) Path() string {
 	return l.path
 }
 
-// NewRoute initializes a new local router for the reouter
+// NewRoute initializes a new local route for the router.
 func NewRoute(method, path string, handler httputils.APIFunc) dkrouter.Route {
 	return localRoute{method, path, handler}
 }
@@ -60,7 +60,7 @@ func NewDeleteRoute(path string, handler httputils.APIFunc) dkrouter.Route {
 	return NewRoute("DELETE", path, handler)
 }
 
-// NewOptionsRoute initializes a new route with the http method OPTIONS
+// NewOptionsRoute initializes a new route with the http method OPTIONS.
 func NewOptionsRoute(path string, handler httputils.APIFunc) dkrouter.Route {
 	return NewRoute("OPTIONS", path, handler)
 }
@@ -87,7 +87,6 @@ func (r *router) Routes() []dkrouter.Route {
 // initRoutes initializes the routes in this router
 func (r *router) initRoutes() {
 	r.routes = []dkrouter.Route{
-		// OPTIONS
 		// GET
 		NewGetRoute("/images/json", r.getImagesJSON),
 		NewGetRoute("/images/search", r.getImagesSearch),

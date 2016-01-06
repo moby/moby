@@ -20,7 +20,7 @@ func NewRouter(b Backend) router.Router {
 	return r
 }
 
-// Routes returns the available routers to the container controller
+// Routes returns the available routes to the container controller
 func (r *containerRouter) Routes() []router.Route {
 	return r.routes
 }
