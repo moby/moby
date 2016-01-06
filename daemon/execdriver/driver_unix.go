@@ -146,14 +146,11 @@ func InitContainer(c *Command) *configs.Config {
 	// This can be overridden later by driver during mount setup based
 	// on volume options
 	SetRootPropagation(container, mount.RPRIVATE)
+	container.Cgroups.Parent = c.CgroupParent
 
 	// check to see if we are running in ramdisk to disable pivot root
 	container.NoPivotRoot = os.Getenv("DOCKER_RAMDISK") != ""
 
-	// Default parent cgroup is "docker". Override if required.
-	if c.CgroupParent != "" {
-		container.Cgroups.Parent = c.CgroupParent
-	}
 	return container
 }
 
