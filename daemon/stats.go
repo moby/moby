@@ -6,11 +6,15 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/versions/v1p20"
 	"github.com/docker/docker/daemon/execdriver"
+	"github.com/docker/docker/pkg/version"
 )
 
 // ContainerStats writes information about the container to the stream
 // given in the config object.
 func (daemon *Daemon) ContainerStats(prefixOrName string, config *types.ContainerStatsConfig) error {
+	// Remote API version (used for backwards compatibility)
+	apiVersion := version.Version(config.Version)
+
 	container, err := daemon.GetContainer(prefixOrName)
 	if err != nil {
 		return err
@@ -55,7 +59,7 @@ func (daemon *Daemon) ContainerStats(prefixOrName string, config *types.Containe
 
 			var statsJSON interface{}
 			statsJSONPost120 := getStatJSON(v)
-			if config.Version.LessThan("1.21") {
+			if apiVersion.LessThan("1.21") {
 				var (
 					rxBytes   uint64
 					rxPackets uint64

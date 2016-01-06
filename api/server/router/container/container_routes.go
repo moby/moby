@@ -79,7 +79,7 @@ func (s *containerRouter) getContainersStats(ctx context.Context, w http.Respons
 		Stream:    stream,
 		OutStream: out,
 		Stop:      closeNotifier,
-		Version:   httputils.VersionFromContext(ctx),
+		Version:   string(httputils.VersionFromContext(ctx)),
 	}
 
 	return s.backend.ContainerStats(vars["name"], config)

@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/pkg/version"
 )
 
 // configs holds structs used for internal communication between the
@@ -93,7 +92,7 @@ type ContainerStatsConfig struct {
 	Stream    bool
 	OutStream io.Writer
 	Stop      <-chan bool
-	Version   version.Version
+	Version   string
 }
 
 // ExecConfig is a small subset of the Config struct that hold the configuration
