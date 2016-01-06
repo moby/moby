@@ -134,11 +134,10 @@ func (c *Client) callWithRetry(serviceMethod string, data io.Reader, retry bool)
 				Err string
 			}
 			remoteErr := responseErr{}
-			if err := json.Unmarshal(b, &remoteErr); err != nil {
-				return nil, fmt.Errorf("%s: %s", serviceMethod, err)
-			}
-			if remoteErr.Err != "" {
-				return nil, fmt.Errorf("%s: %s", serviceMethod, remoteErr.Err)
+			if err := json.Unmarshal(b, &remoteErr); err == nil {
+				if remoteErr.Err != "" {
+					return nil, fmt.Errorf("%s: %s", serviceMethod, remoteErr.Err)
+				}
 			}
 			// old way...
 			return nil, fmt.Errorf("%s: %s", serviceMethod, string(b))
