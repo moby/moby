@@ -2,7 +2,6 @@ package image
 
 import (
 	"github.com/docker/docker/api/server/router"
-	"github.com/docker/docker/api/server/router/local"
 	"github.com/docker/docker/daemon"
 )
 
@@ -30,19 +29,19 @@ func (r *imageRouter) Routes() []router.Route {
 func (r *imageRouter) initRoutes() {
 	r.routes = []router.Route{
 		// GET
-		local.NewGetRoute("/images/json", r.getImagesJSON),
-		local.NewGetRoute("/images/search", r.getImagesSearch),
-		local.NewGetRoute("/images/get", r.getImagesGet),
-		local.NewGetRoute("/images/{name:.*}/get", r.getImagesGet),
-		local.NewGetRoute("/images/{name:.*}/history", r.getImagesHistory),
-		local.NewGetRoute("/images/{name:.*}/json", r.getImagesByName),
+		router.NewGetRoute("/images/json", r.getImagesJSON),
+		router.NewGetRoute("/images/search", r.getImagesSearch),
+		router.NewGetRoute("/images/get", r.getImagesGet),
+		router.NewGetRoute("/images/{name:.*}/get", r.getImagesGet),
+		router.NewGetRoute("/images/{name:.*}/history", r.getImagesHistory),
+		router.NewGetRoute("/images/{name:.*}/json", r.getImagesByName),
 		// POST
-		local.NewPostRoute("/commit", r.postCommit),
-		local.NewPostRoute("/images/create", r.postImagesCreate),
-		local.NewPostRoute("/images/load", r.postImagesLoad),
-		local.NewPostRoute("/images/{name:.*}/push", r.postImagesPush),
-		local.NewPostRoute("/images/{name:.*}/tag", r.postImagesTag),
+		router.NewPostRoute("/commit", r.postCommit),
+		router.NewPostRoute("/images/create", r.postImagesCreate),
+		router.NewPostRoute("/images/load", r.postImagesLoad),
+		router.NewPostRoute("/images/{name:.*}/push", r.postImagesPush),
+		router.NewPostRoute("/images/{name:.*}/tag", r.postImagesTag),
 		// DELETE
-		local.NewDeleteRoute("/images/{name:.*}", r.deleteImages),
+		router.NewDeleteRoute("/images/{name:.*}", r.deleteImages),
 	}
 }

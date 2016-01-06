@@ -2,7 +2,6 @@ package build
 
 import (
 	"github.com/docker/docker/api/server/router"
-	"github.com/docker/docker/api/server/router/local"
 	"github.com/docker/docker/daemon"
 )
 
@@ -28,6 +27,6 @@ func (r *buildRouter) Routes() []router.Route {
 
 func (r *buildRouter) initRoutes() {
 	r.routes = []router.Route{
-		local.NewPostRoute("/build", r.postBuild),
+		router.NewPostRoute("/build", r.postBuild),
 	}
 }

@@ -1,9 +1,6 @@
 package volume
 
-import (
-	"github.com/docker/docker/api/server/router"
-	"github.com/docker/docker/api/server/router/local"
-)
+import "github.com/docker/docker/api/server/router"
 
 // volumeRouter is a router to talk with the volumes controller
 type volumeRouter struct {
@@ -28,11 +25,11 @@ func (r *volumeRouter) Routes() []router.Route {
 func (r *volumeRouter) initRoutes() {
 	r.routes = []router.Route{
 		// GET
-		local.NewGetRoute("/volumes", r.getVolumesList),
-		local.NewGetRoute("/volumes/{name:.*}", r.getVolumeByName),
+		router.NewGetRoute("/volumes", r.getVolumesList),
+		router.NewGetRoute("/volumes/{name:.*}", r.getVolumeByName),
 		// POST
-		local.NewPostRoute("/volumes/create", r.postVolumesCreate),
+		router.NewPostRoute("/volumes/create", r.postVolumesCreate),
 		// DELETE
-		local.NewDeleteRoute("/volumes/{name:.*}", r.deleteVolumes),
+		router.NewDeleteRoute("/volumes/{name:.*}", r.deleteVolumes),
 	}
 }
