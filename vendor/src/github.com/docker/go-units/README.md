@@ -1,3 +1,5 @@
+[![GoDoc](https://godoc.org/github.com/docker/go-units?status.svg)](https://godoc.org/github.com/docker/go-units)
+
 # Introduction
 
 go-units is a library to transform human friendly measurements into machine friendly values.
