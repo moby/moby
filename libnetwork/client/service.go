@@ -8,8 +8,10 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	"github.com/docker/docker/opts"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/libnetwork/netutils"
 )
 
 var (
@@ -319,6 +321,8 @@ func (cli *NetworkCli) CmdServiceInfo(chain string, args ...string) error {
 // CmdServiceAttach handles service attach UI
 func (cli *NetworkCli) CmdServiceAttach(chain string, args ...string) error {
 	cmd := cli.Subcmd(chain, "attach", "CONTAINER SERVICE[.NETWORK]", "Sets a container as a service backend", false)
+	flAlias := opts.NewListOpts(netutils.ValidateAlias)
+	cmd.Var(&flAlias, []string{"-alias"}, "Add alias for another container")
 	cmd.Require(flag.Min, 2)
 	err := cmd.ParseFlags(args, true)
 	if err != nil {
@@ -341,7 +345,7 @@ func (cli *NetworkCli) CmdServiceAttach(chain string, args ...string) error {
 		return err
 	}
 
-	nc := serviceAttach{SandboxID: sandboxID}
+	nc := serviceAttach{SandboxID: sandboxID, Aliases: flAlias.GetAll()}
 
 	_, _, err = readBody(cli.call("POST", "/services/"+serviceID+"/backend", nc, nil))
 

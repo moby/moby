@@ -18,8 +18,12 @@ function get_sbox_id() {
 }
 
 function net_connect() {
+        local al
+        if [ -n "$4" ]; then
+            al="--alias=${4}"
+        fi
 	dnet_cmd $(inst_id2port ${1}) service publish ${2}.${3}
-	dnet_cmd $(inst_id2port ${1}) service attach ${2} ${2}.${3}
+	dnet_cmd $(inst_id2port ${1}) service attach $al ${2} ${2}.${3}
 }
 
 function net_disconnect() {

@@ -233,3 +233,19 @@ function test_single_network_connectivity() {
     done
 
 }
+
+@test "Test bridge network alias support" {
+    skip_for_circleci
+    dnet_cmd $(inst_id2port 1) network create -d bridge br1
+    dnet_cmd $(inst_id2port 1) container create container_1
+    net_connect 1 container_1 br1 container_2:c2 
+    dnet_cmd $(inst_id2port 1) container create container_2
+    net_connect 1 container_2 br1
+    runc $(dnet_container_name 1 bridge) $(get_sbox_id 1 container_1) "ping -c 1 container_2"
+    runc $(dnet_container_name 1 bridge) $(get_sbox_id 1 container_1) "ping -c 1 c2"
+    net_disconnect 1 container_1 br1
+    net_disconnect 1 container_2 br1
+    dnet_cmd $(inst_id2port 1) container rm container_1
+    dnet_cmd $(inst_id2port 1) container rm container_2
+    dnet_cmd $(inst_id2port 1) network rm br1
+}
