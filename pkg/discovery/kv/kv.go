@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	discoveryPath = "docker/nodes"
+	defaultDiscoveryPath = "docker/nodes"
 )
 
 // Discovery is exported
@@ -62,7 +62,14 @@ func (s *Discovery) Initialize(uris string, heartbeat time.Duration, ttl time.Du
 
 	s.heartbeat = heartbeat
 	s.ttl = ttl
-	s.path = path.Join(s.prefix, discoveryPath)
+
+	// Use a custom path if specified in discovery options
+	dpath := defaultDiscoveryPath
+	if clusterOpts["kv.path"] != "" {
+		dpath = clusterOpts["kv.path"]
+	}
+
+	s.path = path.Join(s.prefix, dpath)
 
 	var config *store.Config
 	if clusterOpts["kv.cacertfile"] != "" && clusterOpts["kv.certfile"] != "" && clusterOpts["kv.keyfile"] != "" {
@@ -138,6 +145,17 @@ func (s *Discovery) Watch(stopCh <-chan struct{}) (<-chan discovery.Entries, <-c
 		// Forever: Create a store watch, watch until we get an error and then try again.
 		// Will only stop if we receive a stopCh request.
 		for {
+			// Create the path to watch if it does not exist yet
+			exists, err := s.store.Exists(s.path)
+			if err != nil {
+				errCh <- err
+			}
+			if !exists {
+				if err := s.store.Put(s.path, []byte(""), &store.WriteOptions{IsDir: true}); err != nil {
+					errCh <- err
+				}
+			}
+
 			// Set up a watch.
 			watchCh, err := s.store.WatchTree(s.path, stopCh)
 			if err != nil {
