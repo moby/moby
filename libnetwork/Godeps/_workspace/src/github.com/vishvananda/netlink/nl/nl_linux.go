@@ -149,10 +149,12 @@ func (a *RtAttr) Serialize() []byte {
 	length := a.Len()
 	buf := make([]byte, rtaAlignOf(length))
 
+	next := 4
 	if a.Data != nil {
-		copy(buf[4:], a.Data)
-	} else {
-		next := 4
+		copy(buf[next:], a.Data)
+		next += rtaAlignOf(len(a.Data))
+	}
+	if len(a.children) > 0 {
 		for _, child := range a.children {
 			childBuf := child.Serialize()
 			copy(buf[next:], childBuf)
@@ -321,6 +323,10 @@ func Subscribe(protocol int, groups ...uint) (*NetlinkSocket, error) {
 
 func (s *NetlinkSocket) Close() {
 	syscall.Close(s.fd)
+}
+
+func (s *NetlinkSocket) GetFd() int {
+	return s.fd
 }
 
 func (s *NetlinkSocket) Send(request *NetlinkRequest) error {
