@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os/exec"
+	"strings"
 	"time"
 
 	"github.com/docker/docker/pkg/integration/checker"
@@ -199,4 +200,56 @@ func (s *DockerTrustSuite) TestTrustedOfflinePull(c *check.C) {
 
 	c.Assert(err, check.IsNil, check.Commentf(out))
 	c.Assert(string(out), checker.Contains, "Tagging", check.Commentf(out))
+}
+
+func (s *DockerTrustSuite) TestTrustedPullDelete(c *check.C) {
+	repoName := fmt.Sprintf("%v/dockercli/%s:latest", privateRegistryURL, "trusted-pull-delete")
+	// tag the image and upload it to the private registry
+	_, err := buildImage(repoName, `
+                    FROM busybox
+                    CMD echo trustedpulldelete
+                `, true)
+
+	pushCmd := exec.Command(dockerBinary, "push", repoName)
+	s.trustedCmd(pushCmd)
+	out, _, err := runCommandWithOutput(pushCmd)
+	if err != nil {
+		c.Fatalf("Error running trusted push: %s\n%s", err, out)
+	}
+	if !strings.Contains(string(out), "Signing and pushing trust metadata") {
+		c.Fatalf("Missing expected output on trusted push:\n%s", out)
+	}
+
+	if out, status := dockerCmd(c, "rmi", repoName); status != 0 {
+		c.Fatalf("Error removing image %q\n%s", repoName, out)
+	}
+
+	// Try pull
+	pullCmd := exec.Command(dockerBinary, "pull", repoName)
+	s.trustedCmd(pullCmd)
+	out, _, err = runCommandWithOutput(pullCmd)
+
+	c.Assert(err, check.IsNil, check.Commentf(out))
+
+	matches := digestRegex.FindStringSubmatch(out)
+	c.Assert(matches, checker.HasLen, 2, check.Commentf("unable to parse digest from pull output: %s", out))
+	pullDigest := matches[1]
+
+	imageID, err := inspectField(repoName, "Id")
+	c.Assert(err, checker.IsNil, check.Commentf("error inspecting image id"))
+
+	imageByDigest := repoName + "@" + pullDigest
+	byDigestID, err := inspectField(imageByDigest, "Id")
+	c.Assert(err, checker.IsNil, check.Commentf("error inspecting image id"))
+
+	c.Assert(byDigestID, checker.Equals, imageID)
+
+	// rmi of tag should also remove the digest reference
+	dockerCmd(c, "rmi", repoName)
+
+	_, err = inspectField(imageByDigest, "Id")
+	c.Assert(err, checker.NotNil, check.Commentf("digest reference should have been removed"))
+
+	_, err = inspectField(imageID, "Id")
+	c.Assert(err, checker.NotNil, check.Commentf("image should have been deleted"))
 }

@@ -90,8 +90,34 @@ func (daemon *Daemon) ImageDelete(imageRef string, force, prune bool) ([]types.I
 		daemon.LogImageEvent(imgID.String(), imgID.String(), "untag")
 		records = append(records, untaggedRecord)
 
-		// If has remaining references then untag finishes the remove
-		if len(repoRefs) > 1 {
+		repoRefs = daemon.referenceStore.References(imgID)
+
+		// If this is a tag reference and all the remaining references
+		// to this image are digest references, delete the remaining
+		// references so that they don't prevent removal of the image.
+		if _, isCanonical := parsedRef.(reference.Canonical); !isCanonical {
+			foundTagRef := false
+			for _, repoRef := range repoRefs {
+				if _, repoRefIsCanonical := repoRef.(reference.Canonical); !repoRefIsCanonical {
+					foundTagRef = true
+					break
+				}
+			}
+			if !foundTagRef {
+				for _, repoRef := range repoRefs {
+					if _, err := daemon.removeImageRef(repoRef); err != nil {
+						return records, err
+					}
+
+					untaggedRecord := types.ImageDelete{Untagged: repoRef.String()}
+					records = append(records, untaggedRecord)
+				}
+				repoRefs = []reference.Named{}
+			}
+		}
+
+		// If it has remaining references then the untag finished the remove
+		if len(repoRefs) > 0 {
 			return records, nil
 		}
 
