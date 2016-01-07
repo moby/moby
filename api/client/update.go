@@ -2,6 +2,7 @@ package client
 
 import (
 	"fmt"
+	"strings"
 
 	Cli "github.com/docker/docker/cli"
 	flag "github.com/docker/docker/pkg/mflag"
@@ -86,18 +87,17 @@ func (cli *DockerCli) CmdUpdate(args ...string) error {
 	}
 
 	names := cmd.Args()
-	var errNames []string
+	var errs []string
 	for _, name := range names {
 		if err := cli.client.ContainerUpdate(name, hostConfig); err != nil {
-			fmt.Fprintf(cli.err, "%s\n", err)
-			errNames = append(errNames, name)
+			errs = append(errs, fmt.Sprintf("Failed to update container (%s): %s", name, err))
 		} else {
 			fmt.Fprintf(cli.out, "%s\n", name)
 		}
 	}
 
-	if len(errNames) > 0 {
-		return fmt.Errorf("Error: failed to update resources of containers: %v", errNames)
+	if len(errs) > 0 {
+		return fmt.Errorf("%s", strings.Join(errs, "\n"))
 	}
 
 	return nil

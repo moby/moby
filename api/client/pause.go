@@ -2,6 +2,7 @@ package client
 
 import (
 	"fmt"
+	"strings"
 
 	Cli "github.com/docker/docker/cli"
 	flag "github.com/docker/docker/pkg/mflag"
@@ -16,17 +17,16 @@ func (cli *DockerCli) CmdPause(args ...string) error {
 
 	cmd.ParseFlags(args, true)
 
-	var errNames []string
+	var errs []string
 	for _, name := range cmd.Args() {
 		if err := cli.client.ContainerPause(name); err != nil {
-			fmt.Fprintf(cli.err, "%s\n", err)
-			errNames = append(errNames, name)
+			errs = append(errs, fmt.Sprintf("Failed to pause container (%s): %s", name, err))
 		} else {
 			fmt.Fprintf(cli.out, "%s\n", name)
 		}
 	}
-	if len(errNames) > 0 {
-		return fmt.Errorf("Error: failed to pause containers: %v", errNames)
+	if len(errs) > 0 {
+		return fmt.Errorf("%s", strings.Join(errs, "\n"))
 	}
 	return nil
 }
