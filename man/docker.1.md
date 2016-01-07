@@ -226,10 +226,8 @@ inside it)
 
 # EXEC DRIVER OPTIONS
 
-Use the **--exec-opt** flags to specify options to the execution driver. The only
-runtime that accepts any options is Linux. As a
-result, you must also specify **-s=**native for this option to have effect. The 
-following is the only *native* option:
+Use the **--exec-opt** flags to specify options to the execution driver.
+The following options are available:
 
 #### native.cgroupdriver
 Specifies the management of the container's `cgroups`. You can specify 
