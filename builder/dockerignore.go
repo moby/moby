@@ -26,17 +26,21 @@ type DockerIgnoreContext struct {
 //
 // TODO: Don't require a ModifiableContext (use Context instead) and don't remove
 // files, instead handle a list of files to be excluded from the context.
-func (c DockerIgnoreContext) Process(filesToRemove []string) error {
-	f, err := c.Open(".dockerignore")
-	// Note that a missing .dockerignore file isn't treated as an error
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil
+func (c DockerIgnoreContext) Process(filesToRemove []string, excludes []string) error {
+	// backward compatibility for clients sending .dockerignore instead of IgnoreRules
+	if excludes == nil {
+		f, err := c.Open(".dockerignore")
+		// Note that a missing .dockerignore file isn't treated as an error
+		if err != nil {
+			if os.IsNotExist(err) {
+				return nil
+			}
+			return err
 		}
-		return err
+		excludes, _ = dockerignore.ReadAll(f)
+		filesToRemove = append([]string{".dockerignore"}, filesToRemove...)
 	}
-	excludes, _ := dockerignore.ReadAll(f)
-	filesToRemove = append([]string{".dockerignore"}, filesToRemove...)
+
 	for _, fileToRemove := range filesToRemove {
 		rm, _ := fileutils.Matches(fileToRemove, excludes)
 		if rm {

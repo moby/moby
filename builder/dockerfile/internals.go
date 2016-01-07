@@ -645,7 +645,7 @@ func (b *Builder) readDockerfile() error {
 	// Note that this assumes the Dockerfile has been read into memory and
 	// is now safe to be removed.
 	if dockerIgnore, ok := b.context.(builder.DockerIgnoreContext); ok {
-		dockerIgnore.Process([]string{b.options.Dockerfile})
+		dockerIgnore.Process([]string{b.options.Dockerfile}, b.options.IgnoreRules)
 	}
 	return nil
 }

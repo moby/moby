@@ -142,6 +142,7 @@ type ImageBuildOptions struct {
 	BuildArgs      map[string]string
 	AuthConfigs    map[string]AuthConfig
 	Context        io.Reader
+	IgnoreRules    []string
 }
 
 // ImageBuildResponse holds information
