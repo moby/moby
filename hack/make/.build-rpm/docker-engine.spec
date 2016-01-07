@@ -47,9 +47,9 @@ Requires: xz
 # Resolves: rhbz#1165615
 Requires: device-mapper-libs >= 1.02.90-1
 %endif
-%if 0%{?oraclelinux} == 6
-# Require Oracle Unbreakable Enterprise Kernel R3 and newer device-mapper
-Requires: kernel-uek >= 3.8
+%if 0%{?oraclelinux} >= 6
+# Require Oracle Unbreakable Enterprise Kernel R4 and newer device-mapper
+Requires: kernel-uek >= 4.1
 Requires: device-mapper >= 1.02.90-2
 %endif
 
@@ -105,7 +105,7 @@ for deploying and scaling web apps, databases, and backend services without
 depending on a particular stack or provider.
 
 %prep
-%if 0%{?centos} <= 6
+%if 0%{?centos} <= 6 || 0%{oraclelinux} <=6
 %setup -n %{name}
 %else
 %autosetup -n %{name}
