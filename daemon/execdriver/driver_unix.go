@@ -145,7 +145,7 @@ func InitContainer(c *Command) *configs.Config {
 	container.Readonlyfs = c.ReadonlyRootfs
 	// This can be overridden later by driver during mount setup based
 	// on volume options
-	SetRootPropagation(container, mount.RPRIVATE)
+	SetRootPropagation(container, mount.RSLAVE)
 	container.Cgroups.Parent = c.CgroupParent
 
 	// check to see if we are running in ramdisk to disable pivot root
