@@ -51,6 +51,7 @@ DEFAULT_BUNDLES=(
 	validate-test
 	validate-toml
 	validate-vet
+	validate-vendor
 
 	binary
 	dynbinary
