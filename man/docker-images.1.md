@@ -7,11 +7,11 @@ docker-images - List images
 # SYNOPSIS
 **docker images**
 [**--help**]
-[**-a**|**--all**[=*false*]]
-[**--digests**[=*false*]]
+[**-a**|**--all**]
+[**--digests**]
 [**-f**|**--filter**[=*[]*]]
-[**--no-trunc**[=*false*]]
-[**-q**|**--quiet**[=*false*]]
+[**--no-trunc**]
+[**-q**|**--quiet**]
 [REPOSITORY[:TAG]]
 
 # DESCRIPTION

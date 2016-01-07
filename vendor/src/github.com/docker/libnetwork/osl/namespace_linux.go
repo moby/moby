@@ -41,6 +41,7 @@ type networkNamespace struct {
 	staticRoutes []*types.StaticRoute
 	neighbors    []*neigh
 	nextIfIndex  int
+	isDefault    bool
 	sync.Mutex
 }
 
@@ -146,7 +147,7 @@ func NewSandbox(key string, osCreate bool) (Sandbox, error) {
 		return nil, err
 	}
 
-	return &networkNamespace{path: key}, nil
+	return &networkNamespace{path: key, isDefault: !osCreate}, nil
 }
 
 func (n *networkNamespace) InterfaceOptions() IfaceOptionSetter {

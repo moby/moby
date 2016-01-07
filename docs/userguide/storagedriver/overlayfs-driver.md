@@ -25,7 +25,7 @@ Docker's `overlay` storage driver leverages several OverlayFS features to build 
 
 ## Image layering and sharing with OverlayFS
 
-OverlayFS takes two directories on a single Linux host, layers one on top of the other, and provides a single unified view. These directories are often referred to as *layers* and the technology used to layer them is is known as a *union mount*. The OverlayFS terminology is "lowerdir" for the bottom layer and "upperdir" for the top layer. The unified view is exposed through its own directory called "merged".
+OverlayFS takes two directories on a single Linux host, layers one on top of the other, and provides a single unified view. These directories are often referred to as *layers* and the technology used to layer them is known as a *union mount*. The OverlayFS terminology is "lowerdir" for the bottom layer and "upperdir" for the top layer. The unified view is exposed through its own directory called "merged".
 
 The diagram below shows how a Docker image and a Docker container are layered. The image layer is the "lowerdir" and the container layer is the "upperdir". The unified view is exposed through a directory called "merged" which is effectively the containers mount point. The diagram shows how Docker constructs map to OverlayFS constructs.
 

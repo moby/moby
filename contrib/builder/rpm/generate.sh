@@ -84,8 +84,9 @@ for version in "${versions[@]}"; do
 	esac
 
 	# opensuse & oraclelinx:6 do not have the right libseccomp libs
+	# centos:7 and oraclelinux:7 have a libseccomp < 2.2.1 :(
 	case "$from" in
-		opensuse:*|oraclelinux:6)
+		opensuse:*|oraclelinux:*|centos:7)
 			packages=( "${packages[@]/libseccomp-devel}" )
 			;;
 		*)
@@ -106,12 +107,11 @@ for version in "${versions[@]}"; do
 
 	echo >> "$version/Dockerfile"
 
-	# centos, fedora, & oraclelinux:7 do not have a libseccomp.a for compiling static dockerinit
+	# fedora does not have a libseccomp.a for compiling static dockerinit
 	# ONLY install libseccomp.a from source, this can be removed once dockerinit is removed
 	# TODO remove this manual seccomp compilation once dockerinit is gone or no longer needs to be statically compiled
 	case "$from" in
-		opensuse:*|oraclelinux:6) ;;
-		*)
+		fedora:*)
 			awk '$1 == "ENV" && $2 == "SECCOMP_VERSION" { print; exit }' ../../../Dockerfile >> "$version/Dockerfile"
 			cat <<-'EOF' >> "$version/Dockerfile"
 			RUN buildDeps=' \
@@ -137,6 +137,7 @@ for version in "${versions[@]}"; do
 
 			echo >> "$version/Dockerfile"
 			;;
+		*) ;;
 	esac
 
 	awk '$1 == "ENV" && $2 == "GO_VERSION" { print; exit }' ../../../Dockerfile >> "$version/Dockerfile"

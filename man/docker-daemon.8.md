@@ -1,4 +1,4 @@
-% DOCKER(1) Docker User Manuals
+% DOCKER(8) Docker User Manuals
 % Shishir Mahajan
 % SEPTEMBER 2015
 # NAME
@@ -10,14 +10,15 @@ docker-daemon - Enable daemon mode
 [**--authz-plugin**[=*[]*]]
 [**-b**|**--bridge**[=*BRIDGE*]]
 [**--bip**[=*BIP*]]
+[**--cgroup-parent**[=*/docker*]]
 [**--cluster-store**[=*[]*]]
 [**--cluster-advertise**[=*[]*]]
 [**--cluster-store-opt**[=*map[]*]]
-[**-D**|**--debug**[=*false*]]
+[**-D**|**--debug**]
 [**--default-gateway**[=*DEFAULT-GATEWAY*]]
 [**--default-gateway-v6**[=*DEFAULT-GATEWAY-V6*]]
 [**--default-ulimit**[=*[]*]]
-[**--disable-legacy-registry**[=*false*]]
+[**--disable-legacy-registry**]
 [**--dns**[=*[]*]]
 [**--dns-opt**[=*[]*]]
 [**--dns-search**[=*[]*]]
@@ -35,7 +36,7 @@ docker-daemon - Enable daemon mode
 [**--ip-forward**[=*true*]]
 [**--ip-masq**[=*true*]]
 [**--iptables**[=*true*]]
-[**--ipv6**[=*false*]]
+[**--ipv6**]
 [**-l**|**--log-level**[=*info*]]
 [**--label**[=*[]*]]
 [**--log-driver**[=*json-file*]]
@@ -44,13 +45,13 @@ docker-daemon - Enable daemon mode
 [**-p**|**--pidfile**[=*/var/run/docker.pid*]]
 [**--registry-mirror**[=*[]*]]
 [**-s**|**--storage-driver**[=*STORAGE-DRIVER*]]
-[**--selinux-enabled**[=*false*]]
+[**--selinux-enabled**]
 [**--storage-opt**[=*[]*]]
-[**--tls**[=*false*]]
+[**--tls**]
 [**--tlscacert**[=*~/.docker/ca.pem*]]
 [**--tlscert**[=*~/.docker/cert.pem*]]
 [**--tlskey**[=*~/.docker/key.pem*]]
-[**--tlsverify**[=*false*]]
+[**--tlsverify**]
 [**--userland-proxy**[=*true*]]
 
 # DESCRIPTION
@@ -79,6 +80,9 @@ format.
 
 **--bip**=""
   Use the provided CIDR notation address for the dynamically created bridge (docker0); Mutually exclusive of \-b
+
+**--cgroup-parent**=""
+  Set parent cgroup for all containers. Default is "/docker".
 
 **--cluster-store**=""
   URL of the distributed storage backend

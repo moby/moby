@@ -7,6 +7,7 @@ import (
 	"text/tabwriter"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/network"
 	Cli "github.com/docker/docker/cli"
 	"github.com/docker/docker/opts"
@@ -138,12 +139,29 @@ func (cli *DockerCli) CmdNetworkLs(args ...string) error {
 	quiet := cmd.Bool([]string{"q", "-quiet"}, false, "Only display numeric IDs")
 	noTrunc := cmd.Bool([]string{"-no-trunc"}, false, "Do not truncate the output")
 
+	flFilter := opts.NewListOpts(nil)
+	cmd.Var(&flFilter, []string{"f", "-filter"}, "Filter output based on conditions provided")
+
 	cmd.Require(flag.Exact, 0)
-	if err := cmd.ParseFlags(args, true); err != nil {
+	err := cmd.ParseFlags(args, true)
+	if err != nil {
 		return err
 	}
 
-	networkResources, err := cli.client.NetworkList()
+	// Consolidate all filter flags, and sanity check them early.
+	// They'll get process after get response from server.
+	netFilterArgs := filters.NewArgs()
+	for _, f := range flFilter.GetAll() {
+		if netFilterArgs, err = filters.ParseFlag(f, netFilterArgs); err != nil {
+			return err
+		}
+	}
+
+	options := types.NetworkListOptions{
+		Filters: netFilterArgs,
+	}
+
+	networkResources, err := cli.client.NetworkList(options)
 	if err != nil {
 		return err
 	}

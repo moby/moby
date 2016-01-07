@@ -20,11 +20,11 @@ clone git github.com/mistifyio/go-zfs v2.1.1
 clone git github.com/tchap/go-patricia v2.1.0
 clone git github.com/vdemeester/shakers 3c10293ce22b900c27acad7b28656196fcc2f73b
 clone git golang.org/x/net 47990a1ba55743e6ef1affd3a14e5bac8553615d https://github.com/golang/net.git
-clone git github.com/docker/go-units v0.2.0
-clone git github.com/docker/go-connections 96cdf8190a45946d0f19576732e2a410c6f84a31
+clone git github.com/docker/go-units 651fc226e7441360384da338d0fd37f2440ffbe3
+clone git github.com/docker/go-connections 4e42727957c146776e5de9cec8c39e4059ed9f20
 
 #get libnetwork packages
-clone git github.com/docker/libnetwork bbd6e6d8ca1e7c9b42f6f53277b0bde72847ff90
+clone git github.com/docker/libnetwork 9f0563ea8f430d8828553aac97161cbff4056436
 clone git github.com/armon/go-metrics eb0af217e5e9747e41dd5303755356b62d28e3ec
 clone git github.com/hashicorp/go-msgpack 71c2886f5a673a35f909803f38ece5810165097b
 clone git github.com/hashicorp/memberlist 9a1e242e454d2443df330bdd51a436d5a9058fc4
@@ -51,7 +51,7 @@ clone git github.com/miekg/pkcs11 80f102b5cac759de406949c47f0928b99bd64cdf
 clone git github.com/jfrazelle/go v1.5.1-1
 clone git github.com/agl/ed25519 d2b94fd789ea21d12fac1a4443dd3a3f79cda72c
 
-clone git github.com/opencontainers/runc ba1568de399395774ad84c2ace65937814c542ed # libcontainer
+clone git github.com/opencontainers/runc d97d5e8b007e4657316eed76ea30bc0f690230cf # libcontainer
 clone git github.com/opencontainers/specs 46d949ea81080c5f60dfb72ee91468b1e9fb2998 # specs
 clone git github.com/seccomp/libseccomp-golang 1b506fc7c24eec5a3693cdcbed40d9c226cfc6a1
 # libcontainer deps (see src/github.com/opencontainers/runc/Godeps/Godeps.json)

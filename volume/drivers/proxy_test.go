@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/pkg/plugins"
-	"github.com/docker/docker/pkg/tlsconfig"
+	"github.com/docker/go-connections/tlsconfig"
 )
 
 func TestVolumeRequestError(t *testing.T) {
@@ -40,6 +40,16 @@ func TestVolumeRequestError(t *testing.T) {
 	mux.HandleFunc("/VolumeDriver.Path", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
 		fmt.Fprintln(w, `{"Err": "Unknown volume"}`)
+	})
+
+	mux.HandleFunc("/VolumeDriver.List", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
+		fmt.Fprintln(w, `{"Err": "Cannot list volumes"}`)
+	})
+
+	mux.HandleFunc("/VolumeDriver.Get", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
+		fmt.Fprintln(w, `{"Err": "Cannot get volume"}`)
 	})
 
 	u, _ := url.Parse(server.URL)
@@ -91,6 +101,22 @@ func TestVolumeRequestError(t *testing.T) {
 	}
 
 	if !strings.Contains(err.Error(), "Unknown volume") {
+		t.Fatalf("Unexpected error: %v\n", err)
+	}
+
+	_, err = driver.List()
+	if err == nil {
+		t.Fatal("Expected error, was nil")
+	}
+	if !strings.Contains(err.Error(), "Cannot list volumes") {
+		t.Fatalf("Unexpected error: %v\n", err)
+	}
+
+	_, err = driver.Get("volume")
+	if err == nil {
+		t.Fatal("Expected error, was nil")
+	}
+	if !strings.Contains(err.Error(), "Cannot get volume") {
 		t.Fatalf("Unexpected error: %v\n", err)
 	}
 }

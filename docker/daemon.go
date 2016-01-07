@@ -25,9 +25,9 @@ import (
 	"github.com/docker/docker/pkg/pidfile"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/system"
-	"github.com/docker/docker/pkg/tlsconfig"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/utils"
+	"github.com/docker/go-connections/tlsconfig"
 )
 
 const daemonUsage = "       docker daemon [ --help | ... ]\n"
@@ -240,7 +240,7 @@ func (cli *DaemonCli) CmdDaemon(args ...string) error {
 		"version":     dockerversion.Version,
 		"commit":      dockerversion.GitCommit,
 		"execdriver":  d.ExecutionDriver().Name(),
-		"graphdriver": d.GraphDriver().String(),
+		"graphdriver": d.GraphDriverName(),
 	}).Info("Docker daemon")
 
 	api.InitRouters(d)

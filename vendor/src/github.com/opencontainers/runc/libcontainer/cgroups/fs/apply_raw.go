@@ -137,7 +137,7 @@ func (m *Manager) Apply(pid int) (err error) {
 	m.Paths = paths
 
 	if paths["cpu"] != "" {
-		if err := CheckCpushares(paths["cpu"], c.CpuShares); err != nil {
+		if err := CheckCpushares(paths["cpu"], c.Resources.CpuShares); err != nil {
 			return err
 		}
 	}
@@ -202,15 +202,15 @@ func (m *Manager) Freeze(state configs.FreezerState) error {
 	if err != nil {
 		return err
 	}
-	prevState := m.Cgroups.Freezer
-	m.Cgroups.Freezer = state
+	prevState := m.Cgroups.Resources.Freezer
+	m.Cgroups.Resources.Freezer = state
 	freezer, err := subsystems.Get("freezer")
 	if err != nil {
 		return err
 	}
 	err = freezer.Set(dir, m.Cgroups)
 	if err != nil {
-		m.Cgroups.Freezer = prevState
+		m.Cgroups.Resources.Freezer = prevState
 		return err
 	}
 	return nil

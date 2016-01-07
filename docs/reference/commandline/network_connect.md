@@ -14,7 +14,7 @@ parent = "smn_cli"
 
     Connects a container to a network
 
-      --help=false       Print usage
+      --help             Print usage
 
 Connects a running container to a network. You can connect a container by name
 or by ID. Once connected, the container can communicate with other containers in

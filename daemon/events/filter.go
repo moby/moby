@@ -1,46 +1,76 @@
 package events
 
 import (
+	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/reference"
 )
 
 // Filter can filter out docker events from a stream
 type Filter struct {
-	filter    filters.Args
-	getLabels func(id string) map[string]string
+	filter filters.Args
 }
 
 // NewFilter creates a new Filter
-func NewFilter(filter filters.Args, getLabels func(id string) map[string]string) *Filter {
-	return &Filter{filter: filter, getLabels: getLabels}
+func NewFilter(filter filters.Args) *Filter {
+	return &Filter{filter: filter}
 }
 
 // Include returns true when the event ev is included by the filters
-func (ef *Filter) Include(ev *jsonmessage.JSONMessage) bool {
-	return ef.filter.ExactMatch("event", ev.Status) &&
-		ef.filter.ExactMatch("container", ev.ID) &&
-		ef.isImageIncluded(ev.ID, ev.From) &&
-		ef.isLabelFieldIncluded(ev.ID)
+func (ef *Filter) Include(ev events.Message) bool {
+	return ef.filter.ExactMatch("event", ev.Action) &&
+		ef.filter.ExactMatch("type", ev.Type) &&
+		ef.matchContainer(ev) &&
+		ef.matchVolume(ev) &&
+		ef.matchNetwork(ev) &&
+		ef.matchImage(ev) &&
+		ef.matchLabels(ev.Actor.Attributes)
 }
 
-func (ef *Filter) isLabelFieldIncluded(id string) bool {
+func (ef *Filter) matchLabels(attributes map[string]string) bool {
 	if !ef.filter.Include("label") {
 		return true
 	}
-	return ef.filter.MatchKVList("label", ef.getLabels(id))
+	return ef.filter.MatchKVList("label", attributes)
 }
 
-// The image filter will be matched against both event.ID (for image events)
-// and event.From (for container events), so that any container that was created
+func (ef *Filter) matchContainer(ev events.Message) bool {
+	return ef.fuzzyMatchName(ev, events.ContainerEventType)
+}
+
+func (ef *Filter) matchVolume(ev events.Message) bool {
+	return ef.fuzzyMatchName(ev, events.VolumeEventType)
+}
+
+func (ef *Filter) matchNetwork(ev events.Message) bool {
+	return ef.fuzzyMatchName(ev, events.NetworkEventType)
+}
+
+func (ef *Filter) fuzzyMatchName(ev events.Message, eventType string) bool {
+	return ef.filter.FuzzyMatch(eventType, ev.Actor.ID) ||
+		ef.filter.FuzzyMatch(eventType, ev.Actor.Attributes["name"])
+}
+
+// matchImage matches against both event.Actor.ID (for image events)
+// and event.Actor.Attributes["image"] (for container events), so that any container that was created
 // from an image will be included in the image events. Also compare both
 // against the stripped repo name without any tags.
-func (ef *Filter) isImageIncluded(eventID string, eventFrom string) bool {
-	return ef.filter.ExactMatch("image", eventID) ||
-		ef.filter.ExactMatch("image", eventFrom) ||
-		ef.filter.ExactMatch("image", stripTag(eventID)) ||
-		ef.filter.ExactMatch("image", stripTag(eventFrom))
+func (ef *Filter) matchImage(ev events.Message) bool {
+	id := ev.Actor.ID
+	nameAttr := "image"
+	var imageName string
+
+	if ev.Type == events.ImageEventType {
+		nameAttr = "name"
+	}
+
+	if n, ok := ev.Actor.Attributes[nameAttr]; ok {
+		imageName = n
+	}
+	return ef.filter.ExactMatch("image", id) ||
+		ef.filter.ExactMatch("image", imageName) ||
+		ef.filter.ExactMatch("image", stripTag(id)) ||
+		ef.filter.ExactMatch("image", stripTag(imageName))
 }
 
 func stripTag(image string) string {

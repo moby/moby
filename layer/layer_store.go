@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"runtime"
 	"sync"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/digest"
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/vbatts/tar-split/tar/asm"
 	"github.com/vbatts/tar-split/tar/storage"
@@ -35,11 +35,41 @@ type layerStore struct {
 	mountL sync.Mutex
 }
 
-// NewStore creates a new Store instance using
-// the provided metadata store and graph driver.
-// The metadata store will be used to restore
+// StoreOptions are the options used to create a new Store instance
+type StoreOptions struct {
+	StorePath                 string
+	MetadataStorePathTemplate string
+	GraphDriver               string
+	GraphDriverOptions        []string
+	UIDMaps                   []idtools.IDMap
+	GIDMaps                   []idtools.IDMap
+}
+
+// NewStoreFromOptions creates a new Store instance
+func NewStoreFromOptions(options StoreOptions) (Store, error) {
+	driver, err := graphdriver.New(
+		options.StorePath,
+		options.GraphDriver,
+		options.GraphDriverOptions,
+		options.UIDMaps,
+		options.GIDMaps)
+	if err != nil {
+		return nil, fmt.Errorf("error initializing graphdriver: %v", err)
+	}
+	logrus.Debugf("Using graph driver %s", driver)
+
+	fms, err := NewFSMetadataStore(fmt.Sprintf(options.MetadataStorePathTemplate, driver))
+	if err != nil {
+		return nil, err
+	}
+
+	return NewStoreFromGraphDriver(fms, driver)
+}
+
+// NewStoreFromGraphDriver creates a new Store instance using the provided
+// metadata store and graph driver. The metadata store will be used to restore
 // the Store.
-func NewStore(store MetadataStore, driver graphdriver.Driver) (Store, error) {
+func NewStoreFromGraphDriver(store MetadataStore, driver graphdriver.Driver) (Store, error) {
 	ls := &layerStore{
 		store:    store,
 		driver:   driver,
@@ -144,6 +174,7 @@ func (ls *layerStore) loadMount(mount string) error {
 		mountID:    mountID,
 		initID:     initID,
 		layerStore: ls,
+		references: map[RWLayer]*referencedRWLayer{},
 	}
 
 	if parent != "" {
@@ -165,7 +196,7 @@ func (ls *layerStore) applyTar(tx MetadataTransaction, ts io.Reader, parent stri
 	digester := digest.Canonical.New()
 	tr := io.TeeReader(ts, digester.Hash())
 
-	tsw, err := tx.TarSplitWriter()
+	tsw, err := tx.TarSplitWriter(true)
 	if err != nil {
 		return err
 	}
@@ -382,15 +413,114 @@ func (ls *layerStore) Release(l Layer) ([]Metadata, error) {
 	return ls.releaseLayer(layer)
 }
 
-func (ls *layerStore) mount(m *mountedLayer, mountLabel string) error {
-	dir, err := ls.driver.Get(m.mountID, mountLabel)
-	if err != nil {
-		return err
+func (ls *layerStore) CreateRWLayer(name string, parent ChainID, mountLabel string, initFunc MountInit) (RWLayer, error) {
+	ls.mountL.Lock()
+	defer ls.mountL.Unlock()
+	m, ok := ls.mounts[name]
+	if ok {
+		return nil, ErrMountNameConflict
 	}
-	m.path = dir
-	m.activityCount++
 
-	return nil
+	var err error
+	var pid string
+	var p *roLayer
+	if string(parent) != "" {
+		p = ls.get(parent)
+		if p == nil {
+			return nil, ErrLayerDoesNotExist
+		}
+		pid = p.cacheID
+
+		// Release parent chain if error
+		defer func() {
+			if err != nil {
+				ls.layerL.Lock()
+				ls.releaseLayer(p)
+				ls.layerL.Unlock()
+			}
+		}()
+	}
+
+	m = &mountedLayer{
+		name:       name,
+		parent:     p,
+		mountID:    ls.mountID(name),
+		layerStore: ls,
+		references: map[RWLayer]*referencedRWLayer{},
+	}
+
+	if initFunc != nil {
+		pid, err = ls.initMount(m.mountID, pid, mountLabel, initFunc)
+		if err != nil {
+			return nil, err
+		}
+		m.initID = pid
+	}
+
+	if err = ls.driver.Create(m.mountID, pid, ""); err != nil {
+		return nil, err
+	}
+
+	if err = ls.saveMount(m); err != nil {
+		return nil, err
+	}
+
+	return m.getReference(), nil
+}
+
+func (ls *layerStore) GetRWLayer(id string) (RWLayer, error) {
+	ls.mountL.Lock()
+	defer ls.mountL.Unlock()
+	mount, ok := ls.mounts[id]
+	if !ok {
+		return nil, ErrMountDoesNotExist
+	}
+
+	return mount.getReference(), nil
+}
+
+func (ls *layerStore) ReleaseRWLayer(l RWLayer) ([]Metadata, error) {
+	ls.mountL.Lock()
+	defer ls.mountL.Unlock()
+	m, ok := ls.mounts[l.Name()]
+	if !ok {
+		return []Metadata{}, nil
+	}
+
+	if err := m.deleteReference(l); err != nil {
+		return nil, err
+	}
+
+	if m.hasReferences() {
+		return []Metadata{}, nil
+	}
+
+	if err := ls.driver.Remove(m.mountID); err != nil {
+		logrus.Errorf("Error removing mounted layer %s: %s", m.name, err)
+		return nil, err
+	}
+
+	if m.initID != "" {
+		if err := ls.driver.Remove(m.initID); err != nil {
+			logrus.Errorf("Error removing init layer %s: %s", m.name, err)
+			return nil, err
+		}
+	}
+
+	if err := ls.store.RemoveMount(m.name); err != nil {
+		logrus.Errorf("Error removing mount metadata: %s: %s", m.name, err)
+		return nil, err
+	}
+
+	delete(ls.mounts, m.Name())
+
+	ls.layerL.Lock()
+	defer ls.layerL.Unlock()
+	if m.parent != nil {
+		return ls.releaseLayer(m.parent)
+	}
+
+	return []Metadata{}, nil
 }
 
 func (ls *layerStore) saveMount(mount *mountedLayer) error {
@@ -442,146 +572,7 @@ func (ls *layerStore) initMount(graphID, parent, mountLabel string, initFunc Mou
 	return initID, nil
 }
 
-func (ls *layerStore) Mount(name string, parent ChainID, mountLabel string, initFunc MountInit) (l RWLayer, err error) {
-	ls.mountL.Lock()
-	defer ls.mountL.Unlock()
-	m, ok := ls.mounts[name]
-	if ok {
-		// Check if has path
-		if err := ls.mount(m, mountLabel); err != nil {
-			return nil, err
-		}
-		return m, nil
-	}
-
-	var pid string
-	var p *roLayer
-	if string(parent) != "" {
-		p = ls.get(parent)
-		if p == nil {
-			return nil, ErrLayerDoesNotExist
-		}
-		pid = p.cacheID
-
-		// Release parent chain if error
-		defer func() {
-			if err != nil {
-				ls.layerL.Lock()
-				ls.releaseLayer(p)
-				ls.layerL.Unlock()
-			}
-		}()
-	}
-
-	mountID := name
-	if runtime.GOOS != "windows" {
-		// windows has issues if container ID doesn't match mount ID
-		mountID = stringid.GenerateRandomID()
-	}
-
-	m = &mountedLayer{
-		name:       name,
-		parent:     p,
-		mountID:    mountID,
-		layerStore: ls,
-	}
-
-	if initFunc != nil {
-		pid, err = ls.initMount(m.mountID, pid, mountLabel, initFunc)
-		if err != nil {
-			return nil, err
-		}
-		m.initID = pid
-	}
-
-	if err = ls.driver.Create(m.mountID, pid, ""); err != nil {
-		return nil, err
-	}
-
-	if err = ls.saveMount(m); err != nil {
-		return nil, err
-	}
-
-	if err = ls.mount(m, mountLabel); err != nil {
-		return nil, err
-	}
-
-	return m, nil
-}
-
-func (ls *layerStore) Unmount(name string) error {
-	ls.mountL.Lock()
-	defer ls.mountL.Unlock()
-
-	m := ls.mounts[name]
-	if m == nil {
-		return ErrMountDoesNotExist
-	}
-
-	m.activityCount--
-
-	if err := ls.driver.Put(m.mountID); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (ls *layerStore) DeleteMount(name string) ([]Metadata, error) {
-	ls.mountL.Lock()
-	defer ls.mountL.Unlock()
-
-	m := ls.mounts[name]
-	if m == nil {
-		return nil, ErrMountDoesNotExist
-	}
-	if m.activityCount > 0 {
-		return nil, ErrActiveMount
-	}
-
-	delete(ls.mounts, name)
-
-	if err := ls.driver.Remove(m.mountID); err != nil {
-		logrus.Errorf("Error removing mounted layer %s: %s", m.name, err)
-		return nil, err
-	}
-
-	if m.initID != "" {
-		if err := ls.driver.Remove(m.initID); err != nil {
-			logrus.Errorf("Error removing init layer %s: %s", m.name, err)
-			return nil, err
-		}
-	}
-
-	if err := ls.store.RemoveMount(m.name); err != nil {
-		logrus.Errorf("Error removing mount metadata: %s: %s", m.name, err)
-		return nil, err
-	}
-
-	ls.layerL.Lock()
-	defer ls.layerL.Unlock()
-	if m.parent != nil {
-		return ls.releaseLayer(m.parent)
-	}
-
-	return []Metadata{}, nil
-}
-
-func (ls *layerStore) Changes(name string) ([]archive.Change, error) {
-	ls.mountL.Lock()
-	m := ls.mounts[name]
-	ls.mountL.Unlock()
-	if m == nil {
-		return nil, ErrMountDoesNotExist
-	}
-	pid := m.initID
-	if pid == "" && m.parent != nil {
-		pid = m.parent.cacheID
-	}
-	return ls.driver.Changes(m.mountID, pid)
-}
-
-func (ls *layerStore) assembleTar(graphID string, metadata io.ReadCloser, size *int64) (io.ReadCloser, error) {
+func (ls *layerStore) assembleTarTo(graphID string, metadata io.ReadCloser, size *int64, w io.Writer) error {
 	type diffPathDriver interface {
 		DiffPath(string) (string, func() error, error)
 	}
@@ -591,45 +582,32 @@ func (ls *layerStore) assembleTar(graphID string, metadata io.ReadCloser, size *
 		diffDriver = &naiveDiffPathDriver{ls.driver}
 	}
 
+	defer metadata.Close()
+
 	// get our relative path to the container
 	fsPath, releasePath, err := diffDriver.DiffPath(graphID)
 	if err != nil {
-		metadata.Close()
-		return nil, err
+		return err
 	}
+	defer releasePath()
 
-	pR, pW := io.Pipe()
-	// this will need to be in a goroutine, as we are returning the stream of a
-	// tar archive, but can not close the metadata reader early (when this
-	// function returns)...
-	go func() {
-		defer releasePath()
-		defer metadata.Close()
-
-		metaUnpacker := storage.NewJSONUnpacker(metadata)
-		upackerCounter := &unpackSizeCounter{metaUnpacker, size}
-		fileGetter := storage.NewPathFileGetter(fsPath)
-		logrus.Debugf("Assembling tar data for %s from %s", graphID, fsPath)
-		ots := asm.NewOutputTarStream(fileGetter, upackerCounter)
-		defer ots.Close()
-		if _, err := io.Copy(pW, ots); err != nil {
-			pW.CloseWithError(err)
-			return
-		}
-		pW.Close()
-	}()
-	return pR, nil
+	metaUnpacker := storage.NewJSONUnpacker(metadata)
+	upackerCounter := &unpackSizeCounter{metaUnpacker, size}
+	fileGetter := storage.NewPathFileGetter(fsPath)
+	logrus.Debugf("Assembling tar data for %s from %s", graphID, fsPath)
+	return asm.WriteOutputTarStream(fileGetter, upackerCounter, w)
 }
 
-// Metadata returns the low level metadata from the mount with the given name
-func (ls *layerStore) Metadata(name string) (map[string]string, error) {
-	ls.mountL.Lock()
-	m := ls.mounts[name]
-	ls.mountL.Unlock()
-	if m == nil {
-		return nil, ErrMountDoesNotExist
-	}
-	return ls.driver.GetMetadata(m.mountID)
+func (ls *layerStore) Cleanup() error {
+	return ls.driver.Cleanup()
+}
+
+func (ls *layerStore) DriverStatus() [][2]string {
+	return ls.driver.Status()
+}
+
+func (ls *layerStore) DriverName() string {
+	return ls.driver.String()
 }
 
 type naiveDiffPathDriver struct {

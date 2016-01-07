@@ -49,8 +49,12 @@ func (s *DockerSuite) TestInspectDefault(c *check.C) {
 	//Both the container and image are named busybox. docker inspect will fetch the container JSON.
 	//If the container JSON is not available, it will go for the image JSON.
 
-	dockerCmd(c, "run", "--name=busybox", "-d", "busybox", "true")
-	dockerCmd(c, "inspect", "busybox")
+	out, _ := dockerCmd(c, "run", "--name=busybox", "-d", "busybox", "true")
+	containerID := strings.TrimSpace(out)
+
+	inspectOut, err := inspectField("busybox", "Id")
+	c.Assert(err, checker.IsNil)
+	c.Assert(strings.TrimSpace(inspectOut), checker.Equals, containerID)
 }
 
 func (s *DockerSuite) TestInspectStatus(c *check.C) {
@@ -329,13 +333,15 @@ func (s *DockerSuite) TestInspectSizeFlagImage(c *check.C) {
 }
 
 func (s *DockerSuite) TestInspectTempateError(c *check.C) {
-	//Both the container and image are named busybox. docker inspect will fetch container
-	//JSON State.Running field. If the field is true, it's a container.
+	// Template parsing error for both the container and image.
 
-	dockerCmd(c, "run", "--name=busybox", "-d", "busybox", "top")
+	dockerCmd(c, "run", "--name=container1", "-d", "busybox", "top")
 
-	out, _, err := dockerCmdWithError("inspect", "--type=container", "--format='Format container: {{.ThisDoesNotExist}}'", "busybox")
+	out, _, err := dockerCmdWithError("inspect", "--type=container", "--format='Format container: {{.ThisDoesNotExist}}'", "container1")
+	c.Assert(err, check.Not(check.IsNil))
+	c.Assert(out, checker.Contains, "Template parsing error")
 
+	out, _, err = dockerCmdWithError("inspect", "--type=image", "--format='Format container: {{.ThisDoesNotExist}}'", "busybox")
 	c.Assert(err, check.Not(check.IsNil))
 	c.Assert(out, checker.Contains, "Template parsing error")
 }
@@ -371,4 +377,13 @@ func (s *DockerSuite) TestInspectStopWhenNotFound(c *check.C) {
 	c.Assert(out, checker.Contains, "busybox")
 	c.Assert(out, checker.Not(checker.Contains), "not-shown")
 	c.Assert(out, checker.Contains, "Error: No such container: missing")
+}
+
+func (s *DockerSuite) TestInspectHistory(c *check.C) {
+	dockerCmd(c, "run", "--name=testcont", "-d", "busybox", "top")
+	dockerCmd(c, "commit", "-m", "test comment", "testcont", "testimg")
+	out, _, err := dockerCmdWithError("inspect", "--format='{{.Comment}}'", "testimg")
+
+	c.Assert(err, check.IsNil)
+	c.Assert(out, checker.Contains, "test comment")
 }

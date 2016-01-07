@@ -385,7 +385,7 @@ func (d *Driver) Stats(id string) (*execdriver.ResourceStats, error) {
 	if err != nil {
 		return nil, err
 	}
-	memoryLimit := c.Config().Cgroups.Memory
+	memoryLimit := c.Config().Cgroups.Resources.Memory
 	// if the container does not have any memory limit specified set the
 	// limit to the machines memory
 	if memoryLimit == 0 {
@@ -396,6 +396,26 @@ func (d *Driver) Stats(id string) (*execdriver.ResourceStats, error) {
 		Read:        now,
 		MemoryLimit: memoryLimit,
 	}, nil
+}
+
+// Update updates configs for a container
+func (d *Driver) Update(c *execdriver.Command) error {
+	d.Lock()
+	cont := d.activeContainers[c.ID]
+	d.Unlock()
+	if cont == nil {
+		return execdriver.ErrNotRunning
+	}
+	config := cont.Config()
+	if err := execdriver.SetupCgroups(&config, c); err != nil {
+		return err
+	}
+
+	if err := cont.Set(config); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // TtyConsole implements the exec driver Terminal interface.

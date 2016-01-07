@@ -7,7 +7,6 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
@@ -28,29 +27,24 @@ func (n *networkRouter) getNetworksList(ctx context.Context, w http.ResponseWrit
 		return err
 	}
 
-	list := []*types.NetworkResource{}
-	netFilters.WalkValues("name", func(name string) error {
-		if nw, err := n.backend.GetNetwork(name, daemon.NetworkByName); err == nil {
-			list = append(list, buildNetworkResource(nw))
-		} else {
-			logrus.Errorf("failed to get network for filter=%s : %v", name, err)
-		}
-		return nil
-	})
-
-	netFilters.WalkValues("id", func(id string) error {
-		for _, nw := range n.backend.GetNetworksByID(id) {
-			list = append(list, buildNetworkResource(nw))
-		}
-		return nil
-	})
-
-	if !netFilters.Include("name") && !netFilters.Include("id") {
-		nwList := n.backend.GetNetworksByID("")
-		for _, nw := range nwList {
-			list = append(list, buildNetworkResource(nw))
+	if netFilters.Len() != 0 {
+		if err := netFilters.Validate(acceptedFilters); err != nil {
+			return err
 		}
 	}
+
+	list := []*types.NetworkResource{}
+
+	nwList := n.backend.GetAllNetworks()
+	displayable, err := filterNetworks(nwList, netFilters)
+	if err != nil {
+		return err
+	}
+
+	for _, nw := range displayable {
+		list = append(list, buildNetworkResource(nw))
+	}
+
 	return httputils.WriteJSON(w, http.StatusOK, list)
 }
 
@@ -154,21 +148,7 @@ func (n *networkRouter) postNetworkDisconnect(ctx context.Context, w http.Respon
 }
 
 func (n *networkRouter) deleteNetwork(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if err := httputils.ParseForm(r); err != nil {
-		return err
-	}
-
-	nw, err := n.backend.FindNetwork(vars["id"])
-	if err != nil {
-		return err
-	}
-
-	if runconfig.IsPreDefinedNetwork(nw.Name()) {
-		return httputils.WriteJSON(w, http.StatusForbidden,
-			fmt.Sprintf("%s is a pre-defined network and cannot be removed", nw.Name()))
-	}
-
-	return nw.Delete()
+	return n.backend.DeleteNetwork(vars["id"])
 }
 
 func buildNetworkResource(nw libnetwork.Network) *types.NetworkResource {

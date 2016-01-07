@@ -123,9 +123,9 @@ pretend to be a TTY (this is what most command line executables expect)
 and pass along signals. All of that is configurable:
 
     -a=[]           : Attach to `STDIN`, `STDOUT` and/or `STDERR`
-    -t=false        : Allocate a pseudo-tty
+    -t              : Allocate a pseudo-tty
     --sig-proxy=true: Proxy all received signals to the process (non-TTY mode only)
-    -i=false        : Keep STDIN open even if not attached
+    -i              : Keep STDIN open even if not attached
 
 If you do not specify `-a` then Docker will [attach all standard
 streams]( https://github.com/docker/docker/blob/75a7f4d90cde0295bcfb7213004abce8d4779b75/commands.go#L1797).
@@ -206,10 +206,27 @@ on the system.  For example, you could build a container with debugging tools
 like `strace` or `gdb`, but want to use these tools when debugging processes
 within the container.
 
-    $ docker run --pid=host rhel7 strace -p 1234
+### Example: run htop inside a container
 
-This command would allow you to use `strace` inside the container on pid 1234 on
-the host.
+Create this Dockerfile:
+
+```
+FROM alpine:latest
+RUN apk add --update htop && rm -rf /var/cache/apk/*
+CMD ["htop"]
+```
+
+Build the Dockerfile and tag the image as `myhtop`:
+
+```bash
+$ docker build -t myhtop .
+```
+
+Use the following command to run `htop` inside a container:
+
+```
+$ docker run -it --rm --pid=host myhtop
+```
 
 ## UTS settings (--uts)
 
@@ -1239,7 +1256,7 @@ The following `run` command options work with container networking:
 
     --expose=[]: Expose a port or a range of ports inside the container.
                  These are additional to those exposed by the `EXPOSE` instruction
-    -P=false   : Publish all exposed ports to the host interfaces
+    -P         : Publish all exposed ports to the host interfaces
     -p=[]      : Publish a container᾿s port or a range of ports to the host
                    format: ip:hostPort:containerPort | ip::containerPort | hostPort:containerPort | containerPort
                    Both hostPort and containerPort can be specified as a

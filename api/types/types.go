@@ -7,7 +7,6 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/registry"
-	"github.com/docker/docker/pkg/version"
 	"github.com/docker/go-connections/nat"
 )
 
@@ -26,6 +25,13 @@ type ContainerCreateResponse struct {
 type ContainerExecCreateResponse struct {
 	// ID is the exec ID.
 	ID string `json:"Id"`
+}
+
+// ContainerUpdateResponse contains response of Remote API:
+// POST /containers/{name:.*}/update
+type ContainerUpdateResponse struct {
+	// Warnings are any warnings encountered during the updating of the container.
+	Warnings []string `json:"Warnings"`
 }
 
 // AuthResponse contains response of Remote API:
@@ -171,7 +177,7 @@ type ContainerProcessList struct {
 // GET "/version"
 type Version struct {
 	Version       string
-	APIVersion    version.Version `json:"ApiVersion"`
+	APIVersion    string `json:"ApiVersion"`
 	GitCommit     string
 	GoVersion     string
 	Os            string
@@ -236,6 +242,8 @@ type PluginsInfo struct {
 	Volume []string
 	// List of Network plugins registered
 	Network []string
+	// List of Authorization plugins registered
+	Authorization []string
 }
 
 // ExecStartCheck is a temp struct used by execStart
@@ -358,7 +366,8 @@ type Volume struct {
 // VolumesListResponse contains the response for the remote API:
 // GET "/volumes"
 type VolumesListResponse struct {
-	Volumes []*Volume // Volumes is the list of volumes being returned
+	Volumes  []*Volume // Volumes is the list of volumes being returned
+	Warnings []string  // Warnings is a list of warnings that occurred when getting the list from the volume drivers
 }
 
 // VolumeCreateRequest contains the response for the remote API:

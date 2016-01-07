@@ -160,6 +160,14 @@ __docker_complete_networks() {
 	COMPREPLY=( $(compgen -W "$(__docker_networks)" -- "$cur") )
 }
 
+__docker_complete_network_ids() {
+	COMPREPLY=( $(compgen -W "$(__docker_q network ls -q --no-trunc)" -- "$cur") )
+}
+
+__docker_complete_network_names() {
+	COMPREPLY=( $(compgen -W "$(__docker_q network ls | awk 'NR>1 {print $2}')" -- "$cur") )
+}
+
 __docker_complete_containers_in_network() {
 	local containers=$(__docker_q network inspect -f '{{range $i, $c := .Containers}}{{$i}} {{$c.Name}} {{end}}' "$1")
 	COMPREPLY=( $(compgen -W "$containers" -- "$cur") )
@@ -330,6 +338,10 @@ __docker_complete_capabilities() {
 		SYS_TTY_CONFIG
 		WAKE_ALARM
 	" -- "$cur" ) )
+}
+
+__docker_complete_isolation() {
+	COMPREPLY=( $( compgen -W "default hyperv process" -- "$cur" ) )
 }
 
 __docker_complete_log_drivers() {
@@ -524,6 +536,7 @@ _docker_build() {
 		--cpu-period
 		--cpu-quota
 		--file -f
+		--isolation
 		--memory -m
 		--memory-swap
 		--tag -t
@@ -550,6 +563,10 @@ _docker_build() {
 			;;
 		--file|-f)
 			_filedir
+			return
+			;;
+		--isolation)
+			__docker_complete_isolation
 			return
 			;;
 		--tag|-t)
@@ -670,6 +687,7 @@ _docker_daemon() {
 		--authz-plugin
 		--bip
 		--bridge -b
+		--cgroup-parent
 		--cluster-advertise
 		--cluster-store
 		--cluster-store-opt
@@ -698,6 +716,10 @@ _docker_daemon() {
 	"
 
 	case "$prev" in
+		--authz-plugin)
+			__docker_complete_plugins Authorization
+			return
+			;;
 		--cluster-store)
 			COMPREPLY=( $( compgen -W "consul etcd zk" -S "://" -- "$cur" ) )
 			__docker_nospace
@@ -1182,14 +1204,33 @@ _docker_network_inspect() {
 
 _docker_network_ls() {
 	case "$prev" in
-		-n)
+		--filter|-f)
+			COMPREPLY=( $( compgen -S = -W "id name type" -- "$cur" ) )
+			__docker_nospace
+			return
+			;;
+	esac
+
+	case "${words[$cword-2]}$prev=" in
+		*id=*)
+			cur="${cur#=}"
+			__docker_complete_network_ids
+			return
+			;;
+		*name=*)
+			cur="${cur#=}"
+			__docker_complete_network_names
+			return
+			;;
+		*type=*)
+			COMPREPLY=( $( compgen -W "builtin custom" -- "${cur#=}" ) )
 			return
 			;;
 	esac
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--help --no-trunc --quiet -q" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--filter -f --help --no-trunc --quiet -q" -- "$cur" ) )
 			;;
 	esac
 }
@@ -1424,6 +1465,7 @@ _docker_run() {
 		--group-add
 		--hostname -h
 		--ipc
+		--isolation
 		--kernel-memory
 		--label-file
 		--label -l
@@ -1527,6 +1569,10 @@ _docker_run() {
 					fi
 					;;
 			esac
+			return
+			;;
+		--isolation)
+			__docker_complete_isolation
 			return
 			;;
 		--link)
@@ -1727,6 +1773,42 @@ _docker_unpause() {
 	esac
 }
 
+_docker_update() {
+	local options_with_args="
+		--blkio-weight
+		--cpu-period
+		--cpu-quota
+		--cpuset-cpus
+		--cpuset-mems
+		--cpu-shares
+		--kernel-memory
+		--memory -m
+		--memory-reservation
+		--memory-swap
+	"
+
+	local boolean_options="
+		--help
+	"
+
+	local all_options="$options_with_args $boolean_options"
+
+	case "$prev" in
+		$(__docker_to_extglob "$options_with_args") )
+			return
+			;;
+	esac
+
+	case "$cur" in
+		-*)
+			COMPREPLY=( $( compgen -W "$all_options" -- "$cur" ) )
+			;;
+		*)
+			__docker_complete_containers_all
+			;;
+	esac
+}
+
 _docker_top() {
 	case "$cur" in
 		-*)
@@ -1884,6 +1966,7 @@ _docker() {
 		tag
 		top
 		unpause
+		update
 		version
 		volume
 		wait

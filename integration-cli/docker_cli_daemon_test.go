@@ -10,10 +10,12 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/docker/docker/pkg/integration/checker"
@@ -334,15 +336,13 @@ func (s *DockerSuite) TestDaemonIPv6Enabled(c *check.C) {
 // TestDaemonIPv6FixedCIDR checks that when the daemon is started with --ipv6=true and a fixed CIDR
 // that running containers are given a link-local and global IPv6 address
 func (s *DockerSuite) TestDaemonIPv6FixedCIDR(c *check.C) {
-	testRequires(c, IPv6)
-
 	if err := setupV6(); err != nil {
 		c.Fatal("Could not set up host for IPv6 tests")
 	}
 
 	d := NewDaemon(c)
 
-	if err := d.StartWithBusybox("--ipv6", "--fixed-cidr-v6='2001:db8:1::/64'"); err != nil {
+	if err := d.StartWithBusybox("--ipv6", "--fixed-cidr-v6='2001:db8:2::/64'", "--default-gateway-v6='2001:db8:2::100'"); err != nil {
 		c.Fatalf("Could not start daemon with busybox: %v", err)
 	}
 	defer d.Stop()
@@ -351,18 +351,7 @@ func (s *DockerSuite) TestDaemonIPv6FixedCIDR(c *check.C) {
 		c.Fatalf("Could not run container: %s, %v", out, err)
 	}
 
-	out, err := d.Cmd("inspect", "--format", "'{{.NetworkSettings.Networks.bridge.LinkLocalIPv6Address}}'", "ipv6test")
-	out = strings.Trim(out, " \r\n'")
-
-	if err != nil {
-		c.Fatalf("Error inspecting container: %s, %v", out, err)
-	}
-
-	if ip := net.ParseIP(out); ip == nil {
-		c.Fatalf("Container should have a link-local IPv6 address")
-	}
-
-	out, err = d.Cmd("inspect", "--format", "'{{.NetworkSettings.Networks.bridge.GlobalIPv6Address}}'", "ipv6test")
+	out, err := d.Cmd("inspect", "--format", "'{{.NetworkSettings.Networks.bridge.GlobalIPv6Address}}'", "ipv6test")
 	out = strings.Trim(out, " \r\n'")
 
 	if err != nil {
@@ -372,6 +361,8 @@ func (s *DockerSuite) TestDaemonIPv6FixedCIDR(c *check.C) {
 	if ip := net.ParseIP(out); ip == nil {
 		c.Fatalf("Container should have a global IPv6 address")
 	}
+
+	// TODO: Check IPv6 def gateway in inspect o/p (once docker/docker 19001 is merged
 	if err := teardownV6(); err != nil {
 		c.Fatal("Could not perform teardown for IPv6 tests")
 	}
@@ -1742,8 +1733,8 @@ func (s *DockerDaemonSuite) TestDaemonRestartRmVolumeInUse(c *check.C) {
 	c.Assert(s.d.Restart(), check.IsNil)
 
 	out, err = s.d.Cmd("volume", "rm", "test")
-	c.Assert(err, check.Not(check.IsNil), check.Commentf("should not be able to remove in use volume after daemon restart"))
-	c.Assert(strings.Contains(out, "in use"), check.Equals, true)
+	c.Assert(err, check.NotNil, check.Commentf("should not be able to remove in use volume after daemon restart"))
+	c.Assert(out, checker.Contains, "in use")
 }
 
 func (s *DockerDaemonSuite) TestDaemonRestartLocalVolumes(c *check.C) {
@@ -1877,4 +1868,95 @@ func (s *DockerDaemonSuite) TestDaemonNoSpaceleftOnDeviceError(c *check.C) {
 	// pull a repository large enough to fill the mount point
 	out, err := s.d.Cmd("pull", "registry:2")
 	c.Assert(out, check.Not(check.Equals), 1, check.Commentf("no space left on device"))
+}
+
+// Test daemon restart with container links + auto restart
+func (s *DockerDaemonSuite) TestDaemonRestartContainerLinksRestart(c *check.C) {
+	d := NewDaemon(c)
+	err := d.StartWithBusybox()
+	c.Assert(err, checker.IsNil)
+
+	parent1Args := []string{}
+	parent2Args := []string{}
+	wg := sync.WaitGroup{}
+	maxChildren := 10
+	chErr := make(chan error, maxChildren)
+
+	for i := 0; i < maxChildren; i++ {
+		wg.Add(1)
+		name := fmt.Sprintf("test%d", i)
+
+		if i < maxChildren/2 {
+			parent1Args = append(parent1Args, []string{"--link", name}...)
+		} else {
+			parent2Args = append(parent2Args, []string{"--link", name}...)
+		}
+
+		go func() {
+			_, err = d.Cmd("run", "-d", "--name", name, "--restart=always", "busybox", "top")
+			chErr <- err
+			wg.Done()
+		}()
+	}
+
+	wg.Wait()
+	close(chErr)
+	for err := range chErr {
+		c.Assert(err, check.IsNil)
+	}
+
+	parent1Args = append([]string{"run", "-d"}, parent1Args...)
+	parent1Args = append(parent1Args, []string{"--name=parent1", "--restart=always", "busybox", "top"}...)
+	parent2Args = append([]string{"run", "-d"}, parent2Args...)
+	parent2Args = append(parent2Args, []string{"--name=parent2", "--restart=always", "busybox", "top"}...)
+
+	_, err = d.Cmd(parent1Args[0], parent1Args[1:]...)
+	c.Assert(err, check.IsNil)
+	_, err = d.Cmd(parent2Args[0], parent2Args[1:]...)
+	c.Assert(err, check.IsNil)
+
+	err = d.Stop()
+	c.Assert(err, check.IsNil)
+	// clear the log file -- we don't need any of it but may for the next part
+	// can ignore the error here, this is just a cleanup
+	os.Truncate(d.LogfileName(), 0)
+	err = d.Start()
+	c.Assert(err, check.IsNil)
+
+	for _, num := range []string{"1", "2"} {
+		out, err := d.Cmd("inspect", "-f", "{{ .State.Running }}", "parent"+num)
+		c.Assert(err, check.IsNil)
+		if strings.TrimSpace(out) != "true" {
+			log, _ := ioutil.ReadFile(d.LogfileName())
+			c.Fatalf("parent container is not running\n%s", string(log))
+		}
+	}
+}
+
+func (s *DockerDaemonSuite) TestDaemonCgroupParent(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	cgroupParent := "test"
+	name := "cgroup-test"
+
+	err := s.d.StartWithBusybox("--cgroup-parent", cgroupParent)
+	c.Assert(err, check.IsNil)
+	defer s.d.Restart()
+
+	out, err := s.d.Cmd("run", "--name", name, "busybox", "cat", "/proc/self/cgroup")
+	c.Assert(err, checker.IsNil)
+	cgroupPaths := parseCgroupPaths(string(out))
+	c.Assert(len(cgroupPaths), checker.Not(checker.Equals), 0, check.Commentf("unexpected output - %q", string(out)))
+	out, err = s.d.Cmd("inspect", "-f", "{{.Id}}", name)
+	c.Assert(err, checker.IsNil)
+	id := strings.TrimSpace(string(out))
+	expectedCgroup := path.Join(cgroupParent, id)
+	found := false
+	for _, path := range cgroupPaths {
+		if strings.HasSuffix(path, expectedCgroup) {
+			found = true
+			break
+		}
+	}
+	c.Assert(found, checker.True, check.Commentf("Cgroup path for container (%s) doesn't found in cgroups file: %s", expectedCgroup, cgroupPaths))
 }

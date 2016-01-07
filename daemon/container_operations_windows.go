@@ -98,7 +98,7 @@ func (daemon *Daemon) populateCommand(c *container.Container, env []string) erro
 		}
 	}
 
-	m, err := daemon.layerStore.Metadata(c.ID)
+	m, err := c.RWLayer.Metadata()
 	if err != nil {
 		return derr.ErrorCodeGetLayerMetadata.WithArgs(err)
 	}

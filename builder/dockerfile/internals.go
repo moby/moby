@@ -35,6 +35,7 @@ import (
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/pkg/tarsum"
 	"github.com/docker/docker/pkg/urlutil"
+	"github.com/docker/docker/runconfig/opts"
 )
 
 func (b *Builder) commit(id string, autoCmd *strslice.StrSlice, comment string) error {
@@ -394,15 +395,30 @@ func containsWildcards(name string) bool {
 }
 
 func (b *Builder) processImageFrom(img builder.Image) error {
-	b.image = img.ID()
+	if img != nil {
+		b.image = img.ID()
 
-	if img.Config != nil {
-		b.runConfig = img.Config()
+		if img.Config() != nil {
+			b.runConfig = img.Config()
+		}
 	}
 
-	// The default path will be blank on Windows (set by HCS)
-	if len(b.runConfig.Env) == 0 && system.DefaultPathEnv != "" {
-		b.runConfig.Env = append(b.runConfig.Env, "PATH="+system.DefaultPathEnv)
+	// Check to see if we have a default PATH, note that windows won't
+	// have one as its set by HCS
+	if system.DefaultPathEnv != "" {
+		// Convert the slice of strings that represent the current list
+		// of env vars into a map so we can see if PATH is already set.
+		// If its not set then go ahead and give it our default value
+		configEnv := opts.ConvertKVStringsToMap(b.runConfig.Env)
+		if _, ok := configEnv["PATH"]; !ok {
+			b.runConfig.Env = append(b.runConfig.Env,
+				"PATH="+system.DefaultPathEnv)
+		}
+	}
+
+	if img == nil {
+		// Typically this means they used "FROM scratch"
+		return nil
 	}
 
 	// Process ONBUILD triggers if they exist
@@ -450,7 +466,7 @@ func (b *Builder) processImageFrom(img builder.Image) error {
 // If there is any error, it returns `(false, err)`.
 func (b *Builder) probeCache() (bool, error) {
 	c, ok := b.docker.(builder.ImageCache)
-	if !ok || !b.UseCache || b.cacheBusted {
+	if !ok || b.options.NoCache || b.cacheBusted {
 		return false, nil
 	}
 	cache, err := c.GetCachedImage(b.image, b.runConfig)
@@ -477,21 +493,21 @@ func (b *Builder) create() (string, error) {
 	b.runConfig.Image = b.image
 
 	resources := container.Resources{
-		CgroupParent: b.CgroupParent,
-		CPUShares:    b.CPUShares,
-		CPUPeriod:    b.CPUPeriod,
-		CPUQuota:     b.CPUQuota,
-		CpusetCpus:   b.CPUSetCpus,
-		CpusetMems:   b.CPUSetMems,
-		Memory:       b.Memory,
-		MemorySwap:   b.MemorySwap,
-		Ulimits:      b.Ulimits,
+		CgroupParent: b.options.CgroupParent,
+		CPUShares:    b.options.CPUShares,
+		CPUPeriod:    b.options.CPUPeriod,
+		CPUQuota:     b.options.CPUQuota,
+		CpusetCpus:   b.options.CPUSetCPUs,
+		CpusetMems:   b.options.CPUSetMems,
+		Memory:       b.options.Memory,
+		MemorySwap:   b.options.MemorySwap,
+		Ulimits:      b.options.Ulimits,
 	}
 
 	// TODO: why not embed a hostconfig in builder?
 	hostConfig := &container.HostConfig{
-		Isolation: b.Isolation,
-		ShmSize:   b.ShmSize,
+		Isolation: b.options.IsolationLevel,
+		ShmSize:   b.options.ShmSize,
 		Resources: resources,
 	}
 
@@ -587,20 +603,20 @@ func (b *Builder) readDockerfile() error {
 	// If no -f was specified then look for 'Dockerfile'. If we can't find
 	// that then look for 'dockerfile'.  If neither are found then default
 	// back to 'Dockerfile' and use that in the error message.
-	if b.DockerfileName == "" {
-		b.DockerfileName = api.DefaultDockerfileName
-		if _, _, err := b.context.Stat(b.DockerfileName); os.IsNotExist(err) {
-			lowercase := strings.ToLower(b.DockerfileName)
+	if b.options.Dockerfile == "" {
+		b.options.Dockerfile = api.DefaultDockerfileName
+		if _, _, err := b.context.Stat(b.options.Dockerfile); os.IsNotExist(err) {
+			lowercase := strings.ToLower(b.options.Dockerfile)
 			if _, _, err := b.context.Stat(lowercase); err == nil {
-				b.DockerfileName = lowercase
+				b.options.Dockerfile = lowercase
 			}
 		}
 	}
 
-	f, err := b.context.Open(b.DockerfileName)
+	f, err := b.context.Open(b.options.Dockerfile)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return fmt.Errorf("Cannot locate specified Dockerfile: %s", b.DockerfileName)
+			return fmt.Errorf("Cannot locate specified Dockerfile: %s", b.options.Dockerfile)
 		}
 		return err
 	}
@@ -611,7 +627,7 @@ func (b *Builder) readDockerfile() error {
 			return fmt.Errorf("Unexpected error reading Dockerfile: %v", err)
 		}
 		if fi.Size() == 0 {
-			return fmt.Errorf("The Dockerfile (%s) cannot be empty", b.DockerfileName)
+			return fmt.Errorf("The Dockerfile (%s) cannot be empty", b.options.Dockerfile)
 		}
 	}
 	b.dockerfile, err = parser.Parse(f)
@@ -629,7 +645,7 @@ func (b *Builder) readDockerfile() error {
 	// Note that this assumes the Dockerfile has been read into memory and
 	// is now safe to be removed.
 	if dockerIgnore, ok := b.context.(builder.DockerIgnoreContext); ok {
-		dockerIgnore.Process([]string{b.DockerfileName})
+		dockerIgnore.Process([]string{b.options.Dockerfile})
 	}
 	return nil
 }

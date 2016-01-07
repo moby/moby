@@ -2,42 +2,16 @@ package store
 
 import (
 	"errors"
+	"strings"
 	"testing"
 
-	"github.com/docker/docker/volume"
 	"github.com/docker/docker/volume/drivers"
 	vt "github.com/docker/docker/volume/testutils"
 )
 
-func TestList(t *testing.T) {
-	volumedrivers.Register(vt.FakeDriver{}, "fake")
-	s := New()
-	s.AddAll([]volume.Volume{vt.NewFakeVolume("fake1"), vt.NewFakeVolume("fake2")})
-	l := s.List()
-	if len(l) != 2 {
-		t.Fatalf("Expected 2 volumes in the store, got %v: %v", len(l), l)
-	}
-}
-
-func TestGet(t *testing.T) {
-	volumedrivers.Register(vt.FakeDriver{}, "fake")
-	s := New()
-	s.AddAll([]volume.Volume{vt.NewFakeVolume("fake1"), vt.NewFakeVolume("fake2")})
-	v, err := s.Get("fake1")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if v.Name() != "fake1" {
-		t.Fatalf("Expected fake1 volume, got %v", v)
-	}
-
-	if _, err := s.Get("fake4"); !IsNotExist(err) {
-		t.Fatalf("Expected IsNotExist error, got %v", err)
-	}
-}
-
 func TestCreate(t *testing.T) {
-	volumedrivers.Register(vt.FakeDriver{}, "fake")
+	volumedrivers.Register(vt.NewFakeDriver("fake"), "fake")
+	defer volumedrivers.Unregister("fake")
 	s := New()
 	v, err := s.Create("fake1", "fake", nil)
 	if err != nil {
@@ -46,7 +20,7 @@ func TestCreate(t *testing.T) {
 	if v.Name() != "fake1" {
 		t.Fatalf("Expected fake1 volume, got %v", v)
 	}
-	if l := s.List(); len(l) != 1 {
+	if l, _, _ := s.List(); len(l) != 1 {
 		t.Fatalf("Expected 1 volume in the store, got %v: %v", len(l), l)
 	}
 
@@ -62,93 +36,90 @@ func TestCreate(t *testing.T) {
 }
 
 func TestRemove(t *testing.T) {
-	volumedrivers.Register(vt.FakeDriver{}, "fake")
+	volumedrivers.Register(vt.NewFakeDriver("fake"), "fake")
+	volumedrivers.Register(vt.NewFakeDriver("noop"), "noop")
+	defer volumedrivers.Unregister("fake")
+	defer volumedrivers.Unregister("noop")
 	s := New()
-	if err := s.Remove(vt.NoopVolume{}); !IsNotExist(err) {
-		t.Fatalf("Expected IsNotExist error, got %v", err)
+
+	// doing string compare here since this error comes directly from the driver
+	expected := "no such volume"
+	if err := s.Remove(vt.NoopVolume{}); err == nil || !strings.Contains(err.Error(), expected) {
+		t.Fatalf("Expected error %q, got %v", expected, err)
 	}
-	v, err := s.Create("fake1", "fake", nil)
+
+	v, err := s.CreateWithRef("fake1", "fake", "fake", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	s.Increment(v)
+
 	if err := s.Remove(v); !IsInUse(err) {
-		t.Fatalf("Expected IsInUse error, got %v", err)
+		t.Fatalf("Expected ErrVolumeInUse error, got %v", err)
 	}
-	s.Decrement(v)
+	s.Dereference(v, "fake")
 	if err := s.Remove(v); err != nil {
 		t.Fatal(err)
 	}
-	if l := s.List(); len(l) != 0 {
+	if l, _, _ := s.List(); len(l) != 0 {
 		t.Fatalf("Expected 0 volumes in the store, got %v, %v", len(l), l)
 	}
 }
 
-func TestIncrement(t *testing.T) {
+func TestList(t *testing.T) {
+	volumedrivers.Register(vt.NewFakeDriver("fake"), "fake")
+	volumedrivers.Register(vt.NewFakeDriver("fake2"), "fake2")
+	defer volumedrivers.Unregister("fake")
+	defer volumedrivers.Unregister("fake2")
+
 	s := New()
-	v := vt.NewFakeVolume("fake1")
-	s.Increment(v)
-	if l := s.List(); len(l) != 1 {
-		t.Fatalf("Expected 1 volume, got %v, %v", len(l), l)
+	if _, err := s.Create("test", "fake", nil); err != nil {
+		t.Fatal(err)
 	}
-	if c := s.Count(v); c != 1 {
-		t.Fatalf("Expected 1 counter, got %v", c)
+	if _, err := s.Create("test2", "fake2", nil); err != nil {
+		t.Fatal(err)
 	}
 
-	s.Increment(v)
-	if l := s.List(); len(l) != 1 {
-		t.Fatalf("Expected 1 volume, got %v, %v", len(l), l)
+	ls, _, err := s.List()
+	if err != nil {
+		t.Fatal(err)
 	}
-	if c := s.Count(v); c != 2 {
-		t.Fatalf("Expected 2 counter, got %v", c)
-	}
-
-	v2 := vt.NewFakeVolume("fake2")
-	s.Increment(v2)
-	if l := s.List(); len(l) != 2 {
-		t.Fatalf("Expected 2 volume, got %v, %v", len(l), l)
-	}
-}
-
-func TestDecrement(t *testing.T) {
-	s := New()
-	v := vt.NoopVolume{}
-	s.Decrement(v)
-	if c := s.Count(v); c != 0 {
-		t.Fatalf("Expected 0 volumes, got %v", c)
+	if len(ls) != 2 {
+		t.Fatalf("expected 2 volumes, got: %d", len(ls))
 	}
 
-	s.Increment(v)
-	s.Increment(v)
-	s.Decrement(v)
-	if c := s.Count(v); c != 1 {
-		t.Fatalf("Expected 1 volume, got %v", c)
+	// and again with a new store
+	s = New()
+	ls, _, err = s.List()
+	if err != nil {
+		t.Fatal(err)
 	}
-
-	s.Decrement(v)
-	if c := s.Count(v); c != 0 {
-		t.Fatalf("Expected 0 volumes, got %v", c)
-	}
-
-	// Test counter cannot be negative.
-	s.Decrement(v)
-	if c := s.Count(v); c != 0 {
-		t.Fatalf("Expected 0 volumes, got %v", c)
+	if len(ls) != 2 {
+		t.Fatalf("expected 2 volumes, got: %d", len(ls))
 	}
 }
 
 func TestFilterByDriver(t *testing.T) {
+	volumedrivers.Register(vt.NewFakeDriver("fake"), "fake")
+	volumedrivers.Register(vt.NewFakeDriver("noop"), "noop")
+	defer volumedrivers.Unregister("fake")
+	defer volumedrivers.Unregister("noop")
 	s := New()
 
-	s.Increment(vt.NewFakeVolume("fake1"))
-	s.Increment(vt.NewFakeVolume("fake2"))
-	s.Increment(vt.NoopVolume{})
+	if _, err := s.Create("fake1", "fake", nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Create("fake2", "fake", nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Create("fake3", "noop", nil); err != nil {
+		t.Fatal(err)
+	}
 
-	if l := s.FilterByDriver("fake"); len(l) != 2 {
+	if l, _ := s.FilterByDriver("fake"); len(l) != 2 {
 		t.Fatalf("Expected 2 volumes, got %v, %v", len(l), l)
 	}
 
-	if l := s.FilterByDriver("noop"); len(l) != 1 {
+	if l, _ := s.FilterByDriver("noop"); len(l) != 1 {
 		t.Fatalf("Expected 1 volume, got %v, %v", len(l), l)
 	}
 }

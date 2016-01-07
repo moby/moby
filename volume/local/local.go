@@ -31,7 +31,7 @@ var (
 	// volumeNameRegex ensures the name assigned for the volume is valid.
 	// This name is used to create the bind directory, so we need to avoid characters that
 	// would make the path to escape the root directory.
-	volumeNameRegex = utils.RestrictedNamePattern
+	volumeNameRegex = utils.RestrictedVolumeNamePattern
 )
 
 // New instantiates a new Root instance with the provided scope. Scope
@@ -82,12 +82,12 @@ type Root struct {
 }
 
 // List lists all the volumes
-func (r *Root) List() []volume.Volume {
+func (r *Root) List() ([]volume.Volume, error) {
 	var ls []volume.Volume
 	for _, v := range r.volumes {
 		ls = append(ls, v)
 	}
-	return ls
+	return ls, nil
 }
 
 // DataPath returns the constructed path of this volume.

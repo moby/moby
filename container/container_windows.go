@@ -3,6 +3,7 @@
 package container
 
 import (
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/volume"
 )
@@ -38,12 +39,17 @@ func (container *Container) IpcMounts() []execdriver.Mount {
 }
 
 // UnmountVolumes explicitly unmounts volumes from the container.
-func (container *Container) UnmountVolumes(forceSyscall bool) error {
+func (container *Container) UnmountVolumes(forceSyscall bool, volumeEventLog func(name, action string, attributes map[string]string)) error {
 	return nil
 }
 
 // TmpfsMounts returns the list of tmpfs mounts
 func (container *Container) TmpfsMounts() []execdriver.Mount {
+	return nil
+}
+
+// UpdateContainer updates resources of a container
+func (container *Container) UpdateContainer(hostConfig *container.HostConfig) error {
 	return nil
 }
 

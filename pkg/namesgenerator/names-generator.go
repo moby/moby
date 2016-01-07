@@ -351,6 +351,9 @@ var (
 		// Samuel Morse - contributed to the invention of a single-wire telegraph system based on European telegraphs and was a co-developer of the Morse code - https://en.wikipedia.org/wiki/Samuel_Morse
 		"morse",
 
+		// Ian Murdock - founder of the Debian project - https://en.wikipedia.org/wiki/Ian_Murdock
+		"murdock",
+
 		// Isaac Newton invented classic mechanics and modern optics. https://en.wikipedia.org/wiki/Isaac_Newton
 		"newton",
 

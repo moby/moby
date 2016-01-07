@@ -43,6 +43,7 @@ type apiClient interface {
 	ContainerStop(containerID string, timeout int) error
 	ContainerTop(containerID string, arguments []string) (types.ContainerProcessList, error)
 	ContainerUnpause(containerID string) error
+	ContainerUpdate(containerID string, hostConfig container.HostConfig) error
 	ContainerWait(containerID string) (int, error)
 	CopyFromContainer(containerID, srcPath string) (io.ReadCloser, types.ContainerPathStat, error)
 	CopyToContainer(options types.CopyToContainerOptions) error
@@ -53,7 +54,7 @@ type apiClient interface {
 	ImageImport(options types.ImageImportOptions) (io.ReadCloser, error)
 	ImageInspectWithRaw(imageID string, getSize bool) (types.ImageInspect, []byte, error)
 	ImageList(options types.ImageListOptions) ([]types.Image, error)
-	ImageLoad(input io.Reader) (io.ReadCloser, error)
+	ImageLoad(input io.Reader) (types.ImageLoadResponse, error)
 	ImagePull(options types.ImagePullOptions, privilegeFunc lib.RequestPrivilegeFunc) (io.ReadCloser, error)
 	ImagePush(options types.ImagePushOptions, privilegeFunc lib.RequestPrivilegeFunc) (io.ReadCloser, error)
 	ImageRemove(options types.ImageRemoveOptions) ([]types.ImageDelete, error)
@@ -65,7 +66,7 @@ type apiClient interface {
 	NetworkCreate(options types.NetworkCreate) (types.NetworkCreateResponse, error)
 	NetworkDisconnect(networkID, containerID string) error
 	NetworkInspect(networkID string) (types.NetworkResource, error)
-	NetworkList() ([]types.NetworkResource, error)
+	NetworkList(options types.NetworkListOptions) ([]types.NetworkResource, error)
 	NetworkRemove(networkID string) error
 	RegistryLogin(auth types.AuthConfig) (types.AuthResponse, error)
 	ServerVersion() (types.Version, error)

@@ -24,8 +24,8 @@ import (
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/docker/docker/pkg/ulimit"
 	"github.com/docker/docker/runconfig"
+	"github.com/docker/go-units"
 	"github.com/docker/libnetwork"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/options"
@@ -146,11 +146,11 @@ func (daemon *Daemon) populateCommand(c *container.Container, env []string) erro
 
 	autoCreatedDevices := mergeDevices(configs.DefaultAutoCreatedDevices, userSpecifiedDevices)
 
-	var rlimits []*ulimit.Rlimit
+	var rlimits []*units.Rlimit
 	ulimits := c.HostConfig.Ulimits
 
 	// Merge ulimits with daemon defaults
-	ulIdx := make(map[string]*ulimit.Ulimit)
+	ulIdx := make(map[string]*units.Ulimit)
 	for _, ul := range ulimits {
 		ulIdx[ul.Name] = ul
 	}
@@ -258,7 +258,7 @@ func (daemon *Daemon) populateCommand(c *container.Container, env []string) erro
 		AutoCreatedDevices: autoCreatedDevices,
 		CapAdd:             c.HostConfig.CapAdd.Slice(),
 		CapDrop:            c.HostConfig.CapDrop.Slice(),
-		CgroupParent:       c.HostConfig.CgroupParent,
+		CgroupParent:       daemon.configStore.CgroupParent,
 		GIDMapping:         gidMap,
 		GroupAdd:           c.HostConfig.GroupAdd,
 		Ipc:                ipc,
@@ -269,6 +269,9 @@ func (daemon *Daemon) populateCommand(c *container.Container, env []string) erro
 		SeccompProfile:     c.SeccompProfile,
 		UIDMapping:         uidMap,
 		UTS:                uts,
+	}
+	if c.HostConfig.CgroupParent != "" {
+		c.Command.CgroupParent = c.HostConfig.CgroupParent
 	}
 
 	return nil
@@ -289,7 +292,8 @@ func (daemon *Daemon) getSize(container *container.Container) (int64, int64) {
 
 	sizeRw, err = container.RWLayer.Size()
 	if err != nil {
-		logrus.Errorf("Driver %s couldn't return diff size of container %s: %s", daemon.driver, container.ID, err)
+		logrus.Errorf("Driver %s couldn't return diff size of container %s: %s",
+			daemon.GraphDriverName(), container.ID, err)
 		// FIXME: GetSize should return an error. Not changing it now in case
 		// there is a side-effect.
 		sizeRw = -1
@@ -698,6 +702,7 @@ func (daemon *Daemon) connectToNetwork(container *container.Container, idOrName 
 		return derr.ErrorCodeJoinInfo.WithArgs(err)
 	}
 
+	daemon.LogNetworkEventWithAttributes(n, "connect", map[string]string{"container": container.ID})
 	return nil
 }
 
@@ -711,15 +716,22 @@ func (daemon *Daemon) DisconnectFromNetwork(container *container.Container, n li
 		return runconfig.ErrConflictHostNetwork
 	}
 
-	return disconnectFromNetwork(container, n)
-}
-
-func disconnectFromNetwork(container *container.Container, n libnetwork.Network) error {
+	if err := disconnectFromNetwork(container, n); err != nil {
+		return err
+	}
 
 	if err := container.ToDiskLocking(); err != nil {
 		return fmt.Errorf("Error saving container to disk: %v", err)
 	}
 
+	attributes := map[string]string{
+		"container": container.ID,
+	}
+	daemon.LogNetworkEventWithAttributes(n, "disconnect", attributes)
+	return nil
+}
+
+func disconnectFromNetwork(container *container.Container, n libnetwork.Network) error {
 	var (
 		ep   libnetwork.Endpoint
 		sbox libnetwork.Sandbox
@@ -816,7 +828,7 @@ func (daemon *Daemon) getIpcContainer(container *container.Container) (*containe
 		return nil, err
 	}
 	if !c.IsRunning() {
-		return nil, derr.ErrorCodeIPCRunning
+		return nil, derr.ErrorCodeIPCRunning.WithArgs(containerID)
 	}
 	return c, nil
 }
@@ -841,14 +853,18 @@ func (daemon *Daemon) releaseNetwork(container *container.Container) {
 	}
 
 	sid := container.NetworkSettings.SandboxID
-	networks := container.NetworkSettings.Networks
-	for n := range networks {
-		networks[n] = &networktypes.EndpointSettings{}
+	settings := container.NetworkSettings.Networks
+	var networks []libnetwork.Network
+	for n := range settings {
+		if nw, err := daemon.FindNetwork(n); err == nil {
+			networks = append(networks, nw)
+		}
+		settings[n] = &networktypes.EndpointSettings{}
 	}
 
-	container.NetworkSettings = &network.Settings{Networks: networks}
+	container.NetworkSettings = &network.Settings{Networks: settings}
 
-	if sid == "" || len(networks) == 0 {
+	if sid == "" || len(settings) == 0 {
 		return
 	}
 
@@ -860,6 +876,13 @@ func (daemon *Daemon) releaseNetwork(container *container.Container) {
 
 	if err := sb.Delete(); err != nil {
 		logrus.Errorf("Error deleting sandbox id %s for container %s: %v", sid, container.ID, err)
+	}
+
+	attributes := map[string]string{
+		"container": container.ID,
+	}
+	for _, nw := range networks {
+		daemon.LogNetworkEventWithAttributes(nw, "disconnect", attributes)
 	}
 }
 
@@ -876,8 +899,8 @@ func (daemon *Daemon) setupIpcDirs(c *container.Container) error {
 		}
 
 		shmSize := container.DefaultSHMSize
-		if c.HostConfig.ShmSize != nil {
-			shmSize = *c.HostConfig.ShmSize
+		if c.HostConfig.ShmSize != 0 {
+			shmSize = c.HostConfig.ShmSize
 		}
 		shmproperty := "mode=1777,size=" + strconv.FormatInt(shmSize, 10)
 		if err := syscall.Mount("shm", shmPath, "tmpfs", uintptr(syscall.MS_NOEXEC|syscall.MS_NOSUID|syscall.MS_NODEV), label.FormatMountLabel(shmproperty, c.GetMountLabel())); err != nil {

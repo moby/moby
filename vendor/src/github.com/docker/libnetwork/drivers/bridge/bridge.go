@@ -490,6 +490,12 @@ func parseNetworkOptions(id string, option options.Generic) (*networkConfigurati
 		config.EnableIPv6 = val.(bool)
 	}
 
+	if val, ok := option[netlabel.Internal]; ok {
+		if internal, ok := val.(bool); ok && internal {
+			return nil, &driverapi.ErrNotImplemented{}
+		}
+	}
+
 	// Finally validate the configuration
 	if err = config.Validate(); err != nil {
 		return nil, err

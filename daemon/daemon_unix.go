@@ -15,7 +15,6 @@ import (
 	pblkiodev "github.com/docker/docker/api/types/blkiodev"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
-	"github.com/docker/docker/daemon/graphdriver"
 	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
@@ -24,6 +23,7 @@ import (
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/reference"
 	"github.com/docker/docker/runconfig"
+	runconfigopts "github.com/docker/docker/runconfig/opts"
 	"github.com/docker/libnetwork"
 	nwconfig "github.com/docker/libnetwork/config"
 	"github.com/docker/libnetwork/drivers/bridge"
@@ -191,9 +191,8 @@ func (daemon *Daemon) adaptContainerSettings(hostConfig *containertypes.HostConf
 		// By default, MemorySwap is set to twice the size of Memory.
 		hostConfig.MemorySwap = hostConfig.Memory * 2
 	}
-	if hostConfig.ShmSize == nil {
-		shmSize := container.DefaultSHMSize
-		hostConfig.ShmSize = &shmSize
+	if hostConfig.ShmSize == 0 {
+		hostConfig.ShmSize = container.DefaultSHMSize
 	}
 	var err error
 	if hostConfig.SecurityOpt == nil {
@@ -365,7 +364,7 @@ func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.
 	}
 	warnings = append(warnings, w...)
 
-	if hostConfig.ShmSize != nil && *hostConfig.ShmSize <= 0 {
+	if hostConfig.ShmSize < 0 {
 		return warnings, fmt.Errorf("SHM size must be greater then 0")
 	}
 
@@ -585,14 +584,14 @@ func initBridgeDriver(controller libnetwork.NetworkController, config *Config) e
 		deferIPv6Alloc = ones <= 80
 
 		if ipamV6Conf == nil {
-			ipamV6Conf = &libnetwork.IpamConf{}
+			ipamV6Conf = &libnetwork.IpamConf{AuxAddresses: make(map[string]string)}
 		}
 		ipamV6Conf.PreferredPool = fCIDRv6.String()
 	}
 
 	if config.Bridge.DefaultGatewayIPv6 != nil {
 		if ipamV6Conf == nil {
-			ipamV6Conf = &libnetwork.IpamConf{}
+			ipamV6Conf = &libnetwork.IpamConf{AuxAddresses: make(map[string]string)}
 		}
 		ipamV6Conf.AuxAddresses["DefaultGatewayIPv6"] = config.Bridge.DefaultGatewayIPv6.String()
 	}
@@ -682,7 +681,7 @@ func (daemon *Daemon) registerLinks(container *container.Container, hostConfig *
 	}
 
 	for _, l := range hostConfig.Links {
-		name, alias, err := runconfig.ParseLink(l)
+		name, alias, err := runconfigopts.ParseLink(l)
 		if err != nil {
 			return err
 		}
@@ -728,7 +727,7 @@ func (daemon *Daemon) conditionalUnmountOnCleanup(container *container.Container
 	daemon.Unmount(container)
 }
 
-func restoreCustomImage(driver graphdriver.Driver, is image.Store, ls layer.Store, rs reference.Store) error {
+func restoreCustomImage(is image.Store, ls layer.Store, rs reference.Store) error {
 	// Unix has no custom images to register
 	return nil
 }

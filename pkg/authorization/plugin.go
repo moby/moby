@@ -17,9 +17,14 @@ type Plugin interface {
 
 // NewPlugins constructs and initialize the authorization plugins based on plugin names
 func NewPlugins(names []string) []Plugin {
-	plugins := make([]Plugin, len(names))
-	for i, name := range names {
-		plugins[i] = newAuthorizationPlugin(name)
+	plugins := []Plugin{}
+	pluginsMap := make(map[string]struct{})
+	for _, name := range names {
+		if _, ok := pluginsMap[name]; ok {
+			continue
+		}
+		pluginsMap[name] = struct{}{}
+		plugins = append(plugins, newAuthorizationPlugin(name))
 	}
 	return plugins
 }

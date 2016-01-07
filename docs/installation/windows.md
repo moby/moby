@@ -31,7 +31,8 @@ run the Docker daemon. The VirtualBox VM runs completely from RAM, is a small
 
 ## Requirements
 
-Your machine must be running Windows 7 or newer to run Docker. To find out what version of Windows you have:
+To run Docker, your machine must have a 64-bit operating system running Windows 7 or higher. Additionally, you must make sure that virtualization is enabled on your machine. 
+To verify your machine meets these requirements, do the following:
 
 1. Right click the Windows Start Menu and choose **System**.
 
@@ -59,7 +60,12 @@ and virtualization support is enabled in BIOS and recognized by Windows.
 	  target="_blank"> Microsoft® Hardware-Assisted Virtualization Detection
 	  Tool</a> and follow the on-screen instructions.
 
+3. Verify your Windows OS is 64-bit (x64)
 
+   How you do this verification depends on your Windows version.  For details, see the Windows 
+    article [How to determine whether a computer is running a 32-bit version or 64-bit version 
+    of the Windows operating system](https://support.microsoft.com/en-us/kb/827218).
+    
 > **Note**: If you have Docker hosts running and you don't wish to do a Docker Toolbox
 installation, you can install the `docker.exe` using the *unofficial* Windows package
 manager Chocolately. For information on how to do this, see [Docker package on

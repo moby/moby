@@ -7,12 +7,12 @@ set -e
 #   'wget -qO- https://get.docker.com/ | sh'
 #
 # For test builds (ie. release candidates):
-#   'curl -sSL https://test.docker.com/ | sh'
+#   'curl -fsSL https://test.docker.com/ | sh'
 # or:
 #   'wget -qO- https://test.docker.com/ | sh'
 #
 # For experimental builds:
-#   'curl -sSL https://experimental.docker.com/ | sh'
+#   'curl -fsSL https://experimental.docker.com/ | sh'
 # or:
 #   'wget -qO- https://experimental.docker.com/ | sh'
 #

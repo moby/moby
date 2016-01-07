@@ -12,6 +12,12 @@ parent = "mn_use_docker"
 
 The following list of features are deprecated.
 
+### Ambiguous event fields in API
+**Deprecated In Release: v1.10**
+
+The fields `ID`, `Status` and `From` in the events API have been deprecated in favor of a more rich structure.
+See the events API documentation for the new format.
+
 ### `-f` flag on `docker tag`
 **Deprecated In Release: v1.10**
 

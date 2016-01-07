@@ -392,24 +392,27 @@ func (daemon *Daemon) transformContainer(container *container.Container, ctx *li
 
 // Volumes lists known volumes, using the filter to restrict the range
 // of volumes returned.
-func (daemon *Daemon) Volumes(filter string) ([]*types.Volume, error) {
+func (daemon *Daemon) Volumes(filter string) ([]*types.Volume, []string, error) {
 	var volumesOut []*types.Volume
 	volFilters, err := filters.FromParam(filter)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	filterUsed := volFilters.Include("dangling") &&
 		(volFilters.ExactMatch("dangling", "true") || volFilters.ExactMatch("dangling", "1"))
 
-	volumes := daemon.volumes.List()
+	volumes, warnings, err := daemon.volumes.List()
+	if err != nil {
+		return nil, nil, err
+	}
+	if filterUsed {
+		volumes = daemon.volumes.FilterByUsed(volumes)
+	}
 	for _, v := range volumes {
-		if filterUsed && daemon.volumes.Count(v) > 0 {
-			continue
-		}
 		volumesOut = append(volumesOut, volumeToAPIType(v))
 	}
-	return volumesOut, nil
+	return volumesOut, warnings, nil
 }
 
 func populateImageFilterByParents(ancestorMap map[image.ID]bool, imageID image.ID, getChildren func(image.ID) []image.ID) {

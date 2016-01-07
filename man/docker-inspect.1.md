@@ -8,7 +8,7 @@ docker-inspect - Return low-level information on a container or image
 **docker inspect**
 [**--help**]
 [**-f**|**--format**[=*FORMAT*]]
-[**-s**|**--size**[=*false*]]
+[**-s**|**--size**]
 [**--type**=*container*|*image*]
 CONTAINER|IMAGE [CONTAINER|IMAGE...]
 
@@ -16,8 +16,9 @@ CONTAINER|IMAGE [CONTAINER|IMAGE...]
 
 This displays all the information available in Docker for a given
 container or image. By default, this will render all results in a JSON
-array. If a format is specified, the given template will be executed for
-each result.
+array. If the container and image have the same name, this will return 
+container JSON for unspecified type. If a format is specified, the given
+template will be executed for each result.
 
 # OPTIONS
 **--help**
@@ -26,7 +27,7 @@ each result.
 **-f**, **--format**=""
     Format the output using the given Go template.
 
-**-s**, **--size**=*false*
+**-s**, **--size**
     Display total file sizes if the type is container.
 
 **--type**="*container*|*image*"

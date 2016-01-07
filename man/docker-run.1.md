@@ -19,7 +19,8 @@ docker-run - Run a command in a new container
 [**--cpu-quota**[=*0*]]
 [**--cpuset-cpus**[=*CPUSET-CPUS*]]
 [**--cpuset-mems**[=*CPUSET-MEMS*]]
-[**-d**|**--detach**[=*false*]]
+[**-d**|**--detach**]
+[**--detach-keys**[=*[]*]]
 [**--device**[=*[]*]]
 [**--device-read-bps**[=*[]*]]
 [**--device-read-iops**[=*[]*]]
@@ -35,7 +36,7 @@ docker-run - Run a command in a new container
 [**--group-add**[=*[]*]]
 [**-h**|**--hostname**[=*HOSTNAME*]]
 [**--help**]
-[**-i**|**--interactive**[=*false*]]
+[**-i**|**--interactive**]
 [**--ipc**[=*IPC*]]
 [**--isolation**[=*default*]]
 [**--kernel-memory**[=*KERNEL-MEMORY*]]
@@ -47,24 +48,24 @@ docker-run - Run a command in a new container
 [**-m**|**--memory**[=*MEMORY*]]
 [**--mac-address**[=*MAC-ADDRESS*]]
 [**--memory-reservation**[=*MEMORY-RESERVATION*]]
-[**--memory-swap**[=*MEMORY-SWAP*]]
+[**--memory-swap**[=*LIMIT*]]
 [**--memory-swappiness**[=*MEMORY-SWAPPINESS*]]
 [**--name**[=*NAME*]]
 [**--net**[=*"bridge"*]]
-[**--oom-kill-disable**[=*false*]]
+[**--oom-kill-disable**]
 [**--oom-score-adj**[=*0*]]
-[**-P**|**--publish-all**[=*false*]]
+[**-P**|**--publish-all**]
 [**-p**|**--publish**[=*[]*]]
 [**--pid**[=*[]*]]
-[**--privileged**[=*false*]]
-[**--read-only**[=*false*]]
+[**--privileged**]
+[**--read-only**]
 [**--restart**[=*RESTART*]]
-[**--rm**[=*false*]]
+[**--rm**]
 [**--security-opt**[=*[]*]]
 [**--stop-signal**[=*SIGNAL*]]
 [**--shm-size**[=*[]*]]
 [**--sig-proxy**[=*true*]]
-[**-t**|**--tty**[=*false*]]
+[**-t**|**--tty**]
 [**--tmpfs**[=*[CONTAINER-DIR[:<OPTIONS>]*]]
 [**-u**|**--user**[=*USER*]]
 [**--ulimit**[=*[]*]]
@@ -190,8 +191,13 @@ the other shell to view a list of the running containers. You can reattach to a
 detached container with **docker attach**. If you choose to run a container in
 the detached mode, then you cannot use the **-rm** option.
 
-   When attached in the tty mode, you can detach from a running container without
-stopping the process by pressing the keys CTRL-P CTRL-Q.
+   When attached in the tty mode, you can detach from the container (and leave it
+running) using a configurable key sequence. The default sequence is `CTRL-p CTRL-q`.
+You configure the key sequence using the **--detach-keys** option or a configuration file.
+See **config-json(5)** for documentation on using a configuration file.
+
+**--detach-keys**=""
+   Override the key sequence for detaching a container. Format is a single character `[a-Z]` or `ctrl-<value>` where `<value>` is one of: `a-z`, `@`, `^`, `[`, `,` or `_`.
 
 **--device**=[]
    Add a host device to the container (e.g. --device=/dev/sdc:/dev/xvdc:rwm)
@@ -327,11 +333,14 @@ reservation. So you should always set the value below **--memory**, otherwise th
 hard limit will take precedence. By default, memory reservation will be the same
 as memory limit.
 
-**--memory-swap**=""
-   Total memory limit (memory + swap)
+**--memory-swap**="LIMIT"
+   A limit value equal to memory plus swap. Must be used with the  **-m**
+(**--memory**) flag. The swap `LIMIT` should always be larger than **-m**
+(**--memory**) value.
 
-   Set `-1` to disable swap (format: <number>[<unit>], where unit = b, k, m or g).
-This value should always larger than **-m**, so you should always use this with **-m**.
+   The format of `LIMIT` is `<number>[<unit>]`. Unit can be `b` (bytes),
+`k` (kilobytes), `m` (megabytes), or `g` (gigabytes). If you don't specify a
+unit, `b` is used. Set LIMIT to `-1` to enable unlimited swap.
 
 **--mac-address**=""
    Container MAC address (e.g. 92:d0:c6:0a:29:33)

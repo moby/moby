@@ -26,6 +26,38 @@ func (a *volumeDriverAdapter) Remove(v volume.Volume) error {
 	return a.proxy.Remove(v.Name())
 }
 
+func (a *volumeDriverAdapter) List() ([]volume.Volume, error) {
+	ls, err := a.proxy.List()
+	if err != nil {
+		return nil, err
+	}
+
+	var out []volume.Volume
+	for _, vp := range ls {
+		out = append(out, &volumeAdapter{
+			proxy:      a.proxy,
+			name:       vp.Name,
+			driverName: a.name,
+			eMount:     vp.Mountpoint,
+		})
+	}
+	return out, nil
+}
+
+func (a *volumeDriverAdapter) Get(name string) (volume.Volume, error) {
+	v, err := a.proxy.Get(name)
+	if err != nil {
+		return nil, err
+	}
+
+	return &volumeAdapter{
+		proxy:      a.proxy,
+		name:       v.Name,
+		driverName: a.Name(),
+		eMount:     v.Mountpoint,
+	}, nil
+}
+
 type volumeAdapter struct {
 	proxy      *volumeDriverProxy
 	name       string

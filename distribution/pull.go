@@ -6,8 +6,8 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/daemon/events"
 	"github.com/docker/docker/distribution/metadata"
 	"github.com/docker/docker/distribution/xfer"
 	"github.com/docker/docker/image"
@@ -31,8 +31,8 @@ type ImagePullConfig struct {
 	// RegistryService is the registry service to use for TLS configuration
 	// and endpoint lookup.
 	RegistryService *registry.Service
-	// EventsService is the events service to use for logging.
-	EventsService *events.Events
+	// ImageEventLogger notifies events for a given image
+	ImageEventLogger func(id, name, action string)
 	// MetadataStore is the storage backend for distribution-specific
 	// metadata.
 	MetadataStore metadata.Store
@@ -160,7 +160,7 @@ func Pull(ctx context.Context, ref reference.Named, imagePullConfig *ImagePullCo
 			}
 		}
 
-		imagePullConfig.EventsService.Log("pull", ref.String(), "")
+		imagePullConfig.ImageEventLogger(ref.String(), repoInfo.Name(), "pull")
 		return nil
 	}
 
@@ -191,8 +191,8 @@ func validateRepoName(name string) error {
 	if name == "" {
 		return fmt.Errorf("Repository name can't be empty")
 	}
-	if name == "scratch" {
-		return fmt.Errorf("'scratch' is a reserved name")
+	if name == api.NoBaseImageSpecifier {
+		return fmt.Errorf("'%s' is a reserved name", api.NoBaseImageSpecifier)
 	}
 	return nil
 }

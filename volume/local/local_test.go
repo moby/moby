@@ -43,7 +43,7 @@ func TestRemove(t *testing.T) {
 		t.Fatal("volume dir not removed")
 	}
 
-	if len(r.List()) != 0 {
+	if l, _ := r.List(); len(l) != 0 {
 		t.Fatal("expected there to be no volumes")
 	}
 }
@@ -121,6 +121,27 @@ func TestCreate(t *testing.T) {
 			if err == nil {
 				t.Fatalf("Expected error creating volume with name %s, got nil", name)
 			}
+		}
+	}
+}
+
+func TestValidateName(t *testing.T) {
+	r := &Root{}
+	names := map[string]bool{
+		"/testvol":    false,
+		"thing.d":     true,
+		"hello-world": true,
+		"./hello":     false,
+		".hello":      false,
+	}
+
+	for vol, expected := range names {
+		err := r.validateName(vol)
+		if expected && err != nil {
+			t.Fatalf("expected %s to be valid got %v", vol, err)
+		}
+		if !expected && err == nil {
+			t.Fatalf("expected %s to be invalid", vol)
 		}
 	}
 }

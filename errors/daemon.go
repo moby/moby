@@ -908,7 +908,7 @@ var (
 	// trying to create a volume that has existed using different driver.
 	ErrorVolumeNameTaken = errcode.Register(errGroup, errcode.ErrorDescriptor{
 		Value:          "VOLUME_NAME_TAKEN",
-		Message:        "A volume named %q already exists with the %q driver. Choose a different volume name.",
+		Message:        "A volume named %s already exists. Choose a different volume name.",
 		Description:    "An attempt to create a volume using a driver but the volume already exists with a different driver",
 		HTTPStatusCode: http.StatusInternalServerError,
 	})
@@ -938,5 +938,14 @@ var (
 		Message:        "Cannot start container %s: %s",
 		Description:    "There was an error while trying to start a container",
 		HTTPStatusCode: http.StatusInternalServerError,
+	})
+
+	// ErrorCodeCantDeletePredefinedNetwork is generated when one of the predefined networks
+	// is attempted to be deleted.
+	ErrorCodeCantDeletePredefinedNetwork = errcode.Register(errGroup, errcode.ErrorDescriptor{
+		Value:          "CANT_DELETE_PREDEFINED_NETWORK",
+		Message:        "%s is a pre-defined network and cannot be removed",
+		Description:    "Engine's predefined networks cannot be deleted",
+		HTTPStatusCode: http.StatusForbidden,
 	})
 )

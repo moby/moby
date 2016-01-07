@@ -58,8 +58,8 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 		ID:                 daemon.ID,
 		Containers:         len(daemon.List()),
 		Images:             len(daemon.imageStore.Map()),
-		Driver:             daemon.GraphDriver().String(),
-		DriverStatus:       daemon.GraphDriver().Status(),
+		Driver:             daemon.GraphDriverName(),
+		DriverStatus:       daemon.layerStore.DriverStatus(),
 		Plugins:            daemon.showPluginsInfo(),
 		IPv4Forwarding:     !sysInfo.IPv4ForwardingDisabled,
 		BridgeNfIptables:   !sysInfo.BridgeNfCallIptablesDisabled,
@@ -141,6 +141,8 @@ func (daemon *Daemon) showPluginsInfo() types.PluginsInfo {
 	for nd := range networkDriverList {
 		pluginsInfo.Network = append(pluginsInfo.Network, nd)
 	}
+
+	pluginsInfo.Authorization = daemon.configStore.AuthZPlugins
 
 	return pluginsInfo
 }

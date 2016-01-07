@@ -51,7 +51,7 @@ func (daemon *Daemon) createContainerPlatformSpecificSettings(container *contain
 			}
 		}
 
-		v, err := daemon.createVolume(name, volumeDriver, nil)
+		v, err := daemon.volumes.CreateWithRef(name, volumeDriver, container.ID, nil)
 		if err != nil {
 			return err
 		}

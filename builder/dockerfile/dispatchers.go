@@ -9,7 +9,6 @@ package dockerfile
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -18,20 +17,15 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/api"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/builder"
 	derr "github.com/docker/docker/errors"
-	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/system"
-	"github.com/docker/docker/runconfig"
+	runconfigopts "github.com/docker/docker/runconfig/opts"
 	"github.com/docker/go-connections/nat"
-)
-
-const (
-	// NoBaseImageSpecifier is the symbol used by the FROM
-	// command to specify that no base image is to be used.
-	NoBaseImageSpecifier string = "scratch"
 )
 
 // dispatch with no layer / parsing. This is effectively not a command.
@@ -199,31 +193,32 @@ func from(b *Builder, args []string, attributes map[string]bool, original string
 
 	name := args[0]
 
+	var (
+		image builder.Image
+		err   error
+	)
+
 	// Windows cannot support a container with no base image.
-	if name == NoBaseImageSpecifier {
+	if name == api.NoBaseImageSpecifier {
 		if runtime.GOOS == "windows" {
 			return fmt.Errorf("Windows does not support FROM scratch")
 		}
 		b.image = ""
 		b.noBaseImage = true
-		return nil
-	}
-
-	var (
-		image builder.Image
-		err   error
-	)
-	// TODO: don't use `name`, instead resolve it to a digest
-	if !b.Pull {
-		image, err = b.docker.GetImage(name)
-		// TODO: shouldn't we error out if error is different from "not found" ?
-	}
-	if image == nil {
-		image, err = b.docker.Pull(name)
-		if err != nil {
-			return err
+	} else {
+		// TODO: don't use `name`, instead resolve it to a digest
+		if !b.options.PullParent {
+			image, err = b.docker.GetImage(name)
+			// TODO: shouldn't we error out if error is different from "not found" ?
+		}
+		if image == nil {
+			image, err = b.docker.Pull(name)
+			if err != nil {
+				return err
+			}
 		}
 	}
+
 	return b.processImageFrom(image)
 }
 
@@ -315,18 +310,17 @@ func run(b *Builder, args []string, attributes map[string]bool, original string)
 		}
 	}
 
-	runCmd := flag.NewFlagSet("run", flag.ContinueOnError)
-	runCmd.SetOutput(ioutil.Discard)
-	runCmd.Usage = nil
-
-	config, _, _, err := runconfig.Parse(runCmd, append([]string{b.image}, args...))
-	if err != nil {
-		return err
+	config := &container.Config{
+		Cmd:   strslice.New(args...),
+		Image: b.image,
 	}
 
 	// stash the cmd
 	cmd := b.runConfig.Cmd
-	runconfig.Merge(b.runConfig, config)
+	if b.runConfig.Entrypoint.Len() == 0 && b.runConfig.Cmd.Len() == 0 {
+		b.runConfig.Cmd = config.Cmd
+	}
+
 	// stash the config environment
 	env := b.runConfig.Env
 
@@ -347,8 +341,8 @@ func run(b *Builder, args []string, attributes map[string]bool, original string)
 	// of RUN, without leaking it to the final image. It also aids cache
 	// lookup for same image built with same build time environment.
 	cmdBuildEnv := []string{}
-	configEnv := runconfig.ConvertKVStringsToMap(b.runConfig.Env)
-	for key, val := range b.BuildArgs {
+	configEnv := runconfigopts.ConvertKVStringsToMap(b.runConfig.Env)
+	for key, val := range b.options.BuildArgs {
 		if !b.isBuildArgAllowed(key) {
 			// skip build-args that are not in allowed list, meaning they have
 			// not been defined by an "ARG" Dockerfile command yet.
@@ -631,8 +625,8 @@ func arg(b *Builder, args []string, attributes map[string]bool, original string)
 	// If there is a default value associated with this arg then add it to the
 	// b.buildArgs if one is not already passed to the builder. The args passed
 	// to builder override the default value of 'arg'.
-	if _, ok := b.BuildArgs[name]; !ok && hasDefault {
-		b.BuildArgs[name] = value
+	if _, ok := b.options.BuildArgs[name]; !ok && hasDefault {
+		b.options.BuildArgs[name] = value
 	}
 
 	return b.commit("", b.runConfig.Cmd, fmt.Sprintf("ARG %s", arg))

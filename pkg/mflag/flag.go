@@ -1,4 +1,4 @@
-// Copyright 2014-2015 The Docker & Go Authors. All rights reserved.
+// Copyright 2014-2016 The Docker & Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -571,10 +571,7 @@ func (fs *FlagSet) PrintDefaults() {
 				format := "  -%s=%s"
 				fmt.Fprintf(writer, format, strings.Join(names, ", -"), val)
 			}
-			for i, line := range strings.Split(flag.Usage, "\n") {
-				if i != 0 {
-					line = "  " + line
-				}
+			for _, line := range strings.Split(flag.Usage, "\n") {
 				fmt.Fprintln(writer, "\t", line)
 			}
 		}

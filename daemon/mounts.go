@@ -11,10 +11,11 @@ import (
 func (daemon *Daemon) prepareMountPoints(container *container.Container) error {
 	for _, config := range container.MountPoints {
 		if len(config.Driver) > 0 {
-			v, err := daemon.createVolume(config.Name, config.Driver, nil)
+			v, err := daemon.volumes.GetWithRef(config.Name, config.Driver, container.ID)
 			if err != nil {
 				return err
 			}
+
 			config.Volume = v
 		}
 	}
@@ -27,10 +28,10 @@ func (daemon *Daemon) removeMountPoints(container *container.Container, rm bool)
 		if m.Volume == nil {
 			continue
 		}
-		daemon.volumes.Decrement(m.Volume)
+		daemon.volumes.Dereference(m.Volume, container.ID)
 		if rm {
 			err := daemon.volumes.Remove(m.Volume)
-			// ErrVolumeInUse is ignored because having this
+			// Ignore volume in use errors because having this
 			// volume being referenced by other container is
 			// not an error, but an implementation detail.
 			// This prevents docker from logging "ERROR: Volume in use"

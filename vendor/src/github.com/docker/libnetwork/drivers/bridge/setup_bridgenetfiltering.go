@@ -157,6 +157,6 @@ func isPacketForwardingEnabled(ipVer ipVersion, iface string) (bool, error) {
 }
 
 func isRunningInContainer() bool {
-	_, err := os.Stat("/.dockerinit")
+	_, err := os.Stat("/.dockerenv")
 	return !os.IsNotExist(err)
 }

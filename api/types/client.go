@@ -7,7 +7,7 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/pkg/ulimit"
+	"github.com/docker/go-units"
 )
 
 // ContainerAttachOptions holds parameters to attach to a container.
@@ -17,6 +17,7 @@ type ContainerAttachOptions struct {
 	Stdin       bool
 	Stdout      bool
 	Stderr      bool
+	DetachKeys  string
 }
 
 // ContainerCommitOptions holds parameters to commit changes into a container.
@@ -86,6 +87,11 @@ type EventsOptions struct {
 	Filters filters.Args
 }
 
+// NetworkListOptions holds parameters to filter the list of networks with.
+type NetworkListOptions struct {
+	Filters filters.Args
+}
+
 // HijackedResponse holds connection information for a hijacked request.
 type HijackedResponse struct {
 	Conn   net.Conn
@@ -121,7 +127,7 @@ type ImageBuildOptions struct {
 	Remove         bool
 	ForceRemove    bool
 	PullParent     bool
-	Isolation      string
+	IsolationLevel container.IsolationLevel
 	CPUSetCPUs     string
 	CPUSetMems     string
 	CPUShares      int64
@@ -130,10 +136,10 @@ type ImageBuildOptions struct {
 	Memory         int64
 	MemorySwap     int64
 	CgroupParent   string
-	ShmSize        string
+	ShmSize        int64
 	Dockerfile     string
-	Ulimits        []*ulimit.Ulimit
-	BuildArgs      []string
+	Ulimits        []*units.Ulimit
+	BuildArgs      map[string]string
 	AuthConfigs    map[string]AuthConfig
 	Context        io.Reader
 }
@@ -177,6 +183,12 @@ type ImageListOptions struct {
 	MatchName string
 	All       bool
 	Filters   filters.Args
+}
+
+// ImageLoadResponse returns information to the client about a load process.
+type ImageLoadResponse struct {
+	Body io.ReadCloser
+	JSON bool
 }
 
 // ImagePullOptions holds information to pull images.

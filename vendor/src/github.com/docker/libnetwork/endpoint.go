@@ -748,11 +748,8 @@ func (ep *endpoint) DataScope() string {
 	return ep.getNetwork().DataScope()
 }
 
-func (ep *endpoint) assignAddress(assignIPv4, assignIPv6 bool) error {
-	var (
-		ipam ipamapi.Ipam
-		err  error
-	)
+func (ep *endpoint) assignAddress(ipam ipamapi.Ipam, assignIPv4, assignIPv6 bool) error {
+	var err error
 
 	n := ep.getNetwork()
 	if n.Type() == "host" || n.Type() == "null" {
@@ -760,11 +757,6 @@ func (ep *endpoint) assignAddress(assignIPv4, assignIPv6 bool) error {
 	}
 
 	log.Debugf("Assigning addresses for endpoint %s's interface on network %s", ep.Name(), n.Name())
-
-	ipam, err = n.getController().getIpamDriver(n.ipamType)
-	if err != nil {
-		return err
-	}
 
 	if assignIPv4 {
 		if err = ep.assignAddressVersion(4, ipam); err != nil {
