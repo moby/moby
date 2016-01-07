@@ -15,7 +15,6 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	timetypes "github.com/docker/docker/api/types/time"
-	"github.com/docker/docker/daemon"
 	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/signal"
@@ -31,7 +30,7 @@ func (s *containerRouter) getContainersJSON(ctx context.Context, w http.Response
 		return err
 	}
 
-	config := &daemon.ContainersConfig{
+	config := &types.ContainersConfig{
 		All:     httputils.BoolValue(r, "all"),
 		Size:    httputils.BoolValue(r, "size"),
 		Since:   r.Form.Get("since"),
@@ -76,7 +75,7 @@ func (s *containerRouter) getContainersStats(ctx context.Context, w http.Respons
 		closeNotifier = notifier.CloseNotify()
 	}
 
-	config := &daemon.ContainerStatsConfig{
+	config := &types.ContainerStatsConfig{
 		Stream:    stream,
 		OutStream: out,
 		Stop:      closeNotifier,
@@ -132,7 +131,7 @@ func (s *containerRouter) getContainersLogs(ctx context.Context, w http.Response
 	output := ioutils.NewWriteFlusher(w)
 	defer output.Close()
 
-	logsConfig := &daemon.ContainerLogsConfig{
+	logsConfig := &types.ContainerLogsConfig{
 		Follow:     httputils.BoolValue(r, "follow"),
 		Timestamps: httputils.BoolValue(r, "timestamps"),
 		Since:      since,
@@ -438,7 +437,7 @@ func (s *containerRouter) postContainersAttach(ctx context.Context, w http.Respo
 		}
 	}
 
-	attachWithLogsConfig := &daemon.ContainerAttachWithLogsConfig{
+	attachWithLogsConfig := &types.ContainerAttachWithLogsConfig{
 		Hijacker:   w.(http.Hijacker),
 		Upgrade:    upgrade,
 		UseStdin:   httputils.BoolValue(r, "stdin"),
@@ -475,7 +474,7 @@ func (s *containerRouter) wsContainersAttach(ctx context.Context, w http.Respons
 	h := websocket.Handler(func(ws *websocket.Conn) {
 		defer ws.Close()
 
-		wsAttachWithLogsConfig := &daemon.ContainerWsAttachWithLogsConfig{
+		wsAttachWithLogsConfig := &types.ContainerWsAttachWithLogsConfig{
 			InStream:   ws,
 			OutStream:  ws,
 			ErrStream:  ws,

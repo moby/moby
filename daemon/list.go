@@ -39,22 +39,6 @@ func (daemon *Daemon) List() []*container.Container {
 	return daemon.containers.List()
 }
 
-// ContainersConfig is the filtering specified by the user to iterate over containers.
-type ContainersConfig struct {
-	// if true show all containers, otherwise only running containers.
-	All bool
-	// show all containers created after this container id
-	Since string
-	// show all containers created before this container id
-	Before string
-	// number of containers to return at most
-	Limit int
-	// if true include the sizes of the containers
-	Size bool
-	// return only containers that match filters
-	Filters string
-}
-
 // listContext is the daemon generated filtering to iterate over containers.
 // This is created based on the user specification.
 type listContext struct {
@@ -77,16 +61,16 @@ type listContext struct {
 	// this is used for --filter=since= and --since=, the latter is deprecated.
 	sinceFilter *container.Container
 	// ContainersConfig is the filters set by the user
-	*ContainersConfig
+	*types.ContainersConfig
 }
 
 // Containers returns the list of containers to show given the user's filtering.
-func (daemon *Daemon) Containers(config *ContainersConfig) ([]*types.Container, error) {
+func (daemon *Daemon) Containers(config *types.ContainersConfig) ([]*types.Container, error) {
 	return daemon.reduceContainers(config, daemon.transformContainer)
 }
 
 // reduceContainer parses the user filtering and generates the list of containers to return based on a reducer.
-func (daemon *Daemon) reduceContainers(config *ContainersConfig, reducer containerReducer) ([]*types.Container, error) {
+func (daemon *Daemon) reduceContainers(config *types.ContainersConfig, reducer containerReducer) ([]*types.Container, error) {
 	containers := []*types.Container{}
 
 	ctx, err := daemon.foldFilter(config)
@@ -129,7 +113,7 @@ func (daemon *Daemon) reducePsContainer(container *container.Container, ctx *lis
 }
 
 // foldFilter generates the container filter based in the user's filtering options.
-func (daemon *Daemon) foldFilter(config *ContainersConfig) (*listContext, error) {
+func (daemon *Daemon) foldFilter(config *types.ContainersConfig) (*listContext, error) {
 	psFilters, err := filters.FromParam(config.Filters)
 	if err != nil {
 		return nil, err

@@ -6,7 +6,6 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/daemon/exec"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/version"
@@ -51,17 +50,17 @@ type stateBackend interface {
 type monitorBackend interface {
 	ContainerChanges(name string) ([]archive.Change, error)
 	ContainerInspect(name string, size bool, version version.Version) (interface{}, error)
-	ContainerLogs(name string, config *daemon.ContainerLogsConfig) error
-	ContainerStats(name string, config *daemon.ContainerStatsConfig) error
+	ContainerLogs(name string, config *types.ContainerLogsConfig) error
+	ContainerStats(name string, config *types.ContainerStatsConfig) error
 	ContainerTop(name string, psArgs string) (*types.ContainerProcessList, error)
 
-	Containers(config *daemon.ContainersConfig) ([]*types.Container, error)
+	Containers(config *types.ContainersConfig) ([]*types.Container, error)
 }
 
 // attachBackend includes function to implement to provide container attaching functionality.
 type attachBackend interface {
-	ContainerAttachWithLogs(name string, c *daemon.ContainerAttachWithLogsConfig) error
-	ContainerWsAttachWithLogs(name string, c *daemon.ContainerWsAttachWithLogsConfig) error
+	ContainerAttachWithLogs(name string, c *types.ContainerAttachWithLogsConfig) error
+	ContainerWsAttachWithLogs(name string, c *types.ContainerWsAttachWithLogsConfig) error
 }
 
 // Backend is all the methods that need to be implemented to provide container specific functionality.
