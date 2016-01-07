@@ -395,6 +395,35 @@ func (s *DockerRegistrySuite) TestDeleteImageByIDOnlyPulledByDigest(c *check.C) 
 	dockerCmd(c, "rmi", imageID)
 }
 
+func (s *DockerRegistrySuite) TestDeleteImageWithDigestAndTag(c *check.C) {
+	pushDigest, err := setupImage(c)
+	c.Assert(err, checker.IsNil, check.Commentf("error setting up image"))
+
+	// pull from the registry using the <name>@<digest> reference
+	imageReference := fmt.Sprintf("%s@%s", repoName, pushDigest)
+	dockerCmd(c, "pull", imageReference)
+
+	imageID, err := inspectField(imageReference, "Id")
+	c.Assert(err, checker.IsNil, check.Commentf("error inspecting image id"))
+
+	repoTag := repoName + ":sometag"
+	repoTag2 := repoName + ":othertag"
+	dockerCmd(c, "tag", imageReference, repoTag)
+	dockerCmd(c, "tag", imageReference, repoTag2)
+
+	dockerCmd(c, "rmi", repoTag2)
+
+	// rmi should have deleted only repoTag2, because there's another tag
+	_, err = inspectField(repoTag, "Id")
+	c.Assert(err, checker.IsNil, check.Commentf("repoTag should not have been removed"))
+
+	dockerCmd(c, "rmi", repoTag)
+
+	// rmi should have deleted the tag, the digest reference, and the image itself
+	_, err = inspectField(imageID, "Id")
+	c.Assert(err, checker.NotNil, check.Commentf("image should have been deleted"))
+}
+
 // TestPullFailsWithAlteredManifest tests that a `docker pull` fails when
 // we have modified a manifest blob and its digest cannot be verified.
 // This is the schema2 version of the test.
