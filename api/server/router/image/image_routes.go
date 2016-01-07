@@ -1,4 +1,4 @@
-package local
+package image
 
 import (
 	"encoding/base64"
@@ -22,7 +22,7 @@ import (
 	"golang.org/x/net/context"
 )
 
-func (s *router) postCommit(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (s *imageRouter) postCommit(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
@@ -77,7 +77,7 @@ func (s *router) postCommit(ctx context.Context, w http.ResponseWriter, r *http.
 }
 
 // Creates an image from Pull or from Import
-func (s *router) postImagesCreate(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (s *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
@@ -182,7 +182,7 @@ func (s *router) postImagesCreate(ctx context.Context, w http.ResponseWriter, r 
 	return nil
 }
 
-func (s *router) postImagesPush(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (s *imageRouter) postImagesPush(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	metaHeaders := map[string][]string{}
 	for k, v := range r.Header {
 		if strings.HasPrefix(k, "X-Meta-") {
@@ -237,7 +237,7 @@ func (s *router) postImagesPush(ctx context.Context, w http.ResponseWriter, r *h
 	return nil
 }
 
-func (s *router) getImagesGet(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (s *imageRouter) getImagesGet(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
@@ -263,11 +263,11 @@ func (s *router) getImagesGet(ctx context.Context, w http.ResponseWriter, r *htt
 	return nil
 }
 
-func (s *router) postImagesLoad(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (s *imageRouter) postImagesLoad(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	return s.daemon.LoadImage(r.Body, w)
 }
 
-func (s *router) deleteImages(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (s *imageRouter) deleteImages(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
@@ -289,7 +289,7 @@ func (s *router) deleteImages(ctx context.Context, w http.ResponseWriter, r *htt
 	return httputils.WriteJSON(w, http.StatusOK, list)
 }
 
-func (s *router) getImagesByName(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (s *imageRouter) getImagesByName(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	imageInspect, err := s.daemon.LookupImage(vars["name"])
 	if err != nil {
 		return err
@@ -298,7 +298,7 @@ func (s *router) getImagesByName(ctx context.Context, w http.ResponseWriter, r *
 	return httputils.WriteJSON(w, http.StatusOK, imageInspect)
 }
 
-func (s *router) getImagesJSON(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (s *imageRouter) getImagesJSON(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
@@ -312,7 +312,7 @@ func (s *router) getImagesJSON(ctx context.Context, w http.ResponseWriter, r *ht
 	return httputils.WriteJSON(w, http.StatusOK, images)
 }
 
-func (s *router) getImagesHistory(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (s *imageRouter) getImagesHistory(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	name := vars["name"]
 	history, err := s.daemon.ImageHistory(name)
 	if err != nil {
@@ -322,7 +322,7 @@ func (s *router) getImagesHistory(ctx context.Context, w http.ResponseWriter, r 
 	return httputils.WriteJSON(w, http.StatusOK, history)
 }
 
-func (s *router) postImagesTag(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (s *imageRouter) postImagesTag(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
@@ -344,7 +344,7 @@ func (s *router) postImagesTag(ctx context.Context, w http.ResponseWriter, r *ht
 	return nil
 }
 
-func (s *router) getImagesSearch(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (s *imageRouter) getImagesSearch(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
