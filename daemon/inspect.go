@@ -57,12 +57,14 @@ func (daemon *Daemon) containerInspectCurrent(name string, size bool) (*types.Co
 		Networks:               container.NetworkSettings.Networks,
 	}
 
-	return &types.ContainerJSON{
+	containerJSON := &types.ContainerJSON{
 		ContainerJSONBase: base,
 		Mounts:            mountPoints,
 		Config:            container.Config,
 		NetworkSettings:   networkSettings,
-	}, nil
+	}
+
+	return containerJSON, nil
 }
 
 // containerInspect120 serializes the master version of a container into a json type.
@@ -117,7 +119,7 @@ func (daemon *Daemon) getInspectData(container *container.Container, size bool) 
 		hostConfig.LogConfig.Config = daemon.defaultLogConfig.Config
 	}
 
-	containerState := &types.ContainerState{
+	containerStateBase := &types.ContainerStateBase{
 		Status:     container.State.StateString(),
 		Running:    container.State.Running,
 		Paused:     container.State.Paused,
@@ -130,6 +132,8 @@ func (daemon *Daemon) getInspectData(container *container.Container, size bool) 
 		StartedAt:  container.State.StartedAt.Format(time.RFC3339Nano),
 		FinishedAt: container.State.FinishedAt.Format(time.RFC3339Nano),
 	}
+
+	containerState := addExperimentalState(container, containerStateBase)
 
 	contJSONBase := &types.ContainerJSONBase{
 		ID:           container.ID,

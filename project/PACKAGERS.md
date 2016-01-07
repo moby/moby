@@ -306,6 +306,9 @@ by having support for them in the kernel or userspace. A few examples include:
 * BTRFS graph driver (requires BTRFS support enabled in the kernel)
 * ZFS graph driver (requires userspace zfs-utils and a corresponding kernel module)
 * Libseccomp to allow running seccomp profiles with containers
+* Checkpoint/Restore containers:
+  - requires criu version 1.6 or later (criu.org)
+  - requires kernel version 3.19 or later if using overlay-fs
 
 ## Daemon Init Script
 

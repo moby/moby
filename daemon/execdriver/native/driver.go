@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/daemon/execdriver/native/template"
 	"github.com/docker/docker/pkg/parsers"
@@ -163,10 +164,13 @@ func (d *Driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, hooks execd
 	d.activeContainers[c.ID] = cont
 	d.Unlock()
 	defer func() {
-		if !destroyed {
-			cont.Destroy()
+		status, _ := cont.Status()
+		if status != libcontainer.Checkpointed {
+			if !destroyed {
+				cont.Destroy()
+			}
+			d.cleanContainer(c.ID)
 		}
-		d.cleanContainer(c.ID)
 	}()
 
 	if err := cont.Start(p); err != nil {
@@ -305,6 +309,120 @@ func (d *Driver) Unpause(c *execdriver.Command) error {
 		return fmt.Errorf("active container for %s does not exist", c.ID)
 	}
 	return active.Resume()
+}
+
+func libcontainerCriuOpts(containerOpts *types.CriuConfig) *libcontainer.CriuOpts {
+	return &libcontainer.CriuOpts{
+		ImagesDirectory:         containerOpts.ImagesDirectory,
+		WorkDirectory:           containerOpts.WorkDirectory,
+		LeaveRunning:            containerOpts.LeaveRunning,
+		TcpEstablished:          true,
+		ExternalUnixConnections: true,
+		FileLocks:               true,
+	}
+}
+
+// Checkpoint implements the exec driver Driver interface.
+func (d *Driver) Checkpoint(c *execdriver.Command, opts *types.CriuConfig) error {
+	active := d.activeContainers[c.ID]
+	if active == nil {
+		return fmt.Errorf("active container for %s does not exist", c.ID)
+	}
+
+	d.Lock()
+	defer d.Unlock()
+	err := active.Checkpoint(libcontainerCriuOpts(opts))
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Restore implements the exec driver Driver interface.
+func (d *Driver) Restore(c *execdriver.Command, pipes *execdriver.Pipes, hooks execdriver.Hooks, opts *types.CriuConfig, forceRestore bool) (execdriver.ExitStatus, error) {
+	var (
+		cont libcontainer.Container
+		err  error
+	)
+
+	destroyed := false
+	cont, err = d.factory.Load(c.ID)
+	if err != nil {
+		if forceRestore {
+			var config *configs.Config
+			config, err = d.createContainer(c, hooks)
+			if err != nil {
+				return execdriver.ExitStatus{ExitCode: -1}, err
+			}
+			cont, err = d.factory.Create(c.ID, config)
+			if err != nil {
+				return execdriver.ExitStatus{ExitCode: -1}, err
+			}
+		} else {
+			return execdriver.ExitStatus{ExitCode: -1}, err
+		}
+	}
+
+	p := &libcontainer.Process{
+		Args: append([]string{c.ProcessConfig.Entrypoint}, c.ProcessConfig.Arguments...),
+		Env:  c.ProcessConfig.Env,
+		Cwd:  c.WorkingDir,
+		User: c.ProcessConfig.User,
+	}
+
+	config := cont.Config()
+	if err := setupPipes(&config, &c.ProcessConfig, p, pipes); err != nil {
+		return execdriver.ExitStatus{ExitCode: -1}, err
+	}
+
+	d.Lock()
+	d.activeContainers[c.ID] = cont
+	d.Unlock()
+	defer func() {
+		status, _ := cont.Status()
+		if status != libcontainer.Checkpointed {
+			if !destroyed {
+				cont.Destroy()
+			}
+			d.cleanContainer(c.ID)
+		}
+	}()
+
+	if err := cont.Restore(p, libcontainerCriuOpts(opts)); err != nil {
+		return execdriver.ExitStatus{ExitCode: -1}, err
+	}
+
+	oom := notifyOnOOM(cont)
+	if hooks.Restore != nil {
+		pid, err := p.Pid()
+		if err != nil {
+			p.Signal(os.Kill)
+			p.Wait()
+			return execdriver.ExitStatus{ExitCode: -1}, err
+		}
+		hooks.Restore(&c.ProcessConfig, pid, oom)
+	}
+
+	waitF := p.Wait
+	if nss := cont.Config().Namespaces; !nss.Contains(configs.NEWPID) {
+		// we need such hack for tracking processes with inherited fds,
+		// because cmd.Wait() waiting for all streams to be copied
+		waitF = waitInPIDHost(p, cont)
+	}
+	ps, err := waitF()
+	if err != nil {
+		execErr, ok := err.(*exec.ExitError)
+		if !ok {
+			return execdriver.ExitStatus{ExitCode: -1}, err
+		}
+		ps = execErr.ProcessState
+	}
+
+	cont.Destroy()
+	destroyed = true
+	_, oomKill := <-oom
+	return execdriver.ExitStatus{ExitCode: utils.ExitStatus(ps.Sys().(syscall.WaitStatus)), OOMKilled: oomKill}, nil
 }
 
 // Terminate implements the exec driver Driver interface.

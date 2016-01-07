@@ -3,6 +3,7 @@ package daemon
 import (
 	"os"
 	"path"
+	"syscall"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
@@ -126,7 +127,21 @@ func (daemon *Daemon) cleanupContainer(container *container.Container, forceRemo
 		}
 	}()
 
-	if err = os.RemoveAll(container.Root); err != nil {
+	// Try a maximum of 10 times to remove the container's
+	// root directory.
+	// XXX This is just a workaround.  We need to find out why
+	//     os.RemoveAll() can return with an ENOTEMPTY error.
+	var i int
+	for i = 0; i < 10; i++ {
+		if err = os.RemoveAll(container.Root); err == nil {
+			break
+		}
+		if err.(*os.PathError).Err != syscall.ENOTEMPTY {
+			return derr.ErrorCodeRmFS.WithArgs(container.ID, err)
+		}
+		logrus.Debugf(">>> Trying RemoveAll() again...\n")
+	}
+	if i == 10 {
 		return derr.ErrorCodeRmFS.WithArgs(container.ID, err)
 	}
 

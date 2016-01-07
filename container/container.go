@@ -385,7 +385,6 @@ func AttachStreams(streamConfig *runconfig.StreamConfig, openStdin, stdinOnce, t
 			_, err = copyEscapable(cStdin, stdin, keys)
 		} else {
 			_, err = io.Copy(cStdin, stdin)
-
 		}
 		if err == io.ErrClosedPipe {
 			err = nil

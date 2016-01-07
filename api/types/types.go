@@ -255,9 +255,9 @@ type ExecStartCheck struct {
 	Tty bool
 }
 
-// ContainerState stores container's running state
+// ContainerStateBase stores container's running state
 // it's part of ContainerJSONBase and will return by "inspect" command
-type ContainerState struct {
+type ContainerStateBase struct {
 	Status     string
 	Running    bool
 	Paused     bool

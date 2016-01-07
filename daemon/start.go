@@ -4,6 +4,7 @@ import (
 	"runtime"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
 	derr "github.com/docker/docker/errors"
@@ -69,6 +70,13 @@ func (daemon *Daemon) Start(container *container.Container) error {
 // between containers. The container is left waiting for a signal to
 // begin running.
 func (daemon *Daemon) containerStart(container *container.Container) (err error) {
+	return daemon.containerStartOrRestore(container, nil, false)
+}
+
+// containerStartOrRestore combines the log for start and restore in one place
+func (daemon *Daemon) containerStartOrRestore(container *container.Container, opts *types.CriuConfig, forceRestore bool) (err error) {
+	isRestoring := opts != nil
+
 	container.Lock()
 	defer container.Unlock()
 
@@ -103,7 +111,7 @@ func (daemon *Daemon) containerStart(container *container.Container) (err error)
 	// backwards API compatibility.
 	container.HostConfig = runconfig.SetDefaultNetModeIfBlank(container.HostConfig)
 
-	if err := daemon.initializeNetworking(container); err != nil {
+	if err := daemon.initializeNetworking(container, isRestoring); err != nil {
 		return err
 	}
 	linkedEnv, err := daemon.setupLinkedContainers(container)
@@ -132,9 +140,16 @@ func (daemon *Daemon) containerStart(container *container.Container) (err error)
 	mounts = append(mounts, container.TmpfsMounts()...)
 
 	container.Command.Mounts = mounts
-	if err := daemon.waitForStart(container); err != nil {
+
+	if isRestoring {
+		err = daemon.waitForRestore(container, opts, forceRestore)
+	} else {
+		err = daemon.waitForStart(container)
+	}
+	if err != nil {
 		return err
 	}
+
 	container.HasBeenStartedBefore = true
 	return nil
 }
@@ -146,7 +161,11 @@ func (daemon *Daemon) waitForStart(container *container.Container) error {
 // Cleanup releases any network resources allocated to the container along with any rules
 // around how containers are linked together.  It also unmounts the container's root filesystem.
 func (daemon *Daemon) Cleanup(container *container.Container) {
-	daemon.releaseNetwork(container)
+	if container.IsCheckpointed() {
+		logrus.Debugf("not calling ReleaseNetwork() for checkpointed container %s", container.ID)
+	} else {
+		daemon.releaseNetwork(container)
+	}
 
 	container.UnmountIpcMounts(detachMounted)
 

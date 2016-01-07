@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"time"
 
+	"github.com/docker/docker/api/types"
 	"github.com/opencontainers/runc/libcontainer"
 )
 
@@ -37,6 +38,8 @@ type Hooks struct {
 	Start DriverCallback
 	// PostStop is called after the container process exits
 	PostStop []DriverCallback
+	// Restore is called after the container is restored
+	Restore DriverCallback
 }
 
 // Info is driver specific information based on
@@ -71,6 +74,12 @@ type Driver interface {
 
 	// Unpause unpauses a container.
 	Unpause(c *Command) error
+
+	// Checkpoints a container (with criu).
+	Checkpoint(c *Command, opts *types.CriuConfig) error
+
+	// Restores a checkpoint image into a container (with criu).
+	Restore(c *Command, pipes *Pipes, hooks Hooks, opts *types.CriuConfig, forceRestore bool) (ExitStatus, error)
 
 	// Name returns the name of the driver.
 	Name() string

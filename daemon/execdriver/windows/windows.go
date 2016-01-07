@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/dockerversion"
@@ -106,4 +107,14 @@ func setupEnvironmentVariables(a []string) map[string]string {
 		}
 	}
 	return r
+}
+
+// Checkpoint does not currently implement checkpoint, but complies to the Driver interface
+func (d *Driver) Checkpoint(c *execdriver.Command, opts *types.CriuConfig) error {
+	return fmt.Errorf("Windows: Containers cannot be checkpointed")
+}
+
+// Restore does not currently implement restore, but complies to the Driver interface
+func (d *Driver) Restore(c *execdriver.Command, pipes *execdriver.Pipes, hooks execdriver.Hooks, opts *types.CriuConfig, forceRestore bool) (execdriver.ExitStatus, error) {
+	return execdriver.ExitStatus{ExitCode: 0}, fmt.Errorf("Windows: Containers cannot be restored")
 }
