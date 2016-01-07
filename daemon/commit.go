@@ -204,7 +204,10 @@ func (daemon *Daemon) Commit(name string, c *types.ContainerCommitConfig) (strin
 		}
 	}
 
-	daemon.LogContainerEvent(container, "commit")
+	attributes := map[string]string{
+		"comment": c.Comment,
+	}
+	daemon.LogContainerEventWithAttributes(container, "commit", attributes)
 	return id.String(), nil
 }
 
