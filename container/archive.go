@@ -6,6 +6,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/directory"
 )
 
 // ResolvePath resolves the given path in the container to a resource on the
@@ -59,9 +60,16 @@ func (container *Container) StatPath(resolvedPath, absPath string) (stat *types.
 		linkTarget = filepath.Join(string(filepath.Separator), linkTarget)
 	}
 
+	size := lstat.Size()
+	if lstat.IsDir() {
+		if size, err = directory.Size(resolvedPath); err != nil {
+			return nil, err
+		}
+	}
+
 	return &types.ContainerPathStat{
 		Name:       filepath.Base(absPath),
-		Size:       lstat.Size(),
+		Size:       size,
 		Mode:       lstat.Mode(),
 		Mtime:      lstat.ModTime(),
 		LinkTarget: linkTarget,

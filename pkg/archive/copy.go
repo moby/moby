@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/pkg/directory"
 	"github.com/docker/docker/pkg/system"
 )
 
@@ -128,6 +129,7 @@ type CopyInfo struct {
 	Exists     bool
 	IsDir      bool
 	RebaseName string
+	Size       int64
 }
 
 // CopyInfoSourcePath stats the given path to create a CopyInfo
@@ -151,11 +153,18 @@ func CopyInfoSourcePath(path string, followLink bool) (CopyInfo, error) {
 		return CopyInfo{}, err
 	}
 
+	size := stat.Size()
+	if stat.Mode().IsDir() {
+		if size, err = directory.Size(resolvedPath); err != nil {
+			return CopyInfo{}, err
+		}
+	}
 	return CopyInfo{
 		Path:       resolvedPath,
 		Exists:     true,
 		IsDir:      stat.IsDir(),
 		RebaseName: rebaseName,
+		Size:       size,
 	}, nil
 }
 
@@ -290,7 +299,7 @@ func PrepareArchiveCopy(srcContent Reader, srcInfo, dstInfo CopyInfo) (dstDir st
 	default:
 		// The last remaining case is when the destination does not exist, is
 		// not asserted to be a directory, and the source content is not an
-		// archive of a directory. It this case, the destination file will need
+		// archive of a directory. In this case, the destination file will need
 		// to be created when the archive is extracted and the source content
 		// entry will have to be renamed to have a basename which matches the
 		// destination path's basename.
