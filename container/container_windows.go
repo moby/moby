@@ -3,9 +3,9 @@
 package container
 
 import (
-	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/volume"
+	"github.com/docker/engine-api/types/container"
 )
 
 // Container holds fields specific to the Windows implementation. See

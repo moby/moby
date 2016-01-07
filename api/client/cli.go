@@ -9,12 +9,12 @@ import (
 	"runtime"
 
 	"github.com/docker/docker/api"
-	"github.com/docker/docker/api/client/lib"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/term"
+	"github.com/docker/engine-api/client"
 	"github.com/docker/go-connections/tlsconfig"
 )
 
@@ -120,7 +120,7 @@ func NewDockerCli(in io.ReadCloser, out, err io.Writer, clientFlags *cli.ClientF
 			return err
 		}
 
-		client, err := lib.NewClient(host, verStr, clientTransport, customHeaders)
+		client, err := client.NewClient(host, verStr, clientTransport, customHeaders)
 		if err != nil {
 			return err
 		}

@@ -4,8 +4,8 @@ import (
 	"os"
 	"testing"
 
-	registrytypes "github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/registry"
+	registrytypes "github.com/docker/engine-api/types/registry"
 )
 
 func unsetENV() {

@@ -4,13 +4,13 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/docker/docker/api/types"
-	networktypes "github.com/docker/docker/api/types/network"
-	"github.com/docker/docker/api/types/versions/v1p20"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/exec"
 	"github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/pkg/version"
+	"github.com/docker/engine-api/types"
+	networktypes "github.com/docker/engine-api/types/network"
+	"github.com/docker/engine-api/types/versions/v1p20"
 )
 
 // ContainerInspect returns low-level information about a

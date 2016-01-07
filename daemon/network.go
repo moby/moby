@@ -6,9 +6,9 @@ import (
 	"net"
 	"strings"
 
-	"github.com/docker/docker/api/types/network"
 	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/runconfig"
+	"github.com/docker/engine-api/types/network"
 	"github.com/docker/libnetwork"
 )
 
