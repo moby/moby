@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"net"
+	"strings"
 
 	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/docker/docker/utils"
@@ -17,6 +18,9 @@ func (s *DockerSuite) TestInfoEnsureSucceeds(c *check.C) {
 	stringsToCheck := []string{
 		"ID:",
 		"Containers:",
+		" Running:",
+		" Paused:",
+		" Stopped:",
 		"Images:",
 		"Execution Driver:",
 		"OSType:",
@@ -100,4 +104,45 @@ func (s *DockerSuite) TestInfoDiscoveryAdvertiseInterfaceName(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	c.Assert(out, checker.Contains, fmt.Sprintf("Cluster store: %s\n", discoveryBackend))
 	c.Assert(out, checker.Contains, fmt.Sprintf("Cluster advertise: %s:2375\n", ip.String()))
+}
+
+func (s *DockerSuite) TestInfoDisplaysRunningContainers(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	dockerCmd(c, "run", "-d", "busybox", "top")
+	out, _ := dockerCmd(c, "info")
+	c.Assert(out, checker.Contains, fmt.Sprintf("Containers: %d\n", 1))
+	c.Assert(out, checker.Contains, fmt.Sprintf(" Running: %d\n", 1))
+	c.Assert(out, checker.Contains, fmt.Sprintf(" Paused: %d\n", 0))
+	c.Assert(out, checker.Contains, fmt.Sprintf(" Stopped: %d\n", 0))
+}
+
+func (s *DockerSuite) TestInfoDisplaysPausedContainers(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
+	cleanedContainerID := strings.TrimSpace(out)
+
+	dockerCmd(c, "pause", cleanedContainerID)
+
+	out, _ = dockerCmd(c, "info")
+	c.Assert(out, checker.Contains, fmt.Sprintf("Containers: %d\n", 1))
+	c.Assert(out, checker.Contains, fmt.Sprintf(" Running: %d\n", 0))
+	c.Assert(out, checker.Contains, fmt.Sprintf(" Paused: %d\n", 1))
+	c.Assert(out, checker.Contains, fmt.Sprintf(" Stopped: %d\n", 0))
+}
+
+func (s *DockerSuite) TestInfoDisplaysStoppedContainers(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
+	cleanedContainerID := strings.TrimSpace(out)
+
+	dockerCmd(c, "stop", cleanedContainerID)
+
+	out, _ = dockerCmd(c, "info")
+	c.Assert(out, checker.Contains, fmt.Sprintf("Containers: %d\n", 1))
+	c.Assert(out, checker.Contains, fmt.Sprintf(" Running: %d\n", 0))
+	c.Assert(out, checker.Contains, fmt.Sprintf(" Paused: %d\n", 0))
+	c.Assert(out, checker.Contains, fmt.Sprintf(" Stopped: %d\n", 1))
 }

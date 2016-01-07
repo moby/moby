@@ -54,9 +54,24 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 	initPath := utils.DockerInitPath("")
 	sysInfo := sysinfo.New(true)
 
+	var cRunning, cPaused, cStopped int
+	for _, c := range daemon.List() {
+		switch c.StateString() {
+		case "paused":
+			cPaused++
+		case "running":
+			cRunning++
+		default:
+			cStopped++
+		}
+	}
+
 	v := &types.Info{
 		ID:                 daemon.ID,
 		Containers:         len(daemon.List()),
+		ContainersRunning:  cRunning,
+		ContainersPaused:   cPaused,
+		ContainersStopped:  cStopped,
 		Images:             len(daemon.imageStore.Map()),
 		Driver:             daemon.GraphDriverName(),
 		DriverStatus:       daemon.layerStore.DriverStatus(),
