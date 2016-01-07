@@ -862,9 +862,10 @@ This endpoint returns a live stream of a container's resource usage statistics.
                "total_usage" : 36488948,
                "usage_in_kernelmode" : 20000000
             },
-            "system_cpu_usage" : 20091722000000000,
+            "system_cpu_usage" : 20091722000000000,
             "throttling_data" : {}
-         }      }
+         }
+      }
 
 Query Parameters:
 
@@ -923,7 +924,7 @@ Start the container `id`
 
 Query Parameters:
 
--   **detacheys** – Override the key sequence for detaching a
+-   **detachKeys** – Override the key sequence for detaching a
         container. Format is a single character `[a-Z]` or `ctrl-<value>`
         where `<value>` is one of: `a-z`, `@`, `^`, `[`, `,` or `_`.
 
@@ -1138,7 +1139,7 @@ Attach to the container `id`
 
 Query Parameters:
 
--   **detacheys** – Override the key sequence for detaching a
+-   **detachKeys** – Override the key sequence for detaching a
         container. Format is a single character `[a-Z]` or `ctrl-<value>`
         where `<value>` is one of: `a-z`, `@`, `^`, `[`, `,` or `_`.
 -   **logs** – 1/True/true or 0/False/false, return logs. Default `false`.
@@ -1221,7 +1222,7 @@ Implements websocket protocol handshake according to [RFC 6455](http://tools.iet
 
 Query Parameters:
 
--   **detacheys** – Override the key sequence for detaching a
+-   **detachKeys** – Override the key sequence for detaching a
         container. Format is a single character `[a-Z]` or `ctrl-<value>`
         where `<value>` is one of: `a-z`, `@`, `^`, `[`, `,` or `_`.
 -   **logs** – 1/True/true or 0/False/false, return logs. Default `false`.
@@ -2501,7 +2502,7 @@ Json Parameters:
 -   **AttachStdin** - Boolean value, attaches to `stdin` of the `exec` command.
 -   **AttachStdout** - Boolean value, attaches to `stdout` of the `exec` command.
 -   **AttachStderr** - Boolean value, attaches to `stderr` of the `exec` command.
--   **Detacheys** – Override the key sequence for detaching a
+-   **DetachKeys** – Override the key sequence for detaching a
         container. Format is a single character `[a-Z]` or `ctrl-<value>`
         where `<value>` is one of: `a-z`, `@`, `^`, `[`, `,` or `_`.
 -   **Tty** - Boolean value to allocate a pseudo-TTY.
@@ -2969,11 +2970,6 @@ Status Codes:
 
 `POST /networks/create`
 
-Create a network
-
-**Example request**:
-
-```
 Create a network
 
 **Example request**:
