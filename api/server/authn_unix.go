@@ -9,10 +9,10 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
-	"syscall"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/opts"
+	"golang.org/x/sys/unix"
 )
 
 func getUserFromHTTPResponseWriter(w http.ResponseWriter, options map[string]string) User {
@@ -84,17 +84,17 @@ func getUserFromHTTPResponseWriter(w http.ResponseWriter, options map[string]str
 		return User{}
 	}
 	// read the address of the local end of the socket
-	sa, err := syscall.Getsockname(int(sysfd.Int()))
+	sa, err := unix.Getsockname(int(sysfd.Int()))
 	if err != nil {
 		logrus.Warn("error reading server socket address")
 		return User{}
 	}
 	// and only try to read the user if it's a Unix socket
-	if _, isUnix := sa.(*syscall.SockaddrUnix); !isUnix {
+	if _, isUnix := sa.(*unix.SockaddrUnix); !isUnix {
 		logrus.Warn("error reading server socket address")
 		return User{}
 	}
-	uc, err := syscall.GetsockoptUcred(int(sysfd.Int()), syscall.SOL_SOCKET, syscall.SO_PEERCRED)
+	uc, err := unix.GetsockoptUcred(int(sysfd.Int()), unix.SOL_SOCKET, unix.SO_PEERCRED)
 	if err != nil || uc == nil {
 		logrus.Warnf("%v: error reading client identity from kernel", err)
 		return User{}
