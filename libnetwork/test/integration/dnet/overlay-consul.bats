@@ -13,11 +13,6 @@ load helpers
     test_overlay_singlehost consul
 }
 
-@test "test overlay network etc hosts with consul" {
-    skip_for_circleci
-    test_overlay_etchosts consul
-}
-
 @test "Test overlay network with dnet restart" {
     skip_for_circleci
     test_overlay consul skip_rm
