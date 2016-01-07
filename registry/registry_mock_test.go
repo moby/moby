@@ -174,14 +174,15 @@ func makePublicIndex() *registrytypes.IndexInfo {
 	return index
 }
 
-func makeServiceConfig(mirrors []string, insecureRegistries []string) *registrytypes.ServiceConfig {
+func makeServiceConfig(mirrors map[string]string, insecureRegistries []string) *registrytypes.ServiceConfig {
 	options := &Options{
-		Mirrors:            opts.NewListOpts(nil),
+		Mirrors:            *(opts.NewMapOpts(nil, nil)),
 		InsecureRegistries: opts.NewListOpts(nil),
 	}
 	if mirrors != nil {
-		for _, mirror := range mirrors {
-			options.Mirrors.Set(mirror)
+		for minor, main := range mirrors {
+			teststring := fmt.Sprintf("%s@%s", minor, main)
+			options.Mirrors.Set(teststring)
 		}
 	}
 	if insecureRegistries != nil {

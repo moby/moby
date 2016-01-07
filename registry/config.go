@@ -15,7 +15,7 @@ import (
 
 // Options holds command line options.
 type Options struct {
-	Mirrors            opts.ListOpts
+	Mirrors            opts.MapOpts
 	InsecureRegistries opts.ListOpts
 }
 
@@ -52,7 +52,7 @@ var (
 // InstallFlags adds command-line options to the top-level flag parser for
 // the current process.
 func (options *Options) InstallFlags(cmd *flag.FlagSet, usageFn func(string) string) {
-	options.Mirrors = opts.NewListOpts(ValidateMirror)
+	options.Mirrors = *(opts.NewMapOpts(nil, nil))
 	cmd.Var(&options.Mirrors, []string{"-registry-mirror"}, usageFn("Preferred Docker registry mirror"))
 	options.InsecureRegistries = opts.NewListOpts(ValidateIndexName)
 	cmd.Var(&options.InsecureRegistries, []string{"-insecure-registry"}, usageFn("Enable insecure registry communication"))
@@ -63,7 +63,7 @@ func (options *Options) InstallFlags(cmd *flag.FlagSet, usageFn func(string) str
 func NewServiceConfig(options *Options) *registrytypes.ServiceConfig {
 	if options == nil {
 		options = &Options{
-			Mirrors:            opts.NewListOpts(nil),
+			Mirrors:            *(opts.NewMapOpts(nil, nil)),
 			InsecureRegistries: opts.NewListOpts(nil),
 		}
 	}
@@ -93,7 +93,7 @@ func NewServiceConfig(options *Options) *registrytypes.ServiceConfig {
 			// Assume `host:port` if not CIDR.
 			config.IndexConfigs[r] = &registrytypes.IndexInfo{
 				Name:     r,
-				Mirrors:  make([]string, 0),
+				Mirrors:  make(map[string]string, 0),
 				Secure:   false,
 				Official: false,
 			}
@@ -213,7 +213,7 @@ func newIndexInfo(config *registrytypes.ServiceConfig, indexName string) (*regis
 	// Construct a non-configured index info.
 	index := &registrytypes.IndexInfo{
 		Name:     indexName,
-		Mirrors:  make([]string, 0),
+		Mirrors:  make(map[string]string, 0),
 		Official: false,
 	}
 	index.Secure = isSecureIndex(config, indexName)
