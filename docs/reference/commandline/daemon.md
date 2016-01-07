@@ -17,10 +17,10 @@ weight = -1
 
     Options:
       --api-cors-header=""                   Set CORS headers in the remote API
-      --authz-plugin=[]                     Set authorization plugins to load
+      --authz-plugin=[]                      Set authorization plugins to load
       -b, --bridge=""                        Attach containers to a network bridge
       --bip=""                               Specify network bridge IP
-      --cgroup-parent=/docker                Set parent cgroup for all containers
+      --cgroup-parent=                       Set parent cgroup for all containers
       -D, --debug                            Enable debug mode
       --default-gateway=""                   Container default gateway IPv4 address
       --default-gateway-v6=""                Container default gateway IPv6 address
@@ -647,7 +647,8 @@ set like this:
 # Default cgroup parent
 
 The `--cgroup-parent` option allows you to set the default cgroup parent
-to use for containers. If this option is not set, it defaults to `/docker`.
+to use for containers. If this option is not set, it defaults to `/docker` for
+fs cgroup driver and `system.slice` for systemd cgroup driver.
 
 If the cgroup has a leading forward slash (`/`), the cgroup is created
 under the root cgroup, otherwise the cgroup is created under the daemon
