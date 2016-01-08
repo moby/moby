@@ -93,7 +93,7 @@ the `Using cache` message in the console output.
     Step 2 : RUN apk update &&      apk add socat &&        rm -r /var/cache/
      ---> Using cache
      ---> 21ed6e7fbb73
-    Step 3 : CMD env | grep _TCP= | sed 's/.*_PORT_\([0-9]*\)_TCP=tcp:\/\/\(.*\):\(.*\)/socat -t 100000000 TCP4-LISTEN:\1,fork,reuseaddr TCP4:\2:\3 \& wait/' | sh
+    Step 3 : CMD env | grep _TCP= | (sed 's/.*_PORT_\([0-9]*\)_TCP=tcp:\/\/\(.*\):\(.*\)/socat -t 100000000 TCP4-LISTEN:\1,fork,reuseaddr TCP4:\2:\3 \&/' && echo wait) | sh
      ---> Using cache
      ---> 7ea8aef582cc
     Successfully built 7ea8aef582cc
