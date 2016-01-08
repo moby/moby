@@ -62,7 +62,6 @@ func ValidTUFType(typ, role string) bool {
 	if ValidRole(role) {
 		// All targets delegation roles must have
 		// the valid type is for targets.
-		role = CanonicalRole(role)
 		if role == "" {
 			// role is unknown and does not map to
 			// a type

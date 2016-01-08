@@ -24,7 +24,7 @@ type Timestamp struct {
 
 // NewTimestamp initializes a timestamp with an existing snapshot
 func NewTimestamp(snapshot *Signed) (*SignedTimestamp, error) {
-	snapshotJSON, err := json.Marshal(snapshot)
+	snapshotJSON, err := json.MarshalCanonical(snapshot)
 	if err != nil {
 		return nil, err
 	}
@@ -39,7 +39,7 @@ func NewTimestamp(snapshot *Signed) (*SignedTimestamp, error) {
 			Version: 0,
 			Expires: DefaultExpires("timestamp"),
 			Meta: Files{
-				ValidRoles["snapshot"]: snapshotMeta,
+				CanonicalSnapshotRole: snapshotMeta,
 			},
 		},
 	}, nil

@@ -27,12 +27,12 @@ type Snapshot struct {
 // and targets objects
 func NewSnapshot(root *Signed, targets *Signed) (*SignedSnapshot, error) {
 	logrus.Debug("generating new snapshot...")
-	targetsJSON, err := json.Marshal(targets)
+	targetsJSON, err := json.MarshalCanonical(targets)
 	if err != nil {
 		logrus.Debug("Error Marshalling Targets")
 		return nil, err
 	}
-	rootJSON, err := json.Marshal(root)
+	rootJSON, err := json.MarshalCanonical(root)
 	if err != nil {
 		logrus.Debug("Error Marshalling Root")
 		return nil, err
@@ -52,8 +52,8 @@ func NewSnapshot(root *Signed, targets *Signed) (*SignedSnapshot, error) {
 			Version: 0,
 			Expires: DefaultExpires("snapshot"),
 			Meta: Files{
-				ValidRoles["root"]:    rootMeta,
-				ValidRoles["targets"]: targetsMeta,
+				CanonicalRootRole:    rootMeta,
+				CanonicalTargetsRole: targetsMeta,
 			},
 		},
 	}, nil
@@ -86,6 +86,15 @@ func (sp SignedSnapshot) ToSigned() (*Signed, error) {
 func (sp *SignedSnapshot) AddMeta(role string, meta FileMeta) {
 	sp.Signed.Meta[role] = meta
 	sp.Dirty = true
+}
+
+// DeleteMeta removes a role from the snapshot. If the role doesn't
+// exist in the snapshot, it's a noop.
+func (sp *SignedSnapshot) DeleteMeta(role string) {
+	if _, ok := sp.Signed.Meta[role]; ok {
+		delete(sp.Signed.Meta, role)
+		sp.Dirty = true
+	}
 }
 
 // SnapshotFromSigned fully unpacks a Signed object into a SignedSnapshot
