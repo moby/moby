@@ -1,5 +1,13 @@
 <!--[metadata]>
 +++
+aliases = [
+  "/engine/installation/amazon/",
+  "/engine/installation/google/",
+  "/engine/installation/softlayer/",
+  "/engine/installation/azure/",
+  "/engine/installation/rackspace/",
+  "/engine/installation/joyent/"
+]
 title = "Choose how to install"
 description = "Installation instructions for Docker on cloud."
 keywords = ["cloud, docker, machine, documentation,  installation"]
