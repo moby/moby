@@ -43,6 +43,7 @@ type networkCreate struct {
 // serviceCreate represents the body of the "publish service" http request message
 type serviceCreate struct {
 	Name         string                `json:"name"`
+	MyAliases    []string              `json:"my_aliases"`
 	Network      string                `json:"network_name"`
 	ExposedPorts []types.TransportPort `json:"exposed_ports"`
 	PortMapping  []types.PortBinding   `json:"port_mapping"`

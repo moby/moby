@@ -65,6 +65,7 @@ type endpoint struct {
 	prefAddressV6     net.IP
 	ipamOptions       map[string]string
 	aliases           map[string]string
+	myAliases         []string
 	dbIndex           uint64
 	dbExists          bool
 	sync.Mutex
@@ -85,6 +86,7 @@ func (ep *endpoint) MarshalJSON() ([]byte, error) {
 	epMap["sandbox"] = ep.sandboxID
 	epMap["anonymous"] = ep.anonymous
 	epMap["disableResolution"] = ep.disableResolution
+	epMap["myAliases"] = ep.myAliases
 	return json.Marshal(epMap)
 }
 
@@ -165,6 +167,10 @@ func (ep *endpoint) UnmarshalJSON(b []byte) (err error) {
 	if v, ok := epMap["disableResolution"]; ok {
 		ep.disableResolution = v.(bool)
 	}
+	ma, _ := json.Marshal(epMap["myAliases"])
+	var myAliases []string
+	json.Unmarshal(ma, &myAliases)
+	ep.myAliases = myAliases
 	return nil
 }
 
@@ -193,6 +199,9 @@ func (ep *endpoint) CopyTo(o datastore.KVObject) error {
 	dstEp.exposedPorts = make([]types.TransportPort, len(ep.exposedPorts))
 	copy(dstEp.exposedPorts, ep.exposedPorts)
 
+	dstEp.myAliases = make([]string, len(ep.myAliases))
+	copy(dstEp.myAliases, ep.myAliases)
+
 	dstEp.generic = options.Generic{}
 	for k, v := range ep.generic {
 		dstEp.generic[k] = v
@@ -213,6 +222,13 @@ func (ep *endpoint) Name() string {
 	defer ep.Unlock()
 
 	return ep.name
+}
+
+func (ep *endpoint) MyAliases() []string {
+	ep.Lock()
+	defer ep.Unlock()
+
+	return ep.myAliases
 }
 
 func (ep *endpoint) Network() string {
@@ -756,6 +772,13 @@ func CreateOptionAlias(name string, alias string) EndpointOption {
 			ep.aliases = make(map[string]string)
 		}
 		ep.aliases[alias] = name
+	}
+}
+
+//CreateOptionMyAlias function returns an option setter for setting endpoint's self alias
+func CreateOptionMyAlias(alias string) EndpointOption {
+	return func(ep *endpoint) {
+		ep.myAliases = append(ep.myAliases, alias)
 	}
 }
 
