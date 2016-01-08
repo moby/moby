@@ -115,7 +115,7 @@ func (cli *DockerCli) CmdNetworkConnect(args ...string) error {
 		return err
 	}
 
-	return cli.client.NetworkConnect(cmd.Arg(0), cmd.Arg(1))
+	return cli.client.NetworkConnect(cmd.Arg(0), cmd.Arg(1), nil)
 }
 
 // CmdNetworkDisconnect disconnects a container from a network
