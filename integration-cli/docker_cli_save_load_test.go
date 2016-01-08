@@ -89,6 +89,7 @@ func (s *DockerSuite) TestSaveSingleTag(c *check.C) {
 }
 
 func (s *DockerSuite) TestSaveCheckTimes(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	repoName := "busybox:latest"
 	out, _ := dockerCmd(c, "inspect", repoName)
 	data := []struct {

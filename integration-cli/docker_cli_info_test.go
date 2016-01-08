@@ -43,7 +43,7 @@ func (s *DockerSuite) TestInfoEnsureSucceeds(c *check.C) {
 // TestInfoDiscoveryBackend verifies that a daemon run with `--cluster-advertise` and
 // `--cluster-store` properly show the backend's endpoint in info output.
 func (s *DockerSuite) TestInfoDiscoveryBackend(c *check.C) {
-	testRequires(c, SameHostDaemon)
+	testRequires(c, SameHostDaemon, DaemonIsLinux)
 
 	d := NewDaemon(c)
 	discoveryBackend := "consul://consuladdr:consulport/some/path"
@@ -61,7 +61,7 @@ func (s *DockerSuite) TestInfoDiscoveryBackend(c *check.C) {
 // TestInfoDiscoveryInvalidAdvertise verifies that a daemon run with
 // an invalid `--cluster-advertise` configuration
 func (s *DockerSuite) TestInfoDiscoveryInvalidAdvertise(c *check.C) {
-	testRequires(c, SameHostDaemon)
+	testRequires(c, SameHostDaemon, DaemonIsLinux)
 
 	d := NewDaemon(c)
 	discoveryBackend := "consul://consuladdr:consulport/some/path"
@@ -78,7 +78,7 @@ func (s *DockerSuite) TestInfoDiscoveryInvalidAdvertise(c *check.C) {
 // TestInfoDiscoveryAdvertiseInterfaceName verifies that a daemon run with `--cluster-advertise`
 // configured with interface name properly show the advertise ip-address in info output.
 func (s *DockerSuite) TestInfoDiscoveryAdvertiseInterfaceName(c *check.C) {
-	testRequires(c, SameHostDaemon, Network)
+	testRequires(c, SameHostDaemon, Network, DaemonIsLinux)
 
 	d := NewDaemon(c)
 	discoveryBackend := "consul://consuladdr:consulport/some/path"

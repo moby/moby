@@ -1315,7 +1315,7 @@ func (s *DockerSuite) TestContainersApiCreateNoHostConfig118(c *check.C) {
 func (s *DockerSuite) TestPutContainerArchiveErrSymlinkInVolumeToReadOnlyRootfs(c *check.C) {
 	// Requires local volume mount bind.
 	// --read-only + userns has remount issues
-	testRequires(c, SameHostDaemon, NotUserNamespace)
+	testRequires(c, SameHostDaemon, NotUserNamespace, DaemonIsLinux)
 
 	testVol := getTestDir(c, "test-put-container-archive-err-symlink-in-volume-to-read-only-rootfs-")
 	defer os.RemoveAll(testVol)
@@ -1396,6 +1396,7 @@ func (s *DockerSuite) TestStartWithNilDNS(c *check.C) {
 }
 
 func (s *DockerSuite) TestPostContainersCreateShmSizeNegative(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	config := map[string]interface{}{
 		"Image":      "busybox",
 		"HostConfig": map[string]interface{}{"ShmSize": -1},
@@ -1408,6 +1409,7 @@ func (s *DockerSuite) TestPostContainersCreateShmSizeNegative(c *check.C) {
 }
 
 func (s *DockerSuite) TestPostContainersCreateShmSizeHostConfigOmitted(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	var defaultSHMSize int64 = 67108864
 	config := map[string]interface{}{
 		"Image": "busybox",
@@ -1438,6 +1440,7 @@ func (s *DockerSuite) TestPostContainersCreateShmSizeHostConfigOmitted(c *check.
 }
 
 func (s *DockerSuite) TestPostContainersCreateShmSizeOmitted(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	config := map[string]interface{}{
 		"Image":      "busybox",
 		"HostConfig": map[string]interface{}{},
@@ -1468,6 +1471,7 @@ func (s *DockerSuite) TestPostContainersCreateShmSizeOmitted(c *check.C) {
 }
 
 func (s *DockerSuite) TestPostContainersCreateWithShmSize(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	config := map[string]interface{}{
 		"Image":      "busybox",
 		"Cmd":        "mount",
@@ -1498,6 +1502,7 @@ func (s *DockerSuite) TestPostContainersCreateWithShmSize(c *check.C) {
 }
 
 func (s *DockerSuite) TestPostContainersCreateMemorySwappinessHostConfigOmitted(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	config := map[string]interface{}{
 		"Image": "busybox",
 	}
