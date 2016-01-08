@@ -4,14 +4,13 @@ import (
 	"fmt"
 
 	"github.com/docker/docker/container"
-	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/volume"
 	containertypes "github.com/docker/engine-api/types/container"
 )
 
 // createContainerPlatformSpecificSettings performs platform specific container create functionality
-func (daemon *Daemon) createContainerPlatformSpecificSettings(container *container.Container, config *containertypes.Config, hostConfig *containertypes.HostConfig, img *image.Image) error {
+func (daemon *Daemon) createContainerPlatformSpecificSettings(container *container.Container, config *containertypes.Config, hostConfig *containertypes.HostConfig) error {
 	for spec := range config.Volumes {
 
 		mp, err := volume.ParseMountSpec(spec, hostConfig.VolumeDriver)
@@ -31,14 +30,6 @@ func (daemon *Daemon) createContainerPlatformSpecificSettings(container *contain
 		}
 
 		volumeDriver := hostConfig.VolumeDriver
-		if mp.Destination != "" && img != nil {
-			if _, ok := img.ContainerConfig.Volumes[mp.Destination]; ok {
-				// check for whether bind is not specified and then set to local
-				if _, ok := container.MountPoints[mp.Destination]; !ok {
-					volumeDriver = volume.DefaultDriverName
-				}
-			}
-		}
 
 		// Create the volume in the volume driver. If it doesn't exist,
 		// a new one will be created.
