@@ -11,6 +11,7 @@ import (
 	volumestore "github.com/docker/docker/volume/store"
 	"github.com/docker/engine-api/types"
 	containertypes "github.com/docker/engine-api/types/container"
+	networktypes "github.com/docker/engine-api/types/network"
 	"github.com/opencontainers/runc/libcontainer/label"
 )
 
@@ -108,7 +109,12 @@ func (daemon *Daemon) create(params types.ContainerCreateConfig) (retC *containe
 		return nil, err
 	}
 
-	if err := daemon.updateContainerNetworkSettings(container); err != nil {
+	var endpointsConfigs map[string]*networktypes.EndpointSettings
+	if params.NetworkingConfig != nil {
+		endpointsConfigs = params.NetworkingConfig.EndpointsConfig
+	}
+
+	if err := daemon.updateContainerNetworkSettings(container, endpointsConfigs); err != nil {
 		return nil, err
 	}
 

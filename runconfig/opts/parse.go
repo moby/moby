@@ -11,6 +11,7 @@ import (
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/engine-api/types/container"
+	networktypes "github.com/docker/engine-api/types/network"
 	"github.com/docker/engine-api/types/strslice"
 	"github.com/docker/go-connections/nat"
 	"github.com/docker/go-units"
@@ -19,7 +20,7 @@ import (
 // Parse parses the specified args for the specified command and generates a Config,
 // a HostConfig and returns them with the specified command.
 // If the specified args are not valid, it will return an error.
-func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.HostConfig, *flag.FlagSet, error) {
+func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.HostConfig, *networktypes.NetworkingConfig, *flag.FlagSet, error) {
 	var (
 		// FIXME: use utils.ListOpts for attach and volumes?
 		flAttach            = opts.NewListOpts(ValidateAttach)
@@ -77,6 +78,8 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 		flSwappiness        = cmd.Int64([]string{"-memory-swappiness"}, -1, "Tune container memory swappiness (0 to 100)")
 		flNetMode           = cmd.String([]string{"-net"}, "default", "Connect a container to a network")
 		flMacAddress        = cmd.String([]string{"-mac-address"}, "", "Container MAC address (e.g. 92:d0:c6:0a:29:33)")
+		flIPv4Address       = cmd.String([]string{"-ip"}, "", "Container IPv4 address (e.g. 172.30.100.104)")
+		flIPv6Address       = cmd.String([]string{"-ip6"}, "", "Container IPv6 address (e.g. 2001:db8::33)")
 		flIpcMode           = cmd.String([]string{"-ipc"}, "", "IPC namespace to use")
 		flRestartPolicy     = cmd.String([]string{"-restart"}, "no", "Restart policy to apply when a container exits")
 		flReadonlyRootfs    = cmd.Bool([]string{"-read-only"}, false, "Mount the container's root filesystem as read only")
@@ -119,7 +122,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 	cmd.Require(flag.Min, 1)
 
 	if err := cmd.ParseFlags(args, true); err != nil {
-		return nil, nil, cmd, err
+		return nil, nil, nil, cmd, err
 	}
 
 	var (
@@ -131,7 +134,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 	// Validate the input mac address
 	if *flMacAddress != "" {
 		if _, err := ValidateMACAddress(*flMacAddress); err != nil {
-			return nil, nil, cmd, fmt.Errorf("%s is not a valid mac address", *flMacAddress)
+			return nil, nil, nil, cmd, fmt.Errorf("%s is not a valid mac address", *flMacAddress)
 		}
 	}
 	if *flStdin {
@@ -149,7 +152,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 	if *flMemoryString != "" {
 		flMemory, err = units.RAMInBytes(*flMemoryString)
 		if err != nil {
-			return nil, nil, cmd, err
+			return nil, nil, nil, cmd, err
 		}
 	}
 
@@ -157,7 +160,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 	if *flMemoryReservation != "" {
 		MemoryReservation, err = units.RAMInBytes(*flMemoryReservation)
 		if err != nil {
-			return nil, nil, cmd, err
+			return nil, nil, nil, cmd, err
 		}
 	}
 
@@ -168,7 +171,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 		} else {
 			memorySwap, err = units.RAMInBytes(*flMemorySwap)
 			if err != nil {
-				return nil, nil, cmd, err
+				return nil, nil, nil, cmd, err
 			}
 		}
 	}
@@ -177,20 +180,20 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 	if *flKernelMemory != "" {
 		KernelMemory, err = units.RAMInBytes(*flKernelMemory)
 		if err != nil {
-			return nil, nil, cmd, err
+			return nil, nil, nil, cmd, err
 		}
 	}
 
 	swappiness := *flSwappiness
 	if swappiness != -1 && (swappiness < 0 || swappiness > 100) {
-		return nil, nil, cmd, fmt.Errorf("Invalid value: %d. Valid memory swappiness range is 0-100", swappiness)
+		return nil, nil, nil, cmd, fmt.Errorf("Invalid value: %d. Valid memory swappiness range is 0-100", swappiness)
 	}
 
 	var shmSize int64
 	if *flShmSize != "" {
 		shmSize, err = units.RAMInBytes(*flShmSize)
 		if err != nil {
-			return nil, nil, cmd, err
+			return nil, nil, nil, cmd, err
 		}
 	}
 
@@ -210,7 +213,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 	for _, t := range flTmpfs.GetAll() {
 		if arr := strings.SplitN(t, ":", 2); len(arr) > 1 {
 			if _, _, err := mount.ParseTmpfsOptions(arr[1]); err != nil {
-				return nil, nil, cmd, err
+				return nil, nil, nil, cmd, err
 			}
 			tmpfs[arr[0]] = arr[1]
 		} else {
@@ -243,13 +246,13 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 
 	ports, portBindings, err := nat.ParsePortSpecs(flPublish.GetAll())
 	if err != nil {
-		return nil, nil, cmd, err
+		return nil, nil, nil, cmd, err
 	}
 
 	// Merge in exposed ports to the map of published ports
 	for _, e := range flExpose.GetAll() {
 		if strings.Contains(e, ":") {
-			return nil, nil, cmd, fmt.Errorf("Invalid port format for --expose: %s", e)
+			return nil, nil, nil, cmd, fmt.Errorf("Invalid port format for --expose: %s", e)
 		}
 		//support two formats for expose, original format <portnum>/[<proto>] or <startport-endport>/[<proto>]
 		proto, port := nat.SplitProtoPort(e)
@@ -257,12 +260,12 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 		//if expose a port, the start and end port are the same
 		start, end, err := nat.ParsePortRange(port)
 		if err != nil {
-			return nil, nil, cmd, fmt.Errorf("Invalid range format for --expose: %s, error: %s", e, err)
+			return nil, nil, nil, cmd, fmt.Errorf("Invalid range format for --expose: %s, error: %s", e, err)
 		}
 		for i := start; i <= end; i++ {
 			p, err := nat.NewPort(proto, strconv.FormatUint(i, 10))
 			if err != nil {
-				return nil, nil, cmd, err
+				return nil, nil, nil, cmd, err
 			}
 			if _, exists := ports[p]; !exists {
 				ports[p] = struct{}{}
@@ -275,7 +278,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 	for _, device := range flDevices.GetAll() {
 		deviceMapping, err := ParseDevice(device)
 		if err != nil {
-			return nil, nil, cmd, err
+			return nil, nil, nil, cmd, err
 		}
 		deviceMappings = append(deviceMappings, deviceMapping)
 	}
@@ -283,38 +286,38 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 	// collect all the environment variables for the container
 	envVariables, err := readKVStrings(flEnvFile.GetAll(), flEnv.GetAll())
 	if err != nil {
-		return nil, nil, cmd, err
+		return nil, nil, nil, cmd, err
 	}
 
 	// collect all the labels for the container
 	labels, err := readKVStrings(flLabelsFile.GetAll(), flLabels.GetAll())
 	if err != nil {
-		return nil, nil, cmd, err
+		return nil, nil, nil, cmd, err
 	}
 
 	ipcMode := container.IpcMode(*flIpcMode)
 	if !ipcMode.Valid() {
-		return nil, nil, cmd, fmt.Errorf("--ipc: invalid IPC mode")
+		return nil, nil, nil, cmd, fmt.Errorf("--ipc: invalid IPC mode")
 	}
 
 	pidMode := container.PidMode(*flPidMode)
 	if !pidMode.Valid() {
-		return nil, nil, cmd, fmt.Errorf("--pid: invalid PID mode")
+		return nil, nil, nil, cmd, fmt.Errorf("--pid: invalid PID mode")
 	}
 
 	utsMode := container.UTSMode(*flUTSMode)
 	if !utsMode.Valid() {
-		return nil, nil, cmd, fmt.Errorf("--uts: invalid UTS mode")
+		return nil, nil, nil, cmd, fmt.Errorf("--uts: invalid UTS mode")
 	}
 
 	restartPolicy, err := ParseRestartPolicy(*flRestartPolicy)
 	if err != nil {
-		return nil, nil, cmd, err
+		return nil, nil, nil, cmd, err
 	}
 
 	loggingOpts, err := parseLoggingOpts(*flLoggingDriver, flLoggingOpts.GetAll())
 	if err != nil {
-		return nil, nil, cmd, err
+		return nil, nil, nil, cmd, err
 	}
 
 	resources := container.Resources{
@@ -405,7 +408,21 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 	if config.OpenStdin && config.AttachStdin {
 		config.StdinOnce = true
 	}
-	return config, hostConfig, cmd, nil
+
+	var networkingConfig *networktypes.NetworkingConfig
+	if *flIPv4Address != "" || *flIPv6Address != "" {
+		networkingConfig = &networktypes.NetworkingConfig{
+			EndpointsConfig: make(map[string]*networktypes.EndpointSettings),
+		}
+		networkingConfig.EndpointsConfig[string(hostConfig.NetworkMode)] = &networktypes.EndpointSettings{
+			IPAMConfig: &networktypes.EndpointIPAMConfig{
+				IPv4Address: *flIPv4Address,
+				IPv6Address: *flIPv6Address,
+			},
+		}
+	}
+
+	return config, hostConfig, networkingConfig, cmd, nil
 }
 
 // reads a file of line terminated key=value pairs and override that with override parameter

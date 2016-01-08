@@ -275,6 +275,8 @@ of the containers.
                         '<network-name>|<network-id>': connect to a user-defined network
     --add-host=""    : Add a line to /etc/hosts (host:IP)
     --mac-address="" : Sets the container's Ethernet device's MAC address
+    --ip=""          : Sets the container's Ethernet device's IPv4 address
+    --ip6=""          : Sets the container's Ethernet device's IPv6 address
 
 By default, all containers have networking enabled and they can make any
 outgoing connections. The operator can completely disable networking

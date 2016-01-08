@@ -7,18 +7,19 @@ import (
 
 	"github.com/docker/docker/volume"
 	"github.com/docker/engine-api/types/container"
+	networktypes "github.com/docker/engine-api/types/network"
 )
 
 // DecodeContainerConfig decodes a json encoded config into a ContainerConfigWrapper
 // struct and returns both a Config and an HostConfig struct
 // Be aware this function is not checking whether the resulted structs are nil,
 // it's your business to do so
-func DecodeContainerConfig(src io.Reader) (*container.Config, *container.HostConfig, error) {
+func DecodeContainerConfig(src io.Reader) (*container.Config, *container.HostConfig, *networktypes.NetworkingConfig, error) {
 	var w ContainerConfigWrapper
 
 	decoder := json.NewDecoder(src)
 	if err := decoder.Decode(&w); err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	hc := w.getHostConfig()
@@ -33,21 +34,21 @@ func DecodeContainerConfig(src io.Reader) (*container.Config, *container.HostCon
 
 		// Now validate all the volumes and binds
 		if err := validateVolumesAndBindSettings(w.Config, hc); err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 	}
 
 	// Certain parameters need daemon-side validation that cannot be done
 	// on the client, as only the daemon knows what is valid for the platform.
 	if err := ValidateNetMode(w.Config, hc); err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	// Validate the isolation level
 	if err := ValidateIsolationLevel(hc); err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
-	return w.Config, hc, nil
+	return w.Config, hc, w.NetworkingConfig, nil
 }
 
 // validateVolumesAndBindSettings validates each of the volumes and bind settings
