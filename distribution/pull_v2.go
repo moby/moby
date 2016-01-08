@@ -406,8 +406,31 @@ func (p *v2Puller) pullSchema2(ctx context.Context, ref reference.Named, mfst *s
 		descriptors = append(descriptors, layerDescriptor)
 	}
 
-	rootFS, release, err := p.config.DownloadManager.Download(ctx, *image.NewRootFS(), descriptors, p.config.ProgressOutput)
+	var (
+		configJSON         []byte       // raw serialized image config
+		unmarshalledConfig image.Image  // deserialized image config
+		downloadRootFS     image.RootFS // rootFS to use for registering layers.
+	)
+	if runtime.GOOS == "windows" {
+		configJSON, unmarshalledConfig, err = receiveConfig(configChan, errChan)
+		if err != nil {
+			return "", "", err
+		}
+		if unmarshalledConfig.RootFS == nil {
+			return "", "", errors.New("image config has no rootfs section")
+		}
+		downloadRootFS = *unmarshalledConfig.RootFS
+		downloadRootFS.DiffIDs = []layer.DiffID{}
+	} else {
+		downloadRootFS = *image.NewRootFS()
+	}
+
+	rootFS, release, err := p.config.DownloadManager.Download(ctx, downloadRootFS, descriptors, p.config.ProgressOutput)
 	if err != nil {
+		if configJSON != nil {
+			// Already received the config
+			return "", "", err
+		}
 		select {
 		case err = <-errChan:
 			return "", "", err
@@ -422,23 +445,16 @@ func (p *v2Puller) pullSchema2(ctx context.Context, ref reference.Named, mfst *s
 	}
 	defer release()
 
-	var configJSON []byte
-	select {
-	case configJSON = <-configChan:
-	case err = <-errChan:
-		return "", "", err
-		// Don't need a case for ctx.Done in the select because cancellation
-		// will trigger an error in p.pullSchema2ImageConfig.
+	if configJSON == nil {
+		configJSON, unmarshalledConfig, err = receiveConfig(configChan, errChan)
+		if err != nil {
+			return "", "", err
+		}
 	}
 
 	// The DiffIDs returned in rootFS MUST match those in the config.
 	// Otherwise the image config could be referencing layers that aren't
 	// included in the manifest.
-	var unmarshalledConfig image.Image
-	if err = json.Unmarshal(configJSON, &unmarshalledConfig); err != nil {
-		return "", "", err
-	}
-
 	if len(rootFS.DiffIDs) != len(unmarshalledConfig.RootFS.DiffIDs) {
 		return "", "", errRootFSMismatch
 	}
@@ -455,6 +471,21 @@ func (p *v2Puller) pullSchema2(ctx context.Context, ref reference.Named, mfst *s
 	}
 
 	return imageID, manifestDigest, nil
+}
+
+func receiveConfig(configChan <-chan []byte, errChan <-chan error) ([]byte, image.Image, error) {
+	select {
+	case configJSON := <-configChan:
+		var unmarshalledConfig image.Image
+		if err := json.Unmarshal(configJSON, &unmarshalledConfig); err != nil {
+			return nil, image.Image{}, err
+		}
+		return configJSON, unmarshalledConfig, nil
+	case err := <-errChan:
+		return nil, image.Image{}, err
+		// Don't need a case for ctx.Done in the select because cancellation
+		// will trigger an error in p.pullSchema2ImageConfig.
+	}
 }
 
 // pullManifestList handles "manifest lists" which point to various
