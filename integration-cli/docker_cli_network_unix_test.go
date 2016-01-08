@@ -622,27 +622,6 @@ func (s *DockerDaemonSuite) TestDockerNetworkNoDiscoveryDefaultBridgeNetwork(c *
 	c.Assert(err, checker.IsNil)
 	c.Assert(string(hosts), checker.Equals, string(hostsPost),
 		check.Commentf("Unexpected %s change on second network connection", hostsFile))
-
-	cName := "container3"
-	out, err = s.d.Cmd("run", "-d", "--net", network, "--name", cName, "busybox", "top")
-	c.Assert(err, check.IsNil, check.Commentf(out))
-	cid3 := strings.TrimSpace(out)
-	defer s.d.Cmd("stop", cid3)
-
-	// container1 etc/hosts file should contain an entry for the third container
-	hostsPost, err = s.d.Cmd("exec", cid1, "cat", hostsFile)
-	c.Assert(err, checker.IsNil)
-	c.Assert(string(hostsPost), checker.Contains, cName,
-		check.Commentf("Container 1  %s file does not contain entries for named container %q: %s", hostsFile, cName, string(hostsPost)))
-
-	// on container3 disconnect, first container's etc/hosts should go back to original form
-	out, err = s.d.Cmd("network", "disconnect", network, cid3)
-	c.Assert(err, check.IsNil, check.Commentf(out))
-
-	hostsPost, err = s.d.Cmd("exec", cid1, "cat", hostsFile)
-	c.Assert(err, checker.IsNil)
-	c.Assert(string(hosts), checker.Equals, string(hostsPost),
-		check.Commentf("Unexpected %s content after disconnecting from second network", hostsFile))
 }
 
 func (s *DockerNetworkSuite) TestDockerNetworkAnonymousEndpoint(c *check.C) {
@@ -693,28 +672,27 @@ func (s *DockerNetworkSuite) TestDockerNetworkAnonymousEndpoint(c *check.C) {
 	out, _ = dockerCmd(c, "run", "-d", "--net", cstmBridgeNw, "--name", cName, "busybox", "top")
 	cid3 := strings.TrimSpace(out)
 
-	// verify etc/hosts file for first two containers contains the named container entry
-	hosts1post, err = readContainerFileWithExec(cid1, hostsFile)
-	c.Assert(err, checker.IsNil)
-	c.Assert(string(hosts1post), checker.Contains, cName,
-		check.Commentf("Container 1  %s file does not contain entries for named container %q: %s", hostsFile, cName, string(hosts1post)))
+	// verify that container 1 and 2 can ping the named container
+	dockerCmd(c, "exec", cid1, "ping", "-c", "1", cName)
+	dockerCmd(c, "exec", cid2, "ping", "-c", "1", cName)
 
-	hosts2post, err := readContainerFileWithExec(cid2, hostsFile)
-	c.Assert(err, checker.IsNil)
-	c.Assert(string(hosts2post), checker.Contains, cName,
-		check.Commentf("Container 2  %s file does not contain entries for named container %q: %s", hostsFile, cName, string(hosts2post)))
-
-	// Stop named container and verify first two containers' etc/hosts entries are back to original
+	// Stop named container and verify first two containers' etc/hosts file hasn't changed
 	dockerCmd(c, "stop", cid3)
 	hosts1post, err = readContainerFileWithExec(cid1, hostsFile)
 	c.Assert(err, checker.IsNil)
 	c.Assert(string(hosts1), checker.Equals, string(hosts1post),
-		check.Commentf("Unexpected %s change on anonymous container creation", hostsFile))
+		check.Commentf("Unexpected %s change on name container creation", hostsFile))
 
-	hosts2post, err = readContainerFileWithExec(cid2, hostsFile)
+	hosts2post, err := readContainerFileWithExec(cid2, hostsFile)
 	c.Assert(err, checker.IsNil)
 	c.Assert(string(hosts2), checker.Equals, string(hosts2post),
-		check.Commentf("Unexpected %s change on anonymous container creation", hostsFile))
+		check.Commentf("Unexpected %s change on name container creation", hostsFile))
+
+	// verify that container 1 and 2 can't ping the named container now
+	_, _, err = dockerCmdWithError("exec", cid1, "ping", "-c", "1", cName)
+	c.Assert(err, check.NotNil)
+	_, _, err = dockerCmdWithError("exec", cid2, "ping", "-c", "1", cName)
+	c.Assert(err, check.NotNil)
 }
 
 func (s *DockerNetworkSuite) TestDockerNetworkLinkOndefaultNetworkOnly(c *check.C) {

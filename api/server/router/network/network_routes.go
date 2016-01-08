@@ -182,7 +182,7 @@ func buildNetworkResource(nw libnetwork.Network) *types.NetworkResource {
 }
 
 func buildIpamResources(r *types.NetworkResource, nw libnetwork.Network) {
-	id, ipv4conf, ipv6conf := nw.Info().IpamConfig()
+	id, _, ipv4conf, ipv6conf := nw.Info().IpamConfig()
 
 	r.IPAM.Driver = id
 
