@@ -665,7 +665,7 @@ func validateNetworkingConfig(n libnetwork.Network, epConfig *networktypes.Endpo
 	if !hasUserDefinedIPAddress(epConfig) {
 		return nil
 	}
-	_, nwIPv4Configs, nwIPv6Configs := n.Info().IpamConfig()
+	_, _, nwIPv4Configs, nwIPv6Configs := n.Info().IpamConfig()
 	for _, s := range []struct {
 		ipConfigured  bool
 		subnetConfigs []*libnetwork.IpamConf
