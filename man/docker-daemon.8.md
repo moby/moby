@@ -53,6 +53,7 @@ docker-daemon - Enable daemon mode
 [**--tlskey**[=*~/.docker/key.pem*]]
 [**--tlsverify**]
 [**--userland-proxy**[=*true*]]
+[**--userns-remap**[=*default*]]
 
 # DESCRIPTION
 **docker** has two distinct functions. It is used for starting the Docker
@@ -222,6 +223,9 @@ unix://[/path/to/socket] to use.
 
 **--userland-proxy**=*true*|*false*
     Rely on a userland proxy implementation for inter-container and outside-to-container loopback communications. Default is true.
+
+**--userns-remap**=*default*|*uid:gid*|*user:group*|*user*|*uid*
+    Enable user namespaces for containers on the daemon. Specifying "default" will cause a new user and group to be created to handle UID and GID range remapping for the user namespace mappings used for contained processes. Specifying a user (or uid) and optionally a group (or gid) will cause the daemon to lookup the user and group's subordinate ID ranges for use as the user namespace mappings for contained processes.
 
 # STORAGE DRIVER OPTIONS
 
