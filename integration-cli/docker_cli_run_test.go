@@ -3087,7 +3087,7 @@ func (s *DockerTrustSuite) TestUntrustedRun(c *check.C) {
 		c.Fatalf("Error expected when running trusted run with:\n%s", out)
 	}
 
-	if !strings.Contains(string(out), "trust data unavailable") {
+	if !strings.Contains(string(out), "does not have trust data for") {
 		c.Fatalf("Missing expected output on trusted run:\n%s", out)
 	}
 }
