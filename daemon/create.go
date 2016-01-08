@@ -105,7 +105,7 @@ func (daemon *Daemon) create(params types.ContainerCreateConfig) (retC *containe
 		}
 	}()
 
-	if err := daemon.createContainerPlatformSpecificSettings(container, params.Config, params.HostConfig, img); err != nil {
+	if err := daemon.createContainerPlatformSpecificSettings(container, params.Config, params.HostConfig); err != nil {
 		return nil, err
 	}
 
