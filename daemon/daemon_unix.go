@@ -380,8 +380,23 @@ func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.
 		warnings = append(warnings, "IPv4 forwarding is disabled. Networking will not work.")
 		logrus.Warnf("IPv4 forwarding is disabled. Networking will not work")
 	}
-	if hostConfig.Privileged && daemon.configStore.RemappedRoot != "" {
-		return warnings, fmt.Errorf("Privileged mode is incompatible with user namespace mappings")
+	// check for various conflicting options with user namespaces
+	if daemon.configStore.RemappedRoot != "" {
+		if hostConfig.Privileged {
+			return warnings, fmt.Errorf("Privileged mode is incompatible with user namespaces.")
+		}
+		if hostConfig.NetworkMode.IsHost() || hostConfig.NetworkMode.IsContainer() {
+			return warnings, fmt.Errorf("Cannot share the host or a container's network namespace when user namespaces are enabled.")
+		}
+		if hostConfig.PidMode.IsHost() {
+			return warnings, fmt.Errorf("Cannot share the host PID namespace when user namespaces are enabled.")
+		}
+		if hostConfig.IpcMode.IsContainer() {
+			return warnings, fmt.Errorf("Cannot share a container's IPC namespace when user namespaces are enabled.")
+		}
+		if hostConfig.ReadonlyRootfs {
+			return warnings, fmt.Errorf("Cannot use the --read-only option when user namespaces are enabled.")
+		}
 	}
 	return warnings, nil
 }
