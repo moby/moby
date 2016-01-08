@@ -6152,8 +6152,8 @@ func (s *DockerSuite) TestBuildBuildTimeArgExpansion(c *check.C) {
 	if err != nil {
 		c.Fatal(err)
 	}
-	if res != wdVal {
-		c.Fatalf("Config.WorkingDir value mismatch. Expected: %s, got: %s", wdVal, res)
+	if res != filepath.Clean(wdVal) {
+		c.Fatalf("Config.WorkingDir value mismatch. Expected: %s, got: %s", filepath.Clean(wdVal), res)
 	}
 
 	err = inspectFieldAndMarshall(imgName, "Config.Env", &resArr)
