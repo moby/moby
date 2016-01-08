@@ -11,7 +11,7 @@ goroot = $(addprefix ../../../,$(1))
 unroot = $(subst ../../../,,$(1))
 fmt = $(addprefix fmt-,$(1))
 
-all: fmt
+all: fmt test
 
 $(call goroot,$(DEPS)):
 	go get $(call unroot,$@)

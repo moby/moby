@@ -58,17 +58,21 @@ type Network interface {
 
 // NetworkInfo returns some configuration and operational information about the network
 type NetworkInfo interface {
-	IpamConfig() (string, []*IpamConf, []*IpamConf)
+	IpamConfig() (string, map[string]string, []*IpamConf, []*IpamConf)
 	IpamInfo() ([]*IpamInfo, []*IpamInfo)
 	DriverOptions() map[string]string
 	Scope() string
+	Internal() bool
 }
 
 // EndpointWalker is a client provided function which will be used to walk the Endpoints.
 // When the function returns true, the walk will stop.
 type EndpointWalker func(ep Endpoint) bool
 
-type svcMap map[string]net.IP
+type svcInfo struct {
+	svcMap map[string][]net.IP
+	ipMap  map[string]string
+}
 
 // IpamConf contains all the ipam related configurations for a network
 type IpamConf struct {
@@ -77,8 +81,6 @@ type IpamConf struct {
 	// A subset of the master pool. If specified,
 	// this becomes the container pool
 	SubPool string
-	// Input options for IPAM Driver (optional)
-	Options map[string]string
 	// Preferred Network Gateway address (optional)
 	Gateway string
 	// Auxiliary addresses for network driver. Must be within the master pool.
@@ -148,6 +150,7 @@ type network struct {
 	networkType  string
 	id           string
 	ipamType     string
+	ipamOptions  map[string]string
 	addrSpace    string
 	ipamV4Config []*IpamConf
 	ipamV6Config []*IpamConf
@@ -158,7 +161,6 @@ type network struct {
 	epCnt        *endpointCnt
 	generic      options.Generic
 	dbIndex      uint64
-	svcRecords   svcMap
 	dbExists     bool
 	persist      bool
 	stopWatchCh  chan struct{}
@@ -252,12 +254,6 @@ func (c *IpamConf) CopyTo(dstC *IpamConf) error {
 	dstC.PreferredPool = c.PreferredPool
 	dstC.SubPool = c.SubPool
 	dstC.Gateway = c.Gateway
-	if c.Options != nil {
-		dstC.Options = make(map[string]string, len(c.Options))
-		for k, v := range c.Options {
-			dstC.Options[k] = v
-		}
-	}
 	if c.AuxAddresses != nil {
 		dstC.AuxAddresses = make(map[string]string, len(c.AuxAddresses))
 		for k, v := range c.AuxAddresses {
@@ -499,11 +495,12 @@ func NetworkOptionInternalNetwork() NetworkOption {
 }
 
 // NetworkOptionIpam function returns an option setter for the ipam configuration for this network
-func NetworkOptionIpam(ipamDriver string, addrSpace string, ipV4 []*IpamConf, ipV6 []*IpamConf) NetworkOption {
+func NetworkOptionIpam(ipamDriver string, addrSpace string, ipV4 []*IpamConf, ipV6 []*IpamConf, opts map[string]string) NetworkOption {
 	return func(n *network) {
 		if ipamDriver != "" {
 			n.ipamType = ipamDriver
 		}
+		n.ipamOptions = opts
 		n.addrSpace = addrSpace
 		n.ipamV4Config = ipV4
 		n.ipamV6Config = ipV6
@@ -828,64 +825,76 @@ func (n *network) updateSvcRecord(ep *endpoint, localEps []*endpoint, isAdd bool
 		return
 	}
 
+	epName := ep.Name()
+	if iface := ep.Iface(); iface.Address() != nil {
+		myAliases := ep.MyAliases()
+		if isAdd {
+			n.addSvcRecords(epName, iface.Address().IP, true)
+			for _, alias := range myAliases {
+				n.addSvcRecords(alias, iface.Address().IP, false)
+			}
+		} else {
+			n.deleteSvcRecords(epName, iface.Address().IP, true)
+			for _, alias := range myAliases {
+				n.deleteSvcRecords(alias, iface.Address().IP, false)
+			}
+		}
+	}
+}
+
+func (n *network) addSvcRecords(name string, epIP net.IP, ipMapUpdate bool) {
 	c := n.getController()
+	c.Lock()
+	defer c.Unlock()
 	sr, ok := c.svcDb[n.ID()]
 	if !ok {
-		c.svcDb[n.ID()] = svcMap{}
-		sr = c.svcDb[n.ID()]
-	}
-
-	n.Lock()
-	var recs []etchosts.Record
-	if iface := ep.Iface(); iface.Address() != nil {
-		if isAdd {
-			// If we already have this endpoint in service db just return
-			if _, ok := sr[ep.Name()]; ok {
-				n.Unlock()
-				return
-			}
-
-			sr[ep.Name()] = iface.Address().IP
-			sr[ep.Name()+"."+n.name] = iface.Address().IP
-		} else {
-			delete(sr, ep.Name())
-			delete(sr, ep.Name()+"."+n.name)
+		sr = svcInfo{
+			svcMap: make(map[string][]net.IP),
+			ipMap:  make(map[string]string),
 		}
-
-		recs = append(recs, etchosts.Record{
-			Hosts: ep.Name(),
-			IP:    iface.Address().IP.String(),
-		})
-
-		recs = append(recs, etchosts.Record{
-			Hosts: ep.Name() + "." + n.name,
-			IP:    iface.Address().IP.String(),
-		})
+		c.svcDb[n.ID()] = sr
 	}
-	n.Unlock()
 
-	// If there are no records to add or delete then simply return here
-	if len(recs) == 0 {
+	if ipMapUpdate {
+		reverseIP := netutils.ReverseIP(epIP.String())
+		if _, ok := sr.ipMap[reverseIP]; !ok {
+			sr.ipMap[reverseIP] = name
+		}
+	}
+
+	ipList := sr.svcMap[name]
+	for _, ip := range ipList {
+		if ip.Equal(epIP) {
+			return
+		}
+	}
+	sr.svcMap[name] = append(sr.svcMap[name], epIP)
+}
+
+func (n *network) deleteSvcRecords(name string, epIP net.IP, ipMapUpdate bool) {
+	c := n.getController()
+	c.Lock()
+	defer c.Unlock()
+	sr, ok := c.svcDb[n.ID()]
+	if !ok {
 		return
 	}
 
-	var sbList []*sandbox
-	for _, lEp := range localEps {
-		if ep.ID() == lEp.ID() {
-			continue
-		}
-
-		if sb, hasSandbox := lEp.getSandbox(); hasSandbox {
-			sbList = append(sbList, sb)
-		}
+	if ipMapUpdate {
+		delete(sr.ipMap, netutils.ReverseIP(epIP.String()))
 	}
 
-	for _, sb := range sbList {
-		if isAdd {
-			sb.addHostsEntries(recs)
-		} else {
-			sb.deleteHostsEntries(recs)
+	ipList := sr.svcMap[name]
+	for i, ip := range ipList {
+		if ip.Equal(epIP) {
+			ipList = append(ipList[:i], ipList[i+1:]...)
+			break
 		}
+	}
+	sr.svcMap[name] = ipList
+
+	if len(ipList) == 0 {
+		delete(sr.svcMap, name)
 	}
 }
 
@@ -896,14 +905,14 @@ func (n *network) getSvcRecords(ep *endpoint) []etchosts.Record {
 	var recs []etchosts.Record
 	sr, _ := n.ctrlr.svcDb[n.id]
 
-	for h, ip := range sr {
+	for h, ip := range sr.svcMap {
 		if ep != nil && strings.Split(h, ".")[0] == ep.Name() {
 			continue
 		}
 
 		recs = append(recs, etchosts.Record{
 			Hosts: h,
-			IP:    ip.String(),
+			IP:    ip[0].String(),
 		})
 	}
 
@@ -983,7 +992,7 @@ func (n *network) ipamAllocateVersion(ipVer int, ipam ipamapi.Ipam) error {
 		d := &IpamInfo{}
 		(*infoList)[i] = d
 
-		d.PoolID, d.Pool, d.Meta, err = ipam.RequestPool(n.addrSpace, cfg.PreferredPool, cfg.SubPool, cfg.Options, ipVer == 6)
+		d.PoolID, d.Pool, d.Meta, err = ipam.RequestPool(n.addrSpace, cfg.PreferredPool, cfg.SubPool, n.ipamOptions, ipVer == 6)
 		if err != nil {
 			return err
 		}
@@ -1162,7 +1171,7 @@ func (n *network) Scope() string {
 	return n.driverScope()
 }
 
-func (n *network) IpamConfig() (string, []*IpamConf, []*IpamConf) {
+func (n *network) IpamConfig() (string, map[string]string, []*IpamConf, []*IpamConf) {
 	n.Lock()
 	defer n.Unlock()
 
@@ -1181,7 +1190,7 @@ func (n *network) IpamConfig() (string, []*IpamConf, []*IpamConf) {
 		v6L[i] = cc
 	}
 
-	return n.ipamType, v4L, v6L
+	return n.ipamType, n.ipamOptions, v4L, v6L
 }
 
 func (n *network) IpamInfo() ([]*IpamInfo, []*IpamInfo) {
