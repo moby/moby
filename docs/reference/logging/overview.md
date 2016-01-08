@@ -69,9 +69,13 @@ If `max-size` and `max-file` are set, `docker logs` only returns the log lines f
 
 The following logging options are supported for the `syslog` logging driver:
 
-    --log-opt syslog-address=[tcp|udp]://host:port
+    --log-opt syslog-address=[tcp|udp|tcp+tls]://host:port
     --log-opt syslog-address=unix://path
     --log-opt syslog-facility=daemon
+    --log-opt syslog-tls-ca-cert=/etc/ca-certificates/custom/ca.pem
+    --log-opt syslog-tls-cert=/etc/ca-certificates/custom/cert.pem
+    --log-opt syslog-tls-key=/etc/ca-certificates/custom/key.pem
+    --log-opt syslog-tls-skip-verify=true
     --log-opt tag="mailer"
 
 `syslog-address` specifies the remote syslog server address where the driver connects to.
@@ -106,6 +110,19 @@ the following named facilities:
 * `local5`
 * `local6`
 * `local7`
+
+`syslog-tls-ca-cert` specifies the absolute path to the trust certificates
+signed by the CA. This option is ignored if the address protocol is not `tcp+tls`.
+
+`syslog-tls-cert` specifies the absolute path to the TLS certificate file.
+This option is ignored if the address protocol is not `tcp+tls`.
+
+`syslog-tls-key` specifies the absolute path to the TLS key file.
+This option is ignored if the address protocol is not `tcp+tls`.
+
+`syslog-tls-skip-verify` configures the TLS verification.
+This verification is enabled by default, but it can be overriden by setting
+this option to `true`. This option is ignored if the address protocol is not `tcp+tls`.
 
 By default, Docker uses the first 12 characters of the container ID to tag log messages.
 Refer to the [log tag option documentation](log_tags.md) for customizing
