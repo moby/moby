@@ -361,3 +361,11 @@ func RawCombinedOutput(args ...string) error {
 	}
 	return nil
 }
+
+// ExistChain checks if a chain exists
+func ExistChain(chain string, table Table) bool {
+	if _, err := Raw("-t", string(table), "-L", chain); err == nil {
+		return true
+	}
+	return false
+}
