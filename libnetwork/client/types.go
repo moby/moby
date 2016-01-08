@@ -50,7 +50,8 @@ type serviceCreate struct {
 
 // serviceAttach represents the expected body of the "attach/detach sandbox to/from service" http request messages
 type serviceAttach struct {
-	SandboxID string `json:"sandbox_id"`
+	SandboxID string   `json:"sandbox_id"`
+	Aliases   []string `json:"aliases"`
 }
 
 // SandboxCreate is the body of the "post /sandboxes" http request message

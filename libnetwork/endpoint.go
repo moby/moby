@@ -64,6 +64,7 @@ type endpoint struct {
 	prefAddress       net.IP
 	prefAddressV6     net.IP
 	ipamOptions       map[string]string
+	aliases           map[string]string
 	dbIndex           uint64
 	dbExists          bool
 	sync.Mutex
@@ -745,6 +746,16 @@ func CreateOptionAnonymous() EndpointOption {
 func CreateOptionDisableResolution() EndpointOption {
 	return func(ep *endpoint) {
 		ep.disableResolution = true
+	}
+}
+
+//CreateOptionAlias function returns an option setter for setting endpoint alias
+func CreateOptionAlias(name string, alias string) EndpointOption {
+	return func(ep *endpoint) {
+		if ep.aliases == nil {
+			ep.aliases = make(map[string]string)
+		}
+		ep.aliases[alias] = name
 	}
 }
 

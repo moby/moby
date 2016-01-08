@@ -169,3 +169,26 @@ func ReverseIP(IP string) string {
 
 	return strings.Join(reverseIP, ".")
 }
+
+// ParseAlias parses and validates the specified string as a alias format (name:alias)
+func ParseAlias(val string) (string, string, error) {
+	if val == "" {
+		return "", "", fmt.Errorf("empty string specified for alias")
+	}
+	arr := strings.Split(val, ":")
+	if len(arr) > 2 {
+		return "", "", fmt.Errorf("bad format for alias: %s", val)
+	}
+	if len(arr) == 1 {
+		return val, val, nil
+	}
+	return arr[0], arr[1], nil
+}
+
+// ValidateAlias validates that the specified string has a valid alias format (containerName:alias).
+func ValidateAlias(val string) (string, error) {
+	if _, _, err := ParseAlias(val); err != nil {
+		return val, err
+	}
+	return val, nil
+}

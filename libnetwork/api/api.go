@@ -9,6 +9,7 @@ import (
 
 	"github.com/docker/libnetwork"
 	"github.com/docker/libnetwork/netlabel"
+	"github.com/docker/libnetwork/netutils"
 	"github.com/docker/libnetwork/types"
 	"github.com/gorilla/mux"
 )
@@ -459,6 +460,7 @@ func procDeleteNetwork(c libnetwork.NetworkController, vars map[string]string, b
 *******************/
 func procJoinEndpoint(c libnetwork.NetworkController, vars map[string]string, body []byte) (interface{}, *responseStatus) {
 	var ej endpointJoin
+	var setFctList []libnetwork.EndpointOption
 	err := json.Unmarshal(body, &ej)
 	if err != nil {
 		return nil, &responseStatus{Status: "Invalid body: " + err.Error(), StatusCode: http.StatusBadRequest}
@@ -477,7 +479,15 @@ func procJoinEndpoint(c libnetwork.NetworkController, vars map[string]string, bo
 		return nil, errRsp
 	}
 
-	err = ep.Join(sb)
+	for _, str := range ej.Aliases {
+		name, alias, err := netutils.ParseAlias(str)
+		if err != nil {
+			return "", convertNetworkError(err)
+		}
+		setFctList = append(setFctList, libnetwork.CreateOptionAlias(name, alias))
+	}
+
+	err = ep.Join(sb, setFctList...)
 	if err != nil {
 		return nil, convertNetworkError(err)
 	}
@@ -637,6 +647,7 @@ func procUnpublishService(c libnetwork.NetworkController, vars map[string]string
 
 func procAttachBackend(c libnetwork.NetworkController, vars map[string]string, body []byte) (interface{}, *responseStatus) {
 	var bk endpointJoin
+	var setFctList []libnetwork.EndpointOption
 	err := json.Unmarshal(body, &bk)
 	if err != nil {
 		return nil, &responseStatus{Status: "Invalid body: " + err.Error(), StatusCode: http.StatusBadRequest}
@@ -653,7 +664,15 @@ func procAttachBackend(c libnetwork.NetworkController, vars map[string]string, b
 		return nil, errRsp
 	}
 
-	err = sv.Join(sb)
+	for _, str := range bk.Aliases {
+		name, alias, err := netutils.ParseAlias(str)
+		if err != nil {
+			return "", convertNetworkError(err)
+		}
+		setFctList = append(setFctList, libnetwork.CreateOptionAlias(name, alias))
+	}
+
+	err = sv.Join(sb, setFctList...)
 	if err != nil {
 		return nil, convertNetworkError(err)
 	}
