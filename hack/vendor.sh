@@ -23,6 +23,7 @@ clone git golang.org/x/net 47990a1ba55743e6ef1affd3a14e5bac8553615d https://gith
 clone git github.com/docker/go-units 651fc226e7441360384da338d0fd37f2440ffbe3
 clone git github.com/docker/go-connections v0.1.2
 clone git github.com/docker/engine-api v0.1.3
+clone git github.com/RackSec/srslog 6eb773f331e46fbba8eecb8e794e635e75fc04de
 
 #get libnetwork packages
 clone git github.com/docker/libnetwork c8ec4bd24e1e76feb4f79e3924c68cd2ce89938a
