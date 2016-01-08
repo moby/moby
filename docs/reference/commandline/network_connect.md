@@ -14,6 +14,7 @@ parent = "smn_cli"
 
     Connects a container to a network
 
+      --alias=[]         Add network-scoped alias for the container
       --help             Print usage
       --ip               IPv4 Address
       --ip6              IPv6 Address
@@ -43,6 +44,13 @@ You can use `--link` option to link another container with a prefered alias
 
 ```bash
 $ docker network connect --link container1:c1 multi-host-network container2
+```
+
+`--alias` option can be used to resolve the container by another name in the network
+being connected to.
+
+```bash
+$ docker network connect --alias db --alias mysql multi-host-network container2
 ```
 
 You can pause, restart, and stop containers that are connected to a network.

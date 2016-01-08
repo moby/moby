@@ -273,6 +273,37 @@ func (s *DockerSuite) TestUserDefinedNetworkLinksWithRestart(c *check.C) {
 	c.Assert(err, check.IsNil)
 }
 
+func (s *DockerSuite) TestUserDefinedNetworkAlias(c *check.C) {
+	testRequires(c, DaemonIsLinux, NotUserNamespace)
+	dockerCmd(c, "network", "create", "-d", "bridge", "net1")
+
+	dockerCmd(c, "run", "-d", "--net=net1", "--name=first", "--net-alias=foo1", "--net-alias=foo2", "busybox", "top")
+	c.Assert(waitRun("first"), check.IsNil)
+
+	dockerCmd(c, "run", "-d", "--net=net1", "--name=second", "busybox", "top")
+	c.Assert(waitRun("second"), check.IsNil)
+
+	// ping to first and its network-scoped aliases
+	_, _, err := dockerCmdWithError("exec", "second", "ping", "-c", "1", "first")
+	c.Assert(err, check.IsNil)
+	_, _, err = dockerCmdWithError("exec", "second", "ping", "-c", "1", "foo1")
+	c.Assert(err, check.IsNil)
+	_, _, err = dockerCmdWithError("exec", "second", "ping", "-c", "1", "foo2")
+	c.Assert(err, check.IsNil)
+
+	// Restart first container
+	dockerCmd(c, "restart", "first")
+	c.Assert(waitRun("first"), check.IsNil)
+
+	// ping to first and its network-scoped aliases must succeed
+	_, _, err = dockerCmdWithError("exec", "second", "ping", "-c", "1", "first")
+	c.Assert(err, check.IsNil)
+	_, _, err = dockerCmdWithError("exec", "second", "ping", "-c", "1", "foo1")
+	c.Assert(err, check.IsNil)
+	_, _, err = dockerCmdWithError("exec", "second", "ping", "-c", "1", "foo2")
+	c.Assert(err, check.IsNil)
+}
+
 // Issue 9677.
 func (s *DockerSuite) TestRunWithDaemonFlags(c *check.C) {
 	out, _, err := dockerCmdWithError("--exec-opt", "foo=bar", "run", "-i", "busybox", "true")
