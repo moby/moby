@@ -345,6 +345,12 @@ guidelines for the community as a whole:
   to an email you are potentially sending to a large number of people. Please
   consider this before you update. Also remember that nobody likes spam.
 
+* Don't send email to the maintainers: There's no need to send email to the
+  maintainers to ask them to investigate an issue or to take a look at a
+  pull request. Instead of sending an email, GitHub mentions should be
+  used to ping maintainers to review a pull request, a proposal or an
+  issue.
+
 ### Guideline violations — 3 strikes method
 
 The point of this section is not to find opportunities to punish people, but we
