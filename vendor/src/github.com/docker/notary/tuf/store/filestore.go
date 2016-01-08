@@ -46,7 +46,7 @@ func (f *FilesystemStore) GetMeta(name string, size int64) ([]byte, error) {
 	meta, err := ioutil.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			err = ErrMetaNotFound{Role: name}
+			err = ErrMetaNotFound{Resource: name}
 		}
 		return nil, err
 	}

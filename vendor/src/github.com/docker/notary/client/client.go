@@ -2,17 +2,18 @@ package client
 
 import (
 	"bytes"
-	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/jfrazelle/go/canonical/json"
+
 	"github.com/docker/notary/certs"
 	"github.com/docker/notary/client/changelist"
 	"github.com/docker/notary/cryptoservice"
@@ -39,19 +40,12 @@ func init() {
 	)
 }
 
-// ErrRepoNotInitialized is returned when trying to can publish on an uninitialized
+// ErrRepoNotInitialized is returned when trying to publish an uninitialized
 // notary repository
 type ErrRepoNotInitialized struct{}
 
-// ErrRepoNotInitialized is returned when trying to can publish on an uninitialized
-// notary repository
-func (err *ErrRepoNotInitialized) Error() string {
-	return "Repository has not been initialized"
-}
-
-// ErrExpired is returned when the metadata for a role has expired
-type ErrExpired struct {
-	signed.ErrExpired
+func (err ErrRepoNotInitialized) Error() string {
+	return "repository has not been initialized"
 }
 
 // ErrInvalidRemoteRole is returned when the server is requested to manage
@@ -65,13 +59,20 @@ func (e ErrInvalidRemoteRole) Error() string {
 		"notary does not support the server managing the %s key", e.Role)
 }
 
+// ErrRepositoryNotExist is returned when an action is taken on a remote
+// repository that doesn't exist
+type ErrRepositoryNotExist struct {
+	remote string
+	gun    string
+}
+
+func (err ErrRepositoryNotExist) Error() string {
+	return fmt.Sprintf("%s does not have trust data for %s", err.remote, err.gun)
+}
+
 const (
 	tufDir = "tuf"
 )
-
-// ErrRepositoryNotExist gets returned when trying to make an action over a repository
-/// that doesn't exist.
-var ErrRepositoryNotExist = errors.New("repository does not exist")
 
 // NotaryRepository stores all the information needed to operate on a notary
 // repository.
@@ -323,7 +324,7 @@ func (r *NotaryRepository) AddDelegation(name string, threshold int,
 	logrus.Debugf(`Adding delegation "%s" with threshold %d, and %d keys\n`,
 		name, threshold, len(delegationKeys))
 
-	tdJSON, err := json.Marshal(&changelist.TufDelegation{
+	tdJSON, err := json.MarshalCanonical(&changelist.TufDelegation{
 		NewThreshold: threshold,
 		AddKeys:      data.KeyList(delegationKeys),
 		AddPaths:     paths,
@@ -385,7 +386,7 @@ func (r *NotaryRepository) AddTarget(target *Target, roles ...string) error {
 	logrus.Debugf("Adding target \"%s\" with sha256 \"%x\" and size %d bytes.\n", target.Name, target.Hashes["sha256"], target.Length)
 
 	meta := data.FileMeta{Length: target.Length, Hashes: target.Hashes}
-	metaJSON, err := json.Marshal(meta)
+	metaJSON, err := json.MarshalCanonical(meta)
 	if err != nil {
 		return err
 	}
@@ -419,16 +420,8 @@ func (r *NotaryRepository) RemoveTarget(targetName string, roles ...string) erro
 // subtree and also the "targets/x" subtree, as we will defer parsing it until
 // we explicitly reach it in our iteration of the provided list of roles.
 func (r *NotaryRepository) ListTargets(roles ...string) ([]*TargetWithRole, error) {
-	c, err := r.bootstrapClient()
+	_, err := r.Update()
 	if err != nil {
-		return nil, err
-	}
-
-	err = c.Update()
-	if err != nil {
-		if err, ok := err.(signed.ErrExpired); ok {
-			return nil, ErrExpired{err}
-		}
 		return nil, err
 	}
 
@@ -487,16 +480,8 @@ func (r *NotaryRepository) listSubtree(targets map[string]*TargetWithRole, role 
 // will be returned
 // See the IMPORTANT section on ListTargets above. Those roles also apply here.
 func (r *NotaryRepository) GetTargetByName(name string, roles ...string) (*TargetWithRole, error) {
-	c, err := r.bootstrapClient()
+	c, err := r.Update()
 	if err != nil {
-		return nil, err
-	}
-
-	err = c.Update()
-	if err != nil {
-		if err, ok := err.(signed.ErrExpired); ok {
-			return nil, ErrExpired{err}
-		}
 		return nil, err
 	}
 
@@ -529,47 +514,33 @@ func (r *NotaryRepository) GetChangelist() (changelist.Changelist, error) {
 // Conceptually it performs an operation similar to a `git rebase`
 func (r *NotaryRepository) Publish() error {
 	var initialPublish bool
-	// attempt to initialize the repo from the remote store
-	c, err := r.bootstrapClient()
+	// update first before publishing
+	_, err := r.Update()
 	if err != nil {
-		if _, ok := err.(store.ErrMetaNotFound); ok {
-			// if the remote store return a 404 (translated into ErrMetaNotFound),
-			// there is no trust data for yet. Attempt to load it from disk.
+		// If the remote is not aware of the repo, then this is being published
+		// for the first time.  Try to load from disk instead for publishing.
+		if _, ok := err.(ErrRepositoryNotExist); ok {
 			err := r.bootstrapRepo()
 			if err != nil {
-				// There are lots of reasons there might be an error, such as
-				// corrupt metadata.  We need better errors from bootstrapRepo.
 				logrus.Debugf("Unable to load repository from local files: %s",
 					err.Error())
 				if _, ok := err.(store.ErrMetaNotFound); ok {
-					return &ErrRepoNotInitialized{}
+					return ErrRepoNotInitialized{}
 				}
 				return err
 			}
-			// We had local data but the server doesn't know about the repo yet,
-			// ensure we will push the initial root and targets file.  Either or
+			// Ensure we will push the initial root and targets file.  Either or
 			// both of the root and targets may not be marked as Dirty, since
 			// there may not be any changes that update them, so use a
 			// different boolean.
 			initialPublish = true
 		} else {
-			// The remote store returned an error other than 404. We're
-			// unable to determine if the repo has been initialized or not.
+			// We could not update, so we cannot publish.
 			logrus.Error("Could not publish Repository: ", err.Error())
 			return err
 		}
-	} else {
-		// If we were successfully able to bootstrap the client (which only pulls
-		// root.json), update it with the rest of the tuf metadata in
-		// preparation for applying the changelist.
-		err = c.Update()
-		if err != nil {
-			if err, ok := err.(signed.ErrExpired); ok {
-				return ErrExpired{err}
-			}
-			return err
-		}
 	}
+
 	cl, err := r.GetChangelist()
 	if err != nil {
 		return err
@@ -719,7 +690,7 @@ func (r *NotaryRepository) saveMetadata(ignoreSnapshot bool) error {
 		if err != nil {
 			return err
 		}
-		targetsJSON, err := json.Marshal(signedTargets)
+		targetsJSON, err := json.MarshalCanonical(signedTargets)
 		if err != nil {
 			return err
 		}
@@ -742,6 +713,28 @@ func (r *NotaryRepository) saveMetadata(ignoreSnapshot bool) error {
 	}
 
 	return r.fileStore.SetMeta(data.CanonicalSnapshotRole, snapshotJSON)
+}
+
+// Update bootstraps a trust anchor (root.json) before updating all the
+// metadata from the repo.
+func (r *NotaryRepository) Update() (*tufclient.Client, error) {
+	c, err := r.bootstrapClient()
+	if err != nil {
+		if _, ok := err.(store.ErrMetaNotFound); ok {
+			host := r.baseURL
+			parsed, err := url.Parse(r.baseURL)
+			if err == nil {
+				host = parsed.Host // try to exclude the scheme and any paths
+			}
+			return nil, ErrRepositoryNotExist{remote: host, gun: r.gun}
+		}
+		return nil, err
+	}
+	err = c.Update()
+	if err != nil {
+		return nil, err
+	}
+	return c, nil
 }
 
 func (r *NotaryRepository) bootstrapClient() (*tufclient.Client, error) {
@@ -845,7 +838,7 @@ func (r *NotaryRepository) rootFileKeyChange(role, action string, key data.Publi
 		RoleName: role,
 		Keys:     kl,
 	}
-	metaJSON, err := json.Marshal(meta)
+	metaJSON, err := json.MarshalCanonical(meta)
 	if err != nil {
 		return err
 	}

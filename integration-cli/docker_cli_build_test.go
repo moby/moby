@@ -5805,7 +5805,7 @@ func (s *DockerTrustSuite) TestTrustedBuildUntrustedTag(c *check.C) {
 		c.Fatalf("Expected error on trusted build with untrusted tag: %s\n%s", err, out)
 	}
 
-	if !strings.Contains(out, fmt.Sprintf("trust data unavailable")) {
+	if !strings.Contains(out, "does not have trust data for") {
 		c.Fatalf("Unexpected output on trusted build with untrusted tag:\n%s", out)
 	}
 }
