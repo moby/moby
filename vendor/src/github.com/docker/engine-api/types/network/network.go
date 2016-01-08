@@ -20,8 +20,17 @@ type IPAMConfig struct {
 	AuxAddress map[string]string `json:"AuxiliaryAddresses,omitempty"`
 }
 
+// EndpointIPAMConfig represents IPAM configurations for the endpoint
+type EndpointIPAMConfig struct {
+	IPv4Address string `json:",omitempty"`
+	IPv6Address string `json:",omitempty"`
+}
+
 // EndpointSettings stores the network endpoint details
 type EndpointSettings struct {
+	// Configurations
+	IPAMConfig *EndpointIPAMConfig
+	// Operational data
 	EndpointID          string
 	Gateway             string
 	IPAddress           string
@@ -30,4 +39,10 @@ type EndpointSettings struct {
 	GlobalIPv6Address   string
 	GlobalIPv6PrefixLen int
 	MacAddress          string
+}
+
+// NetworkingConfig represents the container's networking configuration for each of its interfaces
+// Carries the networink configs specified in the `docker run` and `docker network connect` commands
+type NetworkingConfig struct {
+	EndpointsConfig map[string]*EndpointSettings // Endpoint configs for each conencting network
 }
