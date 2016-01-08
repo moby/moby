@@ -340,7 +340,7 @@ func TestWrite(t *testing.T) {
 	}
 }
 
-func TestTLSWrite(t *testing.T) {
+func TestTLSPathWrite(t *testing.T) {
 	tests := []struct {
 		pri Priority
 		pre string
@@ -363,6 +363,53 @@ func TestTLSWrite(t *testing.T) {
 			defer sock.Close()
 
 			l, err := DialWithTLSCertPath("tcp+tls", addr, test.pri, test.pre, "test/cert.pem")
+			if err != nil {
+				t.Fatalf("syslog.Dial() failed: %v", err)
+			}
+			defer l.Close()
+			_, err = io.WriteString(l, test.msg)
+			if err != nil {
+				t.Fatalf("WriteString() failed: %v", err)
+			}
+			rcvd := <-done
+			test.exp = fmt.Sprintf("<%d>", test.pri) + test.exp
+			var parsedHostname, timestamp string
+			var pid int
+			if n, err := fmt.Sscanf(rcvd, test.exp, &timestamp, &parsedHostname, &pid); n != 3 || err != nil || hostname != parsedHostname {
+				t.Errorf("s.Info() = '%q', didn't match '%q' (%d %s)", rcvd, test.exp, n, err)
+			}
+		}
+	}
+}
+
+func TestTLSCertWrite(t *testing.T) {
+	tests := []struct {
+		pri Priority
+		pre string
+		msg string
+		exp string
+	}{
+		{LOG_USER | LOG_ERR, "syslog_test", "", "%s %s syslog_test[%d]: \n"},
+		{LOG_USER | LOG_ERR, "syslog_test", "write test", "%s %s syslog_test[%d]: write test\n"},
+		// Write should not add \n if there already is one
+		{LOG_USER | LOG_ERR, "syslog_test", "write test 2\n", "%s %s syslog_test[%d]: write test 2\n"},
+	}
+
+	if hostname, err := os.Hostname(); err != nil {
+		t.Fatalf("Error retrieving hostname")
+	} else {
+		for _, test := range tests {
+			done := make(chan string)
+			addr, sock, srvWG := startServer("tcp+tls", "", done)
+			defer srvWG.Wait()
+			defer sock.Close()
+
+			cert, err := ioutil.ReadFile("test/cert.pem")
+			if err != nil {
+				t.Fatalf("cold not read cert: %v", err)
+			}
+
+			l, err := DialWithTLSCert("tcp+tls", addr, test.pri, test.pre, cert)
 			if err != nil {
 				t.Fatalf("syslog.Dial() failed: %v", err)
 			}
