@@ -652,10 +652,14 @@ func (s *DockerSuite) TestContainerApiCreateWithDomainName(c *check.C) {
 	c.Assert(containerJSON.Config.Domainname, checker.Equals, domainName, check.Commentf("Mismatched Domainname"))
 }
 
-func (s *DockerSuite) TestContainerApiCreateNetworkMode(c *check.C) {
+func (s *DockerSuite) TestContainerApiCreateBridgeNetworkMode(c *check.C) {
 	testRequires(c, DaemonIsLinux)
-	UtilCreateNetworkMode(c, "host")
 	UtilCreateNetworkMode(c, "bridge")
+}
+
+func (s *DockerSuite) TestContainerApiCreateOtherNetworkModes(c *check.C) {
+	testRequires(c, DaemonIsLinux, NotUserNamespace)
+	UtilCreateNetworkMode(c, "host")
 	UtilCreateNetworkMode(c, "container:web1")
 }
 

@@ -99,7 +99,7 @@ if [ ! "$GOPATH" ]; then
 	exit 1
 fi
 
-if [ "$DOCKER_EXPERIMENTAL" ] || [ "$DOCKER_REMAP_ROOT" ]; then
+if [ "$DOCKER_EXPERIMENTAL" ]; then
 	echo >&2 '# WARNING! DOCKER_EXPERIMENTAL is set: building experimental features'
 	echo >&2
 	DOCKER_BUILDTAGS+=" experimental pkcs11"
