@@ -25,14 +25,14 @@ clone git github.com/docker/go-connections v0.1.2
 clone git github.com/docker/engine-api v0.1.3
 
 #get libnetwork packages
-clone git github.com/docker/libnetwork 49c24217054e269aad3dbfd81ee32780b104dd84
+clone git github.com/docker/libnetwork c8ec4bd24e1e76feb4f79e3924c68cd2ce89938a
 clone git github.com/armon/go-metrics eb0af217e5e9747e41dd5303755356b62d28e3ec
 clone git github.com/hashicorp/go-msgpack 71c2886f5a673a35f909803f38ece5810165097b
 clone git github.com/hashicorp/memberlist 9a1e242e454d2443df330bdd51a436d5a9058fc4
 clone git github.com/hashicorp/serf 7151adcef72687bf95f451a2e0ba15cb19412bf2
 clone git github.com/docker/libkv c2aac5dbbaa5c872211edea7c0f32b3bd67e7410
 clone git github.com/vishvananda/netns 604eaf189ee867d8c147fafc28def2394e878d25
-clone git github.com/vishvananda/netlink 8e810149a2e531fed9b837c0c7d8a8922d2bedf7
+clone git github.com/vishvananda/netlink bfd70f556483c008636b920dda142fdaa0d59ef9
 clone git github.com/BurntSushi/toml f706d00e3de6abe700c994cdd545a1a4915af060
 clone git github.com/samuel/go-zookeeper d0e0d8e11f318e000a8cc434616d69e329edc374
 clone git github.com/deckarep/golang-set ef32fa3046d9f249d399f98ebaf9be944430fd1d
@@ -41,6 +41,7 @@ fix_rewritten_imports github.com/coreos/etcd
 clone git github.com/ugorji/go 5abd4e96a45c386928ed2ca2a7ef63e2533e18ec
 clone git github.com/hashicorp/consul v0.5.2
 clone git github.com/boltdb/bolt v1.1.0
+clone git github.com/miekg/dns d27455715200c7d3e321a1e5cadb27c9ee0b0f02
 
 # get graph and distribution packages
 clone git github.com/docker/distribution 568bf038af6d65b376165d02886b1c7fcaef1f61

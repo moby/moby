@@ -134,10 +134,7 @@ func Init(dc driverapi.DriverCallback, config map[string]interface{}) error {
 	if err := iptables.FirewalldInit(); err != nil {
 		logrus.Debugf("Fail to initialize firewalld: %v, using raw iptables instead", err)
 	}
-	if err := iptables.RemoveExistingChain(DockerChain, iptables.Nat); err != nil {
-		logrus.Warnf("Failed to remove existing iptables entries in %s : %v", DockerChain, err)
-	}
-
+	removeIPChains()
 	d := newDriver()
 	if err := d.configure(config); err != nil {
 		return err
