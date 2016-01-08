@@ -1,6 +1,9 @@
 package types
 
-import "github.com/docker/engine-api/types/container"
+import (
+	"github.com/docker/engine-api/types/container"
+	"github.com/docker/engine-api/types/network"
+)
 
 // configs holds structs used for internal communication between the
 // frontend (such as an http server) and the backend (such as the
@@ -8,10 +11,11 @@ import "github.com/docker/engine-api/types/container"
 
 // ContainerCreateConfig is the parameter set to ContainerCreate()
 type ContainerCreateConfig struct {
-	Name            string
-	Config          *container.Config
-	HostConfig      *container.HostConfig
-	AdjustCPUShares bool
+	Name             string
+	Config           *container.Config
+	HostConfig       *container.HostConfig
+	NetworkingConfig *network.NetworkingConfig
+	AdjustCPUShares  bool
 }
 
 // ContainerRmConfig holds arguments for the container remove

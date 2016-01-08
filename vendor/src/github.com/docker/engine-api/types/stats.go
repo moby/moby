@@ -87,6 +87,12 @@ type NetworkStats struct {
 	TxDropped uint64 `json:"tx_dropped"`
 }
 
+// PidsStats contains the stats of a container's pids
+type PidsStats struct {
+	// Current is the number of pids in the cgroup
+	Current uint64 `json:"current,omitempty"`
+}
+
 // Stats is Ultimate struct aggregating all types of stats of one container
 type Stats struct {
 	Read        time.Time   `json:"read"`
@@ -94,6 +100,7 @@ type Stats struct {
 	CPUStats    CPUStats    `json:"cpu_stats,omitempty"`
 	MemoryStats MemoryStats `json:"memory_stats,omitempty"`
 	BlkioStats  BlkioStats  `json:"blkio_stats,omitempty"`
+	PidsStats   PidsStats   `json:"pids_stats,omitempty"`
 }
 
 // StatsJSON is newly used Networks

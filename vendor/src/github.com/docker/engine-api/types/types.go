@@ -415,7 +415,8 @@ type NetworkCreateResponse struct {
 
 // NetworkConnect represents the data to be used to connect a container to the network
 type NetworkConnect struct {
-	Container string
+	Container      string
+	EndpointConfig *network.EndpointSettings `json:"endpoint_config"`
 }
 
 // NetworkDisconnect represents the data to be used to disconnect a container from the network

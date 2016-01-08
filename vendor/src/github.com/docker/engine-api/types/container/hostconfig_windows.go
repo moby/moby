@@ -10,6 +10,16 @@ func (n NetworkMode) IsDefault() bool {
 	return n == "default"
 }
 
+// IsNone indicates whether container isn't using a network stack.
+func (n NetworkMode) IsNone() bool {
+	return n == "none"
+}
+
+// IsUserDefined indicates user-created network
+func (n NetworkMode) IsUserDefined() bool {
+	return !n.IsDefault() && !n.IsNone()
+}
+
 // IsHyperV indicates the use of a Hyper-V partition for isolation
 func (i IsolationLevel) IsHyperV() bool {
 	return strings.ToLower(string(i)) == "hyperv"
