@@ -58,3 +58,10 @@ func (s *DockerSuite) TestPauseMultipleContainers(c *check.C) {
 		c.Assert(actions[len(actions)-1], checker.Equals, "unpause")
 	}
 }
+
+func (s *DockerSuite) TestPauseFailsOnWindows(c *check.C) {
+	testRequires(c, DaemonIsWindows)
+	dockerCmd(c, "run", "-d", "--name=test", "busybox", "sleep 3")
+	out, _, _ := dockerCmdWithError("pause", "test")
+	c.Assert(out, checker.Contains, "Windows: Containers cannot be paused")
+}
