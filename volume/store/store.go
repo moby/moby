@@ -296,6 +296,23 @@ func (s *VolumeStore) Dereference(v volume.Volume, ref string) {
 	s.globalLock.Unlock()
 }
 
+// Refs gets the current list of refs for the given volume
+func (s *VolumeStore) Refs(v volume.Volume) []string {
+	s.locks.Lock(v.Name())
+	defer s.locks.Unlock(v.Name())
+
+	s.globalLock.Lock()
+	defer s.globalLock.Unlock()
+	refs, exists := s.refs[v.Name()]
+	if !exists {
+		return nil
+	}
+
+	refsOut := make([]string, len(refs))
+	copy(refsOut, refs)
+	return refsOut
+}
+
 // FilterByDriver returns the available volumes filtered by driver name
 func (s *VolumeStore) FilterByDriver(name string) ([]volume.Volume, error) {
 	vd, err := volumedrivers.GetDriver(name)
