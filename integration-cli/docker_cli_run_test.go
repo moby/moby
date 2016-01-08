@@ -3931,5 +3931,19 @@ func (s *DockerSuite) TestRunNamedVolumesMountedAsShared(c *check.C) {
 	if expected := "Invalid volume specification"; !strings.Contains(out, expected) {
 		c.Fatalf(`Expected %q in output; got: %s`, expected, out)
 	}
+}
 
+func (s *DockerSuite) TestRunNamedVolumeCopyImageData(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	testImg := "testvolumecopy"
+	_, err := buildImage(testImg, `
+	FROM busybox
+	RUN mkdir -p /foo && echo hello > /foo/hello
+	`, true)
+	c.Assert(err, check.IsNil)
+
+	dockerCmd(c, "run", "-v", "foo:/foo", testImg)
+	out, _ := dockerCmd(c, "run", "-v", "foo:/foo", "busybox", "cat", "/foo/hello")
+	c.Assert(strings.TrimSpace(out), check.Equals, "hello")
 }
