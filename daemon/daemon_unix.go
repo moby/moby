@@ -607,7 +607,7 @@ func initBridgeDriver(controller libnetwork.NetworkController, config *Config) e
 			netlabel.GenericData: netOption,
 			netlabel.EnableIPv6:  config.Bridge.EnableIPv6,
 		}),
-		libnetwork.NetworkOptionIpam("default", "", v4Conf, v6Conf),
+		libnetwork.NetworkOptionIpam("default", "", v4Conf, v6Conf, nil),
 		libnetwork.NetworkOptionDeferIPv6Alloc(deferIPv6Alloc))
 	if err != nil {
 		return fmt.Errorf("Error creating default \"bridge\" network: %v", err)
