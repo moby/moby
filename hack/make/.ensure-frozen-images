@@ -30,7 +30,7 @@ fi
 if ! docker inspect "${images[@]}" &> /dev/null; then
 	hardCodedDir='/docker-frozen-images'
 	if [ -d "$hardCodedDir" ]; then
-		# Do not use a subshell for the following command. Windows CI
+		# Do not use a subshell for the following command. Windows to Linux CI
 		# runs bash 3.x so will not trap an error in a subshell.
 		# http://stackoverflow.com/questions/22630363/how-does-set-e-work-with-subshells
 		set -x; tar -cC "$hardCodedDir" . | docker load; set +x
@@ -55,7 +55,7 @@ if ! docker inspect "${images[@]}" &> /dev/null; then
 				}
 			}
 		' "${DOCKERFILE:=Dockerfile}" | sh -x
-		# Do not use a subshell for the following command. Windows CI
+		# Do not use a subshell for the following command. Windows to Linux CI
 		# runs bash 3.x so will not trap an error in a subshell.
 		# http://stackoverflow.com/questions/22630363/how-does-set-e-work-with-subshells
 		set -x; tar -cC "$dir" . | docker load; set +x
