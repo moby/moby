@@ -278,22 +278,24 @@ func notaryError(repoName string, err error) error {
 	case *json.SyntaxError:
 		logrus.Debugf("Notary syntax error: %s", err)
 		return fmt.Errorf("Error: no trust data available for remote repository %s. Try running notary server and setting DOCKER_CONTENT_TRUST_SERVER to its HTTPS address?", repoName)
-	case client.ErrExpired:
+	case signed.ErrExpired:
 		return fmt.Errorf("Error: remote repository %s out-of-date: %v", repoName, err)
 	case trustmanager.ErrKeyNotFound:
 		return fmt.Errorf("Error: signing keys for remote repository %s not found: %v", repoName, err)
 	case *net.OpError:
 		return fmt.Errorf("Error: error contacting notary server: %v", err)
 	case store.ErrMetaNotFound:
-		return fmt.Errorf("Error: trust data missing for remote repository %s: %v", repoName, err)
+		return fmt.Errorf("Error: trust data missing for remote repository %s or remote repository not found: %v", repoName, err)
 	case signed.ErrInvalidKeyType:
-		return fmt.Errorf("Error: trust data mismatch for remote repository %s, could be malicious behavior: %v", repoName, err)
+		return fmt.Errorf("Warning: potential malicious behavior - trust data mismatch for remote repository %s: %v", repoName, err)
 	case signed.ErrNoKeys:
 		return fmt.Errorf("Error: could not find signing keys for remote repository %s: %v", repoName, err)
 	case signed.ErrLowVersion:
-		return fmt.Errorf("Error: trust data version is lower than expected for remote repository %s, could be malicious behavior: %v", repoName, err)
+		return fmt.Errorf("Warning: potential malicious behavior - trust data version is lower than expected for remote repository %s: %v", repoName, err)
 	case signed.ErrInsufficientSignatures:
-		return fmt.Errorf("Error: trust data has insufficient signatures for remote repository %s, could be malicious behavior: %v", repoName, err)
+		return fmt.Errorf("Warning: potential malicious behavior - trust data has insufficient signatures for remote repository %s: %v", repoName, err)
+	case client.ErrRepositoryNotExist:
+		return fmt.Errorf("Error: remote trust data repository not initialized for %s: %v", repoName, err)
 	}
 
 	return err
@@ -432,7 +434,7 @@ func (cli *DockerCli) trustedPush(repoInfo *registry.RepositoryInfo, tag string,
 
 	repo, err := cli.getNotaryRepository(repoInfo, authConfig)
 	if err != nil {
-		fmt.Fprintf(cli.out, "Error establishing connection to notary repository, has a notary server been setup and pointed to by the DOCKER_CONTENT_TRUST_SERVER environment variable?: %s\n", err)
+		fmt.Fprintf(cli.out, "Error establishing connection to notary repository: %s\n", err)
 		return err
 	}
 
@@ -454,7 +456,7 @@ func (cli *DockerCli) trustedPush(repoInfo *registry.RepositoryInfo, tag string,
 	}
 
 	err = repo.Publish()
-	if _, ok := err.(*client.ErrRepoNotInitialized); !ok {
+	if _, ok := err.(client.ErrRepoNotInitialized); !ok {
 		return notaryError(repoInfo.FullName(), err)
 	}
 

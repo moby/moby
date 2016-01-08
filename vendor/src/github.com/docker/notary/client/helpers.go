@@ -1,13 +1,14 @@
 package client
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"path"
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/jfrazelle/go/canonical/json"
+
 	"github.com/docker/notary/client/changelist"
 	tuf "github.com/docker/notary/tuf"
 	"github.com/docker/notary/tuf/data"
@@ -261,5 +262,5 @@ func serializeCanonicalRole(tufRepo *tuf.Repo, role string) (out []byte, err err
 		return
 	}
 
-	return json.Marshal(s)
+	return json.MarshalCanonical(s)
 }

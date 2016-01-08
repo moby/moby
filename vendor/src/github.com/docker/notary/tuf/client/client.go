@@ -97,7 +97,7 @@ func (c *Client) update() error {
 // hash and size in snapshot are unchanged but the root file has expired,
 // there is little expectation that the situation can be remedied.
 func (c Client) checkRoot() error {
-	role := data.RoleName("root")
+	role := data.CanonicalRootRole
 	size := c.local.Snapshot.Signed.Meta[role].Length
 	hashSha256 := c.local.Snapshot.Signed.Meta[role].Hashes["sha256"]
 
@@ -129,7 +129,7 @@ func (c Client) checkRoot() error {
 
 // downloadRoot is responsible for downloading the root.json
 func (c *Client) downloadRoot() error {
-	role := data.RoleName("root")
+	role := data.CanonicalRootRole
 	size := maxSize
 	var expectedSha256 []byte
 	if c.local.Snapshot != nil {
@@ -241,7 +241,7 @@ func (c Client) verifyRoot(role string, s *data.Signed, minVersion int) error {
 // use cache if the download fails (and the cache is still valid).
 func (c *Client) downloadTimestamp() error {
 	logrus.Debug("downloadTimestamp")
-	role := data.RoleName("timestamp")
+	role := data.CanonicalTimestampRole
 
 	// We may not have a cached timestamp if this is the first time
 	// we're interacting with the repo. This will result in the
@@ -272,7 +272,7 @@ func (c *Client) downloadTimestamp() error {
 			if err == nil {
 				// couldn't retrieve data from server and don't have valid
 				// data in cache.
-				return store.ErrMetaNotFound{}
+				return store.ErrMetaNotFound{Resource: data.CanonicalTimestampRole}
 			}
 			return err
 		}
@@ -300,7 +300,7 @@ func (c *Client) downloadTimestamp() error {
 // downloadSnapshot is responsible for downloading the snapshot.json
 func (c *Client) downloadSnapshot() error {
 	logrus.Debug("downloadSnapshot")
-	role := data.RoleName("snapshot")
+	role := data.CanonicalSnapshotRole
 	if c.local.Timestamp == nil {
 		return ErrMissingMeta{role: "snapshot"}
 	}
@@ -379,7 +379,6 @@ func (c *Client) downloadTargets(role string) error {
 		if err != nil {
 			return err
 		}
-		role = data.RoleName(role) // this will really only do something for base targets role
 		if c.local.Snapshot == nil {
 			return ErrMissingMeta{role: role}
 		}

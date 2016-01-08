@@ -5,9 +5,9 @@ import "fmt"
 // ErrMetaNotFound indicates we did not find a particular piece
 // of metadata in the store
 type ErrMetaNotFound struct {
-	Role string
+	Resource string
 }
 
 func (err ErrMetaNotFound) Error() string {
-	return fmt.Sprintf("%s trust data unavailable", err.Role)
+	return fmt.Sprintf("%s trust data unavailable.  Has a notary repository been initialized?", err.Resource)
 }
