@@ -529,7 +529,7 @@ func procDeleteEndpoint(c libnetwork.NetworkController, vars map[string]string, 
 		return nil, errRsp
 	}
 
-	err := ep.Delete()
+	err := ep.Delete(false)
 	if err != nil {
 		return nil, convertNetworkError(err)
 	}
@@ -641,13 +641,22 @@ func procPublishService(c libnetwork.NetworkController, vars map[string]string, 
 }
 
 func procUnpublishService(c libnetwork.NetworkController, vars map[string]string, body []byte) (interface{}, *responseStatus) {
+	var sd serviceDelete
+
+	if body != nil {
+		err := json.Unmarshal(body, &sd)
+		if err != nil {
+			return "", &responseStatus{Status: "Invalid body: " + err.Error(), StatusCode: http.StatusBadRequest}
+		}
+	}
+
 	epT, epBy := detectEndpointTarget(vars)
 	sv, errRsp := findService(c, epT, epBy)
 	if !errRsp.isOK() {
 		return nil, errRsp
 	}
-	err := sv.Delete()
-	if err != nil {
+
+	if err := sv.Delete(sd.Force); err != nil {
 		return nil, endpointToService(convertNetworkError(err))
 	}
 	return nil, &successResponse

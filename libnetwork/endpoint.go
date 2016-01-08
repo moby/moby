@@ -41,7 +41,7 @@ type Endpoint interface {
 	DriverInfo() (map[string]interface{}, error)
 
 	// Delete and detaches this endpoint from the network.
-	Delete() error
+	Delete(force bool) error
 }
 
 // EndpointOption is a option setter function type used to pass varios options to Network
@@ -56,6 +56,7 @@ type endpoint struct {
 	iface             *endpointInterface
 	joinInfo          *endpointJoinInfo
 	sandboxID         string
+	locator           string
 	exposedPorts      []types.TransportPort
 	anonymous         bool
 	disableResolution bool
@@ -84,6 +85,7 @@ func (ep *endpoint) MarshalJSON() ([]byte, error) {
 		epMap["generic"] = ep.generic
 	}
 	epMap["sandbox"] = ep.sandboxID
+	epMap["locator"] = ep.locator
 	epMap["anonymous"] = ep.anonymous
 	epMap["disableResolution"] = ep.disableResolution
 	epMap["myAliases"] = ep.myAliases
@@ -167,6 +169,9 @@ func (ep *endpoint) UnmarshalJSON(b []byte) (err error) {
 	if v, ok := epMap["disableResolution"]; ok {
 		ep.disableResolution = v.(bool)
 	}
+	if l, ok := epMap["locator"]; ok {
+		ep.locator = l.(string)
+	}
 	ma, _ := json.Marshal(epMap["myAliases"])
 	var myAliases []string
 	json.Unmarshal(ma, &myAliases)
@@ -186,6 +191,7 @@ func (ep *endpoint) CopyTo(o datastore.KVObject) error {
 	dstEp.name = ep.name
 	dstEp.id = ep.id
 	dstEp.sandboxID = ep.sandboxID
+	dstEp.locator = ep.locator
 	dstEp.dbIndex = ep.dbIndex
 	dstEp.dbExists = ep.dbExists
 	dstEp.anonymous = ep.anonymous
@@ -600,7 +606,23 @@ func (ep *endpoint) sbLeave(sbox Sandbox, options ...EndpointOption) error {
 	return sb.clearDefaultGW()
 }
 
-func (ep *endpoint) Delete() error {
+func (n *network) validateForceDelete(locator string) error {
+	if n.Scope() == datastore.LocalScope {
+		return nil
+	}
+
+	if locator == "" {
+		return fmt.Errorf("invalid endpoint locator identifier")
+	}
+
+	if n.getController().isNodeAlive(locator) {
+		return fmt.Errorf("the remote host %s hosting the container is alive", locator)
+	}
+
+	return nil
+}
+
+func (ep *endpoint) Delete(force bool) error {
 	var err error
 	n, err := ep.getNetworkFromStore()
 	if err != nil {
@@ -615,18 +637,33 @@ func (ep *endpoint) Delete() error {
 	ep.Lock()
 	epid := ep.id
 	name := ep.name
-	sb, _ := n.getController().SandboxByID(ep.sandboxID)
-	if sb != nil {
-		ep.Unlock()
+	sbid := ep.sandboxID
+	locator := ep.locator
+	ep.Unlock()
+
+	if force {
+		if err = n.validateForceDelete(locator); err != nil {
+			return fmt.Errorf("unable to force delete endpoint %s: %v", name, err)
+		}
+	}
+
+	sb, _ := n.getController().SandboxByID(sbid)
+	if sb != nil && !force {
 		return &ActiveContainerError{name: name, id: epid}
 	}
-	ep.Unlock()
+
+	if sb != nil {
+		if e := ep.sbLeave(sb); e != nil {
+			log.Warnf("failed to leave sandbox for endpoint %s : %v", name, e)
+		}
+	}
 
 	if err = n.getController().deleteFromStore(ep); err != nil {
 		return err
 	}
+
 	defer func() {
-		if err != nil {
+		if err != nil && !force {
 			ep.dbExists = false
 			if e := n.getController().updateToStore(ep); e != nil {
 				log.Warnf("failed to recreate endpoint in store %s : %v", name, e)
@@ -634,11 +671,11 @@ func (ep *endpoint) Delete() error {
 		}
 	}()
 
-	if err = n.getEpCnt().DecEndpointCnt(); err != nil {
+	if err = n.getEpCnt().DecEndpointCnt(); err != nil && !force {
 		return err
 	}
 	defer func() {
-		if err != nil {
+		if err != nil && !force {
 			if e := n.getEpCnt().IncEndpointCnt(); e != nil {
 				log.Warnf("failed to update network %s : %v", n.name, e)
 			}
@@ -648,7 +685,7 @@ func (ep *endpoint) Delete() error {
 	// unwatch for service records
 	n.getController().unWatchSvcRecord(ep)
 
-	if err = ep.deleteEndpoint(); err != nil {
+	if err = ep.deleteEndpoint(); err != nil && !force {
 		return err
 	}
 
@@ -923,7 +960,7 @@ func (c *controller) cleanupLocalEndpoints() {
 		}
 
 		for _, ep := range epl {
-			if err := ep.Delete(); err != nil {
+			if err := ep.Delete(false); err != nil {
 				log.Warnf("Could not delete local endpoint %s during endpoint cleanup: %v", ep.name, err)
 			}
 		}
