@@ -105,7 +105,7 @@ for deploying and scaling web apps, databases, and backend services without
 depending on a particular stack or provider.
 
 %prep
-%if 0%{?centos} <= 6 || 0%{oraclelinux} <=6
+%if 0%{?centos} <= 6 || 0%{?oraclelinux} <=6
 %setup -n %{name}
 %else
 %autosetup -n %{name}
