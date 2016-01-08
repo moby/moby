@@ -13,10 +13,11 @@ import (
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/engine-api/types/container"
+	networktypes "github.com/docker/engine-api/types/network"
 	"github.com/docker/go-connections/nat"
 )
 
-func parseRun(args []string) (*container.Config, *container.HostConfig, *flag.FlagSet, error) {
+func parseRun(args []string) (*container.Config, *container.HostConfig, *networktypes.NetworkingConfig, *flag.FlagSet, error) {
 	cmd := flag.NewFlagSet("run", flag.ContinueOnError)
 	cmd.SetOutput(ioutil.Discard)
 	cmd.Usage = nil
@@ -24,7 +25,7 @@ func parseRun(args []string) (*container.Config, *container.HostConfig, *flag.Fl
 }
 
 func parse(t *testing.T, args string) (*container.Config, *container.HostConfig, error) {
-	config, hostConfig, _, err := parseRun(strings.Split(args+" ubuntu bash", " "))
+	config, hostConfig, _, _, err := parseRun(strings.Split(args+" ubuntu bash", " "))
 	return config, hostConfig, err
 }
 
@@ -304,7 +305,7 @@ func callDecodeContainerConfig(volumes []string, binds []string) (*container.Con
 	if b, err = json.Marshal(w); err != nil {
 		return nil, nil, fmt.Errorf("Error on marshal %s", err.Error())
 	}
-	c, h, err = runconfig.DecodeContainerConfig(bytes.NewReader(b))
+	c, h, _, err = runconfig.DecodeContainerConfig(bytes.NewReader(b))
 	if err != nil {
 		return nil, nil, fmt.Errorf("Error parsing %s: %v", string(b), err)
 	}
@@ -349,7 +350,7 @@ func setupPlatformVolume(u []string, w []string) ([]string, string) {
 func TestParseWithMacAddress(t *testing.T) {
 	invalidMacAddress := "--mac-address=invalidMacAddress"
 	validMacAddress := "--mac-address=92:d0:c6:0a:29:33"
-	if _, _, _, err := parseRun([]string{invalidMacAddress, "img", "cmd"}); err != nil && err.Error() != "invalidMacAddress is not a valid mac address" {
+	if _, _, _, _, err := parseRun([]string{invalidMacAddress, "img", "cmd"}); err != nil && err.Error() != "invalidMacAddress is not a valid mac address" {
 		t.Fatalf("Expected an error with %v mac-address, got %v", invalidMacAddress, err)
 	}
 	if config, _ := mustParse(t, validMacAddress); config.MacAddress != "92:d0:c6:0a:29:33" {
@@ -360,7 +361,7 @@ func TestParseWithMacAddress(t *testing.T) {
 func TestParseWithMemory(t *testing.T) {
 	invalidMemory := "--memory=invalid"
 	validMemory := "--memory=1G"
-	if _, _, _, err := parseRun([]string{invalidMemory, "img", "cmd"}); err != nil && err.Error() != "invalid size: 'invalid'" {
+	if _, _, _, _, err := parseRun([]string{invalidMemory, "img", "cmd"}); err != nil && err.Error() != "invalid size: 'invalid'" {
 		t.Fatalf("Expected an error with '%v' Memory, got '%v'", invalidMemory, err)
 	}
 	if _, hostconfig := mustParse(t, validMemory); hostconfig.Memory != 1073741824 {
@@ -372,7 +373,7 @@ func TestParseWithMemorySwap(t *testing.T) {
 	invalidMemory := "--memory-swap=invalid"
 	validMemory := "--memory-swap=1G"
 	anotherValidMemory := "--memory-swap=-1"
-	if _, _, _, err := parseRun([]string{invalidMemory, "img", "cmd"}); err == nil || err.Error() != "invalid size: 'invalid'" {
+	if _, _, _, _, err := parseRun([]string{invalidMemory, "img", "cmd"}); err == nil || err.Error() != "invalid size: 'invalid'" {
 		t.Fatalf("Expected an error with '%v' MemorySwap, got '%v'", invalidMemory, err)
 	}
 	if _, hostconfig := mustParse(t, validMemory); hostconfig.MemorySwap != 1073741824 {
@@ -417,12 +418,12 @@ func TestParseWithExpose(t *testing.T) {
 		"8080-8082/tcp": {"8080/tcp", "8081/tcp", "8082/tcp"},
 	}
 	for expose, expectedError := range invalids {
-		if _, _, _, err := parseRun([]string{fmt.Sprintf("--expose=%v", expose), "img", "cmd"}); err == nil || err.Error() != expectedError {
+		if _, _, _, _, err := parseRun([]string{fmt.Sprintf("--expose=%v", expose), "img", "cmd"}); err == nil || err.Error() != expectedError {
 			t.Fatalf("Expected error '%v' with '--expose=%v', got '%v'", expectedError, expose, err)
 		}
 	}
 	for expose, exposedPorts := range valids {
-		config, _, _, err := parseRun([]string{fmt.Sprintf("--expose=%v", expose), "img", "cmd"})
+		config, _, _, _, err := parseRun([]string{fmt.Sprintf("--expose=%v", expose), "img", "cmd"})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -436,7 +437,7 @@ func TestParseWithExpose(t *testing.T) {
 		}
 	}
 	// Merge with actual published port
-	config, _, _, err := parseRun([]string{"--publish=80", "--expose=80-81/tcp", "img", "cmd"})
+	config, _, _, _, err := parseRun([]string{"--publish=80", "--expose=80-81/tcp", "img", "cmd"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -475,7 +476,7 @@ func TestParseDevice(t *testing.T) {
 		},
 	}
 	for device, deviceMapping := range valids {
-		_, hostconfig, _, err := parseRun([]string{fmt.Sprintf("--device=%v", device), "img", "cmd"})
+		_, hostconfig, _, _, err := parseRun([]string{fmt.Sprintf("--device=%v", device), "img", "cmd"})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -491,11 +492,11 @@ func TestParseDevice(t *testing.T) {
 
 func TestParseModes(t *testing.T) {
 	// ipc ko
-	if _, _, _, err := parseRun([]string{"--ipc=container:", "img", "cmd"}); err == nil || err.Error() != "--ipc: invalid IPC mode" {
+	if _, _, _, _, err := parseRun([]string{"--ipc=container:", "img", "cmd"}); err == nil || err.Error() != "--ipc: invalid IPC mode" {
 		t.Fatalf("Expected an error with message '--ipc: invalid IPC mode', got %v", err)
 	}
 	// ipc ok
-	_, hostconfig, _, err := parseRun([]string{"--ipc=host", "img", "cmd"})
+	_, hostconfig, _, _, err := parseRun([]string{"--ipc=host", "img", "cmd"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -503,11 +504,11 @@ func TestParseModes(t *testing.T) {
 		t.Fatalf("Expected a valid IpcMode, got %v", hostconfig.IpcMode)
 	}
 	// pid ko
-	if _, _, _, err := parseRun([]string{"--pid=container:", "img", "cmd"}); err == nil || err.Error() != "--pid: invalid PID mode" {
+	if _, _, _, _, err := parseRun([]string{"--pid=container:", "img", "cmd"}); err == nil || err.Error() != "--pid: invalid PID mode" {
 		t.Fatalf("Expected an error with message '--pid: invalid PID mode', got %v", err)
 	}
 	// pid ok
-	_, hostconfig, _, err = parseRun([]string{"--pid=host", "img", "cmd"})
+	_, hostconfig, _, _, err = parseRun([]string{"--pid=host", "img", "cmd"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -515,11 +516,11 @@ func TestParseModes(t *testing.T) {
 		t.Fatalf("Expected a valid PidMode, got %v", hostconfig.PidMode)
 	}
 	// uts ko
-	if _, _, _, err := parseRun([]string{"--uts=container:", "img", "cmd"}); err == nil || err.Error() != "--uts: invalid UTS mode" {
+	if _, _, _, _, err := parseRun([]string{"--uts=container:", "img", "cmd"}); err == nil || err.Error() != "--uts: invalid UTS mode" {
 		t.Fatalf("Expected an error with message '--uts: invalid UTS mode', got %v", err)
 	}
 	// uts ok
-	_, hostconfig, _, err = parseRun([]string{"--uts=host", "img", "cmd"})
+	_, hostconfig, _, _, err = parseRun([]string{"--uts=host", "img", "cmd"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -527,11 +528,11 @@ func TestParseModes(t *testing.T) {
 		t.Fatalf("Expected a valid UTSMode, got %v", hostconfig.UTSMode)
 	}
 	// shm-size ko
-	if _, _, _, err = parseRun([]string{"--shm-size=a128m", "img", "cmd"}); err == nil || err.Error() != "invalid size: 'a128m'" {
+	if _, _, _, _, err = parseRun([]string{"--shm-size=a128m", "img", "cmd"}); err == nil || err.Error() != "invalid size: 'a128m'" {
 		t.Fatalf("Expected an error with message 'invalid size: a128m', got %v", err)
 	}
 	// shm-size ok
-	_, hostconfig, _, err = parseRun([]string{"--shm-size=128m", "img", "cmd"})
+	_, hostconfig, _, _, err = parseRun([]string{"--shm-size=128m", "img", "cmd"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -560,12 +561,12 @@ func TestParseRestartPolicy(t *testing.T) {
 		},
 	}
 	for restart, expectedError := range invalids {
-		if _, _, _, err := parseRun([]string{fmt.Sprintf("--restart=%s", restart), "img", "cmd"}); err == nil || err.Error() != expectedError {
+		if _, _, _, _, err := parseRun([]string{fmt.Sprintf("--restart=%s", restart), "img", "cmd"}); err == nil || err.Error() != expectedError {
 			t.Fatalf("Expected an error with message '%v' for %v, got %v", expectedError, restart, err)
 		}
 	}
 	for restart, expected := range valids {
-		_, hostconfig, _, err := parseRun([]string{fmt.Sprintf("--restart=%v", restart), "img", "cmd"})
+		_, hostconfig, _, _, err := parseRun([]string{fmt.Sprintf("--restart=%v", restart), "img", "cmd"})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -577,11 +578,11 @@ func TestParseRestartPolicy(t *testing.T) {
 
 func TestParseLoggingOpts(t *testing.T) {
 	// logging opts ko
-	if _, _, _, err := parseRun([]string{"--log-driver=none", "--log-opt=anything", "img", "cmd"}); err == nil || err.Error() != "Invalid logging opts for driver none" {
+	if _, _, _, _, err := parseRun([]string{"--log-driver=none", "--log-opt=anything", "img", "cmd"}); err == nil || err.Error() != "Invalid logging opts for driver none" {
 		t.Fatalf("Expected an error with message 'Invalid logging opts for driver none', got %v", err)
 	}
 	// logging opts ok
-	_, hostconfig, _, err := parseRun([]string{"--log-driver=syslog", "--log-opt=something", "img", "cmd"})
+	_, hostconfig, _, _, err := parseRun([]string{"--log-driver=syslog", "--log-opt=something", "img", "cmd"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -596,18 +597,18 @@ func TestParseEnvfileVariables(t *testing.T) {
 		e = "open nonexistent: The system cannot find the file specified."
 	}
 	// env ko
-	if _, _, _, err := parseRun([]string{"--env-file=nonexistent", "img", "cmd"}); err == nil || err.Error() != e {
+	if _, _, _, _, err := parseRun([]string{"--env-file=nonexistent", "img", "cmd"}); err == nil || err.Error() != e {
 		t.Fatalf("Expected an error with message '%s', got %v", e, err)
 	}
 	// env ok
-	config, _, _, err := parseRun([]string{"--env-file=fixtures/valid.env", "img", "cmd"})
+	config, _, _, _, err := parseRun([]string{"--env-file=fixtures/valid.env", "img", "cmd"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(config.Env) != 1 || config.Env[0] != "ENV1=value1" {
 		t.Fatalf("Expected a a config with [ENV1=value1], got %v", config.Env)
 	}
-	config, _, _, err = parseRun([]string{"--env-file=fixtures/valid.env", "--env=ENV2=value2", "img", "cmd"})
+	config, _, _, _, err = parseRun([]string{"--env-file=fixtures/valid.env", "--env=ENV2=value2", "img", "cmd"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -622,18 +623,18 @@ func TestParseLabelfileVariables(t *testing.T) {
 		e = "open nonexistent: The system cannot find the file specified."
 	}
 	// label ko
-	if _, _, _, err := parseRun([]string{"--label-file=nonexistent", "img", "cmd"}); err == nil || err.Error() != e {
+	if _, _, _, _, err := parseRun([]string{"--label-file=nonexistent", "img", "cmd"}); err == nil || err.Error() != e {
 		t.Fatalf("Expected an error with message '%s', got %v", e, err)
 	}
 	// label ok
-	config, _, _, err := parseRun([]string{"--label-file=fixtures/valid.label", "img", "cmd"})
+	config, _, _, _, err := parseRun([]string{"--label-file=fixtures/valid.label", "img", "cmd"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(config.Labels) != 1 || config.Labels["LABEL1"] != "value1" {
 		t.Fatalf("Expected a a config with [LABEL1:value1], got %v", config.Labels)
 	}
-	config, _, _, err = parseRun([]string{"--label-file=fixtures/valid.label", "--label=LABEL2=value2", "img", "cmd"})
+	config, _, _, _, err = parseRun([]string{"--label-file=fixtures/valid.label", "--label=LABEL2=value2", "img", "cmd"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -643,7 +644,7 @@ func TestParseLabelfileVariables(t *testing.T) {
 }
 
 func TestParseEntryPoint(t *testing.T) {
-	config, _, _, err := parseRun([]string{"--entrypoint=anything", "cmd", "img"})
+	config, _, _, _, err := parseRun([]string{"--entrypoint=anything", "cmd", "img"})
 	if err != nil {
 		t.Fatal(err)
 	}

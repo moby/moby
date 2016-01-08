@@ -10,6 +10,7 @@ import (
 	"github.com/docker/docker/daemon/execdriver/windows"
 	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/layer"
+	networktypes "github.com/docker/engine-api/types/network"
 	"github.com/docker/libnetwork"
 )
 
@@ -18,7 +19,7 @@ func (daemon *Daemon) setupLinkedContainers(container *container.Container) ([]s
 }
 
 // updateContainerNetworkSettings update the network settings
-func (daemon *Daemon) updateContainerNetworkSettings(container *container.Container) error {
+func (daemon *Daemon) updateContainerNetworkSettings(container *container.Container, endpointsConfig map[string]*networktypes.EndpointSettings) error {
 	return nil
 }
 
@@ -27,7 +28,7 @@ func (daemon *Daemon) initializeNetworking(container *container.Container) error
 }
 
 // ConnectToNetwork connects a container to the network
-func (daemon *Daemon) ConnectToNetwork(container *container.Container, idOrName string) error {
+func (daemon *Daemon) ConnectToNetwork(container *container.Container, idOrName string, endpointConfig *networktypes.EndpointSettings) error {
 	return nil
 }
 

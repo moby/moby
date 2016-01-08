@@ -3031,7 +3031,13 @@ POST /networks/22be93d5babb089c5aab8dbc369042fad48ff791584ca2da2100db837a1c7c30/
 Content-Type: application/json
 
 {
-  "Container":"3613f73ba0e4"
+  "Container":"3613f73ba0e4",
+  "endpoint_config": {
+    "test_nw": {
+        "IPv4Address":"172.24.56.89",
+        "IPv6Address":"2001:db8::5689"
+    }
+  }
 }
 ```
 

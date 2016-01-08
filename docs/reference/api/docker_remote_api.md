@@ -110,6 +110,8 @@ This section lists each version from latest to oldest.  Each listing includes a 
 * `POST /containers/create` now allows you to set a read/write rate limit for a 
   device (in bytes per second or IO per second).
 * `GET /networks` now supports filtering by `name`, `id` and `type`.
+* `POST /containers/create` now allows you to set the static IPv4 and/or IPv6 address for the container.
+* `POST /networks/(id)/connect` now allows you to set the static IPv4 and/or IPv6 address for the container.
 
 ### v1.21 API changes
 
