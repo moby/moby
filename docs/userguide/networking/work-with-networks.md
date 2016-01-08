@@ -502,6 +502,130 @@ environment variables into a running container without significant effort and he
 it is not compatible with `docker network` which provides a dynamic way to connect/
 disconnect containers to/from a network.
 
+### Network-scoped alias
+
+While `links` provide private name resolution that is localized within a container,
+the network-scoped alias provides a way for a container to be discovered by an
+alternate name by any other container within the scope of a particular network.
+Unlike the `link` alias, which is defined by the consumer of a service, the
+network-scoped alias is defined by the container that is offering the service
+to the network.
+
+Continuing with the above example, create another container in `isolated_nw` with a
+network alias.
+
+```bash
+$ docker run --net=isolated_nw -itd --name=container6 --net-alias app busybox
+8ebe6767c1e0361f27433090060b33200aac054a68476c3be87ef4005eb1df17
+```
+
+```bash
+$ docker attach container4
+/ # ping -w 4 app
+PING app (172.25.0.6): 56 data bytes
+64 bytes from 172.25.0.6: seq=0 ttl=64 time=0.070 ms
+64 bytes from 172.25.0.6: seq=1 ttl=64 time=0.080 ms
+64 bytes from 172.25.0.6: seq=2 ttl=64 time=0.080 ms
+64 bytes from 172.25.0.6: seq=3 ttl=64 time=0.097 ms
+
+--- app ping statistics ---
+4 packets transmitted, 4 packets received, 0% packet loss
+round-trip min/avg/max = 0.070/0.081/0.097 ms
+
+/ # ping -w 4 container6
+PING container5 (172.25.0.6): 56 data bytes
+64 bytes from 172.25.0.6: seq=0 ttl=64 time=0.070 ms
+64 bytes from 172.25.0.6: seq=1 ttl=64 time=0.080 ms
+64 bytes from 172.25.0.6: seq=2 ttl=64 time=0.080 ms
+64 bytes from 172.25.0.6: seq=3 ttl=64 time=0.097 ms
+
+--- container6 ping statistics ---
+4 packets transmitted, 4 packets received, 0% packet loss
+round-trip min/avg/max = 0.070/0.081/0.097 ms
+```
+
+Now let us connect `container6` to the `local_alias` network with a different network-scoped
+alias.
+
+```
+$ docker network connect --alias scoped-app local_alias container6
+```
+
+`container6` in this example now is aliased as `app` in network `isolated_nw` and
+as `scoped-app` in network `local_alias`.
+
+Let's try to reach these aliases from `container4` (which is connected to both these networks)
+and `container5` (which is connected only to `isolated_nw`).
+
+```bash
+$ docker attach container4
+
+/ # ping -w 4 scoped-app
+PING foo (172.26.0.5): 56 data bytes
+64 bytes from 172.26.0.5: seq=0 ttl=64 time=0.070 ms
+64 bytes from 172.26.0.5: seq=1 ttl=64 time=0.080 ms
+64 bytes from 172.26.0.5: seq=2 ttl=64 time=0.080 ms
+64 bytes from 172.26.0.5: seq=3 ttl=64 time=0.097 ms
+
+--- foo ping statistics ---
+4 packets transmitted, 4 packets received, 0% packet loss
+round-trip min/avg/max = 0.070/0.081/0.097 ms
+
+$ docker attach container5
+
+/ # ping -w 4 scoped-app
+ping: bad address 'scoped-app'
+
+```
+
+As you can see, the alias is scoped to the network it is defined on and hence only
+those containers that are connected to that network can access the alias.
+
+In addition to the above features, multiple containers can share the same network-scoped
+alias within the same network. For example, let's launch `container7` in `isolated_nw` with
+the same alias as `container6`
+
+```bash
+$ docker run --net=isolated_nw -itd --name=container7 --net-alias app busybox
+3138c678c123b8799f4c7cc6a0cecc595acbdfa8bf81f621834103cd4f504554
+```
+
+When multiple containers share the same alias, name resolution to that alias will happen
+to one of the containers (typically the first container that is aliased). When the container
+that backs the alias goes down or disconnected from the network, the next container that
+backs the alias will be resolved.
+
+Let us ping the alias `app` from `container4` and bring down `container6` to verify that
+`container7` is resolving the `app` alias.
+
+```bash
+$ docker attach container4
+/ # ping -w 4 app
+PING app (172.25.0.6): 56 data bytes
+64 bytes from 172.25.0.6: seq=0 ttl=64 time=0.070 ms
+64 bytes from 172.25.0.6: seq=1 ttl=64 time=0.080 ms
+64 bytes from 172.25.0.6: seq=2 ttl=64 time=0.080 ms
+64 bytes from 172.25.0.6: seq=3 ttl=64 time=0.097 ms
+
+--- app ping statistics ---
+4 packets transmitted, 4 packets received, 0% packet loss
+round-trip min/avg/max = 0.070/0.081/0.097 ms
+
+$ docker stop container6
+
+$ docker attach container4
+/ # ping -w 4 app
+PING app (172.25.0.7): 56 data bytes
+64 bytes from 172.25.0.7: seq=0 ttl=64 time=0.095 ms
+64 bytes from 172.25.0.7: seq=1 ttl=64 time=0.075 ms
+64 bytes from 172.25.0.7: seq=2 ttl=64 time=0.072 ms
+64 bytes from 172.25.0.7: seq=3 ttl=64 time=0.101 ms
+
+--- app ping statistics ---
+4 packets transmitted, 4 packets received, 0% packet loss
+round-trip min/avg/max = 0.072/0.085/0.101 ms
+
+```
 
 ## Disconnecting containers
 

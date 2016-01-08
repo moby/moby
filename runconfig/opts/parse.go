@@ -33,6 +33,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 		flDeviceReadBps     = NewThrottledeviceOpt(ValidateThrottleBpsDevice)
 		flDeviceWriteBps    = NewThrottledeviceOpt(ValidateThrottleBpsDevice)
 		flLinks             = opts.NewListOpts(ValidateLink)
+		flAliases           = opts.NewListOpts(nil)
 		flDeviceReadIOps    = NewThrottledeviceOpt(ValidateThrottleIOpsDevice)
 		flDeviceWriteIOps   = NewThrottledeviceOpt(ValidateThrottleIOpsDevice)
 		flEnv               = opts.NewListOpts(ValidateEnv)
@@ -103,6 +104,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 	cmd.Var(&flVolumes, []string{"v", "-volume"}, "Bind mount a volume")
 	cmd.Var(&flTmpfs, []string{"-tmpfs"}, "Mount a tmpfs directory")
 	cmd.Var(&flLinks, []string{"-link"}, "Add link to another container")
+	cmd.Var(&flAliases, []string{"-net-alias"}, "Add network-scoped alias for the container")
 	cmd.Var(&flDevices, []string{"-device"}, "Add a host device to the container")
 	cmd.Var(&flLabels, []string{"l", "-label"}, "Set meta data on a container")
 	cmd.Var(&flLabelsFile, []string{"-label-file"}, "Read in a line delimited file of labels")
@@ -437,6 +439,16 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 		}
 		epConfig.Links = make([]string, len(hostConfig.Links))
 		copy(epConfig.Links, hostConfig.Links)
+		networkingConfig.EndpointsConfig[string(hostConfig.NetworkMode)] = epConfig
+	}
+
+	if hostConfig.NetworkMode.IsUserDefined() && flAliases.Len() > 0 {
+		epConfig := networkingConfig.EndpointsConfig[string(hostConfig.NetworkMode)]
+		if epConfig == nil {
+			epConfig = &networktypes.EndpointSettings{}
+		}
+		epConfig.Aliases = make([]string, flAliases.Len())
+		copy(epConfig.Aliases, flAliases.GetAll())
 		networkingConfig.EndpointsConfig[string(hostConfig.NetworkMode)] = epConfig
 	}
 

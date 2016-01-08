@@ -33,4 +33,6 @@ var (
 	ErrUnsupportedNetworkAndIP = fmt.Errorf("User specified IP address is supported on user defined networks only")
 	// ErrUnsupportedNetworkNoSubnetAndIP conflict between network with no configured subnet and preferred ip address
 	ErrUnsupportedNetworkNoSubnetAndIP = fmt.Errorf("User specified IP address is supported only when connecting to networks with user configured subnets")
+	// ErrUnsupportedNetworkAndAlias conflict between network mode and alias
+	ErrUnsupportedNetworkAndAlias = fmt.Errorf("Network-scoped alias is supported only for containers in user defined networks")
 )

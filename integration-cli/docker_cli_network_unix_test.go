@@ -1138,5 +1138,42 @@ func (s *DockerNetworkSuite) TestDockerNetworkDisconnectDefault(c *check.C) {
 	c.Assert(networks, checker.Contains, netWorkName1, check.Commentf(fmt.Sprintf("Should contain '%s' network", netWorkName1)))
 	c.Assert(networks, checker.Contains, netWorkName2, check.Commentf(fmt.Sprintf("Should contain '%s' network", netWorkName2)))
 	c.Assert(networks, checker.Not(checker.Contains), "bridge", check.Commentf("Should not contain 'bridge' network"))
+}
 
+func (s *DockerSuite) TestUserDefinedNetworkConnectDisconnectAlias(c *check.C) {
+	testRequires(c, DaemonIsLinux, NotUserNamespace)
+	dockerCmd(c, "network", "create", "-d", "bridge", "net1")
+	dockerCmd(c, "network", "create", "-d", "bridge", "net2")
+
+	dockerCmd(c, "run", "-d", "--net=net1", "--name=first", "--net-alias=foo", "busybox", "top")
+	c.Assert(waitRun("first"), check.IsNil)
+
+	dockerCmd(c, "run", "-d", "--net=net1", "--name=second", "busybox", "top")
+	c.Assert(waitRun("second"), check.IsNil)
+
+	// ping first container and its alias
+	_, _, err := dockerCmdWithError("exec", "second", "ping", "-c", "1", "first")
+	c.Assert(err, check.IsNil)
+	_, _, err = dockerCmdWithError("exec", "second", "ping", "-c", "1", "foo")
+	c.Assert(err, check.IsNil)
+
+	// connect first container to net2 network
+	dockerCmd(c, "network", "connect", "--alias=bar", "net2", "first")
+	// connect second container to foo2 network with a different alias for first container
+	dockerCmd(c, "network", "connect", "net2", "second")
+
+	// ping the new alias in network foo2
+	_, _, err = dockerCmdWithError("exec", "second", "ping", "-c", "1", "bar")
+	c.Assert(err, check.IsNil)
+
+	// disconnect first container from net1 network
+	dockerCmd(c, "network", "disconnect", "net1", "first")
+
+	// ping to net1 scoped alias "foo" must fail
+	_, _, err = dockerCmdWithError("exec", "second", "ping", "-c", "1", "foo")
+	c.Assert(err, check.NotNil)
+
+	// ping to net2 scoped alias "bar" must still succeed
+	_, _, err = dockerCmdWithError("exec", "second", "ping", "-c", "1", "bar")
+	c.Assert(err, check.IsNil)
 }

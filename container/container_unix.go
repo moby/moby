@@ -284,6 +284,10 @@ func (container *Container) BuildCreateEndpointOptions(n libnetwork.Network) ([]
 			createOptions = append(createOptions,
 				libnetwork.CreateOptionIpam(net.ParseIP(ipam.IPv4Address), net.ParseIP(ipam.IPv6Address), nil))
 		}
+
+		for _, alias := range epConfig.Aliases {
+			createOptions = append(createOptions, libnetwork.CreateOptionMyAlias(alias))
+		}
 	}
 
 	if !container.HostConfig.NetworkMode.IsUserDefined() {
