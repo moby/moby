@@ -70,7 +70,7 @@ type NetworkInfo interface {
 type EndpointWalker func(ep Endpoint) bool
 
 type svcInfo struct {
-	svcMap map[string]net.IP
+	svcMap map[string][]net.IP
 	ipMap  map[string]string
 }
 
@@ -831,36 +831,77 @@ func (n *network) updateSvcRecord(ep *endpoint, localEps []*endpoint, isAdd bool
 		return
 	}
 
+	epName := ep.Name()
+	if iface := ep.Iface(); iface.Address() != nil {
+		myAliases := ep.MyAliases()
+		if isAdd {
+			n.addSvcRecords(epName, iface.Address().IP, true)
+			for _, alias := range myAliases {
+				n.addSvcRecords(alias, iface.Address().IP, false)
+			}
+		} else {
+			n.deleteSvcRecords(epName, iface.Address().IP, true)
+			for _, alias := range myAliases {
+				n.deleteSvcRecords(alias, iface.Address().IP, false)
+			}
+		}
+	}
+}
+
+func (n *network) addSvcRecords(name string, epIP net.IP, ipMapUpdate bool) {
 	c := n.getController()
+	c.Lock()
+	defer c.Unlock()
 	sr, ok := c.svcDb[n.ID()]
 	if !ok {
-		c.svcDb[n.ID()] = svcInfo{
-			svcMap: make(map[string]net.IP),
+		sr = svcInfo{
+			svcMap: make(map[string][]net.IP),
 			ipMap:  make(map[string]string),
 		}
-		sr = c.svcDb[n.ID()]
+		c.svcDb[n.ID()] = sr
 	}
 
-	epName := ep.Name()
-	n.Lock()
-	if iface := ep.Iface(); iface.Address() != nil {
-
-		reverseIP := netutils.ReverseIP(iface.Address().IP.String())
-		if isAdd {
-			// If we already have this endpoint in service db just return
-			if _, ok := sr.svcMap[epName]; ok {
-				n.Unlock()
-				return
-			}
-
-			sr.svcMap[epName] = iface.Address().IP
-			sr.ipMap[reverseIP] = epName
-		} else {
-			delete(sr.svcMap, epName)
-			delete(sr.ipMap, reverseIP)
+	if ipMapUpdate {
+		reverseIP := netutils.ReverseIP(epIP.String())
+		if _, ok := sr.ipMap[reverseIP]; !ok {
+			sr.ipMap[reverseIP] = name
 		}
 	}
-	n.Unlock()
+
+	ipList := sr.svcMap[name]
+	for _, ip := range ipList {
+		if ip.Equal(epIP) {
+			return
+		}
+	}
+	sr.svcMap[name] = append(sr.svcMap[name], epIP)
+}
+
+func (n *network) deleteSvcRecords(name string, epIP net.IP, ipMapUpdate bool) {
+	c := n.getController()
+	c.Lock()
+	defer c.Unlock()
+	sr, ok := c.svcDb[n.ID()]
+	if !ok {
+		return
+	}
+
+	if ipMapUpdate {
+		delete(sr.ipMap, netutils.ReverseIP(epIP.String()))
+	}
+
+	ipList := sr.svcMap[name]
+	for i, ip := range ipList {
+		if ip.Equal(epIP) {
+			ipList = append(ipList[:i], ipList[i+1:]...)
+			break
+		}
+	}
+	sr.svcMap[name] = ipList
+
+	if len(ipList) == 0 {
+		delete(sr.svcMap, name)
+	}
 }
 
 func (n *network) getSvcRecords(ep *endpoint) []etchosts.Record {
@@ -877,7 +918,7 @@ func (n *network) getSvcRecords(ep *endpoint) []etchosts.Record {
 
 		recs = append(recs, etchosts.Record{
 			Hosts: h,
-			IP:    ip.String(),
+			IP:    ip[0].String(),
 		})
 	}
 

@@ -249,3 +249,33 @@ function test_single_network_connectivity() {
     dnet_cmd $(inst_id2port 1) container rm container_2
     dnet_cmd $(inst_id2port 1) network rm br1
 }
+
+@test "Test bridge network global alias support" {
+    skip_for_circleci
+    dnet_cmd $(inst_id2port 1) network create -d bridge br1
+    dnet_cmd $(inst_id2port 1) network create -d bridge br2
+    dnet_cmd $(inst_id2port 1) container create container_1
+    net_connect 1 container_1 br1 : c1
+    dnet_cmd $(inst_id2port 1) container create container_2
+    net_connect 1 container_2 br1 : shared
+    dnet_cmd $(inst_id2port 1) container create container_3
+    net_connect 1 container_3 br1 : shared
+
+    runc $(dnet_container_name 1 bridge) $(get_sbox_id 1 container_2) "ping -c 1 container_1"
+    runc $(dnet_container_name 1 bridge) $(get_sbox_id 1 container_2) "ping -c 1 c1"
+    runc $(dnet_container_name 1 bridge) $(get_sbox_id 1 container_1) "ping -c 1 container_2"
+    runc $(dnet_container_name 1 bridge) $(get_sbox_id 1 container_1) "ping -c 1 shared"
+
+    net_disconnect 1 container_2 br1
+    dnet_cmd $(inst_id2port 1) container rm container_2
+
+    runc $(dnet_container_name 1 bridge) $(get_sbox_id 1 container_1) "ping -c 1 container_3"
+    runc $(dnet_container_name 1 bridge) $(get_sbox_id 1 container_1) "ping -c 1 shared"
+
+    net_disconnect 1 container_1 br1
+    dnet_cmd $(inst_id2port 1) container rm container_1
+    net_disconnect 1 container_3 br1
+    dnet_cmd $(inst_id2port 1) container rm container_3
+
+    dnet_cmd $(inst_id2port 1) network rm br1
+}

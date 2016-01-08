@@ -163,6 +163,8 @@ func parseServiceName(name string) (string, string) {
 // CmdServicePublish handles service create UI
 func (cli *NetworkCli) CmdServicePublish(chain string, args ...string) error {
 	cmd := cli.Subcmd(chain, "publish", "SERVICE[.NETWORK]", "Publish a new service on a network", false)
+	flAlias := opts.NewListOpts(netutils.ValidateAlias)
+	cmd.Var(&flAlias, []string{"-alias"}, "Add alias to self")
 	cmd.Require(flag.Exact, 1)
 	err := cmd.ParseFlags(args, true)
 	if err != nil {
@@ -170,7 +172,7 @@ func (cli *NetworkCli) CmdServicePublish(chain string, args ...string) error {
 	}
 
 	sn, nn := parseServiceName(cmd.Arg(0))
-	sc := serviceCreate{Name: sn, Network: nn}
+	sc := serviceCreate{Name: sn, Network: nn, MyAliases: flAlias.GetAll()}
 	obj, _, err := readBody(cli.call("POST", "/services", sc, nil))
 	if err != nil {
 		return err

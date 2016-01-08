@@ -481,7 +481,7 @@ func (sb *sandbox) resolveName(req string, networkName string, epList []*endpoin
 		ip, ok := sr.svcMap[name]
 		n.Unlock()
 		if ok {
-			return ip
+			return ip[0]
 		}
 	}
 	return nil

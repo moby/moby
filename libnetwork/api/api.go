@@ -379,6 +379,10 @@ func procCreateEndpoint(c libnetwork.NetworkController, vars map[string]string, 
 		setFctList = append(setFctList, libnetwork.CreateOptionPortMapping(ec.PortMapping))
 	}
 
+	for _, str := range ec.MyAliases {
+		setFctList = append(setFctList, libnetwork.CreateOptionMyAlias(str))
+	}
+
 	ep, err := n.CreateEndpoint(ec.Name, setFctList...)
 	if err != nil {
 		return "", convertNetworkError(err)
@@ -622,6 +626,10 @@ func procPublishService(c libnetwork.NetworkController, vars map[string]string, 
 	}
 	if sp.PortMapping != nil {
 		setFctList = append(setFctList, libnetwork.CreateOptionPortMapping(sp.PortMapping))
+	}
+
+	for _, str := range sp.MyAliases {
+		setFctList = append(setFctList, libnetwork.CreateOptionMyAlias(str))
 	}
 
 	ep, err := n.CreateEndpoint(sp.Name, setFctList...)

@@ -43,6 +43,7 @@ type networkCreate struct {
 // endpointCreate represents the body of the "create endpoint" http request message
 type endpointCreate struct {
 	Name         string                `json:"name"`
+	MyAliases    []string              `json:"my_aliases"`
 	ExposedPorts []types.TransportPort `json:"exposed_ports"`
 	PortMapping  []types.PortBinding   `json:"port_mapping"`
 }
@@ -69,6 +70,7 @@ type endpointJoin struct {
 // servicePublish represents the body of the "publish service" http request message
 type servicePublish struct {
 	Name         string                `json:"name"`
+	MyAliases    []string              `json:"my_aliases"`
 	Network      string                `json:"network_name"`
 	ExposedPorts []types.TransportPort `json:"exposed_ports"`
 	PortMapping  []types.PortBinding   `json:"port_mapping"`
