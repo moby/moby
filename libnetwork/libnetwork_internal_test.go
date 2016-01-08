@@ -67,20 +67,19 @@ func TestNetworkMarshalling(t *testing.T) {
 		networkType: "bridge",
 		enableIPv6:  true,
 		persist:     true,
+		ipamOptions: map[string]string{
+			netlabel.MacAddress: "a:b:c:d:e:f",
+		},
 		ipamV4Config: []*IpamConf{
 			&IpamConf{
 				PreferredPool: "10.2.0.0/16",
 				SubPool:       "10.2.0.0/24",
-				Options: map[string]string{
-					netlabel.MacAddress: "a:b:c:d:e:f",
-				},
-				Gateway:      "",
-				AuxAddresses: nil,
+				Gateway:       "",
+				AuxAddresses:  nil,
 			},
 			&IpamConf{
 				PreferredPool: "10.2.0.0/16",
 				SubPool:       "10.2.1.0/24",
-				Options:       nil,
 				Gateway:       "10.2.1.254",
 			},
 		},
@@ -265,7 +264,6 @@ func compareIpamConfList(listA, listB []*IpamConf) bool {
 		b = listB[i]
 		if a.PreferredPool != b.PreferredPool ||
 			a.SubPool != b.SubPool ||
-			!compareStringMaps(a.Options, b.Options) ||
 			a.Gateway != b.Gateway || !compareStringMaps(a.AuxAddresses, b.AuxAddresses) {
 			return false
 		}
@@ -374,7 +372,7 @@ func TestIpamReleaseOnNetDriverFailures(t *testing.T) {
 
 	// Test whether ipam state release is invoked  on network create failure from net driver
 	// by checking whether subsequent network creation requesting same gateway IP succeeds
-	ipamOpt := NetworkOptionIpam(ipamapi.DefaultIPAM, "", []*IpamConf{&IpamConf{PreferredPool: "10.34.0.0/16", Gateway: "10.34.255.254"}}, nil)
+	ipamOpt := NetworkOptionIpam(ipamapi.DefaultIPAM, "", []*IpamConf{&IpamConf{PreferredPool: "10.34.0.0/16", Gateway: "10.34.255.254"}}, nil, nil)
 	if _, err := c.NewNetwork(badDriverName, "badnet1", ipamOpt); err == nil {
 		t.Fatalf("bad network driver should have failed network creation")
 	}
@@ -398,7 +396,7 @@ func TestIpamReleaseOnNetDriverFailures(t *testing.T) {
 	}
 
 	// Now create good bridge network with different gateway
-	ipamOpt2 := NetworkOptionIpam(ipamapi.DefaultIPAM, "", []*IpamConf{&IpamConf{PreferredPool: "10.34.0.0/16", Gateway: "10.34.255.253"}}, nil)
+	ipamOpt2 := NetworkOptionIpam(ipamapi.DefaultIPAM, "", []*IpamConf{&IpamConf{PreferredPool: "10.34.0.0/16", Gateway: "10.34.255.253"}}, nil, nil)
 	gnw, err = c.NewNetwork("bridge", "goodnet2", ipamOpt2)
 	if err != nil {
 		t.Fatal(err)

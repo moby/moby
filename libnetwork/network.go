@@ -58,7 +58,7 @@ type Network interface {
 
 // NetworkInfo returns some configuration and operational information about the network
 type NetworkInfo interface {
-	IpamConfig() (string, []*IpamConf, []*IpamConf)
+	IpamConfig() (string, map[string]string, []*IpamConf, []*IpamConf)
 	IpamInfo() ([]*IpamInfo, []*IpamInfo)
 	DriverOptions() map[string]string
 	Scope() string
@@ -81,8 +81,6 @@ type IpamConf struct {
 	// A subset of the master pool. If specified,
 	// this becomes the container pool
 	SubPool string
-	// Input options for IPAM Driver (optional)
-	Options map[string]string
 	// Preferred Network Gateway address (optional)
 	Gateway string
 	// Auxiliary addresses for network driver. Must be within the master pool.
@@ -152,6 +150,7 @@ type network struct {
 	networkType  string
 	id           string
 	ipamType     string
+	ipamOptions  map[string]string
 	addrSpace    string
 	ipamV4Config []*IpamConf
 	ipamV6Config []*IpamConf
@@ -255,12 +254,6 @@ func (c *IpamConf) CopyTo(dstC *IpamConf) error {
 	dstC.PreferredPool = c.PreferredPool
 	dstC.SubPool = c.SubPool
 	dstC.Gateway = c.Gateway
-	if c.Options != nil {
-		dstC.Options = make(map[string]string, len(c.Options))
-		for k, v := range c.Options {
-			dstC.Options[k] = v
-		}
-	}
 	if c.AuxAddresses != nil {
 		dstC.AuxAddresses = make(map[string]string, len(c.AuxAddresses))
 		for k, v := range c.AuxAddresses {
@@ -502,11 +495,12 @@ func NetworkOptionInternalNetwork() NetworkOption {
 }
 
 // NetworkOptionIpam function returns an option setter for the ipam configuration for this network
-func NetworkOptionIpam(ipamDriver string, addrSpace string, ipV4 []*IpamConf, ipV6 []*IpamConf) NetworkOption {
+func NetworkOptionIpam(ipamDriver string, addrSpace string, ipV4 []*IpamConf, ipV6 []*IpamConf, opts map[string]string) NetworkOption {
 	return func(n *network) {
 		if ipamDriver != "" {
 			n.ipamType = ipamDriver
 		}
+		n.ipamOptions = opts
 		n.addrSpace = addrSpace
 		n.ipamV4Config = ipV4
 		n.ipamV6Config = ipV6
@@ -957,7 +951,7 @@ func (n *network) ipamAllocateVersion(ipVer int, ipam ipamapi.Ipam) error {
 		d := &IpamInfo{}
 		(*infoList)[i] = d
 
-		d.PoolID, d.Pool, d.Meta, err = ipam.RequestPool(n.addrSpace, cfg.PreferredPool, cfg.SubPool, cfg.Options, ipVer == 6)
+		d.PoolID, d.Pool, d.Meta, err = ipam.RequestPool(n.addrSpace, cfg.PreferredPool, cfg.SubPool, n.ipamOptions, ipVer == 6)
 		if err != nil {
 			return err
 		}
@@ -1136,7 +1130,7 @@ func (n *network) Scope() string {
 	return n.driverScope()
 }
 
-func (n *network) IpamConfig() (string, []*IpamConf, []*IpamConf) {
+func (n *network) IpamConfig() (string, map[string]string, []*IpamConf, []*IpamConf) {
 	n.Lock()
 	defer n.Unlock()
 
@@ -1155,7 +1149,7 @@ func (n *network) IpamConfig() (string, []*IpamConf, []*IpamConf) {
 		v6L[i] = cc
 	}
 
-	return n.ipamType, v4L, v6L
+	return n.ipamType, n.ipamOptions, v4L, v6L
 }
 
 func (n *network) IpamInfo() ([]*IpamInfo, []*IpamInfo) {

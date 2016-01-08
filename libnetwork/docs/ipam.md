@@ -56,7 +56,7 @@ The following sections explain the each of the above API's semantics, when they 
 A libnetwork user can provide IPAM related configuration when creating a network, via the `NetworkOptionIpam` setter function. 
 
 ```go
-func NetworkOptionIpam(ipamDriver string, addrSpace string, ipV4 []*IpamConf, ipV6 []*IpamConf) NetworkOption
+func NetworkOptionIpam(ipamDriver string, addrSpace string, ipV4 []*IpamConf, ipV6 []*IpamConf, opts map[string]string) NetworkOption
 ```
 
 The caller has to provide the IPAM driver name and may provide the address space and a list of `IpamConf` structures for IPv4 and a list for IPv6. The IPAM driver name is the only mandatory field. If not provided, network creation will fail.

@@ -435,7 +435,7 @@ func ipamOption(bridgeName string) libnetwork.NetworkOption {
 		if hip.IsGlobalUnicast() {
 			ipamV4Conf.Gateway = nw.IP.String()
 		}
-		return libnetwork.NetworkOptionIpam("default", "", []*libnetwork.IpamConf{ipamV4Conf}, nil)
+		return libnetwork.NetworkOptionIpam("default", "", []*libnetwork.IpamConf{ipamV4Conf}, nil, nil)
 	}
 	return nil
 }
