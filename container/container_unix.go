@@ -261,6 +261,14 @@ func (container *Container) BuildCreateEndpointOptions(n libnetwork.Network) ([]
 		createOptions = append(createOptions, libnetwork.CreateOptionAnonymous())
 	}
 
+	if epConfig, ok := container.NetworkSettings.Networks[n.Name()]; ok {
+		ipam := epConfig.IPAMConfig
+		if ipam != nil && (ipam.IPv4Address != "" || ipam.IPv6Address != "") {
+			createOptions = append(createOptions,
+				libnetwork.CreateOptionIpam(net.ParseIP(ipam.IPv4Address), net.ParseIP(ipam.IPv6Address), nil))
+		}
+	}
+
 	// Other configs are applicable only for the endpoint in the network
 	// to which container was connected to on docker run.
 	if n.Name() != container.HostConfig.NetworkMode.NetworkName() &&

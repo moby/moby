@@ -2,7 +2,6 @@ package network
 
 import (
 	"github.com/docker/engine-api/types/network"
-
 	"github.com/docker/libnetwork"
 )
 
@@ -15,7 +14,7 @@ type Backend interface {
 	GetAllNetworks() []libnetwork.Network
 	CreateNetwork(name, driver string, ipam network.IPAM,
 		options map[string]string) (libnetwork.Network, error)
-	ConnectContainerToNetwork(containerName, networkName string) error
+	ConnectContainerToNetwork(containerName, networkName string, endpointConfig *network.EndpointSettings) error
 	DisconnectContainerFromNetwork(containerName string,
 		network libnetwork.Network) error
 	NetworkControllerEnabled() bool

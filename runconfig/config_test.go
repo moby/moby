@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/docker/engine-api/types/container"
+	networktypes "github.com/docker/engine-api/types/network"
 	"github.com/docker/engine-api/types/strslice"
 )
 
@@ -45,7 +46,7 @@ func TestDecodeContainerConfig(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		c, h, err := DecodeContainerConfig(bytes.NewReader(b))
+		c, h, _, err := DecodeContainerConfig(bytes.NewReader(b))
 		if err != nil {
 			t.Fatal(fmt.Errorf("Error parsing %s: %v", f, err))
 		}
@@ -70,29 +71,29 @@ func TestDecodeContainerConfig(t *testing.T) {
 func TestDecodeContainerConfigIsolation(t *testing.T) {
 
 	// An invalid isolation level
-	if _, _, err := callDecodeContainerConfigIsolation("invalid"); err != nil {
+	if _, _, _, err := callDecodeContainerConfigIsolation("invalid"); err != nil {
 		if !strings.Contains(err.Error(), `invalid --isolation: "invalid"`) {
 			t.Fatal(err)
 		}
 	}
 
 	// Blank isolation level (== default)
-	if _, _, err := callDecodeContainerConfigIsolation(""); err != nil {
+	if _, _, _, err := callDecodeContainerConfigIsolation(""); err != nil {
 		t.Fatal("Blank isolation should have succeeded")
 	}
 
 	// Default isolation level
-	if _, _, err := callDecodeContainerConfigIsolation("default"); err != nil {
+	if _, _, _, err := callDecodeContainerConfigIsolation("default"); err != nil {
 		t.Fatal("default isolation should have succeeded")
 	}
 
 	// Hyper-V Containers isolation level (Valid on Windows only)
 	if runtime.GOOS == "windows" {
-		if _, _, err := callDecodeContainerConfigIsolation("hyperv"); err != nil {
+		if _, _, _, err := callDecodeContainerConfigIsolation("hyperv"); err != nil {
 			t.Fatal("hyperv isolation should have succeeded")
 		}
 	} else {
-		if _, _, err := callDecodeContainerConfigIsolation("hyperv"); err != nil {
+		if _, _, _, err := callDecodeContainerConfigIsolation("hyperv"); err != nil {
 			if !strings.Contains(err.Error(), `invalid --isolation: "hyperv"`) {
 				t.Fatal(err)
 			}
@@ -102,7 +103,7 @@ func TestDecodeContainerConfigIsolation(t *testing.T) {
 
 // callDecodeContainerConfigIsolation is a utility function to call
 // DecodeContainerConfig for validating isolation levels
-func callDecodeContainerConfigIsolation(isolation string) (*container.Config, *container.HostConfig, error) {
+func callDecodeContainerConfigIsolation(isolation string) (*container.Config, *container.HostConfig, *networktypes.NetworkingConfig, error) {
 	var (
 		b   []byte
 		err error
@@ -114,7 +115,7 @@ func callDecodeContainerConfigIsolation(isolation string) (*container.Config, *c
 			Isolation:   container.IsolationLevel(isolation)},
 	}
 	if b, err = json.Marshal(w); err != nil {
-		return nil, nil, fmt.Errorf("Error on marshal %s", err.Error())
+		return nil, nil, nil, fmt.Errorf("Error on marshal %s", err.Error())
 	}
 	return DecodeContainerConfig(bytes.NewReader(b))
 }

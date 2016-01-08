@@ -82,7 +82,8 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		ErrConflictDetachAutoRemove           = fmt.Errorf("Conflicting options: --rm and -d")
 	)
 
-	config, hostConfig, cmd, err := runconfigopts.Parse(cmd, args)
+	config, hostConfig, networkingConfig, cmd, err := runconfigopts.Parse(cmd, args)
+
 	// just in case the Parse does not exit
 	if err != nil {
 		cmd.ReportError(err.Error(), true)
@@ -145,7 +146,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		hostConfig.ConsoleSize[0], hostConfig.ConsoleSize[1] = cli.getTtySize()
 	}
 
-	createResponse, err := cli.createContainer(config, hostConfig, hostConfig.ContainerIDFile, *flName)
+	createResponse, err := cli.createContainer(config, hostConfig, networkingConfig, hostConfig.ContainerIDFile, *flName)
 	if err != nil {
 		cmd.ReportError(err.Error(), true)
 		return runStartContainerErr(err)

@@ -962,3 +962,71 @@ func (s *DockerNetworkSuite) TestDockerNetworkRestartWithMulipleNetworks(c *chec
 	c.Assert(networks, checker.Contains, "bridge", check.Commentf("Should contain 'bridge' network"))
 	c.Assert(networks, checker.Contains, "test", check.Commentf("Should contain 'test' netwokr"))
 }
+
+func (s *DockerNetworkSuite) TestDockerNetworkConnectPreferredIP(c *check.C) {
+	// create two networks
+	dockerCmd(c, "network", "create", "--subnet=172.28.0.0/16", "--subnet=2001:db8:1234::/64", "n0")
+	assertNwIsAvailable(c, "n0")
+
+	dockerCmd(c, "network", "create", "--subnet=172.30.0.0/16", "--ip-range=172.30.5.0/24", "--subnet=2001:db8:abcd::/64", "--ip-range=2001:db8:abcd::/80", "n1")
+	assertNwIsAvailable(c, "n1")
+
+	// run a container on first network specifying the ip addresses
+	dockerCmd(c, "run", "-d", "--name", "c0", "--net=n0", "--ip", "172.28.99.88", "--ip6", "2001:db8:1234::9988", "busybox", "top")
+	c.Assert(waitRun("c0"), check.IsNil)
+	verifyIPAddresses(c, "c0", "n0", "172.28.99.88", "2001:db8:1234::9988")
+
+	// connect the container to the second network specifying the preferred ip addresses
+	dockerCmd(c, "network", "connect", "--ip", "172.30.55.44", "--ip6", "2001:db8:abcd::5544", "n1", "c0")
+	verifyIPAddresses(c, "c0", "n1", "172.30.55.44", "2001:db8:abcd::5544")
+
+	// Stop and restart the container
+	dockerCmd(c, "stop", "c0")
+	dockerCmd(c, "start", "c0")
+
+	// verify preferred addresses are applied
+	verifyIPAddresses(c, "c0", "n0", "172.28.99.88", "2001:db8:1234::9988")
+	verifyIPAddresses(c, "c0", "n1", "172.30.55.44", "2001:db8:abcd::5544")
+
+	// Still it should fail to connect to the default network with a specified IP (whatever ip)
+	out, _, err := dockerCmdWithError("network", "connect", "--ip", "172.21.55.44", "bridge", "c0")
+	c.Assert(err, checker.NotNil, check.Commentf("out: %s", out))
+	c.Assert(out, checker.Contains, runconfig.ErrUnsupportedNetworkAndIP.Error())
+
+}
+
+func (s *DockerNetworkSuite) TestDockerNetworkUnsupportedPreferredIP(c *check.C) {
+	// preferred IP is not supported on predefined networks
+	for _, mode := range []string{"none", "host", "bridge"} {
+		checkUnsupportedNetworkAndIP(c, mode)
+	}
+
+	// preferred IP is not supported on networks with no user defined subnets
+	dockerCmd(c, "network", "create", "n0")
+	assertNwIsAvailable(c, "n0")
+
+	out, _, err := dockerCmdWithError("run", "-d", "--ip", "172.28.99.88", "--net", "n0", "busybox", "top")
+	c.Assert(err, checker.NotNil, check.Commentf("out: %s", out))
+	c.Assert(out, checker.Contains, runconfig.ErrUnsupportedNetworkNoSubnetAndIP.Error())
+
+	out, _, err = dockerCmdWithError("run", "-d", "--ip6", "2001:db8:1234::9988", "--net", "n0", "busybox", "top")
+	c.Assert(err, checker.NotNil, check.Commentf("out: %s", out))
+	c.Assert(out, checker.Contains, runconfig.ErrUnsupportedNetworkNoSubnetAndIP.Error())
+
+	dockerCmd(c, "network", "rm", "n0")
+	assertNwNotAvailable(c, "n0")
+}
+
+func checkUnsupportedNetworkAndIP(c *check.C, nwMode string) {
+	out, _, err := dockerCmdWithError("run", "-d", "--net", nwMode, "--ip", "172.28.99.88", "--ip6", "2001:db8:1234::9988", "busybox", "top")
+	c.Assert(err, checker.NotNil, check.Commentf("out: %s", out))
+	c.Assert(out, checker.Contains, runconfig.ErrUnsupportedNetworkAndIP.Error())
+}
+
+func verifyIPAddresses(c *check.C, cName, nwname, ipv4, ipv6 string) {
+	out, _ := dockerCmd(c, "inspect", fmt.Sprintf("--format='{{ .NetworkSettings.Networks.%s.IPAddress }}'", nwname), cName)
+	c.Assert(strings.TrimSpace(out), check.Equals, ipv4)
+
+	out, _ = dockerCmd(c, "inspect", fmt.Sprintf("--format='{{ .NetworkSettings.Networks.%s.GlobalIPv6Address }}'", nwname), cName)
+	c.Assert(strings.TrimSpace(out), check.Equals, ipv6)
+}
