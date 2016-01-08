@@ -238,12 +238,14 @@ func migrateContainers(root string, ls graphIDMounter, is image.Store, imageMapp
 
 		containerJSON, err := ioutil.ReadFile(filepath.Join(containersDir, id, configFileNameLegacy))
 		if err != nil {
-			return err
+			logrus.Errorf("migrate container error: %v", err)
+			continue
 		}
 
 		var c map[string]*json.RawMessage
 		if err := json.Unmarshal(containerJSON, &c); err != nil {
-			return err
+			logrus.Errorf("migrate container error: %v", err)
+			continue
 		}
 
 		imageStrJSON, ok := c["Image"]
@@ -253,8 +255,10 @@ func migrateContainers(root string, ls graphIDMounter, is image.Store, imageMapp
 
 		var image string
 		if err := json.Unmarshal([]byte(*imageStrJSON), &image); err != nil {
-			return err
+			logrus.Errorf("migrate container error: %v", err)
+			continue
 		}
+
 		imageID, ok := imageMappings[image]
 		if !ok {
 			logrus.Errorf("image not migrated %v", imageID) // non-fatal error
