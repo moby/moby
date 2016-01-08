@@ -82,14 +82,14 @@ func (cli *DockerCli) CmdUpdate(args ...string) error {
 		CPUQuota:          *flCPUQuota,
 	}
 
-	hostConfig := container.HostConfig{
+	updateConfig := container.UpdateConfig{
 		Resources: resources,
 	}
 
 	names := cmd.Args()
 	var errs []string
 	for _, name := range names {
-		if err := cli.client.ContainerUpdate(name, hostConfig); err != nil {
+		if err := cli.client.ContainerUpdate(name, updateConfig); err != nil {
 			errs = append(errs, fmt.Sprintf("Failed to update container (%s): %s", name, err))
 		} else {
 			fmt.Fprintf(cli.out, "%s\n", name)

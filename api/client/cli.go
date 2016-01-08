@@ -43,7 +43,7 @@ type DockerCli struct {
 	// isTerminalOut indicates whether the client's STDOUT is a TTY
 	isTerminalOut bool
 	// client is the http client that performs all API operations
-	client apiClient
+	client client.APIClient
 }
 
 // Initialize calls the init function that will setup the configuration for the client
