@@ -3731,14 +3731,20 @@ func (s *DockerSuite) TestRunNonExistingCmd(c *check.C) {
 	}
 }
 
-// TestCmdCannotBeInvoked checks that 'docker run busybox /etc' exits with 126.
+// TestCmdCannotBeInvoked checks that 'docker run busybox /etc' exits with 126, or
+// 127 on Windows. The difference is that in Windows, the container must be started
+// as that's when the check is made (and yes, by it's design...)
 func (s *DockerSuite) TestCmdCannotBeInvoked(c *check.C) {
+	expected := 126
+	if daemonPlatform == "windows" {
+		expected = 127
+	}
 	name := "testCmdCannotBeInvoked"
 	runCmd := exec.Command(dockerBinary, "run", "--name", name, "busybox", "/etc")
 	_, exit, _ := runCommandWithOutput(runCmd)
 	stateExitCode := findContainerExitCode(c, name)
-	if !(exit == 126 && strings.Contains(stateExitCode, "126")) {
-		c.Fatalf("Run cmd that cannot be invoked should have errored with code 126, but we got exit: %d, State.ExitCode: %s", exit, stateExitCode)
+	if !(exit == expected && strings.Contains(stateExitCode, strconv.Itoa(expected))) {
+		c.Fatalf("Run cmd that cannot be invoked should have errored with code %d, but we got exit: %d, State.ExitCode: %s", expected, exit, stateExitCode)
 	}
 }
 

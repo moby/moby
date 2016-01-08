@@ -47,6 +47,7 @@ func (s *DockerSuite) TestInspectApiContainerResponse(c *check.C) {
 }
 
 func (s *DockerSuite) TestInspectApiContainerVolumeDriverLegacy(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "true")
 
 	cleanedContainerID := strings.TrimSpace(out)
@@ -111,6 +112,7 @@ func (s *DockerSuite) TestInspectApiImageResponse(c *check.C) {
 
 // #17131, #17139, #17173
 func (s *DockerSuite) TestInspectApiEmptyFieldsInConfigPre121(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "true")
 
 	cleanedContainerID := strings.TrimSpace(out)
@@ -133,6 +135,7 @@ func (s *DockerSuite) TestInspectApiEmptyFieldsInConfigPre121(c *check.C) {
 }
 
 func (s *DockerSuite) TestInspectApiBridgeNetworkSettings120(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
 	containerID := strings.TrimSpace(out)
 	waitRun(containerID)
@@ -148,6 +151,7 @@ func (s *DockerSuite) TestInspectApiBridgeNetworkSettings120(c *check.C) {
 }
 
 func (s *DockerSuite) TestInspectApiBridgeNetworkSettings121(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
 	containerID := strings.TrimSpace(out)
 	waitRun(containerID)

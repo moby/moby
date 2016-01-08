@@ -380,6 +380,7 @@ func (s *DockerSuite) TestInspectStopWhenNotFound(c *check.C) {
 }
 
 func (s *DockerSuite) TestInspectHistory(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "run", "--name=testcont", "-d", "busybox", "top")
 	dockerCmd(c, "commit", "-m", "test comment", "testcont", "testimg")
 	out, _, err := dockerCmdWithError("inspect", "--format='{{.Comment}}'", "testimg")
