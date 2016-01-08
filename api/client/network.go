@@ -107,15 +107,22 @@ func (cli *DockerCli) CmdNetworkRm(args ...string) error {
 
 // CmdNetworkConnect connects a container to a network
 //
-// Usage: docker network connect <NETWORK> <CONTAINER>
+// Usage: docker network connect [OPTIONS] <NETWORK> <CONTAINER>
 func (cli *DockerCli) CmdNetworkConnect(args ...string) error {
 	cmd := Cli.Subcmd("network connect", []string{"NETWORK CONTAINER"}, "Connects a container to a network", false)
-	cmd.Require(flag.Exact, 2)
+	flIPAddress := cmd.String([]string{"-ip"}, "", "IP Address")
+	flIPv6Address := cmd.String([]string{"-ip6"}, "", "IPv6 Address")
+	cmd.Require(flag.Min, 2)
 	if err := cmd.ParseFlags(args, true); err != nil {
 		return err
 	}
-
-	return cli.client.NetworkConnect(cmd.Arg(0), cmd.Arg(1), nil)
+	epConfig := &network.EndpointSettings{
+		IPAMConfig: &network.EndpointIPAMConfig{
+			IPv4Address: *flIPAddress,
+			IPv6Address: *flIPv6Address,
+		},
+	}
+	return cli.client.NetworkConnect(cmd.Arg(0), cmd.Arg(1), epConfig)
 }
 
 // CmdNetworkDisconnect disconnects a container from a network

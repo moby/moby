@@ -106,12 +106,13 @@ type bridgeNetwork struct {
 }
 
 type driver struct {
-	config      *configuration
-	network     *bridgeNetwork
-	natChain    *iptables.ChainInfo
-	filterChain *iptables.ChainInfo
-	networks    map[string]*bridgeNetwork
-	store       datastore.DataStore
+	config         *configuration
+	network        *bridgeNetwork
+	natChain       *iptables.ChainInfo
+	filterChain    *iptables.ChainInfo
+	isolationChain *iptables.ChainInfo
+	networks       map[string]*bridgeNetwork
+	store          datastore.DataStore
 	sync.Mutex
 }
 
@@ -244,15 +245,15 @@ func (n *bridgeNetwork) registerIptCleanFunc(clean iptableCleanFunc) {
 	n.iptCleanFuncs = append(n.iptCleanFuncs, clean)
 }
 
-func (n *bridgeNetwork) getDriverChains() (*iptables.ChainInfo, *iptables.ChainInfo, error) {
+func (n *bridgeNetwork) getDriverChains() (*iptables.ChainInfo, *iptables.ChainInfo, *iptables.ChainInfo, error) {
 	n.Lock()
 	defer n.Unlock()
 
 	if n.driver == nil {
-		return nil, nil, types.BadRequestErrorf("no driver found")
+		return nil, nil, nil, types.BadRequestErrorf("no driver found")
 	}
 
-	return n.driver.natChain, n.driver.filterChain, nil
+	return n.driver.natChain, n.driver.filterChain, n.driver.isolationChain, nil
 }
 
 func (n *bridgeNetwork) getNetworkBridgeName() string {
@@ -282,26 +283,16 @@ func (n *bridgeNetwork) getEndpoint(eid string) (*bridgeEndpoint, error) {
 // from each of the other networks
 func (n *bridgeNetwork) isolateNetwork(others []*bridgeNetwork, enable bool) error {
 	n.Lock()
-	thisV4 := n.bridge.bridgeIPv4
-	thisV6 := getV6Network(n.config, n.bridge)
+	thisIface := n.config.BridgeName
 	n.Unlock()
 
 	// Install the rules to isolate this networks against each of the other networks
 	for _, o := range others {
 		o.Lock()
-		otherV4 := o.bridge.bridgeIPv4
-		otherV6 := getV6Network(o.config, o.bridge)
+		otherIface := o.config.BridgeName
 		o.Unlock()
-
-		if !types.CompareIPNet(thisV4, otherV4) {
-			// It's ok to pass a.b.c.d/x, iptables will ignore the host subnet bits
-			if err := setINC(thisV4.String(), otherV4.String(), enable); err != nil {
-				return err
-			}
-		}
-
-		if thisV6 != nil && otherV6 != nil && !types.CompareIPNet(thisV6, otherV6) {
-			if err := setINC(thisV6.String(), otherV6.String(), enable); err != nil {
+		if thisIface != otherIface {
+			if err := setINC(thisIface, otherIface, enable); err != nil {
 				return err
 			}
 		}
@@ -347,9 +338,11 @@ func (c *networkConfiguration) conflictsWithNetworks(id string, others []*bridge
 
 func (d *driver) configure(option map[string]interface{}) error {
 	var (
-		config                *configuration
-		err                   error
-		natChain, filterChain *iptables.ChainInfo
+		config         *configuration
+		err            error
+		natChain       *iptables.ChainInfo
+		filterChain    *iptables.ChainInfo
+		isolationChain *iptables.ChainInfo
 	)
 
 	genericData, ok := option[netlabel.GenericData]
@@ -378,7 +371,7 @@ func (d *driver) configure(option map[string]interface{}) error {
 	}
 
 	if config.EnableIPTables {
-		natChain, filterChain, err = setupIPChains(config)
+		natChain, filterChain, isolationChain, err = setupIPChains(config)
 		if err != nil {
 			return err
 		}
@@ -387,6 +380,7 @@ func (d *driver) configure(option map[string]interface{}) error {
 	d.Lock()
 	d.natChain = natChain
 	d.filterChain = filterChain
+	d.isolationChain = isolationChain
 	d.config = config
 	d.Unlock()
 

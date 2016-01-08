@@ -150,12 +150,12 @@ func getIpamConfig(data []network.IPAMConfig) ([]*libnetwork.IpamConf, []*libnet
 // ConnectContainerToNetwork connects the given container to the given
 // network. If either cannot be found, an err is returned. If the
 // network cannot be set up, an err is returned.
-func (daemon *Daemon) ConnectContainerToNetwork(containerName, networkName string) error {
+func (daemon *Daemon) ConnectContainerToNetwork(containerName, networkName string, endpointConfig *network.EndpointSettings) error {
 	container, err := daemon.GetContainer(containerName)
 	if err != nil {
 		return err
 	}
-	return daemon.ConnectToNetwork(container, networkName)
+	return daemon.ConnectToNetwork(container, networkName, endpointConfig)
 }
 
 // DisconnectContainerFromNetwork disconnects the given container from

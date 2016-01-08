@@ -332,7 +332,7 @@ func (s *containerRouter) postContainerUpdate(ctx context.Context, w http.Respon
 		return err
 	}
 
-	_, hostConfig, err := runconfig.DecodeContainerConfig(r.Body)
+	_, hostConfig, _, err := runconfig.DecodeContainerConfig(r.Body)
 	if err != nil {
 		return err
 	}
@@ -358,7 +358,7 @@ func (s *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 
 	name := r.Form.Get("name")
 
-	config, hostConfig, err := runconfig.DecodeContainerConfig(r.Body)
+	config, hostConfig, networkingConfig, err := runconfig.DecodeContainerConfig(r.Body)
 	if err != nil {
 		return err
 	}
@@ -366,10 +366,11 @@ func (s *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 	adjustCPUShares := version.LessThan("1.19")
 
 	ccr, err := s.backend.ContainerCreate(types.ContainerCreateConfig{
-		Name:            name,
-		Config:          config,
-		HostConfig:      hostConfig,
-		AdjustCPUShares: adjustCPUShares,
+		Name:             name,
+		Config:           config,
+		HostConfig:       hostConfig,
+		NetworkingConfig: networkingConfig,
+		AdjustCPUShares:  adjustCPUShares,
 	})
 	if err != nil {
 		return err

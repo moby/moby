@@ -2,15 +2,19 @@
 
 package runconfig
 
-import "github.com/docker/engine-api/types/container"
+import (
+	"github.com/docker/engine-api/types/container"
+	networktypes "github.com/docker/engine-api/types/network"
+)
 
 // ContainerConfigWrapper is a Config wrapper that hold the container Config (portable)
 // and the corresponding HostConfig (non-portable).
 type ContainerConfigWrapper struct {
 	*container.Config
-	InnerHostConfig       *container.HostConfig `json:"HostConfig,omitempty"`
-	Cpuset                string                `json:",omitempty"` // Deprecated. Exported for backwards compatibility.
-	*container.HostConfig                       // Deprecated. Exported to read attributes from json that are not in the inner host config structure.
+	InnerHostConfig       *container.HostConfig          `json:"HostConfig,omitempty"`
+	Cpuset                string                         `json:",omitempty"` // Deprecated. Exported for backwards compatibility.
+	NetworkingConfig      *networktypes.NetworkingConfig `json:"NetworkingConfig,omitempty"`
+	*container.HostConfig                                // Deprecated. Exported to read attributes from json that are not in the inner host config structure.
 }
 
 // getHostConfig gets the HostConfig of the Config.

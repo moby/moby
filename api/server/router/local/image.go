@@ -39,7 +39,7 @@ func (s *router) postCommit(ctx context.Context, w http.ResponseWriter, r *http.
 		pause = true
 	}
 
-	c, _, err := runconfig.DecodeContainerConfig(r.Body)
+	c, _, _, err := runconfig.DecodeContainerConfig(r.Body)
 	if err != nil && err != io.EOF { //Do not fail if body is empty.
 		return err
 	}
