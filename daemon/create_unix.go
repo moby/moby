@@ -9,15 +9,13 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/container"
 	derr "github.com/docker/docker/errors"
-	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/docker/docker/volume"
 	containertypes "github.com/docker/engine-api/types/container"
 	"github.com/opencontainers/runc/libcontainer/label"
 )
 
 // createContainerPlatformSpecificSettings performs platform specific container create functionality
-func (daemon *Daemon) createContainerPlatformSpecificSettings(container *container.Container, config *containertypes.Config, hostConfig *containertypes.HostConfig, img *image.Image) error {
+func (daemon *Daemon) createContainerPlatformSpecificSettings(container *container.Container, config *containertypes.Config, hostConfig *containertypes.HostConfig) error {
 	if err := daemon.Mount(container); err != nil {
 		return err
 	}
@@ -42,17 +40,7 @@ func (daemon *Daemon) createContainerPlatformSpecificSettings(container *contain
 			return derr.ErrorCodeMountOverFile.WithArgs(path)
 		}
 
-		volumeDriver := hostConfig.VolumeDriver
-		if destination != "" && img != nil {
-			if _, ok := img.ContainerConfig.Volumes[destination]; ok {
-				// check for whether bind is not specified and then set to local
-				if _, ok := container.MountPoints[destination]; !ok {
-					volumeDriver = volume.DefaultDriverName
-				}
-			}
-		}
-
-		v, err := daemon.volumes.CreateWithRef(name, volumeDriver, container.ID, nil)
+		v, err := daemon.volumes.CreateWithRef(name, hostConfig.VolumeDriver, container.ID, nil)
 		if err != nil {
 			return err
 		}
