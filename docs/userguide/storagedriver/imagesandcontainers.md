@@ -17,17 +17,11 @@ stores images. Then, you need an understanding of how these images are used in  
 
 ## Images and containers rely on layers
 
-Docker images are a series of read-only layers that are stacked
-on top of each other to form a single unified view. The first image in the stack
-is called a *base image* and all the other layers are stacked on top of this
-layer. The diagram below shows the Ubuntu 15:04 image comprising 4 stacked image layers.
+Each Docker image references a list of read-only layers that represent filesystem differences. Layers are stacked on top of each other to form a base for a container's root filesystem. The diagram below shows the Ubuntu 15.04 image comprising 4 stacked image layers.
 
 ![](images/image-layers.jpg)
 
-When you make a change inside a container by, for example, adding a new file to the Ubuntu 15.04 image, you add a new layer on top of the underlying image stack. This change creates a new image layer containing the newly added file. Each image layer has its own universal unique identifier (UUID) and each successive image layer builds on top of the image layer below it.
-
-Containers (in the storage context) are a combination of a Docker image with a
-thin writable layer added to the top known as the *container layer*.  The diagram below shows a container running the Ubuntu 15.04 image.
+When you make a change inside a container by, for example, adding a new file to a container created from Ubuntu 15.04 image, you add a new layer on top of the underlying stack. This change creates a new writable layer containing the newly added file on top of the image layers. Each image layer is stored by a cryptographic hash over its contents and multiple images can share the same layers. The diagram below shows a container running the Ubuntu 15.04 image.
 
 ![](images/container-layers.jpg)
 
@@ -46,7 +40,7 @@ Sharing is a good way to optimize resources. People do this instinctively in
 daily life. For example, twins Jane and Joseph taking an Algebra class at
 different times from different teachers can share the same exercise book by
 passing it between each other. Now, suppose Jane gets an assignment to complete
-the homework on page 11 in the book. At that point, Jane copy page 11, complete the homework, and hand in her copy. The original exercise book is unchanged and only Jane has a copy of the changed page 11.
+the homework on page 11 in the book. At that point, Jane copies page 11, completes the homework, and hands in her copy. The original exercise book is unchanged and only Jane has a copy of the changed page 11.
 
 Copy-on-write is a similar strategy of sharing and copying. In this strategy,
 system processes that need the same data share the same instance of that data
@@ -138,24 +132,15 @@ One way to do this is using a Dockerfile and the `docker build` command.
         IMAGE               CREATED              CREATED BY                                      SIZE                COMMENT
         03b964f68d06        About a minute ago   /bin/sh -c echo "Hello world" > /tmp/newfile    12 B                
         013f3d01d247        6 weeks ago          /bin/sh -c #(nop) CMD ["/bin/bash"]             0 B                 
-        2bd276ed39d5        6 weeks ago          /bin/sh -c sed -i 's/^#\s*\(deb.*universe\)$/   1.879 kB            
-        13c0c663a321        6 weeks ago          /bin/sh -c echo '#!/bin/sh' > /usr/sbin/polic   701 B               
-        6e6a100fa147        6 weeks ago          /bin/sh -c #(nop) ADD file:49710b44e2ae0edef4   131.4 MB            
+        <missing>           6 weeks ago          /bin/sh -c sed -i 's/^#\s*\(deb.*universe\)$/   1.879 kB            
+        <missing>           6 weeks ago          /bin/sh -c echo '#!/bin/sh' > /usr/sbin/polic   701 B               
+        <missing>           6 weeks ago          /bin/sh -c #(nop) ADD file:49710b44e2ae0edef4   131.4 MB            
 
     The `docker history` output shows the new `03b964f68d06` image layer at the
     top. You know that the `03b964f68d06` layer was added because it was created
     by the `echo "Hello world" > /tmp/newfile` command in your `Dockerfile`.
     The 4 image layers below it are the exact same image layers the make up the
     ubuntu:15.04 image as their UUIDs match.
-
-5. List the contents of the local storage area to further confirm.
-
-        $ sudo ls /var/lib/docker/aufs/layers
-        013f3d01d24738964bb7101fa83a926181d600ebecca7206dced59669e6e6778  2bd276ed39d5fcfd3d00ce0a190beeea508332f5aec3c6a125cc619a3fdbade6
-        03b964f68d06a373933bd6d61d37610a34a355c168b08dfc604f57b20647e073  6e6a100fa147e6db53b684c8516e3e2588b160fd4898b6265545d5d4edb6796d
-        13c0c663a321cd83a97f4ce1ecbaf17c2ba166527c3b06daaefe30695c5fcb8c
-
-      Where before you had four layers stored, you now have 5.
 
 Notice the new `changed-ubuntu` image does not have its own copies of every layer. As can be seen in the diagram below, the new image is sharing it's four underlying layers with the `ubuntu:15.04` image.
 
