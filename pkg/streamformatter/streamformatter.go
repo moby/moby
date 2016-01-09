@@ -70,16 +70,26 @@ func (sf *StreamFormatter) FormatError(err error) []byte {
 }
 
 // FormatProgress formats the progress information for a specified action.
-func (sf *StreamFormatter) FormatProgress(id, action string, progress *jsonmessage.JSONProgress) []byte {
+func (sf *StreamFormatter) FormatProgress(id, action string, progress *jsonmessage.JSONProgress, aux interface{}) []byte {
 	if progress == nil {
 		progress = &jsonmessage.JSONProgress{}
 	}
 	if sf.json {
+		var auxJSON *json.RawMessage
+		if aux != nil {
+			auxJSONBytes, err := json.Marshal(aux)
+			if err != nil {
+				return nil
+			}
+			auxJSON = new(json.RawMessage)
+			*auxJSON = auxJSONBytes
+		}
 		b, err := json.Marshal(&jsonmessage.JSONMessage{
 			Status:          action,
 			ProgressMessage: progress.String(),
 			Progress:        progress,
 			ID:              id,
+			Aux:             auxJSON,
 		})
 		if err != nil {
 			return nil
@@ -116,7 +126,7 @@ func (out *progressOutput) WriteProgress(prog progress.Progress) error {
 		formatted = out.sf.FormatStatus(prog.ID, prog.Message)
 	} else {
 		jsonProgress := jsonmessage.JSONProgress{Current: prog.Current, Total: prog.Total}
-		formatted = out.sf.FormatProgress(prog.ID, prog.Action, &jsonProgress)
+		formatted = out.sf.FormatProgress(prog.ID, prog.Action, &jsonProgress, prog.Aux)
 	}
 	_, err := out.out.Write(formatted)
 	if err != nil {

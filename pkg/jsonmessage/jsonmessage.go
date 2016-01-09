@@ -102,6 +102,8 @@ type JSONMessage struct {
 	TimeNano        int64         `json:"timeNano,omitempty"`
 	Error           *JSONError    `json:"errorDetail,omitempty"`
 	ErrorMessage    string        `json:"error,omitempty"` //deprecated
+	// Aux contains out-of-band data, such as digests for push signing.
+	Aux *json.RawMessage `json:"aux,omitempty"`
 }
 
 // Display displays the JSONMessage to `out`. `isTerminal` describes if `out`
@@ -148,7 +150,7 @@ func (jm *JSONMessage) Display(out io.Writer, isTerminal bool) error {
 // DisplayJSONMessagesStream displays a json message stream from `in` to `out`, `isTerminal`
 // describes if `out` is a terminal. If this is the case, it will print `\n` at the end of
 // each line and move the cursor while displaying.
-func DisplayJSONMessagesStream(in io.Reader, out io.Writer, terminalFd uintptr, isTerminal bool) error {
+func DisplayJSONMessagesStream(in io.Reader, out io.Writer, terminalFd uintptr, isTerminal bool, auxCallback func(*json.RawMessage)) error {
 	var (
 		dec = json.NewDecoder(in)
 		ids = make(map[string]int)
@@ -161,6 +163,13 @@ func DisplayJSONMessagesStream(in io.Reader, out io.Writer, terminalFd uintptr, 
 				break
 			}
 			return err
+		}
+
+		if jm.Aux != nil {
+			if auxCallback != nil {
+				auxCallback(jm.Aux)
+			}
+			continue
 		}
 
 		if jm.Progress != nil {
