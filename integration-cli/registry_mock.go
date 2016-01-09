@@ -36,7 +36,7 @@ func newTestRegistry(c *check.C) (*testRegistry, error) {
 		for re, function := range testReg.handlers {
 			matched, err = regexp.MatchString(re, url)
 			if err != nil {
-				c.Fatalf("Error with handler regexp")
+				c.Fatal("Error with handler regexp")
 				return
 			}
 			if matched {
@@ -46,7 +46,7 @@ func newTestRegistry(c *check.C) (*testRegistry, error) {
 		}
 
 		if !matched {
-			c.Fatal("Unable to match", url, "with regexp")
+			c.Fatalf("Unable to match %s with regexp", url)
 		}
 	}))
 
