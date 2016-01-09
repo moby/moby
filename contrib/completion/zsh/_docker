@@ -450,6 +450,7 @@ __docker_subcommand() {
     opts_help=("(: -)--help[Print usage]")
     opts_build_create_run=(
         "($help)--cgroup-parent=[Parent cgroup for the container]:cgroup: "
+        "($help)--isolation=[]:isolation:(default hyperv process)"
         "($help)*--shm-size=[Size of '/dev/shm'. The format is '<number><unit>'. Default is '64m'.]:shm size: "
         "($help)*--ulimit=[ulimit options]:ulimit: "
     )
