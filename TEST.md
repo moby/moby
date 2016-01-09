@@ -1,1 +1,1 @@
-mahesh.aithal@hpe.com Bengaluru, India
+mahesh.aithal@hpe.com
