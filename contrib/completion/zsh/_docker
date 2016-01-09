@@ -443,26 +443,27 @@ __docker_commands() {
 }
 
 __docker_subcommand() {
-    local -a _command_args opts_help opts_cpumemlimit opts_create
+    local -a _command_args opts_help opts_build_create_run opts_build_create_run_update opts_create_run opts_create_run_update
     local expl help="--help"
     integer ret=1
 
     opts_help=("(: -)--help[Print usage]")
-    opts_cpumemlimit=(
-        "($help)--cpu-shares=[CPU shares (relative weight)]:CPU shares:(0 10 100 200 500 800 1000)"
+    opts_build_create_run=(
         "($help)--cgroup-parent=[Parent cgroup for the container]:cgroup: "
+        "($help)*--ulimit=[ulimit options]:ulimit: "
+    )
+    opts_build_create_run_update=(
+        "($help)--cpu-shares=[CPU shares (relative weight)]:CPU shares:(0 10 100 200 500 800 1000)"
         "($help)--cpu-period=[Limit the CPU CFS (Completely Fair Scheduler) period]:CPU period: "
         "($help)--cpu-quota=[Limit the CPU CFS (Completely Fair Scheduler) quota]:CPU quota: "
         "($help)--cpuset-cpus=[CPUs in which to allow execution]:CPUs: "
         "($help)--cpuset-mems=[MEMs in which to allow execution]:MEMs: "
         "($help -m --memory)"{-m=,--memory=}"[Memory limit]:Memory limit: "
         "($help)--memory-swap=[Total memory limit with swap]:Memory limit: "
-        "($help)*--ulimit=[ulimit options]:ulimit: "
     )
-    opts_create=(
+    opts_create_run=(
         "($help -a --attach)"{-a=,--attach=}"[Attach to stdin, stdout or stderr]:device:(STDIN STDOUT STDERR)"
         "($help)*--add-host=[Add a custom host-to-IP mapping]:host\:ip mapping: "
-        "($help)--blkio-weight=[Block IO (relative weight), between 10 and 1000]:Block IO weight:(10 100 500 1000)"
         "($help)*--blkio-weight-device=[Block IO (relative device weight)]:device:Block IO weight: "
         "($help)*--cap-add=[Add Linux capabilities]:capability: "
         "($help)*--cap-drop=[Drop Linux capabilities]:capability: "
@@ -483,7 +484,6 @@ __docker_subcommand() {
         "($help -h --hostname)"{-h=,--hostname=}"[Container host name]:hostname:_hosts"
         "($help -i --interactive)"{-i,--interactive}"[Keep stdin open even if not attached]"
         "($help)--ipc=[IPC namespace to use]:IPC namespace: "
-        "($help)--kernel-memory[Kernel memory limit in bytes.]:Memory limit: "
         "($help)*--link=[Add link to another container]:link:->link"
         "($help)*"{-l=,--label=}"[Set meta data on a container]:label: "
         "($help)--log-driver=[Default driver for container logs]:Logging driver:(json-file syslog journald gelf fluentd awslogs splunk none)"
@@ -502,11 +502,15 @@ __docker_subcommand() {
         "($help)*--security-opt=[Security options]:security option: "
         "($help -t --tty)"{-t,--tty}"[Allocate a pseudo-tty]"
         "($help -u --user)"{-u=,--user=}"[Username or UID]:user:_users"
-        "($help)--tmpfs[mount tmpfs] "
+        "($help)--tmpfs[mount tmpfs]"
         "($help)*-v[Bind mount a volume]:volume: "
         "($help)--volume-driver=[Optional volume driver for the container]:volume driver:(local)"
         "($help)*--volumes-from=[Mount volumes from the specified container]:volume: "
         "($help -w --workdir)"{-w=,--workdir=}"[Working directory inside the container]:directory:_directories"
+    )
+    opts_create_run_update=(
+        "($help)--blkio-weight=[Block IO (relative weight), between 10 and 1000]:Block IO weight:(10 100 500 1000)"
+        "($help)--kernel-memory=[Kernel memory limit in bytes.]:Memory limit: "
     )
 
     case "$words[1]" in
@@ -520,7 +524,8 @@ __docker_subcommand() {
         (build)
             _arguments $(__docker_arguments) \
                 $opts_help \
-                $opts_cpumemlimit \
+                $opts_build_create_run \
+                $opts_build_create_run_update \
                 "($help)*--build-arg[Set build-time variables]:<varname>=<value>: " \
                 "($help -f --file)"{-f=,--file=}"[Name of the Dockerfile]:Dockerfile:_files" \
                 "($help)--force-rm[Always remove intermediate containers]" \
@@ -559,8 +564,10 @@ __docker_subcommand() {
         (create)
             _arguments $(__docker_arguments) \
                 $opts_help \
-                $opts_cpumemlimit \
-                $opts_create \
+                $opts_build_create_run \
+                $opts_build_create_run_update \
+                $opts_create_run \
+                $opts_create_run_update \
                 "($help -): :__docker_images" \
                 "($help -):command: _command_names -e" \
                 "($help -)*::arguments: _normal" && ret=0
@@ -851,8 +858,10 @@ __docker_subcommand() {
         (run)
             _arguments $(__docker_arguments) \
                 $opts_help \
-                $opts_cpumemlimit \
-                $opts_create \
+                $opts_build_create_run \
+                $opts_build_create_run_update \
+                $opts_create_run \
+                $opts_create_run_update \
                 "($help -d --detach)"{-d,--detach}"[Detached mode: leave the container running in the background]" \
                 "($help)--rm[Remove intermediate containers when it exits]" \
                 "($help)--sig-proxy[Proxy all received signals to the process (non-TTY mode only)]" \
@@ -918,6 +927,23 @@ __docker_subcommand() {
                     ;;
             esac
 
+            ;;
+        (update)
+            _arguments $(__docker_arguments) \
+                $opts_help \
+                $opts_create_run_update \
+                $opts_build_create_run_update \
+                "($help -)*: :->values" && ret=0
+
+            case $state in
+                (values)
+                    if [[ ${words[(r)--kernel-memory*]} = (--kernel-memory*) ]]; then
+                        __docker_stoppedcontainers && ret=0
+                    else
+                        __docker_containers && ret=0
+                    fi
+                    ;;
+            esac
             ;;
         (volume)
             local curcontext="$curcontext" state
