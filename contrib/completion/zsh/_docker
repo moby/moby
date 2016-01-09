@@ -511,6 +511,7 @@ __docker_subcommand() {
     opts_create_run_update=(
         "($help)--blkio-weight=[Block IO (relative weight), between 10 and 1000]:Block IO weight:(10 100 500 1000)"
         "($help)--kernel-memory=[Kernel memory limit in bytes.]:Memory limit: "
+        "($help)--memory-reservation=[Memory soft limit]:Memory limit: "
     )
 
     case "$words[1]" in
