@@ -539,6 +539,7 @@ _docker_build() {
 		--isolation
 		--memory -m
 		--memory-swap
+		--shm-size
 		--tag -t
 		--ulimit
 	"
@@ -1484,6 +1485,7 @@ _docker_run() {
 		--publish -p
 		--restart
 		--security-opt
+		--shm-size
 		--stop-signal
 		--tmpfs
 		--ulimit
