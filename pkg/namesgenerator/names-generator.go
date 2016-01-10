@@ -426,6 +426,9 @@ var (
 		// Carol Shaw - Originally an Atari employee, Carol Shaw is said to be the first female video game designer. https://en.wikipedia.org/wiki/Carol_Shaw_(video_game_designer)
 		"shaw",
 
+		// Dame Stephanie "Steve" Shirley - Founded a software company in 1962 employing women working from home. https://en.wikipedia.org/wiki/Steve_Shirley
+		"shirley",
+
 		// William Shockley co-invented the transistor - https://en.wikipedia.org/wiki/William_Shockley
 		"shockley",
 
