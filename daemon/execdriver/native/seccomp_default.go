@@ -1570,5 +1570,21 @@ var defaultSeccompProfile = &configs.Seccomp{
 			Action: configs.Allow,
 			Args:   []*configs.Arg{},
 		},
+		// arm specific syscalls
+		{
+			Name:   "breakpoint",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "cacheflush",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "set_tls",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
 	},
 }
