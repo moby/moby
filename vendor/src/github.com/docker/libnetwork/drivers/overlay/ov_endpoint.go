@@ -11,9 +11,10 @@ import (
 type endpointTable map[string]*endpoint
 
 type endpoint struct {
-	id   string
-	mac  net.HardwareAddr
-	addr *net.IPNet
+	id     string
+	ifName string
+	mac    net.HardwareAddr
+	addr   *net.IPNet
 }
 
 func (n *network) endpoint(eid string) *endpoint {

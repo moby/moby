@@ -114,7 +114,7 @@ func (daemon *Daemon) CreateNetwork(name, driver string, ipam network.IPAM, opti
 		return nil, err
 	}
 
-	nwOptions = append(nwOptions, libnetwork.NetworkOptionIpam(ipam.Driver, "", v4Conf, v6Conf))
+	nwOptions = append(nwOptions, libnetwork.NetworkOptionIpam(ipam.Driver, "", v4Conf, v6Conf, nil))
 	nwOptions = append(nwOptions, libnetwork.NetworkOptionDriverOpts(options))
 	n, err := c.NewNetwork(driver, name, nwOptions...)
 	if err != nil {

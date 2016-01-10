@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"regexp"
 	"sync"
+	"syscall"
 
 	"github.com/docker/libnetwork/types"
 	"github.com/vishvananda/netlink"
@@ -337,7 +338,7 @@ func setInterfaceIPv6(iface netlink.Link, i *nwIface) error {
 	if i.AddressIPv6() == nil {
 		return nil
 	}
-	ipAddr := &netlink.Addr{IPNet: i.AddressIPv6(), Label: ""}
+	ipAddr := &netlink.Addr{IPNet: i.AddressIPv6(), Label: "", Flags: syscall.IFA_F_NODAD}
 	return netlink.AddrAdd(iface, ipAddr)
 }
 

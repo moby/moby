@@ -252,24 +252,8 @@ lo        Link encap:Local Loopback
           TX packets:0 errors:0 dropped:0 overruns:0 carrier:0
           collisions:0 txqueuelen:0
           RX bytes:0 (0.0 B)  TX bytes:0 (0.0 B)
-```
 
-Display the container's `etc/hosts` file:
-
-```bash
-/ # cat /etc/hosts
-172.17.0.3	498eaaaf328e
-127.0.0.1	localhost
-::1	localhost ip6-localhost ip6-loopback
-fe00::0	ip6-localnet
-ff00::0	ip6-mcastprefix
-ff02::1	ip6-allnodes
-ff02::2	ip6-allrouters
-172.21.3.3	container3
-172.21.3.3	container3.isolated_nw
-```
-
-On the `isolated_nw` which was user defined, the Docker network feature updated the `/etc/hosts` with the proper name resolution.  Inside of `container2` it is possible to ping `container3` by name.
+On the `isolated_nw` which was user defined, the Docker embedded DNS server enables name resolution for other containers in the network.  Inside of `container2` it is possible to ping `container3` by name.
 
 ```bash
 / # ping -w 4 container3

@@ -269,6 +269,10 @@ func (container *Container) BuildCreateEndpointOptions(n libnetwork.Network) ([]
 		}
 	}
 
+	if !container.HostConfig.NetworkMode.IsUserDefined() {
+		createOptions = append(createOptions, libnetwork.CreateOptionDisableResolution())
+	}
+
 	// Other configs are applicable only for the endpoint in the network
 	// to which container was connected to on docker run.
 	if n.Name() != container.HostConfig.NetworkMode.NetworkName() &&
