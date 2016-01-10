@@ -1564,5 +1564,11 @@ var defaultSeccompProfile = &configs.Seccomp{
 			Action: configs.Allow,
 			Args:   []*configs.Arg{},
 		},
+		// i386 specific syscalls
+		{
+			Name:   "modify_ldt",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
 	},
 }
