@@ -37,7 +37,6 @@ func newTestRegistry(c *check.C) (*testRegistry, error) {
 			matched, err = regexp.MatchString(re, url)
 			if err != nil {
 				c.Fatal("Error with handler regexp")
-				return
 			}
 			if matched {
 				function(w, r)

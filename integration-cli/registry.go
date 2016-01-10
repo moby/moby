@@ -61,7 +61,7 @@ func (t *testRegistryV2) Ping() error {
 	if err != nil {
 		return err
 	}
-	if resp.StatusCode != 200 {
+	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("registry ping replied with an unexpected status code %d", resp.StatusCode)
 	}
 	return nil

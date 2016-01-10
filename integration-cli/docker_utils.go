@@ -1567,7 +1567,7 @@ func setupRegistry(c *check.C) *testRegistryV2 {
 		time.Sleep(100 * time.Millisecond)
 	}
 
-	c.Assert(err, check.IsNil, check.Commentf("Timeout waiting for test registry to become available"))
+	c.Assert(err, check.IsNil, check.Commentf("Timeout waiting for test registry to become available: %v", err))
 	return reg
 }
 
