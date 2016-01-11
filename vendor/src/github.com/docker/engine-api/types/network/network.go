@@ -8,8 +8,9 @@ type Address struct {
 
 // IPAM represents IP Address Management
 type IPAM struct {
-	Driver string
-	Config []IPAMConfig
+	Driver  string
+	Options map[string]string //Per network IPAM driver options
+	Config  []IPAMConfig
 }
 
 // IPAMConfig represents IPAM configurations
@@ -30,7 +31,10 @@ type EndpointIPAMConfig struct {
 type EndpointSettings struct {
 	// Configurations
 	IPAMConfig *EndpointIPAMConfig
+	Links      []string
+	Aliases    []string
 	// Operational data
+	NetworkID           string
 	EndpointID          string
 	Gateway             string
 	IPAddress           string
