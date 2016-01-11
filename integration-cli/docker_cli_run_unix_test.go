@@ -887,3 +887,18 @@ func (s *DockerSuite) TestRunSeccompDefaultProfile(c *check.C) {
 		c.Fatalf("expected hello, got: %s, %v", out, err)
 	}
 }
+
+func (s *DockerSuite) TestRunApparmorProcDirectory(c *check.C) {
+	testRequires(c, SameHostDaemon, Apparmor)
+
+	// running w seccomp unconfined tests the apparmor profile
+	runCmd := exec.Command(dockerBinary, "run", "--security-opt", "seccomp:unconfined", "debian:jessie", "chmod", "777", "/proc/1/cgroup")
+	if out, _, err := runCommandWithOutput(runCmd); err == nil || !(strings.Contains(out, "Permission denied") || strings.Contains(out, "Operation not permitted")) {
+		c.Fatalf("expected chmod 777 /proc/1/cgroup to fail, got %s: %v", out, err)
+	}
+
+	runCmd = exec.Command(dockerBinary, "run", "--security-opt", "seccomp:unconfined", "debian:jessie", "chmod", "777", "/proc/1/attr/current")
+	if out, _, err := runCommandWithOutput(runCmd); err == nil || !(strings.Contains(out, "Permission denied") || strings.Contains(out, "Operation not permitted")) {
+		c.Fatalf("expected chmod 777 /proc/1/attr/current to fail, got %s: %v", out, err)
+	}
+}
