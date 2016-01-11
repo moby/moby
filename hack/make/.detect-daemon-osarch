@@ -1,0 +1,18 @@
+#!/bin/bash
+set -e
+
+# Retrieve OS/ARCH of docker daemon, eg. linux/amd64
+export DOCKER_ENGINE_OSARCH="$(docker version |tac|tac| awk '
+	$1 == "Client:" { server = 0; next }
+	$1 == "Server:" { server = 1; next }
+	server && $1 == "OS/Arch:" { print $2; exit }
+')"
+export DOCKER_ENGINE_GOOS="${DOCKER_ENGINE_OSARCH%/*}"
+export DOCKER_ENGINE_GOARCH="${DOCKER_ENGINE_OSARCH##*/}"
+
+# and the client, just in case
+export DOCKER_CLIENT_OSARCH="$(docker version |tac|tac| awk '
+	$1 == "Client:" { client = 1; next }
+	$1 == "Server:" { client = 0; next }
+	client && $1 == "OS/Arch:" { print $2; exit }
+')"
