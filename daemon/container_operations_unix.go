@@ -758,22 +758,13 @@ func (daemon *Daemon) connectToNetwork(container *container.Container, idOrName 
 		container.NetworkSettings.Networks[n.Name()] = endpointConfig
 	}
 
-	ep, err := container.GetEndpointInNetwork(n)
-	if err == nil {
-		return fmt.Errorf("Conflict. A container with name %q is already connected to network %s.", strings.TrimPrefix(container.Name, "/"), idOrName)
-	}
-
-	if _, ok := err.(libnetwork.ErrNoSuchEndpoint); !ok {
-		return err
-	}
-
 	createOptions, err := container.BuildCreateEndpointOptions(n)
 	if err != nil {
 		return err
 	}
 
 	endpointName := strings.TrimPrefix(container.Name, "/")
-	ep, err = n.CreateEndpoint(endpointName, createOptions...)
+	ep, err := n.CreateEndpoint(endpointName, createOptions...)
 	if err != nil {
 		return err
 	}
