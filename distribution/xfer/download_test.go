@@ -250,15 +250,11 @@ func TestSuccessfulDownload(t *testing.T) {
 
 	progressChan := make(chan progress.Progress)
 	progressDone := make(chan struct{})
-	receivedProgress := make(map[string]int64)
+	receivedProgress := make(map[string]progress.Progress)
 
 	go func() {
 		for p := range progressChan {
-			if p.Action == "Downloading" {
-				receivedProgress[p.ID] = p.Current
-			} else if p.Action == "Already exists" {
-				receivedProgress[p.ID] = -1
-			}
+			receivedProgress[p.ID] = p
 		}
 		close(progressDone)
 	}()
@@ -293,11 +289,11 @@ func TestSuccessfulDownload(t *testing.T) {
 		descriptor := d.(*mockDownloadDescriptor)
 
 		if descriptor.diffID != "" {
-			if receivedProgress[d.ID()] != -1 {
-				t.Fatalf("did not get 'already exists' message for %v", d.ID())
+			if receivedProgress[d.ID()].Action != "Already exists" {
+				t.Fatalf("did not get 'Already exists' message for %v", d.ID())
 			}
-		} else if receivedProgress[d.ID()] != 10 {
-			t.Fatalf("missing or wrong progress output for %v (got: %d)", d.ID(), receivedProgress[d.ID()])
+		} else if receivedProgress[d.ID()].Action != "Pull complete" {
+			t.Fatalf("did not get 'Pull complete' message for %v", d.ID())
 		}
 
 		if rootFS.DiffIDs[i] != descriptor.expectedDiffID {
