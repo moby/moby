@@ -48,11 +48,39 @@ type DockerRegistrySuite struct {
 
 func (s *DockerRegistrySuite) SetUpTest(c *check.C) {
 	testRequires(c, DaemonIsLinux)
-	s.reg = setupRegistry(c)
+	s.reg = setupRegistry(c, false)
 	s.d = NewDaemon(c)
 }
 
 func (s *DockerRegistrySuite) TearDownTest(c *check.C) {
+	if s.reg != nil {
+		s.reg.Close()
+	}
+	if s.ds != nil {
+		s.ds.TearDownTest(c)
+	}
+	s.d.Stop()
+}
+
+func init() {
+	check.Suite(&DockerSchema1RegistrySuite{
+		ds: &DockerSuite{},
+	})
+}
+
+type DockerSchema1RegistrySuite struct {
+	ds  *DockerSuite
+	reg *testRegistryV2
+	d   *Daemon
+}
+
+func (s *DockerSchema1RegistrySuite) SetUpTest(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	s.reg = setupRegistry(c, true)
+	s.d = NewDaemon(c)
+}
+
+func (s *DockerSchema1RegistrySuite) TearDownTest(c *check.C) {
 	if s.reg != nil {
 		s.reg.Close()
 	}
@@ -97,7 +125,7 @@ type DockerTrustSuite struct {
 }
 
 func (s *DockerTrustSuite) SetUpTest(c *check.C) {
-	s.reg = setupRegistry(c)
+	s.reg = setupRegistry(c, false)
 	s.not = setupNotary(c)
 }
 

@@ -36,12 +36,12 @@ func (u *mockUploadDescriptor) DiffID() layer.DiffID {
 }
 
 // Upload is called to perform the upload.
-func (u *mockUploadDescriptor) Upload(ctx context.Context, progressOutput progress.Output) (digest.Digest, error) {
+func (u *mockUploadDescriptor) Upload(ctx context.Context, progressOutput progress.Output) error {
 	if u.currentUploads != nil {
 		defer atomic.AddInt32(u.currentUploads, -1)
 
 		if atomic.AddInt32(u.currentUploads, 1) > maxUploadConcurrency {
-			return "", errors.New("concurrency limit exceeded")
+			return errors.New("concurrency limit exceeded")
 		}
 	}
 
@@ -49,7 +49,7 @@ func (u *mockUploadDescriptor) Upload(ctx context.Context, progressOutput progre
 	for i := int64(0); i <= 10; i++ {
 		select {
 		case <-ctx.Done():
-			return "", ctx.Err()
+			return ctx.Err()
 		case <-time.After(10 * time.Millisecond):
 			progressOutput.WriteProgress(progress.Progress{ID: u.ID(), Current: i, Total: 10})
 		}
@@ -57,12 +57,10 @@ func (u *mockUploadDescriptor) Upload(ctx context.Context, progressOutput progre
 
 	if u.simulateRetries != 0 {
 		u.simulateRetries--
-		return "", errors.New("simulating retry")
+		return errors.New("simulating retry")
 	}
 
-	// For the mock implementation, use SHA256(DiffID) as the returned
-	// digest.
-	return digest.FromBytes([]byte(u.diffID.String()))
+	return nil
 }
 
 func uploadDescriptors(currentUploads *int32) []UploadDescriptor {
@@ -101,26 +99,13 @@ func TestSuccessfulUpload(t *testing.T) {
 	var currentUploads int32
 	descriptors := uploadDescriptors(&currentUploads)
 
-	digests, err := lum.Upload(context.Background(), descriptors, progress.ChanOutput(progressChan))
+	err := lum.Upload(context.Background(), descriptors, progress.ChanOutput(progressChan))
 	if err != nil {
 		t.Fatalf("upload error: %v", err)
 	}
 
 	close(progressChan)
 	<-progressDone
-
-	if len(digests) != len(expectedDigests) {
-		t.Fatal("wrong number of keys in digests map")
-	}
-
-	for key, val := range expectedDigests {
-		if digests[key] != val {
-			t.Fatalf("mismatch in digest array for key %v (expected %v, got %v)", key, val, digests[key])
-		}
-		if receivedProgress[key.String()] != 10 {
-			t.Fatalf("missing or wrong progress output for %v", key)
-		}
-	}
 }
 
 func TestCancelledUpload(t *testing.T) {
@@ -143,7 +128,7 @@ func TestCancelledUpload(t *testing.T) {
 	}()
 
 	descriptors := uploadDescriptors(nil)
-	_, err := lum.Upload(ctx, descriptors, progress.ChanOutput(progressChan))
+	err := lum.Upload(ctx, descriptors, progress.ChanOutput(progressChan))
 	if err != context.Canceled {
 		t.Fatal("expected upload to be cancelled")
 	}

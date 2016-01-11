@@ -8,16 +8,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution"
-	"github.com/docker/distribution/digest"
-	"github.com/docker/distribution/manifest/schema1"
 	"github.com/docker/distribution/registry/api/errcode"
 	"github.com/docker/distribution/registry/client"
 	"github.com/docker/distribution/registry/client/auth"
 	"github.com/docker/distribution/registry/client/transport"
 	"github.com/docker/docker/distribution/xfer"
-	"github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
 	"github.com/docker/engine-api/types"
 	"golang.org/x/net/context"
@@ -123,20 +119,6 @@ func NewV2Repository(ctx context.Context, repoInfo *registry.RepositoryInfo, end
 
 	repo, err = client.NewRepository(ctx, repoName, endpoint.URL, tr)
 	return repo, foundVersion, err
-}
-
-func digestFromManifest(m *schema1.SignedManifest, name reference.Named) (digest.Digest, int, error) {
-	payload, err := m.Payload()
-	if err != nil {
-		// If this failed, the signatures section was corrupted
-		// or missing. Treat the entire manifest as the payload.
-		payload = m.Raw
-	}
-	manifestDigest, err := digest.FromBytes(payload)
-	if err != nil {
-		logrus.Infof("Could not compute manifest digest for %s:%s : %v", name.Name(), m.Tag, err)
-	}
-	return manifestDigest, len(payload), nil
 }
 
 type existingTokenHandler struct {

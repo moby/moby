@@ -1,19 +1,29 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"os"
 	"os/exec"
+	"path/filepath"
+	"runtime"
 	"strings"
 
+	"github.com/docker/distribution"
+	"github.com/docker/distribution/digest"
+	"github.com/docker/distribution/manifest"
+	"github.com/docker/distribution/manifest/manifestlist"
+	"github.com/docker/distribution/manifest/schema2"
 	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/go-check/check"
 )
 
-// TestPullImageWithAliases pulls a specific image tag and verifies that any aliases (i.e., other
+// testPullImageWithAliases pulls a specific image tag and verifies that any aliases (i.e., other
 // tags for the same image) are not also pulled down.
 //
 // Ref: docker/docker#8141
-func (s *DockerRegistrySuite) TestPullImageWithAliases(c *check.C) {
+func testPullImageWithAliases(c *check.C) {
 	repoName := fmt.Sprintf("%v/dockercli/busybox", privateRegistryURL)
 
 	repos := []string{}
@@ -40,8 +50,16 @@ func (s *DockerRegistrySuite) TestPullImageWithAliases(c *check.C) {
 	}
 }
 
-// TestConcurrentPullWholeRepo pulls the same repo concurrently.
-func (s *DockerRegistrySuite) TestConcurrentPullWholeRepo(c *check.C) {
+func (s *DockerRegistrySuite) TestPullImageWithAliases(c *check.C) {
+	testPullImageWithAliases(c)
+}
+
+func (s *DockerSchema1RegistrySuite) TestPullImageWithAliases(c *check.C) {
+	testPullImageWithAliases(c)
+}
+
+// testConcurrentPullWholeRepo pulls the same repo concurrently.
+func testConcurrentPullWholeRepo(c *check.C) {
 	repoName := fmt.Sprintf("%v/dockercli/busybox", privateRegistryURL)
 
 	repos := []string{}
@@ -89,8 +107,16 @@ func (s *DockerRegistrySuite) TestConcurrentPullWholeRepo(c *check.C) {
 	}
 }
 
-// TestConcurrentFailingPull tries a concurrent pull that doesn't succeed.
-func (s *DockerRegistrySuite) TestConcurrentFailingPull(c *check.C) {
+func (s *DockerRegistrySuite) testConcurrentPullWholeRepo(c *check.C) {
+	testConcurrentPullWholeRepo(c)
+}
+
+func (s *DockerSchema1RegistrySuite) testConcurrentPullWholeRepo(c *check.C) {
+	testConcurrentPullWholeRepo(c)
+}
+
+// testConcurrentFailingPull tries a concurrent pull that doesn't succeed.
+func testConcurrentFailingPull(c *check.C) {
 	repoName := fmt.Sprintf("%v/dockercli/busybox", privateRegistryURL)
 
 	// Run multiple pulls concurrently
@@ -112,9 +138,17 @@ func (s *DockerRegistrySuite) TestConcurrentFailingPull(c *check.C) {
 	}
 }
 
-// TestConcurrentPullMultipleTags pulls multiple tags from the same repo
+func (s *DockerRegistrySuite) testConcurrentFailingPull(c *check.C) {
+	testConcurrentFailingPull(c)
+}
+
+func (s *DockerSchema1RegistrySuite) testConcurrentFailingPull(c *check.C) {
+	testConcurrentFailingPull(c)
+}
+
+// testConcurrentPullMultipleTags pulls multiple tags from the same repo
 // concurrently.
-func (s *DockerRegistrySuite) TestConcurrentPullMultipleTags(c *check.C) {
+func testConcurrentPullMultipleTags(c *check.C) {
 	repoName := fmt.Sprintf("%v/dockercli/busybox", privateRegistryURL)
 
 	repos := []string{}
@@ -161,9 +195,17 @@ func (s *DockerRegistrySuite) TestConcurrentPullMultipleTags(c *check.C) {
 	}
 }
 
-// TestPullIDStability verifies that pushing an image and pulling it back
+func (s *DockerRegistrySuite) TestConcurrentPullMultipleTags(c *check.C) {
+	testConcurrentPullMultipleTags(c)
+}
+
+func (s *DockerSchema1RegistrySuite) TestConcurrentPullMultipleTags(c *check.C) {
+	testConcurrentPullMultipleTags(c)
+}
+
+// testPullIDStability verifies that pushing an image and pulling it back
 // preserves the image ID.
-func (s *DockerRegistrySuite) TestPullIDStability(c *check.C) {
+func testPullIDStability(c *check.C) {
 	derivedImage := privateRegistryURL + "/dockercli/id-stability"
 	baseImage := "busybox"
 
@@ -229,6 +271,14 @@ func (s *DockerRegistrySuite) TestPullIDStability(c *check.C) {
 	}
 }
 
+func (s *DockerRegistrySuite) TestPullIDStability(c *check.C) {
+	testPullIDStability(c)
+}
+
+func (s *DockerSchema1RegistrySuite) TestPullIDStability(c *check.C) {
+	testPullIDStability(c)
+}
+
 // TestPullFallbackOn404 tries to pull a nonexistent manifest and confirms that
 // the pull falls back to the v1 protocol.
 //
@@ -239,4 +289,86 @@ func (s *DockerRegistrySuite) TestPullFallbackOn404(c *check.C) {
 	out, _, _ := dockerCmdWithError("pull", repoName)
 
 	c.Assert(out, checker.Contains, "v1 ping attempt")
+}
+
+func (s *DockerRegistrySuite) TestPullManifestList(c *check.C) {
+	pushDigest, err := setupImage(c)
+	c.Assert(err, checker.IsNil, check.Commentf("error setting up image"))
+
+	// Inject a manifest list into the registry
+	manifestList := &manifestlist.ManifestList{
+		Versioned: manifest.Versioned{
+			SchemaVersion: 2,
+			MediaType:     manifestlist.MediaTypeManifestList,
+		},
+		Manifests: []manifestlist.ManifestDescriptor{
+			{
+				Descriptor: distribution.Descriptor{
+					Digest:    "sha256:1a9ec845ee94c202b2d5da74a24f0ed2058318bfa9879fa541efaecba272e86b",
+					Size:      3253,
+					MediaType: schema2.MediaTypeManifest,
+				},
+				Platform: manifestlist.PlatformSpec{
+					Architecture: "bogus_arch",
+					OS:           "bogus_os",
+				},
+			},
+			{
+				Descriptor: distribution.Descriptor{
+					Digest:    pushDigest,
+					Size:      3253,
+					MediaType: schema2.MediaTypeManifest,
+				},
+				Platform: manifestlist.PlatformSpec{
+					Architecture: runtime.GOARCH,
+					OS:           runtime.GOOS,
+				},
+			},
+		},
+	}
+
+	manifestListJSON, err := json.MarshalIndent(manifestList, "", "   ")
+	c.Assert(err, checker.IsNil, check.Commentf("error marshalling manifest list"))
+
+	manifestListDigest := digest.FromBytes(manifestListJSON)
+	hexDigest := manifestListDigest.Hex()
+
+	registryV2Path := filepath.Join(s.reg.dir, "docker", "registry", "v2")
+
+	// Write manifest list to blob store
+	blobDir := filepath.Join(registryV2Path, "blobs", "sha256", hexDigest[:2], hexDigest)
+	err = os.MkdirAll(blobDir, 0755)
+	c.Assert(err, checker.IsNil, check.Commentf("error creating blob dir"))
+	blobPath := filepath.Join(blobDir, "data")
+	err = ioutil.WriteFile(blobPath, []byte(manifestListJSON), 0644)
+	c.Assert(err, checker.IsNil, check.Commentf("error writing manifest list"))
+
+	// Add to revision store
+	revisionDir := filepath.Join(registryV2Path, "repositories", remoteRepoName, "_manifests", "revisions", "sha256", hexDigest)
+	err = os.Mkdir(revisionDir, 0755)
+	c.Assert(err, checker.IsNil, check.Commentf("error creating revision dir"))
+	revisionPath := filepath.Join(revisionDir, "link")
+	err = ioutil.WriteFile(revisionPath, []byte(manifestListDigest.String()), 0644)
+	c.Assert(err, checker.IsNil, check.Commentf("error writing revision link"))
+
+	// Update tag
+	tagPath := filepath.Join(registryV2Path, "repositories", remoteRepoName, "_manifests", "tags", "latest", "current", "link")
+	err = ioutil.WriteFile(tagPath, []byte(manifestListDigest.String()), 0644)
+	c.Assert(err, checker.IsNil, check.Commentf("error writing tag link"))
+
+	// Verify that the image can be pulled through the manifest list.
+	out, _ := dockerCmd(c, "pull", repoName)
+
+	// The pull output includes "Digest: <digest>", so find that
+	matches := digestRegex.FindStringSubmatch(out)
+	c.Assert(matches, checker.HasLen, 2, check.Commentf("unable to parse digest from pull output: %s", out))
+	pullDigest := matches[1]
+
+	// Make sure the pushed and pull digests match
+	c.Assert(manifestListDigest.String(), checker.Equals, pullDigest)
+
+	// Was the image actually created?
+	dockerCmd(c, "inspect", repoName)
+
+	dockerCmd(c, "rmi", repoName)
 }

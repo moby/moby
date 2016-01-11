@@ -67,10 +67,7 @@ func TestFSInvalidSet(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	id, err := digest.FromBytes([]byte("foobar"))
-	if err != nil {
-		t.Fatal(err)
-	}
+	id := digest.FromBytes([]byte("foobar"))
 	err = os.Mkdir(filepath.Join(tmpdir, contentDirName, string(id.Algorithm()), id.Hex()), 0700)
 	if err != nil {
 		t.Fatal(err)
@@ -160,11 +157,7 @@ func testMetadataGetSet(t *testing.T, store StoreBackend) {
 		t.Fatal("Expected error for getting metadata for unknown key")
 	}
 
-	id3, err := digest.FromBytes([]byte("baz"))
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	id3 := digest.FromBytes([]byte("baz"))
 	err = store.SetMetadata(ID(id3), "tkey", []byte("tval"))
 	if err == nil {
 		t.Fatal("Expected error for setting metadata for unknown ID.")

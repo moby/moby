@@ -1,22 +1,20 @@
 package distribution
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"sync"
-	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/digest"
-	"github.com/docker/distribution/manifest"
 	"github.com/docker/distribution/manifest/schema1"
+	"github.com/docker/distribution/manifest/schema2"
+	"github.com/docker/distribution/registry/client"
 	"github.com/docker/docker/distribution/metadata"
 	"github.com/docker/docker/distribution/xfer"
 	"github.com/docker/docker/image"
-	"github.com/docker/docker/image/v1"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/progress"
@@ -43,75 +41,75 @@ type v2Pusher struct {
 	config         *ImagePushConfig
 	repo           distribution.Repository
 
+	// pushState is state built by the Download functions.
+	pushState pushState
+}
+
+type pushState struct {
+	sync.Mutex
+	// remoteLayers is the set of layers known to exist on the remote side.
+	// This avoids redundant queries when pushing multiple tags that
+	// involve the same layers. It is also used to fill in digest and size
+	// information when building the manifest.
+	remoteLayers map[layer.DiffID]distribution.Descriptor
 	// confirmedV2 is set to true if we confirm we're talking to a v2
 	// registry. This is used to limit fallbacks to the v1 protocol.
 	confirmedV2 bool
-
-	// layersPushed is the set of layers known to exist on the remote side.
-	// This avoids redundant queries when pushing multiple tags that
-	// involve the same layers.
-	layersPushed pushMap
-}
-
-type pushMap struct {
-	sync.Mutex
-	layersPushed map[digest.Digest]bool
 }
 
 func (p *v2Pusher) Push(ctx context.Context) (err error) {
-	p.repo, p.confirmedV2, err = NewV2Repository(ctx, p.repoInfo, p.endpoint, p.config.MetaHeaders, p.config.AuthConfig, "push", "pull")
+	p.pushState.remoteLayers = make(map[layer.DiffID]distribution.Descriptor)
+
+	p.repo, p.pushState.confirmedV2, err = NewV2Repository(ctx, p.repoInfo, p.endpoint, p.config.MetaHeaders, p.config.AuthConfig, "push", "pull")
 	if err != nil {
 		logrus.Debugf("Error getting v2 registry: %v", err)
-		return fallbackError{err: err, confirmedV2: p.confirmedV2}
+		return fallbackError{err: err, confirmedV2: p.pushState.confirmedV2}
 	}
 
 	if err = p.pushV2Repository(ctx); err != nil {
 		if registry.ContinueOnError(err) {
-			return fallbackError{err: err, confirmedV2: p.confirmedV2}
+			return fallbackError{err: err, confirmedV2: p.pushState.confirmedV2}
 		}
 	}
 	return err
 }
 
 func (p *v2Pusher) pushV2Repository(ctx context.Context) (err error) {
-	var associations []reference.Association
-	if _, isTagged := p.ref.(reference.NamedTagged); isTagged {
+	if namedTagged, isNamedTagged := p.ref.(reference.NamedTagged); isNamedTagged {
 		imageID, err := p.config.ReferenceStore.Get(p.ref)
 		if err != nil {
 			return fmt.Errorf("tag does not exist: %s", p.ref.String())
 		}
 
-		associations = []reference.Association{
-			{
-				Ref:     p.ref,
-				ImageID: imageID,
-			},
-		}
-	} else {
-		// Pull all tags
-		associations = p.config.ReferenceStore.ReferencesByName(p.ref)
-	}
-	if err != nil {
-		return fmt.Errorf("error getting tags for %s: %s", p.repoInfo.Name(), err)
-	}
-	if len(associations) == 0 {
-		return fmt.Errorf("no tags to push for %s", p.repoInfo.Name())
+		return p.pushV2Tag(ctx, namedTagged, imageID)
 	}
 
-	for _, association := range associations {
-		if err := p.pushV2Tag(ctx, association); err != nil {
-			return err
+	if !reference.IsNameOnly(p.ref) {
+		return errors.New("cannot push a digest reference")
+	}
+
+	// Pull all tags
+	pushed := 0
+	for _, association := range p.config.ReferenceStore.ReferencesByName(p.ref) {
+		if namedTagged, isNamedTagged := association.Ref.(reference.NamedTagged); isNamedTagged {
+			pushed++
+			if err := p.pushV2Tag(ctx, namedTagged, association.ImageID); err != nil {
+				return err
+			}
 		}
+	}
+
+	if pushed == 0 {
+		return fmt.Errorf("no tags to push for %s", p.repoInfo.Name())
 	}
 
 	return nil
 }
 
-func (p *v2Pusher) pushV2Tag(ctx context.Context, association reference.Association) error {
-	ref := association.Ref
+func (p *v2Pusher) pushV2Tag(ctx context.Context, ref reference.NamedTagged, imageID image.ID) error {
 	logrus.Debugf("Pushing repository: %s", ref.String())
 
-	img, err := p.config.ImageStore.Get(association.ImageID)
+	img, err := p.config.ImageStore.Get(imageID)
 	if err != nil {
 		return fmt.Errorf("could not find image from tag %s: %v", ref.String(), err)
 	}
@@ -134,18 +132,7 @@ func (p *v2Pusher) pushV2Tag(ctx context.Context, association reference.Associat
 	descriptorTemplate := v2PushDescriptor{
 		blobSumService: p.blobSumService,
 		repo:           p.repo,
-		layersPushed:   &p.layersPushed,
-		confirmedV2:    &p.confirmedV2,
-	}
-
-	// Push empty layer if necessary
-	for _, h := range img.History {
-		if h.EmptyLayer {
-			descriptor := descriptorTemplate
-			descriptor.layer = layer.EmptyLayer
-			descriptors = []xfer.UploadDescriptor{&descriptor}
-			break
-		}
+		pushState:      &p.pushState,
 	}
 
 	// Loop bounds condition is to avoid pushing the base layer on Windows.
@@ -157,52 +144,75 @@ func (p *v2Pusher) pushV2Tag(ctx context.Context, association reference.Associat
 		l = l.Parent()
 	}
 
-	fsLayers, err := p.config.UploadManager.Upload(ctx, descriptors, p.config.ProgressOutput)
-	if err != nil {
+	if err := p.config.UploadManager.Upload(ctx, descriptors, p.config.ProgressOutput); err != nil {
 		return err
 	}
 
-	var tag string
-	if tagged, isTagged := ref.(reference.NamedTagged); isTagged {
-		tag = tagged.Tag()
-	}
-	m, err := CreateV2Manifest(p.repo.Name(), tag, img, fsLayers)
+	// Try schema2 first
+	builder := schema2.NewManifestBuilder(p.repo.Blobs(ctx), img.RawJSON())
+	manifest, err := manifestFromBuilder(ctx, builder, descriptors)
 	if err != nil {
 		return err
-	}
-
-	logrus.Infof("Signed manifest for %s using daemon's key: %s", ref.String(), p.config.TrustKey.KeyID())
-	signed, err := schema1.Sign(m, p.config.TrustKey)
-	if err != nil {
-		return err
-	}
-
-	manifestDigest, manifestSize, err := digestFromManifest(signed, ref)
-	if err != nil {
-		return err
-	}
-	if manifestDigest != "" {
-		if tagged, isTagged := ref.(reference.NamedTagged); isTagged {
-			progress.Messagef(p.config.ProgressOutput, "", "%s: digest: %s size: %d", tagged.Tag(), manifestDigest, manifestSize)
-			// Signal digest to the trust client so it can sign the
-			// push, if appropriate.
-			progress.Aux(p.config.ProgressOutput, PushResult{Tag: tagged.Tag(), Digest: manifestDigest, Size: manifestSize})
-		}
 	}
 
 	manSvc, err := p.repo.Manifests(ctx)
 	if err != nil {
 		return err
 	}
-	return manSvc.Put(signed)
+
+	putOptions := []distribution.ManifestServiceOption{client.WithTag(ref.Tag())}
+	if _, err = manSvc.Put(ctx, manifest, putOptions...); err != nil {
+		logrus.Warnf("failed to upload schema2 manifest: %v - falling back to schema1", err)
+
+		builder = schema1.NewConfigManifestBuilder(p.repo.Blobs(ctx), p.config.TrustKey, p.repo.Name(), ref.Tag(), img.RawJSON())
+		manifest, err = manifestFromBuilder(ctx, builder, descriptors)
+		if err != nil {
+			return err
+		}
+
+		if _, err = manSvc.Put(ctx, manifest, putOptions...); err != nil {
+			return err
+		}
+	}
+
+	var canonicalManifest []byte
+
+	switch v := manifest.(type) {
+	case *schema1.SignedManifest:
+		canonicalManifest = v.Canonical
+	case *schema2.DeserializedManifest:
+		_, canonicalManifest, err = v.Payload()
+		if err != nil {
+			return err
+		}
+	}
+
+	manifestDigest := digest.FromBytes(canonicalManifest)
+	progress.Messagef(p.config.ProgressOutput, "", "%s: digest: %s size: %d", ref.Tag(), manifestDigest, len(canonicalManifest))
+	// Signal digest to the trust client so it can sign the
+	// push, if appropriate.
+	progress.Aux(p.config.ProgressOutput, PushResult{Tag: ref.Tag(), Digest: manifestDigest, Size: len(canonicalManifest)})
+
+	return nil
+}
+
+func manifestFromBuilder(ctx context.Context, builder distribution.ManifestBuilder, descriptors []xfer.UploadDescriptor) (distribution.Manifest, error) {
+	// descriptors is in reverse order; iterate backwards to get references
+	// appended in the right order.
+	for i := len(descriptors) - 1; i >= 0; i-- {
+		if err := builder.AppendReference(descriptors[i].(*v2PushDescriptor)); err != nil {
+			return nil, err
+		}
+	}
+
+	return builder.Build(ctx)
 }
 
 type v2PushDescriptor struct {
 	layer          layer.Layer
 	blobSumService *metadata.BlobSumService
 	repo           distribution.Repository
-	layersPushed   *pushMap
-	confirmedV2    *bool
+	pushState      *pushState
 }
 
 func (pd *v2PushDescriptor) Key() string {
@@ -217,24 +227,37 @@ func (pd *v2PushDescriptor) DiffID() layer.DiffID {
 	return pd.layer.DiffID()
 }
 
-func (pd *v2PushDescriptor) Upload(ctx context.Context, progressOutput progress.Output) (digest.Digest, error) {
+func (pd *v2PushDescriptor) Upload(ctx context.Context, progressOutput progress.Output) error {
 	diffID := pd.DiffID()
 
-	logrus.Debugf("Pushing layer: %s", diffID)
+	pd.pushState.Lock()
+	if _, ok := pd.pushState.remoteLayers[diffID]; ok {
+		// it is already known that the push is not needed and
+		// therefore doing a stat is unnecessary
+		pd.pushState.Unlock()
+		progress.Update(progressOutput, pd.ID(), "Layer already exists")
+		return nil
+	}
+	pd.pushState.Unlock()
 
 	// Do we have any blobsums associated with this layer's DiffID?
 	possibleBlobsums, err := pd.blobSumService.GetBlobSums(diffID)
 	if err == nil {
-		dgst, exists, err := blobSumAlreadyExists(ctx, possibleBlobsums, pd.repo, pd.layersPushed)
+		descriptor, exists, err := blobSumAlreadyExists(ctx, possibleBlobsums, pd.repo, pd.pushState)
 		if err != nil {
 			progress.Update(progressOutput, pd.ID(), "Image push failed")
-			return "", retryOnError(err)
+			return retryOnError(err)
 		}
 		if exists {
 			progress.Update(progressOutput, pd.ID(), "Layer already exists")
-			return dgst, nil
+			pd.pushState.Lock()
+			pd.pushState.remoteLayers[diffID] = descriptor
+			pd.pushState.Unlock()
+			return nil
 		}
 	}
+
+	logrus.Debugf("Pushing layer: %s", diffID)
 
 	// if digest was empty or not saved, or if blob does not exist on the remote repository,
 	// then push the blob.
@@ -243,13 +266,13 @@ func (pd *v2PushDescriptor) Upload(ctx context.Context, progressOutput progress.
 	// Send the layer
 	layerUpload, err := bs.Create(ctx)
 	if err != nil {
-		return "", retryOnError(err)
+		return retryOnError(err)
 	}
 	defer layerUpload.Close()
 
 	arch, err := pd.layer.TarStream()
 	if err != nil {
-		return "", xfer.DoNotRetry{Err: err}
+		return xfer.DoNotRetry{Err: err}
 	}
 
 	// don't care if this fails; best effort
@@ -265,183 +288,62 @@ func (pd *v2PushDescriptor) Upload(ctx context.Context, progressOutput progress.
 	nn, err := layerUpload.ReadFrom(tee)
 	compressedReader.Close()
 	if err != nil {
-		return "", retryOnError(err)
+		return retryOnError(err)
 	}
 
 	pushDigest := digester.Digest()
 	if _, err := layerUpload.Commit(ctx, distribution.Descriptor{Digest: pushDigest}); err != nil {
-		return "", retryOnError(err)
+		return retryOnError(err)
 	}
-
-	// If Commit succeded, that's an indication that the remote registry
-	// speaks the v2 protocol.
-	*pd.confirmedV2 = true
 
 	logrus.Debugf("uploaded layer %s (%s), %d bytes", diffID, pushDigest, nn)
 	progress.Update(progressOutput, pd.ID(), "Pushed")
 
 	// Cache mapping from this layer's DiffID to the blobsum
 	if err := pd.blobSumService.Add(diffID, pushDigest); err != nil {
-		return "", xfer.DoNotRetry{Err: err}
+		return xfer.DoNotRetry{Err: err}
 	}
 
-	pd.layersPushed.Lock()
-	pd.layersPushed.layersPushed[pushDigest] = true
-	pd.layersPushed.Unlock()
+	pd.pushState.Lock()
 
-	return pushDigest, nil
+	// If Commit succeded, that's an indication that the remote registry
+	// speaks the v2 protocol.
+	pd.pushState.confirmedV2 = true
+
+	pd.pushState.remoteLayers[diffID] = distribution.Descriptor{
+		Digest:    pushDigest,
+		MediaType: schema2.MediaTypeLayer,
+		Size:      nn,
+	}
+
+	pd.pushState.Unlock()
+
+	return nil
+}
+
+func (pd *v2PushDescriptor) Descriptor() distribution.Descriptor {
+	// Not necessary to lock pushStatus because this is always
+	// called after all the mutation in pushStatus.
+	// By the time this function is called, every layer will have
+	// an entry in remoteLayers.
+	return pd.pushState.remoteLayers[pd.DiffID()]
 }
 
 // blobSumAlreadyExists checks if the registry already know about any of the
 // blobsums passed in the "blobsums" slice. If it finds one that the registry
 // knows about, it returns the known digest and "true".
-func blobSumAlreadyExists(ctx context.Context, blobsums []digest.Digest, repo distribution.Repository, layersPushed *pushMap) (digest.Digest, bool, error) {
-	layersPushed.Lock()
+func blobSumAlreadyExists(ctx context.Context, blobsums []digest.Digest, repo distribution.Repository, pushState *pushState) (distribution.Descriptor, bool, error) {
 	for _, dgst := range blobsums {
-		if layersPushed.layersPushed[dgst] {
-			// it is already known that the push is not needed and
-			// therefore doing a stat is unnecessary
-			layersPushed.Unlock()
-			return dgst, true, nil
-		}
-	}
-	layersPushed.Unlock()
-
-	for _, dgst := range blobsums {
-		_, err := repo.Blobs(ctx).Stat(ctx, dgst)
+		descriptor, err := repo.Blobs(ctx).Stat(ctx, dgst)
 		switch err {
 		case nil:
-			return dgst, true, nil
+			descriptor.MediaType = schema2.MediaTypeLayer
+			return descriptor, true, nil
 		case distribution.ErrBlobUnknown:
 			// nop
 		default:
-			return "", false, err
+			return distribution.Descriptor{}, false, err
 		}
 	}
-	return "", false, nil
-}
-
-// CreateV2Manifest creates a V2 manifest from an image config and set of
-// FSLayer digests.
-// FIXME: This should be moved to the distribution repo, since it will also
-// be useful for converting new manifests to the old format.
-func CreateV2Manifest(name, tag string, img *image.Image, fsLayers map[layer.DiffID]digest.Digest) (*schema1.Manifest, error) {
-	if len(img.History) == 0 {
-		return nil, errors.New("empty history when trying to create V2 manifest")
-	}
-
-	// Generate IDs for each layer
-	// For non-top-level layers, create fake V1Compatibility strings that
-	// fit the format and don't collide with anything else, but don't
-	// result in runnable images on their own.
-	type v1Compatibility struct {
-		ID              string    `json:"id"`
-		Parent          string    `json:"parent,omitempty"`
-		Comment         string    `json:"comment,omitempty"`
-		Created         time.Time `json:"created"`
-		ContainerConfig struct {
-			Cmd []string
-		} `json:"container_config,omitempty"`
-		ThrowAway bool `json:"throwaway,omitempty"`
-	}
-
-	fsLayerList := make([]schema1.FSLayer, len(img.History))
-	history := make([]schema1.History, len(img.History))
-
-	parent := ""
-	layerCounter := 0
-	for i, h := range img.History {
-		if i == len(img.History)-1 {
-			break
-		}
-
-		var diffID layer.DiffID
-		if h.EmptyLayer {
-			diffID = layer.EmptyLayer.DiffID()
-		} else {
-			if len(img.RootFS.DiffIDs) <= layerCounter {
-				return nil, errors.New("too many non-empty layers in History section")
-			}
-			diffID = img.RootFS.DiffIDs[layerCounter]
-			layerCounter++
-		}
-
-		fsLayer, present := fsLayers[diffID]
-		if !present {
-			return nil, fmt.Errorf("missing layer in CreateV2Manifest: %s", diffID.String())
-		}
-		dgst, err := digest.FromBytes([]byte(fsLayer.Hex() + " " + parent))
-		if err != nil {
-			return nil, err
-		}
-		v1ID := dgst.Hex()
-
-		v1Compatibility := v1Compatibility{
-			ID:      v1ID,
-			Parent:  parent,
-			Comment: h.Comment,
-			Created: h.Created,
-		}
-		v1Compatibility.ContainerConfig.Cmd = []string{img.History[i].CreatedBy}
-		if h.EmptyLayer {
-			v1Compatibility.ThrowAway = true
-		}
-		jsonBytes, err := json.Marshal(&v1Compatibility)
-		if err != nil {
-			return nil, err
-		}
-
-		reversedIndex := len(img.History) - i - 1
-		history[reversedIndex].V1Compatibility = string(jsonBytes)
-		fsLayerList[reversedIndex] = schema1.FSLayer{BlobSum: fsLayer}
-
-		parent = v1ID
-	}
-
-	latestHistory := img.History[len(img.History)-1]
-
-	var diffID layer.DiffID
-	if latestHistory.EmptyLayer {
-		diffID = layer.EmptyLayer.DiffID()
-	} else {
-		if len(img.RootFS.DiffIDs) <= layerCounter {
-			return nil, errors.New("too many non-empty layers in History section")
-		}
-		diffID = img.RootFS.DiffIDs[layerCounter]
-	}
-	fsLayer, present := fsLayers[diffID]
-	if !present {
-		return nil, fmt.Errorf("missing layer in CreateV2Manifest: %s", diffID.String())
-	}
-
-	dgst, err := digest.FromBytes([]byte(fsLayer.Hex() + " " + parent + " " + string(img.RawJSON())))
-	if err != nil {
-		return nil, err
-	}
-	fsLayerList[0] = schema1.FSLayer{BlobSum: fsLayer}
-
-	// Top-level v1compatibility string should be a modified version of the
-	// image config.
-	transformedConfig, err := v1.MakeV1ConfigFromConfig(img, dgst.Hex(), parent, latestHistory.EmptyLayer)
-	if err != nil {
-		return nil, err
-	}
-
-	history[0].V1Compatibility = string(transformedConfig)
-
-	// windows-only baselayer setup
-	if err := setupBaseLayer(history, *img.RootFS); err != nil {
-		return nil, err
-	}
-
-	return &schema1.Manifest{
-		Versioned: manifest.Versioned{
-			SchemaVersion: 1,
-		},
-		Name:         name,
-		Tag:          tag,
-		Architecture: img.Architecture,
-		FSLayers:     fsLayerList,
-		History:      history,
-	}, nil
+	return distribution.Descriptor{}, false, nil
 }
