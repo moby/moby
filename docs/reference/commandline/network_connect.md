@@ -15,6 +15,9 @@ parent = "smn_cli"
     Connects a container to a network
 
       --help             Print usage
+      --ip               IP Address
+      --ip6              IPv6 Address
+      --link=[]          Add a link to another container
 
 Connects a container to a network. You can connect a container by name
 or by ID. Once connected, the container can communicate with other containers in
@@ -33,7 +36,13 @@ $ docker run -itd --net=multi-host-network busybox
 You can specify the IP address you want to be assigned to the container's interface.
 
 ```bash
-$ docker network connect multi-host-network --ip 10.10.36.122 container2
+$ docker network connect --ip 10.10.36.122 multi-host-network container2
+```
+
+You can use `--link` option to link another container with a prefered alias
+
+```bash
+$ docker network connect --link container1:c1 multi-host-network container2
 ```
 
 You can pause, restart, and stop containers that are connected to a network.
@@ -60,3 +69,4 @@ You can connect a container to one or more networks. The networks need not be th
 * [network ls](network_ls.md)
 * [network rm](network_rm.md)
 * [Understand Docker container networks](../../userguide/networking/dockernetworks.md)
+* [Work with networks](../../userguide/networking/work-with-networks.md)
