@@ -268,7 +268,7 @@ PING container3 (172.25.3.3): 56 data bytes
 round-trip min/avg/max = 0.070/0.081/0.097 ms
 ```
 
-This isn't the case for the default bridge network. Both `container2` and  `container1` are connected to the default bridge network. Docker does not support automatic service discovery on this network. For this reason, pinging  `container1` by name fails as you would expect based on the `/etc/hosts` file:
+This isn't the case for the default `bridge` network. Both `container2` and  `container1` are connected to the default bridge network. Docker does not support automatic service discovery on this network. For this reason, pinging  `container1` by name fails as you would expect based on the `/etc/hosts` file:
 
 ```bash
 / # ping -w 4 container1
@@ -313,6 +313,192 @@ PING 172.17.0.2 (172.17.0.2): 56 data bytes
 
 You can connect both running and non-running containers to a network. However,
 `docker network inspect` only displays information on running containers.
+
+### Linking containers in user-defined networks
+
+In the above example, container_2 was able to resolve container_3's name automatically
+in the user defined network `isolated_nw`, but the name resolution did not succeed
+automatically in the default `bridge` network. This is expected in order to maintain
+backward compatibility with [legacy link](default_network/dockerlinks.md).
+
+The `legacy link` provided 4 major functionalities to the default `bridge` network.
+
+* name resolution
+* name alias for the linked container using `--link=CONTAINER-NAME:ALIAS`
+* secured container connectivity (in isolation via `--icc=false`)
+* environment variable injection
+
+Comparing the above 4 functionalities with the non-default user-defined networks such as
+`isolated_nw` in this example, without any additional config, `docker network` provides
+
+* automatic name resolution using DNS
+* automatic secured isolated environment for the containers in a network
+* ability to dynamically attach and detach to multiple networks
+* supports the `--link` option to provide name alias for the linked container
+
+Continuing with the above example, create another container `container_4` in `isolated_nw`
+with `--link` to provide additional name resolution using alias for other containers in
+the same network.
+
+```bash
+$ docker run --net=isolated_nw -itd --name=container4 --link container5:c5 busybox
+01b5df970834b77a9eadbaff39051f237957bd35c4c56f11193e0594cfd5117c
+```
+
+With the help of `--link` container4 will be able to reach container5 using the
+aliased name `c5` as well.
+
+Please note that while creating container4, we linked to a container named `container5`
+which is not created yet. That is one of the differences in behavior between the
+`legacy link` in default `bridge` network and the new `link` functionality in user defined
+networks. The `legacy link` is static in nature and it hard-binds the container with the
+alias and it doesnt tolerate linked container restarts. While the new `link` functionality
+in user defined networks are dynamic in nature and supports linked container restarts
+including tolerating ip-address changes on the linked container.
+
+Now let us launch another container named `container5` linking container4 to c4.
+
+```bash
+$ docker run --net=isolated_nw -itd --name=container5 --link container4:c4 busybox
+72eccf2208336f31e9e33ba327734125af00d1e1d2657878e2ee8154fbb23c7a
+```
+
+As expected, container4 will be able to reach container5 by both its container name and
+its alias c5 and container5 will be able to reach container4 by its container name and
+its alias c4.
+
+```bash
+$ docker attach container4
+/ # ping -w 4 c5
+PING c5 (172.25.0.5): 56 data bytes
+64 bytes from 172.25.0.5: seq=0 ttl=64 time=0.070 ms
+64 bytes from 172.25.0.5: seq=1 ttl=64 time=0.080 ms
+64 bytes from 172.25.0.5: seq=2 ttl=64 time=0.080 ms
+64 bytes from 172.25.0.5: seq=3 ttl=64 time=0.097 ms
+
+--- c5 ping statistics ---
+4 packets transmitted, 4 packets received, 0% packet loss
+round-trip min/avg/max = 0.070/0.081/0.097 ms
+
+/ # ping -w 4 container5
+PING container5 (172.25.0.5): 56 data bytes
+64 bytes from 172.25.0.5: seq=0 ttl=64 time=0.070 ms
+64 bytes from 172.25.0.5: seq=1 ttl=64 time=0.080 ms
+64 bytes from 172.25.0.5: seq=2 ttl=64 time=0.080 ms
+64 bytes from 172.25.0.5: seq=3 ttl=64 time=0.097 ms
+
+--- container5 ping statistics ---
+4 packets transmitted, 4 packets received, 0% packet loss
+round-trip min/avg/max = 0.070/0.081/0.097 ms
+```
+
+```bash
+$ docker attach container5
+/ # ping -w 4 c4
+PING c4 (172.25.0.4): 56 data bytes
+64 bytes from 172.25.0.4: seq=0 ttl=64 time=0.065 ms
+64 bytes from 172.25.0.4: seq=1 ttl=64 time=0.070 ms
+64 bytes from 172.25.0.4: seq=2 ttl=64 time=0.067 ms
+64 bytes from 172.25.0.4: seq=3 ttl=64 time=0.082 ms
+
+--- c4 ping statistics ---
+4 packets transmitted, 4 packets received, 0% packet loss
+round-trip min/avg/max = 0.065/0.070/0.082 ms
+
+/ # ping -w 4 container4
+PING container4 (172.25.0.4): 56 data bytes
+64 bytes from 172.25.0.4: seq=0 ttl=64 time=0.065 ms
+64 bytes from 172.25.0.4: seq=1 ttl=64 time=0.070 ms
+64 bytes from 172.25.0.4: seq=2 ttl=64 time=0.067 ms
+64 bytes from 172.25.0.4: seq=3 ttl=64 time=0.082 ms
+
+--- container4 ping statistics ---
+4 packets transmitted, 4 packets received, 0% packet loss
+round-trip min/avg/max = 0.065/0.070/0.082 ms
+```
+
+Similar to the legacy link functionality the new link alias is localized to a container
+and the aliased name has no meaning outside of the container using the `--link`.
+
+Also, it is important to note that if a container belongs to multiple networks, the
+linked alias is scoped within a given network. Hence the containers can be linked to
+different aliases in different networks.
+
+Extending the example, let us create another network named `local_alias`
+
+```bash
+$ docker network create -d bridge --subnet 172.26.0.0/24 local_alias
+76b7dc932e037589e6553f59f76008e5b76fa069638cd39776b890607f567aaa
+```
+
+let us connect container4 and container5 to the new network `local_alias`
+
+```
+$ docker network connect --link container5:foo local_alias container4
+$ docker network connect --link container4:bar local_alias container5
+```
+
+```bash
+$ docker attach container4
+
+/ # ping -w 4 foo
+PING foo (172.26.0.3): 56 data bytes
+64 bytes from 172.26.0.3: seq=0 ttl=64 time=0.070 ms
+64 bytes from 172.26.0.3: seq=1 ttl=64 time=0.080 ms
+64 bytes from 172.26.0.3: seq=2 ttl=64 time=0.080 ms
+64 bytes from 172.26.0.3: seq=3 ttl=64 time=0.097 ms
+
+--- foo ping statistics ---
+4 packets transmitted, 4 packets received, 0% packet loss
+round-trip min/avg/max = 0.070/0.081/0.097 ms
+
+/ # ping -w 4 c5
+PING c5 (172.25.0.5): 56 data bytes
+64 bytes from 172.25.0.5: seq=0 ttl=64 time=0.070 ms
+64 bytes from 172.25.0.5: seq=1 ttl=64 time=0.080 ms
+64 bytes from 172.25.0.5: seq=2 ttl=64 time=0.080 ms
+64 bytes from 172.25.0.5: seq=3 ttl=64 time=0.097 ms
+
+--- c5 ping statistics ---
+4 packets transmitted, 4 packets received, 0% packet loss
+round-trip min/avg/max = 0.070/0.081/0.097 ms
+```
+
+Note that the ping succeeds for both the aliases but on different networks.
+Let us conclude this section by disconnecting container5 from the `isolated_nw`
+and observe the results
+
+```
+$ docker network disconnect isolated_nw container5
+
+$ docker attach container4
+
+/ # ping -w 4 c5
+ping: bad address 'c5'
+
+/ # ping -w 4 foo
+PING foo (172.26.0.3): 56 data bytes
+64 bytes from 172.26.0.3: seq=0 ttl=64 time=0.070 ms
+64 bytes from 172.26.0.3: seq=1 ttl=64 time=0.080 ms
+64 bytes from 172.26.0.3: seq=2 ttl=64 time=0.080 ms
+64 bytes from 172.26.0.3: seq=3 ttl=64 time=0.097 ms
+
+--- foo ping statistics ---
+4 packets transmitted, 4 packets received, 0% packet loss
+round-trip min/avg/max = 0.070/0.081/0.097 ms
+
+```
+
+In conclusion, the new link functionality in user defined networks provides all the
+benefits of legacy links while avoiding most of the well-known issues with `legacy links`.
+
+One notable missing functionality compared to `legacy links` is the injection of
+environment variables. Though very useful, environment variable injection is static
+in nature and must be injected when the container is started. One cannot inject
+environment variables into a running container without significant effort and hence
+it is not compatible with `docker network` which provides a dynamic way to connect/
+disconnect containers to/from a network.
+
 
 ## Disconnecting containers
 
