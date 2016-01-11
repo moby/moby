@@ -3,22 +3,19 @@ package srslog
 import (
 	"crypto/tls"
 	"crypto/x509"
-	"fmt"
 	"io/ioutil"
 	"reflect"
-	"regexp"
-	"runtime"
 	"testing"
 )
 
-// match checks if the given function (f) is the one inside the function pointer
-// (name) which is read via runtime reflection. This is necessary because different
-// platforms have a different reflection path. (IE on OS X it starts with "github.com..."
-// but on Linux it has an absolute path, "/home/<username>/go/src/github.com...")
-func match(f, name string) bool {
-	re := fmt.Sprintf(".*github.com/RackSec/srslog\\.\\(Writer\\)\\.\\(.*github.com/RackSec/srslog.%v\\)-fm", f)
-	matched, _ := regexp.MatchString(re, name)
-	return matched
+// funcEquals checks if the two given functions are the same. This grabs the
+// function pointer of each of them and compares them. This seems to be a viable
+// way to work around the fact that Go does not have actual function equality.
+func funcEquals(f1, f2 interface{}) bool {
+	av := reflect.ValueOf(f1).Pointer()
+	bv := reflect.ValueOf(f2).Pointer()
+
+	return av == bv
 }
 
 func TestGetDialer(t *testing.T) {
@@ -31,37 +28,32 @@ func TestGetDialer(t *testing.T) {
 	}
 
 	dialer := w.getDialer()
-	name := runtime.FuncForPC(reflect.ValueOf(dialer).Pointer()).Name()
-	if !match("unixDialer", name) {
-		t.Errorf("should get unixDialer, got: %v", name)
+	if !funcEquals(w.unixDialer, dialer) {
+		t.Errorf("should get unixDialer, got: %v", dialer)
 	}
 
 	w.network = "tcp+tls"
 	dialer = w.getDialer()
-	name = runtime.FuncForPC(reflect.ValueOf(dialer).Pointer()).Name()
-	if !match("tlsDialer", name) {
-		t.Errorf("should get tlsDialer, got: %v", name)
+	if !funcEquals(w.tlsDialer, dialer) {
+		t.Errorf("should get tlsDialer, got: %v", dialer)
 	}
 
 	w.network = "tcp"
 	dialer = w.getDialer()
-	name = runtime.FuncForPC(reflect.ValueOf(dialer).Pointer()).Name()
-	if !match("basicDialer", name) {
-		t.Errorf("should get basicDialer, got: %v", name)
+	if !funcEquals(w.basicDialer, dialer) {
+		t.Errorf("should get basicDialer, got: %v", dialer)
 	}
 
 	w.network = "udp"
 	dialer = w.getDialer()
-	name = runtime.FuncForPC(reflect.ValueOf(dialer).Pointer()).Name()
-	if !match("basicDialer", name) {
-		t.Errorf("should get basicDialer, got: %v", name)
+	if !funcEquals(w.basicDialer, dialer) {
+		t.Errorf("should get basicDialer, got: %v", dialer)
 	}
 
 	w.network = "something else entirely"
 	dialer = w.getDialer()
-	name = runtime.FuncForPC(reflect.ValueOf(dialer).Pointer()).Name()
-	if !match("basicDialer", name) {
-		t.Errorf("should get basicDialer, got: %v", name)
+	if !funcEquals(w.basicDialer, dialer) {
+		t.Errorf("should get basicDialer, got: %v", dialer)
 	}
 }
 
