@@ -242,6 +242,14 @@ func (daemon *Daemon) populateCommand(c *container.Container, env []string) erro
 	}
 	uidMap, gidMap := daemon.GetUIDGIDMaps()
 
+	if !daemon.seccompEnabled {
+		if c.SeccompProfile != "" && c.SeccompProfile != "unconfined" {
+			return fmt.Errorf("Seccomp is not enabled in your kernel, cannot run a custom seccomp profile.")
+		}
+		logrus.Warn("Seccomp is not enabled in your kernel, running container without default profile.")
+		c.SeccompProfile = "unconfined"
+	}
+
 	defaultCgroupParent := "/docker"
 	if daemon.configStore.CgroupParent != "" {
 		defaultCgroupParent = daemon.configStore.CgroupParent
