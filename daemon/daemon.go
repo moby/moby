@@ -157,6 +157,7 @@ type Daemon struct {
 	volumes                   *store.VolumeStore
 	discoveryWatcher          discovery.Watcher
 	root                      string
+	seccompEnabled            bool
 	shutdown                  bool
 	uidMaps                   []idtools.IDMap
 	gidMaps                   []idtools.IDMap
@@ -821,6 +822,7 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 	d.root = config.Root
 	d.uidMaps = uidMaps
 	d.gidMaps = gidMaps
+	d.seccompEnabled = sysInfo.Seccomp
 
 	d.nameIndex = registrar.NewRegistrar()
 	d.linkIndex = newLinkIndex()
