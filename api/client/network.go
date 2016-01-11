@@ -135,7 +135,7 @@ func (cli *DockerCli) CmdNetworkDisconnect(args ...string) error {
 		return err
 	}
 
-	return cli.client.NetworkDisconnect(cmd.Arg(0), cmd.Arg(1))
+	return cli.client.NetworkDisconnect(cmd.Arg(0), cmd.Arg(1), false)
 }
 
 // CmdNetworkLs lists all the networks managed by docker daemon
