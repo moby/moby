@@ -407,6 +407,7 @@ type NetworkCreate struct {
 	CheckDuplicate bool
 	Driver         string
 	IPAM           network.IPAM
+	Internal       bool
 	Options        map[string]string
 }
 
@@ -419,10 +420,11 @@ type NetworkCreateResponse struct {
 // NetworkConnect represents the data to be used to connect a container to the network
 type NetworkConnect struct {
 	Container      string
-	EndpointConfig *network.EndpointSettings `json:"endpoint_config"`
+	EndpointConfig *network.EndpointSettings `json:",omitempty"`
 }
 
 // NetworkDisconnect represents the data to be used to disconnect a container from the network
 type NetworkDisconnect struct {
 	Container string
+	Force     bool
 }

@@ -180,7 +180,7 @@ type Resources struct {
 	MemoryReservation    int64           // Memory soft limit (in bytes)
 	MemorySwap           int64           // Total memory usage (memory + swap); set `-1` to disable swap
 	MemorySwappiness     *int64          // Tuning container memory swappiness behaviour
-	OomKillDisable       bool            // Whether to disable OOM Killer or not
+	OomKillDisable       *bool           // Whether to disable OOM Killer or not
 	PidsLimit            int64           // Setting pids limit for a container
 	Ulimits              []*units.Ulimit // List of ulimits to be set in the container
 }
@@ -222,7 +222,6 @@ type HostConfig struct {
 	PublishAllPorts bool               // Should docker publish all exposed port for the container
 	ReadonlyRootfs  bool               // Is the container root filesystem in read-only
 	SecurityOpt     []string           // List of string values to customize labels for MLS systems, such as SELinux.
-	StorageOpt      []string           // Graph storage options per container
 	Tmpfs           map[string]string  `json:",omitempty"` // List of tmpfs (mounts) used for the container
 	UTSMode         UTSMode            // UTS namespace to use for the container
 	ShmSize         int64              // Total shm memory usage
