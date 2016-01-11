@@ -3,12 +3,11 @@ package daemon
 import (
 	"io/ioutil"
 	"os"
-	"path"
 	"path/filepath"
 	"testing"
 
 	"github.com/docker/docker/container"
-	"github.com/docker/docker/pkg/graphdb"
+	"github.com/docker/docker/pkg/registrar"
 	"github.com/docker/docker/pkg/truncindex"
 	"github.com/docker/docker/volume"
 	volumedrivers "github.com/docker/docker/volume/drivers"
@@ -75,22 +74,17 @@ func TestGetContainer(t *testing.T) {
 	index.Add(c4.ID)
 	index.Add(c5.ID)
 
-	daemonTestDbPath := path.Join(os.TempDir(), "daemon_test.db")
-	graph, err := graphdb.NewSqliteConn(daemonTestDbPath)
-	if err != nil {
-		t.Fatalf("Failed to create daemon test sqlite database at %s", daemonTestDbPath)
-	}
-	graph.Set(c1.Name, c1.ID)
-	graph.Set(c2.Name, c2.ID)
-	graph.Set(c3.Name, c3.ID)
-	graph.Set(c4.Name, c4.ID)
-	graph.Set(c5.Name, c5.ID)
-
 	daemon := &Daemon{
-		containers:       store,
-		idIndex:          index,
-		containerGraphDB: graph,
+		containers: store,
+		idIndex:    index,
+		nameIndex:  registrar.NewRegistrar(),
 	}
+
+	daemon.reserveName(c1.ID, c1.Name)
+	daemon.reserveName(c2.ID, c2.Name)
+	daemon.reserveName(c3.ID, c3.Name)
+	daemon.reserveName(c4.ID, c4.Name)
+	daemon.reserveName(c5.ID, c5.Name)
 
 	if container, _ := daemon.GetContainer("3cdbd1aa394fd68559fd1441d6eff2ab7c1e6363582c82febfaa8045df3bd8de"); container != c2 {
 		t.Fatal("Should explicitly match full container IDs")
@@ -120,8 +114,6 @@ func TestGetContainer(t *testing.T) {
 	if _, err := daemon.GetContainer("nothing"); err == nil {
 		t.Fatal("Should return an error when provided a prefix that is neither a name or a partial match to an ID")
 	}
-
-	os.Remove(daemonTestDbPath)
 }
 
 func initDaemonWithVolumeStore(tmp string) (*Daemon, error) {
@@ -203,19 +195,6 @@ func TestNetworkOptions(t *testing.T) {
 
 	if _, err := daemon.networkOptions(dconfigWrong); err == nil {
 		t.Fatalf("Expected networkOptions error, got nil")
-	}
-}
-
-func TestGetFullName(t *testing.T) {
-	name, err := GetFullContainerName("testing")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if name != "/testing" {
-		t.Fatalf("Expected /testing got %s", name)
-	}
-	if _, err := GetFullContainerName(""); err == nil {
-		t.Fatal("Error should not be nil")
 	}
 }
 
