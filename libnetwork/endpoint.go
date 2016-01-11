@@ -44,7 +44,7 @@ type Endpoint interface {
 	Delete() error
 }
 
-// EndpointOption is a option setter function type used to pass varios options to Network
+// EndpointOption is an option setter function type used to pass various options to Network
 // and Endpoint interfaces methods. The various setter functions of type EndpointOption are
 // provided by libnetwork, they look like <Create|Join|Leave>Option[...](...)
 type EndpointOption func(ep *endpoint)

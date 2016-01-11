@@ -48,7 +48,7 @@ type Sandbox interface {
 	ResolveIP(name string) string
 }
 
-// SandboxOption is a option setter function type used to pass varios options to
+// SandboxOption is an option setter function type used to pass various options to
 // NewNetContainer method. The various setter functions of type SandboxOption are
 // provided by libnetwork, they look like ContainerOptionXXXX(...)
 type SandboxOption func(sb *sandbox)
