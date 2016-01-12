@@ -27,7 +27,7 @@ const (
 	DefaultRegistryVersionHeader = "Docker-Distribution-Api-Version"
 
 	// IndexServer is the v1 registry server used for user auth + account creation
-	IndexServer = DefaultV1Registry + "/v1/"
+	IndexServer = "https://index.docker.io/v1/"
 	// IndexName is the name of the index
 	IndexName = "docker.io"
 
