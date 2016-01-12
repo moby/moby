@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/httputils"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/ioutils"
@@ -27,16 +28,13 @@ import (
 // Docker implements builder.Backend for the docker Daemon object.
 type Docker struct {
 	*daemon.Daemon
-	OutOld      io.Writer
-	AuthConfigs map[string]types.AuthConfig
-	Archiver    *archive.Archiver
 }
 
 // ensure Docker implements builder.Backend
 var _ builder.Backend = Docker{}
 
 // Pull tells Docker to pull image referenced by `name`.
-func (d Docker) Pull(name string) (builder.Image, error) {
+func (d Docker) Pull(name string, authConfigs map[string]types.AuthConfig, output io.Writer) (builder.Image, error) {
 	ref, err := reference.ParseNamed(name)
 	if err != nil {
 		return nil, err
@@ -44,7 +42,7 @@ func (d Docker) Pull(name string) (builder.Image, error) {
 	ref = reference.WithDefaultTag(ref)
 
 	pullRegistryAuth := &types.AuthConfig{}
-	if len(d.AuthConfigs) > 0 {
+	if len(authConfigs) > 0 {
 		// The request came with a full auth config file, we prefer to use that
 		repoInfo, err := d.Daemon.RegistryService.ResolveRepository(ref)
 		if err != nil {
@@ -52,13 +50,13 @@ func (d Docker) Pull(name string) (builder.Image, error) {
 		}
 
 		resolvedConfig := registry.ResolveAuthConfig(
-			d.AuthConfigs,
+			authConfigs,
 			repoInfo.Index,
 		)
 		pullRegistryAuth = &resolvedConfig
 	}
 
-	if err := d.Daemon.PullImage(ref, nil, pullRegistryAuth, ioutils.NopWriteCloser(d.OutOld)); err != nil {
+	if err := d.Daemon.PullImage(ref, nil, pullRegistryAuth, ioutils.NopWriteCloser(output)); err != nil {
 		return nil, err
 	}
 	return d.GetImage(name)
@@ -140,9 +138,16 @@ func (d Docker) BuilderCopy(cID string, destPath string, src builder.FileInfo, d
 		destExists = false
 	}
 
+	uidMaps, gidMaps := d.Daemon.GetUIDGIDMaps()
+	archiver := &archive.Archiver{
+		Untar:   chrootarchive.Untar,
+		UIDMaps: uidMaps,
+		GIDMaps: gidMaps,
+	}
+
 	if src.IsDir() {
 		// copy as directory
-		if err := d.Archiver.CopyWithTar(srcPath, destPath); err != nil {
+		if err := archiver.CopyWithTar(srcPath, destPath); err != nil {
 			return err
 		}
 		return fixPermissions(srcPath, destPath, rootUID, rootGID, destExists)
@@ -160,7 +165,7 @@ func (d Docker) BuilderCopy(cID string, destPath string, src builder.FileInfo, d
 		}
 
 		// try to successfully untar the orig
-		err := d.Archiver.UntarPath(srcPath, tarDest)
+		err := archiver.UntarPath(srcPath, tarDest)
 		if err != nil {
 			logrus.Errorf("Couldn't untar to %s: %v", tarDest, err)
 		}
@@ -175,7 +180,7 @@ func (d Docker) BuilderCopy(cID string, destPath string, src builder.FileInfo, d
 	if err := idtools.MkdirAllNewAs(filepath.Dir(destPath), 0755, rootUID, rootGID); err != nil {
 		return err
 	}
-	if err := d.Archiver.CopyFileWithTar(srcPath, destPath); err != nil {
+	if err := archiver.CopyFileWithTar(srcPath, destPath); err != nil {
 		return err
 	}
 
