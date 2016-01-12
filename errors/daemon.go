@@ -46,6 +46,15 @@ var (
 		HTTPStatusCode: http.StatusInternalServerError,
 	})
 
+	// ErrorCodeRemovalContainer is generated when we attempt to connect or disconnect a
+	// container but it's marked for removal.
+	ErrorCodeRemovalContainer = errcode.Register(errGroup, errcode.ErrorDescriptor{
+		Value:          "REMOVALCONTAINER",
+		Message:        "Container %s is marked for removal and cannot be connected or disconnected to the network",
+		Description:    "The specified container is marked for removal and cannot be connected or disconnected to the network",
+		HTTPStatusCode: http.StatusInternalServerError,
+	})
+
 	// ErrorCodePausedContainer is generated when we attempt to attach a
 	// container but its paused.
 	ErrorCodePausedContainer = errcode.Register(errGroup, errcode.ErrorDescriptor{
