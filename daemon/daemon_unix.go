@@ -528,12 +528,16 @@ func initBridgeDriver(controller libnetwork.NetworkController, config *Config) e
 		netOption[bridge.DefaultBindingIP] = config.Bridge.DefaultIP.String()
 	}
 
-	ipamV4Conf := libnetwork.IpamConf{}
+	var (
+		ipamV4Conf *libnetwork.IpamConf
+		ipamV6Conf *libnetwork.IpamConf
+	)
 
-	ipamV4Conf.AuxAddresses = make(map[string]string)
+	ipamV4Conf = &libnetwork.IpamConf{AuxAddresses: make(map[string]string)}
 
-	if nw, _, err := ipamutils.ElectInterfaceAddresses(bridgeName); err == nil {
-		ipamV4Conf.PreferredPool = nw.String()
+	nw, nw6List, err := ipamutils.ElectInterfaceAddresses(bridgeName)
+	if err == nil {
+		ipamV4Conf.PreferredPool = types.GetIPNetCanonical(nw).String()
 		hip, _ := types.GetHostPartIP(nw.IP, nw.Mask)
 		if hip.IsGlobalUnicast() {
 			ipamV4Conf.Gateway = nw.IP.String()
@@ -564,10 +568,7 @@ func initBridgeDriver(controller libnetwork.NetworkController, config *Config) e
 		ipamV4Conf.AuxAddresses["DefaultGatewayIPv4"] = config.Bridge.DefaultGatewayIPv4.String()
 	}
 
-	var (
-		ipamV6Conf     *libnetwork.IpamConf
-		deferIPv6Alloc bool
-	)
+	var deferIPv6Alloc bool
 	if config.Bridge.FixedCIDRv6 != "" {
 		_, fCIDRv6, err := net.ParseCIDR(config.Bridge.FixedCIDRv6)
 		if err != nil {
@@ -587,6 +588,16 @@ func initBridgeDriver(controller libnetwork.NetworkController, config *Config) e
 			ipamV6Conf = &libnetwork.IpamConf{AuxAddresses: make(map[string]string)}
 		}
 		ipamV6Conf.PreferredPool = fCIDRv6.String()
+
+		// In case the --fixed-cidr-v6 is specified and the current docker0 bridge IPv6
+		// address belongs to the same network, we need to inform libnetwork about it, so
+		// that it can be reserved with IPAM and it will not be given away to somebody else
+		for _, nw6 := range nw6List {
+			if fCIDRv6.Contains(nw6.IP) {
+				ipamV6Conf.Gateway = nw6.IP.String()
+				break
+			}
+		}
 	}
 
 	if config.Bridge.DefaultGatewayIPv6 != nil {
@@ -596,13 +607,13 @@ func initBridgeDriver(controller libnetwork.NetworkController, config *Config) e
 		ipamV6Conf.AuxAddresses["DefaultGatewayIPv6"] = config.Bridge.DefaultGatewayIPv6.String()
 	}
 
-	v4Conf := []*libnetwork.IpamConf{&ipamV4Conf}
+	v4Conf := []*libnetwork.IpamConf{ipamV4Conf}
 	v6Conf := []*libnetwork.IpamConf{}
 	if ipamV6Conf != nil {
 		v6Conf = append(v6Conf, ipamV6Conf)
 	}
 	// Initialize default network on "bridge" with the same name
-	_, err := controller.NewNetwork("bridge", "bridge",
+	_, err = controller.NewNetwork("bridge", "bridge",
 		libnetwork.NetworkOptionGeneric(options.Generic{
 			netlabel.GenericData: netOption,
 			netlabel.EnableIPv6:  config.Bridge.EnableIPv6,
