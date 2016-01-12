@@ -46,6 +46,8 @@ parent = "smn_cli"
       -h, --hostname=""             Container host name
       --help                        Print usage
       -i, --interactive             Keep STDIN open even if not attached
+      --ip=""                       Container IPv4 address (e.g. 172.30.100.104)
+      --ip6=""                      Container IPv6 address (e.g. 2001:db8::33)
       --ipc=""                      IPC namespace to use
       --isolation=""                Container isolation technology
       --kernel-memory=""            Kernel memory limit
@@ -56,8 +58,6 @@ parent = "smn_cli"
       --log-opt=[]                  Log driver specific options
       -m, --memory=""               Memory limit
       --mac-address=""              Container MAC address (e.g. 92:d0:c6:0a:29:33)
-      --ip=""                       Container IPv4 address (e.g. 172.30.100.104)
-      --ip6=""                      Container IPv6 address (e.g. 2001:db8::33)
       --memory-reservation=""       Memory soft limit
       --memory-swap=""              A positive integer equal to memory plus swap. Specify -1 to enable unlimited swap.
       --memory-swappiness=""        Tune a container's memory swappiness behavior. Accepts an integer between 0 and 100.
@@ -328,6 +328,13 @@ This adds the `busybox` container to the `mynet` network.
 
 ```bash
 $ docker run -itd --net=my-multihost-network busybox
+```
+
+You can also choose the IP addresses for the container with `--ip` and `--ip6`
+flags when you start the container on a user-defined network.
+
+```bash
+$ docker run -itd --net=my-multihost-network --ip=10.10.9.75 busybox
 ```
 
 If you want to add a running container to a network use the `docker network connect` subcommand.

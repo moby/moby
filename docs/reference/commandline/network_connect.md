@@ -15,7 +15,7 @@ parent = "smn_cli"
     Connects a container to a network
 
       --help             Print usage
-      --ip               IP Address
+      --ip               IPv4 Address
       --ip6              IPv6 Address
       --link=[]          Add a link to another container
 
@@ -46,11 +46,22 @@ $ docker network connect --link container1:c1 multi-host-network container2
 ```
 
 You can pause, restart, and stop containers that are connected to a network.
-Paused containers remain connected and a revealed by a `network inspect`. When
-the container is stopped, it does not appear on the network until you restart
-it. The container's IP address is not guaranteed to remain the same when a
-stopped container rejoins the network, unless you specified one when you run
-`docker network connect` command.
+Paused containers remain connected and can be revealed by a `network inspect`.
+When the container is stopped, it does not appear on the network until you restart
+it. If specified, the container's IP address(es) will be reapplied (if still available)
+when a stopped container rejoins the network. One way to guarantee that the container
+will be assigned the same IP addresses when it rejoins the network after a stop
+or a disconnect, is to specify the `--ip-range` when creating the network, and choose
+the static IP address(es) from outside the range. This will ensure that the IP address
+will not be given to other dynamic containers while this container is not on the network.
+
+```bash
+$ docker network create --subnet 172.20.0.0/16 --ip-range 172.20.240.0/20 multi-host-network
+```
+
+```bash
+$ docker network connect --ip 172.20.128.2 multi-host-network container2
+```
 
 To verify the container is connected, use the `docker network inspect` command. Use `docker network disconnect` to remove a container from the network.
 
