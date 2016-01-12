@@ -216,6 +216,31 @@ func (c *controller) validateHostDiscoveryConfig() bool {
 	return true
 }
 
+func (c *controller) clusterHostID() string {
+	c.Lock()
+	defer c.Unlock()
+	if c.cfg == nil || c.cfg.Cluster.Address == "" {
+		return ""
+	}
+	addr := strings.Split(c.cfg.Cluster.Address, ":")
+	return addr[0]
+}
+
+func (c *controller) isNodeAlive(node string) bool {
+	if c.discovery == nil {
+		return false
+	}
+
+	nodes := c.discovery.Fetch()
+	for _, n := range nodes {
+		if n.String() == node {
+			return true
+		}
+	}
+
+	return false
+}
+
 func (c *controller) initDiscovery(watcher discovery.Watcher) error {
 	if c.cfg == nil {
 		return fmt.Errorf("discovery initialization requires a valid configuration")

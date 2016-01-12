@@ -129,7 +129,9 @@ func (c *controller) getNetworksFromStore() ([]*network, error) {
 
 		for _, kvo := range kvol {
 			n := kvo.(*network)
+			n.Lock()
 			n.ctrlr = c
+			n.Unlock()
 
 			ec := &endpointCnt{n: n}
 			err = store.GetObject(datastore.Key(ec.Key()...), ec)
