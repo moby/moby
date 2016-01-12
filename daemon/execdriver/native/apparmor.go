@@ -4,7 +4,6 @@ package native
 
 import (
 	"bufio"
-	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -137,15 +136,10 @@ func installAppArmorProfile() error {
 	}
 	f.Close()
 
-	cmd := exec.Command("/sbin/apparmor_parser", "-r", "-W", "docker")
-	// to use the parser directly we have to make sure we are in the correct
-	// dir with the profile
-	cmd.Dir = "/etc/apparmor.d"
-
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("Error loading docker apparmor profile: %s (%s)", err, output)
+	if err := aaparser.LoadProfile(apparmorProfilePath); err != nil {
+		return err
 	}
+
 	return nil
 }
 
