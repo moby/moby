@@ -67,6 +67,7 @@ func (m *MountPoint) Setup() (string, error) {
 	if m.Volume != nil {
 		return m.Volume.Mount()
 	}
+
 	if len(m.Source) > 0 {
 		if _, err := os.Stat(m.Source); err != nil {
 			if !os.IsNotExist(err) {

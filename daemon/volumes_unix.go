@@ -20,6 +20,14 @@ import (
 func (daemon *Daemon) setupMounts(container *container.Container) ([]execdriver.Mount, error) {
 	var mounts []execdriver.Mount
 	for _, m := range container.MountPoints {
+		// In some cases this can be nil, like if the daemon restarted and the driver was not available
+		if m.Volume == nil && m.Driver != "" {
+			v, err := daemon.volumes.GetWithRef(m.Name, m.Driver, container.ID)
+			if err != nil {
+				return nil, err
+			}
+			m.Volume = v
+		}
 		path, err := m.Setup()
 		if err != nil {
 			return nil, err
