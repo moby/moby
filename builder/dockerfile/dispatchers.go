@@ -212,7 +212,7 @@ func from(b *Builder, args []string, attributes map[string]bool, original string
 			// TODO: shouldn't we error out if error is different from "not found" ?
 		}
 		if image == nil {
-			image, err = b.docker.Pull(name)
+			image, err = b.docker.Pull(name, b.options.AuthConfigs, b.Output)
 			if err != nil {
 				return err
 			}

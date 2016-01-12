@@ -101,7 +101,7 @@ type Backend interface {
 	// GetImage looks up a Docker image referenced by `name`.
 	GetImage(name string) (Image, error)
 	// Pull tells Docker to pull image referenced by `name`.
-	Pull(name string) (Image, error)
+	Pull(name string, authConfigs map[string]types.AuthConfig, output io.Writer) (Image, error)
 	// ContainerAttach attaches to container.
 	ContainerAttach(cID string, stdin io.ReadCloser, stdout, stderr io.Writer, stream bool) error
 	// ContainerCreate creates a new Docker container and returns potential warnings
