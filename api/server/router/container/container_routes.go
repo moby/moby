@@ -1,6 +1,7 @@
 package container
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -332,9 +333,15 @@ func (s *containerRouter) postContainerUpdate(ctx context.Context, w http.Respon
 		return err
 	}
 
-	_, hostConfig, _, err := runconfig.DecodeContainerConfig(r.Body)
-	if err != nil {
+	var updateConfig container.UpdateConfig
+
+	decoder := json.NewDecoder(r.Body)
+	if err := decoder.Decode(&updateConfig); err != nil {
 		return err
+	}
+
+	hostConfig := &container.HostConfig{
+		Resources: updateConfig.Resources,
 	}
 
 	name := vars["name"]

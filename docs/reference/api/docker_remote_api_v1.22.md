@@ -1023,7 +1023,7 @@ Update resource configs of one or more containers.
        Content-Type: application/json
 
        {
-           "HostConfig": {
+           "UpdateConfig": {
                "Resources": {
                    "BlkioWeight": 300,
                    "CpuShares": 512,
