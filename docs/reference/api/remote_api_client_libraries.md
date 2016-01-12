@@ -57,6 +57,12 @@ will add the libraries here.
     </tr>
     <tr>
       <td>Go</td>
+      <td>engine-api</td>
+      <td><a class="reference external" href="https://github.com/docker/engine-api">https://github.com/docker/engine-api</a></td>
+      <td>Active</td>
+    </tr>
+    <tr>
+      <td>Go</td>
       <td>go-dockerclient</td>
       <td><a class="reference external" href="https://github.com/fsouza/go-dockerclient">https://github.com/fsouza/go-dockerclient</a></td>
       <td>Active</td>
