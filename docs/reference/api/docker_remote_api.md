@@ -95,6 +95,7 @@ This section lists each version from latest to oldest.  Each listing includes a 
 
 [Docker Remote API v1.22](docker_remote_api_v1.22.md) documentation
 
+* `POST /container/(name)/update` updates the resources of a container.
 * `GET /containers/json` supports filter `isolation` on Windows.
 * `GET /containers/json` now returns the list of networks of containers.
 * `GET /info` Now returns `Architecture` and `OSType` fields, providing information
@@ -120,7 +121,7 @@ This section lists each version from latest to oldest.  Each listing includes a 
 * `GET /volumes` lists volumes from all volume drivers.
 * `POST /volumes/create` to create a volume.
 * `GET /volumes/(name)` get low-level information about a volume.
-* `DELETE /volumes/(name)`remove a volume with the specified name.
+* `DELETE /volumes/(name)` remove a volume with the specified name.
 * `VolumeDriver` was moved from `config` to `HostConfig` to make the configuration portable.
 * `GET /images/(name)/json` now returns information about an image's `RepoTags` and `RepoDigests`.
 * The `config` option now accepts the field `StopSignal`, which specifies the signal to use to kill a container.
