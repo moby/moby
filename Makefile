@@ -73,7 +73,7 @@ binary: build
 	$(DOCKER_RUN_DOCKER) hack/make.sh binary
 
 build: bundles
-	docker build -t "$(DOCKER_IMAGE)" -f "$(DOCKERFILE)" .
+	docker build ${DOCKER_BUILD_ARGS} -t "$(DOCKER_IMAGE)" -f "$(DOCKERFILE)" .
 
 bundles:
 	mkdir bundles
