@@ -32,7 +32,7 @@ func (w *Writer) connect() (err error) {
 	var conn serverConn
 	var hostname string
 	dialer := w.getDialer()
-	conn, hostname, err = dialer()
+	conn, hostname, err = dialer.Call()
 	if err == nil {
 		w.conn = conn
 		w.hostname = hostname

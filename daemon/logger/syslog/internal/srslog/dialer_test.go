@@ -4,19 +4,8 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"io/ioutil"
-	"reflect"
 	"testing"
 )
-
-// funcEquals checks if the two given functions are the same. This grabs the
-// function pointer of each of them and compares them. This seems to be a viable
-// way to work around the fact that Go does not have actual function equality.
-func funcEquals(f1, f2 interface{}) bool {
-	av := reflect.ValueOf(f1).Pointer()
-	bv := reflect.ValueOf(f2).Pointer()
-
-	return av == bv
-}
 
 func TestGetDialer(t *testing.T) {
 	w := Writer{
@@ -28,31 +17,31 @@ func TestGetDialer(t *testing.T) {
 	}
 
 	dialer := w.getDialer()
-	if !funcEquals(w.unixDialer, dialer) {
+	if "unixDialer" != dialer.Name {
 		t.Errorf("should get unixDialer, got: %v", dialer)
 	}
 
 	w.network = "tcp+tls"
 	dialer = w.getDialer()
-	if !funcEquals(w.tlsDialer, dialer) {
+	if "tlsDialer" != dialer.Name {
 		t.Errorf("should get tlsDialer, got: %v", dialer)
 	}
 
 	w.network = "tcp"
 	dialer = w.getDialer()
-	if !funcEquals(w.basicDialer, dialer) {
+	if "basicDialer" != dialer.Name {
 		t.Errorf("should get basicDialer, got: %v", dialer)
 	}
 
 	w.network = "udp"
 	dialer = w.getDialer()
-	if !funcEquals(w.basicDialer, dialer) {
+	if "basicDialer" != dialer.Name {
 		t.Errorf("should get basicDialer, got: %v", dialer)
 	}
 
 	w.network = "something else entirely"
 	dialer = w.getDialer()
-	if !funcEquals(w.basicDialer, dialer) {
+	if "basicDialer" != dialer.Name {
 		t.Errorf("should get basicDialer, got: %v", dialer)
 	}
 }

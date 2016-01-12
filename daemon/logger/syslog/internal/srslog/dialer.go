@@ -5,6 +5,21 @@ import (
 	"net"
 )
 
+// dialerFunctionWrapper is a simple object that consists of a dialer function
+// and its name. This is primarily for testing, so we can make sure that the
+// getDialer method returns the correct dialer function. However, if you ever
+// find that you need to check which dialer function you have, this would also
+// be useful for you without having to use reflection.
+type dialerFunctionWrapper struct {
+	Name   string
+	Dialer func() (serverConn, string, error)
+}
+
+// Call the wrapped dialer function and return its return values.
+func (df dialerFunctionWrapper) Call() (serverConn, string, error) {
+	return df.Dialer()
+}
+
 // getDialer returns a "dialer" function that can be called to connect to a
 // syslog server.
 //
@@ -18,14 +33,14 @@ import (
 // conditional, we have a map of network -> dialer function (with a sane default
 // value), and adding a new network type is as easy as writing the dialer
 // function and adding it to the map.
-func (w Writer) getDialer() func() (serverConn, string, error) {
-	dialers := map[string]func() (serverConn, string, error){
-		"":        w.unixDialer,
-		"tcp+tls": w.tlsDialer,
+func (w Writer) getDialer() dialerFunctionWrapper {
+	dialers := map[string]dialerFunctionWrapper{
+		"":        dialerFunctionWrapper{"unixDialer", w.unixDialer},
+		"tcp+tls": dialerFunctionWrapper{"tlsDialer", w.tlsDialer},
 	}
 	dialer, ok := dialers[w.network]
 	if !ok {
-		dialer = w.basicDialer
+		dialer = dialerFunctionWrapper{"basicDialer", w.basicDialer}
 	}
 	return dialer
 }
