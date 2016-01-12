@@ -337,3 +337,20 @@ func (s *DockerSuite) TestRmiWithParentInUse(c *check.C) {
 
 	dockerCmd(c, "rmi", imageID)
 }
+
+// #18873
+func (s *DockerSuite) TestRmiByIDHardConflict(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	dockerCmd(c, "create", "busybox")
+
+	imgID, err := inspectField("busybox:latest", "Id")
+	c.Assert(err, checker.IsNil)
+
+	_, _, err = dockerCmdWithError("rmi", imgID[:12])
+	c.Assert(err, checker.NotNil)
+
+	// check that tag was not removed
+	imgID2, err := inspectField("busybox:latest", "Id")
+	c.Assert(err, checker.IsNil)
+	c.Assert(imgID, checker.Equals, imgID2)
+}
