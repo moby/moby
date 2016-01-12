@@ -16,7 +16,7 @@ parent = "smn_cli"
 
       --help             Print usage
 
-Connects a running container to a network. You can connect a container by name
+Connects a container to a network. You can connect a container by name
 or by ID. Once connected, the container can communicate with other containers in
 the same network.
 
