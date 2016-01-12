@@ -154,28 +154,19 @@ type ImageBuildResponse struct {
 
 // ImageCreateOptions holds information to create images.
 type ImageCreateOptions struct {
-	// Parent is the image to create this image from
-	Parent string
-	// Tag is the name to tag this image
-	Tag string
-	// RegistryAuth is the base64 encoded credentials for this server
-	RegistryAuth string
+	Parent       string // Parent is the name of the image to pull
+	Tag          string // Tag is the name to tag this image with
+	RegistryAuth string // RegistryAuth is the base64 encoded credentials for the registry
 }
 
 // ImageImportOptions holds information to import images from the client host.
 type ImageImportOptions struct {
-	// Source is the data to send to the server to create this image from
-	Source io.Reader
-	// Source is the name of the source to import this image from
-	SourceName string
-	// RepositoryName is the name of the repository to import this image
-	RepositoryName string
-	// Message is the message to tag the image with
-	Message string
-	// Tag is the name to tag this image
-	Tag string
-	// Changes are the raw changes to apply to the image
-	Changes []string
+	Source         io.Reader // Source is the data to send to the server to create this image from (mutually exclusive with SourceName)
+	SourceName     string    // SourceName is the name of the image to pull (mutually exclusive with Source)
+	RepositoryName string    // RepositoryName is the name of the repository to import this image into
+	Message        string    // Message is the message to tag the image with
+	Tag            string    // Tag is the name to tag this image with
+	Changes        []string  // Changes are the raw changes to apply to this image
 }
 
 // ImageListOptions holds parameters to filter the list of images with.
@@ -193,10 +184,9 @@ type ImageLoadResponse struct {
 
 // ImagePullOptions holds information to pull images.
 type ImagePullOptions struct {
-	ImageID string
-	Tag     string
-	// RegistryAuth is the base64 encoded credentials for this server
-	RegistryAuth string
+	ImageID      string // ImageID is the name of the image to pull
+	Tag          string // Tag is the name of the tag to be pulled
+	RegistryAuth string // RegistryAuth is the base64 encoded credentials for the registry
 }
 
 //ImagePushOptions holds information to push images.

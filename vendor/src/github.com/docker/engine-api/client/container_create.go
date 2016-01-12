@@ -33,13 +33,13 @@ func (cli *Client) ContainerCreate(config *container.Config, hostConfig *contain
 
 	serverResp, err := cli.post("/containers/create", query, body, nil)
 	if err != nil {
-		if serverResp != nil && serverResp.statusCode == 404 && strings.Contains(err.Error(), config.Image) {
+		if serverResp != nil && serverResp.statusCode == 404 && strings.Contains(err.Error(), "No such image") {
 			return response, imageNotFoundError{config.Image}
 		}
 		return response, err
 	}
 
-	if serverResp.statusCode == 404 && strings.Contains(err.Error(), config.Image) {
+	if serverResp.statusCode == 404 && strings.Contains(err.Error(), "No such image") {
 		return response, imageNotFoundError{config.Image}
 	}
 
