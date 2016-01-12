@@ -720,8 +720,8 @@ func (ep *endpoint) deleteEndpoint() error {
 }
 
 func (ep *endpoint) getSandbox() (*sandbox, bool) {
-	ep.Lock()
 	c := ep.network.getController()
+	ep.Lock()
 	sid := ep.sandboxID
 	ep.Unlock()
 
