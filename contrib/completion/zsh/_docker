@@ -634,6 +634,7 @@ __docker_subcommand() {
                 "($help)--tlscert=[Path to TLS certificate file]:PEM file:_files -g "*.(pem|crt)"" \
                 "($help)--tlskey=[Path to TLS key file]:Key file:_files -g "*.(pem|key)"" \
                 "($help)--tlsverify[Use TLS and verify the remote]" \
+                "($help)--userns-remap=[User/Group setting for user namespaces]:user\:group:->users-groups" \
                 "($help)--userland-proxy[Use userland proxy for loopback traffic]" && ret=0
 
             case $state in
@@ -651,6 +652,14 @@ __docker_subcommand() {
                     else
                         opts=('kv.cacertfile' 'kv.certfile' 'kv.keyfile')
                         _describe -t cluster-store-opts "Cluster Store Options" opts -qS "=" && ret=0
+                    fi
+                    ;;
+                (users-groups)
+                    if compset -P '*:'; then
+                        _groups && ret=0
+                    else
+                        _describe -t userns-default "default Docker user management" '(default)' && ret=0
+                        _users && ret=0
                     fi
                     ;;
             esac
