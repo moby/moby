@@ -20,13 +20,8 @@ import (
 func (daemon *Daemon) setupMounts(container *container.Container) ([]execdriver.Mount, error) {
 	var mounts []execdriver.Mount
 	for _, m := range container.MountPoints {
-		// Lazy initialize m.Volume if needed.  This happens after a daemon restart
-		if len(m.Driver) > 0 && m.Volume == nil {
-			v, err := daemon.createVolume(m.Name, m.Driver, nil)
-			if err != nil {
-				return nil, err
-			}
-			m.Volume = v
+		if err := daemon.lazyInitializeVolume(container.ID, m); err != nil {
+			return nil, err
 		}
 		path, err := m.Setup()
 		if err != nil {

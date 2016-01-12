@@ -153,3 +153,17 @@ func (daemon *Daemon) registerMountPoints(container *container.Container, hostCo
 
 	return nil
 }
+
+// lazyInitializeVolume initializes a mountpoint's volume if needed.
+// This happens after a daemon restart.
+func (daemon *Daemon) lazyInitializeVolume(containerID string, m *volume.MountPoint) error {
+	if len(m.Driver) > 0 && m.Volume == nil {
+		v, err := daemon.volumes.GetWithRef(m.Name, m.Driver, containerID)
+
+		if err != nil {
+			return err
+		}
+		m.Volume = v
+	}
+	return nil
+}
