@@ -68,6 +68,7 @@ type networkConfiguration struct {
 	DefaultGatewayIPv6 net.IP
 	dbIndex            uint64
 	dbExists           bool
+	Internal           bool
 }
 
 // endpointConfiguration represents the user specified configuration for the sandbox endpoint
@@ -280,16 +281,25 @@ func (n *bridgeNetwork) getEndpoint(eid string) (*bridgeEndpoint, error) {
 // from each of the other networks
 func (n *bridgeNetwork) isolateNetwork(others []*bridgeNetwork, enable bool) error {
 	n.Lock()
-	thisIface := n.config.BridgeName
+	thisConfig := n.config
 	n.Unlock()
+
+	if thisConfig.Internal {
+		return nil
+	}
 
 	// Install the rules to isolate this networks against each of the other networks
 	for _, o := range others {
 		o.Lock()
-		otherIface := o.config.BridgeName
+		otherConfig := o.config
 		o.Unlock()
-		if thisIface != otherIface {
-			if err := setINC(thisIface, otherIface, enable); err != nil {
+
+		if otherConfig.Internal {
+			continue
+		}
+
+		if thisConfig.BridgeName != otherConfig.BridgeName {
+			if err := setINC(thisConfig.BridgeName, otherConfig.BridgeName, enable); err != nil {
 				return err
 			}
 		}
@@ -483,7 +493,7 @@ func parseNetworkOptions(id string, option options.Generic) (*networkConfigurati
 
 	if val, ok := option[netlabel.Internal]; ok {
 		if internal, ok := val.(bool); ok && internal {
-			return nil, &driverapi.ErrNotImplemented{}
+			config.Internal = true
 		}
 	}
 
