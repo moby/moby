@@ -198,7 +198,7 @@ func (sb *sandbox) Delete() error {
 			log.Warnf("Failed detaching sandbox %s from endpoint %s: %v\n", sb.ID(), ep.ID(), err)
 		}
 
-		if err := ep.Delete(); err != nil {
+		if err := ep.Delete(false); err != nil {
 			log.Warnf("Failed deleting endpoint %s: %v\n", ep.ID(), err)
 		}
 	}
