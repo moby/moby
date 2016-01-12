@@ -73,7 +73,8 @@ volumes. The output should look something similar to the following:
             "Destination": "/webapp",
             "Driver": "local",
             "Mode": "",
-            "RW": true
+            "RW": true,
+            "Propagation": ""
         }
     ]
     ...
