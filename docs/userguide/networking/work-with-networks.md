@@ -327,9 +327,8 @@ PING 172.17.0.2 (172.17.0.2): 56 data bytes
 
 ```
 
-To connect a container to a network, the container must be running. If you stop
-a container and inspect a network it belongs to, you won't see that container.
-The `docker network inspect` command only shows running containers.
+You can connect both running and non-running containers to a network. However,
+`docker network inspect` only displays information on running containers.
 
 ## Disconnecting containers
 

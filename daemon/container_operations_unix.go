@@ -708,13 +708,43 @@ func cleanOperationalData(es *networktypes.EndpointSettings) {
 	es.MacAddress = ""
 }
 
+func (daemon *Daemon) updateNetworkConfig(container *container.Container, idOrName string, updateSettings bool) (libnetwork.Network, error) {
+	if container.HostConfig.NetworkMode.IsContainer() {
+		return nil, runconfig.ErrConflictSharedNetwork
+	}
+
+	if containertypes.NetworkMode(idOrName).IsBridge() &&
+		daemon.configStore.DisableBridge {
+		container.Config.NetworkDisabled = true
+		return nil, nil
+	}
+
+	n, err := daemon.FindNetwork(idOrName)
+	if err != nil {
+		return nil, err
+	}
+
+	if updateSettings {
+		if err := daemon.updateNetworkSettings(container, n); err != nil {
+			return nil, err
+		}
+	}
+	return n, nil
+}
+
 // ConnectToNetwork connects a container to a network
 func (daemon *Daemon) ConnectToNetwork(container *container.Container, idOrName string, endpointConfig *networktypes.EndpointSettings) error {
 	if !container.Running {
-		return derr.ErrorCodeNotRunning.WithArgs(container.ID)
-	}
-	if err := daemon.connectToNetwork(container, idOrName, endpointConfig, true); err != nil {
-		return err
+		if container.RemovalInProgress || container.Dead {
+			return derr.ErrorCodeRemovalContainer.WithArgs(container.ID)
+		}
+		if _, err := daemon.updateNetworkConfig(container, idOrName, true); err != nil {
+			return err
+		}
+	} else {
+		if err := daemon.connectToNetwork(container, idOrName, endpointConfig, true); err != nil {
+			return err
+		}
 	}
 	if err := container.ToDiskLocking(); err != nil {
 		return fmt.Errorf("Error saving container to disk: %v", err)
@@ -723,35 +753,22 @@ func (daemon *Daemon) ConnectToNetwork(container *container.Container, idOrName 
 }
 
 func (daemon *Daemon) connectToNetwork(container *container.Container, idOrName string, endpointConfig *networktypes.EndpointSettings, updateSettings bool) (err error) {
-	if container.HostConfig.NetworkMode.IsContainer() {
-		return runconfig.ErrConflictSharedNetwork
+	n, err := daemon.updateNetworkConfig(container, idOrName, updateSettings)
+	if err != nil {
+		return err
+	}
+	if n == nil {
+		return nil
 	}
 
 	if !containertypes.NetworkMode(idOrName).IsUserDefined() && hasUserDefinedIPAddress(endpointConfig) {
 		return runconfig.ErrUnsupportedNetworkAndIP
 	}
 
-	if containertypes.NetworkMode(idOrName).IsBridge() &&
-		daemon.configStore.DisableBridge {
-		container.Config.NetworkDisabled = true
-		return nil
-	}
-
 	controller := daemon.netController
-
-	n, err := daemon.FindNetwork(idOrName)
-	if err != nil {
-		return err
-	}
 
 	if err := validateNetworkingConfig(n, endpointConfig); err != nil {
 		return err
-	}
-
-	if updateSettings {
-		if err := daemon.updateNetworkSettings(container, n); err != nil {
-			return err
-		}
 	}
 
 	if endpointConfig != nil {
@@ -817,16 +834,22 @@ func (daemon *Daemon) connectToNetwork(container *container.Container, idOrName 
 
 // DisconnectFromNetwork disconnects container from network n.
 func (daemon *Daemon) DisconnectFromNetwork(container *container.Container, n libnetwork.Network) error {
-	if !container.Running {
-		return derr.ErrorCodeNotRunning.WithArgs(container.ID)
-	}
-
 	if container.HostConfig.NetworkMode.IsHost() && containertypes.NetworkMode(n.Type()).IsHost() {
 		return runconfig.ErrConflictHostNetwork
 	}
-
-	if err := disconnectFromNetwork(container, n); err != nil {
-		return err
+	if !container.Running {
+		if container.RemovalInProgress || container.Dead {
+			return derr.ErrorCodeRemovalContainer.WithArgs(container.ID)
+		}
+		if _, ok := container.NetworkSettings.Networks[n.Name()]; ok {
+			delete(container.NetworkSettings.Networks, n.Name())
+		} else {
+			return fmt.Errorf("container %s is not connected to the network %s", container.ID, n.Name())
+		}
+	} else {
+		if err := disconnectFromNetwork(container, n); err != nil {
+			return err
+		}
 	}
 
 	if err := container.ToDiskLocking(); err != nil {

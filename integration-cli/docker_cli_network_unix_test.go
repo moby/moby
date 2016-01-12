@@ -448,11 +448,6 @@ func (s *DockerNetworkSuite) TestDockerNetworkConnectDisconnect(c *check.C) {
 	c.Assert(nr.Name, checker.Equals, "test")
 	c.Assert(len(nr.Containers), checker.Equals, 0)
 
-	// check if network connect fails for inactive containers
-	dockerCmd(c, "stop", containerID)
-	_, _, err = dockerCmdWithError("network", "connect", "test", containerID)
-	c.Assert(err, check.NotNil)
-
 	dockerCmd(c, "network", "rm", "test")
 	assertNwNotAvailable(c, "test")
 }
@@ -960,7 +955,44 @@ func (s *DockerNetworkSuite) TestDockerNetworkRestartWithMulipleNetworks(c *chec
 	networks, err := inspectField("foo", "NetworkSettings.Networks")
 	c.Assert(err, checker.IsNil)
 	c.Assert(networks, checker.Contains, "bridge", check.Commentf("Should contain 'bridge' network"))
-	c.Assert(networks, checker.Contains, "test", check.Commentf("Should contain 'test' netwokr"))
+	c.Assert(networks, checker.Contains, "test", check.Commentf("Should contain 'test' network"))
+}
+
+func (s *DockerNetworkSuite) TestDockerNetworkConnectDisconnectToStoppedContainer(c *check.C) {
+	dockerCmd(c, "network", "create", "test")
+	dockerCmd(c, "create", "--name=foo", "busybox", "top")
+	dockerCmd(c, "network", "connect", "test", "foo")
+	networks, err := inspectField("foo", "NetworkSettings.Networks")
+	c.Assert(err, checker.IsNil)
+	c.Assert(networks, checker.Contains, "test", check.Commentf("Should contain 'test' network"))
+
+	// Restart docker daemon to test the config has persisted to disk
+	s.d.Restart()
+	networks, err = inspectField("foo", "NetworkSettings.Networks")
+	c.Assert(err, checker.IsNil)
+	c.Assert(networks, checker.Contains, "test", check.Commentf("Should contain 'test' network"))
+
+	// start the container and test if we can ping it from another container in the same network
+	dockerCmd(c, "start", "foo")
+	c.Assert(waitRun("foo"), checker.IsNil)
+	ip, err := inspectField("foo", "NetworkSettings.Networks.test.IPAddress")
+	ip = strings.TrimSpace(ip)
+	dockerCmd(c, "run", "--net=test", "busybox", "sh", "-c", fmt.Sprintf("ping -c 1 %s", ip))
+
+	dockerCmd(c, "stop", "foo")
+
+	// Test disconnect
+	dockerCmd(c, "network", "disconnect", "test", "foo")
+	networks, err = inspectField("foo", "NetworkSettings.Networks")
+	c.Assert(err, checker.IsNil)
+	c.Assert(networks, checker.Not(checker.Contains), "test", check.Commentf("Should not contain 'test' network"))
+
+	// Restart docker daemon to test the config has persisted to disk
+	s.d.Restart()
+	networks, err = inspectField("foo", "NetworkSettings.Networks")
+	c.Assert(err, checker.IsNil)
+	c.Assert(networks, checker.Not(checker.Contains), "test", check.Commentf("Should not contain 'test' network"))
+
 }
 
 func (s *DockerNetworkSuite) TestDockerNetworkConnectPreferredIP(c *check.C) {
