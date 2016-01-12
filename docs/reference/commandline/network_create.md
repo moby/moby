@@ -22,6 +22,7 @@ parent = "smn_cli"
     --ipam-driver=default    IP Address Management Driver
     -o --opt=map[]           Set custom network plugin options
     --subnet=[]              Subnet in CIDR format that represents a network segment
+    --internal               Restricts external access to the network
 
 Creates a new network. The `DRIVER` accepts `bridge` or `overlay` which are the
 built-in network drivers. If you have installed a third party or your own custom
@@ -119,6 +120,11 @@ docker network create -d overlay
   my-multihost-network
 ```
 Be sure that your subnetworks do not overlap. If they do, the network create fails and Engine returns an error.
+
+### Network internal mode
+
+By default, when you connect a container to an `overlay` network, Docker also connects a bridge network to it to provide external connectivity.
+If you want to create an externally isolated `overlay` network, you can specify the `--internal` option.
 
 ## Related information
 

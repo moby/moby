@@ -409,6 +409,7 @@ type NetworkCreate struct {
 	IPAM           network.IPAM
 	Internal       bool
 	Options        map[string]string
+	Internal       bool
 }
 
 // NetworkCreateResponse is the response message sent by the server for network create call
