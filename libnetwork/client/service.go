@@ -191,6 +191,7 @@ func (cli *NetworkCli) CmdServicePublish(chain string, args ...string) error {
 // CmdServiceUnpublish handles service delete UI
 func (cli *NetworkCli) CmdServiceUnpublish(chain string, args ...string) error {
 	cmd := cli.Subcmd(chain, "unpublish", "SERVICE[.NETWORK]", "Removes a service", false)
+	force := cmd.Bool([]string{"f", "-force"}, false, "force unpublish service")
 	cmd.Require(flag.Exact, 1)
 	err := cmd.ParseFlags(args, true)
 	if err != nil {
@@ -203,7 +204,8 @@ func (cli *NetworkCli) CmdServiceUnpublish(chain string, args ...string) error {
 		return err
 	}
 
-	_, _, err = readBody(cli.call("DELETE", "/services/"+serviceID, nil, nil))
+	sd := serviceDelete{Name: sn, Force: *force}
+	_, _, err = readBody(cli.call("DELETE", "/services/"+serviceID, sd, nil))
 
 	return err
 }
