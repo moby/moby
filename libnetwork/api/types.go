@@ -76,6 +76,12 @@ type servicePublish struct {
 	PortMapping  []types.PortBinding   `json:"port_mapping"`
 }
 
+// serviceDelete represents the body of the "unpublish service" http request message
+type serviceDelete struct {
+	Name  string `json:"name"`
+	Force bool   `json:"force"`
+}
+
 // extraHost represents the extra host object
 type extraHost struct {
 	Name    string `json:"name"`

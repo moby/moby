@@ -49,6 +49,12 @@ type serviceCreate struct {
 	PortMapping  []types.PortBinding   `json:"port_mapping"`
 }
 
+// serviceDelete represents the body of the "unpublish service" http request message
+type serviceDelete struct {
+	Name  string `json:"name"`
+	Force bool   `json:"force"`
+}
+
 // serviceAttach represents the expected body of the "attach/detach sandbox to/from service" http request messages
 type serviceAttach struct {
 	SandboxID string   `json:"sandbox_id"`

@@ -135,7 +135,7 @@ func TestNull(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := ep.Delete(); err != nil {
+	if err := ep.Delete(false); err != nil {
 		t.Fatal(err)
 	}
 
@@ -213,11 +213,11 @@ func TestHost(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := ep1.Delete(); err != nil {
+	if err := ep1.Delete(false); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := ep2.Delete(); err != nil {
+	if err := ep2.Delete(false); err != nil {
 		t.Fatal(err)
 	}
 
@@ -249,7 +249,7 @@ func TestHost(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := ep3.Delete(); err != nil {
+	if err := ep3.Delete(false); err != nil {
 		t.Fatal(err)
 	}
 
@@ -305,7 +305,7 @@ func TestBridge(t *testing.T) {
 		t.Fatalf("Incomplete data for port mapping in endpoint operational data: %d", len(pm))
 	}
 
-	if err := ep.Delete(); err != nil {
+	if err := ep.Delete(false); err != nil {
 		t.Fatal(err)
 	}
 
@@ -358,7 +358,7 @@ func TestBridgeIpv6FromMac(t *testing.T) {
 		t.Fatalf("Expected %v. Got: %v", expIP, iface.AddressIPv6())
 	}
 
-	if err := ep.Delete(); err != nil {
+	if err := ep.Delete(false); err != nil {
 		t.Fatal(err)
 	}
 
@@ -514,7 +514,7 @@ func TestDeleteNetworkWithActiveEndpoints(t *testing.T) {
 	}
 
 	// Done testing. Now cleanup.
-	if err := ep.Delete(); err != nil {
+	if err := ep.Delete(false); err != nil {
 		t.Fatal(err)
 	}
 
@@ -586,7 +586,7 @@ func TestUnknownEndpoint(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = ep.Delete()
+	err = ep.Delete(false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -624,7 +624,7 @@ func TestNetworkEndpointsWalkers(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() {
-		if err := ep11.Delete(); err != nil {
+		if err := ep11.Delete(false); err != nil {
 			t.Fatal(err)
 		}
 	}()
@@ -634,7 +634,7 @@ func TestNetworkEndpointsWalkers(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() {
-		if err := ep12.Delete(); err != nil {
+		if err := ep12.Delete(false); err != nil {
 			t.Fatal(err)
 		}
 	}()
@@ -752,7 +752,7 @@ func TestDuplicateEndpoint(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() {
-		if err := ep.Delete(); err != nil {
+		if err := ep.Delete(false); err != nil {
 			t.Fatal(err)
 		}
 	}()
@@ -761,7 +761,7 @@ func TestDuplicateEndpoint(t *testing.T) {
 	defer func() {
 		// Cleanup ep2 as well, else network cleanup might fail for failure cases
 		if ep2 != nil {
-			if err := ep2.Delete(); err != nil {
+			if err := ep2.Delete(false); err != nil {
 				t.Fatal(err)
 			}
 		}
@@ -904,7 +904,7 @@ func TestNetworkQuery(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() {
-		if err := ep11.Delete(); err != nil {
+		if err := ep11.Delete(false); err != nil {
 			t.Fatal(err)
 		}
 	}()
@@ -914,7 +914,7 @@ func TestNetworkQuery(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() {
-		if err := ep12.Delete(); err != nil {
+		if err := ep12.Delete(false); err != nil {
 			t.Fatal(err)
 		}
 	}()
@@ -1032,7 +1032,7 @@ func TestEndpointJoin(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() {
-		if err := ep1.Delete(); err != nil {
+		if err := ep1.Delete(false); err != nil {
 			t.Fatal(err)
 		}
 	}()
@@ -1150,7 +1150,7 @@ func TestEndpointJoin(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() {
-		if err := ep2.Delete(); err != nil {
+		if err := ep2.Delete(false); err != nil {
 			t.Fatal(err)
 		}
 	}()
@@ -1253,7 +1253,7 @@ func externalKeyTest(t *testing.T, reexec bool) {
 		t.Fatal(err)
 	}
 	defer func() {
-		err = ep.Delete()
+		err = ep.Delete(false)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -1264,7 +1264,7 @@ func externalKeyTest(t *testing.T, reexec bool) {
 		t.Fatal(err)
 	}
 	defer func() {
-		err = ep2.Delete()
+		err = ep2.Delete(false)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -1402,7 +1402,7 @@ func TestEndpointDeleteWithActiveContainer(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() {
-		err = ep.Delete()
+		err = ep.Delete(false)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -1431,7 +1431,7 @@ func TestEndpointDeleteWithActiveContainer(t *testing.T) {
 		}
 	}()
 
-	err = ep.Delete()
+	err = ep.Delete(false)
 	if err == nil {
 		t.Fatal("Expected to fail. But instead succeeded")
 	}
@@ -1465,7 +1465,7 @@ func TestEndpointMultipleJoins(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() {
-		if err := ep.Delete(); err != nil {
+		if err := ep.Delete(false); err != nil {
 			t.Fatal(err)
 		}
 	}()
@@ -1589,7 +1589,7 @@ func TestontainerInvalidLeave(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() {
-		if err := ep.Delete(); err != nil {
+		if err := ep.Delete(false); err != nil {
 			t.Fatal(err)
 		}
 	}()
@@ -2334,7 +2334,7 @@ func runParallelTests(t *testing.T, thrNumber int) {
 			t.Fatal(err)
 		}
 	} else {
-		err = ep.Delete()
+		err = ep.Delete(false)
 		if err != nil {
 			t.Fatal(err)
 		}

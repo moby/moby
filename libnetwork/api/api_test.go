@@ -690,15 +690,15 @@ func TestProcGetServices(t *testing.T) {
 	}
 
 	delete(vars, urlEpPID)
-	err = ep11.Delete()
+	err = ep11.Delete(false)
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = ep12.Delete()
+	err = ep12.Delete(false)
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = ep21.Delete()
+	err = ep21.Delete(false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1014,7 +1014,7 @@ func TestAttachDetachBackend(t *testing.T) {
 		t.Fatalf("Did not find expected sandbox. Got %v", sb)
 	}
 
-	err = ep1.Delete()
+	err = ep1.Delete(false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1495,7 +1495,7 @@ func TestFindEndpointUtil(t *testing.T) {
 		t.Fatalf("Diffenrent queries returned different endpoints")
 	}
 
-	ep.Delete()
+	ep.Delete(false)
 
 	_, errRsp = findEndpoint(c, nid, "secondEp", byID, byName)
 	if errRsp == &successResponse {

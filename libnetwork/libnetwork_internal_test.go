@@ -407,7 +407,7 @@ func TestIpamReleaseOnNetDriverFailures(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer ep.Delete()
+	defer ep.Delete(false)
 
 	expectedIP, _ := types.ParseCIDR("10.34.0.1/16")
 	if !types.CompareIPNet(ep.Info().Iface().Address(), expectedIP) {
