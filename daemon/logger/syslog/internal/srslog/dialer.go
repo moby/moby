@@ -33,7 +33,7 @@ func (df dialerFunctionWrapper) Call() (serverConn, string, error) {
 // conditional, we have a map of network -> dialer function (with a sane default
 // value), and adding a new network type is as easy as writing the dialer
 // function and adding it to the map.
-func (w Writer) getDialer() dialerFunctionWrapper {
+func (w *Writer) getDialer() dialerFunctionWrapper {
 	dialers := map[string]dialerFunctionWrapper{
 		"":        dialerFunctionWrapper{"unixDialer", w.unixDialer},
 		"tcp+tls": dialerFunctionWrapper{"tlsDialer", w.tlsDialer},
@@ -47,7 +47,7 @@ func (w Writer) getDialer() dialerFunctionWrapper {
 
 // unixDialer uses the unixSyslog method to open a connection to the syslog
 // daemon running on the local machine.
-func (w Writer) unixDialer() (serverConn, string, error) {
+func (w *Writer) unixDialer() (serverConn, string, error) {
 	sc, err := unixSyslog()
 	hostname := w.hostname
 	if hostname == "" {
@@ -58,7 +58,7 @@ func (w Writer) unixDialer() (serverConn, string, error) {
 
 // tlsDialer connects to TLS over TCP, and is used for the "tcp+tls" network
 // type.
-func (w Writer) tlsDialer() (serverConn, string, error) {
+func (w *Writer) tlsDialer() (serverConn, string, error) {
 	c, err := tls.Dial("tcp", w.raddr, w.tlsConfig)
 	var sc serverConn
 	hostname := w.hostname
@@ -73,7 +73,7 @@ func (w Writer) tlsDialer() (serverConn, string, error) {
 
 // basicDialer is the most common dialer for syslog, and supports both TCP and
 // UDP connections.
-func (w Writer) basicDialer() (serverConn, string, error) {
+func (w *Writer) basicDialer() (serverConn, string, error) {
 	c, err := net.Dial(w.network, w.raddr)
 	var sc serverConn
 	hostname := w.hostname
