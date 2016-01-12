@@ -22,6 +22,7 @@ import (
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/gitutils"
 	"github.com/docker/docker/pkg/httputils"
+	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/jsonmessage"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/progress"
@@ -33,6 +34,8 @@ import (
 	"github.com/docker/engine-api/types/container"
 	"github.com/docker/go-units"
 )
+
+type translatorFunc func(reference.NamedTagged) (reference.Canonical, error)
 
 // CmdBuild builds a new image from the source code at a given path.
 //
@@ -101,11 +104,11 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 
 	switch {
 	case specifiedContext == "-":
-		tempDir, relDockerfile, err = getContextFromReader(cli.in, *dockerfileName)
+		context, relDockerfile, err = getContextFromReader(cli.in, *dockerfileName)
 	case urlutil.IsGitURL(specifiedContext) && hasGit:
 		tempDir, relDockerfile, err = getContextFromGitURL(specifiedContext, *dockerfileName)
 	case urlutil.IsURL(specifiedContext):
-		tempDir, relDockerfile, err = getContextFromURL(progBuff, specifiedContext, *dockerfileName)
+		context, relDockerfile, err = getContextFromURL(progBuff, specifiedContext, *dockerfileName)
 	default:
 		contextDir, relDockerfile, err = getContextFromLocalDir(specifiedContext, *dockerfileName)
 	}
@@ -122,67 +125,59 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		contextDir = tempDir
 	}
 
-	// And canonicalize dockerfile name to a platform-independent one
-	relDockerfile, err = archive.CanonicalTarNameForPath(relDockerfile)
-	if err != nil {
-		return fmt.Errorf("cannot canonicalize dockerfile path %s: %v", relDockerfile, err)
-	}
+	if context == nil {
+		// And canonicalize dockerfile name to a platform-independent one
+		relDockerfile, err = archive.CanonicalTarNameForPath(relDockerfile)
+		if err != nil {
+			return fmt.Errorf("cannot canonicalize dockerfile path %s: %v", relDockerfile, err)
+		}
 
-	f, err := os.Open(filepath.Join(contextDir, ".dockerignore"))
-	if err != nil && !os.IsNotExist(err) {
-		return err
-	}
+		f, err := os.Open(filepath.Join(contextDir, ".dockerignore"))
+		if err != nil && !os.IsNotExist(err) {
+			return err
+		}
 
-	var excludes []string
-	if err == nil {
-		excludes, err = dockerignore.ReadAll(f)
+		var excludes []string
+		if err == nil {
+			excludes, err = dockerignore.ReadAll(f)
+			if err != nil {
+				return err
+			}
+		}
+
+		if err := validateContextDirectory(contextDir, excludes); err != nil {
+			return fmt.Errorf("Error checking context: '%s'.", err)
+		}
+
+		// If .dockerignore mentions .dockerignore or the Dockerfile
+		// then make sure we send both files over to the daemon
+		// because Dockerfile is, obviously, needed no matter what, and
+		// .dockerignore is needed to know if either one needs to be
+		// removed. The daemon will remove them for us, if needed, after it
+		// parses the Dockerfile. Ignore errors here, as they will have been
+		// caught by validateContextDirectory above.
+		var includes = []string{"."}
+		keepThem1, _ := fileutils.Matches(".dockerignore", excludes)
+		keepThem2, _ := fileutils.Matches(relDockerfile, excludes)
+		if keepThem1 || keepThem2 {
+			includes = append(includes, ".dockerignore", relDockerfile)
+		}
+
+		context, err = archive.TarWithOptions(contextDir, &archive.TarOptions{
+			Compression:     archive.Uncompressed,
+			ExcludePatterns: excludes,
+			IncludeFiles:    includes,
+		})
 		if err != nil {
 			return err
 		}
 	}
 
-	if err := validateContextDirectory(contextDir, excludes); err != nil {
-		return fmt.Errorf("Error checking context: '%s'.", err)
-	}
-
-	// If .dockerignore mentions .dockerignore or the Dockerfile
-	// then make sure we send both files over to the daemon
-	// because Dockerfile is, obviously, needed no matter what, and
-	// .dockerignore is needed to know if either one needs to be
-	// removed. The daemon will remove them for us, if needed, after it
-	// parses the Dockerfile. Ignore errors here, as they will have been
-	// caught by validateContextDirectory above.
-	var includes = []string{"."}
-	keepThem1, _ := fileutils.Matches(".dockerignore", excludes)
-	keepThem2, _ := fileutils.Matches(relDockerfile, excludes)
-	if keepThem1 || keepThem2 {
-		includes = append(includes, ".dockerignore", relDockerfile)
-	}
-
-	context, err = archive.TarWithOptions(contextDir, &archive.TarOptions{
-		Compression:     archive.Uncompressed,
-		ExcludePatterns: excludes,
-		IncludeFiles:    includes,
-	})
-	if err != nil {
-		return err
-	}
-
 	var resolvedTags []*resolvedTag
 	if isTrusted() {
-		// Resolve the FROM lines in the Dockerfile to trusted digest references
-		// using Notary. On a successful build, we must tag the resolved digests
-		// to the original name specified in the Dockerfile.
-		var newDockerfile *trustedDockerfile
-		newDockerfile, resolvedTags, err = rewriteDockerfileFrom(filepath.Join(contextDir, relDockerfile), cli.trustedReference)
-		if err != nil {
-			return fmt.Errorf("unable to process Dockerfile: %v", err)
-		}
-		defer newDockerfile.Close()
-
 		// Wrap the tar archive to replace the Dockerfile entry with the rewritten
 		// Dockerfile which uses trusted pulls.
-		context = replaceDockerfileTarWrapper(context, newDockerfile, relDockerfile)
+		context = replaceDockerfileTarWrapper(context, relDockerfile, cli.trustedReference, &resolvedTags)
 	}
 
 	// Setup an upload progress bar
@@ -459,41 +454,54 @@ func writeToFile(r io.Reader, filename string) error {
 }
 
 // getContextFromReader will read the contents of the given reader as either a
-// Dockerfile or tar archive to be extracted to a temporary directory used as
-// the context directory. Returns the absolute path to the temporary context
-// directory, the relative path of the dockerfile in that context directory,
-// and a non-nil error on success.
-func getContextFromReader(r io.Reader, dockerfileName string) (absContextDir, relDockerfile string, err error) {
+// Dockerfile or tar archive. Returns a tar archive used as a context and a
+// path to the Dockerfile inside the tar.
+func getContextFromReader(r io.ReadCloser, dockerfileName string) (out io.ReadCloser, relDockerfile string, err error) {
 	buf := bufio.NewReader(r)
 
 	magic, err := buf.Peek(archive.HeaderSize)
 	if err != nil && err != io.EOF {
-		return "", "", fmt.Errorf("failed to peek context header from STDIN: %v", err)
+		return nil, "", fmt.Errorf("failed to peek context header from STDIN: %v", err)
 	}
 
-	if absContextDir, err = ioutil.TempDir("", "docker-build-context-"); err != nil {
-		return "", "", fmt.Errorf("unbale to create temporary context directory: %v", err)
+	if archive.IsArchive(magic) {
+		return ioutils.NewReadCloserWrapper(buf, func() error { return r.Close() }), dockerfileName, nil
 	}
 
-	defer func(d string) {
-		if err != nil {
-			os.RemoveAll(d)
-		}
-	}(absContextDir)
-
-	if !archive.IsArchive(magic) { // Input should be read as a Dockerfile.
-		// -f option has no meaning when we're reading it from stdin,
-		// so just use our default Dockerfile name
-		relDockerfile = api.DefaultDockerfileName
-
-		return absContextDir, relDockerfile, writeToFile(buf, filepath.Join(absContextDir, relDockerfile))
+	// Input should be read as a Dockerfile.
+	tmpDir, err := ioutil.TempDir("", "docker-build-context-")
+	if err != nil {
+		return nil, "", fmt.Errorf("unbale to create temporary context directory: %v", err)
 	}
 
-	if err := archive.Untar(buf, absContextDir, nil); err != nil {
-		return "", "", fmt.Errorf("unable to extract stdin to temporary context directory: %v", err)
+	f, err := os.Create(filepath.Join(tmpDir, api.DefaultDockerfileName))
+	if err != nil {
+		return nil, "", err
+	}
+	_, err = io.Copy(f, buf)
+	if err != nil {
+		f.Close()
+		return nil, "", err
 	}
 
-	return getDockerfileRelPath(absContextDir, dockerfileName)
+	if err := f.Close(); err != nil {
+		return nil, "", err
+	}
+	if err := r.Close(); err != nil {
+		return nil, "", err
+	}
+
+	tar, err := archive.Tar(tmpDir, archive.Uncompressed)
+	if err != nil {
+		return nil, "", err
+	}
+
+	return ioutils.NewReadCloserWrapper(tar, func() error {
+		err := tar.Close()
+		os.RemoveAll(tmpDir)
+		return err
+	}), api.DefaultDockerfileName, nil
+
 }
 
 // getContextFromGitURL uses a Git URL as context for a `docker build`. The
@@ -510,23 +518,20 @@ func getContextFromGitURL(gitURL, dockerfileName string) (absContextDir, relDock
 }
 
 // getContextFromURL uses a remote URL as context for a `docker build`. The
-// remote resource is downloaded as either a Dockerfile or a context tar
-// archive and stored in a temporary directory used as the context directory.
-// Returns the absolute path to the temporary context directory, the relative
-// path of the dockerfile in that context directory, and a non-nil error on
-// success.
-func getContextFromURL(out io.Writer, remoteURL, dockerfileName string) (absContextDir, relDockerfile string, err error) {
+// remote resource is downloaded as either a Dockerfile or a tar archive.
+// Returns the tar archive used for the context and a path of the
+// dockerfile inside the tar.
+func getContextFromURL(out io.Writer, remoteURL, dockerfileName string) (io.ReadCloser, string, error) {
 	response, err := httputils.Download(remoteURL)
 	if err != nil {
-		return "", "", fmt.Errorf("unable to download remote context %s: %v", remoteURL, err)
+		return nil, "", fmt.Errorf("unable to download remote context %s: %v", remoteURL, err)
 	}
-	defer response.Body.Close()
 	progressOutput := streamformatter.NewStreamFormatter().NewProgressOutput(out, true)
 
 	// Pass the response body through a progress reader.
 	progReader := progress.NewProgressReader(response.Body, progressOutput, response.ContentLength, "", fmt.Sprintf("Downloading build context from remote url: %s", remoteURL))
 
-	return getContextFromReader(progReader, dockerfileName)
+	return getContextFromReader(ioutils.NewReadCloserWrapper(progReader, func() error { return response.Body.Close() }), dockerfileName)
 }
 
 // getContextFromLocalDir uses the given local directory as context for a
@@ -548,16 +553,6 @@ func getContextFromLocalDir(localDir, dockerfileName string) (absContextDir, rel
 
 var dockerfileFromLinePattern = regexp.MustCompile(`(?i)^[\s]*FROM[ \f\r\t\v]+(?P<image>[^ \f\r\t\v\n#]+)`)
 
-type trustedDockerfile struct {
-	*os.File
-	size int64
-}
-
-func (td *trustedDockerfile) Close() error {
-	td.File.Close()
-	return os.Remove(td.File.Name())
-}
-
 // resolvedTag records the repository, tag, and resolved digest reference
 // from a Dockerfile rewrite.
 type resolvedTag struct {
@@ -569,32 +564,9 @@ type resolvedTag struct {
 // "FROM <image>" instructions to a digest reference. `translator` is a
 // function that takes a repository name and tag reference and returns a
 // trusted digest reference.
-func rewriteDockerfileFrom(dockerfileName string, translator func(reference.NamedTagged) (reference.Canonical, error)) (newDockerfile *trustedDockerfile, resolvedTags []*resolvedTag, err error) {
-	dockerfile, err := os.Open(dockerfileName)
-	if err != nil {
-		return nil, nil, fmt.Errorf("unable to open Dockerfile: %v", err)
-	}
-	defer dockerfile.Close()
-
+func rewriteDockerfileFrom(dockerfile io.Reader, translator translatorFunc) (newDockerfile []byte, resolvedTags []*resolvedTag, err error) {
 	scanner := bufio.NewScanner(dockerfile)
-
-	// Make a tempfile to store the rewritten Dockerfile.
-	tempFile, err := ioutil.TempFile("", "trusted-dockerfile-")
-	if err != nil {
-		return nil, nil, fmt.Errorf("unable to make temporary trusted Dockerfile: %v", err)
-	}
-
-	trustedFile := &trustedDockerfile{
-		File: tempFile,
-	}
-
-	defer func() {
-		if err != nil {
-			// Close the tempfile if there was an error during Notary lookups.
-			// Otherwise the caller should close it.
-			trustedFile.Close()
-		}
-	}()
+	buf := bytes.NewBuffer(nil)
 
 	// Scan the lines of the Dockerfile, looking for a "FROM" line.
 	for scanner.Scan() {
@@ -622,26 +594,21 @@ func rewriteDockerfileFrom(dockerfileName string, translator func(reference.Name
 			}
 		}
 
-		n, err := fmt.Fprintln(tempFile, line)
+		_, err := fmt.Fprintln(buf, line)
 		if err != nil {
 			return nil, nil, err
 		}
-
-		trustedFile.size += int64(n)
 	}
 
-	tempFile.Seek(0, os.SEEK_SET)
-
-	return trustedFile, resolvedTags, scanner.Err()
+	return buf.Bytes(), resolvedTags, scanner.Err()
 }
 
 // replaceDockerfileTarWrapper wraps the given input tar archive stream and
 // replaces the entry with the given Dockerfile name with the contents of the
 // new Dockerfile. Returns a new tar archive stream with the replaced
 // Dockerfile.
-func replaceDockerfileTarWrapper(inputTarStream io.ReadCloser, newDockerfile *trustedDockerfile, dockerfileName string) io.ReadCloser {
+func replaceDockerfileTarWrapper(inputTarStream io.ReadCloser, dockerfileName string, translator translatorFunc, resolvedTags *[]*resolvedTag) io.ReadCloser {
 	pipeReader, pipeWriter := io.Pipe()
-
 	go func() {
 		tarReader := tar.NewReader(inputTarStream)
 		tarWriter := tar.NewWriter(pipeWriter)
@@ -662,13 +629,18 @@ func replaceDockerfileTarWrapper(inputTarStream io.ReadCloser, newDockerfile *tr
 			}
 
 			var content io.Reader = tarReader
-
 			if hdr.Name == dockerfileName {
 				// This entry is the Dockerfile. Since the tar archive was
 				// generated from a directory on the local filesystem, the
 				// Dockerfile will only appear once in the archive.
-				hdr.Size = newDockerfile.size
-				content = newDockerfile
+				var newDockerfile []byte
+				newDockerfile, *resolvedTags, err = rewriteDockerfileFrom(content, translator)
+				if err != nil {
+					pipeWriter.CloseWithError(err)
+					return
+				}
+				hdr.Size = int64(len(newDockerfile))
+				content = bytes.NewBuffer(newDockerfile)
 			}
 
 			if err := tarWriter.WriteHeader(hdr); err != nil {
