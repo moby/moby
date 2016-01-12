@@ -2081,6 +2081,9 @@ Display system-wide information
     {
         "Architecture": "x86_64",
         "Containers": 11,
+        "ContainersRunning": 7,
+        "ContainersStopped": 3,
+        "ContainersPaused": 1,
         "CpuCfsPeriod": true,
         "CpuCfsQuota": true,
         "Debug": false,
