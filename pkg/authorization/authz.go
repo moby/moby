@@ -1,15 +1,18 @@
 package authorization
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"strings"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/pkg/ioutils"
 )
+
+const maxBodySize = 1048576 // 1MB
 
 // NewCtx creates new authZ context, it is used to store authorization information related to a specific docker
 // REST http session
@@ -52,18 +55,12 @@ type Ctx struct {
 func (ctx *Ctx) AuthZRequest(w http.ResponseWriter, r *http.Request) error {
 	var body []byte
 	if sendBody(ctx.requestURI, r.Header) {
-		var (
-			err         error
-			drainedBody io.ReadCloser
-		)
-		drainedBody, r.Body, err = drainBody(r.Body)
-		if err != nil {
-			return err
-		}
-		defer drainedBody.Close()
-		body, err = ioutil.ReadAll(drainedBody)
-		if err != nil {
-			return err
+		if r.ContentLength < maxBodySize {
+			var err error
+			body, r.Body, err = drainBody(r.Body)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -126,15 +123,21 @@ func (ctx *Ctx) AuthZResponse(rm ResponseModifier, r *http.Request) error {
 
 // drainBody dump the body, it reads the body data into memory and
 // see go sources /go/src/net/http/httputil/dump.go
-func drainBody(b io.ReadCloser) (io.ReadCloser, io.ReadCloser, error) {
-	var buf bytes.Buffer
-	if _, err := buf.ReadFrom(b); err != nil {
+func drainBody(body io.ReadCloser) ([]byte, io.ReadCloser, error) {
+	bufReader := bufio.NewReaderSize(body, maxBodySize)
+	newBody := ioutils.NewReadCloserWrapper(bufReader, func() error { return body.Close() })
+
+	data, err := bufReader.Peek(maxBodySize)
+	if err != io.EOF {
+		// This means the request is larger than our max
+		if err == bufio.ErrBufferFull {
+			return nil, newBody, nil
+		}
+		// This means we had an error reading
 		return nil, nil, err
 	}
-	if err := b.Close(); err != nil {
-		return nil, nil, err
-	}
-	return ioutil.NopCloser(&buf), ioutil.NopCloser(bytes.NewReader(buf.Bytes())), nil
+
+	return data, newBody, nil
 }
 
 // sendBody returns true when request/response body should be sent to AuthZPlugin
