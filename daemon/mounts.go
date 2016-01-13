@@ -10,13 +10,8 @@ import (
 
 func (daemon *Daemon) prepareMountPoints(container *container.Container) error {
 	for _, config := range container.MountPoints {
-		if len(config.Driver) > 0 {
-			v, err := daemon.volumes.GetWithRef(config.Name, config.Driver, container.ID)
-			if err != nil {
-				return err
-			}
-
-			config.Volume = v
+		if err := daemon.lazyInitializeVolume(container.ID, config); err != nil {
+			return err
 		}
 	}
 	return nil
