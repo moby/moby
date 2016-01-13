@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.5.4 (2016-01-12)
+- Removed the isNodeAlive protection when user forces an endpoint delete
+
 ## 0.5.3 (2016-01-12)
 - Bridge driver supporting internal network option
 - Backend implementation to support "force" option to network disconnect
