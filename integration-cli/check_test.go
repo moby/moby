@@ -57,10 +57,10 @@ func (s *DockerRegistrySuite) TearDownTest(c *check.C) {
 	if s.reg != nil {
 		s.reg.Close()
 	}
-	if s.ds != nil {
-		s.ds.TearDownTest(c)
+	if s.d != nil {
+		s.d.Stop()
 	}
-	s.d.Stop()
+	s.ds.TearDownTest(c)
 }
 
 func init() {
@@ -85,10 +85,10 @@ func (s *DockerSchema1RegistrySuite) TearDownTest(c *check.C) {
 	if s.reg != nil {
 		s.reg.Close()
 	}
-	if s.ds != nil {
-		s.ds.TearDownTest(c)
+	if s.d != nil {
+		s.d.Stop()
 	}
-	s.d.Stop()
+	s.ds.TearDownTest(c)
 }
 
 func init() {
@@ -109,7 +109,9 @@ func (s *DockerDaemonSuite) SetUpTest(c *check.C) {
 
 func (s *DockerDaemonSuite) TearDownTest(c *check.C) {
 	testRequires(c, DaemonIsLinux)
-	s.d.Stop()
+	if s.d != nil {
+		s.d.Stop()
+	}
 	s.ds.TearDownTest(c)
 }
 
@@ -131,7 +133,11 @@ func (s *DockerTrustSuite) SetUpTest(c *check.C) {
 }
 
 func (s *DockerTrustSuite) TearDownTest(c *check.C) {
-	s.reg.Close()
-	s.not.Close()
+	if s.reg != nil {
+		s.reg.Close()
+	}
+	if s.not != nil {
+		s.not.Close()
+	}
 	s.ds.TearDownTest(c)
 }
