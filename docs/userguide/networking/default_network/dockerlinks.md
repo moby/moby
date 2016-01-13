@@ -17,14 +17,11 @@ Before the [Docker networks feature](../dockernetworks.md), you could use the
 Docker link feature to allow containers to discover each other and securely
 transfer information about one container to another container. With the
 introduction of the Docker networks feature, you can still create links but they
-are only supported on the default `bridge` network named `bridge` and appearing
-in your network stack as `docker0`.
+behave differently between default `bridge` network and
+[user defined networks](../work-with-networks.md#linking-containers-in-user-defined-networks)
 
 This section briefly discusses connecting via a network port and then goes into
-detail on container linking. While links are still supported on Docker's default
-network (`bridge`), you should avoid them in preference of the Docker
-networks feature. Linking is expected to be deprecated and removed in a future
-release.
+detail on container linking in default `bridge` network.
 
 ## Connect using network port mapping
 

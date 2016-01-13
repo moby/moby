@@ -199,6 +199,80 @@ func (s *DockerSuite) TestRunLinksContainerWithContainerId(c *check.C) {
 	}
 }
 
+func (s *DockerSuite) TestUserDefinedNetworkLinks(c *check.C) {
+	testRequires(c, DaemonIsLinux, NotUserNamespace)
+	dockerCmd(c, "network", "create", "-d", "bridge", "udlinkNet")
+
+	dockerCmd(c, "run", "-d", "--net=udlinkNet", "--name=first", "busybox", "top")
+	c.Assert(waitRun("first"), check.IsNil)
+
+	// run a container in user-defined network udlinkNet with a link for an existing container
+	// and a link for a container that doesnt exist
+	dockerCmd(c, "run", "-d", "--net=udlinkNet", "--name=second", "--link=first:foo",
+		"--link=third:bar", "busybox", "top")
+	c.Assert(waitRun("second"), check.IsNil)
+
+	// ping to first and its alias foo must succeed
+	_, _, err := dockerCmdWithError("exec", "second", "ping", "-c", "1", "first")
+	c.Assert(err, check.IsNil)
+	_, _, err = dockerCmdWithError("exec", "second", "ping", "-c", "1", "foo")
+	c.Assert(err, check.IsNil)
+
+	// ping to third and its alias must fail
+	_, _, err = dockerCmdWithError("exec", "second", "ping", "-c", "1", "third")
+	c.Assert(err, check.NotNil)
+	_, _, err = dockerCmdWithError("exec", "second", "ping", "-c", "1", "bar")
+	c.Assert(err, check.NotNil)
+
+	// start third container now
+	dockerCmd(c, "run", "-d", "--net=udlinkNet", "--name=third", "busybox", "top")
+	c.Assert(waitRun("third"), check.IsNil)
+
+	// ping to third and its alias must succeed now
+	_, _, err = dockerCmdWithError("exec", "second", "ping", "-c", "1", "third")
+	c.Assert(err, check.IsNil)
+	_, _, err = dockerCmdWithError("exec", "second", "ping", "-c", "1", "bar")
+	c.Assert(err, check.IsNil)
+}
+
+func (s *DockerSuite) TestUserDefinedNetworkLinksWithRestart(c *check.C) {
+	testRequires(c, DaemonIsLinux, NotUserNamespace)
+	dockerCmd(c, "network", "create", "-d", "bridge", "udlinkNet")
+
+	dockerCmd(c, "run", "-d", "--net=udlinkNet", "--name=first", "busybox", "top")
+	c.Assert(waitRun("first"), check.IsNil)
+
+	dockerCmd(c, "run", "-d", "--net=udlinkNet", "--name=second", "--link=first:foo",
+		"busybox", "top")
+	c.Assert(waitRun("second"), check.IsNil)
+
+	// ping to first and its alias foo must succeed
+	_, _, err := dockerCmdWithError("exec", "second", "ping", "-c", "1", "first")
+	c.Assert(err, check.IsNil)
+	_, _, err = dockerCmdWithError("exec", "second", "ping", "-c", "1", "foo")
+	c.Assert(err, check.IsNil)
+
+	// Restart first container
+	dockerCmd(c, "restart", "first")
+	c.Assert(waitRun("first"), check.IsNil)
+
+	// ping to first and its alias foo must still succeed
+	_, _, err = dockerCmdWithError("exec", "second", "ping", "-c", "1", "first")
+	c.Assert(err, check.IsNil)
+	_, _, err = dockerCmdWithError("exec", "second", "ping", "-c", "1", "foo")
+	c.Assert(err, check.IsNil)
+
+	// Restart second container
+	dockerCmd(c, "restart", "second")
+	c.Assert(waitRun("second"), check.IsNil)
+
+	// ping to first and its alias foo must still succeed
+	_, _, err = dockerCmdWithError("exec", "second", "ping", "-c", "1", "first")
+	c.Assert(err, check.IsNil)
+	_, _, err = dockerCmdWithError("exec", "second", "ping", "-c", "1", "foo")
+	c.Assert(err, check.IsNil)
+}
+
 // Issue 9677.
 func (s *DockerSuite) TestRunWithDaemonFlags(c *check.C) {
 	out, _, err := dockerCmdWithError("--exec-opt", "foo=bar", "run", "-i", "busybox", "true")

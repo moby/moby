@@ -48,10 +48,6 @@ func ValidateNetMode(c *container.Config, hc *container.HostConfig) error {
 		return ErrConflictContainerNetworkAndLinks
 	}
 
-	if hc.NetworkMode.IsUserDefined() && len(hc.Links) > 0 {
-		return ErrConflictUserDefinedNetworkAndLinks
-	}
-
 	if (hc.NetworkMode.IsHost() || hc.NetworkMode.IsContainer()) && len(hc.DNS) > 0 {
 		return ErrConflictNetworkAndDNS
 	}

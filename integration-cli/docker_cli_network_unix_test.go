@@ -1040,3 +1040,44 @@ func verifyIPAddresses(c *check.C, cName, nwname, ipv4, ipv6 string) {
 	out, _ = dockerCmd(c, "inspect", fmt.Sprintf("--format='{{ .NetworkSettings.Networks.%s.GlobalIPv6Address }}'", nwname), cName)
 	c.Assert(strings.TrimSpace(out), check.Equals, ipv6)
 }
+
+func (s *DockerSuite) TestUserDefinedNetworkConnectDisconnectLink(c *check.C) {
+	testRequires(c, DaemonIsLinux, NotUserNamespace)
+	dockerCmd(c, "network", "create", "-d", "bridge", "foo1")
+	dockerCmd(c, "network", "create", "-d", "bridge", "foo2")
+
+	dockerCmd(c, "run", "-d", "--net=foo1", "--name=first", "busybox", "top")
+	c.Assert(waitRun("first"), check.IsNil)
+
+	// run a container in user-defined network udlinkNet with a link for an existing container
+	// and a link for a container that doesnt exist
+	dockerCmd(c, "run", "-d", "--net=foo1", "--name=second", "--link=first:FirstInFoo1",
+		"--link=third:bar", "busybox", "top")
+	c.Assert(waitRun("second"), check.IsNil)
+
+	// ping to first and its alias FirstInFoo1 must succeed
+	_, _, err := dockerCmdWithError("exec", "second", "ping", "-c", "1", "first")
+	c.Assert(err, check.IsNil)
+	_, _, err = dockerCmdWithError("exec", "second", "ping", "-c", "1", "FirstInFoo1")
+	c.Assert(err, check.IsNil)
+
+	// connect first container to foo2 network
+	dockerCmd(c, "network", "connect", "foo2", "first")
+	// connect second container to foo2 network with a different alias for first container
+	dockerCmd(c, "network", "connect", "--link=first:FirstInFoo2", "foo2", "second")
+
+	// ping the new alias in network foo2
+	_, _, err = dockerCmdWithError("exec", "second", "ping", "-c", "1", "FirstInFoo2")
+	c.Assert(err, check.IsNil)
+
+	// disconnect first container from foo1 network
+	dockerCmd(c, "network", "disconnect", "foo1", "first")
+
+	// link in foo1 network must fail
+	_, _, err = dockerCmdWithError("exec", "second", "ping", "-c", "1", "FirstInFoo1")
+	c.Assert(err, check.NotNil)
+
+	// link in foo2 network must succeed
+	_, _, err = dockerCmdWithError("exec", "second", "ping", "-c", "1", "FirstInFoo2")
+	c.Assert(err, check.IsNil)
+}
