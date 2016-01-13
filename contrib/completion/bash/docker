@@ -1139,7 +1139,7 @@ _docker_network_connect() {
 			if [ $cword -eq $counter ]; then
 				__docker_complete_networks
 			elif [ $cword -eq $(($counter + 1)) ]; then
-				__docker_complete_containers_running
+				__docker_complete_containers_all
 			fi
 			;;
 	esac
