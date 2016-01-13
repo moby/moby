@@ -17,7 +17,7 @@ weight = -1
 
     Options:
       --api-cors-header=""                   Set CORS headers in the remote API
-      --authz-plugin=[]                      Set authorization plugins to load
+      --authorization-plugin=[]              Set authorization plugins to load
       -b, --bridge=""                        Attach containers to a network bridge
       --bip=""                               Specify network bridge IP
       --cgroup-parent=                       Set parent cgroup for all containers
@@ -613,10 +613,10 @@ The currently supported cluster store options are:
 Docker's access authorization can be extended by authorization plugins that your
 organization can purchase or build themselves. You can install one or more
 authorization plugins when you start the Docker `daemon` using the
-`--authz-plugin=PLUGIN_ID` option.
+`--authorization-plugin=PLUGIN_ID` option.
 
 ```bash
-docker daemon --authz-plugin=plugin1 --authz-plugin=plugin2,...
+docker daemon --authorization-plugin=plugin1 --authorization-plugin=plugin2,...
 ```
 
 The `PLUGIN_ID` value is either the plugin's name or a path to its specification
