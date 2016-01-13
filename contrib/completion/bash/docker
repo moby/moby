@@ -685,7 +685,7 @@ _docker_daemon() {
 	local options_with_args="
 		$global_options_with_args
 		--api-cors-header
-		--authz-plugin
+		--authorization-plugin
 		--bip
 		--bridge -b
 		--cgroup-parent
@@ -717,7 +717,7 @@ _docker_daemon() {
 	"
 
 	case "$prev" in
-		--authz-plugin)
+		--authorization-plugin)
 			__docker_complete_plugins Authorization
 			return
 			;;

@@ -177,9 +177,9 @@ func (cli *DaemonCli) CmdDaemon(args ...string) error {
 	}
 
 	serverConfig := &apiserver.Config{
-		AuthZPluginNames: cli.Config.AuthZPlugins,
-		Logging:          true,
-		Version:          dockerversion.Version,
+		AuthorizationPluginNames: cli.Config.AuthorizationPlugins,
+		Logging:                  true,
+		Version:                  dockerversion.Version,
 	}
 	serverConfig = setPlatformServerConfig(serverConfig, cli.Config)
 

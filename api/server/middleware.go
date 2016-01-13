@@ -169,8 +169,8 @@ func (s *Server) handleWithGlobalMiddlewares(handler httputils.APIFunc) httputil
 		middlewares = append(middlewares, debugRequestMiddleware)
 	}
 
-	if len(s.cfg.AuthZPluginNames) > 0 {
-		s.authZPlugins = authorization.NewPlugins(s.cfg.AuthZPluginNames)
+	if len(s.cfg.AuthorizationPluginNames) > 0 {
+		s.authZPlugins = authorization.NewPlugins(s.cfg.AuthorizationPluginNames)
 		middlewares = append(middlewares, s.authorizationMiddleware)
 	}
 
