@@ -1,9 +1,9 @@
 package server
 
 import (
-	"bytes"
+	"bufio"
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"runtime"
 	"strings"
@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/authorization"
+	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/version"
 	"golang.org/x/net/context"
 )
@@ -27,25 +28,37 @@ func debugRequestMiddleware(handler httputils.APIFunc) httputils.APIFunc {
 	return func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 		logrus.Debugf("%s %s", r.Method, r.RequestURI)
 
-		if r.Method == "POST" {
-			if err := httputils.CheckForJSON(r); err == nil {
-				var buf bytes.Buffer
-				if _, err := buf.ReadFrom(r.Body); err == nil {
-					r.Body.Close()
-					r.Body = ioutil.NopCloser(&buf)
-					var postForm map[string]interface{}
-					if err := json.Unmarshal(buf.Bytes(), &postForm); err == nil {
-						if _, exists := postForm["password"]; exists {
-							postForm["password"] = "*****"
-						}
-						formStr, errMarshal := json.Marshal(postForm)
-						if errMarshal == nil {
-							logrus.Debugf("form data: %s", string(formStr))
-						} else {
-							logrus.Debugf("form data: %q", postForm)
-						}
-					}
-				}
+		if r.Method != "POST" {
+			return handler(ctx, w, r, vars)
+		}
+		if err := httputils.CheckForJSON(r); err != nil {
+			return handler(ctx, w, r, vars)
+		}
+		maxBodySize := 4096 // 4KB
+		if r.ContentLength > int64(maxBodySize) {
+			return handler(ctx, w, r, vars)
+		}
+
+		body := r.Body
+		bufReader := bufio.NewReaderSize(body, maxBodySize)
+		r.Body = ioutils.NewReadCloserWrapper(bufReader, func() error { return body.Close() })
+
+		b, err := bufReader.Peek(maxBodySize)
+		if err != io.EOF {
+			// either there was an error reading, or the buffer is full (in which case the request is too large)
+			return handler(ctx, w, r, vars)
+		}
+
+		var postForm map[string]interface{}
+		if err := json.Unmarshal(b, &postForm); err == nil {
+			if _, exists := postForm["password"]; exists {
+				postForm["password"] = "*****"
+			}
+			formStr, errMarshal := json.Marshal(postForm)
+			if errMarshal == nil {
+				logrus.Debugf("form data: %s", string(formStr))
+			} else {
+				logrus.Debugf("form data: %q", postForm)
 			}
 		}
 
