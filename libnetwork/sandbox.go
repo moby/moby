@@ -11,6 +11,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/etchosts"
 	"github.com/docker/libnetwork/netlabel"
+	"github.com/docker/libnetwork/netutils"
 	"github.com/docker/libnetwork/osl"
 	"github.com/docker/libnetwork/types"
 )
@@ -36,9 +37,9 @@ type Sandbox interface {
 	Rename(name string) error
 	// Delete destroys this container after detaching it from all connected endpoints.
 	Delete() error
-	// ResolveName searches for the service name in the networks to which the sandbox
-	// is connected to.
-	ResolveName(name string) []net.IP
+	// ResolveName resolves a service name to an IPv4 or IPv6 address by searching the
+	// networks the sandbox is connected to.
+	ResolveName(name string, iplen int) []net.IP
 	// ResolveIP returns the service name for the passed in IP. IP is in reverse dotted
 	// notation; the format used for DNS PTR records
 	ResolveIP(name string) string
@@ -418,7 +419,7 @@ func (sb *sandbox) execFunc(f func()) {
 	sb.osSbox.InvokeFunc(f)
 }
 
-func (sb *sandbox) ResolveName(name string) []net.IP {
+func (sb *sandbox) ResolveName(name string, ipType int) []net.IP {
 	var ip []net.IP
 
 	// Embedded server owns the docker network domain. Resolution should work
@@ -453,13 +454,13 @@ func (sb *sandbox) ResolveName(name string) []net.IP {
 		log.Debugf("To resolve: %v in %v", reqName[i], networkName[i])
 
 		// First check for local container alias
-		ip = sb.resolveName(reqName[i], networkName[i], epList, true)
+		ip = sb.resolveName(reqName[i], networkName[i], epList, true, ipType)
 		if ip != nil {
 			return ip
 		}
 
 		// Resolve the actual container name
-		ip = sb.resolveName(reqName[i], networkName[i], epList, false)
+		ip = sb.resolveName(reqName[i], networkName[i], epList, false, ipType)
 		if ip != nil {
 			return ip
 		}
@@ -467,7 +468,7 @@ func (sb *sandbox) ResolveName(name string) []net.IP {
 	return nil
 }
 
-func (sb *sandbox) resolveName(req string, networkName string, epList []*endpoint, alias bool) []net.IP {
+func (sb *sandbox) resolveName(req string, networkName string, epList []*endpoint, alias bool, ipType int) []net.IP {
 	for _, ep := range epList {
 		name := req
 		n := ep.getNetwork()
@@ -504,8 +505,13 @@ func (sb *sandbox) resolveName(req string, networkName string, epList []*endpoin
 			continue
 		}
 
+		var ip []net.IP
 		n.Lock()
-		ip, ok := sr.svcMap[name]
+		if ipType == netutils.IPv6 {
+			ip, ok = sr.svcIPv6Map[name]
+		} else {
+			ip, ok = sr.svcMap[name]
+		}
 		n.Unlock()
 		if ok {
 			return ip
