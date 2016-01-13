@@ -30,23 +30,6 @@ const (
 	Destroyed
 )
 
-func (s Status) String() string {
-	switch s {
-	case Running:
-		return "running"
-	case Pausing:
-		return "pausing"
-	case Paused:
-		return "paused"
-	case Checkpointed:
-		return "checkpointed"
-	case Destroyed:
-		return "destroyed"
-	default:
-		return "undefined"
-	}
-}
-
 // BaseState represents the platform agnostic pieces relating to a
 // running container's state
 type BaseState struct {

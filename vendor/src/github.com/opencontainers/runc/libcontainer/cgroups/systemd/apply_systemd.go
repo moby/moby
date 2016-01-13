@@ -440,12 +440,6 @@ func (m *Manager) GetStats() (*cgroups.Stats, error) {
 
 func (m *Manager) Set(container *configs.Config) error {
 	for _, sys := range subsystems {
-		// We can't set this here, because after being applied, memcg doesn't
-		// allow a non-empty cgroup from having its limits changed.
-		if sys.Name() == "memory" {
-			continue
-		}
-
 		// Get the subsystem path, but don't error out for not found cgroups.
 		path, err := getSubsystemPath(container.Cgroups, sys.Name())
 		if err != nil && !cgroups.IsNotFound(err) {
@@ -500,57 +494,16 @@ func setKernelMemory(c *configs.Cgroup) error {
 		return err
 	}
 
-	// Shamelessly copied from fs.(*MemoryGroup).Set(). This doesn't get called
-	// by manager.Set, so we need to do it here.
-	if c.Resources.KernelMemory > 0 {
-		if err := writeFile(path, "memory.kmem.limit_in_bytes", strconv.FormatInt(c.Resources.KernelMemory, 10)); err != nil {
-			return err
-		}
-	}
-
-	return nil
+	// This doesn't get called by manager.Set, so we need to do it here.
+	s := &fs.MemoryGroup{}
+	return s.SetKernelMemory(path, c)
 }
 
 func joinMemory(c *configs.Cgroup, pid int) error {
-	path, err := join(c, "memory", pid)
+	_, err := join(c, "memory", pid)
 	if err != nil && !cgroups.IsNotFound(err) {
 		return err
 	}
-
-	// Shamelessly copied from fs.(*MemoryGroup).Set(). This doesn't include the
-	// kernel memory limit (which is done in setKernelMemory). All of these are
-	// not set by manager.Set, we have do do it here.
-
-	if c.Resources.Memory != 0 {
-		if err := writeFile(path, "memory.limit_in_bytes", strconv.FormatInt(c.Resources.Memory, 10)); err != nil {
-			return err
-		}
-	}
-	if c.Resources.MemoryReservation != 0 {
-		if err := writeFile(path, "memory.soft_limit_in_bytes", strconv.FormatInt(c.Resources.MemoryReservation, 10)); err != nil {
-			return err
-		}
-	}
-	if c.Resources.MemorySwap > 0 {
-		if err := writeFile(path, "memory.memsw.limit_in_bytes", strconv.FormatInt(c.Resources.MemorySwap, 10)); err != nil {
-			return err
-		}
-	}
-	if c.Resources.OomKillDisable {
-		if err := writeFile(path, "memory.oom_control", "1"); err != nil {
-			return err
-		}
-	}
-	if c.Resources.MemorySwappiness >= 0 && c.Resources.MemorySwappiness <= 100 {
-		if err := writeFile(path, "memory.swappiness", strconv.FormatInt(c.Resources.MemorySwappiness, 10)); err != nil {
-			return err
-		}
-	} else if c.Resources.MemorySwappiness == -1 {
-		return nil
-	} else {
-		return fmt.Errorf("invalid value:%d. valid memory swappiness range is 0-100", c.Resources.MemorySwappiness)
-	}
-
 	return nil
 }
 

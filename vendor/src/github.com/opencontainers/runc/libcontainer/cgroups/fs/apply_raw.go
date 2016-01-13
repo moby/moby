@@ -172,12 +172,6 @@ func (m *Manager) GetStats() (*cgroups.Stats, error) {
 
 func (m *Manager) Set(container *configs.Config) error {
 	for _, sys := range subsystems {
-		// We can't set this here, because after being applied, memcg doesn't
-		// allow a non-empty cgroup from having its limits changed.
-		if sys.Name() == "memory" {
-			continue
-		}
-
 		// Generate fake cgroup data.
 		d, err := getCgroupData(container.Cgroups, -1)
 		if err != nil {
