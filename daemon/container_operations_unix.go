@@ -792,7 +792,7 @@ func (daemon *Daemon) connectToNetwork(container *container.Container, idOrName 
 	}
 	defer func() {
 		if err != nil {
-			if e := ep.Delete(); e != nil {
+			if e := ep.Delete(false); e != nil {
 				logrus.Warnf("Could not rollback container connection to network %s", idOrName)
 			}
 		}
@@ -894,7 +894,7 @@ func disconnectFromNetwork(container *container.Container, n libnetwork.Network)
 		return fmt.Errorf("container %s failed to leave network %s: %v", container.ID, n.Name(), err)
 	}
 
-	if err := ep.Delete(); err != nil {
+	if err := ep.Delete(false); err != nil {
 		return fmt.Errorf("endpoint delete failed for container %s on network %s: %v", container.ID, n.Name(), err)
 	}
 

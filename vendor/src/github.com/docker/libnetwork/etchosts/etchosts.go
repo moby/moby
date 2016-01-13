@@ -182,6 +182,6 @@ func Update(path, IP, hostname string) error {
 	if err != nil {
 		return err
 	}
-	var re = regexp.MustCompile(fmt.Sprintf("(\\S*)(\\t%s)", regexp.QuoteMeta(hostname)))
-	return ioutil.WriteFile(path, re.ReplaceAll(old, []byte(IP+"$2")), 0644)
+	var re = regexp.MustCompile(fmt.Sprintf("(\\S*)(\\t%s)(\\s|\\.)", regexp.QuoteMeta(hostname)))
+	return ioutil.WriteFile(path, re.ReplaceAll(old, []byte(IP+"$2"+"$3")), 0644)
 }
