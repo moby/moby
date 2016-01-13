@@ -615,10 +615,6 @@ func (n *network) validateForceDelete(locator string) error {
 		return fmt.Errorf("invalid endpoint locator identifier")
 	}
 
-	if n.getController().isNodeAlive(locator) {
-		return fmt.Errorf("the remote host %s hosting the container is alive", locator)
-	}
-
 	return nil
 }
 
