@@ -127,7 +127,7 @@ TCP and a Unix socket
 ## Starting a long-running worker process
 
     # Start a very useful long-running process
-    $ JOB=$(docker run -d ubuntu /bin/sh -c "while true; do echo Hello world; sleep 1; done")
+    $ JOB=$(docker run -d ubuntu /bin/sh -c "trap 'exit 0' INT TERM; while true; do echo Hello world; sleep 1; done")
 
     # Collect the output of the job so far
     $ docker logs $JOB
@@ -143,7 +143,7 @@ TCP and a Unix socket
 ## Controlling containers
 
     # Start a new container
-    $ JOB=$(docker run -d ubuntu /bin/sh -c "while true; do echo Hello world; sleep 1; done")
+    $ JOB=$(docker run -d ubuntu /bin/sh -c "trap 'exit 0' INT TERM; while true; do echo Hello world; sleep 1; done")
 
     # Stop the container
     $ docker stop $JOB

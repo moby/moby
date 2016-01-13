@@ -108,7 +108,7 @@ like most of the applications we're probably going to run with Docker.
 
 Again we can do this with the `docker run` command:
 
-    $ docker run -d ubuntu /bin/sh -c "while true; do echo hello world; sleep 1; done"
+    $ docker run -d ubuntu /bin/sh -c "trap 'exit 0' INT TERM; while true; do echo hello world; sleep 1; done"
     1e5535038e285177d5214659a068137486f96ee5c2e85a4ac52dc83f2ebe4147
 
 Wait, what? Where's our "hello world" output? Let's look at what we've run here.
@@ -120,7 +120,7 @@ We also specified the same image: `ubuntu`.
 
 Finally, we specified a command to run:
 
-    /bin/sh -c "while true; do echo hello world; sleep 1; done"
+    /bin/sh -c "trap 'exit 0' INT TERM; while true; do echo hello world; sleep 1; done"
 
 This is the (hello) world's silliest daemon: a shell script that echoes
 `hello world` forever.

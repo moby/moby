@@ -72,18 +72,18 @@ managed by Docker.
 
     docker::run { 'helloworld':
       image   => 'ubuntu',
-      command => '/bin/sh -c "while true; do echo hello world; sleep 1; done"',
+      command => '/bin/sh -c "trap \'exit 0\' INT TERM; while true; do echo hello world; sleep 1; done"',
     }
 
 This is equivalent to running the following command, but under upstart:
 
-    $ docker run -d ubuntu /bin/sh -c "while true; do echo hello world; sleep 1; done"
+    $ docker run -d ubuntu /bin/sh -c "trap 'exit 0' INT TERM; while true; do echo hello world; sleep 1; done"
 
 Run also contains a number of optional parameters:
 
     docker::run { 'helloworld':
       image        => 'ubuntu',
-      command      => '/bin/sh -c "while true; do echo hello world; sleep 1; done"',
+      command      => '/bin/sh -c "trap \'exit 0\' INT TERM; while true; do echo hello world; sleep 1; done"',
       ports        => ['4444', '4555'],
       volumes      => ['/var/lib/couchdb', '/var/log'],
       volumes_from => '6446ea52fbc9',
