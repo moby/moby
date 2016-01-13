@@ -157,7 +157,7 @@ func (daemon *Daemon) showPluginsInfo() types.PluginsInfo {
 		pluginsInfo.Network = append(pluginsInfo.Network, nd)
 	}
 
-	pluginsInfo.Authorization = daemon.configStore.AuthZPlugins
+	pluginsInfo.Authorization = daemon.configStore.AuthorizationPlugins
 
 	return pluginsInfo
 }
