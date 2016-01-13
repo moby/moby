@@ -18,7 +18,9 @@ import (
 	"github.com/docker/distribution/digest"
 	"github.com/docker/distribution/manifest"
 	"github.com/docker/distribution/manifest/schema1"
+	"github.com/docker/distribution/reference"
 	"github.com/docker/distribution/registry/api/errcode"
+	"github.com/docker/distribution/registry/storage"
 	"github.com/docker/distribution/testutil"
 	"github.com/docker/distribution/uuid"
 	"github.com/docker/libtrust"
@@ -471,6 +473,16 @@ func TestBlobMount(t *testing.T) {
 	var m testutil.RequestResponseMap
 	repo := "test.example.com/uploadrepo"
 	sourceRepo := "test.example.com/sourcerepo"
+
+	namedRef, err := reference.ParseNamed(sourceRepo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	canonicalRef, err := reference.WithDigest(namedRef, dgst)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	m = append(m, testutil.RequestResponseMapping{
 		Request: testutil.Request{
 			Method:      "POST",
@@ -511,13 +523,20 @@ func TestBlobMount(t *testing.T) {
 
 	l := r.Blobs(ctx)
 
-	stat, err := l.Mount(ctx, sourceRepo, dgst)
-	if err != nil {
-		t.Fatal(err)
+	bw, err := l.Create(ctx, storage.WithMountFrom(canonicalRef))
+	if bw != nil {
+		t.Fatalf("Expected blob writer to be nil, was %v", bw)
 	}
 
-	if stat.Digest != dgst {
-		t.Fatalf("Unexpected digest: %s, expected %s", stat.Digest, dgst)
+	if ebm, ok := err.(distribution.ErrBlobMounted); ok {
+		if ebm.From.Digest() != dgst {
+			t.Fatalf("Unexpected digest: %s, expected %s", ebm.From.Digest(), dgst)
+		}
+		if ebm.From.Name() != sourceRepo {
+			t.Fatalf("Unexpected from: %s, expected %s", ebm.From.Name(), sourceRepo)
+		}
+	} else {
+		t.Fatalf("Unexpected error: %v, expected an ErrBlobMounted", err)
 	}
 }
 
