@@ -39,18 +39,8 @@ load helpers
     hrun runc $(dnet_container_name 1 consul) $(get_sbox_id 1 container_1) "ifconfig eth0"
     container_1_ip=$(echo ${output} | grep 'inet addr:' | cut -d: -f2 | awk '{ print $1}')
 
-    # forcefully unpublish the service from dnet2 when dnet1 is alive.
-    # operation must fail
-    set +e
-    dnet_cmd $(inst_id2port 2) service unpublish -f container_1.multihost
-    status="$?"
-    set -e
-    [ "${status}" -ne 0 ]
-
     # ungracefully kill dnet-1-consul container
     docker rm -f dnet-1-consul
-    # sleep for 60 seconds to make sure the discovery catches up
-    sleep 60
 
     # forcefully unpublish the service from dnet2 when dnet1 is dead.
     dnet_cmd $(inst_id2port 2) service unpublish -f container_1.multihost
