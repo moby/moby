@@ -163,12 +163,15 @@ func (daemon *Daemon) ConnectContainerToNetwork(containerName, networkName strin
 
 // DisconnectContainerFromNetwork disconnects the given container from
 // the given network. If either cannot be found, an err is returned.
-func (daemon *Daemon) DisconnectContainerFromNetwork(containerName string, network libnetwork.Network) error {
+func (daemon *Daemon) DisconnectContainerFromNetwork(containerName string, network libnetwork.Network, force bool) error {
 	container, err := daemon.GetContainer(containerName)
 	if err != nil {
+		if force {
+			return daemon.ForceEndpointDelete(containerName, network)
+		}
 		return err
 	}
-	return daemon.DisconnectFromNetwork(container, network)
+	return daemon.DisconnectFromNetwork(container, network, force)
 }
 
 // GetNetworkDriverList returns the list of plugins drivers
