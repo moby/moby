@@ -73,7 +73,7 @@ RUN cd /usr/local/lvm2 \
 # see https://git.fedorahosted.org/cgit/lvm2.git/tree/INSTALL
 
 # Install Go
-#ENV GO_VERSION 1.5.2
+#ENV GO_VERSION 1.5.3
 # TODO update GO_TOOLS_COMMIT below when this updates to 1.5+
 ENV GO_VERSION 1.4.3
 RUN curl -fsSL "https://github.com/hypriot/golang-armbuilds/releases/download/v${GO_VERSION}/go${GO_VERSION}.linux-armv7.tar.gz" \

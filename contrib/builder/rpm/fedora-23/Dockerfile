@@ -28,7 +28,7 @@ cd "$SECCOMP_PATH" \
 ) \
 && rm -rf "$SECCOMP_PATH"
 
-ENV GO_VERSION 1.5.2
+ENV GO_VERSION 1.5.3
 RUN curl -fSL "https://storage.googleapis.com/golang/go${GO_VERSION}.linux-amd64.tar.gz" | tar xzC /usr/local
 ENV PATH $PATH:/usr/local/go/bin
 
