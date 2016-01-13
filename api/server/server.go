@@ -30,14 +30,14 @@ const versionMatcher = "/v{version:[0-9.]+}"
 
 // Config provides the configuration for the API server
 type Config struct {
-	Logging          bool
-	EnableCors       bool
-	CorsHeaders      string
-	AuthZPluginNames []string
-	Version          string
-	SocketGroup      string
-	TLSConfig        *tls.Config
-	Addrs            []Addr
+	Logging                  bool
+	EnableCors               bool
+	CorsHeaders              string
+	AuthorizationPluginNames []string
+	Version                  string
+	SocketGroup              string
+	TLSConfig                *tls.Config
+	Addrs                    []Addr
 }
 
 // Server contains instance details for the server

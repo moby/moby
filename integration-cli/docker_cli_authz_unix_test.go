@@ -168,7 +168,7 @@ func (s *DockerAuthzSuite) TestAuthZPluginAllowRequest(c *check.C) {
 	c.Assert(s.d.StartWithBusybox(), check.IsNil)
 	// restart the daemon and enable the plugin, otherwise busybox loading
 	// is blocked by the plugin itself
-	c.Assert(s.d.Restart("--authz-plugin="+testAuthZPlugin), check.IsNil)
+	c.Assert(s.d.Restart("--authorization-plugin="+testAuthZPlugin), check.IsNil)
 
 	s.ctrl.reqRes.Allow = true
 	s.ctrl.resRes.Allow = true
@@ -189,7 +189,7 @@ func (s *DockerAuthzSuite) TestAuthZPluginAllowRequest(c *check.C) {
 }
 
 func (s *DockerAuthzSuite) TestAuthZPluginDenyRequest(c *check.C) {
-	err := s.d.Start("--authz-plugin=" + testAuthZPlugin)
+	err := s.d.Start("--authorization-plugin=" + testAuthZPlugin)
 	c.Assert(err, check.IsNil)
 	s.ctrl.reqRes.Allow = false
 	s.ctrl.reqRes.Msg = unauthorizedMessage
@@ -205,7 +205,7 @@ func (s *DockerAuthzSuite) TestAuthZPluginDenyRequest(c *check.C) {
 }
 
 func (s *DockerAuthzSuite) TestAuthZPluginDenyResponse(c *check.C) {
-	err := s.d.Start("--authz-plugin=" + testAuthZPlugin)
+	err := s.d.Start("--authorization-plugin=" + testAuthZPlugin)
 	c.Assert(err, check.IsNil)
 	s.ctrl.reqRes.Allow = true
 	s.ctrl.resRes.Allow = false
@@ -222,7 +222,7 @@ func (s *DockerAuthzSuite) TestAuthZPluginDenyResponse(c *check.C) {
 }
 
 func (s *DockerAuthzSuite) TestAuthZPluginErrorResponse(c *check.C) {
-	err := s.d.Start("--authz-plugin=" + testAuthZPlugin)
+	err := s.d.Start("--authorization-plugin=" + testAuthZPlugin)
 	c.Assert(err, check.IsNil)
 	s.ctrl.reqRes.Allow = true
 	s.ctrl.resRes.Err = errorMessage
@@ -235,7 +235,7 @@ func (s *DockerAuthzSuite) TestAuthZPluginErrorResponse(c *check.C) {
 }
 
 func (s *DockerAuthzSuite) TestAuthZPluginErrorRequest(c *check.C) {
-	err := s.d.Start("--authz-plugin=" + testAuthZPlugin)
+	err := s.d.Start("--authorization-plugin=" + testAuthZPlugin)
 	c.Assert(err, check.IsNil)
 	s.ctrl.reqRes.Err = errorMessage
 
@@ -247,7 +247,7 @@ func (s *DockerAuthzSuite) TestAuthZPluginErrorRequest(c *check.C) {
 }
 
 func (s *DockerAuthzSuite) TestAuthZPluginEnsureNoDuplicatePluginRegistration(c *check.C) {
-	c.Assert(s.d.Start("--authz-plugin="+testAuthZPlugin, "--authz-plugin="+testAuthZPlugin), check.IsNil)
+	c.Assert(s.d.Start("--authorization-plugin="+testAuthZPlugin, "--authorization-plugin="+testAuthZPlugin), check.IsNil)
 
 	s.ctrl.reqRes.Allow = true
 	s.ctrl.resRes.Allow = true
