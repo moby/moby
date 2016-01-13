@@ -275,8 +275,12 @@ func verifyContainerResources(resources *containertypes.Resources) ([]string, er
 		logrus.Warnf("You specified a kernel memory limit on a kernel older than 4.0. Kernel memory limits are experimental on older kernels, it won't work as expected and can cause your system to be unstable.")
 	}
 	if resources.OomKillDisable != nil && !sysInfo.OomKillDisable {
-		warnings = append(warnings, "Your kernel does not support OomKillDisable, OomKillDisable discarded.")
-		logrus.Warnf("Your kernel does not support OomKillDisable, OomKillDisable discarded.")
+		// only produce warnings if the setting wasn't to *disable* the OOM Kill; no point
+		// warning the caller if they already wanted the feature to be off
+		if *resources.OomKillDisable {
+			warnings = append(warnings, "Your kernel does not support OomKillDisable, OomKillDisable discarded.")
+			logrus.Warnf("Your kernel does not support OomKillDisable, OomKillDisable discarded.")
+		}
 		resources.OomKillDisable = nil
 	}
 
