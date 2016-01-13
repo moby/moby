@@ -87,7 +87,7 @@ RUN cd /usr/local/lvm2 \
 # see https://git.fedorahosted.org/cgit/lvm2.git/tree/INSTALL
 
 # Install Go
-ENV GO_VERSION 1.5.2
+ENV GO_VERSION 1.5.3
 RUN curl -fsSL "https://storage.googleapis.com/golang/go${GO_VERSION}.linux-amd64.tar.gz" \
 	| tar -xzC /usr/local
 ENV PATH /go/bin:/usr/local/go/bin:$PATH
