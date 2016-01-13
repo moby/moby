@@ -16,7 +16,7 @@ type Backend interface {
 		options map[string]string, internal bool) (libnetwork.Network, error)
 	ConnectContainerToNetwork(containerName, networkName string, endpointConfig *network.EndpointSettings) error
 	DisconnectContainerFromNetwork(containerName string,
-		network libnetwork.Network) error
+		network libnetwork.Network, force bool) error
 	NetworkControllerEnabled() bool
 	DeleteNetwork(name string) error
 }

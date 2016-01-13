@@ -3073,7 +3073,8 @@ POST /networks/22be93d5babb089c5aab8dbc369042fad48ff791584ca2da2100db837a1c7c30/
 Content-Type: application/json
 
 {
-  "Container":"3613f73ba0e4"
+  "Container":"3613f73ba0e4",
+  "Force":false
 }
 ```
 
@@ -3090,6 +3091,7 @@ Status Codes:
 JSON Parameters:
 
 - **Container** - container-id/name to be disconnected from a network
+- **Force** - Force the container to disconnect from a network
 
 ### Remove a network
 

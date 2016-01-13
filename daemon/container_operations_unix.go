@@ -833,8 +833,17 @@ func (daemon *Daemon) connectToNetwork(container *container.Container, idOrName 
 	return nil
 }
 
+// ForceEndpointDelete deletes an endpoing from a network forcefully
+func (daemon *Daemon) ForceEndpointDelete(name string, n libnetwork.Network) error {
+	ep, err := n.EndpointByName(name)
+	if err != nil {
+		return err
+	}
+	return ep.Delete(true)
+}
+
 // DisconnectFromNetwork disconnects container from network n.
-func (daemon *Daemon) DisconnectFromNetwork(container *container.Container, n libnetwork.Network) error {
+func (daemon *Daemon) DisconnectFromNetwork(container *container.Container, n libnetwork.Network, force bool) error {
 	if container.HostConfig.NetworkMode.IsHost() && containertypes.NetworkMode(n.Type()).IsHost() {
 		return runconfig.ErrConflictHostNetwork
 	}
@@ -848,7 +857,7 @@ func (daemon *Daemon) DisconnectFromNetwork(container *container.Container, n li
 			return fmt.Errorf("container %s is not connected to the network %s", container.ID, n.Name())
 		}
 	} else {
-		if err := disconnectFromNetwork(container, n); err != nil {
+		if err := disconnectFromNetwork(container, n, false); err != nil {
 			return err
 		}
 	}
@@ -864,7 +873,7 @@ func (daemon *Daemon) DisconnectFromNetwork(container *container.Container, n li
 	return nil
 }
 
-func disconnectFromNetwork(container *container.Container, n libnetwork.Network) error {
+func disconnectFromNetwork(container *container.Container, n libnetwork.Network, force bool) error {
 	var (
 		ep   libnetwork.Endpoint
 		sbox libnetwork.Sandbox
@@ -885,6 +894,15 @@ func disconnectFromNetwork(container *container.Container, n libnetwork.Network)
 		return false
 	}
 	n.WalkEndpoints(s)
+
+	if ep == nil && force {
+		epName := strings.TrimPrefix(container.Name, "/")
+		ep, err := n.EndpointByName(epName)
+		if err != nil {
+			return err
+		}
+		return ep.Delete(force)
+	}
 
 	if ep == nil {
 		return fmt.Errorf("container %s is not connected to the network", container.ID)

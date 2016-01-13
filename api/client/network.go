@@ -137,12 +137,13 @@ func (cli *DockerCli) CmdNetworkConnect(args ...string) error {
 // Usage: docker network disconnect <NETWORK> <CONTAINER>
 func (cli *DockerCli) CmdNetworkDisconnect(args ...string) error {
 	cmd := Cli.Subcmd("network disconnect", []string{"NETWORK CONTAINER"}, "Disconnects container from a network", false)
+	force := cmd.Bool([]string{"f", "-force"}, false, "Force the container to disconnect from a network")
 	cmd.Require(flag.Exact, 2)
 	if err := cmd.ParseFlags(args, true); err != nil {
 		return err
 	}
 
-	return cli.client.NetworkDisconnect(cmd.Arg(0), cmd.Arg(1), false)
+	return cli.client.NetworkDisconnect(cmd.Arg(0), cmd.Arg(1), *force)
 }
 
 // CmdNetworkLs lists all the networks managed by docker daemon
