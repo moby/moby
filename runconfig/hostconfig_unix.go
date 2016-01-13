@@ -7,7 +7,7 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/docker/docker/api/types/container"
+	"github.com/docker/engine-api/types/container"
 )
 
 // DefaultDaemonNetworkMode returns the default network stack the daemon should
@@ -46,10 +46,6 @@ func ValidateNetMode(c *container.Config, hc *container.HostConfig) error {
 
 	if hc.NetworkMode.IsContainer() && len(hc.Links) > 0 {
 		return ErrConflictContainerNetworkAndLinks
-	}
-
-	if hc.NetworkMode.IsUserDefined() && len(hc.Links) > 0 {
-		return ErrConflictUserDefinedNetworkAndLinks
 	}
 
 	if (hc.NetworkMode.IsHost() || hc.NetworkMode.IsContainer()) && len(hc.DNS) > 0 {

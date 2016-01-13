@@ -73,8 +73,8 @@ func (s *DockerSuite) TestRmContainerOrphaning(c *check.C) {
 func (s *DockerSuite) TestRmInvalidContainer(c *check.C) {
 	if out, _, err := dockerCmdWithError("rm", "unknown"); err == nil {
 		c.Fatal("Expected error on rm unknown container, got none")
-	} else if !strings.Contains(out, "failed to remove containers") {
-		c.Fatalf("Expected output to contain 'failed to remove containers', got %q", out)
+	} else if !strings.Contains(out, "Failed to remove container") {
+		c.Fatalf("Expected output to contain 'Failed to remove container', got %q", out)
 	}
 }
 

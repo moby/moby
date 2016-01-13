@@ -13,15 +13,16 @@ import (
 	"syscall"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/daemon/execdriver"
 	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/symlink"
 	"github.com/docker/docker/pkg/system"
+	runconfigopts "github.com/docker/docker/runconfig/opts"
 	"github.com/docker/docker/utils"
 	"github.com/docker/docker/volume"
+	"github.com/docker/engine-api/types/container"
+	"github.com/docker/engine-api/types/network"
 	"github.com/docker/go-connections/nat"
 	"github.com/docker/libnetwork"
 	"github.com/docker/libnetwork/netlabel"
@@ -247,6 +248,21 @@ func (container *Container) UpdateSandboxNetworkSettings(sb libnetwork.Sandbox) 
 	return nil
 }
 
+// BuildJoinOptions builds endpoint Join options from a given network.
+func (container *Container) BuildJoinOptions(n libnetwork.Network) ([]libnetwork.EndpointOption, error) {
+	var joinOptions []libnetwork.EndpointOption
+	if epConfig, ok := container.NetworkSettings.Networks[n.Name()]; ok {
+		for _, str := range epConfig.Links {
+			name, alias, err := runconfigopts.ParseLink(str)
+			if err != nil {
+				return nil, err
+			}
+			joinOptions = append(joinOptions, libnetwork.CreateOptionAlias(name, alias))
+		}
+	}
+	return joinOptions, nil
+}
+
 // BuildCreateEndpointOptions builds endpoint options from a given network.
 func (container *Container) BuildCreateEndpointOptions(n libnetwork.Network) ([]libnetwork.EndpointOption, error) {
 	var (
@@ -259,6 +275,18 @@ func (container *Container) BuildCreateEndpointOptions(n libnetwork.Network) ([]
 
 	if n.Name() == "bridge" || container.NetworkSettings.IsAnonymousEndpoint {
 		createOptions = append(createOptions, libnetwork.CreateOptionAnonymous())
+	}
+
+	if epConfig, ok := container.NetworkSettings.Networks[n.Name()]; ok {
+		ipam := epConfig.IPAMConfig
+		if ipam != nil && (ipam.IPv4Address != "" || ipam.IPv6Address != "") {
+			createOptions = append(createOptions,
+				libnetwork.CreateOptionIpam(net.ParseIP(ipam.IPv4Address), net.ParseIP(ipam.IPv6Address), nil))
+		}
+	}
+
+	if !container.HostConfig.NetworkMode.IsUserDefined() {
+		createOptions = append(createOptions, libnetwork.CreateOptionDisableResolution())
 	}
 
 	// Other configs are applicable only for the endpoint in the network

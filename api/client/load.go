@@ -37,7 +37,7 @@ func (cli *DockerCli) CmdLoad(args ...string) error {
 	defer response.Body.Close()
 
 	if response.JSON {
-		return jsonmessage.DisplayJSONMessagesStream(response.Body, cli.out, cli.outFd, cli.isTerminalOut)
+		return jsonmessage.DisplayJSONMessagesStream(response.Body, cli.out, cli.outFd, cli.isTerminalOut, nil)
 	}
 
 	_, err = io.Copy(cli.out, response.Body)

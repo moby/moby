@@ -40,14 +40,11 @@ func (daemon *Daemon) ContainerRename(oldName, newName string) error {
 		if err != nil {
 			container.Name = oldName
 			daemon.reserveName(container.ID, oldName)
-			daemon.containerGraphDB.Delete(newName)
+			daemon.releaseName(newName)
 		}
 	}()
 
-	if err = daemon.containerGraphDB.Delete(oldName); err != nil {
-		return derr.ErrorCodeRenameDelete.WithArgs(oldName, err)
-	}
-
+	daemon.releaseName(oldName)
 	if err = container.ToDisk(); err != nil {
 		return err
 	}
@@ -76,7 +73,6 @@ func (daemon *Daemon) ContainerRename(oldName, newName string) error {
 	if err != nil {
 		return err
 	}
-
 	daemon.LogContainerEvent(container, "rename")
 	return nil
 }

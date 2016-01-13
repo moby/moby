@@ -4,10 +4,10 @@ import (
 	"runtime"
 
 	"github.com/Sirupsen/logrus"
-	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
 	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/runconfig"
+	containertypes "github.com/docker/engine-api/types/container"
 )
 
 // ContainerStart starts a container.
@@ -132,9 +132,15 @@ func (daemon *Daemon) containerStart(container *container.Container) (err error)
 	mounts = append(mounts, container.TmpfsMounts()...)
 
 	container.Command.Mounts = mounts
+	container.Unlock()
+
+	// don't lock waitForStart because it has potential risk of blocking
+	// which will lead to dead lock, forever.
 	if err := daemon.waitForStart(container); err != nil {
+		container.Lock()
 		return err
 	}
+	container.Lock()
 	container.HasBeenStartedBefore = true
 	return nil
 }

@@ -5,11 +5,11 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/docker/docker/api/types"
 	Cli "github.com/docker/docker/cli"
 	"github.com/docker/docker/dockerversion"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/utils"
+	"github.com/docker/engine-api/types"
 )
 
 var versionTemplate = `Client:

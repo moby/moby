@@ -4,20 +4,22 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 
 	"github.com/Sirupsen/logrus"
-	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/reference"
+	containertypes "github.com/docker/engine-api/types/container"
 	// register the windows graph driver
 	"github.com/docker/docker/daemon/graphdriver/windows"
+	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/libnetwork"
 	blkiodev "github.com/opencontainers/runc/libcontainer/configs"
@@ -132,6 +134,19 @@ func (daemon *Daemon) registerLinks(container *container.Container, hostConfig *
 }
 
 func (daemon *Daemon) cleanupMounts() error {
+	return nil
+}
+
+func setupRemappedRoot(config *Config) ([]idtools.IDMap, []idtools.IDMap, error) {
+	return nil, nil, nil
+}
+
+func setupDaemonRoot(config *Config, rootDir string, rootUID, rootGID int) error {
+	config.Root = rootDir
+	// Create the root directory if it doesn't exists
+	if err := system.MkdirAll(config.Root, 0700); err != nil && !os.IsExist(err) {
+		return err
+	}
 	return nil
 }
 

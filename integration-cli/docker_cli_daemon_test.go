@@ -1960,3 +1960,104 @@ func (s *DockerDaemonSuite) TestDaemonCgroupParent(c *check.C) {
 	}
 	c.Assert(found, checker.True, check.Commentf("Cgroup path for container (%s) doesn't found in cgroups file: %s", expectedCgroup, cgroupPaths))
 }
+
+func (s *DockerDaemonSuite) TestDaemonRestartWithLinks(c *check.C) {
+	testRequires(c, DaemonIsLinux) // Windows does not support links
+	err := s.d.StartWithBusybox()
+	c.Assert(err, check.IsNil)
+
+	out, err := s.d.Cmd("run", "-d", "--name=test", "busybox", "top")
+	c.Assert(err, check.IsNil, check.Commentf(out))
+
+	out, err = s.d.Cmd("run", "--name=test2", "--link", "test:abc", "busybox", "sh", "-c", "ping -c 1 -w 1 abc")
+	c.Assert(err, check.IsNil, check.Commentf(out))
+
+	c.Assert(s.d.Restart(), check.IsNil)
+
+	// should fail since test is not running yet
+	out, err = s.d.Cmd("start", "test2")
+	c.Assert(err, check.NotNil, check.Commentf(out))
+
+	out, err = s.d.Cmd("start", "test")
+	c.Assert(err, check.IsNil, check.Commentf(out))
+	out, err = s.d.Cmd("start", "-a", "test2")
+	c.Assert(err, check.IsNil, check.Commentf(out))
+	c.Assert(strings.Contains(out, "1 packets transmitted, 1 packets received"), check.Equals, true, check.Commentf(out))
+}
+
+func (s *DockerDaemonSuite) TestDaemonRestartWithNames(c *check.C) {
+	testRequires(c, DaemonIsLinux) // Windows does not support links
+	err := s.d.StartWithBusybox()
+	c.Assert(err, check.IsNil)
+
+	out, err := s.d.Cmd("create", "--name=test", "busybox")
+	c.Assert(err, check.IsNil, check.Commentf(out))
+
+	out, err = s.d.Cmd("run", "-d", "--name=test2", "busybox", "top")
+	c.Assert(err, check.IsNil, check.Commentf(out))
+	test2ID := strings.TrimSpace(out)
+
+	out, err = s.d.Cmd("run", "-d", "--name=test3", "--link", "test2:abc", "busybox", "top")
+	test3ID := strings.TrimSpace(out)
+
+	c.Assert(s.d.Restart(), check.IsNil)
+
+	out, err = s.d.Cmd("create", "--name=test", "busybox")
+	c.Assert(err, check.NotNil, check.Commentf("expected error trying to create container with duplicate name"))
+	// this one is no longer needed, removing simplifies the remainder of the test
+	out, err = s.d.Cmd("rm", "-f", "test")
+	c.Assert(err, check.IsNil, check.Commentf(out))
+
+	out, err = s.d.Cmd("ps", "-a", "--no-trunc")
+	c.Assert(err, check.IsNil, check.Commentf(out))
+
+	lines := strings.Split(strings.TrimSpace(out), "\n")[1:]
+
+	test2validated := false
+	test3validated := false
+	for _, line := range lines {
+		fields := strings.Fields(line)
+		names := fields[len(fields)-1]
+		switch fields[0] {
+		case test2ID:
+			c.Assert(names, check.Equals, "test2,test3/abc")
+			test2validated = true
+		case test3ID:
+			c.Assert(names, check.Equals, "test3")
+			test3validated = true
+		}
+	}
+
+	c.Assert(test2validated, check.Equals, true)
+	c.Assert(test3validated, check.Equals, true)
+}
+
+// TestRunLinksChanged checks that creating a new container with the same name does not update links
+// this ensures that the old, pre gh#16032 functionality continues on
+func (s *DockerDaemonSuite) TestRunLinksChanged(c *check.C) {
+	testRequires(c, DaemonIsLinux) // Windows does not support links
+	err := s.d.StartWithBusybox()
+	c.Assert(err, check.IsNil)
+
+	out, err := s.d.Cmd("run", "-d", "--name=test", "busybox", "top")
+	c.Assert(err, check.IsNil, check.Commentf(out))
+
+	out, err = s.d.Cmd("run", "--name=test2", "--link=test:abc", "busybox", "sh", "-c", "ping -c 1 abc")
+	c.Assert(err, check.IsNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "1 packets transmitted, 1 packets received")
+
+	out, err = s.d.Cmd("rm", "-f", "test")
+	c.Assert(err, check.IsNil, check.Commentf(out))
+
+	out, err = s.d.Cmd("run", "-d", "--name=test", "busybox", "top")
+	c.Assert(err, check.IsNil, check.Commentf(out))
+	out, err = s.d.Cmd("start", "-a", "test2")
+	c.Assert(err, check.NotNil, check.Commentf(out))
+	c.Assert(out, check.Not(checker.Contains), "1 packets transmitted, 1 packets received")
+
+	err = s.d.Restart()
+	c.Assert(err, check.IsNil)
+	out, err = s.d.Cmd("start", "-a", "test2")
+	c.Assert(err, check.NotNil, check.Commentf(out))
+	c.Assert(out, check.Not(checker.Contains), "1 packets transmitted, 1 packets received")
+}

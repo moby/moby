@@ -65,12 +65,7 @@ func createChainIDFromParent(parent layer.ChainID, dgsts ...layer.DiffID) layer.
 		return createChainIDFromParent(layer.ChainID(dgsts[0]), dgsts[1:]...)
 	}
 	// H = "H(n-1) SHA256(n)"
-	dgst, err := digest.FromBytes([]byte(string(parent) + " " + string(dgsts[0])))
-	if err != nil {
-		// Digest calculation is not expected to throw an error,
-		// any error at this point is a program error
-		panic(err)
-	}
+	dgst := digest.FromBytes([]byte(string(parent) + " " + string(dgsts[0])))
 	return createChainIDFromParent(layer.ChainID(dgst), dgsts[1:]...)
 }
 
@@ -92,11 +87,7 @@ func (ls *mockLayerStore) Register(reader io.Reader, parentID layer.ChainID) (la
 	if err != nil {
 		return nil, err
 	}
-	diffID, err := digest.FromBytes(l.layerData.Bytes())
-	if err != nil {
-		return nil, err
-	}
-	l.diffID = layer.DiffID(diffID)
+	l.diffID = layer.DiffID(digest.FromBytes(l.layerData.Bytes()))
 	l.chainID = createChainIDFromParent(parentID, l.diffID)
 
 	ls.layers[l.chainID] = l
@@ -250,15 +241,11 @@ func TestSuccessfulDownload(t *testing.T) {
 
 	progressChan := make(chan progress.Progress)
 	progressDone := make(chan struct{})
-	receivedProgress := make(map[string]int64)
+	receivedProgress := make(map[string]progress.Progress)
 
 	go func() {
 		for p := range progressChan {
-			if p.Action == "Downloading" {
-				receivedProgress[p.ID] = p.Current
-			} else if p.Action == "Already exists" {
-				receivedProgress[p.ID] = -1
-			}
+			receivedProgress[p.ID] = p
 		}
 		close(progressDone)
 	}()
@@ -293,11 +280,11 @@ func TestSuccessfulDownload(t *testing.T) {
 		descriptor := d.(*mockDownloadDescriptor)
 
 		if descriptor.diffID != "" {
-			if receivedProgress[d.ID()] != -1 {
-				t.Fatalf("did not get 'already exists' message for %v", d.ID())
+			if receivedProgress[d.ID()].Action != "Already exists" {
+				t.Fatalf("did not get 'Already exists' message for %v", d.ID())
 			}
-		} else if receivedProgress[d.ID()] != 10 {
-			t.Fatalf("missing or wrong progress output for %v (got: %d)", d.ID(), receivedProgress[d.ID()])
+		} else if receivedProgress[d.ID()].Action != "Pull complete" {
+			t.Fatalf("did not get 'Pull complete' message for %v", d.ID())
 		}
 
 		if rootFS.DiffIDs[i] != descriptor.expectedDiffID {

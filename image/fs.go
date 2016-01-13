@@ -101,11 +101,7 @@ func (s *fs) get(id ID) ([]byte, error) {
 	}
 
 	// todo: maybe optional
-	validated, err := digest.FromBytes(content)
-	if err != nil {
-		return nil, err
-	}
-	if ID(validated) != id {
+	if ID(digest.FromBytes(content)) != id {
 		return nil, fmt.Errorf("failed to verify image: %v", id)
 	}
 
@@ -121,11 +117,7 @@ func (s *fs) Set(data []byte) (ID, error) {
 		return "", fmt.Errorf("Invalid empty data")
 	}
 
-	dgst, err := digest.FromBytes(data)
-	if err != nil {
-		return "", err
-	}
-	id := ID(dgst)
+	id := ID(digest.FromBytes(data))
 	filePath := s.contentFile(id)
 	tempFilePath := s.contentFile(id) + ".tmp"
 	if err := ioutil.WriteFile(tempFilePath, data, 0600); err != nil {

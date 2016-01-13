@@ -37,10 +37,7 @@ func GetLayerPath(s Store, layer ChainID) (string, error) {
 
 func (ls *layerStore) RegisterDiffID(graphID string, size int64) (Layer, error) {
 	var err error // this is used for cleanup in existingLayer case
-	diffID, err := digest.FromBytes([]byte(graphID))
-	if err != nil {
-		return nil, err
-	}
+	diffID := digest.FromBytes([]byte(graphID))
 
 	// Create new roLayer
 	layer := &roLayer{

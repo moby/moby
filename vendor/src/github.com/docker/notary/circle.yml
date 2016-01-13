@@ -16,6 +16,8 @@ machine:
     BASE_STABLE: ../../../$HOME/.gvm/pkgsets/stable/global/$BASE_DIR
   # Workaround Circle parsing dumb bugs and/or YAML wonkyness
     CIRCLE_PAIN: "mode: set"
+  # Put the coverage profile somewhere codecov's script can find it
+    COVERPROFILE: coverage.out
 
   hosts:
   # Not used yet
@@ -72,8 +74,10 @@ test:
   post:
     - gvm use stable && make covmerge:
         timeout: 600
+        parallel: true
         pwd: $BASE_STABLE
 
   # Report to codecov.io
-    # - bash <(curl -s https://codecov.io/bash):
-    #     pwd: $BASE_STABLE
+    - bash <(curl -s https://codecov.io/bash):
+        parallel: true
+        pwd: $BASE_STABLE

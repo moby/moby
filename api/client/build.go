@@ -15,8 +15,6 @@ import (
 	"strings"
 
 	"github.com/docker/docker/api"
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/builder/dockerignore"
 	Cli "github.com/docker/docker/cli"
 	"github.com/docker/docker/opts"
@@ -31,6 +29,8 @@ import (
 	"github.com/docker/docker/pkg/urlutil"
 	"github.com/docker/docker/reference"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
+	"github.com/docker/engine-api/types"
+	"github.com/docker/engine-api/types/container"
 	"github.com/docker/go-units"
 )
 
@@ -58,7 +58,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	flCPUSetCpus := cmd.String([]string{"-cpuset-cpus"}, "", "CPUs in which to allow execution (0-3, 0,1)")
 	flCPUSetMems := cmd.String([]string{"-cpuset-mems"}, "", "MEMs in which to allow execution (0-3, 0,1)")
 	flCgroupParent := cmd.String([]string{"-cgroup-parent"}, "", "Optional parent cgroup for the container")
-	flBuildArg := opts.NewListOpts(opts.ValidateEnv)
+	flBuildArg := opts.NewListOpts(runconfigopts.ValidateEnv)
 	cmd.Var(&flBuildArg, []string{"-build-arg"}, "Set build-time variables")
 	isolation := cmd.String([]string{"-isolation"}, "", "Container isolation level")
 
@@ -255,7 +255,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		return err
 	}
 
-	err = jsonmessage.DisplayJSONMessagesStream(response.Body, buildBuff, cli.outFd, cli.isTerminalOut)
+	err = jsonmessage.DisplayJSONMessagesStream(response.Body, buildBuff, cli.outFd, cli.isTerminalOut, nil)
 	if err != nil {
 		if jerr, ok := err.(*jsonmessage.JSONError); ok {
 			// If no error code is set, default to 1
@@ -269,8 +269,9 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		}
 	}
 
-	// Windows: show error message about modified file permissions.
-	if response.OSType == "windows" {
+	// Windows: show error message about modified file permissions if the
+	// daemon isn't running Windows.
+	if response.OSType != "windows" && runtime.GOOS == "windows" {
 		fmt.Fprintln(cli.err, `SECURITY WARNING: You are building a Docker image from Windows against a non-Windows Docker host. All files and directories added to build context will have '-rwxr-xr-x' permissions. It is recommended to double check and reset permissions for sensitive files and directories.`)
 	}
 

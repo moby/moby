@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/daemon/exec"
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/daemon/logger"
@@ -25,6 +24,7 @@ import (
 	"github.com/docker/docker/pkg/symlink"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/volume"
+	containertypes "github.com/docker/engine-api/types/container"
 	"github.com/docker/go-connections/nat"
 	"github.com/opencontainers/runc/libcontainer/label"
 )
@@ -232,6 +232,9 @@ func (container *Container) ExitOnNext() {
 // Resize changes the TTY of the process running inside the container
 // to the given height and width. The container must be running.
 func (container *Container) Resize(h, w int) error {
+	if container.Command.ProcessConfig.Terminal == nil {
+		return fmt.Errorf("Container %s does not have a terminal ready", container.ID)
+	}
 	if err := container.Command.ProcessConfig.Terminal.Resize(h, w); err != nil {
 		return err
 	}

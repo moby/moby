@@ -9,9 +9,6 @@ import (
 
 const defaultMountFlags = syscall.MS_NOEXEC | syscall.MS_NOSUID | syscall.MS_NODEV
 
-// SystemdCgroups indicates whether systemd cgroup implemenation is in use or not
-var SystemdCgroups = false
-
 // New returns the docker default configuration for libcontainer
 func New() *configs.Config {
 	container := &configs.Config{
@@ -40,7 +37,7 @@ func New() *configs.Config {
 			{Type: "NEWUSER"},
 		}),
 		Cgroups: &configs.Cgroup{
-			Parent: "/docker",
+			ScopePrefix: "docker", // systemd only
 			Resources: &configs.Resources{
 				AllowAllDevices:  false,
 				MemorySwappiness: -1,
@@ -97,11 +94,6 @@ func New() *configs.Config {
 
 	if apparmor.IsEnabled() {
 		container.AppArmorProfile = "docker-default"
-	}
-
-	if SystemdCgroups {
-		container.Cgroups.Parent = "system.slice"
-		container.Cgroups.ScopePrefix = "docker"
 	}
 
 	return container

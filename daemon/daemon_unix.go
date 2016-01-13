@@ -7,13 +7,12 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"syscall"
 
 	"github.com/Sirupsen/logrus"
-	pblkiodev "github.com/docker/docker/api/types/blkiodev"
-	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
 	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/image"
@@ -24,6 +23,8 @@ import (
 	"github.com/docker/docker/reference"
 	"github.com/docker/docker/runconfig"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
+	pblkiodev "github.com/docker/engine-api/types/blkiodev"
+	containertypes "github.com/docker/engine-api/types/container"
 	"github.com/docker/libnetwork"
 	nwconfig "github.com/docker/libnetwork/config"
 	"github.com/docker/libnetwork/drivers/bridge"
@@ -33,6 +34,7 @@ import (
 	"github.com/docker/libnetwork/types"
 	blkiodev "github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/opencontainers/runc/libcontainer/label"
+	"github.com/opencontainers/runc/libcontainer/user"
 )
 
 const (
@@ -42,6 +44,9 @@ const (
 	platformSupported = true
 	// It's not kernel limit, we want this 4M limit to supply a reasonable functional container
 	linuxMinMemory = 4194304
+	// constants for remapped root settings
+	defaultIDSpecifier string = "default"
+	defaultRemappedID  string = "dockremap"
 )
 
 func getBlkioWeightDevices(config *containertypes.HostConfig) ([]*blkiodev.WeightDevice, error) {
@@ -205,6 +210,10 @@ func (daemon *Daemon) adaptContainerSettings(hostConfig *containertypes.HostConf
 		defaultSwappiness := int64(-1)
 		hostConfig.MemorySwappiness = &defaultSwappiness
 	}
+	if hostConfig.OomKillDisable == nil {
+		defaultOomKillDisable := false
+		hostConfig.OomKillDisable = &defaultOomKillDisable
+	}
 
 	return nil
 }
@@ -265,9 +274,10 @@ func verifyContainerResources(resources *containertypes.Resources) ([]string, er
 		warnings = append(warnings, "You specified a kernel memory limit on a kernel older than 4.0. Kernel memory limits are experimental on older kernels, it won't work as expected and can cause your system to be unstable.")
 		logrus.Warnf("You specified a kernel memory limit on a kernel older than 4.0. Kernel memory limits are experimental on older kernels, it won't work as expected and can cause your system to be unstable.")
 	}
-	if resources.OomKillDisable && !sysInfo.OomKillDisable {
-		resources.OomKillDisable = false
-		return warnings, fmt.Errorf("Your kernel does not support oom kill disable.")
+	if resources.OomKillDisable != nil && !sysInfo.OomKillDisable {
+		warnings = append(warnings, "Your kernel does not support OomKillDisable, OomKillDisable discarded.")
+		logrus.Warnf("Your kernel does not support OomKillDisable, OomKillDisable discarded.")
+		resources.OomKillDisable = nil
 	}
 
 	// cpu subsystem checks and adjustments
@@ -374,6 +384,24 @@ func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.
 	if sysInfo.IPv4ForwardingDisabled {
 		warnings = append(warnings, "IPv4 forwarding is disabled. Networking will not work.")
 		logrus.Warnf("IPv4 forwarding is disabled. Networking will not work")
+	}
+	// check for various conflicting options with user namespaces
+	if daemon.configStore.RemappedRoot != "" {
+		if hostConfig.Privileged {
+			return warnings, fmt.Errorf("Privileged mode is incompatible with user namespaces.")
+		}
+		if hostConfig.NetworkMode.IsHost() || hostConfig.NetworkMode.IsContainer() {
+			return warnings, fmt.Errorf("Cannot share the host or a container's network namespace when user namespaces are enabled.")
+		}
+		if hostConfig.PidMode.IsHost() {
+			return warnings, fmt.Errorf("Cannot share the host PID namespace when user namespaces are enabled.")
+		}
+		if hostConfig.IpcMode.IsContainer() {
+			return warnings, fmt.Errorf("Cannot share a container's IPC namespace when user namespaces are enabled.")
+		}
+		if hostConfig.ReadonlyRootfs {
+			return warnings, fmt.Errorf("Cannot use the --read-only option when user namespaces are enabled.")
+		}
 	}
 	return warnings, nil
 }
@@ -607,7 +635,7 @@ func initBridgeDriver(controller libnetwork.NetworkController, config *Config) e
 			netlabel.GenericData: netOption,
 			netlabel.EnableIPv6:  config.Bridge.EnableIPv6,
 		}),
-		libnetwork.NetworkOptionIpam("default", "", v4Conf, v6Conf),
+		libnetwork.NetworkOptionIpam("default", "", v4Conf, v6Conf, nil),
 		libnetwork.NetworkOptionDeferIPv6Alloc(deferIPv6Alloc))
 	if err != nil {
 		return fmt.Errorf("Error creating default \"bridge\" network: %v", err)
@@ -674,9 +702,174 @@ func setupInitLayer(initLayer string, rootUID, rootGID int) error {
 	return nil
 }
 
+// Parse the remapped root (user namespace) option, which can be one of:
+//   username            - valid username from /etc/passwd
+//   username:groupname  - valid username; valid groupname from /etc/group
+//   uid                 - 32-bit unsigned int valid Linux UID value
+//   uid:gid             - uid value; 32-bit unsigned int Linux GID value
+//
+//  If no groupname is specified, and a username is specified, an attempt
+//  will be made to lookup a gid for that username as a groupname
+//
+//  If names are used, they are verified to exist in passwd/group
+func parseRemappedRoot(usergrp string) (string, string, error) {
+
+	var (
+		userID, groupID     int
+		username, groupname string
+	)
+
+	idparts := strings.Split(usergrp, ":")
+	if len(idparts) > 2 {
+		return "", "", fmt.Errorf("Invalid user/group specification in --userns-remap: %q", usergrp)
+	}
+
+	if uid, err := strconv.ParseInt(idparts[0], 10, 32); err == nil {
+		// must be a uid; take it as valid
+		userID = int(uid)
+		luser, err := user.LookupUid(userID)
+		if err != nil {
+			return "", "", fmt.Errorf("Uid %d has no entry in /etc/passwd: %v", userID, err)
+		}
+		username = luser.Name
+		if len(idparts) == 1 {
+			// if the uid was numeric and no gid was specified, take the uid as the gid
+			groupID = userID
+			lgrp, err := user.LookupGid(groupID)
+			if err != nil {
+				return "", "", fmt.Errorf("Gid %d has no entry in /etc/group: %v", groupID, err)
+			}
+			groupname = lgrp.Name
+		}
+	} else {
+		lookupName := idparts[0]
+		// special case: if the user specified "default", they want Docker to create or
+		// use (after creation) the "dockremap" user/group for root remapping
+		if lookupName == defaultIDSpecifier {
+			lookupName = defaultRemappedID
+		}
+		luser, err := user.LookupUser(lookupName)
+		if err != nil && idparts[0] != defaultIDSpecifier {
+			// error if the name requested isn't the special "dockremap" ID
+			return "", "", fmt.Errorf("Error during uid lookup for %q: %v", lookupName, err)
+		} else if err != nil {
+			// special case-- if the username == "default", then we have been asked
+			// to create a new entry pair in /etc/{passwd,group} for which the /etc/sub{uid,gid}
+			// ranges will be used for the user and group mappings in user namespaced containers
+			_, _, err := idtools.AddNamespaceRangesUser(defaultRemappedID)
+			if err == nil {
+				return defaultRemappedID, defaultRemappedID, nil
+			}
+			return "", "", fmt.Errorf("Error during %q user creation: %v", defaultRemappedID, err)
+		}
+		userID = luser.Uid
+		username = luser.Name
+		if len(idparts) == 1 {
+			// we only have a string username, and no group specified; look up gid from username as group
+			group, err := user.LookupGroup(lookupName)
+			if err != nil {
+				return "", "", fmt.Errorf("Error during gid lookup for %q: %v", lookupName, err)
+			}
+			groupID = group.Gid
+			groupname = group.Name
+		}
+	}
+
+	if len(idparts) == 2 {
+		// groupname or gid is separately specified and must be resolved
+		// to a unsigned 32-bit gid
+		if gid, err := strconv.ParseInt(idparts[1], 10, 32); err == nil {
+			// must be a gid, take it as valid
+			groupID = int(gid)
+			lgrp, err := user.LookupGid(groupID)
+			if err != nil {
+				return "", "", fmt.Errorf("Gid %d has no entry in /etc/passwd: %v", groupID, err)
+			}
+			groupname = lgrp.Name
+		} else {
+			// not a number; attempt a lookup
+			group, err := user.LookupGroup(idparts[1])
+			if err != nil {
+				return "", "", fmt.Errorf("Error during gid lookup for %q: %v", idparts[1], err)
+			}
+			groupID = group.Gid
+			groupname = idparts[1]
+		}
+	}
+	return username, groupname, nil
+}
+
+func setupRemappedRoot(config *Config) ([]idtools.IDMap, []idtools.IDMap, error) {
+	if runtime.GOOS != "linux" && config.RemappedRoot != "" {
+		return nil, nil, fmt.Errorf("User namespaces are only supported on Linux")
+	}
+
+	// if the daemon was started with remapped root option, parse
+	// the config option to the int uid,gid values
+	var (
+		uidMaps, gidMaps []idtools.IDMap
+	)
+	if config.RemappedRoot != "" {
+		username, groupname, err := parseRemappedRoot(config.RemappedRoot)
+		if err != nil {
+			return nil, nil, err
+		}
+		if username == "root" {
+			// Cannot setup user namespaces with a 1-to-1 mapping; "--root=0:0" is a no-op
+			// effectively
+			logrus.Warnf("User namespaces: root cannot be remapped with itself; user namespaces are OFF")
+			return uidMaps, gidMaps, nil
+		}
+		logrus.Infof("User namespaces: ID ranges will be mapped to subuid/subgid ranges of: %s:%s", username, groupname)
+		// update remapped root setting now that we have resolved them to actual names
+		config.RemappedRoot = fmt.Sprintf("%s:%s", username, groupname)
+
+		uidMaps, gidMaps, err = idtools.CreateIDMappings(username, groupname)
+		if err != nil {
+			return nil, nil, fmt.Errorf("Can't create ID mappings: %v", err)
+		}
+	}
+	return uidMaps, gidMaps, nil
+}
+
+func setupDaemonRoot(config *Config, rootDir string, rootUID, rootGID int) error {
+	config.Root = rootDir
+	// the docker root metadata directory needs to have execute permissions for all users (o+x)
+	// so that syscalls executing as non-root, operating on subdirectories of the graph root
+	// (e.g. mounted layers of a container) can traverse this path.
+	// The user namespace support will create subdirectories for the remapped root host uid:gid
+	// pair owned by that same uid:gid pair for proper write access to those needed metadata and
+	// layer content subtrees.
+	if _, err := os.Stat(rootDir); err == nil {
+		// root current exists; verify the access bits are correct by setting them
+		if err = os.Chmod(rootDir, 0701); err != nil {
+			return err
+		}
+	} else if os.IsNotExist(err) {
+		// no root exists yet, create it 0701 with root:root ownership
+		if err := os.MkdirAll(rootDir, 0701); err != nil {
+			return err
+		}
+	}
+
+	// if user namespaces are enabled we will create a subtree underneath the specified root
+	// with any/all specified remapped root uid/gid options on the daemon creating
+	// a new subdirectory with ownership set to the remapped uid/gid (so as to allow
+	// `chdir()` to work for containers namespaced to that uid/gid)
+	if config.RemappedRoot != "" {
+		config.Root = filepath.Join(rootDir, fmt.Sprintf("%d.%d", rootUID, rootGID))
+		logrus.Debugf("Creating user namespaced daemon root: %s", config.Root)
+		// Create the root directory if it doesn't exists
+		if err := idtools.MkdirAllAs(config.Root, 0700, rootUID, rootGID); err != nil {
+			return fmt.Errorf("Cannot create daemon root: %s: %v", config.Root, err)
+		}
+	}
+	return nil
+}
+
 // registerLinks writes the links to a file.
 func (daemon *Daemon) registerLinks(container *container.Container, hostConfig *containertypes.HostConfig) error {
-	if hostConfig == nil || hostConfig.Links == nil {
+	if hostConfig == nil || hostConfig.NetworkMode.IsUserDefined() {
 		return nil
 	}
 
@@ -707,12 +900,7 @@ func (daemon *Daemon) registerLinks(container *container.Container, hostConfig *
 
 	// After we load all the links into the daemon
 	// set them to nil on the hostconfig
-	hostConfig.Links = nil
-	if err := container.WriteHostConfig(); err != nil {
-		return err
-	}
-
-	return nil
+	return container.WriteHostConfig()
 }
 
 // conditionalMountOnStart is a platform specific helper function during the

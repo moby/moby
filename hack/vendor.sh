@@ -21,17 +21,19 @@ clone git github.com/tchap/go-patricia v2.1.0
 clone git github.com/vdemeester/shakers 3c10293ce22b900c27acad7b28656196fcc2f73b
 clone git golang.org/x/net 47990a1ba55743e6ef1affd3a14e5bac8553615d https://github.com/golang/net.git
 clone git github.com/docker/go-units 651fc226e7441360384da338d0fd37f2440ffbe3
-clone git github.com/docker/go-connections 4e42727957c146776e5de9cec8c39e4059ed9f20
+clone git github.com/docker/go-connections v0.1.2
+clone git github.com/docker/engine-api v0.2.1
+clone git github.com/RackSec/srslog 6eb773f331e46fbba8eecb8e794e635e75fc04de
 
 #get libnetwork packages
-clone git github.com/docker/libnetwork 9f0563ea8f430d8828553aac97161cbff4056436
+clone git github.com/docker/libnetwork c8ec4bd24e1e76feb4f79e3924c68cd2ce89938a
 clone git github.com/armon/go-metrics eb0af217e5e9747e41dd5303755356b62d28e3ec
 clone git github.com/hashicorp/go-msgpack 71c2886f5a673a35f909803f38ece5810165097b
 clone git github.com/hashicorp/memberlist 9a1e242e454d2443df330bdd51a436d5a9058fc4
 clone git github.com/hashicorp/serf 7151adcef72687bf95f451a2e0ba15cb19412bf2
 clone git github.com/docker/libkv c2aac5dbbaa5c872211edea7c0f32b3bd67e7410
 clone git github.com/vishvananda/netns 604eaf189ee867d8c147fafc28def2394e878d25
-clone git github.com/vishvananda/netlink 8e810149a2e531fed9b837c0c7d8a8922d2bedf7
+clone git github.com/vishvananda/netlink bfd70f556483c008636b920dda142fdaa0d59ef9
 clone git github.com/BurntSushi/toml f706d00e3de6abe700c994cdd545a1a4915af060
 clone git github.com/samuel/go-zookeeper d0e0d8e11f318e000a8cc434616d69e329edc374
 clone git github.com/deckarep/golang-set ef32fa3046d9f249d399f98ebaf9be944430fd1d
@@ -40,19 +42,21 @@ fix_rewritten_imports github.com/coreos/etcd
 clone git github.com/ugorji/go 5abd4e96a45c386928ed2ca2a7ef63e2533e18ec
 clone git github.com/hashicorp/consul v0.5.2
 clone git github.com/boltdb/bolt v1.1.0
+clone git github.com/miekg/dns d27455715200c7d3e321a1e5cadb27c9ee0b0f02
 
 # get graph and distribution packages
-clone git github.com/docker/distribution 568bf038af6d65b376165d02886b1c7fcaef1f61
+clone git github.com/docker/distribution a7ae88da459b98b481a245e5b1750134724ac67d
 clone git github.com/vbatts/tar-split v0.9.11
 
-clone git github.com/docker/notary 45de2828b5e0083bfb4e9a5a781eddb05e2ef9d0
+# get desired notary commit, might also need to be updated in Dockerfile
+clone git github.com/docker/notary docker-v1.10-2
+
 clone git google.golang.org/grpc 174192fc93efcb188fc8f46ca447f0da606b6885 https://github.com/grpc/grpc-go.git
 clone git github.com/miekg/pkcs11 80f102b5cac759de406949c47f0928b99bd64cdf
 clone git github.com/jfrazelle/go v1.5.1-1
 clone git github.com/agl/ed25519 d2b94fd789ea21d12fac1a4443dd3a3f79cda72c
 
 clone git github.com/opencontainers/runc d97d5e8b007e4657316eed76ea30bc0f690230cf # libcontainer
-clone git github.com/opencontainers/specs 46d949ea81080c5f60dfb72ee91468b1e9fb2998 # specs
 clone git github.com/seccomp/libseccomp-golang 1b506fc7c24eec5a3693cdcbed40d9c226cfc6a1
 # libcontainer deps (see src/github.com/opencontainers/runc/Godeps/Godeps.json)
 clone git github.com/coreos/go-systemd v4

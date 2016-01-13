@@ -77,7 +77,7 @@ var (
 	}
 	seccompEnabled = testRequirement{
 		func() bool {
-			return supportsSeccomp
+			return supportsSeccomp && SysInfo.Seccomp
 		},
 		"Test requires that seccomp support be enabled in the daemon.",
 	}

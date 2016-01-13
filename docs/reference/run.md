@@ -275,6 +275,8 @@ of the containers.
                         '<network-name>|<network-id>': connect to a user-defined network
     --add-host=""    : Add a line to /etc/hosts (host:IP)
     --mac-address="" : Sets the container's Ethernet device's MAC address
+    --ip=""          : Sets the container's Ethernet device's IPv4 address
+    --ip6=""          : Sets the container's Ethernet device's IPv6 address
 
 By default, all containers have networking enabled and they can make any
 outgoing connections. The operator can completely disable networking
@@ -1299,12 +1301,12 @@ specifies `EXPOSE 80` in the Dockerfile). At runtime, the port might be
 bound to 42800 on the host. To find the mapping between the host ports
 and the exposed ports, use `docker port`.
 
-If the operator uses `--link` when starting a new client container, then the
-client container can access the exposed port via a private networking interface.
-Linking is a legacy feature that is only supported on the default bridge
-network. You should prefer the Docker networks feature instead. For more
-information on this feature, see the [*Docker network
-overview*""](../userguide/networking/index.md)).
+If the operator uses `--link` when starting a new client container in the
+default bridge network, then the client container can access the exposed
+port via a private networking interface.
+If `--link` is used when starting a container in a user-defined network as
+described in [*Docker network overview*""](../userguide/networking/index.md)),
+it will provide a named alias for the container being linked to.
 
 ### ENV (environment variables)
 

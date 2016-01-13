@@ -7,11 +7,11 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/image"
-	"github.com/docker/docker/pkg/graphdb"
+	"github.com/docker/engine-api/types"
+	"github.com/docker/engine-api/types/filters"
+	networktypes "github.com/docker/engine-api/types/network"
 	"github.com/docker/go-connections/nat"
 )
 
@@ -197,12 +197,6 @@ func (daemon *Daemon) foldFilter(config *ContainersConfig) (*listContext, error)
 		})
 	}
 
-	names := make(map[string][]string)
-	daemon.containerGraph().Walk("/", func(p string, e *graphdb.Entity) error {
-		names[e.ID()] = append(names[e.ID()], p)
-		return nil
-	}, 1)
-
 	if config.Before != "" && beforeContFilter == nil {
 		beforeContFilter, err = daemon.GetContainer(config.Before)
 		if err != nil {
@@ -220,12 +214,12 @@ func (daemon *Daemon) foldFilter(config *ContainersConfig) (*listContext, error)
 	return &listContext{
 		filters:          psFilters,
 		ancestorFilter:   ancestorFilter,
-		names:            names,
 		images:           imagesFilter,
 		exitAllowed:      filtExited,
 		beforeFilter:     beforeContFilter,
 		sinceFilter:      sinceContFilter,
 		ContainersConfig: config,
+		names:            daemon.nameIndex.GetAll(),
 	}, nil
 }
 
@@ -351,7 +345,30 @@ func (daemon *Daemon) transformContainer(container *container.Container, ctx *li
 	newC.Created = container.Created.Unix()
 	newC.Status = container.State.String()
 	newC.HostConfig.NetworkMode = string(container.HostConfig.NetworkMode)
-	newC.NetworkSettings = &types.SummaryNetworkSettings{container.NetworkSettings.Networks}
+	// copy networks to avoid races
+	networks := make(map[string]*networktypes.EndpointSettings)
+	for name, network := range container.NetworkSettings.Networks {
+		if network == nil {
+			continue
+		}
+		networks[name] = &networktypes.EndpointSettings{
+			EndpointID:          network.EndpointID,
+			Gateway:             network.Gateway,
+			IPAddress:           network.IPAddress,
+			IPPrefixLen:         network.IPPrefixLen,
+			IPv6Gateway:         network.IPv6Gateway,
+			GlobalIPv6Address:   network.GlobalIPv6Address,
+			GlobalIPv6PrefixLen: network.GlobalIPv6PrefixLen,
+			MacAddress:          network.MacAddress,
+		}
+		if network.IPAMConfig != nil {
+			networks[name].IPAMConfig = &networktypes.EndpointIPAMConfig{
+				IPv4Address: network.IPAMConfig.IPv4Address,
+				IPv6Address: network.IPAMConfig.IPv6Address,
+			}
+		}
+	}
+	newC.NetworkSettings = &types.SummaryNetworkSettings{Networks: networks}
 
 	newC.Ports = []types.Port{}
 	for port, bindings := range container.NetworkSettings.Ports {

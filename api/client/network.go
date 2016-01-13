@@ -6,13 +6,14 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/api/types/network"
 	Cli "github.com/docker/docker/cli"
 	"github.com/docker/docker/opts"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/stringid"
+	runconfigopts "github.com/docker/docker/runconfig/opts"
+	"github.com/docker/engine-api/types"
+	"github.com/docker/engine-api/types/filters"
+	"github.com/docker/engine-api/types/network"
 )
 
 // CmdNetwork is the parent subcommand for all network commands
@@ -107,15 +108,25 @@ func (cli *DockerCli) CmdNetworkRm(args ...string) error {
 
 // CmdNetworkConnect connects a container to a network
 //
-// Usage: docker network connect <NETWORK> <CONTAINER>
+// Usage: docker network connect [OPTIONS] <NETWORK> <CONTAINER>
 func (cli *DockerCli) CmdNetworkConnect(args ...string) error {
 	cmd := Cli.Subcmd("network connect", []string{"NETWORK CONTAINER"}, "Connects a container to a network", false)
-	cmd.Require(flag.Exact, 2)
+	flIPAddress := cmd.String([]string{"-ip"}, "", "IP Address")
+	flIPv6Address := cmd.String([]string{"-ip6"}, "", "IPv6 Address")
+	flLinks := opts.NewListOpts(runconfigopts.ValidateLink)
+	cmd.Var(&flLinks, []string{"-link"}, "Add link to another container")
+	cmd.Require(flag.Min, 2)
 	if err := cmd.ParseFlags(args, true); err != nil {
 		return err
 	}
-
-	return cli.client.NetworkConnect(cmd.Arg(0), cmd.Arg(1))
+	epConfig := &network.EndpointSettings{
+		IPAMConfig: &network.EndpointIPAMConfig{
+			IPv4Address: *flIPAddress,
+			IPv6Address: *flIPv6Address,
+		},
+		Links: flLinks.GetAll(),
+	}
+	return cli.client.NetworkConnect(cmd.Arg(0), cmd.Arg(1), epConfig)
 }
 
 // CmdNetworkDisconnect disconnects a container from a network
@@ -128,7 +139,7 @@ func (cli *DockerCli) CmdNetworkDisconnect(args ...string) error {
 		return err
 	}
 
-	return cli.client.NetworkDisconnect(cmd.Arg(0), cmd.Arg(1))
+	return cli.client.NetworkDisconnect(cmd.Arg(0), cmd.Arg(1), false)
 }
 
 // CmdNetworkLs lists all the networks managed by docker daemon

@@ -50,20 +50,24 @@ type Endpoint interface {
 type EndpointOption func(ep *endpoint)
 
 type endpoint struct {
-	name          string
-	id            string
-	network       *network
-	iface         *endpointInterface
-	joinInfo      *endpointJoinInfo
-	sandboxID     string
-	exposedPorts  []types.TransportPort
-	anonymous     bool
-	generic       map[string]interface{}
-	joinLeaveDone chan struct{}
-	prefAddress   net.IP
-	ipamOptions   map[string]string
-	dbIndex       uint64
-	dbExists      bool
+	name              string
+	id                string
+	network           *network
+	iface             *endpointInterface
+	joinInfo          *endpointJoinInfo
+	sandboxID         string
+	exposedPorts      []types.TransportPort
+	anonymous         bool
+	disableResolution bool
+	generic           map[string]interface{}
+	joinLeaveDone     chan struct{}
+	prefAddress       net.IP
+	prefAddressV6     net.IP
+	ipamOptions       map[string]string
+	aliases           map[string]string
+	myAliases         []string
+	dbIndex           uint64
+	dbExists          bool
 	sync.Mutex
 }
 
@@ -81,6 +85,8 @@ func (ep *endpoint) MarshalJSON() ([]byte, error) {
 	}
 	epMap["sandbox"] = ep.sandboxID
 	epMap["anonymous"] = ep.anonymous
+	epMap["disableResolution"] = ep.disableResolution
+	epMap["myAliases"] = ep.myAliases
 	return json.Marshal(epMap)
 }
 
@@ -158,6 +164,13 @@ func (ep *endpoint) UnmarshalJSON(b []byte) (err error) {
 	if v, ok := epMap["anonymous"]; ok {
 		ep.anonymous = v.(bool)
 	}
+	if v, ok := epMap["disableResolution"]; ok {
+		ep.disableResolution = v.(bool)
+	}
+	ma, _ := json.Marshal(epMap["myAliases"])
+	var myAliases []string
+	json.Unmarshal(ma, &myAliases)
+	ep.myAliases = myAliases
 	return nil
 }
 
@@ -176,6 +189,7 @@ func (ep *endpoint) CopyTo(o datastore.KVObject) error {
 	dstEp.dbIndex = ep.dbIndex
 	dstEp.dbExists = ep.dbExists
 	dstEp.anonymous = ep.anonymous
+	dstEp.disableResolution = ep.disableResolution
 
 	if ep.iface != nil {
 		dstEp.iface = &endpointInterface{}
@@ -184,6 +198,9 @@ func (ep *endpoint) CopyTo(o datastore.KVObject) error {
 
 	dstEp.exposedPorts = make([]types.TransportPort, len(ep.exposedPorts))
 	copy(dstEp.exposedPorts, ep.exposedPorts)
+
+	dstEp.myAliases = make([]string, len(ep.myAliases))
+	copy(dstEp.myAliases, ep.myAliases)
 
 	dstEp.generic = options.Generic{}
 	for k, v := range ep.generic {
@@ -207,6 +224,13 @@ func (ep *endpoint) Name() string {
 	return ep.name
 }
 
+func (ep *endpoint) MyAliases() []string {
+	ep.Lock()
+	defer ep.Unlock()
+
+	return ep.myAliases
+}
+
 func (ep *endpoint) Network() string {
 	if ep.network == nil {
 		return ""
@@ -219,6 +243,12 @@ func (ep *endpoint) isAnonymous() bool {
 	ep.Lock()
 	defer ep.Unlock()
 	return ep.anonymous
+}
+
+func (ep *endpoint) needResolver() bool {
+	ep.Lock()
+	defer ep.Unlock()
+	return !ep.disableResolution
 }
 
 // endpoint Key structure : endpoint/network-id/endpoint-id
@@ -395,10 +425,9 @@ func (ep *endpoint) sbJoin(sbox Sandbox, options ...EndpointOption) error {
 	if ip := ep.getFirstInterfaceAddress(); ip != nil {
 		address = ip.String()
 	}
-	if err = sb.updateHostsFile(address, network.getSvcRecords(ep)); err != nil {
+	if err = sb.updateHostsFile(address); err != nil {
 		return err
 	}
-
 	if err = sb.updateDNS(network.enableIPv6); err != nil {
 		return err
 	}
@@ -688,9 +717,10 @@ func EndpointOptionGeneric(generic map[string]interface{}) EndpointOption {
 }
 
 // CreateOptionIpam function returns an option setter for the ipam configuration for this endpoint
-func CreateOptionIpam(prefAddress net.IP, ipamOptions map[string]string) EndpointOption {
+func CreateOptionIpam(ipV4, ipV6 net.IP, ipamOptions map[string]string) EndpointOption {
 	return func(ep *endpoint) {
-		ep.prefAddress = prefAddress
+		ep.prefAddress = ipV4
+		ep.prefAddressV6 = ipV6
 		ep.ipamOptions = ipamOptions
 	}
 }
@@ -724,6 +754,31 @@ func CreateOptionPortMapping(portBindings []types.PortBinding) EndpointOption {
 func CreateOptionAnonymous() EndpointOption {
 	return func(ep *endpoint) {
 		ep.anonymous = true
+	}
+}
+
+// CreateOptionDisableResolution function returns an option setter to indicate
+// this endpoint doesn't want embedded DNS server functionality
+func CreateOptionDisableResolution() EndpointOption {
+	return func(ep *endpoint) {
+		ep.disableResolution = true
+	}
+}
+
+//CreateOptionAlias function returns an option setter for setting endpoint alias
+func CreateOptionAlias(name string, alias string) EndpointOption {
+	return func(ep *endpoint) {
+		if ep.aliases == nil {
+			ep.aliases = make(map[string]string)
+		}
+		ep.aliases[alias] = name
+	}
+}
+
+//CreateOptionMyAlias function returns an option setter for setting endpoint's self alias
+func CreateOptionMyAlias(alias string) EndpointOption {
+	return func(ep *endpoint) {
+		ep.myAliases = append(ep.myAliases, alias)
 	}
 }
 
@@ -775,6 +830,8 @@ func (ep *endpoint) assignAddressVersion(ipVer int, ipam ipamapi.Ipam) error {
 	var (
 		poolID  *string
 		address **net.IPNet
+		prefAdd net.IP
+		progAdd net.IP
 	)
 
 	n := ep.getNetwork()
@@ -782,9 +839,11 @@ func (ep *endpoint) assignAddressVersion(ipVer int, ipam ipamapi.Ipam) error {
 	case 4:
 		poolID = &ep.iface.v4PoolID
 		address = &ep.iface.addr
+		prefAdd = ep.prefAddress
 	case 6:
 		poolID = &ep.iface.v6PoolID
 		address = &ep.iface.addrv6
+		prefAdd = ep.prefAddressV6
 	default:
 		return types.InternalErrorf("incorrect ip version number passed: %d", ipVer)
 	}
@@ -796,12 +855,19 @@ func (ep *endpoint) assignAddressVersion(ipVer int, ipam ipamapi.Ipam) error {
 		return nil
 	}
 
+	// The address to program may be chosen by the user or by the network driver in one specific
+	// case to support backward compatibility with `docker daemon --fixed-cidrv6` use case
+	if prefAdd != nil {
+		progAdd = prefAdd
+	} else if *address != nil {
+		progAdd = (*address).IP
+	}
+
 	for _, d := range ipInfo {
-		var prefIP net.IP
-		if *address != nil {
-			prefIP = (*address).IP
+		if progAdd != nil && !d.Pool.Contains(progAdd) {
+			continue
 		}
-		addr, _, err := ipam.RequestAddress(d.PoolID, prefIP, ep.ipamOptions)
+		addr, _, err := ipam.RequestAddress(d.PoolID, progAdd, ep.ipamOptions)
 		if err == nil {
 			ep.Lock()
 			*address = addr
@@ -809,9 +875,12 @@ func (ep *endpoint) assignAddressVersion(ipVer int, ipam ipamapi.Ipam) error {
 			ep.Unlock()
 			return nil
 		}
-		if err != ipamapi.ErrNoAvailableIPs {
+		if err != ipamapi.ErrNoAvailableIPs || progAdd != nil {
 			return err
 		}
+	}
+	if progAdd != nil {
+		return types.BadRequestErrorf("Invalid preferred address %s: It does not belong to any of this network's subnets")
 	}
 	return fmt.Errorf("no available IPv%d addresses on this network's address pools: %s (%s)", ipVer, n.Name(), n.ID())
 }

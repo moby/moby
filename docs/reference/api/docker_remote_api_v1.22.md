@@ -265,6 +265,7 @@ Create a container
              "VolumesFrom": ["parent", "other:ro"],
              "CapAdd": ["NET_ADMIN"],
              "CapDrop": ["MKNOD"],
+             "GroupAdd": ["newgroup"],
              "RestartPolicy": { "Name": "", "MaximumRetryCount": 0 },
              "NetworkMode": "bridge",
              "Devices": [],
@@ -367,6 +368,7 @@ Json Parameters:
           Specified in the form `<container name>[:<ro|rw>]`
     -   **CapAdd** - A list of kernel capabilities to add to the container.
     -   **Capdrop** - A list of kernel capabilities to drop from the container.
+    -   **GroupAdd** - A list of additional groups that the container process will run as
     -   **RestartPolicy** – The behavior to apply when the container exits.  The
             value is an object with a `Name` property of either `"always"` to
             always restart, `"unless-stopped"` to restart always except when
@@ -1021,7 +1023,7 @@ Update resource configs of one or more containers.
        Content-Type: application/json
 
        {
-           "HostConfig": {
+           "UpdateConfig": {
                "Resources": {
                    "BlkioWeight": 300,
                    "CpuShares": 512,
@@ -3029,7 +3031,13 @@ POST /networks/22be93d5babb089c5aab8dbc369042fad48ff791584ca2da2100db837a1c7c30/
 Content-Type: application/json
 
 {
-  "Container":"3613f73ba0e4"
+  "Container":"3613f73ba0e4",
+  "endpoint_config": {
+    "test_nw": {
+        "IPv4Address":"172.24.56.89",
+        "IPv6Address":"2001:db8::5689"
+    }
+  }
 }
 ```
 

@@ -4920,8 +4920,26 @@ func (s *DockerSuite) TestBuildNotVerboseSuccess(c *check.C) {
 		if outRegexp.Find([]byte(stdout)) == nil {
 			c.Fatalf("Test %s expected stdout to match the [%v] regexp, but it is [%v]", te.Name, outRegexp, stdout)
 		}
-		if stderr != "" {
-			c.Fatalf("Test %s expected stderr to be empty, but it is [%#v]", te.Name, stderr)
+		if runtime.GOOS == "windows" {
+			// stderr contains a security warning on Windows if the daemon isn't Windows
+			lines := strings.Split(stderr, "\n")
+			warningCount := 0
+			for _, v := range lines {
+				warningText := "SECURITY WARNING: You are building a Docker image from Windows against a non-Windows Docker host."
+				if strings.Contains(v, warningText) {
+					warningCount++
+				}
+				if v != "" && !strings.Contains(v, warningText) {
+					c.Fatalf("Stderr contains unexpected output line: %q", v)
+				}
+			}
+			if warningCount != 1 && daemonPlatform != "windows" {
+				c.Fatalf("Test %s didn't get security warning running from Windows to non-Windows", te.Name)
+			}
+		} else {
+			if stderr != "" {
+				c.Fatalf("Test %s expected stderr to be empty, but it is [%#v]", te.Name, stderr)
+			}
 		}
 	}
 
@@ -5805,7 +5823,7 @@ func (s *DockerTrustSuite) TestTrustedBuildUntrustedTag(c *check.C) {
 		c.Fatalf("Expected error on trusted build with untrusted tag: %s\n%s", err, out)
 	}
 
-	if !strings.Contains(out, fmt.Sprintf("no trust data available")) {
+	if !strings.Contains(out, "does not have trust data for") {
 		c.Fatalf("Unexpected output on trusted build with untrusted tag:\n%s", out)
 	}
 }

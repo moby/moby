@@ -39,7 +39,7 @@ func (m *memoryStore) GetMeta(name string, size int64) ([]byte, error) {
 		}
 		return d[:size], nil
 	}
-	return nil, ErrMetaNotFound{}
+	return nil, ErrMetaNotFound{Resource: name}
 }
 
 func (m *memoryStore) SetMeta(name string, meta []byte) error {
@@ -75,7 +75,7 @@ func (m *memoryStore) WalkStagedTargets(paths []string, targetsFn targetsWalkFun
 	for _, path := range paths {
 		dat, ok := m.files[path]
 		if !ok {
-			return ErrMetaNotFound{}
+			return ErrMetaNotFound{Resource: path}
 		}
 		meta, err := data.NewFileMeta(bytes.NewReader(dat), "sha256")
 		if err != nil {

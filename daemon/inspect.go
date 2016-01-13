@@ -4,13 +4,13 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/docker/docker/api/types"
-	networktypes "github.com/docker/docker/api/types/network"
-	"github.com/docker/docker/api/types/versions/v1p20"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/exec"
 	"github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/pkg/version"
+	"github.com/docker/engine-api/types"
+	networktypes "github.com/docker/engine-api/types/network"
+	"github.com/docker/engine-api/types/versions/v1p20"
 )
 
 // ContainerInspect returns low-level information about a
@@ -102,11 +102,12 @@ func (daemon *Daemon) getInspectData(container *container.Container, size bool) 
 	// make a copy to play with
 	hostConfig := *container.HostConfig
 
-	if children, err := daemon.children(container.Name); err == nil {
-		for linkAlias, child := range children {
-			hostConfig.Links = append(hostConfig.Links, fmt.Sprintf("%s:%s", child.Name, linkAlias))
-		}
+	children := daemon.children(container)
+	hostConfig.Links = nil // do not expose the internal structure
+	for linkAlias, child := range children {
+		hostConfig.Links = append(hostConfig.Links, fmt.Sprintf("%s:%s", child.Name, linkAlias))
 	}
+
 	// we need this trick to preserve empty log driver, so
 	// container will use daemon defaults even if daemon change them
 	if hostConfig.LogConfig.Type == "" {

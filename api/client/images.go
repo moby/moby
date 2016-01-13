@@ -2,11 +2,11 @@ package client
 
 import (
 	"github.com/docker/docker/api/client/formatter"
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/filters"
 	Cli "github.com/docker/docker/cli"
 	"github.com/docker/docker/opts"
 	flag "github.com/docker/docker/pkg/mflag"
+	"github.com/docker/engine-api/types"
+	"github.com/docker/engine-api/types/filters"
 )
 
 // CmdImages lists the images in a specified repository, or all top-level images if no repository is specified.

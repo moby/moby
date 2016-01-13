@@ -20,4 +20,4 @@ RUN go install \
     ${NOTARYPKG}/cmd/notary-server
 
 ENTRYPOINT [ "notary-server" ]
-CMD [ "-config", "cmd/notary-server/config.json" ]
+CMD [ "-config=fixtures/server-config-local.json" ]

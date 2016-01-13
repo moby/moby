@@ -236,9 +236,9 @@ allows you to upgrade, or effectively migrate data volumes between containers.
 > providing the `-v` option to delete its volumes. If you remove containers
 > without using the `-v` option, you may end up with "dangling" volumes;
 > volumes that are no longer referenced by a container.
-> Dangling volumes are difficult to get rid of and can take up a large amount
-> of disk space. We're working on improving volume management and you can check
-> progress on this in [pull request #14214](https://github.com/docker/docker/pull/14214)
+> You can use `docker volume ls -f dangling=true` to find dangling volumes,
+> and use `docker volume rm <volume name>` to remove a volume that's
+> no longer needed.
 
 ## Backup, restore, or migrate data volumes
 

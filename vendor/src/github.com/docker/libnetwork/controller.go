@@ -143,7 +143,7 @@ type controller struct {
 	extKeyListener net.Listener
 	watchCh        chan *endpoint
 	unWatchCh      chan *endpoint
-	svcDb          map[string]svcMap
+	svcDb          map[string]svcInfo
 	nmap           map[string]*netWatch
 	defOsSbox      osl.Sandbox
 	sboxOnce       sync.Once
@@ -171,7 +171,7 @@ func New(cfgOptions ...config.Option) (NetworkController, error) {
 		sandboxes:   sandboxTable{},
 		drivers:     driverTable{},
 		ipamDrivers: ipamTable{},
-		svcDb:       make(map[string]svcMap),
+		svcDb:       make(map[string]svcInfo),
 	}
 
 	if err := c.initStores(); err != nil {

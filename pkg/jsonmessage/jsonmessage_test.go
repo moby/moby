@@ -168,7 +168,7 @@ func TestDisplayJSONMessagesStreamInvalidJSON(t *testing.T) {
 	reader := strings.NewReader("This is not a 'valid' JSON []")
 	inFd, _ = term.GetFdInfo(reader)
 
-	if err := DisplayJSONMessagesStream(reader, data, inFd, false); err == nil && err.Error()[:17] != "invalid character" {
+	if err := DisplayJSONMessagesStream(reader, data, inFd, false, nil); err == nil && err.Error()[:17] != "invalid character" {
 		t.Fatalf("Should have thrown an error (invalid character in ..), got [%v]", err)
 	}
 }
@@ -210,7 +210,7 @@ func TestDisplayJSONMessagesStream(t *testing.T) {
 		inFd, _ = term.GetFdInfo(reader)
 
 		// Without terminal
-		if err := DisplayJSONMessagesStream(reader, data, inFd, false); err != nil {
+		if err := DisplayJSONMessagesStream(reader, data, inFd, false, nil); err != nil {
 			t.Fatal(err)
 		}
 		if data.String() != expectedMessages[0] {
@@ -220,7 +220,7 @@ func TestDisplayJSONMessagesStream(t *testing.T) {
 		// With terminal
 		data = bytes.NewBuffer([]byte{})
 		reader = strings.NewReader(jsonMessage)
-		if err := DisplayJSONMessagesStream(reader, data, inFd, true); err != nil {
+		if err := DisplayJSONMessagesStream(reader, data, inFd, true, nil); err != nil {
 			t.Fatal(err)
 		}
 		if data.String() != expectedMessages[1] {

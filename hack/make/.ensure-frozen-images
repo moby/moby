@@ -1,37 +1,31 @@
 #!/bin/bash
 set -e
 
-# image lists for different archs that should match what's in the Dockerfile (minus the explicit images IDs)
+# image list should match what's in the Dockerfile (minus the explicit images IDs)
+images=(
+	busybox:latest
+	debian:jessie
+	hello-world:latest
+)
+
+imagePrefix=
 case "$DOCKER_ENGINE_OSARCH" in
 	linux/arm)
-		images=(
-			hypriot/armhf-busybox:latest
-			hypriot/armhf-hello-world:latest
-			hypriot/armhf-unshare:latest
-		)
+		imagePrefix='armhf'
 		;;
 	linux/ppc64le)
-		images=(
-			ppc64le/busybox:latest
-			ppc64le/hello-world:frozen
-			ppc64le/unshare:latest
-		)
+		imagePrefix='ppc64le'
 		;;
 	linux/s390x)
-		images=(
-			s390x/busybox:latest
-			s390x/hello-world:frozen
-			s390x/unshare:latest
-		)
-		;;
-	*)
-		images=(
-			busybox:latest
-			debian:jessie
-			hello-world:latest
-		)
+		imagePrefix='s390x'
 		;;
 esac
+
+if [ "$imagePrefix" ]; then
+	for (( i = 0; i < ${#images[@]}; i++ )); do
+		images[$i]="$imagePrefix/${images[$i]}"
+	done
+fi
 
 if ! docker inspect "${images[@]}" &> /dev/null; then
 	hardCodedDir='/docker-frozen-images'
@@ -60,7 +54,7 @@ if ! docker inspect "${images[@]}" &> /dev/null; then
 					inCont = 0;
 				}
 			}
-		' ${DOCKER_FILE:="Dockerfile"} | sh -x
+		' "${DOCKERFILE:=Dockerfile}" | sh -x
 		# Do not use a subshell for the following command. Windows CI
 		# runs bash 3.x so will not trap an error in a subshell.
 		# http://stackoverflow.com/questions/22630363/how-does-set-e-work-with-subshells
@@ -68,35 +62,18 @@ if ! docker inspect "${images[@]}" &> /dev/null; then
 	fi
 fi
 
-# tag images to ensure that all integrations work with the defined image names
-# then remove original tags as these make problems with later tests (e.g., TestInspectApiImageResponse)
-case "$DOCKER_ENGINE_OSARCH" in
-	linux/arm)
-		docker tag hypriot/armhf-busybox:latest busybox:latest
-		docker tag hypriot/armhf-hello-world:latest hello-world:frozen
-		docker tag hypriot/armhf-unshare:latest jess/unshare:latest
-		docker rmi hypriot/armhf-busybox:latest
-		docker rmi hypriot/armhf-hello-world:latest
-		docker rmi hypriot/armhf-unshare:latest
-		;;
-	linux/ppc64le)
-		docker tag ppc64le/busybox:latest busybox:latest
-		docker tag ppc64le/hello-world:frozen hello-world:frozen
-		docker tag ppc64le/unshare:latest jess/unshare:latest
-		docker rmi ppc64le/busybox:latest
-		docker rmi ppc64le/hello-world:frozen
-		docker rmi ppc64le/unshare:latest
-		;;
-	linux/s390x)
-		docker tag s390x/busybox:latest busybox:latest
-		docker tag s390x/hello-world:frozen hello-world:frozen
-		docker tag s390x/unshare:latest jess/unshare:latest
-		docker rmi s390x/busybox:latest
-		docker rmi s390x/hello-world:frozen
-		docker rmi s390x/unshare:latest
-		;;
-	*)
-		docker tag hello-world:latest hello-world:frozen
-		docker rmi hello-world:latest
-		;;
-esac
+if [ "$imagePrefix" ]; then
+	for image in "${images[@]}"; do
+		target="${image#$imagePrefix/}"
+		if [ "$target" != "$image" ]; then
+			# tag images to ensure that all integrations work with the defined image names
+			docker tag "$image" "$target"
+			# then remove original tags as these make problems with later tests (e.g., TestInspectApiImageResponse)
+			docker rmi "$image"
+		fi
+	done
+fi
+
+# explicitly rename "hello-world:latest" to ":frozen" for the test that uses it
+docker tag hello-world:latest hello-world:frozen
+docker rmi hello-world:latest

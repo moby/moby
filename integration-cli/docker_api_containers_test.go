@@ -15,11 +15,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/docker/api/types"
-	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/pkg/integration"
 	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/engine-api/types"
+	containertypes "github.com/docker/engine-api/types/container"
 	"github.com/go-check/check"
 )
 
@@ -652,10 +652,14 @@ func (s *DockerSuite) TestContainerApiCreateWithDomainName(c *check.C) {
 	c.Assert(containerJSON.Config.Domainname, checker.Equals, domainName, check.Commentf("Mismatched Domainname"))
 }
 
-func (s *DockerSuite) TestContainerApiCreateNetworkMode(c *check.C) {
+func (s *DockerSuite) TestContainerApiCreateBridgeNetworkMode(c *check.C) {
 	testRequires(c, DaemonIsLinux)
-	UtilCreateNetworkMode(c, "host")
 	UtilCreateNetworkMode(c, "bridge")
+}
+
+func (s *DockerSuite) TestContainerApiCreateOtherNetworkModes(c *check.C) {
+	testRequires(c, DaemonIsLinux, NotUserNamespace)
+	UtilCreateNetworkMode(c, "host")
 	UtilCreateNetworkMode(c, "container:web1")
 }
 
@@ -1083,9 +1087,9 @@ func (s *DockerSuite) TestContainerApiDeleteRemoveLinks(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	c.Assert(links, checker.Equals, "[\"/tlink1:/tlink2/tlink1\"]", check.Commentf("expected to have links between containers"))
 
-	status, _, err := sockRequest("DELETE", "/containers/tlink2/tlink1?link=1", nil)
-	c.Assert(err, checker.IsNil)
-	c.Assert(status, checker.Equals, http.StatusNoContent)
+	status, b, err := sockRequest("DELETE", "/containers/tlink2/tlink1?link=1", nil)
+	c.Assert(err, check.IsNil)
+	c.Assert(status, check.Equals, http.StatusNoContent, check.Commentf(string(b)))
 
 	linksPostRm, err := inspectFieldJSON(id2, "HostConfig.Links")
 	c.Assert(err, checker.IsNil)
@@ -1311,7 +1315,7 @@ func (s *DockerSuite) TestContainersApiCreateNoHostConfig118(c *check.C) {
 func (s *DockerSuite) TestPutContainerArchiveErrSymlinkInVolumeToReadOnlyRootfs(c *check.C) {
 	// Requires local volume mount bind.
 	// --read-only + userns has remount issues
-	testRequires(c, SameHostDaemon, NotUserNamespace)
+	testRequires(c, SameHostDaemon, NotUserNamespace, DaemonIsLinux)
 
 	testVol := getTestDir(c, "test-put-container-archive-err-symlink-in-volume-to-read-only-rootfs-")
 	defer os.RemoveAll(testVol)
@@ -1392,6 +1396,7 @@ func (s *DockerSuite) TestStartWithNilDNS(c *check.C) {
 }
 
 func (s *DockerSuite) TestPostContainersCreateShmSizeNegative(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	config := map[string]interface{}{
 		"Image":      "busybox",
 		"HostConfig": map[string]interface{}{"ShmSize": -1},
@@ -1404,6 +1409,7 @@ func (s *DockerSuite) TestPostContainersCreateShmSizeNegative(c *check.C) {
 }
 
 func (s *DockerSuite) TestPostContainersCreateShmSizeHostConfigOmitted(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	var defaultSHMSize int64 = 67108864
 	config := map[string]interface{}{
 		"Image": "busybox",
@@ -1434,6 +1440,7 @@ func (s *DockerSuite) TestPostContainersCreateShmSizeHostConfigOmitted(c *check.
 }
 
 func (s *DockerSuite) TestPostContainersCreateShmSizeOmitted(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	config := map[string]interface{}{
 		"Image":      "busybox",
 		"HostConfig": map[string]interface{}{},
@@ -1464,6 +1471,7 @@ func (s *DockerSuite) TestPostContainersCreateShmSizeOmitted(c *check.C) {
 }
 
 func (s *DockerSuite) TestPostContainersCreateWithShmSize(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	config := map[string]interface{}{
 		"Image":      "busybox",
 		"Cmd":        "mount",
@@ -1494,6 +1502,7 @@ func (s *DockerSuite) TestPostContainersCreateWithShmSize(c *check.C) {
 }
 
 func (s *DockerSuite) TestPostContainersCreateMemorySwappinessHostConfigOmitted(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	config := map[string]interface{}{
 		"Image": "busybox",
 	}

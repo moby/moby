@@ -4,5 +4,5 @@ set -e
 # Build a C binary for cloning a userns for seccomp tests
 # and compile it for target daemon
 if [ "$DOCKER_ENGINE_GOOS" = "linux" ]; then
-	docker build -qt syscall-test contrib/syscall-test > /dev/null
+	docker build ${DOCKER_BUILD_ARGS} -qt syscall-test contrib/syscall-test > /dev/null
 fi

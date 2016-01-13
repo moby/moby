@@ -16,7 +16,6 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/execdriver"
-	"github.com/docker/docker/daemon/execdriver/native/template"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/pools"
 	"github.com/docker/docker/pkg/reexec"
@@ -90,7 +89,6 @@ func NewDriver(root string, options []string) (*Driver, error) {
 			case "systemd":
 				if systemd.UseSystemd() {
 					cgm = libcontainer.SystemdCgroups
-					template.SystemdCgroups = true
 				} else {
 					// warn them that they chose the wrong driver
 					logrus.Warn("You cannot use systemd as native.cgroupdriver, using cgroupfs instead")
@@ -173,7 +171,10 @@ func (d *Driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, hooks execd
 		return execdriver.ExitStatus{ExitCode: -1}, err
 	}
 
+	// 'oom' is used to emit 'oom' events to the eventstream, 'oomKilled' is used
+	// to set the 'OOMKilled' flag in state
 	oom := notifyOnOOM(cont)
+	oomKilled := notifyOnOOM(cont)
 	if hooks.Start != nil {
 		pid, err := p.Pid()
 		if err != nil {
@@ -200,7 +201,21 @@ func (d *Driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, hooks execd
 	}
 	cont.Destroy()
 	destroyed = true
-	_, oomKill := <-oom
+	// oomKilled will have an oom event if any process within the container was
+	// OOM killed at any time, not only if the init process OOMed.
+	//
+	// Perhaps we only want the OOMKilled flag to be set if the OOM
+	// resulted in a container death, but there isn't a good way to do this
+	// because the kernel's cgroup oom notification does not provide information
+	// such as the PID. This could be heuristically done by checking that the OOM
+	// happened within some very small time slice for the container dying (and
+	// optionally exit-code 137), but I don't think the cgroup oom notification
+	// can be used to reliably determine this
+	//
+	// Even if there were multiple OOMs, it's sufficient to read one value
+	// because libcontainer's oom notify will discard the channel after the
+	// cgroup is destroyed
+	_, oomKill := <-oomKilled
 	return execdriver.ExitStatus{ExitCode: utils.ExitStatus(ps.Sys().(syscall.WaitStatus)), OOMKilled: oomKill}, nil
 }
 

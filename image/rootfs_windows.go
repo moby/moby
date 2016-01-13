@@ -27,7 +27,7 @@ func (r *RootFS) BaseLayerID() string {
 
 // ChainID returns the ChainID for the top layer in RootFS.
 func (r *RootFS) ChainID() layer.ChainID {
-	baseDiffID, _ := digest.FromBytes([]byte(r.BaseLayerID())) // can never error
+	baseDiffID := digest.FromBytes([]byte(r.BaseLayerID()))
 	return layer.CreateChainID(append([]layer.DiffID{layer.DiffID(baseDiffID)}, r.DiffIDs...))
 }
 
