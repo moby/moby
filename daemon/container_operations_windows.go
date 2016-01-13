@@ -32,8 +32,13 @@ func (daemon *Daemon) ConnectToNetwork(container *container.Container, idOrName 
 	return nil
 }
 
+// ForceEndpointDelete deletes an endpoing from a network forcefully
+func (daemon *Daemon) ForceEndpointDelete(name string, n libnetwork.Network) error {
+	return nil
+}
+
 // DisconnectFromNetwork disconnects a container from the network.
-func (daemon *Daemon) DisconnectFromNetwork(container *container.Container, n libnetwork.Network) error {
+func (daemon *Daemon) DisconnectFromNetwork(container *container.Container, n libnetwork.Network, force bool) error {
 	return nil
 }
 
