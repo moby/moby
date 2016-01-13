@@ -13,7 +13,7 @@ type Backend interface {
 	GetNetworksByID(partialID string) []libnetwork.Network
 	GetAllNetworks() []libnetwork.Network
 	CreateNetwork(name, driver string, ipam network.IPAM,
-		options map[string]string) (libnetwork.Network, error)
+		options map[string]string, internal bool) (libnetwork.Network, error)
 	ConnectContainerToNetwork(containerName, networkName string, endpointConfig *network.EndpointSettings) error
 	DisconnectContainerFromNetwork(containerName string,
 		network libnetwork.Network) error
