@@ -92,14 +92,21 @@ build: go_version
 	@echo "+ $@"
 	@go build -tags "${NOTARY_BUILDTAGS}" -v ${GO_LDFLAGS} ./...
 
+# When running `go test ./...`, it runs all the suites in parallel, which causes
+# problems when running with a yubikey
 test: TESTOPTS =
 test: go_version
+	@echo Note: when testing with a yubikey plugged in, make sure to include 'TESTOPTS="-p 1"'
 	@echo "+ $@ $(TESTOPTS)"
+	@echo
 	go test -tags "${NOTARY_BUILDTAGS}" $(TESTOPTS) ./...
 
+test-full: TESTOPTS =
 test-full: vet lint
+	@echo Note: when testing with a yubikey plugged in, make sure to include 'TESTOPTS="-p 1"'
 	@echo "+ $@"
-	go test -tags "${NOTARY_BUILDTAGS}" -v ./...
+	@echo
+	go test -tags "${NOTARY_BUILDTAGS}" $(TESTOPTS) -v ./...
 
 protos:
 	@protoc --go_out=plugins=grpc:. proto/*.proto
@@ -118,14 +125,18 @@ gen-cover: go_version
 	@mkdir -p "$(COVERDIR)"
 	$(foreach PKG,$(PKGS),$(call gocover,$(PKG)))
 
+# Generates the cover binaries and runs them all in serial, so this can be used
+# run all tests with a yubikey without any problems
 cover: GO_EXC := go
        OPTS = -tags "${NOTARY_BUILDTAGS}" -coverpkg "$(shell ./coverpkg.sh $(1) $(NOTARY_PKG))"
 cover: gen-cover covmerge
 	@go tool cover -html="$(COVERPROFILE)"
 
-# Codecov knows how to merge multiple coverage files
+# Generates the cover binaries and runs them all in serial, so this can be used
+# run all tests with a yubikey without any problems
 ci: OPTS = -tags "${NOTARY_BUILDTAGS}" -race -coverpkg "$(shell ./coverpkg.sh $(1) $(NOTARY_PKG))"
     GO_EXC := godep go
+# Codecov knows how to merge multiple coverage files, so covmerge is not needed
 ci: gen-cover
 
 covmerge:
@@ -151,10 +162,10 @@ notary-dockerfile:
 	@docker build --rm --force-rm -t notary .
 
 server-dockerfile:
-	@docker build --rm --force-rm -f Dockerfile.server -t notary-server .
+	@docker build --rm --force-rm -f server.Dockerfile -t notary-server .
 
 signer-dockerfile:
-	@docker build --rm --force-rm -f Dockerfile.signer -t notary-signer .
+	@docker build --rm --force-rm -f signer.Dockerfile -t notary-signer .
 
 docker-images: notary-dockerfile server-dockerfile signer-dockerfile
 

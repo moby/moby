@@ -118,12 +118,12 @@ func tryUnmarshalError(resp *http.Response, defaultError error) error {
 	return err
 }
 
-func translateStatusToError(resp *http.Response) error {
+func translateStatusToError(resp *http.Response, resource string) error {
 	switch resp.StatusCode {
 	case http.StatusOK:
 		return nil
 	case http.StatusNotFound:
-		return ErrMetaNotFound{}
+		return ErrMetaNotFound{Resource: resource}
 	case http.StatusBadRequest:
 		return tryUnmarshalError(resp, ErrInvalidOperation{})
 	default:
@@ -148,7 +148,7 @@ func (s HTTPStore) GetMeta(name string, size int64) ([]byte, error) {
 		return nil, err
 	}
 	defer resp.Body.Close()
-	if err := translateStatusToError(resp); err != nil {
+	if err := translateStatusToError(resp, name); err != nil {
 		logrus.Debugf("received HTTP status %d when requesting %s.", resp.StatusCode, name)
 		return nil, err
 	}
@@ -179,7 +179,7 @@ func (s HTTPStore) SetMeta(name string, blob []byte) error {
 		return err
 	}
 	defer resp.Body.Close()
-	return translateStatusToError(resp)
+	return translateStatusToError(resp, "POST "+name)
 }
 
 // NewMultiPartMetaRequest builds a request with the provided metadata updates
@@ -223,7 +223,8 @@ func (s HTTPStore) SetMultiMeta(metas map[string][]byte) error {
 		return err
 	}
 	defer resp.Body.Close()
-	return translateStatusToError(resp)
+	// if this 404's something is pretty wrong
+	return translateStatusToError(resp, "POST metadata endpoint")
 }
 
 func (s HTTPStore) buildMetaURL(name string) (*url.URL, error) {
@@ -271,7 +272,7 @@ func (s HTTPStore) GetTarget(path string) (io.ReadCloser, error) {
 		return nil, err
 	}
 	defer resp.Body.Close()
-	if err := translateStatusToError(resp); err != nil {
+	if err := translateStatusToError(resp, path); err != nil {
 		return nil, err
 	}
 	return resp.Body, nil
@@ -292,7 +293,7 @@ func (s HTTPStore) GetKey(role string) ([]byte, error) {
 		return nil, err
 	}
 	defer resp.Body.Close()
-	if err := translateStatusToError(resp); err != nil {
+	if err := translateStatusToError(resp, role+" key"); err != nil {
 		return nil, err
 	}
 	body, err := ioutil.ReadAll(resp.Body)

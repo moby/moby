@@ -129,6 +129,7 @@ func (c Client) checkRoot() error {
 
 // downloadRoot is responsible for downloading the root.json
 func (c *Client) downloadRoot() error {
+	logrus.Debug("Downloading Root...")
 	role := data.CanonicalRootRole
 	size := maxSize
 	var expectedSha256 []byte
@@ -240,7 +241,7 @@ func (c Client) verifyRoot(role string, s *data.Signed, minVersion int) error {
 // Timestamps are special in that we ALWAYS attempt to download and only
 // use cache if the download fails (and the cache is still valid).
 func (c *Client) downloadTimestamp() error {
-	logrus.Debug("downloadTimestamp")
+	logrus.Debug("Downloading Timestamp...")
 	role := data.CanonicalTimestampRole
 
 	// We may not have a cached timestamp if this is the first time
@@ -299,7 +300,7 @@ func (c *Client) downloadTimestamp() error {
 
 // downloadSnapshot is responsible for downloading the snapshot.json
 func (c *Client) downloadSnapshot() error {
-	logrus.Debug("downloadSnapshot")
+	logrus.Debug("Downloading Snapshot...")
 	role := data.CanonicalSnapshotRole
 	if c.local.Timestamp == nil {
 		return ErrMissingMeta{role: "snapshot"}
@@ -372,6 +373,7 @@ func (c *Client) downloadSnapshot() error {
 // It uses a pre-order tree traversal as it's necessary to download parents first
 // to obtain the keys to validate children.
 func (c *Client) downloadTargets(role string) error {
+	logrus.Debug("Downloading Targets...")
 	stack := utils.NewStack()
 	stack.Push(role)
 	for !stack.Empty() {

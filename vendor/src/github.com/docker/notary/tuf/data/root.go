@@ -43,10 +43,11 @@ func NewRoot(keys map[string]PublicKey, roles map[string]*RootRole, consistent b
 
 // ToSigned partially serializes a SignedRoot for further signing
 func (r SignedRoot) ToSigned() (*Signed, error) {
-	s, err := json.MarshalCanonical(r.Signed)
+	s, err := defaultSerializer.MarshalCanonical(r.Signed)
 	if err != nil {
 		return nil, err
 	}
+	// cast into a json.RawMessage
 	signed := json.RawMessage{}
 	err = signed.UnmarshalJSON(s)
 	if err != nil {
@@ -58,6 +59,15 @@ func (r SignedRoot) ToSigned() (*Signed, error) {
 		Signatures: sigs,
 		Signed:     signed,
 	}, nil
+}
+
+// MarshalJSON returns the serialized form of SignedRoot as bytes
+func (r SignedRoot) MarshalJSON() ([]byte, error) {
+	signed, err := r.ToSigned()
+	if err != nil {
+		return nil, err
+	}
+	return defaultSerializer.Marshal(signed)
 }
 
 // RootFromSigned fully unpacks a Signed object into a SignedRoot

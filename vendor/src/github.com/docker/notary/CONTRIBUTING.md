@@ -19,7 +19,6 @@ Then please do not report your issue here - you should instead report it to [htt
 Then please do not open an issue here yet - you should first try one of the following support forums:
 
  - irc: #docker-trust on freenode
- - mailing-list: <trust@dockerproject.org> or https://groups.google.com/a/dockerproject.org/forum/#!forum/trust
 
 ## Reporting an issue properly
 

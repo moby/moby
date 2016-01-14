@@ -3303,7 +3303,7 @@ func (s *DockerTrustSuite) TestTrustedRunFromBadTrustServer(c *check.C) {
 		c.Fatalf("Expected to fail on this run due to different remote data: %s\n%s", err, out)
 	}
 
-	if !strings.Contains(string(out), "failed to validate data with current trusted certificates") {
+	if !strings.Contains(string(out), "valid signatures did not meet threshold") {
 		c.Fatalf("Missing expected output on trusted push:\n%s", out)
 	}
 }
