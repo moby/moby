@@ -340,6 +340,25 @@ __docker_complete_capabilities() {
 	" -- "$cur" ) )
 }
 
+__docker_complete_detach-keys() {
+	case "$prev" in
+		--detach-keys)
+			case "$cur" in
+				*,)
+					COMPREPLY=( $( compgen -W "${cur}ctrl-" -- "$cur" ) )
+					;;
+				*)
+					COMPREPLY=( $( compgen -W "ctrl-" -- "$cur" ) )
+					;;
+			esac
+
+			__docker_nospace
+			return
+			;;
+	esac
+	return 1
+}
+
 __docker_complete_isolation() {
 	COMPREPLY=( $( compgen -W "default hyperv process" -- "$cur" ) )
 }
@@ -513,12 +532,14 @@ _docker_docker() {
 }
 
 _docker_attach() {
-	case "$cur" in
+	__docker_complete_detach-keys && return
+
+ 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--help --no-stdin --sig-proxy" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--detach-keys --help --no-stdin --sig-proxy" -- "$cur" ) )
 			;;
 		*)
-			local counter="$(__docker_pos_first_nonflag)"
+			local counter=$(__docker_pos_first_nonflag '--detach-keys')
 			if [ $cword -eq $counter ]; then
 				__docker_complete_containers_running
 			fi
@@ -901,6 +922,8 @@ _docker_events() {
 }
 
 _docker_exec() {
+	__docker_complete_detach-keys && return
+
 	case "$prev" in
 		--user|-u)
 			return
@@ -909,7 +932,7 @@ _docker_exec() {
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--detach -d --help --interactive -i --privileged -t --tty -u --user" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--detach -d --detach-keys --help --interactive -i --privileged -t --tty -u --user" -- "$cur" ) )
 			;;
 		*)
 			__docker_complete_containers_running
@@ -1508,13 +1531,20 @@ _docker_run() {
 		--tty -t
 	"
 
+	if [ "$command" = "run" ] ; then
+		options_with_args="$options_with_args
+			--detach-keys
+		"
+		boolean_options="$boolean_options
+			--detach -d
+			--rm
+			--sig-proxy=false
+		"
+		__docker_complete_detach-keys && return
+	fi
+
 	local all_options="$options_with_args $boolean_options"
 
-	[ "$command" = "run" ] && all_options="$all_options
-		--detach -d
-		--rm
-		--sig-proxy=false
-	"
 
 	case "$prev" in
 		--add-host)
@@ -1701,9 +1731,11 @@ _docker_search() {
 }
 
 _docker_start() {
+	__docker_complete_detach-keys && return
+
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--attach -a --help --interactive -i" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--attach -a --detach-keys --help --interactive -i" -- "$cur" ) )
 			;;
 		*)
 			__docker_complete_containers_stopped
