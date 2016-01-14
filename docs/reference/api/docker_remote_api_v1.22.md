@@ -220,10 +220,13 @@ Create a container
            },
            "Mounts": [
              {
+               "Name": "fac362...80535",
                "Source": "/data",
                "Destination": "/data",
+               "Driver": "local",
                "Mode": "ro,Z",
-               "RW": false
+               "RW": false,
+               "Propagation": ""
              }
            ],
            "WorkingDir": "",
@@ -572,10 +575,13 @@ Return low-level information on the container `id`
 		},
 		"Mounts": [
 			{
+				"Name": "fac362...80535",
 				"Source": "/data",
 				"Destination": "/data",
+				"Driver": "local",
 				"Mode": "ro,Z",
-				"RW": false
+				"RW": false,
+				"Propagation": ""
 			}
 		]
 	}
