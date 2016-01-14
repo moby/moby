@@ -23,6 +23,10 @@ func (daemon *Daemon) createContainerPlatformSpecificSettings(container *contain
 	}
 	defer daemon.Unmount(container)
 
+	if err := container.SetupWorkingDirectory(); err != nil {
+		return err
+	}
+
 	for spec := range config.Volumes {
 		name := stringid.GenerateNonCryptoID()
 		destination := filepath.Clean(spec)

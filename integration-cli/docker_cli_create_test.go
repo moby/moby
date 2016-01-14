@@ -415,3 +415,11 @@ func (s *DockerSuite) TestCreateStopSignal(c *check.C) {
 	c.Assert(res, checker.Contains, "9")
 
 }
+
+func (s *DockerSuite) TestCreateWithWorkdir(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	name := "foo"
+	dir := "/home/foo/bar"
+	dockerCmd(c, "create", "--name", name, "-w", dir, "busybox")
+	dockerCmd(c, "cp", fmt.Sprintf("%s:%s", name, dir), "/tmp")
+}
