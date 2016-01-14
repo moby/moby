@@ -14,25 +14,25 @@ const (
 // CommonConfig defines the configuration of a docker daemon which are
 // common across platforms.
 type CommonConfig struct {
-	AuthZPlugins  []string // AuthZPlugins holds list of authorization plugins
-	AutoRestart   bool
-	Bridge        bridgeConfig // Bridge holds bridge network specific configuration.
-	Context       map[string][]string
-	DisableBridge bool
-	DNS           []string
-	DNSOptions    []string
-	DNSSearch     []string
-	ExecOptions   []string
-	ExecRoot      string
-	GraphDriver   string
-	GraphOptions  []string
-	Labels        []string
-	LogConfig     container.LogConfig
-	Mtu           int
-	Pidfile       string
-	RemappedRoot  string
-	Root          string
-	TrustKeyPath  string
+	AuthorizationPlugins []string // AuthorizationPlugins holds list of authorization plugins
+	AutoRestart          bool
+	Bridge               bridgeConfig // Bridge holds bridge network specific configuration.
+	Context              map[string][]string
+	DisableBridge        bool
+	DNS                  []string
+	DNSOptions           []string
+	DNSSearch            []string
+	ExecOptions          []string
+	ExecRoot             string
+	GraphDriver          string
+	GraphOptions         []string
+	Labels               []string
+	LogConfig            container.LogConfig
+	Mtu                  int
+	Pidfile              string
+	RemappedRoot         string
+	Root                 string
+	TrustKeyPath         string
 
 	// ClusterStore is the storage backend used for the cluster information. It is used by both
 	// multihost networking (to store networks and endpoints information) and by the node discovery
@@ -55,7 +55,7 @@ type CommonConfig struct {
 // from the command-line.
 func (config *Config) InstallCommonFlags(cmd *flag.FlagSet, usageFn func(string) string) {
 	cmd.Var(opts.NewListOptsRef(&config.GraphOptions, nil), []string{"-storage-opt"}, usageFn("Set storage driver options"))
-	cmd.Var(opts.NewListOptsRef(&config.AuthZPlugins, nil), []string{"-authz-plugin"}, usageFn("List authorization plugins in order from first evaluator to last"))
+	cmd.Var(opts.NewListOptsRef(&config.AuthorizationPlugins, nil), []string{"-authorization-plugin"}, usageFn("List authorization plugins in order from first evaluator to last"))
 	cmd.Var(opts.NewListOptsRef(&config.ExecOptions, nil), []string{"-exec-opt"}, usageFn("Set exec driver options"))
 	cmd.StringVar(&config.Pidfile, []string{"p", "-pidfile"}, defaultPidFile, usageFn("Path to use for daemon PID file"))
 	cmd.StringVar(&config.Root, []string{"g", "-graph"}, defaultGraph, usageFn("Root of the Docker runtime"))

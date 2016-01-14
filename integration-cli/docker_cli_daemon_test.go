@@ -1439,6 +1439,29 @@ func (s *DockerDaemonSuite) TestHttpsInfo(c *check.C) {
 	}
 }
 
+// TestHttpsRun connects via two-way authenticated HTTPS to the create, attach, start, and wait endpoints.
+// https://github.com/docker/docker/issues/19280
+func (s *DockerDaemonSuite) TestHttpsRun(c *check.C) {
+	const (
+		testDaemonHTTPSAddr = "tcp://localhost:4271"
+	)
+
+	if err := s.d.StartWithBusybox("--tlsverify", "--tlscacert", "fixtures/https/ca.pem", "--tlscert", "fixtures/https/server-cert.pem",
+		"--tlskey", "fixtures/https/server-key.pem", "-H", testDaemonHTTPSAddr); err != nil {
+		c.Fatalf("Could not start daemon with busybox: %v", err)
+	}
+
+	daemonArgs := []string{"--host", testDaemonHTTPSAddr, "--tlsverify", "--tlscacert", "fixtures/https/ca.pem", "--tlscert", "fixtures/https/client-cert.pem", "--tlskey", "fixtures/https/client-key.pem"}
+	out, err := s.d.CmdWithArgs(daemonArgs, "run", "busybox", "echo", "TLS response")
+	if err != nil {
+		c.Fatalf("Error Occurred: %s and output: %s", err, out)
+	}
+
+	if !strings.Contains(out, "TLS response") {
+		c.Fatalf("expected output to include `TLS response`, got %v", out)
+	}
+}
+
 // TestTlsVerify verifies that --tlsverify=false turns on tls
 func (s *DockerDaemonSuite) TestTlsVerify(c *check.C) {
 	out, err := exec.Command(dockerBinary, "daemon", "--tlsverify=false").CombinedOutput()

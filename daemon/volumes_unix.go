@@ -20,6 +20,9 @@ import (
 func (daemon *Daemon) setupMounts(container *container.Container) ([]execdriver.Mount, error) {
 	var mounts []execdriver.Mount
 	for _, m := range container.MountPoints {
+		if err := daemon.lazyInitializeVolume(container.ID, m); err != nil {
+			return nil, err
+		}
 		path, err := m.Setup()
 		if err != nil {
 			return nil, err

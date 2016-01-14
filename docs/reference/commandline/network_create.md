@@ -18,6 +18,7 @@ parent = "smn_cli"
     -d --driver=DRIVER       Driver to manage the Network bridge or overlay. The default is bridge.
     --gateway=[]             ipv4 or ipv6 Gateway for the master subnet
     --help                   Print usage
+    --internal               Restricts external access to the network
     --ip-range=[]            Allocate container ip from a sub-range
     --ipam-driver=default    IP Address Management Driver
     -o --opt=map[]           Set custom network plugin options
@@ -119,6 +120,11 @@ docker network create -d overlay
   my-multihost-network
 ```
 Be sure that your subnetworks do not overlap. If they do, the network create fails and Engine returns an error.
+
+### Network internal mode
+
+By default, when you connect a container to an `overlay` network, Docker also connects a bridge network to it to provide external connectivity.
+If you want to create an externally isolated `overlay` network, you can specify the `--internal` option.
 
 ## Related information
 

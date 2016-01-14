@@ -220,10 +220,13 @@ Create a container
            },
            "Mounts": [
              {
+               "Name": "fac362...80535",
                "Source": "/data",
                "Destination": "/data",
+               "Driver": "local",
                "Mode": "ro,Z",
-               "RW": false
+               "RW": false,
+               "Propagation": ""
              }
            ],
            "WorkingDir": "",
@@ -572,10 +575,13 @@ Return low-level information on the container `id`
 		},
 		"Mounts": [
 			{
+				"Name": "fac362...80535",
 				"Source": "/data",
 				"Destination": "/data",
+				"Driver": "local",
 				"Mode": "ro,Z",
-				"RW": false
+				"RW": false,
+				"Propagation": ""
 			}
 		]
 	}
@@ -2081,6 +2087,9 @@ Display system-wide information
     {
         "Architecture": "x86_64",
         "Containers": 11,
+        "ContainersRunning": 7,
+        "ContainersStopped": 3,
+        "ContainersPaused": 1,
         "CpuCfsPeriod": true,
         "CpuCfsQuota": true,
         "Debug": false,
@@ -2982,13 +2991,15 @@ Content-Type: application/json
 
 {
   "Name":"isolated_nw",
-  "Driver":"bridge"
+  "Driver":"bridge",
   "IPAM":{
     "Config":[{
       "Subnet":"172.20.0.0/16",
       "IPRange":"172.20.10.0/24",
       "Gateway":"172.20.10.11"
     }]
+  },
+  "Internal":true
 }
 ```
 
@@ -3032,7 +3043,7 @@ Content-Type: application/json
 
 {
   "Container":"3613f73ba0e4",
-  "endpoint_config": {
+  "EndpointConfig": {
     "test_nw": {
         "IPv4Address":"172.24.56.89",
         "IPv6Address":"2001:db8::5689"

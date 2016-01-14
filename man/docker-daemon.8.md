@@ -7,7 +7,7 @@ docker-daemon - Enable daemon mode
 # SYNOPSIS
 **docker daemon**
 [**--api-cors-header**=[=*API-CORS-HEADER*]]
-[**--authz-plugin**[=*[]*]]
+[**--authorization-plugin**[=*[]*]]
 [**-b**|**--bridge**[=*BRIDGE*]]
 [**--bip**[=*BIP*]]
 [**--cgroup-parent**[=*[]*]]
@@ -73,7 +73,7 @@ format.
 **--api-cors-header**=""
   Set CORS headers in the remote API. Default is cors disabled. Give urls like "http://foo, http://bar, ...". Give "*" to allow all.
 
-**--authz-plugin**=""
+**--authorization-plugin**=""
   Set authorization plugins to load
 
 **-b**, **--bridge**=""
@@ -271,11 +271,21 @@ Example use: `docker daemon --storage-opt dm.thinpooldev=/dev/mapper/thin-pool`
 #### dm.basesize
 
 Specifies the size to use when creating the base device, which limits
-the size of images and containers. The default value is 100G. Note,
-thin devices are inherently "sparse", so a 100G device which is mostly
-empty doesn't use 100 GB of space on the pool. However, the filesystem
+the size of images and containers. The default value is 10G. Note,
+thin devices are inherently "sparse", so a 10G device which is mostly
+empty doesn't use 10 GB of space on the pool. However, the filesystem
 will use more space for base images the larger the device
 is.
+
+The base device size can be increased at daemon restart which will allow
+all future images and containers (based on those new images) to be of the 
+new base device size.
+
+Example use: `docker daemon --storage-opt dm.basesize=50G` 
+
+This will increase the base device size to 50G. The Docker daemon will throw an 
+error if existing base device size is larger than 50G. A user can use 
+this option to expand the base device size however shrinking is not permitted.
 
 This value affects the system-wide "base" empty filesystem that may already
 be initialized and inherited by pulled images. Typically, a change to this
@@ -473,10 +483,10 @@ Key/Value store.
 Docker's access authorization can be extended by authorization plugins that your
 organization can purchase or build themselves. You can install one or more
 authorization plugins when you start the Docker `daemon` using the
-`--authz-plugin=PLUGIN_ID` option.
+`--authorization-plugin=PLUGIN_ID` option.
 
 ```bash
-docker daemon --authz-plugin=plugin1 --authz-plugin=plugin2,...
+docker daemon --authorization-plugin=plugin1 --authorization-plugin=plugin2,...
 ```
 
 The `PLUGIN_ID` value is either the plugin's name or a path to its specification

@@ -47,6 +47,8 @@ func (cli *DockerCli) CmdNetworkCreate(args ...string) error {
 	cmd.Var(flIpamAux, []string{"-aux-address"}, "auxiliary ipv4 or ipv6 addresses used by Network driver")
 	cmd.Var(flOpts, []string{"o", "-opt"}, "set driver specific options")
 
+	flInternal := cmd.Bool([]string{"-internal"}, false, "restricts external access to the network")
+
 	cmd.Require(flag.Exact, 1)
 	err := cmd.ParseFlags(args, true)
 	if err != nil {
@@ -72,6 +74,7 @@ func (cli *DockerCli) CmdNetworkCreate(args ...string) error {
 		IPAM:           network.IPAM{Driver: *flIpamDriver, Config: ipamCfg},
 		Options:        flOpts.GetAll(),
 		CheckDuplicate: true,
+		Internal:       *flInternal,
 	}
 
 	resp, err := cli.client.NetworkCreate(nc)
