@@ -134,15 +134,16 @@ func (daemon *Daemon) containerStart(container *container.Container) (err error)
 		}
 	}
 
+	container.Unlock()
 	mounts, err := daemon.setupMounts(container)
 	if err != nil {
+		container.Lock()
 		return err
 	}
 	mounts = append(mounts, container.IpcMounts()...)
 	mounts = append(mounts, container.TmpfsMounts()...)
 
 	container.Command.Mounts = mounts
-	container.Unlock()
 
 	// don't lock waitForStart because it has potential risk of blocking
 	// which will lead to dead lock, forever.
