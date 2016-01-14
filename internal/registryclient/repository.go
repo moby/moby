@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/docker/distribution"
@@ -19,6 +18,7 @@ import (
 	"github.com/docker/distribution/reference"
 	"github.com/docker/distribution/registry/api/v2"
 	"github.com/docker/distribution/registry/client/transport"
+	"github.com/docker/distribution/registry/storage"
 	"github.com/docker/distribution/registry/storage/cache"
 	"github.com/docker/distribution/registry/storage/cache/memory"
 )
@@ -500,9 +500,6 @@ type blobs struct {
 
 	statter distribution.BlobDescriptorService
 	distribution.BlobDeleter
-
-	cacheLock        sync.Mutex
-	cachedBlobUpload distribution.BlobWriter
 }
 
 func sanitizeLocation(location, base string) (string, error) {
@@ -576,18 +573,23 @@ func (bs *blobs) Put(ctx context.Context, mediaType string, p []byte) (distribut
 	return writer.Commit(ctx, desc)
 }
 
-func (bs *blobs) Create(ctx context.Context) (distribution.BlobWriter, error) {
-	bs.cacheLock.Lock()
-	if bs.cachedBlobUpload != nil {
-		upload := bs.cachedBlobUpload
-		bs.cachedBlobUpload = nil
-		bs.cacheLock.Unlock()
+func (bs *blobs) Create(ctx context.Context, options ...distribution.BlobCreateOption) (distribution.BlobWriter, error) {
+	var opts storage.CreateOptions
 
-		return upload, nil
+	for _, option := range options {
+		err := option.Apply(&opts)
+		if err != nil {
+			return nil, err
+		}
 	}
-	bs.cacheLock.Unlock()
 
-	u, err := bs.ub.BuildBlobUploadURL(bs.name)
+	var values []url.Values
+
+	if opts.Mount.ShouldMount {
+		values = append(values, url.Values{"from": {opts.Mount.From.Name()}, "mount": {opts.Mount.From.Digest().String()}})
+	}
+
+	u, err := bs.ub.BuildBlobUploadURL(bs.name, values...)
 	if err != nil {
 		return nil, err
 	}
@@ -598,7 +600,14 @@ func (bs *blobs) Create(ctx context.Context) (distribution.BlobWriter, error) {
 	}
 	defer resp.Body.Close()
 
-	if SuccessStatus(resp.StatusCode) {
+	switch resp.StatusCode {
+	case http.StatusCreated:
+		desc, err := bs.statter.Stat(ctx, opts.Mount.From.Digest())
+		if err != nil {
+			return nil, err
+		}
+		return nil, distribution.ErrBlobMounted{From: opts.Mount.From, Descriptor: desc}
+	case http.StatusAccepted:
 		// TODO(dmcgowan): Check for invalid UUID
 		uuid := resp.Header.Get("Docker-Upload-UUID")
 		location, err := sanitizeLocation(resp.Header.Get("Location"), u)
@@ -613,51 +622,13 @@ func (bs *blobs) Create(ctx context.Context) (distribution.BlobWriter, error) {
 			startedAt: time.Now(),
 			location:  location,
 		}, nil
+	default:
+		return nil, HandleErrorResponse(resp)
 	}
-	return nil, HandleErrorResponse(resp)
 }
 
 func (bs *blobs) Resume(ctx context.Context, id string) (distribution.BlobWriter, error) {
 	panic("not implemented")
-}
-
-func (bs *blobs) Mount(ctx context.Context, sourceRepo string, dgst digest.Digest) (distribution.Descriptor, error) {
-	u, err := bs.ub.BuildBlobUploadURL(bs.name, url.Values{"from": {sourceRepo}, "mount": {dgst.String()}})
-	if err != nil {
-		return distribution.Descriptor{}, err
-	}
-
-	resp, err := bs.client.Post(u, "", nil)
-	if err != nil {
-		return distribution.Descriptor{}, err
-	}
-	defer resp.Body.Close()
-
-	switch resp.StatusCode {
-	case http.StatusCreated:
-		return bs.Stat(ctx, dgst)
-	case http.StatusAccepted:
-		// Triggered a blob upload (legacy behavior), so cache the creation info
-		uuid := resp.Header.Get("Docker-Upload-UUID")
-		location, err := sanitizeLocation(resp.Header.Get("Location"), u)
-		if err != nil {
-			return distribution.Descriptor{}, err
-		}
-
-		bs.cacheLock.Lock()
-		bs.cachedBlobUpload = &httpBlobUpload{
-			statter:   bs.statter,
-			client:    bs.client,
-			uuid:      uuid,
-			startedAt: time.Now(),
-			location:  location,
-		}
-		bs.cacheLock.Unlock()
-
-		return distribution.Descriptor{}, HandleErrorResponse(resp)
-	default:
-		return distribution.Descriptor{}, HandleErrorResponse(resp)
-	}
 }
 
 func (bs *blobs) Delete(ctx context.Context, dgst digest.Digest) error {
