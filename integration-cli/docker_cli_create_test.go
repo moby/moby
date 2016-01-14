@@ -312,7 +312,7 @@ func (s *DockerTrustSuite) TestUntrustedCreate(c *check.C) {
 	s.trustedCmd(createCmd)
 	out, _, err := runCommandWithOutput(createCmd)
 	c.Assert(err, check.Not(check.IsNil))
-	c.Assert(string(out), checker.Contains, "does not have trust data for", check.Commentf("Missing expected output on trusted create:\n%s", out))
+	c.Assert(string(out), checker.Contains, "trust data unavailable.  Has a notary repository been initialized?", check.Commentf("Missing expected output on trusted create:\n%s", out))
 
 }
 
@@ -402,7 +402,7 @@ func (s *DockerTrustSuite) TestTrustedCreateFromBadTrustServer(c *check.C) {
 	s.trustedCmd(createCmd)
 	out, _, err = runCommandWithOutput(createCmd)
 	c.Assert(err, check.Not(check.IsNil))
-	c.Assert(string(out), checker.Contains, "failed to validate data with current trusted certificates", check.Commentf("Missing expected output on trusted push:\n%s", out))
+	c.Assert(string(out), checker.Contains, "valid signatures did not meet threshold", check.Commentf("Missing expected output on trusted push:\n%s", out))
 
 }
 

@@ -59,7 +59,7 @@ func (s *DockerTrustSuite) TestUntrustedPull(c *check.C) {
 	out, _, err := runCommandWithOutput(pullCmd)
 
 	c.Assert(err, check.NotNil, check.Commentf(out))
-	c.Assert(string(out), checker.Contains, "Error: remote trust data repository not initialized", check.Commentf(out))
+	c.Assert(string(out), checker.Contains, "Error: remote trust data does not exist", check.Commentf(out))
 }
 
 func (s *DockerTrustSuite) TestPullWhenCertExpired(c *check.C) {
@@ -141,7 +141,7 @@ func (s *DockerTrustSuite) TestTrustedPullFromBadTrustServer(c *check.C) {
 	out, _, err = runCommandWithOutput(pullCmd)
 
 	c.Assert(err, check.NotNil, check.Commentf(out))
-	c.Assert(string(out), checker.Contains, "failed to validate data with current trusted certificates", check.Commentf(out))
+	c.Assert(string(out), checker.Contains, "valid signatures did not meet threshold", check.Commentf(out))
 }
 
 func (s *DockerTrustSuite) TestTrustedPullWithExpiredSnapshot(c *check.C) {

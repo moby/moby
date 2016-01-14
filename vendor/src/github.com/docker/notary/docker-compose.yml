@@ -1,6 +1,6 @@
 notaryserver:
   build: .
-  dockerfile: Dockerfile.server
+  dockerfile: server.Dockerfile
   links:
    - notarymysql
    - notarysigner
@@ -15,7 +15,7 @@ notarysigner:
    - /dev/bus/usb/003/010:/dev/bus/usb/002/010
    - /var/run/pcscd/pcscd.comm:/var/run/pcscd/pcscd.comm
   build: .
-  dockerfile: Dockerfile.signer
+  dockerfile: signer.Dockerfile
   links:
    - notarymysql
   command: -config=fixtures/signer-config.json
