@@ -87,7 +87,7 @@ curl example.com/install.sh | notary verify example.com/scripts v1 | sh
 # Notary Server
 
 Notary Server manages TUF data over an HTTP API compatible with the
-[notary client](../notary/).
+[notary client](cmd/notary).
 
 It may be configured to use either JWT or HTTP Basic Auth for authentication.
 Currently it only supports MySQL for storage of the TUF data, we intend to

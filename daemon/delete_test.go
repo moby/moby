@@ -5,9 +5,9 @@ import (
 	"os"
 	"testing"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/container"
-	"github.com/docker/docker/runconfig"
+	"github.com/docker/engine-api/types"
+	containertypes "github.com/docker/engine-api/types/container"
 )
 
 func TestContainerDoubleDelete(t *testing.T) {
@@ -26,7 +26,7 @@ func TestContainerDoubleDelete(t *testing.T) {
 		CommonContainer: container.CommonContainer{
 			ID:     "test",
 			State:  container.NewState(),
-			Config: &runconfig.Config{},
+			Config: &containertypes.Config{},
 		},
 	}
 	daemon.containers.Add(container.ID, container)

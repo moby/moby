@@ -121,7 +121,8 @@ type driverData struct {
 }
 
 type ipamData struct {
-	driver ipamapi.Ipam
+	driver     ipamapi.Ipam
+	capability *ipamapi.Capability
 	// default address spaces are provided by ipam driver at registration time
 	defaultLocalAddressSpace, defaultGlobalAddressSpace string
 }
@@ -142,7 +143,7 @@ type controller struct {
 	extKeyListener net.Listener
 	watchCh        chan *endpoint
 	unWatchCh      chan *endpoint
-	svcDb          map[string]svcMap
+	svcDb          map[string]svcInfo
 	nmap           map[string]*netWatch
 	defOsSbox      osl.Sandbox
 	sboxOnce       sync.Once
@@ -170,7 +171,7 @@ func New(cfgOptions ...config.Option) (NetworkController, error) {
 		sandboxes:   sandboxTable{},
 		drivers:     driverTable{},
 		ipamDrivers: ipamTable{},
-		svcDb:       make(map[string]svcMap),
+		svcDb:       make(map[string]svcInfo),
 	}
 
 	if err := c.initStores(); err != nil {
@@ -213,6 +214,31 @@ func (c *controller) validateHostDiscoveryConfig() bool {
 		return false
 	}
 	return true
+}
+
+func (c *controller) clusterHostID() string {
+	c.Lock()
+	defer c.Unlock()
+	if c.cfg == nil || c.cfg.Cluster.Address == "" {
+		return ""
+	}
+	addr := strings.Split(c.cfg.Cluster.Address, ":")
+	return addr[0]
+}
+
+func (c *controller) isNodeAlive(node string) bool {
+	if c.discovery == nil {
+		return false
+	}
+
+	nodes := c.discovery.Fetch()
+	for _, n := range nodes {
+		if n.String() == node {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (c *controller) initDiscovery(watcher discovery.Watcher) error {
@@ -306,7 +332,7 @@ func (c *controller) RegisterDriver(networkType string, driver driverapi.Driver,
 	return nil
 }
 
-func (c *controller) RegisterIpamDriver(name string, driver ipamapi.Ipam) error {
+func (c *controller) registerIpamDriver(name string, driver ipamapi.Ipam, caps *ipamapi.Capability) error {
 	if !config.IsValidName(name) {
 		return ErrInvalidName(name)
 	}
@@ -322,12 +348,20 @@ func (c *controller) RegisterIpamDriver(name string, driver ipamapi.Ipam) error 
 		return types.InternalErrorf("ipam driver %q failed to return default address spaces: %v", name, err)
 	}
 	c.Lock()
-	c.ipamDrivers[name] = &ipamData{driver: driver, defaultLocalAddressSpace: locAS, defaultGlobalAddressSpace: glbAS}
+	c.ipamDrivers[name] = &ipamData{driver: driver, defaultLocalAddressSpace: locAS, defaultGlobalAddressSpace: glbAS, capability: caps}
 	c.Unlock()
 
 	log.Debugf("Registering ipam driver: %q", name)
 
 	return nil
+}
+
+func (c *controller) RegisterIpamDriver(name string, driver ipamapi.Ipam) error {
+	return c.registerIpamDriver(name, driver, &ipamapi.Capability{})
+}
+
+func (c *controller) RegisterIpamDriverWithCapabilities(name string, driver ipamapi.Ipam, caps *ipamapi.Capability) error {
+	return c.registerIpamDriver(name, driver, caps)
 }
 
 // NewNetwork creates a new network of the specified network type. The options

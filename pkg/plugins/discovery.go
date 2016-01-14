@@ -13,7 +13,7 @@ import (
 
 var (
 	// ErrNotFound plugin not found
-	ErrNotFound = errors.New("Plugin not found")
+	ErrNotFound = errors.New("plugin not found")
 	socketsPath = "/run/docker/plugins"
 	specsPaths  = []string{"/etc/docker/plugins", "/usr/lib/docker/plugins"}
 )
@@ -23,6 +23,38 @@ type localRegistry struct{}
 
 func newLocalRegistry() localRegistry {
 	return localRegistry{}
+}
+
+// Scan scans all the plugin paths and returns all the names it found
+func Scan() ([]string, error) {
+	var names []string
+	if err := filepath.Walk(socketsPath, func(path string, fi os.FileInfo, err error) error {
+		if err != nil {
+			return nil
+		}
+
+		if fi.Mode()&os.ModeSocket != 0 {
+			name := strings.TrimSuffix(fi.Name(), filepath.Ext(fi.Name()))
+			names = append(names, name)
+		}
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+
+	for _, path := range specsPaths {
+		if err := filepath.Walk(path, func(p string, fi os.FileInfo, err error) error {
+			if err != nil || fi.IsDir() {
+				return nil
+			}
+			name := strings.TrimSuffix(fi.Name(), filepath.Ext(fi.Name()))
+			names = append(names, name)
+			return nil
+		}); err != nil {
+			return nil, err
+		}
+	}
+	return names, nil
 }
 
 // Plugin returns the plugin registered with the given name (or returns an error).

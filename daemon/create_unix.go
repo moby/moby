@@ -6,17 +6,18 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/container"
 	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/volume"
+	containertypes "github.com/docker/engine-api/types/container"
 	"github.com/opencontainers/runc/libcontainer/label"
 )
 
 // createContainerPlatformSpecificSettings performs platform specific container create functionality
-func (daemon *Daemon) createContainerPlatformSpecificSettings(container *container.Container, config *runconfig.Config, hostConfig *runconfig.HostConfig, img *image.Image) error {
+func (daemon *Daemon) createContainerPlatformSpecificSettings(container *container.Container, config *containertypes.Config, hostConfig *containertypes.HostConfig, img *image.Image) error {
 	if err := daemon.Mount(container); err != nil {
 		return err
 	}
@@ -51,7 +52,7 @@ func (daemon *Daemon) createContainerPlatformSpecificSettings(container *contain
 			}
 		}
 
-		v, err := daemon.createVolume(name, volumeDriver, nil)
+		v, err := daemon.volumes.CreateWithRef(name, volumeDriver, container.ID, nil)
 		if err != nil {
 			return err
 		}
@@ -60,14 +61,24 @@ func (daemon *Daemon) createContainerPlatformSpecificSettings(container *contain
 			return err
 		}
 
-		// never attempt to copy existing content in a container FS to a shared volume
-		if v.DriverName() == volume.DefaultDriverName {
-			if err := container.CopyImagePathContent(v, destination); err != nil {
-				return err
-			}
+		container.AddMountPointWithVolume(destination, v, true)
+	}
+	return daemon.populateVolumes(container)
+}
+
+// populateVolumes copies data from the container's rootfs into the volume for non-binds.
+// this is only called when the container is created.
+func (daemon *Daemon) populateVolumes(c *container.Container) error {
+	for _, mnt := range c.MountPoints {
+		// skip binds and volumes referenced by other containers (ie, volumes-from)
+		if mnt.Driver == "" || mnt.Volume == nil || len(daemon.volumes.Refs(mnt.Volume)) > 1 {
+			continue
 		}
 
-		container.AddMountPointWithVolume(destination, v, true)
+		logrus.Debugf("copying image data from %s:%s, to %s", c.ID, mnt.Destination, mnt.Name)
+		if err := c.CopyImagePathContent(mnt.Volume, mnt.Destination); err != nil {
+			return err
+		}
 	}
 	return nil
 }

@@ -109,7 +109,7 @@ package manager.
 
 3. Run the Docker installation script.
 
-		$ curl -sSL https://get.docker.com/ | sh
+		$ curl -fsSL https://get.docker.com/ | sh
 
 	This script adds the `docker.repo` repository and installs Docker.
 

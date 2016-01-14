@@ -41,7 +41,7 @@ type Endpoint interface {
 	DriverInfo() (map[string]interface{}, error)
 
 	// Delete and detaches this endpoint from the network.
-	Delete() error
+	Delete(force bool) error
 }
 
 // EndpointOption is a option setter function type used to pass varios options to Network
@@ -50,20 +50,25 @@ type Endpoint interface {
 type EndpointOption func(ep *endpoint)
 
 type endpoint struct {
-	name          string
-	id            string
-	network       *network
-	iface         *endpointInterface
-	joinInfo      *endpointJoinInfo
-	sandboxID     string
-	exposedPorts  []types.TransportPort
-	anonymous     bool
-	generic       map[string]interface{}
-	joinLeaveDone chan struct{}
-	prefAddress   net.IP
-	ipamOptions   map[string]string
-	dbIndex       uint64
-	dbExists      bool
+	name              string
+	id                string
+	network           *network
+	iface             *endpointInterface
+	joinInfo          *endpointJoinInfo
+	sandboxID         string
+	locator           string
+	exposedPorts      []types.TransportPort
+	anonymous         bool
+	disableResolution bool
+	generic           map[string]interface{}
+	joinLeaveDone     chan struct{}
+	prefAddress       net.IP
+	prefAddressV6     net.IP
+	ipamOptions       map[string]string
+	aliases           map[string]string
+	myAliases         []string
+	dbIndex           uint64
+	dbExists          bool
 	sync.Mutex
 }
 
@@ -80,7 +85,10 @@ func (ep *endpoint) MarshalJSON() ([]byte, error) {
 		epMap["generic"] = ep.generic
 	}
 	epMap["sandbox"] = ep.sandboxID
+	epMap["locator"] = ep.locator
 	epMap["anonymous"] = ep.anonymous
+	epMap["disableResolution"] = ep.disableResolution
+	epMap["myAliases"] = ep.myAliases
 	return json.Marshal(epMap)
 }
 
@@ -158,6 +166,16 @@ func (ep *endpoint) UnmarshalJSON(b []byte) (err error) {
 	if v, ok := epMap["anonymous"]; ok {
 		ep.anonymous = v.(bool)
 	}
+	if v, ok := epMap["disableResolution"]; ok {
+		ep.disableResolution = v.(bool)
+	}
+	if l, ok := epMap["locator"]; ok {
+		ep.locator = l.(string)
+	}
+	ma, _ := json.Marshal(epMap["myAliases"])
+	var myAliases []string
+	json.Unmarshal(ma, &myAliases)
+	ep.myAliases = myAliases
 	return nil
 }
 
@@ -173,9 +191,11 @@ func (ep *endpoint) CopyTo(o datastore.KVObject) error {
 	dstEp.name = ep.name
 	dstEp.id = ep.id
 	dstEp.sandboxID = ep.sandboxID
+	dstEp.locator = ep.locator
 	dstEp.dbIndex = ep.dbIndex
 	dstEp.dbExists = ep.dbExists
 	dstEp.anonymous = ep.anonymous
+	dstEp.disableResolution = ep.disableResolution
 
 	if ep.iface != nil {
 		dstEp.iface = &endpointInterface{}
@@ -184,6 +204,9 @@ func (ep *endpoint) CopyTo(o datastore.KVObject) error {
 
 	dstEp.exposedPorts = make([]types.TransportPort, len(ep.exposedPorts))
 	copy(dstEp.exposedPorts, ep.exposedPorts)
+
+	dstEp.myAliases = make([]string, len(ep.myAliases))
+	copy(dstEp.myAliases, ep.myAliases)
 
 	dstEp.generic = options.Generic{}
 	for k, v := range ep.generic {
@@ -207,6 +230,13 @@ func (ep *endpoint) Name() string {
 	return ep.name
 }
 
+func (ep *endpoint) MyAliases() []string {
+	ep.Lock()
+	defer ep.Unlock()
+
+	return ep.myAliases
+}
+
 func (ep *endpoint) Network() string {
 	if ep.network == nil {
 		return ""
@@ -219,6 +249,12 @@ func (ep *endpoint) isAnonymous() bool {
 	ep.Lock()
 	defer ep.Unlock()
 	return ep.anonymous
+}
+
+func (ep *endpoint) needResolver() bool {
+	ep.Lock()
+	defer ep.Unlock()
+	return !ep.disableResolution
 }
 
 // endpoint Key structure : endpoint/network-id/endpoint-id
@@ -395,10 +431,9 @@ func (ep *endpoint) sbJoin(sbox Sandbox, options ...EndpointOption) error {
 	if ip := ep.getFirstInterfaceAddress(); ip != nil {
 		address = ip.String()
 	}
-	if err = sb.updateHostsFile(address, network.getSvcRecords(ep)); err != nil {
+	if err = sb.updateHostsFile(address); err != nil {
 		return err
 	}
-
 	if err = sb.updateDNS(network.enableIPv6); err != nil {
 		return err
 	}
@@ -571,7 +606,19 @@ func (ep *endpoint) sbLeave(sbox Sandbox, options ...EndpointOption) error {
 	return sb.clearDefaultGW()
 }
 
-func (ep *endpoint) Delete() error {
+func (n *network) validateForceDelete(locator string) error {
+	if n.Scope() == datastore.LocalScope {
+		return nil
+	}
+
+	if locator == "" {
+		return fmt.Errorf("invalid endpoint locator identifier")
+	}
+
+	return nil
+}
+
+func (ep *endpoint) Delete(force bool) error {
 	var err error
 	n, err := ep.getNetworkFromStore()
 	if err != nil {
@@ -586,18 +633,33 @@ func (ep *endpoint) Delete() error {
 	ep.Lock()
 	epid := ep.id
 	name := ep.name
-	sb, _ := n.getController().SandboxByID(ep.sandboxID)
-	if sb != nil {
-		ep.Unlock()
+	sbid := ep.sandboxID
+	locator := ep.locator
+	ep.Unlock()
+
+	if force {
+		if err = n.validateForceDelete(locator); err != nil {
+			return fmt.Errorf("unable to force delete endpoint %s: %v", name, err)
+		}
+	}
+
+	sb, _ := n.getController().SandboxByID(sbid)
+	if sb != nil && !force {
 		return &ActiveContainerError{name: name, id: epid}
 	}
-	ep.Unlock()
+
+	if sb != nil {
+		if e := ep.sbLeave(sb); e != nil {
+			log.Warnf("failed to leave sandbox for endpoint %s : %v", name, e)
+		}
+	}
 
 	if err = n.getController().deleteFromStore(ep); err != nil {
 		return err
 	}
+
 	defer func() {
-		if err != nil {
+		if err != nil && !force {
 			ep.dbExists = false
 			if e := n.getController().updateToStore(ep); e != nil {
 				log.Warnf("failed to recreate endpoint in store %s : %v", name, e)
@@ -605,11 +667,11 @@ func (ep *endpoint) Delete() error {
 		}
 	}()
 
-	if err = n.getEpCnt().DecEndpointCnt(); err != nil {
+	if err = n.getEpCnt().DecEndpointCnt(); err != nil && !force {
 		return err
 	}
 	defer func() {
-		if err != nil {
+		if err != nil && !force {
 			if e := n.getEpCnt().IncEndpointCnt(); e != nil {
 				log.Warnf("failed to update network %s : %v", n.name, e)
 			}
@@ -619,7 +681,7 @@ func (ep *endpoint) Delete() error {
 	// unwatch for service records
 	n.getController().unWatchSvcRecord(ep)
 
-	if err = ep.deleteEndpoint(); err != nil {
+	if err = ep.deleteEndpoint(); err != nil && !force {
 		return err
 	}
 
@@ -654,8 +716,8 @@ func (ep *endpoint) deleteEndpoint() error {
 }
 
 func (ep *endpoint) getSandbox() (*sandbox, bool) {
-	ep.Lock()
 	c := ep.network.getController()
+	ep.Lock()
 	sid := ep.sandboxID
 	ep.Unlock()
 
@@ -688,9 +750,10 @@ func EndpointOptionGeneric(generic map[string]interface{}) EndpointOption {
 }
 
 // CreateOptionIpam function returns an option setter for the ipam configuration for this endpoint
-func CreateOptionIpam(prefAddress net.IP, ipamOptions map[string]string) EndpointOption {
+func CreateOptionIpam(ipV4, ipV6 net.IP, ipamOptions map[string]string) EndpointOption {
 	return func(ep *endpoint) {
-		ep.prefAddress = prefAddress
+		ep.prefAddress = ipV4
+		ep.prefAddressV6 = ipV6
 		ep.ipamOptions = ipamOptions
 	}
 }
@@ -727,6 +790,31 @@ func CreateOptionAnonymous() EndpointOption {
 	}
 }
 
+// CreateOptionDisableResolution function returns an option setter to indicate
+// this endpoint doesn't want embedded DNS server functionality
+func CreateOptionDisableResolution() EndpointOption {
+	return func(ep *endpoint) {
+		ep.disableResolution = true
+	}
+}
+
+//CreateOptionAlias function returns an option setter for setting endpoint alias
+func CreateOptionAlias(name string, alias string) EndpointOption {
+	return func(ep *endpoint) {
+		if ep.aliases == nil {
+			ep.aliases = make(map[string]string)
+		}
+		ep.aliases[alias] = name
+	}
+}
+
+//CreateOptionMyAlias function returns an option setter for setting endpoint's self alias
+func CreateOptionMyAlias(alias string) EndpointOption {
+	return func(ep *endpoint) {
+		ep.myAliases = append(ep.myAliases, alias)
+	}
+}
+
 // JoinOptionPriority function returns an option setter for priority option to
 // be passed to the endpoint.Join() method.
 func JoinOptionPriority(ep Endpoint, prio int) EndpointOption {
@@ -748,11 +836,8 @@ func (ep *endpoint) DataScope() string {
 	return ep.getNetwork().DataScope()
 }
 
-func (ep *endpoint) assignAddress(assignIPv4, assignIPv6 bool) error {
-	var (
-		ipam ipamapi.Ipam
-		err  error
-	)
+func (ep *endpoint) assignAddress(ipam ipamapi.Ipam, assignIPv4, assignIPv6 bool) error {
+	var err error
 
 	n := ep.getNetwork()
 	if n.Type() == "host" || n.Type() == "null" {
@@ -760,11 +845,6 @@ func (ep *endpoint) assignAddress(assignIPv4, assignIPv6 bool) error {
 	}
 
 	log.Debugf("Assigning addresses for endpoint %s's interface on network %s", ep.Name(), n.Name())
-
-	ipam, err = n.getController().getIpamDriver(n.ipamType)
-	if err != nil {
-		return err
-	}
 
 	if assignIPv4 {
 		if err = ep.assignAddressVersion(4, ipam); err != nil {
@@ -783,6 +863,8 @@ func (ep *endpoint) assignAddressVersion(ipVer int, ipam ipamapi.Ipam) error {
 	var (
 		poolID  *string
 		address **net.IPNet
+		prefAdd net.IP
+		progAdd net.IP
 	)
 
 	n := ep.getNetwork()
@@ -790,9 +872,11 @@ func (ep *endpoint) assignAddressVersion(ipVer int, ipam ipamapi.Ipam) error {
 	case 4:
 		poolID = &ep.iface.v4PoolID
 		address = &ep.iface.addr
+		prefAdd = ep.prefAddress
 	case 6:
 		poolID = &ep.iface.v6PoolID
 		address = &ep.iface.addrv6
+		prefAdd = ep.prefAddressV6
 	default:
 		return types.InternalErrorf("incorrect ip version number passed: %d", ipVer)
 	}
@@ -804,12 +888,19 @@ func (ep *endpoint) assignAddressVersion(ipVer int, ipam ipamapi.Ipam) error {
 		return nil
 	}
 
+	// The address to program may be chosen by the user or by the network driver in one specific
+	// case to support backward compatibility with `docker daemon --fixed-cidrv6` use case
+	if prefAdd != nil {
+		progAdd = prefAdd
+	} else if *address != nil {
+		progAdd = (*address).IP
+	}
+
 	for _, d := range ipInfo {
-		var prefIP net.IP
-		if *address != nil {
-			prefIP = (*address).IP
+		if progAdd != nil && !d.Pool.Contains(progAdd) {
+			continue
 		}
-		addr, _, err := ipam.RequestAddress(d.PoolID, prefIP, ep.ipamOptions)
+		addr, _, err := ipam.RequestAddress(d.PoolID, progAdd, ep.ipamOptions)
 		if err == nil {
 			ep.Lock()
 			*address = addr
@@ -817,9 +908,12 @@ func (ep *endpoint) assignAddressVersion(ipVer int, ipam ipamapi.Ipam) error {
 			ep.Unlock()
 			return nil
 		}
-		if err != ipamapi.ErrNoAvailableIPs {
+		if err != ipamapi.ErrNoAvailableIPs || progAdd != nil {
 			return err
 		}
+	}
+	if progAdd != nil {
+		return types.BadRequestErrorf("Invalid preferred address %s: It does not belong to any of this network's subnets")
 	}
 	return fmt.Errorf("no available IPv%d addresses on this network's address pools: %s (%s)", ipVer, n.Name(), n.ID())
 }
@@ -862,7 +956,7 @@ func (c *controller) cleanupLocalEndpoints() {
 		}
 
 		for _, ep := range epl {
-			if err := ep.Delete(); err != nil {
+			if err := ep.Delete(false); err != nil {
 				log.Warnf("Could not delete local endpoint %s during endpoint cleanup: %v", ep.name, err)
 			}
 		}

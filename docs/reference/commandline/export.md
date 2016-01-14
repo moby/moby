@@ -14,7 +14,7 @@ parent = "smn_cli"
 
     Export the contents of a container's filesystem as a tar archive
 
-      --help=false       Print usage
+      --help             Print usage
       -o, --output=""    Write to a file, instead of STDOUT
 
 The `docker export` command does not export the contents of volumes associated

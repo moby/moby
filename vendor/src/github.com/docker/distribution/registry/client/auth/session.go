@@ -240,7 +240,8 @@ func (th *tokenHandler) fetchToken(params map[string]string) (token *tokenRespon
 	defer resp.Body.Close()
 
 	if !client.SuccessStatus(resp.StatusCode) {
-		return nil, fmt.Errorf("token auth attempt for registry: %s request failed with status: %d %s", req.URL, resp.StatusCode, http.StatusText(resp.StatusCode))
+		err := client.HandleErrorResponse(resp)
+		return nil, err
 	}
 
 	decoder := json.NewDecoder(resp.Body)

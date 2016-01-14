@@ -70,8 +70,8 @@ To see usage for a specific command, specify the command with the `--help` flag:
 
     Attach to a running container
 
-      --help=false        Print usage
-      --no-stdin=false    Do not attach stdin
+      --help              Print usage
+      --no-stdin          Do not attach stdin
       --sig-proxy=true    Proxy all received signals to the process
 
 > **Note:**

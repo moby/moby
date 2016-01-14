@@ -7,10 +7,11 @@ import (
 	"github.com/docker/docker/container"
 	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/runconfig"
+	containertypes "github.com/docker/engine-api/types/container"
 )
 
 // ContainerStart starts a container.
-func (daemon *Daemon) ContainerStart(name string, hostConfig *runconfig.HostConfig) error {
+func (daemon *Daemon) ContainerStart(name string, hostConfig *containertypes.HostConfig) error {
 	container, err := daemon.GetContainer(name)
 	if err != nil {
 		return err
@@ -30,6 +31,9 @@ func (daemon *Daemon) ContainerStart(name string, hostConfig *runconfig.HostConf
 		// creating a container, not during start.
 		if hostConfig != nil {
 			logrus.Warn("DEPRECATED: Setting host configuration options when the container starts is deprecated and will be removed in Docker 1.12")
+			if err := daemon.setSecurityOptions(container, hostConfig); err != nil {
+				return err
+			}
 			if err := daemon.setHostConfig(container, hostConfig); err != nil {
 				return err
 			}
@@ -128,9 +132,15 @@ func (daemon *Daemon) containerStart(container *container.Container) (err error)
 	mounts = append(mounts, container.TmpfsMounts()...)
 
 	container.Command.Mounts = mounts
+	container.Unlock()
+
+	// don't lock waitForStart because it has potential risk of blocking
+	// which will lead to dead lock, forever.
 	if err := daemon.waitForStart(container); err != nil {
+		container.Lock()
 		return err
 	}
+	container.Lock()
 	container.HasBeenStartedBefore = true
 	return nil
 }
@@ -152,7 +162,7 @@ func (daemon *Daemon) Cleanup(container *container.Container) {
 		daemon.unregisterExecCommand(container, eConfig)
 	}
 
-	if err := container.UnmountVolumes(false); err != nil {
+	if err := container.UnmountVolumes(false, daemon.LogVolumeEvent); err != nil {
 		logrus.Warnf("%s cleanup: Failed to umount volumes: %v", container.ID, err)
 	}
 }

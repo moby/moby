@@ -4,17 +4,17 @@ import (
 	"io"
 	"time"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/daemon/exec"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/version"
-	"github.com/docker/docker/runconfig"
+	"github.com/docker/engine-api/types"
+	"github.com/docker/engine-api/types/container"
 )
 
 // execBackend includes functions to implement to provide exec functionality.
 type execBackend interface {
-	ContainerExecCreate(config *runconfig.ExecConfig) (string, error)
+	ContainerExecCreate(config *types.ExecConfig) (string, error)
 	ContainerExecInspect(id string) (*exec.Config, error)
 	ContainerExecResize(name string, height, width int) error
 	ContainerExecStart(name string, stdin io.ReadCloser, stdout io.Writer, stderr io.Writer) error
@@ -39,12 +39,12 @@ type stateBackend interface {
 	ContainerResize(name string, height, width int) error
 	ContainerRestart(name string, seconds int) error
 	ContainerRm(name string, config *types.ContainerRmConfig) error
-	ContainerStart(name string, hostConfig *runconfig.HostConfig) error
+	ContainerStart(name string, hostConfig *container.HostConfig) error
 	ContainerStop(name string, seconds int) error
 	ContainerUnpause(name string) error
+	ContainerUpdate(name string, hostConfig *container.HostConfig) ([]string, error)
 	ContainerWait(name string, timeout time.Duration) (int, error)
 	Exists(id string) bool
-	IsPaused(id string) bool
 }
 
 // monitorBackend includes functions to implement to provide containers monitoring functionality.

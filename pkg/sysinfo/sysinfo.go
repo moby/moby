@@ -7,6 +7,8 @@ import "github.com/docker/docker/pkg/parsers"
 type SysInfo struct {
 	// Whether the kernel supports AppArmor or not
 	AppArmor bool
+	// Whether the kernel supports Seccomp or not
+	Seccomp bool
 
 	cgroupMemInfo
 	cgroupCPUInfo
@@ -69,6 +71,12 @@ type cgroupBlkioInfo struct {
 
 	// Whether Block IO write limit in bytes per second is supported or not
 	BlkioWriteBpsDevice bool
+
+	// Whether Block IO read limit in IO per second is supported or not
+	BlkioReadIOpsDevice bool
+
+	// Whether Block IO write limit in IO per second is supported or not
+	BlkioWriteIOpsDevice bool
 }
 
 type cgroupCpusetInfo struct {

@@ -22,8 +22,10 @@ const (
 
 // Callback provides a Callback interface for registering an IPAM instance into LibNetwork
 type Callback interface {
-	// RegisterDriver provides a way for Remote drivers to dynamically register new NetworkType and associate with a ipam instance
+	// RegisterIpamDriver provides a way for Remote drivers to dynamically register with libnetwork
 	RegisterIpamDriver(name string, driver Ipam) error
+	// RegisterIpamDriverWithCapabilities provides a way for Remote drivers to dynamically register with libnetwork and specify cpaabilities
+	RegisterIpamDriverWithCapabilities(name string, driver Ipam, capability *Capability) error
 }
 
 /**************
@@ -69,4 +71,9 @@ type Ipam interface {
 	RequestAddress(string, net.IP, map[string]string) (*net.IPNet, map[string]string, error)
 	// Release the address from the specified pool ID
 	ReleaseAddress(string, net.IP) error
+}
+
+// Capability represents the requirements and capabilities of the IPAM driver
+type Capability struct {
+	RequiresMACAddress bool
 }

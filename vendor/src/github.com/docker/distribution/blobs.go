@@ -61,6 +61,15 @@ type Descriptor struct {
 	// depend on the simplicity of this type.
 }
 
+// Descriptor returns the descriptor, to make it satisfy the Describable
+// interface. Note that implementations of Describable are generally objects
+// which can be described, not simply descriptors; this exception is in place
+// to make it more convenient to pass actual descriptors to functions that
+// expect Describable objects.
+func (d Descriptor) Descriptor() Descriptor {
+	return d
+}
+
 // BlobStatter makes blob descriptors available by digest. The service may
 // provide a descriptor of a different digest if the provided digest is not
 // canonical.

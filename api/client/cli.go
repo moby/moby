@@ -9,13 +9,13 @@ import (
 	"runtime"
 
 	"github.com/docker/docker/api"
-	"github.com/docker/docker/api/client/lib"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/term"
-	"github.com/docker/docker/pkg/tlsconfig"
+	"github.com/docker/engine-api/client"
+	"github.com/docker/go-connections/tlsconfig"
 )
 
 // DockerCli represents the docker command line client.
@@ -43,7 +43,7 @@ type DockerCli struct {
 	// isTerminalOut indicates whether the client's STDOUT is a TTY
 	isTerminalOut bool
 	// client is the http client that performs all API operations
-	client apiClient
+	client client.APIClient
 }
 
 // Initialize calls the init function that will setup the configuration for the client
@@ -68,9 +68,15 @@ func (cli *DockerCli) CheckTtyInput(attachStdin, ttyMode bool) error {
 }
 
 // PsFormat returns the format string specified in the configuration.
-// String contains columns and format specification, for example {{ID}\t{{Name}}.
+// String contains columns and format specification, for example {{ID}}\t{{Name}}.
 func (cli *DockerCli) PsFormat() string {
 	return cli.configFile.PsFormat
+}
+
+// ImagesFormat returns the format string specified in the configuration.
+// String contains columns and format specification, for example {{ID}}\t{{Name}}.
+func (cli *DockerCli) ImagesFormat() string {
+	return cli.configFile.ImagesFormat
 }
 
 // NewDockerCli returns a DockerCli instance with IO output and error streams set by in, out and err.
@@ -114,7 +120,7 @@ func NewDockerCli(in io.ReadCloser, out, err io.Writer, clientFlags *cli.ClientF
 			return err
 		}
 
-		client, err := lib.NewClient(host, verStr, clientTransport, customHeaders)
+		client, err := client.NewClient(host, verStr, clientTransport, customHeaders)
 		if err != nil {
 			return err
 		}

@@ -20,8 +20,8 @@ import (
 
 	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/docker/docker/pkg/mount"
-	"github.com/docker/docker/pkg/nat"
 	"github.com/docker/docker/runconfig"
+	"github.com/docker/go-connections/nat"
 	"github.com/docker/libnetwork/resolvconf"
 	"github.com/go-check/check"
 )
@@ -197,6 +197,80 @@ func (s *DockerSuite) TestRunLinksContainerWithContainerId(c *check.C) {
 	if !strings.Contains(out, ip+"	test") {
 		c.Fatalf("use a container id to link target failed")
 	}
+}
+
+func (s *DockerSuite) TestUserDefinedNetworkLinks(c *check.C) {
+	testRequires(c, DaemonIsLinux, NotUserNamespace)
+	dockerCmd(c, "network", "create", "-d", "bridge", "udlinkNet")
+
+	dockerCmd(c, "run", "-d", "--net=udlinkNet", "--name=first", "busybox", "top")
+	c.Assert(waitRun("first"), check.IsNil)
+
+	// run a container in user-defined network udlinkNet with a link for an existing container
+	// and a link for a container that doesnt exist
+	dockerCmd(c, "run", "-d", "--net=udlinkNet", "--name=second", "--link=first:foo",
+		"--link=third:bar", "busybox", "top")
+	c.Assert(waitRun("second"), check.IsNil)
+
+	// ping to first and its alias foo must succeed
+	_, _, err := dockerCmdWithError("exec", "second", "ping", "-c", "1", "first")
+	c.Assert(err, check.IsNil)
+	_, _, err = dockerCmdWithError("exec", "second", "ping", "-c", "1", "foo")
+	c.Assert(err, check.IsNil)
+
+	// ping to third and its alias must fail
+	_, _, err = dockerCmdWithError("exec", "second", "ping", "-c", "1", "third")
+	c.Assert(err, check.NotNil)
+	_, _, err = dockerCmdWithError("exec", "second", "ping", "-c", "1", "bar")
+	c.Assert(err, check.NotNil)
+
+	// start third container now
+	dockerCmd(c, "run", "-d", "--net=udlinkNet", "--name=third", "busybox", "top")
+	c.Assert(waitRun("third"), check.IsNil)
+
+	// ping to third and its alias must succeed now
+	_, _, err = dockerCmdWithError("exec", "second", "ping", "-c", "1", "third")
+	c.Assert(err, check.IsNil)
+	_, _, err = dockerCmdWithError("exec", "second", "ping", "-c", "1", "bar")
+	c.Assert(err, check.IsNil)
+}
+
+func (s *DockerSuite) TestUserDefinedNetworkLinksWithRestart(c *check.C) {
+	testRequires(c, DaemonIsLinux, NotUserNamespace)
+	dockerCmd(c, "network", "create", "-d", "bridge", "udlinkNet")
+
+	dockerCmd(c, "run", "-d", "--net=udlinkNet", "--name=first", "busybox", "top")
+	c.Assert(waitRun("first"), check.IsNil)
+
+	dockerCmd(c, "run", "-d", "--net=udlinkNet", "--name=second", "--link=first:foo",
+		"busybox", "top")
+	c.Assert(waitRun("second"), check.IsNil)
+
+	// ping to first and its alias foo must succeed
+	_, _, err := dockerCmdWithError("exec", "second", "ping", "-c", "1", "first")
+	c.Assert(err, check.IsNil)
+	_, _, err = dockerCmdWithError("exec", "second", "ping", "-c", "1", "foo")
+	c.Assert(err, check.IsNil)
+
+	// Restart first container
+	dockerCmd(c, "restart", "first")
+	c.Assert(waitRun("first"), check.IsNil)
+
+	// ping to first and its alias foo must still succeed
+	_, _, err = dockerCmdWithError("exec", "second", "ping", "-c", "1", "first")
+	c.Assert(err, check.IsNil)
+	_, _, err = dockerCmdWithError("exec", "second", "ping", "-c", "1", "foo")
+	c.Assert(err, check.IsNil)
+
+	// Restart second container
+	dockerCmd(c, "restart", "second")
+	c.Assert(waitRun("second"), check.IsNil)
+
+	// ping to first and its alias foo must still succeed
+	_, _, err = dockerCmdWithError("exec", "second", "ping", "-c", "1", "first")
+	c.Assert(err, check.IsNil)
+	_, _, err = dockerCmdWithError("exec", "second", "ping", "-c", "1", "foo")
+	c.Assert(err, check.IsNil)
 }
 
 // Issue 9677.
@@ -2858,19 +2932,28 @@ func (s *DockerSuite) TestRunUnshareProc(c *check.C) {
 	testRequires(c, Apparmor, DaemonIsLinux, NotUserNamespace)
 
 	name := "acidburn"
-	if out, _, err := dockerCmdWithError("run", "--name", name, "jess/unshare", "unshare", "-p", "-m", "-f", "-r", "--mount-proc=/proc", "mount"); err == nil || !strings.Contains(out, "Permission denied") {
-		c.Fatalf("unshare with --mount-proc should have failed with permission denied, got: %s, %v", out, err)
+	out, _, err := dockerCmdWithError("run", "--name", name, "--security-opt", "seccomp:unconfined", "debian:jessie", "unshare", "-p", "-m", "-f", "-r", "--mount-proc=/proc", "mount")
+	if err == nil ||
+		!(strings.Contains(strings.ToLower(out), "permission denied") ||
+			strings.Contains(strings.ToLower(out), "operation not permitted")) {
+		c.Fatalf("unshare with --mount-proc should have failed with 'permission denied' or 'operation not permitted', got: %s, %v", out, err)
 	}
 
 	name = "cereal"
-	if out, _, err := dockerCmdWithError("run", "--name", name, "jess/unshare", "unshare", "-p", "-m", "-f", "-r", "mount", "-t", "proc", "none", "/proc"); err == nil || !strings.Contains(out, "Permission denied") {
-		c.Fatalf("unshare and mount of /proc should have failed with permission denied, got: %s, %v", out, err)
+	out, _, err = dockerCmdWithError("run", "--name", name, "--security-opt", "seccomp:unconfined", "debian:jessie", "unshare", "-p", "-m", "-f", "-r", "mount", "-t", "proc", "none", "/proc")
+	if err == nil ||
+		!(strings.Contains(strings.ToLower(out), "mount: cannot mount none") ||
+			strings.Contains(strings.ToLower(out), "permission denied")) {
+		c.Fatalf("unshare and mount of /proc should have failed with 'mount: cannot mount none' or 'permission denied', got: %s, %v", out, err)
 	}
 
 	/* Ensure still fails if running privileged with the default policy */
 	name = "crashoverride"
-	if out, _, err := dockerCmdWithError("run", "--privileged", "--security-opt", "apparmor:docker-default", "--name", name, "jess/unshare", "unshare", "-p", "-m", "-f", "-r", "mount", "-t", "proc", "none", "/proc"); err == nil || !(strings.Contains(strings.ToLower(out), "permission denied") || strings.Contains(strings.ToLower(out), "operation not permitted")) {
-		c.Fatalf("privileged unshare with apparmor should have failed with permission denied, got: %s, %v", out, err)
+	out, _, err = dockerCmdWithError("run", "--privileged", "--security-opt", "seccomp:unconfined", "--security-opt", "apparmor:docker-default", "--name", name, "debian:jessie", "unshare", "-p", "-m", "-f", "-r", "mount", "-t", "proc", "none", "/proc")
+	if err == nil ||
+		!(strings.Contains(strings.ToLower(out), "mount: cannot mount none") ||
+			strings.Contains(strings.ToLower(out), "permission denied")) {
+		c.Fatalf("privileged unshare with apparmor should have failed with 'mount: cannot mount none' or 'permission denied', got: %s, %v", out, err)
 	}
 }
 
@@ -3078,7 +3161,7 @@ func (s *DockerTrustSuite) TestUntrustedRun(c *check.C) {
 		c.Fatalf("Error expected when running trusted run with:\n%s", out)
 	}
 
-	if !strings.Contains(string(out), "no trust data available") {
+	if !strings.Contains(string(out), "does not have trust data for") {
 		c.Fatalf("Missing expected output on trusted run:\n%s", out)
 	}
 }
@@ -3722,14 +3805,20 @@ func (s *DockerSuite) TestRunNonExistingCmd(c *check.C) {
 	}
 }
 
-// TestCmdCannotBeInvoked checks that 'docker run busybox /etc' exits with 126.
+// TestCmdCannotBeInvoked checks that 'docker run busybox /etc' exits with 126, or
+// 127 on Windows. The difference is that in Windows, the container must be started
+// as that's when the check is made (and yes, by it's design...)
 func (s *DockerSuite) TestCmdCannotBeInvoked(c *check.C) {
+	expected := 126
+	if daemonPlatform == "windows" {
+		expected = 127
+	}
 	name := "testCmdCannotBeInvoked"
 	runCmd := exec.Command(dockerBinary, "run", "--name", name, "busybox", "/etc")
 	_, exit, _ := runCommandWithOutput(runCmd)
 	stateExitCode := findContainerExitCode(c, name)
-	if !(exit == 126 && strings.Contains(stateExitCode, "126")) {
-		c.Fatalf("Run cmd that cannot be invoked should have errored with code 126, but we got exit: %d, State.ExitCode: %s", exit, stateExitCode)
+	if !(exit == expected && strings.Contains(stateExitCode, strconv.Itoa(expected))) {
+		c.Fatalf("Run cmd that cannot be invoked should have errored with code %d, but we got exit: %d, State.ExitCode: %s", expected, exit, stateExitCode)
 	}
 }
 
@@ -3922,5 +4011,19 @@ func (s *DockerSuite) TestRunNamedVolumesMountedAsShared(c *check.C) {
 	if expected := "Invalid volume specification"; !strings.Contains(out, expected) {
 		c.Fatalf(`Expected %q in output; got: %s`, expected, out)
 	}
+}
 
+func (s *DockerSuite) TestRunNamedVolumeCopyImageData(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	testImg := "testvolumecopy"
+	_, err := buildImage(testImg, `
+	FROM busybox
+	RUN mkdir -p /foo && echo hello > /foo/hello
+	`, true)
+	c.Assert(err, check.IsNil)
+
+	dockerCmd(c, "run", "-v", "foo:/foo", testImg)
+	out, _ := dockerCmd(c, "run", "-v", "foo:/foo", "busybox", "cat", "/foo/hello")
+	c.Assert(strings.TrimSpace(out), check.Equals, "hello")
 }

@@ -1,19 +1,27 @@
 .PHONY: all binary build cross default docs docs-build docs-shell shell test test-docker-py test-integration-cli test-unit validate
 
 # get OS/Arch of docker engine
-DOCKER_ENGINE_OSARCH = $(shell docker version | grep 'OS/Arch' | tail -1 | cut -d':' -f2 | tr -d '[[:space:]]')
-DOCKER_ENGINE_GOOS = $(word 1, $(subst /, ,$(DOCKER_ENGINE_OSARCH)))
-DOCKER_ENGINE_GOARCH = $(word 2, $(subst /, ,$(DOCKER_ENGINE_OSARCH)))
-export DOCKER_ENGINE_OSARCH
-export DOCKER_ENGINE_GOOS
-export DOCKER_ENGINE_GOARCH
+DOCKER_OSARCH := $(shell bash -c 'source hack/make/.detect-daemon-osarch && echo $${DOCKER_ENGINE_OSARCH:+$$DOCKER_CLIENT_OSARCH}')
 # default for linux/amd64 and others
-DOCKER_FILE = Dockerfile
+DOCKERFILE := Dockerfile
 # switch to different Dockerfile for linux/arm
-ifeq ($(DOCKER_ENGINE_OSARCH),linux/arm)
-  DOCKER_FILE = Dockerfile.arm
+ifeq ($(DOCKER_OSARCH), linux/arm)
+	DOCKERFILE := Dockerfile.armhf
+else
+ifeq ($(DOCKER_OSARCH), linux/arm64)
+	# TODO .arm64
+	DOCKERFILE := Dockerfile.armhf
+else
+ifeq ($(DOCKER_OSARCH), linux/ppc64le)
+	DOCKERFILE := Dockerfile.ppc64le
+else
+ifeq ($(DOCKER_OSARCH), linux/s390x)
+	DOCKERFILE := Dockerfile.s390x
 endif
-export DOCKER_FILE
+endif
+endif
+endif
+export DOCKERFILE
 
 # env vars passed through directly to Docker's build scripts
 # to allow things like `make DOCKER_CLIENTONLY=1 binary` easily
@@ -22,11 +30,8 @@ DOCKER_ENVS := \
 	-e BUILDFLAGS \
 	-e DOCKER_CLIENTONLY \
 	-e DOCKER_DEBUG \
-	-e DOCKER_ENGINE_GOARCH \
-	-e DOCKER_ENGINE_GOOS \
-	-e DOCKER_ENGINE_OSARCH \
 	-e DOCKER_EXPERIMENTAL \
-	-e DOCKER_FILE \
+	-e DOCKERFILE \
 	-e DOCKER_GRAPHDRIVER \
 	-e DOCKER_REMAP_ROOT \
 	-e DOCKER_STORAGE_OPTS \
@@ -68,7 +73,7 @@ binary: build
 	$(DOCKER_RUN_DOCKER) hack/make.sh binary
 
 build: bundles
-	docker build -t "$(DOCKER_IMAGE)" -f $(DOCKER_FILE) .
+	docker build -t "$(DOCKER_IMAGE)" -f "$(DOCKERFILE)" .
 
 bundles:
 	mkdir bundles
@@ -101,4 +106,4 @@ test-unit: build
 	$(DOCKER_RUN_DOCKER) hack/make.sh test-unit
 
 validate: build
-	$(DOCKER_RUN_DOCKER) hack/make.sh validate-dco validate-gofmt validate-pkg validate-lint validate-test validate-toml validate-vet
+	$(DOCKER_RUN_DOCKER) hack/make.sh validate-dco validate-gofmt validate-pkg validate-lint validate-test validate-toml validate-vet validate-vendor

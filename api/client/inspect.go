@@ -6,9 +6,9 @@ import (
 	"text/template"
 
 	"github.com/docker/docker/api/client/inspect"
-	"github.com/docker/docker/api/client/lib"
 	Cli "github.com/docker/docker/cli"
 	flag "github.com/docker/docker/pkg/mflag"
+	"github.com/docker/engine-api/client"
 )
 
 var funcMap = template.FuncMap{
@@ -64,10 +64,10 @@ func (cli *DockerCli) inspectAll(getSize bool) inspectSearcher {
 		c, rawContainer, err := cli.client.ContainerInspectWithRaw(ref, getSize)
 		if err != nil {
 			// Search for image with that id if a container doesn't exist.
-			if lib.IsErrContainerNotFound(err) {
+			if client.IsErrContainerNotFound(err) {
 				i, rawImage, err := cli.client.ImageInspectWithRaw(ref, getSize)
 				if err != nil {
-					if lib.IsErrImageNotFound(err) {
+					if client.IsErrImageNotFound(err) {
 						return nil, nil, fmt.Errorf("Error: No such image or container: %s", ref)
 					}
 					return nil, nil, err

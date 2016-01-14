@@ -15,7 +15,7 @@ storage systems, such as Amazon EBS, and enable data volumes to persist beyond
 the lifetime of a single Docker host. See the [plugin documentation](plugins.md)
 for more information.
 
-# Command-line changes
+## Command-line changes
 
 A volume plugin makes use of the `-v`and `--volume-driver` flag on the `docker run` command.  The `-v` flag accepts a volume name and the `--volume-driver` flag a driver type, for example: 
 
@@ -32,13 +32,13 @@ server to another.
 By specifying a `volumedriver` in conjunction with a `volumename`, users can use plugins such as [Flocker](https://clusterhq.com/docker-plugin/) to manage volumes external to a single host, such as those on EBS. 
 
 
-# Create a VolumeDriver
+## Create a VolumeDriver
 
 The container creation endpoint (`/containers/create`) accepts a `VolumeDriver`
 field of type `string` allowing to specify the name of the driver. It's default
 value of `"local"` (the default driver for local volumes).
 
-# Volume plugin protocol
+## Volume plugin protocol
 
 If a plugin registers itself as a `VolumeDriver` when activated, then it is
 expected to provide writeable paths on the host filesystem for the Docker
@@ -47,10 +47,14 @@ daemon to provide to containers to consume.
 The Docker daemon handles bind-mounting the provided paths into user
 containers.
 
+> **Note**: Volume plugins should *not* write data to the `/var/lib/docker/`
+> directory, including `/var/lib/docker/volumes`. The `/var/lib/docker/`
+> directory is reserved for Docker.
+
 ### /VolumeDriver.Create
 
 **Request**:
-```
+```json
 {
     "Name": "volume_name",
     "Opts": {}
@@ -63,7 +67,7 @@ volume on the filesystem yet (until Mount is called).
 Opts is a map of driver specific options passed through from the user request.
 
 **Response**:
-```
+```json
 {
     "Err": ""
 }
@@ -74,7 +78,7 @@ Respond with a string error if an error occurred.
 ### /VolumeDriver.Remove
 
 **Request**:
-```
+```json
 {
     "Name": "volume_name"
 }
@@ -83,7 +87,7 @@ Respond with a string error if an error occurred.
 Delete the specified volume from disk. This request is issued when a user invokes `docker rm -v` to remove volumes associated with a container.
 
 **Response**:
-```
+```json
 {
     "Err": ""
 }
@@ -94,7 +98,7 @@ Respond with a string error if an error occurred.
 ### /VolumeDriver.Mount
 
 **Request**:
-```
+```json
 {
     "Name": "volume_name"
 }
@@ -106,7 +110,7 @@ more than once, the plugin may need to keep track of each new mount request and 
 at the first mount request and deprovision at the last corresponding unmount request.
 
 **Response**:
-```
+```json
 {
     "Mountpoint": "/path/to/directory/on/host",
     "Err": ""
@@ -119,7 +123,7 @@ available, and/or a string error if an error occurred.
 ### /VolumeDriver.Path
 
 **Request**:
-```
+```json
 {
     "Name": "volume_name"
 }
@@ -128,7 +132,7 @@ available, and/or a string error if an error occurred.
 Docker needs reminding of the path to the volume on the host.
 
 **Response**:
-```
+```json
 {
     "Mountpoint": "/path/to/directory/on/host",
     "Err": ""
@@ -141,7 +145,7 @@ available, and/or a string error if an error occurred.
 ### /VolumeDriver.Unmount
 
 **Request**:
-```
+```json
 {
     "Name": "volume_name"
 }
@@ -152,9 +156,60 @@ per container stop.  Plugin may deduce that it is safe to deprovision it at
 this point.
 
 **Response**:
-```
+```json
 {
     "Err": ""
+}
+```
+
+Respond with a string error if an error occurred.
+
+
+### /VolumeDriver.Get
+
+**Request**:
+```json
+{
+    "Name": "volume_name"
+}
+```
+
+Get the volume info.
+
+
+**Response**:
+```json
+{
+  "Volume": {
+    "Name": "volume_name",
+    "Mountpoint": "/path/to/directory/on/host",
+  },
+  "Err": ""
+}
+```
+
+Respond with a string error if an error occurred.
+
+
+### /VolumeDriver.List
+
+**Request**:
+```json
+{}
+```
+
+Get the list of volumes registered with the plugin.
+
+**Response**:
+```json
+{
+  "Volumes": [
+    {
+      "Name": "volume_name",
+      "Mountpoint": "/path/to/directory/on/host"
+    }
+  ],
+  "Err": ""
 }
 ```
 

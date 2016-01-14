@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/parsers/kernel"
@@ -18,6 +17,7 @@ import (
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/utils"
 	"github.com/docker/docker/volume/drivers"
+	"github.com/docker/engine-api/types"
 )
 
 // SystemInfo returns information about the host server the daemon is running on.
@@ -54,12 +54,27 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 	initPath := utils.DockerInitPath("")
 	sysInfo := sysinfo.New(true)
 
+	var cRunning, cPaused, cStopped int
+	for _, c := range daemon.List() {
+		switch c.StateString() {
+		case "paused":
+			cPaused++
+		case "running":
+			cRunning++
+		default:
+			cStopped++
+		}
+	}
+
 	v := &types.Info{
 		ID:                 daemon.ID,
 		Containers:         len(daemon.List()),
+		ContainersRunning:  cRunning,
+		ContainersPaused:   cPaused,
+		ContainersStopped:  cStopped,
 		Images:             len(daemon.imageStore.Map()),
-		Driver:             daemon.GraphDriver().String(),
-		DriverStatus:       daemon.GraphDriver().Status(),
+		Driver:             daemon.GraphDriverName(),
+		DriverStatus:       daemon.layerStore.DriverStatus(),
 		Plugins:            daemon.showPluginsInfo(),
 		IPv4Forwarding:     !sysInfo.IPv4ForwardingDisabled,
 		BridgeNfIptables:   !sysInfo.BridgeNfCallIptablesDisabled,
@@ -141,6 +156,8 @@ func (daemon *Daemon) showPluginsInfo() types.PluginsInfo {
 	for nd := range networkDriverList {
 		pluginsInfo.Network = append(pluginsInfo.Network, nd)
 	}
+
+	pluginsInfo.Authorization = daemon.configStore.AuthorizationPlugins
 
 	return pluginsInfo
 }

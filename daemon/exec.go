@@ -12,8 +12,9 @@ import (
 	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/pools"
 	"github.com/docker/docker/pkg/promise"
-	"github.com/docker/docker/pkg/stringutils"
-	"github.com/docker/docker/runconfig"
+	"github.com/docker/docker/pkg/term"
+	"github.com/docker/engine-api/types"
+	"github.com/docker/engine-api/types/strslice"
 )
 
 func (d *Daemon) registerExecCommand(container *container.Container, config *exec.Config) {
@@ -79,14 +80,22 @@ func (d *Daemon) getActiveContainer(name string) (*container.Container, error) {
 }
 
 // ContainerExecCreate sets up an exec in a running container.
-func (d *Daemon) ContainerExecCreate(config *runconfig.ExecConfig) (string, error) {
+func (d *Daemon) ContainerExecCreate(config *types.ExecConfig) (string, error) {
 	container, err := d.getActiveContainer(config.Container)
 	if err != nil {
 		return "", err
 	}
 
-	cmd := stringutils.NewStrSlice(config.Cmd...)
-	entrypoint, args := d.getEntrypointAndArgs(stringutils.NewStrSlice(), cmd)
+	cmd := strslice.New(config.Cmd...)
+	entrypoint, args := d.getEntrypointAndArgs(strslice.New(), cmd)
+
+	keys := []byte{}
+	if config.DetachKeys != "" {
+		keys, err = term.ToBytes(config.DetachKeys)
+		if err != nil {
+			logrus.Warnf("Wrong escape keys provided (%s, error: %s) using default : ctrl-p ctrl-q", config.DetachKeys, err.Error())
+		}
+	}
 
 	processConfig := &execdriver.ProcessConfig{
 		CommonProcessConfig: execdriver.CommonProcessConfig{
@@ -103,6 +112,7 @@ func (d *Daemon) ContainerExecCreate(config *runconfig.ExecConfig) (string, erro
 	execConfig.OpenStderr = config.AttachStderr
 	execConfig.ProcessConfig = processConfig
 	execConfig.ContainerID = container.ID
+	execConfig.DetachKeys = keys
 
 	d.registerExecCommand(container, execConfig)
 
@@ -158,7 +168,8 @@ func (d *Daemon) ContainerExecStart(name string, stdin io.ReadCloser, stdout io.
 		ec.NewNopInputPipe()
 	}
 
-	attachErr := container.AttachStreams(ec.StreamConfig, ec.OpenStdin, true, ec.ProcessConfig.Tty, cStdin, cStdout, cStderr)
+	attachErr := container.AttachStreams(ec.StreamConfig, ec.OpenStdin, true, ec.ProcessConfig.Tty, cStdin, cStdout, cStderr, ec.DetachKeys)
+
 	execErr := make(chan error)
 
 	// Note, the ExecConfig data will be removed when the container

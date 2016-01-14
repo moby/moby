@@ -985,7 +985,7 @@ func (c *linuxContainer) currentStatus() (Status, error) {
 		}
 		return 0, newSystemError(err)
 	}
-	if c.config.Cgroups != nil && c.config.Cgroups.Freezer == configs.Frozen {
+	if c.config.Cgroups != nil && c.config.Cgroups.Resources != nil && c.config.Cgroups.Resources.Freezer == configs.Frozen {
 		return Paused, nil
 	}
 	return Running, nil

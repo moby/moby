@@ -15,7 +15,6 @@ import (
 	"math/big"
 	"net/http"
 	"net/url"
-	"path/filepath"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -117,11 +116,15 @@ func fingerprintCert(cert *x509.Certificate) (CertID, error) {
 
 // loadCertsFromDir receives a store AddCertFromFile for each certificate found
 func loadCertsFromDir(s *X509FileStore) error {
-	certFiles := s.fileStore.ListFiles()
-	for _, f := range certFiles {
+	for _, f := range s.fileStore.ListFiles() {
 		// ListFiles returns relative paths
-		fullPath := filepath.Join(s.fileStore.BaseDir(), f)
-		err := s.AddCertFromFile(fullPath)
+		data, err := s.fileStore.Get(f)
+		if err != nil {
+			// the filestore told us it had a file that it then couldn't serve.
+			// this is a serious problem so error immediately
+			return err
+		}
+		err = s.AddCertFromPEM(data)
 		if err != nil {
 			if _, ok := err.(*ErrCertValidation); ok {
 				logrus.Debugf("ignoring certificate, did not pass validation: %s", f)
@@ -411,18 +414,26 @@ func blockType(k data.PrivateKey) (string, error) {
 }
 
 // KeyToPEM returns a PEM encoded key from a Private Key
-func KeyToPEM(privKey data.PrivateKey) ([]byte, error) {
+func KeyToPEM(privKey data.PrivateKey, role string) ([]byte, error) {
 	bt, err := blockType(privKey)
 	if err != nil {
 		return nil, err
 	}
 
-	return pem.EncodeToMemory(&pem.Block{Type: bt, Bytes: privKey.Private()}), nil
+	block := &pem.Block{
+		Type: bt,
+		Headers: map[string]string{
+			"role": role,
+		},
+		Bytes: privKey.Private(),
+	}
+
+	return pem.EncodeToMemory(block), nil
 }
 
 // EncryptPrivateKey returns an encrypted PEM key given a Privatekey
 // and a passphrase
-func EncryptPrivateKey(key data.PrivateKey, passphrase string) ([]byte, error) {
+func EncryptPrivateKey(key data.PrivateKey, role, passphrase string) ([]byte, error) {
 	bt, err := blockType(key)
 	if err != nil {
 		return nil, err
@@ -439,6 +450,11 @@ func EncryptPrivateKey(key data.PrivateKey, passphrase string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	if encryptedPEMBlock.Headers == nil {
+		return nil, fmt.Errorf("unable to encrypt key - invalid PEM file produced")
+	}
+	encryptedPEMBlock.Headers["role"] = role
 
 	return pem.EncodeToMemory(encryptedPEMBlock), nil
 }
@@ -471,12 +487,8 @@ func CertsToKeys(certs []*x509.Certificate) map[string]data.PublicKey {
 	return keys
 }
 
-// NewCertificate returns an X509 Certificate following a template, given a GUN.
-func NewCertificate(gun string) (*x509.Certificate, error) {
-	notBefore := time.Now()
-	// Certificates will expire in 10 years
-	notAfter := notBefore.Add(time.Hour * 24 * 365 * 10)
-
+// NewCertificate returns an X509 Certificate following a template, given a GUN and validity interval.
+func NewCertificate(gun string, startTime, endTime time.Time) (*x509.Certificate, error) {
 	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
 
 	serialNumber, err := rand.Int(rand.Reader, serialNumberLimit)
@@ -489,8 +501,8 @@ func NewCertificate(gun string) (*x509.Certificate, error) {
 		Subject: pkix.Name{
 			CommonName: gun,
 		},
-		NotBefore: notBefore,
-		NotAfter:  notAfter,
+		NotBefore: startTime,
+		NotAfter:  endTime,
 
 		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageCodeSigning},

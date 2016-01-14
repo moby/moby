@@ -23,8 +23,8 @@ import (
 	"github.com/docker/distribution/registry/client/transport"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/pkg/parsers/kernel"
-	"github.com/docker/docker/pkg/tlsconfig"
 	"github.com/docker/docker/pkg/useragent"
+	"github.com/docker/go-connections/tlsconfig"
 )
 
 var (
@@ -188,10 +188,10 @@ func addRequiredHeadersToRedirectedRequests(req *http.Request, via []*http.Reque
 	return nil
 }
 
-func shouldV2Fallback(err errcode.Error) bool {
-	logrus.Debugf("v2 error: %T %v", err, err)
+// ShouldV2Fallback returns true if this error is a reason to fall back to v1.
+func ShouldV2Fallback(err errcode.Error) bool {
 	switch err.Code {
-	case errcode.ErrorCodeUnauthorized, v2.ErrorCodeManifestUnknown:
+	case errcode.ErrorCodeUnauthorized, v2.ErrorCodeManifestUnknown, v2.ErrorCodeNameUnknown:
 		return true
 	}
 	return false
@@ -220,7 +220,7 @@ func ContinueOnError(err error) bool {
 	case ErrNoSupport:
 		return ContinueOnError(v.Err)
 	case errcode.Error:
-		return shouldV2Fallback(v)
+		return ShouldV2Fallback(v)
 	case *client.UnexpectedHTTPResponseError:
 		return true
 	case error:

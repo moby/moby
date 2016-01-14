@@ -2,6 +2,7 @@ package client
 
 import (
 	"fmt"
+	"strings"
 
 	Cli "github.com/docker/docker/cli"
 	"github.com/docker/docker/pkg/ioutils"
@@ -24,6 +25,9 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 	}
 
 	fmt.Fprintf(cli.out, "Containers: %d\n", info.Containers)
+	fmt.Fprintf(cli.out, " Running: %d\n", info.ContainersRunning)
+	fmt.Fprintf(cli.out, " Paused: %d\n", info.ContainersPaused)
+	fmt.Fprintf(cli.out, " Stopped: %d\n", info.ContainersStopped)
 	fmt.Fprintf(cli.out, "Images: %d\n", info.Images)
 	ioutils.FprintfIfNotEmpty(cli.out, "Server Version: %s\n", info.ServerVersion)
 	ioutils.FprintfIfNotEmpty(cli.out, "Storage Driver: %s\n", info.Driver)
@@ -43,15 +47,17 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 
 	fmt.Fprintf(cli.out, "Plugins: \n")
 	fmt.Fprintf(cli.out, " Volume:")
-	for _, driver := range info.Plugins.Volume {
-		fmt.Fprintf(cli.out, " %s", driver)
-	}
+	fmt.Fprintf(cli.out, " %s", strings.Join(info.Plugins.Volume, " "))
 	fmt.Fprintf(cli.out, "\n")
 	fmt.Fprintf(cli.out, " Network:")
-	for _, driver := range info.Plugins.Network {
-		fmt.Fprintf(cli.out, " %s", driver)
-	}
+	fmt.Fprintf(cli.out, " %s", strings.Join(info.Plugins.Network, " "))
 	fmt.Fprintf(cli.out, "\n")
+
+	if len(info.Plugins.Authorization) != 0 {
+		fmt.Fprintf(cli.out, " Authorization:")
+		fmt.Fprintf(cli.out, " %s", strings.Join(info.Plugins.Authorization, " "))
+		fmt.Fprintf(cli.out, "\n")
+	}
 
 	ioutils.FprintfIfNotEmpty(cli.out, "Kernel Version: %s\n", info.KernelVersion)
 	ioutils.FprintfIfNotEmpty(cli.out, "Operating System: %s\n", info.OperatingSystem)

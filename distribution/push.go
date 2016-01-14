@@ -7,9 +7,6 @@ import (
 	"io"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/distribution/digest"
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/daemon/events"
 	"github.com/docker/docker/distribution/metadata"
 	"github.com/docker/docker/distribution/xfer"
 	"github.com/docker/docker/image"
@@ -17,6 +14,7 @@ import (
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
+	"github.com/docker/engine-api/types"
 	"github.com/docker/libtrust"
 	"golang.org/x/net/context"
 )
@@ -35,8 +33,8 @@ type ImagePushConfig struct {
 	// RegistryService is the registry service to use for TLS configuration
 	// and endpoint lookup.
 	RegistryService *registry.Service
-	// EventsService is the events service to use for logging.
-	EventsService *events.Events
+	// ImageEventLogger notifies events for a given image
+	ImageEventLogger func(id, name, action string)
 	// MetadataStore is the storage backend for distribution-specific
 	// metadata.
 	MetadataStore metadata.Store
@@ -78,7 +76,6 @@ func NewPusher(ref reference.Named, endpoint registry.APIEndpoint, repoInfo *reg
 			endpoint:       endpoint,
 			repoInfo:       repoInfo,
 			config:         imagePushConfig,
-			layersPushed:   pushMap{layersPushed: make(map[digest.Digest]bool)},
 		}, nil
 	case registry.APIVersion1:
 		return &v1Pusher{
@@ -156,7 +153,7 @@ func Push(ctx context.Context, ref reference.Named, imagePushConfig *ImagePushCo
 			return err
 		}
 
-		imagePushConfig.EventsService.Log("push", repoInfo.Name(), "")
+		imagePushConfig.ImageEventLogger(ref.String(), repoInfo.Name(), "push")
 		return nil
 	}
 

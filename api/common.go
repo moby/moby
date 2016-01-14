@@ -9,9 +9,9 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/pkg/version"
+	"github.com/docker/engine-api/types"
 	"github.com/docker/libtrust"
 )
 
@@ -25,6 +25,10 @@ const (
 
 	// DefaultDockerfileName is the Default filename with Docker commands, read by docker build
 	DefaultDockerfileName string = "Dockerfile"
+
+	// NoBaseImageSpecifier is the symbol used by the FROM
+	// command to specify that no base image is to be used.
+	NoBaseImageSpecifier string = "scratch"
 )
 
 // byPortInfo is a temporary type used to sort types.Port by its fields

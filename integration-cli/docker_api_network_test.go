@@ -8,14 +8,15 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/pkg/integration/checker"
+	"github.com/docker/engine-api/types"
+	"github.com/docker/engine-api/types/filters"
+	"github.com/docker/engine-api/types/network"
 	"github.com/go-check/check"
 )
 
 func (s *DockerSuite) TestApiNetworkGetDefaults(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	// By default docker daemon creates 3 networks. check if they are present
 	defaults := []string{"bridge", "host", "none"}
 	for _, nn := range defaults {
@@ -24,6 +25,7 @@ func (s *DockerSuite) TestApiNetworkGetDefaults(c *check.C) {
 }
 
 func (s *DockerSuite) TestApiNetworkCreateDelete(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	// Create a network
 	name := "testnetwork"
 	config := types.NetworkCreate{
@@ -33,20 +35,42 @@ func (s *DockerSuite) TestApiNetworkCreateDelete(c *check.C) {
 	id := createNetwork(c, config, true)
 	c.Assert(isNetworkAvailable(c, name), checker.Equals, true)
 
-	// POST another network with same name and CheckDuplicate must fail
-	createNetwork(c, config, false)
-
 	// delete the network and make sure it is deleted
 	deleteNetwork(c, id, true)
 	c.Assert(isNetworkAvailable(c, name), checker.Equals, false)
 }
 
+func (s *DockerSuite) TestApiNetworkCreateCheckDuplicate(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	name := "testcheckduplicate"
+	configOnCheck := types.NetworkCreate{
+		Name:           name,
+		CheckDuplicate: true,
+	}
+	configNotCheck := types.NetworkCreate{
+		Name:           name,
+		CheckDuplicate: false,
+	}
+
+	// Creating a new network first
+	createNetwork(c, configOnCheck, true)
+	c.Assert(isNetworkAvailable(c, name), checker.Equals, true)
+
+	// Creating another network with same name and CheckDuplicate must fail
+	createNetwork(c, configOnCheck, false)
+
+	// Creating another network with same name and not CheckDuplicate must succeed
+	createNetwork(c, configNotCheck, true)
+}
+
 func (s *DockerSuite) TestApiNetworkFilter(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	nr := getNetworkResource(c, getNetworkIDByName(c, "bridge"))
 	c.Assert(nr.Name, checker.Equals, "bridge")
 }
 
 func (s *DockerSuite) TestApiNetworkInspect(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	// Inspect default bridge network
 	nr := getNetworkResource(c, "bridge")
 	c.Assert(nr.Name, checker.Equals, "bridge")
@@ -96,6 +120,7 @@ func (s *DockerSuite) TestApiNetworkInspect(c *check.C) {
 }
 
 func (s *DockerSuite) TestApiNetworkConnectDisconnect(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	// Create test network
 	name := "testnetwork"
 	config := types.NetworkCreate{
@@ -136,6 +161,7 @@ func (s *DockerSuite) TestApiNetworkConnectDisconnect(c *check.C) {
 }
 
 func (s *DockerSuite) TestApiNetworkIpamMultipleBridgeNetworks(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	// test0 bridge network
 	ipam0 := network.IPAM{
 		Driver: "default",
@@ -194,6 +220,7 @@ func (s *DockerSuite) TestApiNetworkIpamMultipleBridgeNetworks(c *check.C) {
 }
 
 func (s *DockerSuite) TestApiCreateDeletePredefinedNetworks(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	createDeletePredefinedNetwork(c, "bridge")
 	createDeletePredefinedNetwork(c, "none")
 	createDeletePredefinedNetwork(c, "host")

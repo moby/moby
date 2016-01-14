@@ -90,6 +90,8 @@ func (l *JSONFileLogger) Log(msg *logger.Message) error {
 	if err != nil {
 		return err
 	}
+	l.mu.Lock()
+	defer l.mu.Unlock()
 	err = (&jsonlog.JSONLogs{
 		Log:      append(msg.Line, '\n'),
 		Stream:   msg.Source,

@@ -14,7 +14,7 @@ parent = "smn_cli"
 
     Disconnects a container from a network
 
-      --help=false       Print usage
+      --help             Print usage
 
 Disconnects a container from a network. The container must be running to disconnect it from the network.
 

@@ -13,7 +13,7 @@ weight = 7
 
 # Docker storage drivers
 
-Docker relies on driver technology to manage the storage and interactions associated with images and they containers that run them. This section contains the following pages:
+Docker relies on driver technology to manage the storage and interactions associated with images and the containers that run them. This section contains the following pages:
 
 * [Understand images, containers, and storage drivers](imagesandcontainers.md)
 * [Select a storage driver](selectadriver.md)

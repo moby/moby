@@ -10,6 +10,7 @@ docker-network-create - create a new network
 [**-d**|**--driver**=*DRIVER*]
 [**--gateway**=*[]*]
 [**--help**]
+[**--internal**]
 [**--ip-range**=*[]*]
 [**--ipam-driver**=*default*]
 [**-o**|**--opt**=*map[]*]
@@ -120,6 +121,11 @@ docker network create -d overlay
 ```
 Be sure that your subnetworks do not overlap. If they do, the network create fails and Engine returns an error.
 
+### Network internal mode
+
+By default, when you connect a container to an `overlay` network, Docker also connects a bridge network to it to provide external connectivity.
+If you want to create an externally isolated `overlay` network, you can specify the `--internal` option.
+
 # OPTIONS
 **--aux-address**=map[]
   Auxiliary ipv4 or ipv6 addresses used by network driver
@@ -132,6 +138,9 @@ Be sure that your subnetworks do not overlap. If they do, the network create fai
 
 **--help**
   Print usage
+
+**--internal**
+  Restricts external access to the network
 
 **--ip-range**=[]
   Allocate container ip from a sub-range

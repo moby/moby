@@ -12,7 +12,6 @@ import (
 	"github.com/docker/distribution/digest"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
-	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/progress"
 	"golang.org/x/net/context"
 )
@@ -66,12 +65,7 @@ func createChainIDFromParent(parent layer.ChainID, dgsts ...layer.DiffID) layer.
 		return createChainIDFromParent(layer.ChainID(dgsts[0]), dgsts[1:]...)
 	}
 	// H = "H(n-1) SHA256(n)"
-	dgst, err := digest.FromBytes([]byte(string(parent) + " " + string(dgsts[0])))
-	if err != nil {
-		// Digest calculation is not expected to throw an error,
-		// any error at this point is a program error
-		panic(err)
-	}
+	dgst := digest.FromBytes([]byte(string(parent) + " " + string(dgsts[0])))
 	return createChainIDFromParent(layer.ChainID(dgst), dgsts[1:]...)
 }
 
@@ -93,11 +87,7 @@ func (ls *mockLayerStore) Register(reader io.Reader, parentID layer.ChainID) (la
 	if err != nil {
 		return nil, err
 	}
-	diffID, err := digest.FromBytes(l.layerData.Bytes())
-	if err != nil {
-		return nil, err
-	}
-	l.diffID = layer.DiffID(diffID)
+	l.diffID = layer.DiffID(digest.FromBytes(l.layerData.Bytes()))
 	l.chainID = createChainIDFromParent(parentID, l.diffID)
 
 	ls.layers[l.chainID] = l
@@ -115,25 +105,30 @@ func (ls *mockLayerStore) Get(chainID layer.ChainID) (layer.Layer, error) {
 func (ls *mockLayerStore) Release(l layer.Layer) ([]layer.Metadata, error) {
 	return []layer.Metadata{}, nil
 }
-
-func (ls *mockLayerStore) Mount(id string, parent layer.ChainID, label string, init layer.MountInit) (layer.RWLayer, error) {
+func (ls *mockLayerStore) CreateRWLayer(string, layer.ChainID, string, layer.MountInit) (layer.RWLayer, error) {
 	return nil, errors.New("not implemented")
 }
 
-func (ls *mockLayerStore) Unmount(id string) error {
-	return errors.New("not implemented")
+func (ls *mockLayerStore) GetRWLayer(string) (layer.RWLayer, error) {
+	return nil, errors.New("not implemented")
+
 }
 
-func (ls *mockLayerStore) DeleteMount(id string) ([]layer.Metadata, error) {
+func (ls *mockLayerStore) ReleaseRWLayer(layer.RWLayer) ([]layer.Metadata, error) {
 	return nil, errors.New("not implemented")
+
 }
 
-func (ls *mockLayerStore) Changes(id string) ([]archive.Change, error) {
-	return nil, errors.New("not implemented")
+func (ls *mockLayerStore) Cleanup() error {
+	return nil
 }
 
-func (ls *mockLayerStore) Metadata(id string) (map[string]string, error) {
-	return nil, errors.New("not implemented")
+func (ls *mockLayerStore) DriverStatus() [][2]string {
+	return [][2]string{}
+}
+
+func (ls *mockLayerStore) DriverName() string {
+	return "mock"
 }
 
 type mockDownloadDescriptor struct {
@@ -246,15 +241,11 @@ func TestSuccessfulDownload(t *testing.T) {
 
 	progressChan := make(chan progress.Progress)
 	progressDone := make(chan struct{})
-	receivedProgress := make(map[string]int64)
+	receivedProgress := make(map[string]progress.Progress)
 
 	go func() {
 		for p := range progressChan {
-			if p.Action == "Downloading" {
-				receivedProgress[p.ID] = p.Current
-			} else if p.Action == "Already exists" {
-				receivedProgress[p.ID] = -1
-			}
+			receivedProgress[p.ID] = p
 		}
 		close(progressDone)
 	}()
@@ -289,11 +280,11 @@ func TestSuccessfulDownload(t *testing.T) {
 		descriptor := d.(*mockDownloadDescriptor)
 
 		if descriptor.diffID != "" {
-			if receivedProgress[d.ID()] != -1 {
-				t.Fatalf("did not get 'already exists' message for %v", d.ID())
+			if receivedProgress[d.ID()].Action != "Already exists" {
+				t.Fatalf("did not get 'Already exists' message for %v", d.ID())
 			}
-		} else if receivedProgress[d.ID()] != 10 {
-			t.Fatalf("missing or wrong progress output for %v (got: %d)", d.ID(), receivedProgress[d.ID()])
+		} else if receivedProgress[d.ID()].Action != "Pull complete" {
+			t.Fatalf("did not get 'Pull complete' message for %v", d.ID())
 		}
 
 		if rootFS.DiffIDs[i] != descriptor.expectedDiffID {

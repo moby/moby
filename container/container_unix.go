@@ -13,15 +13,17 @@ import (
 	"syscall"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/daemon/execdriver"
 	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/chrootarchive"
-	"github.com/docker/docker/pkg/nat"
 	"github.com/docker/docker/pkg/symlink"
 	"github.com/docker/docker/pkg/system"
+	runconfigopts "github.com/docker/docker/runconfig/opts"
 	"github.com/docker/docker/utils"
 	"github.com/docker/docker/volume"
+	"github.com/docker/engine-api/types/container"
+	"github.com/docker/engine-api/types/network"
+	"github.com/docker/go-connections/nat"
 	"github.com/docker/libnetwork"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/options"
@@ -246,6 +248,21 @@ func (container *Container) UpdateSandboxNetworkSettings(sb libnetwork.Sandbox) 
 	return nil
 }
 
+// BuildJoinOptions builds endpoint Join options from a given network.
+func (container *Container) BuildJoinOptions(n libnetwork.Network) ([]libnetwork.EndpointOption, error) {
+	var joinOptions []libnetwork.EndpointOption
+	if epConfig, ok := container.NetworkSettings.Networks[n.Name()]; ok {
+		for _, str := range epConfig.Links {
+			name, alias, err := runconfigopts.ParseLink(str)
+			if err != nil {
+				return nil, err
+			}
+			joinOptions = append(joinOptions, libnetwork.CreateOptionAlias(name, alias))
+		}
+	}
+	return joinOptions, nil
+}
+
 // BuildCreateEndpointOptions builds endpoint options from a given network.
 func (container *Container) BuildCreateEndpointOptions(n libnetwork.Network) ([]libnetwork.EndpointOption, error) {
 	var (
@@ -258,6 +275,18 @@ func (container *Container) BuildCreateEndpointOptions(n libnetwork.Network) ([]
 
 	if n.Name() == "bridge" || container.NetworkSettings.IsAnonymousEndpoint {
 		createOptions = append(createOptions, libnetwork.CreateOptionAnonymous())
+	}
+
+	if epConfig, ok := container.NetworkSettings.Networks[n.Name()]; ok {
+		ipam := epConfig.IPAMConfig
+		if ipam != nil && (ipam.IPv4Address != "" || ipam.IPv6Address != "") {
+			createOptions = append(createOptions,
+				libnetwork.CreateOptionIpam(net.ParseIP(ipam.IPv4Address), net.ParseIP(ipam.IPv6Address), nil))
+		}
+	}
+
+	if !container.HostConfig.NetworkMode.IsUserDefined() {
+		createOptions = append(createOptions, libnetwork.CreateOptionDisableResolution())
 	}
 
 	// Other configs are applicable only for the endpoint in the network
@@ -543,12 +572,81 @@ func (container *Container) IpcMounts() []execdriver.Mount {
 	return mounts
 }
 
+func updateCommand(c *execdriver.Command, resources container.Resources) {
+	c.Resources.BlkioWeight = resources.BlkioWeight
+	c.Resources.CPUShares = resources.CPUShares
+	c.Resources.CPUPeriod = resources.CPUPeriod
+	c.Resources.CPUQuota = resources.CPUQuota
+	c.Resources.CpusetCpus = resources.CpusetCpus
+	c.Resources.CpusetMems = resources.CpusetMems
+	c.Resources.Memory = resources.Memory
+	c.Resources.MemorySwap = resources.MemorySwap
+	c.Resources.MemoryReservation = resources.MemoryReservation
+	c.Resources.KernelMemory = resources.KernelMemory
+}
+
+// UpdateContainer updates resources of a container.
+func (container *Container) UpdateContainer(hostConfig *container.HostConfig) error {
+	container.Lock()
+
+	resources := hostConfig.Resources
+	cResources := &container.HostConfig.Resources
+	if resources.BlkioWeight != 0 {
+		cResources.BlkioWeight = resources.BlkioWeight
+	}
+	if resources.CPUShares != 0 {
+		cResources.CPUShares = resources.CPUShares
+	}
+	if resources.CPUPeriod != 0 {
+		cResources.CPUPeriod = resources.CPUPeriod
+	}
+	if resources.CPUQuota != 0 {
+		cResources.CPUQuota = resources.CPUQuota
+	}
+	if resources.CpusetCpus != "" {
+		cResources.CpusetCpus = resources.CpusetCpus
+	}
+	if resources.CpusetMems != "" {
+		cResources.CpusetMems = resources.CpusetMems
+	}
+	if resources.Memory != 0 {
+		cResources.Memory = resources.Memory
+	}
+	if resources.MemorySwap != 0 {
+		cResources.MemorySwap = resources.MemorySwap
+	}
+	if resources.MemoryReservation != 0 {
+		cResources.MemoryReservation = resources.MemoryReservation
+	}
+	if resources.KernelMemory != 0 {
+		cResources.KernelMemory = resources.KernelMemory
+	}
+	container.Unlock()
+
+	// If container is not running, update hostConfig struct is enough,
+	// resources will be updated when the container is started again.
+	// If container is running (including paused), we need to update
+	// the command so we can update configs to the real world.
+	if container.IsRunning() {
+		container.Lock()
+		updateCommand(container.Command, *cResources)
+		container.Unlock()
+	}
+
+	if err := container.ToDiskLocking(); err != nil {
+		logrus.Errorf("Error saving updated container: %v", err)
+		return err
+	}
+
+	return nil
+}
+
 func detachMounted(path string) error {
 	return syscall.Unmount(path, syscall.MNT_DETACH)
 }
 
 // UnmountVolumes unmounts all volumes
-func (container *Container) UnmountVolumes(forceSyscall bool) error {
+func (container *Container) UnmountVolumes(forceSyscall bool, volumeEventLog func(name, action string, attributes map[string]string)) error {
 	var (
 		volumeMounts []volume.MountPoint
 		err          error
@@ -579,6 +677,12 @@ func (container *Container) UnmountVolumes(forceSyscall bool) error {
 			if err := volumeMount.Volume.Unmount(); err != nil {
 				return err
 			}
+
+			attributes := map[string]string{
+				"driver":    volumeMount.Volume.DriverName(),
+				"container": container.ID,
+			}
+			volumeEventLog(volumeMount.Volume.Name(), "unmount", attributes)
 		}
 	}
 

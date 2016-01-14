@@ -16,7 +16,7 @@ Support subscription to install Docker on Oracle Linux.
 This page instructs you to install using Docker-managed release packages and
 installation mechanisms. Using these packages ensures you get the latest release
 of Docker. If you wish to install using Oracle-managed packages, consult your
-[Oracle Linux documentation](https://linux.oracle.com).
+[Oracle Linux documentation](https://oracle.com/linux).
 
 
 ## Prerequisites

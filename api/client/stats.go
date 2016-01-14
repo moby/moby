@@ -10,9 +10,10 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"github.com/docker/docker/api/types"
 	Cli "github.com/docker/docker/cli"
-	"github.com/docker/docker/pkg/jsonmessage"
+	"github.com/docker/engine-api/types"
+	"github.com/docker/engine-api/types/events"
+	"github.com/docker/engine-api/types/filters"
 	"github.com/docker/go-units"
 )
 
@@ -189,7 +190,11 @@ func (cli *DockerCli) CmdStats(args ...string) error {
 			err   error
 		}
 		getNewContainers := func(c chan<- watch) {
-			options := types.EventsOptions{}
+			f := filters.NewArgs()
+			f.Add("type", "container")
+			options := types.EventsOptions{
+				Filters: f,
+			}
 			resBody, err := cli.client.Events(options)
 			if err != nil {
 				c <- watch{err: err}
@@ -197,15 +202,15 @@ func (cli *DockerCli) CmdStats(args ...string) error {
 			}
 			defer resBody.Close()
 
-			dec := json.NewDecoder(resBody)
-			for {
-				var j *jsonmessage.JSONMessage
-				if err := dec.Decode(&j); err != nil {
+			decodeEvents(resBody, func(event events.Message, err error) error {
+				if err != nil {
 					c <- watch{err: err}
-					return
+					return nil
 				}
-				c <- watch{j.ID[:12], j.Status, nil}
-			}
+
+				c <- watch{event.ID[:12], event.Action, nil}
+				return nil
+			})
 		}
 		go func(stopChan chan<- error) {
 			cChan := make(chan watch)

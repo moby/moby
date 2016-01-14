@@ -31,7 +31,9 @@ Creates a new container.
       --cpuset-mems=""              Memory nodes (MEMs) in which to allow execution (0-3, 0,1)
       --device=[]                   Add a host device to the container
       --device-read-bps=[]          Limit read rate (bytes per second) from a device (e.g., --device-read-bps=/dev/sda:1mb)
+      --device-read-iops=[]         Limit read rate (IO per second) from a device (e.g., --device-read-iops=/dev/sda:1000)
       --device-write-bps=[]         Limit write rate (bytes per second) to a device (e.g., --device-write-bps=/dev/sda:1mb)
+      --device-write-iops=[]        Limit write rate (IO per second) to a device (e.g., --device-write-iops=/dev/sda:1000)
       --disable-content-trust=true  Skip image verification
       --dns=[]                      Set custom DNS servers
       --dns-opt=[]                  Set custom DNS options
@@ -42,8 +44,8 @@ Creates a new container.
       --expose=[]                   Expose a port or a range of ports
       --group-add=[]                Add additional groups to join
       -h, --hostname=""             Container host name
-      --help=false                  Print usage
-      -i, --interactive=false       Keep STDIN open even if not attached
+      --help                        Print usage
+      -i, --interactive             Keep STDIN open even if not attached
       --ipc=""                      IPC namespace to use
       --isolation=""                Container isolation technology
       --kernel-memory=""            Kernel memory limit
@@ -55,7 +57,7 @@ Creates a new container.
       -m, --memory=""               Memory limit
       --mac-address=""              Container MAC address (e.g. 92:d0:c6:0a:29:33)
       --memory-reservation=""       Memory soft limit
-      --memory-swap=""              Total memory (memory + swap), '-1' to disable swap
+      --memory-swap=""              A positive integer equal to memory plus swap. Specify -1 to enable unlimited swap.
       --memory-swappiness=""        Tune a container's memory swappiness behavior. Accepts an integer between 0 and 100.
       --name=""                     Assign a name to the container
       --net="bridge"                Connect a container to a network
@@ -64,18 +66,18 @@ Creates a new container.
                                     'container:<name|id>': reuse another container's network stack
                                     'host': use the Docker host network stack
                                     '<network-name>|<network-id>': connect to a user-defined network
-      --oom-kill-disable=false      Whether to disable OOM Killer for the container or not
+      --oom-kill-disable            Whether to disable OOM Killer for the container or not
       --oom-score-adj=0             Tune the host's OOM preferences for containers (accepts -1000 to 1000)
-      -P, --publish-all=false       Publish all exposed ports to random ports
+      -P, --publish-all             Publish all exposed ports to random ports
       -p, --publish=[]              Publish a container's port(s) to the host
       --pid=""                      PID namespace to use
-      --privileged=false            Give extended privileges to this container
-      --read-only=false             Mount the container's root filesystem as read only
+      --privileged                  Give extended privileges to this container
+      --read-only                   Mount the container's root filesystem as read only
       --restart="no"                Restart policy (no, on-failure[:max-retry], always, unless-stopped)
       --security-opt=[]             Security options
       --stop-signal="SIGTERM"       Signal to stop a container
       --shm-size=[]                 Size of `/dev/shm`. The format is `<number><unit>`. `number` must be greater than `0`.  Unit is optional and can be `b` (bytes), `k` (kilobytes), `m` (megabytes), or `g` (gigabytes). If you omit the unit, the system uses bytes. If you omit the size entirely, the system uses `64m`.
-      -t, --tty=false               Allocate a pseudo-TTY
+      -t, --tty                     Allocate a pseudo-TTY
       -u, --user=""                 Username or UID
       --ulimit=[]                   Ulimit options
       --uts=""                      UTS namespace to use

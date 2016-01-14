@@ -249,11 +249,11 @@ You can use the `lsblk` command to see the device files created above and the `p
     NAME                       MAJ:MIN RM  SIZE RO TYPE MOUNTPOINT
     xvda                       202:0    0    8G  0 disk
     └─xvda1                    202:1    0    8G  0 part /
-    xvdf                       202:80   0  100G  0 disk
+    xvdf                       202:80   0   10G  0 disk
     ├─vg--docker-data          253:0    0   90G  0 lvm
-    │ └─docker-202:1-1032-pool 253:2    0  100G  0 dm
+    │ └─docker-202:1-1032-pool 253:2    0   10G  0 dm
     └─vg--docker-metadata      253:1    0    4G  0 lvm
-      └─docker-202:1-1032-pool 253:2    0  100G  0 dm
+      └─docker-202:1-1032-pool 253:2    0   10G  0 dm
 
 The diagram below shows the image from prior examples updated with the detail from the `lsblk` command above.
 

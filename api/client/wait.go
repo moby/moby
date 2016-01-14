@@ -2,6 +2,7 @@ package client
 
 import (
 	"fmt"
+	"strings"
 
 	Cli "github.com/docker/docker/cli"
 	flag "github.com/docker/docker/pkg/mflag"
@@ -18,18 +19,17 @@ func (cli *DockerCli) CmdWait(args ...string) error {
 
 	cmd.ParseFlags(args, true)
 
-	var errNames []string
+	var errs []string
 	for _, name := range cmd.Args() {
 		status, err := cli.client.ContainerWait(name)
 		if err != nil {
-			fmt.Fprintf(cli.err, "%s\n", err)
-			errNames = append(errNames, name)
+			errs = append(errs, fmt.Sprintf("Failed to wait container (%s): %s", name, err))
 		} else {
 			fmt.Fprintf(cli.out, "%d\n", status)
 		}
 	}
-	if len(errNames) > 0 {
-		return fmt.Errorf("Error: failed to wait containers: %v", errNames)
+	if len(errs) > 0 {
+		return fmt.Errorf("%s", strings.Join(errs, "\n"))
 	}
 	return nil
 }

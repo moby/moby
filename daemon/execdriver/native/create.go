@@ -69,6 +69,10 @@ func (d *Driver) createContainer(c *execdriver.Command, hooks execdriver.Hooks) 
 		if err := d.setCapabilities(container, c); err != nil {
 			return nil, err
 		}
+
+		if c.SeccompProfile == "" {
+			container.Seccomp = getDefaultSeccompProfile()
+		}
 	}
 	// add CAP_ prefix to all caps for new libcontainer update to match
 	// the spec format.
@@ -83,12 +87,13 @@ func (d *Driver) createContainer(c *execdriver.Command, hooks execdriver.Hooks) 
 		container.AppArmorProfile = c.AppArmorProfile
 	}
 
-	if c.SeccompProfile != "" {
+	if c.SeccompProfile != "" && c.SeccompProfile != "unconfined" {
 		container.Seccomp, err = loadSeccompProfile(c.SeccompProfile)
 		if err != nil {
 			return nil, err
 		}
 	}
+
 	if err := execdriver.SetupCgroups(container, c); err != nil {
 		return nil, err
 	}
@@ -246,7 +251,7 @@ func (d *Driver) setupRemappedRoot(container *configs.Config, c *execdriver.Comm
 
 func (d *Driver) setPrivileged(container *configs.Config) (err error) {
 	container.Capabilities = execdriver.GetAllCapabilities()
-	container.Cgroups.AllowAllDevices = true
+	container.Cgroups.Resources.AllowAllDevices = true
 
 	hostDevices, err := devices.HostDevices()
 	if err != nil {

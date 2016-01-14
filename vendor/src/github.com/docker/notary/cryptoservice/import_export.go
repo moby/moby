@@ -261,12 +261,12 @@ func moveKeysByGUN(oldKeyStore, newKeyStore trustmanager.KeyStore, gun string) e
 
 func moveKeys(oldKeyStore, newKeyStore trustmanager.KeyStore) error {
 	for f := range oldKeyStore.ListKeys() {
-		privateKey, alias, err := oldKeyStore.GetKey(f)
+		privateKey, role, err := oldKeyStore.GetKey(f)
 		if err != nil {
 			return err
 		}
 
-		err = newKeyStore.AddKey(f, alias, privateKey)
+		err = newKeyStore.AddKey(f, role, privateKey)
 
 		if err != nil {
 			return err
@@ -278,7 +278,10 @@ func moveKeys(oldKeyStore, newKeyStore trustmanager.KeyStore) error {
 
 func addKeysToArchive(zipWriter *zip.Writer, newKeyStore *trustmanager.KeyFileStore) error {
 	for _, relKeyPath := range newKeyStore.ListFiles() {
-		fullKeyPath := filepath.Join(newKeyStore.BaseDir(), relKeyPath)
+		fullKeyPath, err := newKeyStore.GetPath(relKeyPath)
+		if err != nil {
+			return err
+		}
 
 		fi, err := os.Lstat(fullKeyPath)
 		if err != nil {
@@ -290,7 +293,11 @@ func addKeysToArchive(zipWriter *zip.Writer, newKeyStore *trustmanager.KeyFileSt
 			return err
 		}
 
-		infoHeader.Name = relKeyPath
+		relPath, err := filepath.Rel(newKeyStore.BaseDir(), fullKeyPath)
+		if err != nil {
+			return err
+		}
+		infoHeader.Name = relPath
 
 		zipFileEntryWriter, err := zipWriter.CreateHeader(infoHeader)
 		if err != nil {

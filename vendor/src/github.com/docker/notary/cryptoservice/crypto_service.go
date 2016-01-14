@@ -82,10 +82,15 @@ func (cs *CryptoService) GetPrivateKey(keyID string) (k data.PrivateKey, role st
 	for _, ks := range cs.keyStores {
 		for _, keyPath := range keyPaths {
 			k, role, err = ks.GetKey(keyPath)
-			if err != nil {
+			if err == nil {
+				return
+			}
+			switch err.(type) {
+			case trustmanager.ErrPasswordInvalid, trustmanager.ErrAttemptsExceeded:
+				return
+			default:
 				continue
 			}
-			return
 		}
 	}
 	return // returns whatever the final values were
@@ -109,39 +114,6 @@ func (cs *CryptoService) RemoveKey(keyID string) (err error) {
 		}
 	}
 	return // returns whatever the final values were
-}
-
-// Sign returns the signatures for the payload with a set of keyIDs. It ignores
-// errors to sign and expects the called to validate if the number of returned
-// signatures is adequate.
-func (cs *CryptoService) Sign(keyIDs []string, payload []byte) ([]data.Signature, error) {
-	signatures := make([]data.Signature, 0, len(keyIDs))
-	for _, keyID := range keyIDs {
-		privKey, _, err := cs.GetPrivateKey(keyID)
-		if err != nil {
-			logrus.Debugf("error attempting to retrieve private key: %s, %v", keyID, err)
-			continue
-		}
-
-		sigAlgo := privKey.SignatureAlgorithm()
-		sig, err := privKey.Sign(rand.Reader, payload, nil)
-		if err != nil {
-			logrus.Debugf("ignoring error attempting to %s sign with keyID: %s, %v",
-				privKey.Algorithm(), keyID, err)
-			continue
-		}
-
-		logrus.Debugf("appending %s signature with Key ID: %s", privKey.Algorithm(), keyID)
-
-		// Append signatures to result array
-		signatures = append(signatures, data.Signature{
-			KeyID:     keyID,
-			Method:    sigAlgo,
-			Signature: sig[:],
-		})
-	}
-
-	return signatures, nil
 }
 
 // ListKeys returns a list of key IDs valid for the given role

@@ -2,13 +2,11 @@ package main
 
 import (
 	"bufio"
-	"bytes"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"os"
 	"os/exec"
-	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -68,22 +66,31 @@ func (s *DockerSuite) TestEventsUntag(c *check.C) {
 }
 
 func (s *DockerSuite) TestEventsContainerFailStartDie(c *check.C) {
-
 	out, _ := dockerCmd(c, "images", "-q")
 	image := strings.Split(out, "\n")[0]
 	_, _, err := dockerCmdWithError("run", "--name", "testeventdie", image, "blerg")
 	c.Assert(err, checker.NotNil, check.Commentf("Container run with command blerg should have failed, but it did not, out=%s", out))
 
 	out, _ = dockerCmd(c, "events", "--since=0", fmt.Sprintf("--until=%d", daemonTime(c).Unix()))
-	events := strings.Split(out, "\n")
-	c.Assert(len(events), checker.GreaterThan, 1) //Missing expected event
+	events := strings.Split(strings.TrimSpace(out), "\n")
 
-	startEvent := strings.Fields(events[len(events)-3])
-	dieEvent := strings.Fields(events[len(events)-2])
+	nEvents := len(events)
+	c.Assert(nEvents, checker.GreaterOrEqualThan, 1) //Missing expected event
 
-	c.Assert(startEvent[len(startEvent)-1], checker.Equals, "start", check.Commentf("event should be start, not %#v", startEvent))
-	c.Assert(dieEvent[len(dieEvent)-1], checker.Equals, "die", check.Commentf("event should be die, not %#v", dieEvent))
+	actions := eventActionsByIDAndType(c, events, "testeventdie", "container")
 
+	var startEvent bool
+	var dieEvent bool
+	for _, a := range actions {
+		switch a {
+		case "start":
+			startEvent = true
+		case "die":
+			dieEvent = true
+		}
+	}
+	c.Assert(startEvent, checker.True, check.Commentf("Start event not found: %v\n%v", actions, events))
+	c.Assert(dieEvent, checker.True, check.Commentf("Die event not found: %v\n%v", actions, events))
 }
 
 func (s *DockerSuite) TestEventsLimit(c *check.C) {
@@ -115,65 +122,44 @@ func (s *DockerSuite) TestEventsLimit(c *check.C) {
 
 func (s *DockerSuite) TestEventsContainerEvents(c *check.C) {
 	testRequires(c, DaemonIsLinux)
-	dockerCmd(c, "run", "--rm", "busybox", "true")
+	containerID, _ := dockerCmd(c, "run", "--rm", "--name", "container-events-test", "busybox", "true")
+	containerID = strings.TrimSpace(containerID)
+
 	out, _ := dockerCmd(c, "events", "--since=0", fmt.Sprintf("--until=%d", daemonTime(c).Unix()))
 	events := strings.Split(out, "\n")
 	events = events[:len(events)-1]
-	c.Assert(len(events), checker.GreaterOrEqualThan, 5) //Missing expected event
-	createEvent := strings.Fields(events[len(events)-5])
-	attachEvent := strings.Fields(events[len(events)-4])
-	startEvent := strings.Fields(events[len(events)-3])
-	dieEvent := strings.Fields(events[len(events)-2])
-	destroyEvent := strings.Fields(events[len(events)-1])
-	c.Assert(createEvent[len(createEvent)-1], checker.Equals, "create", check.Commentf("event should be create, not %#v", createEvent))
-	c.Assert(attachEvent[len(attachEvent)-1], checker.Equals, "attach", check.Commentf("event should be attach, not %#v", attachEvent))
-	c.Assert(startEvent[len(startEvent)-1], checker.Equals, "start", check.Commentf("event should be start, not %#v", startEvent))
-	c.Assert(dieEvent[len(dieEvent)-1], checker.Equals, "die", check.Commentf("event should be die, not %#v", dieEvent))
-	c.Assert(destroyEvent[len(destroyEvent)-1], checker.Equals, "destroy", check.Commentf("event should be destroy, not %#v", destroyEvent))
 
+	nEvents := len(events)
+	c.Assert(nEvents, checker.GreaterOrEqualThan, 5) //Missing expected event
+	containerEvents := eventActionsByIDAndType(c, events, "container-events-test", "container")
+	c.Assert(containerEvents, checker.HasLen, 5, check.Commentf("events: %v", events))
+
+	c.Assert(containerEvents[0], checker.Equals, "create", check.Commentf(out))
+	c.Assert(containerEvents[1], checker.Equals, "attach", check.Commentf(out))
+	c.Assert(containerEvents[2], checker.Equals, "start", check.Commentf(out))
+	c.Assert(containerEvents[3], checker.Equals, "die", check.Commentf(out))
+	c.Assert(containerEvents[4], checker.Equals, "destroy", check.Commentf(out))
 }
 
 func (s *DockerSuite) TestEventsContainerEventsSinceUnixEpoch(c *check.C) {
 	testRequires(c, DaemonIsLinux)
-	dockerCmd(c, "run", "--rm", "busybox", "true")
+	dockerCmd(c, "run", "--rm", "--name", "since-epoch-test", "busybox", "true")
 	timeBeginning := time.Unix(0, 0).Format(time.RFC3339Nano)
 	timeBeginning = strings.Replace(timeBeginning, "Z", ".000000000Z", -1)
-	out, _ := dockerCmd(c, "events", fmt.Sprintf("--since='%s'", timeBeginning),
-		fmt.Sprintf("--until=%d", daemonTime(c).Unix()))
+	out, _ := dockerCmd(c, "events", fmt.Sprintf("--since='%s'", timeBeginning), fmt.Sprintf("--until=%d", daemonTime(c).Unix()))
 	events := strings.Split(out, "\n")
 	events = events[:len(events)-1]
-	c.Assert(len(events), checker.GreaterOrEqualThan, 5) //Missing expected event
-	createEvent := strings.Fields(events[len(events)-5])
-	attachEvent := strings.Fields(events[len(events)-4])
-	startEvent := strings.Fields(events[len(events)-3])
-	dieEvent := strings.Fields(events[len(events)-2])
-	destroyEvent := strings.Fields(events[len(events)-1])
-	c.Assert(createEvent[len(createEvent)-1], checker.Equals, "create", check.Commentf("event should be create, not %#v", createEvent))
-	c.Assert(attachEvent[len(attachEvent)-1], checker.Equals, "attach", check.Commentf("event should be attach, not %#v", attachEvent))
-	c.Assert(startEvent[len(startEvent)-1], checker.Equals, "start", check.Commentf("event should be start, not %#v", startEvent))
-	c.Assert(dieEvent[len(dieEvent)-1], checker.Equals, "die", check.Commentf("event should be die, not %#v", dieEvent))
-	c.Assert(destroyEvent[len(destroyEvent)-1], checker.Equals, "destroy", check.Commentf("event should be destroy, not %#v", destroyEvent))
 
-}
+	nEvents := len(events)
+	c.Assert(nEvents, checker.GreaterOrEqualThan, 5) //Missing expected event
+	containerEvents := eventActionsByIDAndType(c, events, "since-epoch-test", "container")
+	c.Assert(containerEvents, checker.HasLen, 5, check.Commentf("events: %v", events))
 
-func (s *DockerSuite) TestEventsImageUntagDelete(c *check.C) {
-	testRequires(c, DaemonIsLinux)
-	name := "testimageevents"
-	_, err := buildImage(name,
-		`FROM scratch
-		MAINTAINER "docker"`,
-		true)
-	c.Assert(err, checker.IsNil)
-	c.Assert(deleteImages(name), checker.IsNil)
-	out, _ := dockerCmd(c, "events", "--since=0", fmt.Sprintf("--until=%d", daemonTime(c).Unix()))
-	events := strings.Split(out, "\n")
-
-	events = events[:len(events)-1]
-	c.Assert(len(events), checker.GreaterOrEqualThan, 2) //Missing expected event
-	untagEvent := strings.Fields(events[len(events)-2])
-	deleteEvent := strings.Fields(events[len(events)-1])
-	c.Assert(untagEvent[len(untagEvent)-1], checker.Equals, "untag", check.Commentf("untag should be untag, not %#v", untagEvent))
-	c.Assert(deleteEvent[len(deleteEvent)-1], checker.Equals, "delete", check.Commentf("untag should be delete, not %#v", untagEvent))
+	c.Assert(containerEvents[0], checker.Equals, "create", check.Commentf(out))
+	c.Assert(containerEvents[1], checker.Equals, "attach", check.Commentf(out))
+	c.Assert(containerEvents[2], checker.Equals, "start", check.Commentf(out))
+	c.Assert(containerEvents[3], checker.Equals, "die", check.Commentf(out))
+	c.Assert(containerEvents[4], checker.Equals, "destroy", check.Commentf(out))
 }
 
 func (s *DockerSuite) TestEventsImageTag(c *check.C) {
@@ -190,10 +176,10 @@ func (s *DockerSuite) TestEventsImageTag(c *check.C) {
 	events := strings.Split(strings.TrimSpace(out), "\n")
 	c.Assert(events, checker.HasLen, 1, check.Commentf("was expecting 1 event. out=%s", out))
 	event := strings.TrimSpace(events[0])
-	expectedStr := image + ": tag"
 
-	c.Assert(event, checker.HasSuffix, expectedStr, check.Commentf("wrong event format. expected='%s' got=%s", expectedStr, event))
-
+	matches := parseEventText(event)
+	c.Assert(matchEventID(matches, image), checker.True, check.Commentf("matches: %v\nout:\n%s", matches, out))
+	c.Assert(matches["action"], checker.Equals, "tag")
 }
 
 func (s *DockerSuite) TestEventsImagePull(c *check.C) {
@@ -209,74 +195,45 @@ func (s *DockerSuite) TestEventsImagePull(c *check.C) {
 
 	events := strings.Split(strings.TrimSpace(out), "\n")
 	event := strings.TrimSpace(events[len(events)-1])
-
-	c.Assert(event, checker.HasSuffix, "hello-world:latest: pull", check.Commentf("Missing pull event - got:%q", event))
+	matches := parseEventText(event)
+	c.Assert(matches["id"], checker.Equals, "hello-world:latest")
+	c.Assert(matches["action"], checker.Equals, "pull")
 
 }
 
 func (s *DockerSuite) TestEventsImageImport(c *check.C) {
 	testRequires(c, DaemonIsLinux)
-	since := daemonTime(c).Unix()
-
-	id := make(chan string)
-	eventImport := make(chan struct{})
-	eventsCmd := exec.Command(dockerBinary, "events", "--since", strconv.FormatInt(since, 10))
-	stdout, err := eventsCmd.StdoutPipe()
-	c.Assert(err, checker.IsNil)
-	c.Assert(eventsCmd.Start(), checker.IsNil)
-	defer eventsCmd.Process.Kill()
-
-	go func() {
-		containerID := <-id
-
-		matchImport := regexp.MustCompile(containerID + `: import$`)
-		scanner := bufio.NewScanner(stdout)
-		for scanner.Scan() {
-			if matchImport.MatchString(scanner.Text()) {
-				close(eventImport)
-			}
-		}
-	}()
 
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "true")
 	cleanedContainerID := strings.TrimSpace(out)
 
-	out, _, err = runCommandPipelineWithOutput(
+	since := daemonTime(c).Unix()
+	out, _, err := runCommandPipelineWithOutput(
 		exec.Command(dockerBinary, "export", cleanedContainerID),
 		exec.Command(dockerBinary, "import", "-"),
 	)
 	c.Assert(err, checker.IsNil, check.Commentf("import failed with output: %q", out))
-	newContainerID := strings.TrimSpace(out)
-	id <- newContainerID
+	imageRef := strings.TrimSpace(out)
 
-	select {
-	case <-time.After(5 * time.Second):
-		c.Fatal("failed to observe image import in timely fashion")
-	case <-eventImport:
-		// ignore, done
-	}
+	out, _ = dockerCmd(c, "events", fmt.Sprintf("--since=%d", since), fmt.Sprintf("--until=%d", daemonTime(c).Unix()), "--filter", "event=import")
+	events := strings.Split(strings.TrimSpace(out), "\n")
+	c.Assert(events, checker.HasLen, 1)
+	matches := parseEventText(events[0])
+	c.Assert(matches["id"], checker.Equals, imageRef, check.Commentf("matches: %v\nout:\n%s\n", matches, out))
+	c.Assert(matches["action"], checker.Equals, "import", check.Commentf("matches: %v\nout:\n%s\n", matches, out))
 }
 
 func (s *DockerSuite) TestEventsFilters(c *check.C) {
 	testRequires(c, DaemonIsLinux)
-	parseEvents := func(out, match string) {
-		events := strings.Split(out, "\n")
-		events = events[:len(events)-1]
-		for _, event := range events {
-			eventFields := strings.Fields(event)
-			eventName := eventFields[len(eventFields)-1]
-			c.Assert(eventName, checker.Matches, match)
-		}
-	}
 
 	since := daemonTime(c).Unix()
 	dockerCmd(c, "run", "--rm", "busybox", "true")
 	dockerCmd(c, "run", "--rm", "busybox", "true")
 	out, _ := dockerCmd(c, "events", fmt.Sprintf("--since=%d", since), fmt.Sprintf("--until=%d", daemonTime(c).Unix()), "--filter", "event=die")
-	parseEvents(out, "die")
+	parseEvents(c, out, "die")
 
 	out, _ = dockerCmd(c, "events", fmt.Sprintf("--since=%d", since), fmt.Sprintf("--until=%d", daemonTime(c).Unix()), "--filter", "event=die", "--filter", "event=start")
-	parseEvents(out, "((die)|(start))")
+	parseEvents(c, out, "die|start")
 
 	// make sure we at least got 2 start events
 	count := strings.Count(out, "start")
@@ -362,7 +319,8 @@ func (s *DockerSuite) TestEventsFilterImageLabels(c *check.C) {
 		"events",
 		fmt.Sprintf("--since=%d", since),
 		fmt.Sprintf("--until=%d", daemonTime(c).Unix()),
-		"--filter", fmt.Sprintf("label=%s", label))
+		"--filter", fmt.Sprintf("label=%s", label),
+		"--filter", "type=image")
 
 	events := strings.Split(strings.TrimSpace(out), "\n")
 
@@ -392,15 +350,9 @@ func (s *DockerSuite) TestEventsFilterContainer(c *check.C) {
 			return fmt.Errorf("expected 4 events, got %v", events)
 		}
 		for _, event := range events {
-			e := strings.Fields(event)
-			if len(e) < 3 {
-				return fmt.Errorf("got malformed event: %s", event)
-			}
-
-			// Check the id
-			parsedID := strings.TrimSuffix(e[1], ":")
-			if parsedID != id {
-				return fmt.Errorf("expected event for container id %s: %s - parsed container id: %s", id, event, parsedID)
+			matches := parseEventText(event)
+			if !matchEventID(matches, id) {
+				return fmt.Errorf("expected event for container id %s: %s - parsed container id: %s", id, event, matches["id"])
 			}
 		}
 		return nil
@@ -419,83 +371,6 @@ func (s *DockerSuite) TestEventsFilterContainer(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestEventsStreaming(c *check.C) {
-	testRequires(c, DaemonIsLinux)
-	start := daemonTime(c).Unix()
-
-	id := make(chan string)
-	eventCreate := make(chan struct{})
-	eventStart := make(chan struct{})
-	eventDie := make(chan struct{})
-	eventDestroy := make(chan struct{})
-
-	eventsCmd := exec.Command(dockerBinary, "events", "--since", strconv.FormatInt(start, 10))
-	stdout, err := eventsCmd.StdoutPipe()
-	c.Assert(err, checker.IsNil)
-	c.Assert(eventsCmd.Start(), checker.IsNil, check.Commentf("failed to start 'docker events'"))
-	defer eventsCmd.Process.Kill()
-
-	buffer := new(bytes.Buffer)
-	go func() {
-		containerID := <-id
-
-		matchCreate := regexp.MustCompile(containerID + `: \(from busybox:latest\) create\z`)
-		matchStart := regexp.MustCompile(containerID + `: \(from busybox:latest\) start\z`)
-		matchDie := regexp.MustCompile(containerID + `: \(from busybox:latest\) die\z`)
-		matchDestroy := regexp.MustCompile(containerID + `: \(from busybox:latest\) destroy\z`)
-
-		scanner := bufio.NewScanner(stdout)
-		for scanner.Scan() {
-			text := scanner.Text()
-			buffer.WriteString(text + "\n")
-			switch {
-			case matchCreate.MatchString(text):
-				close(eventCreate)
-			case matchStart.MatchString(text):
-				close(eventStart)
-			case matchDie.MatchString(text):
-				close(eventDie)
-			case matchDestroy.MatchString(text):
-				close(eventDestroy)
-			}
-		}
-	}()
-
-	out, _ := dockerCmd(c, "run", "-d", "busybox:latest", "true")
-	cleanedContainerID := strings.TrimSpace(out)
-	id <- cleanedContainerID
-
-	select {
-	case <-time.After(5 * time.Second):
-		c.Fatal("failed to observe container create in timely fashion", "\n", buffer.String())
-	case <-eventCreate:
-		// ignore, done
-	}
-
-	select {
-	case <-time.After(5 * time.Second):
-		c.Fatal("failed to observe container start in timely fashion", "\n", buffer.String())
-	case <-eventStart:
-		// ignore, done
-	}
-
-	select {
-	case <-time.After(5 * time.Second):
-		c.Fatal("failed to observe container die in timely fashion", "\n", buffer.String())
-	case <-eventDie:
-		// ignore, done
-	}
-
-	dockerCmd(c, "rm", cleanedContainerID)
-
-	select {
-	case <-time.After(5 * time.Second):
-		c.Fatal("failed to observe container destroy in timely fashion", "\n", buffer.String())
-	case <-eventDestroy:
-		// ignore, done
-	}
-}
-
 func (s *DockerSuite) TestEventsCommit(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	since := daemonTime(c).Unix()
@@ -508,7 +383,7 @@ func (s *DockerSuite) TestEventsCommit(c *check.C) {
 	dockerCmd(c, "stop", cID)
 
 	out, _ = dockerCmd(c, "events", "--since=0", "-f", "container="+cID, "--until="+strconv.Itoa(int(since)))
-	c.Assert(out, checker.Contains, " commit\n", check.Commentf("Missing 'commit' log event"))
+	c.Assert(out, checker.Contains, "commit", check.Commentf("Missing 'commit' log event"))
 }
 
 func (s *DockerSuite) TestEventsCopy(c *check.C) {
@@ -533,12 +408,12 @@ func (s *DockerSuite) TestEventsCopy(c *check.C) {
 	dockerCmd(c, "cp", "cptest:/tmp/file", tempFile.Name())
 
 	out, _ := dockerCmd(c, "events", "--since=0", "-f", "container=cptest", "--until="+strconv.Itoa(int(since)))
-	c.Assert(out, checker.Contains, " archive-path\n", check.Commentf("Missing 'archive-path' log event\n"))
+	c.Assert(out, checker.Contains, "archive-path", check.Commentf("Missing 'archive-path' log event\n"))
 
 	dockerCmd(c, "cp", tempFile.Name(), "cptest:/tmp/filecopy")
 
 	out, _ = dockerCmd(c, "events", "--since=0", "-f", "container=cptest", "--until="+strconv.Itoa(int(since)))
-	c.Assert(out, checker.Contains, " extract-to-dir\n", check.Commentf("Missing 'extract-to-dir' log event"))
+	c.Assert(out, checker.Contains, "extract-to-dir", check.Commentf("Missing 'extract-to-dir' log event"))
 }
 
 func (s *DockerSuite) TestEventsResize(c *check.C) {
@@ -557,7 +432,7 @@ func (s *DockerSuite) TestEventsResize(c *check.C) {
 	dockerCmd(c, "stop", cID)
 
 	out, _ = dockerCmd(c, "events", "--since=0", "-f", "container="+cID, "--until="+strconv.Itoa(int(since)))
-	c.Assert(out, checker.Contains, " resize\n", check.Commentf("Missing 'resize' log event"))
+	c.Assert(out, checker.Contains, "resize", check.Commentf("Missing 'resize' log event"))
 }
 
 func (s *DockerSuite) TestEventsAttach(c *check.C) {
@@ -589,7 +464,7 @@ func (s *DockerSuite) TestEventsAttach(c *check.C) {
 	dockerCmd(c, "stop", cID)
 
 	out, _ = dockerCmd(c, "events", "--since=0", "-f", "container="+cID, "--until="+strconv.Itoa(int(since)))
-	c.Assert(out, checker.Contains, " attach\n", check.Commentf("Missing 'attach' log event"))
+	c.Assert(out, checker.Contains, "attach", check.Commentf("Missing 'attach' log event"))
 }
 
 func (s *DockerSuite) TestEventsRename(c *check.C) {
@@ -600,7 +475,7 @@ func (s *DockerSuite) TestEventsRename(c *check.C) {
 	dockerCmd(c, "rename", "oldName", "newName")
 
 	out, _ := dockerCmd(c, "events", "--since=0", "-f", "container=newName", "--until="+strconv.Itoa(int(since)))
-	c.Assert(out, checker.Contains, " rename\n", check.Commentf("Missing 'rename' log event\n"))
+	c.Assert(out, checker.Contains, "rename", check.Commentf("Missing 'rename' log event\n"))
 }
 
 func (s *DockerSuite) TestEventsTop(c *check.C) {
@@ -615,7 +490,7 @@ func (s *DockerSuite) TestEventsTop(c *check.C) {
 	dockerCmd(c, "stop", cID)
 
 	out, _ = dockerCmd(c, "events", "--since=0", "-f", "container="+cID, "--until="+strconv.Itoa(int(since)))
-	c.Assert(out, checker.Contains, " top\n", check.Commentf("Missing 'top' log event"))
+	c.Assert(out, checker.Contains, " top", check.Commentf("Missing 'top' log event"))
 }
 
 // #13753
@@ -642,5 +517,71 @@ func (s *DockerRegistrySuite) TestEventsImageFilterPush(c *check.C) {
 	dockerCmd(c, "push", repoName)
 
 	out, _ = dockerCmd(c, "events", "--since=0", "-f", "image="+repoName, "-f", "event=push", "--until="+strconv.Itoa(int(since)))
-	c.Assert(out, checker.Contains, repoName+": push\n", check.Commentf("Missing 'push' log event"))
+	c.Assert(out, checker.Contains, repoName, check.Commentf("Missing 'push' log event for %s", repoName))
+}
+
+func (s *DockerSuite) TestEventsFilterType(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	since := daemonTime(c).Unix()
+	name := "labelfiltertest"
+	label := "io.docker.testing=image"
+
+	// Build a test image.
+	_, err := buildImage(name, fmt.Sprintf(`
+		FROM busybox:latest
+		LABEL %s`, label), true)
+	c.Assert(err, checker.IsNil, check.Commentf("Couldn't create image"))
+
+	dockerCmd(c, "tag", name, "labelfiltertest:tag1")
+	dockerCmd(c, "tag", name, "labelfiltertest:tag2")
+	dockerCmd(c, "tag", "busybox:latest", "labelfiltertest:tag3")
+
+	out, _ := dockerCmd(
+		c,
+		"events",
+		fmt.Sprintf("--since=%d", since),
+		fmt.Sprintf("--until=%d", daemonTime(c).Unix()),
+		"--filter", fmt.Sprintf("label=%s", label),
+		"--filter", "type=image")
+
+	events := strings.Split(strings.TrimSpace(out), "\n")
+
+	// 2 events from the "docker tag" command, another one is from "docker build"
+	c.Assert(events, checker.HasLen, 3, check.Commentf("Events == %s", events))
+	for _, e := range events {
+		c.Assert(e, checker.Contains, "labelfiltertest")
+	}
+
+	out, _ = dockerCmd(
+		c,
+		"events",
+		fmt.Sprintf("--since=%d", since),
+		fmt.Sprintf("--until=%d", daemonTime(c).Unix()),
+		"--filter", fmt.Sprintf("label=%s", label),
+		"--filter", "type=container")
+	events = strings.Split(strings.TrimSpace(out), "\n")
+
+	// Events generated by the container that builds the image
+	c.Assert(events, checker.HasLen, 3, check.Commentf("Events == %s", events))
+
+	out, _ = dockerCmd(
+		c,
+		"events",
+		fmt.Sprintf("--since=%d", since),
+		fmt.Sprintf("--until=%d", daemonTime(c).Unix()),
+		"--filter", "type=network")
+	events = strings.Split(strings.TrimSpace(out), "\n")
+	c.Assert(len(events), checker.GreaterOrEqualThan, 1, check.Commentf("Events == %s", events))
+}
+
+func (s *DockerSuite) TestEventsFilterImageInContainerAction(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	since := daemonTime(c).Unix()
+	dockerCmd(c, "run", "--name", "test-container", "-d", "busybox", "true")
+	waitRun("test-container")
+
+	out, _ := dockerCmd(c, "events", "--filter", "image=busybox", fmt.Sprintf("--since=%d", since), fmt.Sprintf("--until=%d", daemonTime(c).Unix()))
+	events := strings.Split(strings.TrimSpace(out), "\n")
+	c.Assert(len(events), checker.GreaterThan, 1, check.Commentf(out))
 }

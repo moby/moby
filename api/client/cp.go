@@ -7,11 +7,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/docker/docker/api/types"
 	Cli "github.com/docker/docker/cli"
 	"github.com/docker/docker/pkg/archive"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/system"
+	"github.com/docker/engine-api/types"
 )
 
 type copyDirection int

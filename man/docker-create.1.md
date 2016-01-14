@@ -21,7 +21,9 @@ docker-create - Create a new container
 [**--cpuset-mems**[=*CPUSET-MEMS*]]
 [**--device**[=*[]*]]
 [**--device-read-bps**[=*[]*]]
+[**--device-read-iops**[=*[]*]]
 [**--device-write-bps**[=*[]*]]
+[**--device-write-iops**[=*[]*]]
 [**--dns**[=*[]*]]
 [**--dns-search**[=*[]*]]
 [**--dns-opt**[=*[]*]]
@@ -32,7 +34,7 @@ docker-create - Create a new container
 [**--group-add**[=*[]*]]
 [**-h**|**--hostname**[=*HOSTNAME*]]
 [**--help**]
-[**-i**|**--interactive**[=*false*]]
+[**-i**|**--interactive**]
 [**--ipc**[=*IPC*]]
 [**--isolation**[=*default*]]
 [**--kernel-memory**[=*KERNEL-MEMORY*]]
@@ -44,22 +46,22 @@ docker-create - Create a new container
 [**-m**|**--memory**[=*MEMORY*]]
 [**--mac-address**[=*MAC-ADDRESS*]]
 [**--memory-reservation**[=*MEMORY-RESERVATION*]]
-[**--memory-swap**[=*MEMORY-SWAP*]]
+[**--memory-swap**[=*LIMIT*]]
 [**--memory-swappiness**[=*MEMORY-SWAPPINESS*]]
 [**--name**[=*NAME*]]
 [**--net**[=*"bridge"*]]
-[**--oom-kill-disable**[=*false*]]
+[**--oom-kill-disable**]
 [**--oom-score-adj**[=*0*]]
-[**-P**|**--publish-all**[=*false*]]
+[**-P**|**--publish-all**]
 [**-p**|**--publish**[=*[]*]]
 [**--pid**[=*[]*]]
-[**--privileged**[=*false*]]
-[**--read-only**[=*false*]]
+[**--privileged**]
+[**--read-only**]
 [**--restart**[=*RESTART*]]
 [**--security-opt**[=*[]*]]
 [**--stop-signal**[=*SIGNAL*]]
 [**--shm-size**[=*[]*]]
-[**-t**|**--tty**[=*false*]]
+[**-t**|**--tty**]
 [**--tmpfs**[=*[CONTAINER-DIR[:<OPTIONS>]*]]
 [**-u**|**--user**[=*USER*]]
 [**--ulimit**[=*[]*]]
@@ -130,8 +132,14 @@ two memory nodes.
 **--device-read-bps**=[]
     Limit read rate (bytes per second) from a device (e.g. --device-read-bps=/dev/sda:1mb)
 
+**--device-read-iops**=[]
+    Limit read rate (IO per second) from a device (e.g. --device-read-iops=/dev/sda:1000)
+
 **--device-write-bps**=[]
     Limit write rate (bytes per second) to a device (e.g. --device-write-bps=/dev/sda:1mb)
+
+**--device-write-iops**=[]
+    Limit write rate (IO per second) to a device (e.g. --device-write-iops=/dev/sda:1000)
 
 **--dns**=[]
    Set custom DNS servers
@@ -222,11 +230,14 @@ reservation. So you should always set the value below **--memory**, otherwise th
 hard limit will take precedence. By default, memory reservation will be the same
 as memory limit.
 
-**--memory-swap**=""
-   Total memory limit (memory + swap)
+**--memory-swap**="LIMIT"
+   A limit value equal to memory plus swap. Must be used with the  **-m**
+(**--memory**) flag. The swap `LIMIT` should always be larger than **-m**
+(**--memory**) value.
 
-   Set `-1` to disable swap (format: <number>[<unit>], where unit = b, k, m or g).
-This value should always larger than **-m**, so you should always use this with **-m**.
+   The format of `LIMIT` is `<number>[<unit>]`. Unit can be `b` (bytes),
+`k` (kilobytes), `m` (megabytes), or `g` (gigabytes). If you don't specify a
+unit, `b` is used. Set LIMIT to `-1` to enable unlimited swap.
 
 **--memory-swappiness**=""
    Tune a container's memory swappiness behavior. Accepts an integer between 0 and 100.

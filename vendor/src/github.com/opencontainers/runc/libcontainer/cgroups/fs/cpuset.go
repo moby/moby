@@ -29,13 +29,13 @@ func (s *CpusetGroup) Apply(d *cgroupData) error {
 }
 
 func (s *CpusetGroup) Set(path string, cgroup *configs.Cgroup) error {
-	if cgroup.CpusetCpus != "" {
-		if err := writeFile(path, "cpuset.cpus", cgroup.CpusetCpus); err != nil {
+	if cgroup.Resources.CpusetCpus != "" {
+		if err := writeFile(path, "cpuset.cpus", cgroup.Resources.CpusetCpus); err != nil {
 			return err
 		}
 	}
-	if cgroup.CpusetMems != "" {
-		if err := writeFile(path, "cpuset.mems", cgroup.CpusetMems); err != nil {
+	if cgroup.Resources.CpusetMems != "" {
+		if err := writeFile(path, "cpuset.mems", cgroup.Resources.CpusetMems); err != nil {
 			return err
 		}
 	}

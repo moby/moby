@@ -13,8 +13,8 @@ import (
 	"io/ioutil"
 
 	"github.com/docker/docker/pkg/integration/checker"
-	"github.com/docker/docker/pkg/nat"
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/go-connections/nat"
 	"github.com/go-check/check"
 )
 
@@ -312,7 +312,7 @@ func (s *DockerTrustSuite) TestUntrustedCreate(c *check.C) {
 	s.trustedCmd(createCmd)
 	out, _, err := runCommandWithOutput(createCmd)
 	c.Assert(err, check.Not(check.IsNil))
-	c.Assert(string(out), checker.Contains, "no trust data available", check.Commentf("Missing expected output on trusted create:\n%s", out))
+	c.Assert(string(out), checker.Contains, "does not have trust data for", check.Commentf("Missing expected output on trusted create:\n%s", out))
 
 }
 

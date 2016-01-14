@@ -6,7 +6,7 @@ import (
 
 	Cli "github.com/docker/docker/cli"
 	flag "github.com/docker/docker/pkg/mflag"
-	"github.com/docker/docker/pkg/nat"
+	"github.com/docker/go-connections/nat"
 )
 
 // CmdPort lists port mappings for a container.

@@ -10,8 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/homedir"
+	"github.com/docker/engine-api/types"
 )
 
 const (
@@ -47,10 +47,12 @@ func SetConfigDir(dir string) {
 
 // ConfigFile ~/.docker/config.json file info
 type ConfigFile struct {
-	AuthConfigs map[string]types.AuthConfig `json:"auths"`
-	HTTPHeaders map[string]string           `json:"HttpHeaders,omitempty"`
-	PsFormat    string                      `json:"psFormat,omitempty"`
-	filename    string                      // Note: not serialized - for internal use only
+	AuthConfigs  map[string]types.AuthConfig `json:"auths"`
+	HTTPHeaders  map[string]string           `json:"HttpHeaders,omitempty"`
+	PsFormat     string                      `json:"psFormat,omitempty"`
+	ImagesFormat string                      `json:"imagesFormat,omitempty"`
+	DetachKeys   string                      `json:"detachKeys,omitempty"`
+	filename     string                      // Note: not serialized - for internal use only
 }
 
 // NewConfigFile initializes an empty configuration file for the given filename 'fn'

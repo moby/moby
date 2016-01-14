@@ -67,6 +67,7 @@ profile /usr/bin/docker (attach_disconnected, complain) {
   /bin/kmod rCx,
   /usr/bin/xz rCx,
   /bin/ps rCx,
+  /bin/tar rCx,
   /bin/cat rCx,
   /sbin/zfs rCx,
   /sbin/apparmor_parser rCx,

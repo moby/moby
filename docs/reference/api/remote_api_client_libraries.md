@@ -57,6 +57,12 @@ will add the libraries here.
     </tr>
     <tr>
       <td>Go</td>
+      <td>engine-api</td>
+      <td><a class="reference external" href="https://github.com/docker/engine-api">https://github.com/docker/engine-api</a></td>
+      <td>Active</td>
+    </tr>
+    <tr>
+      <td>Go</td>
       <td>go-dockerclient</td>
       <td><a class="reference external" href="https://github.com/fsouza/go-dockerclient">https://github.com/fsouza/go-dockerclient</a></td>
       <td>Active</td>
@@ -140,7 +146,7 @@ will add the libraries here.
       <td>Albatros</td>
       <td><a class="reference external" href="https://github.com/dcylabs/albatros">https://github.com/dcylabs/albatros</a></td>
       <td>Active</td>
-    </tr>    
+    </tr>
     <tr>
       <td>JavaScript (Angular) <strong>WebUI</strong></td>
       <td>docker-cp</td>
@@ -158,7 +164,7 @@ will add the libraries here.
       <td>dockery</td>
       <td><a class="reference external" href="https://github.com/lexandro/dockery">https://github.com/lexandro/dockery</a></td>
       <td>Active</td>
-    </tr>    
+    </tr>
     <tr>
       <td>Perl</td>
       <td>Net::Docker</td>
@@ -208,6 +214,12 @@ will add the libraries here.
       <td>Active</td>
     </tr>
     <tr>
+      <td>Rust</td>
+      <td>shiplift</td>
+      <td><a class="reference external" href="https://github.com/softprops/shiplift">https://github.com/softprops/shiplift</a></td>
+      <td>Active</td>
+    </tr>
+    <tr>
       <td>Scala</td>
       <td>tugboat</td>
       <td><a class="reference external" href="https://github.com/softprops/tugboat">https://github.com/softprops/tugboat</a></td>
@@ -221,4 +233,3 @@ will add the libraries here.
     </tr>
   </tbody>
 </table>
-

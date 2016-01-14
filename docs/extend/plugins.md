@@ -66,10 +66,10 @@ The following plugins exist:
   is a volume plugin written in Go that provides functionality to mount Pachyderm File System (PFS)
   repositories at specific commits as volumes within Docker containers.
 
-* The [REX-Ray plugin](https://github.com/emccode/rexraycli) is a volume plugin
+* The [REX-Ray plugin](https://github.com/emccode/rexray) is a volume plugin
   which is written in Go and provides advanced storage functionality for many
-  platforms including EC2, Google Compute Engine, OpenStack, XtremIO, and ScaleIO.
-
+  platforms including VirtualBox, EC2, Google Compute Engine, OpenStack, and EMC.
+    
 * The [Contiv Volume Plugin](https://github.com/contiv/volplugin) is an open
 source volume plugin that provides multi-tenant, persistent, distributed storage
 with intent based consumption using ceph underneath.
@@ -80,7 +80,7 @@ multi-tenant micro services deployment, while providing an integration to
 physical network for non-container workload. Contiv Networking implements the
 remote driver and IPAM APIs available in Docker 1.9 onwards.
 
-* The [Weave Network Plugin](https://github.com/weaveworks/docker-plugin) creates a virtual network that connects your Docker containers - across multiple hosts or clouds and enables automatic discovery of applications. Weave networks are resilient, partition tolerant, secure and work in partially connected networks, and other adverse environments - all configured with delightful simplicity.
+* The [Weave Network Plugin](http://docs.weave.works/weave/latest_release/plugin.html) creates a virtual network that connects your Docker containers - across multiple hosts or clouds and enables automatic discovery of applications. Weave networks are resilient, partition tolerant, secure and work in partially connected networks, and other adverse environments - all configured with delightful simplicity.
 
 ## Troubleshooting a plugin
 

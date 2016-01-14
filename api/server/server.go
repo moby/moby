@@ -18,8 +18,8 @@ import (
 	"github.com/docker/docker/api/server/router/volume"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/pkg/authorization"
-	"github.com/docker/docker/pkg/sockets"
 	"github.com/docker/docker/utils"
+	"github.com/docker/go-connections/sockets"
 	"github.com/gorilla/mux"
 	"golang.org/x/net/context"
 )
@@ -30,14 +30,14 @@ const versionMatcher = "/v{version:[0-9.]+}"
 
 // Config provides the configuration for the API server
 type Config struct {
-	Logging          bool
-	EnableCors       bool
-	CorsHeaders      string
-	AuthZPluginNames []string
-	Version          string
-	SocketGroup      string
-	TLSConfig        *tls.Config
-	Addrs            []Addr
+	Logging                  bool
+	EnableCors               bool
+	CorsHeaders              string
+	AuthorizationPluginNames []string
+	Version                  string
+	SocketGroup              string
+	TLSConfig                *tls.Config
+	Addrs                    []Addr
 }
 
 // Server contains instance details for the server

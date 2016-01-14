@@ -2,8 +2,6 @@ package distribution
 
 import (
 	"github.com/docker/distribution/context"
-	"github.com/docker/distribution/digest"
-	"github.com/docker/distribution/manifest/schema1"
 )
 
 // Scope defines the set of items that match a namespace.
@@ -44,7 +42,9 @@ type Namespace interface {
 }
 
 // ManifestServiceOption is a function argument for Manifest Service methods
-type ManifestServiceOption func(ManifestService) error
+type ManifestServiceOption interface {
+	Apply(ManifestService) error
+}
 
 // Repository is a named collection of manifests and layers.
 type Repository interface {
@@ -62,59 +62,10 @@ type Repository interface {
 	// be a BlobService for use with clients. This will allow such
 	// implementations to avoid implementing ServeBlob.
 
-	// Signatures returns a reference to this repository's signatures service.
-	Signatures() SignatureService
+	// Tags returns a reference to this repositories tag service
+	Tags(ctx context.Context) TagService
 }
 
 // TODO(stevvooe): Must add close methods to all these. May want to change the
 // way instances are created to better reflect internal dependency
 // relationships.
-
-// ManifestService provides operations on image manifests.
-type ManifestService interface {
-	// Exists returns true if the manifest exists.
-	Exists(dgst digest.Digest) (bool, error)
-
-	// Get retrieves the identified by the digest, if it exists.
-	Get(dgst digest.Digest) (*schema1.SignedManifest, error)
-
-	// Delete removes the manifest, if it exists.
-	Delete(dgst digest.Digest) error
-
-	// Put creates or updates the manifest.
-	Put(manifest *schema1.SignedManifest) error
-
-	// TODO(stevvooe): The methods after this message should be moved to a
-	// discrete TagService, per active proposals.
-
-	// Tags lists the tags under the named repository.
-	Tags() ([]string, error)
-
-	// ExistsByTag returns true if the manifest exists.
-	ExistsByTag(tag string) (bool, error)
-
-	// GetByTag retrieves the named manifest, if it exists.
-	GetByTag(tag string, options ...ManifestServiceOption) (*schema1.SignedManifest, error)
-
-	// TODO(stevvooe): There are several changes that need to be done to this
-	// interface:
-	//
-	//	1. Allow explicit tagging with Tag(digest digest.Digest, tag string)
-	//	2. Support reading tags with a re-entrant reader to avoid large
-	//       allocations in the registry.
-	//	3. Long-term: Provide All() method that lets one scroll through all of
-	//       the manifest entries.
-	//	4. Long-term: break out concept of signing from manifests. This is
-	//       really a part of the distribution sprint.
-	//	5. Long-term: Manifest should be an interface. This code shouldn't
-	//       really be concerned with the storage format.
-}
-
-// SignatureService provides operations on signatures.
-type SignatureService interface {
-	// Get retrieves all of the signature blobs for the specified digest.
-	Get(dgst digest.Digest) ([][]byte, error)
-
-	// Put stores the signature for the provided digest.
-	Put(dgst digest.Digest, signatures ...[]byte) error
-}

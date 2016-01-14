@@ -1,12 +1,12 @@
 package client
 
 import (
-	"github.com/docker/docker/api/client/ps"
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/client/formatter"
 	Cli "github.com/docker/docker/cli"
 	"github.com/docker/docker/opts"
 	flag "github.com/docker/docker/pkg/mflag"
+	"github.com/docker/engine-api/types"
+	"github.com/docker/engine-api/types/filters"
 )
 
 // CmdPs outputs a list of Docker containers.
@@ -70,15 +70,18 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 		}
 	}
 
-	psCtx := ps.Context{
-		Output: cli.out,
-		Format: f,
-		Quiet:  *quiet,
-		Size:   *size,
-		Trunc:  !*noTrunc,
+	psCtx := formatter.ContainerContext{
+		Context: formatter.Context{
+			Output: cli.out,
+			Format: f,
+			Quiet:  *quiet,
+			Trunc:  !*noTrunc,
+		},
+		Size:       *size,
+		Containers: containers,
 	}
 
-	ps.Format(psCtx, containers)
+	psCtx.Write()
 
 	return nil
 }

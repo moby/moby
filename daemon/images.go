@@ -5,11 +5,11 @@ import (
 	"path"
 	"sort"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/reference"
+	"github.com/docker/engine-api/types"
+	"github.com/docker/engine-api/types/filters"
 )
 
 var acceptedImageFilterTags = map[string]bool{

@@ -4,12 +4,23 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/container"
 	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/reference"
+	"github.com/docker/engine-api/types"
+)
+
+type conflictType int
+
+const (
+	conflictDependentChild conflictType = (1 << iota)
+	conflictRunningContainer
+	conflictActiveReference
+	conflictStoppedContainer
+	conflictHard = conflictDependentChild | conflictRunningContainer
+	conflictSoft = conflictActiveReference | conflictStoppedContainer
 )
 
 // ImageDelete deletes the image referenced by the given imageRef from this
@@ -87,11 +98,37 @@ func (daemon *Daemon) ImageDelete(imageRef string, force, prune bool) ([]types.I
 
 		untaggedRecord := types.ImageDelete{Untagged: parsedRef.String()}
 
-		daemon.EventsService.Log("untag", imgID.String(), "")
+		daemon.LogImageEvent(imgID.String(), imgID.String(), "untag")
 		records = append(records, untaggedRecord)
 
-		// If has remaining references then untag finishes the remove
-		if len(repoRefs) > 1 {
+		repoRefs = daemon.referenceStore.References(imgID)
+
+		// If this is a tag reference and all the remaining references
+		// to this image are digest references, delete the remaining
+		// references so that they don't prevent removal of the image.
+		if _, isCanonical := parsedRef.(reference.Canonical); !isCanonical {
+			foundTagRef := false
+			for _, repoRef := range repoRefs {
+				if _, repoRefIsCanonical := repoRef.(reference.Canonical); !repoRefIsCanonical {
+					foundTagRef = true
+					break
+				}
+			}
+			if !foundTagRef {
+				for _, repoRef := range repoRefs {
+					if _, err := daemon.removeImageRef(repoRef); err != nil {
+						return records, err
+					}
+
+					untaggedRecord := types.ImageDelete{Untagged: repoRef.String()}
+					records = append(records, untaggedRecord)
+				}
+				repoRefs = []reference.Named{}
+			}
+		}
+
+		// If it has remaining references then the untag finished the remove
+		if len(repoRefs) > 0 {
 			return records, nil
 		}
 
@@ -102,6 +139,14 @@ func (daemon *Daemon) ImageDelete(imageRef string, force, prune bool) ([]types.I
 		// remove that reference.
 		// FIXME: Is this the behavior we want?
 		if len(repoRefs) == 1 {
+			c := conflictHard
+			if !force {
+				c |= conflictSoft &^ conflictActiveReference
+			}
+			if conflict := daemon.checkImageDeleteConflict(imgID, c); conflict != nil {
+				return nil, conflict
+			}
+
 			parsedRef, err := daemon.removeImageRef(repoRefs[0])
 			if err != nil {
 				return nil, err
@@ -109,7 +154,7 @@ func (daemon *Daemon) ImageDelete(imageRef string, force, prune bool) ([]types.I
 
 			untaggedRecord := types.ImageDelete{Untagged: parsedRef.String()}
 
-			daemon.EventsService.Log("untag", imgID.String(), "")
+			daemon.LogImageEvent(imgID.String(), imgID.String(), "untag")
 			records = append(records, untaggedRecord)
 		}
 	}
@@ -174,7 +219,7 @@ func (daemon *Daemon) removeAllReferencesToImageID(imgID image.ID, records *[]ty
 
 		untaggedRecord := types.ImageDelete{Untagged: parsedRef.String()}
 
-		daemon.EventsService.Log("untag", imgID.String(), "")
+		daemon.LogImageEvent(imgID.String(), imgID.String(), "untag")
 		*records = append(*records, untaggedRecord)
 	}
 
@@ -215,7 +260,11 @@ func (idc *imageDeleteConflict) Error() string {
 func (daemon *Daemon) imageDeleteHelper(imgID image.ID, records *[]types.ImageDelete, force, prune, quiet bool) error {
 	// First, determine if this image has any conflicts. Ignore soft conflicts
 	// if force is true.
-	if conflict := daemon.checkImageDeleteConflict(imgID, force); conflict != nil {
+	c := conflictHard
+	if !force {
+		c |= conflictSoft
+	}
+	if conflict := daemon.checkImageDeleteConflict(imgID, c); conflict != nil {
 		if quiet && (!daemon.imageIsDangling(imgID) || conflict.used) {
 			// Ignore conflicts UNLESS the image is "dangling" or not being used in
 			// which case we want the user to know.
@@ -243,7 +292,7 @@ func (daemon *Daemon) imageDeleteHelper(imgID image.ID, records *[]types.ImageDe
 		return err
 	}
 
-	daemon.EventsService.Log("delete", imgID.String(), "")
+	daemon.LogImageEvent(imgID.String(), imgID.String(), "delete")
 	*records = append(*records, types.ImageDelete{Deleted: imgID.String()})
 	for _, removedLayer := range removedLayers {
 		*records = append(*records, types.ImageDelete{Deleted: removedLayer.ChainID.String()})
@@ -267,24 +316,9 @@ func (daemon *Daemon) imageDeleteHelper(imgID image.ID, records *[]types.ImageDe
 // using the image. A soft conflict is any tags/digest referencing the given
 // image or any stopped container using the image. If ignoreSoftConflicts is
 // true, this function will not check for soft conflict conditions.
-func (daemon *Daemon) checkImageDeleteConflict(imgID image.ID, ignoreSoftConflicts bool) *imageDeleteConflict {
-	// Check for hard conflicts first.
-	if conflict := daemon.checkImageDeleteHardConflict(imgID); conflict != nil {
-		return conflict
-	}
-
-	// Then check for soft conflicts.
-	if ignoreSoftConflicts {
-		// Don't bother checking for soft conflicts.
-		return nil
-	}
-
-	return daemon.checkImageDeleteSoftConflict(imgID)
-}
-
-func (daemon *Daemon) checkImageDeleteHardConflict(imgID image.ID) *imageDeleteConflict {
+func (daemon *Daemon) checkImageDeleteConflict(imgID image.ID, mask conflictType) *imageDeleteConflict {
 	// Check if the image has any descendent images.
-	if len(daemon.imageStore.Children(imgID)) > 0 {
+	if mask&conflictDependentChild != 0 && len(daemon.imageStore.Children(imgID)) > 0 {
 		return &imageDeleteConflict{
 			hard:    true,
 			imgID:   imgID,
@@ -292,47 +326,47 @@ func (daemon *Daemon) checkImageDeleteHardConflict(imgID image.ID) *imageDeleteC
 		}
 	}
 
-	// Check if any running container is using the image.
-	for _, container := range daemon.List() {
-		if !container.IsRunning() {
-			// Skip this until we check for soft conflicts later.
-			continue
-		}
+	if mask&conflictRunningContainer != 0 {
+		// Check if any running container is using the image.
+		for _, container := range daemon.List() {
+			if !container.IsRunning() {
+				// Skip this until we check for soft conflicts later.
+				continue
+			}
 
-		if container.ImageID == imgID {
-			return &imageDeleteConflict{
-				imgID:   imgID,
-				hard:    true,
-				used:    true,
-				message: fmt.Sprintf("image is being used by running container %s", stringid.TruncateID(container.ID)),
+			if container.ImageID == imgID {
+				return &imageDeleteConflict{
+					imgID:   imgID,
+					hard:    true,
+					used:    true,
+					message: fmt.Sprintf("image is being used by running container %s", stringid.TruncateID(container.ID)),
+				}
 			}
 		}
 	}
 
-	return nil
-}
-
-func (daemon *Daemon) checkImageDeleteSoftConflict(imgID image.ID) *imageDeleteConflict {
 	// Check if any repository tags/digest reference this image.
-	if len(daemon.referenceStore.References(imgID)) > 0 {
+	if mask&conflictActiveReference != 0 && len(daemon.referenceStore.References(imgID)) > 0 {
 		return &imageDeleteConflict{
 			imgID:   imgID,
 			message: "image is referenced in one or more repositories",
 		}
 	}
 
-	// Check if any stopped containers reference this image.
-	for _, container := range daemon.List() {
-		if container.IsRunning() {
-			// Skip this as it was checked above in hard conflict conditions.
-			continue
-		}
+	if mask&conflictStoppedContainer != 0 {
+		// Check if any stopped containers reference this image.
+		for _, container := range daemon.List() {
+			if container.IsRunning() {
+				// Skip this as it was checked above in hard conflict conditions.
+				continue
+			}
 
-		if container.ImageID == imgID {
-			return &imageDeleteConflict{
-				imgID:   imgID,
-				used:    true,
-				message: fmt.Sprintf("image is being used by stopped container %s", stringid.TruncateID(container.ID)),
+			if container.ImageID == imgID {
+				return &imageDeleteConflict{
+					imgID:   imgID,
+					used:    true,
+					message: fmt.Sprintf("image is being used by stopped container %s", stringid.TruncateID(container.ID)),
+				}
 			}
 		}
 	}

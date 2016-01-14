@@ -153,6 +153,7 @@ func (s *DockerSuite) TestAttachDisconnect(c *check.C) {
 }
 
 func (s *DockerSuite) TestAttachPausedContainer(c *check.C) {
+	testRequires(c, DaemonIsLinux) // Containers cannot be paused on Windows
 	defer unpauseAllContainers()
 	dockerCmd(c, "run", "-d", "--name=test", "busybox", "top")
 	dockerCmd(c, "pause", "test")

@@ -5,12 +5,11 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/docker/docker/api/types"
 	Cli "github.com/docker/docker/cli"
 	"github.com/docker/docker/dockerversion"
 	flag "github.com/docker/docker/pkg/mflag"
-	"github.com/docker/docker/pkg/version"
 	"github.com/docker/docker/utils"
+	"github.com/docker/engine-api/types"
 )
 
 var versionTemplate = `Client:
@@ -57,7 +56,7 @@ func (cli *DockerCli) CmdVersion(args ...string) (err error) {
 	vd := types.VersionResponse{
 		Client: &types.Version{
 			Version:      dockerversion.Version,
-			APIVersion:   version.Version(cli.client.ClientVersion()),
+			APIVersion:   cli.client.ClientVersion(),
 			GoVersion:    runtime.Version(),
 			GitCommit:    dockerversion.GitCommit,
 			BuildTime:    dockerversion.BuildTime,

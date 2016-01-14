@@ -28,6 +28,7 @@ type DockerSuite struct {
 }
 
 func (s *DockerSuite) TearDownTest(c *check.C) {
+	unpauseAllContainers()
 	deleteAllContainers()
 	deleteAllImages()
 	deleteAllVolumes()
@@ -48,7 +49,7 @@ type DockerRegistrySuite struct {
 
 func (s *DockerRegistrySuite) SetUpTest(c *check.C) {
 	testRequires(c, DaemonIsLinux)
-	s.reg = setupRegistry(c)
+	s.reg = setupRegistry(c, false)
 	s.d = NewDaemon(c)
 }
 
@@ -56,10 +57,38 @@ func (s *DockerRegistrySuite) TearDownTest(c *check.C) {
 	if s.reg != nil {
 		s.reg.Close()
 	}
-	if s.ds != nil {
-		s.ds.TearDownTest(c)
+	if s.d != nil {
+		s.d.Stop()
 	}
-	s.d.Stop()
+	s.ds.TearDownTest(c)
+}
+
+func init() {
+	check.Suite(&DockerSchema1RegistrySuite{
+		ds: &DockerSuite{},
+	})
+}
+
+type DockerSchema1RegistrySuite struct {
+	ds  *DockerSuite
+	reg *testRegistryV2
+	d   *Daemon
+}
+
+func (s *DockerSchema1RegistrySuite) SetUpTest(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	s.reg = setupRegistry(c, true)
+	s.d = NewDaemon(c)
+}
+
+func (s *DockerSchema1RegistrySuite) TearDownTest(c *check.C) {
+	if s.reg != nil {
+		s.reg.Close()
+	}
+	if s.d != nil {
+		s.d.Stop()
+	}
+	s.ds.TearDownTest(c)
 }
 
 func init() {
@@ -80,7 +109,9 @@ func (s *DockerDaemonSuite) SetUpTest(c *check.C) {
 
 func (s *DockerDaemonSuite) TearDownTest(c *check.C) {
 	testRequires(c, DaemonIsLinux)
-	s.d.Stop()
+	if s.d != nil {
+		s.d.Stop()
+	}
 	s.ds.TearDownTest(c)
 }
 
@@ -97,12 +128,16 @@ type DockerTrustSuite struct {
 }
 
 func (s *DockerTrustSuite) SetUpTest(c *check.C) {
-	s.reg = setupRegistry(c)
+	s.reg = setupRegistry(c, false)
 	s.not = setupNotary(c)
 }
 
 func (s *DockerTrustSuite) TearDownTest(c *check.C) {
-	s.reg.Close()
-	s.not.Close()
+	if s.reg != nil {
+		s.reg.Close()
+	}
+	if s.not != nil {
+		s.not.Close()
+	}
 	s.ds.TearDownTest(c)
 }

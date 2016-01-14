@@ -33,4 +33,13 @@ var (
 		Description:    "Docker's networking stack is disabled for this platform",
 		HTTPStatusCode: http.StatusNotFound,
 	})
+
+	// ErrorCodeNoHijackConnection is generated when a request tries to attach to a container
+	// but the connection to hijack is not provided.
+	ErrorCodeNoHijackConnection = errcode.Register(errGroup, errcode.ErrorDescriptor{
+		Value:          "HIJACK_CONNECTION_MISSING",
+		Message:        "error attaching to container %s, hijack connection missing",
+		Description:    "The caller didn't provide a connection to hijack",
+		HTTPStatusCode: http.StatusBadRequest,
+	})
 )

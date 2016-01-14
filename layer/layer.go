@@ -31,6 +31,11 @@ var (
 	// attempted on a mount layer which does not exist.
 	ErrMountDoesNotExist = errors.New("mount does not exist")
 
+	// ErrMountNameConflict is used when a mount is attempted
+	// to be created but there is already a mount with the name
+	// used for creation.
+	ErrMountNameConflict = errors.New("mount already exists with name")
+
 	// ErrActiveMount is used when an operation on a
 	// mount is attempted but the layer is still
 	// mounted and the operation cannot be performed.
@@ -103,18 +108,33 @@ type Layer interface {
 type RWLayer interface {
 	TarStreamer
 
-	// Path returns the filesystem path to the writable
-	// layer.
-	Path() (string, error)
+	// Name of mounted layer
+	Name() string
 
 	// Parent returns the layer which the writable
 	// layer was created from.
 	Parent() Layer
 
+	// Mount mounts the RWLayer and returns the filesystem path
+	// the to the writable layer.
+	Mount(mountLabel string) (string, error)
+
+	// Unmount unmounts the RWLayer. This should be called
+	// for every mount. If there are multiple mount calls
+	// this operation will only decrement the internal mount counter.
+	Unmount() error
+
 	// Size represents the size of the writable layer
 	// as calculated by the total size of the files
 	// changed in the mutable layer.
 	Size() (int64, error)
+
+	// Changes returns the set of changes for the mutable layer
+	// from the base layer.
+	Changes() ([]archive.Change, error)
+
+	// Metadata returns the low level metadata for the mutable layer
+	Metadata() (map[string]string, error)
 }
 
 // Metadata holds information about a
@@ -147,11 +167,13 @@ type Store interface {
 	Get(ChainID) (Layer, error)
 	Release(Layer) ([]Metadata, error)
 
-	Mount(id string, parent ChainID, label string, init MountInit) (RWLayer, error)
-	Unmount(id string) error
-	DeleteMount(id string) ([]Metadata, error)
-	Changes(id string) ([]archive.Change, error)
-	Metadata(id string) (map[string]string, error)
+	CreateRWLayer(id string, parent ChainID, mountLabel string, initFunc MountInit) (RWLayer, error)
+	GetRWLayer(id string) (RWLayer, error)
+	ReleaseRWLayer(RWLayer) ([]Metadata, error)
+
+	Cleanup() error
+	DriverStatus() [][2]string
+	DriverName() string
 }
 
 // MetadataTransaction represents functions for setting layer metadata
@@ -161,7 +183,7 @@ type MetadataTransaction interface {
 	SetParent(parent ChainID) error
 	SetDiffID(DiffID) error
 	SetCacheID(string) error
-	TarSplitWriter() (io.WriteCloser, error)
+	TarSplitWriter(compressInput bool) (io.WriteCloser, error)
 
 	Commit(ChainID) error
 	Cancel() error
@@ -211,12 +233,7 @@ func createChainIDFromParent(parent ChainID, dgsts ...DiffID) ChainID {
 		return createChainIDFromParent(ChainID(dgsts[0]), dgsts[1:]...)
 	}
 	// H = "H(n-1) SHA256(n)"
-	dgst, err := digest.FromBytes([]byte(string(parent) + " " + string(dgsts[0])))
-	if err != nil {
-		// Digest calculation is not expected to throw an error,
-		// any error at this point is a program error
-		panic(err)
-	}
+	dgst := digest.FromBytes([]byte(string(parent) + " " + string(dgsts[0])))
 	return createChainIDFromParent(ChainID(dgst), dgsts[1:]...)
 }
 

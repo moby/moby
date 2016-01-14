@@ -7,10 +7,10 @@ import (
 	"net/url"
 	"strings"
 
-	registrytypes "github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/opts"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/reference"
+	registrytypes "github.com/docker/engine-api/types/registry"
 )
 
 // Options holds command line options.
@@ -56,7 +56,7 @@ func (options *Options) InstallFlags(cmd *flag.FlagSet, usageFn func(string) str
 	cmd.Var(&options.Mirrors, []string{"-registry-mirror"}, usageFn("Preferred Docker registry mirror"))
 	options.InsecureRegistries = opts.NewListOpts(ValidateIndexName)
 	cmd.Var(&options.InsecureRegistries, []string{"-insecure-registry"}, usageFn("Enable insecure registry communication"))
-	cmd.BoolVar(&V2Only, []string{"-disable-legacy-registry"}, false, "Do not contact legacy registries")
+	cmd.BoolVar(&V2Only, []string{"-disable-legacy-registry"}, false, usageFn("Do not contact legacy registries"))
 }
 
 // NewServiceConfig returns a new instance of ServiceConfig

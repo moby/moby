@@ -29,7 +29,8 @@ containers that bypasses the [*Union File System*](../reference/glossary.md#unio
 
 - Volumes are initialized when a container is created. If the container's
   base image contains data at the specified mount point, that existing data is
-  copied into the new volume upon volume initialization.
+  copied into the new volume upon volume initialization. (Note that this does
+  not apply when [mounting a host directory](#mount-a-host-directory-as-a-data-volume).)
 - Data volumes can be shared and reused among containers.
 - Changes to a data volume are made directly.
 - Changes to a data volume will not be included when you update an image.
@@ -57,7 +58,7 @@ This will create a new volume inside a container at `/webapp`.
 
 ### Locating a volume
 
-You can locate the volume on the host by utilizing the 'docker inspect' command.
+You can locate the volume on the host by utilizing the `docker inspect` command.
 
     $ docker inspect web
 
@@ -72,13 +73,14 @@ volumes. The output should look something similar to the following:
             "Destination": "/webapp",
             "Driver": "local",
             "Mode": "",
-            "RW": true
+            "RW": true,
+            "Propagation": ""
         }
     ]
     ...
 
-You will notice in the above 'Source' is specifying the location on the host and
-'Destination' is specifying the volume location inside the container. `RW` shows
+You will notice in the above `Source` is specifying the location on the host and
+`Destination` is specifying the volume location inside the container. `RW` shows
 if the volume is read/write.
 
 ### Mount a host directory as a data volume
@@ -101,7 +103,7 @@ The `host-dir` can either be an absolute path or a `name` value. If you
 supply an absolute path for the `host-dir`, Docker bind-mounts to the path
 you specify. If you supply a `name`, Docker creates a named volume by that `name`.
 
-A `name` value must start with start with an alphanumeric character,
+A `name` value must start with an alphanumeric character,
 followed by `a-z0-9`, `_` (underscore), `.` (period) or `-` (hyphen).
 An absolute path starts with a `/` (forward slash).
 
@@ -235,9 +237,9 @@ allows you to upgrade, or effectively migrate data volumes between containers.
 > providing the `-v` option to delete its volumes. If you remove containers
 > without using the `-v` option, you may end up with "dangling" volumes;
 > volumes that are no longer referenced by a container.
-> Dangling volumes are difficult to get rid of and can take up a large amount
-> of disk space. We're working on improving volume management and you can check
-> progress on this in [pull request #14214](https://github.com/docker/docker/pull/14214)
+> You can use `docker volume ls -f dangling=true` to find dangling volumes,
+> and use `docker volume rm <volume name>` to remove a volume that's
+> no longer needed.
 
 ## Backup, restore, or migrate data volumes
 
@@ -262,7 +264,7 @@ elsewhere. Create a new container.
 
 Then un-tar the backup file in the new container's data volume.
 
-    $ docker run --rm --volumes-from dbstore2 -v $(pwd):/backup ubuntu bash -c "cd /dbdata && tar xvf /backup/backup.tar"
+    $ docker run --rm --volumes-from dbstore2 -v $(pwd):/backup ubuntu bash -c "cd /dbdata && tar xvf /backup/backup.tar --strip 1"
 
 You can use the techniques above to automate backup, migration and
 restore testing using your preferred tools.

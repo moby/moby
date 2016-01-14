@@ -95,6 +95,7 @@ This section lists each version from latest to oldest.  Each listing includes a 
 
 [Docker Remote API v1.22](docker_remote_api_v1.22.md) documentation
 
+* `POST /container/(name)/update` updates the resources of a container.
 * `GET /containers/json` supports filter `isolation` on Windows.
 * `GET /containers/json` now returns the list of networks of containers.
 * `GET /info` Now returns `Architecture` and `OSType` fields, providing information
@@ -107,6 +108,13 @@ This section lists each version from latest to oldest.  Each listing includes a 
 * Pushes initiated with `POST /images/(name)/push` and pulls initiated with `POST /images/create`
   will be cancelled if the HTTP connection making the API request is closed before
   the push or pull completes.
+* `POST /containers/create` now allows you to set a read/write rate limit for a 
+  device (in bytes per second or IO per second).
+* `GET /networks` now supports filtering by `name`, `id` and `type`.
+* `POST /containers/create` now allows you to set the static IPv4 and/or IPv6 address for the container.
+* `POST /networks/(id)/connect` now allows you to set the static IPv4 and/or IPv6 address for the container.
+* `GET /info` now includes the number of containers running, stopped, and paused.
+* `POST /networks/create` now supports restricting external access to the network by setting the `internal` field.
 
 ### v1.21 API changes
 
@@ -115,7 +123,7 @@ This section lists each version from latest to oldest.  Each listing includes a 
 * `GET /volumes` lists volumes from all volume drivers.
 * `POST /volumes/create` to create a volume.
 * `GET /volumes/(name)` get low-level information about a volume.
-* `DELETE /volumes/(name)`remove a volume with the specified name.
+* `DELETE /volumes/(name)` remove a volume with the specified name.
 * `VolumeDriver` was moved from `config` to `HostConfig` to make the configuration portable.
 * `GET /images/(name)/json` now returns information about an image's `RepoTags` and `RepoDigests`.
 * The `config` option now accepts the field `StopSignal`, which specifies the signal to use to kill a container.
