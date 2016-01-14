@@ -23,6 +23,7 @@ var (
 		&MemoryGroup{},
 		&CpuGroup{},
 		&CpuacctGroup{},
+		&PidsGroup{},
 		&BlkioGroup{},
 		&HugetlbGroup{},
 		&NetClsGroup{},
@@ -105,8 +106,6 @@ func (m *Manager) Apply(pid int) (err error) {
 		return nil
 	}
 
-	var c = m.Cgroups
-
 	d, err := getCgroupData(m.Cgroups, pid)
 	if err != nil {
 		return err
@@ -135,13 +134,6 @@ func (m *Manager) Apply(pid int) (err error) {
 		paths[sys.Name()] = p
 	}
 	m.Paths = paths
-
-	if paths["cpu"] != "" {
-		if err := CheckCpushares(paths["cpu"], c.Resources.CpuShares); err != nil {
-			return err
-		}
-	}
-
 	return nil
 }
 
@@ -179,12 +171,25 @@ func (m *Manager) GetStats() (*cgroups.Stats, error) {
 }
 
 func (m *Manager) Set(container *configs.Config) error {
-	for name, path := range m.Paths {
-		sys, err := subsystems.Get(name)
-		if err == errSubsystemDoesNotExist || !cgroups.PathExists(path) {
-			continue
+	for _, sys := range subsystems {
+		// Generate fake cgroup data.
+		d, err := getCgroupData(container.Cgroups, -1)
+		if err != nil {
+			return err
 		}
+		// Get the path, but don't error out if the cgroup wasn't found.
+		path, err := d.path(sys.Name())
+		if err != nil && !cgroups.IsNotFound(err) {
+			return err
+		}
+
 		if err := sys.Set(path, container.Cgroups); err != nil {
+			return err
+		}
+	}
+
+	if m.Paths["cpu"] != "" {
+		if err := CheckCpushares(m.Paths["cpu"], container.Cgroups.Resources.CpuShares); err != nil {
 			return err
 		}
 	}
@@ -217,17 +222,52 @@ func (m *Manager) Freeze(state configs.FreezerState) error {
 }
 
 func (m *Manager) GetPids() ([]int, error) {
-	d, err := getCgroupData(m.Cgroups, 0)
+	dir, err := getCgroupPath(m.Cgroups)
 	if err != nil {
 		return nil, err
 	}
-
-	dir, err := d.path("devices")
-	if err != nil {
-		return nil, err
-	}
-
 	return cgroups.GetPids(dir)
+}
+
+func (m *Manager) GetAllPids() ([]int, error) {
+	dir, err := getCgroupPath(m.Cgroups)
+	if err != nil {
+		return nil, err
+	}
+	return cgroups.GetAllPids(dir)
+}
+
+func getCgroupPath(c *configs.Cgroup) (string, error) {
+	d, err := getCgroupData(c, 0)
+	if err != nil {
+		return "", err
+	}
+
+	return d.path("devices")
+}
+
+// pathClean makes a path safe for use with filepath.Join. This is done by not
+// only cleaning the path, but also (if the path is relative) adding a leading
+// '/' and cleaning it (then removing the leading '/'). This ensures that a
+// path resulting from prepending another path will always resolve to lexically
+// be a subdirectory of the prefixed path. This is all done lexically, so paths
+// that include symlinks won't be safe as a result of using pathClean.
+func pathClean(path string) string {
+	// Ensure that all paths are cleaned (especially problematic ones like
+	// "/../../../../../" which can cause lots of issues).
+	path = filepath.Clean(path)
+
+	// If the path isn't absolute, we need to do more processing to fix paths
+	// such as "../../../../<etc>/some/path". We also shouldn't convert absolute
+	// paths to relative ones.
+	if !filepath.IsAbs(path) {
+		path = filepath.Clean(string(os.PathSeparator) + path)
+		// This can't fail, as (by definition) all paths are relative to root.
+		path, _ = filepath.Rel(string(os.PathSeparator), path)
+	}
+
+	// Clean the path again for good measure.
+	return filepath.Clean(path)
 }
 
 func getCgroupData(c *configs.Cgroup, pid int) (*cgroupData, error) {
@@ -235,6 +275,9 @@ func getCgroupData(c *configs.Cgroup, pid int) (*cgroupData, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// Clean the parent slice path.
+	c.Parent = pathClean(c.Parent)
 
 	return &cgroupData{
 		root:   root,

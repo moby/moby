@@ -128,7 +128,7 @@ func (c *linuxContainer) State() (*State, error) {
 }
 
 func (c *linuxContainer) Processes() ([]int, error) {
-	pids, err := c.cgroupManager.GetPids()
+	pids, err := c.cgroupManager.GetAllPids()
 	if err != nil {
 		return nil, newSystemError(err)
 	}
