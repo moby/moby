@@ -273,6 +273,7 @@ of the containers.
                         'container:<name|id>': reuse another container's network stack
                         'host': use the Docker host network stack
                         '<network-name>|<network-id>': connect to a user-defined network
+    --net-alias=[]   : Add network-scoped alias for the container
     --add-host=""    : Add a line to /etc/hosts (host:IP)
     --mac-address="" : Sets the container's Ethernet device's MAC address
     --ip=""          : Sets the container's Ethernet device's IPv4 address

@@ -118,6 +118,8 @@ func (cli *DockerCli) CmdNetworkConnect(args ...string) error {
 	flIPv6Address := cmd.String([]string{"-ip6"}, "", "IPv6 Address")
 	flLinks := opts.NewListOpts(runconfigopts.ValidateLink)
 	cmd.Var(&flLinks, []string{"-link"}, "Add link to another container")
+	flAliases := opts.NewListOpts(nil)
+	cmd.Var(&flAliases, []string{"-alias"}, "Add network-scoped alias for the container")
 	cmd.Require(flag.Min, 2)
 	if err := cmd.ParseFlags(args, true); err != nil {
 		return err
@@ -127,7 +129,8 @@ func (cli *DockerCli) CmdNetworkConnect(args ...string) error {
 			IPv4Address: *flIPAddress,
 			IPv6Address: *flIPv6Address,
 		},
-		Links: flLinks.GetAll(),
+		Links:   flLinks.GetAll(),
+		Aliases: flAliases.GetAll(),
 	}
 	return cli.client.NetworkConnect(cmd.Arg(0), cmd.Arg(1), epConfig)
 }

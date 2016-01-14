@@ -761,6 +761,10 @@ func (daemon *Daemon) connectToNetwork(container *container.Container, idOrName 
 		return runconfig.ErrUnsupportedNetworkAndIP
 	}
 
+	if !containertypes.NetworkMode(idOrName).IsUserDefined() && len(endpointConfig.Aliases) > 0 {
+		return runconfig.ErrUnsupportedNetworkAndAlias
+	}
+
 	controller := daemon.netController
 
 	if err := validateNetworkingConfig(n, endpointConfig); err != nil {
