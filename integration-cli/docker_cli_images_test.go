@@ -176,6 +176,15 @@ func (s *DockerSuite) TestImagesEnsureDanglingImageOnlyListedOnce(c *check.C) {
 	out, _ = dockerCmd(c, "images", "-q", "-f", "dangling=true")
 	// Expect one dangling image
 	c.Assert(strings.Count(out, imageID), checker.Equals, 1)
+
+	out, _ = dockerCmd(c, "images", "-q", "-f", "dangling=false")
+	//dangling=false would not include dangling images
+	c.Assert(out, checker.Not(checker.Contains), imageID)
+
+	out, _ = dockerCmd(c, "images")
+	//docker images still include dangling images
+	c.Assert(out, checker.Contains, imageID)
+
 }
 
 func (s *DockerSuite) TestImagesWithIncorrectFilter(c *check.C) {
