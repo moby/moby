@@ -15,7 +15,8 @@ import (
 type Resolver interface {
 	// Start starts the name server for the container
 	Start() error
-	// Stop stops the name server for the container
+	// Stop stops the name server for the container. Stopped resolver
+	// can be reused after running the SetupFunc again.
 	Stop()
 	// SetupFunc() provides the setup function that should be run
 	// in the container's network namespace.
@@ -102,6 +103,8 @@ func (r *resolver) Stop() {
 	if r.server != nil {
 		r.server.Shutdown()
 	}
+	r.conn = nil
+	r.err = fmt.Errorf("setup not done yet")
 }
 
 func (r *resolver) SetExtServers(dns []string) {
