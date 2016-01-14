@@ -166,9 +166,11 @@ func (s *DockerRegistrySuite) TestCrossRepositoryLayerPush(c *check.C) {
 	// ensure that layers were mounted from the first repo during push
 	c.Assert(strings.Contains(out2, "Mounted from dockercli/busybox"), check.Equals, true)
 
-	// ensure that we can pull the cross-repo-pushed repository
+	// ensure that we can pull and run the cross-repo-pushed repository
 	dockerCmd(c, "rmi", destRepoName)
 	dockerCmd(c, "pull", destRepoName)
+	out3, _ := dockerCmd(c, "run", destRepoName, "echo", "-n", "hello world")
+	c.Assert(out3, check.Equals, "hello world")
 }
 
 func (s *DockerSchema1RegistrySuite) TestCrossRepositoryLayerPushNotSupported(c *check.C) {
@@ -190,9 +192,11 @@ func (s *DockerSchema1RegistrySuite) TestCrossRepositoryLayerPushNotSupported(c 
 	// schema1 registry should not support cross-repo layer mounts, so ensure that this does not happen
 	c.Assert(strings.Contains(out2, "Mounted from dockercli/busybox"), check.Equals, false)
 
-	// ensure that we can pull the second pushed repository
+	// ensure that we can pull and run the second pushed repository
 	dockerCmd(c, "rmi", destRepoName)
 	dockerCmd(c, "pull", destRepoName)
+	out3, _ := dockerCmd(c, "run", destRepoName, "echo", "-n", "hello world")
+	c.Assert(out3, check.Equals, "hello world")
 }
 
 func (s *DockerTrustSuite) TestTrustedPush(c *check.C) {
