@@ -210,19 +210,19 @@ func TestMigrateImages(t *testing.T) {
 		t.Fatalf("invalid register count: expected %q, got %q", expected, actual)
 	}
 
-	blobSumService := metadata.NewBlobSumService(ms)
-	blobsums, err := blobSumService.GetBlobSums(layer.EmptyLayer.DiffID())
+	v2MetadataService := metadata.NewV2MetadataService(ms)
+	receivedMetadata, err := v2MetadataService.GetMetadata(layer.EmptyLayer.DiffID())
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	expectedBlobsums := []digest.Digest{
-		"sha256:55dc925c23d1ed82551fd018c27ac3ee731377b6bad3963a2a4e76e753d70e57",
-		"sha256:a3ed95caeb02ffe68cdd9fd84406680ae93d633cb16422d00e8a7c22955b46d4",
+	expectedMetadata := []metadata.V2Metadata{
+		{Digest: digest.Digest("sha256:55dc925c23d1ed82551fd018c27ac3ee731377b6bad3963a2a4e76e753d70e57")},
+		{Digest: digest.Digest("sha256:a3ed95caeb02ffe68cdd9fd84406680ae93d633cb16422d00e8a7c22955b46d4")},
 	}
 
-	if !reflect.DeepEqual(expectedBlobsums, blobsums) {
-		t.Fatalf("invalid blobsums: expected %q, got %q", expectedBlobsums, blobsums)
+	if !reflect.DeepEqual(expectedMetadata, receivedMetadata) {
+		t.Fatalf("invalid metadata: expected %q, got %q", expectedMetadata, receivedMetadata)
 	}
 
 }

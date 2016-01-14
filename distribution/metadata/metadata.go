@@ -15,6 +15,8 @@ type Store interface {
 	Get(namespace string, key string) ([]byte, error)
 	// Set writes data indexed by namespace and key.
 	Set(namespace, key string, value []byte) error
+	// Delete removes data indexed by namespace and key.
+	Delete(namespace, key string) error
 }
 
 // FSMetadataStore uses the filesystem to associate metadata with layer and
@@ -62,4 +64,14 @@ func (store *FSMetadataStore) Set(namespace, key string, value []byte) error {
 		return err
 	}
 	return os.Rename(tempFilePath, path)
+}
+
+// Delete removes data indexed by namespace and key. The data file named after
+// the key, stored in the namespace's directory is deleted.
+func (store *FSMetadataStore) Delete(namespace, key string) error {
+	store.Lock()
+	defer store.Unlock()
+
+	path := store.path(namespace, key)
+	return os.Remove(path)
 }

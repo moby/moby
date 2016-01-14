@@ -147,6 +147,58 @@ func (s *DockerSchema1RegistrySuite) TestPushEmptyLayer(c *check.C) {
 	testPushEmptyLayer(c)
 }
 
+func (s *DockerRegistrySuite) TestCrossRepositoryLayerPush(c *check.C) {
+	sourceRepoName := fmt.Sprintf("%v/dockercli/busybox", privateRegistryURL)
+	// tag the image to upload it to the private registry
+	dockerCmd(c, "tag", "busybox", sourceRepoName)
+	// push the image to the registry
+	out1, _, err := dockerCmdWithError("push", sourceRepoName)
+	c.Assert(err, check.IsNil, check.Commentf("pushing the image to the private registry has failed: %s", out1))
+	// ensure that none of the layers were mounted from another repository during push
+	c.Assert(strings.Contains(out1, "Mounted from"), check.Equals, false)
+
+	destRepoName := fmt.Sprintf("%v/dockercli/crossrepopush", privateRegistryURL)
+	// retag the image to upload the same layers to another repo in the same registry
+	dockerCmd(c, "tag", "busybox", destRepoName)
+	// push the image to the registry
+	out2, _, err := dockerCmdWithError("push", destRepoName)
+	c.Assert(err, check.IsNil, check.Commentf("pushing the image to the private registry has failed: %s", out2))
+	// ensure that layers were mounted from the first repo during push
+	c.Assert(strings.Contains(out2, "Mounted from dockercli/busybox"), check.Equals, true)
+
+	// ensure that we can pull and run the cross-repo-pushed repository
+	dockerCmd(c, "rmi", destRepoName)
+	dockerCmd(c, "pull", destRepoName)
+	out3, _ := dockerCmd(c, "run", destRepoName, "echo", "-n", "hello world")
+	c.Assert(out3, check.Equals, "hello world")
+}
+
+func (s *DockerSchema1RegistrySuite) TestCrossRepositoryLayerPushNotSupported(c *check.C) {
+	sourceRepoName := fmt.Sprintf("%v/dockercli/busybox", privateRegistryURL)
+	// tag the image to upload it to the private registry
+	dockerCmd(c, "tag", "busybox", sourceRepoName)
+	// push the image to the registry
+	out1, _, err := dockerCmdWithError("push", sourceRepoName)
+	c.Assert(err, check.IsNil, check.Commentf("pushing the image to the private registry has failed: %s", out1))
+	// ensure that none of the layers were mounted from another repository during push
+	c.Assert(strings.Contains(out1, "Mounted from"), check.Equals, false)
+
+	destRepoName := fmt.Sprintf("%v/dockercli/crossrepopush", privateRegistryURL)
+	// retag the image to upload the same layers to another repo in the same registry
+	dockerCmd(c, "tag", "busybox", destRepoName)
+	// push the image to the registry
+	out2, _, err := dockerCmdWithError("push", destRepoName)
+	c.Assert(err, check.IsNil, check.Commentf("pushing the image to the private registry has failed: %s", out2))
+	// schema1 registry should not support cross-repo layer mounts, so ensure that this does not happen
+	c.Assert(strings.Contains(out2, "Mounted from dockercli/busybox"), check.Equals, false)
+
+	// ensure that we can pull and run the second pushed repository
+	dockerCmd(c, "rmi", destRepoName)
+	dockerCmd(c, "pull", destRepoName)
+	out3, _ := dockerCmd(c, "run", destRepoName, "echo", "-n", "hello world")
+	c.Assert(out3, check.Equals, "hello world")
+}
+
 func (s *DockerTrustSuite) TestTrustedPush(c *check.C) {
 	repoName := fmt.Sprintf("%v/dockercli/trusted:latest", privateRegistryURL)
 	// tag the image and upload it to the private registry
