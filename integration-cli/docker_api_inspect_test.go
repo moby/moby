@@ -69,7 +69,7 @@ func (s *DockerSuite) TestInspectApiContainerVolumeDriverLegacy(c *check.C) {
 }
 
 func (s *DockerSuite) TestInspectApiContainerVolumeDriver(c *check.C) {
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "true")
+	out, _ := dockerCmd(c, "run", "-d", "--volume-driver", "local", "busybox", "true")
 
 	cleanedContainerID := strings.TrimSpace(out)
 
