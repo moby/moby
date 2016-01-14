@@ -817,12 +817,6 @@ func TestSetDefaultGw(t *testing.T) {
 	}
 }
 
-type fakeCallBack struct{}
-
-func (cb fakeCallBack) RegisterDriver(name string, driver driverapi.Driver, capability driverapi.Capability) error {
-	return nil
-}
-
 func TestCleanupIptableRules(t *testing.T) {
 	defer testutils.SetupTestOSContext(t)()
 	bridgeChain := []iptables.ChainInfo{
@@ -838,7 +832,7 @@ func TestCleanupIptableRules(t *testing.T) {
 			t.Fatalf("iptables chain %s of %s table should have been created", chainInfo.Name, chainInfo.Table)
 		}
 	}
-	Init(fakeCallBack{}, make(map[string]interface{}))
+	removeIPChains()
 	for _, chainInfo := range bridgeChain {
 		if iptables.ExistChain(chainInfo.Name, chainInfo.Table) {
 			t.Fatalf("iptables chain %s of %s table should have been deleted", chainInfo.Name, chainInfo.Table)
