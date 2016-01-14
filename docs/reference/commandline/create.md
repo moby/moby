@@ -46,6 +46,8 @@ Creates a new container.
       -h, --hostname=""             Container host name
       --help                        Print usage
       -i, --interactive             Keep STDIN open even if not attached
+      --ip=""                       Container IPv4 address (e.g. 172.30.100.104)
+      --ip6=""                      Container IPv6 address (e.g. 2001:db8::33)
       --ipc=""                      IPC namespace to use
       --isolation=""                Container isolation technology
       --kernel-memory=""            Kernel memory limit

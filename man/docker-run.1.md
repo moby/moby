@@ -37,6 +37,8 @@ docker-run - Run a command in a new container
 [**-h**|**--hostname**[=*HOSTNAME*]]
 [**--help**]
 [**-i**|**--interactive**]
+[**--ip**[=*IPv4-ADDRESS*]]
+[**--ip6**[=*IPv6-ADDRESS*]]
 [**--ipc**[=*IPC*]]
 [**--isolation**[=*default*]]
 [**--kernel-memory**[=*KERNEL-MEMORY*]]
@@ -273,6 +275,16 @@ redirection on the host system.
    Keep STDIN open even if not attached. The default is *false*.
 
    When set to true, keep stdin open even if not attached. The default is false.
+
+**--ip**=""
+   Sets the container's interface IPv4 address (e.g. 172.23.0.9)
+
+   It can only be used in conjunction with **--net** for user-defined networks
+
+**--ip6**=""
+   Sets the container's interface IPv6 address (e.g. 2001:db8::1b99)
+
+   It can only be used in conjunction with **--net** for user-defined networks
 
 **--ipc**=""
    Default is to create a private IPC namespace (POSIX SysV IPC) for the container
