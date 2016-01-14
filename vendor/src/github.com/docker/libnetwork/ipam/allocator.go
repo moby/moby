@@ -70,6 +70,9 @@ func NewAllocator(lcDs, glDs datastore.DataStore) (*Allocator, error) {
 		}
 	}
 
+	a.checkConsistency(localAddressSpace)
+	a.checkConsistency(globalAddressSpace)
+
 	return a, nil
 }
 
@@ -113,6 +116,25 @@ func (a *Allocator) updateBitMasks(aSpace *addrSpace) error {
 	}
 
 	return nil
+}
+
+// Checks for and fixes damaged bitmask. Meant to be called in constructor only.
+func (a *Allocator) checkConsistency(as string) {
+	// Retrieve this address space's configuration and bitmasks from the datastore
+	a.refresh(as)
+	aSpace, ok := a.addrSpaces[as]
+	if !ok {
+		return
+	}
+	a.updateBitMasks(aSpace)
+	for sk, pd := range aSpace.subnets {
+		if pd.Range != nil {
+			continue
+		}
+		if err := a.addresses[sk].CheckConsistency(); err != nil {
+			log.Warnf("Error while running consistency check for %s: %v", sk, err)
+		}
+	}
 }
 
 // GetDefaultAddressSpaces returns the local and global default address spaces
