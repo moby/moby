@@ -20,7 +20,6 @@ import (
 	"github.com/docker/distribution/manifest/schema1"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/distribution/registry/api/errcode"
-	"github.com/docker/distribution/registry/storage"
 	"github.com/docker/distribution/testutil"
 	"github.com/docker/distribution/uuid"
 	"github.com/docker/libtrust"
@@ -523,7 +522,7 @@ func TestBlobMount(t *testing.T) {
 
 	l := r.Blobs(ctx)
 
-	bw, err := l.Create(ctx, storage.WithMountFrom(canonicalRef))
+	bw, err := l.Create(ctx, WithMountFrom(canonicalRef))
 	if bw != nil {
 		t.Fatalf("Expected blob writer to be nil, was %v", bw)
 	}

@@ -18,7 +18,6 @@ import (
 	"github.com/docker/distribution/reference"
 	"github.com/docker/distribution/registry/api/v2"
 	"github.com/docker/distribution/registry/client/transport"
-	"github.com/docker/distribution/registry/storage"
 	"github.com/docker/distribution/registry/storage/cache"
 	"github.com/docker/distribution/registry/storage/cache/memory"
 )
@@ -573,8 +572,39 @@ func (bs *blobs) Put(ctx context.Context, mediaType string, p []byte) (distribut
 	return writer.Commit(ctx, desc)
 }
 
+// createOptions is a collection of blob creation modifiers relevant to general
+// blob storage intended to be configured by the BlobCreateOption.Apply method.
+type createOptions struct {
+	Mount struct {
+		ShouldMount bool
+		From        reference.Canonical
+	}
+}
+
+type optionFunc func(interface{}) error
+
+func (f optionFunc) Apply(v interface{}) error {
+	return f(v)
+}
+
+// WithMountFrom returns a BlobCreateOption which designates that the blob should be
+// mounted from the given canonical reference.
+func WithMountFrom(ref reference.Canonical) distribution.BlobCreateOption {
+	return optionFunc(func(v interface{}) error {
+		opts, ok := v.(*createOptions)
+		if !ok {
+			return fmt.Errorf("unexpected options type: %T", v)
+		}
+
+		opts.Mount.ShouldMount = true
+		opts.Mount.From = ref
+
+		return nil
+	})
+}
+
 func (bs *blobs) Create(ctx context.Context, options ...distribution.BlobCreateOption) (distribution.BlobWriter, error) {
-	var opts storage.CreateOptions
+	var opts createOptions
 
 	for _, option := range options {
 		err := option.Apply(&opts)
