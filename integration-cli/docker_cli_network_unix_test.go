@@ -924,7 +924,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkInspectCreatedContainer(c *check.C
 	c.Assert(networks, checker.Contains, "bridge", check.Commentf("Should return 'bridge' network"))
 }
 
-func (s *DockerNetworkSuite) TestDockerNetworkRestartWithMulipleNetworks(c *check.C) {
+func (s *DockerNetworkSuite) TestDockerNetworkRestartWithMultipleNetworks(c *check.C) {
 	dockerCmd(c, "network", "create", "test")
 	dockerCmd(c, "run", "--name=foo", "-d", "busybox", "top")
 	c.Assert(waitRun("foo"), checker.IsNil)
@@ -1080,4 +1080,47 @@ func (s *DockerSuite) TestUserDefinedNetworkConnectDisconnectLink(c *check.C) {
 	// link in foo2 network must succeed
 	_, _, err = dockerCmdWithError("exec", "second", "ping", "-c", "1", "FirstInFoo2")
 	c.Assert(err, check.IsNil)
+}
+
+// #19100 This is a deprecated feature test, it should be remove in Docker 1.12
+func (s *DockerNetworkSuite) TestDockerNetworkStartAPIWithHostconfig(c *check.C) {
+	netName := "test"
+	conName := "foo"
+	dockerCmd(c, "network", "create", netName)
+	dockerCmd(c, "create", "--name", conName, "busybox", "top")
+
+	config := map[string]interface{}{
+		"HostConfig": map[string]interface{}{
+			"NetworkMode": netName,
+		},
+	}
+	_, _, err := sockRequest("POST", "/containers/"+conName+"/start", config)
+	c.Assert(err, checker.IsNil)
+	c.Assert(waitRun(conName), checker.IsNil)
+	networks, err := inspectField(conName, "NetworkSettings.Networks")
+	c.Assert(err, checker.IsNil)
+	c.Assert(networks, checker.Contains, netName, check.Commentf(fmt.Sprintf("Should contain '%s' network", netName)))
+	c.Assert(networks, checker.Not(checker.Contains), "bridge", check.Commentf("Should not contain 'bridge' network"))
+}
+
+func (s *DockerNetworkSuite) TestDockerNetworkDisconnectDefault(c *check.C) {
+	netWorkName1 := "test1"
+	netWorkName2 := "test2"
+	containerName := "foo"
+
+	dockerCmd(c, "network", "create", netWorkName1)
+	dockerCmd(c, "network", "create", netWorkName2)
+	dockerCmd(c, "create", "--name", containerName, "busybox", "top")
+	dockerCmd(c, "network", "connect", netWorkName1, containerName)
+	dockerCmd(c, "network", "connect", netWorkName2, containerName)
+	dockerCmd(c, "network", "disconnect", "bridge", containerName)
+
+	dockerCmd(c, "start", containerName)
+	c.Assert(waitRun(containerName), checker.IsNil)
+	networks, err := inspectField(containerName, "NetworkSettings.Networks")
+	c.Assert(err, checker.IsNil)
+	c.Assert(networks, checker.Contains, netWorkName1, check.Commentf(fmt.Sprintf("Should contain '%s' network", netWorkName1)))
+	c.Assert(networks, checker.Contains, netWorkName2, check.Commentf(fmt.Sprintf("Should contain '%s' network", netWorkName2)))
+	c.Assert(networks, checker.Not(checker.Contains), "bridge", check.Commentf("Should not contain 'bridge' network"))
+
 }
