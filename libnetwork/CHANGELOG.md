@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.5 (2016-01-14)
+- Allow network-scoped alias to be resolved for anonymous endpoint
+- Self repair corrupted IP database that could happen in 1.9.0 & 1.9.1
+- Skip IPTables cleanup if --iptables=false is set. Fixes docker/docker#19063
+
 ## 0.5.4 (2016-01-12)
 - Removed the isNodeAlive protection when user forces an endpoint delete
 
