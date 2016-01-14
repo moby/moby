@@ -55,5 +55,12 @@ if [ "$(go env GOOS)" = 'windows' ]; then
 	rsrc \
 		-manifest hack/make/.resources-windows/docker.exe.manifest \
 		-ico      hack/make/.resources-windows/docker.ico \
-		-o        autogen/winresources/rsrc.syso > /dev/null
+		-arch     "amd64" \
+		-o        autogen/winresources/rsrc_amd64.syso > /dev/null
+
+	rsrc \
+		-manifest hack/make/.resources-windows/docker.exe.manifest \
+		-ico      hack/make/.resources-windows/docker.ico \
+		-arch     "386" \
+		-o        autogen/winresources/rsrc_386.syso > /dev/null
 fi
