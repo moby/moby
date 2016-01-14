@@ -98,7 +98,6 @@ set -e
 		if [ "${suite%.*}" -gt 6 ] && [[ "$version" != opensuse* ]]; then
 			cat >> "$DEST/$version/Dockerfile.build" <<-EOF
 				RUN tar -cz -C /usr/src/${rpmName}/contrib -f /root/rpmbuild/SOURCES/${rpmName}-selinux.tar.gz ${rpmName}-selinux
-				RUN { echo '* $rpmDate $rpmPackager $rpmVersion-$rpmRelease'; echo '* Version: $VERSION'; } >> ${rpmName}-selinux.spec && tail >&2 ${rpmName}-selinux.spec
 				RUN rpmbuild -ba \
 						--define '_gitcommit $DOCKER_GITCOMMIT' \
 						--define '_release $rpmRelease' \
