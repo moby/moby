@@ -448,6 +448,22 @@ func (s *DockerNetworkSuite) TestDockerNetworkConnectDisconnect(c *check.C) {
 	c.Assert(nr.Name, checker.Equals, "test")
 	c.Assert(len(nr.Containers), checker.Equals, 0)
 
+	// run another container
+	out, _ = dockerCmd(c, "run", "-d", "--net", "test", "--name", "test2", "busybox", "top")
+	c.Assert(waitRun("test2"), check.IsNil)
+	containerID = strings.TrimSpace(out)
+
+	nr = getNwResource(c, "test")
+	c.Assert(nr.Name, checker.Equals, "test")
+	c.Assert(len(nr.Containers), checker.Equals, 1)
+
+	// force disconnect the container to the test network
+	dockerCmd(c, "network", "disconnect", "-f", "test", containerID)
+
+	nr = getNwResource(c, "test")
+	c.Assert(nr.Name, checker.Equals, "test")
+	c.Assert(len(nr.Containers), checker.Equals, 0)
+
 	dockerCmd(c, "network", "rm", "test")
 	assertNwNotAvailable(c, "test")
 }
