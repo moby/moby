@@ -57,7 +57,6 @@ func (daemon *Daemon) Images(filterArgs, filter string, all bool) ([]*types.Imag
 			return nil, fmt.Errorf("Invalid filter 'dangling=%s'", imageFilters.Get("dangling"))
 		}
 	}
-
 	if danglingOnly {
 		allImages = daemon.imageStore.Heads()
 	} else {
@@ -124,6 +123,11 @@ func (daemon *Daemon) Images(filterArgs, filter string, all bool) ([]*types.Imag
 		}
 		if newImage.RepoDigests == nil && newImage.RepoTags == nil {
 			if all || len(daemon.imageStore.Children(id)) == 0 {
+
+				if imageFilters.Include("dangling") && !danglingOnly {
+					//dangling=false case, so dangling image is not needed
+					continue
+				}
 				if filter != "" { // skip images with no references if filtering by tag
 					continue
 				}
