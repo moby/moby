@@ -61,6 +61,7 @@ List containers
                  "NetworkSettings": {
                          "Networks": {
                                  "bridge": {
+                                          "NetworkID": "7ea29fc1412292a2d7bba362f9253545fecdfa8ce9a6e37dd10ba8bee7129812",
                                           "EndpointID": "2cdc4edb1ded3631c81f57966563e5c8525b81121bb3706a9a9a3ae102711f3f",
                                           "Gateway": "172.17.0.1",
                                           "IPAddress": "172.17.0.2",
@@ -88,6 +89,7 @@ List containers
                  "NetworkSettings": {
                          "Networks": {
                                  "bridge": {
+                                          "NetworkID": "7ea29fc1412292a2d7bba362f9253545fecdfa8ce9a6e37dd10ba8bee7129812",
                                           "EndpointID": "88eaed7b37b38c2a3f0c4bc796494fdf51b270c2d22656412a2ca5d559a64d7a",
                                           "Gateway": "172.17.0.1",
                                           "IPAddress": "172.17.0.8",
@@ -116,6 +118,7 @@ List containers
                  "NetworkSettings": {
                          "Networks": {
                                  "bridge": {
+                                          "NetworkID": "7ea29fc1412292a2d7bba362f9253545fecdfa8ce9a6e37dd10ba8bee7129812",
                                           "EndpointID": "8b27c041c30326d59cd6e6f510d4f8d1d570a228466f956edf7815508f78e30d",
                                           "Gateway": "172.17.0.1",
                                           "IPAddress": "172.17.0.6",
@@ -144,6 +147,7 @@ List containers
                  "NetworkSettings": {
                          "Networks": {
                                  "bridge": {
+                                          "NetworkID": "7ea29fc1412292a2d7bba362f9253545fecdfa8ce9a6e37dd10ba8bee7129812",
                                           "EndpointID": "d91c7b2f0644403d7ef3095985ea0e2370325cd2332ff3a3225c4247328e66e9",
                                           "Gateway": "172.17.0.1",
                                           "IPAddress": "172.17.0.5",
@@ -545,14 +549,15 @@ Return low-level information on the container `id`
 			"MacAddress": "",
 			"Networks": {
 				"bridge": {
-					"EndpointID": "",
-					"Gateway": "",
-					"IPAddress": "",
-					"IPPrefixLen": 0,
+					"NetworkID": "7ea29fc1412292a2d7bba362f9253545fecdfa8ce9a6e37dd10ba8bee7129812",
+					"EndpointID": "7587b82f0dada3656fda26588aee72630c6fab1536d36e394b2bfbcf898c971d",
+					"Gateway": "172.17.0.1",
+					"IPAddress": "172.17.0.2",
+					"IPPrefixLen": 16,
 					"IPv6Gateway": "",
 					"GlobalIPv6Address": "",
 					"GlobalIPv6PrefixLen": 0,
-					"MacAddress": ""
+					"MacAddress": "02:42:ac:12:00:02"
 				}
 			}
 		},
@@ -2687,14 +2692,15 @@ Return low-level information about the `exec` command `id`.
             "MacAddress": "",
             "Networks": {
                 "bridge": {
-                    "EndpointID": "",
-                    "Gateway": "",
-                    "IPAddress": "",
-                    "IPPrefixLen": 0,
+                    "NetworkID": "7ea29fc1412292a2d7bba362f9253545fecdfa8ce9a6e37dd10ba8bee7129812",
+                    "EndpointID": "7587b82f0dada3656fda26588aee72630c6fab1536d36e394b2bfbcf898c971d",
+                    "Gateway": "172.17.0.1",
+                    "IPAddress": "172.17.0.2",
+                    "IPPrefixLen": 16,
                     "IPv6Gateway": "",
                     "GlobalIPv6Address": "",
                     "GlobalIPv6PrefixLen": 0,
-                    "MacAddress": ""
+                    "MacAddress": "02:42:ac:12:00:02"
                 }
             }
         },

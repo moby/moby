@@ -116,6 +116,7 @@ This section lists each version from latest to oldest.  Each listing includes a 
 * `GET /info` now includes the number of containers running, stopped, and paused.
 * `POST /networks/create` now supports restricting external access to the network by setting the `internal` field.
 * `POST /networks/(id)/disconnect` now includes a `Force` option to forcefully disconnect a container from network
+* `GET /containers/(id)/json` now returns the `NetworkID` of containers.
 
 ### v1.21 API changes
 

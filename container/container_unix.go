@@ -34,8 +34,8 @@ import (
 // DefaultSHMSize is the default size (64MB) of the SHM which will be mounted in the container
 const DefaultSHMSize int64 = 67108864
 
-// Container holds the fields specific to unixen implementations. See
-// CommonContainer for standard fields common to all containers.
+// Container holds the fields specific to unixen implementations.
+// See CommonContainer for standard fields common to all containers.
 type Container struct {
 	CommonContainer
 
@@ -194,6 +194,7 @@ func (container *Container) BuildEndpointInfo(n libnetwork.Network, ep libnetwor
 	if _, ok := networkSettings.Networks[n.Name()]; !ok {
 		networkSettings.Networks[n.Name()] = new(network.EndpointSettings)
 	}
+	networkSettings.Networks[n.Name()].NetworkID = n.ID()
 	networkSettings.Networks[n.Name()].EndpointID = ep.ID()
 
 	iface := epInfo.Iface()
@@ -702,7 +703,7 @@ func copyExistingContents(source, destination string) error {
 			return err
 		}
 		if len(srcList) == 0 {
-			// If the source volume is empty copy files from the root into the volume
+			// If the source volume is empty, copies files from the root into the volume
 			if err := chrootarchive.CopyWithTar(source, destination); err != nil {
 				return err
 			}
