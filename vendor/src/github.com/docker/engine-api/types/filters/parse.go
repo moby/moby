@@ -10,12 +10,12 @@ import (
 	"strings"
 )
 
-// Args stores filter arguments as map key:{array of values}.
-// It contains a aggregation of the list of arguments (which are in the form
+// Args stores filter arguments as map key:{map key: bool}.
+// It contains a aggregation of the map of arguments (which are in the form
 // of -f 'key=value') based on the key, and store values for the same key
-// in an slice.
+// in an map with string keys and boolean values.
 // e.g given -f 'label=label1=1' -f 'label=label2=2' -f 'image.name=ubuntu'
-// the args will be {'label': {'label1=1','label2=2'}, 'image.name', {'ubuntu'}}
+// the args will be {"image.name":{"ubuntu":true},"label":{"label1=1":true,"label2=2":true}}
 type Args struct {
 	fields map[string]map[string]bool
 }

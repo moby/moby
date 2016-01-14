@@ -65,7 +65,6 @@ func NewEnvClient() (*Client, error) {
 func NewClient(host string, version string, transport *http.Transport, httpHeaders map[string]string) (*Client, error) {
 	var (
 		basePath       string
-		tlsConfig      *tls.Config
 		scheme         = "http"
 		protoAddrParts = strings.SplitN(host, "://", 2)
 		proto, addr    = protoAddrParts[0], protoAddrParts[1]
@@ -90,7 +89,7 @@ func NewClient(host string, version string, transport *http.Transport, httpHeade
 		addr:              addr,
 		basePath:          basePath,
 		scheme:            scheme,
-		tlsConfig:         tlsConfig,
+		tlsConfig:         transport.TLSClientConfig,
 		httpClient:        &http.Client{Transport: transport},
 		version:           version,
 		customHTTPHeaders: httpHeaders,
