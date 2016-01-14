@@ -40,12 +40,14 @@ func (cli *DockerCli) CmdNetworkCreate(args ...string) error {
 	flIpamIPRange := opts.NewListOpts(nil)
 	flIpamGateway := opts.NewListOpts(nil)
 	flIpamAux := opts.NewMapOpts(nil, nil)
+	flIpamOpt := opts.NewMapOpts(nil, nil)
 
 	cmd.Var(&flIpamSubnet, []string{"-subnet"}, "subnet in CIDR format that represents a network segment")
 	cmd.Var(&flIpamIPRange, []string{"-ip-range"}, "allocate container ip from a sub-range")
 	cmd.Var(&flIpamGateway, []string{"-gateway"}, "ipv4 or ipv6 Gateway for the master subnet")
 	cmd.Var(flIpamAux, []string{"-aux-address"}, "auxiliary ipv4 or ipv6 addresses used by Network driver")
 	cmd.Var(flOpts, []string{"o", "-opt"}, "set driver specific options")
+	cmd.Var(flIpamOpt, []string{"-ipam-opt"}, "set IPAM driver specific options")
 
 	flInternal := cmd.Bool([]string{"-internal"}, false, "restricts external access to the network")
 
@@ -71,7 +73,7 @@ func (cli *DockerCli) CmdNetworkCreate(args ...string) error {
 	nc := types.NetworkCreate{
 		Name:           cmd.Arg(0),
 		Driver:         driver,
-		IPAM:           network.IPAM{Driver: *flIpamDriver, Config: ipamCfg},
+		IPAM:           network.IPAM{Driver: *flIpamDriver, Config: ipamCfg, Options: flIpamOpt.GetAll()},
 		Options:        flOpts.GetAll(),
 		CheckDuplicate: true,
 		Internal:       *flInternal,
