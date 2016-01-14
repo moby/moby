@@ -33,11 +33,11 @@ import (
 var errRootFSMismatch = errors.New("layers from manifest don't match image configuration")
 
 type v2Puller struct {
-	blobSumService *metadata.BlobSumService
-	endpoint       registry.APIEndpoint
-	config         *ImagePullConfig
-	repoInfo       *registry.RepositoryInfo
-	repo           distribution.Repository
+	V2MetadataService *metadata.V2MetadataService
+	endpoint          registry.APIEndpoint
+	config            *ImagePullConfig
+	repoInfo          *registry.RepositoryInfo
+	repo              distribution.Repository
 	// confirmedV2 is set to true if we confirm we're talking to a v2
 	// registry. This is used to limit fallbacks to the v1 protocol.
 	confirmedV2 bool
@@ -110,10 +110,10 @@ func (p *v2Puller) pullV2Repository(ctx context.Context, ref reference.Named) (e
 }
 
 type v2LayerDescriptor struct {
-	digest         digest.Digest
-	repoInfo       *registry.RepositoryInfo
-	repo           distribution.Repository
-	blobSumService *metadata.BlobSumService
+	digest            digest.Digest
+	repoInfo          *registry.RepositoryInfo
+	repo              distribution.Repository
+	V2MetadataService *metadata.V2MetadataService
 }
 
 func (ld *v2LayerDescriptor) Key() string {
@@ -125,7 +125,7 @@ func (ld *v2LayerDescriptor) ID() string {
 }
 
 func (ld *v2LayerDescriptor) DiffID() (layer.DiffID, error) {
-	return ld.blobSumService.GetDiffID(metadata.BlobSum{Digest: ld.digest, SourceRepository: ld.repoInfo.FullName()})
+	return ld.V2MetadataService.GetDiffID(ld.digest)
 }
 
 func (ld *v2LayerDescriptor) Download(ctx context.Context, progressOutput progress.Output) (io.ReadCloser, int64, error) {
@@ -197,7 +197,7 @@ func (ld *v2LayerDescriptor) Download(ctx context.Context, progressOutput progre
 
 func (ld *v2LayerDescriptor) Registered(diffID layer.DiffID) {
 	// Cache mapping from this layer's DiffID to the blobsum
-	ld.blobSumService.Add(diffID, metadata.BlobSum{Digest: ld.digest, SourceRepository: ld.repoInfo.FullName()})
+	ld.V2MetadataService.Add(diffID, metadata.V2Metadata{Digest: ld.digest, SourceRepository: ld.repoInfo.FullName()})
 }
 
 func (p *v2Puller) pullV2Tag(ctx context.Context, ref reference.Named) (tagUpdated bool, err error) {
@@ -334,10 +334,10 @@ func (p *v2Puller) pullSchema1(ctx context.Context, ref reference.Named, unverif
 		}
 
 		layerDescriptor := &v2LayerDescriptor{
-			digest:         blobSum,
-			repoInfo:       p.repoInfo,
-			repo:           p.repo,
-			blobSumService: p.blobSumService,
+			digest:            blobSum,
+			repoInfo:          p.repoInfo,
+			repo:              p.repo,
+			V2MetadataService: p.V2MetadataService,
 		}
 
 		descriptors = append(descriptors, layerDescriptor)
@@ -400,10 +400,10 @@ func (p *v2Puller) pullSchema2(ctx context.Context, ref reference.Named, mfst *s
 	// to top-most, so that the downloads slice gets ordered correctly.
 	for _, d := range mfst.References() {
 		layerDescriptor := &v2LayerDescriptor{
-			digest:         d.Digest,
-			repo:           p.repo,
-			repoInfo:       p.repoInfo,
-			blobSumService: p.blobSumService,
+			digest:            d.Digest,
+			repo:              p.repo,
+			repoInfo:          p.repoInfo,
+			V2MetadataService: p.V2MetadataService,
 		}
 
 		descriptors = append(descriptors, layerDescriptor)

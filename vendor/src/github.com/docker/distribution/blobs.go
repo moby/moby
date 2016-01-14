@@ -9,6 +9,7 @@ import (
 
 	"github.com/docker/distribution/context"
 	"github.com/docker/distribution/digest"
+	"github.com/docker/distribution/reference"
 )
 
 var (
@@ -38,6 +39,18 @@ type ErrBlobInvalidDigest struct {
 func (err ErrBlobInvalidDigest) Error() string {
 	return fmt.Sprintf("invalid digest for referenced layer: %v, %v",
 		err.Digest, err.Reason)
+}
+
+// ErrBlobMounted returned when a blob is mounted from another repository
+// instead of initiating an upload session.
+type ErrBlobMounted struct {
+	From       reference.Canonical
+	Descriptor Descriptor
+}
+
+func (err ErrBlobMounted) Error() string {
+	return fmt.Sprintf("blob mounted from: %v to: %v",
+		err.From, err.Descriptor)
 }
 
 // Descriptor describes targeted content. Used in conjunction with a blob
@@ -151,14 +164,19 @@ type BlobIngester interface {
 	// returned handle can be written to and later resumed using an opaque
 	// identifier. With this approach, one can Close and Resume a BlobWriter
 	// multiple times until the BlobWriter is committed or cancelled.
-	Create(ctx context.Context) (BlobWriter, error)
+	Create(ctx context.Context, options ...BlobCreateOption) (BlobWriter, error)
 
 	// Resume attempts to resume a write to a blob, identified by an id.
 	Resume(ctx context.Context, id string) (BlobWriter, error)
+}
 
-	// Mount adds a blob to this service from another source repository,
-	// identified by a digest.
-	Mount(ctx context.Context, sourceRepo string, dgst digest.Digest) (Descriptor, error)
+// BlobCreateOption is a general extensible function argument for blob creation
+// methods. A BlobIngester may choose to honor any or none of the given
+// BlobCreateOptions, which can be specific to the implementation of the
+// BlobIngester receiving them.
+// TODO (brianbland): unify this with ManifestServiceOption in the future
+type BlobCreateOption interface {
+	Apply(interface{}) error
 }
 
 // BlobWriter provides a handle for inserting data into a blob store.
