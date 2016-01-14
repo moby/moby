@@ -822,20 +822,20 @@ func (n *network) EndpointByID(id string) (Endpoint, error) {
 }
 
 func (n *network) updateSvcRecord(ep *endpoint, localEps []*endpoint, isAdd bool) {
-	if ep.isAnonymous() {
-		return
-	}
-
 	epName := ep.Name()
 	if iface := ep.Iface(); iface.Address() != nil {
 		myAliases := ep.MyAliases()
 		if isAdd {
-			n.addSvcRecords(epName, iface.Address().IP, true)
+			if !ep.isAnonymous() {
+				n.addSvcRecords(epName, iface.Address().IP, true)
+			}
 			for _, alias := range myAliases {
 				n.addSvcRecords(alias, iface.Address().IP, false)
 			}
 		} else {
-			n.deleteSvcRecords(epName, iface.Address().IP, true)
+			if !ep.isAnonymous() {
+				n.deleteSvcRecords(epName, iface.Address().IP, true)
+			}
 			for _, alias := range myAliases {
 				n.deleteSvcRecords(alias, iface.Address().IP, false)
 			}
