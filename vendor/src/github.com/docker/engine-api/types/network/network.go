@@ -2,15 +2,15 @@ package network
 
 // Address represents an IP address
 type Address struct {
-	Addr      string
-	PrefixLen int
+	Addr      string `json:",omitempty"`
+	PrefixLen int    `json:",omitempty"`
 }
 
 // IPAM represents IP Address Management
 type IPAM struct {
-	Driver  string
-	Options map[string]string //Per network IPAM driver options
-	Config  []IPAMConfig
+	Driver  string            `json:",omitempty"`
+	Options map[string]string `json:",omitempty"` //Per network IPAM driver options
+	Config  []IPAMConfig      `json:",omitempty"`
 }
 
 // IPAMConfig represents IPAM configurations
@@ -30,23 +30,23 @@ type EndpointIPAMConfig struct {
 // EndpointSettings stores the network endpoint details
 type EndpointSettings struct {
 	// Configurations
-	IPAMConfig *EndpointIPAMConfig
-	Links      []string
-	Aliases    []string
+	IPAMConfig *EndpointIPAMConfig `json:",omitempty"`
+	Links      []string            `json:",omitempty"`
+	Aliases    []string            `json:",omitempty"`
 	// Operational data
-	NetworkID           string
-	EndpointID          string
-	Gateway             string
-	IPAddress           string
-	IPPrefixLen         int
-	IPv6Gateway         string
-	GlobalIPv6Address   string
-	GlobalIPv6PrefixLen int
-	MacAddress          string
+	NetworkID           string `json:",omitempty"`
+	EndpointID          string `json:",omitempty"`
+	Gateway             string `json:",omitempty"`
+	IPAddress           string `json:",omitempty"`
+	IPPrefixLen         int    `json:",omitempty"`
+	IPv6Gateway         string `json:",omitempty"`
+	GlobalIPv6Address   string `json:",omitempty"`
+	GlobalIPv6PrefixLen int    `json:",omitempty"`
+	MacAddress          string `json:",omitempty"`
 }
 
 // NetworkingConfig represents the container's networking configuration for each of its interfaces
 // Carries the networink configs specified in the `docker run` and `docker network connect` commands
 type NetworkingConfig struct {
-	EndpointsConfig map[string]*EndpointSettings // Endpoint configs for each conencting network
+	EndpointsConfig map[string]*EndpointSettings `json:",omitempty"` // Endpoint configs for each conencting network
 }
