@@ -278,10 +278,9 @@ including: AUFS, btrfs, vfs, and DeviceMapper.
 
 ### Container format 
 Docker combines these components into a wrapper we call a container format. The
-default container format is called `libcontainer`. Docker also supports
-traditional Linux containers using [LXC](https://linuxcontainers.org/). In the 
-future, Docker may support other container formats, for example, by integrating with
-BSD Jails or Solaris Zones.
+default container format is called `libcontainer`. In the future, Docker may
+support other container formats, for example, by integrating with BSD Jails
+or Solaris Zones.
 
 ## Next steps
 ### Installing Docker
