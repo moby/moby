@@ -174,7 +174,8 @@ Now, inspect the network resources used by `container3`.
 
 ```bash
 $ docker inspect --format='{{json .NetworkSettings.Networks}}'  container3
-{"isolated_nw":{"IPAMConfig":{"IPv4Address":"172.25.3.3"},"EndpointID":"dffc7ec2915af58cc827d995e6ebdc897342be0420123277103c40ae35579103","Gateway":"172.25.0.1","IPAddress":"172.25.3.3","IPPrefixLen":16,"IPv6Gateway":"","GlobalIPv6Address":"","GlobalIPv6PrefixLen":0,"MacAddress":"02:42:ac:19:03:03"}}
+{"isolated_nw":{"IPAMConfig":{"IPv4Address":"172.25.3.3"},"NetworkID":"1196a4c5af43a21ae38ef34515b6af19236a3fc48122cf585e3f3054d509679b",
+"EndpointID":"dffc7ec2915af58cc827d995e6ebdc897342be0420123277103c40ae35579103","Gateway":"172.25.0.1","IPAddress":"172.25.3.3","IPPrefixLen":16,"IPv6Gateway":"","GlobalIPv6Address":"","GlobalIPv6PrefixLen":0,"MacAddress":"02:42:ac:19:03:03"}}
 ```
 Repeat this command for `container2`. If you have Python installed, you can pretty print the output.
 
@@ -182,6 +183,7 @@ Repeat this command for `container2`. If you have Python installed, you can pret
 $ docker inspect --format='{{json .NetworkSettings.Networks}}'  container2 | python -m json.tool
 {
     "bridge": {
+        "NetworkID":"7ea29fc1412292a2d7bba362f9253545fecdfa8ce9a6e37dd10ba8bee7129812",
         "EndpointID": "0099f9efb5a3727f6a554f176b1e96fca34cae773da68b3b6a26d046c12cb365",
         "Gateway": "172.17.0.1",
         "GlobalIPv6Address": "",
@@ -193,6 +195,7 @@ $ docker inspect --format='{{json .NetworkSettings.Networks}}'  container2 | pyt
         "MacAddress": "02:42:ac:11:00:03"
     },
     "isolated_nw": {
+        "NetworkID":"1196a4c5af43a21ae38ef34515b6af19236a3fc48122cf585e3f3054d509679b",
         "EndpointID": "11cedac1810e864d6b1589d92da12af66203879ab89f4ccd8c8fdaa9b1c48b1d",
         "Gateway": "172.25.0.1",
         "GlobalIPv6Address": "",
@@ -511,6 +514,7 @@ $ docker network disconnect isolated_nw container2
 docker inspect --format='{{json .NetworkSettings.Networks}}'  container2 | python -m json.tool
 {
     "bridge": {
+        "NetworkID":"7ea29fc1412292a2d7bba362f9253545fecdfa8ce9a6e37dd10ba8bee7129812",
         "EndpointID": "9e4575f7f61c0f9d69317b7a4b92eefc133347836dd83ef65deffa16b9985dc0",
         "Gateway": "172.17.0.1",
         "GlobalIPv6Address": "",

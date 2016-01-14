@@ -72,22 +72,36 @@ To get information on a container use its ID or instance name:
     "Image": "ded7cd95e059788f2586a51c275a4f151653779d6a7f4dad77c2bd34601d94e4",
     "NetworkSettings": {
         "Bridge": "",
-        "EndpointID": "",
-        "Gateway": "",
-        "GlobalIPv6Address": "",
-        "GlobalIPv6PrefixLen": 0,
+        "SandboxID": "6b4851d1903e16dd6a567bd526553a86664361f31036eaaa2f8454d6f4611f6f",
         "HairpinMode": false,
-        "IPAddress": "",
-        "IPPrefixLen": 0,
-        "IPv6Gateway": "",
         "LinkLocalIPv6Address": "",
         "LinkLocalIPv6PrefixLen": 0,
-        "MacAddress": "",
-        "NetworkID": "",
-        "Ports": null,
-        "SandboxKey": "",
+        "Ports": {},
+        "SandboxKey": "/var/run/docker/netns/6b4851d1903e",
         "SecondaryIPAddresses": null,
-        "SecondaryIPv6Addresses": null
+        "SecondaryIPv6Addresses": null,
+        "EndpointID": "7587b82f0dada3656fda26588aee72630c6fab1536d36e394b2bfbcf898c971d",
+        "Gateway": "172.17.0.1",
+        "GlobalIPv6Address": "",
+        "GlobalIPv6PrefixLen": 0,
+        "IPAddress": "172.17.0.2",
+        "IPPrefixLen": 16,
+        "IPv6Gateway": "",
+        "MacAddress": "02:42:ac:12:00:02",
+        "Networks": {
+            "bridge": {
+                "NetworkID": "7ea29fc1412292a2d7bba362f9253545fecdfa8ce9a6e37dd10ba8bee7129812",
+                "EndpointID": "7587b82f0dada3656fda26588aee72630c6fab1536d36e394b2bfbcf898c971d",
+                "Gateway": "172.17.0.1",
+                "IPAddress": "172.17.0.2",
+                "IPPrefixLen": 16,
+                "IPv6Gateway": "",
+                "GlobalIPv6Address": "",
+                "GlobalIPv6PrefixLen": 0,
+                "MacAddress": "02:42:ac:12:00:02"
+            }
+        }
+
     },
     "ResolvConfPath": "/var/lib/docker/containers/d2cc496561d6d520cbc0236b4ba88c362c446a7619992123f11c809cded25b47/resolv.conf",
     "HostnamePath": "/var/lib/docker/containers/d2cc496561d6d520cbc0236b4ba88c362c446a7619992123f11c809cded25b47/hostname",
