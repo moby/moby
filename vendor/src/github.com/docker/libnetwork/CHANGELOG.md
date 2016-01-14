@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.5.6 (2016-01-14)
+- Setup embedded DNS server correctly on container restart. Fixes docker/docker#19354
+
 ## 0.5.5 (2016-01-14)
 - Allow network-scoped alias to be resolved for anonymous endpoint
 - Self repair corrupted IP database that could happen in 1.9.0 & 1.9.1
