@@ -3,6 +3,7 @@ set -e
 
 # image list should match what's in the Dockerfile (minus the explicit images IDs)
 images=(
+	buildpack-deps:jessie
 	busybox:latest
 	debian:jessie
 	hello-world:latest
