@@ -5,6 +5,116 @@ information on the list of deprecated flags and APIs please have a look at
 https://docs.docker.com/misc/deprecated/ where target removal dates can also
 be found.
 
+## 1.10.0 (2016-02-04)
+
+### Runtime
+
++ New `docker update` command that allows updating resource constraints on running containers [#15078](https://github.com/docker/docker/pull/15078)
++ Add `--tmpfs` flag to `docker run` to create a tmpfs mount in a container [#13587](https://github.com/docker/docker/pull/13587)
++ Add `--format` flag to `docker images` command [#17692](https://github.com/docker/docker/pull/17692)
++ Allow to set daemon configuration in a file and hot-reload it with the `SIGHUP` signal [#18587](https://github.com/docker/docker/pull/18587)
++ Updated docker events to include more meta-data and event types [#18888](https://github.com/docker/docker/pull/18888)  
+  This change is backward compatible in the API, but not on the CLI.
++ Add `--blkio-weight-device` flag to `docker run` [#13959](https://github.com/docker/docker/pull/13959)
++ Add `--device-read-bps` and `--device-write-bps` flags to `docker run` [#14466](https://github.com/docker/docker/pull/14466)
++ Add `--device-read-iops` and `--device-write-iops` flags to `docker run` [#15879](https://github.com/docker/docker/pull/15879)
++ Add `--oom-score-adj` flag to `docker run` [#16277](https://github.com/docker/docker/pull/16277)
+* Change `docker run` exit codes to distinguish between runtime and application errors [#14012](https://github.com/docker/docker/pull/14012)
++ Add `--detach-keys` flag to `attach` and `exec` commands to override the default key sequence that detaches from a container  [#15666](https://github.com/docker/docker/pull/15666)
++ Add `--shm-size` flag to `run`, `create` and `build` to set the size of `/dev/shm` [#16168](https://github.com/docker/docker/pull/16168)
++ Show the number of running, stopped, and paused containers in `docker info` [#19249](https://github.com/docker/docker/pull/19249)
++ Show the `OSType` and `Architecture` in `docker info` [#17478](https://github.com/docker/docker/pull/17478)
++ Add `--cgroup-parent` flag on `daemon` to set cgroup parent for all containers [#19062](https://github.com/docker/docker/pull/19062)
++ Add `-L` flag to docker cp to follow symlinks [#16613](https://github.com/docker/docker/pull/16613)
++ New `status=dead` filter for `docker ps` [#17908](https://github.com/docker/docker/pull/17908)
+* Enhance `docker events --since` and `--until` to support nanoseconds and timezones [#17495](https://github.com/docker/docker/pull/17495)
+* Add `--all`/`-a` flag to `stats` to include both running and stopped containers [#16742](https://github.com/docker/docker/pull/16742)
+* Change the default cgroup-driver to `cgroupfs` [#17704](https://github.com/docker/docker/pull/17704)
+* Emit a "tag" event when tagging an image with `build -t` [#17115](https://github.com/docker/docker/pull/17115)
+* Best effort for linked containers' start order when starting the daemon [#18208](https://github.com/docker/docker/pull/18208)
+- Fix the `--quiet` flag on `docker build` to actually be quiet [#17428](https://github.com/docker/docker/pull/17428)
+- Fix `docker images --filter dangling=false` to now show all non-dangling images [#19326](https://github.com/docker/docker/pull/19326)
+- Fix race condition causing autorestart turning off on restart [#17629](https://github.com/docker/docker/pull/17629)
+- devicemapper: Increasing `--storage-opt dm.basesize` will now increase the base device size on daemon restart [#19123](https://github.com/docker/docker/pull/19123)
+
+### Security
+
++ Add `--userns-remap` flag to `daemon` to support user namespaces (previously in experimental) [#19187](https://github.com/docker/docker/pull/19187)
++ Add support for custom seccomp profiles in `--security-opt` [#17989](https://github.com/docker/docker/pull/17989)
++ Add default seccomp profile [#18780](https://github.com/docker/docker/pull/18780)
++ Add `--authorization-plugin` flag to `daemon` to customize ACLs [#15365](https://github.com/docker/docker/pull/15365)
+* Allow SELinux to run in a container when using the BTRFS storage driver [#16452](https://github.com/docker/docker/pull/16452)
+
+### Distribution
+
++ New `registrytoken` pass-thru token type for `AuthConfig` [#17481](https://github.com/docker/docker/pull/17481)  
+  It allows API clients to retrieve an authentication token from a registry, and then pass that token directly to the remote API
+* Use content-addressable storage for images and layers [#17924](https://github.com/docker/docker/pull/17924)  
+  Note that a migration is performed the first time docker is run; it can take a significant amount of time depending on the number of images and containers present.  
+  Images no longer depend on the parent chain but contain a list of layer references.  
+  `docker load`/`docker save` tarballs now also contain content-addressable image configurations.
+* Add support for the new [manifest format ("schema2")](https://github.com/docker/distribution/blob/master/docs/spec/manifest-v2-2.md) [#18785](https://github.com/docker/docker/pull/18785)
+* Lots of improvements for push and pull: performance++, retries on failed downloads, cancelling on client disconnect [#18353](https://github.com/docker/docker/pull/18353), [#18418](https://github.com/docker/docker/pull/18418), [#19109](https://github.com/docker/docker/pull/19109), [#18353](https://github.com/docker/docker/pull/18353)
+* Limit v1 protocol fallbacks [#18590](https://github.cAom/docker/docker/pull/18590)
+* New version of notary with client-side pkcs11 support [#17937](https://github.com/docker/docker/pull/17937)
+
+### Networking
+
++ Use DNS-based discovery instead of `/etc/hosts` [#19198](https://github.com/docker/docker/pull/19198)
++ Support for network-scoped alias using `--net-alias` on `run` and `--alias` on `network connect` [#19242](https://github.com/docker/docker/pull/19242)
++ Add `--ip` and `--ip6` on `run` and `network connect` to support custom IP addresses for a container in a network [#19001](https://github.com/docker/docker/pull/19001)
++ Add `--ipam-opt` to `network create` for passing custom IPAM options [#17316](https://github.com/docker/docker/pull/17316)
++ Add `--internal` flag to `network create` to restrict external access to and from the network [#19276](https://github.com/docker/docker/pull/19276)
++ Add `kv.path` option to `--cluster-store-opt` [#19167](https://github.com/docker/docker/pull/19167)
++ Add `discovery.heartbeat` and `discovery.ttl` options to `--cluster-store-opt` to configure discovery TTL and heartbeat timer [#18204](https://github.com/docker/docker/pull/18204)
++ Add `--format` flag to `network inspect` [#17481](https://github.com/docker/docker/pull/17481)
++ Add `--link` to `network connect` to provide a container-local alias [#19229](https://github.com/docker/docker/pull/19229)
++ Support for Capability exchange with remote IPAM plugins [#18775](https://github.com/docker/docker/pull/18775)
+* Support for multi-host networking using built-in overlay driver for all engine supported kernels: 3.10+ [#18775](https://github.com/docker/docker/pull/18775)
+* `--link` is now supported on `docker run` for containers in user-defined network [#19229](https://github.com/docker/docker/pull/19229)
+* Enhance `docker network rm` to allow removing multiple networks [#17489](https://github.com/docker/docker/pull/17489)
+* Include container names in `network inspect` [#17615](https://github.com/docker/docker/pull/17615)
+* Include auto-generated subnets for user-defined networks in `network inspect` [#17316](https://github.com/docker/docker/pull/17316)
+* Add `--filter` flag to `network ls` to hide predefined networks [#17782](https://github.com/docker/docker/pull/17782)
+* Add support for network connect/disconnect to stopped containers [#18906](https://github.com/docker/docker/pull/18906)
+* Add network ID to container inspect [#19323](https://github.com/docker/docker/pull/19323)
+- Fix MTU issue where Docker would not start with two or more default routes [#18108](https://github.com/docker/docker/pull/18108)
+- Fix duplicate IP address for containers [#18106](https://github.com/docker/docker/pull/18106)
+- Fix issue preventing sometimes docker from creating the bridge network [#19338](https://github.com/docker/docker/pull/19338)
+
+### Logging
+
++ New logging driver for Splunk [#16488](https://github.com/docker/docker/pull/16488)
++ Add support for syslog over TCP+TLS [#18998](https://github.com/docker/docker/pull/18998)
+* Enhance `docker logs --since` and `--until` to support nanoseconds and time [#17495](https://github.com/docker/docker/pull/17495)
+* Enhance AWS logs to auto-detect region [#16640](https://github.com/docker/docker/pull/16640)
+
+### Volumes
+
++ Add support to set the mount propagation mode for a volume [#17034](https://github.com/docker/docker/pull/17034)
+* Add `ls` and `inspect` endpoints to volume plugin API [#16534](https://github.com/docker/docker/pull/16534)  
+  Existing plugins need to make use of these new APIs to satisfy users' expectation
+- Fix data not being copied to named volumes [#19175](https://github.com/docker/docker/pull/19175)
+
+### Builder
+
++ Add support for `**` in `.dockerignore` to wildcard multiple levels of directories [#17090](https://github.com/docker/docker/pull/17090)
+- Fix handling of UTF-8 characters in Dockerfiles [#17055](https://github.com/docker/docker/pull/17055)
+- Fix permissions problem when reading from STDIN [#19283](https://github.com/docker/docker/pull/19283)
+
+### Client
+
++ Add support for overriding the API version to use via an `DOCKER_API_VERSION` environment-variable [#15964](https://github.com/docker/docker/pull/15964)
+
+### Deprecations
+
+* Remove LXC support. The LXC driver was deprecated in Docker 1.8, and has now been removed [#17700](https://github.com/docker/docker/pull/17700)
+* Remove `--exec-driver` daemon flag, because it is no longer in use [#17700](https://github.com/docker/docker/pull/17700)
+* Remove old deprecated single-dashed long CLI flags (such as `-rm`; use `--rm` instead) [#17724](https://github.com/docker/docker/pull/17724)
+* Deprecate HostConfig at API container start [#17799](https://github.com/docker/docker/pull/17799)
+* Deprecate docker packages for newly EOL'd Linux distributions: Fedora 21 and Ubuntu 15.04 (Vivid) [#18794](https://github.com/docker/docker/pull/18794), [#18809](https://github.com/docker/docker/pull/18809)
+* Deprecate `-f` flag for docker tag [#18350](https://github.com/docker/docker/pull/18350)
+
 ## 1.9.1 (2015-11-21)
 
 ### Runtime
