@@ -105,6 +105,14 @@ rpm_import_repository_key() {
 	rm -rf "$tmpdir"
 }
 
+semverParse() {
+	major="${1%%.*}"
+	minor="${1#$major.}"
+	minor="${minor%%.*}"
+	patch="${1#$major.$minor.}"
+	patch="${patch%%[-.]*}"
+}
+
 do_install() {
 	case "$(uname -m)" in
 		*64)
@@ -119,6 +127,21 @@ do_install() {
 	esac
 
 	if command_exists docker; then
+		version="$(docker -v | awk -F '[ ,]+' '{ print $3 }')"
+		MAJOR_W=1
+		MINOR_W=10
+
+		semverParse $version
+
+		shouldWarn=0
+		if [ $major -lt $MAJOR_W ]; then
+			shouldWarn=1
+		fi
+
+		if [ $major -le $MAJOR_W ] && [ $minor -lt $MINOR_W ]; then
+			shouldWarn=1
+		fi
+
 		cat >&2 <<-'EOF'
 			Warning: the "docker" command appears to already exist on this system.
 
@@ -127,7 +150,23 @@ do_install() {
 			installation.
 
 			If you installed the current Docker package using this script and are using it
+		EOF
+
+		if [ $shouldWarn -eq 1 ]; then
+			cat >&2 <<-'EOF'
+			again to update Docker, we urge you to migrate your image store before upgrading
+			to v1.10+.
+
+			You can find instructions for this here:
+			https://github.com/docker/docker/wiki/Engine-v1.10.0-content-addressability-migration
+			EOF
+		else
+			cat >&2 <<-'EOF'
 			again to update Docker, you can safely ignore this message.
+			EOF
+		fi
+
+		cat >&2 <<-'EOF'
 
 			You may press Ctrl+C now to abort this script.
 		EOF
