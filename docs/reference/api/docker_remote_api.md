@@ -24,6 +24,26 @@ client must have `root` access to interact with the daemon. If a group named
 `docker` exists on your system, `docker` applies ownership of the socket to the
 group.
 
+To interact with the remote API using [cURL](http://curl.haxx.se/download.html) against the unix socket, you must have 
+a version of curl greater than 7.40, after which the --unix-socket flag was added. 
+
+For example, if the Docker daemon is listening on the default socket, then you can
+use curl against the remote API to get information on running containers by:
+```
+curl --unix-socket /var/run/docker.sock http://containers/json
+```
+
+It is also possible to bind the Docker daemon to a TCP port at startup by:
+```
+docker daemon -H tcp://0.0.0.0:2375 -H /var/run/docker.sock
+```
+It will then be possible to access the remote API on the host publicly:
+```
+curl http://localhost:2375/containers/json
+```
+Obviously, however, exposing the remote API so publicly can be a security issue. 
+But it is possible.
+
 The current version of the API is v1.22 which means calling `/info` is the same
 as calling `/v1.22/info`. To call an older version of the API use
 `/v1.21/info`.
