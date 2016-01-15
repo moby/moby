@@ -2963,6 +2963,7 @@ Content-Type: application/json
         "foo": "bar"
     }
   },
+  "Internal": false,
   "Containers": {
     "19a4d5d687db25203351ed79d478946f861258f018fe384f229f2efa4b23513c": {
       "Name": "test",
