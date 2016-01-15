@@ -27,6 +27,7 @@
 
 		people = [
 			"calavera",
+			"coolljt0725",
 			"cpuguy83",
 			"crosbymichael",
 			"duglin",
@@ -114,6 +115,11 @@
 	Name = "David Calavera"
 	Email = "david.calavera@gmail.com"
 	GitHub = "calavera"
+
+	[people.coolljt0725]
+	Name = "Lei Jitang"
+	Email = "leijitang@huawei.com"
+	GitHub = "coolljt0725"
 
 	[people.cpuguy83]
 	Name = "Brian Goff"
