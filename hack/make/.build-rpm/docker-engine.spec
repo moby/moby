@@ -12,7 +12,7 @@ Vendor: Docker
 Packager: Docker <support@docker.com>
 
 # is_systemd conditional
-%if 0%{?fedora} >= 21 || 0%{?centos} >= 7 || 0%{?rhel} >= 7 || 0%{?suse_version} >= 1300
+%if 0%{?fedora} >= 21 || 0%{?centos} >= 7 || 0%{?rhel} >= 7 || 0%{?suse_version} >= 1210
 %global is_systemd 1
 %endif
 
@@ -20,9 +20,12 @@ Packager: Docker <support@docker.com>
 # most are already in the container (see contrib/builder/rpm/ARCH/generate.sh)
 # only require systemd on those systems
 %if 0%{?is_systemd}
+%if 0%{?suse_version} >= 1210
+BuildRequires: systemd-rpm-macros
+%{?systemd_requires}
+%else
 BuildRequires: pkgconfig(systemd)
 Requires: systemd-units
-%if !0%{?suse_version}
 BuildRequires: pkgconfig(libsystemd-journal)
 %endif
 %else
@@ -35,7 +38,11 @@ Requires(preun): initscripts
 # required packages on install
 Requires: /bin/sh
 Requires: iptables
+%if !0%{?suse_version}
 Requires: libcgroup
+%else
+Requires: libcgroup1
+%endif
 Requires: tar
 Requires: xz
 %if 0%{?fedora} >= 21 || 0%{?centos} >= 7 || 0%{?rhel} >= 7 || 0%{?oraclelinux} >= 7
