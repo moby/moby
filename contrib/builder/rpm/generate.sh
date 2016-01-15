@@ -121,7 +121,7 @@ for version in "${versions[@]}"; do
 			&& set -x \
 			&& yum install -y $buildDeps \
 			&& export SECCOMP_PATH=$(mktemp -d) \
-			&& git clone -b "$SECCOMP_VERSION" --depth 1 https://github.com/seccomp/libseccomp.git "$SECCOMP_PATH" \
+			&& git clone -b "v${SECCOMP_VERSION}" --depth 1 https://github.com/seccomp/libseccomp.git "$SECCOMP_PATH" \
 			&& ( \
 				cd "$SECCOMP_PATH" \
 				&& ./autogen.sh \
