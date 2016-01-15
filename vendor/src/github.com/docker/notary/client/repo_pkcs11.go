@@ -26,7 +26,7 @@ func NewNotaryRepository(baseDir, gun, baseURL string, rt http.RoundTripper,
 	keyStores := []trustmanager.KeyStore{fileKeyStore}
 	yubiKeyStore, _ := yubikey.NewYubiKeyStore(fileKeyStore, retriever)
 	if yubiKeyStore != nil {
-		keyStores = append(keyStores, yubiKeyStore)
+		keyStores = []trustmanager.KeyStore{yubiKeyStore, fileKeyStore}
 	}
 
 	return repositoryFromKeystores(baseDir, gun, baseURL, rt, keyStores)

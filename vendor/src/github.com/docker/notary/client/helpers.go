@@ -17,7 +17,7 @@ import (
 
 // Use this to initialize remote HTTPStores from the config settings
 func getRemoteStore(baseURL, gun string, rt http.RoundTripper) (store.RemoteStore, error) {
-	return store.NewHTTPStore(
+	s, err := store.NewHTTPStore(
 		baseURL+"/v2/"+gun+"/_trust/tuf/",
 		"",
 		"json",
@@ -25,6 +25,10 @@ func getRemoteStore(baseURL, gun string, rt http.RoundTripper) (store.RemoteStor
 		"key",
 		rt,
 	)
+	if err != nil {
+		return store.OfflineStore{}, err
+	}
+	return s, err
 }
 
 func applyChangelist(repo *tuf.Repo, cl changelist.Changelist) error {
