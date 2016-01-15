@@ -60,8 +60,13 @@ set -e
 		fi
 	done < CHANGELOG.md
 
-	# TODO add a configurable knob for _which_ rpms to build so we don't have to modify the file or build all of them every time we need to test
-	for dir in contrib/builder/rpm/*/; do
+	builderDir="contrib/builder/rpm"
+	pkgs=( $(find "${builderDir}/"*/ -type d) )
+	if [ ! -z "$DOCKER_BUILD_PKGS" ]; then
+		pkgs=( $(echo ${DOCKER_BUILD_PKGS[@]/#/$builderDir\/}) )
+	fi
+	for dir in "${pkgs[@]}"; do
+		[ -d "$dir" ] || { echo >&2 "skipping nonexistent $dir"; continue; }
 		version="$(basename "$dir")"
 		suite="${version##*-}"
 
