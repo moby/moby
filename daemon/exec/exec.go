@@ -18,7 +18,7 @@ type Config struct {
 	*runconfig.StreamConfig
 	ID            string
 	Running       bool
-	ExitCode      int
+	ExitCode      *int
 	ProcessConfig *execdriver.ProcessConfig
 	OpenStdin     bool
 	OpenStderr    bool

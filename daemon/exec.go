@@ -135,6 +135,11 @@ func (d *Daemon) ContainerExecStart(name string, stdin io.ReadCloser, stdout io.
 	}
 
 	ec.Lock()
+	if ec.ExitCode != nil {
+		ec.Unlock()
+		return derr.ErrorCodeExecExited.WithArgs(ec.ID)
+	}
+
 	if ec.Running {
 		ec.Unlock()
 		return derr.ErrorCodeExecRunning.WithArgs(ec.ID)
@@ -214,7 +219,7 @@ func (d *Daemon) Exec(c *container.Container, execConfig *exec.Config, pipes *ex
 		exitStatus = 128
 	}
 
-	execConfig.ExitCode = exitStatus
+	execConfig.ExitCode = &exitStatus
 	execConfig.Running = false
 
 	return exitStatus, err
