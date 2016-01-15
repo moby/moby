@@ -61,15 +61,12 @@ func TestGetContainer(t *testing.T) {
 		},
 	}
 
-	store := &contStore{
-		s: map[string]*container.Container{
-			c1.ID: c1,
-			c2.ID: c2,
-			c3.ID: c3,
-			c4.ID: c4,
-			c5.ID: c5,
-		},
-	}
+	store := container.NewMemoryStore()
+	store.Add(c1.ID, c1)
+	store.Add(c2.ID, c2)
+	store.Add(c3.ID, c3)
+	store.Add(c4.ID, c4)
+	store.Add(c5.ID, c5)
 
 	index := truncindex.NewTruncIndex([]string{})
 	index.Add(c1.ID)
