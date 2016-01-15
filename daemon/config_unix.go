@@ -18,18 +18,20 @@ var (
 )
 
 // Config defines the configuration of a docker daemon.
+// It includes json tags to deserialize configuration from a file
+// using the same names that the flags in the command line uses.
 type Config struct {
 	CommonConfig
 
 	// Fields below here are platform specific.
 
-	CorsHeaders          string
-	EnableCors           bool
-	EnableSelinuxSupport bool
-	RemappedRoot         string
-	SocketGroup          string
-	CgroupParent         string
-	Ulimits              map[string]*units.Ulimit
+	CorsHeaders          string                   `json:"api-cors-headers,omitempty"`
+	EnableCors           bool                     `json:"api-enable-cors,omitempty"`
+	EnableSelinuxSupport bool                     `json:"selinux-enabled,omitempty"`
+	RemappedRoot         string                   `json:"userns-remap,omitempty"`
+	SocketGroup          string                   `json:"group,omitempty"`
+	CgroupParent         string                   `json:"cgroup-parent,omitempty"`
+	Ulimits              map[string]*units.Ulimit `json:"default-ulimits,omitempty"`
 }
 
 // bridgeConfig stores all the bridge driver specific

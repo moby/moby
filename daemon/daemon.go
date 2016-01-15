@@ -46,7 +46,6 @@ import (
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/migrate/v1"
 	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/discovery"
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/graphdb"
 	"github.com/docker/docker/pkg/idtools"
@@ -155,7 +154,7 @@ type Daemon struct {
 	EventsService             *events.Events
 	netController             libnetwork.NetworkController
 	volumes                   *store.VolumeStore
-	discoveryWatcher          discovery.Watcher
+	discoveryWatcher          discoveryReloader
 	root                      string
 	seccompEnabled            bool
 	shutdown                  bool
@@ -292,7 +291,7 @@ func (daemon *Daemon) Register(container *container.Container) error {
 
 func (daemon *Daemon) restore() error {
 	var (
-		debug         = os.Getenv("DEBUG") != ""
+		debug         = utils.IsDebugEnabled()
 		currentDriver = daemon.GraphDriverName()
 		containers    = make(map[string]*container.Container)
 	)
@@ -772,19 +771,8 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 
 	// Discovery is only enabled when the daemon is launched with an address to advertise.  When
 	// initialized, the daemon is registered and we can store the discovery backend as its read-only
-	// DiscoveryWatcher version.
-	if config.ClusterStore != "" && config.ClusterAdvertise != "" {
-		advertise, err := discovery.ParseAdvertise(config.ClusterStore, config.ClusterAdvertise)
-		if err != nil {
-			return nil, fmt.Errorf("discovery advertise parsing failed (%v)", err)
-		}
-		config.ClusterAdvertise = advertise
-		d.discoveryWatcher, err = initDiscovery(config.ClusterStore, config.ClusterAdvertise, config.ClusterOpts)
-		if err != nil {
-			return nil, fmt.Errorf("discovery initialization failed (%v)", err)
-		}
-	} else if config.ClusterAdvertise != "" {
-		return nil, fmt.Errorf("invalid cluster configuration. --cluster-advertise must be accompanied by --cluster-store configuration")
+	if err := d.initDiscovery(config); err != nil {
+		return nil, err
 	}
 
 	d.netController, err = d.initNetworkController(config)
@@ -815,7 +803,10 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 	d.configStore = config
 	d.execDriver = ed
 	d.statsCollector = d.newStatsCollector(1 * time.Second)
-	d.defaultLogConfig = config.LogConfig
+	d.defaultLogConfig = containertypes.LogConfig{
+		Type:   config.LogConfig.Type,
+		Config: config.LogConfig.Config,
+	}
 	d.RegistryService = registryService
 	d.EventsService = eventsService
 	d.volumes = volStore
@@ -1519,6 +1510,76 @@ func (daemon *Daemon) getNetworkStats(c *container.Container) ([]*libcontainer.N
 // configuration based on the root storage from the daemon.
 func (daemon *Daemon) newBaseContainer(id string) *container.Container {
 	return container.NewBaseContainer(id, daemon.containerRoot(id))
+}
+
+// initDiscovery initializes the discovery watcher for this daemon.
+func (daemon *Daemon) initDiscovery(config *Config) error {
+	advertise, err := parseClusterAdvertiseSettings(config.ClusterStore, config.ClusterAdvertise)
+	if err != nil {
+		if err == errDiscoveryDisabled {
+			return nil
+		}
+		return err
+	}
+
+	config.ClusterAdvertise = advertise
+	discoveryWatcher, err := initDiscovery(config.ClusterStore, config.ClusterAdvertise, config.ClusterOpts)
+	if err != nil {
+		return fmt.Errorf("discovery initialization failed (%v)", err)
+	}
+
+	daemon.discoveryWatcher = discoveryWatcher
+	return nil
+}
+
+// Reload reads configuration changes and modifies the
+// daemon according to those changes.
+// This are the settings that Reload changes:
+// - Daemon labels.
+// - Cluster discovery (reconfigure and restart).
+func (daemon *Daemon) Reload(config *Config) error {
+	daemon.configStore.reloadLock.Lock()
+	defer daemon.configStore.reloadLock.Unlock()
+
+	daemon.configStore.Labels = config.Labels
+	return daemon.reloadClusterDiscovery(config)
+}
+
+func (daemon *Daemon) reloadClusterDiscovery(config *Config) error {
+	newAdvertise, err := parseClusterAdvertiseSettings(config.ClusterStore, config.ClusterAdvertise)
+	if err != nil && err != errDiscoveryDisabled {
+		return err
+	}
+
+	// check discovery modifications
+	if !modifiedDiscoverySettings(daemon.configStore, newAdvertise, config.ClusterStore, config.ClusterOpts) {
+		return nil
+	}
+
+	// enable discovery for the first time if it was not previously enabled
+	if daemon.discoveryWatcher == nil {
+		discoveryWatcher, err := initDiscovery(config.ClusterStore, newAdvertise, config.ClusterOpts)
+		if err != nil {
+			return fmt.Errorf("discovery initialization failed (%v)", err)
+		}
+		daemon.discoveryWatcher = discoveryWatcher
+	} else {
+		if err == errDiscoveryDisabled {
+			// disable discovery if it was previously enabled and it's disabled now
+			daemon.discoveryWatcher.Stop()
+		} else {
+			// reload discovery
+			if err = daemon.discoveryWatcher.Reload(config.ClusterStore, newAdvertise, config.ClusterOpts); err != nil {
+				return err
+			}
+		}
+	}
+
+	daemon.configStore.ClusterStore = config.ClusterStore
+	daemon.configStore.ClusterOpts = config.ClusterOpts
+	daemon.configStore.ClusterAdvertise = newAdvertise
+
+	return nil
 }
 
 func convertLnNetworkStats(name string, stats *lntypes.InterfaceStatistics) *libcontainer.NetworkInterface {

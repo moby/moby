@@ -12,12 +12,8 @@ import (
 var (
 	// Backends is a global map of discovery backends indexed by their
 	// associated scheme.
-	backends map[string]Backend
-)
-
-func init() {
 	backends = make(map[string]Backend)
-}
+)
 
 // Register makes a discovery backend available by the provided scheme.
 // If Register is called twice with the same scheme an error is returned.
@@ -42,7 +38,7 @@ func parse(rawurl string) (string, string) {
 
 // ParseAdvertise parses the --cluster-advertise daemon config which accepts
 // <ip-address>:<port> or <interface-name>:<port>
-func ParseAdvertise(store, advertise string) (string, error) {
+func ParseAdvertise(advertise string) (string, error) {
 	var (
 		iface *net.Interface
 		addrs []net.Addr
