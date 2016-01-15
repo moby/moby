@@ -37,8 +37,13 @@ set -e
 	./man/md2man-all.sh -q || true
 	# TODO decide if it's worth getting go-md2man in _each_ builder environment to avoid this
 
-	# TODO add a configurable knob for _which_ debs to build so we don't have to modify the file or build all of them every time we need to test
-	for dir in contrib/builder/deb/*/; do
+	builderDir="contrib/builder/deb"
+	pkgs=( $(find "${builderDir}/"*/ -type d) )
+	if [ ! -z "$DOCKER_BUILD_PKGS" ]; then
+		pkgs=( $(echo ${DOCKER_BUILD_PKGS[@]/#/$builderDir\/}) )
+	fi
+	for dir in "${pkgs[@]}"; do
+		[ -d "$dir" ] || { echo >&2 "skipping nonexistent $dir"; continue; }
 		version="$(basename "$dir")"
 		suite="${version##*-}"
 
