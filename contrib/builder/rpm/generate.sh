@@ -121,10 +121,10 @@ for version in "${versions[@]}"; do
 			&& set -x \
 			&& yum install -y $buildDeps \
 			&& export SECCOMP_PATH=$(mktemp -d) \
-			&& git clone -b "v${SECCOMP_VERSION}" --depth 1 https://github.com/seccomp/libseccomp.git "$SECCOMP_PATH" \
+			&& curl -fsSL "https://github.com/seccomp/libseccomp/releases/download/v${SECCOMP_VERSION}/libseccomp-${SECCOMP_VERSION}.tar.gz" \
+			| tar -xzC "$SECCOMP_PATH" --strip-components=1 \
 			&& ( \
 				cd "$SECCOMP_PATH" \
-				&& ./autogen.sh \
 				&& ./configure --prefix=/usr \
 				&& make \
 				&& install -c src/.libs/libseccomp.a /usr/lib/libseccomp.a \
