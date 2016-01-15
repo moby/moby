@@ -153,3 +153,46 @@ func (s *DockerSuite) TestContainerRestartSuccess(c *check.C) {
 	err = waitInspect(id, "{{.State.Status}}", "running", 5*time.Second)
 	c.Assert(err, check.IsNil)
 }
+
+func (s *DockerSuite) TestUserDefinedNetworkWithRestartPolicy(c *check.C) {
+	testRequires(c, DaemonIsLinux, SameHostDaemon, NotUserNamespace)
+	dockerCmd(c, "network", "create", "-d", "bridge", "udNet")
+
+	dockerCmd(c, "run", "-d", "--net=udNet", "--name=first", "busybox", "top")
+	c.Assert(waitRun("first"), check.IsNil)
+
+	dockerCmd(c, "run", "-d", "--restart=always", "--net=udNet", "--name=second",
+		"--link=first:foo", "busybox", "top")
+	c.Assert(waitRun("second"), check.IsNil)
+
+	// ping to first and its alias foo must succeed
+	_, _, err := dockerCmdWithError("exec", "second", "ping", "-c", "1", "first")
+	c.Assert(err, check.IsNil)
+	_, _, err = dockerCmdWithError("exec", "second", "ping", "-c", "1", "foo")
+	c.Assert(err, check.IsNil)
+
+	// Now kill the second container and let the restart policy kick in
+	pidStr, err := inspectField("second", "State.Pid")
+	c.Assert(err, check.IsNil)
+
+	pid, err := strconv.Atoi(pidStr)
+	c.Assert(err, check.IsNil)
+
+	p, err := os.FindProcess(pid)
+	c.Assert(err, check.IsNil)
+	c.Assert(p, check.NotNil)
+
+	err = p.Kill()
+	c.Assert(err, check.IsNil)
+
+	err = waitInspect("second", "{{.RestartCount}}", "1", 5*time.Second)
+	c.Assert(err, check.IsNil)
+
+	err = waitInspect("second", "{{.State.Status}}", "running", 5*time.Second)
+
+	// ping to first and its alias foo must still succeed
+	_, _, err = dockerCmdWithError("exec", "second", "ping", "-c", "1", "first")
+	c.Assert(err, check.IsNil)
+	_, _, err = dockerCmdWithError("exec", "second", "ping", "-c", "1", "foo")
+	c.Assert(err, check.IsNil)
+}
