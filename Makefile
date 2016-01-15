@@ -17,6 +17,10 @@ ifeq ($(DOCKER_OSARCH), linux/ppc64le)
 else
 ifeq ($(DOCKER_OSARCH), linux/s390x)
 	DOCKERFILE := Dockerfile.s390x
+else
+ifeq ($(DOCKER_OSARCH), windows/amd64)
+	DOCKERFILE := Dockerfile.windows
+endif
 endif
 endif
 endif
