@@ -9,8 +9,7 @@ ifeq ($(DOCKER_OSARCH), linux/arm)
 	DOCKERFILE := Dockerfile.armhf
 else
 ifeq ($(DOCKER_OSARCH), linux/arm64)
-	# TODO .arm64
-	DOCKERFILE := Dockerfile.armhf
+	DOCKERFILE := Dockerfile.aarch64
 else
 ifeq ($(DOCKER_OSARCH), linux/ppc64le)
 	DOCKERFILE := Dockerfile.ppc64le
