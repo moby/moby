@@ -101,6 +101,7 @@ func (r *router) initRoutes() {
 		NewPostRoute("/images/load", r.postImagesLoad),
 		NewPostRoute("/images/{name:.*}/push", r.postImagesPush),
 		NewPostRoute("/images/{name:.*}/tag", r.postImagesTag),
+		NewPostRoute("/images/{name:.*}/tagmanifest", r.postImagesTagManifest),
 		// DELETE
 		NewDeleteRoute("/images/{name:.*}", r.deleteImages),
 	}
