@@ -742,6 +742,15 @@ var (
 		HTTPStatusCode: http.StatusInternalServerError,
 	})
 
+	// ErrorCodeExecExited is generated when we try to start an exec
+	// but its already running.
+	ErrorCodeExecExited = errcode.Register(errGroup, errcode.ErrorDescriptor{
+		Value:          "EXECEXITED",
+		Message:        "Error: Exec command %s has already run",
+		Description:    "An attempt to start an 'exec' was made, but 'exec' was already run",
+		HTTPStatusCode: http.StatusConflict,
+	})
+
 	// ErrorCodeExecCantRun is generated when we try to start an exec
 	// but it failed for some reason.
 	ErrorCodeExecCantRun = errcode.Register(errGroup, errcode.ErrorDescriptor{
