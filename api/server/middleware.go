@@ -156,6 +156,14 @@ func versionMiddleware(handler httputils.APIFunc) httputils.APIFunc {
 	}
 }
 
+// auditMiddleware logs actions and information about containers when they're started.
+func (s *Server) auditMiddleware(handler httputils.APIFunc) httputils.APIFunc {
+	return func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+		s.LogAction(w, r)
+		return handler(ctx, w, r, vars)
+	}
+}
+
 // handleWithGlobalMiddlwares wraps the handler function for a request with
 // the server's global middlewares. The order of the middlewares is backwards,
 // meaning that the first in the list will be evaluated last.
@@ -165,13 +173,16 @@ func versionMiddleware(handler httputils.APIFunc) httputils.APIFunc {
 //	s.loggingMiddleware(
 //		s.userAgentMiddleware(
 //			s.corsMiddleware(
-//				versionMiddleware(s.getContainersName)
+//				s.versionMiddleware(
+//					s.auditMiddleware(s.getContainersName)
+//				)
 //			)
 //		)
 //	)
 // )
 func (s *Server) handleWithGlobalMiddlewares(handler httputils.APIFunc) httputils.APIFunc {
 	middlewares := []middleware{
+		s.auditMiddleware,
 		versionMiddleware,
 		s.corsMiddleware,
 		s.userAgentMiddleware,
