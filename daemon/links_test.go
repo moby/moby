@@ -39,12 +39,9 @@ func TestMigrateLegacySqliteLinks(t *testing.T) {
 		},
 	}
 
-	store := &contStore{
-		s: map[string]*container.Container{
-			c1.ID: c1,
-			c2.ID: c2,
-		},
-	}
+	store := container.NewMemoryStore()
+	store.Add(c1.ID, c1)
+	store.Add(c2.ID, c2)
 
 	d := &Daemon{root: tmpDir, containers: store}
 	db, err := graphdb.NewSqliteConn(filepath.Join(d.root, "linkgraph.db"))

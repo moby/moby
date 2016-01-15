@@ -179,13 +179,9 @@ func isImageIDPrefix(imageID, possiblePrefix string) bool {
 // getContainerUsingImage returns a container that was created using the given
 // imageID. Returns nil if there is no such container.
 func (daemon *Daemon) getContainerUsingImage(imageID image.ID) *container.Container {
-	for _, container := range daemon.List() {
-		if container.ImageID == imageID {
-			return container
-		}
-	}
-
-	return nil
+	return daemon.containers.First(func(c *container.Container) bool {
+		return c.ImageID == imageID
+	})
 }
 
 // removeImageRef attempts to parse and remove the given image reference from
@@ -328,19 +324,15 @@ func (daemon *Daemon) checkImageDeleteConflict(imgID image.ID, mask conflictType
 
 	if mask&conflictRunningContainer != 0 {
 		// Check if any running container is using the image.
-		for _, container := range daemon.List() {
-			if !container.IsRunning() {
-				// Skip this until we check for soft conflicts later.
-				continue
-			}
-
-			if container.ImageID == imgID {
-				return &imageDeleteConflict{
-					imgID:   imgID,
-					hard:    true,
-					used:    true,
-					message: fmt.Sprintf("image is being used by running container %s", stringid.TruncateID(container.ID)),
-				}
+		running := func(c *container.Container) bool {
+			return c.IsRunning() && c.ImageID == imgID
+		}
+		if container := daemon.containers.First(running); container != nil {
+			return &imageDeleteConflict{
+				imgID:   imgID,
+				hard:    true,
+				used:    true,
+				message: fmt.Sprintf("image is being used by running container %s", stringid.TruncateID(container.ID)),
 			}
 		}
 	}
@@ -355,18 +347,14 @@ func (daemon *Daemon) checkImageDeleteConflict(imgID image.ID, mask conflictType
 
 	if mask&conflictStoppedContainer != 0 {
 		// Check if any stopped containers reference this image.
-		for _, container := range daemon.List() {
-			if container.IsRunning() {
-				// Skip this as it was checked above in hard conflict conditions.
-				continue
-			}
-
-			if container.ImageID == imgID {
-				return &imageDeleteConflict{
-					imgID:   imgID,
-					used:    true,
-					message: fmt.Sprintf("image is being used by stopped container %s", stringid.TruncateID(container.ID)),
-				}
+		stopped := func(c *container.Container) bool {
+			return !c.IsRunning() && c.ImageID == imgID
+		}
+		if container := daemon.containers.First(stopped); container != nil {
+			return &imageDeleteConflict{
+				imgID:   imgID,
+				used:    true,
+				message: fmt.Sprintf("image is being used by stopped container %s", stringid.TruncateID(container.ID)),
 			}
 		}
 	}
