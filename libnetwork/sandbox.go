@@ -488,23 +488,22 @@ func (sb *sandbox) resolveName(req string, networkName string, epList []*endpoin
 }
 
 func (sb *sandbox) SetKey(basePath string) error {
-	var err error
 	if basePath == "" {
 		return types.BadRequestErrorf("invalid sandbox key")
 	}
 
 	sb.Lock()
-	osSbox := sb.osSbox
+	oldosSbox := sb.osSbox
 	sb.Unlock()
 
-	if osSbox != nil {
+	if oldosSbox != nil {
 		// If we already have an OS sandbox, release the network resources from that
 		// and destroy the OS snab. We are moving into a new home further down. Note that none
 		// of the network resources gets destroyed during the move.
 		sb.releaseOSSbox()
 	}
 
-	osSbox, err = osl.GetSandboxForExternalKey(basePath, sb.Key())
+	osSbox, err := osl.GetSandboxForExternalKey(basePath, sb.Key())
 	if err != nil {
 		return err
 	}
@@ -519,6 +518,17 @@ func (sb *sandbox) SetKey(basePath string) error {
 			sb.Unlock()
 		}
 	}()
+
+	// If the resolver was setup before stop it and set it up in the
+	// new osl sandbox.
+	if oldosSbox != nil && sb.resolver != nil {
+		sb.resolver.Stop()
+
+		sb.osSbox.InvokeFunc(sb.resolver.SetupFunc())
+		if err := sb.resolver.Start(); err != nil {
+			log.Errorf("Resolver Setup/Start failed for container %s, %q", sb.ContainerID(), err)
+		}
+	}
 
 	for _, ep := range sb.getConnectedEndpoints() {
 		if err = sb.populateNetworkResources(ep); err != nil {
