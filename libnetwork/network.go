@@ -459,7 +459,7 @@ func (n *network) UnmarshalJSON(b []byte) (err error) {
 	return nil
 }
 
-// NetworkOption is a option setter function type used to pass varios options to
+// NetworkOption is an option setter function type used to pass various options to
 // NewNetwork method. The various setter functions of type NetworkOption are
 // provided by libnetwork, they look like NetworkOptionXXXX(...)
 type NetworkOption func(n *network)
@@ -679,7 +679,7 @@ func (n *network) CreateEndpoint(name string, options ...EndpointOption) (Endpoi
 	ep.id = stringid.GenerateRandomID()
 
 	// Initialize ep.network with a possibly stale copy of n. We need this to get network from
-	// store. But once we get it from store we will have the most uptodate copy possible.
+	// store. But once we get it from store we will have the most uptodate copy possibly.
 	ep.network = n
 	ep.locator = n.getController().clusterHostID()
 	ep.network, err = ep.getNetworkFromStore()
