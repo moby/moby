@@ -50,6 +50,7 @@ type ContainerListOptions struct {
 	Before string
 	Limit  int
 	Filter filters.Args
+	Query  string
 }
 
 // ContainerLogsOptions holds parameters to filter logs with.

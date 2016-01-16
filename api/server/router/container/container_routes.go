@@ -38,6 +38,7 @@ func (s *containerRouter) getContainersJSON(ctx context.Context, w http.Response
 		Since:   r.Form.Get("since"),
 		Before:  r.Form.Get("before"),
 		Filters: r.Form.Get("filters"),
+		Query:   r.Form.Get("query"),
 	}
 
 	if tmpLimit := r.Form.Get("limit"); tmpLimit != "" {

@@ -9,6 +9,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/image"
+	"github.com/docker/docker/query"
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/filters"
 	networktypes "github.com/docker/engine-api/types/network"
@@ -53,6 +54,8 @@ type ContainersConfig struct {
 	Size bool
 	// return only containers that match filters
 	Filters string
+	// return only containers that match query
+	Query string
 }
 
 // listContext is the daemon generated filtering to iterate over containers.
@@ -76,6 +79,8 @@ type listContext struct {
 	// sinceFilter is a filter to stop the filtering when the iterator arrive to the given container
 	// this is used for --filter=since= and --since=, the latter is deprecated.
 	sinceFilter *container.Container
+	//filter
+	query query.Expression
 	// ContainersConfig is the filters set by the user
 	*ContainersConfig
 }
@@ -130,6 +135,17 @@ func (daemon *Daemon) reducePsContainer(container *container.Container, ctx *lis
 
 // foldFilter generates the container filter based in the user's filtering options.
 func (daemon *Daemon) foldFilter(config *ContainersConfig) (*listContext, error) {
+	if config.Query != "" {
+		filter, err := query.Parse(config.Query, container.ContainerQueryFields)
+		if err != nil {
+			return nil, err
+		}
+		return &listContext{
+			query:            filter,
+			ContainersConfig: config,
+		}, nil
+
+	}
 	psFilters, err := filters.FromParam(config.Filters)
 	if err != nil {
 		return nil, err
@@ -226,6 +242,20 @@ func (daemon *Daemon) foldFilter(config *ContainersConfig) (*listContext, error)
 // includeContainerInList decides whether a containers should be include in the output or not based in the filter.
 // It also decides if the iteration should be stopped or not.
 func includeContainerInList(container *container.Container, ctx *listContext) iterationAction {
+	// Stop iteration when the index is over the limit
+	if ctx.Limit > 0 && ctx.idx == ctx.Limit {
+		return stopIteration
+	}
+
+	if ctx.query != nil {
+		logrus.Debugf("List containers, filter %v", ctx.query)
+		if ctx.query.Match(container) {
+			logrus.Debugf("include for %v", container)
+			return includeContainer
+		}
+		logrus.Debugf("exclude for %v", container)
+		return excludeContainer
+	}
 	// Do not include container if it's stopped and we're not filters
 	if !container.Running && !ctx.All && ctx.Limit <= 0 && ctx.beforeFilter == nil && ctx.sinceFilter == nil {
 		return excludeContainer
@@ -265,11 +295,6 @@ func includeContainerInList(container *container.Container, ctx *listContext) it
 		if container.ID == ctx.sinceFilter.ID {
 			return stopIteration
 		}
-	}
-
-	// Stop iteration when the index is over the limit
-	if ctx.Limit > 0 && ctx.idx == ctx.Limit {
-		return stopIteration
 	}
 
 	// Do not include container if its exit code is not in the filter

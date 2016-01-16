@@ -29,6 +29,10 @@ func (cli *Client) ContainerList(options types.ContainerListOptions) ([]types.Co
 		query.Set("before", options.Before)
 	}
 
+	if options.Query != "" {
+		query.Set("query", options.Query)
+	}
+
 	if options.Size {
 		query.Set("size", "1")
 	}
