@@ -262,7 +262,7 @@ Responds with a list of changes. The structure of a change is:
   "Kind": 0,
 ```
 
-Where teh `Path` is the filesystem path within the layered filesystem that is
+Where the `Path` is the filesystem path within the layered filesystem that is
 changed and `Kind` is an integer specifying the type of change that occurred:
 
 - 0 - Modified
