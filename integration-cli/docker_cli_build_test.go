@@ -6632,3 +6632,18 @@ func (s *DockerSuite) TestBuildCacheRootSource(c *check.C) {
 
 	c.Assert(out, checker.Not(checker.Contains), "Using cache")
 }
+
+// #19375
+func (s *DockerSuite) TestBuildFailsGitNotCallable(c *check.C) {
+	cmd := exec.Command(dockerBinary, "build", "github.com/docker/v1.10-migrator.git")
+	cmd.Env = append(cmd.Env, "PATH=")
+	out, _, err := runCommandWithOutput(cmd)
+	c.Assert(err, checker.NotNil)
+	c.Assert(out, checker.Contains, "unable to prepare context: unable to find 'git': ")
+
+	cmd = exec.Command(dockerBinary, "build", "https://github.com/docker/v1.10-migrator.git")
+	cmd.Env = append(cmd.Env, "PATH=")
+	out, _, err = runCommandWithOutput(cmd)
+	c.Assert(err, checker.NotNil)
+	c.Assert(out, checker.Contains, "unable to prepare context: unable to find 'git': ")
+}
