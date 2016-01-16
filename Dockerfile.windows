@@ -11,7 +11,7 @@
 
 FROM windowsservercore
 
-ENV GOLANG_VERSION=1.5.2 \
+ENV GO_VERSION=1.5.3 \
     GIT_VERSION=2.7.0 \
     RSRC_COMMIT=e48dbf1b7fc464a9e85fcec450dddf80816b76e0 \
     GOPATH=C:/go;C:/go/src/github.com/docker/docker/vendor \
@@ -32,7 +32,7 @@ RUN setx /M Path "c:\ProgramData\chocolatey\bin;c:\Program Files\Git\usr\bin;%Pa
 
 RUN powershell -command \
     sleep 2; \
-    curl.exe -L -k -o go.msi https://storage.googleapis.com/golang/go%GOLANG_VERSION%.windows-amd64.msi; \
+    curl.exe -L -k -o go.msi https://storage.googleapis.com/golang/go%GO_VERSION%.windows-amd64.msi; \
     curl.exe -L -k -o gcc.zip http://downloads.sourceforge.net/project/tdm-gcc/TDM-GCC%205%20series/5.1.0-tdm64-1/gcc-5.1.0-tdm64-1-core.zip ; \
     curl.exe -L -k -o runtime.zip http://downloads.sourceforge.net/project/tdm-gcc/MinGW-w64%20runtime/GCC%205%20series/mingw64runtime-v4-git20150618-gcc5-tdm64-1.zip ; \
     curl.exe -L -k -o binutils.zip http://downloads.sourceforge.net/project/tdm-gcc/GNU%20binutils/binutils-2.25-tdm64-1.zip
