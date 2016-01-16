@@ -566,7 +566,7 @@ func (n *network) driverScope() string {
 	return dd.capability.DataScope
 }
 
-func (n *network) driver() (driverapi.Driver, error) {
+func (n *network) driver(load bool) (driverapi.Driver, error) {
 	c := n.getController()
 
 	c.Lock()
@@ -574,12 +574,15 @@ func (n *network) driver() (driverapi.Driver, error) {
 	dd, ok := c.drivers[n.networkType]
 	c.Unlock()
 
-	if !ok {
+	if !ok && load {
 		var err error
 		dd, err = c.loadDriver(n.networkType)
 		if err != nil {
 			return nil, err
 		}
+	} else if !ok {
+		// dont fail if driver loading is not required
+		return nil, nil
 	}
 
 	return dd.driver, nil
@@ -631,7 +634,7 @@ func (n *network) Delete() error {
 }
 
 func (n *network) deleteNetwork() error {
-	d, err := n.driver()
+	d, err := n.driver(true)
 	if err != nil {
 		return fmt.Errorf("failed deleting network: %v", err)
 	}
@@ -651,7 +654,7 @@ func (n *network) deleteNetwork() error {
 }
 
 func (n *network) addEndpoint(ep *endpoint) error {
-	d, err := n.driver()
+	d, err := n.driver(true)
 	if err != nil {
 		return fmt.Errorf("failed to add endpoint: %v", err)
 	}
@@ -725,7 +728,7 @@ func (n *network) CreateEndpoint(name string, options ...EndpointOption) (Endpoi
 	}
 	defer func() {
 		if err != nil {
-			if e := ep.deleteEndpoint(); e != nil {
+			if e := ep.deleteEndpoint(false); e != nil {
 				log.Warnf("cleaning up endpoint failed %s : %v", name, e)
 			}
 		}
