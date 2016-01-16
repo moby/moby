@@ -295,7 +295,7 @@ __docker_network_subcommand() {
             _arguments $(__docker_arguments) \
                 $opts_help \
                 "($help -)1:network:__docker_networks" \
-                "($help -)2:containers:__docker_runningcontainers" && ret=0
+                "($help -)2:containers:__docker_containers" && ret=0
             ;;
         (create)
             _arguments $(__docker_arguments) -A '-*' \
