@@ -74,7 +74,7 @@ func (a *authorizationPlugin) initPlugin() error {
 	// Lazy loading of plugins
 	if a.plugin == nil {
 		var err error
-		a.plugin, err = plugins.Get(a.name, AuthZApiImplements)
+		a.plugin, err = plugins.Get(a.name, AuthZApiImplements, true)
 		if err != nil {
 			return err
 		}

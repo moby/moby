@@ -89,7 +89,7 @@ func Lookup(name string) (volume.Driver, error) {
 	if ok {
 		return ext, nil
 	}
-	pl, err := plugins.Get(name, extName)
+	pl, err := plugins.Get(name, extName, true)
 	if err != nil {
 		return nil, fmt.Errorf("Error looking up volume plugin %s: %v", name, err)
 	}
