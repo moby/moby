@@ -16,7 +16,7 @@
 // In order to use a plugins, you can use the ``Get`` with the name of the
 // plugin and the subsystem it implements.
 //
-//	plugin, err := plugins.Get("example", "VolumeDriver")
+//	plugin, err := plugins.Get("example", "VolumeDriver", true)
 //	if err != nil {
 //		return fmt.Errorf("Error looking up volume plugin example: %v", err)
 //	}
@@ -159,19 +159,19 @@ func loadWithRetry(name string, retry bool) (*Plugin, error) {
 	}
 }
 
-func get(name string) (*Plugin, error) {
+func get(name string, retry bool) (*Plugin, error) {
 	storage.Lock()
 	pl, ok := storage.plugins[name]
 	storage.Unlock()
 	if ok {
 		return pl, pl.activate()
 	}
-	return load(name)
+	return loadWithRetry(name, retry)
 }
 
 // Get returns the plugin given the specified name and requested implementation.
-func Get(name, imp string) (*Plugin, error) {
-	pl, err := get(name)
+func Get(name, imp string, retry bool) (*Plugin, error) {
+	pl, err := get(name, retry)
 	if err != nil {
 		return nil, err
 	}

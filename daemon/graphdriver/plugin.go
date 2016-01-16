@@ -19,7 +19,7 @@ type pluginClient interface {
 }
 
 func lookupPlugin(name, home string, opts []string) (Driver, error) {
-	pl, err := plugins.Get(name, "GraphDriver")
+	pl, err := plugins.Get(name, "GraphDriver", true)
 	if err != nil {
 		return nil, fmt.Errorf("Error looking up graphdriver plugin %s: %v", name, err)
 	}
