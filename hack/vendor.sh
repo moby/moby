@@ -25,6 +25,8 @@ clone git github.com/docker/go-connections v0.1.2
 clone git github.com/docker/engine-api v0.2.2
 clone git github.com/RackSec/srslog 6eb773f331e46fbba8eecb8e794e635e75fc04de
 clone git github.com/imdario/mergo 0.2.1
+clone git github.com/WeiZhang555/tabwriter f0d0a8754cd1fde09b088ff7525c5a6d92176c0f
+clone git github.com/moznion/go-unicode-east-asian-width 0231aeb79f9b16eb9267550bb7c29b5984d9f8af
 
 #get libnetwork packages
 clone git github.com/docker/libnetwork v0.5.6

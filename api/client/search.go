@@ -5,8 +5,8 @@ import (
 	"net/url"
 	"sort"
 	"strings"
-	"text/tabwriter"
 
+	"github.com/WeiZhang555/tabwriter"
 	Cli "github.com/docker/docker/cli"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/stringutils"
