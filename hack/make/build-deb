@@ -59,8 +59,6 @@ set -e
 			echo 'ENV DOCKER_EXPERIMENTAL 1' >> "$DEST/$version/Dockerfile.build"
 		fi
 		cat >> "$DEST/$version/Dockerfile.build" <<-EOF
-			RUN GOPATH=/go go build -o aagen contrib/apparmor/*.go \
-				&& ./aagen contrib/apparmor/docker-engine
 			RUN ln -sfv hack/make/.build-deb debian
 			RUN { echo '$debSource (${debVersion}-0~${suite}) $suite; urgency=low'; echo; echo '  * Version: $VERSION'; echo; echo " -- $debMaintainer  $debDate"; } > debian/changelog && cat >&2 debian/changelog
 			RUN dpkg-buildpackage -uc -us
