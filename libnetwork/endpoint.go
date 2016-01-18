@@ -913,7 +913,7 @@ func (ep *endpoint) assignAddressVersion(ipVer int, ipam ipamapi.Ipam) error {
 		}
 	}
 	if progAdd != nil {
-		return types.BadRequestErrorf("Invalid preferred address %s: It does not belong to any of this network's subnets")
+		return types.BadRequestErrorf("Invalid preferred address %s: It does not belong to any of this network's subnets", prefAdd)
 	}
 	return fmt.Errorf("no available IPv%d addresses on this network's address pools: %s (%s)", ipVer, n.Name(), n.ID())
 }
