@@ -155,7 +155,7 @@ func (s *DockerSuite) TestContainerRestartSuccess(c *check.C) {
 }
 
 func (s *DockerSuite) TestUserDefinedNetworkWithRestartPolicy(c *check.C) {
-	testRequires(c, DaemonIsLinux, SameHostDaemon, NotUserNamespace)
+	testRequires(c, DaemonIsLinux, SameHostDaemon, NotUserNamespace, NotArm)
 	dockerCmd(c, "network", "create", "-d", "bridge", "udNet")
 
 	dockerCmd(c, "run", "-d", "--net=udNet", "--name=first", "busybox", "top")
