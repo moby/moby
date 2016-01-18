@@ -227,10 +227,11 @@ func (br *buildRouter) postBuild(ctx context.Context, w http.ResponseWriter, r *
 	if closeNotifier, ok := w.(http.CloseNotifier); ok {
 		finished := make(chan struct{})
 		defer close(finished)
+		clientGone := closeNotifier.CloseNotify()
 		go func() {
 			select {
 			case <-finished:
-			case <-closeNotifier.CloseNotify():
+			case <-clientGone:
 				logrus.Infof("Client disconnected, cancelling job: build")
 				b.Cancel()
 			}
