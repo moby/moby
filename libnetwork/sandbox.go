@@ -14,6 +14,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/etchosts"
+	"github.com/docker/libnetwork/netutils"
 	"github.com/docker/libnetwork/osl"
 	"github.com/docker/libnetwork/resolvconf"
 	"github.com/docker/libnetwork/types"
@@ -827,7 +828,7 @@ func (sb *sandbox) setupDNS() error {
 	if len(sb.config.dnsList) > 0 || len(sb.config.dnsSearchList) > 0 || len(sb.config.dnsOptionsList) > 0 {
 		var (
 			err            error
-			dnsList        = resolvconf.GetNameservers(currRC.Content)
+			dnsList        = resolvconf.GetNameservers(currRC.Content, netutils.IP)
 			dnsSearchList  = resolvconf.GetSearchDomains(currRC.Content)
 			dnsOptionsList = resolvconf.GetOptions(currRC.Content)
 		)
@@ -935,13 +936,17 @@ func (sb *sandbox) rebuildDNS() error {
 	}
 
 	// localhost entries have already been filtered out from the list
-	sb.extDNS = resolvconf.GetNameservers(currRC.Content)
+	// retain only the v4 servers in sb for forwarding the DNS queries
+	sb.extDNS = resolvconf.GetNameservers(currRC.Content, netutils.IPv4)
 
 	var (
 		dnsList        = []string{sb.resolver.NameServer()}
 		dnsOptionsList = resolvconf.GetOptions(currRC.Content)
 		dnsSearchList  = resolvconf.GetSearchDomains(currRC.Content)
 	)
+
+	// external v6 DNS servers has to be listed in resolv.conf
+	dnsList = append(dnsList, resolvconf.GetNameservers(currRC.Content, netutils.IPv6)...)
 
 	// Resolver returns the options in the format resolv.conf expects
 	dnsOptionsList = append(dnsOptionsList, sb.resolver.ResolverOptions()...)
