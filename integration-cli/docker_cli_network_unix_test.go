@@ -12,6 +12,7 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/docker/docker/runconfig"
@@ -56,6 +57,10 @@ func (s *DockerNetworkSuite) SetUpSuite(c *check.C) {
 	mux := http.NewServeMux()
 	s.server = httptest.NewServer(mux)
 	c.Assert(s.server, check.NotNil, check.Commentf("Failed to start a HTTP Server"))
+	setupRemoteNetworkDrivers(c, mux, s.server.URL, dummyNetworkDriver, dummyIpamDriver)
+}
+
+func setupRemoteNetworkDrivers(c *check.C, mux *http.ServeMux, url, netDrv, ipamDrv string) {
 
 	mux.HandleFunc("/Plugin.Activate", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
@@ -199,12 +204,12 @@ func (s *DockerNetworkSuite) SetUpSuite(c *check.C) {
 	err := os.MkdirAll("/etc/docker/plugins", 0755)
 	c.Assert(err, checker.IsNil)
 
-	fileName := fmt.Sprintf("/etc/docker/plugins/%s.spec", dummyNetworkDriver)
-	err = ioutil.WriteFile(fileName, []byte(s.server.URL), 0644)
+	fileName := fmt.Sprintf("/etc/docker/plugins/%s.spec", netDrv)
+	err = ioutil.WriteFile(fileName, []byte(url), 0644)
 	c.Assert(err, checker.IsNil)
 
-	ipamFileName := fmt.Sprintf("/etc/docker/plugins/%s.spec", dummyIpamDriver)
-	err = ioutil.WriteFile(ipamFileName, []byte(s.server.URL), 0644)
+	ipamFileName := fmt.Sprintf("/etc/docker/plugins/%s.spec", ipamDrv)
+	err = ioutil.WriteFile(ipamFileName, []byte(url), 0644)
 	c.Assert(err, checker.IsNil)
 }
 
@@ -828,6 +833,51 @@ func (s *DockerNetworkSuite) TestDockerNetworkOverlayPortMapping(c *check.C) {
 	c.Assert(out, checker.Contains, unpPort1)
 	// Missing unpublished ports in docker ps output
 	c.Assert(out, checker.Contains, unpPort2)
+}
+
+func (s *DockerNetworkSuite) TestDockerNetworkDriverUngracefulRestart(c *check.C) {
+	testRequires(c, DaemonIsLinux, NotUserNamespace)
+	dnd := "dnd"
+	did := "did"
+
+	mux := http.NewServeMux()
+	server := httptest.NewServer(mux)
+	setupRemoteNetworkDrivers(c, mux, server.URL, dnd, did)
+
+	s.d.StartWithBusybox()
+	_, err := s.d.Cmd("network", "create", "-d", dnd, "--subnet", "1.1.1.0/24", "net1")
+	c.Assert(err, checker.IsNil)
+
+	_, err = s.d.Cmd("run", "-itd", "--net", "net1", "--name", "foo", "--ip", "1.1.1.10", "busybox", "sh")
+	c.Assert(err, checker.IsNil)
+
+	// Kill daemon and restart
+	if err = s.d.cmd.Process.Kill(); err != nil {
+		c.Fatal(err)
+	}
+
+	server.Close()
+
+	startTime := time.Now().Unix()
+	if err = s.d.Restart(); err != nil {
+		c.Fatal(err)
+	}
+	lapse := time.Now().Unix() - startTime
+	if lapse > 60 {
+		// In normal scenarios, daemon restart takes ~1 second.
+		// Plugin retry mechanism can delay the daemon start. systemd may not like it.
+		// Avoid accessing plugins during daemon bootup
+		c.Logf("daemon restart took too long : %d seconds", lapse)
+	}
+
+	// Restart the custom dummy plugin
+	mux = http.NewServeMux()
+	server = httptest.NewServer(mux)
+	setupRemoteNetworkDrivers(c, mux, server.URL, dnd, did)
+
+	// trying to reuse the same ip must succeed
+	_, err = s.d.Cmd("run", "-itd", "--net", "net1", "--name", "bar", "--ip", "1.1.1.10", "busybox", "sh")
+	c.Assert(err, checker.IsNil)
 }
 
 func (s *DockerNetworkSuite) TestDockerNetworkMacInspect(c *check.C) {
