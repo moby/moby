@@ -77,9 +77,8 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	cmd.ParseFlags(args, true)
 
 	var (
-		context  io.ReadCloser
-		isRemote bool
-		err      error
+		context io.ReadCloser
+		err     error
 	)
 
 	_, err = exec.LookPath("git")
@@ -215,18 +214,12 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		}
 	}
 
-	var remoteContext string
-	if isRemote {
-		remoteContext = cmd.Arg(0)
-	}
-
 	options := types.ImageBuildOptions{
 		Context:        body,
 		Memory:         memory,
 		MemorySwap:     memorySwap,
 		Tags:           flTags.GetAll(),
 		SuppressOutput: *suppressOutput,
-		RemoteContext:  remoteContext,
 		NoCache:        *noCache,
 		Remove:         *rm,
 		ForceRemove:    *forceRm,

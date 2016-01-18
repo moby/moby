@@ -67,7 +67,8 @@ type Builder struct {
 	allowedBuildArgs map[string]bool // list of build-time args that are allowed for expansion/substitution and passing to commands in 'run'.
 
 	// TODO: remove once docker.Commit can receive a tag
-	id string
+	id     string
+	Output io.Writer
 }
 
 // NewBuilder creates a new Dockerfile builder from an optional dockerfile and a Config.
