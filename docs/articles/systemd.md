@@ -88,6 +88,7 @@ In this example, we'll assume that your `docker.service` file looks something li
     ExecStart=/usr/bin/docker daemon -H fd://
     LimitNOFILE=1048576
     LimitNPROC=1048576
+    TasksMax=1048576
 
     [Install]
     Also=docker.socket
