@@ -105,6 +105,10 @@ func copyDir(srcDir, dstDir string, flags copyFlags) error {
 		case os.ModeNamedPipe:
 			fallthrough
 		case os.ModeSocket:
+			if system.RunningInUserNS() {
+				// cannot create a device if running in user namespace
+				return nil
+			}
 			if err := syscall.Mkfifo(dstPath, stat.Mode); err != nil {
 				return err
 			}

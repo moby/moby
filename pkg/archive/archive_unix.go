@@ -80,6 +80,10 @@ func minor(device uint64) uint64 {
 // handleTarTypeBlockCharFifo is an OS-specific helper function used by
 // createTarFile to handle the following types of header: Block; Char; Fifo
 func handleTarTypeBlockCharFifo(hdr *tar.Header, path string) error {
+	if system.RunningInUserNS() {
+		// cannot create a device if running in user namespace
+		return nil
+	}
 	mode := uint32(hdr.Mode & 07777)
 	switch hdr.Typeflag {
 	case tar.TypeBlock:
