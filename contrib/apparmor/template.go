@@ -18,6 +18,11 @@ profile /usr/bin/docker (attach_disconnected, complain) {
 
   / r,
 
+  # allow us to run the binary in the specified container
+  # make unknown because there is no possible way we could have every option
+  # of binaries for all containers ever
+  /** Cx -> unknown_binary,
+
   umount,
   pivot_root,
 {{if ge .MajorVersion 2}}{{if ge .MinorVersion 9}}
@@ -264,5 +269,7 @@ profile /usr/bin/docker (attach_disconnected, complain) {
     /proc r,
 
     capability mac_admin,
+  }
+  profile unknown_binary (attach_disconnected, complain) {
   }
 }`
