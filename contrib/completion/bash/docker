@@ -862,7 +862,7 @@ _docker_diff() {
 _docker_events() {
 	case "$prev" in
 		--filter|-f)
-			COMPREPLY=( $( compgen -S = -W "container event image" -- "$cur" ) )
+			COMPREPLY=( $( compgen -S = -W "container event image label network type volume" -- "$cur" ) )
 			__docker_nospace
 			return
 			;;
@@ -881,16 +881,19 @@ _docker_events() {
 			COMPREPLY=( $( compgen -W "
 				attach
 				commit
+				connect
 				copy
 				create
 				delete
 				destroy
 				die
+				disconnect
 				exec_create
 				exec_start
 				export
 				import
 				kill
+				mount
 				oom
 				pause
 				pull
@@ -902,14 +905,31 @@ _docker_events() {
 				stop
 				tag
 				top
+				unmount
 				unpause
 				untag
+				update
 			" -- "${cur#=}" ) )
 			return
 			;;
 		*image=*)
 			cur="${cur#=}"
 			__docker_complete_images
+			return
+			;;
+		*network=*)
+			## BUG: this also triggers after -f type=network
+			cur="${cur#=}"
+			__docker_complete_networks
+			return
+			;;
+		*type=*)
+			COMPREPLY=( $( compgen -W "container image network volume" -- "${cur#=}" ) )
+			return
+			;;
+		*volume=*)
+			cur="${cur#=}"
+			__docker_complete_volumes
 			return
 			;;
 	esac
