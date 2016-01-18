@@ -91,6 +91,9 @@ deb: build
 docs:
 	$(MAKE) -C docs docs
 
+gccgo: build
+	$(DOCKER_RUN_DOCKER) hack/make.sh gccgo
+
 rpm: build
 	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary build-rpm
 
