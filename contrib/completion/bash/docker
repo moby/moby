@@ -1170,7 +1170,7 @@ _docker_network_connect() {
 
 _docker_network_create() {
 	case "$prev" in
-		--aux-address|--gateway|--ip-range|--opt|-o|--subnet)
+		--aux-address|--gateway|--ip-range|--ipam-opt|--opt|-o|--subnet)
 			return
 			;;
 		--ipam-driver)
@@ -1189,7 +1189,7 @@ _docker_network_create() {
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--aux-address --driver -d --gateway --help --ip-range --ipam-driver --opt -o --subnet" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--aux-address --driver -d --gateway --help --internal --ip-range --ipam-driver --ipam-opt --opt -o --subnet" -- "$cur" ) )
 			;;
 	esac
 }
