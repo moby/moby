@@ -150,10 +150,10 @@ If you want to create an externally isolated `overlay` network, you can specify 
   IP Address Management Driver
 
 **--ipam-opt**=map[]
-  Set custom IPAM plugin options
+  Set custom IPAM driver options
 
 **-o**, **--opt**=map[]
-  Set custom network plugin options
+  Set custom driver options
 
 **--subnet**=[]
   Subnet in CIDR format that represents a network segment

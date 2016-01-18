@@ -95,6 +95,53 @@ $ docker network create -d overlay
 
 Be sure that your subnetworks do not overlap. If they do, the network create fails and Engine returns an error.
 
+When creating a custom network, the default network driver (i.e. `bridge`) has additional options that can be passed.
+The following are those options and the equivalent docker daemon flags used for docker0 bridge:
+
+| Option                                           | Equivalent  | Description                                           |
+|--------------------------------------------------|-------------|-------------------------------------------------------|
+| `com.docker.network.bridge.name`                 | -           | bridge name to be used when creating the Linux bridge |
+| `com.docker.network.bridge.enable_ip_masquerade` | `--ip-masq` | Enable IP masquerading                                |
+| `com.docker.network.bridge.enable_icc`           | `--icc`     | Enable or Disable Inter Container Connectivity        |
+| `com.docker.network.bridge.host_binding_ipv4`    | `--ip`      | Default IP when binding container ports               |
+| `com.docker.network.mtu`                         | `--mtu`     | Set the containers network MTU                        |
+| `com.docker.network.enable_ipv6`                 | `--ipv6`    | Enable IPv6 networking                                |
+
+For example, now let's use `-o` or `--opt` options to specify an IP address binding when publishing ports:
+
+```bash
+$ docker network create -o "com.docker.network.bridge.host_binding_ipv4"="172.23.0.1" my-network
+b1a086897963e6a2e7fc6868962e55e746bee8ad0c97b54a5831054b5f62672a
+$ docker network inspect my-network
+[
+    {
+        "Name": "my-network",
+        "Id": "b1a086897963e6a2e7fc6868962e55e746bee8ad0c97b54a5831054b5f62672a",
+        "Scope": "local",
+        "Driver": "bridge",
+        "IPAM": {
+            "Driver": "default",
+            "Options": {},
+            "Config": [
+                {
+                    "Subnet": "172.23.0.0/16",
+                    "Gateway": "172.23.0.1/16"
+                }
+            ]
+        },
+        "Containers": {},
+        "Options": {
+            "com.docker.network.bridge.host_binding_ipv4": "172.23.0.1"
+        }
+    }
+]
+$ docker run -d -P --name redis --net my-network redis
+bafb0c808c53104b2c90346f284bda33a69beadcab4fc83ab8f2c5a4410cd129
+$ docker ps
+CONTAINER ID        IMAGE               COMMAND                  CREATED             STATUS              PORTS                        NAMES
+bafb0c808c53        redis               "/entrypoint.sh redis"   4 seconds ago       Up 3 seconds        172.23.0.1:32770->6379/tcp   redis
+```
+
 ## Connect containers
 
 You can connect containers dynamically to one or more networks. These networks
