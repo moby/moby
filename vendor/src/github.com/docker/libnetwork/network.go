@@ -149,6 +149,7 @@ type network struct {
 	name         string
 	networkType  string
 	id           string
+	scope        string
 	ipamType     string
 	ipamOptions  map[string]string
 	addrSpace    string
@@ -246,6 +247,7 @@ func (n *network) New() datastore.KVObject {
 	return &network{
 		ctrlr:   n.ctrlr,
 		drvOnce: &sync.Once{},
+		scope:   n.scope,
 	}
 }
 
@@ -295,6 +297,7 @@ func (n *network) CopyTo(o datastore.KVObject) error {
 	dstN.name = n.name
 	dstN.id = n.id
 	dstN.networkType = n.networkType
+	dstN.scope = n.scope
 	dstN.ipamType = n.ipamType
 	dstN.enableIPv6 = n.enableIPv6
 	dstN.persist = n.persist
@@ -337,7 +340,7 @@ func (n *network) CopyTo(o datastore.KVObject) error {
 }
 
 func (n *network) DataScope() string {
-	return n.driverScope()
+	return n.Scope()
 }
 
 func (n *network) getEpCnt() *endpointCnt {
@@ -353,6 +356,7 @@ func (n *network) MarshalJSON() ([]byte, error) {
 	netMap["name"] = n.name
 	netMap["id"] = n.id
 	netMap["networkType"] = n.networkType
+	netMap["scope"] = n.scope
 	netMap["ipamType"] = n.ipamType
 	netMap["addrSpace"] = n.addrSpace
 	netMap["enableIPv6"] = n.enableIPv6
@@ -455,6 +459,9 @@ func (n *network) UnmarshalJSON(b []byte) (err error) {
 	}
 	if v, ok := netMap["internal"]; ok {
 		n.internal = v.(bool)
+	}
+	if s, ok := netMap["scope"]; ok {
+		n.scope = s.(string)
 	}
 	return nil
 }
@@ -566,7 +573,7 @@ func (n *network) driverScope() string {
 	return dd.capability.DataScope
 }
 
-func (n *network) driver() (driverapi.Driver, error) {
+func (n *network) driver(load bool) (driverapi.Driver, error) {
 	c := n.getController()
 
 	c.Lock()
@@ -574,14 +581,20 @@ func (n *network) driver() (driverapi.Driver, error) {
 	dd, ok := c.drivers[n.networkType]
 	c.Unlock()
 
-	if !ok {
+	if !ok && load {
 		var err error
 		dd, err = c.loadDriver(n.networkType)
 		if err != nil {
 			return nil, err
 		}
+	} else if !ok {
+		// dont fail if driver loading is not required
+		return nil, nil
 	}
 
+	n.Lock()
+	n.scope = dd.capability.DataScope
+	n.Unlock()
 	return dd.driver, nil
 }
 
@@ -631,7 +644,7 @@ func (n *network) Delete() error {
 }
 
 func (n *network) deleteNetwork() error {
-	d, err := n.driver()
+	d, err := n.driver(true)
 	if err != nil {
 		return fmt.Errorf("failed deleting network: %v", err)
 	}
@@ -651,7 +664,7 @@ func (n *network) deleteNetwork() error {
 }
 
 func (n *network) addEndpoint(ep *endpoint) error {
-	d, err := n.driver()
+	d, err := n.driver(true)
 	if err != nil {
 		return fmt.Errorf("failed to add endpoint: %v", err)
 	}
@@ -725,7 +738,7 @@ func (n *network) CreateEndpoint(name string, options ...EndpointOption) (Endpoi
 	}
 	defer func() {
 		if err != nil {
-			if e := ep.deleteEndpoint(); e != nil {
+			if e := ep.deleteEndpoint(false); e != nil {
 				log.Warnf("cleaning up endpoint failed %s : %v", name, e)
 			}
 		}
@@ -1169,7 +1182,9 @@ func (n *network) DriverOptions() map[string]string {
 }
 
 func (n *network) Scope() string {
-	return n.driverScope()
+	n.Lock()
+	defer n.Unlock()
+	return n.scope
 }
 
 func (n *network) IpamConfig() (string, map[string]string, []*IpamConf, []*IpamConf) {

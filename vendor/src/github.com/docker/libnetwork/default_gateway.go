@@ -84,7 +84,7 @@ func (sb *sandbox) clearDefaultGW() error {
 		return nil
 	}
 
-	if err := ep.sbLeave(sb); err != nil {
+	if err := ep.sbLeave(sb, false); err != nil {
 		return fmt.Errorf("container %s: endpoint leaving GW Network failed: %v", sb.containerID, err)
 	}
 	if err := ep.Delete(false); err != nil {
