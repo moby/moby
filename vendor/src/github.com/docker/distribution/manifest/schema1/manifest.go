@@ -39,11 +39,11 @@ func init() {
 		desc := distribution.Descriptor{
 			Digest:    digest.FromBytes(sm.Canonical),
 			Size:      int64(len(sm.Canonical)),
-			MediaType: MediaTypeManifest,
+			MediaType: MediaTypeSignedManifest,
 		}
 		return sm, desc, err
 	}
-	err := distribution.RegisterManifestSchema(MediaTypeManifest, schema1Func)
+	err := distribution.RegisterManifestSchema(MediaTypeSignedManifest, schema1Func)
 	if err != nil {
 		panic(fmt.Sprintf("Unable to register manifest: %s", err))
 	}
@@ -51,7 +51,7 @@ func init() {
 	if err != nil {
 		panic(fmt.Sprintf("Unable to register manifest: %s", err))
 	}
-	err = distribution.RegisterManifestSchema("application/json; charset=utf-8", schema1Func)
+	err = distribution.RegisterManifestSchema("application/json", schema1Func)
 	if err != nil {
 		panic(fmt.Sprintf("Unable to register manifest: %s", err))
 	}
@@ -167,7 +167,7 @@ func (sm *SignedManifest) MarshalJSON() ([]byte, error) {
 
 // Payload returns the signed content of the signed manifest.
 func (sm SignedManifest) Payload() (string, []byte, error) {
-	return MediaTypeManifest, sm.all, nil
+	return MediaTypeSignedManifest, sm.all, nil
 }
 
 // Signatures returns the signatures as provided by
