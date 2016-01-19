@@ -145,7 +145,7 @@ This will *not* work, because by default, most potentially dangerous kernel
 capabilities are dropped; including `cap_sys_admin` (which is required to mount
 filesystems). However, the `--privileged` flag will allow it to run:
 
-    $ docker run --privileged ubuntu bash
+    $ docker run -t -i --privileged ubuntu bash
     root@50e3f57e16e6:/# mount -t tmpfs none /mnt
     root@50e3f57e16e6:/# df -h
     Filesystem      Size  Used Avail Use% Mounted on
