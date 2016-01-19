@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/opts"
@@ -87,5 +88,128 @@ func TestLoadDaemonCliConfigWithConflicts(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "labels") {
 		t.Fatalf("expected labels conflict, got %v", err)
+	}
+}
+
+func TestLoadDaemonCliConfigWithTLSVerify(t *testing.T) {
+	c := &daemon.Config{}
+	common := &cli.CommonFlags{
+		TLSOptions: &tlsconfig.Options{
+			CAFile: "/tmp/ca.pem",
+		},
+	}
+
+	f, err := ioutil.TempFile("", "docker-config-")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	configFile := f.Name()
+	f.Write([]byte(`{"tls-verify": true}`))
+	f.Close()
+
+	flags := mflag.NewFlagSet("test", mflag.ContinueOnError)
+	loadedConfig, err := loadDaemonCliConfig(c, flags, common, configFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loadedConfig == nil {
+		t.Fatalf("expected configuration %v, got nil", c)
+	}
+
+	if !loadedConfig.TLS {
+		t.Fatalf("expected TLS enabled, got %q", loadedConfig)
+	}
+}
+
+func TestLoadDaemonCliConfigWithExplicitTLSVerifyFalse(t *testing.T) {
+	c := &daemon.Config{}
+	common := &cli.CommonFlags{
+		TLSOptions: &tlsconfig.Options{
+			CAFile: "/tmp/ca.pem",
+		},
+	}
+
+	f, err := ioutil.TempFile("", "docker-config-")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	configFile := f.Name()
+	f.Write([]byte(`{"tls-verify": false}`))
+	f.Close()
+
+	flags := mflag.NewFlagSet("test", mflag.ContinueOnError)
+	loadedConfig, err := loadDaemonCliConfig(c, flags, common, configFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loadedConfig == nil {
+		t.Fatalf("expected configuration %v, got nil", c)
+	}
+
+	if !loadedConfig.TLS {
+		t.Fatalf("expected TLS enabled, got %q", loadedConfig)
+	}
+}
+
+func TestLoadDaemonCliConfigWithoutTLSVerify(t *testing.T) {
+	c := &daemon.Config{}
+	common := &cli.CommonFlags{
+		TLSOptions: &tlsconfig.Options{
+			CAFile: "/tmp/ca.pem",
+		},
+	}
+
+	f, err := ioutil.TempFile("", "docker-config-")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	configFile := f.Name()
+	f.Write([]byte(`{}`))
+	f.Close()
+
+	flags := mflag.NewFlagSet("test", mflag.ContinueOnError)
+	loadedConfig, err := loadDaemonCliConfig(c, flags, common, configFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loadedConfig == nil {
+		t.Fatalf("expected configuration %v, got nil", c)
+	}
+
+	if loadedConfig.TLS {
+		t.Fatalf("expected TLS disabled, got %q", loadedConfig)
+	}
+}
+
+func TestLoadDaemonCliConfigWithLogLevel(t *testing.T) {
+	c := &daemon.Config{}
+	common := &cli.CommonFlags{}
+
+	f, err := ioutil.TempFile("", "docker-config-")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	configFile := f.Name()
+	f.Write([]byte(`{"log-level": "warn"}`))
+	f.Close()
+
+	flags := mflag.NewFlagSet("test", mflag.ContinueOnError)
+	loadedConfig, err := loadDaemonCliConfig(c, flags, common, configFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loadedConfig == nil {
+		t.Fatalf("expected configuration %v, got nil", c)
+	}
+	if loadedConfig.LogLevel != "warn" {
+		t.Fatalf("expected warn log level, got %v", loadedConfig.LogLevel)
+	}
+
+	if logrus.GetLevel() != logrus.WarnLevel {
+		t.Fatalf("expected warn log level, got %v", logrus.GetLevel())
 	}
 }
