@@ -53,7 +53,13 @@ func NewStore() *Store {
 
 // Commands returns the exec configurations in the store.
 func (e *Store) Commands() map[string]*Config {
-	return e.commands
+	e.RLock()
+	commands := make(map[string]*Config, len(e.commands))
+	for id, config := range e.commands {
+		commands[id] = config
+	}
+	e.RUnlock()
+	return commands
 }
 
 // Add adds a new exec configuration to the store.
