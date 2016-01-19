@@ -360,5 +360,14 @@ func loadDaemonCliConfig(config *daemon.Config, daemonFlags *flag.FlagSet, commo
 		}
 	}
 
+	// Regardless of whether the user sets it to true or false, if they
+	// specify TLSVerify at all then we need to turn on TLS
+	if config.IsValueSet("tls-verify") {
+		config.TLS = true
+	}
+
+	// ensure that the log level is the one set after merging configurations
+	setDaemonLogLevel(config.LogLevel)
+
 	return config, nil
 }
