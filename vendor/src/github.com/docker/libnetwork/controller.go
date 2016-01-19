@@ -387,7 +387,7 @@ func (c *controller) NewNetwork(networkType, name string, options ...NetworkOpti
 
 	// Make sure we have a driver available for this network type
 	// before we allocate anything.
-	if _, err := network.driver(); err != nil {
+	if _, err := network.driver(true); err != nil {
 		return nil, err
 	}
 
@@ -432,7 +432,7 @@ func (c *controller) NewNetwork(networkType, name string, options ...NetworkOpti
 }
 
 func (c *controller) addNetwork(n *network) error {
-	d, err := n.driver()
+	d, err := n.driver(true)
 	if err != nil {
 		return err
 	}
