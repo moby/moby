@@ -188,7 +188,7 @@ func (ep *endpoint) DriverInfo() (map[string]interface{}, error) {
 		return nil, fmt.Errorf("could not find network in store for driver info: %v", err)
 	}
 
-	driver, err := n.driver()
+	driver, err := n.driver(true)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get driver info: %v", err)
 	}

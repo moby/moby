@@ -226,7 +226,7 @@ func (c *controller) sandboxCleanup() {
 			heap.Push(&sb.endpoints, ep)
 		}
 
-		if err := sb.Delete(); err != nil {
+		if err := sb.delete(true); err != nil {
 			logrus.Errorf("failed to delete sandbox %s while trying to cleanup: %v", sb.id, err)
 		}
 	}
