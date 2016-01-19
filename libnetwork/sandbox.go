@@ -431,23 +431,51 @@ func (sb *sandbox) ResolveIP(ip string) string {
 
 func (sb *sandbox) ResolveName(name string) net.IP {
 	var ip net.IP
-	parts := strings.Split(name, ".")
-	log.Debugf("To resolve %v", parts)
 
-	reqName := parts[0]
-	networkName := ""
-	if len(parts) > 1 {
-		networkName = parts[1]
+	// Embedded server owns the docker network domain. Resolution should work
+	// for both container_name and container_name.network_name
+	// We allow '.' in service name and network name. For a name a.b.c.d the
+	// following have to tried;
+	// {a.b.c.d in the networks container is connected to}
+	// {a.b.c in network d},
+	// {a.b in network c.d},
+	// {a in network b.c.d},
+
+	name = strings.TrimSuffix(name, ".")
+	reqName := []string{name}
+	networkName := []string{""}
+
+	if strings.Contains(name, ".") {
+		var i int
+		dup := name
+		for {
+			if i = strings.LastIndex(dup, "."); i == -1 {
+				break
+			}
+			networkName = append(networkName, name[i+1:])
+			reqName = append(reqName, name[:i])
+
+			dup = dup[:i]
+		}
 	}
+
 	epList := sb.getConnectedEndpoints()
-	// First check for local container alias
-	ip = sb.resolveName(reqName, networkName, epList, true)
-	if ip != nil {
-		return ip
-	}
+	for i := 0; i < len(reqName); i++ {
+		log.Debugf("To resolve: %v in %v", reqName[i], networkName[i])
 
-	// Resolve the actual container name
-	return sb.resolveName(reqName, networkName, epList, false)
+		// First check for local container alias
+		ip = sb.resolveName(reqName[i], networkName[i], epList, true)
+		if ip != nil {
+			return ip
+		}
+
+		// Resolve the actual container name
+		ip = sb.resolveName(reqName[i], networkName[i], epList, false)
+		if ip != nil {
+			return ip
+		}
+	}
+	return nil
 }
 
 func (sb *sandbox) resolveName(req string, networkName string, epList []*endpoint, alias bool) net.IP {
