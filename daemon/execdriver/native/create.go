@@ -11,6 +11,7 @@ import (
 	"github.com/docker/docker/daemon/execdriver"
 	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/mount"
+	"github.com/docker/docker/profiles/seccomp"
 
 	"github.com/docker/docker/volume"
 	"github.com/opencontainers/runc/libcontainer/apparmor"
@@ -71,7 +72,7 @@ func (d *Driver) createContainer(c *execdriver.Command, hooks execdriver.Hooks) 
 		}
 
 		if c.SeccompProfile == "" {
-			container.Seccomp = getDefaultSeccompProfile()
+			container.Seccomp = seccomp.GetDefaultProfile()
 		}
 	}
 	// add CAP_ prefix to all caps for new libcontainer update to match
@@ -88,7 +89,7 @@ func (d *Driver) createContainer(c *execdriver.Command, hooks execdriver.Hooks) 
 	}
 
 	if c.SeccompProfile != "" && c.SeccompProfile != "unconfined" {
-		container.Seccomp, err = loadSeccompProfile(c.SeccompProfile)
+		container.Seccomp, err = seccomp.LoadProfile(c.SeccompProfile)
 		if err != nil {
 			return nil, err
 		}

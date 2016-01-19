@@ -1,6 +1,6 @@
 // +build linux
 
-package native
+package seccomp
 
 import (
 	"encoding/json"
@@ -11,11 +11,13 @@ import (
 	"github.com/opencontainers/runc/libcontainer/seccomp"
 )
 
-func getDefaultSeccompProfile() *configs.Seccomp {
+// GetDefaultProfile returns the default seccomp profile.
+func GetDefaultProfile() *configs.Seccomp {
 	return defaultSeccompProfile
 }
 
-func loadSeccompProfile(body string) (*configs.Seccomp, error) {
+// LoadProfile takes a file path a decodes the seccomp profile.
+func LoadProfile(body string) (*configs.Seccomp, error) {
 	var config types.Seccomp
 	if err := json.Unmarshal([]byte(body), &config); err != nil {
 		return nil, fmt.Errorf("Decoding seccomp profile failed: %v", err)
