@@ -517,3 +517,39 @@ func TestConcurrentReconnect(t *testing.T) {
 		t.Error("timeout in concurrent reconnect")
 	}
 }
+
+func TestLocalConn(t *testing.T) {
+	messages := make([]string, 0)
+	conn := newTestLocalConn(&messages)
+
+	lc := localConn{conn: conn}
+
+	lc.writeString(nil, nil, LOG_ERR, "hostname", "tag", "content")
+
+	if len(messages) != 1 {
+		t.Errorf("should write one message")
+	}
+
+	if messages[0] != DefaultFramer(UnixFormatter(LOG_ERR, "hostname", "tag", "content")) {
+		t.Errorf("should use the unix formatter")
+	}
+}
+
+type testLocalConn struct {
+	messages *[]string
+}
+
+func newTestLocalConn(messages *[]string) testLocalConn {
+	return testLocalConn{
+		messages: messages,
+	}
+}
+
+func (c testLocalConn) Write(b []byte) (int, error) {
+	*c.messages = append(*c.messages, string(b))
+	return len(b), nil
+}
+
+func (c testLocalConn) Close() error {
+	return nil
+}

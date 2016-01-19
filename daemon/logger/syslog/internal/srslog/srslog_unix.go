@@ -2,6 +2,7 @@ package srslog
 
 import (
 	"errors"
+	"io"
 	"net"
 )
 
@@ -31,7 +32,7 @@ func unixSyslog() (conn serverConn, err error) {
 // localConn adheres to the serverConn interface, allowing us to send syslog
 // messages to the local syslog daemon over a Unix domain socket.
 type localConn struct {
-	conn net.Conn
+	conn io.WriteCloser
 }
 
 // writeString formats syslog messages using time.Stamp instead of time.RFC3339,
