@@ -27,7 +27,7 @@ func (s *DockerSuite) TestApiStatsNoStreamGetCpu(c *check.C) {
 
 	resp, body, err := sockRequestRaw("GET", fmt.Sprintf("/containers/%s/stats?stream=false", id), nil, "")
 	c.Assert(err, checker.IsNil)
-	c.Assert(resp.ContentLength, checker.GreaterThan, int64(0), check.Commentf("should not use chunked encoding"))
+	c.Assert(resp.StatusCode, checker.Equals, http.StatusOK)
 	c.Assert(resp.Header.Get("Content-Type"), checker.Equals, "application/json")
 
 	var v *types.Stats
