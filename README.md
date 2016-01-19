@@ -167,7 +167,7 @@ Under the hood
 Under the hood, Docker is built on the following components:
 
 * The
-  [cgroups](https://www.kernel.org/doc/Documentation/cgroups/cgroups.txt)
+  [cgroups](https://www.kernel.org/doc/Documentation/cgroup-v1/cgroups.txt)
   and
   [namespaces](http://man7.org/linux/man-pages/man7/namespaces.7.html)
   capabilities of the Linux kernel
