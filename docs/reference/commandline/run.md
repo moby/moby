@@ -422,12 +422,12 @@ flag:
     $ docker run --device=/dev/sda:/dev/xvdc --rm -it ubuntu fdisk  /dev/xvdc
 
     Command (m for help): q
-    $ docker run --device=/dev/sda:/dev/xvdc:ro --rm -it ubuntu fdisk  /dev/xvdc
+    $ docker run --device=/dev/sda:/dev/xvdc:r --rm -it ubuntu fdisk  /dev/xvdc
     You will not be able to write the partition table.
 
     Command (m for help): q
 
-    $ docker run --device=/dev/sda:/dev/xvdc --rm -it ubuntu fdisk  /dev/xvdc
+    $ docker run --device=/dev/sda:/dev/xvdc:rw --rm -it ubuntu fdisk  /dev/xvdc
 
     Command (m for help): q
 
