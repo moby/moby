@@ -539,7 +539,7 @@ available in the default container, you can set these using the `--ulimit` flag.
 `--ulimit` is specified with a soft and hard limit as such:
 `<type>=<soft limit>[:<hard limit>]`, for example:
 
-    $ docker run --ulimit nofile=1024:1024 --rm debian ulimit -n
+    $ docker run --ulimit nofile=1024:1024 --rm debian sh -c "ulimit -n"
     1024
 
 > **Note:**
