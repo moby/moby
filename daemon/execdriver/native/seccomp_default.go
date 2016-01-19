@@ -17,7 +17,7 @@ func arches() []string {
 	var a = native.String()
 	switch a {
 	case "amd64":
-		return []string{"amd64", "x86"}
+		return []string{"amd64", "x86", "x32"}
 	case "arm64":
 		return []string{"arm64", "arm"}
 	case "mips64":
@@ -945,6 +945,11 @@ var defaultSeccompProfile = &configs.Seccomp{
 			Args:   []*configs.Arg{},
 		},
 		{
+			Name:   "recv",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
 			Name:   "recvfrom",
 			Action: configs.Allow,
 			Args:   []*configs.Arg{},
@@ -1116,6 +1121,11 @@ var defaultSeccompProfile = &configs.Seccomp{
 		},
 		{
 			Name:   "semtimedop",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
+			Name:   "send",
 			Action: configs.Allow,
 			Args:   []*configs.Arg{},
 		},
