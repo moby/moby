@@ -277,6 +277,24 @@ func (s *DockerNetworkSuite) TestDockerNetworkLsDefault(c *check.C) {
 	}
 }
 
+func (s *DockerNetworkSuite) TestDockerNetworkCreatePredefined(c *check.C) {
+	predefined := []string{"bridge", "host", "none", "default"}
+	for _, net := range predefined {
+		// predefined networks can't be created again
+		out, _, err := dockerCmdWithError("network", "create", net)
+		c.Assert(err, checker.NotNil, check.Commentf("%v", out))
+	}
+}
+
+func (s *DockerNetworkSuite) TestDockerNetworkRmPredefined(c *check.C) {
+	predefined := []string{"bridge", "host", "none", "default"}
+	for _, net := range predefined {
+		// predefined networks can't be removed
+		out, _, err := dockerCmdWithError("network", "rm", net)
+		c.Assert(err, checker.NotNil, check.Commentf("%v", out))
+	}
+}
+
 func (s *DockerNetworkSuite) TestDockerNetworkLsFilter(c *check.C) {
 	out, _ := dockerCmd(c, "network", "create", "dev")
 	defer func() {
