@@ -2,10 +2,7 @@ package srslog
 
 import (
 	"errors"
-	"fmt"
 	"net"
-	"os"
-	"time"
 )
 
 // unixSyslog opens a connection to the syslog daemon running on the
@@ -39,11 +36,8 @@ type localConn struct {
 
 // writeString formats syslog messages using time.Stamp instead of time.RFC3339,
 // and omits the hostname (because it is expected to be used locally).
-func (n *localConn) writeString(p Priority, hostname, tag, msg string) error {
-	timestamp := time.Now().Format(time.Stamp)
-	_, err := fmt.Fprintf(n.conn, "<%d>%s %s[%d]: %s",
-		p, timestamp,
-		tag, os.Getpid(), msg)
+func (n *localConn) writeString(framer Framer, f Formatter, p Priority, hostname, tag, msg string) error {
+	_, err := n.conn.Write([]byte(DefaultFramer(UnixFormatter(p, hostname, tag, msg))))
 	return err
 }
 

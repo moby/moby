@@ -1,6 +1,7 @@
 package srslog
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -22,6 +23,110 @@ func TestWriteAndRetryFails(t *testing.T) {
 	}
 	if n != 0 {
 		t.Errorf("should not write any bytes")
+	}
+}
+
+func TestWriteFormatters(t *testing.T) {
+	tests := []struct {
+		f Formatter
+	}{
+		{nil},
+		{UnixFormatter},
+		{RFC3164Formatter},
+		{RFC5424Formatter},
+		{DefaultFormatter},
+	}
+
+	for _, test := range tests {
+		done := make(chan string)
+		addr, sock, srvWG := startServer("udp", "", done)
+		defer sock.Close()
+		defer srvWG.Wait()
+
+		w := Writer{
+			priority: LOG_ERR,
+			tag:      "tag",
+			hostname: "hostname",
+			network:  "udp",
+			raddr:    addr,
+		}
+
+		w.Lock()
+		err := w.connect()
+		if err != nil {
+			t.Errorf("failed to connect: %v", err)
+			w.Unlock()
+		}
+		w.Unlock()
+		defer w.Close()
+
+		w.SetFormatter(test.f)
+
+		f := test.f
+		if f == nil {
+			f = DefaultFormatter
+		}
+		expected := strings.TrimSpace(f(LOG_ERR, "hostname", "tag", "this is a test message"))
+
+		_, err = w.Write([]byte("this is a test message"))
+		if err != nil {
+			t.Errorf("failed to write: %v", err)
+		}
+		sent := strings.TrimSpace(<-done)
+		if sent != expected {
+			t.Errorf("expected to use the formatter, got %v, expected %v", sent, expected)
+		}
+	}
+}
+
+func TestWriterFramers(t *testing.T) {
+	tests := []struct {
+		f Framer
+	}{
+		{nil},
+		{RFC5425MessageLengthFramer},
+		{DefaultFramer},
+	}
+
+	for _, test := range tests {
+		done := make(chan string)
+		addr, sock, srvWG := startServer("udp", "", done)
+		defer sock.Close()
+		defer srvWG.Wait()
+
+		w := Writer{
+			priority: LOG_ERR,
+			tag:      "tag",
+			hostname: "hostname",
+			network:  "udp",
+			raddr:    addr,
+		}
+
+		w.Lock()
+		err := w.connect()
+		if err != nil {
+			t.Errorf("failed to connect: %v", err)
+			w.Unlock()
+		}
+		w.Unlock()
+		defer w.Close()
+
+		w.SetFramer(test.f)
+
+		f := test.f
+		if f == nil {
+			f = DefaultFramer
+		}
+		expected := strings.TrimSpace(f(DefaultFormatter(LOG_ERR, "hostname", "tag", "this is a test message") + "\n"))
+
+		_, err = w.Write([]byte("this is a test message"))
+		if err != nil {
+			t.Errorf("failed to write: %v", err)
+		}
+		sent := strings.TrimSpace(<-done)
+		if sent != expected {
+			t.Errorf("expected to use the framer, got %v, expected %v", sent, expected)
+		}
 	}
 }
 
