@@ -21,6 +21,7 @@ import (
 	"github.com/docker/docker/pkg/reexec"
 	sysinfo "github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/pkg/term"
+	aaprofile "github.com/docker/docker/profiles/apparmor"
 	"github.com/opencontainers/runc/libcontainer"
 	"github.com/opencontainers/runc/libcontainer/apparmor"
 	"github.com/opencontainers/runc/libcontainer/cgroups/systemd"
@@ -33,6 +34,8 @@ import (
 const (
 	DriverName = "native"
 	Version    = "0.2"
+
+	defaultApparmorProfile = "docker-default"
 )
 
 // Driver contains all information for native driver,
@@ -57,13 +60,13 @@ func NewDriver(root string, options []string) (*Driver, error) {
 	}
 
 	if apparmor.IsEnabled() {
-		if err := installAppArmorProfile(); err != nil {
-			apparmorProfiles := []string{"docker-default"}
+		if err := aaprofile.InstallDefault(defaultApparmorProfile); err != nil {
+			apparmorProfiles := []string{defaultApparmorProfile}
 
 			// Allow daemon to run if loading failed, but are active
 			// (possibly through another run, manually, or via system startup)
 			for _, policy := range apparmorProfiles {
-				if err := hasAppArmorProfileLoaded(policy); err != nil {
+				if err := aaprofile.IsLoaded(policy); err != nil {
 					return nil, fmt.Errorf("AppArmor enabled on system but the %s profile could not be loaded.", policy)
 				}
 			}
