@@ -592,7 +592,7 @@ func addTestManifestWithEtag(repo, reference string, content []byte, m *testutil
 			Headers: http.Header(map[string][]string{
 				"Content-Length": {"0"},
 				"Last-Modified":  {time.Now().Add(-1 * time.Second).Format(time.ANSIC)},
-				"Content-Type":   {schema1.MediaTypeManifest},
+				"Content-Type":   {schema1.MediaTypeSignedManifest},
 			}),
 		}
 	} else {
@@ -602,7 +602,7 @@ func addTestManifestWithEtag(repo, reference string, content []byte, m *testutil
 			Headers: http.Header(map[string][]string{
 				"Content-Length": {fmt.Sprint(len(content))},
 				"Last-Modified":  {time.Now().Add(-1 * time.Second).Format(time.ANSIC)},
-				"Content-Type":   {schema1.MediaTypeManifest},
+				"Content-Type":   {schema1.MediaTypeSignedManifest},
 			}),
 		}
 
@@ -622,7 +622,7 @@ func addTestManifest(repo, reference string, content []byte, m *testutil.Request
 			Headers: http.Header(map[string][]string{
 				"Content-Length": {fmt.Sprint(len(content))},
 				"Last-Modified":  {time.Now().Add(-1 * time.Second).Format(time.ANSIC)},
-				"Content-Type":   {schema1.MediaTypeManifest},
+				"Content-Type":   {schema1.MediaTypeSignedManifest},
 			}),
 		},
 	})
@@ -636,7 +636,7 @@ func addTestManifest(repo, reference string, content []byte, m *testutil.Request
 			Headers: http.Header(map[string][]string{
 				"Content-Length": {fmt.Sprint(len(content))},
 				"Last-Modified":  {time.Now().Add(-1 * time.Second).Format(time.ANSIC)},
-				"Content-Type":   {schema1.MediaTypeManifest},
+				"Content-Type":   {schema1.MediaTypeSignedManifest},
 			}),
 		},
 	})
