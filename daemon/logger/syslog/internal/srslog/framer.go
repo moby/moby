@@ -18,8 +18,7 @@ func DefaultFramer(in string) string {
 }
 
 // RFC5425MessageLengthFramer prepends the message length to the front of the
-// provided message, as defined in RFC 5425. This is required by syslog-ng,
-// and is used with either RFC 3164 or 5424, over TCP+TLS.
+// provided message, as defined in RFC 5425.
 func RFC5425MessageLengthFramer(in string) string {
 	return fmt.Sprintf("%d %s", len(in), in)
 }
