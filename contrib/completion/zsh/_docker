@@ -297,8 +297,19 @@ __docker_network_subcommand() {
                 "($help)*--alias=[Add network-scoped alias for the container]:alias: " \
                 "($help)--ip=[Container IPv4 address]:IPv4: " \
                 "($help)--ip6=[Container IPv6 address]:IPv6: " \
+                "($help)*--link=[Add a link to another container]:link:->link" \
                 "($help -)1:network:__docker_networks" \
                 "($help -)2:containers:__docker_containers" && ret=0
+
+            case $state in
+                (link)
+                    if compset -P "*:"; then
+                        _wanted alias expl "Alias" compadd -E "" && ret=0
+                    else
+                        __docker_runningcontainers -qS ":" && ret=0
+                    fi
+                    ;;
+            esac
             ;;
         (create)
             _arguments $(__docker_arguments) -A '-*' \
