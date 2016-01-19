@@ -295,6 +295,8 @@ __docker_network_subcommand() {
             _arguments $(__docker_arguments) \
                 $opts_help \
                 "($help)*--alias=[Add network-scoped alias for the container]:alias: " \
+                "($help)--ip=[Container IPv4 address]:IPv4: " \
+                "($help)--ip6=[Container IPv6 address]:IPv6: " \
                 "($help -)1:network:__docker_networks" \
                 "($help -)2:containers:__docker_containers" && ret=0
             ;;
@@ -494,6 +496,8 @@ __docker_subcommand() {
         "($help)*--group-add=[Add additional groups to run as]:group:_groups"
         "($help -h --hostname)"{-h=,--hostname=}"[Container host name]:hostname:_hosts"
         "($help -i --interactive)"{-i,--interactive}"[Keep stdin open even if not attached]"
+        "($help)--ip=[Container IPv4 address]:IPv4: "
+        "($help)--ip6=[Container IPv6 address]:IPv6: "
         "($help)--ipc=[IPC namespace to use]:IPC namespace: "
         "($help)*--link=[Add link to another container]:link:->link"
         "($help)*"{-l=,--label=}"[Set meta data on a container]:label: "
