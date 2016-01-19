@@ -231,6 +231,17 @@ __docker_log_options() {
     return ret
 }
 
+__docker_complete_detach_keys() {
+    [[ $PREFIX = -* ]] && return 1
+    integer ret=1
+
+    compset -P "*,"
+    keys=(${:-{a-z}})
+    ctrl_keys=(${:-ctrl-{{a-z},{@,'[','\\','^',']',_}}})
+    _describe -t detach_keys "[a-z]" keys -qS "," && ret=0
+    _describe -t detach_keys-ctrl "'ctrl-' + 'a-z @ [ \\\\ ] ^ _'" ctrl_keys -qS "," && ret=0
+}
+
 __docker_networks() {
     [[ $PREFIX = -* ]] && return 1
     integer ret=1
@@ -517,11 +528,15 @@ __docker_subcommand() {
         "($help)--kernel-memory=[Kernel memory limit in bytes.]:Memory limit: "
         "($help)--memory-reservation=[Memory soft limit]:Memory limit: "
     )
+    opts_attach_exec_run_start=(
+        "($help)--detach-keys=[Specify the escape key sequence used to detach a container]:sequence:__docker_complete_detach_keys"
+    )
 
     case "$words[1]" in
         (attach)
             _arguments $(__docker_arguments) \
                 $opts_help \
+                $opts_attach_exec_run_start \
                 "($help)--no-stdin[Do not attach stdin]" \
                 "($help)--sig-proxy[Proxy all received signals to the process (non-TTY mode only)]" \
                 "($help -):containers:__docker_runningcontainers" && ret=0
@@ -682,6 +697,7 @@ __docker_subcommand() {
             local state
             _arguments $(__docker_arguments) \
                 $opts_help \
+                $opts_attach_exec_run_start \
                 "($help -d --detach)"{-d,--detach}"[Detached mode: leave the container running in the background]" \
                 "($help -i --interactive)"{-i,--interactive}"[Keep stdin open even if not attached]" \
                 "($help)--privileged[Give extended Linux capabilities to the command]" \
@@ -876,6 +892,7 @@ __docker_subcommand() {
                 $opts_build_create_run_update \
                 $opts_create_run \
                 $opts_create_run_update \
+                $opts_attach_exec_run_start \
                 "($help -d --detach)"{-d,--detach}"[Detached mode: leave the container running in the background]" \
                 "($help)--rm[Remove intermediate containers when it exits]" \
                 "($help)--sig-proxy[Proxy all received signals to the process (non-TTY mode only)]" \
@@ -912,6 +929,7 @@ __docker_subcommand() {
         (start)
             _arguments $(__docker_arguments) \
                 $opts_help \
+                $opts_attach_exec_run_start \
                 "($help -a --attach)"{-a,--attach}"[Attach container's stdout/stderr and forward all signals]" \
                 "($help -i --interactive)"{-i,--interactive}"[Attach container's stding]" \
                 "($help -)*:containers:__docker_stoppedcontainers" && ret=0
