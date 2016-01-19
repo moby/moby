@@ -160,6 +160,10 @@ func (sb *sandbox) Statistics() (map[string]*types.InterfaceStatistics, error) {
 }
 
 func (sb *sandbox) Delete() error {
+	return sb.delete(false)
+}
+
+func (sb *sandbox) delete(force bool) error {
 	sb.Lock()
 	if sb.inDelete {
 		sb.Unlock()
@@ -194,11 +198,13 @@ func (sb *sandbox) Delete() error {
 			continue
 		}
 
-		if err := ep.Leave(sb); err != nil {
-			log.Warnf("Failed detaching sandbox %s from endpoint %s: %v\n", sb.ID(), ep.ID(), err)
+		if !force {
+			if err := ep.Leave(sb); err != nil {
+				log.Warnf("Failed detaching sandbox %s from endpoint %s: %v\n", sb.ID(), ep.ID(), err)
+			}
 		}
 
-		if err := ep.Delete(false); err != nil {
+		if err := ep.Delete(force); err != nil {
 			log.Warnf("Failed deleting endpoint %s: %v\n", ep.ID(), err)
 		}
 	}
