@@ -30,7 +30,7 @@ var (
 		"Test requires a Linux daemon",
 	}
 	NotArm = testRequirement{
-		func() bool { return os.Getenv("DOCKER_ENGINE_GOARCH") == "arm" },
+		func() bool { return os.Getenv("DOCKER_ENGINE_GOARCH") != "arm" },
 		"Test requires a daemon not running on ARM",
 	}
 	SameHostDaemon = testRequirement{
