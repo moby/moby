@@ -84,6 +84,7 @@ type CommonConfig struct {
 	TLSOptions CommonTLSOptions `json:"tls-opts,omitempty"`
 
 	reloadLock sync.Mutex
+	valuesSet  map[string]interface{}
 }
 
 // InstallCommonFlags adds command-line options to the top-level flag parser for
@@ -110,6 +111,16 @@ func (config *Config) InstallCommonFlags(cmd *flag.FlagSet, usageFn func(string)
 	cmd.StringVar(&config.ClusterAdvertise, []string{"-cluster-advertise"}, "", usageFn("Address or interface name to advertise"))
 	cmd.StringVar(&config.ClusterStore, []string{"-cluster-store"}, "", usageFn("Set the cluster store"))
 	cmd.Var(opts.NewNamedMapOpts("cluster-store-opts", config.ClusterOpts, nil), []string{"-cluster-store-opt"}, usageFn("Set cluster store options"))
+}
+
+// IsValueSet returns true if a configuration value
+// was explicitly set in the configuration file.
+func (config *Config) IsValueSet(name string) bool {
+	if config.valuesSet == nil {
+		return false
+	}
+	_, ok := config.valuesSet[name]
+	return ok
 }
 
 func parseClusterAdvertiseSettings(clusterStore, clusterAdvertise string) (string, error) {
@@ -165,6 +176,7 @@ func getConflictFreeConfiguration(configFile string, flags *flag.FlagSet) (*Conf
 		return nil, err
 	}
 
+	var config Config
 	var reader io.Reader
 	if flags != nil {
 		var jsonConfig map[string]interface{}
@@ -173,22 +185,22 @@ func getConflictFreeConfiguration(configFile string, flags *flag.FlagSet) (*Conf
 			return nil, err
 		}
 
-		if err := findConfigurationConflicts(jsonConfig, flags); err != nil {
+		configSet := configValuesSet(jsonConfig)
+
+		if err := findConfigurationConflicts(configSet, flags); err != nil {
 			return nil, err
 		}
+
+		config.valuesSet = configSet
 	}
 
-	var config Config
 	reader = bytes.NewReader(b)
 	err = json.NewDecoder(reader).Decode(&config)
 	return &config, err
 }
 
-// findConfigurationConflicts iterates over the provided flags searching for
-// duplicated configurations. It returns an error with all the conflicts if
-// it finds any.
-func findConfigurationConflicts(config map[string]interface{}, flags *flag.FlagSet) error {
-	var conflicts []string
+// configValuesSet returns the configuration values explicitly set in the file.
+func configValuesSet(config map[string]interface{}) map[string]interface{} {
 	flatten := make(map[string]interface{})
 	for k, v := range config {
 		if m, ok := v.(map[string]interface{}); ok {
@@ -199,6 +211,14 @@ func findConfigurationConflicts(config map[string]interface{}, flags *flag.FlagS
 			flatten[k] = v
 		}
 	}
+	return flatten
+}
+
+// findConfigurationConflicts iterates over the provided flags searching for
+// duplicated configurations. It returns an error with all the conflicts if
+// it finds any.
+func findConfigurationConflicts(config map[string]interface{}, flags *flag.FlagSet) error {
+	var conflicts []string
 
 	printConflict := func(name string, flagValue, fileValue interface{}) string {
 		return fmt.Sprintf("%s: (from flag: %v, from file: %v)", name, flagValue, fileValue)
@@ -207,7 +227,7 @@ func findConfigurationConflicts(config map[string]interface{}, flags *flag.FlagS
 	collectConflicts := func(f *flag.Flag) {
 		// search option name in the json configuration payload if the value is a named option
 		if namedOption, ok := f.Value.(opts.NamedOption); ok {
-			if optsValue, ok := flatten[namedOption.Name()]; ok {
+			if optsValue, ok := config[namedOption.Name()]; ok {
 				conflicts = append(conflicts, printConflict(namedOption.Name(), f.Value.String(), optsValue))
 			}
 		} else {
@@ -215,7 +235,7 @@ func findConfigurationConflicts(config map[string]interface{}, flags *flag.FlagS
 			for _, name := range f.Names {
 				name = strings.TrimLeft(name, "-")
 
-				if value, ok := flatten[name]; ok {
+				if value, ok := config[name]; ok {
 					conflicts = append(conflicts, printConflict(name, f.Value.String(), value))
 					break
 				}
