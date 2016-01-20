@@ -1,3 +1,5 @@
+// +build darwin freebsd openbsd netbsd dragonfly
+
 package logrus
 
 import "syscall"
