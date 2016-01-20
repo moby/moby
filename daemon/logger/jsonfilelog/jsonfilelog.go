@@ -83,7 +83,7 @@ func New(ctx logger.Context) (logger.Logger, error) {
 		writer:        writer,
 		readers:       make(map[*logger.LogWatcher]struct{}),
 		extra:         extra,
-		writeNotifier: pubsub.NewPublisher(0, 10),
+		writeNotifier: pubsub.NewPublisher(0, 1),
 	}, nil
 }
 

@@ -6,14 +6,18 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
+	"sync/atomic"
+	"syscall"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/jsonlog"
 	"github.com/docker/docker/pkg/tailfile"
 )
+
+const maxUint64 = ^uint64(0)
 
 func decodeLogLine(dec *json.Decoder, l *jsonlog.JSONLog) (*logger.Message, error) {
 	l.Reset()
@@ -119,7 +123,11 @@ func tailFile(f io.ReadSeeker, logWatcher *logger.LogWatcher, tail int, since ti
 
 func (l *JSONFileLogger) followLogs(f *os.File, logWatcher *logger.LogWatcher, notifyRotate chan interface{}, since time.Time) {
 	var (
-		rotated bool
+		msg        *logger.Message
+		err        error
+		rotated    bool
+		readIndex  uint64
+		writeIndex uint64
 
 		dec         = json.NewDecoder(f)
 		log         = &jsonlog.JSONLog{}
@@ -127,9 +135,18 @@ func (l *JSONFileLogger) followLogs(f *os.File, logWatcher *logger.LogWatcher, n
 		watchClose  = logWatcher.WatchClose()
 	)
 
+	go func() {
+		for {
+			if _, ok := <-writeNotify; !ok {
+				return
+			}
+			atomic.AddUint64(&writeIndex, 1)
+		}
+	}()
+
 	reopenLogFile := func() error {
 		f.Close()
-		f, err := os.Open(f.Name())
+		f, err = os.Open(f.Name())
 		if err != nil {
 			return err
 		}
@@ -138,11 +155,11 @@ func (l *JSONFileLogger) followLogs(f *os.File, logWatcher *logger.LogWatcher, n
 		return nil
 	}
 
-	readToEnd := func() error {
+	readToEnd := func() {
 		for {
 			msg, err := decodeLogLine(dec, log)
 			if err != nil {
-				return err
+				return
 			}
 			if !since.IsZero() && msg.Timestamp.Before(since) {
 				continue
@@ -164,34 +181,42 @@ func (l *JSONFileLogger) followLogs(f *os.File, logWatcher *logger.LogWatcher, n
 			readToEnd()
 			return
 		case <-notifyRotate:
-			readToEnd()
 			if err := reopenLogFile(); err != nil {
 				logWatcher.Err <- err
 				return
 			}
-		case _, ok := <-writeNotify:
-			if err := readToEnd(); err == io.EOF {
-				if !ok {
-					// The writer is closed, no new logs will be generated.
-					return
-				}
+			continue
 
-				select {
-				case <-notifyRotate:
+		default:
+			if readIndex == atomic.LoadUint64(&writeIndex) {
+				time.Sleep(100 * time.Millisecond)
+				continue
+			}
+			if readIndex == maxUint64 {
+				readIndex = 0
+			} else {
+				readIndex++
+			}
+
+			msg, err = decodeLogLine(dec, log)
+			if err == nil {
+				if !since.IsZero() && msg.Timestamp.Before(since) {
+					continue
+				}
+				logWatcher.Msg <- msg
+			} else {
+				if err == syscall.EBADF || strings.Contains(err.Error(), "bad file descriptor") {
+					// log file rotated
 					if err := reopenLogFile(); err != nil {
 						logWatcher.Err <- err
 						return
 					}
-				default:
+				} else if err == io.EOF {
 					dec = json.NewDecoder(f)
+				} else {
+					logWatcher.Err <- err
+					return
 				}
-
-			} else if err == io.ErrUnexpectedEOF {
-				dec = json.NewDecoder(io.MultiReader(dec.Buffered(), f))
-			} else {
-				logrus.Errorf("Failed to decode json log %s: %v", f.Name(), err)
-				logWatcher.Err <- err
-				return
 			}
 		}
 	}
