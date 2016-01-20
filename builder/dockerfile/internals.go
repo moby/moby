@@ -205,7 +205,7 @@ func (b *Builder) runContextCommand(args []string, allowRemote bool, allowLocalD
 	}
 
 	for _, info := range infos {
-		if err := b.docker.BuilderCopy(container.ID, dest, info.FileInfo, info.decompress); err != nil {
+		if err := b.docker.CopyOnBuild(container.ID, dest, info.FileInfo, info.decompress); err != nil {
 			return err
 		}
 	}
@@ -396,10 +396,10 @@ func containsWildcards(name string) bool {
 
 func (b *Builder) processImageFrom(img builder.Image) error {
 	if img != nil {
-		b.image = img.ID()
+		b.image = img.ImageID()
 
-		if img.Config() != nil {
-			b.runConfig = img.Config()
+		if img.RunConfig() != nil {
+			b.runConfig = img.RunConfig()
 		}
 	}
 
@@ -469,7 +469,7 @@ func (b *Builder) probeCache() (bool, error) {
 	if !ok || b.options.NoCache || b.cacheBusted {
 		return false, nil
 	}
-	cache, err := c.GetCachedImage(b.image, b.runConfig)
+	cache, err := c.GetCachedImageOnBuild(b.image, b.runConfig)
 	if err != nil {
 		return false, err
 	}
@@ -530,7 +530,7 @@ func (b *Builder) create() (string, error) {
 
 	if config.Cmd.Len() > 0 {
 		// override the entry point that may have been picked up from the base image
-		if err := b.docker.ContainerUpdateCmd(c.ID, config.Cmd.Slice()); err != nil {
+		if err := b.docker.ContainerUpdateCmdOnBuild(c.ID, config.Cmd.Slice()); err != nil {
 			return "", err
 		}
 	}
@@ -541,7 +541,7 @@ func (b *Builder) create() (string, error) {
 func (b *Builder) run(cID string) (err error) {
 	errCh := make(chan error)
 	go func() {
-		errCh <- b.docker.ContainerAttach(cID, nil, b.Stdout, b.Stderr, true)
+		errCh <- b.docker.ContainerAttachOnBuild(cID, nil, b.Stdout, b.Stderr, true)
 	}()
 
 	finished := make(chan struct{})

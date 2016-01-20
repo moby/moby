@@ -9,6 +9,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/docker/docker/reference"
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/container"
 )
@@ -99,11 +100,13 @@ type Backend interface {
 	// TODO: use digest reference instead of name
 
 	// GetImage looks up a Docker image referenced by `name`.
-	GetImage(name string) (Image, error)
+	GetImageOnBuild(name string) (Image, error)
+	// Tag an image with newTag
+	TagImage(newTag reference.Named, imageName string) error
 	// Pull tells Docker to pull image referenced by `name`.
-	Pull(name string, authConfigs map[string]types.AuthConfig, output io.Writer) (Image, error)
+	PullOnBuild(name string, authConfigs map[string]types.AuthConfig, output io.Writer) (Image, error)
 	// ContainerAttach attaches to container.
-	ContainerAttach(cID string, stdin io.ReadCloser, stdout, stderr io.Writer, stream bool) error
+	ContainerAttachOnBuild(cID string, stdin io.ReadCloser, stdout, stderr io.Writer, stream bool) error
 	// ContainerCreate creates a new Docker container and returns potential warnings
 	ContainerCreate(types.ContainerCreateConfig) (types.ContainerCreateResponse, error)
 	// ContainerRm removes a container specified by `id`.
@@ -116,9 +119,8 @@ type Backend interface {
 	ContainerStart(containerID string, hostConfig *container.HostConfig) error
 	// ContainerWait stops processing until the given container is stopped.
 	ContainerWait(containerID string, timeout time.Duration) (int, error)
-
 	// ContainerUpdateCmd updates container.Path and container.Args
-	ContainerUpdateCmd(containerID string, cmd []string) error
+	ContainerUpdateCmdOnBuild(containerID string, cmd []string) error
 
 	// ContainerCopy copies/extracts a source FileInfo to a destination path inside a container
 	// specified by a container object.
@@ -127,7 +129,13 @@ type Backend interface {
 	// with Context.Walk
 	//ContainerCopy(name string, res string) (io.ReadCloser, error)
 	// TODO: use copyBackend api
-	BuilderCopy(containerID string, destPath string, src FileInfo, decompress bool) error
+	CopyOnBuild(containerID string, destPath string, src FileInfo, decompress bool) error
+}
+
+// Image represents a Docker image used by the builder.
+type Image interface {
+	ImageID() string
+	RunConfig() *container.Config
 }
 
 // ImageCache abstracts an image cache store.
@@ -135,5 +143,5 @@ type Backend interface {
 type ImageCache interface {
 	// GetCachedImage returns a reference to a cached image whose parent equals `parent`
 	// and runconfig equals `cfg`. A cache miss is expected to return an empty ID and a nil error.
-	GetCachedImage(parentID string, cfg *container.Config) (imageID string, err error)
+	GetCachedImageOnBuild(parentID string, cfg *container.Config) (imageID string, err error)
 }
