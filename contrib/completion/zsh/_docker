@@ -300,14 +300,15 @@ __docker_network_subcommand() {
         (create)
             _arguments $(__docker_arguments) -A '-*' \
                 $opts_help \
+                "($help)*--aux-address[Auxiliary ipv4 or ipv6 addresses used by network driver]:key=IP: " \
                 "($help -d --driver)"{-d=,--driver=}"[Driver to manage the Network]:driver:(null host bridge overlay)" \
-                "($help)--ipam-driver=[IP Address Management Driver]:driver:(default)" \
-                "($help)*--subnet=[Subnet in CIDR format that represents a network segment]:IP/mask: " \
+                "($help)*--gateway=[ipv4 or ipv6 Gateway for the master subnet]:IP: " \
                 "($help)--internal[Restricts external access to the network]" \
                 "($help)*--ip-range=[Allocate container ip from a sub-range]:IP/mask: " \
-                "($help)*--gateway=[ipv4 or ipv6 Gateway for the master subnet]:IP: " \
-                "($help)*--aux-address[Auxiliary ipv4 or ipv6 addresses used by network driver]:key=IP: " \
-                "($help)*"{-o=,--opt=}"[Set driver specific options]:key=value: " \
+                "($help)--ipam-driver=[IP Address Management Driver]:driver:(default)" \
+                "($help)*--ipam-opt=[Set custom IPAM plugin options]:opt=value: " \
+                "($help)*"{-o=,--opt=}"[Set driver specific options]:opt=value: " \
+                "($help)*--subnet=[Subnet in CIDR format that represents a network segment]:IP/mask: " \
                 "($help -)1:Network Name: " && ret=0
             ;;
         (inspect)
