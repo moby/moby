@@ -322,11 +322,15 @@ func (sb *sandbox) startResolver() {
 			}
 		}()
 
-		sb.rebuildDNS()
+		err = sb.rebuildDNS()
+		if err != nil {
+			log.Errorf("Updating resolv.conf failed for container %s, %q", sb.ContainerID(), err)
+			return
+		}
 		sb.resolver.SetExtServers(sb.extDNS)
 
 		sb.osSbox.InvokeFunc(sb.resolver.SetupFunc())
-		if err := sb.resolver.Start(); err != nil {
+		if err = sb.resolver.Start(); err != nil {
 			log.Errorf("Resolver Setup/Start failed for container %s, %q", sb.ContainerID(), err)
 		}
 	})
@@ -897,36 +901,21 @@ func (sb *sandbox) updateDNS(ipv6Enabled bool) error {
 	if err != nil {
 		return err
 	}
+	err = ioutil.WriteFile(sb.config.resolvConfPath, newRC.Content, 0644)
+	if err != nil {
+		return err
+	}
 
-	// for atomic updates to these files, use temporary files with os.Rename:
+	// write the new hash in a temp file and rename it to make the update atomic
 	dir := path.Dir(sb.config.resolvConfPath)
 	tmpHashFile, err := ioutil.TempFile(dir, "hash")
 	if err != nil {
 		return err
 	}
-	tmpResolvFile, err := ioutil.TempFile(dir, "resolv")
-	if err != nil {
-		return err
-	}
-
-	// Change the perms to filePerm (0644) since ioutil.TempFile creates it by default as 0600
-	if err := os.Chmod(tmpResolvFile.Name(), filePerm); err != nil {
-		return err
-	}
-
-	// write the updates to the temp files
 	if err = ioutil.WriteFile(tmpHashFile.Name(), []byte(newRC.Hash), filePerm); err != nil {
 		return err
 	}
-	if err = ioutil.WriteFile(tmpResolvFile.Name(), newRC.Content, filePerm); err != nil {
-		return err
-	}
-
-	// rename the temp files for atomic replace
-	if err = os.Rename(tmpHashFile.Name(), hashFile); err != nil {
-		return err
-	}
-	return os.Rename(tmpResolvFile.Name(), sb.config.resolvConfPath)
+	return os.Rename(tmpHashFile.Name(), hashFile)
 }
 
 // Embedded DNS server has to be enabled for this sandbox. Rebuild the container's
@@ -952,23 +941,8 @@ func (sb *sandbox) rebuildDNS() error {
 	// Resolver returns the options in the format resolv.conf expects
 	dnsOptionsList = append(dnsOptionsList, sb.resolver.ResolverOptions()...)
 
-	dir := path.Dir(sb.config.resolvConfPath)
-	tmpResolvFile, err := ioutil.TempFile(dir, "resolv")
-	if err != nil {
-		return err
-	}
-
-	// Change the perms to filePerm (0644) since ioutil.TempFile creates it by default as 0600
-	if err := os.Chmod(tmpResolvFile.Name(), filePerm); err != nil {
-		return err
-	}
-
-	_, err = resolvconf.Build(tmpResolvFile.Name(), dnsList, dnsSearchList, dnsOptionsList)
-	if err != nil {
-		return err
-	}
-
-	return os.Rename(tmpResolvFile.Name(), sb.config.resolvConfPath)
+	_, err = resolvconf.Build(sb.config.resolvConfPath, dnsList, dnsSearchList, dnsOptionsList)
+	return err
 }
 
 // joinLeaveStart waits to ensure there are no joins or leaves in progress and
