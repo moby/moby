@@ -18,6 +18,7 @@ const (
 	defaultCaFile       = "ca.pem"
 	defaultKeyFile      = "key.pem"
 	defaultCertFile     = "cert.pem"
+	tlsVerifyKey        = "tlsverify"
 )
 
 var (
@@ -60,7 +61,7 @@ func postParseCommon() {
 	// Regardless of whether the user sets it to true or false, if they
 	// specify --tlsverify at all then we need to turn on tls
 	// TLSVerify can be true even if not set due to DOCKER_TLS_VERIFY env var, so we need to check that here as well
-	if cmd.IsSet("-tlsverify") || commonFlags.TLSVerify {
+	if cmd.IsSet("-"+tlsVerifyKey) || commonFlags.TLSVerify {
 		commonFlags.TLS = true
 	}
 
