@@ -1869,7 +1869,7 @@ func (s *DockerDaemonSuite) TestDaemonNoSpaceleftOnDeviceError(c *check.C) {
 	testRequires(c, SameHostDaemon, DaemonIsLinux)
 
 	// create a 2MiB image and mount it as graph root
-	cmd := exec.Command("dd", "of=/tmp/testfs.img", "bs=1M", "seek=2", "count=0")
+	cmd := exec.Command("dd", "of=/tmp/testfs.img", "bs=500K", "seek=2", "count=0")
 	if err := cmd.Run(); err != nil {
 		c.Fatalf("dd failed: %v", err)
 	}
@@ -1888,8 +1888,13 @@ func (s *DockerDaemonSuite) TestDaemonNoSpaceleftOnDeviceError(c *check.C) {
 	err := s.d.Start("--graph", "/tmp/testfs-mount")
 	c.Assert(err, check.IsNil)
 
+	reg := setupRegistry(c, false)
+	defer reg.Close()
+	_, err = setupImage(c)
+	c.Assert(err, check.IsNil)
+
 	// pull a repository large enough to fill the mount point
-	out, err := s.d.Cmd("pull", "registry:2")
+	out, err := s.d.Cmd("pull", repoName)
 	c.Assert(out, check.Not(check.Equals), 1, check.Commentf("no space left on device"))
 }
 
