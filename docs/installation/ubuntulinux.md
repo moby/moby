@@ -393,7 +393,7 @@ NetworkManager (this might slow your network).
 
         $ sudo nano /etc/NetworkManager/NetworkManager.conf
 
-2. Comment out the `dns=dsnmasq` line:
+2. Comment out the `dns=dnsmasq` line:
 
         dns=dnsmasq
 
