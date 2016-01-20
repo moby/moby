@@ -96,8 +96,7 @@ RUN set -x \
 ENV PATH /osxcross/target/bin:$PATH
 
 # install seccomp
-# this can be changed to the ubuntu package libseccomp-dev if dockerinit is removed,
-# we need libseccomp.a (which the package does not provide) for dockerinit
+# TODO: switch to libseccomp-dev since dockerinit is gone
 ENV SECCOMP_VERSION 2.2.3
 RUN set -x \
 	&& export SECCOMP_PATH="$(mktemp -d)" \
@@ -114,7 +113,7 @@ RUN set -x \
 
 # Install Go
 # IMPORTANT: If the version of Go is updated, the Windows to Linux CI machines
-#            will need updating, to avoid errors. Ping #docker-maintainers on IRC 
+#            will need updating, to avoid errors. Ping #docker-maintainers on IRC
 #            with a heads-up.
 ENV GO_VERSION 1.5.3
 RUN curl -fsSL "https://storage.googleapis.com/golang/go${GO_VERSION}.linux-amd64.tar.gz" \

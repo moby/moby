@@ -131,7 +131,6 @@ type CommonProcessConfig struct {
 type CommonCommand struct {
 	ContainerPid  int           `json:"container_pid"` // the pid for the process inside a container
 	ID            string        `json:"id"`
-	InitPath      string        `json:"initpath"`    // dockerinit
 	MountLabel    string        `json:"mount_label"` // TODO Windows. More involved, but can be factored out
 	Mounts        []Mount       `json:"mounts"`
 	Network       *Network      `json:"network"`

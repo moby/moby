@@ -11,11 +11,6 @@ URL: https://dockerproject.org
 Vendor: Docker
 Packager: Docker <support@docker.com>
 
-# docker builds in a checksum of dockerinit into docker,
-# # so stripping the binaries breaks docker
-%global __os_install_post %{_rpmconfigdir}/brp-compress
-%global debug_package %{nil}
-
 # is_systemd conditional
 %if 0%{?fedora} >= 21 || 0%{?centos} >= 7 || 0%{?rhel} >= 7 || 0%{?suse_version} >= 1300
 %global is_systemd 1
@@ -124,10 +119,6 @@ export DOCKER_GITCOMMIT=%{_gitcommit}
 install -d $RPM_BUILD_ROOT/%{_bindir}
 install -p -m 755 bundles/%{_origversion}/dynbinary/docker-%{_origversion} $RPM_BUILD_ROOT/%{_bindir}/docker
 
-# install dockerinit
-install -d $RPM_BUILD_ROOT/%{_libexecdir}/docker
-install -p -m 755 bundles/%{_origversion}/dynbinary/dockerinit-%{_origversion} $RPM_BUILD_ROOT/%{_libexecdir}/docker/dockerinit
-
 # install udev rules
 install -d $RPM_BUILD_ROOT/%{_sysconfdir}/udev/rules.d
 install -p -m 644 contrib/udev/80-docker.rules $RPM_BUILD_ROOT/%{_sysconfdir}/udev/rules.d/80-docker.rules
@@ -175,7 +166,6 @@ install -p -m 644 contrib/syntax/nano/Dockerfile.nanorc $RPM_BUILD_ROOT/usr/shar
 %files
 %doc AUTHORS CHANGELOG.md CONTRIBUTING.md LICENSE MAINTAINERS NOTICE README.md
 /%{_bindir}/docker
-/%{_libexecdir}/docker/dockerinit
 /%{_sysconfdir}/udev/rules.d/80-docker.rules
 %if 0%{?is_systemd}
 /%{_unitdir}/docker.service

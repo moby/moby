@@ -254,7 +254,6 @@ func (daemon *Daemon) populateCommand(c *container.Container, env []string) erro
 	c.Command = &execdriver.Command{
 		CommonCommand: execdriver.CommonCommand{
 			ID:            c.ID,
-			InitPath:      "/.dockerinit",
 			MountLabel:    c.GetMountLabel(),
 			Network:       en,
 			ProcessConfig: processConfig,

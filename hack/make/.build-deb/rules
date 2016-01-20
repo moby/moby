@@ -17,14 +17,12 @@ override_dh_auto_test:
 	./bundles/$(VERSION)/dynbinary/docker -v
 
 override_dh_strip:
-	# the SHA1 of dockerinit is important: don't strip it
-	# also, Go has lots of problems with stripping, so just don't
+	# Go has lots of problems with stripping, so just don't
 
 override_dh_auto_install:
 	mkdir -p debian/docker-engine/usr/bin
 	cp -aT "$$(readlink -f bundles/$(VERSION)/dynbinary/docker)" debian/docker-engine/usr/bin/docker
 	mkdir -p debian/docker-engine/usr/lib/docker
-	cp -aT "$$(readlink -f bundles/$(VERSION)/dynbinary/dockerinit)" debian/docker-engine/usr/lib/docker/dockerinit
 
 override_dh_installinit:
 	# use "docker" as our service name, not "docker-engine"

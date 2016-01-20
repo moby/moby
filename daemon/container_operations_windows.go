@@ -124,7 +124,6 @@ func (daemon *Daemon) populateCommand(c *container.Container, env []string) erro
 		CommonCommand: execdriver.CommonCommand{
 			ID:            c.ID,
 			Rootfs:        c.BaseFS,
-			InitPath:      "/.dockerinit",
 			WorkingDir:    c.Config.WorkingDir,
 			Network:       en,
 			MountLabel:    c.GetMountLabel(),

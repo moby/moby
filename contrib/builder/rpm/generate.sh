@@ -118,9 +118,7 @@ for version in "${versions[@]}"; do
 
 	echo >> "$version/Dockerfile"
 
-	# fedora does not have a libseccomp.a for compiling static dockerinit
-	# ONLY install libseccomp.a from source, this can be removed once dockerinit is removed
-	# TODO remove this manual seccomp compilation once dockerinit is gone or no longer needs to be statically compiled
+	# TODO remove this since dockerinit is finally gone
 	case "$from" in
 		fedora:*)
 			awk '$1 == "ENV" && $2 == "SECCOMP_VERSION" { print; exit }' ../../../Dockerfile >> "$version/Dockerfile"
