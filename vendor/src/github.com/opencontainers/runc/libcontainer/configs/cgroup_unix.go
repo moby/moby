@@ -20,7 +20,7 @@ type Cgroup struct {
 	ScopePrefix string `json:"scope_prefix"`
 
 	// Resources contains various cgroups settings to apply
-	Resources *Resources `json:"resources"`
+	*Resources
 }
 
 type Resources struct {
