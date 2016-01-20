@@ -54,8 +54,10 @@ func (p *Publisher) SubscribeTopic(topic topicFunc) chan interface{} {
 // Evict removes the specified subscriber from receiving any more messages.
 func (p *Publisher) Evict(sub chan interface{}) {
 	p.m.Lock()
-	delete(p.subscribers, sub)
-	close(sub)
+	if _, ok := p.subscribers[sub]; ok {
+		delete(p.subscribers, sub)
+		close(sub)
+	}
 	p.m.Unlock()
 }
 

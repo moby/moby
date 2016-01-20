@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/logger/loggerutils"
 	"github.com/docker/docker/pkg/jsonlog"
+	"github.com/docker/docker/pkg/pubsub"
 	"github.com/docker/go-units"
 )
 
@@ -22,12 +23,13 @@ const Name = "json-file"
 
 // JSONFileLogger is Logger implementation for default Docker logging.
 type JSONFileLogger struct {
-	buf     *bytes.Buffer
-	writer  *loggerutils.RotateFileWriter
-	mu      sync.Mutex
-	ctx     logger.Context
-	readers map[*logger.LogWatcher]struct{} // stores the active log followers
-	extra   []byte                          // json-encoded extra attributes
+	buf           *bytes.Buffer
+	writer        *loggerutils.RotateFileWriter
+	mu            sync.Mutex
+	ctx           logger.Context
+	readers       map[*logger.LogWatcher]struct{} // stores the active log followers
+	extra         []byte                          // json-encoded extra attributes
+	writeNotifier *pubsub.Publisher
 }
 
 func init() {
@@ -77,10 +79,11 @@ func New(ctx logger.Context) (logger.Logger, error) {
 	}
 
 	return &JSONFileLogger{
-		buf:     bytes.NewBuffer(nil),
-		writer:  writer,
-		readers: make(map[*logger.LogWatcher]struct{}),
-		extra:   extra,
+		buf:           bytes.NewBuffer(nil),
+		writer:        writer,
+		readers:       make(map[*logger.LogWatcher]struct{}),
+		extra:         extra,
+		writeNotifier: pubsub.NewPublisher(0, 10),
 	}, nil
 }
 
@@ -104,6 +107,7 @@ func (l *JSONFileLogger) Log(msg *logger.Message) error {
 
 	l.buf.WriteByte('\n')
 	_, err = l.writer.Write(l.buf.Bytes())
+	l.writeNotifier.Publish(struct{}{})
 	l.buf.Reset()
 
 	return err
@@ -137,6 +141,7 @@ func (l *JSONFileLogger) Close() error {
 		r.Close()
 		delete(l.readers, r)
 	}
+	l.writeNotifier.Close()
 	l.mu.Unlock()
 	return err
 }
