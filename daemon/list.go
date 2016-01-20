@@ -112,9 +112,6 @@ func (daemon *Daemon) reduceContainers(config *ContainersConfig, reducer contain
 
 // reducePsContainer is the basic representation for a container as expected by the ps command.
 func (daemon *Daemon) reducePsContainer(container *container.Container, ctx *listContext, reducer containerReducer) (*types.Container, error) {
-	container.Lock()
-	defer container.Unlock()
-
 	// filter containers to return
 	action := includeContainerInList(container, ctx)
 	switch action {

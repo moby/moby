@@ -32,9 +32,6 @@ func (daemon *Daemon) containerInspectCurrent(name string, size bool) (*types.Co
 		return nil, err
 	}
 
-	container.Lock()
-	defer container.Unlock()
-
 	base, err := daemon.getInspectData(container, size)
 	if err != nil {
 		return nil, err
