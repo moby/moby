@@ -106,7 +106,7 @@ func newTestNotary(c *check.C) (*testNotary, error) {
 	}
 
 	// Wait for notary to be ready to serve requests.
-	for i := 1; i <= 5; i++ {
+	for i := 1; i <= 20; i++ {
 		if err = testNotary.Ping(); err == nil {
 			break
 		}
