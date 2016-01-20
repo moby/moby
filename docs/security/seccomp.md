@@ -5,6 +5,7 @@ description = "Enabling seccomp in Docker"
 keywords = ["seccomp, security, docker, documentation"]
 [menu.main]
 parent= "smn_secure_docker"
+weight=90
 +++
 <![end-metadata]-->
 
