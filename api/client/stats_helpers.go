@@ -22,8 +22,12 @@ type containerStats struct {
 	MemoryPercentage float64
 	NetworkRx        float64
 	NetworkTx        float64
-	BlockRead        float64
-	BlockWrite       float64
+	BlockReadByte    float64
+	BlockWriteByte   float64
+	BlockReadRate    float64
+	BlockWriteRate   float64
+	BlockReadIOPS    float64
+	BlockWriteIOPS   float64
 	PidsCurrent      uint64
 	mu               sync.RWMutex
 	err              error
@@ -107,15 +111,19 @@ func (s *containerStats) Collect(cli client.APIClient, streamStats bool, waitFir
 			previousCPU = v.PreCPUStats.CPUUsage.TotalUsage
 			previousSystem = v.PreCPUStats.SystemUsage
 			cpuPercent = calculateCPUPercent(previousCPU, previousSystem, v)
-			blkRead, blkWrite := calculateBlockIO(v.BlkioStats)
+			blkReadByte, blkWriteByte, blkReadRate, blkWriteRate, blkReadIOPS, blkWriteIOPS := calculateBlockIO(v.BlkioStats, v.PreBlkioStats, v.Read, v.PreRead)
 			s.mu.Lock()
 			s.CPUPercentage = cpuPercent
 			s.Memory = float64(v.MemoryStats.Usage)
 			s.MemoryLimit = float64(v.MemoryStats.Limit)
 			s.MemoryPercentage = memPercent
 			s.NetworkRx, s.NetworkTx = calculateNetwork(v.Networks)
-			s.BlockRead = float64(blkRead)
-			s.BlockWrite = float64(blkWrite)
+			s.BlockReadByte = float64(blkReadByte)
+			s.BlockWriteByte = float64(blkWriteByte)
+			s.BlockReadRate = float64(blkReadRate)
+			s.BlockWriteRate = float64(blkWriteRate)
+			s.BlockReadIOPS = blkReadIOPS
+			s.BlockWriteIOPS = blkWriteIOPS
 			s.PidsCurrent = v.PidsStats.Current
 			s.mu.Unlock()
 			u <- nil
@@ -136,8 +144,12 @@ func (s *containerStats) Collect(cli client.APIClient, streamStats bool, waitFir
 			s.MemoryLimit = 0
 			s.NetworkRx = 0
 			s.NetworkTx = 0
-			s.BlockRead = 0
-			s.BlockWrite = 0
+			s.BlockReadByte = 0
+			s.BlockWriteByte = 0
+			s.BlockReadRate = 0
+			s.BlockWriteRate = 0
+			s.BlockReadIOPS = 0
+			s.BlockWriteIOPS = 0
 			s.PidsCurrent = 0
 			s.mu.Unlock()
 			// if this is the first stat you get, release WaitGroup
@@ -170,14 +182,15 @@ func (s *containerStats) Display(w io.Writer) error {
 	if s.err != nil {
 		return s.err
 	}
-	fmt.Fprintf(w, "%s\t%.2f%%\t%s / %s\t%.2f%%\t%s / %s\t%s / %s\t%d\n",
+	fmt.Fprintf(w, "%s\t%.2f%%\t%s / %s\t%.2f%%\t%s / %s\t%s / %s\t%s / %s\t%.2f / %.2f\t%d\n",
 		s.Name,
 		s.CPUPercentage,
 		units.HumanSize(s.Memory), units.HumanSize(s.MemoryLimit),
 		s.MemoryPercentage,
 		units.HumanSize(s.NetworkRx), units.HumanSize(s.NetworkTx),
-		units.HumanSize(s.BlockRead), units.HumanSize(s.BlockWrite),
-		s.PidsCurrent)
+		units.HumanSize(s.BlockReadByte), units.HumanSize(s.BlockWriteByte),
+		units.HumanSize(s.BlockReadRate), units.HumanSize(s.BlockWriteRate),
+		s.BlockReadIOPS, s.BlockWriteIOPS, s.PidsCurrent)
 	return nil
 }
 
@@ -196,15 +209,73 @@ func calculateCPUPercent(previousCPU, previousSystem uint64, v *types.StatsJSON)
 	return cpuPercent
 }
 
-func calculateBlockIO(blkio types.BlkioStats) (blkRead uint64, blkWrite uint64) {
+func calculateBlockIO(blkio, preblkio types.BlkioStats, read, preread time.Time) (blkReadByte uint64, blkWriteByte uint64,
+	blkReadRate uint64, blkWriteRate uint64,
+	blkReadIOPS float64, blkWriteIOPS float64) {
+	var (
+		preblkReadByte   uint64
+		preblkWriteByte  uint64
+		blkReadCount     uint64
+		blkWriteCount    uint64
+		preblkReadCount  uint64
+		preblkWriteCount uint64
+		blkReadDelta     uint64
+		blkWriteDelta    uint64
+		duration         uint64
+	)
+
 	for _, bioEntry := range blkio.IoServiceBytesRecursive {
 		switch strings.ToLower(bioEntry.Op) {
 		case "read":
-			blkRead = blkRead + bioEntry.Value
+			blkReadByte = blkReadByte + bioEntry.Value
 		case "write":
-			blkWrite = blkWrite + bioEntry.Value
+			blkWriteByte = blkWriteByte + bioEntry.Value
 		}
 	}
+
+	for _, bioEntry := range preblkio.IoServiceBytesRecursive {
+		switch strings.ToLower(bioEntry.Op) {
+		case "read":
+			preblkReadByte = preblkReadByte + bioEntry.Value
+		case "write":
+			preblkWriteByte = preblkWriteByte + bioEntry.Value
+		}
+	}
+
+	for _, bioEntry := range blkio.IoServicedRecursive {
+		switch strings.ToLower(bioEntry.Op) {
+		case "read":
+			blkReadCount = blkReadCount + bioEntry.Value
+		case "write":
+			blkWriteCount = blkWriteCount + bioEntry.Value
+		}
+	}
+
+	for _, bioEntry := range preblkio.IoServicedRecursive {
+		switch strings.ToLower(bioEntry.Op) {
+		case "read":
+			preblkReadCount = preblkReadCount + bioEntry.Value
+		case "write":
+			preblkWriteCount = preblkWriteCount + bioEntry.Value
+		}
+	}
+
+	if read.After(preread) {
+		duration = uint64(read.Sub(preread))
+		// convert it to Millisecond
+		duration = duration / uint64(time.Millisecond)
+		// calculate the Rate in 1s
+		blkReadDelta = blkReadByte - preblkReadByte
+		blkWriteDelta = blkWriteByte - preblkWriteByte
+		blkReadRate = blkReadDelta * 1000 / duration
+		blkWriteRate = blkWriteDelta * 1000 / duration
+		// calculate the IOPS
+		blkReadDelta = blkReadCount - preblkReadCount
+		blkWriteDelta = blkWriteCount - preblkWriteCount
+		blkReadIOPS = float64(blkReadDelta) * 1000.0 / float64(duration)
+		blkWriteIOPS = float64(blkWriteDelta) * 1000.0 / float64(duration)
+	}
+
 	return
 }
 

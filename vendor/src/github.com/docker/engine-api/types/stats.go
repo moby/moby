@@ -95,12 +95,14 @@ type PidsStats struct {
 
 // Stats is Ultimate struct aggregating all types of stats of one container
 type Stats struct {
-	Read        time.Time   `json:"read"`
-	PreCPUStats CPUStats    `json:"precpu_stats,omitempty"`
-	CPUStats    CPUStats    `json:"cpu_stats,omitempty"`
-	MemoryStats MemoryStats `json:"memory_stats,omitempty"`
-	BlkioStats  BlkioStats  `json:"blkio_stats,omitempty"`
-	PidsStats   PidsStats   `json:"pids_stats,omitempty"`
+	Read          time.Time   `json:"read"`
+	PreCPUStats   CPUStats    `json:"precpu_stats,omitempty"`
+	CPUStats      CPUStats    `json:"cpu_stats,omitempty"`
+	MemoryStats   MemoryStats `json:"memory_stats,omitempty"`
+	BlkioStats    BlkioStats  `json:"blkio_stats,omitempty"`
+	PidsStats     PidsStats   `json:"pids_stats,omitempty"`
+	PreBlkioStats BlkioStats  `json:"preblkio_stats,omitempty"`
+	PreRead       time.Time   `json:"preread,omitempty"`
 }
 
 // StatsJSON is newly used Networks
