@@ -145,6 +145,8 @@ func retryOnError(err error) error {
 		case errcode.ErrorCodeUnauthorized, errcode.ErrorCodeUnsupported, errcode.ErrorCodeDenied:
 			return xfer.DoNotRetry{Err: err}
 		}
+	case *url.Error:
+		return retryOnError(v.Err)
 	case *client.UnexpectedHTTPResponseError:
 		return xfer.DoNotRetry{Err: err}
 	}
