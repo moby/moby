@@ -302,11 +302,25 @@ __docker_network_subcommand() {
     opts_help=("(: -)--help[Print usage]")
 
     case "$words[1]" in
-        (connect|disconnect)
+        (connect)
             _arguments $(__docker_arguments) \
                 $opts_help \
+                "($help)*--alias=[Add network-scoped alias for the container]:alias: " \
+                "($help)--ip=[Container IPv4 address]:IPv4: " \
+                "($help)--ip6=[Container IPv6 address]:IPv6: " \
+                "($help)*--link=[Add a link to another container]:link:->link" \
                 "($help -)1:network:__docker_networks" \
                 "($help -)2:containers:__docker_containers" && ret=0
+
+            case $state in
+                (link)
+                    if compset -P "*:"; then
+                        _wanted alias expl "Alias" compadd -E "" && ret=0
+                    else
+                        __docker_runningcontainers -qS ":" && ret=0
+                    fi
+                    ;;
+            esac
             ;;
         (create)
             _arguments $(__docker_arguments) -A '-*' \
@@ -321,6 +335,12 @@ __docker_network_subcommand() {
                 "($help)*"{-o=,--opt=}"[Set driver specific options]:opt=value: " \
                 "($help)*--subnet=[Subnet in CIDR format that represents a network segment]:IP/mask: " \
                 "($help -)1:Network Name: " && ret=0
+            ;;
+        (disconnect)
+            _arguments $(__docker_arguments) \
+                $opts_help \
+                "($help -)1:network:__docker_networks" \
+                "($help -)2:containers:__docker_containers" && ret=0
             ;;
         (inspect)
             _arguments $(__docker_arguments) \
@@ -498,6 +518,8 @@ __docker_subcommand() {
         "($help)*--group-add=[Add additional groups to run as]:group:_groups"
         "($help -h --hostname)"{-h=,--hostname=}"[Container host name]:hostname:_hosts"
         "($help -i --interactive)"{-i,--interactive}"[Keep stdin open even if not attached]"
+        "($help)--ip=[Container IPv4 address]:IPv4: "
+        "($help)--ip6=[Container IPv6 address]:IPv6: "
         "($help)--ipc=[IPC namespace to use]:IPC namespace: "
         "($help)*--link=[Add link to another container]:link:->link"
         "($help)*"{-l=,--label=}"[Set meta data on a container]:label: "
@@ -506,6 +528,7 @@ __docker_subcommand() {
         "($help)--mac-address=[Container MAC address]:MAC address: "
         "($help)--name=[Container name]:name: "
         "($help)--net=[Connect a container to a network]:network mode:(bridge none container host)"
+        "($help)*--net-alias=[Add network-scoped alias for the container]:alias: "
         "($help)--oom-kill-disable[Disable OOM Killer]"
         "($help)--oom-score-adj[Tune the host's OOM preferences for containers (accepts -1000 to 1000)]"
         "($help -P --publish-all)"{-P,--publish-all}"[Publish all exposed ports]"
