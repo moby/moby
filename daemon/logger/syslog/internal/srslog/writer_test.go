@@ -28,13 +28,14 @@ func TestWriteAndRetryFails(t *testing.T) {
 
 func TestWriteFormatters(t *testing.T) {
 	tests := []struct {
-		f Formatter
+		name string
+		f    Formatter
 	}{
-		{nil},
-		{UnixFormatter},
-		{RFC3164Formatter},
-		{RFC5424Formatter},
-		{DefaultFormatter},
+		{"default", nil},
+		{"unix", UnixFormatter},
+		{"rfc 3164", RFC3164Formatter},
+		{"rfc 5424", RFC5424Formatter},
+		{"default", DefaultFormatter},
 	}
 
 	for _, test := range tests {
@@ -74,18 +75,19 @@ func TestWriteFormatters(t *testing.T) {
 		}
 		sent := strings.TrimSpace(<-done)
 		if sent != expected {
-			t.Errorf("expected to use the formatter, got %v, expected %v", sent, expected)
+			t.Errorf("expected to use the %v formatter, got %v, expected %v", test.name, sent, expected)
 		}
 	}
 }
 
 func TestWriterFramers(t *testing.T) {
 	tests := []struct {
-		f Framer
+		name string
+		f    Framer
 	}{
-		{nil},
-		{RFC5425MessageLengthFramer},
-		{DefaultFramer},
+		{"default", nil},
+		{"rfc 5425", RFC5425MessageLengthFramer},
+		{"default", DefaultFramer},
 	}
 
 	for _, test := range tests {
@@ -125,7 +127,7 @@ func TestWriterFramers(t *testing.T) {
 		}
 		sent := strings.TrimSpace(<-done)
 		if sent != expected {
-			t.Errorf("expected to use the framer, got %v, expected %v", sent, expected)
+			t.Errorf("expected to use the %v framer, got %v, expected %v", test.name, sent, expected)
 		}
 	}
 }
