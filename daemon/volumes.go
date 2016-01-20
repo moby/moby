@@ -159,7 +159,6 @@ func (daemon *Daemon) registerMountPoints(container *container.Container, hostCo
 func (daemon *Daemon) lazyInitializeVolume(containerID string, m *volume.MountPoint) error {
 	if len(m.Driver) > 0 && m.Volume == nil {
 		v, err := daemon.volumes.GetWithRef(m.Name, m.Driver, containerID)
-
 		if err != nil {
 			return err
 		}
