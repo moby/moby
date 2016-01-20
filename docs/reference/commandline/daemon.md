@@ -86,7 +86,7 @@ membership.
 If you need to access the Docker daemon remotely, you need to enable the `tcp`
 Socket. Beware that the default setup provides un-encrypted and
 un-authenticated direct access to the Docker daemon - and should be secured
-either using the [built in HTTPS encrypted socket](../../articles/https/), or by
+either using the [built in HTTPS encrypted socket](../../security/https/), or by
 putting a secure web proxy in front of it. You can listen on port `2375` on all
 network interfaces with `-H tcp://0.0.0.0:2375`, or on a particular network
 interface using its IP address: `-H tcp://192.168.59.103:2375`. It is
@@ -220,15 +220,15 @@ options for `zfs` start with `zfs`.
     the empty case the larger the device is.
 
     The base device size can be increased at daemon restart which will allow
-    all future images and containers (based on those new images) to be of the 
+    all future images and containers (based on those new images) to be of the
     new base device size.
 
-    Example use: 
+    Example use:
 
         $ docker daemon --storage-opt dm.basesize=50G
 
-    This will increase the base device size to 50G. The Docker daemon will throw an 
-    error if existing base device size is larger than 50G. A user can use 
+    This will increase the base device size to 50G. The Docker daemon will throw an
+    error if existing base device size is larger than 50G. A user can use
     this option to expand the base device size however shrinking is not permitted.
 
     This value affects the system-wide "base" empty filesystem
@@ -727,7 +727,7 @@ when querying the system for the subordinate group ID range.
 
 ### Detailed information on `subuid`/`subgid` ranges
 
-Given potential advanced use of the subordinate ID ranges by power users, the 
+Given potential advanced use of the subordinate ID ranges by power users, the
 following paragraphs define how the Docker daemon currently uses the range entries
 found within the subordinate range files.
 

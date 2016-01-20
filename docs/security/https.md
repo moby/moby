@@ -1,11 +1,11 @@
 <!--[metadata]>
 +++
+aliases = ["/engine/articles/https/"]
 title = "Protect the Docker daemon socket"
 description = "How to setup and run Docker with HTTPS"
 keywords = ["docker, docs, article, example, https, daemon, tls, ca,  certificate"]
 [menu.main]
-parent = "smn_administrate"
-weight = 5
+parent = "smn_secure_docker"
 +++
 <![end-metadata]-->
 
@@ -209,3 +209,8 @@ flags:
       --cert ~/.docker/cert.pem \
       --key ~/.docker/key.pem \
       --cacert ~/.docker/ca.pem
+
+## Related information
+
+* [Using certificates for repository client verification](certificates.md)
+* [Use trusted images](trust/index.md)
