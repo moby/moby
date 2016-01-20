@@ -1889,7 +1889,9 @@ func (s *DockerDaemonSuite) TestDaemonNoSpaceleftOnDeviceError(c *check.C) {
 	c.Assert(err, check.IsNil)
 
 	// pull a repository large enough to fill the mount point
-	out, err := s.d.Cmd("pull", "registry:2")
+	// use a frozen image, because it's already locally available
+	imageName := fmt.Sprintf("%v/dockercli/debian:jessie", privateRegistryURL)
+	out, err := s.d.Cmd("pull", imageName)
 	c.Assert(out, check.Not(check.Equals), 1, check.Commentf("no space left on device"))
 }
 
