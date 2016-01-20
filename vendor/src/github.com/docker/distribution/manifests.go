@@ -69,7 +69,9 @@ type Describable interface {
 // ManifestMediaTypes returns the supported media types for manifests.
 func ManifestMediaTypes() (mediaTypes []string) {
 	for t := range mappings {
-		mediaTypes = append(mediaTypes, t)
+		if t != "" {
+			mediaTypes = append(mediaTypes, t)
+		}
 	}
 	return
 }
