@@ -115,15 +115,15 @@ func (n PidMode) Valid() bool {
 
 // DeviceMapping represents the device mapping between the host and the container.
 type DeviceMapping struct {
-	PathOnHost        string
-	PathInContainer   string
-	CgroupPermissions string
+	PathOnHost        string `json:",omitempty"`
+	PathInContainer   string `json:",omitempty"`
+	CgroupPermissions string `json:",omitempty"`
 }
 
 // RestartPolicy represents the restart policies of the container.
 type RestartPolicy struct {
-	Name              string
-	MaximumRetryCount int
+	Name              string `json:",omitempty"`
+	MaximumRetryCount int    `json:",omitempty"`
 }
 
 // IsNone indicates whether the container has the "no" restart policy.
@@ -153,43 +153,43 @@ func (rp *RestartPolicy) IsUnlessStopped() bool {
 
 // LogConfig represents the logging configuration of the container.
 type LogConfig struct {
-	Type   string
-	Config map[string]string
+	Type   string            `json:",omitempty"`
+	Config map[string]string `json:",omitempty"`
 }
 
 // Resources contains container's resources (cgroups config, ulimits...)
 type Resources struct {
 	// Applicable to all platforms
-	CPUShares int64 `json:"CpuShares"` // CPU shares (relative weight vs. other containers)
+	CPUShares int64 `json:"CpuShares,omitempty"` // CPU shares (relative weight vs. other containers)
 
 	// Applicable to UNIX platforms
-	CgroupParent         string // Parent cgroup.
-	BlkioWeight          uint16 // Block IO weight (relative weight vs. other containers)
-	BlkioWeightDevice    []*blkiodev.WeightDevice
-	BlkioDeviceReadBps   []*blkiodev.ThrottleDevice
-	BlkioDeviceWriteBps  []*blkiodev.ThrottleDevice
-	BlkioDeviceReadIOps  []*blkiodev.ThrottleDevice
-	BlkioDeviceWriteIOps []*blkiodev.ThrottleDevice
-	CPUPeriod            int64           `json:"CpuPeriod"` // CPU CFS (Completely Fair Scheduler) period
-	CPUQuota             int64           `json:"CpuQuota"`  // CPU CFS (Completely Fair Scheduler) quota
-	CpusetCpus           string          // CpusetCpus 0-2, 0,1
-	CpusetMems           string          // CpusetMems 0-2, 0,1
-	Devices              []DeviceMapping // List of devices to map inside the container
-	KernelMemory         int64           // Kernel memory limit (in bytes)
-	Memory               int64           // Memory limit (in bytes)
-	MemoryReservation    int64           // Memory soft limit (in bytes)
-	MemorySwap           int64           // Total memory usage (memory + swap); set `-1` to disable swap
-	MemorySwappiness     *int64          // Tuning container memory swappiness behaviour
-	OomKillDisable       *bool           // Whether to disable OOM Killer or not
-	PidsLimit            int64           // Setting pids limit for a container
-	Ulimits              []*units.Ulimit // List of ulimits to be set in the container
+	CgroupParent         string                     `json:",omitempty"` // Parent cgroup.
+	BlkioWeight          uint16                     `json:",omitempty"` // Block IO weight (relative weight vs. other containers)
+	BlkioWeightDevice    []*blkiodev.WeightDevice   `json:",omitempty"`
+	BlkioDeviceReadBps   []*blkiodev.ThrottleDevice `json:",omitempty"`
+	BlkioDeviceWriteBps  []*blkiodev.ThrottleDevice `json:",omitempty"`
+	BlkioDeviceReadIOps  []*blkiodev.ThrottleDevice `json:",omitempty"`
+	BlkioDeviceWriteIOps []*blkiodev.ThrottleDevice `json:",omitempty"`
+	CPUPeriod            int64                      `json:"CpuPeriod,omitempty"` // CPU CFS (Completely Fair Scheduler) period
+	CPUQuota             int64                      `json:"CpuQuota,omitempty"`  // CPU CFS (Completely Fair Scheduler) quota
+	CpusetCpus           string                     `json:",omitempty"`          // CpusetCpus 0-2, 0,1
+	CpusetMems           string                     `json:",omitempty"`          // CpusetMems 0-2, 0,1
+	Devices              []DeviceMapping            `json:",omitempty"`          // List of devices to map inside the container
+	KernelMemory         int64                      `json:",omitempty"`          // Kernel memory limit (in bytes)
+	Memory               int64                      `json:",omitempty"`          // Memory limit (in bytes)
+	MemoryReservation    int64                      `json:",omitempty"`          // Memory soft limit (in bytes)
+	MemorySwap           int64                      `json:",omitempty"`          // Total memory usage (memory + swap); set `-1` to disable swap
+	MemorySwappiness     *int64                     `json:",omitempty"`          // Tuning container memory swappiness behaviour
+	OomKillDisable       *bool                      `json:",omitempty"`          // Whether to disable OOM Killer or not
+	PidsLimit            int64                      `json:",omitempty"`          // Setting pids limit for a container
+	Ulimits              []*units.Ulimit            `json:",omitempty"`          // List of ulimits to be set in the container
 }
 
 // UpdateConfig holds the mutable attributes of a Container.
 // Those attributes can be updated at runtime.
 type UpdateConfig struct {
 	// Contains container's resources (cgroups, ulimits)
-	Resources
+	Resources `json:",omitempty"`
 }
 
 // HostConfig the non-portable Config structure of a container.
@@ -197,39 +197,40 @@ type UpdateConfig struct {
 // Portable information *should* appear in Config.
 type HostConfig struct {
 	// Applicable to all platforms
-	Binds           []string      // List of volume bindings for this container
-	ContainerIDFile string        // File (path) where the containerId is written
-	LogConfig       LogConfig     // Configuration of the logs for this container
-	NetworkMode     NetworkMode   // Network mode to use for the container
-	PortBindings    nat.PortMap   // Port mapping between the exposed port (container) and the host
-	RestartPolicy   RestartPolicy // Restart policy to be used for the container
-	VolumeDriver    string        // Name of the volume driver used to mount volumes
-	VolumesFrom     []string      // List of volumes to take from other container
+	Binds           []string      `json:",omitempty"` // List of volume bindings for this container
+	ContainerIDFile string        `json:",omitempty"` // File (path) where the containerId is written
+	LogConfig       LogConfig     `json:",omitempty"` // Configuration of the logs for this container
+	NetworkMode     NetworkMode   `json:",omitempty"` // Network mode to use for the container
+	PortBindings    nat.PortMap   `json:",omitempty"` // Port mapping between the exposed port (container) and the host
+	RestartPolicy   RestartPolicy `json:",omitempty"` // Restart policy to be used for the container
+	VolumeDriver    string        `json:",omitempty"` // Name of the volume driver used to mount volumes
+	VolumesFrom     []string      `json:",omitempty"` // List of volumes to take from other container
 
 	// Applicable to UNIX platforms
-	CapAdd          *strslice.StrSlice // List of kernel capabilities to add to the container
-	CapDrop         *strslice.StrSlice // List of kernel capabilities to remove from the container
-	DNS             []string           `json:"Dns"`        // List of DNS server to lookup
-	DNSOptions      []string           `json:"DnsOptions"` // List of DNSOption to look for
-	DNSSearch       []string           `json:"DnsSearch"`  // List of DNSSearch to look for
-	ExtraHosts      []string           // List of extra hosts
-	GroupAdd        []string           // List of additional groups that the container process will run as
-	IpcMode         IpcMode            // IPC namespace to use for the container
-	Links           []string           // List of links (in the name:alias form)
-	OomScoreAdj     int                // Container preference for OOM-killing
-	PidMode         PidMode            // PID namespace to use for the container
-	Privileged      bool               // Is the container in privileged mode
-	PublishAllPorts bool               // Should docker publish all exposed port for the container
-	ReadonlyRootfs  bool               // Is the container root filesystem in read-only
-	SecurityOpt     []string           // List of string values to customize labels for MLS systems, such as SELinux.
-	Tmpfs           map[string]string  `json:",omitempty"` // List of tmpfs (mounts) used for the container
-	UTSMode         UTSMode            // UTS namespace to use for the container
-	ShmSize         int64              // Total shm memory usage
+	CapAdd          *strslice.StrSlice `json:",omitempty"`           // List of kernel capabilities to add to the container
+	CapDrop         *strslice.StrSlice `json:",omitempty"`           // List of kernel capabilities to remove from the container
+	DNS             []string           `json:"Dns"`                  // List of DNS server to lookup
+	DNSOptions      []string           `json:"DnsOptions,omitempty"` // List of DNSOption to look for
+	DNSSearch       []string           `json:"DnsSearch,omitempty"`  // List of DNSSearch to look for
+	ExtraHosts      []string           `json:",omitempty"`           // List of extra hosts
+	GroupAdd        []string           `json:",omitempty"`           // List of additional groups that the container process will run as
+	IpcMode         IpcMode            `json:",omitempty"`           // IPC namespace to use for the container
+	Links           []string           `json:",omitempty"`           // List of links (in the name:alias form)
+	OomScoreAdj     int                `json:",omitempty"`           // Container preference for OOM-killing
+	PidMode         PidMode            `json:",omitempty"`           // PID namespace to use for the container
+	Privileged      bool               `json:",omitempty"`           // Is the container in privileged mode
+	PublishAllPorts bool               `json:",omitempty"`           // Should docker publish all exposed port for the container
+	ReadonlyRootfs  bool               `json:",omitempty"`           // Is the container root filesystem in read-only
+	SecurityOpt     []string           `json:",omitempty"`           // List of string values to customize labels for MLS systems, such as SELinux.
+	StorageOpt      []string           `json:",omitempty"`           // Graph storage options per container
+	Tmpfs           map[string]string  `json:",omitempty"`           // List of tmpfs (mounts) used for the container
+	UTSMode         UTSMode            `json:",omitempty"`           // UTS namespace to use for the container
+	ShmSize         int64              `json:",omitempty"`           // Total shm memory usage
 
 	// Applicable to Windows
-	ConsoleSize [2]int         // Initial console size
-	Isolation   IsolationLevel // Isolation level of the container (eg default, hyperv)
+	ConsoleSize [2]int         `json:",omitempty"` // Initial console size
+	Isolation   IsolationLevel `json:",omitempty"` // Isolation level of the container (eg default, hyperv)
 
 	// Contains container's resources (cgroups, ulimits)
-	Resources
+	Resources `json:",omitempty"`
 }
