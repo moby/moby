@@ -207,6 +207,12 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		if err != nil {
 			return err
 		}
+		if in != nil && config.Tty {
+			if err := cli.setRawTerminal(); err != nil {
+				return err
+			}
+			defer cli.restoreTerminal(in)
+		}
 		errCh = promise.Go(func() error {
 			return cli.holdHijackedConnection(config.Tty, in, out, stderr, resp)
 		})

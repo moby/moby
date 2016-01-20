@@ -75,6 +75,12 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 		return err
 	}
 	defer resp.Close()
+	if in != nil && c.Config.Tty {
+		if err := cli.setRawTerminal(); err != nil {
+			return err
+		}
+		defer cli.restoreTerminal(in)
+	}
 
 	if err := cli.holdHijackedConnection(c.Config.Tty, in, cli.out, cli.err, resp); err != nil {
 		return err
