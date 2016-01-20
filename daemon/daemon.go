@@ -282,10 +282,6 @@ func (daemon *Daemon) Register(container *container.Container) error {
 		}
 	}
 
-	if err := daemon.prepareMountPoints(container); err != nil {
-		return err
-	}
-
 	return nil
 }
 
@@ -406,6 +402,23 @@ func (daemon *Daemon) restore() error {
 		}(c, notifier)
 
 	}
+	group.Wait()
+
+	// any containers that were started above would already have had this done,
+	// however we need to now prepare the mountpoints for the rest of the containers as well.
+	// This shouldn't cause any issue running on the containers that already had this run.
+	// This must be run after any containers with a restart policy so that containerized plugins
+	// can have a chance to be running before we try to initialize them.
+	for _, c := range containers {
+		group.Add(1)
+		go func(c *container.Container) {
+			defer group.Done()
+			if err := daemon.prepareMountPoints(c); err != nil {
+				logrus.Error(err)
+			}
+		}(c)
+	}
+
 	group.Wait()
 
 	if !debug {
