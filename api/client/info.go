@@ -74,8 +74,6 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 		fmt.Fprintf(cli.out, " Goroutines: %d\n", info.NGoroutines)
 		fmt.Fprintf(cli.out, " System Time: %s\n", info.SystemTime)
 		fmt.Fprintf(cli.out, " EventsListeners: %d\n", info.NEventsListener)
-		fmt.Fprintf(cli.out, " Init SHA1: %s\n", info.InitSha1)
-		fmt.Fprintf(cli.out, " Init Path: %s\n", info.InitPath)
 		fmt.Fprintf(cli.out, " Docker Root Dir: %s\n", info.DockerRootDir)
 	}
 
