@@ -22,9 +22,9 @@ and network IO metrics.
 The following is a sample output from the `docker stats` command
 
     $ docker stats redis1 redis2
-    CONTAINER           CPU %               MEM USAGE / LIMIT     MEM %               NET I/O             BLOCK I/O
-    redis1              0.07%               796 KB / 64 MB        1.21%               788 B / 648 B       3.568 MB / 512 KB
-    redis2              0.07%               2.746 MB / 64 MB      4.29%               1.266 KB / 648 B    12.4 MB / 0 B
+    CONTAINER           CPU %               MEM USAGE / LIMIT     MEM %               NET I/O             BIO(Bytes)            BIO(Rate)           BIO(IOPS)
+    redis1              0.07%               796 KB / 64 MB        1.21%               788 B / 648 B       3.568 MB / 512 KB     0 B / 0 B           0.00 / 0.00
+    redis2              0.07%               2.746 MB / 64 MB      4.29%               1.266 KB / 648 B    12.4 MB / 0 B         0 B / 0 B           0.00 / 0.00
 
 
 The [docker stats](../reference/commandline/stats.md) reference page has

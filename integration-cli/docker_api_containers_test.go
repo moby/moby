@@ -409,7 +409,7 @@ func (s *DockerSuite) TestGetContainerStatsNoStream(c *check.C) {
 
 		s := string(sr.body)
 		// count occurrences of "read" of types.Stats
-		c.Assert(strings.Count(s, "read"), checker.Equals, 1, check.Commentf("Expected only one stat streamed, got %d", strings.Count(s, "read")))
+		c.Assert(strings.Count(s, "read"), checker.Equals, 2, check.Commentf("Expected only one stat streamed, got %d", strings.Count(s, "read")))
 	}
 }
 

@@ -27,10 +27,10 @@ If you want more detailed information about a container's resource usage, use th
 Running `docker stats` on all running containers
 
     $ docker stats
-    CONTAINER           CPU %               MEM USAGE / LIMIT     MEM %               NET I/O             BLOCK I/O
-    1285939c1fd3        0.07%               796 KB / 64 MB        1.21%               788 B / 648 B       3.568 MB / 512 KB
-    9c76f7834ae2        0.07%               2.746 MB / 64 MB      4.29%               1.266 KB / 648 B    12.4 MB / 0 B
-    d1ea048f04e4        0.03%               4.583 MB / 64 MB      6.30%               2.854 KB / 648 B    27.7 MB / 0 B
+    CONTAINER           CPU %               MEM USAGE / LIMIT     MEM %               NET I/O             BIO(Bytes)          BIO(Rate)           BIO(IOPS)
+    1285939c1fd3        0.07%               796 KB / 64 MB        1.21%               788 B / 648 B       3.568 MB / 512 KB   0 B / 0 B           0.00 / 0.00
+    9c76f7834ae2        0.07%               2.746 MB / 64 MB      4.29%               1.266 KB / 648 B    12.4 MB / 0 B       0 B / 0 B           0.00 / 0.00
+    d1ea048f04e4        0.03%               4.583 MB / 64 MB      6.30%               2.854 KB / 648 B    27.7 MB / 0 B       0 B / 0 B           0.00 / 0.00
 
 Running `docker stats` on multiple containers by name and id.
 
