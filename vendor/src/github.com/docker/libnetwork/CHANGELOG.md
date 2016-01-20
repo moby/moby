@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.6.0-rc1 (2016-01-14)
+- Fixes docker/docker#19404
+- Fixes the ungraceful daemon restart issue in systemd with remote network plugin 
+  (https://github.com/docker/libnetwork/issues/813)
+
 ## 0.5.6 (2016-01-14)
 - Setup embedded DNS server correctly on container restart. Fixes docker/docker#19354
 
