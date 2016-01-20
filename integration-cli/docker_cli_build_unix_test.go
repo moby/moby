@@ -178,7 +178,8 @@ func (s *DockerSuite) TestBuildCancellationKillsSleep(c *check.C) {
 	}
 
 	matcher := matchEventLine(buildID, "container", testActions)
-	go observer.Match(matcher)
+	processor := processEventMatch(testActions)
+	go observer.Match(matcher, processor)
 
 	select {
 	case <-time.After(10 * time.Second):
