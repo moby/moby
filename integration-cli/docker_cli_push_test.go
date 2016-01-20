@@ -149,7 +149,6 @@ func (s *DockerSchema1RegistrySuite) TestPushEmptyLayer(c *check.C) {
 }
 
 func (s *DockerRegistrySuite) TestCrossRepositoryLayerPush(c *check.C) {
-	testRequires(c, NotArm)
 	sourceRepoName := fmt.Sprintf("%v/dockercli/busybox", privateRegistryURL)
 	// tag the image to upload it to the private registry
 	dockerCmd(c, "tag", "busybox", sourceRepoName)
