@@ -89,21 +89,16 @@ func TestFindConfigurationConflicts(t *testing.T) {
 	config := map[string]interface{}{"authorization-plugins": "foobar"}
 	flags := mflag.NewFlagSet("test", mflag.ContinueOnError)
 
+	flags.String([]string{"-authorization-plugins"}, "", "")
+	if err := flags.Set("-authorization-plugins", "asdf"); err != nil {
+		t.Fatal(err)
+	}
+
 	err := findConfigurationConflicts(config, flags)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	flags.String([]string{"authorization-plugins"}, "", "")
-	if err := flags.Set("authorization-plugins", "asdf"); err != nil {
-		t.Fatal(err)
-	}
-
-	err = findConfigurationConflicts(config, flags)
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
-	if !strings.Contains(err.Error(), "authorization-plugins") {
+	if !strings.Contains(err.Error(), "authorization-plugins: (from flag: asdf, from file: foobar)") {
 		t.Fatalf("expected authorization-plugins conflict, got %v", err)
 	}
 }
@@ -173,5 +168,43 @@ func TestDaemonConfigurationMergeConflictsWithInnerStructs(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "tlscacert") {
 		t.Fatalf("expected tlscacert conflict, got %v", err)
+	}
+}
+
+func TestFindConfigurationConflictsWithUnknownKeys(t *testing.T) {
+	config := map[string]interface{}{"tls-verify": "true"}
+	flags := mflag.NewFlagSet("test", mflag.ContinueOnError)
+
+	flags.Bool([]string{"-tlsverify"}, false, "")
+	err := findConfigurationConflicts(config, flags)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if !strings.Contains(err.Error(), "the following directives don't match any configuration option: tls-verify") {
+		t.Fatalf("expected tls-verify conflict, got %v", err)
+	}
+}
+
+func TestFindConfigurationConflictsWithMergedValues(t *testing.T) {
+	var hosts []string
+	config := map[string]interface{}{"hosts": "tcp://127.0.0.1:2345"}
+	base := mflag.NewFlagSet("base", mflag.ContinueOnError)
+	base.Var(opts.NewNamedListOptsRef("hosts", &hosts, nil), []string{"H", "-host"}, "")
+
+	flags := mflag.NewFlagSet("test", mflag.ContinueOnError)
+	mflag.Merge(flags, base)
+
+	err := findConfigurationConflicts(config, flags)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	flags.Set("-host", "unix:///var/run/docker.sock")
+	err = findConfigurationConflicts(config, flags)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if !strings.Contains(err.Error(), "hosts: (from flag: [unix:///var/run/docker.sock], from file: tcp://127.0.0.1:2345)") {
+		t.Fatalf("expected hosts conflict, got %v", err)
 	}
 }

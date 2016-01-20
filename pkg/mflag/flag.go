@@ -1223,11 +1223,27 @@ func (v mergeVal) IsBoolFlag() bool {
 	return false
 }
 
+// Name returns the name of a mergeVal.
+// If the original value had a name, return the original name,
+// otherwise, return the key asinged to this mergeVal.
+func (v mergeVal) Name() string {
+	type namedValue interface {
+		Name() string
+	}
+	if nVal, ok := v.Value.(namedValue); ok {
+		return nVal.Name()
+	}
+	return v.key
+}
+
 // Merge is an helper function that merges n FlagSets into a single dest FlagSet
 // In case of name collision between the flagsets it will apply
 // the destination FlagSet's errorHandling behavior.
 func Merge(dest *FlagSet, flagsets ...*FlagSet) error {
 	for _, fset := range flagsets {
+		if fset.formal == nil {
+			continue
+		}
 		for k, f := range fset.formal {
 			if _, ok := dest.formal[k]; ok {
 				var err error
@@ -1249,6 +1265,9 @@ func Merge(dest *FlagSet, flagsets ...*FlagSet) error {
 			}
 			newF := *f
 			newF.Value = mergeVal{f.Value, k, fset}
+			if dest.formal == nil {
+				dest.formal = make(map[string]*Flag)
+			}
 			dest.formal[k] = &newF
 		}
 	}

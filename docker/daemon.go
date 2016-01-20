@@ -362,7 +362,7 @@ func loadDaemonCliConfig(config *daemon.Config, daemonFlags *flag.FlagSet, commo
 
 	// Regardless of whether the user sets it to true or false, if they
 	// specify TLSVerify at all then we need to turn on TLS
-	if config.IsValueSet("tls-verify") {
+	if config.IsValueSet(tlsVerifyKey) {
 		config.TLS = true
 	}
 
