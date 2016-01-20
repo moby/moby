@@ -212,3 +212,9 @@ func (s *DockerSuite) TestLinksEtcHostsRegularFile(c *check.C) {
 	// /etc/hosts should be a regular file
 	c.Assert(out, checker.Matches, "^-.+\n")
 }
+
+func (s *DockerSuite) TestLinksMultipleWithSameName(c *check.C) {
+	dockerCmd(c, "run", "-d", "--name=upstream-a", "busybox", "top")
+	dockerCmd(c, "run", "-d", "--name=upstream-b", "busybox", "top")
+	dockerCmd(c, "run", "--link", "upstream-a:upstream", "--link", "upstream-b:upstream", "busybox", "sh", "-c", "ping -c 1 upstream")
+}
