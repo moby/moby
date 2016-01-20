@@ -311,6 +311,8 @@ func (pd *v2PushDescriptor) Upload(ctx context.Context, progressOutput progress.
 	case distribution.ErrBlobMounted:
 		progress.Updatef(progressOutput, pd.ID(), "Mounted from %s", err.From.Name())
 
+		err.Descriptor.MediaType = schema2.MediaTypeLayer
+
 		pd.pushState.Lock()
 		pd.pushState.confirmedV2 = true
 		pd.pushState.remoteLayers[diffID] = err.Descriptor
