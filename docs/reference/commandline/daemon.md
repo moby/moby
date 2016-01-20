@@ -852,7 +852,7 @@ This is a full example of the allowed configuration options in the file:
 	"hosts": [],
 	"log-level": "",
 	"tls": true,
-	"tls-verify": true,
+	"tlsverify": true,
 	"tls-opts": {
 		"tlscacert": "",
 		"tlscert": "",

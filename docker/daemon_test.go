@@ -105,10 +105,11 @@ func TestLoadDaemonCliConfigWithTLSVerify(t *testing.T) {
 	}
 
 	configFile := f.Name()
-	f.Write([]byte(`{"tls-verify": true}`))
+	f.Write([]byte(`{"tlsverify": true}`))
 	f.Close()
 
 	flags := mflag.NewFlagSet("test", mflag.ContinueOnError)
+	flags.Bool([]string{"-tlsverify"}, false, "")
 	loadedConfig, err := loadDaemonCliConfig(c, flags, common, configFile)
 	if err != nil {
 		t.Fatal(err)
@@ -136,10 +137,11 @@ func TestLoadDaemonCliConfigWithExplicitTLSVerifyFalse(t *testing.T) {
 	}
 
 	configFile := f.Name()
-	f.Write([]byte(`{"tls-verify": false}`))
+	f.Write([]byte(`{"tlsverify": false}`))
 	f.Close()
 
 	flags := mflag.NewFlagSet("test", mflag.ContinueOnError)
+	flags.Bool([]string{"-tlsverify"}, false, "")
 	loadedConfig, err := loadDaemonCliConfig(c, flags, common, configFile)
 	if err != nil {
 		t.Fatal(err)
@@ -198,6 +200,7 @@ func TestLoadDaemonCliConfigWithLogLevel(t *testing.T) {
 	f.Close()
 
 	flags := mflag.NewFlagSet("test", mflag.ContinueOnError)
+	flags.String([]string{"-log-level"}, "", "")
 	loadedConfig, err := loadDaemonCliConfig(c, flags, common, configFile)
 	if err != nil {
 		t.Fatal(err)
@@ -211,5 +214,32 @@ func TestLoadDaemonCliConfigWithLogLevel(t *testing.T) {
 
 	if logrus.GetLevel() != logrus.WarnLevel {
 		t.Fatalf("expected warn log level, got %v", logrus.GetLevel())
+	}
+}
+
+func TestLoadDaemonCliConfigWithTLSOptions(t *testing.T) {
+	c := &daemon.Config{}
+	common := &cli.CommonFlags{}
+
+	f, err := ioutil.TempFile("", "docker-config-")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	configFile := f.Name()
+	f.Write([]byte(`{"tls-opts": {"tlscacert": "/etc/certs/ca.pem"}}`))
+	f.Close()
+
+	flags := mflag.NewFlagSet("test", mflag.ContinueOnError)
+	flags.String([]string{"-tlscacert"}, "", "")
+	loadedConfig, err := loadDaemonCliConfig(c, flags, common, configFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loadedConfig == nil {
+		t.Fatalf("expected configuration %v, got nil", c)
+	}
+	if loadedConfig.TLSOptions.CAFile != "/etc/certs/ca.pem" {
+		t.Fatalf("expected CA file path /etc/certs/ca.pem, got %v", loadedConfig.TLSOptions.CAFile)
 	}
 }
