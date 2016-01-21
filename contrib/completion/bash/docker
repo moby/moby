@@ -220,6 +220,32 @@ __docker_pos_first_nonflag() {
 	echo $counter
 }
 
+# If we are currently completing the value of a map option (key=value)
+# which matches the extglob given as an argument, returns key.
+# This function is needed for key-specific completions.
+# TODO use this in all "${words[$cword-2]}$prev=" occurrences
+__docker_map_key_of_current_option() {
+	local glob="$1"
+
+	local key glob_pos
+	if [ "$cur" = "=" ] ; then        # key= case
+		key="$prev"
+		glob_pos=$((cword - 2))
+	elif [[ $cur == *=* ]] ; then     # key=value case (OSX)
+		key=${cur%=*}
+		glob_pos=$((cword - 1))
+	elif [ "$prev" = "=" ] ; then
+		key=${words[$cword - 2]}  # key=value case
+		glob_pos=$((cword - 3))
+	else
+		return
+	fi
+
+	[ "${words[$glob_pos]}" = "=" ] && ((glob_pos--))  # --option=key=value syntax
+
+	[[ ${words[$glob_pos]} == @($glob) ]] && echo "$key"
+}
+
 # Returns the value of the first option matching option_glob.
 # Valid values for option_glob are option names like '--log-level' and
 # globs like '--log-level|-l'
@@ -860,37 +886,30 @@ _docker_diff() {
 }
 
 _docker_events() {
-	case "$prev" in
-		--filter|-f)
-			COMPREPLY=( $( compgen -S = -W "container event image" -- "$cur" ) )
-			__docker_nospace
-			return
-			;;
-		--since|--until)
-			return
-			;;
-	esac
-
-	case "${words[$cword-2]}$prev=" in
-		*container=*)
-			cur="${cur#=}"
+	local filter=$(__docker_map_key_of_current_option '-f|--filter')
+	case "$filter" in
+		container)
+			cur="${cur##*=}"
 			__docker_complete_containers_all
 			return
 			;;
-		*event=*)
+		event)
 			COMPREPLY=( $( compgen -W "
 				attach
 				commit
+				connect
 				copy
 				create
 				delete
 				destroy
 				die
+				disconnect
 				exec_create
 				exec_start
 				export
 				import
 				kill
+				mount
 				oom
 				pause
 				pull
@@ -902,14 +921,41 @@ _docker_events() {
 				stop
 				tag
 				top
+				unmount
 				unpause
 				untag
-			" -- "${cur#=}" ) )
+				update
+			" -- "${cur##*=}" ) )
 			return
 			;;
-		*image=*)
-			cur="${cur#=}"
+		image)
+			cur="${cur##*=}"
 			__docker_complete_images
+			return
+			;;
+		network)
+			cur="${cur##*=}"
+			__docker_complete_networks
+			return
+			;;
+		type)
+			COMPREPLY=( $( compgen -W "container image network volume" -- "${cur##*=}" ) )
+			return
+			;;
+		volume)
+			cur="${cur##*=}"
+			__docker_complete_volumes
+			return
+			;;
+	esac
+
+	case "$prev" in
+		--filter|-f)
+			COMPREPLY=( $( compgen -S = -W "container event image label network type volume" -- "$cur" ) )
+			__docker_nospace
+			return
+			;;
+		--since|--until)
 			return
 			;;
 	esac
