@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/docker/docker/pkg/jsonlog"
 	"github.com/docker/docker/pkg/term"
-	"github.com/docker/docker/pkg/timeutils"
 )
 
 func TestError(t *testing.T) {
@@ -71,8 +71,8 @@ func TestJSONMessageDisplay(t *testing.T) {
 			From:   "From",
 			Status: "status",
 		}: {
-			fmt.Sprintf("%v ID: (from From) status\n", time.Unix(now.Unix(), 0).Format(timeutils.RFC3339NanoFixed)),
-			fmt.Sprintf("%v ID: (from From) status\n", time.Unix(now.Unix(), 0).Format(timeutils.RFC3339NanoFixed)),
+			fmt.Sprintf("%v ID: (from From) status\n", time.Unix(now.Unix(), 0).Format(jsonlog.RFC3339NanoFixed)),
+			fmt.Sprintf("%v ID: (from From) status\n", time.Unix(now.Unix(), 0).Format(jsonlog.RFC3339NanoFixed)),
 		},
 		// General, with nano precision time
 		JSONMessage{
@@ -81,8 +81,8 @@ func TestJSONMessageDisplay(t *testing.T) {
 			From:     "From",
 			Status:   "status",
 		}: {
-			fmt.Sprintf("%v ID: (from From) status\n", time.Unix(0, now.UnixNano()).Format(timeutils.RFC3339NanoFixed)),
-			fmt.Sprintf("%v ID: (from From) status\n", time.Unix(0, now.UnixNano()).Format(timeutils.RFC3339NanoFixed)),
+			fmt.Sprintf("%v ID: (from From) status\n", time.Unix(0, now.UnixNano()).Format(jsonlog.RFC3339NanoFixed)),
+			fmt.Sprintf("%v ID: (from From) status\n", time.Unix(0, now.UnixNano()).Format(jsonlog.RFC3339NanoFixed)),
 		},
 		// General, with both times Nano is preferred
 		JSONMessage{
@@ -92,8 +92,8 @@ func TestJSONMessageDisplay(t *testing.T) {
 			From:     "From",
 			Status:   "status",
 		}: {
-			fmt.Sprintf("%v ID: (from From) status\n", time.Unix(0, now.UnixNano()).Format(timeutils.RFC3339NanoFixed)),
-			fmt.Sprintf("%v ID: (from From) status\n", time.Unix(0, now.UnixNano()).Format(timeutils.RFC3339NanoFixed)),
+			fmt.Sprintf("%v ID: (from From) status\n", time.Unix(0, now.UnixNano()).Format(jsonlog.RFC3339NanoFixed)),
+			fmt.Sprintf("%v ID: (from From) status\n", time.Unix(0, now.UnixNano()).Format(jsonlog.RFC3339NanoFixed)),
 		},
 		// Stream over status
 		JSONMessage{
@@ -168,7 +168,7 @@ func TestDisplayJSONMessagesStreamInvalidJSON(t *testing.T) {
 	reader := strings.NewReader("This is not a 'valid' JSON []")
 	inFd, _ = term.GetFdInfo(reader)
 
-	if err := DisplayJSONMessagesStream(reader, data, inFd, false); err == nil && err.Error()[:17] != "invalid character" {
+	if err := DisplayJSONMessagesStream(reader, data, inFd, false, nil); err == nil && err.Error()[:17] != "invalid character" {
 		t.Fatalf("Should have thrown an error (invalid character in ..), got [%v]", err)
 	}
 }
@@ -210,7 +210,7 @@ func TestDisplayJSONMessagesStream(t *testing.T) {
 		inFd, _ = term.GetFdInfo(reader)
 
 		// Without terminal
-		if err := DisplayJSONMessagesStream(reader, data, inFd, false); err != nil {
+		if err := DisplayJSONMessagesStream(reader, data, inFd, false, nil); err != nil {
 			t.Fatal(err)
 		}
 		if data.String() != expectedMessages[0] {
@@ -220,7 +220,7 @@ func TestDisplayJSONMessagesStream(t *testing.T) {
 		// With terminal
 		data = bytes.NewBuffer([]byte{})
 		reader = strings.NewReader(jsonMessage)
-		if err := DisplayJSONMessagesStream(reader, data, inFd, true); err != nil {
+		if err := DisplayJSONMessagesStream(reader, data, inFd, true, nil); err != nil {
 			t.Fatal(err)
 		}
 		if data.String() != expectedMessages[1] {

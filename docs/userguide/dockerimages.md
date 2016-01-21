@@ -2,7 +2,7 @@
 +++
 title = "Build your own images"
 description = "How to work with Docker images."
-keywords = ["documentation, docs, the docker guide, docker guide, docker, docker platform, virtualization framework, docker.io, Docker images, Docker image, image management, Docker repos, Docker repositories, docker, docker tag, docker tags, Docker Hub,  collaboration"]
+keywords = ["documentation, docs, the docker guide, docker guide, docker, docker platform, docker.io, Docker images, Docker image, image management, Docker repos, Docker repositories, docker, docker tag, docker tags, Docker Hub,  collaboration"]
 [menu.main]
 parent = "smn_containers"
 weight = -4
@@ -473,7 +473,7 @@ You can then create a container from our new image.
 > those instructions in later sections of the Guide or you can refer to the
 > [`Dockerfile`](../reference/builder.md) reference for a
 > detailed description and examples of every instruction.
-> To help you write a clear, readable, maintainable `Dockerfile`, you've also
+> To help you write a clear, readable, maintainable `Dockerfile`, we've also
 > written a [`Dockerfile` Best Practices guide](../articles/dockerfile_best-practices.md).
 
 

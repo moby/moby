@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/pkg/homedir"
+	"github.com/docker/engine-api/types"
 )
 
 func TestEmptyConfigDir(t *testing.T) {
@@ -137,8 +138,9 @@ email`: "Invalid Auth config file",
 		}
 
 		config, err := Load(tmpHome)
-		if err == nil || err.Error() != expectedError {
-			t.Fatalf("Should have failed, got: %q, %q", config, err)
+		// Use Contains instead of == since the file name will change each time
+		if err == nil || !strings.Contains(err.Error(), expectedError) {
+			t.Fatalf("Should have failed\nConfig: %v\nGot: %v\nExpected: %v", config, err, expectedError)
 		}
 
 	}
@@ -206,7 +208,8 @@ func TestOldJsonInvalid(t *testing.T) {
 	}
 
 	config, err := Load(tmpHome)
-	if err == nil || err.Error() != "Invalid auth configuration file" {
+	// Use Contains instead of == since the file name will change each time
+	if err == nil || !strings.Contains(err.Error(), "Invalid auth configuration file") {
 		t.Fatalf("Expected an error got : %v, %v", config, err)
 	}
 }
@@ -427,8 +430,8 @@ func TestJsonSaveWithNoFile(t *testing.T) {
 		!strings.Contains(string(buf), "user@example.com") {
 		t.Fatalf("Should have save in new form: %s", string(buf))
 	}
-
 }
+
 func TestLegacyJsonSaveWithNoFile(t *testing.T) {
 
 	js := `{"https://index.docker.io/v1/":{"auth":"am9lam9lOmhlbGxv","email":"user@example.com"}}`
@@ -454,5 +457,25 @@ func TestLegacyJsonSaveWithNoFile(t *testing.T) {
 	if !strings.Contains(string(buf), `"auths":`) ||
 		!strings.Contains(string(buf), "user@example.com") {
 		t.Fatalf("Should have save in new form: %s", string(buf))
+	}
+}
+
+func TestEncodeAuth(t *testing.T) {
+	newAuthConfig := &types.AuthConfig{Username: "ken", Password: "test", Email: "test@example.com"}
+	authStr := encodeAuth(newAuthConfig)
+	decAuthConfig := &types.AuthConfig{}
+	var err error
+	decAuthConfig.Username, decAuthConfig.Password, err = decodeAuth(authStr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if newAuthConfig.Username != decAuthConfig.Username {
+		t.Fatal("Encode Username doesn't match decoded Username")
+	}
+	if newAuthConfig.Password != decAuthConfig.Password {
+		t.Fatal("Encode Password doesn't match decoded Password")
+	}
+	if authStr != "a2VuOnRlc3Q=" {
+		t.Fatal("AuthString encoding isn't correct.")
 	}
 }

@@ -12,7 +12,7 @@ NETWORK [NETWORK...]
 
 # DESCRIPTION
 
-Returns information about one or more networks. By default, this command renders all results in a JSON object. For example, if you connect two containers to a network:
+Returns information about one or more networks. By default, this command renders all results in a JSON object. For example, if you connect two containers to the default `bridge` network:
 
 ```bash
 $ sudo docker run -itd --name=container1 busybox
@@ -69,6 +69,33 @@ $ sudo docker network inspect bridge
             "com.docker.network.bridge.name": "docker0",
             "com.docker.network.driver.mtu": "1500"
         }
+    }
+]
+```
+
+Returns the information about the user-defined network:
+
+```bash
+$ docker network create simple-network
+69568e6336d8c96bbf57869030919f7c69524f71183b44d80948bd3927c87f6a
+$ docker network inspect simple-network
+[
+    {
+        "Name": "simple-network",
+        "Id": "69568e6336d8c96bbf57869030919f7c69524f71183b44d80948bd3927c87f6a",
+        "Scope": "local",
+        "Driver": "bridge",
+        "IPAM": {
+            "Driver": "default",
+            "Config": [
+                {
+                    "Subnet": "172.22.0.0/16",
+                    "Gateway": "172.22.0.1/16"
+                }
+            ]
+        },
+        "Containers": {},
+        "Options": {}
     }
 ]
 ```

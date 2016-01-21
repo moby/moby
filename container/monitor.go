@@ -13,8 +13,8 @@ import (
 	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/promise"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
+	"github.com/docker/engine-api/types/container"
 )
 
 const (
@@ -51,7 +51,7 @@ type containerMonitor struct {
 	container *Container
 
 	// restartPolicy is the current policy being applied to the container monitor
-	restartPolicy runconfig.RestartPolicy
+	restartPolicy container.RestartPolicy
 
 	// failureCount is the number of times the container has failed to
 	// start in a row
@@ -79,7 +79,7 @@ type containerMonitor struct {
 
 // StartMonitor initializes a containerMonitor for this container with the provided supervisor and restart policy
 // and starts the container's process.
-func (container *Container) StartMonitor(s supervisor, policy runconfig.RestartPolicy) error {
+func (container *Container) StartMonitor(s supervisor, policy container.RestartPolicy) error {
 	container.monitor = &containerMonitor{
 		supervisor:    s,
 		container:     container,
@@ -121,7 +121,7 @@ func (m *containerMonitor) ExitOnNext() {
 }
 
 // Close closes the container's resources such as networking allocations and
-// unmounts the contatiner's root filesystem
+// unmounts the container's root filesystem
 func (m *containerMonitor) Close() error {
 	// Cleanup networking and mounts
 	m.supervisor.Cleanup(m.container)
@@ -304,8 +304,7 @@ func (m *containerMonitor) shouldRestart(exitCode int) bool {
 // received ack from the execution drivers
 func (m *containerMonitor) callback(processConfig *execdriver.ProcessConfig, pid int, chOOM <-chan struct{}) error {
 	go func() {
-		_, ok := <-chOOM
-		if ok {
+		for range chOOM {
 			m.logEvent("oom")
 		}
 	}()
@@ -370,6 +369,9 @@ func (m *containerMonitor) resetContainer(lock bool) {
 			select {
 			case <-time.After(loggerCloseTimeout):
 				logrus.Warnf("Logger didn't exit in time: logs may be truncated")
+				container.LogCopier.Close()
+				// always waits for the LogCopier to finished before closing
+				<-exit
 			case <-exit:
 			}
 		}

@@ -84,10 +84,10 @@ func (sb *sandbox) clearDefaultGW() error {
 		return nil
 	}
 
-	if err := ep.sbLeave(sb); err != nil {
+	if err := ep.sbLeave(sb, false); err != nil {
 		return fmt.Errorf("container %s: endpoint leaving GW Network failed: %v", sb.containerID, err)
 	}
-	if err := ep.Delete(); err != nil {
+	if err := ep.Delete(false); err != nil {
 		return fmt.Errorf("container %s: deleting endpoint on GW Network failed: %v", sb.containerID, err)
 	}
 	return nil
@@ -103,9 +103,20 @@ func (sb *sandbox) needDefaultGW() bool {
 		if ep.getNetwork().Type() == "null" || ep.getNetwork().Type() == "host" {
 			continue
 		}
+		if ep.getNetwork().Internal() {
+			return false
+		}
+		if ep.joinInfo.disableGatewayService {
+			return false
+		}
 		// TODO v6 needs to be handled.
 		if len(ep.Gateway()) > 0 {
 			return false
+		}
+		for _, r := range ep.StaticRoutes() {
+			if r.Destination.String() == "0.0.0.0/0" {
+				return false
+			}
 		}
 		needGW = true
 	}

@@ -5,8 +5,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/docker/docker/api/types"
 	"os"
+
+	"github.com/docker/engine-api/types"
 )
 
 type ports struct {

@@ -8,16 +8,16 @@ import (
 	"testing"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/distribution/reference"
-	"github.com/docker/distribution/registry/client/auth"
-	"github.com/docker/docker/cliconfig"
-	"github.com/docker/docker/pkg/streamformatter"
+	"github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/utils"
+	"github.com/docker/engine-api/types"
+	registrytypes "github.com/docker/engine-api/types/registry"
+	"golang.org/x/net/context"
 )
 
 func TestTokenPassThru(t *testing.T) {
-	authConfig := &cliconfig.AuthConfig{
+	authConfig := &types.AuthConfig{
 		RegistryToken: "mysecrettoken",
 	}
 	gotToken := false
@@ -48,37 +48,29 @@ func TestTokenPassThru(t *testing.T) {
 		TrimHostname: false,
 		TLSConfig:    nil,
 		//VersionHeader: "verheader",
-		Versions: []auth.APIVersion{
-			{
-				Type:    "registry",
-				Version: "2",
-			},
-		},
 	}
 	n, _ := reference.ParseNamed("testremotename")
 	repoInfo := &registry.RepositoryInfo{
-		Index: &registry.IndexInfo{
+		Named: n,
+		Index: &registrytypes.IndexInfo{
 			Name:     "testrepo",
 			Mirrors:  nil,
 			Secure:   false,
 			Official: false,
 		},
-		RemoteName:    n,
-		LocalName:     n,
-		CanonicalName: n,
-		Official:      false,
+		Official: false,
 	}
 	imagePullConfig := &ImagePullConfig{
 		MetaHeaders: http.Header{},
 		AuthConfig:  authConfig,
 	}
-	sf := streamformatter.NewJSONStreamFormatter()
-	puller, err := newPuller(endpoint, repoInfo, imagePullConfig, sf)
+	puller, err := newPuller(endpoint, repoInfo, imagePullConfig)
 	if err != nil {
 		t.Fatal(err)
 	}
 	p := puller.(*v2Puller)
-	p.repo, err = NewV2Repository(p.repoInfo, p.endpoint, p.config.MetaHeaders, p.config.AuthConfig, "pull")
+	ctx := context.Background()
+	p.repo, _, err = NewV2Repository(ctx, p.repoInfo, p.endpoint, p.config.MetaHeaders, p.config.AuthConfig, "pull")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -86,7 +78,7 @@ func TestTokenPassThru(t *testing.T) {
 	logrus.Debug("About to pull")
 	// We expect it to fail, since we haven't mock'd the full registry exchange in our handler above
 	tag, _ := reference.WithTag(n, "tag_goes_here")
-	_ = p.pullV2Repository(tag)
+	_ = p.pullV2Repository(ctx, tag)
 
 	if !gotToken {
 		t.Fatal("Failed to receive registry token")

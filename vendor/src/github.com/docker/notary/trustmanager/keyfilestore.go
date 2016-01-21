@@ -1,11 +1,13 @@
 package trustmanager
 
 import (
+	"encoding/pem"
 	"fmt"
 	"path/filepath"
 	"strings"
 	"sync"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/notary/passphrase"
 	"github.com/docker/notary/tuf/data"
 )
@@ -54,10 +56,10 @@ func (s *KeyFileStore) Name() string {
 }
 
 // AddKey stores the contents of a PEM-encoded private key as a PEM block
-func (s *KeyFileStore) AddKey(name, alias string, privKey data.PrivateKey) error {
+func (s *KeyFileStore) AddKey(name, role string, privKey data.PrivateKey) error {
 	s.Lock()
 	defer s.Unlock()
-	return addKey(s, s.Retriever, s.cachedKeys, name, alias, privKey)
+	return addKey(s, s.Retriever, s.cachedKeys, name, role, privKey)
 }
 
 // GetKey returns the PrivateKey given a KeyID
@@ -153,7 +155,7 @@ func (s *KeyMemoryStore) ImportKey(pemBytes []byte, alias string) error {
 	return importKey(s, s.Retriever, s.cachedKeys, alias, pemBytes)
 }
 
-func addKey(s LimitedFileStore, passphraseRetriever passphrase.Retriever, cachedKeys map[string]*cachedKey, name, alias string, privKey data.PrivateKey) error {
+func addKey(s LimitedFileStore, passphraseRetriever passphrase.Retriever, cachedKeys map[string]*cachedKey, name, role string, privKey data.PrivateKey) error {
 
 	var (
 		chosenPassphrase string
@@ -162,7 +164,7 @@ func addKey(s LimitedFileStore, passphraseRetriever passphrase.Retriever, cached
 	)
 
 	for attempts := 0; ; attempts++ {
-		chosenPassphrase, giveup, err = passphraseRetriever(name, alias, true, attempts)
+		chosenPassphrase, giveup, err = passphraseRetriever(name, role, true, attempts)
 		if err != nil {
 			continue
 		}
@@ -175,25 +177,37 @@ func addKey(s LimitedFileStore, passphraseRetriever passphrase.Retriever, cached
 		break
 	}
 
-	return encryptAndAddKey(s, chosenPassphrase, cachedKeys, name, alias, privKey)
+	return encryptAndAddKey(s, chosenPassphrase, cachedKeys, name, role, privKey)
 }
 
-func getKeyAlias(s LimitedFileStore, keyID string) (string, error) {
-	files := s.ListFiles()
-
+// getKeyRole finds the role for the given keyID. It attempts to look
+// both in the newer format PEM headers, and also in the legacy filename
+// format. It returns: the role, whether it was found in the legacy format
+// (true == legacy), and an error
+func getKeyRole(s LimitedFileStore, keyID string) (string, bool, error) {
 	name := strings.TrimSpace(strings.TrimSuffix(filepath.Base(keyID), filepath.Ext(keyID)))
 
-	for _, file := range files {
+	for _, file := range s.ListFiles() {
 		filename := filepath.Base(file)
 
 		if strings.HasPrefix(filename, name) {
-			aliasPlusDotKey := strings.TrimPrefix(filename, name+"_")
-			retVal := strings.TrimSuffix(aliasPlusDotKey, "."+keyExtension)
-			return retVal, nil
+			d, err := s.Get(file)
+			if err != nil {
+				return "", false, err
+			}
+			block, _ := pem.Decode(d)
+			if block != nil {
+				if role, ok := block.Headers["role"]; ok {
+					return role, false, nil
+				}
+			}
+
+			role := strings.TrimPrefix(filename, name+"_")
+			return role, true, nil
 		}
 	}
 
-	return "", &ErrKeyNotFound{KeyID: keyID}
+	return "", false, &ErrKeyNotFound{KeyID: keyID}
 }
 
 // GetKey returns the PrivateKey given a KeyID
@@ -208,14 +222,13 @@ func getKey(s LimitedFileStore, passphraseRetriever passphrase.Retriever, cached
 		return nil, "", err
 	}
 
-	var retErr error
 	// See if the key is encrypted. If its encrypted we'll fail to parse the private key
 	privKey, err := ParsePEMPrivateKey(keyBytes, "")
 	if err != nil {
-		privKey, _, retErr = GetPasswdDecryptBytes(passphraseRetriever, keyBytes, name, string(keyAlias))
-	}
-	if retErr != nil {
-		return nil, "", retErr
+		privKey, _, err = GetPasswdDecryptBytes(passphraseRetriever, keyBytes, name, string(keyAlias))
+		if err != nil {
+			return nil, "", err
+		}
 	}
 	cachedKeys[name] = &cachedKey{alias: keyAlias, key: privKey}
 	return privKey, keyAlias, nil
@@ -228,44 +241,58 @@ func listKeys(s LimitedFileStore) map[string]string {
 
 	for _, f := range s.ListFiles() {
 		// Remove the prefix of the directory from the filename
-		if f[:len(rootKeysSubdir)] == rootKeysSubdir {
-			f = strings.TrimPrefix(f, rootKeysSubdir+"/")
+		var keyIDFull string
+		if strings.HasPrefix(f, rootKeysSubdir+"/") {
+			keyIDFull = strings.TrimPrefix(f, rootKeysSubdir+"/")
 		} else {
-			f = strings.TrimPrefix(f, nonRootKeysSubdir+"/")
+			keyIDFull = strings.TrimPrefix(f, nonRootKeysSubdir+"/")
 		}
 
-		// Remove the extension from the full filename
-		// abcde_root.key becomes abcde_root
-		keyIDFull := strings.TrimSpace(strings.TrimSuffix(f, filepath.Ext(f)))
+		keyIDFull = strings.TrimSpace(keyIDFull)
 
-		// If the key does not have a _, it is malformed
+		// If the key does not have a _, we'll attempt to
+		// read it as a PEM
 		underscoreIndex := strings.LastIndex(keyIDFull, "_")
 		if underscoreIndex == -1 {
-			continue
+			d, err := s.Get(f)
+			if err != nil {
+				logrus.Error(err)
+				continue
+			}
+			block, _ := pem.Decode(d)
+			if block == nil {
+				continue
+			}
+			if role, ok := block.Headers["role"]; ok {
+				keyIDMap[keyIDFull] = role
+			}
+		} else {
+			// The keyID is the first part of the keyname
+			// The KeyAlias is the second part of the keyname
+			// in a key named abcde_root, abcde is the keyID and root is the KeyAlias
+			keyID := keyIDFull[:underscoreIndex]
+			keyAlias := keyIDFull[underscoreIndex+1:]
+			keyIDMap[keyID] = keyAlias
 		}
-
-		// The keyID is the first part of the keyname
-		// The KeyAlias is the second part of the keyname
-		// in a key named abcde_root, abcde is the keyID and root is the KeyAlias
-		keyID := keyIDFull[:underscoreIndex]
-		keyAlias := keyIDFull[underscoreIndex+1:]
-		keyIDMap[keyID] = keyAlias
 	}
 	return keyIDMap
 }
 
 // RemoveKey removes the key from the keyfilestore
 func removeKey(s LimitedFileStore, cachedKeys map[string]*cachedKey, name string) error {
-	keyAlias, err := getKeyAlias(s, name)
+	role, legacy, err := getKeyRole(s, name)
 	if err != nil {
 		return err
 	}
 
 	delete(cachedKeys, name)
 
+	if legacy {
+		name = name + "_" + role
+	}
+
 	// being in a subdirectory is for backwards compatibliity
-	filename := name + "_" + keyAlias
-	err = s.Remove(filepath.Join(getSubdir(keyAlias), filename))
+	err = s.Remove(filepath.Join(getSubdir(role), name))
 	if err != nil {
 		return err
 	}
@@ -283,18 +310,21 @@ func getSubdir(alias string) string {
 // Given a key ID, gets the bytes and alias belonging to that key if the key
 // exists
 func getRawKey(s LimitedFileStore, name string) ([]byte, string, error) {
-	keyAlias, err := getKeyAlias(s, name)
+	role, legacy, err := getKeyRole(s, name)
 	if err != nil {
 		return nil, "", err
 	}
 
-	filename := name + "_" + keyAlias
+	if legacy {
+		name = name + "_" + role
+	}
+
 	var keyBytes []byte
-	keyBytes, err = s.Get(filepath.Join(getSubdir(keyAlias), filename))
+	keyBytes, err = s.Get(filepath.Join(getSubdir(role), name))
 	if err != nil {
 		return nil, "", err
 	}
-	return keyBytes, keyAlias, nil
+	return keyBytes, role, nil
 }
 
 // GetPasswdDecryptBytes gets the password to decript the given pem bytes.
@@ -335,7 +365,7 @@ func GetPasswdDecryptBytes(passphraseRetriever passphrase.Retriever, pemBytes []
 	return privKey, passwd, nil
 }
 
-func encryptAndAddKey(s LimitedFileStore, passwd string, cachedKeys map[string]*cachedKey, name, alias string, privKey data.PrivateKey) error {
+func encryptAndAddKey(s LimitedFileStore, passwd string, cachedKeys map[string]*cachedKey, name, role string, privKey data.PrivateKey) error {
 
 	var (
 		pemPrivKey []byte
@@ -343,17 +373,17 @@ func encryptAndAddKey(s LimitedFileStore, passwd string, cachedKeys map[string]*
 	)
 
 	if passwd != "" {
-		pemPrivKey, err = EncryptPrivateKey(privKey, passwd)
+		pemPrivKey, err = EncryptPrivateKey(privKey, role, passwd)
 	} else {
-		pemPrivKey, err = KeyToPEM(privKey)
+		pemPrivKey, err = KeyToPEM(privKey, role)
 	}
 
 	if err != nil {
 		return err
 	}
 
-	cachedKeys[name] = &cachedKey{alias: alias, key: privKey}
-	return s.Add(filepath.Join(getSubdir(alias), name+"_"+alias), pemPrivKey)
+	cachedKeys[name] = &cachedKey{alias: role, key: privKey}
+	return s.Add(filepath.Join(getSubdir(role), name), pemPrivKey)
 }
 
 func importKey(s LimitedFileStore, passphraseRetriever passphrase.Retriever, cachedKeys map[string]*cachedKey, alias string, pemBytes []byte) error {

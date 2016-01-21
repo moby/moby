@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strconv"
+	"strings"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/digest"
@@ -97,16 +98,20 @@ func (fm *fileMetadataTransaction) SetCacheID(cacheID string) error {
 	return ioutil.WriteFile(filepath.Join(fm.root, "cache-id"), []byte(cacheID), 0644)
 }
 
-func (fm *fileMetadataTransaction) TarSplitWriter() (io.WriteCloser, error) {
+func (fm *fileMetadataTransaction) TarSplitWriter(compressInput bool) (io.WriteCloser, error) {
 	f, err := os.OpenFile(filepath.Join(fm.root, "tar-split.json.gz"), os.O_TRUNC|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		return nil, err
 	}
+	var wc io.WriteCloser
+	if compressInput {
+		wc = gzip.NewWriter(f)
+	} else {
+		wc = f
+	}
 
-	fz := gzip.NewWriter(f)
-
-	return ioutils.NewWriteCloserWrapper(fz, func() error {
-		fz.Close()
+	return ioutils.NewWriteCloserWrapper(wc, func() error {
+		wc.Close()
 		return f.Close()
 	}), nil
 }
@@ -150,7 +155,7 @@ func (fms *fileMetadataStore) GetParent(layer ChainID) (ChainID, error) {
 		return "", err
 	}
 
-	dgst, err := digest.ParseDigest(string(content))
+	dgst, err := digest.ParseDigest(strings.TrimSpace(string(content)))
 	if err != nil {
 		return "", err
 	}
@@ -164,7 +169,7 @@ func (fms *fileMetadataStore) GetDiffID(layer ChainID) (DiffID, error) {
 		return "", err
 	}
 
-	dgst, err := digest.ParseDigest(string(content))
+	dgst, err := digest.ParseDigest(strings.TrimSpace(string(content)))
 	if err != nil {
 		return "", err
 	}
@@ -173,16 +178,17 @@ func (fms *fileMetadataStore) GetDiffID(layer ChainID) (DiffID, error) {
 }
 
 func (fms *fileMetadataStore) GetCacheID(layer ChainID) (string, error) {
-	content, err := ioutil.ReadFile(fms.getLayerFilename(layer, "cache-id"))
+	contentBytes, err := ioutil.ReadFile(fms.getLayerFilename(layer, "cache-id"))
 	if err != nil {
 		return "", err
 	}
+	content := strings.TrimSpace(string(contentBytes))
 
-	if !stringIDRegexp.MatchString(string(content)) {
+	if !stringIDRegexp.MatchString(content) {
 		return "", errors.New("invalid cache id value")
 	}
 
-	return string(content), nil
+	return content, nil
 }
 
 func (fms *fileMetadataStore) TarSplitReader(layer ChainID) (io.ReadCloser, error) {
@@ -223,32 +229,34 @@ func (fms *fileMetadataStore) SetMountParent(mount string, parent ChainID) error
 }
 
 func (fms *fileMetadataStore) GetMountID(mount string) (string, error) {
-	content, err := ioutil.ReadFile(fms.getMountFilename(mount, "mount-id"))
+	contentBytes, err := ioutil.ReadFile(fms.getMountFilename(mount, "mount-id"))
 	if err != nil {
 		return "", err
 	}
+	content := strings.TrimSpace(string(contentBytes))
 
-	if !stringIDRegexp.MatchString(string(content)) {
+	if !stringIDRegexp.MatchString(content) {
 		return "", errors.New("invalid mount id value")
 	}
 
-	return string(content), nil
+	return content, nil
 }
 
 func (fms *fileMetadataStore) GetInitID(mount string) (string, error) {
-	content, err := ioutil.ReadFile(fms.getMountFilename(mount, "init-id"))
+	contentBytes, err := ioutil.ReadFile(fms.getMountFilename(mount, "init-id"))
 	if err != nil {
 		if os.IsNotExist(err) {
 			return "", nil
 		}
 		return "", err
 	}
+	content := strings.TrimSpace(string(contentBytes))
 
-	if !stringIDRegexp.MatchString(string(content)) {
+	if !stringIDRegexp.MatchString(content) {
 		return "", errors.New("invalid init id value")
 	}
 
-	return string(content), nil
+	return content, nil
 }
 
 func (fms *fileMetadataStore) GetMountParent(mount string) (ChainID, error) {
@@ -260,7 +268,7 @@ func (fms *fileMetadataStore) GetMountParent(mount string) (ChainID, error) {
 		return "", err
 	}
 
-	dgst, err := digest.ParseDigest(string(content))
+	dgst, err := digest.ParseDigest(strings.TrimSpace(string(content)))
 	if err != nil {
 		return "", err
 	}

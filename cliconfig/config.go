@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/docker/docker/pkg/homedir"
+	"github.com/docker/engine-api/types"
 )
 
 const (
@@ -44,28 +45,20 @@ func SetConfigDir(dir string) {
 	configDir = dir
 }
 
-// AuthConfig contains authorization information for connecting to a Registry
-type AuthConfig struct {
-	Username      string `json:"username,omitempty"`
-	Password      string `json:"password,omitempty"`
-	Auth          string `json:"auth"`
-	Email         string `json:"email"`
-	ServerAddress string `json:"serveraddress,omitempty"`
-	RegistryToken string `json:"registrytoken,omitempty"`
-}
-
 // ConfigFile ~/.docker/config.json file info
 type ConfigFile struct {
-	AuthConfigs map[string]AuthConfig `json:"auths"`
-	HTTPHeaders map[string]string     `json:"HttpHeaders,omitempty"`
-	PsFormat    string                `json:"psFormat,omitempty"`
-	filename    string                // Note: not serialized - for internal use only
+	AuthConfigs  map[string]types.AuthConfig `json:"auths"`
+	HTTPHeaders  map[string]string           `json:"HttpHeaders,omitempty"`
+	PsFormat     string                      `json:"psFormat,omitempty"`
+	ImagesFormat string                      `json:"imagesFormat,omitempty"`
+	DetachKeys   string                      `json:"detachKeys,omitempty"`
+	filename     string                      // Note: not serialized - for internal use only
 }
 
-// NewConfigFile initilizes an empty configuration file for the given filename 'fn'
+// NewConfigFile initializes an empty configuration file for the given filename 'fn'
 func NewConfigFile(fn string) *ConfigFile {
 	return &ConfigFile{
-		AuthConfigs: make(map[string]AuthConfig),
+		AuthConfigs: make(map[string]types.AuthConfig),
 		HTTPHeaders: make(map[string]string),
 		filename:    fn,
 	}
@@ -84,12 +77,12 @@ func (configFile *ConfigFile) LegacyLoadFromReader(configData io.Reader) error {
 		if len(arr) < 2 {
 			return fmt.Errorf("The Auth config file is empty")
 		}
-		authConfig := AuthConfig{}
+		authConfig := types.AuthConfig{}
 		origAuth := strings.Split(arr[0], " = ")
 		if len(origAuth) != 2 {
 			return fmt.Errorf("Invalid Auth config file")
 		}
-		authConfig.Username, authConfig.Password, err = DecodeAuth(origAuth[1])
+		authConfig.Username, authConfig.Password, err = decodeAuth(origAuth[1])
 		if err != nil {
 			return err
 		}
@@ -102,7 +95,7 @@ func (configFile *ConfigFile) LegacyLoadFromReader(configData io.Reader) error {
 		configFile.AuthConfigs[defaultIndexserver] = authConfig
 	} else {
 		for k, authConfig := range configFile.AuthConfigs {
-			authConfig.Username, authConfig.Password, err = DecodeAuth(authConfig.Auth)
+			authConfig.Username, authConfig.Password, err = decodeAuth(authConfig.Auth)
 			if err != nil {
 				return err
 			}
@@ -122,7 +115,7 @@ func (configFile *ConfigFile) LoadFromReader(configData io.Reader) error {
 	}
 	var err error
 	for addr, ac := range configFile.AuthConfigs {
-		ac.Username, ac.Password, err = DecodeAuth(ac.Auth)
+		ac.Username, ac.Password, err = decodeAuth(ac.Auth)
 		if err != nil {
 			return err
 		}
@@ -137,7 +130,7 @@ func (configFile *ConfigFile) LoadFromReader(configData io.Reader) error {
 // a non-nested reader
 func LegacyLoadFromReader(configData io.Reader) (*ConfigFile, error) {
 	configFile := ConfigFile{
-		AuthConfigs: make(map[string]AuthConfig),
+		AuthConfigs: make(map[string]types.AuthConfig),
 	}
 	err := configFile.LegacyLoadFromReader(configData)
 	return &configFile, err
@@ -147,7 +140,7 @@ func LegacyLoadFromReader(configData io.Reader) (*ConfigFile, error) {
 // a reader
 func LoadFromReader(configData io.Reader) (*ConfigFile, error) {
 	configFile := ConfigFile{
-		AuthConfigs: make(map[string]AuthConfig),
+		AuthConfigs: make(map[string]types.AuthConfig),
 	}
 	err := configFile.LoadFromReader(configData)
 	return &configFile, err
@@ -162,7 +155,7 @@ func Load(configDir string) (*ConfigFile, error) {
 	}
 
 	configFile := ConfigFile{
-		AuthConfigs: make(map[string]AuthConfig),
+		AuthConfigs: make(map[string]types.AuthConfig),
 		filename:    filepath.Join(configDir, ConfigFileName),
 	}
 
@@ -170,15 +163,18 @@ func Load(configDir string) (*ConfigFile, error) {
 	if _, err := os.Stat(configFile.filename); err == nil {
 		file, err := os.Open(configFile.filename)
 		if err != nil {
-			return &configFile, err
+			return &configFile, fmt.Errorf("%s - %v", configFile.filename, err)
 		}
 		defer file.Close()
 		err = configFile.LoadFromReader(file)
+		if err != nil {
+			err = fmt.Errorf("%s - %v", configFile.filename, err)
+		}
 		return &configFile, err
 	} else if !os.IsNotExist(err) {
 		// if file is there but we can't stat it for any reason other
 		// than it doesn't exist then stop
-		return &configFile, err
+		return &configFile, fmt.Errorf("%s - %v", configFile.filename, err)
 	}
 
 	// Can't find latest config file so check for the old one
@@ -188,22 +184,29 @@ func Load(configDir string) (*ConfigFile, error) {
 	}
 	file, err := os.Open(confFile)
 	if err != nil {
-		return &configFile, err
+		return &configFile, fmt.Errorf("%s - %v", confFile, err)
 	}
 	defer file.Close()
 	err = configFile.LegacyLoadFromReader(file)
-	return &configFile, err
+	if err != nil {
+		return &configFile, fmt.Errorf("%s - %v", confFile, err)
+	}
+
+	if configFile.HTTPHeaders == nil {
+		configFile.HTTPHeaders = map[string]string{}
+	}
+	return &configFile, nil
 }
 
 // SaveToWriter encodes and writes out all the authorization information to
 // the given writer
 func (configFile *ConfigFile) SaveToWriter(writer io.Writer) error {
 	// Encode sensitive data into a new/temp struct
-	tmpAuthConfigs := make(map[string]AuthConfig, len(configFile.AuthConfigs))
+	tmpAuthConfigs := make(map[string]types.AuthConfig, len(configFile.AuthConfigs))
 	for k, authConfig := range configFile.AuthConfigs {
 		authCopy := authConfig
 		// encode and save the authstring, while blanking out the original fields
-		authCopy.Auth = EncodeAuth(&authCopy)
+		authCopy.Auth = encodeAuth(&authCopy)
 		authCopy.Username = ""
 		authCopy.Password = ""
 		authCopy.ServerAddress = ""
@@ -244,8 +247,8 @@ func (configFile *ConfigFile) Filename() string {
 	return configFile.filename
 }
 
-// EncodeAuth creates a base64 encoded string to containing authorization information
-func EncodeAuth(authConfig *AuthConfig) string {
+// encodeAuth creates a base64 encoded string to containing authorization information
+func encodeAuth(authConfig *types.AuthConfig) string {
 	authStr := authConfig.Username + ":" + authConfig.Password
 	msg := []byte(authStr)
 	encoded := make([]byte, base64.StdEncoding.EncodedLen(len(msg)))
@@ -253,8 +256,8 @@ func EncodeAuth(authConfig *AuthConfig) string {
 	return string(encoded)
 }
 
-// DecodeAuth decodes a base64 encoded string and returns username and password
-func DecodeAuth(authStr string) (string, string, error) {
+// decodeAuth decodes a base64 encoded string and returns username and password
+func decodeAuth(authStr string) (string, string, error) {
 	decLen := base64.StdEncoding.DecodedLen(len(authStr))
 	decoded := make([]byte, decLen)
 	authByte := []byte(authStr)

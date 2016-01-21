@@ -2,41 +2,37 @@ package distribution
 
 import (
 	"fmt"
-	"io"
-	"io/ioutil"
 	"sync"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/digest"
-	"github.com/docker/distribution/reference"
 	"github.com/docker/distribution/registry/client/transport"
 	"github.com/docker/docker/distribution/metadata"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/image/v1"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/ioutils"
-	"github.com/docker/docker/pkg/progressreader"
-	"github.com/docker/docker/pkg/streamformatter"
+	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
+	"golang.org/x/net/context"
 )
 
 type v1Pusher struct {
+	ctx         context.Context
 	v1IDService *metadata.V1IDService
 	endpoint    registry.APIEndpoint
 	ref         reference.Named
 	repoInfo    *registry.RepositoryInfo
 	config      *ImagePushConfig
-	sf          *streamformatter.StreamFormatter
 	session     *registry.Session
-
-	out io.Writer
 }
 
-func (p *v1Pusher) Push() (fallback bool, err error) {
+func (p *v1Pusher) Push(ctx context.Context) error {
 	tlsConfig, err := p.config.RegistryService.TLSConfig(p.repoInfo.Index.Name)
 	if err != nil {
-		return false, err
+		return err
 	}
 	// Adds Docker-specific headers as well as user-specified headers (metaHeaders)
 	tr := transport.NewTransport(
@@ -48,18 +44,18 @@ func (p *v1Pusher) Push() (fallback bool, err error) {
 	v1Endpoint, err := p.endpoint.ToV1Endpoint(p.config.MetaHeaders)
 	if err != nil {
 		logrus.Debugf("Could not get v1 endpoint: %v", err)
-		return true, err
+		return fallbackError{err: err}
 	}
 	p.session, err = registry.NewSession(client, p.config.AuthConfig, v1Endpoint)
 	if err != nil {
 		// TODO(dmcgowan): Check if should fallback
-		return true, err
+		return fallbackError{err: err}
 	}
-	if err := p.pushRepository(); err != nil {
+	if err := p.pushRepository(ctx); err != nil {
 		// TODO(dmcgowan): Check if should fallback
-		return false, err
+		return err
 	}
-	return false, nil
+	return nil
 }
 
 // v1Image exposes the configuration, filesystem layer ID, and a v1 ID for an
@@ -145,16 +141,15 @@ func (p *v1Pusher) getImageList() (imageList []v1Image, tagsByImage map[image.ID
 	tagsByImage = make(map[image.ID][]string)
 
 	// Ignore digest references
-	_, isDigested := p.ref.(reference.Digested)
-	if isDigested {
+	if _, isCanonical := p.ref.(reference.Canonical); isCanonical {
 		return
 	}
 
-	tagged, isTagged := p.ref.(reference.Tagged)
+	tagged, isTagged := p.ref.(reference.NamedTagged)
 	if isTagged {
 		// Push a specific tag
 		var imgID image.ID
-		imgID, err = p.config.TagStore.Get(p.ref)
+		imgID, err = p.config.ReferenceStore.Get(p.ref)
 		if err != nil {
 			return
 		}
@@ -172,9 +167,9 @@ func (p *v1Pusher) getImageList() (imageList []v1Image, tagsByImage map[image.ID
 	imagesSeen := make(map[image.ID]struct{})
 	dependenciesSeen := make(map[layer.ChainID]*v1DependencyImage)
 
-	associations := p.config.TagStore.ReferencesByName(p.ref)
+	associations := p.config.ReferenceStore.ReferencesByName(p.ref)
 	for _, association := range associations {
-		if tagged, isTagged = association.Ref.(reference.Tagged); !isTagged {
+		if tagged, isTagged = association.Ref.(reference.NamedTagged); !isTagged {
 			// Ignore digest references.
 			continue
 		}
@@ -302,16 +297,18 @@ func (p *v1Pusher) lookupImageOnEndpoint(wg *sync.WaitGroup, endpoint string, im
 	defer wg.Done()
 	for image := range images {
 		v1ID := image.V1ID()
+		truncID := stringid.TruncateID(image.Layer().DiffID().String())
 		if err := p.session.LookupRemoteImage(v1ID, endpoint); err != nil {
 			logrus.Errorf("Error in LookupRemoteImage: %s", err)
 			imagesToPush <- v1ID
+			progress.Update(p.config.ProgressOutput, truncID, "Waiting")
 		} else {
-			p.out.Write(p.sf.FormatStatus("", "Image %s already pushed, skipping", stringid.TruncateID(v1ID)))
+			progress.Update(p.config.ProgressOutput, truncID, "Already exists")
 		}
 	}
 }
 
-func (p *v1Pusher) pushImageToEndpoint(endpoint string, imageList []v1Image, tags map[image.ID][]string, repo *registry.RepositoryData) error {
+func (p *v1Pusher) pushImageToEndpoint(ctx context.Context, endpoint string, imageList []v1Image, tags map[image.ID][]string, repo *registry.RepositoryData) error {
 	workerCount := len(imageList)
 	// start a maximum of 5 workers to check if images exist on the specified endpoint.
 	if workerCount > 5 {
@@ -349,15 +346,15 @@ func (p *v1Pusher) pushImageToEndpoint(endpoint string, imageList []v1Image, tag
 	for _, img := range imageList {
 		v1ID := img.V1ID()
 		if _, push := shouldPush[v1ID]; push {
-			if _, err := p.pushImage(img, endpoint); err != nil {
+			if _, err := p.pushImage(ctx, img, endpoint); err != nil {
 				// FIXME: Continue on error?
 				return err
 			}
 		}
 		if topImage, isTopImage := img.(*v1TopImage); isTopImage {
 			for _, tag := range tags[topImage.imageID] {
-				p.out.Write(p.sf.FormatStatus("", "Pushing tag for rev [%s] on {%s}", stringid.TruncateID(v1ID), endpoint+"repositories/"+p.repoInfo.RemoteName.Name()+"/tags/"+tag))
-				if err := p.session.PushRegistryTag(p.repoInfo.RemoteName, v1ID, tag, endpoint); err != nil {
+				progress.Messagef(p.config.ProgressOutput, "", "Pushing tag for rev [%s] on {%s}", stringid.TruncateID(v1ID), endpoint+"repositories/"+p.repoInfo.RemoteName()+"/tags/"+tag)
+				if err := p.session.PushRegistryTag(p.repoInfo, v1ID, tag, endpoint); err != nil {
 					return err
 				}
 			}
@@ -367,8 +364,7 @@ func (p *v1Pusher) pushImageToEndpoint(endpoint string, imageList []v1Image, tag
 }
 
 // pushRepository pushes layers that do not already exist on the registry.
-func (p *v1Pusher) pushRepository() error {
-	p.out = ioutils.NewWriteFlusher(p.config.OutStream)
+func (p *v1Pusher) pushRepository(ctx context.Context) error {
 	imgList, tags, referencedLayers, err := p.getImageList()
 	defer func() {
 		for _, l := range referencedLayers {
@@ -378,7 +374,6 @@ func (p *v1Pusher) pushRepository() error {
 	if err != nil {
 		return err
 	}
-	p.out.Write(p.sf.FormatStatus("", "Sending image list"))
 
 	imageIndex := createImageIndex(imgList, tags)
 	for _, data := range imageIndex {
@@ -387,26 +382,27 @@ func (p *v1Pusher) pushRepository() error {
 
 	// Register all the images in a repository with the registry
 	// If an image is not in this list it will not be associated with the repository
-	repoData, err := p.session.PushImageJSONIndex(p.repoInfo.RemoteName, imageIndex, false, nil)
+	repoData, err := p.session.PushImageJSONIndex(p.repoInfo, imageIndex, false, nil)
 	if err != nil {
 		return err
 	}
-	p.out.Write(p.sf.FormatStatus("", "Pushing repository %s", p.repoInfo.CanonicalName))
 	// push the repository to each of the endpoints only if it does not exist.
 	for _, endpoint := range repoData.Endpoints {
-		if err := p.pushImageToEndpoint(endpoint, imgList, tags, repoData); err != nil {
+		if err := p.pushImageToEndpoint(ctx, endpoint, imgList, tags, repoData); err != nil {
 			return err
 		}
 	}
-	_, err = p.session.PushImageJSONIndex(p.repoInfo.RemoteName, imageIndex, true, repoData.Endpoints)
+	_, err = p.session.PushImageJSONIndex(p.repoInfo, imageIndex, true, repoData.Endpoints)
 	return err
 }
 
-func (p *v1Pusher) pushImage(v1Image v1Image, ep string) (checksum string, err error) {
+func (p *v1Pusher) pushImage(ctx context.Context, v1Image v1Image, ep string) (checksum string, err error) {
+	l := v1Image.Layer()
 	v1ID := v1Image.V1ID()
+	truncID := stringid.TruncateID(l.DiffID().String())
 
 	jsonRaw := v1Image.Config()
-	p.out.Write(p.sf.FormatProgress(stringid.TruncateID(v1ID), "Pushing", nil))
+	progress.Update(p.config.ProgressOutput, truncID, "Pushing")
 
 	// General rule is to use ID for graph accesses and compatibilityID for
 	// calls to session.registry()
@@ -417,13 +413,11 @@ func (p *v1Pusher) pushImage(v1Image v1Image, ep string) (checksum string, err e
 	// Send the json
 	if err := p.session.PushImageJSONRegistry(imgData, jsonRaw, ep); err != nil {
 		if err == registry.ErrAlreadyExists {
-			p.out.Write(p.sf.FormatProgress(stringid.TruncateID(v1ID), "Image already pushed, skipping", nil))
+			progress.Update(p.config.ProgressOutput, truncID, "Image already pushed, skipping")
 			return "", nil
 		}
 		return "", err
 	}
-
-	l := v1Image.Layer()
 
 	arch, err := l.TarStream()
 	if err != nil {
@@ -437,15 +431,8 @@ func (p *v1Pusher) pushImage(v1Image v1Image, ep string) (checksum string, err e
 	// Send the layer
 	logrus.Debugf("rendered layer for %s of [%d] size", v1ID, size)
 
-	reader := progressreader.New(progressreader.Config{
-		In:        ioutil.NopCloser(arch),
-		Out:       p.out,
-		Formatter: p.sf,
-		Size:      size,
-		NewLines:  false,
-		ID:        stringid.TruncateID(v1ID),
-		Action:    "Pushing",
-	})
+	reader := progress.NewProgressReader(ioutils.NewCancelReadCloser(ctx, arch), p.config.ProgressOutput, size, truncID, "Pushing")
+	defer reader.Close()
 
 	checksum, checksumPayload, err := p.session.PushImageLayerRegistry(v1ID, reader, ep, jsonRaw)
 	if err != nil {
@@ -458,10 +445,10 @@ func (p *v1Pusher) pushImage(v1Image v1Image, ep string) (checksum string, err e
 		return "", err
 	}
 
-	if err := p.v1IDService.Set(v1ID, p.repoInfo.Index.Name, l.ChainID()); err != nil {
+	if err := p.v1IDService.Set(v1ID, p.repoInfo.Index.Name, l.DiffID()); err != nil {
 		logrus.Warnf("Could not set v1 ID mapping: %v", err)
 	}
 
-	p.out.Write(p.sf.FormatProgress(stringid.TruncateID(v1ID), "Image successfully pushed", nil))
+	progress.Update(p.config.ProgressOutput, truncID, "Image successfully pushed")
 	return imgData.Checksum, nil
 }

@@ -27,10 +27,13 @@ parent = "smn_cli"
       --cpu-quota=0                 Limit CPU CFS (Completely Fair Scheduler) quota
       --cpuset-cpus=""              CPUs in which to allow execution (0-3, 0,1)
       --cpuset-mems=""              Memory nodes (MEMs) in which to allow execution (0-3, 0,1)
-      -d, --detach=false            Run container in background and print container ID
+      -d, --detach                  Run container in background and print container ID
+      --detach-keys                 Specify the escape key sequence used to detach a container
       --device=[]                   Add a host device to the container
       --device-read-bps=[]          Limit read rate (bytes per second) from a device (e.g., --device-read-bps=/dev/sda:1mb)
+      --device-read-iops=[]         Limit read rate (IO per second) from a device (e.g., --device-read-iops=/dev/sda:1000)
       --device-write-bps=[]         Limit write rate (bytes per second) to a device (e.g., --device-write-bps=/dev/sda:1mb)
+      --device-write-iops=[]        Limit write rate (IO per second) to a device (e.g., --device-write-bps=/dev/sda:1000)
       --disable-content-trust=true  Skip image verification
       --dns=[]                      Set custom DNS servers
       --dns-opt=[]                  Set custom DNS options
@@ -41,8 +44,10 @@ parent = "smn_cli"
       --expose=[]                   Expose a port or a range of ports
       --group-add=[]                Add additional groups to run as
       -h, --hostname=""             Container host name
-      --help=false                  Print usage
-      -i, --interactive=false       Keep STDIN open even if not attached
+      --help                        Print usage
+      -i, --interactive             Keep STDIN open even if not attached
+      --ip=""                       Container IPv4 address (e.g. 172.30.100.104)
+      --ip6=""                      Container IPv6 address (e.g. 2001:db8::33)
       --ipc=""                      IPC namespace to use
       --isolation=""                Container isolation technology
       --kernel-memory=""            Kernel memory limit
@@ -54,7 +59,7 @@ parent = "smn_cli"
       -m, --memory=""               Memory limit
       --mac-address=""              Container MAC address (e.g. 92:d0:c6:0a:29:33)
       --memory-reservation=""       Memory soft limit
-      --memory-swap=""              Total memory (memory + swap), '-1' to disable swap
+      --memory-swap=""              A positive integer equal to memory plus swap. Specify -1 to enable unlimited swap.
       --memory-swappiness=""        Tune a container's memory swappiness behavior. Accepts an integer between 0 and 100.
       --name=""                     Assign a name to the container
       --net="bridge"                Connect a container to a network
@@ -63,29 +68,30 @@ parent = "smn_cli"
                                     'container:<name|id>': reuse another container's network stack
                                     'host': use the Docker host network stack
                                     '<network-name>|<network-id>': connect to a user-defined network
-      --oom-kill-disable=false      Whether to disable OOM Killer for the container or not
+      --net-alias=[]                Add network-scoped alias for the container
+      --oom-kill-disable            Whether to disable OOM Killer for the container or not
       --oom-score-adj=0             Tune the host's OOM preferences for containers (accepts -1000 to 1000)
-      -P, --publish-all=false       Publish all exposed ports to random ports
+      -P, --publish-all             Publish all exposed ports to random ports
       -p, --publish=[]              Publish a container's port(s) to the host
       --pid=""                      PID namespace to use
-      --privileged=false            Give extended privileges to this container
-      --read-only=false             Mount the container's root filesystem as read only
+      --privileged                  Give extended privileges to this container
+      --read-only                   Mount the container's root filesystem as read only
       --restart="no"                Restart policy (no, on-failure[:max-retry], always, unless-stopped)
-      --rm=false                    Automatically remove the container when it exits
+      --rm                          Automatically remove the container when it exits
       --shm-size=[]                 Size of `/dev/shm`. The format is `<number><unit>`. `number` must be greater than `0`.  Unit is optional and can be `b` (bytes), `k` (kilobytes), `m` (megabytes), or `g` (gigabytes). If you omit the unit, the system uses bytes. If you omit the size entirely, the system uses `64m`.
       --security-opt=[]             Security Options
       --sig-proxy=true              Proxy received signals to the process
       --stop-signal="SIGTERM"       Signal to stop a container
-      -t, --tty=false               Allocate a pseudo-TTY
+      -t, --tty                     Allocate a pseudo-TTY
       -u, --user=""                 Username or UID (format: <name|uid>[:<group|gid>])
       --ulimit=[]                   Ulimit options
       --uts=""                      UTS namespace to use
-      -v, --volume=[]               Bind mount a volume with: [host-src:]container-dest[:<options>], where
-                                    options are comma delimited and selected from [rw|ro] and [z|Z].
-                                    The 'host-src' can either be an absolute path or a name value.
-                                    If 'host-src' is missing, then docker creates a new volume.
-                                    If neither 'rw' or 'ro' is specified then the volume is mounted
-                                    in read-write mode.
+      -v, --volume=[host-src:]container-dest[:<options>]
+                                    Bind mount a volume. The comma-delimited
+                                    `options` are [rw|ro], [z|Z], or
+                                    [[r]shared|[r]slave|[r]private]. The
+                                    'host-src' is an absolute path or a name
+                                    value.
       --volume-driver=""            Container's volume driver
       --volumes-from=[]             Mount volumes from the specified container(s)
       -w, --workdir=""              Working directory inside the container
@@ -139,7 +145,7 @@ This will *not* work, because by default, most potentially dangerous kernel
 capabilities are dropped; including `cap_sys_admin` (which is required to mount
 filesystems). However, the `--privileged` flag will allow it to run:
 
-    $ docker run --privileged ubuntu bash
+    $ docker run -t -i --privileged ubuntu bash
     root@50e3f57e16e6:/# mount -t tmpfs none /mnt
     root@50e3f57e16e6:/# df -h
     Filesystem      Size  Used Avail Use% Mounted on
@@ -189,12 +195,13 @@ a container writes files. The `--read-only` flag mounts the container's root
 filesystem as read only prohibiting writes to locations other than the
 specified volumes for the container.
 
-    $ docker run -t -i -v /var/run/docker.sock:/var/run/docker.sock -v ./static-docker:/usr/bin/docker busybox sh
+    $ docker run -t -i -v /var/run/docker.sock:/var/run/docker.sock -v /path/to/static-docker-binary:/usr/bin/docker busybox sh
 
 By bind-mounting the docker unix socket and statically linked docker
-binary (such as that provided by [https://get.docker.com](
-https://get.docker.com)), you give the container the full access to create and
-manipulate the host's Docker daemon.
+binary (refer to [get the linux binary](
+../../installation/binaries.md#get-the-linux-binary)),
+you give the container the full access to create and manipulate the host's
+Docker daemon.
 
 ### Publish or expose port (-p, --expose)
 
@@ -325,6 +332,13 @@ This adds the `busybox` container to the `mynet` network.
 $ docker run -itd --net=my-multihost-network busybox
 ```
 
+You can also choose the IP addresses for the container with `--ip` and `--ip6`
+flags when you start the container on a user-defined network.
+
+```bash
+$ docker run -itd --net=my-multihost-network --ip=10.10.9.75 busybox
+```
+
 If you want to add a running container to a network use the `docker network connect` subcommand.
 
 You can connect multiple containers to the same network. Once connected, the
@@ -409,12 +423,12 @@ flag:
     $ docker run --device=/dev/sda:/dev/xvdc --rm -it ubuntu fdisk  /dev/xvdc
 
     Command (m for help): q
-    $ docker run --device=/dev/sda:/dev/xvdc:ro --rm -it ubuntu fdisk  /dev/xvdc
+    $ docker run --device=/dev/sda:/dev/xvdc:r --rm -it ubuntu fdisk  /dev/xvdc
     You will not be able to write the partition table.
 
     Command (m for help): q
 
-    $ docker run --device=/dev/sda:/dev/xvdc --rm -it ubuntu fdisk  /dev/xvdc
+    $ docker run --device=/dev/sda:/dev/xvdc:rw --rm -it ubuntu fdisk  /dev/xvdc
 
     Command (m for help): q
 
@@ -526,7 +540,7 @@ available in the default container, you can set these using the `--ulimit` flag.
 `--ulimit` is specified with a soft and hard limit as such:
 `<type>=<soft limit>[:<hard limit>]`, for example:
 
-    $ docker run --ulimit nofile=1024:1024 --rm debian ulimit -n
+    $ docker run --ulimit nofile=1024:1024 --rm debian sh -c "ulimit -n"
     1024
 
 > **Note:**

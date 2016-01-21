@@ -495,7 +495,7 @@ var routeDescriptors = []RouteDescriptor{
 		Methods: []MethodDescriptor{
 			{
 				Method:      "GET",
-				Description: "Fetch the manifest identified by `name` and `reference` where `reference` can be a tag or digest.",
+				Description: "Fetch the manifest identified by `name` and `reference` where `reference` can be a tag or digest. A `HEAD` request can also be issued to this endpoint to obtain resource information without receiving all data.",
 				Requests: []RequestDescriptor{
 					{
 						Headers: []ParameterDescriptor{
@@ -1034,6 +1034,70 @@ var routeDescriptors = []RouteDescriptor{
 								ErrorCodes: []errcode.ErrorCode{
 									ErrorCodeDigestInvalid,
 									ErrorCodeNameInvalid,
+								},
+							},
+							unauthorizedResponseDescriptor,
+							repositoryNotFoundResponseDescriptor,
+							deniedResponseDescriptor,
+						},
+					},
+					{
+						Name:        "Mount Blob",
+						Description: "Mount a blob identified by the `mount` parameter from another repository.",
+						Headers: []ParameterDescriptor{
+							hostHeader,
+							authHeader,
+							contentLengthZeroHeader,
+						},
+						PathParameters: []ParameterDescriptor{
+							nameParameterDescriptor,
+						},
+						QueryParameters: []ParameterDescriptor{
+							{
+								Name:        "mount",
+								Type:        "query",
+								Format:      "<digest>",
+								Regexp:      digest.DigestRegexp,
+								Description: `Digest of blob to mount from the source repository.`,
+							},
+							{
+								Name:        "from",
+								Type:        "query",
+								Format:      "<repository name>",
+								Regexp:      reference.NameRegexp,
+								Description: `Name of the source repository.`,
+							},
+						},
+						Successes: []ResponseDescriptor{
+							{
+								Description: "The blob has been mounted in the repository and is available at the provided location.",
+								StatusCode:  http.StatusCreated,
+								Headers: []ParameterDescriptor{
+									{
+										Name:   "Location",
+										Type:   "url",
+										Format: "<blob location>",
+									},
+									contentLengthZeroHeader,
+									dockerUploadUUIDHeader,
+								},
+							},
+						},
+						Failures: []ResponseDescriptor{
+							{
+								Name:       "Invalid Name or Digest",
+								StatusCode: http.StatusBadRequest,
+								ErrorCodes: []errcode.ErrorCode{
+									ErrorCodeDigestInvalid,
+									ErrorCodeNameInvalid,
+								},
+							},
+							{
+								Name:        "Not allowed",
+								Description: "Blob mount is not allowed because the registry is configured as a pull-through cache or for some other reason",
+								StatusCode:  http.StatusMethodNotAllowed,
+								ErrorCodes: []errcode.ErrorCode{
+									errcode.ErrorCodeUnsupported,
 								},
 							},
 							unauthorizedResponseDescriptor,

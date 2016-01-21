@@ -14,7 +14,7 @@ parent = "smn_cli"
 
     Save an image(s) to a tar archive (streamed to STDOUT by default)
 
-      --help=false       Print usage
+      --help             Print usage
       -o, --output=""    Write to a file, instead of STDOUT
 
 Produces a tarred repository to the standard output stream.

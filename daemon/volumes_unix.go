@@ -5,6 +5,7 @@ package daemon
 import (
 	"os"
 	"sort"
+	"strconv"
 
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/execdriver"
@@ -19,16 +20,31 @@ import (
 func (daemon *Daemon) setupMounts(container *container.Container) ([]execdriver.Mount, error) {
 	var mounts []execdriver.Mount
 	for _, m := range container.MountPoints {
+		if err := daemon.lazyInitializeVolume(container.ID, m); err != nil {
+			return nil, err
+		}
 		path, err := m.Setup()
 		if err != nil {
 			return nil, err
 		}
 		if !container.TrySetNetworkMount(m.Destination, path) {
-			mounts = append(mounts, execdriver.Mount{
+			mnt := execdriver.Mount{
 				Source:      path,
 				Destination: m.Destination,
 				Writable:    m.RW,
-			})
+				Propagation: m.Propagation,
+			}
+			if m.Volume != nil {
+				attributes := map[string]string{
+					"driver":      m.Volume.DriverName(),
+					"container":   container.ID,
+					"destination": m.Destination,
+					"read/write":  strconv.FormatBool(m.RW),
+					"propagation": m.Propagation,
+				}
+				daemon.LogVolumeEvent(m.Volume.Name(), "mount", attributes)
+			}
+			mounts = append(mounts, mnt)
 		}
 	}
 

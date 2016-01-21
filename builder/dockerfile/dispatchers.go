@@ -9,7 +9,6 @@ package dockerfile
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -18,20 +17,15 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/api"
+	"github.com/docker/docker/builder"
 	derr "github.com/docker/docker/errors"
-	"github.com/docker/docker/image"
-	flag "github.com/docker/docker/pkg/mflag"
-	"github.com/docker/docker/pkg/nat"
 	"github.com/docker/docker/pkg/signal"
-	"github.com/docker/docker/pkg/stringutils"
 	"github.com/docker/docker/pkg/system"
-	"github.com/docker/docker/runconfig"
-)
-
-const (
-	// NoBaseImageSpecifier is the symbol used by the FROM
-	// command to specify that no base image is to be used.
-	NoBaseImageSpecifier string = "scratch"
+	runconfigopts "github.com/docker/docker/runconfig/opts"
+	"github.com/docker/engine-api/types/container"
+	"github.com/docker/engine-api/types/strslice"
+	"github.com/docker/go-connections/nat"
 )
 
 // dispatch with no layer / parsing. This is effectively not a command.
@@ -199,31 +193,32 @@ func from(b *Builder, args []string, attributes map[string]bool, original string
 
 	name := args[0]
 
+	var (
+		image builder.Image
+		err   error
+	)
+
 	// Windows cannot support a container with no base image.
-	if name == NoBaseImageSpecifier {
+	if name == api.NoBaseImageSpecifier {
 		if runtime.GOOS == "windows" {
 			return fmt.Errorf("Windows does not support FROM scratch")
 		}
 		b.image = ""
 		b.noBaseImage = true
-		return nil
-	}
-
-	var (
-		image *image.Image
-		err   error
-	)
-	// TODO: don't use `name`, instead resolve it to a digest
-	if !b.Pull {
-		image, err = b.docker.LookupImage(name)
-		// TODO: shouldn't we error out if error is different from "not found" ?
-	}
-	if image == nil {
-		image, err = b.docker.Pull(name)
-		if err != nil {
-			return err
+	} else {
+		// TODO: don't use `name`, instead resolve it to a digest
+		if !b.options.PullParent {
+			image, err = b.docker.GetImage(name)
+			// TODO: shouldn't we error out if error is different from "not found" ?
+		}
+		if image == nil {
+			image, err = b.docker.Pull(name, b.options.AuthConfigs, b.Output)
+			if err != nil {
+				return err
+			}
 		}
 	}
+
 	return b.processImageFrom(image)
 }
 
@@ -315,22 +310,21 @@ func run(b *Builder, args []string, attributes map[string]bool, original string)
 		}
 	}
 
-	runCmd := flag.NewFlagSet("run", flag.ContinueOnError)
-	runCmd.SetOutput(ioutil.Discard)
-	runCmd.Usage = nil
-
-	config, _, _, err := runconfig.Parse(runCmd, append([]string{b.image}, args...))
-	if err != nil {
-		return err
+	config := &container.Config{
+		Cmd:   strslice.New(args...),
+		Image: b.image,
 	}
 
 	// stash the cmd
 	cmd := b.runConfig.Cmd
-	runconfig.Merge(b.runConfig, config)
+	if b.runConfig.Entrypoint.Len() == 0 && b.runConfig.Cmd.Len() == 0 {
+		b.runConfig.Cmd = config.Cmd
+	}
+
 	// stash the config environment
 	env := b.runConfig.Env
 
-	defer func(cmd *stringutils.StrSlice) { b.runConfig.Cmd = cmd }(cmd)
+	defer func(cmd *strslice.StrSlice) { b.runConfig.Cmd = cmd }(cmd)
 	defer func(env []string) { b.runConfig.Env = env }(env)
 
 	// derive the net build-time environment for this run. We let config
@@ -347,8 +341,8 @@ func run(b *Builder, args []string, attributes map[string]bool, original string)
 	// of RUN, without leaking it to the final image. It also aids cache
 	// lookup for same image built with same build time environment.
 	cmdBuildEnv := []string{}
-	configEnv := runconfig.ConvertKVStringsToMap(b.runConfig.Env)
-	for key, val := range b.BuildArgs {
+	configEnv := runconfigopts.ConvertKVStringsToMap(b.runConfig.Env)
+	for key, val := range b.options.BuildArgs {
 		if !b.isBuildArgAllowed(key) {
 			// skip build-args that are not in allowed list, meaning they have
 			// not been defined by an "ARG" Dockerfile command yet.
@@ -373,7 +367,7 @@ func run(b *Builder, args []string, attributes map[string]bool, original string)
 	if len(cmdBuildEnv) > 0 {
 		sort.Strings(cmdBuildEnv)
 		tmpEnv := append([]string{fmt.Sprintf("|%d", len(cmdBuildEnv))}, cmdBuildEnv...)
-		saveCmd = stringutils.NewStrSlice(append(tmpEnv, saveCmd.Slice()...)...)
+		saveCmd = strslice.New(append(tmpEnv, saveCmd.Slice()...)...)
 	}
 
 	b.runConfig.Cmd = saveCmd
@@ -394,18 +388,12 @@ func run(b *Builder, args []string, attributes map[string]bool, original string)
 
 	logrus.Debugf("[BUILDER] Command to be executed: %v", b.runConfig.Cmd)
 
-	c, err := b.create()
+	cID, err := b.create()
 	if err != nil {
 		return err
 	}
 
-	// Ensure that we keep the container mounted until the commit
-	// to avoid unmounting and then mounting directly again
-	b.docker.Mount(c)
-	defer b.docker.Unmount(c)
-
-	err = b.run(c)
-	if err != nil {
+	if err := b.run(cID); err != nil {
 		return err
 	}
 
@@ -414,11 +402,7 @@ func run(b *Builder, args []string, attributes map[string]bool, original string)
 	// properly match it.
 	b.runConfig.Env = env
 	b.runConfig.Cmd = saveCmd
-	if err := b.commit(c.ID, cmd, "run"); err != nil {
-		return err
-	}
-
-	return nil
+	return b.commit(cID, cmd, "run")
 }
 
 // CMD foo
@@ -441,7 +425,7 @@ func cmd(b *Builder, args []string, attributes map[string]bool, original string)
 		}
 	}
 
-	b.runConfig.Cmd = stringutils.NewStrSlice(cmdSlice...)
+	b.runConfig.Cmd = strslice.New(cmdSlice...)
 
 	if err := b.commit("", b.runConfig.Cmd, fmt.Sprintf("CMD %q", cmdSlice)); err != nil {
 		return err
@@ -472,16 +456,16 @@ func entrypoint(b *Builder, args []string, attributes map[string]bool, original 
 	switch {
 	case attributes["json"]:
 		// ENTRYPOINT ["echo", "hi"]
-		b.runConfig.Entrypoint = stringutils.NewStrSlice(parsed...)
+		b.runConfig.Entrypoint = strslice.New(parsed...)
 	case len(parsed) == 0:
 		// ENTRYPOINT []
 		b.runConfig.Entrypoint = nil
 	default:
 		// ENTRYPOINT echo hi
 		if runtime.GOOS != "windows" {
-			b.runConfig.Entrypoint = stringutils.NewStrSlice("/bin/sh", "-c", parsed[0])
+			b.runConfig.Entrypoint = strslice.New("/bin/sh", "-c", parsed[0])
 		} else {
-			b.runConfig.Entrypoint = stringutils.NewStrSlice("cmd", "/S", "/C", parsed[0])
+			b.runConfig.Entrypoint = strslice.New("cmd", "/S", "/C", parsed[0])
 		}
 	}
 
@@ -640,9 +624,9 @@ func arg(b *Builder, args []string, attributes map[string]bool, original string)
 
 	// If there is a default value associated with this arg then add it to the
 	// b.buildArgs if one is not already passed to the builder. The args passed
-	// to builder override the defaut value of 'arg'.
-	if _, ok := b.BuildArgs[name]; !ok && hasDefault {
-		b.BuildArgs[name] = value
+	// to builder override the default value of 'arg'.
+	if _, ok := b.options.BuildArgs[name]; !ok && hasDefault {
+		b.options.BuildArgs[name] = value
 	}
 
 	return b.commit("", b.runConfig.Cmd, fmt.Sprintf("ARG %s", arg))

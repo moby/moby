@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"sync"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/types"
 )
@@ -24,7 +25,10 @@ const (
 )
 
 var (
-	errNoBitAvailable = fmt.Errorf("no bit available")
+	// ErrNoBitAvailable is returned when no more bits are available to set
+	ErrNoBitAvailable = fmt.Errorf("no bit available")
+	// ErrBitAllocated is returned when the specific bit requested is already set
+	ErrBitAllocated = fmt.Errorf("requested bit is already allocated")
 )
 
 // Handle contains the sequece representing the bitmask and its identifier
@@ -94,7 +98,7 @@ func (s *sequence) toString() string {
 // GetAvailableBit returns the position of the first unset bit in the bitmask represented by this sequence
 func (s *sequence) getAvailableBit(from uint64) (uint64, uint64, error) {
 	if s.block == blockMAX || s.count == 0 {
-		return invalidPos, invalidPos, errNoBitAvailable
+		return invalidPos, invalidPos, ErrNoBitAvailable
 	}
 	bits := from
 	bitSel := blockFirstBit >> from
@@ -197,7 +201,7 @@ func (h *Handle) SetAnyInRange(start, end uint64) (uint64, error) {
 		return invalidPos, fmt.Errorf("invalid bit range [%d, %d]", start, end)
 	}
 	if h.Unselected() == 0 {
-		return invalidPos, errNoBitAvailable
+		return invalidPos, ErrNoBitAvailable
 	}
 	return h.set(0, start, end, true, false)
 }
@@ -205,7 +209,7 @@ func (h *Handle) SetAnyInRange(start, end uint64) (uint64, error) {
 // SetAny atomically sets the first unset bit in the sequence and returns the corresponding ordinal
 func (h *Handle) SetAny() (uint64, error) {
 	if h.Unselected() == 0 {
-		return invalidPos, errNoBitAvailable
+		return invalidPos, ErrNoBitAvailable
 	}
 	return h.set(0, 0, h.bits-1, true, false)
 }
@@ -240,6 +244,58 @@ func (h *Handle) IsSet(ordinal uint64) bool {
 	return err != nil
 }
 
+func (h *Handle) runConsistencyCheck() bool {
+	corrupted := false
+	for p, c := h.head, h.head.next; c != nil; c = c.next {
+		if c.count == 0 {
+			corrupted = true
+			p.next = c.next
+			continue // keep same p
+		}
+		p = c
+	}
+	return corrupted
+}
+
+// CheckConsistency checks if the bit sequence is in an inconsistent state and attempts to fix it.
+// It looks for a corruption signature that may happen in docker 1.9.0 and 1.9.1.
+func (h *Handle) CheckConsistency() error {
+	for {
+		h.Lock()
+		store := h.store
+		h.Unlock()
+
+		if store != nil {
+			if err := store.GetObject(datastore.Key(h.Key()...), h); err != nil && err != datastore.ErrKeyNotFound {
+				return err
+			}
+		}
+
+		h.Lock()
+		nh := h.getCopy()
+		h.Unlock()
+
+		if !nh.runConsistencyCheck() {
+			return nil
+		}
+
+		if err := nh.writeToStore(); err != nil {
+			if _, ok := err.(types.RetryError); !ok {
+				return fmt.Errorf("internal failure while fixing inconsistent bitsequence: %v", err)
+			}
+			continue
+		}
+
+		log.Infof("Fixed inconsistent bit sequence in datastore:\n%s\n%s", h, nh)
+
+		h.Lock()
+		h.head = nh.head
+		h.Unlock()
+
+		return nil
+	}
+}
+
 // set/reset the bit
 func (h *Handle) set(ordinal, start, end uint64, any bool, release bool) (uint64, error) {
 	var (
@@ -250,8 +306,12 @@ func (h *Handle) set(ordinal, start, end uint64, any bool, release bool) (uint64
 	)
 
 	for {
-		if h.store != nil {
-			if err := h.store.GetObject(datastore.Key(h.Key()...), h); err != nil && err != datastore.ErrKeyNotFound {
+		var store datastore.DataStore
+		h.Lock()
+		store = h.store
+		h.Unlock()
+		if store != nil {
+			if err := store.GetObject(datastore.Key(h.Key()...), h); err != nil && err != datastore.ErrKeyNotFound {
 				return ret, err
 			}
 		}
@@ -265,7 +325,7 @@ func (h *Handle) set(ordinal, start, end uint64, any bool, release bool) (uint64
 				bytePos, bitPos, err = getFirstAvailable(h.head, start)
 				ret = posToOrdinal(bytePos, bitPos)
 				if end < ret {
-					err = errNoBitAvailable
+					err = ErrNoBitAvailable
 				}
 			} else {
 				bytePos, bitPos, err = checkIfAvailable(h.head, ordinal)
@@ -445,7 +505,7 @@ func getFirstAvailable(head *sequence, start uint64) (uint64, uint64, error) {
 		byteOffset += current.count * blockBytes
 		current = current.next
 	}
-	return invalidPos, invalidPos, errNoBitAvailable
+	return invalidPos, invalidPos, ErrNoBitAvailable
 }
 
 // checkIfAvailable checks if the bit correspondent to the specified ordinal is unset
@@ -463,7 +523,7 @@ func checkIfAvailable(head *sequence, ordinal uint64) (uint64, uint64, error) {
 		}
 	}
 
-	return invalidPos, invalidPos, fmt.Errorf("requested bit is not available")
+	return invalidPos, invalidPos, ErrBitAllocated
 }
 
 // Given the byte position and the sequences list head, return the pointer to the

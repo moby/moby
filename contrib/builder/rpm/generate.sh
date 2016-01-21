@@ -5,7 +5,7 @@ set -e
 #    ie: ./generate.sh
 #        to update all Dockerfiles in this directory
 #    or: ./generate.sh
-#        to only update fedora-20/Dockerfile
+#        to only update fedora-23/Dockerfile
 #    or: ./generate.sh fedora-newversion
 #        to create a new folder and a Dockerfile within it
 
@@ -22,7 +22,7 @@ for version in "${versions[@]}"; do
 	suite="${version##*-}"
 	from="${distro}:${suite}"
 	installer=yum
-	if [[ "$distro" == "fedora" ]] && [[ "$suite" -ge "22" ]]; then
+	if [[ "$distro" == "fedora" ]]; then
 		installer=dnf
 	fi
 
@@ -51,6 +51,7 @@ for version in "${versions[@]}"; do
 			;;
 		oraclelinux:*)
 			# get "Development Tools" packages and dependencies
+			# we also need yum-utils for yum-config-manager to pull the latest repo file
 			echo 'RUN yum groupinstall -y "Development Tools"' >> "$version/Dockerfile"
 			;;
 		opensuse:*)
@@ -84,8 +85,9 @@ for version in "${versions[@]}"; do
 	esac
 
 	# opensuse & oraclelinx:6 do not have the right libseccomp libs
+	# centos:7 and oraclelinux:7 have a libseccomp < 2.2.1 :(
 	case "$from" in
-		opensuse:*|oraclelinux:6)
+		opensuse:*|oraclelinux:*|centos:7)
 			packages=( "${packages[@]/libseccomp-devel}" )
 			;;
 		*)
@@ -106,12 +108,11 @@ for version in "${versions[@]}"; do
 
 	echo >> "$version/Dockerfile"
 
-	# centos, fedora, & oraclelinux:7 do not have a libseccomp.a for compiling static dockerinit
+	# fedora does not have a libseccomp.a for compiling static dockerinit
 	# ONLY install libseccomp.a from source, this can be removed once dockerinit is removed
 	# TODO remove this manual seccomp compilation once dockerinit is gone or no longer needs to be statically compiled
 	case "$from" in
-		opensuse:*|oraclelinux:6) ;;
-		*)
+		fedora:*)
 			awk '$1 == "ENV" && $2 == "SECCOMP_VERSION" { print; exit }' ../../../Dockerfile >> "$version/Dockerfile"
 			cat <<-'EOF' >> "$version/Dockerfile"
 			RUN buildDeps=' \
@@ -121,10 +122,10 @@ for version in "${versions[@]}"; do
 			&& set -x \
 			&& yum install -y $buildDeps \
 			&& export SECCOMP_PATH=$(mktemp -d) \
-			&& git clone -b "$SECCOMP_VERSION" --depth 1 https://github.com/seccomp/libseccomp.git "$SECCOMP_PATH" \
+			&& curl -fsSL "https://github.com/seccomp/libseccomp/releases/download/v${SECCOMP_VERSION}/libseccomp-${SECCOMP_VERSION}.tar.gz" \
+			| tar -xzC "$SECCOMP_PATH" --strip-components=1 \
 			&& ( \
 				cd "$SECCOMP_PATH" \
-				&& ./autogen.sh \
 				&& ./configure --prefix=/usr \
 				&& make \
 				&& install -c src/.libs/libseccomp.a /usr/lib/libseccomp.a \
@@ -137,7 +138,20 @@ for version in "${versions[@]}"; do
 
 			echo >> "$version/Dockerfile"
 			;;
+		*) ;;
 	esac
+
+	case "$from" in
+		oraclelinux:6)
+			# We need a known version of the kernel-uek-devel headers to set CGO_CPPFLAGS, so grab the UEKR4 GA version
+			# This requires using yum-config-manager from yum-utils to enable the UEKR4 yum repo
+			echo "RUN yum install -y yum-utils && curl -o /etc/yum.repos.d/public-yum-ol6.repo http://yum.oracle.com/public-yum-ol6.repo && yum-config-manager -q --enable ol6_UEKR4"  >> "$version/Dockerfile"
+			echo "RUN yum install -y kernel-uek-devel-4.1.12-32.el6uek"  >> "$version/Dockerfile"
+			echo >> "$version/Dockerfile"
+			;;
+		*) ;;
+	esac
+
 
 	awk '$1 == "ENV" && $2 == "GO_VERSION" { print; exit }' ../../../Dockerfile >> "$version/Dockerfile"
 	echo 'RUN curl -fSL "https://storage.googleapis.com/golang/go${GO_VERSION}.linux-amd64.tar.gz" | tar xzC /usr/local' >> "$version/Dockerfile"
@@ -153,4 +167,22 @@ for version in "${versions[@]}"; do
 	buildTags=$( echo "selinux $extraBuildTags" | xargs -n1 | sort -n | tr '\n' ' ' | sed -e 's/[[:space:]]*$//' )
 
 	echo "ENV DOCKER_BUILDTAGS $buildTags" >> "$version/Dockerfile"
+	echo >> "$version/Dockerfile"
+
+	case "$from" in
+                oraclelinux:6)
+                        # We need to set the CGO_CPPFLAGS environment to use the updated UEKR4 headers with all the userns stuff.
+                        # The ordering is very important and should not be changed.
+                        echo 'ENV CGO_CPPFLAGS -D__EXPORTED_HEADERS__ \'  >> "$version/Dockerfile"
+                        echo '                 -I/usr/src/kernels/4.1.12-32.el6uek.x86_64/arch/x86/include/generated/uapi \'  >> "$version/Dockerfile"
+                        echo '                 -I/usr/src/kernels/4.1.12-32.el6uek.x86_64/arch/x86/include/uapi \'  >> "$version/Dockerfile"
+                        echo '                 -I/usr/src/kernels/4.1.12-32.el6uek.x86_64/include/generated/uapi \'  >> "$version/Dockerfile"
+                        echo '                 -I/usr/src/kernels/4.1.12-32.el6uek.x86_64/include/uapi \'  >> "$version/Dockerfile"
+                        echo '                 -I/usr/src/kernels/4.1.12-32.el6uek.x86_64/include'  >> "$version/Dockerfile"
+                        echo >> "$version/Dockerfile"
+                        ;;
+                *) ;;
+        esac
+
+
 done

@@ -568,7 +568,7 @@ func (s *DockerSuite) TestPsFormatHeaders(c *check.C) {
 func (s *DockerSuite) TestPsDefaultFormatAndQuiet(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	config := `{
-		"psFormat": "{{ .ID }} default"
+		"psFormat": "default {{ .ID }}"
 }`
 	d, err := ioutil.TempDir("", "integration-cli-")
 	c.Assert(err, checker.IsNil)
@@ -637,4 +637,21 @@ func (s *DockerSuite) TestPsImageIDAfterUpdate(c *check.C) {
 		c.Assert(f[1], checker.Equals, originalImageID)
 	}
 
+}
+
+func (s *DockerSuite) TestPsNotShowPortsOfStoppedContainer(c *check.C) {
+	dockerCmd(c, "run", "--name=foo", "-d", "-p", "5000:5000", "busybox", "top")
+	c.Assert(waitRun("foo"), checker.IsNil)
+	out, _ := dockerCmd(c, "ps")
+	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
+	expected := "0.0.0.0:5000->5000/tcp"
+	fields := strings.Fields(lines[1])
+	c.Assert(fields[len(fields)-2], checker.Equals, expected, check.Commentf("Expected: %v, got: %v", expected, fields[len(fields)-2]))
+
+	dockerCmd(c, "kill", "foo")
+	dockerCmd(c, "wait", "foo")
+	out, _ = dockerCmd(c, "ps", "-l")
+	lines = strings.Split(strings.TrimSpace(string(out)), "\n")
+	fields = strings.Fields(lines[1])
+	c.Assert(fields[len(fields)-2], checker.Not(checker.Equals), expected, check.Commentf("Should not got %v", expected))
 }

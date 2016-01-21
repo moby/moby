@@ -13,8 +13,8 @@ import (
 	"io/ioutil"
 
 	"github.com/docker/docker/pkg/integration/checker"
-	"github.com/docker/docker/pkg/nat"
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/go-connections/nat"
 	"github.com/go-check/check"
 )
 
@@ -265,7 +265,7 @@ func (s *DockerSuite) TestCreateByImageID(c *check.C) {
 		c.Fatalf("expected non-zero exit code; received %d", exit)
 	}
 
-	if expected := "invalid reference format"; !strings.Contains(out, expected) {
+	if expected := "Error parsing reference"; !strings.Contains(out, expected) {
 		c.Fatalf(`Expected %q in output; got: %s`, expected, out)
 	}
 
@@ -312,7 +312,7 @@ func (s *DockerTrustSuite) TestUntrustedCreate(c *check.C) {
 	s.trustedCmd(createCmd)
 	out, _, err := runCommandWithOutput(createCmd)
 	c.Assert(err, check.Not(check.IsNil))
-	c.Assert(string(out), checker.Contains, "no trust data available", check.Commentf("Missing expected output on trusted create:\n%s", out))
+	c.Assert(string(out), checker.Contains, "trust data unavailable.  Has a notary repository been initialized?", check.Commentf("Missing expected output on trusted create:\n%s", out))
 
 }
 
@@ -402,7 +402,7 @@ func (s *DockerTrustSuite) TestTrustedCreateFromBadTrustServer(c *check.C) {
 	s.trustedCmd(createCmd)
 	out, _, err = runCommandWithOutput(createCmd)
 	c.Assert(err, check.Not(check.IsNil))
-	c.Assert(string(out), checker.Contains, "failed to validate data with current trusted certificates", check.Commentf("Missing expected output on trusted push:\n%s", out))
+	c.Assert(string(out), checker.Contains, "valid signatures did not meet threshold", check.Commentf("Missing expected output on trusted push:\n%s", out))
 
 }
 
@@ -414,4 +414,12 @@ func (s *DockerSuite) TestCreateStopSignal(c *check.C) {
 	c.Assert(err, check.IsNil)
 	c.Assert(res, checker.Contains, "9")
 
+}
+
+func (s *DockerSuite) TestCreateWithWorkdir(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	name := "foo"
+	dir := "/home/foo/bar"
+	dockerCmd(c, "create", "--name", name, "-w", dir, "busybox")
+	dockerCmd(c, "cp", fmt.Sprintf("%s:%s", name, dir), "/tmp")
 }

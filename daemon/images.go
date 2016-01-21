@@ -5,11 +5,11 @@ import (
 	"path"
 	"sort"
 
-	"github.com/docker/distribution/reference"
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
-	"github.com/docker/docker/pkg/parsers/filters"
+	"github.com/docker/docker/reference"
+	"github.com/docker/engine-api/types"
+	"github.com/docker/engine-api/types/filters"
 )
 
 var acceptedImageFilterTags = map[string]bool{
@@ -31,7 +31,7 @@ func (daemon *Daemon) Map() map[image.ID]*image.Image {
 }
 
 // Images returns a filtered list of images. filterArgs is a JSON-encoded set
-// of filter arguments which will be interpreted by pkg/parsers/filters.
+// of filter arguments which will be interpreted by api/types/filters.
 // filter is a shell glob string applied to repository names. The argument
 // named all controls whether all images in the graph are filtered, or just
 // the heads.
@@ -57,7 +57,6 @@ func (daemon *Daemon) Images(filterArgs, filter string, all bool) ([]*types.Imag
 			return nil, fmt.Errorf("Invalid filter 'dangling=%s'", imageFilters.Get("dangling"))
 		}
 	}
-
 	if danglingOnly {
 		allImages = daemon.imageStore.Heads()
 	} else {
@@ -68,9 +67,9 @@ func (daemon *Daemon) Images(filterArgs, filter string, all bool) ([]*types.Imag
 
 	var filterTagged bool
 	if filter != "" {
-		filterRef, err := reference.Parse(filter)
+		filterRef, err := reference.ParseNamed(filter)
 		if err == nil { // parse error means wildcard repo
-			if _, ok := filterRef.(reference.Tagged); ok {
+			if _, ok := filterRef.(reference.NamedTagged); ok {
 				filterTagged = true
 			}
 		}
@@ -105,7 +104,7 @@ func (daemon *Daemon) Images(filterArgs, filter string, all bool) ([]*types.Imag
 
 		newImage := newImage(img, size)
 
-		for _, ref := range daemon.tagStore.References(id) {
+		for _, ref := range daemon.referenceStore.References(id) {
 			if filter != "" { // filter by tag/repo name
 				if filterTagged { // filter by tag, require full ref match
 					if ref.String() != filter {
@@ -115,15 +114,20 @@ func (daemon *Daemon) Images(filterArgs, filter string, all bool) ([]*types.Imag
 					continue
 				}
 			}
-			if _, ok := ref.(reference.Digested); ok {
+			if _, ok := ref.(reference.Canonical); ok {
 				newImage.RepoDigests = append(newImage.RepoDigests, ref.String())
 			}
-			if _, ok := ref.(reference.Tagged); ok {
+			if _, ok := ref.(reference.NamedTagged); ok {
 				newImage.RepoTags = append(newImage.RepoTags, ref.String())
 			}
 		}
 		if newImage.RepoDigests == nil && newImage.RepoTags == nil {
 			if all || len(daemon.imageStore.Children(id)) == 0 {
+
+				if imageFilters.Include("dangling") && !danglingOnly {
+					//dangling=false case, so dangling image is not needed
+					continue
+				}
 				if filter != "" { // skip images with no references if filtering by tag
 					continue
 				}

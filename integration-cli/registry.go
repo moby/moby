@@ -12,14 +12,17 @@ import (
 	"github.com/go-check/check"
 )
 
-const v2binary = "registry-v2"
+const (
+	v2binary        = "registry-v2"
+	v2binarySchema1 = "registry-v2-schema1"
+)
 
 type testRegistryV2 struct {
 	cmd *exec.Cmd
 	dir string
 }
 
-func newTestRegistryV2(c *check.C) (*testRegistryV2, error) {
+func newTestRegistryV2(c *check.C, schema1 bool) (*testRegistryV2, error) {
 	template := `version: 0.1
 loglevel: debug
 storage:
@@ -41,7 +44,11 @@ http:
 		return nil, err
 	}
 
-	cmd := exec.Command(v2binary, confPath)
+	binary := v2binary
+	if schema1 {
+		binary = v2binarySchema1
+	}
+	cmd := exec.Command(binary, confPath)
 	if err := cmd.Start(); err != nil {
 		os.RemoveAll(tmp)
 		if os.IsNotExist(err) {
@@ -61,7 +68,7 @@ func (t *testRegistryV2) Ping() error {
 	if err != nil {
 		return err
 	}
-	if resp.StatusCode != 200 {
+	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("registry ping replied with an unexpected status code %d", resp.StatusCode)
 	}
 	return nil

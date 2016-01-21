@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"strings"
 
 	"github.com/docker/libnetwork/types"
 )
@@ -131,4 +132,63 @@ func GenerateRandomName(prefix string, size int) (string, error) {
 		return "", err
 	}
 	return prefix + hex.EncodeToString(id)[:size], nil
+}
+
+// ReverseIP accepts a V4 or V6 IP string in the canonical form and returns a reversed IP in
+// the dotted decimal form . This is used to setup the IP to service name mapping in the optimal
+// way for the DNS PTR queries.
+func ReverseIP(IP string) string {
+	var reverseIP []string
+
+	if net.ParseIP(IP).To4() != nil {
+		reverseIP = strings.Split(IP, ".")
+		l := len(reverseIP)
+		for i, j := 0, l-1; i < l/2; i, j = i+1, j-1 {
+			reverseIP[i], reverseIP[j] = reverseIP[j], reverseIP[i]
+		}
+	} else {
+		reverseIP = strings.Split(IP, ":")
+
+		// Reversed IPv6 is represented in dotted decimal instead of the typical
+		// colon hex notation
+		for key := range reverseIP {
+			if len(reverseIP[key]) == 0 { // expand the compressed 0s
+				reverseIP[key] = strings.Repeat("0000", 8-strings.Count(IP, ":"))
+			} else if len(reverseIP[key]) < 4 { // 0-padding needed
+				reverseIP[key] = strings.Repeat("0", 4-len(reverseIP[key])) + reverseIP[key]
+			}
+		}
+
+		reverseIP = strings.Split(strings.Join(reverseIP, ""), "")
+
+		l := len(reverseIP)
+		for i, j := 0, l-1; i < l/2; i, j = i+1, j-1 {
+			reverseIP[i], reverseIP[j] = reverseIP[j], reverseIP[i]
+		}
+	}
+
+	return strings.Join(reverseIP, ".")
+}
+
+// ParseAlias parses and validates the specified string as a alias format (name:alias)
+func ParseAlias(val string) (string, string, error) {
+	if val == "" {
+		return "", "", fmt.Errorf("empty string specified for alias")
+	}
+	arr := strings.Split(val, ":")
+	if len(arr) > 2 {
+		return "", "", fmt.Errorf("bad format for alias: %s", val)
+	}
+	if len(arr) == 1 {
+		return val, val, nil
+	}
+	return arr[0], arr[1], nil
+}
+
+// ValidateAlias validates that the specified string has a valid alias format (containerName:alias).
+func ValidateAlias(val string) (string, error) {
+	if _, _, err := ParseAlias(val); err != nil {
+		return val, err
+	}
+	return val, nil
 }

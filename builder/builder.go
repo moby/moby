@@ -7,23 +7,11 @@ package builder
 import (
 	"io"
 	"os"
+	"time"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/container"
-	"github.com/docker/docker/image"
-	"github.com/docker/docker/runconfig"
+	"github.com/docker/engine-api/types"
+	"github.com/docker/engine-api/types/container"
 )
-
-// Builder abstracts a Docker builder whose only purpose is to build a Docker image referenced by an imageID.
-type Builder interface {
-	// Build builds a Docker image referenced by an imageID string.
-	//
-	// Note: Tagging an image should not be done by a Builder, it should instead be done
-	// by the caller.
-	//
-	// TODO: make this return a reference instead of string
-	Build() (imageID string)
-}
 
 // Context represents a file system tree.
 type Context interface {
@@ -106,45 +94,40 @@ func (fi *HashedFileInfo) SetHash(h string) {
 	fi.FileHash = h
 }
 
-// Docker abstracts calls to a Docker Daemon.
-type Docker interface {
+// Backend abstracts calls to a Docker Daemon.
+type Backend interface {
 	// TODO: use digest reference instead of name
 
-	// LookupImage looks up a Docker image referenced by `name`.
-	LookupImage(name string) (*image.Image, error)
+	// GetImage looks up a Docker image referenced by `name`.
+	GetImage(name string) (Image, error)
 	// Pull tells Docker to pull image referenced by `name`.
-	Pull(name string) (*image.Image, error)
-
-	// Container looks up a Docker container referenced by `id`.
-	Container(id string) (*container.Container, error)
-	// Create creates a new Docker container and returns potential warnings
-	// TODO: put warnings in the error
-	Create(*runconfig.Config, *runconfig.HostConfig) (*container.Container, []string, error)
-	// Remove removes a container specified by `id`.
-	Remove(id string, cfg *types.ContainerRmConfig) error
+	Pull(name string, authConfigs map[string]types.AuthConfig, output io.Writer) (Image, error)
+	// ContainerAttach attaches to container.
+	ContainerAttach(cID string, stdin io.ReadCloser, stdout, stderr io.Writer, stream bool) error
+	// ContainerCreate creates a new Docker container and returns potential warnings
+	ContainerCreate(types.ContainerCreateConfig) (types.ContainerCreateResponse, error)
+	// ContainerRm removes a container specified by `id`.
+	ContainerRm(name string, config *types.ContainerRmConfig) error
 	// Commit creates a new Docker image from an existing Docker container.
 	Commit(string, *types.ContainerCommitConfig) (string, error)
-	// Copy copies/extracts a source FileInfo to a destination path inside a container
+	// Kill stops the container execution abruptly.
+	ContainerKill(containerID string, sig uint64) error
+	// Start starts a new container
+	ContainerStart(containerID string, hostConfig *container.HostConfig) error
+	// ContainerWait stops processing until the given container is stopped.
+	ContainerWait(containerID string, timeout time.Duration) (int, error)
+
+	// ContainerUpdateCmd updates container.Path and container.Args
+	ContainerUpdateCmd(containerID string, cmd []string) error
+
+	// ContainerCopy copies/extracts a source FileInfo to a destination path inside a container
 	// specified by a container object.
 	// TODO: make an Extract method instead of passing `decompress`
 	// TODO: do not pass a FileInfo, instead refactor the archive package to export a Walk function that can be used
 	// with Context.Walk
-	Copy(c *container.Container, destPath string, src FileInfo, decompress bool) error
-
-	// Retain retains an image avoiding it to be removed or overwritten until a corresponding Release() call.
-	// TODO: remove
-	Retain(sessionID, imgID string)
-	// Release releases a list of images that were retained for the time of a build.
-	// TODO: remove
-	Release(sessionID string, activeImages []string)
-	// Kill stops the container execution abruptly.
-	Kill(c *container.Container) error
-	// Mount mounts the root filesystem for the container.
-	Mount(c *container.Container) error
-	// Unmount unmounts the root filesystem for the container.
-	Unmount(c *container.Container) error
-	// Start starts a new container
-	Start(c *container.Container) error
+	//ContainerCopy(name string, res string) (io.ReadCloser, error)
+	// TODO: use copyBackend api
+	BuilderCopy(containerID string, destPath string, src FileInfo, decompress bool) error
 }
 
 // ImageCache abstracts an image cache store.
@@ -152,5 +135,5 @@ type Docker interface {
 type ImageCache interface {
 	// GetCachedImage returns a reference to a cached image whose parent equals `parent`
 	// and runconfig equals `cfg`. A cache miss is expected to return an empty ID and a nil error.
-	GetCachedImage(parentID string, cfg *runconfig.Config) (imageID string, err error)
+	GetCachedImage(parentID string, cfg *container.Config) (imageID string, err error)
 }

@@ -38,28 +38,31 @@ is_set_as_module() {
 	zgrep "CONFIG_$1=m" "$CONFIG" > /dev/null
 }
 
-# see https://en.wikipedia.org/wiki/ANSI_escape_code#Colors
-declare -A colors=(
-	[black]=30
-	[red]=31
-	[green]=32
-	[yellow]=33
-	[blue]=34
-	[magenta]=35
-	[cyan]=36
-	[white]=37
-)
 color() {
-	color=()
+	local codes=()
 	if [ "$1" = 'bold' ]; then
-		color+=( '1' )
+		codes=( "${codes[@]}" '1' )
 		shift
 	fi
-	if [ $# -gt 0 ] && [ "${colors[$1]}" ]; then
-		color+=( "${colors[$1]}" )
+	if [ "$#" -gt 0 ]; then
+		local code=
+		case "$1" in
+			# see https://en.wikipedia.org/wiki/ANSI_escape_code#Colors
+			black) code=30 ;;
+			red) code=31 ;;
+			green) code=32 ;;
+			yellow) code=33 ;;
+			blue) code=34 ;;
+			magenta) code=35 ;;
+			cyan) code=36 ;;
+			white) code=37 ;;
+		esac
+		if [ "$code" ]; then
+			codes=( "${codes[@]}" "$code" )
+		fi
 	fi
 	local IFS=';'
-	echo -en '\033['"${color[*]}"m
+	echo -en '\033['"${codes[*]}"'m'
 }
 wrap_color() {
 	text="$1"

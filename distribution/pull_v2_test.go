@@ -9,7 +9,7 @@ import (
 
 	"github.com/docker/distribution/digest"
 	"github.com/docker/distribution/manifest/schema1"
-	"github.com/docker/distribution/reference"
+	"github.com/docker/docker/reference"
 )
 
 // TestFixManifestLayers checks that fixManifestLayers removes a duplicate
@@ -104,7 +104,7 @@ func TestFixManifestLayersBadParent(t *testing.T) {
 
 // TestValidateManifest verifies the validateManifest function
 func TestValidateManifest(t *testing.T) {
-	expectedDigest, err := reference.Parse("repo@sha256:02fee8c3220ba806531f606525eceb83f4feb654f62b207191b1c9209188dedd")
+	expectedDigest, err := reference.ParseNamed("repo@sha256:02fee8c3220ba806531f606525eceb83f4feb654f62b207191b1c9209188dedd")
 	if err != nil {
 		t.Fatal("could not parse reference")
 	}
@@ -123,7 +123,7 @@ func TestValidateManifest(t *testing.T) {
 		t.Fatal("error unmarshaling manifest:", err)
 	}
 
-	verifiedManifest, err := verifyManifest(&goodSignedManifest, expectedDigest)
+	verifiedManifest, err := verifySchema1Manifest(&goodSignedManifest, expectedDigest)
 	if err != nil {
 		t.Fatal("validateManifest failed:", err)
 	}
@@ -145,7 +145,7 @@ func TestValidateManifest(t *testing.T) {
 		t.Fatal("error unmarshaling manifest:", err)
 	}
 
-	verifiedManifest, err = verifyManifest(&extraDataSignedManifest, expectedDigest)
+	verifiedManifest, err = verifySchema1Manifest(&extraDataSignedManifest, expectedDigest)
 	if err != nil {
 		t.Fatal("validateManifest failed:", err)
 	}
@@ -167,7 +167,7 @@ func TestValidateManifest(t *testing.T) {
 		t.Fatal("error unmarshaling manifest:", err)
 	}
 
-	verifiedManifest, err = verifyManifest(&badSignedManifest, expectedDigest)
+	verifiedManifest, err = verifySchema1Manifest(&badSignedManifest, expectedDigest)
 	if err == nil || !strings.HasPrefix(err.Error(), "image verification failed for digest") {
 		t.Fatal("expected validateManifest to fail with digest error")
 	}

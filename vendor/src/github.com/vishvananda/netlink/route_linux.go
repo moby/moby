@@ -10,6 +10,19 @@ import (
 
 // RtAttr is shared so it is in netlink_linux.go
 
+const (
+	RT_FILTER_PROTOCOL uint64 = 1 << (1 + iota)
+	RT_FILTER_SCOPE
+	RT_FILTER_TYPE
+	RT_FILTER_TOS
+	RT_FILTER_IIF
+	RT_FILTER_OIF
+	RT_FILTER_DST
+	RT_FILTER_SRC
+	RT_FILTER_GW
+	RT_FILTER_TABLE
+)
+
 // RouteAdd will add a route to the system.
 // Equivalent to: `ip route add $route`
 func RouteAdd(route *Route) error {
@@ -17,7 +30,7 @@ func RouteAdd(route *Route) error {
 	return routeHandle(route, req, nl.NewRtMsg())
 }
 
-// RouteAdd will delete a route from the system.
+// RouteDel will delete a route from the system.
 // Equivalent to: `ip route del $route`
 func RouteDel(route *Route) error {
 	req := nl.NewNetlinkRequest(syscall.RTM_DELROUTE, syscall.NLM_F_ACK)
@@ -29,7 +42,6 @@ func routeHandle(route *Route, req *nl.NetlinkRequest, msg *nl.RtMsg) error {
 		return fmt.Errorf("one of Dst.IP, Src, or Gw must not be nil")
 	}
 
-	msg.Scope = uint8(route.Scope)
 	family := -1
 	var rtAttrs []*nl.RtAttr
 
@@ -78,8 +90,34 @@ func routeHandle(route *Route, req *nl.NetlinkRequest, msg *nl.RtMsg) error {
 		rtAttrs = append(rtAttrs, nl.NewRtAttr(syscall.RTA_GATEWAY, gwData))
 	}
 
-	msg.Family = uint8(family)
+	if route.Table > 0 {
+		if route.Table >= 256 {
+			msg.Table = syscall.RT_TABLE_UNSPEC
+			b := make([]byte, 4)
+			native.PutUint32(b, uint32(route.Table))
+			rtAttrs = append(rtAttrs, nl.NewRtAttr(syscall.RTA_TABLE, b))
+		} else {
+			msg.Table = uint8(route.Table)
+		}
+	}
 
+	if route.Priority > 0 {
+		b := make([]byte, 4)
+		native.PutUint32(b, uint32(route.Priority))
+		rtAttrs = append(rtAttrs, nl.NewRtAttr(syscall.RTA_PRIORITY, b))
+	}
+	if route.Tos > 0 {
+		msg.Tos = uint8(route.Tos)
+	}
+	if route.Protocol > 0 {
+		msg.Protocol = uint8(route.Protocol)
+	}
+	if route.Type > 0 {
+		msg.Type = uint8(route.Type)
+	}
+
+	msg.Scope = uint8(route.Scope)
+	msg.Family = uint8(family)
 	req.AddData(msg)
 	for _, attr := range rtAttrs {
 		req.AddData(attr)
@@ -101,67 +139,119 @@ func routeHandle(route *Route, req *nl.NetlinkRequest, msg *nl.RtMsg) error {
 // Equivalent to: `ip route show`.
 // The list can be filtered by link and ip family.
 func RouteList(link Link, family int) ([]Route, error) {
+	var routeFilter *Route
+	if link != nil {
+		routeFilter = &Route{
+			LinkIndex: link.Attrs().Index,
+		}
+	}
+	return RouteListFiltered(family, routeFilter, RT_FILTER_OIF)
+}
+
+// RouteListFiltered gets a list of routes in the system filtered with specified rules.
+// All rules must be defined in RouteFilter struct
+func RouteListFiltered(family int, filter *Route, filterMask uint64) ([]Route, error) {
 	req := nl.NewNetlinkRequest(syscall.RTM_GETROUTE, syscall.NLM_F_DUMP)
-	msg := nl.NewIfInfomsg(family)
-	req.AddData(msg)
+	infmsg := nl.NewIfInfomsg(family)
+	req.AddData(infmsg)
 
 	msgs, err := req.Execute(syscall.NETLINK_ROUTE, syscall.RTM_NEWROUTE)
 	if err != nil {
 		return nil, err
 	}
 
-	index := 0
-	if link != nil {
-		base := link.Attrs()
-		ensureIndex(base)
-		index = base.Index
-	}
-
-	native := nl.NativeEndian()
 	var res []Route
 	for _, m := range msgs {
 		msg := nl.DeserializeRtMsg(m)
-
 		if msg.Flags&syscall.RTM_F_CLONED != 0 {
 			// Ignore cloned routes
 			continue
 		}
-
 		if msg.Table != syscall.RT_TABLE_MAIN {
-			// Ignore non-main tables
-			continue
+			if filter == nil || filter != nil && filterMask&RT_FILTER_TABLE == 0 {
+				// Ignore non-main tables
+				continue
+			}
 		}
-
-		attrs, err := nl.ParseRouteAttr(m[msg.Len():])
+		route, err := deserializeRoute(m)
 		if err != nil {
 			return nil, err
 		}
-
-		route := Route{Scope: Scope(msg.Scope)}
-		for _, attr := range attrs {
-			switch attr.Attr.Type {
-			case syscall.RTA_GATEWAY:
-				route.Gw = net.IP(attr.Value)
-			case syscall.RTA_PREFSRC:
-				route.Src = net.IP(attr.Value)
-			case syscall.RTA_DST:
-				route.Dst = &net.IPNet{
-					IP:   attr.Value,
-					Mask: net.CIDRMask(int(msg.Dst_len), 8*len(attr.Value)),
-				}
-			case syscall.RTA_OIF:
-				routeIndex := int(native.Uint32(attr.Value[0:4]))
-				if link != nil && routeIndex != index {
-					// Ignore routes from other interfaces
+		if filter != nil {
+			switch {
+			case filterMask&RT_FILTER_TABLE != 0 && route.Table != filter.Table:
+				continue
+			case filterMask&RT_FILTER_PROTOCOL != 0 && route.Protocol != filter.Protocol:
+				continue
+			case filterMask&RT_FILTER_SCOPE != 0 && route.Scope != filter.Scope:
+				continue
+			case filterMask&RT_FILTER_TYPE != 0 && route.Type != filter.Type:
+				continue
+			case filterMask&RT_FILTER_TOS != 0 && route.Tos != filter.Tos:
+				continue
+			case filterMask&RT_FILTER_OIF != 0 && route.LinkIndex != filter.LinkIndex:
+				continue
+			case filterMask&RT_FILTER_IIF != 0 && route.ILinkIndex != filter.ILinkIndex:
+				continue
+			case filterMask&RT_FILTER_GW != 0 && !route.Gw.Equal(filter.Gw):
+				continue
+			case filterMask&RT_FILTER_SRC != 0 && !route.Src.Equal(filter.Src):
+				continue
+			case filterMask&RT_FILTER_DST != 0 && filter.Dst != nil:
+				if route.Dst == nil {
 					continue
 				}
-				route.LinkIndex = routeIndex
+				aMaskLen, aMaskBits := route.Dst.Mask.Size()
+				bMaskLen, bMaskBits := filter.Dst.Mask.Size()
+				if !(route.Dst.IP.Equal(filter.Dst.IP) && aMaskLen == bMaskLen && aMaskBits == bMaskBits) {
+					continue
+				}
 			}
 		}
 		res = append(res, route)
 	}
-
 	return res, nil
+}
+
+// deserializeRoute decodes a binary netlink message into a Route struct
+func deserializeRoute(m []byte) (Route, error) {
+	msg := nl.DeserializeRtMsg(m)
+	attrs, err := nl.ParseRouteAttr(m[msg.Len():])
+	if err != nil {
+		return Route{}, err
+	}
+	route := Route{
+		Scope:    Scope(msg.Scope),
+		Protocol: int(msg.Protocol),
+		Table:    int(msg.Table),
+		Type:     int(msg.Type),
+		Tos:      int(msg.Tos),
+		Flags:    int(msg.Flags),
+	}
+
+	native := nl.NativeEndian()
+	for _, attr := range attrs {
+		switch attr.Attr.Type {
+		case syscall.RTA_GATEWAY:
+			route.Gw = net.IP(attr.Value)
+		case syscall.RTA_PREFSRC:
+			route.Src = net.IP(attr.Value)
+		case syscall.RTA_DST:
+			route.Dst = &net.IPNet{
+				IP:   attr.Value,
+				Mask: net.CIDRMask(int(msg.Dst_len), 8*len(attr.Value)),
+			}
+		case syscall.RTA_OIF:
+			route.LinkIndex = int(native.Uint32(attr.Value[0:4]))
+		case syscall.RTA_IIF:
+			route.ILinkIndex = int(native.Uint32(attr.Value[0:4]))
+		case syscall.RTA_PRIORITY:
+			route.Priority = int(native.Uint32(attr.Value[0:4]))
+		case syscall.RTA_TABLE:
+			route.Table = int(native.Uint32(attr.Value[0:4]))
+		}
+	}
+	return route, nil
 }
 
 // RouteGet gets a route to a specific destination from the host system.
@@ -191,34 +281,47 @@ func RouteGet(destination net.IP) ([]Route, error) {
 		return nil, err
 	}
 
-	native := nl.NativeEndian()
 	var res []Route
 	for _, m := range msgs {
-		msg := nl.DeserializeRtMsg(m)
-		attrs, err := nl.ParseRouteAttr(m[msg.Len():])
+		route, err := deserializeRoute(m)
 		if err != nil {
 			return nil, err
-		}
-
-		route := Route{}
-		for _, attr := range attrs {
-			switch attr.Attr.Type {
-			case syscall.RTA_GATEWAY:
-				route.Gw = net.IP(attr.Value)
-			case syscall.RTA_PREFSRC:
-				route.Src = net.IP(attr.Value)
-			case syscall.RTA_DST:
-				route.Dst = &net.IPNet{
-					IP:   attr.Value,
-					Mask: net.CIDRMask(int(msg.Dst_len), 8*len(attr.Value)),
-				}
-			case syscall.RTA_OIF:
-				routeIndex := int(native.Uint32(attr.Value[0:4]))
-				route.LinkIndex = routeIndex
-			}
 		}
 		res = append(res, route)
 	}
 	return res, nil
 
+}
+
+// RouteSubscribe takes a chan down which notifications will be sent
+// when routes are added or deleted. Close the 'done' chan to stop subscription.
+func RouteSubscribe(ch chan<- RouteUpdate, done <-chan struct{}) error {
+	s, err := nl.Subscribe(syscall.NETLINK_ROUTE, syscall.RTNLGRP_IPV4_ROUTE, syscall.RTNLGRP_IPV6_ROUTE)
+	if err != nil {
+		return err
+	}
+	if done != nil {
+		go func() {
+			<-done
+			s.Close()
+		}()
+	}
+	go func() {
+		defer close(ch)
+		for {
+			msgs, err := s.Receive()
+			if err != nil {
+				return
+			}
+			for _, m := range msgs {
+				route, err := deserializeRoute(m.Data)
+				if err != nil {
+					return
+				}
+				ch <- RouteUpdate{Type: m.Header.Type, Route: route}
+			}
+		}
+	}()
+
+	return nil
 }

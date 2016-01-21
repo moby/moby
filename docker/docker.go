@@ -27,10 +27,10 @@ func main() {
 	flag.Merge(flag.CommandLine, clientFlags.FlagSet, commonFlags.FlagSet)
 
 	flag.Usage = func() {
-		fmt.Fprint(os.Stdout, "Usage: docker [OPTIONS] COMMAND [arg...]\n"+daemonUsage+"       docker [ --help | -v | --version ]\n\n")
-		fmt.Fprint(os.Stdout, "A self-sufficient runtime for containers.\n\nOptions:\n")
+		fmt.Fprint(stdout, "Usage: docker [OPTIONS] COMMAND [arg...]\n"+daemonUsage+"       docker [ --help | -v | --version ]\n\n")
+		fmt.Fprint(stdout, "A self-sufficient runtime for containers.\n\nOptions:\n")
 
-		flag.CommandLine.SetOutput(os.Stdout)
+		flag.CommandLine.SetOutput(stdout)
 		flag.PrintDefaults()
 
 		help := "\nCommands:\n"
@@ -40,7 +40,7 @@ func main() {
 		}
 
 		help += "\nRun 'docker COMMAND --help' for more information on a command."
-		fmt.Fprintf(os.Stdout, "%s\n", help)
+		fmt.Fprintf(stdout, "%s\n", help)
 	}
 
 	flag.Parse()
@@ -63,12 +63,12 @@ func main() {
 	if err := c.Run(flag.Args()...); err != nil {
 		if sterr, ok := err.(cli.StatusError); ok {
 			if sterr.Status != "" {
-				fmt.Fprintln(os.Stderr, sterr.Status)
+				fmt.Fprintln(stderr, sterr.Status)
 				os.Exit(1)
 			}
 			os.Exit(sterr.StatusCode)
 		}
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(stderr, err)
 		os.Exit(1)
 	}
 }

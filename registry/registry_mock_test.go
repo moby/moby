@@ -15,8 +15,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/opts"
+	"github.com/docker/docker/reference"
+	registrytypes "github.com/docker/engine-api/types/registry"
 	"github.com/gorilla/mux"
 
 	"github.com/Sirupsen/logrus"
@@ -150,22 +151,22 @@ func makeHTTPSURL(req string) string {
 	return testHTTPSServer.URL + req
 }
 
-func makeIndex(req string) *IndexInfo {
-	index := &IndexInfo{
+func makeIndex(req string) *registrytypes.IndexInfo {
+	index := &registrytypes.IndexInfo{
 		Name: makeURL(req),
 	}
 	return index
 }
 
-func makeHTTPSIndex(req string) *IndexInfo {
-	index := &IndexInfo{
+func makeHTTPSIndex(req string) *registrytypes.IndexInfo {
+	index := &registrytypes.IndexInfo{
 		Name: makeHTTPSURL(req),
 	}
 	return index
 }
 
-func makePublicIndex() *IndexInfo {
-	index := &IndexInfo{
+func makePublicIndex() *registrytypes.IndexInfo {
+	index := &registrytypes.IndexInfo{
 		Name:     IndexServer,
 		Secure:   true,
 		Official: true,
@@ -173,7 +174,7 @@ func makePublicIndex() *IndexInfo {
 	return index
 }
 
-func makeServiceConfig(mirrors []string, insecureRegistries []string) *ServiceConfig {
+func makeServiceConfig(mirrors []string, insecureRegistries []string) *registrytypes.ServiceConfig {
 	options := &Options{
 		Mirrors:            opts.NewListOpts(nil),
 		InsecureRegistries: opts.NewListOpts(nil),
@@ -355,7 +356,6 @@ func handlerGetDeleteTags(w http.ResponseWriter, r *http.Request) {
 		apiError(w, "Could not parse repository", 400)
 		return
 	}
-	repositoryName = NormalizeLocalName(repositoryName)
 	tags, exists := testRepositories[repositoryName.String()]
 	if !exists {
 		apiError(w, "Repository not found", 404)
@@ -379,7 +379,6 @@ func handlerGetTag(w http.ResponseWriter, r *http.Request) {
 		apiError(w, "Could not parse repository", 400)
 		return
 	}
-	repositoryName = NormalizeLocalName(repositoryName)
 	tagName := vars["tag"]
 	tags, exists := testRepositories[repositoryName.String()]
 	if !exists {
@@ -404,7 +403,6 @@ func handlerPutTag(w http.ResponseWriter, r *http.Request) {
 		apiError(w, "Could not parse repository", 400)
 		return
 	}
-	repositoryName = NormalizeLocalName(repositoryName)
 	tagName := vars["tag"]
 	tags, exists := testRepositories[repositoryName.String()]
 	if !exists {
@@ -459,10 +457,10 @@ func handlerAuth(w http.ResponseWriter, r *http.Request) {
 }
 
 func handlerSearch(w http.ResponseWriter, r *http.Request) {
-	result := &SearchResults{
+	result := &registrytypes.SearchResults{
 		Query:      "fakequery",
 		NumResults: 1,
-		Results:    []SearchResult{{Name: "fakeimage", StarCount: 42}},
+		Results:    []registrytypes.SearchResult{{Name: "fakeimage", StarCount: 42}},
 	}
 	writeResponse(w, result, 200)
 }

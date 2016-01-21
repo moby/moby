@@ -15,17 +15,12 @@ import (
 	"github.com/docker/docker/pkg/devicemapper"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/mount"
-	"github.com/docker/docker/pkg/units"
+	"github.com/docker/go-units"
 )
 
 func init() {
 	graphdriver.Register("devicemapper", Init)
 }
-
-// Placeholder interfaces, to be replaced
-// at integration.
-
-// End of placeholder interfaces.
 
 // Driver contains the device set mounted and the home directory
 type Driver struct {
@@ -35,18 +30,8 @@ type Driver struct {
 	gidMaps []idtools.IDMap
 }
 
-var backingFs = "<unknown>"
-
 // Init creates a driver with the given home and the set of options.
 func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (graphdriver.Driver, error) {
-	fsMagic, err := graphdriver.GetFSMagic(home)
-	if err != nil {
-		return nil, err
-	}
-	if fsName, ok := graphdriver.FsNames[fsMagic]; ok {
-		backingFs = fsName
-	}
-
 	deviceSet, err := NewDeviceSet(home, true, options, uidMaps, gidMaps)
 	if err != nil {
 		return nil, err
@@ -192,7 +177,7 @@ func (d *Driver) Get(id, mountLabel string) (string, error) {
 
 	idFile := path.Join(mp, "id")
 	if _, err := os.Stat(idFile); err != nil && os.IsNotExist(err) {
-		// Create an "id" file with the container/image id in it to help reconscruct this in case
+		// Create an "id" file with the container/image id in it to help reconstruct this in case
 		// of later problems
 		if err := ioutil.WriteFile(idFile, []byte(id), 0600); err != nil {
 			d.DeviceSet.UnmountDevice(id, mp)
@@ -208,7 +193,7 @@ func (d *Driver) Put(id string) error {
 	mp := path.Join(d.home, "mnt", id)
 	err := d.DeviceSet.UnmountDevice(id, mp)
 	if err != nil {
-		logrus.Errorf("Error unmounting device %s: %s", id, err)
+		logrus.Errorf("devmapper: Error unmounting device %s: %s", id, err)
 	}
 	return err
 }

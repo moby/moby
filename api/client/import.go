@@ -3,15 +3,15 @@ package client
 import (
 	"fmt"
 	"io"
-	"net/url"
 	"os"
 
-	"github.com/docker/distribution/reference"
 	Cli "github.com/docker/docker/cli"
 	"github.com/docker/docker/opts"
+	"github.com/docker/docker/pkg/jsonmessage"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/urlutil"
-	"github.com/docker/docker/registry"
+	"github.com/docker/docker/reference"
+	"github.com/docker/engine-api/types"
 )
 
 // CmdImport creates an empty filesystem image, imports the contents of the tarball into the image, and optionally tags the image.
@@ -29,54 +29,52 @@ func (cli *DockerCli) CmdImport(args ...string) error {
 	cmd.ParseFlags(args, true)
 
 	var (
-		v          = url.Values{}
+		in         io.Reader
+		tag        string
 		src        = cmd.Arg(0)
+		srcName    = src
 		repository = cmd.Arg(1)
+		changes    = flChanges.GetAll()
 	)
 
-	v.Set("fromSrc", src)
-	v.Set("repo", repository)
-	v.Set("message", *message)
-	for _, change := range flChanges.GetAll() {
-		v.Add("changes", change)
-	}
 	if cmd.NArg() == 3 {
 		fmt.Fprintf(cli.err, "[DEPRECATED] The format 'file|URL|- [REPOSITORY [TAG]]' has been deprecated. Please use file|URL|- [REPOSITORY[:TAG]]\n")
-		v.Set("tag", cmd.Arg(2))
+		tag = cmd.Arg(2)
 	}
 
 	if repository != "" {
 		//Check if the given image name can be resolved
-		ref, err := reference.ParseNamed(repository)
-		if err != nil {
-			return err
-		}
-		if err := registry.ValidateRepositoryName(ref); err != nil {
+		if _, err := reference.ParseNamed(repository); err != nil {
 			return err
 		}
 	}
 
-	var in io.Reader
-
 	if src == "-" {
 		in = cli.in
 	} else if !urlutil.IsURL(src) {
-		v.Set("fromSrc", "-")
+		srcName = "-"
 		file, err := os.Open(src)
 		if err != nil {
 			return err
 		}
 		defer file.Close()
 		in = file
-
 	}
 
-	sopts := &streamOpts{
-		rawTerminal: true,
-		in:          in,
-		out:         cli.out,
+	options := types.ImageImportOptions{
+		Source:         in,
+		SourceName:     srcName,
+		RepositoryName: repository,
+		Message:        *message,
+		Tag:            tag,
+		Changes:        changes,
 	}
 
-	_, err := cli.stream("POST", "/images/create?"+v.Encode(), sopts)
-	return err
+	responseBody, err := cli.client.ImageImport(options)
+	if err != nil {
+		return err
+	}
+	defer responseBody.Close()
+
+	return jsonmessage.DisplayJSONMessagesStream(responseBody, cli.out, cli.outFd, cli.isTerminalOut, nil)
 }

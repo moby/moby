@@ -24,14 +24,15 @@ client must have `root` access to interact with the daemon. If a group named
 `docker` exists on your system, `docker` applies ownership of the socket to the
 group.
 
-The current version of the API is v1.22 which means calling `/info` is the same
-as calling `/v1.22/info`. To call an older version of the API use
-`/v1.21/info`.
+The current version of the API is v1.23 which means calling `/info` is the same
+as calling `/v1.23/info`. To call an older version of the API use
+`/v1.22/info`.
 
 Use the table below to find the API version for a Docker version:
 
 Docker version  | API version                        | Changes
 ----------------|------------------------------------|------------------------------------------------------
+1.11.x          | [1.23](docker_remote_api_v1.23.md) | [API changes](docker_remote_api.md#v1-23-api-changes)
 1.10.x          | [1.22](docker_remote_api_v1.22.md) | [API changes](docker_remote_api.md#v1-22-api-changes)
 1.9.x           | [1.21](docker_remote_api_v1.21.md) | [API changes](docker_remote_api.md#v1-21-api-changes)
 1.8.x           | [1.20](docker_remote_api_v1.20.md) | [API changes](docker_remote_api.md#v1-20-api-changes)
@@ -91,17 +92,42 @@ Running `docker rmi` emits an **untag** event when removing an image name.  The 
 
 This section lists each version from latest to oldest.  Each listing includes a link to the full documentation set and the changes relevant in that release.
 
+### v1.23 API changes
+
+[Docker Remote API v1.23](docker_remote_api_v1.23.md) documentation
+
+
 ### v1.22 API changes
 
 [Docker Remote API v1.22](docker_remote_api_v1.22.md) documentation
 
+* `POST /container/(name)/update` updates the resources of a container.
 * `GET /containers/json` supports filter `isolation` on Windows.
+* `GET /containers/json` now returns the list of networks of containers.
 * `GET /info` Now returns `Architecture` and `OSType` fields, providing information
   about the host architecture and operating system type that the daemon runs on.
 * `GET /networks/(name)` now returns a `Name` field for each container attached to the network.
-* `GET /version` now returns the `BuildTime` field in RFC3339Nano format to make it 
+* `GET /version` now returns the `BuildTime` field in RFC3339Nano format to make it
   consistent with other date/time values returned by the API.
 * `AuthConfig` now supports a `registrytoken` for token based authentication
+* `POST /containers/create` now has a 4M minimum value limit for `HostConfig.KernelMemory`
+* Pushes initiated with `POST /images/(name)/push` and pulls initiated with `POST /images/create`
+  will be cancelled if the HTTP connection making the API request is closed before
+  the push or pull completes.
+* `POST /containers/create` now allows you to set a read/write rate limit for a 
+  device (in bytes per second or IO per second).
+* `GET /networks` now supports filtering by `name`, `id` and `type`.
+* `POST /containers/create` now allows you to set the static IPv4 and/or IPv6 address for the container.
+* `POST /networks/(id)/connect` now allows you to set the static IPv4 and/or IPv6 address for the container.
+* `GET /info` now includes the number of containers running, stopped, and paused.
+* `POST /networks/create` now supports restricting external access to the network by setting the `internal` field.
+* `POST /networks/(id)/disconnect` now includes a `Force` option to forcefully disconnect a container from network
+* `GET /containers/(id)/json` now returns the `NetworkID` of containers.
+* `POST /networks/create` Now supports an options field in the IPAM config that provides options 
+  for custom IPAM plugins.
+* `GET /networks/{network-id}` Now returns IPAM config options for custom IPAM plugins if any
+  are available.
+* `GET /networks/<network-id>` now returns subnets info for user-defined networks.
 
 ### v1.21 API changes
 
@@ -110,7 +136,7 @@ This section lists each version from latest to oldest.  Each listing includes a 
 * `GET /volumes` lists volumes from all volume drivers.
 * `POST /volumes/create` to create a volume.
 * `GET /volumes/(name)` get low-level information about a volume.
-* `DELETE /volumes/(name)`remove a volume with the specified name.
+* `DELETE /volumes/(name)` remove a volume with the specified name.
 * `VolumeDriver` was moved from `config` to `HostConfig` to make the configuration portable.
 * `GET /images/(name)/json` now returns information about an image's `RepoTags` and `RepoDigests`.
 * The `config` option now accepts the field `StopSignal`, which specifies the signal to use to kill a container.

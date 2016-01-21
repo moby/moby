@@ -146,7 +146,7 @@ var (
 	}
 )
 
-// DefaultTHash is default TarSum hashing algoritm - "sha256".
+// DefaultTHash is default TarSum hashing algorithm - "sha256".
 var DefaultTHash = NewTHash("sha256", sha256.New)
 
 type simpleTHash struct {
@@ -261,7 +261,7 @@ func (ts *tarSum) Read(buf []byte) (int, error) {
 		return 0, err
 	}
 
-	// Filling the tar writter
+	// Filling the tar writer
 	if _, err = ts.tarW.Write(buf2[:n]); err != nil {
 		return 0, err
 	}

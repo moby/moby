@@ -96,9 +96,6 @@ func New(ctx logger.Context) (logger.Logger, error) {
 }
 
 func (s *gelfLogger) Log(msg *logger.Message) error {
-	// remove trailing and leading whitespace
-	short := bytes.TrimSpace([]byte(msg.Line))
-
 	level := gelf.LOG_INFO
 	if msg.Source == "stderr" {
 		level = gelf.LOG_ERR
@@ -107,7 +104,7 @@ func (s *gelfLogger) Log(msg *logger.Message) error {
 	m := gelf.Message{
 		Version:  "1.1",
 		Host:     s.hostname,
-		Short:    string(short),
+		Short:    string(msg.Line),
 		TimeUnix: float64(msg.Timestamp.UnixNano()/int64(time.Millisecond)) / 1000.0,
 		Level:    level,
 		Extra:    s.extra,

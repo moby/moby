@@ -2,8 +2,7 @@ package client
 
 import (
 	"fmt"
-	"net/url"
-	"strconv"
+	"strings"
 
 	Cli "github.com/docker/docker/cli"
 	flag "github.com/docker/docker/pkg/mflag"
@@ -19,21 +18,16 @@ func (cli *DockerCli) CmdRestart(args ...string) error {
 
 	cmd.ParseFlags(args, true)
 
-	v := url.Values{}
-	v.Set("t", strconv.Itoa(*nSeconds))
-
-	var errNames []string
+	var errs []string
 	for _, name := range cmd.Args() {
-		_, _, err := readBody(cli.call("POST", "/containers/"+name+"/restart?"+v.Encode(), nil, nil))
-		if err != nil {
-			fmt.Fprintf(cli.err, "%s\n", err)
-			errNames = append(errNames, name)
+		if err := cli.client.ContainerRestart(name, *nSeconds); err != nil {
+			errs = append(errs, fmt.Sprintf("Failed to kill container (%s): %s", name, err))
 		} else {
 			fmt.Fprintf(cli.out, "%s\n", name)
 		}
 	}
-	if len(errNames) > 0 {
-		return fmt.Errorf("Error: failed to restart containers: %v", errNames)
+	if len(errs) > 0 {
+		return fmt.Errorf("%s", strings.Join(errs, "\n"))
 	}
 	return nil
 }

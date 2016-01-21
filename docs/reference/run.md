@@ -123,9 +123,9 @@ pretend to be a TTY (this is what most command line executables expect)
 and pass along signals. All of that is configurable:
 
     -a=[]           : Attach to `STDIN`, `STDOUT` and/or `STDERR`
-    -t=false        : Allocate a pseudo-tty
+    -t              : Allocate a pseudo-tty
     --sig-proxy=true: Proxy all received signals to the process (non-TTY mode only)
-    -i=false        : Keep STDIN open even if not attached
+    -i              : Keep STDIN open even if not attached
 
 If you do not specify `-a` then Docker will [attach all standard
 streams]( https://github.com/docker/docker/blob/75a7f4d90cde0295bcfb7213004abce8d4779b75/commands.go#L1797).
@@ -206,10 +206,27 @@ on the system.  For example, you could build a container with debugging tools
 like `strace` or `gdb`, but want to use these tools when debugging processes
 within the container.
 
-    $ docker run --pid=host rhel7 strace -p 1234
+### Example: run htop inside a container
 
-This command would allow you to use `strace` inside the container on pid 1234 on
-the host.
+Create this Dockerfile:
+
+```
+FROM alpine:latest
+RUN apk add --update htop && rm -rf /var/cache/apk/*
+CMD ["htop"]
+```
+
+Build the Dockerfile and tag the image as `myhtop`:
+
+```bash
+$ docker build -t myhtop .
+```
+
+Use the following command to run `htop` inside a container:
+
+```
+$ docker run -it --rm --pid=host myhtop
+```
 
 ## UTS settings (--uts)
 
@@ -256,8 +273,11 @@ of the containers.
                         'container:<name|id>': reuse another container's network stack
                         'host': use the Docker host network stack
                         '<network-name>|<network-id>': connect to a user-defined network
+    --net-alias=[]   : Add network-scoped alias for the container
     --add-host=""    : Add a line to /etc/hosts (host:IP)
     --mac-address="" : Sets the container's Ethernet device's MAC address
+    --ip=""          : Sets the container's Ethernet device's IPv4 address
+    --ip6=""         : Sets the container's Ethernet device's IPv6 address
 
 By default, all containers have networking enabled and they can make any
 outgoing connections. The operator can completely disable networking
@@ -504,9 +524,10 @@ Or, to get the last time the container was (re)started;
     $ docker inspect -f "{{ .State.StartedAt }}" my-container
     # 2015-03-04T23:47:07.691840179Z
 
-You cannot set any restart policy in combination with
-["clean up (--rm)"](#clean-up-rm). Setting both `--restart` and `--rm`
-results in an error.
+
+Combining `--restart` (restart policy) with the `--rm` (clean up) flag results
+in an error. On container restart, attached clients are disconnected. See the
+examples on using the [`--rm` (clean up)](#clean-up-rm) flag later in this page.
 
 ### Examples
 
@@ -619,10 +640,10 @@ container:
 
 | Option                     |  Description                                                                                                                                    |
 | -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| `-m`, `--memory=""`        | Memory limit (format: `<number>[<unit>]`). Number is a positive integer. Unit can be one of `b`, `k`, `m`, or `g`.                              |
+| `-m`, `--memory=""`        | Memory limit (format: `<number>[<unit>]`). Number is a positive integer. Unit can be one of `b`, `k`, `m`, or `g`. Minimum is 4M.               |
 | `--memory-swap=""`         | Total memory limit (memory + swap, format: `<number>[<unit>]`). Number is a positive integer. Unit can be one of `b`, `k`, `m`, or `g`.         |
 | `--memory-reservation=""`  | Memory soft limit (format: `<number>[<unit>]`). Number is a positive integer. Unit can be one of `b`, `k`, `m`, or `g`.                         |
-| `--kernel-memory=""`       | Kernel memory limit (format: `<number>[<unit>]`). Number is a positive integer. Unit can be one of `b`, `k`, `m`, or `g`.                       |
+| `--kernel-memory=""`       | Kernel memory limit (format: `<number>[<unit>]`). Number is a positive integer. Unit can be one of `b`, `k`, `m`, or `g`. Minimum is 4M.        |
 | `-c`, `--cpu-shares=0`     | CPU shares (relative weight)                                                                                                                    |
 | `--cpu-period=0`           | Limit the CPU CFS (Completely Fair Scheduler) period                                                                                            |
 | `--cpuset-cpus=""`         | CPUs in which to allow execution (0-3, 0,1)                                                                                                     |
@@ -632,6 +653,8 @@ container:
 | `--blkio-weight-device=""` | Block IO weight (relative device weight, format: `DEVICE_NAME:WEIGHT`)                                                                          |
 | `--device-read-bps=""`     | Limit read rate from a device (format: `<device-path>:<number>[<unit>]`). Number is a positive integer. Unit can be one of `kb`, `mb`, or `gb`. |
 | `--device-write-bps=""`    | Limit write rate to a device (format: `<device-path>:<number>[<unit>]`). Number is a positive integer. Unit can be one of `kb`, `mb`, or `gb`.  |
+| `--device-read-iops="" `   | Limit read rate (IO per second) from a device (format: `<device-path>:<number>`). Number is a positive integer.                                 |
+| `--device-write-iops="" `  | Limit write rate (IO per second) to a device (format: `<device-path>:<number>`). Number is a positive integer.                                  |
 | `--oom-kill-disable=false` | Whether to disable OOM Killer for the container or not.                                                                                         |
 | `--memory-swappiness=""`   | Tune a container's memory swappiness behavior. Accepts an integer between 0 and 100.                                                            |
 | `--shm-size=""`            | Size of `/dev/shm`. The format is `<number><unit>`. `number` must be greater than `0`. Unit is optional and can be `b` (bytes), `k` (kilobytes), `m` (megabytes), or `g` (gigabytes). If you omit the unit, the system uses bytes. If you omit the size entirely, the system uses `64m`. |
@@ -983,21 +1006,36 @@ on `/dev/sda` setting that weight to `200`:
         --blkio-weight-device "/dev/sda:200" \
         ubuntu
 
-The `--device-read-bps` flag limits the read rate from a device. For example,
-this command creates a container and limits the read rate to `1mb` per second
-from `/dev/sda`:
+The `--device-read-bps` flag limits the read rate (bytes per second) from a device.
+For example, this command creates a container and limits the read rate to `1mb`
+per second from `/dev/sda`:
 
     $ docker run -it --device-read-bps /dev/sda:1mb ubuntu
 
-The `--device-write-bps` flag limits the write rate to a device. For example,
-this command creates a container and limits the write rate to `1mb` per second
-for `/dev/sda`: 
+The `--device-write-bps` flag limits the write rate (bytes per second)to a device.
+For example, this command creates a container and limits the write rate to `1mb`
+per second for `/dev/sda`: 
 
     $ docker run -it --device-write-bps /dev/sda:1mb ubuntu
 
 Both flags take limits in the `<device-path>:<limit>[unit]` format. Both read
 and write rates must be a positive integer. You can specify the rate in `kb`
 (kilobytes), `mb` (megabytes), or `gb` (gigabytes).
+
+The `--device-read-iops` flag limits read rate (IO per second) from a device.
+For example, this command creates a container and limits the read rate to
+`1000` IO per second from `/dev/sda`:
+
+    $ docker run -ti --device-read-iops /dev/sda:1000 ubuntu
+
+The `--device-write-iops` flag limits write rate (IO per second) to a device.
+For example, this command creates a container and limits the write rate to
+`1000` IO per second to `/dev/sda`:
+
+    $ docker run -ti --device-write-iops /dev/sda:1000 ubuntu
+
+Both flags take limits in the `<device-path>:<limit>` format. Both read and
+write rates must be a positive integer.
 
 ## Additional groups
     --group-add: Add Linux capabilities
@@ -1221,7 +1259,7 @@ The following `run` command options work with container networking:
 
     --expose=[]: Expose a port or a range of ports inside the container.
                  These are additional to those exposed by the `EXPOSE` instruction
-    -P=false   : Publish all exposed ports to the host interfaces
+    -P         : Publish all exposed ports to the host interfaces
     -p=[]      : Publish a container᾿s port or a range of ports to the host
                    format: ip:hostPort:containerPort | ip::containerPort | hostPort:containerPort | containerPort
                    Both hostPort and containerPort can be specified as a
@@ -1264,12 +1302,12 @@ specifies `EXPOSE 80` in the Dockerfile). At runtime, the port might be
 bound to 42800 on the host. To find the mapping between the host ports
 and the exposed ports, use `docker port`.
 
-If the operator uses `--link` when starting a new client container, then the
-client container can access the exposed port via a private networking interface.
-Linking is a legacy feature that is only supported on the default bridge
-network. You should prefer the Docker networks feature instead. For more
-information on this feature, see the [*Docker network
-overview*""](../userguide/networking/index.md)).
+If the operator uses `--link` when starting a new client container in the
+default bridge network, then the client container can access the exposed
+port via a private networking interface.
+If `--link` is used when starting a container in a user-defined network as
+described in [*Docker network overview*""](../userguide/networking/index.md)),
+it will provide a named alias for the container being linked to.
 
 ### ENV (environment variables)
 
@@ -1330,11 +1368,14 @@ Similarly the operator can set the **hostname** with `-h`.
 
 ### VOLUME (shared filesystems)
 
-    -v=[]: Create a bind mount with: [host-src:]container-dest[:<options>], where
-    options are comma delimited and selected from [rw|ro] and [z|Z].
-           If 'host-src' is missing, then docker creates a new volume.
-		   If neither 'rw' or 'ro' is specified then the volume is mounted
-		   in read-write mode.
+    -v, --volume=[host-src:]container-dest[:<options>]: Bind mount a volume.
+    The comma-delimited `options` are [rw|ro], [z|Z], or
+    [[r]shared|[r]slave|[r]private]. The 'host-src' is an absolute path or a
+    name value.
+
+    If neither 'rw' or 'ro' is specified then the volume is mounted in
+    read-write mode.
+
     --volumes-from="": Mount all volumes from the given container(s)
 
 > **Note**:

@@ -6,15 +6,15 @@ docker-ps - List containers
 
 # SYNOPSIS
 **docker ps**
-[**-a**|**--all**[=*false*]]
+[**-a**|**--all**]
 [**-f**|**--filter**[=*[]*]]
 [**--format**=*"TEMPLATE"*]
 [**--help**]
-[**-l**|**--latest**[=*false*]]
+[**-l**|**--latest**]
 [**-n**[=*-1*]]
-[**--no-trunc**[=*false*]]
-[**-q**|**--quiet**[=*false*]]
-[**-s**|**--size**[=*false*]]
+[**--no-trunc**]
+[**-q**|**--quiet**]
+[**-s**|**--size**]
 
 # DESCRIPTION
 
@@ -26,16 +26,15 @@ the running containers.
    Show all containers. Only running containers are shown by default. The default is *false*.
 
 **-f**, **--filter**=[]
-   Provide filter values. Valid filters:
-                          exited=<int> - containers with exit code of <int>
-                          label=<key> or label=<key>=<value>
-                          status=(created|restarting|running|paused|exited)
-                          name=<string> - container's name
-                          id=<ID> - container's ID
-                          before=(<container-name>|<container-id>)
-                          since=(<container-name>|<container-id>)
-                          ancestor=(<image-name>[:tag]|<image-id>|<image@digest>) - filters containers that were
-                          created from the given image or a descendant.
+   Filter output based on these conditions:
+   - exited=<int> an exit code of <int>
+   - label=<key> or label=<key>=<value>
+   - status=(created|restarting|running|paused|exited)
+   - name=<string> a container's name
+   - id=<ID> a container's ID
+   - before=(<container-name>|<container-id>)
+   - since=(<container-name>|<container-id>)
+   - ancestor=(<image-name>[:tag]|<image-id>|<image@digest>) - containers created from an image or a descendant.
 
 **--format**="*TEMPLATE*"
    Pretty-print containers using a Go template.
@@ -48,7 +47,7 @@ the running containers.
       .Ports - Exposed ports.
       .Status - Container status.
       .Size - Container disk size.
-      .Labels - All labels asigned to the container.
+      .Labels - All labels assigned to the container.
       .Label - Value of a specific label for this container. For example `{{.Label "com.docker.swarm.cpu"}}`
 
 **--help**

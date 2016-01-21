@@ -146,7 +146,7 @@ func followLogs(f *os.File, logWatcher *logger.LogWatcher, notifyRotate chan int
 				// io.ErrUnexpectedEOF is returned from json.Decoder when there is
 				// remaining data in the parser's buffer while an io.EOF occurs.
 				// If the json logger writes a partial json log entry to the disk
-				// while at the same time the decoder tries to decode it, the race codition happens.
+				// while at the same time the decoder tries to decode it, the race condition happens.
 				if err == io.ErrUnexpectedEOF && retries <= maxJSONDecodeRetry {
 					reader := io.MultiReader(dec.Buffered(), f)
 					dec = json.NewDecoder(reader)

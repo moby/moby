@@ -16,7 +16,7 @@ parent = "smn_cli"
 	specified "https://index.docker.io/v1/" is the default.
 
       -e, --email=""       Email
-      --help=false         Print usage
+      --help               Print usage
       -p, --password=""    Password
       -u, --username=""    Username
 
@@ -30,7 +30,7 @@ adding the server name.
 `docker login` requires user to use `sudo` or be `root`, except when: 
 
 1.  connecting to a remote daemon, such as a `docker-machine` provisioned `docker engine`.
-2.  user is added to the `docker` group.  This will impact the security of your system; the `docker` group is `root` equivalent.  See [Docker Daemon Attack Surface](https://docs.docker.com/articles/security/#docker-daemon-attack-surface) for details. 
+2.  user is added to the `docker` group.  This will impact the security of your system; the `docker` group is `root` equivalent.  See [Docker Daemon Attack Surface](https://docs.docker.com/security/security/#docker-daemon-attack-surface) for details. 
 
 You can log into any public or private repository for which you have
 credentials.  When you log in, the command stores encoded credentials in

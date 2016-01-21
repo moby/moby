@@ -118,6 +118,7 @@ func (s *DockerSuite) TestStatsAllNewContainersAdded(c *check.C) {
 	}()
 
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
+	c.Assert(waitRun(strings.TrimSpace(out)), check.IsNil)
 	id <- strings.TrimSpace(out)[:12]
 
 	select {

@@ -4,10 +4,10 @@ import (
 	"encoding/json"
 	"io"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/versions/v1p20"
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/pkg/version"
+	"github.com/docker/engine-api/types"
+	"github.com/docker/engine-api/types/versions/v1p20"
 )
 
 // ContainerStatsConfig holds information for configuring the runtime
@@ -22,7 +22,7 @@ type ContainerStatsConfig struct {
 // ContainerStats writes information about the container to the stream
 // given in the config object.
 func (daemon *Daemon) ContainerStats(prefixOrName string, config *ContainerStatsConfig) error {
-	container, err := daemon.Get(prefixOrName)
+	container, err := daemon.GetContainer(prefixOrName)
 	if err != nil {
 		return err
 	}

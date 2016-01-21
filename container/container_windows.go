@@ -5,11 +5,8 @@ package container
 import (
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/volume"
+	"github.com/docker/engine-api/types/container"
 )
-
-// DefaultPathEnv is deliberately empty on Windows as the default path will be set by
-// the container. Docker has no context of what the default path should be.
-const DefaultPathEnv = ""
 
 // Container holds fields specific to the Windows implementation. See
 // CommonContainer for standard fields common to all containers.
@@ -41,13 +38,18 @@ func (container *Container) IpcMounts() []execdriver.Mount {
 	return nil
 }
 
-// UnmountVolumes explicitely unmounts volumes from the container.
-func (container *Container) UnmountVolumes(forceSyscall bool) error {
+// UnmountVolumes explicitly unmounts volumes from the container.
+func (container *Container) UnmountVolumes(forceSyscall bool, volumeEventLog func(name, action string, attributes map[string]string)) error {
 	return nil
 }
 
 // TmpfsMounts returns the list of tmpfs mounts
 func (container *Container) TmpfsMounts() []execdriver.Mount {
+	return nil
+}
+
+// UpdateContainer updates resources of a container
+func (container *Container) UpdateContainer(hostConfig *container.HostConfig) error {
 	return nil
 }
 

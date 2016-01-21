@@ -11,7 +11,7 @@ weight=-3
 
 # Fedora
 
-Docker is supported Fedora version 21 and 22. This page instructs you to install
+Docker is supported on Fedora version 22 and 23. This page instructs you to install
 using Docker-managed release packages and installation mechanisms. Using these
 packages ensures you get the latest release of Docker. If you wish to install
 using Fedora-managed packages, consult your Fedora release documentation for
@@ -34,15 +34,15 @@ reported kernel bugs may have already been fixed on the latest kernel packages
 
 ## Install
 
-There are two ways to install Docker Engine.  You can install with the `yum` package manager. Or you can use `curl` with the  `get.docker.com` site. This second method runs an installation script which also installs via the `yum` package manager.
+There are two ways to install Docker Engine.  You can install with the `dnf` package manager. Or you can use `curl` with the  `get.docker.com` site. This second method runs an installation script which also installs via the `dnf` package manager.
 
-### Install with yum
+### Install with DNF
 
 1. Log into your machine as a user with `sudo` or `root` privileges.
 
-2. Make sure your existing yum packages are up-to-date.
+2. Make sure your existing dnf packages are up-to-date.
 
-		$ sudo yum update
+		$ sudo dnf update
 
 3. Add the yum repo yourself.
 
@@ -57,7 +57,7 @@ There are two ways to install Docker Engine.  You can install with the `yum` pac
 
 4. Install the Docker package.
 
-        $ sudo yum install docker-engine
+        $ sudo dnf install docker-engine
 
 5. Start the Docker daemon.
 
@@ -98,13 +98,13 @@ There are two ways to install Docker Engine.  You can install with the `yum` pac
 
 1. Log into your machine as a user with `sudo` or `root` privileges.
 
-2. Make sure your existing yum packages are up-to-date.
+2. Make sure your existing dnf packages are up-to-date.
 
-		$ sudo yum update
+		$ sudo dnf update
 
 3. Run the Docker installation script.
 
-		$ curl -sSL https://get.docker.com/ | sh
+		$ curl -fsSL https://get.docker.com/ | sh
 
 	This script adds the `docker.repo` repository and installs Docker.
 
@@ -128,7 +128,7 @@ makes the ownership of the Unix socket read/writable by the `docker` group.
 
 >**Warning**: The `docker` group is equivalent to the `root` user; For details
 >on how this impacts security in your system, see [*Docker Daemon Attack
->Surface*](../articles/security.md#docker-daemon-attack-surface) for details.
+>Surface*](../security/security.md#docker-daemon-attack-surface) for details.
 
 To create the `docker` group and add your user:
 
@@ -177,16 +177,16 @@ This configuration allows IP forwarding from the container as expected.
 
 ## Uninstall
 
-You can uninstall the Docker software with `yum`.
+You can uninstall the Docker software with `dnf`.
 
 1. List the package you have installed.
 
-		$ yum list installed | grep docker yum list installed | grep docker
+		$ dnf list installed | grep docker dnf list installed | grep docker
 		docker-engine.x86_64     1.7.1-0.1.fc21 @/docker-engine-1.7.1-0.1.fc21.el7.x86_64
 
 2. Remove the package.
 
-		$ sudo yum -y remove docker-engine.x86_64
+		$ sudo dnf -y remove docker-engine.x86_64
 
 	This command does not remove images, containers, volumes, or user-created
 	configuration files on your host.

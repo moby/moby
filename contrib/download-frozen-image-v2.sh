@@ -56,6 +56,13 @@ while [ $# -gt 0 ]; do
 	layersFs=$(echo "$manifestJson" | jq --raw-output '.fsLayers | .[] | .blobSum')
 
 	IFS=$'\n'
+	# bash v4 on Windows CI requires CRLF separator
+	if [ "$(go env GOHOSTOS)" = 'windows' ]; then
+		major=$(echo ${BASH_VERSION%%[^0.9]} | cut -d. -f1)
+		if [ "$major" -ge 4 ]; then
+			IFS=$'\r\n'
+		fi
+	fi
 	layers=( ${layersFs} )
 	unset IFS
 

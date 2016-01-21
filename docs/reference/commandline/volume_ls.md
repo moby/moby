@@ -15,8 +15,8 @@ parent = "smn_cli"
     List volumes
 
       -f, --filter=[]      Provide filter values (i.e. 'dangling=true')
-      --help=false         Print usage
-      -q, --quiet=false    Only display volume names
+      --help               Print usage
+      -q, --quiet          Only display volume names
 
 Lists all the volumes Docker knows about. You can filter using the `-f` or `--filter` flag. The filtering format is a `key=value` pair. To specify more than one filter,  pass multiple flags (for example,  `--filter "foo=bar" --filter "bif=baz"`)
 

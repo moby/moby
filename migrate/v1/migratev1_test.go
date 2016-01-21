@@ -13,13 +13,13 @@ import (
 	"testing"
 
 	"github.com/docker/distribution/digest"
-	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/distribution/metadata"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
+	"github.com/docker/docker/reference"
 )
 
-func TestMigrateTags(t *testing.T) {
+func TestMigrateRefs(t *testing.T) {
 	tmpdir, err := ioutil.TempDir("", "migrate-tags")
 	if err != nil {
 		t.Fatal(err)
@@ -29,7 +29,7 @@ func TestMigrateTags(t *testing.T) {
 	ioutil.WriteFile(filepath.Join(tmpdir, "repositories-generic"), []byte(`{"Repositories":{"busybox":{"latest":"b3ca410aa2c115c05969a7b2c8cf8a9fcf62c1340ed6a601c9ee50df337ec108","sha256:16a2a52884c2a9481ed267c2d46483eac7693b813a63132368ab098a71303f8a":"b3ca410aa2c115c05969a7b2c8cf8a9fcf62c1340ed6a601c9ee50df337ec108"},"registry":{"2":"5d165b8e4b203685301c815e95663231691d383fd5e3d3185d1ce3f8dddead3d","latest":"8d5547a9f329b1d3f93198cd661fb5117e5a96b721c5cf9a2c389e7dd4877128"}}}`), 0600)
 
 	ta := &mockTagAdder{}
-	err = migrateTags(tmpdir, "generic", ta, map[string]image.ID{
+	err = migrateRefs(tmpdir, "generic", ta, map[string]image.ID{
 		"5d165b8e4b203685301c815e95663231691d383fd5e3d3185d1ce3f8dddead3d": image.ID("sha256:2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae"),
 		"b3ca410aa2c115c05969a7b2c8cf8a9fcf62c1340ed6a601c9ee50df337ec108": image.ID("sha256:fcde2b2edba56bf408601fb721fe9b5c338d10ee429ea04fae5511b68fbf8fb9"),
 		"abcdef3434c115c05969a7b2c8cf8a9fcf62c1340ed6a601c9ee50df337ec108": image.ID("sha256:56434342345ae68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae"),
@@ -50,7 +50,7 @@ func TestMigrateTags(t *testing.T) {
 
 	// second migration is no-op
 	ioutil.WriteFile(filepath.Join(tmpdir, "repositories-generic"), []byte(`{"Repositories":{"busybox":{"latest":"b3ca410aa2c115c05969a7b2c8cf8a9fcf62c1340ed6a601c9ee50df337ec108"`), 0600)
-	err = migrateTags(tmpdir, "generic", ta, map[string]image.ID{
+	err = migrateRefs(tmpdir, "generic", ta, map[string]image.ID{
 		"b3ca410aa2c115c05969a7b2c8cf8a9fcf62c1340ed6a601c9ee50df337ec108": image.ID("sha256:fcde2b2edba56bf408601fb721fe9b5c338d10ee429ea04fae5511b68fbf8fb9"),
 	})
 	if err != nil {
@@ -210,19 +210,19 @@ func TestMigrateImages(t *testing.T) {
 		t.Fatalf("invalid register count: expected %q, got %q", expected, actual)
 	}
 
-	blobSumService := metadata.NewBlobSumService(ms)
-	blobsums, err := blobSumService.GetBlobSums(layer.EmptyLayer.DiffID())
+	v2MetadataService := metadata.NewV2MetadataService(ms)
+	receivedMetadata, err := v2MetadataService.GetMetadata(layer.EmptyLayer.DiffID())
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	expectedBlobsums := []digest.Digest{
-		"sha256:55dc925c23d1ed82551fd018c27ac3ee731377b6bad3963a2a4e76e753d70e57",
-		"sha256:a3ed95caeb02ffe68cdd9fd84406680ae93d633cb16422d00e8a7c22955b46d4",
+	expectedMetadata := []metadata.V2Metadata{
+		{Digest: digest.Digest("sha256:55dc925c23d1ed82551fd018c27ac3ee731377b6bad3963a2a4e76e753d70e57")},
+		{Digest: digest.Digest("sha256:a3ed95caeb02ffe68cdd9fd84406680ae93d633cb16422d00e8a7c22955b46d4")},
 	}
 
-	if !reflect.DeepEqual(expectedBlobsums, blobsums) {
-		t.Fatalf("invalid blobsums: expected %q, got %q", expectedBlobsums, blobsums)
+	if !reflect.DeepEqual(expectedMetadata, receivedMetadata) {
+		t.Fatalf("invalid metadata: expected %q, got %q", expectedMetadata, receivedMetadata)
 	}
 
 }
@@ -234,9 +234,27 @@ func TestMigrateUnsupported(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpdir)
 
+	err = os.MkdirAll(filepath.Join(tmpdir, "graph"), 0700)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	err = Migrate(tmpdir, "generic", nil, nil, nil, nil)
 	if err != errUnsupported {
 		t.Fatalf("expected unsupported error, got %q", err)
+	}
+}
+
+func TestMigrateEmptyDir(t *testing.T) {
+	tmpdir, err := ioutil.TempDir("", "migrate-empty")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpdir)
+
+	err = Migrate(tmpdir, "generic", nil, nil, nil, nil)
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 
@@ -255,6 +273,17 @@ func addImage(dest, jsonConfig, parent, checksum string) (string, error) {
 		return "", err
 	}
 	if err := ioutil.WriteFile(filepath.Join(contDir, "json"), []byte(jsonConfig), 0600); err != nil {
+		return "", err
+	}
+	if checksum != "" {
+		if err := ioutil.WriteFile(filepath.Join(contDir, "checksum"), []byte(checksum), 0600); err != nil {
+			return "", err
+		}
+	}
+	if err := ioutil.WriteFile(filepath.Join(contDir, ".migration-diffid"), []byte(layer.EmptyLayer.DiffID()), 0600); err != nil {
+		return "", err
+	}
+	if err := ioutil.WriteFile(filepath.Join(contDir, ".migration-size"), []byte("0"), 0600); err != nil {
 		return "", err
 	}
 	if parent != "" {
@@ -305,7 +334,7 @@ type mockRegistrar struct {
 	count  int
 }
 
-func (r *mockRegistrar) RegisterByGraphID(graphID string, parent layer.ChainID, tarDataFile string) (layer.Layer, error) {
+func (r *mockRegistrar) RegisterByGraphID(graphID string, parent layer.ChainID, diffID layer.DiffID, tarDataFile string, size int64) (layer.Layer, error) {
 	r.count++
 	l := &mockLayer{}
 	if parent != "" {
@@ -316,7 +345,7 @@ func (r *mockRegistrar) RegisterByGraphID(graphID string, parent layer.ChainID, 
 		l.parent = p
 		l.diffIDs = append(l.diffIDs, p.diffIDs...)
 	}
-	l.diffIDs = append(l.diffIDs, layer.EmptyLayer.DiffID())
+	l.diffIDs = append(l.diffIDs, diffID)
 	if r.layers == nil {
 		r.layers = make(map[layer.ChainID]*mockLayer)
 	}
@@ -338,10 +367,9 @@ type mockMounter struct {
 	count  int
 }
 
-func (r *mockMounter) MountByGraphID(name string, graphID string, parent layer.ChainID) (layer.RWLayer, error) {
+func (r *mockMounter) CreateRWLayerByGraphID(name string, graphID string, parent layer.ChainID) error {
 	r.mounts = append(r.mounts, mountInfo{name, graphID, string(parent)})
-	r.count++
-	return nil, nil
+	return nil
 }
 func (r *mockMounter) Unmount(string) error {
 	r.count--

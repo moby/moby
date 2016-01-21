@@ -6,9 +6,9 @@ docker-stats - Display a live stream of one or more containers' resource usage s
 
 # SYNOPSIS
 **docker stats**
-[**-a**|**--all**[=*false*]]
+[**-a**|**--all**]
 [**--help**]
-[**--no-stream**[=*false*]]
+[**--no-stream**]
 [CONTAINER...]
 
 # DESCRIPTION

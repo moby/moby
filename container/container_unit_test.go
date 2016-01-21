@@ -4,13 +4,13 @@ import (
 	"testing"
 
 	"github.com/docker/docker/pkg/signal"
-	"github.com/docker/docker/runconfig"
+	"github.com/docker/engine-api/types/container"
 )
 
 func TestContainerStopSignal(t *testing.T) {
 	c := &Container{
 		CommonContainer: CommonContainer{
-			Config: &runconfig.Config{},
+			Config: &container.Config{},
 		},
 	}
 
@@ -26,7 +26,7 @@ func TestContainerStopSignal(t *testing.T) {
 
 	c = &Container{
 		CommonContainer: CommonContainer{
-			Config: &runconfig.Config{StopSignal: "SIGKILL"},
+			Config: &container.Config{StopSignal: "SIGKILL"},
 		},
 	}
 	s = c.StopSignal()

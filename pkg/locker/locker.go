@@ -41,7 +41,7 @@ func (l *lockCtr) inc() {
 	atomic.AddInt32(&l.waiters, 1)
 }
 
-// dec decrements the number of waiters wating on the lock
+// dec decrements the number of waiters waiting on the lock
 func (l *lockCtr) dec() {
 	atomic.AddInt32(&l.waiters, -1)
 }

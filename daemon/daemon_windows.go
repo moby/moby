@@ -4,22 +4,23 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
-	"github.com/docker/docker/tag"
+	"github.com/docker/docker/reference"
+	containertypes "github.com/docker/engine-api/types/container"
 	// register the windows graph driver
 	"github.com/docker/docker/daemon/graphdriver/windows"
+	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/system"
-	"github.com/docker/docker/runconfig"
 	"github.com/docker/libnetwork"
 	blkiodev "github.com/opencontainers/runc/libcontainer/configs"
 )
@@ -31,19 +32,27 @@ const (
 	windowsMaxCPUShares  = 10000
 )
 
-func getBlkioWeightDevices(config *runconfig.HostConfig) ([]*blkiodev.WeightDevice, error) {
+func getBlkioWeightDevices(config *containertypes.HostConfig) ([]*blkiodev.WeightDevice, error) {
 	return nil, nil
 }
 
-func parseSecurityOpt(container *container.Container, config *runconfig.HostConfig) error {
+func parseSecurityOpt(container *container.Container, config *containertypes.HostConfig) error {
 	return nil
 }
 
-func getBlkioReadBpsDevices(config *runconfig.HostConfig) ([]*blkiodev.ThrottleDevice, error) {
+func getBlkioReadIOpsDevices(config *containertypes.HostConfig) ([]*blkiodev.ThrottleDevice, error) {
 	return nil, nil
 }
 
-func getBlkioWriteBpsDevices(config *runconfig.HostConfig) ([]*blkiodev.ThrottleDevice, error) {
+func getBlkioWriteIOpsDevices(config *containertypes.HostConfig) ([]*blkiodev.ThrottleDevice, error) {
+	return nil, nil
+}
+
+func getBlkioReadBpsDevices(config *containertypes.HostConfig) ([]*blkiodev.ThrottleDevice, error) {
+	return nil, nil
+}
+
+func getBlkioWriteBpsDevices(config *containertypes.HostConfig) ([]*blkiodev.ThrottleDevice, error) {
 	return nil, nil
 }
 
@@ -57,7 +66,7 @@ func checkKernel() error {
 
 // adaptContainerSettings is called during container creation to modify any
 // settings necessary in the HostConfig structure.
-func (daemon *Daemon) adaptContainerSettings(hostConfig *runconfig.HostConfig, adjustCPUShares bool) error {
+func (daemon *Daemon) adaptContainerSettings(hostConfig *containertypes.HostConfig, adjustCPUShares bool) error {
 	if hostConfig == nil {
 		return nil
 	}
@@ -75,7 +84,7 @@ func (daemon *Daemon) adaptContainerSettings(hostConfig *runconfig.HostConfig, a
 
 // verifyPlatformContainerSettings performs platform-specific validation of the
 // hostconfig and config structures.
-func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *runconfig.HostConfig, config *runconfig.Config) ([]string, error) {
+func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.HostConfig, config *containertypes.Config) ([]string, error) {
 	return nil, nil
 }
 
@@ -106,10 +115,6 @@ func configureKernelSecuritySupport(config *Config, driverName string) error {
 	return nil
 }
 
-func migrateIfDownlevel(driver graphdriver.Driver, root string) error {
-	return nil
-}
-
 func isBridgeNetworkDisabled(config *Config) bool {
 	return false
 }
@@ -124,11 +129,24 @@ func (daemon *Daemon) initNetworkController(config *Config) (libnetwork.NetworkC
 
 // registerLinks sets up links between containers and writes the
 // configuration out for persistence. As of Windows TP4, links are not supported.
-func (daemon *Daemon) registerLinks(container *container.Container, hostConfig *runconfig.HostConfig) error {
+func (daemon *Daemon) registerLinks(container *container.Container, hostConfig *containertypes.HostConfig) error {
 	return nil
 }
 
 func (daemon *Daemon) cleanupMounts() error {
+	return nil
+}
+
+func setupRemappedRoot(config *Config) ([]idtools.IDMap, []idtools.IDMap, error) {
+	return nil, nil, nil
+}
+
+func setupDaemonRoot(config *Config, rootDir string, rootUID, rootGID int) error {
+	config.Root = rootDir
+	// Create the root directory if it doesn't exists
+	if err := system.MkdirAll(config.Root, 0700); err != nil && !os.IsExist(err) {
+		return err
+	}
 	return nil
 }
 
@@ -153,67 +171,78 @@ func (daemon *Daemon) conditionalUnmountOnCleanup(container *container.Container
 	}
 }
 
-func restoreCustomImage(driver graphdriver.Driver, is image.Store, ls layer.Store, ts tag.Store) error {
-	if wd, ok := driver.(*windows.Driver); ok {
-		imageInfos, err := wd.GetCustomImageInfos()
+func restoreCustomImage(is image.Store, ls layer.Store, rs reference.Store) error {
+	type graphDriverStore interface {
+		GraphDriver() graphdriver.Driver
+	}
+
+	gds, ok := ls.(graphDriverStore)
+	if !ok {
+		return nil
+	}
+
+	driver := gds.GraphDriver()
+	wd, ok := driver.(*windows.Driver)
+	if !ok {
+		return nil
+	}
+
+	imageInfos, err := wd.GetCustomImageInfos()
+	if err != nil {
+		return err
+	}
+
+	// Convert imageData to valid image configuration
+	for i := range imageInfos {
+		name := strings.ToLower(imageInfos[i].Name)
+
+		type registrar interface {
+			RegisterDiffID(graphID string, size int64) (layer.Layer, error)
+		}
+		r, ok := ls.(registrar)
+		if !ok {
+			return errors.New("Layerstore doesn't support RegisterDiffID")
+		}
+		if _, err := r.RegisterDiffID(imageInfos[i].ID, imageInfos[i].Size); err != nil {
+			return err
+		}
+		// layer is intentionally not released
+
+		rootFS := image.NewRootFS()
+		rootFS.BaseLayer = filepath.Base(imageInfos[i].Path)
+
+		// Create history for base layer
+		config, err := json.Marshal(&image.Image{
+			V1Image: image.V1Image{
+				DockerVersion: dockerversion.Version,
+				Architecture:  runtime.GOARCH,
+				OS:            runtime.GOOS,
+				Created:       imageInfos[i].CreatedTime,
+			},
+			RootFS:  rootFS,
+			History: []image.History{},
+		})
+
+		named, err := reference.ParseNamed(name)
 		if err != nil {
 			return err
 		}
 
-		// Convert imageData to valid image configuration
-		for i := range imageInfos {
-			name := strings.ToLower(imageInfos[i].Name)
-
-			type registrar interface {
-				RegisterDiffID(graphID string, size int64) (layer.Layer, error)
-			}
-			r, ok := ls.(registrar)
-			if !ok {
-				return errors.New("Layerstore doesn't support RegisterDiffID")
-			}
-			if _, err := r.RegisterDiffID(imageInfos[i].ID, imageInfos[i].Size); err != nil {
-				return err
-			}
-			// layer is intentionally not released
-
-			rootFS := image.NewRootFS()
-			rootFS.BaseLayer = filepath.Base(imageInfos[i].Path)
-
-			// Create history for base layer
-			config, err := json.Marshal(&image.Image{
-				V1Image: image.V1Image{
-					DockerVersion: dockerversion.Version,
-					Architecture:  runtime.GOARCH,
-					OS:            runtime.GOOS,
-					Created:       imageInfos[i].CreatedTime,
-				},
-				RootFS:  rootFS,
-				History: []image.History{},
-			})
-
-			named, err := reference.ParseNamed(name)
-			if err != nil {
-				return err
-			}
-
-			ref, err := reference.WithTag(named, imageInfos[i].Version)
-			if err != nil {
-				return err
-			}
-
-			id, err := is.Create(config)
-			if err != nil {
-				return err
-			}
-
-			if err := ts.AddTag(ref, id, true); err != nil {
-				return err
-			}
-
-			logrus.Debugf("Registered base layer %s as %s", ref, id)
+		ref, err := reference.WithTag(named, imageInfos[i].Version)
+		if err != nil {
+			return err
 		}
 
-	}
+		id, err := is.Create(config)
+		if err != nil {
+			return err
+		}
 
+		if err := rs.AddTag(ref, id, true); err != nil {
+			return err
+		}
+
+		logrus.Debugf("Registered base layer %s as %s", ref, id)
+	}
 	return nil
 }

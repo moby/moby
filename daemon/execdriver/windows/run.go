@@ -104,14 +104,7 @@ func (d *Driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, hooks execd
 		HostName:                c.Hostname,
 	}
 
-	// Work out the isolation (whether it is a hypervisor partition)
-	if c.Isolation.IsDefault() {
-		// Not specified by caller. Take daemon default
-		cu.HvPartition = defaultIsolation.IsHyperV()
-	} else {
-		// Take value specified by caller
-		cu.HvPartition = c.Isolation.IsHyperV()
-	}
+	cu.HvPartition = c.HvPartition
 
 	if cu.HvPartition {
 		cu.SandboxPath = filepath.Dir(c.LayerFolder)

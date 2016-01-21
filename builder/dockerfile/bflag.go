@@ -105,7 +105,7 @@ func (fl *Flag) IsTrue() bool {
 // compile time error so it doesn't matter too much when we stop our
 // processing as long as we do stop it, so this allows the code
 // around AddXXX() to be just:
-//     defFlag := AddString("desription", "")
+//     defFlag := AddString("description", "")
 // w/o needing to add an if-statement around each one.
 func (bf *BFlags) Parse() error {
 	// If there was an error while defining the possible flags

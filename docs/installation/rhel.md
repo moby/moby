@@ -104,7 +104,7 @@ You use the same installation procedure for all versions of CentOS.
 
 3. Run the Docker installation script.
 
-		$ curl -sSL https://get.docker.com/ | sh
+		$ curl -fsSL https://get.docker.com/ | sh
 
 4. Start the Docker daemon.
 
@@ -126,7 +126,7 @@ makes the ownership of the Unix socket read/writable by the `docker` group.
 
 >**Warning**: The `docker` group is equivalent to the `root` user; For details
 >on how this impacts security in your system, see [*Docker Daemon Attack
->Surface*](../articles/security.md#docker-daemon-attack-surface) for details.
+>Surface*](../security/security.md#docker-daemon-attack-surface) for details.
 
 To create the `docker` group and add your user:
 

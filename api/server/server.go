@@ -4,20 +4,21 @@ import (
 	"crypto/tls"
 	"net"
 	"net/http"
-	"os"
 	"strings"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/server/router"
+	"github.com/docker/docker/api/server/router/build"
 	"github.com/docker/docker/api/server/router/container"
 	"github.com/docker/docker/api/server/router/local"
 	"github.com/docker/docker/api/server/router/network"
 	"github.com/docker/docker/api/server/router/system"
 	"github.com/docker/docker/api/server/router/volume"
 	"github.com/docker/docker/daemon"
-	"github.com/docker/docker/pkg/sockets"
+	"github.com/docker/docker/pkg/authorization"
 	"github.com/docker/docker/utils"
+	"github.com/docker/go-connections/sockets"
 	"github.com/gorilla/mux"
 	"golang.org/x/net/context"
 )
@@ -28,20 +29,23 @@ const versionMatcher = "/v{version:[0-9.]+}"
 
 // Config provides the configuration for the API server
 type Config struct {
-	Logging     bool
-	EnableCors  bool
-	CorsHeaders string
-	Version     string
-	SocketGroup string
-	TLSConfig   *tls.Config
-	Addrs       []Addr
+	Logging                  bool
+	EnableCors               bool
+	CorsHeaders              string
+	AuthorizationPluginNames []string
+	Version                  string
+	SocketGroup              string
+	TLSConfig                *tls.Config
+	Addrs                    []Addr
 }
 
 // Server contains instance details for the server
 type Server struct {
-	cfg     *Config
-	servers []*HTTPServer
-	routers []router.Router
+	cfg           *Config
+	servers       []*HTTPServer
+	routers       []router.Router
+	authZPlugins  []authorization.Plugin
+	routerSwapper *routerSwapper
 }
 
 // Addr contains string representation of address and its protocol (tcp, unix...).
@@ -76,12 +80,14 @@ func (s *Server) Close() {
 	}
 }
 
-// ServeAPI loops through all initialized servers and spawns goroutine
-// with Server method for each. It sets CreateMux() as Handler also.
-func (s *Server) ServeAPI() error {
+// serveAPI loops through all initialized servers and spawns goroutine
+// with Server method for each. It sets createMux() as Handler also.
+func (s *Server) serveAPI() error {
+	s.initRouterSwapper()
+
 	var chErrors = make(chan error, len(s.servers))
 	for _, srv := range s.servers {
-		srv.srv.Handler = s.CreateMux()
+		srv.srv.Handler = s.routerSwapper
 		go func(srv *HTTPServer) {
 			var err error
 			logrus.Infof("API listen on %s", srv.l.Addr())
@@ -174,6 +180,7 @@ func (s *Server) InitRouters(d *daemon.Daemon) {
 	s.addRouter(network.NewRouter(d))
 	s.addRouter(system.NewRouter(d))
 	s.addRouter(volume.NewRouter(d))
+	s.addRouter(build.NewRouter(d))
 }
 
 // addRouter adds a new router to the server.
@@ -181,11 +188,10 @@ func (s *Server) addRouter(r router.Router) {
 	s.routers = append(s.routers, r)
 }
 
-// CreateMux initializes the main router the server uses.
-// we keep enableCors just for legacy usage, need to be removed in the future
-func (s *Server) CreateMux() *mux.Router {
+// createMux initializes the main router the server uses.
+func (s *Server) createMux() *mux.Router {
 	m := mux.NewRouter()
-	if os.Getenv("DEBUG") != "" {
+	if utils.IsDebugEnabled() {
 		profilerSetup(m, "/debug/")
 	}
 
@@ -201,4 +207,37 @@ func (s *Server) CreateMux() *mux.Router {
 	}
 
 	return m
+}
+
+// Wait blocks the server goroutine until it exits.
+// It sends an error message if there is any error during
+// the API execution.
+func (s *Server) Wait(waitChan chan error) {
+	if err := s.serveAPI(); err != nil {
+		logrus.Errorf("ServeAPI error: %v", err)
+		waitChan <- err
+		return
+	}
+	waitChan <- nil
+}
+
+func (s *Server) initRouterSwapper() {
+	s.routerSwapper = &routerSwapper{
+		router: s.createMux(),
+	}
+}
+
+// Reload reads configuration changes and modifies the
+// server according to those changes.
+// Currently, only the --debug configuration is taken into account.
+func (s *Server) Reload(config *daemon.Config) {
+	debugEnabled := utils.IsDebugEnabled()
+	switch {
+	case debugEnabled && !config.Debug: // disable debug
+		utils.DisableDebug()
+		s.routerSwapper.Swap(s.createMux())
+	case config.Debug && !debugEnabled: // enable debug
+		utils.EnableDebug()
+		s.routerSwapper.Swap(s.createMux())
+	}
 }

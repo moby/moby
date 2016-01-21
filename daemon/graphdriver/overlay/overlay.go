@@ -30,7 +30,7 @@ var (
 	ErrApplyDiffFallback = fmt.Errorf("Fall back to normal ApplyDiff")
 )
 
-// ApplyDiffProtoDriver wraps the ProtoDriver by extending the inteface with ApplyDiff method.
+// ApplyDiffProtoDriver wraps the ProtoDriver by extending the interface with ApplyDiff method.
 type ApplyDiffProtoDriver interface {
 	graphdriver.ProtoDriver
 	// ApplyDiff writes the diff to the archive for the given id and parent id.
@@ -146,7 +146,7 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 		return nil, err
 	}
 	// Create the driver home dir
-	if err := idtools.MkdirAllAs(home, 0755, rootUID, rootGID); err != nil && !os.IsExist(err) {
+	if err := idtools.MkdirAllAs(home, 0700, rootUID, rootGID); err != nil && !os.IsExist(err) {
 		return nil, err
 	}
 
@@ -322,7 +322,10 @@ func (d *Driver) dir(id string) string {
 
 // Remove cleans the directories that are created for this id.
 func (d *Driver) Remove(id string) error {
-	return os.RemoveAll(d.dir(id))
+	if err := os.RemoveAll(d.dir(id)); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	return nil
 }
 
 // Get creates and mounts the required file system for the given id and returns the mount path.

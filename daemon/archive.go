@@ -7,11 +7,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/ioutils"
+	"github.com/docker/engine-api/types"
 )
 
 // ErrExtractPointNotDirectory is used to convey that the operation to extract
@@ -20,9 +20,9 @@ import (
 var ErrExtractPointNotDirectory = errors.New("extraction point is not a directory")
 
 // ContainerCopy performs a deprecated operation of archiving the resource at
-// the specified path in the conatiner identified by the given name.
+// the specified path in the container identified by the given name.
 func (daemon *Daemon) ContainerCopy(name string, res string) (io.ReadCloser, error) {
-	container, err := daemon.Get(name)
+	container, err := daemon.GetContainer(name)
 	if err != nil {
 		return nil, err
 	}
@@ -37,7 +37,7 @@ func (daemon *Daemon) ContainerCopy(name string, res string) (io.ReadCloser, err
 // ContainerStatPath stats the filesystem resource at the specified path in the
 // container identified by the given name.
 func (daemon *Daemon) ContainerStatPath(name string, path string) (stat *types.ContainerPathStat, err error) {
-	container, err := daemon.Get(name)
+	container, err := daemon.GetContainer(name)
 	if err != nil {
 		return nil, err
 	}
@@ -49,7 +49,7 @@ func (daemon *Daemon) ContainerStatPath(name string, path string) (stat *types.C
 // specified path in the container identified by the given name. Returns a
 // tar archive of the resource and whether it was a directory or a single file.
 func (daemon *Daemon) ContainerArchivePath(name string, path string) (content io.ReadCloser, stat *types.ContainerPathStat, err error) {
-	container, err := daemon.Get(name)
+	container, err := daemon.GetContainer(name)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -64,7 +64,7 @@ func (daemon *Daemon) ContainerArchivePath(name string, path string) (content io
 // be an error if unpacking the given content would cause an existing directory
 // to be replaced with a non-directory and vice versa.
 func (daemon *Daemon) ContainerExtractToDir(name, path string, noOverwriteDirNonDir bool, content io.Reader) error {
-	container, err := daemon.Get(name)
+	container, err := daemon.GetContainer(name)
 	if err != nil {
 		return err
 	}
@@ -84,7 +84,7 @@ func (daemon *Daemon) containerStatPath(container *container.Container, path str
 	defer daemon.Unmount(container)
 
 	err = daemon.mountVolumes(container)
-	defer container.UnmountVolumes(true)
+	defer container.UnmountVolumes(true, daemon.LogVolumeEvent)
 	if err != nil {
 		return nil, err
 	}
@@ -119,7 +119,7 @@ func (daemon *Daemon) containerArchivePath(container *container.Container, path 
 	defer func() {
 		if err != nil {
 			// unmount any volumes
-			container.UnmountVolumes(true)
+			container.UnmountVolumes(true, daemon.LogVolumeEvent)
 			// unmount the container's rootfs
 			daemon.Unmount(container)
 		}
@@ -154,7 +154,7 @@ func (daemon *Daemon) containerArchivePath(container *container.Container, path 
 
 	content = ioutils.NewReadCloserWrapper(data, func() error {
 		err := data.Close()
-		container.UnmountVolumes(true)
+		container.UnmountVolumes(true, daemon.LogVolumeEvent)
 		daemon.Unmount(container)
 		container.Unlock()
 		return err
@@ -181,7 +181,7 @@ func (daemon *Daemon) containerExtractToDir(container *container.Container, path
 	defer daemon.Unmount(container)
 
 	err = daemon.mountVolumes(container)
-	defer container.UnmountVolumes(true)
+	defer container.UnmountVolumes(true, daemon.LogVolumeEvent)
 	if err != nil {
 		return err
 	}
@@ -283,7 +283,7 @@ func (daemon *Daemon) containerCopy(container *container.Container, resource str
 	defer func() {
 		if err != nil {
 			// unmount any volumes
-			container.UnmountVolumes(true)
+			container.UnmountVolumes(true, daemon.LogVolumeEvent)
 			// unmount the container's rootfs
 			daemon.Unmount(container)
 		}
@@ -320,7 +320,7 @@ func (daemon *Daemon) containerCopy(container *container.Container, resource str
 
 	reader := ioutils.NewReadCloserWrapper(archive, func() error {
 		err := archive.Close()
-		container.UnmountVolumes(true)
+		container.UnmountVolumes(true, daemon.LogVolumeEvent)
 		daemon.Unmount(container)
 		container.Unlock()
 		return err

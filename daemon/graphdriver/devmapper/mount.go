@@ -66,7 +66,7 @@ func ProbeFsType(device string) (string, error) {
 	}
 
 	if uint64(l) != maxLen {
-		return "", fmt.Errorf("unable to detect filesystem type of %s, short read", device)
+		return "", fmt.Errorf("devmapper: unable to detect filesystem type of %s, short read", device)
 	}
 
 	for _, p := range probes {
@@ -75,7 +75,7 @@ func ProbeFsType(device string) (string, error) {
 		}
 	}
 
-	return "", fmt.Errorf("Unknown filesystem type on %s", device)
+	return "", fmt.Errorf("devmapper: Unknown filesystem type on %s", device)
 }
 
 func joinMountOptions(a, b string) string {

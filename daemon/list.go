@@ -7,13 +7,17 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/image"
-	"github.com/docker/docker/pkg/graphdb"
-	"github.com/docker/docker/pkg/nat"
-	"github.com/docker/docker/pkg/parsers/filters"
+	"github.com/docker/engine-api/types"
+	"github.com/docker/engine-api/types/filters"
+	networktypes "github.com/docker/engine-api/types/network"
+	"github.com/docker/go-connections/nat"
 )
+
+var acceptedVolumeFilterTags = map[string]bool{
+	"dangling": true,
+}
 
 // iterationAction represents possible outcomes happening during the container iteration.
 type iterationAction int
@@ -162,7 +166,7 @@ func (daemon *Daemon) foldFilter(config *ContainersConfig) (*listContext, error)
 
 	var beforeContFilter, sinceContFilter *container.Container
 	err = psFilters.WalkValues("before", func(value string) error {
-		beforeContFilter, err = daemon.Get(value)
+		beforeContFilter, err = daemon.GetContainer(value)
 		return err
 	})
 	if err != nil {
@@ -170,7 +174,7 @@ func (daemon *Daemon) foldFilter(config *ContainersConfig) (*listContext, error)
 	}
 
 	err = psFilters.WalkValues("since", func(value string) error {
-		sinceContFilter, err = daemon.Get(value)
+		sinceContFilter, err = daemon.GetContainer(value)
 		return err
 	})
 	if err != nil {
@@ -197,21 +201,15 @@ func (daemon *Daemon) foldFilter(config *ContainersConfig) (*listContext, error)
 		})
 	}
 
-	names := make(map[string][]string)
-	daemon.containerGraph().Walk("/", func(p string, e *graphdb.Entity) error {
-		names[e.ID()] = append(names[e.ID()], p)
-		return nil
-	}, 1)
-
 	if config.Before != "" && beforeContFilter == nil {
-		beforeContFilter, err = daemon.Get(config.Before)
+		beforeContFilter, err = daemon.GetContainer(config.Before)
 		if err != nil {
 			return nil, err
 		}
 	}
 
 	if config.Since != "" && sinceContFilter == nil {
-		sinceContFilter, err = daemon.Get(config.Since)
+		sinceContFilter, err = daemon.GetContainer(config.Since)
 		if err != nil {
 			return nil, err
 		}
@@ -220,12 +218,12 @@ func (daemon *Daemon) foldFilter(config *ContainersConfig) (*listContext, error)
 	return &listContext{
 		filters:          psFilters,
 		ancestorFilter:   ancestorFilter,
-		names:            names,
 		images:           imagesFilter,
 		exitAllowed:      filtExited,
 		beforeFilter:     beforeContFilter,
 		sinceFilter:      sinceContFilter,
 		ContainersConfig: config,
+		names:            daemon.nameIndex.GetAll(),
 	}, nil
 }
 
@@ -266,7 +264,7 @@ func includeContainerInList(container *container.Container, ctx *listContext) it
 		return excludeContainer
 	}
 
-	// Stop interation when the container arrives to the filter container
+	// Stop iteration when the container arrives to the filter container
 	if ctx.sinceFilter != nil {
 		if container.ID == ctx.sinceFilter.ID {
 			return stopIteration
@@ -351,6 +349,30 @@ func (daemon *Daemon) transformContainer(container *container.Container, ctx *li
 	newC.Created = container.Created.Unix()
 	newC.Status = container.State.String()
 	newC.HostConfig.NetworkMode = string(container.HostConfig.NetworkMode)
+	// copy networks to avoid races
+	networks := make(map[string]*networktypes.EndpointSettings)
+	for name, network := range container.NetworkSettings.Networks {
+		if network == nil {
+			continue
+		}
+		networks[name] = &networktypes.EndpointSettings{
+			EndpointID:          network.EndpointID,
+			Gateway:             network.Gateway,
+			IPAddress:           network.IPAddress,
+			IPPrefixLen:         network.IPPrefixLen,
+			IPv6Gateway:         network.IPv6Gateway,
+			GlobalIPv6Address:   network.GlobalIPv6Address,
+			GlobalIPv6PrefixLen: network.GlobalIPv6PrefixLen,
+			MacAddress:          network.MacAddress,
+		}
+		if network.IPAMConfig != nil {
+			networks[name].IPAMConfig = &networktypes.EndpointIPAMConfig{
+				IPv4Address: network.IPAMConfig.IPv4Address,
+				IPv6Address: network.IPAMConfig.IPv6Address,
+			}
+		}
+	}
+	newC.NetworkSettings = &types.SummaryNetworkSettings{Networks: networks}
 
 	newC.Ports = []types.Port{}
 	for port, bindings := range container.NetworkSettings.Ports {
@@ -391,24 +413,39 @@ func (daemon *Daemon) transformContainer(container *container.Container, ctx *li
 
 // Volumes lists known volumes, using the filter to restrict the range
 // of volumes returned.
-func (daemon *Daemon) Volumes(filter string) ([]*types.Volume, error) {
-	var volumesOut []*types.Volume
+func (daemon *Daemon) Volumes(filter string) ([]*types.Volume, []string, error) {
+	var (
+		volumesOut   []*types.Volume
+		danglingOnly = false
+	)
 	volFilters, err := filters.FromParam(filter)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	filterUsed := volFilters.Include("dangling") &&
-		(volFilters.ExactMatch("dangling", "true") || volFilters.ExactMatch("dangling", "1"))
+	if err := volFilters.Validate(acceptedVolumeFilterTags); err != nil {
+		return nil, nil, err
+	}
 
-	volumes := daemon.volumes.List()
-	for _, v := range volumes {
-		if filterUsed && daemon.volumes.Count(v) > 0 {
-			continue
+	if volFilters.Include("dangling") {
+		if volFilters.ExactMatch("dangling", "true") || volFilters.ExactMatch("dangling", "1") {
+			danglingOnly = true
+		} else if !volFilters.ExactMatch("dangling", "false") && !volFilters.ExactMatch("dangling", "0") {
+			return nil, nil, fmt.Errorf("Invalid filter 'dangling=%s'", volFilters.Get("dangling"))
 		}
+	}
+
+	volumes, warnings, err := daemon.volumes.List()
+	if err != nil {
+		return nil, nil, err
+	}
+	if danglingOnly {
+		volumes = daemon.volumes.FilterByUsed(volumes)
+	}
+	for _, v := range volumes {
 		volumesOut = append(volumesOut, volumeToAPIType(v))
 	}
-	return volumesOut, nil
+	return volumesOut, warnings, nil
 }
 
 func populateImageFilterByParents(ancestorMap map[image.ID]bool, imageID image.ID, getChildren func(image.ID) []image.ID) {

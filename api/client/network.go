@@ -1,22 +1,19 @@
 package client
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
-	"io"
 	"net"
-	"net/http"
 	"strings"
 	"text/tabwriter"
-	"text/template"
 
-	"github.com/docker/docker/api/types"
 	Cli "github.com/docker/docker/cli"
-	"github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/opts"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/stringid"
+	runconfigopts "github.com/docker/docker/runconfig/opts"
+	"github.com/docker/engine-api/types"
+	"github.com/docker/engine-api/types/filters"
+	"github.com/docker/engine-api/types/network"
 )
 
 // CmdNetwork is the parent subcommand for all network commands
@@ -43,12 +40,16 @@ func (cli *DockerCli) CmdNetworkCreate(args ...string) error {
 	flIpamIPRange := opts.NewListOpts(nil)
 	flIpamGateway := opts.NewListOpts(nil)
 	flIpamAux := opts.NewMapOpts(nil, nil)
+	flIpamOpt := opts.NewMapOpts(nil, nil)
 
 	cmd.Var(&flIpamSubnet, []string{"-subnet"}, "subnet in CIDR format that represents a network segment")
 	cmd.Var(&flIpamIPRange, []string{"-ip-range"}, "allocate container ip from a sub-range")
 	cmd.Var(&flIpamGateway, []string{"-gateway"}, "ipv4 or ipv6 Gateway for the master subnet")
 	cmd.Var(flIpamAux, []string{"-aux-address"}, "auxiliary ipv4 or ipv6 addresses used by Network driver")
 	cmd.Var(flOpts, []string{"o", "-opt"}, "set driver specific options")
+	cmd.Var(flIpamOpt, []string{"-ipam-opt"}, "set IPAM driver specific options")
+
+	flInternal := cmd.Bool([]string{"-internal"}, false, "restricts external access to the network")
 
 	cmd.Require(flag.Exact, 1)
 	err := cmd.ParseFlags(args, true)
@@ -72,16 +73,13 @@ func (cli *DockerCli) CmdNetworkCreate(args ...string) error {
 	nc := types.NetworkCreate{
 		Name:           cmd.Arg(0),
 		Driver:         driver,
-		IPAM:           network.IPAM{Driver: *flIpamDriver, Config: ipamCfg},
+		IPAM:           network.IPAM{Driver: *flIpamDriver, Config: ipamCfg, Options: flIpamOpt.GetAll()},
 		Options:        flOpts.GetAll(),
 		CheckDuplicate: true,
+		Internal:       *flInternal,
 	}
-	obj, _, err := readBody(cli.call("POST", "/networks/create", nc, nil))
-	if err != nil {
-		return err
-	}
-	var resp types.NetworkCreateResponse
-	err = json.Unmarshal(obj, &resp)
+
+	resp, err := cli.client.NetworkCreate(nc)
 	if err != nil {
 		return err
 	}
@@ -95,15 +93,13 @@ func (cli *DockerCli) CmdNetworkCreate(args ...string) error {
 func (cli *DockerCli) CmdNetworkRm(args ...string) error {
 	cmd := Cli.Subcmd("network rm", []string{"NETWORK [NETWORK...]"}, "Deletes one or more networks", false)
 	cmd.Require(flag.Min, 1)
-	err := cmd.ParseFlags(args, true)
-	if err != nil {
+	if err := cmd.ParseFlags(args, true); err != nil {
 		return err
 	}
 
 	status := 0
 	for _, net := range cmd.Args() {
-		_, _, err = readBody(cli.call("DELETE", "/networks/"+net, nil, nil))
-		if err != nil {
+		if err := cli.client.NetworkRemove(net); err != nil {
 			fmt.Fprintf(cli.err, "%s\n", err)
 			status = 1
 			continue
@@ -117,18 +113,28 @@ func (cli *DockerCli) CmdNetworkRm(args ...string) error {
 
 // CmdNetworkConnect connects a container to a network
 //
-// Usage: docker network connect <NETWORK> <CONTAINER>
+// Usage: docker network connect [OPTIONS] <NETWORK> <CONTAINER>
 func (cli *DockerCli) CmdNetworkConnect(args ...string) error {
 	cmd := Cli.Subcmd("network connect", []string{"NETWORK CONTAINER"}, "Connects a container to a network", false)
-	cmd.Require(flag.Exact, 2)
-	err := cmd.ParseFlags(args, true)
-	if err != nil {
+	flIPAddress := cmd.String([]string{"-ip"}, "", "IP Address")
+	flIPv6Address := cmd.String([]string{"-ip6"}, "", "IPv6 Address")
+	flLinks := opts.NewListOpts(runconfigopts.ValidateLink)
+	cmd.Var(&flLinks, []string{"-link"}, "Add link to another container")
+	flAliases := opts.NewListOpts(nil)
+	cmd.Var(&flAliases, []string{"-alias"}, "Add network-scoped alias for the container")
+	cmd.Require(flag.Min, 2)
+	if err := cmd.ParseFlags(args, true); err != nil {
 		return err
 	}
-
-	nc := types.NetworkConnect{Container: cmd.Arg(1)}
-	_, _, err = readBody(cli.call("POST", "/networks/"+cmd.Arg(0)+"/connect", nc, nil))
-	return err
+	epConfig := &network.EndpointSettings{
+		IPAMConfig: &network.EndpointIPAMConfig{
+			IPv4Address: *flIPAddress,
+			IPv6Address: *flIPv6Address,
+		},
+		Links:   flLinks.GetAll(),
+		Aliases: flAliases.GetAll(),
+	}
+	return cli.client.NetworkConnect(cmd.Arg(0), cmd.Arg(1), epConfig)
 }
 
 // CmdNetworkDisconnect disconnects a container from a network
@@ -136,18 +142,16 @@ func (cli *DockerCli) CmdNetworkConnect(args ...string) error {
 // Usage: docker network disconnect <NETWORK> <CONTAINER>
 func (cli *DockerCli) CmdNetworkDisconnect(args ...string) error {
 	cmd := Cli.Subcmd("network disconnect", []string{"NETWORK CONTAINER"}, "Disconnects container from a network", false)
+	force := cmd.Bool([]string{"f", "-force"}, false, "Force the container to disconnect from a network")
 	cmd.Require(flag.Exact, 2)
-	err := cmd.ParseFlags(args, true)
-	if err != nil {
+	if err := cmd.ParseFlags(args, true); err != nil {
 		return err
 	}
 
-	nc := types.NetworkConnect{Container: cmd.Arg(1)}
-	_, _, err = readBody(cli.call("POST", "/networks/"+cmd.Arg(0)+"/disconnect", nc, nil))
-	return err
+	return cli.client.NetworkDisconnect(cmd.Arg(0), cmd.Arg(1), *force)
 }
 
-// CmdNetworkLs lists all the netorks managed by docker daemon
+// CmdNetworkLs lists all the networks managed by docker daemon
 //
 // Usage: docker network ls [OPTIONS]
 func (cli *DockerCli) CmdNetworkLs(args ...string) error {
@@ -155,19 +159,29 @@ func (cli *DockerCli) CmdNetworkLs(args ...string) error {
 	quiet := cmd.Bool([]string{"q", "-quiet"}, false, "Only display numeric IDs")
 	noTrunc := cmd.Bool([]string{"-no-trunc"}, false, "Do not truncate the output")
 
+	flFilter := opts.NewListOpts(nil)
+	cmd.Var(&flFilter, []string{"f", "-filter"}, "Filter output based on conditions provided")
+
 	cmd.Require(flag.Exact, 0)
 	err := cmd.ParseFlags(args, true)
-
-	if err != nil {
-		return err
-	}
-	obj, _, err := readBody(cli.call("GET", "/networks", nil, nil))
 	if err != nil {
 		return err
 	}
 
-	var networkResources []types.NetworkResource
-	err = json.Unmarshal(obj, &networkResources)
+	// Consolidate all filter flags, and sanity check them early.
+	// They'll get process after get response from server.
+	netFilterArgs := filters.NewArgs()
+	for _, f := range flFilter.GetAll() {
+		if netFilterArgs, err = filters.ParseFlag(f, netFilterArgs); err != nil {
+			return err
+		}
+	}
+
+	options := types.NetworkListOptions{
+		Filters: netFilterArgs,
+	}
+
+	networkResources, err := cli.client.NetworkList(options)
 	if err != nil {
 		return err
 	}
@@ -212,79 +226,18 @@ func (cli *DockerCli) CmdNetworkInspect(args ...string) error {
 		return err
 	}
 
-	var tmpl *template.Template
-	if *tmplStr != "" {
-		var err error
-		tmpl, err = template.New("").Funcs(funcMap).Parse(*tmplStr)
-		if err != nil {
-			return err
-		}
+	inspectSearcher := func(name string) (interface{}, []byte, error) {
+		i, err := cli.client.NetworkInspect(name)
+		return i, nil, err
 	}
 
-	status := 0
-	var networks []types.NetworkResource
-	buf := new(bytes.Buffer)
-	for _, name := range cmd.Args() {
-		obj, statusCode, err := readBody(cli.call("GET", "/networks/"+name, nil, nil))
-		if err != nil {
-			if statusCode == http.StatusNotFound {
-				fmt.Fprintf(cli.err, "Error: No such network: %s\n", name)
-			} else {
-				fmt.Fprintf(cli.err, "%s\n", err)
-			}
-			status = 1
-			continue
-		}
-		var networkResource types.NetworkResource
-		if err := json.NewDecoder(bytes.NewReader(obj)).Decode(&networkResource); err != nil {
-			return err
-		}
-
-		if tmpl == nil {
-			networks = append(networks, networkResource)
-			continue
-		}
-
-		if err := tmpl.Execute(buf, &networkResource); err != nil {
-			if err := tmpl.Execute(buf, &networkResource); err != nil {
-				fmt.Fprintf(cli.err, "%s\n", err)
-				return Cli.StatusError{StatusCode: 1}
-			}
-		}
-		buf.WriteString("\n")
-	}
-
-	if tmpl != nil {
-		if _, err := io.Copy(cli.out, buf); err != nil {
-			return err
-		}
-		return nil
-	}
-
-	if len(networks) == 0 {
-		io.WriteString(cli.out, "[]")
-	}
-
-	b, err := json.MarshalIndent(networks, "", "    ")
-	if err != nil {
-		return err
-	}
-
-	if _, err := io.Copy(cli.out, bytes.NewReader(b)); err != nil {
-		return err
-	}
-	io.WriteString(cli.out, "\n")
-
-	if status != 0 {
-		return Cli.StatusError{StatusCode: status}
-	}
-	return nil
+	return cli.inspectElements(*tmplStr, cmd.Args(), inspectSearcher)
 }
 
 // Consolidates the ipam configuration as a group from different related configurations
 // user can configure network with multiple non-overlapping subnets and hence it is
-// possible to corelate the various related parameters and consolidate them.
-// consoidateIpam consolidates subnets, ip-ranges, gateways and auxilary addresses into
+// possible to correlate the various related parameters and consolidate them.
+// consoidateIpam consolidates subnets, ip-ranges, gateways and auxiliary addresses into
 // structured ipam data.
 func consolidateIpam(subnets, ranges, gateways []string, auxaddrs map[string]string) ([]network.IPAMConfig, error) {
 	if len(subnets) < len(ranges) || len(subnets) < len(gateways) {

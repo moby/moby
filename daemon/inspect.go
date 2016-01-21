@@ -4,13 +4,13 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/versions/v1p20"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/exec"
 	"github.com/docker/docker/daemon/network"
-	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/version"
+	"github.com/docker/engine-api/types"
+	networktypes "github.com/docker/engine-api/types/network"
+	"github.com/docker/engine-api/types/versions/v1p20"
 )
 
 // ContainerInspect returns low-level information about a
@@ -27,7 +27,7 @@ func (daemon *Daemon) ContainerInspect(name string, size bool, version version.V
 }
 
 func (daemon *Daemon) containerInspectCurrent(name string, size bool) (*types.ContainerJSON, error) {
-	container, err := daemon.Get(name)
+	container, err := daemon.GetContainer(name)
 	if err != nil {
 		return nil, err
 	}
@@ -67,7 +67,7 @@ func (daemon *Daemon) containerInspectCurrent(name string, size bool) (*types.Co
 
 // containerInspect120 serializes the master version of a container into a json type.
 func (daemon *Daemon) containerInspect120(name string) (*v1p20.ContainerJSON, error) {
-	container, err := daemon.Get(name)
+	container, err := daemon.GetContainer(name)
 	if err != nil {
 		return nil, err
 	}
@@ -102,11 +102,12 @@ func (daemon *Daemon) getInspectData(container *container.Container, size bool) 
 	// make a copy to play with
 	hostConfig := *container.HostConfig
 
-	if children, err := daemon.children(container.Name); err == nil {
-		for linkAlias, child := range children {
-			hostConfig.Links = append(hostConfig.Links, fmt.Sprintf("%s:%s", child.Name, linkAlias))
-		}
+	children := daemon.children(container)
+	hostConfig.Links = nil // do not expose the internal structure
+	for linkAlias, child := range children {
+		hostConfig.Links = append(hostConfig.Links, fmt.Sprintf("%s:%s", child.Name, linkAlias))
 	}
+
 	// we need this trick to preserve empty log driver, so
 	// container will use daemon defaults even if daemon change them
 	if hostConfig.LogConfig.Type == "" {
@@ -163,17 +164,7 @@ func (daemon *Daemon) getInspectData(container *container.Container, size bool) 
 
 	contJSONBase.GraphDriver.Name = container.Driver
 
-	image, err := daemon.imageStore.Get(container.ImageID)
-	if err != nil {
-		return nil, err
-	}
-	l, err := daemon.layerStore.Get(image.RootFS.ChainID())
-	if err != nil {
-		return nil, err
-	}
-	defer layer.ReleaseAndLog(daemon.layerStore, l)
-
-	graphDriverData, err := l.Metadata()
+	graphDriverData, err := container.RWLayer.Metadata()
 	if err != nil {
 		return nil, err
 	}
@@ -223,7 +214,7 @@ func (daemon *Daemon) getBackwardsCompatibleNetworkSettings(settings *network.Se
 
 // getDefaultNetworkSettings creates the deprecated structure that holds the information
 // about the bridge network for a container.
-func (daemon *Daemon) getDefaultNetworkSettings(networks map[string]*network.EndpointSettings) types.DefaultNetworkSettings {
+func (daemon *Daemon) getDefaultNetworkSettings(networks map[string]*networktypes.EndpointSettings) types.DefaultNetworkSettings {
 	var settings types.DefaultNetworkSettings
 
 	if defaultNetwork, ok := networks["bridge"]; ok {

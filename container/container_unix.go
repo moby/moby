@@ -14,14 +14,16 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/execdriver"
-	"github.com/docker/docker/daemon/network"
 	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/chrootarchive"
-	"github.com/docker/docker/pkg/nat"
 	"github.com/docker/docker/pkg/symlink"
 	"github.com/docker/docker/pkg/system"
+	runconfigopts "github.com/docker/docker/runconfig/opts"
 	"github.com/docker/docker/utils"
 	"github.com/docker/docker/volume"
+	"github.com/docker/engine-api/types/container"
+	"github.com/docker/engine-api/types/network"
+	"github.com/docker/go-connections/nat"
 	"github.com/docker/libnetwork"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/options"
@@ -29,18 +31,11 @@ import (
 	"github.com/opencontainers/runc/libcontainer/label"
 )
 
-const (
-	// DefaultPathEnv is unix style list of directories to search for
-	// executables. Each directory is separated from the next by a colon
-	// ':' character .
-	DefaultPathEnv = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+// DefaultSHMSize is the default size (64MB) of the SHM which will be mounted in the container
+const DefaultSHMSize int64 = 67108864
 
-	// DefaultSHMSize is the default size (64MB) of the SHM which will be mounted in the container
-	DefaultSHMSize int64 = 67108864
-)
-
-// Container holds the fields specific to unixen implementations. See
-// CommonContainer for standard fields common to all containers.
+// Container holds the fields specific to unixen implementations.
+// See CommonContainer for standard fields common to all containers.
 type Container struct {
 	CommonContainer
 
@@ -66,7 +61,7 @@ func (container *Container) CreateDaemonEnvironment(linkedEnv []string) []string
 	}
 	// Setup environment
 	env := []string{
-		"PATH=" + DefaultPathEnv,
+		"PATH=" + system.DefaultPathEnv,
 		"HOSTNAME=" + fullHostname,
 		// Note: we don't set HOME here because it'll get autoset intelligently
 		// based on the value of USER inside dockerinit, but only if it isn't
@@ -199,6 +194,7 @@ func (container *Container) BuildEndpointInfo(n libnetwork.Network, ep libnetwor
 	if _, ok := networkSettings.Networks[n.Name()]; !ok {
 		networkSettings.Networks[n.Name()] = new(network.EndpointSettings)
 	}
+	networkSettings.Networks[n.Name()].NetworkID = n.ID()
 	networkSettings.Networks[n.Name()].EndpointID = ep.ID()
 
 	iface := epInfo.Iface()
@@ -253,6 +249,21 @@ func (container *Container) UpdateSandboxNetworkSettings(sb libnetwork.Sandbox) 
 	return nil
 }
 
+// BuildJoinOptions builds endpoint Join options from a given network.
+func (container *Container) BuildJoinOptions(n libnetwork.Network) ([]libnetwork.EndpointOption, error) {
+	var joinOptions []libnetwork.EndpointOption
+	if epConfig, ok := container.NetworkSettings.Networks[n.Name()]; ok {
+		for _, str := range epConfig.Links {
+			name, alias, err := runconfigopts.ParseLink(str)
+			if err != nil {
+				return nil, err
+			}
+			joinOptions = append(joinOptions, libnetwork.CreateOptionAlias(name, alias))
+		}
+	}
+	return joinOptions, nil
+}
+
 // BuildCreateEndpointOptions builds endpoint options from a given network.
 func (container *Container) BuildCreateEndpointOptions(n libnetwork.Network) ([]libnetwork.EndpointOption, error) {
 	var (
@@ -265,6 +276,22 @@ func (container *Container) BuildCreateEndpointOptions(n libnetwork.Network) ([]
 
 	if n.Name() == "bridge" || container.NetworkSettings.IsAnonymousEndpoint {
 		createOptions = append(createOptions, libnetwork.CreateOptionAnonymous())
+	}
+
+	if epConfig, ok := container.NetworkSettings.Networks[n.Name()]; ok {
+		ipam := epConfig.IPAMConfig
+		if ipam != nil && (ipam.IPv4Address != "" || ipam.IPv6Address != "") {
+			createOptions = append(createOptions,
+				libnetwork.CreateOptionIpam(net.ParseIP(ipam.IPv4Address), net.ParseIP(ipam.IPv6Address), nil))
+		}
+
+		for _, alias := range epConfig.Aliases {
+			createOptions = append(createOptions, libnetwork.CreateOptionMyAlias(alias))
+		}
+	}
+
+	if !container.HostConfig.NetworkMode.IsUserDefined() {
+		createOptions = append(createOptions, libnetwork.CreateOptionDisableResolution())
 	}
 
 	// Other configs are applicable only for the endpoint in the network
@@ -403,7 +430,7 @@ func (container *Container) NetworkMounts() []execdriver.Mount {
 				Source:      container.ResolvConfPath,
 				Destination: "/etc/resolv.conf",
 				Writable:    writable,
-				Private:     true,
+				Propagation: volume.DefaultPropagationMode,
 			})
 		}
 	}
@@ -420,7 +447,7 @@ func (container *Container) NetworkMounts() []execdriver.Mount {
 				Source:      container.HostnamePath,
 				Destination: "/etc/hostname",
 				Writable:    writable,
-				Private:     true,
+				Propagation: volume.DefaultPropagationMode,
 			})
 		}
 	}
@@ -437,7 +464,7 @@ func (container *Container) NetworkMounts() []execdriver.Mount {
 				Source:      container.HostsPath,
 				Destination: "/etc/hosts",
 				Writable:    writable,
-				Private:     true,
+				Propagation: volume.DefaultPropagationMode,
 			})
 		}
 	}
@@ -534,7 +561,7 @@ func (container *Container) IpcMounts() []execdriver.Mount {
 			Source:      container.ShmPath,
 			Destination: "/dev/shm",
 			Writable:    true,
-			Private:     true,
+			Propagation: volume.DefaultPropagationMode,
 		})
 	}
 
@@ -544,10 +571,79 @@ func (container *Container) IpcMounts() []execdriver.Mount {
 			Source:      container.MqueuePath,
 			Destination: "/dev/mqueue",
 			Writable:    true,
-			Private:     true,
+			Propagation: volume.DefaultPropagationMode,
 		})
 	}
 	return mounts
+}
+
+func updateCommand(c *execdriver.Command, resources container.Resources) {
+	c.Resources.BlkioWeight = resources.BlkioWeight
+	c.Resources.CPUShares = resources.CPUShares
+	c.Resources.CPUPeriod = resources.CPUPeriod
+	c.Resources.CPUQuota = resources.CPUQuota
+	c.Resources.CpusetCpus = resources.CpusetCpus
+	c.Resources.CpusetMems = resources.CpusetMems
+	c.Resources.Memory = resources.Memory
+	c.Resources.MemorySwap = resources.MemorySwap
+	c.Resources.MemoryReservation = resources.MemoryReservation
+	c.Resources.KernelMemory = resources.KernelMemory
+}
+
+// UpdateContainer updates resources of a container.
+func (container *Container) UpdateContainer(hostConfig *container.HostConfig) error {
+	container.Lock()
+
+	resources := hostConfig.Resources
+	cResources := &container.HostConfig.Resources
+	if resources.BlkioWeight != 0 {
+		cResources.BlkioWeight = resources.BlkioWeight
+	}
+	if resources.CPUShares != 0 {
+		cResources.CPUShares = resources.CPUShares
+	}
+	if resources.CPUPeriod != 0 {
+		cResources.CPUPeriod = resources.CPUPeriod
+	}
+	if resources.CPUQuota != 0 {
+		cResources.CPUQuota = resources.CPUQuota
+	}
+	if resources.CpusetCpus != "" {
+		cResources.CpusetCpus = resources.CpusetCpus
+	}
+	if resources.CpusetMems != "" {
+		cResources.CpusetMems = resources.CpusetMems
+	}
+	if resources.Memory != 0 {
+		cResources.Memory = resources.Memory
+	}
+	if resources.MemorySwap != 0 {
+		cResources.MemorySwap = resources.MemorySwap
+	}
+	if resources.MemoryReservation != 0 {
+		cResources.MemoryReservation = resources.MemoryReservation
+	}
+	if resources.KernelMemory != 0 {
+		cResources.KernelMemory = resources.KernelMemory
+	}
+	container.Unlock()
+
+	// If container is not running, update hostConfig struct is enough,
+	// resources will be updated when the container is started again.
+	// If container is running (including paused), we need to update
+	// the command so we can update configs to the real world.
+	if container.IsRunning() {
+		container.Lock()
+		updateCommand(container.Command, *cResources)
+		container.Unlock()
+	}
+
+	if err := container.ToDiskLocking(); err != nil {
+		logrus.Errorf("Error saving updated container: %v", err)
+		return err
+	}
+
+	return nil
 }
 
 func detachMounted(path string) error {
@@ -555,7 +651,7 @@ func detachMounted(path string) error {
 }
 
 // UnmountVolumes unmounts all volumes
-func (container *Container) UnmountVolumes(forceSyscall bool) error {
+func (container *Container) UnmountVolumes(forceSyscall bool, volumeEventLog func(name, action string, attributes map[string]string)) error {
 	var (
 		volumeMounts []volume.MountPoint
 		err          error
@@ -586,6 +682,12 @@ func (container *Container) UnmountVolumes(forceSyscall bool) error {
 			if err := volumeMount.Volume.Unmount(); err != nil {
 				return err
 			}
+
+			attributes := map[string]string{
+				"driver":    volumeMount.Volume.DriverName(),
+				"container": container.ID,
+			}
+			volumeEventLog(volumeMount.Volume.Name(), "unmount", attributes)
 		}
 	}
 
@@ -605,7 +707,7 @@ func copyExistingContents(source, destination string) error {
 			return err
 		}
 		if len(srcList) == 0 {
-			// If the source volume is empty copy files from the root into the volume
+			// If the source volume is empty, copies files from the root into the volume
 			if err := chrootarchive.CopyWithTar(source, destination); err != nil {
 				return err
 			}

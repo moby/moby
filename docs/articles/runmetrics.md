@@ -283,7 +283,7 @@ relevant ones:
    otherwise quiescent device, which is therefore able to handle them
    immediately, without queuing. Also, while it is helpful to figure
    out which cgroup is putting stress on the I/O subsystem, keep in
-   mind that is is a relative quantity. Even if a process group does
+   mind that it is a relative quantity. Even if a process group does
    not perform more I/O, its queue size can increase just because the
    device load increases because of other devices.
 

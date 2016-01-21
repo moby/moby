@@ -20,7 +20,7 @@ automatically when you install Docker.
 
 Whether a container can talk to the world is governed by two factors. The first
 factor is whether the host machine is forwarding its IP packets. The second is
-whether the hosts `iptables` allow this particular connections
+whether the host's `iptables` allow this particular connection.
 
 IP packet forwarding is governed by the `ip_forward` system parameter.  Packets
 can only pass between containers if this parameter is `1`.  Usually you will

@@ -4,15 +4,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/url"
 
-	"github.com/docker/distribution/reference"
-	"github.com/docker/docker/api/types"
 	Cli "github.com/docker/docker/cli"
 	"github.com/docker/docker/opts"
 	flag "github.com/docker/docker/pkg/mflag"
-	"github.com/docker/docker/registry"
-	"github.com/docker/docker/runconfig"
+	"github.com/docker/docker/reference"
+	"github.com/docker/engine-api/types"
+	"github.com/docker/engine-api/types/container"
 )
 
 // CmdCommit creates a new image from a container's changes.
@@ -45,53 +43,38 @@ func (cli *DockerCli) CmdCommit(args ...string) error {
 		if err != nil {
 			return err
 		}
-		if err := registry.ValidateRepositoryName(ref); err != nil {
-			return err
-		}
 
 		repositoryName = ref.Name()
 
 		switch x := ref.(type) {
-		case reference.Digested:
+		case reference.Canonical:
 			return errors.New("cannot commit to digest reference")
-		case reference.Tagged:
+		case reference.NamedTagged:
 			tag = x.Tag()
 		}
 	}
 
-	v := url.Values{}
-	v.Set("container", name)
-	v.Set("repo", repositoryName)
-	v.Set("tag", tag)
-	v.Set("comment", *flComment)
-	v.Set("author", *flAuthor)
-	for _, change := range flChanges.GetAll() {
-		v.Add("changes", change)
-	}
-
-	if *flPause != true {
-		v.Set("pause", "0")
-	}
-
-	var (
-		config   *runconfig.Config
-		response types.ContainerCommitResponse
-	)
-
+	var config *container.Config
 	if *flConfig != "" {
-		config = &runconfig.Config{}
+		config = &container.Config{}
 		if err := json.Unmarshal([]byte(*flConfig), config); err != nil {
 			return err
 		}
 	}
-	serverResp, err := cli.call("POST", "/commit?"+v.Encode(), config, nil)
-	if err != nil {
-		return err
+
+	options := types.ContainerCommitOptions{
+		ContainerID:    name,
+		RepositoryName: repositoryName,
+		Tag:            tag,
+		Comment:        *flComment,
+		Author:         *flAuthor,
+		Changes:        flChanges.GetAll(),
+		Pause:          *flPause,
+		Config:         config,
 	}
 
-	defer serverResp.body.Close()
-
-	if err := json.NewDecoder(serverResp.body).Decode(&response); err != nil {
+	response, err := cli.client.ContainerCommit(options)
+	if err != nil {
 		return err
 	}
 

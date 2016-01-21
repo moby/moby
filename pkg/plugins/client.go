@@ -11,23 +11,14 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/pkg/sockets"
-	"github.com/docker/docker/pkg/tlsconfig"
+	"github.com/docker/go-connections/sockets"
+	"github.com/docker/go-connections/tlsconfig"
 )
 
 const (
 	versionMimetype = "application/vnd.docker.plugins.v1.1+json"
 	defaultTimeOut  = 30
 )
-
-type remoteError struct {
-	method string
-	err    string
-}
-
-func (e *remoteError) Error() string {
-	return fmt.Sprintf("Plugin Error: %s, %s", e.err, e.method)
-}
 
 // NewClient creates a new plugin client (http).
 func NewClient(addr string, tlsConfig tlsconfig.Options) (*Client, error) {
@@ -131,11 +122,25 @@ func (c *Client) callWithRetry(serviceMethod string, data io.Reader, retry bool)
 		}
 
 		if resp.StatusCode != http.StatusOK {
-			remoteErr, err := ioutil.ReadAll(resp.Body)
+			b, err := ioutil.ReadAll(resp.Body)
 			if err != nil {
-				return nil, &remoteError{err.Error(), serviceMethod}
+				return nil, fmt.Errorf("%s: %s", serviceMethod, err)
 			}
-			return nil, &remoteError{string(remoteErr), serviceMethod}
+
+			// Plugins' Response(s) should have an Err field indicating what went
+			// wrong. Try to unmarshal into ResponseErr. Otherwise fallback to just
+			// return the string(body)
+			type responseErr struct {
+				Err string
+			}
+			remoteErr := responseErr{}
+			if err := json.Unmarshal(b, &remoteErr); err == nil {
+				if remoteErr.Err != "" {
+					return nil, fmt.Errorf("%s: %s", serviceMethod, remoteErr.Err)
+				}
+			}
+			// old way...
+			return nil, fmt.Errorf("%s: %s", serviceMethod, string(b))
 		}
 		return resp.Body, nil
 	}

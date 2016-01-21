@@ -123,7 +123,7 @@ func Init(root string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 	// Create the root aufs driver dir and return
 	// if it already exists
 	// If not populate the dir structure
-	if err := idtools.MkdirAllAs(root, 0755, rootUID, rootGID); err != nil {
+	if err := idtools.MkdirAllAs(root, 0700, rootUID, rootGID); err != nil {
 		if os.IsExist(err) {
 			return a, nil
 		}
@@ -136,7 +136,7 @@ func Init(root string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 
 	// Populate the dir structure
 	for _, p := range paths {
-		if err := idtools.MkdirAllAs(path.Join(root, p), 0755, rootUID, rootGID); err != nil {
+		if err := idtools.MkdirAllAs(path.Join(root, p), 0700, rootUID, rootGID); err != nil {
 			return nil, err
 		}
 	}
@@ -367,21 +367,17 @@ func (a *Driver) Diff(id, parent string) (archive.Archive, error) {
 	})
 }
 
+// DiffPath returns path to the directory that contains files for the layer
+// differences. Used for direct access for tar-split.
+func (a *Driver) DiffPath(id string) (string, func() error, error) {
+	return path.Join(a.rootPath(), "diff", id), func() error { return nil }, nil
+}
+
 func (a *Driver) applyDiff(id string, diff archive.Reader) error {
-	dir := path.Join(a.rootPath(), "diff", id)
-	if err := chrootarchive.UntarUncompressed(diff, dir, &archive.TarOptions{
+	return chrootarchive.UntarUncompressed(diff, path.Join(a.rootPath(), "diff", id), &archive.TarOptions{
 		UIDMaps: a.uidMaps,
 		GIDMaps: a.gidMaps,
-	}); err != nil {
-		return err
-	}
-
-	// show invalid whiteouts warning.
-	files, err := ioutil.ReadDir(path.Join(dir, archive.WhiteoutLinkDir))
-	if err == nil && len(files) > 0 {
-		logrus.Warnf("Archive contains aufs hardlink references that are not supported.")
-	}
-	return nil
+	})
 }
 
 // DiffSize calculates the changes between the specified id
@@ -511,7 +507,7 @@ func (a *Driver) aufsMount(ro []string, rw, target, mountLabel string) (err erro
 		}
 
 		if firstMount {
-			opts := "dio,noplink,xino=/dev/shm/aufs.xino"
+			opts := "dio,xino=/dev/shm/aufs.xino"
 			if useDirperm() {
 				opts += ",dirperm1"
 			}

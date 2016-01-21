@@ -8,9 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/integration/checker"
-	"github.com/docker/docker/runconfig"
+	"github.com/docker/engine-api/types"
+	"github.com/docker/engine-api/types/container"
 	"github.com/go-check/check"
 )
 
@@ -49,8 +49,12 @@ func (s *DockerSuite) TestInspectDefault(c *check.C) {
 	//Both the container and image are named busybox. docker inspect will fetch the container JSON.
 	//If the container JSON is not available, it will go for the image JSON.
 
-	dockerCmd(c, "run", "--name=busybox", "-d", "busybox", "true")
-	dockerCmd(c, "inspect", "busybox")
+	out, _ := dockerCmd(c, "run", "--name=busybox", "-d", "busybox", "true")
+	containerID := strings.TrimSpace(out)
+
+	inspectOut, err := inspectField("busybox", "Id")
+	c.Assert(err, checker.IsNil)
+	c.Assert(strings.TrimSpace(inspectOut), checker.Equals, containerID)
 }
 
 func (s *DockerSuite) TestInspectStatus(c *check.C) {
@@ -209,8 +213,13 @@ func (s *DockerSuite) TestInspectContainerGraphDriver(c *check.C) {
 		return
 	}
 
+	imageDeviceID, err := inspectField("busybox", "GraphDriver.Data.DeviceId")
+	c.Assert(err, checker.IsNil)
+
 	deviceID, err := inspectField(out, "GraphDriver.Data.DeviceId")
 	c.Assert(err, checker.IsNil)
+
+	c.Assert(imageDeviceID, checker.Not(checker.Equals), deviceID)
 
 	_, err = strconv.Atoi(deviceID)
 	c.Assert(err, checker.IsNil, check.Commentf("failed to inspect DeviceId of the image: %s, %v", deviceID, err))
@@ -276,7 +285,7 @@ func (s *DockerSuite) TestInspectTimesAsRFC3339Nano(c *check.C) {
 func (s *DockerSuite) TestInspectLogConfigNoType(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "create", "--name=test", "--log-opt", "max-file=42", "busybox")
-	var logConfig runconfig.LogConfig
+	var logConfig container.LogConfig
 
 	out, err := inspectFieldJSON("test", "HostConfig.LogConfig")
 	c.Assert(err, checker.IsNil, check.Commentf("%v", out))
@@ -324,13 +333,15 @@ func (s *DockerSuite) TestInspectSizeFlagImage(c *check.C) {
 }
 
 func (s *DockerSuite) TestInspectTempateError(c *check.C) {
-	//Both the container and image are named busybox. docker inspect will fetch container
-	//JSON State.Running field. If the field is true, it's a container.
+	// Template parsing error for both the container and image.
 
-	dockerCmd(c, "run", "--name=busybox", "-d", "busybox", "top")
+	dockerCmd(c, "run", "--name=container1", "-d", "busybox", "top")
 
-	out, _, err := dockerCmdWithError("inspect", "--type=container", "--format='Format container: {{.ThisDoesNotExist}}'", "busybox")
+	out, _, err := dockerCmdWithError("inspect", "--type=container", "--format='Format container: {{.ThisDoesNotExist}}'", "container1")
+	c.Assert(err, check.Not(check.IsNil))
+	c.Assert(out, checker.Contains, "Template parsing error")
 
+	out, _, err = dockerCmdWithError("inspect", "--type=image", "--format='Format container: {{.ThisDoesNotExist}}'", "busybox")
 	c.Assert(err, check.Not(check.IsNil))
 	c.Assert(out, checker.Contains, "Template parsing error")
 }
@@ -355,4 +366,52 @@ func (s *DockerSuite) TestInspectByPrefix(c *check.C) {
 	id3, err := inspectField(strings.TrimPrefix(id, "sha256:")[:12], "Id")
 	c.Assert(err, checker.IsNil)
 	c.Assert(id, checker.Equals, id3)
+}
+
+func (s *DockerSuite) TestInspectStopWhenNotFound(c *check.C) {
+	dockerCmd(c, "run", "--name=busybox", "-d", "busybox", "top")
+	dockerCmd(c, "run", "--name=not-shown", "-d", "busybox", "top")
+	out, _, err := dockerCmdWithError("inspect", "--type=container", "--format='{{.Name}}'", "busybox", "missing", "not-shown")
+
+	c.Assert(err, checker.Not(check.IsNil))
+	c.Assert(out, checker.Contains, "busybox")
+	c.Assert(out, checker.Not(checker.Contains), "not-shown")
+	c.Assert(out, checker.Contains, "Error: No such container: missing")
+}
+
+func (s *DockerSuite) TestInspectHistory(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	dockerCmd(c, "run", "--name=testcont", "-d", "busybox", "top")
+	dockerCmd(c, "commit", "-m", "test comment", "testcont", "testimg")
+	out, _, err := dockerCmdWithError("inspect", "--format='{{.Comment}}'", "testimg")
+
+	c.Assert(err, check.IsNil)
+	c.Assert(out, checker.Contains, "test comment")
+}
+
+func (s *DockerSuite) TestInspectContainerNetworkDefault(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	contName := "test1"
+	dockerCmd(c, "run", "--name", contName, "-d", "busybox", "top")
+	netOut, _ := dockerCmd(c, "network", "inspect", "--format='{{.ID}}'", "bridge")
+	out, err := inspectField(contName, "NetworkSettings.Networks")
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Contains, "bridge")
+	out, err = inspectField(contName, "NetworkSettings.Networks.bridge.NetworkID")
+	c.Assert(err, checker.IsNil)
+	c.Assert(strings.TrimSpace(out), checker.Equals, strings.TrimSpace(netOut))
+}
+
+func (s *DockerSuite) TestInspectContainerNetworkCustom(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	netOut, _ := dockerCmd(c, "network", "create", "net1")
+	dockerCmd(c, "run", "--name=container1", "--net=net1", "-d", "busybox", "top")
+	out, err := inspectField("container1", "NetworkSettings.Networks")
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Contains, "net1")
+	out, err = inspectField("container1", "NetworkSettings.Networks.net1.NetworkID")
+	c.Assert(err, checker.IsNil)
+	c.Assert(strings.TrimSpace(out), checker.Equals, strings.TrimSpace(netOut))
 }

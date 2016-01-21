@@ -73,7 +73,7 @@ func TestJSONFormatProgress(t *testing.T) {
 		Total:   30,
 		Start:   1,
 	}
-	res := sf.FormatProgress("id", "action", progress)
+	res := sf.FormatProgress("id", "action", progress, nil)
 	msg := &jsonmessage.JSONMessage{}
 	if err := json.Unmarshal(res, msg); err != nil {
 		t.Fatal(err)

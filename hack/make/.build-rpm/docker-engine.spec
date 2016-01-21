@@ -47,9 +47,9 @@ Requires: xz
 # Resolves: rhbz#1165615
 Requires: device-mapper-libs >= 1.02.90-1
 %endif
-%if 0%{?oraclelinux} == 6
-# Require Oracle Unbreakable Enterprise Kernel R3 and newer device-mapper
-Requires: kernel-uek >= 3.8
+%if 0%{?oraclelinux} >= 6
+# Require Oracle Unbreakable Enterprise Kernel R4 and newer device-mapper
+Requires: kernel-uek >= 4.1
 Requires: device-mapper >= 1.02.90-2
 %endif
 
@@ -105,7 +105,7 @@ for deploying and scaling web apps, databases, and backend services without
 depending on a particular stack or provider.
 
 %prep
-%if 0%{?centos} <= 6
+%if 0%{?centos} <= 6 || 0%{?oraclelinux} <=6
 %setup -n %{name}
 %else
 %autosetup -n %{name}
@@ -130,7 +130,7 @@ install -p -m 755 bundles/%{_origversion}/dynbinary/dockerinit-%{_origversion} $
 
 # install udev rules
 install -d $RPM_BUILD_ROOT/%{_sysconfdir}/udev/rules.d
-install -p -m 755 contrib/udev/80-docker.rules $RPM_BUILD_ROOT/%{_sysconfdir}/udev/rules.d/80-docker.rules
+install -p -m 644 contrib/udev/80-docker.rules $RPM_BUILD_ROOT/%{_sysconfdir}/udev/rules.d/80-docker.rules
 
 # add init scripts
 install -d $RPM_BUILD_ROOT/etc/sysconfig

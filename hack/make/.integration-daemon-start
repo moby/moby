@@ -73,6 +73,16 @@ while ! docker version &> /dev/null; do
 		else
 			echo >&2 "error: daemon at $DOCKER_HOST fails to 'docker version':"
 			docker version >&2 || true
+			# Additional Windows CI debugging as this is a common error as of
+			# January 2016
+			if [ "$(go env GOOS)" = 'windows' ]; then	
+				echo >&2 "Container log below:"
+				echo >&2 "---"
+				# Important - use the docker on the CI host, not the one built locally
+				# which is currently in our path.
+				! /c/bin/docker -H=$MAIN_DOCKER_HOST logs docker-$COMMITHASH
+				echo >&2 "---"
+			fi			
 		fi
 		false
 	fi

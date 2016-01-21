@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/docker/docker/api/types"
 	derr "github.com/docker/docker/errors"
+	"github.com/docker/engine-api/types"
 )
 
 // ContainerTop lists the processes running inside of the given
@@ -21,7 +21,7 @@ func (daemon *Daemon) ContainerTop(name string, psArgs string) (*types.Container
 		psArgs = "-ef"
 	}
 
-	container, err := daemon.Get(name)
+	container, err := daemon.GetContainer(name)
 	if err != nil {
 		return nil, err
 	}

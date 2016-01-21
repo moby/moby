@@ -133,7 +133,7 @@ func (s *DockerSuite) TestHelpTextVerify(c *check.C) {
 			// Check each line for lots of stuff
 			lines := strings.Split(out, "\n")
 			for _, line := range lines {
-				c.Assert(len(line), checker.LessOrEqualThan, 90, check.Commentf("Help for %q is too long:\n%s", cmd, line))
+				c.Assert(len(line), checker.LessOrEqualThan, 107, check.Commentf("Help for %q is too long:\n%s", cmd, line))
 
 				if scanForHome && strings.Contains(line, `"`+home) {
 					c.Fatalf("Help for %q should use ~ instead of %q on:\n%s",
@@ -226,7 +226,7 @@ func (s *DockerSuite) TestHelpTextVerify(c *check.C) {
 		}
 
 		// Number of commands for standard release and experimental release
-		standard := 40
+		standard := 41
 		experimental := 1
 		expected := standard + experimental
 		if isLocalDaemon {

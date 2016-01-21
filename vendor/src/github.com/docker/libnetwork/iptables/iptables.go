@@ -312,6 +312,7 @@ func Exists(table Table, chain string, rule ...string) bool {
 	// parse "iptables -S" for the rule (this checks rules in a specific chain
 	// in a specific table)
 	ruleString := strings.Join(rule, " ")
+	ruleString = chain + " " + ruleString
 	existingRules, _ := exec.Command(iptablesPath, "-t", string(table), "-S", chain).Output()
 
 	return strings.Contains(string(existingRules), ruleString)
@@ -350,4 +351,21 @@ func Raw(args ...string) ([]byte, error) {
 	}
 
 	return output, err
+}
+
+// RawCombinedOutput inernally calls the Raw function and returns a non nil
+// error if Raw returned a non nil error or a non empty output
+func RawCombinedOutput(args ...string) error {
+	if output, err := Raw(args...); err != nil || len(output) != 0 {
+		return fmt.Errorf("%s (%v)", string(output), err)
+	}
+	return nil
+}
+
+// ExistChain checks if a chain exists
+func ExistChain(chain string, table Table) bool {
+	if _, err := Raw("-t", string(table), "-L", chain); err == nil {
+		return true
+	}
+	return false
 }

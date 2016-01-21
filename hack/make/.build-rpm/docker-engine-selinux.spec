@@ -101,3 +101,6 @@ fi
 %attr(0644,root,root) %{_datadir}/selinux/devel/include/%{moduletype}/*.if
 
 %changelog
+* Tue Dec 1 2015 Jessica Frazelle <acidburn@docker.com> 1.9.1-1
+- add licence to rpm
+- add selinux-policy and docker-engine-selinux rpm

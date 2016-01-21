@@ -7,7 +7,8 @@ import (
 
 	"github.com/docker/docker/opts"
 	flag "github.com/docker/docker/pkg/mflag"
-	"github.com/docker/docker/pkg/ulimit"
+	runconfigopts "github.com/docker/docker/runconfig/opts"
+	"github.com/docker/go-units"
 )
 
 var (
@@ -17,17 +18,20 @@ var (
 )
 
 // Config defines the configuration of a docker daemon.
+// It includes json tags to deserialize configuration from a file
+// using the same names that the flags in the command line uses.
 type Config struct {
 	CommonConfig
 
 	// Fields below here are platform specific.
 
-	CorsHeaders          string
-	EnableCors           bool
-	EnableSelinuxSupport bool
-	RemappedRoot         string
-	SocketGroup          string
-	Ulimits              map[string]*ulimit.Ulimit
+	CorsHeaders          string                   `json:"api-cors-headers,omitempty"`
+	EnableCors           bool                     `json:"api-enable-cors,omitempty"`
+	EnableSelinuxSupport bool                     `json:"selinux-enabled,omitempty"`
+	RemappedRoot         string                   `json:"userns-remap,omitempty"`
+	SocketGroup          string                   `json:"group,omitempty"`
+	CgroupParent         string                   `json:"cgroup-parent,omitempty"`
+	Ulimits              map[string]*units.Ulimit `json:"default-ulimits,omitempty"`
 }
 
 // bridgeConfig stores all the bridge driver specific
@@ -59,8 +63,8 @@ func (config *Config) InstallFlags(cmd *flag.FlagSet, usageFn func(string) strin
 	// Then platform-specific install flags
 	cmd.BoolVar(&config.EnableSelinuxSupport, []string{"-selinux-enabled"}, false, usageFn("Enable selinux support"))
 	cmd.StringVar(&config.SocketGroup, []string{"G", "-group"}, "docker", usageFn("Group for the unix socket"))
-	config.Ulimits = make(map[string]*ulimit.Ulimit)
-	cmd.Var(opts.NewUlimitOpt(&config.Ulimits), []string{"-default-ulimit"}, usageFn("Set default ulimits for containers"))
+	config.Ulimits = make(map[string]*units.Ulimit)
+	cmd.Var(runconfigopts.NewUlimitOpt(&config.Ulimits), []string{"-default-ulimit"}, usageFn("Set default ulimits for containers"))
 	cmd.BoolVar(&config.Bridge.EnableIPTables, []string{"#iptables", "-iptables"}, true, usageFn("Enable addition of iptables rules"))
 	cmd.BoolVar(&config.Bridge.EnableIPForward, []string{"#ip-forward", "-ip-forward"}, true, usageFn("Enable net.ipv4.ip_forward"))
 	cmd.BoolVar(&config.Bridge.EnableIPMasq, []string{"-ip-masq"}, true, usageFn("Enable IP masquerading"))
@@ -76,6 +80,8 @@ func (config *Config) InstallFlags(cmd *flag.FlagSet, usageFn func(string) strin
 	cmd.BoolVar(&config.Bridge.EnableUserlandProxy, []string{"-userland-proxy"}, true, usageFn("Use userland proxy for loopback traffic"))
 	cmd.BoolVar(&config.EnableCors, []string{"#api-enable-cors", "#-api-enable-cors"}, false, usageFn("Enable CORS headers in the remote API, this is deprecated by --api-cors-header"))
 	cmd.StringVar(&config.CorsHeaders, []string{"-api-cors-header"}, "", usageFn("Set CORS headers in the remote API"))
+	cmd.StringVar(&config.CgroupParent, []string{"-cgroup-parent"}, "", usageFn("Set parent cgroup for all containers"))
+	cmd.StringVar(&config.RemappedRoot, []string{"-userns-remap"}, "", usageFn("User/Group setting for user namespaces"))
 
 	config.attachExperimentalFlags(cmd, usageFn)
 }

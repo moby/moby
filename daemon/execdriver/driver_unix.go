@@ -14,7 +14,7 @@ import (
 	"github.com/docker/docker/daemon/execdriver/native/template"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/mount"
-	"github.com/docker/docker/pkg/ulimit"
+	"github.com/docker/go-units"
 	"github.com/opencontainers/runc/libcontainer"
 	"github.com/opencontainers/runc/libcontainer/cgroups/fs"
 	"github.com/opencontainers/runc/libcontainer/configs"
@@ -26,9 +26,8 @@ type Mount struct {
 	Source      string `json:"source"`
 	Destination string `json:"destination"`
 	Writable    bool   `json:"writable"`
-	Private     bool   `json:"private"`
-	Slave       bool   `json:"slave"`
 	Data        string `json:"data"`
+	Propagation string `json:"mountpropagation"`
 }
 
 // Resources contains all resource configs for a driver.
@@ -38,18 +37,20 @@ type Resources struct {
 
 	// Fields below here are platform specific
 
-	BlkioWeightDevice           []*blkiodev.WeightDevice   `json:"blkio_weight_device"`
-	BlkioThrottleReadBpsDevice  []*blkiodev.ThrottleDevice `json:"blkio_throttle_read_bps_device"`
-	BlkioThrottleWriteBpsDevice []*blkiodev.ThrottleDevice `json:"blkio_throttle_write_bps_device"`
-	MemorySwap                  int64                      `json:"memory_swap"`
-	KernelMemory                int64                      `json:"kernel_memory"`
-	CPUQuota                    int64                      `json:"cpu_quota"`
-	CpusetCpus                  string                     `json:"cpuset_cpus"`
-	CpusetMems                  string                     `json:"cpuset_mems"`
-	CPUPeriod                   int64                      `json:"cpu_period"`
-	Rlimits                     []*ulimit.Rlimit           `json:"rlimits"`
-	OomKillDisable              bool                       `json:"oom_kill_disable"`
-	MemorySwappiness            int64                      `json:"memory_swappiness"`
+	BlkioWeightDevice            []*blkiodev.WeightDevice   `json:"blkio_weight_device"`
+	BlkioThrottleReadBpsDevice   []*blkiodev.ThrottleDevice `json:"blkio_throttle_read_bps_device"`
+	BlkioThrottleWriteBpsDevice  []*blkiodev.ThrottleDevice `json:"blkio_throttle_write_bps_device"`
+	BlkioThrottleReadIOpsDevice  []*blkiodev.ThrottleDevice `json:"blkio_throttle_read_iops_device"`
+	BlkioThrottleWriteIOpsDevice []*blkiodev.ThrottleDevice `json:"blkio_throttle_write_iops_device"`
+	MemorySwap                   int64                      `json:"memory_swap"`
+	KernelMemory                 int64                      `json:"kernel_memory"`
+	CPUQuota                     int64                      `json:"cpu_quota"`
+	CpusetCpus                   string                     `json:"cpuset_cpus"`
+	CpusetMems                   string                     `json:"cpuset_mems"`
+	CPUPeriod                    int64                      `json:"cpu_period"`
+	Rlimits                      []*units.Rlimit            `json:"rlimits"`
+	OomKillDisable               bool                       `json:"oom_kill_disable"`
+	MemorySwappiness             int64                      `json:"memory_swappiness"`
 }
 
 // ProcessConfig is the platform specific structure that describes a process
@@ -125,6 +126,11 @@ type Command struct {
 	UTS                *UTS              `json:"uts"`
 }
 
+// SetRootPropagation sets the root mount propagation mode.
+func SetRootPropagation(config *configs.Config, propagation int) {
+	config.RootPropagation = propagation
+}
+
 // InitContainer is the initialization of a container config.
 // It returns the initial configs for a container. It's mostly
 // defined by the default template.
@@ -133,19 +139,18 @@ func InitContainer(c *Command) *configs.Config {
 
 	container.Hostname = getEnv("HOSTNAME", c.ProcessConfig.Env)
 	container.Cgroups.Name = c.ID
-	container.Cgroups.AllowedDevices = c.AllowedDevices
+	container.Cgroups.Resources.AllowedDevices = c.AllowedDevices
 	container.Devices = c.AutoCreatedDevices
 	container.Rootfs = c.Rootfs
 	container.Readonlyfs = c.ReadonlyRootfs
-	container.RootPropagation = mount.RPRIVATE
+	// This can be overridden later by driver during mount setup based
+	// on volume options
+	SetRootPropagation(container, mount.RPRIVATE)
+	container.Cgroups.Parent = c.CgroupParent
 
 	// check to see if we are running in ramdisk to disable pivot root
 	container.NoPivotRoot = os.Getenv("DOCKER_RAMDISK") != ""
 
-	// Default parent cgroup is "docker". Override if required.
-	if c.CgroupParent != "" {
-		container.Cgroups.Parent = c.CgroupParent
-	}
 	return container
 }
 
@@ -162,21 +167,23 @@ func getEnv(key string, env []string) string {
 // SetupCgroups setups cgroup resources for a container.
 func SetupCgroups(container *configs.Config, c *Command) error {
 	if c.Resources != nil {
-		container.Cgroups.CpuShares = c.Resources.CPUShares
-		container.Cgroups.Memory = c.Resources.Memory
-		container.Cgroups.MemoryReservation = c.Resources.MemoryReservation
-		container.Cgroups.MemorySwap = c.Resources.MemorySwap
-		container.Cgroups.KernelMemory = c.Resources.KernelMemory
-		container.Cgroups.CpusetCpus = c.Resources.CpusetCpus
-		container.Cgroups.CpusetMems = c.Resources.CpusetMems
-		container.Cgroups.CpuPeriod = c.Resources.CPUPeriod
-		container.Cgroups.CpuQuota = c.Resources.CPUQuota
-		container.Cgroups.BlkioWeight = c.Resources.BlkioWeight
-		container.Cgroups.BlkioWeightDevice = c.Resources.BlkioWeightDevice
-		container.Cgroups.BlkioThrottleReadBpsDevice = c.Resources.BlkioThrottleReadBpsDevice
-		container.Cgroups.BlkioThrottleWriteBpsDevice = c.Resources.BlkioThrottleWriteBpsDevice
-		container.Cgroups.OomKillDisable = c.Resources.OomKillDisable
-		container.Cgroups.MemorySwappiness = c.Resources.MemorySwappiness
+		container.Cgroups.Resources.CpuShares = c.Resources.CPUShares
+		container.Cgroups.Resources.Memory = c.Resources.Memory
+		container.Cgroups.Resources.MemoryReservation = c.Resources.MemoryReservation
+		container.Cgroups.Resources.MemorySwap = c.Resources.MemorySwap
+		container.Cgroups.Resources.KernelMemory = c.Resources.KernelMemory
+		container.Cgroups.Resources.CpusetCpus = c.Resources.CpusetCpus
+		container.Cgroups.Resources.CpusetMems = c.Resources.CpusetMems
+		container.Cgroups.Resources.CpuPeriod = c.Resources.CPUPeriod
+		container.Cgroups.Resources.CpuQuota = c.Resources.CPUQuota
+		container.Cgroups.Resources.BlkioWeight = c.Resources.BlkioWeight
+		container.Cgroups.Resources.BlkioWeightDevice = c.Resources.BlkioWeightDevice
+		container.Cgroups.Resources.BlkioThrottleReadBpsDevice = c.Resources.BlkioThrottleReadBpsDevice
+		container.Cgroups.Resources.BlkioThrottleWriteBpsDevice = c.Resources.BlkioThrottleWriteBpsDevice
+		container.Cgroups.Resources.BlkioThrottleReadIOPSDevice = c.Resources.BlkioThrottleReadIOpsDevice
+		container.Cgroups.Resources.BlkioThrottleWriteIOPSDevice = c.Resources.BlkioThrottleWriteIOpsDevice
+		container.Cgroups.Resources.OomKillDisable = c.Resources.OomKillDisable
+		container.Cgroups.Resources.MemorySwappiness = c.Resources.MemorySwappiness
 	}
 
 	return nil

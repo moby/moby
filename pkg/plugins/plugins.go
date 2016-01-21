@@ -28,7 +28,7 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/pkg/tlsconfig"
+	"github.com/docker/go-connections/tlsconfig"
 )
 
 var (
@@ -96,7 +96,6 @@ func (p *Plugin) activateWithLock() error {
 		return err
 	}
 
-	logrus.Debugf("%s's manifest: %v", p.Name, m)
 	p.Manifest = m
 
 	for _, iface := range m.Implements {
@@ -107,6 +106,15 @@ func (p *Plugin) activateWithLock() error {
 		handler(p.Name, p.Client)
 	}
 	return nil
+}
+
+func (p *Plugin) implements(kind string) bool {
+	for _, driver := range p.Manifest.Implements {
+		if driver == kind {
+			return true
+		}
+	}
+	return false
 }
 
 func load(name string) (*Plugin, error) {
@@ -167,11 +175,9 @@ func Get(name, imp string) (*Plugin, error) {
 	if err != nil {
 		return nil, err
 	}
-	for _, driver := range pl.Manifest.Implements {
-		logrus.Debugf("%s implements: %s", name, driver)
-		if driver == imp {
-			return pl, nil
-		}
+	if pl.implements(imp) {
+		logrus.Debugf("%s implements: %s", name, imp)
+		return pl, nil
 	}
 	return nil, ErrNotImplements
 }
@@ -179,4 +185,38 @@ func Get(name, imp string) (*Plugin, error) {
 // Handle adds the specified function to the extpointHandlers.
 func Handle(iface string, fn func(string, *Client)) {
 	extpointHandlers[iface] = fn
+}
+
+// GetAll returns all the plugins for the specified implementation
+func GetAll(imp string) ([]*Plugin, error) {
+	pluginNames, err := Scan()
+	if err != nil {
+		return nil, err
+	}
+
+	type plLoad struct {
+		pl  *Plugin
+		err error
+	}
+
+	chPl := make(chan plLoad, len(pluginNames))
+	for _, name := range pluginNames {
+		go func(name string) {
+			pl, err := loadWithRetry(name, false)
+			chPl <- plLoad{pl, err}
+		}(name)
+	}
+
+	var out []*Plugin
+	for i := 0; i < len(pluginNames); i++ {
+		pl := <-chPl
+		if pl.err != nil {
+			logrus.Error(err)
+			continue
+		}
+		if pl.pl.implements(imp) {
+			out = append(out, pl.pl)
+		}
+	}
+	return out, nil
 }

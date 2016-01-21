@@ -30,11 +30,9 @@ func (s *DockerHubPullSuite) TestPullFromCentralRegistry(c *check.C) {
 
 	// We should have a single entry in images.
 	img := strings.TrimSpace(s.Cmd(c, "images"))
-	if splitImg := strings.Split(img, "\n"); len(splitImg) != 2 {
-		c.Fatalf("expected only two lines in the output of `docker images`, got %d", len(splitImg))
-	} else if re := regexp.MustCompile(`^hello-world\s+latest`); !re.Match([]byte(splitImg[1])) {
-		c.Fatal("invalid output for `docker images` (expected image and tag name")
-	}
+	splitImg := strings.Split(img, "\n")
+	c.Assert(splitImg, checker.HasLen, 2)
+	c.Assert(splitImg[1], checker.Matches, `hello-world\s+latest.*?`, check.Commentf("invalid output for `docker images` (expected image and tag name"))
 }
 
 // TestPullNonExistingImage pulls non-existing images from the central registry, with different
@@ -54,8 +52,20 @@ func (s *DockerHubPullSuite) TestPullNonExistingImage(c *check.C) {
 	} {
 		out, err := s.CmdWithError("pull", e.Alias)
 		c.Assert(err, checker.NotNil, check.Commentf("expected non-zero exit status when pulling non-existing image: %s", out))
+		// Hub returns 401 rather than 404 for nonexistent repos over
+		// the v2 protocol - but we should end up falling back to v1,
+		// which does return a 404.
 		c.Assert(out, checker.Contains, fmt.Sprintf("Error: image %s not found", e.Repo), check.Commentf("expected image not found error messages"))
+
+		// pull -a on a nonexistent registry should fall back as well
+		if !strings.ContainsRune(e.Alias, ':') {
+			out, err := s.CmdWithError("pull", "-a", e.Alias)
+			c.Assert(err, checker.NotNil, check.Commentf("expected non-zero exit status when pulling non-existing image: %s", out))
+			c.Assert(out, checker.Contains, fmt.Sprintf("Error: image %s not found", e.Repo), check.Commentf("expected image not found error messages"))
+			c.Assert(out, checker.Not(checker.Contains), "unauthorized", check.Commentf(`message should not contain "unauthorized"`))
+		}
 	}
+
 }
 
 // TestPullFromCentralRegistryImplicitRefParts pulls an image from the central registry and verifies
@@ -81,11 +91,9 @@ func (s *DockerHubPullSuite) TestPullFromCentralRegistryImplicitRefParts(c *chec
 
 	// We should have a single entry in images.
 	img := strings.TrimSpace(s.Cmd(c, "images"))
-	if splitImg := strings.Split(img, "\n"); len(splitImg) != 2 {
-		c.Fatalf("expected only two lines in the output of `docker images`, got %d", len(splitImg))
-	} else if re := regexp.MustCompile(`^hello-world\s+latest`); !re.Match([]byte(splitImg[1])) {
-		c.Fatal("invalid output for `docker images` (expected image and tag name")
-	}
+	splitImg := strings.Split(img, "\n")
+	c.Assert(splitImg, checker.HasLen, 2)
+	c.Assert(splitImg[1], checker.Matches, `hello-world\s+latest.*?`, check.Commentf("invalid output for `docker images` (expected image and tag name"))
 }
 
 // TestPullScratchNotAllowed verifies that pulling 'scratch' is rejected.
@@ -104,13 +112,12 @@ func (s *DockerHubPullSuite) TestPullAllTagsFromCentralRegistry(c *check.C) {
 	s.Cmd(c, "pull", "busybox")
 	outImageCmd := s.Cmd(c, "images", "busybox")
 	splitOutImageCmd := strings.Split(strings.TrimSpace(outImageCmd), "\n")
-	c.Assert(splitOutImageCmd, checker.HasLen, 2, check.Commentf("expected a single entry in images\n%v", outImageCmd))
+	c.Assert(splitOutImageCmd, checker.HasLen, 2)
 
 	s.Cmd(c, "pull", "--all-tags=true", "busybox")
 	outImageAllTagCmd := s.Cmd(c, "images", "busybox")
-	if linesCount := strings.Count(outImageAllTagCmd, "\n"); linesCount <= 2 {
-		c.Fatalf("pulling all tags should provide more images, got %d", linesCount-1)
-	}
+	linesCount := strings.Count(outImageAllTagCmd, "\n")
+	c.Assert(linesCount, checker.GreaterThan, 2, check.Commentf("pulling all tags should provide more than two images, got %s", outImageAllTagCmd))
 
 	// Verify that the line for 'busybox:latest' is left unchanged.
 	var latestLine string
@@ -140,7 +147,7 @@ func (s *DockerHubPullSuite) TestPullAllTagsFromCentralRegistry(c *check.C) {
 }
 
 // TestPullClientDisconnect kills the client during a pull operation and verifies that the operation
-// still succesfully completes on the daemon side.
+// gets cancelled.
 //
 // Ref: docker/docker#15589
 func (s *DockerHubPullSuite) TestPullClientDisconnect(c *check.C) {
@@ -161,14 +168,7 @@ func (s *DockerHubPullSuite) TestPullClientDisconnect(c *check.C) {
 	err = pullCmd.Process.Kill()
 	c.Assert(err, checker.IsNil)
 
-	maxAttempts := 20
-	for i := 0; ; i++ {
-		if _, err := s.CmdWithError("inspect", repoName); err == nil {
-			break
-		}
-		if i >= maxAttempts {
-			c.Fatal("timeout reached: image was not pulled after client disconnected")
-		}
-		time.Sleep(500 * time.Millisecond)
-	}
+	time.Sleep(2 * time.Second)
+	_, err = s.CmdWithError("inspect", repoName)
+	c.Assert(err, checker.NotNil, check.Commentf("image was pulled after client disconnected"))
 }
