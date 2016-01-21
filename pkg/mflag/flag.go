@@ -1163,7 +1163,7 @@ func (fs *FlagSet) ReportError(str string, withHelp bool) {
 			str += ".\nSee '" + os.Args[0] + " " + fs.Name() + " --help'"
 		}
 	}
-	fmt.Fprintf(fs.Out(), "docker: %s.\n", str)
+	fmt.Fprintf(fs.Out(), "%s: %s.\n", os.Args[0], str)
 }
 
 // Parsed reports whether fs.Parse has been called.
