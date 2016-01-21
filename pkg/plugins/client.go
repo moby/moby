@@ -3,7 +3,6 @@ package plugins
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -124,7 +123,7 @@ func (c *Client) callWithRetry(serviceMethod string, data io.Reader, retry bool)
 		if resp.StatusCode != http.StatusOK {
 			b, err := ioutil.ReadAll(resp.Body)
 			if err != nil {
-				return nil, fmt.Errorf("%s: %s", serviceMethod, err)
+				return nil, &statusError{resp.StatusCode, serviceMethod, err.Error()}
 			}
 
 			// Plugins' Response(s) should have an Err field indicating what went
@@ -136,11 +135,11 @@ func (c *Client) callWithRetry(serviceMethod string, data io.Reader, retry bool)
 			remoteErr := responseErr{}
 			if err := json.Unmarshal(b, &remoteErr); err == nil {
 				if remoteErr.Err != "" {
-					return nil, fmt.Errorf("%s: %s", serviceMethod, remoteErr.Err)
+					return nil, &statusError{resp.StatusCode, serviceMethod, remoteErr.Err}
 				}
 			}
 			// old way...
-			return nil, fmt.Errorf("%s: %s", serviceMethod, string(b))
+			return nil, &statusError{resp.StatusCode, serviceMethod, string(b)}
 		}
 		return resp.Body, nil
 	}
