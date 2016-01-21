@@ -46,7 +46,7 @@ clone git github.com/boltdb/bolt v1.1.0
 clone git github.com/miekg/dns 75e6e86cc601825c5dbcd4e0c209eab180997cd7
 
 # get graph and distribution packages
-clone git github.com/docker/distribution 08650825fef9f21ea819972fb2ed875c0832a255
+clone git github.com/docker/distribution c301f8ab27f4913c968b8d73a38e5dda79b9d3d7
 clone git github.com/vbatts/tar-split v0.9.11
 
 # get desired notary commit, might also need to be updated in Dockerfile

@@ -2,7 +2,7 @@ package distribution
 
 import (
 	"fmt"
-	"strings"
+	"mime"
 
 	"github.com/docker/distribution/context"
 	"github.com/docker/distribution/digest"
@@ -84,19 +84,23 @@ var mappings = make(map[string]UnmarshalFunc, 0)
 // UnmarshalManifest looks up manifest unmarshall functions based on
 // MediaType
 func UnmarshalManifest(ctHeader string, p []byte) (Manifest, Descriptor, error) {
-	// Need to look up by the actual content type, not the raw contents of
+	// Need to look up by the actual media type, not the raw contents of
 	// the header. Strip semicolons and anything following them.
 	var mediatype string
-	semicolonIndex := strings.Index(ctHeader, ";")
-	if semicolonIndex != -1 {
-		mediatype = ctHeader[:semicolonIndex]
-	} else {
-		mediatype = ctHeader
+	if ctHeader != "" {
+		var err error
+		mediatype, _, err = mime.ParseMediaType(ctHeader)
+		if err != nil {
+			return nil, Descriptor{}, err
+		}
 	}
 
 	unmarshalFunc, ok := mappings[mediatype]
 	if !ok {
-		return nil, Descriptor{}, fmt.Errorf("unsupported manifest mediatype: %s", mediatype)
+		unmarshalFunc, ok = mappings[""]
+		if !ok {
+			return nil, Descriptor{}, fmt.Errorf("unsupported manifest mediatype and no default available: %s", mediatype)
+		}
 	}
 
 	return unmarshalFunc(p)
