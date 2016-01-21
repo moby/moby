@@ -214,6 +214,7 @@ func (s *DockerSuite) TestLinksEtcHostsRegularFile(c *check.C) {
 }
 
 func (s *DockerSuite) TestLinksMultipleWithSameName(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "run", "-d", "--name=upstream-a", "busybox", "top")
 	dockerCmd(c, "run", "-d", "--name=upstream-b", "busybox", "top")
 	dockerCmd(c, "run", "--link", "upstream-a:upstream", "--link", "upstream-b:upstream", "busybox", "sh", "-c", "ping -c 1 upstream")
