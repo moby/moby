@@ -7,7 +7,7 @@ FROM fedora:23
 RUN dnf install -y @development-tools fedora-packager
 RUN dnf install -y btrfs-progs-devel device-mapper-devel glibc-static libseccomp-devel libselinux-devel libtool-ltdl-devel selinux-policy selinux-policy-devel sqlite-devel tar
 
-ENV SECCOMP_VERSION v2.2.3
+ENV SECCOMP_VERSION 2.2.3
 RUN buildDeps=' \
 automake \
 libtool \
@@ -15,10 +15,10 @@ libtool \
 && set -x \
 && yum install -y $buildDeps \
 && export SECCOMP_PATH=$(mktemp -d) \
-&& git clone -b "$SECCOMP_VERSION" --depth 1 https://github.com/seccomp/libseccomp.git "$SECCOMP_PATH" \
+&& curl -fsSL "https://github.com/seccomp/libseccomp/releases/download/v${SECCOMP_VERSION}/libseccomp-${SECCOMP_VERSION}.tar.gz" \
+| tar -xzC "$SECCOMP_PATH" --strip-components=1 \
 && ( \
 cd "$SECCOMP_PATH" \
-&& ./autogen.sh \
 && ./configure --prefix=/usr \
 && make \
 && install -c src/.libs/libseccomp.a /usr/lib/libseccomp.a \
