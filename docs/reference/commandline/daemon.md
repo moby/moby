@@ -737,7 +737,7 @@ range for the mapping of host uids and gids to the container process.  This
 means that the first ID in the range will be the remapped root user, and the
 IDs above that initial ID will map host ID 1 through the end of the range.
 
-From the example `/etc/subid` content shown above, the remapped root
+From the example `/etc/subuid` content shown above, the remapped root
 user would be uid 165536.
 
 If the system administrator has set up multiple ranges for a single user or
