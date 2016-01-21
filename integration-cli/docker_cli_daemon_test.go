@@ -1890,7 +1890,8 @@ func (s *DockerDaemonSuite) TestDaemonNoSpaceleftOnDeviceError(c *check.C) {
 
 	// pull a repository large enough to fill the mount point
 	out, err := s.d.Cmd("pull", "registry:2")
-	c.Assert(out, check.Not(check.Equals), 1, check.Commentf("no space left on device"))
+
+	c.Assert(strings.Contains(out, "no space left on device"), check.Equals, true)
 }
 
 // Test daemon restart with container links + auto restart
