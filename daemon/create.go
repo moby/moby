@@ -26,6 +26,11 @@ func (daemon *Daemon) ContainerCreate(params types.ContainerCreateConfig) (types
 		return types.ContainerCreateResponse{Warnings: warnings}, err
 	}
 
+	err = daemon.verifyNetworkingConfig(params.NetworkingConfig)
+	if err != nil {
+		return types.ContainerCreateResponse{}, err
+	}
+
 	if params.HostConfig == nil {
 		params.HostConfig = &containertypes.HostConfig{}
 	}
