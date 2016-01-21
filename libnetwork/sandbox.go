@@ -869,6 +869,11 @@ func (sb *sandbox) updateDNS(ipv6Enabled bool) error {
 		hashFile = sb.config.resolvConfHashFile
 	)
 
+	// This is for the host mode networking
+	if sb.config.originResolvConfPath != "" {
+		return nil
+	}
+
 	if len(sb.config.dnsList) > 0 || len(sb.config.dnsSearchList) > 0 || len(sb.config.dnsOptionsList) > 0 {
 		return nil
 	}
