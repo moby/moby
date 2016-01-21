@@ -999,6 +999,8 @@ func (daemon *Daemon) releaseNetwork(container *container.Container) {
 
 	sid := container.NetworkSettings.SandboxID
 	settings := container.NetworkSettings.Networks
+	container.NetworkSettings.Ports = nil
+
 	if sid == "" || len(settings) == 0 {
 		return
 	}
