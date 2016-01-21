@@ -25,7 +25,6 @@ import (
 )
 
 func (s *DockerSuite) TestBuildJSONEmptyRun(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	name := "testbuildjsonemptyrun"
 
 	_, err := buildImage(
@@ -43,7 +42,6 @@ func (s *DockerSuite) TestBuildJSONEmptyRun(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildEmptyWhitespace(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	name := "testbuildemptywhitespace"
 
 	_, err := buildImage(
@@ -63,31 +61,36 @@ func (s *DockerSuite) TestBuildEmptyWhitespace(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildShCmdJSONEntrypoint(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	name := "testbuildshcmdjsonentrypoint"
 
 	_, err := buildImage(
 		name,
 		`
     FROM busybox
-    ENTRYPOINT ["/bin/echo"]
+    ENTRYPOINT ["echo"]
     CMD echo test
     `,
 		true)
-
 	if err != nil {
 		c.Fatal(err)
 	}
 
 	out, _ := dockerCmd(c, "run", "--rm", name)
 
-	if strings.TrimSpace(out) != "/bin/sh -c echo test" {
-		c.Fatalf("CMD did not contain /bin/sh -c : %s", out)
+	if daemonPlatform == "windows" {
+		if !strings.Contains(out, "cmd /S /C echo test") {
+			c.Fatalf("CMD did not contain cmd /S /C echo test : %q", out)
+		}
+	} else {
+		if strings.TrimSpace(out) != "/bin/sh -c echo test" {
+			c.Fatalf("CMD did not contain /bin/sh -c : %q", out)
+		}
 	}
 
 }
 
 func (s *DockerSuite) TestBuildEnvironmentReplacementUser(c *check.C) {
+	// Windows does not support FROM scratch or the USER command
 	testRequires(c, DaemonIsLinux)
 	name := "testbuildenvironmentreplacement"
 
@@ -112,12 +115,21 @@ func (s *DockerSuite) TestBuildEnvironmentReplacementUser(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildEnvironmentReplacementVolume(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	name := "testbuildenvironmentreplacement"
 
+	var baseImage, volumePath string
+
+	if daemonPlatform == "windows" {
+		baseImage = "windowsservercore"
+		volumePath = "c:/quux"
+	} else {
+		baseImage = "scratch"
+		volumePath = "/quux"
+	}
+
 	_, err := buildImage(name, `
-  FROM scratch
-  ENV volume /quux
+  FROM `+baseImage+`
+  ENV volume `+volumePath+`
   VOLUME ${volume}
   `, true)
 	if err != nil {
@@ -135,13 +147,14 @@ func (s *DockerSuite) TestBuildEnvironmentReplacementVolume(c *check.C) {
 		c.Fatal(err)
 	}
 
-	if _, ok := volumes["/quux"]; !ok {
-		c.Fatal("Volume /quux from environment not in Config.Volumes on image")
+	if _, ok := volumes[volumePath]; !ok {
+		c.Fatal("Volume " + volumePath + " from environment not in Config.Volumes on image")
 	}
 
 }
 
 func (s *DockerSuite) TestBuildEnvironmentReplacementExpose(c *check.C) {
+	// Windows does not support FROM scratch or the EXPOSE command
 	testRequires(c, DaemonIsLinux)
 	name := "testbuildenvironmentreplacement"
 
@@ -179,7 +192,6 @@ func (s *DockerSuite) TestBuildEnvironmentReplacementExpose(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildEnvironmentReplacementWorkdir(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	name := "testbuildenvironmentreplacement"
 
 	_, err := buildImage(name, `
@@ -196,11 +208,18 @@ func (s *DockerSuite) TestBuildEnvironmentReplacementWorkdir(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildEnvironmentReplacementAddCopy(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	name := "testbuildenvironmentreplacement"
 
+	var baseImage string
+
+	if daemonPlatform == "windows" {
+		baseImage = "windowsservercore"
+	} else {
+		baseImage = "scratch"
+	}
+
 	ctx, err := fakeContext(`
-  FROM scratch
+  FROM `+baseImage+`
   ENV baz foo
   ENV quux bar
   ENV dot .
@@ -231,6 +250,7 @@ func (s *DockerSuite) TestBuildEnvironmentReplacementAddCopy(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildEnvironmentReplacementEnv(c *check.C) {
+	// ENV expansions work differently in Windows
 	testRequires(c, DaemonIsLinux)
 	name := "testbuildenvironmentreplacement"
 
@@ -299,6 +319,7 @@ func (s *DockerSuite) TestBuildEnvironmentReplacementEnv(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildHandleEscapes(c *check.C) {
+	// The volume paths used in this test are invalid on Windows
 	testRequires(c, DaemonIsLinux)
 	name := "testbuildhandleescapes"
 
@@ -387,7 +408,6 @@ func (s *DockerSuite) TestBuildHandleEscapes(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildOnBuildLowercase(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	name := "testbuildonbuildlowercase"
 	name2 := "testbuildonbuildlowercase2"
 
@@ -420,6 +440,7 @@ func (s *DockerSuite) TestBuildOnBuildLowercase(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildEnvEscapes(c *check.C) {
+	// ENV expansions work differently in Windows
 	testRequires(c, DaemonIsLinux)
 	name := "testbuildenvescapes"
 	_, err := buildImage(name,
@@ -443,6 +464,7 @@ func (s *DockerSuite) TestBuildEnvEscapes(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildEnvOverwrite(c *check.C) {
+	// ENV expansions work differently in Windows
 	testRequires(c, DaemonIsLinux)
 	name := "testbuildenvoverwrite"
 
@@ -467,7 +489,6 @@ func (s *DockerSuite) TestBuildEnvOverwrite(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildOnBuildForbiddenMaintainerInSourceImage(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	name := "testbuildonbuildforbiddenmaintainerinsourceimage"
 
 	out, _ := dockerCmd(c, "create", "busybox", "true")
@@ -490,7 +511,6 @@ func (s *DockerSuite) TestBuildOnBuildForbiddenMaintainerInSourceImage(c *check.
 }
 
 func (s *DockerSuite) TestBuildOnBuildForbiddenFromInSourceImage(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	name := "testbuildonbuildforbiddenfrominsourceimage"
 
 	out, _ := dockerCmd(c, "create", "busybox", "true")
@@ -513,7 +533,6 @@ func (s *DockerSuite) TestBuildOnBuildForbiddenFromInSourceImage(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildOnBuildForbiddenChainedInSourceImage(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	name := "testbuildonbuildforbiddenchainedinsourceimage"
 
 	out, _ := dockerCmd(c, "create", "busybox", "true")
