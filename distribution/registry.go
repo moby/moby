@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/docker/distribution"
@@ -147,6 +148,10 @@ func retryOnError(err error) error {
 		}
 	case *client.UnexpectedHTTPResponseError:
 		return xfer.DoNotRetry{Err: err}
+	case error:
+		if strings.Contains(err.Error(), strings.ToLower(syscall.ENOSPC.Error())) {
+			return xfer.DoNotRetry{Err: err}
+		}
 	}
 	// let's be nice and fallback if the error is a completely
 	// unexpected one.
