@@ -99,46 +99,11 @@ func (e ErrImageDoesNotExist) Error() string {
 	return fmt.Sprintf("no such id: %s", e.RefOrID)
 }
 
-type contStore struct {
-	s map[string]*container.Container
-	sync.Mutex
-}
-
-func (c *contStore) Add(id string, cont *container.Container) {
-	c.Lock()
-	c.s[id] = cont
-	c.Unlock()
-}
-
-func (c *contStore) Get(id string) *container.Container {
-	c.Lock()
-	res := c.s[id]
-	c.Unlock()
-	return res
-}
-
-func (c *contStore) Delete(id string) {
-	c.Lock()
-	delete(c.s, id)
-	c.Unlock()
-}
-
-func (c *contStore) List() []*container.Container {
-	containers := new(History)
-	c.Lock()
-	for _, cont := range c.s {
-		containers.Add(cont)
-	}
-	c.Unlock()
-	containers.sort()
-	return *containers
-}
-
 // Daemon holds information about the Docker daemon.
 type Daemon struct {
 	ID                        string
 	repository                string
-	containers                *contStore
+	containers                container.Store
 	execCommands              *exec.Store
 	referenceStore            reference.Store
 	downloadManager           *xfer.LayerDownloadManager
@@ -811,7 +776,7 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 
 	d.ID = trustKey.PublicKey().KeyID()
 	d.repository = daemonRepo
-	d.containers = &contStore{s: make(map[string]*container.Container)}
+	d.containers = container.NewMemoryStore()
 	d.execCommands = exec.NewStore()
 	d.referenceStore = referenceStore
 	d.distributionMetadataStore = distributionMetadataStore
@@ -890,24 +855,18 @@ func (daemon *Daemon) shutdownContainer(c *container.Container) error {
 func (daemon *Daemon) Shutdown() error {
 	daemon.shutdown = true
 	if daemon.containers != nil {
-		group := sync.WaitGroup{}
 		logrus.Debug("starting clean shutdown of all containers...")
-		for _, cont := range daemon.List() {
-			if !cont.IsRunning() {
-				continue
+		daemon.containers.ApplyAll(func(c *container.Container) {
+			if !c.IsRunning() {
+				return
 			}
-			logrus.Debugf("stopping %s", cont.ID)
-			group.Add(1)
-			go func(c *container.Container) {
-				defer group.Done()
-				if err := daemon.shutdownContainer(c); err != nil {
-					logrus.Errorf("Stop container error: %v", err)
-					return
-				}
-				logrus.Debugf("container stopped %s", c.ID)
-			}(cont)
-		}
-		group.Wait()
+			logrus.Debugf("stopping %s", c.ID)
+			if err := daemon.shutdownContainer(c); err != nil {
+				logrus.Errorf("Stop container error: %v", err)
+				return
+			}
+			logrus.Debugf("container stopped %s", c.ID)
+		})
 	}
 
 	// trigger libnetwork Stop only if it's initialized
