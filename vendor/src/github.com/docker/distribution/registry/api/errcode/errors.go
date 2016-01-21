@@ -69,6 +69,15 @@ func (ec *ErrorCode) UnmarshalText(text []byte) error {
 	return nil
 }
 
+// WithMessage creates a new Error struct based on the passed-in info and
+// overrides the Message property.
+func (ec ErrorCode) WithMessage(message string) Error {
+	return Error{
+		Code:    ec,
+		Message: message,
+	}
+}
+
 // WithDetail creates a new Error struct based on the passed-in info and
 // set the Detail property appropriately
 func (ec ErrorCode) WithDetail(detail interface{}) Error {
