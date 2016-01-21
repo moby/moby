@@ -21,7 +21,6 @@ import (
 	"github.com/docker/distribution/registry/client/transport"
 	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/distribution"
-	"github.com/docker/docker/pkg/jsonmessage"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
@@ -364,12 +363,6 @@ func (cli *DockerCli) trustedPull(repoInfo *registry.RepositoryInfo, ref registr
 }
 
 func (cli *DockerCli) trustedPush(repoInfo *registry.RepositoryInfo, tag string, authConfig types.AuthConfig, requestPrivilege apiclient.RequestPrivilegeFunc) error {
-	responseBody, err := cli.imagePushPrivileged(authConfig, repoInfo.Name(), tag, requestPrivilege)
-	if err != nil {
-		return err
-	}
-
-	defer responseBody.Close()
 
 	targets := []target{}
 	handleTarget := func(aux *json.RawMessage) {
@@ -384,7 +377,7 @@ func (cli *DockerCli) trustedPush(repoInfo *registry.RepositoryInfo, tag string,
 		}
 	}
 
-	err = jsonmessage.DisplayJSONMessagesStream(responseBody, cli.out, cli.outFd, cli.isTerminalOut, handleTarget)
+	err := cli.imagePushPrivileged(authConfig, repoInfo.Name(), tag, requestPrivilege, handleTarget)
 	if err != nil {
 		return err
 	}
