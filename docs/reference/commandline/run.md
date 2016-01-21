@@ -195,12 +195,13 @@ a container writes files. The `--read-only` flag mounts the container's root
 filesystem as read only prohibiting writes to locations other than the
 specified volumes for the container.
 
-    $ docker run -t -i -v /var/run/docker.sock:/var/run/docker.sock -v ./static-docker:/usr/bin/docker busybox sh
+    $ docker run -t -i -v /var/run/docker.sock:/var/run/docker.sock -v /path/to/static-docker-binary:/usr/bin/docker busybox sh
 
 By bind-mounting the docker unix socket and statically linked docker
-binary (such as that provided by [https://get.docker.com](
-https://get.docker.com)), you give the container the full access to create and
-manipulate the host's Docker daemon.
+binary (refer to [get the linux binary](
+../../installation/binaries.md#get-the-linux-binary)),
+you give the container the full access to create and manipulate the host's
+Docker daemon.
 
 ### Publish or expose port (-p, --expose)
 
