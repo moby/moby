@@ -1189,7 +1189,7 @@ func (s *DockerSuite) TestUserDefinedNetworkConnectDisconnectLink(c *check.C) {
 	dockerCmd(c, "run", "-d", "--net=foo1", "--name=first", "busybox", "top")
 	c.Assert(waitRun("first"), check.IsNil)
 
-	// run a container in user-defined network udlinkNet with a link for an existing container
+	// run a container in a user-defined network with a link for an existing container
 	// and a link for a container that doesnt exist
 	dockerCmd(c, "run", "-d", "--net=foo1", "--name=second", "--link=first:FirstInFoo1",
 		"--link=third:bar", "busybox", "top")
@@ -1222,7 +1222,7 @@ func (s *DockerSuite) TestUserDefinedNetworkConnectDisconnectLink(c *check.C) {
 	c.Assert(err, check.IsNil)
 }
 
-// #19100 This is a deprecated feature test, it should be remove in Docker 1.12
+// #19100 This is a deprecated feature test, it should be removed in Docker 1.12
 func (s *DockerNetworkSuite) TestDockerNetworkStartAPIWithHostconfig(c *check.C) {
 	netName := "test"
 	conName := "foo"
