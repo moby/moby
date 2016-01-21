@@ -23,7 +23,7 @@ parent = "smn_cli"
       --cpuset-mems=""           Memory nodes (MEMs) in which to allow execution (0-3, 0,1)
       -m, --memory=""            Memory limit
       --memory-reservation=""    Memory soft limit
-      --memory-swap=""           Total memory (memory + swap), '-1' to disable swap
+      --memory-swap=""           A positive integer equal to memory plus swap. Specify -1 to enable unlimited swap
       --kernel-memory=""         Kernel memory limit: container must be stopped
 
 The `docker update` command dynamically updates container resources.  Use this
