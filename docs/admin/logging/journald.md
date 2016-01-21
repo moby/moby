@@ -24,6 +24,7 @@ driver stores the following metadata in the journal with each message:
 | `CONTAINER_ID`      | The container ID truncated to 12 characters. |
 | `CONTAINER_ID_FULL` | The full 64-character container ID. |
 | `CONTAINER_NAME`    | The container name at the time it was started. If you use `docker rename` to rename a container, the new name is not reflected in the journal entries. |
+| `CONTAINER_TAG`     | The container tag ([log tag option documentation](log_tags.md)). |
 
 ## Usage
 
@@ -41,6 +42,11 @@ You can set the logging driver for a specific container by using the
 
 Users can use the `--log-opt NAME=VALUE` flag to specify additional
 journald logging driver options.
+
+### tag
+
+Specify template to set `CONTAINER_TAG` value in journald logs. Refer to
+[log tag option documentation](log_tags.md) for customizing the log tag format.
 
 ### labels and env
 
