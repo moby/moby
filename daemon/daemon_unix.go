@@ -218,9 +218,8 @@ func (daemon *Daemon) adaptContainerSettings(hostConfig *containertypes.HostConf
 	return nil
 }
 
-func verifyContainerResources(resources *containertypes.Resources) ([]string, error) {
+func verifyContainerResources(resources *containertypes.Resources, sysInfo *sysinfo.SysInfo) ([]string, error) {
 	warnings := []string{}
-	sysInfo := sysinfo.New(true)
 
 	// memory subsystem checks and adjustments
 	if resources.Memory != 0 && resources.Memory < linuxMinMemory {
@@ -372,7 +371,7 @@ func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.
 		return warnings, err
 	}
 
-	w, err := verifyContainerResources(&hostConfig.Resources)
+	w, err := verifyContainerResources(&hostConfig.Resources, sysInfo)
 	if err != nil {
 		return warnings, err
 	}
