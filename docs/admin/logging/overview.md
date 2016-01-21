@@ -146,6 +146,8 @@ The GELF logging driver supports the following options:
     --log-opt tag="database"
     --log-opt labels=label1,label2
     --log-opt env=env1,env2
+    --log-opt gelf-compression-type=gzip
+    --log-opt gelf-compression-level=1
 
 The `gelf-address` option specifies the remote GELF server address that the
 driver connects to. Currently, only `udp` is supported as the transport and you must
@@ -167,6 +169,14 @@ underscore (`_`).
     "_fizz": "buzz",
     // […]
 
+The `gelf-compression-type` option can be used to change how the GELF driver
+compresses each log message. The accepted values are `gzip`, `zlib` and `none`.
+`gzip` is chosen by default.
+
+The `gelf-compression-level` option can be used to change the level of compresssion
+when `gzip` or `zlib` is selected as `gelf-compression-type`. Accepted value
+must be from from -1 to 9 (BestCompression). Higher levels typically
+run slower but compress more. Default value is 1 (BestSpeed).
 
 ## fluentd options
 
