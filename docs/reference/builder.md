@@ -643,6 +643,14 @@ guide](../articles/dockerfile_best-practices.md#build-cache) for more informatio
     2. The contents of the source tree, with conflicts resolved in favor
        of "2." on a file-by-file basis.
 
+  > **Note**:
+  > Whether a file is identified as a recognized compression format or not
+  > is done soley based on the contents of the file, not the name of the file.
+  > For example, if an empty file happens to end with `.tar.gz` this will not
+  > be recognized as a compressed file and **will not** generate any kind of
+  > decompression error message, rather the file will simply be copied to the
+  > destination.
+
 - If `<src>` is any other kind of file, it is copied individually along with
   its metadata. In this case, if `<dest>` ends with a trailing slash `/`, it
   will be considered a directory and the contents of `<src>` will be written
