@@ -98,11 +98,7 @@ func (r *registry) Repositories(ctx context.Context, entries []string, last stri
 }
 
 // NewRepository creates a new Repository for the given repository name and base URL.
-func NewRepository(ctx context.Context, name, baseURL string, transport http.RoundTripper) (distribution.Repository, error) {
-	if _, err := reference.ParseNamed(name); err != nil {
-		return nil, err
-	}
-
+func NewRepository(ctx context.Context, name reference.Named, baseURL string, transport http.RoundTripper) (distribution.Repository, error) {
 	ub, err := v2.NewURLBuilderFromString(baseURL)
 	if err != nil {
 		return nil, err
@@ -125,21 +121,21 @@ type repository struct {
 	client  *http.Client
 	ub      *v2.URLBuilder
 	context context.Context
-	name    string
+	name    reference.Named
 }
 
-func (r *repository) Name() string {
+func (r *repository) Name() reference.Named {
 	return r.name
 }
 
 func (r *repository) Blobs(ctx context.Context) distribution.BlobStore {
 	statter := &blobStatter{
-		name:   r.Name(),
+		name:   r.name,
 		ub:     r.ub,
 		client: r.client,
 	}
 	return &blobs{
-		name:    r.Name(),
+		name:    r.name,
 		ub:      r.ub,
 		client:  r.client,
 		statter: cache.NewCachedBlobStatter(memory.NewInMemoryBlobDescriptorCacheProvider(), statter),
@@ -149,7 +145,7 @@ func (r *repository) Blobs(ctx context.Context) distribution.BlobStore {
 func (r *repository) Manifests(ctx context.Context, options ...distribution.ManifestServiceOption) (distribution.ManifestService, error) {
 	// todo(richardscothern): options should be sent over the wire
 	return &manifests{
-		name:   r.Name(),
+		name:   r.name,
 		ub:     r.ub,
 		client: r.client,
 		etags:  make(map[string]string),
@@ -170,7 +166,7 @@ type tags struct {
 	client  *http.Client
 	ub      *v2.URLBuilder
 	context context.Context
-	name    string
+	name    reference.Named
 }
 
 // All returns all tags
@@ -253,7 +249,11 @@ func descriptorFromResponse(response *http.Response) (distribution.Descriptor, e
 // to construct a descriptor for the tag.  If the registry doesn't support HEADing
 // a manifest, fallback to GET.
 func (t *tags) Get(ctx context.Context, tag string) (distribution.Descriptor, error) {
-	u, err := t.ub.BuildManifestURL(t.name, tag)
+	ref, err := reference.WithTag(t.name, tag)
+	if err != nil {
+		return distribution.Descriptor{}, err
+	}
+	u, err := t.ub.BuildManifestURL(ref)
 	if err != nil {
 		return distribution.Descriptor{}, err
 	}
@@ -293,14 +293,18 @@ func (t *tags) Untag(ctx context.Context, tag string) error {
 }
 
 type manifests struct {
-	name   string
+	name   reference.Named
 	ub     *v2.URLBuilder
 	client *http.Client
 	etags  map[string]string
 }
 
 func (ms *manifests) Exists(ctx context.Context, dgst digest.Digest) (bool, error) {
-	u, err := ms.ub.BuildManifestURL(ms.name, dgst.String())
+	ref, err := reference.WithDigest(ms.name, dgst)
+	if err != nil {
+		return false, err
+	}
+	u, err := ms.ub.BuildManifestURL(ref)
 	if err != nil {
 		return false, err
 	}
@@ -337,11 +341,19 @@ func (o etagOption) Apply(ms distribution.ManifestService) error {
 }
 
 func (ms *manifests) Get(ctx context.Context, dgst digest.Digest, options ...distribution.ManifestServiceOption) (distribution.Manifest, error) {
+	var (
+		digestOrTag string
+		ref         reference.Named
+		err         error
+	)
 
-	var tag string
 	for _, option := range options {
 		if opt, ok := option.(withTagOption); ok {
-			tag = opt.tag
+			digestOrTag = opt.tag
+			ref, err = reference.WithTag(ms.name, opt.tag)
+			if err != nil {
+				return nil, err
+			}
 		} else {
 			err := option.Apply(ms)
 			if err != nil {
@@ -350,14 +362,15 @@ func (ms *manifests) Get(ctx context.Context, dgst digest.Digest, options ...dis
 		}
 	}
 
-	var ref string
-	if tag != "" {
-		ref = tag
-	} else {
-		ref = dgst.String()
+	if digestOrTag == "" {
+		digestOrTag = dgst.String()
+		ref, err = reference.WithDigest(ms.name, dgst)
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	u, err := ms.ub.BuildManifestURL(ms.name, ref)
+	u, err := ms.ub.BuildManifestURL(ref)
 	if err != nil {
 		return nil, err
 	}
@@ -371,8 +384,8 @@ func (ms *manifests) Get(ctx context.Context, dgst digest.Digest, options ...dis
 		req.Header.Add("Accept", t)
 	}
 
-	if _, ok := ms.etags[ref]; ok {
-		req.Header.Set("If-None-Match", ms.etags[ref])
+	if _, ok := ms.etags[digestOrTag]; ok {
+		req.Header.Set("If-None-Match", ms.etags[digestOrTag])
 	}
 
 	resp, err := ms.client.Do(req)
@@ -416,11 +429,15 @@ func (o withTagOption) Apply(m distribution.ManifestService) error {
 // Put puts a manifest.  A tag can be specified using an options parameter which uses some shared state to hold the
 // tag name in order to build the correct upload URL.  This state is written and read under a lock.
 func (ms *manifests) Put(ctx context.Context, m distribution.Manifest, options ...distribution.ManifestServiceOption) (digest.Digest, error) {
-	var tag string
+	ref := ms.name
 
 	for _, option := range options {
 		if opt, ok := option.(withTagOption); ok {
-			tag = opt.tag
+			var err error
+			ref, err = reference.WithTag(ref, opt.tag)
+			if err != nil {
+				return "", err
+			}
 		} else {
 			err := option.Apply(ms)
 			if err != nil {
@@ -429,7 +446,7 @@ func (ms *manifests) Put(ctx context.Context, m distribution.Manifest, options .
 		}
 	}
 
-	manifestURL, err := ms.ub.BuildManifestURL(ms.name, tag)
+	manifestURL, err := ms.ub.BuildManifestURL(ref)
 	if err != nil {
 		return "", err
 	}
@@ -466,7 +483,11 @@ func (ms *manifests) Put(ctx context.Context, m distribution.Manifest, options .
 }
 
 func (ms *manifests) Delete(ctx context.Context, dgst digest.Digest) error {
-	u, err := ms.ub.BuildManifestURL(ms.name, dgst.String())
+	ref, err := reference.WithDigest(ms.name, dgst)
+	if err != nil {
+		return err
+	}
+	u, err := ms.ub.BuildManifestURL(ref)
 	if err != nil {
 		return err
 	}
@@ -493,7 +514,7 @@ func (ms *manifests) Delete(ctx context.Context, dgst digest.Digest) error {
 }*/
 
 type blobs struct {
-	name   string
+	name   reference.Named
 	ub     *v2.URLBuilder
 	client *http.Client
 
@@ -531,7 +552,11 @@ func (bs *blobs) Get(ctx context.Context, dgst digest.Digest) ([]byte, error) {
 }
 
 func (bs *blobs) Open(ctx context.Context, dgst digest.Digest) (distribution.ReadSeekCloser, error) {
-	blobURL, err := bs.ub.BuildBlobURL(bs.name, dgst)
+	ref, err := reference.WithDigest(bs.name, dgst)
+	if err != nil {
+		return nil, err
+	}
+	blobURL, err := bs.ub.BuildBlobURL(ref)
 	if err != nil {
 		return nil, err
 	}
@@ -666,13 +691,17 @@ func (bs *blobs) Delete(ctx context.Context, dgst digest.Digest) error {
 }
 
 type blobStatter struct {
-	name   string
+	name   reference.Named
 	ub     *v2.URLBuilder
 	client *http.Client
 }
 
 func (bs *blobStatter) Stat(ctx context.Context, dgst digest.Digest) (distribution.Descriptor, error) {
-	u, err := bs.ub.BuildBlobURL(bs.name, dgst)
+	ref, err := reference.WithDigest(bs.name, dgst)
+	if err != nil {
+		return distribution.Descriptor{}, err
+	}
+	u, err := bs.ub.BuildBlobURL(ref)
 	if err != nil {
 		return distribution.Descriptor{}, err
 	}
@@ -720,7 +749,11 @@ func buildCatalogValues(maxEntries int, last string) url.Values {
 }
 
 func (bs *blobStatter) Clear(ctx context.Context, dgst digest.Digest) error {
-	blobURL, err := bs.ub.BuildBlobURL(bs.name, dgst)
+	ref, err := reference.WithDigest(bs.name, dgst)
+	if err != nil {
+		return err
+	}
+	blobURL, err := bs.ub.BuildBlobURL(ref)
 	if err != nil {
 		return err
 	}
