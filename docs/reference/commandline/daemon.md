@@ -838,10 +838,8 @@ This is a full example of the allowed configuration options in the file:
 	"storage-driver": "",
 	"storage-opts": "",
 	"labels": [],
-	"log-config": {
-		"log-driver": "",
-		"log-opts": []
-	},
+	"log-driver": "",
+	"log-opts": [],
 	"mtu": 0,
 	"pidfile": "",
 	"graph": "",
@@ -852,12 +850,10 @@ This is a full example of the allowed configuration options in the file:
 	"hosts": [],
 	"log-level": "",
 	"tls": true,
-	"tls-verify": true,
-	"tls-opts": {
-		"tlscacert": "",
-		"tlscert": "",
-		"tlskey": ""
-	},
+	"tlsverify": true,
+	"tlscacert": "",
+	"tlscert": "",
+	"tlskey": "",
 	"api-cors-headers": "",
 	"selinux-enabled": false,
 	"userns-remap": "",

@@ -514,3 +514,14 @@ func TestSortFlags(t *testing.T) {
 		t.Fatalf("NFlag (%d) != fs.NFlag() (%d) of elements visited", nflag, fs.NFlag())
 	}
 }
+
+func TestMergeFlags(t *testing.T) {
+	base := NewFlagSet("base", ContinueOnError)
+	base.String([]string{"f"}, "", "")
+
+	fs := NewFlagSet("test", ContinueOnError)
+	Merge(fs, base)
+	if len(fs.formal) != 1 {
+		t.Fatalf("FlagCount (%d) != number (1) of elements merged", len(fs.formal))
+	}
+}

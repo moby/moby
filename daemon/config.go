@@ -56,7 +56,6 @@ type CommonConfig struct {
 	GraphDriver          string              `json:"storage-driver,omitempty"`
 	GraphOptions         []string            `json:"storage-opts,omitempty"`
 	Labels               []string            `json:"labels,omitempty"`
-	LogConfig            LogConfig           `json:"log-config,omitempty"`
 	Mtu                  int                 `json:"mtu,omitempty"`
 	Pidfile              string              `json:"pidfile,omitempty"`
 	Root                 string              `json:"graph,omitempty"`
@@ -76,12 +75,16 @@ type CommonConfig struct {
 	// reachable by other hosts.
 	ClusterAdvertise string `json:"cluster-advertise,omitempty"`
 
-	Debug      bool             `json:"debug,omitempty"`
-	Hosts      []string         `json:"hosts,omitempty"`
-	LogLevel   string           `json:"log-level,omitempty"`
-	TLS        bool             `json:"tls,omitempty"`
-	TLSVerify  bool             `json:"tls-verify,omitempty"`
-	TLSOptions CommonTLSOptions `json:"tls-opts,omitempty"`
+	Debug     bool     `json:"debug,omitempty"`
+	Hosts     []string `json:"hosts,omitempty"`
+	LogLevel  string   `json:"log-level,omitempty"`
+	TLS       bool     `json:"tls,omitempty"`
+	TLSVerify bool     `json:"tlsverify,omitempty"`
+
+	// Embedded structs that allow config
+	// deserialization without the full struct.
+	CommonTLSOptions
+	LogConfig
 
 	reloadLock sync.Mutex
 	valuesSet  map[string]interface{}
@@ -215,16 +218,44 @@ func configValuesSet(config map[string]interface{}) map[string]interface{} {
 }
 
 // findConfigurationConflicts iterates over the provided flags searching for
-// duplicated configurations. It returns an error with all the conflicts if
+// duplicated configurations and unknown keys. It returns an error with all the conflicts if
 // it finds any.
 func findConfigurationConflicts(config map[string]interface{}, flags *flag.FlagSet) error {
-	var conflicts []string
+	// 1. Search keys from the file that we don't recognize as flags.
+	unknownKeys := make(map[string]interface{})
+	for key, value := range config {
+		flagName := "-" + key
+		if flag := flags.Lookup(flagName); flag == nil {
+			unknownKeys[key] = value
+		}
+	}
 
+	// 2. Discard values that implement NamedOption.
+	// Their configuration name differs from their flag name, like `labels` and `label`.
+	unknownNamedConflicts := func(f *flag.Flag) {
+		if namedOption, ok := f.Value.(opts.NamedOption); ok {
+			if _, valid := unknownKeys[namedOption.Name()]; valid {
+				delete(unknownKeys, namedOption.Name())
+			}
+		}
+	}
+	flags.VisitAll(unknownNamedConflicts)
+
+	if len(unknownKeys) > 0 {
+		var unknown []string
+		for key := range unknownKeys {
+			unknown = append(unknown, key)
+		}
+		return fmt.Errorf("the following directives don't match any configuration option: %s", strings.Join(unknown, ", "))
+	}
+
+	var conflicts []string
 	printConflict := func(name string, flagValue, fileValue interface{}) string {
 		return fmt.Sprintf("%s: (from flag: %v, from file: %v)", name, flagValue, fileValue)
 	}
 
-	collectConflicts := func(f *flag.Flag) {
+	// 3. Search keys that are present as a flag and as a file option.
+	duplicatedConflicts := func(f *flag.Flag) {
 		// search option name in the json configuration payload if the value is a named option
 		if namedOption, ok := f.Value.(opts.NamedOption); ok {
 			if optsValue, ok := config[namedOption.Name()]; ok {
@@ -243,7 +274,7 @@ func findConfigurationConflicts(config map[string]interface{}, flags *flag.FlagS
 		}
 	}
 
-	flags.Visit(collectConflicts)
+	flags.Visit(duplicatedConflicts)
 
 	if len(conflicts) > 0 {
 		return fmt.Errorf("the following directives are specified both as a flag and in the configuration file: %s", strings.Join(conflicts, ", "))
