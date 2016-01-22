@@ -22,6 +22,7 @@ import (
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/go-connections/nat"
+	"github.com/docker/libnetwork/netutils"
 	"github.com/docker/libnetwork/resolvconf"
 	"github.com/go-check/check"
 )
@@ -1258,13 +1259,13 @@ func (s *DockerSuite) TestRunDnsOptionsBasedOnHostResolvConf(c *check.C) {
 		c.Fatalf("/etc/resolv.conf does not exist")
 	}
 
-	hostNamservers := resolvconf.GetNameservers(origResolvConf)
+	hostNamservers := resolvconf.GetNameservers(origResolvConf, netutils.IP)
 	hostSearch := resolvconf.GetSearchDomains(origResolvConf)
 
 	var out string
 	out, _ = dockerCmd(c, "run", "--dns=127.0.0.1", "busybox", "cat", "/etc/resolv.conf")
 
-	if actualNameservers := resolvconf.GetNameservers([]byte(out)); string(actualNameservers[0]) != "127.0.0.1" {
+	if actualNameservers := resolvconf.GetNameservers([]byte(out), netutils.IP); string(actualNameservers[0]) != "127.0.0.1" {
 		c.Fatalf("expected '127.0.0.1', but says: %q", string(actualNameservers[0]))
 	}
 
@@ -1280,7 +1281,7 @@ func (s *DockerSuite) TestRunDnsOptionsBasedOnHostResolvConf(c *check.C) {
 
 	out, _ = dockerCmd(c, "run", "--dns-search=mydomain", "busybox", "cat", "/etc/resolv.conf")
 
-	actualNameservers := resolvconf.GetNameservers([]byte(out))
+	actualNameservers := resolvconf.GetNameservers([]byte(out), netutils.IP)
 	if len(actualNameservers) != len(hostNamservers) {
 		c.Fatalf("expected %q nameserver(s), but it has: %q", len(hostNamservers), len(actualNameservers))
 	}
@@ -1311,11 +1312,11 @@ func (s *DockerSuite) TestRunDnsOptionsBasedOnHostResolvConf(c *check.C) {
 		c.Fatalf("/etc/resolv.conf does not exist")
 	}
 
-	hostNamservers = resolvconf.GetNameservers(resolvConf)
+	hostNamservers = resolvconf.GetNameservers(resolvConf, netutils.IP)
 	hostSearch = resolvconf.GetSearchDomains(resolvConf)
 
 	out, _ = dockerCmd(c, "run", "busybox", "cat", "/etc/resolv.conf")
-	if actualNameservers = resolvconf.GetNameservers([]byte(out)); string(actualNameservers[0]) != "12.34.56.78" || len(actualNameservers) != 1 {
+	if actualNameservers = resolvconf.GetNameservers([]byte(out), netutils.IP); string(actualNameservers[0]) != "12.34.56.78" || len(actualNameservers) != 1 {
 		c.Fatalf("expected '12.34.56.78', but has: %v", actualNameservers)
 	}
 
