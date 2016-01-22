@@ -41,11 +41,13 @@ const (
 
 // resolver implements the Resolver interface
 type resolver struct {
-	sb     *sandbox
-	extDNS []string
-	server *dns.Server
-	conn   *net.UDPConn
-	err    error
+	sb        *sandbox
+	extDNS    []string
+	server    *dns.Server
+	conn      *net.UDPConn
+	tcpServer *dns.Server
+	tcpListen *net.TCPListener
+	err       error
 }
 
 // NewResolver creates a new instance of the Resolver
@@ -60,6 +62,7 @@ func (r *resolver) SetupFunc() func() {
 	return (func() {
 		var err error
 
+		// DNS operates primarily on UDP
 		addr := &net.UDPAddr{
 			IP: net.ParseIP(resolverIP),
 		}
@@ -72,9 +75,23 @@ func (r *resolver) SetupFunc() func() {
 		laddr := r.conn.LocalAddr()
 		_, ipPort, _ := net.SplitHostPort(laddr.String())
 
+		// Listen on a TCP as well
+		tcpaddr := &net.TCPAddr{
+			IP: net.ParseIP(resolverIP),
+		}
+
+		r.tcpListen, err = net.ListenTCP("tcp", tcpaddr)
+		if err != nil {
+			r.err = fmt.Errorf("error in opening name TCP server socket %v", err)
+			return
+		}
+		ltcpaddr := r.tcpListen.Addr()
+		_, tcpPort, _ := net.SplitHostPort(ltcpaddr.String())
 		rules := [][]string{
 			{"-t", "nat", "-A", "OUTPUT", "-d", resolverIP, "-p", "udp", "--dport", dnsPort, "-j", "DNAT", "--to-destination", laddr.String()},
 			{"-t", "nat", "-A", "POSTROUTING", "-s", resolverIP, "-p", "udp", "--sport", ipPort, "-j", "SNAT", "--to-source", ":" + dnsPort},
+			{"-t", "nat", "-A", "OUTPUT", "-d", resolverIP, "-p", "tcp", "--dport", dnsPort, "-j", "DNAT", "--to-destination", ltcpaddr.String()},
+			{"-t", "nat", "-A", "POSTROUTING", "-s", resolverIP, "-p", "tcp", "--sport", tcpPort, "-j", "SNAT", "--to-source", ":" + dnsPort},
 		}
 
 		for _, rule := range rules {
@@ -97,6 +114,12 @@ func (r *resolver) Start() error {
 	go func() {
 		s.ActivateAndServe()
 	}()
+
+	tcpServer := &dns.Server{Handler: r, Listener: r.tcpListen}
+	r.tcpServer = tcpServer
+	go func() {
+		tcpServer.ActivateAndServe()
+	}()
 	return nil
 }
 
@@ -104,7 +127,11 @@ func (r *resolver) Stop() {
 	if r.server != nil {
 		r.server.Shutdown()
 	}
+	if r.tcpServer != nil {
+		r.tcpServer.Shutdown()
+	}
 	r.conn = nil
+	r.tcpServer = nil
 	r.err = fmt.Errorf("setup not done yet")
 }
 
@@ -195,9 +222,9 @@ func (r *resolver) ServeDNS(w dns.ResponseWriter, query *dns.Msg) {
 			num = len(r.extDNS)
 		}
 		for i := 0; i < num; i++ {
-			log.Debugf("Querying ext dns %s for %s[%d]", r.extDNS[i], name, query.Question[0].Qtype)
+			log.Debugf("Querying ext dns %s:%s for %s[%d]", w.LocalAddr().Network(), r.extDNS[i], name, query.Question[0].Qtype)
 
-			c := &dns.Client{Net: "udp"}
+			c := &dns.Client{Net: w.LocalAddr().Network()}
 			addr := fmt.Sprintf("%s:%d", r.extDNS[i], 53)
 
 			resp, _, err = c.Exchange(query, addr)
