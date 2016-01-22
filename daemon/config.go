@@ -56,7 +56,6 @@ type CommonConfig struct {
 	GraphDriver          string              `json:"storage-driver,omitempty"`
 	GraphOptions         []string            `json:"storage-opts,omitempty"`
 	Labels               []string            `json:"labels,omitempty"`
-	LogConfig            LogConfig           `json:"log-config,omitempty"`
 	Mtu                  int                 `json:"mtu,omitempty"`
 	Pidfile              string              `json:"pidfile,omitempty"`
 	Root                 string              `json:"graph,omitempty"`
@@ -76,12 +75,16 @@ type CommonConfig struct {
 	// reachable by other hosts.
 	ClusterAdvertise string `json:"cluster-advertise,omitempty"`
 
-	Debug      bool             `json:"debug,omitempty"`
-	Hosts      []string         `json:"hosts,omitempty"`
-	LogLevel   string           `json:"log-level,omitempty"`
-	TLS        bool             `json:"tls,omitempty"`
-	TLSVerify  bool             `json:"tlsverify,omitempty"`
-	TLSOptions CommonTLSOptions `json:"tls-opts,omitempty"`
+	Debug     bool     `json:"debug,omitempty"`
+	Hosts     []string `json:"hosts,omitempty"`
+	LogLevel  string   `json:"log-level,omitempty"`
+	TLS       bool     `json:"tls,omitempty"`
+	TLSVerify bool     `json:"tlsverify,omitempty"`
+
+	// Embedded structs that allow config
+	// deserialization without the full struct.
+	CommonTLSOptions
+	LogConfig
 
 	reloadLock sync.Mutex
 	valuesSet  map[string]interface{}
@@ -227,7 +230,8 @@ func findConfigurationConflicts(config map[string]interface{}, flags *flag.FlagS
 		}
 	}
 
-	// 2. Discard keys that might have a given name, like `labels`.
+	// 2. Discard values that implement NamedOption.
+	// Their configuration name differs from their flag name, like `labels` and `label`.
 	unknownNamedConflicts := func(f *flag.Flag) {
 		if namedOption, ok := f.Value.(opts.NamedOption); ok {
 			if _, valid := unknownKeys[namedOption.Name()]; valid {

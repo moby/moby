@@ -51,8 +51,8 @@ func TestLoadDaemonCliConfigWithTLS(t *testing.T) {
 	if loadedConfig == nil {
 		t.Fatalf("expected configuration %v, got nil", c)
 	}
-	if loadedConfig.TLSOptions.CAFile != "/tmp/ca.pem" {
-		t.Fatalf("expected /tmp/ca.pem, got %s: %q", loadedConfig.TLSOptions.CAFile, loadedConfig)
+	if loadedConfig.CommonTLSOptions.CAFile != "/tmp/ca.pem" {
+		t.Fatalf("expected /tmp/ca.pem, got %s: %q", loadedConfig.CommonTLSOptions.CAFile, loadedConfig)
 	}
 }
 
@@ -217,9 +217,12 @@ func TestLoadDaemonCliConfigWithLogLevel(t *testing.T) {
 	}
 }
 
-func TestLoadDaemonCliConfigWithTLSOptions(t *testing.T) {
+func TestLoadDaemonConfigWithEmbeddedOptions(t *testing.T) {
 	c := &daemon.Config{}
 	common := &cli.CommonFlags{}
+	flags := mflag.NewFlagSet("test", mflag.ContinueOnError)
+	flags.String([]string{"-tlscacert"}, "", "")
+	flags.String([]string{"-log-driver"}, "", "")
 
 	f, err := ioutil.TempFile("", "docker-config-")
 	if err != nil {
@@ -227,11 +230,9 @@ func TestLoadDaemonCliConfigWithTLSOptions(t *testing.T) {
 	}
 
 	configFile := f.Name()
-	f.Write([]byte(`{"tls-opts": {"tlscacert": "/etc/certs/ca.pem"}}`))
+	f.Write([]byte(`{"tlscacert": "/etc/certs/ca.pem", "log-driver": "syslog"}`))
 	f.Close()
 
-	flags := mflag.NewFlagSet("test", mflag.ContinueOnError)
-	flags.String([]string{"-tlscacert"}, "", "")
 	loadedConfig, err := loadDaemonCliConfig(c, flags, common, configFile)
 	if err != nil {
 		t.Fatal(err)
@@ -239,7 +240,10 @@ func TestLoadDaemonCliConfigWithTLSOptions(t *testing.T) {
 	if loadedConfig == nil {
 		t.Fatalf("expected configuration %v, got nil", c)
 	}
-	if loadedConfig.TLSOptions.CAFile != "/etc/certs/ca.pem" {
-		t.Fatalf("expected CA file path /etc/certs/ca.pem, got %v", loadedConfig.TLSOptions.CAFile)
+	if loadedConfig.CommonTLSOptions.CAFile != "/etc/certs/ca.pem" {
+		t.Fatalf("expected CA file path /etc/certs/ca.pem, got %v", loadedConfig.CommonTLSOptions.CAFile)
+	}
+	if loadedConfig.LogConfig.Type != "syslog" {
+		t.Fatalf("expected LogConfig type syslog, got %v", loadedConfig.LogConfig.Type)
 	}
 }
