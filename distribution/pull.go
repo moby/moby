@@ -22,9 +22,9 @@ type ImagePullConfig struct {
 	// MetaHeaders stores HTTP headers with metadata about the image
 	// (DockerHeaders with prefix X-Meta- in the request).
 	MetaHeaders map[string][]string
-	// AuthConfig holds authentication credentials for authenticating with
-	// the registry.
-	AuthConfig *types.AuthConfig
+	// AuthConfigs holds authentication credentials for authenticating with
+	// the registries.
+	AuthConfigs map[string]types.AuthConfig
 	// ProgressOutput is the interface for showing the status of the pull
 	// operation.
 	ProgressOutput progress.Output
@@ -77,14 +77,57 @@ func newPuller(endpoint registry.APIEndpoint, repoInfo *registry.RepositoryInfo,
 	return nil, fmt.Errorf("unknown version %d for registry %s", endpoint.Version, endpoint.URL)
 }
 
-// Pull initiates a pull operation. image is the repository name to pull, and
-// tag may be either empty, or indicate a specific tag to pull.
+// Pull initiates a pull operation for given reference. If the reference is
+// fully qualified, image will be pulled from given registry. Otherwise
+// additional registries will be queried until the reference is found.
 func Pull(ctx context.Context, ref reference.Named, imagePullConfig *ImagePullConfig) error {
+	// Unless the index name is specified, iterate over all registries until
+	// the matching image is found.
+	if reference.IsReferenceFullyQualified(ref) {
+		return pullFromRegistry(ctx, ref, imagePullConfig)
+	}
+	if len(registry.DefaultRegistries) == 0 {
+		return fmt.Errorf("No configured registry to pull from.")
+	}
+	err := validateRepoName(ref.Name())
+	if err != nil {
+		return err
+	}
+	for i, r := range registry.DefaultRegistries {
+		// Prepend the index name to the image name.
+		fqr, err := reference.QualifyUnqualifiedReference(ref, r)
+		if err != nil {
+			errStr := fmt.Sprintf("Failed to fully qualify %q name with %q registry: %v", ref.Name(), r, err)
+			progress.Message(imagePullConfig.ProgressOutput, "", errStr)
+			if i == len(registry.DefaultRegistries)-1 {
+				return fmt.Errorf(errStr)
+			}
+			continue
+		}
+		if err := pullFromRegistry(ctx, fqr, imagePullConfig); err != nil {
+			// make sure we get a final "Error response from daemon: "
+			progress.Message(imagePullConfig.ProgressOutput, "", err.Error())
+			if i == len(registry.DefaultRegistries)-1 {
+				return err
+			}
+		} else {
+			return nil
+		}
+	}
+
+	return nil
+}
+
+// pullFromRegistry initiates a pull operation from particular registry. ref is
+// a fully qualified image reference.
+func pullFromRegistry(ctx context.Context, ref reference.Named, imagePullConfig *ImagePullConfig) error {
 	// Resolve the Repository name from fqn to RepositoryInfo
 	repoInfo, err := imagePullConfig.RegistryService.ResolveRepository(ref)
 	if err != nil {
 		return err
 	}
+
+	progress.Messagef(imagePullConfig.ProgressOutput, "", "Trying to pull repository %s ... ", repoInfo.FullName())
 
 	// makes sure name is not empty or `scratch`
 	if err := validateRepoName(repoInfo.Name()); err != nil {
@@ -154,8 +197,8 @@ func Pull(ctx context.Context, ref reference.Named, imagePullConfig *ImagePullCo
 				continue
 			}
 			errors = append(errors, err.Error())
-			logrus.Debugf("Not continuing with error: %v", fmt.Errorf(strings.Join(errors, "\n")))
 			if len(errors) > 0 {
+				logrus.Debugf("Not continuing with error: %v", fmt.Errorf(strings.Join(errors, "\n")))
 				return fmt.Errorf(strings.Join(errors, "\n"))
 			}
 		}
@@ -191,7 +234,7 @@ func validateRepoName(name string) error {
 	if name == "" {
 		return fmt.Errorf("Repository name can't be empty")
 	}
-	if name == api.NoBaseImageSpecifier {
+	if strings.TrimPrefix(name, registry.IndexName+"/") == api.NoBaseImageSpecifier {
 		return fmt.Errorf("'%s' is a reserved name", api.NoBaseImageSpecifier)
 	}
 	return nil

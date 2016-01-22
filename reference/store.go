@@ -10,6 +10,7 @@ import (
 	"sort"
 	"sync"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/digest"
 	"github.com/docker/docker/image"
 )
@@ -38,6 +39,8 @@ type Store interface {
 
 type store struct {
 	mu sync.RWMutex
+	// RegistryList is a list of default registries..
+	defaultRegistries []string
 	// jsonPath is the path to the file where the serialized tag data is
 	// stored.
 	jsonPath string
@@ -51,6 +54,11 @@ type store struct {
 // Repository maps tags to image IDs. The key is a a stringified Reference,
 // including the repository name.
 type repository map[string]image.ID
+
+type namedRepository struct {
+	name       string
+	repository repository
+}
 
 type lexicalRefs []Named
 
@@ -66,13 +74,14 @@ func (a lexicalAssociations) Less(i, j int) bool { return a[i].Ref.String() < a[
 
 // NewReferenceStore creates a new reference store, tied to a file path where
 // the set of references are serialized in JSON format.
-func NewReferenceStore(jsonPath string) (Store, error) {
+func NewReferenceStore(jsonPath string, defaultRegistries ...string) (Store, error) {
 	abspath, err := filepath.Abs(jsonPath)
 	if err != nil {
 		return nil, err
 	}
 
 	store := &store{
+		defaultRegistries:   defaultRegistries,
 		jsonPath:            abspath,
 		Repositories:        make(map[string]repository),
 		referencesByIDCache: make(map[image.ID]map[string]Named),
@@ -154,26 +163,27 @@ func (store *store) Delete(ref Named) (bool, error) {
 	store.mu.Lock()
 	defer store.mu.Unlock()
 
-	repoName := ref.Name()
-
-	repository, exists := store.Repositories[repoName]
-	if !exists {
-		return false, ErrDoesNotExist
-	}
-
-	refStr := ref.String()
-	if id, exists := repository[refStr]; exists {
-		delete(repository, refStr)
-		if len(repository) == 0 {
-			delete(store.Repositories, repoName)
+	matching := store.getMatchingReferenceList(ref)
+	for _, namedRepo := range matching {
+		tmpRef, err := SubstituteReferenceName(ref, namedRepo.name)
+		if err != nil {
+			logrus.Debugf("failed to substitute name %q in %q for %q", ref.Name, ref.String(), namedRepo.name)
+			continue
 		}
-		if store.referencesByIDCache[id] != nil {
-			delete(store.referencesByIDCache[id], refStr)
-			if len(store.referencesByIDCache[id]) == 0 {
-				delete(store.referencesByIDCache, id)
+		refStr := tmpRef.String()
+		if id, exists := namedRepo.repository[refStr]; exists {
+			delete(namedRepo.repository, refStr)
+			if len(namedRepo.repository) == 0 {
+				delete(store.Repositories, namedRepo.name)
 			}
+			if store.referencesByIDCache[id] != nil {
+				delete(store.referencesByIDCache[id], refStr)
+				if len(store.referencesByIDCache[id]) == 0 {
+					delete(store.referencesByIDCache, id)
+				}
+			}
+			return true, store.save()
 		}
-		return true, store.save()
 	}
 
 	return false, ErrDoesNotExist
@@ -186,17 +196,19 @@ func (store *store) Get(ref Named) (image.ID, error) {
 	store.mu.RLock()
 	defer store.mu.RUnlock()
 
-	repository, exists := store.Repositories[ref.Name()]
-	if !exists || repository == nil {
-		return "", ErrDoesNotExist
+	matching := store.getMatchingReferenceList(ref)
+	for _, namedRepo := range matching {
+		tmpRef, err := SubstituteReferenceName(ref, namedRepo.name)
+		if err != nil {
+			logrus.Debugf("failed to substitute name %q in %q for %q", ref.Name, ref.String(), namedRepo.name)
+			continue
+		}
+		if revision, exists := namedRepo.repository[tmpRef.String()]; exists {
+			return revision, nil
+		}
 	}
 
-	id, exists := repository[ref.String()]
-	if !exists {
-		return "", ErrDoesNotExist
-	}
-
-	return id, nil
+	return "", ErrDoesNotExist
 }
 
 // References returns a slice of references to the given image ID. The slice
@@ -226,13 +238,15 @@ func (store *store) ReferencesByName(ref Named) []Association {
 	store.mu.RLock()
 	defer store.mu.RUnlock()
 
-	repository, exists := store.Repositories[ref.Name()]
-	if !exists {
+	matching := store.getMatchingReferenceList(ref)
+	if len(matching) == 0 {
 		return nil
 	}
+	// the first matching is the best match
+	namedRepo := matching[0]
 
 	var associations []Association
-	for refStr, refID := range repository {
+	for refStr, refID := range namedRepo.repository {
 		ref, err := ParseNamed(refStr)
 		if err != nil {
 			// Should never happen
@@ -295,4 +309,46 @@ func (store *store) reload() error {
 	}
 
 	return nil
+}
+
+// getMatchingReferenceList returns a list of local repositories matching
+// given repository name. Results will be sorted in following way:
+//   1. precise match
+//   2. precise match after normalization
+//   3. match after prefixing with default registry name and normalization
+// *Default registry* here means any registry in registry.RegistryList.
+func (store *store) getMatchingReferenceList(ref Named) (result []namedRepository) {
+	repoMap := map[string]struct{}{}
+	addResult := func(name string, repo repository) bool {
+		if _, exists := repoMap[name]; exists {
+			return false
+		}
+		result = append(result, namedRepository{
+			name:       name,
+			repository: repo,
+		})
+		repoMap[name] = struct{}{}
+		return true
+	}
+
+	// precise match
+	repoName := ref.Name()
+	if r, exists := store.Repositories[repoName]; exists {
+		addResult(repoName, r)
+	}
+
+	if !IsReferenceFullyQualified(ref) {
+		// match after prefixing with default registry
+		for _, indexName := range store.defaultRegistries {
+			fqRef, err := QualifyUnqualifiedReference(ref, indexName)
+			if err != nil {
+				continue
+			}
+			if r, exists := store.Repositories[fqRef.Name()]; exists {
+				addResult(fqRef.Name(), r)
+			}
+		}
+	}
+
+	return
 }

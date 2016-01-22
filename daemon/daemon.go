@@ -754,7 +754,7 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 
 	eventsService := events.New()
 
-	referenceStore, err := reference.NewReferenceStore(filepath.Join(imageRoot, "repositories.json"))
+	referenceStore, err := reference.NewReferenceStore(filepath.Join(imageRoot, "repositories.json"), registry.DefaultRegistries...)
 	if err != nil {
 		return nil, fmt.Errorf("Couldn't create Tag store repositories: %s", err)
 	}
@@ -1019,7 +1019,7 @@ func isBrokenPipe(e error) bool {
 
 // PullImage initiates a pull operation. image is the repository name to pull, and
 // tag may be either empty, or indicate a specific tag to pull.
-func (daemon *Daemon) PullImage(ref reference.Named, metaHeaders map[string][]string, authConfig *types.AuthConfig, outStream io.Writer) error {
+func (daemon *Daemon) PullImage(ref reference.Named, metaHeaders map[string][]string, authConfigs map[string]types.AuthConfig, outStream io.Writer) error {
 	// Include a buffer so that slow client connections don't affect
 	// transfer performance.
 	progressChan := make(chan progress.Progress, 100)
@@ -1035,7 +1035,7 @@ func (daemon *Daemon) PullImage(ref reference.Named, metaHeaders map[string][]st
 
 	imagePullConfig := &distribution.ImagePullConfig{
 		MetaHeaders:      metaHeaders,
-		AuthConfig:       authConfig,
+		AuthConfigs:      authConfigs,
 		ProgressOutput:   progress.ChanOutput(progressChan),
 		RegistryService:  daemon.RegistryService,
 		ImageEventLogger: daemon.LogImageEvent,
@@ -1062,7 +1062,7 @@ func (daemon *Daemon) ExportImage(names []string, outStream io.Writer) error {
 }
 
 // PushImage initiates a push operation on the repository named localName.
-func (daemon *Daemon) PushImage(ref reference.Named, metaHeaders map[string][]string, authConfig *types.AuthConfig, outStream io.Writer) error {
+func (daemon *Daemon) PushImage(ref reference.Named, metaHeaders map[string][]string, authConfigs map[string]types.AuthConfig, outStream io.Writer) error {
 	// Include a buffer so that slow client connections don't affect
 	// transfer performance.
 	progressChan := make(chan progress.Progress, 100)
@@ -1078,7 +1078,7 @@ func (daemon *Daemon) PushImage(ref reference.Named, metaHeaders map[string][]st
 
 	imagePushConfig := &distribution.ImagePushConfig{
 		MetaHeaders:      metaHeaders,
-		AuthConfig:       authConfig,
+		AuthConfigs:      authConfigs,
 		ProgressOutput:   progress.ChanOutput(progressChan),
 		RegistryService:  daemon.RegistryService,
 		ImageEventLogger: daemon.LogImageEvent,
@@ -1458,9 +1458,9 @@ func (daemon *Daemon) AuthenticateToRegistry(authConfig *types.AuthConfig) (stri
 // SearchRegistryForImages queries the registry for images matching
 // term. authConfig is used to login.
 func (daemon *Daemon) SearchRegistryForImages(term string,
-	authConfig *types.AuthConfig,
+	authConfigs map[string]types.AuthConfig,
 	headers map[string][]string) (*registrytypes.SearchResults, error) {
-	return daemon.RegistryService.Search(term, authConfig, headers)
+	return daemon.RegistryService.Search(term, authConfigs, headers)
 }
 
 // IsShuttingDown tells whether the daemon is shutting down or not

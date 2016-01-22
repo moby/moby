@@ -12,33 +12,57 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/term"
+	"github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
 	"github.com/docker/engine-api/client"
 	"github.com/docker/engine-api/types"
 	registrytypes "github.com/docker/engine-api/types/registry"
 )
 
+func (cli *DockerCli) getEncodedAuth(ref reference.Named) (string, error) {
+	repoInfo, err := registry.ParseRepositoryInfo(ref)
+	if err != nil {
+		return "", err
+	}
+	auths := make(map[string]types.AuthConfig)
+	if reference.IsReferenceFullyQualified(ref) {
+		authConfig := registry.ResolveAuthConfig(cli.configFile.AuthConfigs, repoInfo.Index)
+		authConfigKey := registry.GetAuthConfigKey(repoInfo.Index)
+		auths[authConfigKey] = authConfig
+	} else {
+		auths = cli.configFile.AuthConfigs
+	}
+	encoded, err := encodeAuthToBase64(auths)
+	if err != nil {
+		return "", err
+	}
+	return encoded, nil
+}
+
 // encodeAuthToBase64 serializes the auth configuration as JSON base64 payload
-func encodeAuthToBase64(authConfig types.AuthConfig) (string, error) {
-	buf, err := json.Marshal(authConfig)
+func encodeAuthToBase64(authConfigs map[string]types.AuthConfig) (string, error) {
+	buf, err := json.Marshal(authConfigs)
 	if err != nil {
 		return "", err
 	}
 	return base64.URLEncoding.EncodeToString(buf), nil
 }
 
-func (cli *DockerCli) encodeRegistryAuth(index *registrytypes.IndexInfo) (string, error) {
-	authConfig := registry.ResolveAuthConfig(cli.configFile.AuthConfigs, index)
-	return encodeAuthToBase64(authConfig)
-}
-
-func (cli *DockerCli) registryAuthenticationPrivilegedFunc(index *registrytypes.IndexInfo, cmdName string) client.RequestPrivilegeFunc {
+func (cli *DockerCli) registryAuthenticationPrivilegedFunc(index *registrytypes.IndexInfo, cmdName string, singleAuth bool) client.RequestPrivilegeFunc {
 	return func() (string, error) {
 		fmt.Fprintf(cli.out, "\nPlease login prior to %s:\n", cmdName)
-		if err := cli.CmdLogin(registry.GetAuthConfigKey(index)); err != nil {
+		authConfigKey := registry.GetAuthConfigKey(index)
+		if err := cli.CmdLogin(authConfigKey); err != nil {
 			return "", err
 		}
-		return cli.encodeRegistryAuth(index)
+		auths := make(map[string]types.AuthConfig)
+		if singleAuth {
+			authConfig := registry.ResolveAuthConfig(cli.configFile.AuthConfigs, index)
+			auths[authConfigKey] = authConfig
+		} else {
+			auths = cli.configFile.AuthConfigs
+		}
+		return encodeAuthToBase64(auths)
 	}
 }
 

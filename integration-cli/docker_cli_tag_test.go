@@ -135,7 +135,7 @@ func (s *DockerSuite) TestTagOfficialNames(c *check.C) {
 		out, _, err = dockerCmdWithError("images")
 		if err != nil {
 			c.Errorf("listing images failed with errors: %v, %s", err, out)
-		} else if strings.Contains(out, name) {
+		} else if strings.Contains(out, name) && name != "docker.io/busybox" && name != "library/busybox" {
 			c.Errorf("images should not have listed '%s'", name)
 			deleteImages(name + ":latest")
 		}

@@ -194,6 +194,26 @@ func (cli *DaemonCli) CmdDaemon(args ...string) error {
 		}()
 	}
 
+	for _, r := range cli.BlockedRegistries {
+		if r == "all" {
+			r = "*"
+		} else if r == "public" {
+			r = registry.IndexName
+		}
+		registry.BlockedRegistries[r] = struct{}{}
+		if r == registry.IndexName || r == "*" {
+			registry.DefaultRegistries = []string{}
+		}
+	}
+
+	newDefaultRegistries := []string{}
+	for _, r := range cli.AdditionalRegistries {
+		if _, ok := registry.BlockedRegistries[r]; !ok {
+			newDefaultRegistries = append(newDefaultRegistries, r)
+		}
+	}
+	registry.DefaultRegistries = append(newDefaultRegistries, registry.DefaultRegistries...)
+
 	serverConfig := &apiserver.Config{
 		AuthorizationPluginNames: cli.Config.AuthorizationPlugins,
 		Logging:                  true,

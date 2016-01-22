@@ -17,12 +17,10 @@ import (
 )
 
 func TestTokenPassThru(t *testing.T) {
-	authConfig := &types.AuthConfig{
-		RegistryToken: "mysecrettoken",
-	}
 	gotToken := false
+	registryToken := "mysecrettoken"
 	handler := func(w http.ResponseWriter, r *http.Request) {
-		if strings.Contains(r.Header.Get("Authorization"), authConfig.RegistryToken) {
+		if strings.Contains(r.Header.Get("Authorization"), registryToken) {
 			logrus.Debug("Detected registry token in auth header")
 			gotToken = true
 		}
@@ -33,6 +31,11 @@ func TestTokenPassThru(t *testing.T) {
 	}
 	ts := httptest.NewServer(http.HandlerFunc(handler))
 	defer ts.Close()
+
+	authConfigs := make(map[string]types.AuthConfig)
+	authConfigs[ts.URL] = types.AuthConfig{
+		RegistryToken: registryToken,
+	}
 
 	tmp, err := utils.TestDirectory("")
 	if err != nil {
@@ -62,7 +65,7 @@ func TestTokenPassThru(t *testing.T) {
 	}
 	imagePullConfig := &ImagePullConfig{
 		MetaHeaders: http.Header{},
-		AuthConfig:  authConfig,
+		AuthConfigs: authConfigs,
 	}
 	puller, err := newPuller(endpoint, repoInfo, imagePullConfig)
 	if err != nil {
@@ -70,7 +73,8 @@ func TestTokenPassThru(t *testing.T) {
 	}
 	p := puller.(*v2Puller)
 	ctx := context.Background()
-	p.repo, _, err = NewV2Repository(ctx, p.repoInfo, p.endpoint, p.config.MetaHeaders, p.config.AuthConfig, "pull")
+	ac := p.config.AuthConfigs[ts.URL]
+	p.repo, _, err = NewV2Repository(ctx, p.repoInfo, p.endpoint, p.config.MetaHeaders, &ac, "pull")
 	if err != nil {
 		t.Fatal(err)
 	}

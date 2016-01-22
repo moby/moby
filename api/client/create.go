@@ -8,7 +8,6 @@ import (
 	Cli "github.com/docker/docker/cli"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/reference"
-	"github.com/docker/docker/registry"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
 	"github.com/docker/engine-api/client"
 	"github.com/docker/engine-api/types"
@@ -34,14 +33,7 @@ func (cli *DockerCli) pullImageCustomOut(image string, out io.Writer) error {
 		tag = x.Tag()
 	}
 
-	// Resolve the Repository name from fqn to RepositoryInfo
-	repoInfo, err := registry.ParseRepositoryInfo(ref)
-	if err != nil {
-		return err
-	}
-
-	// Resolve the Auth config relevant for this server
-	encodedAuth, err := cli.encodeRegistryAuth(repoInfo.Index)
+	encodedAuth, err := encodeAuthToBase64(cli.configFile.AuthConfigs)
 	if err != nil {
 		return err
 	}

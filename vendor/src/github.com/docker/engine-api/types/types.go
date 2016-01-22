@@ -188,6 +188,12 @@ type Version struct {
 	PkgVersion    string `json:",omitempty"`
 }
 
+// Registry holds information about a specific registry
+type Registry struct {
+	Name   string
+	Secure bool
+}
+
 // Info contains response of Remote API:
 // GET "/info"
 type Info struct {
@@ -238,6 +244,7 @@ type Info struct {
 	ServerVersion      string
 	ClusterStore       string
 	ClusterAdvertise   string
+	Registries         []Registry
 }
 
 // PluginsInfo is temp struct holds Plugins name

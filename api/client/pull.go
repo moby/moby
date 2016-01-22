@@ -54,25 +54,22 @@ func (cli *DockerCli) CmdPull(args ...string) error {
 		return err
 	}
 
-	authConfig := registry.ResolveAuthConfig(cli.configFile.AuthConfigs, repoInfo.Index)
-	requestPrivilege := cli.registryAuthenticationPrivilegedFunc(repoInfo.Index, "pull")
+	requestPrivilege := cli.registryAuthenticationPrivilegedFunc(repoInfo.Index, "pull", reference.IsReferenceFullyQualified(distributionRef))
 
 	if isTrusted() && !ref.HasDigest() {
-		// Check if tag is digest
-		return cli.trustedPull(repoInfo, ref, authConfig, requestPrivilege)
+		return cli.trustedPull(distributionRef, repoInfo, ref, requestPrivilege)
 	}
 
-	return cli.imagePullPrivileged(authConfig, distributionRef.String(), "", requestPrivilege)
+	return cli.imagePullPrivileged(distributionRef, "", requestPrivilege)
 }
 
-func (cli *DockerCli) imagePullPrivileged(authConfig types.AuthConfig, imageID, tag string, requestPrivilege client.RequestPrivilegeFunc) error {
-
-	encodedAuth, err := encodeAuthToBase64(authConfig)
+func (cli *DockerCli) imagePullPrivileged(ref reference.Named, tag string, requestPrivilege client.RequestPrivilegeFunc) error {
+	encodedAuth, err := cli.getEncodedAuth(ref)
 	if err != nil {
 		return err
 	}
 	options := types.ImagePullOptions{
-		ImageID:      imageID,
+		ImageID:      ref.String(),
 		Tag:          tag,
 		RegistryAuth: encodedAuth,
 	}

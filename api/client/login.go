@@ -22,7 +22,7 @@ import (
 //
 // Usage: docker login SERVER
 func (cli *DockerCli) CmdLogin(args ...string) error {
-	cmd := Cli.Subcmd("login", []string{"[SERVER]"}, Cli.DockerCommands["login"].Description+".\nIf no server is specified \""+registry.IndexServer+"\" is the default.", true)
+	cmd := Cli.Subcmd("login", []string{"[SERVER]"}, Cli.DockerCommands["login"].Description+".\nIf no server is specified \""+registry.IndexServerName()+"\" is the default.", true)
 	cmd.Require(flag.Max, 1)
 
 	var username, password, email string
@@ -38,7 +38,7 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 		cli.in = os.Stdin
 	}
 
-	serverAddress := registry.IndexServer
+	serverAddress := registry.IndexServerAddress()
 	if len(cmd.Args()) > 0 {
 		serverAddress = cmd.Arg(0)
 	}

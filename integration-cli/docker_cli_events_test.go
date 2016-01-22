@@ -196,7 +196,7 @@ func (s *DockerSuite) TestEventsImagePull(c *check.C) {
 	events := strings.Split(strings.TrimSpace(out), "\n")
 	event := strings.TrimSpace(events[len(events)-1])
 	matches := parseEventText(event)
-	c.Assert(matches["id"], checker.Equals, "hello-world:latest")
+	c.Assert(matches["id"], checker.Equals, "docker.io/hello-world:latest")
 	c.Assert(matches["action"], checker.Equals, "pull")
 
 }

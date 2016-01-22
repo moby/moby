@@ -61,7 +61,12 @@ type pushState struct {
 func (p *v2Pusher) Push(ctx context.Context) (err error) {
 	p.pushState.remoteLayers = make(map[layer.DiffID]distribution.Descriptor)
 
-	p.repo, p.pushState.confirmedV2, err = NewV2Repository(ctx, p.repoInfo, p.endpoint, p.config.MetaHeaders, p.config.AuthConfig, "push", "pull")
+	repoInfo, err := registry.ParseRepositoryInfo(p.ref)
+	if err != nil {
+		return err
+	}
+	authConfig := registry.ResolveAuthConfig(p.config.AuthConfigs, repoInfo.Index)
+	p.repo, p.pushState.confirmedV2, err = NewV2Repository(ctx, p.repoInfo, p.endpoint, p.config.MetaHeaders, &authConfig, "push", "pull")
 	if err != nil {
 		logrus.Debugf("Error getting v2 registry: %v", err)
 		return fallbackError{err: err, confirmedV2: p.pushState.confirmedV2}
