@@ -640,6 +640,7 @@ func (s *DockerSuite) TestPsImageIDAfterUpdate(c *check.C) {
 }
 
 func (s *DockerSuite) TestPsNotShowPortsOfStoppedContainer(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "run", "--name=foo", "-d", "-p", "5000:5000", "busybox", "top")
 	c.Assert(waitRun("foo"), checker.IsNil)
 	out, _ := dockerCmd(c, "ps")
