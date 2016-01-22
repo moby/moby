@@ -296,33 +296,6 @@ func hostVolumePath(name string) string {
 	return fmt.Sprintf("/var/lib/docker/volumes/%s", name)
 }
 
-func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverNamedCheckBindLocalVolume(c *check.C) {
-	err := s.d.StartWithBusybox()
-	c.Assert(err, checker.IsNil)
-
-	expected := s.server.URL
-	dockerfile := fmt.Sprintf(`FROM busybox:latest
-	RUN mkdir /nobindthenlocalvol
-	RUN echo %s > /nobindthenlocalvol/test
-	VOLUME ["/nobindthenlocalvol"]`, expected)
-
-	img := "test-checkbindlocalvolume"
-
-	_, err = buildImageWithOutInDamon(s.d.sock(), img, dockerfile, true)
-	c.Assert(err, checker.IsNil)
-
-	out, err := s.d.Cmd("run", "--rm", "--name", "test-data-nobind", "-v", "external-volume-test:/tmp/external-volume-test", "--volume-driver", "test-external-volume-driver", img, "cat", "/nobindthenlocalvol/test")
-	c.Assert(err, checker.IsNil)
-
-	c.Assert(out, checker.Contains, expected)
-
-	c.Assert(s.ec.activations, checker.Equals, 1)
-	c.Assert(s.ec.creations, checker.Equals, 1)
-	c.Assert(s.ec.removals, checker.Equals, 1)
-	c.Assert(s.ec.mounts, checker.Equals, 1)
-	c.Assert(s.ec.unmounts, checker.Equals, 1)
-}
-
 // Make sure a request to use a down driver doesn't block other requests
 func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverLookupNotBlocked(c *check.C) {
 	specPath := "/etc/docker/plugins/down-driver.spec"
