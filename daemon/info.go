@@ -57,7 +57,7 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 	sysInfo := sysinfo.New(true)
 
 	var cRunning, cPaused, cStopped int32
-	daemon.containers.ApplyAll(func(c *container.Container) {
+	daemon.containers.ApplyAll(func(c *container.Container) error {
 		switch c.StateString() {
 		case "paused":
 			atomic.AddInt32(&cPaused, 1)
@@ -66,6 +66,7 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 		default:
 			atomic.AddInt32(&cStopped, 1)
 		}
+		return nil
 	})
 
 	v := &types.Info{
