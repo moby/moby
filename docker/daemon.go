@@ -204,9 +204,9 @@ func (cli *DaemonCli) CmdDaemon(args ...string) error {
 	defaultHost := opts.DefaultHost
 	if cli.Config.TLS {
 		tlsOptions := tlsconfig.Options{
-			CAFile:   cli.Config.TLSOptions.CAFile,
-			CertFile: cli.Config.TLSOptions.CertFile,
-			KeyFile:  cli.Config.TLSOptions.KeyFile,
+			CAFile:   cli.Config.CommonTLSOptions.CAFile,
+			CertFile: cli.Config.CommonTLSOptions.CertFile,
+			KeyFile:  cli.Config.CommonTLSOptions.KeyFile,
 		}
 
 		if cli.Config.TLSVerify {
@@ -338,12 +338,12 @@ func loadDaemonCliConfig(config *daemon.Config, daemonFlags *flag.FlagSet, commo
 	config.LogLevel = commonConfig.LogLevel
 	config.TLS = commonConfig.TLS
 	config.TLSVerify = commonConfig.TLSVerify
-	config.TLSOptions = daemon.CommonTLSOptions{}
+	config.CommonTLSOptions = daemon.CommonTLSOptions{}
 
 	if commonConfig.TLSOptions != nil {
-		config.TLSOptions.CAFile = commonConfig.TLSOptions.CAFile
-		config.TLSOptions.CertFile = commonConfig.TLSOptions.CertFile
-		config.TLSOptions.KeyFile = commonConfig.TLSOptions.KeyFile
+		config.CommonTLSOptions.CAFile = commonConfig.TLSOptions.CAFile
+		config.CommonTLSOptions.CertFile = commonConfig.TLSOptions.CertFile
+		config.CommonTLSOptions.KeyFile = commonConfig.TLSOptions.KeyFile
 	}
 
 	if configFile != "" {
