@@ -590,7 +590,11 @@ the container exits**, you can add the `--rm` flag:
 
 > **Note**: When you set the `--rm` flag, Docker also removes the volumes
 associated with the container when the container is removed. This is similar
-to running `docker rm -v my-container`.
+to running `docker rm -v my-container`. Only volumes that are specified without a
+name are removed. For example, with
+`docker run --rm -v /foo -v awesome:/bar busybox top`, the volume for `/foo` will be removed,
+but the volume for `/bar` will not. Volumes inheritted via `--volumes-from` will be removed
+with the same logic -- if the original volume was specified with a name it will **not** be removed.
 
 ## Security configuration
     --security-opt="label:user:USER"   : Set the label user for the container

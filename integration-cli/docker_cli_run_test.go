@@ -4137,3 +4137,42 @@ func (s *DockerSuite) TestRunNamedVolumeCopyImageData(c *check.C) {
 	out, _ := dockerCmd(c, "run", "-v", "foo:/foo", "busybox", "cat", "/foo/hello")
 	c.Assert(strings.TrimSpace(out), check.Equals, "hello")
 }
+
+func (s *DockerSuite) TestRunNamedVolumeNotRemoved(c *check.C) {
+	prefix := ""
+	if daemonPlatform == "windows" {
+		prefix = "c:"
+	}
+
+	dockerCmd(c, "volume", "create", "--name", "test")
+
+	dockerCmd(c, "run", "--rm", "-v", "test:"+prefix+"/foo", "-v", prefix+"/bar", "busybox", "true")
+	dockerCmd(c, "volume", "inspect", "test")
+	out, _ := dockerCmd(c, "volume", "ls", "-q")
+	c.Assert(strings.TrimSpace(out), checker.Equals, "test")
+
+	dockerCmd(c, "run", "--name=test", "-v", "test:"+prefix+"/foo", "-v", prefix+"/bar", "busybox", "true")
+	dockerCmd(c, "rm", "-fv", "test")
+	dockerCmd(c, "volume", "inspect", "test")
+	out, _ = dockerCmd(c, "volume", "ls", "-q")
+	c.Assert(strings.TrimSpace(out), checker.Equals, "test")
+}
+
+func (s *DockerSuite) TestRunNamedVolumesFromNotRemoved(c *check.C) {
+	prefix := ""
+	if daemonPlatform == "windows" {
+		prefix = "c:"
+	}
+
+	dockerCmd(c, "volume", "create", "--name", "test")
+	dockerCmd(c, "run", "--name=parent", "-v", "test:"+prefix+"/foo", "-v", prefix+"/bar", "busybox", "true")
+	dockerCmd(c, "run", "--name=child", "--volumes-from=parent", "busybox", "true")
+
+	// Remove the parent so there are not other references to the volumes
+	dockerCmd(c, "rm", "-f", "parent")
+	// now remove the child and ensure the named volume (and only the named volume) still exists
+	dockerCmd(c, "rm", "-fv", "child")
+	dockerCmd(c, "volume", "inspect", "test")
+	out, _ := dockerCmd(c, "volume", "ls", "-q")
+	c.Assert(strings.TrimSpace(out), checker.Equals, "test")
+}

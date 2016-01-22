@@ -90,6 +90,7 @@ func (daemon *Daemon) registerMountPoints(container *container.Container, hostCo
 				Driver:      m.Driver,
 				Destination: m.Destination,
 				Propagation: m.Propagation,
+				Named:       m.Named,
 			}
 
 			if len(cp.Source) == 0 {
@@ -126,6 +127,7 @@ func (daemon *Daemon) registerMountPoints(container *container.Container, hostCo
 			bind.Source = v.Path()
 			// bind.Name is an already existing volume, we need to use that here
 			bind.Driver = v.DriverName()
+			bind.Named = true
 			bind = setBindModeIfNull(bind)
 		}
 		if label.RelabelNeeded(bind.Mode) {
