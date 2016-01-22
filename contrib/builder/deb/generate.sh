@@ -57,8 +57,9 @@ for version in "${versions[@]}"; do
 		libapparmor-dev # for "sys/apparmor.h"
 		libdevmapper-dev # for "libdevmapper.h"
 		libltdl-dev # for pkcs11 "ltdl.h"
-		libsqlite3-dev # for "sqlite3.h"
 		libseccomp-dev  # for "seccomp.h" & "libseccomp.so"
+		libsqlite3-dev # for "sqlite3.h"
+		pkg-config # for detecting things like libsystemd-journal dynamically
 	)
 	# packaging for "sd-journal.h" and libraries varies
 	case "$suite" in
