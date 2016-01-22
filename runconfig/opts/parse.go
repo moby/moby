@@ -442,7 +442,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 		networkingConfig.EndpointsConfig[string(hostConfig.NetworkMode)] = epConfig
 	}
 
-	if hostConfig.NetworkMode.IsUserDefined() && flAliases.Len() > 0 {
+	if flAliases.Len() > 0 {
 		epConfig := networkingConfig.EndpointsConfig[string(hostConfig.NetworkMode)]
 		if epConfig == nil {
 			epConfig = &networktypes.EndpointSettings{}
