@@ -289,7 +289,8 @@ EOF
 # Upload the index script
 release_index() {
 	echo "Releasing index"
-	sed "s,url='https://get.docker.com/',url='$(s3_url)/'," hack/install.sh | write_to_s3 "s3://$BUCKET_PATH/index"
+	url="$(s3_url)" hack/make.sh install-script
+	write_to_s3 "s3://$BUCKET_PATH/index" < "bundles/$VERSION/install-script/install.sh"
 }
 
 release_test() {
