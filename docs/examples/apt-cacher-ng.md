@@ -69,8 +69,8 @@ To get your Debian-based containers to use the proxy, you have following options
 a local version of a common base:
 
     FROM ubuntu
-    RUN  echo 'Acquire::http { Proxy "http://dockerhost:3142"; };' >> /etc/apt/apt.conf.d/01proxy
     RUN apt-get update && apt-get install -y vim git
+    RUN echo 'Acquire::http { Proxy "http://dockerhost:3142"; };' >> /etc/apt/apt.conf.d/01proxy
 
     # docker build -t my_ubuntu .
 
