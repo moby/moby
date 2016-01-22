@@ -13,29 +13,49 @@ import (
 	"github.com/docker/engine-api/types/versions/v1p20"
 )
 
+type inspectContext struct {
+	name    string
+	size    bool
+	version version.Version
+	daemon  *Daemon
+	result  interface{}
+}
+
 // ContainerInspect returns low-level information about a
 // container. Returns an error if the container cannot be found, or if
 // there is an error getting the data.
 func (daemon *Daemon) ContainerInspect(name string, size bool, version version.Version) (interface{}, error) {
-	switch {
-	case version.LessThan("1.20"):
-		return daemon.containerInspectPre120(name)
-	case version.Equal("1.20"):
-		return daemon.containerInspect120(name)
-	}
-	return daemon.containerInspectCurrent(name, size)
-}
-
-func (daemon *Daemon) containerInspectCurrent(name string, size bool) (*types.ContainerJSON, error) {
 	container, err := daemon.GetContainer(name)
 	if err != nil {
 		return nil, err
 	}
 
-	container.Lock()
-	defer container.Unlock()
+	ctx := &inspectContext{
+		name:    name,
+		size:    size,
+		version: version,
+		daemon:  daemon,
+	}
 
-	base, err := daemon.getInspectData(container, size)
+	err = daemon.containers.ReduceOne(container.ID, ctx.reduce)
+	return ctx.result, err
+}
+
+func (ctx *inspectContext) reduce(cont *container.Container) error {
+	var err error
+	switch {
+	case ctx.version.LessThan("1.20"):
+		ctx.result, err = ctx.containerInspectPre120(cont)
+	case ctx.version.Equal("1.20"):
+		ctx.result, err = ctx.containerInspect120(cont)
+	default:
+		ctx.result, err = ctx.containerInspectCurrent(cont)
+	}
+	return err
+}
+
+func (ctx *inspectContext) containerInspectCurrent(container *container.Container) (*types.ContainerJSON, error) {
+	base, err := ctx.getInspectData(container)
 	if err != nil {
 		return nil, err
 	}
@@ -53,7 +73,7 @@ func (daemon *Daemon) containerInspectCurrent(name string, size bool) (*types.Co
 			SecondaryIPAddresses:   container.NetworkSettings.SecondaryIPAddresses,
 			SecondaryIPv6Addresses: container.NetworkSettings.SecondaryIPv6Addresses,
 		},
-		DefaultNetworkSettings: daemon.getDefaultNetworkSettings(container.NetworkSettings.Networks),
+		DefaultNetworkSettings: ctx.daemon.getDefaultNetworkSettings(container.NetworkSettings.Networks),
 		Networks:               container.NetworkSettings.Networks,
 	}
 
@@ -66,16 +86,8 @@ func (daemon *Daemon) containerInspectCurrent(name string, size bool) (*types.Co
 }
 
 // containerInspect120 serializes the master version of a container into a json type.
-func (daemon *Daemon) containerInspect120(name string) (*v1p20.ContainerJSON, error) {
-	container, err := daemon.GetContainer(name)
-	if err != nil {
-		return nil, err
-	}
-
-	container.Lock()
-	defer container.Unlock()
-
-	base, err := daemon.getInspectData(container, false)
+func (ctx *inspectContext) containerInspect120(container *container.Container) (*v1p20.ContainerJSON, error) {
+	base, err := ctx.getInspectData(container)
 	if err != nil {
 		return nil, err
 	}
@@ -88,7 +100,7 @@ func (daemon *Daemon) containerInspect120(name string) (*v1p20.ContainerJSON, er
 		ExposedPorts:    container.Config.ExposedPorts,
 		VolumeDriver:    container.HostConfig.VolumeDriver,
 	}
-	networkSettings := daemon.getBackwardsCompatibleNetworkSettings(container.NetworkSettings)
+	networkSettings := ctx.daemon.getBackwardsCompatibleNetworkSettings(container.NetworkSettings)
 
 	return &v1p20.ContainerJSON{
 		ContainerJSONBase: base,
@@ -98,11 +110,11 @@ func (daemon *Daemon) containerInspect120(name string) (*v1p20.ContainerJSON, er
 	}, nil
 }
 
-func (daemon *Daemon) getInspectData(container *container.Container, size bool) (*types.ContainerJSONBase, error) {
+func (ctx inspectContext) getInspectData(container *container.Container) (*types.ContainerJSONBase, error) {
 	// make a copy to play with
 	hostConfig := *container.HostConfig
 
-	children := daemon.children(container)
+	children := ctx.daemon.children(container)
 	hostConfig.Links = nil // do not expose the internal structure
 	for linkAlias, child := range children {
 		hostConfig.Links = append(hostConfig.Links, fmt.Sprintf("%s:%s", child.Name, linkAlias))
@@ -111,11 +123,11 @@ func (daemon *Daemon) getInspectData(container *container.Container, size bool) 
 	// we need this trick to preserve empty log driver, so
 	// container will use daemon defaults even if daemon change them
 	if hostConfig.LogConfig.Type == "" {
-		hostConfig.LogConfig.Type = daemon.defaultLogConfig.Type
+		hostConfig.LogConfig.Type = ctx.daemon.defaultLogConfig.Type
 	}
 
 	if len(hostConfig.LogConfig.Config) == 0 {
-		hostConfig.LogConfig.Config = daemon.defaultLogConfig.Config
+		hostConfig.LogConfig.Config = ctx.daemon.defaultLogConfig.Config
 	}
 
 	containerState := &types.ContainerState{
@@ -153,8 +165,8 @@ func (daemon *Daemon) getInspectData(container *container.Container, size bool) 
 		sizeRw     int64
 		sizeRootFs int64
 	)
-	if size {
-		sizeRw, sizeRootFs = daemon.getSize(container)
+	if ctx.size {
+		sizeRw, sizeRootFs = ctx.daemon.getSize(container)
 		contJSONBase.SizeRw = &sizeRw
 		contJSONBase.SizeRootFs = &sizeRootFs
 	}

@@ -539,7 +539,7 @@ func (s *DockerSuite) TestPsFormatMultiNames(c *check.C) {
 	for _, l := range lines {
 		names = append(names, l)
 	}
-	c.Assert(expected, checker.DeepEquals, names, check.Commentf("Expected array with non-truncated names: %v, got: %v", expected, names))
+	c.Assert(names, checker.DeepEquals, expected, check.Commentf("Expected array with non-truncated names: %v, got: %v", expected, names))
 
 	//now list without turning off truncation and make sure we only get the non-link names
 	out, _ = dockerCmd(c, "ps", "--format", "{{.Names}}")
@@ -549,7 +549,7 @@ func (s *DockerSuite) TestPsFormatMultiNames(c *check.C) {
 	for _, l := range lines {
 		truncNames = append(truncNames, l)
 	}
-	c.Assert(expected, checker.DeepEquals, truncNames, check.Commentf("Expected array with truncated names: %v, got: %v", expected, truncNames))
+	c.Assert(truncNames, checker.DeepEquals, expected, check.Commentf("Expected array with truncated names: %v, got: %v", expected, truncNames))
 
 }
 

@@ -90,10 +90,11 @@ func TestApplyAllContainer(t *testing.T) {
 	s.Add("id", NewBaseContainer("id", "root"))
 	s.Add("id2", NewBaseContainer("id2", "root"))
 
-	s.ApplyAll(func(cont *Container) {
+	s.ApplyAll(func(cont *Container) error {
 		if cont.ID == "id2" {
 			cont.ID = "newID"
 		}
+		return nil
 	})
 
 	cont := s.Get("id2")
@@ -102,5 +103,92 @@ func TestApplyAllContainer(t *testing.T) {
 	}
 	if cont.ID != "newID" {
 		t.Fatalf("expected newID, got %v", cont)
+	}
+}
+
+func TestReduceAll(t *testing.T) {
+	s := NewMemoryStore()
+
+	c1 := NewBaseContainer("id", "root")
+	c1.Created = time.Now()
+	c1.SetRunning(1234)
+
+	s.Add("id", c1)
+
+	var copies []*Container
+	all := func(c *Container) bool {
+		return true
+	}
+	store := func(c *Container) error {
+		copies = append(copies, c)
+		return nil
+	}
+
+	if err := s.ReduceAll(all, store); err != nil {
+		t.Fatal(err)
+	}
+
+	if len(copies) != 1 {
+		t.Fatalf("expected 1 copies, got %v", len(copies))
+	}
+
+	cp1 := copies[0]
+
+	if cp1 == c1 {
+		t.Fatalf("expected container structure to be a copy, not original pointer")
+	}
+	if cp1.Created != c1.Created {
+		t.Fatalf("expected same created times, original %v, got %v", c1.Created, cp1.Created)
+	}
+	if !cp1.IsRunning() {
+		t.Fatalf("expected state to be running, got %s", cp1.StateString())
+	}
+	if cp1.Pid != 1234 {
+		t.Fatalf("expected PID 1234, got %v", cp1.Pid)
+	}
+	if cp1.State == c1.State {
+		t.Fatalf("expected state structure to be a copy, not original pointer")
+	}
+}
+
+func TestReduceOne(t *testing.T) {
+	s := NewMemoryStore()
+
+	c1 := NewBaseContainer("id", "root")
+	c1.Created = time.Now()
+	c1.SetRunning(1234)
+
+	s.Add("id", c1)
+	var checked bool
+	store := func(cp1 *Container) error {
+		checked = true
+		if cp1 == c1 {
+			t.Fatalf("expected container structure to be a copy, not original pointer")
+		}
+		if cp1.Created != c1.Created {
+			t.Fatalf("expected same created times, original %v, got %v", c1.Created, cp1.Created)
+		}
+		if !cp1.IsRunning() {
+			t.Fatalf("expected state to be running, got %s", cp1.StateString())
+		}
+		if cp1.Pid != 1234 {
+			t.Fatalf("expected PID 1234, got %v", cp1.Pid)
+		}
+		if cp1.State == c1.State {
+			t.Fatalf("expected state structure to be a copy, not original pointer")
+		}
+		return nil
+	}
+
+	if err := s.ReduceOne("id", store); err != nil {
+		t.Fatal(err)
+	}
+
+	if !checked {
+		t.Fatal("expected checked container copy, got false")
+	}
+
+	if err := s.ReduceOne("unknown", store); err != nil {
+		t.Fatal(err)
 	}
 }
