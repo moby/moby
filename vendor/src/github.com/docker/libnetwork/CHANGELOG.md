@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.0-rc2 (2016-01-21)
+- Fixes docker/docker#19376
+- Fixes docker/docker#15819
+- Fixes libnetwork/#885, Not filter v6 DNS servers from resolv.conf
+- Fixes docker/docker #19448, also handles the . in service and network names correctly.
+
 ## 0.6.0-rc1 (2016-01-14)
 - Fixes docker/docker#19404
 - Fixes the ungraceful daemon restart issue in systemd with remote network plugin 
