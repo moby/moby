@@ -21,7 +21,7 @@ import (
 	runconfigopts "github.com/docker/docker/runconfig/opts"
 	"github.com/docker/docker/utils"
 	"github.com/docker/docker/volume"
-	"github.com/docker/engine-api/types/container"
+	containertypes "github.com/docker/engine-api/types/container"
 	"github.com/docker/engine-api/types/network"
 	"github.com/docker/go-connections/nat"
 	"github.com/docker/libnetwork"
@@ -290,7 +290,7 @@ func (container *Container) BuildCreateEndpointOptions(n libnetwork.Network) ([]
 		}
 	}
 
-	if !container.HostConfig.NetworkMode.IsUserDefined() {
+	if !containertypes.NetworkMode(n.Name()).IsUserDefined() {
 		createOptions = append(createOptions, libnetwork.CreateOptionDisableResolution())
 	}
 
@@ -577,7 +577,7 @@ func (container *Container) IpcMounts() []execdriver.Mount {
 	return mounts
 }
 
-func updateCommand(c *execdriver.Command, resources container.Resources) {
+func updateCommand(c *execdriver.Command, resources containertypes.Resources) {
 	c.Resources.BlkioWeight = resources.BlkioWeight
 	c.Resources.CPUShares = resources.CPUShares
 	c.Resources.CPUPeriod = resources.CPUPeriod
@@ -591,7 +591,7 @@ func updateCommand(c *execdriver.Command, resources container.Resources) {
 }
 
 // UpdateContainer updates resources of a container.
-func (container *Container) UpdateContainer(hostConfig *container.HostConfig) error {
+func (container *Container) UpdateContainer(hostConfig *containertypes.HostConfig) error {
 	container.Lock()
 
 	resources := hostConfig.Resources
