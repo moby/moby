@@ -59,6 +59,10 @@ func (cli *DockerCli) registryAuthenticationPrivilegedFunc(index *registrytypes.
 
 func (cli *DockerCli) resizeTty(id string, isExec bool) {
 	height, width := cli.getTtySize()
+	cli.resizeTtyTo(id, height, width, isExec)
+}
+
+func (cli *DockerCli) resizeTtyTo(id string, height, width int, isExec bool) {
 	if height == 0 && width == 0 {
 		return
 	}
