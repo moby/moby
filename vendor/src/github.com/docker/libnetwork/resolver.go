@@ -36,6 +36,7 @@ const (
 	ptrIPv4domain = ".in-addr.arpa."
 	ptrIPv6domain = ".ip6.arpa."
 	respTTL       = 1800
+	maxExtDNS     = 3 //max number of external servers to try
 )
 
 // resolver implements the Resolver interface
@@ -188,15 +189,24 @@ func (r *resolver) ServeDNS(w dns.ResponseWriter, query *dns.Msg) {
 		if len(r.extDNS) == 0 {
 			return
 		}
-		log.Debugf("Querying ext dns %s for %s[%d]", r.extDNS[0], name, query.Question[0].Qtype)
 
-		c := &dns.Client{Net: "udp"}
-		addr := fmt.Sprintf("%s:%d", r.extDNS[0], 53)
+		num := maxExtDNS
+		if len(r.extDNS) < maxExtDNS {
+			num = len(r.extDNS)
+		}
+		for i := 0; i < num; i++ {
+			log.Debugf("Querying ext dns %s for %s[%d]", r.extDNS[i], name, query.Question[0].Qtype)
 
-		// TODO: iterate over avilable servers in case of error
-		resp, _, err = c.Exchange(query, addr)
-		if err != nil {
+			c := &dns.Client{Net: "udp"}
+			addr := fmt.Sprintf("%s:%d", r.extDNS[i], 53)
+
+			resp, _, err = c.Exchange(query, addr)
+			if err == nil {
+				break
+			}
 			log.Errorf("external resolution failed, %s", err)
+		}
+		if resp == nil {
 			return
 		}
 	}
