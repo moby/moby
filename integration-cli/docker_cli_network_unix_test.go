@@ -1301,3 +1301,26 @@ func (s *DockerSuite) TestUserDefinedNetworkConnectDisconnectAlias(c *check.C) {
 	_, _, err = dockerCmdWithError("exec", "second", "ping", "-c", "1", "bar")
 	c.Assert(err, check.IsNil)
 }
+
+func (s *DockerSuite) TestUserDefinedNetworkConnectivity(c *check.C) {
+	testRequires(c, DaemonIsLinux, NotUserNamespace)
+	dockerCmd(c, "network", "create", "-d", "bridge", "br.net1")
+
+	dockerCmd(c, "run", "-d", "--net=br.net1", "--name=c1.net1", "busybox", "top")
+	c.Assert(waitRun("c1.net1"), check.IsNil)
+
+	dockerCmd(c, "run", "-d", "--net=br.net1", "--name=c2.net1", "busybox", "top")
+	c.Assert(waitRun("c2.net1"), check.IsNil)
+
+	// ping first container by its unqualified name
+	_, _, err := dockerCmdWithError("exec", "c2.net1", "ping", "-c", "1", "c1.net1")
+	c.Assert(err, check.IsNil)
+
+	// ping first container by its qualified name
+	_, _, err = dockerCmdWithError("exec", "c2.net1", "ping", "-c", "1", "c1.net1.br.net1")
+	c.Assert(err, check.IsNil)
+
+	// ping with first qualified name masked by an additional domain. should fail
+	_, _, err = dockerCmdWithError("exec", "c2.net1", "ping", "-c", "1", "c1.net1.br.net1.google.com")
+	c.Assert(err, check.NotNil)
+}
