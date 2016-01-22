@@ -10,6 +10,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/ioutils"
+	"github.com/docker/libnetwork/netutils"
 	"github.com/docker/libnetwork/resolvconf/dns"
 )
 
@@ -29,6 +30,8 @@ var (
 	localhostNSRegexp = regexp.MustCompile(`(?m)^nameserver\s+` + dns.IPLocalhost + `\s*\n*`)
 	nsIPv6Regexp      = regexp.MustCompile(`(?m)^nameserver\s+` + ipv6Address + `\s*\n*`)
 	nsRegexp          = regexp.MustCompile(`^\s*nameserver\s*((` + ipv4Address + `)|(` + ipv6Address + `))\s*$`)
+	nsIPv6Regexpmatch = regexp.MustCompile(`^\s*nameserver\s*((` + ipv6Address + `))\s*$`)
+	nsIPv4Regexpmatch = regexp.MustCompile(`^\s*nameserver\s*((` + ipv4Address + `))\s*$`)
 	searchRegexp      = regexp.MustCompile(`^\s*search\s*(([^\s]+\s*)*)$`)
 	optionsRegexp     = regexp.MustCompile(`^\s*options\s*(([^\s]+\s*)*)$`)
 )
@@ -119,7 +122,7 @@ func FilterResolvDNS(resolvConf []byte, ipv6Enabled bool) (*File, error) {
 	}
 	// if the resulting resolvConf has no more nameservers defined, add appropriate
 	// default DNS servers for IPv4 and (optionally) IPv6
-	if len(GetNameservers(cleanedResolvConf)) == 0 {
+	if len(GetNameservers(cleanedResolvConf, netutils.IP)) == 0 {
 		logrus.Infof("No non-localhost DNS nameservers are left in resolv.conf. Using default external servers : %v", defaultIPv4Dns)
 		dns := defaultIPv4Dns
 		if ipv6Enabled {
@@ -151,10 +154,17 @@ func getLines(input []byte, commentMarker []byte) [][]byte {
 }
 
 // GetNameservers returns nameservers (if any) listed in /etc/resolv.conf
-func GetNameservers(resolvConf []byte) []string {
+func GetNameservers(resolvConf []byte, kind int) []string {
 	nameservers := []string{}
 	for _, line := range getLines(resolvConf, []byte("#")) {
-		var ns = nsRegexp.FindSubmatch(line)
+		var ns [][]byte
+		if kind == netutils.IP {
+			ns = nsRegexp.FindSubmatch(line)
+		} else if kind == netutils.IPv4 {
+			ns = nsIPv4Regexpmatch.FindSubmatch(line)
+		} else if kind == netutils.IPv6 {
+			ns = nsIPv6Regexpmatch.FindSubmatch(line)
+		}
 		if len(ns) > 0 {
 			nameservers = append(nameservers, string(ns[1]))
 		}
@@ -167,7 +177,7 @@ func GetNameservers(resolvConf []byte) []string {
 // This function's output is intended for net.ParseCIDR
 func GetNameserversAsCIDR(resolvConf []byte) []string {
 	nameservers := []string{}
-	for _, nameserver := range GetNameservers(resolvConf) {
+	for _, nameserver := range GetNameservers(resolvConf, netutils.IP) {
 		nameservers = append(nameservers, nameserver+"/32")
 	}
 	return nameservers
