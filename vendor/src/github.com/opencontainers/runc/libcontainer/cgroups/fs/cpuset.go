@@ -4,6 +4,7 @@ package fs
 
 import (
 	"bytes"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -94,6 +95,10 @@ func (s *CpusetGroup) ensureParent(current, root string) error {
 	parent := filepath.Dir(current)
 	if filepath.Clean(parent) == root {
 		return nil
+	}
+	// Avoid infinite recursion.
+	if parent == current {
+		return fmt.Errorf("cpuset: cgroup parent path outside cgroup root")
 	}
 	if err := s.ensureParent(parent, root); err != nil {
 		return err
