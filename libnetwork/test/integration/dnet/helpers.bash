@@ -322,6 +322,42 @@ function test_overlay() {
 	done
     done
 
+    # Setup bridge network and connect containers ot it
+    if [ -z "${2}" -o "${2}" != "skip_add" ]; then
+        if [ -z "${2}" -o "${2}" != "internal" ]; then
+	    dnet_cmd $(inst_id2port 1) network create -d bridge br1
+	    dnet_cmd $(inst_id2port 1) network create -d bridge br2
+	    net_connect ${start} container_${start} br1
+	    net_connect ${start} container_${start} br2
+
+            # Make sure external connectivity works
+	    runc $(dnet_container_name ${start} $dnet_suffix) $(get_sbox_id ${start} container_${start}) \
+	        "ping -c 1 www.google.com"
+	    net_disconnect ${start} container_${start} br1
+	    net_disconnect ${start} container_${start} br2
+
+            # Make sure external connectivity works
+	    runc $(dnet_container_name ${start} $dnet_suffix) $(get_sbox_id ${start} container_${start}) \
+	        "ping -c 1 www.google.com"
+	    dnet_cmd $(inst_id2port 1) network rm br1
+	    dnet_cmd $(inst_id2port 1) network rm br2
+
+            # Disconnect from overlay network
+            net_disconnect ${start} container_${start} multihost
+
+            # Make sure external connectivity works
+            runc $(dnet_container_name ${start} $dnet_suffix) $(get_sbox_id ${start} container_${start}) \
+                "ping -c 1 www.google.com"
+
+            # Connect to overlay network again
+            net_connect ${start} container_${start} multihost
+
+            # Make sure external connectivity still works
+            runc $(dnet_container_name ${start} $dnet_suffix) $(get_sbox_id ${start} container_${start}) \
+                "ping -c 1 www.google.com"
+	fi
+    fi
+
     # Teardown the container connections and the network
     for i in `seq ${start} ${end}`;
     do
