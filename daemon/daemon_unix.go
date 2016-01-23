@@ -18,6 +18,7 @@ import (
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/idtools"
+	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/reference"
@@ -360,6 +361,24 @@ func verifyContainerResources(resources *containertypes.Resources, sysInfo *sysi
 	return warnings, nil
 }
 
+func usingSystemd(config *Config) bool {
+	for _, option := range config.ExecOptions {
+		key, val, err := parsers.ParseKeyValueOpt(option)
+		if err != nil || !strings.EqualFold(key, "native.cgroupdriver") {
+			continue
+		}
+		if val == "systemd" {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (daemon *Daemon) usingSystemd() bool {
+	return usingSystemd(daemon.configStore)
+}
+
 // verifyPlatformContainerSettings performs platform-specific validation of the
 // hostconfig and config structures.
 func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.HostConfig, config *containertypes.Config) ([]string, error) {
@@ -406,11 +425,17 @@ func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.
 			return warnings, fmt.Errorf("Cannot use the --read-only option when user namespaces are enabled.")
 		}
 	}
+	if hostConfig.CgroupParent != "" && daemon.usingSystemd() {
+		// CgroupParent for systemd cgroup should be named as "xxx.slice"
+		if len(hostConfig.CgroupParent) <= 6 || !strings.HasSuffix(hostConfig.CgroupParent, ".slice") {
+			return warnings, fmt.Errorf("cgroup-parent for systemd cgroup should be a valid slice named as \"xxx.slice\"")
+		}
+	}
 	return warnings, nil
 }
 
-// checkConfigOptions checks for mutually incompatible config options
-func checkConfigOptions(config *Config) error {
+// verifyDaemonSettings performs validation of daemon config struct
+func verifyDaemonSettings(config *Config) error {
 	// Check for mutually incompatible config options
 	if config.bridgeConfig.Iface != "" && config.bridgeConfig.IP != "" {
 		return fmt.Errorf("You specified -b & --bip, mutually exclusive options. Please specify only one.")
@@ -420,6 +445,11 @@ func checkConfigOptions(config *Config) error {
 	}
 	if !config.bridgeConfig.EnableIPTables && config.bridgeConfig.EnableIPMasq {
 		config.bridgeConfig.EnableIPMasq = false
+	}
+	if config.CgroupParent != "" && usingSystemd(config) {
+		if len(config.CgroupParent) <= 6 || !strings.HasSuffix(config.CgroupParent, ".slice") {
+			return fmt.Errorf("cgroup-parent for systemd cgroup should be a valid slice named as \"xxx.slice\"")
+		}
 	}
 	return nil
 }
