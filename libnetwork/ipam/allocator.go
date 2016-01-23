@@ -145,12 +145,12 @@ func (a *Allocator) GetDefaultAddressSpaces() (string, string, error) {
 // RequestPool returns an address pool along with its unique id.
 func (a *Allocator) RequestPool(addressSpace, pool, subPool string, options map[string]string, v6 bool) (string, *net.IPNet, map[string]string, error) {
 	log.Debugf("RequestPool(%s, %s, %s, %v, %t)", addressSpace, pool, subPool, options, v6)
-	k, nw, ipr, err := a.parsePoolRequest(addressSpace, pool, subPool, v6)
+retry:
+	k, nw, ipr, pdf, err := a.parsePoolRequest(addressSpace, pool, subPool, v6)
 	if err != nil {
 		return "", nil, nil, types.InternalErrorf("failed to parse pool request for address space %q pool %q subpool %q: %v", addressSpace, pool, subPool, err)
 	}
 
-retry:
 	if err := a.refresh(addressSpace); err != nil {
 		return "", nil, nil, err
 	}
@@ -160,8 +160,12 @@ retry:
 		return "", nil, nil, err
 	}
 
-	insert, err := aSpace.updatePoolDBOnAdd(*k, nw, ipr)
+	insert, err := aSpace.updatePoolDBOnAdd(*k, nw, ipr, pdf)
 	if err != nil {
+		if _, ok := err.(types.MaskableError); ok {
+			log.Debugf("Retrying predefined pool search: %v", err)
+			goto retry
+		}
 		return "", nil, nil, err
 	}
 
@@ -221,38 +225,39 @@ func (a *Allocator) getAddrSpace(as string) (*addrSpace, error) {
 	return aSpace, nil
 }
 
-func (a *Allocator) parsePoolRequest(addressSpace, pool, subPool string, v6 bool) (*SubnetKey, *net.IPNet, *AddressRange, error) {
+func (a *Allocator) parsePoolRequest(addressSpace, pool, subPool string, v6 bool) (*SubnetKey, *net.IPNet, *AddressRange, bool, error) {
 	var (
 		nw  *net.IPNet
 		ipr *AddressRange
 		err error
+		pdf = false
 	)
 
 	if addressSpace == "" {
-		return nil, nil, nil, ipamapi.ErrInvalidAddressSpace
+		return nil, nil, nil, false, ipamapi.ErrInvalidAddressSpace
 	}
 
 	if pool == "" && subPool != "" {
-		return nil, nil, nil, ipamapi.ErrInvalidSubPool
+		return nil, nil, nil, false, ipamapi.ErrInvalidSubPool
 	}
 
 	if pool != "" {
 		if _, nw, err = net.ParseCIDR(pool); err != nil {
-			return nil, nil, nil, ipamapi.ErrInvalidPool
+			return nil, nil, nil, false, ipamapi.ErrInvalidPool
 		}
 		if subPool != "" {
 			if ipr, err = getAddressRange(subPool, nw); err != nil {
-				return nil, nil, nil, err
+				return nil, nil, nil, false, err
 			}
 		}
 	} else {
 		if nw, err = a.getPredefinedPool(addressSpace, v6); err != nil {
-			return nil, nil, nil, err
+			return nil, nil, nil, false, err
 		}
-
+		pdf = true
 	}
 
-	return &SubnetKey{AddressSpace: addressSpace, Subnet: nw.String(), ChildSubnet: subPool}, nw, ipr, nil
+	return &SubnetKey{AddressSpace: addressSpace, Subnet: nw.String(), ChildSubnet: subPool}, nw, ipr, pdf, nil
 }
 
 func (a *Allocator) insertBitMask(key SubnetKey, pool *net.IPNet) error {
