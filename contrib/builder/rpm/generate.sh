@@ -71,9 +71,11 @@ for version in "${versions[@]}"; do
 		libseccomp-devel # for "seccomp.h" & "libseccomp.so"
 		libselinux-devel # for "libselinux.so"
 		libtool-ltdl-devel # for pkcs11 "ltdl.h"
+		pkgconfig # for the pkg-config command
 		selinux-policy
 		selinux-policy-devel
 		sqlite-devel # for "sqlite3.h"
+		systemd-devel # for "sd-journal.h" and libraries
 		tar # older versions of dev-tools do not have tar
 	)
 
@@ -81,6 +83,13 @@ for version in "${versions[@]}"; do
 		oraclelinux:7)
 			# Enable the optional repository
 			packages=( --enablerepo=ol7_optional_latest "${packages[*]}" )
+			;;
+	esac
+
+	case "$from" in
+		oraclelinux:6)
+			# doesn't use systemd, doesn't have a devel package for it
+			packages=( "${packages[@]/systemd-devel}" )
 			;;
 	esac
 
@@ -98,6 +107,7 @@ for version in "${versions[@]}"; do
 	case "$from" in
 		opensuse:*)
 			packages=( "${packages[@]/btrfs-progs-devel/libbtrfs-devel}" )
+			packages=( "${packages[@]/pkgconfig/pkg-config}" )
 			# use zypper
 			echo "RUN zypper --non-interactive install ${packages[*]}" >> "$version/Dockerfile"
 			;;
