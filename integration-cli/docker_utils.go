@@ -1554,9 +1554,9 @@ func daemonTime(c *check.C) time.Time {
 	return dt
 }
 
-func setupRegistry(c *check.C, schema1 bool) *testRegistryV2 {
+func setupRegistry(c *check.C, schema1, auth bool) *testRegistryV2 {
 	testRequires(c, RegistryHosting)
-	reg, err := newTestRegistryV2(c, schema1)
+	reg, err := newTestRegistryV2(c, schema1, auth)
 	c.Assert(err, check.IsNil)
 
 	// Wait for registry to be ready to serve requests.
