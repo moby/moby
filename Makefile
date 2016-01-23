@@ -3,7 +3,7 @@
 # get OS/Arch of docker engine
 DOCKER_OSARCH := $(shell bash -c 'source hack/make/.detect-daemon-osarch && echo $${DOCKER_ENGINE_OSARCH:+$$DOCKER_CLIENT_OSARCH}')
 # default for linux/amd64 and others
-DOCKERFILE := Dockerfile
+DOCKERFILE := $(shell go run ./distros/gen_dockerfile.go)
 # switch to different Dockerfile for linux/arm
 ifeq ($(DOCKER_OSARCH), linux/arm)
 	DOCKERFILE := Dockerfile.armhf
