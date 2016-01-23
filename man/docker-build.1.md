@@ -26,6 +26,7 @@ docker-build - Build a new image from the source code at PATH
 [**--cpuset-cpus**[=*CPUSET-CPUS*]]
 [**--cpuset-mems**[=*CPUSET-MEMS*]]
 [**--ulimit**[=*[]*]]
+[**-v**|**--volume**[=*[]*]]
 PATH | URL | -
 
 # DESCRIPTION
@@ -191,6 +192,12 @@ Cgroups are created if they do not already exist.
 
 **--ulimit**=[]
   Ulimit options
+
++**-v**, **--volume**=[] Create a bind mount
++   (format: `host-dir:container-dir[:<suffix options>]`, where suffix options
++are comma delimited and selected from [ro] and [z|Z].). Read-write mode isn't supported at build time.
++In case rw is specified a warning is printed during the build and it will be changed to ro preserving any SELinux mode provided.
++
 
   For more information about `ulimit` see [Setting ulimits in a 
 container](https://docs.docker.com/reference/commandline/run/#setting-ulimits-in-a-container)

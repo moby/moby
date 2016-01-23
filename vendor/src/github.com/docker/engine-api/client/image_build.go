@@ -99,6 +99,12 @@ func imageBuildOptionsToQuery(options types.ImageBuildOptions) (url.Values, erro
 	}
 	query.Set("buildargs", string(buildArgsJSON))
 
+	buildBindsJSON, err := json.Marshal(options.Binds)
+	if err != nil {
+		return query, err
+	}
+	query.Set("buildbinds", string(buildBindsJSON))
+
 	return query, nil
 }
 

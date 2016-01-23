@@ -802,7 +802,7 @@ func TestVolumeSplitN(t *testing.T) {
 		{`c:\:..\`, -1, []string{`c:\`, `..\`}},
 		{`c:\:d:\:xyzzy`, -1, []string{`c:\`, `d:\`, `xyzzy`}},
 	} {
-		res := volumeSplitN(x.input, x.n)
+		res := VolumeSplitN(x.input, x.n)
 		if len(res) < len(x.expected) {
 			t.Fatalf("input: %v, expected: %v, got: %v", x.input, x.expected, res)
 		}

@@ -35,6 +35,7 @@ parent = "smn_cli"
       --shm-size=[]                   Size of `/dev/shm`. The format is `<number><unit>`. `number` must be greater than `0`.  Unit is optional and can be `b` (bytes), `k` (kilobytes), `m` (megabytes), or `g` (gigabytes). If you omit the unit, the system uses bytes. If you omit the size entirely, the system uses `64m`.
       -t, --tag=[]                    Name and optionally a tag in the 'name:tag' format
       --ulimit=[]                     Ulimit options
+      --v, --volume=[]                Set build-time bind mounts
 
 Builds Docker images from a Dockerfile and a "context". A build's context is
 the files located in the specified `PATH` or `URL`. The build process can refer
