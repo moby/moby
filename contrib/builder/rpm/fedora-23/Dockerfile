@@ -5,7 +5,7 @@
 FROM fedora:23
 
 RUN dnf install -y @development-tools fedora-packager
-RUN dnf install -y btrfs-progs-devel device-mapper-devel glibc-static libseccomp-devel libselinux-devel libtool-ltdl-devel selinux-policy selinux-policy-devel sqlite-devel tar
+RUN dnf install -y btrfs-progs-devel device-mapper-devel glibc-static audit-libs-devel libseccomp-devel libselinux-devel libtool-ltdl-devel pkgconfig selinux-policy selinux-policy-devel sqlite-devel systemd-devel tar
 
 ENV SECCOMP_VERSION v2.2.3
 RUN buildDeps=' \

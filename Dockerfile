@@ -51,6 +51,7 @@ RUN apt-get update && apt-get install -y \
 	iptables \
 	jq \
 	libapparmor-dev \
+	libaudit-dev \
 	libcap-dev \
 	libltdl-dev \
 	libsqlite3-dev \

@@ -16,6 +16,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/container"
+	"github.com/docker/docker/pkg/audit"
 	"github.com/docker/docker/pkg/version"
 	"github.com/docker/engine-api/types/versions/v1p20"
 )
@@ -249,6 +250,54 @@ func (s *Server) LogAction(w http.ResponseWriter, r *http.Request) error {
 		fallthrough
 	default:
 		logrus.Info(message)
+		logAuditlog(c, action, username, loginuid, true)
 	}
 	return nil
+}
+
+//Logs an API event to the audit log
+func logAuditlog(c *container.Container, action string, username string, loginuid int64, success bool) {
+	virt := audit.AuditVirtControl
+	vm := "?"
+	vmPid := "?"
+	exe := "?"
+	hostname := "?"
+	user := "?"
+	auid := "?"
+
+	if c != nil {
+		vm = c.Config.Image
+		vmPid = fmt.Sprint(c.State.Pid)
+		exe = c.Path
+		hostname = c.Config.Hostname
+	}
+
+	if username != "" {
+		user = username
+	}
+
+	if loginuid != -1 {
+		auid = fmt.Sprint(loginuid)
+	}
+
+	vars := map[string]string{
+		"op":       action,
+		"reason":   "api",
+		"vm":       vm,
+		"vm-pid":   vmPid,
+		"user":     user,
+		"auid":     auid,
+		"exe":      exe,
+		"hostname": hostname,
+	}
+
+	//Encoding is a function of libaudit that ensures
+	//that the audit values contain only approved characters.
+	for key, value := range vars {
+		if audit.ValueNeedsEncoding(value) {
+			vars[key] = audit.EncodeNVString(key, value)
+		}
+	}
+	message := audit.FormatVars(vars)
+	audit.LogUserEvent(virt, message, success)
 }
