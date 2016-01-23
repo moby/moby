@@ -224,7 +224,8 @@ func (s *DockerSuite) TestEventsStreaming(c *check.C) {
 	}
 
 	matcher := matchEventLine(containerID, "container", testActions)
-	go observer.Match(matcher)
+	processor := processEventMatch(testActions)
+	go observer.Match(matcher, processor)
 
 	select {
 	case <-time.After(5 * time.Second):
@@ -280,7 +281,8 @@ func (s *DockerSuite) TestEventsImageUntagDelete(c *check.C) {
 	}
 
 	matcher := matchEventLine(imageID, "image", testActions)
-	go observer.Match(matcher)
+	processor := processEventMatch(testActions)
+	go observer.Match(matcher, processor)
 
 	select {
 	case <-time.After(10 * time.Second):

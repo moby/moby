@@ -28,7 +28,13 @@ var (
 )
 
 // eventMatcher is a function that tries to match an event input.
-type eventMatcher func(text string) bool
+// It returns true if the event matches and a map with
+// a set of key/value to identify the match.
+type eventMatcher func(text string) (map[string]string, bool)
+
+// eventMatchProcessor is a function to handle an event match.
+// It receives a map of key/value with the information extracted in a match.
+type eventMatchProcessor func(matches map[string]string)
 
 // eventObserver runs an events commands and observes its output.
 type eventObserver struct {
@@ -79,13 +85,15 @@ func (e *eventObserver) Stop() {
 }
 
 // Match tries to match the events output with a given matcher.
-func (e *eventObserver) Match(match eventMatcher) {
+func (e *eventObserver) Match(match eventMatcher, process eventMatchProcessor) {
 	for e.scanner.Scan() {
 		text := e.scanner.Text()
 		e.buffer.WriteString(text)
 		e.buffer.WriteString("\n")
 
-		match(text)
+		if matches, ok := match(text); ok {
+			process(matches)
+		}
 	}
 
 	err := e.scanner.Err()
@@ -106,7 +114,7 @@ func (e *eventObserver) CheckEventError(c *check.C, id, event string, match even
 		out, _ := dockerCmd(c, "events", "--since", e.startTime, "--until", until)
 		events := strings.Split(strings.TrimSpace(out), "\n")
 		for _, e := range events {
-			if match(e) {
+			if _, ok := match(e); ok {
 				foundEvent = true
 				break
 			}
@@ -119,22 +127,30 @@ func (e *eventObserver) CheckEventError(c *check.C, id, event string, match even
 }
 
 // matchEventLine matches a text with the event regular expression.
-// It returns the action and true if the regular expression matches with the given id and event type.
-// It returns an empty string and false if there is no match.
+// It returns the matches and true if the regular expression matches with the given id and event type.
+// It returns an empty map and false if there is no match.
 func matchEventLine(id, eventType string, actions map[string]chan bool) eventMatcher {
-	return func(text string) bool {
+	return func(text string) (map[string]string, bool) {
 		matches := parseEventText(text)
 		if len(matches) == 0 {
-			return false
+			return matches, false
 		}
 
 		if matchIDAndEventType(matches, id, eventType) {
-			if ch, ok := actions[matches["action"]]; ok {
-				close(ch)
-				return true
+			if _, ok := actions[matches["action"]]; ok {
+				return matches, true
 			}
 		}
-		return false
+		return matches, false
+	}
+}
+
+// processEventMatch closes an action channel when an event line matches the expected action.
+func processEventMatch(actions map[string]chan bool) eventMatchProcessor {
+	return func(matches map[string]string) {
+		if ch, ok := actions[matches["action"]]; ok {
+			close(ch)
+		}
 	}
 }
 
