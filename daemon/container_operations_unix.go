@@ -21,7 +21,6 @@ import (
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/mount"
-	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/runconfig"
 	containertypes "github.com/docker/engine-api/types/container"
@@ -249,16 +248,8 @@ func (daemon *Daemon) populateCommand(c *container.Container, env []string) erro
 	defaultCgroupParent := "/docker"
 	if daemon.configStore.CgroupParent != "" {
 		defaultCgroupParent = daemon.configStore.CgroupParent
-	} else {
-		for _, option := range daemon.configStore.ExecOptions {
-			key, val, err := parsers.ParseKeyValueOpt(option)
-			if err != nil || !strings.EqualFold(key, "native.cgroupdriver") {
-				continue
-			}
-			if val == "systemd" {
-				defaultCgroupParent = "system.slice"
-			}
-		}
+	} else if daemon.usingSystemd() {
+		defaultCgroupParent = "system.slice"
 	}
 	c.Command = &execdriver.Command{
 		CommonCommand: execdriver.CommonCommand{

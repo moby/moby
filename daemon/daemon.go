@@ -594,8 +594,8 @@ func (daemon *Daemon) registerLink(parent, child *container.Container, alias str
 func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemon, err error) {
 	setDefaultMtu(config)
 
-	// Ensure we have compatible configuration options
-	if err := checkConfigOptions(config); err != nil {
+	// Ensure we have compatible and valid configuration options
+	if err := verifyDaemonSettings(config); err != nil {
 		return nil, err
 	}
 
