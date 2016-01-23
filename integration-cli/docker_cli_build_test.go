@@ -3959,24 +3959,14 @@ func (s *DockerSuite) TestBuildEnvUsage2(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	name := "testbuildenvusage2"
 	dockerfile := `FROM busybox
-ENV    abc=def
-RUN    [ "$abc" = "def" ]
-ENV    def="hello world"
-RUN    [ "$def" = "hello world" ]
-ENV    def=hello\ world
-RUN    [ "$def" = "hello world" ]
-ENV    v1=abc v2="hi there"
-RUN    [ "$v1" = "abc" ]
-RUN    [ "$v2" = "hi there" ]
-ENV    v3='boogie nights' v4="with'quotes too"
-RUN    [ "$v3" = "boogie nights" ]
-RUN    [ "$v4" = "with'quotes too" ]
+ENV    abc=def def="hello world"
+RUN    [ "$abc,$def" = "def,hello world" ]
+ENV    def=hello\ world v1=abc v2="hi there" v3='boogie nights' v4="with'quotes too"
+RUN    [ "$def,$v1,$v2,$v3,$v4" = "hello world,abc,hi there,boogie nights,with'quotes too" ]
 ENV    abc=zzz FROM=hello/docker/world
 ENV    abc=zzz TO=/docker/world/hello
 ADD    $FROM $TO
-RUN    [ "$(cat $TO)" = "hello" ]
-ENV    abc "zzz"
-RUN    [ $abc = "zzz" ]
+RUN    [ "$abc,$(cat $TO)" = "zzz,hello" ]
 ENV    abc 'yyy'
 RUN    [ $abc = 'yyy' ]
 ENV    abc=
@@ -3989,10 +3979,8 @@ RUN    [ "$abc" = "\$foo" ] && (echo "$abc" | grep foo)
 ENV    abc \$foo
 RUN    [ "$abc" = "\$foo" ] && (echo "$abc" | grep foo)
 
-ENV    abc=\'foo\'
-RUN    [ "$abc" = "'foo'" ]
-ENV    abc=\"foo\"
-RUN    [ "$abc" = "\"foo\"" ]
+ENV    abc=\'foo\' abc2=\"foo\"
+RUN    [ "$abc,$abc2" = "'foo',\"foo\"" ]
 ENV    abc "foo"
 RUN    [ "$abc" = "foo" ]
 ENV    abc 'foo'
@@ -4004,30 +3992,15 @@ RUN    [ "$abc" = '"foo"' ]
 
 ENV    abc=ABC
 RUN    [ "$abc" = "ABC" ]
-ENV    def=${abc:-DEF}
-RUN    [ "$def" = "ABC" ]
-ENV    def=${ccc:-DEF}
-RUN    [ "$def" = "DEF" ]
-ENV    def=${ccc:-${def}xx}
-RUN    [ "$def" = "DEFxx" ]
-ENV    def=${def:+ALT}
-RUN    [ "$def" = "ALT" ]
-ENV    def=${def:+${abc}:}
-RUN    [ "$def" = "ABC:" ]
-ENV    def=${ccc:-\$abc:}
-RUN    [ "$def" = '$abc:' ]
-ENV    def=${ccc:-\${abc}:}
-RUN    [ "$def" = '${abc:}' ]
+ENV    def1=${abc:-DEF} def2=${ccc:-DEF}
+ENV    def3=${ccc:-${def2}xx} def4=${abc:+ALT} def5=${def2:+${abc}:} def6=${ccc:-\$abc:} def7=${ccc:-\${abc}:}
+RUN    [ "$def1,$def2,$def3,$def4,$def5,$def6,$def7" = 'ABC,DEF,DEFxx,ALT,ABC:,$abc:,${abc:}' ]
 ENV    mypath=${mypath:+$mypath:}/home
-RUN    [ "$mypath" = '/home' ]
 ENV    mypath=${mypath:+$mypath:}/away
 RUN    [ "$mypath" = '/home:/away' ]
 
 ENV    e1=bar
-ENV    e2=$e1
-ENV    e3=$e11
-ENV    e4=\$e1
-ENV    e5=\$e11
+ENV    e2=$e1 e3=$e11 e4=\$e1 e5=\$e11
 RUN    [ "$e0,$e1,$e2,$e3,$e4,$e5" = ',bar,bar,,$e1,$e11' ]
 
 ENV    ee1 bar
@@ -4037,8 +4010,7 @@ ENV    ee4 \$ee1
 ENV    ee5 \$ee11
 RUN    [ "$ee1,$ee2,$ee3,$ee4,$ee5" = 'bar,bar,,$ee1,$ee11' ]
 
-ENV    eee1="foo"
-ENV    eee2='foo'
+ENV    eee1="foo" eee2='foo'
 ENV    eee3 "foo"
 ENV    eee4 'foo'
 RUN    [ "$eee1,$eee2,$eee3,$eee4" = 'foo,foo,foo,foo' ]
