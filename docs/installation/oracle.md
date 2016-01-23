@@ -13,22 +13,29 @@ parent = "smn_linux"
 Docker is supported Oracle Linux 6 and 7. You do not require an Oracle Linux
 Support subscription to install Docker on Oracle Linux.
 
-This page instructs you to install using Docker-managed release packages and
-installation mechanisms. Using these packages ensures you get the latest release
-of Docker. If you wish to install using Oracle-managed packages, consult your
-[Oracle Linux documentation](https://oracle.com/linux).
-
-
 ## Prerequisites
 
 Due to current Docker limitations, Docker is only able to run only on the x86_64
 architecture. Docker requires the use of the Unbreakable Enterprise Kernel
-Release 3 (3.8.13) or higher on Oracle Linux. This kernel supports the Docker
+Release 4 (4.1.12) or higher on Oracle Linux. This kernel supports the Docker
 btrfs storage engine on both Oracle Linux 6 and 7.
 
-
-
 ## Install
+
+
+> **Note**: The procedure below installs binaries built by Docker. These binaries
+> are not covered by Oracle Linux support. To ensure Oracle Linux support, please 
+> follow the installation instructions provided in the 
+> [Oracle Linux documentation](https://docs.oracle.com/en/operating-systems/?tab=2). 
+> 
+> The installation instructions for Oracle Linux 6 can be found in [Chapter 10 of
+> the Administrator&apos;s 
+> Solutions Guide](https://docs.oracle.com/cd/E37670_01/E37355/html/ol_docker.html)
+>
+> The installation instructions for Oracle Linux 7 can be found in [Chapter 29 of
+> the Administrator&apos;s 
+> Guide](https://docs.oracle.com/cd/E52668_01/E54669/html/ol7-docker.html)
+
 
 1. Log into your machine as a user with `sudo` or `root` privileges.
 
