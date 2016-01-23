@@ -5,6 +5,7 @@ description = "Enabling AppArmor in Docker"
 keywords = ["AppArmor, security, docker, documentation"]
 [menu.main]
 parent= "smn_secure_docker"
+weight=5
 +++
 <![end-metadata]-->
 
