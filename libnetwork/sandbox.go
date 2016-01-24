@@ -391,6 +391,10 @@ func (sb *sandbox) ResolveIP(ip string) string {
 	return svc
 }
 
+func (sb *sandbox) execFunc(f func()) {
+	sb.osSbox.InvokeFunc(f)
+}
+
 func (sb *sandbox) ResolveName(name string) net.IP {
 	var ip net.IP
 
