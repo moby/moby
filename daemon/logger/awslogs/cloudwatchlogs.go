@@ -58,6 +58,7 @@ type logStream struct {
 type api interface {
 	CreateLogStream(*cloudwatchlogs.CreateLogStreamInput) (*cloudwatchlogs.CreateLogStreamOutput, error)
 	PutLogEvents(*cloudwatchlogs.PutLogEventsInput) (*cloudwatchlogs.PutLogEventsOutput, error)
+	CreateLogGroup(*cloudwatchlogs.CreateLogGroupInput) (*cloudwatchlogs.CreateLogGroupOutput, error)
 }
 
 type regionFinder interface {
@@ -184,6 +185,38 @@ func (l *logStream) Close() error {
 
 // create creates a log stream for the instance of the awslogs logging driver
 func (l *logStream) create() error {
+
+	// Create log group first
+	{
+		input := &cloudwatchlogs.CreateLogGroupInput{
+			LogGroupName:  aws.String(l.logGroupName),
+		}
+
+		_, err := l.client.CreateLogGroup(input)
+
+		if err != nil {
+			if awsErr, ok := err.(awserr.Error); ok {
+				fields := logrus.Fields{
+					"errorCode":     awsErr.Code(),
+					"message":       awsErr.Message(),
+					"origError":     awsErr.OrigErr(),
+					"logGroupName":  l.logGroupName,
+					"logStreamName": l.logStreamName,
+				}
+				if awsErr.Code() == resourceAlreadyExistsCode {
+					// Allow creation to succeed
+					logrus.WithFields(fields).Info("Log group already exists")
+					err = nil
+				} else {
+					logrus.WithFields(fields).Error("Failed to create log group")
+				}
+			}
+			if err != nil {
+				return err
+			}
+		}
+	}
+
 	input := &cloudwatchlogs.CreateLogStreamInput{
 		LogGroupName:  aws.String(l.logGroupName),
 		LogStreamName: aws.String(l.logStreamName),
