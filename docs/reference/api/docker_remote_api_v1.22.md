@@ -2102,6 +2102,7 @@ Display system-wide information
         "DockerRootDir": "/var/lib/docker",
         "Driver": "btrfs",
         "DriverStatus": [[""]],
+        "SystemStatus": [["State", "Healthy"]],
         "Plugins": {
             "Volume": [
                 "local"
