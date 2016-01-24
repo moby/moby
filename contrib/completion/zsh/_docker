@@ -967,7 +967,6 @@ __docker_subcommand() {
         (tag)
             _arguments $(__docker_arguments) \
                 $opts_help \
-                "($help -f --force)"{-f,--force}"[force]"\
                 "($help -):source:__docker_images"\
                 "($help -):destination:__docker_repositories_with_tags" && ret=0
             ;;
