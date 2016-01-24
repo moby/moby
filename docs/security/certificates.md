@@ -1,6 +1,6 @@
 <!--[metadata]>
 +++
-aliases = ["/articles/certificates/"]
+aliases = ["/engine/articles/certificates/"]
 title = "Using certificates for repository client verification"
 description = "How to set up and use certificates with a registry to verify access"
 keywords = ["Usage, registry, repository, client, root, certificate, docker, apache, ssl, tls, documentation, examples, articles,  tutorials"]

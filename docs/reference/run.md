@@ -4,7 +4,8 @@ title = "Docker run reference"
 description = "Configure containers at runtime"
 keywords = ["docker, run, configure,  runtime"]
 [menu.main]
-parent = "mn_reference"
+parent = "engine_ref"
+weight=-80
 +++
 <![end-metadata]-->
 
@@ -550,7 +551,7 @@ The exit code from `docker run` gives information about why the container
 failed to run or why it exited.  When `docker run` exits with a non-zero code,
 the exit codes follow the `chroot` standard, see below:
 
-**_125_** if the error is with Docker daemon **_itself_** 
+**_125_** if the error is with Docker daemon **_itself_**
 
     $ docker run --foo busybox; echo $?
     # flag provided but not defined: --foo
@@ -573,7 +574,7 @@ the exit codes follow the `chroot` standard, see below:
 
 **_Exit code_** of **_contained command_** otherwise
 
-    $ docker run busybox /bin/sh -c 'exit 3' 
+    $ docker run busybox /bin/sh -c 'exit 3'
     # 3
 
 ## Clean up (--rm)
@@ -1000,9 +1001,9 @@ For example, to set `/dev/sda` device weight to `200`:
         ubuntu
 
 If you specify both the `--blkio-weight` and `--blkio-weight-device`, Docker
-uses the `--blkio-weight` as the default weight and uses `--blkio-weight-device` 
-to override this default with a new value on a specific device. 
-The following example uses a default weight of `300` and overrides this default 
+uses the `--blkio-weight` as the default weight and uses `--blkio-weight-device`
+to override this default with a new value on a specific device.
+The following example uses a default weight of `300` and overrides this default
 on `/dev/sda` setting that weight to `200`:
 
     $ docker run -it \
@@ -1018,7 +1019,7 @@ per second from `/dev/sda`:
 
 The `--device-write-bps` flag limits the write rate (bytes per second)to a device.
 For example, this command creates a container and limits the write rate to `1mb`
-per second for `/dev/sda`: 
+per second for `/dev/sda`:
 
     $ docker run -it --device-write-bps /dev/sda:1mb ubuntu
 
@@ -1061,7 +1062,7 @@ one can use this flag:
 By default, Docker containers are "unprivileged" and cannot, for
 example, run a Docker daemon inside a Docker container. This is because
 by default a container is not allowed to access any devices, but a
-"privileged" container is given access to all devices (see 
+"privileged" container is given access to all devices (see
 the documentation on [cgroups devices](https://www.kernel.org/doc/Documentation/cgroups/devices.txt)).
 
 When the operator executes `docker run --privileged`, Docker will enable
@@ -1195,7 +1196,7 @@ container's logging driver. The following options are supported:
 
 The `docker logs` command is available only for the `json-file` and `journald`
 logging drivers.  For detailed information on working with logging drivers, see
-[Configure a logging driver](logging/overview.md).
+[Configure a logging driver](../admin/logging/overview.md).
 
 
 ## Overriding Dockerfile image defaults
@@ -1383,7 +1384,7 @@ Similarly the operator can set the **hostname** with `-h`.
     --volumes-from="": Mount all volumes from the given container(s)
 
 > **Note**:
-> The auto-creation of the host path has been [*deprecated*](../misc/deprecated.md#auto-creating-missing-host-paths-for-bind-mounts).
+> The auto-creation of the host path has been [*deprecated*](../deprecated.md#auto-creating-missing-host-paths-for-bind-mounts).
 
 > **Note**:
 > When using systemd to manage the Docker daemon's start and stop, in the systemd
@@ -1395,7 +1396,7 @@ Similarly the operator can set the **hostname** with `-h`.
 
 The volumes commands are complex enough to have their own documentation
 in section [*Managing data in
-containers*](../userguide/dockervolumes.md). A developer can define
+containers*](../userguide/containers/dockervolumes.md). A developer can define
 one or more `VOLUME`'s associated with an image, but only the operator
 can give access from one container to another (or from a container to a
 volume mounted on the host).

@@ -4,7 +4,7 @@ title = "Remote API v1.22"
 description = "API Documentation for Docker"
 keywords = ["API, Docker, rcli, REST,  documentation"]
 [menu.main]
-parent="smn_remoteapi"
+parent="engine_remoteapi"
 weight=-3
 +++
 <![end-metadata]-->
@@ -15,7 +15,7 @@ weight=-3
 
  - The Remote API has replaced `rcli`.
  - The daemon listens on `unix:///var/run/docker.sock` but you can
-   [Bind Docker to another host/port or a Unix socket](../../userguide/basics.md#bind-docker-to-another-host-port-or-a-unix-socket).
+   [Bind Docker to another host/port or a Unix socket](../../quickstart.md#bind-docker-to-another-host-port-or-a-unix-socket).
  - The API tends to be REST. However, for some complex commands, like `attach`
    or `pull`, the HTTP connection is hijacked to transport `stdout`,
    `stdin` and `stderr`.
@@ -2321,7 +2321,7 @@ Docker networks report the following events:
     [
 	    {
 		"action": "pull",
-		"type": "image", 
+		"type": "image",
 		"actor": {
 			"id": "busybox:latest",
 			"attributes": {}
@@ -2921,7 +2921,7 @@ Content-Type: application/json
 
 Query Parameters:
 
-- **filters** - JSON encoded network list filter. The filter value is one of: 
+- **filters** - JSON encoded network list filter. The filter value is one of:
   -   `name=<network-name>` Matches all or part of a network name.
   -   `id=<network-id>` Matches all or part of a network id.
   -   `type=["custom"|"builtin"]` Filters networks by type. The `custom` keyword returns all user-defined networks.

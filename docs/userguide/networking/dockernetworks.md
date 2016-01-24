@@ -414,7 +414,7 @@ You should open the following ports between each of your hosts.
 | udp      | 4789 | Data plane (VXLAN)    |
 | tcp/udp  | 7946 | Control plane         |
 
-Your key-value store service may require additional ports. 
+Your key-value store service may require additional ports.
 Check your vendor's documentation and open any required ports.
 
 Once you have several machines provisioned, you can use Docker Swarm to quickly
@@ -501,7 +501,7 @@ and removed in a future release.
 
 - [Work with network commands](work-with-networks.md)
 - [Get started with multi-host networking](get-started-overlay.md)
-- [Managing Data in Containers](../dockervolumes.md)
+- [Managing Data in Containers](../containers/dockervolumes.md)
 - [Docker Machine overview](https://docs.docker.com/machine)
 - [Docker Swarm overview](https://docs.docker.com/swarm)
 - [Investigate the LibNetwork project](https://github.com/docker/libnetwork)
