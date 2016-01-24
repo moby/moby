@@ -61,9 +61,10 @@ func (m *mockcwlogsclient) PutLogEvents(input *cloudwatchlogs.PutLogEventsInput)
 }
 
 func (m *mockcwlogsclient) CreateLogGroup(input *cloudwatchlogs.CreateLogGroupInput) (*cloudwatchlogs.CreateLogGroupOutput, error) {
-	m.createLogGroupArgument <- input
-	output := <-m.createLogGroupResult
-	return output.successResult, output.errorResult
+	// m.createLogGroupArgument <- input
+	// output := <-m.createLogGroupResult
+	// return output.successResult, output.errorResult
+	return nil, nil
 }
 
 type mockmetadataclient struct {
