@@ -40,7 +40,7 @@ else
 	fi
 fi
 
-if [ -n "$inContainer" ]; then
+if [ -z "$inContainer" ]; then
 	{
 		echo "# WARNING! I don't seem to be running in a Docker container."
 		echo "# The result of this command might be an incorrect build, and will not be"
