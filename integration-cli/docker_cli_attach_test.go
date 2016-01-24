@@ -86,7 +86,7 @@ func (s *DockerSuite) TestAttachMultipleAndRestart(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestAttachTtyWithoutStdin(c *check.C) {
+func (s *DockerSuite) TestAttachTTYWithoutStdin(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "-ti", "busybox")
 
