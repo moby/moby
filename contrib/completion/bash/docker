@@ -1852,7 +1852,7 @@ _docker_stop() {
 _docker_tag() {
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--force -f --help" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--help" -- "$cur" ) )
 			;;
 		*)
 			local counter=$(__docker_pos_first_nonflag)
