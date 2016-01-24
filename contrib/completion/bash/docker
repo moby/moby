@@ -670,7 +670,7 @@ _docker_commit() {
 _docker_cp() {
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--help" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--follow-link -L --help" -- "$cur" ) )
 			;;
 		*)
 			local counter=$(__docker_pos_first_nonflag)
