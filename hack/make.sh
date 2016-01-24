@@ -31,7 +31,7 @@ export MAKEDIR="$SCRIPTDIR/make"
 # but really, they shouldn't. We want to be in a container!
 inContainer="AssumeSoInitially"
 if [ "$(go env GOHOSTOS)" = 'windows' ]; then
-	if [ -n "$FROM_DOCKERFILE" ]; then
+	if [ -z "$FROM_DOCKERFILE" ]; then
 		unset inContainer
 	fi
 else
