@@ -4,7 +4,7 @@ title = "Dockerizing a Riak service"
 description = "Build a Docker image with Riak pre-installed"
 keywords = ["docker, example, package installation, networking,  riak"]
 [menu.main]
-parent = "smn_apps_servs"
+parent = "engine_dockerize"
 +++
 <![end-metadata]-->
 
@@ -26,7 +26,7 @@ of. We'll use [Ubuntu](https://registry.hub.docker.com/_/ubuntu/) (tag:
     # Riak
     #
     # VERSION       0.1.1
-    
+
     # Use the Ubuntu base image provided by dotCloud
     FROM ubuntu:trusty
     MAINTAINER Hector Castro hector@basho.com
@@ -51,9 +51,9 @@ Then we install and setup a few dependencies:
         apt-get install -y supervisor riak=2.0.5-1
 
     RUN mkdir -p /var/log/supervisor
-    
+
     RUN locale-gen en_US en_US.UTF-8
-    
+
     COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 After that, we modify Riak's configuration:
@@ -82,7 +82,7 @@ Populate it with the following program definitions:
 
     [supervisord]
     nodaemon=true
-    
+
     [program:riak]
     command=bash -c "/usr/sbin/riak console"
     numprocs=1

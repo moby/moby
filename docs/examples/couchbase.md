@@ -4,7 +4,7 @@ title = "Dockerizing a Couchbase service"
 description = "Dockerizing a Couchbase service"
 keywords = ["docker, example, package installation, networking, couchbase"]
 [menu.main]
-parent = "smn_applied"
+parent = "engine_dockerize"
 +++
 <![end-metadata]-->
 
@@ -62,7 +62,7 @@ curl -v -X POST http://192.168.99.100:8091/pools/default -d memoryQuota=300 -d i
 > Accept: */*
 > Content-Length: 36
 > Content-Type: application/x-www-form-urlencoded
-> 
+>
 * upload completely sent off: 36 out of 36 bytes
 < HTTP/1.1 401 Unauthorized
 < WWW-Authenticate: Basic realm="Couchbase Server Admin / REST"
@@ -72,7 +72,7 @@ curl -v -X POST http://192.168.99.100:8091/pools/default -d memoryQuota=300 -d i
 < Date: Wed, 25 Nov 2015 22:48:16 GMT
 < Content-Length: 0
 < Cache-Control: no-cache
-< 
+<
 * Connection #0 to host 192.168.99.100 left intact
 ```
 
@@ -93,7 +93,7 @@ curl -v http://192.168.99.100:8091/node/controller/setupServices -d 'services=kv
 > Accept: */*
 > Content-Length: 26
 > Content-Type: application/x-www-form-urlencoded
-> 
+>
 * upload completely sent off: 26 out of 26 bytes
 < HTTP/1.1 200 OK
 * Server Couchbase Server is not blacklisted
@@ -102,7 +102,7 @@ curl -v http://192.168.99.100:8091/node/controller/setupServices -d 'services=kv
 < Date: Wed, 25 Nov 2015 22:49:51 GMT
 < Content-Length: 0
 < Cache-Control: no-cache
-< 
+<
 * Connection #0 to host 192.168.99.100 left intact
 ```
 
@@ -123,7 +123,7 @@ curl -v -X POST http://192.168.99.100:8091/settings/web -d port=8091 -d username
 > Accept: */*
 > Content-Length: 50
 > Content-Type: application/x-www-form-urlencoded
-> 
+>
 * upload completely sent off: 50 out of 50 bytes
 < HTTP/1.1 200 OK
 * Server Couchbase Server is not blacklisted
@@ -133,7 +133,7 @@ curl -v -X POST http://192.168.99.100:8091/settings/web -d port=8091 -d username
 < Content-Type: application/json
 < Content-Length: 44
 < Cache-Control: no-cache
-< 
+<
 * Connection #0 to host 192.168.99.100 left intact
 {"newBaseUri":"http://192.168.99.100:8091/"}
 ```
@@ -157,7 +157,7 @@ curl -v -u Administrator:password -X POST http://192.168.99.100:8091/sampleBucke
 > Accept: */*
 > Content-Length: 17
 > Content-Type: application/x-www-form-urlencoded
-> 
+>
 * upload completely sent off: 17 out of 17 bytes
 < HTTP/1.1 202 Accepted
 * Server Couchbase Server is not blacklisted
@@ -167,7 +167,7 @@ curl -v -u Administrator:password -X POST http://192.168.99.100:8091/sampleBucke
 < Content-Type: application/json
 < Content-Length: 2
 < Cache-Control: no-cache
-< 
+<
 * Connection #0 to host 192.168.99.100 left intact
 []
 ```
