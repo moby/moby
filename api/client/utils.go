@@ -30,11 +30,6 @@ func encodeAuthToBase64(authConfig types.AuthConfig) (string, error) {
 	return base64.URLEncoding.EncodeToString(buf), nil
 }
 
-func (cli *DockerCli) encodeRegistryAuth(index *registrytypes.IndexInfo) (string, error) {
-	authConfig := registry.ResolveAuthConfig(cli.configFile.AuthConfigs, index)
-	return encodeAuthToBase64(authConfig)
-}
-
 func (cli *DockerCli) registryAuthenticationPrivilegedFunc(index *registrytypes.IndexInfo, cmdName string) client.RequestPrivilegeFunc {
 	return func() (string, error) {
 		fmt.Fprintf(cli.out, "\nPlease login prior to %s:\n", cmdName)
