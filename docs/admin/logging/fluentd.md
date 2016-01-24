@@ -54,7 +54,7 @@ connects to this daemon through `localhost:24224` by default. Use the
     docker run --log-driver=fluentd --log-opt fluentd-address=myhost.local:24224
 
 If container cannot connect to the Fluentd daemon, the container stops
-immediately.
+immediately unless the `fluentd-async-connect` option is used.
 
 ## Options
 
@@ -78,6 +78,9 @@ the log tag format.
 
 The `labels` and `env` options each take a comma-separated list of keys. If there is collision between `label` and `env` keys, the value of the `env` takes precedence. Both options add additional fields to the extra attributes of a logging message.
 
+### fluentd-async-connect
+
+Docker connects to Fluentd in the background. Messages are buffered until the connection is established.
 
 ## Fluentd daemon management with Docker
 
