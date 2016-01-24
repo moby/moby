@@ -79,6 +79,12 @@ func (s *DockerSuite) TestEventsOOMDisableTrue(c *check.C) {
 	testRequires(c, DaemonIsLinux, oomControl, memoryLimitSupport, NotGCCGO, NotArm)
 
 	errChan := make(chan error)
+	observer, err := newEventObserver(c)
+	c.Assert(err, checker.IsNil)
+	err = observer.Start()
+	c.Assert(err, checker.IsNil)
+	defer observer.Stop()
+
 	go func() {
 		defer close(errChan)
 		out, exitCode, _ := dockerCmdWithError("run", "--oom-kill-disable=true", "--name", "oomTrue", "-m", "10MB", "busybox", "sh", "-c", "x=a; while true; do x=$x$x$x$x; done")
@@ -86,25 +92,36 @@ func (s *DockerSuite) TestEventsOOMDisableTrue(c *check.C) {
 			errChan <- fmt.Errorf("wrong exit code for OOM container: expected %d, got %d (output: %q)", expected, exitCode, out)
 		}
 	}()
-	select {
-	case err := <-errChan:
-		c.Assert(err, checker.IsNil)
-	case <-time.After(20 * time.Second):
-		defer dockerCmd(c, "kill", "oomTrue")
 
-		out, _ := dockerCmd(c, "events", "--since=0", "-f", "container=oomTrue", fmt.Sprintf("--until=%d", daemonTime(c).Unix()))
-		events := strings.Split(strings.TrimSuffix(out, "\n"), "\n")
-		nEvents := len(events)
-		c.Assert(nEvents, checker.GreaterOrEqualThan, 4) //Missing expected event
+	c.Assert(waitRun("oomTrue"), checker.IsNil)
+	defer dockerCmd(c, "kill", "oomTrue")
+	containerID, err := inspectField("oomTrue", "Id")
+	c.Assert(err, checker.IsNil)
 
-		c.Assert(parseEventAction(c, events[nEvents-4]), checker.Equals, "create")
-		c.Assert(parseEventAction(c, events[nEvents-3]), checker.Equals, "attach")
-		c.Assert(parseEventAction(c, events[nEvents-2]), checker.Equals, "start")
-		c.Assert(parseEventAction(c, events[nEvents-1]), checker.Equals, "oom")
-
-		out, _ = dockerCmd(c, "inspect", "-f", "{{.State.Status}}", "oomTrue")
-		c.Assert(strings.TrimSpace(out), checker.Equals, "running", check.Commentf("container should be still running"))
+	testActions := map[string]chan bool{
+		"oom": make(chan bool),
 	}
+
+	matcher := matchEventLine(containerID, "container", testActions)
+	processor := processEventMatch(testActions)
+	go observer.Match(matcher, processor)
+
+	select {
+	case <-time.After(20 * time.Second):
+		observer.CheckEventError(c, containerID, "oom", matcher)
+	case <-testActions["oom"]:
+		// ignore, done
+	case errRun := <-errChan:
+		if errRun != nil {
+			c.Fatalf("%v", errRun)
+		} else {
+			c.Fatalf("container should be still running but it's not")
+		}
+	}
+
+	status, err := inspectField("oomTrue", "State.Status")
+	c.Assert(err, checker.IsNil)
+	c.Assert(strings.TrimSpace(status), checker.Equals, "running", check.Commentf("container should be still running"))
 }
 
 // #18453
