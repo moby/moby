@@ -140,7 +140,7 @@ func (s *DockerSuite) TestExecPausedContainer(c *check.C) {
 }
 
 // regression test for #9476
-func (s *DockerSuite) TestExecTtyCloseStdin(c *check.C) {
+func (s *DockerSuite) TestExecTTYCloseStdin(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "run", "-d", "-it", "--name", "exec_tty_stdin", "busybox")
 
@@ -160,7 +160,7 @@ func (s *DockerSuite) TestExecTtyCloseStdin(c *check.C) {
 	c.Assert(out, checker.Not(checker.Contains), "nsenter-exec")
 }
 
-func (s *DockerSuite) TestExecTtyWithoutStdin(c *check.C) {
+func (s *DockerSuite) TestExecTTYWithoutStdin(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "-ti", "busybox")
 	id := strings.TrimSpace(out)
