@@ -488,13 +488,13 @@ __docker_complete_log_driver_options() {
 			;;
 		*splunk-url=*)
 			COMPREPLY=( $( compgen -W "http:// https://" -- "${cur#=}" ) )
-			compopt -o nospace
+			__docker_nospace
 			__ltrim_colon_completions "${cur}"
 			return
 			;;
 		*splunk-insecureskipverify=*)
 			COMPREPLY=( $( compgen -W "true false" -- "${cur#=}" ) )
-			compopt -o nospace
+			__docker_nospace
 			return
 			;;
 	esac
