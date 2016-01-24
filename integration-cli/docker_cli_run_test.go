@@ -2548,7 +2548,7 @@ func (s *DockerSuite) TestRunPortFromDockerRangeInUse(c *check.C) {
 	dockerCmd(c, "port", id)
 }
 
-func (s *DockerSuite) TestRunTtyWithPipe(c *check.C) {
+func (s *DockerSuite) TestRunTTYWithPipe(c *check.C) {
 	errChan := make(chan error)
 	go func() {
 		defer close(errChan)
