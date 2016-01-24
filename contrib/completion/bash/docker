@@ -1024,10 +1024,8 @@ _docker_history() {
 _docker_images() {
 	case "$prev" in
 		--filter|-f)
-			COMPREPLY=( $( compgen -W "dangling=true label=" -- "$cur" ) )
-			if [ "$COMPREPLY" = "label=" ]; then
-				__docker_nospace
-			fi
+			COMPREPLY=( $( compgen -S = -W "dangling label" -- "$cur" ) )
+			__docker_nospace
 			return
 			;;
                 --format)
