@@ -409,7 +409,7 @@ The following example creates a network using the built-in `bridge` network
 driver and running a container in the created network
 
 ```
-$ docker network create -d overlay my-net
+$ docker network create -d bridge my-net
 $ docker run --net=my-net -itd --name=container3 busybox
 ```
 
