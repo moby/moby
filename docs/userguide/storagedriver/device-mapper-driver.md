@@ -4,7 +4,7 @@ title="Device mapper storage in practice"
 description="Learn how to optimize your use of device mapper driver."
 keywords=["container, storage, driver, device mapper"]
 [menu.main]
-parent="mn_storage_docker"
+parent="engine_driver"
 +++
 <![end-metadata]-->
 
