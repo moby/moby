@@ -358,8 +358,7 @@ func (s *router) getImagesSearch(ctx context.Context, w http.ResponseWriter, r *
 		authJSON := base64.NewDecoder(base64.URLEncoding, strings.NewReader(authEncoded))
 		if err := json.NewDecoder(authJSON).Decode(&config); err != nil {
 			// for a search it is not an error if no auth was given
-			// to increase compatibility with the existing api it is defaulting to be empty
-			config = &types.AuthConfig{}
+			// to increase compatibility with the existing api it is defaulting to be nil
 		}
 	}
 	for k, v := range r.Header {
