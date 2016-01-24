@@ -1,3 +1,5 @@
+// +build experimental
+
 package namesgenerator
 
 import (
@@ -7,7 +9,7 @@ import (
 )
 
 var (
-	leftFR = [...]string{
+	left = [...]string{
 		"acariatre",
 		"accablant",
 		"acerbe",
@@ -85,13 +87,13 @@ var (
 		"insipide",
 		"insolent",
 		"insupportable",
-		"intolérable",
+		"intolerable",
 		"intraitable",
 		"irritant",
 		"laid",
 		"lassant",
 		"lourd",
-		"léthargique",
+		"lethargique",
 		"malencontreux",
 		"malheureux",
 		"malplaisant",
@@ -138,7 +140,7 @@ var (
 	}
 
 	// Source: http://will.pagesperso-orange.fr/docu/dirigdt.htm
-	rightFR = [...]string{
+	right = [...]string{
 		"auriol",
 		"bidault",
 		"blum",
@@ -164,12 +166,12 @@ var (
 		"fallieres",
 		"faure",
 		"françois",
-		"giscard-destaing",
+		"giscard",
 		"gontran",
 		"gouin",
 		"grevy",
 		"henri",
-		"henriugues-capet",
+		"hugues-capet",
 		"hollande",
 		"jean",
 		"lebrun",
@@ -204,12 +206,12 @@ var (
 	}
 )
 
-// GetRandomFrenchName generates a random name from the list of adjectives and surnames in this package
+// GetRandomName generates a random name from the list of adjectives and surnames in this package
 // formatted as "adjective_surname". For example 'focused_turing'. If retry is non-zero, a random
 // integer between 0 and 10 will be added to the end of the name, e.g `focused_turing3`
-func GetRandomFrenchName(retry int) string {
+func GetRandomName(retry int) string {
 	rnd := random.Rand
-	name := fmt.Sprintf("%s_%s", leftFR[rnd.Intn(len(leftFR))], rightFR[rnd.Intn(len(rightFR))])
+	name := fmt.Sprintf("%s_%s", left[rnd.Intn(len(left))], right[rnd.Intn(len(right))])
 	if retry > 0 {
 		name = fmt.Sprintf("%s%d", name, rnd.Intn(10))
 	}
