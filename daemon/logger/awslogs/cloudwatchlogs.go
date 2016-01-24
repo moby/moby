@@ -189,7 +189,7 @@ func (l *logStream) create() error {
 	// Create log group first
 	{
 		input := &cloudwatchlogs.CreateLogGroupInput{
-			LogGroupName:  aws.String(l.logGroupName),
+			LogGroupName: aws.String(l.logGroupName),
 		}
 
 		_, err := l.client.CreateLogGroup(input)
