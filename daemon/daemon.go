@@ -1228,6 +1228,9 @@ func (daemon *Daemon) ImageHistory(name string) ([]*types.ImageHistory, error) {
 func (daemon *Daemon) GetImageID(refOrID string) (image.ID, error) {
 	// Treat as an ID
 	if id, err := digest.ParseDigest(refOrID); err == nil {
+		if _, err := daemon.imageStore.Get(image.ID(id)); err != nil {
+			return "", ErrImageDoesNotExist{refOrID}
+		}
 		return image.ID(id), nil
 	}
 
