@@ -123,3 +123,37 @@ func TestFilterByDriver(t *testing.T) {
 		t.Fatalf("Expected 1 volume, got %v, %v", len(l), l)
 	}
 }
+
+func TestFilterByUsed(t *testing.T) {
+	volumedrivers.Register(vt.NewFakeDriver("fake"), "fake")
+	volumedrivers.Register(vt.NewFakeDriver("noop"), "noop")
+
+	s := New()
+	if _, err := s.CreateWithRef("fake1", "fake", "volReference", nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Create("fake2", "fake", nil); err != nil {
+		t.Fatal(err)
+	}
+
+	vols, _, err := s.List()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	dangling := s.FilterByUsed(vols, false)
+	if len(dangling) != 1 {
+		t.Fatalf("expected 1 danging volume, got %v", len(dangling))
+	}
+	if dangling[0].Name() != "fake2" {
+		t.Fatalf("expected danging volume fake2, got %s", dangling[0].Name())
+	}
+
+	used := s.FilterByUsed(vols, true)
+	if len(used) != 1 {
+		t.Fatalf("expected 1 used volume, got %v", len(used))
+	}
+	if used[0].Name() != "fake1" {
+		t.Fatalf("expected used volume fake1, got %s", used[0].Name())
+	}
+}
