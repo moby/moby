@@ -592,6 +592,7 @@ __docker_subcommand() {
         (cp)
             _arguments $(__docker_arguments) \
                 $opts_help \
+                "($help -L --follow-link)"{-L,--follow-link}"[Always follow symbol link in SRC_PATH]" \
                 "($help -)1:container:->container" \
                 "($help -)2:hostpath:_files" && ret=0
             case $state in
