@@ -97,9 +97,13 @@ for version in "${versions[@]}"; do
 	fi
 
 	if [ "$suite" = 'wheezy' ]; then
-		# pull btrfs-toold from backports
-		backports="/$suite-backports"
-		packages=( "${packages[@]/btrfs-tools/btrfs-tools$backports}" )
+		# pull a couple packages from backports explicitly
+		# (build failures otherwise)
+		backportsPackages=( btrfs-tools libsystemd-journal-dev )
+		for pkg in "${backportsPackages[@]}"; do
+			packages=( "${packages[@]/$pkg}" )
+		done
+		echo "RUN apt-get update && apt-get install -y -t $suite-backports ${backportsPackages[*]} --no-install-recommends && rm -rf /var/lib/apt/lists/*" >> "$version/Dockerfile"
 	fi
 
 	echo "RUN apt-get update && apt-get install -y ${packages[*]} --no-install-recommends && rm -rf /var/lib/apt/lists/*" >> "$version/Dockerfile"
