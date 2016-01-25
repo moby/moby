@@ -54,7 +54,7 @@ func (daemon *Daemon) populateCommand(c *container.Container, env []string) erro
 		if !c.Config.NetworkDisabled {
 			en.Interface = &execdriver.NetworkInterface{
 				MacAddress:   c.Config.MacAddress,
-				Bridge:       daemon.configStore.Bridge.VirtualSwitchName,
+				Bridge:       daemon.configStore.bridgeConfig.VirtualSwitchName,
 				PortBindings: c.HostConfig.PortBindings,
 
 				// TODO Windows. Include IPAddress. There already is a
