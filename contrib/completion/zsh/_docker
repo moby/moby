@@ -690,7 +690,7 @@ __docker_subcommand() {
                     if compset -P '*='; then
                         _files && ret=0
                     else
-                        opts=('kv.cacertfile' 'kv.certfile' 'kv.keyfile')
+                        opts=('discovery.heartbeat' 'discovery.ttl' 'kv.cacertfile' 'kv.certfile' 'kv.keyfile' 'kv.path')
                         _describe -t cluster-store-opts "Cluster Store Options" opts -qS "=" && ret=0
                     fi
                     ;;
