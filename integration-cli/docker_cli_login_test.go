@@ -17,5 +17,14 @@ func (s *DockerSuite) TestLoginWithoutTTY(c *check.C) {
 	// run the command and block until it's done
 	err := cmd.Run()
 	c.Assert(err, checker.NotNil) //"Expected non nil err when loginning in & TTY not available"
+}
 
+func (s *DockerRegistryAuthSuite) TestLoginToPrivateRegistry(c *check.C) {
+	// wrong credentials
+	out, _, err := dockerCmdWithError("login", "-u", s.reg.username, "-p", "WRONGPASSWORD", "-e", s.reg.email, privateRegistryURL)
+	c.Assert(err, checker.NotNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "401 Unauthorized")
+
+	// now it's fine
+	dockerCmd(c, "login", "-u", s.reg.username, "-p", s.reg.password, "-e", s.reg.email, privateRegistryURL)
 }

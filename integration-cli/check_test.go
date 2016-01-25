@@ -49,7 +49,7 @@ type DockerRegistrySuite struct {
 
 func (s *DockerRegistrySuite) SetUpTest(c *check.C) {
 	testRequires(c, DaemonIsLinux)
-	s.reg = setupRegistry(c, false)
+	s.reg = setupRegistry(c, false, false)
 	s.d = NewDaemon(c)
 }
 
@@ -77,12 +77,42 @@ type DockerSchema1RegistrySuite struct {
 
 func (s *DockerSchema1RegistrySuite) SetUpTest(c *check.C) {
 	testRequires(c, DaemonIsLinux)
-	s.reg = setupRegistry(c, true)
+	s.reg = setupRegistry(c, true, false)
 	s.d = NewDaemon(c)
 }
 
 func (s *DockerSchema1RegistrySuite) TearDownTest(c *check.C) {
 	if s.reg != nil {
+		s.reg.Close()
+	}
+	if s.d != nil {
+		s.d.Stop()
+	}
+	s.ds.TearDownTest(c)
+}
+
+func init() {
+	check.Suite(&DockerRegistryAuthSuite{
+		ds: &DockerSuite{},
+	})
+}
+
+type DockerRegistryAuthSuite struct {
+	ds  *DockerSuite
+	reg *testRegistryV2
+	d   *Daemon
+}
+
+func (s *DockerRegistryAuthSuite) SetUpTest(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	s.reg = setupRegistry(c, false, true)
+	s.d = NewDaemon(c)
+}
+
+func (s *DockerRegistryAuthSuite) TearDownTest(c *check.C) {
+	if s.reg != nil {
+		out, err := s.d.Cmd("logout", privateRegistryURL)
+		c.Assert(err, check.IsNil, check.Commentf(out))
 		s.reg.Close()
 	}
 	if s.d != nil {
@@ -128,7 +158,7 @@ type DockerTrustSuite struct {
 }
 
 func (s *DockerTrustSuite) SetUpTest(c *check.C) {
-	s.reg = setupRegistry(c, false)
+	s.reg = setupRegistry(c, false, false)
 	s.not = setupNotary(c)
 }
 
