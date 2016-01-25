@@ -186,12 +186,6 @@ func (sb *sandbox) delete(force bool) error {
 	// Detach from all endpoints
 	retain := false
 	for _, ep := range sb.getConnectedEndpoints() {
-		// endpoint in the Gateway network will be cleaned up
-		// when when sandbox no longer needs external connectivity
-		if ep.endpointInGWNetwork() {
-			continue
-		}
-
 		// Retain the sanbdox if we can't obtain the network from store.
 		if _, err := c.getNetworkFromStore(ep.getNetwork().ID()); err != nil {
 			retain = true
