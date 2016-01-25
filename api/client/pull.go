@@ -66,7 +66,6 @@ func (cli *DockerCli) CmdPull(args ...string) error {
 }
 
 func (cli *DockerCli) imagePullPrivileged(authConfig types.AuthConfig, imageID, tag string, requestPrivilege client.RequestPrivilegeFunc) error {
-
 	encodedAuth, err := encodeAuthToBase64(authConfig)
 	if err != nil {
 		return err
@@ -83,5 +82,24 @@ func (cli *DockerCli) imagePullPrivileged(authConfig types.AuthConfig, imageID, 
 	}
 	defer responseBody.Close()
 
-	return jsonmessage.DisplayJSONMessagesStream(responseBody, cli.out, cli.outFd, cli.isTerminalOut, nil)
+	err = jsonmessage.DisplayJSONMessagesStream(responseBody, cli.out, cli.outFd, cli.isTerminalOut, nil)
+
+	// handle authorization errors in the middle of the stream.
+	if err != nil && isUnauthorizedErr(err) {
+		newAuth, privilegeErr := requestPrivilege()
+		if privilegeErr != nil {
+			return privilegeErr
+		}
+		options.RegistryAuth = newAuth
+
+		newBody, err := cli.client.ImagePull(options, requestPrivilege)
+		if err != nil {
+			return err
+		}
+		defer newBody.Close()
+
+		err = jsonmessage.DisplayJSONMessagesStream(newBody, cli.out, cli.outFd, cli.isTerminalOut, nil)
+	}
+
+	return err
 }

@@ -1,8 +1,8 @@
 package client
 
 import (
+	"encoding/json"
 	"errors"
-	"io"
 
 	Cli "github.com/docker/docker/cli"
 	"github.com/docker/docker/pkg/jsonmessage"
@@ -43,26 +43,19 @@ func (cli *DockerCli) CmdPush(args ...string) error {
 	}
 	// Resolve the Auth config relevant for this server
 	authConfig := registry.ResolveAuthConfig(cli.configFile.AuthConfigs, repoInfo.Index)
-
 	requestPrivilege := cli.registryAuthenticationPrivilegedFunc(repoInfo.Index, "push")
+
 	if isTrusted() {
 		return cli.trustedPush(repoInfo, tag, authConfig, requestPrivilege)
 	}
 
-	responseBody, err := cli.imagePushPrivileged(authConfig, ref.Name(), tag, requestPrivilege)
-	if err != nil {
-		return err
-	}
-
-	defer responseBody.Close()
-
-	return jsonmessage.DisplayJSONMessagesStream(responseBody, cli.out, cli.outFd, cli.isTerminalOut, nil)
+	return cli.imagePushPrivileged(authConfig, ref.Name(), tag, requestPrivilege, nil)
 }
 
-func (cli *DockerCli) imagePushPrivileged(authConfig types.AuthConfig, imageID, tag string, requestPrivilege client.RequestPrivilegeFunc) (io.ReadCloser, error) {
+func (cli *DockerCli) imagePushPrivileged(authConfig types.AuthConfig, imageID, tag string, requestPrivilege client.RequestPrivilegeFunc, auxCallback func(*json.RawMessage)) error {
 	encodedAuth, err := encodeAuthToBase64(authConfig)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	options := types.ImagePushOptions{
 		ImageID:      imageID,
@@ -70,5 +63,29 @@ func (cli *DockerCli) imagePushPrivileged(authConfig types.AuthConfig, imageID, 
 		RegistryAuth: encodedAuth,
 	}
 
-	return cli.client.ImagePush(options, requestPrivilege)
+	responseBody, err := cli.client.ImagePush(options, requestPrivilege)
+	if err != nil {
+		return err
+	}
+	defer responseBody.Close()
+
+	err = jsonmessage.DisplayJSONMessagesStream(responseBody, cli.out, cli.outFd, cli.isTerminalOut, auxCallback)
+	// handle authorization errors in the middle of the stream.
+	if err != nil && isUnauthorizedErr(err) {
+		newAuth, privilegeErr := requestPrivilege()
+		if privilegeErr != nil {
+			return privilegeErr
+		}
+		options.RegistryAuth = newAuth
+
+		newBody, err := cli.client.ImagePush(options, requestPrivilege)
+		if err != nil {
+			return err
+		}
+		defer newBody.Close()
+
+		err = jsonmessage.DisplayJSONMessagesStream(newBody, cli.out, cli.outFd, cli.isTerminalOut, auxCallback)
+	}
+
+	return err
 }

@@ -7,6 +7,7 @@ import (
 	"os"
 	gosignal "os/signal"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -137,4 +138,12 @@ func (cli *DockerCli) getTtySize() (int, int) {
 		}
 	}
 	return int(ws.Height), int(ws.Width)
+}
+
+func isUnauthorizedErr(err error) bool {
+	loError := strings.ToLower(err.Error())
+	return strings.Contains(loError, "authentication is required") ||
+		strings.Contains(loError, "status 401") ||
+		strings.Contains(loError, "unauthorized") ||
+		strings.Contains(loError, "status code 401")
 }
