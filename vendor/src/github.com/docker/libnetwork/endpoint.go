@@ -465,7 +465,7 @@ func (ep *endpoint) sbJoin(sbox Sandbox, options ...EndpointOption) error {
 	if sb.needDefaultGW() {
 		return sb.setupDefaultGW(ep)
 	}
-	return sb.clearDefaultGW()
+	return nil
 }
 
 func (ep *endpoint) rename(name string) error {
@@ -597,15 +597,7 @@ func (ep *endpoint) sbLeave(sbox Sandbox, force bool, options ...EndpointOption)
 	}
 
 	sb.deleteHostsEntries(n.getSvcRecords(ep))
-
-	if !sb.inDelete && sb.needDefaultGW() {
-		ep := sb.getEPwithoutGateway()
-		if ep == nil {
-			return fmt.Errorf("endpoint without GW expected, but not found")
-		}
-		return sb.setupDefaultGW(ep)
-	}
-	return sb.clearDefaultGW()
+	return nil
 }
 
 func (n *network) validateForceDelete(locator string) error {
