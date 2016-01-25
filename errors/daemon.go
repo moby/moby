@@ -733,6 +733,15 @@ var (
 		HTTPStatusCode: http.StatusConflict,
 	})
 
+	// ErrorCodeExecRestarting is generated when we try to start an exec
+	// but the container is restarting.
+	ErrorCodeExecRestarting = errcode.Register(errGroup, errcode.ErrorDescriptor{
+		Value:          "EXECRESTARTING",
+		Message:        "Container %s is restarting, wait until the container is running",
+		Description:    "An attempt to start an 'exec' was made, but the owning container is restarting",
+		HTTPStatusCode: http.StatusConflict,
+	})
+
 	// ErrorCodeExecRunning is generated when we try to start an exec
 	// but its already running.
 	ErrorCodeExecRunning = errcode.Register(errGroup, errcode.ErrorDescriptor{

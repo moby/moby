@@ -247,6 +247,14 @@ func (s *State) IsPaused() bool {
 	return res
 }
 
+// IsRestarting returns whether the container is restarting or not.
+func (s *State) IsRestarting() bool {
+	s.Lock()
+	res := s.Restarting
+	s.Unlock()
+	return res
+}
+
 // SetRemovalInProgress sets the container state as being removed.
 func (s *State) SetRemovalInProgress() error {
 	s.Lock()
