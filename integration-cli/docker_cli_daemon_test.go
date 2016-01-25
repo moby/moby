@@ -335,55 +335,46 @@ func (s *DockerSuite) TestDaemonIPv6Enabled(c *check.C) {
 
 // TestDaemonIPv6FixedCIDR checks that when the daemon is started with --ipv6=true and a fixed CIDR
 // that running containers are given a link-local and global IPv6 address
-func (s *DockerSuite) TestDaemonIPv6FixedCIDR(c *check.C) {
-	if err := setupV6(); err != nil {
-		c.Fatal("Could not set up host for IPv6 tests")
-	}
+func (s *DockerDaemonSuite) TestDaemonIPv6FixedCIDR(c *check.C) {
+	err := setupV6()
+	c.Assert(err, checker.IsNil, check.Commentf("Could not set up host for IPv6 tests"))
 
-	d := NewDaemon(c)
+	err = s.d.StartWithBusybox("--ipv6", "--fixed-cidr-v6='2001:db8:2::/64'", "--default-gateway-v6='2001:db8:2::100'")
+	c.Assert(err, checker.IsNil, check.Commentf("Could not start daemon with busybox: %v", err))
 
-	if err := d.StartWithBusybox("--ipv6", "--fixed-cidr-v6='2001:db8:2::/64'", "--default-gateway-v6='2001:db8:2::100'"); err != nil {
-		c.Fatalf("Could not start daemon with busybox: %v", err)
-	}
-	defer d.Stop()
+	out, err := s.d.Cmd("run", "-itd", "--name=ipv6test", "busybox:latest")
+	c.Assert(err, checker.IsNil, check.Commentf("Could not run container: %s, %v", out, err))
 
-	if out, err := d.Cmd("run", "-itd", "--name=ipv6test", "busybox:latest"); err != nil {
-		c.Fatalf("Could not run container: %s, %v", out, err)
-	}
-
-	out, err := d.Cmd("inspect", "--format", "'{{.NetworkSettings.Networks.bridge.GlobalIPv6Address}}'", "ipv6test")
+	out, err = s.d.Cmd("inspect", "--format", "'{{.NetworkSettings.Networks.bridge.GlobalIPv6Address}}'", "ipv6test")
 	out = strings.Trim(out, " \r\n'")
 
-	if err != nil {
-		c.Fatalf("Error inspecting container: %s, %v", out, err)
-	}
+	c.Assert(err, checker.IsNil, check.Commentf(out))
 
-	if ip := net.ParseIP(out); ip == nil {
-		c.Fatalf("Container should have a global IPv6 address")
-	}
+	ip := net.ParseIP(out)
+	c.Assert(ip, checker.NotNil, check.Commentf("Container should have a global IPv6 address"))
 
-	// TODO: Check IPv6 def gateway in inspect o/p (once docker/docker 19001 is merged
-	if err := teardownV6(); err != nil {
-		c.Fatal("Could not perform teardown for IPv6 tests")
-	}
+	out, err = s.d.Cmd("inspect", "--format", "'{{.NetworkSettings.Networks.bridge.IPv6Gateway}}'", "ipv6test")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+
+	c.Assert(strings.Trim(out, " \r\n'"), checker.Equals, "2001:db8:2::100", check.Commentf("Container should have a global IPv6 gateway"))
+
+	err = teardownV6()
+	c.Assert(err, checker.IsNil, check.Commentf("Could not perform teardown for IPv6 tests"))
 }
 
 // TestDaemonIPv6FixedCIDRAndMac checks that when the daemon is started with ipv6 fixed CIDR
 // the running containers are given a an IPv6 address derived from the MAC address and the ipv6 fixed CIDR
-func (s *DockerSuite) TestDaemonIPv6FixedCIDRAndMac(c *check.C) {
+func (s *DockerDaemonSuite) TestDaemonIPv6FixedCIDRAndMac(c *check.C) {
 	err := setupV6()
 	c.Assert(err, checker.IsNil)
 
-	d := NewDaemon(c)
-
-	err = d.StartWithBusybox("--ipv6", "--fixed-cidr-v6='2001:db8:1::/64'")
-	c.Assert(err, checker.IsNil)
-	defer d.Stop()
-
-	out, err := d.Cmd("run", "-itd", "--name=ipv6test", "--mac-address", "AA:BB:CC:DD:EE:FF", "busybox")
+	err = s.d.StartWithBusybox("--ipv6", "--fixed-cidr-v6='2001:db8:1::/64'")
 	c.Assert(err, checker.IsNil)
 
-	out, err = d.Cmd("inspect", "--format", "'{{.NetworkSettings.Networks.bridge.GlobalIPv6Address}}'", "ipv6test")
+	out, err := s.d.Cmd("run", "-itd", "--name=ipv6test", "--mac-address", "AA:BB:CC:DD:EE:FF", "busybox")
+	c.Assert(err, checker.IsNil)
+
+	out, err = s.d.Cmd("inspect", "--format", "'{{.NetworkSettings.Networks.bridge.GlobalIPv6Address}}'", "ipv6test")
 	c.Assert(err, checker.IsNil)
 	c.Assert(strings.Trim(out, " \r\n'"), checker.Equals, "2001:db8:1::aabb:ccdd:eeff")
 
@@ -1659,18 +1650,12 @@ func (s *DockerDaemonSuite) TestDaemonNoTlsCliTlsVerifyWithEnv(c *check.C) {
 func setupV6() error {
 	// Hack to get the right IPv6 address on docker0, which has already been created
 	err := exec.Command("ip", "addr", "add", "fe80::1/64", "dev", "docker0").Run()
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 func teardownV6() error {
 	err := exec.Command("ip", "addr", "del", "fe80::1/64", "dev", "docker0").Run()
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 func (s *DockerDaemonSuite) TestDaemonRestartWithContainerWithRestartPolicyAlways(c *check.C) {
