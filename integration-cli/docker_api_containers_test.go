@@ -20,6 +20,7 @@ import (
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/engine-api/types"
 	containertypes "github.com/docker/engine-api/types/container"
+	networktypes "github.com/docker/engine-api/types/network"
 	"github.com/go-check/check"
 )
 
@@ -602,6 +603,29 @@ func (s *DockerSuite) TestContainerApiCreateEmptyConfig(c *check.C) {
 
 	expected := "Config cannot be empty in order to create a container\n"
 	c.Assert(string(b), checker.Equals, expected)
+}
+
+func (s *DockerSuite) TestContainerApiCreateMultipleNetworksConfig(c *check.C) {
+	// Container creation must fail if client specified configurations for more than one network
+	config := map[string]interface{}{
+		"Image": "busybox",
+		"NetworkingConfig": networktypes.NetworkingConfig{
+			EndpointsConfig: map[string]*networktypes.EndpointSettings{
+				"net1": {},
+				"net2": {},
+				"net3": {},
+			},
+		},
+	}
+
+	status, b, err := sockRequest("POST", "/containers/create", config)
+	c.Assert(err, checker.IsNil)
+	c.Assert(status, checker.Equals, http.StatusBadRequest)
+	// network name order in error message is not deterministic
+	c.Assert(string(b), checker.Contains, "Container cannot be connected to [")
+	c.Assert(string(b), checker.Contains, "net1")
+	c.Assert(string(b), checker.Contains, "net2")
+	c.Assert(string(b), checker.Contains, "net3")
 }
 
 func (s *DockerSuite) TestContainerApiCreateWithHostName(c *check.C) {

@@ -966,4 +966,13 @@ var (
 		Description:    "Engine's predefined networks cannot be deleted",
 		HTTPStatusCode: http.StatusForbidden,
 	})
+
+	// ErrorCodeMultipleNetworkConnect is generated when more than one network is passed
+	// when creating a container
+	ErrorCodeMultipleNetworkConnect = errcode.Register(errGroup, errcode.ErrorDescriptor{
+		Value:          "CANNOT_CONNECT_TO_MULTIPLE_NETWORKS",
+		Message:        "Container cannot be connected to %s",
+		Description:    "A container can only be connected to one network at the time",
+		HTTPStatusCode: http.StatusBadRequest,
+	})
 )
