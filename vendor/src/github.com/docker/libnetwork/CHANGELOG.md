@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.6.0-rc3 (2016-01-25)
+- Fixes docker/docker#19576
+- Fixed embedded DNS to listen in TCP as well
+- Fixed a race-condition in IPAM to choose non-overlapping subnet for concurrent requests
+
 ## 0.6.0-rc2 (2016-01-21)
 - Fixes docker/docker#19376
 - Fixes docker/docker#15819
