@@ -1590,7 +1590,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithContainerRunning(t *check.C) {
 	if err := s.d.StartWithBusybox(); err != nil {
 		t.Fatal(err)
 	}
-	if out, err := s.d.Cmd("run", "-ti", "-d", "--name", "test", "busybox"); err != nil {
+	if out, err := s.d.Cmd("run", "-d", "--name", "test", "busybox", "top"); err != nil {
 		t.Fatal(out, err)
 	}
 
