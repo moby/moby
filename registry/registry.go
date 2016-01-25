@@ -237,8 +237,7 @@ func ContinueOnError(err error) bool {
 // default TLS configuration.
 func NewTransport(tlsConfig *tls.Config) *http.Transport {
 	if tlsConfig == nil {
-		var cfg = tlsconfig.ServerDefault
-		tlsConfig = &cfg
+		tlsConfig = &tlsconfig.ServerDefault
 	}
 	return &http.Transport{
 		Proxy: http.ProxyFromEnvironment,
