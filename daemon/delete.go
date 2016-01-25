@@ -43,15 +43,14 @@ func (daemon *Daemon) ContainerRm(name string, config *types.ContainerRmConfig) 
 		return daemon.rmLink(container, name)
 	}
 
-	if err := daemon.cleanupContainer(container, config.ForceRemove); err != nil {
-		return err
+	err = daemon.cleanupContainer(container, config.ForceRemove)
+	if err == nil || config.ForceRemove {
+		if e := daemon.removeMountPoints(container, config.RemoveVolume); e != nil {
+			logrus.Error(e)
+		}
 	}
 
-	if err := daemon.removeMountPoints(container, config.RemoveVolume); err != nil {
-		logrus.Error(err)
-	}
-
-	return nil
+	return err
 }
 
 func (daemon *Daemon) rmLink(container *container.Container, name string) error {
