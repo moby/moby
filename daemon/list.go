@@ -439,8 +439,8 @@ func (daemon *Daemon) Volumes(filter string) ([]*types.Volume, []string, error) 
 	if err != nil {
 		return nil, nil, err
 	}
-	if danglingOnly {
-		volumes = daemon.volumes.FilterByUsed(volumes)
+	if volFilters.Include("dangling") {
+		volumes = daemon.volumes.FilterByUsed(volumes, !danglingOnly)
 	}
 	for _, v := range volumes {
 		volumesOut = append(volumesOut, volumeToAPIType(v))
