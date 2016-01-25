@@ -319,10 +319,7 @@ unit, `b` is used. Set LIMIT to `-1` to enable unlimited swap.
 
    $ docker run -d --tmpfs /tmp:rw,size=787448k,mode=1777 my_image
 
-   This command mounts a `tmpfs` at `/tmp` within the container. The mount copies
-the underlying content of `my_image` into `/tmp`. For example if there was a
-directory `/tmp/content` in the base image, docker will copy this directory and
-all of its content on top of the tmpfs mounted on `/tmp`.  The supported mount
+   This command mounts a `tmpfs` at `/tmp` within the container.  The supported mount
 options are the same as the Linux default `mount` flags. If you do not specify
 any options, the systems uses the following options:
 `rw,noexec,nosuid,nodev,size=65536k`.
