@@ -58,6 +58,7 @@ func (r *containerRouter) initRoutes() {
 		local.NewPostRoute("/exec/{name:.*}/resize", r.postContainerExecResize),
 		local.NewPostRoute("/containers/{name:.*}/rename", r.postContainerRename),
 		local.NewPostRoute("/containers/{name:.*}/update", r.postContainerUpdate),
+		local.NewPostRoute("/containers/{name:.*}/forwardSocket", r.postContainerSocket),
 		// PUT
 		local.NewPutRoute("/containers/{name:.*}/archive", r.putContainersArchive),
 		// DELETE

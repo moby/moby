@@ -19,6 +19,7 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 	noStdin := cmd.Bool([]string{"-no-stdin"}, false, "Do not attach STDIN")
 	proxy := cmd.Bool([]string{"-sig-proxy"}, true, "Proxy all received signals to the process")
 	detachKeys := cmd.String([]string{"-detach-keys"}, "", "Override the key sequence for detaching a container")
+	forwardSocket := cmd.String([]string{"-forward-socket"}, "", "Forward a socket to the container")
 
 	cmd.Require(flag.Exact, 1)
 
@@ -63,6 +64,15 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 	var in io.ReadCloser
 	if options.Stdin {
 		in = cli.in
+	}
+
+	if *forwardSocket != "" {
+		chSocketStop := make(chan struct{})
+		defer close(chSocketStop)
+		go func() {
+			if err := cli.forwardSocket(options.ContainerID, *forwardSocket, chSocketStop); err != nil {
+			}
+		}()
 	}
 
 	if *proxy && !c.Config.Tty {

@@ -23,6 +23,7 @@ type APIClient interface {
 	ContainerExecResize(options types.ResizeOptions) error
 	ContainerExecStart(execID string, config types.ExecStartCheck) error
 	ContainerExport(containerID string) (io.ReadCloser, error)
+	ContainerForwardSocket(containerID string) (types.HijackedResponse, error)
 	ContainerInspect(containerID string) (types.ContainerJSON, error)
 	ContainerInspectWithRaw(containerID string, getSize bool) (types.ContainerJSON, []byte, error)
 	ContainerKill(containerID, signal string) error
