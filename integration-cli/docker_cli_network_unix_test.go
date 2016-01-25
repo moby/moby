@@ -10,8 +10,10 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/exec"
 	"sort"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/docker/docker/pkg/integration/checker"
@@ -975,7 +977,10 @@ func (s *DockerNetworkSuite) TestDockerNetworkMultipleNetworksUngracefulDaemonRe
 
 	// Kill daemon and restart
 	if err := s.d.cmd.Process.Kill(); err != nil {
-		c.Fatal(err)
+		if exitError, ok := err.(*exec.ExitError); ok {
+			waitStatus := exitError.Sys().(syscall.WaitStatus)
+			c.Fatalf("Deamon exits status: %d", waitStatus.ExitStatus())
+		}
 	}
 	s.d.Restart()
 
@@ -996,26 +1001,23 @@ func (s *DockerNetworkSuite) TestDockerNetworkHostModeUngracefulDaemonRestart(c 
 	testRequires(c, DaemonIsLinux, NotUserNamespace)
 	s.d.StartWithBusybox()
 
-	// Run a few containers on host network
-	for i := 0; i < 10; i++ {
-		cName := fmt.Sprintf("hostc-%d", i)
-		out, err := s.d.Cmd("run", "-d", "--name", cName, "--net=host", "--restart=always", "busybox", "top")
-		c.Assert(err, checker.IsNil, check.Commentf(out))
-	}
+	// Run a container on host network
+	out, err := s.d.Cmd("run", "-d", "--name=hostc", "--net=host", "--restart=always", "busybox", "top")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
 
 	// Kill daemon ungracefully and restart
 	if err := s.d.cmd.Process.Kill(); err != nil {
-		c.Fatal(err)
+		if exitError, ok := err.(*exec.ExitError); ok {
+			waitStatus := exitError.Sys().(syscall.WaitStatus)
+			c.Fatalf("Deamon exits status: %d", waitStatus.ExitStatus())
+		}
 	}
 	s.d.Restart()
 
-	// make sure all the containers are up and running
-	for i := 0; i < 10; i++ {
-		cName := fmt.Sprintf("hostc-%d", i)
-		runningOut, err := s.d.Cmd("inspect", "--format='{{.State.Running}}'", cName)
-		c.Assert(err, checker.IsNil)
-		c.Assert(strings.TrimSpace(runningOut), checker.Equals, "true")
-	}
+	// make sure the container is up and running
+	runningOut, err := s.d.Cmd("inspect", "--format='{{.State.Running}}'", "hostc")
+	c.Assert(err, checker.IsNil)
+	c.Assert(strings.TrimSpace(runningOut), checker.Equals, "true")
 }
 
 func (s *DockerNetworkSuite) TestDockerNetworkConnectToHostFromOtherNetwork(c *check.C) {
