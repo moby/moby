@@ -775,11 +775,7 @@ func (daemon *Daemon) connectToNetwork(container *container.Container, idOrName 
 
 	controller := daemon.netController
 
-	if endpointConfig != nil {
-		container.NetworkSettings.Networks[n.Name()] = endpointConfig
-	}
-
-	createOptions, err := container.BuildCreateEndpointOptions(n)
+	createOptions, err := container.BuildCreateEndpointOptions(n, endpointConfig)
 	if err != nil {
 		return err
 	}
@@ -796,6 +792,10 @@ func (daemon *Daemon) connectToNetwork(container *container.Container, idOrName 
 			}
 		}
 	}()
+
+	if endpointConfig != nil {
+		container.NetworkSettings.Networks[n.Name()] = endpointConfig
+	}
 
 	if err := daemon.updateEndpointNetworkSettings(container, n, ep); err != nil {
 		return err

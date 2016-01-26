@@ -1334,3 +1334,17 @@ func (s *DockerSuite) TestUserDefinedNetworkConnectivity(c *check.C) {
 	_, _, err = dockerCmdWithError("exec", "c2.net1", "ping", "-c", "1", "c1.net1.br.net1.google.com")
 	c.Assert(err, check.NotNil)
 }
+
+func (s *DockerSuite) TestDockerNetworkConnectFailsNoInspectChange(c *check.C) {
+	dockerCmd(c, "run", "-d", "--name=bb", "busybox", "top")
+	c.Assert(waitRun("bb"), check.IsNil)
+
+	ns0, _ := dockerCmd(c, "inspect", "--format='{{ .NetworkSettings.Networks.bridge }}'", "bb")
+
+	// A failing redundant network connect should not alter current container's endpoint settings
+	_, _, err := dockerCmdWithError("network", "connect", "bridge", "bb")
+	c.Assert(err, check.NotNil)
+
+	ns1, _ := dockerCmd(c, "inspect", "--format='{{ .NetworkSettings.Networks.bridge }}'", "bb")
+	c.Assert(ns1, check.Equals, ns0)
+}
