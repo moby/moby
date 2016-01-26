@@ -1998,7 +1998,14 @@ _docker_volume_inspect() {
 _docker_volume_ls() {
 	case "$prev" in
 		--filter|-f)
-			COMPREPLY=( $( compgen -W "dangling=true" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "dangling" -- "$cur" ) )
+			return
+			;;
+	esac
+
+	case "${words[$cword-2]}$prev=" in
+		*dangling=*)
+			COMPREPLY=( $( compgen -W "true false" -- "${cur#=}" ) )
 			return
 			;;
 	esac
