@@ -437,7 +437,7 @@ func TestDaemonDiscoveryReload(t *testing.T) {
 		&discovery.Entry{Host: "127.0.0.1", Port: "5555"},
 	}
 
-	if err := daemon.Reload(newConfig); err != nil {
+	if err := daemon.reloadClusterDiscovery(newConfig); err != nil {
 		t.Fatal(err)
 	}
 	ch, errCh = daemon.discoveryWatcher.Watch(stopCh)
@@ -469,7 +469,7 @@ func TestDaemonDiscoveryReloadFromEmptyDiscovery(t *testing.T) {
 		&discovery.Entry{Host: "127.0.0.1", Port: "5555"},
 	}
 
-	if err := daemon.Reload(newConfig); err != nil {
+	if err := daemon.reloadClusterDiscovery(newConfig); err != nil {
 		t.Fatal(err)
 	}
 	stopCh := make(chan struct{})

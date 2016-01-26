@@ -1539,13 +1539,12 @@ func (daemon *Daemon) initDiscovery(config *Config) error {
 // daemon according to those changes.
 // This are the settings that Reload changes:
 // - Daemon labels.
-// - Cluster discovery (reconfigure and restart).
 func (daemon *Daemon) Reload(config *Config) error {
 	daemon.configStore.reloadLock.Lock()
-	defer daemon.configStore.reloadLock.Unlock()
-
 	daemon.configStore.Labels = config.Labels
-	return daemon.reloadClusterDiscovery(config)
+	daemon.configStore.reloadLock.Unlock()
+
+	return nil
 }
 
 func (daemon *Daemon) reloadClusterDiscovery(config *Config) error {
