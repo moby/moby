@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.6.0-rc4 (2016-01-25)
+- Add Endpoints() API to Sandbox interface
+- Fixed a race-condition in default gateway network creation
+
 ## 0.6.0-rc3 (2016-01-25)
 - Fixes docker/docker#19576
 - Fixed embedded DNS to listen in TCP as well
