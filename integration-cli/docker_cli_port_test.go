@@ -293,3 +293,24 @@ func (s *DockerSuite) TestPortExposeHostBinding(c *check.C) {
 	// Port is still bound after the Container is removed
 	c.Assert(err, checker.NotNil, check.Commentf("out: %s", out))
 }
+
+func (s *DockerSuite) TestPortBindingOnSandbox(c *check.C) {
+	testRequires(c, DaemonIsLinux, NotUserNamespace)
+	dockerCmd(c, "network", "create", "--internal", "-d", "bridge", "internal-net")
+	dockerCmd(c, "run", "--net", "internal-net", "-d", "--name", "c1",
+		"-p", "8080:8080", "busybox", "nc", "-l", "-p", "8080")
+	c.Assert(waitRun("c1"), check.IsNil)
+
+	_, _, err := dockerCmdWithError("run", "--net=host", "busybox", "nc", "localhost", "8080")
+	c.Assert(err, check.NotNil,
+		check.Commentf("Port mapping on internal network is expected to fail"))
+
+	// Connect container to another normal bridge network
+	dockerCmd(c, "network", "create", "-d", "bridge", "foo-net")
+	dockerCmd(c, "network", "connect", "foo-net", "c1")
+
+	_, _, err = dockerCmdWithError("run", "--net=host", "busybox", "nc", "localhost", "8080")
+	c.Assert(err, check.IsNil,
+		check.Commentf("Port mapping on the new network is expected to succeed"))
+
+}
