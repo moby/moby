@@ -66,12 +66,10 @@ func (s *DockerSuite) TestEventsUntag(c *check.C) {
 }
 
 func (s *DockerSuite) TestEventsContainerFailStartDie(c *check.C) {
-	out, _ := dockerCmd(c, "images", "-q")
-	image := strings.Split(out, "\n")[0]
-	_, _, err := dockerCmdWithError("run", "--name", "testeventdie", image, "blerg")
-	c.Assert(err, checker.NotNil, check.Commentf("Container run with command blerg should have failed, but it did not, out=%s", out))
+	_, _, err := dockerCmdWithError("run", "--name", "testeventdie", "busybox", "blerg")
+	c.Assert(err, checker.NotNil, check.Commentf("Container run with command blerg should have failed, but it did not"))
 
-	out, _ = dockerCmd(c, "events", "--since=0", fmt.Sprintf("--until=%d", daemonTime(c).Unix()))
+	out, _ := dockerCmd(c, "events", "--since=0", fmt.Sprintf("--until=%d", daemonTime(c).Unix()))
 	events := strings.Split(strings.TrimSpace(out), "\n")
 
 	nEvents := len(events)
