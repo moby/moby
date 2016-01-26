@@ -199,6 +199,9 @@ func (d *mockDownloadDescriptor) Download(ctx context.Context, progressOutput pr
 	return d.mockTarStream(), 0, nil
 }
 
+func (d *mockDownloadDescriptor) Close() {
+}
+
 func downloadDescriptors(currentDownloads *int32) []DownloadDescriptor {
 	return []DownloadDescriptor{
 		&mockDownloadDescriptor{
