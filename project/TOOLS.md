@@ -36,7 +36,7 @@ This command works by integrating with Leroy. He has a few other commands too, s
 as `!gif` or `!godoc`, but we are always looking for more fun commands to add.
 
 The gordon-bot repository is maintained at
-[github.com/jfrazelle/gordon-bot](https://github.com/jfrazelle/gordon-bot)
+[github.com/docker/gordon-bot](https://github.com/docker/gordon-bot)
 
 ### NSQ
 
@@ -59,16 +59,4 @@ jobs.
 One of the things queued from the Hooks are the building of the Master
 Binaries. This happens on every push to the master branch of Docker. The
 repository for this is maintained at
-[github.com/jfrazelle/docker-bb](https://github.com/jfrazelle/docker-bb).
-
-#### Docker Master Docs
-
-The master build of the docs gets queued from the Hooks as well. They are built
-using [github.com/jfrazelle/nsqexec](https://github.com/jfrazelle/nsqexec).
-
-#### Patch Parser Bot
-
-The bot, also named GordonTheTurtle, that labels and comments on Pull Requests
-listens on Hooks as well. He is capable of knowing if a Pull Request needs to
-be signed, or gofmt'd, as well as rebased. The repository for this is maintained at
-[github.com/jfrazelle/gh-patch-parser](https://github.com/jfrazelle/gh-patch-parser).
+[github.com/docker/docker-bb](https://github.com/docker/docker-bb).
