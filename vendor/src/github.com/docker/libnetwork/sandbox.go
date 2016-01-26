@@ -47,6 +47,8 @@ type Sandbox interface {
 	// ResolveIP returns the service name for the passed in IP. IP is in reverse dotted
 	// notation; the format used for DNS PTR records
 	ResolveIP(name string) string
+	// Endpoints returns all the endpoints connected to the sandbox
+	Endpoints() []Endpoint
 }
 
 // SandboxOption is a option setter function type used to pass varios options to
@@ -345,6 +347,17 @@ func (sb *sandbox) setupResolutionFiles() error {
 	}
 
 	return nil
+}
+
+func (sb *sandbox) Endpoints() []Endpoint {
+	sb.Lock()
+	defer sb.Unlock()
+
+	endpoints := make([]Endpoint, len(sb.endpoints))
+	for i, ep := range sb.endpoints {
+		endpoints[i] = ep
+	}
+	return endpoints
 }
 
 func (sb *sandbox) getConnectedEndpoints() []*endpoint {
