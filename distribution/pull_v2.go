@@ -171,6 +171,10 @@ func (ld *v2LayerDescriptor) Download(ctx context.Context, progressOutput progre
 
 	_, err = io.Copy(tmpFile, io.TeeReader(reader, verifier))
 	if err != nil {
+		tmpFile.Close()
+		if err := os.Remove(tmpFile.Name()); err != nil {
+			logrus.Errorf("Failed to remove temp file: %s", tmpFile.Name())
+		}
 		return nil, 0, retryOnError(err)
 	}
 
@@ -179,8 +183,9 @@ func (ld *v2LayerDescriptor) Download(ctx context.Context, progressOutput progre
 	if !verifier.Verified() {
 		err = fmt.Errorf("filesystem layer verification failed for digest %s", ld.digest)
 		logrus.Error(err)
+
 		tmpFile.Close()
-		if err := os.RemoveAll(tmpFile.Name()); err != nil {
+		if err := os.Remove(tmpFile.Name()); err != nil {
 			logrus.Errorf("Failed to remove temp file: %s", tmpFile.Name())
 		}
 
@@ -191,7 +196,14 @@ func (ld *v2LayerDescriptor) Download(ctx context.Context, progressOutput progre
 
 	logrus.Debugf("Downloaded %s to tempfile %s", ld.ID(), tmpFile.Name())
 
-	tmpFile.Seek(0, 0)
+	_, err = tmpFile.Seek(0, os.SEEK_SET)
+	if err != nil {
+		tmpFile.Close()
+		if err := os.Remove(tmpFile.Name()); err != nil {
+			logrus.Errorf("Failed to remove temp file: %s", tmpFile.Name())
+		}
+		return nil, 0, xfer.DoNotRetry{Err: err}
+	}
 	return ioutils.NewReadCloserWrapper(tmpFile, tmpFileCloser(tmpFile)), size, nil
 }
 
