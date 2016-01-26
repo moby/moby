@@ -770,6 +770,7 @@ _docker_daemon() {
 		--registry-mirror
 		--storage-driver -s
 		--storage-opt
+		--userns-remap
 	"
 
 	case "$prev" in
@@ -843,6 +844,15 @@ _docker_daemon() {
 			;;
 		--log-opt)
 			__docker_complete_log_options
+			return
+			;;
+		--userns-remap)
+			if [[ $cur == *:* ]] ; then
+				COMPREPLY=( $(compgen -g -- "${cur#*:}") )
+			else
+				COMPREPLY=( $(compgen -u -S : -- "$cur") )
+				__docker_nospace
+			fi
 			return
 			;;
 		$(__docker_to_extglob "$options_with_args") )
