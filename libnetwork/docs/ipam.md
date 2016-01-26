@@ -41,7 +41,7 @@ type Ipam interface {
 	RequestPool(addressSpace, pool, subPool string, options map[string]string, v6 bool) (string, *net.IPNet, map[string]string, error)
 	// ReleasePool releases the address pool identified by the passed id
 	ReleasePool(poolID string) error
-	// Request address from the specified pool ID. Input options or preferred IP can be passed.
+	// Request address from the specified pool ID. Input options or required IP can be passed.
 	RequestAddress(string, net.IP, map[string]string) (*net.IPNet, map[string]string, error)
 	// Release the address from the specified pool ID
 	ReleaseAddress(string, net.IP) error
@@ -215,7 +215,7 @@ For this API, the remote driver will receive a POST message to the URL `/IpamDri
 Where:
 
 * `PoolID` is the pool identifier
-* `Address` is the preferred address in regular IP form (A.B.C.D). If empty, the IPAM driver chooses any available address on the pool
+* `Address` is the required address in regular IP form (A.B.C.D). If this address cannot be satisfied, the request fails. If empty, the IPAM driver chooses any available address on the pool
 * `Options` are IPAM driver specific options
 
 
