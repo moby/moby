@@ -1126,7 +1126,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkConnectPreferredIP(c *check.C) {
 	c.Assert(waitRun("c0"), check.IsNil)
 	verifyIPAddresses(c, "c0", "n0", "172.28.99.88", "2001:db8:1234::9988")
 
-	// connect the container to the second network specifying the preferred ip addresses
+	// connect the container to the second network specifying an ip addresses
 	dockerCmd(c, "network", "connect", "--ip", "172.30.55.44", "--ip6", "2001:db8:abcd::5544", "n1", "c0")
 	verifyIPAddresses(c, "c0", "n1", "172.30.55.44", "2001:db8:abcd::5544")
 
@@ -1134,7 +1134,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkConnectPreferredIP(c *check.C) {
 	dockerCmd(c, "stop", "c0")
 	dockerCmd(c, "start", "c0")
 
-	// verify preferred addresses are applied
+	// verify requested addresses are applied
 	verifyIPAddresses(c, "c0", "n0", "172.28.99.88", "2001:db8:1234::9988")
 	verifyIPAddresses(c, "c0", "n1", "172.30.55.44", "2001:db8:abcd::5544")
 
@@ -1145,13 +1145,13 @@ func (s *DockerNetworkSuite) TestDockerNetworkConnectPreferredIP(c *check.C) {
 
 }
 
-func (s *DockerNetworkSuite) TestDockerNetworkUnsupportedPreferredIP(c *check.C) {
-	// preferred IP is not supported on predefined networks
+func (s *DockerNetworkSuite) TestDockerNetworkUnsupportedRequiredIP(c *check.C) {
+	// requested IP is not supported on predefined networks
 	for _, mode := range []string{"none", "host", "bridge", "default"} {
 		checkUnsupportedNetworkAndIP(c, mode)
 	}
 
-	// preferred IP is not supported on networks with no user defined subnets
+	// requested IP is not supported on networks with no user defined subnets
 	dockerCmd(c, "network", "create", "n0")
 	assertNwIsAvailable(c, "n0")
 

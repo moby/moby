@@ -29,9 +29,9 @@ var (
 	ErrConflictNetworkPublishPorts = fmt.Errorf("Conflicting options: port publishing and the container type network mode")
 	// ErrConflictNetworkExposePorts conflict between the expose option and the network mode
 	ErrConflictNetworkExposePorts = fmt.Errorf("Conflicting options: port exposing and the container type network mode")
-	// ErrUnsupportedNetworkAndIP conflict between network mode and preferred ip address
+	// ErrUnsupportedNetworkAndIP conflict between network mode and requested ip address
 	ErrUnsupportedNetworkAndIP = fmt.Errorf("User specified IP address is supported on user defined networks only")
-	// ErrUnsupportedNetworkNoSubnetAndIP conflict between network with no configured subnet and preferred ip address
+	// ErrUnsupportedNetworkNoSubnetAndIP conflict between network with no configured subnet and requested ip address
 	ErrUnsupportedNetworkNoSubnetAndIP = fmt.Errorf("User specified IP address is supported only when connecting to networks with user configured subnets")
 	// ErrUnsupportedNetworkAndAlias conflict between network mode and alias
 	ErrUnsupportedNetworkAndAlias = fmt.Errorf("Network-scoped alias is supported only for containers in user defined networks")
