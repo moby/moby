@@ -14,10 +14,8 @@ func (cli *Client) ImageHistory(imageID string) ([]types.ImageHistory, error) {
 	if err != nil {
 		return history, err
 	}
-	defer ensureReaderClosed(serverResp)
 
-	if err := json.NewDecoder(serverResp.body).Decode(&history); err != nil {
-		return history, err
-	}
-	return history, nil
+	err = json.NewDecoder(serverResp.body).Decode(&history)
+	ensureReaderClosed(serverResp)
+	return history, err
 }

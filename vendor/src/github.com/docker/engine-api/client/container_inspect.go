@@ -19,10 +19,10 @@ func (cli *Client) ContainerInspect(containerID string) (types.ContainerJSON, er
 		}
 		return types.ContainerJSON{}, err
 	}
-	defer ensureReaderClosed(serverResp)
 
 	var response types.ContainerJSON
 	err = json.NewDecoder(serverResp.body).Decode(&response)
+	ensureReaderClosed(serverResp)
 	return response, err
 }
 

@@ -46,9 +46,9 @@ func (cli *Client) ContainerList(options types.ContainerListOptions) ([]types.Co
 	if err != nil {
 		return nil, err
 	}
-	defer ensureReaderClosed(resp)
 
 	var containers []types.Container
 	err = json.NewDecoder(resp.body).Decode(&containers)
+	ensureReaderClosed(resp)
 	return containers, err
 }
