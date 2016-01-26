@@ -205,6 +205,16 @@ func (s *DockerSuite) TestExecParseError(c *check.C) {
 	c.Assert(stderr, checker.Contains, "See '"+dockerBinary+" exec --help'")
 }
 
+func (s *DockerSuite) TestExecTTYCarriageReturn(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	dockerCmd(c, "run", "-d", "-it", "--name", "testing", "busybox", "top")
+
+	cmd := exec.Command(dockerBinary, "exec", "-it", "testing", "uname")
+	out, _, err := runCommandWithOutput(cmd)
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(out, checker.Not(checker.Contains), "\r")
+}
+
 func (s *DockerSuite) TestExecStopNotHanging(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "run", "-d", "--name", "testing", "busybox", "top")
