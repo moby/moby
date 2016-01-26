@@ -8,6 +8,8 @@ BINARY_FULLNAME="$BINARY_NAME$BINARY_EXTENSION"
 source "${MAKEDIR}/.go-autogen"
 
 (
+export GOGC=${DOCKER_BUILD_GOGC:-1000}
+
 if [ "$(go env GOOS)/$(go env GOARCH)" != "$(go env GOHOSTOS)/$(go env GOHOSTARCH)" ]; then
 	# must be cross-compiling!
 	case "$(go env GOOS)/$(go env GOARCH)" in
