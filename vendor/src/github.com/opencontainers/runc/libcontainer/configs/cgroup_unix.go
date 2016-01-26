@@ -19,6 +19,9 @@ type Cgroup struct {
 	// ScopePrefix decribes prefix for the scope name
 	ScopePrefix string `json:"scope_prefix"`
 
+	// Paths represent the cgroups paths to join
+	Paths map[string]string
+
 	// Resources contains various cgroups settings to apply
 	*Resources
 }
@@ -37,7 +40,7 @@ type Resources struct {
 	// Memory reservation or soft_limit (in bytes)
 	MemoryReservation int64 `json:"memory_reservation"`
 
-	// Total memory usage (memory + swap); set `-1' to disable swap
+	// Total memory usage (memory + swap); set `-1` to enable unlimited swap
 	MemorySwap int64 `json:"memory_swap"`
 
 	// Kernel memory limit (in bytes)
@@ -63,6 +66,9 @@ type Resources struct {
 
 	// MEM to use
 	CpusetMems string `json:"cpuset_mems"`
+
+	// Process limit; set <= `0' to disable limit.
+	PidsLimit int64 `json:"pids_limit"`
 
 	// Specifies per cgroup weight, range is from 10 to 1000.
 	BlkioWeight uint16 `json:"blkio_weight"`

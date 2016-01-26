@@ -32,8 +32,9 @@ func (s *MemoryGroup) Apply(d *cgroupData) (err error) {
 				return err
 			}
 		}
-
-		if err := s.Set(path, d.config); err != nil {
+		// We have to set kernel memory here, as we can't change it once
+		// processes have been attached.
+		if err := s.SetKernelMemory(path, d.config); err != nil {
 			return err
 		}
 	}
@@ -50,7 +51,17 @@ func (s *MemoryGroup) Apply(d *cgroupData) (err error) {
 	if err != nil && !cgroups.IsNotFound(err) {
 		return err
 	}
+	return nil
+}
 
+func (s *MemoryGroup) SetKernelMemory(path string, cgroup *configs.Cgroup) error {
+	// This has to be done separately because it has special constraints (it
+	// can't be done after there are processes attached to the cgroup).
+	if cgroup.Resources.KernelMemory > 0 {
+		if err := writeFile(path, "memory.kmem.limit_in_bytes", strconv.FormatInt(cgroup.Resources.KernelMemory, 10)); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -70,12 +81,6 @@ func (s *MemoryGroup) Set(path string, cgroup *configs.Cgroup) error {
 			return err
 		}
 	}
-	if cgroup.Resources.KernelMemory > 0 {
-		if err := writeFile(path, "memory.kmem.limit_in_bytes", strconv.FormatInt(cgroup.Resources.KernelMemory, 10)); err != nil {
-			return err
-		}
-	}
-
 	if cgroup.Resources.OomKillDisable {
 		if err := writeFile(path, "memory.oom_control", "1"); err != nil {
 			return err
