@@ -461,7 +461,7 @@ func (s *DockerSuite) TestEventsAttach(c *check.C) {
 
 	c.Assert(stdin.Close(), checker.IsNil)
 
-	dockerCmd(c, "stop", cID)
+	dockerCmd(c, "kill", cID)
 
 	out, _ = dockerCmd(c, "events", "--since=0", "-f", "container="+cID, "--until="+strconv.Itoa(int(since)))
 	c.Assert(out, checker.Contains, "attach", check.Commentf("Missing 'attach' log event"))
