@@ -14,6 +14,9 @@ case "$DOCKER_ENGINE_OSARCH" in
 	linux/arm)
 		imagePrefix='armhf'
 		;;
+	linux/arm64)
+		imagePrefix='aarch64'
+		;;
 	linux/ppc64le)
 		imagePrefix='ppc64le'
 		;;
