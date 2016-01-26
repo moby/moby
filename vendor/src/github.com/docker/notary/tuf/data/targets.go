@@ -5,7 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 
-	"github.com/jfrazelle/go/canonical/json"
+	"github.com/docker/go/canonical/json"
 )
 
 // SignedTargets is a fully unpacked targets.json, or target delegation

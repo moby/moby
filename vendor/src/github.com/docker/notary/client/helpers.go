@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"path"
+	"strings"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -85,13 +86,13 @@ func changeTargetsDelegation(repo *tuf.Repo, c changelist.Change) error {
 			return err
 		}
 		if err == nil {
-			// role existed
-			return data.ErrInvalidRole{
-				Role:   c.Scope(),
-				Reason: "cannot create a role that already exists",
+			// role existed, attempt to merge paths and keys
+			if err := r.AddPaths(td.AddPaths); err != nil {
+				return err
 			}
+			return repo.UpdateDelegations(r, td.AddKeys)
 		}
-		// role doesn't exist, create brand new
+		// create brand new role
 		r, err = td.ToNewRole(c.Scope())
 		if err != nil {
 			return err
@@ -107,7 +108,12 @@ func changeTargetsDelegation(repo *tuf.Repo, c changelist.Change) error {
 		if err != nil {
 			return err
 		}
-		// role exists, merge
+		// If we specify the only keys left delete the role, else just delete specified keys
+		if strings.Join(r.KeyIDs, ";") == strings.Join(td.RemoveKeys, ";") && len(td.AddKeys) == 0 {
+			r := data.Role{Name: c.Scope()}
+			return repo.DeleteDelegation(r)
+		}
+		// if we aren't deleting and the role exists, merge
 		if err := r.AddPaths(td.AddPaths); err != nil {
 			return err
 		}

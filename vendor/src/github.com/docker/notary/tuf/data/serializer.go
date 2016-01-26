@@ -1,6 +1,6 @@
 package data
 
-import "github.com/jfrazelle/go/canonical/json"
+import "github.com/docker/go/canonical/json"
 
 // Serializer is an interface that can marshal and unmarshal TUF data.  This
 // is expected to be a canonical JSON marshaller
