@@ -224,17 +224,20 @@ func (d *Daemon) Start(arg ...string) error {
 
 	// If we don't explicitly set the log-level or debug flag(-D) then
 	// turn on debug mode
-	foundIt := false
+	foundLog := false
+	foundSd := false
 	for _, a := range arg {
 		if strings.Contains(a, "--log-level") || strings.Contains(a, "-D") || strings.Contains(a, "--debug") {
-			foundIt = true
+			foundLog = true
+		}
+		if strings.Contains(a, "--storage-driver") {
+			foundSd = true
 		}
 	}
-	if !foundIt {
+	if !foundLog {
 		args = append(args, "--debug")
 	}
-
-	if d.storageDriver != "" {
+	if d.storageDriver != "" && !foundSd {
 		args = append(args, "--storage-driver", d.storageDriver)
 	}
 
