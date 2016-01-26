@@ -5,6 +5,7 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"os/exec"
@@ -230,7 +231,9 @@ func (s *DockerSuite) TestExecTTYWithStdin(c *check.C) {
 				output = scanner.Text()
 			}
 		}()
-
+		go func() {
+			io.Copy(tty, os.Stdin)
+		}()
 		select {
 		case <-time.After(10 * time.Second):
 			c.Fatal("command timeout")
