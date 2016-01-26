@@ -230,11 +230,6 @@ func (s *DockerSuite) TestExecTTYWithStdin(c *check.C) {
 				output = scanner.Text()
 			}
 		}()
-		go func() {
-			io.Copy(tty, os.Stdin)
-		}()
-
-		out, _ := dockerCmd(c, "exec", "-ti", "testing", "uname")
 
 		select {
 		case <-time.After(10 * time.Second):
@@ -250,8 +245,7 @@ func (s *DockerSuite) TestExecTTYWithStdin(c *check.C) {
 	c.Assert(out, checker.Equals, "Linux")
 	c.Assert(out, checker.Not(checker.Contains), '\r')
 
-	out := ttyExecCommand(`echo "\n\n\n"`)
-	out, _ = dockerCmd(c, "exec", "-ti", "testing", `echo "\n\n\n"`)
+	out = ttyExecCommand(`echo "\n\n\n"`)
 	c.Assert(out, checker.Equals, `\n\n\n`)
 	c.Assert(out, checker.Not(checker.Contains), '\r')
 }
