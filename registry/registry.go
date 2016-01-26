@@ -28,7 +28,6 @@ var (
 	// ErrAlreadyExists is an error returned if an image being pushed
 	// already exists on the remote side
 	ErrAlreadyExists = errors.New("Image already exists")
-	errLoginRequired = errors.New("Authentication is required.")
 )
 
 func init() {
