@@ -2,6 +2,7 @@ package data
 
 import (
 	"fmt"
+	"github.com/Sirupsen/logrus"
 	"path"
 	"regexp"
 	"strings"
@@ -109,10 +110,7 @@ func NewRole(name string, threshold int, keyIDs, paths, pathHashPrefixes []strin
 	}
 	if IsDelegation(name) {
 		if len(paths) == 0 && len(pathHashPrefixes) == 0 {
-			return nil, ErrInvalidRole{
-				Role:   name,
-				Reason: "roles with no Paths and no PathHashPrefixes will never be able to publish content",
-			}
+			logrus.Debugf("role %s with no Paths and no PathHashPrefixes will never be able to publish content until one or more are added", name)
 		}
 	}
 	if threshold < 1 {

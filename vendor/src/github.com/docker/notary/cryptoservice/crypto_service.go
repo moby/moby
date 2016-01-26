@@ -69,8 +69,8 @@ func (cs *CryptoService) Create(role, algorithm string) (data.PublicKey, error) 
 	if err != nil {
 		return nil, fmt.Errorf("failed to add key to filestore: %v", err)
 	}
-	return nil, fmt.Errorf("keystores would not accept new private keys for unknown reasons")
 
+	return nil, fmt.Errorf("keystores would not accept new private keys for unknown reasons")
 }
 
 // GetPrivateKey returns a private key and role if present by ID.

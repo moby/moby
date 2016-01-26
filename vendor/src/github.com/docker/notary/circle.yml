@@ -18,6 +18,8 @@ machine:
     CIRCLE_PAIN: "mode: set"
   # Put the coverage profile somewhere codecov's script can find it
     COVERPROFILE: coverage.out
+  # Set the pull request number so codecov can figure it out
+    PULL_REQUEST: ${CI_PULL_REQUEST##*/}
 
   hosts:
   # Not used yet
@@ -40,8 +42,7 @@ dependencies:
   # For the stable go version, additionally install linting tools
     - >
       gvm use stable &&
-      go get github.com/golang/lint/golint github.com/wadey/gocovmerge &&
-      go install github.com/wadey/gocovmerge
+      go get github.com/golang/lint/golint
 test:
   pre:
   # Output the go versions we are going to test
@@ -72,11 +73,6 @@ test:
         pwd: $BASE_STABLE
 
   post:
-    - gvm use stable && make covmerge:
-        timeout: 600
-        parallel: true
-        pwd: $BASE_STABLE
-
   # Report to codecov.io
     - bash <(curl -s https://codecov.io/bash):
         parallel: true
