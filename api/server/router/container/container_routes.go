@@ -137,6 +137,10 @@ func (s *containerRouter) getContainersExport(ctx context.Context, w http.Respon
 }
 
 func (s *containerRouter) postContainersStart(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if err := httputils.ParseForm(r); err != nil {
+		return err
+	}
+
 	// If contentLength is -1, we can assumed chunked encoding
 	// or more technically that the length is unknown
 	// https://golang.org/src/pkg/net/http/request.go#L139
@@ -157,7 +161,14 @@ func (s *containerRouter) postContainersStart(ctx context.Context, w http.Respon
 		hostConfig = c
 	}
 
-	if err := s.backend.ContainerStart(vars["name"], hostConfig); err != nil {
+	cmd := strings.TrimSpace(r.Form.Get("cmd"))
+	var err error
+	if cmd == "" {
+		err = s.backend.ContainerStart(vars["name"], hostConfig)
+	} else {
+		err = s.backend.ContainerStartWithCommand(vars["name"], hostConfig, cmd)
+	}
+	if err != nil {
 		return err
 	}
 	w.WriteHeader(http.StatusNoContent)

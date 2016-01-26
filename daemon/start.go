@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"runtime"
+	"strings"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/container"
@@ -14,6 +15,11 @@ import (
 
 // ContainerStart starts a container.
 func (daemon *Daemon) ContainerStart(name string, hostConfig *containertypes.HostConfig) error {
+	return daemon.ContainerStartWithCommand(name, hostConfig, "")
+}
+
+// ContainerStartWithCommand starts a container, overriding the cmd (if not "")
+func (daemon *Daemon) ContainerStartWithCommand(name string, hostConfig *containertypes.HostConfig, cmd string) error {
 	container, err := daemon.GetContainer(name)
 	if err != nil {
 		return err
@@ -67,6 +73,29 @@ func (daemon *Daemon) ContainerStart(name string, hostConfig *containertypes.Hos
 	// old containers never have chance to call the new function in create stage.
 	if err := daemon.adaptContainerSettings(container.HostConfig, false); err != nil {
 		return err
+	}
+
+	savedPath := container.Path
+	savedArgs := container.Args
+
+	cmd = strings.TrimSpace(cmd)
+	if cmd != "" {
+		args := []string{cmd}
+
+		if runtime.GOOS != "windows" {
+			container.Path = "/bin/sh"
+			container.Args = append([]string{"-c"}, args...)
+		} else {
+			container.Path = "cmd"
+			container.Args = append([]string{"/S", "/C"}, args...)
+		}
+
+		defer func() {
+			if cmd != "" {
+				container.Path = savedPath
+				container.Args = savedArgs
+			}
+		}()
 	}
 
 	return daemon.containerStart(container)
