@@ -250,7 +250,7 @@ func (p *v2Puller) pullV2Tag(ctx context.Context, ref reference.Named) (tagUpdat
 	p.confirmedV2 = true
 
 	logrus.Debugf("Pulling ref from V2 registry: %s", ref.String())
-	progress.Message(p.config.ProgressOutput, tagOrDigest, "Pulling from "+p.repo.Name())
+	progress.Message(p.config.ProgressOutput, tagOrDigest, "Pulling from "+p.repo.Named().Name())
 
 	var (
 		imageID        image.ID
