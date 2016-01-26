@@ -766,7 +766,8 @@ func (daemon *Daemon) connectToNetwork(container *container.Container, idOrName 
 
 	controller := daemon.netController
 
-	createOptions, err := container.BuildCreateEndpointOptions(n, endpointConfig)
+	sb := daemon.getNetworkSandbox(container)
+	createOptions, err := container.BuildCreateEndpointOptions(n, endpointConfig, sb)
 	if err != nil {
 		return err
 	}
@@ -792,7 +793,6 @@ func (daemon *Daemon) connectToNetwork(container *container.Container, idOrName 
 		return err
 	}
 
-	sb := daemon.getNetworkSandbox(container)
 	if sb == nil {
 		options, err := daemon.buildSandboxOptions(container, n)
 		if err != nil {

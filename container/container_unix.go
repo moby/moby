@@ -129,18 +129,26 @@ func (container *Container) buildPortMapInfo(ep libnetwork.Endpoint) error {
 		return derr.ErrorCodeEmptyNetwork
 	}
 
+	if len(networkSettings.Ports) == 0 {
+		pm, err := getEndpointPortMapInfo(ep)
+		if err != nil {
+			return err
+		}
+		networkSettings.Ports = pm
+	}
+	return nil
+}
+
+func getEndpointPortMapInfo(ep libnetwork.Endpoint) (nat.PortMap, error) {
+	pm := nat.PortMap{}
 	driverInfo, err := ep.DriverInfo()
 	if err != nil {
-		return err
+		return pm, err
 	}
 
 	if driverInfo == nil {
 		// It is not an error for epInfo to be nil
-		return nil
-	}
-
-	if networkSettings.Ports == nil {
-		networkSettings.Ports = nat.PortMap{}
+		return pm, nil
 	}
 
 	if expData, ok := driverInfo[netlabel.ExposedPorts]; ok {
@@ -148,30 +156,45 @@ func (container *Container) buildPortMapInfo(ep libnetwork.Endpoint) error {
 			for _, tp := range exposedPorts {
 				natPort, err := nat.NewPort(tp.Proto.String(), strconv.Itoa(int(tp.Port)))
 				if err != nil {
-					return derr.ErrorCodeParsingPort.WithArgs(tp.Port, err)
+					return pm, derr.ErrorCodeParsingPort.WithArgs(tp.Port, err)
 				}
-				networkSettings.Ports[natPort] = nil
+				pm[natPort] = nil
 			}
 		}
 	}
 
 	mapData, ok := driverInfo[netlabel.PortMap]
 	if !ok {
-		return nil
+		return pm, nil
 	}
 
 	if portMapping, ok := mapData.([]types.PortBinding); ok {
 		for _, pp := range portMapping {
 			natPort, err := nat.NewPort(pp.Proto.String(), strconv.Itoa(int(pp.Port)))
 			if err != nil {
-				return err
+				return pm, err
 			}
 			natBndg := nat.PortBinding{HostIP: pp.HostIP.String(), HostPort: strconv.Itoa(int(pp.HostPort))}
-			networkSettings.Ports[natPort] = append(networkSettings.Ports[natPort], natBndg)
+			pm[natPort] = append(pm[natPort], natBndg)
 		}
 	}
 
-	return nil
+	return pm, nil
+}
+
+func getSandboxPortMapInfo(sb libnetwork.Sandbox) nat.PortMap {
+	pm := nat.PortMap{}
+	if sb == nil {
+		return pm
+	}
+
+	for _, ep := range sb.Endpoints() {
+		pm, _ = getEndpointPortMapInfo(ep)
+		if len(pm) > 0 {
+			break
+		}
+	}
+	return pm
 }
 
 // BuildEndpointInfo sets endpoint-related fields on container.NetworkSettings based on the provided network and endpoint.
@@ -265,7 +288,7 @@ func (container *Container) BuildJoinOptions(n libnetwork.Network) ([]libnetwork
 }
 
 // BuildCreateEndpointOptions builds endpoint options from a given network.
-func (container *Container) BuildCreateEndpointOptions(n libnetwork.Network, epConfig *network.EndpointSettings) ([]libnetwork.EndpointOption, error) {
+func (container *Container) BuildCreateEndpointOptions(n libnetwork.Network, epConfig *network.EndpointSettings, sb libnetwork.Sandbox) ([]libnetwork.EndpointOption, error) {
 	var (
 		portSpecs     = make(nat.PortSet)
 		bindings      = make(nat.PortMap)
@@ -294,10 +317,29 @@ func (container *Container) BuildCreateEndpointOptions(n libnetwork.Network, epC
 		createOptions = append(createOptions, libnetwork.CreateOptionDisableResolution())
 	}
 
-	// Other configs are applicable only for the endpoint in the network
+	// configs that are applicable only for the endpoint in the network
 	// to which container was connected to on docker run.
-	if n.Name() != container.HostConfig.NetworkMode.NetworkName() &&
-		!(n.Name() == "bridge" && container.HostConfig.NetworkMode.IsDefault()) {
+	// Ideally all these network-specific endpoint configurations must be moved under
+	// container.NetworkSettings.Networks[n.Name()]
+	if n.Name() == container.HostConfig.NetworkMode.NetworkName() ||
+		(n.Name() == "bridge" && container.HostConfig.NetworkMode.IsDefault()) {
+		if container.Config.MacAddress != "" {
+			mac, err := net.ParseMAC(container.Config.MacAddress)
+			if err != nil {
+				return nil, err
+			}
+
+			genericOption := options.Generic{
+				netlabel.MacAddress: mac,
+			}
+
+			createOptions = append(createOptions, libnetwork.EndpointOptionGeneric(genericOption))
+		}
+	}
+
+	// Port-mapping rules belong to the container & applicable only to non-internal networks
+	portmaps := getSandboxPortMapInfo(sb)
+	if n.Info().Internal() || len(portmaps) > 0 {
 		return createOptions, nil
 	}
 
@@ -356,19 +398,6 @@ func (container *Container) BuildCreateEndpointOptions(n libnetwork.Network, epC
 	createOptions = append(createOptions,
 		libnetwork.CreateOptionPortMapping(pbList),
 		libnetwork.CreateOptionExposedPorts(exposeList))
-
-	if container.Config.MacAddress != "" {
-		mac, err := net.ParseMAC(container.Config.MacAddress)
-		if err != nil {
-			return nil, err
-		}
-
-		genericOption := options.Generic{
-			netlabel.MacAddress: mac,
-		}
-
-		createOptions = append(createOptions, libnetwork.EndpointOptionGeneric(genericOption))
-	}
 
 	return createOptions, nil
 }
