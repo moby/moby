@@ -12,9 +12,9 @@ func (cli *Client) ServerVersion() (types.Version, error) {
 	if err != nil {
 		return types.Version{}, err
 	}
-	defer ensureReaderClosed(resp)
 
 	var server types.Version
 	err = json.NewDecoder(resp.body).Decode(&server)
+	ensureReaderClosed(resp)
 	return server, err
 }

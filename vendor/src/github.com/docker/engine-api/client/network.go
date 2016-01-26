@@ -65,8 +65,8 @@ func (cli *Client) NetworkList(options types.NetworkListOptions) ([]types.Networ
 	if err != nil {
 		return networkResources, err
 	}
-	defer ensureReaderClosed(resp)
 	err = json.NewDecoder(resp.body).Decode(&networkResources)
+	ensureReaderClosed(resp)
 	return networkResources, err
 }
 
@@ -80,7 +80,7 @@ func (cli *Client) NetworkInspect(networkID string) (types.NetworkResource, erro
 		}
 		return networkResource, err
 	}
-	defer ensureReaderClosed(resp)
 	err = json.NewDecoder(resp.body).Decode(&networkResource)
+	ensureReaderClosed(resp)
 	return networkResource, err
 }

@@ -49,11 +49,6 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 		logrus.Errorf("Could not read system memory info: %v", err)
 	}
 
-	// if we still have the original dockerinit binary from before
-	// we copied it locally, let's return the path to that, since
-	// that's more intuitive (the copied path is trivial to derive
-	// by hand given VERSION)
-	initPath := utils.DockerInitPath("")
 	sysInfo := sysinfo.New(true)
 
 	var cRunning, cPaused, cStopped int32
@@ -94,8 +89,6 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 		OSType:             platform.OSType,
 		Architecture:       platform.Architecture,
 		RegistryConfig:     daemon.RegistryService.Config,
-		InitSha1:           dockerversion.InitSHA1,
-		InitPath:           initPath,
 		NCPU:               runtime.NumCPU(),
 		MemTotal:           meminfo.MemTotal,
 		DockerRootDir:      daemon.configStore.Root,

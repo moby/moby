@@ -111,8 +111,7 @@ RUN git clone https://github.com/golang/lint.git /go/src/github.com/golang/lint 
 	&& go install -v github.com/golang/lint/golint
 
 # install seccomp
-# this can be changed to the ubuntu package libseccomp-dev if dockerinit is removed,
-# we need libseccomp.a (which the package does not provide) for dockerinit
+# TODO: switch to libseccomp-dev since dockerinit is gone
 ENV SECCOMP_VERSION 2.2.3
 RUN set -x \
 	&& export SECCOMP_PATH="$(mktemp -d)" \
