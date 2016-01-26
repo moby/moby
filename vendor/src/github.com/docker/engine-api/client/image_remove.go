@@ -22,9 +22,9 @@ func (cli *Client) ImageRemove(options types.ImageRemoveOptions) ([]types.ImageD
 	if err != nil {
 		return nil, err
 	}
-	defer ensureReaderClosed(resp)
 
 	var dels []types.ImageDelete
 	err = json.NewDecoder(resp.body).Decode(&dels)
+	ensureReaderClosed(resp)
 	return dels, err
 }

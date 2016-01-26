@@ -13,8 +13,8 @@ func (cli *Client) ContainerExecCreate(config types.ExecConfig) (types.Container
 	if err != nil {
 		return response, err
 	}
-	defer ensureReaderClosed(resp)
 	err = json.NewDecoder(resp.body).Decode(&response)
+	ensureReaderClosed(resp)
 	return response, err
 }
 
@@ -41,8 +41,8 @@ func (cli *Client) ContainerExecInspect(execID string) (types.ContainerExecInspe
 	if err != nil {
 		return response, err
 	}
-	defer ensureReaderClosed(resp)
 
 	err = json.NewDecoder(resp.body).Decode(&response)
+	ensureReaderClosed(resp)
 	return response, err
 }

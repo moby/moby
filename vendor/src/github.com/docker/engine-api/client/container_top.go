@@ -20,8 +20,8 @@ func (cli *Client) ContainerTop(containerID string, arguments []string) (types.C
 	if err != nil {
 		return response, err
 	}
-	defer ensureReaderClosed(resp)
 
 	err = json.NewDecoder(resp.body).Decode(&response)
+	ensureReaderClosed(resp)
 	return response, err
 }
