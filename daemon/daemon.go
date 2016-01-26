@@ -1290,35 +1290,45 @@ func (daemon *Daemon) GetRemappedUIDGID() (int, int) {
 	return uid, gid
 }
 
-// ImageGetCached returns the earliest created image that is a child
+// ImageGetCached returns the most recent created image that is a child
 // of the image with imgID, that had the same config when it was
 // created. nil is returned if a child cannot be found. An error is
 // returned if the parent image cannot be found.
 func (daemon *Daemon) ImageGetCached(imgID image.ID, config *containertypes.Config) (*image.Image, error) {
-	// Retrieve all images
-	imgs := daemon.Map()
-
-	var siblings []image.ID
-	for id, img := range imgs {
-		if img.Parent == imgID {
-			siblings = append(siblings, id)
-		}
-	}
-
 	// Loop on the children of the given image and check the config
-	var match *image.Image
-	for _, id := range siblings {
-		img, ok := imgs[id]
-		if !ok {
-			return nil, fmt.Errorf("unable to find image %q", id)
-		}
-		if runconfig.Compare(&img.ContainerConfig, config) {
-			if match == nil || match.Created.Before(img.Created) {
-				match = img
+	getMatch := func(siblings []image.ID) (*image.Image, error) {
+		var match *image.Image
+		for _, id := range siblings {
+			img, err := daemon.imageStore.Get(id)
+			if err != nil {
+				return nil, fmt.Errorf("unable to find image %q", id)
+			}
+
+			if runconfig.Compare(&img.ContainerConfig, config) {
+				// check for the most up to date match
+				if match == nil || match.Created.Before(img.Created) {
+					match = img
+				}
 			}
 		}
+		return match, nil
 	}
-	return match, nil
+
+	// In this case, this is `FROM scratch`, which isn't an actual image.
+	if imgID == "" {
+		images := daemon.imageStore.Map()
+		var siblings []image.ID
+		for id, img := range images {
+			if img.Parent == imgID {
+				siblings = append(siblings, id)
+			}
+		}
+		return getMatch(siblings)
+	}
+
+	// find match from child images
+	siblings := daemon.imageStore.Children(imgID)
+	return getMatch(siblings)
 }
 
 // tempDir returns the default directory to use for temporary files.
