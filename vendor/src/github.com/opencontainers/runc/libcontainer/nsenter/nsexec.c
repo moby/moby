@@ -17,6 +17,7 @@
 #include <sched.h>
 #include <signal.h>
 
+#include <bits/sockaddr.h>
 #include <linux/netlink.h>
 #include <linux/types.h>
 #include <stdint.h>

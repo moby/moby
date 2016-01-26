@@ -19,15 +19,10 @@ func (s *HugetlbGroup) Name() string {
 }
 
 func (s *HugetlbGroup) Apply(d *cgroupData) error {
-	dir, err := d.join("hugetlb")
+	_, err := d.join("hugetlb")
 	if err != nil && !cgroups.IsNotFound(err) {
 		return err
 	}
-
-	if err := s.Set(dir, d.config); err != nil {
-		return err
-	}
-
 	return nil
 }
 

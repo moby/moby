@@ -55,6 +55,7 @@ var subsystems = subsystemSet{
 	&fs.MemoryGroup{},
 	&fs.CpuGroup{},
 	&fs.CpuacctGroup{},
+	&fs.PidsGroup{},
 	&fs.BlkioGroup{},
 	&fs.HugetlbGroup{},
 	&fs.PerfEventGroup{},
@@ -167,6 +168,23 @@ func (m *Manager) Apply(pid int) error {
 		properties []systemdDbus.Property
 	)
 
+	if c.Paths != nil {
+		paths := make(map[string]string)
+		for name, path := range c.Paths {
+			_, err := getSubsystemPath(m.Cgroups, name)
+			if err != nil {
+				// Don't fail if a cgroup hierarchy was not found, just skip this subsystem
+				if cgroups.IsNotFound(err) {
+					continue
+				}
+				return err
+			}
+			paths[name] = path
+		}
+		m.Paths = paths
+		return cgroups.EnterPid(m.Paths, pid)
+	}
+
 	if c.Parent != "" {
 		slice = c.Parent
 	}
@@ -233,7 +251,7 @@ func (m *Manager) Apply(pid int) error {
 		return err
 	}
 
-	// we need to manually join the freezer, net_cls, net_prio and cpuset cgroup in systemd
+	// we need to manually join the freezer, net_cls, net_prio, pids and cpuset cgroup in systemd
 	// because it does not currently support it via the dbus api.
 	if err := joinFreezer(c, pid); err != nil {
 		return err
@@ -243,6 +261,10 @@ func (m *Manager) Apply(pid int) error {
 		return err
 	}
 	if err := joinNetCls(c, pid); err != nil {
+		return err
+	}
+
+	if err := joinPids(c, pid); err != nil {
 		return err
 	}
 
@@ -277,17 +299,13 @@ func (m *Manager) Apply(pid int) error {
 		paths[s.Name()] = subsystemPath
 	}
 	m.Paths = paths
-
-	if paths["cpu"] != "" {
-		if err := fs.CheckCpushares(paths["cpu"], c.Resources.CpuShares); err != nil {
-			return err
-		}
-	}
-
 	return nil
 }
 
 func (m *Manager) Destroy() error {
+	if m.Cgroups.Paths != nil {
+		return nil
+	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	theConn.StopUnit(getUnitName(m.Cgroups), "replace", nil)
@@ -330,68 +348,74 @@ func join(c *configs.Cgroup, subsystem string, pid int) (string, error) {
 }
 
 func joinCpu(c *configs.Cgroup, pid int) error {
-	path, err := getSubsystemPath(c, "cpu")
+	_, err := join(c, "cpu", pid)
 	if err != nil && !cgroups.IsNotFound(err) {
 		return err
 	}
-	if c.Resources.CpuQuota != 0 {
-		if err = writeFile(path, "cpu.cfs_quota_us", strconv.FormatInt(c.Resources.CpuQuota, 10)); err != nil {
-			return err
-		}
-	}
-	if c.Resources.CpuPeriod != 0 {
-		if err = writeFile(path, "cpu.cfs_period_us", strconv.FormatInt(c.Resources.CpuPeriod, 10)); err != nil {
-			return err
-		}
-	}
-	if c.Resources.CpuRtPeriod != 0 {
-		if err = writeFile(path, "cpu.rt_period_us", strconv.FormatInt(c.Resources.CpuRtPeriod, 10)); err != nil {
-			return err
-		}
-	}
-	if c.Resources.CpuRtRuntime != 0 {
-		if err = writeFile(path, "cpu.rt_runtime_us", strconv.FormatInt(c.Resources.CpuRtRuntime, 10)); err != nil {
-			return err
-		}
-	}
-
 	return nil
 }
 
 func joinFreezer(c *configs.Cgroup, pid int) error {
-	path, err := join(c, "freezer", pid)
+	_, err := join(c, "freezer", pid)
 	if err != nil && !cgroups.IsNotFound(err) {
 		return err
 	}
-	freezer, err := subsystems.Get("freezer")
-	if err != nil {
-		return err
-	}
-	return freezer.Set(path, c)
+	return nil
 }
 
 func joinNetPrio(c *configs.Cgroup, pid int) error {
-	path, err := join(c, "net_prio", pid)
+	_, err := join(c, "net_prio", pid)
 	if err != nil && !cgroups.IsNotFound(err) {
 		return err
 	}
-	netPrio, err := subsystems.Get("net_prio")
-	if err != nil {
-		return err
-	}
-	return netPrio.Set(path, c)
+	return nil
 }
 
 func joinNetCls(c *configs.Cgroup, pid int) error {
-	path, err := join(c, "net_cls", pid)
+	_, err := join(c, "net_cls", pid)
 	if err != nil && !cgroups.IsNotFound(err) {
 		return err
 	}
-	netcls, err := subsystems.Get("net_cls")
-	if err != nil {
+	return nil
+}
+
+func joinPids(c *configs.Cgroup, pid int) error {
+	_, err := join(c, "pids", pid)
+	if err != nil && !cgroups.IsNotFound(err) {
 		return err
 	}
-	return netcls.Set(path, c)
+	return nil
+}
+
+// systemd represents slice heirarchy using `-`, so we need to follow suit when
+// generating the path of slice. Essentially, test-a-b.slice becomes
+// test.slice/test-a.slice/test-a-b.slice.
+func expandSlice(slice string) (string, error) {
+	suffix := ".slice"
+	// Name has to end with ".slice", but can't be just ".slice".
+	if len(slice) < len(suffix) || !strings.HasSuffix(slice, suffix) {
+		return "", fmt.Errorf("invalid slice name: %s", slice)
+	}
+
+	// Path-separators are not allowed.
+	if strings.Contains(slice, "/") {
+		return "", fmt.Errorf("invalid slice name: %s", slice)
+	}
+
+	var path, prefix string
+	sliceName := strings.TrimSuffix(slice, suffix)
+	for _, component := range strings.Split(sliceName, "-") {
+		// test--a.slice isn't permitted, nor is -test.slice.
+		if component == "" {
+			return "", fmt.Errorf("invalid slice name: %s", slice)
+		}
+
+		// Append the component to the path and to the prefix.
+		path += prefix + component + suffix + "/"
+		prefix += component + "-"
+	}
+
+	return path, nil
 }
 
 func getSubsystemPath(c *configs.Cgroup, subsystem string) (string, error) {
@@ -408,6 +432,11 @@ func getSubsystemPath(c *configs.Cgroup, subsystem string) (string, error) {
 	slice := "system.slice"
 	if c.Parent != "" {
 		slice = c.Parent
+	}
+
+	slice, err = expandSlice(slice)
+	if err != nil {
+		return "", err
 	}
 
 	return filepath.Join(mountpoint, initPath, slice, getUnitName(c)), nil
@@ -440,6 +469,14 @@ func (m *Manager) GetPids() ([]int, error) {
 	return cgroups.GetPids(path)
 }
 
+func (m *Manager) GetAllPids() ([]int, error) {
+	path, err := getSubsystemPath(m.Cgroups, "devices")
+	if err != nil {
+		return nil, err
+	}
+	return cgroups.GetAllPids(path)
+}
+
 func (m *Manager) GetStats() (*cgroups.Stats, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -458,16 +495,23 @@ func (m *Manager) GetStats() (*cgroups.Stats, error) {
 }
 
 func (m *Manager) Set(container *configs.Config) error {
-	for name, path := range m.Paths {
-		sys, err := subsystems.Get(name)
-		if err == errSubsystemDoesNotExist || !cgroups.PathExists(path) {
-			continue
+	for _, sys := range subsystems {
+		// Get the subsystem path, but don't error out for not found cgroups.
+		path, err := getSubsystemPath(container.Cgroups, sys.Name())
+		if err != nil && !cgroups.IsNotFound(err) {
+			return err
 		}
+
 		if err := sys.Set(path, container.Cgroups); err != nil {
 			return err
 		}
 	}
 
+	if m.Paths["cpu"] != "" {
+		if err := fs.CheckCpushares(m.Paths["cpu"], container.Cgroups.Resources.CpuShares); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -487,17 +531,13 @@ func getUnitName(c *configs.Cgroup) string {
 // because systemd will re-write the device settings if it needs to re-apply the cgroup context.
 // This happens at least for v208 when any sibling unit is started.
 func joinDevices(c *configs.Cgroup, pid int) error {
-	path, err := join(c, "devices", pid)
+	_, err := join(c, "devices", pid)
 	// Even if it's `not found` error, we'll return err because devices cgroup
 	// is hard requirement for container security.
 	if err != nil {
 		return err
 	}
-	devices, err := subsystems.Get("devices")
-	if err != nil {
-		return err
-	}
-	return devices.Set(path, c)
+	return nil
 }
 
 func setKernelMemory(c *configs.Cgroup) error {
@@ -510,52 +550,16 @@ func setKernelMemory(c *configs.Cgroup) error {
 		return err
 	}
 
-	if c.Resources.KernelMemory > 0 {
-		err = writeFile(path, "memory.kmem.limit_in_bytes", strconv.FormatInt(c.Resources.KernelMemory, 10))
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
+	// This doesn't get called by manager.Set, so we need to do it here.
+	s := &fs.MemoryGroup{}
+	return s.SetKernelMemory(path, c)
 }
 
 func joinMemory(c *configs.Cgroup, pid int) error {
-	path, err := getSubsystemPath(c, "memory")
+	_, err := join(c, "memory", pid)
 	if err != nil && !cgroups.IsNotFound(err) {
 		return err
 	}
-
-	// -1 disables memoryswap
-	if c.Resources.MemorySwap > 0 {
-		err = writeFile(path, "memory.memsw.limit_in_bytes", strconv.FormatInt(c.Resources.MemorySwap, 10))
-		if err != nil {
-			return err
-		}
-	}
-	if c.Resources.MemoryReservation > 0 {
-		err = writeFile(path, "memory.soft_limit_in_bytes", strconv.FormatInt(c.Resources.MemoryReservation, 10))
-		if err != nil {
-			return err
-		}
-	}
-	if c.Resources.OomKillDisable {
-		if err := writeFile(path, "memory.oom_control", "1"); err != nil {
-			return err
-		}
-	}
-
-	if c.Resources.MemorySwappiness >= 0 && c.Resources.MemorySwappiness <= 100 {
-		err = writeFile(path, "memory.swappiness", strconv.FormatInt(c.Resources.MemorySwappiness, 10))
-		if err != nil {
-			return err
-		}
-	} else if c.Resources.MemorySwappiness == -1 {
-		return nil
-	} else {
-		return fmt.Errorf("invalid value:%d. valid memory swappiness range is 0-100", c.Resources.MemorySwappiness)
-	}
-
 	return nil
 }
 
@@ -577,68 +581,25 @@ func joinCpuset(c *configs.Cgroup, pid int) error {
 // expects device path instead of major minor numbers, which is also confusing
 // for users. So we use fs work around for now.
 func joinBlkio(c *configs.Cgroup, pid int) error {
-	path, err := getSubsystemPath(c, "blkio")
+	_, err := join(c, "blkio", pid)
 	if err != nil {
 		return err
 	}
-	// systemd doesn't directly support this in the dbus properties
-	if c.Resources.BlkioLeafWeight != 0 {
-		if err := writeFile(path, "blkio.leaf_weight", strconv.FormatUint(uint64(c.Resources.BlkioLeafWeight), 10)); err != nil {
-			return err
-		}
-	}
-	for _, wd := range c.Resources.BlkioWeightDevice {
-		if err := writeFile(path, "blkio.weight_device", wd.WeightString()); err != nil {
-			return err
-		}
-		if err := writeFile(path, "blkio.leaf_weight_device", wd.LeafWeightString()); err != nil {
-			return err
-		}
-	}
-	for _, td := range c.Resources.BlkioThrottleReadBpsDevice {
-		if err := writeFile(path, "blkio.throttle.read_bps_device", td.String()); err != nil {
-			return err
-		}
-	}
-	for _, td := range c.Resources.BlkioThrottleWriteBpsDevice {
-		if err := writeFile(path, "blkio.throttle.write_bps_device", td.String()); err != nil {
-			return err
-		}
-	}
-	for _, td := range c.Resources.BlkioThrottleReadIOPSDevice {
-		if err := writeFile(path, "blkio.throttle.read_iops_device", td.String()); err != nil {
-			return err
-		}
-	}
-	for _, td := range c.Resources.BlkioThrottleWriteIOPSDevice {
-		if err := writeFile(path, "blkio.throttle.write_iops_device", td.String()); err != nil {
-			return err
-		}
-	}
-
 	return nil
 }
 
 func joinHugetlb(c *configs.Cgroup, pid int) error {
-	path, err := join(c, "hugetlb", pid)
+	_, err := join(c, "hugetlb", pid)
 	if err != nil && !cgroups.IsNotFound(err) {
 		return err
 	}
-	hugetlb, err := subsystems.Get("hugetlb")
-	if err != nil {
-		return err
-	}
-	return hugetlb.Set(path, c)
+	return nil
 }
 
 func joinPerfEvent(c *configs.Cgroup, pid int) error {
-	path, err := join(c, "perf_event", pid)
+	_, err := join(c, "perf_event", pid)
 	if err != nil && !cgroups.IsNotFound(err) {
 		return err
 	}
-	perfEvent, err := subsystems.Get("perf_event")
-	if err != nil {
-		return err
-	}
-	return perfEvent.Set(path, c)
+	return nil
 }
