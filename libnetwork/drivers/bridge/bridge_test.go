@@ -112,8 +112,8 @@ func TestCreateFullOptionsLabels(t *testing.T) {
 	}
 
 	bndIPs := "127.0.0.1"
-	nwV6s := "2100:2400:2600:2700:2800::/80"
-	gwV6s := "2100:2400:2600:2700:2800::25/80"
+	nwV6s := "2001:db8:2600:2700:2800::/80"
+	gwV6s := "2001:db8:2600:2700:2800::25/80"
 	nwV6, _ := types.ParseCIDR(nwV6s)
 	gwV6, _ := types.ParseCIDR(gwV6s)
 
@@ -191,7 +191,7 @@ func TestCreateFullOptionsLabels(t *testing.T) {
 	if !nwV6.Contains(te.Interface().AddressIPv6().IP) {
 		t.Fatalf("endpoint got assigned address outside of container network(%s): %s", nwV6.String(), te.Interface().AddressIPv6())
 	}
-	if te.Interface().AddressIPv6().IP.String() != "2100:2400:2600:2700:2800:aabb:ccdd:eeff" {
+	if te.Interface().AddressIPv6().IP.String() != "2001:db8:2600:2700:2800:aabb:ccdd:eeff" {
 		t.Fatalf("Unexpected endpoint IPv6 address: %v", te.Interface().AddressIPv6().IP)
 	}
 }
@@ -736,18 +736,18 @@ func TestValidateConfig(t *testing.T) {
 	}
 
 	// Test v6 gw
-	_, v6nw, _ := net.ParseCIDR("2001:1234:ae:b004::/64")
+	_, v6nw, _ := net.ParseCIDR("2001:db8:ae:b004::/64")
 	c = networkConfiguration{
 		EnableIPv6:         true,
 		AddressIPv6:        v6nw,
-		DefaultGatewayIPv6: net.ParseIP("2001:1234:ac:b004::bad:a55"),
+		DefaultGatewayIPv6: net.ParseIP("2001:db8:ac:b004::bad:a55"),
 	}
 	err = c.Validate()
 	if err == nil {
 		t.Fatalf("Failed to detect invalid v6 default gateway")
 	}
 
-	c.DefaultGatewayIPv6 = net.ParseIP("2001:1234:ae:b004::bad:a55")
+	c.DefaultGatewayIPv6 = net.ParseIP("2001:db8:ae:b004::bad:a55")
 	err = c.Validate()
 	if err != nil {
 		t.Fatalf("Unexpected validation error on v6 default gateway")

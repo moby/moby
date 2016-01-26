@@ -78,7 +78,7 @@ func TestGetAddressVersion(t *testing.T) {
 	if v6 != getAddressVersion(net.ParseIP("ff01::1")) {
 		t.Fatalf("Failed to detect IPv6 version")
 	}
-	if v6 != getAddressVersion(net.ParseIP("2001:56::76:51")) {
+	if v6 != getAddressVersion(net.ParseIP("2001:db8::76:51")) {
 		t.Fatalf("Failed to detect IPv6 version")
 	}
 }
@@ -515,11 +515,11 @@ func TestRemoveSubnet(t *testing.T) {
 		{localAddressSpace, "192.168.0.0/16", false},
 		{localAddressSpace, "172.17.0.0/16", false},
 		{localAddressSpace, "10.0.0.0/8", false},
-		{localAddressSpace, "2002:1:2:3:4:5:ffff::/112", false},
+		{localAddressSpace, "2001:db8:1:2:3:4:ffff::/112", false},
 		{"splane", "172.17.0.0/16", false},
 		{"splane", "10.0.0.0/8", false},
-		{"splane", "2002:1:2:3:4:5:6::/112", true},
-		{"splane", "2002:1:2:3:4:5:ffff::/112", true},
+		{"splane", "2001:db8:1:2:3:4:5::/112", true},
+		{"splane", "2001:db8:1:2:3:4:ffff::/112", true},
 	}
 
 	poolIDs := make([]string, len(input))

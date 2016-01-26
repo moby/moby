@@ -202,7 +202,7 @@ func printIpamInfo(list []*IpamInfo) string {
 }
 
 func TestEndpointMarshalling(t *testing.T) {
-	ip, nw6, err := net.ParseCIDR("2001:3002:4003::122/64")
+	ip, nw6, err := net.ParseCIDR("2001:db8:4003::122/64")
 	if err != nil {
 		t.Fatal(err)
 	}
