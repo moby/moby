@@ -5,7 +5,6 @@ package libcontainer
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -19,6 +18,7 @@ import (
 	"github.com/opencontainers/runc/libcontainer/cgroups/systemd"
 	"github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/opencontainers/runc/libcontainer/configs/validate"
+	"github.com/opencontainers/runc/libcontainer/utils"
 )
 
 const (
@@ -226,10 +226,7 @@ func (l *LinuxFactory) StartInitialization() (err error) {
 		// if we have an error during the initialization of the container's init then send it back to the
 		// parent process in the form of an initError.
 		if err != nil {
-			// ensure that any data sent from the parent is consumed so it doesn't
-			// receive ECONNRESET when the child writes to the pipe.
-			ioutil.ReadAll(pipe)
-			if err := json.NewEncoder(pipe).Encode(newSystemError(err)); err != nil {
+			if err := utils.WriteJSON(pipe, newSystemError(err)); err != nil {
 				panic(err)
 			}
 		}
