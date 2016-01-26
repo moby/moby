@@ -12,7 +12,14 @@ fi
 
 test_deb_install(){
 	# test for each Dockerfile in contrib/builder
-	for dir in contrib/builder/deb/${PACKAGE_ARCH}/*/; do
+
+	builderDir="contrib/builder/deb/${PACKAGE_ARCH}"
+	pkgs=( $(find "${builderDir}/"*/ -type d) )
+	if [ ! -z "$DOCKER_BUILD_PKGS" ]; then
+		pkgs=( $(echo ${DOCKER_BUILD_PKGS[@]/#/$builderDir\/}) )
+	fi
+	for dir in "${pkgs[@]}"; do
+		[ -d "$dir" ] || { echo >&2 "skipping nonexistent $dir"; continue; }
 		local from="$(awk 'toupper($1) == "FROM" { print $2; exit }' "$dir/Dockerfile")"
 		local dir=$(basename "$dir")
 
@@ -54,4 +61,8 @@ test_deb_install(){
 	done
 }
 
-test_deb_install
+(
+	bundle .integration-daemon-start
+	test_deb_install
+	bundle .integration-daemon-stop
+) 2>&1 | tee -a "$DEST/test.log"
