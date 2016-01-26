@@ -114,6 +114,7 @@ type v2LayerDescriptor struct {
 	repoInfo          *registry.RepositoryInfo
 	repo              distribution.Repository
 	V2MetadataService *metadata.V2MetadataService
+	tmpFile           *os.File
 }
 
 func (ld *v2LayerDescriptor) Key() string {
@@ -131,6 +132,18 @@ func (ld *v2LayerDescriptor) DiffID() (layer.DiffID, error) {
 func (ld *v2LayerDescriptor) Download(ctx context.Context, progressOutput progress.Output) (io.ReadCloser, int64, error) {
 	logrus.Debugf("pulling blob %q", ld.digest)
 
+	var err error
+
+	if ld.tmpFile == nil {
+		ld.tmpFile, err = createDownloadFile()
+	} else {
+		_, err = ld.tmpFile.Seek(0, os.SEEK_SET)
+	}
+	if err != nil {
+		return nil, 0, xfer.DoNotRetry{Err: err}
+	}
+
+	tmpFile := ld.tmpFile
 	blobs := ld.repo.Blobs(ctx)
 
 	layerDownload, err := blobs.Open(ctx, ld.digest)
@@ -164,17 +177,13 @@ func (ld *v2LayerDescriptor) Download(ctx context.Context, progressOutput progre
 		return nil, 0, xfer.DoNotRetry{Err: err}
 	}
 
-	tmpFile, err := ioutil.TempFile("", "GetImageBlob")
-	if err != nil {
-		return nil, 0, xfer.DoNotRetry{Err: err}
-	}
-
 	_, err = io.Copy(tmpFile, io.TeeReader(reader, verifier))
 	if err != nil {
 		tmpFile.Close()
 		if err := os.Remove(tmpFile.Name()); err != nil {
 			logrus.Errorf("Failed to remove temp file: %s", tmpFile.Name())
 		}
+		ld.tmpFile = nil
 		return nil, 0, retryOnError(err)
 	}
 
@@ -188,6 +197,7 @@ func (ld *v2LayerDescriptor) Download(ctx context.Context, progressOutput progre
 		if err := os.Remove(tmpFile.Name()); err != nil {
 			logrus.Errorf("Failed to remove temp file: %s", tmpFile.Name())
 		}
+		ld.tmpFile = nil
 
 		return nil, 0, xfer.DoNotRetry{Err: err}
 	}
@@ -202,9 +212,19 @@ func (ld *v2LayerDescriptor) Download(ctx context.Context, progressOutput progre
 		if err := os.Remove(tmpFile.Name()); err != nil {
 			logrus.Errorf("Failed to remove temp file: %s", tmpFile.Name())
 		}
+		ld.tmpFile = nil
 		return nil, 0, xfer.DoNotRetry{Err: err}
 	}
-	return ioutils.NewReadCloserWrapper(tmpFile, tmpFileCloser(tmpFile)), size, nil
+	return tmpFile, size, nil
+}
+
+func (ld *v2LayerDescriptor) Close() {
+	if ld.tmpFile != nil {
+		ld.tmpFile.Close()
+		if err := os.RemoveAll(ld.tmpFile.Name()); err != nil {
+			logrus.Errorf("Failed to remove temp file: %s", ld.tmpFile.Name())
+		}
+	}
 }
 
 func (ld *v2LayerDescriptor) Registered(diffID layer.DiffID) {
@@ -710,4 +730,8 @@ func fixManifestLayers(m *schema1.Manifest) error {
 	}
 
 	return nil
+}
+
+func createDownloadFile() (*os.File, error) {
+	return ioutil.TempFile("", "GetImageBlob")
 }

@@ -2,7 +2,6 @@ package distribution
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api"
@@ -186,17 +185,4 @@ func validateRepoName(name string) error {
 		return fmt.Errorf("'%s' is a reserved name", api.NoBaseImageSpecifier)
 	}
 	return nil
-}
-
-// tmpFileClose creates a closer function for a temporary file that closes the file
-// and also deletes it.
-func tmpFileCloser(tmpFile *os.File) func() error {
-	return func() error {
-		tmpFile.Close()
-		if err := os.RemoveAll(tmpFile.Name()); err != nil {
-			logrus.Errorf("Failed to remove temp file: %s", tmpFile.Name())
-		}
-
-		return nil
-	}
 }
