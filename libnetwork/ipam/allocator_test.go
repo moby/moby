@@ -773,7 +773,7 @@ func TestRequestSyntaxCheck(t *testing.T) {
 	ip := net.ParseIP("172.17.0.23")
 	_, _, err = a.RequestAddress(pid, ip, nil)
 	if err == nil {
-		t.Fatalf("Failed to detect wrong request: preferred IP from different subnet")
+		t.Fatalf("Failed to detect wrong request: requested IP from different subnet")
 	}
 
 	ip = net.ParseIP("192.168.0.50")
