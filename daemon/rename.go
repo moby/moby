@@ -49,8 +49,12 @@ func (daemon *Daemon) ContainerRename(oldName, newName string) error {
 		return err
 	}
 
+	attributes := map[string]string{
+		"oldName": oldName,
+	}
+
 	if !container.Running {
-		daemon.LogContainerEvent(container, "rename")
+		daemon.LogContainerEventWithAttributes(container, "rename", attributes)
 		return nil
 	}
 
@@ -73,6 +77,7 @@ func (daemon *Daemon) ContainerRename(oldName, newName string) error {
 	if err != nil {
 		return err
 	}
-	daemon.LogContainerEvent(container, "rename")
+
+	daemon.LogContainerEventWithAttributes(container, "rename", attributes)
 	return nil
 }
