@@ -16,24 +16,27 @@ import (
 	"golang.org/x/net/context"
 )
 
-func TestTokenPassThru(t *testing.T) {
-	authConfig := &types.AuthConfig{
-		RegistryToken: "mysecrettoken",
-	}
-	gotToken := false
-	handler := func(w http.ResponseWriter, r *http.Request) {
-		if strings.Contains(r.Header.Get("Authorization"), authConfig.RegistryToken) {
-			logrus.Debug("Detected registry token in auth header")
-			gotToken = true
-		}
-		if r.RequestURI == "/v2/" {
-			w.Header().Set("WWW-Authenticate", `Bearer realm="foorealm"`)
-			w.WriteHeader(401)
-		}
-	}
-	ts := httptest.NewServer(http.HandlerFunc(handler))
-	defer ts.Close()
+const secretRegistryToken = "mysecrettoken"
 
+type tokenPassThruHandler struct {
+	reached       bool
+	gotToken      bool
+	shouldSend401 func(url string) bool
+}
+
+func (h *tokenPassThruHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	h.reached = true
+	if strings.Contains(r.Header.Get("Authorization"), secretRegistryToken) {
+		logrus.Debug("Detected registry token in auth header")
+		h.gotToken = true
+	}
+	if h.shouldSend401 == nil || h.shouldSend401(r.RequestURI) {
+		w.Header().Set("WWW-Authenticate", `Bearer realm="foorealm"`)
+		w.WriteHeader(401)
+	}
+}
+
+func testTokenPassThru(t *testing.T, ts *httptest.Server) {
 	tmp, err := utils.TestDirectory("")
 	if err != nil {
 		t.Fatal(err)
@@ -62,7 +65,9 @@ func TestTokenPassThru(t *testing.T) {
 	}
 	imagePullConfig := &ImagePullConfig{
 		MetaHeaders: http.Header{},
-		AuthConfig:  authConfig,
+		AuthConfig: &types.AuthConfig{
+			RegistryToken: secretRegistryToken,
+		},
 	}
 	puller, err := newPuller(endpoint, repoInfo, imagePullConfig)
 	if err != nil {
@@ -79,9 +84,44 @@ func TestTokenPassThru(t *testing.T) {
 	// We expect it to fail, since we haven't mock'd the full registry exchange in our handler above
 	tag, _ := reference.WithTag(n, "tag_goes_here")
 	_ = p.pullV2Repository(ctx, tag)
+}
 
-	if !gotToken {
+func TestTokenPassThru(t *testing.T) {
+	handler := &tokenPassThruHandler{shouldSend401: func(url string) bool { return url == "/v2/" }}
+	ts := httptest.NewServer(handler)
+	defer ts.Close()
+
+	testTokenPassThru(t, ts)
+
+	if !handler.reached {
+		t.Fatal("Handler not reached")
+	}
+	if !handler.gotToken {
 		t.Fatal("Failed to receive registry token")
 	}
+}
 
+func TestTokenPassThruDifferentHost(t *testing.T) {
+	handler := new(tokenPassThruHandler)
+	ts := httptest.NewServer(handler)
+	defer ts.Close()
+
+	tsredirect := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.RequestURI == "/v2/" {
+			w.Header().Set("WWW-Authenticate", `Bearer realm="foorealm"`)
+			w.WriteHeader(401)
+			return
+		}
+		http.Redirect(w, r, ts.URL+r.URL.Path, http.StatusMovedPermanently)
+	}))
+	defer tsredirect.Close()
+
+	testTokenPassThru(t, tsredirect)
+
+	if !handler.reached {
+		t.Fatal("Handler not reached")
+	}
+	if handler.gotToken {
+		t.Fatal("Redirect should not forward Authorization header to another host")
+	}
 }
