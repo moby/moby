@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/docker/distribution"
+	distreference "github.com/docker/distribution/reference"
 	"github.com/docker/distribution/registry/api/errcode"
 	"github.com/docker/distribution/registry/client"
 	"github.com/docker/distribution/registry/client/auth"
@@ -154,7 +155,12 @@ func NewV2Repository(ctx context.Context, repoInfo *registry.RepositoryInfo, end
 	}
 	tr := transport.NewTransport(base, modifiers...)
 
-	repo, err = client.NewRepository(ctx, repoName, endpoint.URL, tr)
+	repoNameRef, err := distreference.ParseNamed(repoName)
+	if err != nil {
+		return nil, foundVersion, err
+	}
+
+	repo, err = client.NewRepository(ctx, repoNameRef, endpoint.URL, tr)
 	return repo, foundVersion, err
 }
 
