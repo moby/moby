@@ -119,6 +119,10 @@ func TestSandboxAddMultiPrio(t *testing.T) {
 		t.Fatal("Expected ep3 to be at the top of the heap. But did not find ep3 at the top of the heap")
 	}
 
+	if len(sbx.Endpoints()) != 3 {
+		t.Fatal("Expected 3 endpoints to be connected to the sandbox.")
+	}
+
 	if err := ep3.Leave(sbx); err != nil {
 		t.Fatal(err)
 	}

@@ -1221,6 +1221,10 @@ func (f *fakeSandbox) ResolveIP(ip string) string {
 	return ""
 }
 
+func (f *fakeSandbox) Endpoints() []libnetwork.Endpoint {
+	return nil
+}
+
 func TestExternalKey(t *testing.T) {
 	externalKeyTest(t, false)
 }
