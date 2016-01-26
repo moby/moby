@@ -46,7 +46,7 @@ To find out which storage driver is set on the daemon , you use the `docker info
 
 The `info` subcommand reveals that the Docker daemon is using the `overlay` storage driver with a `Backing Filesystem` value of `extfs`. The `extfs` value means that the `overlay` storage driver is operating on top of an existing (ext) filesystem. The backing filesystem refers to the filesystem that was used to create the Docker host's local storage area under `/var/lib/docker`.
 
-Which storage driver you use, in part, depends on the backing filesystem you plan to use for your Docker host's local storage area. Some storage drivers can operate on top of different backing filesystems. However, other storage drivers require the backing filesystem to be the same as the storage driver. For example, the `btrfs` storage driver on a `btrfs` backing filesystem. The following table lists each storage driver and whether it must match the host's backing file system:
+Which storage driver you use, in part, depends on the backing filesystem you plan to use for your Docker host's local storage area. Some storage drivers can operate on top of different backing filesystems. However, other storage drivers require the backing filesystem to be the same as the storage driver. For example, the `btrfs` storage driver can only work with a `btrfs` backing filesystem. The following table lists each storage driver and whether it must match the host's backing file system:
 
     |Storage driver |Must match backing filesystem |
     |---------------|------------------------------|
