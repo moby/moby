@@ -1385,6 +1385,14 @@ Similarly the operator can set the **hostname** with `-h`.
 > **Note**:
 > The auto-creation of the host path has been [*deprecated*](../misc/deprecated.md#auto-creating-missing-host-paths-for-bind-mounts).
 
+> **Note**:
+> When using systemd to manage the Docker daemon's start and stop, in the systemd
+> unit file there is an option to control mount propagation for the Docker daemon
+> itself, called `MountFlags`. The value of this setting may cause Docker to not
+> see mount propagation changes made on the mount point. For example, if this value
+> is `slave`, you may not be able to use the `shared` or `rshared` propagation on
+> a volume.
+
 The volumes commands are complex enough to have their own documentation
 in section [*Managing data in
 containers*](../userguide/dockervolumes.md). A developer can define
