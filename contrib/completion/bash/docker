@@ -148,16 +148,20 @@ __docker_complete_containers_and_images() {
 	COMPREPLY+=( "${containers[@]}" )
 }
 
+# Returns the names and optionally IDs of networks.
+# The selection can be narrowed by an optional filter parameter, e.g. 'type=custom'
 __docker_networks() {
+	local filter="$1"
 	# By default, only network names are completed.
 	# Set DOCKER_COMPLETION_SHOW_NETWORK_IDS=yes to also complete network IDs.
 	local fields='$2'
 	[ "${DOCKER_COMPLETION_SHOW_NETWORK_IDS}" = yes ] && fields='$1,$2'
-	__docker_q network ls --no-trunc | awk "NR>1 {print $fields}"
+	__docker_q network ls --no-trunc ${filter:+-f "$filter"} | awk "NR>1 {print $fields}"
+	#__docker_q network ls --no-trunc | awk "NR>1 {print $fields}"
 }
 
 __docker_complete_networks() {
-	COMPREPLY=( $(compgen -W "$(__docker_networks)" -- "$cur") )
+	COMPREPLY=( $(compgen -W "$(__docker_networks $@)" -- "$cur") )
 }
 
 __docker_complete_network_ids() {
@@ -1347,7 +1351,7 @@ _docker_network_rm() {
 			COMPREPLY=( $( compgen -W "--help" -- "$cur" ) )
 			;;
 		*)
-			__docker_complete_networks
+			__docker_complete_networks type=custom
 	esac
 }
 
