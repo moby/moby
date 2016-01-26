@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.6.0-rc5 (2016-01-26)
+- Cleanup stale overlay sandboxes
+
 ## 0.6.0-rc4 (2016-01-25)
 - Add Endpoints() API to Sandbox interface
 - Fixed a race-condition in default gateway network creation
@@ -17,7 +20,7 @@
 
 ## 0.6.0-rc1 (2016-01-14)
 - Fixes docker/docker#19404
-- Fixes the ungraceful daemon restart issue in systemd with remote network plugin 
+- Fixes the ungraceful daemon restart issue in systemd with remote network plugin
   (https://github.com/docker/libnetwork/issues/813)
 
 ## 0.5.6 (2016-01-14)
@@ -70,6 +73,6 @@
 - Fixed a bunch of issues with osl namespace mgmt
 
 ## 0.3.0 (2015-05-27)
- 
+
 - Introduce CNM (Container Networking Model)
 - Replace docker networking with CNM & Bridge driver
