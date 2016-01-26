@@ -1,6 +1,6 @@
 // +build linux,!seccomp
 
-package native
+package seccomp
 
 import "github.com/opencontainers/runc/libcontainer/configs"
 
