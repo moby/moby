@@ -171,6 +171,9 @@ type Config struct {
 	// A default action to be taken if no rules match is also given.
 	Seccomp *Seccomp `json:"seccomp"`
 
+	// NoNewPrivileges controls whether processes in the container can gain additional privileges.
+	NoNewPrivileges bool `json:"no_new_privileges"`
+
 	// Hooks are a collection of actions to perform at various container lifecycle events.
 	// Hooks are not able to be marshaled to json but they are also not needed to.
 	Hooks *Hooks `json:"-"`

@@ -15,15 +15,10 @@ func (s *NetClsGroup) Name() string {
 }
 
 func (s *NetClsGroup) Apply(d *cgroupData) error {
-	dir, err := d.join("net_cls")
+	_, err := d.join("net_cls")
 	if err != nil && !cgroups.IsNotFound(err) {
 		return err
 	}
-
-	if err := s.Set(dir, d.config); err != nil {
-		return err
-	}
-
 	return nil
 }
 
