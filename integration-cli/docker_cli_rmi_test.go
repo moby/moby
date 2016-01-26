@@ -4,14 +4,22 @@ import (
 	"fmt"
 	"os/exec"
 	"strings"
+	"time"
 
 	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/go-check/check"
 )
 
+var sleepCmd = "/bin/sleep"
+
+func init() {
+	if daemonPlatform == "windows" {
+		sleepCmd = "sleep"
+	}
+}
+
 func (s *DockerSuite) TestRmiWithContainerFails(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	errSubstr := "is using it"
 
 	// create a container
@@ -33,7 +41,6 @@ func (s *DockerSuite) TestRmiWithContainerFails(c *check.C) {
 }
 
 func (s *DockerSuite) TestRmiTag(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	imagesBefore, _ := dockerCmd(c, "images", "-a")
 	dockerCmd(c, "tag", "busybox", "utest:tag1")
 	dockerCmd(c, "tag", "busybox", "utest/docker:tag2")
@@ -62,10 +69,17 @@ func (s *DockerSuite) TestRmiTag(c *check.C) {
 }
 
 func (s *DockerSuite) TestRmiImgIDMultipleTag(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "mkdir '/busybox-one'")
 
 	containerID := strings.TrimSpace(out)
+
+	// Wait for it to exit as cannot commit a running container on Windows, and
+	// it will take a few seconds to exit
+	if daemonPlatform == "windows" {
+		err := waitExited(containerID, 60*time.Second)
+		c.Assert(err, check.IsNil)
+	}
+
 	dockerCmd(c, "commit", containerID, "busybox-one")
 
 	imagesBefore, _ := dockerCmd(c, "images", "-a")
@@ -80,7 +94,7 @@ func (s *DockerSuite) TestRmiImgIDMultipleTag(c *check.C) {
 	c.Assert(err, checker.IsNil)
 
 	// run a container with the image
-	out, _ = dockerCmd(c, "run", "-d", "busybox-one", "top")
+	out, _ = dockerCmd(c, "run", "-d", "busybox-one", sleepCmd, "60")
 
 	containerID = strings.TrimSpace(out)
 
@@ -100,10 +114,17 @@ func (s *DockerSuite) TestRmiImgIDMultipleTag(c *check.C) {
 }
 
 func (s *DockerSuite) TestRmiImgIDForce(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "mkdir '/busybox-test'")
 
 	containerID := strings.TrimSpace(out)
+
+	// Wait for it to exit as cannot commit a running container on Windows, and
+	// it will take a few seconds to exit
+	if daemonPlatform == "windows" {
+		err := waitExited(containerID, 60*time.Second)
+		c.Assert(err, check.IsNil)
+	}
+
 	dockerCmd(c, "commit", containerID, "busybox-test")
 
 	imagesBefore, _ := dockerCmd(c, "images", "-a")
@@ -135,14 +156,13 @@ func (s *DockerSuite) TestRmiImgIDForce(c *check.C) {
 
 // See https://github.com/docker/docker/issues/14116
 func (s *DockerSuite) TestRmiImageIDForceWithRunningContainersAndMultipleTags(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	dockerfile := "FROM busybox\nRUN echo test 14116\n"
 	imgID, err := buildImage("test-14116", dockerfile, false)
 	c.Assert(err, checker.IsNil)
 
 	newTag := "newtag"
 	dockerCmd(c, "tag", imgID, newTag)
-	dockerCmd(c, "run", "-d", imgID, "top")
+	dockerCmd(c, "run", "-d", imgID, sleepCmd, "60")
 
 	out, _, err := dockerCmdWithError("rmi", "-f", imgID)
 	// rmi -f should not delete image with running containers
@@ -151,7 +171,6 @@ func (s *DockerSuite) TestRmiImageIDForceWithRunningContainersAndMultipleTags(c 
 }
 
 func (s *DockerSuite) TestRmiTagWithExistingContainers(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	container := "test-delete-tag"
 	newtag := "busybox:newtag"
 	bb := "busybox:latest"
@@ -164,7 +183,6 @@ func (s *DockerSuite) TestRmiTagWithExistingContainers(c *check.C) {
 }
 
 func (s *DockerSuite) TestRmiForceWithExistingContainers(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	image := "busybox-clone"
 
 	cmd := exec.Command(dockerBinary, "build", "--no-cache", "-t", image, "-")
@@ -180,13 +198,12 @@ MAINTAINER foo`)
 }
 
 func (s *DockerSuite) TestRmiWithMultipleRepositories(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	newRepo := "127.0.0.1:5000/busybox"
 	oldRepo := "busybox"
 	newTag := "busybox:test"
 	dockerCmd(c, "tag", oldRepo, newRepo)
 
-	dockerCmd(c, "run", "--name", "test", oldRepo, "touch", "/home/abcd")
+	dockerCmd(c, "run", "--name", "test", oldRepo, "touch", "/abcd")
 
 	dockerCmd(c, "commit", "test", newTag)
 
@@ -195,13 +212,12 @@ func (s *DockerSuite) TestRmiWithMultipleRepositories(c *check.C) {
 }
 
 func (s *DockerSuite) TestRmiForceWithMultipleRepositories(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	imageName := "rmiimage"
 	tag1 := imageName + ":tag1"
 	tag2 := imageName + ":tag2"
 
 	_, err := buildImage(tag1,
-		`FROM scratch
+		`FROM busybox
 		MAINTAINER "docker"`,
 		true)
 	if err != nil {
@@ -220,7 +236,6 @@ func (s *DockerSuite) TestRmiForceWithMultipleRepositories(c *check.C) {
 }
 
 func (s *DockerSuite) TestRmiBlank(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	// try to delete a blank image name
 	out, _, err := dockerCmdWithError("rmi", "")
 	// Should have failed to delete '' image
@@ -238,7 +253,6 @@ func (s *DockerSuite) TestRmiBlank(c *check.C) {
 }
 
 func (s *DockerSuite) TestRmiContainerImageNotFound(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	// Build 2 images for testing.
 	imageNames := []string{"test1", "test2"}
 	imageIds := make([]string, 2)
@@ -250,7 +264,7 @@ func (s *DockerSuite) TestRmiContainerImageNotFound(c *check.C) {
 	}
 
 	// Create a long-running container.
-	dockerCmd(c, "run", "-d", imageNames[0], "top")
+	dockerCmd(c, "run", "-d", imageNames[0], sleepCmd, "60")
 
 	// Create a stopped container, and then force remove its image.
 	dockerCmd(c, "run", imageNames[1], "true")
@@ -265,7 +279,6 @@ func (s *DockerSuite) TestRmiContainerImageNotFound(c *check.C) {
 
 // #13422
 func (s *DockerSuite) TestRmiUntagHistoryLayer(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	image := "tmp1"
 	// Build a image for testing.
 	dockerfile := `FROM busybox
@@ -312,8 +325,6 @@ RUN echo 2 #layer2
 }
 
 func (*DockerSuite) TestRmiParentImageFail(c *check.C) {
-	testRequires(c, DaemonIsLinux)
-
 	parent, err := inspectField("busybox", "Parent")
 	c.Assert(err, check.IsNil)
 	out, _, err := dockerCmdWithError("rmi", parent)
@@ -324,14 +335,19 @@ func (*DockerSuite) TestRmiParentImageFail(c *check.C) {
 }
 
 func (s *DockerSuite) TestRmiWithParentInUse(c *check.C) {
+	// TODO Windows. There is a bug either in Windows TP4, or the TP4 compatible
+	// docker which means this test fails. It has been verified to have been fixed
+	// in TP5 and docker/master, hence enable it once CI switch to TP5.
 	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "create", "busybox")
 	cID := strings.TrimSpace(out)
+
 	out, _ = dockerCmd(c, "commit", cID)
 	imageID := strings.TrimSpace(out)
 
 	out, _ = dockerCmd(c, "create", imageID)
 	cID = strings.TrimSpace(out)
+
 	out, _ = dockerCmd(c, "commit", cID)
 	imageID = strings.TrimSpace(out)
 
@@ -340,6 +356,9 @@ func (s *DockerSuite) TestRmiWithParentInUse(c *check.C) {
 
 // #18873
 func (s *DockerSuite) TestRmiByIDHardConflict(c *check.C) {
+	// TODO Windows CI. This will work on a TP5 compatible docker which
+	// has content addressibility fixes. Do not run this on TP4 as it
+	// will end up deleting the busybox image causing subsequent tests to fail.
 	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "create", "busybox")
 
