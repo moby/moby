@@ -228,6 +228,9 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverNamed(c *check.C) {
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 	c.Assert(out, checker.Contains, s.server.URL)
 
+	_, err = s.d.Cmd("volume", "rm", "external-volume-test")
+	c.Assert(err, checker.IsNil)
+
 	p := hostVolumePath("external-volume-test")
 	_, err = os.Lstat(p)
 	c.Assert(err, checker.NotNil)
@@ -362,6 +365,9 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverRetryNotImmediatelyE
 		c.Fatal("volume creates fail when plugin not immediately available")
 	}
 
+	_, err = s.d.Cmd("volume", "rm", "external-volume-test")
+	c.Assert(err, checker.IsNil)
+
 	c.Assert(s.ec.activations, checker.Equals, 1)
 	c.Assert(s.ec.creations, checker.Equals, 1)
 	c.Assert(s.ec.removals, checker.Equals, 1)
@@ -385,7 +391,7 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverBindExternalVolume(c
 	c.Assert(mounts[0].Driver, checker.Equals, "test-external-volume-driver")
 }
 
-func (s *DockerExternalVolumeSuite) TestStartExternalVolumeDriverList(c *check.C) {
+func (s *DockerExternalVolumeSuite) TesttExternalVolumeDriverList(c *check.C) {
 	dockerCmd(c, "volume", "create", "-d", "test-external-volume-driver", "--name", "abc")
 	out, _ := dockerCmd(c, "volume", "ls")
 	ls := strings.Split(strings.TrimSpace(out), "\n")
@@ -399,7 +405,7 @@ func (s *DockerExternalVolumeSuite) TestStartExternalVolumeDriverList(c *check.C
 	c.Assert(s.ec.lists, check.Equals, 1)
 }
 
-func (s *DockerExternalVolumeSuite) TestStartExternalVolumeDriverGet(c *check.C) {
+func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverGet(c *check.C) {
 	out, _, err := dockerCmdWithError("volume", "inspect", "dummy")
 	c.Assert(err, check.NotNil, check.Commentf(out))
 	c.Assert(s.ec.gets, check.Equals, 1)
