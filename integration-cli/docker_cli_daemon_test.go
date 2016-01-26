@@ -1757,17 +1757,11 @@ func (s *DockerDaemonSuite) TestDaemonRestartLocalVolumes(c *check.C) {
 }
 
 func (s *DockerDaemonSuite) TestDaemonCorruptedLogDriverAddress(c *check.C) {
-	for _, driver := range []string{
-		"syslog",
-		"gelf",
-	} {
-		args := []string{"--log-driver=" + driver, "--log-opt", driver + "-address=corrupted:42"}
-		c.Assert(s.d.Start(args...), check.NotNil, check.Commentf(fmt.Sprintf("Expected daemon not to start with invalid %s-address provided", driver)))
-		expected := fmt.Sprintf("Failed to set log opts: %s-address should be in form proto://address", driver)
-		runCmd := exec.Command("grep", expected, s.d.LogfileName())
-		if out, _, err := runCommandWithOutput(runCmd); err != nil {
-			c.Fatalf("Expected %q message; but doesn't exist in log: %q, err: %v", expected, out, err)
-		}
+	c.Assert(s.d.Start("--log-driver=syslog", "--log-opt", "syslog-address=corrupted:42"), check.NotNil)
+	expected := "Failed to set log opts: syslog-address should be in form proto://address"
+	runCmd := exec.Command("grep", expected, s.d.LogfileName())
+	if out, _, err := runCommandWithOutput(runCmd); err != nil {
+		c.Fatalf("Expected %q message; but doesn't exist in log: %q, err: %v", expected, out, err)
 	}
 }
 
