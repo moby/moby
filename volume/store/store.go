@@ -336,12 +336,18 @@ func (s *VolumeStore) FilterByDriver(name string) ([]volume.Volume, error) {
 	return ls, nil
 }
 
-// FilterByUsed returns the available volumes filtered by if they are not in use
-func (s *VolumeStore) FilterByUsed(vols []volume.Volume) []volume.Volume {
+// FilterByUsed returns the available volumes filtered by if they are in use or not.
+// `used=true` returns only volumes that are being used, while `used=false` returns
+// only volumes that are not being used.
+func (s *VolumeStore) FilterByUsed(vols []volume.Volume, used bool) []volume.Volume {
 	return s.filter(vols, func(v volume.Volume) bool {
 		s.locks.Lock(v.Name())
-		defer s.locks.Unlock(v.Name())
-		return len(s.refs[v.Name()]) == 0
+		l := len(s.refs[v.Name()])
+		s.locks.Unlock(v.Name())
+		if (used && l > 0) || (!used && l == 0) {
+			return true
+		}
+		return false
 	})
 }
 
