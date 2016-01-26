@@ -550,4 +550,4 @@ Until now you've seen how to build individual applications inside Docker
 containers. Now learn how to build whole application stacks with Docker
 by networking together multiple Docker containers.
 
-Go to [Network containers](networkingcontainers.md).
+Go to [Networking containers](networkingcontainers.md).
