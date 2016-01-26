@@ -45,7 +45,6 @@ type CommonTLSOptions struct {
 type CommonConfig struct {
 	AuthorizationPlugins []string            `json:"authorization-plugins,omitempty"` // AuthorizationPlugins holds list of authorization plugins
 	AutoRestart          bool                `json:"-"`
-	Bridge               bridgeConfig        `json:"-"` // Bridge holds bridge network specific configuration.
 	Context              map[string][]string `json:"-"`
 	DisableBridge        bool                `json:"-"`
 	DNS                  []string            `json:"dns,omitempty"`
@@ -85,6 +84,7 @@ type CommonConfig struct {
 	// deserialization without the full struct.
 	CommonTLSOptions
 	LogConfig
+	bridgeConfig // bridgeConfig holds bridge network specific configuration.
 
 	reloadLock sync.Mutex
 	valuesSet  map[string]interface{}

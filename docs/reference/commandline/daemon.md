@@ -859,7 +859,20 @@ This is a full example of the allowed configuration options in the file:
 	"userns-remap": "",
 	"group": "",
 	"cgroup-parent": "",
-	"default-ulimits": {}
+	"default-ulimits": {},
+       "ipv6": false,
+       "iptables": false,
+       "ip-forward": false,
+       "ip-mask": false,
+       "userland-proxy": false,
+       "ip": "0.0.0.0",
+       "bridge": "",
+       "bip": "",
+       "fixed-cidr": "",
+       "fixed-cidr-v6": "",
+       "default-gateway": "",
+       "default-gateway-v6": "",
+       "icc": false
 }
 ```
 
