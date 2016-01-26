@@ -31,7 +31,7 @@ containers that bypasses the [*Union File System*](../reference/glossary.md#unio
   base image contains data at the specified mount point, that existing data is
   copied into the new volume upon volume initialization. (Note that this does
   not apply when [mounting a host directory](#mount-a-host-directory-as-a-data-volume).)
-- Data volumes can be shared and reused among containers.
+- Data volumes can be imported, shared and reused among containers.
 - Changes to a data volume are made directly.
 - Changes to a data volume will not be included when you update an image.
 - Data volumes persist even if the container itself is deleted.
@@ -39,18 +39,21 @@ containers that bypasses the [*Union File System*](../reference/glossary.md#unio
 Data volumes are designed to persist data, independent of the container's life
 cycle. Docker therefore *never* automatically deletes volumes when you remove
 a container, nor will it "garbage collect" volumes that are no longer
-referenced by a container.
+referenced by a container. Docker manages volumes independently from the storage
+driver system used to manage container layers to allow this.
 
 ### Adding a data volume
 
 You can add a data volume to a container using the `-v` flag with the
-`docker create` and `docker run` command. You can use the `-v` multiple times
-to mount multiple data volumes. Let's mount a single volume now in our web
-application container.
+`docker create` and `docker run` command. You can create multiple data volumes
+by providing a name passed to the "-v" flag. Let’s mount a single volume now in
+our web application container.
+
 
     $ docker run -d -P --name web -v /webapp training/webapp python app.py
 
-This will create a new volume inside a container at `/webapp`.
+This will create a new volume, web, inside a container at `/webapp`, based off
+the image training/webapp.
 
 > **Note:**
 > You can also use the `VOLUME` instruction in a `Dockerfile` to add one or
@@ -98,10 +101,10 @@ image, the `/src/webapp` mount overlays but does not remove the pre-existing
 content. Once the mount is removed, the content is accessible again. This is
 consistent with the expected behavior of the `mount` command.
 
-The `container-dir` must always be an absolute path such as `/src/docs`.
-The `host-dir` can either be an absolute path or a `name` value. If you
-supply an absolute path for the `host-dir`, Docker bind-mounts to the path
-you specify. If you supply a `name`, Docker creates a named volume by that `name`.
+When using the Docker CLI, the `container-dir` must always be an absolute path
+such as `/src/docs`. The `host-dir` can either be an absolute path or a `name`
+value. If you supply an absolute path for the `host-dir`, Docker bind-mounts to
+the path you specify. If you supply a `name`, Docker creates a named volume by that `name`.
 
 A `name` value must start with an alphanumeric character,
 followed by `a-z0-9`, `_` (underscore), `.` (period) or `-` (hyphen).
