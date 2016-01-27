@@ -52,6 +52,9 @@ func (d *Daemon) getExecConfig(name string) (*exec.Config, error) {
 			if container.IsPaused() {
 				return nil, derr.ErrorCodeExecPaused.WithArgs(container.ID)
 			}
+			if container.IsRestarting() {
+				return nil, derr.ErrorCodeExecRestarting.WithArgs(container.ID)
+			}
 			return ec, nil
 		}
 	}
@@ -75,6 +78,9 @@ func (d *Daemon) getActiveContainer(name string) (*container.Container, error) {
 	}
 	if container.IsPaused() {
 		return nil, derr.ErrorCodeExecPaused.WithArgs(name)
+	}
+	if container.IsRestarting() {
+		return nil, derr.ErrorCodeExecRestarting.WithArgs(name)
 	}
 	return container, nil
 }
