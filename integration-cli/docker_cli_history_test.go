@@ -13,7 +13,6 @@ import (
 // This is a heisen-test.  Because the created timestamp of images and the behavior of
 // sort is not predictable it doesn't always fail.
 func (s *DockerSuite) TestBuildHistory(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	name := "testbuildhistory"
 	_, err := buildImage(name, `FROM busybox
 RUN echo "A"
@@ -59,7 +58,6 @@ RUN echo "Z"`,
 }
 
 func (s *DockerSuite) TestHistoryExistentImage(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "history", "busybox")
 }
 
@@ -69,7 +67,6 @@ func (s *DockerSuite) TestHistoryNonExistentImage(c *check.C) {
 }
 
 func (s *DockerSuite) TestHistoryImageWithComment(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	name := "testhistoryimagewithcomment"
 
 	// make a image through docker commit <container id> [ -m messages ]
@@ -89,7 +86,6 @@ func (s *DockerSuite) TestHistoryImageWithComment(c *check.C) {
 }
 
 func (s *DockerSuite) TestHistoryHumanOptionFalse(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "history", "--human=false", "busybox")
 	lines := strings.Split(out, "\n")
 	sizeColumnRegex, _ := regexp.Compile("SIZE +")
@@ -108,7 +104,6 @@ func (s *DockerSuite) TestHistoryHumanOptionFalse(c *check.C) {
 }
 
 func (s *DockerSuite) TestHistoryHumanOptionTrue(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "history", "--human=true", "busybox")
 	lines := strings.Split(out, "\n")
 	sizeColumnRegex, _ := regexp.Compile("SIZE +")
