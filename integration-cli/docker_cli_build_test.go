@@ -6568,3 +6568,20 @@ func (s *DockerSuite) TestBuildFailsGitNotCallable(c *check.C) {
 	c.Assert(err, checker.NotNil)
 	c.Assert(out, checker.Contains, "unable to prepare context: unable to find 'git': ")
 }
+
+// TestBuildWorkdirWindowsPath tests that a Windows style path works as a workdir
+func (s *DockerSuite) TestBuildWorkdirWindowsPath(c *check.C) {
+	testRequires(c, DaemonIsWindows)
+	name := "testbuildworkdirwindowspath"
+
+	_, err := buildImage(name, `
+	FROM windowsservercore
+	RUN mkdir C:\\work
+	WORKDIR C:\\work
+	RUN if "%CD%" NEQ "C:\work" exit -1
+	`, true)
+
+	if err != nil {
+		c.Fatal(err)
+	}
+}
