@@ -2,12 +2,10 @@ package volume
 
 import (
 	"os"
-	"runtime"
 	"strings"
 
 	"github.com/Sirupsen/logrus"
 	derr "github.com/docker/docker/errors"
-	"github.com/docker/docker/pkg/system"
 )
 
 // DefaultDriverName is the driver name used for the driver
@@ -69,15 +67,10 @@ func (m *MountPoint) Setup() (string, error) {
 	}
 	if len(m.Source) > 0 {
 		if _, err := os.Stat(m.Source); err != nil {
-			if !os.IsNotExist(err) {
-				return "", err
+			if os.IsNotExist(err) {
+				logrus.Errorf("non-existent volume host path %s", m.Source)
 			}
-			if runtime.GOOS != "windows" { // Windows does not have deprecation issues here
-				logrus.Warnf("Auto-creating non-existent volume host path %s, this is deprecated and will be removed soon", m.Source)
-				if err := system.MkdirAll(m.Source, 0755); err != nil {
-					return "", err
-				}
-			}
+			return "", err
 		}
 		return m.Source, nil
 	}

@@ -289,15 +289,25 @@ func containerStartOutputEquals(c *check.C, containerID, contents string) (err e
 }
 
 func defaultVolumes(tmpDir string) []string {
+	var volumes []string
+
 	if SameHostDaemon.Condition() {
-		return []string{
+		volumes = []string{
 			"/vol1",
 			fmt.Sprintf("%s:/vol2", tmpDir),
 			fmt.Sprintf("%s:/vol3", filepath.Join(tmpDir, "vol3")),
 			fmt.Sprintf("%s:/vol_ro:ro", filepath.Join(tmpDir, "vol_ro")),
 		}
+	} else {
+		// Can't bind-mount volumes with separate host daemon.
+		volumes = []string{"/vol1", "/vol2", "/vol3", "/vol_ro:/vol_ro:ro"}
 	}
 
-	// Can't bind-mount volumes with separate host daemon.
-	return []string{"/vol1", "/vol2", "/vol3", "/vol_ro:/vol_ro:ro"}
+	for _, volume := range volumes {
+		dir := strings.Split(volume, ":")
+		if dir != nil {
+			os.Mkdir(dir[0], 0755)
+		}
+	}
+	return volumes
 }

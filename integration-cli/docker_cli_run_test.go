@@ -443,6 +443,8 @@ func (s *DockerSuite) TestVolumesFromGetsProperMode(c *check.C) {
 	// TODO Windows: This test cannot yet run on a Windows daemon as Windows does
 	// not support read-only bind mounts as at TP4
 	testRequires(c, DaemonIsLinux)
+
+	os.Mkdir("/test", 0755)
 	dockerCmd(c, "run", "--name", "parent", "-v", "/test:/test:ro", "busybox", "true")
 
 	// Expect this "rw" mode to be be ignored since the inherited volume is "ro"
@@ -2189,6 +2191,7 @@ func (s *DockerSuite) TestVolumesNoCopyData(c *check.C) {
 		c.Fatal(err)
 	}
 
+	os.Mkdir("/foo", 0755)
 	dockerCmd(c, "run", "--name", "test", "-v", "/foo", "busybox")
 
 	if out, _, err := dockerCmdWithError("run", "--volumes-from", "test", "dataimage", "ls", "-lh", "/foo/bar"); err == nil || !strings.Contains(out, "No such file or directory") {
@@ -2196,6 +2199,7 @@ func (s *DockerSuite) TestVolumesNoCopyData(c *check.C) {
 	}
 
 	tmpDir := randomTmpDirPath("docker_test_bind_mount_copy_data", daemonPlatform)
+	os.Mkdir(tmpDir, 0755)
 	if out, _, err := dockerCmdWithError("run", "-v", tmpDir+":/foo", "dataimage", "ls", "-lh", "/foo/bar"); err == nil || !strings.Contains(out, "No such file or directory") {
 		c.Fatalf("Data was copied on bind-mount but shouldn't be:\n%q", out)
 	}
