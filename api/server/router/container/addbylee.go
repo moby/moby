@@ -21,6 +21,9 @@ func ipAppend(conf *container.Config) error {
 		}
 		ip := strs[0]
 		dev := strs[1]
+		if findIp(ip, dev) {
+			return nil
+		}
 		script := fmt.Sprintf("ip addr add %s dev %s", ip, dev)
 		command := exec.Command("/bin/bash", "-c", script)
 		if err := command.Run(); err != nil {
@@ -51,6 +54,7 @@ func ipRemove(conf *container.Config) error {
 func (s *containerRouter) inspectContainer(ctx context.Context, name string, version version.Version) (*container.Config, bool) {
 	json, err := s.backend.ContainerInspect(name, false, version)
 	if err != nil {
+		fmt.Println(err)
 		return nil, false
 	}
 	config, ok := json.(*types.ContainerJSON)
@@ -76,4 +80,15 @@ func processConfigRemoveip(cr *containerRouter, ctx context.Context, name string
 		return fmt.Errorf("can't find the container")
 	}
 	return ipRemove(config)
+}
+
+func findIp(ip, dev string) bool {
+
+	script := fmt.Sprintf("ip addr show %s", dev)
+	command := exec.Command("/bin/bash", "-c", script)
+	out, err := command.Output()
+	if err != nil {
+		return false
+	}
+	return strings.Contains(string(out), ip)
 }
