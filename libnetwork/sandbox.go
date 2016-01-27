@@ -589,7 +589,7 @@ func releaseOSSboxResources(osSbox osl.Sandbox, ep *endpoint) {
 		// Only remove the interfaces owned by this endpoint from the sandbox.
 		if ep.hasInterface(i.SrcName()) {
 			if err := i.Remove(); err != nil {
-				log.Debugf("Remove interface failed: %v", err)
+				log.Debugf("Remove interface %s failed: %v", i.SrcName(), err)
 			}
 		}
 	}

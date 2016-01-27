@@ -49,33 +49,33 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 
 	sbox := n.sandbox()
 
-	name1, name2, err := createVethPair()
+	overlayIfName, containerIfName, err := createVethPair()
 	if err != nil {
 		return err
 	}
 
-	ep.ifName = name2
+	ep.ifName = overlayIfName
 
 	// Set the container interface and its peer MTU to 1450 to allow
 	// for 50 bytes vxlan encap (inner eth header(14) + outer IP(20) +
 	// outer UDP(8) + vxlan header(8))
-	veth, err := netlink.LinkByName(name1)
+	veth, err := netlink.LinkByName(overlayIfName)
 	if err != nil {
-		return fmt.Errorf("cound not find link by name %s: %v", name1, err)
+		return fmt.Errorf("cound not find link by name %s: %v", overlayIfName, err)
 	}
 	err = netlink.LinkSetMTU(veth, vxlanVethMTU)
 	if err != nil {
 		return err
 	}
 
-	if err := sbox.AddInterface(name1, "veth",
+	if err := sbox.AddInterface(overlayIfName, "veth",
 		sbox.InterfaceOptions().Master(s.brName)); err != nil {
 		return fmt.Errorf("could not add veth pair inside the network sandbox: %v", err)
 	}
 
-	veth, err = netlink.LinkByName(name2)
+	veth, err = netlink.LinkByName(containerIfName)
 	if err != nil {
-		return fmt.Errorf("could not find link by name %s: %v", name2, err)
+		return fmt.Errorf("could not find link by name %s: %v", containerIfName, err)
 	}
 	err = netlink.LinkSetMTU(veth, vxlanVethMTU)
 	if err != nil {
@@ -96,7 +96,7 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 	}
 
 	if iNames := jinfo.InterfaceName(); iNames != nil {
-		err = iNames.SetNames(name2, "eth")
+		err = iNames.SetNames(containerIfName, "eth")
 		if err != nil {
 			return err
 		}
@@ -135,15 +135,6 @@ func (d *driver) Leave(nid, eid string) error {
 	}
 
 	n.leaveSandbox()
-
-	link, err := netlink.LinkByName(ep.ifName)
-	if err != nil {
-		log.Warnf("Failed to retrieve interface link for interface removal on endpoint leave: %v", err)
-		return nil
-	}
-	if err := netlink.LinkDel(link); err != nil {
-		log.Warnf("Failed to delete interface link on endpoint leave: %v", err)
-	}
 
 	return nil
 }
