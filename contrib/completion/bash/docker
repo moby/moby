@@ -2002,7 +2002,8 @@ _docker_volume_inspect() {
 _docker_volume_ls() {
 	case "$prev" in
 		--filter|-f)
-			COMPREPLY=( $( compgen -W "dangling" -- "$cur" ) )
+			COMPREPLY=( $( compgen -S = -W "dangling" -- "$cur" ) )
+			__docker_nospace
 			return
 			;;
 	esac
