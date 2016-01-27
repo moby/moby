@@ -67,7 +67,7 @@ Which storage driver you use, in part, depends on the backing filesystem you
 plan to use for your Docker host's local storage area. Some storage drivers can
  operate on top of different backing filesystems. However, other storage 
 drivers require the backing filesystem to be the same as the storage driver. 
-For example, the `btrfs` storage driver on a `btrfs` backing filesystem. The 
+For example, the `btrfs` storage driver on a Btrfs backing filesystem. The 
 following table lists each storage driver and whether it must match the host's 
 backing file system:
 
@@ -83,7 +83,7 @@ backing file system:
 
 You can set the storage driver by passing the `--storage-driver=<name>` option 
 to the `docker daemon` command line, or by setting the option on the 
-`DOCKER_OPTS` line in `/etc/default/docker` file.
+`DOCKER_OPTS` line in the `/etc/default/docker` file.
 
 The following command shows how to start the Docker daemon with the 
 `devicemapper` storage driver using the `docker daemon` command:
