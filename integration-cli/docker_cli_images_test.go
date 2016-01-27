@@ -10,8 +10,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/engine-api/types"
 	"github.com/go-check/check"
 )
 
@@ -287,4 +289,23 @@ func (s *DockerSuite) TestImagesFormatDefaultFormat(c *check.C) {
 
 	out, _ = dockerCmd(c, "--config", d, "images", "-q", "myimage")
 	c.Assert(out, checker.Equals, imageID+"\n", check.Commentf("Expected to print only the image id, got %v\n", out))
+}
+
+func (s *DockerSuite) TestImagePullWrongCreds(c *check.C) {
+	tmp, err := ioutil.TempDir("", "docker-cli-auth-")
+	c.Assert(err, checker.IsNil)
+	defer os.RemoveAll(tmp)
+	cf := filepath.Join(tmp, "config.json")
+
+	config := cliconfig.NewConfigFile(cf)
+	config.AuthConfigs[privateRegistryURL] = types.AuthConfig{
+		Username: "foo",
+		Password: "bar",
+	}
+
+	repoName := fmt.Sprintf("%v/dockercli/busybox", privateRegistryURL)
+	out, _, err := dockerCmdWithError("--config", cf, "pull", repoName)
+
+	c.Assert(err, checker.NotNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "401 Unauthorized")
 }
