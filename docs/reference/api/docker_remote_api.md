@@ -64,12 +64,20 @@ without protocol. Throughout this structure, double quotes are required.
 
 ## Using Docker Machine with the API
 
-If you are using `docker-machine`, the Docker daemon is on a virtual host that uses an encrypted TCP socket. This means, for Docker Machine users, you need to add extra parameters to `curl` or `wget` when making test API requests, for example:
+If you are using `docker-machine`, the Docker daemon is on a host that
+uses an encrypted TCP socket using TLS. This means, for Docker Machine users,
+you need to add extra parameters to `curl` or `wget` when making test
+API requests, for example:
 
 ```
-curl --insecure --cert ~/.docker/cert.pem --key ~/.docker/key.pem https://YOUR_VM_IP:2376/images/json
+curl --insecure \
+     --cert $DOCKER_CERT_PATH/cert.pem \
+     --key $DOCKER_CERT_PATH/key.pem \
+     https://YOUR_VM_IP:2376/images/json
 
-wget --no-check-certificate --certificate=$DOCKER_CERT_PATH/cert.pem --private-key=$DOCKER_CERT_PATH/key.pem https://your_vm_ip:2376/images/json -O - -q
+wget --no-check-certificate --certificate=$DOCKER_CERT_PATH/cert.pem \
+     --private-key=$DOCKER_CERT_PATH/key.pem \
+     https://YOUR_VM_IP:2376/images/json -O - -q
 ```
 
 ## Docker Events
