@@ -18,8 +18,6 @@ machine:
     CIRCLE_PAIN: "mode: set"
   # Put the coverage profile somewhere codecov's script can find it
     COVERPROFILE: coverage.out
-  # Set the pull request number so codecov can figure it out
-    PULL_REQUEST: ${CI_PULL_REQUEST##*/}
 
   hosts:
   # Not used yet

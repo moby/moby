@@ -19,6 +19,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/agl/ed25519"
+	"github.com/docker/notary"
 	"github.com/docker/notary/tuf/data"
 )
 
@@ -324,7 +325,7 @@ func ParsePEMPublicKey(pubKeyBytes []byte) (data.PublicKey, error) {
 }
 
 // ValidateCertificate returns an error if the certificate is not valid for notary
-// Currently, this is only a time expiry check
+// Currently this is only a time expiry check, and ensuring the public key has a large enough modulus if RSA
 func ValidateCertificate(c *x509.Certificate) error {
 	if (c.NotBefore).After(c.NotAfter) {
 		return fmt.Errorf("certificate validity window is invalid")
@@ -334,6 +335,16 @@ func ValidateCertificate(c *x509.Certificate) error {
 	// Give one day leeway on creation "before" time, check "after" against today
 	if (tomorrow).Before(c.NotBefore) || now.After(c.NotAfter) {
 		return fmt.Errorf("certificate is expired")
+	}
+	// If we have an RSA key, make sure it's long enough
+	if c.PublicKeyAlgorithm == x509.RSA {
+		rsaKey, ok := c.PublicKey.(*rsa.PublicKey)
+		if !ok {
+			return fmt.Errorf("unable to parse RSA public key")
+		}
+		if rsaKey.N.BitLen() < notary.MinRSABitSize {
+			return fmt.Errorf("RSA bit length is too short")
+		}
 	}
 	return nil
 }
