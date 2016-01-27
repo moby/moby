@@ -4,7 +4,6 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
-	"path/filepath"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -12,14 +11,6 @@ import (
 	"github.com/docker/notary/tuf/data"
 	"github.com/docker/notary/tuf/signed"
 )
-
-// Manager is an abstraction around trusted root CA stores
-type Manager struct {
-	trustedCAStore          trustmanager.X509Store
-	trustedCertificateStore trustmanager.X509Store
-}
-
-const trustDir = "trusted_certificates"
 
 // ErrValidationFail is returned when there is no valid trusted certificates
 // being served inside of the roots.json
@@ -45,63 +36,6 @@ func (err ErrRootRotationFail) Error() string {
 	return fmt.Sprintf("could not rotate trust to a new trusted root: %s", err.Reason)
 }
 
-// NewManager returns an initialized Manager, or an error
-// if it fails to load certificates
-func NewManager(baseDir string) (*Manager, error) {
-	trustPath := filepath.Join(baseDir, trustDir)
-
-	// Load all CAs that aren't expired and don't use SHA1
-	trustedCAStore, err := trustmanager.NewX509FilteredFileStore(trustPath, func(cert *x509.Certificate) bool {
-		return cert.IsCA && cert.BasicConstraintsValid && cert.SubjectKeyId != nil &&
-			time.Now().Before(cert.NotAfter) &&
-			cert.SignatureAlgorithm != x509.SHA1WithRSA &&
-			cert.SignatureAlgorithm != x509.DSAWithSHA1 &&
-			cert.SignatureAlgorithm != x509.ECDSAWithSHA1
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	// Load all individual (non-CA) certificates that aren't expired and don't use SHA1
-	trustedCertificateStore, err := trustmanager.NewX509FilteredFileStore(trustPath, func(cert *x509.Certificate) bool {
-		return !cert.IsCA &&
-			time.Now().Before(cert.NotAfter) &&
-			cert.SignatureAlgorithm != x509.SHA1WithRSA &&
-			cert.SignatureAlgorithm != x509.DSAWithSHA1 &&
-			cert.SignatureAlgorithm != x509.ECDSAWithSHA1
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return &Manager{
-		trustedCAStore:          trustedCAStore,
-		trustedCertificateStore: trustedCertificateStore,
-	}, nil
-}
-
-// TrustedCertificateStore returns the trusted certificate store being managed
-// by this Manager
-func (m *Manager) TrustedCertificateStore() trustmanager.X509Store {
-	return m.trustedCertificateStore
-}
-
-// TrustedCAStore returns the CA store being managed by this Manager
-func (m *Manager) TrustedCAStore() trustmanager.X509Store {
-	return m.trustedCAStore
-}
-
-// AddTrustedCert adds a cert to the trusted certificate store (not the CA
-// store)
-func (m *Manager) AddTrustedCert(cert *x509.Certificate) {
-	m.trustedCertificateStore.AddCert(cert)
-}
-
-// AddTrustedCACert adds a cert to the trusted CA certificate store
-func (m *Manager) AddTrustedCACert(cert *x509.Certificate) {
-	m.trustedCAStore.AddCert(cert)
-}
-
 /*
 ValidateRoot receives a new root, validates its correctness and attempts to
 do root key rotation if needed.
@@ -111,7 +45,7 @@ that list is non-empty means that we've already seen this repository before, and
 have a list of trusted certificates for it. In this case, we use this list of
 certificates to attempt to validate this root file.
 
-If the previous validation suceeds, or in the case where we found no trusted
+If the previous validation succeeds, or in the case where we found no trusted
 certificates for this particular GUN, we check the integrity of the root by
 making sure that it is validated by itself. This means that we will attempt to
 validate the root data with the certificates that are included in the root keys
@@ -129,7 +63,7 @@ we are using the current public PKI to validate the first download of the certif
 adding an extra layer of security over the normal (SSH style) trust model.
 We shall call this: TOFUS.
 */
-func (m *Manager) ValidateRoot(root *data.Signed, gun string) error {
+func ValidateRoot(certStore trustmanager.X509Store, root *data.Signed, gun string) error {
 	logrus.Debugf("entered ValidateRoot with dns: %s", gun)
 	signedRoot, err := data.RootFromSigned(root)
 	if err != nil {
@@ -144,7 +78,7 @@ func (m *Manager) ValidateRoot(root *data.Signed, gun string) error {
 	}
 
 	// Retrieve all the trusted certificates that match this gun
-	certsForCN, err := m.trustedCertificateStore.GetCertificatesByCN(gun)
+	certsForCN, err := certStore.GetCertificatesByCN(gun)
 	if err != nil {
 		// If the error that we get back is different than ErrNoCertificatesFound
 		// we couldn't check if there are any certificates with this CN already
@@ -183,7 +117,7 @@ func (m *Manager) ValidateRoot(root *data.Signed, gun string) error {
 	// Do root certificate rotation: we trust only the certs present in the new root
 	// First we add all the new certificates (even if they already exist)
 	for _, cert := range allValidCerts {
-		err := m.trustedCertificateStore.AddCert(cert)
+		err := certStore.AddCert(cert)
 		if err != nil {
 			// If the error is already exists we don't fail the rotation
 			if _, ok := err.(*trustmanager.ErrCertExists); ok {
@@ -197,7 +131,7 @@ func (m *Manager) ValidateRoot(root *data.Signed, gun string) error {
 	// Now we delete old certificates that aren't present in the new root
 	for certID, cert := range certsToRemove(certsForCN, allValidCerts) {
 		logrus.Debugf("removing certificate with certID: %s", certID)
-		err = m.trustedCertificateStore.RemoveCert(cert)
+		err = certStore.RemoveCert(cert)
 		if err != nil {
 			logrus.Debugf("failed to remove trusted certificate with keyID: %s, %v", certID, err)
 			return &ErrRootRotationFail{Reason: "failed to rotate root keys"}
@@ -208,7 +142,7 @@ func (m *Manager) ValidateRoot(root *data.Signed, gun string) error {
 	return nil
 }
 
-// validRootLeafCerts returns a list of non-exipired, non-sha1 certificates whoose
+// validRootLeafCerts returns a list of non-exipired, non-sha1 certificates whose
 // Common-Names match the provided GUN
 func validRootLeafCerts(root *data.SignedRoot, gun string) ([]*x509.Certificate, error) {
 	// Get a list of all of the leaf certificates present in root
@@ -219,7 +153,8 @@ func validRootLeafCerts(root *data.SignedRoot, gun string) ([]*x509.Certificate,
 	for _, cert := range allLeafCerts {
 		// Validate that this leaf certificate has a CN that matches the exact gun
 		if cert.Subject.CommonName != gun {
-			logrus.Debugf("error leaf certificate CN: %s doesn't match the given GUN: %s", cert.Subject.CommonName)
+			logrus.Debugf("error leaf certificate CN: %s doesn't match the given GUN: %s",
+				cert.Subject.CommonName, gun)
 			continue
 		}
 		// Make sure the certificate is not expired

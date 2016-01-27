@@ -54,6 +54,13 @@ func (m *memoryStore) SetMultiMeta(metas map[string][]byte) error {
 	return nil
 }
 
+// RemoveMeta removes the metadata for a single role - if the metadata doesn't
+// exist, no error is returned
+func (m *memoryStore) RemoveMeta(name string) error {
+	delete(m.meta, name)
+	return nil
+}
+
 func (m *memoryStore) GetTarget(path string) (io.ReadCloser, error) {
 	return &utils.NoopCloser{Reader: bytes.NewReader(m.files[path])}, nil
 }
@@ -94,4 +101,12 @@ func (m *memoryStore) Commit(map[string][]byte, bool, map[string]data.Hashes) er
 
 func (m *memoryStore) GetKey(role string) ([]byte, error) {
 	return nil, fmt.Errorf("GetKey is not implemented for the memoryStore")
+}
+
+// Clear this existing memory store by setting this store as new empty one
+func (m *memoryStore) RemoveAll() error {
+	m.meta = make(map[string][]byte)
+	m.files = make(map[string][]byte)
+	m.keys = make(map[string][]data.PrivateKey)
+	return nil
 }
