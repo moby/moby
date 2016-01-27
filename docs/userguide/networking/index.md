@@ -5,7 +5,7 @@ description = "Docker networking feature is introduced"
 keywords = ["network, networking, bridge, docker,  documentation"]
 [menu.main]
 identifier="smn_networking"
-parent= "mn_use_docker"
+parent= "engine_guide"
 weight=7
 +++
 <![end-metadata]-->

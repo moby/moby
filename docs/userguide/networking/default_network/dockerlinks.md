@@ -25,7 +25,7 @@ detail on container linking in default `bridge` network.
 
 ## Connect using network port mapping
 
-In [the Using Docker section](../../usingdocker.md), you created a
+In [the Using Docker section](../../containers/usingdocker.md), you created a
 container that ran a Python Flask application:
 
     $ docker run -d -P training/webapp python app.py
@@ -33,7 +33,7 @@ container that ran a Python Flask application:
 > **Note:**
 > Containers have an internal network and an IP address
 > (as we saw when we used the `docker inspect` command to show the container's
-> IP address in the [Using Docker](../../usingdocker.md) section).
+> IP address in the [Using Docker](../../containers/usingdocker.md) section).
 > Docker can have a variety of network configurations. You can see more
 > information on Docker networking [here](../index.md).
 

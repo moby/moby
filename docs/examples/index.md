@@ -1,16 +1,16 @@
 <!--[metadata]>
 +++
-title = "Applied Docker"
+title = "Dockerize an application"
 description = "Provides examples for using Docker"
 keywords = ["dockerize, dockerizing apps, dockerizing applications, container,  containers"]
 [menu.main]
-identifier = "smn_applied"
-parent = "mn_use_docker"
-weight = 8	
+identifier = "engine_dockerize"
+parent="engine_use"
+weight = 8
 +++
 <![end-metadata]-->
 
-# Examples
+# Dockerize an application
 
 This section contains the following:
 
@@ -20,4 +20,4 @@ This section contains the following:
 * [Dockerizing a Node.js web app](nodejs_web_app.md)
 * [Dockerizing a Redis service](running_redis_service.md)
 * [Dockerizing an apt-cacher-ng service](apt-cacher-ng.md)
-* [Dockerizing applications: A 'Hello world'](../userguide/dockerizing.md)
+* [Dockerizing applications: A 'Hello world'](../userguide/containers/dockerizing.md)

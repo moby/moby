@@ -4,8 +4,8 @@ title = "Remote API"
 description = "API Documentation for Docker"
 keywords = ["API, Docker, rcli, REST,  documentation"]
 [menu.main]
-parent = "smn_remoteapi"
-weight=-4
+parent = "engine_remoteapi"
+weight=-99
 +++
 <![end-metadata]-->
 
@@ -114,7 +114,7 @@ This section lists each version from latest to oldest.  Each listing includes a 
 * Pushes initiated with `POST /images/(name)/push` and pulls initiated with `POST /images/create`
   will be cancelled if the HTTP connection making the API request is closed before
   the push or pull completes.
-* `POST /containers/create` now allows you to set a read/write rate limit for a 
+* `POST /containers/create` now allows you to set a read/write rate limit for a
   device (in bytes per second or IO per second).
 * `GET /networks` now supports filtering by `name`, `id` and `type`.
 * `POST /containers/create` now allows you to set the static IPv4 and/or IPv6 address for the container.
@@ -123,7 +123,7 @@ This section lists each version from latest to oldest.  Each listing includes a 
 * `POST /networks/create` now supports restricting external access to the network by setting the `internal` field.
 * `POST /networks/(id)/disconnect` now includes a `Force` option to forcefully disconnect a container from network
 * `GET /containers/(id)/json` now returns the `NetworkID` of containers.
-* `POST /networks/create` Now supports an options field in the IPAM config that provides options 
+* `POST /networks/create` Now supports an options field in the IPAM config that provides options
   for custom IPAM plugins.
 * `GET /networks/{network-id}` Now returns IPAM config options for custom IPAM plugins if any
   are available.

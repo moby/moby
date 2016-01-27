@@ -4,7 +4,8 @@ title = "Apply custom metadata"
 description = "Learn how to work with custom metadata in Docker, using labels."
 keywords = ["Usage, user guide, labels, metadata, docker, documentation, examples,  annotating"]
 [menu.main]
-parent = "mn_use_docker"
+parent = "engine_guide"
+weight=90
 +++
 <![end-metadata]-->
 

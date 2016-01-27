@@ -23,7 +23,7 @@ the container, `docker export` will export the contents of the *underlying*
 directory, not the contents of the volume.
 
 Refer to [Backup, restore, or migrate data
-volumes](../../userguide/dockervolumes.md#backup-restore-or-migrate-data-volumes) in
+volumes](../../userguide/containers/dockervolumes.md#backup-restore-or-migrate-data-volumes) in
 the user guide for examples on exporting data in a volume.
 
 ## Examples
