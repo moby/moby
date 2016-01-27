@@ -54,7 +54,7 @@ func (c *Client) Update() error {
 	if err != nil {
 		logrus.Debug("Error occurred. Root will be downloaded and another update attempted")
 		if err := c.downloadRoot(); err != nil {
-			logrus.Error("Client Update (Root):", err)
+			logrus.Debug("Client Update (Root):", err)
 			return err
 		}
 		// If we error again, we now have the latest root and just want to fail
@@ -68,12 +68,12 @@ func (c *Client) Update() error {
 func (c *Client) update() error {
 	err := c.downloadTimestamp()
 	if err != nil {
-		logrus.Errorf("Client Update (Timestamp): %s", err.Error())
+		logrus.Debugf("Client Update (Timestamp): %s", err.Error())
 		return err
 	}
 	err = c.downloadSnapshot()
 	if err != nil {
-		logrus.Errorf("Client Update (Snapshot): %s", err.Error())
+		logrus.Debugf("Client Update (Snapshot): %s", err.Error())
 		return err
 	}
 	err = c.checkRoot()
@@ -86,7 +86,7 @@ func (c *Client) update() error {
 	// will always need top level targets at a minimum
 	err = c.downloadTargets("targets")
 	if err != nil {
-		logrus.Errorf("Client Update (Targets): %s", err.Error())
+		logrus.Debugf("Client Update (Targets): %s", err.Error())
 		return err
 	}
 	return nil
