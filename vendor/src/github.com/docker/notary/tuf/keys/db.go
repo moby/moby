@@ -58,6 +58,15 @@ func (db *KeyDB) AddRole(r *data.Role) error {
 	return nil
 }
 
+// GetAllRoles gets all roles from the database
+func (db *KeyDB) GetAllRoles() []*data.Role {
+	roles := []*data.Role{}
+	for _, role := range db.roles {
+		roles = append(roles, role)
+	}
+	return roles
+}
+
 // GetKey pulls a key out of the database by its ID
 func (db *KeyDB) GetKey(id string) data.PublicKey {
 	return db.keys[id]

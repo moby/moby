@@ -3,7 +3,7 @@ package data
 import (
 	"time"
 
-	"github.com/jfrazelle/go/canonical/json"
+	"github.com/docker/go/canonical/json"
 )
 
 // SignedRoot is a fully unpacked root.json

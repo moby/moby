@@ -205,7 +205,8 @@ func GetLeafCerts(certs []*x509.Certificate) []*x509.Certificate {
 
 // GetIntermediateCerts parses a list of x509 Certificates and returns all of the
 // ones marked as a CA, to be used as intermediates
-func GetIntermediateCerts(certs []*x509.Certificate) (intCerts []*x509.Certificate) {
+func GetIntermediateCerts(certs []*x509.Certificate) []*x509.Certificate {
+	var intCerts []*x509.Certificate
 	for _, cert := range certs {
 		if cert.IsCA {
 			intCerts = append(intCerts, cert)
@@ -297,6 +298,44 @@ func ParsePEMPrivateKey(pemBytes []byte, passphrase string) (data.PrivateKey, er
 	default:
 		return nil, fmt.Errorf("unsupported key type %q", block.Type)
 	}
+}
+
+// ParsePEMPublicKey returns a data.PublicKey from a PEM encoded public key or certificate.
+func ParsePEMPublicKey(pubKeyBytes []byte) (data.PublicKey, error) {
+	pemBlock, _ := pem.Decode(pubKeyBytes)
+	if pemBlock == nil {
+		return nil, errors.New("no valid public key found")
+	}
+
+	switch pemBlock.Type {
+	case "CERTIFICATE":
+		cert, err := x509.ParseCertificate(pemBlock.Bytes)
+		if err != nil {
+			return nil, fmt.Errorf("could not parse provided certificate: %v", err)
+		}
+		err = ValidateCertificate(cert)
+		if err != nil {
+			return nil, fmt.Errorf("invalid certificate: %v", err)
+		}
+		return CertToKey(cert), nil
+	default:
+		return nil, fmt.Errorf("unsupported PEM block type %q, expected certificate", pemBlock.Type)
+	}
+}
+
+// ValidateCertificate returns an error if the certificate is not valid for notary
+// Currently, this is only a time expiry check
+func ValidateCertificate(c *x509.Certificate) error {
+	if (c.NotBefore).After(c.NotAfter) {
+		return fmt.Errorf("certificate validity window is invalid")
+	}
+	now := time.Now()
+	tomorrow := now.AddDate(0, 0, 1)
+	// Give one day leeway on creation "before" time, check "after" against today
+	if (tomorrow).Before(c.NotBefore) || now.After(c.NotAfter) {
+		return fmt.Errorf("certificate is expired")
+	}
+	return nil
 }
 
 // GenerateRSAKey generates an RSA private key and returns a TUF PrivateKey
@@ -531,4 +570,15 @@ func X509PublicKeyID(certPubKey data.PublicKey) (string, error) {
 	}
 
 	return key.ID(), nil
+}
+
+// FilterCertsExpiredSha1 can be used as the filter function to cert store
+// initializers to filter out all expired or SHA-1 certificate that we
+// shouldn't load.
+func FilterCertsExpiredSha1(cert *x509.Certificate) bool {
+	return !cert.IsCA &&
+		time.Now().Before(cert.NotAfter) &&
+		cert.SignatureAlgorithm != x509.SHA1WithRSA &&
+		cert.SignatureAlgorithm != x509.DSAWithSHA1 &&
+		cert.SignatureAlgorithm != x509.ECDSAWithSHA1
 }

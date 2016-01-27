@@ -85,6 +85,9 @@ func NewHTTPStore(baseURL, metaPrefix, metaExtension, targetsPrefix, keyExtensio
 	if !base.IsAbs() {
 		return nil, errors.New("HTTPStore requires an absolute baseURL")
 	}
+	if roundTrip == nil {
+		return &OfflineStore{}, nil
+	}
 	return &HTTPStore{
 		baseURL:       *base,
 		metaPrefix:    metaPrefix,
@@ -182,6 +185,12 @@ func (s HTTPStore) SetMeta(name string, blob []byte) error {
 	return translateStatusToError(resp, "POST "+name)
 }
 
+// RemoveMeta always fails, because we should never be able to delete metadata
+// remotely
+func (s HTTPStore) RemoveMeta(name string) error {
+	return ErrInvalidOperation{msg: "cannot delete metadata"}
+}
+
 // NewMultiPartMetaRequest builds a request with the provided metadata updates
 // in multipart form
 func NewMultiPartMetaRequest(url string, metas map[string][]byte) (*http.Request, error) {
@@ -225,6 +234,11 @@ func (s HTTPStore) SetMultiMeta(metas map[string][]byte) error {
 	defer resp.Body.Close()
 	// if this 404's something is pretty wrong
 	return translateStatusToError(resp, "POST metadata endpoint")
+}
+
+// RemoveAll in the interface is not supported, admins should use the DeleteHandler endpoint directly to delete remote data for a GUN
+func (s HTTPStore) RemoveAll() error {
+	return errors.New("remove all functionality not supported for HTTPStore")
 }
 
 func (s HTTPStore) buildMetaURL(name string) (*url.URL, error) {
