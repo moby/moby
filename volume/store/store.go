@@ -293,6 +293,7 @@ func (s *VolumeStore) Dereference(v volume.Volume, ref string) {
 	defer s.locks.Unlock(v.Name())
 
 	s.globalLock.Lock()
+	defer s.globalLock.Unlock()
 	refs, exists := s.refs[v.Name()]
 	if !exists {
 		return
@@ -303,7 +304,6 @@ func (s *VolumeStore) Dereference(v volume.Volume, ref string) {
 			s.refs[v.Name()] = append(s.refs[v.Name()][:i], s.refs[v.Name()][i+1:]...)
 		}
 	}
-	s.globalLock.Unlock()
 }
 
 // Refs gets the current list of refs for the given volume
