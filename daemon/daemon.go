@@ -376,6 +376,13 @@ func (daemon *Daemon) restore() error {
 	// This must be run after any containers with a restart policy so that containerized plugins
 	// can have a chance to be running before we try to initialize them.
 	for _, c := range containers {
+		// if the container has restart policy, do not
+		// prepare the mountpoints since it has been done on restarting.
+		// This is to speed up the daemon start when a restart container
+		// has a volume and the volume dirver is not available.
+		if _, ok := restartContainers[c]; ok {
+			continue
+		}
 		group.Add(1)
 		go func(c *container.Container) {
 			defer group.Done()
