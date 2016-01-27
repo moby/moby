@@ -11,12 +11,6 @@ import (
 	"github.com/go-check/check"
 )
 
-func init() {
-	if daemonPlatform == "windows" {
-		sleepCmd = "sleep"
-	}
-}
-
 func (s *DockerSuite) TestRmiWithContainerFails(c *check.C) {
 	errSubstr := "is using it"
 
@@ -92,7 +86,7 @@ func (s *DockerSuite) TestRmiImgIDMultipleTag(c *check.C) {
 	c.Assert(err, checker.IsNil)
 
 	// run a container with the image
-	out, _ = dockerCmd(c, "run", "-d", "busybox-one", sleepCmd, "60")
+	out, _ = runSleepingContainerInImage(c, "busybox-one")
 
 	containerID = strings.TrimSpace(out)
 
@@ -160,7 +154,7 @@ func (s *DockerSuite) TestRmiImageIDForceWithRunningContainersAndMultipleTags(c 
 
 	newTag := "newtag"
 	dockerCmd(c, "tag", imgID, newTag)
-	dockerCmd(c, "run", "-d", imgID, sleepCmd, "60")
+	runSleepingContainerInImage(c, imgID)
 
 	out, _, err := dockerCmdWithError("rmi", "-f", imgID)
 	// rmi -f should not delete image with running containers
@@ -262,7 +256,7 @@ func (s *DockerSuite) TestRmiContainerImageNotFound(c *check.C) {
 	}
 
 	// Create a long-running container.
-	dockerCmd(c, "run", "-d", imageNames[0], sleepCmd, "60")
+	runSleepingContainerInImage(c, imageNames[0])
 
 	// Create a stopped container, and then force remove its image.
 	dockerCmd(c, "run", imageNames[1], "true")
