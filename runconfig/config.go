@@ -8,6 +8,7 @@ import (
 	"github.com/docker/docker/volume"
 	"github.com/docker/engine-api/types/container"
 	networktypes "github.com/docker/engine-api/types/network"
+	"github.com/docker/engine-api/types/strslice"
 )
 
 // DecodeContainerConfig decodes a json encoded config into a ContainerConfigWrapper
@@ -68,4 +69,13 @@ func validateVolumesAndBindSettings(c *container.Config, hc *container.HostConfi
 	}
 
 	return nil
+}
+
+// GetEntrypointAndArgs will "merge" the ENTRYPOINT command and the
+// CMD command into one command.
+func GetEntrypointAndArgs(configEntrypoint strslice.StrSlice, configCmd strslice.StrSlice) (string, []string) {
+	if len(configEntrypoint) != 0 {
+		return configEntrypoint[0], append(configEntrypoint[1:], configCmd...)
+	}
+	return configCmd[0], configCmd[1:]
 }

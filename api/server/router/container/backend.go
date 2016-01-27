@@ -39,7 +39,7 @@ type stateBackend interface {
 	ContainerRestart(name string, seconds int) error
 	ContainerRm(name string, config *types.ContainerRmConfig) error
 	ContainerStart(name string, hostConfig *container.HostConfig) error
-	ContainerStartWithCommand(name string, hostConfig *container.HostConfig, cmd string) error
+	ContainerStartWithCommand(name string, hostConfig *container.HostConfig, cmd []string) error
 	ContainerStop(name string, seconds int) error
 	ContainerUnpause(name string) error
 	ContainerUpdate(name string, hostConfig *container.HostConfig) ([]string, error)

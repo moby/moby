@@ -537,7 +537,7 @@ func (b *Builder) create() (string, error) {
 	return c.ID, nil
 }
 
-func (b *Builder) run(cID string) (err error) {
+func (b *Builder) run(cID string, cmd []string) (err error) {
 	errCh := make(chan error)
 	go func() {
 		errCh <- b.docker.ContainerAttachRaw(cID, nil, b.Stdout, b.Stderr, true)
@@ -555,7 +555,7 @@ func (b *Builder) run(cID string) (err error) {
 		}
 	}()
 
-	if err := b.docker.ContainerStart(cID, nil); err != nil {
+	if err := b.docker.ContainerStartWithCommand(cID, nil, cmd); err != nil {
 		return err
 	}
 

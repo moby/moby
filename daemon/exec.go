@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/pkg/pools"
 	"github.com/docker/docker/pkg/promise"
 	"github.com/docker/docker/pkg/term"
+	"github.com/docker/docker/runconfig"
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/strslice"
 )
@@ -94,7 +95,7 @@ func (d *Daemon) ContainerExecCreate(config *types.ExecConfig) (string, error) {
 	}
 
 	cmd := strslice.StrSlice(config.Cmd)
-	entrypoint, args := d.getEntrypointAndArgs(strslice.StrSlice{}, cmd)
+	entrypoint, args := runconfig.GetEntrypointAndArgs(strslice.StrSlice{}, cmd)
 
 	keys := []byte{}
 	if config.DetachKeys != "" {

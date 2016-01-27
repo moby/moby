@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"runtime"
 	"strconv"
 	"strings"
 	"syscall"
@@ -161,12 +162,23 @@ func (s *containerRouter) postContainersStart(ctx context.Context, w http.Respon
 		hostConfig = c
 	}
 
-	cmd := strings.TrimSpace(r.Form.Get("cmd"))
+	var cmdArray = []string{}
+	cmd := strings.TrimSpace(r.FormValue("cmd"))
+	if cmd != "" {
+		if err := json.NewDecoder(strings.NewReader(cmd)).Decode(&cmdArray); err != nil {
+			if runtime.GOOS != "windows" {
+				cmdArray = []string{"/bin/sh", "-c", cmd}
+			} else {
+				cmdArray = []string{"cmd", "/S", "/C"}
+			}
+		}
+	}
+
 	var err error
-	if cmd == "" {
+	if len(cmdArray) == 0 {
 		err = s.backend.ContainerStart(vars["name"], hostConfig)
 	} else {
-		err = s.backend.ContainerStartWithCommand(vars["name"], hostConfig, cmd)
+		err = s.backend.ContainerStartWithCommand(vars["name"], hostConfig, cmdArray)
 	}
 	if err != nil {
 		return err

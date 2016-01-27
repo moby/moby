@@ -3,7 +3,6 @@ package client
 import (
 	"fmt"
 	"net/url"
-	"strings"
 )
 
 // ContainerStart sends a request to the docker daemon to start a container.
@@ -16,9 +15,8 @@ func (cli *Client) ContainerStart(containerID string) error {
 // ContainerStartWithCommand sends a request to the docker daemon to start a
 // container, but allows the client to override the default command.
 func (cli *Client) ContainerStartWithCommand(containerID string, cmd string) error {
-	cmd = strings.TrimSpace(cmd)
 	if cmd == "" {
-		return fmt.Errorf("Command can not be an empty string")
+		return fmt.Errorf("Command can not be empty")
 	}
 
 	query := url.Values{}

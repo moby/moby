@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net/http"
 	"runtime"
-	"strings"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/container"
@@ -15,11 +14,11 @@ import (
 
 // ContainerStart starts a container.
 func (daemon *Daemon) ContainerStart(name string, hostConfig *containertypes.HostConfig) error {
-	return daemon.ContainerStartWithCommand(name, hostConfig, "")
+	return daemon.ContainerStartWithCommand(name, hostConfig, nil)
 }
 
-// ContainerStartWithCommand starts a container, overriding the cmd (if not "")
-func (daemon *Daemon) ContainerStartWithCommand(name string, hostConfig *containertypes.HostConfig, cmd string) error {
+// ContainerStartWithCommand starts a container, overriding the cmd (if not nil
+func (daemon *Daemon) ContainerStartWithCommand(name string, hostConfig *containertypes.HostConfig, cmd []string) error {
 	container, err := daemon.GetContainer(name)
 	if err != nil {
 		return err
@@ -75,27 +74,20 @@ func (daemon *Daemon) ContainerStartWithCommand(name string, hostConfig *contain
 		return err
 	}
 
-	savedPath := container.Path
-	savedArgs := container.Args
-
-	cmd = strings.TrimSpace(cmd)
-	if cmd != "" {
-		args := []string{cmd}
-
-		if runtime.GOOS != "windows" {
-			container.Path = "/bin/sh"
-			container.Args = append([]string{"-c"}, args...)
+	if len(cmd) != 0 && cmd[0] != "" {
+		container.Path = cmd[0]
+		if len(cmd) > 1 {
+			container.Args = cmd[1:]
 		} else {
-			container.Path = "cmd"
-			container.Args = append([]string{"/S", "/C"}, args...)
+			container.Args = []string{}
 		}
-
-		defer func() {
-			if cmd != "" {
-				container.Path = savedPath
-				container.Args = savedArgs
-			}
-		}()
+	} else {
+		// If we're not changing the cmd to run then grab what was
+		// specified in the config in case we didn't shutdown the
+		// container nicely last time and didn't ge a chance to reset it
+		cfg := container.Config
+		container.Path, container.Args =
+			runconfig.GetEntrypointAndArgs(cfg.Entrypoint, cfg.Cmd)
 	}
 
 	return daemon.containerStart(container)
