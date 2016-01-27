@@ -23,6 +23,7 @@ var (
 		&MemoryGroup{},
 		&CpuGroup{},
 		&CpuacctGroup{},
+		&PidsGroup{},
 		&BlkioGroup{},
 		&HugetlbGroup{},
 		&NetClsGroup{},
@@ -112,6 +113,22 @@ func (m *Manager) Apply(pid int) (err error) {
 		return err
 	}
 
+	if c.Paths != nil {
+		paths := make(map[string]string)
+		for name, path := range c.Paths {
+			_, err := d.path(name)
+			if err != nil {
+				if cgroups.IsNotFound(err) {
+					continue
+				}
+				return err
+			}
+			paths[name] = path
+		}
+		m.Paths = paths
+		return cgroups.EnterPid(m.Paths, pid)
+	}
+
 	paths := make(map[string]string)
 	defer func() {
 		if err != nil {
@@ -135,17 +152,13 @@ func (m *Manager) Apply(pid int) (err error) {
 		paths[sys.Name()] = p
 	}
 	m.Paths = paths
-
-	if paths["cpu"] != "" {
-		if err := CheckCpushares(paths["cpu"], c.Resources.CpuShares); err != nil {
-			return err
-		}
-	}
-
 	return nil
 }
 
 func (m *Manager) Destroy() error {
+	if m.Cgroups.Paths != nil {
+		return nil
+	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if err := cgroups.RemovePaths(m.Paths); err != nil {
@@ -179,12 +192,25 @@ func (m *Manager) GetStats() (*cgroups.Stats, error) {
 }
 
 func (m *Manager) Set(container *configs.Config) error {
-	for name, path := range m.Paths {
-		sys, err := subsystems.Get(name)
-		if err == errSubsystemDoesNotExist || !cgroups.PathExists(path) {
-			continue
+	for _, sys := range subsystems {
+		// Generate fake cgroup data.
+		d, err := getCgroupData(container.Cgroups, -1)
+		if err != nil {
+			return err
 		}
+		// Get the path, but don't error out if the cgroup wasn't found.
+		path, err := d.path(sys.Name())
+		if err != nil && !cgroups.IsNotFound(err) {
+			return err
+		}
+
 		if err := sys.Set(path, container.Cgroups); err != nil {
+			return err
+		}
+	}
+
+	if m.Paths["cpu"] != "" {
+		if err := CheckCpushares(m.Paths["cpu"], container.Cgroups.Resources.CpuShares); err != nil {
 			return err
 		}
 	}
@@ -217,17 +243,28 @@ func (m *Manager) Freeze(state configs.FreezerState) error {
 }
 
 func (m *Manager) GetPids() ([]int, error) {
-	d, err := getCgroupData(m.Cgroups, 0)
+	dir, err := getCgroupPath(m.Cgroups)
 	if err != nil {
 		return nil, err
 	}
-
-	dir, err := d.path("devices")
-	if err != nil {
-		return nil, err
-	}
-
 	return cgroups.GetPids(dir)
+}
+
+func (m *Manager) GetAllPids() ([]int, error) {
+	dir, err := getCgroupPath(m.Cgroups)
+	if err != nil {
+		return nil, err
+	}
+	return cgroups.GetAllPids(dir)
+}
+
+func getCgroupPath(c *configs.Cgroup) (string, error) {
+	d, err := getCgroupData(c, 0)
+	if err != nil {
+		return "", err
+	}
+
+	return d.path("devices")
 }
 
 // pathClean makes a path safe for use with filepath.Join. This is done by not

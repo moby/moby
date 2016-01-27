@@ -16,6 +16,7 @@ const (
 	ContainerPaused
 	ContainerNotStopped
 	ContainerNotRunning
+	ContainerNotPaused
 
 	// Process errors
 	ProcessNotExecuted
@@ -46,6 +47,8 @@ func (c ErrorCode) String() string {
 		return "Container is not running"
 	case ConsoleExists:
 		return "Console exists for process"
+	case ContainerNotPaused:
+		return "Container is not paused"
 	default:
 		return "Unknown error"
 	}
