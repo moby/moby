@@ -68,14 +68,16 @@ func (daemon *Daemon) ContainerRename(oldName, newName string) error {
 	}()
 
 	sid = container.NetworkSettings.SandboxID
-	sb, err = daemon.netController.SandboxByID(sid)
-	if err != nil {
-		return err
-	}
+	if daemon.netController != nil {
+		sb, err = daemon.netController.SandboxByID(sid)
+		if err != nil {
+			return err
+		}
 
-	err = sb.Rename(strings.TrimPrefix(container.Name, "/"))
-	if err != nil {
-		return err
+		err = sb.Rename(strings.TrimPrefix(container.Name, "/"))
+		if err != nil {
+			return err
+		}
 	}
 
 	daemon.LogContainerEventWithAttributes(container, "rename", attributes)

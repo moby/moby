@@ -8,8 +8,15 @@ import (
 	"github.com/go-check/check"
 )
 
+var sleepCmd = "/bin/sleep"
+
+func init() {
+	if daemonPlatform == "windows" {
+		sleepCmd = "sleep"
+	}
+}
+
 func (s *DockerSuite) TestRenameStoppedContainer(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "--name", "first_name", "-d", "busybox", "sh")
 
 	cleanedContainerID := strings.TrimSpace(out)
@@ -26,7 +33,6 @@ func (s *DockerSuite) TestRenameStoppedContainer(c *check.C) {
 }
 
 func (s *DockerSuite) TestRenameRunningContainer(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "--name", "first_name", "-d", "busybox", "sh")
 
 	newName := "new_name" + stringid.GenerateNonCryptoID()
@@ -39,8 +45,7 @@ func (s *DockerSuite) TestRenameRunningContainer(c *check.C) {
 }
 
 func (s *DockerSuite) TestRenameRunningContainerAndReuse(c *check.C) {
-	testRequires(c, DaemonIsLinux)
-	out, _ := dockerCmd(c, "run", "--name", "first_name", "-d", "busybox", "top")
+	out, _ := dockerCmd(c, "run", "--name", "first_name", "-d", "busybox", sleepCmd, "60")
 	c.Assert(waitRun("first_name"), check.IsNil)
 
 	newName := "new_name"
@@ -51,7 +56,7 @@ func (s *DockerSuite) TestRenameRunningContainerAndReuse(c *check.C) {
 	c.Assert(err, checker.IsNil, check.Commentf("Failed to rename container %s", name))
 	c.Assert(name, checker.Equals, "/"+newName, check.Commentf("Failed to rename container"))
 
-	out, _ = dockerCmd(c, "run", "--name", "first_name", "-d", "busybox", "top")
+	out, _ = dockerCmd(c, "run", "--name", "first_name", "-d", "busybox", sleepCmd, "60")
 	c.Assert(waitRun("first_name"), check.IsNil)
 	newContainerID := strings.TrimSpace(out)
 	name, err = inspectField(newContainerID, "Name")
@@ -60,7 +65,6 @@ func (s *DockerSuite) TestRenameRunningContainerAndReuse(c *check.C) {
 }
 
 func (s *DockerSuite) TestRenameCheckNames(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "run", "--name", "first_name", "-d", "busybox", "sh")
 
 	newName := "new_name" + stringid.GenerateNonCryptoID()
@@ -76,8 +80,7 @@ func (s *DockerSuite) TestRenameCheckNames(c *check.C) {
 }
 
 func (s *DockerSuite) TestRenameInvalidName(c *check.C) {
-	testRequires(c, DaemonIsLinux)
-	dockerCmd(c, "run", "--name", "myname", "-d", "busybox", "top")
+	dockerCmd(c, "run", "--name", "myname", "-d", "busybox", sleepCmd, "60")
 
 	out, _, err := dockerCmdWithError("rename", "myname", "new:invalid")
 	c.Assert(err, checker.NotNil, check.Commentf("Renaming container to invalid name should have failed: %s", out))
