@@ -13,19 +13,29 @@ import (
 )
 
 func (s *DockerSuite) TestInspectApiContainerResponse(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "true")
 
 	cleanedContainerID := strings.TrimSpace(out)
 	keysBase := []string{"Id", "State", "Created", "Path", "Args", "Config", "Image", "NetworkSettings",
 		"ResolvConfPath", "HostnamePath", "HostsPath", "LogPath", "Name", "Driver", "MountLabel", "ProcessLabel", "GraphDriver"}
 
-	cases := []struct {
+	type acase struct {
 		version string
 		keys    []string
-	}{
-		{"v1.20", append(keysBase, "Mounts")},
-		{"v1.19", append(keysBase, "Volumes", "VolumesRW")},
+	}
+
+	var cases []acase
+
+	if daemonPlatform == "windows" {
+		cases = []acase{
+			{"v1.20", append(keysBase, "Mounts")},
+		}
+
+	} else {
+		cases = []acase{
+			{"v1.20", append(keysBase, "Mounts")},
+			{"v1.19", append(keysBase, "Volumes", "VolumesRW")},
+		}
 	}
 
 	for _, cs := range cases {
@@ -47,6 +57,7 @@ func (s *DockerSuite) TestInspectApiContainerResponse(c *check.C) {
 }
 
 func (s *DockerSuite) TestInspectApiContainerVolumeDriverLegacy(c *check.C) {
+	// No legacy implications for Windows
 	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "true")
 
@@ -112,6 +123,7 @@ func (s *DockerSuite) TestInspectApiImageResponse(c *check.C) {
 
 // #17131, #17139, #17173
 func (s *DockerSuite) TestInspectApiEmptyFieldsInConfigPre121(c *check.C) {
+	// Not relevant on Windows
 	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "true")
 
@@ -135,6 +147,7 @@ func (s *DockerSuite) TestInspectApiEmptyFieldsInConfigPre121(c *check.C) {
 }
 
 func (s *DockerSuite) TestInspectApiBridgeNetworkSettings120(c *check.C) {
+	// Not relevant on Windows, and besides it doesn't have any bridge network settings
 	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
 	containerID := strings.TrimSpace(out)
@@ -151,6 +164,7 @@ func (s *DockerSuite) TestInspectApiBridgeNetworkSettings120(c *check.C) {
 }
 
 func (s *DockerSuite) TestInspectApiBridgeNetworkSettings121(c *check.C) {
+	// Windows doesn't have any bridge network settings
 	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
 	containerID := strings.TrimSpace(out)
