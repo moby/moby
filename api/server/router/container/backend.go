@@ -4,11 +4,11 @@ import (
 	"io"
 	"time"
 
+	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/daemon/exec"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/version"
 	"github.com/docker/engine-api/types"
-	"github.com/docker/engine-api/types/backend"
 	"github.com/docker/engine-api/types/container"
 )
 
@@ -55,7 +55,7 @@ type monitorBackend interface {
 	ContainerStats(name string, config *backend.ContainerStatsConfig) error
 	ContainerTop(name string, psArgs string) (*types.ContainerProcessList, error)
 
-	Containers(config *backend.ContainersConfig) ([]*types.Container, error)
+	Containers(config *types.ContainerListOptions) ([]*types.Container, error)
 }
 
 // attachBackend includes function to implement to provide container attaching functionality.

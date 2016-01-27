@@ -10,7 +10,6 @@ import (
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/image"
 	"github.com/docker/engine-api/types"
-	"github.com/docker/engine-api/types/backend"
 	"github.com/docker/engine-api/types/filters"
 	networktypes "github.com/docker/engine-api/types/network"
 	"github.com/docker/go-connections/nat"
@@ -45,7 +44,7 @@ func (daemon *Daemon) List() []*container.Container {
 }
 
 // listContext is the daemon generated filtering to iterate over containers.
-// This is created based on the user specification from backend.ContainersConfig.
+// This is created based on the user specification from types.ContainerListOptions.
 type listContext struct {
 	// idx is the container iteration index for this context
 	idx int
@@ -65,17 +64,17 @@ type listContext struct {
 	// sinceFilter is a filter to stop the filtering when the iterator arrive to the given container
 	// this is used for --filter=since= and --since=, the latter is deprecated.
 	sinceFilter *container.Container
-	// ContainersConfig is the filters set by the user
-	*backend.ContainersConfig
+	// ContainerListOptions is the filters set by the user
+	*types.ContainerListOptions
 }
 
 // Containers returns the list of containers to show given the user's filtering.
-func (daemon *Daemon) Containers(config *backend.ContainersConfig) ([]*types.Container, error) {
+func (daemon *Daemon) Containers(config *types.ContainerListOptions) ([]*types.Container, error) {
 	return daemon.reduceContainers(config, daemon.transformContainer)
 }
 
 // reduceContainers parses the user's filtering options and generates the list of containers to return based on a reducer.
-func (daemon *Daemon) reduceContainers(config *backend.ContainersConfig, reducer containerReducer) ([]*types.Container, error) {
+func (daemon *Daemon) reduceContainers(config *types.ContainerListOptions, reducer containerReducer) ([]*types.Container, error) {
 	containers := []*types.Container{}
 
 	ctx, err := daemon.foldFilter(config)
@@ -118,14 +117,11 @@ func (daemon *Daemon) reducePsContainer(container *container.Container, ctx *lis
 }
 
 // foldFilter generates the container filter based on the user's filtering options.
-func (daemon *Daemon) foldFilter(config *backend.ContainersConfig) (*listContext, error) {
-	psFilters, err := filters.FromParam(config.Filters)
-	if err != nil {
-		return nil, err
-	}
+func (daemon *Daemon) foldFilter(config *types.ContainerListOptions) (*listContext, error) {
+	psFilters := config.Filter
 
 	var filtExited []int
-	err = psFilters.WalkValues("exited", func(value string) error {
+	err := psFilters.WalkValues("exited", func(value string) error {
 		code, err := strconv.Atoi(value)
 		if err != nil {
 			return err
@@ -201,14 +197,14 @@ func (daemon *Daemon) foldFilter(config *backend.ContainersConfig) (*listContext
 	}
 
 	return &listContext{
-		filters:          psFilters,
-		ancestorFilter:   ancestorFilter,
-		images:           imagesFilter,
-		exitAllowed:      filtExited,
-		beforeFilter:     beforeContFilter,
-		sinceFilter:      sinceContFilter,
-		ContainersConfig: config,
-		names:            daemon.nameIndex.GetAll(),
+		filters:              psFilters,
+		ancestorFilter:       ancestorFilter,
+		images:               imagesFilter,
+		exitAllowed:          filtExited,
+		beforeFilter:         beforeContFilter,
+		sinceFilter:          sinceContFilter,
+		ContainerListOptions: config,
+		names:                daemon.nameIndex.GetAll(),
 	}, nil
 }
 
