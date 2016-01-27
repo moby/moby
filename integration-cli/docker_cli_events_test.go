@@ -140,6 +140,33 @@ func (s *DockerSuite) TestEventsContainerEvents(c *check.C) {
 	c.Assert(containerEvents[4], checker.Equals, "destroy", check.Commentf(out))
 }
 
+func (s *DockerSuite) TestEventsContainerEventsAttrSort(c *check.C) {
+	since := daemonTime(c).Unix()
+	containerID, _ := dockerCmd(c, "run", "-d", "--name", "container-events-test", "busybox", "true")
+	containerID = strings.TrimSpace(containerID)
+
+	out, _ := dockerCmd(c, "events", fmt.Sprintf("--since=%d", since), fmt.Sprintf("--until=%d", daemonTime(c).Unix()))
+	events := strings.Split(out, "\n")
+
+	nEvents := len(events)
+	c.Assert(nEvents, checker.GreaterOrEqualThan, 3) //Missing expected event
+	matchedEvents := 0
+	for _, event := range events {
+		matches := parseEventText(event)
+		if matches["id"] != containerID {
+			continue
+		}
+		if matches["eventType"] == "container" && matches["action"] == "create" {
+			matchedEvents++
+			c.Assert(out, checker.Contains, "(image=busybox, name=container-events-test)", check.Commentf("Event attributes not sorted"))
+		} else if matches["eventType"] == "container" && matches["action"] == "start" {
+			matchedEvents++
+			c.Assert(out, checker.Contains, "(image=busybox, name=container-events-test)", check.Commentf("Event attributes not sorted"))
+		}
+	}
+	c.Assert(matchedEvents, checker.Equals, 2)
+}
+
 func (s *DockerSuite) TestEventsContainerEventsSinceUnixEpoch(c *check.C) {
 	dockerCmd(c, "run", "--rm", "--name", "since-epoch-test", "busybox", "true")
 	timeBeginning := time.Unix(0, 0).Format(time.RFC3339Nano)

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"sort"
 	"strings"
 	"time"
 
@@ -99,7 +100,13 @@ func printOutput(event eventtypes.Message, output io.Writer) {
 
 	if len(event.Actor.Attributes) > 0 {
 		var attrs []string
-		for k, v := range event.Actor.Attributes {
+		var keys []string
+		for k := range event.Actor.Attributes {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
+			v := event.Actor.Attributes[k]
 			attrs = append(attrs, fmt.Sprintf("%s=%s", k, v))
 		}
 		fmt.Fprintf(output, " (%s)", strings.Join(attrs, ", "))
