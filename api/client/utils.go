@@ -35,10 +35,12 @@ func (cli *DockerCli) encodeRegistryAuth(index *registrytypes.IndexInfo) (string
 func (cli *DockerCli) registryAuthenticationPrivilegedFunc(index *registrytypes.IndexInfo, cmdName string) client.RequestPrivilegeFunc {
 	return func() (string, error) {
 		fmt.Fprintf(cli.out, "\nPlease login prior to %s:\n", cmdName)
-		if err := cli.CmdLogin(registry.GetAuthConfigKey(index)); err != nil {
+		indexServer := registry.GetAuthConfigKey(index)
+		authConfig, err := cli.configureAuth("", "", "", indexServer)
+		if err != nil {
 			return "", err
 		}
-		return cli.encodeRegistryAuth(index)
+		return encodeAuthToBase64(authConfig)
 	}
 }
 
