@@ -47,7 +47,7 @@ be found.
 
 ### Distribution
 
-+ New `registrytoken` pass-thru token type for `AuthConfig` [#17481](https://github.com/docker/docker/pull/17481)  
++ New `registrytoken` pass-thru token type for `AuthConfig` [#17741](https://github.com/docker/docker/pull/17741)  
   It allows API clients to retrieve an authentication token from a registry, and then pass that token directly to the remote API
 * Use content-addressable storage for images and layers [#17924](https://github.com/docker/docker/pull/17924)  
   Note that a migration is performed the first time docker is run; it can take a significant amount of time depending on the number of images and containers present.  
