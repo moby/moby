@@ -1365,9 +1365,14 @@ Similarly the operator can set the **hostname** with `-h`.
 
 ### TMPFS (mount tmpfs filesystems)
 
-    --tmpfs=[]: Create a tmpfs mount with: container-dir[:<options>], where the options are identical to the Linux `mount -t tmpfs -o` command.
+```bash
+--tmpfs=[]: Create a tmpfs mount with: container-dir[:<options>],
+            where the options are identical to the Linux
+            'mount -t tmpfs -o' command.
+```
 
-    Underlying content from the "container-dir" is copied into tmpfs.
+The example below mounts an empty tmpfs into the container with the `rw`,
+`noexec`, `nosuid`, and `size=65536k` options.
 
     $ docker run -d --tmpfs /run:rw,noexec,nosuid,size=65536k my_image
 
