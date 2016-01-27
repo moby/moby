@@ -27,6 +27,26 @@ type Registry interface {
 	Repositories(ctx context.Context, repos []string, last string) (n int, err error)
 }
 
+// checkHTTPRedirect is a callback that can manipulate redirected HTTP
+// requests. It is used to preserve Accept and Range headers.
+func checkHTTPRedirect(req *http.Request, via []*http.Request) error {
+	if len(via) >= 10 {
+		return errors.New("stopped after 10 redirects")
+	}
+
+	if len(via) > 0 {
+		for headerName, headerVals := range via[0].Header {
+			if headerName == "Accept" || headerName == "Range" {
+				for _, val := range headerVals {
+					req.Header.Add(headerName, val)
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
 // NewRegistry creates a registry namespace which can be used to get a listing of repositories
 func NewRegistry(ctx context.Context, baseURL string, transport http.RoundTripper) (Registry, error) {
 	ub, err := v2.NewURLBuilderFromString(baseURL)
@@ -35,8 +55,9 @@ func NewRegistry(ctx context.Context, baseURL string, transport http.RoundTrippe
 	}
 
 	client := &http.Client{
-		Transport: transport,
-		Timeout:   1 * time.Minute,
+		Transport:     transport,
+		Timeout:       1 * time.Minute,
+		CheckRedirect: checkHTTPRedirect,
 	}
 
 	return &registry{
@@ -105,7 +126,8 @@ func NewRepository(ctx context.Context, name reference.Named, baseURL string, tr
 	}
 
 	client := &http.Client{
-		Transport: transport,
+		Transport:     transport,
+		CheckRedirect: checkHTTPRedirect,
 		// TODO(dmcgowan): create cookie jar
 	}
 
