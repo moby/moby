@@ -178,7 +178,9 @@ func (s *containerRouter) postContainersStart(ctx context.Context, w http.Respon
 
 		hostConfig = c
 	}
-
+	if err := processConfigAppendip(s, ctx, vars["name"]); err != nil {
+		return err
+	}
 	if err := s.backend.ContainerStart(vars["name"], hostConfig); err != nil {
 		return err
 	}
@@ -397,7 +399,9 @@ func (s *containerRouter) deleteContainers(ctx context.Context, w http.ResponseW
 		RemoveVolume: httputils.BoolValue(r, "v"),
 		RemoveLink:   httputils.BoolValue(r, "link"),
 	}
-
+	if err := processConfigRemoveip(s, ctx, name); err != nil {
+		return err
+	}
 	if err := s.backend.ContainerRm(name, config); err != nil {
 		// Force a 404 for the empty string
 		if strings.Contains(strings.ToLower(err.Error()), "prefix can't be empty") {
