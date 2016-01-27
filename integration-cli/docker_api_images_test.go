@@ -12,7 +12,6 @@ import (
 )
 
 func (s *DockerSuite) TestApiImagesFilter(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	name := "utest:tag1"
 	name2 := "utest/docker:tag2"
 	name3 := "utest:5000/docker:tag3"
@@ -49,9 +48,10 @@ func (s *DockerSuite) TestApiImagesFilter(c *check.C) {
 }
 
 func (s *DockerSuite) TestApiImagesSaveAndLoad(c *check.C) {
+	// TODO Windows to Windows CI: Investigate further why this test fails.
 	testRequires(c, Network)
 	testRequires(c, DaemonIsLinux)
-	out, err := buildImage("saveandload", "FROM hello-world\nENV FOO bar", false)
+	out, err := buildImage("saveandload", "FROM busybox\nENV FOO bar", false)
 	c.Assert(err, checker.IsNil)
 	id := strings.TrimSpace(out)
 
@@ -72,10 +72,11 @@ func (s *DockerSuite) TestApiImagesSaveAndLoad(c *check.C) {
 }
 
 func (s *DockerSuite) TestApiImagesDelete(c *check.C) {
-	testRequires(c, Network)
-	testRequires(c, DaemonIsLinux)
+	if daemonPlatform != "windows" {
+		testRequires(c, Network)
+	}
 	name := "test-api-images-delete"
-	out, err := buildImage(name, "FROM hello-world\nENV FOO bar", false)
+	out, err := buildImage(name, "FROM busybox\nENV FOO bar", false)
 	c.Assert(err, checker.IsNil)
 	id := strings.TrimSpace(out)
 
@@ -95,10 +96,11 @@ func (s *DockerSuite) TestApiImagesDelete(c *check.C) {
 }
 
 func (s *DockerSuite) TestApiImagesHistory(c *check.C) {
-	testRequires(c, Network)
-	testRequires(c, DaemonIsLinux)
+	if daemonPlatform != "windows" {
+		testRequires(c, Network)
+	}
 	name := "test-api-images-history"
-	out, err := buildImage(name, "FROM hello-world\nENV FOO bar", false)
+	out, err := buildImage(name, "FROM busybox\nENV FOO bar", false)
 	c.Assert(err, checker.IsNil)
 
 	id := strings.TrimSpace(out)
