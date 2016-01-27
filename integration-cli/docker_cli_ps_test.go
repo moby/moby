@@ -16,7 +16,16 @@ import (
 	"github.com/go-check/check"
 )
 
+var sleepCmd = "/bin/sleep"
+
+func init() {
+	if daemonPlatform == "windows" {
+		sleepCmd = "sleep"
+	}
+}
+
 func (s *DockerSuite) TestPsListContainersBase(c *check.C) {
+	// Problematic on Windows as busybox doesn't support top
 	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
 	firstID := strings.TrimSpace(out)
@@ -127,6 +136,7 @@ func assertContainerList(out string, expected []string) bool {
 }
 
 func (s *DockerSuite) TestPsListContainersSize(c *check.C) {
+	// Problematic on Windows as it doesn't report the size correctly @swernli
 	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "run", "-d", "busybox", "echo", "hello")
 
@@ -168,8 +178,6 @@ func (s *DockerSuite) TestPsListContainersSize(c *check.C) {
 }
 
 func (s *DockerSuite) TestPsListContainersFilterStatus(c *check.C) {
-	testRequires(c, DaemonIsLinux)
-
 	// start exited container
 	out, _ := dockerCmd(c, "run", "-d", "busybox")
 	firstID := strings.TrimSpace(out)
@@ -193,26 +201,28 @@ func (s *DockerSuite) TestPsListContainersFilterStatus(c *check.C) {
 	out, _, _ = dockerCmdWithTimeout(time.Second*60, "ps", "-a", "-q", "--filter=status=rubbish")
 	c.Assert(out, checker.Contains, "Unrecognised filter value for status", check.Commentf("Expected error response due to invalid status filter output: %q", out))
 
-	// pause running container
-	out, _ = dockerCmd(c, "run", "-itd", "busybox")
-	pausedID := strings.TrimSpace(out)
-	dockerCmd(c, "pause", pausedID)
-	// make sure the container is unpaused to let the daemon stop it properly
-	defer func() { dockerCmd(c, "unpause", pausedID) }()
+	// Windows doesn't support pausing of containers
+	if daemonPlatform != "windows" {
+		// pause running container
+		out, _ = dockerCmd(c, "run", "-itd", "busybox")
+		pausedID := strings.TrimSpace(out)
+		dockerCmd(c, "pause", pausedID)
+		// make sure the container is unpaused to let the daemon stop it properly
+		defer func() { dockerCmd(c, "unpause", pausedID) }()
 
-	out, _ = dockerCmd(c, "ps", "--no-trunc", "-q", "--filter=status=paused")
-	containerOut = strings.TrimSpace(out)
-	c.Assert(containerOut, checker.Equals, pausedID)
+		out, _ = dockerCmd(c, "ps", "--no-trunc", "-q", "--filter=status=paused")
+		containerOut = strings.TrimSpace(out)
+		c.Assert(containerOut, checker.Equals, pausedID)
+	}
 }
 
 func (s *DockerSuite) TestPsListContainersFilterID(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	// start container
 	out, _ := dockerCmd(c, "run", "-d", "busybox")
 	firstID := strings.TrimSpace(out)
 
 	// start another container
-	dockerCmd(c, "run", "-d", "busybox", "top")
+	dockerCmd(c, "run", "-d", "busybox", sleepCmd, "60")
 
 	// filter containers by id
 	out, _ = dockerCmd(c, "ps", "-a", "-q", "--filter=id="+firstID)
@@ -222,13 +232,12 @@ func (s *DockerSuite) TestPsListContainersFilterID(c *check.C) {
 }
 
 func (s *DockerSuite) TestPsListContainersFilterName(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	// start container
 	out, _ := dockerCmd(c, "run", "-d", "--name=a_name_to_match", "busybox")
 	firstID := strings.TrimSpace(out)
 
 	// start another container
-	dockerCmd(c, "run", "-d", "--name=b_name_to_match", "busybox", "top")
+	dockerCmd(c, "run", "-d", "--name=b_name_to_match", "busybox", sleepCmd, "60")
 
 	// filter containers by name
 	out, _ = dockerCmd(c, "ps", "-a", "-q", "--filter=name=a_name_to_match")
@@ -246,7 +255,6 @@ func (s *DockerSuite) TestPsListContainersFilterName(c *check.C) {
 // - Run containers for each of those image (busybox, images_ps_filter_test1, images_ps_filter_test2)
 // - Filter them out :P
 func (s *DockerSuite) TestPsListContainersFilterAncestorImage(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	// Build images
 	imageName1 := "images_ps_filter_test1"
 	imageID1, err := buildImage(imageName1,
@@ -342,7 +350,6 @@ func checkPsAncestorFilterOutput(c *check.C, out string, filterName string, expe
 }
 
 func (s *DockerSuite) TestPsListContainersFilterLabel(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	// start container
 	out, _ := dockerCmd(c, "run", "-d", "-l", "match=me", "-l", "second=tag", "busybox")
 	firstID := strings.TrimSpace(out)
@@ -379,8 +386,9 @@ func (s *DockerSuite) TestPsListContainersFilterLabel(c *check.C) {
 }
 
 func (s *DockerSuite) TestPsListContainersFilterExited(c *check.C) {
+	// TODO Windows CI: Enable for TP5. Fails on TP4
 	testRequires(c, DaemonIsLinux)
-	dockerCmd(c, "run", "-d", "--name", "top", "busybox", "top")
+	dockerCmd(c, "run", "-d", "--name", "sleep", "busybox", sleepCmd, "60")
 
 	dockerCmd(c, "run", "--name", "zero1", "busybox", "true")
 	firstZero, err := getIDByName("zero1")
@@ -417,16 +425,17 @@ func (s *DockerSuite) TestPsListContainersFilterExited(c *check.C) {
 }
 
 func (s *DockerSuite) TestPsRightTagName(c *check.C) {
+	// TODO Investigate further why this fails on Windows to Windows CI
 	testRequires(c, DaemonIsLinux)
 	tag := "asybox:shmatest"
 	dockerCmd(c, "tag", "busybox", tag)
 
 	var id1 string
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
+	out, _ := dockerCmd(c, "run", "-d", "busybox", sleepCmd, "60")
 	id1 = strings.TrimSpace(string(out))
 
 	var id2 string
-	out, _ = dockerCmd(c, "run", "-d", tag, "top")
+	out, _ = dockerCmd(c, "run", "-d", tag, sleepCmd, "60")
 	id2 = strings.TrimSpace(string(out))
 
 	var imageID string
@@ -434,7 +443,7 @@ func (s *DockerSuite) TestPsRightTagName(c *check.C) {
 	imageID = strings.TrimSpace(string(out))
 
 	var id3 string
-	out, _ = dockerCmd(c, "run", "-d", imageID, "top")
+	out, _ = dockerCmd(c, "run", "-d", imageID, sleepCmd, "60")
 	id3 = strings.TrimSpace(string(out))
 
 	out, _ = dockerCmd(c, "ps", "--no-trunc")
@@ -458,9 +467,10 @@ func (s *DockerSuite) TestPsRightTagName(c *check.C) {
 }
 
 func (s *DockerSuite) TestPsLinkedWithNoTrunc(c *check.C) {
+	// Problematic on Windows as it doesn't support links as of Jan 2016
 	testRequires(c, DaemonIsLinux)
-	dockerCmd(c, "run", "--name=first", "-d", "busybox", "top")
-	dockerCmd(c, "run", "--name=second", "--link=first:first", "-d", "busybox", "top")
+	dockerCmd(c, "run", "--name=first", "-d", "busybox", sleepCmd, "60")
+	dockerCmd(c, "run", "--name=second", "--link=first:first", "-d", "busybox", sleepCmd, "60")
 
 	out, _ := dockerCmd(c, "ps", "--no-trunc")
 	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
@@ -476,6 +486,7 @@ func (s *DockerSuite) TestPsLinkedWithNoTrunc(c *check.C) {
 }
 
 func (s *DockerSuite) TestPsGroupPortRange(c *check.C) {
+	// Problematic on Windows as it doesn't support port ranges as of Jan 2016
 	testRequires(c, DaemonIsLinux)
 	portRange := "3800-3900"
 	dockerCmd(c, "run", "-d", "--name", "porttest", "-p", portRange+":"+portRange, "busybox", "top")
@@ -487,6 +498,7 @@ func (s *DockerSuite) TestPsGroupPortRange(c *check.C) {
 }
 
 func (s *DockerSuite) TestPsWithSize(c *check.C) {
+	// Problematic on Windows as it doesn't report the size correctly @swernli
 	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "run", "-d", "--name", "sizetest", "busybox", "top")
 
@@ -495,7 +507,6 @@ func (s *DockerSuite) TestPsWithSize(c *check.C) {
 }
 
 func (s *DockerSuite) TestPsListContainersFilterCreated(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	// create a container
 	out, _ := dockerCmd(c, "create", "busybox")
 	cID := strings.TrimSpace(out)
@@ -526,6 +537,7 @@ func (s *DockerSuite) TestPsListContainersFilterCreated(c *check.C) {
 }
 
 func (s *DockerSuite) TestPsFormatMultiNames(c *check.C) {
+	// Problematic on Windows as it doesn't support link as of Jan 2016
 	testRequires(c, DaemonIsLinux)
 	//create 2 containers and link them
 	dockerCmd(c, "run", "--name=child", "-d", "busybox", "top")
@@ -554,19 +566,17 @@ func (s *DockerSuite) TestPsFormatMultiNames(c *check.C) {
 }
 
 func (s *DockerSuite) TestPsFormatHeaders(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	// make sure no-container "docker ps" still prints the header row
 	out, _ := dockerCmd(c, "ps", "--format", "table {{.ID}}")
 	c.Assert(out, checker.Equals, "CONTAINER ID\n", check.Commentf(`Expected 'CONTAINER ID\n', got %v`, out))
 
 	// verify that "docker ps" with a container still prints the header row also
-	dockerCmd(c, "run", "--name=test", "-d", "busybox", "top")
+	dockerCmd(c, "run", "--name=test", "-d", "busybox", sleepCmd, "60")
 	out, _ = dockerCmd(c, "ps", "--format", "table {{.Names}}")
 	c.Assert(out, checker.Equals, "NAMES\ntest\n", check.Commentf(`Expected 'NAMES\ntest\n', got %v`, out))
 }
 
 func (s *DockerSuite) TestPsDefaultFormatAndQuiet(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	config := `{
 		"psFormat": "default {{ .ID }}"
 }`
@@ -577,7 +587,7 @@ func (s *DockerSuite) TestPsDefaultFormatAndQuiet(c *check.C) {
 	err = ioutil.WriteFile(filepath.Join(d, "config.json"), []byte(config), 0644)
 	c.Assert(err, checker.IsNil)
 
-	out, _ := dockerCmd(c, "run", "--name=test", "-d", "busybox", "top")
+	out, _ := dockerCmd(c, "run", "--name=test", "-d", "busybox", sleepCmd, "60")
 	id := strings.TrimSpace(out)
 
 	out, _ = dockerCmd(c, "--config", d, "ps", "-q")
@@ -586,8 +596,8 @@ func (s *DockerSuite) TestPsDefaultFormatAndQuiet(c *check.C) {
 
 // Test for GitHub issue #12595
 func (s *DockerSuite) TestPsImageIDAfterUpdate(c *check.C) {
+	// TODO: Investigate why this fails on Windows to Windows CI further.
 	testRequires(c, DaemonIsLinux)
-
 	originalImageName := "busybox:TestPsImageIDAfterUpdate-original"
 	updatedImageName := "busybox:TestPsImageIDAfterUpdate-updated"
 
@@ -598,7 +608,7 @@ func (s *DockerSuite) TestPsImageIDAfterUpdate(c *check.C) {
 	originalImageID, err := getIDByName(originalImageName)
 	c.Assert(err, checker.IsNil)
 
-	runCmd = exec.Command(dockerBinary, "run", "-d", originalImageName, "top")
+	runCmd = exec.Command(dockerBinary, "run", "-d", originalImageName, sleepCmd, "60")
 	out, _, err = runCommandWithOutput(runCmd)
 	c.Assert(err, checker.IsNil)
 	containerID := strings.TrimSpace(out)
