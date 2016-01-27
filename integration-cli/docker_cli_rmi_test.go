@@ -11,8 +11,6 @@ import (
 	"github.com/go-check/check"
 )
 
-var sleepCmd = "/bin/sleep"
-
 func init() {
 	if daemonPlatform == "windows" {
 		sleepCmd = "sleep"
