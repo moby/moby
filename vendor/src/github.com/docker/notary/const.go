@@ -2,6 +2,8 @@ package notary
 
 // application wide constants
 const (
+	// MinRSABitSize is the minimum bit size for RSA keys allowed in notary
+	MinRSABitSize = 2048
 	// MinThreshold requires a minimum of one threshold for roles; currently we do not support a higher threshold
 	MinThreshold = 1
 	// PrivKeyPerms are the file permissions to use when writing private keys to disk
