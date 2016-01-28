@@ -130,7 +130,7 @@ func (daemon *Daemon) SystemVersion() types.Version {
 		GitCommit:    dockerversion.GitCommit,
 		GoVersion:    runtime.Version(),
 		Os:           runtime.GOOS,
-		Arch:         runtime.GOARCH,
+		Arch:         platform.Architecture,
 		BuildTime:    dockerversion.BuildTime,
 		Experimental: utils.ExperimentalBuild(),
 	}

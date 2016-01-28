@@ -1,3 +1,5 @@
+// +build freebsd darwin
+
 package platform
 
 import (
