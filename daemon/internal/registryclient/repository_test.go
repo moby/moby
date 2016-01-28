@@ -815,6 +815,7 @@ func TestManifestPut(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	var m testutil.RequestResponseMap
 	m = append(m, testutil.RequestResponseMapping{
 		Request: testutil.Request{
@@ -827,6 +828,22 @@ func TestManifestPut(t *testing.T) {
 			Headers: http.Header(map[string][]string{
 				"Content-Length":        {"0"},
 				"Docker-Content-Digest": {dgst.String()},
+			}),
+		},
+	})
+
+	putDgst := digest.FromBytes(m1.Canonical)
+	m = append(m, testutil.RequestResponseMapping{
+		Request: testutil.Request{
+			Method: "PUT",
+			Route:  "/v2/" + repo.Name() + "/manifests/" + putDgst.String(),
+			Body:   payload,
+		},
+		Response: testutil.Response{
+			StatusCode: http.StatusAccepted,
+			Headers: http.Header(map[string][]string{
+				"Content-Length":        {"0"},
+				"Docker-Content-Digest": {putDgst.String()},
 			}),
 		},
 	})
@@ -845,6 +862,10 @@ func TestManifestPut(t *testing.T) {
 	}
 
 	if _, err := ms.Put(ctx, m1, WithTag(m1.Tag)); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := ms.Put(ctx, m1); err != nil {
 		t.Fatal(err)
 	}
 

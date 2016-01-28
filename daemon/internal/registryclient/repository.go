@@ -449,9 +449,10 @@ func (o withTagOption) Apply(m distribution.ManifestService) error {
 }
 
 // Put puts a manifest.  A tag can be specified using an options parameter which uses some shared state to hold the
-// tag name in order to build the correct upload URL.  This state is written and read under a lock.
+// tag name in order to build the correct upload URL.
 func (ms *manifests) Put(ctx context.Context, m distribution.Manifest, options ...distribution.ManifestServiceOption) (digest.Digest, error) {
 	ref := ms.name
+	var tagged bool
 
 	for _, option := range options {
 		if opt, ok := option.(withTagOption); ok {
@@ -460,6 +461,7 @@ func (ms *manifests) Put(ctx context.Context, m distribution.Manifest, options .
 			if err != nil {
 				return "", err
 			}
+			tagged = true
 		} else {
 			err := option.Apply(ms)
 			if err != nil {
@@ -467,13 +469,24 @@ func (ms *manifests) Put(ctx context.Context, m distribution.Manifest, options .
 			}
 		}
 	}
-
-	manifestURL, err := ms.ub.BuildManifestURL(ref)
+	mediaType, p, err := m.Payload()
 	if err != nil {
 		return "", err
 	}
 
-	mediaType, p, err := m.Payload()
+	if !tagged {
+		// generate a canonical digest and Put by digest
+		_, d, err := distribution.UnmarshalManifest(mediaType, p)
+		if err != nil {
+			return "", err
+		}
+		ref, err = reference.WithDigest(ref, d.Digest)
+		if err != nil {
+			return "", err
+		}
+	}
+
+	manifestURL, err := ms.ub.BuildManifestURL(ref)
 	if err != nil {
 		return "", err
 	}
