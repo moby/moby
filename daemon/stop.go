@@ -38,9 +38,10 @@ func (daemon *Daemon) containerStop(container *container.Container, seconds int)
 		return nil
 	}
 
-	// 1. Send a SIGTERM
-	if err := daemon.killPossiblyDeadProcess(container, container.StopSignal()); err != nil {
-		logrus.Infof("Failed to send SIGTERM to the process, force killing")
+	stopSignal := container.StopSignal()
+	// 1. Send a stop signal
+	if err := daemon.killPossiblyDeadProcess(container, stopSignal); err != nil {
+		logrus.Infof("Failed to send signal %d to the process, force killing", stopSignal)
 		if err := daemon.killPossiblyDeadProcess(container, 9); err != nil {
 			return err
 		}
@@ -48,7 +49,7 @@ func (daemon *Daemon) containerStop(container *container.Container, seconds int)
 
 	// 2. Wait for the process to exit on its own
 	if _, err := container.WaitStop(time.Duration(seconds) * time.Second); err != nil {
-		logrus.Infof("Container %v failed to exit within %d seconds of SIGTERM - using the force", container.ID, seconds)
+		logrus.Infof("Container %v failed to exit within %d seconds of signal %d - using the force", container.ID, seconds, stopSignal)
 		// 3. If it doesn't, then send SIGKILL
 		if err := daemon.Kill(container); err != nil {
 			container.WaitStop(-1 * time.Second)
