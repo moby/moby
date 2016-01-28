@@ -361,6 +361,13 @@ func (s *DockerSuite) TestRunCreateVolumesInSymlinkDir(c *check.C) {
 	}
 	defer os.RemoveAll(dir)
 
+	// In the case of Windows to Windows CI, if the machine is setup so that
+	// the temp directory is not the C: drive, this test is invalid and will
+	// not work.
+	if daemonPlatform == "windows" && strings.ToLower(dir[:1]) != "c" {
+		c.Skip("Requires TEMP to point to C: drive")
+	}
+
 	f, err := os.OpenFile(filepath.Join(dir, "test"), os.O_CREATE, 0700)
 	if err != nil {
 		c.Fatal(err)
@@ -373,6 +380,32 @@ func (s *DockerSuite) TestRunCreateVolumesInSymlinkDir(c *check.C) {
 		cmd = "tasklist"
 	} else {
 		dockerFile = fmt.Sprintf("FROM busybox\nRUN mkdir -p %s\nRUN ln -s %s /test", dir, dir)
+		containerPath = "/test/test"
+		cmd = "true"
+	}
+	if _, err := buildImage(name, dockerFile, false); err != nil {
+		c.Fatal(err)
+	}
+
+	dockerCmd(c, "run", "-v", containerPath, name, cmd)
+}
+
+// Volume path is a symlink in the container
+func (s *DockerSuite) TestRunCreateVolumesInSymlinkDir2(c *check.C) {
+	var (
+		dockerFile    string
+		containerPath string
+		cmd           string
+	)
+	testRequires(c, SameHostDaemon)
+	name := "test-volume-symlink2"
+
+	if daemonPlatform == "windows" {
+		dockerFile = fmt.Sprintf("FROM %s\nRUN mkdir c:\\%s\nRUN mklink /D c:\\test c:\\%s", WindowsBaseImage, name, name)
+		containerPath = `c:\test\test`
+		cmd = "tasklist"
+	} else {
+		dockerFile = fmt.Sprintf("FROM busybox\nRUN mkdir -p /%s\nRUN ln -s /%s /test", name, name)
 		containerPath = "/test/test"
 		cmd = "true"
 	}
