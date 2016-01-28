@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net"
 	"os"
@@ -22,6 +23,7 @@ import (
 	"github.com/docker/libnetwork/iptables"
 	"github.com/docker/libtrust"
 	"github.com/go-check/check"
+	"github.com/kr/pty"
 )
 
 func (s *DockerDaemonSuite) TestDaemonRestartWithRunningContainersPorts(c *check.C) {
@@ -584,7 +586,7 @@ func (s *DockerDaemonSuite) TestDaemonExitOnFailure(c *check.C) {
 			c.Fatalf("Expected daemon not to start, got %v", err)
 		}
 		// look in the log and make sure we got the message that daemon is shutting down
-		runCmd := exec.Command("grep", "Error starting daemon", s.d.LogfileName())
+		runCmd := exec.Command("grep", "Error starting daemon", s.d.LogFileName())
 		if out, _, err := runCommandWithOutput(runCmd); err != nil {
 			c.Fatalf("Expected 'Error starting daemon' message; but doesn't exist in log: %q, err: %v", out, err)
 		}
@@ -1759,7 +1761,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartLocalVolumes(c *check.C) {
 func (s *DockerDaemonSuite) TestDaemonCorruptedLogDriverAddress(c *check.C) {
 	c.Assert(s.d.Start("--log-driver=syslog", "--log-opt", "syslog-address=corrupted:42"), check.NotNil)
 	expected := "Failed to set log opts: syslog-address should be in form proto://address"
-	runCmd := exec.Command("grep", expected, s.d.LogfileName())
+	runCmd := exec.Command("grep", expected, s.d.LogFileName())
 	if out, _, err := runCommandWithOutput(runCmd); err != nil {
 		c.Fatalf("Expected %q message; but doesn't exist in log: %q, err: %v", expected, out, err)
 	}
@@ -1768,7 +1770,7 @@ func (s *DockerDaemonSuite) TestDaemonCorruptedLogDriverAddress(c *check.C) {
 func (s *DockerDaemonSuite) TestDaemonCorruptedFluentdAddress(c *check.C) {
 	c.Assert(s.d.Start("--log-driver=fluentd", "--log-opt", "fluentd-address=corrupted:c"), check.NotNil)
 	expected := "Failed to set log opts: invalid fluentd-address corrupted:c: "
-	runCmd := exec.Command("grep", expected, s.d.LogfileName())
+	runCmd := exec.Command("grep", expected, s.d.LogFileName())
 	if out, _, err := runCommandWithOutput(runCmd); err != nil {
 		c.Fatalf("Expected %q message; but doesn't exist in log: %q, err: %v", expected, out, err)
 	}
@@ -1922,7 +1924,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartContainerLinksRestart(c *check.C) {
 	c.Assert(err, check.IsNil)
 	// clear the log file -- we don't need any of it but may for the next part
 	// can ignore the error here, this is just a cleanup
-	os.Truncate(d.LogfileName(), 0)
+	os.Truncate(d.LogFileName(), 0)
 	err = d.Start()
 	c.Assert(err, check.IsNil)
 
@@ -1930,7 +1932,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartContainerLinksRestart(c *check.C) {
 		out, err := d.Cmd("inspect", "-f", "{{ .State.Running }}", "parent"+num)
 		c.Assert(err, check.IsNil)
 		if strings.TrimSpace(out) != "true" {
-			log, _ := ioutil.ReadFile(d.LogfileName())
+			log, _ := ioutil.ReadFile(d.LogFileName())
 			c.Fatalf("parent container is not running\n%s", string(log))
 		}
 	}
@@ -2063,4 +2065,33 @@ func (s *DockerDaemonSuite) TestRunLinksChanged(c *check.C) {
 	out, err = s.d.Cmd("start", "-a", "test2")
 	c.Assert(err, check.NotNil, check.Commentf(out))
 	c.Assert(out, check.Not(checker.Contains), "1 packets transmitted, 1 packets received")
+}
+
+func (s *DockerDaemonSuite) TestDaemonStartWithoutColors(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	newD := NewDaemon(c)
+
+	infoLog := "\x1b[34mINFO\x1b"
+
+	p, tty, err := pty.Open()
+	c.Assert(err, checker.IsNil)
+	defer func() {
+		tty.Close()
+		p.Close()
+	}()
+
+	b := bytes.NewBuffer(nil)
+	go io.Copy(b, p)
+
+	// Enable coloring explicitly
+	newD.StartWithLogFile(tty, "--raw-logs=false")
+	newD.Stop()
+	c.Assert(b.String(), checker.Contains, infoLog)
+
+	b.Reset()
+
+	// Disable coloring explicitly
+	newD.StartWithLogFile(tty, "--raw-logs=true")
+	newD.Stop()
+	c.Assert(b.String(), check.Not(checker.Contains), infoLog)
 }
