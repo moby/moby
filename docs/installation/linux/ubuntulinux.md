@@ -50,14 +50,14 @@ your `APT` sources to the new Docker repository.
 Docker's `APT` repository contains Docker 1.7.1 and higher. To set `APT` to use
 packages from the new repository:
 
-1. If you haven't already done so, log into your Ubuntu instance as a privileged user.
+1. Log into your machine as a user with `sudo` or `root` privileges.
 
 2. Open a terminal window.
 
 3. Update package information, ensure that APT works with the `https` method, and that CA certificates are installed.
 
-         $ apt-get update
-         $ apt-get install apt-transport-https ca-certificates
+         $ sudo apt-get update
+         $ sudo apt-get install apt-transport-https ca-certificates
 
 4. Add the new `GPG` key.
 
@@ -94,11 +94,11 @@ packages from the new repository:
 
 9. Update the `APT` package index.
 
-        $ apt-get update
+        $ sudo apt-get update
 
 10. Purge the old repo if it exists.
 
-        $ apt-get purge lxc-docker
+        $ sudo apt-get purge lxc-docker
 
 11. Verify that `APT` is pulling from the right repository.
 
