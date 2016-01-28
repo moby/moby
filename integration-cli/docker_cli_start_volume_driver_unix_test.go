@@ -383,8 +383,7 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverBindExternalVolume(c
 		Name   string
 		Driver string
 	}
-	out, err := inspectFieldJSON("testing", "Mounts")
-	c.Assert(err, checker.IsNil)
+	out := inspectFieldJSON(c, "testing", "Mounts")
 	c.Assert(json.NewDecoder(strings.NewReader(out)).Decode(&mounts), checker.IsNil)
 	c.Assert(len(mounts), checker.Equals, 1, check.Commentf(out))
 	c.Assert(mounts[0].Name, checker.Equals, "foo")

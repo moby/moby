@@ -100,10 +100,7 @@ func (s *DockerSuite) TestBuildEnvironmentReplacementUser(c *check.C) {
 		c.Fatal(err)
 	}
 
-	res, err := inspectFieldJSON(name, "Config.User")
-	if err != nil {
-		c.Fatal(err)
-	}
+	res := inspectFieldJSON(c, name, "Config.User")
 
 	if res != `"foo"` {
 		c.Fatal("User foo from environment not in Config.User on image")
@@ -124,10 +121,7 @@ func (s *DockerSuite) TestBuildEnvironmentReplacementVolume(c *check.C) {
 		c.Fatal(err)
 	}
 
-	res, err := inspectFieldJSON(name, "Config.Volumes")
-	if err != nil {
-		c.Fatal(err)
-	}
+	res := inspectFieldJSON(c, name, "Config.Volumes")
 
 	var volumes map[string]interface{}
 
@@ -156,10 +150,7 @@ func (s *DockerSuite) TestBuildEnvironmentReplacementExpose(c *check.C) {
 		c.Fatal(err)
 	}
 
-	res, err := inspectFieldJSON(name, "Config.ExposedPorts")
-	if err != nil {
-		c.Fatal(err)
-	}
+	res := inspectFieldJSON(c, name, "Config.ExposedPorts")
 
 	var exposedPorts map[string]interface{}
 
@@ -254,10 +245,7 @@ func (s *DockerSuite) TestBuildEnvironmentReplacementEnv(c *check.C) {
 		c.Fatal(err)
 	}
 
-	res, err := inspectFieldJSON(name, "Config.Env")
-	if err != nil {
-		c.Fatal(err)
-	}
+	res := inspectFieldJSON(c, name, "Config.Env")
 
 	envResult := []string{}
 
@@ -315,10 +303,7 @@ func (s *DockerSuite) TestBuildHandleEscapes(c *check.C) {
 
 	var result map[string]map[string]struct{}
 
-	res, err := inspectFieldJSON(name, "Config.Volumes")
-	if err != nil {
-		c.Fatal(err)
-	}
+	res := inspectFieldJSON(c, name, "Config.Volumes")
 
 	if err = unmarshalJSON([]byte(res), &result); err != nil {
 		c.Fatal(err)
@@ -341,10 +326,7 @@ func (s *DockerSuite) TestBuildHandleEscapes(c *check.C) {
 		c.Fatal(err)
 	}
 
-	res, err = inspectFieldJSON(name, "Config.Volumes")
-	if err != nil {
-		c.Fatal(err)
-	}
+	res = inspectFieldJSON(c, name, "Config.Volumes")
 
 	if err = unmarshalJSON([]byte(res), &result); err != nil {
 		c.Fatal(err)
@@ -371,10 +353,7 @@ func (s *DockerSuite) TestBuildHandleEscapes(c *check.C) {
 		c.Fatal(err)
 	}
 
-	res, err = inspectFieldJSON(name, "Config.Volumes")
-	if err != nil {
-		c.Fatal(err)
-	}
+	res = inspectFieldJSON(c, name, "Config.Volumes")
 
 	if err = unmarshalJSON([]byte(res), &result); err != nil {
 		c.Fatal(err)
@@ -1971,10 +1950,7 @@ func (s *DockerSuite) TestBuildWithVolumes(c *check.C) {
 	if err != nil {
 		c.Fatal(err)
 	}
-	res, err := inspectFieldJSON(name, "Config.Volumes")
-	if err != nil {
-		c.Fatal(err)
-	}
+	res := inspectFieldJSON(c, name, "Config.Volumes")
 
 	err = unmarshalJSON([]byte(res), &result)
 	if err != nil {
@@ -2000,10 +1976,7 @@ func (s *DockerSuite) TestBuildMaintainer(c *check.C) {
 	if err != nil {
 		c.Fatal(err)
 	}
-	res, err := inspectField(name, "Author")
-	if err != nil {
-		c.Fatal(err)
-	}
+	res := inspectField(c, name, "Author")
 	if res != expected {
 		c.Fatalf("Maintainer %s, expected %s", res, expected)
 	}
@@ -2022,10 +1995,7 @@ func (s *DockerSuite) TestBuildUser(c *check.C) {
 	if err != nil {
 		c.Fatal(err)
 	}
-	res, err := inspectField(name, "Config.User")
-	if err != nil {
-		c.Fatal(err)
-	}
+	res := inspectField(c, name, "Config.User")
 	if res != expected {
 		c.Fatalf("User %s, expected %s", res, expected)
 	}
@@ -2048,10 +2018,7 @@ func (s *DockerSuite) TestBuildRelativeWorkdir(c *check.C) {
 	if err != nil {
 		c.Fatal(err)
 	}
-	res, err := inspectField(name, "Config.WorkingDir")
-	if err != nil {
-		c.Fatal(err)
-	}
+	res := inspectField(c, name, "Config.WorkingDir")
 	if res != expected {
 		c.Fatalf("Workdir %s, expected %s", res, expected)
 	}
@@ -2071,10 +2038,7 @@ func (s *DockerSuite) TestBuildWorkdirWithEnvVariables(c *check.C) {
 	if err != nil {
 		c.Fatal(err)
 	}
-	res, err := inspectField(name, "Config.WorkingDir")
-	if err != nil {
-		c.Fatal(err)
-	}
+	res := inspectField(c, name, "Config.WorkingDir")
 	if res != expected {
 		c.Fatalf("Workdir %s, expected %s", res, expected)
 	}
@@ -2134,10 +2098,7 @@ func (s *DockerSuite) TestBuildEnv(c *check.C) {
 	if err != nil {
 		c.Fatal(err)
 	}
-	res, err := inspectField(name, "Config.Env")
-	if err != nil {
-		c.Fatal(err)
-	}
+	res := inspectField(c, name, "Config.Env")
 	if res != expected {
 		c.Fatalf("Env %s, expected %s", res, expected)
 	}
@@ -2152,8 +2113,7 @@ func (s *DockerSuite) TestBuildPATH(c *check.C) {
 		_, err := buildImage("testbldpath", dockerfile, true)
 		c.Assert(err, check.IsNil)
 
-		res, err := inspectField("testbldpath", "Config.Env")
-		c.Assert(err, check.IsNil)
+		res := inspectField(c, "testbldpath", "Config.Env")
 
 		if res != exp {
 			c.Fatalf("Env %q, expected %q for dockerfile:%q", res, exp, dockerfile)
@@ -2239,10 +2199,7 @@ func (s *DockerSuite) TestBuildCmd(c *check.C) {
 	if err != nil {
 		c.Fatal(err)
 	}
-	res, err := inspectField(name, "Config.Cmd")
-	if err != nil {
-		c.Fatal(err)
-	}
+	res := inspectField(c, name, "Config.Cmd")
 	if res != expected {
 		c.Fatalf("Cmd %s, expected %s", res, expected)
 	}
@@ -2259,10 +2216,7 @@ func (s *DockerSuite) TestBuildExpose(c *check.C) {
 	if err != nil {
 		c.Fatal(err)
 	}
-	res, err := inspectField(name, "Config.ExposedPorts")
-	if err != nil {
-		c.Fatal(err)
-	}
+	res := inspectField(c, name, "Config.ExposedPorts")
 	if res != expected {
 		c.Fatalf("Exposed ports %s, expected %s", res, expected)
 	}
@@ -2301,10 +2255,7 @@ func (s *DockerSuite) TestBuildExposeMorePorts(c *check.C) {
 	}
 
 	// check if all the ports are saved inside Config.ExposedPorts
-	res, err := inspectFieldJSON(name, "Config.ExposedPorts")
-	if err != nil {
-		c.Fatal(err)
-	}
+	res := inspectFieldJSON(c, name, "Config.ExposedPorts")
 	var exposedPorts map[string]interface{}
 	if err := json.Unmarshal([]byte(res), &exposedPorts); err != nil {
 		c.Fatal(err)
@@ -2331,10 +2282,7 @@ func (s *DockerSuite) TestBuildExposeOrder(c *check.C) {
 		if err != nil {
 			c.Fatal(err)
 		}
-		id, err := inspectField(name, "Id")
-		if err != nil {
-			c.Fatal(err)
-		}
+		id := inspectField(c, name, "Id")
 		return id
 	}
 
@@ -2356,10 +2304,7 @@ func (s *DockerSuite) TestBuildExposeUpperCaseProto(c *check.C) {
 	if err != nil {
 		c.Fatal(err)
 	}
-	res, err := inspectField(name, "Config.ExposedPorts")
-	if err != nil {
-		c.Fatal(err)
-	}
+	res := inspectField(c, name, "Config.ExposedPorts")
 	if res != expected {
 		c.Fatalf("Exposed ports %s, expected %s", res, expected)
 	}
@@ -2377,10 +2322,7 @@ func (s *DockerSuite) TestBuildEmptyEntrypointInheritance(c *check.C) {
 	if err != nil {
 		c.Fatal(err)
 	}
-	res, err := inspectField(name, "Config.Entrypoint")
-	if err != nil {
-		c.Fatal(err)
-	}
+	res := inspectField(c, name, "Config.Entrypoint")
 
 	expected := "{[/bin/echo]}"
 	if res != expected {
@@ -2394,10 +2336,7 @@ func (s *DockerSuite) TestBuildEmptyEntrypointInheritance(c *check.C) {
 	if err != nil {
 		c.Fatal(err)
 	}
-	res, err = inspectField(name2, "Config.Entrypoint")
-	if err != nil {
-		c.Fatal(err)
-	}
+	res = inspectField(c, name2, "Config.Entrypoint")
 
 	expected = "{[]}"
 
@@ -2419,10 +2358,7 @@ func (s *DockerSuite) TestBuildEmptyEntrypoint(c *check.C) {
 	if err != nil {
 		c.Fatal(err)
 	}
-	res, err := inspectField(name, "Config.Entrypoint")
-	if err != nil {
-		c.Fatal(err)
-	}
+	res := inspectField(c, name, "Config.Entrypoint")
 	if res != expected {
 		c.Fatalf("Entrypoint %s, expected %s", res, expected)
 	}
@@ -2440,10 +2376,7 @@ func (s *DockerSuite) TestBuildEntrypoint(c *check.C) {
 	if err != nil {
 		c.Fatal(err)
 	}
-	res, err := inspectField(name, "Config.Entrypoint")
-	if err != nil {
-		c.Fatal(err)
-	}
+	res := inspectField(c, name, "Config.Entrypoint")
 	if res != expected {
 		c.Fatalf("Entrypoint %s, expected %s", res, expected)
 	}
@@ -3123,10 +3056,7 @@ func (s *DockerSuite) TestBuildEntrypointRunCleanup(c *check.C) {
 	if _, err := buildImageFromContext(name, ctx, true); err != nil {
 		c.Fatal(err)
 	}
-	res, err := inspectField(name, "Config.Cmd")
-	if err != nil {
-		c.Fatal(err)
-	}
+	res := inspectField(c, name, "Config.Cmd")
 	// Cmd must be cleaned up
 	if res != "<nil>" {
 		c.Fatalf("Cmd %s, expected nil", res)
@@ -3185,10 +3115,7 @@ func (s *DockerSuite) TestBuildInheritance(c *check.C) {
 	if err != nil {
 		c.Fatal(err)
 	}
-	ports1, err := inspectField(name, "Config.ExposedPorts")
-	if err != nil {
-		c.Fatal(err)
-	}
+	ports1 := inspectField(c, name, "Config.ExposedPorts")
 
 	_, err = buildImage(name,
 		fmt.Sprintf(`FROM %s
@@ -3198,17 +3125,11 @@ func (s *DockerSuite) TestBuildInheritance(c *check.C) {
 		c.Fatal(err)
 	}
 
-	res, err := inspectField(name, "Config.Entrypoint")
-	if err != nil {
-		c.Fatal(err)
-	}
+	res := inspectField(c, name, "Config.Entrypoint")
 	if expected := "{[/bin/echo]}"; res != expected {
 		c.Fatalf("Entrypoint %s, expected %s", res, expected)
 	}
-	ports2, err := inspectField(name, "Config.ExposedPorts")
-	if err != nil {
-		c.Fatal(err)
-	}
+	ports2 := inspectField(c, name, "Config.ExposedPorts")
 	if ports1 != ports2 {
 		c.Fatalf("Ports must be same: %s != %s", ports1, ports2)
 	}
@@ -3345,11 +3266,7 @@ docker.com>"
 		c.Fatal(err)
 	}
 
-	res, err := inspectField(name, "Author")
-
-	if err != nil {
-		c.Fatal(err)
-	}
+	res := inspectField(c, name, "Author")
 
 	if res != "\"Docker IO <io@docker.com>\"" {
 		c.Fatalf("Parsed string did not match the escaped string. Got: %q", res)
@@ -4318,10 +4235,7 @@ func (s *DockerSuite) TestBuildFromGIT(c *check.C) {
 	if err != nil {
 		c.Fatal(err)
 	}
-	res, err := inspectField(name, "Author")
-	if err != nil {
-		c.Fatal(err)
-	}
+	res := inspectField(c, name, "Author")
 	if res != "docker" {
 		c.Fatalf("Maintainer should be docker, got %s", res)
 	}
@@ -4347,10 +4261,7 @@ func (s *DockerSuite) TestBuildFromGITWithContext(c *check.C) {
 	if err != nil {
 		c.Fatal(err)
 	}
-	res, err := inspectField(name, "Author")
-	if err != nil {
-		c.Fatal(err)
-	}
+	res := inspectField(c, name, "Author")
 	if res != "docker" {
 		c.Fatalf("Maintainer should be docker, got %s", res)
 	}
@@ -4411,8 +4322,7 @@ func (s *DockerSuite) TestBuildFromRemoteTarball(c *check.C) {
 	_, err = buildImageFromPath(name, server.URL()+"/testT.tar", true)
 	c.Assert(err, check.IsNil)
 
-	res, err := inspectField(name, "Author")
-	c.Assert(err, check.IsNil)
+	res := inspectField(c, name, "Author")
 
 	if res != "docker" {
 		c.Fatalf("Maintainer should be docker, got %s", res)
@@ -4435,18 +4345,12 @@ func (s *DockerSuite) TestBuildCleanupCmdOnEntrypoint(c *check.C) {
 		true); err != nil {
 		c.Fatal(err)
 	}
-	res, err := inspectField(name, "Config.Cmd")
-	if err != nil {
-		c.Fatal(err)
-	}
+	res := inspectField(c, name, "Config.Cmd")
 	if res != "<nil>" {
 		c.Fatalf("Cmd %s, expected nil", res)
 	}
 
-	res, err = inspectField(name, "Config.Entrypoint")
-	if err != nil {
-		c.Fatal(err)
-	}
+	res = inspectField(c, name, "Config.Entrypoint")
 	if expected := "{[cat]}"; res != expected {
 		c.Fatalf("Entrypoint %s, expected %s", res, expected)
 	}
@@ -4463,10 +4367,7 @@ func (s *DockerSuite) TestBuildClearCmd(c *check.C) {
 	if err != nil {
 		c.Fatal(err)
 	}
-	res, err := inspectFieldJSON(name, "Config.Cmd")
-	if err != nil {
-		c.Fatal(err)
-	}
+	res := inspectFieldJSON(c, name, "Config.Cmd")
 	if res != "[]" {
 		c.Fatalf("Cmd %s, expected %s", res, "[]")
 	}
@@ -4478,10 +4379,7 @@ func (s *DockerSuite) TestBuildEmptyCmd(c *check.C) {
 	if _, err := buildImage(name, "FROM scratch\nMAINTAINER quux\n", true); err != nil {
 		c.Fatal(err)
 	}
-	res, err := inspectFieldJSON(name, "Config.Cmd")
-	if err != nil {
-		c.Fatal(err)
-	}
+	res := inspectFieldJSON(c, name, "Config.Cmd")
 	if res != "null" {
 		c.Fatalf("Cmd %s, expected %s", res, "null")
 	}
@@ -4522,10 +4420,7 @@ func (s *DockerSuite) TestBuildCmdShDashC(c *check.C) {
 		c.Fatal(err)
 	}
 
-	res, err := inspectFieldJSON(name, "Config.Cmd")
-	if err != nil {
-		c.Fatal(err, res)
-	}
+	res := inspectFieldJSON(c, name, "Config.Cmd")
 
 	expected := `["/bin/sh","-c","echo cmd"]`
 
@@ -4579,10 +4474,7 @@ func (s *DockerSuite) TestBuildCmdJSONNoShDashC(c *check.C) {
 		c.Fatal(err)
 	}
 
-	res, err := inspectFieldJSON(name, "Config.Cmd")
-	if err != nil {
-		c.Fatal(err, res)
-	}
+	res := inspectFieldJSON(c, name, "Config.Cmd")
 
 	expected := `["echo","cmd"]`
 
@@ -4646,10 +4538,7 @@ func (s *DockerSuite) TestBuildEntrypointInheritanceInspect(c *check.C) {
 		c.Fatal(err)
 	}
 
-	res, err := inspectFieldJSON(name2, "Config.Entrypoint")
-	if err != nil {
-		c.Fatal(err, res)
-	}
+	res := inspectFieldJSON(c, name2, "Config.Entrypoint")
 
 	if res != expected {
 		c.Fatalf("Expected value %s not in Config.Entrypoint: %s", expected, res)
@@ -4756,10 +4645,7 @@ func (s *DockerSuite) TestBuildWithTabs(c *check.C) {
 	if err != nil {
 		c.Fatal(err)
 	}
-	res, err := inspectFieldJSON(name, "ContainerConfig.Cmd")
-	if err != nil {
-		c.Fatal(err)
-	}
+	res := inspectFieldJSON(c, name, "ContainerConfig.Cmd")
 	expected1 := `["/bin/sh","-c","echo\tone\t\ttwo"]`
 	expected2 := `["/bin/sh","-c","echo\u0009one\u0009\u0009two"]` // syntactically equivalent, and what Go 1.3 generates
 	if res != expected1 && res != expected2 {
@@ -4779,10 +4665,7 @@ func (s *DockerSuite) TestBuildLabels(c *check.C) {
 	if err != nil {
 		c.Fatal(err)
 	}
-	res, err := inspectFieldJSON(name, "Config.Labels")
-	if err != nil {
-		c.Fatal(err)
-	}
+	res := inspectFieldJSON(c, name, "Config.Labels")
 	if res != expected {
 		c.Fatalf("Labels %s, expected %s", res, expected)
 	}
@@ -5869,8 +5752,7 @@ func (s *DockerSuite) TestBuildStopSignal(c *check.C) {
 		 STOPSIGNAL SIGKILL`,
 		true)
 	c.Assert(err, check.IsNil)
-	res, err := inspectFieldJSON(name, "Config.StopSignal")
-	c.Assert(err, check.IsNil)
+	res := inspectFieldJSON(c, name, "Config.StopSignal")
 
 	if res != `"SIGKILL"` {
 		c.Fatalf("Signal %s, expected SIGKILL", res)
@@ -6138,18 +6020,12 @@ func (s *DockerSuite) TestBuildBuildTimeArgExpansion(c *check.C) {
 	var resMap map[string]interface{}
 	var resArr []string
 	res := ""
-	res, err = inspectField(imgName, "Config.WorkingDir")
-	if err != nil {
-		c.Fatal(err)
-	}
+	res = inspectField(c, imgName, "Config.WorkingDir")
 	if res != filepath.ToSlash(filepath.Clean(wdVal)) {
 		c.Fatalf("Config.WorkingDir value mismatch. Expected: %s, got: %s", filepath.ToSlash(filepath.Clean(wdVal)), res)
 	}
 
-	err = inspectFieldAndMarshall(imgName, "Config.Env", &resArr)
-	if err != nil {
-		c.Fatal(err)
-	}
+	inspectFieldAndMarshall(c, imgName, "Config.Env", &resArr)
 
 	found := false
 	for _, v := range resArr {
@@ -6163,26 +6039,17 @@ func (s *DockerSuite) TestBuildBuildTimeArgExpansion(c *check.C) {
 			envVar, envVal, resArr)
 	}
 
-	err = inspectFieldAndMarshall(imgName, "Config.ExposedPorts", &resMap)
-	if err != nil {
-		c.Fatal(err)
-	}
+	inspectFieldAndMarshall(c, imgName, "Config.ExposedPorts", &resMap)
 	if _, ok := resMap[fmt.Sprintf("%s/tcp", exposeVal)]; !ok {
 		c.Fatalf("Config.ExposedPorts value mismatch. Expected exposed port: %s/tcp, got: %v", exposeVal, resMap)
 	}
 
-	res, err = inspectField(imgName, "Config.User")
-	if err != nil {
-		c.Fatal(err)
-	}
+	res = inspectField(c, imgName, "Config.User")
 	if res != userVal {
 		c.Fatalf("Config.User value mismatch. Expected: %s, got: %s", userVal, res)
 	}
 
-	err = inspectFieldAndMarshall(imgName, "Config.Volumes", &resMap)
-	if err != nil {
-		c.Fatal(err)
-	}
+	inspectFieldAndMarshall(c, imgName, "Config.Volumes", &resMap)
 	if _, ok := resMap[volVal]; !ok {
 		c.Fatalf("Config.Volumes value mismatch. Expected volume: %s, got: %v", volVal, resMap)
 	}

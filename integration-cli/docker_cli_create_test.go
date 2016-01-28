@@ -178,8 +178,7 @@ func (s *DockerSuite) TestCreateLabels(c *check.C) {
 	dockerCmd(c, "create", "--name", name, "-l", "k1=v1", "--label", "k2=v2", "busybox")
 
 	actual := make(map[string]string)
-	err := inspectFieldAndMarshall(name, "Config.Labels", &actual)
-	c.Assert(err, check.IsNil)
+	inspectFieldAndMarshall(c, name, "Config.Labels", &actual)
 
 	if !reflect.DeepEqual(expected, actual) {
 		c.Fatalf("Expected %s got %s", expected, actual)
@@ -201,8 +200,7 @@ func (s *DockerSuite) TestCreateLabelFromImage(c *check.C) {
 	dockerCmd(c, "create", "--name", name, "-l", "k2=x", "--label", "k3=v3", imageName)
 
 	actual := make(map[string]string)
-	err = inspectFieldAndMarshall(name, "Config.Labels", &actual)
-	c.Assert(err, check.IsNil)
+	inspectFieldAndMarshall(c, name, "Config.Labels", &actual)
 
 	if !reflect.DeepEqual(expected, actual) {
 		c.Fatalf("Expected %s got %s", expected, actual)
@@ -411,8 +409,7 @@ func (s *DockerSuite) TestCreateStopSignal(c *check.C) {
 	name := "test_create_stop_signal"
 	dockerCmd(c, "create", "--name", name, "--stop-signal", "9", "busybox")
 
-	res, err := inspectFieldJSON(name, "Config.StopSignal")
-	c.Assert(err, check.IsNil)
+	res := inspectFieldJSON(c, name, "Config.StopSignal")
 	c.Assert(res, checker.Contains, "9")
 
 }

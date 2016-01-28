@@ -130,8 +130,7 @@ func (s *DockerSuite) TestRunAttachDetach(c *check.C) {
 		c.Fatal("timed out waiting for container to exit")
 	}
 
-	running, err := inspectField(name, "State.Running")
-	c.Assert(err, checker.IsNil)
+	running := inspectField(c, name, "State.Running")
 	c.Assert(running, checker.Equals, "true", check.Commentf("expected container to still be running"))
 }
 
@@ -192,8 +191,7 @@ func (s *DockerSuite) TestRunAttachDetachFromFlag(c *check.C) {
 		c.Fatal("timed out waiting for container to exit")
 	}
 
-	running, err := inspectField(name, "State.Running")
-	c.Assert(err, checker.IsNil)
+	running := inspectField(c, name, "State.Running")
 	c.Assert(running, checker.Equals, "true", check.Commentf("expected container to still be running"))
 }
 
@@ -276,8 +274,7 @@ func (s *DockerSuite) TestRunAttachDetachFromConfig(c *check.C) {
 		c.Fatal("timed out waiting for container to exit")
 	}
 
-	running, err := inspectField(name, "State.Running")
-	c.Assert(err, checker.IsNil)
+	running := inspectField(c, name, "State.Running")
 	c.Assert(running, checker.Equals, "true", check.Commentf("expected container to still be running"))
 }
 
@@ -360,8 +357,7 @@ func (s *DockerSuite) TestRunAttachDetachKeysOverrideConfig(c *check.C) {
 		c.Fatal("timed out waiting for container to exit")
 	}
 
-	running, err := inspectField(name, "State.Running")
-	c.Assert(err, checker.IsNil)
+	running := inspectField(c, name, "State.Running")
 	c.Assert(running, checker.Equals, "true", check.Commentf("expected container to still be running"))
 }
 
@@ -373,8 +369,7 @@ func (s *DockerSuite) TestRunWithCPUQuota(c *check.C) {
 	out, _ := dockerCmd(c, "run", "--cpu-quota", "8000", "--name", "test", "busybox", "cat", file)
 	c.Assert(strings.TrimSpace(out), checker.Equals, "8000")
 
-	out, err := inspectField("test", "HostConfig.CpuQuota")
-	c.Assert(err, check.IsNil)
+	out = inspectField(c, "test", "HostConfig.CpuQuota")
 	c.Assert(out, checker.Equals, "8000", check.Commentf("setting the CPU CFS quota failed"))
 }
 
@@ -385,8 +380,7 @@ func (s *DockerSuite) TestRunWithCpuPeriod(c *check.C) {
 	out, _ := dockerCmd(c, "run", "--cpu-period", "50000", "--name", "test", "busybox", "cat", file)
 	c.Assert(strings.TrimSpace(out), checker.Equals, "50000")
 
-	out, err := inspectField("test", "HostConfig.CpuPeriod")
-	c.Assert(err, check.IsNil)
+	out = inspectField(c, "test", "HostConfig.CpuPeriod")
 	c.Assert(out, checker.Equals, "50000", check.Commentf("setting the CPU CFS period failed"))
 }
 
@@ -397,8 +391,7 @@ func (s *DockerSuite) TestRunWithKernelMemory(c *check.C) {
 	stdout, _, _ := dockerCmdWithStdoutStderr(c, "run", "--kernel-memory", "50M", "--name", "test1", "busybox", "cat", file)
 	c.Assert(strings.TrimSpace(stdout), checker.Equals, "52428800")
 
-	out, err := inspectField("test1", "HostConfig.KernelMemory")
-	c.Assert(err, check.IsNil)
+	out := inspectField(c, "test1", "HostConfig.KernelMemory")
 	c.Assert(out, check.Equals, "52428800")
 }
 
@@ -423,8 +416,7 @@ func (s *DockerSuite) TestRunWithCPUShares(c *check.C) {
 	out, _ := dockerCmd(c, "run", "--cpu-shares", "1000", "--name", "test", "busybox", "cat", file)
 	c.Assert(strings.TrimSpace(out), checker.Equals, "1000")
 
-	out, err := inspectField("test", "HostConfig.CPUShares")
-	c.Assert(err, check.IsNil)
+	out = inspectField(c, "test", "HostConfig.CPUShares")
 	c.Assert(out, check.Equals, "1000")
 }
 
@@ -443,8 +435,7 @@ func (s *DockerSuite) TestRunWithCpusetCpus(c *check.C) {
 	out, _ := dockerCmd(c, "run", "--cpuset-cpus", "0", "--name", "test", "busybox", "cat", file)
 	c.Assert(strings.TrimSpace(out), checker.Equals, "0")
 
-	out, err := inspectField("test", "HostConfig.CpusetCpus")
-	c.Assert(err, check.IsNil)
+	out = inspectField(c, "test", "HostConfig.CpusetCpus")
 	c.Assert(out, check.Equals, "0")
 }
 
@@ -455,8 +446,7 @@ func (s *DockerSuite) TestRunWithCpusetMems(c *check.C) {
 	out, _ := dockerCmd(c, "run", "--cpuset-mems", "0", "--name", "test", "busybox", "cat", file)
 	c.Assert(strings.TrimSpace(out), checker.Equals, "0")
 
-	out, err := inspectField("test", "HostConfig.CpusetMems")
-	c.Assert(err, check.IsNil)
+	out = inspectField(c, "test", "HostConfig.CpusetMems")
 	c.Assert(out, check.Equals, "0")
 }
 
@@ -467,8 +457,7 @@ func (s *DockerSuite) TestRunWithBlkioWeight(c *check.C) {
 	out, _ := dockerCmd(c, "run", "--blkio-weight", "300", "--name", "test", "busybox", "cat", file)
 	c.Assert(strings.TrimSpace(out), checker.Equals, "300")
 
-	out, err := inspectField("test", "HostConfig.BlkioWeight")
-	c.Assert(err, check.IsNil)
+	out = inspectField(c, "test", "HostConfig.BlkioWeight")
 	c.Assert(out, check.Equals, "300")
 }
 
@@ -537,8 +526,7 @@ func (s *DockerSuite) TestRunWithMemoryLimit(c *check.C) {
 	stdout, _, _ := dockerCmdWithStdoutStderr(c, "run", "-m", "32M", "--name", "test", "busybox", "cat", file)
 	c.Assert(strings.TrimSpace(stdout), checker.Equals, "33554432")
 
-	out, err := inspectField("test", "HostConfig.Memory")
-	c.Assert(err, check.IsNil)
+	out := inspectField(c, "test", "HostConfig.Memory")
 	c.Assert(out, check.Equals, "33554432")
 }
 
@@ -559,8 +547,7 @@ func (s *DockerSuite) TestRunWithSwappiness(c *check.C) {
 	out, _ := dockerCmd(c, "run", "--memory-swappiness", "0", "--name", "test", "busybox", "cat", file)
 	c.Assert(strings.TrimSpace(out), checker.Equals, "0")
 
-	out, err := inspectField("test", "HostConfig.MemorySwappiness")
-	c.Assert(err, check.IsNil)
+	out = inspectField(c, "test", "HostConfig.MemorySwappiness")
 	c.Assert(out, check.Equals, "0")
 }
 
@@ -583,8 +570,7 @@ func (s *DockerSuite) TestRunWithMemoryReservation(c *check.C) {
 	out, _ := dockerCmd(c, "run", "--memory-reservation", "200M", "--name", "test", "busybox", "cat", file)
 	c.Assert(strings.TrimSpace(out), checker.Equals, "209715200")
 
-	out, err := inspectField("test", "HostConfig.MemoryReservation")
-	c.Assert(err, check.IsNil)
+	out = inspectField(c, "test", "HostConfig.MemoryReservation")
 	c.Assert(out, check.Equals, "209715200")
 }
 
@@ -684,8 +670,7 @@ func (s *DockerSuite) TestRunWithDefaultShmSize(c *check.C) {
 	if !shmRegex.MatchString(out) {
 		c.Fatalf("Expected shm of 64MB in mount command, got %v", out)
 	}
-	shmSize, err := inspectField(name, "HostConfig.ShmSize")
-	c.Assert(err, check.IsNil)
+	shmSize := inspectField(c, name, "HostConfig.ShmSize")
 	c.Assert(shmSize, check.Equals, "67108864")
 }
 
@@ -698,8 +683,7 @@ func (s *DockerSuite) TestRunWithShmSize(c *check.C) {
 	if !shmRegex.MatchString(out) {
 		c.Fatalf("Expected shm of 1GB in mount command, got %v", out)
 	}
-	shmSize, err := inspectField(name, "HostConfig.ShmSize")
-	c.Assert(err, check.IsNil)
+	shmSize := inspectField(c, name, "HostConfig.ShmSize")
 	c.Assert(shmSize, check.Equals, "1073741824")
 }
 

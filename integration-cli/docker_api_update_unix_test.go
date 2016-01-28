@@ -23,8 +23,7 @@ func (s *DockerSuite) TestApiUpdateContainer(c *check.C) {
 	_, _, err := sockRequest("POST", "/containers/"+name+"/update", hostConfig)
 	c.Assert(err, check.IsNil)
 
-	memory, err := inspectField(name, "HostConfig.Memory")
-	c.Assert(err, check.IsNil)
+	memory := inspectField(c, name, "HostConfig.Memory")
 	if memory != "314572800" {
 		c.Fatalf("Got the wrong memory value, we got %d, expected 314572800(300M).", memory)
 	}
@@ -32,8 +31,7 @@ func (s *DockerSuite) TestApiUpdateContainer(c *check.C) {
 	out, _ := dockerCmd(c, "exec", name, "cat", file)
 	c.Assert(strings.TrimSpace(out), checker.Equals, "314572800")
 
-	memorySwap, err := inspectField(name, "HostConfig.MemorySwap")
-	c.Assert(err, check.IsNil)
+	memorySwap := inspectField(c, name, "HostConfig.MemorySwap")
 	if memorySwap != "524288000" {
 		c.Fatalf("Got the wrong memorySwap value, we got %d, expected 524288000(500M).", memorySwap)
 	}

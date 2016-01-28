@@ -288,23 +288,21 @@ func (s *DockerSuite) TestInspectExecID(c *check.C) {
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
 	id := strings.TrimSuffix(out, "\n")
 
-	out, err := inspectField(id, "ExecIDs")
-	c.Assert(err, checker.IsNil, check.Commentf("failed to inspect container: %s", out))
+	out = inspectField(c, id, "ExecIDs")
 	c.Assert(out, checker.Equals, "[]", check.Commentf("ExecIDs should be empty, got: %s", out))
 
 	// Start an exec, have it block waiting so we can do some checking
 	cmd := exec.Command(dockerBinary, "exec", id, "sh", "-c",
 		"while ! test -e /tmp/execid1; do sleep 1; done")
 
-	err = cmd.Start()
+	err := cmd.Start()
 	c.Assert(err, checker.IsNil, check.Commentf("failed to start the exec cmd"))
 
 	// Give the exec 10 chances/seconds to start then give up and stop the test
 	tries := 10
 	for i := 0; i < tries; i++ {
 		// Since its still running we should see exec as part of the container
-		out, err = inspectField(id, "ExecIDs")
-		c.Assert(err, checker.IsNil, check.Commentf("failed to inspect container: %s", out))
+		out = inspectField(c, id, "ExecIDs")
 
 		out = strings.TrimSuffix(out, "\n")
 		if out != "[]" && out != "<no value>" {
@@ -328,8 +326,7 @@ func (s *DockerSuite) TestInspectExecID(c *check.C) {
 	cmd.Wait()
 
 	// All execs for the container should be gone now
-	out, err = inspectField(id, "ExecIDs")
-	c.Assert(err, checker.IsNil, check.Commentf("failed to inspect container: %s", out))
+	out = inspectField(c, id, "ExecIDs")
 
 	out = strings.TrimSuffix(out, "\n")
 	c.Assert(out == "[]" || out == "<no value>", checker.True)

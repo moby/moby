@@ -147,8 +147,7 @@ func (s *DockerSuite) TestAttachDisconnect(c *check.C) {
 	c.Assert(stdin.Close(), check.IsNil)
 
 	// Expect container to still be running after stdin is closed
-	running, err := inspectField(id, "State.Running")
-	c.Assert(err, check.IsNil)
+	running := inspectField(c, id, "State.Running")
 	c.Assert(running, check.Equals, "true")
 }
 
