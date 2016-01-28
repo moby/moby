@@ -16,8 +16,8 @@ type DiscoveryType int
 const (
 	// NodeDiscovery represents Node join/leave events provided by discovery
 	NodeDiscovery = iota + 1
-	// DatastoreUpdate represents a add/remove datastore event
-	DatastoreUpdate
+	// DatastoreConfig represents a add/remove datastore event
+	DatastoreConfig
 )
 
 // NodeDiscoveryData represents the structure backing the node discovery data json string
@@ -26,8 +26,9 @@ type NodeDiscoveryData struct {
 	Self    bool
 }
 
-// DatastoreUpdateData is the data for the datastore update event message
-type DatastoreUpdateData struct {
+// DatastoreConfigData is the data for the datastore update event message
+type DatastoreConfigData struct {
+	Scope    string
 	Provider string
 	Address  string
 	Config   interface{}
