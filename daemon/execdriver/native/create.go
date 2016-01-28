@@ -287,7 +287,7 @@ func (d *Driver) setupRlimits(container *configs.Config, c *execdriver.Command) 
 
 // If rootfs mount propagation is RPRIVATE, that means all the volumes are
 // going to be private anyway. There is no need to apply per volume
-// propagation on top. This is just an optimzation so that cost of per volume
+// propagation on top. This is just an optimization so that cost of per volume
 // propagation is paid only if user decides to make some volume non-private
 // which will force rootfs mount propagation to be non RPRIVATE.
 func checkResetVolumePropagation(container *configs.Config) {
@@ -345,7 +345,7 @@ func getSourceMount(source string) (string, string, error) {
 	return "", "", fmt.Errorf("Could not find source mount of %s", source)
 }
 
-// Ensure mount point on which path is mouted, is shared.
+// Ensure mount point on which path is mounted, is shared.
 func ensureShared(path string) error {
 	sharedMount := false
 
@@ -460,7 +460,7 @@ func (d *Driver) setupMounts(container *configs.Config, c *execdriver.Command) e
 		}
 
 		// Determine property of RootPropagation based on volume
-		// properties. If a volume is shared, then keep root propagtion
+		// properties. If a volume is shared, then keep root propagation
 		// shared. This should work for slave and private volumes too.
 		//
 		// For slave volumes, it can be either [r]shared/[r]slave.
