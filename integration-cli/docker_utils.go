@@ -205,7 +205,15 @@ func (d *Daemon) getClientConfig() (*clientConfig, error) {
 
 // Start will start the daemon and return once it is ready to receive requests.
 // You can specify additional daemon flags.
-func (d *Daemon) Start(arg ...string) error {
+func (d *Daemon) Start(args ...string) error {
+	logFile, err := os.OpenFile(filepath.Join(d.folder, "docker.log"), os.O_RDWR|os.O_CREATE|os.O_APPEND, 0600)
+	d.c.Assert(err, check.IsNil, check.Commentf("[%s] Could not create %s/docker.log", d.id, d.folder))
+
+	return d.StartWithLogFile(logFile, args...)
+}
+
+// StartWithLogFile will start the daemon and attach its streams to a given file.
+func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 	dockerBinary, err := exec.LookPath(dockerBinary)
 	d.c.Assert(err, check.IsNil, check.Commentf("[%s] could not find docker binary in $PATH", d.id))
 
@@ -226,7 +234,7 @@ func (d *Daemon) Start(arg ...string) error {
 	// turn on debug mode
 	foundLog := false
 	foundSd := false
-	for _, a := range arg {
+	for _, a := range providedArgs {
 		if strings.Contains(a, "--log-level") || strings.Contains(a, "-D") || strings.Contains(a, "--debug") {
 			foundLog = true
 		}
@@ -241,14 +249,12 @@ func (d *Daemon) Start(arg ...string) error {
 		args = append(args, "--storage-driver", d.storageDriver)
 	}
 
-	args = append(args, arg...)
+	args = append(args, providedArgs...)
 	d.cmd = exec.Command(dockerBinary, args...)
 
-	d.logFile, err = os.OpenFile(filepath.Join(d.folder, "docker.log"), os.O_RDWR|os.O_CREATE|os.O_APPEND, 0600)
-	d.c.Assert(err, check.IsNil, check.Commentf("[%s] Could not create %s/docker.log", d.id, d.folder))
-
-	d.cmd.Stdout = d.logFile
-	d.cmd.Stderr = d.logFile
+	d.cmd.Stdout = out
+	d.cmd.Stderr = out
+	d.logFile = out
 
 	if err := d.cmd.Start(); err != nil {
 		return fmt.Errorf("[%s] could not start daemon container: %v", d.id, err)
@@ -472,8 +478,8 @@ func (d *Daemon) CmdWithArgs(daemonArgs []string, name string, arg ...string) (s
 	return string(b), err
 }
 
-// LogfileName returns the path the the daemon's log file
-func (d *Daemon) LogfileName() string {
+// LogFileName returns the path the the daemon's log file
+func (d *Daemon) LogFileName() string {
 	return d.logFile.Name()
 }
 
