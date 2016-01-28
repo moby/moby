@@ -21,8 +21,8 @@ parent = "smn_cli"
     --internal               Restricts external access to the network
     --ip-range=[]            Allocate container ip from a sub-range
     --ipam-driver=default    IP Address Management Driver
-    -o --opt=map[]           Set custom network plugin options
-    --ipam-opt=map[]         Set custom IPAM plugin options
+    --ipam-opt=map[]         Set custom IPAM driver specific options
+    -o --opt=map[]           Set custom driver specific options
     --subnet=[]              Subnet in CIDR format that represents a network segment
 
 Creates a new network. The `DRIVER` accepts `bridge` or `overlay` which are the
@@ -121,6 +121,26 @@ docker network create -d overlay
   my-multihost-network
 ```
 Be sure that your subnetworks do not overlap. If they do, the network create fails and Engine returns an error.
+
+# Bridge driver options
+
+When creating a custom network, the default network driver (i.e. `bridge`) has additional options that can be passed.
+The following are those options and the equivalent docker daemon flags used for docker0 bridge:
+
+| Option                                           | Equivalent  | Description                                           |
+|--------------------------------------------------|-------------|-------------------------------------------------------|
+| `com.docker.network.bridge.name`                 | -           | bridge name to be used when creating the Linux bridge |
+| `com.docker.network.bridge.enable_ip_masquerade` | `--ip-masq` | Enable IP masquerading                                |
+| `com.docker.network.bridge.enable_icc`           | `--icc`     | Enable or Disable Inter Container Connectivity        |
+| `com.docker.network.bridge.host_binding_ipv4`    | `--ip`      | Default IP when binding container ports               |
+| `com.docker.network.mtu`                         | `--mtu`     | Set the containers network MTU                        |
+| `com.docker.network.enable_ipv6`                 | `--ipv6`    | Enable IPv6 networking                                |
+
+For example, let's use `-o` or `--opt` options to specify an IP address binding when publishing ports:
+
+```bash
+docker network create -o "com.docker.network.bridge.host_binding_ipv4"="172.19.0.1" simple-network
+```
 
 ### Network internal mode
 
