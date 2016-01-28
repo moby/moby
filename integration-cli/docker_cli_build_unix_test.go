@@ -47,8 +47,7 @@ func (s *DockerSuite) TestBuildResourceConstraintsAreUsed(c *check.C) {
 		Ulimits    []*units.Ulimit
 	}
 
-	cfg, err := inspectFieldJSON(cID, "HostConfig")
-	c.Assert(err, checker.IsNil)
+	cfg := inspectFieldJSON(c, cID, "HostConfig")
 
 	var c1 hostConfig
 	err = json.Unmarshal([]byte(cfg), &c1)
@@ -66,8 +65,7 @@ func (s *DockerSuite) TestBuildResourceConstraintsAreUsed(c *check.C) {
 	// Make sure constraints aren't saved to image
 	dockerCmd(c, "run", "--name=test", name)
 
-	cfg, err = inspectFieldJSON("test", "HostConfig")
-	c.Assert(err, checker.IsNil)
+	cfg = inspectFieldJSON(c, "test", "HostConfig")
 
 	var c2 hostConfig
 	err = json.Unmarshal([]byte(cfg), &c2)

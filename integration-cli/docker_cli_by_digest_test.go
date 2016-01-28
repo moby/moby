@@ -132,10 +132,9 @@ func (s *DockerRegistrySuite) TestCreateByDigest(c *check.C) {
 	imageReference := fmt.Sprintf("%s@%s", repoName, pushDigest)
 
 	containerName := "createByDigest"
-	out, _ := dockerCmd(c, "create", "--name", containerName, imageReference)
+	dockerCmd(c, "create", "--name", containerName, imageReference)
 
-	res, err := inspectField(containerName, "Config.Image")
-	c.Assert(err, checker.IsNil, check.Commentf("failed to get Config.Image: %s", out))
+	res := inspectField(c, containerName, "Config.Image")
 	c.Assert(res, checker.Equals, imageReference)
 }
 
@@ -153,8 +152,7 @@ func (s *DockerRegistrySuite) TestRunByDigest(c *check.C) {
 	c.Assert(matches, checker.HasLen, 2, check.Commentf("unable to parse digest from pull output: %s", out))
 	c.Assert(matches[1], checker.Equals, "1", check.Commentf("Expected %q, got %q", "1", matches[1]))
 
-	res, err := inspectField(containerName, "Config.Image")
-	c.Assert(err, checker.IsNil, check.Commentf("failed to get Config.Image: %s", out))
+	res := inspectField(c, containerName, "Config.Image")
 	c.Assert(res, checker.Equals, imageReference)
 }
 
@@ -168,15 +166,14 @@ func (s *DockerRegistrySuite) TestRemoveImageByDigest(c *check.C) {
 	dockerCmd(c, "pull", imageReference)
 
 	// make sure inspect runs ok
-	_, err = inspectField(imageReference, "Id")
-	c.Assert(err, checker.IsNil, check.Commentf("failed to inspect image"))
+	inspectField(c, imageReference, "Id")
 
 	// do the delete
 	err = deleteImages(imageReference)
 	c.Assert(err, checker.IsNil, check.Commentf("unexpected error deleting image"))
 
 	// try to inspect again - it should error this time
-	_, err = inspectField(imageReference, "Id")
+	_, err = inspectFieldWithError(imageReference, "Id")
 	//unexpected nil err trying to inspect what should be a non-existent image
 	c.Assert(err, checker.NotNil)
 	c.Assert(err.Error(), checker.Contains, "No such image")
@@ -192,8 +189,7 @@ func (s *DockerRegistrySuite) TestBuildByDigest(c *check.C) {
 	dockerCmd(c, "pull", imageReference)
 
 	// get the image id
-	imageID, err := inspectField(imageReference, "Id")
-	c.Assert(err, checker.IsNil, check.Commentf("error getting image id"))
+	imageID := inspectField(c, imageReference, "Id")
 
 	// do the build
 	name := "buildbydigest"
@@ -204,8 +200,7 @@ func (s *DockerRegistrySuite) TestBuildByDigest(c *check.C) {
 	c.Assert(err, checker.IsNil)
 
 	// get the build's image id
-	res, err := inspectField(name, "Config.Image")
-	c.Assert(err, checker.IsNil)
+	res := inspectField(c, name, "Config.Image")
 	// make sure they match
 	c.Assert(res, checker.Equals, imageID)
 }
@@ -223,11 +218,9 @@ func (s *DockerRegistrySuite) TestTagByDigest(c *check.C) {
 	tag := "tagbydigest"
 	dockerCmd(c, "tag", imageReference, tag)
 
-	expectedID, err := inspectField(imageReference, "Id")
-	c.Assert(err, checker.IsNil, check.Commentf("error getting original image id"))
+	expectedID := inspectField(c, imageReference, "Id")
 
-	tagID, err := inspectField(tag, "Id")
-	c.Assert(err, checker.IsNil, check.Commentf("error getting tagged image id"))
+	tagID := inspectField(c, tag, "Id")
 	c.Assert(tagID, checker.Equals, expectedID)
 }
 
@@ -389,8 +382,7 @@ func (s *DockerRegistrySuite) TestDeleteImageByIDOnlyPulledByDigest(c *check.C) 
 	dockerCmd(c, "pull", imageReference)
 	// just in case...
 
-	imageID, err := inspectField(imageReference, "Id")
-	c.Assert(err, checker.IsNil, check.Commentf("error inspecting image id"))
+	imageID := inspectField(c, imageReference, "Id")
 
 	dockerCmd(c, "rmi", imageID)
 }
@@ -403,8 +395,7 @@ func (s *DockerRegistrySuite) TestDeleteImageWithDigestAndTag(c *check.C) {
 	imageReference := fmt.Sprintf("%s@%s", repoName, pushDigest)
 	dockerCmd(c, "pull", imageReference)
 
-	imageID, err := inspectField(imageReference, "Id")
-	c.Assert(err, checker.IsNil, check.Commentf("error inspecting image id"))
+	imageID := inspectField(c, imageReference, "Id")
 
 	repoTag := repoName + ":sometag"
 	repoTag2 := repoName + ":othertag"
@@ -414,13 +405,12 @@ func (s *DockerRegistrySuite) TestDeleteImageWithDigestAndTag(c *check.C) {
 	dockerCmd(c, "rmi", repoTag2)
 
 	// rmi should have deleted only repoTag2, because there's another tag
-	_, err = inspectField(repoTag, "Id")
-	c.Assert(err, checker.IsNil, check.Commentf("repoTag should not have been removed"))
+	inspectField(c, repoTag, "Id")
 
 	dockerCmd(c, "rmi", repoTag)
 
 	// rmi should have deleted the tag, the digest reference, and the image itself
-	_, err = inspectField(imageID, "Id")
+	_, err = inspectFieldWithError(imageID, "Id")
 	c.Assert(err, checker.NotNil, check.Commentf("image should have been deleted"))
 }
 

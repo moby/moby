@@ -25,8 +25,7 @@ func (s *DockerSuite) TestTagUnprefixedRepoByName(c *check.C) {
 
 // tagging an image by ID in a new unprefixed repo should work
 func (s *DockerSuite) TestTagUnprefixedRepoByID(c *check.C) {
-	imageID, err := inspectField("busybox", "Id")
-	c.Assert(err, check.IsNil)
+	imageID := inspectField(c, "busybox", "Id")
 	dockerCmd(c, "tag", imageID, "testfoobarbaz")
 }
 
@@ -233,10 +232,7 @@ func (s *DockerSuite) TestTagTruncationAmbiguity(c *check.C) {
 	truncatedImageID := stringid.TruncateID(imageID)
 	truncatedTag := fmt.Sprintf("notbusybox:%s", truncatedImageID)
 
-	id, err := inspectField(truncatedTag, "Id")
-	if err != nil {
-		c.Fatalf("Error inspecting by image id: %s", err)
-	}
+	id := inspectField(c, truncatedTag, "Id")
 
 	// Ensure inspect by image id returns image for image id
 	c.Assert(id, checker.Equals, imageID)
@@ -248,10 +244,7 @@ func (s *DockerSuite) TestTagTruncationAmbiguity(c *check.C) {
 		c.Fatalf("Error tagging with an image id: %s", err)
 	}
 
-	id, err = inspectField(truncatedTag, "Id")
-	if err != nil {
-		c.Fatalf("Error inspecting by image id: %s", err)
-	}
+	id = inspectField(c, truncatedTag, "Id")
 
 	// Ensure id is imageID and not busybox:latest
 	c.Assert(id, checker.Not(checker.Equals), imageID)

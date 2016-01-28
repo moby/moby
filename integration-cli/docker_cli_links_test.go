@@ -69,10 +69,9 @@ func (s *DockerSuite) TestLinksInspectLinksStarted(c *check.C) {
 	dockerCmd(c, "run", "-d", "--name", "container1", "busybox", "top")
 	dockerCmd(c, "run", "-d", "--name", "container2", "busybox", "top")
 	dockerCmd(c, "run", "-d", "--name", "testinspectlink", "--link", "container1:alias1", "--link", "container2:alias2", "busybox", "top")
-	links, err := inspectFieldJSON("testinspectlink", "HostConfig.Links")
-	c.Assert(err, checker.IsNil)
+	links := inspectFieldJSON(c, "testinspectlink", "HostConfig.Links")
 
-	err = unmarshalJSON([]byte(links), &result)
+	err := unmarshalJSON([]byte(links), &result)
 	c.Assert(err, checker.IsNil)
 
 	output := convertSliceOfStringsToMap(result)
@@ -89,10 +88,9 @@ func (s *DockerSuite) TestLinksInspectLinksStopped(c *check.C) {
 	dockerCmd(c, "run", "-d", "--name", "container1", "busybox", "top")
 	dockerCmd(c, "run", "-d", "--name", "container2", "busybox", "top")
 	dockerCmd(c, "run", "-d", "--name", "testinspectlink", "--link", "container1:alias1", "--link", "container2:alias2", "busybox", "true")
-	links, err := inspectFieldJSON("testinspectlink", "HostConfig.Links")
-	c.Assert(err, checker.IsNil)
+	links := inspectFieldJSON(c, "testinspectlink", "HostConfig.Links")
 
-	err = unmarshalJSON([]byte(links), &result)
+	err := unmarshalJSON([]byte(links), &result)
 	c.Assert(err, checker.IsNil)
 
 	output := convertSliceOfStringsToMap(result)
@@ -136,11 +134,7 @@ func (s *DockerSuite) TestLinksUpdateOnRestart(c *check.C) {
 	out, _ := dockerCmd(c, "run", "-d", "--name", "two", "--link", "one:onetwo", "--link", "one:one", "busybox", "top")
 	id := strings.TrimSpace(string(out))
 
-	realIP, err := inspectField("one", "NetworkSettings.Networks.bridge.IPAddress")
-	if err != nil {
-		c.Fatal(err)
-	}
-	c.Assert(err, checker.IsNil)
+	realIP := inspectField(c, "one", "NetworkSettings.Networks.bridge.IPAddress")
 	content, err := readContainerFileWithExec(id, "/etc/hosts")
 	c.Assert(err, checker.IsNil)
 
@@ -157,8 +151,7 @@ func (s *DockerSuite) TestLinksUpdateOnRestart(c *check.C) {
 	c.Assert(ip, checker.Equals, realIP)
 
 	dockerCmd(c, "restart", "one")
-	realIP, err = inspectField("one", "NetworkSettings.Networks.bridge.IPAddress")
-	c.Assert(err, checker.IsNil)
+	realIP = inspectField(c, "one", "NetworkSettings.Networks.bridge.IPAddress")
 
 	content, err = readContainerFileWithExec(id, "/etc/hosts")
 	c.Assert(err, checker.IsNil, check.Commentf("content: %s", string(content)))
@@ -190,8 +183,7 @@ func (s *DockerSuite) TestLinkShortDefinition(c *check.C) {
 	cid2 := strings.TrimSpace(out)
 	c.Assert(waitRun(cid2), checker.IsNil)
 
-	links, err := inspectFieldJSON(cid2, "HostConfig.Links")
-	c.Assert(err, checker.IsNil)
+	links := inspectFieldJSON(c, cid2, "HostConfig.Links")
 	c.Assert(links, checker.Equals, "[\"/shortlinkdef:/link2/shortlinkdef\"]")
 }
 

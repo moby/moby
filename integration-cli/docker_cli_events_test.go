@@ -336,8 +336,7 @@ func (s *DockerSuite) TestEventsFilterContainer(c *check.C) {
 
 	for _, name := range []string{"container_1", "container_2"} {
 		dockerCmd(c, "run", "--name", name, "busybox", "true")
-		id, err := inspectField(name, "Id")
-		c.Assert(err, checker.IsNil)
+		id := inspectField(c, name, "Id")
 		nameID[name] = id
 	}
 

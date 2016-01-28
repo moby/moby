@@ -235,21 +235,19 @@ func (s *DockerTrustSuite) TestTrustedPullDelete(c *check.C) {
 	c.Assert(matches, checker.HasLen, 2, check.Commentf("unable to parse digest from pull output: %s", out))
 	pullDigest := matches[1]
 
-	imageID, err := inspectField(repoName, "Id")
-	c.Assert(err, checker.IsNil, check.Commentf("error inspecting image id"))
+	imageID := inspectField(c, repoName, "Id")
 
 	imageByDigest := repoName + "@" + pullDigest
-	byDigestID, err := inspectField(imageByDigest, "Id")
-	c.Assert(err, checker.IsNil, check.Commentf("error inspecting image id"))
+	byDigestID := inspectField(c, imageByDigest, "Id")
 
 	c.Assert(byDigestID, checker.Equals, imageID)
 
 	// rmi of tag should also remove the digest reference
 	dockerCmd(c, "rmi", repoName)
 
-	_, err = inspectField(imageByDigest, "Id")
+	_, err = inspectFieldWithError(imageByDigest, "Id")
 	c.Assert(err, checker.NotNil, check.Commentf("digest reference should have been removed"))
 
-	_, err = inspectField(imageID, "Id")
+	_, err = inspectFieldWithError(imageID, "Id")
 	c.Assert(err, checker.NotNil, check.Commentf("image should have been deleted"))
 }

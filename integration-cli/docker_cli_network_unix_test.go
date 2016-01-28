@@ -890,8 +890,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkMacInspect(c *check.C) {
 
 	dockerCmd(c, "run", "-d", "--net", nwn, "--name", ctn, "busybox", "top")
 
-	mac, err := inspectField(ctn, "NetworkSettings.Networks."+nwn+".MacAddress")
-	c.Assert(err, checker.IsNil)
+	mac := inspectField(c, ctn, "NetworkSettings.Networks."+nwn+".MacAddress")
 	c.Assert(mac, checker.Equals, "a0:b1:c2:d3:e4:f5")
 }
 
@@ -1048,19 +1047,16 @@ func (s *DockerNetworkSuite) TestDockerNetworkConnectWithMac(c *check.C) {
 	dockerCmd(c, "network", "create", "mynetwork")
 	dockerCmd(c, "run", "--name=test", "-d", "--mac-address", macAddress, "busybox", "top")
 	c.Assert(waitRun("test"), check.IsNil)
-	mac1, err := inspectField("test", "NetworkSettings.Networks.bridge.MacAddress")
-	c.Assert(err, checker.IsNil)
+	mac1 := inspectField(c, "test", "NetworkSettings.Networks.bridge.MacAddress")
 	c.Assert(strings.TrimSpace(mac1), checker.Equals, macAddress)
 	dockerCmd(c, "network", "connect", "mynetwork", "test")
-	mac2, err := inspectField("test", "NetworkSettings.Networks.mynetwork.MacAddress")
-	c.Assert(err, checker.IsNil)
+	mac2 := inspectField(c, "test", "NetworkSettings.Networks.mynetwork.MacAddress")
 	c.Assert(strings.TrimSpace(mac2), checker.Not(checker.Equals), strings.TrimSpace(mac1))
 }
 
 func (s *DockerNetworkSuite) TestDockerNetworkInspectCreatedContainer(c *check.C) {
 	dockerCmd(c, "create", "--name", "test", "busybox")
-	networks, err := inspectField("test", "NetworkSettings.Networks")
-	c.Assert(err, checker.IsNil)
+	networks := inspectField(c, "test", "NetworkSettings.Networks")
 	c.Assert(networks, checker.Contains, "bridge", check.Commentf("Should return 'bridge' network"))
 }
 
@@ -1070,8 +1066,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkRestartWithMultipleNetworks(c *che
 	c.Assert(waitRun("foo"), checker.IsNil)
 	dockerCmd(c, "network", "connect", "test", "foo")
 	dockerCmd(c, "restart", "foo")
-	networks, err := inspectField("foo", "NetworkSettings.Networks")
-	c.Assert(err, checker.IsNil)
+	networks := inspectField(c, "foo", "NetworkSettings.Networks")
 	c.Assert(networks, checker.Contains, "bridge", check.Commentf("Should contain 'bridge' network"))
 	c.Assert(networks, checker.Contains, "test", check.Commentf("Should contain 'test' network"))
 }
@@ -1080,20 +1075,18 @@ func (s *DockerNetworkSuite) TestDockerNetworkConnectDisconnectToStoppedContaine
 	dockerCmd(c, "network", "create", "test")
 	dockerCmd(c, "create", "--name=foo", "busybox", "top")
 	dockerCmd(c, "network", "connect", "test", "foo")
-	networks, err := inspectField("foo", "NetworkSettings.Networks")
-	c.Assert(err, checker.IsNil)
+	networks := inspectField(c, "foo", "NetworkSettings.Networks")
 	c.Assert(networks, checker.Contains, "test", check.Commentf("Should contain 'test' network"))
 
 	// Restart docker daemon to test the config has persisted to disk
 	s.d.Restart()
-	networks, err = inspectField("foo", "NetworkSettings.Networks")
-	c.Assert(err, checker.IsNil)
+	networks = inspectField(c, "foo", "NetworkSettings.Networks")
 	c.Assert(networks, checker.Contains, "test", check.Commentf("Should contain 'test' network"))
 
 	// start the container and test if we can ping it from another container in the same network
 	dockerCmd(c, "start", "foo")
 	c.Assert(waitRun("foo"), checker.IsNil)
-	ip, err := inspectField("foo", "NetworkSettings.Networks.test.IPAddress")
+	ip := inspectField(c, "foo", "NetworkSettings.Networks.test.IPAddress")
 	ip = strings.TrimSpace(ip)
 	dockerCmd(c, "run", "--net=test", "busybox", "sh", "-c", fmt.Sprintf("ping -c 1 %s", ip))
 
@@ -1101,14 +1094,12 @@ func (s *DockerNetworkSuite) TestDockerNetworkConnectDisconnectToStoppedContaine
 
 	// Test disconnect
 	dockerCmd(c, "network", "disconnect", "test", "foo")
-	networks, err = inspectField("foo", "NetworkSettings.Networks")
-	c.Assert(err, checker.IsNil)
+	networks = inspectField(c, "foo", "NetworkSettings.Networks")
 	c.Assert(networks, checker.Not(checker.Contains), "test", check.Commentf("Should not contain 'test' network"))
 
 	// Restart docker daemon to test the config has persisted to disk
 	s.d.Restart()
-	networks, err = inspectField("foo", "NetworkSettings.Networks")
-	c.Assert(err, checker.IsNil)
+	networks = inspectField(c, "foo", "NetworkSettings.Networks")
 	c.Assert(networks, checker.Not(checker.Contains), "test", check.Commentf("Should not contain 'test' network"))
 
 }
@@ -1174,10 +1165,10 @@ func checkUnsupportedNetworkAndIP(c *check.C, nwMode string) {
 }
 
 func verifyIPAddresses(c *check.C, cName, nwname, ipv4, ipv6 string) {
-	out, _ := dockerCmd(c, "inspect", fmt.Sprintf("--format='{{ .NetworkSettings.Networks.%s.IPAddress }}'", nwname), cName)
+	out := inspectField(c, cName, fmt.Sprintf("NetworkSettings.Networks.%s.IPAddress", nwname))
 	c.Assert(strings.TrimSpace(out), check.Equals, ipv4)
 
-	out, _ = dockerCmd(c, "inspect", fmt.Sprintf("--format='{{ .NetworkSettings.Networks.%s.GlobalIPv6Address }}'", nwname), cName)
+	out = inspectField(c, cName, fmt.Sprintf("NetworkSettings.Networks.%s.GlobalIPv6Address", nwname))
 	c.Assert(strings.TrimSpace(out), check.Equals, ipv6)
 }
 
@@ -1237,8 +1228,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkStartAPIWithHostconfig(c *check.C)
 	_, _, err := sockRequest("POST", "/containers/"+conName+"/start", config)
 	c.Assert(err, checker.IsNil)
 	c.Assert(waitRun(conName), checker.IsNil)
-	networks, err := inspectField(conName, "NetworkSettings.Networks")
-	c.Assert(err, checker.IsNil)
+	networks := inspectField(c, conName, "NetworkSettings.Networks")
 	c.Assert(networks, checker.Contains, netName, check.Commentf(fmt.Sprintf("Should contain '%s' network", netName)))
 	c.Assert(networks, checker.Not(checker.Contains), "bridge", check.Commentf("Should not contain 'bridge' network"))
 }
@@ -1257,8 +1247,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkDisconnectDefault(c *check.C) {
 
 	dockerCmd(c, "start", containerName)
 	c.Assert(waitRun(containerName), checker.IsNil)
-	networks, err := inspectField(containerName, "NetworkSettings.Networks")
-	c.Assert(err, checker.IsNil)
+	networks := inspectField(c, containerName, "NetworkSettings.Networks")
 	c.Assert(networks, checker.Contains, netWorkName1, check.Commentf(fmt.Sprintf("Should contain '%s' network", netWorkName1)))
 	c.Assert(networks, checker.Contains, netWorkName2, check.Commentf(fmt.Sprintf("Should contain '%s' network", netWorkName2)))
 	c.Assert(networks, checker.Not(checker.Contains), "bridge", check.Commentf("Should not contain 'bridge' network"))
@@ -1339,12 +1328,12 @@ func (s *DockerSuite) TestDockerNetworkConnectFailsNoInspectChange(c *check.C) {
 	dockerCmd(c, "run", "-d", "--name=bb", "busybox", "top")
 	c.Assert(waitRun("bb"), check.IsNil)
 
-	ns0, _ := dockerCmd(c, "inspect", "--format='{{ .NetworkSettings.Networks.bridge }}'", "bb")
+	ns0 := inspectField(c, "bb", "NetworkSettings.Networks.bridge")
 
 	// A failing redundant network connect should not alter current container's endpoint settings
 	_, _, err := dockerCmdWithError("network", "connect", "bridge", "bb")
 	c.Assert(err, check.NotNil)
 
-	ns1, _ := dockerCmd(c, "inspect", "--format='{{ .NetworkSettings.Networks.bridge }}'", "bb")
+	ns1 := inspectField(c, "bb", "NetworkSettings.Networks.bridge")
 	c.Assert(ns1, check.Equals, ns0)
 }

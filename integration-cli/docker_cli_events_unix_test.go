@@ -95,8 +95,7 @@ func (s *DockerSuite) TestEventsOOMDisableTrue(c *check.C) {
 
 	c.Assert(waitRun("oomTrue"), checker.IsNil)
 	defer dockerCmd(c, "kill", "oomTrue")
-	containerID, err := inspectField("oomTrue", "Id")
-	c.Assert(err, checker.IsNil)
+	containerID := inspectField(c, "oomTrue", "Id")
 
 	testActions := map[string]chan bool{
 		"oom": make(chan bool),
@@ -119,8 +118,7 @@ func (s *DockerSuite) TestEventsOOMDisableTrue(c *check.C) {
 		}
 	}
 
-	status, err := inspectField("oomTrue", "State.Status")
-	c.Assert(err, checker.IsNil)
+	status := inspectField(c, "oomTrue", "State.Status")
 	c.Assert(strings.TrimSpace(status), checker.Equals, "running", check.Commentf("container should be still running"))
 }
 
