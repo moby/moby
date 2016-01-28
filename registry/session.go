@@ -19,6 +19,7 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/distribution/registry/api/errcode"
 	"github.com/docker/docker/pkg/httputils"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/stringid"
@@ -213,7 +214,7 @@ func (r *Session) GetRemoteHistory(imgID, registry string) ([]string, error) {
 	defer res.Body.Close()
 	if res.StatusCode != 200 {
 		if res.StatusCode == 401 {
-			return nil, errLoginRequired
+			return nil, errcode.ErrorCodeUnauthorized.WithArgs()
 		}
 		return nil, httputils.NewHTTPRequestError(fmt.Sprintf("Server error: %d trying to fetch remote history for %s", res.StatusCode, imgID), res)
 	}
@@ -427,7 +428,7 @@ func (r *Session) GetRepositoryData(name reference.Named) (*RepositoryData, erro
 	}
 	defer res.Body.Close()
 	if res.StatusCode == 401 {
-		return nil, errLoginRequired
+		return nil, errcode.ErrorCodeUnauthorized.WithArgs()
 	}
 	// TODO: Right now we're ignoring checksums in the response body.
 	// In the future, we need to use them to check image validity.
@@ -661,7 +662,7 @@ func (r *Session) PushImageJSONIndex(remote reference.Named, imgList []*ImgData,
 	defer res.Body.Close()
 
 	if res.StatusCode == 401 {
-		return nil, errLoginRequired
+		return nil, errcode.ErrorCodeUnauthorized.WithArgs()
 	}
 
 	var tokens, endpoints []string
