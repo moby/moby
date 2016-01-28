@@ -535,6 +535,15 @@ __docker_complete_signals() {
 	COMPREPLY=( $( compgen -W "${signals[*]} ${signals[*]#SIG}" -- "$( echo $cur | tr '[:lower:]' '[:upper:]')" ) )
 }
 
+__docker_complete_user_group() {
+	if [[ $cur == *:* ]] ; then
+		COMPREPLY=( $(compgen -g -- "${cur#*:}") )
+	else
+		COMPREPLY=( $(compgen -u -S : -- "$cur") )
+		__docker_nospace
+	fi
+}
+
 # global options that may appear after the docker command
 _docker_docker() {
 	local boolean_options="
@@ -851,12 +860,7 @@ _docker_daemon() {
 			return
 			;;
 		--userns-remap)
-			if [[ $cur == *:* ]] ; then
-				COMPREPLY=( $(compgen -g -- "${cur#*:}") )
-			else
-				COMPREPLY=( $(compgen -u -S : -- "$cur") )
-				__docker_nospace
-			fi
+			__docker_complete_user_group
 			return
 			;;
 		$(__docker_to_extglob "$options_with_args") )
@@ -995,6 +999,7 @@ _docker_exec() {
 
 	case "$prev" in
 		--user|-u)
+			__docker_complete_user_group
 			return
 			;;
 	esac
@@ -1767,6 +1772,10 @@ _docker_run() {
 					__docker_nospace
 					;;
 			esac
+			return
+			;;
+		--user|-u)
+			__docker_complete_user_group
 			return
 			;;
 		--volume-driver)
