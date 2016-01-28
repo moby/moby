@@ -12,6 +12,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/coreos/go-systemd/journal"
 	"github.com/docker/docker/daemon/logger"
+	"github.com/docker/docker/daemon/logger/loggerutils"
 )
 
 const name = "journald"
@@ -48,10 +49,17 @@ func New(ctx logger.Context) (logger.Logger, error) {
 		name = name[1:]
 	}
 
+	// parse log tag
+	tag, err := loggerutils.ParseLogTag(ctx, "")
+	if err != nil {
+		return nil, err
+	}
+
 	vars := map[string]string{
 		"CONTAINER_ID":      ctx.ContainerID[:12],
 		"CONTAINER_ID_FULL": ctx.ContainerID,
 		"CONTAINER_NAME":    name,
+		"CONTAINER_TAG":     tag,
 	}
 	extraAttrs := ctx.ExtraAttributes(strings.ToTitle)
 	for k, v := range extraAttrs {
@@ -67,6 +75,7 @@ func validateLogOpt(cfg map[string]string) error {
 		switch key {
 		case "labels":
 		case "env":
+		case "tag":
 		default:
 			return fmt.Errorf("unknown log opt '%s' for journald log driver", key)
 		}

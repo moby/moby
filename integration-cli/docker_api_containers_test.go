@@ -24,12 +24,6 @@ import (
 	"github.com/go-check/check"
 )
 
-func init() {
-	if daemonPlatform == "windows" {
-		sleepCmd = "sleep"
-	}
-}
-
 func (s *DockerSuite) TestContainerApiGetAll(c *check.C) {
 	startCount, err := getContainerCount()
 	c.Assert(err, checker.IsNil, check.Commentf("Cannot query container count"))
@@ -96,7 +90,7 @@ func (s *DockerSuite) TestContainerApiPsOmitFields(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	name := "pstest"
 	port := 80
-	dockerCmd(c, "run", "-d", "--name", name, "--expose", strconv.Itoa(port), "busybox", sleepCmd, "60")
+	runSleepingContainer(c, "--name", name, "--expose", strconv.Itoa(port))
 
 	status, body, err := sockRequest("GET", "/containers/json?all=1", nil)
 	c.Assert(err, checker.IsNil)
@@ -929,7 +923,7 @@ func (s *DockerSuite) TestContainerApiRename(c *check.C) {
 
 func (s *DockerSuite) TestContainerApiKill(c *check.C) {
 	name := "test-api-kill"
-	dockerCmd(c, "run", "-di", "--name", name, "busybox", sleepCmd, "60")
+	runSleepingContainer(c, "-i", "--name", name)
 
 	status, _, err := sockRequest("POST", "/containers/"+name+"/kill", nil)
 	c.Assert(err, checker.IsNil)
@@ -970,7 +964,7 @@ func (s *DockerSuite) TestContainerApiStart(c *check.C) {
 	name := "testing-start"
 	config := map[string]interface{}{
 		"Image":     "busybox",
-		"Cmd":       []string{"/bin/sh", "-c", sleepCmd, "60"},
+		"Cmd":       append([]string{"/bin/sh", "-c"}, defaultSleepCommand...),
 		"OpenStdin": true,
 	}
 
@@ -991,7 +985,7 @@ func (s *DockerSuite) TestContainerApiStart(c *check.C) {
 
 func (s *DockerSuite) TestContainerApiStop(c *check.C) {
 	name := "test-api-stop"
-	dockerCmd(c, "run", "-di", "--name", name, "busybox", sleepCmd, "60")
+	runSleepingContainer(c, "-i", "--name", name)
 
 	status, _, err := sockRequest("POST", "/containers/"+name+"/stop?t=30", nil)
 	c.Assert(err, checker.IsNil)
@@ -1006,6 +1000,11 @@ func (s *DockerSuite) TestContainerApiStop(c *check.C) {
 
 func (s *DockerSuite) TestContainerApiWait(c *check.C) {
 	name := "test-api-wait"
+
+	sleepCmd := "/bin/sleep"
+	if daemonPlatform == "windows" {
+		sleepCmd = "sleep"
+	}
 	dockerCmd(c, "run", "--name", name, "busybox", sleepCmd, "5")
 
 	status, body, err := sockRequest("POST", "/containers/"+name+"/wait", nil)
@@ -1092,7 +1091,7 @@ func (s *DockerSuite) TestContainerApiCopyContainerNotFound(c *check.C) {
 }
 
 func (s *DockerSuite) TestContainerApiDelete(c *check.C) {
-	out, _ := dockerCmd(c, "run", "-d", "busybox", sleepCmd, "60")
+	out, _ := runSleepingContainer(c)
 
 	id := strings.TrimSpace(out)
 	c.Assert(waitRun(id), checker.IsNil)
@@ -1112,7 +1111,7 @@ func (s *DockerSuite) TestContainerApiDeleteNotExist(c *check.C) {
 }
 
 func (s *DockerSuite) TestContainerApiDeleteForce(c *check.C) {
-	out, _ := dockerCmd(c, "run", "-d", "busybox", sleepCmd, "60")
+	out, _ := runSleepingContainer(c)
 
 	id := strings.TrimSpace(out)
 	c.Assert(waitRun(id), checker.IsNil)
@@ -1149,7 +1148,7 @@ func (s *DockerSuite) TestContainerApiDeleteRemoveLinks(c *check.C) {
 }
 
 func (s *DockerSuite) TestContainerApiDeleteConflict(c *check.C) {
-	out, _ := dockerCmd(c, "run", "-d", "busybox", sleepCmd, "60")
+	out, _ := runSleepingContainer(c)
 
 	id := strings.TrimSpace(out)
 	c.Assert(waitRun(id), checker.IsNil)
@@ -1167,7 +1166,7 @@ func (s *DockerSuite) TestContainerApiDeleteRemoveVolume(c *check.C) {
 		vol = `c:\testvolume`
 	}
 
-	out, _ := dockerCmd(c, "run", "-d", "-v", vol, "busybox", sleepCmd, "60")
+	out, _ := runSleepingContainer(c, "-v", vol)
 
 	id := strings.TrimSpace(out)
 	c.Assert(waitRun(id), checker.IsNil)
@@ -1221,7 +1220,7 @@ func (s *DockerSuite) TestContainerApiChunkedEncoding(c *check.C) {
 }
 
 func (s *DockerSuite) TestContainerApiPostContainerStop(c *check.C) {
-	out, _ := dockerCmd(c, "run", "-d", "busybox", sleepCmd, "60")
+	out, _ := runSleepingContainer(c)
 
 	containerID := strings.TrimSpace(out)
 	c.Assert(waitRun(containerID), checker.IsNil)
@@ -1307,7 +1306,7 @@ func (s *DockerSuite) TestPostContainersStartWithoutLinksInHostConfig(c *check.C
 	// An alternate test could be written to validate the negative testing aspect of this
 	testRequires(c, DaemonIsLinux)
 	name := "test-host-config-links"
-	dockerCmd(c, "create", "--name", name, "busybox", sleepCmd, "60")
+	dockerCmd(c, append([]string{"create", "--name", name, "busybox"}, defaultSleepCommand...)...)
 
 	hc, err := inspectFieldJSON(name, "HostConfig")
 	c.Assert(err, checker.IsNil)

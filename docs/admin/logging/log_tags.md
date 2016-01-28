@@ -3,7 +3,7 @@
 aliases = ["/engine/reference/logging/log_tags/"]
 title = "Log tags for logging driver"
 description = "Describes how to format tags for."
-keywords = ["docker, logging, driver, syslog, Fluentd, gelf"]
+keywords = ["docker, logging, driver, syslog, Fluentd, gelf, journald"]
 [menu.main]
 parent = "smn_logging"
 weight = 1

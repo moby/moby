@@ -3,7 +3,6 @@ package client
 import (
 	"errors"
 	"io"
-	"os"
 
 	Cli "github.com/docker/docker/cli"
 	flag "github.com/docker/docker/pkg/mflag"
@@ -21,16 +20,7 @@ func (cli *DockerCli) CmdExport(args ...string) error {
 
 	cmd.ParseFlags(args, true)
 
-	var (
-		output = cli.out
-		err    error
-	)
-	if *outfile != "" {
-		output, err = os.Create(*outfile)
-		if err != nil {
-			return err
-		}
-	} else if cli.isTerminalOut {
+	if *outfile == "" && cli.isTerminalOut {
 		return errors.New("Cowardly refusing to save to a terminal. Use the -o flag or redirect.")
 	}
 
@@ -40,6 +30,11 @@ func (cli *DockerCli) CmdExport(args ...string) error {
 	}
 	defer responseBody.Close()
 
-	_, err = io.Copy(output, responseBody)
-	return err
+	if *outfile == "" {
+		_, err := io.Copy(cli.out, responseBody)
+		return err
+	}
+
+	return copyToFile(*outfile, responseBody)
+
 }

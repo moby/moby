@@ -301,18 +301,19 @@ func (s *DockerTrustSuite) TestTrustedCreate(c *check.C) {
 }
 
 func (s *DockerTrustSuite) TestUntrustedCreate(c *check.C) {
-	repoName := fmt.Sprintf("%v/dockercli/trusted:latest", privateRegistryURL)
+	repoName := fmt.Sprintf("%v/dockercliuntrusted/createtest", privateRegistryURL)
+	withTagName := fmt.Sprintf("%s:latest", repoName)
 	// tag the image and upload it to the private registry
-	dockerCmd(c, "tag", "busybox", repoName)
-	dockerCmd(c, "push", repoName)
-	dockerCmd(c, "rmi", repoName)
+	dockerCmd(c, "tag", "busybox", withTagName)
+	dockerCmd(c, "push", withTagName)
+	dockerCmd(c, "rmi", withTagName)
 
 	// Try trusted create on untrusted tag
-	createCmd := exec.Command(dockerBinary, "create", repoName)
+	createCmd := exec.Command(dockerBinary, "create", withTagName)
 	s.trustedCmd(createCmd)
 	out, _, err := runCommandWithOutput(createCmd)
 	c.Assert(err, check.Not(check.IsNil))
-	c.Assert(string(out), checker.Contains, "trust data unavailable.  Has a notary repository been initialized?", check.Commentf("Missing expected output on trusted create:\n%s", out))
+	c.Assert(string(out), checker.Contains, fmt.Sprintf("does not have trust data for %s", repoName), check.Commentf("Missing expected output on trusted create:\n%s", out))
 
 }
 

@@ -257,6 +257,26 @@ dropped. To correct this problem, change the service's configuration on your
 localhost so that the service accepts requests from all IPs.  If you aren't sure
 how to do this, check the documentation for your OS.
 
+### Why do I get `Cannot connect to the Docker daemon. Is the docker daemon running on this host?` when using docker-machine?
+
+This error points out that the docker client cannot connect to the virtual machine.
+This means that either the virtual machine that works underneath `docker-machine`
+is not running or that the client doesn't correctly point at it.
+
+To verify that the docker machine is running you can use the `docker-machine ls`
+command and start it with `docker-machine start` if needed.
+
+    $ docker-machine ls
+    NAME             ACTIVE   DRIVER       STATE     URL   SWARM                   DOCKER    ERRORS
+    default          -        virtualbox   Stopped                                 Unknown
+
+    $ docker-machine start default
+
+You have to tell Docker to talk to that machine. You can do this with the
+`docker-machine env` command. For example,
+
+    $ eval "$(docker-machine env default)"
+    $ docker ps
 
 ### Where can I find more answers?
 
