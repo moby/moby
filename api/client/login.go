@@ -81,14 +81,19 @@ func (cli *DockerCli) configureAuth(flUser, flPassword, flEmail, serverAddress s
 	if !ok {
 		authconfig = types.AuthConfig{}
 	}
+	authconfig.Username = strings.TrimSpace(authconfig.Username)
 
-	if flUser == "" {
+	if flUser = strings.TrimSpace(flUser); flUser == "" {
 		cli.promptWithDefault("Username", authconfig.Username)
 		flUser = readInput(cli.in, cli.out)
 		flUser = strings.TrimSpace(flUser)
 		if flUser == "" {
 			flUser = authconfig.Username
 		}
+	}
+
+	if flUser == "" {
+		return authconfig, fmt.Errorf("Error: Non-null Username Required")
 	}
 
 	if flPassword == "" {
@@ -104,7 +109,7 @@ func (cli *DockerCli) configureAuth(flUser, flPassword, flEmail, serverAddress s
 
 		term.RestoreTerminal(cli.inFd, oldState)
 		if flPassword == "" {
-			return authconfig, fmt.Errorf("Error : Password Required")
+			return authconfig, fmt.Errorf("Error: Password Required")
 		}
 	}
 
