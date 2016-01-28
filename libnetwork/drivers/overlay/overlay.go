@@ -35,7 +35,6 @@ type driver struct {
 	serfInstance *serf.Serf
 	networks     networkTable
 	store        datastore.DataStore
-	ipAllocator  *idm.Idm
 	vxlanIdm     *idm.Idm
 	once         sync.Once
 	joinOnce     sync.Once
@@ -104,12 +103,6 @@ func (d *driver) configure() error {
 		d.vxlanIdm, err = idm.New(d.store, "vxlan-id", vxlanIDStart, vxlanIDEnd)
 		if err != nil {
 			err = fmt.Errorf("failed to initialize vxlan id manager: %v", err)
-			return
-		}
-
-		d.ipAllocator, err = idm.New(d.store, "ipam-id", 1, 0xFFFF-2)
-		if err != nil {
-			err = fmt.Errorf("failed to initalize ipam id manager: %v", err)
 			return
 		}
 	})
