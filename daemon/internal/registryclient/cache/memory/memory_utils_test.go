@@ -17,6 +17,7 @@ func CheckBlobDescriptorCache(t *testing.T, provider cache.BlobDescriptorCachePr
 
 	checkBlobDescriptorCacheEmptyRepository(t, ctx, provider)
 	checkBlobDescriptorCacheSetAndRead(t, ctx, provider)
+	checkBlobDescriptorCacheClear(t, ctx, provider)
 }
 
 func checkBlobDescriptorCacheEmptyRepository(t *testing.T, ctx context.Context, provider cache.BlobDescriptorCacheProvider) {
@@ -141,10 +142,10 @@ func checkBlobDescriptorCacheSetAndRead(t *testing.T, ctx context.Context, provi
 	}
 }
 
-func checkBlobDescriptorClear(t *testing.T, ctx context.Context, provider cache.BlobDescriptorCacheProvider) {
-	localDigest := digest.Digest("sha384:abc")
+func checkBlobDescriptorCacheClear(t *testing.T, ctx context.Context, provider cache.BlobDescriptorCacheProvider) {
+	localDigest := digest.Digest("sha384:def111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111")
 	expected := distribution.Descriptor{
-		Digest:    "sha256:abc",
+		Digest:    "sha256:def1111111111111111111111111111111111111111111111111111111111111",
 		Size:      10,
 		MediaType: "application/octet-stream"}
 
@@ -168,12 +169,11 @@ func checkBlobDescriptorClear(t *testing.T, ctx context.Context, provider cache.
 
 	err = cache.Clear(ctx, localDigest)
 	if err != nil {
-		t.Fatalf("unexpected error deleting descriptor")
+		t.Error(err)
 	}
 
-	nonExistantDigest := digest.Digest("sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
-	err = cache.Clear(ctx, nonExistantDigest)
+	desc, err = cache.Stat(ctx, localDigest)
 	if err == nil {
-		t.Fatalf("expected error deleting unknown descriptor")
+		t.Fatalf("expected error statting deleted blob: %v", err)
 	}
 }
