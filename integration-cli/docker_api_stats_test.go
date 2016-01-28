@@ -82,14 +82,14 @@ func (s *DockerSuite) TestApiStatsStoppedContainerInGoroutines(c *check.C) {
 func (s *DockerSuite) TestApiStatsNetworkStats(c *check.C) {
 	testRequires(c, SameHostDaemon)
 	testRequires(c, DaemonIsLinux)
-	// Run container for 30 secs
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
+
+	out, _ := runSleepingContainer(c)
 	id := strings.TrimSpace(out)
 	c.Assert(waitRun(id), checker.IsNil)
 
 	// Retrieve the container address
 	contIP := findContainerIP(c, id, "bridge")
-	numPings := 10
+	numPings := 4
 
 	var preRxPackets uint64
 	var preTxPackets uint64
@@ -128,21 +128,20 @@ func (s *DockerSuite) TestApiStatsNetworkStats(c *check.C) {
 func (s *DockerSuite) TestApiStatsNetworkStatsVersioning(c *check.C) {
 	testRequires(c, SameHostDaemon)
 	testRequires(c, DaemonIsLinux)
-	// Run container for 30 secs
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
+
+	out, _ := runSleepingContainer(c)
 	id := strings.TrimSpace(out)
 	c.Assert(waitRun(id), checker.IsNil)
 
 	for i := 17; i <= 21; i++ {
 		apiVersion := fmt.Sprintf("v1.%d", i)
-		for _, statsJSONBlob := range getVersionedStats(c, id, 3, apiVersion) {
-			if version.Version(apiVersion).LessThan("v1.21") {
-				c.Assert(jsonBlobHasLTv121NetworkStats(statsJSONBlob), checker.Equals, true,
-					check.Commentf("Stats JSON blob from API %s %#v does not look like a <v1.21 API stats structure", apiVersion, statsJSONBlob))
-			} else {
-				c.Assert(jsonBlobHasGTE121NetworkStats(statsJSONBlob), checker.Equals, true,
-					check.Commentf("Stats JSON blob from API %s %#v does not look like a >=v1.21 API stats structure", apiVersion, statsJSONBlob))
-			}
+		statsJSONBlob := getVersionedStats(c, id, apiVersion)
+		if version.Version(apiVersion).LessThan("v1.21") {
+			c.Assert(jsonBlobHasLTv121NetworkStats(statsJSONBlob), checker.Equals, true,
+				check.Commentf("Stats JSON blob from API %s %#v does not look like a <v1.21 API stats structure", apiVersion, statsJSONBlob))
+		} else {
+			c.Assert(jsonBlobHasGTE121NetworkStats(statsJSONBlob), checker.Equals, true,
+				check.Commentf("Stats JSON blob from API %s %#v does not look like a >=v1.21 API stats structure", apiVersion, statsJSONBlob))
 		}
 	}
 }
@@ -160,23 +159,19 @@ func getNetworkStats(c *check.C, id string) map[string]types.NetworkStats {
 	return st.Networks
 }
 
-// getVersionedNetworkStats returns a slice of numStats stats results for the
-// container with id id using an API call with version apiVersion. Since the
+// getVersionedStats returns stats result for the
+// container with id using an API call with version apiVersion. Since the
 // stats result type differs between API versions, we simply return
-// []map[string]interface{}.
-func getVersionedStats(c *check.C, id string, numStats int, apiVersion string) []map[string]interface{} {
-	stats := make([]map[string]interface{}, numStats)
+// map[string]interface{}.
+func getVersionedStats(c *check.C, id string, apiVersion string) map[string]interface{} {
+	stats := make(map[string]interface{})
 
-	requestPath := fmt.Sprintf("/%s/containers/%s/stats?stream=true", apiVersion, id)
-	_, body, err := sockRequestRaw("GET", requestPath, nil, "")
+	_, body, err := sockRequestRaw("GET", fmt.Sprintf("/%s/containers/%s/stats?stream=false", apiVersion, id), nil, "")
 	c.Assert(err, checker.IsNil)
 	defer body.Close()
 
-	statsDecoder := json.NewDecoder(body)
-	for i := range stats {
-		err = statsDecoder.Decode(&stats[i])
-		c.Assert(err, checker.IsNil, check.Commentf("failed to decode %dth stat: %s", i, err))
-	}
+	err = json.NewDecoder(body).Decode(&stats)
+	c.Assert(err, checker.IsNil, check.Commentf("failed to decode stat: %s", err))
 
 	return stats
 }
