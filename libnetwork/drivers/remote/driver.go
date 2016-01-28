@@ -7,6 +7,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/libnetwork/datastore"
+	"github.com/docker/libnetwork/discoverapi"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/drivers/remote/api"
 	"github.com/docker/libnetwork/types"
@@ -251,8 +252,8 @@ func (d *driver) Type() string {
 }
 
 // DiscoverNew is a notification for a new discovery event, such as a new node joining a cluster
-func (d *driver) DiscoverNew(dType driverapi.DiscoveryType, data interface{}) error {
-	if dType != driverapi.NodeDiscovery {
+func (d *driver) DiscoverNew(dType discoverapi.DiscoveryType, data interface{}) error {
+	if dType != discoverapi.NodeDiscovery {
 		return fmt.Errorf("Unknown discovery type : %v", dType)
 	}
 	notif := &api.DiscoveryNotification{
@@ -263,8 +264,8 @@ func (d *driver) DiscoverNew(dType driverapi.DiscoveryType, data interface{}) er
 }
 
 // DiscoverDelete is a notification for a discovery delete event, such as a node leaving a cluster
-func (d *driver) DiscoverDelete(dType driverapi.DiscoveryType, data interface{}) error {
-	if dType != driverapi.NodeDiscovery {
+func (d *driver) DiscoverDelete(dType discoverapi.DiscoveryType, data interface{}) error {
+	if dType != discoverapi.NodeDiscovery {
 		return fmt.Errorf("Unknown discovery type : %v", dType)
 	}
 	notif := &api.DiscoveryNotification{

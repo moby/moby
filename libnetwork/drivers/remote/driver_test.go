@@ -13,6 +13,7 @@ import (
 
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/libnetwork/datastore"
+	"github.com/docker/libnetwork/discoverapi"
 	"github.com/docker/libnetwork/driverapi"
 	_ "github.com/docker/libnetwork/testutils"
 	"github.com/docker/libnetwork/types"
@@ -425,13 +426,13 @@ func TestRemoteDriver(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	data := driverapi.NodeDiscoveryData{
+	data := discoverapi.NodeDiscoveryData{
 		Address: "192.168.1.1",
 	}
-	if err = d.DiscoverNew(driverapi.NodeDiscovery, data); err != nil {
+	if err = d.DiscoverNew(discoverapi.NodeDiscovery, data); err != nil {
 		t.Fatal(err)
 	}
-	if err = d.DiscoverDelete(driverapi.NodeDiscovery, data); err != nil {
+	if err = d.DiscoverDelete(discoverapi.NodeDiscovery, data); err != nil {
 		t.Fatal(err)
 	}
 }
