@@ -46,7 +46,7 @@ fi
 
 check_init() {
 	 # see also init_is_upstart in /lib/lsb/init-functions (which isn't available in Ubuntu 12.04, or we'd use it directly)
-	 if [ -x /sbin/initctl ] && /sbin/initctl version 2>/dev/null | grep -q upstart; then        
+	 if [ -x /sbin/initctl ] && /sbin/initctl version 2>/dev/null | grep -q upstart; then
                 log_failure_msg "$DOCKER_DESC is managed via upstart, try using service $BASE $1"
                 exit 1
          fi
@@ -99,6 +99,10 @@ case "$1" in
 		else
 			ulimit -p 1048576
 		fi
+
+		# allow access on non-systemd systems
+		mkdir -p /sys/fs/cgroup/systemd/user
+		echo $$ > /sys/fs/cgroup/systemd/user/cgroup.procs
 
 		log_begin_msg "Starting $DOCKER_DESC: $BASE"
 		start-stop-daemon --start --background \
