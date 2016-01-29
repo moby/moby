@@ -345,8 +345,11 @@ func (pd *v2PushDescriptor) Upload(ctx context.Context, progressOutput progress.
 	size, _ := pd.layer.DiffSize()
 
 	reader := progress.NewProgressReader(ioutils.NewCancelReadCloser(ctx, arch), progressOutput, size, pd.ID(), "Pushing")
-	defer reader.Close()
-	compressedReader := compress(reader)
+	compressedReader, compressionDone := compress(reader)
+	defer func() {
+		reader.Close()
+		<-compressionDone
+	}()
 
 	digester := digest.Canonical.New()
 	tee := io.TeeReader(compressedReader, digester.Hash())
