@@ -22,6 +22,7 @@ func (cli *DockerCli) CmdSearch(args ...string) error {
 	cmd := Cli.Subcmd("search", []string{"TERM"}, Cli.DockerCommands["search"].Description, true)
 	noTrunc := cmd.Bool([]string{"-no-trunc"}, false, "Don't truncate output")
 	automated := cmd.Bool([]string{"-automated"}, false, "Only show automated builds")
+	official := cmd.Bool([]string{"-official"}, false, "Only show official images")
 	stars := cmd.Uint([]string{"s", "-stars"}, 0, "Only displays with at least x stars")
 	cmd.Require(flag.Exact, 1)
 
@@ -61,6 +62,9 @@ func (cli *DockerCli) CmdSearch(args ...string) error {
 	fmt.Fprintf(w, "NAME\tDESCRIPTION\tSTARS\tOFFICIAL\tAUTOMATED\n")
 	for _, res := range results {
 		if (*automated && !res.IsAutomated) || (int(*stars) > res.StarCount) {
+			continue
+		}
+		if *official && !res.IsOfficial {
 			continue
 		}
 		desc := strings.Replace(res.Description, "\n", " ", -1)

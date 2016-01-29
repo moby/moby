@@ -17,6 +17,7 @@ parent = "smn_cli"
       --automated          Only show automated builds
       --help               Print usage
       --no-trunc           Don't truncate output
+      --official           Only show official builds
       -s, --stars=0        Only displays with at least x stars
 
 Search [Docker Hub](https://hub.docker.com) for images
