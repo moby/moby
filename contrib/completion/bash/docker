@@ -1466,7 +1466,7 @@ _docker_ps() {
 _docker_pull() {
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--all-tags -a --help" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--all-tags -a --disable-content-trust=false --help" -- "$cur" ) )
 			;;
 		*)
 			local counter=$(__docker_pos_first_nonflag)
@@ -1488,7 +1488,7 @@ _docker_pull() {
 _docker_push() {
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--help" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--disable-content-trust=false --help" -- "$cur" ) )
 			;;
 		*)
 			local counter=$(__docker_pos_first_nonflag)
