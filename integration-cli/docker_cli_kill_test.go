@@ -55,7 +55,7 @@ func (s *DockerSuite) TestKillWithSignal(c *check.C) {
 
 	dockerCmd(c, "kill", "-s", "SIGWINCH", cid)
 
-	running, _ := inspectField(cid, "State.Running")
+	running := inspectField(c, cid, "State.Running")
 
 	c.Assert(running, checker.Equals, "true", check.Commentf("Container should be in running state after SIGWINCH"))
 }
@@ -70,7 +70,7 @@ func (s *DockerSuite) TestKillWithInvalidSignal(c *check.C) {
 	c.Assert(err, check.NotNil)
 	c.Assert(out, checker.Contains, "Invalid signal: 0", check.Commentf("Kill with an invalid signal didn't error out correctly"))
 
-	running, _ := inspectField(cid, "State.Running")
+	running := inspectField(c, cid, "State.Running")
 	c.Assert(running, checker.Equals, "true", check.Commentf("Container should be in running state after an invalid signal"))
 
 	out, _ = dockerCmd(c, "run", "-d", "busybox", "top")
@@ -81,7 +81,7 @@ func (s *DockerSuite) TestKillWithInvalidSignal(c *check.C) {
 	c.Assert(err, check.NotNil)
 	c.Assert(out, checker.Contains, "Invalid signal: SIG42", check.Commentf("Kill with an invalid signal error out correctly"))
 
-	running, _ = inspectField(cid, "State.Running")
+	running = inspectField(c, cid, "State.Running")
 	c.Assert(running, checker.Equals, "true", check.Commentf("Container should be in running state after an invalid signal"))
 
 }

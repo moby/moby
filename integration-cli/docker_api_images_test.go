@@ -67,7 +67,7 @@ func (s *DockerSuite) TestApiImagesSaveAndLoad(c *check.C) {
 	defer loadBody.Close()
 	c.Assert(res.StatusCode, checker.Equals, http.StatusOK)
 
-	inspectOut, _ := dockerCmd(c, "inspect", "--format='{{ .Id }}'", id)
+	inspectOut := inspectField(c, id, "Id")
 	c.Assert(strings.TrimSpace(string(inspectOut)), checker.Equals, id, check.Commentf("load did not work properly"))
 }
 

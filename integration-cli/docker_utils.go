@@ -1135,13 +1135,12 @@ COPY . /static`); err != nil {
 		ctx:       ctx}, nil
 }
 
-func inspectFieldAndMarshall(name, field string, output interface{}) error {
-	str, err := inspectFieldJSON(name, field)
-	if err != nil {
-		return err
+func inspectFieldAndMarshall(c *check.C, name, field string, output interface{}) {
+	str := inspectFieldJSON(c, name, field)
+	err := json.Unmarshal([]byte(str), output)
+	if c != nil {
+		c.Assert(err, check.IsNil, check.Commentf("failed to unmarshal: %v", err))
 	}
-
-	return json.Unmarshal([]byte(str), output)
 }
 
 func inspectFilter(name, filter string) (string, error) {
@@ -1149,21 +1148,37 @@ func inspectFilter(name, filter string) (string, error) {
 	inspectCmd := exec.Command(dockerBinary, "inspect", "-f", format, name)
 	out, exitCode, err := runCommandWithOutput(inspectCmd)
 	if err != nil || exitCode != 0 {
-		return "", fmt.Errorf("failed to inspect container %s: %s", name, out)
+		return "", fmt.Errorf("failed to inspect %s: %s", name, out)
 	}
 	return strings.TrimSpace(out), nil
 }
 
-func inspectField(name, field string) (string, error) {
+func inspectFieldWithError(name, field string) (string, error) {
 	return inspectFilter(name, fmt.Sprintf(".%s", field))
 }
 
-func inspectFieldJSON(name, field string) (string, error) {
-	return inspectFilter(name, fmt.Sprintf("json .%s", field))
+func inspectField(c *check.C, name, field string) string {
+	out, err := inspectFilter(name, fmt.Sprintf(".%s", field))
+	if c != nil {
+		c.Assert(err, check.IsNil)
+	}
+	return out
 }
 
-func inspectFieldMap(name, path, field string) (string, error) {
-	return inspectFilter(name, fmt.Sprintf("index .%s %q", path, field))
+func inspectFieldJSON(c *check.C, name, field string) string {
+	out, err := inspectFilter(name, fmt.Sprintf("json .%s", field))
+	if c != nil {
+		c.Assert(err, check.IsNil)
+	}
+	return out
+}
+
+func inspectFieldMap(c *check.C, name, path, field string) string {
+	out, err := inspectFilter(name, fmt.Sprintf("index .%s %q", path, field))
+	if c != nil {
+		c.Assert(err, check.IsNil)
+	}
+	return out
 }
 
 func inspectMountSourceField(name, destination string) (string, error) {
@@ -1175,7 +1190,7 @@ func inspectMountSourceField(name, destination string) (string, error) {
 }
 
 func inspectMountPoint(name, destination string) (types.MountPoint, error) {
-	out, err := inspectFieldJSON(name, "Mounts")
+	out, err := inspectFilter(name, "json .Mounts")
 	if err != nil {
 		return types.MountPoint{}, err
 	}
@@ -1207,7 +1222,7 @@ func inspectMountPointJSON(j, destination string) (types.MountPoint, error) {
 }
 
 func getIDByName(name string) (string, error) {
-	return inspectField(name, "Id")
+	return inspectFieldWithError(name, "Id")
 }
 
 // getContainerState returns the exit code of the container

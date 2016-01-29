@@ -520,8 +520,7 @@ func (s *DockerSuite) TestContainerApiCommit(c *check.C) {
 	var img resp
 	c.Assert(json.Unmarshal(b, &img), checker.IsNil)
 
-	cmd, err := inspectField(img.ID, "Config.Cmd")
-	c.Assert(err, checker.IsNil)
+	cmd := inspectField(c, img.ID, "Config.Cmd")
 	c.Assert(cmd, checker.Equals, "{[/bin/sh -c touch /test]}", check.Commentf("got wrong Cmd from commit: %q", cmd))
 
 	// sanity check, make sure the image is what we think it is
@@ -547,16 +546,13 @@ func (s *DockerSuite) TestContainerApiCommitWithLabelInConfig(c *check.C) {
 	var img resp
 	c.Assert(json.Unmarshal(b, &img), checker.IsNil)
 
-	label1, err := inspectFieldMap(img.ID, "Config.Labels", "key1")
-	c.Assert(err, checker.IsNil)
+	label1 := inspectFieldMap(c, img.ID, "Config.Labels", "key1")
 	c.Assert(label1, checker.Equals, "value1")
 
-	label2, err := inspectFieldMap(img.ID, "Config.Labels", "key2")
-	c.Assert(err, checker.IsNil)
+	label2 := inspectFieldMap(c, img.ID, "Config.Labels", "key2")
 	c.Assert(label2, checker.Equals, "value2")
 
-	cmd, err := inspectField(img.ID, "Config.Cmd")
-	c.Assert(err, checker.IsNil)
+	cmd := inspectField(c, img.ID, "Config.Cmd")
 	c.Assert(cmd, checker.Equals, "{[/bin/sh -c touch /test]}", check.Commentf("got wrong Cmd from commit: %q", cmd))
 
 	// sanity check, make sure the image is what we think it is
@@ -751,12 +747,10 @@ func (s *DockerSuite) TestContainerApiCreateWithCpuSharesCpuset(c *check.C) {
 
 	c.Assert(json.Unmarshal(body, &containerJSON), checker.IsNil)
 
-	out, err := inspectField(containerJSON.ID, "HostConfig.CpuShares")
-	c.Assert(err, checker.IsNil)
+	out := inspectField(c, containerJSON.ID, "HostConfig.CpuShares")
 	c.Assert(out, checker.Equals, "512")
 
-	outCpuset, errCpuset := inspectField(containerJSON.ID, "HostConfig.CpusetCpus")
-	c.Assert(errCpuset, checker.IsNil, check.Commentf("Output: %s", outCpuset))
+	outCpuset := inspectField(c, containerJSON.ID, "HostConfig.CpusetCpus")
 	c.Assert(outCpuset, checker.Equals, "0")
 }
 
@@ -853,16 +847,13 @@ func (s *DockerSuite) TestContainerApiPostCreateNull(c *check.C) {
 	}
 	var container createResp
 	c.Assert(json.Unmarshal(b, &container), checker.IsNil)
-	out, err := inspectField(container.ID, "HostConfig.CpusetCpus")
-	c.Assert(err, checker.IsNil)
+	out := inspectField(c, container.ID, "HostConfig.CpusetCpus")
 	c.Assert(out, checker.Equals, "")
 
-	outMemory, errMemory := inspectField(container.ID, "HostConfig.Memory")
+	outMemory := inspectField(c, container.ID, "HostConfig.Memory")
 	c.Assert(outMemory, checker.Equals, "0")
-	c.Assert(errMemory, checker.IsNil)
-	outMemorySwap, errMemorySwap := inspectField(container.ID, "HostConfig.MemorySwap")
+	outMemorySwap := inspectField(c, container.ID, "HostConfig.MemorySwap")
 	c.Assert(outMemorySwap, checker.Equals, "0")
-	c.Assert(errMemorySwap, checker.IsNil)
 }
 
 func (s *DockerSuite) TestCreateWithTooLowMemoryLimit(c *check.C) {
@@ -917,7 +908,7 @@ func (s *DockerSuite) TestContainerApiRename(c *check.C) {
 	// 204 No Content is expected, not 200
 	c.Assert(statusCode, checker.Equals, http.StatusNoContent)
 
-	name, err := inspectField(containerID, "Name")
+	name := inspectField(c, containerID, "Name")
 	c.Assert(name, checker.Equals, "/"+newName, check.Commentf("Failed to rename container"))
 }
 
@@ -929,8 +920,7 @@ func (s *DockerSuite) TestContainerApiKill(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	c.Assert(status, checker.Equals, http.StatusNoContent)
 
-	state, err := inspectField(name, "State.Running")
-	c.Assert(err, checker.IsNil)
+	state := inspectField(c, name, "State.Running")
 	c.Assert(state, checker.Equals, "false", check.Commentf("got wrong State from container %s: %q", name, state))
 }
 
@@ -1134,16 +1124,14 @@ func (s *DockerSuite) TestContainerApiDeleteRemoveLinks(c *check.C) {
 	id2 := strings.TrimSpace(out)
 	c.Assert(waitRun(id2), checker.IsNil)
 
-	links, err := inspectFieldJSON(id2, "HostConfig.Links")
-	c.Assert(err, checker.IsNil)
+	links := inspectFieldJSON(c, id2, "HostConfig.Links")
 	c.Assert(links, checker.Equals, "[\"/tlink1:/tlink2/tlink1\"]", check.Commentf("expected to have links between containers"))
 
 	status, b, err := sockRequest("DELETE", "/containers/tlink2/tlink1?link=1", nil)
 	c.Assert(err, check.IsNil)
 	c.Assert(status, check.Equals, http.StatusNoContent, check.Commentf(string(b)))
 
-	linksPostRm, err := inspectFieldJSON(id2, "HostConfig.Links")
-	c.Assert(err, checker.IsNil)
+	linksPostRm := inspectFieldJSON(c, id2, "HostConfig.Links")
 	c.Assert(linksPostRm, checker.Equals, "null", check.Commentf("call to api deleteContainer links should have removed the specified links"))
 }
 
@@ -1208,8 +1196,7 @@ func (s *DockerSuite) TestContainerApiChunkedEncoding(c *check.C) {
 	resp.Body.Close()
 	c.Assert(resp.StatusCode, checker.Equals, 204)
 
-	out, err = inspectFieldJSON(id, "HostConfig.Binds")
-	c.Assert(err, checker.IsNil)
+	out = inspectFieldJSON(c, id, "HostConfig.Binds")
 
 	var binds []string
 	c.Assert(json.NewDecoder(strings.NewReader(out)).Decode(&binds), checker.IsNil)
@@ -1308,8 +1295,7 @@ func (s *DockerSuite) TestPostContainersStartWithoutLinksInHostConfig(c *check.C
 	name := "test-host-config-links"
 	dockerCmd(c, append([]string{"create", "--name", name, "busybox"}, defaultSleepCommand...)...)
 
-	hc, err := inspectFieldJSON(name, "HostConfig")
-	c.Assert(err, checker.IsNil)
+	hc := inspectFieldJSON(c, name, "HostConfig")
 	config := `{"HostConfig":` + hc + `}`
 
 	res, b, err := sockRequestRaw("POST", "/containers/"+name+"/start", strings.NewReader(config), "application/json")
@@ -1327,8 +1313,7 @@ func (s *DockerSuite) TestPostContainersStartWithLinksInHostConfig(c *check.C) {
 	dockerCmd(c, "run", "--name", "foo", "-d", "busybox", "top")
 	dockerCmd(c, "create", "--name", name, "--link", "foo:bar", "busybox", "top")
 
-	hc, err := inspectFieldJSON(name, "HostConfig")
-	c.Assert(err, checker.IsNil)
+	hc := inspectFieldJSON(c, name, "HostConfig")
 	config := `{"HostConfig":` + hc + `}`
 
 	res, b, err := sockRequestRaw("POST", "/containers/"+name+"/start", strings.NewReader(config), "application/json")
@@ -1346,8 +1331,7 @@ func (s *DockerSuite) TestPostContainersStartWithLinksInHostConfigIdLinked(c *ch
 	id := strings.TrimSpace(out)
 	dockerCmd(c, "create", "--name", name, "--link", id, "busybox", "top")
 
-	hc, err := inspectFieldJSON(name, "HostConfig")
-	c.Assert(err, checker.IsNil)
+	hc := inspectFieldJSON(c, name, "HostConfig")
 	config := `{"HostConfig":` + hc + `}`
 
 	res, b, err := sockRequestRaw("POST", "/containers/"+name+"/start", strings.NewReader(config), "application/json")
@@ -1448,8 +1432,7 @@ func (s *DockerSuite) TestStartWithNilDNS(c *check.C) {
 	c.Assert(res.StatusCode, checker.Equals, http.StatusNoContent)
 	b.Close()
 
-	dns, err := inspectFieldJSON(containerID, "HostConfig.Dns")
-	c.Assert(err, checker.IsNil)
+	dns := inspectFieldJSON(c, containerID, "HostConfig.Dns")
 	c.Assert(dns, checker.Equals, "[]")
 }
 

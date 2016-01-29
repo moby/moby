@@ -82,8 +82,7 @@ func (s *DockerSuite) TestRmiImgIDMultipleTag(c *check.C) {
 	// tag busybox to create 2 more images with same imageID
 	c.Assert(strings.Count(imagesAfter, "\n"), checker.Equals, strings.Count(imagesBefore, "\n")+2, check.Commentf("docker images shows: %q\n", imagesAfter))
 
-	imgID, err := inspectField("busybox-one:tag1", "Id")
-	c.Assert(err, checker.IsNil)
+	imgID := inspectField(c, "busybox-one:tag1", "Id")
 
 	// run a container with the image
 	out, _ = runSleepingContainerInImage(c, "busybox-one")
@@ -91,7 +90,7 @@ func (s *DockerSuite) TestRmiImgIDMultipleTag(c *check.C) {
 	containerID = strings.TrimSpace(out)
 
 	// first checkout without force it fails
-	out, _, err = dockerCmdWithError("rmi", imgID)
+	out, _, err := dockerCmdWithError("rmi", imgID)
 	expected := fmt.Sprintf("conflict: unable to delete %s (cannot be forced) - image is being used by running container %s", stringid.TruncateID(imgID), stringid.TruncateID(containerID))
 	// rmi tagged in multiple repos should have failed without force
 	c.Assert(err, checker.NotNil)
@@ -128,11 +127,10 @@ func (s *DockerSuite) TestRmiImgIDForce(c *check.C) {
 		imagesAfter, _ := dockerCmd(c, "images", "-a")
 		c.Assert(strings.Count(imagesAfter, "\n"), checker.Equals, strings.Count(imagesBefore, "\n")+4, check.Commentf("before: %q\n\nafter: %q\n", imagesBefore, imagesAfter))
 	}
-	imgID, err := inspectField("busybox-test", "Id")
-	c.Assert(err, checker.IsNil)
+	imgID := inspectField(c, "busybox-test", "Id")
 
 	// first checkout without force it fails
-	out, _, err = dockerCmdWithError("rmi", imgID)
+	out, _, err := dockerCmdWithError("rmi", imgID)
 	// rmi tagged in multiple repos should have failed without force
 	c.Assert(err, checker.NotNil)
 	// rmi tagged in multiple repos should have failed without force
@@ -317,8 +315,7 @@ RUN echo 2 #layer2
 }
 
 func (*DockerSuite) TestRmiParentImageFail(c *check.C) {
-	parent, err := inspectField("busybox", "Parent")
-	c.Assert(err, check.IsNil)
+	parent := inspectField(c, "busybox", "Parent")
 	out, _, err := dockerCmdWithError("rmi", parent)
 	c.Assert(err, check.NotNil)
 	if !strings.Contains(out, "image has dependent child images") {
@@ -354,14 +351,12 @@ func (s *DockerSuite) TestRmiByIDHardConflict(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "create", "busybox")
 
-	imgID, err := inspectField("busybox:latest", "Id")
-	c.Assert(err, checker.IsNil)
+	imgID := inspectField(c, "busybox:latest", "Id")
 
-	_, _, err = dockerCmdWithError("rmi", imgID[:12])
+	_, _, err := dockerCmdWithError("rmi", imgID[:12])
 	c.Assert(err, checker.NotNil)
 
 	// check that tag was not removed
-	imgID2, err := inspectField("busybox:latest", "Id")
-	c.Assert(err, checker.IsNil)
+	imgID2 := inspectField(c, "busybox:latest", "Id")
 	c.Assert(imgID, checker.Equals, imgID2)
 }
