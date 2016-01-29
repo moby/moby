@@ -173,8 +173,8 @@ func (b *Builder) Cancel() {
 	})
 }
 
-// BuildFromConfig will do build directly from parameter 'changes',
-// which is treated like it is coming from a Dockerfile. It will:
+// BuildFromConfig builds directly from `changes`, treating it as if it were the contents of a Dockerfile
+// It will:
 // - Call parse.Parse() to get an AST root for the concatenated Dockerfile entries.
 // - Do build by calling builder.dispatch() to call all entries' handling routines
 //
