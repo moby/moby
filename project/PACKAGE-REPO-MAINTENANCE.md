@@ -16,19 +16,14 @@ docker build --rm --force-rm -t docker-dev:master .
 docker run --rm -it --privileged \
     -v /path/to/your/repos/dir:/volumes/repos \
     -v $HOME/.gnupg:/root/.gnupg \
+    -e GPG_PASSPHRASE \
     -e DOCKER_RELEASE_DIR=/volumes/repos \
-    docker-dev:master hack/make.sh clean-apt-repo clean-yum-repo
+    docker-dev:master hack/make.sh clean-apt-repo clean-yum-repo generate-index-listing sign-repos
 ```
 
-3. Re-sign the repo with your gpg key
+3. Upload the changed repos to `s3` (if you host on s3)
 
-```bash
-./hack/make/sign-repos
-```
-
-4. Upload the changed repos to `s3` (if you host on s3)
-
-5. Purge the cache, PURGE the cache, PURGE THE CACHE!
+4. Purge the cache, PURGE the cache, PURGE THE CACHE!
 
 ### How to get out of a sticky situation
 
@@ -48,7 +43,13 @@ Otherwise CELEBRATE!
 Re-sign the repo with your gpg key:
 
 ```bash
-./hack/make/sign-repos
+docker build --rm --force-rm -t docker-dev:master .
+docker run --rm -it --privileged \
+    -v /path/to/your/repos/dir:/volumes/repos \
+    -v $HOME/.gnupg:/root/.gnupg \
+    -e GPG_PASSPHRASE \
+    -e DOCKER_RELEASE_DIR=/volumes/repos \
+    docker-dev:master hack/make.sh sign-repos
 ```
 
 Upload the changed repo to `s3` (if that is where you host)
@@ -63,16 +64,11 @@ docker build --rm --force-rm -t docker-dev:master .
 docker run --rm -it --privileged \
     -v /path/to/your/repos/dir:/volumes/repos \
     -v $HOME/.gnupg:/root/.gnupg \
+    -e GPG_PASSPHRASE \
     -e DOCKER_RELEASE_DIR=/volumes/repos \
-    docker-dev:master hack/make.sh update-apt-repo
+    docker-dev:master hack/make.sh update-apt-repo generate-index-listing sign-repos
 ```
 
-Re-sign the repo with your gpg key:
-
-```bash
-./hack/make/sign-repos
-```
-
-Upload the changed repo to `s3` (if that is where you host)
+4. Upload the changed repo to `s3` (if that is where you host)
 
 PURGE THE CACHE.
