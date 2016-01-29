@@ -66,8 +66,7 @@ func (s *DockerSuite) TestExecInteractive(c *check.C) {
 }
 
 func (s *DockerSuite) TestExecAfterContainerRestart(c *check.C) {
-	testRequires(c, DaemonIsLinux)
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
+	out, _ := runSleepingContainer(c, "-d")
 	cleanedContainerID := strings.TrimSpace(out)
 	c.Assert(waitRun(cleanedContainerID), check.IsNil)
 	dockerCmd(c, "restart", cleanedContainerID)
@@ -79,6 +78,7 @@ func (s *DockerSuite) TestExecAfterContainerRestart(c *check.C) {
 }
 
 func (s *DockerDaemonSuite) TestExecAfterDaemonRestart(c *check.C) {
+	// TODO Windows CI: Requires a little work to get this ported.
 	testRequires(c, DaemonIsLinux)
 	testRequires(c, SameHostDaemon)
 
@@ -103,9 +103,12 @@ func (s *DockerDaemonSuite) TestExecAfterDaemonRestart(c *check.C) {
 
 // Regression test for #9155, #9044
 func (s *DockerSuite) TestExecEnv(c *check.C) {
+	// TODO Windows CI: This one is interesting and may just end up being a feature
+	// difference between Windows and Linux. On Windows, the environment is passed
+	// into the process that is launched, not into the machine environment. Hence
+	// a subsequent exec will not have LALA set/
 	testRequires(c, DaemonIsLinux)
-	dockerCmd(c, "run", "-e", "LALA=value1", "-e", "LALA=value2",
-		"-d", "--name", "testing", "busybox", "top")
+	runSleepingContainer(c, "-e", "LALA=value1", "-e", "LALA=value2", "-d", "--name", "testing")
 	c.Assert(waitRun("testing"), check.IsNil)
 
 	out, _ := dockerCmd(c, "exec", "testing", "env")
@@ -115,8 +118,7 @@ func (s *DockerSuite) TestExecEnv(c *check.C) {
 }
 
 func (s *DockerSuite) TestExecExitStatus(c *check.C) {
-	testRequires(c, DaemonIsLinux)
-	dockerCmd(c, "run", "-d", "--name", "top", "busybox", "top")
+	runSleepingContainer(c, "-d", "--name", "top")
 
 	// Test normal (non-detached) case first
 	cmd := exec.Command(dockerBinary, "exec", "top", "sh", "-c", "exit 23")
@@ -125,6 +127,7 @@ func (s *DockerSuite) TestExecExitStatus(c *check.C) {
 }
 
 func (s *DockerSuite) TestExecPausedContainer(c *check.C) {
+	// Windows does not support pause
 	testRequires(c, DaemonIsLinux)
 	defer unpauseAllContainers()
 
@@ -141,6 +144,7 @@ func (s *DockerSuite) TestExecPausedContainer(c *check.C) {
 
 // regression test for #9476
 func (s *DockerSuite) TestExecTTYCloseStdin(c *check.C) {
+	// TODO Windows CI: This requires some work to port to Windows.
 	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "run", "-d", "-it", "--name", "exec_tty_stdin", "busybox")
 
@@ -161,6 +165,7 @@ func (s *DockerSuite) TestExecTTYCloseStdin(c *check.C) {
 }
 
 func (s *DockerSuite) TestExecTTYWithoutStdin(c *check.C) {
+	// TODO Windows CI: This requires some work to port to Windows.
 	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "-ti", "busybox")
 	id := strings.TrimSpace(out)
@@ -195,6 +200,8 @@ func (s *DockerSuite) TestExecTTYWithoutStdin(c *check.C) {
 }
 
 func (s *DockerSuite) TestExecParseError(c *check.C) {
+	// TODO Windows CI: Requires some extra work. Consider copying the
+	// runSleepingContainer helper to have an exec version.
 	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "run", "-d", "--name", "top", "busybox", "top")
 
@@ -206,6 +213,8 @@ func (s *DockerSuite) TestExecParseError(c *check.C) {
 }
 
 func (s *DockerSuite) TestExecStopNotHanging(c *check.C) {
+	// TODO Windows CI: Requires some extra work. Consider copying the
+	// runSleepingContainer helper to have an exec version.
 	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "run", "-d", "--name", "testing", "busybox", "top")
 
@@ -232,6 +241,7 @@ func (s *DockerSuite) TestExecStopNotHanging(c *check.C) {
 }
 
 func (s *DockerSuite) TestExecCgroup(c *check.C) {
+	// Not applicable on Windows - using Linux specific functionality
 	testRequires(c, NotUserNamespace)
 	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "run", "-d", "--name", "testing", "busybox", "top")
@@ -283,9 +293,8 @@ func (s *DockerSuite) TestExecCgroup(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestInspectExecID(c *check.C) {
-	testRequires(c, DaemonIsLinux)
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
+func (s *DockerSuite) TestExecInspectID(c *check.C) {
+	out, _ := runSleepingContainer(c, "-d")
 	id := strings.TrimSuffix(out, "\n")
 
 	out, err := inspectField(id, "ExecIDs")
@@ -294,7 +303,7 @@ func (s *DockerSuite) TestInspectExecID(c *check.C) {
 
 	// Start an exec, have it block waiting so we can do some checking
 	cmd := exec.Command(dockerBinary, "exec", id, "sh", "-c",
-		"while ! test -e /tmp/execid1; do sleep 1; done")
+		"while ! test -e /execid1; do sleep 1; done")
 
 	err = cmd.Start()
 	c.Assert(err, checker.IsNil, check.Commentf("failed to start the exec cmd"))
@@ -320,7 +329,7 @@ func (s *DockerSuite) TestInspectExecID(c *check.C) {
 
 	// End the exec by creating the missing file
 	err = exec.Command(dockerBinary, "exec", id,
-		"sh", "-c", "touch /tmp/execid1").Run()
+		"sh", "-c", "touch /execid1").Run()
 
 	c.Assert(err, checker.IsNil, check.Commentf("failed to run the 2nd exec cmd"))
 
@@ -347,6 +356,7 @@ func (s *DockerSuite) TestInspectExecID(c *check.C) {
 }
 
 func (s *DockerSuite) TestLinksPingLinkedContainersOnRename(c *check.C) {
+	// Problematic on Windows as Windows does not support links
 	testRequires(c, DaemonIsLinux)
 	var out string
 	out, _ = dockerCmd(c, "run", "-d", "--name", "container1", "busybox", "top")
@@ -361,12 +371,17 @@ func (s *DockerSuite) TestLinksPingLinkedContainersOnRename(c *check.C) {
 	dockerCmd(c, "exec", "container2", "ping", "-c", "1", "alias1", "-W", "1")
 }
 
-func (s *DockerSuite) TestRunExecDir(c *check.C) {
+func (s *DockerSuite) TestExecDir(c *check.C) {
+	// TODO Windows CI. This requires some work to port as it uses execDriverPath
+	// which is currently (and incorrectly) hard coded as a string assuming
+	// the daemon is running Linux :(
 	testRequires(c, SameHostDaemon, DaemonIsLinux)
 
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
+	out, _ := runSleepingContainer(c, "-d")
 	id := strings.TrimSpace(out)
+
 	execDir := filepath.Join(execDriverPath, id)
+	fmt.Println(execDriverPath)
 	stateFile := filepath.Join(execDir, "state.json")
 
 	{
@@ -409,6 +424,7 @@ func (s *DockerSuite) TestRunExecDir(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunMutableNetworkFiles(c *check.C) {
+	// Not applicable on Windows to Windows CI.
 	testRequires(c, SameHostDaemon, DaemonIsLinux)
 	for _, fn := range []string{"resolv.conf", "hosts"} {
 		deleteAllContainers()
@@ -447,6 +463,8 @@ func (s *DockerSuite) TestRunMutableNetworkFiles(c *check.C) {
 }
 
 func (s *DockerSuite) TestExecWithUser(c *check.C) {
+	// TODO Windows CI: This may be fixable in the future once Windows
+	// supports users
 	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "run", "-d", "--name", "parent", "busybox", "top")
 
@@ -458,6 +476,7 @@ func (s *DockerSuite) TestExecWithUser(c *check.C) {
 }
 
 func (s *DockerSuite) TestExecWithPrivileged(c *check.C) {
+	// Not applicable on Windows
 	testRequires(c, DaemonIsLinux, NotUserNamespace)
 	// Start main loop which attempts mknod repeatedly
 	dockerCmd(c, "run", "-d", "--name", "parent", "--cap-drop=ALL", "busybox", "sh", "-c", `while (true); do if [ -e /exec_priv ]; then cat /exec_priv && mknod /tmp/sda b 8 0 && echo "Success"; else echo "Privileged exec has not run yet"; fi; usleep 10000; done`)
@@ -491,6 +510,7 @@ func (s *DockerSuite) TestExecWithPrivileged(c *check.C) {
 }
 
 func (s *DockerSuite) TestExecWithImageUser(c *check.C) {
+	// Not applicable on Windows
 	testRequires(c, DaemonIsLinux)
 	name := "testbuilduser"
 	_, err := buildImage(name,
@@ -507,6 +527,7 @@ func (s *DockerSuite) TestExecWithImageUser(c *check.C) {
 }
 
 func (s *DockerSuite) TestExecOnReadonlyContainer(c *check.C) {
+	// Windows does not support read-only
 	// --read-only + userns has remount issues
 	testRequires(c, DaemonIsLinux, NotUserNamespace)
 	dockerCmd(c, "run", "-d", "--read-only", "--name", "parent", "busybox", "top")
@@ -515,9 +536,11 @@ func (s *DockerSuite) TestExecOnReadonlyContainer(c *check.C) {
 
 // #15750
 func (s *DockerSuite) TestExecStartFails(c *check.C) {
+	// TODO Windows CI. This test should be portable. Figure out why it fails
+	// currently.
 	testRequires(c, DaemonIsLinux)
 	name := "exec-15750"
-	dockerCmd(c, "run", "-d", "--name", name, "busybox", "top")
+	runSleepingContainer(c, "-d", "--name", name)
 	c.Assert(waitRun(name), checker.IsNil)
 
 	out, _, err := dockerCmdWithError("exec", name, "no-such-cmd")
