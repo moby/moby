@@ -48,7 +48,7 @@ type DockerRegistrySuite struct {
 }
 
 func (s *DockerRegistrySuite) SetUpTest(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	testRequires(c, DaemonIsLinux, RegistryHosting)
 	s.reg = setupRegistry(c, false, false)
 	s.d = NewDaemon(c)
 }
@@ -76,7 +76,7 @@ type DockerSchema1RegistrySuite struct {
 }
 
 func (s *DockerSchema1RegistrySuite) SetUpTest(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	testRequires(c, DaemonIsLinux, RegistryHosting)
 	s.reg = setupRegistry(c, true, false)
 	s.d = NewDaemon(c)
 }
@@ -104,7 +104,7 @@ type DockerRegistryAuthSuite struct {
 }
 
 func (s *DockerRegistryAuthSuite) SetUpTest(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	testRequires(c, DaemonIsLinux, RegistryHosting)
 	s.reg = setupRegistry(c, false, true)
 	s.d = NewDaemon(c)
 }
@@ -158,6 +158,7 @@ type DockerTrustSuite struct {
 }
 
 func (s *DockerTrustSuite) SetUpTest(c *check.C) {
+	testRequires(c, RegistryHosting, NotaryHosting)
 	s.reg = setupRegistry(c, false, false)
 	s.not = setupNotary(c)
 }
