@@ -343,7 +343,7 @@ func (ep *endpoint) getNetworkFromStore() (*network, error) {
 		return nil, fmt.Errorf("invalid network object in endpoint %s", ep.Name())
 	}
 
-	return ep.network.ctrlr.getNetworkFromStore(ep.network.id)
+	return ep.network.getController().getNetworkFromStore(ep.network.id)
 }
 
 func (ep *endpoint) Join(sbox Sandbox, options ...EndpointOption) error {
