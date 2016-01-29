@@ -64,10 +64,14 @@ func (p *Publisher) Evict(sub chan interface{}) {
 // Publish sends the data in v to all subscribers currently registered with the publisher.
 func (p *Publisher) Publish(v interface{}) {
 	p.m.RLock()
+	if len(p.subscribers) == 0 {
+		p.m.RUnlock()
+		return
+	}
+
 	wg := new(sync.WaitGroup)
 	for sub, topic := range p.subscribers {
 		wg.Add(1)
-
 		go p.sendTopic(sub, topic, v, wg)
 	}
 	wg.Wait()
