@@ -16,7 +16,6 @@ import (
 
 // Regression test for #9414
 func (s *DockerSuite) TestExecApiCreateNoCmd(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	name := "exec_test"
 	dockerCmd(c, "run", "-d", "-t", "--name", name, "busybox", "/bin/sh")
 
@@ -29,7 +28,6 @@ func (s *DockerSuite) TestExecApiCreateNoCmd(c *check.C) {
 }
 
 func (s *DockerSuite) TestExecApiCreateNoValidContentType(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	name := "exec_test"
 	dockerCmd(c, "run", "-d", "-t", "--name", name, "busybox", "/bin/sh")
 
@@ -50,6 +48,7 @@ func (s *DockerSuite) TestExecApiCreateNoValidContentType(c *check.C) {
 }
 
 func (s *DockerSuite) TestExecApiCreateContainerPaused(c *check.C) {
+	// Not relevant on Windows as Windows containers cannot be paused
 	testRequires(c, DaemonIsLinux)
 	name := "exec_create_test"
 	dockerCmd(c, "run", "-d", "-t", "--name", name, "busybox", "/bin/sh")
@@ -63,7 +62,7 @@ func (s *DockerSuite) TestExecApiCreateContainerPaused(c *check.C) {
 	c.Assert(string(body), checker.Contains, "Container "+name+" is paused, unpause the container before exec", comment)
 }
 
-func (s *DockerSuite) TestExecAPIStart(c *check.C) {
+func (s *DockerSuite) TestExecApiStart(c *check.C) {
 	testRequires(c, DaemonIsLinux) // Uses pause/unpause but bits may be salvagable to Windows to Windows CI
 	dockerCmd(c, "run", "-d", "--name", "test", "busybox", "top")
 
@@ -86,8 +85,8 @@ func (s *DockerSuite) TestExecAPIStart(c *check.C) {
 	startExec(c, id, http.StatusOK)
 }
 
-func (s *DockerSuite) TestExecAPIStartBackwardsCompatible(c *check.C) {
-	dockerCmd(c, "run", "-d", "--name", "test", "busybox", "top")
+func (s *DockerSuite) TestExecApiStartBackwardsCompatible(c *check.C) {
+	runSleepingContainer(c, "-d", "--name", "test")
 	id := createExec(c, "test")
 
 	resp, body, err := sockRequestRaw("POST", fmt.Sprintf("/v1.20/exec/%s/start", id), strings.NewReader(`{"Detach": true}`), "text/plain")
@@ -100,12 +99,12 @@ func (s *DockerSuite) TestExecAPIStartBackwardsCompatible(c *check.C) {
 }
 
 // #19362
-func (s *DockerSuite) TestExecAPIStartMultipleTimesError(c *check.C) {
-	dockerCmd(c, "run", "-d", "--name", "test", "busybox", "top")
+func (s *DockerSuite) TestExecApiStartMultipleTimesError(c *check.C) {
+	runSleepingContainer(c, "-d", "--name", "test")
 	execID := createExec(c, "test")
 	startExec(c, execID, http.StatusOK)
 
-	timeout := time.After(10 * time.Second)
+	timeout := time.After(60 * time.Second)
 	var execJSON struct{ Running bool }
 	for {
 		select {
