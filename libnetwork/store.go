@@ -141,8 +141,10 @@ func (c *controller) getNetworksFromStore() ([]*network, error) {
 				return nil, fmt.Errorf("could not find endpoint count key %s for network %s while listing: %v", datastore.Key(ec.Key()...), n.Name(), err)
 			}
 
+			n.Lock()
 			n.epCnt = ec
 			n.scope = store.Scope()
+			n.Unlock()
 			nl = append(nl, n)
 		}
 	}
