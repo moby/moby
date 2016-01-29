@@ -20,7 +20,7 @@ func (s *DockerSuite) TestRenameStoppedContainer(c *check.C) {
 
 	name, err = inspectField(cleanedContainerID, "Name")
 	c.Assert(err, checker.IsNil, check.Commentf("Failed to rename container %s", name))
-	c.Assert(name, checker.Equals, "/"+newName, check.Commentf("Failed to rename container %s", name))
+	c.Assert(name, checker.Equals, newName, check.Commentf("Failed to rename container %s", name))
 
 }
 
@@ -33,7 +33,7 @@ func (s *DockerSuite) TestRenameRunningContainer(c *check.C) {
 
 	name, err := inspectField(cleanedContainerID, "Name")
 	c.Assert(err, checker.IsNil, check.Commentf("Failed to rename container %s", name))
-	c.Assert(name, checker.Equals, "/"+newName, check.Commentf("Failed to rename container %s", name))
+	c.Assert(name, checker.Equals, newName, check.Commentf("Failed to rename container %s", name))
 }
 
 func (s *DockerSuite) TestRenameRunningContainerAndReuse(c *check.C) {
@@ -46,14 +46,14 @@ func (s *DockerSuite) TestRenameRunningContainerAndReuse(c *check.C) {
 
 	name, err := inspectField(ContainerID, "Name")
 	c.Assert(err, checker.IsNil, check.Commentf("Failed to rename container %s", name))
-	c.Assert(name, checker.Equals, "/"+newName, check.Commentf("Failed to rename container"))
+	c.Assert(name, checker.Equals, newName, check.Commentf("Failed to rename container"))
 
 	out, _ = runSleepingContainer(c, "--name", "first_name")
 	c.Assert(waitRun("first_name"), check.IsNil)
 	newContainerID := strings.TrimSpace(out)
 	name, err = inspectField(newContainerID, "Name")
 	c.Assert(err, checker.IsNil, check.Commentf("Failed to reuse container name"))
-	c.Assert(name, checker.Equals, "/first_name", check.Commentf("Failed to reuse container name"))
+	c.Assert(name, checker.Equals, "first_name", check.Commentf("Failed to reuse container name"))
 }
 
 func (s *DockerSuite) TestRenameCheckNames(c *check.C) {
@@ -64,7 +64,7 @@ func (s *DockerSuite) TestRenameCheckNames(c *check.C) {
 
 	name, err := inspectField(newName, "Name")
 	c.Assert(err, checker.IsNil, check.Commentf("Failed to rename container %s", name))
-	c.Assert(name, checker.Equals, "/"+newName, check.Commentf("Failed to rename container %s", name))
+	c.Assert(name, checker.Equals, newName, check.Commentf("Failed to rename container %s", name))
 
 	name, err = inspectField("first_name", "Name")
 	c.Assert(err, checker.NotNil, check.Commentf(name))
