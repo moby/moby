@@ -429,3 +429,7 @@ type NetworkDisconnect struct {
 	Container string
 	Force     bool
 }
+
+type ContainerForwardSocketConfig struct {
+	ContainerPath string
+}

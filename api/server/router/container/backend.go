@@ -64,6 +64,11 @@ type attachBackend interface {
 	ContainerWsAttachWithLogs(name string, c *daemon.ContainerWsAttachWithLogsConfig) error
 }
 
+// socketBacked includes functionality to forward sockets from the remote client into the container
+type socketBackend interface {
+	ContainerForwardSocket(name, containerPath string, rwc io.ReadWriter) error
+}
+
 // Backend is all the methods that need to be implemented to provide container specific functionality.
 type Backend interface {
 	execBackend
@@ -71,4 +76,5 @@ type Backend interface {
 	stateBackend
 	monitorBackend
 	attachBackend
+	socketBackend
 }
