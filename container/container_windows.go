@@ -22,12 +22,6 @@ func (container *Container) CreateDaemonEnvironment(linkedEnv []string) []string
 	return container.Config.Env
 }
 
-// SetupWorkingDirectory initializes the container working directory.
-// This is a NOOP In windows.
-func (container *Container) SetupWorkingDirectory() error {
-	return nil
-}
-
 // UnmountIpcMounts unmount Ipc related mounts.
 // This is a NOOP on windows.
 func (container *Container) UnmountIpcMounts(unmount func(pth string) error) {
