@@ -1034,20 +1034,16 @@ Update resource configs of one or more containers.
        Content-Type: application/json
 
        {
-           "UpdateConfig": {
-               "Resources": {
-                   "BlkioWeight": 300,
-                   "CpuShares": 512,
-                   "CpuPeriod": 100000,
-                   "CpuQuota": 50000,
-                   "CpusetCpus": "0,1",
-                   "CpusetMems": "0",
-                   "Memory": 314572800,
-                   "MemorySwap": 514288000,
-                   "MemoryReservation": 209715200,
-                   "KernelMemory": 52428800,
-               }
-           }
+         "BlkioWeight": 300,
+         "CpuShares": 512,
+         "CpuPeriod": 100000,
+         "CpuQuota": 50000,
+         "CpusetCpus": "0,1",
+         "CpusetMems": "0",
+         "Memory": 314572800,
+         "MemorySwap": 514288000,
+         "MemoryReservation": 209715200,
+         "KernelMemory": 52428800,
        }
 
 **Example response**:
