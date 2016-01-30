@@ -122,7 +122,7 @@ RUN set -x \
 	&& git clone https://github.com/docker/notary.git "$GOPATH/src/github.com/docker/notary" \
 	&& (cd "$GOPATH/src/github.com/docker/notary" && git checkout -q "$NOTARY_VERSION") \
 	&& GOPATH="$GOPATH/src/github.com/docker/notary/Godeps/_workspace:$GOPATH" \
-		go build -o /usr/local/bin/notary-server github.com/docker/notary/cmd/notary-server \
+		go build -gccgoflags=-lpthread -o /usr/local/bin/notary-server github.com/docker/notary/cmd/notary-server \
 	&& rm -rf "$GOPATH"
 
 # Get the "docker-py" source so we can run their integration tests
