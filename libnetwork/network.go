@@ -62,6 +62,7 @@ type NetworkInfo interface {
 	IpamInfo() ([]*IpamInfo, []*IpamInfo)
 	DriverOptions() map[string]string
 	Scope() string
+	IPv6Enabled() bool
 	Internal() bool
 }
 
@@ -1236,4 +1237,11 @@ func (n *network) Internal() bool {
 	defer n.Unlock()
 
 	return n.internal
+}
+
+func (n *network) IPv6Enabled() bool {
+	n.Lock()
+	defer n.Unlock()
+
+	return n.enableIPv6
 }
