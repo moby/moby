@@ -1,6 +1,6 @@
 <!--[metadata]>
 +++
-aliases = [ "/engine/installation/archlinux/"]
+aliases = [ "/engine/installation/archlinux/", "/installation/linux/archlinux.md"]
 title = "Installation on Arch Linux"
 description = "Installation instructions for Docker on ArchLinux."
 keywords = ["arch linux, docker, documentation,  installation"]

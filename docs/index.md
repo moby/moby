@@ -85,7 +85,7 @@ The [Understanding Docker section](understanding-docker.md) will help you:
 
 ### Installation guides
 
-The [installation section](installation/index.md) will show you how to install Docker
+The [installation section](install/index.md) will show you how to install Docker
 on a variety of platforms.
 
 

@@ -3,6 +3,7 @@
 title = "Choose how to install"
 description = "Installation instructions for Docker on cloud."
 keywords = ["cloud, docker, machine, documentation,  installation"]
+aliases = ["/install/cloud/cloud.md"]
 [menu.main]
 parent = "install_cloud"
 weight=-3

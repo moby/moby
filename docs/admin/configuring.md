@@ -66,7 +66,7 @@ with explanations.
 As of `14.04`, Ubuntu uses Upstart as a process manager. By default, Upstart jobs
 are located in  `/etc/init` and the `docker` Upstart job can be found at `/etc/init/docker.conf`.
 
-After successfully [installing Docker for Ubuntu](../installation/linux/ubuntulinux.md),
+After successfully [installing Docker for Ubuntu](../install/linux/ubuntulinux.md),
 you can check the running status using Upstart in this way:
 
     $ sudo status docker
@@ -155,7 +155,7 @@ can be located at `/var/log/upstart/docker.log`
 As of `7.x`, CentOS and RHEL use `systemd` as the process manager. As of `21`, Fedora uses
 `systemd` as its process manager.
 
-After successfully installing Docker for [CentOS](../installation/linux/centos.md)/[Red Hat Enterprise Linux](../installation/linux/rhel.md)/[Fedora](../installation/linux/fedora.md), you can check the running status in this way:
+After successfully installing Docker for [CentOS](../install/linux/centos.md)/[Red Hat Enterprise Linux](../install/linux/rhel.md)/[Fedora](../install/linux/fedora.md), you can check the running status in this way:
 
     $ sudo systemctl status docker
 

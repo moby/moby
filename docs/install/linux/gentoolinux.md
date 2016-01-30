@@ -1,6 +1,6 @@
 <!--[metadata]>
 +++
-aliases = [ "/engine/installation/gentoolinux/"]
+aliases = [ "/engine/installation/gentoolinux/", "/installation/linux/gentoolinux.md"]
 title = "Installation on Gentoo"
 description = "Installation instructions for Docker on Gentoo."
 keywords = ["gentoo linux, docker, documentation,  installation"]

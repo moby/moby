@@ -29,7 +29,7 @@ instances will bring several benefits, such as:
 > **Note:**
 >
 > If you do **_not_** like `sudo`, you might want to check out:
-> [*Giving non-root access*](../installation/binaries.md#giving-non-root-access).
+> [*Giving non-root access*](../install/binaries.md#giving-non-root-access).
 
 ## Creating a Dockerfile for MongoDB
 

@@ -3,6 +3,7 @@
 title = "Installation on Windows"
 description = "Docker installation on Microsoft Windows"
 keywords = ["Docker, Docker documentation, Windows, requirements, virtualbox,  boot2docker"]
+aliases = ["/installation/linux/windows.md"]
 [menu.main]
 parent = "engine_install"
 weight="-80"

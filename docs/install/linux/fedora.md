@@ -1,6 +1,6 @@
 <!--[metadata]>
 +++
-aliases = [ "/engine/installation/fedora/"]
+aliases = [ "/engine/installation/fedora/", "/installation/linux/fedora.md"]
 title = "Installation on Fedora"
 description = "Instructions for installing Docker on Fedora."
 keywords = ["Docker, Docker documentation, Fedora, requirements,  linux"]

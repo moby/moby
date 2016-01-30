@@ -1,6 +1,6 @@
 <!--[metadata]>
 +++
-aliases = [ "/engine/installation/frugalware/"]
+aliases = [ "/engine/installation/frugalware/", "/installation/linux/frugalware.md"]
 title = "Installation on FrugalWare"
 description = "Installation instructions for Docker on FrugalWare."
 keywords = ["frugalware linux, docker, documentation,  installation"]

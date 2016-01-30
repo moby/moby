@@ -1,6 +1,6 @@
 <!--[metadata]>
 +++
-aliases = [ "/engine/installation/debian/"]
+aliases = [ "/engine/installation/debian/", "/installation/linux/debian.md"]
 title = "Installation on Debian"
 description = "Instructions for installing Docker on Debian."
 keywords = ["Docker, Docker documentation, installation,  debian"]
