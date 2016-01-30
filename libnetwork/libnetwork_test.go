@@ -269,9 +269,9 @@ func TestBridge(t *testing.T) {
 	}
 
 	netOption := options.Generic{
+		netlabel.EnableIPv6: true,
 		netlabel.GenericData: options.Generic{
 			"BridgeName":         "testnetwork",
-			"EnableIPv6":         true,
 			"EnableICC":          true,
 			"EnableIPMasquerade": true,
 		},
@@ -323,7 +323,6 @@ func TestBridgeIpv6FromMac(t *testing.T) {
 	netOption := options.Generic{
 		netlabel.GenericData: options.Generic{
 			"BridgeName":         "testipv6mac",
-			"EnableIPv6":         true,
 			"EnableICC":          true,
 			"EnableIPMasquerade": true,
 		},
@@ -333,6 +332,7 @@ func TestBridgeIpv6FromMac(t *testing.T) {
 
 	network, err := controller.NewNetwork(bridgeNetType, "testipv6mac",
 		libnetwork.NetworkOptionGeneric(netOption),
+		libnetwork.NetworkOptionEnableIPv6(true),
 		libnetwork.NetworkOptionIpam(ipamapi.DefaultIPAM, "", ipamV4ConfList, ipamV6ConfList, nil),
 		libnetwork.NetworkOptionDeferIPv6Alloc(true))
 	if err != nil {
@@ -1008,7 +1008,6 @@ func TestEndpointJoin(t *testing.T) {
 	netOption := options.Generic{
 		netlabel.GenericData: options.Generic{
 			"BridgeName":         "testnetwork1",
-			"EnableIPv6":         true,
 			"EnableICC":          true,
 			"EnableIPMasquerade": true,
 		},
@@ -1016,6 +1015,7 @@ func TestEndpointJoin(t *testing.T) {
 	ipamV6ConfList := []*libnetwork.IpamConf{&libnetwork.IpamConf{PreferredPool: "fe90::/64", Gateway: "fe90::22"}}
 	n1, err := controller.NewNetwork(bridgeNetType, "testnetwork1",
 		libnetwork.NetworkOptionGeneric(netOption),
+		libnetwork.NetworkOptionEnableIPv6(true),
 		libnetwork.NetworkOptionIpam(ipamapi.DefaultIPAM, "", nil, ipamV6ConfList, nil),
 		libnetwork.NetworkOptionDeferIPv6Alloc(true))
 	if err != nil {

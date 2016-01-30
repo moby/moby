@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/docker/libnetwork"
@@ -276,22 +277,33 @@ func procCreateNetwork(c libnetwork.NetworkController, vars map[string]string, b
 
 	err := json.Unmarshal(body, &create)
 	if err != nil {
-		return "", &responseStatus{Status: "Invalid body: " + err.Error(), StatusCode: http.StatusBadRequest}
+		return nil, &responseStatus{Status: "Invalid body: " + err.Error(), StatusCode: http.StatusBadRequest}
 	}
 	processCreateDefaults(c, &create)
 
 	options := []libnetwork.NetworkOption{}
-	if len(create.NetworkOpts) > 0 {
-		if _, ok := create.NetworkOpts[netlabel.Internal]; ok {
+	if val, ok := create.NetworkOpts[netlabel.Internal]; ok {
+		internal, err := strconv.ParseBool(val)
+		if err != nil {
+			return nil, &responseStatus{Status: err.Error(), StatusCode: http.StatusBadRequest}
+		}
+		if internal {
 			options = append(options, libnetwork.NetworkOptionInternalNetwork())
 		}
+	}
+	if val, ok := create.NetworkOpts[netlabel.EnableIPv6]; ok {
+		enableIPv6, err := strconv.ParseBool(val)
+		if err != nil {
+			return nil, &responseStatus{Status: err.Error(), StatusCode: http.StatusBadRequest}
+		}
+		options = append(options, libnetwork.NetworkOptionEnableIPv6(enableIPv6))
 	}
 	if len(create.DriverOpts) > 0 {
 		options = append(options, libnetwork.NetworkOptionDriverOpts(create.DriverOpts))
 	}
 	nw, err := c.NewNetwork(create.NetworkType, create.Name, options...)
 	if err != nil {
-		return "", convertNetworkError(err)
+		return nil, convertNetworkError(err)
 	}
 
 	return nw.ID(), &createdResponse

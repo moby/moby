@@ -45,10 +45,6 @@ func TestCreateFullOptions(t *testing.T) {
 	br, _ := types.ParseCIDR("172.16.0.1/16")
 	defgw, _ := types.ParseCIDR("172.16.0.100/16")
 
-	netConfig := &networkConfiguration{
-		BridgeName: DefaultBridgeName,
-		EnableIPv6: true,
-	}
 	genericOption := make(map[string]interface{})
 	genericOption[netlabel.GenericData] = config
 
@@ -57,7 +53,10 @@ func TestCreateFullOptions(t *testing.T) {
 	}
 
 	netOption := make(map[string]interface{})
-	netOption[netlabel.GenericData] = netConfig
+	netOption[netlabel.EnableIPv6] = true
+	netOption[netlabel.GenericData] = &networkConfiguration{
+		BridgeName: DefaultBridgeName,
+	}
 
 	ipdList := []driverapi.IPAMData{
 		driverapi.IPAMData{
@@ -118,15 +117,15 @@ func TestCreateFullOptionsLabels(t *testing.T) {
 	gwV6, _ := types.ParseCIDR(gwV6s)
 
 	labels := map[string]string{
-		BridgeName:          DefaultBridgeName,
-		DefaultBridge:       "true",
-		netlabel.EnableIPv6: "true",
-		EnableICC:           "true",
-		EnableIPMasquerade:  "true",
-		DefaultBindingIP:    bndIPs,
+		BridgeName:         DefaultBridgeName,
+		DefaultBridge:      "true",
+		EnableICC:          "true",
+		EnableIPMasquerade: "true",
+		DefaultBindingIP:   bndIPs,
 	}
 
 	netOption := make(map[string]interface{})
+	netOption[netlabel.EnableIPv6] = true
 	netOption[netlabel.GenericData] = labels
 
 	ipdList := getIPv4Data(t)
@@ -783,13 +782,13 @@ func TestSetDefaultGw(t *testing.T) {
 
 	config := &networkConfiguration{
 		BridgeName:         DefaultBridgeName,
-		EnableIPv6:         true,
 		AddressIPv6:        subnetv6,
 		DefaultGatewayIPv4: gw4,
 		DefaultGatewayIPv6: gw6,
 	}
 
 	genericOption := make(map[string]interface{})
+	genericOption[netlabel.EnableIPv6] = true
 	genericOption[netlabel.GenericData] = config
 
 	err := d.CreateNetwork("dummy", genericOption, ipdList, nil)
