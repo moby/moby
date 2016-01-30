@@ -128,6 +128,8 @@ This section lists each version from latest to oldest.  Each listing includes a 
 * `GET /networks/{network-id}` Now returns IPAM config options for custom IPAM plugins if any
   are available.
 * `GET /networks/<network-id>` now returns subnets info for user-defined networks.
+* `GET /info` can now return a `SystemStatus` field useful for returning additional information about applications
+  that are built on top of engine.
 
 ### v1.21 API changes
 
