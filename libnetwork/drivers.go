@@ -5,9 +5,10 @@ import (
 
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/ipamapi"
+	"github.com/docker/libnetwork/netlabel"
+
 	builtinIpam "github.com/docker/libnetwork/ipams/builtin"
 	remoteIpam "github.com/docker/libnetwork/ipams/remote"
-	"github.com/docker/libnetwork/netlabel"
 )
 
 type initializer struct {
