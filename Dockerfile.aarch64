@@ -88,8 +88,8 @@ RUN cd /usr/local/lvm2 \
 # We don't have official binary tarballs for ARM64, eigher for Go or bootstrap,
 # so we use the official armv6 released binaries as a GOROOT_BOOTSTRAP, and
 # build Go from source code.
-ENV BOOT_STRAP_VERSION 1.6beta1
-ENV GO_VERSION 1.5.3
+ENV BOOT_STRAP_VERSION 1.6rc1
+ENV GO_VERSION 1.6rc1
 RUN mkdir -p /usr/src/go-bootstrap \
 	&& curl -fsSL https://storage.googleapis.com/golang/go${BOOT_STRAP_VERSION}.linux-arm6.tar.gz | tar -v -C /usr/src/go-bootstrap -xz --strip-components=1 \
 	&& mkdir /usr/src/go \

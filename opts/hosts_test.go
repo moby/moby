@@ -8,7 +8,7 @@ import (
 func TestParseHost(t *testing.T) {
 	invalid := map[string]string{
 		"anything":              "Invalid bind address format: anything",
-		"something with spaces": "Invalid bind address format: something with spaces",
+		"something with spaces": `parse tcp://something with spaces: invalid character " " in host name`,
 		"://":                "Invalid bind address format: ://",
 		"unknown://":         "Invalid bind address format: unknown://",
 		"tcp://:port":        "Invalid bind address format: :port",
