@@ -303,7 +303,7 @@ func (s *DockerSuite) TestGetContainerStatsRmRunning(c *check.C) {
 
 	buf := &integration.ChannelBuffer{make(chan []byte, 1)}
 	defer buf.Close()
-	chErr := make(chan error)
+	chErr := make(chan error, 1)
 	go func() {
 		_, body, err := sockRequestRaw("GET", "/containers/"+id+"/stats?stream=1", nil, "application/json")
 		if err != nil {
@@ -314,7 +314,12 @@ func (s *DockerSuite) TestGetContainerStatsRmRunning(c *check.C) {
 		chErr <- err
 	}()
 	defer func() {
-		c.Assert(<-chErr, checker.IsNil)
+		select {
+		case err := <-chErr:
+			c.Assert(err, checker.IsNil)
+		default:
+			return
+		}
 	}()
 
 	b := make([]byte, 32)
@@ -327,10 +332,8 @@ func (s *DockerSuite) TestGetContainerStatsRmRunning(c *check.C) {
 	c.Assert(err, checker.Not(checker.IsNil), check.Commentf("rm should have failed but didn't"))
 	_, err = buf.ReadTimeout(b, 2*time.Second)
 	c.Assert(err, checker.IsNil)
-	dockerCmd(c, "rm", "-f", id)
 
-	_, err = buf.ReadTimeout(b, 2*time.Second)
-	c.Assert(err, checker.Not(checker.IsNil))
+	dockerCmd(c, "kill", id)
 }
 
 // regression test for gh13421
