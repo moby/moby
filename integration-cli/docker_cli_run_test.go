@@ -1724,7 +1724,7 @@ func (s *DockerSuite) TestRunWorkdirExistsAndIsFile(c *check.C) {
 	expected := "Cannot mkdir: /bin/cat is not a directory"
 	if daemonPlatform == "windows" {
 		existingFile = `\windows\system32\ntdll.dll`
-		expected = `Cannot mkdir: \windows\system32\ntdll.dll is not a directory.`
+		expected = "The directory name is invalid"
 	}
 
 	out, exitCode, err := dockerCmdWithError("run", "-w", existingFile, "busybox")

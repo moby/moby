@@ -22,7 +22,6 @@ import (
 	"github.com/docker/docker/pkg/promise"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/symlink"
-	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/volume"
 	containertypes "github.com/docker/engine-api/types/container"
@@ -182,34 +181,6 @@ func (container *Container) WriteHostConfig() error {
 	defer f.Close()
 
 	return json.NewEncoder(f).Encode(&container.HostConfig)
-}
-
-// SetupWorkingDirectory sets up the container's working directory as set in container.Config.WorkingDir
-func (container *Container) SetupWorkingDirectory() error {
-	if container.Config.WorkingDir == "" {
-		return nil
-	}
-	container.Config.WorkingDir = filepath.Clean(container.Config.WorkingDir)
-
-	pth, err := container.GetResourcePath(container.Config.WorkingDir)
-	if err != nil {
-		return err
-	}
-
-	pthInfo, err := os.Stat(pth)
-	if err != nil {
-		if !os.IsNotExist(err) {
-			return err
-		}
-
-		if err := system.MkdirAll(pth, 0755); err != nil {
-			return err
-		}
-	}
-	if pthInfo != nil && !pthInfo.IsDir() {
-		return derr.ErrorCodeNotADir.WithArgs(container.Config.WorkingDir)
-	}
-	return nil
 }
 
 // GetResourcePath evaluates `path` in the scope of the container's BaseFS, with proper path
