@@ -111,7 +111,7 @@ func (s *Server) userAgentMiddleware(handler httputils.APIFunc) httputils.APIFun
 			}
 
 			if len(userAgent) == 2 && !dockerVersion.Equal(version.Version(userAgent[1])) {
-				logrus.Debugf("Warning: client and server don't have the same version (client: %s, server: %s)", userAgent[1], dockerVersion)
+				logrus.Warnf("Warning: client and server don't have the same version (client: %s, server: %s)", userAgent[1], dockerVersion)
 			}
 		}
 		return handler(ctx, w, r, vars)
