@@ -19,7 +19,7 @@ func main() {
 		return
 	}
 
-	//NOOP Change JJHx
+	//NOOP Change JJHx BLAH BLAH
 
 	// Set terminal emulation based on platform as required.
 	stdin, stdout, stderr := term.StdStreams()
