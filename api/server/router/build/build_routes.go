@@ -23,6 +23,7 @@ import (
 	"github.com/docker/docker/utils"
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/container"
+	"github.com/docker/engine-api/types/image"
 	"github.com/docker/go-units"
 	"golang.org/x/net/context"
 )
@@ -76,8 +77,17 @@ func newImageBuildOptions(ctx context.Context, r *http.Request) (*types.ImageBui
 	} else {
 		options.Remove = httputils.BoolValue(r, "rm")
 	}
-	if httputils.BoolValue(r, "pull") && version.GreaterThanOrEqualTo("1.16") {
-		options.PullParent = true
+
+	options.PullParent = image.PullMissing
+	if version.GreaterThanOrEqualTo("1.22") {
+		pullVal := r.FormValue("pull")
+		pullBehavior, err := image.ParsePullBehavior(pullVal)
+		if err != nil {
+			return nil, err
+		}
+		options.PullParent = pullBehavior
+	} else if httputils.BoolValue(r, "pull") && version.GreaterThanOrEqualTo("1.16") {
+		options.PullParent = image.PullAlways
 	}
 
 	options.Dockerfile = r.FormValue("dockerfile")

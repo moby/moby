@@ -1631,6 +1631,7 @@ _docker_run() {
 		--oom-kill-disable
 		--privileged
 		--publish-all -P
+		--pull
 		--read-only
 		--tty -t
 	"

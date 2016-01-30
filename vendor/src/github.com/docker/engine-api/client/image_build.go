@@ -68,14 +68,11 @@ func imageBuildOptionsToQuery(options types.ImageBuildOptions) (url.Values, erro
 		query.Set("forcerm", "1")
 	}
 
-	if options.PullParent {
-		query.Set("pull", "1")
-	}
-
 	if !container.IsolationLevel.IsDefault(options.IsolationLevel) {
 		query.Set("isolation", string(options.IsolationLevel))
 	}
 
+	query.Set("pull", options.PullParent.String())
 	query.Set("cpusetcpus", options.CPUSetCPUs)
 	query.Set("cpusetmems", options.CPUSetMems)
 	query.Set("cpushares", strconv.FormatInt(options.CPUShares, 10))

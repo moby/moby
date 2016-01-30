@@ -29,7 +29,7 @@ parent = "smn_cli"
       -m, --memory=""                 Memory limit for all build containers
       --memory-swap=""                A positive integer equal to memory plus swap. Specify -1 to enable unlimited swap.
       --no-cache                      Do not use cache when building the image
-      --pull                          Always attempt to pull a newer version of the image
+      --pull=<content-trust>          Always attempt to pull a newer version of the image
       -q, --quiet                     Suppress the build output and print image ID on success
       --rm=true                       Remove intermediate containers after a successful build
       --shm-size=[]                   Size of `/dev/shm`. The format is `<number><unit>`. `number` must be greater than `0`.  Unit is optional and can be `b` (bytes), `k` (kilobytes), `m` (megabytes), or `g` (gigabytes). If you omit the unit, the system uses bytes. If you omit the size entirely, the system uses `64m`.

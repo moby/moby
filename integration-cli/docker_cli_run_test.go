@@ -3170,7 +3170,7 @@ func (s *DockerTrustSuite) TestTrustedRun(c *check.C) {
 	}
 
 	if !strings.Contains(string(out), "Tagging") {
-		c.Fatalf("Missing expected output on trusted push:\n%s", out)
+		c.Fatalf("Missing expected output on trusted run:\n%s", out)
 	}
 
 	dockerCmd(c, "rmi", repoName)
@@ -3281,7 +3281,7 @@ func (s *DockerTrustSuite) TestTrustedRunFromBadTrustServer(c *check.C) {
 	}
 
 	if !strings.Contains(string(out), "Tagging") {
-		c.Fatalf("Missing expected output on trusted push:\n%s", out)
+		c.Fatalf("Missing expected output on trusted run:\n%s", out)
 	}
 
 	dockerCmd(c, "rmi", repoName)
@@ -3317,7 +3317,7 @@ func (s *DockerTrustSuite) TestTrustedRunFromBadTrustServer(c *check.C) {
 	}
 
 	if !strings.Contains(string(out), "valid signatures did not meet threshold") {
-		c.Fatalf("Missing expected output on trusted push:\n%s", out)
+		c.Fatalf("Missing expected output on trusted run:\n%s", out)
 	}
 }
 
@@ -4186,4 +4186,66 @@ func (s *DockerSuite) TestRunNamedVolumesFromNotRemoved(c *check.C) {
 	dockerCmd(c, "volume", "inspect", "test")
 	out, _ := dockerCmd(c, "volume", "ls", "-q")
 	c.Assert(strings.TrimSpace(out), checker.Equals, "test")
+}
+
+func (s *DockerSuite) TestRunWithPull(c *check.C) {
+	testRequires(c, Network)
+
+	// pull image when missing (default)
+	dockerCmd(c, "rmi", "busybox")
+	out, _, err := dockerCmdWithError("run", "busybox", "true")
+	c.Assert(err, check.IsNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "Pulling from ", check.Commentf("expected pull fallback"))
+
+	// no pull image if already exists
+	out, _, err = dockerCmdWithError("run", "busybox", "true")
+	c.Assert(err, check.IsNil, check.Commentf(out))
+	c.Assert(out, checker.Not(checker.Contains), "Pulling from ", check.Commentf("unexpected pull fallback"))
+
+	// run with --pull still pulls the image
+	// even if the image exists on local
+	out, _, err = dockerCmdWithError("run", "--pull", "busybox", "true")
+	c.Assert(err, check.IsNil, check.Commentf(out))
+	if !(strings.Contains(out, "Downloaded newer image for busybox:latest") || strings.Contains(out, "Image is up to date for busybox:latest")) {
+		c.Fatalf("expected to download latest image from docker hub")
+	}
+}
+
+func (s *DockerTrustSuite) TestTrustedRunWithPull(c *check.C) {
+	repoName := s.setupTrustedImage(c, "trusted-run-with-pull")
+
+	// pull image when missing (default)
+	runCmd := exec.Command(dockerBinary, "run", repoName)
+	s.trustedCmd(runCmd)
+	out, _, err := runCommandWithOutput(runCmd)
+	c.Assert(err, check.IsNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "Pulling from ", check.Commentf("expected pull fallback"))
+
+	// no pull image if already exists
+	// run with --pull (default, for trust) verifies the image is up to date
+	// no pull should be performed in this case (just verification)
+	runCmd = exec.Command(dockerBinary, "--debug", "-l", "debug", "run", "--pull", repoName)
+	s.trustedCmd(runCmd)
+	out, _, err = runCommandWithOutput(runCmd)
+	c.Assert(err, check.IsNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "successfully verified targets", check.Commentf("expected trust verification"))
+	c.Assert(out, checker.Not(checker.Contains), "Pulling from ", check.Commentf("unexpected pull fallback"))
+
+	// run with --pull=false will neither pull nor verify the image
+	runCmd = exec.Command(dockerBinary, "--debug", "-l", "debug", "run", "--pull=false", repoName)
+	s.trustedCmd(runCmd)
+	out, _, err = runCommandWithOutput(runCmd)
+	c.Assert(err, check.IsNil, check.Commentf(out))
+	c.Assert(out, checker.Not(checker.Contains), "successfully verified targets", check.Commentf("unexpected trust verification"))
+	c.Assert(out, checker.Not(checker.Contains), "Pulling from ", check.Commentf("unexpected pull"))
+
+	// run with --pull=false will neither pull nor verify the image
+	// gives an error if there is no local image
+	dockerCmd(c, "rmi", repoName)
+	runCmd = exec.Command(dockerBinary, "--debug", "-l", "debug", "run", "--pull=false", repoName)
+	s.trustedCmd(runCmd)
+	out, _, err = runCommandWithOutput(runCmd)
+	c.Assert(err, check.NotNil, check.Commentf("expected error on trusted --pull=false:\n%s", out))
+	c.Assert(out, checker.Contains, "Unable to find image", check.Commentf("out: %s", out))
+
 }

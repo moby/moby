@@ -19,11 +19,13 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/builder"
+	"github.com/docker/docker/daemon"
 	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/system"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
 	"github.com/docker/engine-api/types/container"
+	imagetypes "github.com/docker/engine-api/types/image"
 	"github.com/docker/engine-api/types/strslice"
 	"github.com/docker/go-connections/nat"
 )
@@ -207,14 +209,24 @@ func from(b *Builder, args []string, attributes map[string]bool, original string
 		b.noBaseImage = true
 	} else {
 		// TODO: don't use `name`, instead resolve it to a digest
-		if !b.options.PullParent {
-			image, err = b.docker.GetImage(name)
-			// TODO: shouldn't we error out if error is different from "not found" ?
-		}
-		if image == nil {
+		if b.options.PullParent == imagetypes.PullAlways {
 			image, err = b.docker.Pull(name, b.options.AuthConfigs, b.Output)
 			if err != nil {
 				return err
+			}
+		} else {
+			image, err = b.docker.GetImage(name)
+			if err != nil {
+				if _, isDNE := err.(daemon.ErrImageDoesNotExist); !isDNE {
+					return err
+				}
+				if b.options.PullParent != imagetypes.PullMissing {
+					return err
+				}
+				image, err = b.docker.Pull(name, b.options.AuthConfigs, b.Output)
+				if err != nil {
+					return err
+				}
 			}
 		}
 	}

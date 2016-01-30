@@ -28,6 +28,7 @@ import (
 	"github.com/docker/docker/registry"
 	apiclient "github.com/docker/engine-api/client"
 	"github.com/docker/engine-api/types"
+	"github.com/docker/engine-api/types/image"
 	registrytypes "github.com/docker/engine-api/types/registry"
 	"github.com/docker/go-connections/tlsconfig"
 	"github.com/docker/notary/client"
@@ -37,6 +38,54 @@ import (
 	"github.com/docker/notary/tuf/signed"
 	"github.com/docker/notary/tuf/store"
 )
+
+type pullFlag struct {
+	val bool
+	set bool
+}
+
+func addPullFlag(fs *flag.FlagSet) *pullFlag {
+	fl := &pullFlag{}
+	fs.Var(fl, []string{"-pull"}, "Always attempt to pull a newer version of the image")
+	return fl
+}
+
+func (b *pullFlag) String() string   { return "<content-trust>" }
+func (b *pullFlag) IsBoolFlag() bool { return true }
+
+func (b *pullFlag) Set(s string) error {
+	v, err := strconv.ParseBool(s)
+	b.val = v
+	b.set = true
+	return err
+}
+
+func (b *pullFlag) Get() interface{} {
+	if b.set {
+		return b.val
+	}
+	return isTrusted()
+}
+func (b *pullFlag) Val() bool {
+	return b.Get().(bool)
+}
+
+// trustedPullBehavior determines correct pullBehavior and trust translator given the boolean pull flag and the trust setting.
+func (cli *DockerCli) trustedPullBehavior(pull bool) (image.PullBehavior, reference.TranslatorFunc) {
+	var translator reference.TranslatorFunc
+	pullBehavior := image.PullMissing
+	if pull {
+		if isTrusted() {
+			translator = cli.trustedReference
+		} else {
+			pullBehavior = image.PullAlways
+		}
+	} else if isTrusted() {
+		pullBehavior = image.PullNever
+		fmt.Fprintln(cli.err, "WARNING: Skipping content trust verification")
+	}
+	return pullBehavior, translator
+}
 
 var (
 	releasesRole = path.Join(data.CanonicalTargetsRole, "releases")

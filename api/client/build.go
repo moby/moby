@@ -35,8 +35,6 @@ import (
 	"github.com/docker/go-units"
 )
 
-type translatorFunc func(reference.NamedTagged) (reference.Canonical, error)
-
 // CmdBuild builds a new image from the source code at a given path.
 //
 // If '-' is provided instead of a path or URL, Docker will build an image from either a Dockerfile or tar archive read from STDIN.
@@ -50,7 +48,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	noCache := cmd.Bool([]string{"-no-cache"}, false, "Do not use cache when building the image")
 	rm := cmd.Bool([]string{"-rm"}, true, "Remove intermediate containers after a successful build")
 	forceRm := cmd.Bool([]string{"-force-rm"}, false, "Always remove intermediate containers")
-	pull := cmd.Bool([]string{"-pull"}, false, "Always attempt to pull a newer version of the image")
+	flPull := addPullFlag(cmd)
 	dockerfileName := cmd.String([]string{"f", "-file"}, "", "Name of the Dockerfile (Default is 'PATH/Dockerfile')")
 	flMemoryString := cmd.String([]string{"m", "-memory"}, "", "Memory limit")
 	flMemorySwap := cmd.String([]string{"-memory-swap"}, "", "Swap limit equal to memory plus swap: '-1' to enable unlimited swap")
@@ -170,10 +168,11 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	}
 
 	var resolvedTags []*resolvedTag
-	if isTrusted() {
+	pullBehavior, translator := cli.trustedPullBehavior(flPull.Val())
+	if translator != nil {
 		// Wrap the tar archive to replace the Dockerfile entry with the rewritten
 		// Dockerfile which uses trusted pulls.
-		context = replaceDockerfileTarWrapper(context, relDockerfile, cli.trustedReference, &resolvedTags)
+		context = replaceDockerfileTarWrapper(context, relDockerfile, translator, &resolvedTags)
 	}
 
 	// Setup an upload progress bar
@@ -220,7 +219,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		NoCache:        *noCache,
 		Remove:         *rm,
 		ForceRemove:    *forceRm,
-		PullParent:     *pull,
+		PullParent:     pullBehavior,
 		IsolationLevel: container.IsolationLevel(*isolation),
 		CPUSetCPUs:     *flCPUSetCpus,
 		CPUSetMems:     *flCPUSetMems,
@@ -557,7 +556,7 @@ type resolvedTag struct {
 // "FROM <image>" instructions to a digest reference. `translator` is a
 // function that takes a repository name and tag reference and returns a
 // trusted digest reference.
-func rewriteDockerfileFrom(dockerfile io.Reader, translator translatorFunc) (newDockerfile []byte, resolvedTags []*resolvedTag, err error) {
+func rewriteDockerfileFrom(dockerfile io.Reader, translator reference.TranslatorFunc) (newDockerfile []byte, resolvedTags []*resolvedTag, err error) {
 	scanner := bufio.NewScanner(dockerfile)
 	buf := bytes.NewBuffer(nil)
 
@@ -573,7 +572,7 @@ func rewriteDockerfileFrom(dockerfile io.Reader, translator translatorFunc) (new
 				return nil, nil, err
 			}
 			ref = reference.WithDefaultTag(ref)
-			if ref, ok := ref.(reference.NamedTagged); ok && isTrusted() {
+			if ref, ok := ref.(reference.NamedTagged); ok {
 				trustedRef, err := translator(ref)
 				if err != nil {
 					return nil, nil, err
@@ -600,7 +599,7 @@ func rewriteDockerfileFrom(dockerfile io.Reader, translator translatorFunc) (new
 // replaces the entry with the given Dockerfile name with the contents of the
 // new Dockerfile. Returns a new tar archive stream with the replaced
 // Dockerfile.
-func replaceDockerfileTarWrapper(inputTarStream io.ReadCloser, dockerfileName string, translator translatorFunc, resolvedTags *[]*resolvedTag) io.ReadCloser {
+func replaceDockerfileTarWrapper(inputTarStream io.ReadCloser, dockerfileName string, translator reference.TranslatorFunc, resolvedTags *[]*resolvedTag) io.ReadCloser {
 	pipeReader, pipeWriter := io.Pipe()
 	go func() {
 		tarReader := tar.NewReader(inputTarStream)

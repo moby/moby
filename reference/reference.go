@@ -20,6 +20,9 @@ const (
 	DefaultRepoPrefix = "library/"
 )
 
+// TranslatorFunc defines a callback function for resolving named tags into canonical tags.
+type TranslatorFunc func(NamedTagged) (Canonical, error)
+
 // Named is an object with a full name
 type Named interface {
 	// Name returns normalized repository name, like "ubuntu".
