@@ -89,21 +89,8 @@ func (s *router) postImagesCreate(ctx context.Context, w http.ResponseWriter, r 
 		repo    = r.Form.Get("repo")
 		tag     = r.Form.Get("tag")
 		message = r.Form.Get("message")
-	)
-	authEncoded := r.Header.Get("X-Registry-Auth")
-	authConfig := &types.AuthConfig{}
-	if authEncoded != "" {
-		authJSON := base64.NewDecoder(base64.URLEncoding, strings.NewReader(authEncoded))
-		if err := json.NewDecoder(authJSON).Decode(authConfig); err != nil {
-			// for a pull it is not an error if no auth was given
-			// to increase compatibility with the existing api it is defaulting to be empty
-			authConfig = &types.AuthConfig{}
-		}
-	}
-
-	var (
-		err    error
-		output = ioutils.NewWriteFlusher(w)
+		err     error
+		output  = ioutils.NewWriteFlusher(w)
 	)
 	defer output.Close()
 
@@ -133,6 +120,17 @@ func (s *router) postImagesCreate(ctx context.Context, w http.ResponseWriter, r 
 				for k, v := range r.Header {
 					if strings.HasPrefix(k, "X-Meta-") {
 						metaHeaders[k] = v
+					}
+				}
+
+				authEncoded := r.Header.Get("X-Registry-Auth")
+				authConfig := &types.AuthConfig{}
+				if authEncoded != "" {
+					authJSON := base64.NewDecoder(base64.URLEncoding, strings.NewReader(authEncoded))
+					if err := json.NewDecoder(authJSON).Decode(authConfig); err != nil {
+						// for a pull it is not an error if no auth was given
+						// to increase compatibility with the existing api it is defaulting to be empty
+						authConfig = &types.AuthConfig{}
 					}
 				}
 

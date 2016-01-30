@@ -690,7 +690,7 @@ func validatePath(val string, validator func(string) bool) (string, error) {
 	return val, nil
 }
 
-// SplitN splits raw into a maximum of n parts, separated by a separator colon.
+// volumeSplitN splits raw into a maximum of n parts, separated by a separator colon.
 // A separator colon is the last `:` character in the regex `[/:\\]?[a-zA-Z]:` (note `\\` is `\` escaped).
 // This allows to correctly split strings such as `C:\foo:D:\:rw`.
 func volumeSplitN(raw string, n int) []string {
