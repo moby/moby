@@ -38,4 +38,5 @@ func (config *Config) InstallFlags(cmd *flag.FlagSet, usageFn func(string) strin
 
 	// Then platform-specific install flags.
 	cmd.StringVar(&config.bridgeConfig.VirtualSwitchName, []string{"b", "-bridge"}, "", "Attach containers to a virtual switch")
+	cmd.StringVar(&config.SocketGroup, []string{"G", "-group"}, "", usageFn("Users or groups that can access the named pipe"))
 }

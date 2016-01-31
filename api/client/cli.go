@@ -176,12 +176,7 @@ func getServerHost(hosts []string, tlsOptions *tlsconfig.Options) (host string, 
 		return "", errors.New("Please specify only one -H")
 	}
 
-	defaultHost := opts.DefaultTCPHost
-	if tlsOptions != nil {
-		defaultHost = opts.DefaultTLSHost
-	}
-
-	host, err = opts.ParseHost(defaultHost, host)
+	host, err = opts.ParseHost(tlsOptions != nil, host)
 	return
 }
 
