@@ -44,11 +44,11 @@ func (s *DockerSuite) TestStatsContainerNotFound(c *check.C) {
 
 	out, _, err := dockerCmdWithError("stats", "notfound")
 	c.Assert(err, checker.NotNil)
-	c.Assert(out, checker.Contains, "no such id: notfound", check.Commentf("Expected to fail on not found container stats, got %q instead", out))
+	c.Assert(out, checker.Contains, "No such container: notfound", check.Commentf("Expected to fail on not found container stats, got %q instead", out))
 
 	out, _, err = dockerCmdWithError("stats", "--no-stream", "notfound")
 	c.Assert(err, checker.NotNil)
-	c.Assert(out, checker.Contains, "no such id: notfound", check.Commentf("Expected to fail on not found container stats with --no-stream, got %q instead", out))
+	c.Assert(out, checker.Contains, "No such container: notfound", check.Commentf("Expected to fail on not found container stats with --no-stream, got %q instead", out))
 }
 
 func (s *DockerSuite) TestStatsAllRunningNoStream(c *check.C) {
@@ -118,6 +118,7 @@ func (s *DockerSuite) TestStatsAllNewContainersAdded(c *check.C) {
 	}()
 
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
+	c.Assert(waitRun(strings.TrimSpace(out)), check.IsNil)
 	id <- strings.TrimSpace(out)[:12]
 
 	select {

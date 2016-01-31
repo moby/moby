@@ -225,7 +225,7 @@ release_build() {
 			;;
 		arm)
 			s3Arch=armel
-			# someday, we might potentially support mutliple GOARM values, in which case we might get armhf here too
+			# someday, we might potentially support multiple GOARM values, in which case we might get armhf here too
 			;;
 		*)
 			echo >&2 "error: can't convert $s3Arch to an appropriate value for 'uname -m'"
@@ -289,7 +289,8 @@ EOF
 # Upload the index script
 release_index() {
 	echo "Releasing index"
-	sed "s,url='https://get.docker.com/',url='$(s3_url)/'," hack/install.sh | write_to_s3 "s3://$BUCKET_PATH/index"
+	url="$(s3_url)/" hack/make.sh install-script
+	write_to_s3 "s3://$BUCKET_PATH/index" < "bundles/$VERSION/install-script/install.sh"
 }
 
 release_test() {
@@ -318,7 +319,6 @@ echo "We have just pushed $VERSION to $(s3_url). You can download it with the fo
 echo
 echo "Linux 64bit binary: $(s3_url)/builds/Linux/x86_64/docker-$VERSION"
 echo "Darwin/OSX 64bit client binary: $(s3_url)/builds/Darwin/x86_64/docker-$VERSION"
-echo "Darwin/OSX 32bit client binary: $(s3_url)/builds/Darwin/i386/docker-$VERSION"
 echo "Linux 64bit tgz: $(s3_url)/builds/Linux/x86_64/docker-$VERSION.tgz"
 echo "Windows 64bit client binary: $(s3_url)/builds/Windows/x86_64/docker-$VERSION.exe"
 echo "Windows 32bit client binary: $(s3_url)/builds/Windows/i386/docker-$VERSION.exe"

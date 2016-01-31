@@ -4,7 +4,7 @@ title = "Dockerizing PostgreSQL"
 description = "Running and installing a PostgreSQL service"
 keywords = ["docker, example, package installation,  postgresql"]
 [menu.main]
-parent = "smn_applied"
+parent = "engine_dockerize"
 +++
 <![end-metadata]-->
 

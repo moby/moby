@@ -13,17 +13,15 @@ import (
 // reserved.
 func (daemon *Daemon) ContainerRename(oldName, newName string) error {
 	var (
-		err       error
-		sid       string
-		sb        libnetwork.Sandbox
-		container *Container
+		sid string
+		sb  libnetwork.Sandbox
 	)
 
 	if oldName == "" || newName == "" {
 		return derr.ErrorCodeEmptyRename
 	}
 
-	container, err = daemon.Get(oldName)
+	container, err := daemon.GetContainer(oldName)
 	if err != nil {
 		return err
 	}
@@ -42,43 +40,46 @@ func (daemon *Daemon) ContainerRename(oldName, newName string) error {
 		if err != nil {
 			container.Name = oldName
 			daemon.reserveName(container.ID, oldName)
-			daemon.containerGraphDB.Delete(newName)
+			daemon.releaseName(newName)
 		}
 	}()
 
-	if err = daemon.containerGraphDB.Delete(oldName); err != nil {
-		return derr.ErrorCodeRenameDelete.WithArgs(oldName, err)
-	}
-
-	if err = container.toDisk(); err != nil {
+	daemon.releaseName(oldName)
+	if err = container.ToDisk(); err != nil {
 		return err
 	}
 
+	attributes := map[string]string{
+		"oldName": oldName,
+	}
+
 	if !container.Running {
-		daemon.LogContainerEvent(container, "rename")
+		daemon.LogContainerEventWithAttributes(container, "rename", attributes)
 		return nil
 	}
 
 	defer func() {
 		if err != nil {
 			container.Name = oldName
-			if e := container.toDisk(); e != nil {
+			if e := container.ToDisk(); e != nil {
 				logrus.Errorf("%s: Failed in writing to Disk on rename failure: %v", container.ID, e)
 			}
 		}
 	}()
 
 	sid = container.NetworkSettings.SandboxID
-	sb, err = daemon.netController.SandboxByID(sid)
-	if err != nil {
-		return err
+	if daemon.netController != nil {
+		sb, err = daemon.netController.SandboxByID(sid)
+		if err != nil {
+			return err
+		}
+
+		err = sb.Rename(strings.TrimPrefix(container.Name, "/"))
+		if err != nil {
+			return err
+		}
 	}
 
-	err = sb.Rename(strings.TrimPrefix(container.Name, "/"))
-	if err != nil {
-		return err
-	}
-
-	daemon.LogContainerEvent(container, "rename")
+	daemon.LogContainerEventWithAttributes(container, "rename", attributes)
 	return nil
 }

@@ -1,5 +1,8 @@
 Source: docker-engine
+Section: admin
+Priority: optional
 Maintainer: Docker <support@docker.com>
+Standards-Version: 3.9.6
 Homepage: https://dockerproject.org
 Vcs-Browser: https://github.com/docker/docker
 Vcs-Git: git://github.com/docker/docker.git

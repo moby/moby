@@ -204,7 +204,9 @@ func (cr clonedRoute) URL(pairs ...string) (*url.URL, error) {
 		routeURL.Path = routeURL.Path[1:]
 	}
 
-	return cr.root.ResolveReference(routeURL), nil
+	url := cr.root.ResolveReference(routeURL)
+	url.Scheme = cr.root.Scheme
+	return url, nil
 }
 
 // appendValuesURL appends the parameters to the url.

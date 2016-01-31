@@ -1,11 +1,15 @@
 package daemon
 
-import derr "github.com/docker/docker/errors"
+import (
+	"fmt"
+
+	derr "github.com/docker/docker/errors"
+)
 
 // ContainerResize changes the size of the TTY of the process running
 // in the container with the given name to the given height and width.
 func (daemon *Daemon) ContainerResize(name string, height, width int) error {
-	container, err := daemon.Get(name)
+	container, err := daemon.GetContainer(name)
 	if err != nil {
 		return err
 	}
@@ -15,7 +19,11 @@ func (daemon *Daemon) ContainerResize(name string, height, width int) error {
 	}
 
 	if err = container.Resize(height, width); err == nil {
-		daemon.LogContainerEvent(container, "resize")
+		attributes := map[string]string{
+			"height": fmt.Sprintf("%d", height),
+			"width":  fmt.Sprintf("%d", width),
+		}
+		daemon.LogContainerEventWithAttributes(container, "resize", attributes)
 	}
 	return err
 }

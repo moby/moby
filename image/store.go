@@ -212,6 +212,9 @@ func (is *store) Delete(id ID) ([]layer.Metadata, error) {
 		delete(is.images[parent].children, id)
 	}
 
+	if err := is.digestSet.Remove(digest.Digest(id)); err != nil {
+		logrus.Errorf("error removing %s from digest set: %q", id, err)
+	}
 	delete(is.images, id)
 	is.fs.Delete(id)
 

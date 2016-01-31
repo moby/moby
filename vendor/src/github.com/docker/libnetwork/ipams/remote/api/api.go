@@ -2,6 +2,8 @@
 // messages between libnetwork and the remote ipam plugin
 package api
 
+import "github.com/docker/libnetwork/ipamapi"
+
 // Response is the basic response structure used in all responses
 type Response struct {
 	Error string
@@ -15,6 +17,17 @@ func (r *Response) IsSuccess() bool {
 // GetError returns the error from the response, if any.
 func (r *Response) GetError() string {
 	return r.Error
+}
+
+// GetCapabilityResponse is the response of GetCapability request
+type GetCapabilityResponse struct {
+	Response
+	RequiresMACAddress bool
+}
+
+// ToCapability converts the capability response into the internal ipam driver capaility structure
+func (capRes GetCapabilityResponse) ToCapability() *ipamapi.Capability {
+	return &ipamapi.Capability{RequiresMACAddress: capRes.RequiresMACAddress}
 }
 
 // GetAddressSpacesResponse is the response to the ``get default address spaces`` request message

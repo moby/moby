@@ -4,7 +4,7 @@
 // parser package for more information) that are yielded from the parser itself.
 // Calling NewBuilder with the BuildOpts struct can be used to customize the
 // experience for execution purposes only. Parsing is controlled in the parser
-// package, and this division of resposibility should be respected.
+// package, and this division of responsibility should be respected.
 //
 // Please see the jump table targets for the actual invocations, most of which
 // will call out to the functions in internals.go to deal with their tasks.
@@ -148,7 +148,7 @@ func (b *Builder) dispatch(stepN int, ast *parser.Node) error {
 	// a subsequent one. So, putting the buildArgs list after the Config.Env
 	// list, in 'envs', is safe.
 	envs := b.runConfig.Env
-	for key, val := range b.BuildArgs {
+	for key, val := range b.options.BuildArgs {
 		if !b.isBuildArgAllowed(key) {
 			// skip build-args that are not in allowed list, meaning they have
 			// not been defined by an "ARG" Dockerfile command yet.

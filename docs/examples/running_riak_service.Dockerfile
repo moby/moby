@@ -9,7 +9,7 @@ MAINTAINER Hector Castro hector@basho.com
 # Install Riak repository before we do apt-get update, so that update happens
 # in a single step
 RUN apt-get install -q -y curl && \
-    curl -sSL https://packagecloud.io/install/repositories/basho/riak/script.deb | sudo bash
+    curl -fsSL https://packagecloud.io/install/repositories/basho/riak/script.deb | sudo bash
 
 # Install and setup project dependencies
 RUN apt-get update && \

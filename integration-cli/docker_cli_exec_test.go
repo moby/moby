@@ -140,7 +140,7 @@ func (s *DockerSuite) TestExecPausedContainer(c *check.C) {
 }
 
 // regression test for #9476
-func (s *DockerSuite) TestExecTtyCloseStdin(c *check.C) {
+func (s *DockerSuite) TestExecTTYCloseStdin(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "run", "-d", "-it", "--name", "exec_tty_stdin", "busybox")
 
@@ -160,7 +160,7 @@ func (s *DockerSuite) TestExecTtyCloseStdin(c *check.C) {
 	c.Assert(out, checker.Not(checker.Contains), "nsenter-exec")
 }
 
-func (s *DockerSuite) TestExecTtyWithoutStdin(c *check.C) {
+func (s *DockerSuite) TestExecTTYWithoutStdin(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "-ti", "busybox")
 	id := strings.TrimSpace(out)
@@ -288,23 +288,21 @@ func (s *DockerSuite) TestInspectExecID(c *check.C) {
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
 	id := strings.TrimSuffix(out, "\n")
 
-	out, err := inspectField(id, "ExecIDs")
-	c.Assert(err, checker.IsNil, check.Commentf("failed to inspect container: %s", out))
+	out = inspectField(c, id, "ExecIDs")
 	c.Assert(out, checker.Equals, "[]", check.Commentf("ExecIDs should be empty, got: %s", out))
 
 	// Start an exec, have it block waiting so we can do some checking
 	cmd := exec.Command(dockerBinary, "exec", id, "sh", "-c",
 		"while ! test -e /tmp/execid1; do sleep 1; done")
 
-	err = cmd.Start()
+	err := cmd.Start()
 	c.Assert(err, checker.IsNil, check.Commentf("failed to start the exec cmd"))
 
 	// Give the exec 10 chances/seconds to start then give up and stop the test
 	tries := 10
 	for i := 0; i < tries; i++ {
 		// Since its still running we should see exec as part of the container
-		out, err = inspectField(id, "ExecIDs")
-		c.Assert(err, checker.IsNil, check.Commentf("failed to inspect container: %s", out))
+		out = inspectField(c, id, "ExecIDs")
 
 		out = strings.TrimSuffix(out, "\n")
 		if out != "[]" && out != "<no value>" {
@@ -328,8 +326,7 @@ func (s *DockerSuite) TestInspectExecID(c *check.C) {
 	cmd.Wait()
 
 	// All execs for the container should be gone now
-	out, err = inspectField(id, "ExecIDs")
-	c.Assert(err, checker.IsNil, check.Commentf("failed to inspect container: %s", out))
+	out = inspectField(c, id, "ExecIDs")
 
 	out = strings.TrimSuffix(out, "\n")
 	c.Assert(out == "[]" || out == "<no value>", checker.True)

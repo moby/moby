@@ -4,7 +4,7 @@ import "sort"
 
 // FileInfoSumInterface provides an interface for accessing file checksum
 // information within a tar file. This info is accessed through interface
-// so the actual name and sum cannot be medled with.
+// so the actual name and sum cannot be melded with.
 type FileInfoSumInterface interface {
 	// File name
 	Name() string

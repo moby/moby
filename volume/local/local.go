@@ -18,7 +18,7 @@ import (
 )
 
 // VolumeDataPathName is the name of the directory where the volume data is stored.
-// It uses a very distintive name to avoid collisions migrating data between
+// It uses a very distinctive name to avoid collisions migrating data between
 // Docker versions.
 const (
 	VolumeDataPathName = "_data"
@@ -28,10 +28,10 @@ const (
 var (
 	// ErrNotFound is the typed error returned when the requested volume name can't be found
 	ErrNotFound = errors.New("volume not found")
-	// volumeNameRegex ensures the name asigned for the volume is valid.
+	// volumeNameRegex ensures the name assigned for the volume is valid.
 	// This name is used to create the bind directory, so we need to avoid characters that
 	// would make the path to escape the root directory.
-	volumeNameRegex = utils.RestrictedNamePattern
+	volumeNameRegex = utils.RestrictedVolumeNamePattern
 )
 
 // New instantiates a new Root instance with the provided scope. Scope
@@ -82,12 +82,12 @@ type Root struct {
 }
 
 // List lists all the volumes
-func (r *Root) List() []volume.Volume {
+func (r *Root) List() ([]volume.Volume, error) {
 	var ls []volume.Volume
 	for _, v := range r.volumes {
 		ls = append(ls, v)
 	}
-	return ls
+	return ls, nil
 }
 
 // DataPath returns the constructed path of this volume.

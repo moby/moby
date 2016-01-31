@@ -4,7 +4,7 @@ title = "Remote API v1.20"
 description = "API Documentation for Docker"
 keywords = ["API, Docker, rcli, REST,  documentation"]
 [menu.main]
-parent="smn_remoteapi"
+parent="engine_remoteapi"
 weight = 1
 +++
 <![end-metadata]-->
@@ -15,7 +15,7 @@ weight = 1
 
  - The Remote API has replaced `rcli`.
  - The daemon listens on `unix:///var/run/docker.sock` but you can
-   [Bind Docker to another host/port or a Unix socket](../../userguide/basics.md#bind-docker-to-another-host-port-or-a-unix-socket).
+   [Bind Docker to another host/port or a Unix socket](../../quickstart.md#bind-docker-to-another-host-port-or-a-unix-socket).
  - The API tends to be REST. However, for some complex commands, like `attach`
    or `pull`, the HTTP connection is hijacked to transport `stdout`,
    `stdin` and `stderr`.
@@ -192,6 +192,7 @@ Create a container
              "VolumesFrom": ["parent", "other:ro"],
              "CapAdd": ["NET_ADMIN"],
              "CapDrop": ["MKNOD"],
+             "GroupAdd": ["newgroup"],
              "RestartPolicy": { "Name": "", "MaximumRetryCount": 0 },
              "NetworkMode": "bridge",
              "Devices": [],
@@ -278,6 +279,7 @@ Json Parameters:
           Specified in the form `<container name>[:<ro|rw>]`
     -   **CapAdd** - A list of kernel capabilities to add to the container.
     -   **Capdrop** - A list of kernel capabilities to drop from the container.
+    -   **GroupAdd** - A list of additional groups that the container process will run as
     -   **RestartPolicy** – The behavior to apply when the container exits.  The
             value is an object with a `Name` property of either `"always"` to
             always restart or `"on-failure"` to restart only when the container
@@ -630,8 +632,6 @@ Status Codes:
 `GET /containers/(id)/stats`
 
 This endpoint returns a live stream of a container's resource usage statistics.
-
-> **Note**: this functionality currently only works when using the *libcontainer* exec-driver.
 
 **Example request**:
 

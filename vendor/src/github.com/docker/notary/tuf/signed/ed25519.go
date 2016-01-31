@@ -46,8 +46,10 @@ func (e *Ed25519) RemoveKey(keyID string) error {
 // ListKeys returns the list of keys IDs for the role
 func (e *Ed25519) ListKeys(role string) []string {
 	keyIDs := make([]string, 0, len(e.keys))
-	for id := range e.keys {
-		keyIDs = append(keyIDs, id)
+	for id, edCryptoKey := range e.keys {
+		if edCryptoKey.role == role {
+			keyIDs = append(keyIDs, id)
+		}
 	}
 	return keyIDs
 }
@@ -59,23 +61,6 @@ func (e *Ed25519) ListAllKeys() map[string]string {
 		keys[id] = edKey.role
 	}
 	return keys
-}
-
-// Sign generates an Ed25519 signature over the data
-func (e *Ed25519) Sign(keyIDs []string, toSign []byte) ([]data.Signature, error) {
-	signatures := make([]data.Signature, 0, len(keyIDs))
-	for _, keyID := range keyIDs {
-		priv := [ed25519.PrivateKeySize]byte{}
-		copy(priv[:], e.keys[keyID].privKey.Private())
-		sig := ed25519.Sign(&priv, toSign)
-		signatures = append(signatures, data.Signature{
-			KeyID:     keyID,
-			Method:    data.EDDSASignature,
-			Signature: sig[:],
-		})
-	}
-	return signatures, nil
-
 }
 
 // Create generates a new key and returns the public part
@@ -110,7 +95,7 @@ func (e *Ed25519) GetKey(keyID string) data.PublicKey {
 	return data.PublicKeyFromPrivate(e.keys[keyID].privKey)
 }
 
-// GetPrivateKey returns a single private key based on the ID
+// GetPrivateKey returns a single private key and role if present, based on the ID
 func (e *Ed25519) GetPrivateKey(keyID string) (data.PrivateKey, string, error) {
 	if k, ok := e.keys[keyID]; ok {
 		return k.privKey, k.role, nil

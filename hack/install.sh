@@ -7,12 +7,12 @@ set -e
 #   'wget -qO- https://get.docker.com/ | sh'
 #
 # For test builds (ie. release candidates):
-#   'curl -sSL https://test.docker.com/ | sh'
+#   'curl -fsSL https://test.docker.com/ | sh'
 # or:
 #   'wget -qO- https://test.docker.com/ | sh'
 #
 # For experimental builds:
-#   'curl -sSL https://experimental.docker.com/ | sh'
+#   'curl -fsSL https://experimental.docker.com/ | sh'
 # or:
 #   'wget -qO- https://experimental.docker.com/ | sh'
 #
@@ -23,7 +23,10 @@ set -e
 #     s3cmd put --acl-public -P hack/install.sh s3://get.docker.com/index
 #
 
-url='https://get.docker.com/'
+url="https://get.docker.com/"
+apt_url="https://apt.dockerproject.org"
+yum_url="https://yum.dockerproject.org"
+gpg_fingerprint="58118E89F3A912897C070ADBF76221572C52609D"
 
 command_exists() {
 	command -v "$@" > /dev/null 2>&1
@@ -78,12 +81,12 @@ check_forked() {
 			Upstream release is '$lsb_dist' version '$dist_version'.
 			EOF
 		else
-			if [ -r /etc/debian_version ]; then
+			if [ -r /etc/debian_version ] && [ "$lsb_dist" != "ubuntu" ]; then
 				# We're Debian and don't even know it!
 				lsb_dist=debian
 				dist_version="$(cat /etc/debian_version | sed 's/\/.*//' | sed 's/\..*//')"
 				case "$dist_version" in
-					8)
+					8|'Kali Linux 2')
 						dist_version="jessie"
 					;;
 					7)
@@ -105,6 +108,14 @@ rpm_import_repository_key() {
 	rm -rf "$tmpdir"
 }
 
+semverParse() {
+	major="${1%%.*}"
+	minor="${1#$major.}"
+	minor="${minor%%.*}"
+	patch="${1#$major.$minor.}"
+	patch="${patch%%[-.]*}"
+}
+
 do_install() {
 	case "$(uname -m)" in
 		*64)
@@ -119,6 +130,21 @@ do_install() {
 	esac
 
 	if command_exists docker; then
+		version="$(docker -v | awk -F '[ ,]+' '{ print $3 }')"
+		MAJOR_W=1
+		MINOR_W=10
+
+		semverParse $version
+
+		shouldWarn=0
+		if [ $major -lt $MAJOR_W ]; then
+			shouldWarn=1
+		fi
+
+		if [ $major -le $MAJOR_W ] && [ $minor -lt $MINOR_W ]; then
+			shouldWarn=1
+		fi
+
 		cat >&2 <<-'EOF'
 			Warning: the "docker" command appears to already exist on this system.
 
@@ -127,7 +153,23 @@ do_install() {
 			installation.
 
 			If you installed the current Docker package using this script and are using it
+		EOF
+
+		if [ $shouldWarn -eq 1 ]; then
+			cat >&2 <<-'EOF'
+			again to update Docker, we urge you to migrate your image store before upgrading
+			to v1.10+.
+
+			You can find instructions for this here:
+			https://github.com/docker/docker/wiki/Engine-v1.10.0-content-addressability-migration
+			EOF
+		else
+			cat >&2 <<-'EOF'
 			again to update Docker, you can safely ignore this message.
+			EOF
+		fi
+
+		cat >&2 <<-'EOF'
 
 			You may press Ctrl+C now to abort this script.
 		EOF
@@ -161,11 +203,13 @@ do_install() {
 	fi
 
 	# check to see which repo they are trying to install from
-	repo='main'
-	if [ "https://test.docker.com/" = "$url" ]; then
-		repo='testing'
-	elif [ "https://experimental.docker.com/" = "$url" ]; then
-		repo='experimental'
+	if [ -z "$repo" ]; then
+		repo='main'
+		if [ "https://test.docker.com/" = "$url" ]; then
+			repo='testing'
+		elif [ "https://experimental.docker.com/" = "$url" ]; then
+			repo='experimental'
+		fi
 	fi
 
 	# perform some very rudimentary platform detection
@@ -370,9 +414,9 @@ do_install() {
 			fi
 			(
 			set -x
-			$sh_c "apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys 58118E89F3A912897C070ADBF76221572C52609D"
+			$sh_c "apt-key adv --keyserver hkp://pool.sks-keyservers.net:80 --recv-keys ${gpg_fingerprint}"
 			$sh_c "mkdir -p /etc/apt/sources.list.d"
-			$sh_c "echo deb [arch=$(dpkg --print-architecture)] https://apt.dockerproject.org/repo ${lsb_dist}-${dist_version} ${repo} > /etc/apt/sources.list.d/docker.list"
+			$sh_c "echo deb [arch=$(dpkg --print-architecture)] ${apt_url}/repo ${lsb_dist}-${dist_version} ${repo} > /etc/apt/sources.list.d/docker.list"
 			$sh_c 'sleep 3; apt-get update; apt-get install -y -q docker-engine'
 			)
 			echo_docker_as_nonroot
@@ -383,10 +427,10 @@ do_install() {
 			$sh_c "cat >/etc/yum.repos.d/docker-${repo}.repo" <<-EOF
 			[docker-${repo}-repo]
 			name=Docker ${repo} Repository
-			baseurl=https://yum.dockerproject.org/repo/${repo}/${lsb_dist}/${dist_version}
+			baseurl=${yum_url}/repo/${repo}/${lsb_dist}/${dist_version}
 			enabled=1
 			gpgcheck=1
-			gpgkey=https://yum.dockerproject.org/gpg
+			gpgkey=${yum_url}/gpg
 			EOF
 			if [ "$lsb_dist" = "fedora" ] && [ "$dist_version" -ge "22" ]; then
 				(

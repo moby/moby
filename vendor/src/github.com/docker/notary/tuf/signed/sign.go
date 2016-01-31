@@ -46,7 +46,7 @@ func Sign(service CryptoService, s *data.Signed, keys ...data.PublicKey) error {
 
 	// Check to ensure we have at least one signing key
 	if len(privKeys) == 0 {
-		return ErrNoKeys{keyIDs: ids}
+		return ErrNoKeys{KeyIDs: ids}
 	}
 
 	// Do signing and generate list of signatures

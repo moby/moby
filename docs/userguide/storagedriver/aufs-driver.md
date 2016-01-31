@@ -4,7 +4,7 @@ title = "AUFS storage driver in practice"
 description = "Learn how to optimize your use of AUFS driver."
 keywords = ["container, storage, driver, AUFS "]
 [menu.main]
-parent = "mn_storage_docker"
+parent = "engine_driver"
 +++
 <![end-metadata]-->
 
@@ -108,7 +108,7 @@ As the `docker daemon` runs with the AUFS driver, the driver stores images and c
 ### Images
 
 Image layers and their contents are stored under
-`/var/lib/docker/aufs/mnt/diff/<image-id>` directory. The contents of an image
+`/var/lib/docker/aufs/diff/<image-id>` directory. The contents of an image
 layer in this location includes all the files and directories belonging in that
 image layer.
 

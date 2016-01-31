@@ -13,8 +13,8 @@ import (
 	"io/ioutil"
 
 	"github.com/docker/docker/pkg/integration/checker"
-	"github.com/docker/docker/pkg/nat"
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/go-connections/nat"
 	"github.com/go-check/check"
 )
 
@@ -178,8 +178,7 @@ func (s *DockerSuite) TestCreateLabels(c *check.C) {
 	dockerCmd(c, "create", "--name", name, "-l", "k1=v1", "--label", "k2=v2", "busybox")
 
 	actual := make(map[string]string)
-	err := inspectFieldAndMarshall(name, "Config.Labels", &actual)
-	c.Assert(err, check.IsNil)
+	inspectFieldAndMarshall(c, name, "Config.Labels", &actual)
 
 	if !reflect.DeepEqual(expected, actual) {
 		c.Fatalf("Expected %s got %s", expected, actual)
@@ -201,8 +200,7 @@ func (s *DockerSuite) TestCreateLabelFromImage(c *check.C) {
 	dockerCmd(c, "create", "--name", name, "-l", "k2=x", "--label", "k3=v3", imageName)
 
 	actual := make(map[string]string)
-	err = inspectFieldAndMarshall(name, "Config.Labels", &actual)
-	c.Assert(err, check.IsNil)
+	inspectFieldAndMarshall(c, name, "Config.Labels", &actual)
 
 	if !reflect.DeepEqual(expected, actual) {
 		c.Fatalf("Expected %s got %s", expected, actual)
@@ -265,7 +263,7 @@ func (s *DockerSuite) TestCreateByImageID(c *check.C) {
 		c.Fatalf("expected non-zero exit code; received %d", exit)
 	}
 
-	if expected := "invalid reference format"; !strings.Contains(out, expected) {
+	if expected := "Error parsing reference"; !strings.Contains(out, expected) {
 		c.Fatalf(`Expected %q in output; got: %s`, expected, out)
 	}
 
@@ -301,18 +299,19 @@ func (s *DockerTrustSuite) TestTrustedCreate(c *check.C) {
 }
 
 func (s *DockerTrustSuite) TestUntrustedCreate(c *check.C) {
-	repoName := fmt.Sprintf("%v/dockercli/trusted:latest", privateRegistryURL)
+	repoName := fmt.Sprintf("%v/dockercliuntrusted/createtest", privateRegistryURL)
+	withTagName := fmt.Sprintf("%s:latest", repoName)
 	// tag the image and upload it to the private registry
-	dockerCmd(c, "tag", "busybox", repoName)
-	dockerCmd(c, "push", repoName)
-	dockerCmd(c, "rmi", repoName)
+	dockerCmd(c, "tag", "busybox", withTagName)
+	dockerCmd(c, "push", withTagName)
+	dockerCmd(c, "rmi", withTagName)
 
 	// Try trusted create on untrusted tag
-	createCmd := exec.Command(dockerBinary, "create", repoName)
+	createCmd := exec.Command(dockerBinary, "create", withTagName)
 	s.trustedCmd(createCmd)
 	out, _, err := runCommandWithOutput(createCmd)
 	c.Assert(err, check.Not(check.IsNil))
-	c.Assert(string(out), checker.Contains, "no trust data available", check.Commentf("Missing expected output on trusted create:\n%s", out))
+	c.Assert(string(out), checker.Contains, fmt.Sprintf("does not have trust data for %s", repoName), check.Commentf("Missing expected output on trusted create:\n%s", out))
 
 }
 
@@ -402,7 +401,7 @@ func (s *DockerTrustSuite) TestTrustedCreateFromBadTrustServer(c *check.C) {
 	s.trustedCmd(createCmd)
 	out, _, err = runCommandWithOutput(createCmd)
 	c.Assert(err, check.Not(check.IsNil))
-	c.Assert(string(out), checker.Contains, "failed to validate data with current trusted certificates", check.Commentf("Missing expected output on trusted push:\n%s", out))
+	c.Assert(string(out), checker.Contains, "valid signatures did not meet threshold", check.Commentf("Missing expected output on trusted push:\n%s", out))
 
 }
 
@@ -410,8 +409,15 @@ func (s *DockerSuite) TestCreateStopSignal(c *check.C) {
 	name := "test_create_stop_signal"
 	dockerCmd(c, "create", "--name", name, "--stop-signal", "9", "busybox")
 
-	res, err := inspectFieldJSON(name, "Config.StopSignal")
-	c.Assert(err, check.IsNil)
+	res := inspectFieldJSON(c, name, "Config.StopSignal")
 	c.Assert(res, checker.Contains, "9")
 
+}
+
+func (s *DockerSuite) TestCreateWithWorkdir(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	name := "foo"
+	dir := "/home/foo/bar"
+	dockerCmd(c, "create", "--name", name, "-w", dir, "busybox")
+	dockerCmd(c, "cp", fmt.Sprintf("%s:%s", name, dir), "/tmp")
 }

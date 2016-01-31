@@ -16,7 +16,6 @@ network. Docker Engine supports multi-host networking out-of-the-box through the
 `overlay` network driver.  Unlike `bridge` networks, overlay networks require
 some pre-existing conditions before you can create one. These conditions are:
 
-* A host with a 3.16 kernel version or higher.
 * Access to a key-value store. Docker supports Consul, Etcd, and ZooKeeper (Distributed store) key-value stores.
 * A cluster of hosts with connectivity to the key-value store.
 * A properly configured Engine `daemon` on each host in the cluster.
@@ -46,7 +45,7 @@ key-value stores. This example uses Consul.
 
 1. Log into a system prepared with the prerequisite Docker Engine, Docker Machine, and VirtualBox software.
 
-2. Provision a VirtualBox machine called `mh-keystore`.  
+2. Provision a VirtualBox machine called `mh-keystore`.
 
 		$ docker-machine create -d virtualbox mh-keystore
 

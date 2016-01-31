@@ -7,10 +7,10 @@
 
  * License is also granted to make and use derivative works provided that
  * such works are identified as "derived from the RSA Security Inc. PKCS #11
- * Cryptographic Token Interface (Cryptoki)" in all material mentioning or
+ * Cryptographic Token Interface (Cryptoki)" in all material mentioning or 
  * referencing the derived work.
 
- * RSA Security Inc. makes no representations concerning either the
+ * RSA Security Inc. makes no representations concerning either the 
  * merchantability of this software or the suitability of this software for
  * any particular purpose. It is provided "as is" without express or implied
  * warranty of any kind.
@@ -562,7 +562,7 @@ CK_PKCS11_FUNCTION_INFO(C_Sign)
 
 
 /* C_SignUpdate continues a multiple-part signature operation,
- * where the signature is (will be) an appendix to the data,
+ * where the signature is (will be) an appendix to the data, 
  * and plaintext cannot be recovered from the signature. */
 CK_PKCS11_FUNCTION_INFO(C_SignUpdate)
 #ifdef CK_NEED_ARG_LIST
@@ -574,7 +574,7 @@ CK_PKCS11_FUNCTION_INFO(C_SignUpdate)
 #endif
 
 
-/* C_SignFinal finishes a multiple-part signature operation,
+/* C_SignFinal finishes a multiple-part signature operation, 
  * returning the signature. */
 CK_PKCS11_FUNCTION_INFO(C_SignFinal)
 #ifdef CK_NEED_ARG_LIST
@@ -623,12 +623,12 @@ CK_PKCS11_FUNCTION_INFO(C_VerifyInit)
 (
   CK_SESSION_HANDLE hSession,    /* the session's handle */
   CK_MECHANISM_PTR  pMechanism,  /* the verification mechanism */
-  CK_OBJECT_HANDLE  hKey         /* verification key */
+  CK_OBJECT_HANDLE  hKey         /* verification key */ 
 );
 #endif
 
 
-/* C_Verify verifies a signature in a single-part operation,
+/* C_Verify verifies a signature in a single-part operation, 
  * where the signature is an appendix to the data, and plaintext
  * cannot be recovered from the signature. */
 CK_PKCS11_FUNCTION_INFO(C_Verify)
@@ -644,7 +644,7 @@ CK_PKCS11_FUNCTION_INFO(C_Verify)
 
 
 /* C_VerifyUpdate continues a multiple-part verification
- * operation, where the signature is an appendix to the data,
+ * operation, where the signature is an appendix to the data, 
  * and plaintext cannot be recovered from the signature. */
 CK_PKCS11_FUNCTION_INFO(C_VerifyUpdate)
 #ifdef CK_NEED_ARG_LIST
@@ -770,7 +770,7 @@ CK_PKCS11_FUNCTION_INFO(C_GenerateKey)
 #endif
 
 
-/* C_GenerateKeyPair generates a public-key/private-key pair,
+/* C_GenerateKeyPair generates a public-key/private-key pair, 
  * creating new key objects. */
 CK_PKCS11_FUNCTION_INFO(C_GenerateKeyPair)
 #ifdef CK_NEED_ARG_LIST

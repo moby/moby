@@ -1,7 +1,6 @@
 package client
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/url"
 	"sort"
@@ -12,14 +11,9 @@ import (
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/stringutils"
 	"github.com/docker/docker/registry"
+	"github.com/docker/engine-api/types"
+	registrytypes "github.com/docker/engine-api/types/registry"
 )
-
-// ByStars sorts search results in ascending order by number of stars.
-type ByStars []registry.SearchResult
-
-func (r ByStars) Len() int           { return len(r) }
-func (r ByStars) Swap(i, j int)      { r[i], r[j] = r[j], r[i] }
-func (r ByStars) Less(i, j int) bool { return r[i].StarCount < r[j].StarCount }
 
 // CmdSearch searches the Docker Hub for images.
 //
@@ -42,19 +36,26 @@ func (cli *DockerCli) CmdSearch(args ...string) error {
 		return err
 	}
 
-	rdr, _, err := cli.clientRequestAttemptLogin("GET", "/images/search?"+v.Encode(), nil, nil, indexInfo, "search")
+	authConfig := registry.ResolveAuthConfig(cli.configFile.AuthConfigs, indexInfo)
+	requestPrivilege := cli.registryAuthenticationPrivilegedFunc(indexInfo, "search")
+
+	encodedAuth, err := encodeAuthToBase64(authConfig)
 	if err != nil {
 		return err
 	}
 
-	defer rdr.Close()
+	options := types.ImageSearchOptions{
+		Term:         name,
+		RegistryAuth: encodedAuth,
+	}
 
-	results := ByStars{}
-	if err := json.NewDecoder(rdr).Decode(&results); err != nil {
+	unorderedResults, err := cli.client.ImageSearch(options, requestPrivilege)
+	if err != nil {
 		return err
 	}
 
-	sort.Sort(sort.Reverse(results))
+	results := searchResultsByStars(unorderedResults)
+	sort.Sort(results)
 
 	w := tabwriter.NewWriter(cli.out, 10, 1, 3, ' ', 0)
 	fmt.Fprintf(w, "NAME\tDESCRIPTION\tSTARS\tOFFICIAL\tAUTOMATED\n")
@@ -81,3 +82,10 @@ func (cli *DockerCli) CmdSearch(args ...string) error {
 	w.Flush()
 	return nil
 }
+
+// SearchResultsByStars sorts search results in descending order by number of stars.
+type searchResultsByStars []registrytypes.SearchResult
+
+func (r searchResultsByStars) Len() int           { return len(r) }
+func (r searchResultsByStars) Swap(i, j int)      { r[i], r[j] = r[j], r[i] }
+func (r searchResultsByStars) Less(i, j int) bool { return r[j].StarCount < r[i].StarCount }

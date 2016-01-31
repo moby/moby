@@ -4,6 +4,7 @@ package fs
 
 import (
 	"bytes"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -29,13 +30,13 @@ func (s *CpusetGroup) Apply(d *cgroupData) error {
 }
 
 func (s *CpusetGroup) Set(path string, cgroup *configs.Cgroup) error {
-	if cgroup.CpusetCpus != "" {
-		if err := writeFile(path, "cpuset.cpus", cgroup.CpusetCpus); err != nil {
+	if cgroup.Resources.CpusetCpus != "" {
+		if err := writeFile(path, "cpuset.cpus", cgroup.Resources.CpusetCpus); err != nil {
 			return err
 		}
 	}
-	if cgroup.CpusetMems != "" {
-		if err := writeFile(path, "cpuset.mems", cgroup.CpusetMems); err != nil {
+	if cgroup.Resources.CpusetMems != "" {
+		if err := writeFile(path, "cpuset.mems", cgroup.Resources.CpusetMems); err != nil {
 			return err
 		}
 	}
@@ -94,6 +95,10 @@ func (s *CpusetGroup) ensureParent(current, root string) error {
 	parent := filepath.Dir(current)
 	if filepath.Clean(parent) == root {
 		return nil
+	}
+	// Avoid infinite recursion.
+	if parent == current {
+		return fmt.Errorf("cpuset: cgroup parent path outside cgroup root")
 	}
 	if err := s.ensureParent(parent, root); err != nil {
 		return err

@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/pkg/integration/checker"
-	"github.com/docker/docker/pkg/timeutils"
+	"github.com/docker/docker/pkg/jsonlog"
 	"github.com/go-check/check"
 )
 
@@ -75,7 +75,7 @@ func (s *DockerSuite) TestLogsTimestamps(c *check.C) {
 
 	for _, l := range lines {
 		if l != "" {
-			_, err := time.Parse(timeutils.RFC3339NanoFixed+" ", ts.FindString(l))
+			_, err := time.Parse(jsonlog.RFC3339NanoFixed+" ", ts.FindString(l))
 			c.Assert(err, checker.IsNil, check.Commentf("Failed to parse timestamp from %v", l))
 			// ensure we have padded 0's
 			c.Assert(l[29], checker.Equals, uint8('Z'))
@@ -169,12 +169,13 @@ func (s *DockerSuite) TestLogsFollowStopped(c *check.C) {
 func (s *DockerSuite) TestLogsSince(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	name := "testlogssince"
-	out, _ := dockerCmd(c, "run", "--name="+name, "busybox", "/bin/sh", "-c", "for i in $(seq 1 3); do sleep 2; echo `date +%s` log$i; done")
+	dockerCmd(c, "run", "--name="+name, "busybox", "/bin/sh", "-c", "for i in $(seq 1 3); do sleep 2; echo log$i; done")
+	out, _ := dockerCmd(c, "logs", "-t", name)
 
 	log2Line := strings.Split(strings.Split(out, "\n")[1], " ")
-	t, err := strconv.ParseInt(log2Line[0], 10, 64) // the timestamp log2 is written
+	t, err := time.Parse(time.RFC3339Nano, log2Line[0]) // the timestamp log2 is written
 	c.Assert(err, checker.IsNil)
-	since := t + 1 // add 1s so log1 & log2 doesn't show up
+	since := t.Unix() + 1 // add 1s so log1 & log2 doesn't show up
 	out, _ = dockerCmd(c, "logs", "-t", fmt.Sprintf("--since=%v", since), name)
 
 	// Skip 2 seconds
@@ -348,6 +349,6 @@ func (s *DockerSuite) TestLogsFollowGoroutinesNoOutput(c *check.C) {
 func (s *DockerSuite) TestLogsCLIContainerNotFound(c *check.C) {
 	name := "testlogsnocontainer"
 	out, _, _ := dockerCmdWithError("logs", name)
-	message := fmt.Sprintf(".*no such id: %s.*\n", name)
-	c.Assert(out, checker.Matches, message)
+	message := fmt.Sprintf("Error: No such container: %s\n", name)
+	c.Assert(out, checker.Equals, message)
 }

@@ -91,6 +91,9 @@ type Driver interface {
 	// Stats returns resource stats for a running container
 	Stats(id string) (*ResourceStats, error)
 
+	// Update updates resource configs for a container
+	Update(c *Command) error
+
 	// SupportsHooks refers to the driver capability to exploit pre/post hook functionality
 	SupportsHooks() bool
 }
@@ -128,7 +131,6 @@ type CommonProcessConfig struct {
 type CommonCommand struct {
 	ContainerPid  int           `json:"container_pid"` // the pid for the process inside a container
 	ID            string        `json:"id"`
-	InitPath      string        `json:"initpath"`    // dockerinit
 	MountLabel    string        `json:"mount_label"` // TODO Windows. More involved, but can be factored out
 	Mounts        []Mount       `json:"mounts"`
 	Network       *Network      `json:"network"`

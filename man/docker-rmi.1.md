@@ -6,9 +6,9 @@ docker-rmi - Remove one or more images
 
 # SYNOPSIS
 **docker rmi**
-[**-f**|**--force**[=*false*]]
+[**-f**|**--force**]
 [**--help**]
-[**--no-prune**[=*false*]]
+[**--no-prune**]
 IMAGE [IMAGE...]
 
 # DESCRIPTION

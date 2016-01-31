@@ -1,8 +1,8 @@
 package daemon
 
 import (
-	"github.com/docker/docker/api/types"
 	derr "github.com/docker/docker/errors"
+	"github.com/docker/engine-api/types"
 )
 
 // ContainerTop is not supported on Windows and returns an error.

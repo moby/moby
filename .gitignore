@@ -4,7 +4,6 @@
 *.exe
 *.exe~
 *.orig
-*.rej
 *.test
 .*.swp
 .DS_Store

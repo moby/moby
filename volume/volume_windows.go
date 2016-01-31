@@ -45,7 +45,7 @@ const (
 	// RXReservedNames are reserved names not possible on Windows
 	RXReservedNames = `(con)|(prn)|(nul)|(aux)|(com[1-9])|(lpt[1-9])`
 
-	// RXSource is the combined possiblities for a source
+	// RXSource is the combined possibilities for a source
 	RXSource = `((?P<source>((` + RXHostDir + `)|(` + RXName + `))):)?`
 
 	// Source. Can be either a host directory, a name, or omitted:
@@ -185,4 +185,15 @@ func IsVolumeNameValid(name string) (bool, error) {
 		return false, derr.ErrorCodeVolumeNameReservedWord.WithArgs(name)
 	}
 	return true, nil
+}
+
+// ValidMountMode will make sure the mount mode is valid.
+// returns if it's a valid mount mode or not.
+func ValidMountMode(mode string) bool {
+	return roModes[strings.ToLower(mode)] || rwModes[strings.ToLower(mode)]
+}
+
+// ReadWrite tells you if a mode string is a valid read-write mode or not.
+func ReadWrite(mode string) bool {
+	return rwModes[strings.ToLower(mode)]
 }

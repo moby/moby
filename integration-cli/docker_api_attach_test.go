@@ -70,7 +70,7 @@ func (s *DockerSuite) TestPostContainersAttachContainerNotFound(c *check.C) {
 	status, body, err := sockRequest("POST", "/containers/doesnotexist/attach", nil)
 	c.Assert(status, checker.Equals, http.StatusNotFound)
 	c.Assert(err, checker.IsNil)
-	expected := "no such id: doesnotexist\n"
+	expected := "No such container: doesnotexist\n"
 	c.Assert(string(body), checker.Contains, expected)
 }
 
@@ -78,7 +78,7 @@ func (s *DockerSuite) TestGetContainersWsAttachContainerNotFound(c *check.C) {
 	status, body, err := sockRequest("GET", "/containers/doesnotexist/attach/ws", nil)
 	c.Assert(status, checker.Equals, http.StatusNotFound)
 	c.Assert(err, checker.IsNil)
-	expected := "no such id: doesnotexist\n"
+	expected := "No such container: doesnotexist\n"
 	c.Assert(string(body), checker.Contains, expected)
 }
 
@@ -137,7 +137,7 @@ func (s *DockerSuite) TestPostContainersAttach(c *check.C) {
 	// Since the container only emits stdout, attaching to stderr should return nothing.
 	expectTimeout(conn, br, "stdout")
 
-	// Test the simlar functions of the stderr stream.
+	// Test the similar functions of the stderr stream.
 	cid, _ = dockerCmd(c, "run", "-di", "busybox", "/bin/sh", "-c", "cat >&2")
 	cid = strings.TrimSpace(cid)
 	conn, br, err = sockRequestHijack("POST", "/containers/"+cid+"/attach?stream=1&stdin=1&stderr=1", nil, "text/plain")

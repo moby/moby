@@ -104,19 +104,25 @@ func RunCommandWithOutputForDuration(cmd *exec.Cmd, duration time.Duration) (out
 	}
 	cmd.Stderr = &outputBuffer
 
-	done := make(chan error)
-
 	// Start the command in the main thread..
 	err = cmd.Start()
 	if err != nil {
 		err = fmt.Errorf("Fail to start command %v : %v", cmd, err)
 	}
 
+	type exitInfo struct {
+		exitErr  error
+		exitCode int
+	}
+
+	done := make(chan exitInfo, 1)
+
 	go func() {
 		// And wait for it to exit in the goroutine :)
-		exitErr := cmd.Wait()
-		exitCode = ProcessExitCode(exitErr)
-		done <- exitErr
+		info := exitInfo{}
+		info.exitErr = cmd.Wait()
+		info.exitCode = ProcessExitCode(info.exitErr)
+		done <- info
 	}()
 
 	select {
@@ -126,9 +132,9 @@ func RunCommandWithOutputForDuration(cmd *exec.Cmd, duration time.Duration) (out
 			fmt.Printf("failed to kill (pid=%d): %v\n", cmd.Process.Pid, killErr)
 		}
 		timedOut = true
-		break
-	case err = <-done:
-		break
+	case info := <-done:
+		err = info.exitErr
+		exitCode = info.exitCode
 	}
 	output = outputBuffer.String()
 	return
@@ -185,12 +191,19 @@ func RunCommandPipelineWithOutput(cmds ...*exec.Cmd) (output string, exitCode in
 		}
 	}
 
+	var pipelineError error
 	defer func() {
 		// wait all cmds except the last to release their resources
 		for _, cmd := range cmds[:len(cmds)-1] {
-			cmd.Wait()
+			if err := cmd.Wait(); err != nil {
+				pipelineError = fmt.Errorf("command %s failed with error: %v", cmd.Path, err)
+				break
+			}
 		}
 	}()
+	if pipelineError != nil {
+		return "", 0, pipelineError
+	}
 
 	// wait on last cmd
 	return RunCommandWithOutput(cmds[len(cmds)-1])
@@ -266,30 +279,30 @@ func RandomTmpDirPath(s string, platform string) string {
 	return filepath.ToSlash(path) // Using /
 }
 
-// ConsumeWithSpeed reads chunkSize bytes from reader after every interval.
-// Returns total read bytes.
+// ConsumeWithSpeed reads chunkSize bytes from reader before sleeping
+// for interval duration. Returns total read bytes. Send true to the
+// stop channel to return before reading to EOF on the reader.
 func ConsumeWithSpeed(reader io.Reader, chunkSize int, interval time.Duration, stop chan bool) (n int, err error) {
 	buffer := make([]byte, chunkSize)
 	for {
+		var readBytes int
+		readBytes, err = reader.Read(buffer)
+		n += readBytes
+		if err != nil {
+			if err == io.EOF {
+				err = nil
+			}
+			return
+		}
 		select {
 		case <-stop:
 			return
-		default:
-			var readBytes int
-			readBytes, err = reader.Read(buffer)
-			n += readBytes
-			if err != nil {
-				if err == io.EOF {
-					err = nil
-				}
-				return
-			}
-			time.Sleep(interval)
+		case <-time.After(interval):
 		}
 	}
 }
 
-// ParseCgroupPaths arses 'procCgroupData', which is output of '/proc/<pid>/cgroup', and returns
+// ParseCgroupPaths parses 'procCgroupData', which is output of '/proc/<pid>/cgroup', and returns
 // a map which cgroup name as key and path as value.
 func ParseCgroupPaths(procCgroupData string) map[string]string {
 	cgroupPaths := map[string]string{}
@@ -331,7 +344,7 @@ func (c *ChannelBuffer) ReadTimeout(p []byte, n time.Duration) (int, error) {
 	}
 }
 
-// RunAtDifferentDate runs the specifed function with the given time.
+// RunAtDifferentDate runs the specified function with the given time.
 // It changes the date of the system, which can led to weird behaviors.
 func RunAtDifferentDate(date time.Time, block func()) {
 	// Layout for date. MMDDhhmmYYYY

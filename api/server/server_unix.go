@@ -10,7 +10,7 @@ import (
 	"strconv"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/pkg/sockets"
+	"github.com/docker/go-connections/sockets"
 	"github.com/docker/libnetwork/portallocator"
 
 	systemdActivation "github.com/coreos/go-systemd/activation"
@@ -38,7 +38,7 @@ func (s *Server) newServer(proto, addr string) ([]*HTTPServer, error) {
 	case "unix":
 		l, err := sockets.NewUnixSocket(addr, s.cfg.SocketGroup)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("can't create unix socket %s: %v", addr, err)
 		}
 		ls = append(ls, l)
 	default:

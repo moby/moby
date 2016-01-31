@@ -1,44 +1,12 @@
 package trustmanager
 
 import (
-	"errors"
 	"fmt"
-	"github.com/docker/notary"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 )
-
-const (
-	visible = notary.PubCertPerms
-	private = notary.PrivKeyPerms
-)
-
-var (
-	// ErrPathOutsideStore indicates that the returned path would be
-	// outside the store
-	ErrPathOutsideStore = errors.New("path outside file store")
-)
-
-// LimitedFileStore implements the bare bones primitives (no hierarchy)
-type LimitedFileStore interface {
-	Add(fileName string, data []byte) error
-	Remove(fileName string) error
-	Get(fileName string) ([]byte, error)
-	ListFiles() []string
-}
-
-// FileStore is the interface for full-featured FileStores
-type FileStore interface {
-	LimitedFileStore
-
-	RemoveDir(directoryName string) error
-	GetPath(fileName string) (string, error)
-	ListDir(directoryName string) []string
-	BaseDir() string
-}
 
 // SimpleFileStore implements FileStore
 type SimpleFileStore struct {
@@ -55,6 +23,10 @@ func NewSimpleFileStore(baseDir string, fileExt string) (*SimpleFileStore, error
 		return nil, err
 	}
 
+	if !strings.HasPrefix(fileExt, ".") {
+		fileExt = "." + fileExt
+	}
+
 	return &SimpleFileStore{
 		baseDir: baseDir,
 		fileExt: fileExt,
@@ -66,6 +38,10 @@ func NewSimpleFileStore(baseDir string, fileExt string) (*SimpleFileStore, error
 func NewPrivateSimpleFileStore(baseDir string, fileExt string) (*SimpleFileStore, error) {
 	if err := CreatePrivateDirectory(baseDir); err != nil {
 		return nil, err
+	}
+
+	if !strings.HasPrefix(fileExt, ".") {
+		fileExt = "." + fileExt
 	}
 
 	return &SimpleFileStore{
@@ -176,7 +152,8 @@ func (f *SimpleFileStore) list(path string) []string {
 			if err != nil {
 				return err
 			}
-			files = append(files, fp)
+			trimmed := strings.TrimSuffix(fp, f.fileExt)
+			files = append(files, trimmed)
 		}
 		return nil
 	})
@@ -185,7 +162,7 @@ func (f *SimpleFileStore) list(path string) []string {
 
 // genFileName returns the name using the right extension
 func (f *SimpleFileStore) genFileName(name string) string {
-	return fmt.Sprintf("%s.%s", name, f.fileExt)
+	return fmt.Sprintf("%s%s", name, f.fileExt)
 }
 
 // BaseDir returns the base directory of the filestore
@@ -211,69 +188,4 @@ func createDirectory(dir string, perms os.FileMode) error {
 	// If two '//' exist, MkdirAll deals it with correctly
 	dir = dir + "/"
 	return os.MkdirAll(dir, perms)
-}
-
-// MemoryFileStore is an implementation of LimitedFileStore that keeps
-// the contents in memory.
-type MemoryFileStore struct {
-	sync.Mutex
-
-	files map[string][]byte
-}
-
-// NewMemoryFileStore creates a MemoryFileStore
-func NewMemoryFileStore() *MemoryFileStore {
-	return &MemoryFileStore{
-		files: make(map[string][]byte),
-	}
-}
-
-// ErrMemFileNotFound is returned for a nonexistent "file" in the memory file
-// store
-var ErrMemFileNotFound = errors.New("key not found in memory file store")
-
-// Add writes data to a file with a given name
-func (f *MemoryFileStore) Add(name string, data []byte) error {
-	f.Lock()
-	defer f.Unlock()
-
-	f.files[name] = data
-	return nil
-}
-
-// Remove removes a file identified by name
-func (f *MemoryFileStore) Remove(name string) error {
-	f.Lock()
-	defer f.Unlock()
-
-	if _, present := f.files[name]; !present {
-		return ErrMemFileNotFound
-	}
-	delete(f.files, name)
-
-	return nil
-}
-
-// Get returns the data given a file name
-func (f *MemoryFileStore) Get(name string) ([]byte, error) {
-	f.Lock()
-	defer f.Unlock()
-
-	fileData, present := f.files[name]
-	if !present {
-		return nil, ErrMemFileNotFound
-	}
-
-	return fileData, nil
-}
-
-// ListFiles lists all the files inside of a store
-func (f *MemoryFileStore) ListFiles() []string {
-	var list []string
-
-	for name := range f.files {
-		list = append(list, name)
-	}
-
-	return list
 }

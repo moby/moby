@@ -1,16 +1,14 @@
 package client
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
-	"net/url"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/api/types"
 	Cli "github.com/docker/docker/cli"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/signal"
+	"github.com/docker/engine-api/types"
 )
 
 // CmdAttach attaches to a running container.
@@ -20,20 +18,14 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 	cmd := Cli.Subcmd("attach", []string{"CONTAINER"}, Cli.DockerCommands["attach"].Description, true)
 	noStdin := cmd.Bool([]string{"-no-stdin"}, false, "Do not attach STDIN")
 	proxy := cmd.Bool([]string{"-sig-proxy"}, true, "Proxy all received signals to the process")
+	detachKeys := cmd.String([]string{"-detach-keys"}, "", "Override the key sequence for detaching a container")
 
 	cmd.Require(flag.Exact, 1)
 
 	cmd.ParseFlags(args, true)
 
-	serverResp, err := cli.call("GET", "/containers/"+cmd.Arg(0)+"/json", nil, nil)
+	c, err := cli.client.ContainerInspect(cmd.Arg(0))
 	if err != nil {
-		return err
-	}
-
-	defer serverResp.body.Close()
-
-	var c types.ContainerJSON
-	if err := json.NewDecoder(serverResp.body).Decode(&c); err != nil {
 		return err
 	}
 
@@ -55,28 +47,46 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 		}
 	}
 
-	var in io.ReadCloser
+	if *detachKeys != "" {
+		cli.configFile.DetachKeys = *detachKeys
+	}
 
-	v := url.Values{}
-	v.Set("stream", "1")
-	if !*noStdin && c.Config.OpenStdin {
-		v.Set("stdin", "1")
+	options := types.ContainerAttachOptions{
+		ContainerID: cmd.Arg(0),
+		Stream:      true,
+		Stdin:       !*noStdin && c.Config.OpenStdin,
+		Stdout:      true,
+		Stderr:      true,
+		DetachKeys:  cli.configFile.DetachKeys,
+	}
+
+	var in io.ReadCloser
+	if options.Stdin {
 		in = cli.in
 	}
 
-	v.Set("stdout", "1")
-	v.Set("stderr", "1")
-
 	if *proxy && !c.Config.Tty {
-		sigc := cli.forwardAllSignals(cmd.Arg(0))
+		sigc := cli.forwardAllSignals(options.ContainerID)
 		defer signal.StopCatch(sigc)
 	}
 
-	if err := cli.hijack("POST", "/containers/"+cmd.Arg(0)+"/attach?"+v.Encode(), c.Config.Tty, in, cli.out, cli.err, nil, nil); err != nil {
+	resp, err := cli.client.ContainerAttach(options)
+	if err != nil {
+		return err
+	}
+	defer resp.Close()
+	if in != nil && c.Config.Tty {
+		if err := cli.setRawTerminal(); err != nil {
+			return err
+		}
+		defer cli.restoreTerminal(in)
+	}
+
+	if err := cli.holdHijackedConnection(c.Config.Tty, in, cli.out, cli.err, resp); err != nil {
 		return err
 	}
 
-	_, status, err := getExitCode(cli, cmd.Arg(0))
+	_, status, err := getExitCode(cli, options.ContainerID)
 	if err != nil {
 		return err
 	}

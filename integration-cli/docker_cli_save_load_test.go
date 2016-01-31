@@ -89,6 +89,7 @@ func (s *DockerSuite) TestSaveSingleTag(c *check.C) {
 }
 
 func (s *DockerSuite) TestSaveCheckTimes(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	repoName := "busybox:latest"
 	out, _ := dockerCmd(c, "inspect", repoName)
 	data := []struct {
@@ -222,7 +223,7 @@ func (s *DockerSuite) TestSaveRepoWithMultipleImages(c *check.C) {
 	}
 
 	// make the list of expected layers
-	out, _ = dockerCmd(c, "inspect", "-f", "{{.Id}}", "busybox:latest")
+	out = inspectField(c, "busybox:latest", "Id")
 	expected := []string{strings.TrimSpace(out), idFoo, idBar}
 
 	// prefixes are not in tar

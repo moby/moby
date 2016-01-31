@@ -2,8 +2,7 @@ package client
 
 import (
 	"errors"
-	"net/url"
-	"os"
+	"io"
 
 	Cli "github.com/docker/docker/cli"
 	flag "github.com/docker/docker/pkg/mflag"
@@ -21,32 +20,21 @@ func (cli *DockerCli) CmdSave(args ...string) error {
 
 	cmd.ParseFlags(args, true)
 
-	var (
-		output = cli.out
-		err    error
-	)
-
 	if *outfile == "" && cli.isTerminalOut {
 		return errors.New("Cowardly refusing to save to a terminal. Use the -o flag or redirect.")
 	}
-	if *outfile != "" {
-		if output, err = os.Create(*outfile); err != nil {
-			return err
-		}
-	}
 
-	sopts := &streamOpts{
-		rawTerminal: true,
-		out:         output,
+	responseBody, err := cli.client.ImageSave(cmd.Args())
+	if err != nil {
+		return err
 	}
+	defer responseBody.Close()
 
-	v := url.Values{}
-	for _, arg := range cmd.Args() {
-		v.Add("names", arg)
-	}
-	if _, err := cli.stream("GET", "/images/get?"+v.Encode(), sopts); err != nil {
+	if *outfile == "" {
+		_, err := io.Copy(cli.out, responseBody)
 		return err
 	}
 
-	return nil
+	return copyToFile(*outfile, responseBody)
+
 }

@@ -14,7 +14,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/agl/ed25519"
-	"github.com/jfrazelle/go/canonical/json"
+	"github.com/docker/go/canonical/json"
 )
 
 // PublicKey is the necessary interface for public keys
@@ -75,6 +75,15 @@ func (ks *KeyList) UnmarshalJSON(data []byte) error {
 	}
 	*ks = final
 	return nil
+}
+
+// IDs generates a list of the hex encoded key IDs in the KeyList
+func (ks KeyList) IDs() []string {
+	keyIDs := make([]string, 0, len(ks))
+	for _, k := range ks {
+		keyIDs = append(keyIDs, k.ID())
+	}
+	return keyIDs
 }
 
 func typedPublicKey(tk tufKey) PublicKey {

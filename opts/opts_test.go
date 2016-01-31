@@ -2,8 +2,6 @@ package opts
 
 import (
 	"fmt"
-	"os"
-	"runtime"
 	"strings"
 	"testing"
 )
@@ -53,20 +51,6 @@ func TestMapOpts(t *testing.T) {
 	}
 	if o.Set("dummy-val=3") == nil {
 		t.Errorf("validator is not being called")
-	}
-}
-
-func TestValidateMACAddress(t *testing.T) {
-	if _, err := ValidateMACAddress(`92:d0:c6:0a:29:33`); err != nil {
-		t.Fatalf("ValidateMACAddress(`92:d0:c6:0a:29:33`) got %s", err)
-	}
-
-	if _, err := ValidateMACAddress(`92:d0:c6:0a:33`); err == nil {
-		t.Fatalf("ValidateMACAddress(`92:d0:c6:0a:33`) succeeded; expected failure on invalid MAC")
-	}
-
-	if _, err := ValidateMACAddress(`random invalid string`); err == nil {
-		t.Fatalf("ValidateMACAddress(`random invalid string`) succeeded; expected failure on invalid MAC")
 	}
 }
 
@@ -189,172 +173,6 @@ func TestValidateDNSSearch(t *testing.T) {
 	}
 }
 
-func TestValidateExtraHosts(t *testing.T) {
-	valid := []string{
-		`myhost:192.168.0.1`,
-		`thathost:10.0.2.1`,
-		`anipv6host:2003:ab34:e::1`,
-		`ipv6local:::1`,
-	}
-
-	invalid := map[string]string{
-		`myhost:192.notanipaddress.1`:  `invalid IP`,
-		`thathost-nosemicolon10.0.0.1`: `bad format`,
-		`anipv6host:::::1`:             `invalid IP`,
-		`ipv6local:::0::`:              `invalid IP`,
-	}
-
-	for _, extrahost := range valid {
-		if _, err := ValidateExtraHost(extrahost); err != nil {
-			t.Fatalf("ValidateExtraHost(`"+extrahost+"`) should succeed: error %v", err)
-		}
-	}
-
-	for extraHost, expectedError := range invalid {
-		if _, err := ValidateExtraHost(extraHost); err == nil {
-			t.Fatalf("ValidateExtraHost(`%q`) should have failed validation", extraHost)
-		} else {
-			if !strings.Contains(err.Error(), expectedError) {
-				t.Fatalf("ValidateExtraHost(`%q`) error should contain %q", extraHost, expectedError)
-			}
-		}
-	}
-}
-
-func TestValidateAttach(t *testing.T) {
-	valid := []string{
-		"stdin",
-		"stdout",
-		"stderr",
-		"STDIN",
-		"STDOUT",
-		"STDERR",
-	}
-	if _, err := ValidateAttach("invalid"); err == nil {
-		t.Fatalf("Expected error with [valid streams are STDIN, STDOUT and STDERR], got nothing")
-	}
-
-	for _, attach := range valid {
-		value, err := ValidateAttach(attach)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if value != strings.ToLower(attach) {
-			t.Fatalf("Expected [%v], got [%v]", attach, value)
-		}
-	}
-}
-
-func TestValidateLink(t *testing.T) {
-	valid := []string{
-		"name",
-		"dcdfbe62ecd0:alias",
-		"7a67485460b7642516a4ad82ecefe7f57d0c4916f530561b71a50a3f9c4e33da",
-		"angry_torvalds:linus",
-	}
-	invalid := map[string]string{
-		"":               "empty string specified for links",
-		"too:much:of:it": "bad format for links: too:much:of:it",
-	}
-
-	for _, link := range valid {
-		if _, err := ValidateLink(link); err != nil {
-			t.Fatalf("ValidateLink(`%q`) should succeed: error %q", link, err)
-		}
-	}
-
-	for link, expectedError := range invalid {
-		if _, err := ValidateLink(link); err == nil {
-			t.Fatalf("ValidateLink(`%q`) should have failed validation", link)
-		} else {
-			if !strings.Contains(err.Error(), expectedError) {
-				t.Fatalf("ValidateLink(`%q`) error should contain %q", link, expectedError)
-			}
-		}
-	}
-}
-
-func TestValidateDevice(t *testing.T) {
-	valid := []string{
-		"/home",
-		"/home:/home",
-		"/home:/something/else",
-		"/with space",
-		"/home:/with space",
-		"relative:/absolute-path",
-		"hostPath:/containerPath:r",
-		"/hostPath:/containerPath:rw",
-		"/hostPath:/containerPath:mrw",
-	}
-	invalid := map[string]string{
-		"":        "bad format for path: ",
-		"./":      "./ is not an absolute path",
-		"../":     "../ is not an absolute path",
-		"/:../":   "../ is not an absolute path",
-		"/:path":  "path is not an absolute path",
-		":":       "bad format for path: :",
-		"/tmp:":   " is not an absolute path",
-		":test":   "bad format for path: :test",
-		":/test":  "bad format for path: :/test",
-		"tmp:":    " is not an absolute path",
-		":test:":  "bad format for path: :test:",
-		"::":      "bad format for path: ::",
-		":::":     "bad format for path: :::",
-		"/tmp:::": "bad format for path: /tmp:::",
-		":/tmp::": "bad format for path: :/tmp::",
-		"path:ro": "ro is not an absolute path",
-		"path:rr": "rr is not an absolute path",
-		"a:/b:ro": "bad mode specified: ro",
-		"a:/b:rr": "bad mode specified: rr",
-	}
-
-	for _, path := range valid {
-		if _, err := ValidateDevice(path); err != nil {
-			t.Fatalf("ValidateDevice(`%q`) should succeed: error %q", path, err)
-		}
-	}
-
-	for path, expectedError := range invalid {
-		if _, err := ValidateDevice(path); err == nil {
-			t.Fatalf("ValidateDevice(`%q`) should have failed validation", path)
-		} else {
-			if err.Error() != expectedError {
-				t.Fatalf("ValidateDevice(`%q`) error should contain %q, got %q", path, expectedError, err.Error())
-			}
-		}
-	}
-}
-
-func TestValidateEnv(t *testing.T) {
-	valids := map[string]string{
-		"a":                   "a",
-		"something":           "something",
-		"_=a":                 "_=a",
-		"env1=value1":         "env1=value1",
-		"_env1=value1":        "_env1=value1",
-		"env2=value2=value3":  "env2=value2=value3",
-		"env3=abc!qwe":        "env3=abc!qwe",
-		"env_4=value 4":       "env_4=value 4",
-		"PATH":                fmt.Sprintf("PATH=%v", os.Getenv("PATH")),
-		"PATH=something":      "PATH=something",
-		"asd!qwe":             "asd!qwe",
-		"1asd":                "1asd",
-		"123":                 "123",
-		"some space":          "some space",
-		"  some space before": "  some space before",
-		"some space after  ":  "some space after  ",
-	}
-	for value, expected := range valids {
-		actual, err := ValidateEnv(value)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if actual != expected {
-			t.Fatalf("Expected [%v], got [%v]", expected, actual)
-		}
-	}
-}
-
 func TestValidateLabel(t *testing.T) {
 	if _, err := ValidateLabel("label"); err == nil || err.Error() != "bad attribute format: label" {
 		t.Fatalf("Expected an error [bad attribute format: label], go %v", err)
@@ -372,51 +190,6 @@ func TestValidateLabel(t *testing.T) {
 	}
 }
 
-func TestParseHost(t *testing.T) {
-	invalid := map[string]string{
-		"anything":              "Invalid bind address format: anything",
-		"something with spaces": "Invalid bind address format: something with spaces",
-		"://":                "Invalid bind address format: ://",
-		"unknown://":         "Invalid bind address format: unknown://",
-		"tcp://:port":        "Invalid bind address format: :port",
-		"tcp://invalid":      "Invalid bind address format: invalid",
-		"tcp://invalid:port": "Invalid bind address format: invalid:port",
-	}
-	const defaultHTTPHost = "tcp://127.0.0.1:2375"
-	var defaultHOST = "unix:///var/run/docker.sock"
-
-	if runtime.GOOS == "windows" {
-		defaultHOST = defaultHTTPHost
-	}
-	valid := map[string]string{
-		"":                         defaultHOST,
-		"fd://":                    "fd://",
-		"fd://something":           "fd://something",
-		"tcp://host:":              "tcp://host:2375",
-		"tcp://":                   "tcp://localhost:2375",
-		"tcp://:2375":              "tcp://localhost:2375", // default ip address
-		"tcp://:2376":              "tcp://localhost:2376", // default ip address
-		"tcp://0.0.0.0:8080":       "tcp://0.0.0.0:8080",
-		"tcp://192.168.0.0:12000":  "tcp://192.168.0.0:12000",
-		"tcp://192.168:8080":       "tcp://192.168:8080",
-		"tcp://0.0.0.0:1234567890": "tcp://0.0.0.0:1234567890", // yeah it's valid :P
-		"tcp://docker.com:2375":    "tcp://docker.com:2375",
-		"unix://":                  "unix:///var/run/docker.sock", // default unix:// value
-		"unix://path/to/socket":    "unix://path/to/socket",
-	}
-
-	for value, errorMessage := range invalid {
-		if _, err := ParseHost(defaultHTTPHost, value); err == nil || err.Error() != errorMessage {
-			t.Fatalf("Expected an error for %v with [%v], got [%v]", value, errorMessage, err)
-		}
-	}
-	for value, expected := range valid {
-		if actual, err := ParseHost(defaultHTTPHost, value); err != nil || actual != expected {
-			t.Fatalf("Expected for %v [%v], got [%v, %v]", value, expected, actual, err)
-		}
-	}
-}
-
 func logOptsValidator(val string) (string, error) {
 	allowedKeys := map[string]string{"max-size": "1", "max-file": "2"}
 	vals := strings.Split(val, "=")
@@ -424,4 +197,36 @@ func logOptsValidator(val string) (string, error) {
 		return val, nil
 	}
 	return "", fmt.Errorf("invalid key %s", vals[0])
+}
+
+func TestNamedListOpts(t *testing.T) {
+	var v []string
+	o := NewNamedListOptsRef("foo-name", &v, nil)
+
+	o.Set("foo")
+	if o.String() != "[foo]" {
+		t.Errorf("%s != [foo]", o.String())
+	}
+	if o.Name() != "foo-name" {
+		t.Errorf("%s != foo-name", o.Name())
+	}
+	if len(v) != 1 {
+		t.Errorf("expected foo to be in the values, got %v", v)
+	}
+}
+
+func TestNamedMapOpts(t *testing.T) {
+	tmpMap := make(map[string]string)
+	o := NewNamedMapOpts("max-name", tmpMap, nil)
+
+	o.Set("max-size=1")
+	if o.String() != "map[max-size:1]" {
+		t.Errorf("%s != [map[max-size:1]", o.String())
+	}
+	if o.Name() != "max-name" {
+		t.Errorf("%s != max-name", o.Name())
+	}
+	if _, exist := tmpMap["max-size"]; !exist {
+		t.Errorf("expected map-size to be in the values, got %v", tmpMap)
+	}
 }

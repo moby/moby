@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-// Rand is a global *rand.Rand instance, which initilized with NewSource() source.
+// Rand is a global *rand.Rand instance, which initialized with NewSource() source.
 var Rand = rand.New(NewSource())
 
 // Reader is a global, shared instance of a pseudorandom bytes generator.

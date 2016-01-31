@@ -2,8 +2,12 @@ package ioutils
 
 import (
 	"fmt"
+	"io/ioutil"
 	"strings"
 	"testing"
+	"time"
+
+	"golang.org/x/net/context"
 )
 
 // Implement io.Reader
@@ -63,5 +67,28 @@ func TestHashData(t *testing.T) {
 	expected := "sha256:4d11186aed035cc624d553e10db358492c84a7cd6b9670d92123c144930450aa"
 	if actual != expected {
 		t.Fatalf("Expecting %s, got %s", expected, actual)
+	}
+}
+
+type perpetualReader struct{}
+
+func (p *perpetualReader) Read(buf []byte) (n int, err error) {
+	for i := 0; i != len(buf); i++ {
+		buf[i] = 'a'
+	}
+	return len(buf), nil
+}
+
+func TestCancelReadCloser(t *testing.T) {
+	ctx, _ := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	cancelReadCloser := NewCancelReadCloser(ctx, ioutil.NopCloser(&perpetualReader{}))
+	for {
+		var buf [128]byte
+		_, err := cancelReadCloser.Read(buf[:])
+		if err == context.DeadlineExceeded {
+			break
+		} else if err != nil {
+			t.Fatalf("got unexpected error: %v", err)
+		}
 	}
 }

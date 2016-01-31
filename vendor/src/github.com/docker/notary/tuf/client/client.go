@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"path"
-	"path/filepath"
 	"strings"
 
 	"github.com/Sirupsen/logrus"
@@ -55,7 +54,7 @@ func (c *Client) Update() error {
 	if err != nil {
 		logrus.Debug("Error occurred. Root will be downloaded and another update attempted")
 		if err := c.downloadRoot(); err != nil {
-			logrus.Error("client Update (Root):", err)
+			logrus.Debug("Client Update (Root):", err)
 			return err
 		}
 		// If we error again, we now have the latest root and just want to fail
@@ -69,12 +68,12 @@ func (c *Client) Update() error {
 func (c *Client) update() error {
 	err := c.downloadTimestamp()
 	if err != nil {
-		logrus.Errorf("Client Update (Timestamp): %s", err.Error())
+		logrus.Debugf("Client Update (Timestamp): %s", err.Error())
 		return err
 	}
 	err = c.downloadSnapshot()
 	if err != nil {
-		logrus.Errorf("Client Update (Snapshot): %s", err.Error())
+		logrus.Debugf("Client Update (Snapshot): %s", err.Error())
 		return err
 	}
 	err = c.checkRoot()
@@ -82,12 +81,12 @@ func (c *Client) update() error {
 		// In this instance the root has not expired base on time, but is
 		// expired based on the snapshot dictating a new root has been produced.
 		logrus.Debug(err)
-		return tuf.ErrLocalRootExpired{}
+		return err
 	}
 	// will always need top level targets at a minimum
 	err = c.downloadTargets("targets")
 	if err != nil {
-		logrus.Errorf("Client Update (Targets): %s", err.Error())
+		logrus.Debugf("Client Update (Targets): %s", err.Error())
 		return err
 	}
 	return nil
@@ -98,7 +97,7 @@ func (c *Client) update() error {
 // hash and size in snapshot are unchanged but the root file has expired,
 // there is little expectation that the situation can be remedied.
 func (c Client) checkRoot() error {
-	role := data.RoleName("root")
+	role := data.CanonicalRootRole
 	size := c.local.Snapshot.Signed.Meta[role].Length
 	hashSha256 := c.local.Snapshot.Signed.Meta[role].Hashes["sha256"]
 
@@ -130,7 +129,8 @@ func (c Client) checkRoot() error {
 
 // downloadRoot is responsible for downloading the root.json
 func (c *Client) downloadRoot() error {
-	role := data.RoleName("root")
+	logrus.Debug("Downloading Root...")
+	role := data.CanonicalRootRole
 	size := maxSize
 	var expectedSha256 []byte
 	if c.local.Snapshot != nil {
@@ -241,53 +241,53 @@ func (c Client) verifyRoot(role string, s *data.Signed, minVersion int) error {
 // Timestamps are special in that we ALWAYS attempt to download and only
 // use cache if the download fails (and the cache is still valid).
 func (c *Client) downloadTimestamp() error {
-	logrus.Debug("downloadTimestamp")
-	role := data.RoleName("timestamp")
+	logrus.Debug("Downloading Timestamp...")
+	role := data.CanonicalTimestampRole
 
 	// We may not have a cached timestamp if this is the first time
 	// we're interacting with the repo. This will result in the
 	// version being 0
-	var download bool
-	old := &data.Signed{}
-	version := 0
+	var (
+		saveToCache bool
+		old         *data.Signed
+		version     = 0
+	)
 	cachedTS, err := c.cache.GetMeta(role, maxSize)
 	if err == nil {
-		err := json.Unmarshal(cachedTS, old)
+		cached := &data.Signed{}
+		err := json.Unmarshal(cachedTS, cached)
 		if err == nil {
-			ts, err := data.TimestampFromSigned(old)
+			ts, err := data.TimestampFromSigned(cached)
 			if err == nil {
 				version = ts.Signed.Version
 			}
-		} else {
-			old = nil
+			old = cached
 		}
 	}
 	// unlike root, targets and snapshot, always try and download timestamps
 	// from remote, only using the cache one if we couldn't reach remote.
 	raw, s, err := c.downloadSigned(role, maxSize, nil)
 	if err != nil || len(raw) == 0 {
-		if err, ok := err.(store.ErrMetaNotFound); ok {
-			return err
-		}
 		if old == nil {
 			if err == nil {
 				// couldn't retrieve data from server and don't have valid
 				// data in cache.
-				return store.ErrMetaNotFound{}
+				return store.ErrMetaNotFound{Resource: data.CanonicalTimestampRole}
 			}
 			return err
 		}
-		logrus.Debug("using cached timestamp")
+		logrus.Debug(err.Error())
+		logrus.Warn("Error while downloading remote metadata, using cached timestamp - this might not be the latest version available remotely")
 		s = old
 	} else {
-		download = true
+		saveToCache = true
 	}
 	err = signed.Verify(s, role, version, c.keysDB)
 	if err != nil {
 		return err
 	}
 	logrus.Debug("successfully verified timestamp")
-	if download {
+	if saveToCache {
 		c.cache.SetMeta(role, raw)
 	}
 	ts, err := data.TimestampFromSigned(s)
@@ -300,8 +300,8 @@ func (c *Client) downloadTimestamp() error {
 
 // downloadSnapshot is responsible for downloading the snapshot.json
 func (c *Client) downloadSnapshot() error {
-	logrus.Debug("downloadSnapshot")
-	role := data.RoleName("snapshot")
+	logrus.Debug("Downloading Snapshot...")
+	role := data.CanonicalSnapshotRole
 	if c.local.Timestamp == nil {
 		return ErrMissingMeta{role: "snapshot"}
 	}
@@ -327,7 +327,7 @@ func (c *Client) downloadSnapshot() error {
 		}
 		err := json.Unmarshal(raw, old)
 		if err == nil {
-			snap, err := data.TimestampFromSigned(old)
+			snap, err := data.SnapshotFromSigned(old)
 			if err == nil {
 				version = snap.Signed.Version
 			} else {
@@ -369,34 +369,52 @@ func (c *Client) downloadSnapshot() error {
 	return nil
 }
 
-// downloadTargets is responsible for downloading any targets file
-// including delegates roles.
+// downloadTargets downloads all targets and delegated targets for the repository.
+// It uses a pre-order tree traversal as it's necessary to download parents first
+// to obtain the keys to validate children.
 func (c *Client) downloadTargets(role string) error {
-	role = data.RoleName(role) // this will really only do something for base targets role
-	if c.local.Snapshot == nil {
-		return ErrMissingMeta{role: role}
-	}
-	snap := c.local.Snapshot.Signed
-	root := c.local.Root.Signed
-	r := c.keysDB.GetRole(role)
-	if r == nil {
-		return fmt.Errorf("Invalid role: %s", role)
-	}
-	keyIDs := r.KeyIDs
-	s, err := c.getTargetsFile(role, keyIDs, snap.Meta, root.ConsistentSnapshot, r.Threshold)
-	if err != nil {
-		logrus.Error("Error getting targets file:", err)
-		return err
-	}
-	t, err := data.TargetsFromSigned(s)
-	if err != nil {
-		return err
-	}
-	err = c.local.SetTargets(role, t)
-	if err != nil {
-		return err
-	}
+	logrus.Debug("Downloading Targets...")
+	stack := utils.NewStack()
+	stack.Push(role)
+	for !stack.Empty() {
+		role, err := stack.PopString()
+		if err != nil {
+			return err
+		}
+		if c.local.Snapshot == nil {
+			return ErrMissingMeta{role: role}
+		}
+		snap := c.local.Snapshot.Signed
+		root := c.local.Root.Signed
+		r := c.keysDB.GetRole(role)
+		if r == nil {
+			return fmt.Errorf("Invalid role: %s", role)
+		}
+		keyIDs := r.KeyIDs
+		s, err := c.getTargetsFile(role, keyIDs, snap.Meta, root.ConsistentSnapshot, r.Threshold)
+		if err != nil {
+			if _, ok := err.(ErrMissingMeta); ok && role != data.CanonicalTargetsRole {
+				// if the role meta hasn't been published,
+				// that's ok, continue
+				continue
+			}
+			logrus.Error("Error getting targets file:", err)
+			return err
+		}
+		t, err := data.TargetsFromSigned(s)
+		if err != nil {
+			return err
+		}
+		err = c.local.SetTargets(role, t)
+		if err != nil {
+			return err
+		}
 
+		// push delegated roles contained in the targets file onto the stack
+		for _, r := range t.Signed.Delegations.Roles {
+			stack.Push(r.Name)
+		}
+	}
 	return nil
 }
 
@@ -482,17 +500,18 @@ func (c Client) getTargetsFile(role string, keyIDs []string, snapshotMeta data.F
 		// if we error when setting meta, we should continue.
 		err = c.cache.SetMeta(role, raw)
 		if err != nil {
-			logrus.Errorf("Failed to write snapshot to local cache: %s", err.Error())
+			logrus.Errorf("Failed to write %s to local cache: %s", role, err.Error())
 		}
 	}
 	return s, nil
 }
 
-// RoleTargetsPath generates the appropriate filename for the targets file,
+// RoleTargetsPath generates the appropriate HTTP URL for the targets file,
 // based on whether the repo is marked as consistent.
 func (c Client) RoleTargetsPath(role string, hashSha256 string, consistent bool) (string, error) {
 	if consistent {
-		dir := filepath.Dir(role)
+		// Use path instead of filepath since we refer to the TUF role directly instead of its target files
+		dir := path.Dir(role)
 		if strings.Contains(role, "/") {
 			lastSlashIdx := strings.LastIndex(role, "/")
 			role = role[lastSlashIdx+1:]
@@ -505,42 +524,41 @@ func (c Client) RoleTargetsPath(role string, hashSha256 string, consistent bool)
 	return role, nil
 }
 
-// TargetMeta ensures the repo is up to date, downloading the minimum
-// necessary metadata files
-func (c Client) TargetMeta(path string) (*data.FileMeta, error) {
-	c.Update()
-	var meta *data.FileMeta
+// TargetMeta ensures the repo is up to date. It assumes downloadTargets
+// has already downloaded all delegated roles
+func (c Client) TargetMeta(role, path string, excludeRoles ...string) (*data.FileMeta, string) {
+	excl := make(map[string]bool)
+	for _, r := range excludeRoles {
+		excl[r] = true
+	}
 
 	pathDigest := sha256.Sum256([]byte(path))
 	pathHex := hex.EncodeToString(pathDigest[:])
 
 	// FIFO list of targets delegations to inspect for target
-	roles := []string{data.ValidRoles["targets"]}
-	var role string
+	roles := []string{role}
+	var (
+		meta *data.FileMeta
+		curr string
+	)
 	for len(roles) > 0 {
 		// have to do these lines here because of order of execution in for statement
-		role = roles[0]
+		curr = roles[0]
 		roles = roles[1:]
 
-		// Download the target role file if necessary
-		err := c.downloadTargets(role)
-		if err != nil {
-			// as long as we find a valid target somewhere we're happy.
-			// continue and search other delegated roles if any
-			continue
-		}
-
-		meta = c.local.TargetMeta(role, path)
+		meta = c.local.TargetMeta(curr, path)
 		if meta != nil {
 			// we found the target!
-			return meta, nil
+			return meta, curr
 		}
-		delegations := c.local.TargetDelegations(role, path, pathHex)
+		delegations := c.local.TargetDelegations(curr, path, pathHex)
 		for _, d := range delegations {
-			roles = append(roles, d.Name)
+			if !excl[d.Name] {
+				roles = append(roles, d.Name)
+			}
 		}
 	}
-	return meta, nil
+	return meta, ""
 }
 
 // DownloadTarget downloads the target to dst from the remote

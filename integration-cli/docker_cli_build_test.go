@@ -2,12 +2,10 @@ package main
 
 import (
 	"archive/tar"
-	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -27,7 +25,6 @@ import (
 )
 
 func (s *DockerSuite) TestBuildJSONEmptyRun(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	name := "testbuildjsonemptyrun"
 
 	_, err := buildImage(
@@ -45,7 +42,6 @@ func (s *DockerSuite) TestBuildJSONEmptyRun(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildEmptyWhitespace(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	name := "testbuildemptywhitespace"
 
 	_, err := buildImage(
@@ -65,31 +61,36 @@ func (s *DockerSuite) TestBuildEmptyWhitespace(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildShCmdJSONEntrypoint(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	name := "testbuildshcmdjsonentrypoint"
 
 	_, err := buildImage(
 		name,
 		`
     FROM busybox
-    ENTRYPOINT ["/bin/echo"]
+    ENTRYPOINT ["echo"]
     CMD echo test
     `,
 		true)
-
 	if err != nil {
 		c.Fatal(err)
 	}
 
 	out, _ := dockerCmd(c, "run", "--rm", name)
 
-	if strings.TrimSpace(out) != "/bin/sh -c echo test" {
-		c.Fatalf("CMD did not contain /bin/sh -c : %s", out)
+	if daemonPlatform == "windows" {
+		if !strings.Contains(out, "cmd /S /C echo test") {
+			c.Fatalf("CMD did not contain cmd /S /C echo test : %q", out)
+		}
+	} else {
+		if strings.TrimSpace(out) != "/bin/sh -c echo test" {
+			c.Fatalf("CMD did not contain /bin/sh -c : %q", out)
+		}
 	}
 
 }
 
 func (s *DockerSuite) TestBuildEnvironmentReplacementUser(c *check.C) {
+	// Windows does not support FROM scratch or the USER command
 	testRequires(c, DaemonIsLinux)
 	name := "testbuildenvironmentreplacement"
 
@@ -102,10 +103,7 @@ func (s *DockerSuite) TestBuildEnvironmentReplacementUser(c *check.C) {
 		c.Fatal(err)
 	}
 
-	res, err := inspectFieldJSON(name, "Config.User")
-	if err != nil {
-		c.Fatal(err)
-	}
+	res := inspectFieldJSON(c, name, "Config.User")
 
 	if res != `"foo"` {
 		c.Fatal("User foo from environment not in Config.User on image")
@@ -114,22 +112,28 @@ func (s *DockerSuite) TestBuildEnvironmentReplacementUser(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildEnvironmentReplacementVolume(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	name := "testbuildenvironmentreplacement"
 
+	var baseImage, volumePath string
+
+	if daemonPlatform == "windows" {
+		baseImage = "windowsservercore"
+		volumePath = "c:/quux"
+	} else {
+		baseImage = "scratch"
+		volumePath = "/quux"
+	}
+
 	_, err := buildImage(name, `
-  FROM scratch
-  ENV volume /quux
+  FROM `+baseImage+`
+  ENV volume `+volumePath+`
   VOLUME ${volume}
   `, true)
 	if err != nil {
 		c.Fatal(err)
 	}
 
-	res, err := inspectFieldJSON(name, "Config.Volumes")
-	if err != nil {
-		c.Fatal(err)
-	}
+	res := inspectFieldJSON(c, name, "Config.Volumes")
 
 	var volumes map[string]interface{}
 
@@ -137,13 +141,14 @@ func (s *DockerSuite) TestBuildEnvironmentReplacementVolume(c *check.C) {
 		c.Fatal(err)
 	}
 
-	if _, ok := volumes["/quux"]; !ok {
-		c.Fatal("Volume /quux from environment not in Config.Volumes on image")
+	if _, ok := volumes[volumePath]; !ok {
+		c.Fatal("Volume " + volumePath + " from environment not in Config.Volumes on image")
 	}
 
 }
 
 func (s *DockerSuite) TestBuildEnvironmentReplacementExpose(c *check.C) {
+	// Windows does not support FROM scratch or the EXPOSE command
 	testRequires(c, DaemonIsLinux)
 	name := "testbuildenvironmentreplacement"
 
@@ -158,10 +163,7 @@ func (s *DockerSuite) TestBuildEnvironmentReplacementExpose(c *check.C) {
 		c.Fatal(err)
 	}
 
-	res, err := inspectFieldJSON(name, "Config.ExposedPorts")
-	if err != nil {
-		c.Fatal(err)
-	}
+	res := inspectFieldJSON(c, name, "Config.ExposedPorts")
 
 	var exposedPorts map[string]interface{}
 
@@ -181,7 +183,6 @@ func (s *DockerSuite) TestBuildEnvironmentReplacementExpose(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildEnvironmentReplacementWorkdir(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	name := "testbuildenvironmentreplacement"
 
 	_, err := buildImage(name, `
@@ -198,11 +199,18 @@ func (s *DockerSuite) TestBuildEnvironmentReplacementWorkdir(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildEnvironmentReplacementAddCopy(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	name := "testbuildenvironmentreplacement"
 
+	var baseImage string
+
+	if daemonPlatform == "windows" {
+		baseImage = "windowsservercore"
+	} else {
+		baseImage = "scratch"
+	}
+
 	ctx, err := fakeContext(`
-  FROM scratch
+  FROM `+baseImage+`
   ENV baz foo
   ENV quux bar
   ENV dot .
@@ -233,6 +241,7 @@ func (s *DockerSuite) TestBuildEnvironmentReplacementAddCopy(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildEnvironmentReplacementEnv(c *check.C) {
+	// ENV expansions work differently in Windows
 	testRequires(c, DaemonIsLinux)
 	name := "testbuildenvironmentreplacement"
 
@@ -256,10 +265,7 @@ func (s *DockerSuite) TestBuildEnvironmentReplacementEnv(c *check.C) {
 		c.Fatal(err)
 	}
 
-	res, err := inspectFieldJSON(name, "Config.Env")
-	if err != nil {
-		c.Fatal(err)
-	}
+	res := inspectFieldJSON(c, name, "Config.Env")
 
 	envResult := []string{}
 
@@ -301,6 +307,7 @@ func (s *DockerSuite) TestBuildEnvironmentReplacementEnv(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildHandleEscapes(c *check.C) {
+	// The volume paths used in this test are invalid on Windows
 	testRequires(c, DaemonIsLinux)
 	name := "testbuildhandleescapes"
 
@@ -317,10 +324,7 @@ func (s *DockerSuite) TestBuildHandleEscapes(c *check.C) {
 
 	var result map[string]map[string]struct{}
 
-	res, err := inspectFieldJSON(name, "Config.Volumes")
-	if err != nil {
-		c.Fatal(err)
-	}
+	res := inspectFieldJSON(c, name, "Config.Volumes")
 
 	if err = unmarshalJSON([]byte(res), &result); err != nil {
 		c.Fatal(err)
@@ -343,10 +347,7 @@ func (s *DockerSuite) TestBuildHandleEscapes(c *check.C) {
 		c.Fatal(err)
 	}
 
-	res, err = inspectFieldJSON(name, "Config.Volumes")
-	if err != nil {
-		c.Fatal(err)
-	}
+	res = inspectFieldJSON(c, name, "Config.Volumes")
 
 	if err = unmarshalJSON([]byte(res), &result); err != nil {
 		c.Fatal(err)
@@ -373,10 +374,7 @@ func (s *DockerSuite) TestBuildHandleEscapes(c *check.C) {
 		c.Fatal(err)
 	}
 
-	res, err = inspectFieldJSON(name, "Config.Volumes")
-	if err != nil {
-		c.Fatal(err)
-	}
+	res = inspectFieldJSON(c, name, "Config.Volumes")
 
 	if err = unmarshalJSON([]byte(res), &result); err != nil {
 		c.Fatal(err)
@@ -389,7 +387,6 @@ func (s *DockerSuite) TestBuildHandleEscapes(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildOnBuildLowercase(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	name := "testbuildonbuildlowercase"
 	name2 := "testbuildonbuildlowercase2"
 
@@ -422,6 +419,7 @@ func (s *DockerSuite) TestBuildOnBuildLowercase(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildEnvEscapes(c *check.C) {
+	// ENV expansions work differently in Windows
 	testRequires(c, DaemonIsLinux)
 	name := "testbuildenvescapes"
 	_, err := buildImage(name,
@@ -445,6 +443,7 @@ func (s *DockerSuite) TestBuildEnvEscapes(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildEnvOverwrite(c *check.C) {
+	// ENV expansions work differently in Windows
 	testRequires(c, DaemonIsLinux)
 	name := "testbuildenvoverwrite"
 
@@ -469,7 +468,6 @@ func (s *DockerSuite) TestBuildEnvOverwrite(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildOnBuildForbiddenMaintainerInSourceImage(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	name := "testbuildonbuildforbiddenmaintainerinsourceimage"
 
 	out, _ := dockerCmd(c, "create", "busybox", "true")
@@ -492,7 +490,6 @@ func (s *DockerSuite) TestBuildOnBuildForbiddenMaintainerInSourceImage(c *check.
 }
 
 func (s *DockerSuite) TestBuildOnBuildForbiddenFromInSourceImage(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	name := "testbuildonbuildforbiddenfrominsourceimage"
 
 	out, _ := dockerCmd(c, "create", "busybox", "true")
@@ -515,7 +512,6 @@ func (s *DockerSuite) TestBuildOnBuildForbiddenFromInSourceImage(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildOnBuildForbiddenChainedInSourceImage(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	name := "testbuildonbuildforbiddenchainedinsourceimage"
 
 	out, _ := dockerCmd(c, "create", "busybox", "true")
@@ -1864,115 +1860,6 @@ func (s *DockerSuite) TestBuildForceRm(c *check.C) {
 
 }
 
-// Test that an infinite sleep during a build is killed if the client disconnects.
-// This test is fairly hairy because there are lots of ways to race.
-// Strategy:
-// * Monitor the output of docker events starting from before
-// * Run a 1-year-long sleep from a docker build.
-// * When docker events sees container start, close the "docker build" command
-// * Wait for docker events to emit a dying event.
-func (s *DockerSuite) TestBuildCancellationKillsSleep(c *check.C) {
-	testRequires(c, DaemonIsLinux)
-	name := "testbuildcancellation"
-
-	// (Note: one year, will never finish)
-	ctx, err := fakeContext("FROM busybox\nRUN sleep 31536000", nil)
-	if err != nil {
-		c.Fatal(err)
-	}
-	defer ctx.Close()
-
-	finish := make(chan struct{})
-	defer close(finish)
-
-	eventStart := make(chan struct{})
-	eventDie := make(chan struct{})
-	containerID := make(chan string)
-
-	startEpoch := daemonTime(c).Unix()
-	// Watch for events since epoch.
-	eventsCmd := exec.Command(
-		dockerBinary, "events",
-		"--since", strconv.FormatInt(startEpoch, 10))
-	stdout, err := eventsCmd.StdoutPipe()
-	if err != nil {
-		c.Fatal(err)
-	}
-	if err := eventsCmd.Start(); err != nil {
-		c.Fatal(err)
-	}
-	defer eventsCmd.Process.Kill()
-
-	// Goroutine responsible for watching start/die events from `docker events`
-	go func() {
-		cid := <-containerID
-
-		matchStart := regexp.MustCompile(cid + `(.*) start$`)
-		matchDie := regexp.MustCompile(cid + `(.*) die$`)
-
-		//
-		// Read lines of `docker events` looking for container start and stop.
-		//
-		scanner := bufio.NewScanner(stdout)
-		for scanner.Scan() {
-			switch {
-			case matchStart.MatchString(scanner.Text()):
-				close(eventStart)
-			case matchDie.MatchString(scanner.Text()):
-				close(eventDie)
-			}
-		}
-	}()
-
-	buildCmd := exec.Command(dockerBinary, "build", "-t", name, ".")
-	buildCmd.Dir = ctx.Dir
-
-	stdoutBuild, err := buildCmd.StdoutPipe()
-	if err := buildCmd.Start(); err != nil {
-		c.Fatalf("failed to run build: %s", err)
-	}
-
-	matchCID := regexp.MustCompile("Running in ")
-	scanner := bufio.NewScanner(stdoutBuild)
-	for scanner.Scan() {
-		line := scanner.Text()
-		if ok := matchCID.MatchString(line); ok {
-			containerID <- line[len(line)-12:]
-			break
-		}
-	}
-
-	select {
-	case <-time.After(5 * time.Second):
-		c.Fatal("failed to observe build container start in timely fashion")
-	case <-eventStart:
-		// Proceeds from here when we see the container fly past in the
-		// output of "docker events".
-		// Now we know the container is running.
-	}
-
-	// Send a kill to the `docker build` command.
-	// Causes the underlying build to be cancelled due to socket close.
-	if err := buildCmd.Process.Kill(); err != nil {
-		c.Fatalf("error killing build command: %s", err)
-	}
-
-	// Get the exit status of `docker build`, check it exited because killed.
-	if err := buildCmd.Wait(); err != nil && !isKilled(err) {
-		c.Fatalf("wait failed during build run: %T %s", err, err)
-	}
-
-	select {
-	case <-time.After(5 * time.Second):
-		// If we don't get here in a timely fashion, it wasn't killed.
-		c.Fatal("container cancel did not succeed")
-	case <-eventDie:
-		// We saw the container shut down in the `docker events` stream,
-		// as expected.
-	}
-
-}
-
 func (s *DockerSuite) TestBuildRm(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	name := "testbuildrm"
@@ -2082,10 +1969,7 @@ func (s *DockerSuite) TestBuildWithVolumes(c *check.C) {
 	if err != nil {
 		c.Fatal(err)
 	}
-	res, err := inspectFieldJSON(name, "Config.Volumes")
-	if err != nil {
-		c.Fatal(err)
-	}
+	res := inspectFieldJSON(c, name, "Config.Volumes")
 
 	err = unmarshalJSON([]byte(res), &result)
 	if err != nil {
@@ -2111,10 +1995,7 @@ func (s *DockerSuite) TestBuildMaintainer(c *check.C) {
 	if err != nil {
 		c.Fatal(err)
 	}
-	res, err := inspectField(name, "Author")
-	if err != nil {
-		c.Fatal(err)
-	}
+	res := inspectField(c, name, "Author")
 	if res != expected {
 		c.Fatalf("Maintainer %s, expected %s", res, expected)
 	}
@@ -2133,10 +2014,7 @@ func (s *DockerSuite) TestBuildUser(c *check.C) {
 	if err != nil {
 		c.Fatal(err)
 	}
-	res, err := inspectField(name, "Config.User")
-	if err != nil {
-		c.Fatal(err)
-	}
+	res := inspectField(c, name, "Config.User")
 	if res != expected {
 		c.Fatalf("User %s, expected %s", res, expected)
 	}
@@ -2159,10 +2037,7 @@ func (s *DockerSuite) TestBuildRelativeWorkdir(c *check.C) {
 	if err != nil {
 		c.Fatal(err)
 	}
-	res, err := inspectField(name, "Config.WorkingDir")
-	if err != nil {
-		c.Fatal(err)
-	}
+	res := inspectField(c, name, "Config.WorkingDir")
 	if res != expected {
 		c.Fatalf("Workdir %s, expected %s", res, expected)
 	}
@@ -2182,10 +2057,7 @@ func (s *DockerSuite) TestBuildWorkdirWithEnvVariables(c *check.C) {
 	if err != nil {
 		c.Fatal(err)
 	}
-	res, err := inspectField(name, "Config.WorkingDir")
-	if err != nil {
-		c.Fatal(err)
-	}
+	res := inspectField(c, name, "Config.WorkingDir")
 	if res != expected {
 		c.Fatalf("Workdir %s, expected %s", res, expected)
 	}
@@ -2245,12 +2117,41 @@ func (s *DockerSuite) TestBuildEnv(c *check.C) {
 	if err != nil {
 		c.Fatal(err)
 	}
-	res, err := inspectField(name, "Config.Env")
-	if err != nil {
-		c.Fatal(err)
-	}
+	res := inspectField(c, name, "Config.Env")
 	if res != expected {
 		c.Fatalf("Env %s, expected %s", res, expected)
+	}
+}
+
+func (s *DockerSuite) TestBuildPATH(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	defPath := "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+
+	fn := func(dockerfile string, exp string) {
+		_, err := buildImage("testbldpath", dockerfile, true)
+		c.Assert(err, check.IsNil)
+
+		res := inspectField(c, "testbldpath", "Config.Env")
+
+		if res != exp {
+			c.Fatalf("Env %q, expected %q for dockerfile:%q", res, exp, dockerfile)
+		}
+	}
+
+	tests := []struct{ dockerfile, exp string }{
+		{"FROM scratch\nMAINTAINER me", "[PATH=" + defPath + "]"},
+		{"FROM busybox\nMAINTAINER me", "[PATH=" + defPath + "]"},
+		{"FROM scratch\nENV FOO=bar", "[PATH=" + defPath + " FOO=bar]"},
+		{"FROM busybox\nENV FOO=bar", "[PATH=" + defPath + " FOO=bar]"},
+		{"FROM scratch\nENV PATH=/test", "[PATH=/test]"},
+		{"FROM busybox\nENV PATH=/test", "[PATH=/test]"},
+		{"FROM scratch\nENV PATH=''", "[PATH=]"},
+		{"FROM busybox\nENV PATH=''", "[PATH=]"},
+	}
+
+	for _, test := range tests {
+		fn(test.dockerfile, test.exp)
 	}
 }
 
@@ -2317,10 +2218,7 @@ func (s *DockerSuite) TestBuildCmd(c *check.C) {
 	if err != nil {
 		c.Fatal(err)
 	}
-	res, err := inspectField(name, "Config.Cmd")
-	if err != nil {
-		c.Fatal(err)
-	}
+	res := inspectField(c, name, "Config.Cmd")
 	if res != expected {
 		c.Fatalf("Cmd %s, expected %s", res, expected)
 	}
@@ -2337,10 +2235,7 @@ func (s *DockerSuite) TestBuildExpose(c *check.C) {
 	if err != nil {
 		c.Fatal(err)
 	}
-	res, err := inspectField(name, "Config.ExposedPorts")
-	if err != nil {
-		c.Fatal(err)
-	}
+	res := inspectField(c, name, "Config.ExposedPorts")
 	if res != expected {
 		c.Fatalf("Exposed ports %s, expected %s", res, expected)
 	}
@@ -2379,10 +2274,7 @@ func (s *DockerSuite) TestBuildExposeMorePorts(c *check.C) {
 	}
 
 	// check if all the ports are saved inside Config.ExposedPorts
-	res, err := inspectFieldJSON(name, "Config.ExposedPorts")
-	if err != nil {
-		c.Fatal(err)
-	}
+	res := inspectFieldJSON(c, name, "Config.ExposedPorts")
 	var exposedPorts map[string]interface{}
 	if err := json.Unmarshal([]byte(res), &exposedPorts); err != nil {
 		c.Fatal(err)
@@ -2409,10 +2301,7 @@ func (s *DockerSuite) TestBuildExposeOrder(c *check.C) {
 		if err != nil {
 			c.Fatal(err)
 		}
-		id, err := inspectField(name, "Id")
-		if err != nil {
-			c.Fatal(err)
-		}
+		id := inspectField(c, name, "Id")
 		return id
 	}
 
@@ -2434,10 +2323,7 @@ func (s *DockerSuite) TestBuildExposeUpperCaseProto(c *check.C) {
 	if err != nil {
 		c.Fatal(err)
 	}
-	res, err := inspectField(name, "Config.ExposedPorts")
-	if err != nil {
-		c.Fatal(err)
-	}
+	res := inspectField(c, name, "Config.ExposedPorts")
 	if res != expected {
 		c.Fatalf("Exposed ports %s, expected %s", res, expected)
 	}
@@ -2455,10 +2341,7 @@ func (s *DockerSuite) TestBuildEmptyEntrypointInheritance(c *check.C) {
 	if err != nil {
 		c.Fatal(err)
 	}
-	res, err := inspectField(name, "Config.Entrypoint")
-	if err != nil {
-		c.Fatal(err)
-	}
+	res := inspectField(c, name, "Config.Entrypoint")
 
 	expected := "{[/bin/echo]}"
 	if res != expected {
@@ -2472,10 +2355,7 @@ func (s *DockerSuite) TestBuildEmptyEntrypointInheritance(c *check.C) {
 	if err != nil {
 		c.Fatal(err)
 	}
-	res, err = inspectField(name2, "Config.Entrypoint")
-	if err != nil {
-		c.Fatal(err)
-	}
+	res = inspectField(c, name2, "Config.Entrypoint")
 
 	expected = "{[]}"
 
@@ -2497,10 +2377,7 @@ func (s *DockerSuite) TestBuildEmptyEntrypoint(c *check.C) {
 	if err != nil {
 		c.Fatal(err)
 	}
-	res, err := inspectField(name, "Config.Entrypoint")
-	if err != nil {
-		c.Fatal(err)
-	}
+	res := inspectField(c, name, "Config.Entrypoint")
 	if res != expected {
 		c.Fatalf("Entrypoint %s, expected %s", res, expected)
 	}
@@ -2518,10 +2395,7 @@ func (s *DockerSuite) TestBuildEntrypoint(c *check.C) {
 	if err != nil {
 		c.Fatal(err)
 	}
-	res, err := inspectField(name, "Config.Entrypoint")
-	if err != nil {
-		c.Fatal(err)
-	}
+	res := inspectField(c, name, "Config.Entrypoint")
 	if res != expected {
 		c.Fatalf("Entrypoint %s, expected %s", res, expected)
 	}
@@ -3201,10 +3075,7 @@ func (s *DockerSuite) TestBuildEntrypointRunCleanup(c *check.C) {
 	if _, err := buildImageFromContext(name, ctx, true); err != nil {
 		c.Fatal(err)
 	}
-	res, err := inspectField(name, "Config.Cmd")
-	if err != nil {
-		c.Fatal(err)
-	}
+	res := inspectField(c, name, "Config.Cmd")
 	// Cmd must be cleaned up
 	if res != "<nil>" {
 		c.Fatalf("Cmd %s, expected nil", res)
@@ -3263,10 +3134,7 @@ func (s *DockerSuite) TestBuildInheritance(c *check.C) {
 	if err != nil {
 		c.Fatal(err)
 	}
-	ports1, err := inspectField(name, "Config.ExposedPorts")
-	if err != nil {
-		c.Fatal(err)
-	}
+	ports1 := inspectField(c, name, "Config.ExposedPorts")
 
 	_, err = buildImage(name,
 		fmt.Sprintf(`FROM %s
@@ -3276,17 +3144,11 @@ func (s *DockerSuite) TestBuildInheritance(c *check.C) {
 		c.Fatal(err)
 	}
 
-	res, err := inspectField(name, "Config.Entrypoint")
-	if err != nil {
-		c.Fatal(err)
-	}
+	res := inspectField(c, name, "Config.Entrypoint")
 	if expected := "{[/bin/echo]}"; res != expected {
 		c.Fatalf("Entrypoint %s, expected %s", res, expected)
 	}
-	ports2, err := inspectField(name, "Config.ExposedPorts")
-	if err != nil {
-		c.Fatal(err)
-	}
+	ports2 := inspectField(c, name, "Config.ExposedPorts")
 	if ports1 != ports2 {
 		c.Fatalf("Ports must be same: %s != %s", ports1, ports2)
 	}
@@ -3423,11 +3285,7 @@ docker.com>"
 		c.Fatal(err)
 	}
 
-	res, err := inspectField(name, "Author")
-
-	if err != nil {
-		c.Fatal(err)
-	}
+	res := inspectField(c, name, "Author")
 
 	if res != "\"Docker IO <io@docker.com>\"" {
 		c.Fatalf("Parsed string did not match the escaped string. Got: %q", res)
@@ -4037,24 +3895,14 @@ func (s *DockerSuite) TestBuildEnvUsage2(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	name := "testbuildenvusage2"
 	dockerfile := `FROM busybox
-ENV    abc=def
-RUN    [ "$abc" = "def" ]
-ENV    def="hello world"
-RUN    [ "$def" = "hello world" ]
-ENV    def=hello\ world
-RUN    [ "$def" = "hello world" ]
-ENV    v1=abc v2="hi there"
-RUN    [ "$v1" = "abc" ]
-RUN    [ "$v2" = "hi there" ]
-ENV    v3='boogie nights' v4="with'quotes too"
-RUN    [ "$v3" = "boogie nights" ]
-RUN    [ "$v4" = "with'quotes too" ]
+ENV    abc=def def="hello world"
+RUN    [ "$abc,$def" = "def,hello world" ]
+ENV    def=hello\ world v1=abc v2="hi there" v3='boogie nights' v4="with'quotes too"
+RUN    [ "$def,$v1,$v2,$v3,$v4" = "hello world,abc,hi there,boogie nights,with'quotes too" ]
 ENV    abc=zzz FROM=hello/docker/world
 ENV    abc=zzz TO=/docker/world/hello
 ADD    $FROM $TO
-RUN    [ "$(cat $TO)" = "hello" ]
-ENV    abc "zzz"
-RUN    [ $abc = "zzz" ]
+RUN    [ "$abc,$(cat $TO)" = "zzz,hello" ]
 ENV    abc 'yyy'
 RUN    [ $abc = 'yyy' ]
 ENV    abc=
@@ -4067,10 +3915,8 @@ RUN    [ "$abc" = "\$foo" ] && (echo "$abc" | grep foo)
 ENV    abc \$foo
 RUN    [ "$abc" = "\$foo" ] && (echo "$abc" | grep foo)
 
-ENV    abc=\'foo\'
-RUN    [ "$abc" = "'foo'" ]
-ENV    abc=\"foo\"
-RUN    [ "$abc" = "\"foo\"" ]
+ENV    abc=\'foo\' abc2=\"foo\"
+RUN    [ "$abc,$abc2" = "'foo',\"foo\"" ]
 ENV    abc "foo"
 RUN    [ "$abc" = "foo" ]
 ENV    abc 'foo'
@@ -4082,30 +3928,15 @@ RUN    [ "$abc" = '"foo"' ]
 
 ENV    abc=ABC
 RUN    [ "$abc" = "ABC" ]
-ENV    def=${abc:-DEF}
-RUN    [ "$def" = "ABC" ]
-ENV    def=${ccc:-DEF}
-RUN    [ "$def" = "DEF" ]
-ENV    def=${ccc:-${def}xx}
-RUN    [ "$def" = "DEFxx" ]
-ENV    def=${def:+ALT}
-RUN    [ "$def" = "ALT" ]
-ENV    def=${def:+${abc}:}
-RUN    [ "$def" = "ABC:" ]
-ENV    def=${ccc:-\$abc:}
-RUN    [ "$def" = '$abc:' ]
-ENV    def=${ccc:-\${abc}:}
-RUN    [ "$def" = '${abc:}' ]
+ENV    def1=${abc:-DEF} def2=${ccc:-DEF}
+ENV    def3=${ccc:-${def2}xx} def4=${abc:+ALT} def5=${def2:+${abc}:} def6=${ccc:-\$abc:} def7=${ccc:-\${abc}:}
+RUN    [ "$def1,$def2,$def3,$def4,$def5,$def6,$def7" = 'ABC,DEF,DEFxx,ALT,ABC:,$abc:,${abc:}' ]
 ENV    mypath=${mypath:+$mypath:}/home
-RUN    [ "$mypath" = '/home' ]
 ENV    mypath=${mypath:+$mypath:}/away
 RUN    [ "$mypath" = '/home:/away' ]
 
 ENV    e1=bar
-ENV    e2=$e1
-ENV    e3=$e11
-ENV    e4=\$e1
-ENV    e5=\$e11
+ENV    e2=$e1 e3=$e11 e4=\$e1 e5=\$e11
 RUN    [ "$e0,$e1,$e2,$e3,$e4,$e5" = ',bar,bar,,$e1,$e11' ]
 
 ENV    ee1 bar
@@ -4115,8 +3946,7 @@ ENV    ee4 \$ee1
 ENV    ee5 \$ee11
 RUN    [ "$ee1,$ee2,$ee3,$ee4,$ee5" = 'bar,bar,,$ee1,$ee11' ]
 
-ENV    eee1="foo"
-ENV    eee2='foo'
+ENV    eee1="foo" eee2='foo'
 ENV    eee3 "foo"
 ENV    eee4 'foo'
 RUN    [ "$eee1,$eee2,$eee3,$eee4" = 'foo,foo,foo,foo' ]
@@ -4215,6 +4045,79 @@ RUN cat /existing-directory-trailing-slash/test/foo | grep Hi`
 		c.Fatalf("build failed to complete for TestBuildAddTar: %v", err)
 	}
 
+}
+
+func (s *DockerSuite) TestBuildAddBrokenTar(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	name := "testbuildaddbrokentar"
+
+	ctx := func() *FakeContext {
+		dockerfile := `
+FROM busybox
+ADD test.tar /`
+		tmpDir, err := ioutil.TempDir("", "fake-context")
+		c.Assert(err, check.IsNil)
+		testTar, err := os.Create(filepath.Join(tmpDir, "test.tar"))
+		if err != nil {
+			c.Fatalf("failed to create test.tar archive: %v", err)
+		}
+		defer testTar.Close()
+
+		tw := tar.NewWriter(testTar)
+
+		if err := tw.WriteHeader(&tar.Header{
+			Name: "test/foo",
+			Size: 2,
+		}); err != nil {
+			c.Fatalf("failed to write tar file header: %v", err)
+		}
+		if _, err := tw.Write([]byte("Hi")); err != nil {
+			c.Fatalf("failed to write tar file content: %v", err)
+		}
+		if err := tw.Close(); err != nil {
+			c.Fatalf("failed to close tar archive: %v", err)
+		}
+
+		// Corrupt the tar by removing one byte off the end
+		stat, err := testTar.Stat()
+		if err != nil {
+			c.Fatalf("failed to stat tar archive: %v", err)
+		}
+		if err := testTar.Truncate(stat.Size() - 1); err != nil {
+			c.Fatalf("failed to truncate tar archive: %v", err)
+		}
+
+		if err := ioutil.WriteFile(filepath.Join(tmpDir, "Dockerfile"), []byte(dockerfile), 0644); err != nil {
+			c.Fatalf("failed to open destination dockerfile: %v", err)
+		}
+		return fakeContextFromDir(tmpDir)
+	}()
+	defer ctx.Close()
+
+	if _, err := buildImageFromContext(name, ctx, true); err == nil {
+		c.Fatalf("build should have failed for TestBuildAddBrokenTar")
+	}
+}
+
+func (s *DockerSuite) TestBuildAddNonTar(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	name := "testbuildaddnontar"
+
+	// Should not try to extract test.tar
+	ctx, err := fakeContext(`
+		FROM busybox
+		ADD test.tar /
+		RUN test -f /test.tar`,
+		map[string]string{"test.tar": "not_a_tar_file"})
+
+	if err != nil {
+		c.Fatal(err)
+	}
+	defer ctx.Close()
+
+	if _, err := buildImageFromContext(name, ctx, true); err != nil {
+		c.Fatalf("build failed for TestBuildAddNonTar")
+	}
 }
 
 func (s *DockerSuite) TestBuildAddTarXz(c *check.C) {
@@ -4351,10 +4254,7 @@ func (s *DockerSuite) TestBuildFromGIT(c *check.C) {
 	if err != nil {
 		c.Fatal(err)
 	}
-	res, err := inspectField(name, "Author")
-	if err != nil {
-		c.Fatal(err)
-	}
+	res := inspectField(c, name, "Author")
 	if res != "docker" {
 		c.Fatalf("Maintainer should be docker, got %s", res)
 	}
@@ -4380,10 +4280,7 @@ func (s *DockerSuite) TestBuildFromGITWithContext(c *check.C) {
 	if err != nil {
 		c.Fatal(err)
 	}
-	res, err := inspectField(name, "Author")
-	if err != nil {
-		c.Fatal(err)
-	}
+	res := inspectField(c, name, "Author")
 	if res != "docker" {
 		c.Fatalf("Maintainer should be docker, got %s", res)
 	}
@@ -4444,8 +4341,7 @@ func (s *DockerSuite) TestBuildFromRemoteTarball(c *check.C) {
 	_, err = buildImageFromPath(name, server.URL()+"/testT.tar", true)
 	c.Assert(err, check.IsNil)
 
-	res, err := inspectField(name, "Author")
-	c.Assert(err, check.IsNil)
+	res := inspectField(c, name, "Author")
 
 	if res != "docker" {
 		c.Fatalf("Maintainer should be docker, got %s", res)
@@ -4468,18 +4364,12 @@ func (s *DockerSuite) TestBuildCleanupCmdOnEntrypoint(c *check.C) {
 		true); err != nil {
 		c.Fatal(err)
 	}
-	res, err := inspectField(name, "Config.Cmd")
-	if err != nil {
-		c.Fatal(err)
-	}
+	res := inspectField(c, name, "Config.Cmd")
 	if res != "<nil>" {
 		c.Fatalf("Cmd %s, expected nil", res)
 	}
 
-	res, err = inspectField(name, "Config.Entrypoint")
-	if err != nil {
-		c.Fatal(err)
-	}
+	res = inspectField(c, name, "Config.Entrypoint")
 	if expected := "{[cat]}"; res != expected {
 		c.Fatalf("Entrypoint %s, expected %s", res, expected)
 	}
@@ -4496,10 +4386,7 @@ func (s *DockerSuite) TestBuildClearCmd(c *check.C) {
 	if err != nil {
 		c.Fatal(err)
 	}
-	res, err := inspectFieldJSON(name, "Config.Cmd")
-	if err != nil {
-		c.Fatal(err)
-	}
+	res := inspectFieldJSON(c, name, "Config.Cmd")
 	if res != "[]" {
 		c.Fatalf("Cmd %s, expected %s", res, "[]")
 	}
@@ -4511,10 +4398,7 @@ func (s *DockerSuite) TestBuildEmptyCmd(c *check.C) {
 	if _, err := buildImage(name, "FROM scratch\nMAINTAINER quux\n", true); err != nil {
 		c.Fatal(err)
 	}
-	res, err := inspectFieldJSON(name, "Config.Cmd")
-	if err != nil {
-		c.Fatal(err)
-	}
+	res := inspectFieldJSON(c, name, "Config.Cmd")
 	if res != "null" {
 		c.Fatalf("Cmd %s, expected %s", res, "null")
 	}
@@ -4541,9 +4425,9 @@ func (s *DockerSuite) TestBuildInvalidTag(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	name := "abcd:" + stringutils.GenerateRandomAlphaOnlyString(200)
 	_, out, err := buildImageWithOut(name, "FROM scratch\nMAINTAINER quux\n", true)
-	// if the error doesnt check for illegal tag name, or the image is built
+	// if the error doesn't check for illegal tag name, or the image is built
 	// then this should fail
-	if !strings.Contains(out, "invalid reference format") || strings.Contains(out, "Sending build context to Docker daemon") {
+	if !strings.Contains(out, "Error parsing reference") || strings.Contains(out, "Sending build context to Docker daemon") {
 		c.Fatalf("failed to stop before building. Error: %s, Output: %s", err, out)
 	}
 }
@@ -4555,10 +4439,7 @@ func (s *DockerSuite) TestBuildCmdShDashC(c *check.C) {
 		c.Fatal(err)
 	}
 
-	res, err := inspectFieldJSON(name, "Config.Cmd")
-	if err != nil {
-		c.Fatal(err, res)
-	}
+	res := inspectFieldJSON(c, name, "Config.Cmd")
 
 	expected := `["/bin/sh","-c","echo cmd"]`
 
@@ -4612,10 +4493,7 @@ func (s *DockerSuite) TestBuildCmdJSONNoShDashC(c *check.C) {
 		c.Fatal(err)
 	}
 
-	res, err := inspectFieldJSON(name, "Config.Cmd")
-	if err != nil {
-		c.Fatal(err, res)
-	}
+	res := inspectFieldJSON(c, name, "Config.Cmd")
 
 	expected := `["echo","cmd"]`
 
@@ -4679,10 +4557,7 @@ func (s *DockerSuite) TestBuildEntrypointInheritanceInspect(c *check.C) {
 		c.Fatal(err)
 	}
 
-	res, err := inspectFieldJSON(name2, "Config.Entrypoint")
-	if err != nil {
-		c.Fatal(err, res)
-	}
+	res := inspectFieldJSON(c, name2, "Config.Entrypoint")
 
 	if res != expected {
 		c.Fatalf("Expected value %s not in Config.Entrypoint: %s", expected, res)
@@ -4746,7 +4621,7 @@ func (s *DockerSuite) TestBuildVerifySingleQuoteFails(c *check.C) {
 	// This testcase is supposed to generate an error because the
 	// JSON array we're passing in on the CMD uses single quotes instead
 	// of double quotes (per the JSON spec). This means we interpret it
-	// as a "string" insead of "JSON array" and pass it on to "sh -c" and
+	// as a "string" instead of "JSON array" and pass it on to "sh -c" and
 	// it should barf on it.
 	name := "testbuildsinglequotefails"
 
@@ -4789,10 +4664,7 @@ func (s *DockerSuite) TestBuildWithTabs(c *check.C) {
 	if err != nil {
 		c.Fatal(err)
 	}
-	res, err := inspectFieldJSON(name, "ContainerConfig.Cmd")
-	if err != nil {
-		c.Fatal(err)
-	}
+	res := inspectFieldJSON(c, name, "ContainerConfig.Cmd")
 	expected1 := `["/bin/sh","-c","echo\tone\t\ttwo"]`
 	expected2 := `["/bin/sh","-c","echo\u0009one\u0009\u0009two"]` // syntactically equivalent, and what Go 1.3 generates
 	if res != expected1 && res != expected2 {
@@ -4812,10 +4684,7 @@ func (s *DockerSuite) TestBuildLabels(c *check.C) {
 	if err != nil {
 		c.Fatal(err)
 	}
-	res, err := inspectFieldJSON(name, "Config.Labels")
-	if err != nil {
-		c.Fatal(err)
-	}
+	res := inspectFieldJSON(c, name, "Config.Labels")
 	if res != expected {
 		c.Fatalf("Labels %s, expected %s", res, expected)
 	}
@@ -4868,6 +4737,128 @@ func (s *DockerSuite) TestBuildLabelsCache(c *check.C) {
 		c.Fatalf("Build 6 should have worked & NOT used the cache(%s,%s): %q", id1, id2, err)
 	}
 
+}
+
+func (s *DockerSuite) TestBuildNotVerboseSuccess(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	// This test makes sure that -q works correctly when build is successful:
+	// stdout has only the image ID (long image ID) and stderr is empty.
+	var stdout, stderr string
+	var err error
+	outRegexp := regexp.MustCompile("^(sha256:|)[a-z0-9]{64}\\n$")
+
+	tt := []struct {
+		Name      string
+		BuildFunc func(string)
+	}{
+		{
+			Name: "quiet_build_stdin_success",
+			BuildFunc: func(name string) {
+				_, stdout, stderr, err = buildImageWithStdoutStderr(name, "FROM busybox", true, "-q", "--force-rm", "--rm")
+			},
+		},
+		{
+			Name: "quiet_build_ctx_success",
+			BuildFunc: func(name string) {
+				ctx, err := fakeContext("FROM busybox", map[string]string{
+					"quiet_build_success_fctx": "test",
+				})
+				if err != nil {
+					c.Fatalf("Failed to create context: %s", err.Error())
+				}
+				defer ctx.Close()
+				_, stdout, stderr, err = buildImageFromContextWithStdoutStderr(name, ctx, true, "-q", "--force-rm", "--rm")
+			},
+		},
+		{
+			Name: "quiet_build_git_success",
+			BuildFunc: func(name string) {
+				git, err := newFakeGit("repo", map[string]string{
+					"Dockerfile": "FROM busybox",
+				}, true)
+				if err != nil {
+					c.Fatalf("Failed to create the git repo: %s", err.Error())
+				}
+				defer git.Close()
+				_, stdout, stderr, err = buildImageFromGitWithStdoutStderr(name, git, true, "-q", "--force-rm", "--rm")
+
+			},
+		},
+	}
+
+	for _, te := range tt {
+		te.BuildFunc(te.Name)
+		if err != nil {
+			c.Fatalf("Test %s shouldn't fail, but got the following error: %s", te.Name, err.Error())
+		}
+		if outRegexp.Find([]byte(stdout)) == nil {
+			c.Fatalf("Test %s expected stdout to match the [%v] regexp, but it is [%v]", te.Name, outRegexp, stdout)
+		}
+		if runtime.GOOS == "windows" {
+			// stderr contains a security warning on Windows if the daemon isn't Windows
+			lines := strings.Split(stderr, "\n")
+			warningCount := 0
+			for _, v := range lines {
+				warningText := "SECURITY WARNING: You are building a Docker image from Windows against a non-Windows Docker host."
+				if strings.Contains(v, warningText) {
+					warningCount++
+				}
+				if v != "" && !strings.Contains(v, warningText) {
+					c.Fatalf("Stderr contains unexpected output line: %q", v)
+				}
+			}
+			if warningCount != 1 && daemonPlatform != "windows" {
+				c.Fatalf("Test %s didn't get security warning running from Windows to non-Windows", te.Name)
+			}
+		} else {
+			if stderr != "" {
+				c.Fatalf("Test %s expected stderr to be empty, but it is [%#v]", te.Name, stderr)
+			}
+		}
+	}
+
+}
+
+func (s *DockerSuite) TestBuildNotVerboseFailure(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	// This test makes sure that -q works correctly when build fails by
+	// comparing between the stderr output in quiet mode and in stdout
+	// and stderr output in verbose mode
+	tt := []struct {
+		TestName  string
+		BuildCmds string
+	}{
+		{"quiet_build_no_from_at_the_beginning", "RUN whoami"},
+		{"quiet_build_unknown_instr", "FROMD busybox"},
+		{"quiet_build_not_exists_image", "FROM busybox11"},
+	}
+
+	for _, te := range tt {
+		_, _, qstderr, qerr := buildImageWithStdoutStderr(te.TestName, te.BuildCmds, false, "-q", "--force-rm", "--rm")
+		_, vstdout, vstderr, verr := buildImageWithStdoutStderr(te.TestName, te.BuildCmds, false, "--force-rm", "--rm")
+		if verr == nil || qerr == nil {
+			c.Fatal(fmt.Errorf("Test [%s] expected to fail but didn't", te.TestName))
+		}
+		if qstderr != vstdout+vstderr {
+			c.Fatal(fmt.Errorf("Test[%s] expected that quiet stderr and verbose stdout are equal; quiet [%v], verbose [%v]", te.TestName, qstderr, vstdout))
+		}
+	}
+}
+
+func (s *DockerSuite) TestBuildNotVerboseFailureRemote(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	// This test ensures that when given a wrong URL, stderr in quiet mode and
+	// stdout and stderr in verbose mode are identical.
+	URL := "http://bla.bla.com"
+	Name := "quiet_build_wrong_remote"
+	_, _, qstderr, qerr := buildImageWithStdoutStderr(Name, "", false, "-q", "--force-rm", "--rm", URL)
+	_, vstdout, vstderr, verr := buildImageWithStdoutStderr(Name, "", false, "--force-rm", "--rm", URL)
+	if qerr == nil || verr == nil {
+		c.Fatal(fmt.Errorf("Test [%s] expected to fail but didn't", Name))
+	}
+	if qstderr != vstdout+vstderr {
+		c.Fatal(fmt.Errorf("Test[%s] expected that quiet stderr and verbose stdout are equal; quiet [%v], verbose [%v]", Name, qstderr, vstdout))
+	}
 }
 
 func (s *DockerSuite) TestBuildStderr(c *check.C) {
@@ -5518,34 +5509,6 @@ func (s *DockerSuite) TestBuildDotDotFile(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestBuildNotVerbose(c *check.C) {
-	testRequires(c, DaemonIsLinux)
-	ctx, err := fakeContext("FROM busybox\nENV abc=hi\nRUN echo $abc there", map[string]string{})
-	if err != nil {
-		c.Fatal(err)
-	}
-	defer ctx.Close()
-
-	// First do it w/verbose - baseline
-	out, _, err := dockerCmdInDir(c, ctx.Dir, "build", "--no-cache", "-t", "verbose", ".")
-	if err != nil {
-		c.Fatalf("failed to build the image w/o -q: %s, %v", out, err)
-	}
-	if !strings.Contains(out, "hi there") {
-		c.Fatalf("missing output:%s\n", out)
-	}
-
-	// Now do it w/o verbose
-	out, _, err = dockerCmdInDir(c, ctx.Dir, "build", "--no-cache", "-q", "-t", "verbose", ".")
-	if err != nil {
-		c.Fatalf("failed to build the image w/ -q: %s, %v", out, err)
-	}
-	if strings.Contains(out, "hi there") {
-		c.Fatalf("Bad output, should not contain 'hi there':%s", out)
-	}
-
-}
-
 func (s *DockerSuite) TestBuildRUNoneJSON(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	name := "testbuildrunonejson"
@@ -5734,7 +5697,7 @@ func (s *DockerTrustSuite) TestTrustedBuildUntrustedTag(c *check.C) {
 		c.Fatalf("Expected error on trusted build with untrusted tag: %s\n%s", err, out)
 	}
 
-	if !strings.Contains(out, fmt.Sprintf("no trust data available")) {
+	if !strings.Contains(out, "does not have trust data for") {
 		c.Fatalf("Unexpected output on trusted build with untrusted tag:\n%s", out)
 	}
 }
@@ -5808,8 +5771,7 @@ func (s *DockerSuite) TestBuildStopSignal(c *check.C) {
 		 STOPSIGNAL SIGKILL`,
 		true)
 	c.Assert(err, check.IsNil)
-	res, err := inspectFieldJSON(name, "Config.StopSignal")
-	c.Assert(err, check.IsNil)
+	res := inspectFieldJSON(c, name, "Config.StopSignal")
 
 	if res != `"SIGKILL"` {
 		c.Fatalf("Signal %s, expected SIGKILL", res)
@@ -6077,18 +6039,12 @@ func (s *DockerSuite) TestBuildBuildTimeArgExpansion(c *check.C) {
 	var resMap map[string]interface{}
 	var resArr []string
 	res := ""
-	res, err = inspectField(imgName, "Config.WorkingDir")
-	if err != nil {
-		c.Fatal(err)
-	}
-	if res != wdVal {
-		c.Fatalf("Config.WorkingDir value mismatch. Expected: %s, got: %s", wdVal, res)
+	res = inspectField(c, imgName, "Config.WorkingDir")
+	if res != filepath.ToSlash(filepath.Clean(wdVal)) {
+		c.Fatalf("Config.WorkingDir value mismatch. Expected: %s, got: %s", filepath.ToSlash(filepath.Clean(wdVal)), res)
 	}
 
-	err = inspectFieldAndMarshall(imgName, "Config.Env", &resArr)
-	if err != nil {
-		c.Fatal(err)
-	}
+	inspectFieldAndMarshall(c, imgName, "Config.Env", &resArr)
 
 	found := false
 	for _, v := range resArr {
@@ -6102,26 +6058,17 @@ func (s *DockerSuite) TestBuildBuildTimeArgExpansion(c *check.C) {
 			envVar, envVal, resArr)
 	}
 
-	err = inspectFieldAndMarshall(imgName, "Config.ExposedPorts", &resMap)
-	if err != nil {
-		c.Fatal(err)
-	}
+	inspectFieldAndMarshall(c, imgName, "Config.ExposedPorts", &resMap)
 	if _, ok := resMap[fmt.Sprintf("%s/tcp", exposeVal)]; !ok {
 		c.Fatalf("Config.ExposedPorts value mismatch. Expected exposed port: %s/tcp, got: %v", exposeVal, resMap)
 	}
 
-	res, err = inspectField(imgName, "Config.User")
-	if err != nil {
-		c.Fatal(err)
-	}
+	res = inspectField(c, imgName, "Config.User")
 	if res != userVal {
 		c.Fatalf("Config.User value mismatch. Expected: %s, got: %s", userVal, res)
 	}
 
-	err = inspectFieldAndMarshall(imgName, "Config.Volumes", &resMap)
-	if err != nil {
-		c.Fatal(err)
-	}
+	inspectFieldAndMarshall(c, imgName, "Config.Volumes", &resMap)
 	if _, ok := resMap[volVal]; !ok {
 		c.Fatalf("Config.Volumes value mismatch. Expected volume: %s, got: %v", volVal, resMap)
 	}
@@ -6351,36 +6298,27 @@ func (s *DockerSuite) TestBuildNoNamedVolume(c *check.C) {
 
 func (s *DockerSuite) TestBuildTagEvent(c *check.C) {
 	testRequires(c, DaemonIsLinux)
-	resp, rc, err := sockRequestRaw("GET", `/events?filters={"event":["tag"]}`, nil, "application/json")
-	c.Assert(err, check.IsNil)
-	defer rc.Close()
-	c.Assert(resp.StatusCode, check.Equals, http.StatusOK)
 
-	type event struct {
-		Status string `json:"status"`
-		ID     string `json:"id"`
-	}
-	ch := make(chan event)
-	go func() {
-		ev := event{}
-		if err := json.NewDecoder(rc).Decode(&ev); err == nil {
-			ch <- ev
-		}
-	}()
+	since := daemonTime(c).Unix()
 
 	dockerFile := `FROM busybox
 	RUN echo events
 	`
-	_, err = buildImage("test", dockerFile, false)
+	_, err := buildImage("test", dockerFile, false)
 	c.Assert(err, check.IsNil)
 
-	select {
-	case ev := <-ch:
-		c.Assert(ev.Status, check.Equals, "tag")
-		c.Assert(ev.ID, check.Equals, "test:latest")
-	case <-time.After(time.Second):
-		c.Fatal("The 'tag' event not heard from the server")
+	out, _ := dockerCmd(c, "events", fmt.Sprintf("--since=%d", since), fmt.Sprintf("--until=%d", daemonTime(c).Unix()), "--filter", "type=image")
+	events := strings.Split(strings.TrimSpace(out), "\n")
+	actions := eventActionsByIDAndType(c, events, "test:latest", "image")
+	var foundTag bool
+	for _, a := range actions {
+		if a == "tag" {
+			foundTag = true
+			break
+		}
 	}
+
+	c.Assert(foundTag, checker.True, check.Commentf("No tag event found:\n%s", out))
 }
 
 // #15780
@@ -6551,4 +6489,19 @@ func (s *DockerSuite) TestBuildCacheRootSource(c *check.C) {
 	c.Assert(err, checker.IsNil)
 
 	c.Assert(out, checker.Not(checker.Contains), "Using cache")
+}
+
+// #19375
+func (s *DockerSuite) TestBuildFailsGitNotCallable(c *check.C) {
+	cmd := exec.Command(dockerBinary, "build", "github.com/docker/v1.10-migrator.git")
+	cmd.Env = append(cmd.Env, "PATH=")
+	out, _, err := runCommandWithOutput(cmd)
+	c.Assert(err, checker.NotNil)
+	c.Assert(out, checker.Contains, "unable to prepare context: unable to find 'git': ")
+
+	cmd = exec.Command(dockerBinary, "build", "https://github.com/docker/v1.10-migrator.git")
+	cmd.Env = append(cmd.Env, "PATH=")
+	out, _, err = runCommandWithOutput(cmd)
+	c.Assert(err, checker.NotNil)
+	c.Assert(out, checker.Contains, "unable to prepare context: unable to find 'git': ")
 }

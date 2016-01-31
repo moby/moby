@@ -1,13 +1,13 @@
 package client
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/url"
+	"strings"
 
-	"github.com/docker/docker/api/types"
 	Cli "github.com/docker/docker/cli"
 	flag "github.com/docker/docker/pkg/mflag"
+	"github.com/docker/engine-api/types"
 )
 
 // CmdRmi removes all images with the specified name(s).
@@ -29,22 +29,18 @@ func (cli *DockerCli) CmdRmi(args ...string) error {
 		v.Set("noprune", "1")
 	}
 
-	var errNames []string
+	var errs []string
 	for _, name := range cmd.Args() {
-		serverResp, err := cli.call("DELETE", "/images/"+name+"?"+v.Encode(), nil, nil)
+		options := types.ImageRemoveOptions{
+			ImageID:       name,
+			Force:         *force,
+			PruneChildren: !*noprune,
+		}
+
+		dels, err := cli.client.ImageRemove(options)
 		if err != nil {
-			fmt.Fprintf(cli.err, "%s\n", err)
-			errNames = append(errNames, name)
+			errs = append(errs, fmt.Sprintf("Failed to remove image (%s): %s", name, err))
 		} else {
-			defer serverResp.body.Close()
-
-			dels := []types.ImageDelete{}
-			if err := json.NewDecoder(serverResp.body).Decode(&dels); err != nil {
-				fmt.Fprintf(cli.err, "%s\n", err)
-				errNames = append(errNames, name)
-				continue
-			}
-
 			for _, del := range dels {
 				if del.Deleted != "" {
 					fmt.Fprintf(cli.out, "Deleted: %s\n", del.Deleted)
@@ -54,8 +50,8 @@ func (cli *DockerCli) CmdRmi(args ...string) error {
 			}
 		}
 	}
-	if len(errNames) > 0 {
-		return fmt.Errorf("Error: failed to remove images: %v", errNames)
+	if len(errs) > 0 {
+		return fmt.Errorf("%s", strings.Join(errs, "\n"))
 	}
 	return nil
 }

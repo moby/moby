@@ -6,15 +6,15 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/docker/distribution/reference"
-	"github.com/docker/distribution/registry/client/auth"
-	"github.com/docker/docker/cliconfig"
+	"github.com/docker/docker/reference"
+	"github.com/docker/engine-api/types"
+	registrytypes "github.com/docker/engine-api/types/registry"
 )
 
 // Service is a registry service. It tracks configuration data such as a list
 // of mirrors.
 type Service struct {
-	Config *ServiceConfig
+	Config *registrytypes.ServiceConfig
 }
 
 // NewService returns a new instance of Service ready to be
@@ -28,7 +28,7 @@ func NewService(options *Options) *Service {
 // Auth contacts the public registry with the provided credentials,
 // and returns OK if authentication was successful.
 // It can be used to verify the validity of a client's credentials.
-func (s *Service) Auth(authConfig *cliconfig.AuthConfig) (string, error) {
+func (s *Service) Auth(authConfig *types.AuthConfig, userAgent string) (string, error) {
 	addr := authConfig.ServerAddress
 	if addr == "" {
 		// Use the official registry address if not specified.
@@ -45,7 +45,7 @@ func (s *Service) Auth(authConfig *cliconfig.AuthConfig) (string, error) {
 		endpointVersion = APIVersion2
 	}
 
-	endpoint, err := NewEndpoint(index, nil, endpointVersion)
+	endpoint, err := NewEndpoint(index, userAgent, nil, endpointVersion)
 	if err != nil {
 		return "", err
 	}
@@ -72,20 +72,20 @@ func splitReposSearchTerm(reposName string) (string, string) {
 
 // Search queries the public registry for images matching the specified
 // search terms, and returns the results.
-func (s *Service) Search(term string, authConfig *cliconfig.AuthConfig, headers map[string][]string) (*SearchResults, error) {
+func (s *Service) Search(term string, authConfig *types.AuthConfig, userAgent string, headers map[string][]string) (*registrytypes.SearchResults, error) {
 	if err := validateNoSchema(term); err != nil {
 		return nil, err
 	}
 
 	indexName, remoteName := splitReposSearchTerm(term)
 
-	index, err := s.Config.NewIndexInfo(indexName)
+	index, err := newIndexInfo(s.Config, indexName)
 	if err != nil {
 		return nil, err
 	}
 
 	// *TODO: Search multiple indexes.
-	endpoint, err := NewEndpoint(index, http.Header(headers), APIVersionUnknown)
+	endpoint, err := NewEndpoint(index, userAgent, http.Header(headers), APIVersionUnknown)
 	if err != nil {
 		return nil, err
 	}
@@ -110,34 +110,32 @@ func (s *Service) Search(term string, authConfig *cliconfig.AuthConfig, headers 
 // ResolveRepository splits a repository name into its components
 // and configuration of the associated registry.
 func (s *Service) ResolveRepository(name reference.Named) (*RepositoryInfo, error) {
-	return s.Config.NewRepositoryInfo(name)
+	return newRepositoryInfo(s.Config, name)
 }
 
 // ResolveIndex takes indexName and returns index info
-func (s *Service) ResolveIndex(name string) (*IndexInfo, error) {
-	return s.Config.NewIndexInfo(name)
+func (s *Service) ResolveIndex(name string) (*registrytypes.IndexInfo, error) {
+	return newIndexInfo(s.Config, name)
 }
 
 // APIEndpoint represents a remote API endpoint
 type APIEndpoint struct {
-	Mirror        bool
-	URL           string
-	Version       APIVersion
-	Official      bool
-	TrimHostname  bool
-	TLSConfig     *tls.Config
-	VersionHeader string
-	Versions      []auth.APIVersion
+	Mirror       bool
+	URL          string
+	Version      APIVersion
+	Official     bool
+	TrimHostname bool
+	TLSConfig    *tls.Config
 }
 
 // ToV1Endpoint returns a V1 API endpoint based on the APIEndpoint
-func (e APIEndpoint) ToV1Endpoint(metaHeaders http.Header) (*Endpoint, error) {
-	return newEndpoint(e.URL, e.TLSConfig, metaHeaders)
+func (e APIEndpoint) ToV1Endpoint(userAgent string, metaHeaders http.Header) (*Endpoint, error) {
+	return newEndpoint(e.URL, e.TLSConfig, userAgent, metaHeaders)
 }
 
 // TLSConfig constructs a client TLS configuration based on server defaults
 func (s *Service) TLSConfig(hostname string) (*tls.Config, error) {
-	return newTLSConfig(hostname, s.Config.isSecureIndex(hostname))
+	return newTLSConfig(hostname, isSecureIndex(s.Config, hostname))
 }
 
 func (s *Service) tlsConfigForMirror(mirror string) (*tls.Config, error) {

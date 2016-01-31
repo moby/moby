@@ -1,6 +1,7 @@
 package bridge
 
 import (
+	"fmt"
 	"net"
 
 	"github.com/vishvananda/netlink"
@@ -60,4 +61,19 @@ func (i *bridgeInterface) addresses() (netlink.Addr, []netlink.Addr, error) {
 		return netlink.Addr{}, v6addr, nil
 	}
 	return v4addr[0], v6addr, nil
+}
+
+func (i *bridgeInterface) programIPv6Address() error {
+	_, nlAddressList, err := i.addresses()
+	if err != nil {
+		return &IPv6AddrAddError{IP: i.bridgeIPv6, Err: fmt.Errorf("failed to retrieve address list: %v", err)}
+	}
+	nlAddr := netlink.Addr{IPNet: i.bridgeIPv6}
+	if findIPv6Address(nlAddr, nlAddressList) {
+		return nil
+	}
+	if err := netlink.AddrAdd(i.Link, &nlAddr); err != nil {
+		return &IPv6AddrAddError{IP: i.bridgeIPv6, Err: err}
+	}
+	return nil
 }

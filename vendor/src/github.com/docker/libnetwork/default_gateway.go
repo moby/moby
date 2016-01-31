@@ -12,6 +12,8 @@ const (
 	gwEPlen       = 12
 )
 
+var procGwNetwork = make(chan (bool), 1)
+
 /*
    libnetwork creates a bridge network "docker_gw_bridge" for provding
    default gateway for the containers if none of the container's endpoints
@@ -35,13 +37,11 @@ func (sb *sandbox) setupDefaultGW(srcEp *endpoint) error {
 		return nil
 	}
 
+	// Look for default gw network. In case of error (includes not found),
+	// retry and create it if needed in a serialized execution.
 	n, err := c.NetworkByName(libnGWNetwork)
 	if err != nil {
-		if _, ok := err.(types.NotFoundError); !ok {
-			return err
-		}
-		n, err = c.createGWNetwork()
-		if err != nil {
+		if n, err = c.defaultGwNetwork(); err != nil {
 			return err
 		}
 	}
@@ -84,10 +84,10 @@ func (sb *sandbox) clearDefaultGW() error {
 		return nil
 	}
 
-	if err := ep.sbLeave(sb); err != nil {
+	if err := ep.sbLeave(sb, false); err != nil {
 		return fmt.Errorf("container %s: endpoint leaving GW Network failed: %v", sb.containerID, err)
 	}
-	if err := ep.Delete(); err != nil {
+	if err := ep.Delete(false); err != nil {
 		return fmt.Errorf("container %s: deleting endpoint on GW Network failed: %v", sb.containerID, err)
 	}
 	return nil
@@ -103,9 +103,20 @@ func (sb *sandbox) needDefaultGW() bool {
 		if ep.getNetwork().Type() == "null" || ep.getNetwork().Type() == "host" {
 			continue
 		}
+		if ep.getNetwork().Internal() {
+			return false
+		}
+		if ep.joinInfo.disableGatewayService {
+			return false
+		}
 		// TODO v6 needs to be handled.
 		if len(ep.Gateway()) > 0 {
 			return false
+		}
+		for _, r := range ep.StaticRoutes() {
+			if r.Destination.String() == "0.0.0.0/0" {
+				return false
+			}
 		}
 		needGW = true
 	}
@@ -138,4 +149,19 @@ func (sb *sandbox) getEPwithoutGateway() *endpoint {
 		}
 	}
 	return nil
+}
+
+// Looks for the default gw network and creates it if not there.
+// Parallel executions are serialized.
+func (c *controller) defaultGwNetwork() (Network, error) {
+	procGwNetwork <- true
+	defer func() { <-procGwNetwork }()
+
+	n, err := c.NetworkByName(libnGWNetwork)
+	if err != nil {
+		if _, ok := err.(types.NotFoundError); ok {
+			n, err = c.createGWNetwork()
+		}
+	}
+	return n, err
 }

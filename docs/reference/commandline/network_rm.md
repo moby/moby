@@ -14,7 +14,7 @@ parent = "smn_cli"
 
     Deletes one or more networks
 
-      --help=false       Print usage
+      --help             Print usage
 
 Removes one or more networks by name or identifier. To remove a network,
 you must first disconnect any containers connected to it.

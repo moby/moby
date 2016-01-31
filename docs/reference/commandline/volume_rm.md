@@ -14,7 +14,7 @@ parent = "smn_cli"
 
     Remove a volume
 
-      --help=false       Print usage
+      --help             Print usage
 
 Removes one or more volumes. You cannot remove a volume that is in use by a container.
 

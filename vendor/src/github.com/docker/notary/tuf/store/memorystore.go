@@ -39,7 +39,7 @@ func (m *memoryStore) GetMeta(name string, size int64) ([]byte, error) {
 		}
 		return d[:size], nil
 	}
-	return nil, ErrMetaNotFound{}
+	return nil, ErrMetaNotFound{Resource: name}
 }
 
 func (m *memoryStore) SetMeta(name string, meta []byte) error {
@@ -51,6 +51,13 @@ func (m *memoryStore) SetMultiMeta(metas map[string][]byte) error {
 	for role, blob := range metas {
 		m.SetMeta(role, blob)
 	}
+	return nil
+}
+
+// RemoveMeta removes the metadata for a single role - if the metadata doesn't
+// exist, no error is returned
+func (m *memoryStore) RemoveMeta(name string) error {
+	delete(m.meta, name)
 	return nil
 }
 
@@ -75,7 +82,7 @@ func (m *memoryStore) WalkStagedTargets(paths []string, targetsFn targetsWalkFun
 	for _, path := range paths {
 		dat, ok := m.files[path]
 		if !ok {
-			return ErrMetaNotFound{}
+			return ErrMetaNotFound{Resource: path}
 		}
 		meta, err := data.NewFileMeta(bytes.NewReader(dat), "sha256")
 		if err != nil {
@@ -94,4 +101,12 @@ func (m *memoryStore) Commit(map[string][]byte, bool, map[string]data.Hashes) er
 
 func (m *memoryStore) GetKey(role string) ([]byte, error) {
 	return nil, fmt.Errorf("GetKey is not implemented for the memoryStore")
+}
+
+// Clear this existing memory store by setting this store as new empty one
+func (m *memoryStore) RemoveAll() error {
+	m.meta = make(map[string][]byte)
+	m.files = make(map[string][]byte)
+	m.keys = make(map[string][]data.PrivateKey)
+	return nil
 }

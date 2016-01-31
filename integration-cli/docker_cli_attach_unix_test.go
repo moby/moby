@@ -35,7 +35,7 @@ func (s *DockerSuite) TestAttachClosedOnContainerStop(c *check.C) {
 	errChan := make(chan error)
 	go func() {
 		defer close(errChan)
-		// Container is wating for us to signal it to stop
+		// Container is waiting for us to signal it to stop
 		dockerCmd(c, "stop", id)
 		// And wait for the attach command to end
 		errChan <- attachCmd.Wait()
@@ -161,8 +161,7 @@ func (s *DockerSuite) TestAttachDetach(c *check.C) {
 		ch <- struct{}{}
 	}()
 
-	running, err := inspectField(id, "State.Running")
-	c.Assert(err, checker.IsNil)
+	running := inspectField(c, id, "State.Running")
 	c.Assert(running, checker.Equals, "true", check.Commentf("expected container to still be running"))
 
 	go func() {
@@ -214,8 +213,7 @@ func (s *DockerSuite) TestAttachDetachTruncatedID(c *check.C) {
 		ch <- struct{}{}
 	}()
 
-	running, err := inspectField(id, "State.Running")
-	c.Assert(err, checker.IsNil)
+	running := inspectField(c, id, "State.Running")
 	c.Assert(running, checker.Equals, "true", check.Commentf("expected container to still be running"))
 
 	go func() {

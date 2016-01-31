@@ -4,7 +4,7 @@ title = "Remote API v1.21"
 description = "API Documentation for Docker"
 keywords = ["API, Docker, rcli, REST,  documentation"]
 [menu.main]
-parent="smn_remoteapi"
+parent="engine_remoteapi"
 weight=-2
 +++
 <![end-metadata]-->
@@ -15,7 +15,7 @@ weight=-2
 
  - The Remote API has replaced `rcli`.
  - The daemon listens on `unix:///var/run/docker.sock` but you can
-   [Bind Docker to another host/port or a Unix socket](../../userguide/basics.md#bind-docker-to-another-host-port-or-a-unix-socket).
+   [Bind Docker to another host/port or a Unix socket](../../quickstart.md#bind-docker-to-another-host-port-or-a-unix-socket).
  - The API tends to be REST. However, for some complex commands, like `attach`
    or `pull`, the HTTP connection is hijacked to transport `stdout`,
    `stdin` and `stderr`.
@@ -200,6 +200,7 @@ Create a container
              "VolumesFrom": ["parent", "other:ro"],
              "CapAdd": ["NET_ADMIN"],
              "CapDrop": ["MKNOD"],
+             "GroupAdd": ["newgroup"],
              "RestartPolicy": { "Name": "", "MaximumRetryCount": 0 },
              "NetworkMode": "bridge",
              "Devices": [],
@@ -293,6 +294,7 @@ Json Parameters:
           Specified in the form `<container name>[:<ro|rw>]`
     -   **CapAdd** - A list of kernel capabilities to add to the container.
     -   **Capdrop** - A list of kernel capabilities to drop from the container.
+    -   **GroupAdd** - A list of additional groups that the container process will run as
     -   **RestartPolicy** – The behavior to apply when the container exits.  The
             value is an object with a `Name` property of either `"always"` to
             always restart, `"unless-stopped"` to restart always except when
@@ -695,8 +697,6 @@ Status Codes:
 `GET /containers/(id)/stats`
 
 This endpoint returns a live stream of a container's resource usage statistics.
-
-> **Note**: this functionality currently only works when using the *libcontainer* exec-driver.
 
 **Example request**:
 
@@ -2575,7 +2575,7 @@ Instruct the driver to remove the volume (`name`).
 
 **Example request**:
 
-    DELETE /volumes/local/tardis HTTP/1.1
+    DELETE /volumes/tardis HTTP/1.1
 
 **Example response**:
 
@@ -2763,13 +2763,13 @@ Content-Type: application/json
 Status Codes:
 
 - **201** - no error
-- **404** - driver not found
+- **404** - plugin not found
 - **500** - server error
 
 JSON Parameters:
 
 - **Name** - The new network's name. this is a mandatory field
-- **Driver** - Name of the network driver to use. Defaults to `bridge` driver
+- **Driver** - Name of the network driver plugin to use. Defaults to `bridge` driver
 - **IPAM** - Optional custom IP scheme for the network
 - **Options** - Network specific options to be used by the drivers
 - **CheckDuplicate** - Requests daemon to check for networks with same name
@@ -2797,8 +2797,9 @@ Content-Type: application/json
 
 Status Codes:
 
-- **201** - no error
+- **200** - no error
 - **404** - network or container is not found
+- **500** - Internal Server Error
 
 JSON Parameters:
 
@@ -2827,8 +2828,9 @@ Content-Type: application/json
 
 Status Codes:
 
-- **201** - no error
+- **200** - no error
 - **404** - network or container not found
+- **500** - Internal Server Error
 
 JSON Parameters:
 
@@ -2846,11 +2848,11 @@ Instruct the driver to remove the network (`id`).
 
 **Example response**:
 
-    HTTP/1.1 204 No Content
+    HTTP/1.1 200 OK
 
 Status Codes
 
--   **204** - no error
+-   **200** - no error
 -   **404** - no such network
 -   **500** - server error
 

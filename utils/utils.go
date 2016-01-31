@@ -1,125 +1,16 @@
 package utils
 
 import (
-	"bufio"
-	"crypto/sha1"
-	"encoding/hex"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"os"
-	"os/exec"
-	"path/filepath"
 	"runtime"
 	"strings"
 
 	"github.com/docker/distribution/registry/api/errcode"
-	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/stringid"
 )
-
-// SelfPath figures out the absolute path of our own binary (if it's still around).
-func SelfPath() string {
-	path, err := exec.LookPath(os.Args[0])
-	if err != nil {
-		if os.IsNotExist(err) {
-			return ""
-		}
-		if execErr, ok := err.(*exec.Error); ok && os.IsNotExist(execErr.Err) {
-			return ""
-		}
-		panic(err)
-	}
-	path, err = filepath.Abs(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return ""
-		}
-		panic(err)
-	}
-	return path
-}
-
-func dockerInitSha1(target string) string {
-	f, err := os.Open(target)
-	if err != nil {
-		return ""
-	}
-	defer f.Close()
-	h := sha1.New()
-	_, err = io.Copy(h, f)
-	if err != nil {
-		return ""
-	}
-	return hex.EncodeToString(h.Sum(nil))
-}
-
-func isValidDockerInitPath(target string, selfPath string) bool { // target and selfPath should be absolute (InitPath and SelfPath already do this)
-	if target == "" {
-		return false
-	}
-	if dockerversion.IAmStatic == "true" {
-		if selfPath == "" {
-			return false
-		}
-		if target == selfPath {
-			return true
-		}
-		targetFileInfo, err := os.Lstat(target)
-		if err != nil {
-			return false
-		}
-		selfPathFileInfo, err := os.Lstat(selfPath)
-		if err != nil {
-			return false
-		}
-		return os.SameFile(targetFileInfo, selfPathFileInfo)
-	}
-	return dockerversion.InitSHA1 != "" && dockerInitSha1(target) == dockerversion.InitSHA1
-}
-
-// DockerInitPath figures out the path of our dockerinit (which may be SelfPath())
-func DockerInitPath(localCopy string) string {
-	selfPath := SelfPath()
-	if isValidDockerInitPath(selfPath, selfPath) {
-		// if we're valid, don't bother checking anything else
-		return selfPath
-	}
-	var possibleInits = []string{
-		localCopy,
-		dockerversion.InitPath,
-		filepath.Join(filepath.Dir(selfPath), "dockerinit"),
-
-		// FHS 3.0 Draft: "/usr/libexec includes internal binaries that are not intended to be executed directly by users or shell scripts. Applications may use a single subdirectory under /usr/libexec."
-		// https://www.linuxbase.org/betaspecs/fhs/fhs.html#usrlibexec
-		"/usr/libexec/docker/dockerinit",
-		"/usr/local/libexec/docker/dockerinit",
-
-		// FHS 2.3: "/usr/lib includes object files, libraries, and internal binaries that are not intended to be executed directly by users or shell scripts."
-		// https://refspecs.linuxfoundation.org/FHS_2.3/fhs-2.3.html#USRLIBLIBRARIESFORPROGRAMMINGANDPA
-		"/usr/lib/docker/dockerinit",
-		"/usr/local/lib/docker/dockerinit",
-	}
-	for _, dockerInit := range possibleInits {
-		if dockerInit == "" {
-			continue
-		}
-		path, err := exec.LookPath(dockerInit)
-		if err == nil {
-			path, err = filepath.Abs(path)
-			if err != nil {
-				// LookPath already validated that this file exists and is executable (following symlinks), so how could Abs fail?
-				panic(err)
-			}
-			if isValidDockerInitPath(path, selfPath) {
-				return path
-			}
-		}
-	}
-	return ""
-}
 
 var globalTestID string
 
@@ -194,79 +85,6 @@ func ReplaceOrAppendEnvValues(defaults, overrides []string) []string {
 	}
 
 	return defaults
-}
-
-// ValidateContextDirectory checks if all the contents of the directory
-// can be read and returns an error if some files can't be read
-// symlinks which point to non-existing files don't trigger an error
-func ValidateContextDirectory(srcPath string, excludes []string) error {
-	contextRoot, err := getContextRoot(srcPath)
-	if err != nil {
-		return err
-	}
-	return filepath.Walk(contextRoot, func(filePath string, f os.FileInfo, err error) error {
-		// skip this directory/file if it's not in the path, it won't get added to the context
-		if relFilePath, err := filepath.Rel(contextRoot, filePath); err != nil {
-			return err
-		} else if skip, err := fileutils.Matches(relFilePath, excludes); err != nil {
-			return err
-		} else if skip {
-			if f.IsDir() {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-
-		if err != nil {
-			if os.IsPermission(err) {
-				return fmt.Errorf("can't stat '%s'", filePath)
-			}
-			if os.IsNotExist(err) {
-				return nil
-			}
-			return err
-		}
-
-		// skip checking if symlinks point to non-existing files, such symlinks can be useful
-		// also skip named pipes, because they hanging on open
-		if f.Mode()&(os.ModeSymlink|os.ModeNamedPipe) != 0 {
-			return nil
-		}
-
-		if !f.IsDir() {
-			currentFile, err := os.Open(filePath)
-			if err != nil && os.IsPermission(err) {
-				return fmt.Errorf("no permission to read from '%s'", filePath)
-			}
-			currentFile.Close()
-		}
-		return nil
-	})
-}
-
-// ReadDockerIgnore reads a .dockerignore file and returns the list of file patterns
-// to ignore. Note this will trim whitespace from each line as well
-// as use GO's "clean" func to get the shortest/cleanest path for each.
-func ReadDockerIgnore(reader io.ReadCloser) ([]string, error) {
-	if reader == nil {
-		return nil, nil
-	}
-	defer reader.Close()
-	scanner := bufio.NewScanner(reader)
-	var excludes []string
-
-	for scanner.Scan() {
-		pattern := strings.TrimSpace(scanner.Text())
-		if pattern == "" {
-			continue
-		}
-		pattern = filepath.Clean(pattern)
-		excludes = append(excludes, pattern)
-	}
-	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("Error reading .dockerignore: %v", err)
-	}
-	return excludes, nil
 }
 
 // GetErrorMessage returns the human readable message associated with

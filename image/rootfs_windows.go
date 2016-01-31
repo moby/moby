@@ -12,7 +12,7 @@ import (
 
 // RootFS describes images root filesystem
 // This is currently a placeholder that only supports layers. In the future
-// this can be made into a interface that supports different implementaions.
+// this can be made into a interface that supports different implementations.
 type RootFS struct {
 	Type      string         `json:"type"`
 	DiffIDs   []layer.DiffID `json:"diff_ids,omitempty"`
@@ -27,7 +27,7 @@ func (r *RootFS) BaseLayerID() string {
 
 // ChainID returns the ChainID for the top layer in RootFS.
 func (r *RootFS) ChainID() layer.ChainID {
-	baseDiffID, _ := digest.FromBytes([]byte(r.BaseLayerID())) // can never error
+	baseDiffID := digest.FromBytes([]byte(r.BaseLayerID()))
 	return layer.CreateChainID(append([]layer.DiffID{layer.DiffID(baseDiffID)}, r.DiffIDs...))
 }
 

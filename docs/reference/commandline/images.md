@@ -14,12 +14,12 @@ parent = "smn_cli"
 
     List images
 
-      -a, --all=false      Show all images (default hides intermediate images)
-      --digests=false      Show digests
+      -a, --all            Show all images (default hides intermediate images)
+      --digests            Show digests
       -f, --filter=[]      Filter output based on conditions provided
-      --help=false         Print usage
-      --no-trunc=false     Don't truncate output
-      -q, --quiet=false    Only show numeric IDs
+      --help               Print usage
+      --no-trunc           Don't truncate output
+      -q, --quiet          Only show numeric IDs
 
 The default `docker images` will show all top level
 images, their repository and tags, and their virtual size.
@@ -136,9 +136,9 @@ The currently supported filters are:
 
 This will display untagged images, that are the leaves of the images tree (not
 intermediary layers). These images occur when a new build of an image takes the
-`repo:tag` away from the image ID, leaving it untagged. A warning will be issued
-if trying to remove an image when a container is presently using it.
-By having this flag it allows for batch cleanup.
+`repo:tag` away from the image ID, leaving it as `<none>:<none>` or untagged.
+A warning will be issued if trying to remove an image when a container is presently
+using it. By having this flag it allows for batch cleanup.
 
 Ready for use by `docker rmi ...`, like:
 
@@ -177,3 +177,53 @@ In this example, with the `0.1` value, it returns an empty set because no matche
 
     $ docker images --filter "label=com.example.version=0.1"
     REPOSITORY          TAG                 IMAGE ID            CREATED              VIRTUAL SIZE
+
+## Formatting
+
+The formatting option (`--format`) will pretty print container output
+using a Go template.
+
+Valid placeholders for the Go template are listed below:
+
+Placeholder | Description
+---- | ----
+`.ID` | Image ID
+`.Repository` | Image repository
+`.Tag` | Image tag
+`.Digest` | Image digest
+`.CreatedSince` | Elapsed time since the image was created.
+`.CreatedAt` | Time when the image was created.
+`.Size` | Image disk size.
+
+When using the `--format` option, the `image` command will either
+output the data exactly as the template declares or, when using the
+`table` directive, will include column headers as well.
+
+The following example uses a template without headers and outputs the
+`ID` and `Repository` entries separated by a colon for all images:
+
+    $ docker images --format "{{.ID}}: {{.Repository}}"
+    77af4d6b9913: <none>
+    b6fa739cedf5: committ
+    78a85c484f71: <none>
+    30557a29d5ab: docker
+    5ed6274db6ce: <none>
+    746b819f315e: postgres
+    746b819f315e: postgres
+    746b819f315e: postgres
+    746b819f315e: postgres
+
+To list all images with their repository and tag in a table format you
+can use:
+
+    $ docker images --format "table {{.ID}}\t{{.Repository}}\t{{.Tag}}"
+    IMAGE ID            REPOSITORY                TAG
+    77af4d6b9913        <none>                    <none>
+    b6fa739cedf5        committ                   latest
+    78a85c484f71        <none>                    <none>
+    30557a29d5ab        docker                    latest
+    5ed6274db6ce        <none>                    <none>
+    746b819f315e        postgres                  9
+    746b819f315e        postgres                  9.3
+    746b819f315e        postgres                  9.3.5
+    746b819f315e        postgres                  latest

@@ -13,11 +13,12 @@ func NewPublisher(publishTimeout time.Duration, buffer int) *Publisher {
 	return &Publisher{
 		buffer:      buffer,
 		timeout:     publishTimeout,
-		subscribers: make(map[subscriber]struct{}),
+		subscribers: make(map[subscriber]topicFunc),
 	}
 }
 
 type subscriber chan interface{}
+type topicFunc func(v interface{}) bool
 
 // Publisher is basic pub/sub structure. Allows to send events and subscribe
 // to them. Can be safely used from multiple goroutines.
@@ -25,7 +26,7 @@ type Publisher struct {
 	m           sync.RWMutex
 	buffer      int
 	timeout     time.Duration
-	subscribers map[subscriber]struct{}
+	subscribers map[subscriber]topicFunc
 }
 
 // Len returns the number of subscribers for the publisher
@@ -38,9 +39,14 @@ func (p *Publisher) Len() int {
 
 // Subscribe adds a new subscriber to the publisher returning the channel.
 func (p *Publisher) Subscribe() chan interface{} {
+	return p.SubscribeTopic(nil)
+}
+
+// SubscribeTopic adds a new subscriber that filters messages sent by a topic.
+func (p *Publisher) SubscribeTopic(topic topicFunc) chan interface{} {
 	ch := make(chan interface{}, p.buffer)
 	p.m.Lock()
-	p.subscribers[ch] = struct{}{}
+	p.subscribers[ch] = topic
 	p.m.Unlock()
 	return ch
 }
@@ -56,20 +62,13 @@ func (p *Publisher) Evict(sub chan interface{}) {
 // Publish sends the data in v to all subscribers currently registered with the publisher.
 func (p *Publisher) Publish(v interface{}) {
 	p.m.RLock()
-	for sub := range p.subscribers {
-		// send under a select as to not block if the receiver is unavailable
-		if p.timeout > 0 {
-			select {
-			case sub <- v:
-			case <-time.After(p.timeout):
-			}
-			continue
-		}
-		select {
-		case sub <- v:
-		default:
-		}
+	wg := new(sync.WaitGroup)
+	for sub, topic := range p.subscribers {
+		wg.Add(1)
+
+		go p.sendTopic(sub, topic, v, wg)
 	}
+	wg.Wait()
 	p.m.RUnlock()
 }
 
@@ -81,4 +80,25 @@ func (p *Publisher) Close() {
 		close(sub)
 	}
 	p.m.Unlock()
+}
+
+func (p *Publisher) sendTopic(sub subscriber, topic topicFunc, v interface{}, wg *sync.WaitGroup) {
+	defer wg.Done()
+	if topic != nil && !topic(v) {
+		return
+	}
+
+	// send under a select as to not block if the receiver is unavailable
+	if p.timeout > 0 {
+		select {
+		case sub <- v:
+		case <-time.After(p.timeout):
+		}
+		return
+	}
+
+	select {
+	case sub <- v:
+	default:
+	}
 }

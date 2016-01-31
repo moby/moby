@@ -32,9 +32,9 @@ func (s *FreezerGroup) Apply(d *cgroupData) error {
 }
 
 func (s *FreezerGroup) Set(path string, cgroup *configs.Cgroup) error {
-	switch cgroup.Freezer {
+	switch cgroup.Resources.Freezer {
 	case configs.Frozen, configs.Thawed:
-		if err := writeFile(path, "freezer.state", string(cgroup.Freezer)); err != nil {
+		if err := writeFile(path, "freezer.state", string(cgroup.Resources.Freezer)); err != nil {
 			return err
 		}
 
@@ -43,7 +43,7 @@ func (s *FreezerGroup) Set(path string, cgroup *configs.Cgroup) error {
 			if err != nil {
 				return err
 			}
-			if strings.TrimSpace(state) == string(cgroup.Freezer) {
+			if strings.TrimSpace(state) == string(cgroup.Resources.Freezer) {
 				break
 			}
 			time.Sleep(1 * time.Millisecond)
@@ -51,7 +51,7 @@ func (s *FreezerGroup) Set(path string, cgroup *configs.Cgroup) error {
 	case configs.Undefined:
 		return nil
 	default:
-		return fmt.Errorf("Invalid argument '%s' to freezer.state", string(cgroup.Freezer))
+		return fmt.Errorf("Invalid argument '%s' to freezer.state", string(cgroup.Resources.Freezer))
 	}
 
 	return nil

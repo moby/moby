@@ -63,10 +63,10 @@ func (e ErrInvalidKeyLength) Error() string {
 
 // ErrNoKeys indicates no signing keys were found when trying to sign
 type ErrNoKeys struct {
-	keyIDs []string
+	KeyIDs []string
 }
 
 func (e ErrNoKeys) Error() string {
 	return fmt.Sprintf("could not find necessary signing keys, at least one of these keys must be available: %s",
-		strings.Join(e.keyIDs, ", "))
+		strings.Join(e.KeyIDs, ", "))
 }

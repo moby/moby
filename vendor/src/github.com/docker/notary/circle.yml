@@ -16,6 +16,8 @@ machine:
     BASE_STABLE: ../../../$HOME/.gvm/pkgsets/stable/global/$BASE_DIR
   # Workaround Circle parsing dumb bugs and/or YAML wonkyness
     CIRCLE_PAIN: "mode: set"
+  # Put the coverage profile somewhere codecov's script can find it
+    COVERPROFILE: coverage.out
 
   hosts:
   # Not used yet
@@ -38,8 +40,7 @@ dependencies:
   # For the stable go version, additionally install linting tools
     - >
       gvm use stable &&
-      go get github.com/golang/lint/golint github.com/wadey/gocovmerge &&
-      go install github.com/wadey/gocovmerge
+      go get github.com/golang/lint/golint
 test:
   pre:
   # Output the go versions we are going to test
@@ -70,10 +71,7 @@ test:
         pwd: $BASE_STABLE
 
   post:
-    - gvm use stable && make covmerge:
-        timeout: 600
-        pwd: $BASE_STABLE
-
   # Report to codecov.io
-    # - bash <(curl -s https://codecov.io/bash):
-    #     pwd: $BASE_STABLE
+    - bash <(curl -s https://codecov.io/bash):
+        parallel: true
+        pwd: $BASE_STABLE

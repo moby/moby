@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/container"
 	derr "github.com/docker/docker/errors"
 )
 
@@ -14,7 +15,7 @@ import (
 // container is not found, is already stopped, or if there is a
 // problem stopping the container.
 func (daemon *Daemon) ContainerStop(name string, seconds int) error {
-	container, err := daemon.Get(name)
+	container, err := daemon.GetContainer(name)
 	if err != nil {
 		return err
 	}
@@ -32,14 +33,15 @@ func (daemon *Daemon) ContainerStop(name string, seconds int) error {
 // process to exit. If a negative duration is given, Stop will wait
 // for the initial signal forever. If the container is not running Stop returns
 // immediately.
-func (daemon *Daemon) containerStop(container *Container, seconds int) error {
+func (daemon *Daemon) containerStop(container *container.Container, seconds int) error {
 	if !container.IsRunning() {
 		return nil
 	}
 
-	// 1. Send a SIGTERM
-	if err := daemon.killPossiblyDeadProcess(container, container.stopSignal()); err != nil {
-		logrus.Infof("Failed to send SIGTERM to the process, force killing")
+	stopSignal := container.StopSignal()
+	// 1. Send a stop signal
+	if err := daemon.killPossiblyDeadProcess(container, stopSignal); err != nil {
+		logrus.Infof("Failed to send signal %d to the process, force killing", stopSignal)
 		if err := daemon.killPossiblyDeadProcess(container, 9); err != nil {
 			return err
 		}
@@ -47,7 +49,7 @@ func (daemon *Daemon) containerStop(container *Container, seconds int) error {
 
 	// 2. Wait for the process to exit on its own
 	if _, err := container.WaitStop(time.Duration(seconds) * time.Second); err != nil {
-		logrus.Infof("Container %v failed to exit within %d seconds of SIGTERM - using the force", container.ID, seconds)
+		logrus.Infof("Container %v failed to exit within %d seconds of signal %d - using the force", container.ID, seconds, stopSignal)
 		// 3. If it doesn't, then send SIGKILL
 		if err := daemon.Kill(container); err != nil {
 			container.WaitStop(-1 * time.Second)

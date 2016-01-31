@@ -14,9 +14,13 @@ parent = "smn_cli"
 
     Connects a container to a network
 
-      --help=false       Print usage
+      --alias=[]         Add network-scoped alias for the container
+      --help             Print usage
+      --ip               IPv4 Address
+      --ip6              IPv6 Address
+      --link=[]          Add a link to another container
 
-Connects a running container to a network. You can connect a container by name
+Connects a container to a network. You can connect a container by name
 or by ID. Once connected, the container can communicate with other containers in
 the same network.
 
@@ -30,11 +34,44 @@ You can also use the `docker run --net=<network-name>` option to start a contain
 $ docker run -itd --net=multi-host-network busybox
 ```
 
+You can specify the IP address you want to be assigned to the container's interface.
+
+```bash
+$ docker network connect --ip 10.10.36.122 multi-host-network container2
+```
+
+You can use `--link` option to link another container with a prefered alias
+
+```bash
+$ docker network connect --link container1:c1 multi-host-network container2
+```
+
+`--alias` option can be used to resolve the container by another name in the network
+being connected to.
+
+```bash
+$ docker network connect --alias db --alias mysql multi-host-network container2
+```
+
 You can pause, restart, and stop containers that are connected to a network.
-Paused containers remain connected and a revealed by a `network inspect`. When
-the container is stopped, it does not appear on the network until you restart
-it. The container's IP address is not guaranteed to remain the same when a
-stopped container rejoins the network.
+Paused containers remain connected and can be revealed by a `network inspect`.
+When the container is stopped, it does not appear on the network until you restart
+it.
+
+If specified, the container's IP address(es) is reapplied when a stopped
+container is restarted. If the IP address is no longer available, the container
+fails to start. One way to guarantee that the IP address is available is
+to specify an `--ip-range` when creating the network, and choose the static IP
+address(es) from outside that range. This ensures that the IP address is not
+given to another container while this container is not on the network.
+
+```bash
+$ docker network create --subnet 172.20.0.0/16 --ip-range 172.20.240.0/20 multi-host-network
+```
+
+```bash
+$ docker network connect --ip 172.20.128.2 multi-host-network container2
+```
 
 To verify the container is connected, use the `docker network inspect` command. Use `docker network disconnect` to remove a container from the network.
 
@@ -53,3 +90,4 @@ You can connect a container to one or more networks. The networks need not be th
 * [network ls](network_ls.md)
 * [network rm](network_rm.md)
 * [Understand Docker container networks](../../userguide/networking/dockernetworks.md)
+* [Work with networks](../../userguide/networking/work-with-networks.md)

@@ -30,7 +30,7 @@ var (
 	ErrApplyDiffFallback = fmt.Errorf("Fall back to normal ApplyDiff")
 )
 
-// ApplyDiffProtoDriver wraps the ProtoDriver by extending the inteface with ApplyDiff method.
+// ApplyDiffProtoDriver wraps the ProtoDriver by extending the interface with ApplyDiff method.
 type ApplyDiffProtoDriver interface {
 	graphdriver.ProtoDriver
 	// ApplyDiff writes the diff to the archive for the given id and parent id.
@@ -146,7 +146,7 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 		return nil, err
 	}
 	// Create the driver home dir
-	if err := idtools.MkdirAllAs(home, 0755, rootUID, rootGID); err != nil && !os.IsExist(err) {
+	if err := idtools.MkdirAllAs(home, 0700, rootUID, rootGID); err != nil && !os.IsExist(err) {
 		return nil, err
 	}
 
@@ -270,10 +270,10 @@ func (d *Driver) Create(id, parent, mountLabel string) (retErr error) {
 	parentRoot := path.Join(parentDir, "root")
 
 	if s, err := os.Lstat(parentRoot); err == nil {
-		if err := os.Mkdir(path.Join(dir, "upper"), s.Mode()); err != nil {
+		if err := idtools.MkdirAs(path.Join(dir, "upper"), s.Mode(), rootUID, rootGID); err != nil {
 			return err
 		}
-		if err := os.Mkdir(path.Join(dir, "work"), 0700); err != nil {
+		if err := idtools.MkdirAs(path.Join(dir, "work"), 0700, rootUID, rootGID); err != nil {
 			return err
 		}
 		if err := idtools.MkdirAs(path.Join(dir, "merged"), 0700, rootUID, rootGID); err != nil {
@@ -303,10 +303,10 @@ func (d *Driver) Create(id, parent, mountLabel string) (retErr error) {
 	}
 
 	upperDir := path.Join(dir, "upper")
-	if err := os.Mkdir(upperDir, s.Mode()); err != nil {
+	if err := idtools.MkdirAs(upperDir, s.Mode(), rootUID, rootGID); err != nil {
 		return err
 	}
-	if err := os.Mkdir(path.Join(dir, "work"), 0700); err != nil {
+	if err := idtools.MkdirAs(path.Join(dir, "work"), 0700, rootUID, rootGID); err != nil {
 		return err
 	}
 	if err := idtools.MkdirAs(path.Join(dir, "merged"), 0700, rootUID, rootGID); err != nil {
@@ -322,7 +322,10 @@ func (d *Driver) dir(id string) string {
 
 // Remove cleans the directories that are created for this id.
 func (d *Driver) Remove(id string) error {
-	return os.RemoveAll(d.dir(id))
+	if err := os.RemoveAll(d.dir(id)); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	return nil
 }
 
 // Get creates and mounts the required file system for the given id and returns the mount path.

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/docker/docker/pkg/locker"
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/docker/volume"
 )
@@ -13,7 +14,9 @@ import (
 // currently created by hand. generation tool would generate this like:
 // $ extpoint-gen Driver > volume/extpoint.go
 
-var drivers = &driverExtpoint{extensions: make(map[string]volume.Driver)}
+var drivers = &driverExtpoint{extensions: make(map[string]volume.Driver), driverLock: &locker.Locker{}}
+
+const extName = "VolumeDriver"
 
 // NewVolumeDriver returns a driver has the given name mapped on the given client.
 func NewVolumeDriver(name string, c client) volume.Driver {
@@ -22,6 +25,7 @@ func NewVolumeDriver(name string, c client) volume.Driver {
 }
 
 type opts map[string]string
+type list []*proxyVolume
 
 // volumeDriver defines the available functions that volume plugins must implement.
 // This interface is only defined to generate the proxy objects.
@@ -37,21 +41,28 @@ type volumeDriver interface {
 	Mount(name string) (mountpoint string, err error)
 	// Unmount the given volume
 	Unmount(name string) (err error)
+	// List lists all the volumes known to the driver
+	List() (volumes list, err error)
+	// Get retreives the volume with the requested name
+	Get(name string) (volume *proxyVolume, err error)
 }
 
 type driverExtpoint struct {
 	extensions map[string]volume.Driver
 	sync.Mutex
+	driverLock *locker.Locker
 }
 
 // Register associates the given driver to the given name, checking if
 // the name is already associated
 func Register(extension volume.Driver, name string) bool {
-	drivers.Lock()
-	defer drivers.Unlock()
 	if name == "" {
 		return false
 	}
+
+	drivers.Lock()
+	defer drivers.Unlock()
+
 	_, exists := drivers.extensions[name]
 	if exists {
 		return false
@@ -64,6 +75,7 @@ func Register(extension volume.Driver, name string) bool {
 func Unregister(name string) bool {
 	drivers.Lock()
 	defer drivers.Unlock()
+
 	_, exists := drivers.extensions[name]
 	if !exists {
 		return false
@@ -76,13 +88,17 @@ func Unregister(name string) bool {
 // driver with the given name has not been registered it checks if
 // there is a VolumeDriver plugin available with the given name.
 func Lookup(name string) (volume.Driver, error) {
+	drivers.driverLock.Lock(name)
+	defer drivers.driverLock.Unlock(name)
+
 	drivers.Lock()
 	ext, ok := drivers.extensions[name]
 	drivers.Unlock()
 	if ok {
 		return ext, nil
 	}
-	pl, err := plugins.Get(name, "VolumeDriver")
+
+	pl, err := plugins.Get(name, extName)
 	if err != nil {
 		return nil, fmt.Errorf("Error looking up volume plugin %s: %v", name, err)
 	}
@@ -111,8 +127,38 @@ func GetDriver(name string) (volume.Driver, error) {
 // If no driver is registered, empty string list will be returned.
 func GetDriverList() []string {
 	var driverList []string
+	drivers.Lock()
 	for driverName := range drivers.extensions {
 		driverList = append(driverList, driverName)
 	}
+	drivers.Unlock()
 	return driverList
+}
+
+// GetAllDrivers lists all the registered drivers
+func GetAllDrivers() ([]volume.Driver, error) {
+	plugins, err := plugins.GetAll(extName)
+	if err != nil {
+		return nil, err
+	}
+	var ds []volume.Driver
+
+	drivers.Lock()
+	defer drivers.Unlock()
+
+	for _, d := range drivers.extensions {
+		ds = append(ds, d)
+	}
+
+	for _, p := range plugins {
+		ext, ok := drivers.extensions[p.Name]
+		if ok {
+			continue
+		}
+
+		ext = NewVolumeDriver(p.Name, p.Client)
+		drivers.extensions[p.Name] = ext
+		ds = append(ds, ext)
+	}
+	return ds, nil
 }

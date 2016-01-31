@@ -73,6 +73,7 @@ func parseOptions(options string) (int, string) {
 func ParseTmpfsOptions(options string) (int, string, error) {
 	flags, data := parseOptions(options)
 	validFlags := map[string]bool{
+		"":          true,
 		"size":      true,
 		"mode":      true,
 		"uid":       true,

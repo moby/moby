@@ -6,7 +6,7 @@ docker-pull - Pull an image or a repository from a registry
 
 # SYNOPSIS
 **docker pull**
-[**-a**|**--all-tags**[=*false*]]
+[**-a**|**--all-tags**]
 [**--help**] 
 NAME[:TAG] | [REGISTRY_HOST[:REGISTRY_PORT]/]NAME[:TAG]
 

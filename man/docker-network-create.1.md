@@ -10,8 +10,10 @@ docker-network-create - create a new network
 [**-d**|**--driver**=*DRIVER*]
 [**--gateway**=*[]*]
 [**--help**]
+[**--internal**]
 [**--ip-range**=*[]*]
 [**--ipam-driver**=*default*]
+[**--ipam-opt**=*map[]*]
 [**-o**|**--opt**=*map[]*]
 [**--subnet**=*[]*]
 NETWORK-NAME
@@ -116,9 +118,14 @@ docker network create -d overlay
   --ip-range=192.168.1.0/24
   --aux-address a=192.168.1.5 --aux-address b=192.168.1.6
   --aux-address a=192.170.1.5 --aux-address b=192.170.1.6
-  my-multihost-newtork
+  my-multihost-network
 ```
 Be sure that your subnetworks do not overlap. If they do, the network create fails and Engine returns an error.
+
+### Network internal mode
+
+By default, when you connect a container to an `overlay` network, Docker also connects a bridge network to it to provide external connectivity.
+If you want to create an externally isolated `overlay` network, you can specify the `--internal` option.
 
 # OPTIONS
 **--aux-address**=map[]
@@ -133,14 +140,20 @@ Be sure that your subnetworks do not overlap. If they do, the network create fai
 **--help**
   Print usage
 
+**--internal**
+  Restricts external access to the network
+
 **--ip-range**=[]
   Allocate container ip from a sub-range
 
 **--ipam-driver**=*default*
   IP Address Management Driver
 
+**--ipam-opt**=map[]
+  Set custom IPAM driver options
+
 **-o**, **--opt**=map[]
-  Set custom network plugin options
+  Set custom driver options
 
 **--subnet**=[]
   Subnet in CIDR format that represents a network segment

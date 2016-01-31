@@ -4,7 +4,7 @@ title = "Select a storage driver"
 description = "Learn how select the proper storage driver for your container."
 keywords = ["container, storage, driver, AUFS, btfs, devicemapper,zvfs"]
 [menu.main]
-parent = "mn_storage_docker"
+parent = "engine_driver"
 weight = -1
 +++
 <![end-metadata]-->
@@ -20,14 +20,14 @@ The material on this page is intended for readers who already have an [understan
 
 The Docker has a pluggable storage driver architecture.  This gives you the flexibility to "plug in" the storage driver is best for your environment and use-case. Each Docker storage driver is based on a Linux filesystem or volume manager. Further, each storage driver is free to implement the management of image layers and the container layer in it's own unique way. This means some storage drivers perform better than others in different circumstances.
 
-Once you decide which driver is best, you set this driver on the Docker daemon at start time. As a result, the Docker daemon can only run one storage driver, and all containers created by that daemon instance use the same storage driver. The table below shows the supported storage driver technologies and the driver names:
+Once you decide which driver is best, you set this driver on the Docker daemon at start time. As a result, the Docker daemon can only run one storage driver, and all containers created by that daemon instance use the same storage driver. The table below shows the supported storage driver technologies and their driver names:
 
 |Technology    |Storage driver name  |
 |--------------|---------------------|
 |OverlayFS     |`overlay`            |
 |AUFS          |`aufs`               |
 |Btrfs         |`btrfs`              |
-|Device Maper  |`devicemapper`       |
+|Device Mapper |`devicemapper`       |
 |VFS*          |`vfs`                |
 |ZFS           |`zfs`                |
 
@@ -46,7 +46,7 @@ To find out which storage driver is set on the daemon , you use the `docker info
 
 The `info` subcommand reveals that the Docker daemon is using the `overlay` storage driver with a `Backing Filesystem` value of `extfs`. The `extfs` value means that the `overlay` storage driver is operating on top of an existing (ext) filesystem. The backing filesystem refers to the filesystem that was used to create the Docker host's local storage area under `/var/lib/docker`.
 
-Which storage driver you use, in part, depends on the backing filesystem you plan to use for your Docker host's local storage area. Some storage drivers can operate on top of different backing filesystems. However, other storage drivers require the backing filesystem to be the same as the storage driver. For example, the `btrfs` storage driver on a `btrfs` backing filesystem. The following table lists each storage driver and whether it must match the host's backing file system:
+Which storage driver you use, in part, depends on the backing filesystem you plan to use for your Docker host's local storage area. Some storage drivers can operate on top of different backing filesystems. However, other storage drivers require the backing filesystem to be the same as the storage driver. For example, the `btrfs` storage driver can only work with a `btrfs` backing filesystem. The following table lists each storage driver and whether it must match the host's backing file system:
 
     |Storage driver |Must match backing filesystem |
     |---------------|------------------------------|
@@ -58,7 +58,7 @@ Which storage driver you use, in part, depends on the backing filesystem you pla
     |zfs            |Yes                           |
 
 
-You pass the `--storage-driver=<name>` option to the `docker daemon` command line or by setting the option on the `DOCKER_OPTS` line in `/etc/defaults/docker` file.
+You can set the storage driver by passing the `--storage-driver=<name>` option to the `docker daemon` command line or by setting the option on the `DOCKER_OPTS` line in `/etc/default/docker` file.
 
 The following command shows how to start the Docker daemon with the `devicemapper` storage driver using the `docker daemon` command:
 

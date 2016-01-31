@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/go-check/check"
@@ -15,7 +16,6 @@ import (
 
 // Regression test for #9414
 func (s *DockerSuite) TestExecApiCreateNoCmd(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	name := "exec_test"
 	dockerCmd(c, "run", "-d", "-t", "--name", name, "busybox", "/bin/sh")
 
@@ -28,7 +28,6 @@ func (s *DockerSuite) TestExecApiCreateNoCmd(c *check.C) {
 }
 
 func (s *DockerSuite) TestExecApiCreateNoValidContentType(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	name := "exec_test"
 	dockerCmd(c, "run", "-d", "-t", "--name", name, "busybox", "/bin/sh")
 
@@ -49,6 +48,7 @@ func (s *DockerSuite) TestExecApiCreateNoValidContentType(c *check.C) {
 }
 
 func (s *DockerSuite) TestExecApiCreateContainerPaused(c *check.C) {
+	// Not relevant on Windows as Windows containers cannot be paused
 	testRequires(c, DaemonIsLinux)
 	name := "exec_create_test"
 	dockerCmd(c, "run", "-d", "-t", "--name", name, "busybox", "/bin/sh")
@@ -62,40 +62,31 @@ func (s *DockerSuite) TestExecApiCreateContainerPaused(c *check.C) {
 	c.Assert(string(body), checker.Contains, "Container "+name+" is paused, unpause the container before exec", comment)
 }
 
-func (s *DockerSuite) TestExecAPIStart(c *check.C) {
+func (s *DockerSuite) TestExecApiStart(c *check.C) {
+	testRequires(c, DaemonIsLinux) // Uses pause/unpause but bits may be salvagable to Windows to Windows CI
 	dockerCmd(c, "run", "-d", "--name", "test", "busybox", "top")
 
-	startExec := func(id string, code int) {
-		resp, body, err := sockRequestRaw("POST", fmt.Sprintf("/exec/%s/start", id), strings.NewReader(`{"Detach": true}`), "application/json")
-		c.Assert(err, checker.IsNil)
-
-		b, err := readBody(body)
-		comment := check.Commentf("response body: %s", b)
-		c.Assert(err, checker.IsNil, comment)
-		c.Assert(resp.StatusCode, checker.Equals, code, comment)
-	}
-
 	id := createExec(c, "test")
-	startExec(id, http.StatusOK)
+	startExec(c, id, http.StatusOK)
 
 	id = createExec(c, "test")
 	dockerCmd(c, "stop", "test")
 
-	startExec(id, http.StatusNotFound)
+	startExec(c, id, http.StatusNotFound)
 
 	dockerCmd(c, "start", "test")
-	startExec(id, http.StatusNotFound)
+	startExec(c, id, http.StatusNotFound)
 
 	// make sure exec is created before pausing
 	id = createExec(c, "test")
 	dockerCmd(c, "pause", "test")
-	startExec(id, http.StatusConflict)
+	startExec(c, id, http.StatusConflict)
 	dockerCmd(c, "unpause", "test")
-	startExec(id, http.StatusOK)
+	startExec(c, id, http.StatusOK)
 }
 
-func (s *DockerSuite) TestExecAPIStartBackwardsCompatible(c *check.C) {
-	dockerCmd(c, "run", "-d", "--name", "test", "busybox", "top")
+func (s *DockerSuite) TestExecApiStartBackwardsCompatible(c *check.C) {
+	runSleepingContainer(c, "-d", "--name", "test")
 	id := createExec(c, "test")
 
 	resp, body, err := sockRequestRaw("POST", fmt.Sprintf("/v1.20/exec/%s/start", id), strings.NewReader(`{"Detach": true}`), "text/plain")
@@ -107,6 +98,30 @@ func (s *DockerSuite) TestExecAPIStartBackwardsCompatible(c *check.C) {
 	c.Assert(resp.StatusCode, checker.Equals, http.StatusOK, comment)
 }
 
+// #19362
+func (s *DockerSuite) TestExecApiStartMultipleTimesError(c *check.C) {
+	runSleepingContainer(c, "-d", "--name", "test")
+	execID := createExec(c, "test")
+	startExec(c, execID, http.StatusOK)
+
+	timeout := time.After(60 * time.Second)
+	var execJSON struct{ Running bool }
+	for {
+		select {
+		case <-timeout:
+			c.Fatal("timeout waiting for exec to start")
+		default:
+		}
+
+		inspectExec(c, execID, &execJSON)
+		if !execJSON.Running {
+			break
+		}
+	}
+
+	startExec(c, execID, http.StatusConflict)
+}
+
 func createExec(c *check.C, name string) string {
 	_, b, err := sockRequest("POST", fmt.Sprintf("/containers/%s/exec", name), map[string]interface{}{"Cmd": []string{"true"}})
 	c.Assert(err, checker.IsNil, check.Commentf(string(b)))
@@ -116,4 +131,23 @@ func createExec(c *check.C, name string) string {
 	}{}
 	c.Assert(json.Unmarshal(b, &createResp), checker.IsNil, check.Commentf(string(b)))
 	return createResp.ID
+}
+
+func startExec(c *check.C, id string, code int) {
+	resp, body, err := sockRequestRaw("POST", fmt.Sprintf("/exec/%s/start", id), strings.NewReader(`{"Detach": true}`), "application/json")
+	c.Assert(err, checker.IsNil)
+
+	b, err := readBody(body)
+	comment := check.Commentf("response body: %s", b)
+	c.Assert(err, checker.IsNil, comment)
+	c.Assert(resp.StatusCode, checker.Equals, code, comment)
+}
+
+func inspectExec(c *check.C, id string, out interface{}) {
+	resp, body, err := sockRequestRaw("GET", fmt.Sprintf("/exec/%s/json", id), nil, "")
+	c.Assert(err, checker.IsNil)
+	defer body.Close()
+	c.Assert(resp.StatusCode, checker.Equals, http.StatusOK)
+	err = json.NewDecoder(body).Decode(out)
+	c.Assert(err, checker.IsNil)
 }

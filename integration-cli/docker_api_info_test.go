@@ -18,6 +18,9 @@ func (s *DockerSuite) TestInfoApi(c *check.C) {
 	stringsToCheck := []string{
 		"ID",
 		"Containers",
+		"ContainersRunning",
+		"ContainersPaused",
+		"ContainersStopped",
 		"Images",
 		"ExecutionDriver",
 		"LoggingDriver",

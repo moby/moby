@@ -2,6 +2,7 @@ package digest
 
 import (
 	"crypto"
+	"fmt"
 	"hash"
 	"io"
 )
@@ -13,10 +14,9 @@ type Algorithm string
 
 // supported digest types
 const (
-	SHA256         Algorithm = "sha256"           // sha256 with hex encoding
-	SHA384         Algorithm = "sha384"           // sha384 with hex encoding
-	SHA512         Algorithm = "sha512"           // sha512 with hex encoding
-	TarsumV1SHA256 Algorithm = "tarsum+v1+sha256" // supported tarsum version, verification only
+	SHA256 Algorithm = "sha256" // sha256 with hex encoding
+	SHA384 Algorithm = "sha384" // sha384 with hex encoding
+	SHA512 Algorithm = "sha512" // sha512 with hex encoding
 
 	// Canonical is the primary digest algorithm used with the distribution
 	// project. Other digests may be used but this one is the primary storage
@@ -54,6 +54,15 @@ func (a Algorithm) String() string {
 	return string(a)
 }
 
+// Size returns number of bytes returned by the hash.
+func (a Algorithm) Size() int {
+	h, ok := algorithms[a]
+	if !ok {
+		return 0
+	}
+	return h.Size()
+}
+
 // Set implemented to allow use of Algorithm as a command line flag.
 func (a *Algorithm) Set(value string) error {
 	if value == "" {
@@ -76,11 +85,18 @@ func (a Algorithm) New() Digester {
 	}
 }
 
-// Hash returns a new hash as used by the algorithm. If not available, nil is
-// returned. Make sure to check Available before calling.
+// Hash returns a new hash as used by the algorithm. If not available, the
+// method will panic. Check Algorithm.Available() before calling.
 func (a Algorithm) Hash() hash.Hash {
 	if !a.Available() {
-		return nil
+		// NOTE(stevvooe): A missing hash is usually a programming error that
+		// must be resolved at compile time. We don't import in the digest
+		// package to allow users to choose their hash implementation (such as
+		// when using stevvooe/resumable or a hardware accelerated package).
+		//
+		// Applications that may want to resolve the hash at runtime should
+		// call Algorithm.Available before call Algorithm.Hash().
+		panic(fmt.Sprintf("%v not available (make sure it is imported)", a))
 	}
 
 	return algorithms[a].New()
@@ -95,6 +111,22 @@ func (a Algorithm) FromReader(rd io.Reader) (Digest, error) {
 	}
 
 	return digester.Digest(), nil
+}
+
+// FromBytes digests the input and returns a Digest.
+func (a Algorithm) FromBytes(p []byte) Digest {
+	digester := a.New()
+
+	if _, err := digester.Hash().Write(p); err != nil {
+		// Writes to a Hash should never fail. None of the existing
+		// hash implementations in the stdlib or hashes vendored
+		// here can return errors from Write. Having a panic in this
+		// condition instead of having FromBytes return an error value
+		// avoids unnecessary error handling paths in all callers.
+		panic("write to hash function returned error: " + err.Error())
+	}
+
+	return digester.Digest()
 }
 
 // TODO(stevvooe): Allow resolution of verifiers using the digest type and

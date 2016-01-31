@@ -38,6 +38,7 @@ the [installation](../../installation/index.md) instructions for your operating 
 For easy reference, the following list of environment variables are supported
 by the `docker` command line:
 
+* `DOCKER_API_VERSION` The API version to use (e.g. `1.19`)
 * `DOCKER_CONFIG` The location of your client configuration files.
 * `DOCKER_CERT_PATH` The location of your authentication keys.
 * `DOCKER_DRIVER` The graph driver to use.
@@ -100,7 +101,32 @@ The property `psFormat` specifies the default format for `docker ps` output.
 When the `--format` flag is not provided with the `docker ps` command,
 Docker's client uses this property. If this property is not set, the client
 falls back to the default table format. For a list of supported formatting
-directives, see the [**Formatting** section in the `docker ps` documentation](ps.md)
+directives, see the
+[**Formatting** section in the `docker ps` documentation](ps.md)
+
+Once attached to a container, users detach from it and leave it running using
+the using `CTRL-p CTRL-q` key sequence. This detach key sequence is customizable
+using the `detachKeys` property. Specify a `<sequence>` value for the
+property. The format of the `<sequence>` is a comma-separated list of either 
+a letter [a-Z], or the `ctrl-` combined with any of the following:
+
+* `a-z` (a single lowercase alpha character )
+* `@` (ampersand)
+* `[` (left bracket)
+* `\\` (two backward slashes)
+*  `_` (underscore)
+* `^` (caret)
+
+Your customization applies to all containers started in with your Docker client.
+Users can override your custom or the default key sequence on a per-container
+basis. To do this, the user specifies the `--detach-keys` flag with the `docker
+attach`, `docker exec`, `docker run` or `docker start` command.
+
+The property `imagesFormat` specifies the default format for `docker images` output.
+When the `--format` flag is not provided with the `docker images` command,
+Docker's client uses this property. If this property is not set, the client
+falls back to the default table format. For a list of supported formatting
+directives, see the [**Formatting** section in the `docker images` documentation](images.md)
 
 Following is a sample `config.json` file:
 
@@ -108,7 +134,9 @@ Following is a sample `config.json` file:
       "HttpHeaders": {
         "MyHeader": "MyValue"
       },
-      "psFormat": "table {{.ID}}\\t{{.Image}}\\t{{.Command}}\\t{{.Labels}}"
+      "psFormat": "table {{.ID}}\\t{{.Image}}\\t{{.Command}}\\t{{.Labels}}",
+      "imagesFormat": "table {{.ID}}\\t{{.Repository}}\\t{{.Tag}}\\t{{.CreatedAt}}",
+      "detachKeys": "ctrl-e,e"
     }
 
 ### Notary

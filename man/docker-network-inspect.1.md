@@ -6,12 +6,13 @@ docker-network-inspect - inspect a network
 
 # SYNOPSIS
 **docker network inspect**
+[**-f**|**--format**[=*FORMAT*]]
 [**--help**]
 NETWORK [NETWORK...]
 
 # DESCRIPTION
 
-Returns information about one or more networks. By default, this command renders all results in a JSON object. For example, if you connect two containers to a network:
+Returns information about one or more networks. By default, this command renders all results in a JSON object. For example, if you connect two containers to the default `bridge` network:
 
 ```bash
 $ sudo docker run -itd --name=container1 busybox
@@ -21,7 +22,11 @@ $ sudo docker run -itd --name=container2 busybox
 bda12f8922785d1f160be70736f26c1e331ab8aaf8ed8d56728508f2e2fd4727
 ```
 
-The `network inspect` command shows the containers, by id, in its results.
+The `network inspect` command shows the containers, by id, in its
+results. You can specify an alternate format to execute a given
+template for each result. Go's
+[text/template](http://golang.org/pkg/text/template/) package
+describes all the details of the format.
 
 ```bash
 $ sudo docker network inspect bridge
@@ -68,7 +73,36 @@ $ sudo docker network inspect bridge
 ]
 ```
 
+Returns the information about the user-defined network:
+
+```bash
+$ docker network create simple-network
+69568e6336d8c96bbf57869030919f7c69524f71183b44d80948bd3927c87f6a
+$ docker network inspect simple-network
+[
+    {
+        "Name": "simple-network",
+        "Id": "69568e6336d8c96bbf57869030919f7c69524f71183b44d80948bd3927c87f6a",
+        "Scope": "local",
+        "Driver": "bridge",
+        "IPAM": {
+            "Driver": "default",
+            "Config": [
+                {
+                    "Subnet": "172.22.0.0/16",
+                    "Gateway": "172.22.0.1/16"
+                }
+            ]
+        },
+        "Containers": {},
+        "Options": {}
+    }
+]
+```
+
 # OPTIONS
+**-f**, **--format**=""
+  Format the output using the given go template.
 
 **--help**
   Print usage statement

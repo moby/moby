@@ -44,8 +44,7 @@ func getContainerLogs(c *check.C, containerID string) string {
 }
 
 func getContainerStatus(c *check.C, containerID string) string {
-	out, err := inspectField(containerID, "State.Running")
-	c.Assert(err, check.IsNil)
+	out := inspectField(c, containerID, "State.Running")
 	return out
 }
 

@@ -35,28 +35,28 @@ func (s *CpuGroup) Apply(d *cgroupData) error {
 }
 
 func (s *CpuGroup) Set(path string, cgroup *configs.Cgroup) error {
-	if cgroup.CpuShares != 0 {
-		if err := writeFile(path, "cpu.shares", strconv.FormatInt(cgroup.CpuShares, 10)); err != nil {
+	if cgroup.Resources.CpuShares != 0 {
+		if err := writeFile(path, "cpu.shares", strconv.FormatInt(cgroup.Resources.CpuShares, 10)); err != nil {
 			return err
 		}
 	}
-	if cgroup.CpuPeriod != 0 {
-		if err := writeFile(path, "cpu.cfs_period_us", strconv.FormatInt(cgroup.CpuPeriod, 10)); err != nil {
+	if cgroup.Resources.CpuPeriod != 0 {
+		if err := writeFile(path, "cpu.cfs_period_us", strconv.FormatInt(cgroup.Resources.CpuPeriod, 10)); err != nil {
 			return err
 		}
 	}
-	if cgroup.CpuQuota != 0 {
-		if err := writeFile(path, "cpu.cfs_quota_us", strconv.FormatInt(cgroup.CpuQuota, 10)); err != nil {
+	if cgroup.Resources.CpuQuota != 0 {
+		if err := writeFile(path, "cpu.cfs_quota_us", strconv.FormatInt(cgroup.Resources.CpuQuota, 10)); err != nil {
 			return err
 		}
 	}
-	if cgroup.CpuRtPeriod != 0 {
-		if err := writeFile(path, "cpu.rt_period_us", strconv.FormatInt(cgroup.CpuRtPeriod, 10)); err != nil {
+	if cgroup.Resources.CpuRtPeriod != 0 {
+		if err := writeFile(path, "cpu.rt_period_us", strconv.FormatInt(cgroup.Resources.CpuRtPeriod, 10)); err != nil {
 			return err
 		}
 	}
-	if cgroup.CpuRtRuntime != 0 {
-		if err := writeFile(path, "cpu.rt_runtime_us", strconv.FormatInt(cgroup.CpuRtRuntime, 10)); err != nil {
+	if cgroup.Resources.CpuRtRuntime != 0 {
+		if err := writeFile(path, "cpu.rt_runtime_us", strconv.FormatInt(cgroup.Resources.CpuRtRuntime, 10)); err != nil {
 			return err
 		}
 	}

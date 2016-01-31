@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"time"
 
-	"github.com/jfrazelle/go/canonical/json"
+	"github.com/docker/go/canonical/json"
 )
 
 // SignedTimestamp is a fully unpacked timestamp.json
@@ -39,7 +39,7 @@ func NewTimestamp(snapshot *Signed) (*SignedTimestamp, error) {
 			Version: 0,
 			Expires: DefaultExpires("timestamp"),
 			Meta: Files{
-				ValidRoles["snapshot"]: snapshotMeta,
+				CanonicalSnapshotRole: snapshotMeta,
 			},
 		},
 	}, nil

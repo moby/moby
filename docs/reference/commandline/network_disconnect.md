@@ -12,9 +12,11 @@ parent = "smn_cli"
 
     Usage:  docker network disconnect [OPTIONS] NETWORK CONTAINER
 
+
     Disconnects a container from a network
 
-      --help=false       Print usage
+      -f, --force        Force the container to disconnect from a network
+      --help             Print usage
 
 Disconnects a container from a network. The container must be running to disconnect it from the network.
 

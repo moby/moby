@@ -15,6 +15,7 @@ import (
 	"github.com/opencontainers/runc/libcontainer/cgroups"
 	"github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/opencontainers/runc/libcontainer/system"
+	"github.com/opencontainers/runc/libcontainer/utils"
 )
 
 type parentProcess interface {
@@ -41,13 +42,14 @@ type parentProcess interface {
 }
 
 type setnsProcess struct {
-	cmd         *exec.Cmd
-	parentPipe  *os.File
-	childPipe   *os.File
-	cgroupPaths map[string]string
-	config      *initConfig
-	fds         []string
-	process     *Process
+	cmd           *exec.Cmd
+	parentPipe    *os.File
+	childPipe     *os.File
+	cgroupPaths   map[string]string
+	config        *initConfig
+	fds           []string
+	process       *Process
+	bootstrapData io.Reader
 }
 
 func (p *setnsProcess) startTime() (string, error) {
@@ -64,6 +66,16 @@ func (p *setnsProcess) signal(sig os.Signal) error {
 
 func (p *setnsProcess) start() (err error) {
 	defer p.parentPipe.Close()
+	err = p.cmd.Start()
+	p.childPipe.Close()
+	if err != nil {
+		return newSystemError(err)
+	}
+	if p.bootstrapData != nil {
+		if _, err := io.Copy(p.parentPipe, p.bootstrapData); err != nil {
+			return newSystemError(err)
+		}
+	}
 	if err = p.execSetns(); err != nil {
 		return newSystemError(err)
 	}
@@ -72,7 +84,7 @@ func (p *setnsProcess) start() (err error) {
 			return newSystemError(err)
 		}
 	}
-	if err := json.NewEncoder(p.parentPipe).Encode(p.config); err != nil {
+	if err := utils.WriteJSON(p.parentPipe, p.config); err != nil {
 		return newSystemError(err)
 	}
 	if err := syscall.Shutdown(int(p.parentPipe.Fd()), syscall.SHUT_WR); err != nil {
@@ -96,11 +108,6 @@ func (p *setnsProcess) start() (err error) {
 // before the go runtime boots, we wait on the process to die and receive the child's pid
 // over the provided pipe.
 func (p *setnsProcess) execSetns() error {
-	err := p.cmd.Start()
-	p.childPipe.Close()
-	if err != nil {
-		return newSystemError(err)
-	}
 	status, err := p.cmd.Process.Wait()
 	if err != nil {
 		p.cmd.Wait()
@@ -264,7 +271,7 @@ func (p *initProcess) startTime() (string, error) {
 
 func (p *initProcess) sendConfig() error {
 	// send the state to the container's init process then shutdown writes for the parent
-	if err := json.NewEncoder(p.parentPipe).Encode(p.config); err != nil {
+	if err := utils.WriteJSON(p.parentPipe, p.config); err != nil {
 		return err
 	}
 	// shutdown writes for the parent side of the pipe
@@ -313,4 +320,45 @@ func getPipeFds(pid int) ([]string, error) {
 		fds[i] = target
 	}
 	return fds, nil
+}
+
+// InitializeIO creates pipes for use with the process's STDIO
+// and returns the opposite side for each
+func (p *Process) InitializeIO(rootuid int) (i *IO, err error) {
+	var fds []uintptr
+	i = &IO{}
+	// cleanup in case of an error
+	defer func() {
+		if err != nil {
+			for _, fd := range fds {
+				syscall.Close(int(fd))
+			}
+		}
+	}()
+	// STDIN
+	r, w, err := os.Pipe()
+	if err != nil {
+		return nil, err
+	}
+	fds = append(fds, r.Fd(), w.Fd())
+	p.Stdin, i.Stdin = r, w
+	// STDOUT
+	if r, w, err = os.Pipe(); err != nil {
+		return nil, err
+	}
+	fds = append(fds, r.Fd(), w.Fd())
+	p.Stdout, i.Stdout = w, r
+	// STDERR
+	if r, w, err = os.Pipe(); err != nil {
+		return nil, err
+	}
+	fds = append(fds, r.Fd(), w.Fd())
+	p.Stderr, i.Stderr = w, r
+	// change ownership of the pipes incase we are in a user namespace
+	for _, fd := range fds {
+		if err := syscall.Fchown(int(fd), rootuid, rootuid); err != nil {
+			return nil, err
+		}
+	}
+	return i, nil
 }

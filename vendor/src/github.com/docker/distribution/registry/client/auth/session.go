@@ -108,6 +108,8 @@ type tokenHandler struct {
 	tokenLock       sync.Mutex
 	tokenCache      string
 	tokenExpiration time.Time
+
+	additionalScopes map[string]struct{}
 }
 
 // tokenScope represents the scope at which a token will be requested.
@@ -145,6 +147,7 @@ func newTokenHandler(transport http.RoundTripper, creds CredentialStore, c clock
 			Scope:    scope,
 			Actions:  actions,
 		},
+		additionalScopes: map[string]struct{}{},
 	}
 }
 
@@ -160,7 +163,15 @@ func (th *tokenHandler) Scheme() string {
 }
 
 func (th *tokenHandler) AuthorizeRequest(req *http.Request, params map[string]string) error {
-	if err := th.refreshToken(params); err != nil {
+	var additionalScopes []string
+	if fromParam := req.URL.Query().Get("from"); fromParam != "" {
+		additionalScopes = append(additionalScopes, tokenScope{
+			Resource: "repository",
+			Scope:    fromParam,
+			Actions:  []string{"pull"},
+		}.String())
+	}
+	if err := th.refreshToken(params, additionalScopes...); err != nil {
 		return err
 	}
 
@@ -169,11 +180,18 @@ func (th *tokenHandler) AuthorizeRequest(req *http.Request, params map[string]st
 	return nil
 }
 
-func (th *tokenHandler) refreshToken(params map[string]string) error {
+func (th *tokenHandler) refreshToken(params map[string]string, additionalScopes ...string) error {
 	th.tokenLock.Lock()
 	defer th.tokenLock.Unlock()
+	var addedScopes bool
+	for _, scope := range additionalScopes {
+		if _, ok := th.additionalScopes[scope]; !ok {
+			th.additionalScopes[scope] = struct{}{}
+			addedScopes = true
+		}
+	}
 	now := th.clock.Now()
-	if now.After(th.tokenExpiration) {
+	if now.After(th.tokenExpiration) || addedScopes {
 		tr, err := th.fetchToken(params)
 		if err != nil {
 			return err
@@ -223,6 +241,10 @@ func (th *tokenHandler) fetchToken(params map[string]string) (token *tokenRespon
 		reqParams.Add("scope", scopeField)
 	}
 
+	for scope := range th.additionalScopes {
+		reqParams.Add("scope", scope)
+	}
+
 	if th.creds != nil {
 		username, password := th.creds.Basic(realmURL)
 		if username != "" && password != "" {
@@ -240,7 +262,8 @@ func (th *tokenHandler) fetchToken(params map[string]string) (token *tokenRespon
 	defer resp.Body.Close()
 
 	if !client.SuccessStatus(resp.StatusCode) {
-		return nil, fmt.Errorf("token auth attempt for registry: %s request failed with status: %d %s", req.URL, resp.StatusCode, http.StatusText(resp.StatusCode))
+		err := client.HandleErrorResponse(resp)
+		return nil, err
 	}
 
 	decoder := json.NewDecoder(resp.Body)

@@ -309,7 +309,7 @@ func TestCompareDirectoryEntries(t *testing.T) {
 	}
 }
 
-// FIXME make an "unhappy path" test for ListTar without "panicing" :-)
+// FIXME make an "unhappy path" test for ListTar without "panicking" :-)
 func TestListTar(t *testing.T) {
 	tmpFolder, err := ioutil.TempDir("", "integration-cli-utils-list-tar")
 	if err != nil {
@@ -363,7 +363,7 @@ func TestConsumeWithSpeed(t *testing.T) {
 	reader := strings.NewReader("1234567890")
 	chunksize := 2
 
-	bytes1, err := ConsumeWithSpeed(reader, chunksize, 1*time.Millisecond, nil)
+	bytes1, err := ConsumeWithSpeed(reader, chunksize, 1*time.Second, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -385,7 +385,7 @@ func TestConsumeWithSpeedWithStop(t *testing.T) {
 		stopIt <- true
 	}()
 
-	bytes1, err := ConsumeWithSpeed(reader, chunksize, 2*time.Millisecond, stopIt)
+	bytes1, err := ConsumeWithSpeed(reader, chunksize, 20*time.Millisecond, stopIt)
 	if err != nil {
 		t.Fatal(err)
 	}

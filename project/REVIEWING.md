@@ -43,8 +43,9 @@ help in reviewing the PR, or because of the potential impact of the PR on their 
  * `impact/api`
  * `impact/changelog`
  * `impact/cli`
- * `impact/dockerfile`
  * `impact/deprecation`
+ * `impact/distribution`
+ * `impact/dockerfile`
 
 # Workflow
 

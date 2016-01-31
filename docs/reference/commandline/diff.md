@@ -14,7 +14,7 @@ parent = "smn_cli"
 
     Inspect changes on a container's filesystem
 
-      --help=false        Print usage
+      --help              Print usage
 
 List the changed files and directories in a container᾿s filesystem
  There are 3 events that are listed in the `diff`:

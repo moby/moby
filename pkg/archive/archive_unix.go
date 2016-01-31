@@ -19,7 +19,7 @@ func fixVolumePathPrefix(srcPath string) string {
 }
 
 // getWalkRoot calculates the root path when performing a TarWithOptions.
-// We use a seperate function as this is platform specific. On Linux, we
+// We use a separate function as this is platform specific. On Linux, we
 // can't use filepath.Join(srcPath,include) because this will clean away
 // a trailing "." or "/" which may be important.
 func getWalkRoot(srcPath string, include string) string {

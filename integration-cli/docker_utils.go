@@ -22,14 +22,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/httputils"
 	"github.com/docker/docker/pkg/integration"
 	"github.com/docker/docker/pkg/ioutils"
-	"github.com/docker/docker/pkg/sockets"
 	"github.com/docker/docker/pkg/stringutils"
-	"github.com/docker/docker/pkg/tlsconfig"
+	"github.com/docker/engine-api/types"
+	"github.com/docker/go-connections/sockets"
+	"github.com/docker/go-connections/tlsconfig"
 	"github.com/go-check/check"
 )
 
@@ -224,17 +224,20 @@ func (d *Daemon) Start(arg ...string) error {
 
 	// If we don't explicitly set the log-level or debug flag(-D) then
 	// turn on debug mode
-	foundIt := false
+	foundLog := false
+	foundSd := false
 	for _, a := range arg {
 		if strings.Contains(a, "--log-level") || strings.Contains(a, "-D") || strings.Contains(a, "--debug") {
-			foundIt = true
+			foundLog = true
+		}
+		if strings.Contains(a, "--storage-driver") {
+			foundSd = true
 		}
 	}
-	if !foundIt {
+	if !foundLog {
 		args = append(args, "--debug")
 	}
-
-	if d.storageDriver != "" {
+	if d.storageDriver != "" && !foundSd {
 		args = append(args, "--storage-driver", d.storageDriver)
 	}
 
@@ -321,11 +324,11 @@ func (d *Daemon) StartWithBusybox(arg ...string) error {
 		}
 	}
 	// loading busybox image to this daemon
-	if _, err := d.Cmd("load", "--input", bb); err != nil {
-		return fmt.Errorf("could not load busybox image: %v", err)
+	if out, err := d.Cmd("load", "--input", bb); err != nil {
+		return fmt.Errorf("could not load busybox image: %s", out)
 	}
 	if err := os.Remove(bb); err != nil {
-		d.c.Logf("Could not remove %s: %v", bb, err)
+		d.c.Logf("could not remove %s: %v", bb, err)
 	}
 	return nil
 }
@@ -1132,13 +1135,12 @@ COPY . /static`); err != nil {
 		ctx:       ctx}, nil
 }
 
-func inspectFieldAndMarshall(name, field string, output interface{}) error {
-	str, err := inspectFieldJSON(name, field)
-	if err != nil {
-		return err
+func inspectFieldAndMarshall(c *check.C, name, field string, output interface{}) {
+	str := inspectFieldJSON(c, name, field)
+	err := json.Unmarshal([]byte(str), output)
+	if c != nil {
+		c.Assert(err, check.IsNil, check.Commentf("failed to unmarshal: %v", err))
 	}
-
-	return json.Unmarshal([]byte(str), output)
 }
 
 func inspectFilter(name, filter string) (string, error) {
@@ -1146,21 +1148,37 @@ func inspectFilter(name, filter string) (string, error) {
 	inspectCmd := exec.Command(dockerBinary, "inspect", "-f", format, name)
 	out, exitCode, err := runCommandWithOutput(inspectCmd)
 	if err != nil || exitCode != 0 {
-		return "", fmt.Errorf("failed to inspect container %s: %s", name, out)
+		return "", fmt.Errorf("failed to inspect %s: %s", name, out)
 	}
 	return strings.TrimSpace(out), nil
 }
 
-func inspectField(name, field string) (string, error) {
+func inspectFieldWithError(name, field string) (string, error) {
 	return inspectFilter(name, fmt.Sprintf(".%s", field))
 }
 
-func inspectFieldJSON(name, field string) (string, error) {
-	return inspectFilter(name, fmt.Sprintf("json .%s", field))
+func inspectField(c *check.C, name, field string) string {
+	out, err := inspectFilter(name, fmt.Sprintf(".%s", field))
+	if c != nil {
+		c.Assert(err, check.IsNil)
+	}
+	return out
 }
 
-func inspectFieldMap(name, path, field string) (string, error) {
-	return inspectFilter(name, fmt.Sprintf("index .%s %q", path, field))
+func inspectFieldJSON(c *check.C, name, field string) string {
+	out, err := inspectFilter(name, fmt.Sprintf("json .%s", field))
+	if c != nil {
+		c.Assert(err, check.IsNil)
+	}
+	return out
+}
+
+func inspectFieldMap(c *check.C, name, path, field string) string {
+	out, err := inspectFilter(name, fmt.Sprintf("index .%s %q", path, field))
+	if c != nil {
+		c.Assert(err, check.IsNil)
+	}
+	return out
 }
 
 func inspectMountSourceField(name, destination string) (string, error) {
@@ -1172,7 +1190,7 @@ func inspectMountSourceField(name, destination string) (string, error) {
 }
 
 func inspectMountPoint(name, destination string) (types.MountPoint, error) {
-	out, err := inspectFieldJSON(name, "Mounts")
+	out, err := inspectFilter(name, "json .Mounts")
 	if err != nil {
 		return types.MountPoint{}, err
 	}
@@ -1204,7 +1222,7 @@ func inspectMountPointJSON(j, destination string) (types.MountPoint, error) {
 }
 
 func getIDByName(name string) (string, error) {
-	return inspectField(name, "Id")
+	return inspectFieldWithError(name, "Id")
 }
 
 // getContainerState returns the exit code of the container
@@ -1306,6 +1324,47 @@ func buildImageFromContextWithOut(name string, ctx *FakeContext, useCache bool, 
 		return "", "", err
 	}
 	return id, out, nil
+}
+
+func buildImageFromContextWithStdoutStderr(name string, ctx *FakeContext, useCache bool, buildFlags ...string) (string, string, string, error) {
+	args := []string{"build", "-t", name}
+	if !useCache {
+		args = append(args, "--no-cache")
+	}
+	args = append(args, buildFlags...)
+	args = append(args, ".")
+	buildCmd := exec.Command(dockerBinary, args...)
+	buildCmd.Dir = ctx.Dir
+
+	stdout, stderr, exitCode, err := runCommandWithStdoutStderr(buildCmd)
+	if err != nil || exitCode != 0 {
+		return "", stdout, stderr, fmt.Errorf("failed to build the image: %s", stdout)
+	}
+	id, err := getIDByName(name)
+	if err != nil {
+		return "", stdout, stderr, err
+	}
+	return id, stdout, stderr, nil
+}
+
+func buildImageFromGitWithStdoutStderr(name string, ctx *fakeGit, useCache bool, buildFlags ...string) (string, string, string, error) {
+	args := []string{"build", "-t", name}
+	if !useCache {
+		args = append(args, "--no-cache")
+	}
+	args = append(args, buildFlags...)
+	args = append(args, ctx.RepoURL)
+	buildCmd := exec.Command(dockerBinary, args...)
+
+	stdout, stderr, exitCode, err := runCommandWithStdoutStderr(buildCmd)
+	if err != nil || exitCode != 0 {
+		return "", stdout, stderr, fmt.Errorf("failed to build the image: %s", stdout)
+	}
+	id, err := getIDByName(name)
+	if err != nil {
+		return "", stdout, stderr, err
+	}
+	return id, stdout, stderr, nil
 }
 
 func buildImageFromPath(name, path string, useCache bool, buildFlags ...string) (string, error) {
@@ -1416,7 +1475,7 @@ func newFakeGit(name string, files map[string]string, enforceLocalServer bool) (
 			return nil, fmt.Errorf("cannot start fake storage: %v", err)
 		}
 	} else {
-		// always start a local http server on CLI test machin
+		// always start a local http server on CLI test machine
 		httpServer := httptest.NewServer(http.FileServer(http.Dir(root)))
 		server = &localGitServer{httpServer}
 	}
@@ -1430,7 +1489,7 @@ func newFakeGit(name string, files map[string]string, enforceLocalServer bool) (
 // Write `content` to the file at path `dst`, creating it if necessary,
 // as well as any missing directories.
 // The file is truncated if it already exists.
-// Fail the test when error occures.
+// Fail the test when error occurs.
 func writeFile(dst, content string, c *check.C) {
 	// Create subdirectories if necessary
 	c.Assert(os.MkdirAll(path.Dir(dst), 0700), check.IsNil)
@@ -1443,7 +1502,7 @@ func writeFile(dst, content string, c *check.C) {
 }
 
 // Return the contents of file at path `src`.
-// Fail the test when error occures.
+// Fail the test when error occurs.
 func readFile(src string, c *check.C) (content string) {
 	data, err := ioutil.ReadFile(src)
 	c.Assert(err, check.IsNil)
@@ -1513,9 +1572,9 @@ func daemonTime(c *check.C) time.Time {
 	return dt
 }
 
-func setupRegistry(c *check.C) *testRegistryV2 {
+func setupRegistry(c *check.C, schema1, auth bool) *testRegistryV2 {
 	testRequires(c, RegistryHosting)
-	reg, err := newTestRegistryV2(c)
+	reg, err := newTestRegistryV2(c, schema1, auth)
 	c.Assert(err, check.IsNil)
 
 	// Wait for registry to be ready to serve requests.
@@ -1526,7 +1585,7 @@ func setupRegistry(c *check.C) *testRegistryV2 {
 		time.Sleep(100 * time.Millisecond)
 	}
 
-	c.Assert(err, check.IsNil, check.Commentf("Timeout waiting for test registry to become available"))
+	c.Assert(err, check.IsNil, check.Commentf("Timeout waiting for test registry to become available: %v", err))
 	return reg
 }
 
@@ -1662,4 +1721,20 @@ func getInspectBody(c *check.C, version, id string) []byte {
 	c.Assert(err, check.IsNil)
 	c.Assert(status, check.Equals, http.StatusOK)
 	return body
+}
+
+// Run a long running idle task in a background container using the
+// system-specific default image and command.
+func runSleepingContainer(c *check.C, extraArgs ...string) (string, int) {
+	return runSleepingContainerInImage(c, defaultSleepImage, extraArgs...)
+}
+
+// Run a long running idle task in a background container using the specified
+// image and the system-specific command.
+func runSleepingContainerInImage(c *check.C, image string, extraArgs ...string) (string, int) {
+	args := []string{"run", "-d"}
+	args = append(args, extraArgs...)
+	args = append(args, image)
+	args = append(args, defaultSleepCommand...)
+	return dockerCmd(c, args...)
 }

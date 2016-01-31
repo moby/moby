@@ -20,7 +20,16 @@ func (rl *roLayer) TarStream() (io.ReadCloser, error) {
 		return nil, err
 	}
 
-	return rl.layerStore.assembleTar(rl.cacheID, r, nil)
+	pr, pw := io.Pipe()
+	go func() {
+		err := rl.layerStore.assembleTarTo(rl.cacheID, r, nil, pw)
+		if err != nil {
+			pw.CloseWithError(err)
+		} else {
+			pw.Close()
+		}
+	}()
+	return pr, nil
 }
 
 func (rl *roLayer) ChainID() ChainID {

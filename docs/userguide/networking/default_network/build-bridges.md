@@ -10,7 +10,7 @@ parent = "smn_networking_def"
 
 # Build your own bridge
 
-This section explains building your own bridge to replaced the Docker default
+This section explains how to build your own bridge to replace the Docker default
 bridge. This is a `bridge` network named `bridge` created automatically when you
 install Docker.
 
@@ -18,9 +18,10 @@ install Docker.
 create user-defined networks in addition to the default bridge network.
 
 You can set up your own bridge before starting Docker and use `-b BRIDGE` or
-`--bridge=BRIDGE` to tell Docker to use your bridge instead.  If you already
-have Docker up and running with its default `docker0` still configured, you will
-probably want to begin by stopping the service and removing the interface:
+`--bridge=BRIDGE` to tell Docker to use your bridge instead. If you already
+have Docker up and running with its default `docker0` still configured,
+you can directly create your bridge and restart Docker with it or want to begin by
+stopping the service and removing the interface:
 
 ```
 # Stopping Docker and removing docker0
@@ -32,7 +33,7 @@ $ sudo iptables -t nat -F POSTROUTING
 ```
 
 Then, before starting the Docker service, create your own bridge and give it
-whatever configuration you want.  Here we will create a simple enough bridge
+whatever configuration you want. Here we will create a simple enough bridge
 that we really could just have used the options in the previous section to
 customize `docker0`, but it will be enough to illustrate the technique.
 
@@ -66,7 +67,7 @@ MASQUERADE  all  --  192.168.5.0/24      0.0.0.0/0
 ```
 
 The result should be that the Docker server starts successfully and is now
-prepared to bind containers to the new bridge.  After pausing to verify the
+prepared to bind containers to the new bridge. After pausing to verify the
 bridge's configuration, try creating a container -- you will see that its IP
 address is in your new IP address range, which Docker will have auto-detected.
 

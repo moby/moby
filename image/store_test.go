@@ -194,6 +194,45 @@ func TestAddDelete(t *testing.T) {
 
 }
 
+func TestSearchAfterDelete(t *testing.T) {
+	tmpdir, err := ioutil.TempDir("", "images-fs-store")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpdir)
+	fs, err := NewFSStoreBackend(tmpdir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	is, err := NewImageStore(fs, &mockLayerGetReleaser{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	id, err := is.Create([]byte(`{"comment": "abc", "rootfs": {"type": "layers"}}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	id1, err := is.Search(string(id)[:15])
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if actual, expected := id1, id; expected != actual {
+		t.Fatalf("wrong id returned from search: expected %q, got %q", expected, actual)
+	}
+
+	if _, err := is.Delete(id); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := is.Search(string(id)[:15]); err == nil {
+		t.Fatal("expected search after deletion to fail")
+	}
+}
+
 type mockLayerGetReleaser struct{}
 
 func (ls *mockLayerGetReleaser) Get(layer.ChainID) (layer.Layer, error) {

@@ -41,21 +41,22 @@ and will thank you for it!
 
 Check that [our issue database](https://github.com/docker/docker/issues)
 doesn't already include that problem or suggestion before submitting an issue.
-If you find a match, add a quick "+1" or "I have this problem too." Doing this
-helps prioritize the most common problems and requests. **DO NOT DO THAT** to
-subscribe to the issue unless you have something meaningful to add to the
-conversation. The best way to subscribe the issue is by clicking Subscribe
-button in top right of the page.
+If you find a match, you can use the "subscribe" button to get notified on
+updates. Do *not* leave random "+1" or "I have this too" comments, as they
+only clutter the discussion, and don't help resolving it. However, if you
+have ways to reproduce the issue or have additional information that may help
+resolving the issue, please leave a comment.
 
-When reporting issues, please include your host OS (Ubuntu 12.04, Fedora 19,
-etc). Please include:
+When reporting issues, always include:
 
-* The output of `uname -a`.
 * The output of `docker version`.
 * The output of `docker info`.
 
-Please also include the steps required to reproduce the problem if possible and
+Also include the steps required to reproduce the problem if possible and
 applicable. This information will help us review and fix your issue faster.
+When sending lengthy log-files, consider posting them as a gist (https://gist.github.com).
+Don't forget to remove sensitive data from your logfiles before posting (you can
+replace those parts with "REDACTED").
 
 **Issue Report Template**:
 
@@ -311,25 +312,14 @@ format right away, but please do adjust your processes for future contributions.
 
 ### How can I become a maintainer?
 
-* Step 1: Learn the component inside out
-* Step 2: Make yourself useful by contributing code, bug fixes, support etc.
-* Step 3: Volunteer on the IRC channel (#docker at Freenode)
-* Step 4: Propose yourself at a scheduled docker meeting in #docker-dev
+The procedures for adding new maintainers are explained in the 
+global [MAINTAINERS](https://github.com/docker/opensource/blob/master/MAINTAINERS)
+file in the [https://github.com/docker/opensource/](https://github.com/docker/opensource/)
+repository.
 
 Don't forget: being a maintainer is a time investment. Make sure you
 will have time to make yourself available. You don't have to be a
 maintainer to make a difference on the project!
-
-### IRC meetings
-
-There are two monthly meetings taking place on #docker-dev IRC to accommodate all
-timezones. Anybody can propose a topic for discussion prior to the meeting.
-
-If you feel the conversation is going off-topic, feel free to point it out.
-
-For the exact dates and times, have a look at [the irc-minutes
-repo](https://github.com/docker/irc-minutes). The minutes also contain all the
-notes from previous meetings.
 
 ## Docker community guidelines
 
@@ -354,6 +344,12 @@ guidelines for the community as a whole:
   avoid off-topic discussions. Remember when you update an issue or respond
   to an email you are potentially sending to a large number of people. Please
   consider this before you update. Also remember that nobody likes spam.
+
+* Don't send email to the maintainers: There's no need to send email to the
+  maintainers to ask them to investigate an issue or to take a look at a
+  pull request. Instead of sending an email, GitHub mentions should be
+  used to ping maintainers to review a pull request, a proposal or an
+  issue.
 
 ### Guideline violations — 3 strikes method
 

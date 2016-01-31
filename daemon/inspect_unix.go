@@ -3,12 +3,13 @@
 package daemon
 
 import (
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/versions/v1p19"
+	"github.com/docker/docker/container"
+	"github.com/docker/engine-api/types"
+	"github.com/docker/engine-api/types/versions/v1p19"
 )
 
 // This sets platform-specific fields
-func setPlatformSpecificContainerFields(container *Container, contJSONBase *types.ContainerJSONBase) *types.ContainerJSONBase {
+func setPlatformSpecificContainerFields(container *container.Container, contJSONBase *types.ContainerJSONBase) *types.ContainerJSONBase {
 	contJSONBase.AppArmorProfile = container.AppArmorProfile
 	contJSONBase.ResolvConfPath = container.ResolvConfPath
 	contJSONBase.HostnamePath = container.HostnamePath
@@ -19,7 +20,7 @@ func setPlatformSpecificContainerFields(container *Container, contJSONBase *type
 
 // containerInspectPre120 gets containers for pre 1.20 APIs.
 func (daemon *Daemon) containerInspectPre120(name string) (*v1p19.ContainerJSON, error) {
-	container, err := daemon.Get(name)
+	container, err := daemon.GetContainer(name)
 	if err != nil {
 		return nil, err
 	}
@@ -44,11 +45,11 @@ func (daemon *Daemon) containerInspectPre120(name string) (*v1p19.ContainerJSON,
 		MacAddress:      container.Config.MacAddress,
 		NetworkDisabled: container.Config.NetworkDisabled,
 		ExposedPorts:    container.Config.ExposedPorts,
-		VolumeDriver:    container.hostConfig.VolumeDriver,
-		Memory:          container.hostConfig.Memory,
-		MemorySwap:      container.hostConfig.MemorySwap,
-		CPUShares:       container.hostConfig.CPUShares,
-		CPUSet:          container.hostConfig.CpusetCpus,
+		VolumeDriver:    container.HostConfig.VolumeDriver,
+		Memory:          container.HostConfig.Memory,
+		MemorySwap:      container.HostConfig.MemorySwap,
+		CPUShares:       container.HostConfig.CPUShares,
+		CPUSet:          container.HostConfig.CpusetCpus,
 	}
 	networkSettings := daemon.getBackwardsCompatibleNetworkSettings(container.NetworkSettings)
 
@@ -61,7 +62,7 @@ func (daemon *Daemon) containerInspectPre120(name string) (*v1p19.ContainerJSON,
 	}, nil
 }
 
-func addMountPoints(container *Container) []types.MountPoint {
+func addMountPoints(container *container.Container) []types.MountPoint {
 	mountPoints := make([]types.MountPoint, 0, len(container.MountPoints))
 	for _, m := range container.MountPoints {
 		mountPoints = append(mountPoints, types.MountPoint{
@@ -71,6 +72,7 @@ func addMountPoints(container *Container) []types.MountPoint {
 			Driver:      m.Driver,
 			Mode:        m.Mode,
 			RW:          m.RW,
+			Propagation: m.Propagation,
 		})
 	}
 	return mountPoints

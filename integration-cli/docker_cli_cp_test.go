@@ -561,7 +561,7 @@ func (s *DockerSuite) TestCpToStdout(c *check.C) {
 }
 
 func (s *DockerSuite) TestCpNameHasColon(c *check.C) {
-	testRequires(c, SameHostDaemon)
+	testRequires(c, SameHostDaemon, DaemonIsLinux)
 
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "echo lololol > /te:s:t")
 

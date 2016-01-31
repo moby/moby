@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/docker/docker/pkg/integration/checker"
+	"github.com/docker/docker/runconfig"
 	"github.com/go-check/check"
 )
 
@@ -68,10 +69,9 @@ func (s *DockerSuite) TestLinksInspectLinksStarted(c *check.C) {
 	dockerCmd(c, "run", "-d", "--name", "container1", "busybox", "top")
 	dockerCmd(c, "run", "-d", "--name", "container2", "busybox", "top")
 	dockerCmd(c, "run", "-d", "--name", "testinspectlink", "--link", "container1:alias1", "--link", "container2:alias2", "busybox", "top")
-	links, err := inspectFieldJSON("testinspectlink", "HostConfig.Links")
-	c.Assert(err, checker.IsNil)
+	links := inspectFieldJSON(c, "testinspectlink", "HostConfig.Links")
 
-	err = unmarshalJSON([]byte(links), &result)
+	err := unmarshalJSON([]byte(links), &result)
 	c.Assert(err, checker.IsNil)
 
 	output := convertSliceOfStringsToMap(result)
@@ -88,10 +88,9 @@ func (s *DockerSuite) TestLinksInspectLinksStopped(c *check.C) {
 	dockerCmd(c, "run", "-d", "--name", "container1", "busybox", "top")
 	dockerCmd(c, "run", "-d", "--name", "container2", "busybox", "top")
 	dockerCmd(c, "run", "-d", "--name", "testinspectlink", "--link", "container1:alias1", "--link", "container2:alias2", "busybox", "true")
-	links, err := inspectFieldJSON("testinspectlink", "HostConfig.Links")
-	c.Assert(err, checker.IsNil)
+	links := inspectFieldJSON(c, "testinspectlink", "HostConfig.Links")
 
-	err = unmarshalJSON([]byte(links), &result)
+	err := unmarshalJSON([]byte(links), &result)
 	c.Assert(err, checker.IsNil)
 
 	output := convertSliceOfStringsToMap(result)
@@ -135,11 +134,7 @@ func (s *DockerSuite) TestLinksUpdateOnRestart(c *check.C) {
 	out, _ := dockerCmd(c, "run", "-d", "--name", "two", "--link", "one:onetwo", "--link", "one:one", "busybox", "top")
 	id := strings.TrimSpace(string(out))
 
-	realIP, err := inspectField("one", "NetworkSettings.Networks.bridge.IPAddress")
-	if err != nil {
-		c.Fatal(err)
-	}
-	c.Assert(err, checker.IsNil)
+	realIP := inspectField(c, "one", "NetworkSettings.Networks.bridge.IPAddress")
 	content, err := readContainerFileWithExec(id, "/etc/hosts")
 	c.Assert(err, checker.IsNil)
 
@@ -156,8 +151,7 @@ func (s *DockerSuite) TestLinksUpdateOnRestart(c *check.C) {
 	c.Assert(ip, checker.Equals, realIP)
 
 	dockerCmd(c, "restart", "one")
-	realIP, err = inspectField("one", "NetworkSettings.Networks.bridge.IPAddress")
-	c.Assert(err, checker.IsNil)
+	realIP = inspectField(c, "one", "NetworkSettings.Networks.bridge.IPAddress")
 
 	content, err = readContainerFileWithExec(id, "/etc/hosts")
 	c.Assert(err, checker.IsNil, check.Commentf("content: %s", string(content)))
@@ -189,8 +183,7 @@ func (s *DockerSuite) TestLinkShortDefinition(c *check.C) {
 	cid2 := strings.TrimSpace(out)
 	c.Assert(waitRun(cid2), checker.IsNil)
 
-	links, err := inspectFieldJSON(cid2, "HostConfig.Links")
-	c.Assert(err, checker.IsNil)
+	links := inspectFieldJSON(c, cid2, "HostConfig.Links")
 	c.Assert(links, checker.Equals, "[\"/shortlinkdef:/link2/shortlinkdef\"]")
 }
 
@@ -202,7 +195,7 @@ func (s *DockerSuite) TestLinksNetworkHostContainer(c *check.C) {
 	// Running container linking to a container with --net host should have failed
 	c.Assert(err, checker.NotNil, check.Commentf("out: %s", out))
 	// Running container linking to a container with --net host should have failed
-	c.Assert(out, checker.Contains, "--net=host can't be used with links. This would result in undefined behavior")
+	c.Assert(out, checker.Contains, runconfig.ErrConflictHostNetworkAndLinks.Error())
 }
 
 func (s *DockerSuite) TestLinksEtcHostsRegularFile(c *check.C) {
@@ -210,4 +203,11 @@ func (s *DockerSuite) TestLinksEtcHostsRegularFile(c *check.C) {
 	out, _ := dockerCmd(c, "run", "--net=host", "busybox", "ls", "-la", "/etc/hosts")
 	// /etc/hosts should be a regular file
 	c.Assert(out, checker.Matches, "^-.+\n")
+}
+
+func (s *DockerSuite) TestLinksMultipleWithSameName(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	dockerCmd(c, "run", "-d", "--name=upstream-a", "busybox", "top")
+	dockerCmd(c, "run", "-d", "--name=upstream-b", "busybox", "top")
+	dockerCmd(c, "run", "--link", "upstream-a:upstream", "--link", "upstream-b:upstream", "busybox", "sh", "-c", "ping -c 1 upstream")
 }

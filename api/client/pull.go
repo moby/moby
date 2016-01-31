@@ -3,16 +3,15 @@ package client
 import (
 	"errors"
 	"fmt"
-	"net/url"
 
-	"github.com/docker/distribution/reference"
 	Cli "github.com/docker/docker/cli"
+	"github.com/docker/docker/pkg/jsonmessage"
 	flag "github.com/docker/docker/pkg/mflag"
+	"github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
-	tagpkg "github.com/docker/docker/tag"
+	"github.com/docker/engine-api/client"
+	"github.com/docker/engine-api/types"
 )
-
-var errTagCantBeUsed = errors.New("tag can't be used with --all-tags/-a")
 
 // CmdPull pulls an image or a repository from the registry.
 //
@@ -30,28 +29,21 @@ func (cli *DockerCli) CmdPull(args ...string) error {
 	if err != nil {
 		return err
 	}
+	if *allTags && !reference.IsNameOnly(distributionRef) {
+		return errors.New("tag can't be used with --all-tags/-a")
+	}
+
+	if !*allTags && reference.IsNameOnly(distributionRef) {
+		distributionRef = reference.WithDefaultTag(distributionRef)
+		fmt.Fprintf(cli.out, "Using default tag: %s\n", reference.DefaultTag)
+	}
 
 	var tag string
 	switch x := distributionRef.(type) {
-	case reference.Digested:
-		if *allTags {
-			return errTagCantBeUsed
-		}
+	case reference.Canonical:
 		tag = x.Digest().String()
-	case reference.Tagged:
-		if *allTags {
-			return errTagCantBeUsed
-		}
+	case reference.NamedTagged:
 		tag = x.Tag()
-	default:
-		if !*allTags {
-			tag = tagpkg.DefaultTag
-			distributionRef, err = reference.WithTag(distributionRef, tag)
-			if err != nil {
-				return err
-			}
-			fmt.Fprintf(cli.out, "Using default tag: %s\n", tag)
-		}
 	}
 
 	ref := registry.ParseReference(tag)
@@ -62,15 +54,34 @@ func (cli *DockerCli) CmdPull(args ...string) error {
 		return err
 	}
 
+	authConfig := registry.ResolveAuthConfig(cli.configFile.AuthConfigs, repoInfo.Index)
+	requestPrivilege := cli.registryAuthenticationPrivilegedFunc(repoInfo.Index, "pull")
+
 	if isTrusted() && !ref.HasDigest() {
 		// Check if tag is digest
-		authConfig := registry.ResolveAuthConfig(cli.configFile, repoInfo.Index)
-		return cli.trustedPull(repoInfo, ref, authConfig)
+		return cli.trustedPull(repoInfo, ref, authConfig, requestPrivilege)
 	}
 
-	v := url.Values{}
-	v.Set("fromImage", distributionRef.String())
+	return cli.imagePullPrivileged(authConfig, distributionRef.String(), "", requestPrivilege)
+}
 
-	_, _, err = cli.clientRequestAttemptLogin("POST", "/images/create?"+v.Encode(), nil, cli.out, repoInfo.Index, "pull")
-	return err
+func (cli *DockerCli) imagePullPrivileged(authConfig types.AuthConfig, imageID, tag string, requestPrivilege client.RequestPrivilegeFunc) error {
+
+	encodedAuth, err := encodeAuthToBase64(authConfig)
+	if err != nil {
+		return err
+	}
+	options := types.ImagePullOptions{
+		ImageID:      imageID,
+		Tag:          tag,
+		RegistryAuth: encodedAuth,
+	}
+
+	responseBody, err := cli.client.ImagePull(options, requestPrivilege)
+	if err != nil {
+		return err
+	}
+	defer responseBody.Close()
+
+	return jsonmessage.DisplayJSONMessagesStream(responseBody, cli.out, cli.outFd, cli.isTerminalOut, nil)
 }

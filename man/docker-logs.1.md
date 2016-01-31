@@ -6,10 +6,10 @@ docker-logs - Fetch the logs of a container
 
 # SYNOPSIS
 **docker logs**
-[**-f**|**--follow**[=*false*]]
+[**-f**|**--follow**]
 [**--help**]
 [**--since**[=*SINCE*]]
-[**-t**|**--timestamps**[=*false*]]
+[**-t**|**--timestamps**]
 [**--tail**[=*"all"*]]
 CONTAINER
 

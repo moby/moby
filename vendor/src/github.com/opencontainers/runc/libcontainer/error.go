@@ -22,6 +22,7 @@ const (
 
 	// Common errors
 	ConfigInvalid
+	ConsoleExists
 	SystemError
 )
 
@@ -43,6 +44,8 @@ func (c ErrorCode) String() string {
 		return "Container is not stopped"
 	case ContainerNotRunning:
 		return "Container is not running"
+	case ConsoleExists:
+		return "Console exists for process"
 	default:
 		return "Unknown error"
 	}

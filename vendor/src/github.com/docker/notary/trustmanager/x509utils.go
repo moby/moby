@@ -15,11 +15,11 @@ import (
 	"math/big"
 	"net/http"
 	"net/url"
-	"path/filepath"
 	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/agl/ed25519"
+	"github.com/docker/notary"
 	"github.com/docker/notary/tuf/data"
 )
 
@@ -117,11 +117,15 @@ func fingerprintCert(cert *x509.Certificate) (CertID, error) {
 
 // loadCertsFromDir receives a store AddCertFromFile for each certificate found
 func loadCertsFromDir(s *X509FileStore) error {
-	certFiles := s.fileStore.ListFiles()
-	for _, f := range certFiles {
+	for _, f := range s.fileStore.ListFiles() {
 		// ListFiles returns relative paths
-		fullPath := filepath.Join(s.fileStore.BaseDir(), f)
-		err := s.AddCertFromFile(fullPath)
+		data, err := s.fileStore.Get(f)
+		if err != nil {
+			// the filestore told us it had a file that it then couldn't serve.
+			// this is a serious problem so error immediately
+			return err
+		}
+		err = s.AddCertFromPEM(data)
 		if err != nil {
 			if _, ok := err.(*ErrCertValidation); ok {
 				logrus.Debugf("ignoring certificate, did not pass validation: %s", f)
@@ -202,7 +206,8 @@ func GetLeafCerts(certs []*x509.Certificate) []*x509.Certificate {
 
 // GetIntermediateCerts parses a list of x509 Certificates and returns all of the
 // ones marked as a CA, to be used as intermediates
-func GetIntermediateCerts(certs []*x509.Certificate) (intCerts []*x509.Certificate) {
+func GetIntermediateCerts(certs []*x509.Certificate) []*x509.Certificate {
+	var intCerts []*x509.Certificate
 	for _, cert := range certs {
 		if cert.IsCA {
 			intCerts = append(intCerts, cert)
@@ -294,6 +299,54 @@ func ParsePEMPrivateKey(pemBytes []byte, passphrase string) (data.PrivateKey, er
 	default:
 		return nil, fmt.Errorf("unsupported key type %q", block.Type)
 	}
+}
+
+// ParsePEMPublicKey returns a data.PublicKey from a PEM encoded public key or certificate.
+func ParsePEMPublicKey(pubKeyBytes []byte) (data.PublicKey, error) {
+	pemBlock, _ := pem.Decode(pubKeyBytes)
+	if pemBlock == nil {
+		return nil, errors.New("no valid public key found")
+	}
+
+	switch pemBlock.Type {
+	case "CERTIFICATE":
+		cert, err := x509.ParseCertificate(pemBlock.Bytes)
+		if err != nil {
+			return nil, fmt.Errorf("could not parse provided certificate: %v", err)
+		}
+		err = ValidateCertificate(cert)
+		if err != nil {
+			return nil, fmt.Errorf("invalid certificate: %v", err)
+		}
+		return CertToKey(cert), nil
+	default:
+		return nil, fmt.Errorf("unsupported PEM block type %q, expected certificate", pemBlock.Type)
+	}
+}
+
+// ValidateCertificate returns an error if the certificate is not valid for notary
+// Currently this is only a time expiry check, and ensuring the public key has a large enough modulus if RSA
+func ValidateCertificate(c *x509.Certificate) error {
+	if (c.NotBefore).After(c.NotAfter) {
+		return fmt.Errorf("certificate validity window is invalid")
+	}
+	now := time.Now()
+	tomorrow := now.AddDate(0, 0, 1)
+	// Give one day leeway on creation "before" time, check "after" against today
+	if (tomorrow).Before(c.NotBefore) || now.After(c.NotAfter) {
+		return fmt.Errorf("certificate is expired")
+	}
+	// If we have an RSA key, make sure it's long enough
+	if c.PublicKeyAlgorithm == x509.RSA {
+		rsaKey, ok := c.PublicKey.(*rsa.PublicKey)
+		if !ok {
+			return fmt.Errorf("unable to parse RSA public key")
+		}
+		if rsaKey.N.BitLen() < notary.MinRSABitSize {
+			return fmt.Errorf("RSA bit length is too short")
+		}
+	}
+	return nil
 }
 
 // GenerateRSAKey generates an RSA private key and returns a TUF PrivateKey
@@ -411,18 +464,26 @@ func blockType(k data.PrivateKey) (string, error) {
 }
 
 // KeyToPEM returns a PEM encoded key from a Private Key
-func KeyToPEM(privKey data.PrivateKey) ([]byte, error) {
+func KeyToPEM(privKey data.PrivateKey, role string) ([]byte, error) {
 	bt, err := blockType(privKey)
 	if err != nil {
 		return nil, err
 	}
 
-	return pem.EncodeToMemory(&pem.Block{Type: bt, Bytes: privKey.Private()}), nil
+	block := &pem.Block{
+		Type: bt,
+		Headers: map[string]string{
+			"role": role,
+		},
+		Bytes: privKey.Private(),
+	}
+
+	return pem.EncodeToMemory(block), nil
 }
 
 // EncryptPrivateKey returns an encrypted PEM key given a Privatekey
 // and a passphrase
-func EncryptPrivateKey(key data.PrivateKey, passphrase string) ([]byte, error) {
+func EncryptPrivateKey(key data.PrivateKey, role, passphrase string) ([]byte, error) {
 	bt, err := blockType(key)
 	if err != nil {
 		return nil, err
@@ -439,6 +500,11 @@ func EncryptPrivateKey(key data.PrivateKey, passphrase string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	if encryptedPEMBlock.Headers == nil {
+		return nil, fmt.Errorf("unable to encrypt key - invalid PEM file produced")
+	}
+	encryptedPEMBlock.Headers["role"] = role
 
 	return pem.EncodeToMemory(encryptedPEMBlock), nil
 }
@@ -471,12 +537,8 @@ func CertsToKeys(certs []*x509.Certificate) map[string]data.PublicKey {
 	return keys
 }
 
-// NewCertificate returns an X509 Certificate following a template, given a GUN.
-func NewCertificate(gun string) (*x509.Certificate, error) {
-	notBefore := time.Now()
-	// Certificates will expire in 10 years
-	notAfter := notBefore.Add(time.Hour * 24 * 365 * 10)
-
+// NewCertificate returns an X509 Certificate following a template, given a GUN and validity interval.
+func NewCertificate(gun string, startTime, endTime time.Time) (*x509.Certificate, error) {
 	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
 
 	serialNumber, err := rand.Int(rand.Reader, serialNumberLimit)
@@ -489,8 +551,8 @@ func NewCertificate(gun string) (*x509.Certificate, error) {
 		Subject: pkix.Name{
 			CommonName: gun,
 		},
-		NotBefore: notBefore,
-		NotAfter:  notAfter,
+		NotBefore: startTime,
+		NotAfter:  endTime,
 
 		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageCodeSigning},
@@ -519,4 +581,15 @@ func X509PublicKeyID(certPubKey data.PublicKey) (string, error) {
 	}
 
 	return key.ID(), nil
+}
+
+// FilterCertsExpiredSha1 can be used as the filter function to cert store
+// initializers to filter out all expired or SHA-1 certificate that we
+// shouldn't load.
+func FilterCertsExpiredSha1(cert *x509.Certificate) bool {
+	return !cert.IsCA &&
+		time.Now().Before(cert.NotAfter) &&
+		cert.SignatureAlgorithm != x509.SHA1WithRSA &&
+		cert.SignatureAlgorithm != x509.DSAWithSHA1 &&
+		cert.SignatureAlgorithm != x509.ECDSAWithSHA1
 }

@@ -1,11 +1,12 @@
 <!-- [metadata]>
 +++
-title = "Docker Engine Commands"
+title = "Command line reference"
 description = "Docker's CLI command description and usage"
 keywords = ["Docker, Docker documentation, CLI,  command line"]
 [menu.main]
 identifier= "smn_cli"
-parent = "mn_reference"
+parent = "engine_ref"
+weight=-70
 +++
 <![end-metadata]-->
 
@@ -59,6 +60,7 @@ You start the Docker daemon with the command line. How you start the daemon affe
 * [stop](stop.md)
 * [top](top.md)
 * [unpause](unpause.md)
+* [update](update.md)
 * [wait](wait.md)
 
 ### Hub and registry commands

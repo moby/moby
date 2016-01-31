@@ -101,7 +101,7 @@ func (ctx *Context) ImageID() string {
 	return ctx.ContainerImageID[:12]
 }
 
-// ImageFullID is an alias of ContainerID.
+// ImageFullID is an alias of ContainerImageID.
 func (ctx *Context) ImageFullID() string {
 	return ctx.ContainerImageID
 }

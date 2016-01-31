@@ -9,22 +9,26 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/pkg/version"
+	"github.com/docker/engine-api/types"
 	"github.com/docker/libtrust"
 )
 
 // Common constants for daemon and client.
 const (
 	// Version of Current REST API
-	Version version.Version = "1.22"
+	DefaultVersion version.Version = "1.23"
 
-	// MinVersion represents Minimun REST API version supported
+	// MinVersion represents Minimum REST API version supported
 	MinVersion version.Version = "1.12"
 
 	// DefaultDockerfileName is the Default filename with Docker commands, read by docker build
 	DefaultDockerfileName string = "Dockerfile"
+
+	// NoBaseImageSpecifier is the symbol used by the FROM
+	// command to specify that no base image is to be used.
+	NoBaseImageSpecifier string = "scratch"
 )
 
 // byPortInfo is a temporary type used to sort types.Port by its fields

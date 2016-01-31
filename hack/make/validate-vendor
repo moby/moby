@@ -1,0 +1,27 @@
+#!/bin/bash
+
+source "${MAKEDIR}/.validate"
+
+IFS=$'\n'
+files=( $(validate_diff --diff-filter=ACMR --name-only -- 'hack/vendor.sh' 'hack/.vendor-helpers.sh' 'vendor/' || true) ) 
+unset IFS
+
+if [ ${#files[@]} -gt 0 ]; then
+	# We run vendor.sh to and see if we have a diff afterwards
+	./hack/vendor.sh >/dev/null
+	# Let see if the working directory is clean
+	diffs="$(git status --porcelain -- vendor 2>/dev/null)"
+	if [ "$diffs" ]; then
+		{
+			echo 'The result of ./hack/vendor.sh differs'
+			echo
+			echo "$diffs"
+			echo
+			echo 'Please vendor your package with ./hack/vendor.sh.'
+			echo
+		} >&2
+		false
+	else
+		echo 'Congratulations! All vendoring changes are done the right way.'
+	fi
+fi

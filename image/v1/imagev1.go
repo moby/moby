@@ -63,7 +63,7 @@ func CreateID(v1Image image.V1Image, layerID layer.ChainID, parent digest.Digest
 	}
 	logrus.Debugf("CreateV1ID %s", configJSON)
 
-	return digest.FromBytes(configJSON)
+	return digest.FromBytes(configJSON), nil
 }
 
 // MakeConfigFromV1Config creates an image config from the legacy V1 config format.

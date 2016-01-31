@@ -1,9 +1,13 @@
 package store
 
+import "fmt"
+
 // ErrMetaNotFound indicates we did not find a particular piece
 // of metadata in the store
-type ErrMetaNotFound struct{}
+type ErrMetaNotFound struct {
+	Resource string
+}
 
 func (err ErrMetaNotFound) Error() string {
-	return "no trust data available"
+	return fmt.Sprintf("%s trust data unavailable.  Has a notary repository been initialized?", err.Resource)
 }

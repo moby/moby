@@ -3,7 +3,7 @@
 package btrfs
 
 // TODO(vbatts) remove this work-around once supported linux distros are on
-// btrfs utililties of >= 3.16.1
+// btrfs utilities of >= 3.16.1
 
 func btrfsBuildVersion() string {
 	return "-"

@@ -37,11 +37,11 @@ and Docker images will report:
 **--until**=""
    Stream events until this timestamp
 
-The `--since` and `--until` parameters can be Unix timestamps, date formated
+The `--since` and `--until` parameters can be Unix timestamps, date formatted
 timestamps, or Go duration strings (e.g. `10m`, `1h30m`) computed
 relative to the client machine’s time. If you do not provide the --since option,
 the command returns only new and/or live events.  Supported formats for date
-formated time stamps include RFC3339Nano, RFC3339, `2006-01-02T15:04:05`,
+formatted time stamps include RFC3339Nano, RFC3339, `2006-01-02T15:04:05`,
 `2006-01-02T15:04:05.999999999`, `2006-01-02Z07:00`, and `2006-01-02`. The local
 timezone on the client will be used if you do not provide either a `Z` or a
 `+-00:00` timezone offset at the end of the timestamp.  When providing Unix
@@ -49,7 +49,7 @@ timestamps enter seconds[.nanoseconds], where seconds is the number of seconds
 that have elapsed since January 1, 1970 (midnight UTC/GMT), not counting leap
 seconds (aka Unix epoch or Unix time), and the optional .nanoseconds field is a
 fraction of a second no more than nine digits long.
-   
+
 # EXAMPLES
 
 ## Listening for Docker events

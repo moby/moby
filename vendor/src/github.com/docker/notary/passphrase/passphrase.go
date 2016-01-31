@@ -99,12 +99,16 @@ func PromptRetrieverWithInOut(in io.Reader, out io.Writer, aliasMap map[string]s
 			return "", true, ErrTooManyAttempts
 		}
 
-		state, err := term.SaveState(0)
-		if err != nil {
-			return "", false, err
+		// If typing on the terminal, we do not want the terminal to echo the
+		// password that is typed (so it doesn't display)
+		if term.IsTerminal(0) {
+			state, err := term.SaveState(0)
+			if err != nil {
+				return "", false, err
+			}
+			term.DisableEcho(0, state)
+			defer term.RestoreTerminal(0, state)
 		}
-		term.DisableEcho(0, state)
-		defer term.RestoreTerminal(0, state)
 
 		stdin := bufio.NewReader(in)
 

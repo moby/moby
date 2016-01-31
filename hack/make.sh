@@ -11,8 +11,8 @@ set -e
 # - The VERSION file, at the root of the repository, should exist, and
 #   will be used as Docker binary version and package version.
 # - The hash of the git commit will also be included in the Docker binary,
-#   with the suffix -dirty if the repository isn't clean.
-# - The script is intented to be run inside the docker container specified
+#   with the suffix -unsupported if the repository isn't clean.
+# - The script is intended to be run inside the docker container specified
 #   in the Dockerfile at the root of the source. In other words:
 #   DO NOT CALL THIS SCRIPT DIRECTLY.
 # - The right way to call this script is to invoke "make" from
@@ -29,11 +29,22 @@ export MAKEDIR="$SCRIPTDIR/make"
 
 # We're a nice, sexy, little shell script, and people might try to run us;
 # but really, they shouldn't. We want to be in a container!
-if [ "$PWD" != "/go/src/$DOCKER_PKG" ] || [ -z "$DOCKER_CROSSPLATFORMS" ]; then
+inContainer="AssumeSoInitially"
+if [ "$(go env GOHOSTOS)" = 'windows' ]; then
+	if [ -z "$FROM_DOCKERFILE" ]; then
+		unset inContainer
+	fi
+else
+	if [ "$PWD" != "/go/src/$DOCKER_PKG" ] || [ -z "$DOCKER_CROSSPLATFORMS" ]; then
+		unset inContainer
+	fi
+fi
+
+if [ -z "$inContainer" ]; then
 	{
-		echo "# WARNING! I don't seem to be running in the Docker container."
+		echo "# WARNING! I don't seem to be running in a Docker container."
 		echo "# The result of this command might be an incorrect build, and will not be"
-		echo "#   officially supported."
+		echo "# officially supported."
 		echo "#"
 		echo "# Try this instead: make all"
 		echo "#"
@@ -68,9 +79,13 @@ VERSION=$(< ./VERSION)
 if command -v git &> /dev/null && git rev-parse &> /dev/null; then
 	GITCOMMIT=$(git rev-parse --short HEAD)
 	if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
-		GITCOMMIT="$GITCOMMIT-dirty"
+		GITCOMMIT="$GITCOMMIT-unsupported"
 	fi
-	BUILDTIME=$(date --rfc-3339 ns | sed -e 's/ /T/')
+	! BUILDTIME=$(date --rfc-3339 ns | sed -e 's/ /T/') &> /dev/null
+	if [ -z $BUILDTIME ]; then
+		# If using bash 3.1 which doesn't support --rfc-3389, eg Windows CI
+		BUILDTIME=$(date -u)
+	fi
 elif [ "$DOCKER_GITCOMMIT" ]; then
 	GITCOMMIT="$DOCKER_GITCOMMIT"
 else
@@ -94,7 +109,7 @@ if [ ! "$GOPATH" ]; then
 	exit 1
 fi
 
-if [ "$DOCKER_EXPERIMENTAL" ] || [ "$DOCKER_REMAP_ROOT" ]; then
+if [ "$DOCKER_EXPERIMENTAL" ]; then
 	echo >&2 '# WARNING! DOCKER_EXPERIMENTAL is set: building experimental features'
 	echo >&2
 	DOCKER_BUILDTAGS+=" experimental pkcs11"
@@ -136,11 +151,26 @@ LDFLAGS_STATIC=''
 EXTLDFLAGS_STATIC='-static'
 # ORIG_BUILDFLAGS is necessary for the cross target which cannot always build
 # with options like -race.
-ORIG_BUILDFLAGS=( -a -tags "autogen netgo static_build sqlite_omit_load_extension $DOCKER_BUILDTAGS" -installsuffix netgo )
+ORIG_BUILDFLAGS=( -tags "autogen netgo static_build sqlite_omit_load_extension $DOCKER_BUILDTAGS" -installsuffix netgo )
 # see https://github.com/golang/go/issues/9369#issuecomment-69864440 for why -installsuffix is necessary here
+
+# When $DOCKER_INCREMENTAL_BINARY is set in the environment, enable incremental
+# builds by installing dependent packages to the GOPATH.
+REBUILD_FLAG="-a"
+if [ "$DOCKER_INCREMENTAL_BINARY" ]; then
+	REBUILD_FLAG="-i"
+fi
+ORIG_BUILDFLAGS+=( $REBUILD_FLAG )
+
 BUILDFLAGS=( $BUILDFLAGS "${ORIG_BUILDFLAGS[@]}" )
 # Test timeout.
-: ${TIMEOUT:=120m}
+
+if [ "${DOCKER_ENGINE_GOARCH}" == "arm" ]; then
+	: ${TIMEOUT:=210m}
+else
+	: ${TIMEOUT:=120m}
+fi
+
 TESTFLAGS+=" -test.timeout=${TIMEOUT}"
 
 LDFLAGS_STATIC_DOCKER="
@@ -206,6 +236,7 @@ test_env() {
 	# use "env -i" to tightly control the environment variables that bleed into the tests
 	env -i \
 		DEST="$DEST" \
+		DOCKER_ENGINE_GOARCH="$DOCKER_ENGINE_GOARCH" \
 		DOCKER_GRAPHDRIVER="$DOCKER_GRAPHDRIVER" \
 		DOCKER_USERLANDPROXY="$DOCKER_USERLANDPROXY" \
 		DOCKER_HOST="$DOCKER_HOST" \
@@ -215,7 +246,6 @@ test_env() {
 		HOME="$ABS_DEST/fake-HOME" \
 		PATH="$PATH" \
 		TEMP="$TEMP" \
-		TEST_DOCKERINIT_PATH="$TEST_DOCKERINIT_PATH" \
 		"$@"
 }
 

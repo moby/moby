@@ -188,20 +188,29 @@ func subvolDelete(dirpath, name string) error {
 		return err
 	}
 	defer closeDir(dir)
+	fullPath := path.Join(dirpath, name)
 
 	var args C.struct_btrfs_ioctl_vol_args
 
 	// walk the btrfs subvolumes
 	walkSubvolumes := func(p string, f os.FileInfo, err error) error {
+		if err != nil {
+			if os.IsNotExist(err) && p != fullPath {
+				// missing most likely because the path was a subvolume that got removed in the previous iteration
+				// since it's gone anyway, we don't care
+				return nil
+			}
+			return fmt.Errorf("error walking subvolumes: %v", err)
+		}
 		// we want to check children only so skip itself
 		// it will be removed after the filepath walk anyways
-		if f.IsDir() && p != path.Join(dirpath, name) {
+		if f.IsDir() && p != fullPath {
 			sv, err := isSubvolume(p)
 			if err != nil {
 				return fmt.Errorf("Failed to test if %s is a btrfs subvolume: %v", p, err)
 			}
 			if sv {
-				if err := subvolDelete(p, f.Name()); err != nil {
+				if err := subvolDelete(path.Dir(p), f.Name()); err != nil {
 					return fmt.Errorf("Failed to destroy btrfs child subvolume (%s) of parent (%s): %v", p, dirpath, err)
 				}
 			}
@@ -257,6 +266,14 @@ func (d *Driver) Create(id, parent, mountLabel string) error {
 		}
 	}
 
+	// if we have a remapped root (user namespaces enabled), change the created snapshot
+	// dir ownership to match
+	if rootUID != 0 || rootGID != 0 {
+		if err := os.Chown(path.Join(subvolumes, id), rootUID, rootGID); err != nil {
+			return err
+		}
+	}
+
 	return label.Relabel(path.Join(subvolumes, id), mountLabel, false)
 }
 
@@ -269,7 +286,10 @@ func (d *Driver) Remove(id string) error {
 	if err := subvolDelete(d.subvolumesDir(), id); err != nil {
 		return err
 	}
-	return os.RemoveAll(dir)
+	if err := os.RemoveAll(dir); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	return nil
 }
 
 // Get the requested filesystem id.

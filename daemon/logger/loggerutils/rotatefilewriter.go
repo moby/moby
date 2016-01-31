@@ -32,7 +32,7 @@ func NewRotateFileWriter(logPath string, capacity int64, maxFiles int) (*RotateF
 	}, nil
 }
 
-//WriteLog write log messge to File
+//WriteLog write log message to File
 func (w *RotateFileWriter) Write(message []byte) (int, error) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
@@ -106,7 +106,7 @@ func backup(fromPath, toPath string) error {
 	return os.Rename(fromPath, toPath)
 }
 
-// LogPath returns the location the given wirter logs to.
+// LogPath returns the location the given writer logs to.
 func (w *RotateFileWriter) LogPath() string {
 	return w.f.Name()
 }

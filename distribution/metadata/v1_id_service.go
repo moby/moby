@@ -23,20 +23,20 @@ func (idserv *V1IDService) namespace() string {
 }
 
 // Get finds a layer by its V1 ID.
-func (idserv *V1IDService) Get(v1ID, registry string) (layer.ChainID, error) {
+func (idserv *V1IDService) Get(v1ID, registry string) (layer.DiffID, error) {
 	if err := v1.ValidateID(v1ID); err != nil {
-		return layer.ChainID(""), err
+		return layer.DiffID(""), err
 	}
 
 	idBytes, err := idserv.store.Get(idserv.namespace(), registry+","+v1ID)
 	if err != nil {
-		return layer.ChainID(""), err
+		return layer.DiffID(""), err
 	}
-	return layer.ChainID(idBytes), nil
+	return layer.DiffID(idBytes), nil
 }
 
 // Set associates an image with a V1 ID.
-func (idserv *V1IDService) Set(v1ID, registry string, id layer.ChainID) error {
+func (idserv *V1IDService) Set(v1ID, registry string, id layer.DiffID) error {
 	if err := v1.ValidateID(v1ID); err != nil {
 		return err
 	}

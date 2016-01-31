@@ -78,7 +78,7 @@ func Matches(file string, patterns []string) (bool, error) {
 
 // OptimizedMatches is basically the same as fileutils.Matches() but optimized for archive.go.
 // It will assume that the inputs have been preprocessed and therefore the function
-// doen't need to do as much error checking and clean-up. This was done to avoid
+// doesn't need to do as much error checking and clean-up. This was done to avoid
 // repeating these steps on each file being checked during the archive process.
 // The more generic fileutils.Matches() can't make these assumptions.
 func OptimizedMatches(file string, patterns []string, patDirs [][]string) (bool, error) {

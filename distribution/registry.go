@@ -1,115 +1,199 @@
 package distribution
 
 import (
-	"errors"
+	"fmt"
 	"net"
 	"net/http"
 	"net/url"
 	"strings"
+	"syscall"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution"
-	"github.com/docker/distribution/digest"
-	"github.com/docker/distribution/manifest/schema1"
+	"github.com/docker/distribution/registry/api/errcode"
 	"github.com/docker/distribution/registry/client"
 	"github.com/docker/distribution/registry/client/auth"
 	"github.com/docker/distribution/registry/client/transport"
-	"github.com/docker/docker/cliconfig"
+	"github.com/docker/docker/distribution/xfer"
+	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/registry"
+	"github.com/docker/engine-api/types"
 	"golang.org/x/net/context"
 )
 
+// fallbackError wraps an error that can possibly allow fallback to a different
+// endpoint.
+type fallbackError struct {
+	// err is the error being wrapped.
+	err error
+	// confirmedV2 is set to true if it was confirmed that the registry
+	// supports the v2 protocol. This is used to limit fallbacks to the v1
+	// protocol.
+	confirmedV2 bool
+}
+
+// Error renders the FallbackError as a string.
+func (f fallbackError) Error() string {
+	return f.err.Error()
+}
+
 type dumbCredentialStore struct {
-	auth *cliconfig.AuthConfig
+	auth *types.AuthConfig
 }
 
 func (dcs dumbCredentialStore) Basic(*url.URL) (string, string) {
 	return dcs.auth.Username, dcs.auth.Password
 }
 
+// conn wraps a net.Conn, and sets a deadline for every read
+// and write operation.
+type conn struct {
+	net.Conn
+	readTimeout  time.Duration
+	writeTimeout time.Duration
+}
+
+func (c *conn) Read(b []byte) (int, error) {
+	err := c.Conn.SetReadDeadline(time.Now().Add(c.readTimeout))
+	if err != nil {
+		return 0, err
+	}
+	return c.Conn.Read(b)
+}
+
+func (c *conn) Write(b []byte) (int, error) {
+	err := c.Conn.SetWriteDeadline(time.Now().Add(c.writeTimeout))
+	if err != nil {
+		return 0, err
+	}
+	return c.Conn.Write(b)
+}
+
 // NewV2Repository returns a repository (v2 only). It creates a HTTP transport
 // providing timeout settings and authentication support, and also verifies the
 // remote API version.
-func NewV2Repository(repoInfo *registry.RepositoryInfo, endpoint registry.APIEndpoint, metaHeaders http.Header, authConfig *cliconfig.AuthConfig, actions ...string) (distribution.Repository, error) {
-	ctx := context.Background()
-
-	repoName := repoInfo.CanonicalName
+func NewV2Repository(ctx context.Context, repoInfo *registry.RepositoryInfo, endpoint registry.APIEndpoint, metaHeaders http.Header, authConfig *types.AuthConfig, actions ...string) (repo distribution.Repository, foundVersion bool, err error) {
+	repoName := repoInfo.FullName()
 	// If endpoint does not support CanonicalName, use the RemoteName instead
 	if endpoint.TrimHostname {
-		repoName = repoInfo.RemoteName
+		repoName = repoInfo.RemoteName()
 	}
 
 	// TODO(dmcgowan): Call close idle connections when complete, use keep alive
 	base := &http.Transport{
 		Proxy: http.ProxyFromEnvironment,
-		Dial: (&net.Dialer{
-			Timeout:   30 * time.Second,
-			KeepAlive: 30 * time.Second,
-			DualStack: true,
-		}).Dial,
+		Dial: func(network, address string) (net.Conn, error) {
+			dialer := &net.Dialer{
+				Timeout:   30 * time.Second,
+				KeepAlive: 30 * time.Second,
+				DualStack: true,
+			}
+			netConn, err := dialer.Dial(network, address)
+			if err != nil {
+				return netConn, err
+			}
+			return &conn{
+				Conn:         netConn,
+				readTimeout:  time.Minute,
+				writeTimeout: time.Minute,
+			}, nil
+		},
 		TLSHandshakeTimeout: 10 * time.Second,
 		TLSClientConfig:     endpoint.TLSConfig,
 		// TODO(dmcgowan): Call close idle connections when complete and use keep alive
 		DisableKeepAlives: true,
 	}
 
-	modifiers := registry.DockerHeaders(metaHeaders)
+	modifiers := registry.DockerHeaders(dockerversion.DockerUserAgent(), metaHeaders)
 	authTransport := transport.NewTransport(base, modifiers...)
 	pingClient := &http.Client{
 		Transport: authTransport,
-		Timeout:   5 * time.Second,
+		Timeout:   15 * time.Second,
 	}
 	endpointStr := strings.TrimRight(endpoint.URL, "/") + "/v2/"
 	req, err := http.NewRequest("GET", endpointStr, nil)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	resp, err := pingClient.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	defer resp.Body.Close()
 
-	versions := auth.APIVersions(resp, endpoint.VersionHeader)
-	if endpoint.VersionHeader != "" && len(endpoint.Versions) > 0 {
-		var foundVersion bool
-		for _, version := range endpoint.Versions {
-			for _, pingVersion := range versions {
-				if version == pingVersion {
-					foundVersion = true
-				}
-			}
-		}
-		if !foundVersion {
-			return nil, errors.New("endpoint does not support v2 API")
+	v2Version := auth.APIVersion{
+		Type:    "registry",
+		Version: "2.0",
+	}
+
+	versions := auth.APIVersions(resp, registry.DefaultRegistryVersionHeader)
+	for _, pingVersion := range versions {
+		if pingVersion == v2Version {
+			// The version header indicates we're definitely
+			// talking to a v2 registry. So don't allow future
+			// fallbacks to the v1 protocol.
+
+			foundVersion = true
+			break
 		}
 	}
 
 	challengeManager := auth.NewSimpleChallengeManager()
 	if err := challengeManager.AddResponse(resp); err != nil {
-		return nil, err
+		return nil, foundVersion, err
 	}
 
-	creds := dumbCredentialStore{auth: authConfig}
-	tokenHandler := auth.NewTokenHandler(authTransport, creds, repoName.Name(), actions...)
-	basicHandler := auth.NewBasicHandler(creds)
-	modifiers = append(modifiers, auth.NewAuthorizer(challengeManager, tokenHandler, basicHandler))
+	if authConfig.RegistryToken != "" {
+		passThruTokenHandler := &existingTokenHandler{token: authConfig.RegistryToken}
+		modifiers = append(modifiers, auth.NewAuthorizer(challengeManager, passThruTokenHandler))
+	} else {
+		creds := dumbCredentialStore{auth: authConfig}
+		tokenHandler := auth.NewTokenHandler(authTransport, creds, repoName, actions...)
+		basicHandler := auth.NewBasicHandler(creds)
+		modifiers = append(modifiers, auth.NewAuthorizer(challengeManager, tokenHandler, basicHandler))
+	}
 	tr := transport.NewTransport(base, modifiers...)
 
-	return client.NewRepository(ctx, repoName.Name(), endpoint.URL, tr)
+	repo, err = client.NewRepository(ctx, repoName, endpoint.URL, tr)
+	return repo, foundVersion, err
 }
 
-func digestFromManifest(m *schema1.SignedManifest, localName string) (digest.Digest, int, error) {
-	payload, err := m.Payload()
-	if err != nil {
-		// If this failed, the signatures section was corrupted
-		// or missing. Treat the entire manifest as the payload.
-		payload = m.Raw
+type existingTokenHandler struct {
+	token string
+}
+
+func (th *existingTokenHandler) Scheme() string {
+	return "bearer"
+}
+
+func (th *existingTokenHandler) AuthorizeRequest(req *http.Request, params map[string]string) error {
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", th.token))
+	return nil
+}
+
+// retryOnError wraps the error in xfer.DoNotRetry if we should not retry the
+// operation after this error.
+func retryOnError(err error) error {
+	switch v := err.(type) {
+	case errcode.Errors:
+		return retryOnError(v[0])
+	case errcode.Error:
+		switch v.Code {
+		case errcode.ErrorCodeUnauthorized, errcode.ErrorCodeUnsupported, errcode.ErrorCodeDenied:
+			return xfer.DoNotRetry{Err: err}
+		}
+	case *url.Error:
+		return retryOnError(v.Err)
+	case *client.UnexpectedHTTPResponseError:
+		return xfer.DoNotRetry{Err: err}
+	case error:
+		if strings.Contains(err.Error(), strings.ToLower(syscall.ENOSPC.Error())) {
+			return xfer.DoNotRetry{Err: err}
+		}
 	}
-	manifestDigest, err := digest.FromBytes(payload)
-	if err != nil {
-		logrus.Infof("Could not compute manifest digest for %s:%s : %v", localName, m.Tag, err)
-	}
-	return manifestDigest, len(payload), nil
+	// let's be nice and fallback if the error is a completely
+	// unexpected one.
+	// If new errors have to be handled in some way, please
+	// add them to the switch above.
+	return err
 }

@@ -149,3 +149,59 @@ func (pp *volumeDriverProxy) Unmount(name string) (err error) {
 
 	return
 }
+
+type volumeDriverProxyListRequest struct {
+}
+
+type volumeDriverProxyListResponse struct {
+	Volumes list
+	Err     string
+}
+
+func (pp *volumeDriverProxy) List() (volumes list, err error) {
+	var (
+		req volumeDriverProxyListRequest
+		ret volumeDriverProxyListResponse
+	)
+
+	if err = pp.Call("VolumeDriver.List", req, &ret); err != nil {
+		return
+	}
+
+	volumes = ret.Volumes
+
+	if ret.Err != "" {
+		err = errors.New(ret.Err)
+	}
+
+	return
+}
+
+type volumeDriverProxyGetRequest struct {
+	Name string
+}
+
+type volumeDriverProxyGetResponse struct {
+	Volume *proxyVolume
+	Err    string
+}
+
+func (pp *volumeDriverProxy) Get(name string) (volume *proxyVolume, err error) {
+	var (
+		req volumeDriverProxyGetRequest
+		ret volumeDriverProxyGetResponse
+	)
+
+	req.Name = name
+	if err = pp.Call("VolumeDriver.Get", req, &ret); err != nil {
+		return
+	}
+
+	volume = ret.Volume
+
+	if ret.Err != "" {
+		err = errors.New(ret.Err)
+	}
+
+	return
+}

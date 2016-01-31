@@ -14,7 +14,7 @@ parent = "smn_cli"
 
     Export the contents of a container's filesystem as a tar archive
 
-      --help=false       Print usage
+      --help             Print usage
       -o, --output=""    Write to a file, instead of STDOUT
 
 The `docker export` command does not export the contents of volumes associated
@@ -23,7 +23,7 @@ the container, `docker export` will export the contents of the *underlying*
 directory, not the contents of the volume.
 
 Refer to [Backup, restore, or migrate data
-volumes](../../userguide/dockervolumes.md#backup-restore-or-migrate-data-volumes) in
+volumes](../../userguide/containers/dockervolumes.md#backup-restore-or-migrate-data-volumes) in
 the user guide for examples on exporting data in a volume.
 
 ## Examples

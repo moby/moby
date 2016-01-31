@@ -14,10 +14,10 @@ parent = "smn_cli"
 
     Fetch the logs of a container
 
-      -f, --follow=false        Follow log output
-      --help=false              Print usage
+      -f, --follow              Follow log output
+      --help                    Print usage
       --since=""                Show logs since timestamp
-      -t, --timestamps=false    Show timestamps
+      -t, --timestamps          Show timestamps
       --tail="all"              Number of lines to show from the end of the logs
 
 > **Note**: this command is available only for containers with `json-file` and

@@ -143,14 +143,13 @@ as they can be built by running a Unix command in a container.
 Getting started
 ===============
 
-Docker can be installed on your local machine as well as servers - both
-bare metal and virtualized.  It is available as a binary on most modern
-Linux systems, or as a VM on Windows, Mac and other systems.
+Docker can be installed either on your computer for building applications or
+on servers for running them. To get started, [check out the installation
+instructions in the
+documentation](https://docs.docker.com/engine/installation/).
 
 We also offer an [interactive tutorial](https://www.docker.com/tryit/)
 for quickly learning the basics of using Docker.
-
-For up-to-date install instructions, see the [Docs](https://docs.docker.com).
 
 Usage examples
 ==============
@@ -159,7 +158,7 @@ Docker can be used to run short-lived commands, long-running daemons
 (app servers, databases, etc.), interactive shell sessions, etc.
 
 You can find a [list of real-world
-examples](https://docs.docker.com/examples/) in the
+examples](https://docs.docker.com/engine/examples/) in the
 documentation.
 
 Under the hood
@@ -168,7 +167,7 @@ Under the hood
 Under the hood, Docker is built on the following components:
 
 * The
-  [cgroups](https://www.kernel.org/doc/Documentation/cgroups/cgroups.txt)
+  [cgroups](https://www.kernel.org/doc/Documentation/cgroup-v1/cgroups.txt)
   and
   [namespaces](http://man7.org/linux/man-pages/man7/namespaces.7.html)
   capabilities of the Linux kernel
@@ -184,7 +183,7 @@ Contributing to Docker [![GoDoc](https://godoc.org/github.com/docker/docker?stat
 | [![Jenkins Build Status](https://jenkins.dockerproject.org/view/Docker/job/Docker%20Master/badge/icon)](https://jenkins.dockerproject.org/view/Docker/job/Docker%20Master/) | [![Jenkins Build Status](https://jenkins.dockerproject.org/view/Docker/job/Docker%20Master%20%28experimental%29/badge/icon)](https://jenkins.dockerproject.org/view/Docker/job/Docker%20Master%20%28experimental%29/) | [![Build Status](http://jenkins.dockerproject.org/job/Docker%20Master%20(windows)/badge/icon)](http://jenkins.dockerproject.org/job/Docker%20Master%20(windows)/) | [![Build Status](http://jenkins.dockerproject.org/job/Docker%20Master%20(freebsd)/badge/icon)](http://jenkins.dockerproject.org/job/Docker%20Master%20(freebsd)/) |
 
 Want to hack on Docker? Awesome! We have [instructions to help you get
-started contributing code or documentation](https://docs.docker.com/project/who-written-for/).
+started contributing code or documentation](https://docs.docker.com/opensource/project/who-written-for/).
 
 These instructions are probably not perfect, please let us know if anything
 feels wrong or incomplete. Better yet, submit a PR and improve them yourself.
@@ -289,7 +288,7 @@ for a container-centric world
 system
 * [Docker Compose](https://github.com/docker/compose) (formerly Fig): 
 Define and run multi-container apps
-* [Kitematic](https://github.com/kitematic/kitematic): The easiest way to use 
+* [Kitematic](https://github.com/docker/kitematic): The easiest way to use 
 Docker on Mac and Windows
 
 If you know of another project underway that should be listed here, please help 
