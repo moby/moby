@@ -14,7 +14,7 @@ The information in this section explains configuring container DNS within
 the Docker default bridge. This is a `bridge` network named `bridge` created
 automatically when you install Docker.  
 
-**Note**: The [Docker networks feature](../dockernetworks.md) allows you to create user-defined networks in addition to the default bridge network.
+> **Note**: The [Docker networks feature](../dockernetworks.md) allows you to create user-defined networks in addition to the default bridge network. Please refer to the [Docker Embedded DNS](../configure-dns.md) section for more information on DNS configurations in user-defined networks.
 
 How can Docker supply each container with a hostname and DNS configuration, without having to build a custom image with the hostname written inside?  Its trick is to overlay three crucial `/etc` files inside the container with virtual files where it can write fresh information.  You can see this by running `mount` inside a container:
 
