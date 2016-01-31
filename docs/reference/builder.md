@@ -276,7 +276,7 @@ All of the README files are included.  The middle line has no effect because
 You can even use the `.dockerignore` file to exclude the `Dockerfile`
 and `.dockerignore` files.  These files are still sent to the daemon
 because it needs them to do its job.  But the `ADD` and `COPY` commands
-do not copy them to the the image.
+do not copy them to the image.
 
 Finally, you may want to specify which files to include in the
 context, rather than which to exclude. To achieve this, specify `*` as
