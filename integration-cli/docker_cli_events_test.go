@@ -428,6 +428,8 @@ func (s *DockerSuite) TestEventsResize(c *check.C) {
 }
 
 func (s *DockerSuite) TestEventsAttach(c *check.C) {
+	// TODO Windows CI: Figure out why this test fails intermittently (TP4 and TP5).
+	testRequires(c, DaemonIsLinux)
 	since := daemonTime(c).Unix()
 
 	out, _ := dockerCmd(c, "run", "-di", "busybox", "cat")
