@@ -158,9 +158,15 @@ To create an overlay network
 
 3. Create your `overlay` network.
 
-		$ docker network create --driver overlay my-net
+		$ docker network create --driver overlay --subnet=10.0.9.0/24 my-net
 
 	You only need to create the network on a single host in the cluster. In this case, you used the Swarm master but you could easily have run it on any host in the cluster.
+
+> **Note** : It is highly recommended to use the `--subnet` option when creating
+> a network. If the `--subnet` is not specified, the docker daemon automatically
+> chooses and assigns a subnet for the network and it could overlap with another subnet
+> in your infrastructure that is not managed by docker. Such overlaps can cause
+> connectivity issues or failures when containers are connected to that network.
 
 4. Check that the network is running:
 
@@ -308,41 +314,9 @@ to have external connectivity outside of their cluster.
 
 ## Step 6: Extra Credit with Docker Compose
 
-You can try starting a second network on your existing Swarm cluster using Docker Compose.
-
-1. If you haven't already, install Docker Compose.
-
-2. Change your environment to the Swarm master.
-
-		$ eval $(docker-machine env --swarm mhs-demo0)
-
-3. Create a `docker-compose.yml` file.
-
-4. Add the following content to the file.
-
-		web:
-			image: bfirsh/compose-mongodb-demo
-			environment:
-				- "MONGO_HOST=counter_mongo_1"
-				- "constraint:node==mhs-demo0"
-			ports:
-				- "80:5000"
-		mongo:
-			image: mongo
-
-5. Save and close the file.
-
-6. Start the application with Compose.
-
-		$ docker-compose --x-networking --project-name=counter up -d
-
-7. Get the Swarm master's IP address.
-
-		$ docker-machine ip mhs-demo0
-
-8. Put the IP address into your web browser.
-
-	Upon success, the browser should display the web application.
+Please refer to the Networking feature introduced in [Compose V2 format]
+(https://docs.docker.com/compose/networking/) and execute the
+multi-host networking scenario in the Swarm cluster used above.
 
 ## Related information
 
