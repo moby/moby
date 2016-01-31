@@ -39,12 +39,6 @@ type Hooks struct {
 	PostStop []DriverCallback
 }
 
-// Info is driver specific information based on
-// processes registered with the driver
-type Info interface {
-	IsRunning() bool
-}
-
 // Terminal represents a pseudo TTY, it is for when
 // using a container interactively.
 type Terminal interface {
@@ -74,10 +68,6 @@ type Driver interface {
 
 	// Name returns the name of the driver.
 	Name() string
-
-	// Info returns the configuration stored in the driver struct,
-	// "temporary" hack (until we move state from core to plugins).
-	Info(id string) Info
 
 	// GetPidsForContainer returns a list of pid for the processes running in a container.
 	GetPidsForContainer(id string) ([]int, error)
