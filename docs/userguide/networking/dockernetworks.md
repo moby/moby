@@ -284,7 +284,7 @@ The default `docker0` bridge network supports the use of port mapping and  `dock
 ## User-defined networks
 
 You can create your own user-defined networks that better isolate containers.
-Docker provides some default **network drivers** for use creating these
+Docker provides some default **network drivers** for creating these
 networks. You can create a new **bridge network** or **overlay network**. You
 can also create a **network plugin** or **remote network**  written to your own
 specifications.
@@ -439,6 +439,10 @@ Docker Engine for use with `overlay` network. There are two options to set:
         <td><pre>--cluster-advertise=HOST_IP|HOST_IFACE:PORT</pre></td>
         <td>The IP address or interface of the HOST used for clustering.</td>
     </tr>
+    <tr>
+        <td><pre>--cluster-store-opt=KEY-VALUE OPTIONS</pre></td>
+        <td>Options such as TLS certificate or tuning discovery Timers</td>
+    </tr>
     </tbody>
 </table>
 
@@ -485,17 +489,28 @@ networks can include features not present in Docker's default networks. For more
 information on writing plugins, see [Extending Docker](../../extend/index.md) and
 [Writing a network driver plugin](../../extend/plugins_network.md).
 
-## Legacy links
+### Docker embedded DNS server
+
+Docker daemon runs an embedded DNS server to provide automatic service discovery
+for containers connected to user defined networks. Name resolution requests from
+the containers are handled first by the embedded DNS server. If the embedded DNS
+server is unable to resolve the request it will be forwarded to any external DNS
+servers configured for the container. To facilitate this when the container is
+created, only the embedded DNS server reachable at `127.0.0.11` will be listed
+in the container's `resolv.conf` file. More information on embedded DNS server on
+user-defined networks can be found in the [embedded DNS server in user-defined networks]
+(configure-dns.md)
+
+## Links
 
 Before the Docker network feature, you could use the Docker link feature to
-allow containers to discover each other and securely transfer information about
-one container to another container. With the introduction of Docker networks,
-you can still create links but they are only supported on the default `bridge`
-network named `bridge` and appearing in your network stack as `docker0`.
-
-While links are still supported in this limited capacity, you should avoid them
-in preference of Docker networks. The link feature is expected to be deprecated
-and removed in a future release.
+allow containers to discover each other.  With the introduction of Docker networks,
+containers can be discovered by its name automatically. But you can still create
+links but they behave differently when used in the default `docker0` bridge network
+compared to user-defined networks. For more information, please refer to
+[Legacy Links](default_network/dockerlinks.md) for link feature in default `bridge` network
+and the [linking containers in user-defined networks](work-with-networks.md#linking-containers-in-user-defined-networks) for links
+functionality in user-defined networks.
 
 ## Related information
 

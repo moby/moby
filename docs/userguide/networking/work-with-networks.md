@@ -79,7 +79,13 @@ management that can assist your implementation.
 When you create a network, Engine creates a non-overlapping subnetwork for the
 network by default. You can override this default and specify a subnetwork
 directly using the the `--subnet` option. On a `bridge` network you can only
-create a single subnet. An `overlay` network supports multiple subnets.
+specify a single subnet. An `overlay` network supports multiple subnets.
+
+> **Note** : It is highly recommended to use the `--subnet` option while creating
+> a network. If the `--subnet` is not specified, the docker daemon automatically
+> chooses and assigns a subnet for the network and it could overlap with another subnet
+> in your infrastructure that is not managed by docker. Such overlaps can cause
+> connectivity issues or failures when containers are connected to that network.
 
 In addition to the `--subnetwork` option, you also specify the `--gateway` `--ip-range` and `--aux-address` options.
 
@@ -776,6 +782,25 @@ PING container1 (172.17.0.2): 56 data bytes
 2 packets transmitted, 2 packets received, 0% packet loss
 round-trip min/avg/max = 0.119/0.146/0.174 ms
 / #
+```
+
+There are certain scenarios such as ungraceful docker daemon restarts in multi-host network,
+where the daemon is unable to cleanup stale connectivity endpoints. Such stale endpoints
+may cause an error `container already connected to network` when a new container is
+connected to that network with the same name as the stale endpoint. In order to cleanup
+these stale endpoints, first remove the container and force disconnect 
+(`docker network disconnect -f`)  the endpoint from the network. Once the endpoint is 
+cleaned up, the container can be connected to the network.
+
+```
+$ docker run -d --name redis_db --net multihost redis
+ERROR: Cannot start container bc0b19c089978f7845633027aa3435624ca3d12dd4f4f764b61eac4c0610f32e: container already connected to network multihost
+
+$ docker rm -f redis_db
+$ docker network disconnect -f multihost redis_db
+
+$ docker run -d --name redis_db --net multihost redis
+7d986da974aeea5e9f7aca7e510bdb216d58682faa83a9040c2f2adc0544795a
 ```
 
 ## Remove a network
