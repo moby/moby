@@ -200,11 +200,11 @@ func (cli *DaemonCli) CmdDaemon(args ...string) error {
 	serverConfig := &apiserver.Config{
 		AuthorizationPluginNames: cli.Config.AuthorizationPlugins,
 		Logging:                  true,
+		SocketGroup:              cli.Config.SocketGroup,
 		Version:                  dockerversion.Version,
 	}
 	serverConfig = setPlatformServerConfig(serverConfig, cli.Config)
 
-	defaultHost := opts.DefaultHost
 	if cli.Config.TLS {
 		tlsOptions := tlsconfig.Options{
 			CAFile:   cli.Config.CommonTLSOptions.CAFile,
@@ -221,7 +221,6 @@ func (cli *DaemonCli) CmdDaemon(args ...string) error {
 			logrus.Fatal(err)
 		}
 		serverConfig.TLSConfig = tlsConfig
-		defaultHost = opts.DefaultTLSHost
 	}
 
 	if len(cli.Config.Hosts) == 0 {
@@ -229,7 +228,7 @@ func (cli *DaemonCli) CmdDaemon(args ...string) error {
 	}
 	for i := 0; i < len(cli.Config.Hosts); i++ {
 		var err error
-		if cli.Config.Hosts[i], err = opts.ParseHost(defaultHost, cli.Config.Hosts[i]); err != nil {
+		if cli.Config.Hosts[i], err = opts.ParseHost(cli.Config.TLS, cli.Config.Hosts[i]); err != nil {
 			logrus.Fatalf("error parsing -H %s : %v", cli.Config.Hosts[i], err)
 		}
 

@@ -29,7 +29,6 @@ type Config struct {
 	EnableCors           bool                     `json:"api-enable-cors,omitempty"`
 	EnableSelinuxSupport bool                     `json:"selinux-enabled,omitempty"`
 	RemappedRoot         string                   `json:"userns-remap,omitempty"`
-	SocketGroup          string                   `json:"group,omitempty"`
 	CgroupParent         string                   `json:"cgroup-parent,omitempty"`
 	Ulimits              map[string]*units.Ulimit `json:"default-ulimits,omitempty"`
 }

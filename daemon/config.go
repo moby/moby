@@ -59,6 +59,7 @@ type CommonConfig struct {
 	Pidfile              string              `json:"pidfile,omitempty"`
 	RawLogs              bool                `json:"raw-logs,omitempty"`
 	Root                 string              `json:"graph,omitempty"`
+	SocketGroup          string              `json:"group,omitempty"`
 	TrustKeyPath         string              `json:"-"`
 
 	// ClusterStore is the storage backend used for the cluster information. It is used by both
