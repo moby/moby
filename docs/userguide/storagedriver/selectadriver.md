@@ -12,15 +12,27 @@ weight = -1
 # Select a storage driver
 
 This page describes Docker's storage driver feature. It lists the storage
-driver's that Docker supports and the basic commands associated with managing them. Finally, this page provides guidance on choosing a storage driver.
+driver's that Docker supports and the basic commands associated with managing
+them. Finally, this page provides guidance on choosing a storage driver.
 
-The material on this page is intended for readers who already have an [understanding of the storage driver technology](imagesandcontainers.md).
+The material on this page is intended for readers who already have an
+[understanding of the storage driver technology](imagesandcontainers.md).
 
 ## A pluggable storage driver architecture
 
-The Docker has a pluggable storage driver architecture.  This gives you the flexibility to "plug in" the storage driver is best for your environment and use-case. Each Docker storage driver is based on a Linux filesystem or volume manager. Further, each storage driver is free to implement the management of image layers and the container layer in it's own unique way. This means some storage drivers perform better than others in different circumstances.
+Docker has a pluggable storage driver architecture. This gives you the
+flexibility to "plug in" the storage driver that is best for your environment
+and use-case. Each Docker storage driver is based on a Linux filesystem or
+volume manager. Further, each storage driver is free to implement the
+management of image layers and the container layer in its own unique way. This
+means some storage drivers perform better than others in different
+circumstances.
 
-Once you decide which driver is best, you set this driver on the Docker daemon at start time. As a result, the Docker daemon can only run one storage driver, and all containers created by that daemon instance use the same storage driver. The table below shows the supported storage driver technologies and their driver names:
+Once you decide which driver is best, you set this driver on the Docker daemon
+at start time. As a result, the Docker daemon can only run one storage driver,
+and all containers created by that daemon instance use the same storage driver.
+ The table below shows the supported storage driver technologies and their
+driver names:
 
 |Technology    |Storage driver name  |
 |--------------|---------------------|
@@ -31,7 +43,8 @@ Once you decide which driver is best, you set this driver on the Docker daemon a
 |VFS*          |`vfs`                |
 |ZFS           |`zfs`                |
 
-To find out which storage driver is set on the daemon , you use the `docker info` command:
+To find out which storage driver is set on the daemon , you use the
+`docker info` command:
 
     $ docker info
     Containers: 0
@@ -44,9 +57,19 @@ To find out which storage driver is set on the daemon , you use the `docker info
     Operating System: Ubuntu 15.04
     ... output truncated ...
 
-The `info` subcommand reveals that the Docker daemon is using the `overlay` storage driver with a `Backing Filesystem` value of `extfs`. The `extfs` value means that the `overlay` storage driver is operating on top of an existing (ext) filesystem. The backing filesystem refers to the filesystem that was used to create the Docker host's local storage area under `/var/lib/docker`.
+The `info` subcommand reveals that the Docker daemon is using the `overlay`
+storage driver with a `Backing Filesystem` value of `extfs`. The `extfs` value
+means that the `overlay` storage driver is operating on top of an existing
+(ext) filesystem. The backing filesystem refers to the filesystem that was used
+ to create the Docker host's local storage area under `/var/lib/docker`.
 
-Which storage driver you use, in part, depends on the backing filesystem you plan to use for your Docker host's local storage area. Some storage drivers can operate on top of different backing filesystems. However, other storage drivers require the backing filesystem to be the same as the storage driver. For example, the `btrfs` storage driver can only work with a `btrfs` backing filesystem. The following table lists each storage driver and whether it must match the host's backing file system:
+Which storage driver you use, in part, depends on the backing filesystem you
+plan to use for your Docker host's local storage area. Some storage drivers can
+ operate on top of different backing filesystems. However, other storage
+drivers require the backing filesystem to be the same as the storage driver.
+For example, the `btrfs` storage driver on a Btrfs backing filesystem. The
+following table lists each storage driver and whether it must match the host's
+backing file system:
 
     |Storage driver |Must match backing filesystem |
     |---------------|------------------------------|
@@ -58,9 +81,12 @@ Which storage driver you use, in part, depends on the backing filesystem you pla
     |zfs            |Yes                           |
 
 
-You can set the storage driver by passing the `--storage-driver=<name>` option to the `docker daemon` command line or by setting the option on the `DOCKER_OPTS` line in `/etc/default/docker` file.
+You can set the storage driver by passing the `--storage-driver=<name>` option
+to the `docker daemon` command line, or by setting the option on the
+`DOCKER_OPTS` line in the `/etc/default/docker` file.
 
-The following command shows how to start the Docker daemon with the `devicemapper` storage driver using the `docker daemon` command:
+The following command shows how to start the Docker daemon with the
+`devicemapper` storage driver using the `docker daemon` command:
 
     $ docker daemon --storage-driver=devicemapper &
 
@@ -90,25 +116,82 @@ The following command shows how to start the Docker daemon with the `devicemappe
     Operating System: Ubuntu 15.04
     <output truncated>
 
-Your choice of storage driver can affect the performance of your containerized applications. So it's important to understand the different storage driver options available and select the right one for your application. Later, in this page you'll find some advice for choosing an appropriate driver.
+Your choice of storage driver can affect the performance of your containerized
+applications. So it's important to understand the different storage driver
+options available and select the right one for your application. Later, in this
+ page you'll find some advice for choosing an appropriate driver.
 
 ## Shared storage systems and the storage driver
 
-Many enterprises consume storage from shared storage systems such as SAN and NAS arrays. These often provide increased performance and availability, as well as advanced features such as thin provisioning, deduplication and compression.
+Many enterprises consume storage from shared storage systems such as SAN and
+NAS arrays. These often provide increased performance and availability, as well
+ as advanced features such as thin provisioning, deduplication and compression.
 
-The Docker storage driver and data volumes can both operate on top of storage provided by shared storage systems. This allows Docker to leverage the increased performance and availability these systems provide. However, Docker does not integrate with these underlying systems.
+The Docker storage driver and data volumes can both operate on top of storage
+provided by shared storage systems. This allows Docker to leverage the
+increased performance and availability these systems provide. However, Docker
+does not integrate with these underlying systems.
 
-Remember that each Docker storage driver is based on a Linux filesystem or volume manager. Be sure to follow existing best practices for operating your storage driver (filesystem or volume manager) on top of your shared storage system. For example, if using the ZFS storage driver on top of *XYZ* shared storage system, be sure to follow best practices for operating ZFS filesystems on top of XYZ shared storage system.
+Remember that each Docker storage driver is based on a Linux filesystem or
+volume manager. Be sure to follow existing best practices for operating your
+storage driver (filesystem or volume manager) on top of your shared storage
+system. For example, if using the ZFS storage driver on top of *XYZ* shared
+storage system, be sure to follow best practices for operating ZFS filesystems
+on top of XYZ shared storage system.
 
 ## Which storage driver should you choose?
 
-As you might expect, the answer to this question is "it depends". While there are some clear cases where one particular storage driver outperforms other for certain workloads, you should factor all of the following into your decision:
+Several factors influence the selection of a storage driver. However, these two
+ facts must be kept in mind:
 
-Choose a storage driver that you and your team/organization are comfortable with.  Consider how much experience you have with a particular storage driver. There is no substitute for experience and it is rarely a good idea to try something brand new in production. That's what labs and laptops are for!
+1. No single driver is well suited to every use-case
+2. Storage drivers are improving and evolving all of the time
 
-If your Docker infrastructure is under support contracts, choose an option that will get you good support. You probably don't want to go with a solution that your support partners have little or no experience with.
+With these factors in mind, the following points, coupled with the table below,
+ should provide some guidance.
 
-Whichever driver you choose, make sure it has strong community support and momentum. This is important because storage driver development in the Docker project relies on the community as much as the Docker staff to thrive.
+### Stability
+For the most stable and hassle-free Docker experience, you should consider the
+following:
+
+- **Use the default storage driver for your distribution**. When Docker
+installs, it chooses a default storage driver based on the configuration of
+your system. Stability is an important factor influencing which storage driver
+is used by default. Straying from this default may increase your chances of
+encountering bugs and nuances.
+- **Follow the configuration specified on the CS Engine
+[compatibility matrix](https://www.docker.com/compatibility-maintenance)**. The
+ CS Engine is the commercially supported version of the Docker Engine. It's
+code-base is identical to the open source Engine, but it has a limited set of
+supported configurations. These *supported configurations* use the most stable
+and mature storage drivers. Straying from these configurations may also
+increase your chances of encountering bugs and nuances.
+
+### Experience and expertise
+
+Choose a storage driver that you and your team/organization have experience
+with. For example, if you use RHEL or one of its downstream forks, you may
+already have experience with LVM and Device Mapper. If so, you may wish to use
+the `devicemapper` driver.
+
+If you do not feel you have expertise with any of the storage drivers supported
+ by Docker, and you want an easy-to-use stable Docker experience, you should
+consider using the default driver installed by your distribution's Docker
+package.
+
+### Future-proofing
+
+Many people consider OverlayFS as the future of the Docker storage driver.
+However, it is less mature, and potentially less stable than some of the more
+mature drivers such as `aufs` and `devicemapper`.  For this reason, you should
+use the OverlayFS driver with caution and expect to encounter more bugs and
+nuances than if you were using a more mature driver.
+
+The following diagram lists each storage driver and provides insight into some
+of their pros and cons. When selecting which storage driver to use, consider
+the guidance offered by the table below along with the points mentioned above.
+
+![](images/driver-pros-cons.png)
 
 
 ## Related information
