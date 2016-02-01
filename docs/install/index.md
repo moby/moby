@@ -3,6 +3,7 @@
 title = "Install"
 description = "Lists the installation methods"
 keywords = ["Docker install "]
+aliases = ["/installation/index.md"]
 [menu.main]
 identifier = "engine_install"
 parent="engine_use"

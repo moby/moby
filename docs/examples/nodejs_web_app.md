@@ -12,7 +12,7 @@ parent = "engine_dockerize"
 
 > **Note**: 
 > - **If you don't like sudo** then see [*Giving non-root
->   access*](../installation/binaries.md#giving-non-root-access)
+>   access*](../install/binaries.md#giving-non-root-access)
 
 The goal of this example is to show you how you can build your own
 Docker images from a parent image using a `Dockerfile`

@@ -1,6 +1,6 @@
 <!--[metadata]>
 +++
-aliases = [ "/engine/installation/cruxlinux/"]
+aliases = [ "/engine/installation/cruxlinux/", "/installation/linux/cruxlinux.md"]
 title = "Installation on CRUX Linux"
 description = "Docker installation on CRUX Linux."
 keywords = ["crux linux, Docker, documentation,  installation"]

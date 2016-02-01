@@ -1,6 +1,6 @@
 <!--[metadata]>
 +++
-aliases = [ "/engine/installation/oracle/"]
+aliases = [ "/engine/installation/oracle/", "/installation/linux/oracle.md"]
 title = "Installation on Oracle Linux"
 description = "Installation instructions for Docker on Oracle Linux."
 keywords = ["Docker, Docker documentation, requirements, linux, rhel, centos, oracle,  ol"]

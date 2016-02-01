@@ -1,5 +1,6 @@
 <!--[metadata]>
 +++
+aliases = ["/installation/linux/index.md"]
 title = "On Linux distributions"
 description = "Lists the installation methods"
 keywords = ["docker", "engine","install", "linux"]

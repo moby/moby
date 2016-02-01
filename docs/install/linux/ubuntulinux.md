@@ -1,6 +1,6 @@
 <!--[metadata]>
 +++
-aliases = [ "/engine/installation/ubuntulinux/"]
+aliases = [ "/engine/installation/ubuntulinux/", "/installation/linux/ubuntulinux.md"]
 title = "Installation on Ubuntu "
 description = "Instructions for installing Docker on Ubuntu. "
 keywords = ["Docker, Docker documentation, requirements, apt, installation,  ubuntu"]

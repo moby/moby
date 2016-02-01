@@ -13,7 +13,7 @@ parent = "engine_admin"
 
 > *Note:* Please note this is a community contributed installation path. The
 > only `official` installation is using the
-> [*Ubuntu*](../installation/linux/ubuntulinux.md) installation
+> [*Ubuntu*](../install/linux/ubuntulinux.md) installation
 > path. This version may sometimes be out of date.
 
 ## Requirements

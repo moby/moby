@@ -1,30 +1,27 @@
 <!--[metadata]>
 +++
-aliases = [ "/engine/installation/centos/"]
-title = "Installation on CentOS"
-description = "Instructions for installing Docker on CentOS"
-keywords = ["Docker, Docker documentation, requirements, linux, centos, epel, docker.io,  docker-io"]
+aliases = [ "/engine/installation/rhel/", "/installation/linux/rhel.md"]
+title = "Installation on Red Hat Enterprise Linux"
+description = "Instructions for installing Docker on Red Hat Enterprise Linux."
+keywords = ["Docker, Docker documentation, requirements, linux,  rhel"]
 [menu.main]
 parent = "engine_linux"
-weight=-4
+weight = -5
 +++
 <![end-metadata]-->
 
-# CentOS
+# Red Hat Enterprise Linux
 
-Docker runs on CentOS 7.X. An installation on other binary compatible EL7
-distributions such as Scientific Linux might succeed, but Docker does not test
-or support Docker on these distributions.
-
-This page instructs you to install using Docker-managed release packages and
-installation mechanisms. Using these packages ensures you get the latest release
-of Docker. If you wish to install using CentOS-managed packages, consult your
-CentOS documentation.
+Docker is supported on Red Hat Enterprise Linux 7. This page instructs you to
+install using Docker-managed release packages and installation mechanisms. Using
+these packages ensures you get the latest release of Docker. If you wish to
+install using Red Hat-managed packages, consult your Red Hat release
+documentation for information on Red Hat's Docker support.
 
 ## Prerequisites
 
-Docker requires a 64-bit installation regardless of your CentOS version. Also,
-your kernel must be 3.10 at minimum, which CentOS 7 runs.
+Docker requires a 64-bit installation regardless of your Red Hat version. Docker
+requires that your kernel must be 3.10 at minimum, which Red Hat 7 runs.
 
 To check your current kernel version, open a terminal and use `uname -r` to
 display your kernel version:
@@ -37,12 +34,9 @@ mind that your system should be fully patched to fix any potential kernel bugs.
 Any reported kernel bugs may have already been fixed on the latest kernel
 packages.
 
-## Install
+## Install Docker Engine
 
-There are two ways to install Docker Engine.  You can install using the `yum`
-package manager. Or you can use `curl` with the  `get.docker.com` site. This
-second method runs an installation script which also installs via the `yum`
-package manager.
+There are two ways to install Docker Engine.  You can install with the `yum` package manager directly yourself. Or you can use `curl` with the  `get.docker.com` site. This second method runs an installation script which installs via the `yum` package manager.
 
 ### Install with yum
 
@@ -50,14 +44,14 @@ package manager.
 
 2. Make sure your existing yum packages are up-to-date.
 
-        $ sudo yum update
+  		$ sudo yum update
 
-3. Add the yum repo.
+3. Add the yum repo yourself.
 
-        $ sudo tee /etc/yum.repos.d/docker.repo <<-'EOF'
+        $ sudo tee /etc/yum.repos.d/docker.repo <<-EOF
         [dockerrepo]
         name=Docker Repository
-        baseurl=https://yum.dockerproject.org/repo/main/centos/$releasever/
+        baseurl=https://yum.dockerproject.org/repo/main/centos/7
         enabled=1
         gpgcheck=1
         gpgkey=https://yum.dockerproject.org/gpg
@@ -69,11 +63,11 @@ package manager.
 
 5. Start the Docker daemon.
 
-        $ sudo service docker start
+		$ sudo service docker start
 
 6. Verify `docker` is installed correctly by running a test image in a container.
 
-        $ sudo docker run hello-world
+		$ sudo docker run hello-world
         Unable to find image 'hello-world:latest' locally
     		latest: Pulling from hello-world
     		a8219747be10: Pull complete
@@ -101,6 +95,7 @@ package manager.
 
 ### Install with the script
 
+You use the same installation procedure for all versions of CentOS.
 
 1. Log into your machine as a user with `sudo` or `root` privileges.
 
@@ -112,8 +107,6 @@ package manager.
 
 		$ curl -fsSL https://get.docker.com/ | sh
 
-	This script adds the `docker.repo` repository and installs Docker.
-
 4. Start the Docker daemon.
 
 		$ sudo service docker start
@@ -121,7 +114,6 @@ package manager.
 5. Verify `docker` is installed correctly by running a test image in a container.
 
 		$ sudo docker run hello-world
-
 
 ## Create a docker group		
 
@@ -139,7 +131,7 @@ makes the ownership of the Unix socket read/writable by the `docker` group.
 
 To create the `docker` group and add your user:
 
-1. Log into Centos as a user with `sudo` privileges.
+1. Log into your machine as a user with `sudo` or `root` privileges.
 
 2. Create the `docker` group and add your user.
 
@@ -151,13 +143,13 @@ To create the `docker` group and add your user:
 
 4. Verify your work by running `docker` without `sudo`.
 
-		$ docker run hello-world
+			$ docker run hello-world
 
 ## Start the docker daemon at boot
 
 To ensure Docker starts when you boot your system, do the following:
 
-      $ sudo chkconfig docker on
+    $ sudo chkconfig docker on
 
 If you need to add an HTTP Proxy, set a different directory or partition for the
 Docker runtime files, or make other customizations, read our Systemd article to
@@ -172,16 +164,16 @@ You can uninstall the Docker software with `yum`.
 
 		$ yum list installed | grep docker
 		yum list installed | grep docker
-		docker-engine.x86_64   1.7.1-1.el7 @/docker-engine-1.7.1-1.el7.x86_64.rpm
+		docker-engine.x86_64                1.7.1-0.1.el7@/docker-engine-1.7.1-0.1.el7.x86_64
 
 2. Remove the package.
 
 		$ sudo yum -y remove docker-engine.x86_64
 
-	This command does not remove images, containers, volumes, or user-created
+	This command does not remove images, containers, volumes, or user created
 	configuration files on your host.
 
-3. To delete all images, containers, and volumes, run the following command:
+3. To delete all images, containers, and volumes run the following command:
 
 		$ rm -rf /var/lib/docker
 

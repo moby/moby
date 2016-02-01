@@ -6,7 +6,8 @@ aliases = [
   "/engine/installation/softlayer/",
   "/engine/installation/azure/",
   "/engine/installation/rackspace/",
-  "/engine/installation/joyent/"
+  "/engine/installation/joyent/",
+  "/installation/index.md"
 ]
 title = "In the cloud"
 description = "Cloud Installations"

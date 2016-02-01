@@ -286,7 +286,7 @@ or Solaris Zones.
 
 ## Next steps
 ### Installing Docker
-Visit the [installation section](installation/index.md#installation).
+Visit the [installation section](install/index.md#installation).
 
 ### The Docker user guide
 [Learn Docker in depth](userguide/index.md).
