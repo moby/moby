@@ -146,7 +146,7 @@ type repository struct {
 	name    reference.Named
 }
 
-func (r *repository) Name() reference.Named {
+func (r *repository) Named() reference.Named {
 	return r.name
 }
 
@@ -179,7 +179,7 @@ func (r *repository) Tags(ctx context.Context) distribution.TagService {
 		client:  r.client,
 		ub:      r.ub,
 		context: r.context,
-		name:    r.Name(),
+		name:    r.Named(),
 	}
 }
 
