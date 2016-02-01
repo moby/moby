@@ -759,6 +759,12 @@ Create a 3rd container using the new --ipc=container:CONTAINERID option, now it 
 
 ## Linking Containers
 
+> **Note**: This section describes linking between containers on the
+> default (bridge) network, also known as "legacy links". Using `--link`
+> on user-defined networks uses the DNS-based discovery, which does not add
+> entries to `/etc/hosts`, and does not set environment variables for
+> discovery.
+
 The link feature allows multiple containers to communicate with each other. For
 example, a container whose Dockerfile has exposed port 80 can be run and named
 as follows:
