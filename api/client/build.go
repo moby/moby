@@ -77,13 +77,9 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	cmd.ParseFlags(args, true)
 
 	var (
-		context  io.ReadCloser
-		isRemote bool
-		err      error
+		context io.ReadCloser
+		err     error
 	)
-
-	_, err = exec.LookPath("git")
-	hasGit := err == nil
 
 	specifiedContext := cmd.Arg(0)
 
@@ -105,7 +101,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	switch {
 	case specifiedContext == "-":
 		context, relDockerfile, err = getContextFromReader(cli.in, *dockerfileName)
-	case urlutil.IsGitURL(specifiedContext) && hasGit:
+	case urlutil.IsGitURL(specifiedContext):
 		tempDir, relDockerfile, err = getContextFromGitURL(specifiedContext, *dockerfileName)
 	case urlutil.IsURL(specifiedContext):
 		context, relDockerfile, err = getContextFromURL(progBuff, specifiedContext, *dockerfileName)
@@ -215,18 +211,12 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		}
 	}
 
-	var remoteContext string
-	if isRemote {
-		remoteContext = cmd.Arg(0)
-	}
-
 	options := types.ImageBuildOptions{
 		Context:        body,
 		Memory:         memory,
 		MemorySwap:     memorySwap,
 		Tags:           flTags.GetAll(),
 		SuppressOutput: *suppressOutput,
-		RemoteContext:  remoteContext,
 		NoCache:        *noCache,
 		Remove:         *rm,
 		ForceRemove:    *forceRm,
@@ -510,6 +500,9 @@ func getContextFromReader(r io.ReadCloser, dockerfileName string) (out io.ReadCl
 // path of the dockerfile in that context directory, and a non-nil error on
 // success.
 func getContextFromGitURL(gitURL, dockerfileName string) (absContextDir, relDockerfile string, err error) {
+	if _, err := exec.LookPath("git"); err != nil {
+		return "", "", fmt.Errorf("unable to find 'git': %v", err)
+	}
 	if absContextDir, err = gitutils.Clone(gitURL); err != nil {
 		return "", "", fmt.Errorf("unable to 'git clone' to temporary context directory: %v", err)
 	}

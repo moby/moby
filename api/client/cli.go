@@ -44,6 +44,8 @@ type DockerCli struct {
 	isTerminalOut bool
 	// client is the http client that performs all API operations
 	client client.APIClient
+	// state holds the terminal state
+	state *term.State
 }
 
 // Initialize calls the init function that will setup the configuration for the client
@@ -77,6 +79,27 @@ func (cli *DockerCli) PsFormat() string {
 // String contains columns and format specification, for example {{ID}}\t{{Name}}.
 func (cli *DockerCli) ImagesFormat() string {
 	return cli.configFile.ImagesFormat
+}
+
+func (cli *DockerCli) setRawTerminal() error {
+	if cli.isTerminalIn && os.Getenv("NORAW") == "" {
+		state, err := term.SetRawTerminal(cli.inFd)
+		if err != nil {
+			return err
+		}
+		cli.state = state
+	}
+	return nil
+}
+
+func (cli *DockerCli) restoreTerminal(in io.Closer) error {
+	if cli.state != nil {
+		term.RestoreTerminal(cli.inFd, cli.state)
+	}
+	if in != nil {
+		return in.Close()
+	}
+	return nil
 }
 
 // NewDockerCli returns a DockerCli instance with IO output and error streams set by in, out and err.

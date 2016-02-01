@@ -210,7 +210,7 @@ the file "./VERSION". This binary is usually installed somewhere like
 
 ### Dynamic Daemon / Client-only Binary
 
-If you are only interested in a Docker client binary, set `DOCKER_CLIENTONLY` to a non-empty value using something similar to the following: (which will prevent the extra step of compiling dockerinit)
+If you are only interested in a Docker client binary, set `DOCKER_CLIENTONLY` to a non-empty value using something similar to the following:
 
 ```bash
 export DOCKER_CLIENTONLY=1
@@ -227,37 +227,6 @@ following:
 
 This will create "./bundles/$VERSION/dynbinary/docker-$VERSION", which for
 client-only builds is the important file to grab and install as appropriate.
-
-For daemon builds, you will also need to grab and install
-"./bundles/$VERSION/dynbinary/dockerinit-$VERSION", which is created from the
-minimal set of Docker's codebase that _must_ be compiled statically (and is thus
-a pure static binary). The acceptable locations Docker will search for this file
-are as follows (in order):
-
-* as "dockerinit" in the same directory as the daemon binary (ie, if docker is
-  installed at "/usr/bin/docker", then "/usr/bin/dockerinit" will be the first
-  place this file is searched for)
-* "/usr/libexec/docker/dockerinit" or "/usr/local/libexec/docker/dockerinit"
-  ([FHS 3.0 Draft](https://www.linuxbase.org/betaspecs/fhs/fhs.html#usrlibexec))
-* "/usr/lib/docker/dockerinit" or "/usr/local/lib/docker/dockerinit" ([FHS
-  2.3](https://refspecs.linuxfoundation.org/FHS_2.3/fhs-2.3.html#USRLIBLIBRARIESFORPROGRAMMINGANDPA))
-
-If (and please, only if) one of the paths above is insufficient due to distro
-policy or similar issues, you may use the `DOCKER_INITPATH` environment variable
-at compile-time as follows to set a different path for Docker to search:
-
-```bash
-export DOCKER_INITPATH=/usr/lib/docker.io/dockerinit
-```
-
-If you find yourself needing this, please don't hesitate to reach out to Tianon
-to see if it would be reasonable or helpful to add more paths to Docker's list,
-especially if there's a relevant standard worth referencing (such as the FHS).
-
-Also, it goes without saying, but for the purposes of the daemon please consider
-these two binaries ("docker" and "dockerinit") as if they were a single unit.
-Mixing and matching can cause undesired consequences, and will fail to run
-properly.
 
 ## System Dependencies
 

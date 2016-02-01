@@ -47,7 +47,7 @@ func (s *DockerTrustSuite) TestTrustedIsolatedPull(c *check.C) {
 }
 
 func (s *DockerTrustSuite) TestUntrustedPull(c *check.C) {
-	repoName := fmt.Sprintf("%v/dockercli/trusted:latest", privateRegistryURL)
+	repoName := fmt.Sprintf("%v/dockercliuntrusted/pulltest:latest", privateRegistryURL)
 	// tag the image and upload it to the private registry
 	dockerCmd(c, "tag", "busybox", repoName)
 	dockerCmd(c, "push", repoName)
@@ -59,7 +59,7 @@ func (s *DockerTrustSuite) TestUntrustedPull(c *check.C) {
 	out, _, err := runCommandWithOutput(pullCmd)
 
 	c.Assert(err, check.NotNil, check.Commentf(out))
-	c.Assert(string(out), checker.Contains, "Error: remote trust data repository not initialized", check.Commentf(out))
+	c.Assert(string(out), checker.Contains, "Error: remote trust data does not exist", check.Commentf(out))
 }
 
 func (s *DockerTrustSuite) TestPullWhenCertExpired(c *check.C) {
@@ -141,7 +141,7 @@ func (s *DockerTrustSuite) TestTrustedPullFromBadTrustServer(c *check.C) {
 	out, _, err = runCommandWithOutput(pullCmd)
 
 	c.Assert(err, check.NotNil, check.Commentf(out))
-	c.Assert(string(out), checker.Contains, "failed to validate data with current trusted certificates", check.Commentf(out))
+	c.Assert(string(out), checker.Contains, "valid signatures did not meet threshold", check.Commentf(out))
 }
 
 func (s *DockerTrustSuite) TestTrustedPullWithExpiredSnapshot(c *check.C) {
@@ -235,21 +235,19 @@ func (s *DockerTrustSuite) TestTrustedPullDelete(c *check.C) {
 	c.Assert(matches, checker.HasLen, 2, check.Commentf("unable to parse digest from pull output: %s", out))
 	pullDigest := matches[1]
 
-	imageID, err := inspectField(repoName, "Id")
-	c.Assert(err, checker.IsNil, check.Commentf("error inspecting image id"))
+	imageID := inspectField(c, repoName, "Id")
 
 	imageByDigest := repoName + "@" + pullDigest
-	byDigestID, err := inspectField(imageByDigest, "Id")
-	c.Assert(err, checker.IsNil, check.Commentf("error inspecting image id"))
+	byDigestID := inspectField(c, imageByDigest, "Id")
 
 	c.Assert(byDigestID, checker.Equals, imageID)
 
 	// rmi of tag should also remove the digest reference
 	dockerCmd(c, "rmi", repoName)
 
-	_, err = inspectField(imageByDigest, "Id")
+	_, err = inspectFieldWithError(imageByDigest, "Id")
 	c.Assert(err, checker.NotNil, check.Commentf("digest reference should have been removed"))
 
-	_, err = inspectField(imageID, "Id")
+	_, err = inspectFieldWithError(imageID, "Id")
 	c.Assert(err, checker.NotNil, check.Commentf("image should have been deleted"))
 }

@@ -36,18 +36,21 @@ A `bridge` network resides on a single host running an instance of Docker Engine
 
 ```bash
 $ docker network create simple-network
-de792b8258895cf5dc3b43835e9d61a9803500b991654dacb1f4f0546b1c88f8
+69568e6336d8c96bbf57869030919f7c69524f71183b44d80948bd3927c87f6a
 $ docker network inspect simple-network
 [
     {
         "Name": "simple-network",
-        "Id": "de792b8258895cf5dc3b43835e9d61a9803500b991654dacb1f4f0546b1c88f8",
+        "Id": "69568e6336d8c96bbf57869030919f7c69524f71183b44d80948bd3927c87f6a",
         "Scope": "local",
         "Driver": "bridge",
         "IPAM": {
             "Driver": "default",
             "Config": [
-                {}
+                {
+                    "Subnet": "172.22.0.0/16",
+                    "Gateway": "172.22.0.1/16"
+                }
             ]
         },
         "Containers": {},
@@ -92,6 +95,53 @@ $ docker network create -d overlay
 
 Be sure that your subnetworks do not overlap. If they do, the network create fails and Engine returns an error.
 
+When creating a custom network, the default network driver (i.e. `bridge`) has additional options that can be passed.
+The following are those options and the equivalent docker daemon flags used for docker0 bridge:
+
+| Option                                           | Equivalent  | Description                                           |
+|--------------------------------------------------|-------------|-------------------------------------------------------|
+| `com.docker.network.bridge.name`                 | -           | bridge name to be used when creating the Linux bridge |
+| `com.docker.network.bridge.enable_ip_masquerade` | `--ip-masq` | Enable IP masquerading                                |
+| `com.docker.network.bridge.enable_icc`           | `--icc`     | Enable or Disable Inter Container Connectivity        |
+| `com.docker.network.bridge.host_binding_ipv4`    | `--ip`      | Default IP when binding container ports               |
+| `com.docker.network.mtu`                         | `--mtu`     | Set the containers network MTU                        |
+| `com.docker.network.enable_ipv6`                 | `--ipv6`    | Enable IPv6 networking                                |
+
+For example, now let's use `-o` or `--opt` options to specify an IP address binding when publishing ports:
+
+```bash
+$ docker network create -o "com.docker.network.bridge.host_binding_ipv4"="172.23.0.1" my-network
+b1a086897963e6a2e7fc6868962e55e746bee8ad0c97b54a5831054b5f62672a
+$ docker network inspect my-network
+[
+    {
+        "Name": "my-network",
+        "Id": "b1a086897963e6a2e7fc6868962e55e746bee8ad0c97b54a5831054b5f62672a",
+        "Scope": "local",
+        "Driver": "bridge",
+        "IPAM": {
+            "Driver": "default",
+            "Options": {},
+            "Config": [
+                {
+                    "Subnet": "172.23.0.0/16",
+                    "Gateway": "172.23.0.1/16"
+                }
+            ]
+        },
+        "Containers": {},
+        "Options": {
+            "com.docker.network.bridge.host_binding_ipv4": "172.23.0.1"
+        }
+    }
+]
+$ docker run -d -P --name redis --net my-network redis
+bafb0c808c53104b2c90346f284bda33a69beadcab4fc83ab8f2c5a4410cd129
+$ docker ps
+CONTAINER ID        IMAGE               COMMAND                  CREATED             STATUS              PORTS                        NAMES
+bafb0c808c53        redis               "/entrypoint.sh redis"   4 seconds ago       Up 3 seconds        172.23.0.1:32770->6379/tcp   redis
+```
+
 ## Connect containers
 
 You can connect containers dynamically to one or more networks. These networks
@@ -134,7 +184,8 @@ $ docker network inspect isolated_nw
             "Driver": "default",
             "Config": [
                 {
-                    "Subnet": "172.25.0.0/16"
+                    "Subnet": "172.21.0.0/16",
+                    "Gateway": "172.21.0.1/16"
                 }
             ]
         },
@@ -174,7 +225,8 @@ Now, inspect the network resources used by `container3`.
 
 ```bash
 $ docker inspect --format='{{json .NetworkSettings.Networks}}'  container3
-{"isolated_nw":{"IPAMConfig":{"IPv4Address":"172.25.3.3"},"EndpointID":"dffc7ec2915af58cc827d995e6ebdc897342be0420123277103c40ae35579103","Gateway":"172.25.0.1","IPAddress":"172.25.3.3","IPPrefixLen":16,"IPv6Gateway":"","GlobalIPv6Address":"","GlobalIPv6PrefixLen":0,"MacAddress":"02:42:ac:19:03:03"}}
+{"isolated_nw":{"IPAMConfig":{"IPv4Address":"172.25.3.3"},"NetworkID":"1196a4c5af43a21ae38ef34515b6af19236a3fc48122cf585e3f3054d509679b",
+"EndpointID":"dffc7ec2915af58cc827d995e6ebdc897342be0420123277103c40ae35579103","Gateway":"172.25.0.1","IPAddress":"172.25.3.3","IPPrefixLen":16,"IPv6Gateway":"","GlobalIPv6Address":"","GlobalIPv6PrefixLen":0,"MacAddress":"02:42:ac:19:03:03"}}
 ```
 Repeat this command for `container2`. If you have Python installed, you can pretty print the output.
 
@@ -182,6 +234,7 @@ Repeat this command for `container2`. If you have Python installed, you can pret
 $ docker inspect --format='{{json .NetworkSettings.Networks}}'  container2 | python -m json.tool
 {
     "bridge": {
+        "NetworkID":"7ea29fc1412292a2d7bba362f9253545fecdfa8ce9a6e37dd10ba8bee7129812",
         "EndpointID": "0099f9efb5a3727f6a554f176b1e96fca34cae773da68b3b6a26d046c12cb365",
         "Gateway": "172.17.0.1",
         "GlobalIPv6Address": "",
@@ -193,6 +246,7 @@ $ docker inspect --format='{{json .NetworkSettings.Networks}}'  container2 | pyt
         "MacAddress": "02:42:ac:11:00:03"
     },
     "isolated_nw": {
+        "NetworkID":"1196a4c5af43a21ae38ef34515b6af19236a3fc48122cf585e3f3054d509679b",
         "EndpointID": "11cedac1810e864d6b1589d92da12af66203879ab89f4ccd8c8fdaa9b1c48b1d",
         "Gateway": "172.25.0.1",
         "GlobalIPv6Address": "",
@@ -499,6 +553,130 @@ environment variables into a running container without significant effort and he
 it is not compatible with `docker network` which provides a dynamic way to connect/
 disconnect containers to/from a network.
 
+### Network-scoped alias
+
+While `links` provide private name resolution that is localized within a container,
+the network-scoped alias provides a way for a container to be discovered by an
+alternate name by any other container within the scope of a particular network.
+Unlike the `link` alias, which is defined by the consumer of a service, the
+network-scoped alias is defined by the container that is offering the service
+to the network.
+
+Continuing with the above example, create another container in `isolated_nw` with a
+network alias.
+
+```bash
+$ docker run --net=isolated_nw -itd --name=container6 --net-alias app busybox
+8ebe6767c1e0361f27433090060b33200aac054a68476c3be87ef4005eb1df17
+```
+
+```bash
+$ docker attach container4
+/ # ping -w 4 app
+PING app (172.25.0.6): 56 data bytes
+64 bytes from 172.25.0.6: seq=0 ttl=64 time=0.070 ms
+64 bytes from 172.25.0.6: seq=1 ttl=64 time=0.080 ms
+64 bytes from 172.25.0.6: seq=2 ttl=64 time=0.080 ms
+64 bytes from 172.25.0.6: seq=3 ttl=64 time=0.097 ms
+
+--- app ping statistics ---
+4 packets transmitted, 4 packets received, 0% packet loss
+round-trip min/avg/max = 0.070/0.081/0.097 ms
+
+/ # ping -w 4 container6
+PING container5 (172.25.0.6): 56 data bytes
+64 bytes from 172.25.0.6: seq=0 ttl=64 time=0.070 ms
+64 bytes from 172.25.0.6: seq=1 ttl=64 time=0.080 ms
+64 bytes from 172.25.0.6: seq=2 ttl=64 time=0.080 ms
+64 bytes from 172.25.0.6: seq=3 ttl=64 time=0.097 ms
+
+--- container6 ping statistics ---
+4 packets transmitted, 4 packets received, 0% packet loss
+round-trip min/avg/max = 0.070/0.081/0.097 ms
+```
+
+Now let us connect `container6` to the `local_alias` network with a different network-scoped
+alias.
+
+```
+$ docker network connect --alias scoped-app local_alias container6
+```
+
+`container6` in this example now is aliased as `app` in network `isolated_nw` and
+as `scoped-app` in network `local_alias`.
+
+Let's try to reach these aliases from `container4` (which is connected to both these networks)
+and `container5` (which is connected only to `isolated_nw`).
+
+```bash
+$ docker attach container4
+
+/ # ping -w 4 scoped-app
+PING foo (172.26.0.5): 56 data bytes
+64 bytes from 172.26.0.5: seq=0 ttl=64 time=0.070 ms
+64 bytes from 172.26.0.5: seq=1 ttl=64 time=0.080 ms
+64 bytes from 172.26.0.5: seq=2 ttl=64 time=0.080 ms
+64 bytes from 172.26.0.5: seq=3 ttl=64 time=0.097 ms
+
+--- foo ping statistics ---
+4 packets transmitted, 4 packets received, 0% packet loss
+round-trip min/avg/max = 0.070/0.081/0.097 ms
+
+$ docker attach container5
+
+/ # ping -w 4 scoped-app
+ping: bad address 'scoped-app'
+
+```
+
+As you can see, the alias is scoped to the network it is defined on and hence only
+those containers that are connected to that network can access the alias.
+
+In addition to the above features, multiple containers can share the same network-scoped
+alias within the same network. For example, let's launch `container7` in `isolated_nw` with
+the same alias as `container6`
+
+```bash
+$ docker run --net=isolated_nw -itd --name=container7 --net-alias app busybox
+3138c678c123b8799f4c7cc6a0cecc595acbdfa8bf81f621834103cd4f504554
+```
+
+When multiple containers share the same alias, name resolution to that alias will happen
+to one of the containers (typically the first container that is aliased). When the container
+that backs the alias goes down or disconnected from the network, the next container that
+backs the alias will be resolved.
+
+Let us ping the alias `app` from `container4` and bring down `container6` to verify that
+`container7` is resolving the `app` alias.
+
+```bash
+$ docker attach container4
+/ # ping -w 4 app
+PING app (172.25.0.6): 56 data bytes
+64 bytes from 172.25.0.6: seq=0 ttl=64 time=0.070 ms
+64 bytes from 172.25.0.6: seq=1 ttl=64 time=0.080 ms
+64 bytes from 172.25.0.6: seq=2 ttl=64 time=0.080 ms
+64 bytes from 172.25.0.6: seq=3 ttl=64 time=0.097 ms
+
+--- app ping statistics ---
+4 packets transmitted, 4 packets received, 0% packet loss
+round-trip min/avg/max = 0.070/0.081/0.097 ms
+
+$ docker stop container6
+
+$ docker attach container4
+/ # ping -w 4 app
+PING app (172.25.0.7): 56 data bytes
+64 bytes from 172.25.0.7: seq=0 ttl=64 time=0.095 ms
+64 bytes from 172.25.0.7: seq=1 ttl=64 time=0.075 ms
+64 bytes from 172.25.0.7: seq=2 ttl=64 time=0.072 ms
+64 bytes from 172.25.0.7: seq=3 ttl=64 time=0.101 ms
+
+--- app ping statistics ---
+4 packets transmitted, 4 packets received, 0% packet loss
+round-trip min/avg/max = 0.072/0.085/0.101 ms
+
+```
 
 ## Disconnecting containers
 
@@ -511,6 +689,7 @@ $ docker network disconnect isolated_nw container2
 docker inspect --format='{{json .NetworkSettings.Networks}}'  container2 | python -m json.tool
 {
     "bridge": {
+        "NetworkID":"7ea29fc1412292a2d7bba362f9253545fecdfa8ce9a6e37dd10ba8bee7129812",
         "EndpointID": "9e4575f7f61c0f9d69317b7a4b92eefc133347836dd83ef65deffa16b9985dc0",
         "Gateway": "172.17.0.1",
         "GlobalIPv6Address": "",
@@ -534,7 +713,8 @@ $ docker network inspect isolated_nw
             "Driver": "default",
             "Config": [
                 {
-                    "Subnet": "172.25.0.0/16"
+                    "Subnet": "172.21.0.0/16",
+                    "Gateway": "172.21.0.1/16"
                 }
             ]
         },
@@ -618,7 +798,8 @@ docker network inspect isolated_nw
             "Driver": "default",
             "Config": [
                 {
-                    "Subnet": "172.25.0.0/16"
+                    "Subnet": "172.21.0.0/16",
+                    "Gateway": "172.21.0.1/16"
                 }
             ]
         },

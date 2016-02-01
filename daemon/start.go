@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"fmt"
 	"runtime"
 
 	"github.com/Sirupsen/logrus"
@@ -31,11 +32,21 @@ func (daemon *Daemon) ContainerStart(name string, hostConfig *containertypes.Hos
 		// creating a container, not during start.
 		if hostConfig != nil {
 			logrus.Warn("DEPRECATED: Setting host configuration options when the container starts is deprecated and will be removed in Docker 1.12")
+			oldNetworkMode := container.HostConfig.NetworkMode
 			if err := daemon.setSecurityOptions(container, hostConfig); err != nil {
 				return err
 			}
 			if err := daemon.setHostConfig(container, hostConfig); err != nil {
 				return err
+			}
+			newNetworkMode := container.HostConfig.NetworkMode
+			if string(oldNetworkMode) != string(newNetworkMode) {
+				// if user has change the network mode on starting, clean up the
+				// old networks. It is a deprecated feature and will be removed in Docker 1.12
+				container.NetworkSettings.Networks = nil
+				if err := container.ToDisk(); err != nil {
+					return err
+				}
 			}
 			container.InitDNSHostConfig()
 		}
@@ -91,7 +102,10 @@ func (daemon *Daemon) containerStart(container *container.Container) (err error)
 			}
 			container.ToDisk()
 			daemon.Cleanup(container)
-			daemon.LogContainerEvent(container, "die")
+			attributes := map[string]string{
+				"exitCode": fmt.Sprintf("%d", container.ExitCode),
+			}
+			daemon.LogContainerEventWithAttributes(container, "die", attributes)
 		}
 	}()
 
@@ -132,15 +146,9 @@ func (daemon *Daemon) containerStart(container *container.Container) (err error)
 	mounts = append(mounts, container.TmpfsMounts()...)
 
 	container.Command.Mounts = mounts
-	container.Unlock()
-
-	// don't lock waitForStart because it has potential risk of blocking
-	// which will lead to dead lock, forever.
 	if err := daemon.waitForStart(container); err != nil {
-		container.Lock()
 		return err
 	}
-	container.Lock()
 	container.HasBeenStartedBefore = true
 	return nil
 }

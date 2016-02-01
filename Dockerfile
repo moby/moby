@@ -86,7 +86,35 @@ RUN cd /usr/local/lvm2 \
 	&& make install_device-mapper
 # see https://git.fedorahosted.org/cgit/lvm2.git/tree/INSTALL
 
+# Configure the container for OSX cross compilation
+ENV OSX_SDK MacOSX10.11.sdk
+RUN set -x \
+	&& export OSXCROSS_PATH="/osxcross" \
+	&& git clone --depth 1 https://github.com/tpoechtrager/osxcross.git $OSXCROSS_PATH \
+	&& curl -sSL https://s3.dockerproject.org/darwin/${OSX_SDK}.tar.xz -o "${OSXCROSS_PATH}/tarballs/${OSX_SDK}.tar.xz" \
+	&& UNATTENDED=yes OSX_VERSION_MIN=10.6 ${OSXCROSS_PATH}/build.sh
+ENV PATH /osxcross/target/bin:$PATH
+
+# install seccomp
+# TODO: switch to libseccomp-dev since dockerinit is gone
+ENV SECCOMP_VERSION 2.2.3
+RUN set -x \
+	&& export SECCOMP_PATH="$(mktemp -d)" \
+	&& curl -fsSL "https://github.com/seccomp/libseccomp/releases/download/v${SECCOMP_VERSION}/libseccomp-${SECCOMP_VERSION}.tar.gz" \
+		| tar -xzC "$SECCOMP_PATH" --strip-components=1 \
+	&& ( \
+		cd "$SECCOMP_PATH" \
+		&& ./configure --prefix=/usr/local \
+		&& make \
+		&& make install \
+		&& ldconfig \
+	) \
+	&& rm -rf "$SECCOMP_PATH"
+
 # Install Go
+# IMPORTANT: If the version of Go is updated, the Windows to Linux CI machines
+#            will need updating, to avoid errors. Ping #docker-maintainers on IRC
+#            with a heads-up.
 ENV GO_VERSION 1.5.3
 RUN curl -fsSL "https://storage.googleapis.com/golang/go${GO_VERSION}.linux-amd64.tar.gz" \
 	| tar -xzC /usr/local
@@ -121,38 +149,12 @@ RUN git clone https://github.com/golang/lint.git /go/src/github.com/golang/lint 
 	&& (cd /go/src/github.com/golang/lint && git checkout -q $GO_LINT_COMMIT) \
 	&& go install -v github.com/golang/lint/golint
 
-# Configure the container for OSX cross compilation
-ENV OSX_SDK MacOSX10.11.sdk
-RUN set -x \
-	&& export OSXCROSS_PATH="/osxcross" \
-	&& git clone --depth 1 https://github.com/tpoechtrager/osxcross.git $OSXCROSS_PATH \
-	&& curl -sSL https://s3.dockerproject.org/darwin/${OSX_SDK}.tar.xz -o "${OSXCROSS_PATH}/tarballs/${OSX_SDK}.tar.xz" \
-	&& UNATTENDED=yes OSX_VERSION_MIN=10.6 ${OSXCROSS_PATH}/build.sh
-ENV PATH /osxcross/target/bin:$PATH
-
-# install seccomp
-# this can be changed to the ubuntu package libseccomp-dev if dockerinit is removed,
-# we need libseccomp.a (which the package does not provide) for dockerinit
-ENV SECCOMP_VERSION 2.2.3
-RUN set -x \
-	&& export SECCOMP_PATH="$(mktemp -d)" \
-	&& curl -fsSL "https://github.com/seccomp/libseccomp/releases/download/v${SECCOMP_VERSION}/libseccomp-${SECCOMP_VERSION}.tar.gz" \
-		| tar -xzC "$SECCOMP_PATH" --strip-components=1 \
-	&& ( \
-		cd "$SECCOMP_PATH" \
-		&& ./configure --prefix=/usr/local \
-		&& make \
-		&& make install \
-		&& ldconfig \
-	) \
-	&& rm -rf "$SECCOMP_PATH"
-
 # Install two versions of the registry. The first is an older version that
 # only supports schema1 manifests. The second is a newer version that supports
 # both. This allows integration-cli tests to cover push/pull with both schema1
 # and schema2 manifests.
 ENV REGISTRY_COMMIT_SCHEMA1 ec87e9b6971d831f0eff752ddb54fb64693e51cd
-ENV REGISTRY_COMMIT a7ae88da459b98b481a245e5b1750134724ac67d
+ENV REGISTRY_COMMIT 47a064d4195a9b56133891bbb13620c3ac83a827
 RUN set -x \
 	&& export GOPATH="$(mktemp -d)" \
 	&& git clone https://github.com/docker/distribution.git "$GOPATH/src/github.com/docker/distribution" \
@@ -165,7 +167,7 @@ RUN set -x \
 	&& rm -rf "$GOPATH"
 
 # Install notary server
-ENV NOTARY_VERSION docker-v1.10-2
+ENV NOTARY_VERSION docker-v1.10-5
 RUN set -x \
 	&& export GOPATH="$(mktemp -d)" \
 	&& git clone https://github.com/docker/notary.git "$GOPATH/src/github.com/docker/notary" \
@@ -210,8 +212,9 @@ RUN ln -sv $PWD/contrib/completion/bash/docker /etc/bash_completion.d/docker
 # Get useful and necessary Hub images so we can "docker load" locally instead of pulling
 COPY contrib/download-frozen-image-v2.sh /go/src/github.com/docker/docker/contrib/
 RUN ./contrib/download-frozen-image-v2.sh /docker-frozen-images \
+	buildpack-deps:jessie@sha256:25785f89240fbcdd8a74bdaf30dd5599a9523882c6dfc567f2e9ef7cf6f79db6 \
 	busybox:latest@sha256:e4f93f6ed15a0cdd342f5aae387886fba0ab98af0a102da6276eaf24d6e6ade0 \
-	debian:jessie@sha256:24a900d1671b269d6640b4224e7b63801880d8e3cb2bcbfaa10a5dddcf4469ed \
+	debian:jessie@sha256:f968f10b4b523737e253a97eac59b0d1420b5c19b69928d35801a6373ffe330e \
 	hello-world:latest@sha256:8be990ef2aeb16dbcb9271ddfe2610fa6658d13f6dfb8bc72074cc1ca36966a7
 # see also "hack/make/.ensure-frozen-images" (which needs to be updated any time this list is)
 
@@ -234,10 +237,11 @@ RUN set -x \
 	&& rm -rf "$GOPATH"
 
 # Build/install the tool for embedding resources in Windows binaries
-ENV RSRC_VERSION v2
+ENV RSRC_COMMIT ba14da1f827188454a4591717fff29999010887f
 RUN set -x \
 	&& export GOPATH="$(mktemp -d)" \
-	&& git clone --depth 1 -b "$RSRC_VERSION" https://github.com/akavel/rsrc.git "$GOPATH/src/github.com/akavel/rsrc" \
+	&& git clone https://github.com/akavel/rsrc.git "$GOPATH/src/github.com/akavel/rsrc" \
+	&& (cd "$GOPATH/src/github.com/akavel/rsrc" && git checkout -q "$RSRC_COMMIT") \
 	&& go build -v -o /usr/local/bin/rsrc github.com/akavel/rsrc \
 	&& rm -rf "$GOPATH"
 

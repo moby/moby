@@ -9,14 +9,17 @@ ifeq ($(DOCKER_OSARCH), linux/arm)
 	DOCKERFILE := Dockerfile.armhf
 else
 ifeq ($(DOCKER_OSARCH), linux/arm64)
-	# TODO .arm64
-	DOCKERFILE := Dockerfile.armhf
+	DOCKERFILE := Dockerfile.aarch64
 else
 ifeq ($(DOCKER_OSARCH), linux/ppc64le)
 	DOCKERFILE := Dockerfile.ppc64le
 else
 ifeq ($(DOCKER_OSARCH), linux/s390x)
 	DOCKERFILE := Dockerfile.s390x
+else
+ifeq ($(DOCKER_OSARCH), windows/amd64)
+	DOCKERFILE := Dockerfile.windows
+endif
 endif
 endif
 endif
@@ -28,11 +31,14 @@ export DOCKERFILE
 # `docs/sources/contributing/devenvironment.md ` and `project/PACKAGERS.md` have some limited documentation of some of these
 DOCKER_ENVS := \
 	-e BUILDFLAGS \
+	-e DOCKER_BUILD_GOGC \
+	-e DOCKER_BUILD_PKGS \
 	-e DOCKER_CLIENTONLY \
 	-e DOCKER_DEBUG \
 	-e DOCKER_EXPERIMENTAL \
 	-e DOCKERFILE \
 	-e DOCKER_GRAPHDRIVER \
+	-e DOCKER_INCREMENTAL_BINARY \
 	-e DOCKER_REMAP_ROOT \
 	-e DOCKER_STORAGE_OPTS \
 	-e DOCKER_USERLANDPROXY \
@@ -73,7 +79,7 @@ binary: build
 	$(DOCKER_RUN_DOCKER) hack/make.sh binary
 
 build: bundles
-	docker build -t "$(DOCKER_IMAGE)" -f "$(DOCKERFILE)" .
+	docker build ${DOCKER_BUILD_ARGS} -t "$(DOCKER_IMAGE)" -f "$(DOCKERFILE)" .
 
 bundles:
 	mkdir bundles
@@ -86,6 +92,9 @@ deb: build
 
 docs:
 	$(MAKE) -C docs docs
+
+gccgo: build
+	$(DOCKER_RUN_DOCKER) hack/make.sh gccgo
 
 rpm: build
 	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary build-rpm

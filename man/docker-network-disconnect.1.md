@@ -7,6 +7,7 @@ docker-network-disconnect - disconnect a container from a network
 # SYNOPSIS
 **docker network disconnect**
 [**--help**]
+[**--force**]
 NETWORK CONTAINER
 
 # DESCRIPTION
@@ -24,6 +25,9 @@ Disconnects a container from a network.
 
 **CONTAINER**
     Specify container name
+
+**--force**
+  Force the container to disconnect from a network
 
 **--help**
   Print usage statement

@@ -14,6 +14,7 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/etchosts"
+	"github.com/docker/libnetwork/netutils"
 	"github.com/docker/libnetwork/osl"
 	"github.com/docker/libnetwork/resolvconf"
 	"github.com/docker/libnetwork/types"
@@ -46,6 +47,8 @@ type Sandbox interface {
 	// ResolveIP returns the service name for the passed in IP. IP is in reverse dotted
 	// notation; the format used for DNS PTR records
 	ResolveIP(name string) string
+	// Endpoints returns all the endpoints connected to the sandbox
+	Endpoints() []Endpoint
 }
 
 // SandboxOption is a option setter function type used to pass varios options to
@@ -160,6 +163,10 @@ func (sb *sandbox) Statistics() (map[string]*types.InterfaceStatistics, error) {
 }
 
 func (sb *sandbox) Delete() error {
+	return sb.delete(false)
+}
+
+func (sb *sandbox) delete(force bool) error {
 	sb.Lock()
 	if sb.inDelete {
 		sb.Unlock()
@@ -181,12 +188,6 @@ func (sb *sandbox) Delete() error {
 	// Detach from all endpoints
 	retain := false
 	for _, ep := range sb.getConnectedEndpoints() {
-		// endpoint in the Gateway network will be cleaned up
-		// when when sandbox no longer needs external connectivity
-		if ep.endpointInGWNetwork() {
-			continue
-		}
-
 		// Retain the sanbdox if we can't obtain the network from store.
 		if _, err := c.getNetworkFromStore(ep.getNetwork().ID()); err != nil {
 			retain = true
@@ -194,11 +195,13 @@ func (sb *sandbox) Delete() error {
 			continue
 		}
 
-		if err := ep.Leave(sb); err != nil {
-			log.Warnf("Failed detaching sandbox %s from endpoint %s: %v\n", sb.ID(), ep.ID(), err)
+		if !force {
+			if err := ep.Leave(sb); err != nil {
+				log.Warnf("Failed detaching sandbox %s from endpoint %s: %v\n", sb.ID(), ep.ID(), err)
+			}
 		}
 
-		if err := ep.Delete(false); err != nil {
+		if err := ep.Delete(force); err != nil {
 			log.Warnf("Failed deleting endpoint %s: %v\n", ep.ID(), err)
 		}
 	}
@@ -316,11 +319,15 @@ func (sb *sandbox) startResolver() {
 			}
 		}()
 
-		sb.rebuildDNS()
+		err = sb.rebuildDNS()
+		if err != nil {
+			log.Errorf("Updating resolv.conf failed for container %s, %q", sb.ContainerID(), err)
+			return
+		}
 		sb.resolver.SetExtServers(sb.extDNS)
 
 		sb.osSbox.InvokeFunc(sb.resolver.SetupFunc())
-		if err := sb.resolver.Start(); err != nil {
+		if err = sb.resolver.Start(); err != nil {
 			log.Errorf("Resolver Setup/Start failed for container %s, %q", sb.ContainerID(), err)
 		}
 	})
@@ -340,6 +347,17 @@ func (sb *sandbox) setupResolutionFiles() error {
 	}
 
 	return nil
+}
+
+func (sb *sandbox) Endpoints() []Endpoint {
+	sb.Lock()
+	defer sb.Unlock()
+
+	endpoints := make([]Endpoint, len(sb.endpoints))
+	for i, ep := range sb.endpoints {
+		endpoints[i] = ep
+	}
+	return endpoints
 }
 
 func (sb *sandbox) getConnectedEndpoints() []*endpoint {
@@ -421,23 +439,51 @@ func (sb *sandbox) ResolveIP(ip string) string {
 
 func (sb *sandbox) ResolveName(name string) net.IP {
 	var ip net.IP
-	parts := strings.Split(name, ".")
-	log.Debugf("To resolve %v", parts)
 
-	reqName := parts[0]
-	networkName := ""
-	if len(parts) > 1 {
-		networkName = parts[1]
+	// Embedded server owns the docker network domain. Resolution should work
+	// for both container_name and container_name.network_name
+	// We allow '.' in service name and network name. For a name a.b.c.d the
+	// following have to tried;
+	// {a.b.c.d in the networks container is connected to}
+	// {a.b.c in network d},
+	// {a.b in network c.d},
+	// {a in network b.c.d},
+
+	name = strings.TrimSuffix(name, ".")
+	reqName := []string{name}
+	networkName := []string{""}
+
+	if strings.Contains(name, ".") {
+		var i int
+		dup := name
+		for {
+			if i = strings.LastIndex(dup, "."); i == -1 {
+				break
+			}
+			networkName = append(networkName, name[i+1:])
+			reqName = append(reqName, name[:i])
+
+			dup = dup[:i]
+		}
 	}
+
 	epList := sb.getConnectedEndpoints()
-	// First check for local container alias
-	ip = sb.resolveName(reqName, networkName, epList, true)
-	if ip != nil {
-		return ip
-	}
+	for i := 0; i < len(reqName); i++ {
+		log.Debugf("To resolve: %v in %v", reqName[i], networkName[i])
 
-	// Resolve the actual container name
-	return sb.resolveName(reqName, networkName, epList, false)
+		// First check for local container alias
+		ip = sb.resolveName(reqName[i], networkName[i], epList, true)
+		if ip != nil {
+			return ip
+		}
+
+		// Resolve the actual container name
+		ip = sb.resolveName(reqName[i], networkName[i], epList, false)
+		if ip != nil {
+			return ip
+		}
+	}
+	return nil
 }
 
 func (sb *sandbox) resolveName(req string, networkName string, epList []*endpoint, alias bool) net.IP {
@@ -488,23 +534,22 @@ func (sb *sandbox) resolveName(req string, networkName string, epList []*endpoin
 }
 
 func (sb *sandbox) SetKey(basePath string) error {
-	var err error
 	if basePath == "" {
 		return types.BadRequestErrorf("invalid sandbox key")
 	}
 
 	sb.Lock()
-	osSbox := sb.osSbox
+	oldosSbox := sb.osSbox
 	sb.Unlock()
 
-	if osSbox != nil {
+	if oldosSbox != nil {
 		// If we already have an OS sandbox, release the network resources from that
 		// and destroy the OS snab. We are moving into a new home further down. Note that none
 		// of the network resources gets destroyed during the move.
 		sb.releaseOSSbox()
 	}
 
-	osSbox, err = osl.GetSandboxForExternalKey(basePath, sb.Key())
+	osSbox, err := osl.GetSandboxForExternalKey(basePath, sb.Key())
 	if err != nil {
 		return err
 	}
@@ -519,6 +564,17 @@ func (sb *sandbox) SetKey(basePath string) error {
 			sb.Unlock()
 		}
 	}()
+
+	// If the resolver was setup before stop it and set it up in the
+	// new osl sandbox.
+	if oldosSbox != nil && sb.resolver != nil {
+		sb.resolver.Stop()
+
+		sb.osSbox.InvokeFunc(sb.resolver.SetupFunc())
+		if err := sb.resolver.Start(); err != nil {
+			log.Errorf("Resolver Setup/Start failed for container %s, %q", sb.ContainerID(), err)
+		}
+	}
 
 	for _, ep := range sb.getConnectedEndpoints() {
 		if err = sb.populateNetworkResources(ep); err != nil {
@@ -807,7 +863,7 @@ func (sb *sandbox) setupDNS() error {
 	if len(sb.config.dnsList) > 0 || len(sb.config.dnsSearchList) > 0 || len(sb.config.dnsOptionsList) > 0 {
 		var (
 			err            error
-			dnsList        = resolvconf.GetNameservers(currRC.Content)
+			dnsList        = resolvconf.GetNameservers(currRC.Content, netutils.IP)
 			dnsSearchList  = resolvconf.GetSearchDomains(currRC.Content)
 			dnsOptionsList = resolvconf.GetOptions(currRC.Content)
 		)
@@ -849,6 +905,11 @@ func (sb *sandbox) updateDNS(ipv6Enabled bool) error {
 		hashFile = sb.config.resolvConfHashFile
 	)
 
+	// This is for the host mode networking
+	if sb.config.originResolvConfPath != "" {
+		return nil
+	}
+
 	if len(sb.config.dnsList) > 0 || len(sb.config.dnsSearchList) > 0 || len(sb.config.dnsOptionsList) > 0 {
 		return nil
 	}
@@ -881,36 +942,21 @@ func (sb *sandbox) updateDNS(ipv6Enabled bool) error {
 	if err != nil {
 		return err
 	}
+	err = ioutil.WriteFile(sb.config.resolvConfPath, newRC.Content, 0644)
+	if err != nil {
+		return err
+	}
 
-	// for atomic updates to these files, use temporary files with os.Rename:
+	// write the new hash in a temp file and rename it to make the update atomic
 	dir := path.Dir(sb.config.resolvConfPath)
 	tmpHashFile, err := ioutil.TempFile(dir, "hash")
 	if err != nil {
 		return err
 	}
-	tmpResolvFile, err := ioutil.TempFile(dir, "resolv")
-	if err != nil {
-		return err
-	}
-
-	// Change the perms to filePerm (0644) since ioutil.TempFile creates it by default as 0600
-	if err := os.Chmod(tmpResolvFile.Name(), filePerm); err != nil {
-		return err
-	}
-
-	// write the updates to the temp files
 	if err = ioutil.WriteFile(tmpHashFile.Name(), []byte(newRC.Hash), filePerm); err != nil {
 		return err
 	}
-	if err = ioutil.WriteFile(tmpResolvFile.Name(), newRC.Content, filePerm); err != nil {
-		return err
-	}
-
-	// rename the temp files for atomic replace
-	if err = os.Rename(tmpHashFile.Name(), hashFile); err != nil {
-		return err
-	}
-	return os.Rename(tmpResolvFile.Name(), sb.config.resolvConfPath)
+	return os.Rename(tmpHashFile.Name(), hashFile)
 }
 
 // Embedded DNS server has to be enabled for this sandbox. Rebuild the container's
@@ -925,7 +971,8 @@ func (sb *sandbox) rebuildDNS() error {
 	}
 
 	// localhost entries have already been filtered out from the list
-	sb.extDNS = resolvconf.GetNameservers(currRC.Content)
+	// retain only the v4 servers in sb for forwarding the DNS queries
+	sb.extDNS = resolvconf.GetNameservers(currRC.Content, netutils.IPv4)
 
 	var (
 		dnsList        = []string{sb.resolver.NameServer()}
@@ -933,26 +980,14 @@ func (sb *sandbox) rebuildDNS() error {
 		dnsSearchList  = resolvconf.GetSearchDomains(currRC.Content)
 	)
 
+	// external v6 DNS servers has to be listed in resolv.conf
+	dnsList = append(dnsList, resolvconf.GetNameservers(currRC.Content, netutils.IPv6)...)
+
 	// Resolver returns the options in the format resolv.conf expects
 	dnsOptionsList = append(dnsOptionsList, sb.resolver.ResolverOptions()...)
 
-	dir := path.Dir(sb.config.resolvConfPath)
-	tmpResolvFile, err := ioutil.TempFile(dir, "resolv")
-	if err != nil {
-		return err
-	}
-
-	// Change the perms to filePerm (0644) since ioutil.TempFile creates it by default as 0600
-	if err := os.Chmod(tmpResolvFile.Name(), filePerm); err != nil {
-		return err
-	}
-
-	_, err = resolvconf.Build(tmpResolvFile.Name(), dnsList, dnsSearchList, dnsOptionsList)
-	if err != nil {
-		return err
-	}
-
-	return os.Rename(tmpResolvFile.Name(), sb.config.resolvConfPath)
+	_, err = resolvconf.Build(sb.config.resolvConfPath, dnsList, dnsSearchList, dnsOptionsList)
+	return err
 }
 
 // joinLeaveStart waits to ensure there are no joins or leaves in progress and

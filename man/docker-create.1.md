@@ -35,6 +35,8 @@ docker-create - Create a new container
 [**-h**|**--hostname**[=*HOSTNAME*]]
 [**--help**]
 [**-i**|**--interactive**]
+[**--ip**[=*IPv4-ADDRESS*]]
+[**--ip6**[=*IPv6-ADDRESS*]]
 [**--ipc**[=*IPC*]]
 [**--isolation**[=*default*]]
 [**--kernel-memory**[=*KERNEL-MEMORY*]]
@@ -50,6 +52,7 @@ docker-create - Create a new container
 [**--memory-swappiness**[=*MEMORY-SWAPPINESS*]]
 [**--name**[=*NAME*]]
 [**--net**[=*"bridge"*]]
+[**--net-alias**[=*[]*]]
 [**--oom-kill-disable**]
 [**--oom-score-adj**[=*0*]]
 [**-P**|**--publish-all**]
@@ -174,6 +177,16 @@ two memory nodes.
 **-i**, **--interactive**=*true*|*false*
    Keep STDIN open even if not attached. The default is *false*.
 
+**--ip**=""
+   Sets the container's interface IPv4 address (e.g. 172.23.0.9)
+
+   It can only be used in conjunction with **--net** for user-defined networks
+
+**--ip6**=""
+   Sets the container's interface IPv6 address (e.g. 2001:db8::1b99)
+
+   It can only be used in conjunction with **--net** for user-defined networks
+
 **--ipc**=""
    Default is to create a private IPC namespace (POSIX SysV IPC) for the container
                                'container:<name|id>': reuses another container shared memory, semaphores and message queues
@@ -253,6 +266,9 @@ unit, `b` is used. Set LIMIT to `-1` to enable unlimited swap.
                                'host': use the Docker host network stack.  Note: the host mode gives the container full access to local system services such as D-bus and is therefore considered insecure.
                                '<network-name>|<network-id>': connect to a user-defined network
 
+**--net-alias**=[]
+   Add network-scoped alias for the container
+
 **--oom-kill-disable**=*true*|*false*
 	Whether to disable OOM Killer for the container or not.
 
@@ -303,10 +319,7 @@ unit, `b` is used. Set LIMIT to `-1` to enable unlimited swap.
 
    $ docker run -d --tmpfs /tmp:rw,size=787448k,mode=1777 my_image
 
-   This command mounts a `tmpfs` at `/tmp` within the container. The mount copies
-the underlying content of `my_image` into `/tmp`. For example if there was a
-directory `/tmp/content` in the base image, docker will copy this directory and
-all of its content on top of the tmpfs mounted on `/tmp`.  The supported mount
+   This command mounts a `tmpfs` at `/tmp` within the container.  The supported mount
 options are the same as the Linux default `mount` flags. If you do not specify
 any options, the systems uses the following options:
 `rw,noexec,nosuid,nodev,size=65536k`.
@@ -394,6 +407,14 @@ example, if one wants to bind mount source directory `/foo` one can do
 will convert /foo into a `shared` mount point. Alternatively one can directly
 change propagation properties of source mount. Say `/` is source mount for
 `/foo`, then use `mount --make-shared /` to convert `/` into a `shared` mount.
+
+> **Note**:
+> When using systemd to manage the Docker daemon's start and stop, in the systemd
+> unit file there is an option to control mount propagation for the Docker daemon
+> itself, called `MountFlags`. The value of this setting may cause Docker to not
+> see mount propagation changes made on the mount point. For example, if this value
+> is `slave`, you may not be able to use the `shared` or `rshared` propagation on
+> a volume.
 
 **--volume-driver**=""
    Container's volume driver. This driver creates volumes specified either from

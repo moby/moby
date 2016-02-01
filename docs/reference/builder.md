@@ -4,7 +4,8 @@ title = "Dockerfile reference"
 description = "Dockerfiles use a simple DSL which allows you to automate the steps you would normally manually take to create an image."
 keywords = ["builder, docker, Dockerfile, automation,  image creation"]
 [menu.main]
-parent = "mn_reference"
+parent = "engine_ref"
+weight=-90
 +++
 <![end-metadata]-->
 
@@ -18,7 +19,7 @@ instructions in succession.
 
 This page describes the commands you can use in a `Dockerfile`. When you are
 done reading this page, refer to the [`Dockerfile` Best
-Practices](../articles/dockerfile_best-practices.md) for a tip-oriented guide.
+Practices](../userguide/eng-image/dockerfile_best-practices.md) for a tip-oriented guide.
 
 ## Usage
 
@@ -80,7 +81,7 @@ instructions.
 Whenever possible, Docker will re-use the intermediate images (cache),
 to accelerate the `docker build` process significantly. This is indicated by
 the `Using cache` message in the console output.
-(For more information, see the [Build cache section](../articles/dockerfile_best-practices.md#build-cache)) in the
+(For more information, see the [Build cache section](../userguide/eng-image/dockerfile_best-practices.md#build-cache)) in the
 `Dockerfile` best practices guide:
 
     $ docker build -t svendowideit/ambassador .
@@ -99,7 +100,7 @@ the `Using cache` message in the console output.
     Successfully built 7ea8aef582cc
 
 When you're done with your build, you're ready to look into [*Pushing a
-repository to its registry*](../userguide/dockerrepos.md#contributing-to-docker-hub).
+repository to its registry*](../userguide/containers/dockerrepos.md#contributing-to-docker-hub).
 
 ## Format
 
@@ -275,7 +276,7 @@ All of the README files are included.  The middle line has no effect because
 You can even use the `.dockerignore` file to exclude the `Dockerfile`
 and `.dockerignore` files.  These files are still sent to the daemon
 because it needs them to do its job.  But the `ADD` and `COPY` commands
-do not copy them to the the image.
+do not copy them to the image.
 
 Finally, you may want to specify which files to include in the
 context, rather than which to exclude. To achieve this, specify `*` as
@@ -298,7 +299,7 @@ Or
 The `FROM` instruction sets the [*Base Image*](glossary.md#base-image)
 for subsequent instructions. As such, a valid `Dockerfile` must have `FROM` as
 its first instruction. The image can be any valid image – it is especially easy
-to start by **pulling an image** from the [*Public Repositories*](../userguide/dockerrepos.md).
+to start by **pulling an image** from the [*Public Repositories*](../userguide/containers/dockerrepos.md).
 
 - `FROM` must be the first non-comment instruction in the `Dockerfile`.
 
@@ -369,7 +370,7 @@ cache for `RUN` instructions can be invalidated by using the `--no-cache`
 flag, for example `docker build --no-cache`.
 
 See the [`Dockerfile` Best Practices
-guide](../articles/dockerfile_best-practices.md#build-cache) for more information.
+guide](../userguide/eng-image/dockerfile_best-practices.md#build-cache) for more information.
 
 The cache for `RUN` instructions can be invalidated by `ADD` instructions. See
 [below](#add) for details.
@@ -608,7 +609,7 @@ of whether or not the file has changed and the cache should be updated.
 > following instructions from the Dockerfile if the contents of `<src>` have
 > changed. This includes invalidating the cache for `RUN` instructions.
 > See the [`Dockerfile` Best Practices
-guide](../articles/dockerfile_best-practices.md#build-cache) for more information.
+guide](../userguide/eng-image/dockerfile_best-practices.md#build-cache) for more information.
 
 
 `ADD` obeys the following rules:
@@ -642,6 +643,14 @@ guide](../articles/dockerfile_best-practices.md#build-cache) for more informatio
     1. Whatever existed at the destination path and
     2. The contents of the source tree, with conflicts resolved in favor
        of "2." on a file-by-file basis.
+
+  > **Note**:
+  > Whether a file is identified as a recognized compression format or not
+  > is done soley based on the contents of the file, not the name of the file.
+  > For example, if an empty file happens to end with `.tar.gz` this will not
+  > be recognized as a compressed file and **will not** generate any kind of
+  > decompression error message, rather the file will simply be copied to the
+  > destination.
 
 - If `<src>` is any other kind of file, it is copied individually along with
   its metadata. In this case, if `<dest>` ends with a trailing slash `/`, it
@@ -951,7 +960,7 @@ containers. The value can be a JSON array, `VOLUME ["/var/log/"]`, or a plain
 string with multiple arguments, such as `VOLUME /var/log` or `VOLUME /var/log
 /var/db`. For more information/examples and mounting instructions via the
 Docker client, refer to
-[*Share Directories via Volumes*](../userguide/dockervolumes.md#mount-a-host-directory-as-a-data-volume)
+[*Share Directories via Volumes*](../userguide/containers/dockervolumes.md#mount-a-host-directory-as-a-data-volume)
 documentation.
 
 The `docker run` command initializes the newly created volume with any data

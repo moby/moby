@@ -27,9 +27,9 @@ func (cli *Client) ImageSearch(options types.ImageSearchOptions, privilegeFunc R
 	if err != nil {
 		return results, err
 	}
-	defer ensureReaderClosed(resp)
 
 	err = json.NewDecoder(resp.body).Decode(&results)
+	ensureReaderClosed(resp)
 	return results, err
 }
 

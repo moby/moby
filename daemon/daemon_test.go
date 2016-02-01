@@ -4,9 +4,13 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
+	"time"
 
 	"github.com/docker/docker/container"
+	"github.com/docker/docker/pkg/discovery"
+	_ "github.com/docker/docker/pkg/discovery/memory"
 	"github.com/docker/docker/pkg/registrar"
 	"github.com/docker/docker/pkg/truncindex"
 	"github.com/docker/docker/volume"
@@ -57,15 +61,12 @@ func TestGetContainer(t *testing.T) {
 		},
 	}
 
-	store := &contStore{
-		s: map[string]*container.Container{
-			c1.ID: c1,
-			c2.ID: c2,
-			c3.ID: c3,
-			c4.ID: c4,
-			c5.ID: c5,
-		},
-	}
+	store := container.NewMemoryStore()
+	store.Add(c1.ID, c1)
+	store.Add(c2.ID, c2)
+	store.Add(c3.ID, c3)
+	store.Add(c4.ID, c4)
+	store.Add(c5.ID, c5)
 
 	index := truncindex.NewTruncIndex([]string{})
 	index.Add(c1.ID)
@@ -369,5 +370,120 @@ func TestMerge(t *testing.T) {
 		if portSpecs.Port() != "0" && portSpecs.Port() != "1111" && portSpecs.Port() != "2222" && portSpecs.Port() != "3333" {
 			t.Fatalf("Expected %q or %q or %q or %q, found %s", 0, 1111, 2222, 3333, portSpecs)
 		}
+	}
+}
+
+func TestDaemonReloadLabels(t *testing.T) {
+	daemon := &Daemon{}
+	daemon.configStore = &Config{
+		CommonConfig: CommonConfig{
+			Labels: []string{"foo:bar"},
+		},
+	}
+
+	newConfig := &Config{
+		CommonConfig: CommonConfig{
+			Labels: []string{"foo:baz"},
+		},
+	}
+
+	daemon.Reload(newConfig)
+	label := daemon.configStore.Labels[0]
+	if label != "foo:baz" {
+		t.Fatalf("Expected daemon label `foo:baz`, got %s", label)
+	}
+}
+
+func TestDaemonDiscoveryReload(t *testing.T) {
+	daemon := &Daemon{}
+	daemon.configStore = &Config{
+		CommonConfig: CommonConfig{
+			ClusterStore:     "memory://127.0.0.1",
+			ClusterAdvertise: "127.0.0.1:3333",
+		},
+	}
+
+	if err := daemon.initDiscovery(daemon.configStore); err != nil {
+		t.Fatal(err)
+	}
+
+	expected := discovery.Entries{
+		&discovery.Entry{Host: "127.0.0.1", Port: "3333"},
+	}
+
+	stopCh := make(chan struct{})
+	defer close(stopCh)
+	ch, errCh := daemon.discoveryWatcher.Watch(stopCh)
+
+	select {
+	case <-time.After(1 * time.Second):
+		t.Fatal("failed to get discovery advertisements in time")
+	case e := <-ch:
+		if !reflect.DeepEqual(e, expected) {
+			t.Fatalf("expected %v, got %v\n", expected, e)
+		}
+	case e := <-errCh:
+		t.Fatal(e)
+	}
+
+	newConfig := &Config{
+		CommonConfig: CommonConfig{
+			ClusterStore:     "memory://127.0.0.1:2222",
+			ClusterAdvertise: "127.0.0.1:5555",
+		},
+	}
+
+	expected = discovery.Entries{
+		&discovery.Entry{Host: "127.0.0.1", Port: "5555"},
+	}
+
+	if err := daemon.reloadClusterDiscovery(newConfig); err != nil {
+		t.Fatal(err)
+	}
+	ch, errCh = daemon.discoveryWatcher.Watch(stopCh)
+
+	select {
+	case <-time.After(1 * time.Second):
+		t.Fatal("failed to get discovery advertisements in time")
+	case e := <-ch:
+		if !reflect.DeepEqual(e, expected) {
+			t.Fatalf("expected %v, got %v\n", expected, e)
+		}
+	case e := <-errCh:
+		t.Fatal(e)
+	}
+}
+
+func TestDaemonDiscoveryReloadFromEmptyDiscovery(t *testing.T) {
+	daemon := &Daemon{}
+	daemon.configStore = &Config{}
+
+	newConfig := &Config{
+		CommonConfig: CommonConfig{
+			ClusterStore:     "memory://127.0.0.1:2222",
+			ClusterAdvertise: "127.0.0.1:5555",
+		},
+	}
+
+	expected := discovery.Entries{
+		&discovery.Entry{Host: "127.0.0.1", Port: "5555"},
+	}
+
+	if err := daemon.reloadClusterDiscovery(newConfig); err != nil {
+		t.Fatal(err)
+	}
+	stopCh := make(chan struct{})
+	defer close(stopCh)
+	ch, errCh := daemon.discoveryWatcher.Watch(stopCh)
+
+	select {
+	case <-time.After(1 * time.Second):
+		t.Fatal("failed to get discovery advertisements in time")
+	case e := <-ch:
+		if !reflect.DeepEqual(e, expected) {
+			t.Fatalf("expected %v, got %v\n", expected, e)
+		}
+	case e := <-errCh:
+		t.Fatal(e)
 	}
 }

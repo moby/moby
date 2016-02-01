@@ -4,7 +4,7 @@ title = "Dockerizing MongoDB"
 description = "Creating a Docker image with MongoDB pre-installed using a Dockerfile and sharing the image on Docker Hub"
 keywords = ["docker, dockerize, dockerizing, article, example, docker.io, platform, package, installation, networking, mongodb, containers, images, image, sharing, dockerfile, build, auto-building,  framework"]
 [menu.main]
-parent = "smn_applied"
+parent = "engine_dockerize"
 +++
 <![end-metadata]-->
 
@@ -173,5 +173,5 @@ the exposed port to two different ports on the host
     $ mongo --port 28002
 
  - [Linking containers](../userguide/networking/default_network/dockerlinks.md)
- - [Cross-host linking containers](../articles/ambassador_pattern_linking.md)
+ - [Cross-host linking containers](../admin/ambassador_pattern_linking.md)
  - [Creating an Automated Build](https://docs.docker.com/docker-hub/builds/)

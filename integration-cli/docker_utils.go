@@ -224,17 +224,20 @@ func (d *Daemon) Start(arg ...string) error {
 
 	// If we don't explicitly set the log-level or debug flag(-D) then
 	// turn on debug mode
-	foundIt := false
+	foundLog := false
+	foundSd := false
 	for _, a := range arg {
 		if strings.Contains(a, "--log-level") || strings.Contains(a, "-D") || strings.Contains(a, "--debug") {
-			foundIt = true
+			foundLog = true
+		}
+		if strings.Contains(a, "--storage-driver") {
+			foundSd = true
 		}
 	}
-	if !foundIt {
+	if !foundLog {
 		args = append(args, "--debug")
 	}
-
-	if d.storageDriver != "" {
+	if d.storageDriver != "" && !foundSd {
 		args = append(args, "--storage-driver", d.storageDriver)
 	}
 
@@ -1132,13 +1135,12 @@ COPY . /static`); err != nil {
 		ctx:       ctx}, nil
 }
 
-func inspectFieldAndMarshall(name, field string, output interface{}) error {
-	str, err := inspectFieldJSON(name, field)
-	if err != nil {
-		return err
+func inspectFieldAndMarshall(c *check.C, name, field string, output interface{}) {
+	str := inspectFieldJSON(c, name, field)
+	err := json.Unmarshal([]byte(str), output)
+	if c != nil {
+		c.Assert(err, check.IsNil, check.Commentf("failed to unmarshal: %v", err))
 	}
-
-	return json.Unmarshal([]byte(str), output)
 }
 
 func inspectFilter(name, filter string) (string, error) {
@@ -1146,21 +1148,37 @@ func inspectFilter(name, filter string) (string, error) {
 	inspectCmd := exec.Command(dockerBinary, "inspect", "-f", format, name)
 	out, exitCode, err := runCommandWithOutput(inspectCmd)
 	if err != nil || exitCode != 0 {
-		return "", fmt.Errorf("failed to inspect container %s: %s", name, out)
+		return "", fmt.Errorf("failed to inspect %s: %s", name, out)
 	}
 	return strings.TrimSpace(out), nil
 }
 
-func inspectField(name, field string) (string, error) {
+func inspectFieldWithError(name, field string) (string, error) {
 	return inspectFilter(name, fmt.Sprintf(".%s", field))
 }
 
-func inspectFieldJSON(name, field string) (string, error) {
-	return inspectFilter(name, fmt.Sprintf("json .%s", field))
+func inspectField(c *check.C, name, field string) string {
+	out, err := inspectFilter(name, fmt.Sprintf(".%s", field))
+	if c != nil {
+		c.Assert(err, check.IsNil)
+	}
+	return out
 }
 
-func inspectFieldMap(name, path, field string) (string, error) {
-	return inspectFilter(name, fmt.Sprintf("index .%s %q", path, field))
+func inspectFieldJSON(c *check.C, name, field string) string {
+	out, err := inspectFilter(name, fmt.Sprintf("json .%s", field))
+	if c != nil {
+		c.Assert(err, check.IsNil)
+	}
+	return out
+}
+
+func inspectFieldMap(c *check.C, name, path, field string) string {
+	out, err := inspectFilter(name, fmt.Sprintf("index .%s %q", path, field))
+	if c != nil {
+		c.Assert(err, check.IsNil)
+	}
+	return out
 }
 
 func inspectMountSourceField(name, destination string) (string, error) {
@@ -1172,7 +1190,7 @@ func inspectMountSourceField(name, destination string) (string, error) {
 }
 
 func inspectMountPoint(name, destination string) (types.MountPoint, error) {
-	out, err := inspectFieldJSON(name, "Mounts")
+	out, err := inspectFilter(name, "json .Mounts")
 	if err != nil {
 		return types.MountPoint{}, err
 	}
@@ -1204,7 +1222,7 @@ func inspectMountPointJSON(j, destination string) (types.MountPoint, error) {
 }
 
 func getIDByName(name string) (string, error) {
-	return inspectField(name, "Id")
+	return inspectFieldWithError(name, "Id")
 }
 
 // getContainerState returns the exit code of the container
@@ -1554,9 +1572,9 @@ func daemonTime(c *check.C) time.Time {
 	return dt
 }
 
-func setupRegistry(c *check.C, schema1 bool) *testRegistryV2 {
+func setupRegistry(c *check.C, schema1, auth bool) *testRegistryV2 {
 	testRequires(c, RegistryHosting)
-	reg, err := newTestRegistryV2(c, schema1)
+	reg, err := newTestRegistryV2(c, schema1, auth)
 	c.Assert(err, check.IsNil)
 
 	// Wait for registry to be ready to serve requests.
@@ -1567,7 +1585,7 @@ func setupRegistry(c *check.C, schema1 bool) *testRegistryV2 {
 		time.Sleep(100 * time.Millisecond)
 	}
 
-	c.Assert(err, check.IsNil, check.Commentf("Timeout waiting for test registry to become available"))
+	c.Assert(err, check.IsNil, check.Commentf("Timeout waiting for test registry to become available: %v", err))
 	return reg
 }
 
@@ -1703,4 +1721,20 @@ func getInspectBody(c *check.C, version, id string) []byte {
 	c.Assert(err, check.IsNil)
 	c.Assert(status, check.Equals, http.StatusOK)
 	return body
+}
+
+// Run a long running idle task in a background container using the
+// system-specific default image and command.
+func runSleepingContainer(c *check.C, extraArgs ...string) (string, int) {
+	return runSleepingContainerInImage(c, defaultSleepImage, extraArgs...)
+}
+
+// Run a long running idle task in a background container using the specified
+// image and the system-specific command.
+func runSleepingContainerInImage(c *check.C, image string, extraArgs ...string) (string, int) {
+	args := []string{"run", "-d"}
+	args = append(args, extraArgs...)
+	args = append(args, image)
+	args = append(args, defaultSleepCommand...)
+	return dockerCmd(c, args...)
 }

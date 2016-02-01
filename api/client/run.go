@@ -91,7 +91,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 	}
 
 	if hostConfig.OomKillDisable != nil && *hostConfig.OomKillDisable && hostConfig.Memory == 0 {
-		fmt.Fprintf(cli.err, "WARNING: Dangerous only disable the OOM Killer on containers but not set the '-m/--memory' option\n")
+		fmt.Fprintf(cli.err, "WARNING: Disabling the OOM killer on containers without setting a '-m/--memory' limit may be dangerous.\n")
 	}
 
 	if len(hostConfig.DNS) > 0 {
@@ -206,6 +206,12 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		resp, err := cli.client.ContainerAttach(options)
 		if err != nil {
 			return err
+		}
+		if in != nil && config.Tty {
+			if err := cli.setRawTerminal(); err != nil {
+				return err
+			}
+			defer cli.restoreTerminal(in)
 		}
 		errCh = promise.Go(func() error {
 			return cli.holdHijackedConnection(config.Tty, in, out, stderr, resp)

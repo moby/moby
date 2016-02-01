@@ -11,7 +11,7 @@ machine:
 
   post:
   # go
-    - gvm install go1.5 --prefer-binary --name=stable
+    - gvm install go1.5.3 --prefer-binary --name=stable
 
   environment:
   # Convenient shortcuts to "common" locations

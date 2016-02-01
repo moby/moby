@@ -1,15 +1,15 @@
 <!--[metadata]>
 +++
-title = "Extending Docker with plugins"
+title = "Extending Engine with plugins"
 description = "How to add additional functionality to Docker with plugins extensions"
 keywords = ["Examples, Usage, plugins, docker, documentation, user guide"]
 [menu.main]
-parent = "mn_extend"
+parent = "engine_extend"
 weight=-1
 +++
 <![end-metadata]-->
 
-# Understand Docker plugins
+# Understand Engine plugins
 
 You can extend the capabilities of the Docker Engine by loading third-party
 plugins. This page explains the types of plugins and provides links to several
@@ -62,14 +62,10 @@ The following plugins exist:
 
 * The [OpenStorage Plugin](https://github.com/libopenstorage/openstorage) is a cluster aware volume plugin that provides volume management for file and block storage solutions.  It implements a vendor neutral specification for implementing extensions such as CoS, encryption, and snapshots.   It has example drivers based on FUSE, NFS, NBD and EBS to name a few.
 
-* The [Pachyderm PFS plugin](https://github.com/pachyderm/pachyderm/tree/master/src/cmd/pfs-volume-driver)
-  is a volume plugin written in Go that provides functionality to mount Pachyderm File System (PFS)
-  repositories at specific commits as volumes within Docker containers.
-
 * The [REX-Ray plugin](https://github.com/emccode/rexray) is a volume plugin
   which is written in Go and provides advanced storage functionality for many
   platforms including VirtualBox, EC2, Google Compute Engine, OpenStack, and EMC.
-    
+
 * The [Contiv Volume Plugin](https://github.com/contiv/volplugin) is an open
 source volume plugin that provides multi-tenant, persistent, distributed storage
 with intent based consumption using ceph underneath.

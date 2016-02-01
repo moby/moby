@@ -46,6 +46,8 @@ parent = "smn_cli"
       -h, --hostname=""             Container host name
       --help                        Print usage
       -i, --interactive             Keep STDIN open even if not attached
+      --ip=""                       Container IPv4 address (e.g. 172.30.100.104)
+      --ip6=""                      Container IPv6 address (e.g. 2001:db8::33)
       --ipc=""                      IPC namespace to use
       --isolation=""                Container isolation technology
       --kernel-memory=""            Kernel memory limit
@@ -56,8 +58,6 @@ parent = "smn_cli"
       --log-opt=[]                  Log driver specific options
       -m, --memory=""               Memory limit
       --mac-address=""              Container MAC address (e.g. 92:d0:c6:0a:29:33)
-      --ip=""                       Container IPv4 address (e.g. 172.30.100.104)
-      --ip6=""                      Container IPv6 address (e.g. 2001:db8::33)
       --memory-reservation=""       Memory soft limit
       --memory-swap=""              A positive integer equal to memory plus swap. Specify -1 to enable unlimited swap.
       --memory-swappiness=""        Tune a container's memory swappiness behavior. Accepts an integer between 0 and 100.
@@ -68,6 +68,7 @@ parent = "smn_cli"
                                     'container:<name|id>': reuse another container's network stack
                                     'host': use the Docker host network stack
                                     '<network-name>|<network-id>': connect to a user-defined network
+      --net-alias=[]                Add network-scoped alias for the container
       --oom-kill-disable            Whether to disable OOM Killer for the container or not
       --oom-score-adj=0             Tune the host's OOM preferences for containers (accepts -1000 to 1000)
       -P, --publish-all             Publish all exposed ports to random ports
@@ -144,7 +145,7 @@ This will *not* work, because by default, most potentially dangerous kernel
 capabilities are dropped; including `cap_sys_admin` (which is required to mount
 filesystems). However, the `--privileged` flag will allow it to run:
 
-    $ docker run --privileged ubuntu bash
+    $ docker run -t -i --privileged ubuntu bash
     root@50e3f57e16e6:/# mount -t tmpfs none /mnt
     root@50e3f57e16e6:/# df -h
     Filesystem      Size  Used Avail Use% Mounted on
@@ -162,13 +163,12 @@ flag exists to allow special use-cases, like running Docker within Docker.
 The `-w` lets the command being executed inside directory given, here
 `/path/to/dir/`. If the path does not exists it is created inside the container.
 
-### mount tmpfs (--tmpfs)
+### Mount tmpfs (--tmpfs)
 
     $ docker run -d --tmpfs /run:rw,noexec,nosuid,size=65536k my_image
 
-    The --tmpfs flag mounts a tmpfs into the container with the rw,noexec,nosuid,size=65536k options.
-
-    Underlying content from the /run in the my_image image is copied into tmpfs.
+The `--tmpfs` flag mounts an empty tmpfs into the container with the `rw`,
+`noexec`, `nosuid`, `size=65536k` options.
 
 ### Mount volume (-v, --read-only)
 
@@ -194,12 +194,13 @@ a container writes files. The `--read-only` flag mounts the container's root
 filesystem as read only prohibiting writes to locations other than the
 specified volumes for the container.
 
-    $ docker run -t -i -v /var/run/docker.sock:/var/run/docker.sock -v ./static-docker:/usr/bin/docker busybox sh
+    $ docker run -t -i -v /var/run/docker.sock:/var/run/docker.sock -v /path/to/static-docker-binary:/usr/bin/docker busybox sh
 
 By bind-mounting the docker unix socket and statically linked docker
-binary (such as that provided by [https://get.docker.com](
-https://get.docker.com)), you give the container the full access to create and
-manipulate the host's Docker daemon.
+binary (refer to [get the linux binary](
+../../installation/binaries.md#get-the-linux-binary)),
+you give the container the full access to create and manipulate the host's
+Docker daemon.
 
 ### Publish or expose port (-p, --expose)
 
@@ -330,6 +331,13 @@ This adds the `busybox` container to the `mynet` network.
 $ docker run -itd --net=my-multihost-network busybox
 ```
 
+You can also choose the IP addresses for the container with `--ip` and `--ip6`
+flags when you start the container on a user-defined network.
+
+```bash
+$ docker run -itd --net=my-multihost-network --ip=10.10.9.75 busybox
+```
+
 If you want to add a running container to a network use the `docker network connect` subcommand.
 
 You can connect multiple containers to the same network. Once connected, the
@@ -414,12 +422,12 @@ flag:
     $ docker run --device=/dev/sda:/dev/xvdc --rm -it ubuntu fdisk  /dev/xvdc
 
     Command (m for help): q
-    $ docker run --device=/dev/sda:/dev/xvdc:ro --rm -it ubuntu fdisk  /dev/xvdc
+    $ docker run --device=/dev/sda:/dev/xvdc:r --rm -it ubuntu fdisk  /dev/xvdc
     You will not be able to write the partition table.
 
     Command (m for help): q
 
-    $ docker run --device=/dev/sda:/dev/xvdc --rm -it ubuntu fdisk  /dev/xvdc
+    $ docker run --device=/dev/sda:/dev/xvdc:rw --rm -it ubuntu fdisk  /dev/xvdc
 
     Command (m for help): q
 
@@ -531,7 +539,7 @@ available in the default container, you can set these using the `--ulimit` flag.
 `--ulimit` is specified with a soft and hard limit as such:
 `<type>=<soft limit>[:<hard limit>]`, for example:
 
-    $ docker run --ulimit nofile=1024:1024 --rm debian ulimit -n
+    $ docker run --ulimit nofile=1024:1024 --rm debian sh -c "ulimit -n"
     1024
 
 > **Note:**

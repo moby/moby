@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"path/filepath"
+	"strings"
 	"sync"
 	"syscall"
 
@@ -298,6 +300,26 @@ func (n *network) initSubnetSandbox(s *subnet) error {
 	return nil
 }
 
+func (n *network) cleanupStaleSandboxes() {
+	filepath.Walk(filepath.Dir(osl.GenerateKey("walk")),
+		func(path string, info os.FileInfo, err error) error {
+			_, fname := filepath.Split(path)
+
+			pList := strings.Split(fname, "-")
+			if len(pList) <= 1 {
+				return nil
+			}
+
+			pattern := pList[1]
+			if strings.Contains(n.id, pattern) {
+				syscall.Unmount(path, syscall.MNT_DETACH)
+				os.Remove(path)
+			}
+
+			return nil
+		})
+}
+
 func (n *network) initSandbox() error {
 	n.Lock()
 	n.initEpoch++
@@ -310,6 +332,10 @@ func (n *network) initSandbox() error {
 			return err
 		}
 	}
+
+	// If there are any stale sandboxes related to this network
+	// from previous daemon life clean it up here
+	n.cleanupStaleSandboxes()
 
 	sbox, err := osl.NewSandbox(
 		osl.GenerateKey(fmt.Sprintf("%d-", n.initEpoch)+n.id), !hostMode)

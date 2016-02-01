@@ -179,13 +179,6 @@ func (s *State) getExitCode() int {
 	return res
 }
 
-// SetRunningLocking locks container and sets it to "running"
-func (s *State) SetRunningLocking(pid int) {
-	s.Lock()
-	s.SetRunning(pid)
-	s.Unlock()
-}
-
 // SetRunning sets the state of the container to "running".
 func (s *State) SetRunning(pid int) {
 	s.Error = ""
@@ -199,7 +192,7 @@ func (s *State) SetRunning(pid int) {
 	s.waitChan = make(chan struct{})
 }
 
-// SetStoppedLocking locks the container state and sets it to "stopped".
+// SetStoppedLocking locks the container state is sets it to "stopped".
 func (s *State) SetStoppedLocking(exitStatus *execdriver.ExitStatus) {
 	s.Lock()
 	s.SetStopped(exitStatus)
@@ -250,6 +243,14 @@ func (s *State) SetError(err error) {
 func (s *State) IsPaused() bool {
 	s.Lock()
 	res := s.Paused
+	s.Unlock()
+	return res
+}
+
+// IsRestarting returns whether the container is restarting or not.
+func (s *State) IsRestarting() bool {
+	s.Lock()
+	res := s.Restarting
 	s.Unlock()
 	return res
 }

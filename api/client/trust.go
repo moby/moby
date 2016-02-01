@@ -21,6 +21,7 @@ import (
 	"github.com/docker/distribution/registry/client/transport"
 	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/distribution"
+	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/pkg/jsonmessage"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/reference"
@@ -139,7 +140,7 @@ func (cli *DockerCli) getNotaryRepository(repoInfo *registry.RepositoryInfo, aut
 	}
 
 	// Skip configuration headers since request is not going to Docker daemon
-	modifiers := registry.DockerHeaders(http.Header{})
+	modifiers := registry.DockerHeaders(dockerversion.DockerUserAgent(), http.Header{})
 	authTransport := transport.NewTransport(base, modifiers...)
 	pingClient := &http.Client{
 		Transport: authTransport,
@@ -284,13 +285,15 @@ func notaryError(repoName string, err error) error {
 	case signed.ErrInvalidKeyType:
 		return fmt.Errorf("Warning: potential malicious behavior - trust data mismatch for remote repository %s: %v", repoName, err)
 	case signed.ErrNoKeys:
-		return fmt.Errorf("Error: could not find signing keys for remote repository %s: %v", repoName, err)
+		return fmt.Errorf("Error: could not find signing keys for remote repository %s, or could not decrypt signing key: %v", repoName, err)
 	case signed.ErrLowVersion:
 		return fmt.Errorf("Warning: potential malicious behavior - trust data version is lower than expected for remote repository %s: %v", repoName, err)
-	case signed.ErrInsufficientSignatures:
+	case signed.ErrRoleThreshold:
 		return fmt.Errorf("Warning: potential malicious behavior - trust data has insufficient signatures for remote repository %s: %v", repoName, err)
 	case client.ErrRepositoryNotExist:
-		return fmt.Errorf("Error: remote trust data repository not initialized for %s: %v", repoName, err)
+		return fmt.Errorf("Error: remote trust data does not exist for %s: %v", repoName, err)
+	case signed.ErrInsufficientSignatures:
+		return fmt.Errorf("Error: could not produce valid signature for %s.  If Yubikey was used, was touch input provided?: %v", repoName, err)
 	}
 
 	return err

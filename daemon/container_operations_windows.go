@@ -32,8 +32,13 @@ func (daemon *Daemon) ConnectToNetwork(container *container.Container, idOrName 
 	return nil
 }
 
+// ForceEndpointDelete deletes an endpoing from a network forcefully
+func (daemon *Daemon) ForceEndpointDelete(name string, n libnetwork.Network) error {
+	return nil
+}
+
 // DisconnectFromNetwork disconnects a container from the network.
-func (daemon *Daemon) DisconnectFromNetwork(container *container.Container, n libnetwork.Network) error {
+func (daemon *Daemon) DisconnectFromNetwork(container *container.Container, n libnetwork.Network, force bool) error {
 	return nil
 }
 
@@ -49,7 +54,7 @@ func (daemon *Daemon) populateCommand(c *container.Container, env []string) erro
 		if !c.Config.NetworkDisabled {
 			en.Interface = &execdriver.NetworkInterface{
 				MacAddress:   c.Config.MacAddress,
-				Bridge:       daemon.configStore.Bridge.VirtualSwitchName,
+				Bridge:       daemon.configStore.bridgeConfig.VirtualSwitchName,
 				PortBindings: c.HostConfig.PortBindings,
 
 				// TODO Windows. Include IPAddress. There already is a
@@ -119,7 +124,6 @@ func (daemon *Daemon) populateCommand(c *container.Container, env []string) erro
 		CommonCommand: execdriver.CommonCommand{
 			ID:            c.ID,
 			Rootfs:        c.BaseFS,
-			InitPath:      "/.dockerinit",
 			WorkingDir:    c.Config.WorkingDir,
 			Network:       en,
 			MountLabel:    c.GetMountLabel(),

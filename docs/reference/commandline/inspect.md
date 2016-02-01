@@ -41,7 +41,7 @@ straightforward manner.
 For the most part, you can pick out any field from the JSON in a fairly
 straightforward manner.
 
-    $ docker inspect '{{range .NetworkSettings.Networks}}{{.MacAddress}}{{end}}' $INSTANCE_ID
+    $ docker inspect --format='{{range .NetworkSettings.Networks}}{{.MacAddress}}{{end}}' $INSTANCE_ID
 
 **Get an instance's log path:**
 

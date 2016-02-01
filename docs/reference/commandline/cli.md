@@ -107,8 +107,8 @@ directives, see the
 Once attached to a container, users detach from it and leave it running using
 the using `CTRL-p CTRL-q` key sequence. This detach key sequence is customizable
 using the `detachKeys` property. Specify a `<sequence>` value for the
-property. The format of the `<sequence>` is either a letter [a-Z], or the `ctrl-`
-combined with any of the following:
+property. The format of the `<sequence>` is a comma-separated list of either 
+a letter [a-Z], or the `ctrl-` combined with any of the following:
 
 * `a-z` (a single lowercase alpha character )
 * `@` (ampersand)

@@ -8,6 +8,8 @@ bin/
 integration-tmp/
 _obj
 _test
+.vagrant
+
 
 # Architecture specific extensions/prefixes
 *.[568vq]

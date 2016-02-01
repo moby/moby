@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/docker/docker/pkg/locker"
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/docker/volume"
 )
@@ -13,7 +14,7 @@ import (
 // currently created by hand. generation tool would generate this like:
 // $ extpoint-gen Driver > volume/extpoint.go
 
-var drivers = &driverExtpoint{extensions: make(map[string]volume.Driver)}
+var drivers = &driverExtpoint{extensions: make(map[string]volume.Driver), driverLock: &locker.Locker{}}
 
 const extName = "VolumeDriver"
 
@@ -49,16 +50,19 @@ type volumeDriver interface {
 type driverExtpoint struct {
 	extensions map[string]volume.Driver
 	sync.Mutex
+	driverLock *locker.Locker
 }
 
 // Register associates the given driver to the given name, checking if
 // the name is already associated
 func Register(extension volume.Driver, name string) bool {
-	drivers.Lock()
-	defer drivers.Unlock()
 	if name == "" {
 		return false
 	}
+
+	drivers.Lock()
+	defer drivers.Unlock()
+
 	_, exists := drivers.extensions[name]
 	if exists {
 		return false
@@ -71,6 +75,7 @@ func Register(extension volume.Driver, name string) bool {
 func Unregister(name string) bool {
 	drivers.Lock()
 	defer drivers.Unlock()
+
 	_, exists := drivers.extensions[name]
 	if !exists {
 		return false
@@ -83,12 +88,16 @@ func Unregister(name string) bool {
 // driver with the given name has not been registered it checks if
 // there is a VolumeDriver plugin available with the given name.
 func Lookup(name string) (volume.Driver, error) {
+	drivers.driverLock.Lock(name)
+	defer drivers.driverLock.Unlock(name)
+
 	drivers.Lock()
 	ext, ok := drivers.extensions[name]
 	drivers.Unlock()
 	if ok {
 		return ext, nil
 	}
+
 	pl, err := plugins.Get(name, extName)
 	if err != nil {
 		return nil, fmt.Errorf("Error looking up volume plugin %s: %v", name, err)
@@ -118,9 +127,11 @@ func GetDriver(name string) (volume.Driver, error) {
 // If no driver is registered, empty string list will be returned.
 func GetDriverList() []string {
 	var driverList []string
+	drivers.Lock()
 	for driverName := range drivers.extensions {
 		driverList = append(driverList, driverName)
 	}
+	drivers.Unlock()
 	return driverList
 }
 
@@ -144,6 +155,7 @@ func GetAllDrivers() ([]volume.Driver, error) {
 		if ok {
 			continue
 		}
+
 		ext = NewVolumeDriver(p.Name, p.Client)
 		drivers.extensions[p.Name] = ext
 		ds = append(ds, ext)

@@ -76,7 +76,6 @@ _dockerfile_env() {
 clean() {
 	local packages=(
 		"${PROJECT}/docker" # package main
-		"${PROJECT}/dockerinit" # package main
 		"${PROJECT}/integration-cli" # external tests
 	)
 	local dockerPlatforms=( ${DOCKER_ENGINE_OSARCH:="linux/amd64"} $(_dockerfile_env DOCKER_CROSSPLATFORMS) )

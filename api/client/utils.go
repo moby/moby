@@ -4,8 +4,11 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"os"
 	gosignal "os/signal"
+	"path/filepath"
 	"runtime"
 	"time"
 
@@ -27,18 +30,15 @@ func encodeAuthToBase64(authConfig types.AuthConfig) (string, error) {
 	return base64.URLEncoding.EncodeToString(buf), nil
 }
 
-func (cli *DockerCli) encodeRegistryAuth(index *registrytypes.IndexInfo) (string, error) {
-	authConfig := registry.ResolveAuthConfig(cli.configFile.AuthConfigs, index)
-	return encodeAuthToBase64(authConfig)
-}
-
 func (cli *DockerCli) registryAuthenticationPrivilegedFunc(index *registrytypes.IndexInfo, cmdName string) client.RequestPrivilegeFunc {
 	return func() (string, error) {
 		fmt.Fprintf(cli.out, "\nPlease login prior to %s:\n", cmdName)
-		if err := cli.CmdLogin(registry.GetAuthConfigKey(index)); err != nil {
+		indexServer := registry.GetAuthConfigKey(index)
+		authConfig, err := cli.configureAuth("", "", "", indexServer)
+		if err != nil {
 			return "", err
 		}
-		return cli.encodeRegistryAuth(index)
+		return encodeAuthToBase64(authConfig)
 	}
 }
 
@@ -137,4 +137,28 @@ func (cli *DockerCli) getTtySize() (int, int) {
 		}
 	}
 	return int(ws.Height), int(ws.Width)
+}
+
+func copyToFile(outfile string, r io.Reader) error {
+	tmpFile, err := ioutil.TempFile(filepath.Dir(outfile), ".docker_temp_")
+	if err != nil {
+		return err
+	}
+
+	tmpPath := tmpFile.Name()
+
+	_, err = io.Copy(tmpFile, r)
+	tmpFile.Close()
+
+	if err != nil {
+		os.Remove(tmpPath)
+		return err
+	}
+
+	if err = os.Rename(tmpPath, outfile); err != nil {
+		os.Remove(tmpPath)
+		return err
+	}
+
+	return nil
 }

@@ -43,11 +43,11 @@ created.  Supported `Dockerfile` instructions:
     ID                  IMAGE               COMMAND             CREATED             STATUS              PORTS
     c3f279d17e0a        ubuntu:12.04        /bin/bash           7 days ago          Up 25 hours
     197387f1b436        ubuntu:12.04        /bin/bash           7 days ago          Up 25 hours
-    $ docker commit c3f279d17e0a  SvenDowideit/testimage:version3
+    $ docker commit c3f279d17e0a  svendowideit/testimage:version3
     f5283438590d
     $ docker images
     REPOSITORY                        TAG                 ID                  CREATED             VIRTUAL SIZE
-    SvenDowideit/testimage            version3            f5283438590d        16 seconds ago      335.7 MB
+    svendowideit/testimage            version3            f5283438590d        16 seconds ago      335.7 MB
 
 ## Commit a container with new configurations
 
@@ -57,7 +57,7 @@ created.  Supported `Dockerfile` instructions:
     197387f1b436        ubuntu:12.04        /bin/bash           7 days ago          Up 25 hours
     $ docker inspect -f "{{ .Config.Env }}" c3f279d17e0a
     [HOME=/ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin]
-    $ docker commit --change "ENV DEBUG true" c3f279d17e0a  SvenDowideit/testimage:version3
+    $ docker commit --change "ENV DEBUG true" c3f279d17e0a  svendowideit/testimage:version3
     f5283438590d
     $ docker inspect -f "{{ .Config.Env }}" f5283438590d
     [HOME=/ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin DEBUG=true]
@@ -69,10 +69,10 @@ created.  Supported `Dockerfile` instructions:
     c3f279d17e0a        ubuntu:12.04        /bin/bash           7 days ago          Up 25 hours
     197387f1b436        ubuntu:12.04        /bin/bash           7 days ago          Up 25 hours
 
-    $ docker commit --change='CMD ["apachectl", "-DFOREGROUND"]' -c "EXPOSE 80" c3f279d17e0a  SvenDowideit/testimage:version4
+    $ docker commit --change='CMD ["apachectl", "-DFOREGROUND"]' -c "EXPOSE 80" c3f279d17e0a  svendowideit/testimage:version4
     f5283438590d
     
-    $ docker run -d SvenDowideit/testimage:version4
+    $ docker run -d svendowideit/testimage:version4
     89373736e2e7f00bc149bd783073ac43d0507da250e999f3f1036e0db60817c0
 
     $ docker ps

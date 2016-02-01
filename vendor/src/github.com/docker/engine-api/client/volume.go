@@ -25,9 +25,9 @@ func (cli *Client) VolumeList(filter filters.Args) (types.VolumesListResponse, e
 	if err != nil {
 		return volumes, err
 	}
-	defer ensureReaderClosed(resp)
 
 	err = json.NewDecoder(resp.body).Decode(&volumes)
+	ensureReaderClosed(resp)
 	return volumes, err
 }
 
@@ -41,8 +41,8 @@ func (cli *Client) VolumeInspect(volumeID string) (types.Volume, error) {
 		}
 		return volume, err
 	}
-	defer ensureReaderClosed(resp)
 	err = json.NewDecoder(resp.body).Decode(&volume)
+	ensureReaderClosed(resp)
 	return volume, err
 }
 
@@ -53,8 +53,8 @@ func (cli *Client) VolumeCreate(options types.VolumeCreateRequest) (types.Volume
 	if err != nil {
 		return volume, err
 	}
-	defer ensureReaderClosed(resp)
 	err = json.NewDecoder(resp.body).Decode(&volume)
+	ensureReaderClosed(resp)
 	return volume, err
 }
 

@@ -89,3 +89,64 @@ func TestDiscoveryOpts(t *testing.T) {
 		t.Fatalf("TTL - Expected : %v, Actual : %v", expected, ttl)
 	}
 }
+
+func TestModifiedDiscoverySettings(t *testing.T) {
+	cases := []struct {
+		current  *Config
+		modified *Config
+		expected bool
+	}{
+		{
+			current:  discoveryConfig("foo", "bar", map[string]string{}),
+			modified: discoveryConfig("foo", "bar", map[string]string{}),
+			expected: false,
+		},
+		{
+			current:  discoveryConfig("foo", "bar", map[string]string{"foo": "bar"}),
+			modified: discoveryConfig("foo", "bar", map[string]string{"foo": "bar"}),
+			expected: false,
+		},
+		{
+			current:  discoveryConfig("foo", "bar", map[string]string{}),
+			modified: discoveryConfig("foo", "bar", nil),
+			expected: false,
+		},
+		{
+			current:  discoveryConfig("foo", "bar", nil),
+			modified: discoveryConfig("foo", "bar", map[string]string{}),
+			expected: false,
+		},
+		{
+			current:  discoveryConfig("foo", "bar", nil),
+			modified: discoveryConfig("baz", "bar", nil),
+			expected: true,
+		},
+		{
+			current:  discoveryConfig("foo", "bar", nil),
+			modified: discoveryConfig("foo", "baz", nil),
+			expected: true,
+		},
+		{
+			current:  discoveryConfig("foo", "bar", nil),
+			modified: discoveryConfig("foo", "bar", map[string]string{"foo": "bar"}),
+			expected: true,
+		},
+	}
+
+	for _, c := range cases {
+		got := modifiedDiscoverySettings(c.current, c.modified.ClusterStore, c.modified.ClusterAdvertise, c.modified.ClusterOpts)
+		if c.expected != got {
+			t.Fatalf("expected %v, got %v: current config %q, new config %q", c.expected, got, c.current, c.modified)
+		}
+	}
+}
+
+func discoveryConfig(backendAddr, advertiseAddr string, opts map[string]string) *Config {
+	return &Config{
+		CommonConfig: CommonConfig{
+			ClusterStore:     backendAddr,
+			ClusterAdvertise: advertiseAddr,
+			ClusterOpts:      opts,
+		},
+	}
+}

@@ -406,7 +406,7 @@ func (ep *endpoint) sbJoin(sbox Sandbox, options ...EndpointOption) error {
 
 	ep.processOptions(options...)
 
-	driver, err := network.driver()
+	driver, err := network.driver(true)
 	if err != nil {
 		return fmt.Errorf("failed to join endpoint: %v", err)
 	}
@@ -465,7 +465,7 @@ func (ep *endpoint) sbJoin(sbox Sandbox, options ...EndpointOption) error {
 	if sb.needDefaultGW() {
 		return sb.setupDefaultGW(ep)
 	}
-	return sb.clearDefaultGW()
+	return nil
 }
 
 func (ep *endpoint) rename(name string) error {
@@ -533,10 +533,10 @@ func (ep *endpoint) Leave(sbox Sandbox, options ...EndpointOption) error {
 	sb.joinLeaveStart()
 	defer sb.joinLeaveEnd()
 
-	return ep.sbLeave(sbox, options...)
+	return ep.sbLeave(sbox, false, options...)
 }
 
-func (ep *endpoint) sbLeave(sbox Sandbox, options ...EndpointOption) error {
+func (ep *endpoint) sbLeave(sbox Sandbox, force bool, options ...EndpointOption) error {
 	sb, ok := sbox.(*sandbox)
 	if !ok {
 		return types.BadRequestErrorf("not a valid Sandbox interface")
@@ -565,7 +565,7 @@ func (ep *endpoint) sbLeave(sbox Sandbox, options ...EndpointOption) error {
 
 	ep.processOptions(options...)
 
-	d, err := n.driver()
+	d, err := n.driver(!force)
 	if err != nil {
 		return fmt.Errorf("failed to leave endpoint: %v", err)
 	}
@@ -575,9 +575,11 @@ func (ep *endpoint) sbLeave(sbox Sandbox, options ...EndpointOption) error {
 	ep.network = n
 	ep.Unlock()
 
-	if err := d.Leave(n.id, ep.id); err != nil {
-		if _, ok := err.(types.MaskableError); !ok {
-			log.Warnf("driver error disconnecting container %s : %v", ep.name, err)
+	if d != nil {
+		if err := d.Leave(n.id, ep.id); err != nil {
+			if _, ok := err.(types.MaskableError); !ok {
+				log.Warnf("driver error disconnecting container %s : %v", ep.name, err)
+			}
 		}
 	}
 
@@ -595,15 +597,7 @@ func (ep *endpoint) sbLeave(sbox Sandbox, options ...EndpointOption) error {
 	}
 
 	sb.deleteHostsEntries(n.getSvcRecords(ep))
-
-	if !sb.inDelete && sb.needDefaultGW() {
-		ep := sb.getEPwithoutGateway()
-		if ep == nil {
-			return fmt.Errorf("endpoint without GW expected, but not found")
-		}
-		return sb.setupDefaultGW(ep)
-	}
-	return sb.clearDefaultGW()
+	return nil
 }
 
 func (n *network) validateForceDelete(locator string) error {
@@ -649,7 +643,7 @@ func (ep *endpoint) Delete(force bool) error {
 	}
 
 	if sb != nil {
-		if e := ep.sbLeave(sb); e != nil {
+		if e := ep.sbLeave(sb, force); e != nil {
 			log.Warnf("failed to leave sandbox for endpoint %s : %v", name, e)
 		}
 	}
@@ -681,7 +675,7 @@ func (ep *endpoint) Delete(force bool) error {
 	// unwatch for service records
 	n.getController().unWatchSvcRecord(ep)
 
-	if err = ep.deleteEndpoint(); err != nil && !force {
+	if err = ep.deleteEndpoint(force); err != nil && !force {
 		return err
 	}
 
@@ -690,16 +684,20 @@ func (ep *endpoint) Delete(force bool) error {
 	return nil
 }
 
-func (ep *endpoint) deleteEndpoint() error {
+func (ep *endpoint) deleteEndpoint(force bool) error {
 	ep.Lock()
 	n := ep.network
 	name := ep.name
 	epid := ep.id
 	ep.Unlock()
 
-	driver, err := n.driver()
+	driver, err := n.driver(!force)
 	if err != nil {
 		return fmt.Errorf("failed to delete endpoint: %v", err)
+	}
+
+	if driver == nil {
+		return nil
 	}
 
 	if err := driver.DeleteEndpoint(n.id, epid); err != nil {
@@ -913,7 +911,7 @@ func (ep *endpoint) assignAddressVersion(ipVer int, ipam ipamapi.Ipam) error {
 		}
 	}
 	if progAdd != nil {
-		return types.BadRequestErrorf("Invalid preferred address %s: It does not belong to any of this network's subnets")
+		return types.BadRequestErrorf("Invalid preferred address %s: It does not belong to any of this network's subnets", prefAdd)
 	}
 	return fmt.Errorf("no available IPv%d addresses on this network's address pools: %s (%s)", ipVer, n.Name(), n.ID())
 }
@@ -956,7 +954,7 @@ func (c *controller) cleanupLocalEndpoints() {
 		}
 
 		for _, ep := range epl {
-			if err := ep.Delete(false); err != nil {
+			if err := ep.Delete(true); err != nil {
 				log.Warnf("Could not delete local endpoint %s during endpoint cleanup: %v", ep.name, err)
 			}
 		}

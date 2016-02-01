@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"time"
 
-	"github.com/jfrazelle/go/canonical/json"
+	"github.com/docker/go/canonical/json"
 )
 
 // SignedTimestamp is a fully unpacked timestamp.json

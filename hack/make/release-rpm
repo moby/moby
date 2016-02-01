@@ -36,7 +36,7 @@ for distro in "${distros[@]}"; do
 	# Setup the yum repo
 	REPO=$YUMDIR/$release/$distro
 
-	for dir in contrib/builder/rpm/$distro-*/; do
+	for dir in contrib/builder/rpm/${PACKAGE_ARCH}/$distro-*/; do
 		version="$(basename "$dir")"
 		suite="${version##*-}"
 

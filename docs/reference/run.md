@@ -4,7 +4,8 @@ title = "Docker run reference"
 description = "Configure containers at runtime"
 keywords = ["docker, run, configure,  runtime"]
 [menu.main]
-parent = "mn_reference"
+parent = "engine_ref"
+weight=-80
 +++
 <![end-metadata]-->
 
@@ -273,10 +274,11 @@ of the containers.
                         'container:<name|id>': reuse another container's network stack
                         'host': use the Docker host network stack
                         '<network-name>|<network-id>': connect to a user-defined network
+    --net-alias=[]   : Add network-scoped alias for the container
     --add-host=""    : Add a line to /etc/hosts (host:IP)
     --mac-address="" : Sets the container's Ethernet device's MAC address
     --ip=""          : Sets the container's Ethernet device's IPv4 address
-    --ip6=""          : Sets the container's Ethernet device's IPv6 address
+    --ip6=""         : Sets the container's Ethernet device's IPv6 address
 
 By default, all containers have networking enabled and they can make any
 outgoing connections. The operator can completely disable networking
@@ -408,7 +410,7 @@ The following example creates a network using the built-in `bridge` network
 driver and running a container in the created network
 
 ```
-$ docker network create -d overlay my-net
+$ docker network create -d bridge my-net
 $ docker run --net=my-net -itd --name=container3 busybox
 ```
 
@@ -549,7 +551,7 @@ The exit code from `docker run` gives information about why the container
 failed to run or why it exited.  When `docker run` exits with a non-zero code,
 the exit codes follow the `chroot` standard, see below:
 
-**_125_** if the error is with Docker daemon **_itself_** 
+**_125_** if the error is with Docker daemon **_itself_**
 
     $ docker run --foo busybox; echo $?
     # flag provided but not defined: --foo
@@ -572,7 +574,7 @@ the exit codes follow the `chroot` standard, see below:
 
 **_Exit code_** of **_contained command_** otherwise
 
-    $ docker run busybox /bin/sh -c 'exit 3' 
+    $ docker run busybox /bin/sh -c 'exit 3'
     # 3
 
 ## Clean up (--rm)
@@ -589,7 +591,11 @@ the container exits**, you can add the `--rm` flag:
 
 > **Note**: When you set the `--rm` flag, Docker also removes the volumes
 associated with the container when the container is removed. This is similar
-to running `docker rm -v my-container`.
+to running `docker rm -v my-container`. Only volumes that are specified without a
+name are removed. For example, with
+`docker run --rm -v /foo -v awesome:/bar busybox top`, the volume for `/foo` will be removed,
+but the volume for `/bar` will not. Volumes inheritted via `--volumes-from` will be removed
+with the same logic -- if the original volume was specified with a name it will **not** be removed.
 
 ## Security configuration
     --security-opt="label:user:USER"   : Set the label user for the container
@@ -995,9 +1001,9 @@ For example, to set `/dev/sda` device weight to `200`:
         ubuntu
 
 If you specify both the `--blkio-weight` and `--blkio-weight-device`, Docker
-uses the `--blkio-weight` as the default weight and uses `--blkio-weight-device` 
-to override this default with a new value on a specific device. 
-The following example uses a default weight of `300` and overrides this default 
+uses the `--blkio-weight` as the default weight and uses `--blkio-weight-device`
+to override this default with a new value on a specific device.
+The following example uses a default weight of `300` and overrides this default
 on `/dev/sda` setting that weight to `200`:
 
     $ docker run -it \
@@ -1013,7 +1019,7 @@ per second from `/dev/sda`:
 
 The `--device-write-bps` flag limits the write rate (bytes per second)to a device.
 For example, this command creates a container and limits the write rate to `1mb`
-per second for `/dev/sda`: 
+per second for `/dev/sda`:
 
     $ docker run -it --device-write-bps /dev/sda:1mb ubuntu
 
@@ -1056,7 +1062,7 @@ one can use this flag:
 By default, Docker containers are "unprivileged" and cannot, for
 example, run a Docker daemon inside a Docker container. This is because
 by default a container is not allowed to access any devices, but a
-"privileged" container is given access to all devices (see 
+"privileged" container is given access to all devices (see
 the documentation on [cgroups devices](https://www.kernel.org/doc/Documentation/cgroups/devices.txt)).
 
 When the operator executes `docker run --privileged`, Docker will enable
@@ -1190,7 +1196,7 @@ container's logging driver. The following options are supported:
 
 The `docker logs` command is available only for the `json-file` and `journald`
 logging drivers.  For detailed information on working with logging drivers, see
-[Configure a logging driver](logging/overview.md).
+[Configure a logging driver](../admin/logging/overview.md).
 
 
 ## Overriding Dockerfile image defaults
@@ -1359,9 +1365,14 @@ Similarly the operator can set the **hostname** with `-h`.
 
 ### TMPFS (mount tmpfs filesystems)
 
-    --tmpfs=[]: Create a tmpfs mount with: container-dir[:<options>], where the options are identical to the Linux `mount -t tmpfs -o` command.
+```bash
+--tmpfs=[]: Create a tmpfs mount with: container-dir[:<options>],
+            where the options are identical to the Linux
+            'mount -t tmpfs -o' command.
+```
 
-    Underlying content from the "container-dir" is copied into tmpfs.
+The example below mounts an empty tmpfs into the container with the `rw`,
+`noexec`, `nosuid`, and `size=65536k` options.
 
     $ docker run -d --tmpfs /run:rw,noexec,nosuid,size=65536k my_image
 
@@ -1378,11 +1389,19 @@ Similarly the operator can set the **hostname** with `-h`.
     --volumes-from="": Mount all volumes from the given container(s)
 
 > **Note**:
-> The auto-creation of the host path has been [*deprecated*](../misc/deprecated.md#auto-creating-missing-host-paths-for-bind-mounts).
+> The auto-creation of the host path has been [*deprecated*](../deprecated.md#auto-creating-missing-host-paths-for-bind-mounts).
+
+> **Note**:
+> When using systemd to manage the Docker daemon's start and stop, in the systemd
+> unit file there is an option to control mount propagation for the Docker daemon
+> itself, called `MountFlags`. The value of this setting may cause Docker to not
+> see mount propagation changes made on the mount point. For example, if this value
+> is `slave`, you may not be able to use the `shared` or `rshared` propagation on
+> a volume.
 
 The volumes commands are complex enough to have their own documentation
 in section [*Managing data in
-containers*](../userguide/dockervolumes.md). A developer can define
+containers*](../userguide/containers/dockervolumes.md). A developer can define
 one or more `VOLUME`'s associated with an image, but only the operator
 can give access from one container to another (or from a container to a
 volume mounted on the host).

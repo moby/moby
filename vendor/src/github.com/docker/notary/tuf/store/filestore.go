@@ -39,11 +39,14 @@ type FilesystemStore struct {
 	targetsDir    string
 }
 
+func (f *FilesystemStore) getPath(name string) string {
+	fileName := fmt.Sprintf("%s.%s", name, f.metaExtension)
+	return filepath.Join(f.metaDir, fileName)
+}
+
 // GetMeta returns the meta for the given name (a role)
 func (f *FilesystemStore) GetMeta(name string, size int64) ([]byte, error) {
-	fileName := fmt.Sprintf("%s.%s", name, f.metaExtension)
-	path := filepath.Join(f.metaDir, fileName)
-	meta, err := ioutil.ReadFile(path)
+	meta, err := ioutil.ReadFile(f.getPath(name))
 	if err != nil {
 		if os.IsNotExist(err) {
 			err = ErrMetaNotFound{Resource: name}
@@ -66,21 +69,31 @@ func (f *FilesystemStore) SetMultiMeta(metas map[string][]byte) error {
 
 // SetMeta sets the meta for a single role
 func (f *FilesystemStore) SetMeta(name string, meta []byte) error {
-	fileName := fmt.Sprintf("%s.%s", name, f.metaExtension)
-	path := filepath.Join(f.metaDir, fileName)
+	fp := f.getPath(name)
 
 	// Ensures the parent directories of the file we are about to write exist
-	err := os.MkdirAll(filepath.Dir(path), 0700)
+	err := os.MkdirAll(filepath.Dir(fp), 0700)
 	if err != nil {
 		return err
 	}
 
 	// if something already exists, just delete it and re-write it
-	os.RemoveAll(path)
+	os.RemoveAll(fp)
 
 	// Write the file to disk
-	if err = ioutil.WriteFile(path, meta, 0600); err != nil {
+	if err = ioutil.WriteFile(fp, meta, 0600); err != nil {
 		return err
 	}
 	return nil
+}
+
+// RemoveAll clears the existing filestore by removing its base directory
+func (f *FilesystemStore) RemoveAll() error {
+	return os.RemoveAll(f.baseDir)
+}
+
+// RemoveMeta removes the metadata for a single role - if the metadata doesn't
+// exist, no error is returned
+func (f *FilesystemStore) RemoveMeta(name string) error {
+	return os.RemoveAll(f.getPath(name)) // RemoveAll succeeds if path doesn't exist
 }

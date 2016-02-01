@@ -46,6 +46,8 @@ Creates a new container.
       -h, --hostname=""             Container host name
       --help                        Print usage
       -i, --interactive             Keep STDIN open even if not attached
+      --ip=""                       Container IPv4 address (e.g. 172.30.100.104)
+      --ip6=""                      Container IPv6 address (e.g. 2001:db8::33)
       --ipc=""                      IPC namespace to use
       --isolation=""                Container isolation technology
       --kernel-memory=""            Kernel memory limit
@@ -66,6 +68,7 @@ Creates a new container.
                                     'container:<name|id>': reuse another container's network stack
                                     'host': use the Docker host network stack
                                     '<network-name>|<network-id>': connect to a user-defined network
+      --net-alias=[]                Add network-scoped alias for the container
       --oom-kill-disable            Whether to disable OOM Killer for the container or not
       --oom-score-adj=0             Tune the host's OOM preferences for containers (accepts -1000 to 1000)
       -P, --publish-all             Publish all exposed ports to random ports

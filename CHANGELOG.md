@@ -405,7 +405,7 @@ by another client (#15489)
 + Docker daemon has full IPv6 support
 + The `docker run` command can take the `--pid=host` flag to use the host PID namespace, which makes it possible for example to debug host processes using containerized debugging tools
 + The `docker run` command can take the `--read-only` flag to make the container’s root filesystem mounted as readonly, which can be used in combination with volumes to force a container’s processes to only write to locations that will be persisted
-+ Container total memory usage can be limited for `docker run` using the `—memory-swap` flag
++ Container total memory usage can be limited for `docker run` using the `--memory-swap` flag
 * Major stability improvements for devicemapper storage driver
 * Better integration with host system: containers will reflect changes to the host's `/etc/resolv.conf` file when restarted
 * Better integration with host system: per-container iptable rules are moved to the DOCKER chain

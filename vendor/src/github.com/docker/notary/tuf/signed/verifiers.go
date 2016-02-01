@@ -60,7 +60,7 @@ func (v Ed25519Verifier) Verify(key data.PublicKey, sig []byte, msg []byte) erro
 	}
 	var sigBytes [ed25519.SignatureSize]byte
 	if len(sig) != ed25519.SignatureSize {
-		logrus.Infof("signature length is incorrect, must be %d, was %d.", ed25519.SignatureSize, len(sig))
+		logrus.Debugf("signature length is incorrect, must be %d, was %d.", ed25519.SignatureSize, len(sig))
 		return ErrInvalid
 	}
 	copy(sigBytes[:], sig)
@@ -78,7 +78,7 @@ func (v Ed25519Verifier) Verify(key data.PublicKey, sig []byte, msg []byte) erro
 	}
 
 	if !ed25519.Verify(&keyBytes, msg, &sigBytes) {
-		logrus.Infof("failed ed25519 verification")
+		logrus.Debugf("failed ed25519 verification")
 		return ErrInvalid
 	}
 	return nil
@@ -87,23 +87,23 @@ func (v Ed25519Verifier) Verify(key data.PublicKey, sig []byte, msg []byte) erro
 func verifyPSS(key interface{}, digest, sig []byte) error {
 	rsaPub, ok := key.(*rsa.PublicKey)
 	if !ok {
-		logrus.Infof("value was not an RSA public key")
+		logrus.Debugf("value was not an RSA public key")
 		return ErrInvalid
 	}
 
 	if rsaPub.N.BitLen() < minRSAKeySizeBit {
-		logrus.Infof("RSA keys less than 2048 bits are not acceptable, provided key has length %d.", rsaPub.N.BitLen())
+		logrus.Debugf("RSA keys less than 2048 bits are not acceptable, provided key has length %d.", rsaPub.N.BitLen())
 		return ErrInvalidKeyLength{msg: fmt.Sprintf("RSA key must be at least %d bits.", minRSAKeySizeBit)}
 	}
 
 	if len(sig) < minRSAKeySizeByte {
-		logrus.Infof("RSA keys less than 2048 bits are not acceptable, provided signature has length %d.", len(sig))
+		logrus.Debugf("RSA keys less than 2048 bits are not acceptable, provided signature has length %d.", len(sig))
 		return ErrInvalid
 	}
 
 	opts := rsa.PSSOptions{SaltLength: sha256.Size, Hash: crypto.SHA256}
 	if err := rsa.VerifyPSS(rsaPub, crypto.SHA256, digest[:], sig, &opts); err != nil {
-		logrus.Infof("failed RSAPSS verification: %s", err)
+		logrus.Debugf("failed RSAPSS verification: %s", err)
 		return ErrInvalid
 	}
 	return nil
@@ -117,12 +117,12 @@ func getRSAPubKey(key data.PublicKey) (crypto.PublicKey, error) {
 	case data.RSAx509Key:
 		pemCert, _ := pem.Decode([]byte(key.Public()))
 		if pemCert == nil {
-			logrus.Infof("failed to decode PEM-encoded x509 certificate")
+			logrus.Debugf("failed to decode PEM-encoded x509 certificate")
 			return nil, ErrInvalid
 		}
 		cert, err := x509.ParseCertificate(pemCert.Bytes)
 		if err != nil {
-			logrus.Infof("failed to parse x509 certificate: %s\n", err)
+			logrus.Debugf("failed to parse x509 certificate: %s\n", err)
 			return nil, ErrInvalid
 		}
 		pubKey = cert.PublicKey
@@ -130,12 +130,12 @@ func getRSAPubKey(key data.PublicKey) (crypto.PublicKey, error) {
 		var err error
 		pubKey, err = x509.ParsePKIXPublicKey(key.Public())
 		if err != nil {
-			logrus.Infof("failed to parse public key: %s\n", err)
+			logrus.Debugf("failed to parse public key: %s\n", err)
 			return nil, ErrInvalid
 		}
 	default:
 		// only accept RSA keys
-		logrus.Infof("invalid key type for RSAPSS verifier: %s", algorithm)
+		logrus.Debugf("invalid key type for RSAPSS verifier: %s", algorithm)
 		return nil, ErrInvalidKeyType{}
 	}
 
@@ -172,17 +172,17 @@ func (v RSAPKCS1v15Verifier) Verify(key data.PublicKey, sig []byte, msg []byte) 
 
 	rsaPub, ok := pubKey.(*rsa.PublicKey)
 	if !ok {
-		logrus.Infof("value was not an RSA public key")
+		logrus.Debugf("value was not an RSA public key")
 		return ErrInvalid
 	}
 
 	if rsaPub.N.BitLen() < minRSAKeySizeBit {
-		logrus.Infof("RSA keys less than 2048 bits are not acceptable, provided key has length %d.", rsaPub.N.BitLen())
+		logrus.Debugf("RSA keys less than 2048 bits are not acceptable, provided key has length %d.", rsaPub.N.BitLen())
 		return ErrInvalidKeyLength{msg: fmt.Sprintf("RSA key must be at least %d bits.", minRSAKeySizeBit)}
 	}
 
 	if len(sig) < minRSAKeySizeByte {
-		logrus.Infof("RSA keys less than 2048 bits are not acceptable, provided signature has length %d.", len(sig))
+		logrus.Debugf("RSA keys less than 2048 bits are not acceptable, provided signature has length %d.", len(sig))
 		return ErrInvalid
 	}
 
@@ -207,13 +207,13 @@ func (v RSAPyCryptoVerifier) Verify(key data.PublicKey, sig []byte, msg []byte) 
 
 	k, _ := pem.Decode([]byte(key.Public()))
 	if k == nil {
-		logrus.Infof("failed to decode PEM-encoded x509 certificate")
+		logrus.Debugf("failed to decode PEM-encoded x509 certificate")
 		return ErrInvalid
 	}
 
 	pub, err := x509.ParsePKIXPublicKey(k.Bytes)
 	if err != nil {
-		logrus.Infof("failed to parse public key: %s\n", err)
+		logrus.Debugf("failed to parse public key: %s\n", err)
 		return ErrInvalid
 	}
 
@@ -232,13 +232,13 @@ func (v ECDSAVerifier) Verify(key data.PublicKey, sig []byte, msg []byte) error 
 	case data.ECDSAx509Key:
 		pemCert, _ := pem.Decode([]byte(key.Public()))
 		if pemCert == nil {
-			logrus.Infof("failed to decode PEM-encoded x509 certificate for keyID: %s", key.ID())
+			logrus.Debugf("failed to decode PEM-encoded x509 certificate for keyID: %s", key.ID())
 			logrus.Debugf("certificate bytes: %s", string(key.Public()))
 			return ErrInvalid
 		}
 		cert, err := x509.ParseCertificate(pemCert.Bytes)
 		if err != nil {
-			logrus.Infof("failed to parse x509 certificate: %s\n", err)
+			logrus.Debugf("failed to parse x509 certificate: %s\n", err)
 			return ErrInvalid
 		}
 		pubKey = cert.PublicKey
@@ -246,25 +246,25 @@ func (v ECDSAVerifier) Verify(key data.PublicKey, sig []byte, msg []byte) error 
 		var err error
 		pubKey, err = x509.ParsePKIXPublicKey(key.Public())
 		if err != nil {
-			logrus.Infof("Failed to parse private key for keyID: %s, %s\n", key.ID(), err)
+			logrus.Debugf("Failed to parse private key for keyID: %s, %s\n", key.ID(), err)
 			return ErrInvalid
 		}
 	default:
 		// only accept ECDSA keys.
-		logrus.Infof("invalid key type for ECDSA verifier: %s", algorithm)
+		logrus.Debugf("invalid key type for ECDSA verifier: %s", algorithm)
 		return ErrInvalidKeyType{}
 	}
 
 	ecdsaPubKey, ok := pubKey.(*ecdsa.PublicKey)
 	if !ok {
-		logrus.Infof("value isn't an ECDSA public key")
+		logrus.Debugf("value isn't an ECDSA public key")
 		return ErrInvalid
 	}
 
 	sigLength := len(sig)
 	expectedOctetLength := 2 * ((ecdsaPubKey.Params().BitSize + 7) >> 3)
 	if sigLength != expectedOctetLength {
-		logrus.Infof("signature had an unexpected length")
+		logrus.Debugf("signature had an unexpected length")
 		return ErrInvalid
 	}
 
@@ -275,7 +275,7 @@ func (v ECDSAVerifier) Verify(key data.PublicKey, sig []byte, msg []byte) error 
 	digest := sha256.Sum256(msg)
 
 	if !ecdsa.Verify(ecdsaPubKey, digest[:], r, s) {
-		logrus.Infof("failed ECDSA signature validation")
+		logrus.Debugf("failed ECDSA signature validation")
 		return ErrInvalid
 	}
 

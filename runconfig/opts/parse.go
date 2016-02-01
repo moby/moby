@@ -33,6 +33,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 		flDeviceReadBps     = NewThrottledeviceOpt(ValidateThrottleBpsDevice)
 		flDeviceWriteBps    = NewThrottledeviceOpt(ValidateThrottleBpsDevice)
 		flLinks             = opts.NewListOpts(ValidateLink)
+		flAliases           = opts.NewListOpts(nil)
 		flDeviceReadIOps    = NewThrottledeviceOpt(ValidateThrottleIOpsDevice)
 		flDeviceWriteIOps   = NewThrottledeviceOpt(ValidateThrottleIOpsDevice)
 		flEnv               = opts.NewListOpts(ValidateEnv)
@@ -103,6 +104,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 	cmd.Var(&flVolumes, []string{"v", "-volume"}, "Bind mount a volume")
 	cmd.Var(&flTmpfs, []string{"-tmpfs"}, "Mount a tmpfs directory")
 	cmd.Var(&flLinks, []string{"-link"}, "Add link to another container")
+	cmd.Var(&flAliases, []string{"-net-alias"}, "Add network-scoped alias for the container")
 	cmd.Var(&flDevices, []string{"-device"}, "Add a host device to the container")
 	cmd.Var(&flLabels, []string{"l", "-label"}, "Set meta data on a container")
 	cmd.Var(&flLabelsFile, []string{"-label-file"}, "Read in a line delimited file of labels")
@@ -440,6 +442,16 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 		networkingConfig.EndpointsConfig[string(hostConfig.NetworkMode)] = epConfig
 	}
 
+	if flAliases.Len() > 0 {
+		epConfig := networkingConfig.EndpointsConfig[string(hostConfig.NetworkMode)]
+		if epConfig == nil {
+			epConfig = &networktypes.EndpointSettings{}
+		}
+		epConfig.Aliases = make([]string, flAliases.Len())
+		copy(epConfig.Aliases, flAliases.GetAll())
+		networkingConfig.EndpointsConfig[string(hostConfig.NetworkMode)] = epConfig
+	}
+
 	return config, hostConfig, networkingConfig, cmd, nil
 }
 
@@ -678,7 +690,7 @@ func validatePath(val string, validator func(string) bool) (string, error) {
 	return val, nil
 }
 
-// SplitN splits raw into a maximum of n parts, separated by a separator colon.
+// volumeSplitN splits raw into a maximum of n parts, separated by a separator colon.
 // A separator colon is the last `:` character in the regex `[/:\\]?[a-zA-Z]:` (note `\\` is `\` escaped).
 // This allows to correctly split strings such as `C:\foo:D:\:rw`.
 func volumeSplitN(raw string, n int) []string {

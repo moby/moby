@@ -29,7 +29,7 @@ the running containers.
    Filter output based on these conditions:
    - exited=<int> an exit code of <int>
    - label=<key> or label=<key>=<value>
-   - status=(created|restarting|running|paused|exited)
+   - status=(created|restarting|running|paused|exited|dead)
    - name=<string> a container's name
    - id=<ID> a container's ID
    - before=(<container-name>|<container-id>)

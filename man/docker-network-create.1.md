@@ -13,6 +13,7 @@ docker-network-create - create a new network
 [**--internal**]
 [**--ip-range**=*[]*]
 [**--ipam-driver**=*default*]
+[**--ipam-opt**=*map[]*]
 [**-o**|**--opt**=*map[]*]
 [**--subnet**=*[]*]
 NETWORK-NAME
@@ -148,8 +149,11 @@ If you want to create an externally isolated `overlay` network, you can specify 
 **--ipam-driver**=*default*
   IP Address Management Driver
 
+**--ipam-opt**=map[]
+  Set custom IPAM driver options
+
 **-o**, **--opt**=map[]
-  Set custom network plugin options
+  Set custom driver options
 
 **--subnet**=[]
   Subnet in CIDR format that represents a network segment

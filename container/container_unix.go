@@ -21,7 +21,7 @@ import (
 	runconfigopts "github.com/docker/docker/runconfig/opts"
 	"github.com/docker/docker/utils"
 	"github.com/docker/docker/volume"
-	"github.com/docker/engine-api/types/container"
+	containertypes "github.com/docker/engine-api/types/container"
 	"github.com/docker/engine-api/types/network"
 	"github.com/docker/go-connections/nat"
 	"github.com/docker/libnetwork"
@@ -34,8 +34,8 @@ import (
 // DefaultSHMSize is the default size (64MB) of the SHM which will be mounted in the container
 const DefaultSHMSize int64 = 67108864
 
-// Container holds the fields specific to unixen implementations. See
-// CommonContainer for standard fields common to all containers.
+// Container holds the fields specific to unixen implementations.
+// See CommonContainer for standard fields common to all containers.
 type Container struct {
 	CommonContainer
 
@@ -63,10 +63,6 @@ func (container *Container) CreateDaemonEnvironment(linkedEnv []string) []string
 	env := []string{
 		"PATH=" + system.DefaultPathEnv,
 		"HOSTNAME=" + fullHostname,
-		// Note: we don't set HOME here because it'll get autoset intelligently
-		// based on the value of USER inside dockerinit, but only if it isn't
-		// set already (ie, that can be overridden by setting HOME via -e or ENV
-		// in a Dockerfile).
 	}
 	if container.Config.Tty {
 		env = append(env, "TERM=xterm")
@@ -129,18 +125,26 @@ func (container *Container) buildPortMapInfo(ep libnetwork.Endpoint) error {
 		return derr.ErrorCodeEmptyNetwork
 	}
 
+	if len(networkSettings.Ports) == 0 {
+		pm, err := getEndpointPortMapInfo(ep)
+		if err != nil {
+			return err
+		}
+		networkSettings.Ports = pm
+	}
+	return nil
+}
+
+func getEndpointPortMapInfo(ep libnetwork.Endpoint) (nat.PortMap, error) {
+	pm := nat.PortMap{}
 	driverInfo, err := ep.DriverInfo()
 	if err != nil {
-		return err
+		return pm, err
 	}
 
 	if driverInfo == nil {
 		// It is not an error for epInfo to be nil
-		return nil
-	}
-
-	if networkSettings.Ports == nil {
-		networkSettings.Ports = nat.PortMap{}
+		return pm, nil
 	}
 
 	if expData, ok := driverInfo[netlabel.ExposedPorts]; ok {
@@ -148,30 +152,45 @@ func (container *Container) buildPortMapInfo(ep libnetwork.Endpoint) error {
 			for _, tp := range exposedPorts {
 				natPort, err := nat.NewPort(tp.Proto.String(), strconv.Itoa(int(tp.Port)))
 				if err != nil {
-					return derr.ErrorCodeParsingPort.WithArgs(tp.Port, err)
+					return pm, derr.ErrorCodeParsingPort.WithArgs(tp.Port, err)
 				}
-				networkSettings.Ports[natPort] = nil
+				pm[natPort] = nil
 			}
 		}
 	}
 
 	mapData, ok := driverInfo[netlabel.PortMap]
 	if !ok {
-		return nil
+		return pm, nil
 	}
 
 	if portMapping, ok := mapData.([]types.PortBinding); ok {
 		for _, pp := range portMapping {
 			natPort, err := nat.NewPort(pp.Proto.String(), strconv.Itoa(int(pp.Port)))
 			if err != nil {
-				return err
+				return pm, err
 			}
 			natBndg := nat.PortBinding{HostIP: pp.HostIP.String(), HostPort: strconv.Itoa(int(pp.HostPort))}
-			networkSettings.Ports[natPort] = append(networkSettings.Ports[natPort], natBndg)
+			pm[natPort] = append(pm[natPort], natBndg)
 		}
 	}
 
-	return nil
+	return pm, nil
+}
+
+func getSandboxPortMapInfo(sb libnetwork.Sandbox) nat.PortMap {
+	pm := nat.PortMap{}
+	if sb == nil {
+		return pm
+	}
+
+	for _, ep := range sb.Endpoints() {
+		pm, _ = getEndpointPortMapInfo(ep)
+		if len(pm) > 0 {
+			break
+		}
+	}
+	return pm
 }
 
 // BuildEndpointInfo sets endpoint-related fields on container.NetworkSettings based on the provided network and endpoint.
@@ -194,6 +213,7 @@ func (container *Container) BuildEndpointInfo(n libnetwork.Network, ep libnetwor
 	if _, ok := networkSettings.Networks[n.Name()]; !ok {
 		networkSettings.Networks[n.Name()] = new(network.EndpointSettings)
 	}
+	networkSettings.Networks[n.Name()].NetworkID = n.ID()
 	networkSettings.Networks[n.Name()].EndpointID = ep.ID()
 
 	iface := epInfo.Iface()
@@ -264,7 +284,7 @@ func (container *Container) BuildJoinOptions(n libnetwork.Network) ([]libnetwork
 }
 
 // BuildCreateEndpointOptions builds endpoint options from a given network.
-func (container *Container) BuildCreateEndpointOptions(n libnetwork.Network) ([]libnetwork.EndpointOption, error) {
+func (container *Container) BuildCreateEndpointOptions(n libnetwork.Network, epConfig *network.EndpointSettings, sb libnetwork.Sandbox) ([]libnetwork.EndpointOption, error) {
 	var (
 		portSpecs     = make(nat.PortSet)
 		bindings      = make(nat.PortMap)
@@ -277,22 +297,45 @@ func (container *Container) BuildCreateEndpointOptions(n libnetwork.Network) ([]
 		createOptions = append(createOptions, libnetwork.CreateOptionAnonymous())
 	}
 
-	if epConfig, ok := container.NetworkSettings.Networks[n.Name()]; ok {
+	if epConfig != nil {
 		ipam := epConfig.IPAMConfig
 		if ipam != nil && (ipam.IPv4Address != "" || ipam.IPv6Address != "") {
 			createOptions = append(createOptions,
 				libnetwork.CreateOptionIpam(net.ParseIP(ipam.IPv4Address), net.ParseIP(ipam.IPv6Address), nil))
 		}
+
+		for _, alias := range epConfig.Aliases {
+			createOptions = append(createOptions, libnetwork.CreateOptionMyAlias(alias))
+		}
 	}
 
-	if !container.HostConfig.NetworkMode.IsUserDefined() {
+	if !containertypes.NetworkMode(n.Name()).IsUserDefined() {
 		createOptions = append(createOptions, libnetwork.CreateOptionDisableResolution())
 	}
 
-	// Other configs are applicable only for the endpoint in the network
+	// configs that are applicable only for the endpoint in the network
 	// to which container was connected to on docker run.
-	if n.Name() != container.HostConfig.NetworkMode.NetworkName() &&
-		!(n.Name() == "bridge" && container.HostConfig.NetworkMode.IsDefault()) {
+	// Ideally all these network-specific endpoint configurations must be moved under
+	// container.NetworkSettings.Networks[n.Name()]
+	if n.Name() == container.HostConfig.NetworkMode.NetworkName() ||
+		(n.Name() == "bridge" && container.HostConfig.NetworkMode.IsDefault()) {
+		if container.Config.MacAddress != "" {
+			mac, err := net.ParseMAC(container.Config.MacAddress)
+			if err != nil {
+				return nil, err
+			}
+
+			genericOption := options.Generic{
+				netlabel.MacAddress: mac,
+			}
+
+			createOptions = append(createOptions, libnetwork.EndpointOptionGeneric(genericOption))
+		}
+	}
+
+	// Port-mapping rules belong to the container & applicable only to non-internal networks
+	portmaps := getSandboxPortMapInfo(sb)
+	if n.Info().Internal() || len(portmaps) > 0 {
 		return createOptions, nil
 	}
 
@@ -351,19 +394,6 @@ func (container *Container) BuildCreateEndpointOptions(n libnetwork.Network) ([]
 	createOptions = append(createOptions,
 		libnetwork.CreateOptionPortMapping(pbList),
 		libnetwork.CreateOptionExposedPorts(exposeList))
-
-	if container.Config.MacAddress != "" {
-		mac, err := net.ParseMAC(container.Config.MacAddress)
-		if err != nil {
-			return nil, err
-		}
-
-		genericOption := options.Generic{
-			netlabel.MacAddress: mac,
-		}
-
-		createOptions = append(createOptions, libnetwork.EndpointOptionGeneric(genericOption))
-	}
 
 	return createOptions, nil
 }
@@ -572,7 +602,7 @@ func (container *Container) IpcMounts() []execdriver.Mount {
 	return mounts
 }
 
-func updateCommand(c *execdriver.Command, resources container.Resources) {
+func updateCommand(c *execdriver.Command, resources containertypes.Resources) {
 	c.Resources.BlkioWeight = resources.BlkioWeight
 	c.Resources.CPUShares = resources.CPUShares
 	c.Resources.CPUPeriod = resources.CPUPeriod
@@ -586,7 +616,7 @@ func updateCommand(c *execdriver.Command, resources container.Resources) {
 }
 
 // UpdateContainer updates resources of a container.
-func (container *Container) UpdateContainer(hostConfig *container.HostConfig) error {
+func (container *Container) UpdateContainer(hostConfig *containertypes.HostConfig) error {
 	container.Lock()
 
 	resources := hostConfig.Resources
@@ -702,7 +732,7 @@ func copyExistingContents(source, destination string) error {
 			return err
 		}
 		if len(srcList) == 0 {
-			// If the source volume is empty copy files from the root into the volume
+			// If the source volume is empty, copies files from the root into the volume
 			if err := chrootarchive.CopyWithTar(source, destination); err != nil {
 				return err
 			}

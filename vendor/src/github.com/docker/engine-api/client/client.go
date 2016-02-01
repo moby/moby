@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/docker/go-connections/tlsconfig"
 )
 
 // Client is the API client that performs all operations
@@ -41,21 +43,27 @@ type Client struct {
 func NewEnvClient() (*Client, error) {
 	var transport *http.Transport
 	if dockerCertPath := os.Getenv("DOCKER_CERT_PATH"); dockerCertPath != "" {
-		tlsc := &tls.Config{}
-
-		cert, err := tls.LoadX509KeyPair(filepath.Join(dockerCertPath, "cert.pem"), filepath.Join(dockerCertPath, "key.pem"))
+		options := tlsconfig.Options{
+			CAFile:             filepath.Join(dockerCertPath, "ca.pem"),
+			CertFile:           filepath.Join(dockerCertPath, "cert.pem"),
+			KeyFile:            filepath.Join(dockerCertPath, "key.pem"),
+			InsecureSkipVerify: os.Getenv("DOCKER_TLS_VERIFY") == "",
+		}
+		tlsc, err := tlsconfig.Client(options)
 		if err != nil {
-			return nil, fmt.Errorf("Error loading x509 key pair: %s", err)
+			return nil, err
 		}
 
-		tlsc.Certificates = append(tlsc.Certificates, cert)
-		tlsc.InsecureSkipVerify = os.Getenv("DOCKER_TLS_VERIFY") == ""
 		transport = &http.Transport{
 			TLSClientConfig: tlsc,
 		}
 	}
 
-	return NewClient(os.Getenv("DOCKER_HOST"), os.Getenv("DOCKER_API_VERSION"), transport, nil)
+	host := os.Getenv("DOCKER_HOST")
+	if host == "" {
+		host = DefaultDockerHost
+	}
+	return NewClient(host, os.Getenv("DOCKER_API_VERSION"), transport, nil)
 }
 
 // NewClient initializes a new API client for the given host and API version.

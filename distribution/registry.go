@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/docker/distribution"
@@ -14,6 +15,7 @@ import (
 	"github.com/docker/distribution/registry/client/auth"
 	"github.com/docker/distribution/registry/client/transport"
 	"github.com/docker/docker/distribution/xfer"
+	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/registry"
 	"github.com/docker/engine-api/types"
 	"golang.org/x/net/context"
@@ -43,6 +45,30 @@ func (dcs dumbCredentialStore) Basic(*url.URL) (string, string) {
 	return dcs.auth.Username, dcs.auth.Password
 }
 
+// conn wraps a net.Conn, and sets a deadline for every read
+// and write operation.
+type conn struct {
+	net.Conn
+	readTimeout  time.Duration
+	writeTimeout time.Duration
+}
+
+func (c *conn) Read(b []byte) (int, error) {
+	err := c.Conn.SetReadDeadline(time.Now().Add(c.readTimeout))
+	if err != nil {
+		return 0, err
+	}
+	return c.Conn.Read(b)
+}
+
+func (c *conn) Write(b []byte) (int, error) {
+	err := c.Conn.SetWriteDeadline(time.Now().Add(c.writeTimeout))
+	if err != nil {
+		return 0, err
+	}
+	return c.Conn.Write(b)
+}
+
 // NewV2Repository returns a repository (v2 only). It creates a HTTP transport
 // providing timeout settings and authentication support, and also verifies the
 // remote API version.
@@ -56,18 +82,29 @@ func NewV2Repository(ctx context.Context, repoInfo *registry.RepositoryInfo, end
 	// TODO(dmcgowan): Call close idle connections when complete, use keep alive
 	base := &http.Transport{
 		Proxy: http.ProxyFromEnvironment,
-		Dial: (&net.Dialer{
-			Timeout:   30 * time.Second,
-			KeepAlive: 30 * time.Second,
-			DualStack: true,
-		}).Dial,
+		Dial: func(network, address string) (net.Conn, error) {
+			dialer := &net.Dialer{
+				Timeout:   30 * time.Second,
+				KeepAlive: 30 * time.Second,
+				DualStack: true,
+			}
+			netConn, err := dialer.Dial(network, address)
+			if err != nil {
+				return netConn, err
+			}
+			return &conn{
+				Conn:         netConn,
+				readTimeout:  time.Minute,
+				writeTimeout: time.Minute,
+			}, nil
+		},
 		TLSHandshakeTimeout: 10 * time.Second,
 		TLSClientConfig:     endpoint.TLSConfig,
 		// TODO(dmcgowan): Call close idle connections when complete and use keep alive
 		DisableKeepAlives: true,
 	}
 
-	modifiers := registry.DockerHeaders(metaHeaders)
+	modifiers := registry.DockerHeaders(dockerversion.DockerUserAgent(), metaHeaders)
 	authTransport := transport.NewTransport(base, modifiers...)
 	pingClient := &http.Client{
 		Transport: authTransport,
@@ -145,8 +182,14 @@ func retryOnError(err error) error {
 		case errcode.ErrorCodeUnauthorized, errcode.ErrorCodeUnsupported, errcode.ErrorCodeDenied:
 			return xfer.DoNotRetry{Err: err}
 		}
+	case *url.Error:
+		return retryOnError(v.Err)
 	case *client.UnexpectedHTTPResponseError:
 		return xfer.DoNotRetry{Err: err}
+	case error:
+		if strings.Contains(err.Error(), strings.ToLower(syscall.ENOSPC.Error())) {
+			return xfer.DoNotRetry{Err: err}
+		}
 	}
 	// let's be nice and fallback if the error is a completely
 	// unexpected one.

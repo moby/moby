@@ -16,6 +16,7 @@
 			"dmcgowan",
 			"endophage",
 			"nathanmccauley",
+			"riyazdf",
 		]
 
 [people]
@@ -50,3 +51,8 @@
 	Name = "Nathan McCauley"
 	Email = "nathan.mccauley@docker.com"
 	GitHub = "nathanmccauley"
+
+	[people.riyazdf]
+	Name = "Riyaz Faizullabhoy"
+	Email = "riyaz@docker.com"
+	GitHub = "riyazdf"

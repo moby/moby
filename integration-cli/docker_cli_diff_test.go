@@ -27,10 +27,10 @@ func (s *DockerSuite) TestDiffFilenameShownInOutput(c *check.C) {
 }
 
 // test to ensure GH #3840 doesn't occur any more
-func (s *DockerSuite) TestDiffEnsureDockerinitFilesAreIgnored(c *check.C) {
+func (s *DockerSuite) TestDiffEnsureInitLayerFilesAreIgnored(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	// this is a list of files which shouldn't show up in `docker diff`
-	dockerinitFiles := []string{"/etc/resolv.conf", "/etc/hostname", "/etc/hosts", "/.dockerinit", "/.dockerenv"}
+	initLayerFiles := []string{"/etc/resolv.conf", "/etc/hostname", "/etc/hosts", "/.dockerenv"}
 	containerCount := 5
 
 	// we might not run into this problem from the first run, so start a few containers
@@ -41,7 +41,7 @@ func (s *DockerSuite) TestDiffEnsureDockerinitFilesAreIgnored(c *check.C) {
 		cleanCID := strings.TrimSpace(out)
 		out, _ = dockerCmd(c, "diff", cleanCID)
 
-		for _, filename := range dockerinitFiles {
+		for _, filename := range initLayerFiles {
 			c.Assert(out, checker.Not(checker.Contains), filename)
 		}
 	}

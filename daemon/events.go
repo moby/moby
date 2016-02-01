@@ -8,9 +8,14 @@ import (
 	"github.com/docker/libnetwork"
 )
 
-// LogContainerEvent generates an event related to a container.
+// LogContainerEvent generates an event related to a container with only the default attributes.
 func (daemon *Daemon) LogContainerEvent(container *container.Container, action string) {
-	attributes := copyAttributes(container.Config.Labels)
+	daemon.LogContainerEventWithAttributes(container, action, map[string]string{})
+}
+
+// LogContainerEventWithAttributes generates an event related to a container with specific given attributes.
+func (daemon *Daemon) LogContainerEventWithAttributes(container *container.Container, action string, attributes map[string]string) {
+	copyAttributes(attributes, container.Config.Labels)
 	if container.Config.Image != "" {
 		attributes["image"] = container.Config.Image
 	}
@@ -23,14 +28,18 @@ func (daemon *Daemon) LogContainerEvent(container *container.Container, action s
 	daemon.EventsService.Log(action, events.ContainerEventType, actor)
 }
 
-// LogImageEvent generates an event related to a container.
+// LogImageEvent generates an event related to a container with only the default attributes.
 func (daemon *Daemon) LogImageEvent(imageID, refName, action string) {
-	attributes := map[string]string{}
+	daemon.LogImageEventWithAttributes(imageID, refName, action, map[string]string{})
+}
+
+// LogImageEventWithAttributes generates an event related to a container with specific given attributes.
+func (daemon *Daemon) LogImageEventWithAttributes(imageID, refName, action string, attributes map[string]string) {
 	img, err := daemon.GetImage(imageID)
 	if err == nil && img.Config != nil {
 		// image has not been removed yet.
 		// it could be missing if the event is `delete`.
-		attributes = copyAttributes(img.Config.Labels)
+		copyAttributes(attributes, img.Config.Labels)
 	}
 	if refName != "" {
 		attributes["name"] = refName
@@ -69,13 +78,11 @@ func (daemon *Daemon) LogNetworkEventWithAttributes(nw libnetwork.Network, actio
 }
 
 // copyAttributes guarantees that labels are not mutated by event triggers.
-func copyAttributes(labels map[string]string) map[string]string {
-	attributes := map[string]string{}
+func copyAttributes(attributes, labels map[string]string) {
 	if labels == nil {
-		return attributes
+		return
 	}
 	for k, v := range labels {
 		attributes[k] = v
 	}
-	return attributes
 }

@@ -161,8 +161,7 @@ func (s *DockerSuite) TestAttachDetach(c *check.C) {
 		ch <- struct{}{}
 	}()
 
-	running, err := inspectField(id, "State.Running")
-	c.Assert(err, checker.IsNil)
+	running := inspectField(c, id, "State.Running")
 	c.Assert(running, checker.Equals, "true", check.Commentf("expected container to still be running"))
 
 	go func() {
@@ -214,8 +213,7 @@ func (s *DockerSuite) TestAttachDetachTruncatedID(c *check.C) {
 		ch <- struct{}{}
 	}()
 
-	running, err := inspectField(id, "State.Running")
-	c.Assert(err, checker.IsNil)
+	running := inspectField(c, id, "State.Running")
 	c.Assert(running, checker.Equals, "true", check.Commentf("expected container to still be running"))
 
 	go func() {

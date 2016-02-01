@@ -54,7 +54,7 @@ func (c *Client) Update() error {
 	if err != nil {
 		logrus.Debug("Error occurred. Root will be downloaded and another update attempted")
 		if err := c.downloadRoot(); err != nil {
-			logrus.Error("client Update (Root):", err)
+			logrus.Debug("Client Update (Root):", err)
 			return err
 		}
 		// If we error again, we now have the latest root and just want to fail
@@ -68,12 +68,12 @@ func (c *Client) Update() error {
 func (c *Client) update() error {
 	err := c.downloadTimestamp()
 	if err != nil {
-		logrus.Errorf("Client Update (Timestamp): %s", err.Error())
+		logrus.Debugf("Client Update (Timestamp): %s", err.Error())
 		return err
 	}
 	err = c.downloadSnapshot()
 	if err != nil {
-		logrus.Errorf("Client Update (Snapshot): %s", err.Error())
+		logrus.Debugf("Client Update (Snapshot): %s", err.Error())
 		return err
 	}
 	err = c.checkRoot()
@@ -86,7 +86,7 @@ func (c *Client) update() error {
 	// will always need top level targets at a minimum
 	err = c.downloadTargets("targets")
 	if err != nil {
-		logrus.Errorf("Client Update (Targets): %s", err.Error())
+		logrus.Debugf("Client Update (Targets): %s", err.Error())
 		return err
 	}
 	return nil
@@ -129,6 +129,7 @@ func (c Client) checkRoot() error {
 
 // downloadRoot is responsible for downloading the root.json
 func (c *Client) downloadRoot() error {
+	logrus.Debug("Downloading Root...")
 	role := data.CanonicalRootRole
 	size := maxSize
 	var expectedSha256 []byte
@@ -240,34 +241,33 @@ func (c Client) verifyRoot(role string, s *data.Signed, minVersion int) error {
 // Timestamps are special in that we ALWAYS attempt to download and only
 // use cache if the download fails (and the cache is still valid).
 func (c *Client) downloadTimestamp() error {
-	logrus.Debug("downloadTimestamp")
+	logrus.Debug("Downloading Timestamp...")
 	role := data.CanonicalTimestampRole
 
 	// We may not have a cached timestamp if this is the first time
 	// we're interacting with the repo. This will result in the
 	// version being 0
-	var download bool
-	old := &data.Signed{}
-	version := 0
+	var (
+		saveToCache bool
+		old         *data.Signed
+		version     = 0
+	)
 	cachedTS, err := c.cache.GetMeta(role, maxSize)
 	if err == nil {
-		err := json.Unmarshal(cachedTS, old)
+		cached := &data.Signed{}
+		err := json.Unmarshal(cachedTS, cached)
 		if err == nil {
-			ts, err := data.TimestampFromSigned(old)
+			ts, err := data.TimestampFromSigned(cached)
 			if err == nil {
 				version = ts.Signed.Version
 			}
-		} else {
-			old = nil
+			old = cached
 		}
 	}
 	// unlike root, targets and snapshot, always try and download timestamps
 	// from remote, only using the cache one if we couldn't reach remote.
 	raw, s, err := c.downloadSigned(role, maxSize, nil)
 	if err != nil || len(raw) == 0 {
-		if err, ok := err.(store.ErrMetaNotFound); ok {
-			return err
-		}
 		if old == nil {
 			if err == nil {
 				// couldn't retrieve data from server and don't have valid
@@ -276,17 +276,18 @@ func (c *Client) downloadTimestamp() error {
 			}
 			return err
 		}
-		logrus.Debug("using cached timestamp")
+		logrus.Debug(err.Error())
+		logrus.Warn("Error while downloading remote metadata, using cached timestamp - this might not be the latest version available remotely")
 		s = old
 	} else {
-		download = true
+		saveToCache = true
 	}
 	err = signed.Verify(s, role, version, c.keysDB)
 	if err != nil {
 		return err
 	}
 	logrus.Debug("successfully verified timestamp")
-	if download {
+	if saveToCache {
 		c.cache.SetMeta(role, raw)
 	}
 	ts, err := data.TimestampFromSigned(s)
@@ -299,7 +300,7 @@ func (c *Client) downloadTimestamp() error {
 
 // downloadSnapshot is responsible for downloading the snapshot.json
 func (c *Client) downloadSnapshot() error {
-	logrus.Debug("downloadSnapshot")
+	logrus.Debug("Downloading Snapshot...")
 	role := data.CanonicalSnapshotRole
 	if c.local.Timestamp == nil {
 		return ErrMissingMeta{role: "snapshot"}
@@ -326,7 +327,7 @@ func (c *Client) downloadSnapshot() error {
 		}
 		err := json.Unmarshal(raw, old)
 		if err == nil {
-			snap, err := data.TimestampFromSigned(old)
+			snap, err := data.SnapshotFromSigned(old)
 			if err == nil {
 				version = snap.Signed.Version
 			} else {
@@ -372,6 +373,7 @@ func (c *Client) downloadSnapshot() error {
 // It uses a pre-order tree traversal as it's necessary to download parents first
 // to obtain the keys to validate children.
 func (c *Client) downloadTargets(role string) error {
+	logrus.Debug("Downloading Targets...")
 	stack := utils.NewStack()
 	stack.Push(role)
 	for !stack.Empty() {

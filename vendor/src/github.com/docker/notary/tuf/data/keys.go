@@ -14,7 +14,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/agl/ed25519"
-	"github.com/jfrazelle/go/canonical/json"
+	"github.com/docker/go/canonical/json"
 )
 
 // PublicKey is the necessary interface for public keys

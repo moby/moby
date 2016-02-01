@@ -19,9 +19,9 @@ func (cli *Client) RegistryLogin(auth types.AuthConfig) (types.AuthResponse, err
 	if err != nil {
 		return types.AuthResponse{}, err
 	}
-	defer ensureReaderClosed(resp)
 
 	var response types.AuthResponse
 	err = json.NewDecoder(resp.body).Decode(&response)
+	ensureReaderClosed(resp)
 	return response, err
 }

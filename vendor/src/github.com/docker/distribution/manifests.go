@@ -2,6 +2,7 @@ package distribution
 
 import (
 	"fmt"
+	"mime"
 
 	"github.com/docker/distribution/context"
 	"github.com/docker/distribution/digest"
@@ -68,7 +69,9 @@ type Describable interface {
 // ManifestMediaTypes returns the supported media types for manifests.
 func ManifestMediaTypes() (mediaTypes []string) {
 	for t := range mappings {
-		mediaTypes = append(mediaTypes, t)
+		if t != "" {
+			mediaTypes = append(mediaTypes, t)
+		}
 	}
 	return
 }
@@ -80,10 +83,24 @@ var mappings = make(map[string]UnmarshalFunc, 0)
 
 // UnmarshalManifest looks up manifest unmarshall functions based on
 // MediaType
-func UnmarshalManifest(mediatype string, p []byte) (Manifest, Descriptor, error) {
+func UnmarshalManifest(ctHeader string, p []byte) (Manifest, Descriptor, error) {
+	// Need to look up by the actual media type, not the raw contents of
+	// the header. Strip semicolons and anything following them.
+	var mediatype string
+	if ctHeader != "" {
+		var err error
+		mediatype, _, err = mime.ParseMediaType(ctHeader)
+		if err != nil {
+			return nil, Descriptor{}, err
+		}
+	}
+
 	unmarshalFunc, ok := mappings[mediatype]
 	if !ok {
-		return nil, Descriptor{}, fmt.Errorf("unsupported manifest mediatype: %s", mediatype)
+		unmarshalFunc, ok = mappings[""]
+		if !ok {
+			return nil, Descriptor{}, fmt.Errorf("unsupported manifest mediatype and no default available: %s", mediatype)
+		}
 	}
 
 	return unmarshalFunc(p)
