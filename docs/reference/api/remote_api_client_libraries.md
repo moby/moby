@@ -187,7 +187,7 @@ will add the libraries here.
     <tr>
       <td>PHP</td>
       <td>Docker-PHP</td>
-      <td><a class="reference external" href="http://stage1.github.io/docker-php/">http://stage1.github.io/docker-php/</a></td>
+      <td><a class="reference external" href="https://github.com/docker-php/docker-php">https://github.com/docker-php/docker-php</a></td>
       <td>Active</td>
     </tr>
     <tr>
