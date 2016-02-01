@@ -1573,7 +1573,6 @@ func daemonTime(c *check.C) time.Time {
 }
 
 func setupRegistry(c *check.C, schema1, auth bool) *testRegistryV2 {
-	testRequires(c, RegistryHosting)
 	reg, err := newTestRegistryV2(c, schema1, auth)
 	c.Assert(err, check.IsNil)
 
@@ -1590,7 +1589,6 @@ func setupRegistry(c *check.C, schema1, auth bool) *testRegistryV2 {
 }
 
 func setupNotary(c *check.C) *testNotary {
-	testRequires(c, NotaryHosting)
 	ts, err := newTestNotary(c)
 	c.Assert(err, check.IsNil)
 
