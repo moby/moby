@@ -22,7 +22,7 @@ import (
 //
 // Usage: docker login SERVER
 func (cli *DockerCli) CmdLogin(args ...string) error {
-	cmd := Cli.Subcmd("login", []string{"[SERVER]"}, Cli.DockerCommands["login"].Description+".\nIf no server is specified \""+registry.IndexServer+"\" is the default.", true)
+	cmd := Cli.Subcmd("login", []string{"[SERVER]"}, Cli.DockerCommands["login"].Description+".\nIf no server is specified, the default is defined by the daemon.", true)
 	cmd.Require(flag.Max, 1)
 
 	flUser := cmd.String([]string{"u", "-username"}, "", "Username")
@@ -36,7 +36,16 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 		cli.in = os.Stdin
 	}
 
+	// The daemon `/info` endpoint informs us of the default registry being
+	// used. This is essential in cross-platforms environment, where for
+	// example a Linux client might be interacting with a Windows daemon, hence
+	// the default registry URL might be Windows specific.
 	serverAddress := registry.IndexServer
+	if info, err := cli.client.Info(); err != nil {
+		fmt.Fprintf(cli.out, "Warning: failed to get default registry endpoint from daemon (%v). Using system default: %s\n", err, serverAddress)
+	} else {
+		serverAddress = info.IndexServerAddress
+	}
 	if len(cmd.Args()) > 0 {
 		serverAddress = cmd.Arg(0)
 	}
