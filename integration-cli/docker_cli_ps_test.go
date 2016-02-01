@@ -17,21 +17,17 @@ import (
 )
 
 func (s *DockerSuite) TestPsListContainersBase(c *check.C) {
-	// TODO Windows CI (TP5 timeframe). This test has a very high likelyhood
-	// of hitting a known bug in TP4. Hence disabling for now until TP5
-	// is available.
-	testRequires(c, DaemonIsLinux)
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
+	out, _ := runSleepingContainer(c, "-d")
 	firstID := strings.TrimSpace(out)
 
-	out, _ = dockerCmd(c, "run", "-d", "busybox", "top")
+	out, _ = runSleepingContainer(c, "-d")
 	secondID := strings.TrimSpace(out)
 
 	// not long running
 	out, _ = dockerCmd(c, "run", "-d", "busybox", "true")
 	thirdID := strings.TrimSpace(out)
 
-	out, _ = dockerCmd(c, "run", "-d", "busybox", "top")
+	out, _ = runSleepingContainer(c, "-d")
 	fourthID := strings.TrimSpace(out)
 
 	// make sure the second is running
@@ -172,10 +168,6 @@ func (s *DockerSuite) TestPsListContainersSize(c *check.C) {
 }
 
 func (s *DockerSuite) TestPsListContainersFilterStatus(c *check.C) {
-	// TODO Windows CI (TP5 timeframe). This test has a very high likelyhood
-	// of hitting a known bug in TP4. Hence disabling for now until TP5
-	// is available.
-	testRequires(c, DaemonIsLinux)
 	// start exited container
 	out, _ := dockerCmd(c, "run", "-d", "busybox")
 	firstID := strings.TrimSpace(out)
@@ -215,10 +207,6 @@ func (s *DockerSuite) TestPsListContainersFilterStatus(c *check.C) {
 }
 
 func (s *DockerSuite) TestPsListContainersFilterID(c *check.C) {
-	// TODO Windows CI (TP5 timeframe). This test has a very high likelyhood
-	// of hitting a known bug in TP4. Hence disabling for now until TP5
-	// is available.
-	testRequires(c, DaemonIsLinux)
 	// start container
 	out, _ := dockerCmd(c, "run", "-d", "busybox")
 	firstID := strings.TrimSpace(out)
@@ -257,10 +245,6 @@ func (s *DockerSuite) TestPsListContainersFilterName(c *check.C) {
 // - Run containers for each of those image (busybox, images_ps_filter_test1, images_ps_filter_test2)
 // - Filter them out :P
 func (s *DockerSuite) TestPsListContainersFilterAncestorImage(c *check.C) {
-	// TODO Windows CI (TP5 timeframe). This test has a very high likelyhood
-	// of hitting a known bug in TP4. Hence disabling for now until TP5
-	// is available.
-	testRequires(c, DaemonIsLinux)
 	// Build images
 	imageName1 := "images_ps_filter_test1"
 	imageID1, err := buildImage(imageName1,
@@ -356,10 +340,6 @@ func checkPsAncestorFilterOutput(c *check.C, out string, filterName string, expe
 }
 
 func (s *DockerSuite) TestPsListContainersFilterLabel(c *check.C) {
-	// TODO Windows CI (TP5 timeframe). This test has a very high likelyhood
-	// of hitting a known bug in TP4. Hence disabling for now until TP5
-	// is available.
-	testRequires(c, DaemonIsLinux)
 	// start container
 	out, _ := dockerCmd(c, "run", "-d", "-l", "match=me", "-l", "second=tag", "busybox")
 	firstID := strings.TrimSpace(out)
@@ -396,11 +376,6 @@ func (s *DockerSuite) TestPsListContainersFilterLabel(c *check.C) {
 }
 
 func (s *DockerSuite) TestPsListContainersFilterExited(c *check.C) {
-	// TODO Windows CI (TP5 timeframe). This test has a very high likelyhood
-	// of hitting a known bug in TP4. Hence disabling for now until TP5
-	// is available.
-	testRequires(c, DaemonIsLinux)
-	testRequires(c, DaemonIsLinux)
 	runSleepingContainer(c, "--name=sleep")
 
 	dockerCmd(c, "run", "--name", "zero1", "busybox", "true")
