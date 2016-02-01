@@ -218,17 +218,13 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		})
 	}
 
-	defer func() {
-		if *flAutoRemove {
-			options := types.ContainerRemoveOptions{
-				ContainerID:   createResponse.ID,
-				RemoveVolumes: true,
+	if *flAutoRemove {
+		defer func() {
+			if err := cli.removeContainer(createResponse.ID, true, false, false); err != nil {
+				fmt.Fprintf(cli.err, "%v\n", err)
 			}
-			if err := cli.client.ContainerRemove(options); err != nil {
-				fmt.Fprintf(cli.err, "Error deleting container: %s\n", err)
-			}
-		}
-	}()
+		}()
+	}
 
 	//start the container
 	if err := cli.client.ContainerStart(createResponse.ID); err != nil {
