@@ -2095,3 +2095,24 @@ func (s *DockerDaemonSuite) TestDaemonStartWithoutColors(c *check.C) {
 	newD.Stop()
 	c.Assert(b.String(), check.Not(checker.Contains), infoLog)
 }
+
+func (s *DockerDaemonSuite) TestDaemonDebugLog(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	newD := NewDaemon(c)
+
+	debugLog := "\x1b[37mDEBU\x1b"
+
+	p, tty, err := pty.Open()
+	c.Assert(err, checker.IsNil)
+	defer func() {
+		tty.Close()
+		p.Close()
+	}()
+
+	b := bytes.NewBuffer(nil)
+	go io.Copy(b, p)
+
+	newD.StartWithLogFile(tty, "--debug")
+	newD.Stop()
+	c.Assert(b.String(), checker.Contains, debugLog)
+}
