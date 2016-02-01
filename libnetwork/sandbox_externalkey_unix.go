@@ -12,7 +12,6 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/types"
-	"github.com/opencontainers/runc/libcontainer"
 	"github.com/opencontainers/runc/libcontainer/configs"
 )
 
@@ -21,7 +20,7 @@ const success = "success"
 
 // processSetKeyReexec is a private function that must be called only on an reexec path
 // It expects 3 args { [0] = "libnetwork-setkey", [1] = <container-id>, [2] = <controller-id> }
-// It also expects libcontainer.State as a json string in <stdin>
+// It also expects configs.HookState as a json string in <stdin>
 // Refer to https://github.com/opencontainers/runc/pull/160/ for more information
 func processSetKeyReexec() {
 	var err error
@@ -40,20 +39,19 @@ func processSetKeyReexec() {
 	}
 	containerID := os.Args[1]
 
-	// We expect libcontainer.State as a json string in <stdin>
+	// We expect configs.HookState as a json string in <stdin>
 	stateBuf, err := ioutil.ReadAll(os.Stdin)
 	if err != nil {
 		return
 	}
-	var state libcontainer.State
+	var state configs.HookState
 	if err = json.Unmarshal(stateBuf, &state); err != nil {
 		return
 	}
 
 	controllerID := os.Args[2]
-	key := state.NamespacePaths[configs.NamespaceType("NEWNET")]
 
-	err = SetExternalKey(controllerID, containerID, key)
+	err = SetExternalKey(controllerID, containerID, fmt.Sprintf("/proc/%d/ns/net", state.Pid))
 	return
 }
 
