@@ -90,10 +90,11 @@ func TestApplyAllContainer(t *testing.T) {
 	s.Add("id", NewBaseContainer("id", "root"))
 	s.Add("id2", NewBaseContainer("id2", "root"))
 
-	s.ApplyAll(func(cont *Container) {
+	s.ApplyAll(func(cont *Container) error {
 		if cont.ID == "id2" {
 			cont.ID = "newID"
 		}
+		return nil
 	})
 
 	cont := s.Get("id2")
