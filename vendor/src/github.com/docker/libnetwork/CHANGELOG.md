@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.6.0-rc7 (2016-02-01)
+- Allow inter-network connections via exposed ports
+
 ## 0.6.0-rc6 (2016-01-30)
 - Properly fixes https://github.com/docker/docker/issues/18814
 
