@@ -160,7 +160,9 @@ func (n *network) destroySandbox() {
 	sbox := n.sandbox()
 	if sbox != nil {
 		for _, iface := range sbox.Info().Interfaces() {
-			iface.Remove()
+			if err := iface.Remove(); err != nil {
+				logrus.Debugf("Remove interface %s failed: %v", iface.SrcName(), err)
+			}
 		}
 
 		for _, s := range n.subnets {
