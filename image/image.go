@@ -70,6 +70,16 @@ func (img *Image) ID() ID {
 	return img.computedID
 }
 
+// ImageID stringizes ID.
+func (img *Image) ImageID() string {
+	return string(img.ID())
+}
+
+// RunConfig returns the image's container config.
+func (img *Image) RunConfig() *container.Config {
+	return img.Config
+}
+
 // MarshalJSON serializes the image to JSON. It sorts the top-level keys so
 // that JSON that's been manipulated by a push/pull cycle with a legacy
 // registry won't end up with a different key order.

@@ -11,3 +11,8 @@ import "github.com/docker/docker/container"
 func checkIfPathIsInAVolume(container *container.Container, absPath string) (bool, error) {
 	return false, nil
 }
+
+func fixPermissions(source, destination string, uid, gid int, destExisted bool) error {
+	// chown is not supported on Windows
+	return nil
+}

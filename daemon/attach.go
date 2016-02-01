@@ -100,6 +100,16 @@ func (daemon *Daemon) ContainerWsAttachWithLogs(prefixOrName string, c *Containe
 	return daemon.attachWithLogs(container, c.InStream, c.OutStream, c.ErrStream, c.Logs, c.Stream, c.DetachKeys)
 }
 
+// ContainerAttachOnBuild attaches streams to the container cID. If stream is true, it streams the output.
+func (daemon *Daemon) ContainerAttachOnBuild(cID string, stdin io.ReadCloser, stdout, stderr io.Writer, stream bool) error {
+	return daemon.ContainerWsAttachWithLogs(cID, &ContainerWsAttachWithLogsConfig{
+		InStream:  stdin,
+		OutStream: stdout,
+		ErrStream: stderr,
+		Stream:    stream,
+	})
+}
+
 func (daemon *Daemon) attachWithLogs(container *container.Container, stdin io.ReadCloser, stdout, stderr io.Writer, logs, stream bool, keys []byte) error {
 	if logs {
 		logDriver, err := daemon.getLogger(container)
