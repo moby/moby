@@ -71,15 +71,19 @@ For example, the `btrfs` storage driver on a Btrfs backing filesystem. The
 following table lists each storage driver and whether it must match the host's
 backing file system:
 
-    |Storage driver |Must match backing filesystem |
-    |---------------|------------------------------|
-    |overlay        |No                            |
-    |aufs           |No                            |
-    |btrfs          |Yes                           |
-    |devicemapper   |No                            |
-    |vfs*           |No                            |
-    |zfs            |Yes                           |
+|Storage driver |Must match backing filesystem |Incompatible with   |
+|---------------|------------------------------|--------------------|
+|`overlay`      |No                            |`btrfs` `aufs` `zfs`|
+|`aufs`         |No                            |`btrfs` `aufs`      |
+|`btrfs`        |Yes                           |   N/A              |
+|`devicemapper` |No                            |   N/A              |
+|`vfs`          |No                            |   N/A              |
+|`zfs`          |Yes                           |   N/A              |
 
+
+> **Note**
+> Incompatible with means some storage drivers can not run over certain backing
+> filesystem.
 
 You can set the storage driver by passing the `--storage-driver=<name>` option
 to the `docker daemon` command line, or by setting the option on the
