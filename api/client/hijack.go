@@ -19,6 +19,9 @@ func (cli *DockerCli) holdHijackedConnection(tty bool, inputStream io.ReadCloser
 			} else {
 				_, err = stdcopy.StdCopy(outputStream, errorStream, resp.Reader)
 			}
+			if inputStream != nil {
+				inputStream.Close()
+			}
 			logrus.Debugf("[hijack] End of stdout")
 			receiveStdout <- err
 		}()
