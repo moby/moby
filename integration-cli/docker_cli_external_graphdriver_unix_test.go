@@ -299,7 +299,7 @@ func (s *DockerExternalGraphdriverSuite) TearDownSuite(c *check.C) {
 
 func (s *DockerExternalGraphdriverSuite) TestExternalGraphDriver(c *check.C) {
 	if err := s.d.StartWithBusybox("-s", "test-external-graph-driver"); err != nil {
-		b, _ := ioutil.ReadFile(s.d.LogfileName())
+		b, _ := ioutil.ReadFile(s.d.LogFileName())
 		c.Assert(err, check.IsNil, check.Commentf("\n%s", string(b)))
 	}
 

@@ -44,6 +44,7 @@ docker-daemon - Enable daemon mode
 [**--log-opt**[=*map[]*]]
 [**--mtu**[=*0*]]
 [**-p**|**--pidfile**[=*/var/run/docker.pid*]]
+[**--raw-logs**]
 [**--registry-mirror**[=*[]*]]
 [**-s**|**--storage-driver**[=*STORAGE-DRIVER*]]
 [**--selinux-enabled**]
@@ -196,6 +197,11 @@ unix://[/path/to/socket] to use.
 
 **-p**, **--pidfile**=""
   Path to use for daemon PID file. Default is `/var/run/docker.pid`
+
+**--raw-logs**
+Output daemon logs in full timestamp format without ANSI coloring. If this flag is not set,
+the daemon outputs condensed, colorized logs if a terminal is detected, or full ("raw")
+output otherwise.
 
 **--registry-mirror**=*<scheme>://<host>*
   Prepend a registry mirror to be used for image pulls. May be specified multiple times.
