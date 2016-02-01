@@ -421,7 +421,7 @@ to start the docker daemon on boot
 
 To install the latest version of Docker with `apt-get`:
 
-    $ apt-get upgrade docker-engine
+    $ sudo apt-get upgrade docker-engine
 
 ## Uninstallation
 
