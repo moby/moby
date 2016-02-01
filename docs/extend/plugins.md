@@ -70,6 +70,8 @@ The following plugins exist:
 source volume plugin that provides multi-tenant, persistent, distributed storage
 with intent based consumption using ceph underneath.
 
+* The [Quobyte Volume Plugin](https://github.com/quobyte/docker-volume) connects Docker to [Quobyte](http://www.quobyte.com/containers)'s data center file system, a general-purpose scalable and fault-tolerant storage platform.
+
 * The [Contiv Networking](https://github.com/contiv/netplugin) is an open source
 libnetwork plugin to provide infrastructure and security policies for a
 multi-tenant micro services deployment, while providing an integration to
