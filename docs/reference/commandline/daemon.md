@@ -565,7 +565,7 @@ please check the [run](run.md) reference.
 
 ## Nodes discovery
 
-The `--cluster-advertise` option specifies the 'host:port' or `interface:port`
+The `--cluster-advertise` option specifies the `host:port` or `interface:port`
 combination that this particular daemon instance should use when advertising
 itself to the cluster. The daemon is reached by remote hosts through this value.
 If you  specify an interface, make sure it includes the IP address of the actual
