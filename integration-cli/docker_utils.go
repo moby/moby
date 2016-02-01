@@ -74,6 +74,12 @@ func init() {
 				windowsDaemonKV, _ = strconv.Atoi(strings.Split(server.KernelVersion, " ")[1])
 			}
 		}
+		// Hack for Windows TP4 to ensure we retry dockerCmd if we get the intermittent known return
+		// "HCSShim::CreateComputeSystem - Win32 API call returned error r1=2147746291 err=Invalid class string"
+		// This bug is fixed in TP5 builds.
+		if windowsDaemonKV < 14250 {
+			integration.EnableWindowsRetryHack()
+		}
 	}
 
 	// Now we know the daemon platform, can set paths used by tests.

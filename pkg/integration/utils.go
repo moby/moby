@@ -18,6 +18,23 @@ import (
 	"github.com/docker/docker/pkg/stringutils"
 )
 
+// TODO Windows CI, TP5 timeframe. Remove this retry hack
+var windowsRetryHack bool
+
+func init() {
+	windowsRetryHack = false
+}
+
+// EnableWindowsRetryHack is a workaround for windowsTP4 context. There is a bug
+// in Windows TP4 which causes many tests to fail intermittently with
+// "HCSShim::CreateComputeSystem - Win32 API call returned error r1=2147746291 err=Invalid class string"
+// This has been fixed in TP5. However, to get integration CLI reliability,
+// we retry a command if we hit this error
+func EnableWindowsRetryHack() {
+	fmt.Println("WARN: Enabled retry hack for Windows TP4 reliability")
+	windowsRetryHack = true
+}
+
 // GetExitCode returns the ExitStatus of the specified error if its type is
 // exec.ExitError, returns 0 and an error otherwise.
 func GetExitCode(err error) (int, error) {
@@ -61,12 +78,38 @@ func IsKilled(err error) bool {
 
 // RunCommandWithOutput runs the specified command and returns the combined output (stdout/stderr)
 // with the exitCode different from 0 and the error if something bad happened
-func RunCommandWithOutput(cmd *exec.Cmd) (output string, exitCode int, err error) {
-	exitCode = 0
-	out, err := cmd.CombinedOutput()
-	exitCode = ProcessExitCode(err)
-	output = string(out)
-	return
+func RunCommandWithOutput(cmd *exec.Cmd) (string, int, error) {
+	// TODO Windows CI, TP5 timeframe, once windowsTP4 context does not
+	// exist in Jenkins, remove this retry hack logic.
+	var (
+		output   string
+		exitCode int
+		err      error
+		out      []byte
+	)
+
+	maxAttempts := 1
+	if windowsRetryHack {
+		maxAttempts = 10
+	}
+
+	i := 0
+	savedCmd := *cmd
+	for i < maxAttempts {
+		i++
+		exitCode = 0
+		out, err = cmd.CombinedOutput()
+		exitCode = ProcessExitCode(err)
+		output = string(out)
+		if windowsRetryHack {
+			if !strings.Contains(output, `HCSShim::CreateComputeSystem - Win32 API call returned error r1=2147746291 err=Invalid class string`) {
+				return output, exitCode, err
+			}
+			cmd = &savedCmd // As cmd cannot be reused
+			fmt.Println("WARN: Invoking retry hack as got 'Invalid class string' error on Windows TP4")
+		}
+	}
+	return output, exitCode, err
 }
 
 // RunCommandWithStdoutStderr runs the specified command and returns stdout and stderr separately
