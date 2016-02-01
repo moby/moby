@@ -10,17 +10,18 @@ import (
 	"github.com/docker/engine-api/types"
 )
 
-func (cli *DockerCli) holdHijackedConnection(setRawTerminal bool, inputStream io.ReadCloser, outputStream, errorStream io.Writer, resp types.HijackedResponse) error {
+func (cli *DockerCli) holdHijackedConnection(tty bool, inputStream io.ReadCloser, outputStream, errorStream io.Writer, resp types.HijackedResponse) error {
 	var (
-		err      error
-		oldState *term.State
+		err         error
+		oldState    *term.State
+		restoreTerm bool
 	)
-	if inputStream != nil && setRawTerminal && cli.isTerminalIn && os.Getenv("NORAW") == "" {
+	if inputStream != nil && tty && cli.isTerminalIn && os.Getenv("NORAW") == "" {
+		restoreTerm = true
 		oldState, err = term.SetRawTerminal(cli.inFd)
 		if err != nil {
 			return err
 		}
-		defer term.RestoreTerminal(cli.inFd, oldState)
 	}
 
 	receiveStdout := make(chan error, 1)
@@ -28,7 +29,7 @@ func (cli *DockerCli) holdHijackedConnection(setRawTerminal bool, inputStream io
 		go func() {
 			defer func() {
 				if inputStream != nil {
-					if setRawTerminal && cli.isTerminalIn {
+					if restoreTerm {
 						term.RestoreTerminal(cli.inFd, oldState)
 					}
 					inputStream.Close()
@@ -36,7 +37,7 @@ func (cli *DockerCli) holdHijackedConnection(setRawTerminal bool, inputStream io
 			}()
 
 			// When TTY is ON, use regular copy
-			if setRawTerminal && outputStream != nil {
+			if tty && outputStream != nil {
 				_, err = io.Copy(outputStream, resp.Reader)
 			} else {
 				_, err = stdcopy.StdCopy(outputStream, errorStream, resp.Reader)
