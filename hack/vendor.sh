@@ -7,6 +7,7 @@ source 'hack/.vendor-helpers.sh'
 
 # the following lines are in sorted order, FYI
 clone git github.com/Azure/go-ansiterm 70b2c90b260171e829f1ebd7c17f600c11858dbe
+clone git github.com/Microsoft/go-winio 2b085935f02c272e7a1855df6f8fe03029ffcadd
 clone git github.com/Sirupsen/logrus v0.8.7 # logrus is a common dependency among multiple deps
 clone git github.com/docker/libtrust 9cbd2a1374f46905c68a4eb3694a130610adc62a
 clone git github.com/go-check/check 11d3bc7aa68e238947792f30573146a3231fc0f1
@@ -15,7 +16,7 @@ clone git github.com/gorilla/mux e444e69cbd
 clone git github.com/kr/pty 5cf931ef8f
 clone git github.com/mattn/go-shellwords v1.0.0
 clone git github.com/mattn/go-sqlite3 v1.1.0
-clone git github.com/microsoft/hcsshim de43b42b5ce14dfdcbeedb0628b0032174d89caa
+clone git github.com/microsoft/hcsshim 35ad4d808a97203cb1748d7c43167e91f51e7f86
 clone git github.com/mistifyio/go-zfs v2.1.1
 clone git github.com/tchap/go-patricia v2.1.0
 clone git github.com/vdemeester/shakers 3c10293ce22b900c27acad7b28656196fcc2f73b

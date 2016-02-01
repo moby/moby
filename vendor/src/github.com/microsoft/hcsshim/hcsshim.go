@@ -7,46 +7,39 @@ import (
 	"fmt"
 	"syscall"
 	"unsafe"
-
-	"github.com/Sirupsen/logrus"
 )
 
+//go:generate go run mksyscall_windows.go -output zhcsshim.go hcsshim.go
+
+//sys coTaskMemFree(buffer unsafe.Pointer) = ole32.CoTaskMemFree
+
+//sys activateLayer(info *driverInfo, id string) (hr error) = vmcompute.ActivateLayer?
+//sys copyLayer(info *driverInfo, srcId string, dstId string, descriptors []WC_LAYER_DESCRIPTOR) (hr error) = vmcompute.CopyLayer?
+//sys createLayer(info *driverInfo, id string, parent string) (hr error) = vmcompute.CreateLayer?
+//sys createSandboxLayer(info *driverInfo, id string, parent string, descriptors []WC_LAYER_DESCRIPTOR) (hr error) = vmcompute.CreateSandboxLayer?
+//sys deactivateLayer(info *driverInfo, id string) (hr error) = vmcompute.DeactivateLayer?
+//sys destroyLayer(info *driverInfo, id string) (hr error) = vmcompute.DestroyLayer?
+//sys exportLayer(info *driverInfo, id string, path string, descriptors []WC_LAYER_DESCRIPTOR) (hr error) = vmcompute.ExportLayer?
+//sys getLayerMountPath(info *driverInfo, id string, length *uintptr, buffer *uint16) (hr error) = vmcompute.GetLayerMountPath?
+//sys getBaseImages(buffer **uint16) (hr error) = vmcompute.GetBaseImages?
+//sys importLayer(info *driverInfo, id string, path string, descriptors []WC_LAYER_DESCRIPTOR) (hr error) = vmcompute.ImportLayer?
+//sys layerExists(info *driverInfo, id string, exists *uint32) (hr error) = vmcompute.LayerExists?
+//sys nameToGuid(name string, guid *GUID) (hr error) = vmcompute.NameToGuid?
+//sys prepareLayer(info *driverInfo, id string, descriptors []WC_LAYER_DESCRIPTOR) (hr error) = vmcompute.PrepareLayer?
+//sys unprepareLayer(info *driverInfo, id string) (hr error) = vmcompute.UnprepareLayer?
+
+//sys createComputeSystem(id string, configuration string) (hr error) = vmcompute.CreateComputeSystem?
+//sys createProcessWithStdHandlesInComputeSystem(id string, paramsJson string, pid *uint32, stdin *syscall.Handle, stdout *syscall.Handle, stderr *syscall.Handle) (hr error) = vmcompute.CreateProcessWithStdHandlesInComputeSystem?
+//sys resizeConsoleInComputeSystem(id string, pid uint32, height uint16, width uint16, flags uint32) (hr error) = vmcompute.ResizeConsoleInComputeSystem?
+//sys shutdownComputeSystem(id string, timeout uint32) (hr error) = vmcompute.ShutdownComputeSystem?
+//sys startComputeSystem(id string) (hr error) = vmcompute.StartComputeSystem?
+//sys terminateComputeSystem(id string) (hr error) = vmcompute.TerminateComputeSystem?
+//sys terminateProcessInComputeSystem(id string, pid uint32) (hr error) = vmcompute.TerminateProcessInComputeSystem?
+//sys waitForProcessInComputeSystem(id string, pid uint32, timeout uint32, exitCode *uint32) (hr error) = vmcompute.WaitForProcessInComputeSystem?
+
+//sys _hnsCall(method string, path string, object string, response **uint16) (hr error) = vmcompute.HNSCall?
+
 const (
-	// Name of the shim DLL for access to the HCS
-	shimDLLName = "vmcompute.dll"
-
-	// Container related functions in the shim DLL
-	procCreateComputeSystem                        = "CreateComputeSystem"
-	procStartComputeSystem                         = "StartComputeSystem"
-	procCreateProcessWithStdHandlesInComputeSystem = "CreateProcessWithStdHandlesInComputeSystem"
-	procWaitForProcessInComputeSystem              = "WaitForProcessInComputeSystem"
-	procShutdownComputeSystem                      = "ShutdownComputeSystem"
-	procTerminateComputeSystem                     = "TerminateComputeSystem"
-	procTerminateProcessInComputeSystem            = "TerminateProcessInComputeSystem"
-	procResizeConsoleInComputeSystem               = "ResizeConsoleInComputeSystem"
-
-	// Storage related functions in the shim DLL
-	procLayerExists         = "LayerExists"
-	procCreateLayer         = "CreateLayer"
-	procDestroyLayer        = "DestroyLayer"
-	procActivateLayer       = "ActivateLayer"
-	procDeactivateLayer     = "DeactivateLayer"
-	procGetLayerMountPath   = "GetLayerMountPath"
-	procCopyLayer           = "CopyLayer"
-	procCreateSandboxLayer  = "CreateSandboxLayer"
-	procPrepareLayer        = "PrepareLayer"
-	procUnprepareLayer      = "UnprepareLayer"
-	procExportLayer         = "ExportLayer"
-	procImportLayer         = "ImportLayer"
-	procGetSharedBaseImages = "GetBaseImages"
-	procNameToGuid          = "NameToGuid"
-
-	// Name of the standard OLE dll
-	oleDLLName = "Ole32.dll"
-
-	// Utility functions
-	procCoTaskMemFree = "CoTaskMemFree"
-
 	// Specific user-visible exit codes
 	WaitErrExecFailed = 32767
 
@@ -56,49 +49,45 @@ const (
 	Win32SpecifiedPathInvalid             = 0x800700A1 // ShutdownComputeSystem: The specified path is invalid
 	Win32SystemCannotFindThePathSpecified = 0x80070003 // ShutdownComputeSystem: The system cannot find the path specified
 	Win32InvalidArgument                  = 0x80072726 // CreateProcessInComputeSystem: An invalid argument was supplied
+	EFail                                 = 0x80004005
 
 	// Timeout on wait calls
 	TimeoutInfinite = 0xFFFFFFFF
 )
 
-// loadAndFindFromDll finds a procedure in the given DLL. Note we do NOT do lazy loading as
-// go is particularly unfriendly in the case of a mismatch. By that - it panics
-// if a function can't be found. By explicitly loading, we can control error
-// handling gracefully without the daemon terminating.
-func loadAndFindFromDll(dllName, procedure string) (dll *syscall.DLL, proc *syscall.Proc, err error) {
-	dll, err = syscall.LoadDLL(dllName)
-	if err != nil {
-		err = fmt.Errorf("Failed to load %s - error %s", dllName, err)
-		logrus.Error(err)
-		return
-	}
-
-	proc, err = dll.FindProc(procedure)
-	if err != nil {
-		err = fmt.Errorf("Failed to find %s in %s", procedure, dllName)
-		logrus.Error(err)
-		return
-	}
-
-	return
+type hcsError struct {
+	title string
+	rest  string
+	err   error
 }
 
-// loadAndFind finds a procedure in the shim DLL.
-func loadAndFind(procedure string) (*syscall.DLL, *syscall.Proc, error) {
-
-	return loadAndFindFromDll(shimDLLName, procedure)
+type Win32Error interface {
+	error
+	HResult() uint32
 }
 
-// use is a no-op, but the compiler cannot see that it is.
-// Calling use(p) ensures that p is kept live until that point.
-/*
-//go:noescape
-func use(p unsafe.Pointer)
-*/
+func makeError(err error, title, rest string) Win32Error {
+	return &hcsError{title, rest, err}
+}
 
-// Alternate without using //go:noescape and asm.s
-var temp unsafe.Pointer
+func makeErrorf(err error, title, format string, a ...interface{}) Win32Error {
+	return makeError(err, title, fmt.Sprintf(format, a...))
+}
 
-func use(p unsafe.Pointer) {
-	temp = p
+func (e *hcsError) HResult() uint32 {
+	if hr, ok := e.err.(syscall.Errno); ok {
+		return uint32(hr)
+	} else {
+		return EFail
+	}
+}
+
+func (e *hcsError) Error() string {
+	return fmt.Sprintf("%s- Win32 API call returned error r1=0x%x err=%s%s", e.title, e.HResult(), e.err, e.rest)
+}
+
+func convertAndFreeCoTaskMemString(buffer *uint16) string {
+	str := syscall.UTF16ToString((*[1 << 30]uint16)(unsafe.Pointer(buffer))[:])
+	coTaskMemFree(unsafe.Pointer(buffer))
+	return str
 }
