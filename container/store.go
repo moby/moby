@@ -6,7 +6,7 @@ type StoreFilter func(*Container) bool
 
 // StoreReducer defines a function to
 // manipulate containers in the store
-type StoreReducer func(*Container)
+type StoreReducer func(*Container) error
 
 // Store defines an interface that
 // any container store must implement.
@@ -25,4 +25,8 @@ type Store interface {
 	First(StoreFilter) *Container
 	// ApplyAll calls the reducer function with every container in the store.
 	ApplyAll(StoreReducer)
+	// ReduceAll filters a list of containers and calls the reducer function with each one of them.
+	ReduceAll(StoreFilter, StoreReducer) error
+	// ReduceOne gets a controller and calls the reducer function with it.
+	ReduceOne(string, StoreReducer) error
 }

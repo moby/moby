@@ -864,16 +864,17 @@ func (daemon *Daemon) Shutdown() error {
 	daemon.shutdown = true
 	if daemon.containers != nil {
 		logrus.Debug("starting clean shutdown of all containers...")
-		daemon.containers.ApplyAll(func(c *container.Container) {
+		daemon.containers.ApplyAll(func(c *container.Container) error {
 			if !c.IsRunning() {
-				return
+				return nil
 			}
 			logrus.Debugf("stopping %s", c.ID)
 			if err := daemon.shutdownContainer(c); err != nil {
 				logrus.Errorf("Stop container error: %v", err)
-				return
+				return err
 			}
 			logrus.Debugf("container stopped %s", c.ID)
+			return nil
 		})
 	}
 

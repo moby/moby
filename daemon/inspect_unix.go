@@ -19,16 +19,8 @@ func setPlatformSpecificContainerFields(container *container.Container, contJSON
 }
 
 // containerInspectPre120 gets containers for pre 1.20 APIs.
-func (daemon *Daemon) containerInspectPre120(name string) (*v1p19.ContainerJSON, error) {
-	container, err := daemon.GetContainer(name)
-	if err != nil {
-		return nil, err
-	}
-
-	container.Lock()
-	defer container.Unlock()
-
-	base, err := daemon.getInspectData(container, false)
+func (ctx *inspectContext) containerInspectPre120(container *container.Container) (*v1p19.ContainerJSON, error) {
+	base, err := ctx.getInspectData(container)
 	if err != nil {
 		return nil, err
 	}
@@ -51,7 +43,7 @@ func (daemon *Daemon) containerInspectPre120(name string) (*v1p19.ContainerJSON,
 		CPUShares:       container.HostConfig.CPUShares,
 		CPUSet:          container.HostConfig.CpusetCpus,
 	}
-	networkSettings := daemon.getBackwardsCompatibleNetworkSettings(container.NetworkSettings)
+	networkSettings := ctx.daemon.getBackwardsCompatibleNetworkSettings(container.NetworkSettings)
 
 	return &v1p19.ContainerJSON{
 		ContainerJSONBase: base,

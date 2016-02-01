@@ -1,8 +1,8 @@
 package daemon
 
 import (
-	"errors"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -17,30 +17,6 @@ import (
 
 var acceptedVolumeFilterTags = map[string]bool{
 	"dangling": true,
-}
-
-// iterationAction represents possible outcomes happening during the container iteration.
-type iterationAction int
-
-// containerReducer represents a reducer for a container.
-// Returns the object to serialize by the api.
-type containerReducer func(*container.Container, *listContext) (*types.Container, error)
-
-const (
-	// includeContainer is the action to include a container in the reducer.
-	includeContainer iterationAction = iota
-	// excludeContainer is the action to exclude a container in the reducer.
-	excludeContainer
-	// stopIteration is the action to stop iterating over the list of containers.
-	stopIteration
-)
-
-// errStopIteration makes the iterator to stop without returning an error.
-var errStopIteration = errors.New("container list iteration stopped")
-
-// List returns an array of all containers registered in the daemon.
-func (daemon *Daemon) List() []*container.Container {
-	return daemon.containers.List()
 }
 
 // ContainersConfig is the filtering specified by the user to iterate over containers.
@@ -62,8 +38,6 @@ type ContainersConfig struct {
 // listContext is the daemon generated filtering to iterate over containers.
 // This is created based on the user specification.
 type listContext struct {
-	// idx is the container iteration index for this context
-	idx int
 	// ancestorFilter tells whether it should check ancestors or not
 	ancestorFilter bool
 	// names is a list of container names to filter with
@@ -86,11 +60,10 @@ type listContext struct {
 
 // Containers returns the list of containers to show given the user's filtering.
 func (daemon *Daemon) Containers(config *ContainersConfig) ([]*types.Container, error) {
-	return daemon.reduceContainers(config, daemon.transformContainer)
-}
-
-// reduceContainer parses the user filtering and generates the list of containers to return based on a reducer.
-func (daemon *Daemon) reduceContainers(config *ContainersConfig, reducer containerReducer) ([]*types.Container, error) {
+	// initialize containers as an empty slice
+	// to return `[]` when there are no containers
+	// rather than `null`, like it'd return
+	// using `var containers []*types.Container`.
 	containers := []*types.Container{}
 
 	ctx, err := daemon.foldFilter(config)
@@ -98,38 +71,28 @@ func (daemon *Daemon) reduceContainers(config *ContainersConfig, reducer contain
 		return nil, err
 	}
 
-	for _, container := range daemon.List() {
-		t, err := daemon.reducePsContainer(container, ctx, reducer)
+	err = daemon.containers.ReduceAll(ctx.filterContainer, func(cont *container.Container) error {
+		t, err := daemon.transformContainer(cont, ctx)
 		if err != nil {
-			if err != errStopIteration {
-				return nil, err
-			}
-			break
+			return err
 		}
-		if t != nil {
-			containers = append(containers, t)
-			ctx.idx++
+		containers = append(containers, t)
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	if len(containers) > 0 {
+		history := sortContainersByCreated(containers)
+		sort.Sort(history)
+		containers = history
+		if ctx.Limit > 0 {
+			containers = containers[:ctx.Limit]
 		}
 	}
+
 	return containers, nil
-}
-
-// reducePsContainer is the basic representation for a container as expected by the ps command.
-func (daemon *Daemon) reducePsContainer(container *container.Container, ctx *listContext, reducer containerReducer) (*types.Container, error) {
-	container.Lock()
-	defer container.Unlock()
-
-	// filter containers to return
-	action := includeContainerInList(container, ctx)
-	switch action {
-	case excludeContainer:
-		return nil, nil
-	case stopIteration:
-		return nil, errStopIteration
-	}
-
-	// transform internal container struct into api structs
-	return reducer(container, ctx)
 }
 
 // foldFilter generates the container filter based in the user's filtering options.
@@ -229,30 +192,30 @@ func (daemon *Daemon) foldFilter(config *ContainersConfig) (*listContext, error)
 
 // includeContainerInList decides whether a containers should be include in the output or not based in the filter.
 // It also decides if the iteration should be stopped or not.
-func includeContainerInList(container *container.Container, ctx *listContext) iterationAction {
+func (ctx *listContext) filterContainer(container *container.Container) bool {
 	// Do not include container if it's stopped and we're not filters
 	if !container.Running && !ctx.All && ctx.Limit <= 0 && ctx.beforeFilter == nil && ctx.sinceFilter == nil {
-		return excludeContainer
+		return false
 	}
 
 	// Do not include container if the name doesn't match
 	if !ctx.filters.Match("name", container.Name) {
-		return excludeContainer
+		return false
 	}
 
 	// Do not include container if the id doesn't match
 	if !ctx.filters.Match("id", container.ID) {
-		return excludeContainer
+		return false
 	}
 
 	// Do not include container if any of the labels don't match
 	if !ctx.filters.MatchKVList("label", container.Config.Labels) {
-		return excludeContainer
+		return false
 	}
 
 	// Do not include container if the isolation mode doesn't match
-	if excludeContainer == excludeByIsolation(container, ctx) {
-		return excludeContainer
+	if excludeByIsolation(container.HostConfig.Isolation, ctx) {
+		return false
 	}
 
 	// Do not include container if it's in the list before the filter container.
@@ -261,19 +224,14 @@ func includeContainerInList(container *container.Container, ctx *listContext) it
 		if container.ID == ctx.beforeFilter.ID {
 			ctx.beforeFilter = nil
 		}
-		return excludeContainer
+		return false
 	}
 
 	// Stop iteration when the container arrives to the filter container
 	if ctx.sinceFilter != nil {
 		if container.ID == ctx.sinceFilter.ID {
-			return stopIteration
+			return false
 		}
-	}
-
-	// Stop iteration when the index is over the limit
-	if ctx.Limit > 0 && ctx.idx == ctx.Limit {
-		return stopIteration
 	}
 
 	// Do not include container if its exit code is not in the filter
@@ -286,25 +244,25 @@ func includeContainerInList(container *container.Container, ctx *listContext) it
 			}
 		}
 		if shouldSkip {
-			return excludeContainer
+			return false
 		}
 	}
 
 	// Do not include container if its status doesn't match the filter
 	if !ctx.filters.Match("status", container.State.StateString()) {
-		return excludeContainer
+		return false
 	}
 
 	if ctx.ancestorFilter {
 		if len(ctx.images) == 0 {
-			return excludeContainer
+			return false
 		}
 		if !ctx.images[container.ImageID] {
-			return excludeContainer
+			return false
 		}
 	}
 
-	return includeContainer
+	return true
 }
 
 // transformContainer generates the container type expected by the docker ps command.
@@ -456,3 +414,9 @@ func populateImageFilterByParents(ancestorMap map[image.ID]bool, imageID image.I
 		ancestorMap[imageID] = true
 	}
 }
+
+type sortContainersByCreated []*types.Container
+
+func (r sortContainersByCreated) Len() int           { return len(r) }
+func (r sortContainersByCreated) Swap(i, j int)      { r[i], r[j] = r[j], r[i] }
+func (r sortContainersByCreated) Less(i, j int) bool { return r[i].Created > r[j].Created }
