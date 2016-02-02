@@ -19,7 +19,6 @@ import (
 const defaultDaemonConfigFile = "/etc/docker/daemon.json"
 
 func setPlatformServerConfig(serverConfig *apiserver.Config, daemonCfg *daemon.Config) *apiserver.Config {
-	serverConfig.SocketGroup = daemonCfg.SocketGroup
 	serverConfig.EnableCors = daemonCfg.EnableCors
 	serverConfig.CorsHeaders = daemonCfg.CorsHeaders
 
