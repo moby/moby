@@ -128,7 +128,9 @@ func (daemon *Daemon) registerMountPoints(container *container.Container, hostCo
 			// bind.Name is an already existing volume, we need to use that here
 			bind.Driver = v.DriverName()
 			bind.Named = true
-			bind = setBindModeIfNull(bind)
+			if bind.Driver == "local" {
+				bind = setBindModeIfNull(bind)
+			}
 		}
 		if label.RelabelNeeded(bind.Mode) {
 			if err := label.Relabel(bind.Source, container.MountLabel, label.IsShared(bind.Mode)); err != nil {
