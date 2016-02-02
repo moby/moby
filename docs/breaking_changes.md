@@ -47,5 +47,5 @@ work as you would expect.
 ## Docker Content Trust
 
 Engine older than the current 1.10 cannot pull images from repositories that
-have enabled key delegation. Key delegation is an experimental feature which
-requires a manual action to enable.
+have enabled key delegation. Key delegation is a feature which requires a
+manual action to enable.
