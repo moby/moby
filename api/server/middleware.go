@@ -147,7 +147,7 @@ func versionMiddleware(handler httputils.APIFunc) httputils.APIFunc {
 			return errors.ErrorCodeNewerClientVersion.WithArgs(apiVersion, api.DefaultVersion)
 		}
 		if apiVersion.LessThan(api.MinVersion) {
-			return errors.ErrorCodeOldClientVersion.WithArgs(apiVersion, api.DefaultVersion)
+			return errors.ErrorCodeOldClientVersion.WithArgs(apiVersion, api.MinVersion)
 		}
 
 		w.Header().Set("Server", "Docker/"+dockerversion.Version+" ("+runtime.GOOS+")")
