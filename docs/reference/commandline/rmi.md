@@ -63,7 +63,7 @@ command untags and removes all images that match the specified ID.
 An image pulled by digest has no tag associated with it:
 
     $ docker images --digests
-    REPOSITORY                     TAG       DIGEST                                                                    IMAGE ID        CREATED         VIRTUAL SIZE
+    REPOSITORY                     TAG       DIGEST                                                                    IMAGE ID        CREATED         SIZE
     localhost:5000/test/busybox    <none>    sha256:cbbf2f9a99b47fc460d422812b6a5adff7dfee951d8fa2e4a98caa0382cfbdbf   4986bf8c1536    9 weeks ago     2.43 MB
 
 To remove an image using its digest:

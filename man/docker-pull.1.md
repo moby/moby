@@ -43,7 +43,7 @@ Note that if the  image is previously downloaded then the status would be
     Status: Downloaded newer image for fedora
 
     $ docker images
-    REPOSITORY   TAG         IMAGE ID        CREATED      VIRTUAL SIZE
+    REPOSITORY   TAG         IMAGE ID        CREATED      SIZE
     fedora       rawhide     ad57ef8d78d7    5 days ago   359.3 MB
     fedora       20          105182bb5e8b    5 days ago   372.7 MB
     fedora       heisenbug   105182bb5e8b    5 days ago   372.7 MB
@@ -60,7 +60,7 @@ Note that if the  image is previously downloaded then the status would be
     Status: Downloaded newer image for debian:latest
     
     $ docker images
-    REPOSITORY   TAG         IMAGE ID        CREATED      VIRTUAL SIZE
+    REPOSITORY   TAG         IMAGE ID        CREATED      SIZE
     debian       latest     4a5e6db8c069     5 days ago   125.1 MB
          
 
@@ -77,7 +77,7 @@ Note that if the  image is previously downloaded then the status would be
     Status: Downloaded newer image for registry.hub.docker.com/fedora:20
 
     $ docker images
-    REPOSITORY   TAG         IMAGE ID        CREATED      VIRTUAL SIZE
+    REPOSITORY   TAG         IMAGE ID        CREATED      SIZE
     fedora       20          3f2fed40e4b0    4 days ago   372.7 MB
 
 

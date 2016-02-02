@@ -46,7 +46,7 @@ created.  Supported `Dockerfile` instructions:
     $ docker commit c3f279d17e0a  svendowideit/testimage:version3
     f5283438590d
     $ docker images
-    REPOSITORY                        TAG                 ID                  CREATED             VIRTUAL SIZE
+    REPOSITORY                        TAG                 ID                  CREATED             SIZE
     svendowideit/testimage            version3            f5283438590d        16 seconds ago      335.7 MB
 
 ## Commit a container with new configurations
