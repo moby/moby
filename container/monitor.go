@@ -218,7 +218,7 @@ func (m *containerMonitor) start() error {
 		m.resetMonitor(err == nil && exitStatus.ExitCode == 0)
 
 		if m.shouldRestart(exitStatus.ExitCode) {
-			m.container.SetRestarting(&exitStatus)
+			m.container.SetRestartingLocking(&exitStatus)
 			m.logEvent("die")
 			m.resetContainer(true)
 
