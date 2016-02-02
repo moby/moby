@@ -21,6 +21,15 @@ const (
 	disableNetworkBridge = "none"
 )
 
+// flatOptions contains configuration keys
+// that MUST NOT be parsed as deep structures.
+// Use this to differentiate these options
+// with others like the ones in CommonTLSOptions.
+var flatOptions = map[string]bool{
+	"cluster-store-opts": true,
+	"log-opts":           true,
+}
+
 // LogConfig represents the default log configuration.
 // It includes json tags to deserialize configuration from a file
 // using the same names that the flags in the command line uses.
@@ -208,13 +217,14 @@ func getConflictFreeConfiguration(configFile string, flags *flag.FlagSet) (*Conf
 func configValuesSet(config map[string]interface{}) map[string]interface{} {
 	flatten := make(map[string]interface{})
 	for k, v := range config {
-		if m, ok := v.(map[string]interface{}); ok {
+		if m, isMap := v.(map[string]interface{}); isMap && !flatOptions[k] {
 			for km, vm := range m {
 				flatten[km] = vm
 			}
-		} else {
-			flatten[k] = v
+			continue
 		}
+
+		flatten[k] = v
 	}
 	return flatten
 }
