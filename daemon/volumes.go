@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/execdriver"
@@ -131,7 +132,7 @@ func (daemon *Daemon) registerMountPoints(container *container.Container, hostCo
 			bind = setBindModeIfNull(bind)
 		}
 		if label.RelabelNeeded(bind.Mode) {
-			if err := label.Relabel(bind.Source, container.MountLabel, label.IsShared(bind.Mode)); err != nil {
+			if err := label.Relabel(bind.Source, container.MountLabel, label.IsShared(bind.Mode)); err != nil && err != syscall.ENOTSUP {
 				return err
 			}
 		}
