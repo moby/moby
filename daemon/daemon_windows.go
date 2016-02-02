@@ -115,6 +115,11 @@ func configureKernelSecuritySupport(config *Config, driverName string) error {
 	return nil
 }
 
+// configureMaxThreads sets the Go runtime max threads threshold
+func configureMaxThreads(config *Config) error {
+	return nil
+}
+
 func isBridgeNetworkDisabled(config *Config) bool {
 	return false
 }
