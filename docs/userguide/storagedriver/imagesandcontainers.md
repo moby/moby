@@ -101,7 +101,7 @@ single 8GB general purpose SSD EBS volume. The Docker data directory
 (`/var/lib/docker`) was consuming 2GB of space.
 
     $ docker images
-    REPOSITORY          TAG                 IMAGE ID            CREATED             VIRTUAL SIZE
+    REPOSITORY          TAG                 IMAGE ID            CREATED             SIZE
     jenkins             latest              285c9f0f9d3d        17 hours ago        708.5 MB
     mysql               latest              d39c3fa09ced        8 days ago          360.3 MB
     mongo               latest              a74137af4532        13 days ago         317.4 MB
@@ -312,7 +312,7 @@ command.
 5. Run the `docker images` command to verify the new `changed-ubuntu` image is 
 6. in the Docker host's local storage area.
 
-        REPOSITORY       TAG      IMAGE ID       CREATED           VIRTUAL SIZE
+        REPOSITORY       TAG      IMAGE ID       CREATED           SIZE
         changed-ubuntu   latest   03b964f68d06   33 seconds ago    131.4 MB
         ubuntu           15.04    013f3d01d247   6 weeks ago       131.3 MB
 
