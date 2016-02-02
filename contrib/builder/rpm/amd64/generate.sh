@@ -118,37 +118,6 @@ for version in "${versions[@]}"; do
 
 	echo >> "$version/Dockerfile"
 
-	# TODO remove this since dockerinit is finally gone
-	case "$from" in
-		fedora:*)
-			awk '$1 == "ENV" && $2 == "SECCOMP_VERSION" { print; exit }' ../../../Dockerfile >> "$version/Dockerfile"
-			cat <<-'EOF' >> "$version/Dockerfile"
-			RUN buildDeps=' \
-				automake \
-				libtool \
-			' \
-			&& set -x \
-			&& yum install -y $buildDeps \
-			&& export SECCOMP_PATH=$(mktemp -d) \
-			&& curl -fsSL "https://github.com/seccomp/libseccomp/releases/download/v${SECCOMP_VERSION}/libseccomp-${SECCOMP_VERSION}.tar.gz" \
-			| tar -xzC "$SECCOMP_PATH" --strip-components=1 \
-			&& ( \
-				cd "$SECCOMP_PATH" \
-				&& ./configure --prefix=/usr \
-				&& make \
-				&& install -c src/.libs/libseccomp.a /usr/lib/libseccomp.a \
-				&& chmod 644 /usr/lib/libseccomp.a \
-				&& ranlib /usr/lib/libseccomp.a \
-				&& ldconfig -n /usr/lib \
-			) \
-			&& rm -rf "$SECCOMP_PATH"
-			EOF
-
-			echo >> "$version/Dockerfile"
-			;;
-		*) ;;
-	esac
-
 	case "$from" in
 		oraclelinux:6)
 			# We need a known version of the kernel-uek-devel headers to set CGO_CPPFLAGS, so grab the UEKR4 GA version
