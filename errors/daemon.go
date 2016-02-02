@@ -226,12 +226,12 @@ var (
 	})
 
 	// ErrorCodeIPCRunning is generated when we try to join a container's
-	// IPC but its not running.
+	// IPC but it's not running.
 	ErrorCodeIPCRunning = errcode.Register(errGroup, errcode.ErrorDescriptor{
 		Value:          "IPCRUNNING",
 		Message:        "cannot join IPC of a non running container: %s",
 		Description:    "An attempt was made to join the IPC of a container, but the container is not running",
-		HTTPStatusCode: http.StatusInternalServerError,
+		HTTPStatusCode: http.StatusConflict,
 	})
 
 	// ErrorCodeNotADir is generated when we try to create a directory
@@ -265,7 +265,7 @@ var (
 		Value:          "JOINRUNNING",
 		Message:        "cannot join network of a non running container: %s",
 		Description:    "An attempt to join the network of a container, but that container isn't running",
-		HTTPStatusCode: http.StatusInternalServerError,
+		HTTPStatusCode: http.StatusConflict,
 	})
 
 	// ErrorCodeModeNotContainer is generated when we try to network to
