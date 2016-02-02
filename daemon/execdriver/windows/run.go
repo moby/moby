@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/execdriver"
@@ -223,10 +224,32 @@ func (d *Driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, hooks execd
 
 	configuration := string(configurationb)
 
-	err = hcsshim.CreateComputeSystem(c.ID, configuration)
-	if err != nil {
-		logrus.Debugln("Failed to create temporary container ", err)
-		return execdriver.ExitStatus{ExitCode: -1}, err
+	// TODO Windows TP5 timeframe. Remove when TP4 is no longer supported.
+	// The following a workaround for Windows TP4 which has a networking
+	// bug which fairly frequently returns an error. Back off and retry.
+	maxAttempts := 1
+	if TP4RetryHack {
+		maxAttempts = 5
+	}
+	i := 0
+	for i < maxAttempts {
+		i++
+		err = hcsshim.CreateComputeSystem(c.ID, configuration)
+		if err != nil {
+			if TP4RetryHack {
+				if !strings.Contains(err.Error(), `Win32 API call returned error r1=2147746291`) && // Invalid class string
+					!strings.Contains(err.Error(), `Win32 API call returned error r1=2147943568`) && // Element not found
+					!strings.Contains(err.Error(), `Win32 API call returned error r1=2147942402`) && // The system cannot find the file specified
+					!strings.Contains(err.Error(), `Win32 API call returned error r1=2147943622`) { // The network is not present or not started
+					logrus.Debugln("Failed to create temporary container ", err)
+					return execdriver.ExitStatus{ExitCode: -1}, err
+				}
+				logrus.Warnf("Invoking Windows TP4 retry hack (%d of %d)", i, maxAttempts-1)
+				time.Sleep(50 * time.Millisecond)
+			}
+		} else {
+			break
+		}
 	}
 
 	// Start the container
