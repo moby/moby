@@ -238,12 +238,56 @@ func TestLoadDaemonConfigWithEmbeddedOptions(t *testing.T) {
 		t.Fatal(err)
 	}
 	if loadedConfig == nil {
-		t.Fatalf("expected configuration %v, got nil", c)
+		t.Fatal("expected configuration, got nil")
 	}
 	if loadedConfig.CommonTLSOptions.CAFile != "/etc/certs/ca.pem" {
 		t.Fatalf("expected CA file path /etc/certs/ca.pem, got %v", loadedConfig.CommonTLSOptions.CAFile)
 	}
 	if loadedConfig.LogConfig.Type != "syslog" {
 		t.Fatalf("expected LogConfig type syslog, got %v", loadedConfig.LogConfig.Type)
+	}
+}
+
+func TestLoadDaemonConfigWithMapOptions(t *testing.T) {
+	c := &daemon.Config{}
+	common := &cli.CommonFlags{}
+	flags := mflag.NewFlagSet("test", mflag.ContinueOnError)
+
+	flags.Var(opts.NewNamedMapOpts("cluster-store-opts", c.ClusterOpts, nil), []string{"-cluster-store-opt"}, "")
+	flags.Var(opts.NewNamedMapOpts("log-opts", c.LogConfig.Config, nil), []string{"-log-opt"}, "")
+
+	f, err := ioutil.TempFile("", "docker-config-")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	configFile := f.Name()
+	f.Write([]byte(`{
+		"cluster-store-opts": {"kv.cacertfile": "/var/lib/docker/discovery_certs/ca.pem"},
+		"log-opts": {"tag": "test"}
+}`))
+	f.Close()
+
+	loadedConfig, err := loadDaemonCliConfig(c, flags, common, configFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loadedConfig == nil {
+		t.Fatal("expected configuration, got nil")
+	}
+	if loadedConfig.ClusterOpts == nil {
+		t.Fatal("expected cluster options, got nil")
+	}
+
+	expectedPath := "/var/lib/docker/discovery_certs/ca.pem"
+	if caPath := loadedConfig.ClusterOpts["kv.cacertfile"]; caPath != expectedPath {
+		t.Fatalf("expected %s, got %s", expectedPath, caPath)
+	}
+
+	if loadedConfig.LogConfig.Config == nil {
+		t.Fatal("expected log config options, got nil")
+	}
+	if tag := loadedConfig.LogConfig.Config["tag"]; tag != "test" {
+		t.Fatalf("expected log tag `test`, got %s", tag)
 	}
 }
