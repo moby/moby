@@ -349,14 +349,6 @@ func (d *Driver) Terminate(c *execdriver.Command) error {
 	return err
 }
 
-// Info implements the exec driver Driver interface.
-func (d *Driver) Info(id string) execdriver.Info {
-	return &info{
-		ID:     id,
-		driver: d,
-	}
-}
-
 // Name implements the exec driver Driver interface.
 func (d *Driver) Name() string {
 	return fmt.Sprintf("%s-%s", DriverName, Version)
