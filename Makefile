@@ -93,7 +93,8 @@ deb: build
 docs:
 	$(MAKE) -C docs docs
 
-gccgo: build
+gccgo:
+	docker build ${DOCKER_BUILD_ARGS} -t "$(DOCKER_IMAGE)-gccgo" -f "$(DOCKERFILE).gccgo" .
 	$(DOCKER_RUN_DOCKER) hack/make.sh gccgo
 
 rpm: build
