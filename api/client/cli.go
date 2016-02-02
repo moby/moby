@@ -96,7 +96,11 @@ func (cli *DockerCli) restoreTerminal(in io.Closer) error {
 	if cli.state != nil {
 		term.RestoreTerminal(cli.inFd, cli.state)
 	}
-	if in != nil {
+	// WARNING: DO NOT REMOVE THE OS CHECK !!!
+	// For some reason this Close call blocks on darwin..
+	// As the client exists right after, simply discard the close
+	// until we find a better solution.
+	if in != nil && runtime.GOOS != "darwin" {
 		return in.Close()
 	}
 	return nil
