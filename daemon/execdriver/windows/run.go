@@ -237,10 +237,10 @@ func (d *Driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, hooks execd
 		err = hcsshim.CreateComputeSystem(c.ID, configuration)
 		if err != nil {
 			if TP4RetryHack {
-				if !strings.Contains(err.Error(), `Win32 API call returned error r1=2147746291`) && // Invalid class string
-					!strings.Contains(err.Error(), `Win32 API call returned error r1=2147943568`) && // Element not found
-					!strings.Contains(err.Error(), `Win32 API call returned error r1=2147942402`) && // The system cannot find the file specified
-					!strings.Contains(err.Error(), `Win32 API call returned error r1=2147943622`) { // The network is not present or not started
+				if !strings.Contains(err.Error(), `Win32 API call returned error r1=0x800401f3`) && // Invalid class string
+					!strings.Contains(err.Error(), `Win32 API call returned error r1=0x80070490`) && // Element not found
+					!strings.Contains(err.Error(), `Win32 API call returned error r1=0x80070002`) && // The system cannot find the file specified
+					!strings.Contains(err.Error(), `Win32 API call returned error r1=0x800704c6`) { // The network is not present or not started
 					logrus.Debugln("Failed to create temporary container ", err)
 					return execdriver.ExitStatus{ExitCode: -1}, err
 				}
