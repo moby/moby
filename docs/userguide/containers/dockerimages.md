@@ -34,7 +34,7 @@ Let's start with listing the images you have locally on our host. You can
 do this using the `docker images` command like so:
 
     $ docker images
-    REPOSITORY          TAG                 IMAGE ID            CREATED             VIRTUAL SIZE
+    REPOSITORY          TAG                 IMAGE ID            CREATED             SIZE
     ubuntu              14.04               1d073211c498        3 days ago          187.9 MB
     busybox             latest              2c5ac3f849df        5 days ago          1.113 MB
     training/webapp     latest              54bb4e8718e8        5 months ago        348.7 MB
@@ -214,7 +214,7 @@ You can then look at our new `ouruser/sinatra` image using the `docker images`
 command.
 
     $ docker images
-    REPOSITORY          TAG     IMAGE ID       CREATED       VIRTUAL SIZE
+    REPOSITORY          TAG     IMAGE ID       CREATED       SIZE
     training/sinatra    latest  5bc342fa0b91   10 hours ago  446.7 MB
     ouruser/sinatra     v2      3c59e02ddd1a   10 hours ago  446.7 MB
     ouruser/sinatra     latest  5db5f8471261   10 hours ago  446.7 MB
@@ -492,7 +492,7 @@ user name, the repository name and the new tag.
 Now, see your new tag using the `docker images` command.
 
     $ docker images ouruser/sinatra
-    REPOSITORY          TAG     IMAGE ID      CREATED        VIRTUAL SIZE
+    REPOSITORY          TAG     IMAGE ID      CREATED        SIZE
     ouruser/sinatra     latest  5db5f8471261  11 hours ago   446.7 MB
     ouruser/sinatra     devel   5db5f8471261  11 hours ago   446.7 MB
     ouruser/sinatra     v2      5db5f8471261  11 hours ago   446.7 MB
@@ -505,7 +505,7 @@ unchanged, the digest value is predictable. To list image digest values, use
 the `--digests` flag:
 
     $ docker images --digests | head
-    REPOSITORY        TAG      DIGEST                                                                     IMAGE ID      CREATED       VIRTUAL SIZE
+    REPOSITORY        TAG      DIGEST                                                                     IMAGE ID      CREATED       SIZE
     ouruser/sinatra   latest   sha256:cbbf2f9a99b47fc460d422812b6a5adff7dfee951d8fa2e4a98caa0382cfbdbf    5db5f8471261  11 hours ago  446.7 MB
 
 When pushing or pulling to a 2.0 registry, the `push` or `pull` command
