@@ -456,7 +456,6 @@ func (s *DockerSuite) TestRunVolumesFromInReadWriteMode(c *check.C) {
 		volumeDir = `c:/test` // Forward-slash as using busybox
 		fileInVol = `c:/test/file`
 	} else {
-		testRequires(c, DaemonIsLinux)
 		volumeDir = "/test"
 		fileInVol = "/test/file"
 	}
@@ -3393,18 +3392,16 @@ func (s *DockerSuite) TestRunCreateContainerFailedCleanUp(c *check.C) {
 
 func (s *DockerSuite) TestRunNamedVolume(c *check.C) {
 	prefix := ""
-	slash := `/`
 	if daemonPlatform == "windows" {
 		prefix = "c:"
-		slash = `\`
 	}
 	testRequires(c, DaemonIsLinux)
-	dockerCmd(c, "run", "--name=test", "-v", "testing:"+prefix+slash+"foo", "busybox", "sh", "-c", "echo hello > "+prefix+"/foo/bar")
+	dockerCmd(c, "run", "--name=test", "-v", "testing:"+prefix+"/foo", "busybox", "sh", "-c", "echo hello > "+prefix+"/foo/bar")
 
 	out, _ := dockerCmd(c, "run", "--volumes-from", "test", "busybox", "sh", "-c", "cat "+prefix+"/foo/bar")
 	c.Assert(strings.TrimSpace(out), check.Equals, "hello")
 
-	out, _ = dockerCmd(c, "run", "-v", "testing:"+prefix+slash+"foo", "busybox", "sh", "-c", "cat "+prefix+"/foo/bar")
+	out, _ = dockerCmd(c, "run", "-v", "testing:"+prefix+"/foo", "busybox", "sh", "-c", "cat "+prefix+"/foo/bar")
 	c.Assert(strings.TrimSpace(out), check.Equals, "hello")
 }
 
