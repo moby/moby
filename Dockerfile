@@ -95,8 +95,7 @@ RUN set -x \
 	&& UNATTENDED=yes OSX_VERSION_MIN=10.6 ${OSXCROSS_PATH}/build.sh
 ENV PATH /osxcross/target/bin:$PATH
 
-# install seccomp
-# TODO: switch to libseccomp-dev since dockerinit is gone
+# install seccomp: the version shipped in trusty is too old
 ENV SECCOMP_VERSION 2.2.3
 RUN set -x \
 	&& export SECCOMP_PATH="$(mktemp -d)" \
