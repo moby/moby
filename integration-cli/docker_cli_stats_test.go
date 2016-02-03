@@ -12,6 +12,7 @@ import (
 )
 
 func (s *DockerSuite) TestStatsNoStream(c *check.C) {
+	// Windows does not support stats
 	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
 	id := strings.TrimSpace(out)
@@ -40,6 +41,7 @@ func (s *DockerSuite) TestStatsNoStream(c *check.C) {
 }
 
 func (s *DockerSuite) TestStatsContainerNotFound(c *check.C) {
+	// Windows does not support stats
 	testRequires(c, DaemonIsLinux)
 
 	out, _, err := dockerCmdWithError("stats", "notfound")
@@ -52,6 +54,7 @@ func (s *DockerSuite) TestStatsContainerNotFound(c *check.C) {
 }
 
 func (s *DockerSuite) TestStatsAllRunningNoStream(c *check.C) {
+	// Windows does not support stats
 	testRequires(c, DaemonIsLinux)
 
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
@@ -75,6 +78,7 @@ func (s *DockerSuite) TestStatsAllRunningNoStream(c *check.C) {
 }
 
 func (s *DockerSuite) TestStatsAllNoStream(c *check.C) {
+	// Windows does not support stats
 	testRequires(c, DaemonIsLinux)
 
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
@@ -92,6 +96,7 @@ func (s *DockerSuite) TestStatsAllNoStream(c *check.C) {
 }
 
 func (s *DockerSuite) TestStatsAllNewContainersAdded(c *check.C) {
+	// Windows does not support stats
 	testRequires(c, DaemonIsLinux)
 
 	id := make(chan string)
