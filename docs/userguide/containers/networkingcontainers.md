@@ -221,7 +221,7 @@ Now, open a shell to your running `db` container:
     --- 172.17.0.2 ping statistics ---
     44 packets transmitted, 0 received, 100% packet loss, time 43185ms
 
-After a bit, use CTRL-C to end the `ping` and you'll find the ping failed. That is because the two container are running on different networks. You can fix that - use the `exit` command to exit the container.
+After a bit, use `CTRL-C` to end the `ping` and you'll find the ping failed. That is because the two containers are running on different networks. You can fix that. Then, use the `exit` command to close the container.
 
 Docker networking allows you to attach a container to as many networks as you like. You can also attach an already running container. Go ahead and attach your running `web` app to the `my-bridge-network`.
 
