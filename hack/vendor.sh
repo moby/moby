@@ -8,7 +8,7 @@ source 'hack/.vendor-helpers.sh'
 # the following lines are in sorted order, FYI
 clone git github.com/Azure/go-ansiterm 70b2c90b260171e829f1ebd7c17f600c11858dbe
 clone git github.com/Microsoft/go-winio 2b085935f02c272e7a1855df6f8fe03029ffcadd
-clone git github.com/Sirupsen/logrus v0.8.7 # logrus is a common dependency among multiple deps
+clone git github.com/Sirupsen/logrus v0.9.0 # logrus is a common dependency among multiple deps
 clone git github.com/docker/libtrust 9cbd2a1374f46905c68a4eb3694a130610adc62a
 clone git github.com/go-check/check 11d3bc7aa68e238947792f30573146a3231fc0f1
 clone git github.com/gorilla/context 14f550f51a

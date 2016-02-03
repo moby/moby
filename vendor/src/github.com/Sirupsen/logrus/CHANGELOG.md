@@ -1,3 +1,15 @@
+# 0.9.0
+
+* logrus/text_formatter: don't emit empty msg
+* logrus/hooks/airbrake: move out of main repository
+* logrus/hooks/sentry: move out of main repository
+* logrus/hooks/papertrail: move out of main repository
+* logrus/hooks/bugsnag: move out of main repository
+* logrus/core: run tests with `-race`
+* logrus/core: detect TTY based on `stderr`
+* logrus/core: support `WithError` on logger
+* logrus/core: Solaris support
+
 # 0.8.7
 
 * logrus/core: fix possible race (#216)
