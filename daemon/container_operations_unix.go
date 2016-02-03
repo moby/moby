@@ -743,6 +743,9 @@ func (daemon *Daemon) ConnectToNetwork(container *container.Container, idOrName 
 		if _, err := daemon.updateNetworkConfig(container, idOrName, endpointConfig, true); err != nil {
 			return err
 		}
+		if endpointConfig != nil {
+			container.NetworkSettings.Networks[idOrName] = endpointConfig
+		}
 	} else {
 		if err := daemon.connectToNetwork(container, idOrName, endpointConfig, true); err != nil {
 			return err
