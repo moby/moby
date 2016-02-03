@@ -39,7 +39,7 @@ func (cli *DockerCli) CmdRmi(args ...string) error {
 
 		dels, err := cli.client.ImageRemove(options)
 		if err != nil {
-			errs = append(errs, fmt.Sprintf("Failed to remove image (%s): %s", name, err))
+			errs = append(errs, err.Error())
 		} else {
 			for _, del := range dels {
 				if del.Deleted != "" {

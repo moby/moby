@@ -23,7 +23,7 @@ func (cli *DockerCli) CmdStop(args ...string) error {
 	var errs []string
 	for _, name := range cmd.Args() {
 		if err := cli.client.ContainerStop(name, *nSeconds); err != nil {
-			errs = append(errs, fmt.Sprintf("Failed to stop container (%s): %s", name, err))
+			errs = append(errs, err.Error())
 		} else {
 			fmt.Fprintf(cli.out, "%s\n", name)
 		}

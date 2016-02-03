@@ -478,6 +478,15 @@ var (
 		HTTPStatusCode: http.StatusInternalServerError,
 	})
 
+	// ErrorCodeCantPause is generated when there's an error while trying
+	// to pause a container.
+	ErrorCodeCantPause = errcode.Register(errGroup, errcode.ErrorDescriptor{
+		Value:          "CANTPAUSE",
+		Message:        "Cannot pause container %s: %s",
+		Description:    "An error occurred while trying to pause the specified container",
+		HTTPStatusCode: http.StatusInternalServerError,
+	})
+
 	// ErrorCodeCantUnpause is generated when there's an error while trying
 	// to unpause a container.
 	ErrorCodeCantUnpause = errcode.Register(errGroup, errcode.ErrorDescriptor{
@@ -487,6 +496,23 @@ var (
 		HTTPStatusCode: http.StatusInternalServerError,
 	})
 
+	// ErrorCodeCantKill is generated when there's an error while trying
+	// to kill a container.
+	ErrorCodeCantKill = errcode.Register(errGroup, errcode.ErrorDescriptor{
+		Value:          "CANTKILL",
+		Message:        "Cannot kill container %s: %s",
+		Description:    "An error occurred while trying to kill the specified container",
+		HTTPStatusCode: http.StatusInternalServerError,
+	})
+
+	// ErrorCodeCantUpdate is generated when there's an error while trying
+	// to update a container.
+	ErrorCodeCantUpdate = errcode.Register(errGroup, errcode.ErrorDescriptor{
+		Value:          "CANTUPDATE",
+		Message:        "Cannot update container %s: %s",
+		Description:    "An error occurred while trying to update the specified container",
+		HTTPStatusCode: http.StatusInternalServerError,
+	})
 	// ErrorCodePSError is generated when trying to run 'ps'.
 	ErrorCodePSError = errcode.Register(errGroup, errcode.ErrorDescriptor{
 		Value:          "PSError",
@@ -525,7 +551,7 @@ var (
 	// that is already stopped.
 	ErrorCodeStopped = errcode.Register(errGroup, errcode.ErrorDescriptor{
 		Value:          "STOPPED",
-		Message:        "Container already stopped",
+		Message:        "Container %s is already stopped",
 		Description:    "An attempt was made to stop a container, but the container is already stopped",
 		HTTPStatusCode: http.StatusNotModified,
 	})
@@ -818,7 +844,7 @@ var (
 	// but its still running.
 	ErrorCodeRmRunning = errcode.Register(errGroup, errcode.ErrorDescriptor{
 		Value:          "RMRUNNING",
-		Message:        "Conflict, You cannot remove a running container. Stop the container before attempting removal or use -f",
+		Message:        "You cannot remove a running container %s. Stop the container before attempting removal or use -f",
 		Description:    "An attempt was made to delete a container but the container is still running, try to either stop it first or use '-f'",
 		HTTPStatusCode: http.StatusConflict,
 	})
@@ -827,7 +853,7 @@ var (
 	// but it failed for some reason.
 	ErrorCodeRmFailed = errcode.Register(errGroup, errcode.ErrorDescriptor{
 		Value:          "RMFAILED",
-		Message:        "Could not kill running container, cannot remove - %v",
+		Message:        "Could not kill running container %s, cannot remove - %v",
 		Description:    "An error occurred while trying to delete a running container",
 		HTTPStatusCode: http.StatusInternalServerError,
 	})
@@ -845,7 +871,7 @@ var (
 	// but couldn't set its state to RemovalInProgress.
 	ErrorCodeRmState = errcode.Register(errGroup, errcode.ErrorDescriptor{
 		Value:          "RMSTATE",
-		Message:        "Failed to set container state to RemovalInProgress: %s",
+		Message:        "Failed to set container %s state to RemovalInProgress: %s",
 		Description:    "An attempt to delete a container was made, but there as an error trying to set its state to 'RemovalInProgress'",
 		HTTPStatusCode: http.StatusInternalServerError,
 	})
