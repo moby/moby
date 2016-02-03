@@ -10,6 +10,7 @@ import (
 	gosignal "os/signal"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -20,6 +21,20 @@ import (
 	"github.com/docker/engine-api/types"
 	registrytypes "github.com/docker/engine-api/types/registry"
 )
+
+func (cli *DockerCli) electAuthServer() string {
+	// The daemon `/info` endpoint informs us of the default registry being
+	// used. This is essential in cross-platforms environment, where for
+	// example a Linux client might be interacting with a Windows daemon, hence
+	// the default registry URL might be Windows specific.
+	serverAddress := registry.IndexServer
+	if info, err := cli.client.Info(); err != nil {
+		fmt.Fprintf(cli.out, "Warning: failed to get default registry endpoint from daemon (%v). Using system default: %s\n", err, serverAddress)
+	} else {
+		serverAddress = info.IndexServerAddress
+	}
+	return serverAddress
+}
 
 // encodeAuthToBase64 serializes the auth configuration as JSON base64 payload
 func encodeAuthToBase64(authConfig types.AuthConfig) (string, error) {
@@ -161,4 +176,43 @@ func copyToFile(outfile string, r io.Reader) error {
 	}
 
 	return nil
+}
+
+// resolveAuthConfig is like registry.ResolveAuthConfig, but if using the
+// default index, it uses the default index name for the daemon's platform,
+// not the client's platform.
+func (cli *DockerCli) resolveAuthConfig(authConfigs map[string]types.AuthConfig, index *registrytypes.IndexInfo) types.AuthConfig {
+	configKey := index.Name
+	if index.Official {
+		configKey = cli.electAuthServer()
+	}
+
+	// First try the happy case
+	if c, found := authConfigs[configKey]; found || index.Official {
+		return c
+	}
+
+	convertToHostname := func(url string) string {
+		stripped := url
+		if strings.HasPrefix(url, "http://") {
+			stripped = strings.Replace(url, "http://", "", 1)
+		} else if strings.HasPrefix(url, "https://") {
+			stripped = strings.Replace(url, "https://", "", 1)
+		}
+
+		nameParts := strings.SplitN(stripped, "/", 2)
+
+		return nameParts[0]
+	}
+
+	// Maybe they have a legacy config file, we will iterate the keys converting
+	// them to the new format and testing
+	for registry, ac := range authConfigs {
+		if configKey == convertToHostname(registry) {
+			return ac
+		}
+	}
+
+	// When all else fails, return an empty auth config
+	return types.AuthConfig{}
 }
