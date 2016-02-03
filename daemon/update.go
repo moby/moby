@@ -3,6 +3,7 @@ package daemon
 import (
 	"fmt"
 
+	derr "github.com/docker/docker/errors"
 	"github.com/docker/engine-api/types/container"
 )
 
@@ -44,15 +45,17 @@ func (daemon *Daemon) update(name string, hostConfig *container.HostConfig) erro
 	}
 
 	if container.RemovalInProgress || container.Dead {
-		return fmt.Errorf("Container is marked for removal and cannot be \"update\".")
+		errMsg := fmt.Errorf("Container is marked for removal and cannot be \"update\".")
+		return derr.ErrorCodeCantUpdate.WithArgs(container.ID, errMsg)
 	}
 
 	if container.IsRunning() && hostConfig.KernelMemory != 0 {
-		return fmt.Errorf("Can not update kernel memory to a running container, please stop it first.")
+		errMsg := fmt.Errorf("Can not update kernel memory to a running container, please stop it first.")
+		return derr.ErrorCodeCantUpdate.WithArgs(container.ID, errMsg)
 	}
 
 	if err := container.UpdateContainer(hostConfig); err != nil {
-		return err
+		return derr.ErrorCodeCantUpdate.WithArgs(container.ID, err.Error())
 	}
 
 	// If container is not running, update hostConfig struct is enough,
@@ -61,7 +64,7 @@ func (daemon *Daemon) update(name string, hostConfig *container.HostConfig) erro
 	// to the real world.
 	if container.IsRunning() {
 		if err := daemon.execDriver.Update(container.Command); err != nil {
-			return err
+			return derr.ErrorCodeCantUpdate.WithArgs(container.ID, err.Error())
 		}
 	}
 

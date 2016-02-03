@@ -90,7 +90,7 @@ func (cli *DockerCli) CmdUpdate(args ...string) error {
 	var errs []string
 	for _, name := range names {
 		if err := cli.client.ContainerUpdate(name, updateConfig); err != nil {
-			errs = append(errs, fmt.Sprintf("Failed to update container (%s): %s", name, err))
+			errs = append(errs, err.Error())
 		} else {
 			fmt.Fprintf(cli.out, "%s\n", name)
 		}

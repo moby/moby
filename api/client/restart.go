@@ -21,7 +21,7 @@ func (cli *DockerCli) CmdRestart(args ...string) error {
 	var errs []string
 	for _, name := range cmd.Args() {
 		if err := cli.client.ContainerRestart(name, *nSeconds); err != nil {
-			errs = append(errs, fmt.Sprintf("Failed to kill container (%s): %s", name, err))
+			errs = append(errs, err.Error())
 		} else {
 			fmt.Fprintf(cli.out, "%s\n", name)
 		}

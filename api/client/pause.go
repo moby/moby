@@ -20,7 +20,7 @@ func (cli *DockerCli) CmdPause(args ...string) error {
 	var errs []string
 	for _, name := range cmd.Args() {
 		if err := cli.client.ContainerPause(name); err != nil {
-			errs = append(errs, fmt.Sprintf("Failed to pause container (%s): %s", name, err))
+			errs = append(errs, err.Error())
 		} else {
 			fmt.Fprintf(cli.out, "%s\n", name)
 		}

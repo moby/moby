@@ -20,7 +20,7 @@ func (daemon *Daemon) ContainerStop(name string, seconds int) error {
 		return err
 	}
 	if !container.IsRunning() {
-		return derr.ErrorCodeStopped
+		return derr.ErrorCodeStopped.WithArgs(name)
 	}
 	if err := daemon.containerStop(container, seconds); err != nil {
 		return derr.ErrorCodeCantStop.WithArgs(name, err)
