@@ -1017,14 +1017,14 @@ func (s *DockerNetworkSuite) TestDockerNetworkHostModeUngracefulDaemonRestart(c 
 	if err := s.d.cmd.Process.Kill(); err != nil {
 		c.Fatal(err)
 	}
-	s.d.Restart()
+	if err := s.d.Restart(); err != nil {
+		c.Fatal(err)
+	}
 
 	// make sure all the containers are up and running
 	for i := 0; i < 10; i++ {
-		cName := fmt.Sprintf("hostc-%d", i)
-		runningOut, err := s.d.Cmd("inspect", "--format='{{.State.Running}}'", cName)
+		err := s.d.waitRun(fmt.Sprintf("hostc-%d", i))
 		c.Assert(err, checker.IsNil)
-		c.Assert(strings.TrimSpace(runningOut), checker.Equals, "true")
 	}
 }
 
