@@ -60,11 +60,11 @@ func newImageBuildOptions(ctx context.Context, r *http.Request) (*types.ImageBui
 		options.ShmSize = shmSize
 	}
 
-	if i := container.IsolationLevel(r.FormValue("isolation")); i != "" {
-		if !container.IsolationLevel.IsValid(i) {
+	if i := container.Isolation(r.FormValue("isolation")); i != "" {
+		if !container.Isolation.IsValid(i) {
 			return nil, fmt.Errorf("Unsupported isolation: %q", i)
 		}
-		options.IsolationLevel = i
+		options.Isolation = i
 	}
 
 	var buildUlimits = []*units.Ulimit{}
