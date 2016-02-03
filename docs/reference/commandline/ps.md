@@ -60,6 +60,7 @@ The currently supported filters are:
 * before (container's id or name) - filters containers created before given id or name
 * since (container's id or name) - filters containers created since given id or name
 * isolation (default|process|hyperv)   (Windows daemon only)
+* volume (volume name or mount point) - filters containers that mount volumes.
 
 
 #### Label
@@ -193,6 +194,18 @@ with the same containers as in `before` filter:
     9c3527ed70ce        busybox     "top"         10 minutes ago      Up 10 minutes                           desperate_dubinsky
     4aace5031105        busybox     "top"         10 minutes ago      Up 10 minutes                           focused_hamilton
 
+#### Volume
+
+The `volume` filter shows only containers that mount a specific volume or have a volume mounted in a specific path:
+
+    $ docker ps --filter volume=remote-volume --format "table {{.ID}}\t{{.Mounts}}"
+    CONTAINER ID        MOUNTS
+    9c3527ed70ce        remote-volume
+
+    $ docker ps --filter volume=/data --format "table {{.ID}}\t{{.Mounts}}"
+    CONTAINER ID        MOUNTS
+    9c3527ed70ce        remote-volume
+
 
 ## Formatting
 
@@ -213,6 +226,7 @@ Placeholder | Description
 `.Names` | Container names.
 `.Labels` | All labels assigned to the container.
 `.Label` | Value of a specific label for this container. For example `{{.Label "com.docker.swarm.cpu"}}`
+`.Mounts` | Names of the volumes mounted in this container.
 
 When using the `--format` option, the `ps` command will either output the data exactly as the template
 declares or, when using the `table` directive, will include column headers as well.

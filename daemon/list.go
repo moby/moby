@@ -9,6 +9,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/image"
+	"github.com/docker/docker/volume"
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/filters"
 	networktypes "github.com/docker/engine-api/types/network"
@@ -306,6 +307,27 @@ func includeContainerInList(container *container.Container, ctx *listContext) it
 		return excludeContainer
 	}
 
+	if ctx.filters.Include("volume") {
+		volumesByName := make(map[string]*volume.MountPoint)
+		for _, m := range container.MountPoints {
+			volumesByName[m.Name] = m
+		}
+
+		volumeExist := fmt.Errorf("volume mounted in container")
+		err := ctx.filters.WalkValues("volume", func(value string) error {
+			if _, exist := container.MountPoints[value]; exist {
+				return volumeExist
+			}
+			if _, exist := volumesByName[value]; exist {
+				return volumeExist
+			}
+			return nil
+		})
+		if err != volumeExist {
+			return excludeContainer
+		}
+	}
+
 	if ctx.ancestorFilter {
 		if len(ctx.images) == 0 {
 			return excludeContainer
@@ -419,6 +441,7 @@ func (daemon *Daemon) transformContainer(container *container.Container, ctx *li
 		newC.SizeRootFs = sizeRootFs
 	}
 	newC.Labels = container.Config.Labels
+	newC.Mounts = addMountPoints(container)
 
 	return newC, nil
 }

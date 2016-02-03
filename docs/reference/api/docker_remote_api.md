@@ -116,6 +116,7 @@ This section lists each version from latest to oldest.  Each listing includes a 
 [Docker Remote API v1.23](docker_remote_api_v1.23.md) documentation
 
 * `GET /containers/json` returns the state of the container, one of `created`, `restarting`, `running`, `paused`, `exited` or `dead`.
+* `GET /containers/json` returns the mount points for the container.
 * `GET /networks/(name)` now returns an `Internal` field showing whether the network is internal or not.
 * `GET /networks/(name)` now returns an `EnableIPv6` field showing whether the network has ipv6 enabled or not.
 * `POST /containers/(name)/update` now supports updating container's restart policy.
