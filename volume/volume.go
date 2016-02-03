@@ -2,7 +2,7 @@ package volume
 
 import (
 	"os"
-	"runtime"
+	"path/filepath"
 	"strings"
 
 	"github.com/Sirupsen/logrus"
@@ -62,27 +62,48 @@ type MountPoint struct {
 	Named       bool   // specifies if the mountpoint was specified by name
 }
 
+func inEditableVolume(source string, editableVolume []string) (bool, error) {
+	for _, volume := range editableVolume {
+		path, err := filepath.Rel(volume, source)
+		if err != nil {
+			return false, err
+		}
+		if path == "." || !strings.HasPrefix(path, "..") {
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+
 // Setup sets up a mount point by either mounting the volume if it is
 // configured, or creating the source directory if supplied.
-func (m *MountPoint) Setup() (string, error) {
+func (m *MountPoint) Setup(editableVolume []string) (string, error) {
 	if m.Volume != nil {
 		return m.Volume.Mount()
 	}
-	if len(m.Source) > 0 {
-		if _, err := os.Stat(m.Source); err != nil {
-			if !os.IsNotExist(err) {
-				return "", err
-			}
-			if runtime.GOOS != "windows" { // Windows does not have deprecation issues here
-				logrus.Warnf("Auto-creating non-existent volume host path %s, this is deprecated and will be removed soon", m.Source)
-				if err := system.MkdirAll(m.Source, 0755); err != nil {
-					return "", err
-				}
-			}
-		}
+	if m.Source == "" {
+		return "", derr.ErrorCodeMountSetup
+	}
+	_, err := os.Stat(m.Source)
+	if err == nil {
 		return m.Source, nil
 	}
-	return "", derr.ErrorCodeMountSetup
+	if os.IsNotExist(err) {
+		in, e := inEditableVolume(m.Source, editableVolume)
+		if e != nil {
+			return "", e
+		}
+		if in {
+			if err := system.MkdirAll(m.Source, 0755); err != nil {
+				return "", err
+			}
+			return m.Source, nil
+		}
+		logrus.Errorf("non-existent volume host path %s", m.Source)
+	}
+
+	return "", err
 }
 
 // Path returns the path of a volume in a mount point.
