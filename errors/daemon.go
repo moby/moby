@@ -715,6 +715,15 @@ var (
 		HTTPStatusCode: http.StatusConflict,
 	})
 
+	// ErrorCodeContainerRestarting is generated when an operation was made
+	// on a restarting container.
+	ErrorCodeContainerRestarting = errcode.Register(errGroup, errcode.ErrorDescriptor{
+		Value:          "CONTAINERRESTARTING",
+		Message:        "Container %s is restarting, wait until the container is running",
+		Description:    "An operation was made on a restarting container",
+		HTTPStatusCode: http.StatusConflict,
+	})
+
 	// ErrorCodeNoExecID is generated when we try to get the info
 	// on an exec but it can't be found.
 	ErrorCodeNoExecID = errcode.Register(errGroup, errcode.ErrorDescriptor{
@@ -730,15 +739,6 @@ var (
 		Value:          "EXECPAUSED",
 		Message:        "Container %s is paused, unpause the container before exec",
 		Description:    "An attempt to start an 'exec' was made, but the owning container is paused",
-		HTTPStatusCode: http.StatusConflict,
-	})
-
-	// ErrorCodeExecRestarting is generated when we try to start an exec
-	// but the container is restarting.
-	ErrorCodeExecRestarting = errcode.Register(errGroup, errcode.ErrorDescriptor{
-		Value:          "EXECRESTARTING",
-		Message:        "Container %s is restarting, wait until the container is running",
-		Description:    "An attempt to start an 'exec' was made, but the owning container is restarting",
 		HTTPStatusCode: http.StatusConflict,
 	})
 
