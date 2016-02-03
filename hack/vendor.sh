@@ -16,7 +16,7 @@ clone git github.com/gorilla/mux e444e69cbd
 clone git github.com/kr/pty 5cf931ef8f
 clone git github.com/mattn/go-shellwords v1.0.0
 clone git github.com/mattn/go-sqlite3 v1.1.0
-clone git github.com/Microsoft/hcsshim 35ad4d808a97203cb1748d7c43167e91f51e7f86
+clone git github.com/Microsoft/hcsshim 43858ef3c5c944dfaaabfbe8b6ea093da7f28dba
 clone git github.com/mistifyio/go-zfs v2.1.1
 clone git github.com/tchap/go-patricia v2.1.0
 clone git github.com/vdemeester/shakers 3c10293ce22b900c27acad7b28656196fcc2f73b
