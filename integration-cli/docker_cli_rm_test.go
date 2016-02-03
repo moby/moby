@@ -12,12 +12,7 @@ import (
 func (s *DockerSuite) TestRmContainerWithRemovedVolume(c *check.C) {
 	testRequires(c, SameHostDaemon)
 
-	prefix := ""
-	slash := "/"
-	if daemonPlatform == "windows" {
-		prefix = "c:"
-		slash = `\`
-	}
+	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
 
 	tempDir, err := ioutil.TempDir("", "test-rm-container-with-removed-volume-")
 	if err != nil {
@@ -34,12 +29,7 @@ func (s *DockerSuite) TestRmContainerWithRemovedVolume(c *check.C) {
 }
 
 func (s *DockerSuite) TestRmContainerWithVolume(c *check.C) {
-	prefix := ""
-	slash := "/"
-	if daemonPlatform == "windows" {
-		prefix = "c:"
-		slash = `\`
-	}
+	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
 
 	dockerCmd(c, "run", "--name", "foo", "-v", prefix+slash+"srv", "busybox", "true")
 

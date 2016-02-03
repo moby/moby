@@ -429,12 +429,8 @@ func (s *DockerSuite) TestCreateWithWorkdir(c *check.C) {
 		c.Skip("Fails on Windows CI")
 	}
 	name := "foo"
-	slash := "/"
-	prefix := ""
-	if daemonPlatform == "windows" {
-		prefix = "c:"
-		slash = `/`
-	}
+
+	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
 	dir := prefix + slash + "home" + slash + "foo" + slash + "bar"
 
 	dockerCmd(c, "create", "--name", name, "-w", dir, "busybox")

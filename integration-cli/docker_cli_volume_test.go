@@ -64,10 +64,7 @@ func (s *DockerSuite) TestVolumeCliInspectMulti(c *check.C) {
 }
 
 func (s *DockerSuite) TestVolumeCliLs(c *check.C) {
-	prefix := ""
-	if daemonPlatform == "windows" {
-		prefix = "c:"
-	}
+	prefix, _ := getPrefixAndSlashFromDaemonPlatform()
 	out, _ := dockerCmd(c, "volume", "create")
 	id := strings.TrimSpace(out)
 
@@ -84,10 +81,7 @@ func (s *DockerSuite) TestVolumeCliLs(c *check.C) {
 }
 
 func (s *DockerSuite) TestVolumeCliLsFilterDangling(c *check.C) {
-	prefix := ""
-	if daemonPlatform == "windows" {
-		prefix = "c:"
-	}
+	prefix, _ := getPrefixAndSlashFromDaemonPlatform()
 	dockerCmd(c, "volume", "create", "--name", "testnotinuse1")
 	dockerCmd(c, "volume", "create", "--name", "testisinuse1")
 	dockerCmd(c, "volume", "create", "--name", "testisinuse2")
@@ -144,10 +138,7 @@ func (s *DockerSuite) TestVolumeCliLsWithIncorrectFilterValue(c *check.C) {
 }
 
 func (s *DockerSuite) TestVolumeCliRm(c *check.C) {
-	prefix := ""
-	if daemonPlatform == "windows" {
-		prefix = "c:"
-	}
+	prefix, _ := getPrefixAndSlashFromDaemonPlatform()
 	out, _ := dockerCmd(c, "volume", "create")
 	id := strings.TrimSpace(out)
 
