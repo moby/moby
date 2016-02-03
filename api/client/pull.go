@@ -54,7 +54,7 @@ func (cli *DockerCli) CmdPull(args ...string) error {
 		return err
 	}
 
-	authConfig := registry.ResolveAuthConfig(cli.configFile.AuthConfigs, repoInfo.Index)
+	authConfig := cli.resolveAuthConfig(cli.configFile.AuthConfigs, repoInfo.Index)
 	requestPrivilege := cli.registryAuthenticationPrivilegedFunc(repoInfo.Index, "pull")
 
 	if isTrusted() && !ref.HasDigest() {
