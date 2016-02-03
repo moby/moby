@@ -412,19 +412,19 @@ func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.
 	// check for various conflicting options with user namespaces
 	if daemon.configStore.RemappedRoot != "" {
 		if hostConfig.Privileged {
-			return warnings, fmt.Errorf("Privileged mode is incompatible with user namespaces.")
+			return warnings, fmt.Errorf("Privileged mode is incompatible with user namespaces")
 		}
 		if hostConfig.NetworkMode.IsHost() || hostConfig.NetworkMode.IsContainer() {
-			return warnings, fmt.Errorf("Cannot share the host or a container's network namespace when user namespaces are enabled.")
+			return warnings, fmt.Errorf("Cannot share the host or a container's network namespace when user namespaces are enabled")
 		}
 		if hostConfig.PidMode.IsHost() {
-			return warnings, fmt.Errorf("Cannot share the host PID namespace when user namespaces are enabled.")
+			return warnings, fmt.Errorf("Cannot share the host PID namespace when user namespaces are enabled")
 		}
 		if hostConfig.IpcMode.IsContainer() {
-			return warnings, fmt.Errorf("Cannot share a container's IPC namespace when user namespaces are enabled.")
+			return warnings, fmt.Errorf("Cannot share a container's IPC namespace when user namespaces are enabled")
 		}
 		if hostConfig.ReadonlyRootfs {
-			return warnings, fmt.Errorf("Cannot use the --read-only option when user namespaces are enabled.")
+			return warnings, fmt.Errorf("Cannot use the --read-only option when user namespaces are enabled")
 		}
 	}
 	if hostConfig.CgroupParent != "" && daemon.usingSystemd() {
@@ -440,10 +440,10 @@ func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.
 func verifyDaemonSettings(config *Config) error {
 	// Check for mutually incompatible config options
 	if config.bridgeConfig.Iface != "" && config.bridgeConfig.IP != "" {
-		return fmt.Errorf("You specified -b & --bip, mutually exclusive options. Please specify only one.")
+		return fmt.Errorf("You specified -b & --bip, mutually exclusive options. Please specify only one")
 	}
 	if !config.bridgeConfig.EnableIPTables && !config.bridgeConfig.InterContainerCommunication {
-		return fmt.Errorf("You specified --iptables=false with --icc=false. ICC=false uses iptables to function. Please set --icc or --iptables to true.")
+		return fmt.Errorf("You specified --iptables=false with --icc=false. ICC=false uses iptables to function. Please set --icc or --iptables to true")
 	}
 	if !config.bridgeConfig.EnableIPTables && config.bridgeConfig.EnableIPMasq {
 		config.bridgeConfig.EnableIPMasq = false
