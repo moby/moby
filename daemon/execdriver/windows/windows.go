@@ -28,11 +28,11 @@ var dummyMode bool
 // This allows the daemon to force kill (HCS terminate) rather than shutdown
 var forceKill bool
 
-// DefaultIsolation allows users to specify a default isolation mode for
+// DefaultIsolation allows users to specify a default isolation technology for
 // when running a container on Windows. For example docker daemon -D
 // --exec-opt isolation=hyperv will cause Windows to always run containers
 // as Hyper-V containers unless otherwise specified.
-var DefaultIsolation container.IsolationLevel = "process"
+var DefaultIsolation container.Isolation = "process"
 
 // Define name and version for windows
 var (
@@ -83,13 +83,13 @@ func NewDriver(root string, options []string) (*Driver, error) {
 			}
 
 		case "isolation":
-			if !container.IsolationLevel(val).IsValid() {
+			if !container.Isolation(val).IsValid() {
 				return nil, fmt.Errorf("Unrecognised exec driver option 'isolation':'%s'", val)
 			}
-			if container.IsolationLevel(val).IsHyperV() {
+			if container.Isolation(val).IsHyperV() {
 				DefaultIsolation = "hyperv"
 			}
-			logrus.Infof("Windows default isolation level: '%s'", val)
+			logrus.Infof("Windows default isolation: '%s'", val)
 		default:
 			return nil, fmt.Errorf("Unrecognised exec driver option %s\n", key)
 		}

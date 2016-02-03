@@ -246,7 +246,7 @@ func includeContainerInList(container *container.Container, ctx *listContext) it
 		return excludeContainer
 	}
 
-	// Do not include container if the isolation mode doesn't match
+	// Do not include container if isolation doesn't match
 	if excludeContainer == excludeByIsolation(container, ctx) {
 		return excludeContainer
 	}
