@@ -84,6 +84,21 @@ RUN cd /usr/local/lvm2 \
 	&& make install_device-mapper
 # see https://git.fedorahosted.org/cgit/lvm2.git/tree/INSTALL
 
+# install seccomp: the version shipped in trusty is too old
+ENV SECCOMP_VERSION 2.2.3
+RUN set -x \
+	&& export SECCOMP_PATH="$(mktemp -d)" \
+	&& curl -fsSL "https://github.com/seccomp/libseccomp/releases/download/v${SECCOMP_VERSION}/libseccomp-${SECCOMP_VERSION}.tar.gz" \
+		| tar -xzC "$SECCOMP_PATH" --strip-components=1 \
+	&& ( \
+		cd "$SECCOMP_PATH" \
+		&& ./configure --prefix=/usr/local \
+		&& make \
+		&& make install \
+		&& ldconfig \
+	) \
+	&& rm -rf "$SECCOMP_PATH"
+
 # Install Go
 # We don't have official binary tarballs for ARM64, eigher for Go or bootstrap,
 # so we use the official armv6 released binaries as a GOROOT_BOOTSTRAP, and
@@ -99,8 +114,10 @@ RUN mkdir -p /usr/src/go-bootstrap \
 ENV PATH /usr/src/go/bin:$PATH
 ENV GOPATH /go:/go/src/github.com/docker/docker/vendor
 
-# Install registry
-ENV REGISTRY_COMMIT a7ae88da459b98b481a245e5b1750134724ac67d
+# Only install one version of the registry, because old version which support
+# schema1 manifests is not working on ARM64, we should skip integration-cli
+# tests for schema1 manifests on ARM64.
+ENV REGISTRY_COMMIT 47a064d4195a9b56133891bbb13620c3ac83a827
 RUN set -x \
 	&& export GOPATH="$(mktemp -d)" \
 	&& git clone https://github.com/docker/distribution.git "$GOPATH/src/github.com/docker/distribution" \
@@ -117,10 +134,12 @@ RUN set -x \
 	&& (cd "$GOPATH/src/github.com/docker/notary" && git checkout -q "$NOTARY_VERSION") \
 	&& GOPATH="$GOPATH/src/github.com/docker/notary/Godeps/_workspace:$GOPATH" \
 		go build -o /usr/local/bin/notary-server github.com/docker/notary/cmd/notary-server \
+	&& GOPATH="$GOPATH/src/github.com/docker/notary/Godeps/_workspace:$GOPATH" \
+		go build -o /usr/local/bin/notary github.com/docker/notary/cmd/notary \
 	&& rm -rf "$GOPATH"
 
 # Get the "docker-py" source so we can run their integration tests
-ENV DOCKER_PY_COMMIT 57512760c83fbe41302891aa51e34a86f4db74de
+ENV DOCKER_PY_COMMIT e2878cbcc3a7eef99917adc1be252800b0e41ece
 RUN git clone https://github.com/docker/docker-py.git /docker-py \
 	&& cd /docker-py \
 	&& git checkout -q $DOCKER_PY_COMMIT \
@@ -142,7 +161,7 @@ RUN useradd --create-home --gid docker unprivilegeduser
 
 VOLUME /var/lib/docker
 WORKDIR /go/src/github.com/docker/docker
-ENV DOCKER_BUILDTAGS apparmor selinux
+ENV DOCKER_BUILDTAGS apparmor seccomp selinux
 
 # Let us use a .bashrc file
 RUN ln -sfv $PWD/.bashrc ~/.bashrc
@@ -153,6 +172,7 @@ RUN ln -sv $PWD/contrib/completion/bash/docker /etc/bash_completion.d/docker
 # Get useful and necessary Hub images so we can "docker load" locally instead of pulling
 COPY contrib/download-frozen-image-v2.sh /go/src/github.com/docker/docker/contrib/
 RUN ./contrib/download-frozen-image-v2.sh /docker-frozen-images \
+	aarch64/buildpack-deps:jessie@sha256:6aa1d6910791b7ac78265fd0798e5abd6cb3f27ae992f6f960f6c303ec9535f2 \
 	aarch64/busybox:latest@sha256:b23a6a37cf269dff6e46d2473b6e227afa42b037e6d23435f1d2bc40fc8c2828 \
 	aarch64/debian:jessie@sha256:4be74a41a7c70ebe887b634b11ffe516cf4fcd56864a54941e56bb49883c3170 \
 	aarch64/hello-world:latest@sha256:65a4a158587b307bb02db4de41b836addb0c35175bdc801367b1ac1ddeb9afda
@@ -161,8 +181,8 @@ RUN ./contrib/download-frozen-image-v2.sh /docker-frozen-images \
 # Download man page generator
 RUN set -x \
 	&& export GOPATH="$(mktemp -d)" \
-	&& git clone -b v1.0.4 https://github.com/cpuguy83/go-md2man.git "$GOPATH/src/github.com/cpuguy83/go-md2man" \
-	&& git clone -b v1.4 https://github.com/russross/blackfriday.git "$GOPATH/src/github.com/russross/blackfriday" \
+	&& git clone --depth 1 -b v1.0.4 https://github.com/cpuguy83/go-md2man.git "$GOPATH/src/github.com/cpuguy83/go-md2man" \
+	&& git clone --depth 1 -b v1.4 https://github.com/russross/blackfriday.git "$GOPATH/src/github.com/russross/blackfriday" \
 	&& go get -v -d github.com/cpuguy83/go-md2man \
 	&& go build -v -o /usr/local/bin/go-md2man github.com/cpuguy83/go-md2man \
 	&& rm -rf "$GOPATH"
