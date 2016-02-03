@@ -28,8 +28,8 @@ func kill(id string, pid int, sig syscall.Signal) error {
 
 	if sig == syscall.SIGKILL || forceKill {
 		// Terminate the compute system
-		if errno, err := hcsshim.TerminateComputeSystem(id, hcsshim.TimeoutInfinite, context); err != nil {
-			logrus.Errorf("Failed to terminate %s - 0x%X %q", id, errno, err)
+		if err := hcsshim.TerminateComputeSystem(id, hcsshim.TimeoutInfinite, context); err != nil {
+			logrus.Errorf("Failed to terminate %s - %q", id, err)
 		}
 
 	} else {
@@ -41,8 +41,8 @@ func kill(id string, pid int, sig syscall.Signal) error {
 		}
 
 		// Shutdown the compute system
-		if errno, err := hcsshim.ShutdownComputeSystem(id, hcsshim.TimeoutInfinite, context); err != nil {
-			logrus.Errorf("Failed to shutdown %s - 0x%X %q", id, errno, err)
+		if err := hcsshim.ShutdownComputeSystem(id, hcsshim.TimeoutInfinite, context); err != nil {
+			logrus.Errorf("Failed to shutdown %s - %q", id, err)
 		}
 	}
 	return err
