@@ -48,7 +48,7 @@ func (cli *DockerCli) removeContainer(containerID string, removeVolumes, removeL
 		Force:         force,
 	}
 	if err := cli.client.ContainerRemove(options); err != nil {
-		return fmt.Errorf("Failed to remove container (%s): %v", containerID, err)
+		return err
 	}
 	return nil
 }

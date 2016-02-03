@@ -13,7 +13,7 @@ func (daemon *Daemon) ContainerUnpause(name string) error {
 	}
 
 	if err := daemon.containerUnpause(container); err != nil {
-		return derr.ErrorCodeCantUnpause.WithArgs(name, err)
+		return err
 	}
 
 	return nil
@@ -35,7 +35,7 @@ func (daemon *Daemon) containerUnpause(container *container.Container) error {
 	}
 
 	if err := daemon.execDriver.Unpause(container.Command); err != nil {
-		return err
+		return derr.ErrorCodeCantUnpause.WithArgs(container.ID, err)
 	}
 
 	container.Paused = false
