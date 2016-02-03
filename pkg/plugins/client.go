@@ -30,7 +30,7 @@ func NewClient(addr string, tlsConfig tlsconfig.Options) (*Client, error) {
 	tr.TLSClientConfig = c
 
 	protoAndAddr := strings.Split(addr, "://")
-	sockets.ConfigureTCPTransport(tr, protoAndAddr[0], protoAndAddr[1])
+	sockets.ConfigureTransport(tr, protoAndAddr[0], protoAndAddr[1])
 
 	scheme := protoAndAddr[0]
 	if scheme != "https" {

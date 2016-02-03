@@ -4,6 +4,8 @@ import (
 	"io"
 	"os"
 
+	"golang.org/x/net/context"
+
 	Cli "github.com/docker/docker/cli"
 	"github.com/docker/docker/pkg/jsonmessage"
 	flag "github.com/docker/docker/pkg/mflag"
@@ -30,7 +32,7 @@ func (cli *DockerCli) CmdLoad(args ...string) error {
 		input = file
 	}
 
-	response, err := cli.client.ImageLoad(input)
+	response, err := cli.client.ImageLoad(context.Background(), input, true)
 	if err != nil {
 		return err
 	}

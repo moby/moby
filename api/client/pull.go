@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 
+	"golang.org/x/net/context"
+
 	Cli "github.com/docker/docker/cli"
 	"github.com/docker/docker/pkg/jsonmessage"
 	flag "github.com/docker/docker/pkg/mflag"
@@ -77,7 +79,7 @@ func (cli *DockerCli) imagePullPrivileged(authConfig types.AuthConfig, imageID, 
 		RegistryAuth: encodedAuth,
 	}
 
-	responseBody, err := cli.client.ImagePull(options, requestPrivilege)
+	responseBody, err := cli.client.ImagePull(context.Background(), options, requestPrivilege)
 	if err != nil {
 		return err
 	}

@@ -14,6 +14,8 @@ import (
 	"runtime"
 	"strings"
 
+	"golang.org/x/net/context"
+
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/builder/dockerignore"
 	Cli "github.com/docker/docker/cli"
@@ -77,8 +79,8 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	cmd.ParseFlags(args, true)
 
 	var (
-		context io.ReadCloser
-		err     error
+		ctx io.ReadCloser
+		err error
 	)
 
 	specifiedContext := cmd.Arg(0)
@@ -100,11 +102,11 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 
 	switch {
 	case specifiedContext == "-":
-		context, relDockerfile, err = getContextFromReader(cli.in, *dockerfileName)
+		ctx, relDockerfile, err = getContextFromReader(cli.in, *dockerfileName)
 	case urlutil.IsGitURL(specifiedContext):
 		tempDir, relDockerfile, err = getContextFromGitURL(specifiedContext, *dockerfileName)
 	case urlutil.IsURL(specifiedContext):
-		context, relDockerfile, err = getContextFromURL(progBuff, specifiedContext, *dockerfileName)
+		ctx, relDockerfile, err = getContextFromURL(progBuff, specifiedContext, *dockerfileName)
 	default:
 		contextDir, relDockerfile, err = getContextFromLocalDir(specifiedContext, *dockerfileName)
 	}
@@ -121,7 +123,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		contextDir = tempDir
 	}
 
-	if context == nil {
+	if ctx == nil {
 		// And canonicalize dockerfile name to a platform-independent one
 		relDockerfile, err = archive.CanonicalTarNameForPath(relDockerfile)
 		if err != nil {
@@ -159,7 +161,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 			includes = append(includes, ".dockerignore", relDockerfile)
 		}
 
-		context, err = archive.TarWithOptions(contextDir, &archive.TarOptions{
+		ctx, err = archive.TarWithOptions(contextDir, &archive.TarOptions{
 			Compression:     archive.Uncompressed,
 			ExcludePatterns: excludes,
 			IncludeFiles:    includes,
@@ -173,13 +175,13 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	if isTrusted() {
 		// Wrap the tar archive to replace the Dockerfile entry with the rewritten
 		// Dockerfile which uses trusted pulls.
-		context = replaceDockerfileTarWrapper(context, relDockerfile, cli.trustedReference, &resolvedTags)
+		ctx = replaceDockerfileTarWrapper(ctx, relDockerfile, cli.trustedReference, &resolvedTags)
 	}
 
 	// Setup an upload progress bar
 	progressOutput := streamformatter.NewStreamFormatter().NewProgressOutput(progBuff, true)
 
-	var body io.Reader = progress.NewProgressReader(context, progressOutput, 0, "", "Sending build context to Docker daemon")
+	var body io.Reader = progress.NewProgressReader(ctx, progressOutput, 0, "", "Sending build context to Docker daemon")
 
 	var memory int64
 	if *flMemoryString != "" {
@@ -235,7 +237,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		AuthConfigs:    cli.configFile.AuthConfigs,
 	}
 
-	response, err := cli.client.ImageBuild(options)
+	response, err := cli.client.ImageBuild(context.Background(), options)
 	if err != nil {
 		return err
 	}

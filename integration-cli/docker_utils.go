@@ -194,7 +194,7 @@ func (d *Daemon) getClientConfig() (*clientConfig, error) {
 		transport = &http.Transport{}
 	}
 
-	sockets.ConfigureTCPTransport(transport, proto, addr)
+	sockets.ConfigureTransport(transport, proto, addr)
 
 	return &clientConfig{
 		transport: transport,
