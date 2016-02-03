@@ -13,6 +13,7 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"time"
 
 	syslog "github.com/RackSec/srslog"
 
@@ -64,6 +65,17 @@ func init() {
 	}
 }
 
+// rsyslog uses appname part of syslog message to fill in an %syslogtag% template
+// attribute in rsyslog.conf. In order to be backward compatible to rfc3164
+// tag will be also used as an appname
+func rfc5424formatterWithAppNameAsTag(p syslog.Priority, hostname, tag, content string) string {
+	timestamp := time.Now().Format(time.RFC3339)
+	pid := os.Getpid()
+	msg := fmt.Sprintf("<%d>%d %s %s %s %d %s %s",
+		p, 1, timestamp, hostname, tag, pid, tag, content)
+	return msg
+}
+
 // New creates a syslog logger using the configuration passed in on
 // the context. Supported context configuration variables are
 // syslog-address, syslog-facility, & syslog-tag.
@@ -79,6 +91,11 @@ func New(ctx logger.Context) (logger.Logger, error) {
 	}
 
 	facility, err := parseFacility(ctx.Config["syslog-facility"])
+	if err != nil {
+		return nil, err
+	}
+
+	syslogFormatter, syslogFramer, err := parseLogFormat(ctx.Config["syslog-format"])
 	if err != nil {
 		return nil, err
 	}
@@ -99,6 +116,9 @@ func New(ctx logger.Context) (logger.Logger, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	log.SetFormatter(syslogFormatter)
+	log.SetFramer(syslogFramer)
 
 	return &syslogger{
 		writer: log,
@@ -165,6 +185,7 @@ func ValidateLogOpt(cfg map[string]string) error {
 		case "syslog-tls-key":
 		case "syslog-tls-skip-verify":
 		case "tag":
+		case "syslog-format":
 		default:
 			return fmt.Errorf("unknown log opt '%s' for syslog log driver", key)
 		}
@@ -173,6 +194,9 @@ func ValidateLogOpt(cfg map[string]string) error {
 		return err
 	}
 	if _, err := parseFacility(cfg["syslog-facility"]); err != nil {
+		return err
+	}
+	if _, _, err := parseLogFormat(cfg["syslog-format"]); err != nil {
 		return err
 	}
 	return nil
@@ -206,4 +230,18 @@ func parseTLSConfig(cfg map[string]string) (*tls.Config, error) {
 	}
 
 	return tlsconfig.Client(opts)
+}
+
+func parseLogFormat(logFormat string) (syslog.Formatter, syslog.Framer, error) {
+	switch logFormat {
+	case "":
+		return syslog.UnixFormatter, syslog.DefaultFramer, nil
+	case "rfc3164":
+		return syslog.RFC3164Formatter, syslog.DefaultFramer, nil
+	case "rfc5424":
+		return rfc5424formatterWithAppNameAsTag, syslog.RFC5425MessageLengthFramer, nil
+	default:
+		return nil, nil, errors.New("Invalid syslog format")
+	}
+
 }
