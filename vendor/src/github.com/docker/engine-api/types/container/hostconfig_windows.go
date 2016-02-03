@@ -49,11 +49,6 @@ func (n NetworkMode) NetworkName() string {
 	return ""
 }
 
-// IsPreDefinedNetwork indicates if a network is predefined by the daemon
-func IsPreDefinedNetwork(network string) bool {
-	return false
-}
-
 // ValidateNetMode ensures that the various combinations of requested
 // network settings are valid.
 func ValidateNetMode(c *Config, hc *HostConfig) error {
