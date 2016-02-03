@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -217,6 +218,8 @@ func (s *DockerSuite) TestInspectContainerGraphDriver(c *check.C) {
 
 func (s *DockerSuite) TestInspectBindMountPoint(c *check.C) {
 	testRequires(c, DaemonIsLinux)
+
+	os.Mkdir("/data", 0755)
 	dockerCmd(c, "run", "-d", "--name", "test", "-v", "/data:/data:ro,z", "busybox", "cat")
 
 	vol := inspectFieldJSON(c, "test", "Mounts")
