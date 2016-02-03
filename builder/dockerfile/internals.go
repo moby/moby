@@ -506,7 +506,7 @@ func (b *Builder) create() (string, error) {
 
 	// TODO: why not embed a hostconfig in builder?
 	hostConfig := &container.HostConfig{
-		Isolation: b.options.IsolationLevel,
+		Isolation: b.options.Isolation,
 		ShmSize:   b.options.ShmSize,
 		Resources: resources,
 	}
