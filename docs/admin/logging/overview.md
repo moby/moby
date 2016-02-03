@@ -26,6 +26,7 @@ container's logging driver. The following options are supported:
 | `fluentd`   | Fluentd logging driver for Docker. Writes log messages to `fluentd` (forward input).                                          |
 | `awslogs`   | Amazon CloudWatch Logs logging driver for Docker. Writes log messages to Amazon CloudWatch Logs.                              |
 | `splunk`    | Splunk logging driver for Docker. Writes log messages to `splunk` using HTTP Event Collector.                                 |
+| `redis`     | Redis logging driver for Docker. Writes log messages to a list in `redis`.                                                    |
 
 The `docker logs`command is available only for the `json-file` and `journald`
 logging drivers.
@@ -203,4 +204,13 @@ The Splunk logging driver requires the following options:
     --log-opt splunk-url=https://your_splunk_instance:8088
 
 For detailed information about working with this logging driver, see the [Splunk logging driver](splunk.md)
+reference documentation.
+
+## Redis options
+
+The Redis logging driver requires the following options:
+
+    --log-opt redis-address=tcp://host:port
+
+For detailed information about working with this logging driver, see the [Redis logging driver](redis.md)
 reference documentation.
