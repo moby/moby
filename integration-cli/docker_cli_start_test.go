@@ -11,6 +11,7 @@ import (
 
 // Regression test for https://github.com/docker/docker/issues/7843
 func (s *DockerSuite) TestStartAttachReturnsOnError(c *check.C) {
+	// Windows does not support link
 	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "run", "-d", "--name", "test", "busybox")
 	dockerCmd(c, "wait", "test")
@@ -56,7 +57,6 @@ func (s *DockerSuite) TestStartAttachCorrectExitCode(c *check.C) {
 }
 
 func (s *DockerSuite) TestStartAttachSilent(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	name := "teststartattachcorrectexitcode"
 	dockerCmd(c, "run", "--name", name, "busybox", "echo", "test")
 
@@ -69,6 +69,7 @@ func (s *DockerSuite) TestStartAttachSilent(c *check.C) {
 }
 
 func (s *DockerSuite) TestStartRecordError(c *check.C) {
+	// TODO Windows CI: Requires further porting work. Should be possible.
 	testRequires(c, DaemonIsLinux)
 	// when container runs successfully, we should not have state.Error
 	dockerCmd(c, "run", "-d", "-p", "9999:9999", "--name", "test", "busybox", "top")
@@ -93,6 +94,7 @@ func (s *DockerSuite) TestStartRecordError(c *check.C) {
 }
 
 func (s *DockerSuite) TestStartPausedContainer(c *check.C) {
+	// Windows does not support pausing containers
 	testRequires(c, DaemonIsLinux)
 	defer unpauseAllContainers()
 
@@ -108,6 +110,7 @@ func (s *DockerSuite) TestStartPausedContainer(c *check.C) {
 }
 
 func (s *DockerSuite) TestStartMultipleContainers(c *check.C) {
+	// Windows does not support --link
 	testRequires(c, DaemonIsLinux)
 	// run a container named 'parent' and create two container link to `parent`
 	dockerCmd(c, "run", "-d", "--name", "parent", "busybox", "top")
@@ -143,7 +146,6 @@ func (s *DockerSuite) TestStartMultipleContainers(c *check.C) {
 }
 
 func (s *DockerSuite) TestStartAttachMultipleContainers(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	// run  multiple containers to test
 	for _, container := range []string{"test1", "test2", "test3"} {
 		dockerCmd(c, "run", "-d", "--name", container, "busybox", "top")
