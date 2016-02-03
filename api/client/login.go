@@ -35,9 +35,11 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 		cli.in = os.Stdin
 	}
 
-	serverAddress := cli.electAuthServer()
+	var serverAddress string
 	if len(cmd.Args()) > 0 {
 		serverAddress = cmd.Arg(0)
+	} else {
+		serverAddress = cli.electAuthServer()
 	}
 
 	authConfig, err := cli.configureAuth(*flUser, *flPassword, *flEmail, serverAddress)
