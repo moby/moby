@@ -18,9 +18,11 @@ func (cli *DockerCli) CmdLogout(args ...string) error {
 
 	cmd.ParseFlags(args, true)
 
-	serverAddress := cli.electAuthServer()
+	var serverAddress string
 	if len(cmd.Args()) > 0 {
 		serverAddress = cmd.Arg(0)
+	} else {
+		serverAddress = cli.electAuthServer()
 	}
 
 	if _, ok := cli.configFile.AuthConfigs[serverAddress]; !ok {
