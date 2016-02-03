@@ -3,6 +3,7 @@ package daemon
 import (
 	"fmt"
 
+	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/engine-api/types/container"
 )
 
@@ -61,6 +62,12 @@ func (daemon *Daemon) update(name string, hostConfig *container.HostConfig) erro
 	// to the real world.
 	if container.IsRunning() {
 		if err := daemon.execDriver.Update(container.Command); err != nil {
+			// Ignore the error if container is restarting and the error
+			// is ErrNotRunning since the updated hostConfig will
+			// take effect once container restarted.
+			if container.IsRestarting() && err == execdriver.ErrNotRunning {
+				return nil
+			}
 			return err
 		}
 	}
