@@ -734,3 +734,56 @@ func (s *DockerSuite) TestPsNotShowPortsOfStoppedContainer(c *check.C) {
 	fields = strings.Fields(lines[1])
 	c.Assert(fields[len(fields)-2], checker.Not(checker.Equals), expected, check.Commentf("Should not got %v", expected))
 }
+
+func (s *DockerSuite) TestPsShowMounts(c *check.C) {
+	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
+
+	mp := prefix + slash + "test"
+
+	dockerCmd(c, "volume", "create", "--name", "ps-volume-test")
+	runSleepingContainer(c, "--name=volume-test-1", "--volume", "ps-volume-test:"+mp)
+	c.Assert(waitRun("volume-test-1"), checker.IsNil)
+	runSleepingContainer(c, "--name=volume-test-2", "--volume", mp)
+	c.Assert(waitRun("volume-test-2"), checker.IsNil)
+
+	out, _ := dockerCmd(c, "ps", "--format", "{{.Names}} {{.Mounts}}")
+
+	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
+	c.Assert(lines, checker.HasLen, 2)
+
+	fields := strings.Fields(lines[0])
+	c.Assert(fields, checker.HasLen, 2)
+
+	annonymounsVolumeID := fields[1]
+
+	fields = strings.Fields(lines[1])
+	c.Assert(fields[1], checker.Equals, "ps-volume-test")
+
+	// filter by volume name
+	out, _ = dockerCmd(c, "ps", "--format", "{{.Names}} {{.Mounts}}", "--filter", "volume=ps-volume-test")
+
+	lines = strings.Split(strings.TrimSpace(string(out)), "\n")
+	c.Assert(lines, checker.HasLen, 1)
+
+	fields = strings.Fields(lines[0])
+	c.Assert(fields[1], checker.Equals, "ps-volume-test")
+
+	// empty results filtering by unknown volume
+	out, _ = dockerCmd(c, "ps", "--format", "{{.Names}} {{.Mounts}}", "--filter", "volume=this-volume-should-not-exist")
+	c.Assert(strings.TrimSpace(string(out)), checker.HasLen, 0)
+
+	// filter by mount destination
+	out, _ = dockerCmd(c, "ps", "--format", "{{.Names}} {{.Mounts}}", "--filter", "volume="+mp)
+
+	lines = strings.Split(strings.TrimSpace(string(out)), "\n")
+	c.Assert(lines, checker.HasLen, 2)
+
+	fields = strings.Fields(lines[0])
+	c.Assert(fields[1], checker.Equals, annonymounsVolumeID)
+	fields = strings.Fields(lines[1])
+	c.Assert(fields[1], checker.Equals, "ps-volume-test")
+
+	// empty results filtering by unknown mount point
+	out, _ = dockerCmd(c, "ps", "--format", "{{.Names}} {{.Mounts}}", "--filter", "volume="+prefix+slash+"this-path-was-never-mounted")
+	c.Assert(strings.TrimSpace(string(out)), checker.HasLen, 0)
+}
