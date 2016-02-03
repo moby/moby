@@ -41,12 +41,6 @@ var acceptedCBCCiphers = []uint16{
 	tls.TLS_RSA_WITH_AES_128_CBC_SHA,
 }
 
-// Client TLS cipher suites (dropping CBC ciphers for client preferred suite set)
-var clientCipherSuites = []uint16{
-	tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
-	tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
-}
-
 // DefaultServerAcceptedCiphers should be uses by code which already has a crypto/tls
 // options struct but wants to use a commonly accepted set of TLS cipher suites, with
 // known weak algorithms removed.
@@ -91,7 +85,7 @@ func certPool(caFile string) (*x509.CertPool, error) {
 func Client(options Options) (*tls.Config, error) {
 	tlsConfig := ClientDefault
 	tlsConfig.InsecureSkipVerify = options.InsecureSkipVerify
-	if !options.InsecureSkipVerify {
+	if !options.InsecureSkipVerify && options.CAFile != "" {
 		CAs, err := certPool(options.CAFile)
 		if err != nil {
 			return nil, err
@@ -99,7 +93,7 @@ func Client(options Options) (*tls.Config, error) {
 		tlsConfig.RootCAs = CAs
 	}
 
-	if options.CertFile != "" && options.KeyFile != "" {
+	if options.CertFile != "" || options.KeyFile != "" {
 		tlsCert, err := tls.LoadX509KeyPair(options.CertFile, options.KeyFile)
 		if err != nil {
 			return nil, fmt.Errorf("Could not load X509 key pair: %v. Make sure the key is not encrypted", err)

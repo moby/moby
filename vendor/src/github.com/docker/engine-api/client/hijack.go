@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/docker/engine-api/types"
+	"github.com/docker/go-connections/sockets"
 )
 
 // tlsClientCon holds tls information and a dialed connection.
@@ -44,7 +45,7 @@ func (cli *Client) postHijacked(path string, query url.Values, body interface{},
 	req.Header.Set("Connection", "Upgrade")
 	req.Header.Set("Upgrade", "tcp")
 
-	conn, err := dial(cli.proto, cli.addr, cli.tlsConfig)
+	conn, err := dial(cli.proto, cli.addr, cli.transport.TLSConfig())
 	if err != nil {
 		if strings.Contains(err.Error(), "connection refused") {
 			return types.HijackedResponse{}, fmt.Errorf("Cannot connect to the Docker daemon. Is 'docker daemon' running on this host?")
@@ -156,9 +157,12 @@ func tlsDialWithDialer(dialer *net.Dialer, network, addr string, config *tls.Con
 }
 
 func dial(proto, addr string, tlsConfig *tls.Config) (net.Conn, error) {
-	if tlsConfig != nil && proto != "unix" {
+	if tlsConfig != nil && proto != "unix" && proto != "npipe" {
 		// Notice this isn't Go standard's tls.Dial function
 		return tlsDial(proto, addr, tlsConfig)
+	}
+	if proto == "npipe" {
+		return sockets.DialPipe(addr, 32*time.Second)
 	}
 	return net.Dial(proto, addr)
 }

@@ -5,6 +5,8 @@ import (
 	"net/url"
 	"time"
 
+	"golang.org/x/net/context"
+
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/filters"
 	timetypes "github.com/docker/engine-api/types/time"
@@ -12,7 +14,7 @@ import (
 
 // Events returns a stream of events in the daemon in a ReadCloser.
 // It's up to the caller to close the stream.
-func (cli *Client) Events(options types.EventsOptions) (io.ReadCloser, error) {
+func (cli *Client) Events(ctx context.Context, options types.EventsOptions) (io.ReadCloser, error) {
 	query := url.Values{}
 	ref := time.Now()
 
@@ -38,7 +40,7 @@ func (cli *Client) Events(options types.EventsOptions) (io.ReadCloser, error) {
 		query.Set("filters", filterJSON)
 	}
 
-	serverResponse, err := cli.get("/events", query, nil)
+	serverResponse, err := cli.getWithContext(ctx, "/events", query, nil)
 	if err != nil {
 		return nil, err
 	}
