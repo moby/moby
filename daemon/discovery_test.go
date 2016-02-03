@@ -136,7 +136,7 @@ func TestModifiedDiscoverySettings(t *testing.T) {
 	for _, c := range cases {
 		got := modifiedDiscoverySettings(c.current, c.modified.ClusterStore, c.modified.ClusterAdvertise, c.modified.ClusterOpts)
 		if c.expected != got {
-			t.Fatalf("expected %v, got %v: current config %q, new config %q", c.expected, got, c.current, c.modified)
+			t.Fatalf("expected %v, got %v: current config %v, new config %v", c.expected, got, c.current, c.modified)
 		}
 	}
 }
