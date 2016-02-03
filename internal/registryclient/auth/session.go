@@ -285,9 +285,9 @@ func (th *tokenHandler) fetchToken(params map[string]string) (token *tokenRespon
 	}
 
 	if tr.ExpiresIn < minimumTokenLifetimeSeconds {
-		logrus.Debugf("Increasing token expiration to: %d seconds", tr.ExpiresIn)
 		// The default/minimum lifetime.
 		tr.ExpiresIn = minimumTokenLifetimeSeconds
+		logrus.Debugf("Increasing token expiration to: %d seconds", tr.ExpiresIn)
 	}
 
 	if tr.IssuedAt.IsZero() {
