@@ -30,6 +30,9 @@ func (daemon *Daemon) ContainerTop(name string, psArgs string) (*types.Container
 		return nil, derr.ErrorCodeNotRunning.WithArgs(name)
 	}
 
+	if container.IsRestarting() {
+		return nil, derr.ErrorCodeContainerRestarting.WithArgs(name)
+	}
 	pids, err := daemon.ExecutionDriver().GetPidsForContainer(container.ID)
 	if err != nil {
 		return nil, err
