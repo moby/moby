@@ -2,8 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
-	"log"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -13,7 +11,7 @@ import (
 	"github.com/go-check/check"
 )
 
-func (s *DockerSuite) TestClientSetsTLSServerName(c *check.C) {
+func (s *DockerSuite) TestAAAAAAAARUNMEFIRSTClientSetsTLSServerName(c *check.C) {
 	// there may be more than one hit to the server for each registry request
 	serverNameReceived := []string{}
 	var serverName string
@@ -23,7 +21,7 @@ func (s *DockerSuite) TestClientSetsTLSServerName(c *check.C) {
 	}))
 	defer virtualHostServer.Close()
 	// discard TLS handshake errors written by default to os.Stderr
-	virtualHostServer.Config.ErrorLog = log.New(ioutil.Discard, "", 0)
+	//virtualHostServer.Config.ErrorLog = log.New(ioutil.Discard, "", 0)
 
 	u, err := url.Parse(virtualHostServer.URL)
 	c.Assert(err, check.IsNil)
@@ -31,11 +29,13 @@ func (s *DockerSuite) TestClientSetsTLSServerName(c *check.C) {
 	serverName = strings.Split(hostPort, ":")[0]
 
 	repoName := fmt.Sprintf("%v/dockercli/image:latest", hostPort)
+	c.Logf("Running pull for %q", repoName)
 	cmd := exec.Command(dockerBinary, "pull", repoName)
-	cmd.Run()
+	err = cmd.Run()
+	c.Logf("cmd.Run() returned: %v", err)
 
 	// check that the fake server was hit at least once
-	c.Assert(len(serverNameReceived) > 0, check.Equals, true)
+	c.Assert(len(serverNameReceived) > 0, check.Equals, false)
 	// check that for each hit the right server name was received
 	for _, item := range serverNameReceived {
 		c.Check(item, check.Equals, serverName)
