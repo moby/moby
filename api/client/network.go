@@ -21,6 +21,7 @@ import (
 // Usage: docker network <COMMAND> [OPTIONS]
 func (cli *DockerCli) CmdNetwork(args ...string) error {
 	cmd := Cli.Subcmd("network", []string{"COMMAND [OPTIONS]"}, networkUsage(), false)
+	cli.AddCommonFlags(cmd)
 	cmd.Require(flag.Min, 1)
 	err := cmd.ParseFlags(args, true)
 	cmd.Usage()
@@ -48,6 +49,7 @@ func (cli *DockerCli) CmdNetworkCreate(args ...string) error {
 	cmd.Var(flIpamAux, []string{"-aux-address"}, "auxiliary ipv4 or ipv6 addresses used by Network driver")
 	cmd.Var(flOpts, []string{"o", "-opt"}, "set driver specific options")
 	cmd.Var(flIpamOpt, []string{"-ipam-opt"}, "set IPAM driver specific options")
+	cli.AddCommonFlags(cmd)
 
 	flInternal := cmd.Bool([]string{"-internal"}, false, "restricts external access to the network")
 
@@ -92,6 +94,7 @@ func (cli *DockerCli) CmdNetworkCreate(args ...string) error {
 // Usage: docker network rm NETWORK-NAME|NETWORK-ID [NETWORK-NAME|NETWORK-ID...]
 func (cli *DockerCli) CmdNetworkRm(args ...string) error {
 	cmd := Cli.Subcmd("network rm", []string{"NETWORK [NETWORK...]"}, "Deletes one or more networks", false)
+	cli.AddCommonFlags(cmd)
 	cmd.Require(flag.Min, 1)
 	if err := cmd.ParseFlags(args, true); err != nil {
 		return err
@@ -122,6 +125,7 @@ func (cli *DockerCli) CmdNetworkConnect(args ...string) error {
 	cmd.Var(&flLinks, []string{"-link"}, "Add link to another container")
 	flAliases := opts.NewListOpts(nil)
 	cmd.Var(&flAliases, []string{"-alias"}, "Add network-scoped alias for the container")
+	cli.AddCommonFlags(cmd)
 	cmd.Require(flag.Min, 2)
 	if err := cmd.ParseFlags(args, true); err != nil {
 		return err
@@ -143,6 +147,7 @@ func (cli *DockerCli) CmdNetworkConnect(args ...string) error {
 func (cli *DockerCli) CmdNetworkDisconnect(args ...string) error {
 	cmd := Cli.Subcmd("network disconnect", []string{"NETWORK CONTAINER"}, "Disconnects container from a network", false)
 	force := cmd.Bool([]string{"f", "-force"}, false, "Force the container to disconnect from a network")
+	cli.AddCommonFlags(cmd)
 	cmd.Require(flag.Exact, 2)
 	if err := cmd.ParseFlags(args, true); err != nil {
 		return err
@@ -158,6 +163,7 @@ func (cli *DockerCli) CmdNetworkLs(args ...string) error {
 	cmd := Cli.Subcmd("network ls", nil, "Lists networks", true)
 	quiet := cmd.Bool([]string{"q", "-quiet"}, false, "Only display numeric IDs")
 	noTrunc := cmd.Bool([]string{"-no-trunc"}, false, "Do not truncate the output")
+	cli.AddCommonFlags(cmd)
 
 	flFilter := opts.NewListOpts(nil)
 	cmd.Var(&flFilter, []string{"f", "-filter"}, "Filter output based on conditions provided")
@@ -220,6 +226,7 @@ func (cli *DockerCli) CmdNetworkLs(args ...string) error {
 func (cli *DockerCli) CmdNetworkInspect(args ...string) error {
 	cmd := Cli.Subcmd("network inspect", []string{"NETWORK [NETWORK...]"}, "Displays detailed information on one or more networks", false)
 	tmplStr := cmd.String([]string{"f", "-format"}, "", "Format the output using the given go template")
+	cli.AddCommonFlags(cmd)
 	cmd.Require(flag.Min, 1)
 
 	if err := cmd.ParseFlags(args, true); err != nil {

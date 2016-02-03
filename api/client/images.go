@@ -22,6 +22,7 @@ func (cli *DockerCli) CmdImages(args ...string) error {
 
 	flFilter := opts.NewListOpts(nil)
 	cmd.Var(&flFilter, []string{"f", "-filter"}, "Filter output based on conditions provided")
+	cli.AddCommonFlags(cmd)
 	cmd.Require(flag.Max, 1)
 
 	cmd.ParseFlags(args, true)

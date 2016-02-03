@@ -14,6 +14,7 @@ import (
 // Usage: docker logout [SERVER]
 func (cli *DockerCli) CmdLogout(args ...string) error {
 	cmd := Cli.Subcmd("logout", []string{"[SERVER]"}, Cli.DockerCommands["logout"].Description+".\nIf no server is specified, the default is defined by the daemon.", true)
+	cli.AddCommonFlags(cmd)
 	cmd.Require(flag.Max, 1)
 
 	cmd.ParseFlags(args, true)

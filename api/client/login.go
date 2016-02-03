@@ -22,6 +22,7 @@ import (
 // Usage: docker login SERVER
 func (cli *DockerCli) CmdLogin(args ...string) error {
 	cmd := Cli.Subcmd("login", []string{"[SERVER]"}, Cli.DockerCommands["login"].Description+".\nIf no server is specified, the default is defined by the daemon.", true)
+	cli.AddCommonFlags(cmd)
 	cmd.Require(flag.Max, 1)
 
 	flUser := cmd.String([]string{"u", "-username"}, "", "Username")

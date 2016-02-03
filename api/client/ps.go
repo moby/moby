@@ -30,6 +30,7 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 		format   = cmd.String([]string{"-format"}, "", "Pretty-print containers using a Go template")
 		flFilter = opts.NewListOpts(nil)
 	)
+	cli.AddCommonFlags(cmd)
 	cmd.Require(flag.Exact, 0)
 
 	cmd.Var(&flFilter, []string{"f", "-filter"}, "Filter output based on conditions provided")

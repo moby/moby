@@ -26,6 +26,7 @@ func (cli *DockerCli) CmdEvents(args ...string) error {
 	until := cmd.String([]string{"-until"}, "", "Stream events until this timestamp")
 	flFilter := opts.NewListOpts(nil)
 	cmd.Var(&flFilter, []string{"f", "-filter"}, "Filter output based on conditions provided")
+	cli.AddCommonFlags(cmd)
 	cmd.Require(flag.Exact, 0)
 
 	cmd.ParseFlags(args, true)

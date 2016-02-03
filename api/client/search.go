@@ -23,6 +23,7 @@ func (cli *DockerCli) CmdSearch(args ...string) error {
 	noTrunc := cmd.Bool([]string{"-no-trunc"}, false, "Don't truncate output")
 	automated := cmd.Bool([]string{"-automated"}, false, "Only show automated builds")
 	stars := cmd.Uint([]string{"s", "-stars"}, 0, "Only displays with at least x stars")
+	cli.AddCommonFlags(cmd)
 	cmd.Require(flag.Exact, 1)
 
 	cmd.ParseFlags(args, true)

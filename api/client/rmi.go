@@ -17,6 +17,7 @@ func (cli *DockerCli) CmdRmi(args ...string) error {
 	cmd := Cli.Subcmd("rmi", []string{"IMAGE [IMAGE...]"}, Cli.DockerCommands["rmi"].Description, true)
 	force := cmd.Bool([]string{"f", "-force"}, false, "Force removal of the image")
 	noprune := cmd.Bool([]string{"-no-prune"}, false, "Do not delete untagged parents")
+	cli.AddCommonFlags(cmd)
 	cmd.Require(flag.Min, 1)
 
 	cmd.ParseFlags(args, true)

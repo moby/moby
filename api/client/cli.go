@@ -13,6 +13,7 @@ import (
 	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/opts"
+	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/term"
 	"github.com/docker/engine-api/client"
 	"github.com/docker/go-connections/tlsconfig"
@@ -104,6 +105,12 @@ func (cli *DockerCli) restoreTerminal(in io.Closer) error {
 		return in.Close()
 	}
 	return nil
+}
+
+// AddCommonFlags installs command line flags which can control the
+// client's behavior, and which are common to all client commands.
+func (cli *DockerCli) AddCommonFlags(flags *flag.FlagSet) {
+	// nothing here yet
 }
 
 // NewDockerCli returns a DockerCli instance with IO output and error streams set by in, out and err.

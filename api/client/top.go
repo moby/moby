@@ -14,6 +14,7 @@ import (
 // Usage: docker top CONTAINER
 func (cli *DockerCli) CmdTop(args ...string) error {
 	cmd := Cli.Subcmd("top", []string{"CONTAINER [ps OPTIONS]"}, Cli.DockerCommands["top"].Description, true)
+	cli.AddCommonFlags(cmd)
 	cmd.Require(flag.Min, 1)
 
 	cmd.ParseFlags(args, true)
