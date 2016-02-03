@@ -21,6 +21,20 @@ import (
 	registrytypes "github.com/docker/engine-api/types/registry"
 )
 
+func (cli *DockerCli) electAuthServer() string {
+	// The daemon `/info` endpoint informs us of the default registry being
+	// used. This is essential in cross-platforms environment, where for
+	// example a Linux client might be interacting with a Windows daemon, hence
+	// the default registry URL might be Windows specific.
+	serverAddress := registry.IndexServer
+	if info, err := cli.client.Info(); err != nil {
+		fmt.Fprintf(cli.out, "Warning: failed to get default registry endpoint from daemon (%v). Using system default: %s\n", err, serverAddress)
+	} else {
+		serverAddress = info.IndexServerAddress
+	}
+	return serverAddress
+}
+
 // encodeAuthToBase64 serializes the auth configuration as JSON base64 payload
 func encodeAuthToBase64(authConfig types.AuthConfig) (string, error) {
 	buf, err := json.Marshal(authConfig)
