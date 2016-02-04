@@ -378,7 +378,6 @@ func (s *DockerSuite) TestExecDir(c *check.C) {
 	id := strings.TrimSpace(out)
 
 	execDir := filepath.Join(execDriverPath, id)
-	fmt.Println(execDriverPath)
 	stateFile := filepath.Join(execDir, "state.json")
 
 	{
