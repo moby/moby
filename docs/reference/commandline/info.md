@@ -44,6 +44,7 @@ For example:
     Total Memory: 62.86 GiB
     Name: docker
     ID: I54V:OLXT:HVMM:TPKO:JPHQ:CQCD:JNLC:O3BZ:4ZVJ:43XJ:PFHZ:6N2S
+    Docker Root Dir: /var/lib/docker
     Debug mode (client): true
     Debug mode (server): true
      File Descriptors: 59
