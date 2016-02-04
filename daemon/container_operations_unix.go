@@ -975,6 +975,9 @@ func (daemon *Daemon) getIpcContainer(container *container.Container) (*containe
 	if !c.IsRunning() {
 		return nil, derr.ErrorCodeIPCRunning.WithArgs(containerID)
 	}
+	if c.IsRestarting() {
+		return nil, derr.ErrorCodeContainerRestarting.WithArgs(containerID)
+	}
 	return c, nil
 }
 
@@ -988,6 +991,9 @@ func (daemon *Daemon) getNetworkedContainer(containerID, connectedContainerID st
 	}
 	if !nc.IsRunning() {
 		return nil, derr.ErrorCodeJoinRunning.WithArgs(connectedContainerID)
+	}
+	if nc.IsRestarting() {
+		return nil, derr.ErrorCodeContainerRestarting.WithArgs(connectedContainerID)
 	}
 	return nc, nil
 }
