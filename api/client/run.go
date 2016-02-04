@@ -7,6 +7,8 @@ import (
 	"runtime"
 	"strings"
 
+	"golang.org/x/net/context"
+
 	"github.com/Sirupsen/logrus"
 	Cli "github.com/docker/docker/cli"
 	derr "github.com/docker/docker/errors"
@@ -269,7 +271,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 
 		// Autoremove: wait for the container to finish, retrieve
 		// the exit code and remove the container
-		if status, err = cli.client.ContainerWait(createResponse.ID); err != nil {
+		if status, err = cli.client.ContainerWait(context.Background(), createResponse.ID); err != nil {
 			return runStartContainerErr(err)
 		}
 		if _, status, err = getExitCode(cli, createResponse.ID); err != nil {
@@ -279,7 +281,7 @@ func (cli *DockerCli) CmdRun(args ...string) error {
 		// No Autoremove: Simply retrieve the exit code
 		if !config.Tty {
 			// In non-TTY mode, we can't detach, so we must wait for container exit
-			if status, err = cli.client.ContainerWait(createResponse.ID); err != nil {
+			if status, err = cli.client.ContainerWait(context.Background(), createResponse.ID); err != nil {
 				return err
 			}
 		} else {

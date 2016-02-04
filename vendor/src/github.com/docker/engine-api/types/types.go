@@ -387,6 +387,7 @@ type NetworkResource struct {
 	ID         string `json:"Id"`
 	Scope      string
 	Driver     string
+	EnableIPv6 bool
 	IPAM       network.IPAM
 	Internal   bool
 	Containers map[string]EndpointResource
@@ -407,6 +408,7 @@ type NetworkCreate struct {
 	Name           string
 	CheckDuplicate bool
 	Driver         string
+	EnableIPv6     bool
 	IPAM           network.IPAM
 	Internal       bool
 	Options        map[string]string

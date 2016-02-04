@@ -15,6 +15,7 @@ import (
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/term"
 	"github.com/docker/engine-api/client"
+	"github.com/docker/go-connections/sockets"
 	"github.com/docker/go-connections/tlsconfig"
 )
 
@@ -142,12 +143,12 @@ func NewDockerCli(in io.ReadCloser, out, err io.Writer, clientFlags *cli.ClientF
 			verStr = tmpStr
 		}
 
-		clientTransport, err := newClientTransport(clientFlags.Common.TLSOptions)
+		httpClient, err := newHTTPClient(host, clientFlags.Common.TLSOptions)
 		if err != nil {
 			return err
 		}
 
-		client, err := client.NewClient(host, verStr, clientTransport, customHeaders)
+		client, err := client.NewClient(host, verStr, httpClient, customHeaders)
 		if err != nil {
 			return err
 		}
@@ -180,16 +181,27 @@ func getServerHost(hosts []string, tlsOptions *tlsconfig.Options) (host string, 
 	return
 }
 
-func newClientTransport(tlsOptions *tlsconfig.Options) (*http.Transport, error) {
+func newHTTPClient(host string, tlsOptions *tlsconfig.Options) (*http.Client, error) {
 	if tlsOptions == nil {
-		return &http.Transport{}, nil
+		// let the api client configure the default transport.
+		return nil, nil
 	}
 
 	config, err := tlsconfig.Client(*tlsOptions)
 	if err != nil {
 		return nil, err
 	}
-	return &http.Transport{
+	tr := &http.Transport{
 		TLSClientConfig: config,
+	}
+	proto, addr, _, err := client.ParseHost(host)
+	if err != nil {
+		return nil, err
+	}
+
+	sockets.ConfigureTransport(tr, proto, addr)
+
+	return &http.Client{
+		Transport: tr,
 	}, nil
 }

@@ -65,7 +65,7 @@ func LookupSidByName(name string) (sid string, err error) {
 	if err != nil {
 		return "", &AccountLookupError{name, err}
 	}
-	sid = syscall.UTF16ToString((*[1 << 30]uint16)(unsafe.Pointer(strBuffer))[:])
+	sid = syscall.UTF16ToString((*[0xffff]uint16)(unsafe.Pointer(strBuffer))[:])
 	localFree(uintptr(unsafe.Pointer(strBuffer)))
 	return sid, nil
 }
