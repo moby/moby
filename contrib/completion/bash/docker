@@ -1768,6 +1768,11 @@ _docker_run() {
 						__docker_nospace
 					fi
 					;;
+				seccomp:*)
+					local cur=${cur##*:}
+					_filedir
+					COMPREPLY+=( $( compgen -W "unconfined" -- "$cur" ) )
+					;;
 				*)
 					COMPREPLY=( $( compgen -W "label apparmor seccomp" -S ":" -- "$cur") )
 					__docker_nospace
