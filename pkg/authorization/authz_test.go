@@ -118,7 +118,7 @@ func TestResponseModifier(t *testing.T) {
 	m.Write([]byte("body"))
 	m.WriteHeader(500)
 
-	m.Flush()
+	m.FlushAll()
 	if r.Header().Get("h1") != "v1" {
 		t.Fatalf("Header value must exists %s", r.Header().Get("h1"))
 	}
@@ -147,7 +147,7 @@ func TestResponseModifierOverride(t *testing.T) {
 	m.OverrideHeader(overrideHeaderBytes)
 	m.OverrideBody([]byte("override body"))
 	m.OverrideStatusCode(404)
-	m.Flush()
+	m.FlushAll()
 	if r.Header().Get("h1") != "v2" {
 		t.Fatalf("Header value must exists %s", r.Header().Get("h1"))
 	}
