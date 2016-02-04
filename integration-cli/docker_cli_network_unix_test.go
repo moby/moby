@@ -621,6 +621,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkInspectCustomSpecified(c *check.C)
 	c.Assert(nr.IPAM.Config[0].Subnet, checker.Equals, "172.28.0.0/16")
 	c.Assert(nr.IPAM.Config[0].IPRange, checker.Equals, "172.28.5.0/24")
 	c.Assert(nr.IPAM.Config[0].Gateway, checker.Equals, "172.28.5.254")
+	c.Assert(nr.Internal, checker.False)
 	dockerCmd(c, "network", "rm", "br0")
 	assertNwNotAvailable(c, "test01")
 }
@@ -1386,4 +1387,20 @@ func (s *DockerSuite) TestDockerNetworkConnectFailsNoInspectChange(c *check.C) {
 
 	ns1 := inspectField(c, "bb", "NetworkSettings.Networks.bridge")
 	c.Assert(ns1, check.Equals, ns0)
+}
+
+func (s *DockerNetworkSuite) TestDockerNetworkInternalMode(c *check.C) {
+	dockerCmd(c, "network", "create", "--driver=bridge", "--internal", "internal")
+	assertNwIsAvailable(c, "internal")
+	nr := getNetworkResource(c, "internal")
+	c.Assert(nr.Internal, checker.True)
+
+	dockerCmd(c, "run", "-d", "--net=internal", "--name=first", "busybox", "top")
+	c.Assert(waitRun("first"), check.IsNil)
+	dockerCmd(c, "run", "-d", "--net=internal", "--name=second", "busybox", "top")
+	c.Assert(waitRun("second"), check.IsNil)
+	_, _, err := dockerCmdWithError("exec", "first", "ping", "-c", "1", "www.google.com")
+	c.Assert(err, check.NotNil)
+	_, _, err = dockerCmdWithError("exec", "second", "ping", "-c", "1", "first")
+	c.Assert(err, check.IsNil)
 }

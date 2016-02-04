@@ -164,6 +164,7 @@ func buildNetworkResource(nw libnetwork.Network) *types.NetworkResource {
 	r.Options = nw.Info().DriverOptions()
 	r.Containers = make(map[string]types.EndpointResource)
 	buildIpamResources(r, nw)
+	r.Internal = nw.Info().Internal()
 
 	epl := nw.Endpoints()
 	for _, e := range epl {
