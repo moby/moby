@@ -31,11 +31,24 @@ func (e *UnexpectedHTTPResponseError) Error() string {
 	return fmt.Sprintf("Error parsing HTTP response: %s: %q", e.ParseErr.Error(), string(e.Response))
 }
 
-func parseHTTPErrorResponse(r io.Reader) error {
+func parseHTTPErrorResponse(statusCode int, r io.Reader) error {
 	var errors errcode.Errors
 	body, err := ioutil.ReadAll(r)
 	if err != nil {
 		return err
+	}
+
+	// For backward compatibility, handle irregularly formatted
+	// messages that contain a "details" field.
+	var detailsErr struct {
+		Details string `json:"details"`
+	}
+	err = json.Unmarshal(body, &detailsErr)
+	if err == nil && detailsErr.Details != "" {
+		if statusCode == http.StatusUnauthorized {
+			return errcode.ErrorCodeUnauthorized.WithMessage(detailsErr.Details)
+		}
+		return errcode.ErrorCodeUnknown.WithMessage(detailsErr.Details)
 	}
 
 	if err := json.Unmarshal(body, &errors); err != nil {
@@ -53,14 +66,14 @@ func parseHTTPErrorResponse(r io.Reader) error {
 // range.
 func HandleErrorResponse(resp *http.Response) error {
 	if resp.StatusCode == 401 {
-		err := parseHTTPErrorResponse(resp.Body)
+		err := parseHTTPErrorResponse(resp.StatusCode, resp.Body)
 		if uErr, ok := err.(*UnexpectedHTTPResponseError); ok {
 			return errcode.ErrorCodeUnauthorized.WithDetail(uErr.Response)
 		}
 		return err
 	}
 	if resp.StatusCode >= 400 && resp.StatusCode < 500 {
-		return parseHTTPErrorResponse(resp.Body)
+		return parseHTTPErrorResponse(resp.StatusCode, resp.Body)
 	}
 	return &UnexpectedHTTPStatusError{Status: resp.Status}
 }

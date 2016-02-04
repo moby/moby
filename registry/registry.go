@@ -31,7 +31,6 @@ var (
 	// ErrAlreadyExists is an error returned if an image being pushed
 	// already exists on the remote side
 	ErrAlreadyExists = errors.New("Image already exists")
-	errLoginRequired = errors.New("Authentication is required.")
 )
 
 // dockerUserAgent is the User-Agent the Docker client uses to identify itself.
@@ -109,7 +108,7 @@ func ReadCertsDirectory(tlsConfig *tls.Config, directory string) error {
 			keyName := certName[:len(certName)-5] + ".key"
 			logrus.Debugf("cert: %s", filepath.Join(directory, f.Name()))
 			if !hasFile(fs, keyName) {
-				return fmt.Errorf("Missing key %s for certificate %s", keyName, certName)
+				return fmt.Errorf("Missing key %s for client certificate %s. Note that CA certificates should use the extension .crt.", keyName, certName)
 			}
 			cert, err := tls.LoadX509KeyPair(filepath.Join(directory, certName), filepath.Join(directory, keyName))
 			if err != nil {
@@ -122,7 +121,7 @@ func ReadCertsDirectory(tlsConfig *tls.Config, directory string) error {
 			certName := keyName[:len(keyName)-4] + ".cert"
 			logrus.Debugf("key: %s", filepath.Join(directory, f.Name()))
 			if !hasFile(fs, certName) {
-				return fmt.Errorf("Missing certificate %s for key %s", certName, keyName)
+				return fmt.Errorf("Missing client certificate %s for key %s", certName, keyName)
 			}
 		}
 	}

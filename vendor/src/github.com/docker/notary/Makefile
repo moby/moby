@@ -34,7 +34,7 @@ _space := $(empty) $(empty)
 COVERDIR=.cover
 COVERPROFILE?=$(COVERDIR)/cover.out
 COVERMODE=count
-PKGS = $(shell go list ./... | tr '\n' ' ')
+PKGS ?= $(shell go list ./... | tr '\n' ' ')
 
 GO_VERSION = $(shell go version | awk '{print $$3}')
 
@@ -118,12 +118,13 @@ protos:
 # be run first
 
 define gocover
-$(GO_EXC) test $(OPTS) $(TESTOPTS) -covermode="$(COVERMODE)" -coverprofile="$(COVERDIR)/$(subst /,-,$(1)).$(subst $(_space),.,$(NOTARY_BUILDTAGS)).cover" "$(1)" || exit 1;
+$(GO_EXC) test $(OPTS) $(TESTOPTS) -covermode="$(COVERMODE)" -coverprofile="$(COVERDIR)/$(subst /,-,$(1)).$(subst $(_space),.,$(NOTARY_BUILDTAGS)).coverage.txt" "$(1)" || exit 1;
 endef
 
 gen-cover: go_version
 	@mkdir -p "$(COVERDIR)"
 	$(foreach PKG,$(PKGS),$(call gocover,$(PKG)))
+	rm -f "$(COVERDIR)"/*testutils*.coverage.txt
 
 # Generates the cover binaries and runs them all in serial, so this can be used
 # run all tests with a yubikey without any problems
@@ -138,6 +139,9 @@ ci: OPTS = -tags "${NOTARY_BUILDTAGS}" -race -coverpkg "$(shell ./coverpkg.sh $(
     GO_EXC := godep go
 # Codecov knows how to merge multiple coverage files, so covmerge is not needed
 ci: gen-cover
+
+yubikey-tests: override PKGS = github.com/docker/notary/cmd/notary github.com/docker/notary/trustmanager/yubikey
+yubikey-tests: ci
 
 covmerge:
 	@gocovmerge $(shell ls -1 $(COVERDIR)/* | tr "\n" " ") > $(COVERPROFILE)

@@ -21,6 +21,7 @@ import (
 	"github.com/opencontainers/runc/libcontainer/cgroups"
 	"github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/opencontainers/runc/libcontainer/criurpc"
+	"github.com/opencontainers/runc/libcontainer/utils"
 	"github.com/vishvananda/netlink/nl"
 )
 
@@ -968,7 +969,7 @@ func (c *linuxContainer) updateState(process parentProcess) error {
 	}
 	defer f.Close()
 	os.Remove(filepath.Join(c.root, "checkpoint"))
-	return json.NewEncoder(f).Encode(state)
+	return utils.WriteJSON(f, state)
 }
 
 func (c *linuxContainer) currentStatus() (Status, error) {

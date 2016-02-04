@@ -15,6 +15,7 @@ import (
 	"github.com/opencontainers/runc/libcontainer/cgroups"
 	"github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/opencontainers/runc/libcontainer/system"
+	"github.com/opencontainers/runc/libcontainer/utils"
 )
 
 type parentProcess interface {
@@ -83,7 +84,7 @@ func (p *setnsProcess) start() (err error) {
 			return newSystemError(err)
 		}
 	}
-	if err := json.NewEncoder(p.parentPipe).Encode(p.config); err != nil {
+	if err := utils.WriteJSON(p.parentPipe, p.config); err != nil {
 		return newSystemError(err)
 	}
 	if err := syscall.Shutdown(int(p.parentPipe.Fd()), syscall.SHUT_WR); err != nil {
@@ -270,7 +271,7 @@ func (p *initProcess) startTime() (string, error) {
 
 func (p *initProcess) sendConfig() error {
 	// send the state to the container's init process then shutdown writes for the parent
-	if err := json.NewEncoder(p.parentPipe).Encode(p.config); err != nil {
+	if err := utils.WriteJSON(p.parentPipe, p.config); err != nil {
 		return err
 	}
 	// shutdown writes for the parent side of the pipe

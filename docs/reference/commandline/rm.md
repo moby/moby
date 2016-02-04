@@ -45,3 +45,17 @@ This command will delete all stopped containers. The command
 `docker ps -a -q` will return all existing container IDs and pass them to
 the `rm` command which will delete them. Any running containers will not be
 deleted.
+
+  $ docker rm -v redis
+  redis
+
+This command will remove the container and any volumes associated with it.
+Note that if a volume was specified with a name, it will not be removed.
+
+  $ docker create -v awesome:/foo -v /bar --name hello redis
+  hello
+  $ docker rm -v hello
+
+In this example, the volume for `/foo` will remain intact, but the volume for
+`/bar` will be removed. The same behavior holds for volumes inherited with
+`--volumes-from`.

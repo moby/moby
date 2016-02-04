@@ -21,7 +21,6 @@ import (
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/mount"
-	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/runconfig"
 	containertypes "github.com/docker/engine-api/types/container"
@@ -209,10 +208,12 @@ func (daemon *Daemon) populateCommand(c *container.Container, env []string) erro
 		BlkioThrottleWriteBpsDevice:  writeBpsDevice,
 		BlkioThrottleReadIOpsDevice:  readIOpsDevice,
 		BlkioThrottleWriteIOpsDevice: writeIOpsDevice,
-		OomKillDisable:               *c.HostConfig.OomKillDisable,
 		MemorySwappiness:             -1,
 	}
 
+	if c.HostConfig.OomKillDisable != nil {
+		resources.OomKillDisable = *c.HostConfig.OomKillDisable
+	}
 	if c.HostConfig.MemorySwappiness != nil {
 		resources.MemorySwappiness = *c.HostConfig.MemorySwappiness
 	}
@@ -249,16 +250,8 @@ func (daemon *Daemon) populateCommand(c *container.Container, env []string) erro
 	defaultCgroupParent := "/docker"
 	if daemon.configStore.CgroupParent != "" {
 		defaultCgroupParent = daemon.configStore.CgroupParent
-	} else {
-		for _, option := range daemon.configStore.ExecOptions {
-			key, val, err := parsers.ParseKeyValueOpt(option)
-			if err != nil || !strings.EqualFold(key, "native.cgroupdriver") {
-				continue
-			}
-			if val == "systemd" {
-				defaultCgroupParent = "system.slice"
-			}
-		}
+	} else if daemon.usingSystemd() {
+		defaultCgroupParent = "system.slice"
 	}
 	c.Command = &execdriver.Command{
 		CommonCommand: execdriver.CommonCommand{
@@ -513,7 +506,7 @@ func (daemon *Daemon) updateEndpointNetworkSettings(container *container.Contain
 	}
 
 	if container.HostConfig.NetworkMode == containertypes.NetworkMode("bridge") {
-		container.NetworkSettings.Bridge = daemon.configStore.Bridge.Iface
+		container.NetworkSettings.Bridge = daemon.configStore.bridgeConfig.Iface
 	}
 
 	return nil
@@ -658,6 +651,9 @@ func hasUserDefinedIPAddress(epConfig *networktypes.EndpointSettings) bool {
 
 // User specified ip address is acceptable only for networks with user specified subnets.
 func validateNetworkingConfig(n libnetwork.Network, epConfig *networktypes.EndpointSettings) error {
+	if n == nil || epConfig == nil {
+		return nil
+	}
 	if !hasUserDefinedIPAddress(epConfig) {
 		return nil
 	}
@@ -704,7 +700,7 @@ func cleanOperationalData(es *networktypes.EndpointSettings) {
 	es.MacAddress = ""
 }
 
-func (daemon *Daemon) updateNetworkConfig(container *container.Container, idOrName string, updateSettings bool) (libnetwork.Network, error) {
+func (daemon *Daemon) updateNetworkConfig(container *container.Container, idOrName string, endpointConfig *networktypes.EndpointSettings, updateSettings bool) (libnetwork.Network, error) {
 	if container.HostConfig.NetworkMode.IsContainer() {
 		return nil, runconfig.ErrConflictSharedNetwork
 	}
@@ -715,8 +711,21 @@ func (daemon *Daemon) updateNetworkConfig(container *container.Container, idOrNa
 		return nil, nil
 	}
 
+	if !containertypes.NetworkMode(idOrName).IsUserDefined() {
+		if hasUserDefinedIPAddress(endpointConfig) {
+			return nil, runconfig.ErrUnsupportedNetworkAndIP
+		}
+		if endpointConfig != nil && len(endpointConfig.Aliases) > 0 {
+			return nil, runconfig.ErrUnsupportedNetworkAndAlias
+		}
+	}
+
 	n, err := daemon.FindNetwork(idOrName)
 	if err != nil {
+		return nil, err
+	}
+
+	if err := validateNetworkingConfig(n, endpointConfig); err != nil {
 		return nil, err
 	}
 
@@ -734,8 +743,11 @@ func (daemon *Daemon) ConnectToNetwork(container *container.Container, idOrName 
 		if container.RemovalInProgress || container.Dead {
 			return derr.ErrorCodeRemovalContainer.WithArgs(container.ID)
 		}
-		if _, err := daemon.updateNetworkConfig(container, idOrName, true); err != nil {
+		if _, err := daemon.updateNetworkConfig(container, idOrName, endpointConfig, true); err != nil {
 			return err
+		}
+		if endpointConfig != nil {
+			container.NetworkSettings.Networks[idOrName] = endpointConfig
 		}
 	} else {
 		if err := daemon.connectToNetwork(container, idOrName, endpointConfig, true); err != nil {
@@ -749,7 +761,7 @@ func (daemon *Daemon) ConnectToNetwork(container *container.Container, idOrName 
 }
 
 func (daemon *Daemon) connectToNetwork(container *container.Container, idOrName string, endpointConfig *networktypes.EndpointSettings, updateSettings bool) (err error) {
-	n, err := daemon.updateNetworkConfig(container, idOrName, updateSettings)
+	n, err := daemon.updateNetworkConfig(container, idOrName, endpointConfig, updateSettings)
 	if err != nil {
 		return err
 	}
@@ -757,25 +769,10 @@ func (daemon *Daemon) connectToNetwork(container *container.Container, idOrName 
 		return nil
 	}
 
-	if !containertypes.NetworkMode(idOrName).IsUserDefined() && hasUserDefinedIPAddress(endpointConfig) {
-		return runconfig.ErrUnsupportedNetworkAndIP
-	}
-
-	if !containertypes.NetworkMode(idOrName).IsUserDefined() && len(endpointConfig.Aliases) > 0 {
-		return runconfig.ErrUnsupportedNetworkAndAlias
-	}
-
 	controller := daemon.netController
 
-	if err := validateNetworkingConfig(n, endpointConfig); err != nil {
-		return err
-	}
-
-	if endpointConfig != nil {
-		container.NetworkSettings.Networks[n.Name()] = endpointConfig
-	}
-
-	createOptions, err := container.BuildCreateEndpointOptions(n)
+	sb := daemon.getNetworkSandbox(container)
+	createOptions, err := container.BuildCreateEndpointOptions(n, endpointConfig, sb)
 	if err != nil {
 		return err
 	}
@@ -793,11 +790,14 @@ func (daemon *Daemon) connectToNetwork(container *container.Container, idOrName 
 		}
 	}()
 
+	if endpointConfig != nil {
+		container.NetworkSettings.Networks[n.Name()] = endpointConfig
+	}
+
 	if err := daemon.updateEndpointNetworkSettings(container, n, ep); err != nil {
 		return err
 	}
 
-	sb := daemon.getNetworkSandbox(container)
 	if sb == nil {
 		options, err := daemon.buildSandboxOptions(container, n)
 		if err != nil {
@@ -1000,6 +1000,8 @@ func (daemon *Daemon) releaseNetwork(container *container.Container) {
 
 	sid := container.NetworkSettings.SandboxID
 	settings := container.NetworkSettings.Networks
+	container.NetworkSettings.Ports = nil
+
 	if sid == "" || len(settings) == 0 {
 		return
 	}

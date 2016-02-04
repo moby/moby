@@ -1,15 +1,15 @@
 <!--[metadata]>
 +++
-title = "Extending Docker with plugins"
+title = "Extending Engine with plugins"
 description = "How to add additional functionality to Docker with plugins extensions"
 keywords = ["Examples, Usage, plugins, docker, documentation, user guide"]
 [menu.main]
-parent = "mn_extend"
+parent = "engine_extend"
 weight=-1
 +++
 <![end-metadata]-->
 
-# Understand Docker plugins
+# Understand Engine plugins
 
 You can extend the capabilities of the Docker Engine by loading third-party
 plugins. This page explains the types of plugins and provides links to several
@@ -53,6 +53,10 @@ The following plugins exist:
   another volume plugin that provides multi-host volumes management for Docker
   using GlusterFS.
 
+* The [IPFS Volume Plugin](http://github.com/vdemeester/docker-volume-ipfs)
+  is an open source volume plugin that allows using an
+  [ipfs](https://ipfs.io/) filesystem as a volume.
+
 * The [Keywhiz plugin](https://github.com/calavera/docker-volume-keywhiz) is
   a plugin that provides credentials and secret management using Keywhiz as
   a central repository.
@@ -62,21 +66,28 @@ The following plugins exist:
 
 * The [OpenStorage Plugin](https://github.com/libopenstorage/openstorage) is a cluster aware volume plugin that provides volume management for file and block storage solutions.  It implements a vendor neutral specification for implementing extensions such as CoS, encryption, and snapshots.   It has example drivers based on FUSE, NFS, NBD and EBS to name a few.
 
+* The [Quobyte Volume Plugin](https://github.com/quobyte/docker-volume) connects Docker to [Quobyte](http://www.quobyte.com/containers)'s data center file system, a general-purpose scalable and fault-tolerant storage platform.
+
 * The [REX-Ray plugin](https://github.com/emccode/rexray) is a volume plugin
   which is written in Go and provides advanced storage functionality for many
   platforms including VirtualBox, EC2, Google Compute Engine, OpenStack, and EMC.
-    
+
 * The [Contiv Volume Plugin](https://github.com/contiv/volplugin) is an open
-source volume plugin that provides multi-tenant, persistent, distributed storage
-with intent based consumption using ceph underneath.
+  source volume plugin that provides multi-tenant, persistent, distributed storage
+  with intent based consumption using ceph underneath.
 
 * The [Contiv Networking](https://github.com/contiv/netplugin) is an open source
-libnetwork plugin to provide infrastructure and security policies for a
-multi-tenant micro services deployment, while providing an integration to
-physical network for non-container workload. Contiv Networking implements the
-remote driver and IPAM APIs available in Docker 1.9 onwards.
+  libnetwork plugin to provide infrastructure and security policies for a
+  multi-tenant micro services deployment, while providing an integration to
+  physical network for non-container workload. Contiv Networking implements the
+  remote driver and IPAM APIs available in Docker 1.9 onwards.
 
-* The [Weave Network Plugin](http://docs.weave.works/weave/latest_release/plugin.html) creates a virtual network that connects your Docker containers - across multiple hosts or clouds and enables automatic discovery of applications. Weave networks are resilient, partition tolerant, secure and work in partially connected networks, and other adverse environments - all configured with delightful simplicity.
+* The [Weave Network Plugin](http://docs.weave.works/weave/latest_release/plugin.html)
+  creates a virtual network that connects your Docker containers -
+  across multiple hosts or clouds and enables automatic discovery of
+  applications. Weave networks are resilient, partition tolerant,
+  secure and work in partially connected networks, and other adverse
+  environments - all configured with delightful simplicity.
 
 ## Troubleshooting a plugin
 

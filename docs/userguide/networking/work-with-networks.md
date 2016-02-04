@@ -79,7 +79,13 @@ management that can assist your implementation.
 When you create a network, Engine creates a non-overlapping subnetwork for the
 network by default. You can override this default and specify a subnetwork
 directly using the the `--subnet` option. On a `bridge` network you can only
-create a single subnet. An `overlay` network supports multiple subnets.
+specify a single subnet. An `overlay` network supports multiple subnets.
+
+> **Note** : It is highly recommended to use the `--subnet` option while creating
+> a network. If the `--subnet` is not specified, the docker daemon automatically
+> chooses and assigns a subnet for the network and it could overlap with another subnet
+> in your infrastructure that is not managed by docker. Such overlaps can cause
+> connectivity issues or failures when containers are connected to that network.
 
 In addition to the `--subnetwork` option, you also specify the `--gateway` `--ip-range` and `--aux-address` options.
 
@@ -94,6 +100,53 @@ $ docker network create -d overlay
 ```
 
 Be sure that your subnetworks do not overlap. If they do, the network create fails and Engine returns an error.
+
+When creating a custom network, the default network driver (i.e. `bridge`) has additional options that can be passed.
+The following are those options and the equivalent docker daemon flags used for docker0 bridge:
+
+| Option                                           | Equivalent  | Description                                           |
+|--------------------------------------------------|-------------|-------------------------------------------------------|
+| `com.docker.network.bridge.name`                 | -           | bridge name to be used when creating the Linux bridge |
+| `com.docker.network.bridge.enable_ip_masquerade` | `--ip-masq` | Enable IP masquerading                                |
+| `com.docker.network.bridge.enable_icc`           | `--icc`     | Enable or Disable Inter Container Connectivity        |
+| `com.docker.network.bridge.host_binding_ipv4`    | `--ip`      | Default IP when binding container ports               |
+| `com.docker.network.mtu`                         | `--mtu`     | Set the containers network MTU                        |
+| `com.docker.network.enable_ipv6`                 | `--ipv6`    | Enable IPv6 networking                                |
+
+For example, now let's use `-o` or `--opt` options to specify an IP address binding when publishing ports:
+
+```bash
+$ docker network create -o "com.docker.network.bridge.host_binding_ipv4"="172.23.0.1" my-network
+b1a086897963e6a2e7fc6868962e55e746bee8ad0c97b54a5831054b5f62672a
+$ docker network inspect my-network
+[
+    {
+        "Name": "my-network",
+        "Id": "b1a086897963e6a2e7fc6868962e55e746bee8ad0c97b54a5831054b5f62672a",
+        "Scope": "local",
+        "Driver": "bridge",
+        "IPAM": {
+            "Driver": "default",
+            "Options": {},
+            "Config": [
+                {
+                    "Subnet": "172.23.0.0/16",
+                    "Gateway": "172.23.0.1/16"
+                }
+            ]
+        },
+        "Containers": {},
+        "Options": {
+            "com.docker.network.bridge.host_binding_ipv4": "172.23.0.1"
+        }
+    }
+]
+$ docker run -d -P --name redis --net my-network redis
+bafb0c808c53104b2c90346f284bda33a69beadcab4fc83ab8f2c5a4410cd129
+$ docker ps
+CONTAINER ID        IMAGE               COMMAND                  CREATED             STATUS              PORTS                        NAMES
+bafb0c808c53        redis               "/entrypoint.sh redis"   4 seconds ago       Up 3 seconds        172.23.0.1:32770->6379/tcp   redis
+```
 
 ## Connect containers
 
@@ -729,6 +782,25 @@ PING container1 (172.17.0.2): 56 data bytes
 2 packets transmitted, 2 packets received, 0% packet loss
 round-trip min/avg/max = 0.119/0.146/0.174 ms
 / #
+```
+
+There are certain scenarios such as ungraceful docker daemon restarts in multi-host network,
+where the daemon is unable to cleanup stale connectivity endpoints. Such stale endpoints
+may cause an error `container already connected to network` when a new container is
+connected to that network with the same name as the stale endpoint. In order to cleanup
+these stale endpoints, first remove the container and force disconnect 
+(`docker network disconnect -f`)  the endpoint from the network. Once the endpoint is 
+cleaned up, the container can be connected to the network.
+
+```
+$ docker run -d --name redis_db --net multihost redis
+ERROR: Cannot start container bc0b19c089978f7845633027aa3435624ca3d12dd4f4f764b61eac4c0610f32e: container already connected to network multihost
+
+$ docker rm -f redis_db
+$ docker network disconnect -f multihost redis_db
+
+$ docker run -d --name redis_db --net multihost redis
+7d986da974aeea5e9f7aca7e510bdb216d58682faa83a9040c2f2adc0544795a
 ```
 
 ## Remove a network

@@ -57,12 +57,13 @@ for version in "${versions[@]}"; do
 		libapparmor-dev # for "sys/apparmor.h"
 		libdevmapper-dev # for "libdevmapper.h"
 		libltdl-dev # for pkcs11 "ltdl.h"
-		libsqlite3-dev # for "sqlite3.h"
 		libseccomp-dev  # for "seccomp.h" & "libseccomp.so"
+		libsqlite3-dev # for "sqlite3.h"
+		pkg-config # for detecting things like libsystemd-journal dynamically
 	)
 	# packaging for "sd-journal.h" and libraries varies
 	case "$suite" in
-		precise) ;;
+		precise|wheezy) ;;
 		sid|stretch|wily) packages+=( libsystemd-dev );;
 		*) packages+=( libsystemd-journal-dev );;
 	esac
@@ -96,9 +97,13 @@ for version in "${versions[@]}"; do
 	fi
 
 	if [ "$suite" = 'wheezy' ]; then
-		# pull btrfs-toold from backports
-		backports="/$suite-backports"
-		packages=( "${packages[@]/btrfs-tools/btrfs-tools$backports}" )
+		# pull a couple packages from backports explicitly
+		# (build failures otherwise)
+		backportsPackages=( btrfs-tools libsystemd-journal-dev )
+		for pkg in "${backportsPackages[@]}"; do
+			packages=( "${packages[@]/$pkg}" )
+		done
+		echo "RUN apt-get update && apt-get install -y -t $suite-backports ${backportsPackages[*]} --no-install-recommends && rm -rf /var/lib/apt/lists/*" >> "$version/Dockerfile"
 	fi
 
 	echo "RUN apt-get update && apt-get install -y ${packages[*]} --no-install-recommends && rm -rf /var/lib/apt/lists/*" >> "$version/Dockerfile"

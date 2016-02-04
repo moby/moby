@@ -4,7 +4,7 @@ title = "Remote API v1.18"
 description = "API Documentation for Docker"
 keywords = ["API, Docker, rcli, REST,  documentation"]
 [menu.main]
-parent = "smn_remoteapi"
+parent = "engine_remoteapi"
 weight = 3
 +++
 <![end-metadata]-->
@@ -15,7 +15,7 @@ weight = 3
 
  - The Remote API has replaced `rcli`.
  - The daemon listens on `unix:///var/run/docker.sock` but you can
-   [Bind Docker to another host/port or a Unix socket](../../userguide/basics.md#bind-docker-to-another-host-port-or-a-unix-socket).
+   [Bind Docker to another host/port or a Unix socket](../../quickstart.md#bind-docker-to-another-host-port-or-a-unix-socket).
  - The API tends to be REST, but for some complex commands, like `attach`
    or `pull`, the HTTP connection is hijacked to transport `STDOUT`,
    `STDIN` and `STDERR`.
@@ -207,8 +207,8 @@ Json Parameters:
       for the container.
 -   **User** - A string value containing the user to use inside the container.
 -   **Memory** - Memory limit in bytes.
--   **MemorySwap**- Total memory limit (memory + swap); set `-1` to disable swap,
-      always use this with `memory`, and make the value larger than `memory`.
+-   **MemorySwap** - Total memory limit (memory + swap); set `-1` to enable unlimited swap.
+      You must use this with `memory` and make the swap value larger than `memory`.
 -   **CpuShares** - An integer value containing the CPU Shares for container
       (ie. the relative weight vs other containers).
 -   **Cpuset** - The same as CpusetCpus, but deprecated, please don't use.
@@ -1207,7 +1207,7 @@ Query Parameters:
 -   **rm** - remove intermediate containers after a successful build (default behavior)
 -   **forcerm** - always remove intermediate containers (includes rm)
 -   **memory** - set memory limit for build
--   **memswap** - Total memory (memory + swap), `-1` to disable swap
+-   **memswap** - Total memory (memory + swap), `-1` to enable unlimited swap.
 -   **cpushares** - CPU shares (relative weight)
 -   **cpusetcpus** - CPUs in which to allow execution, e.g., `0-3`, `0,1`
 

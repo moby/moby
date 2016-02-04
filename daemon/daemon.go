@@ -31,6 +31,7 @@ import (
 	containertypes "github.com/docker/engine-api/types/container"
 	eventtypes "github.com/docker/engine-api/types/events"
 	"github.com/docker/engine-api/types/filters"
+	networktypes "github.com/docker/engine-api/types/network"
 	registrytypes "github.com/docker/engine-api/types/registry"
 	"github.com/docker/engine-api/types/strslice"
 	// register graph drivers
@@ -99,46 +100,11 @@ func (e ErrImageDoesNotExist) Error() string {
 	return fmt.Sprintf("no such id: %s", e.RefOrID)
 }
 
-type contStore struct {
-	s map[string]*container.Container
-	sync.Mutex
-}
-
-func (c *contStore) Add(id string, cont *container.Container) {
-	c.Lock()
-	c.s[id] = cont
-	c.Unlock()
-}
-
-func (c *contStore) Get(id string) *container.Container {
-	c.Lock()
-	res := c.s[id]
-	c.Unlock()
-	return res
-}
-
-func (c *contStore) Delete(id string) {
-	c.Lock()
-	delete(c.s, id)
-	c.Unlock()
-}
-
-func (c *contStore) List() []*container.Container {
-	containers := new(History)
-	c.Lock()
-	for _, cont := range c.s {
-		containers.Add(cont)
-	}
-	c.Unlock()
-	containers.sort()
-	return *containers
-}
-
 // Daemon holds information about the Docker daemon.
 type Daemon struct {
 	ID                        string
 	repository                string
-	containers                *contStore
+	containers                container.Store
 	execCommands              *exec.Store
 	referenceStore            reference.Store
 	downloadManager           *xfer.LayerDownloadManager
@@ -282,10 +248,6 @@ func (daemon *Daemon) Register(container *container.Container) error {
 		}
 	}
 
-	if err := daemon.prepareMountPoints(container); err != nil {
-		return err
-	}
-
 	return nil
 }
 
@@ -406,6 +368,23 @@ func (daemon *Daemon) restore() error {
 		}(c, notifier)
 
 	}
+	group.Wait()
+
+	// any containers that were started above would already have had this done,
+	// however we need to now prepare the mountpoints for the rest of the containers as well.
+	// This shouldn't cause any issue running on the containers that already had this run.
+	// This must be run after any containers with a restart policy so that containerized plugins
+	// can have a chance to be running before we try to initialize them.
+	for _, c := range containers {
+		group.Add(1)
+		go func(c *container.Container) {
+			defer group.Done()
+			if err := daemon.prepareMountPoints(c); err != nil {
+				logrus.Error(err)
+			}
+		}(c)
+	}
+
 	group.Wait()
 
 	if !debug {
@@ -601,6 +580,10 @@ func (daemon *Daemon) parents(c *container.Container) map[string]*container.Cont
 func (daemon *Daemon) registerLink(parent, child *container.Container, alias string) error {
 	fullName := path.Join(parent.Name, alias)
 	if err := daemon.nameIndex.Reserve(fullName, child.ID); err != nil {
+		if err == registrar.ErrNameReserved {
+			logrus.Warnf("error registering link for %s, to %s, as alias %s, ignoring: %v", parent.ID, child.ID, alias, err)
+			return nil
+		}
 		return err
 	}
 	daemon.linkIndex.link(parent, child, fullName)
@@ -612,8 +595,8 @@ func (daemon *Daemon) registerLink(parent, child *container.Container, alias str
 func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemon, err error) {
 	setDefaultMtu(config)
 
-	// Ensure we have compatible configuration options
-	if err := checkConfigOptions(config); err != nil {
+	// Ensure we have compatible and valid configuration options
+	if err := verifyDaemonSettings(config); err != nil {
 		return nil, err
 	}
 
@@ -794,7 +777,7 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 
 	d.ID = trustKey.PublicKey().KeyID()
 	d.repository = daemonRepo
-	d.containers = &contStore{s: make(map[string]*container.Container)}
+	d.containers = container.NewMemoryStore()
 	d.execCommands = exec.NewStore()
 	d.referenceStore = referenceStore
 	d.distributionMetadataStore = distributionMetadataStore
@@ -873,24 +856,18 @@ func (daemon *Daemon) shutdownContainer(c *container.Container) error {
 func (daemon *Daemon) Shutdown() error {
 	daemon.shutdown = true
 	if daemon.containers != nil {
-		group := sync.WaitGroup{}
 		logrus.Debug("starting clean shutdown of all containers...")
-		for _, cont := range daemon.List() {
-			if !cont.IsRunning() {
-				continue
+		daemon.containers.ApplyAll(func(c *container.Container) {
+			if !c.IsRunning() {
+				return
 			}
-			logrus.Debugf("stopping %s", cont.ID)
-			group.Add(1)
-			go func(c *container.Container) {
-				defer group.Done()
-				if err := daemon.shutdownContainer(c); err != nil {
-					logrus.Errorf("Stop container error: %v", err)
-					return
-				}
-				logrus.Debugf("container stopped %s", c.ID)
-			}(cont)
-		}
-		group.Wait()
+			logrus.Debugf("stopping %s", c.ID)
+			if err := daemon.shutdownContainer(c); err != nil {
+				logrus.Errorf("Stop container error: %v", err)
+				return
+			}
+			logrus.Debugf("container stopped %s", c.ID)
+		})
 	}
 
 	// trigger libnetwork Stop only if it's initialized
@@ -1252,6 +1229,9 @@ func (daemon *Daemon) ImageHistory(name string) ([]*types.ImageHistory, error) {
 func (daemon *Daemon) GetImageID(refOrID string) (image.ID, error) {
 	// Treat as an ID
 	if id, err := digest.ParseDigest(refOrID); err == nil {
+		if _, err := daemon.imageStore.Get(image.ID(id)); err != nil {
+			return "", ErrImageDoesNotExist{refOrID}
+		}
 		return image.ID(id), nil
 	}
 
@@ -1314,35 +1294,45 @@ func (daemon *Daemon) GetRemappedUIDGID() (int, int) {
 	return uid, gid
 }
 
-// ImageGetCached returns the earliest created image that is a child
+// ImageGetCached returns the most recent created image that is a child
 // of the image with imgID, that had the same config when it was
 // created. nil is returned if a child cannot be found. An error is
 // returned if the parent image cannot be found.
 func (daemon *Daemon) ImageGetCached(imgID image.ID, config *containertypes.Config) (*image.Image, error) {
-	// Retrieve all images
-	imgs := daemon.Map()
-
-	var siblings []image.ID
-	for id, img := range imgs {
-		if img.Parent == imgID {
-			siblings = append(siblings, id)
-		}
-	}
-
 	// Loop on the children of the given image and check the config
-	var match *image.Image
-	for _, id := range siblings {
-		img, ok := imgs[id]
-		if !ok {
-			return nil, fmt.Errorf("unable to find image %q", id)
-		}
-		if runconfig.Compare(&img.ContainerConfig, config) {
-			if match == nil || match.Created.Before(img.Created) {
-				match = img
+	getMatch := func(siblings []image.ID) (*image.Image, error) {
+		var match *image.Image
+		for _, id := range siblings {
+			img, err := daemon.imageStore.Get(id)
+			if err != nil {
+				return nil, fmt.Errorf("unable to find image %q", id)
+			}
+
+			if runconfig.Compare(&img.ContainerConfig, config) {
+				// check for the most up to date match
+				if match == nil || match.Created.Before(img.Created) {
+					match = img
+				}
 			}
 		}
+		return match, nil
 	}
-	return match, nil
+
+	// In this case, this is `FROM scratch`, which isn't an actual image.
+	if imgID == "" {
+		images := daemon.imageStore.Map()
+		var siblings []image.ID
+		for id, img := range images {
+			if img.Parent == imgID {
+				siblings = append(siblings, id)
+			}
+		}
+		return getMatch(siblings)
+	}
+
+	// find match from child images
+	siblings := daemon.imageStore.Children(imgID)
+	return getMatch(siblings)
 }
 
 // tempDir returns the default directory to use for temporary files.
@@ -1438,6 +1428,18 @@ func (daemon *Daemon) verifyContainerSettings(hostConfig *containertypes.HostCon
 
 	// Now do platform-specific verification
 	return verifyPlatformContainerSettings(daemon, hostConfig, config)
+}
+
+// Checks if the client set configurations for more than one network while creating a container
+func (daemon *Daemon) verifyNetworkingConfig(nwConfig *networktypes.NetworkingConfig) error {
+	if nwConfig == nil || len(nwConfig.EndpointsConfig) <= 1 {
+		return nil
+	}
+	l := make([]string, 0, len(nwConfig.EndpointsConfig))
+	for k := range nwConfig.EndpointsConfig {
+		l = append(l, k)
+	}
+	return derr.ErrorCodeMultipleNetworkConnect.WithArgs(fmt.Sprintf("%v", l))
 }
 
 func configureVolumes(config *Config, rootUID, rootGID int) (*store.VolumeStore, error) {
@@ -1536,13 +1538,12 @@ func (daemon *Daemon) initDiscovery(config *Config) error {
 // daemon according to those changes.
 // This are the settings that Reload changes:
 // - Daemon labels.
-// - Cluster discovery (reconfigure and restart).
 func (daemon *Daemon) Reload(config *Config) error {
 	daemon.configStore.reloadLock.Lock()
-	defer daemon.configStore.reloadLock.Unlock()
-
 	daemon.configStore.Labels = config.Labels
-	return daemon.reloadClusterDiscovery(config)
+	daemon.configStore.reloadLock.Unlock()
+
+	return nil
 }
 
 func (daemon *Daemon) reloadClusterDiscovery(config *Config) error {

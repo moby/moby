@@ -18,6 +18,8 @@ const (
 	FsMagicExtfs = FsMagic(0x0000EF53)
 	// FsMagicF2fs filesystem id for F2fs
 	FsMagicF2fs = FsMagic(0xF2F52010)
+	// FsMagicGPFS filesystem id for GPFS
+	FsMagicGPFS = FsMagic(0x47504653)
 	// FsMagicJffs2Fs filesystem if for Jffs2Fs
 	FsMagicJffs2Fs = FsMagic(0x000072b6)
 	// FsMagicJfs filesystem id for Jfs
@@ -60,6 +62,7 @@ var (
 		FsMagicCramfs:      "cramfs",
 		FsMagicExtfs:       "extfs",
 		FsMagicF2fs:        "f2fs",
+		FsMagicGPFS:        "gpfs",
 		FsMagicJffs2Fs:     "jffs2",
 		FsMagicJfs:         "jfs",
 		FsMagicNfsFs:       "nfs",

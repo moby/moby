@@ -86,7 +86,7 @@ membership.
 If you need to access the Docker daemon remotely, you need to enable the `tcp`
 Socket. Beware that the default setup provides un-encrypted and
 un-authenticated direct access to the Docker daemon - and should be secured
-either using the [built in HTTPS encrypted socket](../../articles/https/), or by
+either using the [built in HTTPS encrypted socket](../../security/https/), or by
 putting a secure web proxy in front of it. You can listen on port `2375` on all
 network interfaces with `-H tcp://0.0.0.0:2375`, or on a particular network
 interface using its IP address: `-H tcp://192.168.59.103:2375`. It is
@@ -220,15 +220,15 @@ options for `zfs` start with `zfs`.
     the empty case the larger the device is.
 
     The base device size can be increased at daemon restart which will allow
-    all future images and containers (based on those new images) to be of the 
+    all future images and containers (based on those new images) to be of the
     new base device size.
 
-    Example use: 
+    Example use:
 
         $ docker daemon --storage-opt dm.basesize=50G
 
-    This will increase the base device size to 50G. The Docker daemon will throw an 
-    error if existing base device size is larger than 50G. A user can use 
+    This will increase the base device size to 50G. The Docker daemon will throw an
+    error if existing base device size is larger than 50G. A user can use
     this option to expand the base device size however shrinking is not permitted.
 
     This value affects the system-wide "base" empty filesystem
@@ -565,7 +565,7 @@ please check the [run](run.md) reference.
 
 ## Nodes discovery
 
-The `--cluster-advertise` option specifies the 'host:port' or `interface:port`
+The `--cluster-advertise` option specifies the `host:port` or `interface:port`
 combination that this particular daemon instance should use when advertising
 itself to the cluster. The daemon is reached by remote hosts through this value.
 If you  specify an interface, make sure it includes the IP address of the actual
@@ -727,7 +727,7 @@ when querying the system for the subordinate group ID range.
 
 ### Detailed information on `subuid`/`subgid` ranges
 
-Given potential advanced use of the subordinate ID ranges by power users, the 
+Given potential advanced use of the subordinate ID ranges by power users, the
 following paragraphs define how the Docker daemon currently uses the range entries
 found within the subordinate range files.
 
@@ -737,7 +737,7 @@ range for the mapping of host uids and gids to the container process.  This
 means that the first ID in the range will be the remapped root user, and the
 IDs above that initial ID will map host ID 1 through the end of the range.
 
-From the example `/etc/subid` content shown above, the remapped root
+From the example `/etc/subuid` content shown above, the remapped root
 user would be uid 165536.
 
 If the system administrator has set up multiple ranges for a single user or
@@ -838,10 +838,8 @@ This is a full example of the allowed configuration options in the file:
 	"storage-driver": "",
 	"storage-opts": "",
 	"labels": [],
-	"log-config": {
-		"log-driver": "",
-		"log-opts": []
-	},
+	"log-driver": "",
+	"log-opts": [],
 	"mtu": 0,
 	"pidfile": "",
 	"graph": "",
@@ -852,18 +850,29 @@ This is a full example of the allowed configuration options in the file:
 	"hosts": [],
 	"log-level": "",
 	"tls": true,
-	"tls-verify": true,
-	"tls-opts": {
-		"tlscacert": "",
-		"tlscert": "",
-		"tlskey": ""
-	},
+	"tlsverify": true,
+	"tlscacert": "",
+	"tlscert": "",
+	"tlskey": "",
 	"api-cors-headers": "",
 	"selinux-enabled": false,
 	"userns-remap": "",
 	"group": "",
 	"cgroup-parent": "",
-	"default-ulimits": {}
+	"default-ulimits": {},
+       "ipv6": false,
+       "iptables": false,
+       "ip-forward": false,
+       "ip-mask": false,
+       "userland-proxy": false,
+       "ip": "0.0.0.0",
+       "bridge": "",
+       "bip": "",
+       "fixed-cidr": "",
+       "fixed-cidr-v6": "",
+       "default-gateway": "",
+       "default-gateway-v6": "",
+       "icc": false
 }
 ```
 
@@ -879,7 +888,4 @@ if there are conflicts, but it won't stop execution.
 The list of currently supported options that can be reconfigured is this:
 
 - `debug`: it changes the daemon to debug mode when set to true.
-- `label`: it replaces the daemon labels with a new set of labels.
-- `cluster-store`: it reloads the discovery store with the new address.
-- `cluster-store-opts`: it uses the new options to reload the discovery store.
-- `cluster-advertise`: it modifies the address advertised after reloading.
+- `labels`: it replaces the daemon labels with a new set of labels.

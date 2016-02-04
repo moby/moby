@@ -47,7 +47,7 @@ func (s *DockerTrustSuite) TestTrustedIsolatedPull(c *check.C) {
 }
 
 func (s *DockerTrustSuite) TestUntrustedPull(c *check.C) {
-	repoName := fmt.Sprintf("%v/dockercli/trusted:latest", privateRegistryURL)
+	repoName := fmt.Sprintf("%v/dockercliuntrusted/pulltest:latest", privateRegistryURL)
 	// tag the image and upload it to the private registry
 	dockerCmd(c, "tag", "busybox", repoName)
 	dockerCmd(c, "push", repoName)

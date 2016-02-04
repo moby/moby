@@ -4,7 +4,8 @@ title = "Remote API client libraries"
 description = "Various client libraries available to use with the Docker remote API"
 keywords = ["API, Docker, index, registry, REST, documentation, clients, C#, Erlang, Go, Groovy, Java, JavaScript, Perl, PHP, Python, Ruby, Rust,  Scala"]
 [menu.main]
-parent="mn_reference"
+parent="engine_remoteapi"
+weight = 90
 +++
 <![end-metadata]-->
 
@@ -186,7 +187,7 @@ will add the libraries here.
     <tr>
       <td>PHP</td>
       <td>Docker-PHP</td>
-      <td><a class="reference external" href="http://stage1.github.io/docker-php/">http://stage1.github.io/docker-php/</a></td>
+      <td><a class="reference external" href="https://github.com/docker-php/docker-php">https://github.com/docker-php/docker-php</a></td>
       <td>Active</td>
     </tr>
     <tr>

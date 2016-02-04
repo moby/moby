@@ -28,12 +28,14 @@ $ docker run -itd --net=multi-host-network --ip 172.20.88.22 --ip6 2001:db8::882
 You can pause, restart, and stop containers that are connected to a network.
 Paused containers remain connected and can be revealed by a `network inspect`.
 When the container is stopped, it does not appear on the network until you restart
-it. If specified, the container's IP address(es) will be reapplied (if still available)
-when a stopped container rejoins the network. One way to guarantee that the container
-will be assigned the same IP addresses when it rejoins the network after a stop
-or a disconnect, is to specify the `--ip-range` when creating the network, and choose
-the static IP address(es) from outside the range. This will ensure that the IP address
-will not be given to other dynamic containers while this container is not on the network.
+it.
+
+If specified, the container's IP address(es) is reapplied when a stopped
+container is restarted. If the IP address is no longer available, the container
+fails to start. One way to guarantee that the IP address is available is
+to specify an `--ip-range` when creating the network, and choose the static IP
+address(es) from outside that range. This ensures that the IP address is not
+given to another container while this container is not on the network.
 
 ```bash
 $ docker network create --subnet 172.20.0.0/16 --ip-range 172.20.240.0/20 multi-host-network

@@ -4,13 +4,13 @@ title = "Dockerizing an apt-cacher-ng service"
 description = "Installing and running an apt-cacher-ng service"
 keywords = ["docker, example, package installation, networking, debian,  ubuntu"]
 [menu.main]
-parent = "smn_applied"
+parent = "engine_dockerize"
 +++
 <![end-metadata]-->
 
 # Dockerizing an apt-cacher-ng service
 
-> **Note**: 
+> **Note**:
 > - **If you don't like sudo** then see [*Giving non-root
 >   access*](../installation/binaries.md#giving-non-root-access).
 > - **If you're using OS X or docker via TCP** then you shouldn't use

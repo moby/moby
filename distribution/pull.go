@@ -3,7 +3,6 @@ package distribution
 import (
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api"
@@ -97,13 +96,12 @@ func Pull(ctx context.Context, ref reference.Named, imagePullConfig *ImagePullCo
 	}
 
 	var (
-		// use a slice to append the error strings and return a joined string to caller
-		errors []string
+		lastErr error
 
 		// discardNoSupportErrors is used to track whether an endpoint encountered an error of type registry.ErrNoSupport
-		// By default it is false, which means that if a ErrNoSupport error is encountered, it will be saved in errors.
+		// By default it is false, which means that if a ErrNoSupport error is encountered, it will be saved in lastErr.
 		// As soon as another kind of error is encountered, discardNoSupportErrors is set to true, avoiding the saving of
-		// any subsequent ErrNoSupport errors in errors.
+		// any subsequent ErrNoSupport errors in lastErr.
 		// It's needed for pull-by-digest on v1 endpoints: if there are only v1 endpoints configured, the error should be
 		// returned and displayed, but if there was a v2 endpoint which supports pull-by-digest, then the last relevant
 		// error is the ones from v2 endpoints not v1.
@@ -123,7 +121,7 @@ func Pull(ctx context.Context, ref reference.Named, imagePullConfig *ImagePullCo
 
 		puller, err := newPuller(endpoint, repoInfo, imagePullConfig)
 		if err != nil {
-			errors = append(errors, err.Error())
+			lastErr = err
 			continue
 		}
 		if err := puller.Pull(ctx, ref); err != nil {
@@ -144,34 +142,28 @@ func Pull(ctx context.Context, ref reference.Named, imagePullConfig *ImagePullCo
 					// Because we found an error that's not ErrNoSupport, discard all subsequent ErrNoSupport errors.
 					discardNoSupportErrors = true
 					// append subsequent errors
-					errors = append(errors, err.Error())
+					lastErr = err
 				} else if !discardNoSupportErrors {
 					// Save the ErrNoSupport error, because it's either the first error or all encountered errors
 					// were also ErrNoSupport errors.
 					// append subsequent errors
-					errors = append(errors, err.Error())
+					lastErr = err
 				}
 				continue
 			}
-			errors = append(errors, err.Error())
-			logrus.Debugf("Not continuing with error: %v", fmt.Errorf(strings.Join(errors, "\n")))
-			if len(errors) > 0 {
-				return fmt.Errorf(strings.Join(errors, "\n"))
-			}
+			logrus.Debugf("Not continuing with error: %v", err)
+			return err
 		}
 
 		imagePullConfig.ImageEventLogger(ref.String(), repoInfo.Name(), "pull")
 		return nil
 	}
 
-	if len(errors) == 0 {
-		return fmt.Errorf("no endpoints found for %s", ref.String())
+	if lastErr == nil {
+		lastErr = fmt.Errorf("no endpoints found for %s", ref.String())
 	}
 
-	if len(errors) > 0 {
-		return fmt.Errorf(strings.Join(errors, "\n"))
-	}
-	return nil
+	return lastErr
 }
 
 // writeStatus writes a status message to out. If layersDownloaded is true, the

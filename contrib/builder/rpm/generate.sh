@@ -51,6 +51,7 @@ for version in "${versions[@]}"; do
 			;;
 		oraclelinux:*)
 			# get "Development Tools" packages and dependencies
+			# we also need yum-utils for yum-config-manager to pull the latest repo file
 			echo 'RUN yum groupinstall -y "Development Tools"' >> "$version/Dockerfile"
 			;;
 		opensuse:*)
@@ -70,9 +71,11 @@ for version in "${versions[@]}"; do
 		libseccomp-devel # for "seccomp.h" & "libseccomp.so"
 		libselinux-devel # for "libselinux.so"
 		libtool-ltdl-devel # for pkcs11 "ltdl.h"
+		pkgconfig # for the pkg-config command
 		selinux-policy
 		selinux-policy-devel
 		sqlite-devel # for "sqlite3.h"
+		systemd-devel # for "sd-journal.h" and libraries
 		tar # older versions of dev-tools do not have tar
 	)
 
@@ -80,6 +83,13 @@ for version in "${versions[@]}"; do
 		oraclelinux:7)
 			# Enable the optional repository
 			packages=( --enablerepo=ol7_optional_latest "${packages[*]}" )
+			;;
+	esac
+
+	case "$from" in
+		oraclelinux:6)
+			# doesn't use systemd, doesn't have a devel package for it
+			packages=( "${packages[@]/systemd-devel}" )
 			;;
 	esac
 
@@ -97,6 +107,11 @@ for version in "${versions[@]}"; do
 	case "$from" in
 		opensuse:*)
 			packages=( "${packages[@]/btrfs-progs-devel/libbtrfs-devel}" )
+			packages=( "${packages[@]/pkgconfig/pkg-config}" )
+			if [[ "$from" == "opensuse:13."* ]]; then
+				packages+=( systemd-rpm-macros )
+			fi
+
 			# use zypper
 			echo "RUN zypper --non-interactive install ${packages[*]}" >> "$version/Dockerfile"
 			;;
@@ -140,6 +155,18 @@ for version in "${versions[@]}"; do
 		*) ;;
 	esac
 
+	case "$from" in
+		oraclelinux:6)
+			# We need a known version of the kernel-uek-devel headers to set CGO_CPPFLAGS, so grab the UEKR4 GA version
+			# This requires using yum-config-manager from yum-utils to enable the UEKR4 yum repo
+			echo "RUN yum install -y yum-utils && curl -o /etc/yum.repos.d/public-yum-ol6.repo http://yum.oracle.com/public-yum-ol6.repo && yum-config-manager -q --enable ol6_UEKR4"  >> "$version/Dockerfile"
+			echo "RUN yum install -y kernel-uek-devel-4.1.12-32.el6uek"  >> "$version/Dockerfile"
+			echo >> "$version/Dockerfile"
+			;;
+		*) ;;
+	esac
+
+
 	awk '$1 == "ENV" && $2 == "GO_VERSION" { print; exit }' ../../../Dockerfile >> "$version/Dockerfile"
 	echo 'RUN curl -fSL "https://storage.googleapis.com/golang/go${GO_VERSION}.linux-amd64.tar.gz" | tar xzC /usr/local' >> "$version/Dockerfile"
 	echo 'ENV PATH $PATH:/usr/local/go/bin' >> "$version/Dockerfile"
@@ -154,4 +181,22 @@ for version in "${versions[@]}"; do
 	buildTags=$( echo "selinux $extraBuildTags" | xargs -n1 | sort -n | tr '\n' ' ' | sed -e 's/[[:space:]]*$//' )
 
 	echo "ENV DOCKER_BUILDTAGS $buildTags" >> "$version/Dockerfile"
+	echo >> "$version/Dockerfile"
+
+	case "$from" in
+                oraclelinux:6)
+                        # We need to set the CGO_CPPFLAGS environment to use the updated UEKR4 headers with all the userns stuff.
+                        # The ordering is very important and should not be changed.
+                        echo 'ENV CGO_CPPFLAGS -D__EXPORTED_HEADERS__ \'  >> "$version/Dockerfile"
+                        echo '                 -I/usr/src/kernels/4.1.12-32.el6uek.x86_64/arch/x86/include/generated/uapi \'  >> "$version/Dockerfile"
+                        echo '                 -I/usr/src/kernels/4.1.12-32.el6uek.x86_64/arch/x86/include/uapi \'  >> "$version/Dockerfile"
+                        echo '                 -I/usr/src/kernels/4.1.12-32.el6uek.x86_64/include/generated/uapi \'  >> "$version/Dockerfile"
+                        echo '                 -I/usr/src/kernels/4.1.12-32.el6uek.x86_64/include/uapi \'  >> "$version/Dockerfile"
+                        echo '                 -I/usr/src/kernels/4.1.12-32.el6uek.x86_64/include'  >> "$version/Dockerfile"
+                        echo >> "$version/Dockerfile"
+                        ;;
+                *) ;;
+        esac
+
+
 done

@@ -25,6 +25,11 @@ func (daemon *Daemon) removeMountPoints(container *container.Container, rm bool)
 		}
 		daemon.volumes.Dereference(m.Volume, container.ID)
 		if rm {
+			// Do not remove named mountpoints
+			// these are mountpoints specified like `docker run -v <name>:/foo`
+			if m.Named {
+				continue
+			}
 			err := daemon.volumes.Remove(m.Volume)
 			// Ignore volume in use errors because having this
 			// volume being referenced by other container is

@@ -22,12 +22,12 @@ clone git github.com/vdemeester/shakers 3c10293ce22b900c27acad7b28656196fcc2f73b
 clone git golang.org/x/net 47990a1ba55743e6ef1affd3a14e5bac8553615d https://github.com/golang/net.git
 clone git github.com/docker/go-units 651fc226e7441360384da338d0fd37f2440ffbe3
 clone git github.com/docker/go-connections v0.1.2
-clone git github.com/docker/engine-api v0.2.2
+clone git github.com/docker/engine-api v0.2.3
 clone git github.com/RackSec/srslog 6eb773f331e46fbba8eecb8e794e635e75fc04de
 clone git github.com/imdario/mergo 0.2.1
 
 #get libnetwork packages
-clone git github.com/docker/libnetwork v0.5.6
+clone git github.com/docker/libnetwork v0.6.0-rc7
 clone git github.com/armon/go-metrics eb0af217e5e9747e41dd5303755356b62d28e3ec
 clone git github.com/hashicorp/go-msgpack 71c2886f5a673a35f909803f38ece5810165097b
 clone git github.com/hashicorp/memberlist 9a1e242e454d2443df330bdd51a436d5a9058fc4
@@ -43,21 +43,21 @@ fix_rewritten_imports github.com/coreos/etcd
 clone git github.com/ugorji/go 5abd4e96a45c386928ed2ca2a7ef63e2533e18ec
 clone git github.com/hashicorp/consul v0.5.2
 clone git github.com/boltdb/bolt v1.1.0
-clone git github.com/miekg/dns d27455715200c7d3e321a1e5cadb27c9ee0b0f02
+clone git github.com/miekg/dns 75e6e86cc601825c5dbcd4e0c209eab180997cd7
 
 # get graph and distribution packages
-clone git github.com/docker/distribution cb08de17d74bef86ce6c5abe8b240e282f5750be
+clone git github.com/docker/distribution c301f8ab27f4913c968b8d73a38e5dda79b9d3d7
 clone git github.com/vbatts/tar-split v0.9.11
 
 # get desired notary commit, might also need to be updated in Dockerfile
-clone git github.com/docker/notary docker-v1.10-3
+clone git github.com/docker/notary docker-v1.10-5
 
 clone git google.golang.org/grpc 174192fc93efcb188fc8f46ca447f0da606b6885 https://github.com/grpc/grpc-go.git
 clone git github.com/miekg/pkcs11 80f102b5cac759de406949c47f0928b99bd64cdf
-clone git github.com/jfrazelle/go v1.5.1-1
+clone git github.com/docker/go v1.5.1-1-1-gbaf439e
 clone git github.com/agl/ed25519 d2b94fd789ea21d12fac1a4443dd3a3f79cda72c
 
-clone git github.com/opencontainers/runc d97d5e8b007e4657316eed76ea30bc0f690230cf # libcontainer
+clone git github.com/opencontainers/runc 3d8a20bb772defc28c355534d83486416d1719b4 # libcontainer
 clone git github.com/seccomp/libseccomp-golang 1b506fc7c24eec5a3693cdcbed40d9c226cfc6a1
 # libcontainer deps (see src/github.com/opencontainers/runc/Godeps/Godeps.json)
 clone git github.com/coreos/go-systemd v4

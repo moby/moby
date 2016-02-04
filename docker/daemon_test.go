@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/opts"
@@ -50,8 +51,8 @@ func TestLoadDaemonCliConfigWithTLS(t *testing.T) {
 	if loadedConfig == nil {
 		t.Fatalf("expected configuration %v, got nil", c)
 	}
-	if loadedConfig.TLSOptions.CAFile != "/tmp/ca.pem" {
-		t.Fatalf("expected /tmp/ca.pem, got %s: %q", loadedConfig.TLSOptions.CAFile, loadedConfig)
+	if loadedConfig.CommonTLSOptions.CAFile != "/tmp/ca.pem" {
+		t.Fatalf("expected /tmp/ca.pem, got %s: %q", loadedConfig.CommonTLSOptions.CAFile, loadedConfig)
 	}
 }
 
@@ -87,5 +88,206 @@ func TestLoadDaemonCliConfigWithConflicts(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "labels") {
 		t.Fatalf("expected labels conflict, got %v", err)
+	}
+}
+
+func TestLoadDaemonCliConfigWithTLSVerify(t *testing.T) {
+	c := &daemon.Config{}
+	common := &cli.CommonFlags{
+		TLSOptions: &tlsconfig.Options{
+			CAFile: "/tmp/ca.pem",
+		},
+	}
+
+	f, err := ioutil.TempFile("", "docker-config-")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	configFile := f.Name()
+	f.Write([]byte(`{"tlsverify": true}`))
+	f.Close()
+
+	flags := mflag.NewFlagSet("test", mflag.ContinueOnError)
+	flags.Bool([]string{"-tlsverify"}, false, "")
+	loadedConfig, err := loadDaemonCliConfig(c, flags, common, configFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loadedConfig == nil {
+		t.Fatalf("expected configuration %v, got nil", c)
+	}
+
+	if !loadedConfig.TLS {
+		t.Fatalf("expected TLS enabled, got %q", loadedConfig)
+	}
+}
+
+func TestLoadDaemonCliConfigWithExplicitTLSVerifyFalse(t *testing.T) {
+	c := &daemon.Config{}
+	common := &cli.CommonFlags{
+		TLSOptions: &tlsconfig.Options{
+			CAFile: "/tmp/ca.pem",
+		},
+	}
+
+	f, err := ioutil.TempFile("", "docker-config-")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	configFile := f.Name()
+	f.Write([]byte(`{"tlsverify": false}`))
+	f.Close()
+
+	flags := mflag.NewFlagSet("test", mflag.ContinueOnError)
+	flags.Bool([]string{"-tlsverify"}, false, "")
+	loadedConfig, err := loadDaemonCliConfig(c, flags, common, configFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loadedConfig == nil {
+		t.Fatalf("expected configuration %v, got nil", c)
+	}
+
+	if !loadedConfig.TLS {
+		t.Fatalf("expected TLS enabled, got %q", loadedConfig)
+	}
+}
+
+func TestLoadDaemonCliConfigWithoutTLSVerify(t *testing.T) {
+	c := &daemon.Config{}
+	common := &cli.CommonFlags{
+		TLSOptions: &tlsconfig.Options{
+			CAFile: "/tmp/ca.pem",
+		},
+	}
+
+	f, err := ioutil.TempFile("", "docker-config-")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	configFile := f.Name()
+	f.Write([]byte(`{}`))
+	f.Close()
+
+	flags := mflag.NewFlagSet("test", mflag.ContinueOnError)
+	loadedConfig, err := loadDaemonCliConfig(c, flags, common, configFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loadedConfig == nil {
+		t.Fatalf("expected configuration %v, got nil", c)
+	}
+
+	if loadedConfig.TLS {
+		t.Fatalf("expected TLS disabled, got %q", loadedConfig)
+	}
+}
+
+func TestLoadDaemonCliConfigWithLogLevel(t *testing.T) {
+	c := &daemon.Config{}
+	common := &cli.CommonFlags{}
+
+	f, err := ioutil.TempFile("", "docker-config-")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	configFile := f.Name()
+	f.Write([]byte(`{"log-level": "warn"}`))
+	f.Close()
+
+	flags := mflag.NewFlagSet("test", mflag.ContinueOnError)
+	flags.String([]string{"-log-level"}, "", "")
+	loadedConfig, err := loadDaemonCliConfig(c, flags, common, configFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loadedConfig == nil {
+		t.Fatalf("expected configuration %v, got nil", c)
+	}
+	if loadedConfig.LogLevel != "warn" {
+		t.Fatalf("expected warn log level, got %v", loadedConfig.LogLevel)
+	}
+
+	if logrus.GetLevel() != logrus.WarnLevel {
+		t.Fatalf("expected warn log level, got %v", logrus.GetLevel())
+	}
+}
+
+func TestLoadDaemonConfigWithEmbeddedOptions(t *testing.T) {
+	c := &daemon.Config{}
+	common := &cli.CommonFlags{}
+	flags := mflag.NewFlagSet("test", mflag.ContinueOnError)
+	flags.String([]string{"-tlscacert"}, "", "")
+	flags.String([]string{"-log-driver"}, "", "")
+
+	f, err := ioutil.TempFile("", "docker-config-")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	configFile := f.Name()
+	f.Write([]byte(`{"tlscacert": "/etc/certs/ca.pem", "log-driver": "syslog"}`))
+	f.Close()
+
+	loadedConfig, err := loadDaemonCliConfig(c, flags, common, configFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loadedConfig == nil {
+		t.Fatal("expected configuration, got nil")
+	}
+	if loadedConfig.CommonTLSOptions.CAFile != "/etc/certs/ca.pem" {
+		t.Fatalf("expected CA file path /etc/certs/ca.pem, got %v", loadedConfig.CommonTLSOptions.CAFile)
+	}
+	if loadedConfig.LogConfig.Type != "syslog" {
+		t.Fatalf("expected LogConfig type syslog, got %v", loadedConfig.LogConfig.Type)
+	}
+}
+
+func TestLoadDaemonConfigWithMapOptions(t *testing.T) {
+	c := &daemon.Config{}
+	common := &cli.CommonFlags{}
+	flags := mflag.NewFlagSet("test", mflag.ContinueOnError)
+
+	flags.Var(opts.NewNamedMapOpts("cluster-store-opts", c.ClusterOpts, nil), []string{"-cluster-store-opt"}, "")
+	flags.Var(opts.NewNamedMapOpts("log-opts", c.LogConfig.Config, nil), []string{"-log-opt"}, "")
+
+	f, err := ioutil.TempFile("", "docker-config-")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	configFile := f.Name()
+	f.Write([]byte(`{
+		"cluster-store-opts": {"kv.cacertfile": "/var/lib/docker/discovery_certs/ca.pem"},
+		"log-opts": {"tag": "test"}
+}`))
+	f.Close()
+
+	loadedConfig, err := loadDaemonCliConfig(c, flags, common, configFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loadedConfig == nil {
+		t.Fatal("expected configuration, got nil")
+	}
+	if loadedConfig.ClusterOpts == nil {
+		t.Fatal("expected cluster options, got nil")
+	}
+
+	expectedPath := "/var/lib/docker/discovery_certs/ca.pem"
+	if caPath := loadedConfig.ClusterOpts["kv.cacertfile"]; caPath != expectedPath {
+		t.Fatalf("expected %s, got %s", expectedPath, caPath)
+	}
+
+	if loadedConfig.LogConfig.Config == nil {
+		t.Fatal("expected log config options, got nil")
+	}
+	if tag := loadedConfig.LogConfig.Config["tag"]; tag != "test" {
+		t.Fatalf("expected log tag `test`, got %s", tag)
 	}
 }

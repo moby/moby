@@ -59,6 +59,7 @@ type MountPoint struct {
 
 	// Note Propagation is not used on Windows
 	Propagation string // Mount propagation string
+	Named       bool   // specifies if the mountpoint was specified by name
 }
 
 // Setup sets up a mount point by either mounting the volume if it is

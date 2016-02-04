@@ -145,7 +145,7 @@ This will *not* work, because by default, most potentially dangerous kernel
 capabilities are dropped; including `cap_sys_admin` (which is required to mount
 filesystems). However, the `--privileged` flag will allow it to run:
 
-    $ docker run --privileged ubuntu bash
+    $ docker run -t -i --privileged ubuntu bash
     root@50e3f57e16e6:/# mount -t tmpfs none /mnt
     root@50e3f57e16e6:/# df -h
     Filesystem      Size  Used Avail Use% Mounted on
@@ -163,13 +163,12 @@ flag exists to allow special use-cases, like running Docker within Docker.
 The `-w` lets the command being executed inside directory given, here
 `/path/to/dir/`. If the path does not exists it is created inside the container.
 
-### mount tmpfs (--tmpfs)
+### Mount tmpfs (--tmpfs)
 
     $ docker run -d --tmpfs /run:rw,noexec,nosuid,size=65536k my_image
 
-    The --tmpfs flag mounts a tmpfs into the container with the rw,noexec,nosuid,size=65536k options.
-
-    Underlying content from the /run in the my_image image is copied into tmpfs.
+The `--tmpfs` flag mounts an empty tmpfs into the container with the `rw`,
+`noexec`, `nosuid`, `size=65536k` options.
 
 ### Mount volume (-v, --read-only)
 
@@ -195,12 +194,13 @@ a container writes files. The `--read-only` flag mounts the container's root
 filesystem as read only prohibiting writes to locations other than the
 specified volumes for the container.
 
-    $ docker run -t -i -v /var/run/docker.sock:/var/run/docker.sock -v ./static-docker:/usr/bin/docker busybox sh
+    $ docker run -t -i -v /var/run/docker.sock:/var/run/docker.sock -v /path/to/static-docker-binary:/usr/bin/docker busybox sh
 
 By bind-mounting the docker unix socket and statically linked docker
-binary (such as that provided by [https://get.docker.com](
-https://get.docker.com)), you give the container the full access to create and
-manipulate the host's Docker daemon.
+binary (refer to [get the linux binary](
+../../installation/binaries.md#get-the-linux-binary)),
+you give the container the full access to create and manipulate the host's
+Docker daemon.
 
 ### Publish or expose port (-p, --expose)
 
@@ -422,12 +422,12 @@ flag:
     $ docker run --device=/dev/sda:/dev/xvdc --rm -it ubuntu fdisk  /dev/xvdc
 
     Command (m for help): q
-    $ docker run --device=/dev/sda:/dev/xvdc:ro --rm -it ubuntu fdisk  /dev/xvdc
+    $ docker run --device=/dev/sda:/dev/xvdc:r --rm -it ubuntu fdisk  /dev/xvdc
     You will not be able to write the partition table.
 
     Command (m for help): q
 
-    $ docker run --device=/dev/sda:/dev/xvdc --rm -it ubuntu fdisk  /dev/xvdc
+    $ docker run --device=/dev/sda:/dev/xvdc:rw --rm -it ubuntu fdisk  /dev/xvdc
 
     Command (m for help): q
 
@@ -539,7 +539,7 @@ available in the default container, you can set these using the `--ulimit` flag.
 `--ulimit` is specified with a soft and hard limit as such:
 `<type>=<soft limit>[:<hard limit>]`, for example:
 
-    $ docker run --ulimit nofile=1024:1024 --rm debian ulimit -n
+    $ docker run --ulimit nofile=1024:1024 --rm debian sh -c "ulimit -n"
     1024
 
 > **Note:**

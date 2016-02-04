@@ -17,7 +17,7 @@ Packager: Docker <support@docker.com>
 %global debug_package %{nil}
 
 # is_systemd conditional
-%if 0%{?fedora} >= 21 || 0%{?centos} >= 7 || 0%{?rhel} >= 7 || 0%{?suse_version} >= 1300
+%if 0%{?fedora} >= 21 || 0%{?centos} >= 7 || 0%{?rhel} >= 7 || 0%{?suse_version} >= 1210
 %global is_systemd 1
 %endif
 
@@ -25,9 +25,12 @@ Packager: Docker <support@docker.com>
 # most are already in the container (see contrib/builder/rpm/generate.sh)
 # only require systemd on those systems
 %if 0%{?is_systemd}
+%if 0%{?suse_version} >= 1210
+BuildRequires: systemd-rpm-macros
+%{?systemd_requires}
+%else
 BuildRequires: pkgconfig(systemd)
 Requires: systemd-units
-%if !0%{?suse_version}
 BuildRequires: pkgconfig(libsystemd-journal)
 %endif
 %else
@@ -40,16 +43,20 @@ Requires(preun): initscripts
 # required packages on install
 Requires: /bin/sh
 Requires: iptables
+%if !0%{?suse_version}
 Requires: libcgroup
+%else
+Requires: libcgroup1
+%endif
 Requires: tar
 Requires: xz
 %if 0%{?fedora} >= 21 || 0%{?centos} >= 7 || 0%{?rhel} >= 7 || 0%{?oraclelinux} >= 7
 # Resolves: rhbz#1165615
 Requires: device-mapper-libs >= 1.02.90-1
 %endif
-%if 0%{?oraclelinux} == 6
-# Require Oracle Unbreakable Enterprise Kernel R3 and newer device-mapper
-Requires: kernel-uek >= 3.8
+%if 0%{?oraclelinux} >= 6
+# Require Oracle Unbreakable Enterprise Kernel R4 and newer device-mapper
+Requires: kernel-uek >= 4.1
 Requires: device-mapper >= 1.02.90-2
 %endif
 
@@ -105,7 +112,7 @@ for deploying and scaling web apps, databases, and backend services without
 depending on a particular stack or provider.
 
 %prep
-%if 0%{?centos} <= 6
+%if 0%{?centos} <= 6 || 0%{?oraclelinux} <=6
 %setup -n %{name}
 %else
 %autosetup -n %{name}

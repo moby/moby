@@ -4,7 +4,7 @@ title = "Remote API v1.16"
 description = "API Documentation for Docker"
 keywords = ["API, Docker, rcli, REST,  documentation"]
 [menu.main]
-parent = "smn_remoteapi"
+parent = "engine_remoteapi"
 weight = 5
 +++
 <![end-metadata]-->
@@ -15,7 +15,7 @@ weight = 5
 
  - The Remote API has replaced `rcli`.
  - The daemon listens on `unix:///var/run/docker.sock` but you can
-   [Bind Docker to another host/port or a Unix socket](../../userguide/basics.md#bind-docker-to-another-host-port-or-a-unix-socket).
+   [Bind Docker to another host/port or a Unix socket](../../quickstart.md#bind-docker-to-another-host-port-or-a-unix-socket).
  - The API tends to be REST, but for some complex commands, like `attach`
    or `pull`, the HTTP connection is hijacked to transport `STDOUT`,
    `STDIN` and `STDERR`.
@@ -189,7 +189,7 @@ Json Parameters:
       for the container.
 -   **User** - A string value containing the user to use inside the container.
 -   **Memory** - Memory limit in bytes.
--   **MemorySwap**- Total memory usage (memory + swap); set `-1` to disable swap.
+-   **MemorySwap** - Total memory limit (memory + swap); set `-1` to enable unlimited swap.
 -   **CpuShares** - An integer value containing the CPU Shares for container
       (ie. the relative weight vs other containers).
     **CpuSet** - String value containing the cgroups Cpuset to use.

@@ -52,6 +52,9 @@ func (d *Daemon) getExecConfig(name string) (*exec.Config, error) {
 			if container.IsPaused() {
 				return nil, derr.ErrorCodeExecPaused.WithArgs(container.ID)
 			}
+			if container.IsRestarting() {
+				return nil, derr.ErrorCodeExecRestarting.WithArgs(container.ID)
+			}
 			return ec, nil
 		}
 	}
@@ -75,6 +78,9 @@ func (d *Daemon) getActiveContainer(name string) (*container.Container, error) {
 	}
 	if container.IsPaused() {
 		return nil, derr.ErrorCodeExecPaused.WithArgs(name)
+	}
+	if container.IsRestarting() {
+		return nil, derr.ErrorCodeExecRestarting.WithArgs(name)
 	}
 	return container, nil
 }
@@ -135,6 +141,11 @@ func (d *Daemon) ContainerExecStart(name string, stdin io.ReadCloser, stdout io.
 	}
 
 	ec.Lock()
+	if ec.ExitCode != nil {
+		ec.Unlock()
+		return derr.ErrorCodeExecExited.WithArgs(ec.ID)
+	}
+
 	if ec.Running {
 		ec.Unlock()
 		return derr.ErrorCodeExecRunning.WithArgs(ec.ID)
@@ -214,7 +225,7 @@ func (d *Daemon) Exec(c *container.Container, execConfig *exec.Config, pipes *ex
 		exitStatus = 128
 	}
 
-	execConfig.ExitCode = exitStatus
+	execConfig.ExitCode = &exitStatus
 	execConfig.Running = false
 
 	return exitStatus, err

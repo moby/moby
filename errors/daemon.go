@@ -733,6 +733,15 @@ var (
 		HTTPStatusCode: http.StatusConflict,
 	})
 
+	// ErrorCodeExecRestarting is generated when we try to start an exec
+	// but the container is restarting.
+	ErrorCodeExecRestarting = errcode.Register(errGroup, errcode.ErrorDescriptor{
+		Value:          "EXECRESTARTING",
+		Message:        "Container %s is restarting, wait until the container is running",
+		Description:    "An attempt to start an 'exec' was made, but the owning container is restarting",
+		HTTPStatusCode: http.StatusConflict,
+	})
+
 	// ErrorCodeExecRunning is generated when we try to start an exec
 	// but its already running.
 	ErrorCodeExecRunning = errcode.Register(errGroup, errcode.ErrorDescriptor{
@@ -740,6 +749,15 @@ var (
 		Message:        "Error: Exec command %s is already running",
 		Description:    "An attempt to start an 'exec' was made, but 'exec' is already running",
 		HTTPStatusCode: http.StatusInternalServerError,
+	})
+
+	// ErrorCodeExecExited is generated when we try to start an exec
+	// but its already running.
+	ErrorCodeExecExited = errcode.Register(errGroup, errcode.ErrorDescriptor{
+		Value:          "EXECEXITED",
+		Message:        "Error: Exec command %s has already run",
+		Description:    "An attempt to start an 'exec' was made, but 'exec' was already run",
+		HTTPStatusCode: http.StatusConflict,
 	})
 
 	// ErrorCodeExecCantRun is generated when we try to start an exec
@@ -956,5 +974,14 @@ var (
 		Message:        "%s is a pre-defined network and cannot be removed",
 		Description:    "Engine's predefined networks cannot be deleted",
 		HTTPStatusCode: http.StatusForbidden,
+	})
+
+	// ErrorCodeMultipleNetworkConnect is generated when more than one network is passed
+	// when creating a container
+	ErrorCodeMultipleNetworkConnect = errcode.Register(errGroup, errcode.ErrorDescriptor{
+		Value:          "CANNOT_CONNECT_TO_MULTIPLE_NETWORKS",
+		Message:        "Container cannot be connected to %s",
+		Description:    "A container can only be connected to one network at the time",
+		HTTPStatusCode: http.StatusBadRequest,
 	})
 )

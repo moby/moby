@@ -5,7 +5,6 @@ import (
 
 	Cli "github.com/docker/docker/cli"
 	flag "github.com/docker/docker/pkg/mflag"
-	"github.com/docker/docker/registry"
 )
 
 // CmdLogout logs a user out from a Docker registry.
@@ -14,14 +13,16 @@ import (
 //
 // Usage: docker logout [SERVER]
 func (cli *DockerCli) CmdLogout(args ...string) error {
-	cmd := Cli.Subcmd("logout", []string{"[SERVER]"}, Cli.DockerCommands["logout"].Description+".\nIf no server is specified \""+registry.IndexServer+"\" is the default.", true)
+	cmd := Cli.Subcmd("logout", []string{"[SERVER]"}, Cli.DockerCommands["logout"].Description+".\nIf no server is specified, the default is defined by the daemon.", true)
 	cmd.Require(flag.Max, 1)
 
 	cmd.ParseFlags(args, true)
 
-	serverAddress := registry.IndexServer
+	var serverAddress string
 	if len(cmd.Args()) > 0 {
 		serverAddress = cmd.Arg(0)
+	} else {
+		serverAddress = cli.electAuthServer()
 	}
 
 	if _, ok := cli.configFile.AuthConfigs[serverAddress]; !ok {
