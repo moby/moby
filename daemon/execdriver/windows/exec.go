@@ -5,9 +5,9 @@ package windows
 import (
 	"fmt"
 
+	"github.com/Microsoft/hcsshim"
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/execdriver"
-	"github.com/microsoft/hcsshim"
 )
 
 // Exec implements the exec driver Driver interface.

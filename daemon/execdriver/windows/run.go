@@ -11,9 +11,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Microsoft/hcsshim"
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/execdriver"
-	"github.com/microsoft/hcsshim"
 )
 
 // defaultContainerNAT is the default name of the container NAT device that is

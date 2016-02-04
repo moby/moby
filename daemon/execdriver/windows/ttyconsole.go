@@ -3,7 +3,7 @@
 package windows
 
 import (
-	"github.com/microsoft/hcsshim"
+	"github.com/Microsoft/hcsshim"
 )
 
 // TtyConsole implements the exec driver Terminal interface.
