@@ -114,18 +114,16 @@ func (s *DockerSuite) TestBuildEnvironmentReplacementUser(c *check.C) {
 func (s *DockerSuite) TestBuildEnvironmentReplacementVolume(c *check.C) {
 	name := "testbuildenvironmentreplacement"
 
-	var baseImage, volumePath string
+	var volumePath string
 
 	if daemonPlatform == "windows" {
-		baseImage = "windowsservercore"
 		volumePath = "c:/quux"
 	} else {
-		baseImage = "scratch"
 		volumePath = "/quux"
 	}
 
 	_, err := buildImage(name, `
-  FROM `+baseImage+`
+  FROM `+minimalBaseImage()+`
   ENV volume `+volumePath+`
   VOLUME ${volume}
   `, true)
@@ -201,16 +199,8 @@ func (s *DockerSuite) TestBuildEnvironmentReplacementWorkdir(c *check.C) {
 func (s *DockerSuite) TestBuildEnvironmentReplacementAddCopy(c *check.C) {
 	name := "testbuildenvironmentreplacement"
 
-	var baseImage string
-
-	if daemonPlatform == "windows" {
-		baseImage = "windowsservercore"
-	} else {
-		baseImage = "scratch"
-	}
-
 	ctx, err := fakeContext(`
-  FROM `+baseImage+`
+  FROM `+minimalBaseImage()+`
   ENV baz foo
   ENV quux bar
   ENV dot .
@@ -697,14 +687,7 @@ func (s *DockerSuite) TestBuildSixtySteps(c *check.C) {
 	// TP5 timeframe when perf is better.
 	name := "foobuildsixtysteps"
 
-	var baseImage string
-	if daemonPlatform == "windows" {
-		baseImage = "windowsservercore"
-	} else {
-		baseImage = "scratch"
-	}
-
-	ctx, err := fakeContext("FROM "+baseImage+"\n"+strings.Repeat("ADD foo /\n", 60),
+	ctx, err := fakeContext("FROM "+minimalBaseImage()+"\n"+strings.Repeat("ADD foo /\n", 60),
 		map[string]string{
 			"foo": "test1",
 		})
@@ -844,14 +827,7 @@ RUN [ $(ls -l /exists/exists_file | awk '{print $3":"$4}') = 'dockerio:dockerio'
 func (s *DockerSuite) TestBuildAddMultipleFilesToFile(c *check.C) {
 	name := "testaddmultiplefilestofile"
 
-	var baseImage string
-	if daemonPlatform == "windows" {
-		baseImage = "windowsservercore"
-	} else {
-		baseImage = "scratch"
-	}
-
-	ctx, err := fakeContext(`FROM `+baseImage+`
+	ctx, err := fakeContext(`FROM `+minimalBaseImage()+`
 	ADD file1.txt file2.txt test
 	`,
 		map[string]string{
@@ -873,14 +849,7 @@ func (s *DockerSuite) TestBuildAddMultipleFilesToFile(c *check.C) {
 func (s *DockerSuite) TestBuildJSONAddMultipleFilesToFile(c *check.C) {
 	name := "testjsonaddmultiplefilestofile"
 
-	var baseImage string
-	if daemonPlatform == "windows" {
-		baseImage = "windowsservercore"
-	} else {
-		baseImage = "scratch"
-	}
-
-	ctx, err := fakeContext(`FROM `+baseImage+`
+	ctx, err := fakeContext(`FROM `+minimalBaseImage()+`
 	ADD ["file1.txt", "file2.txt", "test"]
 	`,
 		map[string]string{
@@ -902,14 +871,7 @@ func (s *DockerSuite) TestBuildJSONAddMultipleFilesToFile(c *check.C) {
 func (s *DockerSuite) TestBuildAddMultipleFilesToFileWild(c *check.C) {
 	name := "testaddmultiplefilestofilewild"
 
-	var baseImage string
-	if daemonPlatform == "windows" {
-		baseImage = "windowsservercore"
-	} else {
-		baseImage = "scratch"
-	}
-
-	ctx, err := fakeContext(`FROM `+baseImage+`
+	ctx, err := fakeContext(`FROM `+minimalBaseImage()+`
 	ADD file*.txt test
 	`,
 		map[string]string{
@@ -931,14 +893,7 @@ func (s *DockerSuite) TestBuildAddMultipleFilesToFileWild(c *check.C) {
 func (s *DockerSuite) TestBuildJSONAddMultipleFilesToFileWild(c *check.C) {
 	name := "testjsonaddmultiplefilestofilewild"
 
-	var baseImage string
-	if daemonPlatform == "windows" {
-		baseImage = "windowsservercore"
-	} else {
-		baseImage = "scratch"
-	}
-
-	ctx, err := fakeContext(`FROM `+baseImage+`
+	ctx, err := fakeContext(`FROM `+minimalBaseImage()+`
 	ADD ["file*.txt", "test"]
 	`,
 		map[string]string{
@@ -960,14 +915,7 @@ func (s *DockerSuite) TestBuildJSONAddMultipleFilesToFileWild(c *check.C) {
 func (s *DockerSuite) TestBuildCopyMultipleFilesToFile(c *check.C) {
 	name := "testcopymultiplefilestofile"
 
-	var baseImage string
-	if daemonPlatform == "windows" {
-		baseImage = "windowsservercore"
-	} else {
-		baseImage = "scratch"
-	}
-
-	ctx, err := fakeContext(`FROM `+baseImage+`
+	ctx, err := fakeContext(`FROM `+minimalBaseImage()+`
 	COPY file1.txt file2.txt test
 	`,
 		map[string]string{
@@ -989,14 +937,7 @@ func (s *DockerSuite) TestBuildCopyMultipleFilesToFile(c *check.C) {
 func (s *DockerSuite) TestBuildJSONCopyMultipleFilesToFile(c *check.C) {
 	name := "testjsoncopymultiplefilestofile"
 
-	var baseImage string
-	if daemonPlatform == "windows" {
-		baseImage = "windowsservercore"
-	} else {
-		baseImage = "scratch"
-	}
-
-	ctx, err := fakeContext(`FROM `+baseImage+`
+	ctx, err := fakeContext(`FROM `+minimalBaseImage()+`
 	COPY ["file1.txt", "file2.txt", "test"]
 	`,
 		map[string]string{
@@ -1364,14 +1305,7 @@ RUN [ $(ls -l /exists | awk '{print $3":"$4}') = 'dockerio:dockerio' ]`, expecte
 func (s *DockerSuite) TestBuildAddEtcToRoot(c *check.C) {
 	name := "testaddetctoroot"
 
-	var baseImage string
-	if daemonPlatform == "windows" {
-		baseImage = "windowsservercore"
-	} else {
-		baseImage = "scratch"
-	}
-
-	ctx, err := fakeContext(`FROM `+baseImage+`
+	ctx, err := fakeContext(`FROM `+minimalBaseImage()+`
 ADD . /`,
 		map[string]string{
 			"etc/test_file": "test1",
@@ -1593,14 +1527,7 @@ RUN [ $(ls -l /exists | awk '{print $3":"$4}') = 'dockerio:dockerio' ]`, expecte
 func (s *DockerSuite) TestBuildCopyEtcToRoot(c *check.C) {
 	name := "testcopyetctoroot"
 
-	var baseImage string
-	if daemonPlatform == "windows" {
-		baseImage = "windowsservercore"
-	} else {
-		baseImage = "scratch"
-	}
-
-	ctx, err := fakeContext(`FROM `+baseImage+`
+	ctx, err := fakeContext(`FROM `+minimalBaseImage()+`
 COPY . /`,
 		map[string]string{
 			"etc/test_file": "test1",
@@ -1618,14 +1545,7 @@ COPY . /`,
 func (s *DockerSuite) TestBuildCopyDisallowRemote(c *check.C) {
 	name := "testcopydisallowremote"
 
-	var baseImage string
-	if daemonPlatform == "windows" {
-		baseImage = "windowsservercore"
-	} else {
-		baseImage = "scratch"
-	}
-
-	_, out, err := buildImageWithOut(name, `FROM `+baseImage+`
+	_, out, err := buildImageWithOut(name, `FROM `+minimalBaseImage()+`
 COPY https://index.docker.io/robots.txt /`,
 		true)
 	if err == nil || !strings.Contains(out, "Source can't be a URL for COPY") {

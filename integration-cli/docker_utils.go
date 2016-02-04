@@ -1752,3 +1752,12 @@ func runSleepingContainerInImage(c *check.C, image string, extraArgs ...string) 
 	args = append(args, defaultSleepCommand...)
 	return dockerCmd(c, args...)
 }
+
+// minimalBaseImage returns the name of the minimal base image for the current
+// daemon platform.
+func minimalBaseImage() string {
+	if daemonPlatform == "windows" {
+		return WindowsBaseImage
+	}
+	return "scratch"
+}
