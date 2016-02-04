@@ -63,7 +63,7 @@ for version in "${versions[@]}"; do
 	)
 	# packaging for "sd-journal.h" and libraries varies
 	case "$suite" in
-		precise) ;;
+		precise|wheezy) ;;
 		sid|stretch|wily) packages+=( libsystemd-dev );;
 		*) packages+=( libsystemd-journal-dev );;
 	esac
