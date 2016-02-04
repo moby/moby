@@ -270,7 +270,12 @@ func (s *router) getImagesGet(ctx context.Context, w http.ResponseWriter, r *htt
 }
 
 func (s *router) postImagesLoad(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	return s.daemon.LoadImage(r.Body, w)
+	if err := httputils.ParseForm(r); err != nil {
+		return err
+	}
+	quiet := httputils.BoolValueOrDefault(r, "quiet", true)
+	w.Header().Set("Content-Type", "application/json")
+	return s.daemon.LoadImage(r.Body, w, quiet)
 }
 
 func (s *router) deleteImages(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {

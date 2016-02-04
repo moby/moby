@@ -1187,9 +1187,9 @@ func (daemon *Daemon) LookupImage(name string) (*types.ImageInspect, error) {
 // LoadImage uploads a set of images into the repository. This is the
 // complement of ImageExport.  The input stream is an uncompressed tar
 // ball containing images and metadata.
-func (daemon *Daemon) LoadImage(inTar io.ReadCloser, outStream io.Writer) error {
+func (daemon *Daemon) LoadImage(inTar io.ReadCloser, outStream io.Writer, quiet bool) error {
 	imageExporter := tarexport.NewTarExporter(daemon.imageStore, daemon.layerStore, daemon.referenceStore)
-	return imageExporter.Load(inTar, outStream)
+	return imageExporter.Load(inTar, outStream, quiet)
 }
 
 // ImageHistory returns a slice of ImageHistory structures for the specified image
