@@ -76,15 +76,25 @@ git cherry-pick <commit-id>
 ...
 ```
 
-### 2. Bump the API version on master
+### 2. Update the VERSION files and API version on master
 
-We don't want to stop contributions to master just because we are releasing. At
-the same time, now that the release branch exists, we don't want API changes to
-go to the now frozen API version.
+We don't want to stop contributions to master just because we are releasing.
+So, after the release branch is up, we bump the VERSION and API version to mark
+the start of the "next" release.
 
-Create a new entry in `docs/reference/api/` by copying the latest and
-bumping the version number (in both the file's name and content), and submit
-this in a PR against master.
+#### 2.1 Update the VERSION files
+
+Update the content of the `VERSION` file to be the next minor (incrementing Y)
+and add the `-dev` suffix. For example, after the release branch for 1.5.0 is
+created, the `VERSION` file gets updated to `1.6.0-dev` (as in "1.6.0 in the
+making").
+
+#### 2.2 Update API version on master
+
+We don't want API changes to go to the now frozen API version. Create a new
+entry in `docs/reference/api/` by copying the latest and bumping the version
+number (in both the file's name and content), and submit this in a PR against
+master.
 
 ### 3. Update CHANGELOG.md
 
@@ -490,14 +500,7 @@ echo "https://github.com/$GITHUBUSER/docker/compare/docker:master...$GITHUBUSER:
 Again, get two maintainers to validate, then merge, then push that pretty
 blue button to delete your branch.
 
-### 24. Update the VERSION files
-
-Now that version X.Y.Z is out, time to start working on the next! Update the
-content of the `VERSION` file to be the next minor (incrementing Y) and add the
-`-dev` suffix. For example, after 1.5.0 release, the `VERSION` file gets
-updated to `1.6.0-dev` (as in "1.6.0 in the making").
-
-### 25. Rejoice and Evangelize!
+### 24. Rejoice and Evangelize!
 
 Congratulations! You're done.
 
