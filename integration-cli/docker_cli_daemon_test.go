@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/pkg/integration/checker"
+	"github.com/docker/go-units"
 	"github.com/docker/libnetwork/iptables"
 	"github.com/docker/libtrust"
 	"github.com/go-check/check"
@@ -152,6 +153,44 @@ func (s *DockerDaemonSuite) TestDaemonStartIptablesFalse(c *check.C) {
 	if err := s.d.Start("--iptables=false"); err != nil {
 		c.Fatalf("we should have been able to start the daemon with passing iptables=false: %v", err)
 	}
+}
+
+// Make sure we cannot shrink base device at daemon restart.
+func (s *DockerDaemonSuite) TestDaemonRestartWithInvalidBasesize(c *check.C) {
+	testRequires(c, Devicemapper)
+	c.Assert(s.d.Start(), check.IsNil)
+
+	oldBasesizeBytes := s.d.getBaseDeviceSize(c)
+	var newBasesizeBytes int64 = 1073741824 //1GB in bytes
+
+	if newBasesizeBytes < oldBasesizeBytes {
+		err := s.d.Restart("--storage-opt", fmt.Sprintf("dm.basesize=%d", newBasesizeBytes))
+		c.Assert(err, check.IsNil, check.Commentf("daemon should not have started as new base device size is less than existing base device size: %v", err))
+	}
+	c.Assert(s.d.Stop(), check.IsNil)
+}
+
+// Make sure we can grow base device at daemon restart.
+func (s *DockerDaemonSuite) TestDaemonRestartWithIncreasedBasesize(c *check.C) {
+	testRequires(c, Devicemapper)
+	c.Assert(s.d.Start(), check.IsNil)
+
+	oldBasesizeBytes := s.d.getBaseDeviceSize(c)
+
+	var newBasesizeBytes int64 = 53687091200 //50GB in bytes
+
+	if newBasesizeBytes < oldBasesizeBytes {
+		c.Skip(fmt.Sprintf("New base device size (%v) must be greater than (%s)", units.HumanSize(float64(newBasesizeBytes)), units.HumanSize(float64(oldBasesizeBytes))))
+	}
+
+	err := s.d.Restart("--storage-opt", fmt.Sprintf("dm.basesize=%d", newBasesizeBytes))
+	c.Assert(err, check.IsNil, check.Commentf("we should have been able to start the daemon with increased base device size: %v", err))
+
+	basesizeAfterRestart := s.d.getBaseDeviceSize(c)
+	newBasesize, err := convertBasesize(newBasesizeBytes)
+	c.Assert(err, check.IsNil, check.Commentf("Error in converting base device size: %v", err))
+	c.Assert(newBasesize, check.Equals, basesizeAfterRestart, check.Commentf("Basesize passed is not equal to Basesize set"))
+	c.Assert(s.d.Stop(), check.IsNil)
 }
 
 // Issue #8444: If docker0 bridge is modified (intentionally or unintentionally) and

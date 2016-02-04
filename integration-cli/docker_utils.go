@@ -25,11 +25,13 @@ import (
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/httputils"
 	"github.com/docker/docker/pkg/integration"
+	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/stringutils"
 	"github.com/docker/engine-api/types"
 	"github.com/docker/go-connections/sockets"
 	"github.com/docker/go-connections/tlsconfig"
+	"github.com/docker/go-units"
 	"github.com/go-check/check"
 )
 
@@ -461,6 +463,32 @@ func (d *Daemon) sock() string {
 func (d *Daemon) waitRun(contID string) error {
 	args := []string{"--host", d.sock()}
 	return waitInspectWithArgs(contID, "{{.State.Running}}", "true", 10*time.Second, args...)
+}
+
+func (d *Daemon) getBaseDeviceSize(c *check.C) int64 {
+
+	infoCmdOutput, _, err := runCommandPipelineWithOutput(
+		exec.Command(dockerBinary, "-H", d.sock(), "info"),
+		exec.Command("grep", "Base Device Size"),
+	)
+	c.Assert(err, checker.IsNil)
+	basesizeSlice := strings.Split(infoCmdOutput, ":")
+	basesize := strings.Trim(basesizeSlice[1], " ")
+	basesize = strings.Trim(basesize, "\n")[:len(basesize)-3]
+	basesizeFloat, err := strconv.ParseFloat(strings.Trim(basesize, " "), 64)
+	c.Assert(err, checker.IsNil)
+	basesizeBytes := int64(basesizeFloat) * (1024 * 1024 * 1024)
+	return basesizeBytes
+}
+
+func convertBasesize(basesizeBytes int64) (int64, error) {
+	basesize := units.HumanSize(float64(basesizeBytes))
+	basesize = strings.Trim(basesize, " ")[:len(basesize)-3]
+	basesizeFloat, err := strconv.ParseFloat(strings.Trim(basesize, " "), 64)
+	if err != nil {
+		return 0, err
+	}
+	return int64(basesizeFloat) * 1024 * 1024 * 1024, nil
 }
 
 // Cmd will execute a docker CLI command against this Daemon.
