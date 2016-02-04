@@ -458,6 +458,11 @@ func (d *Daemon) sock() string {
 	return fmt.Sprintf("unix://%s/docker.sock", d.folder)
 }
 
+func (d *Daemon) waitRun(contID string) error {
+	args := []string{"--host", d.sock()}
+	return waitInspectWithArgs(contID, "{{.State.Running}}", "true", 10*time.Second, args...)
+}
+
 // Cmd will execute a docker CLI command against this Daemon.
 // Example: d.Cmd("version") will run docker -H unix://path/to/unix.sock version
 func (d *Daemon) Cmd(name string, arg ...string) (string, error) {
@@ -1685,10 +1690,15 @@ func waitExited(contID string, duration time.Duration) error {
 // in the inspect output. It will wait until the specified timeout (in seconds)
 // is reached.
 func waitInspect(name, expr, expected string, timeout time.Duration) error {
+	return waitInspectWithArgs(name, expr, expected, timeout)
+}
+
+func waitInspectWithArgs(name, expr, expected string, timeout time.Duration, arg ...string) error {
 	after := time.After(timeout)
 
+	args := append(arg, "inspect", "-f", expr, name)
 	for {
-		cmd := exec.Command(dockerBinary, "inspect", "-f", expr, name)
+		cmd := exec.Command(dockerBinary, args...)
 		out, _, err := runCommandWithOutput(cmd)
 		if err != nil {
 			if !strings.Contains(out, "No such") {
