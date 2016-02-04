@@ -805,6 +805,14 @@ Assuming the daemon is running in cgroup `daemoncgroup`,
 `/sys/fs/cgroup/memory/foobar`, wheras using `--cgroup-parent=foobar`
 creates the cgroup in `/sys/fs/cgroup/memory/daemoncgroup/foobar`
 
+For systemd cgroup, `--cgroup-parent` has different rules. Since systemd
+represents hierarchy by slice and the name of the slice encodes the
+location in the tree. So `--cgroup-parent` for systemd cgroup should be
+a slice name, the name could consists of a dash-separated series of names,
+which describes the path to the slice from the root slice. For example,
+`--cgroup-parent=user-a-b.slice` means the container will be created in
+`<cgroup mount point>/user.slice/user-a.slice/user-a-b.slice/docker-<id>.scope`.
+
 This setting can also be set per container, using the `--cgroup-parent`
 option on `docker create` and `docker run`, and takes precedence over
 the `--cgroup-parent` option on the daemon.

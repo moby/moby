@@ -155,3 +155,31 @@ func TestNetworkOptions(t *testing.T) {
 		t.Fatalf("Expected networkOptions error, got nil")
 	}
 }
+
+func TestSliceNames(t *testing.T) {
+	invalidSliceNames := []string{
+		"test",
+		"invalidSlice",
+		".slice",
+		"/system.slice/system-test.slice",
+		"system.slice/system-test.slice",
+		"/system.slice",
+		"my@test.slice",
+	}
+	for _, name := range invalidSliceNames {
+		if isValidSlice(name) {
+			t.Fatalf("Slice name %s should be invalid", name)
+		}
+	}
+
+	validSliceNames := []string{
+		"a.slice",
+		"user-1000.slice",
+		"system-my-app.slice",
+	}
+	for _, name := range validSliceNames {
+		if !isValidSlice(name) {
+			t.Fatalf("Slice name %s should be valid", name)
+		}
+	}
+}

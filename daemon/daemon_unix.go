@@ -363,6 +363,28 @@ func verifyContainerResources(resources *containertypes.Resources, sysInfo *sysi
 	return warnings, nil
 }
 
+func isValidSlice(sliceName string) bool {
+	suffix := ".slice"
+	// Name should be "xxx.slice", ".slice" is invalid
+	if len(sliceName) <= len(suffix) || !strings.HasSuffix(sliceName, suffix) {
+		return false
+	}
+	// Should not contain any path-separators or @ arguments.
+	if strings.Contains(sliceName, "/") || strings.Contains(sliceName, "@") {
+		return false
+	}
+
+	sliceName = strings.TrimSuffix(sliceName, suffix)
+	for _, component := range strings.Split(sliceName, "-") {
+		// test--a.slice isn't permitted, nor is -test.slice.
+		if component == "" {
+			return false
+		}
+	}
+
+	return true
+}
+
 func usingSystemd(config *Config) bool {
 	for _, option := range config.ExecOptions {
 		key, val, err := parsers.ParseKeyValueOpt(option)
@@ -428,9 +450,9 @@ func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.
 		}
 	}
 	if hostConfig.CgroupParent != "" && daemon.usingSystemd() {
-		// CgroupParent for systemd cgroup should be named as "xxx.slice"
-		if len(hostConfig.CgroupParent) <= 6 || !strings.HasSuffix(hostConfig.CgroupParent, ".slice") {
-			return warnings, fmt.Errorf("cgroup-parent for systemd cgroup should be a valid slice named as \"xxx.slice\"")
+		// CgroupParent for systemd cgroup should be a valid slice named as "xxx.slice" or "xxx-yyy.slice"
+		if !isValidSlice(hostConfig.CgroupParent) {
+			return warnings, fmt.Errorf("invalid slice name: %s", hostConfig.CgroupParent)
 		}
 	}
 	return warnings, nil
@@ -449,8 +471,9 @@ func verifyDaemonSettings(config *Config) error {
 		config.bridgeConfig.EnableIPMasq = false
 	}
 	if config.CgroupParent != "" && usingSystemd(config) {
-		if len(config.CgroupParent) <= 6 || !strings.HasSuffix(config.CgroupParent, ".slice") {
-			return fmt.Errorf("cgroup-parent for systemd cgroup should be a valid slice named as \"xxx.slice\"")
+		// CgroupParent for systemd cgroup should be a valid slice named as "xxx.slice" or "xxx-yyy.slice"
+		if !isValidSlice(config.CgroupParent) {
+			return fmt.Errorf("invalid slice name: %s", config.CgroupParent)
 		}
 	}
 	return nil
