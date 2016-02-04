@@ -1,7 +1,10 @@
 package api
 
 import (
+	"archive/tar"
+	"bytes"
 	"fmt"
+	"io"
 	"mime"
 	"path/filepath"
 	"sort"
@@ -9,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/pkg/version"
 	"github.com/docker/engine-api/types"
@@ -146,4 +150,28 @@ func LoadOrCreateTrustKey(trustKeyPath string) (libtrust.PrivateKey, error) {
 		return nil, fmt.Errorf("Error loading key file %s: %s", trustKeyPath, err)
 	}
 	return trustKey, nil
+}
+
+// VerifyTarballNotImage verifies that the given tarball is not an image tarball.
+func VerifyTarballNotImage(reader io.Reader) (*bytes.Buffer, error) {
+	decomArchive, err := archive.DecompressStream(reader)
+	if err != nil {
+		return nil, err
+	}
+	data := bytes.NewBuffer(nil)
+	r := io.TeeReader(decomArchive, data)
+	tr := tar.NewReader(r)
+	for {
+		hdr, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return data, err
+		}
+		if hdr.Name == "repositories" {
+			return data, fmt.Errorf("tarball must not be an image: detected \"repositories\" file")
+		}
+	}
+	return data, nil
 }

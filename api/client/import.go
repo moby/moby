@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 
+	"github.com/docker/docker/api"
 	Cli "github.com/docker/docker/cli"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/jsonmessage"
@@ -59,6 +60,14 @@ func (cli *DockerCli) CmdImport(args ...string) error {
 		}
 		defer file.Close()
 		in = file
+	}
+
+	if srcName == "-" {
+		data, err := api.VerifyTarballNotImage(in)
+		if err != nil {
+			return err
+		}
+		in = data
 	}
 
 	options := types.ImageImportOptions{
