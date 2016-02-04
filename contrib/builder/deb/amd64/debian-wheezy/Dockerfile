@@ -4,7 +4,7 @@
 
 FROM debian:wheezy-backports
 
-RUN apt-get update && apt-get install -y -t wheezy-backports btrfs-tools libsystemd-journal-dev --no-install-recommends && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y -t wheezy-backports btrfs-tools --no-install-recommends && rm -rf /var/lib/apt/lists/*
 RUN apt-get update && apt-get install -y apparmor bash-completion  build-essential curl ca-certificates debhelper dh-apparmor dh-systemd git libapparmor-dev libdevmapper-dev libltdl-dev  libsqlite3-dev pkg-config  --no-install-recommends && rm -rf /var/lib/apt/lists/*
 
 ENV GO_VERSION 1.5.3
