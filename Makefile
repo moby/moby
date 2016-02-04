@@ -31,6 +31,7 @@ export DOCKERFILE
 # `docs/sources/contributing/devenvironment.md ` and `project/PACKAGERS.md` have some limited documentation of some of these
 DOCKER_ENVS := \
 	-e BUILDFLAGS \
+	-e KEEPBUNDLE \
 	-e DOCKER_BUILD_GOGC \
 	-e DOCKER_BUILD_PKGS \
 	-e DOCKER_CLIENTONLY \
