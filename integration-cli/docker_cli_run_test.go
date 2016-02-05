@@ -2683,7 +2683,7 @@ func (s *DockerSuite) TestRunRestartMaxRetries(c *check.C) {
 	out, _ := dockerCmd(c, "run", "-d", "--restart=on-failure:3", "busybox", "false")
 	timeout := 10 * time.Second
 	if daemonPlatform == "windows" {
-		timeout = 45 * time.Second
+		timeout = 120 * time.Second
 	}
 
 	id := strings.TrimSpace(string(out))
