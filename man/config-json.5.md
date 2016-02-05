@@ -2,7 +2,7 @@
 % Docker Community
 % JANUARY 2016
 # NAME
-HOME/.docker/confg.json - Default Docker configuration file
+HOME/.docker/config.json - Default Docker configuration file
 
 # INTRODUCTION
 
