@@ -256,9 +256,13 @@ func (d *Driver) Create(id, parent, mountLabel string) error {
 			return err
 		}
 	} else {
-		parentDir, err := d.Get(parent, "")
+		parentDir := d.subvolumesDirID(parent)
+		st, err := os.Stat(parentDir)
 		if err != nil {
 			return err
+		}
+		if !st.IsDir() {
+			return fmt.Errorf("%s: not a direcotory", parentDir)
 		}
 		if err := subvolSnapshot(parentDir, subvolumes, id); err != nil {
 			return err
