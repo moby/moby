@@ -99,7 +99,7 @@ for version in "${versions[@]}"; do
 	if [ "$suite" = 'wheezy' ]; then
 		# pull a couple packages from backports explicitly
 		# (build failures otherwise)
-		backportsPackages=( btrfs-tools libsystemd-journal-dev )
+		backportsPackages=( btrfs-tools )
 		for pkg in "${backportsPackages[@]}"; do
 			packages=( "${packages[@]/$pkg}" )
 		done
