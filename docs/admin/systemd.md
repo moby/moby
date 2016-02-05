@@ -1,6 +1,6 @@
 <!--[metadata]>
 +++
-aliases = ["/engine/reference/logging/systemd/"]
+aliases = ["/engine/articles/systemd/"]
 title = "Control and configure Docker with systemd"
 description = "Controlling and configuring Docker using systemd"
 keywords = ["docker, daemon, systemd,  configuration"]
