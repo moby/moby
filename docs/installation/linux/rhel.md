@@ -16,7 +16,9 @@ Docker is supported on Red Hat Enterprise Linux 7. This page instructs you to
 install using Docker-managed release packages and installation mechanisms. Using
 these packages ensures you get the latest release of Docker. If you wish to
 install using Red Hat-managed packages, consult your Red Hat release
-documentation for information on Red Hat's Docker support.
+documentation for information on Red Hat's Docker support. If you are comfortable
+with package managers, and are familiar with Docker's prerequisites, feel free
+to skip to step 3 in the [Install with the script](#install-with-the-script) section.
 
 ## Prerequisites
 
