@@ -69,7 +69,7 @@ and virtualization support is enabled in BIOS and recognized by Windows.
 
 > **Note**: If you have Docker hosts running and you don't wish to do a Docker Toolbox
 installation, you can install the `docker.exe` using the *unofficial* Windows package
-manager Chocolately. For information on how to do this, see [Docker package on
+manager Chocolatey. For information on how to do this, see [Docker package on
 Chocolatey](http://chocolatey.org/packages/docker).
 
 ### Learn the key concepts before installing
