@@ -19,6 +19,10 @@ feature to restrict your application's access.
 This feature is available only if the kernel is configured with `CONFIG_SECCOMP`
 enabled.
 
+> **Note**: On Ubuntu 14.04, Debian Wheezy, and Debian Jessie, you must download
+> the [latest static Docker Linux binary](../installation/binaries.md) to use
+> seccomp.
+
 ## Passing a profile for a container
 
 The default seccomp profile provides a sane default for running containers with
