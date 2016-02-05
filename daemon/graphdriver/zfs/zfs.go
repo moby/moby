@@ -308,9 +308,13 @@ func (d *Driver) Get(id, mountLabel string) (string, error) {
 		return "", err
 	}
 
-	err = mount.Mount(filesystem, mountpoint, "zfs", options)
-	if err != nil {
+	if err := mount.Mount(filesystem, mountpoint, "zfs", options); err != nil {
 		return "", fmt.Errorf("error creating zfs mount of %s to %s: %v", filesystem, mountpoint, err)
+	}
+	// this could be our first mount after creation of the filesystem, and the root dir may still have root
+	// permissions instead of the remapped root uid:gid (if user namespaces are enabled):
+	if err := os.Chown(mountpoint, rootUID, rootGID); err != nil {
+		return "", fmt.Errorf("error modifying zfs mountpoint (%s) directory ownership: %v", mountpoint, err)
 	}
 
 	return mountpoint, nil
