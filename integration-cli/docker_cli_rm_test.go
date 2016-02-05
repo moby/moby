@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 
@@ -18,6 +19,9 @@ func (s *DockerSuite) TestRmContainerWithRemovedVolume(c *check.C) {
 		c.Fatalf("failed to create temporary directory: %s", tempDir)
 	}
 	defer os.RemoveAll(tempDir)
+
+	out, _, _ := dockerCmdWithStdoutStderr(c, "ps", "-a")
+	fmt.Printf("out: %s", out)
 
 	dockerCmd(c, "run", "--name", "losemyvolumes", "-v", tempDir+":"+prefix+slash+"test", "busybox", "true")
 
