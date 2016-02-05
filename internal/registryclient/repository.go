@@ -36,8 +36,21 @@ func checkHTTPRedirect(req *http.Request, via []*http.Request) error {
 
 	if len(via) > 0 {
 		for headerName, headerVals := range via[0].Header {
-			if headerName == "Accept" || headerName == "Range" {
-				for _, val := range headerVals {
+			if headerName != "Accept" && headerName != "Range" {
+				continue
+			}
+			for _, val := range headerVals {
+				// Don't add to redirected request if redirected
+				// request already has a header with the same
+				// name and value.
+				hasValue := false
+				for _, existingVal := range req.Header[headerName] {
+					if existingVal == val {
+						hasValue = true
+						break
+					}
+				}
+				if !hasValue {
 					req.Header.Add(headerName, val)
 				}
 			}
