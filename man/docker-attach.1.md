@@ -55,7 +55,7 @@ the `<sequence>` is either a letter [a-Z], or the `ctrl-` combined with any of
 the following:
 
 * `a-z` (a single lowercase alpha character )
-* `@` (ampersand)
+* `@` (at sign)
 * `[` (left bracket)
 * `\\` (two backward slashes)
 *  `_` (underscore)
