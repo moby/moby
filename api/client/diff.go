@@ -17,6 +17,7 @@ import (
 // Usage: docker diff CONTAINER
 func (cli *DockerCli) CmdDiff(args ...string) error {
 	cmd := Cli.Subcmd("diff", []string{"CONTAINER"}, Cli.DockerCommands["diff"].Description, true)
+	cli.AddCommonFlags(cmd)
 	cmd.Require(flag.Exact, 1)
 
 	cmd.ParseFlags(args, true)

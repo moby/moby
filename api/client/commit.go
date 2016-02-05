@@ -25,6 +25,7 @@ func (cli *DockerCli) CmdCommit(args ...string) error {
 	cmd.Var(&flChanges, []string{"c", "-change"}, "Apply Dockerfile instruction to the created image")
 	// FIXME: --run is deprecated, it will be replaced with inline Dockerfile commands.
 	flConfig := cmd.String([]string{"#-run"}, "", "This option is deprecated and will be removed in a future version in favor of inline Dockerfile-compatible commands")
+	cli.AddCommonFlags(cmd)
 	cmd.Require(flag.Max, 2)
 	cmd.Require(flag.Min, 1)
 

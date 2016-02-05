@@ -21,6 +21,7 @@ import (
 func (cli *DockerCli) CmdPush(args ...string) error {
 	cmd := Cli.Subcmd("push", []string{"NAME[:TAG]"}, Cli.DockerCommands["push"].Description, true)
 	addTrustedFlags(cmd, false)
+	cli.AddCommonFlags(cmd)
 	cmd.Require(flag.Exact, 1)
 
 	cmd.ParseFlags(args, true)

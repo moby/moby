@@ -16,6 +16,7 @@ import (
 // Usage: docker info
 func (cli *DockerCli) CmdInfo(args ...string) error {
 	cmd := Cli.Subcmd("info", nil, Cli.DockerCommands["info"].Description, true)
+	cli.AddCommonFlags(cmd)
 	cmd.Require(flag.Exact, 0)
 
 	cmd.ParseFlags(args, true)

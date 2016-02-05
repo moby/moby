@@ -17,6 +17,7 @@ func (cli *DockerCli) CmdRm(args ...string) error {
 	v := cmd.Bool([]string{"v", "-volumes"}, false, "Remove the volumes associated with the container")
 	link := cmd.Bool([]string{"l", "-link"}, false, "Remove the specified link")
 	force := cmd.Bool([]string{"f", "-force"}, false, "Force the removal of a running container (uses SIGKILL)")
+	cli.AddCommonFlags(cmd)
 	cmd.Require(flag.Min, 1)
 
 	cmd.ParseFlags(args, true)

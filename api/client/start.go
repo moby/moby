@@ -50,6 +50,7 @@ func (cli *DockerCli) CmdStart(args ...string) error {
 	attach := cmd.Bool([]string{"a", "-attach"}, false, "Attach STDOUT/STDERR and forward signals")
 	openStdin := cmd.Bool([]string{"i", "-interactive"}, false, "Attach container's STDIN")
 	detachKeys := cmd.String([]string{"-detach-keys"}, "", "Override the key sequence for detaching a container")
+	cli.AddCommonFlags(cmd)
 	cmd.Require(flag.Min, 1)
 
 	cmd.ParseFlags(args, true)

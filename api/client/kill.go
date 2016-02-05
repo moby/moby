@@ -14,6 +14,7 @@ import (
 func (cli *DockerCli) CmdKill(args ...string) error {
 	cmd := Cli.Subcmd("kill", []string{"CONTAINER [CONTAINER...]"}, Cli.DockerCommands["kill"].Description, true)
 	signal := cmd.String([]string{"s", "-signal"}, "KILL", "Signal to send to the container")
+	cli.AddCommonFlags(cmd)
 	cmd.Require(flag.Min, 1)
 
 	cmd.ParseFlags(args, true)

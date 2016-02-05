@@ -55,6 +55,7 @@ func (cli *DockerCli) CmdCp(args ...string) error {
 	)
 
 	followLink := cmd.Bool([]string{"L", "-follow-link"}, false, "Always follow symbol link in SRC_PATH")
+	cli.AddCommonFlags(cmd)
 
 	cmd.Require(flag.Exact, 2)
 	cmd.ParseFlags(args, true)

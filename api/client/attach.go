@@ -19,6 +19,7 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 	noStdin := cmd.Bool([]string{"-no-stdin"}, false, "Do not attach STDIN")
 	proxy := cmd.Bool([]string{"-sig-proxy"}, true, "Proxy all received signals to the process")
 	detachKeys := cmd.String([]string{"-detach-keys"}, "", "Override the key sequence for detaching a container")
+	cli.AddCommonFlags(cmd)
 
 	cmd.Require(flag.Exact, 1)
 

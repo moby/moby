@@ -19,6 +19,7 @@ import (
 func (cli *DockerCli) CmdLoad(args ...string) error {
 	cmd := Cli.Subcmd("load", nil, Cli.DockerCommands["load"].Description, true)
 	infile := cmd.String([]string{"i", "-input"}, "", "Read from a tar archive file, instead of STDIN")
+	cli.AddCommonFlags(cmd)
 	cmd.Require(flag.Exact, 0)
 	cmd.ParseFlags(args, true)
 

@@ -22,6 +22,7 @@ func (cli *DockerCli) CmdHistory(args ...string) error {
 	human := cmd.Bool([]string{"H", "-human"}, true, "Print sizes and dates in human readable format")
 	quiet := cmd.Bool([]string{"q", "-quiet"}, false, "Only show numeric IDs")
 	noTrunc := cmd.Bool([]string{"-no-trunc"}, false, "Don't truncate output")
+	cli.AddCommonFlags(cmd)
 	cmd.Require(flag.Exact, 1)
 
 	cmd.ParseFlags(args, true)

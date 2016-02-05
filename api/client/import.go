@@ -26,6 +26,7 @@ func (cli *DockerCli) CmdImport(args ...string) error {
 	flChanges := opts.NewListOpts(nil)
 	cmd.Var(&flChanges, []string{"c", "-change"}, "Apply Dockerfile instruction to the created image")
 	message := cmd.String([]string{"m", "-message"}, "", "Set commit message for imported image")
+	cli.AddCommonFlags(cmd)
 	cmd.Require(flag.Min, 1)
 
 	cmd.ParseFlags(args, true)

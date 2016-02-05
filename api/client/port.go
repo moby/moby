@@ -15,6 +15,7 @@ import (
 // Usage: docker port CONTAINER [PRIVATE_PORT[/PROTO]]
 func (cli *DockerCli) CmdPort(args ...string) error {
 	cmd := Cli.Subcmd("port", []string{"CONTAINER [PRIVATE_PORT[/PROTO]]"}, Cli.DockerCommands["port"].Description, true)
+	cli.AddCommonFlags(cmd)
 	cmd.Require(flag.Min, 1)
 
 	cmd.ParseFlags(args, true)

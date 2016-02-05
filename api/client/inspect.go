@@ -26,6 +26,7 @@ func (cli *DockerCli) CmdInspect(args ...string) error {
 	tmplStr := cmd.String([]string{"f", "-format"}, "", "Format the output using the given go template")
 	inspectType := cmd.String([]string{"-type"}, "", "Return JSON for specified type, (e.g image or container)")
 	size := cmd.Bool([]string{"s", "-size"}, false, "Display total file sizes if the type is container")
+	cli.AddCommonFlags(cmd)
 	cmd.Require(flag.Min, 1)
 
 	cmd.ParseFlags(args, true)
