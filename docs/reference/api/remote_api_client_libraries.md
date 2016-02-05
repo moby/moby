@@ -124,6 +124,12 @@ will add the libraries here.
     </tr>
     <tr>
       <td>JavaScript (NodeJS)</td>
+      <td>dockerizer</td>
+      <td><a class="reference external" href="https://github.com/kesarion/dockerizer">https://github.com/kesarion/dockerizer</a></td>
+      <td>Active</td>
+    </tr>
+    <tr>
+      <td>JavaScript (NodeJS)</td>
       <td>dockerode</td>
       <td><a class="reference external" href="https://github.com/apocas/dockerode">https://github.com/apocas/dockerode</a>
   Install via NPM: <cite>npm install dockerode</cite></td>
