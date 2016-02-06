@@ -26,6 +26,15 @@ type mounts []execdriver.Mount
 // volumeToAPIType converts a volume.Volume to the type used by the remote API
 func volumeToAPIType(v volume.Volume) *types.Volume {
 	return &types.Volume{
+		Name:   v.Name(),
+		Driver: v.DriverName(),
+	}
+}
+
+// volumeDetailsToAPIType converts a volume.Volume to the type used by the
+// remote API and does not lookup details
+func volumeDetailsToAPIType(v volume.Volume) *types.Volume {
+	return &types.Volume{
 		Name:       v.Name(),
 		Driver:     v.DriverName(),
 		Mountpoint: v.Path(),
