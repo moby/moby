@@ -231,6 +231,9 @@ func (is *store) SetParent(id, parent ID) error {
 	if parentMeta == nil {
 		return fmt.Errorf("unknown parent image ID %s", parent.String())
 	}
+	if parent, err := is.GetParent(id); err == nil && is.images[parent] != nil {
+		delete(is.images[parent].children, id)
+	}
 	parentMeta.children[id] = struct{}{}
 	return is.fs.SetMetadata(id, "parent", []byte(parent))
 }
