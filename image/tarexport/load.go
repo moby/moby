@@ -28,8 +28,6 @@ func (l *tarexporter) Load(inTar io.ReadCloser, outStream io.Writer, quiet bool)
 	)
 	if !quiet {
 		progressOutput = sf.NewProgressOutput(outStream, false)
-	} else {
-		progressOutput = nil
 	}
 
 	tmpDir, err := ioutil.TempDir("", "docker-import-")
