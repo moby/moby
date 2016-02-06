@@ -95,7 +95,7 @@ func (r *resolver) SetupFunc() func() {
 		}
 
 		for _, rule := range rules {
-			r.err = iptables.RawCombinedOutput(rule...)
+			r.err = iptables.RawCombinedOutputNative(rule...)
 			if r.err != nil {
 				return
 			}
