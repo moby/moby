@@ -787,6 +787,29 @@ _docker_daemon() {
 		--userns-remap
 	"
 
+	__docker_complete_log_driver_options && return
+
+	case "${words[$cword-2]}$prev=" in
+		# completions for --storage-opt
+		*dm.@(blkdiscard|override_udev_sync_check|use_deferred_@(removal|deletion))=*)
+			COMPREPLY=( $( compgen -W "false true" -- "${cur#=}" ) )
+			return
+			;;
+		*dm.fs=*)
+			COMPREPLY=( $( compgen -W "ext4 xfs" -- "${cur#=}" ) )
+			return
+			;;
+		*dm.thinpooldev=*)
+			_filedir
+			return
+			;;
+		# completions for --cluster-store-opt
+		*kv.*file=*)
+			_filedir
+			return
+			;;
+	esac
+
 	case "$prev" in
 		--authorization-plugin)
 			__docker_complete_plugins Authorization
@@ -865,29 +888,6 @@ _docker_daemon() {
 			return
 			;;
 		$(__docker_to_extglob "$options_with_args") )
-			return
-			;;
-	esac
-
-	__docker_complete_log_driver_options && return
-
-	case "${words[$cword-2]}$prev=" in
-		# completions for --storage-opt
-		*dm.@(blkdiscard|override_udev_sync_check|use_deferred_@(removal|deletion))=*)
-			COMPREPLY=( $( compgen -W "false true" -- "${cur#=}" ) )
-			return
-			;;
-		*dm.fs=*)
-			COMPREPLY=( $( compgen -W "ext4 xfs" -- "${cur#=}" ) )
-			return
-			;;
-		*dm.thinpooldev=*)
-			_filedir
-			return
-			;;
-		# completions for --cluster-store-opt
-		*kv.*file=*)
-			_filedir
 			return
 			;;
 	esac
@@ -1051,6 +1051,16 @@ _docker_history() {
 }
 
 _docker_images() {
+	case "${words[$cword-2]}$prev=" in
+		*dangling=*)
+			COMPREPLY=( $( compgen -W "true false" -- "${cur#=}" ) )
+			return
+			;;
+		*label=*)
+			return
+			;;
+	esac
+
 	case "$prev" in
 		--filter|-f)
 			COMPREPLY=( $( compgen -S = -W "dangling label" -- "$cur" ) )
@@ -1058,16 +1068,6 @@ _docker_images() {
 			return
 			;;
                 --format)
-			return
-			;;
-	esac
-
-	case "${words[$cword-2]}$prev=" in
-		*dangling=*)
-			COMPREPLY=( $( compgen -W "true false" -- "${cur#=}" ) )
-			return
-			;;
-		*label=*)
 			return
 			;;
 	esac
@@ -1329,14 +1329,6 @@ _docker_network_inspect() {
 }
 
 _docker_network_ls() {
-	case "$prev" in
-		--filter|-f)
-			COMPREPLY=( $( compgen -S = -W "id name type" -- "$cur" ) )
-			__docker_nospace
-			return
-			;;
-	esac
-
 	case "${words[$cword-2]}$prev=" in
 		*id=*)
 			cur="${cur#=}"
@@ -1350,6 +1342,14 @@ _docker_network_ls() {
 			;;
 		*type=*)
 			COMPREPLY=( $( compgen -W "builtin custom" -- "${cur#=}" ) )
+			return
+			;;
+	esac
+
+	case "$prev" in
+		--filter|-f)
+			COMPREPLY=( $( compgen -S = -W "id name type" -- "$cur" ) )
+			__docker_nospace
 			return
 			;;
 	esac
@@ -1421,20 +1421,6 @@ _docker_port() {
 }
 
 _docker_ps() {
-	case "$prev" in
-		--before|--since)
-			__docker_complete_containers_all
-			;;
-		--filter|-f)
-			COMPREPLY=( $( compgen -S = -W "ancestor exited id label name status" -- "$cur" ) )
-			__docker_nospace
-			return
-			;;
-		--format|-n)
-			return
-			;;
-	esac
-
 	case "${words[$cword-2]}$prev=" in
 		*ancestor=*)
 			cur="${cur#=}"
@@ -1453,6 +1439,20 @@ _docker_ps() {
 			;;
 		*status=*)
 			COMPREPLY=( $( compgen -W "created dead exited paused restarting running" -- "${cur#=}" ) )
+			return
+			;;
+	esac
+
+	case "$prev" in
+		--before|--since)
+			__docker_complete_containers_all
+			;;
+		--filter|-f)
+			COMPREPLY=( $( compgen -S = -W "ancestor exited id label name status" -- "$cur" ) )
+			__docker_nospace
+			return
+			;;
+		--format|-n)
 			return
 			;;
 	esac
@@ -1651,6 +1651,8 @@ _docker_run() {
 	local all_options="$options_with_args $boolean_options"
 
 
+	__docker_complete_log_driver_options && return
+
 	case "$prev" in
 		--add-host)
 			case "$cur" in
@@ -1796,8 +1798,6 @@ _docker_run() {
 			return
 			;;
 	esac
-
-	__docker_complete_log_driver_options && return
 
 	case "$cur" in
 		-*)
@@ -2015,17 +2015,17 @@ _docker_volume_inspect() {
 }
 
 _docker_volume_ls() {
-	case "$prev" in
-		--filter|-f)
-			COMPREPLY=( $( compgen -S = -W "dangling" -- "$cur" ) )
-			__docker_nospace
+	case "${words[$cword-2]}$prev=" in
+		*dangling=*)
+			COMPREPLY=( $( compgen -W "true false" -- "${cur#=}" ) )
 			return
 			;;
 	esac
 
-	case "${words[$cword-2]}$prev=" in
-		*dangling=*)
-			COMPREPLY=( $( compgen -W "true false" -- "${cur#=}" ) )
+	case "$prev" in
+		--filter|-f)
+			COMPREPLY=( $( compgen -S = -W "dangling" -- "$cur" ) )
+			__docker_nospace
 			return
 			;;
 	esac
