@@ -12,12 +12,13 @@ import (
 	"strings"
 
 	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/gitutils"
 	"github.com/docker/docker/pkg/httputils"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
+
+	"github.com/docker/docker/builder/dockerignore"
 )
 
 // ValidateContextDirectory checks if all the contents of the directory
@@ -28,19 +29,7 @@ func ValidateContextDirectory(srcPath string, excludes []string) error {
 	if err != nil {
 		return err
 	}
-	return filepath.Walk(contextRoot, func(filePath string, f os.FileInfo, err error) error {
-		// skip this directory/file if it's not in the path, it won't get added to the context
-		if relFilePath, err := filepath.Rel(contextRoot, filePath); err != nil {
-			return err
-		} else if skip, err := fileutils.Matches(relFilePath, excludes); err != nil {
-			return err
-		} else if skip {
-			if f.IsDir() {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-
+	walkFn := func(filePath string, f os.FileInfo, err error) error {
 		if err != nil {
 			if os.IsPermission(err) {
 				return fmt.Errorf("can't stat '%s'", filePath)
@@ -65,7 +54,17 @@ func ValidateContextDirectory(srcPath string, excludes []string) error {
 			currentFile.Close()
 		}
 		return nil
-	})
+	}
+
+	excluder, err := dockerignore.NewExcluder(contextRoot, excludes)
+	if err != nil {
+		return err
+	}
+
+	// Exclude ignored files.
+	walkFn = excluder.Wrap(walkFn)
+
+	return filepath.Walk(contextRoot, walkFn)
 }
 
 // GetContextFromReader will read the contents of the given reader as either a
