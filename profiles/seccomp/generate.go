@@ -29,7 +29,7 @@ func main() {
 		panic(err)
 	}
 
-	if err := ioutil.WriteFile(f, b, 0755); err != nil {
+	if err := ioutil.WriteFile(f, b, 0644); err != nil {
 		panic(err)
 	}
 }
