@@ -197,6 +197,12 @@ will add the libraries here.
       <td>Active</td>
     </tr>
     <tr>
+      <td>PHP</td>
+      <td>Docker-PHP-Client</td>
+      <td><a class="reference external" href="https://github.com/jarkt/docker-php-client">https://github.com/jarkt/docker-php-client</a></td>
+      <td>Active</td>
+    </tr>
+    <tr>
       <td>Python</td>
       <td>docker-py</td>
       <td><a class="reference external" href="https://github.com/docker/docker-py">https://github.com/docker/docker-py</a></td>
