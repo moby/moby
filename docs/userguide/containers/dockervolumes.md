@@ -270,6 +270,15 @@ Then un-tar the backup file in the new container's data volume.
 You can use the techniques above to automate backup, migration and
 restore testing using your preferred tools.
 
+## Removing Volumes
+
+Docker Volumes are designed to persist even after a container is deleted. However,
+they can be removed by using the `--rm` flag. For example with,
+
+    $ docker run --rm -v /foo -v awesome:/bar busybox top,
+
+the volume for `/foo` will be removed, but the volume for `/bar` will not.
+
 ## Important tips on using shared volumes
 
 Multiple containers can also share one or more data volumes. However, multiple containers writing to a single shared volume can cause data corruption. Make sure your applications are designed to write to shared data stores.
