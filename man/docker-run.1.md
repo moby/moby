@@ -60,6 +60,7 @@ docker-run - Run a command in a new container
 [**-P**|**--publish-all**]
 [**-p**|**--publish**[=*[]*]]
 [**--pid**[=*[]*]]
+[**--userns**[=*[]*]]
 [**--pids-limit**[=*PIDS_LIMIT*]]
 [**--privileged**]
 [**--read-only**]
@@ -420,6 +421,10 @@ Use `docker port` to see the actual mapping: `docker port CONTAINER $CONTAINERPO
    Set the PID mode for the container
      **host**: use the host's PID namespace inside the container.
      Note: the host mode gives the container full access to local PID and is therefore considered insecure.
+
+**--userns**=""
+   Set the usernamespace mode for the container when `userns-remap` option is enabled.
+     **host**: use the host usernamespace and enable all privileged options (e.g., `pid=host` or `--privileged`).
 
 **--pids-limit**=""
    Tune the container's pids limit. Set `-1` to have unlimited pids for the container.

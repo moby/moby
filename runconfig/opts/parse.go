@@ -59,6 +59,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 		flPrivileged        = cmd.Bool([]string{"-privileged"}, false, "Give extended privileges to this container")
 		flPidMode           = cmd.String([]string{"-pid"}, "", "PID namespace to use")
 		flUTSMode           = cmd.String([]string{"-uts"}, "", "UTS namespace to use")
+		flUsernsMode        = cmd.String([]string{"-userns"}, "", "User namespace to use")
 		flPublishAll        = cmd.Bool([]string{"P", "-publish-all"}, false, "Publish all exposed ports to random ports")
 		flStdin             = cmd.Bool([]string{"i", "-interactive"}, false, "Keep STDIN open even if not attached")
 		flTty               = cmd.Bool([]string{"t", "-tty"}, false, "Allocate a pseudo-TTY")
@@ -316,6 +317,11 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 		return nil, nil, nil, cmd, fmt.Errorf("--uts: invalid UTS mode")
 	}
 
+	usernsMode := container.UsernsMode(*flUsernsMode)
+	if !usernsMode.Valid() {
+		return nil, nil, nil, cmd, fmt.Errorf("--userns: invalid USER mode")
+	}
+
 	restartPolicy, err := ParseRestartPolicy(*flRestartPolicy)
 	if err != nil {
 		return nil, nil, nil, cmd, err
@@ -404,6 +410,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 		IpcMode:        ipcMode,
 		PidMode:        pidMode,
 		UTSMode:        utsMode,
+		UsernsMode:     usernsMode,
 		CapAdd:         strslice.StrSlice(flCapAdd.GetAll()),
 		CapDrop:        strslice.StrSlice(flCapDrop.GetAll()),
 		GroupAdd:       flGroupAdd.GetAll(),
