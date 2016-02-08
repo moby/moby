@@ -65,6 +65,12 @@ func New() *configs.Config {
 				Data:        "newinstance,ptmxmode=0666,mode=0620,gid=5",
 			},
 			{
+				Source:      "mqueue",
+				Destination: "/dev/mqueue",
+				Device:      "mqueue",
+				Flags:       defaultMountFlags,
+			},
+			{
 				Source:      "sysfs",
 				Destination: "/sys",
 				Device:      "sysfs",

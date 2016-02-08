@@ -559,18 +559,6 @@ func (container *Container) UnmountIpcMounts(unmount func(pth string) error) {
 		}
 	}
 
-	if !container.HasMountFor("/dev/mqueue") {
-		mqueuePath, err := container.MqueueResourcePath()
-		if err != nil {
-			logrus.Error(err)
-			warnings = append(warnings, err.Error())
-		} else if mqueuePath != "" {
-			if err := unmount(mqueuePath); err != nil {
-				warnings = append(warnings, fmt.Sprintf("failed to umount %s: %v", mqueuePath, err))
-			}
-		}
-	}
-
 	if len(warnings) > 0 {
 		logrus.Warnf("failed to cleanup ipc mounts:\n%v", strings.Join(warnings, "\n"))
 	}
@@ -589,9 +577,8 @@ func (container *Container) IpcMounts() []execdriver.Mount {
 			Propagation: volume.DefaultPropagationMode,
 		})
 	}
-
-	if !container.HasMountFor("/dev/mqueue") {
-		label.SetFileLabel(container.MqueuePath, container.MountLabel)
+	if !container.HasMountFor("/dev/mqueue") &&
+		container.MqueuePath != "" {
 		mounts = append(mounts, execdriver.Mount{
 			Source:      container.MqueuePath,
 			Destination: "/dev/mqueue",
