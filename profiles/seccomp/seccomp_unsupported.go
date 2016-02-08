@@ -5,5 +5,6 @@ package seccomp
 import "github.com/opencontainers/runc/libcontainer/configs"
 
 var (
-	defaultSeccompProfile *configs.Seccomp
+	// defaultProfile is a nil pointer on unsupported systems.
+	defaultProfile *configs.Seccomp
 )
