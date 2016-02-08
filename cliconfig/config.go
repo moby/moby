@@ -47,12 +47,13 @@ func SetConfigDir(dir string) {
 
 // ConfigFile ~/.docker/config.json file info
 type ConfigFile struct {
-	AuthConfigs  map[string]types.AuthConfig `json:"auths"`
-	HTTPHeaders  map[string]string           `json:"HttpHeaders,omitempty"`
-	PsFormat     string                      `json:"psFormat,omitempty"`
-	ImagesFormat string                      `json:"imagesFormat,omitempty"`
-	DetachKeys   string                      `json:"detachKeys,omitempty"`
-	filename     string                      // Note: not serialized - for internal use only
+	AuthConfigs      map[string]types.AuthConfig `json:"auths"`
+	HTTPHeaders      map[string]string           `json:"HttpHeaders,omitempty"`
+	PsFormat         string                      `json:"psFormat,omitempty"`
+	ImagesFormat     string                      `json:"imagesFormat,omitempty"`
+	DetachKeys       string                      `json:"detachKeys,omitempty"`
+	CredentialsStore string                      `json:"credsStore,omitempty"`
+	filename         string                      // Note: not serialized - for internal use only
 }
 
 // NewConfigFile initializes an empty configuration file for the given filename 'fn'
@@ -124,6 +125,13 @@ func (configFile *ConfigFile) LoadFromReader(configData io.Reader) error {
 		configFile.AuthConfigs[addr] = ac
 	}
 	return nil
+}
+
+// ContainsAuth returns whether there is authentication configured
+// in this file or not.
+func (configFile *ConfigFile) ContainsAuth() bool {
+	return configFile.CredentialsStore != "" ||
+		(configFile.AuthConfigs != nil && len(configFile.AuthConfigs) > 0)
 }
 
 // LegacyLoadFromReader is a convenience function that creates a ConfigFile object from
@@ -249,6 +257,10 @@ func (configFile *ConfigFile) Filename() string {
 
 // encodeAuth creates a base64 encoded string to containing authorization information
 func encodeAuth(authConfig *types.AuthConfig) string {
+	if authConfig.Username == "" && authConfig.Password == "" {
+		return ""
+	}
+
 	authStr := authConfig.Username + ":" + authConfig.Password
 	msg := []byte(authStr)
 	encoded := make([]byte, base64.StdEncoding.EncodedLen(len(msg)))
@@ -258,6 +270,10 @@ func encodeAuth(authConfig *types.AuthConfig) string {
 
 // decodeAuth decodes a base64 encoded string and returns username and password
 func decodeAuth(authStr string) (string, string, error) {
+	if authStr == "" {
+		return "", "", nil
+	}
+
 	decLen := base64.StdEncoding.DecodedLen(len(authStr))
 	decoded := make([]byte, decLen)
 	authByte := []byte(authStr)
