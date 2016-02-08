@@ -22,7 +22,7 @@ var (
 	// hostnameComponentRegexp restricts the registry hostname component of a
 	// repository name to start with a component as defined by hostnameRegexp
 	// and followed by an optional port.
-	hostnameComponentRegexp = match(`(?:[a-z0-9]|[a-z0-9][a-z0-9-]*[a-z0-9])`)
+	hostnameComponentRegexp = match(`(?:[a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9-]*[a-zA-Z0-9])`)
 
 	// hostnameRegexp defines the structure of potential hostname components
 	// that may be part of image names. This is purposely a subset of what is
