@@ -13,7 +13,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/registry/api/errcode"
 	"github.com/docker/docker/api/server/httputils"
-	"github.com/docker/docker/daemon"
+	"github.com/docker/docker/api/types/backend"
 	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/signal"
@@ -22,7 +22,7 @@ import (
 	"github.com/docker/docker/utils"
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/container"
-	timetypes "github.com/docker/engine-api/types/time"
+	"github.com/docker/engine-api/types/filters"
 	"golang.org/x/net/context"
 	"golang.org/x/net/websocket"
 )
@@ -31,13 +31,17 @@ func (s *containerRouter) getContainersJSON(ctx context.Context, w http.Response
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
+	filter, err := filters.FromParam(r.Form.Get("filters"))
+	if err != nil {
+		return err
+	}
 
-	config := &daemon.ContainersConfig{
-		All:     httputils.BoolValue(r, "all"),
-		Size:    httputils.BoolValue(r, "size"),
-		Since:   r.Form.Get("since"),
-		Before:  r.Form.Get("before"),
-		Filters: r.Form.Get("filters"),
+	config := &types.ContainerListOptions{
+		All:    httputils.BoolValue(r, "all"),
+		Size:   httputils.BoolValue(r, "size"),
+		Since:  r.Form.Get("since"),
+		Before: r.Form.Get("before"),
+		Filter: filter,
 	}
 
 	if tmpLimit := r.Form.Get("limit"); tmpLimit != "" {
@@ -77,11 +81,11 @@ func (s *containerRouter) getContainersStats(ctx context.Context, w http.Respons
 		closeNotifier = notifier.CloseNotify()
 	}
 
-	config := &daemon.ContainerStatsConfig{
+	config := &backend.ContainerStatsConfig{
 		Stream:    stream,
 		OutStream: out,
 		Stop:      closeNotifier,
-		Version:   httputils.VersionFromContext(ctx),
+		Version:   string(httputils.VersionFromContext(ctx)),
 	}
 
 	return s.backend.ContainerStats(vars["name"], config)
@@ -100,15 +104,6 @@ func (s *containerRouter) getContainersLogs(ctx context.Context, w http.Response
 	stdout, stderr := httputils.BoolValue(r, "stdout"), httputils.BoolValue(r, "stderr")
 	if !(stdout || stderr) {
 		return fmt.Errorf("Bad parameters: you must choose at least one stream")
-	}
-
-	var since time.Time
-	if r.Form.Get("since") != "" {
-		s, n, err := timetypes.ParseTimestamps(r.Form.Get("since"), 0)
-		if err != nil {
-			return err
-		}
-		since = time.Unix(s, n)
 	}
 
 	var closeNotifier <-chan bool
@@ -133,15 +128,17 @@ func (s *containerRouter) getContainersLogs(ctx context.Context, w http.Response
 	output := ioutils.NewWriteFlusher(w)
 	defer output.Close()
 
-	logsConfig := &daemon.ContainerLogsConfig{
-		Follow:     httputils.BoolValue(r, "follow"),
-		Timestamps: httputils.BoolValue(r, "timestamps"),
-		Since:      since,
-		Tail:       r.Form.Get("tail"),
-		UseStdout:  stdout,
-		UseStderr:  stderr,
-		OutStream:  output,
-		Stop:       closeNotifier,
+	logsConfig := &backend.ContainerLogsConfig{
+		ContainerLogsOptions: types.ContainerLogsOptions{
+			Follow:     httputils.BoolValue(r, "follow"),
+			Timestamps: httputils.BoolValue(r, "timestamps"),
+			Since:      r.Form.Get("since"),
+			Tail:       r.Form.Get("tail"),
+			ShowStdout: stdout,
+			ShowStderr: stderr,
+		},
+		OutStream: output,
+		Stop:      closeNotifier,
 	}
 
 	if err := s.backend.ContainerLogs(containerName, logsConfig); err != nil {
@@ -446,7 +443,7 @@ func (s *containerRouter) postContainersAttach(ctx context.Context, w http.Respo
 		}
 	}
 
-	attachWithLogsConfig := &daemon.ContainerAttachWithLogsConfig{
+	attachWithLogsConfig := &backend.ContainerAttachWithLogsConfig{
 		Hijacker:   w.(http.Hijacker),
 		Upgrade:    upgrade,
 		UseStdin:   httputils.BoolValue(r, "stdin"),
@@ -483,7 +480,7 @@ func (s *containerRouter) wsContainersAttach(ctx context.Context, w http.Respons
 	h := websocket.Handler(func(ws *websocket.Conn) {
 		defer ws.Close()
 
-		wsAttachWithLogsConfig := &daemon.ContainerWsAttachWithLogsConfig{
+		wsAttachWithLogsConfig := &backend.ContainerWsAttachWithLogsConfig{
 			InStream:   ws,
 			OutStream:  ws,
 			ErrStream:  ws,

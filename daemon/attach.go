@@ -3,30 +3,18 @@ package daemon
 import (
 	"fmt"
 	"io"
-	"net/http"
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/logger"
 	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/stdcopy"
 )
 
-// ContainerAttachWithLogsConfig holds the streams to use when connecting to a container to view logs.
-type ContainerAttachWithLogsConfig struct {
-	Hijacker   http.Hijacker
-	Upgrade    bool
-	UseStdin   bool
-	UseStdout  bool
-	UseStderr  bool
-	Logs       bool
-	Stream     bool
-	DetachKeys []byte
-}
-
 // ContainerAttachWithLogs attaches to logs according to the config passed in. See ContainerAttachWithLogsConfig.
-func (daemon *Daemon) ContainerAttachWithLogs(prefixOrName string, c *ContainerAttachWithLogsConfig) error {
+func (daemon *Daemon) ContainerAttachWithLogs(prefixOrName string, c *backend.ContainerAttachWithLogsConfig) error {
 	if c.Hijacker == nil {
 		return derr.ErrorCodeNoHijackConnection.WithArgs(prefixOrName)
 	}
@@ -82,17 +70,8 @@ func (daemon *Daemon) ContainerAttachWithLogs(prefixOrName string, c *ContainerA
 	return nil
 }
 
-// ContainerWsAttachWithLogsConfig attach with websockets, since all
-// stream data is delegated to the websocket to handle there.
-type ContainerWsAttachWithLogsConfig struct {
-	InStream             io.ReadCloser
-	OutStream, ErrStream io.Writer
-	Logs, Stream         bool
-	DetachKeys           []byte
-}
-
 // ContainerWsAttachWithLogs websocket connection
-func (daemon *Daemon) ContainerWsAttachWithLogs(prefixOrName string, c *ContainerWsAttachWithLogsConfig) error {
+func (daemon *Daemon) ContainerWsAttachWithLogs(prefixOrName string, c *backend.ContainerWsAttachWithLogsConfig) error {
 	container, err := daemon.GetContainer(prefixOrName)
 	if err != nil {
 		return err
@@ -102,7 +81,7 @@ func (daemon *Daemon) ContainerWsAttachWithLogs(prefixOrName string, c *Containe
 
 // ContainerAttachOnBuild attaches streams to the container cID. If stream is true, it streams the output.
 func (daemon *Daemon) ContainerAttachOnBuild(cID string, stdin io.ReadCloser, stdout, stderr io.Writer, stream bool) error {
-	return daemon.ContainerWsAttachWithLogs(cID, &ContainerWsAttachWithLogsConfig{
+	return daemon.ContainerWsAttachWithLogs(cID, &backend.ContainerWsAttachWithLogsConfig{
 		InStream:  stdin,
 		OutStream: stdout,
 		ErrStream: stderr,
