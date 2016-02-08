@@ -6,7 +6,6 @@ import (
 	"crypto/sha512"
 	"encoding/json"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -501,10 +500,6 @@ func (d *Driver) importLayer(id string, layerData archive.Reader, parentLayerPat
 	if size, err = chrootarchive.ApplyLayer(tempFolder, layerData); err != nil {
 		return
 	}
-	err = copySysFiles(tempFolder, filepath.Join(d.info.HomeDir, "sysfile-backups", id))
-	if err != nil {
-		return
-	}
 	logrus.Debugf("Untar time: %vs", time.Now().UTC().Sub(start).Seconds())
 
 	if err = hcsshim.ImportLayer(d.info, id, tempFolder, parentLayerPaths); err != nil {
@@ -602,69 +597,9 @@ func (d *Driver) DiffPath(id string) (path string, release func() error, err err
 		return
 	}
 
-	err = copySysFiles(filepath.Join(d.info.HomeDir, "sysfile-backups", id), tempFolder)
-	if err != nil {
-		return
-	}
-
 	return tempFolder, func() error {
 		// TODO: activate layers and release here?
 		_, folderName := filepath.Split(tempFolder)
 		return hcsshim.DestroyLayer(d.info, folderName)
 	}, nil
-}
-
-var sysFileWhiteList = []string{
-	"Hives\\*",
-	"Files\\BOOTNXT",
-	"tombstones.txt",
-}
-
-// note this only handles files
-func copySysFiles(src string, dest string) error {
-	if err := os.MkdirAll(dest, 0700); err != nil {
-		return err
-	}
-	return filepath.Walk(src, func(path string, info os.FileInfo, err error) error {
-		rel, err := filepath.Rel(src, path)
-		if err != nil {
-			return err
-		}
-		for _, sysfile := range sysFileWhiteList {
-			if matches, err := filepath.Match(sysfile, rel); err != nil || !matches {
-				continue
-			}
-
-			fi, err := os.Lstat(path)
-			if err != nil {
-				return err
-			}
-
-			if !fi.Mode().IsRegular() {
-				continue
-			}
-
-			targetPath := filepath.Join(dest, rel)
-			if err = os.MkdirAll(filepath.Dir(targetPath), 0700); err != nil {
-				return err
-			}
-
-			in, err := os.Open(path)
-			if err != nil {
-				return err
-			}
-			out, err := os.Create(targetPath)
-			if err != nil {
-				in.Close()
-				return err
-			}
-			_, err = io.Copy(out, in)
-			in.Close()
-			out.Close()
-			if err != nil {
-				return err
-			}
-		}
-		return nil
-	})
 }

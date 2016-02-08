@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/image/v1"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/reference"
 )
 
@@ -160,7 +161,7 @@ func (s *saveSession) save(outStream io.Writer) error {
 		if err := f.Close(); err != nil {
 			return err
 		}
-		if err := os.Chtimes(reposFile, time.Unix(0, 0), time.Unix(0, 0)); err != nil {
+		if err := system.Chtimes(reposFile, time.Unix(0, 0), time.Unix(0, 0)); err != nil {
 			return err
 		}
 	}
@@ -177,7 +178,7 @@ func (s *saveSession) save(outStream io.Writer) error {
 	if err := f.Close(); err != nil {
 		return err
 	}
-	if err := os.Chtimes(manifestFileName, time.Unix(0, 0), time.Unix(0, 0)); err != nil {
+	if err := system.Chtimes(manifestFileName, time.Unix(0, 0), time.Unix(0, 0)); err != nil {
 		return err
 	}
 
@@ -233,7 +234,7 @@ func (s *saveSession) saveImage(id image.ID) error {
 	if err := ioutil.WriteFile(configFile, img.RawJSON(), 0644); err != nil {
 		return err
 	}
-	if err := os.Chtimes(configFile, img.Created, img.Created); err != nil {
+	if err := system.Chtimes(configFile, img.Created, img.Created); err != nil {
 		return err
 	}
 
@@ -290,7 +291,7 @@ func (s *saveSession) saveLayer(id layer.ChainID, legacyImg image.V1Image, creat
 
 	for _, fname := range []string{"", legacyVersionFileName, legacyConfigFileName, legacyLayerFileName} {
 		// todo: maybe save layer created timestamp?
-		if err := os.Chtimes(filepath.Join(outDir, fname), createdTime, createdTime); err != nil {
+		if err := system.Chtimes(filepath.Join(outDir, fname), createdTime, createdTime); err != nil {
 			return err
 		}
 	}

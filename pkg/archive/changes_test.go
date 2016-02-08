@@ -8,6 +8,8 @@ import (
 	"sort"
 	"testing"
 	"time"
+
+	"github.com/docker/docker/pkg/system"
 )
 
 func max(x, y int) int {
@@ -87,7 +89,7 @@ func createSampleDir(t *testing.T, root string) {
 
 		if info.filetype != Symlink {
 			// Set a consistent ctime, atime for all files and dirs
-			if err := os.Chtimes(p, now, now); err != nil {
+			if err := system.Chtimes(p, now, now); err != nil {
 				t.Fatal(err)
 			}
 		}
@@ -289,7 +291,7 @@ func mutateSampleDir(t *testing.T, root string) {
 	}
 
 	// Touch file
-	if err := os.Chtimes(path.Join(root, "file4"), time.Now().Add(time.Second), time.Now().Add(time.Second)); err != nil {
+	if err := system.Chtimes(path.Join(root, "file4"), time.Now().Add(time.Second), time.Now().Add(time.Second)); err != nil {
 		t.Fatal(err)
 	}
 
@@ -333,7 +335,7 @@ func mutateSampleDir(t *testing.T, root string) {
 	}
 
 	// Touch dir
-	if err := os.Chtimes(path.Join(root, "dir3"), time.Now().Add(time.Second), time.Now().Add(time.Second)); err != nil {
+	if err := system.Chtimes(path.Join(root, "dir3"), time.Now().Add(time.Second), time.Now().Add(time.Second)); err != nil {
 		t.Fatal(err)
 	}
 }
