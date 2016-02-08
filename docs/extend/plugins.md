@@ -53,6 +53,10 @@ The following plugins exist:
   another volume plugin that provides multi-host volumes management for Docker
   using GlusterFS.
 
+* The [Horcrux Volume Plugin](https://github.com/muthu-r/horcrux)
+  An On Demand,Version controlled access to your Data. Currently supports scp, minio, aws s3 backends.
+  More coming soon. Its open source and written in Go.
+
 * The [IPFS Volume Plugin](http://github.com/vdemeester/docker-volume-ipfs)
   is an open source volume plugin that allows using an
   [ipfs](https://ipfs.io/) filesystem as a volume.
