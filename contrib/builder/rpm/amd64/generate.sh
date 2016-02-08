@@ -25,6 +25,9 @@ for version in "${versions[@]}"; do
 	if [[ "$distro" == "fedora" ]]; then
 		installer=dnf
 	fi
+	if [[ "$distro" == "photon" ]]; then
+		installer=tdnf
+	fi
 
 	mkdir -p "$version"
 	echo "$version -> FROM $from"
@@ -57,6 +60,10 @@ for version in "${versions[@]}"; do
 		opensuse:*)
 			# get rpm-build and curl packages and dependencies
 			echo 'RUN zypper --non-interactive install ca-certificates* curl gzip rpm-build' >> "$version/Dockerfile"
+			;;
+		photon:*)
+			echo "RUN ${installer} install -y wget git gzip rpm-build" >> "$version/Dockerfile"
+			echo "RUN wget -qO- https://gist.githubusercontent.com/toliaqat/686a7f05b0dcd006296a/raw/25592008aa215f6d8fe031536522315ac063f978/build-essential.txt | xargs ${installer} install -y" >> "$version/Dockerfile"
 			;;
 		*)
 			echo "RUN ${installer} install -y @development-tools fedora-packager" >> "$version/Dockerfile"
@@ -96,7 +103,7 @@ for version in "${versions[@]}"; do
 	# opensuse & oraclelinx:6 do not have the right libseccomp libs
 	# centos:7 and oraclelinux:7 have a libseccomp < 2.2.1 :(
 	case "$from" in
-		opensuse:*|oraclelinux:*|centos:7)
+		opensuse:*|oraclelinux:*|centos:7|photon:*)
 			packages=( "${packages[@]/libseccomp-devel}" )
 			;;
 		*)
@@ -114,6 +121,10 @@ for version in "${versions[@]}"; do
 
 			# use zypper
 			echo "RUN zypper --non-interactive install ${packages[*]}" >> "$version/Dockerfile"
+			;;
+		photon:*)
+			packages=( "${packages[@]/pkgconfig/pkg-config}" )
+			echo "RUN ${installer} install -y ${packages[*]}" >> "$version/Dockerfile"
 			;;
 		*)
 			echo "RUN ${installer} install -y ${packages[*]}" >> "$version/Dockerfile"
