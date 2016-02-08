@@ -525,3 +525,22 @@ func TestMergeFlags(t *testing.T) {
 		t.Fatalf("FlagCount (%d) != number (1) of elements merged", len(fs.formal))
 	}
 }
+
+// #20093
+func TestParseFlagsWithHelp(t *testing.T) {
+	helpCalled := 0
+	fs := NewFlagSet("help test", ContinueOnError)
+	fs.Usage = func() { helpCalled++ }
+	if err := fs.ParseFlags([]string{"h"}, true); err != nil {
+		t.Fatalf("expected no error; got %v", err)
+	}
+	if err := fs.ParseFlags([]string{"help"}, true); err != nil {
+		t.Fatalf("expected no error; got %v", err)
+	}
+	if err := fs.ParseFlags([]string{"-help"}, true); err != nil {
+		t.Fatalf("expected no error; got %v", err)
+	}
+	if helpCalled != 3 {
+		t.Fatal("Expected help usage printed, got nothing")
+	}
+}
