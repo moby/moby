@@ -28,6 +28,7 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 		before   = cmd.String([]string{"#-before"}, "", "Only show containers created before Id or Name")
 		last     = cmd.Int([]string{"n"}, -1, "Show n last created containers (includes all states)")
 		format   = cmd.String([]string{"-format"}, "", "Pretty-print containers using a Go template")
+		query    = cmd.String([]string{"-query"}, "", "Filter output based on a query")
 		flFilter = opts.NewListOpts(nil)
 	)
 	cmd.Require(flag.Exact, 0)
@@ -54,6 +55,7 @@ func (cli *DockerCli) CmdPs(args ...string) error {
 		Before: *before,
 		Size:   *size,
 		Filter: psFilterArgs,
+		Query:  *query,
 	}
 
 	containers, err := cli.client.ContainerList(options)
