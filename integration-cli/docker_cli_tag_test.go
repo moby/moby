@@ -57,7 +57,7 @@ func (s *DockerSuite) TestTagValidPrefixedRepo(c *check.C) {
 		c.Fatal("couldn't find the busybox:latest image locally and failed to pull it")
 	}
 
-	validRepos := []string{"fooo/bar", "fooaa/test", "foooo:t"}
+	validRepos := []string{"fooo/bar", "fooaa/test", "foooo:t", "HOSTNAME.DOMAIN.COM:443/foo/bar"}
 
 	for _, repo := range validRepos {
 		_, _, err := dockerCmdWithError("tag", "busybox:latest", repo)
