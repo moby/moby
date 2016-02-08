@@ -11,17 +11,18 @@ parent = "engine_learn"
 
 # Manage data in containers
 
-So far we've been introduced to some [basic Docker concepts](../containers/usingdocker.md),
-seen how to work with [Docker images](../containers/dockerimages.md) as well as learned about
-[networking and links between containers](../networking/default_network/dockerlinks.md). In this section we're
-going to discuss how you can manage data inside and between your Docker
-containers.
+So far you've been introduced to some [basic Docker
+concepts](../containers/usingdocker.md), seen how to work with [Docker
+images](../containers/dockerimages.md) as well as learned about [networking and
+links between containers](../networking/default_network/dockerlinks.md). In this
+section you're going to learn how you can manage data inside and between your
+Docker containers.
 
-We're going to look at the two primary ways you can manage data in
-Docker.
+You're going to look at the two primary ways you can manage data with
+Docker Engine.
 
-* Data volumes, and
-* Data volume containers.
+* Data volumes
+* Data volume containers
 
 ## Data volumes
 
@@ -46,10 +47,12 @@ referenced by a container.
 
 You can add a data volume to a container using the `-v` flag with the
 `docker create` and `docker run` command. You can use the `-v` multiple times
-to mount multiple data volumes. Let's mount a single volume now in our web
+to mount multiple data volumes. Now, mount a single volume in your web
 application container.
 
-    $ docker run -d -P --name web -v /webapp training/webapp python app.py
+```bash
+$ docker run -d -P --name web -v /webapp training/webapp python app.py
+```
 
 This will create a new volume inside a container at `/webapp`.
 
@@ -61,24 +64,28 @@ This will create a new volume inside a container at `/webapp`.
 
 You can locate the volume on the host by utilizing the `docker inspect` command.
 
-    $ docker inspect web
+```bash
+$ docker inspect web
+```
 
 The output will provide details on the container configurations including the
 volumes. The output should look something similar to the following:
 
-    ...
-    "Mounts": [
-        {
-            "Name": "fac362...80535",
-            "Source": "/var/lib/docker/volumes/fac362...80535/_data",
-            "Destination": "/webapp",
-            "Driver": "local",
-            "Mode": "",
-            "RW": true,
-            "Propagation": ""
-        }
-    ]
-    ...
+```json
+...
+"Mounts": [
+    {
+        "Name": "fac362...80535",
+        "Source": "/var/lib/docker/volumes/fac362...80535/_data",
+        "Destination": "/webapp",
+        "Driver": "local",
+        "Mode": "",
+        "RW": true,
+        "Propagation": ""
+    }
+]
+...
+```
 
 You will notice in the above `Source` is specifying the location on the host and
 `Destination` is specifying the volume location inside the container. `RW` shows
@@ -87,9 +94,9 @@ if the volume is read/write.
 ### Mount a host directory as a data volume
 
 In addition to creating a volume using the `-v` flag you can also mount a
-directory from your Docker daemon's host into a container.
+directory from your Engine daemon's host into a container.
 
-```
+```bash
 $ docker run -d -P --name web -v /src/webapp:/opt/webapp training/webapp python app.py
 ```
 
@@ -109,20 +116,21 @@ followed by `a-z0-9`, `_` (underscore), `.` (period) or `-` (hyphen).
 An absolute path starts with a `/` (forward slash).
 
 For example, you can specify either `/foo` or `foo` for a `host-dir` value.
-If you supply the `/foo` value, Docker creates a bind-mount. If you supply
-the `foo` specification, Docker creates a named volume.
+If you supply the `/foo` value, Engine creates a bind-mount. If you supply
+the `foo` specification, Engine creates a named volume.
 
-If you are using Docker Machine on Mac or Windows, your Docker daemon has only limited access to your OS X or Windows filesystem. Docker Machine tries
-to auto-share your `/Users` (OS X) or `C:\Users` (Windows) directory.  So,
-you can mount files or directories on OS X using.
+If you are using Docker Machine on Mac or Windows, your Engine daemon has only
+limited access to your OS X or Windows filesystem. Docker Machine tries to
+auto-share your `/Users` (OS X) or `C:\Users` (Windows) directory.  So, you can
+mount files or directories on OS X using.
 
-```
+```bash
 docker run -v /Users/<path>:/<container path> ...
 ```
 
 On Windows, mount directories using:
 
-```
+```bash
 docker run -v /c/Users/<path>:/<container path> ...`
 ```
 
@@ -135,17 +143,17 @@ Docker `-v` flag.
 Mounting a host directory can be useful for testing. For example, you can mount
 source code inside a container. Then, change the source code and see its effect
 on the application in real time. The directory on the host must be specified as
-an absolute path and if the directory doesn't exist Docker will automatically
-create it for you.  This auto-creation of the host path has been [*deprecated*](#auto-creating-missing-host-paths-for-bind-mounts).
+an absolute path and if the directory doesn't exist the Engine daemon automatically
+creates it for you.  This auto-creation of the host path has been [*deprecated*](#auto-creating-missing-host-paths-for-bind-mounts).
 
 Docker volumes default to mount in read-write mode, but you can also set it to
 be mounted read-only.
 
-```
+```bash
 $ docker run -d -P --name web -v /src/webapp:/opt/webapp:ro training/webapp python app.py
 ```
 
-Here we've mounted the same `/src/webapp` directory but we've added the `ro`
+Here you've mounted the same `/src/webapp` directory but you've added the `ro`
 option to specify that the mount should be read-only.
 
 Because of [limitations in the `mount`
@@ -162,7 +170,7 @@ user with access to host and its mounted directory.
 ### Mount a shared-storage volume as a data volume
 
 In addition to mounting a host directory in your container, some Docker
-[volume plugins](../../extend/plugins_volume.md) allow you to 
+[volume plugins](../../extend/plugins_volume.md) allow you to
 provision and mount shared storage, such as iSCSI, NFS, or FC.
 
 A benefit of using shared volumes is that they are host-independent. This
@@ -170,7 +178,7 @@ means that a volume can be made available on any host that a container is
 started on as long as it has access to the shared storage backend, and has
 the plugin installed.
 
-One way to use volume drivers is through the `docker run` command. 
+One way to use volume drivers is through the `docker run` command.
 Volume drivers create volumes by name, instead of by path like in
 the other examples.
 
@@ -221,7 +229,9 @@ Only the current container can use a private volume.
 The `-v` flag can also be used to mount a single file  - instead of *just*
 directories - from the host machine.
 
-    $ docker run --rm -it -v ~/.bash_history:/root/.bash_history ubuntu /bin/bash
+```bash
+$ docker run --rm -it -v ~/.bash_history:/root/.bash_history ubuntu /bin/bash
+```
 
 This will drop you into a bash shell in a new container, you will have your bash
 history from the host and when you exit the container, the host will have the
@@ -245,15 +255,21 @@ Let's create a new named container with a volume to share.
 While this container doesn't run an application, it reuses the `training/postgres`
 image so that all containers are using layers in common, saving disk space.
 
-    $ docker create -v /dbdata --name dbstore training/postgres /bin/true
+```bash
+$ docker create -v /dbdata --name dbstore training/postgres /bin/true
+```
 
 You can then use the `--volumes-from` flag to mount the `/dbdata` volume in another container.
 
-    $ docker run -d --volumes-from dbstore --name db1 training/postgres
+```bash
+$ docker run -d --volumes-from dbstore --name db1 training/postgres
+```
 
 And another:
 
-    $ docker run -d --volumes-from dbstore --name db2 training/postgres
+```bash
+$ docker run -d --volumes-from dbstore --name db2 training/postgres
+```
 
 In this case, if the `postgres` image contained a directory called `/dbdata`
 then mounting the volumes from the `dbstore` container hides the
@@ -268,7 +284,9 @@ in the `run` command reference.
 You can also extend the chain by mounting the volume that came from the
 `dbstore` container in yet another container via the `db1` or `db2` containers.
 
-    $ docker run -d --name db3 --volumes-from db1 training/postgres
+```bash
+$ docker run -d --name db3 --volumes-from db1 training/postgres
+```
 
 If you remove containers that mount volumes, including the initial `dbstore`
 container, or the subsequent containers `db1` and `db2`, the volumes will not
@@ -287,15 +305,17 @@ allows you to upgrade, or effectively migrate data volumes between containers.
 ## Backup, restore, or migrate data volumes
 
 Another useful function we can perform with volumes is use them for
-backups, restores or migrations.  We do this by using the
+backups, restores or migrations.  You do this by using the
 `--volumes-from` flag to create a new container that mounts that volume,
 like so:
 
-    $ docker run --rm --volumes-from dbstore -v $(pwd):/backup ubuntu tar cvf /backup/backup.tar /dbdata
+```bash
+$ docker run --rm --volumes-from dbstore -v $(pwd):/backup ubuntu tar cvf /backup/backup.tar /dbdata
+```
 
-Here we've launched a new container and mounted the volume from the
-`dbstore` container. We've then mounted a local host directory as
-`/backup`. Finally, we've passed a command that uses `tar` to backup the
+Here you've launched a new container and mounted the volume from the
+`dbstore` container. You've then mounted a local host directory as
+`/backup`. Finally, you've passed a command that uses `tar` to backup the
 contents of the `dbdata` volume to a `backup.tar` file inside our
 `/backup` directory. When the command completes and the container stops
 we'll be left with a backup of our `dbdata` volume.
@@ -303,24 +323,48 @@ we'll be left with a backup of our `dbdata` volume.
 You could then restore it to the same container, or another that you've made
 elsewhere. Create a new container.
 
-    $ docker run -v /dbdata --name dbstore2 ubuntu /bin/bash
+```bash
+$ docker run -v /dbdata --name dbstore2 ubuntu /bin/bash
+```
 
-Then un-tar the backup file in the new container's data volume.
+Then un-tar the backup file in the new container`s data volume.
 
-    $ docker run --rm --volumes-from dbstore2 -v $(pwd):/backup ubuntu bash -c "cd /dbdata && tar xvf /backup/backup.tar --strip 1"
+```bash
+$ docker run --rm --volumes-from dbstore2 -v $(pwd):/backup ubuntu bash -c "cd /dbdata && tar xvf /backup/backup.tar --strip 1"
+```
 
 You can use the techniques above to automate backup, migration and
 restore testing using your preferred tools.
 
+## Removing volumes
+
+A Docker data volume persists after a container is deleted. You can create named
+or anonymous volumes. Named volumes have a specific source form outside the
+container, for example `awesome:/bar`. Anonymous volumes have no specific
+source. When the container is deleted, you should instruction the Engine daemon
+to clean up anonymous volumes. To do this, use the `--rm` option, for example:
+
+```bash
+$ docker run --rm -v /foo -v awesome:/bar busybox top,
+```
+
+This command creates an anonymous `/foo` volume. When the container is removed,
+Engine removes the `/foo` volume but not the `awesome` volume.
+
 ## Important tips on using shared volumes
 
-Multiple containers can also share one or more data volumes. However, multiple containers writing to a single shared volume can cause data corruption. Make sure your applications are designed to write to shared data stores.
+Multiple containers can also share one or more data volumes. However, multiple
+containers writing to a single shared volume can cause data corruption. Make
+sure your applications are designed to write to shared data stores.
 
-Data volumes are directly accessible from the Docker host. This means you can read and write to them with normal Linux tools. In most cases you should not do this as it can cause data corruption if your containers and applications are unaware of your direct access.
+Data volumes are directly accessible from the Docker host. This means you can
+read and write to them with normal Linux tools. In most cases you should not do
+this as it can cause data corruption if your containers and applications are
+unaware of your direct access.
 
 # Next steps
 
-Now we've learned a bit more about how to use Docker we're going to see how to
+Now you've learned a bit more about how to use Docker we're going to see how to
 combine Docker with the services available on
 [Docker Hub](https://hub.docker.com) including Automated Builds and private
 repositories.
