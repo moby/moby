@@ -141,7 +141,7 @@ do_install() {
 	esac
 
 	if command_exists docker; then
-		version="$(docker -v | awk -F '[ ,]+' '{ print $3 }')"
+		version="$(docker -v | cut -d ' ' -f3 | cut -d ',' -f1)"
 		MAJOR_W=1
 		MINOR_W=10
 
@@ -247,6 +247,9 @@ do_install() {
 	if [ -z "$lsb_dist" ] && [ -r /etc/redhat-release ]; then
 		lsb_dist='redhat'
 	fi
+	if [ -z "$lsb_dist" ] && [ -r /etc/photon-release ]; then
+		lsb_dist='photon'
+	fi
 	if [ -z "$lsb_dist" ] && [ -r /etc/os-release ]; then
 		lsb_dist="$(. /etc/os-release && echo "$ID")"
 	fi
@@ -290,6 +293,11 @@ do_install() {
 
 		fedora|centos|redhat)
 			dist_version="$(rpm -q --whatprovides ${lsb_dist}-release --queryformat "%{VERSION}\n" | sed 's/\/.*//' | sed 's/\..*//' | sed 's/Server*//' | sort | tail -1)"
+		;;
+
+		"vmware photon")
+			lsb_dist="photon"
+			dist_version="$(. /etc/os-release && echo "$VERSION_ID")"
 		;;
 
 		*)
@@ -450,7 +458,7 @@ do_install() {
 			exit 0
 			;;
 
-		fedora|centos|redhat|oraclelinux)
+		fedora|centos|redhat|oraclelinux|photon)
 			if [ "${lsb_dist}" = "redhat" ]; then
 				# we use the centos repository for both redhat and centos releases
 				lsb_dist='centos'
@@ -467,6 +475,11 @@ do_install() {
 				(
 					set -x
 					$sh_c 'sleep 3; dnf -y -q install docker-engine'
+				)
+			elif [ "$lsb_dist" = "photon" ]; then
+				(
+					set -x
+					$sh_c 'sleep 3; tdnf -y install docker-engine'
 				)
 			else
 				(
