@@ -6,7 +6,7 @@
 // 	reference                       := repository [ ":" tag ] [ "@" digest ]
 //	name                            := [hostname '/'] component ['/' component]*
 //	hostname                        := hostcomponent ['.' hostcomponent]* [':' port-number]
-//	hostcomponent                   := /([a-z0-9]|[a-z0-9][a-z0-9-]*[a-z0-9])/
+//	hostcomponent                   := /([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9-]*[a-zA-Z0-9])/
 //	port-number                     := /[0-9]+/
 //	component                       := alpha-numeric [separator alpha-numeric]*
 // 	alpha-numeric                   := /[a-z0-9]+/
