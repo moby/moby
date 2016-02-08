@@ -27,6 +27,7 @@ const (
 	regionKey             = "awslogs-region"
 	regionEnvKey          = "AWS_REGION"
 	logGroupKey           = "awslogs-group"
+	logCreateGroupKey     = "awslogs-create-group"
 	logStreamKey          = "awslogs-stream"
 	batchPublishFrequency = 5 * time.Second
 
@@ -88,6 +89,7 @@ func init() {
 // the EC2 Instance Metadata Service.
 func New(ctx logger.Context) (logger.Logger, error) {
 	logGroupName := ctx.Config[logGroupKey]
+	logCreateGroup := strings.ToLower(ctx.Config[logCreateGroupKey])
 	logStreamName := ctx.ContainerID
 	if ctx.Config[logStreamKey] != "" {
 		logStreamName = ctx.Config[logStreamKey]
@@ -102,7 +104,7 @@ func New(ctx logger.Context) (logger.Logger, error) {
 		client:        client,
 		messages:      make(chan *logger.Message, 4096),
 	}
-	err = containerStream.create()
+	err = containerStream.create(logCreateGroup == "true" || logCreateGroup == "t" || logCreateGroup == "1")
 	if err != nil {
 		return nil, err
 	}
@@ -184,10 +186,10 @@ func (l *logStream) Close() error {
 }
 
 // create creates a log stream for the instance of the awslogs logging driver
-func (l *logStream) create() error {
+func (l *logStream) create(createGroup bool) error {
 
-	// Create log group first
-	{
+	// Create log group first if requested
+	if createGroup {
 		input := &cloudwatchlogs.CreateLogGroupInput{
 			LogGroupName: aws.String(l.logGroupName),
 		}
@@ -371,6 +373,7 @@ func ValidateLogOpt(cfg map[string]string) error {
 	for key := range cfg {
 		switch key {
 		case logGroupKey:
+		case logCreateGroupKey:
 		case logStreamKey:
 		case regionKey:
 		default:
@@ -379,6 +382,12 @@ func ValidateLogOpt(cfg map[string]string) error {
 	}
 	if cfg[logGroupKey] == "" {
 		return fmt.Errorf("must specify a value for log opt '%s'", logGroupKey)
+	}
+	if cfg[logCreateGroupKey] != "" {
+		v := strings.ToLower(cfg[logCreateGroupKey])
+		if v != "true" && v != "false" && v != "t" && v != "f" && v != "1" && v != "0" {
+			return fmt.Errorf("must specify a valid value for log opt '%s': 'true', 't', '1', 'false', 'f', '0'", logCreateGroupKey)
+		}
 	}
 	return nil
 }
