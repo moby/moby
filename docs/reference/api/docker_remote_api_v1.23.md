@@ -431,6 +431,8 @@ Json Parameters:
             The default is not to restart. (optional)
             An ever increasing delay (double the previous delay, starting at 100mS)
             is added before each restart to prevent flooding the server.
+    -   **UsernsMode**  - Sets the usernamespace mode for the container when usernamespace remapping option is enabled.
+           supported values are: `host`.
     -   **NetworkMode** - Sets the networking mode for the container. Supported
           standard values are: `bridge`, `host`, `none`, and `container:<name|id>`. Any other value is taken
           as a custom network's name to which this container should connect to.

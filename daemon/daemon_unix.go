@@ -429,7 +429,7 @@ func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.
 		logrus.Warnf("IPv4 forwarding is disabled. Networking will not work")
 	}
 	// check for various conflicting options with user namespaces
-	if daemon.configStore.RemappedRoot != "" {
+	if daemon.configStore.RemappedRoot != "" && hostConfig.UsernsMode.IsPrivate() {
 		if hostConfig.Privileged {
 			return warnings, fmt.Errorf("Privileged mode is incompatible with user namespaces")
 		}

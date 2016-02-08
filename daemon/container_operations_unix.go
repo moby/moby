@@ -218,11 +218,14 @@ func (daemon *Daemon) populateCommand(c *container.Container, env []string) erro
 	processConfig.Env = env
 
 	remappedRoot := &execdriver.User{}
-	rootUID, rootGID := daemon.GetRemappedUIDGID()
-	if rootUID != 0 {
-		remappedRoot.UID = rootUID
-		remappedRoot.GID = rootGID
+	if c.HostConfig.UsernsMode.IsPrivate() {
+		rootUID, rootGID := daemon.GetRemappedUIDGID()
+		if rootUID != 0 {
+			remappedRoot.UID = rootUID
+			remappedRoot.GID = rootGID
+		}
 	}
+
 	uidMap, gidMap := daemon.GetUIDGIDMaps()
 
 	if !daemon.seccompEnabled {
