@@ -1,0 +1,1567 @@
+{
+	"default_action": 2,
+	"architectures": [
+		"amd64",
+		"x86",
+		"x32"
+	],
+	"syscalls": [
+		{
+			"name": "accept",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "accept4",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "access",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "alarm",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "arch_prctl",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "bind",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "brk",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "capget",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "capset",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "chdir",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "chmod",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "chown",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "chown32",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "chroot",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "clock_getres",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "clock_gettime",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "clock_nanosleep",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "clone",
+			"action": 4,
+			"args": [
+				{
+					"index": 0,
+					"value": 2080505856,
+					"value_two": 0,
+					"op": 7
+				}
+			]
+		},
+		{
+			"name": "close",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "connect",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "creat",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "dup",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "dup2",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "dup3",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "epoll_create",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "epoll_create1",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "epoll_ctl",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "epoll_ctl_old",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "epoll_pwait",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "epoll_wait",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "epoll_wait_old",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "eventfd",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "eventfd2",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "execve",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "execveat",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "exit",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "exit_group",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "faccessat",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "fadvise64",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "fadvise64_64",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "fallocate",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "fanotify_init",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "fanotify_mark",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "fchdir",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "fchmod",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "fchmodat",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "fchown",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "fchown32",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "fchownat",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "fcntl",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "fcntl64",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "fdatasync",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "fgetxattr",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "flistxattr",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "flock",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "fork",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "fremovexattr",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "fsetxattr",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "fstat",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "fstat64",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "fstatat64",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "fstatfs",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "fstatfs64",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "fsync",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "ftruncate",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "ftruncate64",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "futex",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "futimesat",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "getcpu",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "getcwd",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "getdents",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "getdents64",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "getegid",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "getegid32",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "geteuid",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "geteuid32",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "getgid",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "getgid32",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "getgroups",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "getgroups32",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "getitimer",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "getpeername",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "getpgid",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "getpgrp",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "getpid",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "getppid",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "getpriority",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "getrandom",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "getresgid",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "getresgid32",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "getresuid",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "getresuid32",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "getrlimit",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "get_robust_list",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "getrusage",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "getsid",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "getsockname",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "getsockopt",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "get_thread_area",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "gettid",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "gettimeofday",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "getuid",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "getuid32",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "getxattr",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "inotify_add_watch",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "inotify_init",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "inotify_init1",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "inotify_rm_watch",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "io_cancel",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "ioctl",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "io_destroy",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "io_getevents",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "ioprio_get",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "ioprio_set",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "io_setup",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "io_submit",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "kill",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "lchown",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "lchown32",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "lgetxattr",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "link",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "linkat",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "listen",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "listxattr",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "llistxattr",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "_llseek",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "lremovexattr",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "lseek",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "lsetxattr",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "lstat",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "lstat64",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "madvise",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "memfd_create",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "mincore",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "mkdir",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "mkdirat",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "mknod",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "mknodat",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "mlock",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "mlockall",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "mmap",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "mmap2",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "mprotect",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "mq_getsetattr",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "mq_notify",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "mq_open",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "mq_timedreceive",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "mq_timedsend",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "mq_unlink",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "mremap",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "msgctl",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "msgget",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "msgrcv",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "msgsnd",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "msync",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "munlock",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "munlockall",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "munmap",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "nanosleep",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "newfstatat",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "_newselect",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "open",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "openat",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "pause",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "pipe",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "pipe2",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "poll",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "ppoll",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "prctl",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "pread64",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "preadv",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "prlimit64",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "pselect6",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "pwrite64",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "pwritev",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "read",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "readahead",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "readlink",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "readlinkat",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "readv",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "recv",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "recvfrom",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "recvmmsg",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "recvmsg",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "remap_file_pages",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "removexattr",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "rename",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "renameat",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "renameat2",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "rmdir",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "rt_sigaction",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "rt_sigpending",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "rt_sigprocmask",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "rt_sigqueueinfo",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "rt_sigreturn",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "rt_sigsuspend",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "rt_sigtimedwait",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "rt_tgsigqueueinfo",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "sched_getaffinity",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "sched_getattr",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "sched_getparam",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "sched_get_priority_max",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "sched_get_priority_min",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "sched_getscheduler",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "sched_rr_get_interval",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "sched_setaffinity",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "sched_setattr",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "sched_setparam",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "sched_setscheduler",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "sched_yield",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "seccomp",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "select",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "semctl",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "semget",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "semop",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "semtimedop",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "send",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "sendfile",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "sendfile64",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "sendmmsg",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "sendmsg",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "sendto",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "setdomainname",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "setfsgid",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "setfsgid32",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "setfsuid",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "setfsuid32",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "setgid",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "setgid32",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "setgroups",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "setgroups32",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "sethostname",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "setitimer",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "setpgid",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "setpriority",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "setregid",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "setregid32",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "setresgid",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "setresgid32",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "setresuid",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "setresuid32",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "setreuid",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "setreuid32",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "setrlimit",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "set_robust_list",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "setsid",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "setsockopt",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "set_thread_area",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "set_tid_address",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "setuid",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "setuid32",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "setxattr",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "shmat",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "shmctl",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "shmdt",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "shmget",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "shutdown",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "sigaltstack",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "signalfd",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "signalfd4",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "sigreturn",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "socket",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "socketpair",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "splice",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "stat",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "stat64",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "statfs",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "statfs64",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "symlink",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "symlinkat",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "sync",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "sync_file_range",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "syncfs",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "sysinfo",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "syslog",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "tee",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "tgkill",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "time",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "timer_create",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "timer_delete",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "timerfd_create",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "timerfd_gettime",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "timerfd_settime",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "timer_getoverrun",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "timer_gettime",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "timer_settime",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "times",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "tkill",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "truncate",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "truncate64",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "ugetrlimit",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "umask",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "uname",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "unlink",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "unlinkat",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "utime",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "utimensat",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "utimes",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "vfork",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "vhangup",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "vmsplice",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "wait4",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "waitid",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "waitpid",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "write",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "writev",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "modify_ldt",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "breakpoint",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "cacheflush",
+			"action": 4,
+			"args": []
+		},
+		{
+			"name": "set_tls",
+			"action": 4,
+			"args": []
+		}
+	]
+}

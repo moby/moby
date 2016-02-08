@@ -33,7 +33,8 @@ func arches() []string {
 	}
 }
 
-var defaultSeccompProfile = &configs.Seccomp{
+// defaultProfile defines the whitelist for the default seccomp profile.
+var defaultProfile = &configs.Seccomp{
 	DefaultAction: configs.Errno,
 	Architectures: arches(),
 	Syscalls: []*configs.Syscall{
