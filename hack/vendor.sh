@@ -75,6 +75,10 @@ clone git github.com/fluent/fluent-logger-golang v1.0.0
 clone git github.com/philhofer/fwd 899e4efba8eaa1fea74175308f3fae18ff3319fa
 clone git github.com/tinylib/msgp 75ee40d2601edf122ef667e2a07d600d4c44490c
 
+#redis-logger driver deps
+clone git gopkg.in/bsm/ratelimit.v1 v1
+clone git gopkg.in/redis.v3 v3.2.27
+
 # fsnotify
 clone git gopkg.in/fsnotify.v1 v1.2.0
 
