@@ -5,32 +5,25 @@ package backend
 
 import (
 	"io"
-	"net/http"
 
 	"github.com/docker/engine-api/types"
 )
 
-// ContainerAttachWithLogsConfig holds the streams to use when connecting to a container to view logs.
-type ContainerAttachWithLogsConfig struct {
-	Hijacker   http.Hijacker
-	Upgrade    bool
+// ContainerAttachConfig holds the streams to use when connecting to a container to view logs.
+type ContainerAttachConfig struct {
+	GetStreams func() (io.ReadCloser, io.Writer, io.Writer, error)
 	UseStdin   bool
 	UseStdout  bool
 	UseStderr  bool
 	Logs       bool
 	Stream     bool
 	DetachKeys []byte
-}
 
-// ContainerWsAttachWithLogsConfig attach with websockets, since all
-// stream data is delegated to the websocket to handle there.
-type ContainerWsAttachWithLogsConfig struct {
-	InStream   io.ReadCloser // Reader to attach to stdin of container
-	OutStream  io.Writer     // Writer to attach to stdout of container
-	ErrStream  io.Writer     // Writer to attach to stderr of container
-	Logs       bool          // If true return log output
-	Stream     bool          // If true return stream output
-	DetachKeys []byte
+	// Used to signify that streams are multiplexed and therefore need a StdWriter to encode stdout/sderr messages accordingly.
+	// TODO @cpuguy83: This shouldn't be needed. It was only added so that http and websocket endpoints can use the same function, and the websocket function was not using a stdwriter prior to this change...
+	// HOWEVER, the websocket endpoint is using a single stream and SHOULD be encoded with stdout/stderr as is done for HTTP since it is still just a single stream.
+	// Since such a change is an API change unrelated to the current changeset we'll keep it as is here and change separately.
+	MuxStreams bool
 }
 
 // ContainerLogsConfig holds configs for logging operations. Exists

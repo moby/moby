@@ -416,22 +416,30 @@ func (s *DockerSuite) TestGetContainerStatsNoStream(c *check.C) {
 func (s *DockerSuite) TestGetStoppedContainerStats(c *check.C) {
 	// Problematic on Windows as Windows does not support stats
 	testRequires(c, DaemonIsLinux)
-	// TODO: this test does nothing because we are c.Assert'ing in goroutine
-	var (
-		name = "statscontainer"
-	)
+	name := "statscontainer"
 	dockerCmd(c, "create", "--name", name, "busybox", "top")
 
+	type stats struct {
+		status int
+		err    error
+	}
+	chResp := make(chan stats)
+
+	// We expect an immediate response, but if it's not immediate, the test would hang, so put it in a goroutine
+	// below we'll check this on a timeout.
 	go func() {
-		// We'll never get return for GET stats from sockRequest as of now,
-		// just send request and see if panic or error would happen on daemon side.
-		status, _, err := sockRequest("GET", "/containers/"+name+"/stats", nil)
-		c.Assert(err, checker.IsNil)
-		c.Assert(status, checker.Equals, http.StatusOK)
+		resp, body, err := sockRequestRaw("GET", "/containers/"+name+"/stats", nil, "")
+		body.Close()
+		chResp <- stats{resp.StatusCode, err}
 	}()
 
-	// allow some time to send request and let daemon deal with it
-	time.Sleep(1 * time.Second)
+	select {
+	case r := <-chResp:
+		c.Assert(r.err, checker.IsNil)
+		c.Assert(r.status, checker.Equals, http.StatusOK)
+	case <-time.After(10 * time.Second):
+		c.Fatal("timeout waiting for stats reponse for stopped container")
+	}
 }
 
 // #9981 - Allow a docker created volume (ie, one in /var/lib/docker/volumes) to be used to overwrite (via passing in Binds on api start) an existing volume

@@ -541,7 +541,7 @@ func (b *Builder) create() (string, error) {
 func (b *Builder) run(cID string) (err error) {
 	errCh := make(chan error)
 	go func() {
-		errCh <- b.docker.ContainerAttachOnBuild(cID, nil, b.Stdout, b.Stderr, true)
+		errCh <- b.docker.ContainerAttachRaw(cID, nil, b.Stdout, b.Stderr, true)
 	}()
 
 	finished := make(chan struct{})

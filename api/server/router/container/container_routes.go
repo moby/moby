@@ -66,14 +66,8 @@ func (s *containerRouter) getContainersStats(ctx context.Context, w http.Respons
 	}
 
 	stream := httputils.BoolValueOrDefault(r, "stream", true)
-	var out io.Writer
 	if !stream {
 		w.Header().Set("Content-Type", "application/json")
-		out = w
-	} else {
-		wf := ioutils.NewWriteFlusher(w)
-		out = wf
-		defer wf.Close()
 	}
 
 	var closeNotifier <-chan bool
@@ -83,7 +77,7 @@ func (s *containerRouter) getContainersStats(ctx context.Context, w http.Respons
 
 	config := &backend.ContainerStatsConfig{
 		Stream:    stream,
-		OutStream: out,
+		OutStream: w,
 		Stop:      closeNotifier,
 		Version:   string(httputils.VersionFromContext(ctx)),
 	}
@@ -112,22 +106,6 @@ func (s *containerRouter) getContainersLogs(ctx context.Context, w http.Response
 	}
 
 	containerName := vars["name"]
-
-	if !s.backend.Exists(containerName) {
-		return derr.ErrorCodeNoSuchContainer.WithArgs(containerName)
-	}
-
-	// write an empty chunk of data (this is to ensure that the
-	// HTTP Response is sent immediately, even if the container has
-	// not yet produced any data)
-	w.WriteHeader(http.StatusOK)
-	if flusher, ok := w.(http.Flusher); ok {
-		flusher.Flush()
-	}
-
-	output := ioutils.NewWriteFlusher(w)
-	defer output.Close()
-
 	logsConfig := &backend.ContainerLogsConfig{
 		ContainerLogsOptions: types.ContainerLogsOptions{
 			Follow:     httputils.BoolValue(r, "follow"),
@@ -137,15 +115,21 @@ func (s *containerRouter) getContainersLogs(ctx context.Context, w http.Response
 			ShowStdout: stdout,
 			ShowStderr: stderr,
 		},
-		OutStream: output,
+		OutStream: w,
 		Stop:      closeNotifier,
 	}
 
-	if err := s.backend.ContainerLogs(containerName, logsConfig); err != nil {
-		// The client may be expecting all of the data we're sending to
-		// be multiplexed, so send it through OutStream, which will
-		// have been set up to handle that if needed.
-		fmt.Fprintf(logsConfig.OutStream, "Error running logs job: %s\n", utils.GetErrorMessage(err))
+	chStarted := make(chan struct{})
+	if err := s.backend.ContainerLogs(containerName, logsConfig, chStarted); err != nil {
+		select {
+		case <-chStarted:
+			// The client may be expecting all of the data we're sending to
+			// be multiplexed, so send it through OutStream, which will
+			// have been set up to handle that if needed.
+			fmt.Fprintf(logsConfig.OutStream, "Error running logs job: %s\n", utils.GetErrorMessage(err))
+		default:
+			return err
+		}
 	}
 
 	return nil
@@ -443,18 +427,45 @@ func (s *containerRouter) postContainersAttach(ctx context.Context, w http.Respo
 		}
 	}
 
-	attachWithLogsConfig := &backend.ContainerAttachWithLogsConfig{
-		Hijacker:   w.(http.Hijacker),
-		Upgrade:    upgrade,
+	hijacker, ok := w.(http.Hijacker)
+	if !ok {
+		return derr.ErrorCodeNoHijackConnection.WithArgs(containerName)
+	}
+
+	setupStreams := func() (io.ReadCloser, io.Writer, io.Writer, error) {
+		conn, _, err := hijacker.Hijack()
+		if err != nil {
+			return nil, nil, nil, err
+		}
+
+		// set raw mode
+		conn.Write([]byte{})
+
+		if upgrade {
+			fmt.Fprintf(conn, "HTTP/1.1 101 UPGRADED\r\nContent-Type: application/vnd.docker.raw-stream\r\nConnection: Upgrade\r\nUpgrade: tcp\r\n\r\n")
+		} else {
+			fmt.Fprintf(conn, "HTTP/1.1 200 OK\r\nContent-Type: application/vnd.docker.raw-stream\r\n\r\n")
+		}
+
+		closer := func() error {
+			httputils.CloseStreams(conn)
+			return nil
+		}
+		return ioutils.NewReadCloserWrapper(conn, closer), conn, conn, nil
+	}
+
+	attachConfig := &backend.ContainerAttachConfig{
+		GetStreams: setupStreams,
 		UseStdin:   httputils.BoolValue(r, "stdin"),
 		UseStdout:  httputils.BoolValue(r, "stdout"),
 		UseStderr:  httputils.BoolValue(r, "stderr"),
 		Logs:       httputils.BoolValue(r, "logs"),
 		Stream:     httputils.BoolValue(r, "stream"),
 		DetachKeys: keys,
+		MuxStreams: true,
 	}
 
-	return s.backend.ContainerAttachWithLogs(containerName, attachWithLogsConfig)
+	return s.backend.ContainerAttach(containerName, attachConfig)
 }
 
 func (s *containerRouter) wsContainersAttach(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -462,10 +473,6 @@ func (s *containerRouter) wsContainersAttach(ctx context.Context, w http.Respons
 		return err
 	}
 	containerName := vars["name"]
-
-	if !s.backend.Exists(containerName) {
-		return derr.ErrorCodeNoSuchContainer.WithArgs(containerName)
-	}
 
 	var keys []byte
 	var err error
@@ -477,24 +484,44 @@ func (s *containerRouter) wsContainersAttach(ctx context.Context, w http.Respons
 		}
 	}
 
-	h := websocket.Handler(func(ws *websocket.Conn) {
-		defer ws.Close()
+	done := make(chan struct{})
+	started := make(chan struct{})
 
-		wsAttachWithLogsConfig := &backend.ContainerWsAttachWithLogsConfig{
-			InStream:   ws,
-			OutStream:  ws,
-			ErrStream:  ws,
-			Logs:       httputils.BoolValue(r, "logs"),
-			Stream:     httputils.BoolValue(r, "stream"),
-			DetachKeys: keys,
+	setupStreams := func() (io.ReadCloser, io.Writer, io.Writer, error) {
+		wsChan := make(chan *websocket.Conn)
+		h := func(conn *websocket.Conn) {
+			wsChan <- conn
+			<-done
 		}
 
-		if err := s.backend.ContainerWsAttachWithLogs(containerName, wsAttachWithLogsConfig); err != nil {
-			logrus.Errorf("Error attaching websocket: %s", utils.GetErrorMessage(err))
-		}
-	})
-	ws := websocket.Server{Handler: h, Handshake: nil}
-	ws.ServeHTTP(w, r)
+		srv := websocket.Server{Handler: h, Handshake: nil}
+		go func() {
+			close(started)
+			srv.ServeHTTP(w, r)
+		}()
 
-	return nil
+		conn := <-wsChan
+		return conn, conn, conn, nil
+	}
+
+	attachConfig := &backend.ContainerAttachConfig{
+		GetStreams: setupStreams,
+		Logs:       httputils.BoolValue(r, "logs"),
+		Stream:     httputils.BoolValue(r, "stream"),
+		DetachKeys: keys,
+		UseStdin:   true,
+		UseStdout:  true,
+		UseStderr:  true,
+		MuxStreams: false, // TODO: this should be true since it's a single stream for both stdout and stderr
+	}
+
+	err = s.backend.ContainerAttach(containerName, attachConfig)
+	close(done)
+	select {
+	case <-started:
+		logrus.Errorf("Error attaching websocket: %s", err)
+		return nil
+	default:
+	}
+	return err
 }

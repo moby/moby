@@ -44,14 +44,13 @@ type stateBackend interface {
 	ContainerUnpause(name string) error
 	ContainerUpdate(name string, hostConfig *container.HostConfig) ([]string, error)
 	ContainerWait(name string, timeout time.Duration) (int, error)
-	Exists(id string) bool
 }
 
 // monitorBackend includes functions to implement to provide containers monitoring functionality.
 type monitorBackend interface {
 	ContainerChanges(name string) ([]archive.Change, error)
 	ContainerInspect(name string, size bool, version version.Version) (interface{}, error)
-	ContainerLogs(name string, config *backend.ContainerLogsConfig) error
+	ContainerLogs(name string, config *backend.ContainerLogsConfig, started chan struct{}) error
 	ContainerStats(name string, config *backend.ContainerStatsConfig) error
 	ContainerTop(name string, psArgs string) (*types.ContainerProcessList, error)
 
@@ -60,8 +59,7 @@ type monitorBackend interface {
 
 // attachBackend includes function to implement to provide container attaching functionality.
 type attachBackend interface {
-	ContainerAttachWithLogs(name string, c *backend.ContainerAttachWithLogsConfig) error
-	ContainerWsAttachWithLogs(name string, c *backend.ContainerWsAttachWithLogsConfig) error
+	ContainerAttach(name string, c *backend.ContainerAttachConfig) error
 }
 
 // Backend is all the methods that need to be implemented to provide container specific functionality.
