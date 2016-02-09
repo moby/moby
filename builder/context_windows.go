@@ -1,6 +1,6 @@
 // +build windows
 
-package client
+package builder
 
 import (
 	"path/filepath"
