@@ -2673,13 +2673,12 @@ func (s *DockerSuite) TestBuildCopyDirButNotFile(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildAddCurrentDirWithCache(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	name := "testbuildaddcurrentdirwithcache"
 	name2 := name + "2"
 	name3 := name + "3"
 	name4 := name + "4"
 	dockerfile := `
-        FROM scratch
+        FROM ` + minimalBaseImage() + `
         MAINTAINER dockerio
         ADD . /usr/lib/bla`
 	ctx, err := fakeContext(dockerfile, map[string]string{
@@ -2731,11 +2730,10 @@ func (s *DockerSuite) TestBuildAddCurrentDirWithCache(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildAddCurrentDirWithoutCache(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	name := "testbuildaddcurrentdirwithoutcache"
 	name2 := "testbuildaddcurrentdirwithoutcache2"
 	dockerfile := `
-        FROM scratch
+        FROM ` + minimalBaseImage() + `
         MAINTAINER dockerio
         ADD . /usr/lib/bla`
 	ctx, err := fakeContext(dockerfile, map[string]string{
@@ -2759,7 +2757,7 @@ func (s *DockerSuite) TestBuildAddCurrentDirWithoutCache(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildAddRemoteFileWithCache(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	testRequires(c, DaemonIsLinux) // Windows doesn't have httpserver image yet
 	name := "testbuildaddremotefilewithcache"
 	server, err := fakeStorage(map[string]string{
 		"baz": "hello",
@@ -2791,7 +2789,7 @@ func (s *DockerSuite) TestBuildAddRemoteFileWithCache(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildAddRemoteFileWithoutCache(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	testRequires(c, DaemonIsLinux) // Windows doesn't have httpserver image yet
 	name := "testbuildaddremotefilewithoutcache"
 	name2 := "testbuildaddremotefilewithoutcache2"
 	server, err := fakeStorage(map[string]string{
@@ -2824,7 +2822,7 @@ func (s *DockerSuite) TestBuildAddRemoteFileWithoutCache(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildAddRemoteFileMTime(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	testRequires(c, DaemonIsLinux) // Windows doesn't have httpserver image yet
 	name := "testbuildaddremotefilemtime"
 	name2 := name + "2"
 	name3 := name + "3"
@@ -2886,7 +2884,7 @@ func (s *DockerSuite) TestBuildAddRemoteFileMTime(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildAddLocalAndRemoteFilesWithCache(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	testRequires(c, DaemonIsLinux) // Windows doesn't have httpserver image yet
 	name := "testbuildaddlocalandremotefilewithcache"
 	server, err := fakeStorage(map[string]string{
 		"baz": "hello",
@@ -2921,7 +2919,6 @@ func (s *DockerSuite) TestBuildAddLocalAndRemoteFilesWithCache(c *check.C) {
 }
 
 func testContextTar(c *check.C, compression archive.Compression) {
-	testRequires(c, DaemonIsLinux)
 	ctx, err := fakeContext(
 		`FROM busybox
 ADD foo /foo
@@ -2956,9 +2953,10 @@ func (s *DockerSuite) TestBuildContextTarNoCompression(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildNoContext(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	buildCmd := exec.Command(dockerBinary, "build", "-t", "nocontext", "-")
-	buildCmd.Stdin = strings.NewReader("FROM busybox\nCMD echo ok\n")
+	buildCmd.Stdin = strings.NewReader(
+		`FROM busybox
+		CMD ["echo", "ok"]`)
 
 	if out, _, err := runCommandWithOutput(buildCmd); err != nil {
 		c.Fatalf("build failed to complete: %v %v", out, err)
@@ -2971,7 +2969,7 @@ func (s *DockerSuite) TestBuildNoContext(c *check.C) {
 
 // TODO: TestCaching
 func (s *DockerSuite) TestBuildAddLocalAndRemoteFilesWithoutCache(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	testRequires(c, DaemonIsLinux) // Windows doesn't have httpserver image yet
 	name := "testbuildaddlocalandremotefilewithoutcache"
 	name2 := "testbuildaddlocalandremotefilewithoutcache2"
 	server, err := fakeStorage(map[string]string{
@@ -3035,7 +3033,6 @@ func (s *DockerSuite) TestBuildWithVolumeOwnership(c *check.C) {
 // testing #1405 - config.Cmd does not get cleaned up if
 // utilizing cache
 func (s *DockerSuite) TestBuildEntrypointRunCleanup(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	name := "testbuildcmdcleanup"
 	if _, err := buildImage(name,
 		`FROM busybox
@@ -3066,9 +3063,8 @@ func (s *DockerSuite) TestBuildEntrypointRunCleanup(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildForbiddenContextPath(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	name := "testbuildforbidpath"
-	ctx, err := fakeContext(`FROM scratch
+	ctx, err := fakeContext(`FROM `+minimalBaseImage()+`
         ADD ../../ test/
         `,
 		map[string]string{
@@ -3081,6 +3077,11 @@ func (s *DockerSuite) TestBuildForbiddenContextPath(c *check.C) {
 	defer ctx.Close()
 
 	expected := "Forbidden path outside the build context: ../../ "
+
+	if daemonPlatform == "windows" {
+		expected = "Forbidden path outside the build context: ..\\..\\ "
+	}
+
 	if _, err := buildImageFromContext(name, ctx, true); err == nil || !strings.Contains(err.Error(), expected) {
 		c.Fatalf("Wrong error: (should contain \"%s\") got:\n%v", expected, err)
 	}
@@ -3088,9 +3089,14 @@ func (s *DockerSuite) TestBuildForbiddenContextPath(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildAddFileNotFound(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	name := "testbuildaddnotfound"
-	ctx, err := fakeContext(`FROM scratch
+	expected := "foo: no such file or directory"
+
+	if daemonPlatform == "windows" {
+		expected = "foo: The system cannot find the file specified"
+	}
+
+	ctx, err := fakeContext(`FROM `+minimalBaseImage()+`
         ADD foo /usr/local/bar`,
 		map[string]string{"bar": "hello"})
 	if err != nil {
@@ -3098,7 +3104,7 @@ func (s *DockerSuite) TestBuildAddFileNotFound(c *check.C) {
 	}
 	defer ctx.Close()
 	if _, err := buildImageFromContext(name, ctx, true); err != nil {
-		if !strings.Contains(err.Error(), "foo: no such file or directory") {
+		if !strings.Contains(err.Error(), expected) {
 			c.Fatalf("Wrong error %v, must be about missing foo file or directory", err)
 		}
 	} else {
@@ -3138,7 +3144,6 @@ func (s *DockerSuite) TestBuildInheritance(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildFails(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	name := "testbuildfails"
 	_, err := buildImage(name,
 		`FROM busybox
@@ -3166,7 +3171,6 @@ func (s *DockerSuite) TestBuildFailsDockerfileEmpty(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildOnBuild(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	name := "testbuildonbuild"
 	_, err := buildImage(name,
 		`FROM busybox
@@ -3185,7 +3189,6 @@ func (s *DockerSuite) TestBuildOnBuild(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildOnBuildForbiddenChained(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	name := "testbuildonbuildforbiddenchained"
 	_, err := buildImage(name,
 		`FROM busybox
@@ -3201,7 +3204,6 @@ func (s *DockerSuite) TestBuildOnBuildForbiddenChained(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildOnBuildForbiddenFrom(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	name := "testbuildonbuildforbiddenfrom"
 	_, err := buildImage(name,
 		`FROM busybox
@@ -3217,7 +3219,6 @@ func (s *DockerSuite) TestBuildOnBuildForbiddenFrom(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildOnBuildForbiddenMaintainer(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	name := "testbuildonbuildforbiddenmaintainer"
 	_, err := buildImage(name,
 		`FROM busybox
@@ -3255,7 +3256,6 @@ func (s *DockerSuite) TestBuildAddToSymlinkDest(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildEscapeWhitespace(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	name := "testbuildescaping"
 
 	_, err := buildImage(name, `
@@ -3277,7 +3277,6 @@ docker.com>"
 }
 
 func (s *DockerSuite) TestBuildVerifyIntString(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	// Verify that strings that look like ints are still passed as strings
 	name := "testbuildstringing"
 
@@ -3299,22 +3298,25 @@ func (s *DockerSuite) TestBuildVerifyIntString(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildDockerignore(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	testRequires(c, DaemonIsLinux) // TODO Windows: This test passes on Windows,
+	// but currently adds a disproportionate amount of time for the value it has.
+	// Removing it from Windows CI for now, but this will be revisited in the
+	// TP5 timeframe when perf is better.
 	name := "testbuilddockerignore"
 	dockerfile := `
         FROM busybox
         ADD . /bla
-		RUN [[ -f /bla/src/x.go ]]
-		RUN [[ -f /bla/Makefile ]]
-		RUN [[ ! -e /bla/src/_vendor ]]
-		RUN [[ ! -e /bla/.gitignore ]]
-		RUN [[ ! -e /bla/README.md ]]
-		RUN [[ ! -e /bla/dir/foo ]]
-		RUN [[ ! -e /bla/foo ]]
-		RUN [[ ! -e /bla/.git ]]
-		RUN [[ ! -e v.cc ]]
-		RUN [[ ! -e src/v.cc ]]
-		RUN [[ ! -e src/_vendor/v.cc ]]`
+		RUN sh -c "[[ -f /bla/src/x.go ]]"
+		RUN sh -c "[[ -f /bla/Makefile ]]"
+		RUN sh -c "[[ ! -e /bla/src/_vendor ]]"
+		RUN sh -c "[[ ! -e /bla/.gitignore ]]"
+		RUN sh -c "[[ ! -e /bla/README.md ]]"
+		RUN sh -c "[[ ! -e /bla/dir/foo ]]"
+		RUN sh -c "[[ ! -e /bla/foo ]]"
+		RUN sh -c "[[ ! -e /bla/.git ]]"
+		RUN sh -c "[[ ! -e v.cc ]]"
+		RUN sh -c "[[ ! -e src/v.cc ]]"
+		RUN sh -c "[[ ! -e src/_vendor/v.cc ]]"`
 	ctx, err := fakeContext(dockerfile, map[string]string{
 		"Makefile":         "all:",
 		".git/HEAD":        "ref: foo",
@@ -3345,12 +3347,11 @@ dir`,
 }
 
 func (s *DockerSuite) TestBuildDockerignoreCleanPaths(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	name := "testbuilddockerignorecleanpaths"
 	dockerfile := `
         FROM busybox
         ADD . /tmp/
-        RUN (! ls /tmp/foo) && (! ls /tmp/foo2) && (! ls /tmp/dir1/foo)`
+        RUN sh -c "(! ls /tmp/foo) && (! ls /tmp/foo2) && (! ls /tmp/dir1/foo)"`
 	ctx, err := fakeContext(dockerfile, map[string]string{
 		"foo":           "foo",
 		"foo2":          "foo2",
@@ -3367,23 +3368,26 @@ func (s *DockerSuite) TestBuildDockerignoreCleanPaths(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildDockerignoreExceptions(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	testRequires(c, DaemonIsLinux) // TODO Windows: This test passes on Windows,
+	// but currently adds a disproportionate amount of time for the value it has.
+	// Removing it from Windows CI for now, but this will be revisited in the
+	// TP5 timeframe when perf is better.
 	name := "testbuilddockerignoreexceptions"
 	dockerfile := `
         FROM busybox
         ADD . /bla
-		RUN [[ -f /bla/src/x.go ]]
-		RUN [[ -f /bla/Makefile ]]
-		RUN [[ ! -e /bla/src/_vendor ]]
-		RUN [[ ! -e /bla/.gitignore ]]
-		RUN [[ ! -e /bla/README.md ]]
-		RUN [[  -e /bla/dir/dir/foo ]]
-		RUN [[ ! -e /bla/dir/foo1 ]]
-		RUN [[ -f /bla/dir/e ]]
-		RUN [[ -f /bla/dir/e-dir/foo ]]
-		RUN [[ ! -e /bla/foo ]]
-		RUN [[ ! -e /bla/.git ]]
-		RUN [[ -e /bla/dir/a.cc ]]`
+		RUN sh -c "[[ -f /bla/src/x.go ]]"
+		RUN sh -c "[[ -f /bla/Makefile ]]"
+		RUN sh -c "[[ ! -e /bla/src/_vendor ]]"
+		RUN sh -c "[[ ! -e /bla/.gitignore ]]"
+		RUN sh -c "[[ ! -e /bla/README.md ]]"
+		RUN sh -c "[[  -e /bla/dir/dir/foo ]]"
+		RUN sh -c "[[ ! -e /bla/dir/foo1 ]]"
+		RUN sh -c "[[ -f /bla/dir/e ]]"
+		RUN sh -c "[[ -f /bla/dir/e-dir/foo ]]"
+		RUN sh -c "[[ ! -e /bla/foo ]]"
+		RUN sh -c "[[ ! -e /bla/.git ]]"
+		RUN sh -c "[[ -e /bla/dir/a.cc ]]"`
 	ctx, err := fakeContext(dockerfile, map[string]string{
 		"Makefile":         "all:",
 		".git/HEAD":        "ref: foo",
@@ -3420,12 +3424,11 @@ dir
 }
 
 func (s *DockerSuite) TestBuildDockerignoringDockerfile(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	name := "testbuilddockerignoredockerfile"
 	dockerfile := `
         FROM busybox
 		ADD . /tmp/
-		RUN ! ls /tmp/Dockerfile
+		RUN sh -c "! ls /tmp/Dockerfile"
 		RUN ls /tmp/.dockerignore`
 	ctx, err := fakeContext(dockerfile, map[string]string{
 		"Dockerfile":    dockerfile,
@@ -3449,13 +3452,12 @@ func (s *DockerSuite) TestBuildDockerignoringDockerfile(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildDockerignoringRenamedDockerfile(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	name := "testbuilddockerignoredockerfile"
 	dockerfile := `
         FROM busybox
 		ADD . /tmp/
 		RUN ls /tmp/Dockerfile
-		RUN ! ls /tmp/MyDockerfile
+		RUN sh -c "! ls /tmp/MyDockerfile"
 		RUN ls /tmp/.dockerignore`
 	ctx, err := fakeContext(dockerfile, map[string]string{
 		"Dockerfile":    "Should not use me",
@@ -3480,12 +3482,11 @@ func (s *DockerSuite) TestBuildDockerignoringRenamedDockerfile(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildDockerignoringDockerignore(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	name := "testbuilddockerignoredockerignore"
 	dockerfile := `
         FROM busybox
 		ADD . /tmp/
-		RUN ! ls /tmp/.dockerignore
+		RUN sh -c "! ls /tmp/.dockerignore"
 		RUN ls /tmp/Dockerfile`
 	ctx, err := fakeContext(dockerfile, map[string]string{
 		"Dockerfile":    dockerfile,
@@ -3501,7 +3502,6 @@ func (s *DockerSuite) TestBuildDockerignoringDockerignore(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildDockerignoreTouchDockerfile(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	var id1 string
 	var id2 string
 
@@ -3554,13 +3554,12 @@ func (s *DockerSuite) TestBuildDockerignoreTouchDockerfile(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildDockerignoringWholeDir(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	name := "testbuilddockerignorewholedir"
 	dockerfile := `
         FROM busybox
 		COPY . /
-		RUN [[ ! -e /.gitignore ]]
-		RUN [[ -f /Makefile ]]`
+		RUN sh -c "[[ ! -e /.gitignore ]]"
+		RUN sh -c "[[ -f /Makefile ]]"`
 	ctx, err := fakeContext(dockerfile, map[string]string{
 		"Dockerfile":    "FROM scratch",
 		"Makefile":      "all:",
@@ -3590,13 +3589,12 @@ func (s *DockerSuite) TestBuildDockerignoringWholeDir(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildDockerignoringBadExclusion(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	name := "testbuilddockerignorebadexclusion"
 	dockerfile := `
         FROM busybox
 		COPY . /
-		RUN [[ ! -e /.gitignore ]]
-		RUN [[ -f /Makefile ]]`
+		RUN sh -c "[[ ! -e /.gitignore ]]"
+		RUN sh -c "[[ -f /Makefile ]]"`
 	ctx, err := fakeContext(dockerfile, map[string]string{
 		"Dockerfile":    "FROM scratch",
 		"Makefile":      "all:",
@@ -3615,15 +3613,13 @@ func (s *DockerSuite) TestBuildDockerignoringBadExclusion(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildDockerignoringWildTopDir(c *check.C) {
-	testRequires(c, DaemonIsLinux)
-
 	dockerfile := `
         FROM busybox
 		COPY . /
-		RUN [[ ! -e /.dockerignore ]]
-		RUN [[ ! -e /Dockerfile ]]
-		RUN [[ ! -e /file1 ]]
-		RUN [[ ! -e /dir ]]`
+		RUN sh -c "[[ ! -e /.dockerignore ]]"
+		RUN sh -c "[[ ! -e /Dockerfile ]]"
+		RUN sh -c "[[ ! -e /file1 ]]"
+		RUN sh -c "[[ ! -e /dir ]]"`
 
 	ctx, err := fakeContext(dockerfile, map[string]string{
 		"Dockerfile": "FROM scratch",
@@ -3642,36 +3638,36 @@ func (s *DockerSuite) TestBuildDockerignoringWildTopDir(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildDockerignoringWildDirs(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	testRequires(c, DaemonIsLinux) // TODO Windows: Fix this test; also perf
 
 	dockerfile := `
         FROM busybox
 		COPY . /
-		RUN [[ -e /.dockerignore ]]
-		RUN [[ -e /Dockerfile ]]
+		#RUN sh -c "[[ -e /.dockerignore ]]"
+		RUN sh -c "[[ -e /Dockerfile ]]"
 
-		RUN [[ ! -e /file0 ]]
-		RUN [[ ! -e /dir1/file0 ]]
-		RUN [[ ! -e /dir2/file0 ]]
+		RUN sh -c "[[ ! -e /file0 ]]"
+		RUN sh -c "[[ ! -e /dir1/file0 ]]"
+		RUN sh -c "[[ ! -e /dir2/file0 ]]"
 
-		RUN [[ ! -e /file1 ]]
-		RUN [[ ! -e /dir1/file1 ]]
-		RUN [[ ! -e /dir1/dir2/file1 ]]
+		RUN sh -c "[[ ! -e /file1 ]]"
+		RUN sh -c "[[ ! -e /dir1/file1 ]]"
+		RUN sh -c "[[ ! -e /dir1/dir2/file1 ]]"
 
-		RUN [[ ! -e /dir1/file2 ]]
-		RUN [[   -e /dir1/dir2/file2 ]]
+		RUN sh -c "[[ ! -e /dir1/file2 ]]"
+		RUN sh -c "[[   -e /dir1/dir2/file2 ]]"
 
-		RUN [[ ! -e /dir1/dir2/file4 ]]
-		RUN [[ ! -e /dir1/dir2/file5 ]]
-		RUN [[ ! -e /dir1/dir2/file6 ]]
-		RUN [[ ! -e /dir1/dir3/file7 ]]
-		RUN [[ ! -e /dir1/dir3/file8 ]]
-		RUN [[   -e /dir1/dir3 ]]
-		RUN [[   -e /dir1/dir4 ]]
+		RUN sh -c "[[ ! -e /dir1/dir2/file4 ]]"
+		RUN sh -c "[[ ! -e /dir1/dir2/file5 ]]"
+		RUN sh -c "[[ ! -e /dir1/dir2/file6 ]]"
+		RUN sh -c "[[ ! -e /dir1/dir3/file7 ]]"
+		RUN sh -c "[[ ! -e /dir1/dir3/file8 ]]"
+		RUN sh -c "[[   -e /dir1/dir3 ]]"
+		RUN sh -c "[[   -e /dir1/dir4 ]]"
 
-		RUN [[ ! -e 'dir1/dir5/fileAA' ]]
-		RUN [[   -e 'dir1/dir5/fileAB' ]]
-		RUN [[   -e 'dir1/dir5/fileB' ]]   # "." in pattern means nothing
+		RUN sh -c "[[ ! -e 'dir1/dir5/fileAA' ]]"
+		RUN sh -c "[[   -e 'dir1/dir5/fileAB' ]]"
+		RUN sh -c "[[   -e 'dir1/dir5/fileB' ]]"   # "." in pattern means nothing
 
 		RUN echo all done!`
 
@@ -3728,8 +3724,8 @@ func (s *DockerSuite) TestBuildLineBreak(c *check.C) {
 RUN    sh -c 'echo root:testpass \
 	> /tmp/passwd'
 RUN    mkdir -p /var/run/sshd
-RUN    [ "$(cat /tmp/passwd)" = "root:testpass" ]
-RUN    [ "$(ls -d /var/run/sshd)" = "/var/run/sshd" ]`,
+RUN    sh -c "[ "$(cat /tmp/passwd)" = "root:testpass" ]"
+RUN    sh -c "[ "$(ls -d /var/run/sshd)" = "/var/run/sshd" ]"`,
 		true)
 	if err != nil {
 		c.Fatal(err)
@@ -3744,8 +3740,8 @@ func (s *DockerSuite) TestBuildEOLInLine(c *check.C) {
 RUN    sh -c 'echo root:testpass > /tmp/passwd'
 RUN    echo "foo \n bar"; echo "baz"
 RUN    mkdir -p /var/run/sshd
-RUN    [ "$(cat /tmp/passwd)" = "root:testpass" ]
-RUN    [ "$(ls -d /var/run/sshd)" = "/var/run/sshd" ]`,
+RUN    sh -c "[ "$(cat /tmp/passwd)" = "root:testpass" ]"
+RUN    sh -c "[ "$(ls -d /var/run/sshd)" = "/var/run/sshd" ]"`,
 		true)
 	if err != nil {
 		c.Fatal(err)
