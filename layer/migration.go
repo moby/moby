@@ -32,7 +32,7 @@ func (ls *layerStore) CreateRWLayerByGraphID(name string, graphID string, parent
 	}
 
 	if !ls.driver.Exists(graphID) {
-		return errors.New("graph ID does not exist")
+		return fmt.Errorf("graph ID does not exist: %q", graphID)
 	}
 
 	var p *roLayer
