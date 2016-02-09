@@ -2371,7 +2371,7 @@ func (s *DockerSuite) TestRunModeIpcContainer(c *check.C) {
 	// Not applicable on Windows as uses Unix-specific capabilities
 	testRequires(c, SameHostDaemon, DaemonIsLinux, NotUserNamespace)
 
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "sh", "-c", "echo -n test > /dev/shm/test && top")
+	out, _ := dockerCmd(c, "run", "-d", "busybox", "sh", "-c", "echo -n test > /dev/shm/test && touch /dev/mqueue/toto && top")
 
 	id := strings.TrimSpace(out)
 	state := inspectField(c, id, "State.Running")
@@ -2394,6 +2394,18 @@ func (s *DockerSuite) TestRunModeIpcContainer(c *check.C) {
 	catOutput, _ := dockerCmd(c, "run", fmt.Sprintf("--ipc=container:%s", id), "busybox", "cat", "/dev/shm/test")
 	if catOutput != "test" {
 		c.Fatalf("Output of /dev/shm/test expected test but found: %s", catOutput)
+	}
+
+	// check that /dev/mqueue is actually of mqueue type
+	grepOutput, _ := dockerCmd(c, "run", fmt.Sprintf("--ipc=container:%s", id), "busybox", "grep", "/dev/mqueue", "/proc/mounts")
+	if !strings.HasPrefix(grepOutput, "mqueue /dev/mqueue mqueue rw") {
+		c.Fatalf("Output of 'grep /proc/mounts' expected 'mqueue /dev/mqueue mqueue rw' but found: %s", grepOutput)
+	}
+
+	lsOutput, _ := dockerCmd(c, "run", fmt.Sprintf("--ipc=container:%s", id), "busybox", "ls", "/dev/mqueue")
+	lsOutput = strings.Trim(lsOutput, "\n")
+	if lsOutput != "toto" {
+		c.Fatalf("Output of 'ls /dev/mqueue' expected 'toto' but found: %s", lsOutput)
 	}
 }
 
@@ -2423,7 +2435,9 @@ func (s *DockerSuite) TestRunMountShmMqueueFromHost(c *check.C) {
 	// Not applicable on Windows as uses Unix-specific capabilities
 	testRequires(c, SameHostDaemon, DaemonIsLinux)
 
-	dockerCmd(c, "run", "-d", "--name", "shmfromhost", "-v", "/dev/shm:/dev/shm", "busybox", "sh", "-c", "echo -n test > /dev/shm/test && top")
+	dockerCmd(c, "run", "-d", "--name", "shmfromhost", "-v", "/dev/shm:/dev/shm", "-v", "/dev/mqueue:/dev/mqueue", "busybox", "sh", "-c", "echo -n test > /dev/shm/test && touch /dev/mqueue/toto && top")
+	defer os.Remove("/dev/mqueue/toto")
+	defer os.Remove("/dev/shm/test")
 	volPath, err := inspectMountSourceField("shmfromhost", "/dev/shm")
 	c.Assert(err, checker.IsNil)
 	if volPath != "/dev/shm" {
@@ -2433,6 +2447,11 @@ func (s *DockerSuite) TestRunMountShmMqueueFromHost(c *check.C) {
 	out, _ := dockerCmd(c, "run", "--name", "ipchost", "--ipc", "host", "busybox", "cat", "/dev/shm/test")
 	if out != "test" {
 		c.Fatalf("Output of /dev/shm/test expected test but found: %s", out)
+	}
+
+	// Check that the mq was created
+	if _, err := os.Stat("/dev/mqueue/toto"); err != nil {
+		c.Fatalf("Failed to confirm '/dev/mqueue/toto' presence on host: %s", err.Error())
 	}
 }
 

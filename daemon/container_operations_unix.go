@@ -106,11 +106,7 @@ func (daemon *Daemon) populateCommand(c *container.Container, env []string) erro
 			if _, err := os.Stat("/dev/shm"); err != nil {
 				return fmt.Errorf("/dev/shm is not mounted, but must be for --ipc=host")
 			}
-			if _, err := os.Stat("/dev/mqueue"); err != nil {
-				return fmt.Errorf("/dev/mqueue is not mounted, but must be for --ipc=host")
-			}
 			c.ShmPath = "/dev/shm"
-			c.MqueuePath = "/dev/mqueue"
 		}
 	}
 
