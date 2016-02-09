@@ -16,7 +16,7 @@ func graphDiffSize(ls Store, l Layer) (int64, error) {
 // Unix as Windows graph driver does not support Changes which is indirectly
 // invoked by calling DiffSize on the driver
 func TestLayerSize(t *testing.T) {
-	ls, cleanup := newTestStore(t)
+	ls, _, cleanup := newTestStore(t)
 	defer cleanup()
 
 	content1 := []byte("Base contents")
