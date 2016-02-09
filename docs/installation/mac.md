@@ -391,7 +391,7 @@ The next exercise demonstrates how to do this.
 
 ## Upgrade Docker Toolbox
 
-To upgrade Docker Toolbox, download an re-run [the Docker Toolbox
+To upgrade Docker Toolbox, download and re-run [the Docker Toolbox
 installer](https://docker.com/toolbox/).
 
 
