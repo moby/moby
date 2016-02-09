@@ -82,7 +82,21 @@ RUN cd /usr/local/lvm2 \
 # TODO install Go, using gccgo as GOROOT_BOOTSTRAP (Go 1.5+ supports ppc64le properly)
 # possibly a ppc64le/golang image?
 
-ENV PATH /go/bin:$PATH
+## BUILD GOLANG 1.6
+ENV GO_VERSION 1.6rc2
+ENV GO_DOWNLOAD_URL https://golang.org/dl/go${GO_VERSION}.src.tar.gz
+ENV GO_DOWNLOAD_SHA256 92914a23cde7e34e1d017175d785e5850fbb28f323a145028e2e26053ef1a598
+ENV GOROOT_BOOTSTRAP /usr/local
+
+RUN curl -fsSL "$GO_DOWNLOAD_URL" -o golang.tar.gz \
+    && echo "$GO_DOWNLOAD_SHA256  golang.tar.gz" | sha256sum -c - \
+    && tar -C /usr/src -xzf golang.tar.gz \
+    && rm golang.tar.gz \
+    && cd /usr/src/go/src && ./make.bash 2>&1
+
+ENV GOROOT_BOOTSTRAP /usr/src/
+
+ENV PATH /usr/src/go/bin/:/go/bin:$PATH
 ENV GOPATH /go:/go/src/github.com/docker/docker/vendor
 
 # This has been commented out and kept as reference because we don't support compiling with older Go anymore.
@@ -90,7 +104,7 @@ ENV GOPATH /go:/go/src/github.com/docker/docker/vendor
 # RUN curl -sSL https://storage.googleapis.com/golang/go${GOFMT_VERSION}.$(go env GOOS)-$(go env GOARCH).tar.gz | tar -C /go/bin -xz --strip-components=2 go/bin/gofmt
 
 # TODO update this sha when we upgrade to Go 1.5+
-ENV GO_TOOLS_COMMIT 069d2f3bcb68257b627205f0486d6cc69a231ff9
+ENV GO_TOOLS_COMMIT d02228d1857b9f49cd0252788516ff5584266eb6
 # Grab Go's cover tool for dead-simple code coverage testing
 # Grab Go's vet tool for examining go code to find suspicious constructs
 # and help prevent errors that the compiler might not catch
@@ -99,7 +113,7 @@ RUN git clone https://github.com/golang/tools.git /go/src/golang.org/x/tools \
 	&& go install -v golang.org/x/tools/cmd/cover \
 	&& go install -v golang.org/x/tools/cmd/vet
 # Grab Go's lint tool
-ENV GO_LINT_COMMIT f42f5c1c440621302702cb0741e9d2ca547ae80f
+ENV GO_LINT_COMMIT 32a87160691b3c96046c0c678fe57c5bef761456
 RUN git clone https://github.com/golang/lint.git /go/src/github.com/golang/lint \
 	&& (cd /go/src/github.com/golang/lint && git checkout -q $GO_LINT_COMMIT) \
 	&& go install -v github.com/golang/lint/golint
