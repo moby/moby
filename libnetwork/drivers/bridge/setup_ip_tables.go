@@ -115,7 +115,7 @@ func (n *bridgeNetwork) setupIPTables(config *networkConfiguration, i *bridgeInt
 			return iptables.ProgramChain(filterChain, config.BridgeName, hairpinMode, false)
 		})
 
-		n.portMapper.SetIptablesChain(filterChain, n.getNetworkBridgeName())
+		n.portMapper.SetIptablesChain(natChain, n.getNetworkBridgeName())
 	}
 
 	if err := ensureJumpRule("FORWARD", IsolationChain); err != nil {
@@ -148,6 +148,9 @@ func setupIPTablesInternal(bridgeIface string, addr net.Addr, icc, ipmasq, hairp
 		if err := programChainRule(natRule, "NAT", enable); err != nil {
 			return err
 		}
+	}
+
+	if ipmasq && !hairpin {
 		if err := programChainRule(skipDNAT, "SKIP DNAT", enable); err != nil {
 			return err
 		}
