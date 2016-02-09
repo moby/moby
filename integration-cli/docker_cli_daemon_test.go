@@ -2068,7 +2068,7 @@ func (s *DockerDaemonSuite) TestRunLinksChanged(c *check.C) {
 }
 
 func (s *DockerDaemonSuite) TestDaemonStartWithoutColors(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	testRequires(c, DaemonIsLinux, NotPpc64le)
 	newD := NewDaemon(c)
 
 	infoLog := "\x1b[34mINFO\x1b"
@@ -2097,7 +2097,7 @@ func (s *DockerDaemonSuite) TestDaemonStartWithoutColors(c *check.C) {
 }
 
 func (s *DockerDaemonSuite) TestDaemonDebugLog(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	testRequires(c, DaemonIsLinux, NotPpc64le)
 	newD := NewDaemon(c)
 
 	debugLog := "\x1b[37mDEBU\x1b"
