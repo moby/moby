@@ -55,7 +55,7 @@ type Container struct {
 func (container *Container) CreateDaemonEnvironment(linkedEnv []string) []string {
 	// if a domain name was specified, append it to the hostname (see #7851)
 	fullHostname := container.Config.Hostname
-	if container.Config.Domainname != "" {
+	if container.Config.HostnameFQDN && container.Config.Domainname != "" {
 		fullHostname = fmt.Sprintf("%s.%s", fullHostname, container.Config.Domainname)
 	}
 	// Setup environment
