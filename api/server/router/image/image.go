@@ -4,14 +4,14 @@ import "github.com/docker/docker/api/server/router"
 
 // imageRouter is a router to talk with the image controller
 type imageRouter struct {
-	daemon Backend
-	routes []router.Route
+	backend Backend
+	routes  []router.Route
 }
 
 // NewRouter initializes a new image router
-func NewRouter(daemon Backend) router.Router {
+func NewRouter(b Backend) router.Router {
 	r := &imageRouter{
-		daemon: daemon,
+		backend: b,
 	}
 	r.initRoutes()
 	return r
