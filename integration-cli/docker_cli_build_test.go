@@ -1818,13 +1818,15 @@ func (s *DockerSuite) TestBuildWithInaccessibleFilesInContext(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildForceRm(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	containerCountBefore, err := getContainerCount()
 	if err != nil {
 		c.Fatalf("failed to get the container count: %s", err)
 	}
 	name := "testbuildforcerm"
-	ctx, err := fakeContext("FROM scratch\nRUN true\nRUN thiswillfail", nil)
+
+	ctx, err := fakeContext(`FROM `+minimalBaseImage()+`
+	RUN true
+	RUN thiswillfail`, nil)
 	if err != nil {
 		c.Fatal(err)
 	}
@@ -1844,9 +1846,11 @@ func (s *DockerSuite) TestBuildForceRm(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildRm(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	name := "testbuildrm"
-	ctx, err := fakeContext("FROM scratch\nADD foo /\nADD foo /", map[string]string{"foo": "bar"})
+
+	ctx, err := fakeContext(`FROM `+minimalBaseImage()+`
+	ADD foo /
+	ADD foo /`, map[string]string{"foo": "bar"})
 	if err != nil {
 		c.Fatal(err)
 	}
@@ -1924,7 +1928,7 @@ func (s *DockerSuite) TestBuildRm(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildWithVolumes(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	testRequires(c, DaemonIsLinux) // Invalid volume paths on Windows
 	var (
 		result   map[string]map[string]struct{}
 		name     = "testbuildvolumes"
@@ -1968,11 +1972,11 @@ func (s *DockerSuite) TestBuildWithVolumes(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildMaintainer(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	name := "testbuildmaintainer"
+
 	expected := "dockerio"
 	_, err := buildImage(name,
-		`FROM scratch
+		`FROM `+minimalBaseImage()+`
         MAINTAINER dockerio`,
 		true)
 	if err != nil {
@@ -2004,32 +2008,58 @@ func (s *DockerSuite) TestBuildUser(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildRelativeWorkdir(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	name := "testbuildrelativeworkdir"
-	expected := "/test2/test3"
+
+	var (
+		expected1     string
+		expected2     string
+		expected3     string
+		expected4     string
+		expectedFinal string
+	)
+	if daemonPlatform == "windows" {
+		expected1 = `C:/Windows/system32`
+		expected2 = `C:/test1`
+		expected3 = `C:/test2`
+		expected4 = `C:/test2/test3`
+		expectedFinal = `\test2\test3`
+	} else {
+		expected1 = `/`
+		expected2 = `/test1`
+		expected3 = `/test2`
+		expected4 = `/test2/test3`
+		expectedFinal = `/test2/test3`
+	}
+
 	_, err := buildImage(name,
 		`FROM busybox
-		RUN [ "$PWD" = '/' ]
+		RUN sh -c "[ "$PWD" = '`+expected1+`' ]"
 		WORKDIR test1
-		RUN [ "$PWD" = '/test1' ]
+		RUN sh -c "[ "$PWD" = '`+expected2+`' ]"
 		WORKDIR /test2
-		RUN [ "$PWD" = '/test2' ]
+		RUN sh -c "[ "$PWD" = '`+expected3+`' ]"
 		WORKDIR test3
-		RUN [ "$PWD" = '/test2/test3' ]`,
+		RUN sh -c "[ "$PWD" = '`+expected4+`' ]"`,
 		true)
 	if err != nil {
 		c.Fatal(err)
 	}
 	res := inspectField(c, name, "Config.WorkingDir")
-	if res != expected {
-		c.Fatalf("Workdir %s, expected %s", res, expected)
+	if res != expectedFinal {
+		c.Fatalf("Workdir %s, expected %s", res, expectedFinal)
 	}
 }
 
 func (s *DockerSuite) TestBuildWorkdirWithEnvVariables(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	name := "testbuildworkdirwithenvvariables"
-	expected := "/test1/test2"
+
+	var expected string
+	if daemonPlatform == "windows" {
+		expected = `\test1\test2`
+	} else {
+		expected = `/test1/test2`
+	}
+
 	_, err := buildImage(name,
 		`FROM busybox
 		ENV DIRPATH /test1
@@ -2049,30 +2079,37 @@ func (s *DockerSuite) TestBuildWorkdirWithEnvVariables(c *check.C) {
 func (s *DockerSuite) TestBuildRelativeCopy(c *check.C) {
 	// cat /test1/test2/foo gets permission denied for the user
 	testRequires(c, NotUserNamespace)
-	testRequires(c, DaemonIsLinux)
+
+	var expected string
+	if daemonPlatform == "windows" {
+		expected = `C:/test1/test2`
+	} else {
+		expected = `/test1/test2`
+	}
+
 	name := "testbuildrelativecopy"
 	dockerfile := `
 		FROM busybox
 			WORKDIR /test1
 			WORKDIR test2
-			RUN [ "$PWD" = '/test1/test2' ]
+			RUN sh -c "[ "$PWD" = '` + expected + `' ]"
 			COPY foo ./
-			RUN [ "$(cat /test1/test2/foo)" = 'hello' ]
+			RUN sh -c "[ $(cat /test1/test2/foo) = 'hello' ]"
 			ADD foo ./bar/baz
-			RUN [ "$(cat /test1/test2/bar/baz)" = 'hello' ]
+			RUN sh -c "[ $(cat /test1/test2/bar/baz) = 'hello' ]"
 			COPY foo ./bar/baz2
-			RUN [ "$(cat /test1/test2/bar/baz2)" = 'hello' ]
+			RUN sh -c "[ $(cat /test1/test2/bar/baz2) = 'hello' ]"
 			WORKDIR ..
 			COPY foo ./
-			RUN [ "$(cat /test1/foo)" = 'hello' ]
+			RUN sh -c "[ $(cat /test1/foo) = 'hello' ]"
 			COPY foo /test3/
-			RUN [ "$(cat /test3/foo)" = 'hello' ]
+			RUN sh -c "[ $(cat /test3/foo) = 'hello' ]"
 			WORKDIR /test4
 			COPY . .
-			RUN [ "$(cat /test4/foo)" = 'hello' ]
+			RUN sh -c "[ $(cat /test4/foo) = 'hello' ]"
 			WORKDIR /test5/test6
 			COPY foo ../
-			RUN [ "$(cat /test5/foo)" = 'hello' ]
+			RUN sh -c "[ $(cat /test5/foo) = 'hello' ]"
 			`
 	ctx, err := fakeContext(dockerfile, map[string]string{
 		"foo": "hello",
@@ -2088,7 +2125,7 @@ func (s *DockerSuite) TestBuildRelativeCopy(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildEnv(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	testRequires(c, DaemonIsLinux) // ENV expansion is different in Windows
 	name := "testbuildenv"
 	expected := "[PATH=/test:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin PORT=2375]"
 	_, err := buildImage(name,
@@ -2107,7 +2144,7 @@ func (s *DockerSuite) TestBuildEnv(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildPATH(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	testRequires(c, DaemonIsLinux) // ENV expansion is different in Windows
 
 	defPath := "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
@@ -2191,11 +2228,11 @@ func (s *DockerSuite) TestBuildContextCleanupFailedBuild(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildCmd(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	name := "testbuildcmd"
+
 	expected := "{[/bin/echo Hello World]}"
 	_, err := buildImage(name,
-		`FROM scratch
+		`FROM `+minimalBaseImage()+`
         CMD ["/bin/echo", "Hello World"]`,
 		true)
 	if err != nil {
@@ -2208,7 +2245,7 @@ func (s *DockerSuite) TestBuildCmd(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildExpose(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	testRequires(c, DaemonIsLinux) // Expose not implemented on Windows
 	name := "testbuildexpose"
 	expected := "map[2375/tcp:{}]"
 	_, err := buildImage(name,
@@ -2225,7 +2262,7 @@ func (s *DockerSuite) TestBuildExpose(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildExposeMorePorts(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	testRequires(c, DaemonIsLinux) // Expose not implemented on Windows
 	// start building docker file with a large number of ports
 	portList := make([]string, 50)
 	line := make([]string, 100)
@@ -2277,7 +2314,7 @@ func (s *DockerSuite) TestBuildExposeMorePorts(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildExposeOrder(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	testRequires(c, DaemonIsLinux) // Expose not implemented on Windows
 	buildID := func(name, exposed string) string {
 		_, err := buildImage(name, fmt.Sprintf(`FROM scratch
 		EXPOSE %s`, exposed), true)
@@ -2296,7 +2333,7 @@ func (s *DockerSuite) TestBuildExposeOrder(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildExposeUpperCaseProto(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	testRequires(c, DaemonIsLinux) // Expose not implemented on Windows
 	name := "testbuildexposeuppercaseproto"
 	expected := "map[5678/udp:{}]"
 	_, err := buildImage(name,
@@ -2313,7 +2350,6 @@ func (s *DockerSuite) TestBuildExposeUpperCaseProto(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildEmptyEntrypointInheritance(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	name := "testbuildentrypointinheritance"
 	name2 := "testbuildentrypointinheritance2"
 
@@ -2349,7 +2385,6 @@ func (s *DockerSuite) TestBuildEmptyEntrypointInheritance(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildEmptyEntrypoint(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	name := "testbuildentrypoint"
 	expected := "{[]}"
 
@@ -2368,11 +2403,11 @@ func (s *DockerSuite) TestBuildEmptyEntrypoint(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildEntrypoint(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	name := "testbuildentrypoint"
+
 	expected := "{[/bin/echo]}"
 	_, err := buildImage(name,
-		`FROM scratch
+		`FROM `+minimalBaseImage()+`
         ENTRYPOINT ["/bin/echo"]`,
 		true)
 	if err != nil {
@@ -2387,7 +2422,6 @@ func (s *DockerSuite) TestBuildEntrypoint(c *check.C) {
 
 // #6445 ensure ONBUILD triggers aren't committed to grandchildren
 func (s *DockerSuite) TestBuildOnBuildLimitedInheritence(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	var (
 		out2, out3 string
 	)
@@ -2456,7 +2490,7 @@ func (s *DockerSuite) TestBuildOnBuildLimitedInheritence(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildWithCache(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	testRequires(c, DaemonIsLinux) // Expose not implemented on Windows
 	name := "testbuildwithcache"
 	id1, err := buildImage(name,
 		`FROM scratch
@@ -2482,7 +2516,7 @@ func (s *DockerSuite) TestBuildWithCache(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildWithoutCache(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	testRequires(c, DaemonIsLinux) // Expose not implemented on Windows
 	name := "testbuildwithoutcache"
 	name2 := "testbuildwithoutcache2"
 	id1, err := buildImage(name,
@@ -2510,7 +2544,6 @@ func (s *DockerSuite) TestBuildWithoutCache(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildConditionalCache(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	name := "testbuildconditionalcache"
 
 	dockerfile := `
@@ -2553,14 +2586,13 @@ func (s *DockerSuite) TestBuildConditionalCache(c *check.C) {
 func (s *DockerSuite) TestBuildAddLocalFileWithCache(c *check.C) {
 	// local files are not owned by the correct user
 	testRequires(c, NotUserNamespace)
-	testRequires(c, DaemonIsLinux)
 	name := "testbuildaddlocalfilewithcache"
 	name2 := "testbuildaddlocalfilewithcache2"
 	dockerfile := `
 		FROM busybox
         MAINTAINER dockerio
         ADD foo /usr/lib/bla/bar
-		RUN [ "$(cat /usr/lib/bla/bar)" = "hello" ]`
+		RUN sh -c "[ $(cat /usr/lib/bla/bar) = "hello" ]"`
 	ctx, err := fakeContext(dockerfile, map[string]string{
 		"foo": "hello",
 	})
@@ -2582,14 +2614,13 @@ func (s *DockerSuite) TestBuildAddLocalFileWithCache(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildAddMultipleLocalFileWithCache(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	name := "testbuildaddmultiplelocalfilewithcache"
 	name2 := "testbuildaddmultiplelocalfilewithcache2"
 	dockerfile := `
 		FROM busybox
         MAINTAINER dockerio
         ADD foo Dockerfile /usr/lib/bla/
-		RUN [ "$(cat /usr/lib/bla/foo)" = "hello" ]`
+		RUN sh -c "[ $(cat /usr/lib/bla/foo) = "hello" ]"`
 	ctx, err := fakeContext(dockerfile, map[string]string{
 		"foo": "hello",
 	})
@@ -2613,14 +2644,13 @@ func (s *DockerSuite) TestBuildAddMultipleLocalFileWithCache(c *check.C) {
 func (s *DockerSuite) TestBuildAddLocalFileWithoutCache(c *check.C) {
 	// local files are not owned by the correct user
 	testRequires(c, NotUserNamespace)
-	testRequires(c, DaemonIsLinux)
 	name := "testbuildaddlocalfilewithoutcache"
 	name2 := "testbuildaddlocalfilewithoutcache2"
 	dockerfile := `
 		FROM busybox
         MAINTAINER dockerio
         ADD foo /usr/lib/bla/bar
-		RUN [ "$(cat /usr/lib/bla/bar)" = "hello" ]`
+		RUN sh -c "[ $(cat /usr/lib/bla/bar) = "hello" ]"`
 	ctx, err := fakeContext(dockerfile, map[string]string{
 		"foo": "hello",
 	})
@@ -2642,11 +2672,11 @@ func (s *DockerSuite) TestBuildAddLocalFileWithoutCache(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildCopyDirButNotFile(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	name := "testbuildcopydirbutnotfile"
 	name2 := "testbuildcopydirbutnotfile2"
+
 	dockerfile := `
-        FROM scratch
+        FROM ` + minimalBaseImage() + `
         COPY dir /tmp/`
 	ctx, err := fakeContext(dockerfile, map[string]string{
 		"dir/foo": "hello",
