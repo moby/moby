@@ -53,15 +53,10 @@ type Container struct {
 // Sets PATH, HOSTNAME and if container.Config.Tty is set: TERM.
 // The defaults set here do not override the values in container.Config.Env
 func (container *Container) CreateDaemonEnvironment(linkedEnv []string) []string {
-	// if a domain name was specified, append it to the hostname (see #7851)
-	fullHostname := container.Config.Hostname
-	if container.Config.Domainname != "" {
-		fullHostname = fmt.Sprintf("%s.%s", fullHostname, container.Config.Domainname)
-	}
 	// Setup environment
 	env := []string{
 		"PATH=" + system.DefaultPathEnv,
-		"HOSTNAME=" + fullHostname,
+		"HOSTNAME=" + container.Config.Hostname,
 	}
 	if container.Config.Tty {
 		env = append(env, "TERM=xterm")
