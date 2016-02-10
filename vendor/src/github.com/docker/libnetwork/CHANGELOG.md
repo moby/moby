@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.6.1-rc2 (2016-02-09)
+- Fixes https://github.com/docker/docker/issues/20132
+- Fixes https://github.com/docker/docker/issues/20140
+- Fixes https://github.com/docker/docker/issues/20019
+
 ## 0.6.1-rc1 (2016-02-05)
 - Fixes https://github.com/docker/docker/issues/20026
 

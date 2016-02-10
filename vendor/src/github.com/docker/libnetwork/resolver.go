@@ -229,6 +229,7 @@ func (r *resolver) ServeDNS(w dns.ResponseWriter, query *dns.Msg) {
 
 			resp, _, err = c.Exchange(query, addr)
 			if err == nil {
+				resp.Compress = true
 				break
 			}
 			log.Errorf("external resolution failed, %s", err)
