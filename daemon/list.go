@@ -58,6 +58,13 @@ type listContext struct {
 	filters filters.Args
 	// exitAllowed is a list of exit codes allowed to filter with
 	exitAllowed []int
+
+	// FIXME Remove this for 1.12 as --since and --before are deprecated
+	// beforeContainer is a filter to ignore containers that appear before the one given
+	beforeContainer *container.Container
+	// sinceContainer is a filter to stop the filtering when the iterator arrive to the given container
+	sinceContainer *container.Container
+
 	// beforeFilter is a filter to ignore containers that appear before the one given
 	// this is used for --filter=before= and --before=, the latter is deprecated.
 	beforeFilter *container.Container
@@ -146,6 +153,9 @@ func (daemon *Daemon) foldFilter(config *types.ContainerListOptions) (*listConte
 	}
 
 	var beforeContFilter, sinceContFilter *container.Container
+	// FIXME remove this for 1.12 as --since and --before are deprecated
+	var beforeContainer, sinceContainer *container.Container
+
 	err = psFilters.WalkValues("before", func(value string) error {
 		beforeContFilter, err = daemon.GetContainer(value)
 		return err
@@ -182,15 +192,17 @@ func (daemon *Daemon) foldFilter(config *types.ContainerListOptions) (*listConte
 		})
 	}
 
-	if config.Before != "" && beforeContFilter == nil {
-		beforeContFilter, err = daemon.GetContainer(config.Before)
+	// FIXME remove this for 1.12 as --since and --before are deprecated
+	if config.Before != "" {
+		beforeContainer, err = daemon.GetContainer(config.Before)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	if config.Since != "" && sinceContFilter == nil {
-		sinceContFilter, err = daemon.GetContainer(config.Since)
+	// FIXME remove this for 1.12 as --since and --before are deprecated
+	if config.Since != "" {
+		sinceContainer, err = daemon.GetContainer(config.Since)
 		if err != nil {
 			return nil, err
 		}
@@ -201,6 +213,8 @@ func (daemon *Daemon) foldFilter(config *types.ContainerListOptions) (*listConte
 		ancestorFilter:       ancestorFilter,
 		images:               imagesFilter,
 		exitAllowed:          filtExited,
+		beforeContainer:      beforeContainer,
+		sinceContainer:       sinceContainer,
 		beforeFilter:         beforeContFilter,
 		sinceFilter:          sinceContFilter,
 		ContainerListOptions: config,
@@ -212,7 +226,8 @@ func (daemon *Daemon) foldFilter(config *types.ContainerListOptions) (*listConte
 // It also decides if the iteration should be stopped or not.
 func includeContainerInList(container *container.Container, ctx *listContext) iterationAction {
 	// Do not include container if it's stopped and we're not filters
-	if !container.Running && !ctx.All && ctx.Limit <= 0 && ctx.beforeFilter == nil && ctx.sinceFilter == nil {
+	// FIXME remove the ctx.beforContainer part of the condition for 1.12 as --since and --before are deprecated
+	if !container.Running && !ctx.All && ctx.Limit <= 0 && ctx.beforeContainer == nil && ctx.sinceContainer == nil {
 		return excludeContainer
 	}
 
@@ -234,6 +249,21 @@ func includeContainerInList(container *container.Container, ctx *listContext) it
 	// Do not include container if the isolation mode doesn't match
 	if excludeContainer == excludeByIsolation(container, ctx) {
 		return excludeContainer
+	}
+
+	// FIXME remove this for 1.12 as --since and --before are deprecated
+	if ctx.beforeContainer != nil {
+		if container.ID == ctx.beforeContainer.ID {
+			ctx.beforeContainer = nil
+		}
+		return excludeContainer
+	}
+
+	// FIXME remove this for 1.12 as --since and --before are deprecated
+	if ctx.sinceContainer != nil {
+		if container.ID == ctx.sinceContainer.ID {
+			return stopIteration
+		}
 	}
 
 	// Do not include container if it's in the list before the filter container.
