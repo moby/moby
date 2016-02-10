@@ -192,9 +192,6 @@ func (s *VolumeStore) create(name, driverName string, opts map[string]string) (v
 		return nil, &OpErr{Op: "create", Name: name, Err: err}
 	}
 
-	if v, err := vd.Get(name); err == nil {
-		return v, nil
-	}
 	return vd.Create(name, opts)
 }
 

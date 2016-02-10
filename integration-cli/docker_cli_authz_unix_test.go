@@ -11,10 +11,15 @@ import (
 	"os"
 	"strings"
 
+	"bufio"
+	"bytes"
 	"github.com/docker/docker/pkg/authorization"
 	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/go-check/check"
+	"os/exec"
+	"strconv"
+	"time"
 )
 
 const (
@@ -219,6 +224,71 @@ func (s *DockerAuthzSuite) TestAuthZPluginDenyResponse(c *check.C) {
 
 	// Ensure unauthorized message appears in response
 	c.Assert(res, check.Equals, fmt.Sprintf("Error response from daemon: authorization denied by plugin %s: %s\n", testAuthZPlugin, unauthorizedMessage))
+}
+
+// TestAuthZPluginAllowEventStream verifies event stream propogates correctly after request pass through by the authorization plugin
+func (s *DockerAuthzSuite) TestAuthZPluginAllowEventStream(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	// Start the authorization plugin
+	err := s.d.Start("--authorization-plugin=" + testAuthZPlugin)
+	c.Assert(err, check.IsNil)
+	s.ctrl.reqRes.Allow = true
+	s.ctrl.resRes.Allow = true
+
+	startTime := strconv.FormatInt(daemonTime(c).Unix(), 10)
+	// Add another command to to enable event pipelining
+	eventsCmd := exec.Command(s.d.cmd.Path, "--host", s.d.sock(), "events", "--since", startTime)
+	stdout, err := eventsCmd.StdoutPipe()
+	if err != nil {
+		c.Assert(err, check.IsNil)
+	}
+
+	observer := eventObserver{
+		buffer:    new(bytes.Buffer),
+		command:   eventsCmd,
+		scanner:   bufio.NewScanner(stdout),
+		startTime: startTime,
+	}
+
+	err = observer.Start()
+	c.Assert(err, checker.IsNil)
+	defer observer.Stop()
+
+	// Create a container and wait for the creation events
+	_, err = s.d.Cmd("pull", "busybox")
+	c.Assert(err, check.IsNil)
+	out, err := s.d.Cmd("run", "-d", "busybox", "top")
+	c.Assert(err, check.IsNil)
+
+	containerID := strings.TrimSpace(out)
+
+	events := map[string]chan bool{
+		"create": make(chan bool),
+		"start":  make(chan bool),
+	}
+
+	matcher := matchEventLine(containerID, "container", events)
+	processor := processEventMatch(events)
+	go observer.Match(matcher, processor)
+
+	// Ensure all events are received
+	for event, eventChannel := range events {
+
+		select {
+		case <-time.After(5 * time.Second):
+			// Fail the test
+			observer.CheckEventError(c, containerID, event, matcher)
+			c.FailNow()
+		case <-eventChannel:
+			// Ignore, event received
+		}
+	}
+
+	// Ensure both events and container endpoints are passed to the authorization plugin
+	assertURIRecorded(c, s.ctrl.requestsURIs, "/events")
+	assertURIRecorded(c, s.ctrl.requestsURIs, "/containers/create")
+	assertURIRecorded(c, s.ctrl.requestsURIs, fmt.Sprintf("/containers/%s/start", containerID))
 }
 
 func (s *DockerAuthzSuite) TestAuthZPluginErrorResponse(c *check.C) {

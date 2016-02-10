@@ -104,7 +104,8 @@ func (c *controller) getNetworksForScope(scope string) ([]*network, error) {
 		ec := &endpointCnt{n: n}
 		err = store.GetObject(datastore.Key(ec.Key()...), ec)
 		if err != nil {
-			return nil, fmt.Errorf("could not find endpoint count key %s for network %s while listing: %v", datastore.Key(ec.Key()...), n.Name(), err)
+			log.Warnf("Could not find endpoint count key %s for network %s while listing: %v", datastore.Key(ec.Key()...), n.Name(), err)
+			continue
 		}
 
 		n.epCnt = ec

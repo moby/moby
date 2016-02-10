@@ -95,7 +95,7 @@ func (r *resolver) SetupFunc() func() {
 		}
 
 		for _, rule := range rules {
-			r.err = iptables.RawCombinedOutput(rule...)
+			r.err = iptables.RawCombinedOutputNative(rule...)
 			if r.err != nil {
 				return
 			}
@@ -229,6 +229,7 @@ func (r *resolver) ServeDNS(w dns.ResponseWriter, query *dns.Msg) {
 
 			resp, _, err = c.Exchange(query, addr)
 			if err == nil {
+				resp.Compress = true
 				break
 			}
 			log.Errorf("external resolution failed, %s", err)
