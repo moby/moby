@@ -42,6 +42,7 @@ const (
 	resourceAlreadyExistsCode = "ResourceAlreadyExistsException"
 	dataAlreadyAcceptedCode   = "DataAlreadyAcceptedException"
 	invalidSequenceTokenCode  = "InvalidSequenceTokenException"
+	resourceNotFoundCode      = "ResourceNotFoundException"
 
 	userAgentHeader = "User-Agent"
 )
@@ -54,6 +55,7 @@ type logStream struct {
 	lock          sync.RWMutex
 	closed        bool
 	sequenceToken *string
+	createGroup   bool
 }
 
 type api interface {
@@ -103,8 +105,9 @@ func New(ctx logger.Context) (logger.Logger, error) {
 		logGroupName:  logGroupName,
 		client:        client,
 		messages:      make(chan *logger.Message, 4096),
+		createGroup:   logCreateGroup == "true" || logCreateGroup == "t" || logCreateGroup == "1",
 	}
-	err = containerStream.create(logCreateGroup == "true" || logCreateGroup == "t" || logCreateGroup == "1")
+	err = containerStream.create()
 	if err != nil {
 		return nil, err
 	}
@@ -186,38 +189,37 @@ func (l *logStream) Close() error {
 }
 
 // create creates a log stream for the instance of the awslogs logging driver
-func (l *logStream) create(createGroup bool) error {
+func createGroup(client api, logGroupName string) error {
 
-	// Create log group first if requested
-	if createGroup {
-		input := &cloudwatchlogs.CreateLogGroupInput{
-			LogGroupName: aws.String(l.logGroupName),
-		}
+	input := &cloudwatchlogs.CreateLogGroupInput{
+		LogGroupName: aws.String(logGroupName),
+	}
 
-		_, err := l.client.CreateLogGroup(input)
+	_, err := client.CreateLogGroup(input)
 
-		if err != nil {
-			if awsErr, ok := err.(awserr.Error); ok {
-				fields := logrus.Fields{
-					"errorCode":     awsErr.Code(),
-					"message":       awsErr.Message(),
-					"origError":     awsErr.OrigErr(),
-					"logGroupName":  l.logGroupName,
-					"logStreamName": l.logStreamName,
-				}
-				if awsErr.Code() == resourceAlreadyExistsCode {
-					// Allow creation to succeed
-					logrus.WithFields(fields).Info("Log group already exists")
-					err = nil
-				} else {
-					logrus.WithFields(fields).Error("Failed to create log group")
-				}
+	if err != nil {
+		if awsErr, ok := err.(awserr.Error); ok {
+			fields := logrus.Fields{
+				"errorCode":    awsErr.Code(),
+				"message":      awsErr.Message(),
+				"origError":    awsErr.OrigErr(),
+				"logGroupName": logGroupName,
 			}
-			if err != nil {
-				return err
+			if awsErr.Code() == resourceAlreadyExistsCode {
+				// Allow creation to succeed
+				logrus.WithFields(fields).Info("Log group already exists")
+				return nil
+			} else {
+				logrus.WithFields(fields).Error("Failed to create log group")
 			}
 		}
 	}
+
+	return err
+}
+
+// create creates a log stream for the instance of the awslogs logging driver
+func (l *logStream) create() error {
 
 	input := &cloudwatchlogs.CreateLogStreamInput{
 		LogGroupName:  aws.String(l.logGroupName),
@@ -225,6 +227,19 @@ func (l *logStream) create(createGroup bool) error {
 	}
 
 	_, err := l.client.CreateLogStream(input)
+
+	// if group not found, create group and try to create stream again
+	if err != nil && l.createGroup {
+		if awsErr, ok := err.(awserr.Error); ok {
+			if awsErr.Code() == resourceNotFoundCode {
+				err = createGroup(l.client, l.logGroupName)
+				if err != nil {
+					return err
+				}
+				_, err = l.client.CreateLogStream(input)
+			}
+		}
+	}
 
 	if err != nil {
 		if awsErr, ok := err.(awserr.Error); ok {

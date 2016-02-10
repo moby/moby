@@ -85,7 +85,7 @@ func TestCreateSuccess(t *testing.T) {
 	mockClient.createLogStreamResult <- &createLogStreamResult{}
 	mockClient.createLogGroupResult <- &createLogGroupResult{}
 
-	err := stream.create(false)
+	err := stream.create()
 
 	if err != nil {
 		t.Errorf("Received unexpected err: %v\n", err)
@@ -117,7 +117,7 @@ func TestCreateError(t *testing.T) {
 		errorResult: errors.New("Error!"),
 	}
 
-	err := stream.create(false)
+	err := stream.create()
 
 	if err == nil {
 		t.Fatal("Expected non-nil err")
@@ -136,7 +136,7 @@ func TestCreateAlreadyExists(t *testing.T) {
 		errorResult: awserr.New(resourceAlreadyExistsCode, "", nil),
 	}
 
-	err := stream.create(false)
+	err := stream.create()
 
 	if err != nil {
 		t.Fatal("Expected nil err")
