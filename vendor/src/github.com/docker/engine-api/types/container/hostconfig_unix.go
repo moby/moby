@@ -4,8 +4,8 @@ package container
 
 import "strings"
 
-// IsValid indicates is an isolation level is valid
-func (i IsolationLevel) IsValid() bool {
+// IsValid indicates if an isolation technology is valid
+func (i Isolation) IsValid() bool {
 	return i.IsDefault()
 }
 
