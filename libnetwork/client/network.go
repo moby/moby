@@ -43,6 +43,7 @@ func (cli *NetworkCli) CmdNetworkCreate(chain string, args ...string) error {
 	cmd := cli.Subcmd(chain, "create", "NETWORK-NAME", "Creates a new network with a name specified by the user", false)
 	flDriver := cmd.String([]string{"d", "-driver"}, "", "Driver to manage the Network")
 	flInternal := cmd.Bool([]string{"-internal"}, false, "Config the network to be internal")
+	flIPv6 := cmd.Bool([]string{"-ipv6"}, false, "Enable IPv6 on the network")
 	cmd.Require(flag.Exact, 1)
 	err := cmd.ParseFlags(args, true)
 	if err != nil {
@@ -51,6 +52,9 @@ func (cli *NetworkCli) CmdNetworkCreate(chain string, args ...string) error {
 	networkOpts := make(map[string]string)
 	if *flInternal {
 		networkOpts[netlabel.Internal] = "true"
+	}
+	if *flIPv6 {
+		networkOpts[netlabel.EnableIPv6] = "true"
 	}
 	// Construct network create request body
 	var driverOpts []string

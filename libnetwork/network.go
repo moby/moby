@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
-	"strconv"
 	"strings"
 	"sync"
 
@@ -476,9 +475,17 @@ type NetworkOption func(n *network)
 // in a Dictionary of Key-Value pair
 func NetworkOptionGeneric(generic map[string]interface{}) NetworkOption {
 	return func(n *network) {
-		n.generic = generic
-		if _, ok := generic[netlabel.EnableIPv6]; ok {
-			n.enableIPv6 = generic[netlabel.EnableIPv6].(bool)
+		if n.generic == nil {
+			n.generic = make(map[string]interface{})
+		}
+		if val, ok := generic[netlabel.EnableIPv6]; ok {
+			n.enableIPv6 = val.(bool)
+		}
+		if val, ok := generic[netlabel.Internal]; ok {
+			n.internal = val.(bool)
+		}
+		for k, v := range generic {
+			n.generic[k] = v
 		}
 	}
 }
@@ -490,14 +497,25 @@ func NetworkOptionPersist(persist bool) NetworkOption {
 	}
 }
 
+// NetworkOptionEnableIPv6 returns an option setter to explicitly configure IPv6
+func NetworkOptionEnableIPv6(enableIPv6 bool) NetworkOption {
+	return func(n *network) {
+		if n.generic == nil {
+			n.generic = make(map[string]interface{})
+		}
+		n.enableIPv6 = enableIPv6
+		n.generic[netlabel.EnableIPv6] = enableIPv6
+	}
+}
+
 // NetworkOptionInternalNetwork returns an option setter to config the network
 // to be internal which disables default gateway service
 func NetworkOptionInternalNetwork() NetworkOption {
 	return func(n *network) {
-		n.internal = true
 		if n.generic == nil {
 			n.generic = make(map[string]interface{})
 		}
+		n.internal = true
 		n.generic[netlabel.Internal] = true
 	}
 }
@@ -526,13 +544,6 @@ func NetworkOptionDriverOpts(opts map[string]string) NetworkOption {
 		}
 		// Store the options
 		n.generic[netlabel.GenericData] = opts
-		// Decode and store the endpoint options of libnetwork interest
-		if val, ok := opts[netlabel.EnableIPv6]; ok {
-			var err error
-			if n.enableIPv6, err = strconv.ParseBool(val); err != nil {
-				log.Warnf("Failed to parse %s' value: %s (%s)", netlabel.EnableIPv6, val, err.Error())
-			}
-		}
 	}
 }
 

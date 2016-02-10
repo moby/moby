@@ -225,11 +225,13 @@ func TestCreateDeleteNetwork(t *testing.T) {
 		t.Fatalf("Expected StatusBadRequest status code, got: %v", errRsp)
 	}
 
-	ops := map[string]string{
-		bridge.BridgeName:   "abc",
+	dops := map[string]string{
+		bridge.BridgeName: "abc",
+	}
+	nops := map[string]string{
 		netlabel.EnableIPv6: "true",
 	}
-	nc := networkCreate{Name: "network_1", NetworkType: bridgeNetType, DriverOpts: ops}
+	nc := networkCreate{Name: "network_1", NetworkType: bridgeNetType, DriverOpts: dops, NetworkOpts: nops}
 	goodBody, err := json.Marshal(nc)
 	if err != nil {
 		t.Fatal(err)
@@ -257,29 +259,6 @@ func TestCreateDeleteNetwork(t *testing.T) {
 	if errRsp != &successResponse {
 		t.Fatalf("Unexepected failure: %v", errRsp)
 	}
-
-	// Create with labels
-	labels := map[string]string{
-		netlabel.EnableIPv6: "true",
-		bridge.BridgeName:   "abc",
-	}
-	nc = networkCreate{Name: "network_2", NetworkType: bridgeNetType, DriverOpts: labels}
-	goodBody, err = json.Marshal(nc)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, errRsp = procCreateNetwork(c, vars, goodBody)
-	if errRsp != &createdResponse {
-		t.Fatalf("Unexepected failure: %v", errRsp)
-	}
-
-	vars[urlNwName] = "network_2"
-	_, errRsp = procDeleteNetwork(c, vars, nil)
-	if errRsp != &successResponse {
-		t.Fatalf("Unexepected failure: %v", errRsp)
-	}
-
 }
 
 func TestGetNetworksAndEndpoints(t *testing.T) {
@@ -1830,14 +1809,16 @@ func TestEndToEnd(t *testing.T) {
 
 	handleRequest := NewHTTPHandler(c)
 
-	ops := map[string]string{
-		bridge.BridgeName:   "cdef",
+	dops := map[string]string{
+		bridge.BridgeName:  "cdef",
+		netlabel.DriverMTU: "1460",
+	}
+	nops := map[string]string{
 		netlabel.EnableIPv6: "true",
-		netlabel.DriverMTU:  "1460",
 	}
 
 	// Create network
-	nc := networkCreate{Name: "network-fiftyfive", NetworkType: bridgeNetType, DriverOpts: ops}
+	nc := networkCreate{Name: "network-fiftyfive", NetworkType: bridgeNetType, DriverOpts: dops, NetworkOpts: nops}
 	body, err := json.Marshal(nc)
 	if err != nil {
 		t.Fatal(err)
