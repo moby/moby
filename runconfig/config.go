@@ -44,8 +44,8 @@ func DecodeContainerConfig(src io.Reader) (*container.Config, *container.HostCon
 		return nil, nil, nil, err
 	}
 
-	// Validate the isolation level
-	if err := ValidateIsolationLevel(hc); err != nil {
+	// Validate isolation
+	if err := ValidateIsolation(hc); err != nil {
 		return nil, nil, nil, err
 	}
 	return w.Config, hc, w.NetworkingConfig, nil

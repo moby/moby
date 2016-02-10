@@ -91,7 +91,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 		flCgroupParent      = cmd.String([]string{"-cgroup-parent"}, "", "Optional parent cgroup for the container")
 		flVolumeDriver      = cmd.String([]string{"-volume-driver"}, "", "Optional volume driver for the container")
 		flStopSignal        = cmd.String([]string{"-stop-signal"}, signal.DefaultStopSignal, fmt.Sprintf("Signal to stop a container, %v by default", signal.DefaultStopSignal))
-		flIsolation         = cmd.String([]string{"-isolation"}, "", "Container isolation level")
+		flIsolation         = cmd.String([]string{"-isolation"}, "", "Container isolation technology")
 		flShmSize           = cmd.String([]string{"-shm-size"}, "", "Size of /dev/shm, default value is 64MB")
 	)
 
@@ -408,7 +408,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 		ReadonlyRootfs: *flReadonlyRootfs,
 		LogConfig:      container.LogConfig{Type: *flLoggingDriver, Config: loggingOpts},
 		VolumeDriver:   *flVolumeDriver,
-		Isolation:      container.IsolationLevel(*flIsolation),
+		Isolation:      container.Isolation(*flIsolation),
 		ShmSize:        shmSize,
 		Resources:      resources,
 		Tmpfs:          tmpfs,
