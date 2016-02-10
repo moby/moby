@@ -13,11 +13,11 @@ import (
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/signal"
+	"github.com/docker/docker/vendor/src/github.com/docker/go-units"
 	"github.com/docker/engine-api/types/container"
 	networktypes "github.com/docker/engine-api/types/network"
 	"github.com/docker/engine-api/types/strslice"
 	"github.com/docker/go-connections/nat"
-	"github.com/docker/go-units"
 )
 
 // Parse parses the specified args for the specified command and generates a Config,
@@ -356,6 +356,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 	config := &container.Config{
 		Hostname:     hostname,
 		Domainname:   domainname,
+		HostnameFQDN: true,
 		ExposedPorts: ports,
 		User:         *flUser,
 		Tty:          *flTty,

@@ -14,6 +14,7 @@ import (
 type Config struct {
 	Hostname        string                // Hostname
 	Domainname      string                // Domainname
+	HostnameFQDN    bool                  // The containers hostname should be the FQDN
 	User            string                // User that will run the command(s) inside the container
 	AttachStdin     bool                  // Attach the standard input, makes possible user interaction
 	AttachStdout    bool                  // Attach the standard output
