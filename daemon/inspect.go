@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/container"
-	"github.com/docker/docker/daemon/exec"
 	"github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/pkg/version"
 	"github.com/docker/engine-api/types"
@@ -175,12 +175,26 @@ func (daemon *Daemon) getInspectData(container *container.Container, size bool) 
 
 // ContainerExecInspect returns low-level information about the exec
 // command. An error is returned if the exec cannot be found.
-func (daemon *Daemon) ContainerExecInspect(id string) (*exec.Config, error) {
-	eConfig, err := daemon.getExecConfig(id)
+func (daemon *Daemon) ContainerExecInspect(id string) (*backend.ExecInspect, error) {
+	e, err := daemon.getExecConfig(id)
 	if err != nil {
 		return nil, err
 	}
-	return eConfig, nil
+
+	pc := inspectExecProcessConfig(e)
+
+	return &backend.ExecInspect{
+		ID:            e.ID,
+		Running:       e.Running,
+		ExitCode:      e.ExitCode,
+		ProcessConfig: pc,
+		OpenStdin:     e.OpenStdin,
+		OpenStdout:    e.OpenStdout,
+		OpenStderr:    e.OpenStderr,
+		CanRemove:     e.CanRemove,
+		ContainerID:   e.ContainerID,
+		DetachKeys:    e.DetachKeys,
+	}, nil
 }
 
 // VolumeInspect looks up a volume by name. An error is returned if
