@@ -9,14 +9,6 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/server/router"
-	"github.com/docker/docker/api/server/router/build"
-	"github.com/docker/docker/api/server/router/container"
-	"github.com/docker/docker/api/server/router/image"
-	"github.com/docker/docker/api/server/router/network"
-	"github.com/docker/docker/api/server/router/system"
-	"github.com/docker/docker/api/server/router/volume"
-	"github.com/docker/docker/builder/dockerfile"
-	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/pkg/authorization"
 	"github.com/docker/docker/utils"
 	"github.com/docker/go-connections/sockets"
@@ -174,14 +166,11 @@ func (s *Server) makeHTTPHandler(handler httputils.APIFunc) http.HandlerFunc {
 	}
 }
 
-// InitRouters initializes a list of routers for the server.
-func (s *Server) InitRouters(d *daemon.Daemon) {
-	s.addRouter(container.NewRouter(d))
-	s.addRouter(image.NewRouter(d))
-	s.addRouter(network.NewRouter(d))
-	s.addRouter(system.NewRouter(d))
-	s.addRouter(volume.NewRouter(d))
-	s.addRouter(build.NewRouter(dockerfile.NewBuildManager(d)))
+// AddRouters initializes a list of routers for the server.
+func (s *Server) AddRouters(routers ...router.Router) {
+	for _, r := range routers {
+		s.addRouter(r)
+	}
 }
 
 // addRouter adds a new router to the server.
@@ -231,13 +220,13 @@ func (s *Server) initRouterSwapper() {
 // Reload reads configuration changes and modifies the
 // server according to those changes.
 // Currently, only the --debug configuration is taken into account.
-func (s *Server) Reload(config *daemon.Config) {
+func (s *Server) Reload(debug bool) {
 	debugEnabled := utils.IsDebugEnabled()
 	switch {
-	case debugEnabled && !config.Debug: // disable debug
+	case debugEnabled && !debug: // disable debug
 		utils.DisableDebug()
 		s.routerSwapper.Swap(s.createMux())
-	case config.Debug && !debugEnabled: // enable debug
+	case debug && !debugEnabled: // enable debug
 		utils.EnableDebug()
 		s.routerSwapper.Swap(s.createMux())
 	}

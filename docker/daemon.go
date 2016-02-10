@@ -14,6 +14,13 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/uuid"
 	apiserver "github.com/docker/docker/api/server"
+	"github.com/docker/docker/api/server/router/build"
+	"github.com/docker/docker/api/server/router/container"
+	"github.com/docker/docker/api/server/router/image"
+	"github.com/docker/docker/api/server/router/network"
+	systemrouter "github.com/docker/docker/api/server/router/system"
+	"github.com/docker/docker/api/server/router/volume"
+	"github.com/docker/docker/builder/dockerfile"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/daemon"
@@ -270,14 +277,14 @@ func (cli *DaemonCli) CmdDaemon(args ...string) error {
 		"graphdriver": d.GraphDriverName(),
 	}).Info("Docker daemon")
 
-	api.InitRouters(d)
+	initRouters(api, d)
 
 	reload := func(config *daemon.Config) {
 		if err := d.Reload(config); err != nil {
 			logrus.Errorf("Error reconfiguring the daemon: %v", err)
 			return
 		}
-		api.Reload(config)
+		api.Reload(config.Debug)
 	}
 
 	setupConfigReloadTrap(*configFile, cli.flags, reload)
@@ -372,4 +379,13 @@ func loadDaemonCliConfig(config *daemon.Config, daemonFlags *flag.FlagSet, commo
 	setDaemonLogLevel(config.LogLevel)
 
 	return config, nil
+}
+
+func initRouters(s *apiserver.Server, d *daemon.Daemon) {
+	s.AddRouters(container.NewRouter(d),
+		image.NewRouter(d),
+		network.NewRouter(d),
+		systemrouter.NewRouter(d),
+		volume.NewRouter(d),
+		build.NewRouter(dockerfile.NewBuildManager(d)))
 }
