@@ -127,7 +127,7 @@ type ImageBuildOptions struct {
 	Remove         bool
 	ForceRemove    bool
 	PullParent     bool
-	IsolationLevel container.IsolationLevel
+	Isolation      container.Isolation
 	CPUSetCPUs     string
 	CPUSetMems     string
 	CPUShares      int64

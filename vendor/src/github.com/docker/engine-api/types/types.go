@@ -238,8 +238,8 @@ type Info struct {
 	ClusterAdvertise   string
 }
 
-// PluginsInfo is temp struct holds Plugins name
-// registered with docker daemon. It used by Info struct
+// PluginsInfo is a temp struct holding Plugins name
+// registered with docker daemon. It is used by Info struct
 type PluginsInfo struct {
 	// List of Volume plugins registered
 	Volume []string
