@@ -208,7 +208,6 @@ func createGroup(client api, logGroupName string) error {
 			if awsErr.Code() == resourceAlreadyExistsCode {
 				// Allow creation to succeed
 				logrus.WithFields(fields).Info("Log group already exists")
-				return nil
 			} else {
 				logrus.WithFields(fields).Error("Failed to create log group")
 			}
