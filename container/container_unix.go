@@ -44,7 +44,6 @@ type Container struct {
 	HostnamePath    string
 	HostsPath       string
 	ShmPath         string
-	MqueuePath      string
 	ResolvConfPath  string
 	SeccompProfile  string
 }
@@ -545,15 +544,6 @@ func (container *Container) IpcMounts() []execdriver.Mount {
 		mounts = append(mounts, execdriver.Mount{
 			Source:      container.ShmPath,
 			Destination: "/dev/shm",
-			Writable:    true,
-			Propagation: volume.DefaultPropagationMode,
-		})
-	}
-	if !container.HasMountFor("/dev/mqueue") &&
-		container.MqueuePath != "" {
-		mounts = append(mounts, execdriver.Mount{
-			Source:      container.MqueuePath,
-			Destination: "/dev/mqueue",
 			Writable:    true,
 			Propagation: volume.DefaultPropagationMode,
 		})
