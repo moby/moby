@@ -241,7 +241,8 @@ func (d *Driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, hooks execd
 					!strings.Contains(err.Error(), `Win32 API call returned error r1=0x80070490`) && // Element not found
 					!strings.Contains(err.Error(), `Win32 API call returned error r1=0x80070002`) && // The system cannot find the file specified
 					!strings.Contains(err.Error(), `Win32 API call returned error r1=0x800704c6`) && // The network is not present or not started
-					!strings.Contains(err.Error(), `Win32 API call returned error r1=0x800700a1`) { // The specified path is invalid
+					!strings.Contains(err.Error(), `Win32 API call returned error r1=0x800700a1`) && // The specified path is invalid
+					!strings.Contains(err.Error(), `Win32 API call returned error r1=0x800710d8`) { // The object identifier does not represent a valid object
 					logrus.Debugln("Failed to create temporary container ", err)
 					return execdriver.ExitStatus{ExitCode: -1}, err
 				}
