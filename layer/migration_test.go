@@ -268,7 +268,7 @@ func TestLayerMigrationNoTarsplit(t *testing.T) {
 }
 
 func TestMountMigration(t *testing.T) {
-	ls, cleanup := newTestStore(t)
+	ls, _, cleanup := newTestStore(t)
 	defer cleanup()
 
 	baseFiles := []FileApplier{
