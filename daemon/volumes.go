@@ -117,7 +117,7 @@ func (daemon *Daemon) registerMountPoints(container *container.Container, hostCo
 			return derr.ErrorCodeMountDup.WithArgs(bind.Destination)
 		}
 
-		if len(bind.Name) > 0 && len(bind.Driver) > 0 {
+		if len(bind.Name) > 0 {
 			// create the volume
 			v, err := daemon.volumes.CreateWithRef(bind.Name, bind.Driver, container.ID, nil)
 			if err != nil {
