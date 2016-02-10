@@ -13,13 +13,14 @@ import (
 
 	"bufio"
 	"bytes"
+	"os/exec"
+	"strconv"
+	"time"
+
 	"github.com/docker/docker/pkg/authorization"
 	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/go-check/check"
-	"os/exec"
-	"strconv"
-	"time"
 )
 
 const (
@@ -230,9 +231,11 @@ func (s *DockerAuthzSuite) TestAuthZPluginDenyResponse(c *check.C) {
 func (s *DockerAuthzSuite) TestAuthZPluginAllowEventStream(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 
-	// Start the authorization plugin
-	err := s.d.Start("--authorization-plugin=" + testAuthZPlugin)
-	c.Assert(err, check.IsNil)
+	// start the daemon and load busybox to avoid pulling busybox from Docker Hub
+	c.Assert(s.d.StartWithBusybox(), check.IsNil)
+	// restart the daemon and enable the authorization plugin, otherwise busybox loading
+	// is blocked by the plugin itself
+	c.Assert(s.d.Restart("--authorization-plugin="+testAuthZPlugin), check.IsNil)
 	s.ctrl.reqRes.Allow = true
 	s.ctrl.resRes.Allow = true
 
@@ -256,10 +259,8 @@ func (s *DockerAuthzSuite) TestAuthZPluginAllowEventStream(c *check.C) {
 	defer observer.Stop()
 
 	// Create a container and wait for the creation events
-	_, err = s.d.Cmd("pull", "busybox")
-	c.Assert(err, check.IsNil)
 	out, err := s.d.Cmd("run", "-d", "busybox", "top")
-	c.Assert(err, check.IsNil)
+	c.Assert(err, check.IsNil, check.Commentf(out))
 
 	containerID := strings.TrimSpace(out)
 
