@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/pkg/integration/checker"
+	"github.com/docker/engine-api/types"
 	"github.com/go-check/check"
 )
 
@@ -409,4 +410,16 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverGet(c *check.C) {
 	c.Assert(err, check.NotNil, check.Commentf(out))
 	c.Assert(s.ec.gets, check.Equals, 1)
 	c.Assert(out, checker.Contains, "No such volume")
+}
+
+func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverWithDaemnRestart(c *check.C) {
+	dockerCmd(c, "volume", "create", "-d", "test-external-volume-driver", "--name", "abc")
+	err := s.d.Restart()
+	c.Assert(err, checker.IsNil)
+
+	dockerCmd(c, "run", "--name=test", "-v", "abc:/foo", "busybox", "true")
+	var mounts []types.MountPoint
+	inspectFieldAndMarshall(c, "test", "Mounts", &mounts)
+	c.Assert(mounts, checker.HasLen, 1)
+	c.Assert(mounts[0].Driver, checker.Equals, "test-external-volume-driver")
 }
