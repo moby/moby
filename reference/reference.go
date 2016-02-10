@@ -1,6 +1,7 @@
 package reference
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -72,7 +73,10 @@ func ParseNamed(s string) (Named, error) {
 // WithName returns a named object representing the given string. If the input
 // is invalid ErrReferenceInvalidFormat will be returned.
 func WithName(name string) (Named, error) {
-	name = normalize(name)
+	name, err := normalize(name)
+	if err != nil {
+		return nil, err
+	}
 	if err := validateName(name); err != nil {
 		return nil, err
 	}
@@ -172,15 +176,18 @@ func splitHostname(name string) (hostname, remoteName string) {
 
 // normalize returns a repository name in its normalized form, meaning it
 // will not contain default hostname nor library/ prefix for official images.
-func normalize(name string) string {
+func normalize(name string) (string, error) {
 	host, remoteName := splitHostname(name)
+	if strings.ToLower(remoteName) != remoteName {
+		return "", errors.New("invalid reference format: repository name must be lowercase")
+	}
 	if host == DefaultHostname {
 		if strings.HasPrefix(remoteName, DefaultRepoPrefix) {
-			return strings.TrimPrefix(remoteName, DefaultRepoPrefix)
+			return strings.TrimPrefix(remoteName, DefaultRepoPrefix), nil
 		}
-		return remoteName
+		return remoteName, nil
 	}
-	return name
+	return name, nil
 }
 
 func validateName(name string) error {
