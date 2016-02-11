@@ -4,6 +4,7 @@ package windows
 
 import (
 	"fmt"
+	"syscall"
 
 	"github.com/Microsoft/hcsshim"
 	"github.com/Sirupsen/logrus"
@@ -17,7 +18,6 @@ func (d *Driver) Exec(c *execdriver.Command, processConfig *execdriver.ProcessCo
 		term     execdriver.Terminal
 		err      error
 		exitCode int32
-		errno    uint32
 	)
 
 	active := d.activeContainers[c.ID]
@@ -41,13 +41,13 @@ func (d *Driver) Exec(c *execdriver.Command, processConfig *execdriver.ProcessCo
 	}
 
 	// Start the command running in the container.
-	pid, stdin, stdout, stderr, rc, err := hcsshim.CreateProcessInComputeSystem(c.ID, pipes.Stdin != nil, true, !processConfig.Tty, createProcessParms)
+	pid, stdin, stdout, stderr, err := hcsshim.CreateProcessInComputeSystem(c.ID, pipes.Stdin != nil, true, !processConfig.Tty, createProcessParms)
 	if err != nil {
 		// TODO Windows: TP4 Workaround. In Hyper-V containers, there is a limitation
 		// of one exec per container. This should be fixed post TP4. CreateProcessInComputeSystem
 		// will return a specific error which we handle here to give a good error message
 		// back to the user instead of an inactionable "An invalid argument was supplied"
-		if rc == hcsshim.Win32InvalidArgument {
+		if herr, ok := err.(*hcsshim.HcsError); ok && herr.Err == hcsshim.WSAEINVAL {
 			return -1, fmt.Errorf("The limit of docker execs per Hyper-V container has been exceeded")
 		}
 		logrus.Errorf("CreateProcessInComputeSystem() failed %s", err)
@@ -75,12 +75,12 @@ func (d *Driver) Exec(c *execdriver.Command, processConfig *execdriver.ProcessCo
 		hooks.Start(&c.ProcessConfig, int(pid), chOOM)
 	}
 
-	if exitCode, errno, err = hcsshim.WaitForProcessInComputeSystem(c.ID, pid, hcsshim.TimeoutInfinite); err != nil {
-		if errno == hcsshim.Win32PipeHasBeenEnded {
-			logrus.Debugf("Exiting Run() after WaitForProcessInComputeSystem failed with recognised error 0x%X", errno)
+	if exitCode, err = hcsshim.WaitForProcessInComputeSystem(c.ID, pid, hcsshim.TimeoutInfinite); err != nil {
+		if herr, ok := err.(*hcsshim.HcsError); ok && herr.Err == syscall.ERROR_BROKEN_PIPE {
+			logrus.Debugf("Exiting Run() after WaitForProcessInComputeSystem failed with recognised error %s", err)
 			return hcsshim.WaitErrExecFailed, nil
 		}
-		logrus.Warnf("WaitForProcessInComputeSystem failed (container may have been killed): 0x%X %s", errno, err)
+		logrus.Warnf("WaitForProcessInComputeSystem failed (container may have been killed): %s", err)
 		return -1, err
 	}
 
