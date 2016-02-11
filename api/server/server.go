@@ -11,7 +11,6 @@ import (
 	"github.com/docker/docker/api/server/router"
 	"github.com/docker/docker/pkg/authorization"
 	"github.com/docker/docker/utils"
-	"github.com/docker/go-connections/sockets"
 	"github.com/gorilla/mux"
 	"golang.org/x/net/context"
 )
@@ -29,7 +28,6 @@ type Config struct {
 	Version                  string
 	SocketGroup              string
 	TLSConfig                *tls.Config
-	Addrs                    []Addr
 }
 
 // Server contains instance details for the server
@@ -41,27 +39,25 @@ type Server struct {
 	routerSwapper *routerSwapper
 }
 
-// Addr contains string representation of address and its protocol (tcp, unix...).
-type Addr struct {
-	Proto string
-	Addr  string
-}
-
 // New returns a new instance of the server based on the specified configuration.
 // It allocates resources which will be needed for ServeAPI(ports, unix-sockets).
-func New(cfg *Config) (*Server, error) {
-	s := &Server{
+func New(cfg *Config) *Server {
+	return &Server{
 		cfg: cfg,
 	}
-	for _, addr := range cfg.Addrs {
-		srv, err := s.newServer(addr.Proto, addr.Addr)
-		if err != nil {
-			return nil, err
+}
+
+// Accept sets a listener the server accepts connections into.
+func (s *Server) Accept(addr string, listeners ...net.Listener) {
+	for _, listener := range listeners {
+		httpServer := &HTTPServer{
+			srv: &http.Server{
+				Addr: addr,
+			},
+			l: listener,
 		}
-		logrus.Debugf("Server created for HTTP on %s (%s)", addr.Proto, addr.Addr)
-		s.servers = append(s.servers, srv...)
+		s.servers = append(s.servers, httpServer)
 	}
-	return s, nil
 }
 
 // Close closes servers and thus stop receiving requests
@@ -124,19 +120,6 @@ func writeCorsHeaders(w http.ResponseWriter, r *http.Request, corsHeaders string
 	w.Header().Add("Access-Control-Allow-Origin", corsHeaders)
 	w.Header().Add("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, X-Registry-Auth")
 	w.Header().Add("Access-Control-Allow-Methods", "HEAD, GET, POST, DELETE, PUT, OPTIONS")
-}
-
-func (s *Server) initTCPSocket(addr string) (l net.Listener, err error) {
-	if s.cfg.TLSConfig == nil || s.cfg.TLSConfig.ClientAuth != tls.RequireAndVerifyClientCert {
-		logrus.Warn("/!\\ DON'T BIND ON ANY IP ADDRESS WITHOUT setting -tlsverify IF YOU DON'T KNOW WHAT YOU'RE DOING /!\\")
-	}
-	if l, err = sockets.NewTCPSocket(addr, s.cfg.TLSConfig); err != nil {
-		return nil, err
-	}
-	if err := allocateDaemonPort(addr); err != nil {
-		return nil, err
-	}
-	return
 }
 
 func (s *Server) makeHTTPHandler(handler httputils.APIFunc) http.HandlerFunc {
