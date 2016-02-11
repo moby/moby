@@ -116,7 +116,7 @@ func (ctx *Ctx) AuthZResponse(rm ResponseModifier, r *http.Request) error {
 		}
 	}
 
-	rm.Flush()
+	rm.FlushAll()
 
 	return nil
 }

@@ -24,11 +24,18 @@ func init() {
 	})
 }
 
+type vol struct {
+	Name       string
+	Mountpoint string
+	Opts       map[string]string
+}
+
 type DockerExternalVolumeSuiteCompatV1_1 struct {
-	server *httptest.Server
-	ds     *DockerSuite
-	d      *Daemon
-	ec     *eventCounter
+	server  *httptest.Server
+	ds      *DockerSuite
+	d       *Daemon
+	ec      *eventCounter
+	volList []vol
 }
 
 func (s *DockerExternalVolumeSuiteCompatV1_1) SetUpTest(c *check.C) {
@@ -47,18 +54,13 @@ func (s *DockerExternalVolumeSuiteCompatV1_1) SetUpSuite(c *check.C) {
 
 	type pluginRequest struct {
 		Name string
+		Opts map[string]string
 	}
 
 	type pluginResp struct {
 		Mountpoint string `json:",omitempty"`
 		Err        string `json:",omitempty"`
 	}
-
-	type vol struct {
-		Name       string
-		Mountpoint string
-	}
-	var volList []vol
 
 	read := func(b io.ReadCloser) (pluginRequest, error) {
 		defer b.Close()
@@ -94,7 +96,7 @@ func (s *DockerExternalVolumeSuiteCompatV1_1) SetUpSuite(c *check.C) {
 			send(w, err)
 			return
 		}
-		volList = append(volList, vol{Name: pr.Name})
+		s.volList = append(s.volList, vol{Name: pr.Name, Opts: pr.Opts})
 		send(w, nil)
 	})
 
@@ -111,13 +113,13 @@ func (s *DockerExternalVolumeSuiteCompatV1_1) SetUpSuite(c *check.C) {
 			return
 		}
 
-		for i, v := range volList {
+		for i, v := range s.volList {
 			if v.Name == pr.Name {
 				if err := os.RemoveAll(hostVolumePath(v.Name)); err != nil {
 					send(w, fmt.Sprintf(`{"Err": "%v"}`, err))
 					return
 				}
-				volList = append(volList[:i], volList[i+1:]...)
+				s.volList = append(s.volList[:i], s.volList[i+1:]...)
 				break
 			}
 		}
@@ -211,5 +213,22 @@ func (s *DockerExternalVolumeSuiteCompatV1_1) TestExternalVolumeDriverCompatV1_1
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 
 	out, err = s.d.Cmd("volume", "rm", "foo")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+}
+
+func (s *DockerExternalVolumeSuiteCompatV1_1) TestExternalVolumeDriverCompatOptionsV1_1(c *check.C) {
+	err := s.d.StartWithBusybox()
+	c.Assert(err, checker.IsNil)
+
+	out, err := s.d.Cmd("volume", "create", "--name", "optvol", "--driver", "test-external-volume-driver", "--opt", "opt1=opt1val", "--opt", "opt2=opt2val")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+
+	out, err = s.d.Cmd("volume", "inspect", "optvol")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+
+	c.Assert(s.volList[0].Opts["opt1"], checker.Equals, "opt1val")
+	c.Assert(s.volList[0].Opts["opt2"], checker.Equals, "opt2val")
+
+	out, err = s.d.Cmd("volume", "rm", "optvol")
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 }

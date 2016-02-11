@@ -325,9 +325,11 @@ func Raw(args ...string) ([]byte, error) {
 		if err == nil || !strings.Contains(err.Error(), "was not provided by any .service files") {
 			return output, err
 		}
-
 	}
+	return raw(args...)
+}
 
+func raw(args ...string) ([]byte, error) {
 	if err := initCheck(); err != nil {
 		return nil, err
 	}
@@ -357,6 +359,15 @@ func Raw(args ...string) ([]byte, error) {
 // error if Raw returned a non nil error or a non empty output
 func RawCombinedOutput(args ...string) error {
 	if output, err := Raw(args...); err != nil || len(output) != 0 {
+		return fmt.Errorf("%s (%v)", string(output), err)
+	}
+	return nil
+}
+
+// RawCombinedOutputNative behave as RawCombinedOutput with the difference it
+// will always invoke `iptables` binary
+func RawCombinedOutputNative(args ...string) error {
+	if output, err := raw(args...); err != nil || len(output) != 0 {
 		return fmt.Errorf("%s (%v)", string(output), err)
 	}
 	return nil

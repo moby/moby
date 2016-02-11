@@ -15,7 +15,20 @@ func (a *volumeDriverAdapter) Name() string {
 }
 
 func (a *volumeDriverAdapter) Create(name string, opts map[string]string) (volume.Volume, error) {
-	err := a.proxy.Create(name, opts)
+	// First try a Get. For drivers that support Get this will return any
+	// existing volume.
+	v, err := a.proxy.Get(name)
+	if v != nil {
+		return &volumeAdapter{
+			proxy:      a.proxy,
+			name:       v.Name,
+			driverName: a.Name(),
+			eMount:     v.Mountpoint,
+		}, nil
+	}
+
+	// Driver didn't support Get or volume didn't exist. Perform Create.
+	err = a.proxy.Create(name, opts)
 	if err != nil {
 		return nil, err
 	}
