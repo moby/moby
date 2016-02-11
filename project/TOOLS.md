@@ -42,7 +42,7 @@ The gordon-bot repository is maintained at
 ### NSQ
 
 We use [NSQ](https://github.com/bitly/nsq) for various aspects of the project
-infrastucture.
+infrastructure.
 
 #### Hooks
 

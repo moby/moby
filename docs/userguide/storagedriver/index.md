@@ -25,7 +25,7 @@ Docker relies on driver technology to manage the storage and interactions associ
 
 If you are new to Docker containers make sure you read ["Understand images, containers, and storage drivers"](imagesandcontainers.md) first. It explains key concepts and technologies that can help you when working with storage drivers.
 
-### Acknowledgement
+### Acknowledgment
 
 The Docker storage driver material was created in large part by our guest author
 Nigel Poulton with a bit of help from Docker's own Jérôme Petazzoni. In his

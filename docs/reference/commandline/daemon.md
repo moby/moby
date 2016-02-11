@@ -802,7 +802,7 @@ cgroup.
 
 Assuming the daemon is running in cgroup `daemoncgroup`,
 `--cgroup-parent=/foobar` creates a cgroup in
-`/sys/fs/cgroup/memory/foobar`, wheras using `--cgroup-parent=foobar`
+`/sys/fs/cgroup/memory/foobar`, whereas using `--cgroup-parent=foobar`
 creates the cgroup in `/sys/fs/cgroup/memory/daemoncgroup/foobar`
 
 This setting can also be set per container, using the `--cgroup-parent`
