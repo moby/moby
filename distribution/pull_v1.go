@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"net"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 
@@ -279,6 +280,7 @@ type v1LayerDescriptor struct {
 	layersDownloaded *bool
 	layerSize        int64
 	session          *registry.Session
+	tmpFile          *os.File
 }
 
 func (ld *v1LayerDescriptor) Key() string {
@@ -308,7 +310,7 @@ func (ld *v1LayerDescriptor) Download(ctx context.Context, progressOutput progre
 	}
 	*ld.layersDownloaded = true
 
-	tmpFile, err := ioutil.TempFile("", "GetImageBlob")
+	ld.tmpFile, err = ioutil.TempFile("", "GetImageBlob")
 	if err != nil {
 		layerReader.Close()
 		return nil, 0, err
@@ -317,17 +319,28 @@ func (ld *v1LayerDescriptor) Download(ctx context.Context, progressOutput progre
 	reader := progress.NewProgressReader(ioutils.NewCancelReadCloser(ctx, layerReader), progressOutput, ld.layerSize, ld.ID(), "Downloading")
 	defer reader.Close()
 
-	_, err = io.Copy(tmpFile, reader)
+	_, err = io.Copy(ld.tmpFile, reader)
 	if err != nil {
+		ld.Close()
 		return nil, 0, err
 	}
 
 	progress.Update(progressOutput, ld.ID(), "Download complete")
 
-	logrus.Debugf("Downloaded %s to tempfile %s", ld.ID(), tmpFile.Name())
+	logrus.Debugf("Downloaded %s to tempfile %s", ld.ID(), ld.tmpFile.Name())
 
-	tmpFile.Seek(0, 0)
-	return ioutils.NewReadCloserWrapper(tmpFile, tmpFileCloser(tmpFile)), ld.layerSize, nil
+	ld.tmpFile.Seek(0, 0)
+	return ld.tmpFile, ld.layerSize, nil
+}
+
+func (ld *v1LayerDescriptor) Close() {
+	if ld.tmpFile != nil {
+		ld.tmpFile.Close()
+		if err := os.RemoveAll(ld.tmpFile.Name()); err != nil {
+			logrus.Errorf("Failed to remove temp file: %s", ld.tmpFile.Name())
+		}
+		ld.tmpFile = nil
+	}
 }
 
 func (ld *v1LayerDescriptor) Registered(diffID layer.DiffID) {
