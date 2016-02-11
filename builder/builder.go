@@ -14,6 +14,11 @@ import (
 	"github.com/docker/engine-api/types/container"
 )
 
+const (
+	// DefaultDockerfileName is the Default filename with Docker commands, read by docker build
+	DefaultDockerfileName string = "Dockerfile"
+)
+
 // Context represents a file system tree.
 type Context interface {
 	// Close allows to signal that the filesystem tree won't be used anymore.
