@@ -1059,6 +1059,14 @@ one can use this flag:
     --privileged=false: Give extended privileges to this container
     --device=[]: Allows you to run devices inside the container without the --privileged flag.
 
+> **Note:**
+> With Docker 1.10 and greater, the default seccomp profile will also block
+> syscalls, regardless of `--cap-add` passed to the container. We recommend in
+> these cases to create your own custom seccomp profile based off our
+> [default](https://github.com/docker/docker/blob/master/profiles/seccomp/default.json).
+> Or if you don't want to run with the default seccomp profile, you can pass
+> `--security-opt=seccomp:unconfined` on run.
+
 By default, Docker containers are "unprivileged" and cannot, for
 example, run a Docker daemon inside a Docker container. This is because
 by default a container is not allowed to access any devices, but a
