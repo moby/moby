@@ -227,7 +227,7 @@ func (s *DockerAuthzSuite) TestAuthZPluginDenyResponse(c *check.C) {
 	c.Assert(res, check.Equals, fmt.Sprintf("Error response from daemon: authorization denied by plugin %s: %s\n", testAuthZPlugin, unauthorizedMessage))
 }
 
-// TestAuthZPluginAllowEventStream verifies event stream propogates correctly after request pass through by the authorization plugin
+// TestAuthZPluginAllowEventStream verifies event stream propagates correctly after request pass through by the authorization plugin
 func (s *DockerAuthzSuite) TestAuthZPluginAllowEventStream(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 

@@ -2,7 +2,7 @@
 set -e
 
 # This script updates the apt repo in $DOCKER_RELEASE_DIR/apt/repo.
-# This script is a "fix all" for any sort of problems that might have occured with
+# This script is a "fix all" for any sort of problems that might have occurred with
 # the Release or Package files in the repo.
 # It should only be used in the rare case of extreme emergencies to regenerate
 # Release and Package files for the apt repo.

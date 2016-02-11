@@ -43,7 +43,7 @@ type volumeDriver interface {
 	Unmount(name string) (err error)
 	// List lists all the volumes known to the driver
 	List() (volumes list, err error)
-	// Get retreives the volume with the requested name
+	// Get retrieves the volume with the requested name
 	Get(name string) (volume *proxyVolume, err error)
 }
 

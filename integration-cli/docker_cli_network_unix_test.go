@@ -248,7 +248,7 @@ func isNwPresent(c *check.C, name string) bool {
 	return false
 }
 
-// assertNwList checks network list retrived with ls command
+// assertNwList checks network list retrieved with ls command
 // equals to expected network list
 // note: out should be `network ls [option]` result
 func assertNwList(c *check.C, out string, expectNws []string) {
@@ -1236,7 +1236,7 @@ func (s *DockerSuite) TestUserDefinedNetworkConnectDisconnectLink(c *check.C) {
 	c.Assert(waitRun("first"), check.IsNil)
 
 	// run a container in a user-defined network with a link for an existing container
-	// and a link for a container that doesnt exist
+	// and a link for a container that doesn't exist
 	dockerCmd(c, "run", "-d", "--net=foo1", "--name=second", "--link=first:FirstInFoo1",
 		"--link=third:bar", "busybox", "top")
 	c.Assert(waitRun("second"), check.IsNil)
