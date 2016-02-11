@@ -69,6 +69,10 @@ func (s *DockerSuite) TestExecApiStart(c *check.C) {
 	id := createExec(c, "test")
 	startExec(c, id, http.StatusOK)
 
+	var execJSON struct{ PID int }
+	inspectExec(c, id, &execJSON)
+	c.Assert(execJSON.PID, checker.Not(checker.Equals), 0)
+
 	id = createExec(c, "test")
 	dockerCmd(c, "stop", "test")
 

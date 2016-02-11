@@ -2627,6 +2627,7 @@ Return low-level information about the `exec` command `id`.
       "OpenStdin" : false,
       "OpenStderr" : false,
       "OpenStdout" : false,
+      "PID": 1934,
       "Container" : {
         "State" : {
           "Status" : "running",

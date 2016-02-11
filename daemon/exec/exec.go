@@ -26,6 +26,7 @@ type Config struct {
 	CanRemove     bool
 	ContainerID   string
 	DetachKeys    []byte
+	PID           int
 
 	// waitStart will be closed immediately after the exec is really started.
 	waitStart chan struct{}
