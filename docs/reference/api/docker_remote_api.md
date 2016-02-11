@@ -24,6 +24,17 @@ client must have `root` access to interact with the daemon. If a group named
 `docker` exists on your system, `docker` applies ownership of the socket to the
 group.
 
+To connect to the Docker daemon with cURL you need to use cURL 7.40 or
+later, as these versions have the `--unix-socket` flag available. To
+run `curl` against the deamon on the default socket, use the
+following:
+
+    curl --unix-socket /var/run/docker.sock http://containers/json
+
+If you have bound the Docker daemon to a different socket path or TCP
+port, you would reference that in your cURL rather than the
+default.
+
 The current version of the API is v1.23 which means calling `/info` is the same
 as calling `/v1.23/info`. To call an older version of the API use
 `/v1.22/info`.
@@ -94,7 +105,7 @@ Some container-related events are not affected by container state, so they are n
 
 Running `docker rmi` emits an **untag** event when removing an image name.  The `rmi` command may also emit **delete** events when images are deleted by ID directly or by deleting the last tag referring to the image.
 
-> **Acknowledgement**: This diagram and the accompanying text were used with the permission of Matt Good and Gilder Labs. See Matt's original blog post [Docker Events Explained](http://gliderlabs.com/blog/2015/04/14/docker-events-explained/).
+> **Acknowledgement**: This diagram and the accompanying text were used with the permission of Matt Good and Gilder Labs. See Matt's original blog post [Docker Events Explained](https://gliderlabs.com/blog/2015/04/14/docker-events-explained/).
 
 ## Version history
 
