@@ -1,4 +1,2 @@
-Godeps/_workspace/bin
-Godeps/_workspace/pkg
-
+vendor
 *.test
