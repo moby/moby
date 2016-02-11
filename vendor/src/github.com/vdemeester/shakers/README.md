@@ -6,7 +6,7 @@ A collection of `go-check` Checkers to ease the use of it.
 ## Building and testing it
 
 You need either [docker](https://github.com/docker/docker), or `go`
-and `godep` in order to build and test shakers.
+and `glide` in order to build and test shakers.
 
 ### Using Docker and Makefile
 
@@ -22,3 +22,9 @@ ok      github.com/vdemeester/shakers   0.015s  coverage: 96.0% of statements
 
 Test success
 ```
+
+### Using glide and `GO15VENDOREXPERIMENT`
+
+- Get the dependencies with `glide up` (or use `go get` but you have no garantuees over the version of the dependencies)
+- If you're using glide (and not standard `go get`) export `GO15VENDOREXPERIMENT` with `export GO15VENDOREXPERIMENT=1`
+- Run tests with `go test .`
