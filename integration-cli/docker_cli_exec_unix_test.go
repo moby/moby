@@ -41,7 +41,7 @@ func (s *DockerSuite) TestExecInteractiveStdinClose(c *check.C) {
 }
 
 func (s *DockerSuite) TestExecTTY(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	testRequires(c, DaemonIsLinux, SameHostDaemon)
 	dockerCmd(c, "run", "-d", "--name=test", "busybox", "sh", "-c", "echo hello > /foo && top")
 
 	cmd := exec.Command(dockerBinary, "exec", "-it", "test", "sh")

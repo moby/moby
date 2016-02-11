@@ -16,6 +16,7 @@ import (
 
 // #9860 Make sure attach ends when container ends (with no errors)
 func (s *DockerSuite) TestAttachClosedOnContainerStop(c *check.C) {
+	testRequires(c, SameHostDaemon)
 
 	out, _ := dockerCmd(c, "run", "-dti", "busybox", "/bin/sh", "-c", `trap 'exit 0' SIGTERM; while true; do sleep 1; done`)
 
