@@ -102,7 +102,7 @@ type SignedManifest struct {
 	Canonical []byte `json:"-"`
 
 	// all contains the byte representation of the Manifest including signatures
-	// and is retuend by Payload()
+	// and is returned by Payload()
 	all []byte
 }
 
