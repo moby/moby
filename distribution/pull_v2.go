@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net/url"
 	"os"
 	"runtime"
 
@@ -17,6 +18,7 @@ import (
 	"github.com/docker/distribution/manifest/schema2"
 	"github.com/docker/distribution/registry/api/errcode"
 	"github.com/docker/distribution/registry/client"
+	"github.com/docker/distribution/registry/client/auth"
 	"github.com/docker/distribution/registry/client/transport"
 	"github.com/docker/docker/distribution/metadata"
 	"github.com/docker/docker/distribution/xfer"
@@ -708,6 +710,10 @@ func allowV1Fallback(err error) error {
 		}
 	case errcode.Error:
 		if registry.ShouldV2Fallback(v) {
+			return fallbackError{err: err, confirmedV2: false}
+		}
+	case *url.Error:
+		if v.Err == auth.ErrNoBasicAuthCredentials {
 			return fallbackError{err: err, confirmedV2: false}
 		}
 	}
