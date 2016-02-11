@@ -1049,8 +1049,8 @@ By default, the docker container process runs with the supplementary groups look
 up for the specified user. If one wants to add more to that list of groups, then
 one can use this flag:
 
-    $ docker run -it --rm --group-add audio  --group-add dbus --group-add 777 busybox id
-    uid=0(root) gid=0(root) groups=10(wheel),29(audio),81(dbus),777
+    $ docker run --rm --group-add audio --group-add nogroup --group-add 777 busybox id
+    uid=0(root) gid=0(root) groups=10(wheel),29(audio),99(nogroup),777
 
 ## Runtime privilege and Linux capabilities
 
