@@ -377,6 +377,8 @@ func (s *DockerSuite) TestDaemonIPv6Enabled(c *check.C) {
 // TestDaemonIPv6FixedCIDR checks that when the daemon is started with --ipv6=true and a fixed CIDR
 // that running containers are given a link-local and global IPv6 address
 func (s *DockerDaemonSuite) TestDaemonIPv6FixedCIDR(c *check.C) {
+	// IPv6 setup is messing with local bridge address.
+	testRequires(c, SameHostDaemon)
 	err := setupV6()
 	c.Assert(err, checker.IsNil, check.Commentf("Could not set up host for IPv6 tests"))
 
@@ -406,6 +408,8 @@ func (s *DockerDaemonSuite) TestDaemonIPv6FixedCIDR(c *check.C) {
 // TestDaemonIPv6FixedCIDRAndMac checks that when the daemon is started with ipv6 fixed CIDR
 // the running containers are given a an IPv6 address derived from the MAC address and the ipv6 fixed CIDR
 func (s *DockerDaemonSuite) TestDaemonIPv6FixedCIDRAndMac(c *check.C) {
+	// IPv6 setup is messing with local bridge address.
+	testRequires(c, SameHostDaemon)
 	err := setupV6()
 	c.Assert(err, checker.IsNil)
 
@@ -1690,13 +1694,11 @@ func (s *DockerDaemonSuite) TestDaemonNoTlsCliTlsVerifyWithEnv(c *check.C) {
 
 func setupV6() error {
 	// Hack to get the right IPv6 address on docker0, which has already been created
-	err := exec.Command("ip", "addr", "add", "fe80::1/64", "dev", "docker0").Run()
-	return err
+	return exec.Command("ip", "addr", "add", "fe80::1/64", "dev", "docker0").Run()
 }
 
 func teardownV6() error {
-	err := exec.Command("ip", "addr", "del", "fe80::1/64", "dev", "docker0").Run()
-	return err
+	return exec.Command("ip", "addr", "del", "fe80::1/64", "dev", "docker0").Run()
 }
 
 func (s *DockerDaemonSuite) TestDaemonRestartWithContainerWithRestartPolicyAlways(c *check.C) {

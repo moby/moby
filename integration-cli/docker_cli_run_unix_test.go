@@ -55,7 +55,7 @@ func (s *DockerSuite) TestRunRedirectStdout(c *check.C) {
 // Test recursive bind mount works by default
 func (s *DockerSuite) TestRunWithVolumesIsRecursive(c *check.C) {
 	// /tmp gets permission denied
-	testRequires(c, NotUserNamespace)
+	testRequires(c, NotUserNamespace, SameHostDaemon)
 	tmpDir, err := ioutil.TempDir("", "docker_recursive_mount_test")
 	c.Assert(err, checker.IsNil)
 
@@ -607,7 +607,7 @@ func (s *DockerSuite) TestRunSwapLessThanMemoryLimit(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunInvalidCpusetCpusFlagValue(c *check.C) {
-	testRequires(c, cgroupCpuset)
+	testRequires(c, cgroupCpuset, SameHostDaemon)
 
 	sysInfo := sysinfo.New(true)
 	cpus, err := parsers.ParseUintList(sysInfo.Cpus)
