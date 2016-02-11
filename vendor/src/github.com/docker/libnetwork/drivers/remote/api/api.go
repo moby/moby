@@ -7,6 +7,7 @@ package api
 import (
 	"net"
 
+	"github.com/docker/libnetwork/discoverapi"
 	"github.com/docker/libnetwork/driverapi"
 )
 
@@ -154,7 +155,7 @@ type LeaveResponse struct {
 
 // DiscoveryNotification represents a discovery notification
 type DiscoveryNotification struct {
-	DiscoveryType driverapi.DiscoveryType
+	DiscoveryType discoverapi.DiscoveryType
 	DiscoveryData interface{}
 }
 

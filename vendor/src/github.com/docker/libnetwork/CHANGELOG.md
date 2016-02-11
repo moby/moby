@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.7.0-dev.2 (2016-02-11)
+- Fixes https://github.com/docker/docker/issues/20140
+
+## 0.7.0-dev.1 (2016-02-10)
+- Expose EnableIPV6 option
+- discoverapi refactoring
+- Fixed a few typos & docs update
+
 ## 0.6.1-rc2 (2016-02-09)
 - Fixes https://github.com/docker/docker/issues/20132
 - Fixes https://github.com/docker/docker/issues/20140
@@ -87,6 +95,6 @@
 - Fixed a bunch of issues with osl namespace mgmt
 
 ## 0.3.0 (2015-05-27)
-
+ 
 - Introduce CNM (Container Networking Model)
 - Replace docker networking with CNM & Bridge driver

@@ -56,6 +56,7 @@ import (
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/libnetwork/config"
 	"github.com/docker/libnetwork/datastore"
+	"github.com/docker/libnetwork/discoverapi"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/hostdiscovery"
 	"github.com/docker/libnetwork/ipamapi"
@@ -288,12 +289,12 @@ func (c *controller) pushNodeDiscovery(d *driverData, nodes []net.IP, add bool) 
 		return
 	}
 	for _, node := range nodes {
-		nodeData := driverapi.NodeDiscoveryData{Address: node.String(), Self: node.Equal(self)}
+		nodeData := discoverapi.NodeDiscoveryData{Address: node.String(), Self: node.Equal(self)}
 		var err error
 		if add {
-			err = d.driver.DiscoverNew(driverapi.NodeDiscovery, nodeData)
+			err = d.driver.DiscoverNew(discoverapi.NodeDiscovery, nodeData)
 		} else {
-			err = d.driver.DiscoverDelete(driverapi.NodeDiscovery, nodeData)
+			err = d.driver.DiscoverDelete(discoverapi.NodeDiscovery, nodeData)
 		}
 		if err != nil {
 			log.Debugf("discovery notification error : %v", err)

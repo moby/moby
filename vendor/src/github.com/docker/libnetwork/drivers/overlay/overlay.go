@@ -8,6 +8,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/libkv/store"
 	"github.com/docker/libnetwork/datastore"
+	"github.com/docker/libnetwork/discoverapi"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/idm"
 	"github.com/docker/libnetwork/netlabel"
@@ -35,7 +36,6 @@ type driver struct {
 	serfInstance *serf.Serf
 	networks     networkTable
 	store        datastore.DataStore
-	ipAllocator  *idm.Idm
 	vxlanIdm     *idm.Idm
 	once         sync.Once
 	joinOnce     sync.Once
@@ -104,12 +104,6 @@ func (d *driver) configure() error {
 		d.vxlanIdm, err = idm.New(d.store, "vxlan-id", vxlanIDStart, vxlanIDEnd)
 		if err != nil {
 			err = fmt.Errorf("failed to initialize vxlan id manager: %v", err)
-			return
-		}
-
-		d.ipAllocator, err = idm.New(d.store, "ipam-id", 1, 0xFFFF-2)
-		if err != nil {
-			err = fmt.Errorf("failed to initalize ipam id manager: %v", err)
 			return
 		}
 	})
@@ -192,9 +186,9 @@ func (d *driver) pushLocalEndpointEvent(action, nid, eid string) {
 }
 
 // DiscoverNew is a notification for a new discovery event, such as a new node joining a cluster
-func (d *driver) DiscoverNew(dType driverapi.DiscoveryType, data interface{}) error {
-	if dType == driverapi.NodeDiscovery {
-		nodeData, ok := data.(driverapi.NodeDiscoveryData)
+func (d *driver) DiscoverNew(dType discoverapi.DiscoveryType, data interface{}) error {
+	if dType == discoverapi.NodeDiscovery {
+		nodeData, ok := data.(discoverapi.NodeDiscoveryData)
 		if !ok || nodeData.Address == "" {
 			return fmt.Errorf("invalid discovery data")
 		}
@@ -204,6 +198,6 @@ func (d *driver) DiscoverNew(dType driverapi.DiscoveryType, data interface{}) er
 }
 
 // DiscoverDelete is a notification for a discovery delete event, such as a node leaving a cluster
-func (d *driver) DiscoverDelete(dType driverapi.DiscoveryType, data interface{}) error {
+func (d *driver) DiscoverDelete(dType discoverapi.DiscoveryType, data interface{}) error {
 	return nil
 }
