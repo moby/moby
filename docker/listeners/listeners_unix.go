@@ -1,42 +1,35 @@
-// +build freebsd linux
+// +build !windows
 
-package server
+package listeners
 
 import (
 	"crypto/tls"
 	"fmt"
 	"net"
-	"net/http"
 	"strconv"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/coreos/go-systemd/activation"
 	"github.com/docker/go-connections/sockets"
 	"github.com/docker/libnetwork/portallocator"
-
-	systemdActivation "github.com/coreos/go-systemd/activation"
 )
 
-// newServer sets up the required HTTPServers and does protocol specific checking.
-// newServer does not set any muxers, you should set it later to Handler field
-func (s *Server) newServer(proto, addr string) ([]*HTTPServer, error) {
-	var (
-		err error
-		ls  []net.Listener
-	)
+// Init creates new listeners for the server.
+func Init(proto, addr, socketGroup string, tlsConfig *tls.Config) (ls []net.Listener, err error) {
 	switch proto {
 	case "fd":
-		ls, err = listenFD(addr, s.cfg.TLSConfig)
+		ls, err = listenFD(addr, tlsConfig)
 		if err != nil {
 			return nil, err
 		}
 	case "tcp":
-		l, err := s.initTCPSocket(addr)
+		l, err := initTCPSocket(addr, tlsConfig)
 		if err != nil {
 			return nil, err
 		}
 		ls = append(ls, l)
 	case "unix":
-		l, err := sockets.NewUnixSocket(addr, s.cfg.SocketGroup)
+		l, err := sockets.NewUnixSocket(addr, socketGroup)
 		if err != nil {
 			return nil, fmt.Errorf("can't create unix socket %s: %v", addr, err)
 		}
@@ -44,43 +37,8 @@ func (s *Server) newServer(proto, addr string) ([]*HTTPServer, error) {
 	default:
 		return nil, fmt.Errorf("Invalid protocol format: %q", proto)
 	}
-	var res []*HTTPServer
-	for _, l := range ls {
-		res = append(res, &HTTPServer{
-			&http.Server{
-				Addr: addr,
-			},
-			l,
-		})
-	}
-	return res, nil
-}
 
-func allocateDaemonPort(addr string) error {
-	host, port, err := net.SplitHostPort(addr)
-	if err != nil {
-		return err
-	}
-
-	intPort, err := strconv.Atoi(port)
-	if err != nil {
-		return err
-	}
-
-	var hostIPs []net.IP
-	if parsedIP := net.ParseIP(host); parsedIP != nil {
-		hostIPs = append(hostIPs, parsedIP)
-	} else if hostIPs, err = net.LookupIP(host); err != nil {
-		return fmt.Errorf("failed to lookup %s address in host specification", host)
-	}
-
-	pa := portallocator.Get()
-	for _, hostIP := range hostIPs {
-		if _, err := pa.RequestPort(hostIP, "tcp", intPort); err != nil {
-			return fmt.Errorf("failed to allocate daemon listening port %d (err: %v)", intPort, err)
-		}
-	}
-	return nil
+	return
 }
 
 // listenFD returns the specified socket activated files as a slice of
@@ -92,9 +50,9 @@ func listenFD(addr string, tlsConfig *tls.Config) ([]net.Listener, error) {
 	)
 	// socket activation
 	if tlsConfig != nil {
-		listeners, err = systemdActivation.TLSListeners(false, tlsConfig)
+		listeners, err = activation.TLSListeners(false, tlsConfig)
 	} else {
-		listeners, err = systemdActivation.Listeners(false)
+		listeners, err = activation.Listeners(false)
 	}
 	if err != nil {
 		return nil, err
@@ -129,4 +87,33 @@ func listenFD(addr string, tlsConfig *tls.Config) ([]net.Listener, error) {
 		}
 	}
 	return []net.Listener{listeners[fdOffset]}, nil
+}
+
+// allocateDaemonPort ensures that there are no containers
+// that try to use any port allocated for the docker server.
+func allocateDaemonPort(addr string) error {
+	host, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		return err
+	}
+
+	intPort, err := strconv.Atoi(port)
+	if err != nil {
+		return err
+	}
+
+	var hostIPs []net.IP
+	if parsedIP := net.ParseIP(host); parsedIP != nil {
+		hostIPs = append(hostIPs, parsedIP)
+	} else if hostIPs, err = net.LookupIP(host); err != nil {
+		return fmt.Errorf("failed to lookup %s address in host specification", host)
+	}
+
+	pa := portallocator.Get()
+	for _, hostIP := range hostIPs {
+		if _, err := pa.RequestPort(hostIP, "tcp", intPort); err != nil {
+			return fmt.Errorf("failed to allocate daemon listening port %d (err: %v)", intPort, err)
+		}
+	}
+	return nil
 }

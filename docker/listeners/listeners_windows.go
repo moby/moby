@@ -1,24 +1,20 @@
-// +build windows
-
-package server
+package listeners
 
 import (
+	"crypto/tls"
 	"errors"
 	"fmt"
-	"github.com/Microsoft/go-winio"
 	"net"
-	"net/http"
 	"strings"
+
+	"github.com/Microsoft/go-winio"
 )
 
-// NewServer sets up the required Server and does protocol specific checking.
-func (s *Server) newServer(proto, addr string) ([]*HTTPServer, error) {
-	var (
-		ls []net.Listener
-	)
+// Init creates new listeners for the server.
+func Init(proto, addr, socketGroup string, tlsConfig *tls.Config) (ls []net.Listener, err error) {
 	switch proto {
 	case "tcp":
-		l, err := s.initTCPSocket(addr)
+		l, err := initTCPSocket(addr, tlsConfig)
 		if err != nil {
 			return nil, err
 		}
@@ -27,8 +23,8 @@ func (s *Server) newServer(proto, addr string) ([]*HTTPServer, error) {
 	case "npipe":
 		// allow Administrators and SYSTEM, plus whatever additional users or groups were specified
 		sddl := "D:P(A;;GA;;;BA)(A;;GA;;;SY)"
-		if s.cfg.SocketGroup != "" {
-			for _, g := range strings.Split(s.cfg.SocketGroup, ",") {
+		if socketGroup != "" {
+			for _, g := range strings.Split(socketGroup, ",") {
 				sid, err := winio.LookupSidByName(g)
 				if err != nil {
 					return nil, err
@@ -46,19 +42,11 @@ func (s *Server) newServer(proto, addr string) ([]*HTTPServer, error) {
 		return nil, errors.New("Invalid protocol format. Windows only supports tcp and npipe.")
 	}
 
-	var res []*HTTPServer
-	for _, l := range ls {
-		res = append(res, &HTTPServer{
-			&http.Server{
-				Addr: addr,
-			},
-			l,
-		})
-	}
-	return res, nil
-
+	return
 }
 
+// allocateDaemonPort ensures that there are no containers
+// that try to use any port allocated for the docker server.
 func allocateDaemonPort(addr string) error {
 	return nil
 }
