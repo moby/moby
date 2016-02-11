@@ -19,7 +19,6 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/api"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builder/dockerfile/parser"
 	"github.com/docker/docker/pkg/archive"
@@ -604,7 +603,7 @@ func (b *Builder) readDockerfile() error {
 	// that then look for 'dockerfile'.  If neither are found then default
 	// back to 'Dockerfile' and use that in the error message.
 	if b.options.Dockerfile == "" {
-		b.options.Dockerfile = api.DefaultDockerfileName
+		b.options.Dockerfile = builder.DefaultDockerfileName
 		if _, _, err := b.context.Stat(b.options.Dockerfile); os.IsNotExist(err) {
 			lowercase := strings.ToLower(b.options.Dockerfile)
 			if _, _, err := b.context.Stat(lowercase); err == nil {
