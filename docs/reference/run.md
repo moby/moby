@@ -1429,7 +1429,10 @@ The developer can set a default user to run the first process with the
 Dockerfile `USER` instruction. When starting a container, the operator can override
 the `USER` instruction by passing the `-u` option.
 
-    -u="": Username or UID
+    -u="", --user="": Sets the username or UID used and optionally the groupname or GID for the specified command.
+ 
+    The followings examples are all valid:
+    --user=[ user | user:group | uid | uid:gid | user:gid | uid:group ]
 
 > **Note:** if you pass a numeric uid, it must be in the range of 0-2147483647.
 
