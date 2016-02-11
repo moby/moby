@@ -13,7 +13,7 @@ be found.
 - Fix various issues with migration to content-addressable images [#20058](https://github.com/docker/docker/pull/20058)
 - Fix ZFS permission bug with user namespaces [#20045](https://github.com/docker/docker/pull/20045)
 - Do not leak /dev/mqueue from the host to all containers, keep it container-specific [#19876](https://github.com/docker/docker/pull/19876) [#20133](https://github.com/docker/docker/pull/20133)
-- Fix `docker ps --filter before=...` to work without needing `-a` flag [#20135](https://github.com/docker/docker/pull/20135)
+- Fix `docker ps --filter before=...` to not show stopped containers without providing `-a` flag [#20135](https://github.com/docker/docker/pull/20135)
 
 ### Security
 
@@ -27,7 +27,7 @@ be found.
 ### Networking
 
 - Fix embedded DNS for user-defined networks in the presence of firewalld [#20060](https://github.com/docker/docker/pull/20060)
-- Fix issue where removing a network during shutdown left Docker inoperable [#20181](https://github.com/docker/docker/issues/20181)
+- Fix issue where removing a network during shutdown left Docker inoperable [#20181](https://github.com/docker/docker/issues/20181) [#20235](https://github.com/docker/docker/issues/20235)
 - Embedded DNS is now able to return compressed results [#20181](https://github.com/docker/docker/issues/20181)
 - Fix port-mapping issue with `userland-proxy=false` [#20181](https://github.com/docker/docker/issues/20181)
 
