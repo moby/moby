@@ -32,7 +32,7 @@ func TestFileSpecPlugin(t *testing.T) {
 		addr string
 		fail bool
 	}{
-		// TODO Windows: Factor out the unix:// varients.
+		// TODO Windows: Factor out the unix:// variants.
 		{filepath.Join(tmpdir, "echo.spec"), "echo", "unix://var/lib/docker/plugins/echo.sock", false},
 		{filepath.Join(tmpdir, "echo", "echo.spec"), "echo", "unix://var/lib/docker/plugins/echo.sock", false},
 		{filepath.Join(tmpdir, "foo.spec"), "foo", "tcp://localhost:8080", false},

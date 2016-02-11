@@ -20,7 +20,7 @@ func (s *DockerSuite) TestEventsTimestampFormats(c *check.C) {
 	image := "busybox"
 
 	// Start stopwatch, generate an event
-	time.Sleep(1 * time.Second) // so that we don't grab events from previous test occured in the same second
+	time.Sleep(1 * time.Second) // so that we don't grab events from previous test occurred in the same second
 	start := daemonTime(c)
 	dockerCmd(c, "tag", image, "timestamptest:1")
 	dockerCmd(c, "rmi", "timestamptest:1")

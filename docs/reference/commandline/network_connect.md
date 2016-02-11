@@ -40,7 +40,7 @@ You can specify the IP address you want to be assigned to the container's interf
 $ docker network connect --ip 10.10.36.122 multi-host-network container2
 ```
 
-You can use `--link` option to link another container with a prefered alias
+You can use `--link` option to link another container with a preferred alias
 
 ```bash
 $ docker network connect --link container1:c1 multi-host-network container2

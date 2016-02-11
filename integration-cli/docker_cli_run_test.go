@@ -206,7 +206,7 @@ func (s *DockerSuite) TestUserDefinedNetworkLinks(c *check.C) {
 	c.Assert(waitRun("first"), check.IsNil)
 
 	// run a container in user-defined network udlinkNet with a link for an existing container
-	// and a link for a container that doesnt exist
+	// and a link for a container that doesn't exist
 	dockerCmd(c, "run", "-d", "--net=udlinkNet", "--name=second", "--link=first:foo",
 		"--link=third:bar", "busybox", "top")
 	c.Assert(waitRun("second"), check.IsNil)

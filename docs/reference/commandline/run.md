@@ -110,7 +110,7 @@ For information on connecting a container to a network, see the ["*Docker networ
 
 ## Examples
 
-### Assign name and allocate psuedo-TTY (--name, -it)
+### Assign name and allocate pseudo-TTY (--name, -it)
 
     $ docker run --name test -it debian
     root@d6c0fe130dba:/# exit 13
