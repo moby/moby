@@ -5,8 +5,9 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
-	"path"
+	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -23,6 +24,12 @@ func TestIsKilledFalseWithNonKilledProcess(t *testing.T) {
 }
 
 func TestIsKilledTrueWithKilledProcess(t *testing.T) {
+	// TODO Windows: Using golang 1.5.3, this seems to hit
+	// a bug in go where Process.Kill() causes a panic.
+	// Needs further investigation @jhowardmsft
+	if runtime.GOOS == "windows" {
+		t.SkipNow()
+	}
 	longCmd := exec.Command("top")
 	// Start a command
 	longCmd.Start()
@@ -41,30 +48,56 @@ func TestIsKilledTrueWithKilledProcess(t *testing.T) {
 }
 
 func TestRunCommandWithOutput(t *testing.T) {
-	echoHelloWorldCmd := exec.Command("echo", "hello", "world")
+	var (
+		echoHelloWorldCmd *exec.Cmd
+		expected          string
+	)
+	if runtime.GOOS != "windows" {
+		echoHelloWorldCmd = exec.Command("echo", "hello", "world")
+		expected = "hello world\n"
+	} else {
+		echoHelloWorldCmd = exec.Command("cmd", "/s", "/c", "echo", "hello", "world")
+		expected = "hello world\r\n"
+	}
+
 	out, exitCode, err := RunCommandWithOutput(echoHelloWorldCmd)
-	expected := "hello world\n"
 	if out != expected || exitCode != 0 || err != nil {
 		t.Fatalf("Expected command to output %s, got %s, %v with exitCode %v", expected, out, err, exitCode)
 	}
 }
 
 func TestRunCommandWithOutputError(t *testing.T) {
+	var (
+		p                string
+		wrongCmd         *exec.Cmd
+		expected         string
+		expectedExitCode int
+	)
+
+	if runtime.GOOS != "windows" {
+		p = "$PATH"
+		wrongCmd = exec.Command("ls", "-z")
+		expected = `ls: invalid option -- 'z'
+Try 'ls --help' for more information.
+`
+		expectedExitCode = 2
+	} else {
+		p = "%PATH%"
+		wrongCmd = exec.Command("cmd", "/s", "/c", "dir", "/Z")
+		expected = "Invalid switch - " + strconv.Quote("Z") + ".\r\n"
+		expectedExitCode = 1
+	}
 	cmd := exec.Command("doesnotexists")
 	out, exitCode, err := RunCommandWithOutput(cmd)
-	expectedError := `exec: "doesnotexists": executable file not found in $PATH`
+	expectedError := `exec: "doesnotexists": executable file not found in ` + p
 	if out != "" || exitCode != 127 || err == nil || err.Error() != expectedError {
 		t.Fatalf("Expected command to output %s, got %s, %v with exitCode %v", expectedError, out, err, exitCode)
 	}
 
-	wrongLsCmd := exec.Command("ls", "-z")
-	expected := `ls: invalid option -- 'z'
-Try 'ls --help' for more information.
-`
-	out, exitCode, err = RunCommandWithOutput(wrongLsCmd)
+	out, exitCode, err = RunCommandWithOutput(wrongCmd)
 
-	if out != expected || exitCode != 2 || err == nil || err.Error() != "exit status 2" {
-		t.Fatalf("Expected command to output %s, got out:%s, err:%v with exitCode %v", expected, out, err, exitCode)
+	if out != expected || exitCode != expectedExitCode || err == nil || !strings.Contains(err.Error(), "exit status "+strconv.Itoa(expectedExitCode)) {
+		t.Fatalf("Expected command to output %s, got out:xxx%sxxx, err:%v with exitCode %v", expected, out, err, exitCode)
 	}
 }
 
@@ -78,9 +111,13 @@ func TestRunCommandWithStdoutStderr(t *testing.T) {
 }
 
 func TestRunCommandWithStdoutStderrError(t *testing.T) {
+	p := "$PATH"
+	if runtime.GOOS == "windows" {
+		p = "%PATH%"
+	}
 	cmd := exec.Command("doesnotexists")
 	stdout, stderr, exitCode, err := RunCommandWithStdoutStderr(cmd)
-	expectedError := `exec: "doesnotexists": executable file not found in $PATH`
+	expectedError := `exec: "doesnotexists": executable file not found in ` + p
 	if stdout != "" || stderr != "" || exitCode != 127 || err == nil || err.Error() != expectedError {
 		t.Fatalf("Expected command to output out:%s, stderr:%s, got stdout:%s, stderr:%s, err:%v with exitCode %v", "", "", stdout, stderr, err, exitCode)
 	}
@@ -157,6 +194,10 @@ func TestRunCommandWithOutputAndTimeoutErrors(t *testing.T) {
 }
 
 func TestRunCommand(t *testing.T) {
+	p := "$PATH"
+	if runtime.GOOS == "windows" {
+		p = "%PATH%"
+	}
 	lsCmd := exec.Command("ls")
 	exitCode, err := RunCommand(lsCmd)
 	if exitCode != 0 || err != nil {
@@ -166,7 +207,7 @@ func TestRunCommand(t *testing.T) {
 	var expectedError string
 
 	exitCode, err = RunCommand(exec.Command("doesnotexists"))
-	expectedError = `exec: "doesnotexists": executable file not found in $PATH`
+	expectedError = `exec: "doesnotexists": executable file not found in ` + p
 	if exitCode != 127 || err == nil || err.Error() != expectedError {
 		t.Fatalf("Expected runCommand to run the command successfully, got: exitCode:%d, err:%v", exitCode, err)
 	}
@@ -188,6 +229,10 @@ func TestRunCommandPipelineWithOutputWithNotEnoughCmds(t *testing.T) {
 }
 
 func TestRunCommandPipelineWithOutputErrors(t *testing.T) {
+	p := "$PATH"
+	if runtime.GOOS == "windows" {
+		p = "%PATH%"
+	}
 	cmd1 := exec.Command("ls")
 	cmd1.Stdout = os.Stdout
 	cmd2 := exec.Command("anything really")
@@ -199,7 +244,7 @@ func TestRunCommandPipelineWithOutputErrors(t *testing.T) {
 	cmdWithError := exec.Command("doesnotexists")
 	cmdCat := exec.Command("cat")
 	_, _, err = RunCommandPipelineWithOutput(cmdWithError, cmdCat)
-	if err == nil || err.Error() != `starting doesnotexists failed with error: exec: "doesnotexists": executable file not found in $PATH` {
+	if err == nil || err.Error() != `starting doesnotexists failed with error: exec: "doesnotexists": executable file not found in `+p {
 		t.Fatalf("Expected an error, got %v", err)
 	}
 }
@@ -250,8 +295,8 @@ func TestCompareDirectoryEntries(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpFolder)
 
-	file1 := path.Join(tmpFolder, "file1")
-	file2 := path.Join(tmpFolder, "file2")
+	file1 := filepath.Join(tmpFolder, "file1")
+	file2 := filepath.Join(tmpFolder, "file2")
 	os.Create(file1)
 	os.Create(file2)
 
@@ -311,6 +356,10 @@ func TestCompareDirectoryEntries(t *testing.T) {
 
 // FIXME make an "unhappy path" test for ListTar without "panicking" :-)
 func TestListTar(t *testing.T) {
+	// TODO Windows: Figure out why this fails. Should be portable.
+	if runtime.GOOS == "windows" {
+		t.Skip("Failing on Windows - needs further investigation")
+	}
 	tmpFolder, err := ioutil.TempDir("", "integration-cli-utils-list-tar")
 	if err != nil {
 		t.Fatal(err)
@@ -318,10 +367,10 @@ func TestListTar(t *testing.T) {
 	defer os.RemoveAll(tmpFolder)
 
 	// Let's create a Tar file
-	srcFile := path.Join(tmpFolder, "src")
-	tarFile := path.Join(tmpFolder, "src.tar")
+	srcFile := filepath.Join(tmpFolder, "src")
+	tarFile := filepath.Join(tmpFolder, "src.tar")
 	os.Create(srcFile)
-	cmd := exec.Command("/bin/sh", "-c", "tar cf "+tarFile+" "+srcFile)
+	cmd := exec.Command("sh", "-c", "tar cf "+tarFile+" "+srcFile)
 	_, err = cmd.CombinedOutput()
 	if err != nil {
 		t.Fatal(err)
