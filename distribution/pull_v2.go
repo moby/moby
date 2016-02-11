@@ -35,6 +35,17 @@ import (
 
 var errRootFSMismatch = errors.New("layers from manifest don't match image configuration")
 
+// ImageConfigPullError is an error pulling the image config blob
+// (only applies to schema2).
+type ImageConfigPullError struct {
+	Err error
+}
+
+// Error returns the error string for ImageConfigPullError.
+func (e ImageConfigPullError) Error() string {
+	return "error pulling image configuration: " + e.Err.Error()
+}
+
 type v2Puller struct {
 	V2MetadataService *metadata.V2MetadataService
 	endpoint          registry.APIEndpoint
@@ -58,8 +69,8 @@ func (p *v2Puller) Pull(ctx context.Context, ref reference.Named) (err error) {
 		if _, ok := err.(fallbackError); ok {
 			return err
 		}
-		if registry.ContinueOnError(err) {
-			logrus.Debugf("Error trying v2 registry: %v", err)
+		if continueOnError(err) {
+			logrus.Errorf("Error trying v2 registry: %v", err)
 			return fallbackError{err: err, confirmedV2: p.confirmedV2}
 		}
 	}
@@ -170,7 +181,7 @@ func (ld *v2LayerDescriptor) Download(ctx context.Context, progressOutput progre
 
 	layerDownload, err := blobs.Open(ctx, ld.digest)
 	if err != nil {
-		logrus.Debugf("Error initiating layer download: %v", err)
+		logrus.Errorf("Error initiating layer download: %v", err)
 		if err == distribution.ErrBlobUnknown {
 			return nil, 0, xfer.DoNotRetry{Err: err}
 		}
@@ -280,12 +291,12 @@ func (ld *v2LayerDescriptor) truncateDownloadFile() error {
 	ld.verifier = nil
 
 	if _, err := ld.tmpFile.Seek(0, os.SEEK_SET); err != nil {
-		logrus.Debugf("error seeking to beginning of download file: %v", err)
+		logrus.Errorf("error seeking to beginning of download file: %v", err)
 		return err
 	}
 
 	if err := ld.tmpFile.Truncate(0); err != nil {
-		logrus.Debugf("error truncating download file: %v", err)
+		logrus.Errorf("error truncating download file: %v", err)
 		return err
 	}
 
@@ -484,7 +495,7 @@ func (p *v2Puller) pullSchema2(ctx context.Context, ref reference.Named, mfst *s
 	go func() {
 		configJSON, err := p.pullSchema2ImageConfig(ctx, target.Digest)
 		if err != nil {
-			errChan <- err
+			errChan <- ImageConfigPullError{Err: err}
 			cancel()
 			return
 		}
@@ -704,12 +715,12 @@ func allowV1Fallback(err error) error {
 	switch v := err.(type) {
 	case errcode.Errors:
 		if len(v) != 0 {
-			if v0, ok := v[0].(errcode.Error); ok && registry.ShouldV2Fallback(v0) {
+			if v0, ok := v[0].(errcode.Error); ok && shouldV2Fallback(v0) {
 				return fallbackError{err: err, confirmedV2: false}
 			}
 		}
 	case errcode.Error:
-		if registry.ShouldV2Fallback(v) {
+		if shouldV2Fallback(v) {
 			return fallbackError{err: err, confirmedV2: false}
 		}
 	case *url.Error:
