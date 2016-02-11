@@ -102,7 +102,7 @@ rpm_import_repository_key() {
 	local key=$1; shift
 	local tmpdir=$(mktemp -d)
 	chmod 600 "$tmpdir"
-	gpg --homedir "$tmpdir" --keyserver ha.pool.sks-keyservers.net --recv-keys "$key"
+	gpg --homedir "$tmpdir" --keyserver ha.pool.sks-keyservers.net --recv-keys "$key" || gpg --homedir "$tmpdir" --keyserver pgp.mit.edu --recv-keys "$key"
 	gpg --homedir "$tmpdir" --export --armor "$key" > "$tmpdir"/repo.key
 	rpm --import "$tmpdir"/repo.key
 	rm -rf "$tmpdir"
@@ -414,7 +414,7 @@ do_install() {
 			fi
 			(
 			set -x
-			$sh_c "apt-key adv --keyserver hkp://pool.sks-keyservers.net:80 --recv-keys ${gpg_fingerprint}"
+			$sh_c "apt-key adv --keyserver hkp://pool.sks-keyservers.net:80 --recv-keys ${gpg_fingerprint} || apt-key adv --keyserver hkp://pgp.mit.edu:80 --recv-keys ${gpg_fingerprint}"
 			$sh_c "mkdir -p /etc/apt/sources.list.d"
 			$sh_c "echo deb [arch=$(dpkg --print-architecture)] ${apt_url}/repo ${lsb_dist}-${dist_version} ${repo} > /etc/apt/sources.list.d/docker.list"
 			$sh_c 'sleep 3; apt-get update; apt-get install -y -q docker-engine'
