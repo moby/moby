@@ -8,8 +8,8 @@ import (
 	"strings"
 )
 
-// GetVersion returns the major and minor version of apparmor_parser
-func GetVersion() (int, int, error) {
+// GetVersion returns the major, minor and patch level version of apparmor_parser
+func GetVersion() (int, int, int, error) {
 	// get the apparmor_version version
 	cmd := exec.Command("apparmor_parser", "--version")
 
@@ -29,17 +29,25 @@ func GetVersion() (int, int, error) {
 	// split by major minor version
 	v := strings.Split(version, ".")
 	if len(v) < 2 {
-		return -1, -1, fmt.Errorf("parsing major minor version failed for %q", version)
+		return -1, -1, -1, fmt.Errorf("parsing major minor and patch level version failed for %q", version)
 	}
 
 	majorVersion, err := strconv.Atoi(v[0])
 	if err != nil {
-		return -1, -1, err
+		return -1, -1, -1, err
 	}
 	minorVersion, err := strconv.Atoi(v[1])
 	if err != nil {
-		return -1, -1, err
+		return -1, -1, -1, err
 	}
 
-	return majorVersion, minorVersion, nil
+	patchLevel := 0
+
+	if len(v) == 3 {
+		patchLevel, err = strconv.Atoi(v[2])
+		if err != nil {
+			return -1, -1, -1, err
+		}
+	}
+	return majorVersion, minorVersion, patchLevel, nil
 }
