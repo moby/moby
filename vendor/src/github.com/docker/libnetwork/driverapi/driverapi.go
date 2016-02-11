@@ -1,12 +1,18 @@
 package driverapi
 
-import "net"
+import (
+	"net"
+
+	"github.com/docker/libnetwork/discoverapi"
+)
 
 // NetworkPluginEndpointType represents the Endpoint Type used by Plugin system
 const NetworkPluginEndpointType = "NetworkDriver"
 
 // Driver is an interface that every plugin driver needs to implement.
 type Driver interface {
+	discoverapi.Discover
+
 	// CreateNetwork invokes the driver method to create a network passing
 	// the network id and network specific config. The config mechanism will
 	// eventually be replaced with labels which are yet to be introduced.
@@ -35,12 +41,6 @@ type Driver interface {
 
 	// Leave method is invoked when a Sandbox detaches from an endpoint.
 	Leave(nid, eid string) error
-
-	// DiscoverNew is a notification for a new discovery event, Example:a new node joining a cluster
-	DiscoverNew(dType DiscoveryType, data interface{}) error
-
-	// DiscoverDelete is a notification for a discovery delete event, Example:a node leaving a cluster
-	DiscoverDelete(dType DiscoveryType, data interface{}) error
 
 	// Type returns the the type of this driver, the network type this driver manages
 	Type() string
@@ -105,20 +105,6 @@ type DriverCallback interface {
 // Capability represents the high level capabilities of the drivers which libnetwork can make use of
 type Capability struct {
 	DataScope string
-}
-
-// DiscoveryType represents the type of discovery element the DiscoverNew function is invoked on
-type DiscoveryType int
-
-const (
-	// NodeDiscovery represents Node join/leave events provided by discovery
-	NodeDiscovery = iota + 1
-)
-
-// NodeDiscoveryData represents the structure backing the node discovery data json string
-type NodeDiscoveryData struct {
-	Address string
-	Self    bool
 }
 
 // IPAMData represents the per-network ip related
