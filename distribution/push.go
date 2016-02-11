@@ -5,6 +5,7 @@ import (
 	"compress/gzip"
 	"fmt"
 	"io"
+	"net/url"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/distribution/metadata"
@@ -119,12 +120,30 @@ func Push(ctx context.Context, ref reference.Named, imagePushConfig *ImagePushCo
 		// confirm that it was talking to a v2 registry. This will
 		// prevent fallback to the v1 protocol.
 		confirmedV2 bool
+
+		// confirmedTLSRegistries is a map indicating which registries
+		// are known to be using TLS. There should never be a plaintext
+		// retry for any of these.
+		confirmedTLSRegistries = make(map[string]struct{})
 	)
 
 	for _, endpoint := range endpoints {
 		if confirmedV2 && endpoint.Version == registry.APIVersion1 {
 			logrus.Debugf("Skipping v1 endpoint %s because v2 registry was detected", endpoint.URL)
 			continue
+		}
+
+		parsedURL, urlErr := url.Parse(endpoint.URL)
+		if urlErr != nil {
+			logrus.Errorf("Failed to parse endpoint URL %s", endpoint.URL)
+			continue
+		}
+
+		if parsedURL.Scheme != "https" {
+			if _, confirmedTLS := confirmedTLSRegistries[parsedURL.Host]; confirmedTLS {
+				logrus.Debugf("Skipping non-TLS endpoint %s for host/port that appears to use TLS", endpoint.URL)
+				continue
+			}
 		}
 
 		logrus.Debugf("Trying to push %s to %s %s", repoInfo.FullName(), endpoint.URL, endpoint.Version)
@@ -142,6 +161,9 @@ func Push(ctx context.Context, ref reference.Named, imagePushConfig *ImagePushCo
 			default:
 				if fallbackErr, ok := err.(fallbackError); ok {
 					confirmedV2 = confirmedV2 || fallbackErr.confirmedV2
+					if fallbackErr.transportOK && parsedURL.Scheme == "https" {
+						confirmedTLSRegistries[parsedURL.Host] = struct{}{}
+					}
 					err = fallbackErr.err
 					lastErr = err
 					logrus.Errorf("Attempting next endpoint for push after error: %v", err)
