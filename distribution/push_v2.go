@@ -379,7 +379,7 @@ func (pd *v2PushDescriptor) Upload(ctx context.Context, progressOutput progress.
 
 	pd.pushState.Lock()
 
-	// If Commit succeded, that's an indication that the remote registry
+	// If Commit succeeded, that's an indication that the remote registry
 	// speaks the v2 protocol.
 	pd.pushState.confirmedV2 = true
 

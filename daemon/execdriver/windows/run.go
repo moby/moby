@@ -81,10 +81,10 @@ type containerInit struct {
 	IsDummy                 bool        // Used for development purposes.
 	VolumePath              string      // Windows volume path for scratch space
 	Devices                 []device    // Devices used by the container
-	IgnoreFlushesDuringBoot bool        // Optimisation hint for container startup in Windows
+	IgnoreFlushesDuringBoot bool        // Optimization hint for container startup in Windows
 	LayerFolderPath         string      // Where the layer folders are located
 	Layers                  []layer     // List of storage layers
-	ProcessorWeight         int64       `json:",omitempty"` // CPU Shares 0..10000 on Windows; where 0 will be ommited and HCS will default.
+	ProcessorWeight         int64       `json:",omitempty"` // CPU Shares 0..10000 on Windows; where 0 will be omitted and HCS will default.
 	HostName                string      // Hostname
 	MappedDirectories       []mappedDir // List of mapped directories (volumes/mounts)
 	SandboxPath             string      // Location of unmounted sandbox (used for Hyper-V containers, not Windows Server containers)

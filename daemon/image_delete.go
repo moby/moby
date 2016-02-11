@@ -43,7 +43,7 @@ const (
 //
 // Hard Conflict:
 // 	- a pull or build using the image.
-// 	- any descendent image.
+// 	- any descendant image.
 // 	- any running container using the image.
 //
 // Soft Conflict:
@@ -313,7 +313,7 @@ func (daemon *Daemon) imageDeleteHelper(imgID image.ID, records *[]types.ImageDe
 // image or any stopped container using the image. If ignoreSoftConflicts is
 // true, this function will not check for soft conflict conditions.
 func (daemon *Daemon) checkImageDeleteConflict(imgID image.ID, mask conflictType) *imageDeleteConflict {
-	// Check if the image has any descendent images.
+	// Check if the image has any descendant images.
 	if mask&conflictDependentChild != 0 && len(daemon.imageStore.Children(imgID)) > 0 {
 		return &imageDeleteConflict{
 			hard:    true,
