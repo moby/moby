@@ -60,13 +60,17 @@ func NewV2Repository(ctx context.Context, repoInfo *registry.RepositoryInfo, end
 	endpointStr := strings.TrimRight(endpoint.URL, "/") + "/v2/"
 	req, err := http.NewRequest("GET", endpointStr, nil)
 	if err != nil {
-		return nil, false, err
+		return nil, false, fallbackError{err: err}
 	}
 	resp, err := pingClient.Do(req)
 	if err != nil {
-		return nil, false, err
+		return nil, false, fallbackError{err: err}
 	}
 	defer resp.Body.Close()
+
+	// We got a HTTP request through, so we're using the right TLS settings.
+	// From this point forward, set transportOK to true in any fallbackError
+	// we return.
 
 	v2Version := auth.APIVersion{
 		Type:    "registry",
@@ -87,7 +91,11 @@ func NewV2Repository(ctx context.Context, repoInfo *registry.RepositoryInfo, end
 
 	challengeManager := auth.NewSimpleChallengeManager()
 	if err := challengeManager.AddResponse(resp); err != nil {
-		return nil, foundVersion, err
+		return nil, foundVersion, fallbackError{
+			err:         err,
+			confirmedV2: foundVersion,
+			transportOK: true,
+		}
 	}
 
 	if authConfig.RegistryToken != "" {
@@ -103,11 +111,22 @@ func NewV2Repository(ctx context.Context, repoInfo *registry.RepositoryInfo, end
 
 	repoNameRef, err := distreference.ParseNamed(repoName)
 	if err != nil {
-		return nil, foundVersion, err
+		return nil, foundVersion, fallbackError{
+			err:         err,
+			confirmedV2: foundVersion,
+			transportOK: true,
+		}
 	}
 
 	repo, err = client.NewRepository(ctx, repoNameRef, endpoint.URL, tr)
-	return repo, foundVersion, err
+	if err != nil {
+		err = fallbackError{
+			err:         err,
+			confirmedV2: foundVersion,
+			transportOK: true,
+		}
+	}
+	return
 }
 
 type existingTokenHandler struct {

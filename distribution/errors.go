@@ -31,6 +31,10 @@ type fallbackError struct {
 	// supports the v2 protocol. This is used to limit fallbacks to the v1
 	// protocol.
 	confirmedV2 bool
+	// transportOK is set to true if we managed to speak HTTP with the
+	// registry. This confirms that we're using appropriate TLS settings
+	// (or lack of TLS).
+	transportOK bool
 }
 
 // Error renders the FallbackError as a string.

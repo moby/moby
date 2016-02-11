@@ -64,12 +64,16 @@ func (p *v2Pusher) Push(ctx context.Context) (err error) {
 	p.repo, p.pushState.confirmedV2, err = NewV2Repository(ctx, p.repoInfo, p.endpoint, p.config.MetaHeaders, p.config.AuthConfig, "push", "pull")
 	if err != nil {
 		logrus.Debugf("Error getting v2 registry: %v", err)
-		return fallbackError{err: err, confirmedV2: p.pushState.confirmedV2}
+		return err
 	}
 
 	if err = p.pushV2Repository(ctx); err != nil {
 		if continueOnError(err) {
-			return fallbackError{err: err, confirmedV2: p.pushState.confirmedV2}
+			return fallbackError{
+				err:         err,
+				confirmedV2: p.pushState.confirmedV2,
+				transportOK: true,
+			}
 		}
 	}
 	return err

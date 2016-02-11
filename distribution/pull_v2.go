@@ -62,7 +62,7 @@ func (p *v2Puller) Pull(ctx context.Context, ref reference.Named) (err error) {
 	p.repo, p.confirmedV2, err = NewV2Repository(ctx, p.repoInfo, p.endpoint, p.config.MetaHeaders, p.config.AuthConfig, "pull")
 	if err != nil {
 		logrus.Warnf("Error getting v2 registry: %v", err)
-		return fallbackError{err: err, confirmedV2: p.confirmedV2}
+		return err
 	}
 
 	if err = p.pullV2Repository(ctx, ref); err != nil {
@@ -71,7 +71,11 @@ func (p *v2Puller) Pull(ctx context.Context, ref reference.Named) (err error) {
 		}
 		if continueOnError(err) {
 			logrus.Errorf("Error trying v2 registry: %v", err)
-			return fallbackError{err: err, confirmedV2: p.confirmedV2}
+			return fallbackError{
+				err:         err,
+				confirmedV2: p.confirmedV2,
+				transportOK: true,
+			}
 		}
 	}
 	return err
@@ -716,12 +720,20 @@ func allowV1Fallback(err error) error {
 	case errcode.Errors:
 		if len(v) != 0 {
 			if v0, ok := v[0].(errcode.Error); ok && shouldV2Fallback(v0) {
-				return fallbackError{err: err, confirmedV2: false}
+				return fallbackError{
+					err:         err,
+					confirmedV2: false,
+					transportOK: true,
+				}
 			}
 		}
 	case errcode.Error:
 		if shouldV2Fallback(v) {
-			return fallbackError{err: err, confirmedV2: false}
+			return fallbackError{
+				err:         err,
+				confirmedV2: false,
+				transportOK: true,
+			}
 		}
 	case *url.Error:
 		if v.Err == auth.ErrNoBasicAuthCredentials {
