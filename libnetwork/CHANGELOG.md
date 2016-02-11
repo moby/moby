@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.7.0-dev.2 (2016-02-11)
+- Fixes https://github.com/docker/docker/issues/20140
+
 ## 0.7.0-dev.1 (2016-02-10)
 - Expose EnableIPV6 option
 - discoverapi refactoring
