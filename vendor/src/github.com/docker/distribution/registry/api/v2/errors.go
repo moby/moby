@@ -84,7 +84,7 @@ var (
 	})
 
 	// ErrorCodeManifestUnverified is returned when the manifest fails
-	// signature verfication.
+	// signature verification.
 	ErrorCodeManifestUnverified = errcode.Register(errGroup, errcode.ErrorDescriptor{
 		Value:   "MANIFEST_UNVERIFIED",
 		Message: "manifest failed signature verification",
