@@ -68,7 +68,7 @@ func (p *v2Pusher) Push(ctx context.Context) (err error) {
 	}
 
 	if err = p.pushV2Repository(ctx); err != nil {
-		if registry.ContinueOnError(err) {
+		if continueOnError(err) {
 			return fallbackError{err: err, confirmedV2: p.pushState.confirmedV2}
 		}
 	}
