@@ -489,7 +489,7 @@ func (a *Allocator) getAddress(nw *net.IPNet, bitmask *bitseq.Handle, prefAddres
 	} else if prefAddress != nil {
 		hostPart, e := types.GetHostPartIP(prefAddress, base.Mask)
 		if e != nil {
-			return nil, types.InternalErrorf("failed to allocate preferred address %s: %v", prefAddress.String(), e)
+			return nil, types.InternalErrorf("failed to allocate requested address %s: %v", prefAddress.String(), e)
 		}
 		ordinal = ipToUint64(types.GetMinimalIP(hostPart))
 		err = bitmask.Set(ordinal)

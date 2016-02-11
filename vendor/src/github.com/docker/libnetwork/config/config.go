@@ -61,7 +61,7 @@ func ParseConfig(tomlCfgFile string) (*Config, error) {
 	return cfg, nil
 }
 
-// Option is a option setter function type used to pass varios configurations
+// Option is an option setter function type used to pass various configurations
 // to the controller
 type Option func(c *Config)
 

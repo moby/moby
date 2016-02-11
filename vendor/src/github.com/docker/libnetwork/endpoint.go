@@ -44,7 +44,7 @@ type Endpoint interface {
 	Delete(force bool) error
 }
 
-// EndpointOption is a option setter function type used to pass varios options to Network
+// EndpointOption is an option setter function type used to pass various options to Network
 // and Endpoint interfaces methods. The various setter functions of type EndpointOption are
 // provided by libnetwork, they look like <Create|Join|Leave>Option[...](...)
 type EndpointOption func(ep *endpoint)
@@ -343,7 +343,7 @@ func (ep *endpoint) getNetworkFromStore() (*network, error) {
 		return nil, fmt.Errorf("invalid network object in endpoint %s", ep.Name())
 	}
 
-	return ep.network.ctrlr.getNetworkFromStore(ep.network.id)
+	return ep.network.getController().getNetworkFromStore(ep.network.id)
 }
 
 func (ep *endpoint) Join(sbox Sandbox, options ...EndpointOption) error {
@@ -911,7 +911,7 @@ func (ep *endpoint) assignAddressVersion(ipVer int, ipam ipamapi.Ipam) error {
 		}
 	}
 	if progAdd != nil {
-		return types.BadRequestErrorf("Invalid preferred address %s: It does not belong to any of this network's subnets", prefAdd)
+		return types.BadRequestErrorf("Invalid address %s: It does not belong to any of this network's subnets", prefAdd)
 	}
 	return fmt.Errorf("no available IPv%d addresses on this network's address pools: %s (%s)", ipVer, n.Name(), n.ID())
 }

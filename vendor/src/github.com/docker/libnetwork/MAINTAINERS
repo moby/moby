@@ -16,6 +16,7 @@
 			"icecrime",
 			"mrjana",
 			"mavenugo",
+                        "sanimej",
 		]
 
 [people]
@@ -50,3 +51,8 @@
 	Name = "Madhu Venugopal"
 	Email = "madhu@docker.com"
 	GitHub = "mavenugo"
+
+	[people.sanimej]
+	Name = "Santhosh Manohar"
+	Email = "santhosh@docker.com"
+	GitHub = "sanimej"
