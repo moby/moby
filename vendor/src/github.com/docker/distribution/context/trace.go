@@ -10,7 +10,7 @@ import (
 // WithTrace allocates a traced timing span in a new context. This allows a
 // caller to track the time between calling WithTrace and the returned done
 // function. When the done function is called, a log message is emitted with a
-// "trace.duration" field, corresponding to the elapased time and a
+// "trace.duration" field, corresponding to the elapsed time and a
 // "trace.func" field, corresponding to the function that called WithTrace.
 //
 // The logging keys "trace.id" and "trace.parent.id" are provided to implement

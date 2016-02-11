@@ -22,7 +22,7 @@ var (
 // may be easily referenced by easily  referenced by a string
 // representation of the digest as well as short representation.
 // The uniqueness of the short representation is based on other
-// digests in the set. If digests are ommited from this set,
+// digests in the set. If digests are omitted from this set,
 // collisions in a larger set may not be detected, therefore it
 // is important to always do short representation lookups on
 // the complete set of digests. To mitigate collisions, an

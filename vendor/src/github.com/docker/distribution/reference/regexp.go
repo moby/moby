@@ -49,7 +49,7 @@ var (
 
 	// NameRegexp is the format for the name component of references. The
 	// regexp has capturing groups for the hostname and name part omitting
-	// the seperating forward slash from either.
+	// the separating forward slash from either.
 	NameRegexp = expression(
 		optional(hostnameRegexp, literal(`/`)),
 		nameComponentRegexp,

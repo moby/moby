@@ -271,7 +271,7 @@ type MethodDescriptor struct {
 // RequestDescriptor per API use case.
 type RequestDescriptor struct {
 	// Name provides a short identifier for the request, usable as a title or
-	// to provide quick context for the particalar request.
+	// to provide quick context for the particular request.
 	Name string
 
 	// Description should cover the requests purpose, covering any details for
@@ -303,14 +303,14 @@ type RequestDescriptor struct {
 // ResponseDescriptor describes the components of an API response.
 type ResponseDescriptor struct {
 	// Name provides a short identifier for the response, usable as a title or
-	// to provide quick context for the particalar response.
+	// to provide quick context for the particular response.
 	Name string
 
 	// Description should provide a brief overview of the role of the
 	// response.
 	Description string
 
-	// StatusCode specifies the status recieved by this particular response.
+	// StatusCode specifies the status received by this particular response.
 	StatusCode int
 
 	// Headers covers any headers that may be returned from the response.
