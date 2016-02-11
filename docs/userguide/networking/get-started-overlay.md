@@ -19,6 +19,7 @@ some pre-existing conditions before you can create one. These conditions are:
 * Access to a key-value store. Docker supports Consul, Etcd, and ZooKeeper (Distributed store) key-value stores.
 * A cluster of hosts with connectivity to the key-value store.
 * A properly configured Engine `daemon` on each host in the cluster.
+* Hosts within the cluster must have unique hostnames because the key-value store uses the hostnames to identify cluster members.
 
 Though Docker Machine and Docker Swarm are not mandatory to experience Docker
 multi-host networking, this example uses them to illustrate how they are
