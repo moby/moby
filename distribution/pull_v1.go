@@ -38,7 +38,7 @@ type v1Puller struct {
 func (p *v1Puller) Pull(ctx context.Context, ref reference.Named) error {
 	if _, isCanonical := ref.(reference.Canonical); isCanonical {
 		// Allowing fallback, because HTTPS v1 is before HTTP v2
-		return fallbackError{err: registry.ErrNoSupport{Err: errors.New("Cannot pull by digest with v1 registry")}}
+		return fallbackError{err: ErrNoSupport{Err: errors.New("Cannot pull by digest with v1 registry")}}
 	}
 
 	tlsConfig, err := p.config.RegistryService.TLSConfig(p.repoInfo.Index.Name)
