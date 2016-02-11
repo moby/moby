@@ -8,7 +8,6 @@ import (
 	"io/ioutil"
 	"regexp"
 
-	"github.com/docker/docker/api"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/httputils"
 	"github.com/docker/docker/pkg/urlutil"
@@ -87,7 +86,7 @@ func DetectContextFromRemoteURL(r io.ReadCloser, remoteURL string, createProgres
 
 				// dockerfileName is set to signal that the remote was interpreted as a single Dockerfile, in which case the caller
 				// should use dockerfileName as the new name for the Dockerfile, irrespective of any other user input.
-				dockerfileName = api.DefaultDockerfileName
+				dockerfileName = DefaultDockerfileName
 
 				// TODO: return a context without tarsum
 				return archive.Generate(dockerfileName, string(dockerfile))
