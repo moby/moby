@@ -52,7 +52,7 @@ func CleanPatterns(patterns []string) ([]string, [][]string, bool, error) {
 		if exclusion(pattern) {
 			pattern = pattern[1:]
 		}
-		patternDirs = append(patternDirs, strings.Split(pattern, "/"))
+		patternDirs = append(patternDirs, strings.Split(pattern, string(os.PathSeparator)))
 	}
 
 	return cleanedPatterns, patternDirs, exceptions, nil
@@ -83,8 +83,9 @@ func Matches(file string, patterns []string) (bool, error) {
 // The more generic fileutils.Matches() can't make these assumptions.
 func OptimizedMatches(file string, patterns []string, patDirs [][]string) (bool, error) {
 	matched := false
+	file = filepath.FromSlash(file)
 	parentPath := filepath.Dir(file)
-	parentPathDirs := strings.Split(parentPath, "/")
+	parentPathDirs := strings.Split(parentPath, string(os.PathSeparator))
 
 	for i, pattern := range patterns {
 		negative := false
@@ -102,8 +103,8 @@ func OptimizedMatches(file string, patterns []string, patDirs [][]string) (bool,
 		if !match && parentPath != "." {
 			// Check to see if the pattern matches one of our parent dirs.
 			if len(patDirs[i]) <= len(parentPathDirs) {
-				match, _ = regexpMatch(strings.Join(patDirs[i], "/"),
-					strings.Join(parentPathDirs[:len(patDirs[i])], "/"))
+				match, _ = regexpMatch(strings.Join(patDirs[i], string(os.PathSeparator)),
+					strings.Join(parentPathDirs[:len(patDirs[i])], string(os.PathSeparator)))
 			}
 		}
 
@@ -125,6 +126,9 @@ func OptimizedMatches(file string, patterns []string, patDirs [][]string) (bool,
 // of directories.  This means that we should be backwards compatible
 // with filepath.Match(). We'll end up supporting more stuff, due to
 // the fact that we're using regexp, but that's ok - it does no harm.
+//
+// As per the comment in golangs filepath.Match, on Windows, escaping
+// is disabled. Instead, '\\' is treated as path separator.
 func regexpMatch(pattern, path string) (bool, error) {
 	regStr := "^"
 
