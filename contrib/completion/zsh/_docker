@@ -332,6 +332,7 @@ __docker_network_subcommand() {
                 "($help)*--ip-range=[Allocate container ip from a sub-range]:IP/mask: " \
                 "($help)--ipam-driver=[IP Address Management Driver]:driver:(default)" \
                 "($help)*--ipam-opt=[Set custom IPAM plugin options]:opt=value: " \
+                "($help)--ipv6[Enable IPv6 networking]" \
                 "($help)*"{-o=,--opt=}"[Set driver specific options]:opt=value: " \
                 "($help)*--subnet=[Subnet in CIDR format that represents a network segment]:IP/mask: " \
                 "($help -)1:Network Name: " && ret=0

@@ -50,7 +50,7 @@ func (cli *DockerCli) CmdNetworkCreate(args ...string) error {
 	cmd.Var(flIpamOpt, []string{"-ipam-opt"}, "set IPAM driver specific options")
 
 	flInternal := cmd.Bool([]string{"-internal"}, false, "restricts external access to the network")
-	flIPv6 := cmd.Bool([]string{"-ipv6"}, false, "enables IPv6 on the network")
+	flIPv6 := cmd.Bool([]string{"-ipv6"}, false, "enable IPv6 networking")
 
 	cmd.Require(flag.Exact, 1)
 	err := cmd.ParseFlags(args, true)
