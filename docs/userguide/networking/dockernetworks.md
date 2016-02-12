@@ -421,7 +421,7 @@ Once you have several machines provisioned, you can use Docker Swarm to quickly
 form them into a swarm which includes a discovery service as well.
 
 To create an overlay network, you configure options on  the `daemon` on each
-Docker Engine for use with `overlay` network. There are two options to set:
+Docker Engine for use with `overlay` network. There are three options to set:
 
 <table>
     <thead>
