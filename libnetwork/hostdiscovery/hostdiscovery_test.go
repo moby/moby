@@ -40,7 +40,7 @@ func TestDiff(t *testing.T) {
 func TestAddedCallback(t *testing.T) {
 	hd := hostDiscovery{}
 	hd.nodes = mapset.NewSetFromSlice([]interface{}{"1.1.1.1"})
-	update := []*discovery.Entry{&discovery.Entry{Host: "1.1.1.1", Port: "0"}, &discovery.Entry{Host: "2.2.2.2", Port: "0"}}
+	update := []*discovery.Entry{{Host: "1.1.1.1", Port: "0"}, {Host: "2.2.2.2", Port: "0"}}
 
 	added := false
 	removed := false
@@ -53,7 +53,7 @@ func TestAddedCallback(t *testing.T) {
 func TestRemovedCallback(t *testing.T) {
 	hd := hostDiscovery{}
 	hd.nodes = mapset.NewSetFromSlice([]interface{}{"1.1.1.1", "2.2.2.2"})
-	update := []*discovery.Entry{&discovery.Entry{Host: "1.1.1.1", Port: "0"}}
+	update := []*discovery.Entry{{Host: "1.1.1.1", Port: "0"}}
 
 	added := false
 	removed := false
@@ -66,7 +66,7 @@ func TestRemovedCallback(t *testing.T) {
 func TestNoCallback(t *testing.T) {
 	hd := hostDiscovery{}
 	hd.nodes = mapset.NewSetFromSlice([]interface{}{"1.1.1.1", "2.2.2.2"})
-	update := []*discovery.Entry{&discovery.Entry{Host: "1.1.1.1", Port: "0"}, &discovery.Entry{Host: "2.2.2.2", Port: "0"}}
+	update := []*discovery.Entry{{Host: "1.1.1.1", Port: "0"}, {Host: "2.2.2.2", Port: "0"}}
 
 	added := false
 	removed := false

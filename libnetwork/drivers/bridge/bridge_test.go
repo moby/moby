@@ -59,7 +59,7 @@ func TestCreateFullOptions(t *testing.T) {
 	}
 
 	ipdList := []driverapi.IPAMData{
-		driverapi.IPAMData{
+		{
 			Pool:         bnw,
 			Gateway:      br,
 			AuxAddresses: map[string]*net.IPNet{DefaultGatewayV4AuxKey: defgw},
@@ -130,7 +130,7 @@ func TestCreateFullOptionsLabels(t *testing.T) {
 
 	ipdList := getIPv4Data(t)
 	ipd6List := []driverapi.IPAMData{
-		driverapi.IPAMData{
+		{
 			Pool: nwV6,
 			AuxAddresses: map[string]*net.IPNet{
 				DefaultGatewayV6AuxKey: gwV6,
@@ -552,17 +552,17 @@ func TestCreateLinkWithOptions(t *testing.T) {
 
 func getExposedPorts() []types.TransportPort {
 	return []types.TransportPort{
-		types.TransportPort{Proto: types.TCP, Port: uint16(5000)},
-		types.TransportPort{Proto: types.UDP, Port: uint16(400)},
-		types.TransportPort{Proto: types.TCP, Port: uint16(600)},
+		{Proto: types.TCP, Port: uint16(5000)},
+		{Proto: types.UDP, Port: uint16(400)},
+		{Proto: types.TCP, Port: uint16(600)},
 	}
 }
 
 func getPortMapping() []types.PortBinding {
 	return []types.PortBinding{
-		types.PortBinding{Proto: types.TCP, Port: uint16(230), HostPort: uint16(23000)},
-		types.PortBinding{Proto: types.UDP, Port: uint16(200), HostPort: uint16(22000)},
-		types.PortBinding{Proto: types.TCP, Port: uint16(120), HostPort: uint16(12000)},
+		{Proto: types.TCP, Port: uint16(230), HostPort: uint16(23000)},
+		{Proto: types.UDP, Port: uint16(200), HostPort: uint16(22000)},
+		{Proto: types.TCP, Port: uint16(120), HostPort: uint16(12000)},
 	}
 }
 
@@ -819,9 +819,9 @@ func TestSetDefaultGw(t *testing.T) {
 func TestCleanupIptableRules(t *testing.T) {
 	defer testutils.SetupTestOSContext(t)()
 	bridgeChain := []iptables.ChainInfo{
-		iptables.ChainInfo{Name: DockerChain, Table: iptables.Nat},
-		iptables.ChainInfo{Name: DockerChain, Table: iptables.Filter},
-		iptables.ChainInfo{Name: IsolationChain, Table: iptables.Filter},
+		{Name: DockerChain, Table: iptables.Nat},
+		{Name: DockerChain, Table: iptables.Filter},
+		{Name: IsolationChain, Table: iptables.Filter},
 	}
 	if _, _, _, err := setupIPChains(&configuration{EnableIPTables: true}); err != nil {
 		t.Fatalf("Error setting up ip chains: %v", err)

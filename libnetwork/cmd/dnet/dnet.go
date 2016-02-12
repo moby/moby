@@ -278,7 +278,7 @@ func handleSignals(controller libnetwork.NetworkController) {
 	signals := []os.Signal{os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT}
 	signal.Notify(c, signals...)
 	go func() {
-		for _ = range c {
+		for range c {
 			controller.Stop()
 			os.Exit(0)
 		}
