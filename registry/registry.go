@@ -13,13 +13,9 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/distribution/registry/api/errcode"
-	"github.com/docker/distribution/registry/api/v2"
-	"github.com/docker/distribution/registry/client"
 	"github.com/docker/distribution/registry/client/transport"
 	"github.com/docker/go-connections/tlsconfig"
 )
@@ -167,51 +163,6 @@ func addRequiredHeadersToRedirectedRequests(req *http.Request, via []*http.Reque
 		}
 	}
 	return nil
-}
-
-// ShouldV2Fallback returns true if this error is a reason to fall back to v1.
-func ShouldV2Fallback(err errcode.Error) bool {
-	switch err.Code {
-	case errcode.ErrorCodeUnauthorized, v2.ErrorCodeManifestUnknown, v2.ErrorCodeNameUnknown:
-		return true
-	}
-	return false
-}
-
-// ErrNoSupport is an error type used for errors indicating that an operation
-// is not supported. It encapsulates a more specific error.
-type ErrNoSupport struct{ Err error }
-
-func (e ErrNoSupport) Error() string {
-	if e.Err == nil {
-		return "not supported"
-	}
-	return e.Err.Error()
-}
-
-// ContinueOnError returns true if we should fallback to the next endpoint
-// as a result of this error.
-func ContinueOnError(err error) bool {
-	switch v := err.(type) {
-	case errcode.Errors:
-		if len(v) == 0 {
-			return true
-		}
-		return ContinueOnError(v[0])
-	case ErrNoSupport:
-		return ContinueOnError(v.Err)
-	case errcode.Error:
-		return ShouldV2Fallback(v)
-	case *client.UnexpectedHTTPResponseError:
-		return true
-	case error:
-		return !strings.Contains(err.Error(), strings.ToLower(syscall.ENOSPC.Error()))
-	}
-	// let's be nice and fallback if the error is a completely
-	// unexpected one.
-	// If new errors have to be handled in some way, please
-	// add them to the switch above.
-	return true
 }
 
 // NewTransport returns a new HTTP transport. If tlsConfig is nil, it uses the

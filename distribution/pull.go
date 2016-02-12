@@ -136,7 +136,7 @@ func Pull(ctx context.Context, ref reference.Named, imagePullConfig *ImagePullCo
 				}
 			}
 			if fallback {
-				if _, ok := err.(registry.ErrNoSupport); !ok {
+				if _, ok := err.(ErrNoSupport); !ok {
 					// Because we found an error that's not ErrNoSupport, discard all subsequent ErrNoSupport errors.
 					discardNoSupportErrors = true
 					// append subsequent errors
@@ -147,9 +147,10 @@ func Pull(ctx context.Context, ref reference.Named, imagePullConfig *ImagePullCo
 					// append subsequent errors
 					lastErr = err
 				}
+				logrus.Errorf("Attempting next endpoint for pull after error: %v", err)
 				continue
 			}
-			logrus.Debugf("Not continuing with error: %v", err)
+			logrus.Errorf("Not continuing with pull after error: %v", err)
 			return err
 		}
 

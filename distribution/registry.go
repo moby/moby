@@ -6,37 +6,18 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/docker/distribution"
 	distreference "github.com/docker/distribution/reference"
-	"github.com/docker/distribution/registry/api/errcode"
 	"github.com/docker/distribution/registry/client"
 	"github.com/docker/distribution/registry/client/auth"
 	"github.com/docker/distribution/registry/client/transport"
-	"github.com/docker/docker/distribution/xfer"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/registry"
 	"github.com/docker/engine-api/types"
 	"golang.org/x/net/context"
 )
-
-// fallbackError wraps an error that can possibly allow fallback to a different
-// endpoint.
-type fallbackError struct {
-	// err is the error being wrapped.
-	err error
-	// confirmedV2 is set to true if it was confirmed that the registry
-	// supports the v2 protocol. This is used to limit fallbacks to the v1
-	// protocol.
-	confirmedV2 bool
-}
-
-// Error renders the FallbackError as a string.
-func (f fallbackError) Error() string {
-	return f.err.Error()
-}
 
 type dumbCredentialStore struct {
 	auth *types.AuthConfig
@@ -140,31 +121,4 @@ func (th *existingTokenHandler) Scheme() string {
 func (th *existingTokenHandler) AuthorizeRequest(req *http.Request, params map[string]string) error {
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", th.token))
 	return nil
-}
-
-// retryOnError wraps the error in xfer.DoNotRetry if we should not retry the
-// operation after this error.
-func retryOnError(err error) error {
-	switch v := err.(type) {
-	case errcode.Errors:
-		return retryOnError(v[0])
-	case errcode.Error:
-		switch v.Code {
-		case errcode.ErrorCodeUnauthorized, errcode.ErrorCodeUnsupported, errcode.ErrorCodeDenied:
-			return xfer.DoNotRetry{Err: err}
-		}
-	case *url.Error:
-		return retryOnError(v.Err)
-	case *client.UnexpectedHTTPResponseError:
-		return xfer.DoNotRetry{Err: err}
-	case error:
-		if strings.Contains(err.Error(), strings.ToLower(syscall.ENOSPC.Error())) {
-			return xfer.DoNotRetry{Err: err}
-		}
-	}
-	// let's be nice and fallback if the error is a completely
-	// unexpected one.
-	// If new errors have to be handled in some way, please
-	// add them to the switch above.
-	return err
 }
