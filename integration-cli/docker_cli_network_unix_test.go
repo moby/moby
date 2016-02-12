@@ -1014,7 +1014,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkHostModeUngracefulDaemonRestart(c 
 		c.Assert(err, checker.IsNil, check.Commentf(out))
 
 		// verfiy container has finished starting before killing daemon
-		err = s.d.waitRun(fmt.Sprintf("hostc-%d", i))
+		err = s.d.waitRun(cName)
 		c.Assert(err, checker.IsNil)
 	}
 
