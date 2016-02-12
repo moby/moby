@@ -1,3 +1,7 @@
+// +build !windows
+
+// TODO Windows: Some of these tests may be salvagable and portable to Windows.
+
 package archive
 
 import (
