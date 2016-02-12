@@ -81,7 +81,8 @@ setup_s3() {
 	# s3cmd has no useful exit status, so we cannot check that.
 	# Instead, we check if it outputs anything on standard output.
 	# (When there are problems, it uses standard error instead.)
-	s3cmd info "s3://$BUCKET" | grep -q .
+	# NOTE: for some reason on debian:jessie `s3cmd info ... | grep -q .` results in a broken pipe
+	s3cmd info "s3://$BUCKET" | grep . >/dev/null
 	# Make the bucket accessible through website endpoints.
 	s3cmd ws-create --ws-index index --ws-error error "s3://$BUCKET"
 }

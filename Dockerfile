@@ -23,7 +23,7 @@
 # the case. Therefore, you don't have to disable it anymore.
 #
 
-FROM ubuntu:trusty
+FROM debian:jessie
 
 # add zfs ppa
 RUN apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys E871F18B51E0147C77796AC81196BA81F6B0FC61 \
@@ -58,12 +58,13 @@ RUN apt-get update && apt-get install -y \
 	libsystemd-journal-dev \
 	libtool \
 	mercurial \
+	net-tools \
 	pkg-config \
 	python-dev \
 	python-mock \
 	python-pip \
 	python-websocket \
-	s3cmd=1.1.0* \
+	s3cmd=1.5.0* \
 	ubuntu-zfs \
 	xfsprogs \
 	libzfs-dev \
