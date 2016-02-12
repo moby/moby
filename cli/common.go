@@ -19,7 +19,7 @@ type CommonFlags struct {
 	TrustKey   string
 }
 
-// Command is the struct contains command name and description
+// Command is the struct containing the command name and description
 type Command struct {
 	Name        string
 	Description string
