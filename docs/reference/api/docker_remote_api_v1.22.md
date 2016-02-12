@@ -386,7 +386,8 @@ Json Parameters:
             An ever increasing delay (double the previous delay, starting at 100mS)
             is added before each restart to prevent flooding the server.
     -   **NetworkMode** - Sets the networking mode for the container. Supported
-          values are: `bridge`, `host`, and `container:<name|id>`
+          standard values are: `bridge`, `host`, `none`, and `container:<name|id>`. Any other value is taken
+          as a custom network's name to which this container should connect to.
     -   **Devices** - A list of devices to add to the container specified as a JSON object in the
       form
           `{ "PathOnHost": "/dev/deviceName", "PathInContainer": "/dev/deviceName", "CgroupPermissions": "mrw"}`
