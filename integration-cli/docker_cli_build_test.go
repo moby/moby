@@ -5777,14 +5777,21 @@ func (s *DockerSuite) TestBuildNullStringInAddCopyVolume(c *check.C) {
 
 func (s *DockerSuite) TestBuildStopSignal(c *check.C) {
 	testRequires(c, DaemonIsLinux)
-	name := "test_build_stop_signal"
-	_, err := buildImage(name,
+	imgName := "test_build_stop_signal"
+	_, err := buildImage(imgName,
 		`FROM busybox
 		 STOPSIGNAL SIGKILL`,
 		true)
 	c.Assert(err, check.IsNil)
-	res := inspectFieldJSON(c, name, "Config.StopSignal")
+	res := inspectFieldJSON(c, imgName, "Config.StopSignal")
+	if res != `"SIGKILL"` {
+		c.Fatalf("Signal %s, expected SIGKILL", res)
+	}
 
+	containerName := "test-container-stop-signal"
+	dockerCmd(c, "run", "-d", "--name", containerName, imgName, "top")
+
+	res = inspectFieldJSON(c, containerName, "Config.StopSignal")
 	if res != `"SIGKILL"` {
 		c.Fatalf("Signal %s, expected SIGKILL", res)
 	}
