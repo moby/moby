@@ -27,6 +27,7 @@ type data struct {
 	InnerImports []string
 	MajorVersion int
 	MinorVersion int
+	PatchLevel   int
 }
 
 const baseTemplate = `
@@ -64,10 +65,13 @@ profile {{.Name}} flags=(attach_disconnected,mediate_deleted) {
   deny /sys/firmware/efi/efivars/** rwklx,
   deny /sys/kernel/security/** rwklx,
 
-{{if ge .MajorVersion 2}}{{if ge .MinorVersion 8}}
+{{if ge .MajorVersion 2}}{{if ge .MinorVersion 8}}{{if ge .PatchLevel 95}}
+  # apparmor-2.8.95 is Ubuntu 14.04 LTS (Trusty Tahr)
+	# apparmor-2.8.95 is apparmor-2.9 beta, which supports ptrace rule
+	# other apparmor-2.8 versions do not support this rule
   # suppress ptrace denials when using 'docker ps' or using 'ps' inside a container
   ptrace (trace,read) peer=docker-default,
-{{end}}{{end}}
+{{end}}{{end}}{{end}}
 {{if ge .MajorVersion 2}}{{if ge .MinorVersion 9}}
   # docker daemon confinement requires explict allow rule for signal
   signal (receive) set=(kill,term) peer={{.ExecPath}},
@@ -91,7 +95,7 @@ func generateProfile(out io.Writer) error {
 	if abstractionsExists() {
 		data.InnerImports = append(data.InnerImports, "#include <abstractions/base>")
 	}
-	data.MajorVersion, data.MinorVersion, err = aaparser.GetVersion()
+	data.MajorVersion, data.MinorVersion, data.PatchLevel, err = aaparser.GetVersion()
 	if err != nil {
 		return err
 	}
