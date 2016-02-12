@@ -22,6 +22,7 @@ parent = "smn_cli"
     --ip-range=[]            Allocate container ip from a sub-range
     --ipam-driver=default    IP Address Management Driver
     --ipam-opt=map[]         Set custom IPAM driver specific options
+    --ipv6                   Enable IPv6 networking
     -o --opt=map[]           Set custom driver specific options
     --subnet=[]              Subnet in CIDR format that represents a network segment
 
@@ -134,7 +135,13 @@ The following are those options and the equivalent docker daemon flags used for 
 | `com.docker.network.bridge.enable_icc`           | `--icc`     | Enable or Disable Inter Container Connectivity        |
 | `com.docker.network.bridge.host_binding_ipv4`    | `--ip`      | Default IP when binding container ports               |
 | `com.docker.network.mtu`                         | `--mtu`     | Set the containers network MTU                        |
-| `com.docker.network.enable_ipv6`                 | `--ipv6`    | Enable IPv6 networking                                |
+
+The following arguments can be passed to `docker network create` for any network driver.
+
+| Argument     | Equivalent | Description                              |
+|--------------|------------|------------------------------------------|
+| `--internal` | -          | Restricts external access to the network |
+| `--ipv6`     | `--ipv6`   | Enable IPv6 networking                   |
 
 For example, let's use `-o` or `--opt` options to specify an IP address binding when publishing ports:
 
