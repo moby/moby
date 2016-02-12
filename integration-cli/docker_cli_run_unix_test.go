@@ -838,14 +838,14 @@ func (s *DockerSuite) TestRunSeccompAllowPrivCloneUserns(c *check.C) {
 	}
 }
 
-// TestRunSeccompAllowAptKey checks that 'docker run debian:jessie apt-key' succeeds.
-func (s *DockerSuite) TestRunSeccompAllowAptKey(c *check.C) {
-	testRequires(c, SameHostDaemon, seccompEnabled, Network)
+// TestRunSeccompAllowSetrlimit checks that 'docker run debian:jessie ulimit -v 1048510' succeeds.
+func (s *DockerSuite) TestRunSeccompAllowSetrlimit(c *check.C) {
+	testRequires(c, SameHostDaemon, seccompEnabled)
 
-	// apt-key uses setrlimit & getrlimit, so we want to make sure we don't break it
-	runCmd := exec.Command(dockerBinary, "run", "debian:jessie", "apt-key", "adv", "--keyserver", "hkp://p80.pool.sks-keyservers.net:80", "--recv-keys", "E871F18B51E0147C77796AC81196BA81F6B0FC61")
+	// ulimit uses setrlimit, so we want to make sure we don't break it
+	runCmd := exec.Command(dockerBinary, "run", "debian:jessie", "bash", "-c", "ulimit -v 1048510")
 	if out, _, err := runCommandWithOutput(runCmd); err != nil {
-		c.Fatalf("expected apt-key with seccomp to succeed, got %s: %v", out, err)
+		c.Fatalf("expected ulimit with seccomp to succeed, got %s: %v", out, err)
 	}
 }
 
