@@ -227,7 +227,9 @@ func (a *Driver) Create(id, parent, mountLabel string) error {
 			}
 		}
 	}
+	a.Lock()
 	a.active[id] = &data{}
+	a.Unlock()
 	return nil
 }
 
@@ -285,20 +287,17 @@ func (a *Driver) Remove(id string) error {
 	if err := os.Remove(path.Join(a.rootPath(), "layers", id)); err != nil && !os.IsNotExist(err) {
 		return err
 	}
+	if m != nil {
+		a.Lock()
+		delete(a.active, id)
+		a.Unlock()
+	}
 	return nil
 }
 
 // Get returns the rootfs path for the id.
 // This will mount the dir at it's given path
 func (a *Driver) Get(id, mountLabel string) (string, error) {
-	ids, err := getParentIds(a.rootPath(), id)
-	if err != nil {
-		if !os.IsNotExist(err) {
-			return "", err
-		}
-		ids = []string{}
-	}
-
 	// Protect the a.active from concurrent access
 	a.Lock()
 	defer a.Unlock()
@@ -309,13 +308,18 @@ func (a *Driver) Get(id, mountLabel string) (string, error) {
 		a.active[id] = m
 	}
 
+	parents, err := a.getParentLayerPaths(id)
+	if err != nil && !os.IsNotExist(err) {
+		return "", err
+	}
+
 	// If a dir does not have a parent ( no layers )do not try to mount
 	// just return the diff path to the data
 	m.path = path.Join(a.rootPath(), "diff", id)
-	if len(ids) > 0 {
+	if len(parents) > 0 {
 		m.path = path.Join(a.rootPath(), "mnt", id)
 		if m.referenceCount == 0 {
-			if err := a.mount(id, m, mountLabel); err != nil {
+			if err := a.mount(id, m, mountLabel, parents); err != nil {
 				return "", err
 			}
 		}
@@ -426,7 +430,7 @@ func (a *Driver) getParentLayerPaths(id string) ([]string, error) {
 	return layers, nil
 }
 
-func (a *Driver) mount(id string, m *data, mountLabel string) error {
+func (a *Driver) mount(id string, m *data, mountLabel string, layers []string) error {
 	// If the id is mounted or we get an error return
 	if mounted, err := a.mounted(m); err != nil || mounted {
 		return err
@@ -436,11 +440,6 @@ func (a *Driver) mount(id string, m *data, mountLabel string) error {
 		target = m.path
 		rw     = path.Join(a.rootPath(), "diff", id)
 	)
-
-	layers, err := a.getParentLayerPaths(id)
-	if err != nil {
-		return err
-	}
 
 	if err := a.aufsMount(layers, rw, target, mountLabel); err != nil {
 		return fmt.Errorf("error creating aufs mount to %s: %v", target, err)
