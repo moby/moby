@@ -290,6 +290,7 @@ complete -c docker -A -f -n '__fish_seen_subcommand_from rm' -l help -d 'Print u
 complete -c docker -A -f -n '__fish_seen_subcommand_from rm' -s l -l link -d 'Remove the specified link and not the underlying container'
 complete -c docker -A -f -n '__fish_seen_subcommand_from rm' -s v -l volumes -d 'Remove the volumes associated with the container'
 complete -c docker -A -f -n '__fish_seen_subcommand_from rm' -a '(__fish_print_docker_containers stopped)' -d "Container"
+complete -c docker -A -f -n '__fish_seen_subcommand_from rm' -s f -l force -a '(__fish_print_docker_containers all)' -d "Container"
 
 # rmi
 complete -c docker -f -n '__fish_docker_no_subcommand' -a rmi -d 'Remove one or more images'
