@@ -1,3 +1,8 @@
+// +build !windows
+
+// TODO Windows: This uses a Unix socket for testing. This might be possible
+// to port to Windows using a named pipe instead.
+
 package authorization
 
 import (
