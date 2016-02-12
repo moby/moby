@@ -159,6 +159,8 @@ func (br *buildRouter) postBuild(ctx context.Context, w http.ResponseWriter, r *
 		buildOptions.Dockerfile = dockerfileName
 	}
 
+	buildOptions.AuthConfigs = authConfigs
+
 	out = output
 	if buildOptions.SuppressOutput {
 		out = notVerboseBuffer
