@@ -375,7 +375,9 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 		Entrypoint:      entrypoint,
 		WorkingDir:      *flWorkingDir,
 		Labels:          ConvertKVStringsToMap(labels),
-		StopSignal:      *flStopSignal,
+	}
+	if cmd.IsSet("-stop-signal") {
+		config.StopSignal = *flStopSignal
 	}
 
 	hostConfig := &container.HostConfig{
