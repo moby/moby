@@ -89,6 +89,10 @@ func merge(userConf, imageConf *containertypes.Config) error {
 			userConf.Volumes[k] = v
 		}
 	}
+
+	if userConf.StopSignal == "" {
+		userConf.StopSignal = imageConf.StopSignal
+	}
 	return nil
 }
 
