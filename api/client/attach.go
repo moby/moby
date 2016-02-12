@@ -79,7 +79,7 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 	if c.Config.Tty && cli.isTerminalOut {
 		height, width := cli.getTtySize()
 		// To handle the case where a user repeatedly attaches/detaches without resizing their
-		// terminal, the only way to get the shell prompt to display for attaches 2+ is to artifically
+		// terminal, the only way to get the shell prompt to display for attaches 2+ is to artificially
 		// resize it, then go back to normal. Without this, every attach after the first will
 		// require the user to manually resize or hit enter.
 		cli.resizeTtyTo(cmd.Arg(0), height+1, width+1, false)

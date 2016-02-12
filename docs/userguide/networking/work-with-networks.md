@@ -412,7 +412,7 @@ Please note that while creating container4, we linked to a container named `cont
 which is not created yet. That is one of the differences in behavior between the
 `legacy link` in default `bridge` network and the new `link` functionality in user defined
 networks. The `legacy link` is static in nature and it hard-binds the container with the
-alias and it doesnt tolerate linked container restarts. While the new `link` functionality
+alias and it doesn't tolerate linked container restarts. While the new `link` functionality
 in user defined networks are dynamic in nature and supports linked container restarts
 including tolerating ip-address changes on the linked container.
 
