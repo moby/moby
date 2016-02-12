@@ -6534,3 +6534,26 @@ func (s *DockerSuite) TestBuildWorkdirWindowsPath(c *check.C) {
 		c.Fatal(err)
 	}
 }
+
+func (s *DockerRegistryAuthSuite) TestBuildFromAuthenticatedRegistry(c *check.C) {
+	dockerCmd(c, "login", "-u", s.reg.username, "-p", s.reg.password, "-e", s.reg.email, privateRegistryURL)
+
+	baseImage := privateRegistryURL + "/baseimage"
+
+	_, err := buildImage(baseImage, `
+	FROM busybox
+	ENV env1 val1
+	`, true)
+
+	c.Assert(err, checker.IsNil)
+
+	dockerCmd(c, "push", baseImage)
+	dockerCmd(c, "rmi", baseImage)
+
+	_, err = buildImage(baseImage, fmt.Sprintf(`
+	FROM %s
+	ENV env2 val2
+	`, baseImage), true)
+
+	c.Assert(err, checker.IsNil)
+}
