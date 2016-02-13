@@ -118,9 +118,6 @@ for dir in contrib/builder/deb/${PACKAGE_ARCH}/*/; do
 		-name *~${codename#*-}*.deb > "$APTDIR/dists/$codename/$component/filelist"
 done
 
-# clean the databases
-apt-ftparchive clean "$APTDIR/conf/apt-ftparchive.conf"
-
 # run the apt-ftparchive commands so we can have pinning
 apt-ftparchive generate "$APTDIR/conf/apt-ftparchive.conf"
 
