@@ -126,8 +126,8 @@ On Windows, mount directories using:
 docker run -v /c/Users/<path>:/<container path> ...`
 ```
 
-All other paths come from your virtual machine's filesystem.  For example, if
-you are using VirtualBox some other folder available for sharing, you need to do
+All other paths come from your virtual machine's filesystem, so if you want
+to make some other host folder available for sharing, you need to do
 additional work. In the case of VirtualBox you need to make the host folder
 available as a shared folder in VirtualBox. Then, you can mount it using the
 Docker `-v` flag.

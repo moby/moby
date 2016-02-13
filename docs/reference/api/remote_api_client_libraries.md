@@ -124,6 +124,12 @@ will add the libraries here.
     </tr>
     <tr>
       <td>JavaScript (NodeJS)</td>
+      <td>dockerizer</td>
+      <td><a class="reference external" href="https://github.com/kesarion/dockerizer">https://github.com/kesarion/dockerizer</a></td>
+      <td>Active</td>
+    </tr>
+    <tr>
+      <td>JavaScript (NodeJS)</td>
       <td>dockerode</td>
       <td><a class="reference external" href="https://github.com/apocas/dockerode">https://github.com/apocas/dockerode</a>
   Install via NPM: <cite>npm install dockerode</cite></td>
@@ -188,6 +194,12 @@ will add the libraries here.
       <td>PHP</td>
       <td>Docker-PHP</td>
       <td><a class="reference external" href="https://github.com/docker-php/docker-php">https://github.com/docker-php/docker-php</a></td>
+      <td>Active</td>
+    </tr>
+    <tr>
+      <td>PHP</td>
+      <td>Docker-PHP-Client</td>
+      <td><a class="reference external" href="https://github.com/jarkt/docker-php-client">https://github.com/jarkt/docker-php-client</a></td>
       <td>Active</td>
     </tr>
     <tr>

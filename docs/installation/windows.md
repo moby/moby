@@ -324,7 +324,7 @@ and what it does:
 
 ## Upgrade Docker Toolbox
 
-To upgrade Docker Toolbox, download an re-run [the Docker Toolbox
+To upgrade Docker Toolbox, download and re-run [the Docker Toolbox
 installer](https://www.docker.com/toolbox).
 
 ## Container port redirection

@@ -30,7 +30,7 @@ Docker Engine is supported on Linux, Cloud, Windows, and OS X. Installation inst
 If your linux distribution is not listed above, don't give up yet. To try out Docker on a distribution that is not listed above, go here: [Installation from binaries](binaries.md).
 
 ## On Cloud
-* [Choose how to Install](cloud/cloud.md)
+* [Choose how to Install](cloud/overview.md)
 * [Example: Manual install on a cloud provider](cloud/cloud-ex-aws.md)
 * [Example: Use Docker Machine to provision cloud hosts](cloud/cloud-ex-machine-ocean.md)
 
