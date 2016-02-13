@@ -15,6 +15,7 @@ import (
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/docker/pkg/system"
+	rsystem "github.com/opencontainers/runc/libcontainer/system"
 )
 
 type applyLayerResponse struct {
@@ -34,6 +35,7 @@ func applyLayer() {
 	runtime.LockOSThread()
 	flag.Parse()
 
+	inUserns := rsystem.RunningInUserNS()
 	if err := chroot(flag.Arg(0)); err != nil {
 		fatal(err)
 	}
@@ -47,6 +49,10 @@ func applyLayer() {
 
 	if err := json.Unmarshal([]byte(os.Getenv("OPT")), &options); err != nil {
 		fatal(err)
+	}
+
+	if inUserns {
+		options.InUserNS = true
 	}
 
 	if tmpDir, err = ioutil.TempDir("/", "temp-docker-extract"); err != nil {
@@ -88,6 +94,9 @@ func applyLayerHandler(dest string, layer archive.Reader, options *archive.TarOp
 	}
 	if options == nil {
 		options = &archive.TarOptions{}
+		if rsystem.RunningInUserNS() {
+			options.InUserNS = true
+		}
 	}
 	if options.ExcludePatterns == nil {
 		options.ExcludePatterns = []string{}
