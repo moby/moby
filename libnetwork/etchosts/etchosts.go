@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"os"
 	"regexp"
+	"strings"
 	"sync"
 )
 
@@ -78,10 +79,17 @@ func Build(path, IP, hostname, domainname string, extraContent []Record) error {
 		//set main record
 		var mainRec Record
 		mainRec.IP = IP
+		// User might have provided a FQDN in hostname or split it across hostname
+		// and domainname.  We want the FQDN and the bare hostname.
+		fqdn := hostname
 		if domainname != "" {
-			mainRec.Hosts = fmt.Sprintf("%s.%s %s", hostname, domainname, hostname)
+			fqdn = fmt.Sprintf("%s.%s", fqdn, domainname)
+		}
+		parts := strings.SplitN(fqdn, ".", 2)
+		if len(parts) == 2 {
+			mainRec.Hosts = fmt.Sprintf("%s %s", fqdn, parts[0])
 		} else {
-			mainRec.Hosts = hostname
+			mainRec.Hosts = fqdn
 		}
 		if _, err := mainRec.WriteTo(content); err != nil {
 			return err
