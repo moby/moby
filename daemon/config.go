@@ -59,6 +59,7 @@ type CommonConfig struct {
 	DNS                  []string            `json:"dns,omitempty"`
 	DNSOptions           []string            `json:"dns-opts,omitempty"`
 	DNSSearch            []string            `json:"dns-search,omitempty"`
+	EditableVolume       []string            `json:"editable-volume,omitempty"`
 	ExecOptions          []string            `json:"exec-opts,omitempty"`
 	ExecRoot             string              `json:"exec-root,omitempty"`
 	GraphDriver          string              `json:"storage-driver,omitempty"`
@@ -126,6 +127,7 @@ func (config *Config) InstallCommonFlags(cmd *flag.FlagSet, usageFn func(string)
 	cmd.StringVar(&config.ClusterAdvertise, []string{"-cluster-advertise"}, "", usageFn("Address or interface name to advertise"))
 	cmd.StringVar(&config.ClusterStore, []string{"-cluster-store"}, "", usageFn("Set the cluster store"))
 	cmd.Var(opts.NewNamedMapOpts("cluster-store-opts", config.ClusterOpts, nil), []string{"-cluster-store-opt"}, usageFn("Set cluster store options"))
+	cmd.Var(opts.NewListOptsRef(&config.EditableVolume, nil), []string{"-editable-volume"}, usageFn("Host volume in which can create directories by user's will"))
 }
 
 // IsValueSet returns true if a configuration value

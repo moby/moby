@@ -23,7 +23,7 @@ func (daemon *Daemon) setupMounts(container *container.Container) ([]execdriver.
 		if err := daemon.lazyInitializeVolume(container.ID, m); err != nil {
 			return nil, err
 		}
-		path, err := m.Setup()
+		path, err := m.Setup(daemon.configStore.EditableVolume)
 		if err != nil {
 			return nil, err
 		}
