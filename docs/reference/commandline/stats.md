@@ -17,6 +17,7 @@ parent = "smn_cli"
       -a, --all          Show all containers (default shows just running)
       --help             Print usage
       --no-stream        Disable streaming stats and only pull the first result
+      --totals           Show total consumption of resources
 
 The `docker stats` command returns a live data stream for running containers. To limit data to one or more specific containers, specify a list of container names or ids separated by a space. You can specify a stopped container but stopped containers do not return any data.
 
@@ -24,13 +25,14 @@ If you want more detailed information about a container's resource usage, use th
 
 ## Examples
 
-Running `docker stats` on all running containers
+Running `docker stats` on all running containers, and display totals in the last line:
 
-    $ docker stats
+    $ docker stats --totals
     CONTAINER           CPU %               MEM USAGE / LIMIT     MEM %               NET I/O             BLOCK I/O
-    1285939c1fd3        0.07%               796 KB / 64 MB        1.21%               788 B / 648 B       3.568 MB / 512 KB
-    9c76f7834ae2        0.07%               2.746 MB / 64 MB      4.29%               1.266 KB / 648 B    12.4 MB / 0 B
-    d1ea048f04e4        0.03%               4.583 MB / 64 MB      6.30%               2.854 KB / 648 B    27.7 MB / 0 B
+    1285939c1fd3        0.07%               796 kB / 64 MB        1.21%               788 B / 648 B       3.568 MB / 512 kB
+    9c76f7834ae2        0.07%               2.746 MB / 64 MB      4.29%               1.266 kB / 648 B    12.4 MB / 0 B
+    d1ea048f04e4        0.03%               4.583 MB / 64 MB      6.30%               2.854 kB / 648 B    27.7 MB / 0 B
+    Totals              0.17%               8.125 MB / 3.7 GB     0.21%               4.908 kB / 1.944 kB 43.7 MB / 512 kB
 
 Running `docker stats` on multiple containers by name and id.
 

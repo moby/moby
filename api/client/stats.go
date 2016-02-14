@@ -24,6 +24,7 @@ func (cli *DockerCli) CmdStats(args ...string) error {
 	cmd := Cli.Subcmd("stats", []string{"[CONTAINER...]"}, Cli.DockerCommands["stats"].Description, true)
 	all := cmd.Bool([]string{"a", "-all"}, false, "Show all containers (default shows just running)")
 	noStream := cmd.Bool([]string{"-no-stream"}, false, "Disable streaming stats and only pull the first result")
+	totals := cmd.Bool([]string{"-totals"}, false, "Show total consumption of resources")
 
 	cmd.ParseFlags(args, true)
 
@@ -60,6 +61,23 @@ func (cli *DockerCli) CmdStats(args ...string) error {
 	}
 
 	cStats := stats{}
+
+	// show Totals if necessary
+	if *totals {
+		// try to get server's memory limit
+		// it's supposed to be server's total memory
+		info, err := cli.client.Info()
+		if err != nil {
+			return err
+		}
+
+		cStats.total = &containerStats{
+			Name:        "Totals",
+			MemoryLimit: float64(info.MemTotal),
+		}
+		go cStats.CalculateTotal()
+	}
+
 	// getContainerList simulates creation event for all previously existing
 	// containers (only used when calling `docker stats` without arguments).
 	getContainerList := func() {
@@ -160,6 +178,10 @@ func (cli *DockerCli) CmdStats(args ...string) error {
 			if err := s.Display(w); err != nil && !*noStream {
 				toRemove = append(toRemove, i)
 			}
+		}
+
+		if *totals {
+			cStats.total.Display(w)
 		}
 		for j := len(toRemove) - 1; j >= 0; j-- {
 			i := toRemove[j]

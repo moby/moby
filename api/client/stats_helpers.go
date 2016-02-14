@@ -29,8 +29,9 @@ type containerStats struct {
 }
 
 type stats struct {
-	mu sync.Mutex
-	cs []*containerStats
+	mu    sync.Mutex
+	cs    []*containerStats
+	total *containerStats
 }
 
 func (s *stats) add(cs *containerStats) {
@@ -56,6 +57,38 @@ func (s *stats) isKnownContainer(cid string) (int, bool) {
 		}
 	}
 	return -1, false
+}
+
+// CalculateTotal adds up all containers' resource statistics
+func (s *stats) CalculateTotal() {
+	for {
+		s.total.mu.Lock()
+		s.total.CPUPercentage = 0
+		s.total.Memory = 0
+		s.total.MemoryPercentage = 0
+		s.total.NetworkRx = 0
+		s.total.NetworkTx = 0
+		s.total.BlockRead = 0
+		s.total.BlockWrite = 0
+
+		for _, cs := range s.cs {
+			cs.mu.Lock()
+			s.total.CPUPercentage += cs.CPUPercentage
+			s.total.Memory += cs.Memory
+			s.total.NetworkRx += cs.NetworkRx
+			s.total.NetworkTx += cs.NetworkTx
+			s.total.BlockRead += cs.BlockRead
+			s.total.BlockWrite += cs.BlockWrite
+			cs.mu.Unlock()
+		}
+
+		if s.total.MemoryLimit != 0 {
+			s.total.MemoryPercentage = s.total.Memory / s.total.MemoryLimit * 100.0
+		}
+		s.total.mu.Unlock()
+
+		<-time.After(100 * time.Millisecond) //sleep 100 millisecond
+	}
 }
 
 func (s *containerStats) Collect(cli client.APIClient, streamStats bool) {
