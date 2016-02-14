@@ -95,6 +95,7 @@ while [ $# -gt 0 ]; do
 			echo "skipping existing ${imageId:0:12}"
 			continue
 		fi
+		token="$(curl -sSL "https://auth.docker.io/token?service=registry.docker.io&scope=repository:$image:pull" | jq --raw-output .token)"
 		curl -SL --progress -H "Authorization: Bearer $token" "https://registry-1.docker.io/v2/$image/blobs/$imageLayer" -o "$dir/$imageId/layer.tar" # -C -
 	done
 	echo
