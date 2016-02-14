@@ -245,10 +245,9 @@ func (m *containerMonitor) start() error {
 // an execution time of more than 10s then reset the timer back to the default
 func (m *containerMonitor) resetMonitor(successful bool) {
 	executionTime := time.Now().Sub(m.lastStartTime).Seconds()
+	incrementTime := (time.Duration(m.timeIncrement) * time.Millisecond).Seconds()
 
-	if executionTime > 10 {
-		m.timeIncrement = defaultTimeIncrement
-	} else {
+	if executionTime < 10 && incrementTime < 60 {
 		// otherwise we need to increment the amount of time we wait before restarting
 		// the process.  We will build up by multiplying the increment by 2
 		m.timeIncrement *= 2
