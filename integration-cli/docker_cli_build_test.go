@@ -5505,8 +5505,6 @@ func (s *DockerSuite) TestBuildEmptyScratch(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildDotDotFile(c *check.C) {
-	testRequires(c, DaemonIsLinux)
-
 	ctx, err := fakeContext("FROM busybox\n",
 		map[string]string{
 			"..gitme": "",
@@ -5522,7 +5520,7 @@ func (s *DockerSuite) TestBuildDotDotFile(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildRUNoneJSON(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	testRequires(c, DaemonIsLinux) // No hello-world Windows image
 	name := "testbuildrunonejson"
 
 	ctx, err := fakeContext(`FROM hello-world:frozen
@@ -5544,7 +5542,6 @@ RUN [ "/hello" ]`, map[string]string{})
 }
 
 func (s *DockerSuite) TestBuildEmptyStringVolume(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	name := "testbuildemptystringvolume"
 
 	_, err := buildImage(name, `
@@ -5590,7 +5587,6 @@ RUN cat /proc/self/cgroup
 }
 
 func (s *DockerSuite) TestBuildNoDupOutput(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	// Check to make sure our build output prints the Dockerfile cmd
 	// property - there was a bug that caused it to be duplicated on the
 	// Step X  line
@@ -5611,7 +5607,6 @@ func (s *DockerSuite) TestBuildNoDupOutput(c *check.C) {
 
 // GH15826
 func (s *DockerSuite) TestBuildStartsFromOne(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	// Explicit check to ensure that build starts from step 1 rather than 0
 	name := "testbuildstartsfromone"
 
@@ -5628,7 +5623,6 @@ func (s *DockerSuite) TestBuildStartsFromOne(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildBadCmdFlag(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	name := "testbuildbadcmdflag"
 
 	_, out, err := buildImageWithOut(name, `
@@ -5645,7 +5639,6 @@ func (s *DockerSuite) TestBuildBadCmdFlag(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildRUNErrMsg(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	// Test to make sure the bad command is quoted with just "s and
 	// not as a Go []string
 	name := "testbuildbadrunerrmsg"
@@ -5655,8 +5648,14 @@ func (s *DockerSuite) TestBuildRUNErrMsg(c *check.C) {
 	if err == nil {
 		c.Fatal("Should have failed to build")
 	}
-
-	exp := `The command '/bin/sh -c badEXE a1 \& a2	a3' returned a non-zero code: 127`
+	shell := "/bin/sh -c"
+	exitCode := "127"
+	if daemonPlatform == "windows" {
+		shell = "cmd /S /C"
+		// architectural - Windows has to start the container to determine the exe is bad, Linux does not
+		exitCode = "1"
+	}
+	exp := `The command '` + shell + ` badEXE a1 \& a2	a3' returned a non-zero code: ` + exitCode
 	if !strings.Contains(out, exp) {
 		c.Fatalf("RUN doesn't have the correct output:\nGot:%s\nExpected:%s", out, exp)
 	}
@@ -5753,15 +5752,20 @@ func (s *DockerTrustSuite) TestBuildContextDirIsSymlink(c *check.C) {
 
 // Issue #15634: COPY fails when path starts with "null"
 func (s *DockerSuite) TestBuildNullStringInAddCopyVolume(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	name := "testbuildnullstringinaddcopyvolume"
+
+	volName := "nullvolume"
+
+	if daemonPlatform == "windows" {
+		volName = `C:\\nullvolume`
+	}
 
 	ctx, err := fakeContext(`
 		FROM busybox
 
 		ADD null /
 		COPY nullfile /
-		VOLUME nullvolume
+		VOLUME `+volName+`
 		`,
 		map[string]string{
 			"null":     "test1",
@@ -5776,7 +5780,7 @@ func (s *DockerSuite) TestBuildNullStringInAddCopyVolume(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildStopSignal(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	testRequires(c, DaemonIsLinux) // Windows does not support STOPSIGNAL yet
 	imgName := "test_build_stop_signal"
 	_, err := buildImage(imgName,
 		`FROM busybox
@@ -5798,7 +5802,7 @@ func (s *DockerSuite) TestBuildStopSignal(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildBuildTimeArg(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	testRequires(c, DaemonIsLinux) // Windows does not support ARG
 	imgName := "bldargtest"
 	envKey := "foo"
 	envVal := "bar"
@@ -5824,7 +5828,7 @@ func (s *DockerSuite) TestBuildBuildTimeArg(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildBuildTimeArgHistory(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	testRequires(c, DaemonIsLinux) // Windows does not support ARG
 	imgName := "bldargtest"
 	envKey := "foo"
 	envVal := "bar"
@@ -5850,7 +5854,7 @@ func (s *DockerSuite) TestBuildBuildTimeArgHistory(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildBuildTimeArgCacheHit(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	testRequires(c, DaemonIsLinux) // Windows does not support ARG
 	imgName := "bldargtest"
 	envKey := "foo"
 	envVal := "bar"
@@ -5877,7 +5881,7 @@ func (s *DockerSuite) TestBuildBuildTimeArgCacheHit(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildBuildTimeArgCacheMissExtraArg(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	testRequires(c, DaemonIsLinux) // Windows does not support ARG
 	imgName := "bldargtest"
 	envKey := "foo"
 	envVal := "bar"
@@ -5909,7 +5913,7 @@ func (s *DockerSuite) TestBuildBuildTimeArgCacheMissExtraArg(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildBuildTimeArgCacheMissSameArgDiffVal(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	testRequires(c, DaemonIsLinux) // Windows does not support ARG
 	imgName := "bldargtest"
 	envKey := "foo"
 	envVal := "bar"
@@ -5941,7 +5945,7 @@ func (s *DockerSuite) TestBuildBuildTimeArgCacheMissSameArgDiffVal(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildBuildTimeArgOverrideArgDefinedBeforeEnv(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	testRequires(c, DaemonIsLinux) // Windows does not support ARG
 	imgName := "bldargtest"
 	envKey := "foo"
 	envVal := "bar"
@@ -5970,7 +5974,7 @@ func (s *DockerSuite) TestBuildBuildTimeArgOverrideArgDefinedBeforeEnv(c *check.
 }
 
 func (s *DockerSuite) TestBuildBuildTimeArgOverrideEnvDefinedBeforeArg(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	testRequires(c, DaemonIsLinux) // Windows does not support ARG
 	imgName := "bldargtest"
 	envKey := "foo"
 	envVal := "bar"
@@ -5999,7 +6003,7 @@ func (s *DockerSuite) TestBuildBuildTimeArgOverrideEnvDefinedBeforeArg(c *check.
 }
 
 func (s *DockerSuite) TestBuildBuildTimeArgExpansion(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	testRequires(c, DaemonIsLinux) // Windows does not support ARG
 	imgName := "bldvarstest"
 
 	wdVar := "WDIR"
@@ -6094,7 +6098,7 @@ func (s *DockerSuite) TestBuildBuildTimeArgExpansion(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildBuildTimeArgExpansionOverride(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	testRequires(c, DaemonIsLinux) // Windows does not support ARG
 	imgName := "bldvarstest"
 	envKey := "foo"
 	envVal := "bar"
@@ -6124,7 +6128,7 @@ func (s *DockerSuite) TestBuildBuildTimeArgExpansionOverride(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildBuildTimeArgUntrustedDefinedAfterUse(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	testRequires(c, DaemonIsLinux) // Windows does not support ARG
 	imgName := "bldargtest"
 	envKey := "foo"
 	envVal := "bar"
@@ -6150,7 +6154,7 @@ func (s *DockerSuite) TestBuildBuildTimeArgUntrustedDefinedAfterUse(c *check.C) 
 }
 
 func (s *DockerSuite) TestBuildBuildTimeArgBuiltinArg(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	testRequires(c, DaemonIsLinux) // Windows does not support --build-arg
 	imgName := "bldargtest"
 	envKey := "HTTP_PROXY"
 	envVal := "bar"
@@ -6175,7 +6179,7 @@ func (s *DockerSuite) TestBuildBuildTimeArgBuiltinArg(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildBuildTimeArgDefaultOverride(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	testRequires(c, DaemonIsLinux) // Windows does not support ARG
 	imgName := "bldargtest"
 	envKey := "foo"
 	envVal := "bar"
@@ -6203,7 +6207,7 @@ func (s *DockerSuite) TestBuildBuildTimeArgDefaultOverride(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildBuildTimeArgMultiArgsSameLine(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	testRequires(c, DaemonIsLinux) // Windows does not support ARG
 	imgName := "bldargtest"
 	envKey := "foo"
 	envKey1 := "foo1"
@@ -6220,7 +6224,7 @@ func (s *DockerSuite) TestBuildBuildTimeArgMultiArgsSameLine(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildBuildTimeArgUnconsumedArg(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	testRequires(c, DaemonIsLinux) // Windows does not support --build-arg
 	imgName := "bldargtest"
 	envKey := "foo"
 	envVal := "bar"
@@ -6241,7 +6245,7 @@ func (s *DockerSuite) TestBuildBuildTimeArgUnconsumedArg(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildBuildTimeArgQuotedValVariants(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	testRequires(c, DaemonIsLinux) // Windows does not support ARG
 	imgName := "bldargtest"
 	envKey := "foo"
 	envKey1 := "foo1"
@@ -6267,7 +6271,7 @@ func (s *DockerSuite) TestBuildBuildTimeArgQuotedValVariants(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildBuildTimeArgEmptyValVariants(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	testRequires(c, DaemonIsLinux) // Windows does not support ARG
 	imgName := "bldargtest"
 	envKey := "foo"
 	envKey1 := "foo1"
@@ -6287,7 +6291,7 @@ func (s *DockerSuite) TestBuildBuildTimeArgEmptyValVariants(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildBuildTimeArgDefintionWithNoEnvInjection(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	testRequires(c, DaemonIsLinux) // Windows does not support ARG
 	imgName := "bldargtest"
 	envKey := "foo"
 	args := []string{}
@@ -6304,11 +6308,15 @@ func (s *DockerSuite) TestBuildBuildTimeArgDefintionWithNoEnvInjection(c *check.
 }
 
 func (s *DockerSuite) TestBuildNoNamedVolume(c *check.C) {
-	testRequires(c, DaemonIsLinux)
-	dockerCmd(c, "run", "-v", "testname:/foo", "busybox", "sh", "-c", "touch /foo/oops")
+	volName := "testname:/foo"
+
+	if daemonPlatform == "windows" {
+		volName = "testname:C:\\foo"
+	}
+	dockerCmd(c, "run", "-v", volName, "busybox", "sh", "-c", "touch /foo/oops")
 
 	dockerFile := `FROM busybox
-	VOLUME testname:/foo
+	VOLUME ` + volName + `
 	RUN ls /foo/oops
 	`
 	_, err := buildImage("test", dockerFile, false)
@@ -6316,8 +6324,6 @@ func (s *DockerSuite) TestBuildNoNamedVolume(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildTagEvent(c *check.C) {
-	testRequires(c, DaemonIsLinux)
-
 	since := daemonTime(c).Unix()
 
 	dockerFile := `FROM busybox
@@ -6485,7 +6491,6 @@ func (s *DockerSuite) TestBuildSymlinkBasename(c *check.C) {
 
 // #17827
 func (s *DockerSuite) TestBuildCacheRootSource(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	name := "testbuildrootsource"
 	ctx, err := fakeContext(`
 	FROM busybox
