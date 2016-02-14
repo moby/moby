@@ -146,9 +146,31 @@ func ParsePortSpecs(ports []string) (map[Port]struct{}, map[Port][]PortBinding, 
 			rawPort = fmt.Sprintf(":%s", rawPort)
 		}
 
-		parts, err := PartParser(portSpecTemplate, rawPort)
-		if err != nil {
-			return nil, nil, err
+		parts := make(map[string]string)
+		if rawPort != "" && rawPort[0] == '[' {
+			ipEnd := strings.Index(rawPort, "]")
+			if ipEnd == -1 {
+				return nil, nil, fmt.Errorf("IP address starts with \"[\", but corresponding \"]\" was not found")
+			}
+			parts["ip"] = rawPort[1:ipEnd]
+			if ipEnd >= len(rawPort)-2 {
+				return nil, nil, fmt.Errorf("port spec too short (expected at least 2 characters after \"]\"): %q", rawPort)
+			}
+			if rawPort[ipEnd+1] != ':' {
+				return nil, nil, fmt.Errorf("\"]\" must be followed by \":\": %q", rawPort)
+			}
+			nonIpParts := strings.Split(rawPort[ipEnd+2:], ":")
+			if len(nonIpParts) != 2 {
+				return nil, nil, fmt.Errorf("got %d parts, wanted 2: %q", len(nonIpParts), rawPort[ipEnd+2:])
+			}
+			parts["hostPort"] = nonIpParts[0]
+			parts["containerPort"] = nonIpParts[1]
+		} else {
+			var err error
+			parts, err = PartParser(portSpecTemplate, rawPort)
+			if err != nil {
+				return nil, nil, err
+			}
 		}
 
 		var (
