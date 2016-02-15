@@ -326,17 +326,17 @@ Guide.
 ### Connect a container to a network (--net)
 
 When you start a container use the `--net` flag to connect it to a network.
-This adds the `busybox` container to the `mynet` network.
+This adds the `busybox` container to the `my-net` network.
 
 ```bash
-$ docker run -itd --net=my-multihost-network busybox
+$ docker run -itd --net=my-net busybox
 ```
 
 You can also choose the IP addresses for the container with `--ip` and `--ip6`
 flags when you start the container on a user-defined network.
 
 ```bash
-$ docker run -itd --net=my-multihost-network --ip=10.10.9.75 busybox
+$ docker run -itd --net=my-net --ip=10.10.9.75 busybox
 ```
 
 If you want to add a running container to a network use the `docker network connect` subcommand.
