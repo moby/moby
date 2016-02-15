@@ -15,7 +15,7 @@
 # the case. Therefore, you don't have to disable it anymore.
 #
 
-FROM aarch64/debian:jessie
+FROM aarch64/ubuntu:wily
 
 # Packaged dependencies
 RUN apt-get update && apt-get install -y \
@@ -37,7 +37,7 @@ RUN apt-get update && apt-get install -y \
 	libc6-dev \
 	libcap-dev \
 	libsqlite3-dev \
-	libsystemd-journal-dev \
+	libsystemd-dev \
 	mercurial \
 	net-tools \
 	parallel \
@@ -46,6 +46,7 @@ RUN apt-get update && apt-get install -y \
 	python-mock \
 	python-pip \
 	python-websocket \
+	gccgo \
 	--no-install-recommends
 
 # Install armhf loader to use armv6 binaries on armv8
@@ -95,14 +96,11 @@ RUN set -x \
 # We don't have official binary tarballs for ARM64, eigher for Go or bootstrap,
 # so we use the official armv6 released binaries as a GOROOT_BOOTSTRAP, and
 # build Go from source code.
-ENV BOOT_STRAP_VERSION 1.6beta1
 ENV GO_VERSION 1.5.3
-RUN mkdir -p /usr/src/go-bootstrap \
-	&& curl -fsSL https://storage.googleapis.com/golang/go${BOOT_STRAP_VERSION}.linux-arm6.tar.gz | tar -v -C /usr/src/go-bootstrap -xz --strip-components=1 \
-	&& mkdir /usr/src/go \
-	&& curl -fsSL https://storage.googleapis.com/golang/go${GO_VERSION}.src.tar.gz | tar -v -C /usr/src/go -xz --strip-components=1 \
+RUN mkdir /usr/src/go && curl -fsSL https://storage.googleapis.com/golang/go${GO_VERSION}.src.tar.gz | tar -v -C /usr/src/go -xz --strip-components=1 \
 	&& cd /usr/src/go/src \
-	&& GOOS=linux GOARCH=arm64 GOROOT_BOOTSTRAP=/usr/src/go-bootstrap ./make.bash
+	&& GOOS=linux GOARCH=arm64 GOROOT_BOOTSTRAP="$(go env GOROOT)" ./make.bash
+
 ENV PATH /usr/src/go/bin:$PATH
 ENV GOPATH /go:/go/src/github.com/docker/docker/vendor
 
