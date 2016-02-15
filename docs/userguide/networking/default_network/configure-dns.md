@@ -61,7 +61,7 @@ Four different options affect container domain name services.
       Using this option as you <code>run</code> a container gives the new
       container's <code>/etc/hosts</code> an extra entry named
       <code>ALIAS</code> that points to the IP address of the container
-      identified by <code>CONTAINER_NAME_or_ID<c/ode>. This lets processes
+      identified by <code>CONTAINER_NAME_or_ID</code>. This lets processes
       inside the new container connect to the hostname <code>ALIAS</code>
       without having to know its IP.  The <code>--link=</code> option is
       discussed in more detail below. Because Docker may assign a different IP
