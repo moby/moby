@@ -32,7 +32,7 @@ display your kernel version:
     $ uname -r
     3.10.0-229.el7.x86_64
 
-Finally, is it recommended that you fully update your system. Please keep in
+Finally, it is recommended that you fully update your system. Please keep in
 mind that your system should be fully patched to fix any potential kernel bugs.
 Any reported kernel bugs may have already been fixed on the latest kernel
 packages.
