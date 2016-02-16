@@ -216,7 +216,7 @@ We are always open to suggestions on process improvements, and are always lookin
     <td>Internet&nbsp;Relay&nbsp;Chat&nbsp;(IRC)</td>
     <td>
       <p>
-        IRC a direct line to our most knowledgeable Docker users; we have
+        IRC is a direct line to our most knowledgeable Docker users; we have
         both the  <code>#docker</code> and <code>#docker-dev</code> group on
         <strong>irc.freenode.net</strong>.
         IRC is a rich chat protocol but it can overwhelm new users. You can search
