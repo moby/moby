@@ -12,13 +12,13 @@ import (
 // NetworkMode represents the container network stack.
 type NetworkMode string
 
-// IsolationLevel represents the isolation level of a container. The supported
+// Isolation represents the isolation technology of a container. The supported
 // values are platform specific
-type IsolationLevel string
+type Isolation string
 
-// IsDefault indicates the default isolation level of a container. On Linux this
+// IsDefault indicates the default isolation technology of a container. On Linux this
 // is the native driver. On Windows, this is a Windows Server Container.
-func (i IsolationLevel) IsDefault() bool {
+func (i Isolation) IsDefault() bool {
 	return strings.ToLower(string(i)) == "default" || string(i) == ""
 }
 
@@ -151,6 +151,11 @@ func (rp *RestartPolicy) IsUnlessStopped() bool {
 	return rp.Name == "unless-stopped"
 }
 
+// IsSame compares two RestartPolicy to see if they are the same
+func (rp *RestartPolicy) IsSame(tp *RestartPolicy) bool {
+	return rp.Name == tp.Name && rp.MaximumRetryCount == tp.MaximumRetryCount
+}
+
 // LogConfig represents the logging configuration of the container.
 type LogConfig struct {
 	Type   string
@@ -178,7 +183,7 @@ type Resources struct {
 	KernelMemory         int64           // Kernel memory limit (in bytes)
 	Memory               int64           // Memory limit (in bytes)
 	MemoryReservation    int64           // Memory soft limit (in bytes)
-	MemorySwap           int64           // Total memory usage (memory + swap); set `-1` to disable swap
+	MemorySwap           int64           // Total memory usage (memory + swap); set `-1` to enable unlimited swap
 	MemorySwappiness     *int64          // Tuning container memory swappiness behaviour
 	OomKillDisable       *bool           // Whether to disable OOM Killer or not
 	PidsLimit            int64           // Setting pids limit for a container
@@ -190,6 +195,7 @@ type Resources struct {
 type UpdateConfig struct {
 	// Contains container's resources (cgroups, ulimits)
 	Resources
+	RestartPolicy RestartPolicy
 }
 
 // HostConfig the non-portable Config structure of a container.
@@ -227,8 +233,8 @@ type HostConfig struct {
 	ShmSize         int64              // Total shm memory usage
 
 	// Applicable to Windows
-	ConsoleSize [2]int         // Initial console size
-	Isolation   IsolationLevel // Isolation level of the container (eg default, hyperv)
+	ConsoleSize [2]int    // Initial console size
+	Isolation   Isolation // Isolation technology of the container (eg default, hyperv)
 
 	// Contains container's resources (cgroups, ulimits)
 	Resources

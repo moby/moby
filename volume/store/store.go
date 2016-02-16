@@ -14,23 +14,23 @@ import (
 func New() *VolumeStore {
 	return &VolumeStore{
 		locks: &locker.Locker{},
-		names: make(map[string]string),
+		names: make(map[string]volume.Volume),
 		refs:  make(map[string][]string),
 	}
 }
 
-func (s *VolumeStore) getNamed(name string) (string, bool) {
+func (s *VolumeStore) getNamed(name string) (volume.Volume, bool) {
 	s.globalLock.Lock()
-	driverName, exists := s.names[name]
+	v, exists := s.names[name]
 	s.globalLock.Unlock()
-	return driverName, exists
+	return v, exists
 }
 
-func (s *VolumeStore) setNamed(name, driver, ref string) {
+func (s *VolumeStore) setNamed(v volume.Volume, ref string) {
 	s.globalLock.Lock()
-	s.names[name] = driver
+	s.names[v.Name()] = v
 	if len(ref) > 0 {
-		s.refs[name] = append(s.refs[name], ref)
+		s.refs[v.Name()] = append(s.refs[v.Name()], ref)
 	}
 	s.globalLock.Unlock()
 }
@@ -48,7 +48,7 @@ type VolumeStore struct {
 	globalLock sync.Mutex
 	// names stores the volume name -> driver name relationship.
 	// This is used for making lookups faster so we don't have to probe all drivers
-	names map[string]string
+	names map[string]volume.Volume
 	// refs stores the volume name and the list of things referencing it
 	refs map[string][]string
 }
@@ -67,12 +67,12 @@ func (s *VolumeStore) List() ([]volume.Volume, []string, error) {
 		name := normaliseVolumeName(v.Name())
 
 		s.locks.Lock(name)
-		driverName, exists := s.getNamed(name)
+		storedV, exists := s.getNamed(name)
 		if !exists {
-			s.setNamed(name, v.DriverName(), "")
+			s.setNamed(v, "")
 		}
-		if exists && driverName != v.DriverName() {
-			logrus.Warnf("Volume name %s already exists for driver %s, not including volume returned by %s", v.Name(), driverName, v.DriverName())
+		if exists && storedV.DriverName() != v.DriverName() {
+			logrus.Warnf("Volume name %s already exists for driver %s, not including volume returned by %s", v.Name(), storedV.DriverName(), v.DriverName())
 			s.locks.Unlock(v.Name())
 			continue
 		}
@@ -95,8 +95,9 @@ func (s *VolumeStore) list() ([]volume.Volume, []string, error) {
 	)
 
 	type vols struct {
-		vols []volume.Volume
-		err  error
+		vols       []volume.Volume
+		err        error
+		driverName string
 	}
 	chVols := make(chan vols, len(drivers))
 
@@ -104,22 +105,31 @@ func (s *VolumeStore) list() ([]volume.Volume, []string, error) {
 		go func(d volume.Driver) {
 			vs, err := d.List()
 			if err != nil {
-				chVols <- vols{err: &OpErr{Err: err, Name: d.Name(), Op: "list"}}
+				chVols <- vols{driverName: d.Name(), err: &OpErr{Err: err, Name: d.Name(), Op: "list"}}
 				return
 			}
 			chVols <- vols{vols: vs}
 		}(vd)
 	}
 
+	badDrivers := make(map[string]struct{})
 	for i := 0; i < len(drivers); i++ {
 		vs := <-chVols
 
 		if vs.err != nil {
 			warnings = append(warnings, vs.err.Error())
+			badDrivers[vs.driverName] = struct{}{}
 			logrus.Warn(vs.err)
-			continue
 		}
 		ls = append(ls, vs.vols...)
+	}
+
+	if len(badDrivers) > 0 {
+		for _, v := range s.names {
+			if _, exists := badDrivers[v.DriverName()]; exists {
+				ls = append(ls, v)
+			}
+		}
 	}
 	return ls, warnings, nil
 }
@@ -137,7 +147,7 @@ func (s *VolumeStore) CreateWithRef(name, driverName, ref string, opts map[strin
 		return nil, &OpErr{Err: err, Name: name, Op: "create"}
 	}
 
-	s.setNamed(name, v.DriverName(), ref)
+	s.setNamed(v, ref)
 	return v, nil
 }
 
@@ -151,14 +161,14 @@ func (s *VolumeStore) Create(name, driverName string, opts map[string]string) (v
 	if err != nil {
 		return nil, &OpErr{Err: err, Name: name, Op: "create"}
 	}
-	s.setNamed(name, v.DriverName(), "")
+	s.setNamed(v, "")
 	return v, nil
 }
 
 // create asks the given driver to create a volume with the name/opts.
 // If a volume with the name is already known, it will ask the stored driver for the volume.
 // If the passed in driver name does not match the driver name which is stored for the given volume name, an error is returned.
-// It is expected that callers of this function hold any neccessary locks.
+// It is expected that callers of this function hold any necessary locks.
 func (s *VolumeStore) create(name, driverName string, opts map[string]string) (volume.Volume, error) {
 	// Validate the name in a platform-specific manner
 	valid, err := volume.IsVolumeNameValid(name)
@@ -169,21 +179,28 @@ func (s *VolumeStore) create(name, driverName string, opts map[string]string) (v
 		return nil, &OpErr{Err: errInvalidName, Name: name, Op: "create"}
 	}
 
-	vdName, exists := s.getNamed(name)
-	if exists {
-		if vdName != driverName && driverName != "" && driverName != volume.DefaultDriverName {
+	if v, exists := s.getNamed(name); exists {
+		if v.DriverName() != driverName && driverName != "" && driverName != volume.DefaultDriverName {
 			return nil, errNameConflict
 		}
-		driverName = vdName
+		return v, nil
 	}
 
-	logrus.Debugf("Registering new volume reference: driver %s, name %s", driverName, name)
+	// Since there isn't a specified driver name, let's see if any of the existing drivers have this volume name
+	if driverName == "" {
+		v, _ := s.getVolume(name)
+		if v != nil {
+			return v, nil
+		}
+	}
+
+	logrus.Debugf("Registering new volume reference: driver %q, name %q", driverName, name)
 	vd, err := volumedrivers.GetDriver(driverName)
 	if err != nil {
 		return nil, &OpErr{Op: "create", Name: name, Err: err}
 	}
 
-	if v, err := vd.Get(name); err == nil {
+	if v, _ := vd.Get(name); v != nil {
 		return v, nil
 	}
 	return vd.Create(name, opts)
@@ -191,7 +208,7 @@ func (s *VolumeStore) create(name, driverName string, opts map[string]string) (v
 
 // GetWithRef gets a volume with the given name from the passed in driver and stores the ref
 // This is just like Get(), but we store the reference while holding the lock.
-// This makes sure there are no races between checking for the existance of a volume and adding a reference for it
+// This makes sure there are no races between checking for the existence of a volume and adding a reference for it
 func (s *VolumeStore) GetWithRef(name, driverName, ref string) (volume.Volume, error) {
 	name = normaliseVolumeName(name)
 	s.locks.Lock(name)
@@ -207,7 +224,7 @@ func (s *VolumeStore) GetWithRef(name, driverName, ref string) (volume.Volume, e
 		return nil, &OpErr{Err: err, Name: name, Op: "get"}
 	}
 
-	s.setNamed(name, v.DriverName(), ref)
+	s.setNamed(v, ref)
 	return v, nil
 }
 
@@ -221,16 +238,17 @@ func (s *VolumeStore) Get(name string) (volume.Volume, error) {
 	if err != nil {
 		return nil, &OpErr{Err: err, Name: name, Op: "get"}
 	}
+	s.setNamed(v, "")
 	return v, nil
 }
 
 // get requests the volume, if the driver info is stored it just access that driver,
 // if the driver is unknown it probes all drivers until it finds the first volume with that name.
-// it is expected that callers of this function hold any neccessary locks
+// it is expected that callers of this function hold any necessary locks
 func (s *VolumeStore) getVolume(name string) (volume.Volume, error) {
 	logrus.Debugf("Getting volume reference for name: %s", name)
-	if vdName, exists := s.names[name]; exists {
-		vd, err := volumedrivers.GetDriver(vdName)
+	if v, exists := s.names[name]; exists {
+		vd, err := volumedrivers.GetDriver(v.DriverName())
 		if err != nil {
 			return nil, err
 		}
@@ -283,6 +301,7 @@ func (s *VolumeStore) Dereference(v volume.Volume, ref string) {
 	defer s.locks.Unlock(v.Name())
 
 	s.globalLock.Lock()
+	defer s.globalLock.Unlock()
 	refs, exists := s.refs[v.Name()]
 	if !exists {
 		return
@@ -293,7 +312,6 @@ func (s *VolumeStore) Dereference(v volume.Volume, ref string) {
 			s.refs[v.Name()] = append(s.refs[v.Name()][:i], s.refs[v.Name()][i+1:]...)
 		}
 	}
-	s.globalLock.Unlock()
 }
 
 // Refs gets the current list of refs for the given volume
@@ -326,12 +344,18 @@ func (s *VolumeStore) FilterByDriver(name string) ([]volume.Volume, error) {
 	return ls, nil
 }
 
-// FilterByUsed returns the available volumes filtered by if they are not in use
-func (s *VolumeStore) FilterByUsed(vols []volume.Volume) []volume.Volume {
+// FilterByUsed returns the available volumes filtered by if they are in use or not.
+// `used=true` returns only volumes that are being used, while `used=false` returns
+// only volumes that are not being used.
+func (s *VolumeStore) FilterByUsed(vols []volume.Volume, used bool) []volume.Volume {
 	return s.filter(vols, func(v volume.Volume) bool {
 		s.locks.Lock(v.Name())
-		defer s.locks.Unlock(v.Name())
-		return len(s.refs[v.Name()]) == 0
+		l := len(s.refs[v.Name()])
+		s.locks.Unlock(v.Name())
+		if (used && l > 0) || (!used && l == 0) {
+			return true
+		}
+		return false
 	})
 }
 

@@ -4,8 +4,8 @@ package container
 
 import "strings"
 
-// IsValid indicates is an isolation level is valid
-func (i IsolationLevel) IsValid() bool {
+// IsValid indicates if an isolation technology is valid
+func (i Isolation) IsValid() bool {
 	return i.IsDefault()
 }
 
@@ -70,12 +70,6 @@ func (n NetworkMode) ConnectedContainer() string {
 // IsUserDefined indicates user-created network
 func (n NetworkMode) IsUserDefined() bool {
 	return !n.IsDefault() && !n.IsBridge() && !n.IsHost() && !n.IsNone() && !n.IsContainer()
-}
-
-// IsPreDefinedNetwork indicates if a network is predefined by the daemon
-func IsPreDefinedNetwork(network string) bool {
-	n := NetworkMode(network)
-	return n.IsBridge() || n.IsHost() || n.IsNone()
 }
 
 //UserDefined indicates user-created network

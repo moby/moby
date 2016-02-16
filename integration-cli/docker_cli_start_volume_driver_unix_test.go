@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/pkg/integration/checker"
+	"github.com/docker/engine-api/types"
 	"github.com/go-check/check"
 )
 
@@ -228,6 +229,9 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverNamed(c *check.C) {
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 	c.Assert(out, checker.Contains, s.server.URL)
 
+	_, err = s.d.Cmd("volume", "rm", "external-volume-test")
+	c.Assert(err, checker.IsNil)
+
 	p := hostVolumePath("external-volume-test")
 	_, err = os.Lstat(p)
 	c.Assert(err, checker.NotNil)
@@ -296,33 +300,6 @@ func hostVolumePath(name string) string {
 	return fmt.Sprintf("/var/lib/docker/volumes/%s", name)
 }
 
-func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverNamedCheckBindLocalVolume(c *check.C) {
-	err := s.d.StartWithBusybox()
-	c.Assert(err, checker.IsNil)
-
-	expected := s.server.URL
-	dockerfile := fmt.Sprintf(`FROM busybox:latest
-	RUN mkdir /nobindthenlocalvol
-	RUN echo %s > /nobindthenlocalvol/test
-	VOLUME ["/nobindthenlocalvol"]`, expected)
-
-	img := "test-checkbindlocalvolume"
-
-	_, err = buildImageWithOutInDamon(s.d.sock(), img, dockerfile, true)
-	c.Assert(err, checker.IsNil)
-
-	out, err := s.d.Cmd("run", "--rm", "--name", "test-data-nobind", "-v", "external-volume-test:/tmp/external-volume-test", "--volume-driver", "test-external-volume-driver", img, "cat", "/nobindthenlocalvol/test")
-	c.Assert(err, checker.IsNil)
-
-	c.Assert(out, checker.Contains, expected)
-
-	c.Assert(s.ec.activations, checker.Equals, 1)
-	c.Assert(s.ec.creations, checker.Equals, 1)
-	c.Assert(s.ec.removals, checker.Equals, 1)
-	c.Assert(s.ec.mounts, checker.Equals, 1)
-	c.Assert(s.ec.unmounts, checker.Equals, 1)
-}
-
 // Make sure a request to use a down driver doesn't block other requests
 func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverLookupNotBlocked(c *check.C) {
 	specPath := "/etc/docker/plugins/down-driver.spec"
@@ -389,6 +366,9 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverRetryNotImmediatelyE
 		c.Fatal("volume creates fail when plugin not immediately available")
 	}
 
+	_, err = s.d.Cmd("volume", "rm", "external-volume-test")
+	c.Assert(err, checker.IsNil)
+
 	c.Assert(s.ec.activations, checker.Equals, 1)
 	c.Assert(s.ec.creations, checker.Equals, 1)
 	c.Assert(s.ec.removals, checker.Equals, 1)
@@ -404,15 +384,14 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverBindExternalVolume(c
 		Name   string
 		Driver string
 	}
-	out, err := inspectFieldJSON("testing", "Mounts")
-	c.Assert(err, checker.IsNil)
+	out := inspectFieldJSON(c, "testing", "Mounts")
 	c.Assert(json.NewDecoder(strings.NewReader(out)).Decode(&mounts), checker.IsNil)
 	c.Assert(len(mounts), checker.Equals, 1, check.Commentf(out))
 	c.Assert(mounts[0].Name, checker.Equals, "foo")
 	c.Assert(mounts[0].Driver, checker.Equals, "test-external-volume-driver")
 }
 
-func (s *DockerExternalVolumeSuite) TestStartExternalVolumeDriverList(c *check.C) {
+func (s *DockerExternalVolumeSuite) TesttExternalVolumeDriverList(c *check.C) {
 	dockerCmd(c, "volume", "create", "-d", "test-external-volume-driver", "--name", "abc")
 	out, _ := dockerCmd(c, "volume", "ls")
 	ls := strings.Split(strings.TrimSpace(out), "\n")
@@ -426,9 +405,21 @@ func (s *DockerExternalVolumeSuite) TestStartExternalVolumeDriverList(c *check.C
 	c.Assert(s.ec.lists, check.Equals, 1)
 }
 
-func (s *DockerExternalVolumeSuite) TestStartExternalVolumeDriverGet(c *check.C) {
+func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverGet(c *check.C) {
 	out, _, err := dockerCmdWithError("volume", "inspect", "dummy")
 	c.Assert(err, check.NotNil, check.Commentf(out))
 	c.Assert(s.ec.gets, check.Equals, 1)
 	c.Assert(out, checker.Contains, "No such volume")
+}
+
+func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverWithDaemnRestart(c *check.C) {
+	dockerCmd(c, "volume", "create", "-d", "test-external-volume-driver", "--name", "abc")
+	err := s.d.Restart()
+	c.Assert(err, checker.IsNil)
+
+	dockerCmd(c, "run", "--name=test", "-v", "abc:/foo", "busybox", "true")
+	var mounts []types.MountPoint
+	inspectFieldAndMarshall(c, "test", "Mounts", &mounts)
+	c.Assert(mounts, checker.HasLen, 1)
+	c.Assert(mounts[0].Driver, checker.Equals, "test-external-volume-driver")
 }

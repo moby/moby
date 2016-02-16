@@ -9,6 +9,13 @@ import (
 	"github.com/docker/docker/pkg/integration"
 )
 
+func getPrefixAndSlashFromDaemonPlatform() (prefix, slash string) {
+	if daemonPlatform == "windows" {
+		return "c:", `\`
+	}
+	return "", "/"
+}
+
 func getExitCode(err error) (int, error) {
 	return integration.GetExitCode(err)
 }

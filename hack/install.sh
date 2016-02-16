@@ -23,7 +23,10 @@ set -e
 #     s3cmd put --acl-public -P hack/install.sh s3://get.docker.com/index
 #
 
-url='https://get.docker.com/'
+url="https://get.docker.com/"
+apt_url="https://apt.dockerproject.org"
+yum_url="https://yum.dockerproject.org"
+gpg_fingerprint="58118E89F3A912897C070ADBF76221572C52609D"
 
 command_exists() {
 	command -v "$@" > /dev/null 2>&1
@@ -99,10 +102,18 @@ rpm_import_repository_key() {
 	local key=$1; shift
 	local tmpdir=$(mktemp -d)
 	chmod 600 "$tmpdir"
-	gpg --homedir "$tmpdir" --keyserver ha.pool.sks-keyservers.net --recv-keys "$key"
+	gpg --homedir "$tmpdir" --keyserver ha.pool.sks-keyservers.net --recv-keys "$key" || gpg --homedir "$tmpdir" --keyserver pgp.mit.edu --recv-keys "$key"
 	gpg --homedir "$tmpdir" --export --armor "$key" > "$tmpdir"/repo.key
 	rpm --import "$tmpdir"/repo.key
 	rm -rf "$tmpdir"
+}
+
+semverParse() {
+	major="${1%%.*}"
+	minor="${1#$major.}"
+	minor="${minor%%.*}"
+	patch="${1#$major.$minor.}"
+	patch="${patch%%[-.]*}"
 }
 
 do_install() {
@@ -119,6 +130,21 @@ do_install() {
 	esac
 
 	if command_exists docker; then
+		version="$(docker -v | awk -F '[ ,]+' '{ print $3 }')"
+		MAJOR_W=1
+		MINOR_W=10
+
+		semverParse $version
+
+		shouldWarn=0
+		if [ $major -lt $MAJOR_W ]; then
+			shouldWarn=1
+		fi
+
+		if [ $major -le $MAJOR_W ] && [ $minor -lt $MINOR_W ]; then
+			shouldWarn=1
+		fi
+
 		cat >&2 <<-'EOF'
 			Warning: the "docker" command appears to already exist on this system.
 
@@ -127,7 +153,23 @@ do_install() {
 			installation.
 
 			If you installed the current Docker package using this script and are using it
+		EOF
+
+		if [ $shouldWarn -eq 1 ]; then
+			cat >&2 <<-'EOF'
+			again to update Docker, we urge you to migrate your image store before upgrading
+			to v1.10+.
+
+			You can find instructions for this here:
+			https://github.com/docker/docker/wiki/Engine-v1.10.0-content-addressability-migration
+			EOF
+		else
+			cat >&2 <<-'EOF'
 			again to update Docker, you can safely ignore this message.
+			EOF
+		fi
+
+		cat >&2 <<-'EOF'
 
 			You may press Ctrl+C now to abort this script.
 		EOF
@@ -161,11 +203,13 @@ do_install() {
 	fi
 
 	# check to see which repo they are trying to install from
-	repo='main'
-	if [ "https://test.docker.com/" = "$url" ]; then
-		repo='testing'
-	elif [ "https://experimental.docker.com/" = "$url" ]; then
-		repo='experimental'
+	if [ -z "$repo" ]; then
+		repo='main'
+		if [ "https://test.docker.com/" = "$url" ]; then
+			repo='testing'
+		elif [ "https://experimental.docker.com/" = "$url" ]; then
+			repo='experimental'
+		fi
 	fi
 
 	# perform some very rudimentary platform detection
@@ -328,7 +372,7 @@ do_install() {
 
 			# aufs is preferred over devicemapper; try to ensure the driver is available.
 			if ! grep -q aufs /proc/filesystems && ! $sh_c 'modprobe aufs'; then
-				if uname -r | grep -q -- '-generic' && dpkg -l 'linux-image-*-generic' | grep -q '^ii' 2>/dev/null; then
+				if uname -r | grep -q -- '-generic' && dpkg -l 'linux-image-*-generic' | grep -qE '^ii|^hi' 2>/dev/null; then
 					kern_extras="linux-image-extra-$(uname -r) linux-image-extra-virtual"
 
 					apt_get_update
@@ -370,9 +414,9 @@ do_install() {
 			fi
 			(
 			set -x
-			$sh_c "apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys 58118E89F3A912897C070ADBF76221572C52609D"
+			$sh_c "apt-key adv --keyserver hkp://pool.sks-keyservers.net:80 --recv-keys ${gpg_fingerprint} || apt-key adv --keyserver hkp://pgp.mit.edu:80 --recv-keys ${gpg_fingerprint}"
 			$sh_c "mkdir -p /etc/apt/sources.list.d"
-			$sh_c "echo deb [arch=$(dpkg --print-architecture)] https://apt.dockerproject.org/repo ${lsb_dist}-${dist_version} ${repo} > /etc/apt/sources.list.d/docker.list"
+			$sh_c "echo deb [arch=$(dpkg --print-architecture)] ${apt_url}/repo ${lsb_dist}-${dist_version} ${repo} > /etc/apt/sources.list.d/docker.list"
 			$sh_c 'sleep 3; apt-get update; apt-get install -y -q docker-engine'
 			)
 			echo_docker_as_nonroot
@@ -383,10 +427,10 @@ do_install() {
 			$sh_c "cat >/etc/yum.repos.d/docker-${repo}.repo" <<-EOF
 			[docker-${repo}-repo]
 			name=Docker ${repo} Repository
-			baseurl=https://yum.dockerproject.org/repo/${repo}/${lsb_dist}/${dist_version}
+			baseurl=${yum_url}/repo/${repo}/${lsb_dist}/${dist_version}
 			enabled=1
 			gpgcheck=1
-			gpgkey=https://yum.dockerproject.org/gpg
+			gpgkey=${yum_url}/gpg
 			EOF
 			if [ "$lsb_dist" = "fedora" ] && [ "$dist_version" -ge "22" ]; then
 				(

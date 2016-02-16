@@ -3,7 +3,9 @@
 package daemon
 
 import (
+	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/container"
+	"github.com/docker/docker/daemon/exec"
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/versions/v1p19"
 )
@@ -76,4 +78,14 @@ func addMountPoints(container *container.Container) []types.MountPoint {
 		})
 	}
 	return mountPoints
+}
+
+func inspectExecProcessConfig(e *exec.Config) *backend.ExecProcessConfig {
+	return &backend.ExecProcessConfig{
+		Tty:        e.ProcessConfig.Tty,
+		Entrypoint: e.ProcessConfig.Entrypoint,
+		Arguments:  e.ProcessConfig.Arguments,
+		Privileged: &e.ProcessConfig.Privileged,
+		User:       e.ProcessConfig.User,
+	}
 }

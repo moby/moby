@@ -30,7 +30,7 @@ func (daemon *Daemon) ContainerRm(name string, config *types.ContainerRmConfig) 
 			// do not fail when the removal is in progress started by other request.
 			return nil
 		}
-		return derr.ErrorCodeRmState.WithArgs(err)
+		return derr.ErrorCodeRmState.WithArgs(container.ID, err)
 	}
 	defer container.ResetRemovalInProgress()
 
@@ -43,15 +43,14 @@ func (daemon *Daemon) ContainerRm(name string, config *types.ContainerRmConfig) 
 		return daemon.rmLink(container, name)
 	}
 
-	if err := daemon.cleanupContainer(container, config.ForceRemove); err != nil {
-		return err
+	err = daemon.cleanupContainer(container, config.ForceRemove)
+	if err == nil || config.ForceRemove {
+		if e := daemon.removeMountPoints(container, config.RemoveVolume); e != nil {
+			logrus.Error(e)
+		}
 	}
 
-	if err := daemon.removeMountPoints(container, config.RemoveVolume); err != nil {
-		logrus.Error(err)
-	}
-
-	return nil
+	return err
 }
 
 func (daemon *Daemon) rmLink(container *container.Container, name string) error {
@@ -85,10 +84,10 @@ func (daemon *Daemon) rmLink(container *container.Container, name string) error 
 func (daemon *Daemon) cleanupContainer(container *container.Container, forceRemove bool) (err error) {
 	if container.IsRunning() {
 		if !forceRemove {
-			return derr.ErrorCodeRmRunning
+			return derr.ErrorCodeRmRunning.WithArgs(container.ID)
 		}
 		if err := daemon.Kill(container); err != nil {
-			return derr.ErrorCodeRmFailed.WithArgs(err)
+			return derr.ErrorCodeRmFailed.WithArgs(container.ID, err)
 		}
 	}
 

@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"fmt"
 	"runtime"
 
 	"github.com/Sirupsen/logrus"
@@ -101,7 +102,10 @@ func (daemon *Daemon) containerStart(container *container.Container) (err error)
 			}
 			container.ToDisk()
 			daemon.Cleanup(container)
-			daemon.LogContainerEvent(container, "die")
+			attributes := map[string]string{
+				"exitCode": fmt.Sprintf("%d", container.ExitCode),
+			}
+			daemon.LogContainerEventWithAttributes(container, "die", attributes)
 		}
 	}()
 

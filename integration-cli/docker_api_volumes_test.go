@@ -11,10 +11,7 @@ import (
 )
 
 func (s *DockerSuite) TestVolumesApiList(c *check.C) {
-	prefix := ""
-	if daemonPlatform == "windows" {
-		prefix = "c:"
-	}
+	prefix, _ := getPrefixAndSlashFromDaemonPlatform()
 	dockerCmd(c, "run", "-d", "-v", prefix+"/foo", "busybox")
 
 	status, b, err := sockRequest("GET", "/volumes", nil)
@@ -43,10 +40,7 @@ func (s *DockerSuite) TestVolumesApiCreate(c *check.C) {
 }
 
 func (s *DockerSuite) TestVolumesApiRemove(c *check.C) {
-	prefix := ""
-	if daemonPlatform == "windows" {
-		prefix = "c:"
-	}
+	prefix, _ := getPrefixAndSlashFromDaemonPlatform()
 	dockerCmd(c, "run", "-d", "-v", prefix+"/foo", "--name=test", "busybox")
 
 	status, b, err := sockRequest("GET", "/volumes", nil)

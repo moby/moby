@@ -22,25 +22,25 @@ parent = "smn_cli"
       -q, --quiet          Only show numeric IDs
 
 The default `docker images` will show all top level
-images, their repository and tags, and their virtual size.
+images, their repository and tags, and their size.
 
 Docker images have intermediate layers that increase reusability,
 decrease disk usage, and speed up `docker build` by
 allowing each step to be cached. These intermediate layers are not shown
 by default.
 
-The `VIRTUAL SIZE` is the cumulative space taken up by the image and all
+The `SIZE` is the cumulative space taken up by the image and all
 its parent images. This is also the disk space used by the contents of the
 Tar file created when you `docker save` an image.
 
 An image will be listed more than once if it has multiple repository names
 or tags. This single image (identifiable by its matching `IMAGE ID`)
-uses up the `VIRTUAL SIZE` listed only once.
+uses up the `SIZE` listed only once.
 
 ### Listing the most recently created images
 
     $ docker images
-    REPOSITORY                TAG                 IMAGE ID            CREATED             VIRTUAL SIZE
+    REPOSITORY                TAG                 IMAGE ID            CREATED             SIZE
     <none>                    <none>              77af4d6b9913        19 hours ago        1.089 GB
     committ                   latest              b6fa739cedf5        19 hours ago        1.089 GB
     <none>                    <none>              78a85c484f71        19 hours ago        1.089 GB
@@ -61,7 +61,7 @@ given repository.
 For example, to list all images in the "java" repository, run this command :
 
     $ docker images java
-    REPOSITORY          TAG                 IMAGE ID            CREATED             VIRTUAL SIZE
+    REPOSITORY          TAG                 IMAGE ID            CREATED             SIZE
     java                8                   308e519aac60        6 days ago          824.5 MB
     java                7                   493d82594c15        3 months ago        656.3 MB
     java                latest              2711b1d6f3aa        5 months ago        603.9 MB
@@ -74,18 +74,18 @@ repository and tag are listed.  To find all local images in the "java"
 repository with tag "8" you can use:
 
     $ docker images java:8
-    REPOSITORY          TAG                 IMAGE ID            CREATED             VIRTUAL SIZE
+    REPOSITORY          TAG                 IMAGE ID            CREATED             SIZE
     java                8                   308e519aac60        6 days ago          824.5 MB
 
 If nothing matches `REPOSITORY[:TAG]`, the list is empty.
 
     $ docker images java:0
-    REPOSITORY          TAG                 IMAGE ID            CREATED             VIRTUAL SIZE
+    REPOSITORY          TAG                 IMAGE ID            CREATED             SIZE
 
 ## Listing the full length image IDs
 
     $ docker images --no-trunc
-    REPOSITORY                    TAG                 IMAGE ID                                                           CREATED             VIRTUAL SIZE
+    REPOSITORY                    TAG                 IMAGE ID                                                           CREATED             SIZE
     <none>                        <none>              77af4d6b9913e693e8d0b4b294fa62ade6054e6b2f1ffb617ac955dd63fb0182   19 hours ago        1.089 GB
     committest                    latest              b6fa739cedf5ea12a620a439402b6004d057da800f91c7524b5086a5e4749c9f   19 hours ago        1.089 GB
     <none>                        <none>              78a85c484f71509adeaace20e72e941f6bdd2b25b4c75da8693efd9f61a37921   19 hours ago        1.089 GB
@@ -104,7 +104,7 @@ unchanged, the digest value is predictable. To list image digest values, use
 the `--digests` flag:
 
     $ docker images --digests
-    REPOSITORY                         TAG                 DIGEST                                                                    IMAGE ID            CREATED             VIRTUAL SIZE
+    REPOSITORY                         TAG                 DIGEST                                                                    IMAGE ID            CREATED             SIZE
     localhost:5000/test/busybox        <none>              sha256:cbbf2f9a99b47fc460d422812b6a5adff7dfee951d8fa2e4a98caa0382cfbdbf   4986bf8c1536        9 weeks ago         2.43 MB
 
 When pushing or pulling to a 2.0 registry, the `push` or `pull` command
@@ -126,7 +126,7 @@ The currently supported filters are:
 
     $ docker images --filter "dangling=true"
 
-    REPOSITORY          TAG                 IMAGE ID            CREATED             VIRTUAL SIZE
+    REPOSITORY          TAG                 IMAGE ID            CREATED             SIZE
     <none>              <none>              8abc22fbb042        4 weeks ago         0 B
     <none>              <none>              48e5f45168b9        4 weeks ago         2.489 MB
     <none>              <none>              bf747efa0e2f        4 weeks ago         0 B
@@ -163,20 +163,20 @@ The following filter matches images with the `com.example.version` label regardl
 
     $ docker images --filter "label=com.example.version"
 
-    REPOSITORY          TAG                 IMAGE ID            CREATED              VIRTUAL SIZE
+    REPOSITORY          TAG                 IMAGE ID            CREATED              SIZE
     match-me-1          latest              eeae25ada2aa        About a minute ago   188.3 MB
     match-me-2          latest              eeae25ada2aa        About a minute ago   188.3 MB
 
 The following filter matches images with the `com.example.version` label with the `1.0` value.
 
     $ docker images --filter "label=com.example.version=1.0"
-    REPOSITORY          TAG                 IMAGE ID            CREATED              VIRTUAL SIZE
+    REPOSITORY          TAG                 IMAGE ID            CREATED              SIZE
     match-me            latest              eeae25ada2aa        About a minute ago   188.3 MB
 
 In this example, with the `0.1` value, it returns an empty set because no matches were found.
 
     $ docker images --filter "label=com.example.version=0.1"
-    REPOSITORY          TAG                 IMAGE ID            CREATED              VIRTUAL SIZE
+    REPOSITORY          TAG                 IMAGE ID            CREATED              SIZE
 
 ## Formatting
 

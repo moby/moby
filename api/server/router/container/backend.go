@@ -4,8 +4,7 @@ import (
 	"io"
 	"time"
 
-	"github.com/docker/docker/daemon"
-	"github.com/docker/docker/daemon/exec"
+	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/version"
 	"github.com/docker/engine-api/types"
@@ -15,7 +14,7 @@ import (
 // execBackend includes functions to implement to provide exec functionality.
 type execBackend interface {
 	ContainerExecCreate(config *types.ExecConfig) (string, error)
-	ContainerExecInspect(id string) (*exec.Config, error)
+	ContainerExecInspect(id string) (*backend.ExecInspect, error)
 	ContainerExecResize(name string, height, width int) error
 	ContainerExecStart(name string, stdin io.ReadCloser, stdout io.Writer, stderr io.Writer) error
 	ExecExists(name string) (bool, error)
@@ -44,24 +43,22 @@ type stateBackend interface {
 	ContainerUnpause(name string) error
 	ContainerUpdate(name string, hostConfig *container.HostConfig) ([]string, error)
 	ContainerWait(name string, timeout time.Duration) (int, error)
-	Exists(id string) bool
 }
 
 // monitorBackend includes functions to implement to provide containers monitoring functionality.
 type monitorBackend interface {
 	ContainerChanges(name string) ([]archive.Change, error)
 	ContainerInspect(name string, size bool, version version.Version) (interface{}, error)
-	ContainerLogs(name string, config *daemon.ContainerLogsConfig) error
-	ContainerStats(name string, config *daemon.ContainerStatsConfig) error
+	ContainerLogs(name string, config *backend.ContainerLogsConfig, started chan struct{}) error
+	ContainerStats(name string, config *backend.ContainerStatsConfig) error
 	ContainerTop(name string, psArgs string) (*types.ContainerProcessList, error)
 
-	Containers(config *daemon.ContainersConfig) ([]*types.Container, error)
+	Containers(config *types.ContainerListOptions) ([]*types.Container, error)
 }
 
 // attachBackend includes function to implement to provide container attaching functionality.
 type attachBackend interface {
-	ContainerAttachWithLogs(name string, c *daemon.ContainerAttachWithLogsConfig) error
-	ContainerWsAttachWithLogs(name string, c *daemon.ContainerWsAttachWithLogsConfig) error
+	ContainerAttach(name string, c *backend.ContainerAttachConfig) error
 }
 
 // Backend is all the methods that need to be implemented to provide container specific functionality.

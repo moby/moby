@@ -39,18 +39,7 @@ func (cli *Client) ContainerCreate(config *container.Config, hostConfig *contain
 		return response, err
 	}
 
-	if serverResp.statusCode == 404 && strings.Contains(err.Error(), "No such image") {
-		return response, imageNotFoundError{config.Image}
-	}
-
-	if err != nil {
-		return response, err
-	}
-	defer ensureReaderClosed(serverResp)
-
-	if err := json.NewDecoder(serverResp.body).Decode(&response); err != nil {
-		return response, err
-	}
-
-	return response, nil
+	err = json.NewDecoder(serverResp.body).Decode(&response)
+	ensureReaderClosed(serverResp)
+	return response, err
 }

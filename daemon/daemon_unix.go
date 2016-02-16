@@ -4,10 +4,12 @@ package daemon
 
 import (
 	"fmt"
+	"io/ioutil"
 	"net"
 	"os"
 	"path/filepath"
 	"runtime"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"syscall"
@@ -18,6 +20,7 @@ import (
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/idtools"
+	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/reference"
@@ -218,9 +221,8 @@ func (daemon *Daemon) adaptContainerSettings(hostConfig *containertypes.HostConf
 	return nil
 }
 
-func verifyContainerResources(resources *containertypes.Resources) ([]string, error) {
+func verifyContainerResources(resources *containertypes.Resources, sysInfo *sysinfo.SysInfo) ([]string, error) {
 	warnings := []string{}
-	sysInfo := sysinfo.New(true)
 
 	// memory subsystem checks and adjustments
 	if resources.Memory != 0 && resources.Memory < linuxMinMemory {
@@ -361,6 +363,24 @@ func verifyContainerResources(resources *containertypes.Resources) ([]string, er
 	return warnings, nil
 }
 
+func usingSystemd(config *Config) bool {
+	for _, option := range config.ExecOptions {
+		key, val, err := parsers.ParseKeyValueOpt(option)
+		if err != nil || !strings.EqualFold(key, "native.cgroupdriver") {
+			continue
+		}
+		if val == "systemd" {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (daemon *Daemon) usingSystemd() bool {
+	return usingSystemd(daemon.configStore)
+}
+
 // verifyPlatformContainerSettings performs platform-specific validation of the
 // hostconfig and config structures.
 func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.HostConfig, config *containertypes.Config) ([]string, error) {
@@ -372,7 +392,7 @@ func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.
 		return warnings, err
 	}
 
-	w, err := verifyContainerResources(&hostConfig.Resources)
+	w, err := verifyContainerResources(&hostConfig.Resources, sysInfo)
 	if err != nil {
 		return warnings, err
 	}
@@ -392,35 +412,46 @@ func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.
 	// check for various conflicting options with user namespaces
 	if daemon.configStore.RemappedRoot != "" {
 		if hostConfig.Privileged {
-			return warnings, fmt.Errorf("Privileged mode is incompatible with user namespaces.")
+			return warnings, fmt.Errorf("Privileged mode is incompatible with user namespaces")
 		}
 		if hostConfig.NetworkMode.IsHost() || hostConfig.NetworkMode.IsContainer() {
-			return warnings, fmt.Errorf("Cannot share the host or a container's network namespace when user namespaces are enabled.")
+			return warnings, fmt.Errorf("Cannot share the host or a container's network namespace when user namespaces are enabled")
 		}
 		if hostConfig.PidMode.IsHost() {
-			return warnings, fmt.Errorf("Cannot share the host PID namespace when user namespaces are enabled.")
+			return warnings, fmt.Errorf("Cannot share the host PID namespace when user namespaces are enabled")
 		}
 		if hostConfig.IpcMode.IsContainer() {
-			return warnings, fmt.Errorf("Cannot share a container's IPC namespace when user namespaces are enabled.")
+			return warnings, fmt.Errorf("Cannot share a container's IPC namespace when user namespaces are enabled")
 		}
 		if hostConfig.ReadonlyRootfs {
-			return warnings, fmt.Errorf("Cannot use the --read-only option when user namespaces are enabled.")
+			return warnings, fmt.Errorf("Cannot use the --read-only option when user namespaces are enabled")
+		}
+	}
+	if hostConfig.CgroupParent != "" && daemon.usingSystemd() {
+		// CgroupParent for systemd cgroup should be named as "xxx.slice"
+		if len(hostConfig.CgroupParent) <= 6 || !strings.HasSuffix(hostConfig.CgroupParent, ".slice") {
+			return warnings, fmt.Errorf("cgroup-parent for systemd cgroup should be a valid slice named as \"xxx.slice\"")
 		}
 	}
 	return warnings, nil
 }
 
-// checkConfigOptions checks for mutually incompatible config options
-func checkConfigOptions(config *Config) error {
+// verifyDaemonSettings performs validation of daemon config struct
+func verifyDaemonSettings(config *Config) error {
 	// Check for mutually incompatible config options
-	if config.Bridge.Iface != "" && config.Bridge.IP != "" {
-		return fmt.Errorf("You specified -b & --bip, mutually exclusive options. Please specify only one.")
+	if config.bridgeConfig.Iface != "" && config.bridgeConfig.IP != "" {
+		return fmt.Errorf("You specified -b & --bip, mutually exclusive options. Please specify only one")
 	}
-	if !config.Bridge.EnableIPTables && !config.Bridge.InterContainerCommunication {
-		return fmt.Errorf("You specified --iptables=false with --icc=false. ICC=false uses iptables to function. Please set --icc or --iptables to true.")
+	if !config.bridgeConfig.EnableIPTables && !config.bridgeConfig.InterContainerCommunication {
+		return fmt.Errorf("You specified --iptables=false with --icc=false. ICC=false uses iptables to function. Please set --icc or --iptables to true")
 	}
-	if !config.Bridge.EnableIPTables && config.Bridge.EnableIPMasq {
-		config.Bridge.EnableIPMasq = false
+	if !config.bridgeConfig.EnableIPTables && config.bridgeConfig.EnableIPMasq {
+		config.bridgeConfig.EnableIPMasq = false
+	}
+	if config.CgroupParent != "" && usingSystemd(config) {
+		if len(config.CgroupParent) <= 6 || !strings.HasSuffix(config.CgroupParent, ".slice") {
+			return fmt.Errorf("cgroup-parent for systemd cgroup should be a valid slice named as \"xxx.slice\"")
+		}
 	}
 	return nil
 }
@@ -431,6 +462,23 @@ func checkSystem() error {
 		return fmt.Errorf("The Docker daemon needs to be run as root")
 	}
 	return checkKernel()
+}
+
+// configureMaxThreads sets the Go runtime max threads threshold
+// which is 90% of the kernel setting from /proc/sys/kernel/threads-max
+func configureMaxThreads(config *Config) error {
+	mt, err := ioutil.ReadFile("/proc/sys/kernel/threads-max")
+	if err != nil {
+		return err
+	}
+	mtint, err := strconv.Atoi(strings.TrimSpace(string(mt)))
+	if err != nil {
+		return err
+	}
+	maxThreads := (mtint / 100) * 90
+	debug.SetMaxThreads(maxThreads)
+	logrus.Debugf("Golang's threads limit set to %d", maxThreads)
+	return nil
 }
 
 // configureKernelSecuritySupport configures and validate security support for the kernel
@@ -452,7 +500,7 @@ func configureKernelSecuritySupport(config *Config, driverName string) error {
 }
 
 func isBridgeNetworkDisabled(config *Config) bool {
-	return config.Bridge.Iface == disableNetworkBridge
+	return config.bridgeConfig.Iface == disableNetworkBridge
 }
 
 func (daemon *Daemon) networkOptions(dconfig *Config) ([]nwconfig.Option, error) {
@@ -526,9 +574,9 @@ func (daemon *Daemon) initNetworkController(config *Config) (libnetwork.NetworkC
 
 func driverOptions(config *Config) []nwconfig.Option {
 	bridgeConfig := options.Generic{
-		"EnableIPForwarding":  config.Bridge.EnableIPForward,
-		"EnableIPTables":      config.Bridge.EnableIPTables,
-		"EnableUserlandProxy": config.Bridge.EnableUserlandProxy}
+		"EnableIPForwarding":  config.bridgeConfig.EnableIPForward,
+		"EnableIPTables":      config.bridgeConfig.EnableIPTables,
+		"EnableUserlandProxy": config.bridgeConfig.EnableUserlandProxy}
 	bridgeOption := options.Generic{netlabel.GenericData: bridgeConfig}
 
 	dOptions := []nwconfig.Option{}
@@ -544,20 +592,20 @@ func initBridgeDriver(controller libnetwork.NetworkController, config *Config) e
 	}
 
 	bridgeName := bridge.DefaultBridgeName
-	if config.Bridge.Iface != "" {
-		bridgeName = config.Bridge.Iface
+	if config.bridgeConfig.Iface != "" {
+		bridgeName = config.bridgeConfig.Iface
 	}
 	netOption := map[string]string{
 		bridge.BridgeName:         bridgeName,
 		bridge.DefaultBridge:      strconv.FormatBool(true),
 		netlabel.DriverMTU:        strconv.Itoa(config.Mtu),
-		bridge.EnableIPMasquerade: strconv.FormatBool(config.Bridge.EnableIPMasq),
-		bridge.EnableICC:          strconv.FormatBool(config.Bridge.InterContainerCommunication),
+		bridge.EnableIPMasquerade: strconv.FormatBool(config.bridgeConfig.EnableIPMasq),
+		bridge.EnableICC:          strconv.FormatBool(config.bridgeConfig.InterContainerCommunication),
 	}
 
 	// --ip processing
-	if config.Bridge.DefaultIP != nil {
-		netOption[bridge.DefaultBindingIP] = config.Bridge.DefaultIP.String()
+	if config.bridgeConfig.DefaultIP != nil {
+		netOption[bridge.DefaultBindingIP] = config.bridgeConfig.DefaultIP.String()
 	}
 
 	var (
@@ -576,9 +624,9 @@ func initBridgeDriver(controller libnetwork.NetworkController, config *Config) e
 		}
 	}
 
-	if config.Bridge.IP != "" {
-		ipamV4Conf.PreferredPool = config.Bridge.IP
-		ip, _, err := net.ParseCIDR(config.Bridge.IP)
+	if config.bridgeConfig.IP != "" {
+		ipamV4Conf.PreferredPool = config.bridgeConfig.IP
+		ip, _, err := net.ParseCIDR(config.bridgeConfig.IP)
 		if err != nil {
 			return err
 		}
@@ -587,8 +635,8 @@ func initBridgeDriver(controller libnetwork.NetworkController, config *Config) e
 		logrus.Infof("Default bridge (%s) is assigned with an IP address %s. Daemon option --bip can be used to set a preferred IP address", bridgeName, ipamV4Conf.PreferredPool)
 	}
 
-	if config.Bridge.FixedCIDR != "" {
-		_, fCIDR, err := net.ParseCIDR(config.Bridge.FixedCIDR)
+	if config.bridgeConfig.FixedCIDR != "" {
+		_, fCIDR, err := net.ParseCIDR(config.bridgeConfig.FixedCIDR)
 		if err != nil {
 			return err
 		}
@@ -596,13 +644,13 @@ func initBridgeDriver(controller libnetwork.NetworkController, config *Config) e
 		ipamV4Conf.SubPool = fCIDR.String()
 	}
 
-	if config.Bridge.DefaultGatewayIPv4 != nil {
-		ipamV4Conf.AuxAddresses["DefaultGatewayIPv4"] = config.Bridge.DefaultGatewayIPv4.String()
+	if config.bridgeConfig.DefaultGatewayIPv4 != nil {
+		ipamV4Conf.AuxAddresses["DefaultGatewayIPv4"] = config.bridgeConfig.DefaultGatewayIPv4.String()
 	}
 
 	var deferIPv6Alloc bool
-	if config.Bridge.FixedCIDRv6 != "" {
-		_, fCIDRv6, err := net.ParseCIDR(config.Bridge.FixedCIDRv6)
+	if config.bridgeConfig.FixedCIDRv6 != "" {
+		_, fCIDRv6, err := net.ParseCIDR(config.bridgeConfig.FixedCIDRv6)
 		if err != nil {
 			return err
 		}
@@ -632,11 +680,11 @@ func initBridgeDriver(controller libnetwork.NetworkController, config *Config) e
 		}
 	}
 
-	if config.Bridge.DefaultGatewayIPv6 != nil {
+	if config.bridgeConfig.DefaultGatewayIPv6 != nil {
 		if ipamV6Conf == nil {
 			ipamV6Conf = &libnetwork.IpamConf{AuxAddresses: make(map[string]string)}
 		}
-		ipamV6Conf.AuxAddresses["DefaultGatewayIPv6"] = config.Bridge.DefaultGatewayIPv6.String()
+		ipamV6Conf.AuxAddresses["DefaultGatewayIPv6"] = config.bridgeConfig.DefaultGatewayIPv6.String()
 	}
 
 	v4Conf := []*libnetwork.IpamConf{ipamV4Conf}
@@ -648,7 +696,7 @@ func initBridgeDriver(controller libnetwork.NetworkController, config *Config) e
 	_, err = controller.NewNetwork("bridge", "bridge",
 		libnetwork.NetworkOptionGeneric(options.Generic{
 			netlabel.GenericData: netOption,
-			netlabel.EnableIPv6:  config.Bridge.EnableIPv6,
+			netlabel.EnableIPv6:  config.bridgeConfig.EnableIPv6,
 		}),
 		libnetwork.NetworkOptionIpam("default", "", v4Conf, v6Conf, nil),
 		libnetwork.NetworkOptionDeferIPv6Alloc(deferIPv6Alloc))
@@ -659,8 +707,7 @@ func initBridgeDriver(controller libnetwork.NetworkController, config *Config) e
 }
 
 // setupInitLayer populates a directory with mountpoints suitable
-// for bind-mounting dockerinit into the container. The mountpoint is simply an
-// empty file at /.dockerinit
+// for bind-mounting things into the container.
 //
 // This extra layer is used by all containers as the top-most ro layer. It protects
 // the container from unwanted side-effects on the rw layer.
@@ -670,7 +717,6 @@ func setupInitLayer(initLayer string, rootUID, rootGID int) error {
 		"/dev/shm":         "dir",
 		"/proc":            "dir",
 		"/sys":             "dir",
-		"/.dockerinit":     "file",
 		"/.dockerenv":      "file",
 		"/etc/resolv.conf": "file",
 		"/etc/hosts":       "file",

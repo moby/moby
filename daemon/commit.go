@@ -89,6 +89,10 @@ func merge(userConf, imageConf *containertypes.Config) error {
 			userConf.Volumes[k] = v
 		}
 	}
+
+	if userConf.StopSignal == "" {
+		userConf.StopSignal = imageConf.StopSignal
+	}
 	return nil
 }
 
@@ -204,7 +208,10 @@ func (daemon *Daemon) Commit(name string, c *types.ContainerCommitConfig) (strin
 		}
 	}
 
-	daemon.LogContainerEvent(container, "commit")
+	attributes := map[string]string{
+		"comment": c.Comment,
+	}
+	daemon.LogContainerEventWithAttributes(container, "commit", attributes)
 	return id.String(), nil
 }
 

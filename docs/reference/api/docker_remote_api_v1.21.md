@@ -4,7 +4,7 @@ title = "Remote API v1.21"
 description = "API Documentation for Docker"
 keywords = ["API, Docker, rcli, REST,  documentation"]
 [menu.main]
-parent="smn_remoteapi"
+parent="engine_remoteapi"
 weight=-2
 +++
 <![end-metadata]-->
@@ -15,7 +15,7 @@ weight=-2
 
  - The Remote API has replaced `rcli`.
  - The daemon listens on `unix:///var/run/docker.sock` but you can
-   [Bind Docker to another host/port or a Unix socket](../../userguide/basics.md#bind-docker-to-another-host-port-or-a-unix-socket).
+   [Bind Docker to another host/port or a Unix socket](../../quickstart.md#bind-docker-to-another-host-port-or-a-unix-socket).
  - The API tends to be REST. However, for some complex commands, like `attach`
    or `pull`, the HTTP connection is hijacked to transport `stdout`,
    `stdin` and `stderr`.
@@ -230,7 +230,7 @@ Json Parameters:
       for the container.
 -   **User** - A string value specifying the user inside the container.
 -   **Memory** - Memory limit in bytes.
--   **MemorySwap** - Total memory limit (memory + swap); set `-1` to disable swap
+-   **MemorySwap** - Total memory limit (memory + swap); set `-1` to enable unlimited swap.
       You must use this with `memory` and make the swap value larger than `memory`.
 -   **MemoryReservation** - Memory soft limit in bytes.
 -   **KernelMemory** - Kernel memory limit in bytes.
@@ -305,7 +305,8 @@ Json Parameters:
             An ever increasing delay (double the previous delay, starting at 100mS)
             is added before each restart to prevent flooding the server.
     -   **NetworkMode** - Sets the networking mode for the container. Supported
-          values are: `bridge`, `host`, and `container:<name|id>`
+          standard values are: `bridge`, `host`, `none`, and `container:<name|id>`. Any other value is taken
+          as a custom network's name to which this container should connect to.
     -   **Devices** - A list of devices to add to the container specified as a JSON object in the
       form
           `{ "PathOnHost": "/dev/deviceName", "PathInContainer": "/dev/deviceName", "CgroupPermissions": "mrw"}`
@@ -1445,7 +1446,7 @@ Query Parameters:
 -   **rm** - Remove intermediate containers after a successful build (default behavior).
 -   **forcerm** - Always remove intermediate containers (includes `rm`).
 -   **memory** - Set memory limit for build.
--   **memswap** - Total memory (memory + swap), `-1` to disable swap.
+-   **memswap** - Total memory (memory + swap), `-1` to enable unlimited swap.
 -   **cpushares** - CPU shares (relative weight).
 -   **cpusetcpus** - CPUs in which to allow execution (e.g., `0-3`, `0,1`).
 -   **cpuperiod** - The length of a CPU period in microseconds.

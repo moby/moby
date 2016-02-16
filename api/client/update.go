@@ -23,7 +23,7 @@ func (cli *DockerCli) CmdUpdate(args ...string) error {
 	flCPUShares := cmd.Int64([]string{"#c", "-cpu-shares"}, 0, "CPU shares (relative weight)")
 	flMemoryString := cmd.String([]string{"m", "-memory"}, "", "Memory limit")
 	flMemoryReservation := cmd.String([]string{"-memory-reservation"}, "", "Memory soft limit")
-	flMemorySwap := cmd.String([]string{"-memory-swap"}, "", "Total memory (memory + swap), '-1' to disable swap")
+	flMemorySwap := cmd.String([]string{"-memory-swap"}, "", "Swap limit equal to memory plus swap: '-1' to enable unlimited swap")
 	flKernelMemory := cmd.String([]string{"-kernel-memory"}, "", "Kernel memory limit")
 
 	cmd.Require(flag.Min, 1)
@@ -90,7 +90,7 @@ func (cli *DockerCli) CmdUpdate(args ...string) error {
 	var errs []string
 	for _, name := range names {
 		if err := cli.client.ContainerUpdate(name, updateConfig); err != nil {
-			errs = append(errs, fmt.Sprintf("Failed to update container (%s): %s", name, err))
+			errs = append(errs, err.Error())
 		} else {
 			fmt.Fprintf(cli.out, "%s\n", name)
 		}

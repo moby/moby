@@ -4,7 +4,8 @@ title = "Installation on Mac OS X"
 description = "Instructions for installing Docker on OS X using boot2docker."
 keywords = ["Docker, Docker documentation, requirements, boot2docker, VirtualBox, SSH, Linux, OSX, OS X,  Mac"]
 [menu.main]
-parent = "smn_engine"
+parent = "engine_install"
+weight="-90"
 +++
 <![end-metadata]-->
 
@@ -383,10 +384,14 @@ The next exercise demonstrates how to do this.
         $ docker stop mysite
         $ docker rm mysite
 
+> **Note**: There is a [known
+> issue](https://docs.docker.com/machine/drivers/virtualbox/#known-issues) that
+> may cause files shared with your nginx container to not update correctly as you
+> modify them on your host.
 
 ## Upgrade Docker Toolbox
 
-To upgrade Docker Toolbox, download an re-run [the Docker Toolbox
+To upgrade Docker Toolbox, download and re-run [the Docker Toolbox
 installer](https://docker.com/toolbox/).
 
 

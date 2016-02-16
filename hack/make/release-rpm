@@ -14,6 +14,8 @@ set -e
 #
 # ... and so on and so forth for the builds created by hack/make/build-rpm
 
+source "$(dirname "$BASH_SOURCE")/.detect-daemon-osarch"
+
 : ${DOCKER_RELEASE_DIR:=$DEST}
 YUMDIR=$DOCKER_RELEASE_DIR/yum/repo
 : ${GPG_KEYID:=releasedocker}
@@ -36,7 +38,7 @@ for distro in "${distros[@]}"; do
 	# Setup the yum repo
 	REPO=$YUMDIR/$release/$distro
 
-	for dir in contrib/builder/rpm/$distro-*/; do
+	for dir in contrib/builder/rpm/${PACKAGE_ARCH}/$distro-*/; do
 		version="$(basename "$dir")"
 		suite="${version##*-}"
 

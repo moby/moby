@@ -226,12 +226,12 @@ var (
 	})
 
 	// ErrorCodeIPCRunning is generated when we try to join a container's
-	// IPC but its not running.
+	// IPC but it's not running.
 	ErrorCodeIPCRunning = errcode.Register(errGroup, errcode.ErrorDescriptor{
 		Value:          "IPCRUNNING",
 		Message:        "cannot join IPC of a non running container: %s",
 		Description:    "An attempt was made to join the IPC of a container, but the container is not running",
-		HTTPStatusCode: http.StatusInternalServerError,
+		HTTPStatusCode: http.StatusConflict,
 	})
 
 	// ErrorCodeNotADir is generated when we try to create a directory
@@ -265,7 +265,7 @@ var (
 		Value:          "JOINRUNNING",
 		Message:        "cannot join network of a non running container: %s",
 		Description:    "An attempt to join the network of a container, but that container isn't running",
-		HTTPStatusCode: http.StatusInternalServerError,
+		HTTPStatusCode: http.StatusConflict,
 	})
 
 	// ErrorCodeModeNotContainer is generated when we try to network to
@@ -478,6 +478,15 @@ var (
 		HTTPStatusCode: http.StatusInternalServerError,
 	})
 
+	// ErrorCodeCantPause is generated when there's an error while trying
+	// to pause a container.
+	ErrorCodeCantPause = errcode.Register(errGroup, errcode.ErrorDescriptor{
+		Value:          "CANTPAUSE",
+		Message:        "Cannot pause container %s: %s",
+		Description:    "An error occurred while trying to pause the specified container",
+		HTTPStatusCode: http.StatusInternalServerError,
+	})
+
 	// ErrorCodeCantUnpause is generated when there's an error while trying
 	// to unpause a container.
 	ErrorCodeCantUnpause = errcode.Register(errGroup, errcode.ErrorDescriptor{
@@ -487,6 +496,23 @@ var (
 		HTTPStatusCode: http.StatusInternalServerError,
 	})
 
+	// ErrorCodeCantKill is generated when there's an error while trying
+	// to kill a container.
+	ErrorCodeCantKill = errcode.Register(errGroup, errcode.ErrorDescriptor{
+		Value:          "CANTKILL",
+		Message:        "Cannot kill container %s: %s",
+		Description:    "An error occurred while trying to kill the specified container",
+		HTTPStatusCode: http.StatusInternalServerError,
+	})
+
+	// ErrorCodeCantUpdate is generated when there's an error while trying
+	// to update a container.
+	ErrorCodeCantUpdate = errcode.Register(errGroup, errcode.ErrorDescriptor{
+		Value:          "CANTUPDATE",
+		Message:        "Cannot update container %s: %s",
+		Description:    "An error occurred while trying to update the specified container",
+		HTTPStatusCode: http.StatusInternalServerError,
+	})
 	// ErrorCodePSError is generated when trying to run 'ps'.
 	ErrorCodePSError = errcode.Register(errGroup, errcode.ErrorDescriptor{
 		Value:          "PSError",
@@ -525,7 +551,7 @@ var (
 	// that is already stopped.
 	ErrorCodeStopped = errcode.Register(errGroup, errcode.ErrorDescriptor{
 		Value:          "STOPPED",
-		Message:        "Container already stopped",
+		Message:        "Container %s is already stopped",
 		Description:    "An attempt was made to stop a container, but the container is already stopped",
 		HTTPStatusCode: http.StatusNotModified,
 	})
@@ -715,6 +741,15 @@ var (
 		HTTPStatusCode: http.StatusConflict,
 	})
 
+	// ErrorCodeContainerRestarting is generated when an operation was made
+	// on a restarting container.
+	ErrorCodeContainerRestarting = errcode.Register(errGroup, errcode.ErrorDescriptor{
+		Value:          "CONTAINERRESTARTING",
+		Message:        "Container %s is restarting, wait until the container is running",
+		Description:    "An operation was made on a restarting container",
+		HTTPStatusCode: http.StatusConflict,
+	})
+
 	// ErrorCodeNoExecID is generated when we try to get the info
 	// on an exec but it can't be found.
 	ErrorCodeNoExecID = errcode.Register(errGroup, errcode.ErrorDescriptor{
@@ -740,6 +775,15 @@ var (
 		Message:        "Error: Exec command %s is already running",
 		Description:    "An attempt to start an 'exec' was made, but 'exec' is already running",
 		HTTPStatusCode: http.StatusInternalServerError,
+	})
+
+	// ErrorCodeExecExited is generated when we try to start an exec
+	// but its already running.
+	ErrorCodeExecExited = errcode.Register(errGroup, errcode.ErrorDescriptor{
+		Value:          "EXECEXITED",
+		Message:        "Error: Exec command %s has already run",
+		Description:    "An attempt to start an 'exec' was made, but 'exec' was already run",
+		HTTPStatusCode: http.StatusConflict,
 	})
 
 	// ErrorCodeExecCantRun is generated when we try to start an exec
@@ -800,7 +844,7 @@ var (
 	// but its still running.
 	ErrorCodeRmRunning = errcode.Register(errGroup, errcode.ErrorDescriptor{
 		Value:          "RMRUNNING",
-		Message:        "Conflict, You cannot remove a running container. Stop the container before attempting removal or use -f",
+		Message:        "You cannot remove a running container %s. Stop the container before attempting removal or use -f",
 		Description:    "An attempt was made to delete a container but the container is still running, try to either stop it first or use '-f'",
 		HTTPStatusCode: http.StatusConflict,
 	})
@@ -809,7 +853,7 @@ var (
 	// but it failed for some reason.
 	ErrorCodeRmFailed = errcode.Register(errGroup, errcode.ErrorDescriptor{
 		Value:          "RMFAILED",
-		Message:        "Could not kill running container, cannot remove - %v",
+		Message:        "Could not kill running container %s, cannot remove - %v",
 		Description:    "An error occurred while trying to delete a running container",
 		HTTPStatusCode: http.StatusInternalServerError,
 	})
@@ -827,7 +871,7 @@ var (
 	// but couldn't set its state to RemovalInProgress.
 	ErrorCodeRmState = errcode.Register(errGroup, errcode.ErrorDescriptor{
 		Value:          "RMSTATE",
-		Message:        "Failed to set container state to RemovalInProgress: %s",
+		Message:        "Failed to set container %s state to RemovalInProgress: %s",
 		Description:    "An attempt to delete a container was made, but there as an error trying to set its state to 'RemovalInProgress'",
 		HTTPStatusCode: http.StatusInternalServerError,
 	})
@@ -956,5 +1000,14 @@ var (
 		Message:        "%s is a pre-defined network and cannot be removed",
 		Description:    "Engine's predefined networks cannot be deleted",
 		HTTPStatusCode: http.StatusForbidden,
+	})
+
+	// ErrorCodeMultipleNetworkConnect is generated when more than one network is passed
+	// when creating a container
+	ErrorCodeMultipleNetworkConnect = errcode.Register(errGroup, errcode.ErrorDescriptor{
+		Value:          "CANNOT_CONNECT_TO_MULTIPLE_NETWORKS",
+		Message:        "Container cannot be connected to %s",
+		Description:    "A container can only be connected to one network at the time",
+		HTTPStatusCode: http.StatusBadRequest,
 	})
 )

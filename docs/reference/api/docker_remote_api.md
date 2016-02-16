@@ -4,8 +4,8 @@ title = "Remote API"
 description = "API Documentation for Docker"
 keywords = ["API, Docker, rcli, REST,  documentation"]
 [menu.main]
-parent = "smn_remoteapi"
-weight=-3
+parent = "engine_remoteapi"
+weight=-99
 +++
 <![end-metadata]-->
 
@@ -24,14 +24,26 @@ client must have `root` access to interact with the daemon. If a group named
 `docker` exists on your system, `docker` applies ownership of the socket to the
 group.
 
-The current version of the API is v1.22 which means calling `/info` is the same
-as calling `/v1.22/info`. To call an older version of the API use
-`/v1.21/info`.
+To connect to the Docker daemon with cURL you need to use cURL 7.40 or
+later, as these versions have the `--unix-socket` flag available. To
+run `curl` against the deamon on the default socket, use the
+following:
+
+    curl --unix-socket /var/run/docker.sock http://containers/json
+
+If you have bound the Docker daemon to a different socket path or TCP
+port, you would reference that in your cURL rather than the
+default.
+
+The current version of the API is v1.23 which means calling `/info` is the same
+as calling `/v1.23/info`. To call an older version of the API use
+`/v1.22/info`.
 
 Use the table below to find the API version for a Docker version:
 
 Docker version  | API version                        | Changes
 ----------------|------------------------------------|------------------------------------------------------
+1.11.x          | [1.23](docker_remote_api_v1.23.md) | [API changes](docker_remote_api.md#v1-23-api-changes)
 1.10.x          | [1.22](docker_remote_api_v1.22.md) | [API changes](docker_remote_api.md#v1-22-api-changes)
 1.9.x           | [1.21](docker_remote_api_v1.21.md) | [API changes](docker_remote_api.md#v1-21-api-changes)
 1.8.x           | [1.20](docker_remote_api_v1.20.md) | [API changes](docker_remote_api.md#v1-20-api-changes)
@@ -63,12 +75,20 @@ without protocol. Throughout this structure, double quotes are required.
 
 ## Using Docker Machine with the API
 
-If you are using `docker-machine`, the Docker daemon is on a virtual host that uses an encrypted TCP socket. This means, for Docker Machine users, you need to add extra parameters to `curl` or `wget` when making test API requests, for example:
+If you are using `docker-machine`, the Docker daemon is on a host that
+uses an encrypted TCP socket using TLS. This means, for Docker Machine users,
+you need to add extra parameters to `curl` or `wget` when making test
+API requests, for example:
 
 ```
-curl --insecure --cert ~/.docker/cert.pem --key ~/.docker/key.pem https://YOUR_VM_IP:2376/images/json
+curl --insecure \
+     --cert $DOCKER_CERT_PATH/cert.pem \
+     --key $DOCKER_CERT_PATH/key.pem \
+     https://YOUR_VM_IP:2376/images/json
 
-wget --no-check-certificate --certificate=$DOCKER_CERT_PATH/cert.pem --private-key=$DOCKER_CERT_PATH/key.pem https://your_vm_ip:2376/images/json -O - -q
+wget --no-check-certificate --certificate=$DOCKER_CERT_PATH/cert.pem \
+     --private-key=$DOCKER_CERT_PATH/key.pem \
+     https://YOUR_VM_IP:2376/images/json -O - -q
 ```
 
 ## Docker Events
@@ -85,11 +105,19 @@ Some container-related events are not affected by container state, so they are n
 
 Running `docker rmi` emits an **untag** event when removing an image name.  The `rmi` command may also emit **delete** events when images are deleted by ID directly or by deleting the last tag referring to the image.
 
-> **Acknowledgement**: This diagram and the accompanying text were used with the permission of Matt Good and Gilder Labs. See Matt's original blog post [Docker Events Explained](http://gliderlabs.com/blog/2015/04/14/docker-events-explained/).
+> **Acknowledgment**: This diagram and the accompanying text were used with the permission of Matt Good and Gilder Labs. See Matt's original blog post [Docker Events Explained](https://gliderlabs.com/blog/2015/04/14/docker-events-explained/).
 
 ## Version history
 
 This section lists each version from latest to oldest.  Each listing includes a link to the full documentation set and the changes relevant in that release.
+
+### v1.23 API changes
+
+[Docker Remote API v1.23](docker_remote_api_v1.23.md) documentation
+
+* `GET /containers/json` returns the state of the container, one of `created`, `restarting`, `running`, `paused`, `exited` or `dead`.
+* `GET /networks/(name)` now returns an `Internal` field showing whether the network is internal or not.
+
 
 ### v1.22 API changes
 
@@ -108,7 +136,7 @@ This section lists each version from latest to oldest.  Each listing includes a 
 * Pushes initiated with `POST /images/(name)/push` and pulls initiated with `POST /images/create`
   will be cancelled if the HTTP connection making the API request is closed before
   the push or pull completes.
-* `POST /containers/create` now allows you to set a read/write rate limit for a 
+* `POST /containers/create` now allows you to set a read/write rate limit for a
   device (in bytes per second or IO per second).
 * `GET /networks` now supports filtering by `name`, `id` and `type`.
 * `POST /containers/create` now allows you to set the static IPv4 and/or IPv6 address for the container.
@@ -117,11 +145,13 @@ This section lists each version from latest to oldest.  Each listing includes a 
 * `POST /networks/create` now supports restricting external access to the network by setting the `internal` field.
 * `POST /networks/(id)/disconnect` now includes a `Force` option to forcefully disconnect a container from network
 * `GET /containers/(id)/json` now returns the `NetworkID` of containers.
-* `POST /networks/create` Now supports an options field in the IPAM config that provides options 
+* `POST /networks/create` Now supports an options field in the IPAM config that provides options
   for custom IPAM plugins.
 * `GET /networks/{network-id}` Now returns IPAM config options for custom IPAM plugins if any
   are available.
 * `GET /networks/<network-id>` now returns subnets info for user-defined networks.
+* `GET /info` can now return a `SystemStatus` field useful for returning additional information about applications
+  that are built on top of engine.
 
 ### v1.21 API changes
 

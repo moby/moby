@@ -20,11 +20,7 @@ func (s *DockerSuite) TestUpdateRunningContainer(c *check.C) {
 	dockerCmd(c, "run", "-d", "--name", name, "-m", "300M", "busybox", "top")
 	dockerCmd(c, "update", "-m", "500M", name)
 
-	memory, err := inspectField(name, "HostConfig.Memory")
-	c.Assert(err, check.IsNil)
-	if memory != "524288000" {
-		c.Fatalf("Got the wrong memory value, we got %d, expected 524288000(500M).", memory)
-	}
+	c.Assert(inspectField(c, name, "HostConfig.Memory"), checker.Equals, "524288000")
 
 	file := "/sys/fs/cgroup/memory/memory.limit_in_bytes"
 	out, _ := dockerCmd(c, "exec", name, "cat", file)
@@ -40,11 +36,7 @@ func (s *DockerSuite) TestUpdateRunningContainerWithRestart(c *check.C) {
 	dockerCmd(c, "update", "-m", "500M", name)
 	dockerCmd(c, "restart", name)
 
-	memory, err := inspectField(name, "HostConfig.Memory")
-	c.Assert(err, check.IsNil)
-	if memory != "524288000" {
-		c.Fatalf("Got the wrong memory value, we got %d, expected 524288000(500M).", memory)
-	}
+	c.Assert(inspectField(c, name, "HostConfig.Memory"), checker.Equals, "524288000")
 
 	file := "/sys/fs/cgroup/memory/memory.limit_in_bytes"
 	out, _ := dockerCmd(c, "exec", name, "cat", file)
@@ -60,11 +52,7 @@ func (s *DockerSuite) TestUpdateStoppedContainer(c *check.C) {
 	dockerCmd(c, "run", "--name", name, "-m", "300M", "busybox", "cat", file)
 	dockerCmd(c, "update", "-m", "500M", name)
 
-	memory, err := inspectField(name, "HostConfig.Memory")
-	c.Assert(err, check.IsNil)
-	if memory != "524288000" {
-		c.Fatalf("Got the wrong memory value, we got %d, expected 524288000(500M).", memory)
-	}
+	c.Assert(inspectField(c, name, "HostConfig.Memory"), checker.Equals, "524288000")
 
 	out, _ := dockerCmd(c, "start", "-a", name)
 	c.Assert(strings.TrimSpace(out), checker.Equals, "524288000")
@@ -79,15 +67,11 @@ func (s *DockerSuite) TestUpdatePausedContainer(c *check.C) {
 	dockerCmd(c, "pause", name)
 	dockerCmd(c, "update", "--cpu-shares", "500", name)
 
-	out, err := inspectField(name, "HostConfig.CPUShares")
-	c.Assert(err, check.IsNil)
-	if out != "500" {
-		c.Fatalf("Got the wrong cpu shares value, we got %d, expected 500.", out)
-	}
+	c.Assert(inspectField(c, name, "HostConfig.CPUShares"), checker.Equals, "500")
 
 	dockerCmd(c, "unpause", name)
 	file := "/sys/fs/cgroup/cpu/cpu.shares"
-	out, _ = dockerCmd(c, "exec", name, "cat", file)
+	out, _ := dockerCmd(c, "exec", name, "cat", file)
 	c.Assert(strings.TrimSpace(out), checker.Equals, "500")
 }
 
@@ -101,8 +85,7 @@ func (s *DockerSuite) TestUpdateWithUntouchedFields(c *check.C) {
 	dockerCmd(c, "update", "-m", "500M", name)
 
 	// Update memory and not touch cpus, `cpuset.cpus` should still have the old value
-	out, err := inspectField(name, "HostConfig.CPUShares")
-	c.Assert(err, check.IsNil)
+	out := inspectField(c, name, "HostConfig.CPUShares")
 	c.Assert(out, check.Equals, "800")
 
 	file := "/sys/fs/cgroup/cpu/cpu.shares"
@@ -142,25 +125,17 @@ func (s *DockerSuite) TestUpdateKernelMemory(c *check.C) {
 	// Update kernel memory to a running container is not allowed.
 	c.Assert(err, check.NotNil)
 
-	out, err := inspectField(name, "HostConfig.KernelMemory")
-	c.Assert(err, check.IsNil)
 	// Update kernel memory to a running container with failure should not change HostConfig
-	if out != "52428800" {
-		c.Fatalf("Got the wrong memory value, we got %d, expected 52428800(50M).", out)
-	}
+	c.Assert(inspectField(c, name, "HostConfig.KernelMemory"), checker.Equals, "52428800")
 
 	dockerCmd(c, "stop", name)
 	dockerCmd(c, "update", "--kernel-memory", "100M", name)
 	dockerCmd(c, "start", name)
 
-	out, err = inspectField(name, "HostConfig.KernelMemory")
-	c.Assert(err, check.IsNil)
-	if out != "104857600" {
-		c.Fatalf("Got the wrong memory value, we got %d, expected 104857600(100M).", out)
-	}
+	c.Assert(inspectField(c, name, "HostConfig.KernelMemory"), checker.Equals, "104857600")
 
 	file := "/sys/fs/cgroup/memory/memory.kmem.limit_in_bytes"
-	out, _ = dockerCmd(c, "exec", name, "cat", file)
+	out, _ := dockerCmd(c, "exec", name, "cat", file)
 	c.Assert(strings.TrimSpace(out), checker.Equals, "104857600")
 }
 

@@ -13,7 +13,7 @@ func (daemon *Daemon) ContainerPause(name string) error {
 	}
 
 	if err := daemon.containerPause(container); err != nil {
-		return derr.ErrorCodePauseError.WithArgs(name, err)
+		return err
 	}
 
 	return nil
@@ -35,8 +35,13 @@ func (daemon *Daemon) containerPause(container *container.Container) error {
 		return derr.ErrorCodeAlreadyPaused.WithArgs(container.ID)
 	}
 
+	// We cannot Pause the container which is restarting
+	if container.Restarting {
+		return derr.ErrorCodeContainerRestarting.WithArgs(container.ID)
+	}
+
 	if err := daemon.execDriver.Pause(container.Command); err != nil {
-		return err
+		return derr.ErrorCodeCantPause.WithArgs(container.ID, err)
 	}
 	container.Paused = true
 	daemon.LogContainerEvent(container, "pause")

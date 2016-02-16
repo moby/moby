@@ -4,7 +4,8 @@ title = "Installation on Windows"
 description = "Docker installation on Microsoft Windows"
 keywords = ["Docker, Docker documentation, Windows, requirements, virtualbox,  boot2docker"]
 [menu.main]
-parent = "smn_engine"
+parent = "engine_install"
+weight="-80"
 +++
 <![end-metadata]-->
 
@@ -31,7 +32,7 @@ run the Docker daemon. The VirtualBox VM runs completely from RAM, is a small
 
 ## Requirements
 
-To run Docker, your machine must have a 64-bit operating system running Windows 7 or higher. Additionally, you must make sure that virtualization is enabled on your machine. 
+To run Docker, your machine must have a 64-bit operating system running Windows 7 or higher. Additionally, you must make sure that virtualization is enabled on your machine.
 To verify your machine meets these requirements, do the following:
 
 1. Right click the Windows Start Menu and choose **System**.
@@ -62,13 +63,13 @@ and virtualization support is enabled in BIOS and recognized by Windows.
 
 3. Verify your Windows OS is 64-bit (x64)
 
-   How you do this verification depends on your Windows version.  For details, see the Windows 
-    article [How to determine whether a computer is running a 32-bit version or 64-bit version 
+   How you do this verification depends on your Windows version.  For details, see the Windows
+    article [How to determine whether a computer is running a 32-bit version or 64-bit version
     of the Windows operating system](https://support.microsoft.com/en-us/kb/827218).
-    
+
 > **Note**: If you have Docker hosts running and you don't wish to do a Docker Toolbox
 installation, you can install the `docker.exe` using the *unofficial* Windows package
-manager Chocolately. For information on how to do this, see [Docker package on
+manager Chocolatey. For information on how to do this, see [Docker package on
 Chocolatey](http://chocolatey.org/packages/docker).
 
 ### Learn the key concepts before installing
@@ -323,7 +324,7 @@ and what it does:
 
 ## Upgrade Docker Toolbox
 
-To upgrade Docker Toolbox, download an re-run [the Docker Toolbox
+To upgrade Docker Toolbox, download and re-run [the Docker Toolbox
 installer](https://www.docker.com/toolbox).
 
 ## Container port redirection
@@ -343,6 +344,11 @@ reported to you using:
 
 Typically, the IP is 192.168.59.103, but it could get changed by VirtualBox's
 DHCP implementation.
+
+> **Note**: There is a [known
+> issue](https://docs.docker.com/machine/drivers/virtualbox/#known-issues) that
+> may cause files shared with your nginx container to not update correctly as you
+> modify them on your host.
 
 ## Login with PUTTY instead of using the CMD
 

@@ -61,15 +61,12 @@ func TestGetContainer(t *testing.T) {
 		},
 	}
 
-	store := &contStore{
-		s: map[string]*container.Container{
-			c1.ID: c1,
-			c2.ID: c2,
-			c3.ID: c3,
-			c4.ID: c4,
-			c5.ID: c5,
-		},
-	}
+	store := container.NewMemoryStore()
+	store.Add(c1.ID, c1)
+	store.Add(c2.ID, c2)
+	store.Add(c3.ID, c3)
+	store.Add(c4.ID, c4)
+	store.Add(c5.ID, c5)
 
 	index := truncindex.NewTruncIndex([]string{})
 	index.Add(c1.ID)
@@ -134,72 +131,6 @@ func initDaemonWithVolumeStore(tmp string) (*Daemon, error) {
 	volumedrivers.Register(volumesDriver, volumesDriver.Name())
 
 	return daemon, nil
-}
-
-func TestParseSecurityOpt(t *testing.T) {
-	container := &container.Container{}
-	config := &containertypes.HostConfig{}
-
-	// test apparmor
-	config.SecurityOpt = []string{"apparmor:test_profile"}
-	if err := parseSecurityOpt(container, config); err != nil {
-		t.Fatalf("Unexpected parseSecurityOpt error: %v", err)
-	}
-	if container.AppArmorProfile != "test_profile" {
-		t.Fatalf("Unexpected AppArmorProfile, expected: \"test_profile\", got %q", container.AppArmorProfile)
-	}
-
-	// test seccomp
-	sp := "/path/to/seccomp_test.json"
-	config.SecurityOpt = []string{"seccomp:" + sp}
-	if err := parseSecurityOpt(container, config); err != nil {
-		t.Fatalf("Unexpected parseSecurityOpt error: %v", err)
-	}
-	if container.SeccompProfile != sp {
-		t.Fatalf("Unexpected AppArmorProfile, expected: %q, got %q", sp, container.SeccompProfile)
-	}
-
-	// test valid label
-	config.SecurityOpt = []string{"label:user:USER"}
-	if err := parseSecurityOpt(container, config); err != nil {
-		t.Fatalf("Unexpected parseSecurityOpt error: %v", err)
-	}
-
-	// test invalid label
-	config.SecurityOpt = []string{"label"}
-	if err := parseSecurityOpt(container, config); err == nil {
-		t.Fatal("Expected parseSecurityOpt error, got nil")
-	}
-
-	// test invalid opt
-	config.SecurityOpt = []string{"test"}
-	if err := parseSecurityOpt(container, config); err == nil {
-		t.Fatal("Expected parseSecurityOpt error, got nil")
-	}
-}
-
-func TestNetworkOptions(t *testing.T) {
-	daemon := &Daemon{}
-	dconfigCorrect := &Config{
-		CommonConfig: CommonConfig{
-			ClusterStore:     "consul://localhost:8500",
-			ClusterAdvertise: "192.168.0.1:8000",
-		},
-	}
-
-	if _, err := daemon.networkOptions(dconfigCorrect); err != nil {
-		t.Fatalf("Expect networkOptions sucess, got error: %v", err)
-	}
-
-	dconfigWrong := &Config{
-		CommonConfig: CommonConfig{
-			ClusterStore: "consul://localhost:8500://test://bbb",
-		},
-	}
-
-	if _, err := daemon.networkOptions(dconfigWrong); err == nil {
-		t.Fatalf("Expected networkOptions error, got nil")
-	}
 }
 
 func TestValidContainerNames(t *testing.T) {
@@ -440,7 +371,7 @@ func TestDaemonDiscoveryReload(t *testing.T) {
 		&discovery.Entry{Host: "127.0.0.1", Port: "5555"},
 	}
 
-	if err := daemon.Reload(newConfig); err != nil {
+	if err := daemon.reloadClusterDiscovery(newConfig); err != nil {
 		t.Fatal(err)
 	}
 	ch, errCh = daemon.discoveryWatcher.Watch(stopCh)
@@ -472,7 +403,7 @@ func TestDaemonDiscoveryReloadFromEmptyDiscovery(t *testing.T) {
 		&discovery.Entry{Host: "127.0.0.1", Port: "5555"},
 	}
 
-	if err := daemon.Reload(newConfig); err != nil {
+	if err := daemon.reloadClusterDiscovery(newConfig); err != nil {
 		t.Fatal(err)
 	}
 	stopCh := make(chan struct{})

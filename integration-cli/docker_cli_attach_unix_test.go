@@ -16,6 +16,7 @@ import (
 
 // #9860 Make sure attach ends when container ends (with no errors)
 func (s *DockerSuite) TestAttachClosedOnContainerStop(c *check.C) {
+	testRequires(c, SameHostDaemon)
 
 	out, _ := dockerCmd(c, "run", "-dti", "busybox", "/bin/sh", "-c", `trap 'exit 0' SIGTERM; while true; do sleep 1; done`)
 
@@ -161,8 +162,7 @@ func (s *DockerSuite) TestAttachDetach(c *check.C) {
 		ch <- struct{}{}
 	}()
 
-	running, err := inspectField(id, "State.Running")
-	c.Assert(err, checker.IsNil)
+	running := inspectField(c, id, "State.Running")
 	c.Assert(running, checker.Equals, "true", check.Commentf("expected container to still be running"))
 
 	go func() {
@@ -214,8 +214,7 @@ func (s *DockerSuite) TestAttachDetachTruncatedID(c *check.C) {
 		ch <- struct{}{}
 	}()
 
-	running, err := inspectField(id, "State.Running")
-	c.Assert(err, checker.IsNil)
+	running := inspectField(c, id, "State.Running")
 	c.Assert(running, checker.Equals, "true", check.Commentf("expected container to still be running"))
 
 	go func() {

@@ -82,7 +82,21 @@ RUN cd /usr/local/lvm2 \
 # TODO install Go, using gccgo as GOROOT_BOOTSTRAP (Go 1.5+ supports ppc64le properly)
 # possibly a ppc64le/golang image?
 
-ENV PATH /go/bin:$PATH
+## BUILD GOLANG 1.6
+ENV GO_VERSION 1.6rc2
+ENV GO_DOWNLOAD_URL https://golang.org/dl/go${GO_VERSION}.src.tar.gz
+ENV GO_DOWNLOAD_SHA256 92914a23cde7e34e1d017175d785e5850fbb28f323a145028e2e26053ef1a598
+ENV GOROOT_BOOTSTRAP /usr/local
+
+RUN curl -fsSL "$GO_DOWNLOAD_URL" -o golang.tar.gz \
+    && echo "$GO_DOWNLOAD_SHA256  golang.tar.gz" | sha256sum -c - \
+    && tar -C /usr/src -xzf golang.tar.gz \
+    && rm golang.tar.gz \
+    && cd /usr/src/go/src && ./make.bash 2>&1
+
+ENV GOROOT_BOOTSTRAP /usr/src/
+
+ENV PATH /usr/src/go/bin/:/go/bin:$PATH
 ENV GOPATH /go:/go/src/github.com/docker/docker/vendor
 
 # This has been commented out and kept as reference because we don't support compiling with older Go anymore.
@@ -90,7 +104,7 @@ ENV GOPATH /go:/go/src/github.com/docker/docker/vendor
 # RUN curl -sSL https://storage.googleapis.com/golang/go${GOFMT_VERSION}.$(go env GOOS)-$(go env GOARCH).tar.gz | tar -C /go/bin -xz --strip-components=2 go/bin/gofmt
 
 # TODO update this sha when we upgrade to Go 1.5+
-ENV GO_TOOLS_COMMIT 069d2f3bcb68257b627205f0486d6cc69a231ff9
+ENV GO_TOOLS_COMMIT d02228d1857b9f49cd0252788516ff5584266eb6
 # Grab Go's cover tool for dead-simple code coverage testing
 # Grab Go's vet tool for examining go code to find suspicious constructs
 # and help prevent errors that the compiler might not catch
@@ -99,31 +113,38 @@ RUN git clone https://github.com/golang/tools.git /go/src/golang.org/x/tools \
 	&& go install -v golang.org/x/tools/cmd/cover \
 	&& go install -v golang.org/x/tools/cmd/vet
 # Grab Go's lint tool
-ENV GO_LINT_COMMIT f42f5c1c440621302702cb0741e9d2ca547ae80f
+ENV GO_LINT_COMMIT 32a87160691b3c96046c0c678fe57c5bef761456
 RUN git clone https://github.com/golang/lint.git /go/src/github.com/golang/lint \
 	&& (cd /go/src/github.com/golang/lint && git checkout -q $GO_LINT_COMMIT) \
 	&& go install -v github.com/golang/lint/golint
 
-
-# Install registry
-ENV REGISTRY_COMMIT ec87e9b6971d831f0eff752ddb54fb64693e51cd
+# Install two versions of the registry. The first is an older version that
+# only supports schema1 manifests. The second is a newer version that supports
+# both. This allows integration-cli tests to cover push/pull with both schema1
+# and schema2 manifests.
+ENV REGISTRY_COMMIT_SCHEMA1 ec87e9b6971d831f0eff752ddb54fb64693e51cd
+ENV REGISTRY_COMMIT cb08de17d74bef86ce6c5abe8b240e282f5750be
 RUN set -x \
 	&& export GOPATH="$(mktemp -d)" \
 	&& git clone https://github.com/docker/distribution.git "$GOPATH/src/github.com/docker/distribution" \
 	&& (cd "$GOPATH/src/github.com/docker/distribution" && git checkout -q "$REGISTRY_COMMIT") \
 	&& GOPATH="$GOPATH/src/github.com/docker/distribution/Godeps/_workspace:$GOPATH" \
 		go build -o /usr/local/bin/registry-v2 github.com/docker/distribution/cmd/registry \
+	&& (cd "$GOPATH/src/github.com/docker/distribution" && git checkout -q "$REGISTRY_COMMIT_SCHEMA1") \
+	&& GOPATH="$GOPATH/src/github.com/docker/distribution/Godeps/_workspace:$GOPATH" \
+		go build -o /usr/local/bin/registry-v2-schema1 github.com/docker/distribution/cmd/registry \
 	&& rm -rf "$GOPATH"
 
+# TODO update this when we upgrade to Go 1.5.1+
 # Install notary server
-ENV NOTARY_COMMIT 8e8122eb5528f621afcd4e2854c47302f17392f7
-RUN set -x \
-	&& export GOPATH="$(mktemp -d)" \
-	&& git clone https://github.com/docker/notary.git "$GOPATH/src/github.com/docker/notary" \
-	&& (cd "$GOPATH/src/github.com/docker/notary" && git checkout -q "$NOTARY_COMMIT") \
-	&& GOPATH="$GOPATH/src/github.com/docker/notary/Godeps/_workspace:$GOPATH" \
-		go build -o /usr/local/bin/notary-server github.com/docker/notary/cmd/notary-server \
-	&& rm -rf "$GOPATH"
+#ENV NOTARY_VERSION docker-v1.10-5
+#RUN set -x \
+#	&& export GOPATH="$(mktemp -d)" \
+#	&& git clone https://github.com/docker/notary.git "$GOPATH/src/github.com/docker/notary" \
+#	&& (cd "$GOPATH/src/github.com/docker/notary" && git checkout -q "$NOTARY_VERSION") \
+#	&& GOPATH="$GOPATH/src/github.com/docker/notary/Godeps/_workspace:$GOPATH" \
+#		go build -o /usr/local/bin/notary-server github.com/docker/notary/cmd/notary-server \
+#	&& rm -rf "$GOPATH"
 
 # Get the "docker-py" source so we can run their integration tests
 ENV DOCKER_PY_COMMIT e2878cbcc3a7eef99917adc1be252800b0e41ece
@@ -152,8 +173,9 @@ RUN ln -sv $PWD/contrib/completion/bash/docker /etc/bash_completion.d/docker
 # Get useful and necessary Hub images so we can "docker load" locally instead of pulling
 COPY contrib/download-frozen-image-v2.sh /go/src/github.com/docker/docker/contrib/
 RUN ./contrib/download-frozen-image-v2.sh /docker-frozen-images \
+	ppc64le/buildpack-deps:jessie@sha256:902bfe4ef1389f94d143d64516dd50a2de75bca2e66d4a44b1d73f63ddf05dda \
 	ppc64le/busybox:latest@sha256:38bb82085248d5a3c24bd7a5dc146f2f2c191e189da0441f1c2ca560e3fc6f1b \
-	ppc64le/debian:jessie@sha256:74e06e6506b23cf8abd00250782838b2d19910824d8e7eab3d14dc1845ea10c6 \
+	ppc64le/debian:jessie@sha256:412845f51b6ab662afba71bc7a716e20fdb9b84f185d180d4c7504f8a75c4f91 \
 	ppc64le/hello-world:latest@sha256:186a40a9a02ca26df0b6c8acdfb8ac2f3ae6678996a838f977e57fac9d963974
 # see also "hack/make/.ensure-frozen-images" (which needs to be updated any time this list is)
 

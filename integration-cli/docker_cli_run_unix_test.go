@@ -12,6 +12,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/docker/docker/pkg/homedir"
@@ -54,7 +55,7 @@ func (s *DockerSuite) TestRunRedirectStdout(c *check.C) {
 // Test recursive bind mount works by default
 func (s *DockerSuite) TestRunWithVolumesIsRecursive(c *check.C) {
 	// /tmp gets permission denied
-	testRequires(c, NotUserNamespace)
+	testRequires(c, NotUserNamespace, SameHostDaemon)
 	tmpDir, err := ioutil.TempDir("", "docker_recursive_mount_test")
 	c.Assert(err, checker.IsNil)
 
@@ -76,7 +77,7 @@ func (s *DockerSuite) TestRunWithVolumesIsRecursive(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunDeviceDirectory(c *check.C) {
-	testRequires(c, DaemonIsLinux, NotUserNamespace)
+	testRequires(c, DaemonIsLinux, NotUserNamespace, NotArm)
 	if _, err := os.Stat("/dev/snd"); err != nil {
 		c.Skip("Host does not have /dev/snd")
 	}
@@ -130,8 +131,7 @@ func (s *DockerSuite) TestRunAttachDetach(c *check.C) {
 		c.Fatal("timed out waiting for container to exit")
 	}
 
-	running, err := inspectField(name, "State.Running")
-	c.Assert(err, checker.IsNil)
+	running := inspectField(c, name, "State.Running")
 	c.Assert(running, checker.Equals, "true", check.Commentf("expected container to still be running"))
 }
 
@@ -192,8 +192,7 @@ func (s *DockerSuite) TestRunAttachDetachFromFlag(c *check.C) {
 		c.Fatal("timed out waiting for container to exit")
 	}
 
-	running, err := inspectField(name, "State.Running")
-	c.Assert(err, checker.IsNil)
+	running := inspectField(c, name, "State.Running")
 	c.Assert(running, checker.Equals, "true", check.Commentf("expected container to still be running"))
 }
 
@@ -276,8 +275,7 @@ func (s *DockerSuite) TestRunAttachDetachFromConfig(c *check.C) {
 		c.Fatal("timed out waiting for container to exit")
 	}
 
-	running, err := inspectField(name, "State.Running")
-	c.Assert(err, checker.IsNil)
+	running := inspectField(c, name, "State.Running")
 	c.Assert(running, checker.Equals, "true", check.Commentf("expected container to still be running"))
 }
 
@@ -360,8 +358,7 @@ func (s *DockerSuite) TestRunAttachDetachKeysOverrideConfig(c *check.C) {
 		c.Fatal("timed out waiting for container to exit")
 	}
 
-	running, err := inspectField(name, "State.Running")
-	c.Assert(err, checker.IsNil)
+	running := inspectField(c, name, "State.Running")
 	c.Assert(running, checker.Equals, "true", check.Commentf("expected container to still be running"))
 }
 
@@ -373,8 +370,7 @@ func (s *DockerSuite) TestRunWithCPUQuota(c *check.C) {
 	out, _ := dockerCmd(c, "run", "--cpu-quota", "8000", "--name", "test", "busybox", "cat", file)
 	c.Assert(strings.TrimSpace(out), checker.Equals, "8000")
 
-	out, err := inspectField("test", "HostConfig.CpuQuota")
-	c.Assert(err, check.IsNil)
+	out = inspectField(c, "test", "HostConfig.CpuQuota")
 	c.Assert(out, checker.Equals, "8000", check.Commentf("setting the CPU CFS quota failed"))
 }
 
@@ -385,8 +381,7 @@ func (s *DockerSuite) TestRunWithCpuPeriod(c *check.C) {
 	out, _ := dockerCmd(c, "run", "--cpu-period", "50000", "--name", "test", "busybox", "cat", file)
 	c.Assert(strings.TrimSpace(out), checker.Equals, "50000")
 
-	out, err := inspectField("test", "HostConfig.CpuPeriod")
-	c.Assert(err, check.IsNil)
+	out = inspectField(c, "test", "HostConfig.CpuPeriod")
 	c.Assert(out, checker.Equals, "50000", check.Commentf("setting the CPU CFS period failed"))
 }
 
@@ -397,8 +392,7 @@ func (s *DockerSuite) TestRunWithKernelMemory(c *check.C) {
 	stdout, _, _ := dockerCmdWithStdoutStderr(c, "run", "--kernel-memory", "50M", "--name", "test1", "busybox", "cat", file)
 	c.Assert(strings.TrimSpace(stdout), checker.Equals, "52428800")
 
-	out, err := inspectField("test1", "HostConfig.KernelMemory")
-	c.Assert(err, check.IsNil)
+	out := inspectField(c, "test1", "HostConfig.KernelMemory")
 	c.Assert(out, check.Equals, "52428800")
 }
 
@@ -423,8 +417,7 @@ func (s *DockerSuite) TestRunWithCPUShares(c *check.C) {
 	out, _ := dockerCmd(c, "run", "--cpu-shares", "1000", "--name", "test", "busybox", "cat", file)
 	c.Assert(strings.TrimSpace(out), checker.Equals, "1000")
 
-	out, err := inspectField("test", "HostConfig.CPUShares")
-	c.Assert(err, check.IsNil)
+	out = inspectField(c, "test", "HostConfig.CPUShares")
 	c.Assert(out, check.Equals, "1000")
 }
 
@@ -443,8 +436,7 @@ func (s *DockerSuite) TestRunWithCpusetCpus(c *check.C) {
 	out, _ := dockerCmd(c, "run", "--cpuset-cpus", "0", "--name", "test", "busybox", "cat", file)
 	c.Assert(strings.TrimSpace(out), checker.Equals, "0")
 
-	out, err := inspectField("test", "HostConfig.CpusetCpus")
-	c.Assert(err, check.IsNil)
+	out = inspectField(c, "test", "HostConfig.CpusetCpus")
 	c.Assert(out, check.Equals, "0")
 }
 
@@ -455,8 +447,7 @@ func (s *DockerSuite) TestRunWithCpusetMems(c *check.C) {
 	out, _ := dockerCmd(c, "run", "--cpuset-mems", "0", "--name", "test", "busybox", "cat", file)
 	c.Assert(strings.TrimSpace(out), checker.Equals, "0")
 
-	out, err := inspectField("test", "HostConfig.CpusetMems")
-	c.Assert(err, check.IsNil)
+	out = inspectField(c, "test", "HostConfig.CpusetMems")
 	c.Assert(out, check.Equals, "0")
 }
 
@@ -467,8 +458,7 @@ func (s *DockerSuite) TestRunWithBlkioWeight(c *check.C) {
 	out, _ := dockerCmd(c, "run", "--blkio-weight", "300", "--name", "test", "busybox", "cat", file)
 	c.Assert(strings.TrimSpace(out), checker.Equals, "300")
 
-	out, err := inspectField("test", "HostConfig.BlkioWeight")
-	c.Assert(err, check.IsNil)
+	out = inspectField(c, "test", "HostConfig.BlkioWeight")
 	c.Assert(out, check.Equals, "300")
 }
 
@@ -537,8 +527,7 @@ func (s *DockerSuite) TestRunWithMemoryLimit(c *check.C) {
 	stdout, _, _ := dockerCmdWithStdoutStderr(c, "run", "-m", "32M", "--name", "test", "busybox", "cat", file)
 	c.Assert(strings.TrimSpace(stdout), checker.Equals, "33554432")
 
-	out, err := inspectField("test", "HostConfig.Memory")
-	c.Assert(err, check.IsNil)
+	out := inspectField(c, "test", "HostConfig.Memory")
 	c.Assert(out, check.Equals, "33554432")
 }
 
@@ -559,8 +548,7 @@ func (s *DockerSuite) TestRunWithSwappiness(c *check.C) {
 	out, _ := dockerCmd(c, "run", "--memory-swappiness", "0", "--name", "test", "busybox", "cat", file)
 	c.Assert(strings.TrimSpace(out), checker.Equals, "0")
 
-	out, err := inspectField("test", "HostConfig.MemorySwappiness")
-	c.Assert(err, check.IsNil)
+	out = inspectField(c, "test", "HostConfig.MemorySwappiness")
 	c.Assert(out, check.Equals, "0")
 }
 
@@ -583,8 +571,7 @@ func (s *DockerSuite) TestRunWithMemoryReservation(c *check.C) {
 	out, _ := dockerCmd(c, "run", "--memory-reservation", "200M", "--name", "test", "busybox", "cat", file)
 	c.Assert(strings.TrimSpace(out), checker.Equals, "209715200")
 
-	out, err := inspectField("test", "HostConfig.MemoryReservation")
-	c.Assert(err, check.IsNil)
+	out = inspectField(c, "test", "HostConfig.MemoryReservation")
 	c.Assert(out, check.Equals, "209715200")
 }
 
@@ -620,7 +607,7 @@ func (s *DockerSuite) TestRunSwapLessThanMemoryLimit(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunInvalidCpusetCpusFlagValue(c *check.C) {
-	testRequires(c, cgroupCpuset)
+	testRequires(c, cgroupCpuset, SameHostDaemon)
 
 	sysInfo := sysinfo.New(true)
 	cpus, err := parsers.ParseUintList(sysInfo.Cpus)
@@ -684,8 +671,7 @@ func (s *DockerSuite) TestRunWithDefaultShmSize(c *check.C) {
 	if !shmRegex.MatchString(out) {
 		c.Fatalf("Expected shm of 64MB in mount command, got %v", out)
 	}
-	shmSize, err := inspectField(name, "HostConfig.ShmSize")
-	c.Assert(err, check.IsNil)
+	shmSize := inspectField(c, name, "HostConfig.ShmSize")
 	c.Assert(shmSize, check.Equals, "67108864")
 }
 
@@ -698,8 +684,7 @@ func (s *DockerSuite) TestRunWithShmSize(c *check.C) {
 	if !shmRegex.MatchString(out) {
 		c.Fatalf("Expected shm of 1GB in mount command, got %v", out)
 	}
-	shmSize, err := inspectField(name, "HostConfig.ShmSize")
-	c.Assert(err, check.IsNil)
+	shmSize := inspectField(c, name, "HostConfig.ShmSize")
 	c.Assert(shmSize, check.Equals, "1073741824")
 }
 
@@ -726,7 +711,7 @@ func (s *DockerSuite) TestRunTmpfsMounts(c *check.C) {
 
 // TestRunSeccompProfileDenyUnshare checks that 'docker run --security-opt seccomp:/tmp/profile.json debian:jessie unshare' exits with operation not permitted.
 func (s *DockerSuite) TestRunSeccompProfileDenyUnshare(c *check.C) {
-	testRequires(c, SameHostDaemon, seccompEnabled)
+	testRequires(c, SameHostDaemon, seccompEnabled, NotArm, Apparmor)
 	jsonData := `{
 	"defaultAction": "SCMP_ACT_ALLOW",
 	"syscalls": [
@@ -783,7 +768,7 @@ func (s *DockerSuite) TestRunSeccompProfileDenyChmod(c *check.C) {
 // TestRunSeccompProfileDenyUnshareUserns checks that 'docker run debian:jessie unshare --map-root-user --user sh -c whoami' with a specific profile to
 // deny unhare of a userns exits with operation not permitted.
 func (s *DockerSuite) TestRunSeccompProfileDenyUnshareUserns(c *check.C) {
-	testRequires(c, SameHostDaemon, seccompEnabled)
+	testRequires(c, SameHostDaemon, seccompEnabled, NotArm, Apparmor)
 	// from sched.h
 	jsonData := fmt.Sprintf(`{
 	"defaultAction": "SCMP_ACT_ALLOW",
@@ -853,38 +838,60 @@ func (s *DockerSuite) TestRunSeccompAllowPrivCloneUserns(c *check.C) {
 	}
 }
 
-// TestRunSeccompAllowAptKey checks that 'docker run debian:jessie apt-key' succeeds.
-func (s *DockerSuite) TestRunSeccompAllowAptKey(c *check.C) {
-	testRequires(c, SameHostDaemon, seccompEnabled, Network)
+// TestRunSeccompAllowSetrlimit checks that 'docker run debian:jessie ulimit -v 1048510' succeeds.
+func (s *DockerSuite) TestRunSeccompAllowSetrlimit(c *check.C) {
+	testRequires(c, SameHostDaemon, seccompEnabled)
 
-	// apt-key uses setrlimit & getrlimit, so we want to make sure we don't break it
-	runCmd := exec.Command(dockerBinary, "run", "debian:jessie", "apt-key", "adv", "--keyserver", "hkp://p80.pool.sks-keyservers.net:80", "--recv-keys", "E871F18B51E0147C77796AC81196BA81F6B0FC61")
+	// ulimit uses setrlimit, so we want to make sure we don't break it
+	runCmd := exec.Command(dockerBinary, "run", "debian:jessie", "bash", "-c", "ulimit -v 1048510")
 	if out, _, err := runCommandWithOutput(runCmd); err != nil {
-		c.Fatalf("expected apt-key with seccomp to succeed, got %s: %v", out, err)
+		c.Fatalf("expected ulimit with seccomp to succeed, got %s: %v", out, err)
 	}
 }
 
 func (s *DockerSuite) TestRunSeccompDefaultProfile(c *check.C) {
 	testRequires(c, SameHostDaemon, seccompEnabled, NotUserNamespace)
 
-	out, _, err := dockerCmdWithError("run", "--cap-add", "ALL", "syscall-test", "acct-test")
-	if err == nil || !strings.Contains(out, "Operation not permitted") {
-		c.Fatalf("expected Operation not permitted, got: %s", out)
-	}
+	var group sync.WaitGroup
+	group.Add(4)
+	errChan := make(chan error, 4)
+	go func() {
+		out, _, err := dockerCmdWithError("run", "--cap-add", "ALL", "syscall-test", "acct-test")
+		if err == nil || !strings.Contains(out, "Operation not permitted") {
+			errChan <- fmt.Errorf("expected Operation not permitted, got: %s", out)
+		}
+		group.Done()
+	}()
 
-	out, _, err = dockerCmdWithError("run", "--cap-add", "ALL", "syscall-test", "ns-test", "echo", "hello")
-	if err == nil || !strings.Contains(out, "Operation not permitted") {
-		c.Fatalf("expected Operation not permitted, got: %s", out)
-	}
+	go func() {
+		out, _, err := dockerCmdWithError("run", "--cap-add", "ALL", "syscall-test", "ns-test", "echo", "hello")
+		if err == nil || !strings.Contains(out, "Operation not permitted") {
+			errChan <- fmt.Errorf("expected Operation not permitted, got: %s", out)
+		}
+		group.Done()
+	}()
 
-	out, _, err = dockerCmdWithError("run", "--cap-add", "ALL", "--security-opt", "seccomp:unconfined", "syscall-test", "acct-test")
-	if err == nil || !strings.Contains(out, "No such file or directory") {
-		c.Fatalf("expected No such file or directory, got: %s", out)
-	}
+	go func() {
+		out, _, err := dockerCmdWithError("run", "--cap-add", "ALL", "--security-opt", "seccomp:unconfined", "syscall-test", "acct-test")
+		if err == nil || !strings.Contains(out, "No such file or directory") {
+			errChan <- fmt.Errorf("expected No such file or directory, got: %s", out)
+		}
+		group.Done()
+	}()
 
-	out, _, err = dockerCmdWithError("run", "--cap-add", "ALL", "--security-opt", "seccomp:unconfined", "syscall-test", "ns-test", "echo", "hello")
-	if err != nil || !strings.Contains(out, "hello") {
-		c.Fatalf("expected hello, got: %s, %v", out, err)
+	go func() {
+		out, _, err := dockerCmdWithError("run", "--cap-add", "ALL", "--security-opt", "seccomp:unconfined", "syscall-test", "ns-test", "echo", "hello")
+		if err != nil || !strings.Contains(out, "hello") {
+			errChan <- fmt.Errorf("expected hello, got: %s, %v", out, err)
+		}
+		group.Done()
+	}()
+
+	group.Wait()
+	close(errChan)
+
+	for err := range errChan {
+		c.Assert(err, checker.IsNil)
 	}
 }
 

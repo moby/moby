@@ -319,10 +319,7 @@ unit, `b` is used. Set LIMIT to `-1` to enable unlimited swap.
 
    $ docker run -d --tmpfs /tmp:rw,size=787448k,mode=1777 my_image
 
-   This command mounts a `tmpfs` at `/tmp` within the container. The mount copies
-the underlying content of `my_image` into `/tmp`. For example if there was a
-directory `/tmp/content` in the base image, docker will copy this directory and
-all of its content on top of the tmpfs mounted on `/tmp`.  The supported mount
+   This command mounts a `tmpfs` at `/tmp` within the container.  The supported mount
 options are the same as the Linux default `mount` flags. If you do not specify
 any options, the systems uses the following options:
 `rw,noexec,nosuid,nodev,size=65536k`.
@@ -410,6 +407,14 @@ example, if one wants to bind mount source directory `/foo` one can do
 will convert /foo into a `shared` mount point. Alternatively one can directly
 change propagation properties of source mount. Say `/` is source mount for
 `/foo`, then use `mount --make-shared /` to convert `/` into a `shared` mount.
+
+> **Note**:
+> When using systemd to manage the Docker daemon's start and stop, in the systemd
+> unit file there is an option to control mount propagation for the Docker daemon
+> itself, called `MountFlags`. The value of this setting may cause Docker to not
+> see mount propagation changes made on the mount point. For example, if this value
+> is `slave`, you may not be able to use the `shared` or `rshared` propagation on
+> a volume.
 
 **--volume-driver**=""
    Container's volume driver. This driver creates volumes specified either from

@@ -204,7 +204,7 @@ __docker_get_log_options() {
     gelf_options=("env" "gelf-address" "labels" "tag")
     journald_options=("env" "labels")
     json_file_options=("env" "labels" "max-file" "max-size")
-    syslog_options=("syslog-address" "syslog-facility" "tag")
+    syslog_options=("syslog-address" "syslog-tls-ca-cert" "syslog-tls-cert" "syslog-tls-key" "syslog-tls-skip-verify" "syslog-facility" "tag")
     splunk_options=("env" "labels" "splunk-caname" "splunk-capath" "splunk-index" "splunk-insecureskipverify" "splunk-source" "splunk-sourcetype" "splunk-token" "splunk-url" "tag")
 
     [[ $log_driver = (awslogs|all) ]] && _describe -t awslogs-options "awslogs options" awslogs_options "$@" && ret=0
@@ -229,6 +229,17 @@ __docker_log_options() {
     fi
 
     return ret
+}
+
+__docker_complete_detach_keys() {
+    [[ $PREFIX = -* ]] && return 1
+    integer ret=1
+
+    compset -P "*,"
+    keys=(${:-{a-z}})
+    ctrl_keys=(${:-ctrl-{{a-z},{@,'[','\\','^',']',_}}})
+    _describe -t detach_keys "[a-z]" keys -qS "," && ret=0
+    _describe -t detach_keys-ctrl "'ctrl-' + 'a-z @ [ \\\\ ] ^ _'" ctrl_keys -qS "," && ret=0
 }
 
 __docker_networks() {
@@ -291,23 +302,45 @@ __docker_network_subcommand() {
     opts_help=("(: -)--help[Print usage]")
 
     case "$words[1]" in
-        (connect|disconnect)
+        (connect)
             _arguments $(__docker_arguments) \
                 $opts_help \
+                "($help)*--alias=[Add network-scoped alias for the container]:alias: " \
+                "($help)--ip=[Container IPv4 address]:IPv4: " \
+                "($help)--ip6=[Container IPv6 address]:IPv6: " \
+                "($help)*--link=[Add a link to another container]:link:->link" \
                 "($help -)1:network:__docker_networks" \
-                "($help -)2:containers:__docker_runningcontainers" && ret=0
+                "($help -)2:containers:__docker_containers" && ret=0
+
+            case $state in
+                (link)
+                    if compset -P "*:"; then
+                        _wanted alias expl "Alias" compadd -E "" && ret=0
+                    else
+                        __docker_runningcontainers -qS ":" && ret=0
+                    fi
+                    ;;
+            esac
             ;;
         (create)
             _arguments $(__docker_arguments) -A '-*' \
                 $opts_help \
-                "($help -d --driver)"{-d=,--driver=}"[Driver to manage the Network]:driver:(null host bridge overlay)" \
-                "($help)--ipam-driver=[IP Address Management Driver]:driver:(default)" \
-                "($help)*--subnet=[Subnet in CIDR format that represents a network segment]:IP/mask: " \
-                "($help)*--ip-range=[Allocate container ip from a sub-range]:IP/mask: " \
-                "($help)*--gateway=[ipv4 or ipv6 Gateway for the master subnet]:IP: " \
                 "($help)*--aux-address[Auxiliary ipv4 or ipv6 addresses used by network driver]:key=IP: " \
-                "($help)*"{-o=,--opt=}"[Set driver specific options]:key=value: " \
+                "($help -d --driver)"{-d=,--driver=}"[Driver to manage the Network]:driver:(null host bridge overlay)" \
+                "($help)*--gateway=[ipv4 or ipv6 Gateway for the master subnet]:IP: " \
+                "($help)--internal[Restricts external access to the network]" \
+                "($help)*--ip-range=[Allocate container ip from a sub-range]:IP/mask: " \
+                "($help)--ipam-driver=[IP Address Management Driver]:driver:(default)" \
+                "($help)*--ipam-opt=[Set custom IPAM plugin options]:opt=value: " \
+                "($help)*"{-o=,--opt=}"[Set driver specific options]:opt=value: " \
+                "($help)*--subnet=[Subnet in CIDR format that represents a network segment]:IP/mask: " \
                 "($help -)1:Network Name: " && ret=0
+            ;;
+        (disconnect)
+            _arguments $(__docker_arguments) \
+                $opts_help \
+                "($help -)1:network:__docker_networks" \
+                "($help -)2:containers:__docker_containers" && ret=0
             ;;
         (inspect)
             _arguments $(__docker_arguments) \
@@ -485,6 +518,8 @@ __docker_subcommand() {
         "($help)*--group-add=[Add additional groups to run as]:group:_groups"
         "($help -h --hostname)"{-h=,--hostname=}"[Container host name]:hostname:_hosts"
         "($help -i --interactive)"{-i,--interactive}"[Keep stdin open even if not attached]"
+        "($help)--ip=[Container IPv4 address]:IPv4: "
+        "($help)--ip6=[Container IPv6 address]:IPv6: "
         "($help)--ipc=[IPC namespace to use]:IPC namespace: "
         "($help)*--link=[Add link to another container]:link:->link"
         "($help)*"{-l=,--label=}"[Set meta data on a container]:label: "
@@ -493,6 +528,7 @@ __docker_subcommand() {
         "($help)--mac-address=[Container MAC address]:MAC address: "
         "($help)--name=[Container name]:name: "
         "($help)--net=[Connect a container to a network]:network mode:(bridge none container host)"
+        "($help)*--net-alias=[Add network-scoped alias for the container]:alias: "
         "($help)--oom-kill-disable[Disable OOM Killer]"
         "($help)--oom-score-adj[Tune the host's OOM preferences for containers (accepts -1000 to 1000)]"
         "($help -P --publish-all)"{-P,--publish-all}"[Publish all exposed ports]"
@@ -515,11 +551,15 @@ __docker_subcommand() {
         "($help)--kernel-memory=[Kernel memory limit in bytes.]:Memory limit: "
         "($help)--memory-reservation=[Memory soft limit]:Memory limit: "
     )
+    opts_attach_exec_run_start=(
+        "($help)--detach-keys=[Specify the escape key sequence used to detach a container]:sequence:__docker_complete_detach_keys"
+    )
 
     case "$words[1]" in
         (attach)
             _arguments $(__docker_arguments) \
                 $opts_help \
+                $opts_attach_exec_run_start \
                 "($help)--no-stdin[Do not attach stdin]" \
                 "($help)--sig-proxy[Proxy all received signals to the process (non-TTY mode only)]" \
                 "($help -):containers:__docker_runningcontainers" && ret=0
@@ -552,6 +592,7 @@ __docker_subcommand() {
         (cp)
             _arguments $(__docker_arguments) \
                 $opts_help \
+                "($help -L --follow-link)"{-L,--follow-link}"[Always follow symbol link in SRC_PATH]" \
                 "($help -)1:container:->container" \
                 "($help -)2:hostpath:_files" && ret=0
             case $state in
@@ -625,6 +666,7 @@ __docker_subcommand() {
                 "($help)*--log-opt=[Log driver specific options]:log driver options:__docker_log_options" \
                 "($help)--mtu=[Set the containers network MTU]:mtu:(0 576 1420 1500 9000)" \
                 "($help -p --pidfile)"{-p=,--pidfile=}"[Path to use for daemon PID file]:PID file:_files" \
+                "($help)--raw-logs[Full timestamps without ANSI coloring]" \
                 "($help)*--registry-mirror=[Preferred Docker registry mirror]:registry mirror: " \
                 "($help -s --storage-driver)"{-s=,--storage-driver=}"[Storage driver to use]:driver:(aufs devicemapper btrfs zfs overlay)" \
                 "($help)--selinux-enabled[Enable selinux support]" \
@@ -650,7 +692,7 @@ __docker_subcommand() {
                     if compset -P '*='; then
                         _files && ret=0
                     else
-                        opts=('kv.cacertfile' 'kv.certfile' 'kv.keyfile')
+                        opts=('discovery.heartbeat' 'discovery.ttl' 'kv.cacertfile' 'kv.certfile' 'kv.keyfile' 'kv.path')
                         _describe -t cluster-store-opts "Cluster Store Options" opts -qS "=" && ret=0
                     fi
                     ;;
@@ -680,6 +722,7 @@ __docker_subcommand() {
             local state
             _arguments $(__docker_arguments) \
                 $opts_help \
+                $opts_attach_exec_run_start \
                 "($help -d --detach)"{-d,--detach}"[Detached mode: leave the container running in the background]" \
                 "($help -i --interactive)"{-i,--interactive}"[Keep stdin open even if not attached]" \
                 "($help)--privileged[Give extended Linux capabilities to the command]" \
@@ -874,6 +917,7 @@ __docker_subcommand() {
                 $opts_build_create_run_update \
                 $opts_create_run \
                 $opts_create_run_update \
+                $opts_attach_exec_run_start \
                 "($help -d --detach)"{-d,--detach}"[Detached mode: leave the container running in the background]" \
                 "($help)--rm[Remove intermediate containers when it exits]" \
                 "($help)--sig-proxy[Proxy all received signals to the process (non-TTY mode only)]" \
@@ -910,6 +954,7 @@ __docker_subcommand() {
         (start)
             _arguments $(__docker_arguments) \
                 $opts_help \
+                $opts_attach_exec_run_start \
                 "($help -a --attach)"{-a,--attach}"[Attach container's stdout/stderr and forward all signals]" \
                 "($help -i --interactive)"{-i,--interactive}"[Attach container's stding]" \
                 "($help -)*:containers:__docker_stoppedcontainers" && ret=0
@@ -924,7 +969,6 @@ __docker_subcommand() {
         (tag)
             _arguments $(__docker_arguments) \
                 $opts_help \
-                "($help -f --force)"{-f,--force}"[force]"\
                 "($help -):source:__docker_images"\
                 "($help -):destination:__docker_repositories_with_tags" && ret=0
             ;;

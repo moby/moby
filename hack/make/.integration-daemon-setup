@@ -2,7 +2,12 @@
 set -e
 
 bundle .detect-daemon-osarch
-bundle .ensure-emptyfs
-bundle .ensure-frozen-images
-bundle .ensure-httpserver
-bundle .ensure-syscall-test
+if [ $DOCKER_ENGINE_GOOS != "windows" ]; then
+	bundle .ensure-emptyfs
+	bundle .ensure-frozen-images
+	bundle .ensure-httpserver
+	bundle .ensure-syscall-test
+else
+	# Note this is Windows to Windows CI, not Windows to Linux CI
+	bundle .ensure-frozen-images-windows
+fi

@@ -86,6 +86,7 @@ func NewStoreFromGraphDriver(store MetadataStore, driver graphdriver.Driver) (St
 		l, err := ls.loadLayer(id)
 		if err != nil {
 			logrus.Debugf("Failed to load layer %s: %s", id, err)
+			continue
 		}
 		if l.parent != nil {
 			l.parent.referenceCount++
@@ -109,22 +110,22 @@ func (ls *layerStore) loadLayer(layer ChainID) (*roLayer, error) {
 
 	diff, err := ls.store.GetDiffID(layer)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get diff id for %s: %s", layer, err)
 	}
 
 	size, err := ls.store.GetSize(layer)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get size for %s: %s", layer, err)
 	}
 
 	cacheID, err := ls.store.GetCacheID(layer)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get cache id for %s: %s", layer, err)
 	}
 
 	parent, err := ls.store.GetParent(layer)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get parent for %s: %s", layer, err)
 	}
 
 	cl = &roLayer{

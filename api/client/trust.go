@@ -21,6 +21,7 @@ import (
 	"github.com/docker/distribution/registry/client/transport"
 	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/distribution"
+	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/pkg/jsonmessage"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/reference"
@@ -139,7 +140,7 @@ func (cli *DockerCli) getNotaryRepository(repoInfo *registry.RepositoryInfo, aut
 	}
 
 	// Skip configuration headers since request is not going to Docker daemon
-	modifiers := registry.DockerHeaders(http.Header{})
+	modifiers := registry.DockerHeaders(dockerversion.DockerUserAgent(), http.Header{})
 	authTransport := transport.NewTransport(base, modifiers...)
 	pingClient := &http.Client{
 		Transport: authTransport,
@@ -234,7 +235,7 @@ func (cli *DockerCli) trustedReference(ref reference.NamedTagged) (reference.Can
 	}
 
 	// Resolve the Auth config relevant for this server
-	authConfig := registry.ResolveAuthConfig(cli.configFile.AuthConfigs, repoInfo.Index)
+	authConfig := cli.resolveAuthConfig(cli.configFile.AuthConfigs, repoInfo.Index)
 
 	notaryRepo, err := cli.getNotaryRepository(repoInfo, authConfig)
 	if err != nil {

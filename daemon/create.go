@@ -26,6 +26,11 @@ func (daemon *Daemon) ContainerCreate(params types.ContainerCreateConfig) (types
 		return types.ContainerCreateResponse{Warnings: warnings}, err
 	}
 
+	err = daemon.verifyNetworkingConfig(params.NetworkingConfig)
+	if err != nil {
+		return types.ContainerCreateResponse{}, err
+	}
+
 	if params.HostConfig == nil {
 		params.HostConfig = &containertypes.HostConfig{}
 	}
@@ -105,7 +110,7 @@ func (daemon *Daemon) create(params types.ContainerCreateConfig) (retC *containe
 		}
 	}()
 
-	if err := daemon.createContainerPlatformSpecificSettings(container, params.Config, params.HostConfig, img); err != nil {
+	if err := daemon.createContainerPlatformSpecificSettings(container, params.Config, params.HostConfig); err != nil {
 		return nil, err
 	}
 

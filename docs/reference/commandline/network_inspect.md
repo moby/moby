@@ -50,6 +50,7 @@ $ sudo docker network inspect bridge
                 }
             ]
         },
+        "Internal": false,
         "Containers": {
             "bda12f8922785d1f160be70736f26c1e331ab8aaf8ed8d56728508f2e2fd4727": {
                 "Name": "container2",

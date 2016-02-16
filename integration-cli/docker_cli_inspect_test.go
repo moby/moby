@@ -29,8 +29,7 @@ func (s *DockerSuite) TestInspectImage(c *check.C) {
 	// fails, fix the difference in the image serialization instead of
 	// updating this hash.
 	imageTestID := "sha256:11f64303f0f7ffdc71f001788132bca5346831939a956e3e975c93267d89a16d"
-	id, err := inspectField(imageTest, "Id")
-	c.Assert(err, checker.IsNil)
+	id := inspectField(c, imageTest, "Id")
 
 	c.Assert(id, checker.Equals, imageTestID)
 }
@@ -39,8 +38,7 @@ func (s *DockerSuite) TestInspectInt64(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 
 	dockerCmd(c, "run", "-d", "-m=300M", "--name", "inspectTest", "busybox", "true")
-	inspectOut, err := inspectField("inspectTest", "HostConfig.Memory")
-	c.Assert(err, check.IsNil)
+	inspectOut := inspectField(c, "inspectTest", "HostConfig.Memory")
 	c.Assert(inspectOut, checker.Equals, "314572800")
 }
 
@@ -52,8 +50,7 @@ func (s *DockerSuite) TestInspectDefault(c *check.C) {
 	out, _ := dockerCmd(c, "run", "--name=busybox", "-d", "busybox", "true")
 	containerID := strings.TrimSpace(out)
 
-	inspectOut, err := inspectField("busybox", "Id")
-	c.Assert(err, checker.IsNil)
+	inspectOut := inspectField(c, "busybox", "Id")
 	c.Assert(strings.TrimSpace(inspectOut), checker.Equals, containerID)
 }
 
@@ -63,23 +60,19 @@ func (s *DockerSuite) TestInspectStatus(c *check.C) {
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
 	out = strings.TrimSpace(out)
 
-	inspectOut, err := inspectField(out, "State.Status")
-	c.Assert(err, checker.IsNil)
+	inspectOut := inspectField(c, out, "State.Status")
 	c.Assert(inspectOut, checker.Equals, "running")
 
 	dockerCmd(c, "pause", out)
-	inspectOut, err = inspectField(out, "State.Status")
-	c.Assert(err, checker.IsNil)
+	inspectOut = inspectField(c, out, "State.Status")
 	c.Assert(inspectOut, checker.Equals, "paused")
 
 	dockerCmd(c, "unpause", out)
-	inspectOut, err = inspectField(out, "State.Status")
-	c.Assert(err, checker.IsNil)
+	inspectOut = inspectField(c, out, "State.Status")
 	c.Assert(inspectOut, checker.Equals, "running")
 
 	dockerCmd(c, "stop", out)
-	inspectOut, err = inspectField(out, "State.Status")
-	c.Assert(err, checker.IsNil)
+	inspectOut = inspectField(c, out, "State.Status")
 	c.Assert(inspectOut, checker.Equals, "exited")
 
 }
@@ -137,8 +130,7 @@ func (s *DockerSuite) TestInspectTypeFlagWithInvalidValue(c *check.C) {
 func (s *DockerSuite) TestInspectImageFilterInt(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	imageTest := "emptyfs"
-	out, err := inspectField(imageTest, "Size")
-	c.Assert(err, checker.IsNil)
+	out := inspectField(c, imageTest, "Size")
 
 	size, err := strconv.Atoi(out)
 	c.Assert(err, checker.IsNil, check.Commentf("failed to inspect size of the image: %s, %v", out, err))
@@ -160,8 +152,7 @@ func (s *DockerSuite) TestInspectContainerFilterInt(c *check.C) {
 
 	id := strings.TrimSpace(out)
 
-	out, err = inspectField(id, "State.ExitCode")
-	c.Assert(err, checker.IsNil)
+	out = inspectField(c, id, "State.ExitCode")
 
 	exitCode, err := strconv.Atoi(out)
 	c.Assert(err, checker.IsNil, check.Commentf("failed to inspect exitcode of the container: %s, %v", out, err))
@@ -177,8 +168,7 @@ func (s *DockerSuite) TestInspectContainerFilterInt(c *check.C) {
 func (s *DockerSuite) TestInspectImageGraphDriver(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	imageTest := "emptyfs"
-	name, err := inspectField(imageTest, "GraphDriver.Name")
-	c.Assert(err, checker.IsNil)
+	name := inspectField(c, imageTest, "GraphDriver.Name")
 
 	checkValidGraphDriver(c, name)
 
@@ -186,14 +176,12 @@ func (s *DockerSuite) TestInspectImageGraphDriver(c *check.C) {
 		c.Skip("requires devicemapper graphdriver")
 	}
 
-	deviceID, err := inspectField(imageTest, "GraphDriver.Data.DeviceId")
-	c.Assert(err, checker.IsNil)
+	deviceID := inspectField(c, imageTest, "GraphDriver.Data.DeviceId")
 
-	_, err = strconv.Atoi(deviceID)
+	_, err := strconv.Atoi(deviceID)
 	c.Assert(err, checker.IsNil, check.Commentf("failed to inspect DeviceId of the image: %s, %v", deviceID, err))
 
-	deviceSize, err := inspectField(imageTest, "GraphDriver.Data.DeviceSize")
-	c.Assert(err, checker.IsNil)
+	deviceSize := inspectField(c, imageTest, "GraphDriver.Data.DeviceSize")
 
 	_, err = strconv.ParseUint(deviceSize, 10, 64)
 	c.Assert(err, checker.IsNil, check.Commentf("failed to inspect DeviceSize of the image: %s, %v", deviceSize, err))
@@ -204,8 +192,7 @@ func (s *DockerSuite) TestInspectContainerGraphDriver(c *check.C) {
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "true")
 	out = strings.TrimSpace(out)
 
-	name, err := inspectField(out, "GraphDriver.Name")
-	c.Assert(err, checker.IsNil)
+	name := inspectField(c, out, "GraphDriver.Name")
 
 	checkValidGraphDriver(c, name)
 
@@ -213,19 +200,16 @@ func (s *DockerSuite) TestInspectContainerGraphDriver(c *check.C) {
 		return
 	}
 
-	imageDeviceID, err := inspectField("busybox", "GraphDriver.Data.DeviceId")
-	c.Assert(err, checker.IsNil)
+	imageDeviceID := inspectField(c, "busybox", "GraphDriver.Data.DeviceId")
 
-	deviceID, err := inspectField(out, "GraphDriver.Data.DeviceId")
-	c.Assert(err, checker.IsNil)
+	deviceID := inspectField(c, out, "GraphDriver.Data.DeviceId")
 
 	c.Assert(imageDeviceID, checker.Not(checker.Equals), deviceID)
 
-	_, err = strconv.Atoi(deviceID)
+	_, err := strconv.Atoi(deviceID)
 	c.Assert(err, checker.IsNil, check.Commentf("failed to inspect DeviceId of the image: %s, %v", deviceID, err))
 
-	deviceSize, err := inspectField(out, "GraphDriver.Data.DeviceSize")
-	c.Assert(err, checker.IsNil)
+	deviceSize := inspectField(c, out, "GraphDriver.Data.DeviceSize")
 
 	_, err = strconv.ParseUint(deviceSize, 10, 64)
 	c.Assert(err, checker.IsNil, check.Commentf("failed to inspect DeviceSize of the image: %s, %v", deviceSize, err))
@@ -235,11 +219,10 @@ func (s *DockerSuite) TestInspectBindMountPoint(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "run", "-d", "--name", "test", "-v", "/data:/data:ro,z", "busybox", "cat")
 
-	vol, err := inspectFieldJSON("test", "Mounts")
-	c.Assert(err, checker.IsNil)
+	vol := inspectFieldJSON(c, "test", "Mounts")
 
 	var mp []types.MountPoint
-	err = unmarshalJSON([]byte(vol), &mp)
+	err := unmarshalJSON([]byte(vol), &mp)
 	c.Assert(err, checker.IsNil)
 
 	// check that there is only one mountpoint
@@ -260,22 +243,18 @@ func (s *DockerSuite) TestInspectTimesAsRFC3339Nano(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "true")
 	id := strings.TrimSpace(out)
-	startedAt, err := inspectField(id, "State.StartedAt")
-	c.Assert(err, checker.IsNil)
-	finishedAt, err := inspectField(id, "State.FinishedAt")
-	c.Assert(err, checker.IsNil)
-	created, err := inspectField(id, "Created")
-	c.Assert(err, checker.IsNil)
+	startedAt := inspectField(c, id, "State.StartedAt")
+	finishedAt := inspectField(c, id, "State.FinishedAt")
+	created := inspectField(c, id, "Created")
 
-	_, err = time.Parse(time.RFC3339Nano, startedAt)
+	_, err := time.Parse(time.RFC3339Nano, startedAt)
 	c.Assert(err, checker.IsNil)
 	_, err = time.Parse(time.RFC3339Nano, finishedAt)
 	c.Assert(err, checker.IsNil)
 	_, err = time.Parse(time.RFC3339Nano, created)
 	c.Assert(err, checker.IsNil)
 
-	created, err = inspectField("busybox", "Created")
-	c.Assert(err, checker.IsNil)
+	created = inspectField(c, "busybox", "Created")
 
 	_, err = time.Parse(time.RFC3339Nano, created)
 	c.Assert(err, checker.IsNil)
@@ -287,10 +266,9 @@ func (s *DockerSuite) TestInspectLogConfigNoType(c *check.C) {
 	dockerCmd(c, "create", "--name=test", "--log-opt", "max-file=42", "busybox")
 	var logConfig container.LogConfig
 
-	out, err := inspectFieldJSON("test", "HostConfig.LogConfig")
-	c.Assert(err, checker.IsNil, check.Commentf("%v", out))
+	out := inspectFieldJSON(c, "test", "HostConfig.LogConfig")
 
-	err = json.NewDecoder(strings.NewReader(out)).Decode(&logConfig)
+	err := json.NewDecoder(strings.NewReader(out)).Decode(&logConfig)
 	c.Assert(err, checker.IsNil, check.Commentf("%v", out))
 
 	c.Assert(logConfig.Type, checker.Equals, "json-file")
@@ -355,16 +333,13 @@ func (s *DockerSuite) TestInspectJSONFields(c *check.C) {
 }
 
 func (s *DockerSuite) TestInspectByPrefix(c *check.C) {
-	id, err := inspectField("busybox", "Id")
-	c.Assert(err, checker.IsNil)
+	id := inspectField(c, "busybox", "Id")
 	c.Assert(id, checker.HasPrefix, "sha256:")
 
-	id2, err := inspectField(id[:12], "Id")
-	c.Assert(err, checker.IsNil)
+	id2 := inspectField(c, id[:12], "Id")
 	c.Assert(id, checker.Equals, id2)
 
-	id3, err := inspectField(strings.TrimPrefix(id, "sha256:")[:12], "Id")
-	c.Assert(err, checker.IsNil)
+	id3 := inspectField(c, strings.TrimPrefix(id, "sha256:")[:12], "Id")
 	c.Assert(id, checker.Equals, id3)
 }
 
@@ -395,11 +370,9 @@ func (s *DockerSuite) TestInspectContainerNetworkDefault(c *check.C) {
 	contName := "test1"
 	dockerCmd(c, "run", "--name", contName, "-d", "busybox", "top")
 	netOut, _ := dockerCmd(c, "network", "inspect", "--format='{{.ID}}'", "bridge")
-	out, err := inspectField(contName, "NetworkSettings.Networks")
-	c.Assert(err, checker.IsNil)
+	out := inspectField(c, contName, "NetworkSettings.Networks")
 	c.Assert(out, checker.Contains, "bridge")
-	out, err = inspectField(contName, "NetworkSettings.Networks.bridge.NetworkID")
-	c.Assert(err, checker.IsNil)
+	out = inspectField(c, contName, "NetworkSettings.Networks.bridge.NetworkID")
 	c.Assert(strings.TrimSpace(out), checker.Equals, strings.TrimSpace(netOut))
 }
 
@@ -408,10 +381,8 @@ func (s *DockerSuite) TestInspectContainerNetworkCustom(c *check.C) {
 
 	netOut, _ := dockerCmd(c, "network", "create", "net1")
 	dockerCmd(c, "run", "--name=container1", "--net=net1", "-d", "busybox", "top")
-	out, err := inspectField("container1", "NetworkSettings.Networks")
-	c.Assert(err, checker.IsNil)
+	out := inspectField(c, "container1", "NetworkSettings.Networks")
 	c.Assert(out, checker.Contains, "net1")
-	out, err = inspectField("container1", "NetworkSettings.Networks.net1.NetworkID")
-	c.Assert(err, checker.IsNil)
+	out = inspectField(c, "container1", "NetworkSettings.Networks.net1.NetworkID")
 	c.Assert(strings.TrimSpace(out), checker.Equals, strings.TrimSpace(netOut))
 }

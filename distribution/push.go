@@ -22,7 +22,6 @@ import (
 // ImagePushConfig stores push configuration.
 type ImagePushConfig struct {
 	// MetaHeaders store HTTP headers with metadata about the image
-	// (DockerHeaders with prefix X-Meta- in the request).
 	MetaHeaders map[string][]string
 	// AuthConfig holds authentication credentials for authenticating with
 	// the registry.
@@ -145,11 +144,12 @@ func Push(ctx context.Context, ref reference.Named, imagePushConfig *ImagePushCo
 					confirmedV2 = confirmedV2 || fallbackErr.confirmedV2
 					err = fallbackErr.err
 					lastErr = err
+					logrus.Errorf("Attempting next endpoint for push after error: %v", err)
 					continue
 				}
 			}
 
-			logrus.Debugf("Not continuing with error: %v", err)
+			logrus.Errorf("Not continuing with push after error: %v", err)
 			return err
 		}
 
@@ -171,7 +171,14 @@ func Push(ctx context.Context, ref reference.Named, imagePushConfig *ImagePushCo
 // argument so that it can be used with httpBlobWriter's ReadFrom method.
 // Using httpBlobWriter's Write method would send a PATCH request for every
 // Write call.
-func compress(in io.Reader) io.ReadCloser {
+//
+// The second return value is a channel that gets closed when the goroutine
+// is finished. This allows the caller to make sure the goroutine finishes
+// before it releases any resources connected with the reader that was
+// passed in.
+func compress(in io.Reader) (io.ReadCloser, chan struct{}) {
+	compressionDone := make(chan struct{})
+
 	pipeReader, pipeWriter := io.Pipe()
 	// Use a bufio.Writer to avoid excessive chunking in HTTP request.
 	bufWriter := bufio.NewWriterSize(pipeWriter, compressionBufSize)
@@ -190,7 +197,8 @@ func compress(in io.Reader) io.ReadCloser {
 		} else {
 			pipeWriter.Close()
 		}
+		close(compressionDone)
 	}()
 
-	return pipeReader
+	return pipeReader, compressionDone
 }

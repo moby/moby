@@ -218,7 +218,7 @@ func (m *containerMonitor) start() error {
 		m.resetMonitor(err == nil && exitStatus.ExitCode == 0)
 
 		if m.shouldRestart(exitStatus.ExitCode) {
-			m.container.SetRestarting(&exitStatus)
+			m.container.SetRestartingLocking(&exitStatus)
 			m.logEvent("die")
 			m.resetContainer(true)
 
@@ -369,6 +369,9 @@ func (m *containerMonitor) resetContainer(lock bool) {
 			select {
 			case <-time.After(loggerCloseTimeout):
 				logrus.Warnf("Logger didn't exit in time: logs may be truncated")
+				container.LogCopier.Close()
+				// always waits for the LogCopier to finished before closing
+				<-exit
 			case <-exit:
 			}
 		}

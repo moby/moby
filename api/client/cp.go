@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"golang.org/x/net/context"
+
 	Cli "github.com/docker/docker/cli"
 	"github.com/docker/docker/pkg/archive"
 	flag "github.com/docker/docker/pkg/mflag"
@@ -165,7 +167,7 @@ func (cli *DockerCli) copyFromContainer(srcContainer, srcPath, dstPath string, c
 
 	}
 
-	content, stat, err := cli.client.CopyFromContainer(srcContainer, srcPath)
+	content, stat, err := cli.client.CopyFromContainer(context.Background(), srcContainer, srcPath)
 	if err != nil {
 		return err
 	}
@@ -292,5 +294,5 @@ func (cli *DockerCli) copyToContainer(srcPath, dstContainer, dstPath string, cpP
 		AllowOverwriteDirWithFile: false,
 	}
 
-	return cli.client.CopyToContainer(options)
+	return cli.client.CopyToContainer(context.Background(), options)
 }

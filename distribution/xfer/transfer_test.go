@@ -41,15 +41,6 @@ func TestTransfer(t *testing.T) {
 				if p.Current != 0 {
 					t.Fatalf("got unexpected progress value: %d (expected 0)", p.Current)
 				}
-			} else if p.Current == 10 {
-				// Special case: last progress output may be
-				// repeated because the transfer finishing
-				// causes the latest progress output to be
-				// written to the channel (in case the watcher
-				// missed it).
-				if p.Current != 9 && p.Current != 10 {
-					t.Fatalf("got unexpected progress value: %d (expected %d)", p.Current, val+1)
-				}
 			} else if p.Current != val+1 {
 				t.Fatalf("got unexpected progress value: %d (expected %d)", p.Current, val+1)
 			}
@@ -289,6 +280,44 @@ func TestWatchRelease(t *testing.T) {
 		close(w.progressChan)
 		<-w.progressDone
 	}
+}
+
+func TestWatchFinishedTransfer(t *testing.T) {
+	makeXferFunc := func(id string) DoFunc {
+		return func(progressChan chan<- progress.Progress, start <-chan struct{}, inactive chan<- struct{}) Transfer {
+			xfer := NewTransfer()
+			go func() {
+				// Finish immediately
+				close(progressChan)
+			}()
+			return xfer
+		}
+	}
+
+	tm := NewTransferManager(5)
+
+	// Start a transfer
+	watchers := make([]*Watcher, 3)
+	var xfer Transfer
+	xfer, watchers[0] = tm.Transfer("id1", makeXferFunc("id1"), progress.ChanOutput(make(chan progress.Progress)))
+
+	// Give it a watcher immediately
+	watchers[1] = xfer.Watch(progress.ChanOutput(make(chan progress.Progress)))
+
+	// Wait for the transfer to complete
+	<-xfer.Done()
+
+	// Set up another watcher
+	watchers[2] = xfer.Watch(progress.ChanOutput(make(chan progress.Progress)))
+
+	// Release the watchers
+	for _, w := range watchers {
+		xfer.Release(w)
+	}
+
+	// Now that all watchers have been released, Released() should
+	// return a closed channel.
+	<-xfer.Released()
 }
 
 func TestDuplicateTransfer(t *testing.T) {

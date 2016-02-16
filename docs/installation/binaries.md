@@ -4,7 +4,7 @@ title = "Installation from binaries"
 description = "Instructions for installing Docker as a binary. Mostly meant for hackers who want to try out Docker on a variety of environments."
 keywords = ["binaries, installation, docker, documentation,  linux"]
 [menu.main]
-parent = "smn_engine"
+parent = "engine_install"
 weight = 110
 +++
 <![end-metadata]-->
@@ -95,7 +95,7 @@ To set the file's execute bit on Linux and OS X:
     $ chmod +x docker
 
 To get the list of stable release version numbers from GitHub, view the
-`docker/docker` [releases page](https://github.com/docker/docker/releases). 
+`docker/docker` [releases page](https://github.com/docker/docker/releases).
 
 > **Note**
 >
@@ -109,14 +109,14 @@ To download the latest version for Linux, use the
 following URLs:
 
     https://get.docker.com/builds/Linux/i386/docker-latest
-    
+
     https://get.docker.com/builds/Linux/x86_64/docker-latest
 
 To download a specific version for Linux, use the
 following URL patterns:
 
     https://get.docker.com/builds/Linux/i386/docker-<version>
-    
+
     https://get.docker.com/builds/Linux/x86_64/docker-<version>
 
 For example:
@@ -143,19 +143,19 @@ For example:
     https://get.docker.com/builds/Darwin/x86_64/docker-1.9.1
 
 ### Get the Windows binary
- 
+
 You can only download the Windows client binary for version `1.9.1` onwards.
 Moreover, the binary is only a client, you cannot use it to run the `docker` daemon.
 To download the latest version for Windows, use the following URLs:
 
     https://get.docker.com/builds/Windows/i386/docker-latest.exe
-    
+
     https://get.docker.com/builds/Windows/x86_64/docker-latest.exe
 
 To download a specific version for Windows, use the following URL pattern:
 
     https://get.docker.com/builds/Windows/i386/docker-<version>.exe
-    
+
     https://get.docker.com/builds/Windows/x86_64/docker-<version>.exe
 
 For example:
@@ -184,7 +184,7 @@ starts. The `docker` daemon must always run as the root user, but if you
 run the `docker` client as a user in the *docker* group then you don't
 need to add `sudo` to all the client commands.
 
-> **Warning**: 
+> **Warning**:
 > The *docker* group (or the group specified with `-G`) is root-equivalent;
 > see [*Docker Daemon Attack Surface*](../security/security.md#docker-daemon-attack-surface) details.
 

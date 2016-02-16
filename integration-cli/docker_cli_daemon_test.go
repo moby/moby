@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net"
 	"os"
@@ -19,9 +20,11 @@ import (
 	"time"
 
 	"github.com/docker/docker/pkg/integration/checker"
+	"github.com/docker/go-units"
 	"github.com/docker/libnetwork/iptables"
 	"github.com/docker/libtrust"
 	"github.com/go-check/check"
+	"github.com/kr/pty"
 )
 
 func (s *DockerDaemonSuite) TestDaemonRestartWithRunningContainersPorts(c *check.C) {
@@ -150,6 +153,44 @@ func (s *DockerDaemonSuite) TestDaemonStartIptablesFalse(c *check.C) {
 	if err := s.d.Start("--iptables=false"); err != nil {
 		c.Fatalf("we should have been able to start the daemon with passing iptables=false: %v", err)
 	}
+}
+
+// Make sure we cannot shrink base device at daemon restart.
+func (s *DockerDaemonSuite) TestDaemonRestartWithInvalidBasesize(c *check.C) {
+	testRequires(c, Devicemapper)
+	c.Assert(s.d.Start(), check.IsNil)
+
+	oldBasesizeBytes := s.d.getBaseDeviceSize(c)
+	var newBasesizeBytes int64 = 1073741824 //1GB in bytes
+
+	if newBasesizeBytes < oldBasesizeBytes {
+		err := s.d.Restart("--storage-opt", fmt.Sprintf("dm.basesize=%d", newBasesizeBytes))
+		c.Assert(err, check.IsNil, check.Commentf("daemon should not have started as new base device size is less than existing base device size: %v", err))
+	}
+	c.Assert(s.d.Stop(), check.IsNil)
+}
+
+// Make sure we can grow base device at daemon restart.
+func (s *DockerDaemonSuite) TestDaemonRestartWithIncreasedBasesize(c *check.C) {
+	testRequires(c, Devicemapper)
+	c.Assert(s.d.Start(), check.IsNil)
+
+	oldBasesizeBytes := s.d.getBaseDeviceSize(c)
+
+	var newBasesizeBytes int64 = 53687091200 //50GB in bytes
+
+	if newBasesizeBytes < oldBasesizeBytes {
+		c.Skip(fmt.Sprintf("New base device size (%v) must be greater than (%s)", units.HumanSize(float64(newBasesizeBytes)), units.HumanSize(float64(oldBasesizeBytes))))
+	}
+
+	err := s.d.Restart("--storage-opt", fmt.Sprintf("dm.basesize=%d", newBasesizeBytes))
+	c.Assert(err, check.IsNil, check.Commentf("we should have been able to start the daemon with increased base device size: %v", err))
+
+	basesizeAfterRestart := s.d.getBaseDeviceSize(c)
+	newBasesize, err := convertBasesize(newBasesizeBytes)
+	c.Assert(err, check.IsNil, check.Commentf("Error in converting base device size: %v", err))
+	c.Assert(newBasesize, check.Equals, basesizeAfterRestart, check.Commentf("Basesize passed is not equal to Basesize set"))
+	c.Assert(s.d.Stop(), check.IsNil)
 }
 
 // Issue #8444: If docker0 bridge is modified (intentionally or unintentionally) and
@@ -335,55 +376,50 @@ func (s *DockerSuite) TestDaemonIPv6Enabled(c *check.C) {
 
 // TestDaemonIPv6FixedCIDR checks that when the daemon is started with --ipv6=true and a fixed CIDR
 // that running containers are given a link-local and global IPv6 address
-func (s *DockerSuite) TestDaemonIPv6FixedCIDR(c *check.C) {
-	if err := setupV6(); err != nil {
-		c.Fatal("Could not set up host for IPv6 tests")
-	}
+func (s *DockerDaemonSuite) TestDaemonIPv6FixedCIDR(c *check.C) {
+	// IPv6 setup is messing with local bridge address.
+	testRequires(c, SameHostDaemon)
+	err := setupV6()
+	c.Assert(err, checker.IsNil, check.Commentf("Could not set up host for IPv6 tests"))
 
-	d := NewDaemon(c)
+	err = s.d.StartWithBusybox("--ipv6", "--fixed-cidr-v6='2001:db8:2::/64'", "--default-gateway-v6='2001:db8:2::100'")
+	c.Assert(err, checker.IsNil, check.Commentf("Could not start daemon with busybox: %v", err))
 
-	if err := d.StartWithBusybox("--ipv6", "--fixed-cidr-v6='2001:db8:2::/64'", "--default-gateway-v6='2001:db8:2::100'"); err != nil {
-		c.Fatalf("Could not start daemon with busybox: %v", err)
-	}
-	defer d.Stop()
+	out, err := s.d.Cmd("run", "-itd", "--name=ipv6test", "busybox:latest")
+	c.Assert(err, checker.IsNil, check.Commentf("Could not run container: %s, %v", out, err))
 
-	if out, err := d.Cmd("run", "-itd", "--name=ipv6test", "busybox:latest"); err != nil {
-		c.Fatalf("Could not run container: %s, %v", out, err)
-	}
-
-	out, err := d.Cmd("inspect", "--format", "'{{.NetworkSettings.Networks.bridge.GlobalIPv6Address}}'", "ipv6test")
+	out, err = s.d.Cmd("inspect", "--format", "'{{.NetworkSettings.Networks.bridge.GlobalIPv6Address}}'", "ipv6test")
 	out = strings.Trim(out, " \r\n'")
 
-	if err != nil {
-		c.Fatalf("Error inspecting container: %s, %v", out, err)
-	}
+	c.Assert(err, checker.IsNil, check.Commentf(out))
 
-	if ip := net.ParseIP(out); ip == nil {
-		c.Fatalf("Container should have a global IPv6 address")
-	}
+	ip := net.ParseIP(out)
+	c.Assert(ip, checker.NotNil, check.Commentf("Container should have a global IPv6 address"))
 
-	// TODO: Check IPv6 def gateway in inspect o/p (once docker/docker 19001 is merged
-	if err := teardownV6(); err != nil {
-		c.Fatal("Could not perform teardown for IPv6 tests")
-	}
+	out, err = s.d.Cmd("inspect", "--format", "'{{.NetworkSettings.Networks.bridge.IPv6Gateway}}'", "ipv6test")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+
+	c.Assert(strings.Trim(out, " \r\n'"), checker.Equals, "2001:db8:2::100", check.Commentf("Container should have a global IPv6 gateway"))
+
+	err = teardownV6()
+	c.Assert(err, checker.IsNil, check.Commentf("Could not perform teardown for IPv6 tests"))
 }
 
 // TestDaemonIPv6FixedCIDRAndMac checks that when the daemon is started with ipv6 fixed CIDR
 // the running containers are given a an IPv6 address derived from the MAC address and the ipv6 fixed CIDR
-func (s *DockerSuite) TestDaemonIPv6FixedCIDRAndMac(c *check.C) {
+func (s *DockerDaemonSuite) TestDaemonIPv6FixedCIDRAndMac(c *check.C) {
+	// IPv6 setup is messing with local bridge address.
+	testRequires(c, SameHostDaemon)
 	err := setupV6()
 	c.Assert(err, checker.IsNil)
 
-	d := NewDaemon(c)
-
-	err = d.StartWithBusybox("--ipv6", "--fixed-cidr-v6='2001:db8:1::/64'")
-	c.Assert(err, checker.IsNil)
-	defer d.Stop()
-
-	out, err := d.Cmd("run", "-itd", "--name=ipv6test", "--mac-address", "AA:BB:CC:DD:EE:FF", "busybox")
+	err = s.d.StartWithBusybox("--ipv6", "--fixed-cidr-v6='2001:db8:1::/64'")
 	c.Assert(err, checker.IsNil)
 
-	out, err = d.Cmd("inspect", "--format", "'{{.NetworkSettings.Networks.bridge.GlobalIPv6Address}}'", "ipv6test")
+	out, err := s.d.Cmd("run", "-itd", "--name=ipv6test", "--mac-address", "AA:BB:CC:DD:EE:FF", "busybox")
+	c.Assert(err, checker.IsNil)
+
+	out, err = s.d.Cmd("inspect", "--format", "'{{.NetworkSettings.Networks.bridge.GlobalIPv6Address}}'", "ipv6test")
 	c.Assert(err, checker.IsNil)
 	c.Assert(strings.Trim(out, " \r\n'"), checker.Equals, "2001:db8:1::aabb:ccdd:eeff")
 
@@ -593,7 +629,7 @@ func (s *DockerDaemonSuite) TestDaemonExitOnFailure(c *check.C) {
 			c.Fatalf("Expected daemon not to start, got %v", err)
 		}
 		// look in the log and make sure we got the message that daemon is shutting down
-		runCmd := exec.Command("grep", "Error starting daemon", s.d.LogfileName())
+		runCmd := exec.Command("grep", "Error starting daemon", s.d.LogFileName())
 		if out, _, err := runCommandWithOutput(runCmd); err != nil {
 			c.Fatalf("Expected 'Error starting daemon' message; but doesn't exist in log: %q, err: %v", out, err)
 		}
@@ -1590,7 +1626,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithContainerRunning(t *check.C) {
 	if err := s.d.StartWithBusybox(); err != nil {
 		t.Fatal(err)
 	}
-	if out, err := s.d.Cmd("run", "-ti", "-d", "--name", "test", "busybox"); err != nil {
+	if out, err := s.d.Cmd("run", "-d", "--name", "test", "busybox", "top"); err != nil {
 		t.Fatal(out, err)
 	}
 
@@ -1658,19 +1694,11 @@ func (s *DockerDaemonSuite) TestDaemonNoTlsCliTlsVerifyWithEnv(c *check.C) {
 
 func setupV6() error {
 	// Hack to get the right IPv6 address on docker0, which has already been created
-	err := exec.Command("ip", "addr", "add", "fe80::1/64", "dev", "docker0").Run()
-	if err != nil {
-		return err
-	}
-	return nil
+	return exec.Command("ip", "addr", "add", "fe80::1/64", "dev", "docker0").Run()
 }
 
 func teardownV6() error {
-	err := exec.Command("ip", "addr", "del", "fe80::1/64", "dev", "docker0").Run()
-	if err != nil {
-		return err
-	}
-	return nil
+	return exec.Command("ip", "addr", "del", "fe80::1/64", "dev", "docker0").Run()
 }
 
 func (s *DockerDaemonSuite) TestDaemonRestartWithContainerWithRestartPolicyAlways(c *check.C) {
@@ -1772,24 +1800,18 @@ func (s *DockerDaemonSuite) TestDaemonRestartLocalVolumes(c *check.C) {
 }
 
 func (s *DockerDaemonSuite) TestDaemonCorruptedLogDriverAddress(c *check.C) {
-	for _, driver := range []string{
-		"syslog",
-		"gelf",
-	} {
-		args := []string{"--log-driver=" + driver, "--log-opt", driver + "-address=corrupted:42"}
-		c.Assert(s.d.Start(args...), check.NotNil, check.Commentf(fmt.Sprintf("Expected daemon not to start with invalid %s-address provided", driver)))
-		expected := fmt.Sprintf("Failed to set log opts: %s-address should be in form proto://address", driver)
-		runCmd := exec.Command("grep", expected, s.d.LogfileName())
-		if out, _, err := runCommandWithOutput(runCmd); err != nil {
-			c.Fatalf("Expected %q message; but doesn't exist in log: %q, err: %v", expected, out, err)
-		}
+	c.Assert(s.d.Start("--log-driver=syslog", "--log-opt", "syslog-address=corrupted:42"), check.NotNil)
+	expected := "Failed to set log opts: syslog-address should be in form proto://address"
+	runCmd := exec.Command("grep", expected, s.d.LogFileName())
+	if out, _, err := runCommandWithOutput(runCmd); err != nil {
+		c.Fatalf("Expected %q message; but doesn't exist in log: %q, err: %v", expected, out, err)
 	}
 }
 
 func (s *DockerDaemonSuite) TestDaemonCorruptedFluentdAddress(c *check.C) {
 	c.Assert(s.d.Start("--log-driver=fluentd", "--log-opt", "fluentd-address=corrupted:c"), check.NotNil)
 	expected := "Failed to set log opts: invalid fluentd-address corrupted:c: "
-	runCmd := exec.Command("grep", expected, s.d.LogfileName())
+	runCmd := exec.Command("grep", expected, s.d.LogFileName())
 	if out, _, err := runCommandWithOutput(runCmd); err != nil {
 		c.Fatalf("Expected %q message; but doesn't exist in log: %q, err: %v", expected, out, err)
 	}
@@ -1890,7 +1912,8 @@ func (s *DockerDaemonSuite) TestDaemonNoSpaceleftOnDeviceError(c *check.C) {
 
 	// pull a repository large enough to fill the mount point
 	out, err := s.d.Cmd("pull", "registry:2")
-	c.Assert(out, check.Not(check.Equals), 1, check.Commentf("no space left on device"))
+
+	c.Assert(strings.Contains(out, "no space left on device"), check.Equals, true)
 }
 
 // Test daemon restart with container links + auto restart
@@ -1942,7 +1965,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartContainerLinksRestart(c *check.C) {
 	c.Assert(err, check.IsNil)
 	// clear the log file -- we don't need any of it but may for the next part
 	// can ignore the error here, this is just a cleanup
-	os.Truncate(d.LogfileName(), 0)
+	os.Truncate(d.LogFileName(), 0)
 	err = d.Start()
 	c.Assert(err, check.IsNil)
 
@@ -1950,7 +1973,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartContainerLinksRestart(c *check.C) {
 		out, err := d.Cmd("inspect", "-f", "{{ .State.Running }}", "parent"+num)
 		c.Assert(err, check.IsNil)
 		if strings.TrimSpace(out) != "true" {
-			log, _ := ioutil.ReadFile(d.LogfileName())
+			log, _ := ioutil.ReadFile(d.LogFileName())
 			c.Fatalf("parent container is not running\n%s", string(log))
 		}
 	}
@@ -2083,4 +2106,54 @@ func (s *DockerDaemonSuite) TestRunLinksChanged(c *check.C) {
 	out, err = s.d.Cmd("start", "-a", "test2")
 	c.Assert(err, check.NotNil, check.Commentf(out))
 	c.Assert(out, check.Not(checker.Contains), "1 packets transmitted, 1 packets received")
+}
+
+func (s *DockerDaemonSuite) TestDaemonStartWithoutColors(c *check.C) {
+	testRequires(c, DaemonIsLinux, NotPpc64le)
+	newD := NewDaemon(c)
+
+	infoLog := "\x1b[34mINFO\x1b"
+
+	p, tty, err := pty.Open()
+	c.Assert(err, checker.IsNil)
+	defer func() {
+		tty.Close()
+		p.Close()
+	}()
+
+	b := bytes.NewBuffer(nil)
+	go io.Copy(b, p)
+
+	// Enable coloring explicitly
+	newD.StartWithLogFile(tty, "--raw-logs=false")
+	newD.Stop()
+	c.Assert(b.String(), checker.Contains, infoLog)
+
+	b.Reset()
+
+	// Disable coloring explicitly
+	newD.StartWithLogFile(tty, "--raw-logs=true")
+	newD.Stop()
+	c.Assert(b.String(), check.Not(checker.Contains), infoLog)
+}
+
+func (s *DockerDaemonSuite) TestDaemonDebugLog(c *check.C) {
+	testRequires(c, DaemonIsLinux, NotPpc64le)
+	newD := NewDaemon(c)
+
+	debugLog := "\x1b[37mDEBU\x1b"
+
+	p, tty, err := pty.Open()
+	c.Assert(err, checker.IsNil)
+	defer func() {
+		tty.Close()
+		p.Close()
+	}()
+
+	b := bytes.NewBuffer(nil)
+	go io.Copy(b, p)
+
+	newD.StartWithLogFile(tty, "--debug")
+	newD.Stop()
+	c.Assert(b.String(), checker.Contains, debugLog)
 }

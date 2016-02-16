@@ -62,10 +62,13 @@ func (daemon *Daemon) killWithSignal(container *container.Container, sig int) er
 	}
 
 	if err := daemon.kill(container, sig); err != nil {
-		return err
+		return derr.ErrorCodeCantKill.WithArgs(container.ID, err)
 	}
 
-	daemon.LogContainerEvent(container, "kill")
+	attributes := map[string]string{
+		"signal": fmt.Sprintf("%d", sig),
+	}
+	daemon.LogContainerEventWithAttributes(container, "kill", attributes)
 	return nil
 }
 

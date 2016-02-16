@@ -12,8 +12,7 @@ func (a *volumeDriverAdapter) Name() string {
 }
 
 func (a *volumeDriverAdapter) Create(name string, opts map[string]string) (volume.Volume, error) {
-	err := a.proxy.Create(name, opts)
-	if err != nil {
+	if err := a.proxy.Create(name, opts); err != nil {
 		return nil, err
 	}
 	return &volumeAdapter{

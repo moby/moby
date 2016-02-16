@@ -29,11 +29,22 @@ export MAKEDIR="$SCRIPTDIR/make"
 
 # We're a nice, sexy, little shell script, and people might try to run us;
 # but really, they shouldn't. We want to be in a container!
-if [ "$PWD" != "/go/src/$DOCKER_PKG" ] || [ -z "$DOCKER_CROSSPLATFORMS" ]; then
+inContainer="AssumeSoInitially"
+if [ "$(go env GOHOSTOS)" = 'windows' ]; then
+	if [ -z "$FROM_DOCKERFILE" ]; then
+		unset inContainer
+	fi
+else
+	if [ "$PWD" != "/go/src/$DOCKER_PKG" ] || [ -z "$DOCKER_CROSSPLATFORMS" ]; then
+		unset inContainer
+	fi
+fi
+
+if [ -z "$inContainer" ]; then
 	{
-		echo "# WARNING! I don't seem to be running in the Docker container."
+		echo "# WARNING! I don't seem to be running in a Docker container."
 		echo "# The result of this command might be an incorrect build, and will not be"
-		echo "#   officially supported."
+		echo "# officially supported."
 		echo "#"
 		echo "# Try this instead: make all"
 		echo "#"
@@ -45,13 +56,13 @@ echo
 # List of bundles to create when no argument is passed
 DEFAULT_BUNDLES=(
 	validate-dco
+	validate-default-seccomp
 	validate-gofmt
 	validate-lint
 	validate-pkg
 	validate-test
 	validate-toml
 	validate-vet
-	validate-vendor
 
 	binary
 	dynbinary
@@ -141,11 +152,26 @@ LDFLAGS_STATIC=''
 EXTLDFLAGS_STATIC='-static'
 # ORIG_BUILDFLAGS is necessary for the cross target which cannot always build
 # with options like -race.
-ORIG_BUILDFLAGS=( -a -tags "autogen netgo static_build sqlite_omit_load_extension $DOCKER_BUILDTAGS" -installsuffix netgo )
+ORIG_BUILDFLAGS=( -tags "autogen netgo static_build sqlite_omit_load_extension $DOCKER_BUILDTAGS" -installsuffix netgo )
 # see https://github.com/golang/go/issues/9369#issuecomment-69864440 for why -installsuffix is necessary here
+
+# When $DOCKER_INCREMENTAL_BINARY is set in the environment, enable incremental
+# builds by installing dependent packages to the GOPATH.
+REBUILD_FLAG="-a"
+if [ "$DOCKER_INCREMENTAL_BINARY" ]; then
+	REBUILD_FLAG="-i"
+fi
+ORIG_BUILDFLAGS+=( $REBUILD_FLAG )
+
 BUILDFLAGS=( $BUILDFLAGS "${ORIG_BUILDFLAGS[@]}" )
 # Test timeout.
-: ${TIMEOUT:=120m}
+
+if [ "${DOCKER_ENGINE_GOARCH}" == "arm" ]; then
+	: ${TIMEOUT:=210m}
+else
+	: ${TIMEOUT:=120m}
+fi
+
 TESTFLAGS+=" -test.timeout=${TIMEOUT}"
 
 LDFLAGS_STATIC_DOCKER="
@@ -211,6 +237,7 @@ test_env() {
 	# use "env -i" to tightly control the environment variables that bleed into the tests
 	env -i \
 		DEST="$DEST" \
+		DOCKER_ENGINE_GOARCH="$DOCKER_ENGINE_GOARCH" \
 		DOCKER_GRAPHDRIVER="$DOCKER_GRAPHDRIVER" \
 		DOCKER_USERLANDPROXY="$DOCKER_USERLANDPROXY" \
 		DOCKER_HOST="$DOCKER_HOST" \
@@ -220,7 +247,6 @@ test_env() {
 		HOME="$ABS_DEST/fake-HOME" \
 		PATH="$PATH" \
 		TEMP="$TEMP" \
-		TEST_DOCKERINIT_PATH="$TEST_DOCKERINIT_PATH" \
 		"$@"
 }
 

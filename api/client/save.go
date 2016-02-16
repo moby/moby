@@ -3,7 +3,8 @@ package client
 import (
 	"errors"
 	"io"
-	"os"
+
+	"golang.org/x/net/context"
 
 	Cli "github.com/docker/docker/cli"
 	flag "github.com/docker/docker/pkg/mflag"
@@ -21,26 +22,21 @@ func (cli *DockerCli) CmdSave(args ...string) error {
 
 	cmd.ParseFlags(args, true)
 
-	var (
-		output = cli.out
-		err    error
-	)
-
 	if *outfile == "" && cli.isTerminalOut {
 		return errors.New("Cowardly refusing to save to a terminal. Use the -o flag or redirect.")
 	}
-	if *outfile != "" {
-		if output, err = os.Create(*outfile); err != nil {
-			return err
-		}
-	}
 
-	responseBody, err := cli.client.ImageSave(cmd.Args())
+	responseBody, err := cli.client.ImageSave(context.Background(), cmd.Args())
 	if err != nil {
 		return err
 	}
 	defer responseBody.Close()
 
-	_, err = io.Copy(output, responseBody)
-	return err
+	if *outfile == "" {
+		_, err := io.Copy(cli.out, responseBody)
+		return err
+	}
+
+	return copyToFile(*outfile, responseBody)
+
 }

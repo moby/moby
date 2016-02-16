@@ -4,6 +4,8 @@ import (
 	"errors"
 	"io"
 
+	"golang.org/x/net/context"
+
 	Cli "github.com/docker/docker/cli"
 	"github.com/docker/docker/pkg/jsonmessage"
 	flag "github.com/docker/docker/pkg/mflag"
@@ -42,7 +44,7 @@ func (cli *DockerCli) CmdPush(args ...string) error {
 		return err
 	}
 	// Resolve the Auth config relevant for this server
-	authConfig := registry.ResolveAuthConfig(cli.configFile.AuthConfigs, repoInfo.Index)
+	authConfig := cli.resolveAuthConfig(cli.configFile.AuthConfigs, repoInfo.Index)
 
 	requestPrivilege := cli.registryAuthenticationPrivilegedFunc(repoInfo.Index, "push")
 	if isTrusted() {
@@ -70,5 +72,5 @@ func (cli *DockerCli) imagePushPrivileged(authConfig types.AuthConfig, imageID, 
 		RegistryAuth: encodedAuth,
 	}
 
-	return cli.client.ImagePush(options, requestPrivilege)
+	return cli.client.ImagePush(context.Background(), options, requestPrivilege)
 }

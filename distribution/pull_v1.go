@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"net"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/docker/distribution/registry/client/transport"
 	"github.com/docker/docker/distribution/metadata"
 	"github.com/docker/docker/distribution/xfer"
+	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/image/v1"
 	"github.com/docker/docker/layer"
@@ -36,7 +38,7 @@ type v1Puller struct {
 func (p *v1Puller) Pull(ctx context.Context, ref reference.Named) error {
 	if _, isCanonical := ref.(reference.Canonical); isCanonical {
 		// Allowing fallback, because HTTPS v1 is before HTTP v2
-		return fallbackError{err: registry.ErrNoSupport{Err: errors.New("Cannot pull by digest with v1 registry")}}
+		return fallbackError{err: ErrNoSupport{Err: errors.New("Cannot pull by digest with v1 registry")}}
 	}
 
 	tlsConfig, err := p.config.RegistryService.TLSConfig(p.repoInfo.Index.Name)
@@ -47,10 +49,10 @@ func (p *v1Puller) Pull(ctx context.Context, ref reference.Named) error {
 	tr := transport.NewTransport(
 		// TODO(tiborvass): was ReceiveTimeout
 		registry.NewTransport(tlsConfig),
-		registry.DockerHeaders(p.config.MetaHeaders)...,
+		registry.DockerHeaders(dockerversion.DockerUserAgent(), p.config.MetaHeaders)...,
 	)
 	client := registry.HTTPClient(tr)
-	v1Endpoint, err := p.endpoint.ToV1Endpoint(p.config.MetaHeaders)
+	v1Endpoint, err := p.endpoint.ToV1Endpoint(dockerversion.DockerUserAgent(), p.config.MetaHeaders)
 	if err != nil {
 		logrus.Debugf("Could not get v1 endpoint: %v", err)
 		return fallbackError{err: err}
@@ -278,6 +280,7 @@ type v1LayerDescriptor struct {
 	layersDownloaded *bool
 	layerSize        int64
 	session          *registry.Session
+	tmpFile          *os.File
 }
 
 func (ld *v1LayerDescriptor) Key() string {
@@ -307,7 +310,7 @@ func (ld *v1LayerDescriptor) Download(ctx context.Context, progressOutput progre
 	}
 	*ld.layersDownloaded = true
 
-	tmpFile, err := ioutil.TempFile("", "GetImageBlob")
+	ld.tmpFile, err = ioutil.TempFile("", "GetImageBlob")
 	if err != nil {
 		layerReader.Close()
 		return nil, 0, err
@@ -316,17 +319,28 @@ func (ld *v1LayerDescriptor) Download(ctx context.Context, progressOutput progre
 	reader := progress.NewProgressReader(ioutils.NewCancelReadCloser(ctx, layerReader), progressOutput, ld.layerSize, ld.ID(), "Downloading")
 	defer reader.Close()
 
-	_, err = io.Copy(tmpFile, reader)
+	_, err = io.Copy(ld.tmpFile, reader)
 	if err != nil {
+		ld.Close()
 		return nil, 0, err
 	}
 
 	progress.Update(progressOutput, ld.ID(), "Download complete")
 
-	logrus.Debugf("Downloaded %s to tempfile %s", ld.ID(), tmpFile.Name())
+	logrus.Debugf("Downloaded %s to tempfile %s", ld.ID(), ld.tmpFile.Name())
 
-	tmpFile.Seek(0, 0)
-	return ioutils.NewReadCloserWrapper(tmpFile, tmpFileCloser(tmpFile)), ld.layerSize, nil
+	ld.tmpFile.Seek(0, 0)
+	return ld.tmpFile, ld.layerSize, nil
+}
+
+func (ld *v1LayerDescriptor) Close() {
+	if ld.tmpFile != nil {
+		ld.tmpFile.Close()
+		if err := os.RemoveAll(ld.tmpFile.Name()); err != nil {
+			logrus.Errorf("Failed to remove temp file: %s", ld.tmpFile.Name())
+		}
+		ld.tmpFile = nil
+	}
 }
 
 func (ld *v1LayerDescriptor) Registered(diffID layer.DiffID) {

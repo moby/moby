@@ -88,8 +88,8 @@ func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.
 	return nil, nil
 }
 
-// checkConfigOptions checks for mutually incompatible config options
-func checkConfigOptions(config *Config) error {
+// verifyDaemonSettings performs validation of daemon config struct
+func verifyDaemonSettings(config *Config) error {
 	return nil
 }
 
@@ -115,14 +115,19 @@ func configureKernelSecuritySupport(config *Config, driverName string) error {
 	return nil
 }
 
+// configureMaxThreads sets the Go runtime max threads threshold
+func configureMaxThreads(config *Config) error {
+	return nil
+}
+
 func isBridgeNetworkDisabled(config *Config) bool {
 	return false
 }
 
 func (daemon *Daemon) initNetworkController(config *Config) (libnetwork.NetworkController, error) {
 	// Set the name of the virtual switch if not specified by -b on daemon start
-	if config.Bridge.VirtualSwitchName == "" {
-		config.Bridge.VirtualSwitchName = defaultVirtualSwitch
+	if config.bridgeConfig.VirtualSwitchName == "" {
+		config.bridgeConfig.VirtualSwitchName = defaultVirtualSwitch
 	}
 	return nil, nil
 }

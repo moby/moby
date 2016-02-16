@@ -10,6 +10,8 @@ import (
 	"text/tabwriter"
 	"time"
 
+	"golang.org/x/net/context"
+
 	Cli "github.com/docker/docker/cli"
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/events"
@@ -37,7 +39,7 @@ type stats struct {
 }
 
 func (s *containerStats) Collect(cli *DockerCli, streamStats bool) {
-	responseBody, err := cli.client.ContainerStats(s.Name, streamStats)
+	responseBody, err := cli.client.ContainerStats(context.Background(), s.Name, streamStats)
 	if err != nil {
 		s.mu.Lock()
 		s.err = err
@@ -195,7 +197,7 @@ func (cli *DockerCli) CmdStats(args ...string) error {
 			options := types.EventsOptions{
 				Filters: f,
 			}
-			resBody, err := cli.client.Events(options)
+			resBody, err := cli.client.Events(context.Background(), options)
 			if err != nil {
 				c <- watch{err: err}
 				return

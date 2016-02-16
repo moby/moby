@@ -20,7 +20,7 @@ func TestContainerDoubleDelete(t *testing.T) {
 		repository: tmp,
 		root:       tmp,
 	}
-	daemon.containers = &contStore{s: make(map[string]*container.Container)}
+	daemon.containers = container.NewMemoryStore()
 
 	container := &container.Container{
 		CommonContainer: container.CommonContainer{

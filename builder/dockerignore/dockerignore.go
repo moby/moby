@@ -25,6 +25,7 @@ func ReadAll(reader io.ReadCloser) ([]string, error) {
 			continue
 		}
 		pattern = filepath.Clean(pattern)
+		pattern = filepath.ToSlash(pattern)
 		excludes = append(excludes, pattern)
 	}
 	if err := scanner.Err(); err != nil {

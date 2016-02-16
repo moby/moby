@@ -12,14 +12,17 @@ From the root of the Docker/Docker repo one can use make to execute the followin
 - make validate
 - make binary
 - make build
+- make deb
 - make bundles
 - make default
 - make shell
+- make test-unit
+- make test-integration-cli
 - make
 
 The Makefile does include logic to determine on which OS and architecture the Docker Development Image is built.
 Based on OS and architecture it chooses the correct Dockerfile.
-For the ARM 32bit architecture it uses `Dockerfile.arm`.
+For the ARM 32bit architecture it uses `Dockerfile.armhf`.
 
 So for example in order to build a Docker binary one has to  
 1. clone the Docker/Docker repository on an ARM device `git clone git@github.com:docker/docker.git`  

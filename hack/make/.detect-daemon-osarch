@@ -9,6 +9,7 @@ export DOCKER_ENGINE_OSARCH="$(docker version | awk '
 ')"
 export DOCKER_ENGINE_GOOS="${DOCKER_ENGINE_OSARCH%/*}"
 export DOCKER_ENGINE_GOARCH="${DOCKER_ENGINE_OSARCH##*/}"
+DOCKER_ENGINE_GOARCH=${DOCKER_ENGINE_GOARCH:=amd64}
 
 # and the client, just in case
 export DOCKER_CLIENT_OSARCH="$(docker version | awk '
@@ -16,3 +17,18 @@ export DOCKER_CLIENT_OSARCH="$(docker version | awk '
 	$1 == "Server:" { client = 0; next }
 	client && $1 == "OS/Arch:" { print $2 }
 ')"
+
+# Retrieve the architecture used in contrib/builder/(deb|rpm)/$PACKAGE_ARCH/
+PACKAGE_ARCH="amd64"
+case "$DOCKER_ENGINE_OSARCH" in
+	linux/arm)
+		PACKAGE_ARCH='armhf'
+		;;
+	linux/ppc64le)
+		PACKAGE_ARCH='ppc64le'
+		;;
+	linux/s390x)
+		PACKAGE_ARCH='s390x'
+		;;
+esac
+export PACKAGE_ARCH

@@ -110,9 +110,7 @@ RUN git clone https://github.com/golang/lint.git /go/src/github.com/golang/lint 
 	&& (cd /go/src/github.com/golang/lint && git checkout -q $GO_LINT_COMMIT) \
 	&& go install -v github.com/golang/lint/golint
 
-# install seccomp
-# this can be changed to the ubuntu package libseccomp-dev if dockerinit is removed,
-# we need libseccomp.a (which the package does not provide) for dockerinit
+# install seccomp: the version shipped in trusty is too old
 ENV SECCOMP_VERSION 2.2.3
 RUN set -x \
 	&& export SECCOMP_PATH="$(mktemp -d)" \
@@ -132,7 +130,7 @@ RUN set -x \
 # both. This allows integration-cli tests to cover push/pull with both schema1
 # and schema2 manifests.
 ENV REGISTRY_COMMIT_SCHEMA1 ec87e9b6971d831f0eff752ddb54fb64693e51cd
-ENV REGISTRY_COMMIT a7ae88da459b98b481a245e5b1750134724ac67d
+ENV REGISTRY_COMMIT cb08de17d74bef86ce6c5abe8b240e282f5750be
 RUN set -x \
 	&& export GOPATH="$(mktemp -d)" \
 	&& git clone https://github.com/docker/distribution.git "$GOPATH/src/github.com/docker/distribution" \
@@ -145,7 +143,7 @@ RUN set -x \
 	&& rm -rf "$GOPATH"
 
 # Install notary server
-ENV NOTARY_VERSION docker-v1.10-2
+ENV NOTARY_VERSION docker-v1.10-5
 RUN set -x \
 	&& export GOPATH="$(mktemp -d)" \
 	&& git clone https://github.com/docker/notary.git "$GOPATH/src/github.com/docker/notary" \
@@ -183,8 +181,9 @@ RUN ln -sv $PWD/contrib/completion/bash/docker /etc/bash_completion.d/docker
 # Get useful and necessary Hub images so we can "docker load" locally instead of pulling
 COPY contrib/download-frozen-image-v2.sh /go/src/github.com/docker/docker/contrib/
 RUN ./contrib/download-frozen-image-v2.sh /docker-frozen-images \
+	armhf/buildpack-deps:jessie@sha256:ca6cce8e5bf5c952129889b5cc15cd6aa8d995d77e55e3749bbaadae50e476cb \
 	armhf/busybox:latest@sha256:d98a7343ac750ffe387e3d514f8521ba69846c216778919b01414b8617cfb3d4 \
-	armhf/debian:jessie@sha256:094687129906d2a43cb4e5946ea379b5619c9ca8e4e27b3ba28b40f237a4150c \
+	armhf/debian:jessie@sha256:4a2187483f04a84f9830910fe3581d69b3c985cc045d9f01d8e2f3795b28107b \
 	armhf/hello-world:latest@sha256:161dcecea0225975b2ad5f768058212c1e0d39e8211098666ffa1ac74cfb7791
 # see also "hack/make/.ensure-frozen-images" (which needs to be updated any time this list is)
 

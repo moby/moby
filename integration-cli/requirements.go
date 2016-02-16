@@ -29,6 +29,14 @@ var (
 		func() bool { return daemonPlatform == "linux" },
 		"Test requires a Linux daemon",
 	}
+	NotArm = testRequirement{
+		func() bool { return os.Getenv("DOCKER_ENGINE_GOARCH") != "arm" },
+		"Test requires a daemon not running on ARM",
+	}
+	NotPpc64le = testRequirement{
+		func() bool { return os.Getenv("DOCKER_ENGINE_GOARCH") != "ppc64le" },
+		"Test requires a daemon not running on ppc64le",
+	}
 	SameHostDaemon = testRequirement{
 		func() bool { return isLocalDaemon },
 		"Test requires docker daemon to run on the same machine as CLI",
@@ -99,6 +107,18 @@ var (
 		},
 		"Test requires underlying root filesystem not be backed by overlay.",
 	}
+
+	Devicemapper = testRequirement{
+		func() bool {
+			cmd := exec.Command("grep", "^devicemapper / devicemapper", "/proc/mounts")
+			if err := cmd.Run(); err != nil {
+				return false
+			}
+			return true
+		},
+		"Test requires underlying root filesystem to be backed by devicemapper.",
+	}
+
 	IPv6 = testRequirement{
 		func() bool {
 			cmd := exec.Command("test", "-f", "/proc/net/if_inet6")

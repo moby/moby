@@ -18,6 +18,7 @@ const (
 	defaultCaFile       = "ca.pem"
 	defaultKeyFile      = "key.pem"
 	defaultCertFile     = "cert.pem"
+	tlsVerifyKey        = "tlsverify"
 )
 
 var (
@@ -55,21 +56,12 @@ func init() {
 func postParseCommon() {
 	cmd := commonFlags.FlagSet
 
-	if commonFlags.LogLevel != "" {
-		lvl, err := logrus.ParseLevel(commonFlags.LogLevel)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Unable to parse logging level: %s\n", commonFlags.LogLevel)
-			os.Exit(1)
-		}
-		logrus.SetLevel(lvl)
-	} else {
-		logrus.SetLevel(logrus.InfoLevel)
-	}
+	setDaemonLogLevel(commonFlags.LogLevel)
 
 	// Regardless of whether the user sets it to true or false, if they
 	// specify --tlsverify at all then we need to turn on tls
 	// TLSVerify can be true even if not set due to DOCKER_TLS_VERIFY env var, so we need to check that here as well
-	if cmd.IsSet("-tlsverify") || commonFlags.TLSVerify {
+	if cmd.IsSet("-"+tlsVerifyKey) || commonFlags.TLSVerify {
 		commonFlags.TLS = true
 	}
 
@@ -91,5 +83,18 @@ func postParseCommon() {
 				tlsOptions.KeyFile = ""
 			}
 		}
+	}
+}
+
+func setDaemonLogLevel(logLevel string) {
+	if logLevel != "" {
+		lvl, err := logrus.ParseLevel(logLevel)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Unable to parse logging level: %s\n", logLevel)
+			os.Exit(1)
+		}
+		logrus.SetLevel(lvl)
+	} else {
+		logrus.SetLevel(logrus.InfoLevel)
 	}
 }

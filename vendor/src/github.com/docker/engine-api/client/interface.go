@@ -3,6 +3,8 @@ package client
 import (
 	"io"
 
+	"golang.org/x/net/context"
+
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/container"
 	"github.com/docker/engine-api/types/filters"
@@ -22,40 +24,40 @@ type APIClient interface {
 	ContainerExecInspect(execID string) (types.ContainerExecInspect, error)
 	ContainerExecResize(options types.ResizeOptions) error
 	ContainerExecStart(execID string, config types.ExecStartCheck) error
-	ContainerExport(containerID string) (io.ReadCloser, error)
+	ContainerExport(ctx context.Context, containerID string) (io.ReadCloser, error)
 	ContainerInspect(containerID string) (types.ContainerJSON, error)
 	ContainerInspectWithRaw(containerID string, getSize bool) (types.ContainerJSON, []byte, error)
 	ContainerKill(containerID, signal string) error
 	ContainerList(options types.ContainerListOptions) ([]types.Container, error)
-	ContainerLogs(options types.ContainerLogsOptions) (io.ReadCloser, error)
+	ContainerLogs(ctx context.Context, options types.ContainerLogsOptions) (io.ReadCloser, error)
 	ContainerPause(containerID string) error
 	ContainerRemove(options types.ContainerRemoveOptions) error
 	ContainerRename(containerID, newContainerName string) error
 	ContainerResize(options types.ResizeOptions) error
 	ContainerRestart(containerID string, timeout int) error
 	ContainerStatPath(containerID, path string) (types.ContainerPathStat, error)
-	ContainerStats(containerID string, stream bool) (io.ReadCloser, error)
+	ContainerStats(ctx context.Context, containerID string, stream bool) (io.ReadCloser, error)
 	ContainerStart(containerID string) error
 	ContainerStop(containerID string, timeout int) error
 	ContainerTop(containerID string, arguments []string) (types.ContainerProcessList, error)
 	ContainerUnpause(containerID string) error
 	ContainerUpdate(containerID string, updateConfig container.UpdateConfig) error
-	ContainerWait(containerID string) (int, error)
-	CopyFromContainer(containerID, srcPath string) (io.ReadCloser, types.ContainerPathStat, error)
-	CopyToContainer(options types.CopyToContainerOptions) error
-	Events(options types.EventsOptions) (io.ReadCloser, error)
-	ImageBuild(options types.ImageBuildOptions) (types.ImageBuildResponse, error)
-	ImageCreate(options types.ImageCreateOptions) (io.ReadCloser, error)
+	ContainerWait(ctx context.Context, containerID string) (int, error)
+	CopyFromContainer(ctx context.Context, containerID, srcPath string) (io.ReadCloser, types.ContainerPathStat, error)
+	CopyToContainer(ctx context.Context, options types.CopyToContainerOptions) error
+	Events(ctx context.Context, options types.EventsOptions) (io.ReadCloser, error)
+	ImageBuild(ctx context.Context, options types.ImageBuildOptions) (types.ImageBuildResponse, error)
+	ImageCreate(ctx context.Context, options types.ImageCreateOptions) (io.ReadCloser, error)
 	ImageHistory(imageID string) ([]types.ImageHistory, error)
-	ImageImport(options types.ImageImportOptions) (io.ReadCloser, error)
+	ImageImport(ctx context.Context, options types.ImageImportOptions) (io.ReadCloser, error)
 	ImageInspectWithRaw(imageID string, getSize bool) (types.ImageInspect, []byte, error)
 	ImageList(options types.ImageListOptions) ([]types.Image, error)
-	ImageLoad(input io.Reader) (types.ImageLoadResponse, error)
-	ImagePull(options types.ImagePullOptions, privilegeFunc RequestPrivilegeFunc) (io.ReadCloser, error)
-	ImagePush(options types.ImagePushOptions, privilegeFunc RequestPrivilegeFunc) (io.ReadCloser, error)
+	ImageLoad(ctx context.Context, input io.Reader, quiet bool) (types.ImageLoadResponse, error)
+	ImagePull(ctx context.Context, options types.ImagePullOptions, privilegeFunc RequestPrivilegeFunc) (io.ReadCloser, error)
+	ImagePush(ctx context.Context, options types.ImagePushOptions, privilegeFunc RequestPrivilegeFunc) (io.ReadCloser, error)
 	ImageRemove(options types.ImageRemoveOptions) ([]types.ImageDelete, error)
 	ImageSearch(options types.ImageSearchOptions, privilegeFunc RequestPrivilegeFunc) ([]registry.SearchResult, error)
-	ImageSave(imageIDs []string) (io.ReadCloser, error)
+	ImageSave(ctx context.Context, imageIDs []string) (io.ReadCloser, error)
 	ImageTag(options types.ImageTagOptions) error
 	Info() (types.Info, error)
 	NetworkConnect(networkID, containerID string, config *network.EndpointSettings) error

@@ -5,6 +5,7 @@ description = "Enabling seccomp in Docker"
 keywords = ["seccomp, security, docker, documentation"]
 [menu.main]
 parent= "smn_secure_docker"
+weight=90
 +++
 <![end-metadata]-->
 
@@ -17,6 +18,10 @@ feature to restrict your application's access.
 
 This feature is available only if the kernel is configured with `CONFIG_SECCOMP`
 enabled.
+
+> **Note**: On Ubuntu 14.04, Debian Wheezy, and Debian Jessie, you must download
+> the [latest static Docker Linux binary](../installation/binaries.md) to use
+> seccomp.
 
 ## Passing a profile for a container
 

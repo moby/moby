@@ -110,7 +110,7 @@ For information on connecting a container to a network, see the ["*Docker networ
 
 ## Examples
 
-### Assign name and allocate psuedo-TTY (--name, -it)
+### Assign name and allocate pseudo-TTY (--name, -it)
 
     $ docker run --name test -it debian
     root@d6c0fe130dba:/# exit 13
@@ -145,7 +145,7 @@ This will *not* work, because by default, most potentially dangerous kernel
 capabilities are dropped; including `cap_sys_admin` (which is required to mount
 filesystems). However, the `--privileged` flag will allow it to run:
 
-    $ docker run --privileged ubuntu bash
+    $ docker run -t -i --privileged ubuntu bash
     root@50e3f57e16e6:/# mount -t tmpfs none /mnt
     root@50e3f57e16e6:/# df -h
     Filesystem      Size  Used Avail Use% Mounted on
@@ -163,13 +163,12 @@ flag exists to allow special use-cases, like running Docker within Docker.
 The `-w` lets the command being executed inside directory given, here
 `/path/to/dir/`. If the path does not exists it is created inside the container.
 
-### mount tmpfs (--tmpfs)
+### Mount tmpfs (--tmpfs)
 
     $ docker run -d --tmpfs /run:rw,noexec,nosuid,size=65536k my_image
 
-    The --tmpfs flag mounts a tmpfs into the container with the rw,noexec,nosuid,size=65536k options.
-
-    Underlying content from the /run in the my_image image is copied into tmpfs.
+The `--tmpfs` flag mounts an empty tmpfs into the container with the `rw`,
+`noexec`, `nosuid`, `size=65536k` options.
 
 ### Mount volume (-v, --read-only)
 
@@ -195,12 +194,13 @@ a container writes files. The `--read-only` flag mounts the container's root
 filesystem as read only prohibiting writes to locations other than the
 specified volumes for the container.
 
-    $ docker run -t -i -v /var/run/docker.sock:/var/run/docker.sock -v ./static-docker:/usr/bin/docker busybox sh
+    $ docker run -t -i -v /var/run/docker.sock:/var/run/docker.sock -v /path/to/static-docker-binary:/usr/bin/docker busybox sh
 
 By bind-mounting the docker unix socket and statically linked docker
-binary (such as that provided by [https://get.docker.com](
-https://get.docker.com)), you give the container the full access to create and
-manipulate the host's Docker daemon.
+binary (refer to [get the linux binary](
+../../installation/binaries.md#get-the-linux-binary)),
+you give the container the full access to create and manipulate the host's
+Docker daemon.
 
 ### Publish or expose port (-p, --expose)
 
@@ -220,7 +220,8 @@ system's interfaces.
 
     $ docker run -e MYVAR1 --env MYVAR2=foo --env-file ./env.list ubuntu bash
 
-This sets environmental variables in the container. For illustration all three
+This sets simple (non-array) environmental variables in the container. For
+illustration all three
 flags are shown here. Where `-e`, `--env` take an environment variable and
 value, or if no `=` is provided, then that variable's current value is passed
 through (i.e. `$MYVAR1` from the host is set to `$MYVAR1` in the container).
@@ -325,17 +326,17 @@ Guide.
 ### Connect a container to a network (--net)
 
 When you start a container use the `--net` flag to connect it to a network.
-This adds the `busybox` container to the `mynet` network.
+This adds the `busybox` container to the `my-net` network.
 
 ```bash
-$ docker run -itd --net=my-multihost-network busybox
+$ docker run -itd --net=my-net busybox
 ```
 
 You can also choose the IP addresses for the container with `--ip` and `--ip6`
 flags when you start the container on a user-defined network.
 
 ```bash
-$ docker run -itd --net=my-multihost-network --ip=10.10.9.75 busybox
+$ docker run -itd --net=my-net --ip=10.10.9.75 busybox
 ```
 
 If you want to add a running container to a network use the `docker network connect` subcommand.
@@ -422,12 +423,12 @@ flag:
     $ docker run --device=/dev/sda:/dev/xvdc --rm -it ubuntu fdisk  /dev/xvdc
 
     Command (m for help): q
-    $ docker run --device=/dev/sda:/dev/xvdc:ro --rm -it ubuntu fdisk  /dev/xvdc
+    $ docker run --device=/dev/sda:/dev/xvdc:r --rm -it ubuntu fdisk  /dev/xvdc
     You will not be able to write the partition table.
 
     Command (m for help): q
 
-    $ docker run --device=/dev/sda:/dev/xvdc --rm -it ubuntu fdisk  /dev/xvdc
+    $ docker run --device=/dev/sda:/dev/xvdc:rw --rm -it ubuntu fdisk  /dev/xvdc
 
     Command (m for help): q
 
@@ -539,7 +540,7 @@ available in the default container, you can set these using the `--ulimit` flag.
 `--ulimit` is specified with a soft and hard limit as such:
 `<type>=<soft limit>[:<hard limit>]`, for example:
 
-    $ docker run --ulimit nofile=1024:1024 --rm debian ulimit -n
+    $ docker run --ulimit nofile=1024:1024 --rm debian sh -c "ulimit -n"
     1024
 
 > **Note:**

@@ -91,7 +91,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 		flCgroupParent      = cmd.String([]string{"-cgroup-parent"}, "", "Optional parent cgroup for the container")
 		flVolumeDriver      = cmd.String([]string{"-volume-driver"}, "", "Optional volume driver for the container")
 		flStopSignal        = cmd.String([]string{"-stop-signal"}, signal.DefaultStopSignal, fmt.Sprintf("Signal to stop a container, %v by default", signal.DefaultStopSignal))
-		flIsolation         = cmd.String([]string{"-isolation"}, "", "Container isolation level")
+		flIsolation         = cmd.String([]string{"-isolation"}, "", "Container isolation technology")
 		flShmSize           = cmd.String([]string{"-shm-size"}, "", "Size of /dev/shm, default value is 64MB")
 	)
 
@@ -375,7 +375,9 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 		Entrypoint:      entrypoint,
 		WorkingDir:      *flWorkingDir,
 		Labels:          ConvertKVStringsToMap(labels),
-		StopSignal:      *flStopSignal,
+	}
+	if cmd.IsSet("-stop-signal") {
+		config.StopSignal = *flStopSignal
 	}
 
 	hostConfig := &container.HostConfig{
@@ -408,7 +410,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 		ReadonlyRootfs: *flReadonlyRootfs,
 		LogConfig:      container.LogConfig{Type: *flLoggingDriver, Config: loggingOpts},
 		VolumeDriver:   *flVolumeDriver,
-		Isolation:      container.IsolationLevel(*flIsolation),
+		Isolation:      container.Isolation(*flIsolation),
 		ShmSize:        shmSize,
 		Resources:      resources,
 		Tmpfs:          tmpfs,
@@ -442,7 +444,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 		networkingConfig.EndpointsConfig[string(hostConfig.NetworkMode)] = epConfig
 	}
 
-	if hostConfig.NetworkMode.IsUserDefined() && flAliases.Len() > 0 {
+	if flAliases.Len() > 0 {
 		epConfig := networkingConfig.EndpointsConfig[string(hostConfig.NetworkMode)]
 		if epConfig == nil {
 			epConfig = &networktypes.EndpointSettings{}
@@ -690,7 +692,7 @@ func validatePath(val string, validator func(string) bool) (string, error) {
 	return val, nil
 }
 
-// SplitN splits raw into a maximum of n parts, separated by a separator colon.
+// volumeSplitN splits raw into a maximum of n parts, separated by a separator colon.
 // A separator colon is the last `:` character in the regex `[/:\\]?[a-zA-Z]:` (note `\\` is `\` escaped).
 // This allows to correctly split strings such as `C:\foo:D:\:rw`.
 func volumeSplitN(raw string, n int) []string {
