@@ -104,7 +104,7 @@ func (d *Driver) createContainer(c *execdriver.Command, hooks execdriver.Hooks) 
 	if container.Readonlyfs {
 		for i := range container.Mounts {
 			switch container.Mounts[i].Destination {
-			case "/proc", "/dev", "/dev/pts":
+			case "/proc", "/dev", "/dev/pts", "/dev/mqueue":
 				continue
 			}
 			container.Mounts[i].Flags |= syscall.MS_RDONLY
