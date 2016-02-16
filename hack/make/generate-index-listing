@@ -41,7 +41,7 @@ create_index() {
 	IFS=$'\n';
 
 	# pretty sweet, will mimick the normal apache output
-	for L in $(find -L . -mount -depth -maxdepth 1 -type f ! -name 'index' -printf "<a href=\"%f\">%-44f@_@%Td-%Tb-%TY %Tk:%TM  @%f@\n"|sort|sed 's,\([\ ]\+\)@_@,</a>\1,g');
+	for L in $(find -L . -mount -depth -maxdepth 1 -type f ! -name 'index' -printf "<a href=\"%f\">%f|@_@%Td-%Tb-%TY %Tk:%TM  @%f@\n"|sort|column -t -s '|' | sed 's,\([\ ]\+\)@_@,</a>\1,g');
 	do
 		# file
 		F=$(sed -e 's,^.*@\([^@]\+\)@.*$,\1,g'<<<"$L");
