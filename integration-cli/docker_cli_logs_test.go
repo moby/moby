@@ -6,7 +6,6 @@ import (
 	"io"
 	"os/exec"
 	"regexp"
-	"strconv"
 	"strings"
 	"time"
 
@@ -204,18 +203,33 @@ func (s *DockerSuite) TestLogsSince(c *check.C) {
 
 func (s *DockerSuite) TestLogsSinceFutureFollow(c *check.C) {
 	testRequires(c, DaemonIsLinux)
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", `for i in $(seq 1 5); do date +%s; sleep 1; done`)
-	id := strings.TrimSpace(out)
+	name := "testlogssincefuturefollow"
+	out, _ := dockerCmd(c, "run", "-d", "--name", name, "busybox", "/bin/sh", "-c", `for i in $(seq 1 5); do echo log$i; sleep 1; done`)
 
-	now := daemonTime(c).Unix()
-	since := now + 2
-	out, _ = dockerCmd(c, "logs", "-f", fmt.Sprintf("--since=%v", since), id)
+	// Extract one timestamp from the log file to give us a starting point for
+	// our `--since` argument. Because the log producer runs in the background,
+	// we need to check repeatedly for some output to be produced.
+	var timestamp string
+	for i := 0; i != 5 && timestamp == ""; i++ {
+		if out, _ = dockerCmd(c, "logs", "-t", name); out == "" {
+			time.Sleep(time.Millisecond * 100) // Retry
+		} else {
+			timestamp = strings.Split(strings.Split(out, "\n")[0], " ")[0]
+		}
+	}
+
+	c.Assert(timestamp, checker.Not(checker.Equals), "")
+	t, err := time.Parse(time.RFC3339Nano, timestamp)
+	c.Assert(err, check.IsNil)
+
+	since := t.Unix() + 2
+	out, _ = dockerCmd(c, "logs", "-t", "-f", fmt.Sprintf("--since=%v", since), name)
 	lines := strings.Split(strings.TrimSpace(out), "\n")
 	c.Assert(lines, checker.Not(checker.HasLen), 0)
 	for _, v := range lines {
-		ts, err := strconv.ParseInt(v, 10, 64)
-		c.Assert(err, checker.IsNil, check.Commentf("cannot parse timestamp output from log: '%v'\nout=%s", v, out))
-		c.Assert(ts >= since, checker.Equals, true, check.Commentf("earlier log found. since=%v logdate=%v", since, ts))
+		ts, err := time.Parse(time.RFC3339Nano, strings.Split(v, " ")[0])
+		c.Assert(err, checker.IsNil, check.Commentf("cannot parse timestamp output from log: '%v'", v))
+		c.Assert(ts.Unix() >= since, checker.Equals, true, check.Commentf("earlier log found. since=%v logdate=%v", since, ts))
 	}
 }
 
@@ -249,7 +263,6 @@ func (s *DockerSuite) TestLogsFollowSlowStdoutConsumer(c *check.C) {
 	actual := bytes1 + bytes2
 	expected := 200000
 	c.Assert(actual, checker.Equals, expected)
-
 }
 
 func (s *DockerSuite) TestLogsFollowGoroutinesWithStdout(c *check.C) {
