@@ -51,7 +51,14 @@ Here is a sample output:
     Architecture: x86_64
     CPUs: 1
     Total Memory: 2 GiB
-
+    Name: docker
+    ID: I54V:OLXT:HVMM:TPKO:JPHQ:CQCD:JNLC:O3BZ:4ZVJ:43XJ:PFHZ:6N2S
+    Docker Root Dir: /var/lib/docker
+    Debug mode (client): false
+    Debug mode (server): false
+    Username: xyz
+    Registry: https://index.docker.io/v1/
+	
 # HISTORY
 April 2014, Originally compiled by William Henry (whenry at redhat dot com)
 based on docker.com source material and internal work.
