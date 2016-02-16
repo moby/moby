@@ -256,8 +256,13 @@ func NewDataStore(scope string, cfg *ScopeCfg) (DataStore, error) {
 
 // NewDataStoreFromConfig creates a new instance of LibKV data store starting from the datastore config data
 func NewDataStoreFromConfig(dsc discoverapi.DatastoreConfigData) (DataStore, error) {
-	sCfg, ok := dsc.Config.(*store.Config)
-	if !ok {
+	var (
+		ok    bool
+		sCfgP *store.Config
+	)
+
+	sCfgP, ok = dsc.Config.(*store.Config)
+	if !ok && dsc.Config != nil {
 		return nil, fmt.Errorf("cannot parse store configuration: %v", dsc.Config)
 	}
 
@@ -265,7 +270,7 @@ func NewDataStoreFromConfig(dsc discoverapi.DatastoreConfigData) (DataStore, err
 		Client: ScopeClientCfg{
 			Address:  dsc.Address,
 			Provider: dsc.Provider,
-			Config:   sCfg,
+			Config:   sCfgP,
 		},
 	}
 
