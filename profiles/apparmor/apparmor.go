@@ -30,10 +30,8 @@ type profileData struct {
 	Imports []string
 	// InnerImports defines the apparmor functions to import in the profile.
 	InnerImports []string
-	// MajorVersion is the apparmor_parser major version.
-	MajorVersion int
-	// MinorVersion is the apparmor_parser minor version.
-	MinorVersion int
+	// Version is the {major, minor, patch} version of apparmor_parser as a single number.
+	Version int
 }
 
 // generateDefault creates an apparmor profile from ProfileData.
