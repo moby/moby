@@ -72,8 +72,6 @@ func (s *Server) Close() {
 // serveAPI loops through all initialized servers and spawns goroutine
 // with Server method for each. It sets createMux() as Handler also.
 func (s *Server) serveAPI() error {
-	s.initRouterSwapper()
-
 	var chErrors = make(chan error, len(s.servers))
 	for _, srv := range s.servers {
 		srv.srv.Handler = s.routerSwapper
@@ -149,24 +147,25 @@ func (s *Server) makeHTTPHandler(handler httputils.APIFunc) http.HandlerFunc {
 	}
 }
 
-// AddRouters initializes a list of routers for the server.
-func (s *Server) AddRouters(routers ...router.Router) {
+// InitRouter initializes the list of routers for the server.
+// This method also enables the Go profiler if enableProfiler is true.
+func (s *Server) InitRouter(enableProfiler bool, routers ...router.Router) {
 	for _, r := range routers {
-		s.addRouter(r)
+		s.routers = append(s.routers, r)
 	}
-}
 
-// addRouter adds a new router to the server.
-func (s *Server) addRouter(r router.Router) {
-	s.routers = append(s.routers, r)
+	m := s.createMux()
+	if enableProfiler {
+		profilerSetup(m)
+	}
+	s.routerSwapper = &routerSwapper{
+		router: m,
+	}
 }
 
 // createMux initializes the main router the server uses.
 func (s *Server) createMux() *mux.Router {
 	m := mux.NewRouter()
-	if utils.IsDebugEnabled() {
-		profilerSetup(m, "/debug/")
-	}
 
 	logrus.Debugf("Registering routers")
 	for _, apiRouter := range s.routers {
@@ -194,23 +193,14 @@ func (s *Server) Wait(waitChan chan error) {
 	waitChan <- nil
 }
 
-func (s *Server) initRouterSwapper() {
-	s.routerSwapper = &routerSwapper{
-		router: s.createMux(),
-	}
+// DisableProfiler reloads the server mux without adding the profiler routes.
+func (s *Server) DisableProfiler() {
+	s.routerSwapper.Swap(s.createMux())
 }
 
-// Reload reads configuration changes and modifies the
-// server according to those changes.
-// Currently, only the --debug configuration is taken into account.
-func (s *Server) Reload(debug bool) {
-	debugEnabled := utils.IsDebugEnabled()
-	switch {
-	case debugEnabled && !debug: // disable debug
-		utils.DisableDebug()
-		s.routerSwapper.Swap(s.createMux())
-	case debug && !debugEnabled: // enable debug
-		utils.EnableDebug()
-		s.routerSwapper.Swap(s.createMux())
-	}
+// EnableProfiler reloads the server mux adding the profiler routes.
+func (s *Server) EnableProfiler() {
+	m := s.createMux()
+	profilerSetup(m)
+	s.routerSwapper.Swap(m)
 }

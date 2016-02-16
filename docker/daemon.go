@@ -282,14 +282,23 @@ func (cli *DaemonCli) CmdDaemon(args ...string) error {
 		"graphdriver": d.GraphDriverName(),
 	}).Info("Docker daemon")
 
-	initRouters(api, d)
+	initRouter(api, d)
 
 	reload := func(config *daemon.Config) {
 		if err := d.Reload(config); err != nil {
 			logrus.Errorf("Error reconfiguring the daemon: %v", err)
 			return
 		}
-		api.Reload(config.Debug)
+
+		debugEnabled := utils.IsDebugEnabled()
+		switch {
+		case debugEnabled && !config.Debug: // disable debug
+			utils.DisableDebug()
+			api.DisableProfiler()
+		case config.Debug && !debugEnabled: // enable debug
+			utils.EnableDebug()
+			api.EnableProfiler()
+		}
 	}
 
 	setupConfigReloadTrap(*configFile, cli.flags, reload)
@@ -386,8 +395,9 @@ func loadDaemonCliConfig(config *daemon.Config, daemonFlags *flag.FlagSet, commo
 	return config, nil
 }
 
-func initRouters(s *apiserver.Server, d *daemon.Daemon) {
-	s.AddRouters(container.NewRouter(d),
+func initRouter(s *apiserver.Server, d *daemon.Daemon) {
+	s.InitRouter(utils.IsDebugEnabled(),
+		container.NewRouter(d),
 		image.NewRouter(d),
 		network.NewRouter(d),
 		systemrouter.NewRouter(d),
