@@ -23,8 +23,8 @@ clone git github.com/vdemeester/shakers 24d7f1d6a71aa5d9cbe7390e4afb66b7eef9e1b3
 clone git golang.org/x/net 47990a1ba55743e6ef1affd3a14e5bac8553615d https://github.com/golang/net.git
 clone git golang.org/x/sys eb2c74142fd19a79b3f237334c7384d5167b1b46 https://github.com/golang/sys.git
 clone git github.com/docker/go-units 651fc226e7441360384da338d0fd37f2440ffbe3
-clone git github.com/docker/go-connections v0.1.3
-clone git github.com/docker/engine-api ddfd776c787a013c39d4eb3fa9c44006347e207a
+clone git github.com/docker/go-connections v0.2.0
+clone git github.com/docker/engine-api afb1638f70a4b839be80ea37a5073faa18a30194
 clone git github.com/RackSec/srslog 6eb773f331e46fbba8eecb8e794e635e75fc04de
 clone git github.com/imdario/mergo 0.2.1
 
