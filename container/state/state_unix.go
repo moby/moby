@@ -1,6 +1,6 @@
 // +build linux freebsd
 
-package container
+package state
 
 import "github.com/docker/docker/daemon/execdriver"
 

@@ -695,12 +695,9 @@ func (daemon *Daemon) getNetworkedContainer(containerID, connectedContainerID st
 	if containerID == nc.ID {
 		return nil, fmt.Errorf("cannot join own network")
 	}
-	if !nc.IsRunning() {
+	if !nc.IsRunningLocking() && !nc.IsPausedLocking() {
 		err := fmt.Errorf("cannot join network of a non running container: %s", connectedContainerID)
 		return nil, derr.NewRequestConflictError(err)
-	}
-	if nc.IsRestarting() {
-		return nil, errContainerIsRestarting(connectedContainerID)
 	}
 	return nc, nil
 }

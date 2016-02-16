@@ -40,18 +40,3 @@ func (e errNotRunning) Error() string {
 func (e errNotRunning) ContainerIsRunning() bool {
 	return false
 }
-
-func errContainerIsRestarting(containerID string) error {
-	err := fmt.Errorf("Container %s is restarting, wait until the container is running", containerID)
-	return errors.NewRequestConflictError(err)
-}
-
-func errExecNotFound(id string) error {
-	err := fmt.Errorf("No such exec instance '%s' found in daemon", id)
-	return errors.NewRequestNotFoundError(err)
-}
-
-func errExecPaused(id string) error {
-	err := fmt.Errorf("Container %s is paused, unpause the container before exec", id)
-	return errors.NewRequestConflictError(err)
-}

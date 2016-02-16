@@ -25,10 +25,10 @@ func (daemon *Daemon) ContainerRm(name string, config *types.ContainerRmConfig) 
 	}
 
 	// Container state RemovalInProgress should be used to avoid races.
-	if inProgress := container.SetRemovalInProgress(); inProgress {
+	if inProgress := container.SetRemovalInProgressLocking(); inProgress {
 		return nil
 	}
-	defer container.ResetRemovalInProgress()
+	defer container.ResetRemovalInProgressLocking()
 
 	// check if container wasn't deregistered by previous rm since Get
 	if c := daemon.containers.Get(container.ID); c == nil {
@@ -78,7 +78,7 @@ func (daemon *Daemon) rmLink(container *container.Container, name string) error 
 // cleanupContainer unregisters a container from the daemon, stops stats
 // collection and cleanly removes contents and metadata from the filesystem.
 func (daemon *Daemon) cleanupContainer(container *container.Container, forceRemove bool) (err error) {
-	if container.IsRunning() {
+	if container.IsRunningLocking() || container.IsPausedLocking() || container.IsRestartingLocking() {
 		if !forceRemove {
 			err := fmt.Errorf("You cannot remove a running container %s. Stop the container before attempting removal or use -f", container.ID)
 			return errors.NewRequestConflictError(err)
@@ -97,7 +97,7 @@ func (daemon *Daemon) cleanupContainer(container *container.Container, forceRemo
 	}
 
 	// Mark container dead. We don't want anybody to be restarting it.
-	container.SetDead()
+	container.SetDeadLocking()
 
 	// Save container state to disk. So that if error happens before
 	// container meta file got removed from disk, then a restart of

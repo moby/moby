@@ -326,7 +326,8 @@ func (daemon *Daemon) checkImageDeleteConflict(imgID image.ID, mask conflictType
 	if mask&conflictRunningContainer != 0 {
 		// Check if any running container is using the image.
 		running := func(c *container.Container) bool {
-			return c.IsRunning() && c.ImageID == imgID
+			running := c.IsRunningLocking() || c.IsPausedLocking() || c.IsRestartingLocking()
+			return running && c.ImageID == imgID
 		}
 		if container := daemon.containers.First(running); container != nil {
 			return &imageDeleteConflict{
@@ -349,7 +350,8 @@ func (daemon *Daemon) checkImageDeleteConflict(imgID image.ID, mask conflictType
 	if mask&conflictStoppedContainer != 0 {
 		// Check if any stopped containers reference this image.
 		stopped := func(c *container.Container) bool {
-			return !c.IsRunning() && c.ImageID == imgID
+			stopped := !c.IsRunningLocking() && !c.IsPausedLocking() && !c.IsRestartingLocking()
+			return stopped && c.ImageID == imgID
 		}
 		if container := daemon.containers.First(stopped); container != nil {
 			return &imageDeleteConflict{

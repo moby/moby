@@ -10,7 +10,7 @@ func (daemon *Daemon) ContainerResize(name string, height, width int) error {
 		return err
 	}
 
-	if !container.IsRunning() {
+	if !container.IsRunningLocking() {
 		return errNotRunning{container.ID}
 	}
 

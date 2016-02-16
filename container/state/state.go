@@ -1,4 +1,4 @@
-package container
+package state
 
 import (
 	"fmt"
@@ -9,19 +9,26 @@ import (
 	"github.com/docker/go-units"
 )
 
+// Cstate represent a container's running state
+type Cstate int64
+
+// Cstate values
+const (
+	Stopped Cstate = 0
+	Running Cstate = (1 << iota)
+	Paused
+	Restarting
+	Dead
+)
+
 // State holds the current container state, and has methods to get and
 // set the state. Container has an embed, which allows all of the
 // functions defined against State to run against Container.
 type State struct {
 	sync.Mutex
-	// FIXME: Why do we have both paused and running if a
-	// container cannot be paused and running at the same time?
-	Running           bool
-	Paused            bool
-	Restarting        bool
+	State             Cstate
 	OOMKilled         bool
-	RemovalInProgress bool // Not need for this to be persistent on disk.
-	Dead              bool
+	RemovalInProgress bool
 	Pid               int
 	ExitCode          int
 	Error             string // contains last known error when starting the container
@@ -37,24 +44,37 @@ func NewState() *State {
 	}
 }
 
-// String returns a human-readable description of the state
-func (s *State) String() string {
-	if s.Running {
-		if s.Paused {
-			return fmt.Sprintf("Up %s (Paused)", units.HumanDuration(time.Now().UTC().Sub(s.StartedAt)))
-		}
-		if s.Restarting {
-			return fmt.Sprintf("Restarting (%d) %s ago", s.ExitCode, units.HumanDuration(time.Now().UTC().Sub(s.FinishedAt)))
-		}
-
-		return fmt.Sprintf("Up %s", units.HumanDuration(time.Now().UTC().Sub(s.StartedAt)))
+// InState checks whether s is in one of cs state.
+// cs can be Cstate(Running|Paused|Restarting)
+func (s *State) InState(cs Cstate) bool {
+	if s.State&cs != 0 {
+		return true
 	}
 
+	return false
+}
+
+// InStateLocking locks and checks state
+func (s *State) InStateLocking(cs Cstate) bool {
+	s.Lock()
+	defer s.Unlock()
+	return s.InState(cs)
+}
+
+// String returns a human-readable description of the state
+func (s *State) String() string {
 	if s.RemovalInProgress {
 		return "Removal In Progress"
 	}
 
-	if s.Dead {
+	switch s.State {
+	case Running:
+		return fmt.Sprintf("Up %s", units.HumanDuration(time.Now().UTC().Sub(s.StartedAt)))
+	case Paused:
+		return fmt.Sprintf("Up %s (Paused)", units.HumanDuration(time.Now().UTC().Sub(s.StartedAt)))
+	case Restarting:
+		return fmt.Sprintf("Restarting (%d) %s ago", s.ExitCode, units.HumanDuration(time.Now().UTC().Sub(s.FinishedAt)))
+	case Dead:
 		return "Dead"
 	}
 
@@ -71,17 +91,14 @@ func (s *State) String() string {
 
 // StateString returns a single string to describe state
 func (s *State) StateString() string {
-	if s.Running {
-		if s.Paused {
-			return "paused"
-		}
-		if s.Restarting {
-			return "restarting"
-		}
+	switch s.State {
+	case Running:
 		return "running"
-	}
-
-	if s.Dead {
+	case Paused:
+		return "paused"
+	case Restarting:
+		return "restarting"
+	case Dead:
 		return "dead"
 	}
 
@@ -124,7 +141,7 @@ func wait(waitChan <-chan struct{}, timeout time.Duration) error {
 // SetRunning.
 func (s *State) WaitRunning(timeout time.Duration) (int, error) {
 	s.Lock()
-	if s.Running {
+	if s.State == Running {
 		pid := s.Pid
 		s.Unlock()
 		return pid, nil
@@ -142,7 +159,7 @@ func (s *State) WaitRunning(timeout time.Duration) (int, error) {
 // Returns exit code, that was passed to SetStoppedLocking
 func (s *State) WaitStop(timeout time.Duration) (int, error) {
 	s.Lock()
-	if !s.Running {
+	if !s.InState(Running | Paused | Restarting) {
 		exitCode := s.ExitCode
 		s.Unlock()
 		return exitCode, nil
@@ -153,14 +170,6 @@ func (s *State) WaitStop(timeout time.Duration) (int, error) {
 		return -1, err
 	}
 	return s.getExitCode(), nil
-}
-
-// IsRunning returns whether the running flag is set. Used by Container to check whether a container is running.
-func (s *State) IsRunning() bool {
-	s.Lock()
-	res := s.Running
-	s.Unlock()
-	return res
 }
 
 // GetPID holds the process id of a container.
@@ -181,12 +190,17 @@ func (s *State) getExitCode() int {
 // SetRunning sets the state of the container to "running".
 func (s *State) SetRunning(pid int) {
 	s.Error = ""
-	s.Running = true
-	s.Paused = false
-	s.Restarting = false
+	s.State = Running
 	s.ExitCode = 0
 	s.Pid = pid
 	s.StartedAt = time.Now().UTC()
+	close(s.waitChan) // fire waiters for start
+	s.waitChan = make(chan struct{})
+}
+
+// SetPaused sets the state of the container to "paused"
+func (s *State) SetPaused() {
+	s.State = Paused
 	close(s.waitChan) // fire waiters for start
 	s.waitChan = make(chan struct{})
 }
@@ -200,8 +214,7 @@ func (s *State) SetStoppedLocking(exitStatus *execdriver.ExitStatus) {
 
 // SetStopped sets the container state to "stopped" without locking.
 func (s *State) SetStopped(exitStatus *execdriver.ExitStatus) {
-	s.Running = false
-	s.Restarting = false
+	s.State = Stopped
 	s.Pid = 0
 	s.FinishedAt = time.Now().UTC()
 	s.setFromExitStatus(exitStatus)
@@ -222,8 +235,7 @@ func (s *State) SetRestartingLocking(exitStatus *execdriver.ExitStatus) {
 func (s *State) SetRestarting(exitStatus *execdriver.ExitStatus) {
 	// we should consider the container running when it is restarting because of
 	// all the checks in docker around rm/stop/etc
-	s.Running = true
-	s.Restarting = true
+	s.State = Restarting
 	s.Pid = 0
 	s.FinishedAt = time.Now().UTC()
 	s.setFromExitStatus(exitStatus)
@@ -238,25 +250,9 @@ func (s *State) SetError(err error) {
 	s.Error = err.Error()
 }
 
-// IsPaused returns whether the container is paused or not.
-func (s *State) IsPaused() bool {
-	s.Lock()
-	res := s.Paused
-	s.Unlock()
-	return res
-}
-
-// IsRestarting returns whether the container is restarting or not.
-func (s *State) IsRestarting() bool {
-	s.Lock()
-	res := s.Restarting
-	s.Unlock()
-	return res
-}
-
-// SetRemovalInProgress sets the container state as being removed.
+// SetRemovalInProgressLocking sets the container state as being removed.
 // It returns true if the container was already in that state.
-func (s *State) SetRemovalInProgress() bool {
+func (s *State) SetRemovalInProgressLocking() bool {
 	s.Lock()
 	defer s.Unlock()
 	if s.RemovalInProgress {
@@ -266,16 +262,76 @@ func (s *State) SetRemovalInProgress() bool {
 	return false
 }
 
-// ResetRemovalInProgress make the RemovalInProgress state to false.
-func (s *State) ResetRemovalInProgress() {
+// ResetRemovalInProgressLocking make the RemovalInProgress state to false.
+func (s *State) ResetRemovalInProgressLocking() {
 	s.Lock()
 	s.RemovalInProgress = false
 	s.Unlock()
 }
 
-// SetDead sets the container state to "dead"
-func (s *State) SetDead() {
+// SetDeadLocking sets the container state to "dead"
+func (s *State) SetDeadLocking() {
 	s.Lock()
-	s.Dead = true
+	defer s.Unlock()
+	s.State = Dead
+	close(s.waitChan) // fire waiters for stop
+	s.waitChan = make(chan struct{})
+}
+
+// SetRawState allows setting any state user specified
+func (s *State) SetRawState(cs Cstate) {
+	s.State = cs
+	close(s.waitChan) // fire waiters for stop
+	s.waitChan = make(chan struct{})
+}
+
+// SetRawStateLocking allows setting any state user specified
+func (s *State) SetRawStateLocking(cs Cstate) {
+	s.Lock()
+	s.SetRawState(cs)
 	s.Unlock()
+}
+
+// IsRunning returns whether the running flag is set.
+// Used by Container to check whether a container is running
+func (s *State) IsRunning() bool {
+	return s.InState(Running)
+}
+
+// IsRunningLocking locks State and checks whether running flag is set
+func (s *State) IsRunningLocking() bool {
+	return s.InStateLocking(Running)
+}
+
+// IsPaused returns whether the paused flag is set.
+// Used by Container to check whether a container is paused
+func (s *State) IsPaused() bool {
+	return s.InState(Paused)
+}
+
+// IsPausedLocking locks State and checks whether paused flag is set
+func (s *State) IsPausedLocking() bool {
+	return s.InStateLocking(Paused)
+}
+
+// IsRestarting returns whether the restarting flag is set.
+// Used by Container to check whether a container is restarting
+func (s *State) IsRestarting() bool {
+	return s.InState(Restarting)
+}
+
+// IsRestartingLocking locks State and checks whether restarting flag is set
+func (s *State) IsRestartingLocking() bool {
+	return s.InStateLocking(Restarting)
+}
+
+// IsDead returns whether the dead flag is set.
+// Used by Container to check whether a container is dead
+func (s *State) IsDead() bool {
+	return s.InState(Dead)
+}
+
+// IsDeadLocking locks State and checks whether dead flag is set
+func (s *State) IsDeadLocking() bool {
+	return s.InStateLocking(Dead)
 }

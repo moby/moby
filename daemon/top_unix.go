@@ -26,12 +26,8 @@ func (daemon *Daemon) ContainerTop(name string, psArgs string) (*types.Container
 		return nil, err
 	}
 
-	if !container.IsRunning() {
+	if !container.IsRunningLocking() && !container.IsPausedLocking() {
 		return nil, errNotRunning{container.ID}
-	}
-
-	if container.IsRestarting() {
-		return nil, errContainerIsRestarting(container.ID)
 	}
 	pids, err := daemon.ExecutionDriver().GetPidsForContainer(container.ID)
 	if err != nil {

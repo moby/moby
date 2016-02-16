@@ -175,7 +175,7 @@ func (daemon *Daemon) Exists(id string) bool {
 // IsPaused returns a bool indicating if the specified container is paused.
 func (daemon *Daemon) IsPaused(id string) bool {
 	c, _ := daemon.GetContainer(id)
-	return c.State.IsPaused()
+	return c.State.IsPausedLocking()
 }
 
 func (daemon *Daemon) containerRoot(id string) string {
@@ -231,7 +231,7 @@ func (daemon *Daemon) Register(container *container.Container) error {
 	daemon.containers.Add(container.ID, container)
 	daemon.idIndex.Add(container.ID)
 
-	if container.IsRunning() {
+	if container.IsRunningLocking() || container.IsPausedLocking() || container.IsRestartingLocking() {
 		logrus.Debugf("killing old running container %s", container.ID)
 		// Set exit code to 128 + SIGKILL (9) to properly represent unsuccessful exit
 		container.SetStoppedLocking(&execdriver.ExitStatus{ExitCode: 137})
@@ -826,7 +826,7 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 
 func (daemon *Daemon) shutdownContainer(c *container.Container) error {
 	// TODO(windows): Handle docker restart with paused containers
-	if c.IsPaused() {
+	if c.IsPausedLocking() {
 		// To terminate a process in freezer cgroup, we should send
 		// SIGTERM to this process then unfreeze it, and the process will
 		// force to terminate immediately.
@@ -869,7 +869,7 @@ func (daemon *Daemon) Shutdown() error {
 	if daemon.containers != nil {
 		logrus.Debug("starting clean shutdown of all containers...")
 		daemon.containers.ApplyAll(func(c *container.Container) {
-			if !c.IsRunning() {
+			if !c.IsRunningLocking() && !c.IsPausedLocking() && !c.IsRestartingLocking() {
 				return
 			}
 			logrus.Debugf("stopping %s", c.ID)

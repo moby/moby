@@ -49,14 +49,8 @@ func (d *Daemon) getExecConfig(name string) (*exec.Config, error) {
 
 	if ec != nil {
 		if container := d.containers.Get(ec.ContainerID); container != nil {
-			if !container.IsRunning() {
-				return nil, fmt.Errorf("Container %s is not running: %s", container.ID, container.State.String())
-			}
-			if container.IsPaused() {
-				return nil, errExecPaused(container.ID)
-			}
-			if container.IsRestarting() {
-				return nil, errContainerIsRestarting(container.ID)
+			if !container.IsRunningLocking() {
+				return nil, errNotRunning{container.ID}
 			}
 			return ec, nil
 		}
@@ -76,14 +70,8 @@ func (d *Daemon) getActiveContainer(name string) (*container.Container, error) {
 		return nil, err
 	}
 
-	if !container.IsRunning() {
+	if !container.IsRunningLocking() {
 		return nil, errNotRunning{container.ID}
-	}
-	if container.IsPaused() {
-		return nil, errExecPaused(name)
-	}
-	if container.IsRestarting() {
-		return nil, errContainerIsRestarting(container.ID)
 	}
 	return container, nil
 }
@@ -210,7 +198,7 @@ func (d *Daemon) ContainerExecStart(name string, stdin io.ReadCloser, stdout io.
 		}
 
 		// Maybe the container stopped while we were trying to exec
-		if !c.IsRunning() {
+		if !c.IsRunningLocking() {
 			return fmt.Errorf("container stopped while running exec: %s", c.ID)
 		}
 		return fmt.Errorf("Cannot run exec command %s in container %s: %s", ec.ID, c.ID, err)
@@ -315,4 +303,9 @@ func (d *Daemon) monitorExec(container *container.Container, execConfig *exec.Co
 	// daemon's store so that the exec command can be inspected.
 	container.ExecCommands.Delete(execConfig.ID)
 	return err
+}
+
+func errExecNotFound(id string) error {
+	err := fmt.Errorf("No such exec instance '%s' found in daemon", id)
+	return errors.NewRequestNotFoundError(err)
 }

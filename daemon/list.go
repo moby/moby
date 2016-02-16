@@ -8,6 +8,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/container"
+	"github.com/docker/docker/container/state"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/volume"
 	"github.com/docker/engine-api/types"
@@ -142,7 +143,7 @@ func (daemon *Daemon) foldFilter(config *types.ContainerListOptions) (*listConte
 	}
 
 	err = psFilters.WalkValues("status", func(value string) error {
-		if !container.IsValidStateString(value) {
+		if !state.IsValidStateString(value) {
 			return fmt.Errorf("Unrecognised filter value for status: %s", value)
 		}
 
@@ -244,7 +245,8 @@ func includeContainerInList(container *container.Container, ctx *listContext) it
 
 	// Do not include container if it's stopped and we're not filters
 	// FIXME remove the ctx.beforContainer and ctx.sinceContainer part of the condition for 1.12 as --since and --before are deprecated
-	if !container.Running && !ctx.All && ctx.Limit <= 0 && ctx.beforeContainer == nil && ctx.sinceContainer == nil {
+	if !container.IsRunning() && !container.IsPaused() && !container.IsRestarting() &&
+		!ctx.All && ctx.Limit <= 0 && ctx.beforeContainer == nil && ctx.sinceContainer == nil {
 		return excludeContainer
 	}
 
@@ -292,7 +294,10 @@ func includeContainerInList(container *container.Container, ctx *listContext) it
 	if len(ctx.exitAllowed) > 0 {
 		shouldSkip := true
 		for _, code := range ctx.exitAllowed {
-			if code == container.ExitCode && !container.Running {
+			if code == container.ExitCode &&
+				!container.IsRunning() &&
+				!container.IsPaused() &&
+				!container.IsRestarting() {
 				shouldSkip = false
 				break
 			}

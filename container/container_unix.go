@@ -309,11 +309,11 @@ func (container *Container) UpdateContainer(hostConfig *containertypes.HostConfi
 	// resources will be updated when the container is started again.
 	// If container is running (including paused), we need to update
 	// the command so we can update configs to the real world.
-	if container.IsRunning() {
-		container.Lock()
+	container.Lock()
+	if container.IsRunning() || container.IsPaused() {
 		updateCommand(container.Command, *cResources)
-		container.Unlock()
 	}
+	container.Unlock()
 
 	if err := container.ToDiskLocking(); err != nil {
 		logrus.Errorf("Error saving updated container: %v", err)

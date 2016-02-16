@@ -19,7 +19,7 @@ func (daemon *Daemon) ContainerAttach(prefixOrName string, c *backend.ContainerA
 	if err != nil {
 		return err
 	}
-	if container.IsPaused() {
+	if container.IsPausedLocking() {
 		err := fmt.Errorf("Container %s is paused. Unpause the container before attach", prefixOrName)
 		return errors.NewRequestConflictError(err)
 	}

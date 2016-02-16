@@ -25,26 +25,20 @@ func (daemon *Daemon) ContainerPause(name string) error {
 func (daemon *Daemon) containerPause(container *container.Container) error {
 	container.Lock()
 	defer container.Unlock()
-
-	// We cannot Pause the container which is not running
-	if !container.Running {
-		return errNotRunning{container.ID}
-	}
-
 	// We cannot Pause the container which is already paused
-	if container.Paused {
+	if container.IsPaused() {
 		return fmt.Errorf("Container %s is already paused", container.ID)
 	}
 
-	// We cannot Pause the container which is restarting
-	if container.Restarting {
-		return errContainerIsRestarting(container.ID)
+	// We cannot Pause the container which is not running
+	if !container.IsRunning() {
+		return errNotRunning{container.ID}
 	}
 
 	if err := daemon.execDriver.Pause(container.Command); err != nil {
 		return fmt.Errorf("Cannot pause container %s: %s", container.ID, err)
 	}
-	container.Paused = true
+	container.SetPaused()
 	daemon.LogContainerEvent(container, "pause")
 	return nil
 }

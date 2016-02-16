@@ -6,6 +6,7 @@ import (
 
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/container"
+	"github.com/docker/docker/container/state"
 	"github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/pkg/version"
 	"github.com/docker/engine-api/types"
@@ -23,10 +24,10 @@ func (daemon *Daemon) ContainerInspect(name string, size bool, version version.V
 	case version.Equal("1.20"):
 		return daemon.containerInspect120(name)
 	}
-	return daemon.containerInspectCurrent(name, size)
+	return daemon.containerInspectCurrent(name, size, version)
 }
 
-func (daemon *Daemon) containerInspectCurrent(name string, size bool) (*types.ContainerJSON, error) {
+func (daemon *Daemon) containerInspectCurrent(name string, size bool, version version.Version) (*types.ContainerJSON, error) {
 	container, err := daemon.GetContainer(name)
 	if err != nil {
 		return nil, err
@@ -35,7 +36,7 @@ func (daemon *Daemon) containerInspectCurrent(name string, size bool) (*types.Co
 	container.Lock()
 	defer container.Unlock()
 
-	base, err := daemon.getInspectData(container, size)
+	base, err := daemon.getInspectData(container, size, version)
 	if err != nil {
 		return nil, err
 	}
@@ -75,7 +76,7 @@ func (daemon *Daemon) containerInspect120(name string) (*v1p20.ContainerJSON, er
 	container.Lock()
 	defer container.Unlock()
 
-	base, err := daemon.getInspectData(container, false)
+	base, err := daemon.getInspectData(container, false, "1.20")
 	if err != nil {
 		return nil, err
 	}
@@ -98,7 +99,7 @@ func (daemon *Daemon) containerInspect120(name string) (*v1p20.ContainerJSON, er
 	}, nil
 }
 
-func (daemon *Daemon) getInspectData(container *container.Container, size bool) (*types.ContainerJSONBase, error) {
+func (daemon *Daemon) getInspectData(container *container.Container, size bool, version version.Version) (*types.ContainerJSONBase, error) {
 	// make a copy to play with
 	hostConfig := *container.HostConfig
 
@@ -120,16 +121,29 @@ func (daemon *Daemon) getInspectData(container *container.Container, size bool) 
 
 	containerState := &types.ContainerState{
 		Status:     container.State.StateString(),
-		Running:    container.State.Running,
-		Paused:     container.State.Paused,
-		Restarting: container.State.Restarting,
 		OOMKilled:  container.State.OOMKilled,
-		Dead:       container.State.Dead,
 		Pid:        container.State.Pid,
 		ExitCode:   container.State.ExitCode,
 		Error:      container.State.Error,
 		StartedAt:  container.State.StartedAt.Format(time.RFC3339Nano),
 		FinishedAt: container.State.FinishedAt.Format(time.RFC3339Nano),
+	}
+
+	switch container.State.State {
+	case state.Running:
+		containerState.Running = true
+	case state.Paused:
+		containerState.Paused = true
+		if version.LessThan("1.23") {
+			containerState.Running = true
+		}
+	case state.Restarting:
+		containerState.Restarting = true
+		if version.LessThan("1.23") {
+			containerState.Running = true
+		}
+	case state.Dead:
+		containerState.Dead = true
 	}
 
 	contJSONBase := &types.ContainerJSONBase{

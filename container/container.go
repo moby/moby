@@ -16,6 +16,7 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/container/state"
 	"github.com/docker/docker/daemon/exec"
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/daemon/logger"
@@ -52,7 +53,7 @@ var (
 type CommonContainer struct {
 	*runconfig.StreamConfig
 	// embed for Container to support states directly.
-	*State          `json:"State"` // Needed for remote api version <= 1.11
+	*state.State    `json:"State"` // Needed for remote api version <= 1.11
 	Root            string         `json:"-"` // Path to the "home" of the container, including metadata.
 	BaseFS          string         `json:"-"` // Path to the graphdriver mountpoint
 	RWLayer         layer.RWLayer  `json:"-"`
@@ -89,7 +90,7 @@ func NewBaseContainer(id, root string) *Container {
 	return &Container{
 		CommonContainer: CommonContainer{
 			ID:            id,
-			State:         NewState(),
+			State:         state.NewState(),
 			ExecCommands:  exec.NewStore(),
 			Root:          root,
 			MountPoints:   make(map[string]*volume.MountPoint),

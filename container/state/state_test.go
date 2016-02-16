@@ -1,4 +1,4 @@
-package container
+package state
 
 import (
 	"sync/atomic"
@@ -22,7 +22,7 @@ func TestStateRunStop(t *testing.T) {
 		s.SetRunning(i + 100)
 		s.Unlock()
 
-		if !s.IsRunning() {
+		if !s.IsRunningLocking() {
 			t.Fatal("State not running")
 		}
 		if s.Pid != i+100 {
@@ -53,7 +53,7 @@ func TestStateRunStop(t *testing.T) {
 			close(stopped)
 		}()
 		s.SetStoppedLocking(&execdriver.ExitStatus{ExitCode: i})
-		if s.IsRunning() {
+		if s.IsRunningLocking() {
 			t.Fatal("State is running")
 		}
 		if s.ExitCode != i {

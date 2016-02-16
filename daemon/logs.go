@@ -38,7 +38,8 @@ func (daemon *Daemon) ContainerLogs(containerName string, config *backend.Contai
 		return logger.ErrReadLogsNotSupported
 	}
 
-	follow := config.Follow && container.IsRunning()
+	running := container.IsRunningLocking() || container.IsPausedLocking() || container.IsRestartingLocking()
+	follow := config.Follow && running
 	tailLines, err := strconv.Atoi(config.Tail)
 	if err != nil {
 		tailLines = -1
@@ -101,7 +102,8 @@ func (daemon *Daemon) ContainerLogs(containerName string, config *backend.Contai
 }
 
 func (daemon *Daemon) getLogger(container *container.Container) (logger.Logger, error) {
-	if container.LogDriver != nil && container.IsRunning() {
+	if container.LogDriver != nil &&
+		(container.IsRunningLocking() || container.IsPausedLocking() || container.IsRestartingLocking()) {
 		return container.LogDriver, nil
 	}
 	cfg := daemon.getLogConfig(container.HostConfig.LogConfig)

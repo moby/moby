@@ -39,7 +39,7 @@ func (daemon *Daemon) setupLinkedContainers(container *container.Container) ([]s
 	}
 
 	for linkAlias, child := range children {
-		if !child.IsRunning() {
+		if !child.IsRunningLocking() && !child.IsPausedLocking() && !child.IsRestartingLocking() {
 			return nil, fmt.Errorf("Cannot link to a non running container: %s AS %s", child.Name, linkAlias)
 		}
 
@@ -313,8 +313,8 @@ func (daemon *Daemon) getSize(container *container.Container) (int64, int64) {
 
 // ConnectToNetwork connects a container to a network
 func (daemon *Daemon) ConnectToNetwork(container *container.Container, idOrName string, endpointConfig *networktypes.EndpointSettings) error {
-	if !container.Running {
-		if container.RemovalInProgress || container.Dead {
+	if !container.IsRunning() && !container.IsPaused() && !container.IsRestarting() {
+		if container.RemovalInProgress || container.IsDead() {
 			return errRemovalContainer(container.ID)
 		}
 		if _, err := daemon.updateNetworkConfig(container, idOrName, endpointConfig, true); err != nil {
@@ -339,8 +339,8 @@ func (daemon *Daemon) DisconnectFromNetwork(container *container.Container, n li
 	if container.HostConfig.NetworkMode.IsHost() && containertypes.NetworkMode(n.Type()).IsHost() {
 		return runconfig.ErrConflictHostNetwork
 	}
-	if !container.Running {
-		if container.RemovalInProgress || container.Dead {
+	if !container.IsRunning() && !container.IsPaused() && !container.IsRestarting() {
+		if container.RemovalInProgress || container.IsDead() {
 			return errRemovalContainer(container.ID)
 		}
 		if _, ok := container.NetworkSettings.Networks[n.Name()]; ok {
@@ -385,11 +385,8 @@ func (daemon *Daemon) getIpcContainer(container *container.Container) (*containe
 	if err != nil {
 		return nil, err
 	}
-	if !c.IsRunning() {
+	if !c.IsRunningLocking() && !c.IsPausedLocking() {
 		return nil, fmt.Errorf("cannot join IPC of a non running container: %s", containerID)
-	}
-	if c.IsRestarting() {
-		return nil, errContainerIsRestarting(container.ID)
 	}
 	return c, nil
 }

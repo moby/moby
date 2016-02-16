@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/container"
+	"github.com/docker/docker/container/state"
 	"github.com/docker/engine-api/types"
 	containertypes "github.com/docker/engine-api/types/container"
 )
@@ -25,14 +26,14 @@ func TestContainerDoubleDelete(t *testing.T) {
 	container := &container.Container{
 		CommonContainer: container.CommonContainer{
 			ID:     "test",
-			State:  container.NewState(),
+			State:  state.NewState(),
 			Config: &containertypes.Config{},
 		},
 	}
 	daemon.containers.Add(container.ID, container)
 
 	// Mark the container as having a delete in progress
-	container.SetRemovalInProgress()
+	container.SetRemovalInProgressLocking()
 
 	// Try to remove the container when it's start is removalInProgress.
 	// It should ignore the container and not return an error.

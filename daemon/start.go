@@ -19,11 +19,11 @@ func (daemon *Daemon) ContainerStart(name string, hostConfig *containertypes.Hos
 		return err
 	}
 
-	if container.IsPaused() {
+	if container.IsPausedLocking() {
 		return fmt.Errorf("Cannot start a paused container, try unpause instead.")
 	}
 
-	if container.IsRunning() {
+	if container.IsRunningLocking() || container.IsRestartingLocking() {
 		err := fmt.Errorf("Container already started")
 		return errors.NewErrorWithStatusCode(err, http.StatusNotModified)
 	}
@@ -85,11 +85,11 @@ func (daemon *Daemon) containerStart(container *container.Container) (err error)
 	container.Lock()
 	defer container.Unlock()
 
-	if container.Running {
+	if container.IsRunning() || container.IsPaused() || container.IsRestarting() {
 		return nil
 	}
 
-	if container.RemovalInProgress || container.Dead {
+	if container.RemovalInProgress || container.IsDead() {
 		return fmt.Errorf("Container is marked for removal and cannot be started.")
 	}
 

@@ -56,10 +56,10 @@ func (s *DockerSuite) TestExecApiCreateContainerPaused(c *check.C) {
 	dockerCmd(c, "pause", name)
 	status, body, err := sockRequest("POST", fmt.Sprintf("/containers/%s/exec", name), map[string]interface{}{"Cmd": []string{"true"}})
 	c.Assert(err, checker.IsNil)
-	c.Assert(status, checker.Equals, http.StatusConflict)
+	c.Assert(status, checker.Equals, http.StatusInternalServerError)
 
 	comment := check.Commentf("Expected message when creating exec command with Container %s is paused", name)
-	c.Assert(string(body), checker.Contains, "Container "+name+" is paused, unpause the container before exec", comment)
+	c.Assert(string(body), checker.Contains, "is not running", comment)
 }
 
 func (s *DockerSuite) TestExecApiStart(c *check.C) {
@@ -80,7 +80,7 @@ func (s *DockerSuite) TestExecApiStart(c *check.C) {
 	// make sure exec is created before pausing
 	id = createExec(c, "test")
 	dockerCmd(c, "pause", "test")
-	startExec(c, id, http.StatusConflict)
+	startExec(c, id, http.StatusInternalServerError)
 	dockerCmd(c, "unpause", "test")
 	startExec(c, id, http.StatusOK)
 }
