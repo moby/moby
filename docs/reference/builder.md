@@ -579,7 +579,7 @@ The `<dest>` is an absolute path, or a path relative to `WORKDIR`, into which
 the source will be copied inside the destination container.
 
     ADD test relativeDir/          # adds "test" to `WORKDIR`/relativeDir/
-    ADD test /absoluteDir          # adds "test" to /absoluteDir
+    ADD test /absoluteDir/         # adds "test" to /absoluteDir/
 
 All new files and directories are created with a UID and GID of 0.
 
@@ -691,7 +691,7 @@ The `<dest>` is an absolute path, or a path relative to `WORKDIR`, into which
 the source will be copied inside the destination container.
 
     COPY test relativeDir/   # adds "test" to `WORKDIR`/relativeDir/
-    COPY test /absoluteDir   # adds "test" to /absoluteDir
+    COPY test /absoluteDir/  # adds "test" to /absoluteDir/
 
 All new files and directories are created with a UID and GID of 0.
 
