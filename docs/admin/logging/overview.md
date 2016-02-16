@@ -26,6 +26,7 @@ container's logging driver. The following options are supported:
 | `fluentd`   | Fluentd logging driver for Docker. Writes log messages to `fluentd` (forward input).                                          |
 | `awslogs`   | Amazon CloudWatch Logs logging driver for Docker. Writes log messages to Amazon CloudWatch Logs.                              |
 | `splunk`    | Splunk logging driver for Docker. Writes log messages to `splunk` using HTTP Event Collector.                                 |
+| `etwlogs`   | ETW logging driver for Docker on Windows. Writes log messages as ETW events.                                                  |
 
 The `docker logs`command is available only for the `json-file` and `journald`
 logging drivers.
@@ -204,3 +205,12 @@ The Splunk logging driver requires the following options:
 
 For detailed information about working with this logging driver, see the [Splunk logging driver](splunk.md)
 reference documentation.
+
+## ETW logging driver options
+
+The etwlogs logging driver does not require any options to be specified. This logging driver will forward each log message
+as an ETW event. An ETW listener can then be created to listen for these events. 
+
+For detailed information on working with this logging driver, see [the ETW logging driver](etwlogs.md) reference documentation.
+
+
