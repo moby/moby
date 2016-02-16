@@ -62,6 +62,9 @@ For example:
     Registry: [https://index.docker.io/v1/]
     Labels:
      storage=ssd
+    Insecure registries:
+     myinsecurehost:5000
+     127.0.0.0/8
 
 The global `-D` option tells all `docker` commands to output debug information.
 
