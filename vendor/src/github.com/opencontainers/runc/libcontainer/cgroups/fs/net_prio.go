@@ -15,15 +15,10 @@ func (s *NetPrioGroup) Name() string {
 }
 
 func (s *NetPrioGroup) Apply(d *cgroupData) error {
-	dir, err := d.join("net_prio")
+	_, err := d.join("net_prio")
 	if err != nil && !cgroups.IsNotFound(err) {
 		return err
 	}
-
-	if err := s.Set(dir, d.config); err != nil {
-		return err
-	}
-
 	return nil
 }
 

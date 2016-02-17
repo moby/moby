@@ -5,6 +5,7 @@ package cgroups
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -12,7 +13,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/go-units"
 )
 
@@ -84,10 +84,19 @@ func FindCgroupMountpointDir() (string, error) {
 		// Safe as mountinfo encodes mountpoints with spaces as \040.
 		index := strings.Index(text, " - ")
 		postSeparatorFields := strings.Fields(text[index+3:])
-		if len(postSeparatorFields) < 3 {
-			return "", fmt.Errorf("Error found less than 3 fields post '-' in %q", text)
+		numPostFields := len(postSeparatorFields)
+
+		// This is an error as we can't detect if the mount is for "cgroup"
+		if numPostFields == 0 {
+			return "", fmt.Errorf("Found no fields post '-' in %q", text)
 		}
+
 		if postSeparatorFields[0] == "cgroup" {
+			// Check that the mount is properly formated.
+			if numPostFields < 3 {
+				return "", fmt.Errorf("Error found less than 3 fields post '-' in %q", text)
+			}
+
 			return filepath.Dir(fields[4]), nil
 		}
 	}
@@ -112,11 +121,45 @@ func (m Mount) GetThisCgroupDir(cgroups map[string]string) (string, error) {
 	return getControllerPath(m.Subsystems[0], cgroups)
 }
 
+func getCgroupMountsHelper(ss map[string]bool, mi io.Reader) ([]Mount, error) {
+	res := make([]Mount, 0, len(ss))
+	scanner := bufio.NewScanner(mi)
+	for scanner.Scan() {
+		txt := scanner.Text()
+		sepIdx := strings.IndexByte(txt, '-')
+		if sepIdx == -1 {
+			return nil, fmt.Errorf("invalid mountinfo format")
+		}
+		if txt[sepIdx+2:sepIdx+8] != "cgroup" {
+			continue
+		}
+		fields := strings.Split(txt, " ")
+		m := Mount{
+			Mountpoint: fields[4],
+			Root:       fields[3],
+		}
+		for _, opt := range strings.Split(fields[len(fields)-1], ",") {
+			if strings.HasPrefix(opt, cgroupNamePrefix) {
+				m.Subsystems = append(m.Subsystems, opt[len(cgroupNamePrefix):])
+			}
+			if ss[opt] {
+				m.Subsystems = append(m.Subsystems, opt)
+			}
+		}
+		res = append(res, m)
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+	return res, nil
+}
+
 func GetCgroupMounts() ([]Mount, error) {
-	mounts, err := mount.GetMounts()
+	f, err := os.Open("/proc/self/mountinfo")
 	if err != nil {
 		return nil, err
 	}
+	defer f.Close()
 
 	all, err := GetAllSubsystems()
 	if err != nil {
@@ -127,24 +170,7 @@ func GetCgroupMounts() ([]Mount, error) {
 	for _, s := range all {
 		allMap[s] = true
 	}
-
-	res := []Mount{}
-	for _, mount := range mounts {
-		if mount.Fstype == "cgroup" {
-			m := Mount{Mountpoint: mount.Mountpoint, Root: mount.Root}
-
-			for _, opt := range strings.Split(mount.VfsOpts, ",") {
-				if strings.HasPrefix(opt, cgroupNamePrefix) {
-					m.Subsystems = append(m.Subsystems, opt[len(cgroupNamePrefix):])
-				}
-				if allMap[opt] {
-					m.Subsystems = append(m.Subsystems, opt)
-				}
-			}
-			res = append(res, m)
-		}
-	}
-	return res, nil
+	return getCgroupMountsHelper(allMap, f)
 }
 
 // Returns all the cgroup subsystems supported by the kernel
@@ -323,9 +349,14 @@ func GetHugePageSize() ([]string, error) {
 	return pageSizes, nil
 }
 
-// GetPids returns all pids, that were added to cgroup at path and to all its
-// subcgroups.
+// GetPids returns all pids, that were added to cgroup at path.
 func GetPids(path string) ([]int, error) {
+	return readProcsFile(path)
+}
+
+// GetAllPids returns all pids, that were added to cgroup at path and to all its
+// subcgroups.
+func GetAllPids(path string) ([]int, error) {
 	var pids []int
 	// collect pids from all sub-cgroups
 	err := filepath.Walk(path, func(p string, info os.FileInfo, iErr error) error {
