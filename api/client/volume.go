@@ -2,6 +2,7 @@ package client
 
 import (
 	"fmt"
+	"sort"
 	"text/tabwriter"
 
 	Cli "github.com/docker/docker/cli"
@@ -72,6 +73,7 @@ func (cli *DockerCli) CmdVolumeLs(args ...string) error {
 		fmt.Fprintf(w, "\n")
 	}
 
+	sort.Sort(byVolumeName(volumes.Volumes))
 	for _, vol := range volumes.Volumes {
 		if *quiet {
 			fmt.Fprintln(w, vol.Name)
@@ -81,6 +83,14 @@ func (cli *DockerCli) CmdVolumeLs(args ...string) error {
 	}
 	w.Flush()
 	return nil
+}
+
+type byVolumeName []*types.Volume
+
+func (r byVolumeName) Len() int      { return len(r) }
+func (r byVolumeName) Swap(i, j int) { r[i], r[j] = r[j], r[i] }
+func (r byVolumeName) Less(i, j int) bool {
+	return r[i].Name < r[j].Name
 }
 
 // CmdVolumeInspect displays low-level information on one or more volumes.
