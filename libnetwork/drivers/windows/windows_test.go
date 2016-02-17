@@ -23,7 +23,7 @@ func testNetwork(networkType string, t *testing.T) {
 
 	netOption[netlabel.GenericData] = networkOptions
 	ipdList := []driverapi.IPAMData{
-		driverapi.IPAMData{
+		{
 			Pool:    bnw,
 			Gateway: br,
 		},
