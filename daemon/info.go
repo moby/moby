@@ -20,6 +20,7 @@ import (
 	"github.com/docker/docker/utils"
 	"github.com/docker/docker/volume/drivers"
 	"github.com/docker/engine-api/types"
+	"github.com/docker/go-connections/sockets"
 )
 
 // SystemInfo returns information about the host server the daemon is running on.
@@ -97,9 +98,9 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 		ServerVersion:      dockerversion.Version,
 		ClusterStore:       daemon.configStore.ClusterStore,
 		ClusterAdvertise:   daemon.configStore.ClusterAdvertise,
-		HTTPProxy:          getProxyEnv("http_proxy"),
-		HTTPSProxy:         getProxyEnv("https_proxy"),
-		NoProxy:            getProxyEnv("no_proxy"),
+		HTTPProxy:          sockets.GetProxyEnv("http_proxy"),
+		HTTPSProxy:         sockets.GetProxyEnv("https_proxy"),
+		NoProxy:            sockets.GetProxyEnv("no_proxy"),
 	}
 
 	// TODO Windows. Refactor this more once sysinfo is refactored into
