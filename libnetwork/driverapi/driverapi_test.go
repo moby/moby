@@ -15,8 +15,8 @@ func TestIPDataMarshalling(t *testing.T) {
 		Pool:         &net.IPNet{IP: net.IP{10, 10, 10, 8}, Mask: net.IPMask{255, 255, 255, 0}},
 		Gateway:      &net.IPNet{IP: net.IP{10, 10, 10, 254}, Mask: net.IPMask{255, 255, 255, 0}},
 		AuxAddresses: map[string]*net.IPNet{
-			"ip1": &net.IPNet{IP: net.IP{10, 10, 10, 1}, Mask: net.IPMask{255, 255, 255, 0}},
-			"ip2": &net.IPNet{IP: net.IP{10, 10, 10, 2}, Mask: net.IPMask{255, 255, 255, 0}},
+			"ip1": {IP: net.IP{10, 10, 10, 1}, Mask: net.IPMask{255, 255, 255, 0}},
+			"ip2": {IP: net.IP{10, 10, 10, 2}, Mask: net.IPMask{255, 255, 255, 0}},
 		},
 	}
 
@@ -59,8 +59,8 @@ func TestValidateAndIsV6(t *testing.T) {
 		Pool:    &net.IPNet{IP: net.IP{10, 10, 10, 8}, Mask: net.IPMask{255, 255, 255, 0}},
 		Gateway: &net.IPNet{IP: net.IP{10, 10, 10, 254}, Mask: net.IPMask{255, 255, 255, 0}},
 		AuxAddresses: map[string]*net.IPNet{
-			"ip1": &net.IPNet{IP: net.IP{10, 10, 10, 1}, Mask: net.IPMask{255, 255, 255, 0}},
-			"ip2": &net.IPNet{IP: net.IP{10, 10, 10, 2}, Mask: net.IPMask{255, 255, 255, 0}},
+			"ip1": {IP: net.IP{10, 10, 10, 1}, Mask: net.IPMask{255, 255, 255, 0}},
+			"ip2": {IP: net.IP{10, 10, 10, 2}, Mask: net.IPMask{255, 255, 255, 0}},
 		},
 	}
 

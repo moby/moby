@@ -1004,7 +1004,7 @@ func (n *network) ipamAllocateVersion(ipVer int, ipam ipamapi.Ipam) error {
 		if ipVer == 6 {
 			return nil
 		}
-		*cfgList = []*IpamConf{&IpamConf{}}
+		*cfgList = []*IpamConf{{}}
 	}
 
 	*infoList = make([]*IpamInfo, len(*cfgList))

@@ -8,9 +8,9 @@ import (
 
 func getPorts() []types.TransportPort {
 	return []types.TransportPort{
-		types.TransportPort{Proto: types.TCP, Port: uint16(5000)},
-		types.TransportPort{Proto: types.UDP, Port: uint16(400)},
-		types.TransportPort{Proto: types.TCP, Port: uint16(600)},
+		{Proto: types.TCP, Port: uint16(5000)},
+		{Proto: types.UDP, Port: uint16(400)},
+		{Proto: types.TCP, Port: uint16(600)},
 	}
 }
 

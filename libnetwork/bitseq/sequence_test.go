@@ -1020,7 +1020,7 @@ func TestIsCorrupted(t *testing.T) {
 	// address reservation: last bit). This will allow an application using bitseq that runs a consistency
 	// check to detect and replace the 1.9.0/1 old vulnerable handle with the new one.
 	input := []*Handle{
-		&Handle{
+		{
 			id:         "LocalDefault/172.17.0.0/16",
 			bits:       65536,
 			unselected: 65412,
@@ -1055,7 +1055,7 @@ func TestIsCorrupted(t *testing.T) {
 				},
 			},
 		},
-		&Handle{
+		{
 			id:         "LocalDefault/172.17.0.0/16",
 			bits:       65536,
 			unselected: 65319,
@@ -1088,7 +1088,7 @@ func TestIsCorrupted(t *testing.T) {
 				},
 			},
 		},
-		&Handle{
+		{
 			id:         "LocalDefault/172.17.0.0/16",
 			bits:       65536,
 			unselected: 65456,

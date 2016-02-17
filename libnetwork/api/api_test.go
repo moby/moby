@@ -108,17 +108,17 @@ func createTestNetwork(t *testing.T, network string) (libnetwork.NetworkControll
 
 func getExposedPorts() []types.TransportPort {
 	return []types.TransportPort{
-		types.TransportPort{Proto: types.TCP, Port: uint16(5000)},
-		types.TransportPort{Proto: types.UDP, Port: uint16(400)},
-		types.TransportPort{Proto: types.TCP, Port: uint16(600)},
+		{Proto: types.TCP, Port: uint16(5000)},
+		{Proto: types.UDP, Port: uint16(400)},
+		{Proto: types.TCP, Port: uint16(600)},
 	}
 }
 
 func getPortMapping() []types.PortBinding {
 	return []types.PortBinding{
-		types.PortBinding{Proto: types.TCP, Port: uint16(230), HostPort: uint16(23000)},
-		types.PortBinding{Proto: types.UDP, Port: uint16(200), HostPort: uint16(22000)},
-		types.PortBinding{Proto: types.TCP, Port: uint16(120), HostPort: uint16(12000)},
+		{Proto: types.TCP, Port: uint16(230), HostPort: uint16(23000)},
+		{Proto: types.UDP, Port: uint16(200), HostPort: uint16(22000)},
+		{Proto: types.TCP, Port: uint16(120), HostPort: uint16(12000)},
 	}
 }
 
@@ -135,7 +135,7 @@ func TestSandboxOptionParser(t *testing.T) {
 	hp := "/etc/hosts"
 	rc := "/etc/resolv.conf"
 	dnss := []string{"8.8.8.8", "172.28.34.5"}
-	ehs := []extraHost{extraHost{Name: "extra1", Address: "172.28.9.1"}, extraHost{Name: "extra2", Address: "172.28.9.2"}}
+	ehs := []extraHost{{Name: "extra1", Address: "172.28.9.1"}, {Name: "extra2", Address: "172.28.9.2"}}
 
 	sb := sandboxCreate{
 		HostName:          hn,
