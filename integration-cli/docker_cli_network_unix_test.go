@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"sort"
 	"strings"
 	"time"
 
@@ -259,9 +258,6 @@ func assertNwList(c *check.C, out string, expectNws []string) {
 		// wrap all network name in nwList
 		nwList = append(nwList, netFields[1])
 	}
-	// first need to sort out and expected
-	sort.StringSlice(nwList).Sort()
-	sort.StringSlice(expectNws).Sort()
 
 	// network ls should contains all expected networks
 	c.Assert(nwList, checker.DeepEquals, expectNws)
@@ -321,11 +317,11 @@ func (s *DockerNetworkSuite) TestDockerNetworkLsFilter(c *check.C) {
 	// filter with partial ID and partial name
 	// only show 'bridge' and 'dev' network
 	out, _ = dockerCmd(c, "network", "ls", "-f", "id="+networkID[0:5], "-f", "name=dge")
-	assertNwList(c, out, []string{"dev", "bridge"})
+	assertNwList(c, out, []string{"bridge", "dev"})
 
 	// only show built-in network (bridge, none, host)
 	out, _ = dockerCmd(c, "network", "ls", "-f", "type=builtin")
-	assertNwList(c, out, []string{"bridge", "none", "host"})
+	assertNwList(c, out, []string{"bridge", "host", "none"})
 
 	// only show custom networks (dev)
 	out, _ = dockerCmd(c, "network", "ls", "-f", "type=custom")
@@ -334,7 +330,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkLsFilter(c *check.C) {
 	// show all networks with filter
 	// it should be equivalent of ls without option
 	out, _ = dockerCmd(c, "network", "ls", "-f", "type=custom", "-f", "type=builtin")
-	assertNwList(c, out, []string{"dev", "bridge", "host", "none"})
+	assertNwList(c, out, []string{"bridge", "dev", "host", "none"})
 }
 
 func (s *DockerNetworkSuite) TestDockerNetworkCreateDelete(c *check.C) {
