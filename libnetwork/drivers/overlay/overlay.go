@@ -6,12 +6,12 @@ import (
 	"sync"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/libkv/store"
 	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/discoverapi"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/idm"
 	"github.com/docker/libnetwork/netlabel"
+	"github.com/docker/libnetwork/types"
 	"github.com/hashicorp/serf/serf"
 )
 
@@ -24,6 +24,8 @@ const (
 	vxlanPort    = 4789
 	vxlanVethMTU = 1450
 )
+
+var initVxlanIdm = make(chan (bool), 1)
 
 type driver struct {
 	eventCh      chan serf.Event
@@ -56,6 +58,18 @@ func Init(dc driverapi.DriverCallback, config map[string]interface{}) error {
 		config: config,
 	}
 
+	if data, ok := config[netlabel.GlobalKVClient]; ok {
+		var err error
+		dsc, ok := data.(discoverapi.DatastoreConfigData)
+		if !ok {
+			return types.InternalErrorf("incorrect data in datastore configuration: %v", data)
+		}
+		d.store, err = datastore.NewDataStoreFromConfig(dsc)
+		if err != nil {
+			return types.InternalErrorf("failed to initialize data store: %v", err)
+		}
+	}
+
 	return dc.RegisterDriver(networkType, d, c)
 }
 
@@ -73,42 +87,33 @@ func Fini(drv driverapi.Driver) {
 }
 
 func (d *driver) configure() error {
+	if d.store == nil {
+		return types.NoServiceErrorf("datastore is not available")
+	}
+
+	if d.vxlanIdm == nil {
+		return d.initializeVxlanIdm()
+	}
+
+	return nil
+}
+
+func (d *driver) initializeVxlanIdm() error {
 	var err error
 
-	if len(d.config) == 0 {
+	initVxlanIdm <- true
+	defer func() { <-initVxlanIdm }()
+
+	if d.vxlanIdm != nil {
 		return nil
 	}
 
-	d.once.Do(func() {
-		provider, provOk := d.config[netlabel.GlobalKVProvider]
-		provURL, urlOk := d.config[netlabel.GlobalKVProviderURL]
+	d.vxlanIdm, err = idm.New(d.store, "vxlan-id", vxlanIDStart, vxlanIDEnd)
+	if err != nil {
+		return fmt.Errorf("failed to initialize vxlan id manager: %v", err)
+	}
 
-		if provOk && urlOk {
-			cfg := &datastore.ScopeCfg{
-				Client: datastore.ScopeClientCfg{
-					Provider: provider.(string),
-					Address:  provURL.(string),
-				},
-			}
-			provConfig, confOk := d.config[netlabel.GlobalKVProviderConfig]
-			if confOk {
-				cfg.Client.Config = provConfig.(*store.Config)
-			}
-			d.store, err = datastore.NewDataStore(datastore.GlobalScope, cfg)
-			if err != nil {
-				err = fmt.Errorf("failed to initialize data store: %v", err)
-				return
-			}
-		}
-
-		d.vxlanIdm, err = idm.New(d.store, "vxlan-id", vxlanIDStart, vxlanIDEnd)
-		if err != nil {
-			err = fmt.Errorf("failed to initialize vxlan id manager: %v", err)
-			return
-		}
-	})
-
-	return err
+	return nil
 }
 
 func (d *driver) Type() string {
@@ -187,12 +192,27 @@ func (d *driver) pushLocalEndpointEvent(action, nid, eid string) {
 
 // DiscoverNew is a notification for a new discovery event, such as a new node joining a cluster
 func (d *driver) DiscoverNew(dType discoverapi.DiscoveryType, data interface{}) error {
-	if dType == discoverapi.NodeDiscovery {
+	switch dType {
+	case discoverapi.NodeDiscovery:
 		nodeData, ok := data.(discoverapi.NodeDiscoveryData)
 		if !ok || nodeData.Address == "" {
 			return fmt.Errorf("invalid discovery data")
 		}
 		d.nodeJoin(nodeData.Address, nodeData.Self)
+	case discoverapi.DatastoreConfig:
+		var err error
+		if d.store != nil {
+			return types.ForbiddenErrorf("cannot accept datastore configuration: Overlay driver has a datastore configured already")
+		}
+		dsc, ok := data.(discoverapi.DatastoreConfigData)
+		if !ok {
+			return types.InternalErrorf("incorrect data in datastore configuration: %v", data)
+		}
+		d.store, err = datastore.NewDataStoreFromConfig(dsc)
+		if err != nil {
+			return types.InternalErrorf("failed to initialize data store: %v", err)
+		}
+	default:
 	}
 	return nil
 }
