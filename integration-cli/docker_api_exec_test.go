@@ -58,7 +58,7 @@ func (s *DockerSuite) TestExecApiCreateContainerPaused(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	c.Assert(status, checker.Equals, http.StatusConflict)
 
-	comment := check.Commentf("Expected message when creating exec command with Container s% is paused", name)
+	comment := check.Commentf("Expected message when creating exec command with Container %s is paused", name)
 	c.Assert(string(body), checker.Contains, "Container "+name+" is paused, unpause the container before exec", comment)
 }
 
