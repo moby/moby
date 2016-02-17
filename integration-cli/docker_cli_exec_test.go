@@ -66,6 +66,7 @@ func (s *DockerSuite) TestExecInteractive(c *check.C) {
 }
 
 func (s *DockerSuite) TestExecAfterContainerRestart(c *check.C) {
+	testRequires(c, DaemonIsLinux)
 	out, _ := runSleepingContainer(c, "-d")
 	cleanedContainerID := strings.TrimSpace(out)
 	c.Assert(waitRun(cleanedContainerID), check.IsNil)
