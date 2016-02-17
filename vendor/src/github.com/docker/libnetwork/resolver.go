@@ -200,6 +200,9 @@ func (r *resolver) ServeDNS(w dns.ResponseWriter, query *dns.Msg) {
 		err  error
 	)
 
+	if query == nil || len(query.Question) == 0 {
+		return
+	}
 	name := query.Question[0].Name
 	if query.Question[0].Qtype == dns.TypeA {
 		resp, err = r.handleIPv4Query(name, query)

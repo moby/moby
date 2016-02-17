@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.6.2-rc1 (2016-02-19)
+- Fixes https://github.com/docker/docker/issues/20350
+
 ## 0.6.1-rc3 (2016-02-11)
 - Fixes getNetworksFromStore to not fail on inconsistent network state
 
