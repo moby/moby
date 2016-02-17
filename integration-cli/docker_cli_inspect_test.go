@@ -166,15 +166,11 @@ func (s *DockerSuite) TestInspectContainerFilterInt(c *check.C) {
 }
 
 func (s *DockerSuite) TestInspectImageGraphDriver(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	testRequires(c, DaemonIsLinux, Devicemapper)
 	imageTest := "emptyfs"
 	name := inspectField(c, imageTest, "GraphDriver.Name")
 
 	checkValidGraphDriver(c, name)
-
-	if name != "devicemapper" {
-		c.Skip("requires devicemapper graphdriver")
-	}
 
 	deviceID := inspectField(c, imageTest, "GraphDriver.Data.DeviceId")
 
@@ -188,17 +184,14 @@ func (s *DockerSuite) TestInspectImageGraphDriver(c *check.C) {
 }
 
 func (s *DockerSuite) TestInspectContainerGraphDriver(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	testRequires(c, DaemonIsLinux, Devicemapper)
+
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "true")
 	out = strings.TrimSpace(out)
 
 	name := inspectField(c, out, "GraphDriver.Name")
 
 	checkValidGraphDriver(c, name)
-
-	if name != "devicemapper" {
-		return
-	}
 
 	imageDeviceID := inspectField(c, "busybox", "GraphDriver.Data.DeviceId")
 
