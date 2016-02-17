@@ -215,7 +215,6 @@ type tokenResponse struct {
 }
 
 func (th *tokenHandler) fetchToken(params map[string]string) (token *tokenResponse, err error) {
-	//log.Debugf("Getting bearer token with %s for %s", challenge.Parameters, ta.auth.Username)
 	realm, ok := params["realm"]
 	if !ok {
 		return nil, errors.New("no realm specified for token auth challenge")
