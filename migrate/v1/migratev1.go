@@ -282,7 +282,8 @@ func migrateContainers(root string, ls graphIDMounter, is image.Store, imageMapp
 		}
 
 		if err := ls.CreateRWLayerByGraphID(id, id, img.RootFS.ChainID()); err != nil {
-			return err
+			logrus.Errorf("migrate container error: %v", err)
+			continue
 		}
 
 		logrus.Infof("migrated container %s to point to %s", id, imageID)

@@ -1,6 +1,11 @@
 package layer
 
-import "io"
+import (
+	"fmt"
+	"io"
+
+	"github.com/docker/distribution/digest"
+)
 
 type roLayer struct {
 	chainID    ChainID
@@ -29,7 +34,11 @@ func (rl *roLayer) TarStream() (io.ReadCloser, error) {
 			pw.Close()
 		}
 	}()
-	return pr, nil
+	rc, err := newVerifiedReadCloser(pr, digest.Digest(rl.diffID))
+	if err != nil {
+		return nil, err
+	}
+	return rc, nil
 }
 
 func (rl *roLayer) ChainID() ChainID {
@@ -116,4 +125,40 @@ func storeLayer(tx MetadataTransaction, layer *roLayer) error {
 	}
 
 	return nil
+}
+
+func newVerifiedReadCloser(rc io.ReadCloser, dgst digest.Digest) (io.ReadCloser, error) {
+	verifier, err := digest.NewDigestVerifier(dgst)
+	if err != nil {
+		return nil, err
+	}
+	return &verifiedReadCloser{
+		rc:       rc,
+		dgst:     dgst,
+		verifier: verifier,
+	}, nil
+}
+
+type verifiedReadCloser struct {
+	rc       io.ReadCloser
+	dgst     digest.Digest
+	verifier digest.Verifier
+}
+
+func (vrc *verifiedReadCloser) Read(p []byte) (n int, err error) {
+	n, err = vrc.rc.Read(p)
+	if n > 0 {
+		if n, err := vrc.verifier.Write(p[:n]); err != nil {
+			return n, err
+		}
+	}
+	if err == io.EOF {
+		if !vrc.verifier.Verified() {
+			err = fmt.Errorf("could not verify layer data for: %s. This may be because internal files in the layer store were modified. Re-pulling or rebuilding this image may resolve the issue", vrc.dgst)
+		}
+	}
+	return
+}
+func (vrc *verifiedReadCloser) Close() error {
+	return vrc.rc.Close()
 }

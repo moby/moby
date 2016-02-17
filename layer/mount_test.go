@@ -11,7 +11,7 @@ import (
 )
 
 func TestMountInit(t *testing.T) {
-	ls, cleanup := newTestStore(t)
+	ls, _, cleanup := newTestStore(t)
 	defer cleanup()
 
 	basefile := newTestFile("testfile.txt", []byte("base data!"), 0644)
@@ -63,7 +63,7 @@ func TestMountInit(t *testing.T) {
 }
 
 func TestMountSize(t *testing.T) {
-	ls, cleanup := newTestStore(t)
+	ls, _, cleanup := newTestStore(t)
 	defer cleanup()
 
 	content1 := []byte("Base contents")
@@ -105,7 +105,7 @@ func TestMountSize(t *testing.T) {
 }
 
 func TestMountChanges(t *testing.T) {
-	ls, cleanup := newTestStore(t)
+	ls, _, cleanup := newTestStore(t)
 	defer cleanup()
 
 	basefiles := []FileApplier{

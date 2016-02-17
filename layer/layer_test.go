@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/docker/distribution/digest"
@@ -56,7 +57,7 @@ func newTestGraphDriver(t *testing.T) (graphdriver.Driver, func()) {
 	}
 }
 
-func newTestStore(t *testing.T) (Store, func()) {
+func newTestStore(t *testing.T) (Store, string, func()) {
 	td, err := ioutil.TempDir("", "layerstore-")
 	if err != nil {
 		t.Fatal(err)
@@ -72,7 +73,7 @@ func newTestStore(t *testing.T) (Store, func()) {
 		t.Fatal(err)
 	}
 
-	return ls, func() {
+	return ls, td, func() {
 		graphcleanup()
 		os.RemoveAll(td)
 	}
@@ -265,7 +266,7 @@ func assertLayerEqual(t *testing.T, l1, l2 Layer) {
 }
 
 func TestMountAndRegister(t *testing.T) {
-	ls, cleanup := newTestStore(t)
+	ls, _, cleanup := newTestStore(t)
 	defer cleanup()
 
 	li := initWithFiles(newTestFile("testfile.txt", []byte("some test data"), 0644))
@@ -306,7 +307,7 @@ func TestMountAndRegister(t *testing.T) {
 }
 
 func TestLayerRelease(t *testing.T) {
-	ls, cleanup := newTestStore(t)
+	ls, _, cleanup := newTestStore(t)
 	defer cleanup()
 
 	layer1, err := createLayer(ls, "", initWithFiles(newTestFile("layer1.txt", []byte("layer 1 file"), 0644)))
@@ -351,7 +352,7 @@ func TestLayerRelease(t *testing.T) {
 }
 
 func TestStoreRestore(t *testing.T) {
-	ls, cleanup := newTestStore(t)
+	ls, _, cleanup := newTestStore(t)
 	defer cleanup()
 
 	layer1, err := createLayer(ls, "", initWithFiles(newTestFile("layer1.txt", []byte("layer 1 file"), 0644)))
@@ -472,7 +473,7 @@ func TestStoreRestore(t *testing.T) {
 }
 
 func TestTarStreamStability(t *testing.T) {
-	ls, cleanup := newTestStore(t)
+	ls, _, cleanup := newTestStore(t)
 	defer cleanup()
 
 	files1 := []FileApplier{
@@ -668,7 +669,7 @@ func assertActivityCount(t *testing.T, l RWLayer, expected int) {
 }
 
 func TestRegisterExistingLayer(t *testing.T) {
-	ls, cleanup := newTestStore(t)
+	ls, _, cleanup := newTestStore(t)
 	defer cleanup()
 
 	baseFiles := []FileApplier{
@@ -701,4 +702,70 @@ func TestRegisterExistingLayer(t *testing.T) {
 	}
 
 	assertReferences(t, layer2a, layer2b)
+}
+
+func TestTarStreamVerification(t *testing.T) {
+	ls, tmpdir, cleanup := newTestStore(t)
+	defer cleanup()
+
+	files1 := []FileApplier{
+		newTestFile("/foo", []byte("abc"), 0644),
+		newTestFile("/bar", []byte("def"), 0644),
+	}
+	files2 := []FileApplier{
+		newTestFile("/foo", []byte("abc"), 0644),
+		newTestFile("/bar", []byte("def"), 0600), // different perm
+	}
+
+	tar1, err := tarFromFiles(files1...)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tar2, err := tarFromFiles(files2...)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	layer1, err := ls.Register(bytes.NewReader(tar1), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	layer2, err := ls.Register(bytes.NewReader(tar2), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	id1 := digest.Digest(layer1.ChainID())
+	id2 := digest.Digest(layer2.ChainID())
+
+	// Replace tar data files
+	src, err := os.Open(filepath.Join(tmpdir, id1.Algorithm().String(), id1.Hex(), "tar-split.json.gz"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	dst, err := os.Create(filepath.Join(tmpdir, id2.Algorithm().String(), id2.Hex(), "tar-split.json.gz"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := io.Copy(dst, src); err != nil {
+		t.Fatal(err)
+	}
+
+	src.Close()
+	dst.Close()
+
+	ts, err := layer2.TarStream()
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = io.Copy(ioutil.Discard, ts)
+	if err == nil {
+		t.Fatal("expected data verification to fail")
+	}
+	if !strings.Contains(err.Error(), "could not verify layer data") {
+		t.Fatalf("wrong error returned from tarstream: %q", err)
+	}
 }
