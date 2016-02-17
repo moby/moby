@@ -2,7 +2,7 @@
 
 package journald
 
-// #cgo pkg-config: libsystemd-journal
+// #cgo pkg-config: libsystemd
 // #include <sys/types.h>
 // #include <sys/poll.h>
 // #include <systemd/sd-journal.h>
