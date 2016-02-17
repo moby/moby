@@ -10,6 +10,14 @@
 			"Rev": "70b2c90b260171e829f1ebd7c17f600c11858dbe"
 		},
 		{
+			"ImportPath": "github.com/Microsoft/hcsshim",
+			"Rev": "43858ef3c5c944dfaaabfbe8b6ea093da7f28dba"
+		},
+		{
+			"ImportPath": "github.com/Microsoft/go-winio",
+			"Rev": "eb176a9831c54b88eaf9eb4fbc24b94080d910ad"
+		},
+		{
 			"ImportPath": "github.com/BurntSushi/toml",
 			"Comment": "v0.1.0-16-gf706d00",
 			"Rev": "f706d00e3de6abe700c994cdd545a1a4915af060"
