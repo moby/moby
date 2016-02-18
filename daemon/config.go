@@ -154,14 +154,20 @@ func parseClusterAdvertiseSettings(clusterStore, clusterAdvertise string) (strin
 }
 
 // ReloadConfiguration reads the configuration in the host and reloads the daemon and server.
-func ReloadConfiguration(configFile string, flags *flag.FlagSet, reload func(*Config)) {
+func ReloadConfiguration(configFile string, flags *flag.FlagSet, reload func(*Config)) error {
 	logrus.Infof("Got signal to reload configuration, reloading from: %s", configFile)
 	newConfig, err := getConflictFreeConfiguration(configFile, flags)
 	if err != nil {
-		logrus.Error(err)
-	} else {
-		reload(newConfig)
+		return err
 	}
+	reload(newConfig)
+	return nil
+}
+
+// boolValue is an interface that boolean value flags implement
+// to tell the command line how to make -name equivalent to -name=true.
+type boolValue interface {
+	IsBoolFlag() bool
 }
 
 // MergeDaemonConfigurations reads a configuration file,
@@ -206,6 +212,36 @@ func getConflictFreeConfiguration(configFile string, flags *flag.FlagSet) (*Conf
 			return nil, err
 		}
 
+		// Override flag values to make sure the values set in the config file with nullable values, like `false`,
+		// are not overriden by default truthy values from the flags that were not explicitly set.
+		// See https://github.com/docker/docker/issues/20289 for an example.
+		//
+		// TODO: Rewrite configuration logic to avoid same issue with other nullable values, like numbers.
+		namedOptions := make(map[string]interface{})
+		for key, value := range configSet {
+			f := flags.Lookup("-" + key)
+			if f == nil { // ignore named flags that don't match
+				namedOptions[key] = value
+				continue
+			}
+
+			if _, ok := f.Value.(boolValue); ok {
+				f.Value.Set(fmt.Sprintf("%v", value))
+			}
+		}
+		if len(namedOptions) > 0 {
+			// set also default for mergeVal flags that are boolValue at the same time.
+			flags.VisitAll(func(f *flag.Flag) {
+				if opt, named := f.Value.(opts.NamedOption); named {
+					v, set := namedOptions[opt.Name()]
+					_, boolean := f.Value.(boolValue)
+					if set && boolean {
+						f.Value.Set(fmt.Sprintf("%v", v))
+					}
+				}
+			})
+		}
+
 		config.valuesSet = configSet
 	}
 
@@ -245,14 +281,16 @@ func findConfigurationConflicts(config map[string]interface{}, flags *flag.FlagS
 
 	// 2. Discard values that implement NamedOption.
 	// Their configuration name differs from their flag name, like `labels` and `label`.
-	unknownNamedConflicts := func(f *flag.Flag) {
-		if namedOption, ok := f.Value.(opts.NamedOption); ok {
-			if _, valid := unknownKeys[namedOption.Name()]; valid {
-				delete(unknownKeys, namedOption.Name())
+	if len(unknownKeys) > 0 {
+		unknownNamedConflicts := func(f *flag.Flag) {
+			if namedOption, ok := f.Value.(opts.NamedOption); ok {
+				if _, valid := unknownKeys[namedOption.Name()]; valid {
+					delete(unknownKeys, namedOption.Name())
+				}
 			}
 		}
+		flags.VisitAll(unknownNamedConflicts)
 	}
-	flags.VisitAll(unknownNamedConflicts)
 
 	if len(unknownKeys) > 0 {
 		var unknown []string
