@@ -1888,7 +1888,7 @@ func (s *DockerDaemonSuite) TestBridgeIPIsExcludedFromAllocatorPool(c *check.C) 
 
 // Test daemon for no space left on device error
 func (s *DockerDaemonSuite) TestDaemonNoSpaceleftOnDeviceError(c *check.C) {
-	testRequires(c, SameHostDaemon, DaemonIsLinux)
+	testRequires(c, SameHostDaemon, DaemonIsLinux, Network)
 
 	// create a 2MiB image and mount it as graph root
 	cmd := exec.Command("dd", "of=/tmp/testfs.img", "bs=1M", "seek=2", "count=0")
@@ -1912,8 +1912,7 @@ func (s *DockerDaemonSuite) TestDaemonNoSpaceleftOnDeviceError(c *check.C) {
 
 	// pull a repository large enough to fill the mount point
 	out, err := s.d.Cmd("pull", "registry:2")
-
-	c.Assert(strings.Contains(out, "no space left on device"), check.Equals, true)
+	c.Assert(out, checker.Contains, "no space left on device")
 }
 
 // Test daemon restart with container links + auto restart
