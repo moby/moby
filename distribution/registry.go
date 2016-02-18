@@ -57,7 +57,7 @@ func NewV2Repository(ctx context.Context, repoInfo *registry.RepositoryInfo, end
 		Transport: authTransport,
 		Timeout:   15 * time.Second,
 	}
-	endpointStr := strings.TrimRight(endpoint.URL, "/") + "/v2/"
+	endpointStr := strings.TrimRight(endpoint.URL.String(), "/") + "/v2/"
 	req, err := http.NewRequest("GET", endpointStr, nil)
 	if err != nil {
 		return nil, false, fallbackError{err: err}
@@ -118,7 +118,7 @@ func NewV2Repository(ctx context.Context, repoInfo *registry.RepositoryInfo, end
 		}
 	}
 
-	repo, err = client.NewRepository(ctx, repoNameRef, endpoint.URL, tr)
+	repo, err = client.NewRepository(ctx, repoNameRef, endpoint.URL.String(), tr)
 	if err != nil {
 		err = fallbackError{
 			err:         err,

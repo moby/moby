@@ -5,7 +5,6 @@ import (
 	"compress/gzip"
 	"fmt"
 	"io"
-	"net/url"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/distribution/metadata"
@@ -133,14 +132,8 @@ func Push(ctx context.Context, ref reference.Named, imagePushConfig *ImagePushCo
 			continue
 		}
 
-		parsedURL, urlErr := url.Parse(endpoint.URL)
-		if urlErr != nil {
-			logrus.Errorf("Failed to parse endpoint URL %s", endpoint.URL)
-			continue
-		}
-
-		if parsedURL.Scheme != "https" {
-			if _, confirmedTLS := confirmedTLSRegistries[parsedURL.Host]; confirmedTLS {
+		if endpoint.URL.Scheme != "https" {
+			if _, confirmedTLS := confirmedTLSRegistries[endpoint.URL.Host]; confirmedTLS {
 				logrus.Debugf("Skipping non-TLS endpoint %s for host/port that appears to use TLS", endpoint.URL)
 				continue
 			}
@@ -161,8 +154,8 @@ func Push(ctx context.Context, ref reference.Named, imagePushConfig *ImagePushCo
 			default:
 				if fallbackErr, ok := err.(fallbackError); ok {
 					confirmedV2 = confirmedV2 || fallbackErr.confirmedV2
-					if fallbackErr.transportOK && parsedURL.Scheme == "https" {
-						confirmedTLSRegistries[parsedURL.Host] = struct{}{}
+					if fallbackErr.transportOK && endpoint.URL.Scheme == "https" {
+						confirmedTLSRegistries[endpoint.URL.Host] = struct{}{}
 					}
 					err = fallbackErr.err
 					lastErr = err
