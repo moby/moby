@@ -157,3 +157,22 @@ func TestFilterByUsed(t *testing.T) {
 		t.Fatalf("expected used volume fake1, got %s", used[0].Name())
 	}
 }
+
+func TestDerefMultipleOfSameRef(t *testing.T) {
+	volumedrivers.Register(vt.NewFakeDriver("fake"), "fake")
+
+	s := New()
+	v, err := s.CreateWithRef("fake1", "fake", "volReference", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := s.GetWithRef("fake1", "fake", "volReference"); err != nil {
+		t.Fatal(err)
+	}
+
+	s.Dereference(v, "volReference")
+	if err := s.Remove(v); err != nil {
+		t.Fatal(err)
+	}
+}

@@ -302,16 +302,14 @@ func (s *VolumeStore) Dereference(v volume.Volume, ref string) {
 
 	s.globalLock.Lock()
 	defer s.globalLock.Unlock()
-	refs, exists := s.refs[v.Name()]
-	if !exists {
-		return
-	}
+	var refs []string
 
-	for i, r := range refs {
-		if r == ref {
-			s.refs[v.Name()] = append(s.refs[v.Name()][:i], s.refs[v.Name()][i+1:]...)
+	for _, r := range s.refs[v.Name()] {
+		if r != ref {
+			refs = append(refs, r)
 		}
 	}
+	s.refs[v.Name()] = refs
 }
 
 // Refs gets the current list of refs for the given volume
