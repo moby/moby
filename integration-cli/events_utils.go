@@ -149,7 +149,7 @@ func matchEventLine(id, eventType string, actions map[string]chan bool) eventMat
 func processEventMatch(actions map[string]chan bool) eventMatchProcessor {
 	return func(matches map[string]string) {
 		if ch, ok := actions[matches["action"]]; ok {
-			close(ch)
+			ch <- true
 		}
 	}
 }
