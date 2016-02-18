@@ -265,8 +265,8 @@ func (s *DockerAuthzSuite) TestAuthZPluginAllowEventStream(c *check.C) {
 	c.Assert(s.d.waitRun(containerID), checker.IsNil)
 
 	events := map[string]chan bool{
-		"create": make(chan bool),
-		"start":  make(chan bool),
+		"create": make(chan bool, 1),
+		"start":  make(chan bool, 1),
 	}
 
 	matcher := matchEventLine(containerID, "container", events)
@@ -277,7 +277,7 @@ func (s *DockerAuthzSuite) TestAuthZPluginAllowEventStream(c *check.C) {
 	for event, eventChannel := range events {
 
 		select {
-		case <-time.After(5 * time.Second):
+		case <-time.After(30 * time.Second):
 			// Fail the test
 			observer.CheckEventError(c, containerID, event, matcher)
 			c.FailNow()
