@@ -11,7 +11,7 @@ import (
 // CmdDiff shows changes on a container's filesystem.
 //
 // Each changed file is printed on a separate line, prefixed with a single
-// character that indicates the status of the file: M (modified), A (added),
+// character that indicates the status of the file: C (modified), A (added),
 // or D (deleted).
 //
 // Usage: docker diff CONTAINER
@@ -34,7 +34,7 @@ func (cli *DockerCli) CmdDiff(args ...string) error {
 		var kind string
 		switch change.Kind {
 		case archive.ChangeModify:
-			kind = "M"
+			kind = "C"
 		case archive.ChangeAdd:
 			kind = "A"
 		case archive.ChangeDelete:
