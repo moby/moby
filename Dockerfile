@@ -116,7 +116,7 @@ RUN set -x \
 # IMPORTANT: If the version of Go is updated, the Windows to Linux CI machines
 #            will need updating, to avoid errors. Ping #docker-maintainers on IRC
 #            with a heads-up.
-ENV GO_VERSION 1.5.3
+ENV GO_VERSION 1.6
 RUN curl -fsSL "https://storage.googleapis.com/golang/go${GO_VERSION}.linux-amd64.tar.gz" \
 	| tar -xzC /usr/local
 ENV PATH /go/bin:/usr/local/go/bin:$PATH
