@@ -33,6 +33,7 @@ For example:
      Dirperm1 Supported: true
     Execution Driver: native-0.2
     Logging Driver: json-file
+    Cgroup Driver: cgroupfs
     Plugins:
      Volume: local
      Network: bridge null host
