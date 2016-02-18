@@ -17,6 +17,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/docker/docker/pkg/integration/checker"
@@ -2156,4 +2157,44 @@ func (s *DockerDaemonSuite) TestDaemonDebugLog(c *check.C) {
 	newD.StartWithLogFile(tty, "--debug")
 	newD.Stop()
 	c.Assert(b.String(), checker.Contains, debugLog)
+}
+
+func (s *DockerSuite) TestDaemonDiscoveryBackendConfigReload(c *check.C) {
+	testRequires(c, SameHostDaemon, DaemonIsLinux)
+
+	// daemon config file
+	daemonConfig := `{ "debug" : false }`
+	configFilePath := "test.json"
+
+	configFile, err := os.Create(configFilePath)
+	c.Assert(err, checker.IsNil)
+	fmt.Fprintf(configFile, "%s", daemonConfig)
+
+	d := NewDaemon(c)
+	err = d.Start(fmt.Sprintf("--config-file=%s", configFilePath))
+	c.Assert(err, checker.IsNil)
+	defer d.Stop()
+
+	// daemon config file
+	daemonConfig = `{
+	      "cluster-store": "consul://consuladdr:consulport/some/path",
+	      "cluster-advertise": "192.168.56.100:0",
+	      "debug" : false
+	}`
+
+	configFile.Close()
+	os.Remove(configFilePath)
+
+	configFile, err = os.Create(configFilePath)
+	c.Assert(err, checker.IsNil)
+	fmt.Fprintf(configFile, "%s", daemonConfig)
+
+	syscall.Kill(d.cmd.Process.Pid, syscall.SIGHUP)
+
+	time.Sleep(3 * time.Second)
+
+	out, err := d.Cmd("info")
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Contains, fmt.Sprintf("Cluster store: consul://consuladdr:consulport/some/path"))
+	c.Assert(out, checker.Contains, fmt.Sprintf("Cluster advertise: 192.168.56.100:0"))
 }
