@@ -14,8 +14,8 @@ import (
 //go:generate go run -tags 'seccomp' generate.go
 
 // GetDefaultProfile returns the default seccomp profile.
-func GetDefaultProfile() *configs.Seccomp {
-	return defaultProfile
+func GetDefaultProfile() (*configs.Seccomp, error) {
+	return setupSeccomp(DefaultProfile)
 }
 
 // LoadProfile takes a file path a decodes the seccomp profile.
