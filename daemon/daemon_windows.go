@@ -22,6 +22,7 @@ import (
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/libnetwork"
+	nwconfig "github.com/docker/libnetwork/config"
 	blkiodev "github.com/opencontainers/runc/libcontainer/configs"
 )
 
@@ -250,4 +251,8 @@ func restoreCustomImage(is image.Store, ls layer.Store, rs reference.Store) erro
 		logrus.Debugf("Registered base layer %s as %s", ref, id)
 	}
 	return nil
+}
+
+func (daemon *Daemon) networkOptions(dconfig *Config) ([]nwconfig.Option, error) {
+	return nil, fmt.Errorf("Network controller config reload not aavailable on Windows yet")
 }
