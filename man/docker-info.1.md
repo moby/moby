@@ -42,6 +42,7 @@ Here is a sample output:
      Dirs: 80
     Execution Driver: native-0.2
     Logging Driver: json-file
+    Cgroup Driver: cgroupfs
     Plugins:
      Volume: local
      Network: bridge null host
