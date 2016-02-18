@@ -7,9 +7,11 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"path"
+	"path/filepath"
 	"syscall"
 	"testing"
+
+	"github.com/docker/docker/pkg/system"
 )
 
 func TestCanonicalTarNameForPath(t *testing.T) {
@@ -70,15 +72,15 @@ func TestTarWithHardLink(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(origin)
-	if err := ioutil.WriteFile(path.Join(origin, "1"), []byte("hello world"), 0700); err != nil {
+	if err := ioutil.WriteFile(filepath.Join(origin, "1"), []byte("hello world"), 0700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Link(path.Join(origin, "1"), path.Join(origin, "2")); err != nil {
+	if err := os.Link(filepath.Join(origin, "1"), filepath.Join(origin, "2")); err != nil {
 		t.Fatal(err)
 	}
 
 	var i1, i2 uint64
-	if i1, err = getNlink(path.Join(origin, "1")); err != nil {
+	if i1, err = getNlink(filepath.Join(origin, "1")); err != nil {
 		t.Fatal(err)
 	}
 	// sanity check that we can hardlink
@@ -110,10 +112,10 @@ func TestTarWithHardLink(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if i1, err = getInode(path.Join(dest, "1")); err != nil {
+	if i1, err = getInode(filepath.Join(dest, "1")); err != nil {
 		t.Fatal(err)
 	}
-	if i2, err = getInode(path.Join(dest, "2")); err != nil {
+	if i2, err = getInode(filepath.Join(dest, "2")); err != nil {
 		t.Fatal(err)
 	}
 
@@ -145,4 +147,99 @@ func getInode(path string) (uint64, error) {
 		return 0, fmt.Errorf("expected type *syscall.Stat_t, got %t", stat.Sys())
 	}
 	return statT.Ino, nil
+}
+
+func TestTarWithBlockCharFifo(t *testing.T) {
+	origin, err := ioutil.TempDir("", "docker-test-tar-hardlink")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(origin)
+	if err := ioutil.WriteFile(filepath.Join(origin, "1"), []byte("hello world"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := system.Mknod(filepath.Join(origin, "2"), syscall.S_IFBLK, int(system.Mkdev(int64(12), int64(5)))); err != nil {
+		t.Fatal(err)
+	}
+	if err := system.Mknod(filepath.Join(origin, "3"), syscall.S_IFCHR, int(system.Mkdev(int64(12), int64(5)))); err != nil {
+		t.Fatal(err)
+	}
+	if err := system.Mknod(filepath.Join(origin, "4"), syscall.S_IFIFO, int(system.Mkdev(int64(12), int64(5)))); err != nil {
+		t.Fatal(err)
+	}
+
+	dest, err := ioutil.TempDir("", "docker-test-tar-hardlink-dest")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dest)
+
+	// we'll do this in two steps to separate failure
+	fh, err := Tar(origin, Uncompressed)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// ensure we can read the whole thing with no error, before writing back out
+	buf, err := ioutil.ReadAll(fh)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	bRdr := bytes.NewReader(buf)
+	err = Untar(bRdr, dest, &TarOptions{Compression: Uncompressed})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	changes, err := ChangesDirs(origin, dest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(changes) > 0 {
+		t.Fatalf("Tar with special device (block, char, fifo) should keep them (recreate them when untar) : %v", changes)
+	}
+}
+
+// TestTarUntarWithXattr is Unix as Lsetxattr is not supported on Windows
+func TestTarUntarWithXattr(t *testing.T) {
+	origin, err := ioutil.TempDir("", "docker-test-untar-origin")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(origin)
+	if err := ioutil.WriteFile(filepath.Join(origin, "1"), []byte("hello world"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := ioutil.WriteFile(filepath.Join(origin, "2"), []byte("welcome!"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := ioutil.WriteFile(filepath.Join(origin, "3"), []byte("will be ignored"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := system.Lsetxattr(filepath.Join(origin, "2"), "security.capability", []byte{0x00}, 0); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, c := range []Compression{
+		Uncompressed,
+		Gzip,
+	} {
+		changes, err := tarUntar(t, origin, &TarOptions{
+			Compression:     c,
+			ExcludePatterns: []string{"3"},
+		})
+
+		if err != nil {
+			t.Fatalf("Error tar/untar for compression %s: %s", c.Extension(), err)
+		}
+
+		if len(changes) != 1 || changes[0].Path != "/3" {
+			t.Fatalf("Unexpected differences after tarUntar: %v", changes)
+		}
+		capability, _ := system.Lgetxattr(filepath.Join(origin, "2"), "security.capability")
+		if capability == nil && capability[0] != 0x00 {
+			t.Fatalf("Untar should have kept the 'security.capability' xattr.")
+		}
+	}
 }
