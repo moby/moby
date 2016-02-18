@@ -24,31 +24,20 @@ It is the remote driver's responsibility to manage its database.
 
 ## Ipam Contract
 
-The IPAM driver (internal or remote) has to comply with the contract specified in `ipamapi.contract.go`:
+The remote IPAM driver must serve the following requests:
 
-```go
-// Ipam represents the interface the IPAM service plugins must implement
-// in order to allow injection/modification of IPAM database.
-type Ipam interface {
-	// GetDefaultAddressSpaces returns the default local and global address spaces for this ipam
-	GetDefaultAddressSpaces() (string, string, error)
-	// RequestPool returns an address pool along with its unique id. Address space is a mandatory field
-	// which denotes a set of non-overlapping pools. pool describes the pool of addresses in CIDR notation.
-	// subpool indicates a smaller range of addresses from the pool, for now it is specified in CIDR notation.
-	// Both pool and subpool are non mandatory fields. When they are not specified, Ipam driver may choose to
-	// return a self chosen pool for this request. In such case the v6 flag needs to be set appropriately so
-	// that the driver would return the expected ip version pool.
-	RequestPool(addressSpace, pool, subPool string, options map[string]string, v6 bool) (string, *net.IPNet, map[string]string, error)
-	// ReleasePool releases the address pool identified by the passed id
-	ReleasePool(poolID string) error
-	// Request address from the specified pool ID. Input options or required IP can be passed.
-	RequestAddress(string, net.IP, map[string]string) (*net.IPNet, map[string]string, error)
-	// Release the address from the specified pool ID
-	ReleaseAddress(string, net.IP) error
-}
-```
+- **GetDefaultAddressSpaces**
 
-The following sections explain the each of the above API's semantics, when they are called during network/endpoint lifecycle, and the corresponding payload for remote driver HTTP request/responses.
+- **RequestPool**
+
+- **ReleasePool**
+
+- **Request address**
+
+- **Release address**
+
+
+The following sections explain each of the above requests' semantic, when they are called during network/endpoint lifecycle, and the corresponding payload for remote driver HTTP request/responses.
 
 
 ## IPAM Configuration and flow
@@ -148,13 +137,13 @@ For this API, the remote driver will receive a POST message to the URL `/IpamDri
     
 Where:
 
-    * `AddressSpace` the IP address space
+    * `AddressSpace` the IP address space. It denotes a set of non-overlapping pools.
     * `Pool` The IPv4 or IPv6 address pool in CIDR format
     * `SubPool` An optional subset of the address pool, an ip range in CIDR format
     * `Options` A map of IPAM driver specific options
     * `V6` Whether an IPAM self-chosen pool should be IPv6
     
-AddressSpace is the only mandatory field. If no `Pool` is specified IPAM driver may return a self chosen address pool. In such case, `V6` flag must be set if caller wants an IPAM-chosen IPv6 pool. A request with empty `Pool` and non-empty `SubPool` should be rejected as invalid.
+AddressSpace is the only mandatory field. If no `Pool` is specified IPAM driver may choose to return a self chosen address pool. In such case, `V6` flag must be set if caller wants an IPAM-chosen IPv6 pool. A request with empty `Pool` and non-empty `SubPool` should be rejected as invalid.
 If a `Pool` is not specified IPAM will allocate one of the default pools. When `Pool` is not specified, the `V6` flag should be set if the network needs IPv6 addresses to be allocated.
 
 A successful response is in the form:
@@ -273,3 +262,8 @@ As of now libnetwork accepts the following capabilities:
 
 It is a boolean value which tells libnetwork whether the ipam driver needs to know the interface MAC address in order to properly process the `RequestAddress()` call.
 If true, on `CreateEndpoint()` request, libnetwork will generate a random MAC address for the endpoint (if an explicit MAC address was not already provided by the user) and pass it to `RequestAddress()` when requesting the IP address inside the options map. The key will be the `netlabel.MacAddress` constant: `"com.docker.network.endpoint.macaddress"`.
+
+
+## Appendix
+
+A Go extension for the IPAM remote API is available at [docker/go-plugins-helpers/ipam](https://github.com/docker/go-plugins-helpers/tree/master/ipam)
