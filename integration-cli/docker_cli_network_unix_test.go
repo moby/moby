@@ -1379,6 +1379,14 @@ func (s *DockerSuite) TestUserDefinedNetworkConnectivity(c *check.C) {
 	c.Assert(err, check.NotNil)
 }
 
+func (s *DockerSuite) TestEmbeddedDNSInvalidInput(c *check.C) {
+	testRequires(c, DaemonIsLinux, NotUserNamespace)
+	dockerCmd(c, "network", "create", "-d", "bridge", "nw1")
+
+	// Sending garbge to embedded DNS shouldn't crash the daemon
+	dockerCmd(c, "run", "-i", "--net=nw1", "--name=c1", "debian:jessie", "bash", "-c", "echo InvalidQuery > /dev/udp/127.0.0.11/53")
+}
+
 func (s *DockerSuite) TestDockerNetworkConnectFailsNoInspectChange(c *check.C) {
 	dockerCmd(c, "run", "-d", "--name=bb", "busybox", "top")
 	c.Assert(waitRun("bb"), check.IsNil)
