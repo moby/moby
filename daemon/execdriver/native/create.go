@@ -72,7 +72,10 @@ func (d *Driver) createContainer(c *execdriver.Command, hooks execdriver.Hooks) 
 		}
 
 		if c.SeccompProfile == "" {
-			container.Seccomp = seccomp.GetDefaultProfile()
+			container.Seccomp, err = seccomp.GetDefaultProfile()
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 	// add CAP_ prefix to all caps for new libcontainer update to match
