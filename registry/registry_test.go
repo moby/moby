@@ -673,7 +673,7 @@ func TestNewIndexInfo(t *testing.T) {
 func TestMirrorEndpointLookup(t *testing.T) {
 	containsMirror := func(endpoints []APIEndpoint) bool {
 		for _, pe := range endpoints {
-			if pe.URL == "my.mirror" {
+			if pe.URL.Host == "my.mirror" {
 				return true
 			}
 		}

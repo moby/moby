@@ -2,6 +2,7 @@ package registry
 
 import (
 	"fmt"
+	"net/url"
 	"strings"
 
 	"github.com/docker/docker/reference"
@@ -36,7 +37,10 @@ func (s *Service) lookupV1Endpoints(repoName reference.Named) (endpoints []APIEn
 
 	endpoints = []APIEndpoint{
 		{
-			URL:          "https://" + hostname,
+			URL: &url.URL{
+				Scheme: "https",
+				Host:   hostname,
+			},
 			Version:      APIVersion1,
 			TrimHostname: true,
 			TLSConfig:    tlsConfig,
@@ -45,7 +49,10 @@ func (s *Service) lookupV1Endpoints(repoName reference.Named) (endpoints []APIEn
 
 	if tlsConfig.InsecureSkipVerify {
 		endpoints = append(endpoints, APIEndpoint{ // or this
-			URL:          "http://" + hostname,
+			URL: &url.URL{
+				Scheme: "http",
+				Host:   hostname,
+			},
 			Version:      APIVersion1,
 			TrimHostname: true,
 			// used to check if supposed to be secure via InsecureSkipVerify

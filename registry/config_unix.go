@@ -2,12 +2,22 @@
 
 package registry
 
-const (
+import (
+	"net/url"
+)
+
+var (
 	// DefaultV1Registry is the URI of the default v1 registry
-	DefaultV1Registry = "https://index.docker.io"
+	DefaultV1Registry = &url.URL{
+		Scheme: "https",
+		Host:   "index.docker.io",
+	}
 
 	// DefaultV2Registry is the URI of the default v2 registry
-	DefaultV2Registry = "https://registry-1.docker.io"
+	DefaultV2Registry = &url.URL{
+		Scheme: "https",
+		Host:   "registry-1.docker.io",
+	}
 )
 
 var (

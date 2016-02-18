@@ -2,7 +2,6 @@ package distribution
 
 import (
 	"fmt"
-	"net/url"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api"
@@ -122,14 +121,8 @@ func Pull(ctx context.Context, ref reference.Named, imagePullConfig *ImagePullCo
 			continue
 		}
 
-		parsedURL, urlErr := url.Parse(endpoint.URL)
-		if urlErr != nil {
-			logrus.Errorf("Failed to parse endpoint URL %s", endpoint.URL)
-			continue
-		}
-
-		if parsedURL.Scheme != "https" {
-			if _, confirmedTLS := confirmedTLSRegistries[parsedURL.Host]; confirmedTLS {
+		if endpoint.URL.Scheme != "https" {
+			if _, confirmedTLS := confirmedTLSRegistries[endpoint.URL.Host]; confirmedTLS {
 				logrus.Debugf("Skipping non-TLS endpoint %s for host/port that appears to use TLS", endpoint.URL)
 				continue
 			}
@@ -152,8 +145,8 @@ func Pull(ctx context.Context, ref reference.Named, imagePullConfig *ImagePullCo
 				if fallbackErr, ok := err.(fallbackError); ok {
 					fallback = true
 					confirmedV2 = confirmedV2 || fallbackErr.confirmedV2
-					if fallbackErr.transportOK && parsedURL.Scheme == "https" {
-						confirmedTLSRegistries[parsedURL.Host] = struct{}{}
+					if fallbackErr.transportOK && endpoint.URL.Scheme == "https" {
+						confirmedTLSRegistries[endpoint.URL.Host] = struct{}{}
 					}
 					err = fallbackErr.err
 				}
