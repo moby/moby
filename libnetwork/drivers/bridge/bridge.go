@@ -581,7 +581,7 @@ func (d *driver) createNetwork(config *networkConfiguration) error {
 		nw.Unlock()
 		if err := nwConfig.Conflicts(config); err != nil {
 			return types.ForbiddenErrorf("cannot create network %s (%s): conflicts with network %s (%s): %s",
-				nwConfig.BridgeName, config.ID, nw.id, nw.config.BridgeName, err.Error())
+				config.ID, config.BridgeName, nwConfig.ID, nwConfig.BridgeName, err.Error())
 		}
 	}
 
