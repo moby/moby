@@ -110,7 +110,7 @@ single 8GB general purpose SSD EBS volume. The Docker data directory
     centos              latest              c8a648134623        4 weeks ago         196.6 MB
     ubuntu              15.04               c8be1ac8145a        7 weeks ago         131.3 MB
     
-    $ du -hs /var/lib/docker
+    $ sudo du -hs /var/lib/docker
     2.0G    /var/lib/docker
     
     $ time docker run --rm -v /var/lib/docker:/var/lib/docker docker/v1.10-migrator
