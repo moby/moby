@@ -191,7 +191,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 
 	swappiness := *flSwappiness
 	if swappiness != -1 && (swappiness < 0 || swappiness > 100) {
-		return nil, nil, nil, cmd, fmt.Errorf("Invalid value: %d. Valid memory swappiness range is 0-100", swappiness)
+		return nil, nil, nil, cmd, fmt.Errorf("invalid value: %d. Valid memory swappiness range is 0-100", swappiness)
 	}
 
 	var shmSize int64
@@ -257,7 +257,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 	// Merge in exposed ports to the map of published ports
 	for _, e := range flExpose.GetAll() {
 		if strings.Contains(e, ":") {
-			return nil, nil, nil, cmd, fmt.Errorf("Invalid port format for --expose: %s", e)
+			return nil, nil, nil, cmd, fmt.Errorf("invalid port format for --expose: %s", e)
 		}
 		//support two formats for expose, original format <portnum>/[<proto>] or <startport-endport>/[<proto>]
 		proto, port := nat.SplitProtoPort(e)
@@ -265,7 +265,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 		//if expose a port, the start and end port are the same
 		start, end, err := nat.ParsePortRange(port)
 		if err != nil {
-			return nil, nil, nil, cmd, fmt.Errorf("Invalid range format for --expose: %s, error: %s", e, err)
+			return nil, nil, nil, cmd, fmt.Errorf("invalid range format for --expose: %s, error: %s", e, err)
 		}
 		for i := start; i <= end; i++ {
 			p, err := nat.NewPort(proto, strconv.FormatUint(i, 10))
@@ -491,7 +491,7 @@ func ConvertKVStringsToMap(values []string) map[string]string {
 func parseLoggingOpts(loggingDriver string, loggingOpts []string) (map[string]string, error) {
 	loggingOptsMap := ConvertKVStringsToMap(loggingOpts)
 	if loggingDriver == "none" && len(loggingOpts) > 0 {
-		return map[string]string{}, fmt.Errorf("Invalid logging opts for driver %s", loggingDriver)
+		return map[string]string{}, fmt.Errorf("invalid logging opts for driver %s", loggingDriver)
 	}
 	return loggingOptsMap, nil
 }
@@ -501,16 +501,16 @@ func parseSecurityOpts(securityOpts []string) ([]string, error) {
 	for key, opt := range securityOpts {
 		con := strings.SplitN(opt, ":", 2)
 		if len(con) == 1 {
-			return securityOpts, fmt.Errorf("Invalid --security-opt: %q", opt)
+			return securityOpts, fmt.Errorf("invalid --security-opt: %q", opt)
 		}
 		if con[0] == "seccomp" && con[1] != "unconfined" {
 			f, err := ioutil.ReadFile(con[1])
 			if err != nil {
-				return securityOpts, fmt.Errorf("Opening seccomp profile (%s) failed: %v", con[1], err)
+				return securityOpts, fmt.Errorf("opening seccomp profile (%s) failed: %v", con[1], err)
 			}
 			b := bytes.NewBuffer(nil)
 			if err := json.Compact(b, f); err != nil {
-				return securityOpts, fmt.Errorf("Compacting json for seccomp profile (%s) failed: %v", con[1], err)
+				return securityOpts, fmt.Errorf("compacting json for seccomp profile (%s) failed: %v", con[1], err)
 			}
 			securityOpts[key] = fmt.Sprintf("seccomp:%s", b.Bytes())
 		}
@@ -579,7 +579,7 @@ func ParseDevice(device string) (container.DeviceMapping, error) {
 	case 1:
 		src = arr[0]
 	default:
-		return container.DeviceMapping{}, fmt.Errorf("Invalid device specification: %s", device)
+		return container.DeviceMapping{}, fmt.Errorf("invalid device specification: %s", device)
 	}
 
 	if dst == "" {

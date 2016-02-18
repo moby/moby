@@ -2312,13 +2312,10 @@ func (s *DockerSuite) TestRunAllowPortRangeThroughExpose(c *check.C) {
 	}
 }
 
-// test docker run expose a invalid port
 func (s *DockerSuite) TestRunExposePort(c *check.C) {
 	out, _, err := dockerCmdWithError("run", "--expose", "80000", "busybox")
-	//expose a invalid port should with a error out
-	if err == nil || !strings.Contains(out, "Invalid range format for --expose") {
-		c.Fatalf("run --expose a invalid port should with error out")
-	}
+	c.Assert(err, checker.NotNil, check.Commentf("--expose with an invalid port should error out"))
+	c.Assert(out, checker.Contains, "invalid range format for --expose")
 }
 
 func (s *DockerSuite) TestRunUnknownCommand(c *check.C) {
