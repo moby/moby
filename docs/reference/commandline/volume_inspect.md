@@ -12,7 +12,7 @@ parent = "smn_cli"
 
     Usage: docker volume inspect [OPTIONS] VOLUME [VOLUME...]
 
-    Inspect one or more volumes
+    Return low-level information on a volume
 
       -f, --format=       Format the output using the given go template.
       --help              Print usage
@@ -38,3 +38,10 @@ Example output:
 
     $ docker volume inspect --format '{{ .Mountpoint }}' 85bffb0677236974f93955d8ecc4df55ef5070117b0e53333cc1b443777be24d
     /var/lib/docker/volumes/85bffb0677236974f93955d8ecc4df55ef5070117b0e53333cc1b443777be24d/_data
+
+## Related information
+
+* [volume create](volume_create.md)
+* [volume ls](volume_ls.md)
+* [volume rm](volume_rm.md)
+* [Understand Data Volumes](../../userguide/containers/dockervolumes.md)
