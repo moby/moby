@@ -261,8 +261,8 @@ func (s *DockerAuthzSuite) TestAuthZPluginAllowEventStream(c *check.C) {
 	// Create a container and wait for the creation events
 	out, err := s.d.Cmd("run", "-d", "busybox", "top")
 	c.Assert(err, check.IsNil, check.Commentf(out))
-
 	containerID := strings.TrimSpace(out)
+	c.Assert(s.d.waitRun(containerID), checker.IsNil)
 
 	events := map[string]chan bool{
 		"create": make(chan bool),
