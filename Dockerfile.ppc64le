@@ -83,9 +83,9 @@ RUN cd /usr/local/lvm2 \
 # possibly a ppc64le/golang image?
 
 ## BUILD GOLANG 1.6
-ENV GO_VERSION 1.6rc2
+ENV GO_VERSION 1.6
 ENV GO_DOWNLOAD_URL https://golang.org/dl/go${GO_VERSION}.src.tar.gz
-ENV GO_DOWNLOAD_SHA256 92914a23cde7e34e1d017175d785e5850fbb28f323a145028e2e26053ef1a598
+ENV GO_DOWNLOAD_SHA256 a96cce8ce43a9bf9b2a4c7d470bc7ee0cb00410da815980681c8353218dcf146
 ENV GOROOT_BOOTSTRAP /usr/local
 
 RUN curl -fsSL "$GO_DOWNLOAD_URL" -o golang.tar.gz \
