@@ -1,7 +1,8 @@
 # Jenkins CI script for Windows to Linux CI.
 # Heavily modified by John Howard (@jhowardmsft) December 2015 to try to make it more reliable.
 set +x
-SCRIPT_VER="4-Jan-2016 15:19 PST"
+set +e
+SCRIPT_VER="18-Feb-2016 11:47 PST"
 
 # TODO to make (even) more resilient: 
 #  - Check if jq is installed
@@ -18,6 +19,7 @@ SCRIPT_VER="4-Jan-2016 15:19 PST"
 #  - Tidy up of images and containers. Either here, or in the teardown script.
 
 ec=0
+uniques=1
 echo INFO: Started at `date`. Script version $SCRIPT_VER
 
 # get the ip
@@ -212,22 +214,22 @@ fi
 GOVER_DOCKERFILE=`grep 'ENV GO_VERSION' Dockerfile | awk '{print $3}'`
 GOVER_INSTALLED=`go version | awk '{print $3}'`
 if [ "${GOVER_INSTALLED:2}" != "$GOVER_DOCKERFILE" ]; then
-	ec=1  # Uncomment to make CI fail once all nodes are updated.
+	#ec=1  # Uncomment to make CI fail once all nodes are updated.
 	echo
 	echo "---------------------------------------------------------------------------"
-	echo "ERROR: CI should be using go version $GOVER_DOCKERFILE, but is using ${GOVER_INSTALLED:2}"
-	echo "      This is currently a warning, but should (will) become an error in the future."
+	echo "WARN: CI should be using go version $GOVER_DOCKERFILE, but is using ${GOVER_INSTALLED:2}"
+	echo "      Please ping #docker-maintainers on IRC to get this CI server updated."
 	echo "---------------------------------------------------------------------------"
 	echo
 fi
 
 # Check the Linux box is running a matching version of docker
 if [ "$uniques" -ne 1 ]; then
-    ec=1  # Uncomment to make CI fail once all nodes are updated.
+    ec=0  # Uncomment to make CI fail once all nodes are updated.
 	echo
 	echo "---------------------------------------------------------------------------"
 	echo "ERROR: This CI node is not running the same version of docker as the daemon."
-	echo "       This is a CI configuration issue"
+	echo "       This is a CI configuration issue."
 	echo "---------------------------------------------------------------------------"
 	echo
 fi
