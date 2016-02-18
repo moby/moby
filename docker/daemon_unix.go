@@ -8,6 +8,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/Sirupsen/logrus"
 	apiserver "github.com/docker/docker/api/server"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/pkg/mflag"
@@ -58,7 +59,9 @@ func setupConfigReloadTrap(configFile string, flags *mflag.FlagSet, reload func(
 	signal.Notify(c, syscall.SIGHUP)
 	go func() {
 		for range c {
-			daemon.ReloadConfiguration(configFile, flags, reload)
+			if err := daemon.ReloadConfiguration(configFile, flags, reload); err != nil {
+				logrus.Error(err)
+			}
 		}
 	}()
 }
