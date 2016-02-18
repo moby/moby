@@ -6,9 +6,9 @@ import (
 	"net"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/libkv/store"
 	"github.com/docker/libkv/store/boltdb"
 	"github.com/docker/libnetwork/datastore"
+	"github.com/docker/libnetwork/discoverapi"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/types"
 )
@@ -16,27 +16,15 @@ import (
 const bridgePrefix = "bridge"
 
 func (d *driver) initStore(option map[string]interface{}) error {
-	var err error
-
-	provider, provOk := option[netlabel.LocalKVProvider]
-	provURL, urlOk := option[netlabel.LocalKVProviderURL]
-
-	if provOk && urlOk {
-		cfg := &datastore.ScopeCfg{
-			Client: datastore.ScopeClientCfg{
-				Provider: provider.(string),
-				Address:  provURL.(string),
-			},
+	if data, ok := option[netlabel.LocalKVClient]; ok {
+		var err error
+		dsc, ok := data.(discoverapi.DatastoreConfigData)
+		if !ok {
+			return types.InternalErrorf("incorrect data in datastore configuration: %v", data)
 		}
-
-		provConfig, confOk := option[netlabel.LocalKVProviderConfig]
-		if confOk {
-			cfg.Client.Config = provConfig.(*store.Config)
-		}
-
-		d.store, err = datastore.NewDataStore(datastore.LocalScope, cfg)
+		d.store, err = datastore.NewDataStoreFromConfig(dsc)
 		if err != nil {
-			return fmt.Errorf("bridge driver failed to initialize data store: %v", err)
+			return types.InternalErrorf("bridge driver failed to initialize data store: %v", err)
 		}
 
 		return d.populateNetworks()
