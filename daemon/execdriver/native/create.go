@@ -4,6 +4,8 @@ package native
 
 import (
 	"fmt"
+	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"syscall"
@@ -395,6 +397,52 @@ func ensureSharedOrSlave(path string) error {
 	return nil
 }
 
+func genPremountCmd(tmpDir string, fullDest string, dest string) []configs.Command {
+	var premount []configs.Command
+	tarFile := fmt.Sprintf("%s/%s.tar", tmpDir, strings.Replace(dest, "/", "_", -1))
+	tarPath, err := exec.LookPath("tar")
+	if err != nil {
+		return premount
+	}
+	if _, err = exec.LookPath("rm"); err != nil {
+		return premount
+	}
+	if _, err = os.Stat(fullDest); err == nil {
+		premount = append(premount, configs.Command{
+			Path: tarPath,
+			Args: []string{"-cf", tarFile, "-C", fullDest, "."},
+		})
+	}
+	return premount
+}
+
+func genPostmountCmd(tmpDir string, fullDest string, dest string) []configs.Command {
+	var (
+		postmount []configs.Command
+		rmPath    string
+	)
+
+	tarPath, err := exec.LookPath("tar")
+	if err != nil {
+		return postmount
+	}
+	if rmPath, err = exec.LookPath("rm"); err != nil {
+		return postmount
+	}
+	if _, err := os.Stat(fullDest); os.IsNotExist(err) {
+		return postmount
+	}
+	tarFile := fmt.Sprintf("%s/%s.tar", tmpDir, strings.Replace(dest, "/", "_", -1))
+	postmount = append(postmount, configs.Command{
+		Path: tarPath,
+		Args: []string{"-xf", tarFile, "-C", fullDest, "."},
+	})
+	return append(postmount, configs.Command{
+		Path: rmPath,
+		Args: []string{"-f", tarFile},
+	})
+}
+
 func (d *Driver) setupMounts(container *configs.Config, c *execdriver.Command) error {
 	userMounts := make(map[string]struct{})
 	for _, m := range c.Mounts {
@@ -436,6 +484,7 @@ func (d *Driver) setupMounts(container *configs.Config, c *execdriver.Command) e
 				data  = "size=65536k"
 				flags = syscall.MS_NOEXEC | syscall.MS_NOSUID | syscall.MS_NODEV
 				err   error
+				dest  = filepath.Join(c.Rootfs, m.Destination)
 			)
 			if m.Data != "" {
 				flags, data, err = mount.ParseTmpfsOptions(m.Data)
@@ -450,6 +499,8 @@ func (d *Driver) setupMounts(container *configs.Config, c *execdriver.Command) e
 				Device:           "tmpfs",
 				Flags:            flags,
 				PropagationFlags: []int{mountPropagationMap[volume.DefaultPropagationMode]},
+				PremountCmds:     genPremountCmd(c.TmpDir, dest, m.Destination),
+				PostmountCmds:    genPostmountCmd(c.TmpDir, dest, m.Destination),
 			})
 			continue
 		}
