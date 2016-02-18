@@ -35,7 +35,7 @@ const (
 	dnsPort       = "53"
 	ptrIPv4domain = ".in-addr.arpa."
 	ptrIPv6domain = ".ip6.arpa."
-	respTTL       = 1800
+	respTTL       = 600
 	maxExtDNS     = 3 //max number of external servers to try
 )
 
@@ -147,6 +147,10 @@ func (r *resolver) ResolverOptions() []string {
 	return []string{"ndots:0"}
 }
 
+func setCommonFlags(msg *dns.Msg) {
+	msg.RecursionAvailable = true
+}
+
 func (r *resolver) handleIPv4Query(name string, query *dns.Msg) (*dns.Msg, error) {
 	addr := r.sb.ResolveName(name)
 	if addr == nil {
@@ -157,6 +161,7 @@ func (r *resolver) handleIPv4Query(name string, query *dns.Msg) (*dns.Msg, error
 
 	resp := new(dns.Msg)
 	resp.SetReply(query)
+	setCommonFlags(resp)
 
 	rr := new(dns.A)
 	rr.Hdr = dns.RR_Header{Name: name, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: respTTL}
@@ -186,6 +191,7 @@ func (r *resolver) handlePTRQuery(ptr string, query *dns.Msg) (*dns.Msg, error) 
 
 	resp := new(dns.Msg)
 	resp.SetReply(query)
+	setCommonFlags(resp)
 
 	rr := new(dns.PTR)
 	rr.Hdr = dns.RR_Header{Name: ptr, Rrtype: dns.TypePTR, Class: dns.ClassINET, Ttl: respTTL}
@@ -200,6 +206,9 @@ func (r *resolver) ServeDNS(w dns.ResponseWriter, query *dns.Msg) {
 		err  error
 	)
 
+	if query == nil || len(query.Question) == 0 {
+		return
+	}
 	name := query.Question[0].Name
 	if query.Question[0].Qtype == dns.TypeA {
 		resp, err = r.handleIPv4Query(name, query)

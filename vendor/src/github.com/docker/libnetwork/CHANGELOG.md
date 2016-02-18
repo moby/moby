@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.7.0-dev.3 (2016-02-17)
+- Fixes https://github.com/docker/docker/issues/20350
+- Fixes https://github.com/docker/docker/issues/20145
+- Initial Windows HNS integration
+- Allow passing global datastore config to libnetwork after boot
+- Set Recursion Available bit in DNS query responses
+- Make sure iptables chains are recreated on firewalld reload
+
 ## 0.7.0-dev.2 (2016-02-11)
 - Fixes https://github.com/docker/docker/issues/20140
 

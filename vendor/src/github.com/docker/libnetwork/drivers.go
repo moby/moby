@@ -3,11 +3,13 @@ package libnetwork
 import (
 	"strings"
 
+	"github.com/docker/libnetwork/discoverapi"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/ipamapi"
+	"github.com/docker/libnetwork/netlabel"
+
 	builtinIpam "github.com/docker/libnetwork/ipams/builtin"
 	remoteIpam "github.com/docker/libnetwork/ipams/remote"
-	"github.com/docker/libnetwork/netlabel"
 )
 
 type initializer struct {
@@ -56,10 +58,12 @@ func makeDriverConfig(c *controller, ntype string) map[string]interface{} {
 		if !v.IsValid() {
 			continue
 		}
-
-		config[netlabel.MakeKVProvider(k)] = v.Client.Provider
-		config[netlabel.MakeKVProviderURL(k)] = v.Client.Address
-		config[netlabel.MakeKVProviderConfig(k)] = v.Client.Config
+		config[netlabel.MakeKVClient(k)] = discoverapi.DatastoreConfigData{
+			Scope:    k,
+			Provider: v.Client.Provider,
+			Address:  v.Client.Address,
+			Config:   v.Client.Config,
+		}
 	}
 
 	return config
