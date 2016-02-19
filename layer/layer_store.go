@@ -263,7 +263,7 @@ func (ls *layerStore) Register(ts io.Reader, parent ChainID) (Layer, error) {
 		references:     map[Layer]struct{}{},
 	}
 
-	if err = ls.driver.Create(layer.cacheID, pid, ""); err != nil {
+	if err = ls.driver.Create(layer.cacheID, pid, "", true); err != nil {
 		return nil, err
 	}
 
@@ -458,7 +458,7 @@ func (ls *layerStore) CreateRWLayer(name string, parent ChainID, mountLabel stri
 		m.initID = pid
 	}
 
-	if err = ls.driver.Create(m.mountID, pid, ""); err != nil {
+	if err = ls.driver.Create(m.mountID, pid, "", false); err != nil {
 		return nil, err
 	}
 
@@ -553,7 +553,7 @@ func (ls *layerStore) initMount(graphID, parent, mountLabel string, initFunc Mou
 	// then the initID should be randomly generated.
 	initID := fmt.Sprintf("%s-init", graphID)
 
-	if err := ls.driver.Create(initID, parent, mountLabel); err != nil {
+	if err := ls.driver.Create(initID, parent, mountLabel, true); err != nil {
 		return "", err
 	}
 	p, err := ls.driver.Get(initID, "")

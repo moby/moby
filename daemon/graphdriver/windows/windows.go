@@ -10,7 +10,6 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -106,7 +105,7 @@ func (d *Driver) Exists(id string) bool {
 }
 
 // Create creates a new layer with the given id.
-func (d *Driver) Create(id, parent, mountLabel string) error {
+func (d *Driver) Create(id, parent, mountLabel string, readOnly bool) error {
 	rPId, err := d.resolveID(parent)
 	if err != nil {
 		return err
@@ -119,23 +118,26 @@ func (d *Driver) Create(id, parent, mountLabel string) error {
 
 	var layerChain []string
 
-	parentIsInit := strings.HasSuffix(rPId, "-init")
-
-	if !parentIsInit && rPId != "" {
+	if rPId != "" {
 		parentPath, err := hcsshim.GetLayerMountPath(d.info, rPId)
 		if err != nil {
 			return err
 		}
-		layerChain = []string{parentPath}
+		if _, err := os.Stat(filepath.Join(parentPath, "Files")); err != os.ErrNotExist {
+			// This is a legitimate parent layer (not the empty "-init" layer),
+			// so include it in the layer chain.
+			layerChain = []string{parentPath}
+		}
 	}
 
 	layerChain = append(layerChain, parentChain...)
 
-	if parentIsInit {
-		if len(layerChain) == 0 {
-			return fmt.Errorf("Cannot create a read/write layer without a parent layer.")
+	if readOnly {
+		var parentPath string
+		if len(layerChain) != 0 {
+			parentPath = layerChain[0]
 		}
-		if err := hcsshim.CreateSandboxLayer(d.info, id, layerChain[0], layerChain); err != nil {
+		if err := hcsshim.CreateSandboxLayer(d.info, id, parentPath, layerChain); err != nil {
 			return err
 		}
 	} else {
@@ -419,7 +421,7 @@ func (d *Driver) GetCustomImageInfos() ([]CustomImageInfo, error) {
 		h := sha512.Sum384([]byte(folderName))
 		id := fmt.Sprintf("%x", h[:32])
 
-		if err := d.Create(id, "", ""); err != nil {
+		if err := d.Create(id, "", "", true); err != nil {
 			return nil, err
 		}
 		// Create the alternate ID file.

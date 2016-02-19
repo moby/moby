@@ -54,7 +54,7 @@ func (d *graphDriverProxy) String() string {
 	return d.name
 }
 
-func (d *graphDriverProxy) Create(id, parent, mountLabel string) error {
+func (d *graphDriverProxy) Create(id, parent, mountLabel string, readOnly bool) error {
 	args := &graphDriverRequest{
 		ID:         id,
 		Parent:     parent,

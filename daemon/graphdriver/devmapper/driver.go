@@ -118,7 +118,7 @@ func (d *Driver) Cleanup() error {
 }
 
 // Create adds a device with a given id and the parent.
-func (d *Driver) Create(id, parent, mountLabel string) error {
+func (d *Driver) Create(id, parent, mountLabel string, readOnly bool) error {
 	if err := d.DeviceSet.AddDevice(id, parent); err != nil {
 		return err
 	}
