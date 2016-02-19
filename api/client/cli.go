@@ -107,7 +107,7 @@ func (cli *DockerCli) restoreTerminal(in io.Closer) error {
 	return nil
 }
 
-// NewDockerCli returns a DockerCli instance with IO output and error streams set by in, out and err.
+// NewDockerCli returns a DockerCli instance with IO input, output and error streams set by in, out and err.
 // The key file, protocol (i.e. unix) and address are passed in as strings, along with the tls.Config. If the tls.Config
 // is set the client scheme will be set to https.
 // The client will be given a 32-second timeout (see https://github.com/docker/docker/pull/8035).
