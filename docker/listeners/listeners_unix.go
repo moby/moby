@@ -59,7 +59,7 @@ func listenFD(addr string, tlsConfig *tls.Config) ([]net.Listener, error) {
 	}
 
 	if len(listeners) == 0 {
-		return nil, fmt.Errorf("No sockets found")
+		return nil, fmt.Errorf("No sockets found. Make sure the docker daemon was started by systemd.")
 	}
 
 	// default to all fds just like unix:// and tcp://
