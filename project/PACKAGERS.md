@@ -164,6 +164,12 @@ SELinux, you will need to use the `selinux` build tag:
 export DOCKER_BUILDTAGS='selinux'
 ```
 
+If you're building a binary that may need to be used on platforms that include
+seccomp, you will need to use the `seccomp` build tag:
+```bash
+export DOCKER_BUILDTAGS='seccomp'
+```
+
 There are build tags for disabling graphdrivers as well. By default, support
 for all graphdrivers are built in.
 
