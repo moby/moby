@@ -86,12 +86,12 @@ lo        Link encap:Local Loopback
 The `host` network adds a container on the hosts network stack. You'll find the
 network configuration inside the container is identical to the host.
 
-With the exception of the the `bridge` network, you really don't need to
+With the exception of the `bridge` network, you really don't need to
 interact with these default networks. While you can list and inspect them, you
 cannot remove them. They are required by your Docker installation. However, you
 can add your own user-defined networks and these you can remove when you no
 longer need them. Before you learn more about creating your own networks, it is
-worth looking at the `default` network a bit.
+worth looking at the default `bridge` network a bit.
 
 
 ### The default bridge network in detail
@@ -279,7 +279,7 @@ ff02::1	ip6-allnodes
 ff02::2	ip6-allrouters
 ```
 
-The default `docker0` bridge network supports the use of port mapping and  `docker run --link` to allow communications between containers in the `docker0` network. These techniques are cumbersome to set up and prone to error. While they are still available to you as techniques, it is better to avoid them and define your own bridge networks instead.
+The default `docker0` bridge network supports the use of port mapping and `docker run --link` to allow communications between containers in the `docker0` network. These techniques are cumbersome to set up and prone to error. While they are still available to you as techniques, it is better to avoid them and define your own bridge networks instead.
 
 ## User-defined networks
 
@@ -483,7 +483,7 @@ built-in network drivers. For example:
 
     $ docker network create --driver weave mynet
 
-You can inspect it, add containers too and from it, and so forth. Of course,
+You can inspect it, add containers to and from it, and so forth. Of course,
 different plugins may make use of different technologies or frameworks. Custom
 networks can include features not present in Docker's default networks. For more
 information on writing plugins, see [Extending Docker](../../extend/index.md) and
