@@ -43,7 +43,7 @@ func main() {
 		fmt.Fprintf(stdout, "%s\n", help)
 	}
 
-    // Analysis parameters of command line.
+    // Analysis parameters from command line.
 	flag.Parse()
 
 	if *flVersion {
