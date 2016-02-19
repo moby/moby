@@ -3,6 +3,7 @@ package client
 import (
 	"fmt"
 	"net"
+	"sort"
 	"strings"
 	"text/tabwriter"
 
@@ -194,7 +195,7 @@ func (cli *DockerCli) CmdNetworkLs(args ...string) error {
 	if !*quiet {
 		fmt.Fprintln(wr, "NETWORK ID\tNAME\tDRIVER")
 	}
-
+	sort.Sort(byNetworkName(networkResources))
 	for _, networkResource := range networkResources {
 		ID := networkResource.ID
 		netName := networkResource.Name
@@ -215,6 +216,12 @@ func (cli *DockerCli) CmdNetworkLs(args ...string) error {
 	wr.Flush()
 	return nil
 }
+
+type byNetworkName []types.NetworkResource
+
+func (r byNetworkName) Len() int           { return len(r) }
+func (r byNetworkName) Swap(i, j int)      { r[i], r[j] = r[j], r[i] }
+func (r byNetworkName) Less(i, j int) bool { return r[i].Name < r[j].Name }
 
 // CmdNetworkInspect inspects the network object for more details
 //
