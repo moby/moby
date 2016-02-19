@@ -121,7 +121,7 @@ func (s *Service) ResolveIndex(name string) (*registrytypes.IndexInfo, error) {
 // APIEndpoint represents a remote API endpoint
 type APIEndpoint struct {
 	Mirror       bool
-	URL          string
+	URL          *url.URL
 	Version      APIVersion
 	Official     bool
 	TrimHostname bool
@@ -130,7 +130,7 @@ type APIEndpoint struct {
 
 // ToV1Endpoint returns a V1 API endpoint based on the APIEndpoint
 func (e APIEndpoint) ToV1Endpoint(userAgent string, metaHeaders http.Header) (*Endpoint, error) {
-	return newEndpoint(e.URL, e.TLSConfig, userAgent, metaHeaders)
+	return newEndpoint(*e.URL, e.TLSConfig, userAgent, metaHeaders)
 }
 
 // TLSConfig constructs a client TLS configuration based on server defaults
@@ -138,11 +138,7 @@ func (s *Service) TLSConfig(hostname string) (*tls.Config, error) {
 	return newTLSConfig(hostname, isSecureIndex(s.Config, hostname))
 }
 
-func (s *Service) tlsConfigForMirror(mirror string) (*tls.Config, error) {
-	mirrorURL, err := url.Parse(mirror)
-	if err != nil {
-		return nil, err
-	}
+func (s *Service) tlsConfigForMirror(mirrorURL *url.URL) (*tls.Config, error) {
 	return s.TLSConfig(mirrorURL.Host)
 }
 
