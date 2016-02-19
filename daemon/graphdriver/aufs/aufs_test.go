@@ -320,7 +320,7 @@ func TestGetDiff(t *testing.T) {
 	d := newDriver(t)
 	defer os.RemoveAll(tmp)
 
-	if err := d.Create("1", "", "", nil); err != nil {
+	if err := d.CreateReadWrite("1", "", "", nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -357,7 +357,7 @@ func TestChanges(t *testing.T) {
 	if err := d.Create("1", "", "", nil); err != nil {
 		t.Fatal(err)
 	}
-	if err := d.Create("2", "1", "", nil); err != nil {
+	if err := d.CreateReadWrite("2", "1", "", nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -403,7 +403,7 @@ func TestChanges(t *testing.T) {
 		t.Fatalf("Change kind should be ChangeAdd got %s", change.Kind)
 	}
 
-	if err := d.Create("3", "2", "", nil); err != nil {
+	if err := d.CreateReadWrite("3", "2", "", nil); err != nil {
 		t.Fatal(err)
 	}
 	mntPoint, err = d.Get("3", "")
@@ -448,7 +448,7 @@ func TestDiffSize(t *testing.T) {
 	d := newDriver(t)
 	defer os.RemoveAll(tmp)
 
-	if err := d.Create("1", "", "", nil); err != nil {
+	if err := d.CreateReadWrite("1", "", "", nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -490,7 +490,7 @@ func TestChildDiffSize(t *testing.T) {
 	defer os.RemoveAll(tmp)
 	defer d.Cleanup()
 
-	if err := d.Create("1", "", "", nil); err != nil {
+	if err := d.CreateReadWrite("1", "", "", nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -592,7 +592,7 @@ func TestApplyDiff(t *testing.T) {
 	defer os.RemoveAll(tmp)
 	defer d.Cleanup()
 
-	if err := d.Create("1", "", "", nil); err != nil {
+	if err := d.CreateReadWrite("1", "", "", nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -671,7 +671,7 @@ func testMountMoreThan42Layers(t *testing.T, mountPath string) {
 		}
 		current = hash(current)
 
-		if err := d.Create(current, parent, "", nil); err != nil {
+		if err := d.CreateReadWrite(current, parent, "", nil); err != nil {
 			t.Logf("Current layer %d", i)
 			t.Error(err)
 		}

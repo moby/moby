@@ -241,6 +241,12 @@ func (d *Driver) subvolumesDirID(id string) string {
 	return path.Join(d.subvolumesDir(), id)
 }
 
+// CreateReadWrite creates a layer that is writable for use as a container
+// file system.
+func (d *Driver) CreateReadWrite(id, parent, mountLabel string, storageOpt map[string]string) error {
+	return d.Create(id, parent, mountLabel, storageOpt)
+}
+
 // Create the filesystem with given id.
 func (d *Driver) Create(id, parent, mountLabel string, storageOpt map[string]string) error {
 

@@ -106,8 +106,18 @@ func (d *Driver) Exists(id string) bool {
 	return result
 }
 
-// Create creates a new layer with the given id.
+// CreateReadWrite creates a layer that is writable for use as a container
+// file system.
+func (d *Driver) CreateReadWrite(id, parent, mountLabel string, storageOpt map[string]string) error {
+	return d.create(id, parent, mountLabel, false, storageOpt)
+}
+
+// Create creates a new read-only layer with the given id.
 func (d *Driver) Create(id, parent, mountLabel string, storageOpt map[string]string) error {
+	return d.create(id, parent, mountLabel, true, storageOpt)
+}
+
+func (d *Driver) create(id, parent, mountLabel string, readOnly bool, storageOpt map[string]string) error {
 	if len(storageOpt) != 0 {
 		return fmt.Errorf("--storage-opt is not supported for windows")
 	}
@@ -124,27 +134,30 @@ func (d *Driver) Create(id, parent, mountLabel string, storageOpt map[string]str
 
 	var layerChain []string
 
-	parentIsInit := strings.HasSuffix(rPId, "-init")
-
-	if !parentIsInit && rPId != "" {
+	if rPId != "" {
 		parentPath, err := hcsshim.GetLayerMountPath(d.info, rPId)
 		if err != nil {
 			return err
 		}
-		layerChain = []string{parentPath}
+		if _, err := os.Stat(filepath.Join(parentPath, "Files")); err == nil {
+			// This is a legitimate parent layer (not the empty "-init" layer),
+			// so include it in the layer chain.
+			layerChain = []string{parentPath}
+		}
 	}
 
 	layerChain = append(layerChain, parentChain...)
 
-	if parentIsInit {
-		if len(layerChain) == 0 {
-			return fmt.Errorf("Cannot create a read/write layer without a parent layer.")
-		}
-		if err := hcsshim.CreateSandboxLayer(d.info, id, layerChain[0], layerChain); err != nil {
+	if readOnly {
+		if err := hcsshim.CreateLayer(d.info, id, rPId); err != nil {
 			return err
 		}
 	} else {
-		if err := hcsshim.CreateLayer(d.info, id, rPId); err != nil {
+		var parentPath string
+		if len(layerChain) != 0 {
+			parentPath = layerChain[0]
+		}
+		if err := hcsshim.CreateSandboxLayer(d.info, id, parentPath, layerChain); err != nil {
 			return err
 		}
 	}
