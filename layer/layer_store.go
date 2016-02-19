@@ -498,18 +498,21 @@ func (ls *layerStore) ReleaseRWLayer(l RWLayer) ([]Metadata, error) {
 
 	if err := ls.driver.Remove(m.mountID); err != nil {
 		logrus.Errorf("Error removing mounted layer %s: %s", m.name, err)
+		m.retakeReference(l)
 		return nil, err
 	}
 
 	if m.initID != "" {
 		if err := ls.driver.Remove(m.initID); err != nil {
 			logrus.Errorf("Error removing init layer %s: %s", m.name, err)
+			m.retakeReference(l)
 			return nil, err
 		}
 	}
 
 	if err := ls.store.RemoveMount(m.name); err != nil {
 		logrus.Errorf("Error removing mount metadata: %s: %s", m.name, err)
+		m.retakeReference(l)
 		return nil, err
 	}
 

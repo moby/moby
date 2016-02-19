@@ -96,6 +96,13 @@ func (ml *mountedLayer) deleteReference(ref RWLayer) error {
 	return nil
 }
 
+func (ml *mountedLayer) retakeReference(r RWLayer) {
+	if ref, ok := r.(*referencedRWLayer); ok {
+		ref.activityCount = 0
+		ml.references[ref] = ref
+	}
+}
+
 type referencedRWLayer struct {
 	*mountedLayer
 
