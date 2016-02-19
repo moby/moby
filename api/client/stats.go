@@ -139,7 +139,7 @@ func (s *containerStats) Display(w io.Writer) error {
 //
 // This shows real-time information on CPU usage, memory usage, and network I/O.
 //
-// Usage: docker stats [OPTIONS] CONTAINER [CONTAINER...]
+// Usage: docker stats [OPTIONS] [CONTAINER...]
 func (cli *DockerCli) CmdStats(args ...string) error {
 	cmd := Cli.Subcmd("stats", []string{"[CONTAINER...]"}, Cli.DockerCommands["stats"].Description, true)
 	all := cmd.Bool([]string{"a", "-all"}, false, "Show all containers (default shows just running)")
