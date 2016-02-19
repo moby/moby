@@ -193,13 +193,10 @@ func (s *DockerAuthzSuite) TearDownSuite(c *check.C) {
 func (s *DockerAuthzSuite) TestAuthZPluginAllowRequest(c *check.C) {
 	// start the daemon and load busybox, --net=none build fails otherwise
 	// cause it needs to pull busybox
-	c.Assert(s.d.StartWithBusybox(), check.IsNil)
-	// restart the daemon and enable the plugin, otherwise busybox loading
-	// is blocked by the plugin itself
-	c.Assert(s.d.Restart("--authorization-plugin="+testAuthZPlugin), check.IsNil)
-
+	c.Assert(s.d.Start("--authorization-plugin="+testAuthZPlugin), check.IsNil)
 	s.ctrl.reqRes.Allow = true
 	s.ctrl.resRes.Allow = true
+	c.Assert(s.d.LoadBusybox(), check.IsNil)
 
 	// Ensure command successful
 	out, err := s.d.Cmd("run", "-d", "busybox", "top")
@@ -254,12 +251,10 @@ func (s *DockerAuthzSuite) TestAuthZPluginAllowEventStream(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 
 	// start the daemon and load busybox to avoid pulling busybox from Docker Hub
-	c.Assert(s.d.StartWithBusybox(), check.IsNil)
-	// restart the daemon and enable the authorization plugin, otherwise busybox loading
-	// is blocked by the plugin itself
-	c.Assert(s.d.Restart("--authorization-plugin="+testAuthZPlugin), check.IsNil)
+	c.Assert(s.d.Start("--authorization-plugin="+testAuthZPlugin), check.IsNil)
 	s.ctrl.reqRes.Allow = true
 	s.ctrl.resRes.Allow = true
+	c.Assert(s.d.LoadBusybox(), check.IsNil)
 
 	startTime := strconv.FormatInt(daemonTime(c).Unix(), 10)
 	// Add another command to to enable event pipelining
