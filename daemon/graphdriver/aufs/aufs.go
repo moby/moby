@@ -231,7 +231,8 @@ func (a *Driver) Create(id, parent, mountLabel string) error {
 	return nil
 }
 
-// Create two directories named mnt and diff within the current aufs directory for the given id.
+// Create two folders for the given id.
+// mnt and diff
 func (a *Driver) createDirsFor(id string) error {
 	paths := []string{
 		"mnt",
