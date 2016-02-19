@@ -30,6 +30,10 @@ const (
 	containerListAPI    = "/containers/json"
 )
 
+var (
+	alwaysAllowed = []string{"/_ping", "/info"}
+)
+
 func init() {
 	check.Suite(&DockerAuthzSuite{
 		ds: &DockerSuite{},
@@ -74,12 +78,6 @@ func (s *DockerAuthzSuite) SetUpSuite(c *check.C) {
 	})
 
 	mux.HandleFunc("/AuthZPlugin.AuthZReq", func(w http.ResponseWriter, r *http.Request) {
-		if s.ctrl.reqRes.Err != "" {
-			w.WriteHeader(http.StatusInternalServerError)
-		}
-		b, err := json.Marshal(s.ctrl.reqRes)
-		c.Assert(err, check.IsNil)
-		w.Write(b)
 		defer r.Body.Close()
 		body, err := ioutil.ReadAll(r.Body)
 		c.Assert(err, check.IsNil)
@@ -96,16 +94,20 @@ func (s *DockerAuthzSuite) SetUpSuite(c *check.C) {
 		}
 
 		s.ctrl.requestsURIs = append(s.ctrl.requestsURIs, authReq.RequestURI)
+
+		reqRes := s.ctrl.reqRes
+		if isAllowed(authReq.RequestURI) {
+			reqRes = authorization.Response{Allow: true}
+		}
+		if reqRes.Err != "" {
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+		b, err := json.Marshal(reqRes)
+		c.Assert(err, check.IsNil)
+		w.Write(b)
 	})
 
 	mux.HandleFunc("/AuthZPlugin.AuthZRes", func(w http.ResponseWriter, r *http.Request) {
-		if s.ctrl.resRes.Err != "" {
-			w.WriteHeader(http.StatusInternalServerError)
-		}
-		b, err := json.Marshal(s.ctrl.resRes)
-		c.Assert(err, check.IsNil)
-		w.Write(b)
-
 		defer r.Body.Close()
 		body, err := ioutil.ReadAll(r.Body)
 		c.Assert(err, check.IsNil)
@@ -120,6 +122,16 @@ func (s *DockerAuthzSuite) SetUpSuite(c *check.C) {
 		if strings.HasSuffix(authReq.RequestURI, containerListAPI) {
 			s.ctrl.psResponseCnt++
 		}
+		resRes := s.ctrl.resRes
+		if isAllowed(authReq.RequestURI) {
+			resRes = authorization.Response{Allow: true}
+		}
+		if resRes.Err != "" {
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+		b, err := json.Marshal(resRes)
+		c.Assert(err, check.IsNil)
+		w.Write(b)
 	})
 
 	err := os.MkdirAll("/etc/docker/plugins", 0755)
@@ -128,6 +140,16 @@ func (s *DockerAuthzSuite) SetUpSuite(c *check.C) {
 	fileName := fmt.Sprintf("/etc/docker/plugins/%s.spec", testAuthZPlugin)
 	err = ioutil.WriteFile(fileName, []byte(s.server.URL), 0644)
 	c.Assert(err, checker.IsNil)
+}
+
+// check for always allowed endpoints to not inhibit test framework functions
+func isAllowed(reqURI string) bool {
+	for _, endpoint := range alwaysAllowed {
+		if strings.HasSuffix(reqURI, endpoint) {
+			return true
+		}
+	}
+	return false
 }
 
 // assertAuthHeaders validates authentication headers are removed
