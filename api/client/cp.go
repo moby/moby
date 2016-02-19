@@ -97,8 +97,8 @@ func (cli *DockerCli) CmdCp(args ...string) error {
 
 // We use `:` as a delimiter between CONTAINER and PATH, but `:` could also be
 // in a valid LOCALPATH, like `file:name.txt`. We can resolve this ambiguity by
-// requiring a LOCALPATH with a `:` to be made explicit with a relative or
-// absolute path:
+// requiring a LOCALPATH with a `:` to be made explicit with a absolute or 
+// relative path:
 // 	`/path/to/file:name.txt` or `./file:name.txt`
 //
 // This is apparently how `scp` handles this as well:

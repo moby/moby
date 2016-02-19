@@ -13,7 +13,7 @@ import (
 
 // CmdVolume is the parent subcommand for all volume commands
 //
-// Usage: docker volume <COMMAND> <OPTS>
+// Usage: docker volume [OPTIONS] [COMMAND]
 func (cli *DockerCli) CmdVolume(args ...string) error {
 	description := Cli.DockerCommands["volume"].Description + "\n\nCommands:\n"
 	commands := [][]string{
