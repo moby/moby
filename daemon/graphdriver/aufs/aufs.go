@@ -201,7 +201,7 @@ func (a *Driver) Exists(id string) bool {
 
 // Create three folders for each id
 // mnt, layers, and diff
-func (a *Driver) Create(id, parent, mountLabel string) error {
+func (a *Driver) Create(id, parent, mountLabel string, readOnly bool) error {
 	if err := a.createDirsFor(id); err != nil {
 		return err
 	}

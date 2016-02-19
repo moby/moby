@@ -47,7 +47,9 @@ type ProtoDriver interface {
 	String() string
 	// Create creates a new, empty, filesystem layer with the
 	// specified id and parent and mountLabel. Parent and mountLabel may be "".
-	Create(id, parent, mountLabel string) error
+	// If readOnly is true, a read-only layer will be created, otherwise the
+	// layer will be set up as read/write.
+	Create(id, parent, mountLabel string, readOnly bool) error
 	// Remove attempts to remove the filesystem layer with this id.
 	Remove(id string) error
 	// Get returns the mountpoint for the layered filesystem referred
