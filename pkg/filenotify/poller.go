@@ -123,24 +123,56 @@ func (w *filePoller) Close() error {
 	return nil
 }
 
-// sendEvent publishes the specified event to the events channel
-func (w *filePoller) sendEvent(e fsnotify.Event, chClose <-chan struct{}) error {
+var errRetry = errors.New("retry send again")
+
+func (w *filePoller) trySendEvent(e fsnotify.Event, chClose <-chan struct{}) error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if w.closed {
+		return errPollerClosed
+	}
 	select {
 	case w.events <- e:
+		return nil
 	case <-chClose:
 		return fmt.Errorf("closed")
+	default:
+		return errRetry
 	}
-	return nil
+}
+
+// sendEvent publishes the specified event to the events channel
+func (w *filePoller) sendEvent(e fsnotify.Event, chClose <-chan struct{}) error {
+	for {
+		if err := w.trySendEvent(e, chClose); err != errRetry {
+			return err
+		}
+	}
+}
+
+func (w *filePoller) trySendErr(e error, chClose <-chan struct{}) error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if w.closed {
+		return errPollerClosed
+	}
+	select {
+	case w.errors <- e:
+		return nil
+	case <-chClose:
+		return fmt.Errorf("closed")
+	default:
+		return errRetry
+	}
 }
 
 // sendErr publishes the specified error to the errors channel
 func (w *filePoller) sendErr(e error, chClose <-chan struct{}) error {
-	select {
-	case w.errors <- e:
-	case <-chClose:
-		return fmt.Errorf("closed")
+	for {
+		if err := w.trySendErr(e, chClose); err != errRetry {
+			return err
+		}
 	}
-	return nil
 }
 
 // watch is responsible for polling the specified file for changes
