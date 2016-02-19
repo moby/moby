@@ -53,7 +53,7 @@ check-code:
 
 check-format:
 	@echo "Checking format... "
-	test -z "$$(goimports -l . | grep -v Godeps/_workspace/src/ | tee /dev/stderr)"
+	test -z "$$(gofmt -s -l . | grep -v Godeps/_workspace/src/ | tee /dev/stderr)"
 	@echo "Done checking format"
 
 run-tests:

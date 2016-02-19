@@ -133,6 +133,9 @@ func Init(dc driverapi.DriverCallback, config map[string]interface{}) error {
 	if out, err := exec.Command("modprobe", "-va", "nf_nat").CombinedOutput(); err != nil {
 		logrus.Warnf("Running modprobe nf_nat failed with message: `%s`, error: %v", strings.TrimSpace(string(out)), err)
 	}
+	if out, err := exec.Command("modprobe", "-va", "xt_conntrack").CombinedOutput(); err != nil {
+		logrus.Warnf("Running modprobe xt_conntrack failed with message: `%s`, error: %v", strings.TrimSpace(string(out)), err)
+	}
 	if err := iptables.FirewalldInit(); err != nil {
 		logrus.Debugf("Fail to initialize firewalld: %v, using raw iptables instead", err)
 	}
@@ -384,6 +387,8 @@ func (d *driver) configure(option map[string]interface{}) error {
 		if err != nil {
 			return err
 		}
+		// Make sure on firewall reload, first thing being re-played is chains creation
+		iptables.OnReloaded(func() { logrus.Debugf("Recreating iptables chains on firewall reload"); setupIPChains(config) })
 	}
 
 	d.Lock()

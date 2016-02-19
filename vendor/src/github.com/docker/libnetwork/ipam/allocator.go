@@ -8,6 +8,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/bitseq"
 	"github.com/docker/libnetwork/datastore"
+	"github.com/docker/libnetwork/discoverapi"
 	"github.com/docker/libnetwork/ipamapi"
 	"github.com/docker/libnetwork/ipamutils"
 	"github.com/docker/libnetwork/types"
@@ -60,18 +61,8 @@ func NewAllocator(lcDs, glDs datastore.DataStore) (*Allocator, error) {
 		if aspc.ds == nil {
 			continue
 		}
-
-		a.addrSpaces[aspc.as] = &addrSpace{
-			subnets: map[SubnetKey]*PoolData{},
-			id:      dsConfigKey + "/" + aspc.as,
-			scope:   aspc.ds.Scope(),
-			ds:      aspc.ds,
-			alloc:   a,
-		}
+		a.initializeAddressSpace(aspc.as, aspc.ds)
 	}
-
-	a.checkConsistency(localAddressSpace)
-	a.checkConsistency(globalAddressSpace)
 
 	return a, nil
 }
@@ -118,23 +109,81 @@ func (a *Allocator) updateBitMasks(aSpace *addrSpace) error {
 	return nil
 }
 
-// Checks for and fixes damaged bitmask. Meant to be called in constructor only.
+// Checks for and fixes damaged bitmask.
 func (a *Allocator) checkConsistency(as string) {
+	var sKeyList []SubnetKey
+
 	// Retrieve this address space's configuration and bitmasks from the datastore
 	a.refresh(as)
+	a.Lock()
 	aSpace, ok := a.addrSpaces[as]
+	a.Unlock()
 	if !ok {
 		return
 	}
 	a.updateBitMasks(aSpace)
+
+	aSpace.Lock()
 	for sk, pd := range aSpace.subnets {
 		if pd.Range != nil {
 			continue
 		}
-		if err := a.addresses[sk].CheckConsistency(); err != nil {
+		sKeyList = append(sKeyList, sk)
+	}
+	aSpace.Unlock()
+
+	for _, sk := range sKeyList {
+		a.Lock()
+		bm := a.addresses[sk]
+		a.Unlock()
+		if err := bm.CheckConsistency(); err != nil {
 			log.Warnf("Error while running consistency check for %s: %v", sk, err)
 		}
 	}
+}
+
+func (a *Allocator) initializeAddressSpace(as string, ds datastore.DataStore) error {
+	a.Lock()
+	if _, ok := a.addrSpaces[as]; ok {
+		a.Unlock()
+		return types.ForbiddenErrorf("tried to add an axisting address space: %s", as)
+	}
+	a.addrSpaces[as] = &addrSpace{
+		subnets: map[SubnetKey]*PoolData{},
+		id:      dsConfigKey + "/" + as,
+		scope:   ds.Scope(),
+		ds:      ds,
+		alloc:   a,
+	}
+	a.Unlock()
+
+	a.checkConsistency(as)
+
+	return nil
+}
+
+// DiscoverNew informs the allocator about a new global scope datastore
+func (a *Allocator) DiscoverNew(dType discoverapi.DiscoveryType, data interface{}) error {
+	if dType != discoverapi.DatastoreConfig {
+		return nil
+	}
+
+	dsc, ok := data.(discoverapi.DatastoreConfigData)
+	if !ok {
+		return types.InternalErrorf("incorrect data in datastore update notification: %v", data)
+	}
+
+	ds, err := datastore.NewDataStoreFromConfig(dsc)
+	if err != nil {
+		return err
+	}
+
+	return a.initializeAddressSpace(globalAddressSpace, ds)
+}
+
+// DiscoverDelete is a notification of no interest for the allocator
+func (a *Allocator) DiscoverDelete(dType discoverapi.DiscoveryType, data interface{}) error {
+	return nil
 }
 
 // GetDefaultAddressSpaces returns the local and global default address spaces

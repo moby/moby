@@ -14,6 +14,7 @@ func (c *controller) initStores() error {
 		return nil
 	}
 	scopeConfigs := c.cfg.Scopes
+	c.stores = nil
 	c.Unlock()
 
 	for scope, scfg := range scopeConfigs {
@@ -418,6 +419,9 @@ func (c *controller) watchLoop() {
 }
 
 func (c *controller) startWatch() {
+	if c.watchCh != nil {
+		return
+	}
 	c.watchCh = make(chan *endpoint)
 	c.unWatchCh = make(chan *endpoint)
 	c.nmap = make(map[string]*netWatch)

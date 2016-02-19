@@ -1598,12 +1598,12 @@ func (daemon *Daemon) initDiscovery(config *Config) error {
 // daemon according to those changes.
 // This are the settings that Reload changes:
 // - Daemon labels.
+// - Cluster discovery (reconfigure and restart).
 func (daemon *Daemon) Reload(config *Config) error {
 	daemon.configStore.reloadLock.Lock()
+	defer daemon.configStore.reloadLock.Unlock()
 	daemon.configStore.Labels = config.Labels
-	daemon.configStore.reloadLock.Unlock()
-
-	return nil
+	return daemon.reloadClusterDiscovery(config)
 }
 
 func (daemon *Daemon) reloadClusterDiscovery(config *Config) error {
@@ -1639,6 +1639,19 @@ func (daemon *Daemon) reloadClusterDiscovery(config *Config) error {
 	daemon.configStore.ClusterStore = config.ClusterStore
 	daemon.configStore.ClusterOpts = config.ClusterOpts
 	daemon.configStore.ClusterAdvertise = newAdvertise
+
+	if daemon.netController == nil {
+		return nil
+	}
+	netOptions, err := daemon.networkOptions(daemon.configStore)
+	if err != nil {
+		logrus.Warnf("Failed to reload configuration with network controller: %v", err)
+		return nil
+	}
+	err = daemon.netController.ReloadConfiguration(netOptions...)
+	if err != nil {
+		logrus.Warnf("Failed to reload configuration with network controller: %v", err)
+	}
 
 	return nil
 }
