@@ -34,6 +34,7 @@ import (
 	"syscall"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/vbatts/tar-split/tar/storage"
 
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/archive"
@@ -374,10 +375,19 @@ func (a *Driver) Diff(id, parent string) (archive.Archive, error) {
 	})
 }
 
-// DiffPath returns path to the directory that contains files for the layer
-// differences. Used for direct access for tar-split.
-func (a *Driver) DiffPath(id string) (string, func() error, error) {
-	return path.Join(a.rootPath(), "diff", id), func() error { return nil }, nil
+type fileGetNilCloser struct {
+	storage.FileGetter
+}
+
+func (f fileGetNilCloser) Close() error {
+	return nil
+}
+
+// DiffGetter returns a FileGetCloser that can read files from the directory that
+// contains files for the layer differences. Used for direct access for tar-split.
+func (a *Driver) DiffGetter(id string) (graphdriver.FileGetCloser, error) {
+	p := path.Join(a.rootPath(), "diff", id)
+	return fileGetNilCloser{storage.NewPathFileGetter(p)}, nil
 }
 
 func (a *Driver) applyDiff(id string, diff archive.Reader) error {
