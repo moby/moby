@@ -18,7 +18,8 @@ func (cli *Client) ImageLoad(ctx context.Context, input io.Reader, quiet bool) (
 	if quiet {
 		v.Set("quiet", "1")
 	}
-	resp, err := cli.postRaw(ctx, "/images/load", v, input, nil)
+	headers := map[string][]string{"Content-Type": {"application/x-tar"}}
+	resp, err := cli.postRaw(ctx, "/images/load", v, input, headers)
 	if err != nil {
 		return types.ImageLoadResponse{}, err
 	}
