@@ -244,9 +244,10 @@ internals) to create writable containers from images.  Many of these
 backends use operating system level technologies and can be
 configured.
 
-Specify options to the storage backend with **--storage-opt** flags. The only
-backend that currently takes options is *devicemapper*. Therefore use these
-flags with **-s=**devicemapper.
+Specify options to the storage backend with **--storage-opt** flags. The
+backends that currently take options are *devicemapper* and *zfs*.
+Options for *devicemapper* are prefixed with *dm* and options for *zfs*
+start with *zfs*.
 
 Specifically for devicemapper, the default is a "loopback" model which
 requires no pre-configuration, but is extremely inefficient.  Do not
@@ -258,7 +259,7 @@ more information see `man lvmthin`.  Then, use `--storage-opt
 dm.thinpooldev` to tell the Docker engine to use that pool for
 allocating images and container snapshots.
 
-Here is the list of *devicemapper* options:
+##Devicemapper options:
 
 #### dm.thinpooldev
 
@@ -463,6 +464,16 @@ this topic, see
 [docker#4036](https://github.com/docker/docker/issues/4036).
 Otherwise, set this flag for migrating existing Docker daemons to a
 daemon with a supported environment.
+
+##ZFS options
+
+#### zfs.fsname
+
+Set zfs filesystem under which docker will create its own datasets.
+By default docker will pick up the zfs filesystem where docker graph
+(`/var/lib/docker`) is located.
+
+Example use: `docker daemon -s zfs --storage-opt zfs.fsname=zroot/docker`
 
 # CLUSTER STORE OPTIONS
 
