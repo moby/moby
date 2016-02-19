@@ -126,8 +126,8 @@ func isBridgeNetworkDisabled(config *Config) bool {
 
 func (daemon *Daemon) initNetworkController(config *Config) (libnetwork.NetworkController, error) {
 	// Set the name of the virtual switch if not specified by -b on daemon start
-	if config.bridgeConfig.VirtualSwitchName == "" {
-		config.bridgeConfig.VirtualSwitchName = defaultVirtualSwitch
+	if config.BridgeConfig.VirtualSwitchName == "" {
+		config.BridgeConfig.VirtualSwitchName = defaultVirtualSwitch
 	}
 	return nil, nil
 }
