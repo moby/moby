@@ -802,84 +802,108 @@ This endpoint returns a live stream of a container's resource usage statistics.
       HTTP/1.1 200 OK
       Content-Type: application/json
 
-      {
-         "read" : "2015-01-08T22:57:31.547920715Z",
-         "networks": {
-                 "eth0": {
-                     "rx_bytes": 5338,
-                     "rx_dropped": 0,
-                     "rx_errors": 0,
-                     "rx_packets": 36,
-                     "tx_bytes": 648,
-                     "tx_dropped": 0,
-                     "tx_errors": 0,
-                     "tx_packets": 8
-                 },
-                 "eth5": {
-                     "rx_bytes": 4641,
-                     "rx_dropped": 0,
-                     "rx_errors": 0,
-                     "rx_packets": 26,
-                     "tx_bytes": 690,
-                     "tx_dropped": 0,
-                     "tx_errors": 0,
-                     "tx_packets": 9
-                 }
-         },
-         "memory_stats" : {
-            "stats" : {
-               "total_pgmajfault" : 0,
-               "cache" : 0,
-               "mapped_file" : 0,
-               "total_inactive_file" : 0,
-               "pgpgout" : 414,
-               "rss" : 6537216,
-               "total_mapped_file" : 0,
-               "writeback" : 0,
-               "unevictable" : 0,
-               "pgpgin" : 477,
-               "total_unevictable" : 0,
-               "pgmajfault" : 0,
-               "total_rss" : 6537216,
-               "total_rss_huge" : 6291456,
-               "total_writeback" : 0,
-               "total_inactive_anon" : 0,
-               "rss_huge" : 6291456,
-               "hierarchical_memory_limit" : 67108864,
-               "total_pgfault" : 964,
-               "total_active_file" : 0,
-               "active_anon" : 6537216,
-               "total_active_anon" : 6537216,
-               "total_pgpgout" : 414,
-               "total_cache" : 0,
-               "inactive_anon" : 0,
-               "active_file" : 0,
-               "pgfault" : 964,
-               "inactive_file" : 0,
-               "total_pgpgin" : 477
-            },
-            "max_usage" : 6651904,
-            "usage" : 6537216,
-            "failcnt" : 0,
-            "limit" : 67108864
-         },
-         "blkio_stats" : {},
-         "cpu_stats" : {
-            "cpu_usage" : {
-               "percpu_usage" : [
-                  16970827,
-                  1839451,
-                  7107380,
-                  10571290
-               ],
-               "usage_in_usermode" : 10000000,
-               "total_usage" : 36488948,
-               "usage_in_kernelmode" : 20000000
-            },
-            "system_cpu_usage" : 20091722000000000,
-            "throttling_data" : {}
-         }
-      }
+	{
+		"read":"2016-02-19T14:45:49.332506806+08:00",
+		"precpu_stats":
+		{	"cpu_usage":
+			{	"total_usage":211544620372,
+				"percpu_usage":[211544620372],
+				"usage_in_kernelmode":21770000000,
+				"usage_in_usermode":190700000000
+			},
+			"system_cpu_usage":739305600000000,
+			"throttling_data":
+			{"periods":0,"throttled_periods":0,"throttled_time":0}
+		},
+		"cpu_stats":
+		{
+			"cpu_usage":
+			{	"total_usage":211544748167,
+				"percpu_usage":[211544748167],
+				"usage_in_kernelmode":21770000000,
+				"usage_in_usermode":190700000000
+			},
+			"system_cpu_usage":739306590000000,
+			"throttling_data":
+			{"periods":0,"throttled_periods":0,"throttled_time":0}
+		},
+		"memory_stats":
+		{	
+			"usage":34459648,
+			"max_usage":901541888,
+			"stats":
+			{	"active_anon":253952,
+				"active_file":16637952,
+				"cache":34054144,
+				"hierarchical_memory_limit":18446744073709551615,
+				"inactive_anon":327680,
+				"inactive_file":17240064,
+				"mapped_file":1187840,
+				"pgfault":8404953,
+				"pgmajfault":1756,
+				"pgpgin":7310915,
+				"pgpgout":7302502,
+				"rss":405504,
+				"rss_huge":0,
+				"total_active_anon":253952,
+				"total_active_file":16637952,
+				"total_cache":34054144,
+				"total_inactive_anon":327680,
+				"total_inactive_file":17240064,
+				"total_mapped_file":1187840,
+				"total_pgfault":8404953,
+				"total_pgmajfault":1756,
+				"total_pgpgin":7310915,
+				"total_pgpgout":7302502,
+				"total_rss":405504,
+				"total_rss_huge":0,
+				"total_unevictable":0,
+				"total_writeback":0,
+				"unevictable":0,
+				"writeback":0
+			},
+			"failcnt":0,
+			"limit":2099179520
+		},
+		"blkio_stats":
+		{	"io_service_bytes_recursive":
+			[
+				{"major":253,"minor":0,"op":"Read","value":290217984},
+				{"major":253,"minor":0,"op":"Write","value":11395072},
+				{"major":253,"minor":0,"op":"Sync","value":0},
+				{"major":253,"minor":0,"op":"Async","value":301613056},
+				{"major":253,"minor":0,"op":"Total","value":301613056}
+			],
+			"io_serviced_recursive":
+			[	
+				{"major":253,"minor":0,"op":"Read","value":22122},
+				{"major":253,"minor":0,"op":"Write","value":2782},
+				{"major":253,"minor":0,"op":"Sync","value":0},
+				{"major":253,"minor":0,"op":"Async","value":24904},
+				{"major":253,"minor":0,"op":"Total","value":24904}
+			],
+			"io_queue_recursive":[],
+			"io_service_time_recursive":[],
+			"io_wait_time_recursive":[],
+			"io_merged_recursive":[],
+			"io_time_recursive":[],
+			"sectors_recursive":[]
+		},
+		"pids_stats":{},
+		"networks":
+		{	"eth0":
+			{ "rx_bytes":80544,
+			  "rx_packets":833,
+			  "rx_errors":0,
+			  "rx_dropped":0,
+			  "tx_bytes":80803,
+			  "tx_packets":840,
+			  "tx_errors":0,
+			  "tx_dropped":0
+			}
+		}
+	}
+  The precpu_stats is the cpu statistic of last read, which is used for calculating the cpu usage percent. It is not the exact copy of the “cpu_stats”field.If you get ‘ZORE’ cpu usage percentage or the response hasn’t show the precpu_stats field, You must be running an old version of docker,please update it after 1.7.0.
 
 Query Parameters:
 
