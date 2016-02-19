@@ -89,7 +89,7 @@ func decodeEvents(input io.Reader, ep eventProcessor) error {
 }
 
 // printOutput prints all types of event information.
-// Each output includes the event type, actor id, name and action.
+// Each output includes the event type, actor id, and action.
 // Actor attributes are printed at the end if the actor has any.
 func printOutput(event eventtypes.Message, output io.Writer) {
 	if event.TimeNano != 0 {
