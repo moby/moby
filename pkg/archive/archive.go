@@ -582,10 +582,36 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 				}
 
 				if skip {
-					if !exceptions && f.IsDir() {
+					// If we want to skip this file and its a directory
+					// then we should first check to see if there's an
+					// excludes pattern (eg !dir/file) that starts with this
+					// dir. If so then we can't skip this dir.
+
+					// Its not a dir then so we can just return/skip.
+					if !f.IsDir() {
+						return nil
+					}
+
+					// No exceptions (!...) in patterns so just skip dir
+					if !exceptions {
 						return filepath.SkipDir
 					}
-					return nil
+
+					dirSlash := relFilePath + string(filepath.Separator)
+
+					for _, pat := range patterns {
+						if pat[0] != '!' {
+							continue
+						}
+						pat = pat[1:] + string(filepath.Separator)
+						if strings.HasPrefix(pat, dirSlash) {
+							// found a match - so can't skip this dir
+							return nil
+						}
+					}
+
+					// No matching exclusion dir so just skip dir
+					return filepath.SkipDir
 				}
 
 				if seen[relFilePath] {
