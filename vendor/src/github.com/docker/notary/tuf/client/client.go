@@ -526,39 +526,44 @@ func (c Client) RoleTargetsPath(role string, hashSha256 string, consistent bool)
 
 // TargetMeta ensures the repo is up to date. It assumes downloadTargets
 // has already downloaded all delegated roles
-func (c Client) TargetMeta(role, path string, excludeRoles ...string) (*data.FileMeta, string) {
+func (c Client) TargetMeta(role *data.Role, path string, excludeRoles ...string) (*data.FileMeta, string) {
 	excl := make(map[string]bool)
 	for _, r := range excludeRoles {
 		excl[r] = true
 	}
 
-	pathDigest := sha256.Sum256([]byte(path))
-	pathHex := hex.EncodeToString(pathDigest[:])
-
 	// FIFO list of targets delegations to inspect for target
-	roles := []string{role}
+	roles := []*data.Role{role}
 	var (
 		meta *data.FileMeta
-		curr string
+		curr *data.Role
 	)
 	for len(roles) > 0 {
 		// have to do these lines here because of order of execution in for statement
 		curr = roles[0]
 		roles = roles[1:]
 
-		meta = c.local.TargetMeta(curr, path)
+		meta = c.local.TargetMeta(curr.Name, path)
 		if meta != nil {
 			// we found the target!
-			return meta, curr
+			return meta, curr.Name
 		}
-		delegations := c.local.TargetDelegations(curr, path, pathHex)
-		for _, d := range delegations {
-			if !excl[d.Name] {
-				roles = append(roles, d.Name)
+		tgts, ok := c.local.Targets[curr.Name]
+		if !ok {
+			// not every role has to exist
+			continue
+		}
+
+		for _, child := range tgts.Signed.Delegations.Roles {
+			if !excl[child.Name] {
+				child, err := data.Restrict(*curr, *child)
+				if err == nil && child.CheckPaths(path) {
+					roles = append(roles, child)
+				}
 			}
 		}
 	}
-	return meta, ""
+	return nil, ""
 }
 
 // DownloadTarget downloads the target to dst from the remote

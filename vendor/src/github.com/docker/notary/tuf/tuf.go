@@ -459,6 +459,9 @@ func (tr *Repo) SetTargets(role string, s *data.SignedTargets) error {
 		tr.keysDB.AddKey(k)
 	}
 	for _, r := range s.Signed.Delegations.Roles {
+		if path.Dir(r.Name) != role || tr.keysDB.GetRole(r.Name) != nil {
+			continue
+		}
 		tr.keysDB.AddRole(r)
 	}
 	tr.Targets[role] = s
