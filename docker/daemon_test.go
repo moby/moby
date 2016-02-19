@@ -34,6 +34,53 @@ func TestLoadDaemonCliConfigWithoutOverriding(t *testing.T) {
 	}
 }
 
+func TestLoadDaemonCliConfigWithDaemonFlags(t *testing.T) {
+	c := &daemon.Config{}
+	common := &cli.CommonFlags{
+		Debug:    true,
+		LogLevel: "info",
+	}
+
+	f, err := ioutil.TempFile("", "docker-config-")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	configFile := f.Name()
+	f.Write([]byte(`{"log-opts": {"max-size": "1k"}}`))
+	f.Close()
+
+	flags := mflag.NewFlagSet("test", mflag.ContinueOnError)
+	flags.String([]string{daemonConfigFileFlag}, "", "")
+	flags.BoolVar(&c.EnableSelinuxSupport, []string{"-selinux-enabled"}, true, "")
+	flags.StringVar(&c.LogConfig.Type, []string{"-log-driver"}, "json-file", "")
+	flags.Var(opts.NewNamedMapOpts("log-opts", c.LogConfig.Config, nil), []string{"-log-opt"}, "")
+	flags.Set(daemonConfigFileFlag, configFile)
+
+	loadedConfig, err := loadDaemonCliConfig(c, flags, common, configFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loadedConfig == nil {
+		t.Fatalf("expected configuration %v, got nil", c)
+	}
+	if !loadedConfig.Debug {
+		t.Fatalf("expected debug mode, got false")
+	}
+	if loadedConfig.LogLevel != "info" {
+		t.Fatalf("expected info log level, got %v", loadedConfig.LogLevel)
+	}
+	if !loadedConfig.EnableSelinuxSupport {
+		t.Fatalf("expected enabled selinux support, got disabled")
+	}
+	if loadedConfig.LogConfig.Type != "json-file" {
+		t.Fatalf("expected LogConfig type json-file, got %v", loadedConfig.LogConfig.Type)
+	}
+	if maxSize := loadedConfig.LogConfig.Config["max-size"]; maxSize != "1k" {
+		t.Fatalf("expected log max-size `1k`, got %s", maxSize)
+	}
+}
+
 func TestLoadDaemonCliConfigWithTLS(t *testing.T) {
 	c := &daemon.Config{}
 	common := &cli.CommonFlags{

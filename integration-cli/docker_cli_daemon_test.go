@@ -432,69 +432,6 @@ func (s *DockerDaemonSuite) TestDaemonLogLevelWrong(c *check.C) {
 	c.Assert(s.d.Start("--log-level=bogus"), check.NotNil, check.Commentf("Daemon shouldn't start with wrong log level"))
 }
 
-func (s *DockerSuite) TestDaemonStartWithDaemonCommand(c *check.C) {
-
-	type kind int
-
-	const (
-		common kind = iota
-		daemon
-	)
-
-	var flags = []map[kind][]string{
-		{common: {"-l", "info"}, daemon: {"--selinux-enabled"}},
-		{common: {"-D"}, daemon: {"--selinux-enabled", "-r"}},
-		{common: {"-D"}, daemon: {"--restart"}},
-		{common: {"--debug"}, daemon: {"--log-driver=json-file", "--log-opt=max-size=1k"}},
-	}
-
-	var invalidGlobalFlags = [][]string{
-		//Invalid because you cannot pass daemon flags as global flags.
-		{"--selinux-enabled", "-l", "info"},
-		{"-D", "-r"},
-		{"--config", "/tmp"},
-	}
-
-	// `docker daemon -l info --selinux-enabled`
-	// should NOT error out
-	for _, f := range flags {
-		d := NewDaemon(c)
-		args := append(f[common], f[daemon]...)
-		if err := d.Start(args...); err != nil {
-			c.Fatalf("Daemon should have started successfully with %v: %v", args, err)
-		}
-		d.Stop()
-	}
-
-	// `docker -l info daemon --selinux-enabled`
-	// should error out
-	for _, f := range flags {
-		d := NewDaemon(c)
-		d.GlobalFlags = f[common]
-		if err := d.Start(f[daemon]...); err == nil {
-			d.Stop()
-			c.Fatalf("Daemon should have failed to start with docker %v daemon %v", d.GlobalFlags, f[daemon])
-		}
-	}
-
-	for _, f := range invalidGlobalFlags {
-		cmd := exec.Command(dockerBinary, append(f, "daemon")...)
-		errch := make(chan error)
-		var err error
-		go func() {
-			errch <- cmd.Run()
-		}()
-		select {
-		case <-time.After(time.Second):
-			cmd.Process.Kill()
-		case err = <-errch:
-		}
-		if err == nil {
-			c.Fatalf("Daemon should have failed to start with docker %v daemon", f)
-		}
-	}
-}
-
 func (s *DockerDaemonSuite) TestDaemonLogLevelDebug(c *check.C) {
 	if err := s.d.Start("--log-level=debug"); err != nil {
 		c.Fatal(err)
