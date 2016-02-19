@@ -47,7 +47,7 @@ Import to docker via pipe and `STDIN`.
 
     $ cat exampleimage.tgz | docker import - exampleimagelocal:new
 
-Import with a commit message
+Import with a commit message.
 
     $ cat exampleimage.tgz | docker import --message "New image imported from tarball" - exampleimagelocal:new
 
