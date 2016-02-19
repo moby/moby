@@ -64,6 +64,10 @@ func (s *DockerSuite) TestPsListContainersBase(c *check.C) {
 	expected = []string{fourthID, secondID}
 	c.Assert(assertContainerList(out, expected), checker.Equals, true, check.Commentf("SINCE filter: Container list is not in the correct order: \n%s", out))
 
+	out, _ = dockerCmd(c, "ps", "-f", "since="+thirdID)
+	expected = []string{fourthID}
+	c.Assert(assertContainerList(out, expected), checker.Equals, true, check.Commentf("SINCE filter: Container list is not in the correct order: \n%s", out))
+
 	// filter before
 	out, _ = dockerCmd(c, "ps", "-f", "before="+fourthID, "-a")
 	expected = []string{thirdID, secondID, firstID}
@@ -72,6 +76,10 @@ func (s *DockerSuite) TestPsListContainersBase(c *check.C) {
 	out, _ = dockerCmd(c, "ps", "-f", "before="+fourthID)
 	expected = []string{secondID, firstID}
 	c.Assert(assertContainerList(out, expected), checker.Equals, true, check.Commentf("BEFORE filter: Container list is not in the correct order: \n%s", out))
+
+	out, _ = dockerCmd(c, "ps", "-f", "before="+thirdID)
+	expected = []string{secondID, firstID}
+	c.Assert(assertContainerList(out, expected), checker.Equals, true, check.Commentf("SINCE filter: Container list is not in the correct order: \n%s", out))
 
 	// filter since & before
 	out, _ = dockerCmd(c, "ps", "-f", "since="+firstID, "-f", "before="+fourthID, "-a")
