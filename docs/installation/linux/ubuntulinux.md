@@ -197,7 +197,7 @@ install Docker using the following:
 
         $ sudo apt-get install docker-engine
 
-   Or you can install Docker with version latest 
+   Or you can install Docker with version latest.
    
         $ wget -qO- https://get.docker.com/ | sh
 
