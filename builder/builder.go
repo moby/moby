@@ -146,7 +146,7 @@ type Image interface {
 // ImageCache abstracts an image cache store.
 // (parent image, child runconfig) -> child image
 type ImageCache interface {
-	// GetCachedImage returns a reference to a cached image whose parent equals `parent`
+	// GetCachedImageOnBuild returns a reference to a cached image whose parent equals `parent`
 	// and runconfig equals `cfg`. A cache miss is expected to return an empty ID and a nil error.
 	GetCachedImageOnBuild(parentID string, cfg *container.Config) (imageID string, err error)
 }
