@@ -108,6 +108,10 @@ for version in "${versions[@]}"; do
 		opensuse:*)
 			packages=( "${packages[@]/btrfs-progs-devel/libbtrfs-devel}" )
 			packages=( "${packages[@]/pkgconfig/pkg-config}" )
+			if [[ "$from" == "opensuse:13."* ]]; then
+				packages+=( systemd-rpm-macros )
+			fi
+
 			# use zypper
 			echo "RUN zypper --non-interactive install ${packages[*]}" >> "$version/Dockerfile"
 			;;
@@ -117,37 +121,6 @@ for version in "${versions[@]}"; do
 	esac
 
 	echo >> "$version/Dockerfile"
-
-	# TODO remove this since dockerinit is finally gone
-	case "$from" in
-		fedora:*)
-			awk '$1 == "ENV" && $2 == "SECCOMP_VERSION" { print; exit }' ../../../Dockerfile >> "$version/Dockerfile"
-			cat <<-'EOF' >> "$version/Dockerfile"
-			RUN buildDeps=' \
-				automake \
-				libtool \
-			' \
-			&& set -x \
-			&& yum install -y $buildDeps \
-			&& export SECCOMP_PATH=$(mktemp -d) \
-			&& curl -fsSL "https://github.com/seccomp/libseccomp/releases/download/v${SECCOMP_VERSION}/libseccomp-${SECCOMP_VERSION}.tar.gz" \
-			| tar -xzC "$SECCOMP_PATH" --strip-components=1 \
-			&& ( \
-				cd "$SECCOMP_PATH" \
-				&& ./configure --prefix=/usr \
-				&& make \
-				&& install -c src/.libs/libseccomp.a /usr/lib/libseccomp.a \
-				&& chmod 644 /usr/lib/libseccomp.a \
-				&& ranlib /usr/lib/libseccomp.a \
-				&& ldconfig -n /usr/lib \
-			) \
-			&& rm -rf "$SECCOMP_PATH"
-			EOF
-
-			echo >> "$version/Dockerfile"
-			;;
-		*) ;;
-	esac
 
 	case "$from" in
 		oraclelinux:6)

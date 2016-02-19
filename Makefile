@@ -31,6 +31,7 @@ export DOCKERFILE
 # `docs/sources/contributing/devenvironment.md ` and `project/PACKAGERS.md` have some limited documentation of some of these
 DOCKER_ENVS := \
 	-e BUILDFLAGS \
+	-e KEEPBUNDLE \
 	-e DOCKER_BUILD_GOGC \
 	-e DOCKER_BUILD_PKGS \
 	-e DOCKER_CLIENTONLY \
@@ -79,6 +80,16 @@ binary: build
 	$(DOCKER_RUN_DOCKER) hack/make.sh binary
 
 build: bundles
+ifeq ($(DOCKER_OSARCH), linux/arm)
+	# A few libnetwork integration tests require that the kernel be
+	# configured with "dummy" network interface and has the module
+	# loaded. However, the dummy module is not available by default
+	# on arm images. This ensures that it's built and loaded.
+	echo "Syncing kernel modules"
+	oc-sync-kernel-modules
+	depmod
+	modprobe dummy
+endif
 	docker build ${DOCKER_BUILD_ARGS} -t "$(DOCKER_IMAGE)" -f "$(DOCKERFILE)" .
 
 bundles:
@@ -115,4 +126,4 @@ test-unit: build
 	$(DOCKER_RUN_DOCKER) hack/make.sh test-unit
 
 validate: build
-	$(DOCKER_RUN_DOCKER) hack/make.sh validate-dco validate-gofmt validate-pkg validate-lint validate-test validate-toml validate-vet validate-vendor
+	$(DOCKER_RUN_DOCKER) hack/make.sh validate-dco validate-default-seccomp validate-gofmt validate-pkg validate-lint validate-test validate-toml validate-vet validate-vendor

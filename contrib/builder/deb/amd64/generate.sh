@@ -63,7 +63,7 @@ for version in "${versions[@]}"; do
 	)
 	# packaging for "sd-journal.h" and libraries varies
 	case "$suite" in
-		precise) ;;
+		precise|wheezy) ;;
 		sid|stretch|wily) packages+=( libsystemd-dev );;
 		*) packages+=( libsystemd-journal-dev );;
 	esac
@@ -99,7 +99,7 @@ for version in "${versions[@]}"; do
 	if [ "$suite" = 'wheezy' ]; then
 		# pull a couple packages from backports explicitly
 		# (build failures otherwise)
-		backportsPackages=( btrfs-tools libsystemd-journal-dev )
+		backportsPackages=( btrfs-tools )
 		for pkg in "${backportsPackages[@]}"; do
 			packages=( "${packages[@]/$pkg}" )
 		done

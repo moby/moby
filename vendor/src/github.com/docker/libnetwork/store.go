@@ -14,6 +14,7 @@ func (c *controller) initStores() error {
 		return nil
 	}
 	scopeConfigs := c.cfg.Scopes
+	c.stores = nil
 	c.Unlock()
 
 	for scope, scfg := range scopeConfigs {
@@ -104,7 +105,8 @@ func (c *controller) getNetworksForScope(scope string) ([]*network, error) {
 		ec := &endpointCnt{n: n}
 		err = store.GetObject(datastore.Key(ec.Key()...), ec)
 		if err != nil {
-			return nil, fmt.Errorf("could not find endpoint count key %s for network %s while listing: %v", datastore.Key(ec.Key()...), n.Name(), err)
+			log.Warnf("Could not find endpoint count key %s for network %s while listing: %v", datastore.Key(ec.Key()...), n.Name(), err)
+			continue
 		}
 
 		n.epCnt = ec
@@ -138,11 +140,14 @@ func (c *controller) getNetworksFromStore() ([]*network, error) {
 			ec := &endpointCnt{n: n}
 			err = store.GetObject(datastore.Key(ec.Key()...), ec)
 			if err != nil {
-				return nil, fmt.Errorf("could not find endpoint count key %s for network %s while listing: %v", datastore.Key(ec.Key()...), n.Name(), err)
+				log.Warnf("could not find endpoint count key %s for network %s while listing: %v", datastore.Key(ec.Key()...), n.Name(), err)
+				continue
 			}
 
+			n.Lock()
 			n.epCnt = ec
 			n.scope = store.Scope()
+			n.Unlock()
 			nl = append(nl, n)
 		}
 	}
@@ -414,6 +419,9 @@ func (c *controller) watchLoop() {
 }
 
 func (c *controller) startWatch() {
+	if c.watchCh != nil {
+		return
+	}
 	c.watchCh = make(chan *endpoint)
 	c.unWatchCh = make(chan *endpoint)
 	c.nmap = make(map[string]*netWatch)

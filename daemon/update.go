@@ -3,6 +3,7 @@ package daemon
 import (
 	"fmt"
 
+	derr "github.com/docker/docker/errors"
 	"github.com/docker/engine-api/types/container"
 )
 
@@ -22,6 +23,17 @@ func (daemon *Daemon) ContainerUpdate(name string, hostConfig *container.HostCon
 	return warnings, nil
 }
 
+// ContainerUpdateCmdOnBuild updates Path and Args for the container with ID cID.
+func (daemon *Daemon) ContainerUpdateCmdOnBuild(cID string, cmd []string) error {
+	c, err := daemon.GetContainer(cID)
+	if err != nil {
+		return err
+	}
+	c.Path = cmd[0]
+	c.Args = cmd[1:]
+	return nil
+}
+
 func (daemon *Daemon) update(name string, hostConfig *container.HostConfig) error {
 	if hostConfig == nil {
 		return nil
@@ -33,15 +45,17 @@ func (daemon *Daemon) update(name string, hostConfig *container.HostConfig) erro
 	}
 
 	if container.RemovalInProgress || container.Dead {
-		return fmt.Errorf("Container is marked for removal and cannot be \"update\".")
+		errMsg := fmt.Errorf("Container is marked for removal and cannot be \"update\".")
+		return derr.ErrorCodeCantUpdate.WithArgs(container.ID, errMsg)
 	}
 
 	if container.IsRunning() && hostConfig.KernelMemory != 0 {
-		return fmt.Errorf("Can not update kernel memory to a running container, please stop it first.")
+		errMsg := fmt.Errorf("Can not update kernel memory to a running container, please stop it first.")
+		return derr.ErrorCodeCantUpdate.WithArgs(container.ID, errMsg)
 	}
 
 	if err := container.UpdateContainer(hostConfig); err != nil {
-		return err
+		return derr.ErrorCodeCantUpdate.WithArgs(container.ID, err.Error())
 	}
 
 	// If container is not running, update hostConfig struct is enough,
@@ -50,7 +64,7 @@ func (daemon *Daemon) update(name string, hostConfig *container.HostConfig) erro
 	// to the real world.
 	if container.IsRunning() {
 		if err := daemon.execDriver.Update(container.Command); err != nil {
-			return err
+			return derr.ErrorCodeCantUpdate.WithArgs(container.ID, err.Error())
 		}
 	}
 

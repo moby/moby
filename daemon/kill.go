@@ -62,7 +62,7 @@ func (daemon *Daemon) killWithSignal(container *container.Container, sig int) er
 	}
 
 	if err := daemon.kill(container, sig); err != nil {
-		return err
+		return derr.ErrorCodeCantKill.WithArgs(container.ID, err)
 	}
 
 	attributes := map[string]string{

@@ -41,12 +41,6 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 		return err
 	}
 
-	if c.Config.Tty && cli.isTerminalOut {
-		if err := cli.monitorTtySize(cmd.Arg(0), false); err != nil {
-			logrus.Debugf("Error monitoring TTY size: %s", err)
-		}
-	}
-
 	if *detachKeys != "" {
 		cli.configFile.DetachKeys = *detachKeys
 	}
@@ -80,6 +74,21 @@ func (cli *DockerCli) CmdAttach(args ...string) error {
 			return err
 		}
 		defer cli.restoreTerminal(in)
+	}
+
+	if c.Config.Tty && cli.isTerminalOut {
+		height, width := cli.getTtySize()
+		// To handle the case where a user repeatedly attaches/detaches without resizing their
+		// terminal, the only way to get the shell prompt to display for attaches 2+ is to artificially
+		// resize it, then go back to normal. Without this, every attach after the first will
+		// require the user to manually resize or hit enter.
+		cli.resizeTtyTo(cmd.Arg(0), height+1, width+1, false)
+
+		// After the above resizing occurs, the call to monitorTtySize below will handle resetting back
+		// to the actual size.
+		if err := cli.monitorTtySize(cmd.Arg(0), false); err != nil {
+			logrus.Debugf("Error monitoring TTY size: %s", err)
+		}
 	}
 
 	if err := cli.holdHijackedConnection(c.Config.Tty, in, cli.out, cli.err, resp); err != nil {

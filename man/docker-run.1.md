@@ -320,7 +320,7 @@ container can access the exposed port via a private networking interface. Docker
 will set some environment variables in the client container to help indicate
 which interface and port to use.
 
-**--log-driver**="*json-file*|*syslog*|*journald*|*gelf*|*fluentd*|*awslogs*|*splunk*|*none*"
+**--log-driver**="*json-file*|*syslog*|*journald*|*gelf*|*fluentd*|*awslogs*|*splunk*|*etwlogs*|*none*"
   Logging driver for container. Default is defined by daemon `--log-driver` flag.
   **Warning**: the `docker logs` command works only for the `json-file` and
   `journald` logging drivers.
@@ -758,6 +758,12 @@ Create a 3rd container using the new --ipc=container:CONTAINERID option, now it 
 ```
 
 ## Linking Containers
+
+> **Note**: This section describes linking between containers on the
+> default (bridge) network, also known as "legacy links". Using `--link`
+> on user-defined networks uses the DNS-based discovery, which does not add
+> entries to `/etc/hosts`, and does not set environment variables for
+> discovery.
 
 The link feature allows multiple containers to communicate with each other. For
 example, a container whose Dockerfile has exposed port 80 can be run and named

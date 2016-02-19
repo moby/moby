@@ -22,6 +22,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/digest"
 	"github.com/docker/docker/api"
+	"github.com/docker/docker/builder"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/events"
 	"github.com/docker/docker/daemon/exec"
@@ -678,6 +679,10 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 	}
 	logrus.Debugf("Using default logging driver %s", config.LogConfig.Type)
 
+	if err := configureMaxThreads(config); err != nil {
+		logrus.Warnf("Failed to configure golang's threads limit: %v", err)
+	}
+
 	daemonRepo := filepath.Join(config.Root, "containers")
 	if err := idtools.MkdirAllAs(daemonRepo, 0700, rootUID, rootGID); err != nil && !os.IsExist(err) {
 		return nil, err
@@ -755,7 +760,7 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 
 	migrationStart := time.Now()
 	if err := v1.Migrate(config.Root, graphDriver, d.layerStore, d.imageStore, referenceStore, distributionMetadataStore); err != nil {
-		return nil, err
+		logrus.Errorf("Graph migration failed: %q. Your old graph data was found to be too inconsistent for upgrading to content-addressable storage. Some of the old data was probably not upgraded. We recommend starting over with a clean storage directory if possible.", err)
 	}
 	logrus.Infof("Graph migration to content-addressability took %.2f seconds", time.Since(migrationStart).Seconds())
 
@@ -1035,6 +1040,35 @@ func (daemon *Daemon) PullImage(ref reference.Named, metaHeaders map[string][]st
 	return err
 }
 
+// PullOnBuild tells Docker to pull image referenced by `name`.
+func (daemon *Daemon) PullOnBuild(name string, authConfigs map[string]types.AuthConfig, output io.Writer) (builder.Image, error) {
+	ref, err := reference.ParseNamed(name)
+	if err != nil {
+		return nil, err
+	}
+	ref = reference.WithDefaultTag(ref)
+
+	pullRegistryAuth := &types.AuthConfig{}
+	if len(authConfigs) > 0 {
+		// The request came with a full auth config file, we prefer to use that
+		repoInfo, err := daemon.RegistryService.ResolveRepository(ref)
+		if err != nil {
+			return nil, err
+		}
+
+		resolvedConfig := registry.ResolveAuthConfig(
+			authConfigs,
+			repoInfo.Index,
+		)
+		pullRegistryAuth = &resolvedConfig
+	}
+
+	if err := daemon.PullImage(ref, nil, pullRegistryAuth, output); err != nil {
+		return nil, err
+	}
+	return daemon.GetImage(name)
+}
+
 // ExportImage exports a list of images to the given output stream. The
 // exported images are archived into a tar when written to the output
 // stream. All images with the given tag and all versions containing
@@ -1153,9 +1187,9 @@ func (daemon *Daemon) LookupImage(name string) (*types.ImageInspect, error) {
 // LoadImage uploads a set of images into the repository. This is the
 // complement of ImageExport.  The input stream is an uncompressed tar
 // ball containing images and metadata.
-func (daemon *Daemon) LoadImage(inTar io.ReadCloser, outStream io.Writer) error {
+func (daemon *Daemon) LoadImage(inTar io.ReadCloser, outStream io.Writer, quiet bool) error {
 	imageExporter := tarexport.NewTarExporter(daemon.imageStore, daemon.layerStore, daemon.referenceStore)
-	return imageExporter.Load(inTar, outStream)
+	return imageExporter.Load(inTar, outStream, quiet)
 }
 
 // ImageHistory returns a slice of ImageHistory structures for the specified image
@@ -1275,6 +1309,15 @@ func (daemon *Daemon) GetImage(refOrID string) (*image.Image, error) {
 	return daemon.imageStore.Get(imgID)
 }
 
+// GetImageOnBuild looks up a Docker image referenced by `name`.
+func (daemon *Daemon) GetImageOnBuild(name string) (builder.Image, error) {
+	img, err := daemon.GetImage(name)
+	if err != nil {
+		return nil, err
+	}
+	return img, nil
+}
+
 // GraphDriverName returns the name of the graph driver used by the layer.Store
 func (daemon *Daemon) GraphDriverName() string {
 	return daemon.layerStore.DriverName()
@@ -1301,11 +1344,11 @@ func (daemon *Daemon) GetRemappedUIDGID() (int, int) {
 	return uid, gid
 }
 
-// ImageGetCached returns the most recent created image that is a child
+// GetCachedImage returns the most recent created image that is a child
 // of the image with imgID, that had the same config when it was
 // created. nil is returned if a child cannot be found. An error is
 // returned if the parent image cannot be found.
-func (daemon *Daemon) ImageGetCached(imgID image.ID, config *containertypes.Config) (*image.Image, error) {
+func (daemon *Daemon) GetCachedImage(imgID image.ID, config *containertypes.Config) (*image.Image, error) {
 	// Loop on the children of the given image and check the config
 	getMatch := func(siblings []image.ID) (*image.Image, error) {
 		var match *image.Image
@@ -1340,6 +1383,16 @@ func (daemon *Daemon) ImageGetCached(imgID image.ID, config *containertypes.Conf
 	// find match from child images
 	siblings := daemon.imageStore.Children(imgID)
 	return getMatch(siblings)
+}
+
+// GetCachedImageOnBuild returns a reference to a cached image whose parent equals `parent`
+// and runconfig equals `cfg`. A cache miss is expected to return an empty ID and a nil error.
+func (daemon *Daemon) GetCachedImageOnBuild(imgID string, cfg *containertypes.Config) (string, error) {
+	cache, err := daemon.GetCachedImage(image.ID(imgID), cfg)
+	if cache == nil || err != nil {
+		return "", err
+	}
+	return cache.ID().String(), nil
 }
 
 // tempDir returns the default directory to use for temporary files.
@@ -1545,12 +1598,12 @@ func (daemon *Daemon) initDiscovery(config *Config) error {
 // daemon according to those changes.
 // This are the settings that Reload changes:
 // - Daemon labels.
+// - Cluster discovery (reconfigure and restart).
 func (daemon *Daemon) Reload(config *Config) error {
 	daemon.configStore.reloadLock.Lock()
+	defer daemon.configStore.reloadLock.Unlock()
 	daemon.configStore.Labels = config.Labels
-	daemon.configStore.reloadLock.Unlock()
-
-	return nil
+	return daemon.reloadClusterDiscovery(config)
 }
 
 func (daemon *Daemon) reloadClusterDiscovery(config *Config) error {
@@ -1586,6 +1639,19 @@ func (daemon *Daemon) reloadClusterDiscovery(config *Config) error {
 	daemon.configStore.ClusterStore = config.ClusterStore
 	daemon.configStore.ClusterOpts = config.ClusterOpts
 	daemon.configStore.ClusterAdvertise = newAdvertise
+
+	if daemon.netController == nil {
+		return nil
+	}
+	netOptions, err := daemon.networkOptions(daemon.configStore)
+	if err != nil {
+		logrus.Warnf("Failed to reload configuration with network controller: %v", err)
+		return nil
+	}
+	err = daemon.netController.ReloadConfiguration(netOptions...)
+	if err != nil {
+		logrus.Warnf("Failed to reload configuration with network controller: %v", err)
+	}
 
 	return nil
 }

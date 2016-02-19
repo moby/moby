@@ -144,11 +144,12 @@ func Push(ctx context.Context, ref reference.Named, imagePushConfig *ImagePushCo
 					confirmedV2 = confirmedV2 || fallbackErr.confirmedV2
 					err = fallbackErr.err
 					lastErr = err
+					logrus.Errorf("Attempting next endpoint for push after error: %v", err)
 					continue
 				}
 			}
 
-			logrus.Debugf("Not continuing with error: %v", err)
+			logrus.Errorf("Not continuing with push after error: %v", err)
 			return err
 		}
 

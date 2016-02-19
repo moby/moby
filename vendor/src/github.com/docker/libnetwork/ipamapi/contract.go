@@ -4,6 +4,7 @@ package ipamapi
 import (
 	"net"
 
+	"github.com/docker/libnetwork/discoverapi"
 	"github.com/docker/libnetwork/types"
 )
 
@@ -56,6 +57,8 @@ var (
 // Ipam represents the interface the IPAM service plugins must implement
 // in order to allow injection/modification of IPAM database.
 type Ipam interface {
+	discoverapi.Discover
+
 	// GetDefaultAddressSpaces returns the default local and global address spaces for this ipam
 	GetDefaultAddressSpaces() (string, string, error)
 	// RequestPool returns an address pool along with its unique id. Address space is a mandatory field
@@ -67,7 +70,7 @@ type Ipam interface {
 	RequestPool(addressSpace, pool, subPool string, options map[string]string, v6 bool) (string, *net.IPNet, map[string]string, error)
 	// ReleasePool releases the address pool identified by the passed id
 	ReleasePool(poolID string) error
-	// Request address from the specified pool ID. Input options or preferred IP can be passed.
+	// Request address from the specified pool ID. Input options or required IP can be passed.
 	RequestAddress(string, net.IP, map[string]string) (*net.IPNet, map[string]string, error)
 	// Release the address from the specified pool ID
 	ReleaseAddress(string, net.IP) error

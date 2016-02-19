@@ -5,6 +5,8 @@ import (
 	"io"
 	"os"
 
+	"golang.org/x/net/context"
+
 	Cli "github.com/docker/docker/cli"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/jsonmessage"
@@ -70,7 +72,7 @@ func (cli *DockerCli) CmdImport(args ...string) error {
 		Changes:        changes,
 	}
 
-	responseBody, err := cli.client.ImageImport(options)
+	responseBody, err := cli.client.ImageImport(context.Background(), options)
 	if err != nil {
 		return err
 	}

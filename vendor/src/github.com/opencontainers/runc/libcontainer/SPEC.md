@@ -60,7 +60,7 @@ are required to be mounted within the rootfs that the runtime will setup.
 After a container's filesystems are mounted within the newly created 
 mount namespace `/dev` will need to be populated with a set of device nodes.
 It is expected that a rootfs does not need to have any device nodes specified
-for `/dev` witin the rootfs as the container will setup the correct devices
+for `/dev` within the rootfs as the container will setup the correct devices
 that are required for executing a container's process.
 
 |      Path    | Mode |   Access   |
@@ -142,6 +142,7 @@ system resources like cpu, memory, and device access.
 | perf_event | 1       |
 | freezer    | 1       |
 | hugetlb    | 1       |
+| pids       | 1       |
 
 
 All cgroup subsystem are joined so that statistics can be collected from
@@ -199,7 +200,7 @@ provide a good default for security and flexibility for the applications.
 | CAP_SYS_BOOT         | 0       |
 | CAP_LEASE            | 0       |
 | CAP_WAKE_ALARM       | 0       |
-| CAP_BLOCK_SUSPE      | 0       |
+| CAP_BLOCK_SUSPEND    | 0       |
 
 
 Additional security layers like [apparmor](https://wiki.ubuntu.com/AppArmor)

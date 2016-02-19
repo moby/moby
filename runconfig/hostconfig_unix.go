@@ -70,10 +70,10 @@ func ValidateNetMode(c *container.Config, hc *container.HostConfig) error {
 	return nil
 }
 
-// ValidateIsolationLevel performs platform specific validation of the
-// isolation level in the hostconfig structure. Linux only supports "default"
+// ValidateIsolation performs platform specific validation of
+// isolation in the hostconfig structure. Linux only supports "default"
 // which is LXC container isolation
-func ValidateIsolationLevel(hc *container.HostConfig) error {
+func ValidateIsolation(hc *container.HostConfig) error {
 	// We may not be passed a host config, such as in the case of docker commit
 	if hc == nil {
 		return nil

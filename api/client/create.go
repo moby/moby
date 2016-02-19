@@ -5,6 +5,8 @@ import (
 	"io"
 	"os"
 
+	"golang.org/x/net/context"
+
 	Cli "github.com/docker/docker/cli"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/reference"
@@ -40,7 +42,7 @@ func (cli *DockerCli) pullImageCustomOut(image string, out io.Writer) error {
 		return err
 	}
 
-	authConfig := registry.ResolveAuthConfig(cli.configFile.AuthConfigs, repoInfo.Index)
+	authConfig := cli.resolveAuthConfig(cli.configFile.AuthConfigs, repoInfo.Index)
 	encodedAuth, err := encodeAuthToBase64(authConfig)
 	if err != nil {
 		return err
@@ -52,7 +54,7 @@ func (cli *DockerCli) pullImageCustomOut(image string, out io.Writer) error {
 		RegistryAuth: encodedAuth,
 	}
 
-	responseBody, err := cli.client.ImageCreate(options)
+	responseBody, err := cli.client.ImageCreate(context.Background(), options)
 	if err != nil {
 		return err
 	}

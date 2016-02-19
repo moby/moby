@@ -4,6 +4,8 @@ import (
 	"io"
 	"os"
 
+	"golang.org/x/net/context"
+
 	Cli "github.com/docker/docker/cli"
 	"github.com/docker/docker/pkg/jsonmessage"
 	flag "github.com/docker/docker/pkg/mflag"
@@ -17,6 +19,7 @@ import (
 func (cli *DockerCli) CmdLoad(args ...string) error {
 	cmd := Cli.Subcmd("load", nil, Cli.DockerCommands["load"].Description, true)
 	infile := cmd.String([]string{"i", "-input"}, "", "Read from a tar archive file, instead of STDIN")
+	quiet := cmd.Bool([]string{"q", "-quiet"}, false, "Suppress the load output")
 	cmd.Require(flag.Exact, 0)
 	cmd.ParseFlags(args, true)
 
@@ -29,8 +32,10 @@ func (cli *DockerCli) CmdLoad(args ...string) error {
 		defer file.Close()
 		input = file
 	}
-
-	response, err := cli.client.ImageLoad(input)
+	if !cli.isTerminalOut {
+		*quiet = true
+	}
+	response, err := cli.client.ImageLoad(context.Background(), input, *quiet)
 	if err != nil {
 		return err
 	}

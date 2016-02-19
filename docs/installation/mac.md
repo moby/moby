@@ -384,10 +384,14 @@ The next exercise demonstrates how to do this.
         $ docker stop mysite
         $ docker rm mysite
 
+> **Note**: There is a [known
+> issue](https://docs.docker.com/machine/drivers/virtualbox/#known-issues) that
+> may cause files shared with your nginx container to not update correctly as you
+> modify them on your host.
 
 ## Upgrade Docker Toolbox
 
-To upgrade Docker Toolbox, download an re-run [the Docker Toolbox
+To upgrade Docker Toolbox, download and re-run [the Docker Toolbox
 installer](https://docker.com/toolbox/).
 
 

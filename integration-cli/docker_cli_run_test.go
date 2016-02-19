@@ -206,7 +206,7 @@ func (s *DockerSuite) TestUserDefinedNetworkLinks(c *check.C) {
 	c.Assert(waitRun("first"), check.IsNil)
 
 	// run a container in user-defined network udlinkNet with a link for an existing container
-	// and a link for a container that doesnt exist
+	// and a link for a container that doesn't exist
 	dockerCmd(c, "run", "-d", "--net=udlinkNet", "--name=second", "--link=first:foo",
 		"--link=third:bar", "busybox", "top")
 	c.Assert(waitRun("second"), check.IsNil)
@@ -456,7 +456,6 @@ func (s *DockerSuite) TestRunVolumesFromInReadWriteMode(c *check.C) {
 		volumeDir = `c:/test` // Forward-slash as using busybox
 		fileInVol = `c:/test/file`
 	} else {
-		testRequires(c, DaemonIsLinux)
 		volumeDir = "/test"
 		fileInVol = "/test/file"
 	}
@@ -1724,7 +1723,7 @@ func (s *DockerSuite) TestRunWorkdirExistsAndIsFile(c *check.C) {
 	expected := "Cannot mkdir: /bin/cat is not a directory"
 	if daemonPlatform == "windows" {
 		existingFile = `\windows\system32\ntdll.dll`
-		expected = "The directory name is invalid"
+		expected = `Cannot mkdir: \windows\system32\ntdll.dll is not a directory.`
 	}
 
 	out, exitCode, err := dockerCmdWithError("run", "-w", existingFile, "busybox")
@@ -2103,10 +2102,7 @@ func (s *DockerSuite) TestRunAllocatePortInReservedRange(c *check.C) {
 func (s *DockerSuite) TestRunMountOrdering(c *check.C) {
 	// TODO Windows: Post TP4. Updated, but Windows does not support nested mounts currently.
 	testRequires(c, SameHostDaemon, DaemonIsLinux, NotUserNamespace)
-	prefix := ""
-	if daemonPlatform == "windows" {
-		prefix = "c:"
-	}
+	prefix, _ := getPrefixAndSlashFromDaemonPlatform()
 
 	tmpDir, err := ioutil.TempDir("", "docker_nested_mount_test")
 	if err != nil {
@@ -2151,10 +2147,7 @@ func (s *DockerSuite) TestRunMountOrdering(c *check.C) {
 func (s *DockerSuite) TestRunReuseBindVolumeThatIsSymlink(c *check.C) {
 	// Not applicable on Windows as Windows does not support volumes
 	testRequires(c, SameHostDaemon, DaemonIsLinux, NotUserNamespace)
-	prefix := ""
-	if daemonPlatform == "windows" {
-		prefix = "c:"
-	}
+	prefix, _ := getPrefixAndSlashFromDaemonPlatform()
 
 	tmpDir, err := ioutil.TempDir(os.TempDir(), "testlink")
 	if err != nil {
@@ -2237,12 +2230,7 @@ func (s *DockerSuite) TestRunNoOutputFromPullInStdout(c *check.C) {
 
 func (s *DockerSuite) TestRunVolumesCleanPaths(c *check.C) {
 	testRequires(c, SameHostDaemon)
-	prefix := ""
-	slash := `/`
-	if daemonPlatform == "windows" {
-		prefix = "c:"
-		slash = `\`
-	}
+	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
 	if _, err := buildImage("run_volumes_clean_paths",
 		`FROM busybox
 		VOLUME `+prefix+`/foo/`,
@@ -2324,13 +2312,10 @@ func (s *DockerSuite) TestRunAllowPortRangeThroughExpose(c *check.C) {
 	}
 }
 
-// test docker run expose a invalid port
 func (s *DockerSuite) TestRunExposePort(c *check.C) {
 	out, _, err := dockerCmdWithError("run", "--expose", "80000", "busybox")
-	//expose a invalid port should with a error out
-	if err == nil || !strings.Contains(out, "Invalid range format for --expose") {
-		c.Fatalf("run --expose a invalid port should with error out")
-	}
+	c.Assert(err, checker.NotNil, check.Commentf("--expose with an invalid port should error out"))
+	c.Assert(out, checker.Contains, "invalid range format for --expose")
 }
 
 func (s *DockerSuite) TestRunUnknownCommand(c *check.C) {
@@ -2383,7 +2368,7 @@ func (s *DockerSuite) TestRunModeIpcContainer(c *check.C) {
 	// Not applicable on Windows as uses Unix-specific capabilities
 	testRequires(c, SameHostDaemon, DaemonIsLinux, NotUserNamespace)
 
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "sh", "-c", "echo -n test > /dev/shm/test && top")
+	out, _ := dockerCmd(c, "run", "-d", "busybox", "sh", "-c", "echo -n test > /dev/shm/test && touch /dev/mqueue/toto && top")
 
 	id := strings.TrimSpace(out)
 	state := inspectField(c, id, "State.Running")
@@ -2406,6 +2391,18 @@ func (s *DockerSuite) TestRunModeIpcContainer(c *check.C) {
 	catOutput, _ := dockerCmd(c, "run", fmt.Sprintf("--ipc=container:%s", id), "busybox", "cat", "/dev/shm/test")
 	if catOutput != "test" {
 		c.Fatalf("Output of /dev/shm/test expected test but found: %s", catOutput)
+	}
+
+	// check that /dev/mqueue is actually of mqueue type
+	grepOutput, _ := dockerCmd(c, "run", fmt.Sprintf("--ipc=container:%s", id), "busybox", "grep", "/dev/mqueue", "/proc/mounts")
+	if !strings.HasPrefix(grepOutput, "mqueue /dev/mqueue mqueue rw") {
+		c.Fatalf("Output of 'grep /proc/mounts' expected 'mqueue /dev/mqueue mqueue rw' but found: %s", grepOutput)
+	}
+
+	lsOutput, _ := dockerCmd(c, "run", fmt.Sprintf("--ipc=container:%s", id), "busybox", "ls", "/dev/mqueue")
+	lsOutput = strings.Trim(lsOutput, "\n")
+	if lsOutput != "toto" {
+		c.Fatalf("Output of 'ls /dev/mqueue' expected 'toto' but found: %s", lsOutput)
 	}
 }
 
@@ -2433,9 +2430,11 @@ func (s *DockerSuite) TestRunModeIpcContainerNotRunning(c *check.C) {
 
 func (s *DockerSuite) TestRunMountShmMqueueFromHost(c *check.C) {
 	// Not applicable on Windows as uses Unix-specific capabilities
-	testRequires(c, SameHostDaemon, DaemonIsLinux)
+	testRequires(c, SameHostDaemon, DaemonIsLinux, NotUserNamespace)
 
-	dockerCmd(c, "run", "-d", "--name", "shmfromhost", "-v", "/dev/shm:/dev/shm", "busybox", "sh", "-c", "echo -n test > /dev/shm/test && top")
+	dockerCmd(c, "run", "-d", "--name", "shmfromhost", "-v", "/dev/shm:/dev/shm", "-v", "/dev/mqueue:/dev/mqueue", "busybox", "sh", "-c", "echo -n test > /dev/shm/test && touch /dev/mqueue/toto && top")
+	defer os.Remove("/dev/mqueue/toto")
+	defer os.Remove("/dev/shm/test")
 	volPath, err := inspectMountSourceField("shmfromhost", "/dev/shm")
 	c.Assert(err, checker.IsNil)
 	if volPath != "/dev/shm" {
@@ -2445,6 +2444,11 @@ func (s *DockerSuite) TestRunMountShmMqueueFromHost(c *check.C) {
 	out, _ := dockerCmd(c, "run", "--name", "ipchost", "--ipc", "host", "busybox", "cat", "/dev/shm/test")
 	if out != "test" {
 		c.Fatalf("Output of /dev/shm/test expected test but found: %s", out)
+	}
+
+	// Check that the mq was created
+	if _, err := os.Stat("/dev/mqueue/toto"); err != nil {
+		c.Fatalf("Failed to confirm '/dev/mqueue/toto' presence on host: %s", err.Error())
 	}
 }
 
@@ -2695,7 +2699,7 @@ func (s *DockerSuite) TestRunRestartMaxRetries(c *check.C) {
 	out, _ := dockerCmd(c, "run", "-d", "--restart=on-failure:3", "busybox", "false")
 	timeout := 10 * time.Second
 	if daemonPlatform == "windows" {
-		timeout = 45 * time.Second
+		timeout = 120 * time.Second
 	}
 
 	id := strings.TrimSpace(string(out))
@@ -2803,10 +2807,7 @@ func (s *DockerSuite) TestRunContainerWithReadonlyRootfsWithAddHostFlag(c *check
 }
 
 func (s *DockerSuite) TestRunVolumesFromRestartAfterRemoved(c *check.C) {
-	prefix := ""
-	if daemonPlatform == "windows" {
-		prefix = "c:"
-	}
+	prefix, _ := getPrefixAndSlashFromDaemonPlatform()
 	dockerCmd(c, "run", "-d", "--name", "voltest", "-v", prefix+"/foo", "busybox", "sleep", "60")
 	dockerCmd(c, "run", "-d", "--name", "restarter", "--volumes-from", "voltest", "busybox", "sleep", "60")
 
@@ -3040,12 +3041,7 @@ func (s *DockerSuite) TestRunCapAddCHOWN(c *check.C) {
 func (s *DockerSuite) TestVolumeFromMixedRWOptions(c *check.C) {
 	// TODO Windows post TP4. Enable the read-only bits once they are
 	// supported on the platform.
-	prefix := ""
-	slash := `/`
-	if daemonPlatform == "windows" {
-		prefix = "c:"
-		slash = `\`
-	}
+	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
 
 	dockerCmd(c, "run", "--name", "parent", "-v", prefix+"/test", "busybox", "true")
 	if daemonPlatform != "windows" {
@@ -3392,19 +3388,14 @@ func (s *DockerSuite) TestRunCreateContainerFailedCleanUp(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunNamedVolume(c *check.C) {
-	prefix := ""
-	slash := `/`
-	if daemonPlatform == "windows" {
-		prefix = "c:"
-		slash = `\`
-	}
+	prefix, _ := getPrefixAndSlashFromDaemonPlatform()
 	testRequires(c, DaemonIsLinux)
-	dockerCmd(c, "run", "--name=test", "-v", "testing:"+prefix+slash+"foo", "busybox", "sh", "-c", "echo hello > "+prefix+"/foo/bar")
+	dockerCmd(c, "run", "--name=test", "-v", "testing:"+prefix+"/foo", "busybox", "sh", "-c", "echo hello > "+prefix+"/foo/bar")
 
 	out, _ := dockerCmd(c, "run", "--volumes-from", "test", "busybox", "sh", "-c", "cat "+prefix+"/foo/bar")
 	c.Assert(strings.TrimSpace(out), check.Equals, "hello")
 
-	out, _ = dockerCmd(c, "run", "-v", "testing:"+prefix+slash+"foo", "busybox", "sh", "-c", "cat "+prefix+"/foo/bar")
+	out, _ = dockerCmd(c, "run", "-v", "testing:"+prefix+"/foo", "busybox", "sh", "-c", "cat "+prefix+"/foo/bar")
 	c.Assert(strings.TrimSpace(out), check.Equals, "hello")
 }
 
@@ -4150,10 +4141,7 @@ func (s *DockerSuite) TestRunNamedVolumeCopyImageData(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunNamedVolumeNotRemoved(c *check.C) {
-	prefix := ""
-	if daemonPlatform == "windows" {
-		prefix = "c:"
-	}
+	prefix, _ := getPrefixAndSlashFromDaemonPlatform()
 
 	dockerCmd(c, "volume", "create", "--name", "test")
 
@@ -4170,10 +4158,7 @@ func (s *DockerSuite) TestRunNamedVolumeNotRemoved(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunNamedVolumesFromNotRemoved(c *check.C) {
-	prefix := ""
-	if daemonPlatform == "windows" {
-		prefix = "c:"
-	}
+	prefix, _ := getPrefixAndSlashFromDaemonPlatform()
 
 	dockerCmd(c, "volume", "create", "--name", "test")
 	dockerCmd(c, "run", "--name=parent", "-v", "test:"+prefix+"/foo", "-v", prefix+"/bar", "busybox", "true")

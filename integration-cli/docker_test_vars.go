@@ -19,6 +19,8 @@ var (
 	// the private registry to use for tests
 	privateRegistryURL = "127.0.0.1:5000"
 
+	// TODO Windows CI. These are incorrect and need fixing into
+	// platform specific pieces.
 	runtimePath    = "/var/run/docker"
 	execDriverPath = runtimePath + "/execdriver/native"
 
@@ -84,7 +86,7 @@ func init() {
 	// to evaluate whether the daemon is local or remote is not possible through
 	// a build tag.
 	//
-	// For example Windows CI under Jenkins test the 64-bit
+	// For example Windows to Linux CI under Jenkins tests the 64-bit
 	// Windows binary build with the daemon build tag, but calls a remote
 	// Linux daemon.
 	//
@@ -99,6 +101,8 @@ func init() {
 		isLocalDaemon = true
 	}
 
+	// TODO Windows CI. This are incorrect and need fixing into
+	// platform specific pieces.
 	// This is only used for a tests with local daemon true (Linux-only today)
 	// default is "/var/lib/docker", but we'll try and ask the
 	// /info endpoint for the specific root dir

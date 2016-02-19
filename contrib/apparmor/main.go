@@ -11,8 +11,7 @@ import (
 )
 
 type profileData struct {
-	MajorVersion int
-	MinorVersion int
+	Version int
 }
 
 func main() {
@@ -23,13 +22,12 @@ func main() {
 	// parse the arg
 	apparmorProfilePath := os.Args[1]
 
-	majorVersion, minorVersion, err := aaparser.GetVersion()
+	version, err := aaparser.GetVersion()
 	if err != nil {
 		log.Fatal(err)
 	}
 	data := profileData{
-		MajorVersion: majorVersion,
-		MinorVersion: minorVersion,
+		Version: version,
 	}
 	fmt.Printf("apparmor_parser is of version %+v\n", data)
 

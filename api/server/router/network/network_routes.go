@@ -8,7 +8,6 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/docker/docker/api/server/httputils"
-	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/filters"
@@ -81,7 +80,7 @@ func (n *networkRouter) postNetworkCreate(ctx context.Context, w http.ResponseWr
 			fmt.Sprintf("%s is a pre-defined network and cannot be created", create.Name))
 	}
 
-	nw, err := n.backend.GetNetwork(create.Name, daemon.NetworkByName)
+	nw, err := n.backend.GetNetworkByName(create.Name)
 	if _, ok := err.(libnetwork.ErrNoSuchNetwork); err != nil && !ok {
 		return err
 	}
@@ -92,7 +91,7 @@ func (n *networkRouter) postNetworkCreate(ctx context.Context, w http.ResponseWr
 		warning = fmt.Sprintf("Network with name %s (id : %s) already exists", nw.Name(), nw.ID())
 	}
 
-	nw, err = n.backend.CreateNetwork(create.Name, create.Driver, create.IPAM, create.Options, create.Internal)
+	nw, err = n.backend.CreateNetwork(create.Name, create.Driver, create.IPAM, create.Options, create.Internal, create.EnableIPv6)
 	if err != nil {
 		return err
 	}
@@ -161,9 +160,12 @@ func buildNetworkResource(nw libnetwork.Network) *types.NetworkResource {
 	r.ID = nw.ID()
 	r.Scope = nw.Info().Scope()
 	r.Driver = nw.Type()
+	r.EnableIPv6 = nw.Info().IPv6Enabled()
+	r.Internal = nw.Info().Internal()
 	r.Options = nw.Info().DriverOptions()
 	r.Containers = make(map[string]types.EndpointResource)
 	buildIpamResources(r, nw)
+	r.Internal = nw.Info().Internal()
 
 	epl := nw.Endpoints()
 	for _, e := range epl {

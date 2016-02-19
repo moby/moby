@@ -20,7 +20,7 @@ func (s *DockerSuite) TestEventsTimestampFormats(c *check.C) {
 	image := "busybox"
 
 	// Start stopwatch, generate an event
-	time.Sleep(1 * time.Second) // so that we don't grab events from previous test occured in the same second
+	time.Sleep(1 * time.Second) // so that we don't grab events from previous test occurred in the same second
 	start := daemonTime(c)
 	dockerCmd(c, "tag", image, "timestamptest:1")
 	dockerCmd(c, "rmi", "timestamptest:1")
@@ -138,6 +138,33 @@ func (s *DockerSuite) TestEventsContainerEvents(c *check.C) {
 	c.Assert(containerEvents[2], checker.Equals, "start", check.Commentf(out))
 	c.Assert(containerEvents[3], checker.Equals, "die", check.Commentf(out))
 	c.Assert(containerEvents[4], checker.Equals, "destroy", check.Commentf(out))
+}
+
+func (s *DockerSuite) TestEventsContainerEventsAttrSort(c *check.C) {
+	since := daemonTime(c).Unix()
+	containerID, _ := dockerCmd(c, "run", "-d", "--name", "container-events-test", "busybox", "true")
+	containerID = strings.TrimSpace(containerID)
+
+	out, _ := dockerCmd(c, "events", fmt.Sprintf("--since=%d", since), fmt.Sprintf("--until=%d", daemonTime(c).Unix()))
+	events := strings.Split(out, "\n")
+
+	nEvents := len(events)
+	c.Assert(nEvents, checker.GreaterOrEqualThan, 3) //Missing expected event
+	matchedEvents := 0
+	for _, event := range events {
+		matches := parseEventText(event)
+		if matches["id"] != containerID {
+			continue
+		}
+		if matches["eventType"] == "container" && matches["action"] == "create" {
+			matchedEvents++
+			c.Assert(out, checker.Contains, "(image=busybox, name=container-events-test)", check.Commentf("Event attributes not sorted"))
+		} else if matches["eventType"] == "container" && matches["action"] == "start" {
+			matchedEvents++
+			c.Assert(out, checker.Contains, "(image=busybox, name=container-events-test)", check.Commentf("Event attributes not sorted"))
+		}
+	}
+	c.Assert(matchedEvents, checker.Equals, 2)
 }
 
 func (s *DockerSuite) TestEventsContainerEventsSinceUnixEpoch(c *check.C) {
@@ -428,6 +455,8 @@ func (s *DockerSuite) TestEventsResize(c *check.C) {
 }
 
 func (s *DockerSuite) TestEventsAttach(c *check.C) {
+	// TODO Windows CI: Figure out why this test fails intermittently (TP4 and TP5).
+	testRequires(c, DaemonIsLinux)
 	since := daemonTime(c).Unix()
 
 	out, _ := dockerCmd(c, "run", "-di", "busybox", "cat")

@@ -97,9 +97,6 @@ func ParseMountSpec(spec, volumeDriver string) (*MountPoint, error) {
 	if len(source) == 0 {
 		mp.Source = "" // Clear it out as we previously assumed it was not a name
 		mp.Driver = volumeDriver
-		if len(mp.Driver) == 0 {
-			mp.Driver = DefaultDriverName
-		}
 		// Named volumes can't have propagation properties specified.
 		// Their defaults will be decided by docker. This is just a
 		// safeguard. Don't want to get into situations where named

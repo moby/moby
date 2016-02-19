@@ -68,7 +68,7 @@ func (p *v2Pusher) Push(ctx context.Context) (err error) {
 	}
 
 	if err = p.pushV2Repository(ctx); err != nil {
-		if registry.ContinueOnError(err) {
+		if continueOnError(err) {
 			return fallbackError{err: err, confirmedV2: p.pushState.confirmedV2}
 		}
 	}
@@ -166,7 +166,11 @@ func (p *v2Pusher) pushV2Tag(ctx context.Context, ref reference.NamedTagged, ima
 	if _, err = manSvc.Put(ctx, manifest, putOptions...); err != nil {
 		logrus.Warnf("failed to upload schema2 manifest: %v - falling back to schema1", err)
 
-		builder = schema1.NewConfigManifestBuilder(p.repo.Blobs(ctx), p.config.TrustKey, p.repo.Name(), ref.Tag(), img.RawJSON())
+		manifestRef, err := distreference.WithTag(p.repo.Named(), ref.Tag())
+		if err != nil {
+			return err
+		}
+		builder = schema1.NewConfigManifestBuilder(p.repo.Blobs(ctx), p.config.TrustKey, manifestRef, img.RawJSON())
 		manifest, err = manifestFromBuilder(ctx, builder, descriptors)
 		if err != nil {
 			return err
@@ -219,7 +223,7 @@ type v2PushDescriptor struct {
 }
 
 func (pd *v2PushDescriptor) Key() string {
-	return "v2push:" + pd.repo.Name() + " " + pd.layer.DiffID().String()
+	return "v2push:" + pd.repo.Named().Name() + " " + pd.layer.DiffID().String()
 }
 
 func (pd *v2PushDescriptor) ID() string {
@@ -375,7 +379,7 @@ func (pd *v2PushDescriptor) Upload(ctx context.Context, progressOutput progress.
 
 	pd.pushState.Lock()
 
-	// If Commit succeded, that's an indication that the remote registry
+	// If Commit succeeded, that's an indication that the remote registry
 	// speaks the v2 protocol.
 	pd.pushState.confirmedV2 = true
 

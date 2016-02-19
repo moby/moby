@@ -44,7 +44,6 @@ type Container struct {
 	HostnamePath    string
 	HostsPath       string
 	ShmPath         string
-	MqueuePath      string
 	ResolvConfPath  string
 	SeccompProfile  string
 }
@@ -398,34 +397,6 @@ func (container *Container) BuildCreateEndpointOptions(n libnetwork.Network, epC
 	return createOptions, nil
 }
 
-// SetupWorkingDirectory sets up the container's working directory as set in container.Config.WorkingDir
-func (container *Container) SetupWorkingDirectory() error {
-	if container.Config.WorkingDir == "" {
-		return nil
-	}
-	container.Config.WorkingDir = filepath.Clean(container.Config.WorkingDir)
-
-	pth, err := container.GetResourcePath(container.Config.WorkingDir)
-	if err != nil {
-		return err
-	}
-
-	pthInfo, err := os.Stat(pth)
-	if err != nil {
-		if !os.IsNotExist(err) {
-			return err
-		}
-
-		if err := system.MkdirAll(pth, 0755); err != nil {
-			return err
-		}
-	}
-	if pthInfo != nil && !pthInfo.IsDir() {
-		return derr.ErrorCodeNotADir.WithArgs(container.Config.WorkingDir)
-	}
-	return nil
-}
-
 // appendNetworkMounts appends any network mounts to the array of mount points passed in
 func appendNetworkMounts(container *Container, volumeMounts []volume.MountPoint) ([]volume.MountPoint, error) {
 	for _, mnt := range container.NetworkMounts() {
@@ -559,18 +530,6 @@ func (container *Container) UnmountIpcMounts(unmount func(pth string) error) {
 		}
 	}
 
-	if !container.HasMountFor("/dev/mqueue") {
-		mqueuePath, err := container.MqueueResourcePath()
-		if err != nil {
-			logrus.Error(err)
-			warnings = append(warnings, err.Error())
-		} else if mqueuePath != "" {
-			if err := unmount(mqueuePath); err != nil {
-				warnings = append(warnings, fmt.Sprintf("failed to umount %s: %v", mqueuePath, err))
-			}
-		}
-	}
-
 	if len(warnings) > 0 {
 		logrus.Warnf("failed to cleanup ipc mounts:\n%v", strings.Join(warnings, "\n"))
 	}
@@ -585,16 +544,6 @@ func (container *Container) IpcMounts() []execdriver.Mount {
 		mounts = append(mounts, execdriver.Mount{
 			Source:      container.ShmPath,
 			Destination: "/dev/shm",
-			Writable:    true,
-			Propagation: volume.DefaultPropagationMode,
-		})
-	}
-
-	if !container.HasMountFor("/dev/mqueue") {
-		label.SetFileLabel(container.MqueuePath, container.MountLabel)
-		mounts = append(mounts, execdriver.Mount{
-			Source:      container.MqueuePath,
-			Destination: "/dev/mqueue",
 			Writable:    true,
 			Propagation: volume.DefaultPropagationMode,
 		})
@@ -767,4 +716,9 @@ func (container *Container) TmpfsMounts() []execdriver.Mount {
 		})
 	}
 	return mounts
+}
+
+// cleanResourcePath cleans a resource path and prepares to combine with mnt path
+func cleanResourcePath(path string) string {
+	return filepath.Join(string(os.PathSeparator), path)
 }

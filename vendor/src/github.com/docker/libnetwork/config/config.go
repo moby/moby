@@ -61,7 +61,23 @@ func ParseConfig(tomlCfgFile string) (*Config, error) {
 	return cfg, nil
 }
 
-// Option is a option setter function type used to pass varios configurations
+// ParseConfigOptions parses the configuration options and returns
+// a reference to the corresponding Config structure
+func ParseConfigOptions(cfgOptions ...Option) *Config {
+	cfg := &Config{
+		Daemon: DaemonCfg{
+			DriverCfg: make(map[string]interface{}),
+		},
+		Scopes: make(map[string]*datastore.ScopeCfg),
+	}
+
+	cfg.ProcessOptions(cfgOptions...)
+	cfg.LoadDefaultScopes(cfg.Daemon.DataDir)
+
+	return cfg
+}
+
+// Option is an option setter function type used to pass various configurations
 // to the controller
 type Option func(c *Config)
 

@@ -11,7 +11,7 @@ weight=-2
 
 # Legacy container links
 
-The information in this section explains legacy container links within the Docker default bridge. This is a `bridge` network named `bridge` created automatically when you install Docker.  
+The information in this section explains legacy container links within the Docker default bridge. This is a `bridge` network named `bridge` created automatically when you install Docker. 
 
 Before the [Docker networks feature](../dockernetworks.md), you could use the
 Docker link feature to allow containers to discover each other and securely
@@ -94,6 +94,12 @@ configurations. For example, if you've bound the container port to the
 > The `-p` flag can be used multiple times to configure multiple ports.
 
 ## Connect with the linking system
+
+> **Note**:
+> This section covers the legacy link feature in the default `bridge` network.
+> Please refer to [linking containers in user-defined networks]
+> (../work-with-networks.md#linking-containers-in-user-defined-networks)
+> for more information on links in user-defined networks.
 
 Network port mappings are not the only way Docker containers can connect to one
 another. Docker also has a linking system that allows you to link multiple

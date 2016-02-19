@@ -31,14 +31,13 @@ func init() {
 // Init returns a new BTRFS driver.
 // An error is returned if BTRFS is not supported.
 func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (graphdriver.Driver, error) {
-	rootdir := path.Dir(home)
 
-	var buf syscall.Statfs_t
-	if err := syscall.Statfs(rootdir, &buf); err != nil {
+	fsMagic, err := graphdriver.GetFSMagic(home)
+	if err != nil {
 		return nil, err
 	}
 
-	if graphdriver.FsMagic(buf.Type) != graphdriver.FsMagicBtrfs {
+	if fsMagic != graphdriver.FsMagicBtrfs {
 		return nil, graphdriver.ErrPrerequisites
 	}
 
@@ -257,9 +256,13 @@ func (d *Driver) Create(id, parent, mountLabel string) error {
 			return err
 		}
 	} else {
-		parentDir, err := d.Get(parent, "")
+		parentDir := d.subvolumesDirID(parent)
+		st, err := os.Stat(parentDir)
 		if err != nil {
 			return err
+		}
+		if !st.IsDir() {
+			return fmt.Errorf("%s: not a directory", parentDir)
 		}
 		if err := subvolSnapshot(parentDir, subvolumes, id); err != nil {
 			return err

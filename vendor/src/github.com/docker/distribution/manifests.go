@@ -81,7 +81,7 @@ type UnmarshalFunc func([]byte) (Manifest, Descriptor, error)
 
 var mappings = make(map[string]UnmarshalFunc, 0)
 
-// UnmarshalManifest looks up manifest unmarshall functions based on
+// UnmarshalManifest looks up manifest unmarshal functions based on
 // MediaType
 func UnmarshalManifest(ctHeader string, p []byte) (Manifest, Descriptor, error) {
 	// Need to look up by the actual media type, not the raw contents of

@@ -14,7 +14,7 @@ The information in this section explains configuring container DNS within
 the Docker default bridge. This is a `bridge` network named `bridge` created
 automatically when you install Docker.  
 
-**Note**: The [Docker networks feature](../dockernetworks.md) allows you to create user-defined networks in addition to the default bridge network.
+> **Note**: The [Docker networks feature](../dockernetworks.md) allows you to create user-defined networks in addition to the default bridge network. Please refer to the [Docker Embedded DNS](../configure-dns.md) section for more information on DNS configurations in user-defined networks.
 
 How can Docker supply each container with a hostname and DNS configuration, without having to build a custom image with the hostname written inside?  Its trick is to overlay three crucial `/etc` files inside the container with virtual files where it can write fresh information.  You can see this by running `mount` inside a container:
 
@@ -61,7 +61,7 @@ Four different options affect container domain name services.
       Using this option as you <code>run</code> a container gives the new
       container's <code>/etc/hosts</code> an extra entry named
       <code>ALIAS</code> that points to the IP address of the container
-      identified by <code>CONTAINER_NAME_or_ID<c/ode>. This lets processes
+      identified by <code>CONTAINER_NAME_or_ID</code>. This lets processes
       inside the new container connect to the hostname <code>ALIAS</code>
       without having to know its IP.  The <code>--link=</code> option is
       discussed in more detail below. Because Docker may assign a different IP

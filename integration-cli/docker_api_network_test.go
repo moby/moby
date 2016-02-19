@@ -84,6 +84,8 @@ func (s *DockerSuite) TestApiNetworkInspect(c *check.C) {
 	nr = getNetworkResource(c, nr.ID)
 	c.Assert(nr.Driver, checker.Equals, "bridge")
 	c.Assert(nr.Scope, checker.Equals, "local")
+	c.Assert(nr.Internal, checker.Equals, false)
+	c.Assert(nr.EnableIPv6, checker.Equals, false)
 	c.Assert(nr.IPAM.Driver, checker.Equals, "default")
 	c.Assert(len(nr.Containers), checker.Equals, 1)
 	c.Assert(nr.Containers[containerID], checker.NotNil)

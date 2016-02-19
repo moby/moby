@@ -21,6 +21,15 @@ const (
 	disableNetworkBridge = "none"
 )
 
+// flatOptions contains configuration keys
+// that MUST NOT be parsed as deep structures.
+// Use this to differentiate these options
+// with others like the ones in CommonTLSOptions.
+var flatOptions = map[string]bool{
+	"cluster-store-opts": true,
+	"log-opts":           true,
+}
+
 // LogConfig represents the default log configuration.
 // It includes json tags to deserialize configuration from a file
 // using the same names that the flags in the command line uses.
@@ -57,7 +66,9 @@ type CommonConfig struct {
 	Labels               []string            `json:"labels,omitempty"`
 	Mtu                  int                 `json:"mtu,omitempty"`
 	Pidfile              string              `json:"pidfile,omitempty"`
+	RawLogs              bool                `json:"raw-logs,omitempty"`
 	Root                 string              `json:"graph,omitempty"`
+	SocketGroup          string              `json:"group,omitempty"`
 	TrustKeyPath         string              `json:"-"`
 
 	// ClusterStore is the storage backend used for the cluster information. It is used by both
@@ -104,6 +115,7 @@ func (config *Config) InstallCommonFlags(cmd *flag.FlagSet, usageFn func(string)
 	cmd.BoolVar(&config.AutoRestart, []string{"#r", "#-restart"}, true, usageFn("--restart on the daemon has been deprecated in favor of --restart policies on docker run"))
 	cmd.StringVar(&config.GraphDriver, []string{"s", "-storage-driver"}, "", usageFn("Storage driver to use"))
 	cmd.IntVar(&config.Mtu, []string{"#mtu", "-mtu"}, 0, usageFn("Set the containers network MTU"))
+	cmd.BoolVar(&config.RawLogs, []string{"-raw-logs"}, false, usageFn("Full timestamps without ANSI coloring"))
 	// FIXME: why the inconsistency between "hosts" and "sockets"?
 	cmd.Var(opts.NewListOptsRef(&config.DNS, opts.ValidateIPAddress), []string{"#dns", "-dns"}, usageFn("DNS server to use"))
 	cmd.Var(opts.NewNamedListOptsRef("dns-opts", &config.DNSOptions, nil), []string{"-dns-opt"}, usageFn("DNS options to use"))
@@ -206,13 +218,14 @@ func getConflictFreeConfiguration(configFile string, flags *flag.FlagSet) (*Conf
 func configValuesSet(config map[string]interface{}) map[string]interface{} {
 	flatten := make(map[string]interface{})
 	for k, v := range config {
-		if m, ok := v.(map[string]interface{}); ok {
+		if m, isMap := v.(map[string]interface{}); isMap && !flatOptions[k] {
 			for km, vm := range m {
 				flatten[km] = vm
 			}
-		} else {
-			flatten[k] = v
+			continue
 		}
+
+		flatten[k] = v
 	}
 	return flatten
 }

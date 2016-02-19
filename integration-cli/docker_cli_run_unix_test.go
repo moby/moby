@@ -12,6 +12,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/docker/docker/pkg/homedir"
@@ -54,7 +55,7 @@ func (s *DockerSuite) TestRunRedirectStdout(c *check.C) {
 // Test recursive bind mount works by default
 func (s *DockerSuite) TestRunWithVolumesIsRecursive(c *check.C) {
 	// /tmp gets permission denied
-	testRequires(c, NotUserNamespace)
+	testRequires(c, NotUserNamespace, SameHostDaemon)
 	tmpDir, err := ioutil.TempDir("", "docker_recursive_mount_test")
 	c.Assert(err, checker.IsNil)
 
@@ -606,7 +607,7 @@ func (s *DockerSuite) TestRunSwapLessThanMemoryLimit(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunInvalidCpusetCpusFlagValue(c *check.C) {
-	testRequires(c, cgroupCpuset)
+	testRequires(c, cgroupCpuset, SameHostDaemon)
 
 	sysInfo := sysinfo.New(true)
 	cpus, err := parsers.ParseUintList(sysInfo.Cpus)
@@ -837,38 +838,60 @@ func (s *DockerSuite) TestRunSeccompAllowPrivCloneUserns(c *check.C) {
 	}
 }
 
-// TestRunSeccompAllowAptKey checks that 'docker run debian:jessie apt-key' succeeds.
-func (s *DockerSuite) TestRunSeccompAllowAptKey(c *check.C) {
-	testRequires(c, SameHostDaemon, seccompEnabled, Network)
+// TestRunSeccompAllowSetrlimit checks that 'docker run debian:jessie ulimit -v 1048510' succeeds.
+func (s *DockerSuite) TestRunSeccompAllowSetrlimit(c *check.C) {
+	testRequires(c, SameHostDaemon, seccompEnabled)
 
-	// apt-key uses setrlimit & getrlimit, so we want to make sure we don't break it
-	runCmd := exec.Command(dockerBinary, "run", "debian:jessie", "apt-key", "adv", "--keyserver", "hkp://p80.pool.sks-keyservers.net:80", "--recv-keys", "E871F18B51E0147C77796AC81196BA81F6B0FC61")
+	// ulimit uses setrlimit, so we want to make sure we don't break it
+	runCmd := exec.Command(dockerBinary, "run", "debian:jessie", "bash", "-c", "ulimit -v 1048510")
 	if out, _, err := runCommandWithOutput(runCmd); err != nil {
-		c.Fatalf("expected apt-key with seccomp to succeed, got %s: %v", out, err)
+		c.Fatalf("expected ulimit with seccomp to succeed, got %s: %v", out, err)
 	}
 }
 
 func (s *DockerSuite) TestRunSeccompDefaultProfile(c *check.C) {
 	testRequires(c, SameHostDaemon, seccompEnabled, NotUserNamespace)
 
-	out, _, err := dockerCmdWithError("run", "--cap-add", "ALL", "syscall-test", "acct-test")
-	if err == nil || !strings.Contains(out, "Operation not permitted") {
-		c.Fatalf("expected Operation not permitted, got: %s", out)
-	}
+	var group sync.WaitGroup
+	group.Add(4)
+	errChan := make(chan error, 4)
+	go func() {
+		out, _, err := dockerCmdWithError("run", "--cap-add", "ALL", "syscall-test", "acct-test")
+		if err == nil || !strings.Contains(out, "Operation not permitted") {
+			errChan <- fmt.Errorf("expected Operation not permitted, got: %s", out)
+		}
+		group.Done()
+	}()
 
-	out, _, err = dockerCmdWithError("run", "--cap-add", "ALL", "syscall-test", "ns-test", "echo", "hello")
-	if err == nil || !strings.Contains(out, "Operation not permitted") {
-		c.Fatalf("expected Operation not permitted, got: %s", out)
-	}
+	go func() {
+		out, _, err := dockerCmdWithError("run", "--cap-add", "ALL", "syscall-test", "ns-test", "echo", "hello")
+		if err == nil || !strings.Contains(out, "Operation not permitted") {
+			errChan <- fmt.Errorf("expected Operation not permitted, got: %s", out)
+		}
+		group.Done()
+	}()
 
-	out, _, err = dockerCmdWithError("run", "--cap-add", "ALL", "--security-opt", "seccomp:unconfined", "syscall-test", "acct-test")
-	if err == nil || !strings.Contains(out, "No such file or directory") {
-		c.Fatalf("expected No such file or directory, got: %s", out)
-	}
+	go func() {
+		out, _, err := dockerCmdWithError("run", "--cap-add", "ALL", "--security-opt", "seccomp:unconfined", "syscall-test", "acct-test")
+		if err == nil || !strings.Contains(out, "No such file or directory") {
+			errChan <- fmt.Errorf("expected No such file or directory, got: %s", out)
+		}
+		group.Done()
+	}()
 
-	out, _, err = dockerCmdWithError("run", "--cap-add", "ALL", "--security-opt", "seccomp:unconfined", "syscall-test", "ns-test", "echo", "hello")
-	if err != nil || !strings.Contains(out, "hello") {
-		c.Fatalf("expected hello, got: %s, %v", out, err)
+	go func() {
+		out, _, err := dockerCmdWithError("run", "--cap-add", "ALL", "--security-opt", "seccomp:unconfined", "syscall-test", "ns-test", "echo", "hello")
+		if err != nil || !strings.Contains(out, "hello") {
+			errChan <- fmt.Errorf("expected hello, got: %s, %v", out, err)
+		}
+		group.Done()
+	}()
+
+	group.Wait()
+	close(errChan)
+
+	for err := range errChan {
+		c.Assert(err, checker.IsNil)
 	}
 }
 

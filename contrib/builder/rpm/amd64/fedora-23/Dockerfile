@@ -7,27 +7,6 @@ FROM fedora:23
 RUN dnf install -y @development-tools fedora-packager
 RUN dnf install -y btrfs-progs-devel device-mapper-devel glibc-static libseccomp-devel libselinux-devel libtool-ltdl-devel pkgconfig selinux-policy selinux-policy-devel sqlite-devel systemd-devel tar
 
-ENV SECCOMP_VERSION 2.2.3
-RUN buildDeps=' \
-automake \
-libtool \
-' \
-&& set -x \
-&& yum install -y $buildDeps \
-&& export SECCOMP_PATH=$(mktemp -d) \
-&& curl -fsSL "https://github.com/seccomp/libseccomp/releases/download/v${SECCOMP_VERSION}/libseccomp-${SECCOMP_VERSION}.tar.gz" \
-| tar -xzC "$SECCOMP_PATH" --strip-components=1 \
-&& ( \
-cd "$SECCOMP_PATH" \
-&& ./configure --prefix=/usr \
-&& make \
-&& install -c src/.libs/libseccomp.a /usr/lib/libseccomp.a \
-&& chmod 644 /usr/lib/libseccomp.a \
-&& ranlib /usr/lib/libseccomp.a \
-&& ldconfig -n /usr/lib \
-) \
-&& rm -rf "$SECCOMP_PATH"
-
 ENV GO_VERSION 1.5.3
 RUN curl -fSL "https://storage.googleapis.com/golang/go${GO_VERSION}.linux-amd64.tar.gz" | tar xzC /usr/local
 ENV PATH $PATH:/usr/local/go/bin

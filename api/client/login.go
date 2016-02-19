@@ -11,7 +11,6 @@ import (
 	Cli "github.com/docker/docker/cli"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/term"
-	"github.com/docker/docker/registry"
 	"github.com/docker/engine-api/client"
 	"github.com/docker/engine-api/types"
 )
@@ -22,7 +21,7 @@ import (
 //
 // Usage: docker login SERVER
 func (cli *DockerCli) CmdLogin(args ...string) error {
-	cmd := Cli.Subcmd("login", []string{"[SERVER]"}, Cli.DockerCommands["login"].Description+".\nIf no server is specified \""+registry.IndexServer+"\" is the default.", true)
+	cmd := Cli.Subcmd("login", []string{"[SERVER]"}, Cli.DockerCommands["login"].Description+".\nIf no server is specified, the default is defined by the daemon.", true)
 	cmd.Require(flag.Max, 1)
 
 	flUser := cmd.String([]string{"u", "-username"}, "", "Username")
@@ -36,9 +35,11 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 		cli.in = os.Stdin
 	}
 
-	serverAddress := registry.IndexServer
+	var serverAddress string
 	if len(cmd.Args()) > 0 {
 		serverAddress = cmd.Arg(0)
+	} else {
+		serverAddress = cli.electAuthServer()
 	}
 
 	authConfig, err := cli.configureAuth(*flUser, *flPassword, *flEmail, serverAddress)

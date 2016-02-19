@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	"golang.org/x/net/context"
+
 	Cli "github.com/docker/docker/cli"
 	flag "github.com/docker/docker/pkg/mflag"
 )
@@ -21,9 +23,9 @@ func (cli *DockerCli) CmdWait(args ...string) error {
 
 	var errs []string
 	for _, name := range cmd.Args() {
-		status, err := cli.client.ContainerWait(name)
+		status, err := cli.client.ContainerWait(context.Background(), name)
 		if err != nil {
-			errs = append(errs, fmt.Sprintf("Failed to wait container (%s): %s", name, err))
+			errs = append(errs, err.Error())
 		} else {
 			fmt.Fprintf(cli.out, "%d\n", status)
 		}

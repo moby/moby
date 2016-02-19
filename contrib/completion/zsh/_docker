@@ -332,6 +332,7 @@ __docker_network_subcommand() {
                 "($help)*--ip-range=[Allocate container ip from a sub-range]:IP/mask: " \
                 "($help)--ipam-driver=[IP Address Management Driver]:driver:(default)" \
                 "($help)*--ipam-opt=[Set custom IPAM plugin options]:opt=value: " \
+                "($help)--ipv6[Enable IPv6 networking]" \
                 "($help)*"{-o=,--opt=}"[Set driver specific options]:opt=value: " \
                 "($help)*--subnet=[Subnet in CIDR format that represents a network segment]:IP/mask: " \
                 "($help -)1:Network Name: " && ret=0
@@ -666,6 +667,7 @@ __docker_subcommand() {
                 "($help)*--log-opt=[Log driver specific options]:log driver options:__docker_log_options" \
                 "($help)--mtu=[Set the containers network MTU]:mtu:(0 576 1420 1500 9000)" \
                 "($help -p --pidfile)"{-p=,--pidfile=}"[Path to use for daemon PID file]:PID file:_files" \
+                "($help)--raw-logs[Full timestamps without ANSI coloring]" \
                 "($help)*--registry-mirror=[Preferred Docker registry mirror]:registry mirror: " \
                 "($help -s --storage-driver)"{-s=,--storage-driver=}"[Storage driver to use]:driver:(aufs devicemapper btrfs zfs overlay)" \
                 "($help)--selinux-enabled[Enable selinux support]" \

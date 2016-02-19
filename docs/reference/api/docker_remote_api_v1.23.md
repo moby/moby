@@ -49,6 +49,7 @@ List containers
                  "ImageID": "d74508fb6632491cea586a1fd7d748dfc5274cd6fdfedee309ecdcbc2bf5cb82",
                  "Command": "echo 1",
                  "Created": 1367854155,
+                 "State": "Exited",
                  "Status": "Exit 0",
                  "Ports": [{"PrivatePort": 2222, "PublicPort": 3333, "Type": "tcp"}],
                  "Labels": {
@@ -81,6 +82,7 @@ List containers
                  "ImageID": "d74508fb6632491cea586a1fd7d748dfc5274cd6fdfedee309ecdcbc2bf5cb82",
                  "Command": "echo 222222",
                  "Created": 1367854155,
+                 "State": "Exited",
                  "Status": "Exit 0",
                  "Ports": [],
                  "Labels": {},
@@ -110,6 +112,7 @@ List containers
                  "ImageID": "d74508fb6632491cea586a1fd7d748dfc5274cd6fdfedee309ecdcbc2bf5cb82",
                  "Command": "echo 3333333333333333",
                  "Created": 1367854154,
+                 "State": "Exited",
                  "Status": "Exit 0",
                  "Ports":[],
                  "Labels": {},
@@ -139,6 +142,7 @@ List containers
                  "ImageID": "d74508fb6632491cea586a1fd7d748dfc5274cd6fdfedee309ecdcbc2bf5cb82",
                  "Command": "echo 444444444444444444444444444444444",
                  "Created": 1367854152,
+                 "State": "Exited",
                  "Status": "Exit 0",
                  "Ports": [],
                  "Labels": {},
@@ -386,7 +390,8 @@ Json Parameters:
             An ever increasing delay (double the previous delay, starting at 100mS)
             is added before each restart to prevent flooding the server.
     -   **NetworkMode** - Sets the networking mode for the container. Supported
-          values are: `bridge`, `host`, and `container:<name|id>`
+          standard values are: `bridge`, `host`, `none`, and `container:<name|id>`. Any other value is taken
+          as a custom network's name to which this container should connect to.
     -   **Devices** - A list of devices to add to the container specified as a JSON object in the
       form
           `{ "PathOnHost": "/dev/deviceName", "PathInContainer": "/dev/deviceName", "CgroupPermissions": "mrw"}`
@@ -397,7 +402,7 @@ Json Parameters:
         systems, such as SELinux.
     -   **LogConfig** - Log configuration for the container, specified as a JSON object in the form
           `{ "Type": "<driver_name>", "Config": {"key1": "val1"}}`.
-          Available types: `json-file`, `syslog`, `journald`, `gelf`, `awslogs`, `splunk`, `none`.
+          Available types: `json-file`, `syslog`, `journald`, `gelf`, `fluentd`, `awslogs`, `splunk`, `etwlogs`, `none`.
           `json-file` logging driver.
     -   **CgroupParent** - Path to `cgroups` under which the container's `cgroup` is created. If the path is not absolute, the path is considered to be relative to the `cgroups` path of the init process. Cgroups are created if they do not already exist.
     -   **VolumeDriver** - Driver that this container users to mount volumes.
@@ -2959,6 +2964,7 @@ Content-Type: application/json
         "foo": "bar"
     }
   },
+  "Internal": false,
   "Containers": {
     "19a4d5d687db25203351ed79d478946f861258f018fe384f229f2efa4b23513c": {
       "Name": "test",

@@ -516,7 +516,7 @@ feature](../userguide/networking/index.md)).
     ENV <key>=<value> ...
 
 The `ENV` instruction sets the environment variable `<key>` to the value
-`<value>`. This value will be in the environment of all "descendent"
+`<value>`. This value will be in the environment of all "descendant"
 `Dockerfile` commands and can be [replaced inline](#environment-replacement) in
 many as well.
 
@@ -579,7 +579,7 @@ The `<dest>` is an absolute path, or a path relative to `WORKDIR`, into which
 the source will be copied inside the destination container.
 
     ADD test relativeDir/          # adds "test" to `WORKDIR`/relativeDir/
-    ADD test /absoluteDir          # adds "test" to /absoluteDir
+    ADD test /absoluteDir/         # adds "test" to /absoluteDir/
 
 All new files and directories are created with a UID and GID of 0.
 
@@ -646,7 +646,7 @@ guide](../userguide/eng-image/dockerfile_best-practices.md#build-cache) for more
 
   > **Note**:
   > Whether a file is identified as a recognized compression format or not
-  > is done soley based on the contents of the file, not the name of the file.
+  > is done solely based on the contents of the file, not the name of the file.
   > For example, if an empty file happens to end with `.tar.gz` this will not
   > be recognized as a compressed file and **will not** generate any kind of
   > decompression error message, rather the file will simply be copied to the
@@ -691,7 +691,7 @@ The `<dest>` is an absolute path, or a path relative to `WORKDIR`, into which
 the source will be copied inside the destination container.
 
     COPY test relativeDir/   # adds "test" to `WORKDIR`/relativeDir/
-    COPY test /absoluteDir   # adds "test" to /absoluteDir
+    COPY test /absoluteDir/  # adds "test" to /absoluteDir/
 
 All new files and directories are created with a UID and GID of 0.
 

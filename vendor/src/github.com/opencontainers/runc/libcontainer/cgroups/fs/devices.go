@@ -15,21 +15,29 @@ func (s *DevicesGroup) Name() string {
 }
 
 func (s *DevicesGroup) Apply(d *cgroupData) error {
-	dir, err := d.join("devices")
+	_, err := d.join("devices")
 	if err != nil {
 		// We will return error even it's `not found` error, devices
 		// cgroup is hard requirement for container's security.
 		return err
 	}
-
-	if err := s.Set(dir, d.config); err != nil {
-		return err
-	}
-
 	return nil
 }
 
 func (s *DevicesGroup) Set(path string, cgroup *configs.Cgroup) error {
+	devices := cgroup.Resources.Devices
+	if len(devices) > 0 {
+		for _, dev := range devices {
+			file := "devices.deny"
+			if dev.Allow {
+				file = "devices.allow"
+			}
+			if err := writeFile(path, file, dev.CgroupString()); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
 	if !cgroup.Resources.AllowAllDevices {
 		if err := writeFile(path, "devices.deny", "a"); err != nil {
 			return err

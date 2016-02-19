@@ -233,6 +233,62 @@ func TestSearchAfterDelete(t *testing.T) {
 	}
 }
 
+func TestParentReset(t *testing.T) {
+	tmpdir, err := ioutil.TempDir("", "images-fs-store")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpdir)
+	fs, err := NewFSStoreBackend(tmpdir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	is, err := NewImageStore(fs, &mockLayerGetReleaser{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	id, err := is.Create([]byte(`{"comment": "abc1", "rootfs": {"type": "layers"}}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	id2, err := is.Create([]byte(`{"comment": "abc2", "rootfs": {"type": "layers"}}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	id3, err := is.Create([]byte(`{"comment": "abc3", "rootfs": {"type": "layers"}}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := is.SetParent(id, id2); err != nil {
+		t.Fatal(err)
+	}
+
+	ids := is.Children(id2)
+	if actual, expected := len(ids), 1; expected != actual {
+		t.Fatalf("wrong number of children: %d, got %d", expected, actual)
+	}
+
+	if err := is.SetParent(id, id3); err != nil {
+		t.Fatal(err)
+	}
+
+	ids = is.Children(id2)
+	if actual, expected := len(ids), 0; expected != actual {
+		t.Fatalf("wrong number of children after parent reset: %d, got %d", expected, actual)
+	}
+
+	ids = is.Children(id3)
+	if actual, expected := len(ids), 1; expected != actual {
+		t.Fatalf("wrong number of children after parent reset: %d, got %d", expected, actual)
+	}
+
+}
+
 type mockLayerGetReleaser struct{}
 
 func (ls *mockLayerGetReleaser) Get(layer.ChainID) (layer.Layer, error) {

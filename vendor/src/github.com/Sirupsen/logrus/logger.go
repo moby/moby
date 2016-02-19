@@ -64,6 +64,12 @@ func (logger *Logger) WithFields(fields Fields) *Entry {
 	return NewEntry(logger).WithFields(fields)
 }
 
+// Add an error as single field to the log entry.  All it does is call
+// `WithError` for the given `error`.
+func (logger *Logger) WithError(err error) *Entry {
+	return NewEntry(logger).WithError(err)
+}
+
 func (logger *Logger) Debugf(format string, args ...interface{}) {
 	if logger.Level >= DebugLevel {
 		NewEntry(logger).Debugf(format, args...)

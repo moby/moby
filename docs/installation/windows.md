@@ -69,7 +69,7 @@ and virtualization support is enabled in BIOS and recognized by Windows.
 
 > **Note**: If you have Docker hosts running and you don't wish to do a Docker Toolbox
 installation, you can install the `docker.exe` using the *unofficial* Windows package
-manager Chocolately. For information on how to do this, see [Docker package on
+manager Chocolatey. For information on how to do this, see [Docker package on
 Chocolatey](http://chocolatey.org/packages/docker).
 
 ### Learn the key concepts before installing
@@ -324,7 +324,7 @@ and what it does:
 
 ## Upgrade Docker Toolbox
 
-To upgrade Docker Toolbox, download an re-run [the Docker Toolbox
+To upgrade Docker Toolbox, download and re-run [the Docker Toolbox
 installer](https://www.docker.com/toolbox).
 
 ## Container port redirection
@@ -344,6 +344,11 @@ reported to you using:
 
 Typically, the IP is 192.168.59.103, but it could get changed by VirtualBox's
 DHCP implementation.
+
+> **Note**: There is a [known
+> issue](https://docs.docker.com/machine/drivers/virtualbox/#known-issues) that
+> may cause files shared with your nginx container to not update correctly as you
+> modify them on your host.
 
 ## Login with PUTTY instead of using the CMD
 

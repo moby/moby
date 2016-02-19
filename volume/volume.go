@@ -24,7 +24,7 @@ type Driver interface {
 	Remove(vol Volume) (err error)
 	// List lists all the volumes the driver has
 	List() ([]Volume, error)
-	// Get retreives the volume with the requested name
+	// Get retrieves the volume with the requested name
 	Get(name string) (Volume, error)
 }
 

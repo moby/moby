@@ -115,7 +115,7 @@ func (n *bridgeNetwork) setupIPTables(config *networkConfiguration, i *bridgeInt
 			return iptables.ProgramChain(filterChain, config.BridgeName, hairpinMode, false)
 		})
 
-		n.portMapper.SetIptablesChain(filterChain, n.getNetworkBridgeName())
+		n.portMapper.SetIptablesChain(natChain, n.getNetworkBridgeName())
 	}
 
 	if err := ensureJumpRule("FORWARD", IsolationChain); err != nil {
@@ -138,6 +138,7 @@ func setupIPTablesInternal(bridgeIface string, addr net.Addr, icc, ipmasq, hairp
 		address   = addr.String()
 		natRule   = iptRule{table: iptables.Nat, chain: "POSTROUTING", preArgs: []string{"-t", "nat"}, args: []string{"-s", address, "!", "-o", bridgeIface, "-j", "MASQUERADE"}}
 		hpNatRule = iptRule{table: iptables.Nat, chain: "POSTROUTING", preArgs: []string{"-t", "nat"}, args: []string{"-m", "addrtype", "--src-type", "LOCAL", "-o", bridgeIface, "-j", "MASQUERADE"}}
+		skipDNAT  = iptRule{table: iptables.Nat, chain: DockerChain, preArgs: []string{"-t", "nat"}, args: []string{"-i", bridgeIface, "-j", "RETURN"}}
 		outRule   = iptRule{table: iptables.Filter, chain: "FORWARD", args: []string{"-i", bridgeIface, "!", "-o", bridgeIface, "-j", "ACCEPT"}}
 		inRule    = iptRule{table: iptables.Filter, chain: "FORWARD", args: []string{"-o", bridgeIface, "-m", "conntrack", "--ctstate", "RELATED,ESTABLISHED", "-j", "ACCEPT"}}
 	)
@@ -145,6 +146,12 @@ func setupIPTablesInternal(bridgeIface string, addr net.Addr, icc, ipmasq, hairp
 	// Set NAT.
 	if ipmasq {
 		if err := programChainRule(natRule, "NAT", enable); err != nil {
+			return err
+		}
+	}
+
+	if ipmasq && !hairpin {
+		if err := programChainRule(skipDNAT, "SKIP DNAT", enable); err != nil {
 			return err
 		}
 	}

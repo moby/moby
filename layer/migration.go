@@ -32,7 +32,7 @@ func (ls *layerStore) CreateRWLayerByGraphID(name string, graphID string, parent
 	}
 
 	if !ls.driver.Exists(graphID) {
-		return errors.New("graph ID does not exist")
+		return fmt.Errorf("graph ID does not exist: %q", graphID)
 	}
 
 	var p *roLayer
@@ -127,6 +127,7 @@ func (ls *layerStore) checksumForGraphIDNoTarsplit(id, parent, newTarDataPath st
 	}
 	defer f.Close()
 	mfz := gzip.NewWriter(f)
+	defer mfz.Close()
 	metaPacker := storage.NewJSONPacker(mfz)
 
 	packerCounter := &packSizeCounter{metaPacker, &size}

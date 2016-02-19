@@ -1,9 +1,6 @@
 package volumedrivers
 
-import (
-	"github.com/docker/docker/pkg/plugins"
-	"github.com/docker/docker/volume"
-)
+import "github.com/docker/docker/volume"
 
 type volumeDriverAdapter struct {
 	name  string
@@ -15,8 +12,7 @@ func (a *volumeDriverAdapter) Name() string {
 }
 
 func (a *volumeDriverAdapter) Create(name string, opts map[string]string) (volume.Volume, error) {
-	err := a.proxy.Create(name, opts)
-	if err != nil {
+	if err := a.proxy.Create(name, opts); err != nil {
 		return nil, err
 	}
 	return &volumeAdapter{
@@ -50,11 +46,7 @@ func (a *volumeDriverAdapter) List() ([]volume.Volume, error) {
 func (a *volumeDriverAdapter) Get(name string) (volume.Volume, error) {
 	v, err := a.proxy.Get(name)
 	if err != nil {
-		// TODO: remove this hack. Allows back compat with volume drivers that don't support this call
-		if !plugins.IsNotFound(err) {
-			return nil, err
-		}
-		return a.Create(name, nil)
+		return nil, err
 	}
 
 	return &volumeAdapter{

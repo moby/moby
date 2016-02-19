@@ -1,5 +1,35 @@
 # Changelog
 
+## 0.7.0-dev.3 (2016-02-17)
+- Fixes https://github.com/docker/docker/issues/20350
+- Fixes https://github.com/docker/docker/issues/20145
+- Initial Windows HNS integration
+- Allow passing global datastore config to libnetwork after boot
+- Set Recursion Available bit in DNS query responses
+- Make sure iptables chains are recreated on firewalld reload
+
+## 0.7.0-dev.2 (2016-02-11)
+- Fixes https://github.com/docker/docker/issues/20140
+
+## 0.7.0-dev.1 (2016-02-10)
+- Expose EnableIPV6 option
+- discoverapi refactoring
+- Fixed a few typos & docs update
+
+## 0.6.1-rc2 (2016-02-09)
+- Fixes https://github.com/docker/docker/issues/20132
+- Fixes https://github.com/docker/docker/issues/20140
+- Fixes https://github.com/docker/docker/issues/20019
+
+## 0.6.1-rc1 (2016-02-05)
+- Fixes https://github.com/docker/docker/issues/20026
+
+## 0.6.0-rc7 (2016-02-01)
+- Allow inter-network connections via exposed ports
+
+## 0.6.0-rc6 (2016-01-30)
+- Properly fixes https://github.com/docker/docker/issues/18814
+
 ## 0.6.0-rc5 (2016-01-26)
 - Cleanup stale overlay sandboxes
 
@@ -73,6 +103,6 @@
 - Fixed a bunch of issues with osl namespace mgmt
 
 ## 0.3.0 (2015-05-27)
-
+ 
 - Introduce CNM (Container Networking Model)
 - Replace docker networking with CNM & Bridge driver

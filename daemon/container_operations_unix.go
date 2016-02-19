@@ -93,11 +93,6 @@ func (daemon *Daemon) populateCommand(c *container.Container, env []string) erro
 		return err
 	}
 
-	c.MqueuePath, err = c.MqueueResourcePath()
-	if err != nil {
-		return err
-	}
-
 	if c.HostConfig.IpcMode.IsContainer() {
 		ic, err := daemon.getIpcContainer(c)
 		if err != nil {
@@ -105,18 +100,13 @@ func (daemon *Daemon) populateCommand(c *container.Container, env []string) erro
 		}
 		ipc.ContainerID = ic.ID
 		c.ShmPath = ic.ShmPath
-		c.MqueuePath = ic.MqueuePath
 	} else {
 		ipc.HostIpc = c.HostConfig.IpcMode.IsHost()
 		if ipc.HostIpc {
 			if _, err := os.Stat("/dev/shm"); err != nil {
 				return fmt.Errorf("/dev/shm is not mounted, but must be for --ipc=host")
 			}
-			if _, err := os.Stat("/dev/mqueue"); err != nil {
-				return fmt.Errorf("/dev/mqueue is not mounted, but must be for --ipc=host")
-			}
 			c.ShmPath = "/dev/shm"
-			c.MqueuePath = "/dev/mqueue"
 		}
 	}
 
@@ -208,10 +198,12 @@ func (daemon *Daemon) populateCommand(c *container.Container, env []string) erro
 		BlkioThrottleWriteBpsDevice:  writeBpsDevice,
 		BlkioThrottleReadIOpsDevice:  readIOpsDevice,
 		BlkioThrottleWriteIOpsDevice: writeIOpsDevice,
-		OomKillDisable:               *c.HostConfig.OomKillDisable,
 		MemorySwappiness:             -1,
 	}
 
+	if c.HostConfig.OomKillDisable != nil {
+		resources.OomKillDisable = *c.HostConfig.OomKillDisable
+	}
 	if c.HostConfig.MemorySwappiness != nil {
 		resources.MemorySwappiness = *c.HostConfig.MemorySwappiness
 	}
@@ -743,6 +735,9 @@ func (daemon *Daemon) ConnectToNetwork(container *container.Container, idOrName 
 		if _, err := daemon.updateNetworkConfig(container, idOrName, endpointConfig, true); err != nil {
 			return err
 		}
+		if endpointConfig != nil {
+			container.NetworkSettings.Networks[idOrName] = endpointConfig
+		}
 	} else {
 		if err := daemon.connectToNetwork(container, idOrName, endpointConfig, true); err != nil {
 			return err
@@ -970,6 +965,9 @@ func (daemon *Daemon) getIpcContainer(container *container.Container) (*containe
 	if !c.IsRunning() {
 		return nil, derr.ErrorCodeIPCRunning.WithArgs(containerID)
 	}
+	if c.IsRestarting() {
+		return nil, derr.ErrorCodeContainerRestarting.WithArgs(containerID)
+	}
 	return c, nil
 }
 
@@ -983,6 +981,9 @@ func (daemon *Daemon) getNetworkedContainer(containerID, connectedContainerID st
 	}
 	if !nc.IsRunning() {
 		return nil, derr.ErrorCodeJoinRunning.WithArgs(connectedContainerID)
+	}
+	if nc.IsRestarting() {
+		return nil, derr.ErrorCodeContainerRestarting.WithArgs(connectedContainerID)
 	}
 	return nc, nil
 }
@@ -1048,21 +1049,6 @@ func (daemon *Daemon) setupIpcDirs(c *container.Container) error {
 		}
 		if err := os.Chown(shmPath, rootUID, rootGID); err != nil {
 			return err
-		}
-	}
-
-	if !c.HasMountFor("/dev/mqueue") {
-		mqueuePath, err := c.MqueueResourcePath()
-		if err != nil {
-			return err
-		}
-
-		if err := idtools.MkdirAllAs(mqueuePath, 0700, rootUID, rootGID); err != nil {
-			return err
-		}
-
-		if err := syscall.Mount("mqueue", mqueuePath, "mqueue", uintptr(syscall.MS_NOEXEC|syscall.MS_NOSUID|syscall.MS_NODEV), ""); err != nil {
-			return fmt.Errorf("mounting mqueue mqueue : %s", err)
 		}
 	}
 

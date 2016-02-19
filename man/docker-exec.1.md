@@ -27,10 +27,10 @@ container is unpaused, and then run
 
 # OPTIONS
 **-d**, **--detach**=*true*|*false*
-    Override the key sequence for detaching a container. Format is a single character `[a-Z]` or `ctrl-<value>` where `<value>` is one of: `a-z`, `@`, `^`, `[`, `,` or `_`.
+   Detached mode: run command in the background. The default is *false*.
 
 **--detach-keys**=""
-  Define the key sequence which detaches the container.
+  Override the key sequence for detaching a container. Format is a single character `[a-Z]` or `ctrl-<value>` where `<value>` is one of: `a-z`, `@`, `^`, `[`, `,` or `_`.
 
 **--help**
   Print usage statement

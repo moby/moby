@@ -2,6 +2,7 @@ package distribution
 
 import (
 	"github.com/docker/distribution/context"
+	"github.com/docker/distribution/reference"
 )
 
 // Scope defines the set of items that match a namespace.
@@ -32,7 +33,7 @@ type Namespace interface {
 	// Repository should return a reference to the named repository. The
 	// registry may or may not have the repository but should always return a
 	// reference.
-	Repository(ctx context.Context, name string) (Repository, error)
+	Repository(ctx context.Context, name reference.Named) (Repository, error)
 
 	// Repositories fills 'repos' with a lexigraphically sorted catalog of repositories
 	// up to the size of 'repos' and returns the value 'n' for the number of entries
@@ -48,8 +49,8 @@ type ManifestServiceOption interface {
 
 // Repository is a named collection of manifests and layers.
 type Repository interface {
-	// Name returns the name of the repository.
-	Name() string
+	// Named returns the name of the repository.
+	Named() reference.Named
 
 	// Manifests returns a reference to this repository's manifest service.
 	// with the supplied options applied.

@@ -44,7 +44,7 @@ Conflicts: docker-selinux
 
 # Relabel files
 %global relabel_files() \
-    /sbin/restorecon -R %{_bindir}/docker %{_localstatedir}/run/docker.sock %{_localstatedir}/run/docker.pid %{_sharedstatedir}/docker %{_sysconfdir}/docker %{_localstatedir}/log/docker %{_localstatedir}/log/lxc %{_localstatedir}/lock/lxc %{_usr}/lib/systemd/system/docker.service /root/.docker &> /dev/null || : \
+    /sbin/restorecon -R %{_bindir}/docker %{_localstatedir}/run/docker.sock %{_localstatedir}/run/docker.pid %{_sysconfdir}/docker %{_localstatedir}/log/docker %{_localstatedir}/log/lxc %{_localstatedir}/lock/lxc %{_usr}/lib/systemd/system/docker.service /root/.docker &> /dev/null || : \
 
 %description
 SELinux policy modules for use with Docker
@@ -83,6 +83,9 @@ fi
 if %{_sbindir}/selinuxenabled ; then
     %{_sbindir}/load_policy
     %relabel_files
+    if [ $1 -eq 1 ]; then
+	restorecon -R %{_sharedstatedir}/docker
+    fi
 fi
 
 %postun

@@ -25,11 +25,13 @@ import (
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/httputils"
 	"github.com/docker/docker/pkg/integration"
+	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/stringutils"
 	"github.com/docker/engine-api/types"
 	"github.com/docker/go-connections/sockets"
 	"github.com/docker/go-connections/tlsconfig"
+	"github.com/docker/go-units"
 	"github.com/go-check/check"
 )
 
@@ -194,7 +196,7 @@ func (d *Daemon) getClientConfig() (*clientConfig, error) {
 		transport = &http.Transport{}
 	}
 
-	sockets.ConfigureTCPTransport(transport, proto, addr)
+	d.c.Assert(sockets.ConfigureTransport(transport, proto, addr), check.IsNil)
 
 	return &clientConfig{
 		transport: transport,
@@ -205,7 +207,15 @@ func (d *Daemon) getClientConfig() (*clientConfig, error) {
 
 // Start will start the daemon and return once it is ready to receive requests.
 // You can specify additional daemon flags.
-func (d *Daemon) Start(arg ...string) error {
+func (d *Daemon) Start(args ...string) error {
+	logFile, err := os.OpenFile(filepath.Join(d.folder, "docker.log"), os.O_RDWR|os.O_CREATE|os.O_APPEND, 0600)
+	d.c.Assert(err, check.IsNil, check.Commentf("[%s] Could not create %s/docker.log", d.id, d.folder))
+
+	return d.StartWithLogFile(logFile, args...)
+}
+
+// StartWithLogFile will start the daemon and attach its streams to a given file.
+func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 	dockerBinary, err := exec.LookPath(dockerBinary)
 	d.c.Assert(err, check.IsNil, check.Commentf("[%s] could not find docker binary in $PATH", d.id))
 
@@ -226,7 +236,7 @@ func (d *Daemon) Start(arg ...string) error {
 	// turn on debug mode
 	foundLog := false
 	foundSd := false
-	for _, a := range arg {
+	for _, a := range providedArgs {
 		if strings.Contains(a, "--log-level") || strings.Contains(a, "-D") || strings.Contains(a, "--debug") {
 			foundLog = true
 		}
@@ -241,14 +251,12 @@ func (d *Daemon) Start(arg ...string) error {
 		args = append(args, "--storage-driver", d.storageDriver)
 	}
 
-	args = append(args, arg...)
+	args = append(args, providedArgs...)
 	d.cmd = exec.Command(dockerBinary, args...)
 
-	d.logFile, err = os.OpenFile(filepath.Join(d.folder, "docker.log"), os.O_RDWR|os.O_CREATE|os.O_APPEND, 0600)
-	d.c.Assert(err, check.IsNil, check.Commentf("[%s] Could not create %s/docker.log", d.id, d.folder))
-
-	d.cmd.Stdout = d.logFile
-	d.cmd.Stderr = d.logFile
+	d.cmd.Stdout = out
+	d.cmd.Stderr = out
+	d.logFile = out
 
 	if err := d.cmd.Start(); err != nil {
 		return fmt.Errorf("[%s] could not start daemon container: %v", d.id, err)
@@ -452,6 +460,37 @@ func (d *Daemon) sock() string {
 	return fmt.Sprintf("unix://%s/docker.sock", d.folder)
 }
 
+func (d *Daemon) waitRun(contID string) error {
+	args := []string{"--host", d.sock()}
+	return waitInspectWithArgs(contID, "{{.State.Running}}", "true", 10*time.Second, args...)
+}
+
+func (d *Daemon) getBaseDeviceSize(c *check.C) int64 {
+
+	infoCmdOutput, _, err := runCommandPipelineWithOutput(
+		exec.Command(dockerBinary, "-H", d.sock(), "info"),
+		exec.Command("grep", "Base Device Size"),
+	)
+	c.Assert(err, checker.IsNil)
+	basesizeSlice := strings.Split(infoCmdOutput, ":")
+	basesize := strings.Trim(basesizeSlice[1], " ")
+	basesize = strings.Trim(basesize, "\n")[:len(basesize)-3]
+	basesizeFloat, err := strconv.ParseFloat(strings.Trim(basesize, " "), 64)
+	c.Assert(err, checker.IsNil)
+	basesizeBytes := int64(basesizeFloat) * (1024 * 1024 * 1024)
+	return basesizeBytes
+}
+
+func convertBasesize(basesizeBytes int64) (int64, error) {
+	basesize := units.HumanSize(float64(basesizeBytes))
+	basesize = strings.Trim(basesize, " ")[:len(basesize)-3]
+	basesizeFloat, err := strconv.ParseFloat(strings.Trim(basesize, " "), 64)
+	if err != nil {
+		return 0, err
+	}
+	return int64(basesizeFloat) * 1024 * 1024 * 1024, nil
+}
+
 // Cmd will execute a docker CLI command against this Daemon.
 // Example: d.Cmd("version") will run docker -H unix://path/to/unix.sock version
 func (d *Daemon) Cmd(name string, arg ...string) (string, error) {
@@ -472,8 +511,8 @@ func (d *Daemon) CmdWithArgs(daemonArgs []string, name string, arg ...string) (s
 	return string(b), err
 }
 
-// LogfileName returns the path the the daemon's log file
-func (d *Daemon) LogfileName() string {
+// LogFileName returns the path the the daemon's log file
+func (d *Daemon) LogFileName() string {
 	return d.logFile.Name()
 }
 
@@ -1573,7 +1612,6 @@ func daemonTime(c *check.C) time.Time {
 }
 
 func setupRegistry(c *check.C, schema1, auth bool) *testRegistryV2 {
-	testRequires(c, RegistryHosting)
 	reg, err := newTestRegistryV2(c, schema1, auth)
 	c.Assert(err, check.IsNil)
 
@@ -1590,7 +1628,6 @@ func setupRegistry(c *check.C, schema1, auth bool) *testRegistryV2 {
 }
 
 func setupNotary(c *check.C) *testNotary {
-	testRequires(c, NotaryHosting)
 	ts, err := newTestNotary(c)
 	c.Assert(err, check.IsNil)
 
@@ -1681,10 +1718,15 @@ func waitExited(contID string, duration time.Duration) error {
 // in the inspect output. It will wait until the specified timeout (in seconds)
 // is reached.
 func waitInspect(name, expr, expected string, timeout time.Duration) error {
+	return waitInspectWithArgs(name, expr, expected, timeout)
+}
+
+func waitInspectWithArgs(name, expr, expected string, timeout time.Duration, arg ...string) error {
 	after := time.After(timeout)
 
+	args := append(arg, "inspect", "-f", expr, name)
 	for {
-		cmd := exec.Command(dockerBinary, "inspect", "-f", expr, name)
+		cmd := exec.Command(dockerBinary, args...)
 		out, _, err := runCommandWithOutput(cmd)
 		if err != nil {
 			if !strings.Contains(out, "No such") {
@@ -1737,4 +1779,13 @@ func runSleepingContainerInImage(c *check.C, image string, extraArgs ...string) 
 	args = append(args, image)
 	args = append(args, defaultSleepCommand...)
 	return dockerCmd(c, args...)
+}
+
+// minimalBaseImage returns the name of the minimal base image for the current
+// daemon platform.
+func minimalBaseImage() string {
+	if daemonPlatform == "windows" {
+		return WindowsBaseImage
+	}
+	return "scratch"
 }

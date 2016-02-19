@@ -54,6 +54,7 @@ weight = -1
       --mtu=0                                Set the containers network MTU
       --disable-legacy-registry              Do not contact legacy registries
       -p, --pidfile="/var/run/docker.pid"    Path to use for daemon PID file
+      --raw-logs                             Full timestamps without ANSI coloring
       --registry-mirror=[]                   Preferred Docker registry mirror
       -s, --storage-driver=""                Storage driver to use
       --selinux-enabled                      Enable selinux support
@@ -565,7 +566,7 @@ please check the [run](run.md) reference.
 
 ## Nodes discovery
 
-The `--cluster-advertise` option specifies the 'host:port' or `interface:port`
+The `--cluster-advertise` option specifies the `host:port` or `interface:port`
 combination that this particular daemon instance should use when advertising
 itself to the cluster. The daemon is reached by remote hosts through this value.
 If you  specify an interface, make sure it includes the IP address of the actual
@@ -801,7 +802,7 @@ cgroup.
 
 Assuming the daemon is running in cgroup `daemoncgroup`,
 `--cgroup-parent=/foobar` creates a cgroup in
-`/sys/fs/cgroup/memory/foobar`, wheras using `--cgroup-parent=foobar`
+`/sys/fs/cgroup/memory/foobar`, whereas using `--cgroup-parent=foobar`
 creates the cgroup in `/sys/fs/cgroup/memory/daemoncgroup/foobar`
 
 This setting can also be set per container, using the `--cgroup-parent`
@@ -860,19 +861,20 @@ This is a full example of the allowed configuration options in the file:
 	"group": "",
 	"cgroup-parent": "",
 	"default-ulimits": {},
-       "ipv6": false,
-       "iptables": false,
-       "ip-forward": false,
-       "ip-mask": false,
-       "userland-proxy": false,
-       "ip": "0.0.0.0",
-       "bridge": "",
-       "bip": "",
-       "fixed-cidr": "",
-       "fixed-cidr-v6": "",
-       "default-gateway": "",
-       "default-gateway-v6": "",
-       "icc": false
+	"ipv6": false,
+	"iptables": false,
+	"ip-forward": false,
+	"ip-mask": false,
+	"userland-proxy": false,
+	"ip": "0.0.0.0",
+	"bridge": "",
+	"bip": "",
+	"fixed-cidr": "",
+	"fixed-cidr-v6": "",
+	"default-gateway": "",
+	"default-gateway-v6": "",
+	"icc": false,
+	"raw-logs": false
 }
 ```
 
@@ -888,4 +890,13 @@ if there are conflicts, but it won't stop execution.
 The list of currently supported options that can be reconfigured is this:
 
 - `debug`: it changes the daemon to debug mode when set to true.
+- `cluster-store`: it reloads the discovery store with the new address.
+- `cluster-store-opts`: it uses the new options to reload the discovery store.
+- `cluster-advertise`: it modifies the address advertised after reloading.
 - `labels`: it replaces the daemon labels with a new set of labels.
+
+Updating and reloading the cluster configurations such as `--cluster-store`,
+`--cluster-advertise` and `--cluster-store-opts` will take effect only if
+these configurations were not previously configured. Configuration reload will
+log a warning message if it detects a change in previously configured cluster
+configurations.
