@@ -232,7 +232,7 @@ func (a *Driver) Create(id, parent, mountLabel string) error {
 }
 
 // Create two folders for the given id.
-// mnt and diff
+// mnt, diff
 func (a *Driver) createDirsFor(id string) error {
 	paths := []string{
 		"mnt",
