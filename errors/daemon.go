@@ -157,7 +157,7 @@ var (
 	// map is nil.
 	ErrorCodeEmptyNetwork = errcode.Register(errGroup, errcode.ErrorDescriptor{
 		Value:          "EMPTYNETWORK",
-		Message:        "invalid networksettings while building port map info",
+		Message:        "invalid network settings while building port map info",
 		Description:    "The specified endpoint for the port mapping is empty",
 		HTTPStatusCode: http.StatusInternalServerError,
 	})
