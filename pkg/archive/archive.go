@@ -502,13 +502,13 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 		defer func() {
 			// Make sure to check the error on Close.
 			if err := ta.TarWriter.Close(); err != nil {
-				logrus.Debugf("Can't close tar writer: %s", err)
+				logrus.Errorf("Can't close tar writer: %s", err)
 			}
 			if err := compressWriter.Close(); err != nil {
-				logrus.Debugf("Can't close compress writer: %s", err)
+				logrus.Errorf("Can't close compress writer: %s", err)
 			}
 			if err := pipeWriter.Close(); err != nil {
-				logrus.Debugf("Can't close pipe writer: %s", err)
+				logrus.Errorf("Can't close pipe writer: %s", err)
 			}
 		}()
 
@@ -551,7 +551,7 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 			walkRoot := getWalkRoot(srcPath, include)
 			filepath.Walk(walkRoot, func(filePath string, f os.FileInfo, err error) error {
 				if err != nil {
-					logrus.Debugf("Tar: Can't stat file %s to tar: %s", srcPath, err)
+					logrus.Errorf("Tar: Can't stat file %s to tar: %s", srcPath, err)
 					return nil
 				}
 
@@ -576,7 +576,7 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 				if include != relFilePath {
 					skip, err = fileutils.OptimizedMatches(relFilePath, patterns, patDirs)
 					if err != nil {
-						logrus.Debugf("Error matching %s: %v", relFilePath, err)
+						logrus.Errorf("Error matching %s: %v", relFilePath, err)
 						return err
 					}
 				}
@@ -607,7 +607,11 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 				}
 
 				if err := ta.addTarFile(filePath, relFilePath); err != nil {
-					logrus.Debugf("Can't add file %s to tar: %s", filePath, err)
+					logrus.Errorf("Can't add file %s to tar: %s", filePath, err)
+					// if pipe is broken, stop writting tar stream to it
+					if err == io.ErrClosedPipe {
+						return err
+					}
 				}
 				return nil
 			})
