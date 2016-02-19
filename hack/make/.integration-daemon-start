@@ -2,11 +2,18 @@
 
 # see test-integration-cli for example usage of this script
 
-export PATH="$ABS_DEST/../binary:$ABS_DEST/../dynbinary:$ABS_DEST/../gccgo:$ABS_DEST/../dyngccgo:$PATH"
+base="$ABS_DEST/.."
+export PATH="$base/binary-client:$base/binary-daemon:$base/dynbinary:$base/gccgo:$base/dyngccgo:$PATH"
 
 if ! command -v docker &> /dev/null; then
-	echo >&2 'error: binary or dynbinary must be run before .integration-daemon-start'
+	echo >&2 'error: binary-client or dynbinary-client must be run before .integration-daemon-start'
 	false
+fi
+
+# This is a temporary hack for split-binary mode. It can be removed once
+# https://github.com/docker/docker/pull/22134 is merged into docker master
+if [ "$(go env GOOS)" = 'windows' ]; then
+       return
 fi
 
 if [ -z "$DOCKER_TEST_HOST" ]; then
@@ -14,6 +21,11 @@ if [ -z "$DOCKER_TEST_HOST" ]; then
 		echo >&2 'skipping daemon start, since daemon appears to be already started'
 		return
 	fi
+fi
+
+if ! command -v dockerd &> /dev/null; then
+	echo >&2 'error: binary-daemon or dynbinary-daemon must be run before .integration-daemon-start'
+	false
 fi
 
 # intentionally open a couple bogus file descriptors to help test that they get scrubbed in containers
@@ -52,7 +64,7 @@ if [ -z "$DOCKER_TEST_HOST" ]; then
 
 	export DOCKER_HOST="unix://$(cd "$DEST" && pwd)/docker.sock" # "pwd" tricks to make sure $DEST is an absolute path, not a relative one
 	( set -x; exec \
-		docker daemon --debug \
+		dockerd --debug \
 		--host "$DOCKER_HOST" \
 		--storage-driver "$DOCKER_GRAPHDRIVER" \
 		--pidfile "$DEST/docker.pid" \

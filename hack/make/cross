@@ -9,11 +9,12 @@ daemonSupporting=(
 )
 
 # if we have our linux/amd64 version compiled, let's symlink it in
-if [ -x "$DEST/../binary/docker-$VERSION" ]; then
+if [ -x "$DEST/../binary-daemon/dockerd-$VERSION" ]; then
 	mkdir -p "$DEST/linux/amd64"
 	(
 		cd "$DEST/linux/amd64"
-		ln -s ../../../binary/* ./
+		ln -s ../../../binary-daemon/* ./
+		ln -s ../../../binary-client/* ./
 	)
 	echo "Created symlinks:" "$DEST/linux/amd64/"*
 fi
@@ -25,16 +26,20 @@ for platform in $DOCKER_CROSSPLATFORMS; do
 		ABS_DEST="$(cd "$DEST" && pwd -P)"
 		export GOOS=${platform%/*}
 		export GOARCH=${platform##*/}
-		if [ -z "${daemonSupporting[$platform]}" ]; then
-			export LDFLAGS_STATIC_DOCKER="" # we just need a simple client for these platforms
-			export BUILDFLAGS=( "${ORIG_BUILDFLAGS[@]/ daemon/}" ) # remove the "daemon" build tag from platforms that aren't supported
-		fi
+
 		# !!! TEMPORARY HACK !!!
 		# See Dockerfile
 		if [ "$platform" == "windows/amd64" ]; then
 			export GOROOT="/usr/local/go${HACK_GO_VERSION}"
 			export PATH=$(echo "$PATH" | sed "s,:/usr/local/go/bin:,:/usr/local/go${HACK_GO_VERSION}/bin:,")
 		fi
-		source "${MAKEDIR}/binary"
+
+		if [ -z "${daemonSupporting[$platform]}" ]; then
+			export LDFLAGS_STATIC_DOCKER="" # we just need a simple client for these platforms
+		    source "${MAKEDIR}/binary-client"
+        else
+		    source "${MAKEDIR}/binary-client"
+		    source "${MAKEDIR}/binary-daemon"
+		fi
 	)
 done

@@ -1,5 +1,3 @@
-// +build daemon
-
 package main
 
 import (
@@ -26,6 +24,7 @@ import (
 	"github.com/docker/docker/api/server/router/volume"
 	"github.com/docker/docker/builder/dockerfile"
 	"github.com/docker/docker/cli"
+	cliflags "github.com/docker/docker/cli/flags"
 	"github.com/docker/docker/cliconfig"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/daemon/logger"
@@ -46,18 +45,14 @@ import (
 )
 
 const (
-	daemonUsage          = "       docker daemon [ --help | ... ]\n"
 	daemonConfigFileFlag = "-config-file"
-)
-
-var (
-	daemonCli cli.Handler = NewDaemonCli()
 )
 
 // DaemonCli represents the daemon CLI.
 type DaemonCli struct {
 	*daemon.Config
-	flags *flag.FlagSet
+	commonFlags *cli.CommonFlags
+	configFile  *string
 }
 
 func presentInHelp(usage string) string { return usage }
@@ -65,8 +60,6 @@ func absentFromHelp(string) string      { return "" }
 
 // NewDaemonCli returns a pre-configured daemon CLI
 func NewDaemonCli() *DaemonCli {
-	daemonFlags := cli.Subcmd("daemon", nil, "Enable daemon mode", true)
-
 	// TODO(tiborvass): remove InstallFlags?
 	daemonConfig := new(daemon.Config)
 	daemonConfig.LogConfig.Config = make(map[string]string)
@@ -76,20 +69,21 @@ func NewDaemonCli() *DaemonCli {
 		daemonConfig.V2Only = true
 	}
 
-	daemonConfig.InstallFlags(daemonFlags, presentInHelp)
-	daemonConfig.InstallFlags(flag.CommandLine, absentFromHelp)
-	daemonFlags.Require(flag.Exact, 0)
+	daemonConfig.InstallFlags(flag.CommandLine, presentInHelp)
+	configFile := flag.CommandLine.String([]string{daemonConfigFileFlag}, defaultDaemonConfigFile, "Daemon configuration file")
+	flag.CommandLine.Require(flag.Exact, 0)
 
 	return &DaemonCli{
-		Config: daemonConfig,
-		flags:  daemonFlags,
+		Config:      daemonConfig,
+		commonFlags: cliflags.InitCommonFlags(),
+		configFile:  configFile,
 	}
 }
 
 func migrateKey() (err error) {
 	// Migrate trust key if exists at ~/.docker/key.json and owned by current user
-	oldPath := filepath.Join(cliconfig.ConfigDir(), defaultTrustKeyFile)
-	newPath := filepath.Join(getDaemonConfDir(), defaultTrustKeyFile)
+	oldPath := filepath.Join(cliconfig.ConfigDir(), cliflags.DefaultTrustKeyFile)
+	newPath := filepath.Join(getDaemonConfDir(), cliflags.DefaultTrustKeyFile)
 	if _, statErr := os.Stat(newPath); os.IsNotExist(statErr) && currentUserIsOwner(oldPath) {
 		defer func() {
 			// Ensure old path is removed if no error occurred
@@ -127,47 +121,17 @@ func migrateKey() (err error) {
 	return nil
 }
 
-func getGlobalFlag() (globalFlag *flag.Flag) {
-	defer func() {
-		if x := recover(); x != nil {
-			switch f := x.(type) {
-			case *flag.Flag:
-				globalFlag = f
-			default:
-				panic(x)
-			}
-		}
-	}()
-	visitor := func(f *flag.Flag) { panic(f) }
-	commonFlags.FlagSet.Visit(visitor)
-	clientFlags.FlagSet.Visit(visitor)
-	return
-}
-
-// CmdDaemon is the daemon command, called the raw arguments after `docker daemon`.
-func (cli *DaemonCli) CmdDaemon(args ...string) error {
+func (cli *DaemonCli) start() {
 	// warn from uuid package when running the daemon
 	uuid.Loggerf = logrus.Warnf
 
-	if !commonFlags.FlagSet.IsEmpty() || !clientFlags.FlagSet.IsEmpty() {
-		// deny `docker -D daemon`
-		illegalFlag := getGlobalFlag()
-		fmt.Fprintf(os.Stderr, "invalid flag '-%s'.\nSee 'docker daemon --help'.\n", illegalFlag.Names[0])
-		os.Exit(1)
-	} else {
-		// allow new form `docker daemon -D`
-		flag.Merge(cli.flags, commonFlags.FlagSet)
+	flags := flag.CommandLine
+	cli.commonFlags.PostParse()
+
+	if cli.commonFlags.TrustKey == "" {
+		cli.commonFlags.TrustKey = filepath.Join(getDaemonConfDir(), cliflags.DefaultTrustKeyFile)
 	}
-
-	configFile := cli.flags.String([]string{daemonConfigFileFlag}, defaultDaemonConfigFile, "Daemon configuration file")
-
-	cli.flags.ParseFlags(args, true)
-	commonFlags.PostParse()
-
-	if commonFlags.TrustKey == "" {
-		commonFlags.TrustKey = filepath.Join(getDaemonConfDir(), defaultTrustKeyFile)
-	}
-	cliConfig, err := loadDaemonCliConfig(cli.Config, cli.flags, commonFlags, *configFile)
+	cliConfig, err := loadDaemonCliConfig(cli.Config, flags, cli.commonFlags, *cli.configFile)
 	if err != nil {
 		fmt.Fprint(os.Stderr, err)
 		os.Exit(1)
@@ -278,7 +242,7 @@ func (cli *DaemonCli) CmdDaemon(args ...string) error {
 	if err := migrateKey(); err != nil {
 		logrus.Fatal(err)
 	}
-	cli.TrustKeyPath = commonFlags.TrustKey
+	cli.TrustKeyPath = cli.commonFlags.TrustKey
 
 	registryService := registry.NewService(cli.Config.ServiceOptions)
 	containerdRemote, err := libcontainerd.New(cli.getLibcontainerdRoot(), cli.getPlatformRemoteOptions()...)
@@ -326,7 +290,7 @@ func (cli *DaemonCli) CmdDaemon(args ...string) error {
 		}
 	}
 
-	setupConfigReloadTrap(*configFile, cli.flags, reload)
+	setupConfigReloadTrap(*cli.configFile, flags, reload)
 
 	// The serve API routine never exits unless an error occurs
 	// We need to start it as a goroutine and wait on it so
@@ -361,7 +325,6 @@ func (cli *DaemonCli) CmdDaemon(args ...string) error {
 		}
 		logrus.Fatalf("Shutting down due to ServeAPI error: %v", errAPI)
 	}
-	return nil
 }
 
 // shutdownDaemon just wraps daemon.Shutdown() to handle a timeout in case
@@ -381,7 +344,7 @@ func shutdownDaemon(d *daemon.Daemon, timeout time.Duration) {
 	}
 }
 
-func loadDaemonCliConfig(config *daemon.Config, daemonFlags *flag.FlagSet, commonConfig *cli.CommonFlags, configFile string) (*daemon.Config, error) {
+func loadDaemonCliConfig(config *daemon.Config, flags *flag.FlagSet, commonConfig *cli.CommonFlags, configFile string) (*daemon.Config, error) {
 	config.Debug = commonConfig.Debug
 	config.Hosts = commonConfig.Hosts
 	config.LogLevel = commonConfig.LogLevel
@@ -396,9 +359,9 @@ func loadDaemonCliConfig(config *daemon.Config, daemonFlags *flag.FlagSet, commo
 	}
 
 	if configFile != "" {
-		c, err := daemon.MergeDaemonConfigurations(config, daemonFlags, configFile)
+		c, err := daemon.MergeDaemonConfigurations(config, flags, configFile)
 		if err != nil {
-			if daemonFlags.IsSet(daemonConfigFileFlag) || !os.IsNotExist(err) {
+			if flags.IsSet(daemonConfigFileFlag) || !os.IsNotExist(err) {
 				return nil, fmt.Errorf("unable to configure the Docker daemon with file %s: %v\n", configFile, err)
 			}
 		}
@@ -411,12 +374,12 @@ func loadDaemonCliConfig(config *daemon.Config, daemonFlags *flag.FlagSet, commo
 
 	// Regardless of whether the user sets it to true or false, if they
 	// specify TLSVerify at all then we need to turn on TLS
-	if config.IsValueSet(tlsVerifyKey) {
+	if config.IsValueSet(cliflags.TLSVerifyKey) {
 		config.TLS = true
 	}
 
 	// ensure that the log level is the one set after merging configurations
-	setDaemonLogLevel(config.LogLevel)
+	cliflags.SetDaemonLogLevel(config.LogLevel)
 
 	return config, nil
 }
