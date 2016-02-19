@@ -118,8 +118,10 @@ func (w *filePoller) Close() error {
 		w.remove(name)
 		delete(w.watches, name)
 	}
-	close(w.events)
-	close(w.errors)
+	// channels will be closed by GC, we don't do it to avoid panic in send
+	// functions
+	// close(w.events)
+	// close(w.errors)
 	return nil
 }
 
