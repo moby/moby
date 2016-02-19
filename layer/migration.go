@@ -127,6 +127,7 @@ func (ls *layerStore) checksumForGraphIDNoTarsplit(id, parent, newTarDataPath st
 	}
 	defer f.Close()
 	mfz := gzip.NewWriter(f)
+	defer mfz.Close()
 	metaPacker := storage.NewJSONPacker(mfz)
 
 	packerCounter := &packSizeCounter{metaPacker, &size}
