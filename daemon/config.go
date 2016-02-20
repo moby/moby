@@ -53,7 +53,7 @@ type CommonTLSOptions struct {
 // using the same names that the flags in the command line uses.
 type CommonConfig struct {
 	AuthorizationPlugins []string            `json:"authorization-plugins,omitempty"` // AuthorizationPlugins holds list of authorization plugins
-	AutoRestart          bool                `json:"-"`                               //Has been enabled in favor of restarting when docker run
+	AutoRestart          bool                `json:"-"` //Has been enabled in favor of restarting when docker run
 	Context              map[string][]string `json:"-"`
 	DisableBridge        bool                `json:"-"`
 	DNS                  []string            `json:"dns,omitempty"` //DNS Server address used by Docker
@@ -64,7 +64,7 @@ type CommonConfig struct {
 	GraphDriver          string              `json:"storage-driver,omitempty"` //Specific storage drive used by Docker
 	GraphOptions         []string            `json:"storage-opts,omitempty"`
 	Labels               []string            `json:"labels,omitempty"`
-	Mtu                  int                 `json:"mtu,omitempty"`     //MTU of container network
+	Mtu                  int                 `json:"mtu,omitempty"` //MTU of container network
 	Pidfile              string              `json:"pidfile,omitempty"` //The PID of Docker Daemon process
 	RawLogs              bool                `json:"raw-logs,omitempty"`
 	Root                 string              `json:"graph,omitempty"`
