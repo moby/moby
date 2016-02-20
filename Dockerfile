@@ -88,7 +88,7 @@ RUN cd /usr/local/lvm2 \
 
 # Install Go
 # IMPORTANT: If the version of Go is updated, the Windows to Linux CI machines
-#            will need updating, to avoid errors. Ping #docker-maintainers on IRC 
+#            will need updating, to avoid errors. Ping #docker-maintainers on IRC
 #            with a heads-up.
 ENV GO_VERSION 1.5.3
 RUN curl -fsSL "https://storage.googleapis.com/golang/go${GO_VERSION}.linux-amd64.tar.gz" \
@@ -168,7 +168,7 @@ RUN set -x \
 	&& rm -rf "$GOPATH"
 
 # Install notary server
-ENV NOTARY_VERSION docker-v1.10-5
+ENV NOTARY_VERSION docker-v1.10.2-1
 RUN set -x \
 	&& export GOPATH="$(mktemp -d)" \
 	&& git clone https://github.com/docker/notary.git "$GOPATH/src/github.com/docker/notary" \

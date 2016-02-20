@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -451,11 +452,48 @@ func (r *NotaryRepository) ListTargets(roles ...string) ([]*TargetWithRole, erro
 		roles = []string{data.CanonicalTargetsRole}
 	}
 	targets := make(map[string]*TargetWithRole)
+
 	for _, role := range roles {
+		var foundRole *data.Role
+		walkRoles := []*data.Role{}
+		if role == data.CanonicalTargetsRole {
+			foundRole = &data.Role{
+				Name:             data.CanonicalTargetsRole,
+				Paths:            []string{""},
+				PathHashPrefixes: []string{""},
+			}
+		}
+
+		walkRoles = append(walkRoles, r.tufRepo.Targets[data.CanonicalTargetsRole].Signed.Delegations.Roles...)
+		for len(walkRoles) > 0 && foundRole == nil {
+			currRole := walkRoles[0]
+			walkRoles = walkRoles[1:]
+			if currRole.Name == role {
+				foundRole = currRole
+				break
+			}
+			if strings.HasPrefix(role, currRole.Name+"/") {
+				targetMeta, ok := r.tufRepo.Targets[currRole.Name]
+				if !ok {
+					continue
+				}
+				for _, childRole := range targetMeta.Signed.Delegations.Roles {
+					restricted, err := data.Restrict(*currRole, *childRole)
+					if err == nil {
+						walkRoles = append(walkRoles, restricted)
+					}
+				}
+			}
+		}
+
+		if foundRole == nil {
+			continue
+		}
+
 		// we don't need to do anything special with removing role from
 		// roles because listSubtree always processes role and only excludes
 		// descendant delegations that appear in roles.
-		r.listSubtree(targets, role, roles...)
+		r.listSubtree(targets, foundRole, roles...)
 	}
 
 	var targetList []*TargetWithRole
@@ -466,29 +504,32 @@ func (r *NotaryRepository) ListTargets(roles ...string) ([]*TargetWithRole, erro
 	return targetList, nil
 }
 
-func (r *NotaryRepository) listSubtree(targets map[string]*TargetWithRole, role string, exclude ...string) {
+func (r *NotaryRepository) listSubtree(targets map[string]*TargetWithRole, role *data.Role, exclude ...string) {
 	excl := make(map[string]bool)
 	for _, r := range exclude {
 		excl[r] = true
 	}
-	roles := []string{role}
+	roles := []*data.Role{role}
 	for len(roles) > 0 {
 		role = roles[0]
 		roles = roles[1:]
-		tgts, ok := r.tufRepo.Targets[role]
+		tgts, ok := r.tufRepo.Targets[role.Name]
 		if !ok {
 			// not every role has to exist
 			continue
 		}
 		for name, meta := range tgts.Signed.Targets {
-			if _, ok := targets[name]; !ok {
+			if _, ok := targets[name]; !ok && role.CheckPaths(name) {
 				targets[name] = &TargetWithRole{
-					Target: Target{Name: name, Hashes: meta.Hashes, Length: meta.Length}, Role: role}
+					Target: Target{Name: name, Hashes: meta.Hashes, Length: meta.Length}, Role: role.Name}
 			}
 		}
-		for _, d := range tgts.Signed.Delegations.Roles {
-			if !excl[d.Name] {
-				roles = append(roles, d.Name)
+		for _, child := range tgts.Signed.Delegations.Roles {
+			if !excl[child.Name] {
+				child, err := data.Restrict(*role, *child)
+				if err == nil {
+					roles = append(roles, child)
+				}
 			}
 		}
 	}
@@ -511,10 +552,47 @@ func (r *NotaryRepository) GetTargetByName(name string, roles ...string) (*Targe
 		roles = append(roles, data.CanonicalTargetsRole)
 	}
 	for _, role := range roles {
-		meta, foundRole := c.TargetMeta(role, name, roles...)
+
+		var foundRole *data.Role
+		walkRoles := []*data.Role{}
+		if role == data.CanonicalTargetsRole {
+			foundRole = &data.Role{
+				Name:             data.CanonicalTargetsRole,
+				Paths:            []string{""},
+				PathHashPrefixes: []string{""},
+			}
+		}
+
+		walkRoles = append(walkRoles, r.tufRepo.Targets[data.CanonicalTargetsRole].Signed.Delegations.Roles...)
+		for len(walkRoles) > 0 && foundRole == nil {
+			currRole := walkRoles[0]
+			walkRoles = walkRoles[1:]
+			if currRole.Name == role {
+				foundRole = currRole
+				break
+			}
+			if strings.HasPrefix(role, currRole.Name+"/") {
+				targetMeta, ok := r.tufRepo.Targets[currRole.Name]
+				if !ok {
+					continue
+				}
+				for _, childRole := range targetMeta.Signed.Delegations.Roles {
+					restricted, err := data.Restrict(*currRole, *childRole)
+					if err == nil && restricted.CheckPaths(name) {
+						walkRoles = append(walkRoles, restricted)
+					}
+				}
+			}
+		}
+
+		if foundRole == nil {
+			continue
+		}
+
+		meta, ownerName := c.TargetMeta(foundRole, name, roles...)
 		if meta != nil {
 			return &TargetWithRole{
-				Target: Target{Name: name, Hashes: meta.Hashes, Length: meta.Length}, Role: foundRole}, nil
+				Target: Target{Name: name, Hashes: meta.Hashes, Length: meta.Length}, Role: ownerName}, nil
 		}
 	}
 	return nil, fmt.Errorf("No trust data for %s", name)
