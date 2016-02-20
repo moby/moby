@@ -291,3 +291,80 @@ func TestLoadDaemonConfigWithMapOptions(t *testing.T) {
 		t.Fatalf("expected log tag `test`, got %s", tag)
 	}
 }
+
+func TestLoadDaemonConfigWithTrueDefaultValues(t *testing.T) {
+	c := &daemon.Config{}
+	common := &cli.CommonFlags{}
+	flags := mflag.NewFlagSet("test", mflag.ContinueOnError)
+	flags.BoolVar(&c.EnableUserlandProxy, []string{"-userland-proxy"}, true, "")
+
+	f, err := ioutil.TempFile("", "docker-config-")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := flags.ParseFlags([]string{}, false); err != nil {
+		t.Fatal(err)
+	}
+
+	configFile := f.Name()
+	f.Write([]byte(`{
+		"userland-proxy": false
+}`))
+	f.Close()
+
+	loadedConfig, err := loadDaemonCliConfig(c, flags, common, configFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loadedConfig == nil {
+		t.Fatal("expected configuration, got nil")
+	}
+
+	if loadedConfig.EnableUserlandProxy {
+		t.Fatal("expected userland proxy to be disabled, got enabled")
+	}
+
+	// make sure reloading doesn't generate configuration
+	// conflicts after normalizing boolean values.
+	err = daemon.ReloadConfiguration(configFile, flags, func(reloadedConfig *daemon.Config) {
+		if reloadedConfig.EnableUserlandProxy {
+			t.Fatal("expected userland proxy to be disabled, got enabled")
+		}
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestLoadDaemonConfigWithTrueDefaultValuesLeaveDefaults(t *testing.T) {
+	c := &daemon.Config{}
+	common := &cli.CommonFlags{}
+	flags := mflag.NewFlagSet("test", mflag.ContinueOnError)
+	flags.BoolVar(&c.EnableUserlandProxy, []string{"-userland-proxy"}, true, "")
+
+	f, err := ioutil.TempFile("", "docker-config-")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := flags.ParseFlags([]string{}, false); err != nil {
+		t.Fatal(err)
+	}
+
+	configFile := f.Name()
+	f.Write([]byte(`{}`))
+	f.Close()
+
+	loadedConfig, err := loadDaemonCliConfig(c, flags, common, configFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loadedConfig == nil {
+		t.Fatal("expected configuration, got nil")
+	}
+
+	if !loadedConfig.EnableUserlandProxy {
+		t.Fatal("expected userland proxy to be enabled, got disabled")
+	}
+}

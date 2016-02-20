@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"compress/gzip"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -51,6 +52,31 @@ func (s *DockerSuite) TestImportFile(c *check.C) {
 	_, err = runCommand(runCmd)
 	c.Assert(err, checker.IsNil, check.Commentf("failed to export a container"))
 
+	out, _ := dockerCmd(c, "import", temporaryFile.Name())
+	c.Assert(out, checker.Count, "\n", 1, check.Commentf("display is expected 1 '\\n' but didn't"))
+	image := strings.TrimSpace(out)
+
+	out, _ = dockerCmd(c, "run", "--rm", image, "true")
+	c.Assert(out, checker.Equals, "", check.Commentf("command output should've been nothing."))
+}
+
+func (s *DockerSuite) TestImportGzipped(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	dockerCmd(c, "run", "--name", "test-import", "busybox", "true")
+
+	temporaryFile, err := ioutil.TempFile("", "exportImportTest")
+	c.Assert(err, checker.IsNil, check.Commentf("failed to create temporary file"))
+	defer os.Remove(temporaryFile.Name())
+
+	runCmd := exec.Command(dockerBinary, "export", "test-import")
+	w := gzip.NewWriter(temporaryFile)
+	runCmd.Stdout = w
+
+	_, err = runCommand(runCmd)
+	c.Assert(err, checker.IsNil, check.Commentf("failed to export a container"))
+	err = w.Close()
+	c.Assert(err, checker.IsNil, check.Commentf("failed to close gzip writer"))
+	temporaryFile.Close()
 	out, _ := dockerCmd(c, "import", temporaryFile.Name())
 	c.Assert(out, checker.Count, "\n", 1, check.Commentf("display is expected 1 '\\n' but didn't"))
 	image := strings.TrimSpace(out)
