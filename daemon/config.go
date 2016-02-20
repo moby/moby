@@ -61,7 +61,7 @@ type CommonConfig struct {
 	DNSSearch            []string            `json:"dns-search,omitempty"` //Use specify DNS to lookup domain name
 	ExecOptions          []string            `json:"exec-opts,omitempty"`
 	ExecRoot             string              `json:"exec-root,omitempty"`
-	GraphDriver          string              `json:"storage-driver,omitempty"` //Specific storage drive used by Docker
+	GraphDriver          string              `json:"storage-driver,omitempty"`
 	GraphOptions         []string            `json:"storage-opts,omitempty"`
 	Labels               []string            `json:"labels,omitempty"`
 	Mtu                  int                 `json:"mtu,omitempty"` //MTU of container network
