@@ -198,7 +198,7 @@ Excellent. Our container has been stopped.
 
 # Next steps
 
-So far, you launched your first containers using the `docker run` command. You
+So far, you launched your first container using the `docker run` command. You
 ran an *interactive container* that ran in the foreground. You also ran a
 *detached container* that ran in the background. In the process you learned
 about several Docker commands:
