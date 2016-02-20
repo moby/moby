@@ -231,6 +231,8 @@ func (a *Driver) Create(id, parent, mountLabel string) error {
 	return nil
 }
 
+// Create two folders for the given id.
+// mnt, diff
 func (a *Driver) createDirsFor(id string) error {
 	paths := []string{
 		"mnt",
@@ -241,6 +243,8 @@ func (a *Driver) createDirsFor(id string) error {
 	if err != nil {
 		return err
 	}
+	// Folder permission is 0755.
+	// The path of folders are <aufs_root_path>/mnt/<image_id> and <aufs_root_path>/diff/<image_id>
 	for _, p := range paths {
 		if err := idtools.MkdirAllAs(path.Join(a.rootPath(), p, id), 0755, rootUID, rootGID); err != nil {
 			return err
