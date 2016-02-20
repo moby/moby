@@ -5,6 +5,35 @@ information on the list of deprecated flags and APIs please have a look at
 https://docs.docker.com/misc/deprecated/ where target removal dates can also
 be found.
 
+## 1.10.2 (2016-02-22)
+
+### Runtime
+
+- Prevent systemd from deleting containers' cgroups when its configuration is reloaded [#20518](https://github.com/docker/docker/pull/20518)
+- Fix SELinux issues by disregarding `--read-only` when mounting `/dev/mqueue` [#20333](https://github.com/docker/docker/pull/20333)
+- Fix chown permissions used during `docker cp` when userns is used [#20446](https://github.com/docker/docker/pull/20446)
+- Fix configuration loading issue with all booleans defaulting to `true` [#20471](https://github.com/docker/docker/pull/20471)
+- Fix occasional panic with `docker logs -f` [#20522](https://github.com/docker/docker/pull/20522)
+
+### Distribution
+
+- Keep layer reference if deletion failed to avoid a badly inconsistent state [#20513](https://github.com/docker/docker/pull/20513)
+- Handle gracefully a corner case when canceling migration [#20372](https://github.com/docker/docker/pull/20372)
+- Fix docker import on compressed data [#20367](https://github.com/docker/docker/pull/20367)
+- Fix tar-split files corruption during migration that later cause docker push and docker save to fail [#20458](https://github.com/docker/docker/pull/20458)
+
+### Networking
+
+- Fix daemon crash if embedded DNS is sent garbage [#20510](https://github.com/docker/docker/pull/20510)
+
+### Volumes
+
+- Fix issue with multiple volume references with same name [#20381](https://github.com/docker/docker/pull/20381)
+
+### Security
+
+- Fix potential cache corruption and delegation conflict issues [#20523](https://github.com/docker/docker/pull/20523)
+
 ## 1.10.1 (2016-02-11)
 
 ### Runtime
