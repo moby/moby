@@ -3,6 +3,7 @@
 package container
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -45,8 +46,22 @@ func (container *Container) TmpfsMounts() []execdriver.Mount {
 	return nil
 }
 
-// UpdateContainer updates resources of a container
+// UpdateContainer updates configuration of a container
 func (container *Container) UpdateContainer(hostConfig *container.HostConfig) error {
+	container.Lock()
+	defer container.Unlock()
+	resources := hostConfig.Resources
+	if resources.BlkioWeight != 0 || resources.CPUShares != 0 ||
+		resources.CPUPeriod != 0 || resources.CPUQuota != 0 ||
+		resources.CpusetCpus != "" || resources.CpusetMems != "" ||
+		resources.Memory != 0 || resources.MemorySwap != 0 ||
+		resources.MemoryReservation != 0 || resources.KernelMemory != 0 {
+		return fmt.Errorf("Resource updating isn't supported on Windows")
+	}
+	// update HostConfig of container
+	if hostConfig.RestartPolicy.Name != "" {
+		container.HostConfig.RestartPolicy = hostConfig.RestartPolicy
+	}
 	return nil
 }
 

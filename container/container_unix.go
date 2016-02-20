@@ -564,10 +564,11 @@ func updateCommand(c *execdriver.Command, resources containertypes.Resources) {
 	c.Resources.KernelMemory = resources.KernelMemory
 }
 
-// UpdateContainer updates resources of a container.
+// UpdateContainer updates configuration of a container.
 func (container *Container) UpdateContainer(hostConfig *containertypes.HostConfig) error {
 	container.Lock()
 
+	// update resources of container
 	resources := hostConfig.Resources
 	cResources := &container.HostConfig.Resources
 	if resources.BlkioWeight != 0 {
@@ -599,6 +600,11 @@ func (container *Container) UpdateContainer(hostConfig *containertypes.HostConfi
 	}
 	if resources.KernelMemory != 0 {
 		cResources.KernelMemory = resources.KernelMemory
+	}
+
+	// update HostConfig of container
+	if hostConfig.RestartPolicy.Name != "" {
+		container.HostConfig.RestartPolicy = hostConfig.RestartPolicy
 	}
 	container.Unlock()
 

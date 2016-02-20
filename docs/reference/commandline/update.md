@@ -12,7 +12,7 @@ parent = "smn_cli"
 
     Usage: docker update [OPTIONS] CONTAINER [CONTAINER...]
 
-    Updates container resource limits
+    Update configuration of one or more containers
 
       --help=false               Print usage
       --blkio-weight=0           Block IO (relative weight), between 10 and 1000
@@ -25,11 +25,12 @@ parent = "smn_cli"
       --memory-reservation=""    Memory soft limit
       --memory-swap=""           A positive integer equal to memory plus swap. Specify -1 to enable unlimited swap
       --kernel-memory=""         Kernel memory limit: container must be stopped
+      --restart                  Restart policy to apply when a container exits
 
-The `docker update` command dynamically updates container resources.  Use this
-command to prevent containers from consuming too many resources from their
-Docker host.  With a single command, you can place limits on a single
-container or on many. To specify more than one container, provide
+The `docker update` command dynamically updates container configuration.
+You can use this command to prevent containers from consuming too many resources
+from their Docker host.  With a single command, you can place limits on
+a single container or on many. To specify more than one container, provide
 space-separated list of container names or IDs.
 
 With the exception of the `--kernel-memory` value, you can specify these
@@ -37,6 +38,10 @@ options on a running or a stopped container. You can only update
 `--kernel-memory` on a stopped container. When you run `docker update` on
 stopped container, the next time you restart it, the container uses those
 values.
+
+Another configuration you can change with this command is restart policy,
+new restart policy will take effect instantly after you run `docker update`
+on a container.
 
 ## EXAMPLES
 
@@ -58,4 +63,11 @@ To update multiple resource configurations for multiple containers:
 
 ```bash
 $ docker update --cpu-shares 512 -m 300M abebf7571666 hopeful_morse
+```
+
+### Update a container's restart policy
+
+To update restart policy for one or more containers:
+```bash
+$ docker update --restart=on-failure:3 abebf7571666 hopeful_morse
 ```
