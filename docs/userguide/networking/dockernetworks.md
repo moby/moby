@@ -95,7 +95,8 @@ worth looking at the default `bridge` network a bit.
 
 
 ### The default bridge network in detail
-The default bridge network is present on all Docker hosts. The `docker network inspect`
+The default `bridge` network is present on all Docker hosts. The `docker network inspect` 
+command returns information about a network:
 
 ```
 $ docker network inspect bridge
