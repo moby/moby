@@ -16,7 +16,7 @@ user-defined networks works differently compared to the containers connected
 to `default bridge` network.
 
 > **Note**: In order to maintain backward compatibility, the DNS configuration
-> in `default bridge` network is retained with no behaviorial change.
+> in `default bridge` network is retained with no behavioral change.
 > Please refer to the [DNS in default bridge network](default_network/configure-dns.md)
 > for more information on DNS configuration in the `default bridge` network.
 
