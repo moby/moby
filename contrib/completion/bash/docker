@@ -395,6 +395,7 @@ __docker_complete_isolation() {
 __docker_complete_log_drivers() {
 	COMPREPLY=( $( compgen -W "
 		awslogs
+		etwlogs
 		fluentd
 		gelf
 		journald
