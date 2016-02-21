@@ -299,7 +299,7 @@ Status Codes:
 
 ### Inspect a container
 
-`GET /containers/(id)/json`
+`GET /containers/(id or name)/json`
 
 Return low-level information on the container `id`
 
@@ -432,7 +432,7 @@ Status Codes:
 
 ### List processes running inside a container
 
-`GET /containers/(id)/top`
+`GET /containers/(id or name)/top`
 
 List processes running inside the container `id`. On Unix systems this
 is done by running the `ps` command. This endpoint is not
@@ -496,7 +496,7 @@ Status Codes:
 
 ### Get container logs
 
-`GET /containers/(id)/logs`
+`GET /containers/(id or name)/logs`
 
 Get stdout and stderr logs from the container ``id``
 
@@ -534,7 +534,7 @@ Status Codes:
 
 ### Inspect changes on a container's filesystem
 
-`GET /containers/(id)/changes`
+`GET /containers/(id or name)/changes`
 
 Inspect changes on container `id`'s filesystem
 
@@ -576,7 +576,7 @@ Status Codes:
 
 ### Export a container
 
-`GET /containers/(id)/export`
+`GET /containers/(id or name)/export`
 
 Export the contents of container `id`
 
@@ -599,7 +599,7 @@ Status Codes:
 
 ### Get container stats based on resource usage
 
-`GET /containers/(id)/stats`
+`GET /containers/(id or name)/stats`
 
 This endpoint returns a live stream of a container's resource usage statistics.
 
@@ -687,7 +687,7 @@ Status Codes:
 
 ### Resize a container TTY
 
-`POST /containers/(id)/resize?h=<height>&w=<width>`
+`POST /containers/(id or name)/resize?h=<height>&w=<width>`
 
 Resize the TTY for container with  `id`. The container must be restarted for the resize to take effect.
 
@@ -709,7 +709,7 @@ Status Codes:
 
 ### Start a container
 
-`POST /containers/(id)/start`
+`POST /containers/(id or name)/start`
 
 Start the container `id`
 
@@ -719,7 +719,7 @@ Start the container `id`
 
 **Example request**:
 
-        POST /containers/(id)/start HTTP/1.1
+        POST /containers/(id or name)/start HTTP/1.1
 
 **Example response**:
 
@@ -734,7 +734,7 @@ Status Codes:
 
 ### Stop a container
 
-`POST /containers/(id)/stop`
+`POST /containers/(id or name)/stop`
 
 Stop the container `id`
 
@@ -759,7 +759,7 @@ Status Codes:
 
 ### Restart a container
 
-`POST /containers/(id)/restart`
+`POST /containers/(id or name)/restart`
 
 Restart the container `id`
 
@@ -783,7 +783,7 @@ Status Codes:
 
 ### Kill a container
 
-`POST /containers/(id)/kill`
+`POST /containers/(id or name)/kill`
 
 Kill the container `id`
 
@@ -808,7 +808,7 @@ Status Codes:
 
 ### Rename a container
 
-`POST /containers/(id)/rename`
+`POST /containers/(id or name)/rename`
 
 Rename the container `id` to a `new_name`
 
@@ -833,7 +833,7 @@ Status Codes:
 
 ### Pause a container
 
-`POST /containers/(id)/pause`
+`POST /containers/(id or name)/pause`
 
 Pause the container `id`
 
@@ -853,7 +853,7 @@ Status Codes:
 
 ### Unpause a container
 
-`POST /containers/(id)/unpause`
+`POST /containers/(id or name)/unpause`
 
 Unpause the container `id`
 
@@ -873,7 +873,7 @@ Status Codes:
 
 ### Attach to a container
 
-`POST /containers/(id)/attach`
+`POST /containers/(id or name)/attach`
 
 Attach to the container `id`
 
@@ -956,7 +956,7 @@ Status Codes:
 
 ### Attach to a container (websocket)
 
-`GET /containers/(id)/attach/ws`
+`GET /containers/(id or name)/attach/ws`
 
 Attach to the container `id` via websocket
 
@@ -991,7 +991,7 @@ Status Codes:
 
 ### Wait a container
 
-`POST /containers/(id)/wait`
+`POST /containers/(id or name)/wait`
 
 Block until container `id` stops, then returns the exit code
 
@@ -1014,7 +1014,7 @@ Status Codes:
 
 ### Remove a container
 
-`DELETE /containers/(id)`
+`DELETE /containers/(id or name)`
 
 Remove the container `id` from the filesystem
 
@@ -1042,7 +1042,7 @@ Status Codes:
 
 ### Copy files or folders from a container
 
-`POST /containers/(id)/copy`
+`POST /containers/(id or name)/copy`
 
 Copy files or folders of container `id`
 
@@ -1194,12 +1194,12 @@ or being killed.
 
 Query Parameters:
 
--   **dockerfile** - path within the build context to the Dockerfile. This is 
+-   **dockerfile** - path within the build context to the Dockerfile. This is
         ignored if `remote` is specified and points to an individual filename.
 -   **t** – repository name (and optionally a tag) to be applied to
         the resulting image in case of success
--   **remote** – A Git repository URI or HTTP/HTTPS URI build source. If the 
-        URI specifies a filename, the file's contents are placed into a file 
+-   **remote** – A Git repository URI or HTTP/HTTPS URI build source. If the
+        URI specifies a filename, the file's contents are placed into a file
 		called `Dockerfile`.
 -   **q** – suppress verbose build output
 -   **nocache** – do not use the cache when building the image
@@ -1599,7 +1599,7 @@ Display system-wide information
             "SwapLimit": 0,
             "SystemTime": "2015-03-10T11:11:23.730591467-07:00"
         }
-        
+
 Status Codes:
 
 -   **200** – no error
@@ -1866,7 +1866,7 @@ the root that contains a list of repository and tag names mapped to layer IDs.
 
 ### Exec Create
 
-`POST /containers/(id)/exec`
+`POST /containers/(id or name)/exec`
 
 Sets up an exec instance in a running container `id`
 
@@ -2118,7 +2118,7 @@ This might change in the future.
 
 ## 3.3 CORS Requests
 
-To set cross origin requests to the remote api please give values to 
+To set cross origin requests to the remote api please give values to
 "--api-cors-header" when running docker in daemon mode. Set * will allow all,
 default or blank means CORS disabled
 
