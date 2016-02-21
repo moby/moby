@@ -385,11 +385,30 @@ func TestParseWithMemorySwap(t *testing.T) {
 }
 
 func TestParseHostname(t *testing.T) {
-	hostname := "--hostname=hostname"
+	validHostnames := map[string]string{
+		"hostname":    "hostname",
+		"host-name":   "host-name",
+		"hostname123": "hostname123",
+		"123hostname": "123hostname",
+	}
+	invalidHostnames := map[string]string{
+		"^hostname": "invalid hostname format for --hostname: ^hostname",
+		"hostname%": "invalid hostname format for --hostname: hostname%",
+		"host&name": "invalid hostname format for --hostname: host&name",
+		"-hostname": "invalid hostname format for --hostname: -hostname",
+		"host_name": "invalid hostname format for --hostname: host_name",
+	}
 	hostnameWithDomain := "--hostname=hostname.domainname"
 	hostnameWithDomainTld := "--hostname=hostname.domainname.tld"
-	if config, _ := mustParse(t, hostname); config.Hostname != "hostname" && config.Domainname != "" {
-		t.Fatalf("Expected the config to have 'hostname' as hostname, got '%v'", config.Hostname)
+	for hostname, expectedHostname := range validHostnames {
+		if config, _ := mustParse(t, fmt.Sprintf("--hostname=%s", hostname)); config.Hostname != expectedHostname {
+			t.Fatalf("Expected the config to have 'hostname' as hostname, got '%v'", config.Hostname)
+		}
+	}
+	for hostname, expectedError := range invalidHostnames {
+		if _, _, err := parse(t, fmt.Sprintf("--hostname=%s", hostname)); err == nil || err.Error() != expectedError {
+			t.Fatalf("Expected error '%v' with '--hostname=%s', got '%s'", expectedError, hostname, err)
+		}
 	}
 	if config, _ := mustParse(t, hostnameWithDomain); config.Hostname != "hostname" && config.Domainname != "domainname" {
 		t.Fatalf("Expected the config to have 'hostname' as hostname, got '%v'", config.Hostname)

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"path"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -247,6 +248,13 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 	if len(parts) > 1 {
 		hostname = parts[0]
 		domainname = parts[1]
+	}
+	// Validate if the given hostname is RFC 1123 (https://tools.ietf.org/html/rfc1123) compliant.
+	if hostname != "" {
+		matched, _ := regexp.MatchString("^(([[:alnum:]]|[[:alnum:]][[:alnum:]\\-]*[[:alnum:]])\\.)*([[:alnum:]]|[[:alnum:]][[:alnum:]\\-]*[[:alnum:]])$", hostname)
+		if !matched {
+			return nil, nil, nil, cmd, fmt.Errorf("invalid hostname format for --hostname: %s", hostname)
+		}
 	}
 
 	ports, portBindings, err := nat.ParsePortSpecs(flPublish.GetAll())
