@@ -248,8 +248,6 @@ func (s *DockerAuthzSuite) TestAuthZPluginDenyResponse(c *check.C) {
 
 // TestAuthZPluginAllowEventStream verifies event stream propagates correctly after request pass through by the authorization plugin
 func (s *DockerAuthzSuite) TestAuthZPluginAllowEventStream(c *check.C) {
-	c.Skip("Flaky test")
-
 	testRequires(c, DaemonIsLinux)
 
 	// start the daemon and load busybox to avoid pulling busybox from Docker Hub
