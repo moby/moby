@@ -1213,7 +1213,7 @@ func (f *fakeSandbox) SetKey(key string) error {
 	return nil
 }
 
-func (f *fakeSandbox) ResolveName(name string) net.IP {
+func (f *fakeSandbox) ResolveName(name string) []net.IP {
 	return nil
 }
 
