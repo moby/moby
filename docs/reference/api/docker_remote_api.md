@@ -26,7 +26,7 @@ group.
 
 To connect to the Docker daemon with cURL you need to use cURL 7.40 or
 later, as these versions have the `--unix-socket` flag available. To
-run `curl` against the deamon on the default socket, use the
+run `curl` against the daemon on the default socket, use the
 following:
 
     curl --unix-socket /var/run/docker.sock http://containers/json

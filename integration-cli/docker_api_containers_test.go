@@ -438,7 +438,7 @@ func (s *DockerSuite) TestGetStoppedContainerStats(c *check.C) {
 		c.Assert(r.err, checker.IsNil)
 		c.Assert(r.status, checker.Equals, http.StatusOK)
 	case <-time.After(10 * time.Second):
-		c.Fatal("timeout waiting for stats reponse for stopped container")
+		c.Fatal("timeout waiting for stats response for stopped container")
 	}
 }
 

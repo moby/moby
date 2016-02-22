@@ -573,7 +573,7 @@ func determineDefaultFS() string {
 		return "xfs"
 	}
 
-	logrus.Warn("devmapper: XFS is not supported in your system. Either the kernel doesnt support it or mkfs.xfs is not in your PATH. Defaulting to ext4 filesystem")
+	logrus.Warn("devmapper: XFS is not supported in your system. Either the kernel doesn't support it or mkfs.xfs is not in your PATH. Defaulting to ext4 filesystem")
 	return "ext4"
 }
 
