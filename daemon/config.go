@@ -95,7 +95,7 @@ type CommonConfig struct {
 	// deserialization without the full struct.
 	CommonTLSOptions
 	LogConfig
-	bridgeConfig // bridgeConfig holds bridge network specific configuration.
+	BridgeConfig // BridgeConfig holds bridge network specific configuration.
 
 	reloadLock sync.Mutex
 	valuesSet  map[string]interface{}

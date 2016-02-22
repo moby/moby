@@ -12,9 +12,9 @@ var (
 	defaultExec    = "windows"
 )
 
-// bridgeConfig stores all the bridge driver specific
+// BridgeConfig stores all the bridge driver specific
 // configuration.
-type bridgeConfig struct {
+type BridgeConfig struct {
 	VirtualSwitchName string `json:"bridge,omitempty"`
 }
 
@@ -37,6 +37,6 @@ func (config *Config) InstallFlags(cmd *flag.FlagSet, usageFn func(string) strin
 	config.InstallCommonFlags(cmd, usageFn)
 
 	// Then platform-specific install flags.
-	cmd.StringVar(&config.bridgeConfig.VirtualSwitchName, []string{"b", "-bridge"}, "", "Attach containers to a virtual switch")
+	cmd.StringVar(&config.BridgeConfig.VirtualSwitchName, []string{"b", "-bridge"}, "", "Attach containers to a virtual switch")
 	cmd.StringVar(&config.SocketGroup, []string{"G", "-group"}, "", usageFn("Users or groups that can access the named pipe"))
 }
