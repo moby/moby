@@ -89,7 +89,7 @@ Install your app dependencies using the `npm` binary:
 
     # Install app dependencies
     COPY package.json /src/package.json
-    RUN cd /src; npm install
+    RUN cd /src; npm install --production
 
 To bundle your app's source code inside the Docker image, use the `COPY`
 instruction:
@@ -119,7 +119,7 @@ Your `Dockerfile` should now look like this:
 
     # Install app dependencies
     COPY package.json /src/package.json
-    RUN cd /src; npm install
+    RUN cd /src; npm install --production
 
     # Bundle app source
     COPY . /src

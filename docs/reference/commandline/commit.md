@@ -31,7 +31,7 @@ volumes mounted inside the container.
 By default, the container being committed and its processes will be paused
 while the image is committed. This reduces the likelihood of encountering data
 corruption during the process of creating the commit.  If this behavior is
-undesired, set the 'p' option to false.
+undesired, set the `--pause` option to false.
 
 The `--change` option will apply `Dockerfile` instructions to the image that is
 created.  Supported `Dockerfile` instructions:
