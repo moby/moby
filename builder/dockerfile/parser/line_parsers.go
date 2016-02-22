@@ -71,7 +71,7 @@ func parseWords(rest string) []string {
 			if unicode.IsSpace(ch) { // skip spaces
 				continue
 			}
-			phase = inWord // found it, fall thru
+			phase = inWord // found it, fall through
 		}
 		if (phase == inWord || phase == inQuote) && (pos == len(rest)) {
 			if blankOK || len(word) > 0 {

@@ -1771,7 +1771,7 @@ With the ongoing changes to the networking and execution subsystems of docker te
 + Containers can expose public UDP ports (eg, '-p 123/udp')
 + Optionally specify an exact public port (eg. '-p 80:4500')
 * 'docker login' supports additional options
-- Dont save a container`s hostname when committing an image.
+- Don't save a container`s hostname when committing an image.
 
 #### Registry
 

@@ -72,7 +72,7 @@ func TestWriteWithWriterError(t *testing.T) {
 		t.Fatalf("Didn't get expected error.")
 	}
 	if n != expectedReturnedBytes {
-		t.Fatalf("Didn't get expected writen bytes %d, got %d.",
+		t.Fatalf("Didn't get expected written bytes %d, got %d.",
 			expectedReturnedBytes, n)
 	}
 }
