@@ -49,7 +49,7 @@ func (s *imageRouter) postCommit(ctx context.Context, w http.ResponseWriter, r *
 		c = &container.Config{}
 	}
 
-	if !s.daemon.Exists(cname) {
+	if !s.backend.Exists(cname) {
 		return derr.ErrorCodeNoSuchContainer.WithArgs(cname)
 	}
 
@@ -68,7 +68,7 @@ func (s *imageRouter) postCommit(ctx context.Context, w http.ResponseWriter, r *
 		MergeConfigs: true,
 	}
 
-	imgID, err := s.daemon.Commit(cname, commitCfg)
+	imgID, err := s.backend.Commit(cname, commitCfg)
 	if err != nil {
 		return err
 	}
@@ -134,7 +134,7 @@ func (s *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWrite
 					}
 				}
 
-				err = s.daemon.PullImage(ref, metaHeaders, authConfig, output)
+				err = s.backend.PullImage(ref, metaHeaders, authConfig, output)
 			}
 		}
 		// Check the error from pulling an image to make sure the request
@@ -175,7 +175,7 @@ func (s *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWrite
 			return err
 		}
 
-		err = s.daemon.ImportImage(src, newRef, message, r.Body, output, newConfig)
+		err = s.backend.ImportImage(src, newRef, message, r.Body, output, newConfig)
 	}
 	if err != nil {
 		if !output.Flushed() {
@@ -233,7 +233,7 @@ func (s *imageRouter) postImagesPush(ctx context.Context, w http.ResponseWriter,
 
 	w.Header().Set("Content-Type", "application/json")
 
-	if err := s.daemon.PushImage(ref, metaHeaders, authConfig, output); err != nil {
+	if err := s.backend.PushImage(ref, metaHeaders, authConfig, output); err != nil {
 		if !output.Flushed() {
 			return err
 		}
@@ -259,7 +259,7 @@ func (s *imageRouter) getImagesGet(ctx context.Context, w http.ResponseWriter, r
 		names = r.Form["names"]
 	}
 
-	if err := s.daemon.ExportImage(names, output); err != nil {
+	if err := s.backend.ExportImage(names, output); err != nil {
 		if !output.Flushed() {
 			return err
 		}
@@ -275,7 +275,7 @@ func (s *imageRouter) postImagesLoad(ctx context.Context, w http.ResponseWriter,
 	}
 	quiet := httputils.BoolValueOrDefault(r, "quiet", true)
 	w.Header().Set("Content-Type", "application/json")
-	return s.daemon.LoadImage(r.Body, w, quiet)
+	return s.backend.LoadImage(r.Body, w, quiet)
 }
 
 func (s *imageRouter) deleteImages(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -292,7 +292,7 @@ func (s *imageRouter) deleteImages(ctx context.Context, w http.ResponseWriter, r
 	force := httputils.BoolValue(r, "force")
 	prune := !httputils.BoolValue(r, "noprune")
 
-	list, err := s.daemon.ImageDelete(name, force, prune)
+	list, err := s.backend.ImageDelete(name, force, prune)
 	if err != nil {
 		return err
 	}
@@ -301,7 +301,7 @@ func (s *imageRouter) deleteImages(ctx context.Context, w http.ResponseWriter, r
 }
 
 func (s *imageRouter) getImagesByName(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	imageInspect, err := s.daemon.LookupImage(vars["name"])
+	imageInspect, err := s.backend.LookupImage(vars["name"])
 	if err != nil {
 		return err
 	}
@@ -315,7 +315,7 @@ func (s *imageRouter) getImagesJSON(ctx context.Context, w http.ResponseWriter, 
 	}
 
 	// FIXME: The filter parameter could just be a match filter
-	images, err := s.daemon.Images(r.Form.Get("filters"), r.Form.Get("filter"), httputils.BoolValue(r, "all"))
+	images, err := s.backend.Images(r.Form.Get("filters"), r.Form.Get("filter"), httputils.BoolValue(r, "all"))
 	if err != nil {
 		return err
 	}
@@ -325,7 +325,7 @@ func (s *imageRouter) getImagesJSON(ctx context.Context, w http.ResponseWriter, 
 
 func (s *imageRouter) getImagesHistory(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	name := vars["name"]
-	history, err := s.daemon.ImageHistory(name)
+	history, err := s.backend.ImageHistory(name)
 	if err != nil {
 		return err
 	}
@@ -348,7 +348,7 @@ func (s *imageRouter) postImagesTag(ctx context.Context, w http.ResponseWriter, 
 			return err
 		}
 	}
-	if err := s.daemon.TagImage(newTag, vars["name"]); err != nil {
+	if err := s.backend.TagImage(newTag, vars["name"]); err != nil {
 		return err
 	}
 	w.WriteHeader(http.StatusCreated)
@@ -378,7 +378,7 @@ func (s *imageRouter) getImagesSearch(ctx context.Context, w http.ResponseWriter
 			headers[k] = v
 		}
 	}
-	query, err := s.daemon.SearchRegistryForImages(r.Form.Get("term"), config, headers)
+	query, err := s.backend.SearchRegistryForImages(r.Form.Get("term"), config, headers)
 	if err != nil {
 		return err
 	}
