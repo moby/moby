@@ -605,6 +605,8 @@ with the same logic -- if the original volume was specified with a name it will 
     --security-opt="label:disable"     : Turn off label confinement for the container
     --security-opt="apparmor:PROFILE"  : Set the apparmor profile to be applied
                                          to the container
+    --security-opt="no-new-privileges" : Disable container processes from gaining
+                                         new privileges
 
 You can override the default labeling scheme for each container by specifying
 the `--security-opt` flag. For example, you can specify the MCS/MLS level, a
@@ -630,6 +632,13 @@ command:
     $ docker run --security-opt label:type:svirt_apache_t -it centos bash
 
 > **Note**: You would have to write policy defining a `svirt_apache_t` type.
+
+If you want to prevent your container processes from gaining additional
+privileges, you can execute the following command:
+
+    $ docker run --security-opt no-new-privileges -it centos bash
+
+For more details, see [kernel documentation](https://www.kernel.org/doc/Documentation/prctl/no_new_privs.txt).
 
 ## Specifying custom cgroups
 

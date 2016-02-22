@@ -75,17 +75,23 @@ func parseSecurityOpt(container *container.Container, config *containertypes.Hos
 	for _, opt := range config.SecurityOpt {
 		con := strings.SplitN(opt, ":", 2)
 		if len(con) == 1 {
-			return fmt.Errorf("Invalid --security-opt: %q", opt)
-		}
-		switch con[0] {
-		case "label":
-			labelOpts = append(labelOpts, con[1])
-		case "apparmor":
-			container.AppArmorProfile = con[1]
-		case "seccomp":
-			container.SeccompProfile = con[1]
-		default:
-			return fmt.Errorf("Invalid --security-opt: %q", opt)
+			switch con[0] {
+			case "no-new-privileges":
+				container.NoNewPrivileges = true
+			default:
+				return fmt.Errorf("Invalid --security-opt 1: %q", opt)
+			}
+		} else {
+			switch con[0] {
+			case "label":
+				labelOpts = append(labelOpts, con[1])
+			case "apparmor":
+				container.AppArmorProfile = con[1]
+			case "seccomp":
+				container.SeccompProfile = con[1]
+			default:
+				return fmt.Errorf("Invalid --security-opt 2: %q", opt)
+			}
 		}
 	}
 
