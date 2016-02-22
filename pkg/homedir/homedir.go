@@ -29,6 +29,19 @@ func Get() string {
 	return home
 }
 
+// GetWithSudoUser returns the home directory of the user who called sudo (if
+// available, retrieved from $SUDO_USER). It fallbacks to Get if any error occurs.
+// Returned path should be used with "path/filepath" to form new paths.
+func GetWithSudoUser() string {
+	sudoUser := os.Getenv("SUDO_USER")
+	if sudoUser != "" {
+		if user, err := user.LookupUser(sudoUser); err == nil {
+			return user.Home
+		}
+	}
+	return Get()
+}
+
 // GetShortcutString returns the string that is shortcut to user's home directory
 // in the native shell of the platform running on.
 func GetShortcutString() string {
