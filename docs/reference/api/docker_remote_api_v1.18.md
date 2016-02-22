@@ -719,7 +719,7 @@ Start the container `id`
 
 **Example request**:
 
-        POST /containers/(id or name)/start HTTP/1.1
+        POST /containers/e90e34656806/start HTTP/1.1
 
 **Example response**:
 
