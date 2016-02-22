@@ -54,6 +54,16 @@ if [ -z "$DOCKER_TEST_HOST" ]; then
 		$extra_params \
 			&> "$DEST/docker.log"
 	) &
+	( set -x; \
+		timeout=$(echo $TIMEOUT | sed 's/\([0-9]*\)[dhms]/\1/') ; \
+		unit=$(echo $TIMEOUT | sed 's/[0-9]*\([dhms]\)/\1/') ; \
+		dumptimeout=$(( $timeout - 5 )) ; \
+		if [ $dumptimeout -gt 0 ] ; then \
+		   sleep $dumptimeout$unit ; \
+		   kill -USR1 $(cat "$DEST/docker.pid") ; \
+		   grep goroutine "$DEST/docker.log" | sed 's/\\n/\n/g' | sed 's/\\t/\t/g' ; \
+		fi
+	) &
 	# make sure that if the script exits unexpectedly, we stop this daemon we just started
 	trap 'bundle .integration-daemon-stop' EXIT
 else
@@ -75,14 +85,14 @@ while ! docker version &> /dev/null; do
 			docker version >&2 || true
 			# Additional Windows CI debugging as this is a common error as of
 			# January 2016
-			if [ "$(go env GOOS)" = 'windows' ]; then	
+			if [ "$(go env GOOS)" = 'windows' ]; then
 				echo >&2 "Container log below:"
 				echo >&2 "---"
 				# Important - use the docker on the CI host, not the one built locally
 				# which is currently in our path.
 				! /c/bin/docker -H=$MAIN_DOCKER_HOST logs docker-$COMMITHASH
 				echo >&2 "---"
-			fi			
+			fi
 		fi
 		false
 	fi
