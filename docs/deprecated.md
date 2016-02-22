@@ -56,6 +56,15 @@ variants:
     docker build -c (--cpu-shares)
     docker create -c (--cpu-shares)
 
+The following search options are deprecated:
+
+docker search --automated
+docker search --stars
+
+In favor of the extensible --filter option:
+
+docker search --filter "is-automated=true has-stars=20" ubuntu
+
 ### Driver Specific Log Tags
 **Deprecated In Release: v1.9**
 

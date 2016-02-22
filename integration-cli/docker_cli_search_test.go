@@ -16,10 +16,20 @@ func (s *DockerSuite) TestSearchOnCentralRegistry(c *check.C) {
 }
 
 func (s *DockerSuite) TestSearchStarsOptionWithWrongParameter(c *check.C) {
-	out, _, err := dockerCmdWithError("search", "--stars=a", "busybox")
+	out, _, err := dockerCmdWithError("search", "--filter", "has", "-stars", "=a", "busybox")
 	c.Assert(err, check.NotNil, check.Commentf(out))
 	c.Assert(out, checker.Contains, "invalid value", check.Commentf("couldn't find the invalid value warning"))
 
+	// -s --stars deprecated since Docker 1.13
+	out, _, err = dockerCmdWithError("search", "--stars=a", "busybox")
+	c.Assert(err, check.NotNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "invalid value", check.Commentf("couldn't find the invalid value warning"))
+
+	//out, _, err = dockerCmdWithError("search", "--filter", "has-stars=-1", "busybox")
+	//c.Assert(err, check.NotNil, check.Commentf(out))
+	//c.Assert(out, checker.Contains, "invalid value", check.Commentf("couldn't find the invalid value warning"))
+
+	// -s --stars deprecated since Docker 1.13
 	out, _, err = dockerCmdWithError("search", "-s=-1", "busybox")
 	c.Assert(err, check.NotNil, check.Commentf(out))
 	c.Assert(out, checker.Contains, "invalid value", check.Commentf("couldn't find the invalid value warning"))
@@ -35,15 +45,29 @@ func (s *DockerSuite) TestSearchCmdOptions(c *check.C) {
 	outSearchCmdNotrunc, _ := dockerCmd(c, "search", "--no-trunc=true", "busybox")
 	c.Assert(len(outSearchCmd) > len(outSearchCmdNotrunc), check.Equals, false, check.Commentf("The no-trunc option can't take effect."))
 
-	outSearchCmdautomated, _ := dockerCmd(c, "search", "--automated=true", "busybox") //The busybox is a busybox base image, not an AUTOMATED image.
+	// --automated deprecated since Docker 1.13
+	outSearchCmdautomated1, _ := dockerCmd(c, "search", "--automated=true", "busybox") //The busybox is a busybox base image, not an AUTOMATED image.
+	outSearchCmdautomatedSlice1 := strings.Split(outSearchCmdautomated1, "\n")
+	for i := range outSearchCmdautomatedSlice1 {
+		c.Assert(strings.HasPrefix(outSearchCmdautomatedSlice1[i], "busybox "), check.Equals, false, check.Commentf("The busybox is not an AUTOMATED image: %s", out))
+	}
+
+	outSearchCmdautomated, _ := dockerCmd(c, "search", "--filter", "is-automated=true", "busybox") //The busybox is a busybox base image, not an AUTOMATED image.
 	outSearchCmdautomatedSlice := strings.Split(outSearchCmdautomated, "\n")
 	for i := range outSearchCmdautomatedSlice {
 		c.Assert(strings.HasPrefix(outSearchCmdautomatedSlice[i], "busybox "), check.Equals, false, check.Commentf("The busybox is not an AUTOMATED image: %s", out))
 	}
 
-	outSearchCmdStars, _ := dockerCmd(c, "search", "-s=2", "busybox")
+	// -s --stars deprecated since Docker 1.13
+	outSearchCmdStars1, _ := dockerCmd(c, "search", "--filter", "has-stars=2", "busybox")
+	c.Assert(strings.Count(outSearchCmdStars1, "[OK]") > strings.Count(outSearchCmd, "[OK]"), check.Equals, false, check.Commentf("The quantity of images with stars should be less than that of all images: %s", outSearchCmdStars1))
+
+	outSearchCmdStars, _ := dockerCmd(c, "search", "--filter", "has-stars=2", "busybox")
 	c.Assert(strings.Count(outSearchCmdStars, "[OK]") > strings.Count(outSearchCmd, "[OK]"), check.Equals, false, check.Commentf("The quantity of images with stars should be less than that of all images: %s", outSearchCmdStars))
 
+	dockerCmd(c, "search", "--filter", "\"is-automated=true has-stars=2\"", "--no-trunc=true", "busybox")
+
+	// -s --stars deprecated since Docker 1.13
 	dockerCmd(c, "search", "--stars=2", "--automated=true", "--no-trunc=true", "busybox")
 }
 

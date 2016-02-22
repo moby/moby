@@ -14,10 +14,12 @@ parent = "smn_cli"
 
     Search the Docker Hub for images
 
-      --automated          Only show automated builds
+      --filter             Filters with the following parameters:
+                           is-automated=true Image is automated
+                           is-official=true Image is official
+                           has-stars=n Image has at least n stars
       --help               Print usage
       --no-trunc           Don't truncate output
-      -s, --stars=0        Only displays with at least x stars
 
 Search [Docker Hub](https://hub.docker.com) for images
 
@@ -61,27 +63,38 @@ This example displays images with a name containing 'busybox':
     scottabernethy/busybox                                                           0                    [OK]
     marclop/busybox-solr
 
-### Search images by name and number of stars (-s, --stars)
+### Search images by name and number of stars (--filter has-stars)
 
 This example displays images with a name containing 'busybox' and at
 least 3 stars:
 
-    $ docker search --stars=3 busybox
+    $ docker search --filter has-stars=3 busybox
     NAME                 DESCRIPTION                                     STARS     OFFICIAL   AUTOMATED
     busybox              Busybox base image.                             325       [OK]       
     progrium/busybox                                                     50                   [OK]
     radial/busyboxplus   Full-chain, Internet enabled, busybox made...   8                    [OK]
 
 
-### Search automated images (--automated)
+### Search automated images (--filter is-automated)
 
-This example displays images with a name containing 'busybox', at
-least 3 stars and are automated builds:
+This example displays images with a name containing 'busybox'
+and are automated builds:
 
-    $ docker search --stars=3 --automated busybox
+    $ docker search --filter is-automated busybox
     NAME                 DESCRIPTION                                     STARS     OFFICIAL   AUTOMATED
     progrium/busybox                                                     50                   [OK]
     radial/busyboxplus   Full-chain, Internet enabled, busybox made...   8                    [OK]
+
+### Search official images (--filter is-official)
+
+This example displays images with a name containing 'busybox', at least
+3 stars and are official builds:
+
+    $ docker search --filter "is-automated=true has-stars=3" busybox
+    NAME                 DESCRIPTION                                     STARS     OFFICIAL   AUTOMATED
+    progrium/busybox                                                     50                   [OK]
+    radial/busyboxplus   Full-chain, Internet enabled, busybox made...   8                    [OK]
+
 
 
 ### Display non-truncated description (--no-trunc)
