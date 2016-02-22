@@ -7,6 +7,7 @@ if [ $DOCKER_ENGINE_GOOS != "windows" ]; then
 	bundle .ensure-frozen-images
 	bundle .ensure-httpserver
 	bundle .ensure-syscall-test
+	bundle .ensure-nnp-test
 else
 	# Note this is Windows to Windows CI, not Windows to Linux CI
 	bundle .ensure-frozen-images-windows
