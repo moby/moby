@@ -201,7 +201,7 @@ func (s *DockerSchema1RegistrySuite) TestCrossRepositoryLayerPushNotSupported(c 
 	out2, _, err := dockerCmdWithError("push", destRepoName)
 	c.Assert(err, check.IsNil, check.Commentf("pushing the image to the private registry has failed: %s", out2))
 	// schema1 registry should not support cross-repo layer mounts, so ensure that this does not happen
-	c.Assert(strings.Contains(out2, "Mounted from dockercli/busybox"), check.Equals, false)
+	c.Assert(strings.Contains(out2, "Mounted from"), check.Equals, false)
 
 	digest2 := digest.DigestRegexp.FindString(out2)
 	c.Assert(len(digest2), checker.GreaterThan, 0, check.Commentf("no digest found for pushed manifest"))
