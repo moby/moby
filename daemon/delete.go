@@ -141,6 +141,9 @@ func (daemon *Daemon) cleanupContainer(container *container.Container, forceRemo
 func (daemon *Daemon) VolumeRm(name string) error {
 	v, err := daemon.volumes.Get(name)
 	if err != nil {
+		if volumestore.IsNotExist(err) {
+			return nil
+		}
 		return err
 	}
 

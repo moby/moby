@@ -187,7 +187,7 @@ func (r *Root) Get(name string) (volume.Volume, error) {
 	v, exists := r.volumes[name]
 	r.m.Unlock()
 	if !exists {
-		return nil, ErrNotFound
+		return nil, nil
 	}
 	return v, nil
 }
