@@ -21,9 +21,10 @@ import (
 
 func (s *DockerSuite) TestExec(c *check.C) {
 	testRequires(c, DaemonIsLinux)
-	dockerCmd(c, "run", "-d", "--name", "testing", "busybox", "sh", "-c", "echo test > /tmp/file && top")
+	out, _ := dockerCmd(c, "run", "-d", "--name", "testing", "busybox", "sh", "-c", "echo test > /tmp/file && top")
+	c.Assert(waitRun(strings.TrimSpace(out)), check.IsNil)
 
-	out, _ := dockerCmd(c, "exec", "testing", "cat", "/tmp/file")
+	out, _ = dockerCmd(c, "exec", "testing", "cat", "/tmp/file")
 	out = strings.Trim(out, "\r\n")
 	c.Assert(out, checker.Equals, "test")
 
@@ -67,7 +68,7 @@ func (s *DockerSuite) TestExecInteractive(c *check.C) {
 
 func (s *DockerSuite) TestExecAfterContainerRestart(c *check.C) {
 	testRequires(c, DaemonIsLinux)
-	out, _ := runSleepingContainer(c, "-d")
+	out, _ := runSleepingContainer(c)
 	cleanedContainerID := strings.TrimSpace(out)
 	c.Assert(waitRun(cleanedContainerID), check.IsNil)
 	dockerCmd(c, "restart", cleanedContainerID)
