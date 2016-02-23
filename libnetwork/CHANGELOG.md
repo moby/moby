@@ -90,7 +90,7 @@
 - DEPRECATE service discovery from default bridge network
 - Introduced new network UX
 - Support for multiple networks in bridge driver
-- Local persistance with boltdb
+- Local persistence with boltdb
 
 ## 0.4.0 (2015-07-24)
 

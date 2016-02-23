@@ -126,7 +126,7 @@ func (d *driver) parseNetworkOptions(id string, genericOptions map[string]string
 
 func (c *networkConfiguration) processIPAM(id string, ipamV4Data, ipamV6Data []driverapi.IPAMData) error {
 	if len(ipamV6Data) > 0 {
-		return types.ForbiddenErrorf("windowsshim driver doesnt support v6 subnets")
+		return types.ForbiddenErrorf("windowsshim driver doesn't support v6 subnets")
 	}
 
 	if len(ipamV4Data) == 0 {

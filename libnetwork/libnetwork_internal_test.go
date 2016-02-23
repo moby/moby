@@ -44,7 +44,7 @@ func TestIpamDriverRegistration(t *testing.T) {
 
 	err = c.(*controller).RegisterIpamDriver("", nil)
 	if err == nil {
-		t.Fatalf("Expected failure, but suceeded")
+		t.Fatalf("Expected failure, but succeeded")
 	}
 	if _, ok := err.(types.BadRequestError); !ok {
 		t.Fatalf("Failed for unexpected reason: %v", err)
@@ -52,7 +52,7 @@ func TestIpamDriverRegistration(t *testing.T) {
 
 	err = c.(*controller).RegisterIpamDriver(ipamapi.DefaultIPAM, nil)
 	if err == nil {
-		t.Fatalf("Expected failure, but suceeded")
+		t.Fatalf("Expected failure, but succeeded")
 	}
 	if _, ok := err.(types.ForbiddenError); !ok {
 		t.Fatalf("Failed for unexpected reason: %v", err)

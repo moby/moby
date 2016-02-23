@@ -466,7 +466,7 @@ func (sb *sandbox) resolveName(req string, networkName string, epList []*endpoin
 			}
 		} else {
 			// If it is a regular lookup and if the requested name is an alias
-			// dont perform a svc lookup for this endpoint.
+			// don't perform a svc lookup for this endpoint.
 			ep.Lock()
 			if _, ok := ep.aliases[req]; ok {
 				ep.Unlock()

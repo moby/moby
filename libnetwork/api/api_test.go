@@ -709,7 +709,7 @@ func TestProcGetService(t *testing.T) {
 	vars := map[string]string{urlEpID: ""}
 	_, errRsp := procGetService(c, vars, nil)
 	if errRsp.isOK() {
-		t.Fatalf("Expected failure, but suceeded")
+		t.Fatalf("Expected failure, but succeeded")
 	}
 	if errRsp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("Expected %d, but got: %d", http.StatusBadRequest, errRsp.StatusCode)
@@ -718,7 +718,7 @@ func TestProcGetService(t *testing.T) {
 	vars[urlEpID] = "unknown-service-id"
 	_, errRsp = procGetService(c, vars, nil)
 	if errRsp.isOK() {
-		t.Fatalf("Expected failure, but suceeded")
+		t.Fatalf("Expected failure, but succeeded")
 	}
 	if errRsp.StatusCode != http.StatusNotFound {
 		t.Fatalf("Expected %d, but got: %d. (%v)", http.StatusNotFound, errRsp.StatusCode, errRsp)
@@ -864,7 +864,7 @@ func TestProcPublishUnpublishService(t *testing.T) {
 
 	_, errRsp = procGetService(c, vars, nil)
 	if errRsp.isOK() {
-		t.Fatalf("Expected failure, but suceeded")
+		t.Fatalf("Expected failure, but succeeded")
 	}
 	if errRsp.StatusCode != http.StatusNotFound {
 		t.Fatalf("Expected %d, but got: %d. (%v)", http.StatusNotFound, errRsp.StatusCode, errRsp)
@@ -1545,7 +1545,7 @@ func checkPanic(t *testing.T) {
 			panic(r)
 		}
 	} else {
-		t.Fatalf("Expected to panic, but suceeded")
+		t.Fatalf("Expected to panic, but succeeded")
 	}
 }
 

@@ -170,7 +170,7 @@ func New(cfgOptions ...config.Option) (NetworkController, error) {
 
 	if c.cfg != nil && c.cfg.Cluster.Watcher != nil {
 		if err := c.initDiscovery(c.cfg.Cluster.Watcher); err != nil {
-			// Failing to initalize discovery is a bad situation to be in.
+			// Failing to initialize discovery is a bad situation to be in.
 			// But it cannot fail creating the Controller
 			log.Errorf("Failed to Initialize Discovery : %v", err)
 		}

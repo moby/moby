@@ -183,7 +183,7 @@ func (c *networkConfiguration) Conflicts(o *networkConfiguration) error {
 		return fmt.Errorf("same configuration")
 	}
 
-	// Also empty, becasue only one network with empty name is allowed
+	// Also empty, because only one network with empty name is allowed
 	if c.BridgeName == o.BridgeName {
 		return fmt.Errorf("networks have same bridge name")
 	}
@@ -450,7 +450,7 @@ func parseNetworkGenericOptions(data interface{}) (*networkConfiguration, error)
 
 func (c *networkConfiguration) processIPAM(id string, ipamV4Data, ipamV6Data []driverapi.IPAMData) error {
 	if len(ipamV4Data) > 1 || len(ipamV6Data) > 1 {
-		return types.ForbiddenErrorf("bridge driver doesnt support multiple subnets")
+		return types.ForbiddenErrorf("bridge driver doesn't support multiple subnets")
 	}
 
 	if len(ipamV4Data) == 0 {
