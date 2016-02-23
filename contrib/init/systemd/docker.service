@@ -6,7 +6,7 @@ Requires=docker.socket
 
 [Service]
 Type=notify
-ExecStart=/usr/bin/docker daemon -H fd://
+ExecStart=/usr/bin/docker daemon -H fd:// --exec-opt native.cgroupdriver=systemd
 MountFlags=slave
 LimitNOFILE=1048576
 LimitNPROC=1048576
