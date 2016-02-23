@@ -2029,10 +2029,10 @@ func (s *DockerSuite) TestRunInspectMacAddress(c *check.C) {
 	}
 }
 
-// test docker run use a invalid mac address
+// test docker run use an invalid mac address
 func (s *DockerSuite) TestRunWithInvalidMacAddress(c *check.C) {
 	out, _, err := dockerCmdWithError("run", "--mac-address", "92:d0:c6:0a:29", "busybox")
-	//use a invalid mac address should with a error out
+	//use an invalid mac address should with an error out
 	if err == nil || !strings.Contains(out, "is not a valid mac address") {
 		c.Fatalf("run with an invalid --mac-address should with error out")
 	}
@@ -2918,7 +2918,7 @@ func (s *DockerSuite) TestRunReadProcLatency(c *check.C) {
 	// some kernels don't have this configured so skip the test if this file is not found
 	// on the host running the tests.
 	if _, err := os.Stat("/proc/latency_stats"); err != nil {
-		c.Skip("kernel doesnt have latency_stats configured")
+		c.Skip("kernel doesn't have latency_stats configured")
 		return
 	}
 	out, code, err := dockerCmdWithError("run", "busybox", "cat", "/proc/latency_stats")

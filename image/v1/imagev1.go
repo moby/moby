@@ -97,7 +97,7 @@ func MakeConfigFromV1Config(imageJSON []byte, rootfs *image.RootFS, history []im
 
 	delete(c, "id")
 	delete(c, "parent")
-	delete(c, "Size") // Size is calculated from data on disk and is inconsitent
+	delete(c, "Size") // Size is calculated from data on disk and is inconsistent
 	delete(c, "parent_id")
 	delete(c, "layer_id")
 	delete(c, "throwaway")
