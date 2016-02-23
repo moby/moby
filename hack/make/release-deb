@@ -49,41 +49,41 @@ if [[ ! "${components[*]}" =~ $component ]] ; then
 	components+=( $component )
 fi
 
-# create/update apt-ftparchive file
-if [ ! -f "$APTDIR/conf/apt-ftparchive.conf" ]; then
-	cat <<-EOF > "$APTDIR/conf/apt-ftparchive.conf"
-	Dir {
-		ArchiveDir "${APTDIR}";
-		CacheDir "${APTDIR}/db";
-	};
+# create apt-ftparchive file on every run. This is essential to avoid
+# using stale versions of the config file that could cause unnecessary
+# refreshing of bits for EOL-ed releases.
+cat <<-EOF > "$APTDIR/conf/apt-ftparchive.conf"
+Dir {
+	ArchiveDir "${APTDIR}";
+	CacheDir "${APTDIR}/db";
+};
 
-	Default {
-		Packages::Compress ". gzip bzip2";
-		Sources::Compress ". gzip bzip2";
-		Contents::Compress ". gzip bzip2";
-	};
+Default {
+	Packages::Compress ". gzip bzip2";
+	Sources::Compress ". gzip bzip2";
+	Contents::Compress ". gzip bzip2";
+};
 
-	TreeDefault {
-		BinCacheDB "packages-\$(SECTION)-\$(ARCH).db";
-		Directory "pool/\$(SECTION)";
-		Packages "\$(DIST)/\$(SECTION)/binary-\$(ARCH)/Packages";
-		SrcDirectory "pool/\$(SECTION)";
-		Sources "\$(DIST)/\$(SECTION)/source/Sources";
-		Contents "\$(DIST)/\$(SECTION)/Contents-\$(ARCH)";
-		FileList "$APTDIR/\$(DIST)/\$(SECTION)/filelist";
-	};
+TreeDefault {
+	BinCacheDB "packages-\$(SECTION)-\$(ARCH).db";
+	Directory "pool/\$(SECTION)";
+	Packages "\$(DIST)/\$(SECTION)/binary-\$(ARCH)/Packages";
+	SrcDirectory "pool/\$(SECTION)";
+	Sources "\$(DIST)/\$(SECTION)/source/Sources";
+	Contents "\$(DIST)/\$(SECTION)/Contents-\$(ARCH)";
+	FileList "$APTDIR/\$(DIST)/\$(SECTION)/filelist";
+};
+EOF
+
+for suite in $(exec contrib/reprepro/suites.sh); do
+	cat <<-EOF
+	Tree "dists/${suite}" {
+		Sections "${components[*]}";
+		Architectures "${arches[*]}";
+	}
+
 	EOF
-
-	for suite in $(exec contrib/reprepro/suites.sh); do
-		cat <<-EOF
-		Tree "dists/${suite}" {
-			Sections "${components[*]}";
-			Architectures "${arches[*]}";
-		}
-
-		EOF
-	done >> "$APTDIR/conf/apt-ftparchive.conf"
-fi
+done >> "$APTDIR/conf/apt-ftparchive.conf"
 
 if [ ! -f "$APTDIR/conf/docker-engine-release.conf" ]; then
 	cat <<-EOF > "$APTDIR/conf/docker-engine-release.conf"
