@@ -17,9 +17,11 @@ import (
 	"reflect"
 	"testing"
 
+	"bytes"
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/go-connections/tlsconfig"
 	"github.com/gorilla/mux"
+	"strings"
 )
 
 const pluginAddress = "authzplugin.sock"
@@ -132,6 +134,41 @@ func TestResponseModifier(t *testing.T) {
 	}
 	if r.Code != 500 {
 		t.Fatalf("Status code must be correct %d", r.Code)
+	}
+}
+
+func TestDrainBody(t *testing.T) {
+
+	tests := []struct {
+		length             int // length is the message length send to drainBody
+		expectedBodyLength int // expectedBodyLength is the expected body length after drainBody is called
+	}{
+		{10, 10}, // Small message size
+		{maxBodySize - 1, maxBodySize - 1}, // Max message size
+		{maxBodySize * 2, 0},               // Large message size (skip copying body)
+
+	}
+
+	for _, test := range tests {
+
+		msg := strings.Repeat("a", test.length)
+		body, closer, err := drainBody(ioutil.NopCloser(bytes.NewReader([]byte(msg))))
+		if len(body) != test.expectedBodyLength {
+			t.Fatalf("Body must be copied, actual length: '%d'", len(body))
+		}
+		if closer == nil {
+			t.Fatalf("Closer must not be nil")
+		}
+		if err != nil {
+			t.Fatalf("Error must not be nil: '%v'", err)
+		}
+		modified, err := ioutil.ReadAll(closer)
+		if err != nil {
+			t.Fatalf("Error must not be nil: '%v'", err)
+		}
+		if len(modified) != len(msg) {
+			t.Fatalf("Result should not be truncated. Original length: '%d', new length: '%d'", len(msg), len(modified))
+		}
 	}
 }
 
