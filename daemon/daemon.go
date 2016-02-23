@@ -1518,7 +1518,7 @@ func configureVolumes(config *Config, rootUID, rootGID int) (*store.VolumeStore,
 }
 
 // AuthenticateToRegistry checks the validity of credentials in authConfig
-func (daemon *Daemon) AuthenticateToRegistry(authConfig *types.AuthConfig) (string, error) {
+func (daemon *Daemon) AuthenticateToRegistry(authConfig *types.AuthConfig) (string, string, error) {
 	return daemon.RegistryService.Auth(authConfig, dockerversion.DockerUserAgent())
 }
 

@@ -107,6 +107,13 @@ func (scs simpleCredentialStore) Basic(u *url.URL) (string, string) {
 	return scs.auth.Username, scs.auth.Password
 }
 
+func (scs simpleCredentialStore) RefreshToken(u *url.URL, service string) string {
+	return scs.auth.IdentityToken
+}
+
+func (scs simpleCredentialStore) SetRefreshToken(*url.URL, string, string) {
+}
+
 // getNotaryRepository returns a NotaryRepository which stores all the
 // information needed to operate on a notary repository.
 // It creates a HTTP transport providing authentication support.
