@@ -695,19 +695,36 @@ This endpoint returns a live stream of a container's resource usage statistics.
          "cpu_stats" : {
             "cpu_usage" : {
                "percpu_usage" : [
-                  16970827,
-                  1839451,
-                  7107380,
-                  10571290
+                  8646879,
+                  24472255,
+                  36438778,
+                  30657443
                ],
-               "usage_in_usermode" : 10000000,
-               "total_usage" : 36488948,
-               "usage_in_kernelmode" : 20000000
+               "usage_in_usermode" : 50000000,
+               "total_usage" : 100215355,
+               "usage_in_kernelmode" : 30000000
             },
-            "system_cpu_usage" : 20091722000000000,
-            "throttling_data" : {}
+            "system_cpu_usage" : 739306590000000,
+            "throttling_data" : {"periods":0,"throttled_periods":0,"throttled_time":0}
+         },
+         "precpu_stats" : {
+            "cpu_usage" : {
+               "percpu_usage" : [
+                  8646879,
+                  24350896,
+                  36438778,
+                  30657443
+               ],
+               "usage_in_usermode" : 50000000,
+               "total_usage" : 100093996,
+               "usage_in_kernelmode" : 30000000
+            },
+            "system_cpu_usage" : 9492140000000,
+            "throttling_data" : {"periods":0,"throttled_periods":0,"throttled_time":0}
          }
       }
+
+The precpu_stats is the cpu statistic of last read, which is used for calculating the cpu usage percent. It is not the exact copy of the “cpu_stats” field.
 
 Query Parameters:
 
