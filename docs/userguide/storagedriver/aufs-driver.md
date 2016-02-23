@@ -148,7 +148,7 @@ layer IDs). Inside each file are the names of the directories that exist below
 it in the stack
 
 The command below shows the contents of a metadata file in
-`/var/lib/docker/aufs/layers/` that lists the the three directories that are
+`/var/lib/docker/aufs/layers/` that lists the three directories that are
 stacked below it in the union mount. Remember, these directory names do no map
 to image layer IDs with Docker 1.10 and higher.
 
