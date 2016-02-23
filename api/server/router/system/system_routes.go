@@ -115,11 +115,12 @@ func (s *systemRouter) postAuth(ctx context.Context, w http.ResponseWriter, r *h
 	if err != nil {
 		return err
 	}
-	status, err := s.backend.AuthenticateToRegistry(config)
+	status, token, err := s.backend.AuthenticateToRegistry(config)
 	if err != nil {
 		return err
 	}
 	return httputils.WriteJSON(w, http.StatusOK, &types.AuthResponse{
-		Status: status,
+		Status:        status,
+		IdentityToken: token,
 	})
 }

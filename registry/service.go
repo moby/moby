@@ -2,6 +2,7 @@ package registry
 
 import (
 	"crypto/tls"
+	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
@@ -34,10 +35,19 @@ func (s *Service) ServiceConfig() *registrytypes.ServiceConfig {
 // Auth contacts the public registry with the provided credentials,
 // and returns OK if authentication was successful.
 // It can be used to verify the validity of a client's credentials.
-func (s *Service) Auth(authConfig *types.AuthConfig, userAgent string) (status string, err error) {
-	endpoints, err := s.LookupPushEndpoints(authConfig.ServerAddress)
+func (s *Service) Auth(authConfig *types.AuthConfig, userAgent string) (status, token string, err error) {
+	serverAddress := authConfig.ServerAddress
+	if !strings.HasPrefix(serverAddress, "https://") && !strings.HasPrefix(serverAddress, "http://") {
+		serverAddress = "https://" + serverAddress
+	}
+	u, err := url.Parse(serverAddress)
 	if err != nil {
-		return "", err
+		return "", "", fmt.Errorf("unable to parse server address: %v", err)
+	}
+
+	endpoints, err := s.LookupPushEndpoints(u.Host)
+	if err != nil {
+		return "", "", err
 	}
 
 	for _, endpoint := range endpoints {
@@ -46,7 +56,7 @@ func (s *Service) Auth(authConfig *types.AuthConfig, userAgent string) (status s
 			login = loginV1
 		}
 
-		status, err = login(authConfig, endpoint, userAgent)
+		status, token, err = login(authConfig, endpoint, userAgent)
 		if err == nil {
 			return
 		}
@@ -55,10 +65,10 @@ func (s *Service) Auth(authConfig *types.AuthConfig, userAgent string) (status s
 			logrus.Infof("Error logging in to %s endpoint, trying next endpoint: %v", endpoint.Version, err)
 			continue
 		}
-		return "", err
+		return "", "", err
 	}
 
-	return "", err
+	return "", "", err
 }
 
 // splitReposSearchTerm breaks a search term into an index name and remote name

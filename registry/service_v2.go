@@ -10,7 +10,7 @@ import (
 func (s *Service) lookupV2Endpoints(hostname string) (endpoints []APIEndpoint, err error) {
 	var cfg = tlsconfig.ServerDefault
 	tlsConfig := &cfg
-	if hostname == DefaultNamespace {
+	if hostname == DefaultNamespace || hostname == DefaultV1Registry.Host {
 		// v2 mirrors
 		for _, mirror := range s.config.Mirrors {
 			if !strings.HasPrefix(mirror, "http://") && !strings.HasPrefix(mirror, "https://") {
