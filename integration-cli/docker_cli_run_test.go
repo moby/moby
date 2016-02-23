@@ -658,7 +658,12 @@ func (s *DockerSuite) TestRunExitCode(c *check.C) {
 func (s *DockerSuite) TestRunUserDefaults(c *check.C) {
 	expected := "uid=0(root) gid=0(root)"
 	if daemonPlatform == "windows" {
-		expected = "uid=1000(SYSTEM) gid=1000(SYSTEM)"
+		// TODO Windows: Remove this check once TP4 is no longer supported.
+		if windowsDaemonKV < 14250 {
+			expected = "uid=1000(SYSTEM) gid=1000(SYSTEM)"
+		} else {
+			expected = "uid=1000(ContainerAdministrator) gid=1000(ContainerAdministrator)"
+		}
 	}
 	out, _ := dockerCmd(c, "run", "busybox", "id")
 	if !strings.Contains(out, expected) {
@@ -1710,7 +1715,12 @@ func (s *DockerSuite) TestRunCleanupCmdOnEntrypoint(c *check.C) {
 	out = strings.TrimSpace(out)
 	expected := "root"
 	if daemonPlatform == "windows" {
-		expected = `nt authority\system`
+		// TODO Windows: Remove this check once TP4 is no longer supported.
+		if windowsDaemonKV < 14250 {
+			expected = `nt authority\system`
+		} else {
+			expected = `user manager\containeradministrator`
+		}
 	}
 	if out != expected {
 		c.Fatalf("Expected output %s, got %q", expected, out)
