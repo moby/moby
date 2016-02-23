@@ -1389,7 +1389,7 @@ func (s *DockerSuite) TestEmbeddedDNSInvalidInput(c *check.C) {
 	testRequires(c, DaemonIsLinux, NotUserNamespace)
 	dockerCmd(c, "network", "create", "-d", "bridge", "nw1")
 
-	// Sending garbge to embedded DNS shouldn't crash the daemon
+	// Sending garbage to embedded DNS shouldn't crash the daemon
 	dockerCmd(c, "run", "-i", "--net=nw1", "--name=c1", "debian:jessie", "bash", "-c", "echo InvalidQuery > /dev/udp/127.0.0.11/53")
 }
 
