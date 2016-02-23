@@ -136,12 +136,16 @@ The following are those options and the equivalent docker daemon flags used for 
 | `com.docker.network.bridge.host_binding_ipv4`    | `--ip`      | Default IP when binding container ports               |
 | `com.docker.network.mtu`                         | `--mtu`     | Set the containers network MTU                        |
 
-The following arguments can be passed to `docker network create` for any network driver.
+The following arguments can be passed to `docker network create` for any network driver, again with their approximate
+equivalents to `docker daemon`.
 
-| Argument     | Equivalent | Description                              |
-|--------------|------------|------------------------------------------|
-| `--internal` | -          | Restricts external access to the network |
-| `--ipv6`     | `--ipv6`   | Enable IPv6 networking                   |
+| Argument     | Equivalent     | Description                                |
+|--------------|----------------|--------------------------------------------|
+| `--gateway`  | -              | ipv4 or ipv6 Gateway for the master subnet |
+| `--ip-range` | `--fixed-cidr` | Allocate IPs from a range                  |
+| `--internal` | -              | Restricts external access to the network   |
+| `--ipv6`     | `--ipv6`       | Enable IPv6 networking                     |
+| `--subnet`   | `--bip`        | Subnet for network                         |
 
 For example, let's use `-o` or `--opt` options to specify an IP address binding when publishing ports:
 
