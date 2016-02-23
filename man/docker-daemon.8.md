@@ -259,7 +259,7 @@ more information see `man lvmthin`.  Then, use `--storage-opt
 dm.thinpooldev` to tell the Docker engine to use that pool for
 allocating images and container snapshots.
 
-##Devicemapper options:
+## Devicemapper options
 
 #### dm.thinpooldev
 
@@ -465,7 +465,7 @@ this topic, see
 Otherwise, set this flag for migrating existing Docker daemons to a
 daemon with a supported environment.
 
-##ZFS options
+## ZFS options
 
 #### zfs.fsname
 
