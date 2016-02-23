@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"strings"
+
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/go-connections/tlsconfig"
 )
@@ -17,6 +19,17 @@ type CommonFlags struct {
 	TLSVerify  bool
 	TLSOptions *tlsconfig.Options
 	TrustKey   string
+}
+
+func (commonFlags *CommonFlags) UsingTCPSocket() bool {
+	usingTCPSocket := false
+	for _, host := range commonFlags.Hosts {
+		if strings.HasPrefix(host, "tcp") {
+			usingTCPSocket = true
+			break
+		}
+	}
+	return usingTCPSocket
 }
 
 // Command is the struct containing the command name and description

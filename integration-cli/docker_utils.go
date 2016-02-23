@@ -226,7 +226,7 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 		fmt.Sprintf("--userland-proxy=%t", d.userlandProxy),
 	)
 	if !(d.useDefaultHost || d.useDefaultTLSHost) {
-		args = append(args, []string{"--host", d.sock()}...)
+		args = append(args, []string{"--host", d.sock(), "--no-default-tlsverify"}...)
 	}
 	if root := os.Getenv("DOCKER_REMAP_ROOT"); root != "" {
 		args = append(args, []string{"--userns-remap", root}...)

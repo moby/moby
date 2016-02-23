@@ -64,6 +64,7 @@ weight = -1
       --tlscert="~/.docker/cert.pem"         Path to TLS certificate file
       --tlskey="~/.docker/key.pem"           Path to TLS key file
       --tlsverify                            Use TLS and verify the remote
+      --no-default-tlsverify                 Turns off default remote TLS verification
       --userns-remap="default"               Enable user namespace remapping
       --userland-proxy=true                  Use userland proxy for loopback traffic
 
@@ -85,14 +86,18 @@ By default, a `unix` domain socket (or IPC socket) is created at
 membership.
 
 If you need to access the Docker daemon remotely, you need to enable the `tcp`
-Socket. Beware that the default setup provides un-encrypted and
-un-authenticated direct access to the Docker daemon - and should be secured
-either using the [built in HTTPS encrypted socket](../../security/https/), or by
-putting a secure web proxy in front of it. You can listen on port `2375` on all
+Socket. The default setup provides encrypted and authenticated access to the Docker
+daemon. If you want an un-encrypted and un-authenticated direct access you can use
+`--no-default-tlsverify` flag. You can listen on port `2375` on all
 network interfaces with `-H tcp://0.0.0.0:2375`, or on a particular network
 interface using its IP address: `-H tcp://192.168.59.103:2375`. It is
 conventional to use port `2375` for un-encrypted, and port `2376` for encrypted
-communication with the daemon.
+communication with the daemon. If the flag `--no-default-tlsverify` is not used 
+and some trusted CA certificate for client authentication is neither provided 
+in command line arguments nor is in .docker directory then a default CA is generated. 
+Moreover, if there are no cert.pem and key.pem files, then the default CA is used to 
+generate default cert and key. Clients can use them for encrypted and authenticated
+access to the Docker daemon.
 
 > **Note:**
 > If you're using an HTTPS encrypted socket, keep in mind that only
@@ -849,6 +854,7 @@ This is a full example of the allowed configuration options in the file:
 	"cluster-advertise": "",
 	"debug": true,
 	"hosts": [],
+	"no-default-tlsverify": false,
 	"log-level": "",
 	"tls": true,
 	"tlsverify": true,
