@@ -2890,6 +2890,8 @@ Content-Type: application/json
     "Id": "f2de39df4171b0dc801e8002d1d999b77256983dfc63041c0f34030aa3977566",
     "Scope": "local",
     "Driver": "bridge",
+    "EnableIPv6": false,
+    "Internal": false,
     "IPAM": {
       "Driver": "default",
       "Config": [
@@ -2920,6 +2922,8 @@ Content-Type: application/json
     "Id": "e086a3893b05ab69242d3c44e49483a3bbbd3a26b46baa8f61ab797c1088d794",
     "Scope": "local",
     "Driver": "null",
+    "EnableIPv6": false,
+    "Internal": false,
     "IPAM": {
       "Driver": "default",
       "Config": []
@@ -2932,6 +2936,8 @@ Content-Type: application/json
     "Id": "13e871235c677f196c4e1ecebb9dc733b9b2d2ab589e30c539efeda84a24215e",
     "Scope": "local",
     "Driver": "host",
+    "EnableIPv6": false,
+    "Internal": false,
     "IPAM": {
       "Driver": "default",
       "Config": []
@@ -2973,6 +2979,7 @@ Content-Type: application/json
   "Id": "7d86d31b1478e7cca9ebed7e73aa0fdeec46c5ca29497431d3007d2d9e15ed99",
   "Scope": "local",
   "Driver": "bridge",
+  "EnableIPv6": false,
   "IPAM": {
     "Driver": "default",
     "Config": [
@@ -3026,6 +3033,7 @@ Content-Type: application/json
 {
   "Name":"isolated_nw",
   "Driver":"bridge",
+  "EnableIPv6": false,
   "IPAM":{
     "Config":[{
       "Subnet":"172.20.0.0/16",
@@ -3062,7 +3070,9 @@ JSON Parameters:
 
 - **Name** - The new network's name. this is a mandatory field
 - **Driver** - Name of the network driver plugin to use. Defaults to `bridge` driver
+- **Internal** - Restrict external access to the network
 - **IPAM** - Optional custom IP scheme for the network
+- **EnableIPv6** - Enable IPv6 on the network
 - **Options** - Network specific options to be used by the drivers
 - **CheckDuplicate** - Requests daemon to check for networks with same name
 

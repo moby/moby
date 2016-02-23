@@ -117,7 +117,9 @@ This section lists each version from latest to oldest.  Each listing includes a 
 
 * `GET /containers/json` returns the state of the container, one of `created`, `restarting`, `running`, `paused`, `exited` or `dead`.
 * `GET /networks/(name)` now returns an `Internal` field showing whether the network is internal or not.
+* `GET /networks/(name)` now returns an `EnableIPv6` field showing whether the network has ipv6 enabled or not.
 * `POST /containers/(name)/update` now supports updating container's restart policy.
+* `POST /networks/create` now supports enabling ipv6 on the network by setting the `EnableIPv6` field (doing this with a label will no longer work).
 
 ### v1.22 API changes
 
@@ -142,7 +144,7 @@ This section lists each version from latest to oldest.  Each listing includes a 
 * `POST /containers/create` now allows you to set the static IPv4 and/or IPv6 address for the container.
 * `POST /networks/(id)/connect` now allows you to set the static IPv4 and/or IPv6 address for the container.
 * `GET /info` now includes the number of containers running, stopped, and paused.
-* `POST /networks/create` now supports restricting external access to the network by setting the `internal` field.
+* `POST /networks/create` now supports restricting external access to the network by setting the `Internal` field.
 * `POST /networks/(id)/disconnect` now includes a `Force` option to forcefully disconnect a container from network
 * `GET /containers/(id)/json` now returns the `NetworkID` of containers.
 * `POST /networks/create` Now supports an options field in the IPAM config that provides options
