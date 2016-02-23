@@ -31,6 +31,7 @@ var (
 		&NetPrioGroup{},
 		&PerfEventGroup{},
 		&FreezerGroup{},
+		&NameGroup{GroupName: "name=systemd", Join: true},
 	}
 	CgroupProcesses  = "cgroup.procs"
 	HugePageSizes, _ = cgroups.GetHugePageSize()
@@ -130,11 +131,6 @@ func (m *Manager) Apply(pid int) (err error) {
 	}
 
 	paths := make(map[string]string)
-	defer func() {
-		if err != nil {
-			cgroups.RemovePaths(paths)
-		}
-	}()
 	for _, sys := range subsystems {
 		if err := sys.Apply(d); err != nil {
 			return err
