@@ -66,7 +66,7 @@ func (hrs *httpReadSeeker) Read(p []byte) (n int, err error) {
 		return 0, hrs.err
 	}
 
-	// If we seeked to a different position, we need to reset the
+	// If we sought to a different position, we need to reset the
 	// connection. This logic is here instead of Seek so that if
 	// a seek is undone before the next read, the connection doesn't
 	// need to be closed and reopened. A common example of this is
