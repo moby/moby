@@ -221,7 +221,7 @@ func (daemon *Daemon) adaptContainerSettings(hostConfig *containertypes.HostConf
 	return nil
 }
 
-func verifyContainerResources(resources *containertypes.Resources, sysInfo *sysinfo.SysInfo) ([]string, error) {
+func verifyContainerResources(resources *containertypes.Resources, sysInfo *sysinfo.SysInfo, update bool) ([]string, error) {
 	warnings := []string{}
 
 	// memory subsystem checks and adjustments
@@ -242,7 +242,7 @@ func verifyContainerResources(resources *containertypes.Resources, sysInfo *sysi
 	if resources.Memory > 0 && resources.MemorySwap > 0 && resources.MemorySwap < resources.Memory {
 		return warnings, fmt.Errorf("Minimum memoryswap limit should be larger than memory limit, see usage.")
 	}
-	if resources.Memory == 0 && resources.MemorySwap > 0 {
+	if resources.Memory == 0 && resources.MemorySwap > 0 && !update {
 		return warnings, fmt.Errorf("You should always set the Memory limit when using Memoryswap limit, see usage.")
 	}
 	if resources.MemorySwappiness != nil && *resources.MemorySwappiness != -1 && !sysInfo.MemorySwappiness {
@@ -383,7 +383,7 @@ func (daemon *Daemon) usingSystemd() bool {
 
 // verifyPlatformContainerSettings performs platform-specific validation of the
 // hostconfig and config structures.
-func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.HostConfig, config *containertypes.Config) ([]string, error) {
+func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.HostConfig, config *containertypes.Config, update bool) ([]string, error) {
 	warnings := []string{}
 	sysInfo := sysinfo.New(true)
 
@@ -392,7 +392,7 @@ func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.
 		return warnings, err
 	}
 
-	w, err := verifyContainerResources(&hostConfig.Resources, sysInfo)
+	w, err := verifyContainerResources(&hostConfig.Resources, sysInfo, update)
 	if err != nil {
 		return warnings, err
 	}

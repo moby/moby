@@ -139,6 +139,22 @@ func (s *DockerSuite) TestUpdateKernelMemory(c *check.C) {
 	c.Assert(strings.TrimSpace(out), checker.Equals, "104857600")
 }
 
+func (s *DockerSuite) TestUpdateSwapMemoryOnly(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	testRequires(c, memoryLimitSupport)
+	testRequires(c, swapMemorySupport)
+
+	name := "test-update-container"
+	dockerCmd(c, "run", "-d", "--name", name, "--memory", "300M", "--memory-swap", "500M", "busybox", "top")
+	dockerCmd(c, "update", "--memory-swap", "600M", name)
+
+	c.Assert(inspectField(c, name, "HostConfig.MemorySwap"), checker.Equals, "629145600")
+
+	file := "/sys/fs/cgroup/memory/memory.memsw.limit_in_bytes"
+	out, _ := dockerCmd(c, "exec", name, "cat", file)
+	c.Assert(strings.TrimSpace(out), checker.Equals, "629145600")
+}
+
 func (s *DockerSuite) TestUpdateStats(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	testRequires(c, memoryLimitSupport)

@@ -1450,7 +1450,7 @@ func setDefaultMtu(config *Config) {
 
 // verifyContainerSettings performs validation of the hostconfig and config
 // structures.
-func (daemon *Daemon) verifyContainerSettings(hostConfig *containertypes.HostConfig, config *containertypes.Config) ([]string, error) {
+func (daemon *Daemon) verifyContainerSettings(hostConfig *containertypes.HostConfig, config *containertypes.Config, update bool) ([]string, error) {
 
 	// First perform verification of settings common across all platforms.
 	if config != nil {
@@ -1487,7 +1487,7 @@ func (daemon *Daemon) verifyContainerSettings(hostConfig *containertypes.HostCon
 	}
 
 	// Now do platform-specific verification
-	return verifyPlatformContainerSettings(daemon, hostConfig, config)
+	return verifyPlatformContainerSettings(daemon, hostConfig, config, update)
 }
 
 // Checks if the client set configurations for more than one network while creating a container
