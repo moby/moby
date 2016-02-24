@@ -1602,24 +1602,37 @@ func (daemon *Daemon) initDiscovery(config *Config) error {
 func (daemon *Daemon) Reload(config *Config) error {
 	daemon.configStore.reloadLock.Lock()
 	defer daemon.configStore.reloadLock.Unlock()
-	daemon.configStore.Labels = config.Labels
+	if config.IsValueSet("label") {
+		daemon.configStore.Labels = config.Labels
+	}
+	if config.IsValueSet("debug") {
+		daemon.configStore.Debug = config.Debug
+	}
 	return daemon.reloadClusterDiscovery(config)
 }
 
 func (daemon *Daemon) reloadClusterDiscovery(config *Config) error {
-	newAdvertise, err := parseClusterAdvertiseSettings(config.ClusterStore, config.ClusterAdvertise)
-	if err != nil && err != errDiscoveryDisabled {
-		return err
+	var err error
+	newAdvertise := daemon.configStore.ClusterAdvertise
+	newClusterStore := daemon.configStore.ClusterStore
+	if config.IsValueSet("cluster-advertise") {
+		if config.IsValueSet("cluster-store") {
+			newClusterStore = config.ClusterStore
+		}
+		newAdvertise, err = parseClusterAdvertiseSettings(newClusterStore, config.ClusterAdvertise)
+		if err != nil && err != errDiscoveryDisabled {
+			return err
+		}
 	}
 
 	// check discovery modifications
-	if !modifiedDiscoverySettings(daemon.configStore, newAdvertise, config.ClusterStore, config.ClusterOpts) {
+	if !modifiedDiscoverySettings(daemon.configStore, newAdvertise, newClusterStore, config.ClusterOpts) {
 		return nil
 	}
 
 	// enable discovery for the first time if it was not previously enabled
 	if daemon.discoveryWatcher == nil {
-		discoveryWatcher, err := initDiscovery(config.ClusterStore, newAdvertise, config.ClusterOpts)
+		discoveryWatcher, err := initDiscovery(newClusterStore, newAdvertise, config.ClusterOpts)
 		if err != nil {
 			return fmt.Errorf("discovery initialization failed (%v)", err)
 		}
@@ -1636,7 +1649,7 @@ func (daemon *Daemon) reloadClusterDiscovery(config *Config) error {
 		}
 	}
 
-	daemon.configStore.ClusterStore = config.ClusterStore
+	daemon.configStore.ClusterStore = newClusterStore
 	daemon.configStore.ClusterOpts = config.ClusterOpts
 	daemon.configStore.ClusterAdvertise = newAdvertise
 

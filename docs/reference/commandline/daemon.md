@@ -896,6 +896,8 @@ The list of currently supported options that can be reconfigured is this:
 
 Updating and reloading the cluster configurations such as `--cluster-store`,
 `--cluster-advertise` and `--cluster-store-opts` will take effect only if
-these configurations were not previously configured. Configuration reload will
-log a warning message if it detects a change in previously configured cluster
-configurations.
+these configurations were not previously configured. If `--cluster-store`
+has been provided in flags and `cluster-advertise` not, `cluster-advertise`
+can be added in the configuration file without accompanied by `--cluster-store`
+Configuration reload will log a warning message if it detects a change in
+previously configured cluster configurations.

@@ -289,15 +289,17 @@ func (cli *DaemonCli) CmdDaemon(args ...string) error {
 			logrus.Errorf("Error reconfiguring the daemon: %v", err)
 			return
 		}
+		if config.IsValueSet("debug") {
+			debugEnabled := utils.IsDebugEnabled()
+			switch {
+			case debugEnabled && !config.Debug: // disable debug
+				utils.DisableDebug()
+				api.DisableProfiler()
+			case config.Debug && !debugEnabled: // enable debug
+				utils.EnableDebug()
+				api.EnableProfiler()
+			}
 
-		debugEnabled := utils.IsDebugEnabled()
-		switch {
-		case debugEnabled && !config.Debug: // disable debug
-			utils.DisableDebug()
-			api.DisableProfiler()
-		case config.Debug && !debugEnabled: // enable debug
-			utils.EnableDebug()
-			api.EnableProfiler()
 		}
 	}
 
