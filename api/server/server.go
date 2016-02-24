@@ -232,13 +232,16 @@ func (s *Server) initRouterSwapper() {
 // server according to those changes.
 // Currently, only the --debug configuration is taken into account.
 func (s *Server) Reload(config *daemon.Config) {
-	debugEnabled := utils.IsDebugEnabled()
-	switch {
-	case debugEnabled && !config.Debug: // disable debug
-		utils.DisableDebug()
-		s.routerSwapper.Swap(s.createMux())
-	case config.Debug && !debugEnabled: // enable debug
-		utils.EnableDebug()
-		s.routerSwapper.Swap(s.createMux())
+	if config.IsValueSet("debug") {
+		debugEnabled := utils.IsDebugEnabled()
+		switch {
+		case debugEnabled && !config.Debug: // disable debug
+			utils.DisableDebug()
+			s.routerSwapper.Swap(s.createMux())
+		case config.Debug && !debugEnabled: // enable debug
+			utils.EnableDebug()
+			s.routerSwapper.Swap(s.createMux())
+		}
+
 	}
 }
