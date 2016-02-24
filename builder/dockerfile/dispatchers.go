@@ -317,14 +317,14 @@ func run(b *Builder, args []string, attributes map[string]bool, original string)
 
 	// stash the cmd
 	cmd := b.runConfig.Cmd
-	if b.runConfig.Entrypoint.Len() == 0 && b.runConfig.Cmd.Len() == 0 {
+	if len(b.runConfig.Entrypoint) == 0 && len(b.runConfig.Cmd) == 0 {
 		b.runConfig.Cmd = config.Cmd
 	}
 
 	// stash the config environment
 	env := b.runConfig.Env
 
-	defer func(cmd *strslice.StrSlice) { b.runConfig.Cmd = cmd }(cmd)
+	defer func(cmd strslice.StrSlice) { b.runConfig.Cmd = cmd }(cmd)
 	defer func(env []string) { b.runConfig.Env = env }(env)
 
 	// derive the net build-time environment for this run. We let config
@@ -367,7 +367,7 @@ func run(b *Builder, args []string, attributes map[string]bool, original string)
 	if len(cmdBuildEnv) > 0 {
 		sort.Strings(cmdBuildEnv)
 		tmpEnv := append([]string{fmt.Sprintf("|%d", len(cmdBuildEnv))}, cmdBuildEnv...)
-		saveCmd = strslice.New(append(tmpEnv, saveCmd.Slice()...)...)
+		saveCmd = strslice.New(append(tmpEnv, saveCmd...)...)
 	}
 
 	b.runConfig.Cmd = saveCmd

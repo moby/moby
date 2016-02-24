@@ -31,7 +31,7 @@ func HistoryFromConfig(imageJSON []byte, emptyLayer bool) (image.History, error)
 	return image.History{
 		Author:     v1Image.Author,
 		Created:    v1Image.Created,
-		CreatedBy:  strings.Join(v1Image.ContainerConfig.Cmd.Slice(), " "),
+		CreatedBy:  strings.Join(v1Image.ContainerConfig.Cmd, " "),
 		Comment:    v1Image.Comment,
 		EmptyLayer: emptyLayer,
 	}, nil
