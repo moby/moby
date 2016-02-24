@@ -872,30 +872,66 @@ func pullImageIfNotExist(image string) error {
 }
 
 func dockerCmdWithError(args ...string) (string, int, error) {
+	if err := validateArgs(args...); err != nil {
+		return "", 0, err
+	}
 	return integration.DockerCmdWithError(dockerBinary, args...)
 }
 
 func dockerCmdWithStdoutStderr(c *check.C, args ...string) (string, string, int) {
+	if err := validateArgs(args...); err != nil {
+		c.Fatalf(err.Error())
+	}
 	return integration.DockerCmdWithStdoutStderr(dockerBinary, c, args...)
 }
 
 func dockerCmd(c *check.C, args ...string) (string, int) {
+	if err := validateArgs(args...); err != nil {
+		c.Fatalf(err.Error())
+	}
 	return integration.DockerCmd(dockerBinary, c, args...)
 }
 
 // execute a docker command with a timeout
 func dockerCmdWithTimeout(timeout time.Duration, args ...string) (string, int, error) {
+	if err := validateArgs(args...); err != nil {
+		return "", 0, err
+	}
 	return integration.DockerCmdWithTimeout(dockerBinary, timeout, args...)
 }
 
 // execute a docker command in a directory
 func dockerCmdInDir(c *check.C, path string, args ...string) (string, int, error) {
+	if err := validateArgs(args...); err != nil {
+		c.Fatalf(err.Error())
+	}
 	return integration.DockerCmdInDir(dockerBinary, path, args...)
 }
 
 // execute a docker command in a directory with a timeout
 func dockerCmdInDirWithTimeout(timeout time.Duration, path string, args ...string) (string, int, error) {
+	if err := validateArgs(args...); err != nil {
+		return "", 0, err
+	}
 	return integration.DockerCmdInDirWithTimeout(dockerBinary, timeout, path, args...)
+}
+
+// validateArgs is a checker to ensure tests are not running commands which are
+// not supported on platforms. Specifically on Windows this is 'busybox top'.
+func validateArgs(args ...string) error {
+	if daemonPlatform != "windows" {
+		return nil
+	}
+	foundBusybox := -1
+	for key, value := range args {
+		if strings.ToLower(value) == "busybox" {
+			foundBusybox = key
+		}
+		if (foundBusybox != -1) && (key == foundBusybox+1) && (strings.ToLower(value) == "top") {
+			return errors.New("Cannot use 'busybox top' in tests on Windows. Use runSleepingContainer()")
+		}
+	}
+	return nil
 }
 
 // find the State.ExitCode in container metadata
