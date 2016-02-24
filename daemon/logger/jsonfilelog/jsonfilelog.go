@@ -83,7 +83,7 @@ func New(ctx logger.Context) (logger.Logger, error) {
 		writer:        writer,
 		readers:       make(map[*logger.LogWatcher]struct{}),
 		extra:         extra,
-		writeNotifier: pubsub.NewPublisher(0, 10),
+		writeNotifier: pubsub.NewPublisher(0, 1),
 	}, nil
 }
 
@@ -94,7 +94,6 @@ func (l *JSONFileLogger) Log(msg *logger.Message) error {
 		return err
 	}
 	l.mu.Lock()
-	defer l.mu.Unlock()
 	err = (&jsonlog.JSONLogs{
 		Log:      append(msg.Line, '\n'),
 		Stream:   msg.Source,
@@ -102,6 +101,7 @@ func (l *JSONFileLogger) Log(msg *logger.Message) error {
 		RawAttrs: l.extra,
 	}).MarshalJSONBuf(l.buf)
 	if err != nil {
+		l.mu.Unlock()
 		return err
 	}
 
@@ -109,6 +109,7 @@ func (l *JSONFileLogger) Log(msg *logger.Message) error {
 	_, err = l.writer.Write(l.buf.Bytes())
 	l.writeNotifier.Publish(struct{}{})
 	l.buf.Reset()
+	l.mu.Unlock()
 
 	return err
 }

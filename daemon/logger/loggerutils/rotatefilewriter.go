@@ -13,6 +13,7 @@ type RotateFileWriter struct {
 	f            *os.File // store for closing
 	mu           sync.Mutex
 	capacity     int64 //maximum size of each file
+	currentSize  int64 // current size of the latest file
 	maxFiles     int   //maximum number of files
 	notifyRotate *pubsub.Publisher
 }
@@ -21,12 +22,18 @@ type RotateFileWriter struct {
 func NewRotateFileWriter(logPath string, capacity int64, maxFiles int) (*RotateFileWriter, error) {
 	log, err := os.OpenFile(logPath, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0640)
 	if err != nil {
-		return &RotateFileWriter{}, err
+		return nil, err
+	}
+
+	size, err := log.Seek(0, os.SEEK_END)
+	if err != nil {
+		return nil, err
 	}
 
 	return &RotateFileWriter{
 		f:            log,
 		capacity:     capacity,
+		currentSize:  size,
 		maxFiles:     maxFiles,
 		notifyRotate: pubsub.NewPublisher(0, 1),
 	}, nil
@@ -35,12 +42,17 @@ func NewRotateFileWriter(logPath string, capacity int64, maxFiles int) (*RotateF
 //WriteLog write log message to File
 func (w *RotateFileWriter) Write(message []byte) (int, error) {
 	w.mu.Lock()
-	defer w.mu.Unlock()
 	if err := w.checkCapacityAndRotate(); err != nil {
+		w.mu.Unlock()
 		return -1, err
 	}
 
-	return w.f.Write(message)
+	n, err := w.f.Write(message)
+	if err == nil {
+		w.currentSize += int64(n)
+	}
+	w.mu.Unlock()
+	return n, err
 }
 
 func (w *RotateFileWriter) checkCapacityAndRotate() error {
@@ -48,12 +60,7 @@ func (w *RotateFileWriter) checkCapacityAndRotate() error {
 		return nil
 	}
 
-	meta, err := w.f.Stat()
-	if err != nil {
-		return err
-	}
-
-	if meta.Size() >= w.capacity {
+	if w.currentSize >= w.capacity {
 		name := w.f.Name()
 		if err := w.f.Close(); err != nil {
 			return err
@@ -66,6 +73,7 @@ func (w *RotateFileWriter) checkCapacityAndRotate() error {
 			return err
 		}
 		w.f = file
+		w.currentSize = 0
 		w.notifyRotate.Publish(struct{}{})
 	}
 
