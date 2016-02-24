@@ -21,7 +21,7 @@ func (daemon *Daemon) ContainerCreate(params types.ContainerCreateConfig) (types
 		return types.ContainerCreateResponse{}, derr.ErrorCodeEmptyConfig
 	}
 
-	warnings, err := daemon.verifyContainerSettings(params.HostConfig, params.Config)
+	warnings, err := daemon.verifyContainerSettings(params.HostConfig, params.Config, false)
 	if err != nil {
 		return types.ContainerCreateResponse{Warnings: warnings}, err
 	}
