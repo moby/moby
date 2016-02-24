@@ -13,7 +13,6 @@ import (
 )
 
 func (s *DockerSuite) TestLogsApiWithStdout(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "-t", "busybox", "/bin/sh", "-c", "while true; do echo hello; sleep 1; done")
 	id := strings.TrimSpace(out)
 	c.Assert(waitRun(id), checker.IsNil)
@@ -53,7 +52,6 @@ func (s *DockerSuite) TestLogsApiWithStdout(c *check.C) {
 }
 
 func (s *DockerSuite) TestLogsApiNoStdoutNorStderr(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	name := "logs_test"
 	dockerCmd(c, "run", "-d", "-t", "--name", name, "busybox", "/bin/sh")
 
@@ -69,7 +67,6 @@ func (s *DockerSuite) TestLogsApiNoStdoutNorStderr(c *check.C) {
 
 // Regression test for #12704
 func (s *DockerSuite) TestLogsApiFollowEmptyOutput(c *check.C) {
-	testRequires(c, DaemonIsLinux)
 	name := "logs_test"
 	t0 := time.Now()
 	dockerCmd(c, "run", "-d", "-t", "--name", name, "busybox", "sleep", "10")
@@ -79,12 +76,12 @@ func (s *DockerSuite) TestLogsApiFollowEmptyOutput(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	body.Close()
 	elapsed := t1.Sub(t0).Seconds()
-	if elapsed > 5.0 {
+	if elapsed > 20.0 {
 		c.Fatalf("HTTP response was not immediate (elapsed %.1fs)", elapsed)
 	}
 }
 
-func (s *DockerSuite) TestLogsAPIContainerNotFound(c *check.C) {
+func (s *DockerSuite) TestLogsApiContainerNotFound(c *check.C) {
 	name := "nonExistentContainer"
 	resp, _, err := sockRequestRaw("GET", fmt.Sprintf("/containers/%s/logs?follow=1&stdout=1&stderr=1&tail=all", name), bytes.NewBuffer(nil), "")
 	c.Assert(err, checker.IsNil)
