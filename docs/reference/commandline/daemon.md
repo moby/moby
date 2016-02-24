@@ -715,10 +715,9 @@ the first 65536 range:
      dockremap:165536:65536
 ```
 
-> **Note:** On a fresh Fedora install, we had to `touch` the
-> `/etc/subuid` and `/etc/subgid` files to have ranges assigned when users
-> were created.  Once these files existed, range assignment on user creation
-> worked properly.
+> **Note:** On Fedora 22, you have to `touch` the `/etc/subuid` and `/etc/subgid`
+> files to have ranges assigned when users are created.  Once these files
+> exist, range assignment on user creation works properly.
 
 If you have a preferred/self-managed user with subordinate ID mappings already
 configured, you can provide that username or uid to the `--userns-remap` flag.
