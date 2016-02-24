@@ -866,6 +866,39 @@ var DefaultProfile = &types.Seccomp{
 			Args:   []*types.Arg{},
 		},
 		{
+			Name:   "personality",
+			Action: types.ActAllow,
+			Args: []*types.Arg{
+				{
+					Index: 0,
+					Value: 0x0,
+					Op:    types.OpEqualTo,
+				},
+			},
+		},
+		{
+			Name:   "personality",
+			Action: types.ActAllow,
+			Args: []*types.Arg{
+				{
+					Index: 0,
+					Value: 0x0008,
+					Op:    types.OpEqualTo,
+				},
+			},
+		},
+		{
+			Name:   "personality",
+			Action: types.ActAllow,
+			Args: []*types.Arg{
+				{
+					Index: 0,
+					Value: 0xffffffff,
+					Op:    types.OpEqualTo,
+				},
+			},
+		},
+		{
 			Name:   "pipe",
 			Action: types.ActAllow,
 			Args:   []*types.Arg{},
