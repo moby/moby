@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/http/httputil"
-	"os"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -91,7 +90,7 @@ func (s *DockerSuite) TestApiDockerApiVersion(c *check.C) {
 
 	// Test using the env var first
 	cmd := exec.Command(dockerBinary, "-H="+server.URL[7:], "version")
-	cmd.Env = append([]string{"DOCKER_API_VERSION=xxx"}, os.Environ()...)
+	cmd.Env = appendBaseEnv(false, "DOCKER_API_VERSION=xxx")
 	out, _, _ := runCommandWithOutput(cmd)
 
 	c.Assert(svrVersion, check.Equals, "/vxxx/version")

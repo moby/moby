@@ -4840,7 +4840,7 @@ func (s *DockerSuite) TestBuildNotVerboseFailure(c *check.C) {
 			c.Fatal(fmt.Errorf("Test [%s] expected to fail but didn't", te.TestName))
 		}
 		if qstderr != vstdout+vstderr {
-			c.Fatal(fmt.Errorf("Test[%s] expected that quiet stderr and verbose stdout are equal; quiet [%v], verbose [%v]", te.TestName, qstderr, vstdout))
+			c.Fatal(fmt.Errorf("Test[%s] expected that quiet stderr and verbose stdout are equal; quiet [%v], verbose [%v]", te.TestName, qstderr, vstdout+vstderr))
 		}
 	}
 }

@@ -36,9 +36,12 @@ import (
 )
 
 func init() {
-	out, err := exec.Command(dockerBinary, "images").CombinedOutput()
+	cmd := exec.Command(dockerBinary, "images")
+	cmd.Env = appendBaseEnv(true)
+	fmt.Println("foobar", cmd.Env)
+	out, err := cmd.CombinedOutput()
 	if err != nil {
-		panic(err)
+		panic(fmt.Errorf("err=%v\nout=%s\n", err, out))
 	}
 	lines := strings.Split(string(out), "\n")[1:]
 	for _, l := range lines {
@@ -756,7 +759,9 @@ func getAllVolumes() ([]*types.Volume, error) {
 var protectedImages = map[string]struct{}{}
 
 func deleteAllImages() error {
-	out, err := exec.Command(dockerBinary, "images").CombinedOutput()
+	cmd := exec.Command(dockerBinary, "images")
+	cmd.Env = appendBaseEnv(true)
+	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return err
 	}
@@ -1336,7 +1341,7 @@ func getContainerState(c *check.C, id string) (int, bool, error) {
 }
 
 func buildImageCmd(name, dockerfile string, useCache bool, buildFlags ...string) *exec.Cmd {
-	args := []string{"-D", "build", "-t", name}
+	args := []string{"build", "-t", name}
 	if !useCache {
 		args = append(args, "--no-cache")
 	}
@@ -1678,7 +1683,7 @@ func setupNotary(c *check.C) *testNotary {
 // appendBaseEnv appends the minimum set of environment variables to exec the
 // docker cli binary for testing with correct configuration to the given env
 // list.
-func appendBaseEnv(env []string) []string {
+func appendBaseEnv(isTLS bool, env ...string) []string {
 	preserveList := []string{
 		// preserve remote test host
 		"DOCKER_HOST",
@@ -1686,6 +1691,9 @@ func appendBaseEnv(env []string) []string {
 		// windows: requires preserving SystemRoot, otherwise dial tcp fails
 		// with "GetAddrInfoW: A non-recoverable error occurred during a database lookup."
 		"SystemRoot",
+	}
+	if isTLS {
+		preserveList = append(preserveList, "DOCKER_TLS_VERIFY", "DOCKER_CERT_PATH")
 	}
 
 	for _, key := range preserveList {
