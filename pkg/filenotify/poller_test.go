@@ -93,24 +93,6 @@ func TestPollerClose(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	select {
-	case _, open := <-w.Events():
-		if open {
-			t.Fatal("event chan should be closed")
-		}
-	default:
-		t.Fatal("event chan should be closed")
-	}
-
-	select {
-	case _, open := <-w.Errors():
-		if open {
-			t.Fatal("errors chan should be closed")
-		}
-	default:
-		t.Fatal("errors chan should be closed")
-	}
-
 	f, err := ioutil.TempFile("", "asdf")
 	if err != nil {
 		t.Fatal(err)
