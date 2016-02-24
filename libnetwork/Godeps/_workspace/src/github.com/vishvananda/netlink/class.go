@@ -56,6 +56,7 @@ func NewHtbClass(attrs ClassAttrs, cattrs HtbClassAttrs) *HtbClass {
 	ceil := cattrs.Ceil / 8
 	buffer := cattrs.Buffer
 	cbuffer := cattrs.Cbuffer
+
 	if ceil == 0 {
 		ceil = rate
 	}

@@ -77,6 +77,25 @@ func TestAddr(t *testing.T) {
 			t.Fatalf("Address scope not set properly, got=%d, expected=%d", addrs[0].Scope, tt.expected.Scope)
 		}
 
+		// Pass FAMILY_V4, we should get the same results as FAMILY_ALL
+		addrs, err = AddrList(link, FAMILY_V4)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(addrs) != 1 {
+			t.Fatal("Address not added properly")
+		}
+
+		// Pass a wrong family number, we should get nil list
+		addrs, err = AddrList(link, 0x8)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if len(addrs) != 0 {
+			t.Fatal("Address not expected")
+		}
+
 		if err = AddrDel(link, tt.addr); err != nil {
 			t.Fatal(err)
 		}
