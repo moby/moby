@@ -148,7 +148,7 @@ func (s *DockerSuite) TestStartMultipleContainers(c *check.C) {
 func (s *DockerSuite) TestStartAttachMultipleContainers(c *check.C) {
 	// run  multiple containers to test
 	for _, container := range []string{"test1", "test2", "test3"} {
-		dockerCmd(c, "run", "-d", "--name", container, "busybox", "top")
+		runSleepingContainer(c, "--name", container)
 	}
 
 	// stop all the containers
