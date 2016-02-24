@@ -137,7 +137,7 @@ func (d *Daemon) ContainerExecStart(name string, stdin io.ReadCloser, stdout io.
 
 	ec, err := d.getExecConfig(name)
 	if err != nil {
-		return derr.ErrorCodeNoExecID.WithArgs(name)
+		return err
 	}
 
 	ec.Lock()
