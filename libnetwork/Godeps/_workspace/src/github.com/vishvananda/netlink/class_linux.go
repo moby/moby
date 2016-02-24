@@ -1,6 +1,7 @@
 package netlink
 
 import (
+	"errors"
 	"syscall"
 
 	"github.com/vishvananda/netlink/nl"
@@ -65,15 +66,32 @@ func classPayload(req *nl.NetlinkRequest, class Class) error {
 	options := nl.NewRtAttr(nl.TCA_OPTIONS, nil)
 	if htb, ok := class.(*HtbClass); ok {
 		opt := nl.TcHtbCopt{}
-		opt.Rate.Rate = uint32(htb.Rate)
-		opt.Ceil.Rate = uint32(htb.Ceil)
 		opt.Buffer = htb.Buffer
 		opt.Cbuffer = htb.Cbuffer
 		opt.Quantum = htb.Quantum
 		opt.Level = htb.Level
 		opt.Prio = htb.Prio
 		// TODO: Handle Debug properly. For now default to 0
+		/* Calculate {R,C}Tab and set Rate and Ceil */
+		cell_log := -1
+		ccell_log := -1
+		linklayer := nl.LINKLAYER_ETHERNET
+		mtu := 1600
+		var rtab [256]uint32
+		var ctab [256]uint32
+		tcrate := nl.TcRateSpec{Rate: uint32(htb.Rate)}
+		if CalcRtable(&tcrate, rtab, cell_log, uint32(mtu), linklayer) < 0 {
+			return errors.New("HTB: failed to calculate rate table.")
+		}
+		opt.Rate = tcrate
+		tcceil := nl.TcRateSpec{Rate: uint32(htb.Ceil)}
+		if CalcRtable(&tcceil, ctab, ccell_log, uint32(mtu), linklayer) < 0 {
+			return errors.New("HTB: failed to calculate ceil rate table.")
+		}
+		opt.Ceil = tcceil
 		nl.NewRtAttrChild(options, nl.TCA_HTB_PARMS, opt.Serialize())
+		nl.NewRtAttrChild(options, nl.TCA_HTB_RTAB, SerializeRtab(rtab))
+		nl.NewRtAttrChild(options, nl.TCA_HTB_CTAB, SerializeRtab(ctab))
 	}
 	req.AddData(options)
 	return nil
