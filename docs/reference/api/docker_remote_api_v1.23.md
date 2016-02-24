@@ -73,7 +73,18 @@ List containers
                                           "MacAddress": "02:42:ac:11:00:02"
                                   }
                          }
-                 }
+                 },
+                 "Mounts": [
+                         {
+                                  "Name": "fac362...80535",
+                                  "Source": "/data",
+                                  "Destination": "/data",
+                                  "Driver": "local",
+                                  "Mode": "ro,Z",
+                                  "RW": false,
+                                  "Propagation": ""
+                         }
+                 ]
          },
          {
                  "Id": "9cd87474be90",
@@ -102,8 +113,8 @@ List containers
                                           "MacAddress": "02:42:ac:11:00:08"
                                   }
                          }
-                 }
-
+                 },
+                 "Mounts": []
          },
          {
                  "Id": "3176a2479c92",
@@ -132,8 +143,8 @@ List containers
                                           "MacAddress": "02:42:ac:11:00:06"
                                   }
                          }
-                 }
-
+                 },
+                 "Mounts": []
          },
          {
                  "Id": "4cb07b47f9fb",
@@ -162,8 +173,8 @@ List containers
                                           "MacAddress": "02:42:ac:11:00:05"
                                   }
                          }
-                 }
-
+                 },
+                 "Mounts": []
          }
     ]
 
@@ -184,6 +195,10 @@ Query Parameters:
   -   `status=`(`created`|`restarting`|`running`|`paused`|`exited`|`dead`)
   -   `label=key` or `label="key=value"` of a container label
   -   `isolation=`(`default`|`process`|`hyperv`)   (Windows daemon only)
+  -   `ancestor`=(`<image-name>[:<tag>]`,  `<image id>` or `<image@digest>`)
+  -   `before`=(`<container id>` or `<container name>`)
+  -   `since`=(`<container id>` or `<container name>`)
+  -   `volume`=(`<volume name>` or `<mount point destination>`)
 
 Status Codes:
 
