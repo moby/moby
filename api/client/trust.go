@@ -438,7 +438,11 @@ func (cli *DockerCli) trustedPush(repoInfo *registry.RepositoryInfo, tag string,
 	}
 
 	err = repo.Publish()
-	if _, ok := err.(client.ErrRepoNotInitialized); !ok {
+	if err == nil {
+		fmt.Fprintf(cli.out, "Successfully signed %q:%s\n", repoInfo.FullName(), tag)
+		return nil
+	} else if _, ok := err.(client.ErrRepoNotInitialized); !ok {
+		fmt.Fprintf(cli.out, "Failed to sign %q:%s - %s\n", repoInfo.FullName(), tag, err.Error())
 		return notaryError(repoInfo.FullName(), err)
 	}
 
