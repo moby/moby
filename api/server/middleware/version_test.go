@@ -1,13 +1,13 @@
-package server
+package middleware
 
 import (
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
-	"github.com/docker/distribution/registry/api/errcode"
 	"github.com/docker/docker/api/server/httputils"
-	"github.com/docker/docker/errors"
+	"github.com/docker/docker/pkg/version"
 	"golang.org/x/net/context"
 )
 
@@ -19,7 +19,10 @@ func TestVersionMiddleware(t *testing.T) {
 		return nil
 	}
 
-	h := versionMiddleware(handler)
+	defaultVersion := version.Version("1.10.0")
+	minVersion := version.Version("1.2.0")
+	m := NewVersionMiddleware(defaultVersion.String(), defaultVersion, minVersion)
+	h := m(handler)
 
 	req, _ := http.NewRequest("GET", "/containers/json", nil)
 	resp := httptest.NewRecorder()
@@ -37,7 +40,10 @@ func TestVersionMiddlewareWithErrors(t *testing.T) {
 		return nil
 	}
 
-	h := versionMiddleware(handler)
+	defaultVersion := version.Version("1.10.0")
+	minVersion := version.Version("1.2.0")
+	m := NewVersionMiddleware(defaultVersion.String(), defaultVersion, minVersion)
+	h := m(handler)
 
 	req, _ := http.NewRequest("GET", "/containers/json", nil)
 	resp := httptest.NewRecorder()
@@ -45,13 +51,14 @@ func TestVersionMiddlewareWithErrors(t *testing.T) {
 
 	vars := map[string]string{"version": "0.1"}
 	err := h(ctx, resp, req, vars)
-	if derr, ok := err.(errcode.Error); !ok || derr.ErrorCode() != errors.ErrorCodeOldClientVersion {
+
+	if !strings.Contains(err.Error(), "client version 0.1 is too old. Minimum supported API version is 1.2.0") {
 		t.Fatalf("Expected ErrorCodeOldClientVersion, got %v", err)
 	}
 
 	vars["version"] = "100000"
 	err = h(ctx, resp, req, vars)
-	if derr, ok := err.(errcode.Error); !ok || derr.ErrorCode() != errors.ErrorCodeNewerClientVersion {
+	if !strings.Contains(err.Error(), "client is newer than server") {
 		t.Fatalf("Expected ErrorCodeNewerClientVersion, got %v", err)
 	}
 }
