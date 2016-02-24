@@ -823,7 +823,7 @@ func (s *DockerSuite) TestRunEnvironmentErase(c *check.C) {
 	// the container
 
 	cmd := exec.Command(dockerBinary, "run", "-e", "FOO", "-e", "HOSTNAME", "busybox", "env")
-	cmd.Env = appendBaseEnv([]string{})
+	cmd.Env = appendBaseEnv(true)
 
 	out, _, err := runCommandWithOutput(cmd)
 	if err != nil {
@@ -857,7 +857,7 @@ func (s *DockerSuite) TestRunEnvironmentOverride(c *check.C) {
 	// already in the env that we're overriding them
 
 	cmd := exec.Command(dockerBinary, "run", "-e", "HOSTNAME", "-e", "HOME=/root2", "busybox", "env")
-	cmd.Env = appendBaseEnv([]string{"HOSTNAME=bar"})
+	cmd.Env = appendBaseEnv(true, "HOSTNAME=bar")
 
 	out, _, err := runCommandWithOutput(cmd)
 	if err != nil {
@@ -2528,6 +2528,8 @@ func (s *DockerSuite) TestRunModeUTSHost(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunTLSverify(c *check.C) {
+	// Remote daemons use TLS and this test is not applicable when TLS is required.
+	testRequires(c, SameHostDaemon)
 	if out, code, err := dockerCmdWithError("ps"); err != nil || code != 0 {
 		c.Fatalf("Should have worked: %v:\n%v", err, out)
 	}
