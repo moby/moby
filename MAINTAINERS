@@ -26,6 +26,7 @@
 	# the release process is clear and up-to-date.
 
 		people = [
+			"aaronlehmann",
 			"calavera",
 			"coolljt0725",
 			"cpuguy83",
@@ -110,6 +111,11 @@
 # in the people section.
 
 	# ADD YOURSELF HERE IN ALPHABETICAL ORDER
+
+	[people.aaronlehmann]
+	Name = "Aaron Lehmann"
+	Email = "aaron.lehmann@docker.com"
+	GitHub = "aaronlehmann"
 
 	[people.calavera]
 	Name = "David Calavera"
