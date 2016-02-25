@@ -11,15 +11,12 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/distribution/registry/api/errcode"
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types/backend"
-	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/term"
 	"github.com/docker/docker/runconfig"
-	"github.com/docker/docker/utils"
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/container"
 	"github.com/docker/engine-api/types/filters"
@@ -126,7 +123,7 @@ func (s *containerRouter) getContainersLogs(ctx context.Context, w http.Response
 			// The client may be expecting all of the data we're sending to
 			// be multiplexed, so send it through OutStream, which will
 			// have been set up to handle that if needed.
-			fmt.Fprintf(logsConfig.OutStream, "Error running logs job: %s\n", utils.GetErrorMessage(err))
+			fmt.Fprintf(logsConfig.OutStream, "Error running logs job: %v\n", err)
 		default:
 			return err
 		}
@@ -182,6 +179,10 @@ func (s *containerRouter) postContainersStop(ctx context.Context, w http.Respons
 	return nil
 }
 
+type errContainerIsRunning interface {
+	ContainerIsRunning() bool
+}
+
 func (s *containerRouter) postContainersKill(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
@@ -199,15 +200,17 @@ func (s *containerRouter) postContainersKill(ctx context.Context, w http.Respons
 	}
 
 	if err := s.backend.ContainerKill(name, uint64(sig)); err != nil {
-		theErr, isDerr := err.(errcode.ErrorCoder)
-		isStopped := isDerr && theErr.ErrorCode() == derr.ErrorCodeNotRunning
+		var isStopped bool
+		if e, ok := err.(errContainerIsRunning); ok {
+			isStopped = !e.ContainerIsRunning()
+		}
 
 		// Return error that's not caused because the container is stopped.
 		// Return error if the container is not running and the api is >= 1.20
 		// to keep backwards compatibility.
 		version := httputils.VersionFromContext(ctx)
 		if version.GreaterThanOrEqualTo("1.20") || !isStopped {
-			return fmt.Errorf("Cannot kill container %s: %v", name, utils.GetErrorMessage(err))
+			return fmt.Errorf("Cannot kill container %s: %v", name, err)
 		}
 	}
 
@@ -430,7 +433,7 @@ func (s *containerRouter) postContainersAttach(ctx context.Context, w http.Respo
 
 	hijacker, ok := w.(http.Hijacker)
 	if !ok {
-		return derr.ErrorCodeNoHijackConnection.WithArgs(containerName)
+		return fmt.Errorf("error attaching to container %s, hijack connection missing", containerName)
 	}
 
 	setupStreams := func() (io.ReadCloser, io.Writer, io.Writer, error) {

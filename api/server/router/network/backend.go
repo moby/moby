@@ -8,8 +8,6 @@ import (
 // Backend is all the methods that need to be implemented
 // to provide network specific functionality.
 type Backend interface {
-	NetworkControllerEnabled() bool
-
 	FindNetwork(idName string) (libnetwork.Network, error)
 	GetNetworkByName(idName string) (libnetwork.Network, error)
 	GetNetworksByID(partialID string) []libnetwork.Network

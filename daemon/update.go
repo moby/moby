@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"time"
 
-	derr "github.com/docker/docker/errors"
 	"github.com/docker/engine-api/types/container"
 )
 
@@ -57,18 +56,16 @@ func (daemon *Daemon) update(name string, hostConfig *container.HostConfig) erro
 	}()
 
 	if container.RemovalInProgress || container.Dead {
-		errMsg := fmt.Errorf("Container is marked for removal and cannot be \"update\".")
-		return derr.ErrorCodeCantUpdate.WithArgs(container.ID, errMsg)
+		return errCannotUpdate(container.ID, fmt.Errorf("Container is marked for removal and cannot be \"update\"."))
 	}
 
 	if container.IsRunning() && hostConfig.KernelMemory != 0 {
-		errMsg := fmt.Errorf("Can not update kernel memory to a running container, please stop it first.")
-		return derr.ErrorCodeCantUpdate.WithArgs(container.ID, errMsg)
+		return errCannotUpdate(container.ID, fmt.Errorf("Can not update kernel memory to a running container, please stop it first."))
 	}
 
 	if err := container.UpdateContainer(hostConfig); err != nil {
 		restoreConfig = true
-		return derr.ErrorCodeCantUpdate.WithArgs(container.ID, err.Error())
+		return errCannotUpdate(container.ID, err)
 	}
 
 	// if Restart Policy changed, we need to update container monitor
@@ -86,11 +83,15 @@ func (daemon *Daemon) update(name string, hostConfig *container.HostConfig) erro
 	if container.IsRunning() && !container.IsRestarting() {
 		if err := daemon.execDriver.Update(container.Command); err != nil {
 			restoreConfig = true
-			return derr.ErrorCodeCantUpdate.WithArgs(container.ID, err.Error())
+			return errCannotUpdate(container.ID, err)
 		}
 	}
 
 	daemon.LogContainerEvent(container, "update")
 
 	return nil
+}
+
+func errCannotUpdate(containerID string, err error) error {
+	return fmt.Errorf("Cannot update container %s: %v", containerID, err)
 }

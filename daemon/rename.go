@@ -1,10 +1,10 @@
 package daemon
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/Sirupsen/logrus"
-	derr "github.com/docker/docker/errors"
 	"github.com/docker/libnetwork"
 )
 
@@ -18,7 +18,7 @@ func (daemon *Daemon) ContainerRename(oldName, newName string) error {
 	)
 
 	if oldName == "" || newName == "" {
-		return derr.ErrorCodeEmptyRename
+		return fmt.Errorf("Neither old nor new names may be empty")
 	}
 
 	container, err := daemon.GetContainer(oldName)
@@ -31,7 +31,7 @@ func (daemon *Daemon) ContainerRename(oldName, newName string) error {
 	container.Lock()
 	defer container.Unlock()
 	if newName, err = daemon.reserveName(container.ID, newName); err != nil {
-		return derr.ErrorCodeRenameTaken.WithArgs(err)
+		return fmt.Errorf("Error when allocating new name: %v", err)
 	}
 
 	container.Name = newName

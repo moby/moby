@@ -2,11 +2,12 @@ package daemon
 
 import (
 	"fmt"
+	"net/http"
 	"runtime"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/container"
-	derr "github.com/docker/docker/errors"
+	"github.com/docker/docker/errors"
 	"github.com/docker/docker/runconfig"
 	containertypes "github.com/docker/engine-api/types/container"
 )
@@ -19,11 +20,12 @@ func (daemon *Daemon) ContainerStart(name string, hostConfig *containertypes.Hos
 	}
 
 	if container.IsPaused() {
-		return derr.ErrorCodeStartPaused
+		return fmt.Errorf("Cannot start a paused container, try unpause instead.")
 	}
 
 	if container.IsRunning() {
-		return derr.ErrorCodeAlreadyStarted
+		err := fmt.Errorf("Container already started")
+		return errors.NewErrorWithStatusCode(err, http.StatusNotModified)
 	}
 
 	// Windows does not have the backwards compatibility issue here.
@@ -52,7 +54,7 @@ func (daemon *Daemon) ContainerStart(name string, hostConfig *containertypes.Hos
 		}
 	} else {
 		if hostConfig != nil {
-			return derr.ErrorCodeHostConfigStart
+			return fmt.Errorf("Supplying a hostconfig on start is not supported. It should be supplied on create")
 		}
 	}
 
@@ -88,7 +90,7 @@ func (daemon *Daemon) containerStart(container *container.Container) (err error)
 	}
 
 	if container.RemovalInProgress || container.Dead {
-		return derr.ErrorCodeContainerBeingRemoved
+		return fmt.Errorf("Container is marked for removal and cannot be started.")
 	}
 
 	// if we encounter an error during start we need to ensure that any other

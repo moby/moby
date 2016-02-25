@@ -4,14 +4,12 @@
 package local
 
 import (
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sync"
 
-	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/utils"
 	"github.com/docker/docker/volume"
@@ -27,12 +25,20 @@ const (
 
 var (
 	// ErrNotFound is the typed error returned when the requested volume name can't be found
-	ErrNotFound = errors.New("volume not found")
+	ErrNotFound = fmt.Errorf("volume not found")
 	// volumeNameRegex ensures the name assigned for the volume is valid.
 	// This name is used to create the bind directory, so we need to avoid characters that
 	// would make the path to escape the root directory.
 	volumeNameRegex = utils.RestrictedVolumeNamePattern
 )
+
+type validationError struct {
+	error
+}
+
+func (validationError) IsValidationError() bool {
+	return true
+}
 
 // New instantiates a new Root instance with the provided scope. Scope
 // is the base path that the Root instance uses to store its
@@ -142,7 +148,7 @@ func (r *Root) Remove(v volume.Volume) error {
 
 	lv, ok := v.(*localVolume)
 	if !ok {
-		return errors.New("unknown volume type")
+		return fmt.Errorf("unknown volume type")
 	}
 
 	realPath, err := filepath.EvalSymlinks(lv.path)
@@ -188,7 +194,7 @@ func (r *Root) Get(name string) (volume.Volume, error) {
 
 func (r *Root) validateName(name string) error {
 	if !volumeNameRegex.MatchString(name) {
-		return derr.ErrorCodeVolumeName.WithArgs(name, utils.RestrictedNameChars)
+		return validationError{fmt.Errorf("%q includes invalid characters for a local volume name, only %q are allowed", name, utils.RestrictedNameChars)}
 	}
 	return nil
 }

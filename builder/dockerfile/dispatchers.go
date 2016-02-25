@@ -19,7 +19,6 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/builder"
-	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/system"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
@@ -40,12 +39,12 @@ func nullDispatch(b *Builder, args []string, attributes map[string]bool, origina
 //
 func env(b *Builder, args []string, attributes map[string]bool, original string) error {
 	if len(args) == 0 {
-		return derr.ErrorCodeAtLeastOneArg.WithArgs("ENV")
+		return errAtLeastOneArgument("ENV")
 	}
 
 	if len(args)%2 != 0 {
 		// should never get here, but just in case
-		return derr.ErrorCodeTooManyArgs.WithArgs("ENV")
+		return errTooManyArguments("ENV")
 	}
 
 	if err := b.flags.Parse(); err != nil {
@@ -99,7 +98,7 @@ func env(b *Builder, args []string, attributes map[string]bool, original string)
 // Sets the maintainer metadata.
 func maintainer(b *Builder, args []string, attributes map[string]bool, original string) error {
 	if len(args) != 1 {
-		return derr.ErrorCodeExactlyOneArg.WithArgs("MAINTAINER")
+		return errExactlyOneArgument("MAINTAINER")
 	}
 
 	if err := b.flags.Parse(); err != nil {
@@ -116,11 +115,11 @@ func maintainer(b *Builder, args []string, attributes map[string]bool, original 
 //
 func label(b *Builder, args []string, attributes map[string]bool, original string) error {
 	if len(args) == 0 {
-		return derr.ErrorCodeAtLeastOneArg.WithArgs("LABEL")
+		return errAtLeastOneArgument("LABEL")
 	}
 	if len(args)%2 != 0 {
 		// should never get here, but just in case
-		return derr.ErrorCodeTooManyArgs.WithArgs("LABEL")
+		return errTooManyArguments("LABEL")
 	}
 
 	if err := b.flags.Parse(); err != nil {
@@ -152,7 +151,7 @@ func label(b *Builder, args []string, attributes map[string]bool, original strin
 //
 func add(b *Builder, args []string, attributes map[string]bool, original string) error {
 	if len(args) < 2 {
-		return derr.ErrorCodeAtLeastTwoArgs.WithArgs("ADD")
+		return errAtLeastOneArgument("ADD")
 	}
 
 	if err := b.flags.Parse(); err != nil {
@@ -168,7 +167,7 @@ func add(b *Builder, args []string, attributes map[string]bool, original string)
 //
 func dispatchCopy(b *Builder, args []string, attributes map[string]bool, original string) error {
 	if len(args) < 2 {
-		return derr.ErrorCodeAtLeastTwoArgs.WithArgs("COPY")
+		return errAtLeastOneArgument("COPY")
 	}
 
 	if err := b.flags.Parse(); err != nil {
@@ -184,7 +183,7 @@ func dispatchCopy(b *Builder, args []string, attributes map[string]bool, origina
 //
 func from(b *Builder, args []string, attributes map[string]bool, original string) error {
 	if len(args) != 1 {
-		return derr.ErrorCodeExactlyOneArg.WithArgs("FROM")
+		return errExactlyOneArgument("FROM")
 	}
 
 	if err := b.flags.Parse(); err != nil {
@@ -233,7 +232,7 @@ func from(b *Builder, args []string, attributes map[string]bool, original string
 //
 func onbuild(b *Builder, args []string, attributes map[string]bool, original string) error {
 	if len(args) == 0 {
-		return derr.ErrorCodeAtLeastOneArg.WithArgs("ONBUILD")
+		return errAtLeastOneArgument("ONBUILD")
 	}
 
 	if err := b.flags.Parse(); err != nil {
@@ -243,9 +242,9 @@ func onbuild(b *Builder, args []string, attributes map[string]bool, original str
 	triggerInstruction := strings.ToUpper(strings.TrimSpace(args[0]))
 	switch triggerInstruction {
 	case "ONBUILD":
-		return derr.ErrorCodeChainOnBuild
+		return fmt.Errorf("Chaining ONBUILD via `ONBUILD ONBUILD` isn't allowed")
 	case "MAINTAINER", "FROM":
-		return derr.ErrorCodeBadOnBuildCmd.WithArgs(triggerInstruction)
+		return fmt.Errorf("%s isn't allowed as an ONBUILD trigger", triggerInstruction)
 	}
 
 	original = regexp.MustCompile(`(?i)^\s*ONBUILD\s*`).ReplaceAllString(original, "")
@@ -260,7 +259,7 @@ func onbuild(b *Builder, args []string, attributes map[string]bool, original str
 //
 func workdir(b *Builder, args []string, attributes map[string]bool, original string) error {
 	if len(args) != 1 {
-		return derr.ErrorCodeExactlyOneArg.WithArgs("WORKDIR")
+		return errExactlyOneArgument("WORKDIR")
 	}
 
 	if err := b.flags.Parse(); err != nil {
@@ -293,7 +292,7 @@ func workdir(b *Builder, args []string, attributes map[string]bool, original str
 //
 func run(b *Builder, args []string, attributes map[string]bool, original string) error {
 	if b.image == "" && !b.noBaseImage {
-		return derr.ErrorCodeMissingFrom
+		return fmt.Errorf("Please provide a source image with `from` prior to run")
 	}
 
 	if err := b.flags.Parse(); err != nil {
@@ -491,7 +490,7 @@ func expose(b *Builder, args []string, attributes map[string]bool, original stri
 	portsTab := args
 
 	if len(args) == 0 {
-		return derr.ErrorCodeAtLeastOneArg.WithArgs("EXPOSE")
+		return errAtLeastOneArgument("EXPOSE")
 	}
 
 	if err := b.flags.Parse(); err != nil {
@@ -530,7 +529,7 @@ func expose(b *Builder, args []string, attributes map[string]bool, original stri
 //
 func user(b *Builder, args []string, attributes map[string]bool, original string) error {
 	if len(args) != 1 {
-		return derr.ErrorCodeExactlyOneArg.WithArgs("USER")
+		return errExactlyOneArgument("USER")
 	}
 
 	if err := b.flags.Parse(); err != nil {
@@ -547,7 +546,7 @@ func user(b *Builder, args []string, attributes map[string]bool, original string
 //
 func volume(b *Builder, args []string, attributes map[string]bool, original string) error {
 	if len(args) == 0 {
-		return derr.ErrorCodeAtLeastOneArg.WithArgs("VOLUME")
+		return errAtLeastOneArgument("VOLUME")
 	}
 
 	if err := b.flags.Parse(); err != nil {
@@ -560,7 +559,7 @@ func volume(b *Builder, args []string, attributes map[string]bool, original stri
 	for _, v := range args {
 		v = strings.TrimSpace(v)
 		if v == "" {
-			return derr.ErrorCodeVolumeEmpty
+			return fmt.Errorf("Volume specified can not be an empty string")
 		}
 		b.runConfig.Volumes[v] = struct{}{}
 	}
@@ -630,4 +629,16 @@ func arg(b *Builder, args []string, attributes map[string]bool, original string)
 	}
 
 	return b.commit("", b.runConfig.Cmd, fmt.Sprintf("ARG %s", arg))
+}
+
+func errAtLeastOneArgument(command string) error {
+	return fmt.Errorf("%s requires at least one argument", command)
+}
+
+func errExactlyOneArgument(command string) error {
+	return fmt.Errorf("%s requires exactly one argument", command)
+}
+
+func errTooManyArguments(command string) error {
+	return fmt.Errorf("Bad input to %s, too many arguments", command)
 }
