@@ -2209,3 +2209,134 @@ eval "$__docker_previous_extglob_setting"
 unset __docker_previous_extglob_setting
 
 complete -F _docker docker
+
+
+function __docker_shell_command () {
+  name=$1
+  version=$2
+  if [ -z $name ]
+  then 
+	  echo "I need at least a name for the command"
+	  exit 2
+  else
+    function_name=$(__docker_shell_to_function_name ${name})
+    if [ -z $version ]
+    then
+
+      eval "$(cat <<EOF
+      ${function_name} () {
+        if [ -z "\$DOCKER_OPTS_USER" ]
+        then 
+          docker_set_interactive
+        fi
+	# pars=\$(__docker_shell_container_default_command "\${@}")
+	command="docker run \${DOCKER_OPTS_USER} ${name} \${@}"
+        eval \$command
+      }
+EOF
+)"
+    else
+      eval "$(cat <<EOF
+      ${function_name}_${version} () {
+        if [ -z "\$DOCKER_OPTS_USER" ]
+        then 
+          docker_set_interactive
+        fi
+	# pars=\$(__docker_shell_container_default_command "\${@}")
+        command="docker run \${DOCKER_OPTS_USER} ${name}:${version} \${@}"
+echo \$command
+        eval \${command}
+      }
+EOF
+)"
+    fi
+  fi
+}
+
+# function __docker_shell_container_default_command () {
+#   command="${@}"
+#   if [ -z "$1" ]; then
+#     command="/bin/bash"
+#   fi
+#   echo "${command}"
+# }
+
+function __docker_shell_to_function_name (){
+  if [ -z $1 ]
+  then
+    echo "Name to be converted missing"
+    exit 2
+  fi
+  echo $(echo $1 | tr "/" "_")
+
+}
+
+function __docker_shell_user_id () {
+  echo `id -u`:`id -g`
+}
+
+function __docker_shell_opts () {
+  echo "--rm -u $(__docker_shell_user_id)"
+}
+
+function docker_set_interactive () {
+  export DOCKER_OPTS_USER="$(__docker_shell_opts) -i -t"
+}
+function docker_set_daemon () {
+  export DOCKER_OPTS_USER="$(__docker_shell_opts) -d"
+}
+
+function docker_shell_images_integration () {
+# inspired by function __docker_complete_images in docker/contrib/completion/bash/docker
+read -r -d '' awk_script_get_images <<'EOF'
+NR>1 && $1 != "<none>" { 
+  print $1" "$2
+}
+EOF
+
+list_images=$(docker images | awk "$awk_script_get_images" )
+
+read -r -d '' awk_script_create_image_shell_function <<'EOF'
+{ 
+  print("__docker_shell_command "$1" "$2";") 
+  if ($2 == "latest" ) { 
+    print("__docker_shell_command "$1";") 
+  } 
+}
+EOF
+
+echo "$(cat<<EOF
+With the Docker Shell Integration you can run an image diretly typing the name of the image. 
+Bash completion works out of the box and you can browse them, depending on your settings.
+You can run a container simply calling the name of the image, i.e.
+
+  ubuntu
+
+  ubuntu echo "Hello World"
+
+a container will be started with default parameters:
+
+  --rm
+  -u user_id:user_group_id
+  -i
+  -t
+
+The user can set common parameters for all containers using the env variable DOCKER_OPTS_USER.
+
+Why this? If you have images that are considered "applications" you can run them directly form 
+the shell as normal application but running inside a container; look at CMD or ENTRYPOINT in the Docker
+official docs.
+
+These are your images now available from the shell:
+
+$(echo ${list_images} | tr " /" "_")
+
+Images tagged as latest can be called omitting "latest".
+
+EOF)"
+
+create_images_functions=$(echo "${list_images}" | awk "$awk_script_create_image_shell_function" )
+eval ${create_images_functions}
+}
+
+# docker_shell_images_integration
