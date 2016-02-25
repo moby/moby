@@ -273,7 +273,7 @@ func (s *DockerSuite) TestInspectNoSizeFlagContainer(c *check.C) {
 	//Both the container and image are named busybox. docker inspect will fetch container
 	//JSON SizeRw and SizeRootFs field. If there is no flag --size/-s, there are no size fields.
 
-	dockerCmd(c, "run", "--name=busybox", "-d", "busybox", "top")
+	runSleepingContainer(c, "--name=busybox", "-d")
 
 	formatStr := "--format='{{.SizeRw}},{{.SizeRootFs}}'"
 	out, _ := dockerCmd(c, "inspect", "--type=container", formatStr, "busybox")
@@ -281,7 +281,7 @@ func (s *DockerSuite) TestInspectNoSizeFlagContainer(c *check.C) {
 }
 
 func (s *DockerSuite) TestInspectSizeFlagContainer(c *check.C) {
-	dockerCmd(c, "run", "--name=busybox", "-d", "busybox", "top")
+	runSleepingContainer(c, "--name=busybox", "-d")
 
 	formatStr := "--format='{{.SizeRw}},{{.SizeRootFs}}'"
 	out, _ := dockerCmd(c, "inspect", "-s", "--type=container", formatStr, "busybox")
@@ -292,7 +292,7 @@ func (s *DockerSuite) TestInspectSizeFlagContainer(c *check.C) {
 }
 
 func (s *DockerSuite) TestInspectSizeFlagImage(c *check.C) {
-	dockerCmd(c, "run", "--name=busybox", "-d", "busybox", "top")
+	runSleepingContainer(c, "-d")
 
 	formatStr := "--format='{{.SizeRw}},{{.SizeRootFs}}'"
 	out, _, err := dockerCmdWithError("inspect", "-s", "--type=image", formatStr, "busybox")
@@ -303,10 +303,10 @@ func (s *DockerSuite) TestInspectSizeFlagImage(c *check.C) {
 	c.Assert(out, checker.Contains, "Template parsing error")
 }
 
-func (s *DockerSuite) TestInspectTempateError(c *check.C) {
+func (s *DockerSuite) TestInspectTemplateError(c *check.C) {
 	// Template parsing error for both the container and image.
 
-	dockerCmd(c, "run", "--name=container1", "-d", "busybox", "top")
+	runSleepingContainer(c, "--name=container1", "-d")
 
 	out, _, err := dockerCmdWithError("inspect", "--type=container", "--format='Format container: {{.ThisDoesNotExist}}'", "container1")
 	c.Assert(err, check.Not(check.IsNil))
@@ -318,7 +318,7 @@ func (s *DockerSuite) TestInspectTempateError(c *check.C) {
 }
 
 func (s *DockerSuite) TestInspectJSONFields(c *check.C) {
-	dockerCmd(c, "run", "--name=busybox", "-d", "busybox", "top")
+	runSleepingContainer(c, "--name=busybox", "-d")
 	out, _, err := dockerCmdWithError("inspect", "--type=container", "--format='{{.HostConfig.Dns}}'", "busybox")
 
 	c.Assert(err, check.IsNil)
@@ -337,8 +337,8 @@ func (s *DockerSuite) TestInspectByPrefix(c *check.C) {
 }
 
 func (s *DockerSuite) TestInspectStopWhenNotFound(c *check.C) {
-	dockerCmd(c, "run", "--name=busybox", "-d", "busybox", "top")
-	dockerCmd(c, "run", "--name=not-shown", "-d", "busybox", "top")
+	runSleepingContainer(c, "--name=busybox", "-d")
+	runSleepingContainer(c, "--name=not-shown", "-d")
 	out, _, err := dockerCmdWithError("inspect", "--type=container", "--format='{{.Name}}'", "busybox", "missing", "not-shown")
 
 	c.Assert(err, checker.Not(check.IsNil))

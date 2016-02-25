@@ -39,7 +39,7 @@ func (s *DockerSuite) TestEventsApiBackwardsCompatible(c *check.C) {
 	since := daemonTime(c).Unix()
 	ts := strconv.FormatInt(since, 10)
 
-	out, _ := dockerCmd(c, "run", "--name=foo", "-d", "busybox", "top")
+	out, _ := runSleepingContainer(c, "--name=foo", "-d")
 	containerID := strings.TrimSpace(out)
 	c.Assert(waitRun(containerID), checker.IsNil)
 

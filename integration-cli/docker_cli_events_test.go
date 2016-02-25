@@ -439,7 +439,7 @@ func (s *DockerSuite) TestEventsCopy(c *check.C) {
 func (s *DockerSuite) TestEventsResize(c *check.C) {
 	since := daemonTime(c).Unix()
 
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "top")
+	out, _ := runSleepingContainer(c, "-d")
 	cID := strings.TrimSpace(out)
 	c.Assert(waitRun(cID), checker.IsNil)
 
