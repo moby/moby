@@ -213,24 +213,24 @@ type HostConfig struct {
 	VolumesFrom     []string      // List of volumes to take from other container
 
 	// Applicable to UNIX platforms
-	CapAdd          *strslice.StrSlice // List of kernel capabilities to add to the container
-	CapDrop         *strslice.StrSlice // List of kernel capabilities to remove from the container
-	DNS             []string           `json:"Dns"`        // List of DNS server to lookup
-	DNSOptions      []string           `json:"DnsOptions"` // List of DNSOption to look for
-	DNSSearch       []string           `json:"DnsSearch"`  // List of DNSSearch to look for
-	ExtraHosts      []string           // List of extra hosts
-	GroupAdd        []string           // List of additional groups that the container process will run as
-	IpcMode         IpcMode            // IPC namespace to use for the container
-	Links           []string           // List of links (in the name:alias form)
-	OomScoreAdj     int                // Container preference for OOM-killing
-	PidMode         PidMode            // PID namespace to use for the container
-	Privileged      bool               // Is the container in privileged mode
-	PublishAllPorts bool               // Should docker publish all exposed port for the container
-	ReadonlyRootfs  bool               // Is the container root filesystem in read-only
-	SecurityOpt     []string           // List of string values to customize labels for MLS systems, such as SELinux.
-	Tmpfs           map[string]string  `json:",omitempty"` // List of tmpfs (mounts) used for the container
-	UTSMode         UTSMode            // UTS namespace to use for the container
-	ShmSize         int64              // Total shm memory usage
+	CapAdd          strslice.StrSlice // List of kernel capabilities to add to the container
+	CapDrop         strslice.StrSlice // List of kernel capabilities to remove from the container
+	DNS             []string          `json:"Dns"`        // List of DNS server to lookup
+	DNSOptions      []string          `json:"DnsOptions"` // List of DNSOption to look for
+	DNSSearch       []string          `json:"DnsSearch"`  // List of DNSSearch to look for
+	ExtraHosts      []string          // List of extra hosts
+	GroupAdd        []string          // List of additional groups that the container process will run as
+	IpcMode         IpcMode           // IPC namespace to use for the container
+	Links           []string          // List of links (in the name:alias form)
+	OomScoreAdj     int               // Container preference for OOM-killing
+	PidMode         PidMode           // PID namespace to use for the container
+	Privileged      bool              // Is the container in privileged mode
+	PublishAllPorts bool              // Should docker publish all exposed port for the container
+	ReadonlyRootfs  bool              // Is the container root filesystem in read-only
+	SecurityOpt     []string          // List of string values to customize labels for MLS systems, such as SELinux.
+	Tmpfs           map[string]string `json:",omitempty"` // List of tmpfs (mounts) used for the container
+	UTSMode         UTSMode           // UTS namespace to use for the container
+	ShmSize         int64             // Total shm memory usage
 
 	// Applicable to Windows
 	ConsoleSize [2]int    // Initial console size

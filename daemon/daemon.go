@@ -411,7 +411,7 @@ func (daemon *Daemon) mergeAndVerifyConfig(config *containertypes.Config, img *i
 			return err
 		}
 	}
-	if config.Entrypoint.Len() == 0 && config.Cmd.Len() == 0 {
+	if len(config.Entrypoint) == 0 && len(config.Cmd) == 0 {
 		return fmt.Errorf("No command specified")
 	}
 	return nil
@@ -494,13 +494,11 @@ func (daemon *Daemon) generateHostname(id string, config *containertypes.Config)
 	}
 }
 
-func (daemon *Daemon) getEntrypointAndArgs(configEntrypoint *strslice.StrSlice, configCmd *strslice.StrSlice) (string, []string) {
-	cmdSlice := configCmd.Slice()
-	if configEntrypoint.Len() != 0 {
-		eSlice := configEntrypoint.Slice()
-		return eSlice[0], append(eSlice[1:], cmdSlice...)
+func (daemon *Daemon) getEntrypointAndArgs(configEntrypoint strslice.StrSlice, configCmd strslice.StrSlice) (string, []string) {
+	if len(configEntrypoint) != 0 {
+		return configEntrypoint[0], append(configEntrypoint[1:], configCmd...)
 	}
-	return cmdSlice[0], cmdSlice[1:]
+	return configCmd[0], configCmd[1:]
 }
 
 func (daemon *Daemon) newContainer(name string, config *containertypes.Config, imgID image.ID) (*container.Container, error) {

@@ -16,7 +16,7 @@ import (
 
 type f struct {
 	file       string
-	entrypoint *strslice.StrSlice
+	entrypoint strslice.StrSlice
 }
 
 func TestDecodeContainerConfig(t *testing.T) {
@@ -29,14 +29,14 @@ func TestDecodeContainerConfig(t *testing.T) {
 	if runtime.GOOS != "windows" {
 		image = "ubuntu"
 		fixtures = []f{
-			{"fixtures/unix/container_config_1_14.json", strslice.New()},
-			{"fixtures/unix/container_config_1_17.json", strslice.New("bash")},
-			{"fixtures/unix/container_config_1_19.json", strslice.New("bash")},
+			{"fixtures/unix/container_config_1_14.json", []string{}},
+			{"fixtures/unix/container_config_1_17.json", []string{"bash"}},
+			{"fixtures/unix/container_config_1_19.json", []string{"bash"}},
 		}
 	} else {
 		image = "windows"
 		fixtures = []f{
-			{"fixtures/windows/container_config_1_19.json", strslice.New("cmd")},
+			{"fixtures/windows/container_config_1_19.json", []string{"cmd"}},
 		}
 	}
 
@@ -55,7 +55,7 @@ func TestDecodeContainerConfig(t *testing.T) {
 			t.Fatalf("Expected %s image, found %s\n", image, c.Image)
 		}
 
-		if c.Entrypoint.Len() != f.entrypoint.Len() {
+		if len(c.Entrypoint) != len(f.entrypoint) {
 			t.Fatalf("Expected %v, found %v\n", f.entrypoint, c.Entrypoint)
 		}
 
