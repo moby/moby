@@ -55,21 +55,20 @@ key-value stores. This example uses Consul.
 	instance using the [consul image from Docker
 	Hub](https://hub.docker.com/r/progrium/consul/). You'll do this in the next step.
 
-3. Start a `progrium/consul` container running on the `mh-keystore` machine.
+3. Set your local environment to the `mh-keystore` machine.
 
-		$  docker $(docker-machine config mh-keystore) run -d \
+		$  eval "$(docker-machine env mh-keystore)"
+
+4. Start a `progrium/consul` container running on the `mh-keystore` machine.
+
+		$  docker run -d \
 			-p "8500:8500" \
 			-h "consul" \
 			progrium/consul -server -bootstrap
 
-	A bash expansion `$(docker-machine config mh-keystore)` is used to pass the
-	connection configuration to the `docker run` command.  The client starts a
-	`progrium/consul` image running in the `mh-keystore` machine. The server is
-	called `consul` and is listening on port `8500`.
-
-4. Set your local environment to the `mh-keystore` machine.
-
-		$  eval "$(docker-machine env mh-keystore)"
+	The client starts a `progrium/consul` image running in the
+	`mh-keystore` machine. The server is called `consul` and is
+	listening on port `8500`.
 
 5. Run the `docker ps` command to see the `consul` container.
 
