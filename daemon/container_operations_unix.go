@@ -1106,7 +1106,16 @@ func killProcessDirectly(container *container.Container) error {
 }
 
 func getDevicesFromPath(deviceMapping containertypes.DeviceMapping) (devs []*configs.Device, err error) {
-	device, err := devices.DeviceFromPath(deviceMapping.PathOnHost, deviceMapping.CgroupPermissions)
+	resolvedPathOnHost := deviceMapping.PathOnHost
+
+	// check if it is a symbolic link
+	if src, e := os.Lstat(deviceMapping.PathOnHost); e == nil && src.Mode()&os.ModeSymlink == os.ModeSymlink {
+		if linkedPathOnHost, e := os.Readlink(deviceMapping.PathOnHost); e == nil {
+			resolvedPathOnHost = linkedPathOnHost
+		}
+	}
+
+	device, err := devices.DeviceFromPath(resolvedPathOnHost, deviceMapping.CgroupPermissions)
 	// if there was no error, return the device
 	if err == nil {
 		device.Path = deviceMapping.PathInContainer
@@ -1118,10 +1127,10 @@ func getDevicesFromPath(deviceMapping containertypes.DeviceMapping) (devs []*con
 	if err == devices.ErrNotADevice {
 
 		// check if it is a directory
-		if src, e := os.Stat(deviceMapping.PathOnHost); e == nil && src.IsDir() {
+		if src, e := os.Stat(resolvedPathOnHost); e == nil && src.IsDir() {
 
 			// mount the internal devices recursively
-			filepath.Walk(deviceMapping.PathOnHost, func(dpath string, f os.FileInfo, e error) error {
+			filepath.Walk(resolvedPathOnHost, func(dpath string, f os.FileInfo, e error) error {
 				childDevice, e := devices.DeviceFromPath(dpath, deviceMapping.CgroupPermissions)
 				if e != nil {
 					// ignore the device
@@ -1129,7 +1138,7 @@ func getDevicesFromPath(deviceMapping containertypes.DeviceMapping) (devs []*con
 				}
 
 				// add the device to userSpecified devices
-				childDevice.Path = strings.Replace(dpath, deviceMapping.PathOnHost, deviceMapping.PathInContainer, 1)
+				childDevice.Path = strings.Replace(dpath, resolvedPathOnHost, deviceMapping.PathInContainer, 1)
 				devs = append(devs, childDevice)
 
 				return nil
