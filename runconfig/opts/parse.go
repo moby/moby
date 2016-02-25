@@ -84,6 +84,8 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 		flCpusetCpus        = cmd.String([]string{"-cpuset-cpus"}, "", "CPUs in which to allow execution (0-3, 0,1)")
 		flCpusetMems        = cmd.String([]string{"-cpuset-mems"}, "", "MEMs in which to allow execution (0-3, 0,1)")
 		flBlkioWeight       = cmd.Uint16([]string{"-blkio-weight"}, 0, "Block IO (relative weight), between 10 and 1000")
+		flIOMaxBandwidth    = cmd.String([]string{"-io-maxbandwidth"}, "", "Maximum IO bandwidth limit for the system drive (Windows only)")
+		flIOMaxIOps         = cmd.Uint64([]string{"-io-maxiops"}, 0, "Maximum IOps limit for the system drive (Windows only)")
 		flSwappiness        = cmd.Int64([]string{"-memory-swappiness"}, -1, "Tune container memory swappiness (0 to 100)")
 		flNetMode           = cmd.String([]string{"-net"}, "default", "Connect a container to a network")
 		flMacAddress        = cmd.String([]string{"-mac-address"}, "", "Container MAC address (e.g. 92:d0:c6:0a:29:33)")
@@ -207,6 +209,18 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 		shmSize, err = units.RAMInBytes(*flShmSize)
 		if err != nil {
 			return nil, nil, nil, cmd, err
+		}
+	}
+
+	// TODO FIXME units.RAMInBytes should have a uint64 version
+	var maxIOBandwidth int64
+	if *flIOMaxBandwidth != "" {
+		maxIOBandwidth, err = units.RAMInBytes(*flIOMaxBandwidth)
+		if err != nil {
+			return nil, nil, nil, cmd, err
+		}
+		if maxIOBandwidth < 0 {
+			return nil, nil, nil, cmd, fmt.Errorf("invalid value: %s. Maximum IO Bandwidth must be positive", *flIOMaxBandwidth)
 		}
 	}
 
@@ -368,6 +382,8 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 		BlkioDeviceWriteBps:  flDeviceWriteBps.GetList(),
 		BlkioDeviceReadIOps:  flDeviceReadIOps.GetList(),
 		BlkioDeviceWriteIOps: flDeviceWriteIOps.GetList(),
+		IOMaximumIOps:        *flIOMaxIOps,
+		IOMaximumBandwidth:   uint64(maxIOBandwidth),
 		Ulimits:              flUlimits.GetList(),
 		Devices:              deviceMappings,
 	}

@@ -59,6 +59,15 @@ parent = "smn_cli"
       --log-opt=[]                  Log driver specific options
       -m, --memory=""               Memory limit
       --mac-address=""              Container MAC address (e.g. 92:d0:c6:0a:29:33)
+      --io-maxbandwidth=""          Maximum IO bandwidth limit for the system drive
+                                    (Windows only). The format is `<number><unit>`.
+                                    Unit is optional and can be `b` (bytes per second),
+                                    `k` (kilobytes per second), `m` (megabytes per second),
+                                    or `g` (gigabytes per second). If you omit the unit,
+                                    the system uses bytes per second.
+                                    --io-maxbandwidth and --io-maxiops are mutually exclusive options.
+      --io-maxiops=0                Maximum IO per second limit for the system drive (Windows only).
+                                    --io-maxbandwidth and --io-maxiops are mutually exclusive options.
       --memory-reservation=""       Memory soft limit
       --memory-swap=""              A positive integer equal to memory plus swap. Specify -1 to enable unlimited swap.
       --memory-swappiness=""        Tune a container's memory swappiness behavior. Accepts an integer between 0 and 100.

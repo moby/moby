@@ -181,9 +181,9 @@ func (daemon *Daemon) createSpec(c *container.Container) (*libcontainerd.Spec, e
 		//TODO Bandwidth: ...,
 		},
 		Storage: &windowsoci.Storage{
-		//TODO Bps: ...,
-		//TODO Iops: ...,
-		//TODO SandboxSize: ...,
+			Bps:  &c.HostConfig.IOMaximumBandwidth,
+			Iops: &c.HostConfig.IOMaximumIOps,
+			//TODO SandboxSize: ...,
 		},
 	}
 	return (*libcontainerd.Spec)(&s), nil

@@ -450,6 +450,9 @@ func verifyContainerResources(resources *containertypes.Resources, sysInfo *sysi
 	if resources.BlkioWeight > 0 && (resources.BlkioWeight < 10 || resources.BlkioWeight > 1000) {
 		return warnings, fmt.Errorf("Range of blkio weight is from 10 to 1000")
 	}
+	if resources.IOMaximumBandwidth != 0 || resources.IOMaximumIOps != 0 {
+		return warnings, fmt.Errorf("Invalid QoS settings: %s does not support Maximum IO Bandwidth or Maximum IO IOps", runtime.GOOS)
+	}
 	if len(resources.BlkioWeightDevice) > 0 && !sysInfo.BlkioWeightDevice {
 		warnings = append(warnings, "Your kernel does not support Block I/O weight_device.")
 		logrus.Warnf("Your kernel does not support Block I/O weight_device. Weight-device discarded.")
