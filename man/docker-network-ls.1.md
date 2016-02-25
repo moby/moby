@@ -89,7 +89,7 @@ NETWORK ID          NAME                DRIVER
 You can also filter for a substring in a name as this shows:
 
 ```bash
-$ docker ps --filter name=foo
+$ docker network ls --filter name=foo
 NETWORK ID          NAME                DRIVER
 95e74588f40d        foo                 bridge
 06e7eef0a170        foobar              bridge
@@ -99,8 +99,8 @@ NETWORK ID          NAME                DRIVER
 
 The `id` filter matches on all or part of a network's ID.
 
-The following filter matches all networks with a name containing the
-`06e7eef01700` string.
+The following filter matches all networks with an ID containing the
+`63d1ff1f77b0...` string.
 
 ```bash
 $ docker network ls --filter id=63d1ff1f77b07ca51070a8c227e962238358bd310bde1529cf62e6c307ade161
@@ -108,14 +108,14 @@ NETWORK ID          NAME                DRIVER
 63d1ff1f77b0        dev                 bridge
 ```
 
-You can also filter for a substring in a ID as this shows:
+You can also filter for a substring in an ID as this shows:
 
 ```bash
-$ docker ps --filter id=95e74588f40d
+$ docker network ls --filter id=95e74588f40d
 NETWORK ID          NAME                DRIVER
 95e74588f40d        foo                 bridge
 
-$ docker ps --filter id=95e
+$ docker network ls --filter id=95e
 NETWORK ID          NAME                DRIVER
 95e74588f40d        foo                 bridge
 ```
