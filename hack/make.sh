@@ -121,6 +121,15 @@ if [ -z "$DOCKER_CLIENTONLY" ]; then
 	if pkg-config libsystemd-journal 2> /dev/null ; then
 		DOCKER_BUILDTAGS+=" journald"
 	fi
+	if \
+		command -v gcc &> /dev/null \
+		&& gcc -E - &> /dev/null <<<'#include <sasl/sasl.h>' \
+	; then
+		DOCKER_BUILDTAGS+=' libsasl2'
+	fi
+	if pkg-config krb5-gssapi 2> /dev/null ; then
+		DOCKER_BUILDTAGS+=' gssapi'
+	fi
 fi
 
 # test whether "btrfs/version.h" exists and apply btrfs_noversion appropriately

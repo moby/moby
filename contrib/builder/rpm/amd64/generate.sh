@@ -66,8 +66,10 @@ for version in "${versions[@]}"; do
 	# this list is sorted alphabetically; please keep it that way
 	packages=(
 		btrfs-progs-devel # for "btrfs/ioctl.h" (and "version.h" if possible)
+		cyrus-sasl-devel # for "sasl/sasl.h"
 		device-mapper-devel # for "libdevmapper.h"
 		glibc-static
+		krb5-devel # for "gssapi.h"
 		libseccomp-devel # for "seccomp.h" & "libseccomp.so"
 		libselinux-devel # for "libselinux.so"
 		libtool-ltdl-devel # for pkcs11 "ltdl.h"

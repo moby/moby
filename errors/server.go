@@ -42,4 +42,23 @@ var (
 		Description:    "The caller didn't provide a connection to hijack",
 		HTTPStatusCode: http.StatusBadRequest,
 	})
+
+	// ErrorCodeNoAuthentication is generated when a request from a client
+	// was rejected due to the server requiring authentication, but not
+	// being able to offer any way to authenticate.
+	ErrorCodeNoAuthentication = errcode.Register(errGroup, errcode.ErrorDescriptor{
+		Value:          "NOAUTHENTICATION",
+		Message:        "server requires authentication, but doesn't support any methods",
+		Description:    "The server is configured to require authentication, but can't offer it",
+		HTTPStatusCode: http.StatusUnauthorized,
+	})
+
+	// ErrorCodeMustAuthenticate is generated when a request from a client
+	// was rejected due to the client not having authenticated first
+	ErrorCodeMustAuthenticate = errcode.Register(errGroup, errcode.ErrorDescriptor{
+		Value:          "MUSTAUTHENTICATE",
+		Message:        "server requires authentication, but client did not authenticate",
+		Description:    "The client must authenticate to the server",
+		HTTPStatusCode: http.StatusUnauthorized,
+	})
 )

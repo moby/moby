@@ -17,6 +17,9 @@ type CommonFlags struct {
 	TLSVerify  bool
 	TLSOptions *tlsconfig.Options
 	TrustKey   string
+
+	// AuthnOpts collects authentication options from the command line
+	AuthnOpts map[string]string
 }
 
 // Command is the struct containing the command name and description

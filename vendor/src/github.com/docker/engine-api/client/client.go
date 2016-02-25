@@ -27,6 +27,10 @@ type Client struct {
 	version string
 	// custom http headers configured by users.
 	customHTTPHeaders map[string]string
+	// logging callbacks, if we're meant to log messages
+	logger Logger
+	// authentication-related callbacks
+	authers []interface{}
 }
 
 // NewEnvClient initializes a new API client based on environment variables.
@@ -85,6 +89,47 @@ func NewClient(host string, version string, client *http.Client, httpHeaders map
 		version:           version,
 		customHTTPHeaders: httpHeaders,
 	}, nil
+}
+
+// SetAuth sets callbacks that the library can use to obtain information which
+// is needs in order to authenticate to the server.
+func (cli *Client) SetAuth(m ...interface{}) {
+	cli.authers = m
+}
+
+// SetLogger sets a callback that the client can use to log debugging
+// messages.  The callback should not treat messages which are passed to it as
+// format specifiers.
+func (cli *Client) SetLogger(logger Logger) {
+	cli.logger = logger
+}
+
+// debugf passes debugging messages to the callback, if one is set
+func (cli *Client) debugf(format string, args ...interface{}) {
+	if cli.logger != nil {
+		cli.logger.Debug(fmt.Sprintf(format, args...))
+	}
+}
+
+// debug passes a debugging message to the callback, if one is set
+func (cli *Client) debug(formatted string) {
+	if cli.logger != nil {
+		cli.logger.Debug(formatted)
+	}
+}
+
+// infof passes informational messages to the callback, if one is set
+func (cli *Client) infof(format string, args ...interface{}) {
+	if cli.logger != nil {
+		cli.logger.Info(fmt.Sprintf(format, args...))
+	}
+}
+
+// errorf passes error messages to the right callback, if one is set
+func (cli *Client) errorf(format string, args ...interface{}) {
+	if cli.logger != nil {
+		cli.logger.Error(fmt.Sprintf(format, args...))
+	}
 }
 
 // getAPIPath returns the versioned request path to call the api.

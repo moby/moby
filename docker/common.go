@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/cli"
@@ -51,6 +52,9 @@ func init() {
 	cmd.StringVar(&tlsOptions.KeyFile, []string{"-tlskey"}, filepath.Join(dockerCertPath, defaultKeyFile), "Path to TLS key file")
 
 	cmd.Var(opts.NewNamedListOptsRef("hosts", &commonFlags.Hosts, opts.ValidateHost), []string{"H", "-host"}, "Daemon socket(s) to connect to")
+
+	commonFlags.AuthnOpts = make(map[string]string)
+	cmd.Var(opts.NewMapOpts(commonFlags.AuthnOpts, validateAuthnOpt), []string{"-authn-opt"}, "Authentication options to use")
 }
 
 func postParseCommon() {
@@ -97,4 +101,24 @@ func setDaemonLogLevel(logLevel string) {
 	} else {
 		logrus.SetLevel(logrus.InfoLevel)
 	}
+}
+
+// validateAuthnOpt checks if a passed-in option value is a recognized
+// client authentication option.
+func validateAuthnOpt(option string) (string, error) {
+	if strings.HasPrefix(option, "plugins=") ||
+		strings.HasPrefix(option, "certmap=") ||
+		strings.HasPrefix(option, "local-auth=") ||
+		option == "local-auth" ||
+		strings.HasPrefix(option, "realm=") ||
+		strings.HasPrefix(option, "libsasl2=") ||
+		option == "libsasl2" ||
+		strings.HasPrefix(option, "htpasswd=") ||
+		strings.HasPrefix(option, "keytab=") ||
+		strings.HasPrefix(option, "basic.username=") ||
+		strings.HasPrefix(option, "interactive=") ||
+		strings.HasPrefix(option, "bearer.token=") {
+		return option, nil
+	}
+	return "", fmt.Errorf("invalid authentication option %s", option)
 }

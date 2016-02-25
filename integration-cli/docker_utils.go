@@ -516,7 +516,33 @@ func (d *Daemon) CmdWithArgs(daemonArgs []string, name string, arg ...string) (s
 	return string(b), err
 }
 
-// LogFileName returns the path the the daemon's log file
+// CustomCmd will execute a docker CLI command against this Daemon.
+// Example: d.CustomCmd(nil, "version") will run docker -H unix://path/to/unix.sock version
+func (d *Daemon) CustomCmd(customize func(cmd *exec.Cmd), name string, arg ...string) (string, error) {
+	args := []string{"--host", d.sock(), name}
+	args = append(args, arg...)
+	c := exec.Command(dockerBinary, args...)
+	if customize != nil {
+		customize(c)
+	}
+	b, err := c.CombinedOutput()
+	return string(b), err
+}
+
+// CustomCmdWithArgs will execute a docker CLI command against a daemon with
+// the given additional arguments
+func (d *Daemon) CustomCmdWithArgs(customize func(cmd *exec.Cmd), daemonArgs []string, name string, arg ...string) (string, error) {
+	args := append(daemonArgs, name)
+	args = append(args, arg...)
+	c := exec.Command(dockerBinary, args...)
+	if customize != nil {
+		customize(c)
+	}
+	b, err := c.CombinedOutput()
+	return string(b), err
+}
+
+// LogFileName returns the path of the daemon's log file
 func (d *Daemon) LogFileName() string {
 	return d.logFile.Name()
 }

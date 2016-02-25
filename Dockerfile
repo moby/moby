@@ -35,8 +35,12 @@ RUN apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys 608
 	|| apt-key adv --keyserver hkp://pgp.mit.edu:80 --recv-keys 6084F3CF814B57C1CF12EFD515CF4D18AF4F7421
 RUN echo deb http://llvm.org/apt/trusty/ llvm-toolchain-trusty main > /etc/apt/sources.list.d/llvm.list
 
+# Don't prompt for configuration when installing packaged dependencies
+ENV DEBIAN_FRONTEND noninteractive
+
 # Packaged dependencies
 RUN apt-get update && apt-get install -y \
+	apache2-utils \
 	apparmor \
 	aufs-tools \
 	automake \
@@ -51,9 +55,12 @@ RUN apt-get update && apt-get install -y \
 	git \
 	iptables \
 	jq \
+	krb5-admin-server \
 	libapparmor-dev \
 	libcap-dev \
+	libkrb5-dev \
 	libltdl-dev \
+	libsasl2-dev \
 	libsqlite3-dev \
 	libsystemd-journal-dev \
 	libtool \
@@ -65,6 +72,7 @@ RUN apt-get update && apt-get install -y \
 	python-pip \
 	python-websocket \
 	s3cmd=1.5.0* \
+	sasl2-bin \
 	ubuntu-zfs \
 	xfsprogs \
 	libzfs-dev \

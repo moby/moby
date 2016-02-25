@@ -65,7 +65,6 @@ func NewDaemonCli() *DaemonCli {
 	daemonConfig := new(daemon.Config)
 	daemonConfig.LogConfig.Config = make(map[string]string)
 	daemonConfig.ClusterOpts = make(map[string]string)
-
 	daemonConfig.InstallFlags(daemonFlags, presentInHelp)
 	daemonConfig.InstallFlags(flag.CommandLine, absentFromHelp)
 	registryOptions := new(registry.Options)
@@ -210,6 +209,7 @@ func (cli *DaemonCli) CmdDaemon(args ...string) error {
 		Logging:                  true,
 		SocketGroup:              cli.Config.SocketGroup,
 		Version:                  dockerversion.Version,
+		AuthnOpts:                cli.Config.AuthnOpts,
 	}
 	serverConfig = setPlatformServerConfig(serverConfig, cli.Config)
 
@@ -362,6 +362,7 @@ func loadDaemonCliConfig(config *daemon.Config, daemonFlags *flag.FlagSet, commo
 	config.TLS = commonConfig.TLS
 	config.TLSVerify = commonConfig.TLSVerify
 	config.CommonTLSOptions = daemon.CommonTLSOptions{}
+	config.AuthnOpts = commonConfig.AuthnOpts
 
 	if commonConfig.TLSOptions != nil {
 		config.CommonTLSOptions.CAFile = commonConfig.TLSOptions.CAFile
