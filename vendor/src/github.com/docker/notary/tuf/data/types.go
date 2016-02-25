@@ -12,6 +12,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/go/canonical/json"
+	"github.com/docker/notary"
 )
 
 // SigAlgorithm for types of signatures
@@ -171,16 +172,16 @@ func NewDelegations() *Delegations {
 	}
 }
 
-// defines number of days in which something should expire
-var defaultExpiryTimes = map[string]int{
-	CanonicalRootRole:      365,
-	CanonicalTargetsRole:   90,
-	CanonicalSnapshotRole:  7,
-	CanonicalTimestampRole: 1,
+// These values are recommended TUF expiry times.
+var defaultExpiryTimes = map[string]time.Duration{
+	CanonicalRootRole:      notary.Year,
+	CanonicalTargetsRole:   90 * notary.Day,
+	CanonicalSnapshotRole:  7 * notary.Day,
+	CanonicalTimestampRole: notary.Day,
 }
 
 // SetDefaultExpiryTimes allows one to change the default expiries.
-func SetDefaultExpiryTimes(times map[string]int) {
+func SetDefaultExpiryTimes(times map[string]time.Duration) {
 	for key, value := range times {
 		if _, ok := defaultExpiryTimes[key]; !ok {
 			logrus.Errorf("Attempted to set default expiry for an unknown role: %s", key)
@@ -192,10 +193,10 @@ func SetDefaultExpiryTimes(times map[string]int) {
 
 // DefaultExpires gets the default expiry time for the given role
 func DefaultExpires(role string) time.Time {
-	var t time.Time
-	if t, ok := defaultExpiryTimes[role]; ok {
-		return time.Now().AddDate(0, 0, t)
+	if d, ok := defaultExpiryTimes[role]; ok {
+		return time.Now().Add(d)
 	}
+	var t time.Time
 	return t.UTC().Round(time.Second)
 }
 

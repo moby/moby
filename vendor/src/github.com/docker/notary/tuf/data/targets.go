@@ -1,9 +1,9 @@
 package data
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"errors"
+	"fmt"
+	"path"
 
 	"github.com/docker/go/canonical/json"
 )
@@ -21,6 +21,33 @@ type Targets struct {
 	SignedCommon
 	Targets     Files       `json:"targets"`
 	Delegations Delegations `json:"delegations,omitempty"`
+}
+
+// isValidTargetsStructure returns an error, or nil, depending on whether the content of the struct
+// is valid for targets metadata.  This does not check signatures or expiry, just that
+// the metadata content is valid.
+func isValidTargetsStructure(t Targets, roleName string) error {
+	if roleName != CanonicalTargetsRole && !IsDelegation(roleName) {
+		return ErrInvalidRole{Role: roleName}
+	}
+
+	// even if it's a delegated role, the metadata type is "Targets"
+	expectedType := TUFTypes[CanonicalTargetsRole]
+	if t.Type != expectedType {
+		return ErrInvalidMetadata{
+			role: roleName, msg: fmt.Sprintf("expected type %s, not %s", expectedType, t.Type)}
+	}
+
+	for _, roleObj := range t.Delegations.Roles {
+		if !IsDelegation(roleObj.Name) || path.Dir(roleObj.Name) != roleName {
+			return ErrInvalidMetadata{
+				role: roleName, msg: fmt.Sprintf("delegation role %s invalid", roleObj.Name)}
+		}
+		if err := isValidRootRoleStructure(roleName, roleObj.Name, roleObj.RootRole, t.Delegations.Keys); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // NewTargets intiializes a new empty SignedTargets object
@@ -51,30 +78,58 @@ func (t SignedTargets) GetMeta(path string) *FileMeta {
 	return nil
 }
 
-// GetDelegations filters the roles and associated keys that may be
-// the signers for the given target path. If no appropriate roles
-// can be found, it will simply return nil for the return values.
-// The returned slice of Role will have order maintained relative
-// to the role slice on Delegations per TUF spec proposal on using
-// order to determine priority.
-func (t SignedTargets) GetDelegations(path string) []*Role {
-	var roles []*Role
-	pathHashBytes := sha256.Sum256([]byte(path))
-	pathHash := hex.EncodeToString(pathHashBytes[:])
-	for _, r := range t.Signed.Delegations.Roles {
-		if !r.IsValid() {
-			// Role has both Paths and PathHashPrefixes.
+// GetValidDelegations filters the delegation roles specified in the signed targets, and
+// only returns roles that are direct children and restricts their paths
+func (t SignedTargets) GetValidDelegations(parent DelegationRole) []DelegationRole {
+	roles := t.buildDelegationRoles()
+	result := []DelegationRole{}
+	for _, r := range roles {
+		validRole, err := parent.Restrict(r)
+		if err != nil {
 			continue
 		}
-		if r.CheckPaths(path) {
-			roles = append(roles, r)
+		result = append(result, validRole)
+	}
+	return result
+}
+
+// BuildDelegationRole returns a copy of a DelegationRole using the information in this SignedTargets for the specified role name.
+// Will error for invalid role name or key metadata within this SignedTargets.  Path data is not validated.
+func (t *SignedTargets) BuildDelegationRole(roleName string) (DelegationRole, error) {
+	for _, role := range t.Signed.Delegations.Roles {
+		if role.Name == roleName {
+			pubKeys := make(map[string]PublicKey)
+			for _, keyID := range role.KeyIDs {
+				pubKey, ok := t.Signed.Delegations.Keys[keyID]
+				if !ok {
+					// Couldn't retrieve all keys, so stop walking and return invalid role
+					return DelegationRole{}, ErrInvalidRole{Role: roleName, Reason: "delegation does not exist with all specified keys"}
+				}
+				pubKeys[keyID] = pubKey
+			}
+			return DelegationRole{
+				BaseRole: BaseRole{
+					Name:      role.Name,
+					Keys:      pubKeys,
+					Threshold: role.Threshold,
+				},
+				Paths: role.Paths,
+			}, nil
+		}
+	}
+	return DelegationRole{}, ErrNoSuchRole{Role: roleName}
+}
+
+// helper function to create DelegationRole structures from all delegations in a SignedTargets,
+// these delegations are read directly from the SignedTargets and not modified or validated
+func (t SignedTargets) buildDelegationRoles() []DelegationRole {
+	var roles []DelegationRole
+	for _, roleData := range t.Signed.Delegations.Roles {
+		delgRole, err := t.BuildDelegationRole(roleData.Name)
+		if err != nil {
 			continue
 		}
-		if r.CheckPrefixes(pathHash) {
-			roles = append(roles, r)
-			continue
-		}
-		//keysDB.AddRole(r)
+		roles = append(roles, delgRole)
 	}
 	return roles
 }
@@ -93,8 +148,8 @@ func (t *SignedTargets) AddDelegation(role *Role, keys []*PublicKey) error {
 }
 
 // ToSigned partially serializes a SignedTargets for further signing
-func (t SignedTargets) ToSigned() (*Signed, error) {
-	s, err := json.MarshalCanonical(t.Signed)
+func (t *SignedTargets) ToSigned() (*Signed, error) {
+	s, err := defaultSerializer.MarshalCanonical(t.Signed)
 	if err != nil {
 		return nil, err
 	}
@@ -111,11 +166,23 @@ func (t SignedTargets) ToSigned() (*Signed, error) {
 	}, nil
 }
 
-// TargetsFromSigned fully unpacks a Signed object into a SignedTargets
-func TargetsFromSigned(s *Signed) (*SignedTargets, error) {
-	t := Targets{}
-	err := json.Unmarshal(s.Signed, &t)
+// MarshalJSON returns the serialized form of SignedTargets as bytes
+func (t *SignedTargets) MarshalJSON() ([]byte, error) {
+	signed, err := t.ToSigned()
 	if err != nil {
+		return nil, err
+	}
+	return defaultSerializer.Marshal(signed)
+}
+
+// TargetsFromSigned fully unpacks a Signed object into a SignedTargets, given
+// a role name (so it can validate the SignedTargets object)
+func TargetsFromSigned(s *Signed, roleName string) (*SignedTargets, error) {
+	t := Targets{}
+	if err := defaultSerializer.Unmarshal(s.Signed, &t); err != nil {
+		return nil, err
+	}
+	if err := isValidTargetsStructure(t, roleName); err != nil {
 		return nil, err
 	}
 	sigs := make([]Signature, len(s.Signatures))

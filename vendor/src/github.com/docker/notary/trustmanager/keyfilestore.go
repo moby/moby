@@ -8,14 +8,9 @@ import (
 	"sync"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/notary"
 	"github.com/docker/notary/passphrase"
 	"github.com/docker/notary/tuf/data"
-)
-
-const (
-	rootKeysSubdir    = "root_keys"
-	nonRootKeysSubdir = "tuf_keys"
-	privDir           = "private"
 )
 
 // KeyFileStore persists and manages private keys on disk
@@ -37,7 +32,7 @@ type KeyMemoryStore struct {
 // NewKeyFileStore returns a new KeyFileStore creating a private directory to
 // hold the keys.
 func NewKeyFileStore(baseDir string, passphraseRetriever passphrase.Retriever) (*KeyFileStore, error) {
-	baseDir = filepath.Join(baseDir, privDir)
+	baseDir = filepath.Join(baseDir, notary.PrivDir)
 	fileStore, err := NewPrivateSimpleFileStore(baseDir, keyExtension)
 	if err != nil {
 		return nil, err
@@ -242,10 +237,10 @@ func listKeys(s LimitedFileStore) map[string]string {
 	for _, f := range s.ListFiles() {
 		// Remove the prefix of the directory from the filename
 		var keyIDFull string
-		if strings.HasPrefix(f, rootKeysSubdir+"/") {
-			keyIDFull = strings.TrimPrefix(f, rootKeysSubdir+"/")
+		if strings.HasPrefix(f, notary.RootKeysSubdir+"/") {
+			keyIDFull = strings.TrimPrefix(f, notary.RootKeysSubdir+"/")
 		} else {
-			keyIDFull = strings.TrimPrefix(f, nonRootKeysSubdir+"/")
+			keyIDFull = strings.TrimPrefix(f, notary.NonRootKeysSubdir+"/")
 		}
 
 		keyIDFull = strings.TrimSpace(keyIDFull)
@@ -302,9 +297,9 @@ func removeKey(s LimitedFileStore, cachedKeys map[string]*cachedKey, name string
 // Assumes 2 subdirectories, 1 containing root keys and 1 containing tuf keys
 func getSubdir(alias string) string {
 	if alias == "root" {
-		return rootKeysSubdir
+		return notary.RootKeysSubdir
 	}
-	return nonRootKeysSubdir
+	return notary.NonRootKeysSubdir
 }
 
 // Given a key ID, gets the bytes and alias belonging to that key if the key
@@ -327,7 +322,7 @@ func getRawKey(s LimitedFileStore, name string) ([]byte, string, error) {
 	return keyBytes, role, nil
 }
 
-// GetPasswdDecryptBytes gets the password to decript the given pem bytes.
+// GetPasswdDecryptBytes gets the password to decrypt the given pem bytes.
 // Returns the password and private key
 func GetPasswdDecryptBytes(passphraseRetriever passphrase.Retriever, pemBytes []byte, name, alias string) (data.PrivateKey, string, error) {
 	var (

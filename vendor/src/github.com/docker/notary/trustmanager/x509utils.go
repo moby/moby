@@ -470,12 +470,17 @@ func KeyToPEM(privKey data.PrivateKey, role string) ([]byte, error) {
 		return nil, err
 	}
 
-	block := &pem.Block{
-		Type: bt,
-		Headers: map[string]string{
+	headers := map[string]string{}
+	if role != "" {
+		headers = map[string]string{
 			"role": role,
-		},
-		Bytes: privKey.Private(),
+		}
+	}
+
+	block := &pem.Block{
+		Type:    bt,
+		Headers: headers,
+		Bytes:   privKey.Private(),
 	}
 
 	return pem.EncodeToMemory(block), nil
@@ -507,6 +512,19 @@ func EncryptPrivateKey(key data.PrivateKey, role, passphrase string) ([]byte, er
 	encryptedPEMBlock.Headers["role"] = role
 
 	return pem.EncodeToMemory(encryptedPEMBlock), nil
+}
+
+// ReadRoleFromPEM returns the value from the role PEM header, if it exists
+func ReadRoleFromPEM(pemBytes []byte) string {
+	pemBlock, _ := pem.Decode(pemBytes)
+	if pemBlock.Headers == nil {
+		return ""
+	}
+	role, ok := pemBlock.Headers["role"]
+	if !ok {
+		return ""
+	}
+	return role
 }
 
 // CertToKey transforms a single input certificate into its corresponding

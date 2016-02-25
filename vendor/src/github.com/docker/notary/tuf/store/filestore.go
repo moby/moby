@@ -2,6 +2,7 @@ package store
 
 import (
 	"fmt"
+	"github.com/docker/notary"
 	"io/ioutil"
 	"os"
 	"path"
@@ -9,16 +10,11 @@ import (
 )
 
 // NewFilesystemStore creates a new store in a directory tree
-func NewFilesystemStore(baseDir, metaSubDir, metaExtension, targetsSubDir string) (*FilesystemStore, error) {
+func NewFilesystemStore(baseDir, metaSubDir, metaExtension string) (*FilesystemStore, error) {
 	metaDir := path.Join(baseDir, metaSubDir)
-	targetsDir := path.Join(baseDir, targetsSubDir)
 
 	// Make sure we can create the necessary dirs and they are writable
 	err := os.MkdirAll(metaDir, 0700)
-	if err != nil {
-		return nil, err
-	}
-	err = os.MkdirAll(targetsDir, 0700)
 	if err != nil {
 		return nil, err
 	}
@@ -27,7 +23,6 @@ func NewFilesystemStore(baseDir, metaSubDir, metaExtension, targetsSubDir string
 		baseDir:       baseDir,
 		metaDir:       metaDir,
 		metaExtension: metaExtension,
-		targetsDir:    targetsDir,
 	}, nil
 }
 
@@ -36,7 +31,6 @@ type FilesystemStore struct {
 	baseDir       string
 	metaDir       string
 	metaExtension string
-	targetsDir    string
 }
 
 func (f *FilesystemStore) getPath(name string) string {
@@ -44,7 +38,8 @@ func (f *FilesystemStore) getPath(name string) string {
 	return filepath.Join(f.metaDir, fileName)
 }
 
-// GetMeta returns the meta for the given name (a role)
+// GetMeta returns the meta for the given name (a role) up to size bytes
+// If size is -1, this corresponds to "infinite," but we cut off at 100MB
 func (f *FilesystemStore) GetMeta(name string, size int64) ([]byte, error) {
 	meta, err := ioutil.ReadFile(f.getPath(name))
 	if err != nil {
@@ -53,7 +48,14 @@ func (f *FilesystemStore) GetMeta(name string, size int64) ([]byte, error) {
 		}
 		return nil, err
 	}
-	return meta, nil
+	if size == -1 {
+		size = notary.MaxDownloadSize
+	}
+	// Only return up to size bytes
+	if int64(len(meta)) < size {
+		return meta, nil
+	}
+	return meta[:size], nil
 }
 
 // SetMultiMeta sets the metadata for multiple roles in one operation

@@ -3260,7 +3260,7 @@ func (s *DockerTrustSuite) TestTrustedRunFromBadTrustServer(c *check.C) {
 	// Windows does not support this functionality
 	testRequires(c, DaemonIsLinux)
 	repoName := fmt.Sprintf("%v/dockerclievilrun/trusted:latest", privateRegistryURL)
-	evilLocalConfigDir, err := ioutil.TempDir("", "evil-local-config-dir")
+	evilLocalConfigDir, err := ioutil.TempDir("", "evilrun-local-config-dir")
 	if err != nil {
 		c.Fatalf("Failed to create local temp dir")
 	}
@@ -3316,15 +3316,15 @@ func (s *DockerTrustSuite) TestTrustedRunFromBadTrustServer(c *check.C) {
 		c.Fatalf("Missing expected output on trusted push:\n%s", out)
 	}
 
-	// Now, try running with the original client from this new trust server. This should fail.
+	// Now, try running with the original client from this new trust server. This should fallback to our cached timestamp and metadata.
 	runCmd = exec.Command(dockerBinary, "run", repoName)
 	s.trustedCmd(runCmd)
 	out, _, err = runCommandWithOutput(runCmd)
-	if err == nil {
-		c.Fatalf("Expected to fail on this run due to different remote data: %s\n%s", err, out)
-	}
 
-	if !strings.Contains(string(out), "valid signatures did not meet threshold") {
+	if err != nil {
+		c.Fatalf("Error falling back to cached trust data: %s\n%s", err, out)
+	}
+	if !strings.Contains(string(out), "Error while downloading remote metadata, using cached timestamp") {
 		c.Fatalf("Missing expected output on trusted push:\n%s", out)
 	}
 }

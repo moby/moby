@@ -6,7 +6,7 @@ machine:
 
   post:
   # Install many go versions
-    - gvm install go1.5.1 -B --name=stable
+    - gvm install go1.6 -B --name=stable
 
   environment:
   # Convenient shortcuts to "common" locations
@@ -37,10 +37,11 @@ dependencies:
         pwd: $BASE_STABLE
 
   post:
-  # For the stable go version, additionally install linting tools
+  # For the stable go version, additionally install linting and misspell tools
     - >
       gvm use stable &&
-      go get github.com/golang/lint/golint
+      go get github.com/golang/lint/golint &&
+      go get -u github.com/client9/misspell/cmd/misspell
 test:
   pre:
   # Output the go versions we are going to test
@@ -60,6 +61,10 @@ test:
 
   # LINT
     - gvm use stable && make lint:
+        pwd: $BASE_STABLE
+
+  # MISSPELL
+    - gvm use stable && make misspell:
         pwd: $BASE_STABLE
 
   override:
