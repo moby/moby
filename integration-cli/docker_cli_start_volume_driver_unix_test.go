@@ -59,6 +59,7 @@ func (s *DockerExternalVolumeSuite) SetUpSuite(c *check.C) {
 
 	type pluginRequest struct {
 		Name string
+		Opts map[string]string
 	}
 
 	type pluginResp struct {
@@ -69,6 +70,7 @@ func (s *DockerExternalVolumeSuite) SetUpSuite(c *check.C) {
 	type vol struct {
 		Name       string
 		Mountpoint string
+		Ninja      bool // hack used to trigger an null volume return on `Get`
 	}
 	var volList []vol
 
@@ -106,7 +108,8 @@ func (s *DockerExternalVolumeSuite) SetUpSuite(c *check.C) {
 			send(w, err)
 			return
 		}
-		volList = append(volList, vol{Name: pr.Name})
+		_, isNinja := pr.Opts["ninja"]
+		volList = append(volList, vol{Name: pr.Name, Ninja: isNinja})
 		send(w, nil)
 	})
 
@@ -125,6 +128,10 @@ func (s *DockerExternalVolumeSuite) SetUpSuite(c *check.C) {
 
 		for _, v := range volList {
 			if v.Name == pr.Name {
+				if v.Ninja {
+					send(w, map[string]vol{})
+					return
+				}
 				v.Mountpoint = hostVolumePath(pr.Name)
 				send(w, map[string]vol{"Volume": v})
 				return
@@ -409,5 +416,14 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverGet(c *check.C) {
 	out, _, err := dockerCmdWithError("volume", "inspect", "dummy")
 	c.Assert(err, check.NotNil, check.Commentf(out))
 	c.Assert(s.ec.gets, check.Equals, 1)
+	c.Assert(out, checker.Contains, "No such volume")
+}
+
+// Ensures that the daemon handles when the plugin responds to a `Get` request with a null volume and a null error.
+// Prior the daemon would panic in this scenario.
+func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverGetEmptyResponse(c *check.C) {
+	dockerCmd(c, "volume", "create", "-d", "test-external-volume-driver", "--name", "abc", "--opt", "ninja=1")
+	out, _, err := dockerCmdWithError("volume", "inspect", "abc")
+	c.Assert(err, checker.NotNil, check.Commentf(out))
 	c.Assert(out, checker.Contains, "No such volume")
 }
