@@ -124,6 +124,7 @@ func (c *Client) callWithRetry(serviceMethod string, data io.Reader, retry bool)
 
 		if resp.StatusCode != http.StatusOK {
 			b, err := ioutil.ReadAll(resp.Body)
+			resp.Body.Close()
 			if err != nil {
 				return nil, &statusError{resp.StatusCode, serviceMethod, err.Error()}
 			}
