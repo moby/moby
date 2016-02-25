@@ -14,7 +14,6 @@ import (
 	"github.com/docker/distribution/registry/api/errcode"
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/builder/dockerfile"
-	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/reference"
@@ -47,10 +46,6 @@ func (s *imageRouter) postCommit(ctx context.Context, w http.ResponseWriter, r *
 	}
 	if c == nil {
 		c = &container.Config{}
-	}
-
-	if !s.backend.Exists(cname) {
-		return derr.ErrorCodeNoSuchContainer.WithArgs(cname)
 	}
 
 	newConfig, err := dockerfile.BuildFromConfig(c, r.Form["changes"])

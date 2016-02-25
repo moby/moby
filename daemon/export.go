@@ -1,10 +1,10 @@
 package daemon
 
 import (
+	"fmt"
 	"io"
 
 	"github.com/docker/docker/container"
-	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/ioutils"
 )
@@ -19,13 +19,13 @@ func (daemon *Daemon) ContainerExport(name string, out io.Writer) error {
 
 	data, err := daemon.containerExport(container)
 	if err != nil {
-		return derr.ErrorCodeExportFailed.WithArgs(name, err)
+		return fmt.Errorf("Error exporting container %s: %v", name, err)
 	}
 	defer data.Close()
 
 	// Stream the entire contents of the container (basically a volatile snapshot)
 	if _, err := io.Copy(out, data); err != nil {
-		return derr.ErrorCodeExportFailed.WithArgs(name, err)
+		return fmt.Errorf("Error exporting container %s: %v", name, err)
 	}
 	return nil
 }

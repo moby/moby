@@ -1,11 +1,13 @@
 package daemon
 
 import (
+	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/container"
-	derr "github.com/docker/docker/errors"
+	"github.com/docker/docker/errors"
 )
 
 // ContainerStop looks for the given container and terminates it,
@@ -20,10 +22,11 @@ func (daemon *Daemon) ContainerStop(name string, seconds int) error {
 		return err
 	}
 	if !container.IsRunning() {
-		return derr.ErrorCodeStopped.WithArgs(name)
+		err := fmt.Errorf("Container %s is already stopped", name)
+		return errors.NewErrorWithStatusCode(err, http.StatusNotModified)
 	}
 	if err := daemon.containerStop(container, seconds); err != nil {
-		return derr.ErrorCodeCantStop.WithArgs(name, err)
+		return fmt.Errorf("Cannot stop container %s: %v", name, err)
 	}
 	return nil
 }

@@ -6,7 +6,6 @@
 package daemon
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -15,6 +14,7 @@ import (
 	"path"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -28,6 +28,7 @@ import (
 	"github.com/docker/docker/daemon/exec"
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/daemon/execdriver/execdrivers"
+	"github.com/docker/docker/errors"
 	"github.com/docker/engine-api/types"
 	containertypes "github.com/docker/engine-api/types/container"
 	eventtypes "github.com/docker/engine-api/types/events"
@@ -43,7 +44,6 @@ import (
 	dmetadata "github.com/docker/docker/distribution/metadata"
 	"github.com/docker/docker/distribution/xfer"
 	"github.com/docker/docker/dockerversion"
-	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/image/tarexport"
 	"github.com/docker/docker/layer"
@@ -90,7 +90,7 @@ var (
 	validContainerNameChars   = utils.RestrictedNameChars
 	validContainerNamePattern = utils.RestrictedNamePattern
 
-	errSystemNotSupported = errors.New("The Docker daemon is not supported on this platform.")
+	errSystemNotSupported = fmt.Errorf("The Docker daemon is not supported on this platform.")
 )
 
 // ErrImageDoesNotExist is error returned when no image can be found for a reference.
@@ -157,7 +157,8 @@ func (daemon *Daemon) GetContainer(prefixOrName string) (*container.Container, e
 	if indexError != nil {
 		// When truncindex defines an error type, use that instead
 		if indexError == truncindex.ErrNotExist {
-			return nil, derr.ErrorCodeNoSuchContainer.WithArgs(prefixOrName)
+			err := fmt.Errorf("No such container: %s", prefixOrName)
+			return nil, errors.NewRequestNotFoundError(err)
 		}
 		return nil, indexError
 	}
@@ -1211,7 +1212,7 @@ func (daemon *Daemon) ImageHistory(name string) ([]*types.ImageHistory, error) {
 
 		if !h.EmptyLayer {
 			if len(img.RootFS.DiffIDs) <= layerCounter {
-				return nil, errors.New("too many non-empty layers in History section")
+				return nil, fmt.Errorf("too many non-empty layers in History section")
 			}
 
 			rootFS.Append(img.RootFS.DiffIDs[layerCounter])
@@ -1499,7 +1500,8 @@ func (daemon *Daemon) verifyNetworkingConfig(nwConfig *networktypes.NetworkingCo
 	for k := range nwConfig.EndpointsConfig {
 		l = append(l, k)
 	}
-	return derr.ErrorCodeMultipleNetworkConnect.WithArgs(fmt.Sprintf("%v", l))
+	err := fmt.Errorf("Container cannot be connected to network endpoints: %s", strings.Join(l, ", "))
+	return errors.NewBadRequestError(err)
 }
 
 func configureVolumes(config *Config, rootUID, rootGID int) (*store.VolumeStore, error) {
@@ -1671,7 +1673,7 @@ func convertLnNetworkStats(name string, stats *lntypes.InterfaceStatistics) *lib
 
 func validateID(id string) error {
 	if id == "" {
-		return derr.ErrorCodeEmptyID
+		return fmt.Errorf("Invalid empty id")
 	}
 	return nil
 }

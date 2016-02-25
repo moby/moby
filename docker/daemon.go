@@ -14,6 +14,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/uuid"
 	apiserver "github.com/docker/docker/api/server"
+	"github.com/docker/docker/api/server/router"
 	"github.com/docker/docker/api/server/router/build"
 	"github.com/docker/docker/api/server/router/container"
 	"github.com/docker/docker/api/server/router/image"
@@ -396,11 +397,16 @@ func loadDaemonCliConfig(config *daemon.Config, daemonFlags *flag.FlagSet, commo
 }
 
 func initRouter(s *apiserver.Server, d *daemon.Daemon) {
-	s.InitRouter(utils.IsDebugEnabled(),
+	routers := []router.Router{
 		container.NewRouter(d),
 		image.NewRouter(d),
-		network.NewRouter(d),
 		systemrouter.NewRouter(d),
 		volume.NewRouter(d),
-		build.NewRouter(dockerfile.NewBuildManager(d)))
+		build.NewRouter(dockerfile.NewBuildManager(d)),
+	}
+	if d.NetworkControllerEnabled() {
+		routers = append(routers, network.NewRouter(d))
+	}
+
+	s.InitRouter(utils.IsDebugEnabled(), routers...)
 }

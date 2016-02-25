@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -17,7 +16,6 @@ import (
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
-	"github.com/docker/docker/utils"
 	"github.com/docker/engine-api/types"
 	"github.com/docker/engine-api/types/container"
 	"github.com/docker/go-units"
@@ -117,7 +115,7 @@ func (br *buildRouter) postBuild(ctx context.Context, w http.ResponseWriter, r *
 		if !output.Flushed() {
 			return err
 		}
-		_, err = w.Write(sf.FormatError(errors.New(utils.GetErrorMessage(err))))
+		_, err = w.Write(sf.FormatError(err))
 		if err != nil {
 			logrus.Warnf("could not write error response: %v", err)
 		}

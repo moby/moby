@@ -111,8 +111,8 @@ func TestParseMountSpec(t *testing.T) {
 			"/path:ro":        "Invalid volume specification",
 			"/rw:rw":          "Invalid volume specification",
 			"path:ro":         "Invalid volume specification",
-			"/path:/path:sw":  `invalid mode: "sw"`,
-			"/path:/path:rwz": `invalid mode: "rwz"`,
+			"/path:/path:sw":  `invalid mode: sw`,
+			"/path:/path:rwz": `invalid mode: rwz`,
 		}
 	}
 
