@@ -54,11 +54,11 @@ func testNetwork(networkType string, t *testing.T) {
 }
 
 func TestNAT(t *testing.T) {
-	testNetwork("NAT", t)
+	testNetwork("nat", t)
 }
 
 func TestTransparent(t *testing.T) {
-	testNetwork("Transparent", t)
+	testNetwork("transparent", t)
 }
 
 type testEndpoint struct {
