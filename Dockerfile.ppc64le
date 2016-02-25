@@ -127,16 +127,16 @@ RUN set -x \
 		go build -o /usr/local/bin/registry-v2-schema1 github.com/docker/distribution/cmd/registry \
 	&& rm -rf "$GOPATH"
 
-# TODO update this when we upgrade to Go 1.5.1+
+
 # Install notary server
-#ENV NOTARY_VERSION docker-v1.10-5
-#RUN set -x \
-#	&& export GOPATH="$(mktemp -d)" \
-#	&& git clone https://github.com/docker/notary.git "$GOPATH/src/github.com/docker/notary" \
-#	&& (cd "$GOPATH/src/github.com/docker/notary" && git checkout -q "$NOTARY_VERSION") \
-#	&& GOPATH="$GOPATH/src/github.com/docker/notary/Godeps/_workspace:$GOPATH" \
-#		go build -o /usr/local/bin/notary-server github.com/docker/notary/cmd/notary-server \
-#	&& rm -rf "$GOPATH"
+ENV NOTARY_VERSION v0.2.0
+RUN set -x \
+	&& export GOPATH="$(mktemp -d)" \
+	&& git clone https://github.com/docker/notary.git "$GOPATH/src/github.com/docker/notary" \
+	&& (cd "$GOPATH/src/github.com/docker/notary" && git checkout -q "$NOTARY_VERSION") \
+	&& GOPATH="$GOPATH/src/github.com/docker/notary/Godeps/_workspace:$GOPATH" \
+		go build -o /usr/local/bin/notary-server github.com/docker/notary/cmd/notary-server \
+	&& rm -rf "$GOPATH"
 
 # Get the "docker-py" source so we can run their integration tests
 ENV DOCKER_PY_COMMIT e2878cbcc3a7eef99917adc1be252800b0e41ece

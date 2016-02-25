@@ -1,4 +1,5 @@
-# Notary [![Circle CI](https://circleci.com/gh/docker/notary/tree/master.svg?style=shield)](https://circleci.com/gh/docker/notary/tree/master)
+# Notary 
+[![Circle CI](https://circleci.com/gh/docker/notary/tree/master.svg?style=shield)](https://circleci.com/gh/docker/notary/tree/master) [![CodeCov](https://codecov.io/github/docker/notary/coverage.svg?branch=master)](https://codecov.io/github/docker/notary)
 
 The Notary project comprises a [server](cmd/notary-server) and a [client](cmd/notary) for running and interacting
 with trusted collections.

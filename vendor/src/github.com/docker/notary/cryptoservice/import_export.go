@@ -11,8 +11,10 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/docker/notary"
 	"github.com/docker/notary/passphrase"
 	"github.com/docker/notary/trustmanager"
+	"github.com/docker/notary/tuf/data"
 )
 
 const zipMadeByUNIX = 3 << 8
@@ -31,14 +33,17 @@ var (
 	ErrNoKeysFoundForGUN = errors.New("no keys found for specified GUN")
 )
 
-// ExportRootKey exports the specified root key to an io.Writer in PEM format.
+// ExportKey exports the specified private key to an io.Writer in PEM format.
 // The key's existing encryption is preserved.
-func (cs *CryptoService) ExportRootKey(dest io.Writer, keyID string) error {
+func (cs *CryptoService) ExportKey(dest io.Writer, keyID, role string) error {
 	var (
 		pemBytes []byte
 		err      error
 	)
 
+	if role != data.CanonicalRootRole {
+		keyID = filepath.Join(cs.gun, keyID)
+	}
 	for _, ks := range cs.keyStores {
 		pemBytes, err = ks.ExportKey(keyID)
 		if err != nil {
@@ -59,9 +64,9 @@ func (cs *CryptoService) ExportRootKey(dest io.Writer, keyID string) error {
 	return nil
 }
 
-// ExportRootKeyReencrypt exports the specified root key to an io.Writer in
+// ExportKeyReencrypt exports the specified private key to an io.Writer in
 // PEM format. The key is reencrypted with a new passphrase.
-func (cs *CryptoService) ExportRootKeyReencrypt(dest io.Writer, keyID string, newPassphraseRetriever passphrase.Retriever) error {
+func (cs *CryptoService) ExportKeyReencrypt(dest io.Writer, keyID string, newPassphraseRetriever passphrase.Retriever) error {
 	privateKey, role, err := cs.GetPrivateKey(keyID)
 	if err != nil {
 		return err
@@ -103,14 +108,41 @@ func (cs *CryptoService) ImportRootKey(source io.Reader) error {
 	if err != nil {
 		return err
 	}
+	return cs.ImportRoleKey(pemBytes, data.CanonicalRootRole, nil)
+}
 
-	if err = checkRootKeyIsEncrypted(pemBytes); err != nil {
-		return err
+// ImportRoleKey imports a private key in PEM format key from a byte array
+// It prompts for the key's passphrase to verify the data and to determine
+// the key ID.
+func (cs *CryptoService) ImportRoleKey(pemBytes []byte, role string, newPassphraseRetriever passphrase.Retriever) error {
+	var alias string
+	var err error
+	if role == data.CanonicalRootRole {
+		alias = role
+		if err = checkRootKeyIsEncrypted(pemBytes); err != nil {
+			return err
+		}
+	} else {
+		// Parse the private key to get the key ID so that we can import it to the correct location
+		privKey, err := trustmanager.ParsePEMPrivateKey(pemBytes, "")
+		if err != nil {
+			privKey, _, err = trustmanager.GetPasswdDecryptBytes(newPassphraseRetriever, pemBytes, role, string(role))
+			if err != nil {
+				return err
+			}
+		}
+		// Since we're importing a non-root role, we need to pass the path as an alias
+		alias = filepath.Join(notary.NonRootKeysSubdir, cs.gun, privKey.ID())
+		// We also need to ensure that the role is properly set in the PEM headers
+		pemBytes, err = trustmanager.KeyToPEM(privKey, role)
+		if err != nil {
+			return err
+		}
 	}
 
 	for _, ks := range cs.keyStores {
 		// don't redeclare err, we want the value carried out of the loop
-		if err = ks.ImportKey(pemBytes, "root"); err == nil {
+		if err = ks.ImportKey(pemBytes, alias); err == nil {
 			return nil //bail on the first keystore we import to
 		}
 	}

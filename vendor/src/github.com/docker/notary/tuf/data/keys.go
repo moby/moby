@@ -46,7 +46,7 @@ type Keys map[string]PublicKey
 
 // UnmarshalJSON implements the json.Unmarshaller interface
 func (ks *Keys) UnmarshalJSON(data []byte) error {
-	parsed := make(map[string]tufKey)
+	parsed := make(map[string]TUFKey)
 	err := json.Unmarshal(data, &parsed)
 	if err != nil {
 		return err
@@ -64,7 +64,7 @@ type KeyList []PublicKey
 
 // UnmarshalJSON implements the json.Unmarshaller interface
 func (ks *KeyList) UnmarshalJSON(data []byte) error {
-	parsed := make([]tufKey, 0, 1)
+	parsed := make([]TUFKey, 0, 1)
 	err := json.Unmarshal(data, &parsed)
 	if err != nil {
 		return err
@@ -86,64 +86,64 @@ func (ks KeyList) IDs() []string {
 	return keyIDs
 }
 
-func typedPublicKey(tk tufKey) PublicKey {
+func typedPublicKey(tk TUFKey) PublicKey {
 	switch tk.Algorithm() {
 	case ECDSAKey:
-		return &ECDSAPublicKey{tufKey: tk}
+		return &ECDSAPublicKey{TUFKey: tk}
 	case ECDSAx509Key:
-		return &ECDSAx509PublicKey{tufKey: tk}
+		return &ECDSAx509PublicKey{TUFKey: tk}
 	case RSAKey:
-		return &RSAPublicKey{tufKey: tk}
+		return &RSAPublicKey{TUFKey: tk}
 	case RSAx509Key:
-		return &RSAx509PublicKey{tufKey: tk}
+		return &RSAx509PublicKey{TUFKey: tk}
 	case ED25519Key:
-		return &ED25519PublicKey{tufKey: tk}
+		return &ED25519PublicKey{TUFKey: tk}
 	}
-	return &UnknownPublicKey{tufKey: tk}
+	return &UnknownPublicKey{TUFKey: tk}
 }
 
-func typedPrivateKey(tk tufKey) (PrivateKey, error) {
+func typedPrivateKey(tk TUFKey) (PrivateKey, error) {
 	private := tk.Value.Private
 	tk.Value.Private = nil
 	switch tk.Algorithm() {
 	case ECDSAKey:
 		return NewECDSAPrivateKey(
 			&ECDSAPublicKey{
-				tufKey: tk,
+				TUFKey: tk,
 			},
 			private,
 		)
 	case ECDSAx509Key:
 		return NewECDSAPrivateKey(
 			&ECDSAx509PublicKey{
-				tufKey: tk,
+				TUFKey: tk,
 			},
 			private,
 		)
 	case RSAKey:
 		return NewRSAPrivateKey(
 			&RSAPublicKey{
-				tufKey: tk,
+				TUFKey: tk,
 			},
 			private,
 		)
 	case RSAx509Key:
 		return NewRSAPrivateKey(
 			&RSAx509PublicKey{
-				tufKey: tk,
+				TUFKey: tk,
 			},
 			private,
 		)
 	case ED25519Key:
 		return NewED25519PrivateKey(
 			ED25519PublicKey{
-				tufKey: tk,
+				TUFKey: tk,
 			},
 			private,
 		)
 	}
 	return &UnknownPrivateKey{
-		tufKey:     tk,
+		TUFKey:     tk,
 		privateKey: privateKey{private: private},
 	}, nil
 }
@@ -151,7 +151,7 @@ func typedPrivateKey(tk tufKey) (PrivateKey, error) {
 // NewPublicKey creates a new, correctly typed PublicKey, using the
 // UnknownPublicKey catchall for unsupported ciphers
 func NewPublicKey(alg string, public []byte) PublicKey {
-	tk := tufKey{
+	tk := TUFKey{
 		Type: alg,
 		Value: KeyPair{
 			Public: public,
@@ -163,7 +163,7 @@ func NewPublicKey(alg string, public []byte) PublicKey {
 // NewPrivateKey creates a new, correctly typed PrivateKey, using the
 // UnknownPrivateKey catchall for unsupported ciphers
 func NewPrivateKey(pubKey PublicKey, private []byte) (PrivateKey, error) {
-	tk := tufKey{
+	tk := TUFKey{
 		Type: pubKey.Algorithm(),
 		Value: KeyPair{
 			Public:  pubKey.Public(),
@@ -175,7 +175,7 @@ func NewPrivateKey(pubKey PublicKey, private []byte) (PrivateKey, error) {
 
 // UnmarshalPublicKey is used to parse individual public keys in JSON
 func UnmarshalPublicKey(data []byte) (PublicKey, error) {
-	var parsed tufKey
+	var parsed TUFKey
 	err := json.Unmarshal(data, &parsed)
 	if err != nil {
 		return nil, err
@@ -185,7 +185,7 @@ func UnmarshalPublicKey(data []byte) (PublicKey, error) {
 
 // UnmarshalPrivateKey is used to parse individual private keys in JSON
 func UnmarshalPrivateKey(data []byte) (PrivateKey, error) {
-	var parsed tufKey
+	var parsed TUFKey
 	err := json.Unmarshal(data, &parsed)
 	if err != nil {
 		return nil, err
@@ -193,26 +193,26 @@ func UnmarshalPrivateKey(data []byte) (PrivateKey, error) {
 	return typedPrivateKey(parsed)
 }
 
-// tufKey is the structure used for both public and private keys in TUF.
+// TUFKey is the structure used for both public and private keys in TUF.
 // Normally it would make sense to use a different structures for public and
 // private keys, but that would change the key ID algorithm (since the canonical
 // JSON would be different). This structure should normally be accessed through
 // the PublicKey or PrivateKey interfaces.
-type tufKey struct {
+type TUFKey struct {
 	id    string
 	Type  string  `json:"keytype"`
 	Value KeyPair `json:"keyval"`
 }
 
 // Algorithm returns the algorithm of the key
-func (k tufKey) Algorithm() string {
+func (k TUFKey) Algorithm() string {
 	return k.Type
 }
 
 // ID efficiently generates if necessary, and caches the ID of the key
-func (k *tufKey) ID() string {
+func (k *TUFKey) ID() string {
 	if k.id == "" {
-		pubK := tufKey{
+		pubK := TUFKey{
 			Type: k.Algorithm(),
 			Value: KeyPair{
 				Public:  k.Public(),
@@ -230,7 +230,7 @@ func (k *tufKey) ID() string {
 }
 
 // Public returns the public bytes
-func (k tufKey) Public() []byte {
+func (k TUFKey) Public() []byte {
 	return k.Value.Public
 }
 
@@ -239,42 +239,42 @@ func (k tufKey) Public() []byte {
 // ECDSAPublicKey represents an ECDSA key using a raw serialization
 // of the public key
 type ECDSAPublicKey struct {
-	tufKey
+	TUFKey
 }
 
 // ECDSAx509PublicKey represents an ECDSA key using an x509 cert
 // as the serialized format of the public key
 type ECDSAx509PublicKey struct {
-	tufKey
+	TUFKey
 }
 
 // RSAPublicKey represents an RSA key using a raw serialization
 // of the public key
 type RSAPublicKey struct {
-	tufKey
+	TUFKey
 }
 
 // RSAx509PublicKey represents an RSA key using an x509 cert
 // as the serialized format of the public key
 type RSAx509PublicKey struct {
-	tufKey
+	TUFKey
 }
 
 // ED25519PublicKey represents an ED25519 key using a raw serialization
 // of the public key
 type ED25519PublicKey struct {
-	tufKey
+	TUFKey
 }
 
 // UnknownPublicKey is a catchall for key types that are not supported
 type UnknownPublicKey struct {
-	tufKey
+	TUFKey
 }
 
 // NewECDSAPublicKey initializes a new public key with the ECDSAKey type
 func NewECDSAPublicKey(public []byte) *ECDSAPublicKey {
 	return &ECDSAPublicKey{
-		tufKey: tufKey{
+		TUFKey: TUFKey{
 			Type: ECDSAKey,
 			Value: KeyPair{
 				Public:  public,
@@ -287,7 +287,7 @@ func NewECDSAPublicKey(public []byte) *ECDSAPublicKey {
 // NewECDSAx509PublicKey initializes a new public key with the ECDSAx509Key type
 func NewECDSAx509PublicKey(public []byte) *ECDSAx509PublicKey {
 	return &ECDSAx509PublicKey{
-		tufKey: tufKey{
+		TUFKey: TUFKey{
 			Type: ECDSAx509Key,
 			Value: KeyPair{
 				Public:  public,
@@ -300,7 +300,7 @@ func NewECDSAx509PublicKey(public []byte) *ECDSAx509PublicKey {
 // NewRSAPublicKey initializes a new public key with the RSA type
 func NewRSAPublicKey(public []byte) *RSAPublicKey {
 	return &RSAPublicKey{
-		tufKey: tufKey{
+		TUFKey: TUFKey{
 			Type: RSAKey,
 			Value: KeyPair{
 				Public:  public,
@@ -313,7 +313,7 @@ func NewRSAPublicKey(public []byte) *RSAPublicKey {
 // NewRSAx509PublicKey initializes a new public key with the RSAx509Key type
 func NewRSAx509PublicKey(public []byte) *RSAx509PublicKey {
 	return &RSAx509PublicKey{
-		tufKey: tufKey{
+		TUFKey: TUFKey{
 			Type: RSAx509Key,
 			Value: KeyPair{
 				Public:  public,
@@ -326,7 +326,7 @@ func NewRSAx509PublicKey(public []byte) *RSAx509PublicKey {
 // NewED25519PublicKey initializes a new public key with the ED25519Key type
 func NewED25519PublicKey(public []byte) *ED25519PublicKey {
 	return &ED25519PublicKey{
-		tufKey: tufKey{
+		TUFKey: TUFKey{
 			Type: ED25519Key,
 			Value: KeyPair{
 				Public:  public,
@@ -367,7 +367,7 @@ type ED25519PrivateKey struct {
 
 // UnknownPrivateKey is a catchall for unsupported key types
 type UnknownPrivateKey struct {
-	tufKey
+	TUFKey
 	privateKey
 }
 
@@ -515,10 +515,10 @@ func (k UnknownPrivateKey) SignatureAlgorithm() SigAlgorithm {
 	return ""
 }
 
-// PublicKeyFromPrivate returns a new tufKey based on a private key, with
+// PublicKeyFromPrivate returns a new TUFKey based on a private key, with
 // the private key bytes guaranteed to be nil.
 func PublicKeyFromPrivate(pk PrivateKey) PublicKey {
-	return typedPublicKey(tufKey{
+	return typedPublicKey(TUFKey{
 		Type: pk.Algorithm(),
 		Value: KeyPair{
 			Public:  pk.Public(),

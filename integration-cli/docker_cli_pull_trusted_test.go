@@ -135,13 +135,16 @@ func (s *DockerTrustSuite) TestTrustedPullFromBadTrustServer(c *check.C) {
 	c.Assert(err, check.IsNil, check.Commentf(out))
 	c.Assert(string(out), checker.Contains, "Signing and pushing trust metadata", check.Commentf(out))
 
-	// Now, try pulling with the original client from this new trust server. This should fail.
+	// Now, try pulling with the original client from this new trust server. This should fall back to cached metadata.
 	pullCmd = exec.Command(dockerBinary, "pull", repoName)
 	s.trustedCmd(pullCmd)
 	out, _, err = runCommandWithOutput(pullCmd)
-
-	c.Assert(err, check.NotNil, check.Commentf(out))
-	c.Assert(string(out), checker.Contains, "valid signatures did not meet threshold", check.Commentf(out))
+	if err != nil {
+		c.Fatalf("Error falling back to cached trust data: %s\n%s", err, out)
+	}
+	if !strings.Contains(string(out), "Error while downloading remote metadata, using cached timestamp") {
+		c.Fatalf("Missing expected output on trusted pull:\n%s", out)
+	}
 }
 
 func (s *DockerTrustSuite) TestTrustedPullWithExpiredSnapshot(c *check.C) {
