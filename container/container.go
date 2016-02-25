@@ -441,10 +441,11 @@ func AttachStreams(streamConfig *runconfig.StreamConfig, openStdin, stdinOnce, t
 		}()
 
 		logrus.Debugf("attach: %s: begin", name)
-		_, err := io.Copy(stream, streamPipe)
+		n, err := io.Copy(stream, streamPipe)
 		if err == io.ErrClosedPipe {
 			err = nil
 		}
+		logrus.WithField("error", err).Infof("--> copied %d", n)
 		if err != nil {
 			logrus.Errorf("attach: %s: %v", name, err)
 			errors <- err
