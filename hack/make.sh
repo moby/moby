@@ -237,6 +237,8 @@ test_env() {
 	# use "env -i" to tightly control the environment variables that bleed into the tests
 	env -i \
 		DEST="$DEST" \
+		DOCKER_TLS_VERIFY="$DOCKER_TEST_TLS_VERIFY" \
+		DOCKER_CERT_PATH="$DOCKER_TEST_CERT_PATH" \
 		DOCKER_ENGINE_GOARCH="$DOCKER_ENGINE_GOARCH" \
 		DOCKER_GRAPHDRIVER="$DOCKER_GRAPHDRIVER" \
 		DOCKER_USERLANDPROXY="$DOCKER_USERLANDPROXY" \
