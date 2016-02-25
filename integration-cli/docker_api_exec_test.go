@@ -125,7 +125,7 @@ func (s *DockerSuite) TestExecApiStartMultipleTimesError(c *check.C) {
 // #20638
 func (s *DockerSuite) TestExecApiStartWithDetach(c *check.C) {
 	name := "foo"
-	dockerCmd(c, "run", "-d", "-t", "--name", name, "busybox", "top")
+	runSleepingContainer(c, "-d", "-t", "--name", name)
 	data := map[string]interface{}{
 		"cmd":         []string{"true"},
 		"AttachStdin": true,
