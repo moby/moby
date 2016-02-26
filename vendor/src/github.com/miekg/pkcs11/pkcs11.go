@@ -1000,7 +1000,8 @@ func (c *Ctx) Logout(sh SessionHandle) error {
 /* CreateObject creates a new object. */
 func (c *Ctx) CreateObject(sh SessionHandle, temp []*Attribute) (ObjectHandle, error) {
 	var obj C.CK_OBJECT_HANDLE
-	t, tcount := cAttributeList(temp)
+	arena, t, tcount := cAttributeList(temp)
+	defer arena.Free()
 	e := C.CreateObject(c.ctx, C.CK_SESSION_HANDLE(sh), t, tcount, C.CK_OBJECT_HANDLE_PTR(&obj))
 	e1 := toError(e)
 	if e1 == nil {
@@ -1012,7 +1013,8 @@ func (c *Ctx) CreateObject(sh SessionHandle, temp []*Attribute) (ObjectHandle, e
 /* CopyObject copies an object, creating a new object for the copy. */
 func (c *Ctx) CopyObject(sh SessionHandle, o ObjectHandle, temp []*Attribute) (ObjectHandle, error) {
 	var obj C.CK_OBJECT_HANDLE
-	t, tcount := cAttributeList(temp)
+	arena, t, tcount := cAttributeList(temp)
+	defer arena.Free()
 
 	e := C.CopyObject(c.ctx, C.CK_SESSION_HANDLE(sh), C.CK_OBJECT_HANDLE(o), t, tcount, C.CK_OBJECT_HANDLE_PTR(&obj))
 	e1 := toError(e)
@@ -1062,7 +1064,8 @@ func (c *Ctx) GetAttributeValue(sh SessionHandle, o ObjectHandle, a []*Attribute
 
 /* SetAttributeValue modifies the value of one or more object attributes */
 func (c *Ctx) SetAttributeValue(sh SessionHandle, o ObjectHandle, a []*Attribute) error {
-	pa, palen := cAttributeList(a)
+	arena, pa, palen := cAttributeList(a)
+	defer arena.Free()
 	e := C.SetAttributeValue(c.ctx, C.CK_SESSION_HANDLE(sh), C.CK_OBJECT_HANDLE(o), pa, palen)
 	return toError(e)
 }
@@ -1070,7 +1073,8 @@ func (c *Ctx) SetAttributeValue(sh SessionHandle, o ObjectHandle, a []*Attribute
 // FindObjectsInit initializes a search for token and session
 // objects that match a template.
 func (c *Ctx) FindObjectsInit(sh SessionHandle, temp []*Attribute) error {
-	t, tcount := cAttributeList(temp)
+	arena, t, tcount := cAttributeList(temp)
+	defer arena.Free()
 	e := C.FindObjectsInit(c.ctx, C.CK_SESSION_HANDLE(sh), t, tcount)
 	return toError(e)
 }
@@ -1106,7 +1110,8 @@ func (c *Ctx) FindObjectsFinal(sh SessionHandle) error {
 
 /* EncryptInit initializes an encryption operation. */
 func (c *Ctx) EncryptInit(sh SessionHandle, m []*Mechanism, o ObjectHandle) error {
-	mech, _ := cMechanismList(m)
+	arena, mech, _ := cMechanismList(m)
+	defer arena.Free()
 	e := C.EncryptInit(c.ctx, C.CK_SESSION_HANDLE(sh), mech, C.CK_OBJECT_HANDLE(o))
 	return toError(e)
 }
@@ -1158,7 +1163,8 @@ func (c *Ctx) EncryptFinal(sh SessionHandle) ([]byte, error) {
 
 /* DecryptInit initializes a decryption operation. */
 func (c *Ctx) DecryptInit(sh SessionHandle, m []*Mechanism, o ObjectHandle) error {
-	mech, _ := cMechanismList(m)
+	arena, mech, _ := cMechanismList(m)
+	defer arena.Free()
 	e := C.DecryptInit(c.ctx, C.CK_SESSION_HANDLE(sh), mech, C.CK_OBJECT_HANDLE(o))
 	return toError(e)
 }
@@ -1210,7 +1216,8 @@ func (c *Ctx) DecryptFinal(sh SessionHandle) ([]byte, error) {
 
 /* DigestInit initializes a message-digesting operation. */
 func (c *Ctx) DigestInit(sh SessionHandle, m []*Mechanism) error {
-	mech, _ := cMechanismList(m)
+	arena, mech, _ := cMechanismList(m)
+	defer arena.Free()
 	e := C.DigestInit(c.ctx, C.CK_SESSION_HANDLE(sh), mech)
 	return toError(e)
 }
@@ -1270,7 +1277,8 @@ func (c *Ctx) DigestFinal(sh SessionHandle) ([]byte, error) {
 // the data, and plaintext cannot be recovered from the
 // signature.
 func (c *Ctx) SignInit(sh SessionHandle, m []*Mechanism, o ObjectHandle) error {
-	mech, _ := cMechanismList(m) // Only the first is used, but still use a list.
+	arena, mech, _ := cMechanismList(m) // Only the first is used, but still use a list.
+	defer arena.Free()
 	e := C.SignInit(c.ctx, C.CK_SESSION_HANDLE(sh), mech, C.CK_OBJECT_HANDLE(o))
 	return toError(e)
 }
@@ -1317,7 +1325,8 @@ func (c *Ctx) SignFinal(sh SessionHandle) ([]byte, error) {
 // SignRecoverInit initializes a signature operation, where
 // the data can be recovered from the signature.
 func (c *Ctx) SignRecoverInit(sh SessionHandle, m []*Mechanism, key ObjectHandle) error {
-	mech, _ := cMechanismList(m)
+	arena, mech, _ := cMechanismList(m)
+	defer arena.Free()
 	e := C.SignRecoverInit(c.ctx, C.CK_SESSION_HANDLE(sh), mech, C.CK_OBJECT_HANDLE(key))
 	return toError(e)
 }
@@ -1342,7 +1351,8 @@ func (c *Ctx) SignRecover(sh SessionHandle, data []byte) ([]byte, error) {
 // signature is an appendix to the data, and plaintext cannot
 // be recovered from the signature (e.g. DSA).
 func (c *Ctx) VerifyInit(sh SessionHandle, m []*Mechanism, key ObjectHandle) error {
-	mech, _ := cMechanismList(m) // only use one here
+	arena, mech, _ := cMechanismList(m) // only use one here
+	defer arena.Free()
 	e := C.VerifyInit(c.ctx, C.CK_SESSION_HANDLE(sh), mech, C.CK_OBJECT_HANDLE(key))
 	return toError(e)
 }
@@ -1373,7 +1383,8 @@ func (c *Ctx) VerifyFinal(sh SessionHandle, signature []byte) error {
 // VerifyRecoverInit initializes a signature verification
 // operation, where the data is recovered from the signature.
 func (c *Ctx) VerifyRecoverInit(sh SessionHandle, m []*Mechanism, key ObjectHandle) error {
-	mech, _ := cMechanismList(m)
+	arena, mech, _ := cMechanismList(m)
+	defer arena.Free()
 	e := C.VerifyRecoverInit(c.ctx, C.CK_SESSION_HANDLE(sh), mech, C.CK_OBJECT_HANDLE(key))
 	return toError(e)
 }
@@ -1458,8 +1469,10 @@ func (c *Ctx) DecryptVerifyUpdate(sh SessionHandle, cipher []byte) ([]byte, erro
 /* GenerateKey generates a secret key, creating a new key object. */
 func (c *Ctx) GenerateKey(sh SessionHandle, m []*Mechanism, temp []*Attribute) (ObjectHandle, error) {
 	var key C.CK_OBJECT_HANDLE
-	t, tcount := cAttributeList(temp)
-	mech, _ := cMechanismList(m)
+	attrarena, t, tcount := cAttributeList(temp)
+	defer attrarena.Free()
+	mecharena, mech, _ := cMechanismList(m)
+	defer mecharena.Free()
 	e := C.GenerateKey(c.ctx, C.CK_SESSION_HANDLE(sh), mech, t, tcount, C.CK_OBJECT_HANDLE_PTR(&key))
 	e1 := toError(e)
 	if e1 == nil {
@@ -1474,9 +1487,12 @@ func (c *Ctx) GenerateKeyPair(sh SessionHandle, m []*Mechanism, public, private 
 		pubkey  C.CK_OBJECT_HANDLE
 		privkey C.CK_OBJECT_HANDLE
 	)
-	pub, pubcount := cAttributeList(public)
-	priv, privcount := cAttributeList(private)
-	mech, _ := cMechanismList(m)
+	pubarena, pub, pubcount := cAttributeList(public)
+	defer pubarena.Free()
+	privarena, priv, privcount := cAttributeList(private)
+	defer privarena.Free()
+	mecharena, mech, _ := cMechanismList(m)
+	defer mecharena.Free()
 	e := C.GenerateKeyPair(c.ctx, C.CK_SESSION_HANDLE(sh), mech, pub, pubcount, priv, privcount, C.CK_OBJECT_HANDLE_PTR(&pubkey), C.CK_OBJECT_HANDLE_PTR(&privkey))
 	e1 := toError(e)
 	if e1 == nil {
@@ -1491,7 +1507,8 @@ func (c *Ctx) WrapKey(sh SessionHandle, m []*Mechanism, wrappingkey, key ObjectH
 		wrappedkey    C.CK_BYTE_PTR
 		wrappedkeylen C.CK_ULONG
 	)
-	mech, _ := cMechanismList(m)
+	arena, mech, _ := cMechanismList(m)
+	defer arena.Free()
 	e := C.WrapKey(c.ctx, C.CK_SESSION_HANDLE(sh), mech, C.CK_OBJECT_HANDLE(wrappingkey), C.CK_OBJECT_HANDLE(key), &wrappedkey, &wrappedkeylen)
 	if toError(e) != nil {
 		return nil, toError(e)
@@ -1504,8 +1521,10 @@ func (c *Ctx) WrapKey(sh SessionHandle, m []*Mechanism, wrappingkey, key ObjectH
 /* UnwrapKey unwraps (decrypts) a wrapped key, creating a new key object. */
 func (c *Ctx) UnwrapKey(sh SessionHandle, m []*Mechanism, unwrappingkey ObjectHandle, wrappedkey []byte, a []*Attribute) (ObjectHandle, error) {
 	var key C.CK_OBJECT_HANDLE
-	ac, aclen := cAttributeList(a)
-	mech, _ := cMechanismList(m)
+	attrarena, ac, aclen := cAttributeList(a)
+	defer attrarena.Free()
+	mecharena, mech, _ := cMechanismList(m)
+	defer mecharena.Free()
 	e := C.UnwrapKey(c.ctx, C.CK_SESSION_HANDLE(sh), mech, C.CK_OBJECT_HANDLE(unwrappingkey), C.CK_BYTE_PTR(unsafe.Pointer(&wrappedkey[0])), C.CK_ULONG(len(wrappedkey)), ac, aclen, &key)
 	return ObjectHandle(key), toError(e)
 }
@@ -1513,8 +1532,10 @@ func (c *Ctx) UnwrapKey(sh SessionHandle, m []*Mechanism, unwrappingkey ObjectHa
 // DeriveKey derives a key from a base key, creating a new key object. */
 func (c *Ctx) DeriveKey(sh SessionHandle, m []*Mechanism, basekey ObjectHandle, a []*Attribute) (ObjectHandle, error) {
 	var key C.CK_OBJECT_HANDLE
-	ac, aclen := cAttributeList(a)
-	mech, _ := cMechanismList(m)
+	attrarena, ac, aclen := cAttributeList(a)
+	defer attrarena.Free()
+	mecharena, mech, _ := cMechanismList(m)
+	defer mecharena.Free()
 	e := C.DeriveKey(c.ctx, C.CK_SESSION_HANDLE(sh), mech, C.CK_OBJECT_HANDLE(basekey), ac, aclen, &key)
 	return ObjectHandle(key), toError(e)
 }

@@ -15,16 +15,12 @@ package pkcs11
 #define CK_CALLBACK_FUNCTION(returnType, name) returnType (* name)
 
 #include <stdlib.h>
+#include <string.h>
 #include "pkcs11.h"
 
 CK_ULONG Index(CK_ULONG_PTR array, CK_ULONG i)
 {
 	return array[i];
-}
-
-CK_ULONG Sizeof()
-{
-	return sizeof(CK_ULONG);
 }
 */
 import "C"
@@ -34,6 +30,21 @@ import (
 	"time"
 	"unsafe"
 )
+
+type arena []unsafe.Pointer
+
+func (a *arena) Allocate(obj []byte) (C.CK_VOID_PTR, C.CK_ULONG) {
+	cobj := C.calloc(C.size_t(len(obj)), 1)
+	*a = append(*a, cobj)
+	C.memmove(cobj, unsafe.Pointer(&obj[0]), C.size_t(len(obj)))
+	return C.CK_VOID_PTR(cobj), C.CK_ULONG(len(obj))
+}
+
+func (a arena) Free() {
+	for _, p := range a {
+		C.free(p)
+	}
+}
 
 // toList converts from a C style array to a []uint.
 func toList(clist C.CK_ULONG_PTR, size C.CK_ULONG) []uint {
@@ -51,6 +62,11 @@ func cBBool(x bool) C.CK_BBOOL {
 		return C.CK_BBOOL(C.CK_TRUE)
 	}
 	return C.CK_BBOOL(C.CK_FALSE)
+}
+
+func uintToBytes(x uint64) []byte {
+	ul := C.CK_ULONG(x)
+	return C.GoBytes(unsafe.Pointer(&ul), C.int(unsafe.Sizeof(ul)))
 }
 
 // Error represents an PKCS#11 error.
@@ -156,46 +172,23 @@ func NewAttribute(typ uint, x interface{}) *Attribute {
 	if x == nil {
 		return a
 	}
-	switch x.(type) {
-	case bool: // create bbool
-		if x.(bool) {
+	switch v := x.(type) {
+	case bool:
+		if v {
 			a.Value = []byte{1}
-			break
+		} else {
+			a.Value = []byte{0}
 		}
-		a.Value = []byte{0}
-	case uint, int:
-		var y uint
-		if _, ok := x.(int); ok {
-			y = uint(x.(int))
-		}
-		if _, ok := x.(uint); ok {
-			y = x.(uint)
-		}
-		// TODO(miek): ugly!
-		switch int(C.Sizeof()) {
-		case 4:
-			a.Value = make([]byte, 4)
-			a.Value[0] = byte(y)
-			a.Value[1] = byte(y >> 8)
-			a.Value[2] = byte(y >> 16)
-			a.Value[3] = byte(y >> 24)
-		case 8:
-			a.Value = make([]byte, 8)
-			a.Value[0] = byte(y)
-			a.Value[1] = byte(y >> 8)
-			a.Value[2] = byte(y >> 16)
-			a.Value[3] = byte(y >> 24)
-			a.Value[4] = byte(y >> 32)
-			a.Value[5] = byte(y >> 40)
-			a.Value[6] = byte(y >> 48)
-			a.Value[7] = byte(y >> 56)
-		}
+	case int:
+		a.Value = uintToBytes(uint64(v))
+	case uint:
+		a.Value = uintToBytes(uint64(v))
 	case string:
-		a.Value = []byte(x.(string))
-	case []byte: // just copy
-		a.Value = x.([]byte)
+		a.Value = []byte(v)
+	case []byte:
+		a.Value = v
 	case time.Time: // for CKA_DATE
-		a.Value = cDate(x.(time.Time))
+		a.Value = cDate(v)
 	default:
 		panic("pkcs11: unhandled attribute type")
 	}
@@ -203,9 +196,10 @@ func NewAttribute(typ uint, x interface{}) *Attribute {
 }
 
 // cAttribute returns the start address and the length of an attribute list.
-func cAttributeList(a []*Attribute) (C.CK_ATTRIBUTE_PTR, C.CK_ULONG) {
+func cAttributeList(a []*Attribute) (arena, C.CK_ATTRIBUTE_PTR, C.CK_ULONG) {
+	var arena arena
 	if len(a) == 0 {
-		return nil, 0
+		return nil, nil, 0
 	}
 	pa := make([]C.CK_ATTRIBUTE, len(a))
 	for i := 0; i < len(a); i++ {
@@ -213,10 +207,9 @@ func cAttributeList(a []*Attribute) (C.CK_ATTRIBUTE_PTR, C.CK_ULONG) {
 		if a[i].Value == nil {
 			continue
 		}
-		pa[i].pValue = C.CK_VOID_PTR((&a[i].Value[0]))
-		pa[i].ulValueLen = C.CK_ULONG(len(a[i].Value))
+		pa[i].pValue, pa[i].ulValueLen = arena.Allocate(a[i].Value)
 	}
-	return C.CK_ATTRIBUTE_PTR(&pa[0]), C.CK_ULONG(len(a))
+	return arena, C.CK_ATTRIBUTE_PTR(&pa[0]), C.CK_ULONG(len(a))
 }
 
 func cDate(t time.Time) []byte {
@@ -250,9 +243,10 @@ func NewMechanism(mech uint, x interface{}) *Mechanism {
 	return m
 }
 
-func cMechanismList(m []*Mechanism) (C.CK_MECHANISM_PTR, C.CK_ULONG) {
+func cMechanismList(m []*Mechanism) (arena, C.CK_MECHANISM_PTR, C.CK_ULONG) {
+	var arena arena
 	if len(m) == 0 {
-		return nil, 0
+		return nil, nil, 0
 	}
 	pm := make([]C.CK_MECHANISM, len(m))
 	for i := 0; i < len(m); i++ {
@@ -260,10 +254,9 @@ func cMechanismList(m []*Mechanism) (C.CK_MECHANISM_PTR, C.CK_ULONG) {
 		if m[i].Parameter == nil {
 			continue
 		}
-		pm[i].pParameter = C.CK_VOID_PTR(&(m[i].Parameter[0]))
-		pm[i].ulParameterLen = C.CK_ULONG(len(m[i].Parameter))
+		pm[i].pParameter, pm[i].ulParameterLen = arena.Allocate(m[i].Parameter)
 	}
-	return C.CK_MECHANISM_PTR(&pm[0]), C.CK_ULONG(len(m))
+	return arena, C.CK_MECHANISM_PTR(&pm[0]), C.CK_ULONG(len(m))
 }
 
 // MechanismInfo provides information about a particular mechanism.
