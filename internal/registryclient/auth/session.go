@@ -67,9 +67,7 @@ func (ea *endpointAuthorizer) ModifyRequest(req *http.Request) error {
 		Path:   req.URL.Path[:v2Root+4],
 	}
 
-	pingEndpoint := ping.String()
-
-	challenges, err := ea.challenges.GetChallenges(pingEndpoint)
+	challenges, err := ea.challenges.GetChallenges(ping)
 	if err != nil {
 		return err
 	}
