@@ -12,7 +12,7 @@ import (
 func (daemon *Daemon) ContainerUpdate(name string, hostConfig *container.HostConfig) ([]string, error) {
 	var warnings []string
 
-	warnings, err := daemon.verifyContainerSettings(hostConfig, nil)
+	warnings, err := daemon.verifyContainerSettings(hostConfig, nil, true)
 	if err != nil {
 		return warnings, err
 	}
@@ -45,6 +45,17 @@ func (daemon *Daemon) update(name string, hostConfig *container.HostConfig) erro
 		return err
 	}
 
+	restoreConfig := false
+	backupHostConfig := *container.HostConfig
+	defer func() {
+		if restoreConfig {
+			container.Lock()
+			container.HostConfig = &backupHostConfig
+			container.ToDisk()
+			container.Unlock()
+		}
+	}()
+
 	if container.RemovalInProgress || container.Dead {
 		errMsg := fmt.Errorf("Container is marked for removal and cannot be \"update\".")
 		return derr.ErrorCodeCantUpdate.WithArgs(container.ID, errMsg)
@@ -56,6 +67,7 @@ func (daemon *Daemon) update(name string, hostConfig *container.HostConfig) erro
 	}
 
 	if err := container.UpdateContainer(hostConfig); err != nil {
+		restoreConfig = true
 		return derr.ErrorCodeCantUpdate.WithArgs(container.ID, err.Error())
 	}
 
@@ -73,6 +85,7 @@ func (daemon *Daemon) update(name string, hostConfig *container.HostConfig) erro
 	// to the real world.
 	if container.IsRunning() && !container.IsRestarting() {
 		if err := daemon.execDriver.Update(container.Command); err != nil {
+			restoreConfig = true
 			return derr.ErrorCodeCantUpdate.WithArgs(container.ID, err.Error())
 		}
 	}
