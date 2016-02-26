@@ -23,9 +23,9 @@ const (
 	CKO_VENDOR_DEFINED    uint = 0x80000000
 )
 
-// Generated with: awk '/#define CK[AFKMR]/{ print $2 "=" $3 }' pkcs11t.h
+// Generated with: awk '/#define CK[AFKMRC]/{ print $2 "=" $3 }' pkcs11t.h
 
-// All the flag (CKF_), attribute (CKA_), error code (CKR_), key type (CKK_) and 
+// All the flag (CKF_), attribute (CKA_), error code (CKR_), key type (CKK_), certificate type (CKC_) and
 // mechanism (CKM_) constants as defined in PKCS#11.
 const (
 	CKF_TOKEN_PRESENT                    = 0x00000001
@@ -83,6 +83,10 @@ const (
 	CKK_CAMELLIA                         = 0x00000025
 	CKK_ARIA                             = 0x00000026
 	CKK_VENDOR_DEFINED                   = 0x80000000
+	CKC_X_509                            = 0x00000000
+	CKC_X_509_ATTR_CERT                  = 0x00000001
+	CKC_WTLS                             = 0x00000002
+	CKC_VENDOR_DEFINED                   = 0x80000000
 	CKF_ARRAY_ATTRIBUTE                  = 0x40000000
 	CKA_CLASS                            = 0x00000000
 	CKA_TOKEN                            = 0x00000001
@@ -117,11 +121,11 @@ const (
 	CKA_VERIFY                           = 0x0000010A
 	CKA_VERIFY_RECOVER                   = 0x0000010B
 	CKA_DERIVE                           = 0x0000010C
-	CKA_START_DATE                       = 0x00000110 // Use time.Time as a value.
-	CKA_END_DATE                         = 0x00000111 // Use time.Time as a value.
+	CKA_START_DATE                       = 0x00000110
+	CKA_END_DATE                         = 0x00000111
 	CKA_MODULUS                          = 0x00000120
 	CKA_MODULUS_BITS                     = 0x00000121
-	CKA_PUBLIC_EXPONENT                  = 0x00000122 // Use []byte slice as a value.
+	CKA_PUBLIC_EXPONENT                  = 0x00000122
 	CKA_PRIVATE_EXPONENT                 = 0x00000123
 	CKA_PRIME_1                          = 0x00000124
 	CKA_PRIME_2                          = 0x00000125
