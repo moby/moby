@@ -468,3 +468,11 @@ func (b *badDriver) ProgramExternalConnectivity(nid, eid string, options map[str
 func (b *badDriver) RevokeExternalConnectivity(nid, eid string) error {
 	return nil
 }
+
+func (b *badDriver) NetworkAllocate(id string, option map[string]interface{}, ipV4Data, ipV6Data []driverapi.IPAMData) (map[string]string, error) {
+	return nil, types.NotImplementedErrorf("not implemented")
+}
+
+func (b *badDriver) NetworkFree(id string) error {
+	return types.NotImplementedErrorf("not implemented")
+}

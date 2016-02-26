@@ -24,6 +24,14 @@ func Init(dc driverapi.DriverCallback, config map[string]interface{}) error {
 	return dc.RegisterDriver(networkType, &driver{}, c)
 }
 
+func (d *driver) NetworkAllocate(id string, option map[string]interface{}, ipV4Data, ipV6Data []driverapi.IPAMData) (map[string]string, error) {
+	return nil, types.NotImplementedErrorf("not implemented")
+}
+
+func (d *driver) NetworkFree(id string) error {
+	return types.NotImplementedErrorf("not implemented")
+}
+
 func (d *driver) CreateNetwork(id string, option map[string]interface{}, ipV4Data, ipV6Data []driverapi.IPAMData) error {
 	d.Lock()
 	defer d.Unlock()

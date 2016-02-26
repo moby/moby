@@ -59,6 +59,14 @@ type network struct {
 	sync.Mutex
 }
 
+func (d *driver) NetworkAllocate(id string, option map[string]interface{}, ipV4Data, ipV6Data []driverapi.IPAMData) (map[string]string, error) {
+	return nil, types.NotImplementedErrorf("not implemented")
+}
+
+func (d *driver) NetworkFree(id string) error {
+	return types.NotImplementedErrorf("not implemented")
+}
+
 func (d *driver) CreateNetwork(id string, option map[string]interface{}, ipV4Data, ipV6Data []driverapi.IPAMData) error {
 	if id == "" {
 		return fmt.Errorf("invalid network id")
