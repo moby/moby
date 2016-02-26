@@ -25,7 +25,7 @@ type Challenge struct {
 type ChallengeManager interface {
 	// GetChallenges returns the challenges for the given
 	// endpoint URL.
-	GetChallenges(endpoint string) ([]Challenge, error)
+	GetChallenges(endpoint url.URL) ([]Challenge, error)
 
 	// AddResponse adds the response to the challenge
 	// manager. The challenges will be parsed out of
@@ -48,8 +48,10 @@ func NewSimpleChallengeManager() ChallengeManager {
 
 type simpleChallengeManager map[string][]Challenge
 
-func (m simpleChallengeManager) GetChallenges(endpoint string) ([]Challenge, error) {
-	challenges := m[endpoint]
+func (m simpleChallengeManager) GetChallenges(endpoint url.URL) ([]Challenge, error) {
+	endpoint.Host = strings.ToLower(endpoint.Host)
+
+	challenges := m[endpoint.String()]
 	return challenges, nil
 }
 
@@ -60,11 +62,10 @@ func (m simpleChallengeManager) AddResponse(resp *http.Response) error {
 	}
 	urlCopy := url.URL{
 		Path:   resp.Request.URL.Path,
-		Host:   resp.Request.URL.Host,
+		Host:   strings.ToLower(resp.Request.URL.Host),
 		Scheme: resp.Request.URL.Scheme,
 	}
 	m[urlCopy.String()] = challenges
-
 	return nil
 }
 
