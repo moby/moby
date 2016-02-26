@@ -83,13 +83,13 @@ var (
 	}
 	bridgeNfIptables = testRequirement{
 		func() bool {
-			return !SysInfo.BridgeNfCallIptablesDisabled
+			return !SysInfo.BridgeNFCallIPTablesDisabled
 		},
 		"Test requires that bridge-nf-call-iptables support be enabled in the daemon.",
 	}
 	bridgeNfIP6tables = testRequirement{
 		func() bool {
-			return !SysInfo.BridgeNfCallIP6tablesDisabled
+			return !SysInfo.BridgeNFCallIP6TablesDisabled
 		},
 		"Test requires that bridge-nf-call-ip6tables support be enabled in the daemon.",
 	}
