@@ -453,25 +453,9 @@ func TestPredefinedPool(t *testing.T) {
 		t.Fatalf("Expected failure for non default addr space")
 	}
 
-	exp, err := ipamutils.FindAvailableNetwork(a.predefined[localAddressSpace])
+	pid, nw, _, err := a.RequestPool(localAddressSpace, "", "", nil, false)
 	if err != nil {
 		t.Fatal(err)
-	}
-
-	nw, err := a.getPredefinedPool(localAddressSpace, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !types.CompareIPNet(nw, exp) {
-		t.Fatalf("Unexpected default network returned: %s. Expected: %s", nw, exp)
-	}
-
-	pid, nw, _, err := a.RequestPool(localAddressSpace, exp.String(), "", nil, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !types.CompareIPNet(nw, exp) {
-		t.Fatalf("Unexpected default network returned: %s. Expected: %s", nw, exp)
 	}
 
 	nw2, err := a.getPredefinedPool(localAddressSpace, false)
@@ -484,14 +468,6 @@ func TestPredefinedPool(t *testing.T) {
 
 	if err := a.ReleasePool(pid); err != nil {
 		t.Fatal(err)
-	}
-
-	nw, err = a.getPredefinedPool(localAddressSpace, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !types.CompareIPNet(nw, exp) {
-		t.Fatalf("Unexpected default network returned: %s. Expected %s", nw, exp)
 	}
 }
 

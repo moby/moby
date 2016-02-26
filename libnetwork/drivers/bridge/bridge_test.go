@@ -10,6 +10,7 @@ import (
 	"github.com/docker/libnetwork/ipamutils"
 	"github.com/docker/libnetwork/iptables"
 	"github.com/docker/libnetwork/netlabel"
+	"github.com/docker/libnetwork/netutils"
 	"github.com/docker/libnetwork/options"
 	"github.com/docker/libnetwork/testutils"
 	"github.com/docker/libnetwork/types"
@@ -21,7 +22,7 @@ func init() {
 
 func getIPv4Data(t *testing.T) []driverapi.IPAMData {
 	ipd := driverapi.IPAMData{AddressSpace: "full"}
-	nw, _, err := ipamutils.ElectInterfaceAddresses("")
+	nw, _, err := netutils.ElectInterfaceAddresses("")
 	if err != nil {
 		t.Fatal(err)
 	}

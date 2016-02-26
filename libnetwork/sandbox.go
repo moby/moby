@@ -12,7 +12,6 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/etchosts"
 	"github.com/docker/libnetwork/netlabel"
-	"github.com/docker/libnetwork/netutils"
 	"github.com/docker/libnetwork/osl"
 	"github.com/docker/libnetwork/types"
 )
@@ -522,7 +521,7 @@ func (sb *sandbox) resolveName(req string, networkName string, epList []*endpoin
 		n.Lock()
 		ip, ok = sr.svcMap[name]
 
-		if ipType == netutils.IPv6 {
+		if ipType == types.IPv6 {
 			// If the name resolved to v4 address then its a valid name in
 			// the docker network domain. If the network is not v6 enabled
 			// set ipv6Miss to filter the DNS query from going to external

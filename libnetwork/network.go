@@ -1094,6 +1094,48 @@ func (n *network) ipamAllocate() error {
 	return n.ipamAllocateVersion(6, ipam)
 }
 
+func (n *network) requestPoolHelper(ipam ipamapi.Ipam, addressSpace, preferredPool, subPool string, options map[string]string, v6 bool) (string, *net.IPNet, map[string]string, error) {
+	for {
+		poolID, pool, meta, err := ipam.RequestPool(addressSpace, preferredPool, subPool, options, v6)
+		if err != nil {
+			return "", nil, nil, err
+		}
+
+		// If the network belongs to global scope or the pool
+		// returned is invalid, no need to perform overlap
+		// check.
+		if n.Scope() == datastore.GlobalScope || !types.IsIPNetValid(pool) {
+			return poolID, pool, meta, nil
+		}
+
+		// Check for overlap and if none found, we have found the right pool.
+		if _, err := netutils.FindAvailableNetwork([]*net.IPNet{pool}); err == nil {
+			return poolID, pool, meta, nil
+		}
+
+		// Pool obtained in this iteration is
+		// overlapping. Hold onto the pool and don't release
+		// it yet, because we don't want ipam to give us back
+		// the same pool over again. But make sure we still do
+		// a deferred release when we have either obtained a
+		// non-overlapping pool or ran out of pre-defined
+		// pools.
+		defer func() {
+			if err := ipam.ReleasePool(poolID); err != nil {
+				log.Warnf("Failed to release overlapping pool %s while returning from pool request helper for network %s", pool, n.Name())
+			}
+		}()
+
+		// If this is a preferred pool request and the network
+		// is local scope and there is a overlap, we fail the
+		// network creation right here. The pool will be
+		// released in the defer.
+		if preferredPool != "" {
+			return "", nil, nil, fmt.Errorf("requested subnet %s overlaps in the host", preferredPool)
+		}
+	}
+}
+
 func (n *network) ipamAllocateVersion(ipVer int, ipam ipamapi.Ipam) error {
 	var (
 		cfgList  *[]*IpamConf
@@ -1130,7 +1172,7 @@ func (n *network) ipamAllocateVersion(ipVer int, ipam ipamapi.Ipam) error {
 		d := &IpamInfo{}
 		(*infoList)[i] = d
 
-		d.PoolID, d.Pool, d.Meta, err = ipam.RequestPool(n.addrSpace, cfg.PreferredPool, cfg.SubPool, n.ipamOptions, ipVer == 6)
+		d.PoolID, d.Pool, d.Meta, err = n.requestPoolHelper(ipam, n.addrSpace, cfg.PreferredPool, cfg.SubPool, n.ipamOptions, ipVer == 6)
 		if err != nil {
 			return err
 		}

@@ -7,8 +7,8 @@ import (
 	"testing"
 
 	"github.com/docker/docker/pkg/ioutils"
-	"github.com/docker/libnetwork/netutils"
 	_ "github.com/docker/libnetwork/testutils"
+	"github.com/docker/libnetwork/types"
 )
 
 func TestGet(t *testing.T) {
@@ -49,7 +49,7 @@ nameserver 1.2.3.4
 		`search example.com
 nameserver 1.2.3.4 # not 4.3.2.1`: {"1.2.3.4"},
 	} {
-		test := GetNameservers([]byte(resolv), netutils.IP)
+		test := GetNameservers([]byte(resolv), types.IP)
 		if !strSlicesEqual(test, result) {
 			t.Fatalf("Wrong nameserver string {%s} should be %v. Input: %s", test, result, resolv)
 		}
@@ -84,11 +84,11 @@ func TestGetSearchDomains(t *testing.T) {
 	for resolv, result := range map[string][]string{
 		`search example.com`:           {"example.com"},
 		`search example.com # ignored`: {"example.com"},
-		` 	  search 	 example.com 	  `: {"example.com"},
-		` 	  search 	 example.com 	  # ignored`: {"example.com"},
+		`	  search	 example.com	  `: {"example.com"},
+		`	  search	 example.com	  # ignored`: {"example.com"},
 		`search foo.example.com example.com`: {"foo.example.com", "example.com"},
-		`	   search   	   foo.example.com 	 example.com 	`: {"foo.example.com", "example.com"},
-		`	   search   	   foo.example.com 	 example.com 	# ignored`: {"foo.example.com", "example.com"},
+		`	   search	   foo.example.com	 example.com	`: {"foo.example.com", "example.com"},
+		`	   search	   foo.example.com	 example.com	# ignored`: {"foo.example.com", "example.com"},
 		``:          {},
 		`# ignored`: {},
 		`nameserver 1.2.3.4
@@ -111,12 +111,12 @@ func TestGetOptions(t *testing.T) {
 	for resolv, result := range map[string][]string{
 		`options opt1`:           {"opt1"},
 		`options opt1 # ignored`: {"opt1"},
-		` 	  options 	 opt1 	  `: {"opt1"},
-		` 	  options 	 opt1 	  # ignored`: {"opt1"},
+		`	  options	 opt1	  `: {"opt1"},
+		`	  options	 opt1	  # ignored`: {"opt1"},
 		`options opt1 opt2 opt3`:           {"opt1", "opt2", "opt3"},
 		`options opt1 opt2 opt3 # ignored`: {"opt1", "opt2", "opt3"},
-		`	   options 	 opt1 	 opt2 	 opt3 	`: {"opt1", "opt2", "opt3"},
-		`	   options 	 opt1 	 opt2 	 opt3 	# ignored`: {"opt1", "opt2", "opt3"},
+		`	   options	 opt1	 opt2	 opt3	`: {"opt1", "opt2", "opt3"},
+		`	   options	 opt1	 opt2	 opt3	# ignored`: {"opt1", "opt2", "opt3"},
 		``:                   {},
 		`# ignored`:          {},
 		`nameserver 1.2.3.4`: {},

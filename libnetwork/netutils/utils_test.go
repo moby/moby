@@ -5,7 +5,9 @@ import (
 	"net"
 	"testing"
 
-	_ "github.com/docker/libnetwork/testutils"
+	"github.com/docker/libnetwork/ipamutils"
+	"github.com/docker/libnetwork/testutils"
+	"github.com/docker/libnetwork/types"
 	"github.com/vishvananda/netlink"
 )
 
@@ -208,5 +210,97 @@ func TestUtilGenerateRandomMAC(t *testing.T) {
 	// existing tests check string functionality so keeping the pattern
 	if mac1.String() == mac2.String() {
 		t.Fatalf("mac1 %s should not equal mac2 %s", mac1, mac2)
+	}
+}
+
+func TestNetworkRequest(t *testing.T) {
+	defer testutils.SetupTestOSContext(t)()
+	ipamutils.InitNetworks()
+
+	_, exp, err := net.ParseCIDR("172.17.0.0/16")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	nw, err := FindAvailableNetwork(ipamutils.PredefinedBroadNetworks)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !types.CompareIPNet(exp, nw) {
+		t.Fatalf("exected %s. got %s", exp, nw)
+	}
+
+	_, exp, err = net.ParseCIDR("10.0.0.0/24")
+	if err != nil {
+		t.Fatal(err)
+	}
+	nw, err = FindAvailableNetwork(ipamutils.PredefinedGranularNetworks)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !types.CompareIPNet(exp, nw) {
+		t.Fatalf("exected %s. got %s", exp, nw)
+	}
+
+	// Add iface and ssert returned address on request
+	createInterface(t, "test", "172.17.42.1/16")
+
+	_, exp, err = net.ParseCIDR("172.18.0.0/16")
+	if err != nil {
+		t.Fatal(err)
+	}
+	nw, err = FindAvailableNetwork(ipamutils.PredefinedBroadNetworks)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !types.CompareIPNet(exp, nw) {
+		t.Fatalf("exected %s. got %s", exp, nw)
+	}
+}
+
+func TestElectInterfaceAddress(t *testing.T) {
+	defer testutils.SetupTestOSContext(t)()
+	ipamutils.InitNetworks()
+
+	nws := "172.101.202.254/16"
+	createInterface(t, "test", nws)
+
+	ipv4Nw, ipv6Nw, err := ElectInterfaceAddresses("test")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if ipv4Nw == nil {
+		t.Fatalf("unexpected empty ipv4 network addresses")
+	}
+
+	if len(ipv6Nw) == 0 {
+		t.Fatalf("unexpected empty ipv4 network addresses")
+	}
+
+	if nws != ipv4Nw.String() {
+		t.Fatalf("expected %s. got %s", nws, ipv4Nw)
+	}
+}
+
+func createInterface(t *testing.T, name, nw string) {
+	// Add interface
+	link := &netlink.Bridge{
+		LinkAttrs: netlink.LinkAttrs{
+			Name: "test",
+		},
+	}
+	bip, err := types.ParseCIDR(nw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = netlink.LinkAdd(link); err != nil {
+		t.Fatalf("Failed to create interface via netlink: %v", err)
+	}
+	if err := netlink.AddrAdd(link, &netlink.Addr{IPNet: bip}); err != nil {
+		t.Fatal(err)
+	}
+	if err = netlink.LinkSetUp(link); err != nil {
+		t.Fatal(err)
 	}
 }

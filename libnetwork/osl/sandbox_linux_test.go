@@ -1,6 +1,9 @@
 package osl
 
 import (
+	"crypto/rand"
+	"encoding/hex"
+	"io"
 	"net"
 	"os"
 	"path/filepath"
@@ -9,7 +12,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/libnetwork/netutils"
 	"github.com/docker/libnetwork/testutils"
 	"github.com/docker/libnetwork/types"
 	"github.com/vishvananda/netlink"
@@ -25,8 +27,16 @@ const (
 	sboxIfaceName = "containername"
 )
 
+func generateRandomName(prefix string, size int) (string, error) {
+	id := make([]byte, 32)
+	if _, err := io.ReadFull(rand.Reader, id); err != nil {
+		return "", err
+	}
+	return prefix + hex.EncodeToString(id)[:size], nil
+}
+
 func newKey(t *testing.T) (string, error) {
-	name, err := netutils.GenerateRandomName("netns", 12)
+	name, err := generateRandomName("netns", 12)
 	if err != nil {
 		return "", err
 	}

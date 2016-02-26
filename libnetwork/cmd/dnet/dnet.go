@@ -29,8 +29,8 @@ import (
 	"github.com/docker/libnetwork/config"
 	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/driverapi"
-	"github.com/docker/libnetwork/ipamutils"
 	"github.com/docker/libnetwork/netlabel"
+	"github.com/docker/libnetwork/netutils"
 	"github.com/docker/libnetwork/options"
 	"github.com/docker/libnetwork/types"
 	"github.com/gorilla/mux"
@@ -429,7 +429,7 @@ func encodeData(data interface{}) (*bytes.Buffer, error) {
 }
 
 func ipamOption(bridgeName string) libnetwork.NetworkOption {
-	if nw, _, err := ipamutils.ElectInterfaceAddresses(bridgeName); err == nil {
+	if nw, _, err := netutils.ElectInterfaceAddresses(bridgeName); err == nil {
 		ipamV4Conf := &libnetwork.IpamConf{PreferredPool: nw.String()}
 		hip, _ := types.GetHostPartIP(nw.IP, nw.Mask)
 		if hip.IsGlobalUnicast() {

@@ -1,5 +1,4 @@
-// Package ipamutils provides utililty functions for ipam management
-package ipamutils
+package netutils
 
 import (
 	"net"
@@ -12,11 +11,11 @@ import (
 // it chooses from a predifined list the first IPv4 address which does not conflict
 // with other interfaces on the system.
 func ElectInterfaceAddresses(name string) (*net.IPNet, []*net.IPNet, error) {
-	return nil, nil, types.NotImplementedErrorf("not supported on freebsd")
+	return nil, nil, types.NotImplementedErrorf("not supported on windows")
 }
 
 // FindAvailableNetwork returns a network from the passed list which does not
 // overlap with existing interfaces in the system
 func FindAvailableNetwork(list []*net.IPNet) (*net.IPNet, error) {
-	return nil, types.NotImplementedErrorf("not supported on freebsd")
+	return nil, types.NotImplementedErrorf("not supported on windows")
 }
