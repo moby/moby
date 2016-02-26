@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/docker/libkv/store"
+	"github.com/docker/libkv/store/boltdb"
 	"github.com/docker/libnetwork/datastore"
 	_ "github.com/docker/libnetwork/testutils"
 )
@@ -15,6 +16,10 @@ import (
 const (
 	defaultPrefix = "/tmp/libnetwork/test/bitseq"
 )
+
+func init() {
+	boltdb.Register()
+}
 
 func randomLocalStore() (datastore.DataStore, error) {
 	tmp, err := ioutil.TempFile("", "libnetwork-")
