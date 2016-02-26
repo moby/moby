@@ -834,6 +834,42 @@
 			"args": []
 		},
 		{
+			"name": "personality",
+			"action": "SCMP_ACT_ALLOW",
+			"args": [
+				{
+					"index": 0,
+					"value": 0,
+					"valueTwo": 0,
+					"op": "SCMP_CMP_EQ"
+				}
+			]
+		},
+		{
+			"name": "personality",
+			"action": "SCMP_ACT_ALLOW",
+			"args": [
+				{
+					"index": 0,
+					"value": 8,
+					"valueTwo": 0,
+					"op": "SCMP_CMP_EQ"
+				}
+			]
+		},
+		{
+			"name": "personality",
+			"action": "SCMP_ACT_ALLOW",
+			"args": [
+				{
+					"index": 0,
+					"value": 4294967295,
+					"valueTwo": 0,
+					"op": "SCMP_CMP_EQ"
+				}
+			]
+		},
+		{
 			"name": "pipe",
 			"action": "SCMP_ACT_ALLOW",
 			"args": []
