@@ -238,32 +238,29 @@ func (d *Driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, hooks execd
 	// TODO Windows TP5 timeframe. Remove when TP4 is no longer supported.
 	// The following a workaround for Windows TP4 which has a networking
 	// bug which fairly frequently returns an error. Back off and retry.
-	maxAttempts := 1
-	if TP4RetryHack {
-		maxAttempts = 5
-	}
-	i := 0
-	for i < maxAttempts {
-		i++
+	maxAttempts := 5
+	for i := 0; i < maxAttempts; i++ {
 		err = hcsshim.CreateComputeSystem(c.ID, configuration)
-		if err != nil {
-			if TP4RetryHack {
-				if herr, ok := err.(*hcsshim.HcsError); ok {
-					if herr.Err != syscall.ERROR_NOT_FOUND && // Element not found
-						herr.Err != syscall.ERROR_FILE_NOT_FOUND && // The system cannot find the file specified
-						herr.Err != ErrorNoNetwork && // The network is not present or not started
-						herr.Err != ErrorBadPathname && // The specified path is invalid
-						herr.Err != CoEClassstring && // Invalid class string
-						herr.Err != ErrorInvalidObject { // The object identifier does not represent a valid object
-						logrus.Debugln("Failed to create temporary container ", err)
-						return execdriver.ExitStatus{ExitCode: -1}, err
-					}
-					logrus.Warnf("Invoking Windows TP4 retry hack (%d of %d)", i, maxAttempts-1)
-					time.Sleep(50 * time.Millisecond)
-				}
-			}
-		} else {
+		if err == nil {
 			break
+		}
+
+		if !TP4RetryHack {
+			return execdriver.ExitStatus{ExitCode: -1}, err
+		}
+
+		if herr, ok := err.(*hcsshim.HcsError); ok {
+			if herr.Err != syscall.ERROR_NOT_FOUND && // Element not found
+				herr.Err != syscall.ERROR_FILE_NOT_FOUND && // The system cannot find the file specified
+				herr.Err != ErrorNoNetwork && // The network is not present or not started
+				herr.Err != ErrorBadPathname && // The specified path is invalid
+				herr.Err != CoEClassstring && // Invalid class string
+				herr.Err != ErrorInvalidObject { // The object identifier does not represent a valid object
+				logrus.Debugln("Failed to create temporary container ", err)
+				return execdriver.ExitStatus{ExitCode: -1}, err
+			}
+			logrus.Warnf("Invoking Windows TP4 retry hack (%d of %d)", i, maxAttempts-1)
+			time.Sleep(50 * time.Millisecond)
 		}
 	}
 
