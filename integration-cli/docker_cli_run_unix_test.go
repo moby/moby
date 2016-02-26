@@ -909,3 +909,13 @@ func (s *DockerSuite) TestRunApparmorProcDirectory(c *check.C) {
 		c.Fatalf("expected chmod 777 /proc/1/attr/current to fail, got %s: %v", out, err)
 	}
 }
+
+// make sure the default profile can be successfully parsed (using unshare as it is
+// something which we know is blocked in the default profile)
+func (s *DockerSuite) TestRunSeccompWithDefaultProfile(c *check.C) {
+	testRequires(c, SameHostDaemon, seccompEnabled)
+
+	out, _, err := dockerCmdWithError("run", "--security-opt", "seccomp:../profiles/seccomp/default.json", "debian:jessie", "unshare", "--map-root-user", "--user", "sh", "-c", "whoami")
+	c.Assert(err, checker.NotNil, check.Commentf(out))
+	c.Assert(strings.TrimSpace(out), checker.Equals, "unshare: unshare failed: Operation not permitted")
+}
