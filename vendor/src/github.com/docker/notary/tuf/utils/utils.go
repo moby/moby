@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"crypto/sha512"
 	"crypto/tls"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"net/http"
@@ -59,6 +60,17 @@ func StrSliceContains(ss []string, s string) bool {
 		}
 	}
 	return false
+}
+
+// StrSliceRemove removes the the given string from the slice, returning a new slice
+func StrSliceRemove(ss []string, s string) []string {
+	res := []string{}
+	for _, v := range ss {
+		if v != s {
+			res = append(res, v)
+		}
+	}
+	return res
 }
 
 // StrSliceContainsI checks if the given string appears in the slice
@@ -145,4 +157,15 @@ func FindRoleIndex(rs []*data.Role, name string) int {
 		}
 	}
 	return -1
+}
+
+// ConsistentName generates the appropriate HTTP URL path for the role,
+// based on whether the repo is marked as consistent. The RemoteStore
+// is responsible for adding file extensions.
+func ConsistentName(role string, hashSha256 []byte) string {
+	if len(hashSha256) > 0 {
+		hash := hex.EncodeToString(hashSha256)
+		return fmt.Sprintf("%s.%s", role, hash)
+	}
+	return role
 }

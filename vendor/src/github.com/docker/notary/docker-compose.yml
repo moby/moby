@@ -1,27 +1,34 @@
-notaryserver:
+server:
   build: .
   dockerfile: server.Dockerfile
   links:
-   - notarymysql
-   - notarysigner
-  ports:
-   - "8080"
-   - "4443:4443"
+    - mysql
+    - signer
+    - signer:notarysigner
   environment:
-   - SERVICE_NAME=notary
-  command: -config=fixtures/server-config.json
-notarysigner:
-  volumes:
-   - /dev/bus/usb/003/010:/dev/bus/usb/002/010
-   - /var/run/pcscd/pcscd.comm:/var/run/pcscd/pcscd.comm
+    - SERVICE_NAME=notary_server
+  ports:
+    - "8080"
+    - "4443:4443"
+  entrypoint: /bin/bash
+  command: -c "./migrations/migrate.sh && notary-server -config=fixtures/server-config.json"
+signer:
   build: .
   dockerfile: signer.Dockerfile
   links:
-   - notarymysql
-  command: -config=fixtures/signer-config.json
-notarymysql:
+    - mysql
+  environment:
+    - SERVICE_NAME=notary_signer
+  entrypoint: /bin/bash
+  command: -c "./migrations/migrate.sh && notary-signer -config=fixtures/signer-config.json"
+mysql:
   volumes:
-    - notarymysql:/var/lib/mysql
-  build: ./notarymysql/
+    - ./notarymysql/docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d
+    - notary_data:/var/lib/mysql
+  image: mariadb:10.1.10
   ports:
     - "3306:3306"
+  environment:
+    - TERM=dumb
+    - MYSQL_ALLOW_EMPTY_PASSWORD="true"
+  command: mysqld --innodb_file_per_table

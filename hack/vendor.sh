@@ -52,10 +52,10 @@ clone git github.com/docker/distribution 7b66c50bb7e0e4b3b83f8fd134a9f6ea4be08b5
 clone git github.com/vbatts/tar-split v0.9.11
 
 # get desired notary commit, might also need to be updated in Dockerfile
-clone git github.com/docker/notary docker-v1.10-5
+clone git github.com/docker/notary v0.2.0
 
 clone git google.golang.org/grpc 174192fc93efcb188fc8f46ca447f0da606b6885 https://github.com/grpc/grpc-go.git
-clone git github.com/miekg/pkcs11 80f102b5cac759de406949c47f0928b99bd64cdf
+clone git github.com/miekg/pkcs11 df8ae6ca730422dba20c768ff38ef7d79077a59f
 clone git github.com/docker/go v1.5.1-1-1-gbaf439e
 clone git github.com/agl/ed25519 d2b94fd789ea21d12fac1a4443dd3a3f79cda72c
 

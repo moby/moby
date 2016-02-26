@@ -365,7 +365,7 @@ func (s *DockerTrustSuite) TestCreateWhenCertExpired(c *check.C) {
 
 func (s *DockerTrustSuite) TestTrustedCreateFromBadTrustServer(c *check.C) {
 	repoName := fmt.Sprintf("%v/dockerclievilcreate/trusted:latest", privateRegistryURL)
-	evilLocalConfigDir, err := ioutil.TempDir("", "evil-local-config-dir")
+	evilLocalConfigDir, err := ioutil.TempDir("", "evilcreate-local-config-dir")
 	c.Assert(err, check.IsNil)
 
 	// tag the image and upload it to the private registry
@@ -404,12 +404,16 @@ func (s *DockerTrustSuite) TestTrustedCreateFromBadTrustServer(c *check.C) {
 	c.Assert(err, check.IsNil)
 	c.Assert(string(out), checker.Contains, "Signing and pushing trust metadata", check.Commentf("Missing expected output on trusted push:\n%s", out))
 
-	// Now, try creating with the original client from this new trust server. This should fail.
+	// Now, try creating with the original client from this new trust server. This should fallback to our cached timestamp and metadata.
 	createCmd = exec.Command(dockerBinary, "create", repoName)
 	s.trustedCmd(createCmd)
 	out, _, err = runCommandWithOutput(createCmd)
-	c.Assert(err, check.Not(check.IsNil))
-	c.Assert(string(out), checker.Contains, "valid signatures did not meet threshold", check.Commentf("Missing expected output on trusted push:\n%s", out))
+	if err != nil {
+		c.Fatalf("Error falling back to cached trust data: %s\n%s", err, out)
+	}
+	if !strings.Contains(string(out), "Error while downloading remote metadata, using cached timestamp") {
+		c.Fatalf("Missing expected output on trusted create:\n%s", out)
+	}
 
 }
 
