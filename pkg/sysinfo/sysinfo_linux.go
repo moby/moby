@@ -50,8 +50,8 @@ func New(quiet bool) *SysInfo {
 	sysInfo.CgroupDevicesEnabled = ok
 
 	sysInfo.IPv4ForwardingDisabled = !readProcBool("/proc/sys/net/ipv4/ip_forward")
-	sysInfo.BridgeNfCallIptablesDisabled = !readProcBool("/proc/sys/net/bridge/bridge-nf-call-iptables")
-	sysInfo.BridgeNfCallIP6tablesDisabled = !readProcBool("/proc/sys/net/bridge/bridge-nf-call-ip6tables")
+	sysInfo.BridgeNFCallIPTablesDisabled = !readProcBool("/proc/sys/net/bridge/bridge-nf-call-iptables")
+	sysInfo.BridgeNFCallIP6TablesDisabled = !readProcBool("/proc/sys/net/bridge/bridge-nf-call-ip6tables")
 
 	// Check if AppArmor is supported.
 	if _, err := os.Stat("/sys/kernel/security/apparmor"); !os.IsNotExist(err) {
