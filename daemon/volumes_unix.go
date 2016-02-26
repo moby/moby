@@ -6,13 +6,34 @@ import (
 	"os"
 	"sort"
 	"strconv"
+	"syscall"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/volume"
 	volumedrivers "github.com/docker/docker/volume/drivers"
 	"github.com/docker/docker/volume/local"
 )
+
+// WIP: should not be global
+var cloned = false
+
+func (daemon *Daemon) enableSlaveMount() error {
+	if ! cloned {
+		logrus.Debugf("Creating a new namespace for the daemon itself, for enabling slave mount")
+		err := syscall.Unshare(syscall.CLONE_NEWNS)
+		if err != nil {
+			return err
+		}
+		cloned = true
+	}
+	err := syscall.Mount("", "/", "dontcare", syscall.MS_REC|syscall.MS_SLAVE, "")
+	if err != nil {
+		return err
+	}
+	return nil
+}
 
 // setupMounts iterates through each of the mount points for a container and
 // calls Setup() on each. It also looks to see if is a network mount such as

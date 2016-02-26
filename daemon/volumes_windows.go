@@ -11,6 +11,10 @@ import (
 	"github.com/docker/docker/volume"
 )
 
+func (daemon *Daemon) enableSlaveMount() error {
+	return nil
+}
+
 // setupMounts configures the mount points for a container by appending each
 // of the configured mounts on the container to the execdriver mount structure
 // which will ultimately be passed into the exec driver during container creation.

@@ -663,6 +663,10 @@ func NewDaemon(config *Config, registryService *registry.Service) (daemon *Daemo
 		}
 	}()
 
+	if err := d.enableSlaveMount(); err != nil {
+		return nil, err
+	}
+
 	// Verify logging driver type
 	if config.LogConfig.Type != "none" {
 		if _, err := logger.GetLogDriver(config.LogConfig.Type); err != nil {

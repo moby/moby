@@ -1079,6 +1079,11 @@ func (daemon *Daemon) mountVolumes(container *container.Container) error {
 		if err := mount.Mount(m.Source, dest, "bind", opts); err != nil {
 			return err
 		}
+
+		// WIP: why do we need this here? it should be called only once.
+		if err = daemon.enableSlaveMount(); err != nil {
+			return err
+		}
 	}
 
 	return nil
