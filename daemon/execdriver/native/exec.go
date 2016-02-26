@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"sync"
 	"syscall"
 
 	"github.com/docker/docker/daemon/execdriver"
@@ -52,12 +53,18 @@ func (d *Driver) Exec(c *execdriver.Command, processConfig *execdriver.ProcessCo
 	}
 
 	config := active.Config()
-	if err := setupPipes(&config, processConfig, p, pipes); err != nil {
+	wg := sync.WaitGroup{}
+	writers, err := setupPipes(&config, processConfig, p, pipes, &wg)
+	if err != nil {
 		return -1, err
 	}
 
 	if err := active.Start(p); err != nil {
 		return -1, err
+	}
+	//close the write end of any opened pipes now that they are dup'ed into the container
+	for _, writer := range writers {
+		writer.Close()
 	}
 
 	if hooks.Start != nil {
@@ -83,5 +90,7 @@ func (d *Driver) Exec(c *execdriver.Command, processConfig *execdriver.ProcessCo
 		}
 		ps = exitErr.ProcessState
 	}
+	// wait for all IO goroutine copiers to finish
+	wg.Wait()
 	return utils.ExitStatus(ps.Sys().(syscall.WaitStatus)), nil
 }
