@@ -39,6 +39,9 @@ const (
 	// OverlayNeighborIP constant represents overlay driver neighbor IP
 	OverlayNeighborIP = DriverPrefix + ".overlay.neighbor_ip"
 
+	// OverlayVxlanIDList constant represents a list of VXLAN Ids as csv
+	OverlayVxlanIDList = DriverPrefix + ".overlay.vxlanid_list"
+
 	// Gateway represents the gateway for the network
 	Gateway = Prefix + ".gateway"
 

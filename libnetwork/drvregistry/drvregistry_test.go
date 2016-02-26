@@ -73,7 +73,7 @@ func (m *mockDriver) RevokeExternalConnectivity(nid, eid string) error {
 	return nil
 }
 
-func (m *mockDriver) NetworkAllocate(id string, option map[string]interface{}, ipV4Data, ipV6Data []driverapi.IPAMData) (map[string]string, error) {
+func (m *mockDriver) NetworkAllocate(id string, option map[string]string, ipV4Data, ipV6Data []driverapi.IPAMData) (map[string]string, error) {
 	return nil, nil
 }
 
