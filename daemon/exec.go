@@ -137,7 +137,7 @@ func (d *Daemon) ContainerExecStart(name string, stdin io.ReadCloser, stdout io.
 
 	ec, err := d.getExecConfig(name)
 	if err != nil {
-		return derr.ErrorCodeNoExecID.WithArgs(name)
+		return err
 	}
 
 	ec.Lock()
@@ -193,6 +193,10 @@ func (d *Daemon) ContainerExecStart(name string, stdin io.ReadCloser, stdout io.
 
 	select {
 	case err := <-attachErr:
+		exerr, ok := <-execErr
+		if ok {
+			logrus.WithField("error", exerr).Error("----- exec fail also")
+		}
 		if err != nil {
 			return derr.ErrorCodeExecAttach.WithArgs(err)
 		}

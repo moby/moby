@@ -46,7 +46,6 @@ func (s *containerRouter) postContainerExecCreate(ctx context.Context, w http.Re
 	// Register an instance of Exec in container.
 	id, err := s.backend.ContainerExecCreate(execConfig)
 	if err != nil {
-		logrus.Errorf("Error setting up exec command in container %s: %s", name, utils.GetErrorMessage(err))
 		return err
 	}
 
@@ -110,10 +109,8 @@ func (s *containerRouter) postContainerExecStart(ctx context.Context, w http.Res
 
 	// Now run the user process in container.
 	if err := s.backend.ContainerExecStart(execName, stdin, stdout, stderr); err != nil {
-		if execStartCheck.Detach {
-			return err
-		}
 		logrus.Errorf("Error running exec in container: %v\n", utils.GetErrorMessage(err))
+		return err
 	}
 	return nil
 }

@@ -71,6 +71,7 @@ func (s *DockerSuite) TestExecAfterContainerRestart(c *check.C) {
 	out, _ := runSleepingContainer(c)
 	cleanedContainerID := strings.TrimSpace(out)
 	c.Assert(waitRun(cleanedContainerID), check.IsNil)
+	c.Log(cleanedContainerID)
 	dockerCmd(c, "restart", cleanedContainerID)
 	c.Assert(waitRun(cleanedContainerID), check.IsNil)
 
