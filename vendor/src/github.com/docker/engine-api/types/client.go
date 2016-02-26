@@ -141,6 +141,7 @@ type ImageBuildOptions struct {
 	Ulimits        []*units.Ulimit
 	BuildArgs      map[string]string
 	AuthConfigs    map[string]AuthConfig
+	Privileged	   bool
 	Context        io.Reader
 }
 

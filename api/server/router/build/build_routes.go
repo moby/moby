@@ -51,6 +51,7 @@ func newImageBuildOptions(ctx context.Context, r *http.Request) (*types.ImageBui
 	options.CPUSetMems = r.FormValue("cpusetmems")
 	options.CgroupParent = r.FormValue("cgroupparent")
 	options.Tags = r.Form["t"]
+	options.Privileged = httputils.BoolValue(r, "privileged")
 
 	if r.Form.Get("shmsize") != "" {
 		shmSize, err := strconv.ParseInt(r.Form.Get("shmsize"), 10, 64)
