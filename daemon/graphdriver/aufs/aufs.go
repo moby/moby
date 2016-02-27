@@ -66,7 +66,6 @@ func init() {
 type data struct {
 	referenceCount int
 	path           string
-	sync.Mutex
 }
 
 // Driver contains information about the filesystem mounted.
@@ -77,7 +76,7 @@ type Driver struct {
 	root       string
 	uidMaps    []idtools.IDMap
 	gidMaps    []idtools.IDMap
-	globalLock sync.Mutex // Protects concurrent modification to active
+	sync.Mutex // Protects concurrent modification to active
 	active     map[string]*data
 }
 
@@ -203,20 +202,7 @@ func (a *Driver) Exists(id string) bool {
 // Create three folders for each id
 // mnt, layers, and diff
 func (a *Driver) Create(id, parent, mountLabel string) error {
-	m := a.getActive(id)
-	m.Lock()
-
-	var err error
-	defer func() {
-		a.globalLock.Lock()
-		if err != nil {
-			delete(a.active, id)
-		}
-		a.globalLock.Unlock()
-		m.Unlock()
-	}()
-
-	if err = a.createDirsFor(id); err != nil {
+	if err := a.createDirsFor(id); err != nil {
 		return err
 	}
 	// Write the layers metadata
@@ -227,22 +213,23 @@ func (a *Driver) Create(id, parent, mountLabel string) error {
 	defer f.Close()
 
 	if parent != "" {
-		var ids []string
-		ids, err = getParentIds(a.rootPath(), parent)
+		ids, err := getParentIds(a.rootPath(), parent)
 		if err != nil {
 			return err
 		}
 
-		if _, err = fmt.Fprintln(f, parent); err != nil {
+		if _, err := fmt.Fprintln(f, parent); err != nil {
 			return err
 		}
 		for _, i := range ids {
-			if _, err = fmt.Fprintln(f, i); err != nil {
+			if _, err := fmt.Fprintln(f, i); err != nil {
 				return err
 			}
 		}
 	}
-
+	a.Lock()
+	a.active[id] = &data{}
+	a.Unlock()
 	return nil
 }
 
@@ -266,10 +253,11 @@ func (a *Driver) createDirsFor(id string) error {
 
 // Remove will unmount and remove the given id.
 func (a *Driver) Remove(id string) error {
-	m := a.getActive(id)
-	m.Lock()
-	defer m.Unlock()
+	// Protect the a.active from concurrent access
+	a.Lock()
+	defer a.Unlock()
 
+	m := a.active[id]
 	if m != nil {
 		if m.referenceCount > 0 {
 			return nil
@@ -300,9 +288,7 @@ func (a *Driver) Remove(id string) error {
 		return err
 	}
 	if m != nil {
-		a.globalLock.Lock()
 		delete(a.active, id)
-		a.globalLock.Unlock()
 	}
 	return nil
 }
@@ -310,35 +296,20 @@ func (a *Driver) Remove(id string) error {
 // Get returns the rootfs path for the id.
 // This will mount the dir at it's given path
 func (a *Driver) Get(id, mountLabel string) (string, error) {
-	m := a.getActive(id)
-	m.Lock()
-	defer m.Unlock()
+	// Protect the a.active from concurrent access
+	a.Lock()
+	defer a.Unlock()
+
+	m := a.active[id]
+	if m == nil {
+		m = &data{}
+		a.active[id] = m
+	}
 
 	parents, err := a.getParentLayerPaths(id)
 	if err != nil && !os.IsNotExist(err) {
 		return "", err
 	}
-
-	var parentLocks []*data
-	a.globalLock.Lock()
-	for _, p := range parents {
-		parentM, exists := a.active[p]
-		if !exists {
-			parentM = &data{}
-			a.active[p] = parentM
-		}
-		parentLocks = append(parentLocks, parentM)
-	}
-	a.globalLock.Unlock()
-
-	for _, l := range parentLocks {
-		l.Lock()
-	}
-	defer func() {
-		for _, l := range parentLocks {
-			l.Unlock()
-		}
-	}()
 
 	// If a dir does not have a parent ( no layers )do not try to mount
 	// just return the diff path to the data
@@ -355,24 +326,13 @@ func (a *Driver) Get(id, mountLabel string) (string, error) {
 	return m.path, nil
 }
 
-func (a *Driver) getActive(id string) *data {
-	// Protect the a.active from concurrent access
-	a.globalLock.Lock()
-	m, exists := a.active[id]
-	if !exists {
-		m = &data{}
-		a.active[id] = m
-	}
-	a.globalLock.Unlock()
-	return m
-}
-
 // Put unmounts and updates list of active mounts.
 func (a *Driver) Put(id string) error {
-	m := a.getActive(id)
-	m.Lock()
-	defer m.Unlock()
+	// Protect the a.active from concurrent access
+	a.Lock()
+	defer a.Unlock()
 
+	m := a.active[id]
 	if m == nil {
 		// but it might be still here
 		if a.Exists(id) {
@@ -384,7 +344,6 @@ func (a *Driver) Put(id string) error {
 		}
 		return nil
 	}
-
 	if count := m.referenceCount; count > 1 {
 		m.referenceCount = count - 1
 	} else {
@@ -393,6 +352,7 @@ func (a *Driver) Put(id string) error {
 		if ids != nil && len(ids) > 0 {
 			a.unmount(m)
 		}
+		delete(a.active, id)
 	}
 	return nil
 }
