@@ -288,9 +288,7 @@ func (a *Driver) Remove(id string) error {
 		return err
 	}
 	if m != nil {
-		a.Lock()
 		delete(a.active, id)
-		a.Unlock()
 	}
 	return nil
 }
