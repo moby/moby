@@ -34,8 +34,8 @@ func TestParseMountSpecPropagation(t *testing.T) {
 		"/hostPath:/containerPath:ro,Z,rprivate",
 	}
 	invalid = map[string]string{
-		"/path:/path:ro,rshared,rslave":   `invalid mode: "ro,rshared,rslave"`,
-		"/path:/path:ro,z,rshared,rslave": `invalid mode: "ro,z,rshared,rslave"`,
+		"/path:/path:ro,rshared,rslave":   `invalid mode: ro,rshared,rslave`,
+		"/path:/path:ro,z,rshared,rslave": `invalid mode: ro,z,rshared,rslave`,
 		"/path:shared":                    "Invalid volume specification",
 		"/path:slave":                     "Invalid volume specification",
 		"/path:private":                   "Invalid volume specification",

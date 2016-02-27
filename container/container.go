@@ -16,7 +16,6 @@ import (
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/logger/jsonfilelog"
 	"github.com/docker/docker/daemon/network"
-	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/promise"
@@ -199,7 +198,7 @@ func (container *Container) SetupWorkingDirectory() error {
 	if err := system.MkdirAll(pth, 0755); err != nil {
 		pthInfo, err2 := os.Stat(pth)
 		if err2 == nil && pthInfo != nil && !pthInfo.IsDir() {
-			return derr.ErrorCodeNotADir.WithArgs(container.Config.WorkingDir)
+			return fmt.Errorf("Cannot mkdir: %s is not a directory", container.Config.WorkingDir)
 		}
 
 		return err
@@ -277,13 +276,6 @@ func (container *Container) ConfigPath() (string, error) {
 	return container.GetRootResourcePath(configFileName)
 }
 
-func validateID(id string) error {
-	if id == "" {
-		return derr.ErrorCodeEmptyID
-	}
-	return nil
-}
-
 // Returns true if the container exposes a certain port
 func (container *Container) exposes(p nat.Port) bool {
 	_, exists := container.Config.ExposedPorts[p]
@@ -307,7 +299,7 @@ func (container *Container) GetLogConfig(defaultConfig containertypes.LogConfig)
 func (container *Container) StartLogger(cfg containertypes.LogConfig) (logger.Logger, error) {
 	c, err := logger.GetLogDriver(cfg.Type)
 	if err != nil {
-		return nil, derr.ErrorCodeLoggingFactory.WithArgs(err)
+		return nil, fmt.Errorf("Failed to get logging factory: %v", err)
 	}
 	ctx := logger.Context{
 		Config:              cfg.Config,

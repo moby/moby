@@ -10,7 +10,6 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/pkg/stdcopy"
-	"github.com/docker/docker/utils"
 	"github.com/docker/engine-api/types"
 	"golang.org/x/net/context"
 )
@@ -46,7 +45,7 @@ func (s *containerRouter) postContainerExecCreate(ctx context.Context, w http.Re
 	// Register an instance of Exec in container.
 	id, err := s.backend.ContainerExecCreate(execConfig)
 	if err != nil {
-		logrus.Errorf("Error setting up exec command in container %s: %s", name, utils.GetErrorMessage(err))
+		logrus.Errorf("Error setting up exec command in container %s: %v", name, err)
 		return err
 	}
 
@@ -113,7 +112,7 @@ func (s *containerRouter) postContainerExecStart(ctx context.Context, w http.Res
 		if execStartCheck.Detach {
 			return err
 		}
-		logrus.Errorf("Error running exec in container: %v\n", utils.GetErrorMessage(err))
+		logrus.Errorf("Error running exec in container: %v\n", err)
 	}
 	return nil
 }

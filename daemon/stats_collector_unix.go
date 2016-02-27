@@ -4,6 +4,7 @@ package daemon
 
 import (
 	"bufio"
+	"fmt"
 	"os"
 	"strconv"
 	"strings"
@@ -13,7 +14,6 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/execdriver"
-	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/pubsub"
 	"github.com/opencontainers/runc/libcontainer/system"
 )
@@ -163,13 +163,13 @@ func (s *statsCollector) getSystemCPUUsage() (uint64, error) {
 		switch parts[0] {
 		case "cpu":
 			if len(parts) < 8 {
-				return 0, derr.ErrorCodeBadCPUFields
+				return 0, fmt.Errorf("invalid number of cpu fields")
 			}
 			var totalClockTicks uint64
 			for _, i := range parts[1:8] {
 				v, err := strconv.ParseUint(i, 10, 64)
 				if err != nil {
-					return 0, derr.ErrorCodeBadCPUInt.WithArgs(i, err)
+					return 0, fmt.Errorf("Unable to convert value %s to int: %s", i, err)
 				}
 				totalClockTicks += v
 			}
@@ -177,5 +177,5 @@ func (s *statsCollector) getSystemCPUUsage() (uint64, error) {
 				s.clockTicksPerSecond, nil
 		}
 	}
-	return 0, derr.ErrorCodeBadStatFormat
+	return 0, fmt.Errorf("invalid stat format. Error trying to parse the '/proc/stat' file")
 }

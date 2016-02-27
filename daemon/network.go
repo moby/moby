@@ -3,9 +3,10 @@ package daemon
 import (
 	"fmt"
 	"net"
+	"net/http"
 	"strings"
 
-	derr "github.com/docker/docker/errors"
+	"github.com/docker/docker/errors"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/engine-api/types/network"
 	"github.com/docker/libnetwork"
@@ -191,7 +192,8 @@ func (daemon *Daemon) DeleteNetwork(networkID string) error {
 	}
 
 	if runconfig.IsPreDefinedNetwork(nw.Name()) {
-		return derr.ErrorCodeCantDeletePredefinedNetwork.WithArgs(nw.Name())
+		err := fmt.Errorf("%s is a pre-defined network and cannot be removed", nw.Name())
+		return errors.NewErrorWithStatusCode(err, http.StatusForbidden)
 	}
 
 	if err := nw.Delete(); err != nil {

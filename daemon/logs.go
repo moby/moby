@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"fmt"
 	"io"
 	"strconv"
 	"time"
@@ -10,7 +11,6 @@ import (
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/logger/jsonfilelog"
-	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/stdcopy"
 	timetypes "github.com/docker/engine-api/types/time"
@@ -21,11 +21,11 @@ import (
 func (daemon *Daemon) ContainerLogs(containerName string, config *backend.ContainerLogsConfig, started chan struct{}) error {
 	container, err := daemon.GetContainer(containerName)
 	if err != nil {
-		return derr.ErrorCodeNoSuchContainer.WithArgs(containerName)
+		return err
 	}
 
 	if !(config.ShowStdout || config.ShowStderr) {
-		return derr.ErrorCodeNeedStream
+		return fmt.Errorf("You must choose at least one stream")
 	}
 
 	cLog, err := daemon.getLogger(container)
@@ -122,7 +122,7 @@ func (daemon *Daemon) StartLogging(container *container.Container) error {
 	}
 	l, err := container.StartLogger(cfg)
 	if err != nil {
-		return derr.ErrorCodeInitLogger.WithArgs(err)
+		return fmt.Errorf("Failed to initialize logging driver: %v", err)
 	}
 
 	copier := logger.NewCopier(container.ID, map[string]io.Reader{"stdout": container.StdoutPipe(), "stderr": container.StderrPipe()}, l)

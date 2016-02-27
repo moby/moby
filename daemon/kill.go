@@ -8,7 +8,6 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/container"
-	derr "github.com/docker/docker/errors"
 	"github.com/docker/docker/pkg/signal"
 )
 
@@ -45,11 +44,11 @@ func (daemon *Daemon) killWithSignal(container *container.Container, sig int) er
 
 	// We could unpause the container for them rather than returning this error
 	if container.Paused {
-		return derr.ErrorCodeUnpauseContainer.WithArgs(container.ID)
+		return fmt.Errorf("Container %s is paused. Unpause the container before stopping", container.ID)
 	}
 
 	if !container.Running {
-		return derr.ErrorCodeNotRunning.WithArgs(container.ID)
+		return errNotRunning{container.ID}
 	}
 
 	container.ExitOnNext()
@@ -62,7 +61,7 @@ func (daemon *Daemon) killWithSignal(container *container.Container, sig int) er
 	}
 
 	if err := daemon.kill(container, sig); err != nil {
-		return derr.ErrorCodeCantKill.WithArgs(container.ID, err)
+		return fmt.Errorf("Cannot kill container %s: %s", container.ID, err)
 	}
 
 	attributes := map[string]string{
@@ -75,7 +74,7 @@ func (daemon *Daemon) killWithSignal(container *container.Container, sig int) er
 // Kill forcefully terminates a container.
 func (daemon *Daemon) Kill(container *container.Container) error {
 	if !container.IsRunning() {
-		return derr.ErrorCodeNotRunning.WithArgs(container.ID)
+		return errNotRunning{container.ID}
 	}
 
 	// 1. Send SIGKILL
