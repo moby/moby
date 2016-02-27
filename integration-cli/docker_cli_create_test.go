@@ -440,3 +440,11 @@ func (s *DockerSuite) TestCreateWithWorkdir(c *check.C) {
 	dockerCmd(c, "create", "--name", name, "-w", dir, "busybox")
 	dockerCmd(c, "cp", fmt.Sprintf("%s:%s", name, dir), prefix+slash+"tmp")
 }
+
+func (s *DockerSuite) TestCreateWithInvalidLogOpts(c *check.C) {
+	name := "test-invalidate-log-opts"
+	_, _, err := dockerCmdWithError("create", "--name", name, "--log-opt", "invalid=true")
+	c.Assert(err, checker.NotNil)
+	out, _ := dockerCmd(c, "ps", "-a")
+	c.Assert(out, checker.Not(checker.Contains), name)
+}
