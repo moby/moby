@@ -270,7 +270,7 @@ func (s DockerExternalVolumeSuite) TestExternalVolumeDriverVolumesFrom(c *check.
 	err := s.d.StartWithBusybox()
 	c.Assert(err, checker.IsNil)
 
-	out, err := s.d.Cmd("run", "-d", "--name", "vol-test1", "-v", "/foo", "--volume-driver", "test-external-volume-driver", "busybox:latest")
+	out, err := s.d.Cmd("run", "--name", "vol-test1", "-v", "/foo", "--volume-driver", "test-external-volume-driver", "busybox:latest")
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 
 	out, err = s.d.Cmd("run", "--rm", "--volumes-from", "vol-test1", "--name", "vol-test2", "busybox", "ls", "/tmp")
@@ -290,7 +290,7 @@ func (s DockerExternalVolumeSuite) TestExternalVolumeDriverDeleteContainer(c *ch
 	err := s.d.StartWithBusybox()
 	c.Assert(err, checker.IsNil)
 
-	out, err := s.d.Cmd("run", "-d", "--name", "vol-test1", "-v", "/foo", "--volume-driver", "test-external-volume-driver", "busybox:latest")
+	out, err := s.d.Cmd("run", "--name", "vol-test1", "-v", "/foo", "--volume-driver", "test-external-volume-driver", "busybox:latest")
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 
 	out, err = s.d.Cmd("rm", "-fv", "vol-test1")
