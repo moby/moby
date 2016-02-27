@@ -294,6 +294,7 @@ Create a container
              "GroupAdd": ["newgroup"],
              "RestartPolicy": { "Name": "", "MaximumRetryCount": 0 },
              "NetworkMode": "bridge",
+             "NetworkBandwidth": "8000",
              "Devices": [],
              "Ulimits": [{}],
              "LogConfig": { "Type": "json-file", "Config": {} },
@@ -407,6 +408,7 @@ Json Parameters:
     -   **NetworkMode** - Sets the networking mode for the container. Supported
           standard values are: `bridge`, `host`, `none`, and `container:<name|id>`. Any other value is taken
           as a custom network's name to which this container should connect to.
+    -   **NetworkBandwidth** - An integer value representing the maximum network egress in bytes per second.
     -   **Devices** - A list of devices to add to the container specified as a JSON object in the
       form
           `{ "PathOnHost": "/dev/deviceName", "PathInContainer": "/dev/deviceName", "CgroupPermissions": "mrw"}`
@@ -524,6 +526,7 @@ Return low-level information on the container `id`
 			"OomKillDisable": false,
 			"OomScoreAdj": 500,
 			"NetworkMode": "bridge",
+			"NetworkBandwidth": "8000",
 			"PortBindings": {},
 			"Privileged": false,
 			"ReadonlyRootfs": false,
