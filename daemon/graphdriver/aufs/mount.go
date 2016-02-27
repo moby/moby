@@ -12,7 +12,7 @@ import (
 // Unmount the target specified.
 func Unmount(target string) error {
 	if err := exec.Command("auplink", target, "flush").Run(); err != nil {
-		logrus.Errorf("Couldn't run auplink before unmount %s: %s", target, err)
+		logrus.Errorf("Couldn't run auplink before unmount: %s", err)
 	}
 	if err := syscall.Unmount(target, 0); err != nil {
 		return err
