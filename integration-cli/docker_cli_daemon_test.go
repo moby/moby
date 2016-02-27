@@ -972,6 +972,7 @@ func (s *DockerDaemonSuite) TestDaemonIP(c *check.C) {
 }
 
 func (s *DockerDaemonSuite) TestDaemonICCPing(c *check.C) {
+	testRequires(c, bridgeNfIptables)
 	d := s.d
 
 	bridgeName := "external-bridge"

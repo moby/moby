@@ -81,6 +81,18 @@ var (
 		},
 		"Test requires that seccomp support be enabled in the daemon.",
 	}
+	bridgeNfIptables = testRequirement{
+		func() bool {
+			return !SysInfo.BridgeNfCallIptablesDisabled
+		},
+		"Test requires that bridge-nf-call-iptables support be enabled in the daemon.",
+	}
+	bridgeNfIP6tables = testRequirement{
+		func() bool {
+			return !SysInfo.BridgeNfCallIP6tablesDisabled
+		},
+		"Test requires that bridge-nf-call-ip6tables support be enabled in the daemon.",
+	}
 )
 
 func init() {
