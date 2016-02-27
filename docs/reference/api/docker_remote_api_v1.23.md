@@ -3106,7 +3106,7 @@ Content-Type: application/json
 {
   "Container":"3613f73ba0e4",
   "EndpointConfig": {
-    "test_nw": {
+    "IPAMConfig": {
         "IPv4Address":"172.24.56.89",
         "IPv6Address":"2001:db8::5689"
     }
