@@ -11,7 +11,6 @@ weight = -82
 <![end-metadata]-->
 
 # Understand the architecture
-**What is Docker?**
 
 Docker is an open platform for developing, shipping, and running applications.
 Docker is designed to deliver your applications faster. With Docker you can
@@ -32,11 +31,11 @@ your hardware.
 Surrounding the container is tooling and a platform which can help you in
 several ways:
 
-* getting your applications (and supporting components) into Docker containers
-* distributing and shipping those containers to your teams for further development
+* Get your applications (and supporting components) into Docker containers
+* Distribute and ship those containers to your teams for further development
 and testing
-* deploying those applications to your production environment,
- whether it is in a local data center or the Cloud.
+* Deploy those applications to your production environment,
+ whether it is in a local data center or the Cloud
 
 ## What can I use Docker for?
 
@@ -75,7 +74,7 @@ out of the resources you have.
 Docker has two major components:
 
 
-* Docker: the open source containerization platform.
+* Docker Engine: the open source containerization platform.
 * [Docker Hub](https://hub.docker.com): our Software-as-a-Service
   platform for sharing and managing Docker containers.
 
@@ -103,11 +102,11 @@ interface to Docker. It accepts commands from the user and communicates back and
 forth with a Docker daemon.
 
 ### Inside Docker
-To understand Docker's internals, you need to know about three components:
+To understand Docker's internals, you need to know about three resources:
 
-* Docker images.
-* Docker registries.
-* Docker containers.
+* Docker images
+* Docker registries
+* Docker containers
 
 #### Docker images
 
@@ -124,6 +123,8 @@ upload or download images. The public Docker registry is provided with the
 images for your use. These can be images you create yourself or you can use
 images that others have previously created. Docker registries are the
 **distribution** component of Docker.
+For more information, go to [Docker Registry](https://docs.docker.com/registry/overview/) and
+[Docker Trusted Registry](https://docs.docker.com/docker-trusted-registry/overview/).
 
 #### Docker containers
 Docker containers are similar to a directory. A Docker container holds everything that
@@ -131,17 +132,6 @@ is needed for an application to run. Each container is created from a Docker
 image. Docker containers can be run, started, stopped, moved, and deleted. Each
 container is an isolated and secure application platform. Docker containers are the
  **run** component of Docker.
-
-## So how does Docker work?
-So far, we've learned that:
-
-1. You can build Docker images that hold your applications.
-2. You can create Docker containers from those Docker images to run your
-   applications.
-3. You can share those Docker images via
-   [Docker Hub](https://hub.docker.com) or your own registry.
-
-Let's look at how these elements combine together to make Docker work.
 
 ### How does a Docker image work?
 We've already seen that Docker images are read-only templates from which Docker
@@ -163,27 +153,27 @@ or `fedora`, a base Fedora image. You can also use images of your own as the
 basis for a new image, for example if you have a base Apache image you could use
 this as the base of all your web application images.
 
-> **Note:** Docker usually gets these base images from
-> [Docker Hub](https://hub.docker.com).
+> **Note:** [Docker Hub](https://hub.docker.com) is a public registry and stores
+images.
 
 Docker images are then built from these base images using a simple, descriptive
 set of steps we call *instructions*. Each instruction creates a new layer in our
 image. Instructions include actions like:
 
-* Run a command.
-* Add a file or directory.
-* Create an environment variable.
-* What process to run when launching a container from this image.
+* Run a command
+* Add a file or directory
+* Create an environment variable
+* What process to run when launching a container from this image
 
-These instructions are stored in a file called a `Dockerfile`. Docker reads this
-`Dockerfile` when you request a build of an image, executes the instructions, and
-returns a final image.
+These instructions are stored in a file called a `Dockerfile`. A `Dockerfile` is
+a text based script that contains instructions and commands for building the image
+from the base image. Docker reads this `Dockerfile` when you request a build of
+an image, executes the instructions, and returns a final image.
 
 ### How does a Docker registry work?
 The Docker registry is the store for your Docker images. Once you build a Docker
-image you can *push* it to a public registry such as the one provided by [Docker
-Hub](https://hub.docker.com) or to your own registry running behind your
-firewall.
+image you can *push* it to a public registry such as [Docker Hub](https://hub.docker.com)
+or to your own registry running behind your firewall.
 
 Using the Docker client, you can search for already published images and then
 pull them down to your Docker host to build containers from them.
@@ -209,25 +199,24 @@ daemon to run a container.
 
     $ docker run -i -t ubuntu /bin/bash
 
-Let's break down this command. The Docker client is launched using the `docker`
-binary with the `run` option telling it to launch a new container. The bare
-minimum the Docker client needs to tell the Docker daemon to run the container
-is:
+The Docker Engine client is launched using the `docker` binary with the `run` option
+running a new container. The bare minimum the Docker client needs to tell the
+Docker daemon to run the container is:
 
-* What Docker image to build the container from, here `ubuntu`, a base Ubuntu
-image;
+* What Docker image to build the container from, for example, `ubuntu`
 * The command you want to run inside the container when it is launched,
-here `/bin/bash`, to start the Bash shell inside the new container.
+for example,`/bin/bash`
 
 So what happens under the hood when we run this command?
 
-In order, Docker does the following:
+In order, Docker Engine does the following:
 
-- **Pulls the `ubuntu` image:** Docker checks for the presence of the `ubuntu`
-image and, if it doesn't exist locally on the host, then Docker downloads it from
-[Docker Hub](https://hub.docker.com). If the image already exists, then Docker
+- **Pulls the `ubuntu` image:** Docker Engine checks for the presence of the `ubuntu`
+image. If the image already exists, then Docker Engine uses it for the new container.
+If it doesn't exist locally on the host, then Docker Engine pulls it from
+[Docker Hub](https://hub.docker.com). If the image already exists, then Docker Engine
 uses it for the new container.
-- **Creates a new container:** Once Docker has the image, it uses it to create a
+- **Creates a new container:** Once Docker Engine has the image, it uses it to create a
 container.
 - **Allocates a filesystem and mounts a read-write _layer_:** The container is created in
 the file system and a read-write layer is added to the image.
@@ -238,7 +227,7 @@ Docker container to talk to the local host.
 - **Captures and provides application output:** Connects and logs standard input, outputs
 and errors for you to see how your application is running.
 
-You now have a running container! From here you can manage your container, interact with
+You now have a running container! Now you can manage your container, interact with
 your application and then, when finished, stop and remove your container.
 
 ## The underlying technology
@@ -253,40 +242,37 @@ creates a set of *namespaces* for that container.
 This provides a layer of isolation: each aspect of a container runs in its own
 namespace and does not have access outside it.
 
-Some of the namespaces that Docker uses on Linux are:
+Some of the namespaces that Docker Engine uses on Linux are:
 
- - **The `pid` namespace:** Used for process isolation (PID: Process ID).
- - **The `net` namespace:** Used for managing network interfaces (NET:
+ - **The `pid` namespace:** Process isolation (PID: Process ID).
+ - **The `net` namespace:** Managing network interfaces (NET:
  Networking).
- - **The `ipc` namespace:** Used for managing access to IPC
+ - **The `ipc` namespace:** Managing access to IPC
  resources (IPC: InterProcess Communication).
- - **The `mnt` namespace:** Used for managing mount-points (MNT: Mount).
- - **The `uts` namespace:** Used for isolating kernel and version identifiers. (UTS: Unix
+ - **The `mnt` namespace:** Managing mount-points (MNT: Mount).
+ - **The `uts` namespace:** Isolating kernel and version identifiers. (UTS: Unix
 Timesharing System).
 
 ### Control groups
-Docker on Linux also makes use of another technology called `cgroups` or control groups.
+Docker Engine on Linux also makes use of another technology called `cgroups` or control groups.
 A key to running applications in isolation is to have them only use the
 resources you want. This ensures containers are good multi-tenant citizens on a
-host. Control groups allow Docker to share available hardware resources to
+host. Control groups allow Docker Engine to share available hardware resources to
 containers and, if required, set up limits and constraints. For example,
 limiting the memory available to a specific container.
 
 ### Union file systems
 Union file systems, or UnionFS, are file systems that operate by creating layers,
-making them very lightweight and fast. Docker uses union file systems to provide
-the building blocks for containers. Docker can make use of several union file system variants
+making them very lightweight and fast. Docker Engine uses union file systems to provide
+the building blocks for containers. Docker Engine can make use of several union file system variants
 including: AUFS, btrfs, vfs, and DeviceMapper.
 
 ### Container format
-Docker combines these components into a wrapper we call a container format. The
+Docker Engine combines these components into a wrapper we call a container format. The
 default container format is called `libcontainer`. In the future, Docker may
 support other container formats, for example, by integrating with BSD Jails
 or Solaris Zones.
 
 ## Next steps
-### Installing Docker
-Visit the [installation section](installation/index.md#installation).
-
-### The Docker user guide
-[Learn Docker in depth](userguide/index.md).
+Read about [Installing Docker Engine](installation/index.md#installation).
+Learn about the [Docker Engine User Guide](userguide/index.md).
