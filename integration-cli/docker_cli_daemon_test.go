@@ -1278,22 +1278,15 @@ func (s *DockerDaemonSuite) TestDaemonLoggingDriverNoneOverride(c *check.C) {
 }
 
 func (s *DockerDaemonSuite) TestDaemonLoggingDriverNoneLogsError(c *check.C) {
-	if err := s.d.StartWithBusybox("--log-driver=none"); err != nil {
-		c.Fatal(err)
-	}
+	c.Assert(s.d.StartWithBusybox("--log-driver=none"), checker.IsNil)
 
-	out, err := s.d.Cmd("run", "-d", "busybox", "echo", "testline")
-	if err != nil {
-		c.Fatal(out, err)
-	}
-	id := strings.TrimSpace(out)
-	out, err = s.d.Cmd("logs", id)
-	if err == nil {
-		c.Fatalf("Logs should fail with 'none' driver")
-	}
-	if !strings.Contains(out, `"logs" command is supported only for "json-file" and "journald" logging drivers (got: none)`) {
-		c.Fatalf("There should be an error about none not being a recognized log driver, got: %s", out)
-	}
+	out, err := s.d.Cmd("run", "--name=test", "busybox", "echo", "testline")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
+
+	out, err = s.d.Cmd("logs", "test")
+	c.Assert(err, check.NotNil, check.Commentf("Logs should fail with 'none' driver"))
+	expected := `"logs" command is supported only for "json-file" and "journald" logging drivers (got: none)`
+	c.Assert(out, checker.Contains, expected)
 }
 
 func (s *DockerDaemonSuite) TestDaemonDots(c *check.C) {
