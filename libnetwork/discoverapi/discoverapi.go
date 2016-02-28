@@ -16,7 +16,7 @@ type DiscoveryType int
 const (
 	// NodeDiscovery represents Node join/leave events provided by discovery
 	NodeDiscovery = iota + 1
-	// DatastoreConfig represents a add/remove datastore event
+	// DatastoreConfig represents an add/remove datastore event
 	DatastoreConfig
 )
 
