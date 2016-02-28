@@ -72,7 +72,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithVolumesRefs(c *check.C) {
 		c.Fatal(err)
 	}
 
-	if out, err := s.d.Cmd("run", "-d", "--name", "volrestarttest1", "-v", "/foo", "busybox"); err != nil {
+	if out, err := s.d.Cmd("run", "--name", "volrestarttest1", "-v", "/foo", "busybox"); err != nil {
 		c.Fatal(err, out)
 	}
 
@@ -1156,15 +1156,11 @@ func (s *DockerDaemonSuite) TestDaemonLoggingDriverDefault(c *check.C) {
 		c.Fatal(err)
 	}
 
-	out, err := s.d.Cmd("run", "-d", "busybox", "echo", "testline")
-	if err != nil {
-		c.Fatal(out, err)
-	}
-	id := strings.TrimSpace(out)
+	out, err := s.d.Cmd("run", "--name=test", "busybox", "echo", "testline")
+	c.Assert(err, check.IsNil, check.Commentf(out))
+	id, err := s.d.getIDByName("test")
+	c.Assert(err, check.IsNil)
 
-	if out, err := s.d.Cmd("wait", id); err != nil {
-		c.Fatal(out, err)
-	}
 	logPath := filepath.Join(s.d.root, "containers", id, id+"-json.log")
 
 	if _, err := os.Stat(logPath); err != nil {
@@ -1198,15 +1194,13 @@ func (s *DockerDaemonSuite) TestDaemonLoggingDriverDefaultOverride(c *check.C) {
 		c.Fatal(err)
 	}
 
-	out, err := s.d.Cmd("run", "-d", "--log-driver=none", "busybox", "echo", "testline")
+	out, err := s.d.Cmd("run", "--name=test", "--log-driver=none", "busybox", "echo", "testline")
 	if err != nil {
 		c.Fatal(out, err)
 	}
-	id := strings.TrimSpace(out)
+	id, err := s.d.getIDByName("test")
+	c.Assert(err, check.IsNil)
 
-	if out, err := s.d.Cmd("wait", id); err != nil {
-		c.Fatal(out, err)
-	}
 	logPath := filepath.Join(s.d.root, "containers", id, id+"-json.log")
 
 	if _, err := os.Stat(logPath); err == nil || !os.IsNotExist(err) {
@@ -1219,14 +1213,12 @@ func (s *DockerDaemonSuite) TestDaemonLoggingDriverNone(c *check.C) {
 		c.Fatal(err)
 	}
 
-	out, err := s.d.Cmd("run", "-d", "busybox", "echo", "testline")
+	out, err := s.d.Cmd("run", "--name=test", "busybox", "echo", "testline")
 	if err != nil {
 		c.Fatal(out, err)
 	}
-	id := strings.TrimSpace(out)
-	if out, err := s.d.Cmd("wait", id); err != nil {
-		c.Fatal(out, err)
-	}
+	id, err := s.d.getIDByName("test")
+	c.Assert(err, check.IsNil)
 
 	logPath := filepath.Join(s.d.folder, "graph", "containers", id, id+"-json.log")
 
@@ -1240,15 +1232,13 @@ func (s *DockerDaemonSuite) TestDaemonLoggingDriverNoneOverride(c *check.C) {
 		c.Fatal(err)
 	}
 
-	out, err := s.d.Cmd("run", "-d", "--log-driver=json-file", "busybox", "echo", "testline")
+	out, err := s.d.Cmd("run", "--name=test", "--log-driver=json-file", "busybox", "echo", "testline")
 	if err != nil {
 		c.Fatal(out, err)
 	}
-	id := strings.TrimSpace(out)
+	id, err := s.d.getIDByName("test")
+	c.Assert(err, check.IsNil)
 
-	if out, err := s.d.Cmd("wait", id); err != nil {
-		c.Fatal(out, err)
-	}
 	logPath := filepath.Join(s.d.root, "containers", id, id+"-json.log")
 
 	if _, err := os.Stat(logPath); err != nil {
@@ -1568,7 +1558,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithSocketAsVolume(c *check.C) {
 
 	socket := filepath.Join(s.d.folder, "docker.sock")
 
-	out, err := s.d.Cmd("run", "-d", "--restart=always", "-v", socket+":/sock", "busybox")
+	out, err := s.d.Cmd("run", "--restart=always", "-v", socket+":/sock", "busybox")
 	c.Assert(err, check.IsNil, check.Commentf("Output: %s", out))
 	c.Assert(s.d.Restart(), check.IsNil)
 }

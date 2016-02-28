@@ -11,12 +11,11 @@ import (
 )
 
 func (s *DockerSuite) TestRestartStoppedContainer(c *check.C) {
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "echo", "foobar")
+	dockerCmd(c, "run", "--name=test", "busybox", "echo", "foobar")
+	cleanedContainerID, err := getIDByName("test")
+	c.Assert(err, check.IsNil)
 
-	cleanedContainerID := strings.TrimSpace(out)
-	dockerCmd(c, "wait", cleanedContainerID)
-
-	out, _ = dockerCmd(c, "logs", cleanedContainerID)
+	out, _ := dockerCmd(c, "logs", cleanedContainerID)
 	c.Assert(out, checker.Equals, "foobar\n")
 
 	dockerCmd(c, "restart", cleanedContainerID)
