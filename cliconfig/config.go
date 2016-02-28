@@ -32,7 +32,7 @@ var (
 func getDefaultConfigDir(confFile string) string {
 	confDir := filepath.Join(homedir.Get(), confFile)
 	// if the directory doesn't exist, maybe we called docker with sudo
-	if _, err := os.Stat(configDir); err != nil {
+	if _, err := os.Stat(confDir); err != nil {
 		if os.IsNotExist(err) {
 			return filepath.Join(homedir.GetWithSudoUser(), confFile)
 		}
