@@ -16,8 +16,10 @@ import (
 
 const (
 	// ConfigFileName is the name of config file
-	ConfigFileName = "config.json"
-	oldConfigfile  = ".dockercfg"
+	ConfigFileName   = "config.json"
+	defaultConfigDir = ".docker"
+
+	oldConfigfile = ".dockercfg"
 
 	// This constant is only used for really old config files when the
 	// URL wasn't saved as part of the config file and it was just
@@ -29,20 +31,15 @@ var (
 	configDir = os.Getenv("DOCKER_CONFIG")
 )
 
-func getDefaultConfigDir(confFile string) string {
-	confDir := filepath.Join(homedir.Get(), confFile)
-	// if the directory doesn't exist, maybe we called docker with sudo
-	if _, err := os.Stat(configDir); err != nil {
-		if os.IsNotExist(err) {
-			return filepath.Join(homedir.GetWithSudoUser(), confFile)
-		}
-	}
-	return confDir
-}
-
 func init() {
 	if configDir == "" {
-		configDir = getDefaultConfigDir(".docker")
+		configDir = filepath.Join(homedir.Get(), defaultConfigDir)
+		if _, err := os.Stat(configDir); err != nil {
+			// if the directory doesn't exist, maybe we called docker with sudo
+			if os.IsNotExist(err) {
+				configDir = filepath.Join(homedir.GetWithSudoUser(), defaultConfigDir)
+			}
+		}
 	}
 }
 
@@ -189,7 +186,15 @@ func Load(configDir string) (*ConfigFile, error) {
 	}
 
 	// Can't find latest config file so check for the old one
-	confFile := getDefaultConfigDir(oldConfigfile)
+	confFile := filepath.Join(homedir.Get(), oldConfigfile)
+	if _, err := os.Stat(confFile); err != nil {
+		if !os.IsNotExist(err) {
+			return &configFile, nil // same logic as stat below
+		}
+		// if the file doesn't exist, maybe we called docker with sudo
+		confFile = filepath.Join(homedir.GetWithSudoUser(), oldConfigfile)
+	}
+
 	if _, err := os.Stat(confFile); err != nil {
 		return &configFile, nil //missing file is not an error
 	}
