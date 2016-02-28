@@ -138,10 +138,9 @@ func (s *DockerSuite) TestLogsTail(c *check.C) {
 }
 
 func (s *DockerSuite) TestLogsFollowStopped(c *check.C) {
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "echo", "hello")
-
-	id := strings.TrimSpace(out)
-	dockerCmd(c, "wait", id)
+	dockerCmd(c, "run", "--name=test", "busybox", "echo", "hello")
+	id, err := getIDByName("test")
+	c.Assert(err, check.IsNil)
 
 	logsCmd := exec.Command(dockerBinary, "logs", "-f", id)
 	c.Assert(logsCmd.Start(), checker.IsNil)

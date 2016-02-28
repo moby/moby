@@ -12,7 +12,7 @@ import (
 
 func (s *DockerSuite) TestVolumesApiList(c *check.C) {
 	prefix, _ := getPrefixAndSlashFromDaemonPlatform()
-	dockerCmd(c, "run", "-d", "-v", prefix+"/foo", "busybox")
+	dockerCmd(c, "run", "-v", prefix+"/foo", "busybox")
 
 	status, b, err := sockRequest("GET", "/volumes", nil)
 	c.Assert(err, checker.IsNil)
