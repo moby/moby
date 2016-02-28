@@ -133,11 +133,11 @@ you should substitute your own values throughout the procedure.
 
 1. If it is running, stop the Docker `daemon`.
 
-1. Install `the software-properties-common` package.
+1. Install the `software-properties-common` package.
 
     This is required for the `add-apt-repository` command.
 
-        $ sudo apt-get install software-properties-common
+        $ sudo apt-get install -y software-properties-common
         Reading package lists... Done
         Building dependency tree
         <output truncated>
