@@ -199,17 +199,27 @@ func GetAll(imp string) ([]*Plugin, error) {
 		err error
 	}
 
-	chPl := make(chan plLoad, len(pluginNames))
+	chPl := make(chan *plLoad, len(pluginNames))
+	var wg sync.WaitGroup
 	for _, name := range pluginNames {
+		if pl, ok := storage.plugins[name]; ok {
+			chPl <- &plLoad{pl, nil}
+			continue
+		}
+
+		wg.Add(1)
 		go func(name string) {
+			defer wg.Done()
 			pl, err := loadWithRetry(name, false)
-			chPl <- plLoad{pl, err}
+			chPl <- &plLoad{pl, err}
 		}(name)
 	}
 
+	wg.Wait()
+	close(chPl)
+
 	var out []*Plugin
-	for i := 0; i < len(pluginNames); i++ {
-		pl := <-chPl
+	for pl := range chPl {
 		if pl.err != nil {
 			logrus.Error(err)
 			continue
