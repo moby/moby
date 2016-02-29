@@ -17,19 +17,17 @@ func Compare(a, b *container.Config) bool {
 		return false
 	}
 
-	if a.Cmd.Len() != b.Cmd.Len() ||
+	if len(a.Cmd) != len(b.Cmd) ||
 		len(a.Env) != len(b.Env) ||
 		len(a.Labels) != len(b.Labels) ||
 		len(a.ExposedPorts) != len(b.ExposedPorts) ||
-		a.Entrypoint.Len() != b.Entrypoint.Len() ||
+		len(a.Entrypoint) != len(b.Entrypoint) ||
 		len(a.Volumes) != len(b.Volumes) {
 		return false
 	}
 
-	aCmd := a.Cmd.Slice()
-	bCmd := b.Cmd.Slice()
-	for i := 0; i < len(aCmd); i++ {
-		if aCmd[i] != bCmd[i] {
+	for i := 0; i < len(a.Cmd); i++ {
+		if a.Cmd[i] != b.Cmd[i] {
 			return false
 		}
 	}
@@ -49,10 +47,8 @@ func Compare(a, b *container.Config) bool {
 		}
 	}
 
-	aEntrypoint := a.Entrypoint.Slice()
-	bEntrypoint := b.Entrypoint.Slice()
-	for i := 0; i < len(aEntrypoint); i++ {
-		if aEntrypoint[i] != bEntrypoint[i] {
+	for i := 0; i < len(a.Entrypoint); i++ {
+		if a.Entrypoint[i] != b.Entrypoint[i] {
 			return false
 		}
 	}

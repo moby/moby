@@ -190,11 +190,11 @@ func TestDecodeHostConfig(t *testing.T) {
 			t.Fatalf("Expected 1 bind, found %d\n", l)
 		}
 
-		if c.CapAdd.Len() != 1 && c.CapAdd.Slice()[0] != "NET_ADMIN" {
+		if len(c.CapAdd) != 1 && c.CapAdd[0] != "NET_ADMIN" {
 			t.Fatalf("Expected CapAdd NET_ADMIN, got %v", c.CapAdd)
 		}
 
-		if c.CapDrop.Len() != 1 && c.CapDrop.Slice()[0] != "NET_ADMIN" {
+		if len(c.CapDrop) != 1 && c.CapDrop[0] != "NET_ADMIN" {
 			t.Fatalf("Expected CapDrop MKNOD, got %v", c.CapDrop)
 		}
 	}

@@ -310,20 +310,20 @@ func run(b *Builder, args []string, attributes map[string]bool, original string)
 	}
 
 	config := &container.Config{
-		Cmd:   strslice.New(args...),
+		Cmd:   strslice.StrSlice(args),
 		Image: b.image,
 	}
 
 	// stash the cmd
 	cmd := b.runConfig.Cmd
-	if b.runConfig.Entrypoint.Len() == 0 && b.runConfig.Cmd.Len() == 0 {
+	if len(b.runConfig.Entrypoint) == 0 && len(b.runConfig.Cmd) == 0 {
 		b.runConfig.Cmd = config.Cmd
 	}
 
 	// stash the config environment
 	env := b.runConfig.Env
 
-	defer func(cmd *strslice.StrSlice) { b.runConfig.Cmd = cmd }(cmd)
+	defer func(cmd strslice.StrSlice) { b.runConfig.Cmd = cmd }(cmd)
 	defer func(env []string) { b.runConfig.Env = env }(env)
 
 	// derive the net build-time environment for this run. We let config
@@ -366,7 +366,7 @@ func run(b *Builder, args []string, attributes map[string]bool, original string)
 	if len(cmdBuildEnv) > 0 {
 		sort.Strings(cmdBuildEnv)
 		tmpEnv := append([]string{fmt.Sprintf("|%d", len(cmdBuildEnv))}, cmdBuildEnv...)
-		saveCmd = strslice.New(append(tmpEnv, saveCmd.Slice()...)...)
+		saveCmd = strslice.StrSlice(append(tmpEnv, saveCmd...))
 	}
 
 	b.runConfig.Cmd = saveCmd
@@ -424,7 +424,7 @@ func cmd(b *Builder, args []string, attributes map[string]bool, original string)
 		}
 	}
 
-	b.runConfig.Cmd = strslice.New(cmdSlice...)
+	b.runConfig.Cmd = strslice.StrSlice(cmdSlice)
 
 	if err := b.commit("", b.runConfig.Cmd, fmt.Sprintf("CMD %q", cmdSlice)); err != nil {
 		return err
@@ -455,16 +455,16 @@ func entrypoint(b *Builder, args []string, attributes map[string]bool, original 
 	switch {
 	case attributes["json"]:
 		// ENTRYPOINT ["echo", "hi"]
-		b.runConfig.Entrypoint = strslice.New(parsed...)
+		b.runConfig.Entrypoint = strslice.StrSlice(parsed)
 	case len(parsed) == 0:
 		// ENTRYPOINT []
 		b.runConfig.Entrypoint = nil
 	default:
 		// ENTRYPOINT echo hi
 		if runtime.GOOS != "windows" {
-			b.runConfig.Entrypoint = strslice.New("/bin/sh", "-c", parsed[0])
+			b.runConfig.Entrypoint = strslice.StrSlice{"/bin/sh", "-c", parsed[0]}
 		} else {
-			b.runConfig.Entrypoint = strslice.New("cmd", "/S", "/C", parsed[0])
+			b.runConfig.Entrypoint = strslice.StrSlice{"cmd", "/S", "/C", parsed[0]}
 		}
 	}
 

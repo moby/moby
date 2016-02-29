@@ -93,8 +93,8 @@ func (d *Daemon) ContainerExecCreate(config *types.ExecConfig) (string, error) {
 		return "", err
 	}
 
-	cmd := strslice.New(config.Cmd...)
-	entrypoint, args := d.getEntrypointAndArgs(strslice.New(), cmd)
+	cmd := strslice.StrSlice(config.Cmd)
+	entrypoint, args := d.getEntrypointAndArgs(strslice.StrSlice{}, cmd)
 
 	keys := []byte{}
 	if config.DetachKeys != "" {
