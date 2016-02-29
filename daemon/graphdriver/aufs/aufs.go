@@ -468,7 +468,11 @@ func (a *Driver) unmount(m *data) error {
 }
 
 func (a *Driver) mounted(m *data) (bool, error) {
-	return mountpk.Mounted(m.path)
+	var buf syscall.Statfs_t
+	if err := syscall.Statfs(m.path, &buf); err != nil {
+		return false, nil
+	}
+	return graphdriver.FsMagic(buf.Type) == graphdriver.FsMagicAufs, nil
 }
 
 // Cleanup aufs and unmount all mountpoints
