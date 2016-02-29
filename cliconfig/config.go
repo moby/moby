@@ -17,6 +17,7 @@ import (
 const (
 	// ConfigFileName is the name of config file
 	ConfigFileName = "config.json"
+	configFileDir  = ".docker"
 	oldConfigfile  = ".dockercfg"
 
 	// This constant is only used for really old config files when the
@@ -31,7 +32,7 @@ var (
 
 func init() {
 	if configDir == "" {
-		configDir = filepath.Join(homedir.Get(), ".docker")
+		configDir = filepath.Join(homedir.Get(), configFileDir)
 	}
 }
 
