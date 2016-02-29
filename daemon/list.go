@@ -226,8 +226,24 @@ func (daemon *Daemon) foldFilter(config *types.ContainerListOptions) (*listConte
 // includeContainerInList decides whether a containers should be include in the output or not based in the filter.
 // It also decides if the iteration should be stopped or not.
 func includeContainerInList(container *container.Container, ctx *listContext) iterationAction {
+	// Do not include container if it's in the list before the filter container.
+	// Set the filter container to nil to include the rest of containers after this one.
+	if ctx.beforeFilter != nil {
+		if container.ID == ctx.beforeFilter.ID {
+			ctx.beforeFilter = nil
+		}
+		return excludeContainer
+	}
+
+	// Stop iteration when the container arrives to the filter container
+	if ctx.sinceFilter != nil {
+		if container.ID == ctx.sinceFilter.ID {
+			return stopIteration
+		}
+	}
+
 	// Do not include container if it's stopped and we're not filters
-	// FIXME remove the ctx.beforContainer part of the condition for 1.12 as --since and --before are deprecated
+	// FIXME remove the ctx.beforContainer and ctx.sinceContainer part of the condition for 1.12 as --since and --before are deprecated
 	if !container.Running && !ctx.All && ctx.Limit <= 0 && ctx.beforeContainer == nil && ctx.sinceContainer == nil {
 		return excludeContainer
 	}
@@ -263,22 +279,6 @@ func includeContainerInList(container *container.Container, ctx *listContext) it
 	// FIXME remove this for 1.12 as --since and --before are deprecated
 	if ctx.sinceContainer != nil {
 		if container.ID == ctx.sinceContainer.ID {
-			return stopIteration
-		}
-	}
-
-	// Do not include container if it's in the list before the filter container.
-	// Set the filter container to nil to include the rest of containers after this one.
-	if ctx.beforeFilter != nil {
-		if container.ID == ctx.beforeFilter.ID {
-			ctx.beforeFilter = nil
-		}
-		return excludeContainer
-	}
-
-	// Stop iteration when the container arrives to the filter container
-	if ctx.sinceFilter != nil {
-		if container.ID == ctx.sinceFilter.ID {
 			return stopIteration
 		}
 	}
