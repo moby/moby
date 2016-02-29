@@ -339,11 +339,11 @@ func TestIpamReleaseOnNetDriverFailures(t *testing.T) {
 	// Test whether ipam state release is invoked  on network create failure from net driver
 	// by checking whether subsequent network creation requesting same gateway IP succeeds
 	ipamOpt := NetworkOptionIpam(ipamapi.DefaultIPAM, "", []*IpamConf{{PreferredPool: "10.34.0.0/16", Gateway: "10.34.255.254"}}, nil, nil)
-	if _, err := c.NewNetwork(badDriverName, "badnet1", ipamOpt); err == nil {
+	if _, err := c.NewNetwork(badDriverName, "badnet1", "", ipamOpt); err == nil {
 		t.Fatalf("bad network driver should have failed network creation")
 	}
 
-	gnw, err := c.NewNetwork("bridge", "goodnet1", ipamOpt)
+	gnw, err := c.NewNetwork("bridge", "goodnet1", "", ipamOpt)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -351,7 +351,7 @@ func TestIpamReleaseOnNetDriverFailures(t *testing.T) {
 
 	// Now check whether ipam release works on endpoint creation failure
 	bd.failNetworkCreation = false
-	bnw, err := c.NewNetwork(badDriverName, "badnet2", ipamOpt)
+	bnw, err := c.NewNetwork(badDriverName, "badnet2", "", ipamOpt)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -363,7 +363,7 @@ func TestIpamReleaseOnNetDriverFailures(t *testing.T) {
 
 	// Now create good bridge network with different gateway
 	ipamOpt2 := NetworkOptionIpam(ipamapi.DefaultIPAM, "", []*IpamConf{{PreferredPool: "10.34.0.0/16", Gateway: "10.34.255.253"}}, nil, nil)
-	gnw, err = c.NewNetwork("bridge", "goodnet2", ipamOpt2)
+	gnw, err = c.NewNetwork("bridge", "goodnet2", "", ipamOpt2)
 	if err != nil {
 		t.Fatal(err)
 	}

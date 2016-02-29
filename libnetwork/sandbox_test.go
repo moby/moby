@@ -38,7 +38,7 @@ func getTestEnv(t *testing.T) (NetworkController, Network, Network) {
 			"BridgeName": name1,
 		},
 	}
-	n1, err := c.NewNetwork(netType, name1, NetworkOptionGeneric(netOption1))
+	n1, err := c.NewNetwork(netType, name1, "", NetworkOptionGeneric(netOption1))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -49,7 +49,7 @@ func getTestEnv(t *testing.T) (NetworkController, Network, Network) {
 			"BridgeName": name2,
 		},
 	}
-	n2, err := c.NewNetwork(netType, name2, NetworkOptionGeneric(netOption2))
+	n2, err := c.NewNetwork(netType, name2, "", NetworkOptionGeneric(netOption2))
 	if err != nil {
 		t.Fatal(err)
 	}

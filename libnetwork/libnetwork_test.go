@@ -85,7 +85,7 @@ func createController() error {
 }
 
 func createTestNetwork(networkType, networkName string, netOption options.Generic, ipamV4Configs, ipamV6Configs []*libnetwork.IpamConf) (libnetwork.Network, error) {
-	return controller.NewNetwork(networkType, networkName,
+	return controller.NewNetwork(networkType, networkName, "",
 		libnetwork.NetworkOptionGeneric(netOption),
 		libnetwork.NetworkOptionIpam(ipamapi.DefaultIPAM, "", ipamV4Configs, ipamV6Configs, nil))
 }
@@ -333,7 +333,7 @@ func TestBridgeIpv6FromMac(t *testing.T) {
 	ipamV4ConfList := []*libnetwork.IpamConf{{PreferredPool: "192.168.100.0/24", Gateway: "192.168.100.1"}}
 	ipamV6ConfList := []*libnetwork.IpamConf{{PreferredPool: "fe90::/64", Gateway: "fe90::22"}}
 
-	network, err := controller.NewNetwork(bridgeNetType, "testipv6mac",
+	network, err := controller.NewNetwork(bridgeNetType, "testipv6mac", "",
 		libnetwork.NetworkOptionGeneric(netOption),
 		libnetwork.NetworkOptionEnableIPv6(true),
 		libnetwork.NetworkOptionIpam(ipamapi.DefaultIPAM, "", ipamV4ConfList, ipamV6ConfList, nil),
@@ -386,7 +386,7 @@ func TestUnknownDriver(t *testing.T) {
 }
 
 func TestNilRemoteDriver(t *testing.T) {
-	_, err := controller.NewNetwork("framerelay", "dummy",
+	_, err := controller.NewNetwork("framerelay", "dummy", "",
 		libnetwork.NetworkOptionGeneric(getEmptyGenericOption()))
 	if err == nil {
 		t.Fatal("Expected to fail. But instead succeeded")
@@ -1016,7 +1016,7 @@ func TestEndpointJoin(t *testing.T) {
 		},
 	}
 	ipamV6ConfList := []*libnetwork.IpamConf{{PreferredPool: "fe90::/64", Gateway: "fe90::22"}}
-	n1, err := controller.NewNetwork(bridgeNetType, "testnetwork1",
+	n1, err := controller.NewNetwork(bridgeNetType, "testnetwork1", "",
 		libnetwork.NetworkOptionGeneric(netOption),
 		libnetwork.NetworkOptionEnableIPv6(true),
 		libnetwork.NetworkOptionIpam(ipamapi.DefaultIPAM, "", nil, ipamV6ConfList, nil),
@@ -2046,7 +2046,7 @@ func TestInvalidRemoteDriver(t *testing.T) {
 	}
 	defer ctrlr.Stop()
 
-	_, err = ctrlr.NewNetwork("invalid-network-driver", "dummy",
+	_, err = ctrlr.NewNetwork("invalid-network-driver", "dummy", "",
 		libnetwork.NetworkOptionGeneric(getEmptyGenericOption()))
 	if err == nil {
 		t.Fatal("Expected to fail. But instead succeeded")
@@ -2095,7 +2095,7 @@ func TestValidRemoteDriver(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	n, err := controller.NewNetwork("valid-network-driver", "dummy",
+	n, err := controller.NewNetwork("valid-network-driver", "dummy", "",
 		libnetwork.NetworkOptionGeneric(getEmptyGenericOption()))
 	if err != nil {
 		// Only fail if we could not find the plugin driver
@@ -2357,7 +2357,7 @@ func TestParallel3(t *testing.T) {
 }
 
 func TestNullIpam(t *testing.T) {
-	_, err := controller.NewNetwork(bridgeNetType, "testnetworkinternal", libnetwork.NetworkOptionIpam(ipamapi.NullIPAM, "", nil, nil, nil))
+	_, err := controller.NewNetwork(bridgeNetType, "testnetworkinternal", "", libnetwork.NetworkOptionIpam(ipamapi.NullIPAM, "", nil, nil, nil))
 	if err == nil || err.Error() != "ipv4 pool is empty" {
 		t.Fatal("bridge network should complain empty pool")
 	}

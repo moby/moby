@@ -15,7 +15,7 @@ create network namespaces and allocate interfaces for containers to use.
 
 	// Create a network for containers to join.
 	// NewNetwork accepts Variadic optional arguments that libnetwork and Drivers can make use of
-	network, err := controller.NewNetwork(networkType, "network1")
+	network, err := controller.NewNetwork(networkType, "network1", "")
 	if err != nil {
 		return
 	}
@@ -76,7 +76,7 @@ type NetworkController interface {
 	Config() config.Config
 
 	// Create a new network. The options parameter carries network specific options.
-	NewNetwork(networkType, name string, options ...NetworkOption) (Network, error)
+	NewNetwork(networkType, name string, id string, options ...NetworkOption) (Network, error)
 
 	// Networks returns the list of Network(s) managed by this controller.
 	Networks() []Network
@@ -426,9 +426,13 @@ func (c *controller) RegisterDriver(networkType string, driver driverapi.Driver,
 
 // NewNetwork creates a new network of the specified network type. The options
 // are network specific and modeled in a generic way.
-func (c *controller) NewNetwork(networkType, name string, options ...NetworkOption) (Network, error) {
+func (c *controller) NewNetwork(networkType, name string, id string, options ...NetworkOption) (Network, error) {
 	if !config.IsValidName(name) {
 		return nil, ErrInvalidName(name)
+	}
+
+	if id == "" {
+		id = stringid.GenerateRandomID()
 	}
 
 	// Construct the network object
@@ -437,7 +441,7 @@ func (c *controller) NewNetwork(networkType, name string, options ...NetworkOpti
 		networkType: networkType,
 		generic:     map[string]interface{}{netlabel.GenericData: make(map[string]string)},
 		ipamType:    ipamapi.DefaultIPAM,
-		id:          stringid.GenerateRandomID(),
+		id:          id,
 		ctrlr:       c,
 		persist:     true,
 		drvOnce:     &sync.Once{},

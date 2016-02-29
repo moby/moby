@@ -98,7 +98,7 @@ func createTestNetwork(t *testing.T, network string) (libnetwork.NetworkControll
 		},
 	}
 	netGeneric := libnetwork.NetworkOptionGeneric(netOption)
-	nw, err := c.NewNetwork(bridgeNetType, network, netGeneric)
+	nw, err := c.NewNetwork(bridgeNetType, network, "", netGeneric)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -539,7 +539,7 @@ func TestProcGetServices(t *testing.T) {
 			"BridgeName": netName1,
 		},
 	}
-	nw1, err := c.NewNetwork(bridgeNetType, netName1, libnetwork.NetworkOptionGeneric(netOption))
+	nw1, err := c.NewNetwork(bridgeNetType, netName1, "", libnetwork.NetworkOptionGeneric(netOption))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -550,7 +550,7 @@ func TestProcGetServices(t *testing.T) {
 			"BridgeName": netName2,
 		},
 	}
-	nw2, err := c.NewNetwork(bridgeNetType, netName2, libnetwork.NetworkOptionGeneric(netOption))
+	nw2, err := c.NewNetwork(bridgeNetType, netName2, "", libnetwork.NetworkOptionGeneric(netOption))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1731,7 +1731,7 @@ func TestHttpHandlerUninit(t *testing.T) {
 		t.Fatalf("Expected empty list. Got %v", list)
 	}
 
-	n, err := c.NewNetwork(bridgeNetType, "didietro", nil)
+	n, err := c.NewNetwork(bridgeNetType, "didietro", "", nil)
 	if err != nil {
 		t.Fatal(err)
 	}

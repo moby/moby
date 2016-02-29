@@ -14,7 +14,7 @@ func (c *controller) createGWNetwork() (Network, error) {
 		bridge.EnableIPMasquerade: strconv.FormatBool(true),
 	}
 
-	n, err := c.NewNetwork("bridge", libnGWNetwork,
+	n, err := c.NewNetwork("bridge", libnGWNetwork, "",
 		NetworkOptionDriverOpts(netOption),
 		NetworkOptionEnableIPv6(false),
 	)
