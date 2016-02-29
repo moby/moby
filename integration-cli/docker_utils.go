@@ -474,7 +474,6 @@ func (d *Daemon) waitRun(contID string) error {
 }
 
 func (d *Daemon) getBaseDeviceSize(c *check.C) int64 {
-
 	infoCmdOutput, _, err := runCommandPipelineWithOutput(
 		exec.Command(dockerBinary, "-H", d.sock(), "info"),
 		exec.Command("grep", "Base Device Size"),
@@ -522,6 +521,23 @@ func (d *Daemon) CmdWithArgs(daemonArgs []string, name string, arg ...string) (s
 // LogFileName returns the path the the daemon's log file
 func (d *Daemon) LogFileName() string {
 	return d.logFile.Name()
+}
+
+func (d *Daemon) getIDByName(name string) (string, error) {
+	return d.inspectFieldWithError(name, "Id")
+}
+
+func (d *Daemon) inspectFilter(name, filter string) (string, error) {
+	format := fmt.Sprintf("{{%s}}", filter)
+	out, err := d.Cmd("inspect", "-f", format, name)
+	if err != nil {
+		return "", fmt.Errorf("failed to inspect %s: %s", name, out)
+	}
+	return strings.TrimSpace(out), nil
+}
+
+func (d *Daemon) inspectFieldWithError(name, field string) (string, error) {
+	return d.inspectFilter(name, fmt.Sprintf(".%s", field))
 }
 
 func daemonHost() string {

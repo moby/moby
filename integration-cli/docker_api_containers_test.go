@@ -230,7 +230,7 @@ func (s *DockerSuite) TestContainerApiStartVolumesFrom(c *check.C) {
 	volName := "voltst"
 	volPath := "/tmp"
 
-	dockerCmd(c, "run", "-d", "--name", volName, "-v", volPath, "busybox")
+	dockerCmd(c, "run", "--name", volName, "-v", volPath, "busybox")
 
 	name := "TestContainerApiStartVolumesFrom"
 	config := map[string]interface{}{
