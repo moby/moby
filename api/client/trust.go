@@ -375,34 +375,57 @@ func (cli *DockerCli) trustedPush(repoInfo *registry.RepositoryInfo, tag string,
 
 	defer responseBody.Close()
 
-	targets := []target{}
+	// If it is a trusted push we would like to find the target entry which match the
+	// tag provided in the function and then do an AddTarget later.
+	target := &client.Target{}
+	// Count the times of calling for handleTarget,
+	// if it is called more that once, that should be considered an error in a trusted push.
+	cnt := 0
 	handleTarget := func(aux *json.RawMessage) {
+		cnt++
+		if cnt > 1 {
+			// handleTarget should only be called one. This will be treated as an error.
+			return
+		}
+
 		var pushResult distribution.PushResult
 		err := json.Unmarshal(*aux, &pushResult)
 		if err == nil && pushResult.Tag != "" && pushResult.Digest.Validate() == nil {
-			targets = append(targets, target{
-				reference: registry.ParseReference(pushResult.Tag),
-				digest:    pushResult.Digest,
-				size:      int64(pushResult.Size),
-			})
+			h, err := hex.DecodeString(pushResult.Digest.Hex())
+			if err != nil {
+				target = nil
+				return
+			}
+			target.Name = registry.ParseReference(pushResult.Tag).String()
+			target.Hashes = data.Hashes{string(pushResult.Digest.Algorithm()): h}
+			target.Length = int64(pushResult.Size)
 		}
 	}
 
-	err = jsonmessage.DisplayJSONMessagesStream(responseBody, cli.out, cli.outFd, cli.isTerminalOut, handleTarget)
-	if err != nil {
+	// We want trust signatures to always take an explicit tag,
+	// otherwise it will act as an untrusted push.
+	if tag == "" {
+		if err = jsonmessage.DisplayJSONMessagesStream(responseBody, cli.out, cli.outFd, cli.isTerminalOut, nil); err != nil {
+			return err
+		}
+		fmt.Fprintln(cli.out, "No tag specified, skipping trust metadata push")
+		return nil
+	}
+
+	if err = jsonmessage.DisplayJSONMessagesStream(responseBody, cli.out, cli.outFd, cli.isTerminalOut, handleTarget); err != nil {
 		return err
 	}
 
-	if tag == "" {
-		fmt.Fprintf(cli.out, "No tag specified, skipping trust metadata push\n")
-		return nil
+	if cnt > 1 {
+		return fmt.Errorf("internal error: only one call to handleTarget expected")
 	}
-	if len(targets) == 0 {
-		fmt.Fprintf(cli.out, "No targets found, skipping trust metadata push\n")
+
+	if target == nil {
+		fmt.Fprintln(cli.out, "No targets found, please provide a specific tag in order to sign it")
 		return nil
 	}
 
-	fmt.Fprintf(cli.out, "Signing and pushing trust metadata\n")
+	fmt.Fprintln(cli.out, "Signing and pushing trust metadata")
 
 	repo, err := cli.getNotaryRepository(repoInfo, authConfig, "push", "pull")
 	if err != nil {
@@ -410,25 +433,16 @@ func (cli *DockerCli) trustedPush(repoInfo *registry.RepositoryInfo, tag string,
 		return err
 	}
 
-	for _, target := range targets {
-		h, err := hex.DecodeString(target.digest.Hex())
-		if err != nil {
-			return err
-		}
-		t := &client.Target{
-			Name: target.reference.String(),
-			Hashes: data.Hashes{
-				string(target.digest.Algorithm()): h,
-			},
-			Length: int64(target.size),
-		}
-		if err := repo.AddTarget(t, releasesRole); err != nil {
-			return err
-		}
+	if err := repo.AddTarget(target, releasesRole); err != nil {
+		return err
 	}
 
 	err = repo.Publish()
-	if _, ok := err.(client.ErrRepoNotInitialized); !ok {
+	if err == nil {
+		fmt.Fprintf(cli.out, "Successfully signed %q:%s\n", repoInfo.FullName(), tag)
+		return nil
+	} else if _, ok := err.(client.ErrRepoNotInitialized); !ok {
+		fmt.Fprintf(cli.out, "Failed to sign %q:%s - %s\n", repoInfo.FullName(), tag, err.Error())
 		return notaryError(repoInfo.FullName(), err)
 	}
 
