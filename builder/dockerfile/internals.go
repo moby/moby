@@ -37,7 +37,7 @@ import (
 	"github.com/docker/engine-api/types/strslice"
 )
 
-func (b *Builder) commit(id string, autoCmd *strslice.StrSlice, comment string) error {
+func (b *Builder) commit(id string, autoCmd strslice.StrSlice, comment string) error {
 	if b.disableCommit {
 		return nil
 	}
@@ -48,11 +48,11 @@ func (b *Builder) commit(id string, autoCmd *strslice.StrSlice, comment string) 
 	if id == "" {
 		cmd := b.runConfig.Cmd
 		if runtime.GOOS != "windows" {
-			b.runConfig.Cmd = strslice.New("/bin/sh", "-c", "#(nop) "+comment)
+			b.runConfig.Cmd = strslice.StrSlice{"/bin/sh", "-c", "#(nop) " + comment}
 		} else {
-			b.runConfig.Cmd = strslice.New("cmd", "/S /C", "REM (nop) "+comment)
+			b.runConfig.Cmd = strslice.StrSlice{"cmd", "/S /C", "REM (nop) " + comment}
 		}
-		defer func(cmd *strslice.StrSlice) { b.runConfig.Cmd = cmd }(cmd)
+		defer func(cmd strslice.StrSlice) { b.runConfig.Cmd = cmd }(cmd)
 
 		hit, err := b.probeCache()
 		if err != nil {
@@ -171,11 +171,11 @@ func (b *Builder) runContextCommand(args []string, allowRemote bool, allowLocalD
 
 	cmd := b.runConfig.Cmd
 	if runtime.GOOS != "windows" {
-		b.runConfig.Cmd = strslice.New("/bin/sh", "-c", fmt.Sprintf("#(nop) %s %s in %s", cmdName, srcHash, dest))
+		b.runConfig.Cmd = strslice.StrSlice{"/bin/sh", "-c", fmt.Sprintf("#(nop) %s %s in %s", cmdName, srcHash, dest)}
 	} else {
-		b.runConfig.Cmd = strslice.New("cmd", "/S", "/C", fmt.Sprintf("REM (nop) %s %s in %s", cmdName, srcHash, dest))
+		b.runConfig.Cmd = strslice.StrSlice{"cmd", "/S", "/C", fmt.Sprintf("REM (nop) %s %s in %s", cmdName, srcHash, dest)}
 	}
-	defer func(cmd *strslice.StrSlice) { b.runConfig.Cmd = cmd }(cmd)
+	defer func(cmd strslice.StrSlice) { b.runConfig.Cmd = cmd }(cmd)
 
 	if hit, err := b.probeCache(); err != nil {
 		return err
@@ -527,9 +527,9 @@ func (b *Builder) create() (string, error) {
 	b.tmpContainers[c.ID] = struct{}{}
 	fmt.Fprintf(b.Stdout, " ---> Running in %s\n", stringid.TruncateID(c.ID))
 
-	if config.Cmd.Len() > 0 {
+	if len(config.Cmd) > 0 {
 		// override the entry point that may have been picked up from the base image
-		if err := b.docker.ContainerUpdateCmdOnBuild(c.ID, config.Cmd.Slice()); err != nil {
+		if err := b.docker.ContainerUpdateCmdOnBuild(c.ID, config.Cmd); err != nil {
 			return "", err
 		}
 	}
@@ -567,7 +567,7 @@ func (b *Builder) run(cID string) (err error) {
 	if ret, _ := b.docker.ContainerWait(cID, -1); ret != 0 {
 		// TODO: change error type, because jsonmessage.JSONError assumes HTTP
 		return &jsonmessage.JSONError{
-			Message: fmt.Sprintf("The command '%s' returned a non-zero code: %d", b.runConfig.Cmd.ToString(), ret),
+			Message: fmt.Sprintf("The command '%s' returned a non-zero code: %d", strings.Join(b.runConfig.Cmd, " "), ret),
 			Code:    ret,
 		}
 	}

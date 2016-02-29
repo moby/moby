@@ -532,7 +532,7 @@ func (s *DockerSuite) TestContainerApiCommit(c *check.C) {
 	c.Assert(json.Unmarshal(b, &img), checker.IsNil)
 
 	cmd := inspectField(c, img.ID, "Config.Cmd")
-	c.Assert(cmd, checker.Equals, "{[/bin/sh -c touch /test]}", check.Commentf("got wrong Cmd from commit: %q", cmd))
+	c.Assert(cmd, checker.Equals, "[/bin/sh -c touch /test]", check.Commentf("got wrong Cmd from commit: %q", cmd))
 
 	// sanity check, make sure the image is what we think it is
 	dockerCmd(c, "run", img.ID, "ls", "/test")
@@ -564,7 +564,7 @@ func (s *DockerSuite) TestContainerApiCommitWithLabelInConfig(c *check.C) {
 	c.Assert(label2, checker.Equals, "value2")
 
 	cmd := inspectField(c, img.ID, "Config.Cmd")
-	c.Assert(cmd, checker.Equals, "{[/bin/sh -c touch /test]}", check.Commentf("got wrong Cmd from commit: %q", cmd))
+	c.Assert(cmd, checker.Equals, "[/bin/sh -c touch /test]", check.Commentf("got wrong Cmd from commit: %q", cmd))
 
 	// sanity check, make sure the image is what we think it is
 	dockerCmd(c, "run", img.ID, "ls", "/test")
