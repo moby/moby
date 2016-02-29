@@ -18,7 +18,7 @@ import (
 	"syscall"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/pkg/fileutils"
+	"github.com/docker/docker/builder/dockerignore"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/pools"
@@ -477,12 +477,6 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 	// on platforms other than Windows.
 	srcPath = fixVolumePathPrefix(srcPath)
 
-	patterns, patDirs, exceptions, err := fileutils.CleanPatterns(options.ExcludePatterns)
-
-	if err != nil {
-		return nil, err
-	}
-
 	pipeReader, pipeWriter := io.Pipe()
 
 	compressWriter, err := CompressStream(pipeWriter, options.Compression)
@@ -545,11 +539,18 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 
 		seen := make(map[string]bool)
 
+		excluder, err := dockerignore.NewExcluder(srcPath, options.ExcludePatterns)
+		if err != nil {
+			logrus.Warnf("Tar: Unable to parse exclude patterns. %s", err)
+			return
+		}
+
 		for _, include := range options.IncludeFiles {
 			rebaseName := options.RebaseNames[include]
 
 			walkRoot := getWalkRoot(srcPath, include)
-			filepath.Walk(walkRoot, func(filePath string, f os.FileInfo, err error) error {
+
+			walkFn := func(filePath string, f os.FileInfo, err error) error {
 				if err != nil {
 					logrus.Debugf("Tar: Can't stat file %s to tar: %s", srcPath, err)
 					return nil
@@ -564,28 +565,6 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 
 				if options.IncludeSourceDir && include == "." && relFilePath != "." {
 					relFilePath = strings.Join([]string{".", relFilePath}, string(filepath.Separator))
-				}
-
-				skip := false
-
-				// If "include" is an exact match for the current file
-				// then even if there's an "excludePatterns" pattern that
-				// matches it, don't skip it. IOW, assume an explicit 'include'
-				// is asking for that file no matter what - which is true
-				// for some files, like .dockerignore and Dockerfile (sometimes)
-				if include != relFilePath {
-					skip, err = fileutils.OptimizedMatches(relFilePath, patterns, patDirs)
-					if err != nil {
-						logrus.Debugf("Error matching %s: %v", relFilePath, err)
-						return err
-					}
-				}
-
-				if skip {
-					if !exceptions && f.IsDir() {
-						return filepath.SkipDir
-					}
-					return nil
 				}
 
 				if seen[relFilePath] {
@@ -610,7 +589,15 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 					logrus.Debugf("Can't add file %s to tar: %s", filePath, err)
 				}
 				return nil
-			})
+			}
+
+			// Exclude ignored files.
+			walkFn = excluder.Wrap(walkFn)
+			err := filepath.Walk(walkRoot, walkFn)
+			if err != nil {
+				logrus.Warnf("Tar: encountered error in filepath.Walk: %s", err)
+				return
+			}
 		}
 	}()
 
