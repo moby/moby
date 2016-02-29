@@ -2331,7 +2331,7 @@ Status Codes:
 -   **409** - container is paused
 
     **Stream details**:
-    Similar to the stream behavior of `POST /container/(id)/attach` API
+    Similar to the stream behavior of `POST /containers/(id or name)/attach` API
 
 ### Exec Resize
 
