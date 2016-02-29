@@ -78,9 +78,6 @@ For example:
 Instructs Docker to use the configuration files in your `~/testconfigs/`
 directory when running the `ps` command.
 
-> **Note**: If you run docker commands with `sudo`, Docker first looks for a configuration
-> file in `/root/.docker/`, before looking in `~/.docker/` for the user that did the sudo call.
-
 Docker manages most of the files in the configuration directory
 and you should not modify them. However, you *can modify* the
 `config.json` file to control certain aspects of how the `docker`

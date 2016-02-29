@@ -17,6 +17,7 @@ import (
 const (
 	// ConfigFileName is the name of config file
 	ConfigFileName = "config.json"
+	configFileDir  = ".docker"
 	oldConfigfile  = ".dockercfg"
 
 	// This constant is only used for really old config files when the
@@ -29,20 +30,9 @@ var (
 	configDir = os.Getenv("DOCKER_CONFIG")
 )
 
-func getDefaultConfigDir(confFile string) string {
-	confDir := filepath.Join(homedir.Get(), confFile)
-	// if the directory doesn't exist, maybe we called docker with sudo
-	if _, err := os.Stat(confDir); err != nil {
-		if os.IsNotExist(err) {
-			return filepath.Join(homedir.GetWithSudoUser(), confFile)
-		}
-	}
-	return confDir
-}
-
 func init() {
 	if configDir == "" {
-		configDir = getDefaultConfigDir(".docker")
+		configDir = filepath.Join(homedir.Get(), configFileDir)
 	}
 }
 
@@ -189,7 +179,7 @@ func Load(configDir string) (*ConfigFile, error) {
 	}
 
 	// Can't find latest config file so check for the old one
-	confFile := getDefaultConfigDir(oldConfigfile)
+	confFile := filepath.Join(homedir.Get(), oldConfigfile)
 	if _, err := os.Stat(confFile); err != nil {
 		return &configFile, nil //missing file is not an error
 	}
