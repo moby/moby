@@ -15,9 +15,38 @@ func (n NetworkMode) IsNone() bool {
 	return n == "none"
 }
 
+// IsContainer indicates whether container uses a container network stack.
+// Returns false as windows doesn't support this mode
+func (n NetworkMode) IsContainer() bool {
+	return false
+}
+
+// IsBridge indicates whether container uses the bridge network stack
+// in windows it is given the name NAT
+func (n NetworkMode) IsBridge() bool {
+	return n == "nat"
+}
+
+// IsHost indicates whether container uses the host network stack.
+// returns false as this is not supported by windows
+func (n NetworkMode) IsHost() bool {
+	return false
+}
+
+// IsPrivate indicates whether container uses it's private network stack.
+func (n NetworkMode) IsPrivate() bool {
+	return !(n.IsHost() || n.IsContainer())
+}
+
+// ConnectedContainer is the id of the container which network this container is connected to.
+// Returns blank string on windows
+func (n NetworkMode) ConnectedContainer() string {
+	return ""
+}
+
 // IsUserDefined indicates user-created network
 func (n NetworkMode) IsUserDefined() bool {
-	return !n.IsDefault() && !n.IsNone()
+	return !n.IsDefault() && !n.IsNone() && !n.IsBridge()
 }
 
 // IsHyperV indicates the use of a Hyper-V partition for isolation
@@ -35,34 +64,19 @@ func (i Isolation) IsValid() bool {
 	return i.IsDefault() || i.IsHyperV() || i.IsProcess()
 }
 
-// DefaultDaemonNetworkMode returns the default network stack the daemon should
-// use.
-func DefaultDaemonNetworkMode() NetworkMode {
-	return NetworkMode("default")
-}
-
 // NetworkName returns the name of the network stack.
 func (n NetworkMode) NetworkName() string {
 	if n.IsDefault() {
 		return "default"
+	} else if n.IsBridge() {
+		return "nat"
+	} else if n.IsNone() {
+		return "none"
+	} else if n.IsUserDefined() {
+		return n.UserDefined()
 	}
-	return ""
-}
 
-// ValidateNetMode ensures that the various combinations of requested
-// network settings are valid.
-func ValidateNetMode(c *Config, hc *HostConfig) error {
-	// We may not be passed a host config, such as in the case of docker commit
-	if hc == nil {
-		return nil
-	}
-	parts := strings.Split(string(hc.NetworkMode), ":")
-	switch mode := parts[0]; mode {
-	case "default", "none":
-	default:
-		return fmt.Errorf("invalid --net: %s", hc.NetworkMode)
-	}
-	return nil
+	return ""
 }
 
 // ValidateIsolationperforms platform specific validation of the
@@ -77,4 +91,12 @@ func ValidateIsolation(hc *HostConfig) error {
 		return fmt.Errorf("invalid --isolation: %q. Windows supports 'default', 'process', or 'hyperv'", hc.Isolation)
 	}
 	return nil
+}
+
+//UserDefined indicates user-created network
+func (n NetworkMode) UserDefined() string {
+	if n.IsUserDefined() {
+		return string(n)
+	}
+	return ""
 }
