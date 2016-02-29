@@ -34,6 +34,7 @@ import (
 	"github.com/docker/docker/pkg/pidfile"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/system"
+	"github.com/docker/docker/pkg/x509"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/utils"
 	"github.com/docker/go-connections/tlsconfig"
@@ -157,6 +158,27 @@ func (cli *DaemonCli) CmdDaemon(args ...string) error {
 	configFile := cli.flags.String([]string{daemonConfigFileFlag}, defaultDaemonConfigFile, "Daemon configuration file")
 
 	cli.flags.ParseFlags(args, true)
+
+	cmd := commonFlags.FlagSet
+	defaultTLSVerify := commonFlags.UsingTCPSocket() && !(cmd.IsSet("-"+tlsVerifyKey) || commonFlags.TLSVerify) && !cli.flags.IsSet("-no-default-tlsverify")
+
+	if defaultTLSVerify {
+		commonFlags.TLSVerify = true
+		if _, err := os.Stat(commonFlags.TLSOptions.CAFile); os.IsNotExist(err) {
+			caCertPath := filepath.Join(dockerCertPath, defaultCaFile)
+			caKeyPath := filepath.Join(dockerCertPath, "ca-key.pem")
+			x509.GenerateDefaultCA(caCertPath, caKeyPath)
+		}
+		if _, err := os.Stat(commonFlags.TLSOptions.CertFile); os.IsNotExist(err) {
+			if _, err := os.Stat(commonFlags.TLSOptions.KeyFile); os.IsNotExist(err) {
+				caPath := filepath.Join(dockerCertPath, defaultCaFile)
+				certPath := filepath.Join(dockerCertPath, defaultCertFile)
+				keyPath := filepath.Join(dockerCertPath, defaultKeyFile)
+				x509.GenerateDefaultKeys(certPath, keyPath, caPath)
+			}
+		}
+	}
+
 	commonFlags.PostParse()
 
 	if commonFlags.TrustKey == "" {

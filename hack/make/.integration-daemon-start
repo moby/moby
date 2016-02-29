@@ -47,6 +47,7 @@ if [ -z "$DOCKER_TEST_HOST" ]; then
 	( set -x; exec \
 		docker daemon --debug \
 		--host "$DOCKER_HOST" \
+        --no-default-tlsverify \
 		--storage-driver "$DOCKER_GRAPHDRIVER" \
 		--pidfile "$DEST/docker.pid" \
 		--userland-proxy="$DOCKER_USERLANDPROXY" \
