@@ -502,11 +502,6 @@ func (container *Container) ShmResourcePath() (string, error) {
 	return container.GetRootResourcePath("shm")
 }
 
-// MqueueResourcePath returns path to mqueue
-func (container *Container) MqueueResourcePath() (string, error) {
-	return container.GetRootResourcePath("mqueue")
-}
-
 // HasMountFor checks if path is a mountpoint
 func (container *Container) HasMountFor(path string) bool {
 	_, exists := container.MountPoints[path]
