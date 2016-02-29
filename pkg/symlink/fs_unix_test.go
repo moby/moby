@@ -1,3 +1,5 @@
+// +build !windows
+
 // Licensed under the Apache License, Version 2.0; See LICENSE.APACHE
 
 package symlink
@@ -9,6 +11,9 @@ import (
 	"path/filepath"
 	"testing"
 )
+
+// TODO Windows: This needs some serious work to port to Windows. For now,
+// turning off testing in this package.
 
 type dirOrLink struct {
 	path   string
