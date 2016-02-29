@@ -10,7 +10,6 @@ import (
 	gosignal "os/signal"
 	"path/filepath"
 	"runtime"
-	"strings"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -185,38 +184,12 @@ func copyToFile(outfile string, r io.Reader) error {
 // resolveAuthConfig is like registry.ResolveAuthConfig, but if using the
 // default index, it uses the default index name for the daemon's platform,
 // not the client's platform.
-func (cli *DockerCli) resolveAuthConfig(authConfigs map[string]types.AuthConfig, index *registrytypes.IndexInfo) types.AuthConfig {
+func (cli *DockerCli) resolveAuthConfig(index *registrytypes.IndexInfo) types.AuthConfig {
 	configKey := index.Name
 	if index.Official {
 		configKey = cli.electAuthServer()
 	}
 
-	// First try the happy case
-	if c, found := authConfigs[configKey]; found || index.Official {
-		return c
-	}
-
-	convertToHostname := func(url string) string {
-		stripped := url
-		if strings.HasPrefix(url, "http://") {
-			stripped = strings.Replace(url, "http://", "", 1)
-		} else if strings.HasPrefix(url, "https://") {
-			stripped = strings.Replace(url, "https://", "", 1)
-		}
-
-		nameParts := strings.SplitN(stripped, "/", 2)
-
-		return nameParts[0]
-	}
-
-	// Maybe they have a legacy config file, we will iterate the keys converting
-	// them to the new format and testing
-	for registry, ac := range authConfigs {
-		if configKey == convertToHostname(registry) {
-			return ac
-		}
-	}
-
-	// When all else fails, return an empty auth config
-	return types.AuthConfig{}
+	a, _ := getCredentials(cli.configFile, configKey)
+	return a
 }
