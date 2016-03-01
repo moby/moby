@@ -6548,7 +6548,7 @@ func (s *DockerSuite) TestBuildWorkdirWindowsPath(c *check.C) {
 }
 
 func (s *DockerRegistryAuthSuite) TestBuildFromAuthenticatedRegistry(c *check.C) {
-	dockerCmd(c, "login", "-u", s.reg.username, "-p", s.reg.password, "-e", s.reg.email, privateRegistryURL)
+	dockerCmd(c, "login", "-u", s.reg.username, "-p", s.reg.password, privateRegistryURL)
 
 	baseImage := privateRegistryURL + "/baseimage"
 

@@ -88,11 +88,6 @@ func (configFile *ConfigFile) LegacyLoadFromReader(configData io.Reader) error {
 		if err != nil {
 			return err
 		}
-		origEmail := strings.Split(arr[1], " = ")
-		if len(origEmail) != 2 {
-			return fmt.Errorf("Invalid Auth config file")
-		}
-		authConfig.Email = origEmail[1]
 		authConfig.ServerAddress = defaultIndexserver
 		configFile.AuthConfigs[defaultIndexserver] = authConfig
 	} else {

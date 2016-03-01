@@ -811,7 +811,7 @@ _docker_daemon() {
  			return
  			;;
  	esac
- 
+
  	local key=$(__docker_map_key_of_current_option '--storage-opt')
  	case "$key" in
  		dm.@(blkdiscard|override_udev_sync_check|use_deferred_@(removal|deletion)))
@@ -1205,14 +1205,14 @@ _docker_load() {
 
 _docker_login() {
 	case "$prev" in
-		--email|-e|--password|-p|--username|-u)
+		--password|-p|--username|-u)
 			return
 			;;
 	esac
 
 	case "$cur" in
 		-*)
-			COMPREPLY=( $( compgen -W "--email -e --help --password -p --username -u" -- "$cur" ) )
+			COMPREPLY=( $( compgen -W "--help --password -p --username -u" -- "$cur" ) )
 			;;
 	esac
 }
