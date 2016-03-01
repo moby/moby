@@ -141,6 +141,11 @@ func getCredentials(c *cliconfig.ConfigFile, serverAddress string) (types.AuthCo
 	return s.Get(serverAddress)
 }
 
+func getAllCredentials(c *cliconfig.ConfigFile) (map[string]types.AuthConfig, error) {
+	s := loadCredentialsStore(c)
+	return s.GetAll()
+}
+
 // storeCredentials saves the user credentials in a credentials store.
 // The store is determined by the config file settings.
 func storeCredentials(c *cliconfig.ConfigFile, auth types.AuthConfig) error {
