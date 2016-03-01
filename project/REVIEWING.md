@@ -26,6 +26,7 @@ exist on the repository should apply to issues.
 
 Special status labels:
 
+ * `status/failing-ci`: indicates that the PR in its current state fails the test suite
  * `status/needs-attention`: calls for a collective discussion during a review session
 
 ## Specialty group labels
