@@ -325,15 +325,15 @@ __docker_network_subcommand() {
         (create)
             _arguments $(__docker_arguments) -A '-*' \
                 $opts_help \
-                "($help)*--aux-address[Auxiliary ipv4 or ipv6 addresses used by network driver]:key=IP: " \
+                "($help)*--aux-address[Auxiliary IPv4 or IPv6 addresses used by network driver]:key=IP: " \
                 "($help -d --driver)"{-d=,--driver=}"[Driver to manage the Network]:driver:(null host bridge overlay)" \
-                "($help)*--gateway=[ipv4 or ipv6 Gateway for the master subnet]:IP: " \
+                "($help)*--gateway=[IPv4 or IPv6 Gateway for the master subnet]:IP: " \
                 "($help)--internal[Restricts external access to the network]" \
                 "($help)*--ip-range=[Allocate container ip from a sub-range]:IP/mask: " \
                 "($help)--ipam-driver=[IP Address Management Driver]:driver:(default)" \
-                "($help)*--ipam-opt=[Set custom IPAM plugin options]:opt=value: " \
+                "($help)*--ipam-opt=[Custom IPAM plugin options]:opt=value: " \
                 "($help)--ipv6[Enable IPv6 networking]" \
-                "($help)*"{-o=,--opt=}"[Set driver specific options]:opt=value: " \
+                "($help)*"{-o=,--opt=}"[Driver specific options]:opt=value: " \
                 "($help)*--subnet=[Subnet in CIDR format that represents a network segment]:IP/mask: " \
                 "($help -)1:Network Name: " && ret=0
             ;;
@@ -422,9 +422,9 @@ __docker_volume_subcommand() {
         (create)
             _arguments $(__docker_arguments) \
                 $opts_help \
-                "($help -d --driver)"{-d=,--driver=}"[Specify volume driver name]:Driver name:(local)" \
-                "($help)--name=[Specify volume name]" \
-                "($help)*"{-o=,--opt=}"[Set driver specific options]:Driver option: " && ret=0
+                "($help -d --driver)"{-d=,--driver=}"[Volume driver name]:Driver name:(local)" \
+                "($help)--name=[Volume name]" \
+                "($help)*"{-o=,--opt=}"[Driver specific options]:Driver option: " && ret=0
             ;;
         (inspect)
             _arguments $(__docker_arguments) \
@@ -484,8 +484,8 @@ __docker_subcommand() {
     opts_help=("(: -)--help[Print usage]")
     opts_build_create_run=(
         "($help)--cgroup-parent=[Parent cgroup for the container]:cgroup: "
-        "($help)--isolation=[]:isolation:(default hyperv process)"
-        "($help)*--shm-size=[Size of '/dev/shm'. The format is '<number><unit>'. Default is '64m'.]:shm size: "
+        "($help)--isolation=[Container isolation technology]:isolation:(default hyperv process)"
+        "($help)*--shm-size=[Size of '/dev/shm' (format is '<number><unit>')]:shm size: "
         "($help)*--ulimit=[ulimit options]:ulimit: "
     )
     opts_build_create_run_update=(
@@ -509,10 +509,10 @@ __docker_subcommand() {
         "($help)*--device-read-iops=[Limit the read rate (IO per second) from a device]:device:IO rate: "
         "($help)*--device-write-bps=[Limit the write rate (bytes per second) to a device]:device:IO rate: "
         "($help)*--device-write-iops=[Limit the write rate (IO per second) to a device]:device:IO rate: "
-        "($help)*--dns=[Set custom DNS servers]:DNS server: "
-        "($help)*--dns-opt=[Set custom DNS options]:DNS option: "
-        "($help)*--dns-search=[Set custom DNS search domains]:DNS domains: "
-        "($help)*"{-e=,--env=}"[Set environment variables]:environment variable: "
+        "($help)*--dns=[Custom DNS servers]:DNS server: "
+        "($help)*--dns-opt=[Custom DNS options]:DNS option: "
+        "($help)*--dns-search=[Custom DNS search domains]:DNS domains: "
+        "($help)*"{-e=,--env=}"[Environment variables]:environment variable: "
         "($help)--entrypoint=[Overwrite the default entrypoint of the image]:entry point: "
         "($help)*--env-file=[Read environment variables from a file]:environment file:_files"
         "($help)*--expose=[Expose a port from the container without publishing it]: "
@@ -523,7 +523,7 @@ __docker_subcommand() {
         "($help)--ip6=[Container IPv6 address]:IPv6: "
         "($help)--ipc=[IPC namespace to use]:IPC namespace: "
         "($help)*--link=[Add link to another container]:link:->link"
-        "($help)*"{-l=,--label=}"[Set meta data on a container]:label: "
+        "($help)*"{-l=,--label=}"[Container metadata]:label: "
         "($help)--log-driver=[Default driver for container logs]:Logging driver:(json-file syslog journald gelf fluentd awslogs splunk none)"
         "($help)*--log-opt=[Log driver specific options]:log driver options:__docker_log_options"
         "($help)--mac-address=[Container MAC address]:MAC address: "
@@ -549,11 +549,11 @@ __docker_subcommand() {
     )
     opts_create_run_update=(
         "($help)--blkio-weight=[Block IO (relative weight), between 10 and 1000]:Block IO weight:(10 100 500 1000)"
-        "($help)--kernel-memory=[Kernel memory limit in bytes.]:Memory limit: "
+        "($help)--kernel-memory=[Kernel memory limit in bytes]:Memory limit: "
         "($help)--memory-reservation=[Memory soft limit]:Memory limit: "
     )
     opts_attach_exec_run_start=(
-        "($help)--detach-keys=[Specify the escape key sequence used to detach a container]:sequence:__docker_complete_detach_keys"
+        "($help)--detach-keys=[Escape key sequence used to detach a container]:sequence:__docker_complete_detach_keys"
     )
 
     case "$words[1]" in
@@ -570,7 +570,7 @@ __docker_subcommand() {
                 $opts_help \
                 $opts_build_create_run \
                 $opts_build_create_run_update \
-                "($help)*--build-arg[Set build-time variables]:<varname>=<value>: " \
+                "($help)*--build-arg[Build-time variables]:<varname>=<value>: " \
                 "($help -f --file)"{-f=,--file=}"[Name of the Dockerfile]:Dockerfile:_files" \
                 "($help)--force-rm[Always remove intermediate containers]" \
                 "($help)--no-cache[Do not use cache when building the image]" \
@@ -593,7 +593,7 @@ __docker_subcommand() {
         (cp)
             _arguments $(__docker_arguments) \
                 $opts_help \
-                "($help -L --follow-link)"{-L,--follow-link}"[Always follow symbol link in SRC_PATH]" \
+                "($help -L --follow-link)"{-L,--follow-link}"[Always follow symbol link]" \
                 "($help -)1:container:->container" \
                 "($help -)2:hostpath:_files" && ret=0
             case $state in
@@ -631,23 +631,23 @@ __docker_subcommand() {
         (daemon)
             _arguments $(__docker_arguments) \
                 $opts_help \
-                "($help)--api-cors-header=[Set CORS headers in the remote API]:CORS headers: " \
-                "($help)*--authorization-plugin=[Set authorization plugins to load]" \
+                "($help)--api-cors-header=[CORS headers in the remote API]:CORS headers: " \
+                "($help)*--authorization-plugin=[Authorization plugins to load]" \
                 "($help -b --bridge)"{-b=,--bridge=}"[Attach containers to a network bridge]:bridge:_net_interfaces" \
-                "($help)--bip=[Specify network bridge IP]" \
-                "($help)--cgroup-parent=[Set parent cgroup for all containers]:cgroup: " \
+                "($help)--bip=[Network bridge IP]:IP address: " \
+                "($help)--cgroup-parent=[Parent cgroup for all containers]:cgroup: " \
                 "($help -D --debug)"{-D,--debug}"[Enable debug mode]" \
                 "($help)--default-gateway[Container default gateway IPv4 address]:IPv4 address: " \
                 "($help)--default-gateway-v6[Container default gateway IPv6 address]:IPv6 address: " \
                 "($help)--cluster-store=[URL of the distributed storage backend]:Cluster Store:->cluster-store" \
                 "($help)--cluster-advertise=[Address of the daemon instance to advertise]:Instance to advertise (host\:port): " \
-                "($help)*--cluster-store-opt=[Set cluster options]:Cluster options:->cluster-store-options" \
+                "($help)*--cluster-store-opt=[Cluster options]:Cluster options:->cluster-store-options" \
                 "($help)*--dns=[DNS server to use]:DNS: " \
                 "($help)*--dns-search=[DNS search domains to use]:DNS search: " \
                 "($help)*--dns-opt=[DNS options to use]:DNS option: " \
-                "($help)*--default-ulimit=[Set default ulimit settings for containers]:ulimit: " \
+                "($help)*--default-ulimit=[Default ulimit settings for containers]:ulimit: " \
                 "($help)--disable-legacy-registry[Do not contact legacy registries]" \
-                "($help)*--exec-opt=[Set exec driver options]:exec driver options: " \
+                "($help)*--exec-opt=[Exec driver options]:exec driver options: " \
                 "($help)--exec-root=[Root of the Docker execdriver]:path:_directories" \
                 "($help)--fixed-cidr=[IPv4 subnet for fixed IPs]:IPv4 subnet: " \
                 "($help)--fixed-cidr-v6=[IPv6 subnet for fixed IPs]:IPv6 subnet: " \
@@ -661,17 +661,17 @@ __docker_subcommand() {
                 "($help)--ip-masq[Enable IP masquerading]" \
                 "($help)--iptables[Enable addition of iptables rules]" \
                 "($help)--ipv6[Enable IPv6 networking]" \
-                "($help -l --log-level)"{-l=,--log-level=}"[Set the logging level]:level:(debug info warn error fatal)" \
-                "($help)*--label=[Set key=value labels to the daemon]:label: " \
+                "($help -l --log-level)"{-l=,--log-level=}"[Logging level]:level:(debug info warn error fatal)" \
+                "($help)*--label=[Key=value labels]:label: " \
                 "($help)--log-driver=[Default driver for container logs]:Logging driver:(json-file syslog journald gelf fluentd awslogs splunk none)" \
                 "($help)*--log-opt=[Log driver specific options]:log driver options:__docker_log_options" \
-                "($help)--mtu=[Set the containers network MTU]:mtu:(0 576 1420 1500 9000)" \
+                "($help)--mtu=[Network MTU]:mtu:(0 576 1420 1500 9000)" \
                 "($help -p --pidfile)"{-p=,--pidfile=}"[Path to use for daemon PID file]:PID file:_files" \
                 "($help)--raw-logs[Full timestamps without ANSI coloring]" \
                 "($help)*--registry-mirror=[Preferred Docker registry mirror]:registry mirror: " \
                 "($help -s --storage-driver)"{-s=,--storage-driver=}"[Storage driver to use]:driver:(aufs devicemapper btrfs zfs overlay)" \
                 "($help)--selinux-enabled[Enable selinux support]" \
-                "($help)*--storage-opt=[Set storage driver options]:storage driver options: " \
+                "($help)*--storage-opt=[Storage driver options]:storage driver options: " \
                 "($help)--tls[Use TLS]" \
                 "($help)--tlscacert=[Trust certs signed only by this CA]:PEM file:_files -g "*.(pem|crt)"" \
                 "($help)--tlscert=[Path to TLS certificate file]:PEM file:_files -g "*.(pem|crt)"" \
@@ -769,7 +769,7 @@ __docker_subcommand() {
             _arguments $(__docker_arguments) \
                 $opts_help \
                 "($help)*"{-c=,--change=}"[Apply Dockerfile instruction to the created image]:Dockerfile:_files" \
-                "($help -m --message)"{-m=,--message=}"[Set commit message for imported image]:message: " \
+                "($help -m --message)"{-m=,--message=}"[Commit message for imported image]:message: " \
                 "($help -):URL:(- http:// file://)" \
                 "($help -): :__docker_repositories_with_tags" && ret=0
             ;;
@@ -1049,7 +1049,7 @@ _docker() {
         "($help)--config[Location of client config files]:path:_directories" \
         "($help -D --debug)"{-D,--debug}"[Enable debug mode]" \
         "($help -H --host)"{-H=,--host=}"[tcp://host:port to bind/connect to]:host: " \
-        "($help -l --log-level)"{-l=,--log-level=}"[Set the logging level]:level:(debug info warn error fatal)" \
+        "($help -l --log-level)"{-l=,--log-level=}"[Logging level]:level:(debug info warn error fatal)" \
         "($help)--tls[Use TLS]" \
         "($help)--tlscacert=[Trust certs signed only by this CA]:PEM file:_files -g "*.(pem|crt)"" \
         "($help)--tlscert=[Path to TLS certificate file]:PEM file:_files -g "*.(pem|crt)"" \
