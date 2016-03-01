@@ -1,10 +1,12 @@
 package authorization
 
 import (
+	"fmt"
 	"net/http"
 	"sync"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/pkg/authentication"
 	"golang.org/x/net/context"
 )
 
@@ -42,18 +44,18 @@ func (m *Middleware) WrapHandler(handler func(ctx context.Context, w http.Respon
 		}
 
 		user := ""
+		uid := ""
 		userAuthNMethod := ""
 
-		// Default authorization using existing TLS connection credentials
-		// FIXME: Non trivial authorization mechanisms (such as advanced certificate validations, kerberos support
-		// and ldap) will be extracted using AuthN feature, which is tracked under:
-		// https://github.com/docker/docker/pull/20883
-		if r.TLS != nil && len(r.TLS.PeerCertificates) > 0 {
-			user = r.TLS.PeerCertificates[0].Subject.CommonName
-			userAuthNMethod = "TLS"
+		if authedUser, authenticated := authentication.GetUser(r); authenticated {
+			user = authedUser.Name
+			if authedUser.HaveUID {
+				uid = fmt.Sprint(authedUser.UID)
+			}
+			userAuthNMethod = authedUser.Scheme
 		}
 
-		authCtx := NewCtx(plugins, user, userAuthNMethod, r.Method, r.RequestURI)
+		authCtx := NewCtx(plugins, user, uid, userAuthNMethod, r.Method, r.RequestURI)
 
 		if err := authCtx.AuthZRequest(w, r); err != nil {
 			logrus.Errorf("AuthZRequest for %s %s returned error: %s", r.Method, r.RequestURI, err)

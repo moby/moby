@@ -39,6 +39,7 @@ type CommonOptions struct {
 	TLSVerify  bool
 	TLSOptions *tlsconfig.Options
 	TrustKey   string
+	AuthnOpts  map[string]string
 }
 
 // NewCommonOptions returns a new CommonOptions
@@ -67,6 +68,9 @@ func (commonOpts *CommonOptions) InstallFlags(flags *pflag.FlagSet) {
 
 	hostOpt := opts.NewNamedListOptsRef("hosts", &commonOpts.Hosts, opts.ValidateHost)
 	flags.VarP(hostOpt, "host", "H", "Daemon socket(s) to connect to")
+
+	commonOpts.AuthnOpts = make(map[string]string)
+	flags.Var(opts.NewMapOpts(commonOpts.AuthnOpts, nil), "authn-opt", "Authentication options to use")
 }
 
 // SetDefaultOptions sets default values for options after flag parsing is

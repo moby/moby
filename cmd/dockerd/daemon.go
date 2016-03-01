@@ -12,6 +12,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/uuid"
 	"github.com/docker/docker/api"
+	"github.com/docker/docker/api/errors"
 	apiserver "github.com/docker/docker/api/server"
 	"github.com/docker/docker/api/server/middleware"
 	"github.com/docker/docker/api/server/router"
@@ -31,6 +32,7 @@ import (
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/libcontainerd"
 	dopts "github.com/docker/docker/opts"
+	"github.com/docker/docker/pkg/authentication"
 	"github.com/docker/docker/pkg/authorization"
 	"github.com/docker/docker/pkg/jsonlog"
 	"github.com/docker/docker/pkg/listeners"
@@ -363,6 +365,7 @@ func loadDaemonCliConfig(opts daemonOptions) (*daemon.Config, error) {
 	config.TLS = opts.common.TLS
 	config.TLSVerify = opts.common.TLSVerify
 	config.CommonTLSOptions = daemon.CommonTLSOptions{}
+	config.AuthenticationOptions = opts.common.AuthnOpts
 
 	if opts.common.TLSOptions != nil {
 		config.CommonTLSOptions.CAFile = opts.common.TLSOptions.CAFile
@@ -440,4 +443,8 @@ func (cli *DaemonCli) initMiddlewares(s *apiserver.Server, cfg *apiserver.Config
 
 	cli.authzMiddleware = authorization.NewMiddleware(cli.Config.AuthorizationPlugins)
 	s.UseMiddleware(cli.authzMiddleware)
+
+	makeError := func(err error) error { return errors.NewUnauthorizedError(err) }
+	a := authentication.NewMiddleware(cli.Config.RequireAuthentication, cli.Config.AuthenticationOptions, makeError)
+	s.UseMiddleware(a)
 }

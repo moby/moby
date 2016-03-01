@@ -98,7 +98,9 @@ type CommonConfig struct {
 
 	// LiveRestoreEnabled determines whether we should keep containers
 	// alive upon daemon shutdown/start
-	LiveRestoreEnabled bool `json:"live-restore,omitempty"`
+	LiveRestoreEnabled    bool              `json:"live-restore,omitempty"`
+	RequireAuthentication bool              `json:"require-authentication,omitempty"`
+	AuthenticationOptions map[string]string `json:"-"`
 
 	// ClusterStore is the storage backend used for the cluster information. It is used by both
 	// multihost networking (to store networks and endpoints information) and by the node discovery
@@ -177,6 +179,7 @@ func (config *Config) InstallCommonFlags(flags *pflag.FlagSet) {
 	flags.IntVar(&maxConcurrentUploads, "max-concurrent-uploads", defaultMaxConcurrentUploads, "Set the max concurrent uploads for each push")
 
 	flags.StringVar(&config.SwarmDefaultAdvertiseAddr, "swarm-default-advertise-addr", "", "Set default address or interface for swarm advertised address")
+	flags.BoolVar(&config.RequireAuthentication, "authn", false, "Require clients to authenticate")
 
 	config.MaxConcurrentDownloads = &maxConcurrentDownloads
 	config.MaxConcurrentUploads = &maxConcurrentUploads
