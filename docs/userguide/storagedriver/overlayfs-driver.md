@@ -275,7 +275,9 @@ possible to incur far larger latencies if searching through many AUFS layers.
 This can result in certain OverlayFS operations breaking POSIX standards. One 
 such operation is the *copy-up* operation. Therefore, using `yum` inside of a 
 container on a Docker host using the `overlay` storage driver is unlikely to 
-work without implementing workarounds.
+work unless the `yum-plugin-ovl` package is installed. The `yum-plugin-ovl` is
+available for RHEL 7/CentOS 7/Fedora 22 or later. For other RPM-based
+distributions, please refer to [docker#10180](https://github.com/docker/docker/issues/10180).
 
 - **Inode limits**. Use of the `overlay` storage driver can cause excessive 
 inode consumption. This is especially so as the number of images and containers

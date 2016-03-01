@@ -537,7 +537,39 @@ func (b *Builder) create() (string, error) {
 	return c.ID, nil
 }
 
+func strsliceContains(slice strslice.StrSlice, s string) bool {
+	for _, v := range slice {
+		if strings.Contains(v, s) {
+			return true
+		}
+	}
+	return false
+}
+
+// Print warnings if needed.
+// Note that this can print a false-positive warning.
+func (b *Builder) printRunWarnings() {
+	isOvl := b.systemInfo.Driver == "overlay"
+	isYum := strsliceContains(b.runConfig.Cmd, "yum")
+	isRPM := strsliceContains(b.runConfig.Cmd, "rpm")
+	tmpl := " ---> [Warning] "
+	ovlInfo := "For further information, please refer to https://docs.docker.com/engine/userguide/storagedriver/overlayfs-driver/ ."
+	if isOvl && isYum && !b.printedWarnOvlYum {
+		s := tmpl + "On Overlay, `yum` does not work properly unless the `yum-plugin-ovl` package is installed. " +
+			ovlInfo + "\n"
+		fmt.Fprintf(b.Stdout, s)
+		b.printedWarnOvlYum = true
+	}
+	if isOvl && isRPM && !b.printedWarnOvlRPM {
+		s := tmpl + "On Overlay, `rpm` does not work properly. Please consider using `yum` instead with the `yum-plugin-ovl` package. " +
+			ovlInfo + "\n"
+		fmt.Fprintf(b.Stdout, s)
+		b.printedWarnOvlRPM = true
+	}
+}
+
 func (b *Builder) run(cID string) (err error) {
+	b.printRunWarnings()
 	errCh := make(chan error)
 	go func() {
 		errCh <- b.docker.ContainerAttachRaw(cID, nil, b.Stdout, b.Stderr, true)
