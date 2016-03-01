@@ -134,3 +134,19 @@ func (s *DockerSuite) TestStatsAllNewContainersAdded(c *check.C) {
 		// ignore, done
 	}
 }
+
+func (s *DockerSuite) TestStatsTotalsNoStream(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	out, _ := runSleepingContainer(c)
+	id1 := strings.TrimSpace(out)
+	c.Assert(waitRun(id1), checker.IsNil, check.Commentf("run container %s failed", id1))
+
+	out, _ = runSleepingContainer(c)
+	id2 := strings.TrimSpace(out)
+	c.Assert(waitRun(id2), checker.IsNil, check.Commentf("run container %s failed", id2))
+
+	out, _ = dockerCmd(c, "stats", "--no-stream", "--totals")
+	c.Assert(out, checker.Contains, id1[:12], check.Commentf("out: %s", out))
+	c.Assert(out, checker.Contains, id2[:12], check.Commentf("out: %s", out))
+	c.Assert(out, checker.Contains, "Totals", check.Commentf("out: %s", out))
+}
