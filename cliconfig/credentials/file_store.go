@@ -43,6 +43,10 @@ func (c *fileStore) Get(serverAddress string) (types.AuthConfig, error) {
 	return authConfig, nil
 }
 
+func (c *fileStore) GetAll() (map[string]types.AuthConfig, error) {
+	return c.file.AuthConfigs, nil
+}
+
 // Store saves the given credentials in the file store.
 func (c *fileStore) Store(authConfig types.AuthConfig) error {
 	c.file.AuthConfigs[authConfig.ServerAddress] = authConfig
