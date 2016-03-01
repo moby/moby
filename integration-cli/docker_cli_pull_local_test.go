@@ -390,7 +390,6 @@ func (s *DockerRegistryAuthSuite) TestPullWithExternalAuth(c *check.C) {
 	b, err := ioutil.ReadFile(configPath)
 	c.Assert(err, checker.IsNil)
 	c.Assert(string(b), checker.Not(checker.Contains), "\"auth\":")
-	c.Assert(string(b), checker.Contains, "email")
 
 	dockerCmd(c, "--config", tmp, "tag", "busybox", repoName)
 	dockerCmd(c, "--config", tmp, "push", repoName)

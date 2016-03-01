@@ -812,7 +812,6 @@ __docker_subcommand() {
         (login)
             _arguments $(__docker_arguments) \
                 $opts_help \
-                "($help -e --email)"{-e=,--email=}"[Email]:email: " \
                 "($help -p --password)"{-p=,--password=}"[Password]:password: " \
                 "($help -u --user)"{-u=,--user=}"[Username]:username: " \
                 "($help -)1:server: " && ret=0

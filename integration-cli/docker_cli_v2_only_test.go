@@ -112,7 +112,7 @@ func (s *DockerRegistrySuite) TestV1(c *check.C) {
 	s.d.Cmd("run", repoName)
 	c.Assert(v1Repo, check.Not(check.Equals), 1, check.Commentf("Expected v1 repository access after run"))
 
-	s.d.Cmd("login", "-u", "richard", "-p", "testtest", "-e", "testuser@testdomain.com", reg.hostport)
+	s.d.Cmd("login", "-u", "richard", "-p", "testtest", reg.hostport)
 	c.Assert(v1Logins, check.Not(check.Equals), 0, check.Commentf("Expected v1 login attempt"))
 
 	s.d.Cmd("tag", "busybox", repoName)

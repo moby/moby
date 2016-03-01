@@ -1,7 +1,6 @@
 package registry
 
 import (
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -24,11 +23,8 @@ func Login(authConfig *types.AuthConfig, registryEndpoint *Endpoint) (string, er
 // loginV1 tries to register/login to the v1 registry server.
 func loginV1(authConfig *types.AuthConfig, registryEndpoint *Endpoint) (string, error) {
 	var (
-		status         string
-		respBody       []byte
-		err            error
-		respStatusCode = 0
-		serverAddress  = authConfig.ServerAddress
+		err           error
+		serverAddress = authConfig.ServerAddress
 	)
 
 	logrus.Debugf("attempting v1 login to registry endpoint %s", registryEndpoint)
@@ -39,93 +35,37 @@ func loginV1(authConfig *types.AuthConfig, registryEndpoint *Endpoint) (string, 
 
 	loginAgainstOfficialIndex := serverAddress == IndexServer
 
-	// to avoid sending the server address to the server it should be removed before being marshaled
-	authCopy := *authConfig
-	authCopy.ServerAddress = ""
-
-	jsonBody, err := json.Marshal(authCopy)
+	req, err := http.NewRequest("GET", serverAddress+"users/", nil)
+	req.SetBasicAuth(authConfig.Username, authConfig.Password)
+	resp, err := registryEndpoint.client.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("Config Error: %s", err)
+		return "", err
 	}
-
-	// using `bytes.NewReader(jsonBody)` here causes the server to respond with a 411 status.
-	b := strings.NewReader(string(jsonBody))
-	resp1, err := registryEndpoint.client.Post(serverAddress+"users/", "application/json; charset=utf-8", b)
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return "", fmt.Errorf("Server Error: %s", err)
+		return "", err
 	}
-	defer resp1.Body.Close()
-	respStatusCode = resp1.StatusCode
-	respBody, err = ioutil.ReadAll(resp1.Body)
-	if err != nil {
-		return "", fmt.Errorf("Server Error: [%#v] %s", respStatusCode, err)
-	}
-
-	if respStatusCode == 201 {
+	if resp.StatusCode == http.StatusOK {
+		return "Login Succeeded", nil
+	} else if resp.StatusCode == http.StatusUnauthorized {
 		if loginAgainstOfficialIndex {
-			status = "Account created. Please use the confirmation link we sent" +
-				" to your e-mail to activate it."
-		} else {
-			// *TODO: Use registry configuration to determine what this says, if anything?
-			status = "Account created. Please see the documentation of the registry " + serverAddress + " for instructions how to activate it."
+			return "", fmt.Errorf("Wrong login/password, please try again. Haven't got a Docker ID? Create one at https://hub.docker.com")
 		}
-	} else if respStatusCode == 400 {
-		if string(respBody) == "\"Username or email already exists\"" {
-			req, err := http.NewRequest("GET", serverAddress+"users/", nil)
-			req.SetBasicAuth(authConfig.Username, authConfig.Password)
-			resp, err := registryEndpoint.client.Do(req)
-			if err != nil {
-				return "", err
-			}
-			defer resp.Body.Close()
-			body, err := ioutil.ReadAll(resp.Body)
-			if err != nil {
-				return "", err
-			}
-			if resp.StatusCode == 200 {
-				return "Login Succeeded", nil
-			} else if resp.StatusCode == 401 {
-				return "", fmt.Errorf("Wrong login/password, please try again")
-			} else if resp.StatusCode == 403 {
-				if loginAgainstOfficialIndex {
-					return "", fmt.Errorf("Login: Account is not Active. Please check your e-mail for a confirmation link.")
-				}
-				// *TODO: Use registry configuration to determine what this says, if anything?
-				return "", fmt.Errorf("Login: Account is not Active. Please see the documentation of the registry %s for instructions how to activate it.", serverAddress)
-			} else if resp.StatusCode == 500 { // Issue #14326
-				logrus.Errorf("%s returned status code %d. Response Body :\n%s", req.URL.String(), resp.StatusCode, body)
-				return "", fmt.Errorf("Internal Server Error")
-			}
-			return "", fmt.Errorf("Login: %s (Code: %d; Headers: %s)", body, resp.StatusCode, resp.Header)
+		return "", fmt.Errorf("Wrong login/password, please try again")
+	} else if resp.StatusCode == http.StatusForbidden {
+		if loginAgainstOfficialIndex {
+			return "", fmt.Errorf("Login: Account is not active. Please check your e-mail for a confirmation link.")
 		}
-		return "", fmt.Errorf("Registration: %s", respBody)
-
-	} else if respStatusCode == 401 {
-		// This case would happen with private registries where /v1/users is
-		// protected, so people can use `docker login` as an auth check.
-		req, err := http.NewRequest("GET", serverAddress+"users/", nil)
-		req.SetBasicAuth(authConfig.Username, authConfig.Password)
-		resp, err := registryEndpoint.client.Do(req)
-		if err != nil {
-			return "", err
-		}
-		defer resp.Body.Close()
-		body, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			return "", err
-		}
-		if resp.StatusCode == 200 {
-			return "Login Succeeded", nil
-		} else if resp.StatusCode == 401 {
-			return "", fmt.Errorf("Wrong login/password, please try again")
-		} else {
-			return "", fmt.Errorf("Login: %s (Code: %d; Headers: %s)", body,
-				resp.StatusCode, resp.Header)
-		}
+		// *TODO: Use registry configuration to determine what this says, if anything?
+		return "", fmt.Errorf("Login: Account is not active. Please see the documentation of the registry %s for instructions how to activate it.", serverAddress)
+	} else if resp.StatusCode == http.StatusInternalServerError { // Issue #14326
+		logrus.Errorf("%s returned status code %d. Response Body :\n%s", req.URL.String(), resp.StatusCode, body)
+		return "", fmt.Errorf("Internal Server Error")
 	} else {
-		return "", fmt.Errorf("Unexpected status code [%d] : %s", respStatusCode, respBody)
+		return "", fmt.Errorf("Login: %s (Code: %d; Headers: %s)", body,
+			resp.StatusCode, resp.Header)
 	}
-	return status, nil
 }
 
 // loginV2 tries to login to the v2 registry server. The given registry endpoint has been

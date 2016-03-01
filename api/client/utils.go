@@ -48,7 +48,7 @@ func (cli *DockerCli) registryAuthenticationPrivilegedFunc(index *registrytypes.
 	return func() (string, error) {
 		fmt.Fprintf(cli.out, "\nPlease login prior to %s:\n", cmdName)
 		indexServer := registry.GetAuthConfigKey(index)
-		authConfig, err := cli.configureAuth("", "", "", indexServer)
+		authConfig, err := cli.configureAuth("", "", indexServer, false)
 		if err != nil {
 			return "", err
 		}
