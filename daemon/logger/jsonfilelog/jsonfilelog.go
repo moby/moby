@@ -25,7 +25,6 @@ type JSONFileLogger struct {
 	buf     *bytes.Buffer
 	writer  *loggerutils.RotateFileWriter
 	mu      sync.Mutex
-	ctx     logger.Context
 	readers map[*logger.LogWatcher]struct{} // stores the active log followers
 	extra   []byte                          // json-encoded extra attributes
 }
