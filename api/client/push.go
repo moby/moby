@@ -17,7 +17,7 @@ import (
 
 // CmdPush pushes an image or repository to the registry.
 //
-// Usage: docker push NAME[:TAG]
+// Usage: docker push [OPTIONS] NAME[:TAG]
 func (cli *DockerCli) CmdPush(args ...string) error {
 	cmd := Cli.Subcmd("push", []string{"NAME[:TAG]"}, Cli.DockerCommands["push"].Description, true)
 	addTrustedFlags(cmd, false)

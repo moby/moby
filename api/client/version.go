@@ -32,9 +32,11 @@ Server:
 
 // CmdVersion shows Docker version information.
 //
-// Available version information is shown for: client Docker version, client API version, client Go version, client Git commit, client OS/Arch, server Docker version, server API version, server Go version, server Git commit, and server OS/Arch.
+// Available version information is shown for: client Docker version, client API version, client Go version, 
+// client Git commit, client OS/Arch, server Docker version, server API version, server Go version,
+// server Git commit, and server OS/Arch.
 //
-// Usage: docker version
+// Usage: docker version [OPTIONS]
 func (cli *DockerCli) CmdVersion(args ...string) (err error) {
 	cmd := Cli.Subcmd("version", nil, Cli.DockerCommands["version"].Description, true)
 	tmplStr := cmd.String([]string{"f", "#format", "-format"}, "", "Format the output using the given go template")
