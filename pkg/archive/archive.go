@@ -664,7 +664,7 @@ loop:
 			parent := filepath.Dir(hdr.Name)
 			parentPath := filepath.Join(dest, parent)
 			if _, err := os.Lstat(parentPath); err != nil && os.IsNotExist(err) {
-				err = system.MkdirAll(parentPath, 0777)
+				err = idtools.MkdirAllNewAs(parentPath, 0777, remappedRootUID, remappedRootGID)
 				if err != nil {
 					return err
 				}
