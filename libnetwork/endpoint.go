@@ -977,7 +977,7 @@ func (ep *endpoint) releaseAddress() {
 
 	log.Debugf("Releasing addresses for endpoint %s's interface on network %s", ep.Name(), n.Name())
 
-	ipam, err := n.getController().getIpamDriver(n.ipamType)
+	ipam, _, err := n.getController().getIPAMDriver(n.ipamType)
 	if err != nil {
 		log.Warnf("Failed to retrieve ipam driver to release interface address on delete of endpoint %s (%s): %v", ep.Name(), ep.ID(), err)
 		return
