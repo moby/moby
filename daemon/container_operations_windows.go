@@ -72,6 +72,7 @@ func (daemon *Daemon) populateCommand(c *container.Container, env []string) erro
 		CommonResources: execdriver.CommonResources{
 			CPUShares: c.HostConfig.CPUShares,
 		},
+		NetworkBandwidth: c.HostConfig.NetworkBandwidth,
 	}
 
 	processConfig := execdriver.ProcessConfig{

@@ -188,6 +188,9 @@ type Resources struct {
 	OomKillDisable       *bool           // Whether to disable OOM Killer or not
 	PidsLimit            int64           // Setting pids limit for a container
 	Ulimits              []*units.Ulimit // List of ulimits to be set in the container
+
+	// Applicable to Windows
+	NetworkBandwidth int64 // Maximum network egress in bytes per second
 }
 
 // UpdateConfig holds the mutable attributes of a Container.

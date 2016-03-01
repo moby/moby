@@ -15,6 +15,7 @@ type Resources struct {
 	CommonResources
 
 	// Fields below here are platform specific
+	NetworkBandwidth int64 // Maximum network egress in bytes per second
 }
 
 // ProcessConfig is the platform specific structure that describes a process

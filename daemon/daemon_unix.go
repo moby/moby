@@ -359,6 +359,13 @@ func verifyContainerResources(resources *containertypes.Resources, sysInfo *sysi
 		resources.BlkioDeviceWriteIOps = []*pblkiodev.ThrottleDevice{}
 	}
 
+	// network subsystem checks and adjustments
+	if resources.NetworkBandwidth > 0 {
+		warnings = append(warnings, "%s does not support network bandwidth limiting. Bandwidth discarded.", runtime.GOOS)
+		logrus.Warnf("%s does not support network bandwidth limiting. Bandwidth discarded.", runtime.GOOS)
+		resources.NetworkBandwidth = 0
+	}
+
 	return warnings, nil
 }
 

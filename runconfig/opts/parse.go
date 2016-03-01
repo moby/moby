@@ -81,6 +81,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 		flBlkioWeight       = cmd.Uint16([]string{"-blkio-weight"}, 0, "Block IO (relative weight), between 10 and 1000")
 		flSwappiness        = cmd.Int64([]string{"-memory-swappiness"}, -1, "Tune container memory swappiness (0 to 100)")
 		flNetMode           = cmd.String([]string{"-net"}, "default", "Connect a container to a network")
+		flNetworkBandwidth  = cmd.String([]string{"-network-bandwidth"}, "", "Maximum network egress in bytes per second (Windows only)")
 		flMacAddress        = cmd.String([]string{"-mac-address"}, "", "Container MAC address (e.g. 92:d0:c6:0a:29:33)")
 		flIPv4Address       = cmd.String([]string{"-ip"}, "", "Container IPv4 address (e.g. 172.30.100.104)")
 		flIPv6Address       = cmd.String([]string{"-ip6"}, "", "Container IPv6 address (e.g. 2001:db8::33)")
@@ -197,6 +198,14 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 	var shmSize int64
 	if *flShmSize != "" {
 		shmSize, err = units.RAMInBytes(*flShmSize)
+		if err != nil {
+			return nil, nil, nil, cmd, err
+		}
+	}
+
+	var networkBandwidth int64
+	if *flNetworkBandwidth != "" {
+		networkBandwidth, err = units.RAMInBytes(*flNetworkBandwidth)
 		if err != nil {
 			return nil, nil, nil, cmd, err
 		}
@@ -343,6 +352,7 @@ func Parse(cmd *flag.FlagSet, args []string) (*container.Config, *container.Host
 		CpusetCpus:           *flCpusetCpus,
 		CpusetMems:           *flCpusetMems,
 		CPUQuota:             *flCPUQuota,
+		NetworkBandwidth:     networkBandwidth,
 		BlkioWeight:          *flBlkioWeight,
 		BlkioWeightDevice:    flBlkioWeightDevice.GetList(),
 		BlkioDeviceReadBps:   flDeviceReadBps.GetList(),
