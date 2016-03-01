@@ -40,8 +40,8 @@ FROM windowsservercore
 # Environment variable notes:
 #  - GOLANG_VERSION must consistent with 'Dockerfile' used by Linux'.
 #  - FROM_DOCKERFILE is used for detection of building within a container.
-ENV GOLANG_VERSION=1.5.3 \
-    GIT_LOCATION=https://github.com/git-for-windows/git/releases/download/v2.7.1.windows.2/Git-2.7.1.2-64-bit.exe \
+ENV GOLANG_VERSION=1.6 \
+    GIT_LOCATION=https://github.com/git-for-windows/git/releases/download/v2.7.2.windows.1/Git-2.7.2-64-bit.exe \
     RSRC_COMMIT=ba14da1f827188454a4591717fff29999010887f \
     GOPATH=C:/go;C:/go/src/github.com/docker/docker/vendor \
     FROM_DOCKERFILE=1
