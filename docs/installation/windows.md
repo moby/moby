@@ -144,9 +144,9 @@ installer.
 
 To run a Docker container, you:
 
-* create a new (or start an existing) Docker virtual machine
-* switch your environment to your new VM
-* use the `docker` client to create, load, and manage containers
+* Create a new (or start an existing) Docker virtual machine
+* Switch your environment to your new VM
+* Use the `docker` client to create, load, and manage containers
 
 Once you create a machine, you can reuse it as often as you like. Like any
 VirtualBox VM, it maintains its configuration between uses.
@@ -160,9 +160,9 @@ There are several ways to use the installed tools, from the Docker Quickstart Te
 
     The application:
 
-    * opens a terminal window
-    * creates a `default` VM if it doesn't exist, and starts the VM after
-    * points the terminal environment to this VM
+    * Opens a terminal window
+    * Creates a `default` VM if it doesn't exist, and starts the VM after
+    * Points the terminal environment to this VM
 
     Once the launch completes, you can run `docker` commands.
 
@@ -374,6 +374,6 @@ delete that file yourself.
 
 ## Learn more
 
-You can continue with the [Docker User Guide](../userguide/index.md). If you are
+You can continue with the [Docker Engine User Guide](../userguide/index.md). If you are
 interested in using the Kitematic GUI, see the [Kitematic user
 guide](https://docs.docker.com/kitematic/userguide/).
