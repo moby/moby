@@ -33,12 +33,14 @@ type stats struct {
 	cs []*containerStats
 }
 
-func (s *stats) add(cs *containerStats) {
+func (s *stats) add(cs *containerStats) bool {
 	s.mu.Lock()
+	defer s.mu.Unlock()
 	if _, exists := s.isKnownContainer(cs.Name); !exists {
 		s.cs = append(s.cs, cs)
+		return true
 	}
-	s.mu.Unlock()
+	return false
 }
 
 func (s *stats) remove(id string) {
@@ -58,7 +60,22 @@ func (s *stats) isKnownContainer(cid string) (int, bool) {
 	return -1, false
 }
 
-func (s *containerStats) Collect(cli client.APIClient, streamStats bool) {
+func (s *containerStats) Collect(cli client.APIClient, streamStats bool, waitFirst *sync.WaitGroup) {
+	var (
+		getFirst       bool
+		previousCPU    uint64
+		previousSystem uint64
+		u              = make(chan error, 1)
+	)
+
+	defer func() {
+		// if error happens and we get nothing of stats, release wait group whatever
+		if !getFirst {
+			getFirst = true
+			waitFirst.Done()
+		}
+	}()
+
 	responseBody, err := cli.ContainerStats(context.Background(), s.Name, streamStats)
 	if err != nil {
 		s.mu.Lock()
@@ -68,12 +85,7 @@ func (s *containerStats) Collect(cli client.APIClient, streamStats bool) {
 	}
 	defer responseBody.Close()
 
-	var (
-		previousCPU    uint64
-		previousSystem uint64
-		dec            = json.NewDecoder(responseBody)
-		u              = make(chan error, 1)
-	)
+	dec := json.NewDecoder(responseBody)
 	go func() {
 		for {
 			var v *types.StatsJSON
@@ -125,12 +137,22 @@ func (s *containerStats) Collect(cli client.APIClient, streamStats bool) {
 			s.BlockRead = 0
 			s.BlockWrite = 0
 			s.mu.Unlock()
+			// if this is the first stat you get, release WaitGroup
+			if !getFirst {
+				getFirst = true
+				waitFirst.Done()
+			}
 		case err := <-u:
 			if err != nil {
 				s.mu.Lock()
 				s.err = err
 				s.mu.Unlock()
 				return
+			}
+			// if this is the first stat you get, release WaitGroup
+			if !getFirst {
+				getFirst = true
+				waitFirst.Done()
 			}
 		}
 		if !streamStats {
