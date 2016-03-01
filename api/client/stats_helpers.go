@@ -2,12 +2,14 @@ package client
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/engine-api/client"
 	"github.com/docker/engine-api/types"
 	"github.com/docker/go-units"
@@ -25,7 +27,7 @@ type containerStats struct {
 	BlockRead        float64
 	BlockWrite       float64
 	PidsCurrent      uint64
-	mu               sync.RWMutex
+	mu               sync.Mutex
 	err              error
 }
 
@@ -62,6 +64,7 @@ func (s *stats) isKnownContainer(cid string) (int, bool) {
 }
 
 func (s *containerStats) Collect(cli client.APIClient, streamStats bool, waitFirst *sync.WaitGroup) {
+	logrus.Debugf("collecting stats for %s", s.Name)
 	var (
 		getFirst       bool
 		previousCPU    uint64
@@ -90,9 +93,11 @@ func (s *containerStats) Collect(cli client.APIClient, streamStats bool, waitFir
 	go func() {
 		for {
 			var v *types.StatsJSON
+
 			if err := dec.Decode(&v); err != nil {
+				dec = json.NewDecoder(io.MultiReader(dec.Buffered(), responseBody))
 				u <- err
-				return
+				continue
 			}
 
 			var memPercent = 0.0
@@ -139,6 +144,7 @@ func (s *containerStats) Collect(cli client.APIClient, streamStats bool, waitFir
 			s.BlockRead = 0
 			s.BlockWrite = 0
 			s.PidsCurrent = 0
+			s.err = errors.New("timeout waiting for stats")
 			s.mu.Unlock()
 			// if this is the first stat you get, release WaitGroup
 			if !getFirst {
@@ -150,8 +156,9 @@ func (s *containerStats) Collect(cli client.APIClient, streamStats bool, waitFir
 				s.mu.Lock()
 				s.err = err
 				s.mu.Unlock()
-				return
+				continue
 			}
+			s.err = nil
 			// if this is the first stat you get, release WaitGroup
 			if !getFirst {
 				getFirst = true
@@ -165,12 +172,20 @@ func (s *containerStats) Collect(cli client.APIClient, streamStats bool, waitFir
 }
 
 func (s *containerStats) Display(w io.Writer) error {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	// NOTE: if you change this format, you must also change the err format below!
+	format := "%s\t%.2f%%\t%s / %s\t%.2f%%\t%s / %s\t%s / %s\t%d\n"
 	if s.err != nil {
-		return s.err
+		format = "%s\t%s\t%s / %s\t%s\t%s / %s\t%s / %s\t%s\n"
+		errStr := "--"
+		fmt.Fprintf(w, format,
+			s.Name, errStr, errStr, errStr, errStr, errStr, errStr, errStr, errStr, errStr,
+		)
+		err := s.err
+		return err
 	}
-	fmt.Fprintf(w, "%s\t%.2f%%\t%s / %s\t%.2f%%\t%s / %s\t%s / %s\t%d\n",
+	fmt.Fprintf(w, format,
 		s.Name,
 		s.CPUPercentage,
 		units.BytesSize(s.Memory), units.BytesSize(s.MemoryLimit),
