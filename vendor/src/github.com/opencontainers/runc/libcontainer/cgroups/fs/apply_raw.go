@@ -188,6 +188,9 @@ func (m *Manager) GetStats() (*cgroups.Stats, error) {
 }
 
 func (m *Manager) Set(container *configs.Config) error {
+	if m.Cgroups.Paths != nil {
+		return nil
+	}
 	for _, sys := range subsystems {
 		// Generate fake cgroup data.
 		d, err := getCgroupData(container.Cgroups, -1)

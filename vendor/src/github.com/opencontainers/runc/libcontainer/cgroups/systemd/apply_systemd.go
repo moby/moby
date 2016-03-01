@@ -495,6 +495,9 @@ func (m *Manager) GetStats() (*cgroups.Stats, error) {
 }
 
 func (m *Manager) Set(container *configs.Config) error {
+	if m.Cgroups.Paths != nil {
+		return nil
+	}
 	for _, sys := range subsystems {
 		// Get the subsystem path, but don't error out for not found cgroups.
 		path, err := getSubsystemPath(container.Cgroups, sys.Name())
