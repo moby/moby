@@ -75,6 +75,18 @@ func (s *DockerSuite) TestStatsAllRunningNoStream(c *check.C) {
 	if strings.Contains(out, id3) {
 		c.Fatalf("Did not expect %s in stats, got %s", id3, out)
 	}
+
+	// check output contains real data, but not all zeros
+	reg, _ := regexp.Compile("[1-9]+")
+	// split output with "\n", outLines[1] is id2's output
+	// outLines[2] is id1's output
+	outLines := strings.Split(out, "\n")
+	// check stat result of id2 contains real data
+	realData := reg.Find([]byte(outLines[1][12:]))
+	c.Assert(realData, checker.NotNil, check.Commentf("stat result are empty: %s", out))
+	// check stat result of id1 contains real data
+	realData = reg.Find([]byte(outLines[2][12:]))
+	c.Assert(realData, checker.NotNil, check.Commentf("stat result are empty: %s", out))
 }
 
 func (s *DockerSuite) TestStatsAllNoStream(c *check.C) {
@@ -93,6 +105,17 @@ func (s *DockerSuite) TestStatsAllNoStream(c *check.C) {
 	if !strings.Contains(out, id1) || !strings.Contains(out, id2) {
 		c.Fatalf("Expected stats output to contain both %s and %s, got %s", id1, id2, out)
 	}
+
+	// check output contains real data, but not all zeros
+	reg, _ := regexp.Compile("[1-9]+")
+	// split output with "\n", outLines[1] is id2's output
+	outLines := strings.Split(out, "\n")
+	// check stat result of id2 contains real data
+	realData := reg.Find([]byte(outLines[1][12:]))
+	c.Assert(realData, checker.NotNil, check.Commentf("stat result of %s is empty: %s", id2, out))
+	// check stat result of id1 contains all zero
+	realData = reg.Find([]byte(outLines[2][12:]))
+	c.Assert(realData, checker.IsNil, check.Commentf("stat result of %s should be empty : %s", id1, out))
 }
 
 func (s *DockerSuite) TestStatsAllNewContainersAdded(c *check.C) {
