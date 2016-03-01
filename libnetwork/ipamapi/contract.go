@@ -33,7 +33,7 @@ type Callback interface {
  * IPAM Errors
  **************/
 
-// Weel-known errors returned by IPAM
+// Well-known errors returned by IPAM
 var (
 	ErrIpamInternalError   = types.InternalErrorf("IPAM Internal Error")
 	ErrInvalidAddressSpace = types.BadRequestErrorf("Invalid Address Space")
