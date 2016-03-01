@@ -1,9 +1,6 @@
 package discovery
 
-import (
-	"fmt"
-	"net"
-)
+import "net"
 
 // NewEntry creates a new entry.
 func NewEntry(url string) (*Entry, error) {
@@ -27,7 +24,7 @@ func (e *Entry) Equals(cmp *Entry) bool {
 
 // String returns the string form of an entry.
 func (e *Entry) String() string {
-	return fmt.Sprintf("%s:%s", e.Host, e.Port)
+	return net.JoinHostPort(e.Host, e.Port)
 }
 
 // Entries is a list of *Entry with some helpers.
