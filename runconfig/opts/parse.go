@@ -103,6 +103,7 @@ type ContainerOptions struct {
 	flHealthTimeout     time.Duration
 	flHealthRetries     int
 	flRuntime           string
+	flAutoRemove        *bool
 
 	Image string
 	Args  []string
@@ -163,6 +164,7 @@ func AddFlags(flags *pflag.FlagSet) *ContainerOptions {
 	flags.Var(copts.flUlimits, "ulimit", "Ulimit options")
 	flags.StringVarP(&copts.flUser, "user", "u", "", "Username or UID (format: <name|uid>[:<group|gid>])")
 	flags.StringVarP(&copts.flWorkingDir, "workdir", "w", "", "Working directory inside the container")
+	flags.BoolVarP(&copts.flAutoRemove, "rm", false, "Automatically remove the container when it exits")
 
 	// Security
 	flags.Var(&copts.flCapAdd, "cap-add", "Add Linux capabilities")
@@ -553,6 +555,7 @@ func Parse(flags *pflag.FlagSet, copts *ContainerOptions) (*container.Config, *c
 		Binds:           binds,
 		ContainerIDFile: copts.flContainerIDFile,
 		OomScoreAdj:     copts.flOomScoreAdj,
+		AutoRemove:      copts.flAutoRemove,
 		Privileged:      copts.flPrivileged,
 		PortBindings:    portBindings,
 		Links:           copts.flLinks.GetAll(),

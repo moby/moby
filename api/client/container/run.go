@@ -25,7 +25,6 @@ import (
 )
 
 type runOptions struct {
-	autoRemove bool
 	detach     bool
 	sigProxy   bool
 	name       string
@@ -55,7 +54,6 @@ func NewRunCommand(dockerCli *client.DockerCli) *cobra.Command {
 	flags.SetInterspersed(false)
 
 	// These are flags not stored in Config/HostConfig
-	flags.BoolVar(&opts.autoRemove, "rm", false, "Automatically remove the container when it exits")
 	flags.BoolVarP(&opts.detach, "detach", "d", false, "Run container in background and print container ID")
 	flags.BoolVar(&opts.sigProxy, "sig-proxy", true, "Proxy received signals to the process")
 	flags.StringVar(&opts.name, "name", "", "Assign a name to the container")
@@ -87,7 +85,6 @@ func runRun(dockerCli *client.DockerCli, flags *pflag.FlagSet, opts *runOptions,
 		flAttach                              *opttypes.ListOpts
 		ErrConflictAttachDetach               = fmt.Errorf("Conflicting options: -a and -d")
 		ErrConflictRestartPolicyAndAutoRemove = fmt.Errorf("Conflicting options: --restart and --rm")
-		ErrConflictDetachAutoRemove           = fmt.Errorf("Conflicting options: --rm and -d")
 	)
 
 	config, hostConfig, networkingConfig, err := runconfigopts.Parse(flags, copts)
@@ -126,9 +123,6 @@ func runRun(dockerCli *client.DockerCli, flags *pflag.FlagSet, opts *runOptions,
 			if flAttach.Len() != 0 {
 				return ErrConflictAttachDetach
 			}
-		}
-		if opts.autoRemove {
-			return ErrConflictDetachAutoRemove
 		}
 
 		config.AttachStdin = false
@@ -172,7 +166,7 @@ func runRun(dockerCli *client.DockerCli, flags *pflag.FlagSet, opts *runOptions,
 			fmt.Fprintf(stdout, "%s\n", createResponse.ID)
 		}()
 	}
-	if opts.autoRemove && (hostConfig.RestartPolicy.IsAlways() || hostConfig.RestartPolicy.IsOnFailure()) {
+	if hostConfig.AutoRemove && !hostConfig.RestartPolicy.IsNone() {
 		return ErrConflictRestartPolicyAndAutoRemove
 	}
 	attach := config.AttachStdin || config.AttachStdout || config.AttachStderr
@@ -225,16 +219,6 @@ func runRun(dockerCli *client.DockerCli, flags *pflag.FlagSet, opts *runOptions,
 		})
 	}
 
-	if opts.autoRemove {
-		defer func() {
-			// Explicitly not sharing the context as it could be "Done" (by calling cancelFun)
-			// and thus the container would not be removed.
-			if err := removeContainer(dockerCli, context.Background(), createResponse.ID, true, false, true); err != nil {
-				fmt.Fprintf(stderr, "%v\n", err)
-			}
-		}()
-	}
-
 	//start the container
 	if err := client.ContainerStart(ctx, createResponse.ID, types.ContainerStartOptions{}); err != nil {
 		// If we have holdHijackedConnection, we should notify
@@ -272,30 +256,17 @@ func runRun(dockerCli *client.DockerCli, flags *pflag.FlagSet, opts *runOptions,
 	var status int
 
 	// Attached mode
-	if opts.autoRemove {
-		// Autoremove: wait for the container to finish, retrieve
-		// the exit code and remove the container
-		if status, err = client.ContainerWait(ctx, createResponse.ID); err != nil {
-			return runStartContainerErr(err)
-		}
-		if _, status, err = getExitCode(dockerCli, ctx, createResponse.ID); err != nil {
-			return err
-		}
-	} else {
-		// No Autoremove: Simply retrieve the exit code
-		if !config.Tty && hostConfig.RestartPolicy.IsNone() {
-			// In non-TTY mode, we can't detach, so we must wait for container exit
-			if status, err = client.ContainerWait(ctx, createResponse.ID); err != nil {
-				return err
-			}
-		} else {
-			// In TTY mode, there is a race: if the process dies too slowly, the state could
-			// be updated after the getExitCode call and result in the wrong exit code being reported
-			if _, status, err = getExitCode(dockerCli, ctx, createResponse.ID); err != nil {
-				return err
-			}
-		}
+	if !config.Tty {
+		// In non-TTY mode, we can't detach, so we must wait for container exit
+		client.ContainerWait(context.Background(), createResponse.ID)
 	}
+
+	// In TTY mode, there is a race: if the process dies too slowly, the state could
+	// be updated after the getExitCode call and result in the wrong exit code being reported
+	if _, status, err = dockerCli.GetExitCode(ctx, createResponse.ID); err != nil {
+		return fmt.Errorf("tty: status: %d; error: %v;", status, err)
+	}
+
 	if status != 0 {
 		return cli.StatusError{StatusCode: status}
 	}

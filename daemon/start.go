@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/errors"
 	"github.com/docker/docker/libcontainerd"
 	"github.com/docker/docker/runconfig"
+	"github.com/docker/engine-api/types"
 	containertypes "github.com/docker/engine-api/types/container"
 )
 
@@ -197,4 +198,10 @@ func (daemon *Daemon) Cleanup(container *container.Container) {
 		}
 	}
 	container.CancelAttachContext()
+
+	// if containers AutoRemove flag is set, remove it after clean up
+	if container.HostConfig.AutoRemove {
+		// If containers lock is not released, goroutine will guarantee no block
+		go daemon.ContainerRm(container.ID, &types.ContainerRmConfig{ForceRemove: true, RemoveVolume: true})
+	}
 }
