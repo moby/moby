@@ -33,15 +33,11 @@ Docker itself provides access to Docker Hub services via the `docker search`,
 ### Account creation and login
 Typically, you'll want to start by creating an account on Docker Hub (if you haven't
 already) and logging in. You can create your account directly on
-[Docker Hub](https://hub.docker.com/account/signup/), or by running:
+[Docker Hub](https://hub.docker.com/account/signup/).
 
     $ docker login
 
-This will prompt you for a user name, which will become the public namespace for your
-public repositories.
-If your user name is available, Docker will prompt you to enter a password and your
-e-mail address. It will then automatically log you in. You can now commit and
-push your own images up to your repos on Docker Hub.
+You can now commit and push your own images up to your repos on Docker Hub.
 
 > **Note:**
 > Your authentication credentials will be stored in the `~/.docker/config.json`

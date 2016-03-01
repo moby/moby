@@ -14,7 +14,6 @@ func buildAuthConfigs() map[string]types.AuthConfig {
 		authConfigs[registry] = types.AuthConfig{
 			Username: "docker-user",
 			Password: "docker-pass",
-			Email:    "docker@docker.io",
 		}
 	}
 
@@ -28,9 +27,6 @@ func TestSameAuthDataPostSave(t *testing.T) {
 		t.Fail()
 	}
 	if authConfig.Password != "docker-pass" {
-		t.Fail()
-	}
-	if authConfig.Email != "docker@docker.io" {
 		t.Fail()
 	}
 	if authConfig.Auth != "" {
@@ -62,17 +58,14 @@ func TestResolveAuthConfigFullURL(t *testing.T) {
 	registryAuth := types.AuthConfig{
 		Username: "foo-user",
 		Password: "foo-pass",
-		Email:    "foo@example.com",
 	}
 	localAuth := types.AuthConfig{
 		Username: "bar-user",
 		Password: "bar-pass",
-		Email:    "bar@example.com",
 	}
 	officialAuth := types.AuthConfig{
 		Username: "baz-user",
 		Password: "baz-pass",
-		Email:    "baz@example.com",
 	}
 	authConfigs[IndexServer] = officialAuth
 
@@ -105,7 +98,7 @@ func TestResolveAuthConfigFullURL(t *testing.T) {
 
 	for configKey, registries := range validRegistries {
 		configured, ok := expectedAuths[configKey]
-		if !ok || configured.Email == "" {
+		if !ok {
 			t.Fail()
 		}
 		index := &registrytypes.IndexInfo{
@@ -114,13 +107,13 @@ func TestResolveAuthConfigFullURL(t *testing.T) {
 		for _, registry := range registries {
 			authConfigs[registry] = configured
 			resolved := ResolveAuthConfig(authConfigs, index)
-			if resolved.Email != configured.Email {
-				t.Errorf("%s -> %q != %q\n", registry, resolved.Email, configured.Email)
+			if resolved.Username != configured.Username || resolved.Password != configured.Password {
+				t.Errorf("%s -> %v != %v\n", registry, resolved, configured)
 			}
 			delete(authConfigs, registry)
 			resolved = ResolveAuthConfig(authConfigs, index)
-			if resolved.Email == configured.Email {
-				t.Errorf("%s -> %q == %q\n", registry, resolved.Email, configured.Email)
+			if resolved.Username == configured.Username || resolved.Password == configured.Password {
+				t.Errorf("%s -> %v == %v\n", registry, resolved, configured)
 			}
 		}
 	}
