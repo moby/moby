@@ -5,6 +5,73 @@ information on the list of deprecated flags and APIs please have a look at
 https://docs.docker.com/misc/deprecated/ where target removal dates can also
 be found.
 
+## 1.10.2 (2016-02-22)
+
+### Runtime
+
+- Prevent systemd from deleting containers' cgroups when its configuration is reloaded [#20518](https://github.com/docker/docker/pull/20518)
+- Fix SELinux issues by disregarding `--read-only` when mounting `/dev/mqueue` [#20333](https://github.com/docker/docker/pull/20333)
+- Fix chown permissions used during `docker cp` when userns is used [#20446](https://github.com/docker/docker/pull/20446)
+- Fix configuration loading issue with all booleans defaulting to `true` [#20471](https://github.com/docker/docker/pull/20471)
+- Fix occasional panic with `docker logs -f` [#20522](https://github.com/docker/docker/pull/20522)
+
+### Distribution
+
+- Keep layer reference if deletion failed to avoid a badly inconsistent state [#20513](https://github.com/docker/docker/pull/20513)
+- Handle gracefully a corner case when canceling migration [#20372](https://github.com/docker/docker/pull/20372)
+- Fix docker import on compressed data [#20367](https://github.com/docker/docker/pull/20367)
+- Fix tar-split files corruption during migration that later cause docker push and docker save to fail [#20458](https://github.com/docker/docker/pull/20458)
+
+### Networking
+
+- Fix daemon crash if embedded DNS is sent garbage [#20510](https://github.com/docker/docker/pull/20510)
+
+### Volumes
+
+- Fix issue with multiple volume references with same name [#20381](https://github.com/docker/docker/pull/20381)
+
+### Security
+
+- Fix potential cache corruption and delegation conflict issues [#20523](https://github.com/docker/docker/pull/20523)
+
+## 1.10.1 (2016-02-11)
+
+### Runtime
+
+* Do not stop daemon on migration hard failure [#20156](https://github.com/docker/docker/pull/20156)
+- Fix various issues with migration to content-addressable images [#20058](https://github.com/docker/docker/pull/20058)
+- Fix ZFS permission bug with user namespaces [#20045](https://github.com/docker/docker/pull/20045)
+- Do not leak /dev/mqueue from the host to all containers, keep it container-specific [#19876](https://github.com/docker/docker/pull/19876) [#20133](https://github.com/docker/docker/pull/20133)
+- Fix `docker ps --filter before=...` to not show stopped containers without providing `-a` flag [#20135](https://github.com/docker/docker/pull/20135)
+
+### Security
+
+- Fix issue preventing docker events to work properly with authorization plugin [#20002](https://github.com/docker/docker/pull/20002)
+
+### Distribution
+
+* Add additional verifications and prevent from uploading invalid data to registries [#20164](https://github.com/docker/docker/pull/20164)
+- Fix regression preventing uppercase characters in image reference hostname [#20175](https://github.com/docker/docker/pull/20175)
+
+### Networking
+
+- Fix embedded DNS for user-defined networks in the presence of firewalld [#20060](https://github.com/docker/docker/pull/20060)
+- Fix issue where removing a network during shutdown left Docker inoperable [#20181](https://github.com/docker/docker/issues/20181) [#20235](https://github.com/docker/docker/issues/20235)
+- Embedded DNS is now able to return compressed results [#20181](https://github.com/docker/docker/issues/20181)
+- Fix port-mapping issue with `userland-proxy=false` [#20181](https://github.com/docker/docker/issues/20181)
+
+### Logging
+
+- Fix bug where tcp+tls protocol would be rejected [#20109](https://github.com/docker/docker/pull/20109)
+
+### Volumes
+
+- Fix issue whereby older volume drivers would not receive volume options [#19983](https://github.com/docker/docker/pull/19983)
+
+### Misc
+
+- Remove TasksMax from Docker systemd service [#20167](https://github.com/docker/docker/pull/20167)
+
 ## 1.10.0 (2016-02-04)
 
 **IMPORTANT**: Docker 1.10 uses a new content-addressable storage for images and layers.
