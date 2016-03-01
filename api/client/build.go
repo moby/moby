@@ -61,6 +61,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	flBuildArg := opts.NewListOpts(runconfigopts.ValidateEnv)
 	cmd.Var(&flBuildArg, []string{"-build-arg"}, "Set build-time variables")
 	isolation := cmd.String([]string{"-isolation"}, "", "Container isolation technology")
+	privileged := cmd.Bool([]string{"-privileged"}, false, "Build using privileged docker containers (dangerous!)")
 
 	ulimits := make(map[string]*units.Ulimit)
 	flUlimits := runconfigopts.NewUlimitOpt(&ulimits)
@@ -230,6 +231,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		Ulimits:        flUlimits.GetList(),
 		BuildArgs:      runconfigopts.ConvertKVStringsToMap(flBuildArg.GetAll()),
 		AuthConfigs:    cli.configFile.AuthConfigs,
+		Privileged:     *privileged,
 	}
 
 	response, err := cli.client.ImageBuild(context.Background(), options)
