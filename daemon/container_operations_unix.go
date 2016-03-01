@@ -110,6 +110,15 @@ func (daemon *Daemon) populateCommand(c *container.Container, env []string) erro
 		}
 	}
 
+	cgroup := &execdriver.Cgroup{}
+	if c.HostConfig.Cgroup.IsContainer() {
+		cc, err := daemon.getCgroupContainer(c)
+		if err != nil {
+			return err
+		}
+		cgroup.ContainerID = cc.ID
+	}
+
 	pid := &execdriver.Pid{}
 	pid.HostPid = c.HostConfig.PidMode.IsHost()
 
@@ -263,6 +272,7 @@ func (daemon *Daemon) populateCommand(c *container.Container, env []string) erro
 		GIDMapping:         gidMap,
 		GroupAdd:           c.HostConfig.GroupAdd,
 		Ipc:                ipc,
+		Cgroup:             cgroup,
 		OomScoreAdj:        c.HostConfig.OomScoreAdj,
 		Pid:                pid,
 		ReadonlyRootfs:     c.HostConfig.ReadonlyRootfs,
@@ -967,6 +977,18 @@ func (daemon *Daemon) getIpcContainer(container *container.Container) (*containe
 	}
 	if c.IsRestarting() {
 		return nil, derr.ErrorCodeContainerRestarting.WithArgs(containerID)
+	}
+	return c, nil
+}
+
+func (daemon *Daemon) getCgroupContainer(container *container.Container) (*container.Container, error) {
+	containerID := container.HostConfig.Cgroup.Container()
+	c, err := daemon.GetContainer(containerID)
+	if err != nil {
+		return nil, err
+	}
+	if !c.IsRunning() {
+		return nil, derr.ErrorCodeCgroupRunning
 	}
 	return c, nil
 }

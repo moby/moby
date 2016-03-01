@@ -102,6 +102,11 @@ type Network struct {
 	HostNetworking bool   `json:"host_networking"`
 }
 
+// Cgroups settings of the container
+type Cgroup struct {
+	ContainerID string `json:"container_id"` // id of the container to join cgroups.
+}
+
 // Command wraps an os/exec.Cmd to add more metadata
 type Command struct {
 	CommonCommand
@@ -114,6 +119,7 @@ type Command struct {
 	CapAdd             []string          `json:"cap_add"`
 	CapDrop            []string          `json:"cap_drop"`
 	CgroupParent       string            `json:"cgroup_parent"` // The parent cgroup for this command.
+	Cgroup             *Cgroup           `json:"cgroup"`
 	GIDMapping         []idtools.IDMap   `json:"gidmapping"`
 	GroupAdd           []string          `json:"group_add"`
 	Ipc                *Ipc              `json:"ipc"`

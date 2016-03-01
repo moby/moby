@@ -234,6 +234,15 @@ var (
 		HTTPStatusCode: http.StatusConflict,
 	})
 
+	// ErrorCodeCgroupRunning is generated when we try to join a container's
+	// cgroup but its not running.
+	ErrorCodeCgroupRunning = errcode.Register(errGroup, errcode.ErrorDescriptor{
+		Value:          "CGROUPRUNNING",
+		Message:        "cannot join cgroups of a non running container: %s",
+		Description:    "An attempt was made to join the cgroups of a container, but the container is not running",
+		HTTPStatusCode: http.StatusInternalServerError,
+	})
+
 	// ErrorCodeNotADir is generated when we try to create a directory
 	// but the path isn't a dir.
 	ErrorCodeNotADir = errcode.Register(errGroup, errcode.ErrorDescriptor{

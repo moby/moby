@@ -176,8 +176,13 @@ func (d *Driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, hooks execd
 
 	// 'oom' is used to emit 'oom' events to the eventstream, 'oomKilled' is used
 	// to set the 'OOMKilled' flag in state
-	oom := notifyOnOOM(cont)
-	oomKilled := notifyOnOOM(cont)
+	var oom <-chan struct{}
+	var oomKilled <-chan struct{}
+
+	if container.Cgroups.Paths == nil {
+		oom = notifyOnOOM(cont)
+		oomKilled = notifyOnOOM(cont)
+	}
 	if hooks.Start != nil {
 		pid, err := p.Pid()
 		if err != nil {
@@ -185,7 +190,13 @@ func (d *Driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, hooks execd
 			p.Wait()
 			return execdriver.ExitStatus{ExitCode: -1}, err
 		}
-		hooks.Start(&c.ProcessConfig, pid, oom)
+		if container.Cgroups.Paths != nil {
+			chOOM := make(chan struct{})
+			close(chOOM)
+			hooks.Start(&c.ProcessConfig, pid, oom)
+		} else {
+			hooks.Start(&c.ProcessConfig, pid, oom)
+		}
 	}
 
 	waitF := p.Wait
@@ -204,6 +215,7 @@ func (d *Driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, hooks execd
 	}
 	cont.Destroy()
 	destroyed = true
+	oomKill := false
 	// oomKilled will have an oom event if any process within the container was
 	// OOM killed at any time, not only if the init process OOMed.
 	//
@@ -218,7 +230,9 @@ func (d *Driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, hooks execd
 	// Even if there were multiple OOMs, it's sufficient to read one value
 	// because libcontainer's oom notify will discard the channel after the
 	// cgroup is destroyed
-	_, oomKill := <-oomKilled
+	if container.Cgroups.Paths == nil {
+		_, oomKill = <-oomKilled
+	}
 	return execdriver.ExitStatus{ExitCode: utils.ExitStatus(ps.Sys().(syscall.WaitStatus)), OOMKilled: oomKill}, nil
 }
 

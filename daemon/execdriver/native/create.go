@@ -13,6 +13,7 @@ import (
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/profiles/seccomp"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/volume"
 	"github.com/opencontainers/runc/libcontainer/apparmor"
 	"github.com/opencontainers/runc/libcontainer/configs"
@@ -102,6 +103,10 @@ func (d *Driver) createContainer(c *execdriver.Command, hooks execdriver.Hooks) 
 		return nil, err
 	}
 
+	if err := d.setupCgroups(container, c); err != nil {
+		return nil, err
+	}
+
 	container.OomScoreAdj = c.OomScoreAdj
 
 	if container.Readonlyfs {
@@ -124,6 +129,31 @@ func (d *Driver) createContainer(c *execdriver.Command, hooks execdriver.Hooks) 
 	d.setupLabels(container, c)
 	d.setupRlimits(container, c)
 	return container, nil
+}
+
+func (d *Driver) setupCgroups(container *configs.Config, c *execdriver.Command) error {
+	if c.Cgroup.ContainerID != "" {
+		d.Lock()
+		active := d.activeContainers[c.Cgroup.ContainerID]
+		d.Unlock()
+
+		if active == nil {
+			return fmt.Errorf("%s is not a valid running container to join", c.Cgroup.ContainerID)
+		}
+
+		state, err := active.State()
+		if err != nil {
+			return err
+		}
+
+		logrus.Infof("State %+v", state)
+
+		container.Cgroups.Resources = nil
+		container.Cgroups.Paths = state.CgroupPaths
+
+		return nil
+	}
+	return nil
 }
 
 func (d *Driver) createNetwork(container *configs.Config, c *execdriver.Command, hooks execdriver.Hooks) error {

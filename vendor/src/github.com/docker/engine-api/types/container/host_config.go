@@ -65,6 +65,27 @@ func (n IpcMode) Container() string {
 	return ""
 }
 
+// Cgroup Spec represents the cgroup to use for the container.
+type CgroupSpec string
+
+func (c CgroupSpec) IsContainer() bool {
+	parts := strings.SplitN(string(c), ":", 2)
+	return len(parts) > 1 && parts[0] == "container"
+}
+
+func (c CgroupSpec) Valid() bool {
+	return c.IsContainer() || c == ""
+}
+
+// Container returns the name of the container whose cgroup will be used.
+func (c CgroupSpec) Container() string {
+	parts := strings.SplitN(string(c), ":", 2)
+	if len(parts) > 1 {
+		return parts[1]
+	}
+	return ""
+}
+
 // UTSMode represents the UTS namespace of the container.
 type UTSMode string
 
@@ -221,6 +242,7 @@ type HostConfig struct {
 	ExtraHosts      []string           // List of extra hosts
 	GroupAdd        []string           // List of additional groups that the container process will run as
 	IpcMode         IpcMode            // IPC namespace to use for the container
+	Cgroup          CgroupSpec         // Cgroup to use for the container
 	Links           []string           // List of links (in the name:alias form)
 	OomScoreAdj     int                // Container preference for OOM-killing
 	PidMode         PidMode            // PID namespace to use for the container
