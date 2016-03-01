@@ -121,7 +121,6 @@ func printOutput(event eventtypes.Message, output io.Writer) {
 type eventHandler struct {
 	handlers map[string]func(eventtypes.Message)
 	mu       sync.Mutex
-	closed   bool
 }
 
 func (w *eventHandler) Handle(action string, h func(eventtypes.Message)) {

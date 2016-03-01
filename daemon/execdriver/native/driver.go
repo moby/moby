@@ -123,11 +123,6 @@ func NewDriver(root string, options []string) (*Driver, error) {
 	}, nil
 }
 
-type execOutput struct {
-	exitCode int
-	err      error
-}
-
 // Run implements the exec driver Driver interface,
 // it calls libcontainer APIs to run a container.
 func (d *Driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, hooks execdriver.Hooks) (execdriver.ExitStatus, error) {
