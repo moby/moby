@@ -71,6 +71,10 @@ type Builder struct {
 
 	// TODO: remove once docker.Commit can receive a tag
 	id string
+
+	systemInfo        *types.Info
+	printedWarnOvlYum bool // true if already printed the warning for overlay fs + yum issue,
+	printedWarnOvlRPM bool
 }
 
 // BuildManager implements builder.Backend and is shared across all Builder objects.
@@ -93,6 +97,10 @@ func NewBuilder(config *types.ImageBuildOptions, backend builder.Backend, contex
 	if config.BuildArgs == nil {
 		config.BuildArgs = make(map[string]string)
 	}
+	systemInfo, err := backend.SystemInfo()
+	if err != nil {
+		return nil, err
+	}
 	b = &Builder{
 		options:          config,
 		Stdout:           os.Stdout,
@@ -104,6 +112,7 @@ func NewBuilder(config *types.ImageBuildOptions, backend builder.Backend, contex
 		cancelled:        make(chan struct{}),
 		id:               stringid.GenerateNonCryptoID(),
 		allowedBuildArgs: make(map[string]bool),
+		systemInfo:       systemInfo,
 	}
 	if dockerfile != nil {
 		b.dockerfile, err = parser.Parse(dockerfile)

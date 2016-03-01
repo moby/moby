@@ -135,6 +135,9 @@ type Backend interface {
 	//ContainerCopy(name string, res string) (io.ReadCloser, error)
 	// TODO: use copyBackend api
 	CopyOnBuild(containerID string, destPath string, src FileInfo, decompress bool) error
+
+	// SystemInfo returns information about the host server the daemon is running on.
+	SystemInfo() (*types.Info, error)
 }
 
 // Image represents a Docker image used by the builder.
