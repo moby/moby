@@ -199,33 +199,11 @@ func GetAll(imp string) ([]*Plugin, error) {
 		err error
 	}
 
-	chPl := make(chan *plLoad, len(pluginNames))
-	var wg sync.WaitGroup
-	for _, name := range pluginNames {
-		if pl, ok := storage.plugins[name]; ok {
-			chPl <- &plLoad{pl, nil}
-			continue
-		}
-
-		wg.Add(1)
-		go func(name string) {
-			defer wg.Done()
-			pl, err := loadWithRetry(name, false)
-			chPl <- &plLoad{pl, err}
-		}(name)
-	}
-
-	wg.Wait()
-	close(chPl)
-
 	var out []*Plugin
-	for pl := range chPl {
-		if pl.err != nil {
-			logrus.Error(err)
-			continue
-		}
-		if pl.pl.implements(imp) {
-			out = append(out, pl.pl)
+	for _, name := range pluginNames {
+		pl, err := Get(name, imp)
+		if err != nil {
+			out = append(out, pl)
 		}
 	}
 	return out, nil
