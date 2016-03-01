@@ -5,7 +5,6 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"strings"
 	"time"
 
 	"github.com/docker/distribution"
@@ -53,48 +52,18 @@ func NewV2Repository(ctx context.Context, repoInfo *registry.RepositoryInfo, end
 
 	modifiers := registry.DockerHeaders(dockerversion.DockerUserAgent(), metaHeaders)
 	authTransport := transport.NewTransport(base, modifiers...)
-	pingClient := &http.Client{
-		Transport: authTransport,
-		Timeout:   15 * time.Second,
-	}
-	endpointStr := strings.TrimRight(endpoint.URL.String(), "/") + "/v2/"
-	req, err := http.NewRequest("GET", endpointStr, nil)
+
+	challengeManager, foundVersion, err := registry.PingV2Registry(endpoint, authTransport)
 	if err != nil {
-		return nil, false, fallbackError{err: err}
-	}
-	resp, err := pingClient.Do(req)
-	if err != nil {
-		return nil, false, fallbackError{err: err}
-	}
-	defer resp.Body.Close()
-
-	// We got a HTTP request through, so we're using the right TLS settings.
-	// From this point forward, set transportOK to true in any fallbackError
-	// we return.
-
-	v2Version := auth.APIVersion{
-		Type:    "registry",
-		Version: "2.0",
-	}
-
-	versions := auth.APIVersions(resp, registry.DefaultRegistryVersionHeader)
-	for _, pingVersion := range versions {
-		if pingVersion == v2Version {
-			// The version header indicates we're definitely
-			// talking to a v2 registry. So don't allow future
-			// fallbacks to the v1 protocol.
-
-			foundVersion = true
-			break
+		transportOK := false
+		if responseErr, ok := err.(registry.PingResponseError); ok {
+			transportOK = true
+			err = responseErr.Err
 		}
-	}
-
-	challengeManager := auth.NewSimpleChallengeManager()
-	if err := challengeManager.AddResponse(resp); err != nil {
 		return nil, foundVersion, fallbackError{
 			err:         err,
 			confirmedV2: foundVersion,
-			transportOK: true,
+			transportOK: transportOK,
 		}
 	}
 
