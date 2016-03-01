@@ -58,9 +58,6 @@ func NewAllocator(lcDs, glDs datastore.DataStore) (*Allocator, error) {
 		{localAddressSpace, lcDs},
 		{globalAddressSpace, glDs},
 	} {
-		if aspc.ds == nil {
-			continue
-		}
 		a.initializeAddressSpace(aspc.as, aspc.ds)
 	}
 
@@ -143,6 +140,11 @@ func (a *Allocator) checkConsistency(as string) {
 }
 
 func (a *Allocator) initializeAddressSpace(as string, ds datastore.DataStore) error {
+	scope := ""
+	if ds != nil {
+		scope = ds.Scope()
+	}
+
 	a.Lock()
 	if _, ok := a.addrSpaces[as]; ok {
 		a.Unlock()
@@ -151,7 +153,7 @@ func (a *Allocator) initializeAddressSpace(as string, ds datastore.DataStore) er
 	a.addrSpaces[as] = &addrSpace{
 		subnets: map[SubnetKey]*PoolData{},
 		id:      dsConfigKey + "/" + as,
-		scope:   ds.Scope(),
+		scope:   scope,
 		ds:      ds,
 		alloc:   a,
 	}
@@ -313,10 +315,6 @@ func (a *Allocator) insertBitMask(key SubnetKey, pool *net.IPNet) error {
 	//log.Debugf("Inserting bitmask (%s, %s)", key.String(), pool.String())
 
 	store := a.getStore(key.AddressSpace)
-	if store == nil {
-		return types.InternalErrorf("could not find store for address space %s while inserting bit mask", key.AddressSpace)
-	}
-
 	ipVer := getAddressVersion(pool.IP)
 	ones, bits := pool.Mask.Size()
 	numAddresses := uint64(1 << uint(bits-ones))
