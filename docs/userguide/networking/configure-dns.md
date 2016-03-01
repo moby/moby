@@ -75,7 +75,7 @@ Various container options that affect container domain name services.
       of the container identified by <code>CONTAINER_NAME</code>. When using <code>--link</code>
       the embedded DNS will guarantee that localized lookup result only on that
       container where the <code>--link</code> is used. This lets processes inside the new container 
-      connect to container without without having to know its name or IP.
+      connect to container without having to know its name or IP.
     </p>
     </td>
   </tr>
