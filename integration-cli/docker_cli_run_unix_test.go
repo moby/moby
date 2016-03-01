@@ -919,3 +919,40 @@ func (s *DockerSuite) TestRunSeccompWithDefaultProfile(c *check.C) {
 	c.Assert(err, checker.NotNil, check.Commentf(out))
 	c.Assert(strings.TrimSpace(out), checker.Equals, "unshare: unshare failed: Operation not permitted")
 }
+
+// TestRunDeviceSymlink checks run with device that follows symlink (#13840)
+func (s *DockerSuite) TestRunDeviceSymlink(c *check.C) {
+	testRequires(c, DaemonIsLinux, NotUserNamespace, NotArm, SameHostDaemon)
+	if _, err := os.Stat("/dev/zero"); err != nil {
+		c.Skip("Host does not have /dev/zero")
+	}
+
+	// Create a temporary directory to create symlink
+	tmpDir, err := ioutil.TempDir("", "docker_device_follow_symlink_tests")
+	c.Assert(err, checker.IsNil)
+
+	defer os.RemoveAll(tmpDir)
+
+	// Create a symbolic link to /dev/zero
+	symZero := filepath.Join(tmpDir, "zero")
+	err = os.Symlink("/dev/zero", symZero)
+	c.Assert(err, checker.IsNil)
+
+	// Create a temporary file "temp" inside tmpDir, write some data to "tmpDir/temp",
+	// then create a symlink "tmpDir/file" to the temporary file "tmpDir/temp".
+	tmpFile := filepath.Join(tmpDir, "temp")
+	err = ioutil.WriteFile(tmpFile, []byte("temp"), 0666)
+	c.Assert(err, checker.IsNil)
+	symFile := filepath.Join(tmpDir, "file")
+	err = os.Symlink(tmpFile, symFile)
+	c.Assert(err, checker.IsNil)
+
+	// md5sum of 'dd if=/dev/zero bs=4K count=8' is bb7df04e1b0a2570657527a7e108ae23
+	out, _ := dockerCmd(c, "run", "--device", symZero+":/dev/symzero", "busybox", "sh", "-c", "dd if=/dev/symzero bs=4K count=8 | md5sum")
+	c.Assert(strings.Trim(out, "\r\n"), checker.Contains, "bb7df04e1b0a2570657527a7e108ae23", check.Commentf("expected output bb7df04e1b0a2570657527a7e108ae23"))
+
+	// symlink "tmpDir/file" to a file "tmpDir/temp" will result in an error as it is not a device.
+	out, _, err = dockerCmdWithError("run", "--device", symFile+":/dev/symzero", "busybox", "sh", "-c", "dd if=/dev/symzero bs=4K count=8 | md5sum")
+	c.Assert(err, check.NotNil)
+	c.Assert(strings.Trim(out, "\r\n"), checker.Contains, "not a device node", check.Commentf("expected output 'not a device node'"))
+}
