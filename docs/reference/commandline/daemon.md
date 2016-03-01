@@ -804,6 +804,14 @@ Assuming the daemon is running in cgroup `daemoncgroup`,
 `/sys/fs/cgroup/memory/foobar`, whereas using `--cgroup-parent=foobar`
 creates the cgroup in `/sys/fs/cgroup/memory/daemoncgroup/foobar`
 
+The systemd cgroup driver has different rules for `--cgroup-parent`. Systemd
+represents hierarchy by slice and the name of the slice encodes the location in
+the tree. So `--cgroup-parent` for systemd cgroups should be a slice name. A
+name can consist of a dash-separated series of names, which describes the path
+to the slice from the root slice. For example, `--cgroup-parent=user-a-b.slice`
+means the memory cgroup for the container is created in
+`/sys/fs/cgroup/memory/user.slice/user-a.slice/user-a-b.slice/docker-<id>.scope`.
+
 This setting can also be set per container, using the `--cgroup-parent`
 option on `docker create` and `docker run`, and takes precedence over
 the `--cgroup-parent` option on the daemon.
