@@ -9,7 +9,7 @@ import (
 
 	"github.com/docker/docker/daemon/execdriver"
 	"github.com/docker/docker/volume"
-	"github.com/docker/engine-api/types/container"
+	containertypes "github.com/docker/engine-api/types/container"
 )
 
 // Container holds fields specific to the Windows implementation. See
@@ -47,7 +47,7 @@ func (container *Container) TmpfsMounts() []execdriver.Mount {
 }
 
 // UpdateContainer updates configuration of a container
-func (container *Container) UpdateContainer(hostConfig *container.HostConfig) error {
+func (container *Container) UpdateContainer(hostConfig *containertypes.HostConfig) error {
 	container.Lock()
 	defer container.Unlock()
 	resources := hostConfig.Resources
@@ -82,4 +82,11 @@ func cleanResourcePath(path string) string {
 		}
 	}
 	return filepath.Join(string(os.PathSeparator), path)
+}
+
+// canMountFS determines if the file system for the container
+// can be mounted locally. In the case of Windows, this is not possible
+// for Hyper-V containers during WORKDIR execution for example.
+func (container *Container) canMountFS() bool {
+	return !containertypes.Isolation.IsHyperV(container.HostConfig.Isolation)
 }

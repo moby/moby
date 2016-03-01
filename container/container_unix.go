@@ -727,3 +727,9 @@ func (container *Container) TmpfsMounts() []execdriver.Mount {
 func cleanResourcePath(path string) string {
 	return filepath.Join(string(os.PathSeparator), path)
 }
+
+// canMountFS determines if the file system for the container
+// can be mounted locally. A no-op on non-Windows platforms
+func (container *Container) canMountFS() bool {
+	return true
+}
