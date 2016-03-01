@@ -1,19 +1,15 @@
 package registry
 
 import (
-	"fmt"
 	"net/url"
-	"strings"
 
-	"github.com/docker/docker/reference"
 	"github.com/docker/go-connections/tlsconfig"
 )
 
-func (s *Service) lookupV1Endpoints(repoName reference.Named) (endpoints []APIEndpoint, err error) {
+func (s *Service) lookupV1Endpoints(hostname string) (endpoints []APIEndpoint, err error) {
 	var cfg = tlsconfig.ServerDefault
 	tlsConfig := &cfg
-	nameString := repoName.FullName()
-	if strings.HasPrefix(nameString, DefaultNamespace+"/") {
+	if hostname == DefaultNamespace {
 		endpoints = append(endpoints, APIEndpoint{
 			URL:          DefaultV1Registry,
 			Version:      APIVersion1,
@@ -23,12 +19,6 @@ func (s *Service) lookupV1Endpoints(repoName reference.Named) (endpoints []APIEn
 		})
 		return endpoints, nil
 	}
-
-	slashIndex := strings.IndexRune(nameString, '/')
-	if slashIndex <= 0 {
-		return nil, fmt.Errorf("invalid repo name: missing '/':  %s", nameString)
-	}
-	hostname := nameString[:slashIndex]
 
 	tlsConfig, err = s.TLSConfig(hostname)
 	if err != nil {

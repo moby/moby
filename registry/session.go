@@ -37,7 +37,7 @@ var (
 
 // A Session is used to communicate with a V1 registry
 type Session struct {
-	indexEndpoint *Endpoint
+	indexEndpoint *V1Endpoint
 	client        *http.Client
 	// TODO(tiborvass): remove authConfig
 	authConfig *types.AuthConfig
@@ -163,7 +163,7 @@ func (tr *authTransport) CancelRequest(req *http.Request) {
 
 // NewSession creates a new session
 // TODO(tiborvass): remove authConfig param once registry client v2 is vendored
-func NewSession(client *http.Client, authConfig *types.AuthConfig, endpoint *Endpoint) (r *Session, err error) {
+func NewSession(client *http.Client, authConfig *types.AuthConfig, endpoint *V1Endpoint) (r *Session, err error) {
 	r = &Session{
 		authConfig:    authConfig,
 		client:        client,
@@ -175,7 +175,7 @@ func NewSession(client *http.Client, authConfig *types.AuthConfig, endpoint *End
 
 	// If we're working with a standalone private registry over HTTPS, send Basic Auth headers
 	// alongside all our requests.
-	if endpoint.VersionString(1) != IndexServer && endpoint.URL.Scheme == "https" {
+	if endpoint.String() != IndexServer && endpoint.URL.Scheme == "https" {
 		info, err := endpoint.Ping()
 		if err != nil {
 			return nil, err
@@ -405,7 +405,7 @@ func buildEndpointsList(headers []string, indexEp string) ([]string, error) {
 
 // GetRepositoryData returns lists of images and endpoints for the repository
 func (r *Session) GetRepositoryData(name reference.Named) (*RepositoryData, error) {
-	repositoryTarget := fmt.Sprintf("%srepositories/%s/images", r.indexEndpoint.VersionString(1), name.RemoteName())
+	repositoryTarget := fmt.Sprintf("%srepositories/%s/images", r.indexEndpoint.String(), name.RemoteName())
 
 	logrus.Debugf("[registry] Calling GET %s", repositoryTarget)
 
@@ -444,7 +444,7 @@ func (r *Session) GetRepositoryData(name reference.Named) (*RepositoryData, erro
 
 	var endpoints []string
 	if res.Header.Get("X-Docker-Endpoints") != "" {
-		endpoints, err = buildEndpointsList(res.Header["X-Docker-Endpoints"], r.indexEndpoint.VersionString(1))
+		endpoints, err = buildEndpointsList(res.Header["X-Docker-Endpoints"], r.indexEndpoint.String())
 		if err != nil {
 			return nil, err
 		}
@@ -634,7 +634,7 @@ func (r *Session) PushImageJSONIndex(remote reference.Named, imgList []*ImgData,
 	if validate {
 		suffix = "images"
 	}
-	u := fmt.Sprintf("%srepositories/%s/%s", r.indexEndpoint.VersionString(1), remote.RemoteName(), suffix)
+	u := fmt.Sprintf("%srepositories/%s/%s", r.indexEndpoint.String(), remote.RemoteName(), suffix)
 	logrus.Debugf("[registry] PUT %s", u)
 	logrus.Debugf("Image list pushed to index:\n%s", imgListJSON)
 	headers := map[string][]string{
@@ -680,7 +680,7 @@ func (r *Session) PushImageJSONIndex(remote reference.Named, imgList []*ImgData,
 		if res.Header.Get("X-Docker-Endpoints") == "" {
 			return nil, fmt.Errorf("Index response didn't contain any endpoints")
 		}
-		endpoints, err = buildEndpointsList(res.Header["X-Docker-Endpoints"], r.indexEndpoint.VersionString(1))
+		endpoints, err = buildEndpointsList(res.Header["X-Docker-Endpoints"], r.indexEndpoint.String())
 		if err != nil {
 			return nil, err
 		}
@@ -722,7 +722,7 @@ func shouldRedirect(response *http.Response) bool {
 // SearchRepositories performs a search against the remote repository
 func (r *Session) SearchRepositories(term string) (*registrytypes.SearchResults, error) {
 	logrus.Debugf("Index server: %s", r.indexEndpoint)
-	u := r.indexEndpoint.VersionString(1) + "search?q=" + url.QueryEscape(term)
+	u := r.indexEndpoint.String() + "search?q=" + url.QueryEscape(term)
 
 	req, err := http.NewRequest("GET", u, nil)
 	if err != nil {
