@@ -2128,6 +2128,7 @@ Display system-wide information
 
     {
         "Architecture": "x86_64",
+        "CgroupDriver": "cgroupfs",
         "Containers": 11,
         "ContainersRunning": 7,
         "ContainersStopped": 3,

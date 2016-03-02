@@ -362,6 +362,14 @@ func verifyContainerResources(resources *containertypes.Resources, sysInfo *sysi
 	return warnings, nil
 }
 
+func (daemon *Daemon) getCgroupDriver() string {
+	cgroupDriver := "cgroupfs"
+	if daemon.usingSystemd() {
+		cgroupDriver = "systemd"
+	}
+	return cgroupDriver
+}
+
 func usingSystemd(config *Config) bool {
 	for _, option := range config.ExecOptions {
 		key, val, err := parsers.ParseKeyValueOpt(option)
