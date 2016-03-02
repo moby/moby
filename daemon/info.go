@@ -111,6 +111,7 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 	if runtime.GOOS != "windows" {
 		v.MemoryLimit = sysInfo.MemoryLimit
 		v.SwapLimit = sysInfo.SwapLimit
+		v.KernelMemory = sysInfo.KernelMemory
 		v.OomKillDisable = sysInfo.OomKillDisable
 		v.CPUCfsPeriod = sysInfo.CPUCfsPeriod
 		v.CPUCfsQuota = sysInfo.CPUCfsQuota
