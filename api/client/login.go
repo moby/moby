@@ -13,7 +13,6 @@ import (
 	"github.com/docker/docker/cliconfig/credentials"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/pkg/term"
-	"github.com/docker/engine-api/client"
 	"github.com/docker/engine-api/types"
 )
 
@@ -55,11 +54,6 @@ func (cli *DockerCli) CmdLogin(args ...string) error {
 
 	response, err := cli.client.RegistryLogin(authConfig)
 	if err != nil {
-		if client.IsErrUnauthorized(err) {
-			if err2 := eraseCredentials(cli.configFile, authConfig.ServerAddress); err2 != nil {
-				fmt.Fprintf(cli.out, "WARNING: could not save credentials: %v\n", err2)
-			}
-		}
 		return err
 	}
 
