@@ -696,11 +696,17 @@ these resources are name-based, not id-based.  If the numeric ID information
 provided does not exist as entries in `/etc/passwd` or `/etc/group`, daemon
 startup will fail with an error message.
 
+> **Note:** On Fedora 22, you have to `touch` the `/etc/subuid` and `/etc/subgid`
+> files to have ranges assigned when users are created.  This must be done
+> *before* the `--userns-remap` option is enabled. Once these files exist, the
+> daemon can be (re)started and range assignment on user creation works properly.
+
 *Example: starting with default Docker user management:*
 
+```bash
+$ docker daemon --userns-remap=default
 ```
-     $ docker daemon --userns-remap=default
-```    
+
 When `default` is provided, Docker will create - or find the existing - user and group
 named `dockremap`. If the user is created, and the Linux distribution has
 appropriate support, the `/etc/subuid` and `/etc/subgid` files will be populated
@@ -709,15 +715,11 @@ at an offset based on prior entries in those files.  For example, Ubuntu will
 create the following range, based on an existing user named `user1` already owning
 the first 65536 range:
 
+```bash
+$ cat /etc/subuid
+user1:100000:65536
+dockremap:165536:65536
 ```
-     $ cat /etc/subuid
-     user1:100000:65536
-     dockremap:165536:65536
-```
-
-> **Note:** On Fedora 22, you have to `touch` the `/etc/subuid` and `/etc/subgid`
-> files to have ranges assigned when users are created.  Once these files
-> exist, range assignment on user creation works properly.
 
 If you have a preferred/self-managed user with subordinate ID mappings already
 configured, you can provide that username or uid to the `--userns-remap` flag.
