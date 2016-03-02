@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/docker/distribution"
 	"github.com/docker/distribution/digest"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/progress"
@@ -35,13 +36,17 @@ func (u *mockUploadDescriptor) DiffID() layer.DiffID {
 	return u.diffID
 }
 
+// SetRemoteDescriptor is not used in the mock.
+func (u *mockUploadDescriptor) SetRemoteDescriptor(remoteDescriptor distribution.Descriptor) {
+}
+
 // Upload is called to perform the upload.
-func (u *mockUploadDescriptor) Upload(ctx context.Context, progressOutput progress.Output) error {
+func (u *mockUploadDescriptor) Upload(ctx context.Context, progressOutput progress.Output) (distribution.Descriptor, error) {
 	if u.currentUploads != nil {
 		defer atomic.AddInt32(u.currentUploads, -1)
 
 		if atomic.AddInt32(u.currentUploads, 1) > maxUploadConcurrency {
-			return errors.New("concurrency limit exceeded")
+			return distribution.Descriptor{}, errors.New("concurrency limit exceeded")
 		}
 	}
 
@@ -49,7 +54,7 @@ func (u *mockUploadDescriptor) Upload(ctx context.Context, progressOutput progre
 	for i := int64(0); i <= 10; i++ {
 		select {
 		case <-ctx.Done():
-			return ctx.Err()
+			return distribution.Descriptor{}, ctx.Err()
 		case <-time.After(10 * time.Millisecond):
 			progressOutput.WriteProgress(progress.Progress{ID: u.ID(), Current: i, Total: 10})
 		}
@@ -57,10 +62,10 @@ func (u *mockUploadDescriptor) Upload(ctx context.Context, progressOutput progre
 
 	if u.simulateRetries != 0 {
 		u.simulateRetries--
-		return errors.New("simulating retry")
+		return distribution.Descriptor{}, errors.New("simulating retry")
 	}
 
-	return nil
+	return distribution.Descriptor{}, nil
 }
 
 func uploadDescriptors(currentUploads *int32) []UploadDescriptor {
