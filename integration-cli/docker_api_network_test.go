@@ -65,14 +65,14 @@ func (s *DockerSuite) TestApiNetworkCreateCheckDuplicate(c *check.C) {
 
 	// Run multiple concurrent requests to create same network - only one should
 	// succeed
-	configOnCheck.name = "testcdnconcurrent"
+	configOnCheck.Name = "testcdnconcurrent"
 	succeeded := 0
 	mux := sync.Mutex{}
 	wg := sync.WaitGroup{}
 	for i := 0; i < 100; i++ {
 		wg.Add(1)
 		go func() {
-			status, resp, err := sockRequest("POST", "/networks/create", configOnCheck)
+			status, _, err := sockRequest("POST", "/networks/create", configOnCheck)
 			mux.Lock()
 			if err == nil && status == http.StatusCreated {
 				succeeded++
