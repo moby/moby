@@ -93,6 +93,17 @@ The following plugins exist:
   secure and work in partially connected networks, and other adverse
   environments - all configured with delightful simplicity.
 
+* The [Kuryr Network Plugin](https://github.com/openstack/kuryr) is
+  developed as part of the OpenStack Kuryr project and implements the
+  Docker networking (libnetwork) remote driver API by utilizing
+  Neutron, the OpenStack networking service. It includes an IPAM
+  driver as well.
+
+* The [Local Persist Plugin](https://github.com/CWSpear/local-persist) 
+  extends the default `local` driver's functionality by allowing you specify 
+  a mountpoint anywhere on the host, which enables the files to *always persist*, 
+  even if the volume is removed via `docker volume rm`.
+
 ## Troubleshooting a plugin
 
 If you are having problems with Docker after loading a plugin, ask the authors

@@ -109,10 +109,9 @@ packages from the new repository:
 ### Prerequisites by Ubuntu Version
 
 - Ubuntu Wily 15.10
-- Ubuntu Vivid 15.04
 - Ubuntu Trusty 14.04 (LTS)
 
-For Ubuntu Trusty, Vivid, and Wily, it's recommended to install the
+For Ubuntu Trusty and Wily, it's recommended to install the
 `linux-image-extra` kernel package. The `linux-image-extra` package
 allows you use the `aufs` storage driver.
 
