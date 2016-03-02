@@ -82,12 +82,12 @@ func CreateProcessInComputeSystem(id string, useStdin bool, useStdout bool, useS
 	err = createProcessWithStdHandlesInComputeSystem(id, string(paramsJson), &pid, stdinParam, stdoutParam, stderrParam)
 	if err != nil {
 		herr := makeErrorf(err, title, "id=%s params=%v", id, params)
-		err = herr
 		// Windows TP4: Hyper-V Containers may return this error with more than one
 		// concurrent exec. Do not log it as an error
-		if herr.Err != WSAEINVAL {
-			logrus.Error(err)
+		if err != WSAEINVAL {
+			logrus.Error(herr)
 		}
+		err = herr
 		return
 	}
 
