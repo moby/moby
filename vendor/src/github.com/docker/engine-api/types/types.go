@@ -204,6 +204,7 @@ type Info struct {
 	Plugins            PluginsInfo
 	MemoryLimit        bool
 	SwapLimit          bool
+	KernelMemory       bool
 	CPUCfsPeriod       bool `json:"CpuCfsPeriod"`
 	CPUCfsQuota        bool `json:"CpuCfsQuota"`
 	CPUShares          bool

@@ -65,6 +65,30 @@ func (n IpcMode) Container() string {
 	return ""
 }
 
+// UsernsMode represents userns mode in the container.
+type UsernsMode string
+
+// IsHost indicates whether the container uses the host's userns.
+func (n UsernsMode) IsHost() bool {
+	return n == "host"
+}
+
+// IsPrivate indicates whether the container uses the a private userns.
+func (n UsernsMode) IsPrivate() bool {
+	return !(n.IsHost())
+}
+
+// Valid indicates whether the userns is valid.
+func (n UsernsMode) Valid() bool {
+	parts := strings.Split(string(n), ":")
+	switch mode := parts[0]; mode {
+	case "", "host":
+	default:
+		return false
+	}
+	return true
+}
+
 // UTSMode represents the UTS namespace of the container.
 type UTSMode string
 
@@ -180,6 +204,7 @@ type Resources struct {
 	CpusetCpus           string          // CpusetCpus 0-2, 0,1
 	CpusetMems           string          // CpusetMems 0-2, 0,1
 	Devices              []DeviceMapping // List of devices to map inside the container
+	DiskQuota            int64           // Disk limit (in bytes)
 	KernelMemory         int64           // Kernel memory limit (in bytes)
 	Memory               int64           // Memory limit (in bytes)
 	MemoryReservation    int64           // Memory soft limit (in bytes)
@@ -228,6 +253,7 @@ type HostConfig struct {
 	PublishAllPorts bool              // Should docker publish all exposed port for the container
 	ReadonlyRootfs  bool              // Is the container root filesystem in read-only
 	SecurityOpt     []string          // List of string values to customize labels for MLS systems, such as SELinux.
+	StorageOpt      []string          // Storage driver options per container.
 	Tmpfs           map[string]string `json:",omitempty"` // List of tmpfs (mounts) used for the container
 	UTSMode         UTSMode           // UTS namespace to use for the container
 	ShmSize         int64             // Total shm memory usage
