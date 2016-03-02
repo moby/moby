@@ -188,6 +188,13 @@ func (container *Container) SetupWorkingDirectory() error {
 	if container.Config.WorkingDir == "" {
 		return nil
 	}
+
+	// If can't mount container FS at this point (eg Hyper-V Containers on
+	// Windows) bail out now with no action.
+	if !container.canMountFS() {
+		return nil
+	}
+
 	container.Config.WorkingDir = filepath.Clean(container.Config.WorkingDir)
 
 	pth, err := container.GetResourcePath(container.Config.WorkingDir)
