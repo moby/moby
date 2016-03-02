@@ -282,19 +282,6 @@ func (container *Container) exposes(p nat.Port) bool {
 	return exists
 }
 
-// GetLogConfig returns the log configuration for the container.
-func (container *Container) GetLogConfig(defaultConfig containertypes.LogConfig) containertypes.LogConfig {
-	cfg := container.HostConfig.LogConfig
-	if cfg.Type != "" || len(cfg.Config) > 0 { // container has log driver configured
-		if cfg.Type == "" {
-			cfg.Type = jsonfilelog.Name
-		}
-		return cfg
-	}
-	// Use daemon's default log config for containers
-	return defaultConfig
-}
-
 // StartLogger starts a new logger driver for the container.
 func (container *Container) StartLogger(cfg containertypes.LogConfig) (logger.Logger, error) {
 	c, err := logger.GetLogDriver(cfg.Type)
