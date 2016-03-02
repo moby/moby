@@ -205,7 +205,7 @@ RUN useradd --create-home --gid docker unprivilegeduser
 
 VOLUME /var/lib/docker
 WORKDIR /go/src/github.com/docker/docker
-ENV DOCKER_BUILDTAGS apparmor seccomp selinux
+ENV DOCKER_BUILDTAGS apparmor pkcs11 seccomp selinux
 
 # Let us use a .bashrc file
 RUN ln -sfv $PWD/.bashrc ~/.bashrc
