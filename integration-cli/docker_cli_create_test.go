@@ -443,8 +443,10 @@ func (s *DockerSuite) TestCreateWithWorkdir(c *check.C) {
 
 func (s *DockerSuite) TestCreateWithInvalidLogOpts(c *check.C) {
 	name := "test-invalidate-log-opts"
-	_, _, err := dockerCmdWithError("create", "--name", name, "--log-opt", "invalid=true")
+	out, _, err := dockerCmdWithError("create", "--name", name, "--log-opt", "invalid=true", "busybox")
 	c.Assert(err, checker.NotNil)
-	out, _ := dockerCmd(c, "ps", "-a")
+	c.Assert(out, checker.Contains, "unknown log opt")
+
+	out, _ = dockerCmd(c, "ps", "-a")
 	c.Assert(out, checker.Not(checker.Contains), name)
 }
