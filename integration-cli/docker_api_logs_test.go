@@ -46,7 +46,7 @@ func (s *DockerSuite) TestLogsApiWithStdout(c *check.C) {
 		if !strings.HasSuffix(l.out, "hello") {
 			c.Fatalf("expected log output to container 'hello', but it does not")
 		}
-	case <-time.After(2 * time.Second):
+	case <-time.After(20 * time.Second):
 		c.Fatal("timeout waiting for logs to exit")
 	}
 }
