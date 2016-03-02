@@ -577,6 +577,8 @@ func sockConn(timeout time.Duration) (net.Conn, error) {
 
 	var c net.Conn
 	switch daemonURL.Scheme {
+	case "npipe":
+		return npipeDial(daemonURL.Path, timeout)
 	case "unix":
 		return net.DialTimeout(daemonURL.Scheme, daemonURL.Path, timeout)
 	case "tcp":
