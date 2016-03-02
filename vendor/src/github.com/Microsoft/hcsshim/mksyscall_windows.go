@@ -294,6 +294,9 @@ func (r *Rets) SetErrorCode() string {
 	const code = `if r0 != 0 {
 		%s = %sErrno(r0)
 	}`
+	const hrCode = `if int32(r0) < 0 {
+		%s = %sErrno(win32FromHresult(r0))
+	}`
 	if r.Name == "" && !r.ReturnsError {
 		return ""
 	}
@@ -301,7 +304,11 @@ func (r *Rets) SetErrorCode() string {
 		return r.useLongHandleErrorCode("r1")
 	}
 	if r.Type == "error" {
-		return fmt.Sprintf(code, r.Name, syscalldot())
+		if r.Name == "hr" {
+			return fmt.Sprintf(hrCode, r.Name, syscalldot())
+		} else {
+			return fmt.Sprintf(code, r.Name, syscalldot())
+		}
 	}
 	s := ""
 	switch {
