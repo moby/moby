@@ -1,15 +1,12 @@
 package network
 
-import (
-	"github.com/docker/docker/api/server/router"
-	"sync"
-)
+import "github.com/docker/docker/api/server/router"
 
 // networkRouter is a router to talk with the network controller
 type networkRouter struct {
 	backend Backend
 	routes  []router.Route
-	mutex   sync.Mutex
+	locks   nameLocker
 }
 
 // NewRouter initializes a new network router
@@ -18,6 +15,7 @@ func NewRouter(b Backend) router.Router {
 		backend: b,
 	}
 	r.initRoutes()
+	r.locks.init()
 	return r
 }
 
