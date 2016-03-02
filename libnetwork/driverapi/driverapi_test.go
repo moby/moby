@@ -87,7 +87,7 @@ func TestValidateAndIsV6(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err = i.Validate(); err == nil {
-		t.Fatalf("expected error but succeded")
+		t.Fatalf("expected error but succeeded")
 	}
 	i.Gateway = nil
 
@@ -96,7 +96,7 @@ func TestValidateAndIsV6(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err = i.Validate(); err == nil {
-		t.Fatalf("expected error but succeded")
+		t.Fatalf("expected error but succeeded")
 	}
 	delete(i.AuxAddresses, "ip2")
 
@@ -105,7 +105,7 @@ func TestValidateAndIsV6(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err = i.Validate(); err == nil {
-		t.Fatalf("expected error but succeded")
+		t.Fatalf("expected error but succeeded")
 	}
 	i.Gateway = nil
 
@@ -114,6 +114,6 @@ func TestValidateAndIsV6(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err = i.Validate(); err == nil {
-		t.Fatalf("expected error but succeded")
+		t.Fatalf("expected error but succeeded")
 	}
 }

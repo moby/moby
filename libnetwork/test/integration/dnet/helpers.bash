@@ -476,20 +476,20 @@ function test_overlay_hostmode() {
 	    hrun runc $(dnet_container_name 1 $dnet_suffix) $(get_sbox_id 1 mh2_${i}) "nslookup mh2_$j"
 	    mh2_j_ip=$(echo ${output} | awk '{print $11}')
 
-	    # Ping the j containers in the same network and ensure they are successfull
+	    # Ping the j containers in the same network and ensure they are successful
 	    runc $(dnet_container_name 1 $dnet_suffix) $(get_sbox_id 1 mh1_${i}) \
 		 "ping -c 1 mh1_$j"
 	    runc $(dnet_container_name 1 $dnet_suffix) $(get_sbox_id 1 mh2_${i}) \
 		 "ping -c 1 mh2_$j"
 
-	    # Try pinging j container IPs from the container in the other network and make sure that they are not successfull
+	    # Try pinging j container IPs from the container in the other network and make sure that they are not successful
 	    runc_nofail $(dnet_container_name 1 $dnet_suffix) $(get_sbox_id 1 mh1_${i}) "ping -c 1 ${mh2_j_ip}"
 	    [ "${status}" -ne 0 ]
 
 	    runc_nofail $(dnet_container_name 1 $dnet_suffix) $(get_sbox_id 1 mh2_${i}) "ping -c 1 ${mh1_j_ip}"
 	    [ "${status}" -ne 0 ]
 
-	    # Try pinging the j container IPS from the host(dnet container in this case) and make syre that they are not successfull
+	    # Try pinging the j container IPS from the host(dnet container in this case) and make syre that they are not successful
 	    hrun docker exec -it $(dnet_container_name 1 $dnet_suffix) "ping -c 1 ${mh1_j_ip}"
 	    [ "${status}" -ne 0 ]
 

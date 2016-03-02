@@ -600,7 +600,7 @@ func (n *network) driver(load bool) (driverapi.Driver, error) {
 			return nil, err
 		}
 	} else if !ok {
-		// dont fail if driver loading is not required
+		// don't fail if driver loading is not required
 		return nil, nil
 	}
 

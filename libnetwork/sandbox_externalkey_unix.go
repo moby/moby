@@ -130,7 +130,7 @@ func (c *controller) acceptClientConnections(sock string, l net.Listener) {
 		conn, err := l.Accept()
 		if err != nil {
 			if _, err1 := os.Stat(sock); os.IsNotExist(err1) {
-				logrus.Debugf("Unix socket %s doesnt exist. cannot accept client connections", sock)
+				logrus.Debugf("Unix socket %s doesn't exist. cannot accept client connections", sock)
 				return
 			}
 			logrus.Errorf("Error accepting connection %v", err)
