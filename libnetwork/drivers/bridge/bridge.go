@@ -543,6 +543,9 @@ func (d *driver) getNetworks() []*bridgeNetwork {
 
 // Create a new network using bridge plugin
 func (d *driver) CreateNetwork(id string, option map[string]interface{}, ipV4Data, ipV6Data []driverapi.IPAMData) error {
+	if len(ipV4Data) == 0 || ipV4Data[0].Pool.String() == "0.0.0.0/0" {
+		return types.BadRequestErrorf("ipv4 pool is empty")
+	}
 	// Sanity checks
 	d.Lock()
 	if _, ok := d.networks[id]; ok {
