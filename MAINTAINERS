@@ -202,11 +202,6 @@
 	Email = "github@gone.nl"
 	GitHub = "thaJeztah"
 
-	[people.theadactyl]
-	Name = "Thea Lamkin"
-	Email = "thea@docker.com"
-	GitHub = "theadactyl"
-
 	[people.tianon]
 	Name = "Tianon Gravi"
 	Email = "admwiggin@gmail.com"
