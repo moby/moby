@@ -223,9 +223,9 @@ type Resources struct {
 // UpdateConfig holds the mutable attributes of a Container.
 // Those attributes can be updated at runtime.
 type UpdateConfig struct {
-	// Contains container's resources (cgroups, ulimits)
-	Resources
-	RestartPolicy RestartPolicy
+	Resources                       // Contains container's resources (cgroups, ulimits)
+	RestartPolicy RestartPolicy     // Restart policies
+	Labels        map[string]string // List of labels set to this container
 }
 
 // HostConfig the non-portable Config structure of a container.
