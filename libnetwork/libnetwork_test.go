@@ -2356,3 +2356,10 @@ func TestParallel2(t *testing.T) {
 func TestParallel3(t *testing.T) {
 	runParallelTests(t, 3)
 }
+
+func TestNullIpam(t *testing.T) {
+	_, err := controller.NewNetwork(bridgeNetType, "testnetworkinternal", libnetwork.NetworkOptionIpam(ipamapi.NullIPAM, "", nil, nil, nil))
+	if err == nil || err.Error() != "ipv4 pool is empty" {
+		t.Fatal("bridge network should complain empty pool")
+	}
+}
