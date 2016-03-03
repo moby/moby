@@ -400,6 +400,9 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverBindExternalVolume(c
 
 func (s *DockerExternalVolumeSuite) TesttExternalVolumeDriverList(c *check.C) {
 	dockerCmd(c, "volume", "create", "-d", "test-external-volume-driver", "--name", "abc")
+
+	s.ec.paths = 0
+	s.ec.gets = 0
 	out, _ := dockerCmd(c, "volume", "ls")
 	ls := strings.Split(strings.TrimSpace(out), "\n")
 	c.Assert(len(ls), check.Equals, 2, check.Commentf("\n%s", out))
@@ -410,6 +413,8 @@ func (s *DockerExternalVolumeSuite) TesttExternalVolumeDriverList(c *check.C) {
 	c.Assert(vol[1], check.Equals, "abc")
 
 	c.Assert(s.ec.lists, check.Equals, 1)
+	c.Assert(s.ec.gets, check.Equals, 0)
+	c.Assert(s.ec.paths, check.Equals, 0)
 }
 
 func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverGet(c *check.C) {

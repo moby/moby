@@ -181,5 +181,5 @@ func (daemon *Daemon) VolumeCreate(name, driverName string, opts map[string]stri
 	}
 
 	daemon.LogVolumeEvent(v.Name(), "create", map[string]string{"driver": v.DriverName()})
-	return volumeToAPIType(v), nil
+	return volumeDetailsToAPIType(v), nil
 }
