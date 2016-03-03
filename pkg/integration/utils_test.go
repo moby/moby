@@ -14,6 +14,11 @@ import (
 )
 
 func TestIsKilledFalseWithNonKilledProcess(t *testing.T) {
+	// TODO Windows: Port this test
+	if runtime.GOOS == "windows" {
+		t.Skip("Needs porting to Windows")
+	}
+
 	lsCmd := exec.Command("ls")
 	lsCmd.Start()
 	// Wait for it to finish
@@ -134,6 +139,11 @@ Try 'ls --help' for more information.
 }
 
 func TestRunCommandWithOutputForDurationFinished(t *testing.T) {
+	// TODO Windows: Port this test
+	if runtime.GOOS == "windows" {
+		t.Skip("Needs porting to Windows")
+	}
+
 	cmd := exec.Command("ls")
 	out, exitCode, timedOut, err := RunCommandWithOutputForDuration(cmd, 50*time.Millisecond)
 	if out == "" || exitCode != 0 || timedOut || err != nil {
@@ -142,6 +152,10 @@ func TestRunCommandWithOutputForDurationFinished(t *testing.T) {
 }
 
 func TestRunCommandWithOutputForDurationKilled(t *testing.T) {
+	// TODO Windows: Port this test
+	if runtime.GOOS == "windows" {
+		t.Skip("Needs porting to Windows")
+	}
 	cmd := exec.Command("sh", "-c", "while true ; do echo 1 ; sleep .1 ; done")
 	out, exitCode, timedOut, err := RunCommandWithOutputForDuration(cmd, 500*time.Millisecond)
 	ones := strings.Split(out, "\n")
@@ -164,6 +178,11 @@ func TestRunCommandWithOutputForDurationErrors(t *testing.T) {
 }
 
 func TestRunCommandWithOutputAndTimeoutFinished(t *testing.T) {
+	// TODO Windows: Port this test
+	if runtime.GOOS == "windows" {
+		t.Skip("Needs porting to Windows")
+	}
+
 	cmd := exec.Command("ls")
 	out, exitCode, err := RunCommandWithOutputAndTimeout(cmd, 50*time.Millisecond)
 	if out == "" || exitCode != 0 || err != nil {
@@ -172,6 +191,11 @@ func TestRunCommandWithOutputAndTimeoutFinished(t *testing.T) {
 }
 
 func TestRunCommandWithOutputAndTimeoutKilled(t *testing.T) {
+	// TODO Windows: Port this test
+	if runtime.GOOS == "windows" {
+		t.Skip("Needs porting to Windows")
+	}
+
 	cmd := exec.Command("sh", "-c", "while true ; do echo 1 ; sleep .1 ; done")
 	out, exitCode, err := RunCommandWithOutputAndTimeout(cmd, 500*time.Millisecond)
 	ones := strings.Split(out, "\n")
@@ -194,6 +218,11 @@ func TestRunCommandWithOutputAndTimeoutErrors(t *testing.T) {
 }
 
 func TestRunCommand(t *testing.T) {
+	// TODO Windows: Port this test
+	if runtime.GOOS == "windows" {
+		t.Skip("Needs porting to Windows")
+	}
+
 	p := "$PATH"
 	if runtime.GOOS == "windows" {
 		p = "%PATH%"
