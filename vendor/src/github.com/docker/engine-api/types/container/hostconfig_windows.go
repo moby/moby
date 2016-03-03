@@ -79,7 +79,7 @@ func (n NetworkMode) NetworkName() string {
 	return ""
 }
 
-// ValidateIsolationperforms platform specific validation of the
+// ValidateIsolation performs platform specific validation of the
 // isolation technology in the hostconfig structure. Windows supports 'default' (or
 // blank), 'process', or 'hyperv'.
 func ValidateIsolation(hc *HostConfig) error {
