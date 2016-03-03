@@ -286,6 +286,12 @@ func (s *DockerTrustSuite) TestTrustedPush(c *check.C) {
 	out, _, err = runCommandWithOutput(pullCmd)
 	c.Assert(err, check.IsNil, check.Commentf(out))
 	c.Assert(string(out), checker.Contains, "Status: Downloaded", check.Commentf(out))
+
+	// Assert that we rotated the snapshot key to the server by checking our local keystore
+	contents, err := ioutil.ReadDir(filepath.Join(cliconfig.ConfigDir(), "trust/private/tuf_keys", privateRegistryURL, "dockerclitrusted/pushtest"))
+	c.Assert(err, check.IsNil, check.Commentf("Unable to read local tuf key files"))
+	// Check that we only have 1 key (targets key)
+	c.Assert(contents, checker.HasLen, 1)
 }
 
 func (s *DockerTrustSuite) TestTrustedPushWithEnvPasswords(c *check.C) {
