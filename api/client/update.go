@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	Cli "github.com/docker/docker/cli"
+	fopts "github.com/docker/docker/opts"
 	flag "github.com/docker/docker/pkg/mflag"
 	"github.com/docker/docker/runconfig/opts"
 	"github.com/docker/engine-api/types/container"
@@ -27,6 +28,10 @@ func (cli *DockerCli) CmdUpdate(args ...string) error {
 	flMemorySwap := cmd.String([]string{"-memory-swap"}, "", "Swap limit equal to memory plus swap: '-1' to enable unlimited swap")
 	flKernelMemory := cmd.String([]string{"-kernel-memory"}, "", "Kernel memory limit")
 	flRestartPolicy := cmd.String([]string{"-restart"}, "", "Restart policy to apply when a container exits")
+	flLabels := fopts.NewListOpts(opts.ValidateEnv)
+	cmd.Var(&flLabels, []string{"l", "-label"}, "Set meta data on a container")
+	flLabelsFile := fopts.NewListOpts(nil)
+	cmd.Var(&flLabelsFile, []string{"-label-file"}, "Read in a line delimited file of labels")
 
 	cmd.Require(flag.Min, 1)
 	cmd.ParseFlags(args, true)
@@ -79,6 +84,12 @@ func (cli *DockerCli) CmdUpdate(args ...string) error {
 		}
 	}
 
+	// collect all the labels for the container
+	labels, err := opts.ReadKVStrings(flLabelsFile.GetAll(), flLabels.GetAll())
+	if err != nil {
+		return err
+	}
+
 	resources := container.Resources{
 		BlkioWeight:       *flBlkioWeight,
 		CpusetCpus:        *flCpusetCpus,
@@ -95,6 +106,7 @@ func (cli *DockerCli) CmdUpdate(args ...string) error {
 	updateConfig := container.UpdateConfig{
 		Resources:     resources,
 		RestartPolicy: restartPolicy,
+		Labels:        opts.ConvertKVStringsToMap(labels),
 	}
 
 	names := cmd.Args()

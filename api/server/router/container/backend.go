@@ -41,7 +41,7 @@ type stateBackend interface {
 	ContainerStart(name string, hostConfig *container.HostConfig) error
 	ContainerStop(name string, seconds int) error
 	ContainerUnpause(name string) error
-	ContainerUpdate(name string, hostConfig *container.HostConfig) ([]string, error)
+	ContainerUpdate(name string, hostConfig *container.HostConfig, labels map[string]string) ([]string, error)
 	ContainerWait(name string, timeout time.Duration) (int, error)
 }
 

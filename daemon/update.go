@@ -8,7 +8,7 @@ import (
 )
 
 // ContainerUpdate updates configuration of the container
-func (daemon *Daemon) ContainerUpdate(name string, hostConfig *container.HostConfig) ([]string, error) {
+func (daemon *Daemon) ContainerUpdate(name string, hostConfig *container.HostConfig, labels map[string]string) ([]string, error) {
 	var warnings []string
 
 	warnings, err := daemon.verifyContainerSettings(hostConfig, nil, true)
@@ -16,7 +16,7 @@ func (daemon *Daemon) ContainerUpdate(name string, hostConfig *container.HostCon
 		return warnings, err
 	}
 
-	if err := daemon.update(name, hostConfig); err != nil {
+	if err := daemon.update(name, hostConfig, labels); err != nil {
 		return warnings, err
 	}
 
@@ -34,7 +34,7 @@ func (daemon *Daemon) ContainerUpdateCmdOnBuild(cID string, cmd []string) error 
 	return nil
 }
 
-func (daemon *Daemon) update(name string, hostConfig *container.HostConfig) error {
+func (daemon *Daemon) update(name string, hostConfig *container.HostConfig, labels map[string]string) error {
 	if hostConfig == nil {
 		return nil
 	}
@@ -63,7 +63,7 @@ func (daemon *Daemon) update(name string, hostConfig *container.HostConfig) erro
 		return errCannotUpdate(container.ID, fmt.Errorf("Can not update kernel memory to a running container, please stop it first."))
 	}
 
-	if err := container.UpdateContainer(hostConfig); err != nil {
+	if err := container.UpdateContainer(hostConfig, labels); err != nil {
 		restoreConfig = true
 		return errCannotUpdate(container.ID, err)
 	}
