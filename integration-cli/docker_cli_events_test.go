@@ -207,26 +207,6 @@ func (s *DockerSuite) TestEventsImageTag(c *check.C) {
 	c.Assert(matches["action"], checker.Equals, "tag")
 }
 
-func (s *DockerSuite) TestEventsImagePull(c *check.C) {
-	// TODO Windows: Enable this test once pull and reliable image names are available
-	testRequires(c, DaemonIsLinux)
-	since := daemonTime(c).Unix()
-	testRequires(c, Network)
-
-	dockerCmd(c, "pull", "hello-world")
-
-	out, _ := dockerCmd(c, "events",
-		fmt.Sprintf("--since=%d", since),
-		fmt.Sprintf("--until=%d", daemonTime(c).Unix()))
-
-	events := strings.Split(strings.TrimSpace(out), "\n")
-	event := strings.TrimSpace(events[len(events)-1])
-	matches := eventstestutils.ScanMap(event)
-	c.Assert(matches["id"], checker.Equals, "hello-world:latest")
-	c.Assert(matches["action"], checker.Equals, "pull")
-
-}
-
 func (s *DockerSuite) TestEventsImageImport(c *check.C) {
 	// TODO Windows CI. This should be portable once export/import are
 	// more reliable (@swernli)
