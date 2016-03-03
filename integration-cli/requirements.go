@@ -140,6 +140,19 @@ var (
 		},
 		"Test requires native Golang compiler instead of GCCGO",
 	}
+	UserNamespaceInKernel = testRequirement{
+		func() bool {
+			if _, err := os.Stat("/proc/self/uid_map"); os.IsNotExist(err) {
+				/*
+				 * This kernel-provided file only exists if user namespaces are
+				 * supported
+				 */
+				return false
+			}
+			return true
+		},
+		"Kernel must have user namespaces configured.",
+	}
 	NotUserNamespace = testRequirement{
 		func() bool {
 			root := os.Getenv("DOCKER_REMAP_ROOT")
