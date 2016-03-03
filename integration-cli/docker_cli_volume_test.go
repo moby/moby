@@ -218,3 +218,26 @@ func (s *DockerSuite) TestVolumeCliInspectTmplError(c *check.C) {
 	c.Assert(exitCode, checker.Equals, 1, check.Commentf("Output: %s", out))
 	c.Assert(out, checker.Contains, "Template parsing error")
 }
+
+func (s *DockerSuite) TestVolumeCliCreateWithOpts(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	dockerCmd(c, "volume", "create", "-d", "local", "--name", "test", "--opt=type=tmpfs", "--opt=device=tmpfs", "--opt=o=size=1m,uid=1000")
+	out, _ := dockerCmd(c, "run", "-v", "test:/foo", "busybox", "mount")
+
+	mounts := strings.Split(out, "\n")
+	var found bool
+	for _, m := range mounts {
+		if strings.Contains(m, "/foo") {
+			found = true
+			info := strings.Fields(m)
+			// tmpfs on <path> type tmpfs (rw,relatime,size=1024k,uid=1000)
+			c.Assert(info[0], checker.Equals, "tmpfs")
+			c.Assert(info[2], checker.Equals, "/foo")
+			c.Assert(info[4], checker.Equals, "tmpfs")
+			c.Assert(info[5], checker.Contains, "uid=1000")
+			c.Assert(info[5], checker.Contains, "size=1024k")
+		}
+	}
+	c.Assert(found, checker.Equals, true)
+}
