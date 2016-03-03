@@ -650,7 +650,7 @@ func (sb *sandbox) clearNetworkResources(origEp *endpoint) error {
 	ep := sb.getEndpoint(origEp.id)
 	if ep == nil {
 		return fmt.Errorf("could not find the sandbox endpoint data for endpoint %s",
-			ep.name)
+			origEp.id)
 	}
 
 	sb.Lock()
