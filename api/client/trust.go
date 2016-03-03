@@ -461,7 +461,8 @@ func (cli *DockerCli) trustedPush(repoInfo *registry.RepositoryInfo, tag string,
 		rootKeyID = rootPublicKey.ID()
 	}
 
-	if err := repo.Initialize(rootKeyID); err != nil {
+	// Initialize the notary repository with a remotely managed snapshot key
+	if err := repo.Initialize(rootKeyID, data.CanonicalSnapshotRole); err != nil {
 		return notaryError(repoInfo.FullName(), err)
 	}
 	fmt.Fprintf(cli.out, "Finished initializing %q\n", repoInfo.FullName())
