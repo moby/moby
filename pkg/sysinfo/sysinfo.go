@@ -19,10 +19,10 @@ type SysInfo struct {
 	IPv4ForwardingDisabled bool
 
 	// Whether bridge-nf-call-iptables is supported or not
-	BridgeNfCallIptablesDisabled bool
+	BridgeNFCallIPTablesDisabled bool
 
 	// Whether bridge-nf-call-ip6tables is supported or not
-	BridgeNfCallIP6tablesDisabled bool
+	BridgeNFCallIP6TablesDisabled bool
 
 	// Whether the cgroup has the mountpoint of "devices" or not
 	CgroupDevicesEnabled bool
