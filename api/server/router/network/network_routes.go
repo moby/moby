@@ -81,8 +81,8 @@ func (n *networkRouter) postNetworkCreate(ctx context.Context, w http.ResponseWr
 	}
 
 	if create.CheckDuplicate { // make sure GetNetworkByName and the checkDup code run in sync
-		c := n.locks.lock(create.Name)
-		defer n.locks.unlock(create.Name, c)
+		n.locks.Lock(create.Name)
+		defer n.locks.Unlock(create.Name)
 	}
 
 	nw, err := n.backend.GetNetworkByName(create.Name)
