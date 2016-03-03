@@ -3,6 +3,7 @@ package macvlan
 import (
 	"fmt"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/netutils"
@@ -20,9 +21,6 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 	n, err := d.getNetwork(nid)
 	if err != nil {
 		return fmt.Errorf("network id %q not found", nid)
-	}
-	if ifInfo.MacAddress() != nil {
-		return fmt.Errorf("%s interfaces do not support custom mac address assigment", macvlanType)
 	}
 	ep := &endpoint{
 		id:     eid,
@@ -43,7 +41,7 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 	if opt, ok := epOptions[netlabel.PortMap]; ok {
 		if _, ok := opt.([]types.PortBinding); ok {
 			if len(opt.([]types.PortBinding)) > 0 {
-				return fmt.Errorf("%s driver does not support port mappings", macvlanType)
+				logrus.Warnf("%s driver does not support port mappings", macvlanType)
 			}
 		}
 	}
@@ -51,7 +49,7 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 	if opt, ok := epOptions[netlabel.ExposedPorts]; ok {
 		if _, ok := opt.([]types.TransportPort); ok {
 			if len(opt.([]types.TransportPort)) > 0 {
-				return fmt.Errorf("%s driver does not support port exposures", macvlanType)
+				logrus.Warnf("%s driver does not support port exposures", macvlanType)
 			}
 		}
 	}
@@ -76,5 +74,6 @@ func (d *driver) DeleteEndpoint(nid, eid string) error {
 	if link, err := netlink.LinkByName(ep.srcName); err == nil {
 		netlink.LinkDel(link)
 	}
+
 	return nil
 }

@@ -4,7 +4,6 @@ import (
 	"net"
 	"sync"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/discoverapi"
 	"github.com/docker/libnetwork/driverapi"
@@ -15,13 +14,13 @@ const (
 	vethLen             = 7
 	containerVethPrefix = "eth"
 	vethPrefix          = "veth"
-	macvlanType         = "macvlan"    // driver type name
-	modePrivate         = "private"    // macvlan mode private
-	modeVepa            = "vepa"       // macvlan mode vepa
-	modeBridge          = "bridge"     // macvlan mode bridge
-	modePassthru        = "passthru"   // macvlan mode passthrough
-	hostIfaceOpt        = "host_iface" // host interface -o host_iface
-	modeOpt             = "_mode"      // macvlan mode ux opt suffix
+	macvlanType         = "macvlan"  // driver type name
+	modePrivate         = "private"  // macvlan mode private
+	modeVepa            = "vepa"     // macvlan mode vepa
+	modeBridge          = "bridge"   // macvlan mode bridge
+	modePassthru        = "passthru" // macvlan mode passthrough
+	parentOpt           = "parent"   // parent interface -o parent
+	modeOpt             = "_mode"    // macvlan mode ux opt suffix
 )
 
 var driverModeOpt = macvlanType + modeOpt // mode --option macvlan_mode
@@ -56,9 +55,6 @@ type network struct {
 
 // Init initializes and registers the libnetwork macvlan driver
 func Init(dc driverapi.DriverCallback, config map[string]interface{}) error {
-	if err := kernelSupport(macvlanType); err != nil {
-		logrus.Warnf("encountered errors loading the macvlan kernel module: %v", err)
-	}
 	c := driverapi.Capability{
 		DataScope: datastore.LocalScope,
 	}
@@ -66,6 +62,7 @@ func Init(dc driverapi.DriverCallback, config map[string]interface{}) error {
 		networks: networkTable{},
 	}
 	d.initStore(config)
+
 	return dc.RegisterDriver(macvlanType, d, c)
 }
 

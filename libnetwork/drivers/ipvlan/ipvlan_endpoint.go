@@ -3,6 +3,7 @@ package ipvlan
 import (
 	"fmt"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/netutils"
@@ -43,7 +44,7 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 	if opt, ok := epOptions[netlabel.PortMap]; ok {
 		if _, ok := opt.([]types.PortBinding); ok {
 			if len(opt.([]types.PortBinding)) > 0 {
-				return fmt.Errorf("%s driver does not support port mappings", ipvlanType)
+				logrus.Warnf("%s driver does not support port mappings", ipvlanType)
 			}
 		}
 	}
@@ -51,7 +52,7 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 	if opt, ok := epOptions[netlabel.ExposedPorts]; ok {
 		if _, ok := opt.([]types.TransportPort); ok {
 			if len(opt.([]types.TransportPort)) > 0 {
-				return fmt.Errorf("%s driver does not support port exposures", ipvlanType)
+				logrus.Warnf("%s driver does not support port exposures", ipvlanType)
 			}
 		}
 	}
@@ -76,5 +77,6 @@ func (d *driver) DeleteEndpoint(nid, eid string) error {
 	if link, err := netlink.LinkByName(ep.srcName); err == nil {
 		netlink.LinkDel(link)
 	}
+
 	return nil
 }

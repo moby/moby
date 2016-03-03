@@ -15,6 +15,7 @@ func (d *driver) network(nid string) *network {
 	if !ok {
 		logrus.Errorf("network id %s not found", nid)
 	}
+
 	return n
 }
 
@@ -39,6 +40,7 @@ func (d *driver) getNetworks() []*network {
 	for _, nw := range d.networks {
 		ls = append(ls, nw)
 	}
+
 	return ls
 }
 
@@ -70,6 +72,7 @@ func (n *network) getEndpoint(eid string) (*endpoint, error) {
 	if ep, ok := n.endpoints[eid]; ok {
 		return ep, nil
 	}
+
 	return nil, nil
 }
 
@@ -86,6 +89,7 @@ func validateID(nid, eid string) error {
 func (n *network) sandbox() osl.Sandbox {
 	n.Lock()
 	defer n.Unlock()
+
 	return n.sbox
 }
 
@@ -104,5 +108,6 @@ func (d *driver) getNetwork(id string) (*network, error) {
 	if nw, ok := d.networks[id]; ok {
 		return nw, nil
 	}
+
 	return nil, types.NotFoundErrorf("network not found: %s", id)
 }

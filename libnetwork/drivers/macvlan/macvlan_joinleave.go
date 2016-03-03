@@ -27,7 +27,7 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 		return fmt.Errorf("error generating an interface name: %s", err)
 	}
 	// create the netlink macvlan interface
-	vethName, err := createMacVlan(containerIfName, n.config.HostIface, n.config.MacvlanMode)
+	vethName, err := createMacVlan(containerIfName, n.config.Parent, n.config.MacvlanMode)
 	if err != nil {
 		return err
 	}
@@ -51,8 +51,8 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 		if err != nil {
 			return err
 		}
-		logrus.Debugf("Macvlan Endpoint Joined with IPv4_Addr: %s, Gateway: %s, MacVlan_Mode: %s, Host_Iface: %s",
-			ep.addr.IP.String(), v4gw.String(), n.config.MacvlanMode, n.config.HostIface)
+		logrus.Debugf("Macvlan Endpoint Joined with IPv4_Addr: %s, Gateway: %s, MacVlan_Mode: %s, Parent: %s",
+			ep.addr.IP.String(), v4gw.String(), n.config.MacvlanMode, n.config.Parent)
 	}
 	// parse and match the endpoint address with the available v6 subnets
 	if len(n.config.Ipv6Subnets) > 0 {
@@ -68,14 +68,15 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 		if err != nil {
 			return err
 		}
-		logrus.Debugf("Macvlan Endpoint Joined with IPv6_Addr: %s Gateway: %s MacVlan_Mode: %s, Host_Iface: %s",
-			ep.addrv6.IP.String(), v6gw.String(), n.config.MacvlanMode, n.config.HostIface)
+		logrus.Debugf("Macvlan Endpoint Joined with IPv6_Addr: %s Gateway: %s MacVlan_Mode: %s, Parent: %s",
+			ep.addrv6.IP.String(), v6gw.String(), n.config.MacvlanMode, n.config.Parent)
 	}
 	iNames := jinfo.InterfaceName()
 	err = iNames.SetNames(vethName, containerVethPrefix)
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -92,6 +93,7 @@ func (d *driver) Leave(nid, eid string) error {
 	if endpoint == nil {
 		return fmt.Errorf("could not find endpoint with id %s", eid)
 	}
+
 	return nil
 }
 
@@ -112,6 +114,7 @@ func (n *network) getSubnetforIPv4(ip *net.IPNet) *ipv4Subnet {
 			return s
 		}
 	}
+
 	return nil
 }
 
@@ -132,5 +135,6 @@ func (n *network) getSubnetforIPv6(ip *net.IPNet) *ipv6Subnet {
 			return s
 		}
 	}
+
 	return nil
 }

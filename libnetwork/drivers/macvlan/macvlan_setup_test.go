@@ -6,17 +6,17 @@ import (
 	"github.com/vishvananda/netlink"
 )
 
-// TestValidateLink tests the validateHostIface function
+// TestValidateLink tests the parentExists function
 func TestValidateLink(t *testing.T) {
 	validIface := "lo"
 	invalidIface := "foo12345"
 
 	// test a valid parent interface validation
-	if ok := hostIfaceExists(validIface); !ok {
+	if ok := parentExists(validIface); !ok {
 		t.Fatalf("failed validating loopback %s", validIface)
 	}
 	// test a invalid parent interface validation
-	if ok := hostIfaceExists(invalidIface); ok {
+	if ok := parentExists(invalidIface); ok {
 		t.Fatalf("failed to invalidate interface %s", invalidIface)
 	}
 }

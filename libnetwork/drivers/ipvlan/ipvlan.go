@@ -4,7 +4,6 @@ import (
 	"net"
 	"sync"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/discoverapi"
 	"github.com/docker/libnetwork/driverapi"
@@ -15,14 +14,14 @@ const (
 	vethLen             = 7
 	containerVethPrefix = "eth"
 	vethPrefix          = "veth"
-	ipvlanType          = "ipvlan"     // driver type name
-	modeL2              = "l2"         // ipvlan mode l2 is the default
-	modeL3              = "l3"         // ipvlan L3 mode
-	hostIfaceOpt        = "host_iface" // host interface -o host_iface
-	modeOpt             = "_mode"      // ipvlan mode ux opt suffix
+	ipvlanType          = "ipvlan" // driver type name
+	modeL2              = "l2"     // ipvlan mode l2 is the default
+	modeL3              = "l3"     // ipvlan L3 mode
+	parentOpt           = "parent" // parent interface -o parent
+	modeOpt             = "_mode"  // ipvlan mode ux opt suffix
 )
 
-var driverModeOpt = ipvlanType + modeOpt // mode --option ipvlan_mode
+var driverModeOpt = ipvlanType + modeOpt // mode -o ipvlan_mode
 
 type endpointTable map[string]*endpoint
 
@@ -54,9 +53,6 @@ type network struct {
 
 // Init initializes and registers the libnetwork ipvlan driver
 func Init(dc driverapi.DriverCallback, config map[string]interface{}) error {
-	if err := kernelSupport(ipvlanType); err != nil {
-		logrus.Warnf("encountered issues loading the ipvlan kernel module: %v", err)
-	}
 	c := driverapi.Capability{
 		DataScope: datastore.LocalScope,
 	}
@@ -64,6 +60,7 @@ func Init(dc driverapi.DriverCallback, config map[string]interface{}) error {
 		networks: networkTable{},
 	}
 	d.initStore(config)
+
 	return dc.RegisterDriver(ipvlanType, d, c)
 }
 

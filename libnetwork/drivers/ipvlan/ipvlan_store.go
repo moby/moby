@@ -21,7 +21,7 @@ type configuration struct {
 	dbIndex          uint64
 	dbExists         bool
 	Internal         bool
-	HostIface        string
+	Parent           string
 	IpvlanMode       string
 	CreatedSlaveLink bool
 	Ipv4Subnets      []*ipv4Subnet
@@ -114,8 +114,9 @@ func (config *configuration) MarshalJSON() ([]byte, error) {
 	nMap := make(map[string]interface{})
 	nMap["ID"] = config.ID
 	nMap["Mtu"] = config.Mtu
-	nMap["HostIface"] = config.HostIface
+	nMap["Parent"] = config.Parent
 	nMap["IpvlanMode"] = config.IpvlanMode
+	nMap["Internal"] = config.Internal
 	nMap["CreatedSubIface"] = config.CreatedSlaveLink
 	if len(config.Ipv4Subnets) > 0 {
 		iis, err := json.Marshal(config.Ipv4Subnets)
@@ -131,6 +132,7 @@ func (config *configuration) MarshalJSON() ([]byte, error) {
 		}
 		nMap["Ipv6Subnets"] = string(iis)
 	}
+
 	return json.Marshal(nMap)
 }
 
@@ -145,8 +147,9 @@ func (config *configuration) UnmarshalJSON(b []byte) error {
 	}
 	config.ID = nMap["ID"].(string)
 	config.Mtu = int(nMap["Mtu"].(float64))
-	config.HostIface = nMap["HostIface"].(string)
+	config.Parent = nMap["Parent"].(string)
 	config.IpvlanMode = nMap["IpvlanMode"].(string)
+	config.Internal = nMap["Internal"].(bool)
 	config.CreatedSlaveLink = nMap["CreatedSubIface"].(bool)
 	if v, ok := nMap["Ipv4Subnets"]; ok {
 		if err := json.Unmarshal([]byte(v.(string)), &config.Ipv4Subnets); err != nil {
@@ -158,6 +161,7 @@ func (config *configuration) UnmarshalJSON(b []byte) error {
 			return err
 		}
 	}
+
 	return nil
 }
 

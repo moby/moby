@@ -13,32 +13,42 @@ import (
 	"github.com/vishvananda/netlink"
 )
 
-// Create the ipvlan netlink interface specifying the source name
-func createIPVlan(containerIfName, hostIface, ipVlanMode string) (string, error) {
+const (
+	dummyPrefix     = "di-"  // ipvlan prefix for dummy parent interface
+	ipvlanKernelVer = "3.19" // minimum ipvlan kernel version support
+)
+
+// createIPVlan Create the ipvlan slave specifying the source name
+func createIPVlan(containerIfName, parent, ipvlanMode string) (string, error) {
 	defer osl.InitOSContext()()
-	// Set the ipvlan mode. Default is L2 mode
-	mode, err := setIPVlanMode(ipVlanMode)
+
+	// Set the ipvlan mode. Default is bridge mode
+	mode, err := setIPVlanMode(ipvlanMode)
 	if err != nil {
-		return "", fmt.Errorf("unsupported %s ipvlan mode: %v", ipVlanMode, err)
+		return "", fmt.Errorf("Unsupported %s ipvlan mode: %v", ipvlanMode, err)
+	}
+	// verify the Docker host interface acting as the macvlan parent iface exists
+	if !parentExists(parent) {
+		return "", fmt.Errorf("the requested parent interface %s was not found on the Docker host", parent)
 	}
 	// Get the link for the master index (Example: the docker host eth iface)
-	hostEth, err := netlink.LinkByName(hostIface)
+	parentLink, err := netlink.LinkByName(parent)
 	if err != nil {
-		return "", fmt.Errorf("the requested host interface %s was not found on the Docker host", hostIface)
+		return "", fmt.Errorf("error occoured looking up the %s parent iface %s error: %s", ipvlanType, parent, err)
 	}
 	// Create a ipvlan link
 	ipvlan := &netlink.IPVlan{
 		LinkAttrs: netlink.LinkAttrs{
 			Name:        containerIfName,
-			ParentIndex: hostEth.Attrs().Index,
+			ParentIndex: parentLink.Attrs().Index,
 		},
 		Mode: mode,
 	}
 	if err := netlink.LinkAdd(ipvlan); err != nil {
-		// verbose but will be an issue if you create a macvlan and ipvlan using the same parent iface
-		logrus.Warn("Ensure there are no macvlan networks using the same `-o host_iface` as the ipvlan network.")
-		return "", fmt.Errorf("Failed to create ipvlan link: %s with the error: %v", ipvlan.Name, err)
+		// If a user creates a macvlan and ipvlan on same parent, only one slave iface can be active at a time.
+		return "", fmt.Errorf("failed to create the %s port: %v", ipvlanType, err)
 	}
+
 	return ipvlan.Attrs().Name, nil
 }
 
@@ -54,12 +64,13 @@ func setIPVlanMode(mode string) (netlink.IPVlanMode, error) {
 	}
 }
 
-// validateHostIface check if the specified interface exists in the default namespace
-func hostIfaceExists(ifaceStr string) bool {
+// parentExists check if the specified interface exists in the default namespace
+func parentExists(ifaceStr string) bool {
 	_, err := netlink.LinkByName(ifaceStr)
 	if err != nil {
 		return false
 	}
+
 	return true
 }
 
@@ -78,13 +89,14 @@ func kernelSupport(networkTpe string) error {
 			return nil
 		}
 	}
-	return fmt.Errorf("required kernel module '%s' was not found in /proc/modules, ipvlan requires kernel version >= 3.19", ipvlanType)
+
+	return fmt.Errorf("unable to load the Linux kernel module %s", ipvlanType)
 }
 
 // createVlanLink parses sub-interfaces and vlan id for creation
-func createVlanLink(ifaceName string) error {
-	if strings.Contains(ifaceName, ".") {
-		parentIface, vidInt, err := parseVlan(ifaceName)
+func createVlanLink(parentName string) error {
+	if strings.Contains(parentName, ".") {
+		parent, vidInt, err := parseVlan(parentName)
 		if err != nil {
 			return err
 		}
@@ -93,74 +105,124 @@ func createVlanLink(ifaceName string) error {
 			return fmt.Errorf("vlan id must be between 1-4094, received: %d", vidInt)
 		}
 		// get the parent link to attach a vlan subinterface
-		hostIface, err := netlink.LinkByName(parentIface)
+		parentLink, err := netlink.LinkByName(parent)
 		if err != nil {
-			return fmt.Errorf("failed to find master interface %s on the Docker host: %v", parentIface, err)
+			return fmt.Errorf("failed to find master interface %s on the Docker host: %v", parent, err)
 		}
-		vlanIface := &netlink.Vlan{
+		vlanLink := &netlink.Vlan{
 			LinkAttrs: netlink.LinkAttrs{
-				Name:        ifaceName,
-				ParentIndex: hostIface.Attrs().Index,
+				Name:        parentName,
+				ParentIndex: parentLink.Attrs().Index,
 			},
 			VlanId: vidInt,
 		}
 		// create the subinterface
-		if err := netlink.LinkAdd(vlanIface); err != nil {
-			return fmt.Errorf("failed to create %s vlan link: %v", vlanIface.Name, err)
+		if err := netlink.LinkAdd(vlanLink); err != nil {
+			return fmt.Errorf("failed to create %s vlan link: %v", vlanLink.Name, err)
 		}
 		// Bring the new netlink iface up
-		if err := netlink.LinkSetUp(vlanIface); err != nil {
-			return fmt.Errorf("failed to enable %s the ipvlan netlink link: %v", vlanIface.Name, err)
+		if err := netlink.LinkSetUp(vlanLink); err != nil {
+			return fmt.Errorf("failed to enable %s the ipvlan parent link %v", vlanLink.Name, err)
 		}
-		logrus.Debugf("Added a vlan tagged netlink subinterface: %s with a vlan id: %d", ifaceName, vidInt)
+		logrus.Debugf("Added a vlan tagged netlink subinterface: %s with a vlan id: %d", parentName, vidInt)
 		return nil
 	}
-	return fmt.Errorf("invalid subinterface vlan name %s, example formatting is eth0.10", ifaceName)
+
+	return fmt.Errorf("invalid subinterface vlan name %s, example formatting is eth0.10", parentName)
 }
 
-// verifyVlanDel verifies only sub-interfaces with a vlan id get deleted
-func delVlanLink(ifaceName string) error {
-	if strings.Contains(ifaceName, ".") {
-		_, _, err := parseVlan(ifaceName)
+// delVlanLink verifies only sub-interfaces with a vlan id get deleted
+func delVlanLink(linkName string) error {
+	if strings.Contains(linkName, ".") {
+		_, _, err := parseVlan(linkName)
 		if err != nil {
 			return err
 		}
 		// delete the vlan subinterface
-		vlanIface, err := netlink.LinkByName(ifaceName)
+		vlanLink, err := netlink.LinkByName(linkName)
 		if err != nil {
-			return fmt.Errorf("failed to find interface %s on the Docker host : %v", ifaceName, err)
+			return fmt.Errorf("failed to find interface %s on the Docker host : %v", linkName, err)
 		}
 		// verify a parent interface isn't being deleted
-		if vlanIface.Attrs().ParentIndex == 0 {
-			return fmt.Errorf("interface %s does not appear to be a slave device: %v", ifaceName, err)
+		if vlanLink.Attrs().ParentIndex == 0 {
+			return fmt.Errorf("interface %s does not appear to be a slave device: %v", linkName, err)
 		}
 		// delete the ipvlan slave device
-		if err := netlink.LinkDel(vlanIface); err != nil {
-			return fmt.Errorf("failed to delete  %s link: %v", ifaceName, err)
+		if err := netlink.LinkDel(vlanLink); err != nil {
+			return fmt.Errorf("failed to delete  %s link: %v", linkName, err)
 		}
-		logrus.Debugf("Deleted a vlan tagged netlink subinterface: %s", ifaceName)
+		logrus.Debugf("Deleted a vlan tagged netlink subinterface: %s", linkName)
 	}
 	// if the subinterface doesn't parse to iface.vlan_id leave the interface in
 	// place since it could be a user specified name not created by the driver.
 	return nil
 }
 
-// parseVlan parses and verifies a slave interface name: -o host_iface=eth0.10
-func parseVlan(ifaceName string) (string, int, error) {
-	// parse -o host_iface=eth0.10
-	splitIface := strings.Split(ifaceName, ".")
-	if len(splitIface) != 2 {
-		return "", 0, fmt.Errorf("required interface name format is: name.vlan_id, ex. eth0.10 for vlan 10, instead received %s", ifaceName)
+// parseVlan parses and verifies a slave interface name: -o parent=eth0.10
+func parseVlan(linkName string) (string, int, error) {
+	// parse -o parent=eth0.10
+	splitName := strings.Split(linkName, ".")
+	if len(splitName) != 2 {
+		return "", 0, fmt.Errorf("required interface name format is: name.vlan_id, ex. eth0.10 for vlan 10, instead received %s", linkName)
 	}
-	parentIface, vidStr := splitIface[0], splitIface[1]
+	parent, vidStr := splitName[0], splitName[1]
 	// validate type and convert vlan id to int
 	vidInt, err := strconv.Atoi(vidStr)
 	if err != nil {
 		return "", 0, fmt.Errorf("unable to parse a valid vlan id from: %s (ex. eth0.10 for vlan 10)", vidStr)
 	}
 	// Check if the interface exists
-	if ok := hostIfaceExists(parentIface); !ok {
-		return "", 0, fmt.Errorf("-o host_iface parent interface does was not found on the host: %s", parentIface)
+	if !parentExists(parent) {
+		return "", 0, fmt.Errorf("-o parent interface does was not found on the host: %s", parent)
 	}
-	return parentIface, vidInt, nil
+
+	return parent, vidInt, nil
+}
+
+// createDummyLink creates a dummy0 parent link
+func createDummyLink(dummyName, truncNetID string) error {
+	// create a parent interface since one was not specified
+	parent := &netlink.Dummy{
+		LinkAttrs: netlink.LinkAttrs{
+			Name: dummyName,
+		},
+	}
+	if err := netlink.LinkAdd(parent); err != nil {
+		return err
+	}
+	parentDummyLink, err := netlink.LinkByName(dummyName)
+	if err != nil {
+		return fmt.Errorf("error occoured looking up the %s parent iface %s error: %s", ipvlanType, dummyName, err)
+	}
+	// bring the new netlink iface up
+	if err := netlink.LinkSetUp(parentDummyLink); err != nil {
+		return fmt.Errorf("failed to enable %s the ipvlan parent link: %v", dummyName, err)
+	}
+
+	return nil
+}
+
+// delDummyLink deletes the link type dummy used when -o parent is not passed
+func delDummyLink(linkName string) error {
+	// delete the vlan subinterface
+	dummyLink, err := netlink.LinkByName(linkName)
+	if err != nil {
+		return fmt.Errorf("failed to find link %s on the Docker host : %v", linkName, err)
+	}
+	// verify a parent interface is being deleted
+	if dummyLink.Attrs().ParentIndex != 0 {
+		return fmt.Errorf("link %s is not a parent dummy interface", linkName)
+	}
+	// delete the ipvlan dummy device
+	if err := netlink.LinkDel(dummyLink); err != nil {
+		return fmt.Errorf("failed to delete the dummy %s link: %v", linkName, err)
+	}
+	logrus.Debugf("Deleted a dummy parent link: %s", linkName)
+
+	return nil
+}
+
+// getDummyName returns the name of a dummy parent with truncated net ID and driver prefix
+func getDummyName(netID string) string {
+	return fmt.Sprintf("%s%s", dummyPrefix, netID)
 }

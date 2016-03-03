@@ -39,7 +39,7 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 		return fmt.Errorf("error generating an interface name: %v", err)
 	}
 	// create the netlink ipvlan interface
-	vethName, err := createIPVlan(containerIfName, n.config.HostIface, n.config.IpvlanMode)
+	vethName, err := createIPVlan(containerIfName, n.config.Parent, n.config.IpvlanMode)
 	if err != nil {
 		return err
 	}
@@ -59,8 +59,8 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 		if err := jinfo.AddStaticRoute(defaultRoute.Destination, defaultRoute.RouteType, defaultRoute.NextHop); err != nil {
 			return fmt.Errorf("failed to set an ipvlan l3 mode ipv4 default gateway: %v", err)
 		}
-		logrus.Debugf("Ipvlan Endpoint Joined with IPv4_Addr: %s, Ipvlan_Mode: %s, Host_Iface: %s",
-			ep.addr.IP.String(), n.config.IpvlanMode, n.config.HostIface)
+		logrus.Debugf("Ipvlan Endpoint Joined with IPv4_Addr: %s, Ipvlan_Mode: %s, Parent: %s",
+			ep.addr.IP.String(), n.config.IpvlanMode, n.config.Parent)
 		// If the endpoint has a v6 address, set a v6 default route
 		if ep.addrv6 != nil {
 			default6Route, err := ifaceGateway(defaultV6RouteCidr)
@@ -70,8 +70,8 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 			if err = jinfo.AddStaticRoute(default6Route.Destination, default6Route.RouteType, default6Route.NextHop); err != nil {
 				return fmt.Errorf("failed to set an ipvlan l3 mode ipv6 default gateway: %v", err)
 			}
-			logrus.Debugf("Ipvlan Endpoint Joined with IPv6_Addr: %s, Ipvlan_Mode: %s, Host_Iface: %s",
-				ep.addrv6.IP.String(), n.config.IpvlanMode, n.config.HostIface)
+			logrus.Debugf("Ipvlan Endpoint Joined with IPv6_Addr: %s, Ipvlan_Mode: %s, Parent: %s",
+				ep.addrv6.IP.String(), n.config.IpvlanMode, n.config.Parent)
 		}
 	}
 	if n.config.IpvlanMode == modeL2 {
@@ -89,8 +89,8 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 			if err != nil {
 				return err
 			}
-			logrus.Debugf("Ipvlan Endpoint Joined with IPv4_Addr: %s, Gateway: %s, Ipvlan_Mode: %s, Host_Iface: %s",
-				ep.addr.IP.String(), v4gw.String(), n.config.IpvlanMode, n.config.HostIface)
+			logrus.Debugf("Ipvlan Endpoint Joined with IPv4_Addr: %s, Gateway: %s, Ipvlan_Mode: %s, Parent: %s",
+				ep.addr.IP.String(), v4gw.String(), n.config.IpvlanMode, n.config.Parent)
 		}
 		// parse and correlate the endpoint v6 address with the available v6 subnets
 		if len(n.config.Ipv6Subnets) > 0 {
@@ -106,8 +106,8 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 			if err != nil {
 				return err
 			}
-			logrus.Debugf("Ipvlan Endpoint Joined with IPv6_Addr: %s, Gateway: %s, Ipvlan_Mode: %s, Host_Iface: %s",
-				ep.addrv6.IP.String(), v6gw.String(), n.config.IpvlanMode, n.config.HostIface)
+			logrus.Debugf("Ipvlan Endpoint Joined with IPv6_Addr: %s, Gateway: %s, Ipvlan_Mode: %s, Parent: %s",
+				ep.addrv6.IP.String(), v6gw.String(), n.config.IpvlanMode, n.config.Parent)
 		}
 	}
 	iNames := jinfo.InterfaceName()
@@ -115,6 +115,7 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -131,6 +132,7 @@ func (d *driver) Leave(nid, eid string) error {
 	if endpoint == nil {
 		return fmt.Errorf("could not find endpoint with id %s", eid)
 	}
+
 	return nil
 }
 
@@ -145,6 +147,7 @@ func ifaceGateway(dfNet string) (*staticRoute, error) {
 		RouteType:   types.CONNECTED,
 		NextHop:     nh,
 	}
+
 	return defaultRoute, nil
 }
 
@@ -165,6 +168,7 @@ func (n *network) getSubnetforIPv4(ip *net.IPNet) *ipv4Subnet {
 			return s
 		}
 	}
+
 	return nil
 }
 
@@ -185,5 +189,6 @@ func (n *network) getSubnetforIPv6(ip *net.IPNet) *ipv6Subnet {
 			return s
 		}
 	}
+
 	return nil
 }
