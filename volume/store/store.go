@@ -179,11 +179,21 @@ func (s *VolumeStore) create(name, driverName string, opts map[string]string) (v
 		return nil, &OpErr{Err: errInvalidName, Name: name, Op: "create"}
 	}
 
+	vd, err := volumedrivers.GetDriver(driverName)
+	if err != nil {
+		return nil, &OpErr{Op: "create", Name: name, Err: err}
+	}
+
 	if v, exists := s.getNamed(name); exists {
 		if v.DriverName() != driverName && driverName != "" && driverName != volume.DefaultDriverName {
 			return nil, errNameConflict
 		}
-		return v, nil
+
+		logrus.Debugf("Checking if volume exists: driver %s, name %s", driverName, name)
+		v, _ := vd.Get(name)
+		if v != nil {
+			return v, nil
+		}
 	}
 
 	// Since there isn't a specified driver name, let's see if any of the existing drivers have this volume name
@@ -195,11 +205,6 @@ func (s *VolumeStore) create(name, driverName string, opts map[string]string) (v
 	}
 
 	logrus.Debugf("Registering new volume reference: driver %q, name %q", driverName, name)
-	vd, err := volumedrivers.GetDriver(driverName)
-	if err != nil {
-		return nil, &OpErr{Op: "create", Name: name, Err: err}
-	}
-
 	if v, _ := vd.Get(name); v != nil {
 		return v, nil
 	}
@@ -222,6 +227,10 @@ func (s *VolumeStore) GetWithRef(name, driverName, ref string) (volume.Volume, e
 	v, err := vd.Get(name)
 	if err != nil {
 		return nil, &OpErr{Err: err, Name: name, Op: "get"}
+	}
+
+	if v == nil {
+		return nil, &OpErr{Err: errNoSuchVolume, Name: name, Op: "get"}
 	}
 
 	s.setNamed(v, ref)
@@ -252,7 +261,13 @@ func (s *VolumeStore) getVolume(name string) (volume.Volume, error) {
 		if err != nil {
 			return nil, err
 		}
-		return vd.Get(name)
+		vol, err := vd.Get(name)
+		if err != nil {
+			return nil, err
+		}
+		if vol == nil {
+			return nil, errNoSuchVolume
+		}
 	}
 
 	logrus.Debugf("Probing all drivers for volume with name: %s", name)
@@ -263,7 +278,7 @@ func (s *VolumeStore) getVolume(name string) (volume.Volume, error) {
 
 	for _, d := range drivers {
 		v, err := d.Get(name)
-		if err != nil {
+		if err != nil || v == nil {
 			continue
 		}
 		return v, nil
