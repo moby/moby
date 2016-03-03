@@ -81,6 +81,20 @@ func (c *nativeStore) Get(serverAddress string) (types.AuthConfig, error) {
 	return auth, nil
 }
 
+// GetAll retrieves all the credentials from the native store.
+func (c *nativeStore) GetAll() (map[string]types.AuthConfig, error) {
+	auths, _ := c.fileStore.GetAll()
+
+	for s, ac := range auths {
+		creds, _ := c.getCredentialsFromStore(s)
+		ac.Username = creds.Username
+		ac.Password = creds.Password
+		auths[s] = ac
+	}
+
+	return auths, nil
+}
+
 // Store saves the given credentials in the file store.
 func (c *nativeStore) Store(authConfig types.AuthConfig) error {
 	if err := c.storeCredentialsInStore(authConfig); err != nil {
@@ -135,7 +149,7 @@ func (c *nativeStore) getCredentialsFromStore(serverAddress string) (types.AuthC
 			return ret, nil
 		}
 
-		logrus.Debugf("error adding credentials - err: %v, out: `%s`", err, t)
+		logrus.Debugf("error getting credentials - err: %v, out: `%s`", err, t)
 		return ret, fmt.Errorf(t)
 	}
 
@@ -158,7 +172,7 @@ func (c *nativeStore) eraseCredentialsFromStore(serverURL string) error {
 	out, err := cmd.Output()
 	if err != nil {
 		t := strings.TrimSpace(string(out))
-		logrus.Debugf("error adding credentials - err: %v, out: `%s`", err, t)
+		logrus.Debugf("error erasing credentials - err: %v, out: `%s`", err, t)
 		return fmt.Errorf(t)
 	}
 

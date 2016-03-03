@@ -193,3 +193,8 @@ func (cli *DockerCli) resolveAuthConfig(index *registrytypes.IndexInfo) types.Au
 	a, _ := getCredentials(cli.configFile, configKey)
 	return a
 }
+
+func (cli *DockerCli) retrieveAuthConfigs() map[string]types.AuthConfig {
+	acs, _ := getAllCredentials(cli.configFile)
+	return acs
+}
