@@ -6,6 +6,7 @@ import "github.com/docker/docker/api/server/router"
 type networkRouter struct {
 	backend Backend
 	routes  []router.Route
+	locks   nameLocker
 }
 
 // NewRouter initializes a new network router
@@ -14,6 +15,7 @@ func NewRouter(b Backend) router.Router {
 		backend: b,
 	}
 	r.initRoutes()
+	r.locks.init()
 	return r
 }
 
