@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 
 	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/docker/engine-api/types"
@@ -61,6 +62,27 @@ func (s *DockerSuite) TestApiNetworkCreateCheckDuplicate(c *check.C) {
 
 	// Creating another network with same name and not CheckDuplicate must succeed
 	createNetwork(c, configNotCheck, true)
+
+	// Run multiple concurrent requests to create same network - only one should
+	// succeed
+	configOnCheck.Name = "testcdnconcurrent"
+	succeeded := 0
+	mux := sync.Mutex{}
+	wg := sync.WaitGroup{}
+	for i := 0; i < 100; i++ {
+		wg.Add(1)
+		go func() {
+			status, _, err := sockRequest("POST", "/networks/create", configOnCheck)
+			mux.Lock()
+			if err == nil && status == http.StatusCreated {
+				succeeded++
+			}
+			mux.Unlock()
+			wg.Done()
+		}()
+	}
+	wg.Wait()
+	c.Assert(succeeded, checker.Equals, 1)
 }
 
 func (s *DockerSuite) TestApiNetworkFilter(c *check.C) {
