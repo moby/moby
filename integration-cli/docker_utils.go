@@ -38,7 +38,6 @@ import (
 func init() {
 	cmd := exec.Command(dockerBinary, "images")
 	cmd.Env = appendBaseEnv(true)
-	fmt.Println("foobar", cmd.Env)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		panic(fmt.Errorf("err=%v\nout=%s\n", err, out))
@@ -577,6 +576,8 @@ func sockConn(timeout time.Duration) (net.Conn, error) {
 
 	var c net.Conn
 	switch daemonURL.Scheme {
+	case "npipe":
+		return npipeDial(daemonURL.Path, timeout)
 	case "unix":
 		return net.DialTimeout(daemonURL.Scheme, daemonURL.Path, timeout)
 	case "tcp":

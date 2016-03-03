@@ -22,6 +22,7 @@ import (
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/random"
+	"github.com/vbatts/tar-split/tar/storage"
 )
 
 // init registers the windows graph drivers to the register.
@@ -46,6 +47,8 @@ type Driver struct {
 	// active stores references to the activated layers
 	active map[string]int
 }
+
+var _ graphdriver.DiffGetterDriver = &Driver{}
 
 // InitFilter returns a new Windows storage filter driver.
 func InitFilter(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (graphdriver.Driver, error) {
@@ -564,8 +567,20 @@ func (d *Driver) setLayerChain(id string, chain []string) error {
 	return nil
 }
 
-// DiffPath returns a directory that contains files needed to construct layer diff.
-func (d *Driver) DiffPath(id string) (path string, release func() error, err error) {
+type fileGetDestroyCloser struct {
+	storage.FileGetter
+	d          *Driver
+	folderName string
+}
+
+func (f *fileGetDestroyCloser) Close() error {
+	// TODO: activate layers and release here?
+	return hcsshim.DestroyLayer(f.d.info, f.folderName)
+}
+
+// DiffGetter returns a FileGetCloser that can read files from the directory that
+// contains files for the layer differences. Used for direct access for tar-split.
+func (d *Driver) DiffGetter(id string) (fg graphdriver.FileGetCloser, err error) {
 	id, err = d.resolveID(id)
 	if err != nil {
 		return
@@ -597,9 +612,6 @@ func (d *Driver) DiffPath(id string) (path string, release func() error, err err
 		return
 	}
 
-	return tempFolder, func() error {
-		// TODO: activate layers and release here?
-		_, folderName := filepath.Split(tempFolder)
-		return hcsshim.DestroyLayer(d.info, folderName)
-	}, nil
+	_, folderName := filepath.Split(tempFolder)
+	return &fileGetDestroyCloser{storage.NewPathFileGetter(tempFolder), d, folderName}, nil
 }

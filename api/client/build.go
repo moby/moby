@@ -229,7 +229,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		ShmSize:        shmSize,
 		Ulimits:        flUlimits.GetList(),
 		BuildArgs:      runconfigopts.ConvertKVStringsToMap(flBuildArg.GetAll()),
-		AuthConfigs:    cli.configFile.AuthConfigs,
+		AuthConfigs:    cli.retrieveAuthConfigs(),
 	}
 
 	response, err := cli.client.ImageBuild(context.Background(), options)

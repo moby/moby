@@ -5,7 +5,6 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/container"
-	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/idtools"
@@ -80,11 +79,6 @@ func (daemon *Daemon) create(params types.ContainerCreateConfig) (retC *containe
 			}
 		}
 	}()
-
-	logCfg := container.GetLogConfig(daemon.defaultLogConfig)
-	if err := logger.ValidateLogOpts(logCfg.Type, logCfg.Config); err != nil {
-		return nil, err
-	}
 
 	if err := daemon.setSecurityOptions(container, params.HostConfig); err != nil {
 		return nil, err

@@ -6589,3 +6589,45 @@ func (s *DockerRegistryAuthSuite) TestBuildFromAuthenticatedRegistry(c *check.C)
 
 	c.Assert(err, checker.IsNil)
 }
+
+func (s *DockerRegistryAuthSuite) TestBuildWithExternalAuth(c *check.C) {
+	osPath := os.Getenv("PATH")
+	defer os.Setenv("PATH", osPath)
+
+	workingDir, err := os.Getwd()
+	c.Assert(err, checker.IsNil)
+	absolute, err := filepath.Abs(filepath.Join(workingDir, "fixtures", "auth"))
+	c.Assert(err, checker.IsNil)
+	testPath := fmt.Sprintf("%s%c%s", osPath, filepath.ListSeparator, absolute)
+
+	os.Setenv("PATH", testPath)
+
+	repoName := fmt.Sprintf("%v/dockercli/busybox:authtest", privateRegistryURL)
+
+	tmp, err := ioutil.TempDir("", "integration-cli-")
+	c.Assert(err, checker.IsNil)
+
+	externalAuthConfig := `{ "credsStore": "shell-test" }`
+
+	configPath := filepath.Join(tmp, "config.json")
+	err = ioutil.WriteFile(configPath, []byte(externalAuthConfig), 0644)
+	c.Assert(err, checker.IsNil)
+
+	dockerCmd(c, "--config", tmp, "login", "-u", s.reg.username, "-p", s.reg.password, privateRegistryURL)
+
+	b, err := ioutil.ReadFile(configPath)
+	c.Assert(err, checker.IsNil)
+	c.Assert(string(b), checker.Not(checker.Contains), "\"auth\":")
+
+	dockerCmd(c, "--config", tmp, "tag", "busybox", repoName)
+	dockerCmd(c, "--config", tmp, "push", repoName)
+
+	// make sure the image is pulled when building
+	dockerCmd(c, "rmi", repoName)
+
+	buildCmd := exec.Command(dockerBinary, "--config", tmp, "build", "-")
+	buildCmd.Stdin = strings.NewReader(fmt.Sprintf("FROM %s", repoName))
+
+	out, _, err := runCommandWithOutput(buildCmd)
+	c.Assert(err, check.IsNil, check.Commentf(out))
+}

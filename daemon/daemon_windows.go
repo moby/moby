@@ -65,6 +65,10 @@ func checkKernel() error {
 	return nil
 }
 
+func (daemon *Daemon) getCgroupDriver() string {
+	return ""
+}
+
 // adaptContainerSettings is called during container creation to modify any
 // settings necessary in the HostConfig structure.
 func (daemon *Daemon) adaptContainerSettings(hostConfig *containertypes.HostConfig, adjustCPUShares bool) error {

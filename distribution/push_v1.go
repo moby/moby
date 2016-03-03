@@ -21,7 +21,6 @@ import (
 )
 
 type v1Pusher struct {
-	ctx         context.Context
 	v1IDService *metadata.V1IDService
 	endpoint    registry.APIEndpoint
 	ref         reference.Named

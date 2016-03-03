@@ -385,7 +385,7 @@ func (s *DockerRegistryAuthSuite) TestPullWithExternalAuth(c *check.C) {
 	err = ioutil.WriteFile(configPath, []byte(externalAuthConfig), 0644)
 	c.Assert(err, checker.IsNil)
 
-	dockerCmd(c, "--config", tmp, "login", "-u", s.reg.username, "-p", s.reg.password, "-e", s.reg.email, privateRegistryURL)
+	dockerCmd(c, "--config", tmp, "login", "-u", s.reg.username, "-p", s.reg.password, privateRegistryURL)
 
 	b, err := ioutil.ReadFile(configPath)
 	c.Assert(err, checker.IsNil)

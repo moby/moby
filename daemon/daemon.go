@@ -1472,6 +1472,11 @@ func (daemon *Daemon) verifyContainerSettings(hostConfig *containertypes.HostCon
 		return nil, nil
 	}
 
+	logCfg := daemon.getLogConfig(hostConfig.LogConfig)
+	if err := logger.ValidateLogOpts(logCfg.Type, logCfg.Config); err != nil {
+		return nil, err
+	}
+
 	for port := range hostConfig.PortBindings {
 		_, portStr := nat.SplitProtoPort(string(port))
 		if _, err := nat.ParsePort(portStr); err != nil {
