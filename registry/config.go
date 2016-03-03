@@ -49,6 +49,9 @@ var (
 	V2Only = false
 )
 
+// for mocking in unit tests
+var lookupIP = net.LookupIP
+
 // InstallFlags adds command-line options to the top-level flag parser for
 // the current process.
 func (options *Options) InstallFlags(cmd *flag.FlagSet, usageFn func(string) string) {
