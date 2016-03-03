@@ -105,6 +105,9 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 		if !info.SwapLimit {
 			fmt.Fprintln(cli.err, "WARNING: No swap limit support")
 		}
+		if !info.KernelMemory {
+			fmt.Fprintln(cli.err, "WARNING: No kernel memory limit support")
+		}
 		if !info.OomKillDisable {
 			fmt.Fprintln(cli.err, "WARNING: No oom kill disable support")
 		}

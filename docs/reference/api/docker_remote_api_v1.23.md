@@ -2161,6 +2161,7 @@ Display system-wide information
         "IndexServerAddress": "https://index.docker.io/v1/",
         "InitPath": "/usr/bin/docker",
         "InitSha1": "",
+        "KernelMemory": true,
         "KernelVersion": "3.12.0-1-amd64",
         "Labels": [
             "storage=ssd"
