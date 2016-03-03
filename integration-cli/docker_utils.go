@@ -38,7 +38,6 @@ import (
 func init() {
 	cmd := exec.Command(dockerBinary, "images")
 	cmd.Env = appendBaseEnv(true)
-	fmt.Println("foobar", cmd.Env)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		panic(fmt.Errorf("err=%v\nout=%s\n", err, out))
