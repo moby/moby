@@ -51,7 +51,7 @@ func TestWindowsIPAM(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if !types.CompareIPNet(ip, requestPool) {
+	if ip != nil {
 		t.Fatalf("Unexpected data returned. Expected %v . Got: %v ", requestPool, ip)
 	}
 
