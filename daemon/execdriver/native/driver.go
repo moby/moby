@@ -157,6 +157,10 @@ func (d *Driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, hooks execd
 	if err != nil {
 		return execdriver.ExitStatus{ExitCode: -1}, err
 	}
+
+	if err := cont.Start(p); err != nil {
+		return execdriver.ExitStatus{ExitCode: -1}, err
+	}
 	d.Lock()
 	d.activeContainers[c.ID] = cont
 	d.Unlock()
@@ -166,10 +170,6 @@ func (d *Driver) Run(c *execdriver.Command, pipes *execdriver.Pipes, hooks execd
 		}
 		d.cleanContainer(c.ID)
 	}()
-
-	if err := cont.Start(p); err != nil {
-		return execdriver.ExitStatus{ExitCode: -1}, err
-	}
 
 	//close the write end of any opened pipes now that they are dup'ed into the container
 	for _, writer := range writers {
@@ -301,6 +301,9 @@ func (d *Driver) Kill(c *execdriver.Command, sig int) error {
 	state, err := active.State()
 	if err != nil {
 		return err
+	}
+	if state.InitProcessPid == -1 {
+		return fmt.Errorf("avoid sending signal %d to container %s with pid -1", sig, c.ID)
 	}
 	return syscall.Kill(state.InitProcessPid, syscall.Signal(sig))
 }
