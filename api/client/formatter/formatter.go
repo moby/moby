@@ -9,6 +9,7 @@ import (
 	"text/template"
 
 	"github.com/docker/docker/reference"
+	"github.com/docker/docker/utils/templates"
 	"github.com/docker/engine-api/types"
 )
 
@@ -54,7 +55,7 @@ func (c *Context) preformat() {
 }
 
 func (c *Context) parseFormat() (*template.Template, error) {
-	tmpl, err := template.New("").Parse(c.finalFormat)
+	tmpl, err := templates.Parse(c.finalFormat)
 	if err != nil {
 		c.buffer.WriteString(fmt.Sprintf("Template parsing error: %v\n", err))
 		c.buffer.WriteTo(c.Output)
