@@ -46,7 +46,7 @@ type MemoryStats struct {
 	Usage MemoryData `json:"usage,omitempty"`
 	// usage of memory + swap
 	SwapUsage MemoryData `json:"swap_usage,omitempty"`
-	// usafe of kernel memory
+	// usage of kernel memory
 	KernelUsage MemoryData        `json:"kernel_usage,omitempty"`
 	Stats       map[string]uint64 `json:"stats,omitempty"`
 }
@@ -80,7 +80,7 @@ type HugetlbStats struct {
 	Usage uint64 `json:"usage,omitempty"`
 	// maximum usage ever recorded.
 	MaxUsage uint64 `json:"max_usage,omitempty"`
-	// number of times htgetlb usage allocation failure.
+	// number of times hugetlb usage allocation failure.
 	Failcnt uint64 `json:"failcnt"`
 }
 
