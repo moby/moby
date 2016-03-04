@@ -20,7 +20,7 @@ Create an empty file called `Dockerfile`:
     $ touch Dockerfile
 
 Next, define the parent image you want to use to build your image on top
-of. We'll use [Ubuntu](https://registry.hub.docker.com/_/ubuntu/) (tag:
+of. We'll use [Ubuntu](https://hub.docker.com/_/ubuntu/) (tag:
 `trusty`), which is available on [Docker Hub](https://hub.docker.com):
 
     # Riak

@@ -178,8 +178,8 @@ A repository is a set of Docker images. A repository can be shared by pushing it
 to a [registry](#registry) server. The different images in the repository can be
 labeled using [tags](#tag).
 
-Here is an example of the shared [nginx repository](https://registry.hub.docker.com/_/nginx/)
-and its [tags](https://registry.hub.docker.com/_/nginx/tags/manage/)
+Here is an example of the shared [nginx repository](https://hub.docker.com/_/nginx/)
+and its [tags](https://hub.docker.com/r/library/nginx/tags/)
 
 ## Swarm
 

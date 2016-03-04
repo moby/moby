@@ -19,14 +19,14 @@ used Docker images that already exist, for example the `ubuntu` image and the
 
 You also discovered that Docker stores downloaded images on the Docker host. If
 an image isn't already present on the host then it'll be downloaded from a
-registry: by default the [Docker Hub Registry](https://registry.hub.docker.com).
+registry: by default the [Docker Hub Registry](https://hub.docker.com).
 
 In this section you're going to explore Docker images a bit more
 including:
 
 * Managing and working with images locally on your Docker host.
 * Creating basic images.
-* Uploading images to [Docker Hub Registry](https://registry.hub.docker.com).
+* Uploading images to [Docker Hub Registry](https://hub.docker.com).
 
 ## Listing images on the host
 
@@ -521,7 +521,7 @@ You can also reference by digest in `create`, `run`, and `rmi` commands, as well
 Once you've built or created a new image you can push it to [Docker
 Hub](https://hub.docker.com) using the `docker push` command. This
 allows you to share it with others, either publicly, or push it into [a
-private repository](https://registry.hub.docker.com/plans/).
+private repository](https://hub.docker.com/account/billing-plans/).
 
     $ docker push ouruser/sinatra
     The push refers to a repository [ouruser/sinatra] (len: 1)
