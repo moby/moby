@@ -80,12 +80,23 @@ func ping(manager ChallengeManager, endpoint, versionHeader string) ([]APIVersio
 }
 
 type testCredentialStore struct {
-	username string
-	password string
+	username      string
+	password      string
+	refreshTokens map[string]string
 }
 
 func (tcs *testCredentialStore) Basic(*url.URL) (string, string) {
 	return tcs.username, tcs.password
+}
+
+func (tcs *testCredentialStore) RefreshToken(u *url.URL, service string) string {
+	return tcs.refreshTokens[service]
+}
+
+func (tcs *testCredentialStore) SetRefreshToken(u *url.URL, service string, token string) {
+	if tcs.refreshTokens != nil {
+		tcs.refreshTokens[service] = token
+	}
 }
 
 func TestEndpointAuthorizeToken(t *testing.T) {
@@ -162,14 +173,11 @@ func TestEndpointAuthorizeToken(t *testing.T) {
 		t.Fatalf("Unexpected status code: %d, expected %d", resp.StatusCode, http.StatusAccepted)
 	}
 
-	badCheck := func(a string) bool {
-		return a == "Bearer statictoken"
-	}
-	e2, c2 := testServerWithAuth(m, authenicate, badCheck)
+	e2, c2 := testServerWithAuth(m, authenicate, validCheck)
 	defer c2()
 
 	challengeManager2 := NewSimpleChallengeManager()
-	versions, err = ping(challengeManager2, e+"/v2/", "x-multi-api-version")
+	versions, err = ping(challengeManager2, e2+"/v2/", "x-multi-api-version")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -190,6 +198,161 @@ func TestEndpointAuthorizeToken(t *testing.T) {
 
 	req, _ = http.NewRequest("GET", e2+"/v2/hello", nil)
 	resp, err = client2.Do(req)
+	if err != nil {
+		t.Fatalf("Error sending get request: %s", err)
+	}
+
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("Unexpected status code: %d, expected %d", resp.StatusCode, http.StatusUnauthorized)
+	}
+}
+
+func TestEndpointAuthorizeRefreshToken(t *testing.T) {
+	service := "localhost.localdomain"
+	repo1 := "some/registry"
+	repo2 := "other/registry"
+	scope1 := fmt.Sprintf("repository:%s:pull,push", repo1)
+	scope2 := fmt.Sprintf("repository:%s:pull,push", repo2)
+	refreshToken1 := "0123456790abcdef"
+	refreshToken2 := "0123456790fedcba"
+	tokenMap := testutil.RequestResponseMap([]testutil.RequestResponseMapping{
+		{
+			Request: testutil.Request{
+				Method: "POST",
+				Route:  "/token",
+				Body:   []byte(fmt.Sprintf("client_id=docker&grant_type=refresh_token&refresh_token=%s&scope=%s&service=%s", refreshToken1, url.QueryEscape(scope1), service)),
+			},
+			Response: testutil.Response{
+				StatusCode: http.StatusOK,
+				Body:       []byte(fmt.Sprintf(`{"access_token":"statictoken","refresh_token":"%s"}`, refreshToken1)),
+			},
+		},
+		{
+			// In the future this test may fail and require using basic auth to get a different refresh token
+			Request: testutil.Request{
+				Method: "POST",
+				Route:  "/token",
+				Body:   []byte(fmt.Sprintf("client_id=docker&grant_type=refresh_token&refresh_token=%s&scope=%s&service=%s", refreshToken1, url.QueryEscape(scope2), service)),
+			},
+			Response: testutil.Response{
+				StatusCode: http.StatusOK,
+				Body:       []byte(fmt.Sprintf(`{"access_token":"statictoken","refresh_token":"%s"}`, refreshToken2)),
+			},
+		},
+		{
+			Request: testutil.Request{
+				Method: "POST",
+				Route:  "/token",
+				Body:   []byte(fmt.Sprintf("client_id=docker&grant_type=refresh_token&refresh_token=%s&scope=%s&service=%s", refreshToken2, url.QueryEscape(scope2), service)),
+			},
+			Response: testutil.Response{
+				StatusCode: http.StatusOK,
+				Body:       []byte(`{"access_token":"badtoken","refresh_token":"%s"}`),
+			},
+		},
+	})
+	te, tc := testServer(tokenMap)
+	defer tc()
+
+	m := testutil.RequestResponseMap([]testutil.RequestResponseMapping{
+		{
+			Request: testutil.Request{
+				Method: "GET",
+				Route:  "/v2/hello",
+			},
+			Response: testutil.Response{
+				StatusCode: http.StatusAccepted,
+			},
+		},
+	})
+
+	authenicate := fmt.Sprintf("Bearer realm=%q,service=%q", te+"/token", service)
+	validCheck := func(a string) bool {
+		return a == "Bearer statictoken"
+	}
+	e, c := testServerWithAuth(m, authenicate, validCheck)
+	defer c()
+
+	challengeManager1 := NewSimpleChallengeManager()
+	versions, err := ping(challengeManager1, e+"/v2/", "x-api-version")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(versions) != 1 {
+		t.Fatalf("Unexpected version count: %d, expected 1", len(versions))
+	}
+	if check := (APIVersion{Type: "registry", Version: "2.0"}); versions[0] != check {
+		t.Fatalf("Unexpected api version: %#v, expected %#v", versions[0], check)
+	}
+	creds := &testCredentialStore{
+		refreshTokens: map[string]string{
+			service: refreshToken1,
+		},
+	}
+	transport1 := transport.NewTransport(nil, NewAuthorizer(challengeManager1, NewTokenHandler(nil, creds, repo1, "pull", "push")))
+	client := &http.Client{Transport: transport1}
+
+	req, _ := http.NewRequest("GET", e+"/v2/hello", nil)
+	resp, err := client.Do(req)
+	if err != nil {
+		t.Fatalf("Error sending get request: %s", err)
+	}
+
+	if resp.StatusCode != http.StatusAccepted {
+		t.Fatalf("Unexpected status code: %d, expected %d", resp.StatusCode, http.StatusAccepted)
+	}
+
+	// Try with refresh token setting
+	e2, c2 := testServerWithAuth(m, authenicate, validCheck)
+	defer c2()
+
+	challengeManager2 := NewSimpleChallengeManager()
+	versions, err = ping(challengeManager2, e2+"/v2/", "x-api-version")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(versions) != 1 {
+		t.Fatalf("Unexpected version count: %d, expected 1", len(versions))
+	}
+	if check := (APIVersion{Type: "registry", Version: "2.0"}); versions[0] != check {
+		t.Fatalf("Unexpected api version: %#v, expected %#v", versions[0], check)
+	}
+
+	transport2 := transport.NewTransport(nil, NewAuthorizer(challengeManager2, NewTokenHandler(nil, creds, repo2, "pull", "push")))
+	client2 := &http.Client{Transport: transport2}
+
+	req, _ = http.NewRequest("GET", e2+"/v2/hello", nil)
+	resp, err = client2.Do(req)
+	if err != nil {
+		t.Fatalf("Error sending get request: %s", err)
+	}
+
+	if resp.StatusCode != http.StatusAccepted {
+		t.Fatalf("Unexpected status code: %d, expected %d", resp.StatusCode, http.StatusUnauthorized)
+	}
+
+	if creds.refreshTokens[service] != refreshToken2 {
+		t.Fatalf("Refresh token not set after change")
+	}
+
+	// Try with bad token
+	e3, c3 := testServerWithAuth(m, authenicate, validCheck)
+	defer c3()
+
+	challengeManager3 := NewSimpleChallengeManager()
+	versions, err = ping(challengeManager3, e3+"/v2/", "x-api-version")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if check := (APIVersion{Type: "registry", Version: "2.0"}); versions[0] != check {
+		t.Fatalf("Unexpected api version: %#v, expected %#v", versions[0], check)
+	}
+
+	transport3 := transport.NewTransport(nil, NewAuthorizer(challengeManager3, NewTokenHandler(nil, creds, repo2, "pull", "push")))
+	client3 := &http.Client{Transport: transport3}
+
+	req, _ = http.NewRequest("GET", e3+"/v2/hello", nil)
+	resp, err = client3.Do(req)
 	if err != nil {
 		t.Fatalf("Error sending get request: %s", err)
 	}
