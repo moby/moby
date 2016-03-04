@@ -93,8 +93,8 @@ func (cli *DockerCli) CmdInfo(args ...string) error {
 		u := cli.configFile.AuthConfigs[info.IndexServerAddress].Username
 		if len(u) > 0 {
 			fmt.Fprintf(cli.out, "Username: %v\n", u)
-			fmt.Fprintf(cli.out, "Registry: %v\n", info.IndexServerAddress)
 		}
+		fmt.Fprintf(cli.out, "Registry: %v\n", info.IndexServerAddress)
 	}
 
 	// Only output these warnings if the server does not support these features

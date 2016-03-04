@@ -78,16 +78,19 @@ The helpers always use the first argument in the command to identify the action.
 There are only three possible values for that argument: `store`, `get`, and `erase`.
 
 The `store` command takes a JSON payload from the standard input. That payload carries
-the server address, to identify the credential, the user name and the password.
-This is an example of that payload:
+the server address, to identify the credential, the user name, and either a password
+or an identity token.
 
 ```json
 {
 	"ServerURL": "https://index.docker.io/v1",
 	"Username": "david",
-	"Password": "passw0rd1"
+	"Secret": "passw0rd1"
 }
 ```
+
+If the secret being stored is an identity token, the Username should be set to
+`<token>`.
 
 The `store` command can write error messages to `STDOUT` that the docker engine
 will show if there was an issue.
@@ -102,7 +105,7 @@ and password from this payload:
 ```json
 {
 	"Username": "david",
-	"Password": "passw0rd1"
+	"Secret": "passw0rd1"
 }
 ```
 
