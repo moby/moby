@@ -220,7 +220,7 @@ func TestEndpointAuthorizeRefreshToken(t *testing.T) {
 			Request: testutil.Request{
 				Method: "POST",
 				Route:  "/token",
-				Body:   []byte(fmt.Sprintf("client_id=docker&grant_type=refresh_token&refresh_token=%s&scope=%s&service=%s", refreshToken1, url.QueryEscape(scope1), service)),
+				Body:   []byte(fmt.Sprintf("client_id=registry-client&grant_type=refresh_token&refresh_token=%s&scope=%s&service=%s", refreshToken1, url.QueryEscape(scope1), service)),
 			},
 			Response: testutil.Response{
 				StatusCode: http.StatusOK,
@@ -232,7 +232,7 @@ func TestEndpointAuthorizeRefreshToken(t *testing.T) {
 			Request: testutil.Request{
 				Method: "POST",
 				Route:  "/token",
-				Body:   []byte(fmt.Sprintf("client_id=docker&grant_type=refresh_token&refresh_token=%s&scope=%s&service=%s", refreshToken1, url.QueryEscape(scope2), service)),
+				Body:   []byte(fmt.Sprintf("client_id=registry-client&grant_type=refresh_token&refresh_token=%s&scope=%s&service=%s", refreshToken1, url.QueryEscape(scope2), service)),
 			},
 			Response: testutil.Response{
 				StatusCode: http.StatusOK,
@@ -243,7 +243,7 @@ func TestEndpointAuthorizeRefreshToken(t *testing.T) {
 			Request: testutil.Request{
 				Method: "POST",
 				Route:  "/token",
-				Body:   []byte(fmt.Sprintf("client_id=docker&grant_type=refresh_token&refresh_token=%s&scope=%s&service=%s", refreshToken2, url.QueryEscape(scope2), service)),
+				Body:   []byte(fmt.Sprintf("client_id=registry-client&grant_type=refresh_token&refresh_token=%s&scope=%s&service=%s", refreshToken2, url.QueryEscape(scope2), service)),
 			},
 			Response: testutil.Response{
 				StatusCode: http.StatusOK,
@@ -542,7 +542,19 @@ func TestEndpointAuthorizeTokenBasicWithExpiresIn(t *testing.T) {
 		t.Fatal(err)
 	}
 	clock := &fakeClock{current: time.Now()}
-	transport1 := transport.NewTransport(nil, NewAuthorizer(challengeManager, newTokenHandler(nil, creds, clock, repo, "pull", "push"), NewBasicHandler(creds)))
+	options := TokenHandlerOptions{
+		Transport:   nil,
+		Credentials: creds,
+		Scopes: []Scope{
+			RepositoryScope{
+				Repository: repo,
+				Actions:    []string{"pull", "push"},
+			},
+		},
+	}
+	tHandler := NewTokenHandlerWithOptions(options)
+	tHandler.(*tokenHandler).clock = clock
+	transport1 := transport.NewTransport(nil, NewAuthorizer(challengeManager, tHandler, NewBasicHandler(creds)))
 	client := &http.Client{Transport: transport1}
 
 	// First call should result in a token exchange
@@ -680,7 +692,20 @@ func TestEndpointAuthorizeTokenBasicWithExpiresInAndIssuedAt(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	transport1 := transport.NewTransport(nil, NewAuthorizer(challengeManager, newTokenHandler(nil, creds, clock, repo, "pull", "push"), NewBasicHandler(creds)))
+
+	options := TokenHandlerOptions{
+		Transport:   nil,
+		Credentials: creds,
+		Scopes: []Scope{
+			RepositoryScope{
+				Repository: repo,
+				Actions:    []string{"pull", "push"},
+			},
+		},
+	}
+	tHandler := NewTokenHandlerWithOptions(options)
+	tHandler.(*tokenHandler).clock = clock
+	transport1 := transport.NewTransport(nil, NewAuthorizer(challengeManager, tHandler, NewBasicHandler(creds)))
 	client := &http.Client{Transport: transport1}
 
 	// First call should result in a token exchange
