@@ -213,16 +213,18 @@ func (th *tokenHandler) AuthorizeRequest(req *http.Request, params map[string]st
 			Actions:    []string{"pull"},
 		}.String())
 	}
-	if err := th.refreshToken(params, additionalScopes...); err != nil {
+
+	token, err := th.getToken(params, additionalScopes...)
+	if err != nil {
 		return err
 	}
 
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", th.tokenCache))
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
 
 	return nil
 }
 
-func (th *tokenHandler) refreshToken(params map[string]string, additionalScopes ...string) error {
+func (th *tokenHandler) getToken(params map[string]string, additionalScopes ...string) (string, error) {
 	th.tokenLock.Lock()
 	defer th.tokenLock.Unlock()
 	scopes := make([]string, 0, len(th.scopes)+len(additionalScopes))
@@ -239,7 +241,7 @@ func (th *tokenHandler) refreshToken(params map[string]string, additionalScopes 
 	if now.After(th.tokenExpiration) || addedScopes {
 		token, expiration, err := th.fetchToken(params, scopes)
 		if err != nil {
-			return err
+			return "", err
 		}
 
 		// do not update cache for added scope tokens
@@ -247,9 +249,11 @@ func (th *tokenHandler) refreshToken(params map[string]string, additionalScopes 
 			th.tokenCache = token
 			th.tokenExpiration = expiration
 		}
+
+		return token, nil
 	}
 
-	return nil
+	return th.tokenCache, nil
 }
 
 type postTokenResponse struct {
