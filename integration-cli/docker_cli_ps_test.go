@@ -17,10 +17,6 @@ import (
 )
 
 func (s *DockerSuite) TestPsListContainersBase(c *check.C) {
-	// TODO Windows: Figure out why TestPsListContainers* are flakey
-	if daemonPlatform == "windows" {
-		c.Skip("Flaky on windowsTP4")
-	}
 	out, _ := runSleepingContainer(c, "-d")
 	firstID := strings.TrimSpace(out)
 
@@ -123,11 +119,6 @@ func (s *DockerSuite) TestPsListContainersBase(c *check.C) {
 
 // FIXME remove this for 1.12 as --since and --before are deprecated
 func (s *DockerSuite) TestPsListContainersDeprecatedSinceAndBefore(c *check.C) {
-	// TODO Windows: Figure out why TestPsListContainers* are flakey
-	if daemonPlatform == "windows" {
-		c.Skip("Flaky on windowsTP4")
-	}
-
 	out, _ := runSleepingContainer(c, "-d")
 	firstID := strings.TrimSpace(out)
 
@@ -223,11 +214,6 @@ func assertContainerList(out string, expected []string) bool {
 }
 
 func (s *DockerSuite) TestPsListContainersSize(c *check.C) {
-	// TODO Windows: Figure out why TestPsListContainers* are flakey
-	if daemonPlatform == "windows" {
-		c.Skip("Flaky on windowsTP4")
-	}
-
 	// Problematic on Windows as it doesn't report the size correctly @swernli
 	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "run", "-d", "busybox")
@@ -270,11 +256,6 @@ func (s *DockerSuite) TestPsListContainersSize(c *check.C) {
 }
 
 func (s *DockerSuite) TestPsListContainersFilterStatus(c *check.C) {
-	// TODO Windows: Figure out why TestPsListContainers* are flakey
-	if daemonPlatform == "windows" {
-		c.Skip("Flaky on windowsTP4")
-	}
-
 	// start exited container
 	out, _ := dockerCmd(c, "run", "-d", "busybox")
 	firstID := strings.TrimSpace(out)
@@ -314,11 +295,6 @@ func (s *DockerSuite) TestPsListContainersFilterStatus(c *check.C) {
 }
 
 func (s *DockerSuite) TestPsListContainersFilterID(c *check.C) {
-	// TODO Windows: Figure out why TestPsListContainers* are flakey
-	if daemonPlatform == "windows" {
-		c.Skip("Flaky on windowsTP4")
-	}
-
 	// start container
 	out, _ := dockerCmd(c, "run", "-d", "busybox")
 	firstID := strings.TrimSpace(out)
@@ -334,11 +310,6 @@ func (s *DockerSuite) TestPsListContainersFilterID(c *check.C) {
 }
 
 func (s *DockerSuite) TestPsListContainersFilterName(c *check.C) {
-	// TODO Windows: Figure out why TestPsListContainers* are flakey
-	if daemonPlatform == "windows" {
-		c.Skip("Flaky on windowsTP4")
-	}
-
 	// start container
 	dockerCmd(c, "run", "--name=a_name_to_match", "busybox")
 	id, err := getIDByName("a_name_to_match")
@@ -362,11 +333,6 @@ func (s *DockerSuite) TestPsListContainersFilterName(c *check.C) {
 // - Run containers for each of those image (busybox, images_ps_filter_test1, images_ps_filter_test2)
 // - Filter them out :P
 func (s *DockerSuite) TestPsListContainersFilterAncestorImage(c *check.C) {
-	// TODO Windows: Figure out why TestPsListContainers* are flakey
-	if daemonPlatform == "windows" {
-		c.Skip("Flaky on windowsTP4")
-	}
-
 	// Build images
 	imageName1 := "images_ps_filter_test1"
 	imageID1, err := buildImage(imageName1,
@@ -468,11 +434,6 @@ func checkPsAncestorFilterOutput(c *check.C, out string, filterName string, expe
 }
 
 func (s *DockerSuite) TestPsListContainersFilterLabel(c *check.C) {
-	// TODO Windows: Figure out why TestPsListContainers* are flakey
-	if daemonPlatform == "windows" {
-		c.Skip("Flaky on windowsTP4")
-	}
-
 	// start container
 	dockerCmd(c, "run", "--name=first", "-l", "match=me", "-l", "second=tag", "busybox")
 	firstID, err := getIDByName("first")
@@ -512,11 +473,6 @@ func (s *DockerSuite) TestPsListContainersFilterLabel(c *check.C) {
 }
 
 func (s *DockerSuite) TestPsListContainersFilterExited(c *check.C) {
-	// TODO Windows: Figure out why TestPsListContainers* are flakey
-	if daemonPlatform == "windows" {
-		c.Skip("Flaky on windowsTP4")
-	}
-
 	runSleepingContainer(c, "--name=sleep")
 
 	dockerCmd(c, "run", "--name", "zero1", "busybox", "true")
@@ -636,11 +592,6 @@ func (s *DockerSuite) TestPsWithSize(c *check.C) {
 }
 
 func (s *DockerSuite) TestPsListContainersFilterCreated(c *check.C) {
-	// TODO Windows: Figure out why TestPsListContainers* are flakey
-	if daemonPlatform == "windows" {
-		c.Skip("Flaky on windowsTP4")
-	}
-
 	// create a container
 	out, _ := dockerCmd(c, "create", "busybox")
 	cID := strings.TrimSpace(out)
