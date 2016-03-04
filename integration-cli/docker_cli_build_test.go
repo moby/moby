@@ -3694,30 +3694,25 @@ func (s *DockerSuite) TestBuildDockerignoringWildDirs(c *check.C) {
         FROM busybox
 		COPY . /
 		#RUN sh -c "[[ -e /.dockerignore ]]"
-		RUN sh -c "[[ -e /Dockerfile ]]"
-
-		RUN sh -c "[[ ! -e /file0 ]]"
-		RUN sh -c "[[ ! -e /dir1/file0 ]]"
-		RUN sh -c "[[ ! -e /dir2/file0 ]]"
-
-		RUN sh -c "[[ ! -e /file1 ]]"
-		RUN sh -c "[[ ! -e /dir1/file1 ]]"
-		RUN sh -c "[[ ! -e /dir1/dir2/file1 ]]"
-
-		RUN sh -c "[[ ! -e /dir1/file2 ]]"
-		RUN sh -c "[[   -e /dir1/dir2/file2 ]]"
-
-		RUN sh -c "[[ ! -e /dir1/dir2/file4 ]]"
-		RUN sh -c "[[ ! -e /dir1/dir2/file5 ]]"
-		RUN sh -c "[[ ! -e /dir1/dir2/file6 ]]"
-		RUN sh -c "[[ ! -e /dir1/dir3/file7 ]]"
-		RUN sh -c "[[ ! -e /dir1/dir3/file8 ]]"
-		RUN sh -c "[[   -e /dir1/dir3 ]]"
-		RUN sh -c "[[   -e /dir1/dir4 ]]"
-
-		RUN sh -c "[[ ! -e 'dir1/dir5/fileAA' ]]"
-		RUN sh -c "[[   -e 'dir1/dir5/fileAB' ]]"
-		RUN sh -c "[[   -e 'dir1/dir5/fileB' ]]"   # "." in pattern means nothing
+		RUN sh -c "[[ -e /Dockerfile ]]           && \
+		           [[ ! -e /file0 ]]              && \
+		           [[ ! -e /dir1/file0 ]]         && \
+		           [[ ! -e /dir2/file0 ]]         && \
+		           [[ ! -e /file1 ]]              && \
+		           [[ ! -e /dir1/file1 ]]         && \
+		           [[ ! -e /dir1/dir2/file1 ]]    && \
+		           [[ ! -e /dir1/file2 ]]         && \
+		           [[   -e /dir1/dir2/file2 ]]    && \
+		           [[ ! -e /dir1/dir2/file4 ]]    && \
+		           [[ ! -e /dir1/dir2/file5 ]]    && \
+		           [[ ! -e /dir1/dir2/file6 ]]    && \
+		           [[ ! -e /dir1/dir3/file7 ]]    && \
+		           [[ ! -e /dir1/dir3/file8 ]]    && \
+		           [[   -e /dir1/dir3 ]]          && \
+		           [[   -e /dir1/dir4 ]]          && \
+		           [[ ! -e 'dir1/dir5/fileAA' ]]  && \
+		           [[   -e 'dir1/dir5/fileAB' ]]  && \
+		           [[   -e 'dir1/dir5/fileB' ]]"   # "." in pattern means nothing
 
 		RUN echo all done!`
 
