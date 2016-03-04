@@ -47,8 +47,10 @@ func (m *mockCommand) Output() ([]byte, error) {
 		}
 	case "get":
 		switch inS {
-		case validServerAddress, validServerAddress2:
-			return []byte(`{"Username": "foo", "Password": "bar"}`), nil
+		case validServerAddress:
+			return []byte(`{"Username": "foo", "Secret": "bar"}`), nil
+		case validServerAddress2:
+			return []byte(`{"Username": "<token>", "Secret": "abcd1234"}`), nil
 		case missingCredsAddress:
 			return []byte(errCredentialsNotFound.Error()), errCommandExited
 		case invalidServerAddress:
@@ -118,6 +120,9 @@ func TestNativeStoreAddCredentials(t *testing.T) {
 	if a.Password != "" {
 		t.Fatalf("expected password to be empty, got %s", a.Password)
 	}
+	if a.IdentityToken != "" {
+		t.Fatalf("expected identity token to be empty, got %s", a.IdentityToken)
+	}
 	if a.Email != "foo@example.com" {
 		t.Fatalf("expected email `foo@example.com`, got %s", a.Email)
 	}
@@ -174,8 +179,42 @@ func TestNativeStoreGet(t *testing.T) {
 	if a.Password != "bar" {
 		t.Fatalf("expected password `bar`, got %s", a.Password)
 	}
+	if a.IdentityToken != "" {
+		t.Fatalf("expected identity token to be empty, got %s", a.IdentityToken)
+	}
 	if a.Email != "foo@example.com" {
 		t.Fatalf("expected email `foo@example.com`, got %s", a.Email)
+	}
+}
+
+func TestNativeStoreGetIdentityToken(t *testing.T) {
+	f := newConfigFile(map[string]types.AuthConfig{
+		validServerAddress2: {
+			Email: "foo@example2.com",
+		},
+	})
+	f.CredentialsStore = "mock"
+
+	s := &nativeStore{
+		commandFn: mockCommandFn,
+		fileStore: NewFileStore(f),
+	}
+	a, err := s.Get(validServerAddress2)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if a.Username != "" {
+		t.Fatalf("expected username to be empty, got %s", a.Username)
+	}
+	if a.Password != "" {
+		t.Fatalf("expected password to be empty, got %s", a.Password)
+	}
+	if a.IdentityToken != "abcd1234" {
+		t.Fatalf("expected identity token `abcd1234`, got %s", a.IdentityToken)
+	}
+	if a.Email != "foo@example2.com" {
+		t.Fatalf("expected email `foo@example2.com`, got %s", a.Email)
 	}
 }
 
@@ -209,14 +248,20 @@ func TestNativeStoreGetAll(t *testing.T) {
 	if as[validServerAddress].Password != "bar" {
 		t.Fatalf("expected password `bar` for %s, got %s", validServerAddress, as[validServerAddress].Password)
 	}
+	if as[validServerAddress].IdentityToken != "" {
+		t.Fatalf("expected identity to be empty for %s, got %s", validServerAddress, as[validServerAddress].IdentityToken)
+	}
 	if as[validServerAddress].Email != "foo@example.com" {
 		t.Fatalf("expected email `foo@example.com` for %s, got %s", validServerAddress, as[validServerAddress].Email)
 	}
-	if as[validServerAddress2].Username != "foo" {
-		t.Fatalf("expected username `foo` for %s, got %s", validServerAddress2, as[validServerAddress2].Username)
+	if as[validServerAddress2].Username != "" {
+		t.Fatalf("expected username to be empty for %s, got %s", validServerAddress2, as[validServerAddress2].Username)
 	}
-	if as[validServerAddress2].Password != "bar" {
-		t.Fatalf("expected password `bar` for %s, got %s", validServerAddress2, as[validServerAddress2].Password)
+	if as[validServerAddress2].Password != "" {
+		t.Fatalf("expected password to be empty for %s, got %s", validServerAddress2, as[validServerAddress2].Password)
+	}
+	if as[validServerAddress2].IdentityToken != "abcd1234" {
+		t.Fatalf("expected identity token `abcd1324` for %s, got %s", validServerAddress2, as[validServerAddress2].IdentityToken)
 	}
 	if as[validServerAddress2].Email != "foo@example2.com" {
 		t.Fatalf("expected email `foo@example2.com` for %s, got %s", validServerAddress2, as[validServerAddress2].Email)
