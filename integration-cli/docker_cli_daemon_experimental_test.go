@@ -3,6 +3,8 @@
 package main
 
 import (
+	"io/ioutil"
+	"os"
 	"os/exec"
 	"strings"
 	"time"
@@ -54,6 +56,49 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithKilledRunningContainer(t *check
 		t.Fatalf("Expected exit code '%s' got '%s' for container '%s'\n", "143", out, cid)
 	}
 
+}
+
+// os.Kill should kill daemon ungracefully, leaving behind live containers.
+// The live containers should be known to the restarted daemon. Stopping
+// them now, should remove the mounts.
+func (s *DockerDaemonSuite) TestCleanupMountsAfterDaemonCrash(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	c.Assert(s.d.StartWithBusybox(), check.IsNil)
+
+	out, err := s.d.Cmd("run", "-d", "busybox", "top")
+	c.Assert(err, check.IsNil, check.Commentf("Output: %s", out))
+	id := strings.TrimSpace(out)
+
+	c.Assert(s.d.cmd.Process.Signal(os.Kill), check.IsNil)
+	mountOut, err := ioutil.ReadFile("/proc/self/mountinfo")
+	c.Assert(err, check.IsNil, check.Commentf("Output: %s", mountOut))
+
+	// container mounts should exist even after daemon has crashed.
+	comment := check.Commentf("%s should stay mounted from older daemon start:\nDaemon root repository %s\n%s", id, s.d.folder, mountOut)
+	c.Assert(strings.Contains(string(mountOut), id), check.Equals, true, comment)
+
+	// restart daemon.
+	if err := s.d.Restart(); err != nil {
+		c.Fatal(err)
+	}
+
+	// container should be running.
+	out, err = s.d.Cmd("inspect", "--format='{{.State.Running}}'", id)
+	c.Assert(err, check.IsNil, check.Commentf("Output: %s", out))
+	out = strings.TrimSpace(out)
+	if out != "true" {
+		c.Fatalf("Container %s expected to stay alive after daemon restart", id)
+	}
+
+	// 'docker stop' should work.
+	out, err = s.d.Cmd("stop", id)
+	c.Assert(err, check.IsNil, check.Commentf("Output: %s", out))
+
+	// Now, container mounts should be gone.
+	mountOut, err = ioutil.ReadFile("/proc/self/mountinfo")
+	c.Assert(err, check.IsNil, check.Commentf("Output: %s", mountOut))
+	comment = check.Commentf("%s is still mounted from older daemon start:\nDaemon root repository %s\n%s", id, s.d.folder, mountOut)
+	c.Assert(strings.Contains(string(mountOut), id), check.Equals, false, comment)
 }
 
 // TestDaemonRestartWithPausedRunningContainer requires live restore of running containers
