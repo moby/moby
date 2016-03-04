@@ -8,7 +8,7 @@ parent="engine_guide"
 +++
 <![end-metadata]-->
 
-# Introduction to Engine user guide
+# Engine user guide
 
 This guide takes you through the fundamentals of using Docker Engine and
 integrating it into your environment. You'll learn how to use Engine to:
@@ -38,7 +38,7 @@ Go to [Dockerizing Applications](containers/dockerizing.md).
 Once you get a grip on running your applications in Docker containers, you'll learn how to manage those containers. To find out
 about how to inspect, monitor and manage containers:
 
-Go to [Working With Containers](containers/usingdocker.md).
+Go to [Working with Containers](containers/usingdocker.md).
 
 ## Working with Docker images
 
@@ -116,4 +116,3 @@ Go to [Docker Swarm user guide](https://docs.docker.com/swarm/).
 * [Docker on Twitter](https://twitter.com/docker)
 * Get [Docker help](https://stackoverflow.com/search?q=docker) on
   StackOverflow
-* [Docker.com](https://www.docker.com/)

@@ -24,147 +24,131 @@ Running an application inside a container takes a single command: `docker run`.
 
 ## Run a Hello world
 
-Let's try it now.
+Let's run a hello world container.
 
     $ docker run ubuntu /bin/echo 'Hello world'
     Hello world
 
-And you just launched your first container!
+You just launched your first container!
 
-So what just happened? Let's step through what the `docker run` command
-did.
+In this example:
 
-First we specified the `docker` binary and the command we wanted to
-execute, `run`. The `docker run` combination *runs* containers.
+* `docker run` runs a container.
 
-Next we specified an image: `ubuntu`. This is the source of the container
-we ran. Docker calls this an image. In this case we used the Ubuntu
-operating system image.
+* `ubuntu` is the image you run, for example the Ubuntu operating system image.
+  When you specify an image, Docker looks first for the image on your
+  Docker host. If the image does not exist locally, then the image is pulled from the public
+  image registry [Docker Hub](https://hub.docker.com).
 
-When you specify an image, Docker looks first for the image on your
-Docker host. If it can't find it then it downloads the image from the public
-image registry: [Docker Hub](https://hub.docker.com).
+* `/bin/echo` is the command to run inside the new container.
 
-Next we told Docker what command to run inside our new container:
-
-    /bin/echo 'Hello world'
-
-When our container was launched Docker created a new Ubuntu
-environment and then executed the `/bin/echo` command inside it. We saw
-the result on the command line:
+The container launches. Docker creates a new Ubuntu
+environment and executes the `/bin/echo` command inside it and then prints out:
 
     Hello world
 
-So what happened to our container after that? Well Docker containers
-only run as long as the command you specify is active. Here, as soon as
-`Hello world` was echoed, the container stopped.
+So what happened to the container after that? Well, Docker containers
+only run as long as the command you specify is active. Therefore, in the above example,
+the container stops once the command is executed.
 
-## An interactive container
+## Run an interactive container
 
-Let's try the `docker run` command again, this time specifying a new
-command to run in our container.
+Let's specify a new command to run in the container.
 
     $ docker run -t -i ubuntu /bin/bash
     root@af8bae53bdd3:/#
 
-Here we've again specified the `docker run` command and launched an
-`ubuntu` image. But we've also passed in two flags: `-t` and `-i`.
-The `-t` flag assigns a pseudo-tty or terminal inside our new container
-and the `-i` flag allows us to make an interactive connection by
+In this example:
+
+* `docker run` runs a container.
+* `ubuntu` is the image you would like to run.
+* `-t` flag assigns a pseudo-tty or terminal inside the new container.
+* `-i` flag allows you to make an interactive connection by
 grabbing the standard in (`STDIN`) of the container.
+* `/bin/bash` launches a Bash shell inside our container.
 
-We've also specified a new command for our container to run:
-`/bin/bash`. This will launch a Bash shell inside our container.
-
-So now when our container is launched we can see that we've got a
+The container launches. We can see there is a
 command prompt inside it:
 
     root@af8bae53bdd3:/#
 
-Let's try running some commands inside our container:
+Let's try running some commands inside the container:
 
     root@af8bae53bdd3:/# pwd
     /
     root@af8bae53bdd3:/# ls
     bin boot dev etc home lib lib64 media mnt opt proc root run sbin srv sys tmp usr var
 
-You can see we've run the `pwd` to show our current directory and can
-see we're in the `/` root directory. We've also done a directory listing
-of the root directory which shows us what looks like a typical Linux
-file system.
+In this example:
 
-You can play around inside this container and when you're done you can
-use the `exit` command or enter Ctrl-D to finish.
+* `pwd` displays the current directory, the `/` root directory.  
+* `ls` displays the directory listing of the root directory of a typical Linux file system.
+
+Now, you can play around inside this container. When completed, run the `exit` command or enter Ctrl-D
+to exit the interactive shell.
 
     root@af8bae53bdd3:/# exit
 
-As with our previous container, once the Bash shell process has
-finished, the container is stopped.
+>**Note:** As with our previous container, once the Bash shell process has
+finished, the container stops.
 
-## A daemonized Hello world
+## Start a daemonized Hello world
 
-Now a container that runs a command and then exits has some uses but
-it's not overly helpful. Let's create a container that runs as a daemon,
-like most of the applications we're probably going to run with Docker.
-
-Again we can do this with the `docker run` command:
+Let's create a container that runs as a daemon.
 
     $ docker run -d ubuntu /bin/sh -c "while true; do echo hello world; sleep 1; done"
     1e5535038e285177d5214659a068137486f96ee5c2e85a4ac52dc83f2ebe4147
 
-Wait, what? Where's our "hello world" output? Let's look at what we've run here.
-It should look pretty familiar. We ran `docker run` but this time we
-specified a flag: `-d`. The `-d` flag tells Docker to run the container
-and put it in the background, to daemonize it.
+In this example:
 
-We also specified the same image: `ubuntu`.
+* `docker run` runs the container.
+* `-d` flag runs the container in the background (to daemonize it).
+* `ubuntu` is the image you would like to run.
 
-Finally, we specified a command to run:
+Finally, we specify a command to run:
 
     /bin/sh -c "while true; do echo hello world; sleep 1; done"
 
-This is the (hello) world's silliest daemon: a shell script that echoes
-`hello world` forever.
 
-So why aren't we seeing any `hello world`'s? Instead Docker has returned
-a really long string:
+In the output, we do not see `hello world` but a long string:
 
     1e5535038e285177d5214659a068137486f96ee5c2e85a4ac52dc83f2ebe4147
 
-This really long string is called a *container ID*. It uniquely
+This long string is called a *container ID*. It uniquely
 identifies a container so we can work with it.
 
 > **Note:**
-> The container ID is a bit long and unwieldy. A bit later,
-> we'll see a shorter ID and ways to name our containers to make
+> The container ID is a bit long and unwieldy. Later, we will cover the short
+> ID and ways to name our containers to make
 > working with them easier.
 
 We can use this container ID to see what's happening with our `hello world` daemon.
 
-Firstly let's make sure our container is running. We can
-do that with the `docker ps` command. The `docker ps` command queries
-the Docker daemon for information about all the containers it knows
+First, let's make sure our container is running. Run the `docker ps` command.
+The `docker ps` command queries the Docker daemon for information about all the containers it knows
 about.
 
     $ docker ps
     CONTAINER ID  IMAGE         COMMAND               CREATED        STATUS       PORTS NAMES
     1e5535038e28  ubuntu  /bin/sh -c 'while tr  2 minutes ago  Up 1 minute        insane_babbage
 
-Here we can see our daemonized container. The `docker ps` has returned some useful
-information about it, starting with a shorter variant of its container ID:
-`1e5535038e28`.
+In this example, we can see our daemonized container. The `docker ps` returns some useful
+information:
 
-We can also see the image we used to build it, `ubuntu`, the command it
-is running, its status and an automatically assigned name,
-`insane_babbage`.
+* `1e5535038e28` is the shorter variant of the container ID.
+* `ubuntu` is the used image.
+* the command, status, and assigned name `insane_babbage`.
+
 
 > **Note:**
 > Docker automatically generates names for any containers started.
 > We'll see how to specify your own names a bit later.
 
-Okay, so we now know it's running. But is it doing what we asked it to do? To
+Now, we know the container is running. But is it doing what we asked it to do? To
 see this we're going to look inside the container using the `docker logs`
-command. Let's use the container name Docker assigned.
+command.
+
+Let's use the container name `insane_babbage`.
 
     $ docker logs insane_babbage
     hello world
@@ -172,29 +156,27 @@ command. Let's use the container name Docker assigned.
     hello world
     . . .
 
-The `docker logs` command looks inside the container and returns its standard
-output: in this case the output of our command `hello world`.
+In this example:
 
-Awesome! Our daemon is working and we've just created our first
+* `docker logs` looks inside the container and returns `hello world`.
+
+Awesome! The daemon is working and you have just created your first
 Dockerized application!
 
-Now we've established we can create our own containers let's tidy up
-after ourselves and stop our detached container. To do this we use the
-`docker stop` command.
+Next, run the `docker stop` command to stop our detached container.
 
     $ docker stop insane_babbage
     insane_babbage
 
 The `docker stop` command tells Docker to politely stop the running
-container. If it succeeds it will return the name of the container it
-has just stopped.
+container and returns the name of the container it stopped.
 
 Let's check it worked with the `docker ps` command.
 
     $ docker ps
     CONTAINER ID  IMAGE         COMMAND               CREATED        STATUS       PORTS NAMES
 
-Excellent. Our container has been stopped.
+Excellent. Our container is stopped.
 
 # Next steps
 
