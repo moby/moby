@@ -1957,11 +1957,11 @@ Request Headers:
     }
         ```
 
-    - Token based login:
+    - Identity token based login:
 
         ```
     {
-            "registrytoken": "9cbaf023786cd7..."
+            "identitytoken": "9cbaf023786cd7..."
     }
         ```
 
@@ -2091,7 +2091,8 @@ Status Codes:
 
 `POST /auth`
 
-Get the default username and email
+Validate credentials for a registry and get identity token,
+if available, for accessing the registry without password.
 
 **Example request**:
 
@@ -2099,15 +2100,19 @@ Get the default username and email
     Content-Type: application/json
 
     {
-         "username":" hannibal",
-         "password: "xxxx",
-         "email": "hannibal@a-team.com",
+         "username": "hannibal",
+         "password": "xxxx",
          "serveraddress": "https://index.docker.io/v1/"
     }
 
 **Example response**:
 
     HTTP/1.1 200 OK
+
+    {
+         "Status": "Login Succeeded",
+         "IdentityToken": "9cbaf023786cd7..."
+    }
 
 Status Codes:
 
