@@ -263,7 +263,7 @@ func (ldm *LayerDownloadManager) makeDownloadFunc(descriptor DownloadDescriptor,
 
 			selectLoop:
 				for {
-					progress.Updatef(progressOutput, descriptor.ID(), "Retrying in %d seconds", delay)
+					progress.Updatef(progressOutput, descriptor.ID(), "Retrying in %d second%s", delay, (map[bool]string{true: "s"})[delay != 1])
 					select {
 					case <-ticker.C:
 						delay--
