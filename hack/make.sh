@@ -170,6 +170,8 @@ BUILDFLAGS=( $BUILDFLAGS "${ORIG_BUILDFLAGS[@]}" )
 
 if [ "${DOCKER_ENGINE_GOARCH}" == "arm" ]; then
 	: ${TIMEOUT:=210m}
+elif [ "${DOCKER_ENGINE_GOARCH}" == "windows" ]; then
+	: ${TIMEOUT:=180m}
 else
 	: ${TIMEOUT:=120m}
 fi
