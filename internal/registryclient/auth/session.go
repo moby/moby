@@ -116,9 +116,10 @@ type tokenHandler struct {
 	transport http.RoundTripper
 	clock     clock
 
-	forceOAuth bool
-	clientID   string
-	scopes     []Scope
+	offlineAccess bool
+	forceOAuth    bool
+	clientID      string
+	scopes        []Scope
 
 	tokenLock       sync.Mutex
 	tokenCache      string
@@ -149,9 +150,10 @@ type TokenHandlerOptions struct {
 	Transport   http.RoundTripper
 	Credentials CredentialStore
 
-	ForceOAuth bool
-	ClientID   string
-	Scopes     []Scope
+	OfflineAccess bool
+	ForceOAuth    bool
+	ClientID      string
+	Scopes        []Scope
 }
 
 // An implementation of clock for providing real time data.
@@ -180,12 +182,13 @@ func NewTokenHandler(transport http.RoundTripper, creds CredentialStore, scope s
 // options structure.
 func NewTokenHandlerWithOptions(options TokenHandlerOptions) AuthenticationHandler {
 	handler := &tokenHandler{
-		transport:  options.Transport,
-		creds:      options.Credentials,
-		forceOAuth: options.ForceOAuth,
-		clientID:   options.ClientID,
-		scopes:     options.Scopes,
-		clock:      realClock{},
+		transport:     options.Transport,
+		creds:         options.Credentials,
+		offlineAccess: options.OfflineAccess,
+		forceOAuth:    options.ForceOAuth,
+		clientID:      options.ClientID,
+		scopes:        options.Scopes,
+		clock:         realClock{},
 	}
 
 	return handler
@@ -344,6 +347,10 @@ func (th *tokenHandler) fetchTokenWithBasicAuth(realm *url.URL, service string, 
 
 	for _, scope := range scopes {
 		reqParams.Add("scope", scope)
+	}
+
+	if th.offlineAccess {
+		reqParams.Add("offline_token", "true")
 	}
 
 	if th.creds != nil {
