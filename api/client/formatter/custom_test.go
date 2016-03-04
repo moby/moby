@@ -12,7 +12,7 @@ import (
 
 func TestContainerPsContext(t *testing.T) {
 	containerID := stringid.GenerateRandomID()
-	unix := time.Now().Unix()
+	unix := time.Now().Add(-65 * time.Second).Unix()
 
 	var ctx containerContext
 	cases := []struct {
@@ -55,7 +55,7 @@ func TestContainerPsContext(t *testing.T) {
 		{types.Container{SizeRw: 10, SizeRootFs: 20}, true, "10 B (virtual 20 B)", sizeHeader, ctx.Size},
 		{types.Container{}, true, "", labelsHeader, ctx.Labels},
 		{types.Container{Labels: map[string]string{"cpu": "6", "storage": "ssd"}}, true, "cpu=6,storage=ssd", labelsHeader, ctx.Labels},
-		{types.Container{Created: unix}, true, "Less than a second", runningForHeader, ctx.RunningFor},
+		{types.Container{Created: unix}, true, "About a minute", runningForHeader, ctx.RunningFor},
 	}
 
 	for _, c := range cases {
