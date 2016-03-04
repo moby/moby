@@ -2170,7 +2170,9 @@ func (s *DockerSuite) TestDaemonDiscoveryBackendConfigReload(c *check.C) {
 
 	configFile, err = os.Create(configFilePath)
 	c.Assert(err, checker.IsNil)
+	defer os.Remove(configFilePath)
 	fmt.Fprintf(configFile, "%s", daemonConfig)
+	configFile.Close()
 
 	syscall.Kill(d.cmd.Process.Pid, syscall.SIGHUP)
 
