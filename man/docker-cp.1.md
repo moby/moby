@@ -36,7 +36,8 @@ the user and primary group at the destination. For example, files copied to a
 container are created with `UID:GID` of the root user. Files copied to the local
 machine are created with the `UID:GID` of the user which invoked the `docker cp`
 command.  If you specify the `-L` option, `docker cp` follows any symbolic link
-in the `SRC_PATH`.
+in the `SRC_PATH`. `docker cp` does *not* create parent directories for
+`DEST_PATH` if they do not exist.
 
 Assuming a path separator of `/`, a first argument of `SRC_PATH` and second
 argument of `DEST_PATH`, the behavior is as follows:
