@@ -113,27 +113,45 @@ type clock interface {
 type tokenHandler struct {
 	header    http.Header
 	creds     CredentialStore
-	scope     tokenScope
 	transport http.RoundTripper
 	clock     clock
+
+	forceOAuth bool
+	clientID   string
+	scopes     []Scope
 
 	tokenLock       sync.Mutex
 	tokenCache      string
 	tokenExpiration time.Time
-
-	additionalScopes map[string]struct{}
 }
 
-// tokenScope represents the scope at which a token will be requested.
-// This represents a specific action on a registry resource.
-type tokenScope struct {
-	Resource string
-	Scope    string
-	Actions  []string
+// Scope is a type which is serializable to a string
+// using the allow scope grammar.
+type Scope interface {
+	String() string
 }
 
-func (ts tokenScope) String() string {
-	return fmt.Sprintf("%s:%s:%s", ts.Resource, ts.Scope, strings.Join(ts.Actions, ","))
+// RepositoryScope represents a token scope for access
+// to a repository.
+type RepositoryScope struct {
+	Repository string
+	Actions    []string
+}
+
+// String returns the string representation of the repository
+// using the scope grammar
+func (rs RepositoryScope) String() string {
+	return fmt.Sprintf("repository:%s:%s", rs.Repository, strings.Join(rs.Actions, ","))
+}
+
+// TokenHandlerOptions is used to configure a new token handler
+type TokenHandlerOptions struct {
+	Transport   http.RoundTripper
+	Credentials CredentialStore
+
+	ForceOAuth bool
+	ClientID   string
+	Scopes     []Scope
 }
 
 // An implementation of clock for providing real time data.
@@ -145,22 +163,32 @@ func (realClock) Now() time.Time { return time.Now() }
 // NewTokenHandler creates a new AuthenicationHandler which supports
 // fetching tokens from a remote token server.
 func NewTokenHandler(transport http.RoundTripper, creds CredentialStore, scope string, actions ...string) AuthenticationHandler {
-	return newTokenHandler(transport, creds, realClock{}, scope, actions...)
+	// Create options...
+	return NewTokenHandlerWithOptions(TokenHandlerOptions{
+		Transport:   transport,
+		Credentials: creds,
+		Scopes: []Scope{
+			RepositoryScope{
+				Repository: scope,
+				Actions:    actions,
+			},
+		},
+	})
 }
 
-// newTokenHandler exposes the option to provide a clock to manipulate time in unit testing.
-func newTokenHandler(transport http.RoundTripper, creds CredentialStore, c clock, scope string, actions ...string) AuthenticationHandler {
-	return &tokenHandler{
-		transport: transport,
-		creds:     creds,
-		clock:     c,
-		scope: tokenScope{
-			Resource: "repository",
-			Scope:    scope,
-			Actions:  actions,
-		},
-		additionalScopes: map[string]struct{}{},
+// NewTokenHandlerWithOptions creates a new token handler using the provided
+// options structure.
+func NewTokenHandlerWithOptions(options TokenHandlerOptions) AuthenticationHandler {
+	handler := &tokenHandler{
+		transport:  options.Transport,
+		creds:      options.Credentials,
+		forceOAuth: options.ForceOAuth,
+		clientID:   options.ClientID,
+		scopes:     options.Scopes,
+		clock:      realClock{},
 	}
+
+	return handler
 }
 
 func (th *tokenHandler) client() *http.Client {
@@ -177,10 +205,9 @@ func (th *tokenHandler) Scheme() string {
 func (th *tokenHandler) AuthorizeRequest(req *http.Request, params map[string]string) error {
 	var additionalScopes []string
 	if fromParam := req.URL.Query().Get("from"); fromParam != "" {
-		additionalScopes = append(additionalScopes, tokenScope{
-			Resource: "repository",
-			Scope:    fromParam,
-			Actions:  []string{"pull"},
+		additionalScopes = append(additionalScopes, RepositoryScope{
+			Repository: fromParam,
+			Actions:    []string{"pull"},
 		}.String())
 	}
 	if err := th.refreshToken(params, additionalScopes...); err != nil {
@@ -195,16 +222,19 @@ func (th *tokenHandler) AuthorizeRequest(req *http.Request, params map[string]st
 func (th *tokenHandler) refreshToken(params map[string]string, additionalScopes ...string) error {
 	th.tokenLock.Lock()
 	defer th.tokenLock.Unlock()
+	scopes := make([]string, 0, len(th.scopes)+len(additionalScopes))
+	for _, scope := range th.scopes {
+		scopes = append(scopes, scope.String())
+	}
 	var addedScopes bool
 	for _, scope := range additionalScopes {
-		if _, ok := th.additionalScopes[scope]; !ok {
-			th.additionalScopes[scope] = struct{}{}
-			addedScopes = true
-		}
+		scopes = append(scopes, scope)
+		addedScopes = true
 	}
+
 	now := th.clock.Now()
 	if now.After(th.tokenExpiration) || addedScopes {
-		token, expiration, err := th.fetchToken(params)
+		token, expiration, err := th.fetchToken(params, scopes)
 		if err != nil {
 			return err
 		}
@@ -232,8 +262,12 @@ func (th *tokenHandler) fetchTokenWithOAuth(realm *url.URL, refreshToken, servic
 	form.Set("scope", strings.Join(scopes, " "))
 	form.Set("service", service)
 
-	// TODO: Make this configurable
-	form.Set("client_id", "docker")
+	clientID := th.clientID
+	if clientID == "" {
+		// Use default client, this is a required field
+		clientID = "registry-client"
+	}
+	form.Set("client_id", clientID)
 
 	if refreshToken != "" {
 		form.Set("grant_type", "refresh_token")
@@ -369,7 +403,7 @@ func (th *tokenHandler) fetchTokenWithBasicAuth(realm *url.URL, service string, 
 	return tr.Token, tr.IssuedAt.Add(time.Duration(tr.ExpiresIn) * time.Second), nil
 }
 
-func (th *tokenHandler) fetchToken(params map[string]string) (token string, expiration time.Time, err error) {
+func (th *tokenHandler) fetchToken(params map[string]string, scopes []string) (token string, expiration time.Time, err error) {
 	realm, ok := params["realm"]
 	if !ok {
 		return "", time.Time{}, errors.New("no realm specified for token auth challenge")
@@ -383,22 +417,13 @@ func (th *tokenHandler) fetchToken(params map[string]string) (token string, expi
 
 	service := params["service"]
 
-	scopes := make([]string, 0, 1+len(th.additionalScopes))
-	if len(th.scope.Actions) > 0 {
-		scopes = append(scopes, th.scope.String())
-	}
-	for scope := range th.additionalScopes {
-		scopes = append(scopes, scope)
-	}
-
 	var refreshToken string
 
 	if th.creds != nil {
 		refreshToken = th.creds.RefreshToken(realmURL, service)
 	}
 
-	// TODO(dmcgowan): define parameter to force oauth with password
-	if refreshToken != "" {
+	if refreshToken != "" || th.forceOAuth {
 		return th.fetchTokenWithOAuth(realmURL, refreshToken, service, scopes)
 	}
 
