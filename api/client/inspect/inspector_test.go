@@ -4,7 +4,8 @@ import (
 	"bytes"
 	"strings"
 	"testing"
-	"text/template"
+
+	"github.com/docker/docker/utils/templates"
 )
 
 type testElement struct {
@@ -13,7 +14,7 @@ type testElement struct {
 
 func TestTemplateInspectorDefault(t *testing.T) {
 	b := new(bytes.Buffer)
-	tmpl, err := template.New("test").Parse("{{.DNS}}")
+	tmpl, err := templates.Parse("{{.DNS}}")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -32,7 +33,7 @@ func TestTemplateInspectorDefault(t *testing.T) {
 
 func TestTemplateInspectorEmpty(t *testing.T) {
 	b := new(bytes.Buffer)
-	tmpl, err := template.New("test").Parse("{{.DNS}}")
+	tmpl, err := templates.Parse("{{.DNS}}")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -48,7 +49,7 @@ func TestTemplateInspectorEmpty(t *testing.T) {
 
 func TestTemplateInspectorTemplateError(t *testing.T) {
 	b := new(bytes.Buffer)
-	tmpl, err := template.New("test").Parse("{{.Foo}}")
+	tmpl, err := templates.Parse("{{.Foo}}")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -66,7 +67,7 @@ func TestTemplateInspectorTemplateError(t *testing.T) {
 
 func TestTemplateInspectorRawFallback(t *testing.T) {
 	b := new(bytes.Buffer)
-	tmpl, err := template.New("test").Parse("{{.Dns}}")
+	tmpl, err := templates.Parse("{{.Dns}}")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -85,7 +86,7 @@ func TestTemplateInspectorRawFallback(t *testing.T) {
 
 func TestTemplateInspectorRawFallbackError(t *testing.T) {
 	b := new(bytes.Buffer)
-	tmpl, err := template.New("test").Parse("{{.Dns}}")
+	tmpl, err := templates.Parse("{{.Dns}}")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -102,7 +103,7 @@ func TestTemplateInspectorRawFallbackError(t *testing.T) {
 
 func TestTemplateInspectorMultiple(t *testing.T) {
 	b := new(bytes.Buffer)
-	tmpl, err := template.New("test").Parse("{{.DNS}}")
+	tmpl, err := templates.Parse("{{.DNS}}")
 	if err != nil {
 		t.Fatal(err)
 	}
