@@ -37,7 +37,7 @@ type Sandbox interface {
 	Delete() error
 	// ResolveName searches for the service name in the networks to which the sandbox
 	// is connected to.
-	ResolveName(name string) net.IP
+	ResolveName(name string) []net.IP
 	// ResolveIP returns the service name for the passed in IP. IP is in reverse dotted
 	// notation; the format used for DNS PTR records
 	ResolveIP(name string) string
@@ -398,8 +398,8 @@ func (sb *sandbox) execFunc(f func()) {
 	sb.osSbox.InvokeFunc(f)
 }
 
-func (sb *sandbox) ResolveName(name string) net.IP {
-	var ip net.IP
+func (sb *sandbox) ResolveName(name string) []net.IP {
+	var ip []net.IP
 
 	// Embedded server owns the docker network domain. Resolution should work
 	// for both container_name and container_name.network_name
@@ -447,7 +447,7 @@ func (sb *sandbox) ResolveName(name string) net.IP {
 	return nil
 }
 
-func (sb *sandbox) resolveName(req string, networkName string, epList []*endpoint, alias bool) net.IP {
+func (sb *sandbox) resolveName(req string, networkName string, epList []*endpoint, alias bool) []net.IP {
 	for _, ep := range epList {
 		name := req
 		n := ep.getNetwork()
@@ -488,7 +488,7 @@ func (sb *sandbox) resolveName(req string, networkName string, epList []*endpoin
 		ip, ok := sr.svcMap[name]
 		n.Unlock()
 		if ok {
-			return ip[0]
+			return ip
 		}
 	}
 	return nil

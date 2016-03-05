@@ -2,6 +2,7 @@ package libnetwork
 
 import (
 	"fmt"
+	"math/rand"
 	"net"
 	"strings"
 	"sync"
@@ -33,13 +34,14 @@ type Resolver interface {
 }
 
 const (
-	resolverIP    = "127.0.0.11"
-	dnsPort       = "53"
-	ptrIPv4domain = ".in-addr.arpa."
-	ptrIPv6domain = ".ip6.arpa."
-	respTTL       = 600
-	maxExtDNS     = 3 //max number of external servers to try
-	extIOTimeout  = 3 * time.Second
+	resolverIP      = "127.0.0.11"
+	dnsPort         = "53"
+	ptrIPv4domain   = ".in-addr.arpa."
+	ptrIPv6domain   = ".ip6.arpa."
+	respTTL         = 600
+	maxExtDNS       = 3 //max number of external servers to try
+	extIOTimeout    = 3 * time.Second
+	defaultRespSize = 512
 )
 
 type extDNSEntry struct {
@@ -57,6 +59,10 @@ type resolver struct {
 	tcpServer  *dns.Server
 	tcpListen  *net.TCPListener
 	err        error
+}
+
+func init() {
+	rand.Seed(time.Now().Unix())
 }
 
 // NewResolver creates a new instance of the Resolver
@@ -166,22 +172,36 @@ func setCommonFlags(msg *dns.Msg) {
 	msg.RecursionAvailable = true
 }
 
+func shuffleAddr(addr []net.IP) []net.IP {
+	for i := len(addr) - 1; i > 0; i-- {
+		r := rand.Intn(i + 1)
+		addr[i], addr[r] = addr[r], addr[i]
+	}
+	return addr
+}
+
 func (r *resolver) handleIPv4Query(name string, query *dns.Msg) (*dns.Msg, error) {
 	addr := r.sb.ResolveName(name)
 	if addr == nil {
 		return nil, nil
 	}
 
-	log.Debugf("Lookup for %s: IP %s", name, addr.String())
+	log.Debugf("Lookup for %s: IP %v", name, addr)
 
 	resp := new(dns.Msg)
 	resp.SetReply(query)
 	setCommonFlags(resp)
 
-	rr := new(dns.A)
-	rr.Hdr = dns.RR_Header{Name: name, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: respTTL}
-	rr.A = addr
-	resp.Answer = append(resp.Answer, rr)
+	if len(addr) > 1 {
+		addr = shuffleAddr(addr)
+	}
+
+	for _, ip := range addr {
+		rr := new(dns.A)
+		rr.Hdr = dns.RR_Header{Name: name, Rrtype: dns.TypeA, Class: dns.ClassINET, Ttl: respTTL}
+		rr.A = ip
+		resp.Answer = append(resp.Answer, rr)
+	}
 	return resp, nil
 }
 
@@ -215,6 +235,18 @@ func (r *resolver) handlePTRQuery(ptr string, query *dns.Msg) (*dns.Msg, error) 
 	return resp, nil
 }
 
+func truncateResp(resp *dns.Msg, maxSize int, isTCP bool) {
+	if !isTCP {
+		resp.Truncated = true
+	}
+
+	// trim the Answer RRs one by one till the whole message fits
+	// within the reply size
+	for resp.Len() > maxSize {
+		resp.Answer = resp.Answer[:len(resp.Answer)-1]
+	}
+}
+
 func (r *resolver) ServeDNS(w dns.ResponseWriter, query *dns.Msg) {
 	var (
 		extConn net.Conn
@@ -238,7 +270,24 @@ func (r *resolver) ServeDNS(w dns.ResponseWriter, query *dns.Msg) {
 	}
 
 	proto := w.LocalAddr().Network()
-	if resp == nil {
+	maxSize := 0
+	if proto == "tcp" {
+		maxSize = dns.MaxMsgSize - 1
+	} else if proto == "udp" {
+		optRR := query.IsEdns0()
+		if optRR != nil {
+			maxSize = int(optRR.UDPSize())
+		}
+		if maxSize < defaultRespSize {
+			maxSize = defaultRespSize
+		}
+	}
+
+	if resp != nil {
+		if resp.Len() > maxSize {
+			truncateResp(resp, maxSize, proto == "tcp")
+		}
+	} else {
 		for i := 0; i < maxExtDNS; i++ {
 			extDNS := &r.extDNSList[i]
 			if extDNS.ipStr == "" {
