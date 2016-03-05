@@ -594,6 +594,11 @@
 			"args": []
 		},
 		{
+			"name": "ipc",
+			"action": "SCMP_ACT_ALLOW",
+			"args": []
+		},
+		{
 			"name": "kill",
 			"action": "SCMP_ACT_ALLOW",
 			"args": []

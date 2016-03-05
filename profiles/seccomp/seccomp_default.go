@@ -626,6 +626,11 @@ var DefaultProfile = &types.Seccomp{
 			Args:   []*types.Arg{},
 		},
 		{
+			Name:   "ipc",
+			Action: types.ActAllow,
+			Args:   []*types.Arg{},
+		},
+		{
 			Name:   "kill",
 			Action: types.ActAllow,
 			Args:   []*types.Arg{},
