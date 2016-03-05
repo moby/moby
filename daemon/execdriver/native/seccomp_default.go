@@ -625,6 +625,11 @@ var defaultSeccompProfile = &configs.Seccomp{
 			Args:   []*configs.Arg{},
 		},
 		{
+			Name:   "ipc",
+			Action: configs.Allow,
+			Args:   []*configs.Arg{},
+		},
+		{
 			Name:   "kill",
 			Action: configs.Allow,
 			Args:   []*configs.Arg{},
