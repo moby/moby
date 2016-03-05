@@ -252,15 +252,6 @@ func TestHost(t *testing.T) {
 	if err := ep3.Delete(false); err != nil {
 		t.Fatal(err)
 	}
-
-	// host type is special network. Cannot be removed.
-	err = network.Delete()
-	if err == nil {
-		t.Fatal(err)
-	}
-	if _, ok := err.(types.ForbiddenError); !ok {
-		t.Fatalf("Unexpected error type")
-	}
 }
 
 func TestBridge(t *testing.T) {
