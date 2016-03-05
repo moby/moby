@@ -1,4 +1,4 @@
-// +build !windows,!darwin
+// +build !windows,!darwin,!linux
 
 package credentials
 
