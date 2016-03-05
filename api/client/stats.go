@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"sync"
 	"text/tabwriter"
 	"time"
 
@@ -59,6 +60,9 @@ func (cli *DockerCli) CmdStats(args ...string) error {
 		})
 	}
 
+	// waitFirst is a WaitGroup to wait first stat data's reach for each container
+	waitFirst := &sync.WaitGroup{}
+
 	cStats := stats{}
 	// getContainerList simulates creation event for all previously existing
 	// containers (only used when calling `docker stats` without arguments).
@@ -72,8 +76,10 @@ func (cli *DockerCli) CmdStats(args ...string) error {
 		}
 		for _, container := range cs {
 			s := &containerStats{Name: container.ID[:12]}
-			cStats.add(s)
-			go s.Collect(cli.client, !*noStream)
+			if cStats.add(s) {
+				waitFirst.Add(1)
+				go s.Collect(cli.client, !*noStream, waitFirst)
+			}
 		}
 	}
 
@@ -87,15 +93,19 @@ func (cli *DockerCli) CmdStats(args ...string) error {
 		eh.Handle("create", func(e events.Message) {
 			if *all {
 				s := &containerStats{Name: e.ID[:12]}
-				cStats.add(s)
-				go s.Collect(cli.client, !*noStream)
+				if cStats.add(s) {
+					waitFirst.Add(1)
+					go s.Collect(cli.client, !*noStream, waitFirst)
+				}
 			}
 		})
 
 		eh.Handle("start", func(e events.Message) {
 			s := &containerStats{Name: e.ID[:12]}
-			cStats.add(s)
-			go s.Collect(cli.client, !*noStream)
+			if cStats.add(s) {
+				waitFirst.Add(1)
+				go s.Collect(cli.client, !*noStream, waitFirst)
+			}
 		})
 
 		eh.Handle("die", func(e events.Message) {
@@ -112,14 +122,16 @@ func (cli *DockerCli) CmdStats(args ...string) error {
 
 		// Start a short-lived goroutine to retrieve the initial list of
 		// containers.
-		go getContainerList()
+		getContainerList()
 	} else {
 		// Artificially send creation events for the containers we were asked to
 		// monitor (same code path than we use when monitoring all containers).
 		for _, name := range names {
 			s := &containerStats{Name: name}
-			cStats.add(s)
-			go s.Collect(cli.client, !*noStream)
+			if cStats.add(s) {
+				waitFirst.Add(1)
+				go s.Collect(cli.client, !*noStream, waitFirst)
+			}
 		}
 
 		// We don't expect any asynchronous errors: closeChan can be closed.
@@ -142,6 +154,9 @@ func (cli *DockerCli) CmdStats(args ...string) error {
 			return fmt.Errorf("%s", strings.Join(errs, ", "))
 		}
 	}
+
+	// before print to screen, make sure each container get at least one valid stat data
+	waitFirst.Wait()
 
 	w := tabwriter.NewWriter(cli.out, 20, 1, 3, ' ', 0)
 	printHeader := func() {
