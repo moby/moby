@@ -23,6 +23,7 @@ parent = "smn_cli"
       --cap-drop=[]                 Drop Linux capabilities
       --cgroup-parent=""            Optional parent cgroup for the container
       --cidfile=""                  Write the container ID to the file
+      --cpu-percent=0               Limit percentage of CPU available for execution by the container. Windows daemon only.
       --cpu-period=0                Limit CPU CFS (Completely Fair Scheduler) period
       --cpu-quota=0                 Limit CPU CFS (Completely Fair Scheduler) quota
       --cpuset-cpus=""              CPUs in which to allow execution (0-3, 0,1)
