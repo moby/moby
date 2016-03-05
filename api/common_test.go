@@ -310,7 +310,7 @@ func TestLoadOrCreateTrustKeyCreateKey(t *testing.T) {
 	}
 
 	// With the need to create the folder hierarchy as tmpKeyFie is in a path
-	// where some folder do not exists.
+	// where some folders do not exist.
 	tmpKeyFile = filepath.Join(tmpKeyFolderPath, "folder/hierarchy/keyfile")
 
 	if key, err := LoadOrCreateTrustKey(tmpKeyFile); err != nil || key == nil {
