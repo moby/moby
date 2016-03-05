@@ -3097,7 +3097,7 @@ JSON Parameters:
 
 `POST /networks/(id)/connect`
 
-Connects a container to a network
+Connect a container to a network
 
 **Example request**:
 
@@ -3134,7 +3134,7 @@ JSON Parameters:
 
 `POST /networks/(id)/disconnect`
 
-Disconnects a container from a network
+Disconnect a container from a network
 
 **Example request**:
 
@@ -3175,11 +3175,11 @@ Instruct the driver to remove the network (`id`).
 
 **Example response**:
 
-    HTTP/1.1 200 OK
+    HTTP/1.1 204 No Content
 
 Status Codes
 
--   **200** - no error
+-   **204** - no error
 -   **404** - no such network
 -   **500** - server error
 

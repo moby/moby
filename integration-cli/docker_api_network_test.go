@@ -332,6 +332,6 @@ func deleteNetwork(c *check.C, id string, shouldSucceed bool) {
 		c.Assert(status, checker.Not(checker.Equals), http.StatusOK)
 		return
 	}
-	c.Assert(status, checker.Equals, http.StatusOK)
+	c.Assert(status, checker.Equals, http.StatusNoContent)
 	c.Assert(err, checker.IsNil)
 }
