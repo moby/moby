@@ -30,6 +30,8 @@ var (
 	procNameToGuid                                 = modvmcompute.NewProc("NameToGuid")
 	procPrepareLayer                               = modvmcompute.NewProc("PrepareLayer")
 	procUnprepareLayer                             = modvmcompute.NewProc("UnprepareLayer")
+	procProcessBaseImage                           = modvmcompute.NewProc("ProcessBaseImage")
+	procProcessUtilityImage                        = modvmcompute.NewProc("ProcessUtilityImage")
 	procImportLayerBegin                           = modvmcompute.NewProc("ImportLayerBegin")
 	procImportLayerNext                            = modvmcompute.NewProc("ImportLayerNext")
 	procImportLayerWrite                           = modvmcompute.NewProc("ImportLayerWrite")
@@ -364,6 +366,46 @@ func _unprepareLayer(info *driverInfo, id *uint16) (hr error) {
 		return
 	}
 	r0, _, _ := syscall.Syscall(procUnprepareLayer.Addr(), 2, uintptr(unsafe.Pointer(info)), uintptr(unsafe.Pointer(id)), 0)
+	if int32(r0) < 0 {
+		hr = syscall.Errno(win32FromHresult(r0))
+	}
+	return
+}
+
+func processBaseImage(path string) (hr error) {
+	var _p0 *uint16
+	_p0, hr = syscall.UTF16PtrFromString(path)
+	if hr != nil {
+		return
+	}
+	return _processBaseImage(_p0)
+}
+
+func _processBaseImage(path *uint16) (hr error) {
+	if hr = procProcessBaseImage.Find(); hr != nil {
+		return
+	}
+	r0, _, _ := syscall.Syscall(procProcessBaseImage.Addr(), 1, uintptr(unsafe.Pointer(path)), 0, 0)
+	if int32(r0) < 0 {
+		hr = syscall.Errno(win32FromHresult(r0))
+	}
+	return
+}
+
+func processUtilityImage(path string) (hr error) {
+	var _p0 *uint16
+	_p0, hr = syscall.UTF16PtrFromString(path)
+	if hr != nil {
+		return
+	}
+	return _processUtilityImage(_p0)
+}
+
+func _processUtilityImage(path *uint16) (hr error) {
+	if hr = procProcessUtilityImage.Find(); hr != nil {
+		return
+	}
+	r0, _, _ := syscall.Syscall(procProcessUtilityImage.Addr(), 1, uintptr(unsafe.Pointer(path)), 0, 0)
 	if int32(r0) < 0 {
 		hr = syscall.Errno(win32FromHresult(r0))
 	}
