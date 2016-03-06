@@ -1788,6 +1788,11 @@ or being killed.
         passing secret values. [Read more about the buildargs instruction](../../reference/builder.md#arg)
 -   **shmsize** - Size of `/dev/shm` in bytes. The size must be greater than 0.  If omitted the system uses 64MB.
 -   **labels** – JSON map of string pairs for labels to set on the image.
+-   **networkmode** - Sets the networking mode for the run commands during
+        build. Supported standard values are: `bridge`, `host`, `none`, and
+        `container:<name|id>`. Any other value is taken as a custom network's
+        name to which this container should connect to.
+
 
 **Request Headers**:
 
