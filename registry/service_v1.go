@@ -9,7 +9,7 @@ import (
 func (s *Service) lookupV1Endpoints(hostname string) (endpoints []APIEndpoint, err error) {
 	var cfg = tlsconfig.ServerDefault
 	tlsConfig := &cfg
-	if hostname == DefaultNamespace {
+	if hostname == IndexServer || hostname == DefaultNamespace {
 		endpoints = append(endpoints, APIEndpoint{
 			URL:          DefaultV1Registry,
 			Version:      APIVersion1,
