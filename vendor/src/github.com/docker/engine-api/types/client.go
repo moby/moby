@@ -136,6 +136,7 @@ type ImageBuildOptions struct {
 	Memory         int64
 	MemorySwap     int64
 	CgroupParent   string
+	NetMode        string
 	ShmSize        int64
 	Dockerfile     string
 	Ulimits        []*units.Ulimit

@@ -48,6 +48,7 @@ func newImageBuildOptions(ctx context.Context, r *http.Request) (*types.ImageBui
 	options.CPUSetCPUs = r.FormValue("cpusetcpus")
 	options.CPUSetMems = r.FormValue("cpusetmems")
 	options.CgroupParent = r.FormValue("cgroupparent")
+	options.NetMode = r.FormValue("netmode")
 	options.Tags = r.Form["t"]
 
 	if r.Form.Get("shmsize") != "" {

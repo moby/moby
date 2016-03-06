@@ -58,6 +58,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 	flCPUSetCpus := cmd.String([]string{"-cpuset-cpus"}, "", "CPUs in which to allow execution (0-3, 0,1)")
 	flCPUSetMems := cmd.String([]string{"-cpuset-mems"}, "", "MEMs in which to allow execution (0-3, 0,1)")
 	flCgroupParent := cmd.String([]string{"-cgroup-parent"}, "", "Optional parent cgroup for the container")
+	flNetMode := cmd.String([]string{"-net"}, "default", "Connect a container to a network")
 	flBuildArg := opts.NewListOpts(runconfigopts.ValidateEnv)
 	cmd.Var(&flBuildArg, []string{"-build-arg"}, "Set build-time variables")
 	isolation := cmd.String([]string{"-isolation"}, "", "Container isolation technology")
@@ -225,6 +226,7 @@ func (cli *DockerCli) CmdBuild(args ...string) error {
 		CPUQuota:       *flCPUQuota,
 		CPUPeriod:      *flCPUPeriod,
 		CgroupParent:   *flCgroupParent,
+		NetMode:        *flNetMode,
 		Dockerfile:     relDockerfile,
 		ShmSize:        shmSize,
 		Ulimits:        flUlimits.GetList(),
