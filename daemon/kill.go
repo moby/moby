@@ -11,6 +11,22 @@ import (
 	"github.com/docker/docker/pkg/signal"
 )
 
+type errNoSuchProcess struct {
+	pid    int
+	signal int
+}
+
+func (e errNoSuchProcess) Error() string {
+	return fmt.Sprintf("Cannot kill process (pid=%d) with signal %d: no such process.", e.pid, e.signal)
+}
+
+// isErrNoSuchProcess returns true if the error
+// is an instance of errNoSuchProcess.
+func isErrNoSuchProcess(err error) bool {
+	_, ok := err.(errNoSuchProcess)
+	return ok
+}
+
 // ContainerKill send signal to the container
 // If no signal is given (sig 0), then Kill with SIGKILL and wait
 // for the container to exit.
@@ -89,6 +105,9 @@ func (daemon *Daemon) Kill(container *container.Container) error {
 		// So, instead we'll give it up to 2 more seconds to complete and if
 		// by that time the container is still running, then the error
 		// we got is probably valid and so we return it to the caller.
+		if isErrNoSuchProcess(err) {
+			return nil
+		}
 
 		if container.IsRunning() {
 			container.WaitStop(2 * time.Second)
@@ -100,6 +119,9 @@ func (daemon *Daemon) Kill(container *container.Container) error {
 
 	// 2. Wait for the process to die, in last resort, try to kill the process directly
 	if err := killProcessDirectly(container); err != nil {
+		if isErrNoSuchProcess(err) {
+			return nil
+		}
 		return err
 	}
 
@@ -111,8 +133,9 @@ func (daemon *Daemon) Kill(container *container.Container) error {
 func (daemon *Daemon) killPossiblyDeadProcess(container *container.Container, sig int) error {
 	err := daemon.killWithSignal(container, sig)
 	if err == syscall.ESRCH {
-		logrus.Debugf("Cannot kill process (pid=%d) with signal %d: no such process.", container.GetPID(), sig)
-		return nil
+		e := errNoSuchProcess{container.GetPID(), sig}
+		logrus.Debug(e)
+		return e
 	}
 	return err
 }
