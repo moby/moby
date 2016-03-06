@@ -9,7 +9,7 @@ import (
 	"unicode/utf16"
 )
 
-//sys adjustTokenPrivileges(token syscall.Handle, releaseAll bool, input *byte, outputSize uint32, output *byte, requiredSize *uint32) (err error) = advapi32.AdjustTokenPrivileges
+//sys adjustTokenPrivileges(token syscall.Handle, releaseAll bool, input *byte, outputSize uint32, output *byte, requiredSize *uint32) (success bool, err error) [true] = advapi32.AdjustTokenPrivileges
 //sys impersonateSelf(level uint32) (err error) = advapi32.ImpersonateSelf
 //sys revertToSelf() (err error) = advapi32.RevertToSelf
 //sys openThreadToken(thread syscall.Handle, accessMask uint32, openAsSelf bool, token *syscall.Handle) (err error) = advapi32.OpenThreadToken
@@ -20,6 +20,8 @@ import (
 
 const (
 	SE_PRIVILEGE_ENABLED = 2
+
+	ERROR_NOT_ALL_ASSIGNED syscall.Errno = 1300
 
 	SeBackupPrivilege  = "SeBackupPrivilege"
 	SeRestorePrivilege = "SeRestorePrivilege"
@@ -91,10 +93,11 @@ func adjustPrivileges(token syscall.Handle, privileges []uint64) error {
 	}
 	prevState := make([]byte, b.Len())
 	reqSize := uint32(0)
-	if err := adjustTokenPrivileges(token, false, &b.Bytes()[0], uint32(len(prevState)), &prevState[0], &reqSize); err != nil {
+	success, err := adjustTokenPrivileges(token, false, &b.Bytes()[0], uint32(len(prevState)), &prevState[0], &reqSize)
+	if !success {
 		return err
 	}
-	if int(binary.LittleEndian.Uint32(prevState[0:4])) < len(privileges) {
+	if err == ERROR_NOT_ALL_ASSIGNED {
 		return &PrivilegeError{privileges}
 	}
 	return nil
