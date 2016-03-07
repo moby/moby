@@ -67,7 +67,7 @@ The output will provide details on the container configurations including the
 volumes. The output should look something similar to the following:
 
     ...
-    Mounts": [
+    "Mounts": [
         {
             "Name": "fac362...80535",
             "Source": "/var/lib/docker/volumes/fac362...80535/_data",
