@@ -114,9 +114,6 @@ func (s *HTTPServer) Close() error {
 
 func (s *Server) makeHTTPHandler(handler httputils.APIFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// log the handler call
-		logrus.Debugf("Calling %s %s", r.Method, r.URL.Path)
-
 		// Define the context that we'll pass around to share info
 		// like the docker-request-id.
 		//
