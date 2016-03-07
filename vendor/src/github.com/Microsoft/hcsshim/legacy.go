@@ -319,11 +319,7 @@ func (w *LegacyLayerWriter) Add(name string, fileInfo *winio.FileBasicInfo) erro
 		if err != nil {
 			return err
 		}
-		if strings.HasPrefix(name, `Files\`) {
-			path += ".$wcidirs$"
-		} else {
-			createDisposition = syscall.OPEN_EXISTING
-		}
+		path += ".$wcidirs$"
 	}
 
 	f, err := openFileOrDir(path, syscall.GENERIC_READ|syscall.GENERIC_WRITE, createDisposition)
@@ -344,7 +340,7 @@ func (w *LegacyLayerWriter) Add(name string, fileInfo *winio.FileBasicInfo) erro
 		return err
 	}
 
-	if !strings.HasPrefix(name, `Files\`) {
+	if strings.HasPrefix(name, `Hives\`) {
 		w.backupWriter = winio.NewBackupFileWriter(f, false)
 	} else {
 		if !w.isTP4Format {
