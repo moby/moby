@@ -15,4 +15,10 @@ const (
 
 	// DefaultBridge label
 	DefaultBridge = "com.docker.network.bridge.default_bridge"
+
+	// ChildEndpoints for links
+	ChildEndpoints = "com.docker.network.bridge.child_endpoints"
+
+	// ParentEndpoints for links
+	ParentEndpoints = "com.docker.network.bridge.parent_endpoints"
 )
