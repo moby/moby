@@ -41,6 +41,8 @@ type Volume interface {
 	Mount() (string, error)
 	// Unmount unmounts the volume when it is no longer in use.
 	Unmount() error
+	// Status returns low-level status information about a volume
+	Status() map[string]interface{}
 }
 
 // MountPoint is the intersection point between a volume and a container. It

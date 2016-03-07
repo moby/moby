@@ -2792,7 +2792,8 @@ Create a volume
     {
       "Name": "tardis",
       "Driver": "local",
-      "Mountpoint": "/var/lib/docker/volumes/tardis"
+      "Mountpoint": "/var/lib/docker/volumes/tardis",
+      "Status": null
     }
 
 Status Codes:

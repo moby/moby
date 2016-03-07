@@ -24,6 +24,9 @@ func (NoopVolume) Mount() (string, error) { return "noop", nil }
 // Unmount unmounts the volume from the container
 func (NoopVolume) Unmount() error { return nil }
 
+// Status proivdes low-level details about the volume
+func (NoopVolume) Status() map[string]interface{} { return nil }
+
 // FakeVolume is a fake volume with a random name
 type FakeVolume struct {
 	name       string
@@ -49,6 +52,9 @@ func (FakeVolume) Mount() (string, error) { return "fake", nil }
 
 // Unmount unmounts the volume from the container
 func (FakeVolume) Unmount() error { return nil }
+
+// Status proivdes low-level details about the volume
+func (FakeVolume) Status() map[string]interface{} { return nil }
 
 // FakeDriver is a driver that generates fake volumes
 type FakeDriver struct {

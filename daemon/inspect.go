@@ -206,6 +206,7 @@ func (daemon *Daemon) VolumeInspect(name string) (*types.Volume, error) {
 	}
 	apiV := volumeToAPIType(v)
 	apiV.Mountpoint = v.Path()
+	apiV.Status = v.Status()
 	return apiV, nil
 }
 
