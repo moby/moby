@@ -70,9 +70,17 @@ func (l *tarexporter) parseNames(names []string) (map[image.ID]*imageDescriptor,
 	}
 
 	for _, name := range names {
-		ref, err := reference.ParseNamed(name)
+		id, ref, err := reference.ParseIDOrReference(name)
 		if err != nil {
 			return nil, err
+		}
+		if id != "" {
+			_, err := l.is.Get(image.ID(id))
+			if err != nil {
+				return nil, err
+			}
+			addAssoc(image.ID(id), nil)
+			continue
 		}
 		if ref.Name() == string(digest.Canonical) {
 			imgID, err := l.is.Search(name)

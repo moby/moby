@@ -155,6 +155,19 @@ func IsNameOnly(ref Named) bool {
 	return true
 }
 
+// ParseIDOrReference parses string for a image ID or a reference. ID can be
+// without a default prefix.
+func ParseIDOrReference(idOrRef string) (digest.Digest, Named, error) {
+	if err := v1.ValidateID(idOrRef); err == nil {
+		idOrRef = "sha256:" + idOrRef
+	}
+	if dgst, err := digest.ParseDigest(idOrRef); err == nil {
+		return dgst, nil, nil
+	}
+	ref, err := ParseNamed(idOrRef)
+	return "", ref, err
+}
+
 // splitHostname splits a repository name to hostname and remotename string.
 // If no valid hostname is found, the default hostname is used. Repository name
 // needs to be already validated before.

@@ -20,7 +20,6 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/distribution/digest"
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/container"
@@ -1267,25 +1266,25 @@ func (daemon *Daemon) ImageHistory(name string) ([]*types.ImageHistory, error) {
 // GetImageID returns an image ID corresponding to the image referred to by
 // refOrID.
 func (daemon *Daemon) GetImageID(refOrID string) (image.ID, error) {
-	// Treat as an ID
-	if id, err := digest.ParseDigest(refOrID); err == nil {
+	id, ref, err := reference.ParseIDOrReference(refOrID)
+	if err != nil {
+		return "", err
+	}
+	if id != "" {
 		if _, err := daemon.imageStore.Get(image.ID(id)); err != nil {
 			return "", ErrImageDoesNotExist{refOrID}
 		}
 		return image.ID(id), nil
 	}
 
-	// Treat it as a possible tag or digest reference
-	if ref, err := reference.ParseNamed(refOrID); err == nil {
-		if id, err := daemon.referenceStore.Get(ref); err == nil {
-			return id, nil
-		}
-		if tagged, ok := ref.(reference.NamedTagged); ok {
-			if id, err := daemon.imageStore.Search(tagged.Tag()); err == nil {
-				for _, namedRef := range daemon.referenceStore.References(id) {
-					if namedRef.Name() == ref.Name() {
-						return id, nil
-					}
+	if id, err := daemon.referenceStore.Get(ref); err == nil {
+		return id, nil
+	}
+	if tagged, ok := ref.(reference.NamedTagged); ok {
+		if id, err := daemon.imageStore.Search(tagged.Tag()); err == nil {
+			for _, namedRef := range daemon.referenceStore.References(id) {
+				if namedRef.Name() == ref.Name() {
+					return id, nil
 				}
 			}
 		}
