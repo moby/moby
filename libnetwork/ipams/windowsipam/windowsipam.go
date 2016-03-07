@@ -6,6 +6,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/discoverapi"
 	"github.com/docker/libnetwork/ipamapi"
+	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/types"
 )
 
@@ -64,14 +65,19 @@ func (a *allocator) ReleasePool(poolID string) error {
 // RequestAddress returns an address from the specified pool ID.
 // Always allocate the 0.0.0.0/32 ip if no preferred address was specified
 func (a *allocator) RequestAddress(poolID string, prefAddress net.IP, opts map[string]string) (*net.IPNet, map[string]string, error) {
-	log.Debugf("RequestAddress(%s, %v, %v) %s", poolID, prefAddress, opts, opts["RequestAddressType"])
+	log.Debugf("RequestAddress(%s, %v, %v)", poolID, prefAddress, opts)
 	_, ipNet, err := net.ParseCIDR(poolID)
 
 	if err != nil {
 		return nil, nil, err
 	}
-	if prefAddress == nil {
+
+	// TODO Windows: Remove this once the bug in docker daemon is fixed
+	// that causes it to throw an exception on nil gateway
+	if opts[ipamapi.RequestAddressType] == netlabel.Gateway {
 		return ipNet, nil, nil
+	} else if prefAddress == nil {
+		return nil, nil, nil
 	}
 	return &net.IPNet{IP: prefAddress, Mask: ipNet.Mask}, nil, nil
 }

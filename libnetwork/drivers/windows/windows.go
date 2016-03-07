@@ -186,8 +186,11 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}, ipV4Dat
 
 		for _, ipData := range ipV4Data {
 			subnet := hcsshim.Subnet{
-				AddressPrefix:  ipData.Pool.String(),
-				GatewayAddress: ipData.Gateway.IP.String(),
+				AddressPrefix: ipData.Pool.String(),
+			}
+
+			if ipData.Gateway != nil {
+				subnet.GatewayAddress = ipData.Gateway.IP.String()
 			}
 
 			subnets = append(subnets, subnet)
